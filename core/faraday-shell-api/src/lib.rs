@@ -846,14 +846,17 @@ pub struct Frame<'a> {
 }
 
 /// A frame in parts, for a shell to copy into its window once each, so
-/// no pixel is copied twice: `base` is the window's whole frame but for
-/// the rectangle `inner` covers, whose own frame stands there with its
-/// top-left at (`x`, `y`) in `base`'s pixels. What `inner` covers of
-/// `base` is never read. A frame drawn whole has no `inner`.
+/// no pixel is copied twice: `base` is the window's frame from its row
+/// `base_y` down, as wide as the window, but for the rectangle `inner`
+/// covers, whose own frame stands there with its top-left at (`x`, `y`)
+/// in the window's pixels. What `inner` covers of `base` is never read.
+/// A frame drawn whole has no `inner` and its `base_y` is 0.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Parts<'a> {
-    /// The window's frame.
+    /// The window's frame, or its foot from row `base_y` down.
     pub base: Frame<'a>,
+    /// The window's row `base`'s first row stands on.
+    pub base_y: u16,
     /// A frame standing over `base`, and its top-left there.
     pub inner: Option<(Frame<'a>, u16, u16)>,
 }
@@ -883,6 +886,7 @@ pub trait App {
     fn parts(&mut self) -> Parts<'_> {
         Parts {
             base: self.frame(),
+            base_y: 0,
             inner: None,
         }
     }

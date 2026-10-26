@@ -69,10 +69,22 @@ pub const FADE_GAPS_KEPT: usize = 9;
 /// How many gaps must be known before a machine is judged too slow to
 /// fade.
 pub const FADE_GAPS_KNOWN: usize = 5;
-/// How long a gap between a fade's steps is remembered: a machine that
-/// was busy for a moment fades again once its slow steps are this far
-/// past, and one that is slow every time tries a fade no more often.
+/// How long a gap between a fade's steps is remembered while fades are
+/// on: a slow step this far past no longer counts towards turning them
+/// off.
 pub const FADE_GAPS_FRESH_MS: u64 = 30_000;
+/// Fades turned off stay off at least this long, however fast the frames
+/// after, so the gate cannot flap from one change of screen to the next.
+pub const FADE_HOLD_MS: u64 = 10_000;
+/// Fades turned off come back on only after this many frames in a row,
+/// each drawn within [`FADE_GAP_MS`] of the one before: a sustained run
+/// of frames the machine shows fast, not one fast frame. A frame further
+/// apart breaks the run; a pause longer than [`FADE_PAUSE_MS`] neither
+/// counts nor breaks it.
+pub const FADE_ON_RUN: u16 = 24;
+/// A gap between two frames longer than this is a pause, not a slow
+/// frame: nothing was moving.
+pub const FADE_PAUSE_MS: u64 = 100;
 /// The step the fade's first frame after the change is taken to be.
 pub const FADE_FIRST_STEP_MS: u64 = 16;
 

@@ -4,7 +4,7 @@
 **Status:** Built; the glyph cache measured (§3.8). The web demo's part is in the website's own repository.
 **Open:** the glyph cache's least-recently-used eviction (§3.8), not scheduled: measured, a frame drawn again never misses, and a dense panel clears once in about ten screen visits.
 
-§2 and §7 are standing rules; §3.3, §8.3 and §9 to §11 say what holds now.
+§2 and §7 are standing rules; §3.3, §8.3 and §9 to §12 say what holds now.
 
 The owner's report: on a slow laptop Faraday became very slow in the
 later stages of setting up a multisig wallet, the backups especially,
@@ -698,3 +698,87 @@ and the budget test names it. The desktop app's shell reads the
 Downloads folder and the cameras on a thread of its own (`watch_listing`
 in `faraday/shells/desktop/src/main.rs`), as the Starter does; the window's
 thread takes the newest listing, a lookup. Done.
+
+## 12. Faraday Demo and the Starter at rest (2026-10-26)
+
+The owner measured both apps standing idle on the laptop (Wayland,
+scale 1.5, a window 1892 × 2085 pixels): the Starter 0.2 % of a core,
+no frames, 68.5 MiB resident; Faraday Demo 50–56 % of a core, 22–49
+frames a second that never settled, 76–78 MiB, each frame 1.6–4.3 ms
+to draw and 12.5–29.8 ms to copy and present; and its fades played for
+a few changes, stopped, and came back a while later.
+
+**Fixed.**
+
+1. A tick asks for a frame only for what moves. The host's tick fell
+   through to a request for a frame, and on Wayland every redraw sends
+   a tick, so the Demo drew for ever; it now asks only while its own
+   menu moves (`docs/DESKTOP-HOST.md` §9). The Starter's tick passes to
+   the app it holds and asks for nothing of its own; Faraday alone asks
+   for nothing at rest (§8).
+2. The host holds the strip alone at the window's own size with nothing
+   open, not a canvas the window's size (`docs/DESKTOP-HOST.md` §9).
+   The Starter's frosted page under a sheet is dropped by the first
+   frame with no sheet (§11.2), as before.
+3. The window's copy (`faraday-window` `view.rs`, the Demo's and the
+   Starter's) keeps a hash of each row it gave the window's last two
+   buffers (`Shown`): a row the buffer already holds is not converted
+   again, and only the rows that differ from the frame last presented
+   are given to the compositor as damage (`present_with_damage`), a
+   row where nothing changed. Each pixel is read as one word and
+   shifted. A buffer of unknown age, a new size or a failed present
+   takes the whole frame.
+4. The fade gate cannot flap (`docs/MOTION.md` §3.5): fades turn off
+   on a median of slow steps as before, but come back only after 10 s
+   and 24 frames in a row each within 35 ms of the last, where before
+   the slow steps were forgotten after 30 s and the next change faded
+   again. On the laptop the Demo's frames, drawn all the time and each
+   taking 14–34 ms, would come two refreshes apart or more, past 35 ms,
+   so a fade's median step went over, fades went off, and 30 s later
+   they were on again.
+
+**Measured** (the build machine and the laptop, release, best of 30,
+one 1892 × 2085 frame of Faraday on Home; a probe kept outside the
+repository):
+
+| | build machine | laptop |
+| --- | --- | --- |
+| Idle ticks asking for a frame, of 200, Demo, at 1892 × 2085, 2560 × 1600, 3840 × 2160 and 1280 × 800 | 200 before, 0 after | not run |
+| A plain copy of the pixels, the floor | 0.23 ns a pixel | 0.22 |
+| The copy a byte at a time, before | 0.46–0.81 | 0.92–0.98 |
+| A pixel read as one word, after | 0.43–0.74 | 0.76 |
+| A frame the same as the buffer's, after: hashed, nothing converted | 0.30–0.46 | 0.43 |
+| Every row changed, after: hashed and converted | 0.76–1.54 | 1.17 |
+
+The build machine's spread is its other work at the time. A frame where
+every row changes, a fade's step, costs about a quarter more to copy
+than before (1.17 against 0.92 ns a pixel on the laptop, 4.6 ms against
+3.6 at that size); a frame where little changes, a hover or a menu,
+converts only the rows that changed and the compositor takes only those.
+The buffers the Demo holds at that size: the host's canvases 709 KiB
+(15,409 before), the app's canvas about 14.4 MiB, the window's two
+Wayland buffers 16 MiB each; about 47 MiB where they were about 61.
+The new code has not been run on the laptop as an app: what an idle
+Demo costs there now is not measured.
+
+**Tested.** `desktop_host::an_idle_demo_asks_for_no_frame_at_any_size`
+(five window sizes, motion on and off, This window and the Pi preview:
+none of 300 ticks asks), `a_menu_closing_moves_to_its_end_and_then_the_window_rests`,
+`at_the_windows_own_size_with_nothing_open_the_host_holds_only_the_strip`,
+`the_window_shows_the_same_with_the_apps_frame_copied_into_it_once`
+(the strip on its own canvas gives the window the same pixels);
+`view::tests` (the copy gives every pixel the copy a byte at a time
+gave; the app above and the strip at the foot fill the window; through
+one buffer and through two taken in turn, 400 frames each with a few
+rows changed, the buffer shown holds every frame whole and the damage
+is exactly the rows that changed; a new size or a buffer of unknown age
+takes the whole frame); `fade::tests` and
+`transitions::a_machine_slow_for_a_while_fades_again_once_its_frames_come_fast`
+(slow steps turn fades off; one fast frame, a short run or a run a
+frame short does not bring them back, nor does waiting; a run of 24
+after the hold does; frames at 60 Hz with a missed refresh, or at
+30 Hz, never turn them off).
+
+The stick and the Pi share none of 1 to 3: their shell holds Faraday
+without the host, writes only the rows that changed (§11.1) and does
+not use `faraday-window`. They share 4, the gate being Faraday's own.

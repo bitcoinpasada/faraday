@@ -37,11 +37,22 @@ pub(crate) struct Fade {
     /// each with the tick it was taken at, oldest first: how fast this
     /// machine shows a fade. Only steps that blend the two kept frames
     /// are timed, so what a screen costs to draw, and the frame a change
-    /// is drawn on, never count; their median is what counts, and gaps
-    /// older than `motion::FADE_GAPS_FRESH_MS` are forgotten, so a run
-    /// of slow ones, the machine busy for a moment, does not turn fades
-    /// off for good.
+    /// is drawn on, never count; their median is what turns fades off,
+    /// and gaps older than `motion::FADE_GAPS_FRESH_MS` no longer count.
+    /// Emptied when fades turn off or back on.
     gaps: Vec<(u64, u16)>,
+    /// When the gaps turned fades off; `None` while they are on. Off,
+    /// they stay off at least `motion::FADE_HOLD_MS` and come back only
+    /// after `motion::FADE_ON_RUN` frames in a row each within
+    /// `motion::FADE_GAP_MS` of the one before (`Fade::shown`): the gate
+    /// turns on and off on different evidence, so it cannot flap.
+    off: Option<u64>,
+    /// While fades are off, the frames in a row drawn within
+    /// `motion::FADE_GAP_MS` of the one before.
+    run: u16,
+    /// The tick of the last frame drawn or blended, for the gap to the
+    /// next.
+    shown_at: Option<u64>,
     /// What fades have done since a shell's timings last took it
     /// (`Faraday::take_fade_counts`).
     counts: FadeCounts,
@@ -97,6 +108,9 @@ impl Fade {
         self.frost = None;
         self.restart();
         self.gaps.clear();
+        self.off = None;
+        self.run = 0;
+        self.shown_at = None;
     }
 
     /// The frosted page kept for `key`, taken out to be used by the
@@ -147,19 +161,63 @@ impl Fade {
     }
 
     /// Whether a change fades, given reduce motion: not with it, and not
-    /// on a machine whose last fades' steps came too far apart for a
-    /// fade to read as one rather than as steps. Until a few steps have
-    /// been timed lately, it does.
-    fn fades(&self, reduce_motion: bool, now_ms: u64) -> bool {
-        if reduce_motion {
-            return false;
+    /// while the gaps between fades' steps have turned fades off
+    /// ([`Fade::step_timed`]). Until a few steps have been timed, it does.
+    fn fades(&self, reduce_motion: bool) -> bool {
+        !reduce_motion && self.off.is_none()
+    }
+
+    /// A step of a fade came `gap` ms after the one before it, at
+    /// `now_ms`: kept with the last few, and fades turned off where the
+    /// median of those still fresh, once a few are known, is wider than
+    /// `motion::FADE_GAP_MS`. A sort of the few gaps kept.
+    fn step_timed(&mut self, now_ms: u64, gap: u16) {
+        if self.gaps.len() == motion::FADE_GAPS_KEPT {
+            self.gaps.remove(0);
+        }
+        self.gaps.push((now_ms, gap));
+        if self.off.is_some() {
+            return;
         }
         let mut gaps = self.fresh_gaps(now_ms);
         if gaps.len() < motion::FADE_GAPS_KNOWN {
-            return true;
+            return;
         }
         gaps.sort_unstable();
-        f32::from(gaps[gaps.len() / 2]) <= motion::FADE_GAP_MS
+        if f32::from(gaps[gaps.len() / 2]) > motion::FADE_GAP_MS {
+            self.off = Some(now_ms);
+            self.run = 0;
+            self.gaps.clear();
+        }
+    }
+
+    /// A frame was drawn or blended at `now_ms`. While fades are off, its
+    /// gap from the one before counts towards turning them back on: within
+    /// `motion::FADE_GAP_MS` it lengthens the run of fast frames, wider
+    /// breaks it, and a pause (over `motion::FADE_PAUSE_MS`) does neither;
+    /// a run of `motion::FADE_ON_RUN` once fades have been off
+    /// `motion::FADE_HOLD_MS` turns them on again.
+    pub(crate) fn shown(&mut self, now_ms: u64) {
+        let last = self.shown_at.replace(now_ms);
+        let Some(since) = self.off else {
+            return;
+        };
+        let Some(gap) = last.map(|l| now_ms.saturating_sub(l)).filter(|&g| g > 0) else {
+            return;
+        };
+        if gap > motion::FADE_PAUSE_MS {
+            return;
+        }
+        if gap as f32 > motion::FADE_GAP_MS {
+            self.run = 0;
+            return;
+        }
+        self.run = self.run.saturating_add(1);
+        if self.run >= motion::FADE_ON_RUN && now_ms.saturating_sub(since) >= motion::FADE_HOLD_MS {
+            self.off = None;
+            self.run = 0;
+            self.gaps.clear();
+        }
     }
 }
 
@@ -234,8 +292,10 @@ impl Faraday {
     /// way, the new frame is kept aside and the canvas shows it part of
     /// the way from the old, and the frame asks for the next step, so the
     /// shell keeps drawing from the first one. Costs a blend of the whole
-    /// canvas while a fade is under way.
+    /// canvas while a fade is under way. The frame is timed for the gate
+    /// (`Fade::shown`).
     pub(crate) fn fade_end(&mut self, canvas: &mut Canvas) {
+        self.fade.shown(self.now_ms);
         let Some((before, at)) = &self.fade.from else {
             return;
         };
@@ -258,19 +318,20 @@ impl Faraday {
     /// from the one before it for [`Self::fades`].
     pub(crate) fn fade_step(&mut self) {
         self.fade.due = false;
-        let (Some(canvas), Some((before, at))) = (self.canvas.as_mut(), self.fade.from.as_ref())
-        else {
+        self.fade.shown(self.now_ms);
+        if self.canvas.is_none() || self.fade.from.is_none() {
             return;
-        };
+        }
         if let Some(last) = self.fade.step_at
             && self.now_ms > last
         {
             let gap = (self.now_ms - last).min(1000) as u16;
-            if self.fade.gaps.len() == motion::FADE_GAPS_KEPT {
-                self.fade.gaps.remove(0);
-            }
-            self.fade.gaps.push((self.now_ms, gap));
+            self.fade.step_timed(self.now_ms, gap);
         }
+        let (Some(canvas), Some((before, at))) = (self.canvas.as_mut(), self.fade.from.as_ref())
+        else {
+            return;
+        };
         self.fade.step_at = Some(self.now_ms);
         self.fade.counts.steps += 1;
         let (t, over) = at.map_or((0.0, false), |at| self.fade.blend(Some(at), self.now_ms));
@@ -307,10 +368,121 @@ impl Faraday {
     }
 
     /// Whether a change of screen or sheet fades in: not with reduce
-    /// motion, and not on a machine whose last fades' steps came too far
-    /// apart for a fade to read as one rather than as steps. Until a few
-    /// steps have been timed lately, it does.
+    /// motion, and not on a machine whose fades' steps lately came too
+    /// far apart for a fade to read as one rather than as steps, until it
+    /// has shown a run of frames fast enough again (`Fade::shown`).
+    /// Until a few steps have been timed, it does.
     pub(crate) fn fades(&self) -> bool {
-        self.fade.fades(self.settings.reduce_motion(), self.now_ms)
+        self.fade.fades(self.settings.reduce_motion())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Fade;
+    use crate::motion;
+
+    /// A fade's steps `gap` ms apart after `now`, each one shown; returns
+    /// the time of the last.
+    fn fade_steps(f: &mut Fade, mut now: u64, gap: u64, steps: usize) -> u64 {
+        for _ in 0..steps {
+            now += gap;
+            f.step_timed(now, gap as u16);
+            f.shown(now);
+        }
+        now
+    }
+
+    /// `n` frames drawn `gap` ms apart after `now`, none a fade's step;
+    /// returns the time of the last.
+    fn frames(f: &mut Fade, mut now: u64, gap: u64, n: u16) -> u64 {
+        for _ in 0..n {
+            now += gap;
+            f.shown(now);
+        }
+        now
+    }
+
+    /// Fades turned off by a fade whose steps came 50 ms apart; returns
+    /// when they turned off, at the fifth step, and when it ended.
+    fn slow_fade(f: &mut Fade) -> (u64, u64) {
+        let end = fade_steps(f, 1_000, 50, 9);
+        assert!(!f.fades(false), "a slow fade turns fades off");
+        (1_250, end)
+    }
+
+    #[test]
+    fn a_run_of_slow_steps_turns_fades_off() {
+        let mut f = Fade::default();
+        assert!(f.fades(false), "on until a few steps are timed");
+        slow_fade(&mut f);
+    }
+
+    #[test]
+    fn frames_at_a_screens_refresh_never_turn_fades_off() {
+        // At 60 Hz with a refresh missed now and then, and at 30 Hz:
+        // fades of nine steps, two seconds apart, for an hour.
+        let paces: [&[u64]; 2] = [&[17, 16, 17, 33, 17, 16, 17, 17, 16], &[33, 34, 33]];
+        for gaps in paces {
+            let mut f = Fade::default();
+            let mut now = 1_000;
+            for i in 0..16_200 {
+                now = fade_steps(&mut f, now, gaps[i % gaps.len()], 1);
+                if i % 9 == 8 {
+                    now += 2_000;
+                }
+            }
+            assert!(f.fades(false), "steps {gaps:?} ms apart leave fades on");
+        }
+    }
+
+    #[test]
+    fn fades_turned_off_do_not_come_back_on_one_fast_frame() {
+        let mut f = Fade::default();
+        let (off, _) = slow_fade(&mut f);
+        // The first frame after a pause, then one fast one.
+        let now = frames(&mut f, off + motion::FADE_HOLD_MS, 16, 2);
+        assert!(!f.fades(false), "one fast frame");
+        let now = frames(&mut f, now, 16, 5);
+        let now = frames(&mut f, now, 50, 1);
+        assert!(!f.fades(false), "a short run, broken by a slow frame");
+        frames(&mut f, now, 16, motion::FADE_ON_RUN - 1);
+        assert!(!f.fades(false), "a run a frame short");
+    }
+
+    #[test]
+    fn fades_stay_off_a_while_however_fast_the_frames() {
+        let mut f = Fade::default();
+        let (off, end) = slow_fade(&mut f);
+        // Every refresh from the fade's end to just before the hold's.
+        let n = ((off + motion::FADE_HOLD_MS - end) / 16 - 1) as u16;
+        frames(&mut f, end, 16, n);
+        assert!(!f.fades(false), "held off {} ms", motion::FADE_HOLD_MS);
+    }
+
+    #[test]
+    fn fades_come_back_after_a_sustained_run_of_fast_frames() {
+        let mut f = Fade::default();
+        let (off, _) = slow_fade(&mut f);
+        // Nothing drawn until the hold is over; then a frame after that
+        // pause, a run, a pause in it, which neither counts nor breaks
+        // it, and the rest of it.
+        let half = motion::FADE_ON_RUN / 2;
+        let now = frames(&mut f, off + motion::FADE_HOLD_MS, 16, half + 1);
+        let now = frames(&mut f, now + 5_000, 16, motion::FADE_ON_RUN - half);
+        assert!(!f.fades(false), "a frame short of the run");
+        let now = frames(&mut f, now, 16, 1);
+        assert!(f.fades(false), "back on after the run");
+        // A slow fade after turns them off again, judged on its own
+        // steps alone.
+        let now = fade_steps(&mut f, now + 1_000, 50, 4);
+        assert!(f.fades(false), "four steps are too few to judge");
+        fade_steps(&mut f, now, 50, 1);
+        assert!(!f.fades(false));
+    }
+
+    #[test]
+    fn with_reduce_motion_nothing_fades() {
+        assert!(!Fade::default().fades(true));
     }
 }

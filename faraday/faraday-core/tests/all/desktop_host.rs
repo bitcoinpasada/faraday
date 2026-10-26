@@ -619,9 +619,12 @@ fn in_the_pi_preview_samples_sheet_stands_beside_the_frame_and_a_press_beside_it
 /// The window's pixels as a shell shows `parts`: the base, the inner
 /// frame copied over it where it stands.
 fn shown(parts: &faraday_shell_api::Parts<'_>) -> Vec<u8> {
-    let mut out = parts.base.rgba.to_vec();
+    let (bw, by) = (usize::from(parts.base.width), usize::from(parts.base_y));
+    let bh = usize::from(parts.base.height);
+    let mut out = vec![0; bw * (by + bh) * 4];
+    out[by * bw * 4..].copy_from_slice(parts.base.rgba);
     if let Some((f, x, y)) = parts.inner {
-        let (bw, fw) = (usize::from(parts.base.width), usize::from(f.width));
+        let fw = usize::from(f.width);
         for r in 0..usize::from(f.height) {
             let at = ((usize::from(y) + r) * bw + usize::from(x)) * 4;
             out[at..at + fw * 4].copy_from_slice(&f.rgba[r * fw * 4..(r + 1) * fw * 4]);
@@ -928,4 +931,105 @@ fn at_a_phone_width_the_strip_scrolls_sideways_and_its_end_is_reached() {
     let (m1, ..) = host.offered_area(more).expect("More");
     assert!(m1 < m0, "dragged: More from {m0} to {m1}");
     assert_eq!(host.menu_open(), None, "the drag opened nothing");
+}
+
+/// Ticks `n` times `step` ms apart after `from` as the shell does, a
+/// frame drawn for each tick that asks for one; returns how many asked
+/// and the time of the last tick.
+fn ticks(host: &mut Host, from: u64, step: u64, n: u64) -> (u64, u64) {
+    let mut asked = 0;
+    let mut now = from;
+    for _ in 0..n {
+        now += step;
+        host.event(Event::Tick { now_ms: now });
+        let mut draw = false;
+        while let Some(c) = host.poll_command() {
+            draw |= matches!(c, Command::Draw);
+        }
+        if draw {
+            asked += 1;
+            let _ = host.parts();
+            while host.poll_command().is_some() {}
+        }
+    }
+    (asked, now)
+}
+
+#[test]
+fn an_idle_demo_asks_for_no_frame_at_any_size() {
+    for size in [
+        (1280, 800),
+        (1366, 768),
+        (1920, 1080),
+        (390, 844),
+        (268, 600),
+    ] {
+        for motion in [false, true] {
+            let mut shell = Shell::default();
+            let mut host = desktop(&mut shell, 2, true, size);
+            host.app.press(Action::ReduceMotion(!motion));
+            // Settled: what the press asked for drawn.
+            let start = host.app.now_ms();
+            let (_, now) = ticks(&mut host, start, 16, 60);
+            let (asked, now) = ticks(&mut host, now, 16, 300);
+            assert_eq!(
+                asked, 0,
+                "at {size:?}, motion {motion}: frames asked at rest"
+            );
+            // The same in the Pi preview, framed in the window.
+            click(&mut host, HostPress::Menu(HostMenu::Size));
+            let (_, now) = ticks(&mut host, now, 16, 60);
+            click(&mut host, HostPress::Size(Some(PI)));
+            let (_, now) = ticks(&mut host, now, 16, 60);
+            let (asked, _) = ticks(&mut host, now, 16, 300);
+            assert_eq!(asked, 0, "at {size:?} in the Pi preview, motion {motion}");
+        }
+    }
+}
+
+#[test]
+fn a_menu_closing_moves_to_its_end_and_then_the_window_rests() {
+    let mut shell = Shell::default();
+    let mut host = desktop(&mut shell, 2, true, (1280, 800));
+    host.app.press(Action::ReduceMotion(false));
+    let start = host.app.now_ms();
+    let (_, now) = ticks(&mut host, start, 16, 60);
+    click(&mut host, HostPress::Menu(HostMenu::Size));
+    // It opens over its time, a frame each tick, then rests.
+    let (opening, now) = ticks(&mut host, now, 16, 60);
+    assert!(opening >= 10, "the menu opened over {opening} frames");
+    assert!(opening < 30, "and then rested");
+    let (asked, now) = ticks(&mut host, now, 16, 100);
+    assert_eq!(asked, 0, "open, at rest");
+    let rows = host.strip_texts().len();
+    host.event(Event::Back);
+    while host.poll_command().is_some() {}
+    let _ = host.parts();
+    let (closing, now) = ticks(&mut host, now, 16, 60);
+    assert!(closing >= 5, "it closed over {closing} frames");
+    assert!(closing < 30, "and then rested");
+    assert_eq!(host.menu_open(), None);
+    assert!(host.strip_texts().len() < rows, "its rows are gone");
+    let (asked, _) = ticks(&mut host, now, 16, 200);
+    assert_eq!(asked, 0, "closed, at rest");
+}
+
+#[test]
+fn at_the_windows_own_size_with_nothing_open_the_host_holds_only_the_strip() {
+    for (w, h) in [(1280u16, 800u16), (1920, 1080)] {
+        let mut shell = Shell::default();
+        let mut host = desktop(&mut shell, 2, true, (w, h));
+        let window = usize::from(w) * usize::from(h) * 4;
+        let strip = usize::from(w) * STRIP as usize * 4;
+        let _ = host.parts();
+        assert_eq!(host.canvas_bytes(), strip, "at {w} × {h}: the strip alone");
+        // A menu open: the window's whole frame, given back once it is
+        // closed.
+        click(&mut host, HostPress::Menu(HostMenu::Size));
+        let _ = host.parts();
+        assert_eq!(host.canvas_bytes(), window + strip, "under the menu");
+        host.event(Event::Back);
+        let _ = host.parts();
+        assert_eq!(host.canvas_bytes(), strip, "the menu closed");
+    }
 }

@@ -1,10 +1,10 @@
 //! How changes show (`docs/MOTION.md` §3.5): a new screen fades in over
 //! the old one and is then still, and so does the Learn sheet, its tabs
 //! and its closing; at once with reduce motion, and on a machine whose
-//! fades come in steps too far apart to read as one, until a while
-//! after; a slow moment, or a page slow to draw, leaves fades on; a
-//! step card grows open and comes to rest where it would have jumped
-//! to.
+//! fades come in steps too far apart to read as one, until its frames
+//! come fast again for a while; a slow moment, or a page slow to draw,
+//! leaves fades on; a step card grows open and comes to rest where it
+//! would have jumped to.
 
 use faraday_core::ui::{Contrast, Mode, Theme, ThemeName};
 use faraday_core::{Action, Faraday, Screen, StorageEvent, testkit};
@@ -220,8 +220,24 @@ fn a_slow_moment_does_not_leave_fades_off() {
     );
 }
 
+/// The page scrolled a notch each tick, down then up, every `step` ms
+/// from `from` for `ticks` ticks, each frame drawn as a shell does;
+/// returns the time of the last tick.
+fn scrolled(app: &mut Faraday, from: u64, step: u64, ticks: u64) -> u64 {
+    let mut now = from;
+    for i in 0..ticks {
+        now = from + i * step;
+        app.event(Event::Tick { now_ms: now });
+        let dy = if (i / 8) % 2 == 0 { 48 } else { -48 };
+        app.event(Event::Wheel { x: 700, y: 400, dy });
+        while app.poll_command().is_some() {}
+        let _ = app.frame();
+    }
+    now
+}
+
 #[test]
-fn a_machine_busy_for_a_while_fades_again_once_it_is_past() {
+fn a_machine_slow_for_a_while_fades_again_once_its_frames_come_fast() {
     let mut app = shown();
     let mut now = 1_000;
     for screen in [Screen::Settings, Screen::Home] {
@@ -229,11 +245,29 @@ fn a_machine_busy_for_a_while_fades_again_once_it_is_past() {
         now = every(&mut app, now + 40, now + 400, 40);
     }
     assert!(!fades(&mut app, Action::Nav(Screen::Settings), now));
-    // Half a minute on, with nothing moving.
+    // Half a minute on, with nothing moving: time alone brings no fade
+    // back, so the gate does not flap.
     now = every(&mut app, now + 1_050, now + 33_000, 50);
     assert!(
-        fades(&mut app, Action::Nav(Screen::Home), now),
-        "the slow steps are forgotten"
+        !fades(&mut app, Action::Nav(Screen::Home), now),
+        "no fade after a wait alone"
+    );
+    // The page scrolled with its frames 40 ms apart: still none.
+    app.press(Action::Nav(Screen::Settings));
+    now = every(&mut app, now + 1_016, now + 1_400, 16);
+    now = scrolled(&mut app, now + 200, 40, 60);
+    assert!(
+        !fades(&mut app, Action::Nav(Screen::Home), now + 200),
+        "no fade after slow frames"
+    );
+    // Then a second of it a refresh apart, as a machine no longer busy
+    // shows it.
+    app.press(Action::Nav(Screen::Settings));
+    now = every(&mut app, now + 1_216, now + 1_600, 16);
+    now = scrolled(&mut app, now + 200, 16, 60);
+    assert!(
+        fades(&mut app, Action::Nav(Screen::Home), now + 200),
+        "fades again"
     );
 }
 

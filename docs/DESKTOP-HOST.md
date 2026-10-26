@@ -299,3 +299,30 @@ a key, This window and the Pi preview): at 1366 × 768 0.08, 0.11 and
 2560 × 1600 at scale 2 0.24, 0.31 and 1.31 ms before, 0.33–0.84,
 0.49–1.01 and 1.41–4.72 ms after, the spread the build machine's other
 work at the time.
+
+At rest the host asks for no frame. A tick asks for one only while a
+host menu or Samples' sheet is part of the way in or out, and for the
+frame after that shows it at rest (`Host::drawn_moving`); the app asks
+for its own through `poll_command`, and every other event the host
+takes still asks for one. Before (2026-10-26), each tick fell through
+to a request for a frame, and on Wayland every redraw sends a tick, so
+an idle Faraday Demo drew 22–49 frames a second for ever, 50–56 % of a
+core on the owner's laptop; of 200 idle ticks it asked for 200 frames,
+the app alone none. Now none of 200, at 1892 × 2085, 2560 × 1600,
+3840 × 2160 and 1280 × 800 (the probe of `docs/SPEED.md` §12).
+
+At the window's own size with nothing of the host's over the app, the
+host draws the strip alone on a canvas of its own, the window's width
+and the strip's height at the window's scale (`Host::strip`,
+`Canvas::part`), and hands it to the shell standing at the window's foot
+(`Parts::base_y`) with the app's frame above it; the canvas of the
+whole window (`Host::canvas`) is made only for a preview, under a menu
+or Samples' sheet, or for `App::frame`, and dropped again when none of
+them is shown. The host's own canvases at 1892 × 2085: 709 KiB, where
+the whole window's was 15,409 KiB; at 2560 × 1600 1,280 KiB, where it
+was 16,000 KiB. What else the window holds at that size: the app's
+canvas (about 14.4 MiB) and the window's two Wayland buffers (16 MiB
+each, softbuffer's pools), so the buffers come to about 47 MiB where
+they were about 61. The allocator may keep the room a dropped canvas
+held for the next one, so the process's resident size after a menu
+has been open can stay where it was.

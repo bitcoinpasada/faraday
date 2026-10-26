@@ -307,11 +307,20 @@ extent; a motion left from another screen or sheet is stopped.
     between each two steps of a fade that follow one another (not the
     frame that shows the change, not a frame drawn in full, not any
     other motion), keeps the last nine with when each was taken, and
-    fades while the median of those under 30 s old
-    (`motion::FADE_GAPS_FRESH_MS`) is 35 ms or under, 30 Hz or better
-    (`motion::FADE_GAP_MS`, `Faraday::fades`); with fewer than five
-    known it fades, and a new display size forgets them. A fade under
-    way runs to its end.
+    turns fades off when the median of those under 30 s old
+    (`motion::FADE_GAPS_FRESH_MS`), once five are known, is over 35 ms,
+    worse than 30 Hz (`motion::FADE_GAP_MS`, `Fade::step_timed`). Off,
+    they stay off at least 10 s (`motion::FADE_HOLD_MS`) and come back
+    only after 24 frames in a row, each drawn or blended within 35 ms of
+    the one before (`motion::FADE_ON_RUN`, `Fade::shown`): a frame
+    further apart breaks the run, a pause over 100 ms
+    (`motion::FADE_PAUSE_MS`) neither counts nor breaks it, and time
+    alone brings nothing back. Turning off and turning on take different
+    evidence and the hold keeps them apart, so the gate cannot flap from
+    one change to the next, as it did when slow gaps were simply
+    forgotten after 30 s (the desktop app, 2026-10-26: fades for a few
+    changes, then none, then back a while later). A new display size
+    starts again with fades on. A fade under way runs to its end.
 
     Why (2026-10-22, owner: fades on the sidebar's items, none on
     opening Learn, and none on switching tabs after). Each frame of a

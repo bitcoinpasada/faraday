@@ -100,7 +100,16 @@ pub struct Host {
     preview: Option<(u16, u16)>,
     /// The app's display as last told, in pixels.
     told: Option<(u16, u16)>,
+    /// The window's whole frame, made only while it is drawn whole: for a
+    /// preview, under a menu or Samples' sheet, and for [`App::frame`].
+    /// At the window's own size with nothing of the host's over the app
+    /// it is dropped, and the window is the app's frame and the strip's
+    /// ([`Host::strip`]), so the host holds no canvas the window's size.
     canvas: Option<Canvas>,
+    /// The strip alone, the window's width and the strip's height, at
+    /// the window's scale: what the host draws at the window's own size
+    /// with nothing over the app (`docs/DESKTOP-HOST.md` §9).
+    strip: Option<Canvas>,
     hits: Vec<(Rect, HostPress)>,
     pressed: Option<HostPress>,
     hovered: Option<HostPress>,
@@ -109,6 +118,9 @@ pub struct Host {
     menu: Option<(HostMenu, Option<u64>)>,
     /// The menu closing, and when it began to.
     leaving: Option<(HostMenu, u64)>,
+    /// The frame last drawn showed a menu part of the way in or out: the
+    /// next tick asks for the frame that shows it at rest.
+    drawn_moving: bool,
     /// What the strip's controls said in the frame last drawn, left to
     /// right, and the open menu's rows after them.
     labels: Vec<String>,
@@ -150,11 +162,13 @@ impl Host {
             preview: None,
             told: None,
             canvas: None,
+            strip: None,
             hits: Vec::new(),
             pressed: None,
             hovered: None,
             menu: None,
             leaving: None,
+            drawn_moving: false,
             held: Held::None,
             now: 0,
             f: 1.0,
@@ -274,6 +288,16 @@ impl Host {
         if let Some(c) = self.canvas.as_mut() {
             c.record_ink(on);
         }
+    }
+
+    /// The bytes the host's own canvases hold now: the strip's, and the
+    /// window's whole frame while it is held. A lookup.
+    pub fn canvas_bytes(&self) -> usize {
+        [&self.canvas, &self.strip]
+            .into_iter()
+            .flatten()
+            .map(|c| c.frame().rgba.len())
+            .sum()
     }
 
     /// What the host drew in the frame last drawn and where, while
@@ -566,12 +590,13 @@ impl Host {
     /// over it, the strip, a preview's edge and the menu or sheet open;
     /// the app's frame is copied into the window's where `whole`, else
     /// only for a preview or where something of the host's stands over
-    /// it. Returns where the app's frame stands where it was left out.
+    /// it. Returns where the app's frame stands where it was left out:
+    /// then only the strip is drawn, on its own canvas.
     fn paint(&mut self, whole: bool) -> Option<Area> {
         // A press made on the app itself may show or hide the roller,
         // which the strip grows for.
         self.relayout();
-        let mut canvas = self.canvas.take()?;
+        let d = self.window?;
         let area = self.area();
         // Only at the window's own size: a preview's frame is small, and
         // placing it costs less than copying the window round it in parts.
@@ -580,45 +605,98 @@ impl Host {
                 && self.preview.is_none()
                 && a.w == a.fw
                 && a.h == a.fh
-                && a.x >= 0
-                && a.y >= 0
+                && a.x == 0
+                && a.y == 0
                 && self.menu.is_none()
                 && self.leaving.is_none()
         });
+        let top = if unplaced.is_some() {
+            i32::from(d.height) - self.strip_px()
+        } else {
+            0
+        };
+        let mut canvas = self.canvas_for(&d, unplaced.is_some());
         // At the window's own size the app's frame covers all above the
         // strip, which the strip's drawing fills: only a preview needs
         // the host's space round its frame.
-        if self.preview.is_some() || area.is_none() {
-            canvas.clear(screen::Look::now(self).surround);
-        } else if self.ink_on {
-            // What the host draws this frame alone.
-            canvas.record_ink(true);
+        if let Some(c) = canvas.as_mut() {
+            if self.preview.is_some() || area.is_none() {
+                c.clear(screen::Look::now(self).surround);
+            } else if self.ink_on && unplaced.is_none() {
+                // What the host draws this frame alone.
+                c.record_ink(true);
+            }
         }
         if let Some(a) = area {
             let frame = self.app.frame();
-            if unplaced.is_none() {
-                canvas.place_scaled((a.x, a.y, a.w, a.h), &frame);
+            if unplaced.is_none()
+                && let Some(c) = canvas.as_mut()
+            {
+                c.place_scaled((a.x, a.y, a.w, a.h), &frame);
             }
         }
         let mut hits = std::mem::take(&mut self.hits);
         hits.clear();
+        if let Some(c) = canvas.as_mut()
+            && !self.bare
         {
-            let mut ui = faraday_ui::Ui::new(&mut canvas, self.f(), &mut hits, self.pressed);
+            let mut ui = faraday_ui::Ui::new(c, self.f(), &mut hits, self.pressed);
             ui.hovered = self.hovered;
-            if !self.bare {
-                let drawn = screen::draw(self, &mut ui, area, self.strip_scroll);
-                self.labels = drawn.labels;
-                self.sheet_view = drawn.sheet;
-                self.strip_max = drawn.strip_max;
-                self.strip_scroll = self.strip_scroll.min(drawn.strip_max);
-            }
+            let drawn = screen::draw(self, &mut ui, area, self.strip_scroll);
+            self.labels = drawn.labels;
+            self.sheet_view = drawn.sheet;
+            self.strip_max = drawn.strip_max;
+            self.strip_scroll = self.strip_scroll.min(drawn.strip_max);
+        }
+        // Drawn on the strip's own canvas, its presses stand where the
+        // strip stands in the window.
+        for (r, _) in &mut hits {
+            r.y += top;
         }
         self.hits = hits;
-        if self.moving() {
+        self.drawn_moving = self.moving();
+        if self.drawn_moving {
             self.out.push_back(Command::Draw);
         }
-        self.canvas = Some(canvas);
+        if unplaced.is_some() {
+            self.strip = canvas;
+        } else {
+            self.canvas = canvas;
+        }
         unplaced
+    }
+
+    /// The canvas this frame is drawn on, for the window `d`: the strip's
+    /// own where `strip_only` (none held bare, which has no strip), the
+    /// whole window's canvas dropped; else the whole window's. Costs a
+    /// canvas's allocation where it is not held at its size.
+    fn canvas_for(&mut self, d: &DisplayInfo, strip_only: bool) -> Option<Canvas> {
+        let scale = faraday_draw::Scale::for_class(d.dpi, faraday_draw::SizeClass::of(d));
+        if strip_only {
+            self.canvas = None;
+            let h = u16::try_from(self.strip_px()).ok().filter(|&h| h > 0)?;
+            let held = self
+                .strip
+                .take()
+                .filter(|c| c.width() == i32::from(d.width) && c.height() == i32::from(h));
+            return Some(held.unwrap_or_else(|| {
+                let mut c = Canvas::part(d.width, h, scale);
+                c.set_counter(crate::work::core_count);
+                c
+            }));
+        }
+        let held = self
+            .canvas
+            .take()
+            .filter(|c| c.width() == i32::from(d.width) && c.height() == i32::from(d.height));
+        Some(held.unwrap_or_else(|| {
+            let mut c = Canvas::part(d.width, d.height, scale);
+            c.record_ink(self.ink_on);
+            c.set_counter(crate::work::core_count);
+            // What no part covers is the host's own space.
+            c.clear(screen::Look::now(self).surround);
+            c
+        }))
     }
 
     /// Whether a menu is part of the way in or out.
@@ -677,13 +755,11 @@ impl App for Host {
                     return;
                 }
                 self.window = Some(d);
-                let mut canvas = Canvas::new(&d);
-                canvas.record_ink(self.ink_on);
-                // What no part covers is the host's own space.
-                canvas.clear(screen::Look::now(self).surround);
-                self.f = canvas.scale().factor();
-                canvas.set_counter(crate::work::core_count);
-                self.canvas = Some(canvas);
+                // The canvases are made at the new size when next drawn.
+                self.canvas = None;
+                self.strip = None;
+                self.f =
+                    faraday_draw::Scale::for_class(d.dpi, faraday_draw::SizeClass::of(&d)).factor();
                 self.told = None;
                 self.relayout();
             }
@@ -698,6 +774,15 @@ impl App for Host {
                     self.leaving = None;
                 }
                 self.app.event(event);
+                self.relayout();
+                // A tick asks for a frame only while the host's own menu
+                // moves, and for the one after that shows it at rest; the
+                // app asks for its own through `poll_command`. An idle
+                // window draws nothing (`docs/DESKTOP-HOST.md` §9).
+                if self.drawn_moving || self.moving() {
+                    self.out.push_back(Command::Draw);
+                }
+                return;
             }
             Event::Touch { x, y, phase } => self.touch(x, y, phase),
             Event::Hover { x, y } => {
@@ -783,26 +868,35 @@ impl App for Host {
         }
     }
 
-    /// Costs the app's frame and the strip's drawing. The window's frame
-    /// with the app's handed over unplaced at the window's own size with
-    /// nothing of the host's over it, so the shell copies each pixel once
-    /// (`docs/DESKTOP-HOST.md` §9); placed, as [`App::frame`] gives it,
-    /// where a menu or Samples' sheet stands over it and for a preview,
+    /// Costs the app's frame and the strip's drawing. At the window's own
+    /// size with nothing of the host's over the app, the app's frame
+    /// handed over unplaced and the strip's own canvas standing at the
+    /// window's foot, so the shell copies each pixel once and the host
+    /// holds no canvas the window's size (`docs/DESKTOP-HOST.md` §9);
+    /// else the window's whole frame, as [`App::frame`] gives it, where a
+    /// menu or Samples' sheet stands over the app and for a preview,
     /// whose small frame costs less to place than the window round it.
     fn parts(&mut self) -> Parts<'_> {
         let unplaced = self.paint(false);
-        let base = match self.canvas.as_ref() {
-            Some(c) => c.frame(),
-            None => Frame {
-                width: 0,
-                height: 0,
-                rgba: &[],
-            },
+        let empty = Frame {
+            width: 0,
+            height: 0,
+            rgba: &[],
         };
-        let inner = unplaced.map(|a| {
-            let at = |v: i32| v.clamp(0, i32::from(u16::MAX)) as u16;
-            (painted(&self.app), at(a.x), at(a.y))
-        });
-        Parts { base, inner }
+        let Some(a) = unplaced else {
+            let base = self.canvas.as_ref().map_or(empty, Canvas::frame);
+            return Parts {
+                base,
+                base_y: 0,
+                inner: None,
+            };
+        };
+        let at = |v: i32| v.clamp(0, i32::from(u16::MAX)) as u16;
+        let base_y = self.strip_area().map_or(at(a.h), |(_, top, _, _)| at(top));
+        Parts {
+            base: self.strip.as_ref().map_or(empty, Canvas::frame),
+            base_y,
+            inner: Some((painted(&self.app), at(a.x), at(a.y))),
+        }
     }
 }

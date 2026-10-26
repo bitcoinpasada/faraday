@@ -101,11 +101,22 @@ impl Canvas {
     /// Allocates a framebuffer for `display`. Panics on a zero-sized
     /// display; the shell must refuse those before reaching the core.
     pub fn new(display: &DisplayInfo) -> Self {
-        let pixmap = Pixmap::new(u32::from(display.width), u32::from(display.height))
-            .expect("display has non-zero size");
+        Canvas::part(
+            display.width,
+            display.height,
+            Scale::for_class(display.dpi, SizeClass::of(display)),
+        )
+    }
+
+    /// Allocates a framebuffer `width` × `height` drawn at `scale`: a
+    /// part of a display, at that display's own scale (Faraday Demo's
+    /// strip). Panics on a zero size, as [`Canvas::new`] does.
+    pub fn part(width: u16, height: u16, scale: Scale) -> Self {
+        let pixmap =
+            Pixmap::new(u32::from(width), u32::from(height)).expect("display has non-zero size");
         Canvas {
             pixmap,
-            scale: Scale::for_class(display.dpi, SizeClass::of(display)),
+            scale,
             clips: Vec::new(),
             mask: None,
             spare: Vec::new(),
