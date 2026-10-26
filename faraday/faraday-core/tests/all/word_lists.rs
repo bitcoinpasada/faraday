@@ -491,3 +491,102 @@ fn typing_on_the_sheet_marks_the_first_word_that_begins_so() {
     let _ = app.frame();
     assert!(app.offers(Action::WordList(WL::Mark(i as u16))));
 }
+
+/// The list `k` of [`LISTS`] open on the sheet, `search` typed into its
+/// field: the words it finds, the one marked, and the sheet's texts.
+fn searched(k: u8, search: &str) -> (Vec<u16>, Option<usize>, Vec<String>) {
+    let mut app = shown();
+    app.press(Action::WordList(WL::Open(k, None)));
+    for c in search.chars() {
+        app.event(Event::Key(Key::Char(c)));
+    }
+    let st = testkit::wordlist(&app).unwrap();
+    let (found, mark) = (st.found.clone(), st.mark);
+    let texts = app.drawn_texts();
+    for &i in &found {
+        assert!(
+            app.offers(Action::WordList(WL::Mark(i))),
+            "{search}: row {i} shown"
+        );
+    }
+    (found, mark, texts)
+}
+
+#[test]
+fn the_search_field_says_what_it_finds_and_shows_what_is_typed() {
+    let mut app = shown();
+    app.press(Action::WordList(WL::Open(0, None)));
+    let _ = app.frame();
+    assert!(
+        app.drawn_texts()
+            .iter()
+            .any(|t| t == "Word, number or bits")
+    );
+    app.press(Action::WordList(WL::List(1)));
+    let _ = app.frame();
+    assert!(
+        app.drawn_texts()
+            .iter()
+            .any(|t| t == "Word, number or dice")
+    );
+    let (_, _, texts) = searched(0, "zoo");
+    assert!(
+        texts.iter().any(|t| t.starts_with("zoo")),
+        "the search shown: {texts:?}"
+    );
+    assert!(texts.iter().any(|t| t == "1 found"), "{texts:?}");
+}
+
+#[test]
+fn the_search_finds_a_word_by_its_number_its_bits_or_its_dice() {
+    // BIP-39 by number: word 1024 is at index 1023; no bits begin "1024".
+    let (found, mark, _) = searched(0, "1024");
+    assert_eq!((found, mark), (vec![1023], Some(1023)));
+    // By its 11 bits: the last word.
+    let (found, mark, _) = searched(0, "11111111111");
+    assert_eq!((found, mark), (vec![2047], Some(2047)));
+    assert_eq!(Language::English.word(2047), "zoo");
+    // EFF large by its dice: 11111 is the first word, 66666 the last.
+    let large = LISTS
+        .iter()
+        .position(|l| *l == WordList::Eff(List::Large))
+        .unwrap() as u8;
+    let (found, _, _) = searched(large, "11111");
+    assert_eq!(found, vec![0]);
+    let (found, _, _) = searched(large, "66666");
+    assert_eq!(found, vec![7775]);
+    // A short list: 1111 is both word 1111 and the dice of the first word,
+    // and both are shown, in the list's order.
+    let short = LISTS
+        .iter()
+        .position(|l| *l == WordList::Eff(List::Short1))
+        .unwrap() as u8;
+    let (found, mark, _) = searched(short, "1111");
+    assert_eq!((found, mark), (vec![0, 1110], Some(0)));
+    // Letters find words that begin so, and nothing else.
+    let (found, _, _) = searched(0, "zo");
+    let words: Vec<&str> = found.iter().map(|&i| Language::English.word(i)).collect();
+    assert_eq!(words, ["zone", "zoo"]);
+}
+
+#[test]
+fn backspace_takes_the_search_back_until_every_word_shows_again() {
+    let mut app = shown();
+    app.press(Action::WordList(WL::Open(0, None)));
+    for c in "2048".chars() {
+        app.event(Event::Key(Key::Char(c)));
+    }
+    assert_eq!(testkit::wordlist(&app).unwrap().found, vec![2047]);
+    for _ in 0..4 {
+        app.event(Event::Key(Key::Backspace));
+    }
+    let st = testkit::wordlist(&app).unwrap();
+    assert_eq!(st.found.len(), 2048, "every word");
+    // "2", the last search, found word 2 first: it stays marked.
+    assert_eq!(st.mark, Some(1));
+    let _ = app.frame();
+    assert!(
+        app.offers(Action::WordList(WL::Mark(2))),
+        "the whole list, at the word marked, among its neighbours"
+    );
+}

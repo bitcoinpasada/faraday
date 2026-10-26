@@ -365,6 +365,7 @@ fn summary(k: &KeyGen, s: u8) -> String {
                 &k.words.to_string(),
             ],
         ),
+        kstep::LENGTH if !k.length_chosen => EN.keygen_not_chosen.to_string(),
         kstep::LENGTH => fill(EN.keygen_words_n, &[&k.words.to_string()]),
         kstep::SOURCE => match k.source {
             Some(Source::Dice) => k.way().map(way_name).unwrap_or_default(),
@@ -732,28 +733,22 @@ const SLIP39_FACTS: [&str; 7] = [
 
 fn length(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = y;
-    // Words or shares.
-    let mut bx = x;
-    for (label, on) in [
-        (EN.keygen_bip_39_words, false),
-        (EN.keygen_slip_39_shares, true),
-    ] {
-        let style = if k.slip39 == on {
-            Style::Primary
-        } else {
-            Style::Secondary
-        };
-        bx += ui.button(
-            bx,
-            cy,
-            None,
-            faraday_draw::tokens::TOUCH,
-            label,
-            style,
-            Action::KForm(on),
-        ) + 8.0;
-    }
-    cy += faraday_draw::tokens::TOUCH + faraday_draw::tokens::GAP;
+    // Words or shares, the second under the first where the column is
+    // too narrow for both (the Pi's panel).
+    let kinds = [
+        (
+            EN.keygen_bip_39_words,
+            picked(!k.slip39),
+            Action::KForm(false),
+        ),
+        (
+            EN.keygen_slip_39_shares,
+            picked(k.slip39),
+            Action::KForm(true),
+        ),
+    ];
+    let touch = faraday_draw::tokens::TOUCH;
+    cy += crate::screens::wrap_buttons(ui, x, cy, w, touch, &kinds);
     let used = length_counts(k, ui, x, cy, w);
     cy += used;
     if k.slip39 {
@@ -808,52 +803,113 @@ fn length(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             ) + 8.0;
         }
         cy += 4.0;
-        if next_button(
-            ui,
-            x,
-            cy,
-            w.min(760.0),
-            EN.keygen_continue,
-            Action::KWords(k.words as u8),
-        ) {
-            cy += 52.0;
+        // The shares' Continue takes the count chosen and moves on.
+        let next = Action::KWords(k.words as u8);
+        if next_button(ui, x, cy, w.min(760.0), EN.keygen_continue, next) {
+            cy += faraday_draw::tokens::TEXT_FIELD + faraday_draw::tokens::PAD;
         }
     }
     cy - y
 }
 
+/// The counts BIP-39 shows on the card; the rest are in Other's menu.
+const MAIN_COUNTS: [u8; 2] = [12, 24];
+
+/// The counts in Length's Other menu, as `(label, press)` rows.
+fn other_lengths() -> Vec<(String, Action)> {
+    crate::keygen::COUNTS
+        .iter()
+        .filter(|n| !MAIN_COUNTS.contains(n))
+        .map(|&n| {
+            (
+                fill(EN.keygen_words_n, &[&n.to_string()]),
+                Action::KWords(n),
+            )
+        })
+        .collect()
+}
+
+/// A choice on the Length card: filled once chosen, as the card's kinds
+/// have always been drawn, so the row keeps its width.
+fn picked(on: bool) -> Style {
+    if on { Style::Primary } else { Style::Secondary }
+}
+
+/// The counts: a share's two for SLIP-39, its first chosen from the
+/// start; for BIP-39 12 and 24, and Other, which opens the menu of the
+/// rest and reads the one chosen there. No BIP-39 count is chosen until
+/// the person chooses one. Returns the height used.
 fn length_counts(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+    let chosen = |n: u8| (k.slip39 || k.length_chosen) && usize::from(n) == k.words;
+    let mut buttons: Vec<(String, Style, Action)> = Vec::new();
+    if k.slip39 {
+        for &n in k.counts() {
+            let label = fill(EN.keygen_words_n, &[&n.to_string()]);
+            buttons.push((label, picked(chosen(n)), Action::KSlipWords(n)));
+        }
+    } else {
+        for n in MAIN_COUNTS {
+            let label = fill(EN.keygen_words_n, &[&n.to_string()]);
+            buttons.push((label, picked(chosen(n)), Action::KWords(n)));
+        }
+        let other = k
+            .counts()
+            .iter()
+            .copied()
+            .find(|&n| !MAIN_COUNTS.contains(&n) && chosen(n));
+        let label = other.map_or_else(
+            || EN.keygen_other_lengths.to_string(),
+            |n| fill(EN.keygen_words_n, &[&n.to_string()]),
+        );
+        buttons.push((label, picked(other.is_some()), Action::KOtherLengths));
+    }
     let mut bx = x;
     let mut y = y;
     let top = y;
-    for &n in k.counts() {
+    for (label, style, action) in buttons {
         // Wrapped to the width: a small panel takes two to a row.
         if bx > x && bx + 104.0 > x + w {
             bx = x;
             y += faraday_draw::tokens::TOUCH + faraday_draw::tokens::GAP;
         }
-        let style = if usize::from(n) == k.words {
-            // The default shows chosen from the start, as any choice
-            // shows its value (`docs/history/NEW-WALLET.md` §13.3).
-            Style::Primary
-        } else {
-            Style::Secondary
-        };
         bx += ui.button(
             bx,
             y,
             Some(104.0),
             faraday_draw::tokens::TOUCH,
-            &fill(EN.keygen_words_n, &[&n.to_string()]),
+            &label,
             style,
-            if k.slip39 {
-                Action::KSlipWords(n)
-            } else {
-                Action::KWords(n)
-            },
+            action,
         ) + 8.0;
     }
     y - top + faraday_draw::tokens::TOUCH + faraday_draw::tokens::GAP
+}
+
+/// Length's Other menu, under the button that opened it: 15, 18 and 21
+/// words, as every menu is drawn ([`crate::menu::draw`]).
+pub(crate) fn lengths_menu(app: &View, ui: &mut Ui, w: f32, h: f32) {
+    let Some(k) = app.keygen.state() else {
+        return;
+    };
+    let lines: Vec<crate::menu::Line> = other_lengths()
+        .into_iter()
+        .map(|(l, a)| crate::menu::Line::Item(l, a))
+        .collect();
+    crate::menu::draw(
+        ui,
+        w,
+        h,
+        &crate::menu::View {
+            title: EN.keygen_other_lengths,
+            icon: Icon::List,
+            lines: &lines,
+            at: 0,
+            keys: false,
+            anchor: k.lengths_at,
+            cancel: (EN.keygen_back, Action::Cancel),
+            shown: 1.0,
+        },
+    );
 }
 
 /// One choosable row: a radio mark, a name and a second line.
@@ -1296,18 +1352,20 @@ fn entries(app: &View, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         }
         Some(Source::Device) => {
             cy = device_rows(k, ui, x, cy, w);
-            // What the person adds of their own is mixed in here
-            // (`docs/OWN-RANDOMNESS.md` §2.2).
-            ui.button(
-                x,
-                cy,
-                None,
-                faraday_draw::tokens::OWN_BUTTON,
-                EN.own_add_randomness,
-                Style::Secondary,
-                Action::Own(crate::fresh::page::Act::Open),
-            );
-            cy += faraday_draw::tokens::OWN_BUTTON + faraday_draw::tokens::PAD;
+            // What the person adds of their own is mixed in here, its
+            // sources on the card itself (owner, 2026-10-25;
+            // `docs/OWN-RANDOMNESS.md` §2.2).
+            if let Some(p) = app.own_page() {
+                let at = (x, cy, w);
+                cy += crate::screens::randomness::own_sources(app, p, ui, at, true);
+                cy += faraday_draw::tokens::GAP;
+            }
+            if k.with_own {
+                let line = EN.keygen_randomness_added;
+                let size = faraday_draw::tokens::OWN_LINE_TEXT;
+                cy += ui.wrap(x, cy, w, size, W::R, Role::Ok, line);
+                cy += faraday_draw::tokens::GAP;
+            }
         }
         _ => {}
     }
@@ -1355,6 +1413,13 @@ fn entries(app: &View, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     if checked && !k.caution_lines().is_empty() {
         edits.push((again_label(k), Style::Ghost, Action::KAgain));
     }
+    // Nothing of one's own added: Skip moves on without it, a text button
+    // at the row's start, the step's filled next at its end (Material's
+    // optional step; owner, 2026-10-26).
+    if matches!(active, Some(Source::Device)) && !k.with_own && app.own_page().is_some() {
+        let skip = Action::Own(crate::fresh::page::Act::Skip);
+        edits.push((EN.keygen_skip_randomness, Style::Ghost.when(ready), skip));
+    }
     // This device's answer not in yet: the button says what it waits for
     // (F102).
     if matches!(active, Some(Source::Device)) && !ready {
@@ -1367,7 +1432,8 @@ fn entries(app: &View, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     // Words' foot button waits for the last entry.
     let next = (k.slip39 || ready).then_some((label, Action::KNext));
     cy += buttons_and_next(ui, x, cy, w, &edits, next) + 4.0;
-    if ui.compact {
+    // The Generator card's sources say their own keys.
+    if ui.compact || (active == Some(Source::Device) && app.own_page().is_some()) {
         return cy - y;
     }
     let hint = match active {
@@ -1819,14 +1885,24 @@ fn device_rows(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         (EN.create_trust_row, EN.create_trust_device, Role::Warning),
         (EN.keygen_result, EN.create_device_result, Role::Warning),
     ];
+    use faraday_draw::tokens::{GAP, GAP_SMALL, OWN_LINE_TEXT as SIZE};
+    let beside = 140.0;
     let mut cy = y;
     for (label, value, tone) in rows {
-        ui.text(x, cy, 13.0, W::R, Role::OnSurfaceVariant, label);
-        ui.text(x + 140.0, cy, 13.0, W::S, tone, value);
-        cy += 26.0;
-        ui.rule(x, cy - 6.0, w, Role::OutlineVariant);
+        ui.text(x, cy, SIZE, W::R, Role::OnSurfaceVariant, label);
+        if ui.measure(SIZE, W::S, value) <= w - beside {
+            ui.text(x + beside, cy, SIZE, W::S, tone, value);
+            cy += ui.line(SIZE, W::S);
+        } else {
+            // Too wide beside its label (the Pi's panel): under it,
+            // wrapped to the column.
+            cy += ui.line(SIZE, W::R) + GAP_SMALL;
+            cy += ui.wrap(x, cy, w, SIZE, W::S, tone, value);
+        }
+        cy += GAP;
+        ui.rule(x, cy - GAP_SMALL, w, Role::OutlineVariant);
     }
-    cy + 6.0
+    cy + GAP_SMALL
 }
 
 fn stat(ui: &mut Ui, x: f32, y: f32, label: &str, value: &str, tone: Paint) -> f32 {

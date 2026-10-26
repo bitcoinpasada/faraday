@@ -1,6 +1,8 @@
 //! `Screen::Randomness`: Add randomness (`docs/OWN-RANDOMNESS.md` §2.2).
 //! The status line, the source chosen (Camera, Dice, Coins, Cards) and
-//! its pad, New key's own, with the batch not yet added and its Add.
+//! its pad, New key's own, with the batch not yet added and its Add. New
+//! key's Generator card draws the same sources on itself
+//! ([`own_sources`]).
 
 use super::parts::{buttons_and_next, camera_row, card_pad, coin_pad, dice_pad};
 use crate::Action;
@@ -58,23 +60,43 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         Role::OnSurfaceVariant,
         &app.own_status(),
     ) + PAD;
+    y += own_sources(app, p, ui, (x, y, w), false);
+    let content = y + PAD - top;
+    crate::compact::screen::finish(app, ui, x0, cw, h, content);
+}
+
+/// The sources, the chosen one's pad and its batch from (x, y), `w`
+/// wide: on Add randomness, and on New key's Generator card (`card`),
+/// where Add stands beside Undo and Clear, the card's own step being
+/// Make the words. Returns its height.
+pub(crate) fn own_sources(
+    app: &View,
+    p: &OwnPage,
+    ui: &mut Ui,
+    (x, y, w): (f32, f32, f32),
+    card: bool,
+) -> f32 {
+    let mut cy = y;
     let sources: Vec<(&str, Action)> = SOURCES
         .iter()
         .filter(|(s, _)| *s != OwnSource::Camera || !app.cameras().is_empty() || p.wants_camera())
         .map(|&(s, label)| (label, own(Act::Source(s))))
         .collect();
+    // On the Generator card nothing is chosen until a source is pressed.
     let on = sources
         .iter()
-        .position(|&(_, a)| a == own(Act::Source(p.source())));
-    y += if ui.compact {
-        source_grid(ui, (x, y, w), &sources, on)
+        .position(|&(_, a)| a == own(Act::Source(p.source())))
+        .filter(|_| p.chosen());
+    cy += if ui.compact {
+        source_grid(ui, (x, cy, w), &sources, on)
     } else {
-        ui.choices((x, y, w, OWN_BUTTON), LABEL, &sources, on)
+        ui.choices((x, cy, w, OWN_BUTTON), LABEL, &sources, on)
     } + PAD;
-    y += pad(p, ui, x, y, w);
-    y += batch(p, ui, x, y, w);
-    let content = y + PAD - top;
-    crate::compact::screen::finish(app, ui, x0, cw, h, content);
+    if p.chosen() {
+        cy += pad(p, ui, x, cy, w);
+        cy += batch(p, ui, (x, cy, w), card);
+    }
+    cy - y
 }
 
 /// The sources on a small panel: two to a row, each half the panel, so
@@ -130,10 +152,11 @@ fn pad(p: &OwnPage, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
 }
 
 /// What a batch holds before it is added, what the last press could not
-/// do, Undo, Clear and Add, and the keys on a wide layout. A picture is
-/// added as it is taken, so the camera has none of these but the keys.
-/// Returns its height.
-fn batch(p: &OwnPage, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+/// do, Undo, Clear and Add (on a `card`, a button beside them, taking no
+/// press while the batch is empty), and the keys on a wide layout. A
+/// picture is added as it is taken, so the camera has none of these but
+/// the keys. Returns its height.
+fn batch(p: &OwnPage, ui: &mut Ui, (x, y, w): (f32, f32, f32), card: bool) -> f32 {
     let mut cy = y;
     let unit = match p.source() {
         OwnSource::Dice => Some((EN.own_dice_roll, EN.own_dice_rolls)),
@@ -158,11 +181,15 @@ fn batch(p: &OwnPage, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     }
     if unit.is_some() {
         cy += GAP_SMALL;
-        let edits = [
+        let mut edits = vec![
             (EN.keygen_undo, Style::Ghost, own(Act::Undo)),
             (EN.keygen_clear, Style::Ghost, own(Act::Clear)),
         ];
-        let next = (p.batch_len() > 0).then_some((EN.own_add, own(Act::Add)));
+        let any = p.batch_len() > 0;
+        let next = (any && !card).then_some((EN.own_add, own(Act::Add)));
+        if card {
+            edits.push((EN.own_add, Style::Tonal.when(any), own(Act::Add)));
+        }
         cy += buttons_and_next(ui, x, cy, w, &edits, next) + GAP_SMALL;
     }
     if !ui.compact {

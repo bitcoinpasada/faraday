@@ -393,6 +393,14 @@ impl Faraday {
         self.fresh.page.as_ref()
     }
 
+    /// Whether Add randomness's sources are on show: its own page, or New
+    /// key's Generator card, which offers them on itself (owner,
+    /// 2026-10-25). A lookup.
+    fn own_on_show(&self) -> bool {
+        self.screen == crate::Screen::Randomness
+            || (self.screen == crate::Screen::KeyGen && self.keygen.own_offered())
+    }
+
     /// A press on Add randomness, or one that opens it.
     pub(crate) fn own_act(&mut self, a: page::Act) {
         if a == page::Act::Open {
@@ -403,7 +411,14 @@ impl Faraday {
             self.list_offset = 0.0;
             return;
         }
-        if self.screen != crate::Screen::Randomness {
+        if !self.own_on_show() {
+            return;
+        }
+        // The Generator card's Skip: on to the words, nothing added.
+        if a == page::Act::Skip {
+            if self.screen == crate::Screen::KeyGen {
+                self.act(crate::Action::KNext);
+            }
             return;
         }
         let batch = self.fresh.page.as_mut().and_then(|p| p.act(a));
@@ -415,7 +430,7 @@ impl Faraday {
     /// A key typed on Add randomness; `false` when it is not on show or
     /// the key means nothing there.
     pub(crate) fn own_key(&mut self, key: faraday_shell_api::Key) -> bool {
-        if self.screen != crate::Screen::Randomness {
+        if !self.own_on_show() {
             return false;
         }
         match self.fresh.page.as_ref().and_then(|p| p.key(key)) {
@@ -427,13 +442,17 @@ impl Faraday {
         }
     }
 
-    /// After an input: Add randomness goes with its batches once another
-    /// screen is on show, and the camera is on while Camera is its
-    /// source. Run twice around New key's own camera, `on` false first so
-    /// the one that goes off says so before the other comes on. A lookup.
+    /// After an input: Add randomness goes with its batches once neither
+    /// its page nor New key's Generator card is on show, and comes
+    /// with the card, no source chosen, so that nothing runs unasked; the camera
+    /// is on while Camera is its source. Run twice around New key's own
+    /// camera, `on` false first so the one that goes off says so before
+    /// the other comes on. A lookup.
     pub(crate) fn own_camera(&mut self, on: bool) {
-        if self.screen != crate::Screen::Randomness {
+        if !self.own_on_show() {
             self.fresh.page = None;
+        } else if self.fresh.page.is_none() && self.screen == crate::Screen::KeyGen {
+            self.fresh.page = Some(page::OwnPage::unchosen());
         }
         let want = self
             .fresh

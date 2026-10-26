@@ -381,7 +381,7 @@ fn codex32_form(_c: &Compute, t: &mut Tour) -> Result<(), String> {
 type Part = fn(&Compute, &mut Tour) -> Result<(), String>;
 
 /// New key from Randomness on: this device's generator chosen and its
-/// entry card and its Add randomness page, then the dice transcript,
+/// entry card with dice of one's own on it, then the dice transcript,
 /// the words and the quiz.
 fn new_key(t: &mut Tour) -> Result<(), String> {
     // A way moves on to its entry card by itself (F103); Randomness,
@@ -389,18 +389,16 @@ fn new_key(t: &mut Tour) -> Result<(), String> {
     t.press(Action::KGroup(2));
     t.press(Action::KWay(Way::Device.index()));
     t.shot("guide-newkey-device-entry")?;
-    // Its Add randomness: the page on Dice with a few rolls in, then
-    // Back to the Generator card.
+    // Randomness of one's own, on the Generator card itself: Dice with
+    // a few rolls in.
     {
         use faraday_core::fresh::OwnSource;
         use faraday_core::fresh::page::Act;
-        t.press(Action::Own(Act::Open));
         t.press(Action::Own(Act::Source(OwnSource::Dice)));
         for f in [3, 1, 4, 1, 5, 2, 6, 5, 3, 5] {
             t.press(Action::Own(Act::Roll(f)));
         }
         t.shot("guide-newkey-add-randomness")?;
-        t.press(Action::Back);
     }
     t.press(Action::KStep(kstep::SOURCE));
     scroll_to(t, Action::KWay(Way::Device.index()));

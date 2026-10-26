@@ -610,8 +610,11 @@ pub enum Action {
     KStart(u8),
     /// The Start card's Other forms, shown or hidden.
     KOthers,
-    /// 12 or 24 words.
+    /// A word count pressed on the Length card: taken, and Randomness
+    /// opens; SLIP-39's Continue presses the share count chosen.
     KWords(u8),
+    /// The Length card's Other: the menu of the counts besides 12 and 24.
+    KOtherLengths,
     /// Choose an option of the Randomness card, by its place in
     /// `keygen::WAYS`.
     KWay(u8),

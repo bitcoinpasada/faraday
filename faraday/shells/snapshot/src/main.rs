@@ -193,6 +193,7 @@ fn run(
         Some("modes") => return tours::desktop::modes_tour(&mut t),
         Some("vaultshow") => return tours::vault_show::vault_show_tour(&mut t),
         Some("addkey") => return tours::add_key::add_key_tour(&mut t),
+        Some("keygen") => return tours::keygen::keygen_tour(&mut t),
         Some("codex32correct") => {
             return tours::codex32_correct::codex32_correct_tour(c, &mut t);
         }
@@ -316,6 +317,7 @@ fn main() -> ExitCode {
             "modes",
             "vaultshow",
             "addkey",
+            "keygen",
             "codex32correct",
             "createfrom",
             "inprogress",
@@ -337,7 +339,7 @@ fn main() -> ExitCode {
         .contains(&m)
     }) {
         eprintln!(
-            "the tour is spend, devices, themes, tooltips, compact, seeds, keys, visit, copy, scan, public, seedfile, vaultway, kept, again, plan, board, menu, m3, inbox, transfer, upgrade, glance, chartedit, fromvault, first, restore, osk, flow, bootplace, passseeds, power, pills, walletflow, demo, modes, vaultshow, addkey, codex32correct, createfrom, inprogress, cancel, std, parts, panes, guide, roller, randomness, dice5, codex32, codex32tour, codex32form, createshares, codex32backup or tour"
+            "the tour is spend, devices, themes, tooltips, compact, seeds, keys, visit, copy, scan, public, seedfile, vaultway, kept, again, plan, board, menu, m3, inbox, transfer, upgrade, glance, chartedit, fromvault, first, restore, osk, flow, bootplace, passseeds, power, pills, walletflow, demo, modes, vaultshow, addkey, keygen, codex32correct, createfrom, inprogress, cancel, std, parts, panes, guide, roller, randomness, dice5, codex32, codex32tour, codex32form, createshares, codex32backup or tour"
         );
         return ExitCode::from(2);
     }

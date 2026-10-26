@@ -84,9 +84,38 @@ impl WordList {
         }
     }
 
+    /// The search field's placeholder: what a search matches here.
+    pub fn search_hint(self) -> &'static str {
+        match self {
+            WordList::Bip39 => EN.wordlist_search_bits,
+            WordList::Eff(_) => EN.wordlist_search_dice,
+        }
+    }
+
     /// Its place in [`LISTS`].
     pub fn place(self) -> u8 {
         LISTS.iter().position(|l| *l == self).unwrap_or(0) as u8
+    }
+
+    /// Whether the word at `index` is found by `find`: one of the values
+    /// the sheet shows for it begins with what is typed, its word, its
+    /// number from 1, or its code (bits or dice). A comparison, the
+    /// number and the code spelled out for it.
+    pub fn found_by(self, index: usize, find: &str) -> bool {
+        if find.is_empty() {
+            return true;
+        }
+        let Some(word) = self.words().get(index) else {
+            return false;
+        };
+        if word.starts_with(find) {
+            return true;
+        }
+        if !find.bytes().all(|b| b.is_ascii_digit()) {
+            return false;
+        }
+        let number = (index + 1).to_string();
+        number.starts_with(find) || self.code(index).starts_with(find)
     }
 }
 
@@ -96,9 +125,14 @@ pub struct WordListState {
     pub list: WordList,
     /// The word marked, by its place in the list (0-based).
     pub mark: Option<usize>,
-    /// What is typed to find a word: the first word that begins with it
-    /// is marked.
+    /// What is typed in the search field: the list shows only the words
+    /// it finds ([`WordList::found_by`]), the first of them marked.
     pub find: String,
+    /// The places of the words `find` finds in the list on show, in
+    /// order; every word while nothing is typed. Worked out at every
+    /// change of `find` or of the list, and kept in step with both there
+    /// ([`WordListState::find_mark`]), so drawing only reads it.
+    pub found: Vec<u16>,
     /// Design units scrolled.
     pub scroll: f32,
     /// The furthest it can scroll, as last drawn.
@@ -176,6 +210,7 @@ impl WordListArea {
                     list,
                     mark,
                     find: String::new(),
+                    found: every(list),
                     scroll: 0.0,
                     max: 0.0,
                     follow: mark.is_some(),
@@ -189,6 +224,7 @@ impl WordListArea {
                     w.list = list;
                     w.mark = None;
                     w.find.clear();
+                    w.found = every(list);
                     w.scroll = 0.0;
                 }
             }
@@ -211,8 +247,9 @@ impl WordListArea {
         }
     }
 
-    /// Keys while the sheet is open: letters find a word, Backspace takes
-    /// one back, the arrows scroll, Escape closes it. Every key is the
+    /// Keys while the sheet is open: letters and digits go into the
+    /// search field, Backspace takes one back, the arrows scroll, Escape
+    /// closes it. Every key is the
     /// sheet's while it is open, so none reaches the screen under it.
     pub(crate) fn key(
         &mut self,
@@ -233,7 +270,7 @@ impl WordListArea {
             K::Escape => self.close(sheet),
             K::Down => glide = Some(60.0),
             K::Up => glide = Some(-60.0),
-            K::Char(c) if c.is_ascii_alphabetic() && w.find.len() < 12 => {
+            K::Char(c) if c.is_ascii_alphanumeric() && w.find.len() < FIND_MAX => {
                 w.find.push(c.to_ascii_lowercase());
                 w.find_mark();
             }
@@ -248,20 +285,30 @@ impl WordListArea {
     }
 }
 
+/// The longest search: a BIP-39 word's 11 bits, and one more.
+const FIND_MAX: usize = 12;
+
+/// Every word of `list`, by its place.
+fn every(list: WordList) -> Vec<u16> {
+    (0..list.words().len()).map(|i| i as u16).collect()
+}
+
 impl WordListState {
-    /// Marks the first word that begins with what is typed.
+    /// The words what is typed finds, worked out again, and the first of
+    /// them marked and brought into view. A pass over the list.
     fn find_mark(&mut self) {
+        let (list, find) = (self.list, self.find.as_str());
+        self.found = (0..list.words().len())
+            .filter(|&i| list.found_by(i, find))
+            .map(|i| i as u16)
+            .collect();
         if self.find.is_empty() {
             return;
         }
-        if let Some(i) = self
-            .list
-            .words()
-            .iter()
-            .position(|w| w.starts_with(self.find.as_str()))
-        {
-            self.mark = Some(i);
-            self.follow = true;
+        if let Some(&i) = self.found.first() {
+            self.mark = Some(usize::from(i));
         }
+        self.scroll = 0.0;
+        self.follow = true;
     }
 }

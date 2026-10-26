@@ -570,7 +570,7 @@ fn a_key_on_its_own_is_added_at_lock_in_and_done_waits_for_the_quiz_or_skipping_
 }
 
 #[test]
-fn fresh_new_key_opens_on_length_and_two_continues_reach_the_entries() {
+fn fresh_new_key_opens_on_length_with_no_count_and_a_count_pressed_moves_on() {
     use faraday_core::keygen::kstep;
     let mut app = faraday_core::testkit::started();
     app.press(Action::Entry(None));
@@ -581,15 +581,24 @@ fn fresh_new_key_opens_on_length_and_two_continues_reach_the_entries() {
         Some(kstep::LENGTH),
         "New key opens on Length (`docs/history/NEW-WALLET.md` §2.1)"
     );
-    let words = k.words as u8;
-    let way = k.way();
-    assert!(way.is_some(), "Randomness has a default");
-    app.press(Action::KWords(words));
+    assert!(!k.slip39, "BIP-39 words are the kind chosen");
+    assert!(!k.length_chosen, "no count is chosen");
+    assert!(k.way().is_some(), "Randomness has a default");
+    let _ = app.frame();
+    assert!(app.offers(Action::KWords(12)) && app.offers(Action::KWords(24)));
+    assert!(!app.offers(Action::KNext), "no Continue on Length");
+    app.press(Action::KNext);
+    assert_eq!(
+        app.keygen().unwrap().open,
+        Some(kstep::LENGTH),
+        "Enter moves nothing on before a count is chosen"
+    );
+    app.press(Action::KWords(12));
     let k = app.keygen().unwrap();
     assert_eq!(
-        k.open,
-        Some(kstep::SOURCE),
-        "Length's Continue takes the count shown and opens Randomness"
+        (k.open, k.words),
+        (Some(kstep::SOURCE), 12),
+        "a press on 12 words takes it and opens Randomness"
     );
     app.press(Action::KNext);
     let k = app.keygen().unwrap();
@@ -984,7 +993,7 @@ fn fill_of(app: &mut Faraday, action: Action) -> [u8; 4] {
 }
 
 #[test]
-fn a_fresh_new_key_draws_twelve_words_as_chosen() {
+fn a_fresh_new_key_draws_no_count_chosen_until_one_is_pressed() {
     let mut app = opened_tall();
     assert_eq!(
         app.keygen().unwrap().open,
@@ -992,10 +1001,137 @@ fn a_fresh_new_key_draws_twelve_words_as_chosen() {
     );
     let _ = app.frame();
     let twelve = fill_of(&mut app, Action::KWords(12));
-    let fifteen = fill_of(&mut app, Action::KWords(15));
-    let eighteen = fill_of(&mut app, Action::KWords(18));
-    assert_ne!(twelve, fifteen, "12 words is drawn chosen before any press");
-    assert_eq!(fifteen, eighteen, "the others are not");
+    let twenty_four = fill_of(&mut app, Action::KWords(24));
+    assert_eq!(
+        twelve, twenty_four,
+        "neither is drawn chosen before a press"
+    );
+    app.press(Action::KWords(12));
+    // Back on Length, 12 words shows as the count chosen.
+    app.press(Action::KStep(faraday_core::keygen::kstep::LENGTH));
+    let _ = app.frame();
+    let twelve = fill_of(&mut app, Action::KWords(12));
+    let twenty_four = fill_of(&mut app, Action::KWords(24));
+    assert_ne!(twelve, twenty_four, "12 words is drawn chosen once pressed");
+}
+
+#[test]
+fn other_opens_a_menu_of_the_other_counts_and_eighteen_makes_an_eighteen_word_key() {
+    use faraday_core::keygen::kstep;
+    let mut app = opened_tall();
+    let _ = app.frame();
+    assert!(
+        !app.offers(Action::KWords(18)),
+        "18 words waits in Other's menu"
+    );
+    app.press(Action::KOtherLengths);
+    assert_eq!(
+        app.sheet,
+        Some(faraday_core::Sheet::KeyLengths),
+        "Other opens its menu"
+    );
+    let _ = app.frame();
+    for n in [15, 18, 21] {
+        assert!(app.offers(Action::KWords(n)), "the menu offers {n} words");
+    }
+    assert!(
+        !app.offers(Action::KNext),
+        "the page under the menu takes no press"
+    );
+    app.press(Action::KWords(18));
+    assert_eq!(app.sheet, None, "a count chosen closes the menu");
+    let k = app.keygen().unwrap();
+    assert_eq!(
+        (k.open, k.words),
+        (Some(kstep::SOURCE), 18),
+        "and moves on to Randomness"
+    );
+    app.press(Action::KWay(Way::Hex.index()));
+    for i in 0..48 {
+        app.press(Action::KHex((i * 7 % 16) as u8));
+    }
+    app.press(Action::KNext);
+    let k = app.keygen().unwrap();
+    assert_eq!(k.mnemonic.as_ref().map(|m| m.indices().len()), Some(18));
+}
+
+#[test]
+fn a_press_beside_other_s_menu_closes_it_with_no_count_chosen() {
+    let mut app = opened_tall();
+    let _ = app.frame();
+    app.press(Action::KOtherLengths);
+    let _ = app.frame();
+    app.press(Action::Cancel);
+    assert_eq!(app.sheet, None);
+    let k = app.keygen().unwrap();
+    assert!(!k.length_chosen, "nothing is chosen");
+}
+
+/// Whether two pixel boxes (x, y, w, h) share any pixel.
+fn overlap(a: (i32, i32, i32, i32), b: (i32, i32, i32, i32)) -> bool {
+    a.0 < b.0 + b.2 && b.0 < a.0 + a.2 && a.1 < b.1 + b.3 && b.1 < a.1 + a.3
+}
+
+#[test]
+fn show_words_and_the_never_type_a_seed_line_each_have_their_own_room() {
+    const LINE: &str = "Never type a seed that holds real bitcoin here.";
+    // A wide window, a window with a rail, a narrow window, the Pi panel.
+    for (width, height, dpi) in [
+        (1280, 800, 160),
+        (960, 580, 160),
+        (480, 640, 160),
+        (480, 640, 286),
+    ] {
+        let mut app = slot_flow(false);
+        app.seed_line = true;
+        flip_all(&mut app);
+        app.press(Action::KNext);
+        app.event(Event::Display(DisplayInfo {
+            width,
+            height,
+            dpi,
+            inset_bottom: 0,
+            inset_top: 0,
+            buttons: 0,
+            camera_fixed: false,
+            secure: SecureHardware::None,
+            boot: BootState::Unknown,
+            memory_mib: None,
+        }));
+        let on_screen = |r: &(i32, i32, i32, i32)| r.1 >= 0 && r.1 + r.3 <= i32::from(height);
+        // Down the card until the line and Show words are both in view.
+        let mut seen = None;
+        for _ in 0..40 {
+            let line: Vec<(i32, i32, i32, i32)> = app
+                .drawn_text_boxes()
+                .into_iter()
+                .filter(|(t, r)| t.len() >= 8 && LINE.contains(t.as_str()) && on_screen(r))
+                .map(|(_, r)| r)
+                .collect();
+            let show = app
+                .hit_box(Action::KShow)
+                .map(|(x, y, w, h)| (i32::from(x), i32::from(y), i32::from(w), i32::from(h)));
+            if let Some(show) = show.filter(|s| !line.is_empty() && on_screen(s)) {
+                seen = Some((line, show));
+                break;
+            }
+            app.event(Event::Scroll {
+                x: width / 2,
+                y: height / 2,
+                dy: 60,
+            });
+            let now = app.now_ms() + 1000;
+            app.event(Event::Tick { now_ms: now });
+        }
+        let (line, show) =
+            seen.unwrap_or_else(|| panic!("line and Show words at {width}x{height}"));
+        for l in line {
+            assert!(
+                !overlap(l, show),
+                "at {width}x{height}@{dpi} the line {l:?} runs into Show words {show:?}"
+            );
+        }
+    }
 }
 
 #[test]

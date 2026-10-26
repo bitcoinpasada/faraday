@@ -85,7 +85,15 @@ automatically, and that answer changes this paragraph, the table's row,
   pad; camera: each frame; pointer and keys: as above). The page stays
   until Back.
 - **New key, This device**: its row's label carries the status (§2.4),
-  and the source's step has a link to Add randomness.
+  and the source's step, the Generator card, offers Camera (where the
+  shell has one), Dice, Coins and Cards on the card itself, with no page
+  to open (owner, 2026-10-25). None is chosen until the person presses
+  one: no pad is live, no key is taken and no camera runs before that
+  (owner, 2026-10-26: Faraday never collects randomness passively; keys
+  count only for a source chosen that takes them). Once chosen, its pad
+  and its batch's **Add** are on the card. While nothing is added,
+  **Skip** moves on without it; once anything is added the card says
+  **Randomness added to the pool**, then **Make the words** as before.
 - Not on Home: Home is a working screen. Its missing-seed line goes
   (F102, §3.5).
 - Not at boot: the stick's and the Pi's shells do not offer it before

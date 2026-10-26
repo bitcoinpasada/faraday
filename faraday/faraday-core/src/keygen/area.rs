@@ -66,6 +66,15 @@ impl KeyGenArea {
         self.state = None;
     }
 
+    /// Whether the Generator card offers Add randomness's sources on
+    /// itself: This device is being entered, before the key is locked in
+    /// (owner, 2026-10-25; `docs/OWN-RANDOMNESS.md` §2.2).
+    pub(crate) fn own_offered(&self) -> bool {
+        self.state.as_ref().is_some_and(|k| {
+            k.open == Some(kstep::ENTER) && !k.locked && k.active() == Some(Source::Device)
+        })
+    }
+
     /// Whether the camera is on for camera noise.
     pub(crate) fn camera_on(&self) -> bool {
         self.camera_on
@@ -383,11 +392,14 @@ impl KeyGenArea {
                 k.share_at = (k.share_at as i64 + i64::from(d)).clamp(0, last) as usize;
                 k.shown = false;
             }
+            // A count pressed is taken and Randomness opens (F103; owner,
+            // 2026-10-26): BIP-39's Length has no Continue.
             A::KWords(n) => {
                 let n = usize::from(n);
                 if k.counts().iter().any(|c| usize::from(*c) == n) {
                     k.words = n;
                     k.clear_entries();
+                    k.length_chosen = true;
                     k.done[usize::from(kstep::LENGTH)] = true;
                     open(k, kstep::SOURCE);
                 }

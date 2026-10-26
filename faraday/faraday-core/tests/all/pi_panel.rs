@@ -255,6 +255,51 @@ fn nothing_is_cut_off_on_any_screen_of_the_online_app() {
     assert_none(&every_spend_step(&mut app));
 }
 
+/// New key's steps: Length with no count chosen and its Other menu,
+/// Randomness, and This device's Generator card with its sources, Skip
+/// and Make the words, then with dice of one's own chosen and added.
+fn every_new_key_step(app: &mut Faraday) -> Vec<String> {
+    use faraday_core::fresh::OwnSource;
+    use faraday_core::fresh::page::Act;
+    use faraday_core::keygen::Way;
+    app.press(Action::Nav(Screen::Entry));
+    app.press(Action::KeyGen(None));
+    app.settle();
+    let mut found = cut_off(app, "New key, Length");
+    app.press(Action::KOtherLengths);
+    app.settle();
+    found.extend(cut_off(app, "New key, Length's Other menu"));
+    app.press(Action::Cancel);
+    app.press(Action::KWords(12));
+    app.settle();
+    found.extend(cut_off(app, "New key, Randomness"));
+    app.press(Action::KWay(Way::Device.index()));
+    app.event(Event::Entropy(faraday_shell_api::EntropyBytes::new(
+        [0x6c; 32],
+    )));
+    app.settle();
+    found.extend(cut_off(app, "New key, Generator"));
+    app.press(Action::Own(Act::Source(OwnSource::Dice)));
+    for f in [3, 1, 4] {
+        app.press(Action::Own(Act::Roll(f)));
+    }
+    app.settle();
+    found.extend(cut_off(app, "New key, Generator on Dice"));
+    app.press(Action::Own(Act::Add));
+    app.settle();
+    found.extend(cut_off(app, "New key, Generator with dice added"));
+    found
+}
+
+#[test]
+fn nothing_is_cut_off_on_new_key() {
+    let mut app = panel(Vec::new());
+    assert_none(&every_new_key_step(&mut app));
+    let mut app = panel(Vec::new());
+    testkit::into_demo(&mut app);
+    assert_none(&every_new_key_step(&mut app));
+}
+
 #[test]
 fn nothing_is_cut_off_on_any_screen_in_practice() {
     let mut app = panel(Vec::new());

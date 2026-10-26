@@ -59,10 +59,13 @@ pub(crate) fn guide_text_learn(
 
 /// The caution under a field where a seed or a secret is typed or
 /// pasted, where `Faraday::seed_line` is set (the desktop) only: a statement of fact in the caution
-/// tone, in every mode. Returns the height it took, with the gap under
-/// it; nothing on the stick or the Pi.
+/// tone, in every mode. `y` is where the room under the field starts,
+/// as the field's own height returned it: the line stands one gap below
+/// it, inside the height returned, so what comes next starts under the
+/// line. Returns the height it took, with the gap above it; nothing on
+/// the stick or the Pi.
 pub(crate) fn never_real_seed(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
-    never_real_seed_if(true, app, ui, x, y, w)
+    never_below(app, ui, x, y, w)
 }
 
 /// The line one gap under a one-line text field whose top is `top`, on
@@ -81,8 +84,8 @@ pub(crate) fn never_below(app: &View, ui: &mut Ui, x: f32, bottom: f32, w: f32) 
     }
 }
 
-/// [`never_real_seed`], only where `typed` says the field can be typed
-/// into (not while a stick is attached).
+/// [`never_under`] a one-line field whose top is `y`, only where `typed`
+/// says the field can be typed into (not while a stick is attached).
 pub(crate) fn never_real_seed_if(
     typed: bool,
     app: &View,

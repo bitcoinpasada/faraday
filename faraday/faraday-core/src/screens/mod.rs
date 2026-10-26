@@ -16,7 +16,7 @@ mod files;
 mod home;
 mod message;
 mod parts;
-mod randomness;
+pub(crate) mod randomness;
 mod restore;
 mod set_time;
 mod settings;
@@ -315,9 +315,13 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
         ui.clear_hits();
         ui.in_sheet = true;
         ui.offset = app.sheet_offset;
-        // A chip's ⋮ menu is a popup on `wide`: the board stays in view
-        // under it, undimmed (`docs/BACKUP-FLOW.md` §17.20).
-        if matches!(sheet, Sheet::BoardMenu | Sheet::FileMenu) && !app.is_compact() {
+        // A ⋮ menu, and Length's Other, is a popup on `wide`: the page
+        // stays in view under it, undimmed (`docs/BACKUP-FLOW.md` §17.20).
+        if matches!(
+            sheet,
+            Sheet::BoardMenu | Sheet::FileMenu | Sheet::KeyLengths
+        ) && !app.is_compact()
+        {
             ui.still();
         } else if matches!(sheet, Sheet::Learn) && app.held {
             // Held, the Learn sheet is the page under the holder's top
@@ -380,6 +384,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
             Sheet::Mode => crate::modes::screen::sheet(app, ui, w, h),
             Sheet::Samples => crate::samples::screen::sheet(app, ui, w, h),
             Sheet::NavMenu => crate::nav::screen::menu_sheet(ui, w, h),
+            Sheet::KeyLengths => crate::keygen::screen::lengths_menu(app, ui, w, h),
         }
         ui.oy = 0.0;
         ui.ox = 0.0;

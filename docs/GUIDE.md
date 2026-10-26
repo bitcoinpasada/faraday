@@ -523,9 +523,10 @@ before **Key**.
 
 ![The Length card](guide/3-4-length.png)
 
-**BIP-39 words** is chosen. Press **12 words**: the card closes and
-**Randomness** opens. (24 words takes more rolls; the steps are the
-same.)
+**BIP-39 words** is chosen; no length is chosen yet. Press **12
+words**: the card closes and **Randomness** opens. (24 words takes more
+rolls; the steps are the same. **Other** opens a menu of 15, 18 and 21
+words.)
 
 ### 3.5 Randomness
 
@@ -551,14 +552,14 @@ their own entry card. A mix ticks its sources under its row and keeps
 | ![Rolls, 24 of 70 in](guide/3-6-rolls.png) | ![Generator](guide/3-6-generator.png) |
 | **Typed** is chosen: type the rolls into the box. **Buttons** shows a button for each face instead. Each word appears as its six rolls come in. | The **Generator** card shows **Source**, **Trust** (this device's software) and **Result** (Not checkable). Press **Make the words**, then go to step 3.7. Until the operating system's randomness is in, the button reads **Waiting for randomness**. |
 
-On the Generator card, **Add randomness** opens a page of its own that
-mixes randomness of yours into the operating system's, never in its
-place: **Camera** (with a camera attached), **Dice**, **Coins** or
-**Cards**, then **Add**
-(**Undo** takes the last one back, **Clear** the batch). The line at the
-top reads what was added, such as **System: getrandom(2) · your own:
-none**. The back link returns to the card. Settings' **Randomness** row
-opens the same page.
+The Generator card also takes randomness of yours, mixed into the
+operating system's, never in its place. Nothing is chosen at first:
+press **Camera** (with a camera attached), **Dice**, **Coins** or
+**Cards**, enter some, then **Add** (**Undo** takes the last one back,
+**Clear** the batch). Once some is added, the card reads **Randomness
+added to the pool**, and **Source** ends **· with your own**. To go on
+without adding any, press **Skip**. Settings' **Randomness** row opens
+the same choices on a page of their own.
 
 ![Add randomness, ten dice rolls in the batch](guide/3-6-add-randomness.png)
 

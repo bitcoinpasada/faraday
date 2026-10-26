@@ -167,6 +167,10 @@ pub const fn field(class: SizeClass) -> f32 {
 /// A one-line text field's height.
 pub const TEXT_FIELD: f32 = 40.0;
 
+/// The widest a search field at a row's start grows: the word list's,
+/// which takes at most half its row.
+pub const SEARCH_FIELD_MAX: f32 = 320.0;
+
 /// The field's height off the panel.
 pub const FIELD: f32 = 52.0;
 

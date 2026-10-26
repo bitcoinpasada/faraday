@@ -329,7 +329,10 @@ floating action button under the pointer and a dragged chip
 A seed is typed on Add a key (`Screen::Entry`): **Scan a SeedQR** above
 the words, then the word grid, the candidates and the word keyboard,
 then the passphrase field and **Add key**. A line in `WARN` under it says
-never to type a seed that holds real bitcoin (`never_real_seed`).
+never to type a seed that holds real bitcoin (`never_real_seed`); the
+line has its own room one gap under the field, and what follows (New
+key's **Show words**, Make a new wallet's passphrase note) starts under
+it.
 
 ### 4.4 Identity and keys
 
@@ -623,7 +626,7 @@ is `docs/WALLETS.md` and the Spend tab `docs/SPEND-FROM-BACKUP.md`.
 | `Backups` | Every wallet known and where its backup is, a card each; on the small panel one wallet a page with **Previous · Next**. | Page |
 | `Create` | Making a new wallet: Kind, the quorum, whether vaults are part of the backup, the keys, Check with **Back up wallet** at its foot (no Back up card). | Step flow |
 | `Restore` | Restoring a wallet from its description and its seeds. | Step flow |
-| `KeyGen` | Making a new key: the source of randomness, its entries (§4.3), the length, the passphrase, lock in; or, with Codex32 chosen, Make codex32 shares' cards (`docs/CODEX32.md` §6): Scheme, Identifier, Entropy, the entry with the worksheets filling live (§4.10 Worksheet), Worksheets, Strings and the Result **Strings made**. | Step flow |
+| `KeyGen` | Making a new key: the length (BIP-39 words chosen, no count until one is pressed: 12 words and 24 words, the rest under **Other**, a menu of 15, 18 and 21; a count pressed is taken and Randomness opens, with no Continue), the source of randomness, its entries (§4.3) or, for This device, the Generator card with Add randomness's sources on it, Camera first and none chosen until one is pressed (no pad, key or camera live before that), each pad and its Add once chosen, "Randomness added to the pool" once any is added, and **Skip**, a text button at the start of the foot row while nothing is added, **Make the words** filled at its end, the passphrase, lock in; or, with Codex32 chosen, Make codex32 shares' cards (`docs/CODEX32.md` §6): Scheme, Identifier, Entropy, the entry with the worksheets filling live (§4.10 Worksheet), Worksheets, Strings and the Result **Strings made**. | Step flow |
 | `Message` | Signing a message with a single-key wallet's key. | Step flow |
 | `CheckMessage` | Checking a signed message against its address. | Page |
 | `Decode` | A transaction taken apart, field by field. | Page |
@@ -640,19 +643,20 @@ is `docs/WALLETS.md` and the Spend tab `docs/SPEND-FROM-BACKUP.md`.
 | `CreateVault` | Making a vault: where it will be opened, the cost of unlocking, the space per passphrase, its name and passphrases, its size. | Step flow |
 | `Codes` | TOTP codes for the entries in open vaults, with the time they are computed for (`docs/TOTP.md` §5). | Page |
 | `SetTime` | Setting the time by hand: Date and Time (`docs/TOTP.md` §3). | Page |
-| `Randomness` | Add randomness: the status line, the source (Camera, Dice, Coins, Cards) and New key's pad for it, the batch and its Add (`docs/OWN-RANDOMNESS.md` §2.2). | Page |
+| `Randomness` | Add randomness, from Settings: the status line, the source (Camera, Dice, Coins, Cards) and New key's pad for it, the batch and its Add (`docs/OWN-RANDOMNESS.md` §2.2). New key's Generator card draws the same sources on itself. | Page |
 | `Settings` | **Steps only · Guided**, the flows' control and setting; then Mode; the session (the keys loaded) and Lock; lock and power-off timers; the time; Randomness (the status line and Add randomness, `docs/OWN-RANDOMNESS.md` §2.4); Appearance (Theme as filter chips, one per theme, Cobalt's marked Default; Mode, Light · Dark; Contrast, Standard · Medium · High; the Reduce motion switch, THEMES §12) and the display scale; what is remembered; the stick's upgrade (not in the online app); About. With Guided on, each card carries a one- or two-sentence explainer under its title, beside the Guided text's accent bar (what Lock, Remove every key and the timers do; what reads the clock; how added randomness is mixed; what Appearance, Display scale and Signed amounts set; what the upgrade copies; when the self-test runs); with Steps only, labels, values and actions only. On a compact window a list of the sections, each its own page; from medium up every card on one page (`docs/LAYOUT.md` §17). | Page |
 | `Transfer` | The desktop app as the device's QR link: files out as codes, in by camera. Only in the desktop app. | Page |
 | `Upgrade` | Upgrading another Faraday stick from the one Faraday started from. Never in the desktop app. | Page |
 
 The sheets (`Sheet` in `faraday/faraday-core/src/lib.rs`, drawn in
 `faraday/faraday-core/src/screens/sheets.rs` and the area that owns
-them) include the QR sheet and the scanner (§4.9), the Learn sheet, the word list, a secret on its
+them) include the QR sheet and the scanner (§4.9), the Learn sheet, the word list (a tab per list, Back, and at the start of the row under them a search field that finds a word by its word, number, bits or dice and lists only what it finds), a secret on its
 way out (§4.10), the lock and its question, the idle warning and the
 locked sheet (§4.14), power, a new input device, what is attached that
 can capture the screen or the keys, a seed read by the camera, a chart
 node's sheet (§4.16), the board's list, its balance and partials sheets
-and its ⋮ menu (§4.17), a file's ⋮ menu (§4.1), Rename and Details, the
+and its ⋮ menu (§4.17), a file's ⋮ menu (§4.1), Rename and Details, New
+key's Other menu of word counts (drawn as a ⋮ menu is, under its button), the
 mode sheet, Load samples (§4.8), and the question a flow's Cancel asks
 (§4.13).
 

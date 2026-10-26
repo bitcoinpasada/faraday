@@ -605,15 +605,13 @@ pub enum Sheet {
     WordList,
     /// A secret on its way out: into a vault, or the Outbox after a warning.
     SecretOut,
-    /// Writing the Outbox to a stick, asked for while a secret is held:
-    /// the lock it takes first.
+    /// Writing the Outbox to a stick, asked for while a secret is held: the lock it takes first.
     WriteOut,
     /// The idle lock coming: a countdown, and what the lock does.
     IdleWarn,
     /// A seed from the Inbox becoming a wallet: a passphrase or none, and its kind.
     Potential,
-    /// What the boot stick brought: remove the stick, unlock its vaults,
-    /// choose what to import.
+    /// What the boot stick brought: remove the stick, unlock its vaults, choose what to import.
     Import,
     /// Something pressed that loads a key, with a stick attached: it
     /// carries on once the stick is pulled ([`Faraday::pull`]).
@@ -633,8 +631,7 @@ pub enum Sheet {
     /// A chip's ⋮ menu on the backup board (`docs/BACKUP-FLOW.md`
     /// §17.20): a popup under the ⋮ on `wide`, a sheet on the small panel.
     BoardMenu,
-    /// A seed the camera read, asking how it loads: with no passphrase
-    /// or with one (`seed_read`).
+    /// A seed the camera read, asking how it loads: with no passphrase or with one (`seed_read`).
     SeedRead,
     /// Delete files: chosen files, the free space or the whole files
     /// partition, asked first (`stick_wipe`).
@@ -681,6 +678,8 @@ pub enum Sheet {
     Samples,
     /// The top app bar's ⋮ menu on a compact window (`nav`).
     NavMenu,
+    /// New key's Length card's Other: the menu of 15, 18 and 21 words (`keygen/screen.rs`).
+    KeyLengths,
 }
 
 /// Costs a QR encoding (through `encode_bounded` and `bbqr_frames`).
@@ -2941,6 +2940,7 @@ impl Faraday {
             | Action::KStart(_)
             | Action::KOthers
             | Action::KWords(_)
+            | Action::KOtherLengths
             | Action::KWay(_)
             | Action::KGroup(_)
             | Action::KMix(_)
@@ -7045,8 +7045,7 @@ pub fn result_stem(source: &str) -> String {
         .unwrap_or(s)
 }
 
-/// What a press leaves for the tick after the frame that shows it
-/// (`docs/SPEED.md` §9).
+/// What a press leaves for the tick after the frame that shows it (`docs/SPEED.md` §9).
 #[derive(Debug, Clone, Copy, PartialEq)]
 enum Later {
     /// A press whose work is [`slow`].
@@ -7084,6 +7083,7 @@ fn slow(a: Action) -> bool {
             | Action::InboxLoad
             | Action::KLock
             | Action::KNext
+            | Action::Own(crate::fresh::page::Act::Skip)
             | Action::LKey(_)
             | Action::LResolve
             | Action::LoadKey(_)

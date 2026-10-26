@@ -14,7 +14,8 @@ use zeroize::Zeroize;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Act {
     /// Open Add randomness from the screen on show, which Back returns
-    /// to: Settings' Randomness row and New key's This device.
+    /// to: Settings' Randomness row. New key's Generator card offers the
+    /// sources on itself.
     Open,
     /// Choose the source shown.
     Source(OwnSource),
@@ -34,6 +35,9 @@ pub enum Act {
     Clear,
     /// Add the batch to the session.
     Add,
+    /// New key's Generator card: on to the words with nothing of one's
+    /// own added.
+    Skip,
 }
 
 /// A batch the page hands to the session: its source, its commitment
@@ -46,6 +50,10 @@ pub(crate) type Batch = (OwnSource, [u8; 32], u32);
 pub(crate) struct OwnPage {
     /// The source shown.
     source: OwnSource,
+    /// The person has chosen `source`: until then no pad is live, no key
+    /// is taken and no camera runs (owner, 2026-10-26: nothing is
+    /// collected passively). New key's Generator card opens unchosen.
+    chosen: bool,
     /// Rolls not yet added.
     dice: DiceRolls,
     /// Flips not yet added.
@@ -74,12 +82,20 @@ impl OwnPage {
     /// The page as it opens: on Camera where the shell has a camera, on
     /// Dice where it has none (§2.2).
     pub(crate) fn new(has_camera: bool) -> Self {
+        let mut page = Self::unchosen();
+        if !has_camera {
+            page.source = OwnSource::Dice;
+        }
+        page.chosen = true;
+        page
+    }
+
+    /// The sources as New key's Generator card offers them: none chosen
+    /// until the person presses one.
+    pub(crate) fn unchosen() -> Self {
         OwnPage {
-            source: if has_camera {
-                OwnSource::Camera
-            } else {
-                OwnSource::Dice
-            },
+            source: OwnSource::Camera,
+            chosen: false,
             dice: DiceRolls::new(),
             coins: CoinFlips::new(),
             cards: CardDraws::new(),
@@ -130,9 +146,14 @@ impl OwnPage {
         }
     }
 
-    /// Whether the camera is wanted: Camera is the source shown.
+    /// Whether a source has been chosen.
+    pub(crate) fn chosen(&self) -> bool {
+        self.chosen
+    }
+
+    /// Whether the camera is wanted: Camera is the source chosen.
     pub(crate) fn wants_camera(&self) -> bool {
-        self.source == OwnSource::Camera
+        self.chosen && self.source == OwnSource::Camera
     }
 
     /// The camera's newest frame, in place of the one before.
@@ -166,9 +187,13 @@ impl OwnPage {
     /// makes one: Add with entries in, or a camera frame taken.
     pub(crate) fn act(&mut self, a: Act) -> Option<Batch> {
         self.note = None;
+        if !self.chosen && !matches!(a, Act::Source(_)) {
+            return None;
+        }
         match a {
             Act::Source(s) if s != OwnSource::PointerKeys => {
                 self.source = s;
+                self.chosen = true;
                 self.rank = None;
             }
             Act::Source(_) => {}
@@ -269,6 +294,10 @@ impl OwnPage {
     /// Returns the press it stands for.
     pub(crate) fn key(&self, key: faraday_shell_api::Key) -> Option<Act> {
         use faraday_shell_api::Key as K;
+        // Keys count only once a source that takes them is chosen.
+        if !self.chosen {
+            return None;
+        }
         match key {
             K::Backspace => Some(Act::Undo),
             K::Enter if self.source != OwnSource::Camera => Some(Act::Add),

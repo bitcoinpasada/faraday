@@ -3099,6 +3099,15 @@ strings! {
     keygen_what_shares: "What shares reveal",
     /// Text in `length_counts`. `{}`: `n`.
     keygen_words_n: "{} words",
+    /// The Length card's button that opens the menu of 15, 18 and 21
+    /// words, and that menu's title.
+    keygen_other_lengths: "Other",
+    /// The Generator card's line once randomness of the person's own is
+    /// in the pool This device draws from.
+    keygen_randomness_added: "Randomness added to the pool",
+    /// The Generator card's text button: on to the words with none of
+    /// the person's own randomness added.
+    keygen_skip_randomness: "Skip",
     /// Text in `way_name`. `{}`: `source_name(Source::Dice)`.
     keygen_flip_mode: "{} · Flip mode",
     /// Text in `way_line`. `{}`: `CoinFlips::needed(st)`.
@@ -8347,10 +8356,13 @@ strings! {
     wordlist_words_word: "{} words · word {} of {} marked",
     /// Text in `draw`. `{}`: `words.len()`.
     wordlist_words: "{} words",
-    /// Text in `draw`.
-    wordlist_type_to_find: "Type to find a word",
-    /// Text in `draw`. `{}`: `st.find`.
-    wordlist_find: "Find: {}",
+    /// The search field's placeholder on the BIP-39 list.
+    wordlist_search_bits: "Word, number or bits",
+    /// The search field's placeholder on an EFF list.
+    wordlist_search_dice: "Word, number or dice",
+    /// Beside the search field while it holds a search. `{}`: how many
+    /// words it finds.
+    wordlist_found: "{} found",
     /// Line in `draw`.
     wordlist_number_column: "No.",
     /// Line in `draw`.

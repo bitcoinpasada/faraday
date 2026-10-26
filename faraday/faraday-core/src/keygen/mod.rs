@@ -215,6 +215,16 @@ pub struct KeyGen {
     pub scroll: flow::Scroll,
     /// 12, 15, 18, 21 or 24.
     pub words: usize,
+    /// A BIP-39 word count has been chosen on the Length card. None is
+    /// chosen when the flow opens, and a press on one moves on (F103);
+    /// until then `words` holds 12 only so that its arithmetic has a
+    /// count, and no card after Length reads it, since none opens before
+    /// Length is done. Set by `KWords`, cleared with `words` by
+    /// [`KeyGen::set_slip39`]. SLIP-39 shares keep their first count.
+    pub length_chosen: bool,
+    /// Where Length's Other was drawn, in pixels (x, y, w, h), while its
+    /// menu of the other counts is open: the menu stands under it.
+    pub lengths_at: Option<(i32, i32, i32, i32)>,
     /// The chosen source.
     pub source: Option<Source>,
     /// Which dice procedure, when the source is dice.
@@ -365,6 +375,8 @@ impl KeyGen {
             done: [false; kstep::COUNT],
             scroll: flow::Scroll::default(),
             words: 12,
+            length_chosen: false,
+            lengths_at: None,
             // Dice that name words: every word checkable by hand as it
             // comes in.
             source: Some(Source::Dice),
@@ -535,6 +547,7 @@ impl KeyGen {
         }
         self.slip39 = on;
         self.words = usize::from(self.counts()[0]);
+        self.length_chosen = false;
         self.clear_entries();
         // Start's choice follows: shares or words, made here.
         let start = self.done[usize::from(kstep::START)];
@@ -1306,6 +1319,23 @@ impl crate::Faraday {
         k.scroll.follow = true;
     }
 
+    /// Length's Other: the menu of 15, 18 and 21 words opens under the
+    /// button, where the last frame drew it.
+    fn keygen_lengths_open(&mut self) {
+        let at = self
+            .pointer
+            .rect_of(crate::Action::KOtherLengths)
+            .map(|r| (r.x, r.y, r.w, r.h));
+        if let Some(k) = self.keygen.state.as_mut()
+            && k.open == Some(kstep::LENGTH)
+            && !k.slip39
+            && !k.locked
+        {
+            k.lengths_at = at;
+            self.sheet = Some(crate::Sheet::KeyLengths);
+        }
+    }
+
     /// One press inside the flow.
     pub(crate) fn keygen_act(&mut self, action: crate::Action) {
         let c = self.compute();
@@ -1322,6 +1352,12 @@ impl crate::Faraday {
         if action == A::KeyGenSlip39 {
             self.keygen_open_on(Start::MakeShares);
             return;
+        }
+        // Length's Other opens its menu; a count chosen there closes it.
+        match action {
+            A::KOtherLengths => return self.keygen_lengths_open(),
+            A::KWords(_) if self.sheet == Some(crate::Sheet::KeyLengths) => self.sheet = None,
+            _ => {}
         }
         // Dealing shares takes a fresh draw of its own from the system's
         // generator; asked for before the flow is borrowed.
@@ -2238,12 +2274,30 @@ impl crate::Faraday {
         }
     }
 
+    /// The Generator card's sources take their keys, as on Add
+    /// randomness; Escape, Enter with no batch to add, and Enter or Space
+    /// on a control the keyboard is on are the card's own. Returns
+    /// whether they took the key.
+    fn keygen_own_key(&mut self, key: faraday_shell_api::Key) -> bool {
+        use faraday_shell_api::Key as KeyIn;
+        let on_control =
+            matches!(key, KeyIn::Enter | KeyIn::Char(' ')) && self.pointer.focused().is_some();
+        if !self.keygen.own_offered() || key == KeyIn::Escape || on_control {
+            return false;
+        }
+        let batch = self.own_page().is_some_and(|p| p.batch_len() > 0);
+        (key != KeyIn::Enter || batch) && self.own_key(key)
+    }
+
     /// Keys typed while the flow is on screen. Returns whether it took
     /// the key.
     pub(crate) fn keygen_key(&mut self, key: faraday_shell_api::Key) -> bool {
         use faraday_shell_api::Key as KeyIn;
         if self.screen != Screen::KeyGen {
             return false;
+        }
+        if self.keygen_own_key(key) {
+            return true;
         }
         let Some(k) = self.keygen.state.as_mut() else {
             return false;

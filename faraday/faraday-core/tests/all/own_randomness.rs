@@ -558,20 +558,38 @@ fn with_a_camera_the_page_opens_on_it_and_each_picture_is_added_as_taken() {
 }
 
 #[test]
-fn new_keys_this_device_links_to_the_page_and_takes_its_bytes_again_mixed() {
+fn new_keys_generator_offers_the_sources_on_its_card_and_takes_its_bytes_again_mixed() {
+    const ADDED: &str = "Randomness added to the pool";
     let mut app = crate::keygen::opened();
     app.press(Action::KWords(12));
     app.press(Action::KWay(Way::Device.index()));
     app.press(Action::KNext);
     app.press(Action::KNext);
     answer(&mut app, SEED);
-    assert!(crate::common::offered(&mut app, own(Act::Open)));
-    app.press(own(Act::Open));
-    assert_eq!(app.screen, Screen::Randomness);
+    assert!(
+        !crate::common::offered(&mut app, own(Act::Open)),
+        "no button opens a page for it"
+    );
+    for s in [OwnSource::Dice, OwnSource::Coins, OwnSource::Cards] {
+        assert!(app.offers(own(Act::Source(s))), "{s:?} on the card");
+    }
+    assert!(
+        !app.offers(own(Act::Roll(1))),
+        "no pad until a source is chosen"
+    );
+    // Keys typed before a source is chosen collect nothing.
+    crate::common::type_text(&mut app, "123456");
+    assert!(!app.own_counts().any(), "nothing taken passively");
+    assert!(!crate::common::has(&mut app, ADDED), "nothing added yet");
+    app.press(own(Act::Source(OwnSource::Dice)));
+    assert!(
+        crate::common::offered(&mut app, own(Act::Roll(1))),
+        "the dice pad on the card"
+    );
     crate::common::type_text(&mut app, "123456");
     app.event(Event::Key(Key::Enter));
-    app.press(Action::Back);
-    assert_eq!(app.screen, Screen::KeyGen);
+    assert_eq!(app.screen, Screen::KeyGen, "added on the card itself");
+    assert!(crate::common::has(&mut app, ADDED), "the card says so");
     // The bytes taken before the dice go; the next answer is mixed.
     answer(&mut app, SEED);
     app.press(Action::KNext);
@@ -584,4 +602,49 @@ fn new_keys_this_device_links_to_the_page_and_takes_its_bytes_again_mixed() {
         .indices()
         .to_vec();
     assert_eq!(words, words_of(unhex(DEVICE_DICE)));
+}
+
+#[test]
+fn new_keys_generator_with_a_camera_starts_it_only_when_camera_is_chosen() {
+    let mut app = crate::keygen::opened();
+    app.storage(StorageEvent::Cameras(vec![(
+        "cam0".to_string(),
+        "Camera".to_string(),
+    )]));
+    app.press(Action::KWords(12));
+    let _ = commands(&mut app);
+    app.press(Action::KWay(Way::Device.index()));
+    assert!(
+        !commands(&mut app).contains(&Command::CameraOn),
+        "no source chosen: no camera unasked"
+    );
+    let camera = own(Act::Source(OwnSource::Camera));
+    assert!(crate::common::offered(&mut app, camera));
+    assert!(
+        !commands(&mut app).contains(&Command::CameraOn),
+        "nor on drawing"
+    );
+    app.press(camera);
+    assert!(commands(&mut app).contains(&Command::CameraOn));
+    app.press(Action::KStep(faraday_core::keygen::kstep::SOURCE));
+    assert!(
+        commands(&mut app).contains(&Command::CameraOff),
+        "leaving the card stops it"
+    );
+}
+
+#[test]
+fn new_keys_generator_skip_moves_on_with_nothing_added() {
+    let mut app = crate::keygen::opened();
+    app.press(Action::KWords(12));
+    app.press(Action::KWay(Way::Device.index()));
+    answer(&mut app, SEED);
+    let skip = own(Act::Skip);
+    assert!(crate::common::offered(&mut app, skip), "Skip on the card");
+    app.press(skip);
+    let k = app.keygen().unwrap();
+    assert_eq!(k.open, Some(faraday_core::keygen::kstep::KEY), "on to Key");
+    assert!(!k.with_own && !app.own_counts().any(), "nothing added");
+    let words = k.mnemonic.as_ref().unwrap().indices().to_vec();
+    assert_eq!(words, words_of(SEED), "the system's bytes alone");
 }
