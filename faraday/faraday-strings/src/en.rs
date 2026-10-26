@@ -1309,6 +1309,10 @@ strings! {
     codes_totp_codes: "TOTP codes",
     /// Line in `compact`.
     codes_no_totp_entries: "No entries with a TOTP secret",
+    /// The codes screen's search bar's placeholder.
+    codes_search: "Search codes",
+    /// Line in place of the rows when no entry's title holds what the search bar holds.
+    codes_search_none: "No codes match",
     /// Button in `compact`.
     codes_scan_a_setup: "Scan a setup code",
     /// Button in `compact`.
@@ -7486,6 +7490,16 @@ strings! {
     vault_totp_codes: "TOTP codes",
     /// Line in `contents_compact`.
     vault_none_here: "None in this vault",
+    /// The items column's search bar's placeholder, on Wallets (`vault/search_screen.rs`).
+    vault_search_wallets: "Search wallets",
+    /// The search bar's placeholder, on Entries.
+    vault_search_entries: "Search entries",
+    /// The search bar's placeholder, on GPG keys.
+    vault_search_gpg_keys: "Search GPG keys",
+    /// Line in place of the items when no title holds what the search bar holds.
+    vault_search_none: "No titles match",
+    /// Tooltip on a search bar's ×, which empties it.
+    vault_search_clear: "Clear search",
     /// Text in `contents_compact`. `{}`: `app.medium.noun()`.
     vault_secret_values: "A secret value shows after a press on its eye and hides at the next press or when the page is left. Changes stay in this session until it locks; locking seals them, and the next {} visit writes the vault back over its own file.",
     /// Text in `detail`.

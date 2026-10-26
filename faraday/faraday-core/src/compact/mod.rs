@@ -1165,10 +1165,13 @@ impl Faraday {
                     || self.entry.state().form != crate::forms::Form::Words
                     || self.entry.state().keys.is_none()
             }
-            // The vault's list has no field; its item page may.
-            Screen::VaultContents => {
-                self.vaults.focus.is_some() && crate::vault::screen::contents_detail(self)
-            }
+            // The vault's list has its search bar; its item page has fields.
+            Screen::VaultContents => match self.vaults.focus {
+                Some(crate::vault::Focus::Search(_)) => {
+                    !crate::vault::screen::contents_detail(self)
+                }
+                f => f.is_some() && crate::vault::screen::contents_detail(self),
+            },
             Screen::Vanity => self.vanity.typing_prefix(),
             // Find an address's field.
             Screen::Explore => self
@@ -1299,6 +1302,10 @@ impl Faraday {
     }
 
     fn osk_reveal_at(&mut self, at: i32, f: f32, visible: f32) {
+        // A search bar opens Material's search view, the bar at its top.
+        if matches!(self.vaults.focus, Some(crate::vault::Focus::Search(_))) {
+            return;
+        }
         let tapped = at as f32 / f.max(0.01);
         let over = tapped + 56.0 - visible;
         if over > 0.0

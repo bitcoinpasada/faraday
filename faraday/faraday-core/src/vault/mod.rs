@@ -18,9 +18,11 @@ pub(crate) mod load_screen;
 pub mod out;
 pub(crate) mod panes_screen;
 pub(crate) mod screen;
+mod search;
 mod strength;
 
 pub use area::*;
+pub use search::{SearchAct, SearchIn};
 
 use crate::strings::EN;
 use crate::strings::fill;
@@ -358,10 +360,12 @@ impl Faraday {
                 | V::Edit
                 | V::Rename
                 | V::Category(_)
+                | V::Search(_)
         ) {
             self.list_offset = 0.0;
         }
         match a {
+            V::Search(s) => self.vaults.search_act(s),
             V::Open(i) => {
                 let files = self.vault_files();
                 if let Some(f) = files.get(i) {
@@ -1688,7 +1692,7 @@ impl Faraday {
 
     /// The position in the slot of the item selected in the kind shown.
     pub fn vault_selected_index(&self) -> Option<usize> {
-        self.vaults.selected_index()
+        self.vaults.selected_place()
     }
 
     fn vault_delete(&mut self) {
@@ -1834,7 +1838,6 @@ impl Faraday {
         self.vaults.state.focus = Some(Focus::Field(0));
     }
 
-    #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
     fn vault_form_save(&mut self) {
         // The backup flow's Make form is saved by Make the key.
         if self.screen == Screen::BackupFlow {
@@ -1930,24 +1933,17 @@ impl Faraday {
             ));
         }
         // A new record must still fit in the slot.
-        let kinds = CATEGORIES[self.vaults.category].1;
         let was = form.record.filter(|&i| i < self.vaults.records(id).len());
         let placed = self
             .vaults
             .edit(id, |s| s.set_fields(id, form.record, form.kind, &typed));
-        let Ok(_place) = placed else {
+        let Ok(place) = placed else {
             self.vaults.state.form = Some(form);
             self.toast(EN.vaults_slot_too_small);
             return;
         };
         if was.is_none() {
-            let n = self
-                .vaults
-                .records(id)
-                .iter()
-                .filter(|(_, r)| kinds.contains(&r.kind()))
-                .count();
-            self.vaults.state.item[self.vaults.category] = n.saturating_sub(1);
+            self.vaults.state.select_place(place);
         }
         self.vaults.changed(id);
     }
@@ -2401,7 +2397,7 @@ impl Faraday {
         }
         if key == K::Enter || key == K::Tab {
             match focus {
-                Focus::Dice | Focus::Rolls | Focus::Prompt => {}
+                Focus::Dice | Focus::Rolls | Focus::Prompt | Focus::Search(_) => {}
                 Focus::Passphrase => {
                     if key == K::Enter && import {
                         self.import_act(crate::boot_import::ImportAction::Submit);
@@ -2675,9 +2671,10 @@ impl Faraday {
     /// Opens the codes screen (§5.2): no vault open leads to Create or
     /// Unlock first (handled by the tile and by `vault_way`); the clock
     /// not checked this power-on opens Set the time first. Both checks
-    /// happen on the way in only.
+    /// happen on the way in only. It opens at its top.
     pub(crate) fn open_codes(&mut self) {
         self.screen = Screen::Codes;
+        self.list_offset = 0.0;
         if !self.clock_checked() {
             self.open_set_time();
         }
@@ -2688,7 +2685,8 @@ impl Faraday {
     pub(crate) fn open_code_row(&mut self, vault: usize, item: usize) {
         self.vaults.state.current = vault;
         self.vault_act(VaultAction::Category(2));
-        self.vault_act(VaultAction::Item(item));
+        let k = self.vaults.state.place_shown(item);
+        self.vault_act(VaultAction::Item(k));
         self.screen = Screen::VaultContents;
     }
 

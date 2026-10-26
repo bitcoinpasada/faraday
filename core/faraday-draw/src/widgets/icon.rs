@@ -153,6 +153,9 @@ pub enum Icon {
 }
 
 impl Icon {
+    /// The magnifying glass that leads a search bar: the glyph Verify
+    /// draws.
+    pub const SEARCH: Icon = Icon::Verify;
     /// Every icon, for the gallery and for the completeness test.
     pub const ALL: [Icon; 64] = [
         Icon::Scan,

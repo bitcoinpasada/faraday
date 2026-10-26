@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Partly built: size classes and density (L1, F101), navigation (L2), Home's lead tile and tile grid (L3), the supporting pane's place and its narrow strip, for codex32's Demo only card (§6); the page area to the window's edge (W1, §15, §19); list and detail for Wallets, Files, Vaults and Backups (L4, §5, §17); Settings' list of sections on compact windows and every section on one page from medium up (§17); the codex32 entry's input panel (W3, §16.3); the rest specified, not built (F92); the rest of wide windows (§13 to §19) specified, not built
-**Open:** the stick's density from its screen's EDID (§7; today its kernel command line's, F101), the top app bar over the wide pages and the step flows (§3; they keep their own heads), Files' two lists each scrolling on its own on the rail's windows (§17; there the page scrolls as one), components that keep their size (L5), Learn in the supporting pane (L6), tours and tests (L7), wide windows: wide content, the codex32 worksheet's fit, the string's boxes, the input panel on compact windows that are not short (§16.3; they keep the small panel's context over the pad), the panel beside the sheets scrolling within itself (it stands at the foot where it is taller than the window), New key's dice and Create a vault's Generate with dice in the panel (their pad, progress line and entries already stand together in one card), the page following a whole sheet, fixed step buttons, and the pages that keep the old 1360 dp area (Wallets' first page, Codes, an open vault's contents; §19) and Decode's outputs at their columns' width (§14 to §17, W2, W4, W5); planned.
+**Open:** the stick's density from its screen's EDID (§7; today its kernel command line's, F101), the top app bar over the wide pages and the step flows (§3; they keep their own heads), Files' two lists each scrolling on its own on the rail's windows (§17; there the page scrolls as one), components that keep their size (L5), Learn in the supporting pane (L6), tours and tests (L7), wide windows: wide content, the codex32 worksheet's fit, the string's boxes, the input panel on compact windows that are not short (§16.3; they keep the small panel's context over the pad), the panel beside the sheets scrolling within itself (it stands at the foot where it is taller than the window), New key's dice and Create a vault's Generate with dice in the panel (their pad, progress line and entries already stand together in one card), the page following a whole sheet, fixed step buttons and Decode's outputs at their columns' width (§14 to §17, W2, W4, W5); planned.
 
 Faraday lays its screens out by Material 3's layout and navigation
 rules at every size, from the Pi's 2.8-inch panel to a full monitor.
@@ -804,10 +804,9 @@ the body is taller than the card. Spend's transaction table is as wide
 as its columns (`TABLE_LABEL_W`, the longest outpoint or address,
 `TABLE_AMOUNT_W`), never wider than the step. On the small panel and the
 rail's windows nothing changed; Explore's values group only on the wide
-layout. Left at the old 1360 dp area, centred, past an extra-large
-window's room: Wallets' first page, Codes, an open vault's contents and
-the backup flow (step flows and reading pages, for a batch to give each
-its reading area).
+layout. The pages W6 left at the old 1360 dp area past an
+extra-large window's room have their areas since: the pages below and
+the backup flow ("Built after W7").
 
 **Built since W6:** Tools, Transfer, Upgrade and a stick visit are
 reading content, each laid out in its own area centred in the room past
@@ -818,6 +817,14 @@ takes the work width, as many tiles to a row as `CATALOG_TILE_MIN`
 leaves room for and never fewer than three, so four stand side by side
 at 1920 dp and five at 2560 dp. At 1280 × 800 and every window up to
 1600 dp wide they are as before (§17).
+
+**Built since W6 (2026-10-26):** Wallets' first page and the TOTP codes
+are reading content in `READING_PAGE_W`, centred in the room; an open
+vault's contents are list and detail in the whole room from the
+navigation (`Area::Work`): its kinds and items at the start, the item
+beside them, its reading parts at `COLUMN_MAX` and a wallet's chart on
+to the window's edge, Lock and Rename ending left of the top row's
+pills and ? (§15). Checked at 1920 × 1080 and 2560 × 1600.
 
 **Built in W7:** while the backup board is shown (Back up's plan, a
 wallet flow's plan) on a window whose room is wider than the old page

@@ -25,9 +25,11 @@ use faraday_vault::records::{field, kind};
 use faraday_vault::{SLOT_SIZES, file_len};
 
 mod save;
+mod search;
 mod secret;
 pub(crate) use save::{gpg_sign_sheet, stick_save_sheet, years_row};
 use save::{images_panel, reasons_row, save_panel};
+pub(crate) use search::bar as search_bar;
 use secret::{secret, secret_with, seedqr_box};
 
 fn va(a: V) -> Action {
@@ -1948,7 +1950,7 @@ fn words_text(m: &faraday_bip::bip39::Mnemonic) -> zeroize::Zeroizing<String> {
 
 #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub(crate) fn contents(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
-    let (good, warn, inset) = (Role::Ok, Role::Warning, Role::SurfaceContainerHighest);
+    let (good, warn) = (Role::Ok, Role::Warning);
     let rule = Role::OutlineVariant;
     let (muted, ink) = (Role::OnSurfaceVariant, Role::OnSurface);
     if ui.compact {
@@ -1994,9 +1996,12 @@ pub(crate) fn contents(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         if v.changes == 0 { good } else { warn },
         &state,
     );
+    // Lock and Rename end left of the top row's pills and ?, which the
+    // page scrolls under (`docs/LAYOUT.md` §15).
+    let end = (x + w).min(ui.top_row_left - tokens::GAP);
     let lockw = ui.measure(14.0, W::S, EN.vault_lock) + 36.0;
     ui.button(
-        x + w - lockw,
+        end - lockw,
         y - 2.0,
         Some(lockw),
         40.0,
@@ -2006,7 +2011,7 @@ pub(crate) fn contents(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     );
     let rw = ui.measure(13.0, W::S, EN.vault_rename) + 28.0;
     ui.button(
-        x + w - lockw - 8.0 - rw,
+        end - lockw - 8.0 - rw,
         y + 2.0,
         Some(rw),
         34.0,
@@ -2062,7 +2067,14 @@ pub(crate) fn contents(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         (kinds_w, ((w - kinds_w) * 0.38).clamp(220.0, 340.0))
     };
     let detail_x = x + kinds_w + items_w + 48.0;
-    let detail_w = w - kinds_w - items_w - 48.0;
+    // The item's reading parts keep the column; a wallet's chart takes
+    // the room to the window's edge (`docs/LAYOUT.md` §14).
+    let room = w - kinds_w - items_w - 48.0;
+    let detail_w = if chart_shown {
+        room
+    } else {
+        room.min(tokens::COLUMN_MAX)
+    };
     let top = y;
     let mut ky = top;
     // The kinds it holds, then a row for each kind to add.
@@ -2097,14 +2109,8 @@ pub(crate) fn contents(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         }
         return;
     }
-    let (cat_label, kinds) = CATEGORIES[app.vaults.category];
-    let items: Vec<RecordView<'_>> = app
-        .vaults
-        .records(v.id)
-        .iter()
-        .filter(|(_, r)| kinds.contains(&r.kind()))
-        .map(|(_, r)| r)
-        .collect();
+    let cat_label = CATEGORIES[app.vaults.category].0;
+    let items = search::shown(app, v);
     let add = add_label(app.vaults.category);
     ui.text_mid(ix, top, 34.0, 14.0, W::S, ink, cat_label);
     if let Some(a) = add {
@@ -2164,34 +2170,11 @@ pub(crate) fn contents(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         );
         iy += 42.0;
     }
+    if vault::search::searchable(app.vaults.category) {
+        iy += search::bar(app, ui, ix, iy, items_w, vault::SearchIn::Items);
+    }
     let sel = app.vaults.item[app.vaults.category].min(items.len().saturating_sub(1));
-    let list_bottom = h - 24.0;
-    let row = 58.0;
-    let fit = ((list_bottom - iy) / row).floor().max(1.0) as usize;
-    let first = sel.saturating_sub(fit.saturating_sub(1));
-    for (k, r) in items.iter().enumerate().skip(first).take(fit) {
-        let (t, line, mono) = item_heading(app, *r);
-        let on = k == sel && app.vaults.form.is_none() && !app.vaults.saving;
-        ui.fill(ix, iy, items_w, row - 6.0, 8.0, selected_or(on, inset));
-        ui.stroke(ix, iy, items_w, row - 6.0, 8.0, selected_or(on, rule));
-        let (ink, muted) = (on_selected(on, ink), on_selected(on, muted));
-        let t = ui.fit(14.0, if mono { W::M } else { W::S }, &t, items_w - 24.0);
-        ui.text(
-            ix + 12.0,
-            iy + 8.0,
-            14.0,
-            if mono { W::M } else { W::S },
-            ink,
-            &t,
-        );
-        let line = ui.fit(12.0, W::R, &line, items_w - 24.0);
-        ui.text(ix + 12.0, iy + 30.0, 12.0, W::R, muted, &line);
-        ui.hit(ix, iy, items_w, row - 6.0, va(V::Item(k)));
-        iy += row;
-    }
-    if items.is_empty() {
-        ui.text(ix, iy, 13.0, W::R, muted, EN.vault_none_here);
-    }
+    search::item_rows(app, ui, &items, sel, (ix, iy, items_w), h - 24.0);
 
     // The detail: a form, the session's keys or wallets to save, or the item.
     ui.fill(detail_x - 16.0, top - 8.0, 1.0, h - top - 16.0, 0.0, rule);
@@ -2338,7 +2321,7 @@ fn contents_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let ink = Role::OnSurface;
     let muted = Role::OnSurfaceVariant;
     use crate::compact::M;
-    use crate::compact::screen::{about, finish, row};
+    use crate::compact::screen::{about, finish};
     use crate::screens::wrap_buttons;
     let (x, w) = (x0 + M, cw - 2.0 * M);
     let top = 12.0 - app.list_offset;
@@ -2351,15 +2334,12 @@ fn contents_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         }
         return;
     };
-    let (cat_label, kinds) = CATEGORIES[app.vaults.category];
-    let items: Vec<RecordView<'_>> = app
-        .vaults
-        .records(v.id)
-        .iter()
-        .filter(|(_, r)| kinds.contains(&r.kind()))
-        .map(|(_, r)| r)
-        .collect();
+    let cat_label = CATEGORIES[app.vaults.category].0;
+    let items = search::shown(app, v);
     let sel = app.vaults.item[app.vaults.category].min(items.len().saturating_sub(1));
+    if app.vaults.focus == Some(Focus::Search(vault::SearchIn::Items)) && !contents_detail(app) {
+        return search::compact_view(app, ui, &items, (x0, cw, h), (x, top, w));
+    }
     if contents_detail(app) {
         y = detail(app, ui, v, &items, sel, x, y, w);
         finish(app, ui, x0, cw, h, y - top + 16.0);
@@ -2517,24 +2497,10 @@ fn contents_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         );
         y += 44.0;
     }
-    for (k, r) in items.iter().enumerate() {
-        let (t, line, _) = item_heading(app, *r);
-        y += row(
-            ui,
-            x,
-            y,
-            w,
-            None,
-            &t,
-            &line,
-            muted.paint(),
-            Some(va(V::Item(k))),
-        );
+    if vault::search::searchable(app.vaults.category) {
+        y += search::bar(app, ui, x, y, w, vault::SearchIn::Items);
     }
-    if items.is_empty() {
-        ui.text(x, y, 13.0, W::R, muted, EN.vault_none_here);
-        y += 30.0;
-    }
+    y += search::compact_rows(app, ui, &items, x, y, w);
     y += about(
         ui,
         x,

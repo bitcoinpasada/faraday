@@ -5990,7 +5990,7 @@ impl Faraday {
         } else {
             key
         };
-        if self.file_key(key) {
+        if self.file_key(key) || self.vaults.search_key(self.screen, key) {
             return;
         }
         if self.seed_read_key(key) {

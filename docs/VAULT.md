@@ -482,3 +482,23 @@ while the vault is locked, until power-off. None of it spends: no seed,
 no words, no entry's fields, no descriptor. It does say which slot was
 open, which §9's deniability does not cover while the machine stays on;
 powering off ends it.
+
+## 12. Searching an open slot
+
+An open slot's contents carry Material's search bar (DESIGN §4.3) at the
+top of the items column for **Wallets**, **Entries** and **GPG keys**,
+the kinds whose records hold a public title: an entry's title (type 6,
+field 1), a wallet's name (type 3, field 2), a wallet share's wallet name
+(type 13, field 2), a GPG key's user ID (type 7, field 5). Typing keeps
+the items whose title holds what is typed, case not counted, as it is
+typed; the × shows them all again; none found reads **No titles match**.
+Usernames, URLs and notes are not searched: titles only. Nothing secret
+is read to search: Notes has no bar, since a note's title is its first
+line, a secret; Bitcoin keys have none, since a key is named by its
+fingerprint, worked out rather than kept; Secure Boot holds one set.
+The codes screen has a bar of its own (`docs/TOTP.md` §5.3).
+
+What each bar finds is kept on the open slot beside what is read of its
+records (`vault/search.rs`, `Found`), dropped by every change to the
+records and to a bar's text, and found again before the next frame, so
+drawing only looks it up. A lock empties both bars.

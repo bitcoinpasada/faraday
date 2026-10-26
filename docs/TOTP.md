@@ -288,6 +288,12 @@ again after a lock in the same power-on.
   entry's row in the list.
 - No rows: the line **No entries with a TOTP secret**, and the two
   buttons under it.
+- Over the rows, while there are any, Material's search bar
+  (DESIGN §4.3, **Search codes**): typing keeps the rows whose entry's
+  title (field 1) holds what is typed, case not counted, as it is typed;
+  none found reads **No codes match**; the × shows every row again.
+  Pressing a row found opens its entry even when the vault's own items
+  search would not list it: that search is emptied first.
 
 The screen redraws on the shell's ticks whenever the second shown has
 changed, and the code changes on the tick that crosses its period. It is
@@ -299,7 +305,9 @@ the idle lock.
 
 Compact layout as the compact vault lists: one row per entry, title
 over code, the account line dropped when there is no room, the bar under
-each row, Now on one line at the top. Check at `480x640` and `240x320`.
+each row, Now on one line at the top. A press on the search bar opens
+Material's search view: the bar at the top, the rows it finds under it
+and the on-screen keyboard under them; Done leaves it. Check at `480x640` and `240x320`.
 
 ## 6. The entry
 

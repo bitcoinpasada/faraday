@@ -92,7 +92,7 @@ impl VaultArea {
                 .get_mut(k)
                 .map(|f| &mut f.2),
             Focus::Dice => self.state.dice.as_mut().map(|d| &mut d.1),
-            Focus::Rolls => None,
+            Focus::Rolls | Focus::Search(_) => None,
             Focus::Prompt => self.state.prompt.as_mut().map(|p| &mut p.text),
             Focus::Name => self.state.create.as_mut().map(|c| &mut c.name),
         }
@@ -547,6 +547,8 @@ pub enum Focus {
     Prompt,
     /// Create's name for the vault.
     Name,
+    /// A search bar ([`super::SearchIn`]).
+    Search(super::SearchIn),
 }
 
 /// One vault file the Inbox or Outbox holds.
@@ -656,20 +658,11 @@ pub(super) struct Read {
 }
 
 impl Vaults {
-    /// The selected record of the kind shown in the open vault on the
-    /// contents screen, by its place among the vault's records. A walk of
-    /// the record list.
+    /// Costs what [`Vaults::selected_place`] costs. The selected record
+    /// of the kind shown in the open vault on the contents screen, by its
+    /// place among the vault's records: among those its search shows.
     pub fn selected_index(&self) -> Option<usize> {
-        let v = self.open.get(self.current)?;
-        let kinds = CATEGORIES[self.category].1;
-        let items: Vec<usize> = self
-            .records(v.id)
-            .iter()
-            .filter(|(_, r)| kinds.contains(&r.kind()))
-            .map(|(i, _)| i)
-            .collect();
-        let k = self.item[self.category].min(items.len().saturating_sub(1));
-        items.get(k).copied()
+        self.selected_place()
     }
 
     /// Costs what [`Vaults::words_id`] costs. The label of the open vault
@@ -752,7 +745,7 @@ impl Vaults {
     pub fn edit<T>(&mut self, id: VaultId, change: impl FnOnce(&mut OpenVaults) -> T) -> T {
         let out = change(&mut self.store);
         if let Some(o) = self.open.iter_mut().find(|o| o.id == id) {
-            o.read = std::cell::OnceCell::new();
+            o.read = Kept::default();
         }
         out
     }
@@ -771,15 +764,17 @@ impl Vaults {
 
     /// Costs a parse of each wallet description and of each key record's
     /// words the first time after a change, a lookup after. Reads open
-    /// vault `id`'s records, unless they are read already.
+    /// vault `id`'s records, and finds what the search bars hold in them
+    /// ([`super::search::Found`]), unless that is done already.
     pub fn warm(&self, c: &Compute, id: VaultId) {
         let _ = self.read(c, id);
+        let _ = self.shown(id, 0);
     }
 
     /// Costs what `warm` costs. What is read of open vault `id`'s records.
     fn read(&self, c: &Compute, id: VaultId) -> Option<&Read> {
         let o = self.open.iter().find(|o| o.id == id)?;
-        let read = o.read.get_or_init(|| {
+        let read = o.read.read.get_or_init(|| {
             // The key records' words are read with the descriptions, once.
             self.store.warm(c, id);
             Read {
@@ -919,8 +914,19 @@ pub struct OpenVault {
     /// Its seeds and wallets listed one by one on Files, under its
     /// wallets with their seeds.
     pub each_shown: bool,
-    /// What is read of its records ([`Read`]); dropped by every edit.
+    /// What is read of its records and what its searches find
+    /// ([`Kept`]); dropped by every edit.
+    pub(super) read: Kept,
+}
+
+/// What an open vault keeps worked out from its records: what is read of
+/// them ([`Read`]) and what the search bars find in them
+/// ([`super::search::Found`]), each dropped when what it comes from
+/// changes.
+#[derive(Default)]
+pub(super) struct Kept {
     pub(super) read: std::cell::OnceCell<Read>,
+    pub(super) found: std::cell::OnceCell<super::search::Found>,
 }
 
 impl OpenVault {
@@ -1219,6 +1225,8 @@ pub struct Vaults {
     pub load: Option<crate::vault::load::LoadSheet>,
     /// The sheet of seeds kept with no passphrase, while it is up (F62).
     pub pass_seeds: Option<crate::vault::load::PassSeeds>,
+    /// What the search bars hold ([`super::search`]).
+    pub(super) search: super::search::Searches,
 }
 
 /// Where the item page's secrets were shown, on Vault contents: the open vault,
@@ -1298,6 +1306,7 @@ impl Vaults {
     pub fn close_all(&mut self) {
         self.open.clear();
         self.store.clear();
+        self.search = super::search::Searches::default();
     }
 
     /// Seconds to unlock at a cost on this computer, when measured.
@@ -2057,6 +2066,8 @@ pub enum VaultAction {
     PromptGo,
     /// Leave the prompt.
     PromptCancel,
+    /// A search bar's press ([`super::SearchAct`]).
+    Search(super::SearchAct),
     /// A GPG key's expiry, in years; 0 for never.
     GpgYears(u32),
     /// The selected GPG key's public certificate to the Outbox.

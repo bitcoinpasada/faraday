@@ -9,7 +9,7 @@ pub(crate) mod screen;
 
 use crate::strings::EN;
 use faraday_keys::totp::NotTotp;
-use faraday_vault::records::{field, kind};
+use faraday_vault::records::field;
 
 use crate::vault::VaultAction;
 use crate::{Action, Faraday};
@@ -37,8 +37,7 @@ pub enum CodeKind {
 pub struct CodeRow {
     /// Index into `app.vaults.open`.
     pub vault: usize,
-    /// This entry's position among that vault's Entries (as
-    /// `vaults.item` holds it).
+    /// The entry's place among that vault's records.
     pub item: usize,
     /// Field 1.
     pub title: String,
@@ -50,19 +49,17 @@ pub struct CodeRow {
     pub kind: CodeKind,
 }
 
-/// Every row, in the order §5.3 draws them: vault by vault in the order
-/// they were opened, then in record order.
+/// Every row the search bar's query holds, in the order §5.3 draws them:
+/// vault by vault in the order they were opened, then in record order.
 pub fn codes_rows(app: &Faraday, now: u64) -> Vec<CodeRow> {
     let mut out = Vec::new();
     let many = app.vaults.open.len() > 1;
     for (v, ov) in app.vaults.open.iter().enumerate() {
-        for (item, (at, r)) in app
-            .vaults()
-            .records(ov.id)
-            .iter()
-            .filter(|(_, r)| r.kind() == kind::ENTRY)
-            .enumerate()
-        {
+        let records = app.vaults().records(ov.id);
+        for &at in app.vaults().shown_codes(ov.id) {
+            let Some(r) = records.get(at) else {
+                continue;
+            };
             let Some(t) = app.vaults.store().totp(
                 ov.id,
                 at,
@@ -91,7 +88,7 @@ pub fn codes_rows(app: &Faraday, now: u64) -> Vec<CodeRow> {
             };
             out.push(CodeRow {
                 vault: v,
-                item,
+                item: at,
                 title,
                 account,
                 vault_name: if many {

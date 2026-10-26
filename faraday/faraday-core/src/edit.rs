@@ -243,6 +243,7 @@ impl Faraday {
                 F::Rolls => V::Roller(crate::fresh::roller::Act::Count),
                 F::Prompt => V::FocusPrompt,
                 F::Name => V::CName,
+                F::Search(s) => V::Search(vault::SearchAct::Focus(s)),
             })),
             Screen::Entry if self.entry.state().on_passphrase => Some(Action::EntryPassphrase),
             Screen::Wallets => Some(Action::Rename),
@@ -288,6 +289,7 @@ impl Faraday {
                     F::Rolls => v.roller.typed(),
                     F::Prompt => &v.prompt.as_ref()?.text.text,
                     F::Name => &v.create.as_ref()?.name.text,
+                    F::Search(s) => v.query(s),
                 }
             }
             Action::EntryPassphrase => &self.entry.state().passphrase,

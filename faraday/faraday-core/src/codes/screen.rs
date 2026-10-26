@@ -10,7 +10,7 @@ use crate::strings::EN;
 use crate::strings::fill;
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui, W};
-use crate::vault::VaultAction as V;
+use crate::vault::{Focus, SearchIn, VaultAction as V};
 
 /// The value row at the top: local time with seconds under its label and
 /// the zone, and Set the time (§5.3). The zone is in the label, so the
@@ -137,6 +137,30 @@ fn code_row(ui: &mut Ui, x: f32, y: f32, w: f32, r: &CodeRow) -> f32 {
     h + 12.0
 }
 
+/// Whether the search bar holds anything.
+fn searched(app: &View) -> bool {
+    !app.vaults.query(SearchIn::Codes).is_empty()
+}
+
+/// The search bar over the rows, while there are rows to search or the
+/// bar holds something (`docs/TOTP.md` §5.3). Returns the height it takes.
+fn search(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, none: bool) -> f32 {
+    if none && !searched(app) {
+        return 0.0;
+    }
+    crate::vault::screen::search_bar(app, ui, x, y, w, SearchIn::Codes)
+}
+
+/// The line in place of the rows: no entry with a TOTP secret, or none
+/// the search bar's query holds.
+fn none_line(app: &View) -> &'static str {
+    if searched(app) {
+        EN.codes_search_none
+    } else {
+        EN.codes_no_totp_entries
+    }
+}
+
 /// `Screen::Codes`, desktop layout.
 pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     if ui.compact {
@@ -150,15 +174,9 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     y += now_row(app, ui, x, y, w) + 12.0;
     let now = app.clock_now().unwrap_or(0);
     let rows = codes_rows(app, now);
+    y += search(app, ui, x, y, w, rows.is_empty());
     if rows.is_empty() {
-        ui.text(
-            x,
-            y,
-            14.0,
-            W::R,
-            Role::OnSurfaceVariant,
-            EN.codes_no_totp_entries,
-        );
+        ui.text(x, y, 14.0, W::R, Role::OnSurfaceVariant, none_line(app));
         y += 36.0;
     } else {
         for r in &rows {
@@ -197,23 +215,21 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 
 /// [`draw`] on a small panel: one column, Now first, then a row per
 /// entry with the account line dropped when there is no room, the bar
-/// still under each row (§5.4).
+/// still under each row (§5.4). While typing goes to the search bar,
+/// Material's search view: the bar at the top and the rows it finds.
 fn compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let x = x0 + crate::compact::M;
     let w = cw - 2.0 * crate::compact::M;
-    let mut y = 8.0;
-    y += now_row(app, ui, x, y, w) + 8.0;
+    let mut y = 8.0 - app.list_offset;
+    let view = app.vaults.focus == Some(Focus::Search(SearchIn::Codes));
+    if !view {
+        y += now_row(app, ui, x, y, w) + 8.0;
+    }
     let now = app.clock_now().unwrap_or(0);
     let rows = codes_rows(app, now);
+    y += search(app, ui, x, y, w, rows.is_empty());
     if rows.is_empty() {
-        ui.text(
-            x,
-            y,
-            13.0,
-            W::R,
-            Role::OnSurfaceVariant,
-            EN.codes_no_totp_entries,
-        );
+        ui.text(x, y, 13.0, W::R, Role::OnSurfaceVariant, none_line(app));
         y += 32.0;
     } else {
         for r in &rows {
@@ -221,9 +237,10 @@ fn compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         }
     }
     y += 8.0;
-    if app.vaults.form.is_some() {
+    // The search view holds the bar and the rows it finds alone.
+    if app.vaults.form.is_some() && !view {
         y += crate::vault::screen::codes_form(app, ui, x, y, w) + 16.0;
-    } else {
+    } else if !view {
         ui.button(
             x,
             y,
@@ -245,5 +262,5 @@ fn compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         );
         y += 52.0;
     }
-    crate::compact::screen::finish(app, ui, x0, cw, h, y);
+    crate::compact::screen::finish(app, ui, x0, cw, h, y + app.list_offset);
 }

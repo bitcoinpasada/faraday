@@ -130,6 +130,11 @@ fn area_of(screen: Screen) -> Area {
         // (`docs/LAYOUT.md` §17), centred in the room.
         Screen::KeyGen | Screen::Home | Screen::Settings => Area::Work,
         s if crate::panes::has_list(s) => Area::Work,
+        // Wallets' first page and the codes are reading content; an open
+        // vault's contents are list and detail, its kinds, items and the
+        // item, to the window's edge (`docs/LAYOUT.md` §5, §17).
+        Screen::WalletsStart | Screen::Codes => Area::Reading(READING_PAGE_W),
+        Screen::VaultContents => Area::Work,
         _ => Area::Until,
     }
 }

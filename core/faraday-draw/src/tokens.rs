@@ -587,6 +587,34 @@ pub const FILTER_CHIP_ICON: f32 = 18.0;
 /// Filter chips: the gap between two, side by side and row to row.
 pub const FILTER_CHIP_GAP: f32 = 8.0;
 
+/// A search bar's height (Material 3, Search: 56 dp), its shape the full
+/// round of half of it.
+pub const SEARCH_BAR_H: f32 = 56.0;
+
+/// A search bar's leading and trailing icons' box (Material: 24 dp).
+pub const SEARCH_ICON: f32 = 24.0;
+
+/// A search bar's icon glyph inside its box.
+pub const SEARCH_GLYPH: f32 = 16.0;
+
+/// A search bar's inset at each end, and between its leading icon and
+/// what is typed (Material: 16 dp).
+pub const SEARCH_INSET: f32 = 16.0;
+
+/// An item of an open vault's items column on a wide window: its height
+/// with a one-line title, the gap under it, the inset of its text and its
+/// title's top.
+pub const VAULT_ITEM_H: f32 = 52.0;
+/// The gap under a vault item.
+pub const VAULT_ITEM_GAP: f32 = 6.0;
+/// A vault item's text inset from its edges.
+pub const VAULT_ITEM_PAD: f32 = 12.0;
+/// A vault item's title's top in it.
+pub const VAULT_ITEM_TOP: f32 = 8.0;
+/// A vault item's line under its title, from the item's top with a
+/// one-line title.
+pub const VAULT_ITEM_LINE: f32 = 30.0;
+
 /// A theme chip's leading slot: the radius of the theme's primary dot
 /// in it on a theme not chosen.
 pub const THEME_CHIP_DOT: f32 = 4.0;

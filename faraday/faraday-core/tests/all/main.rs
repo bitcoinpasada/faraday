@@ -140,6 +140,7 @@ mod vault_load;
 mod vault_name;
 mod vault_passphrase;
 mod vault_seal;
+mod vault_search;
 mod vault_show_save;
 mod vault_summary;
 mod vault_way;
