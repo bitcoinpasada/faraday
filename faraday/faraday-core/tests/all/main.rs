@@ -126,6 +126,7 @@ mod step_back;
 mod stepper;
 mod stick_copy;
 mod stick_pills;
+mod toast;
 mod tools;
 mod top_actions_surface;
 mod totp;

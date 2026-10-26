@@ -1,22 +1,24 @@
 //! Settings › Appearance (`docs/THEMES.md` §12), drawn the same in
-//! Faraday and the Starter (§14): Theme as filter chips, each with a
-//! swatch in that theme's own colours, Mode and Contrast as segmented
+//! Faraday and the Starter (§14): Theme as chips, each filled in that
+//! theme's own colours, Mode and Contrast as segmented
 //! buttons; and Material's switch, which Settings' Reduce motion row
 //! uses.
 
 use crate::pal::{Role, ThemeName};
 use crate::{Contrast, Mode, Theme, Ui, W};
+use faraday_draw::Color;
 use faraday_draw::tokens::{
     APPEARANCE_LABEL_GAP, APPEARANCE_ROW_GAP, FILTER_CHIP_GAP, FILTER_CHIP_H, FILTER_CHIP_ICON,
     FILTER_CHIP_LEAD, FILTER_CHIP_TRAIL, GAP, LABEL, SEGMENTED_H, SHAPE_S, STATE_HOVER,
     STATE_PRESS, SWITCH_EDGE, SWITCH_H, SWITCH_HANDLE_OFF, SWITCH_HANDLE_ON, SWITCH_HANDLE_PRESSED,
-    SWITCH_STATE, SWITCH_W, THEME_SWATCH_DOT, THEME_SWATCH_TICK, TOUCH, alpha_of, shape_full,
+    SWITCH_STATE, SWITCH_W, THEME_CHIP_DOT, THEME_CHIP_RING, THEME_CHIP_RING_GAP, THEME_CHIP_TICK,
+    TOUCH, alpha_of, shape_full,
 };
 use faraday_draw::widgets::Icon;
 use faraday_strings::EN;
 
 impl<A: Copy + PartialEq> Ui<'_, A> {
-    /// How wide [`Ui::theme_chip`] draws `name`'s chip: its swatch, its
+    /// How wide [`Ui::theme_chip`] draws `name`'s chip: its leading slot, its
     /// name and, on the theme a first start is in, the Default mark.
     pub fn theme_chip_width(&self, name: ThemeName) -> f32 {
         let mut w = FILTER_CHIP_LEAD
@@ -30,39 +32,38 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
         w
     }
 
-    /// A theme as a filter chip (Material's) at (x, y): a swatch of the
-    /// theme in the mode and contrast on screen, its primary over its
-    /// primary-container, then its name. The chosen one is filled in
-    /// secondary-container with no edge and its swatch ticked; the others
-    /// are edged in outline. Returns its width.
+    /// A theme as a chip at (x, y), filled in that theme's own
+    /// primary-container (in the mode and contrast on screen) with its
+    /// name in its own on-primary-container: its leading slot holds the
+    /// theme's primary as a dot or, on the chosen one, a tick. The chosen
+    /// one is ringed in its own primary, a band of the page between ring
+    /// and fill (`docs/decisions/F120.md`). Its state layer is its
+    /// own on-primary-container; under it (hovered, focused or held)
+    /// what it writes goes to white or black, whichever that colour
+    /// leans to, so the label keeps its contrast. Returns its width.
     pub fn theme_chip(&mut self, x: f32, y: f32, name: ThemeName, chosen: bool, action: A) -> f32 {
         let w = self.theme_chip_width(name);
         let h = FILTER_CHIP_H;
-        let content = if chosen {
-            self.fill(x, y, w, h, SHAPE_S, Role::SecondaryContainer);
-            Role::OnSecondaryContainer
-        } else {
-            self.stroke(x, y, w, h, SHAPE_S, Role::Outline);
-            Role::OnSurfaceVariant
-        };
-        self.state_layer((x, y, w, h, SHAPE_S), content.paint(), action);
-        // The swatch, drawn from that theme's own scheme.
         let own = Theme::new(name, self.theme.mode, self.theme.contrast);
+        let (fill, ink) = (
+            own.role(Role::PrimaryContainer),
+            own.role(Role::OnPrimaryContainer),
+        );
+        if chosen {
+            self.theme_chip_ring((x, y, w, h), own.role(Role::Primary));
+        }
+        self.fill(x, y, w, h, SHAPE_S, fill);
+        self.state_layer((x, y, w, h, SHAPE_S), ink.into(), action);
+        let layered =
+            self.is_pressed(action) || self.is_hovered(action) || self.focused == Some(action);
+        let content = if layered { held_ink(fill, ink) } else { ink };
         let r = FILTER_CHIP_ICON / 2.0;
         let (cx, cy) = (x + FILTER_CHIP_LEAD + r, y + h / 2.0);
-        self.dot(cx, cy, r, own.role(Role::PrimaryContainer));
         if chosen {
-            let t = THEME_SWATCH_TICK;
-            self.icon(
-                cx - t / 2.0,
-                cy - t / 2.0,
-                t,
-                Icon::Done,
-                t,
-                own.role(Role::OnPrimaryContainer),
-            );
+            let t = THEME_CHIP_TICK;
+            self.icon(cx - t / 2.0, cy - t / 2.0, t, Icon::Done, t, content);
         } else {
-            self.dot(cx, cy, THEME_SWATCH_DOT, own.role(Role::Primary));
+            self.dot(cx, cy, THEME_CHIP_DOT, own.role(Role::Primary));
         }
         let lx = x + FILTER_CHIP_LEAD + FILTER_CHIP_ICON + GAP;
         let lw = self.text_mid(lx, y, h, LABEL, W::S, content, name.name());
@@ -80,6 +81,18 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
         self.focus_ring((x, y, w, h, SHAPE_S), action);
         self.hit_drawn(x, y, w, h, action);
         w
+    }
+
+    /// The chosen theme chip's ring round the chip at `at`, in `color`:
+    /// [`THEME_CHIP_RING`] thick, [`THEME_CHIP_RING_GAP`] outside it, so
+    /// the page shows between ring and fill and the ring stands against
+    /// the page on both sides, whatever the fill.
+    fn theme_chip_ring(&mut self, (x, y, w, h): (f32, f32, f32, f32), color: Color) {
+        let out = THEME_CHIP_RING_GAP + THEME_CHIP_RING;
+        let rect = self.rect(x - out, y - out, w + 2.0 * out, h + 2.0 * out);
+        let r = (SHAPE_S + out) * self.f;
+        self.c
+            .stroke_rounded_rect(rect, r, THEME_CHIP_RING * self.f, color);
     }
 
     /// The ten themes as filter chips from (x, y), wrapping in `w`; the
@@ -277,5 +290,19 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
         self.text_mid(x, y, TOUCH, LABEL, W::R, Role::OnSurface, &shown);
         self.switch(x + w - SWITCH_W, y + (TOUCH - SWITCH_H) / 2.0, on, action);
         TOUCH
+    }
+}
+
+/// What a theme chip under its state layer writes in: white where its on-colour `ink` is
+/// lighter than its `fill`, else black. Material's container pairs sit
+/// at 4.5:1 at Standard contrast, and the state layer, laid in `ink`,
+/// takes up to a tenth of that while it shows; the label moving away
+/// from the fill gives it back (`docs/decisions/F120.md`).
+fn held_ink(fill: Color, ink: Color) -> Color {
+    let light = |c: Color| 2126 * u32::from(c.r) + 7152 * u32::from(c.g) + 722 * u32::from(c.b);
+    if light(ink) > light(fill) {
+        Color::WHITE
+    } else {
+        Color::BLACK
     }
 }

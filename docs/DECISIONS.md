@@ -134,3 +134,4 @@ Read this table, then only the decision you need.
 | [F117](decisions/F117.md) | Faraday Demo matches the device; it differs only where the platform or an owner decision forces it | 2026-10-25 | Amended by F119 | design |
 | [F118](decisions/F118.md) | Faraday Demo is a simulator: what is Faraday Demo's or Practice's stands in a host strip outside the app | 2026-10-25 | Amended by F119 | design |
 | [F119](decisions/F119.md) | Faraday Desktop is Faraday Demo; its Demo mode is Practice | 2026-10-26 | Active | design |
+| [F120](decisions/F120.md) | Settings' theme chips are filled in their own theme's colours; the chosen one is ringed | 2026-10-25 | Active | design |

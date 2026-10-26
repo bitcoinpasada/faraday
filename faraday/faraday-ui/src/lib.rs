@@ -16,6 +16,7 @@ pub mod nav;
 pub mod parts;
 pub mod region;
 pub mod sheet;
+pub mod snackbar;
 mod theme;
 pub mod tooltip;
 

@@ -689,42 +689,9 @@ fn notices(app: &View, ui: &mut Ui, x: f32, cw: f32, h: f32) {
         );
     }
     if let Some(t) = app.toast_text().map(str::to_string) {
-        // Material's snackbar: in the inverse colours, so it reads as a
-        // message over the page. It rises in, and fades as its time runs
-        // out.
-        use faraday_draw::tokens::{SHAPE_XS, TOAST_H, TOAST_PAD};
+        // Material's snackbar, rising in and fading as its time runs out.
         let (shown, rise) = app.toast_shown();
-        let a = |c: crate::ui::Paint| c.with_alpha((f32::from(c.alpha()) * shown) as u8);
-        let ty = h - 64.0 + rise;
-        let tw = ui.measure(14.0, W::R, &t) + 2.0 * TOAST_PAD;
-        let tx = x + (cw - tw) / 2.0;
-        if shown >= 1.0 {
-            ui.shadow(
-                tx,
-                ty,
-                tw,
-                TOAST_H,
-                SHAPE_XS,
-                faraday_draw::tokens::ELEVATION_FAB,
-            );
-        }
-        ui.wash(
-            tx,
-            ty,
-            tw,
-            TOAST_H,
-            SHAPE_XS,
-            a(Role::InverseSurface.paint()),
-        );
-        ui.text_mid(
-            tx + TOAST_PAD,
-            ty,
-            TOAST_H,
-            14.0,
-            W::R,
-            a(Role::InverseOnSurface.paint()),
-            &t,
-        );
+        ui.snackbar((x, cw, h), &t, shown, rise);
     }
 }
 

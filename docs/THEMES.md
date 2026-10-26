@@ -282,11 +282,12 @@ the same.
 | Top app bar | surface; surface-container once scrolled under | title on-surface; icons on-surface-variant | |
 | Assist chip | none | on-surface; icon primary | outline |
 | Filter chip | none; selected secondary-container | on-surface-variant; selected on-secondary-container | outline; none once selected |
+| Theme chip (Settings' Theme, F120) | that theme's primary-container | that theme's on-primary-container | chosen: a ring in that theme's primary, 3 dp thick, 2 dp outside |
 | Segmented button | none; selected secondary-container | on-surface; selected on-secondary-container | outline |
 | Dialog | surface-container-high | headline on-surface; text on-surface-variant; icon secondary; actions primary | scrim behind |
 | Bottom sheet | surface-container-low | on-surface | drag handle on-surface-variant; scrim behind |
 | Menu | surface-container | on-surface | shadow, level 2 |
-| Snackbar (the toast) | inverse-surface | inverse-on-surface; action inverse-primary | |
+| Snackbar (the toast) | inverse-surface | inverse-on-surface, body medium; action inverse-primary | shadow, level 3; extra-small corners |
 | Filled text field | surface-container-highest | input on-surface; label on-surface-variant; caret primary | indicator on-surface-variant, primary while focused, error when wrong |
 | Outlined text field | none | as filled | outline, primary while focused, error when wrong |
 | Switch | track primary; off surface-container-highest | handle on-primary; off outline | off track edge outline |
@@ -493,9 +494,10 @@ regenerating, fails `just lint`.
 
 Settings › Appearance holds three rows, built from F108's components:
 
-- **Theme**: ten filter chips, one per theme, each with a swatch of
-  that theme in the current mode (its primary over its primary-container)
-  and its name; the chosen one selected (secondary-container, ticked).
+- **Theme**: ten chips, one per theme, each filled in that theme's
+  primary-container in the mode and contrast on screen, with its name
+  in that theme's on-primary-container (F120, owner 2026-10-25). The
+  chosen one is ringed in that theme's primary and carries the tick.
   Cobalt carries the Default mark, as its tile does today. The chips
   wrap into as many rows as the width needs.
 - **Mode**: a segmented button, Light · Dark.
@@ -508,9 +510,27 @@ when it is built.
 As built (C3, `faraday_ui::Ui::appearance`, `theme_chips`): on the wide
 layout each row's label stands in a column `APPEARANCE_LABEL_W` wide
 with its control beside it; on a small panel the label stands over its
-control. A chip's swatch is drawn from that theme's own scheme in the
-mode and contrast on screen; the chosen chip's swatch carries the tick,
-in that theme's on-primary-container, where its primary dot is. Mode
+control. A theme chip is drawn from that theme's own scheme in the
+mode and contrast on screen (`Ui::theme_chip`): its fill
+primary-container, its leading slot that theme's primary as a dot or,
+on the chosen chip, the Done tick in on-primary-container, so the
+choice does not rest on colour alone and every chip keeps one width
+whichever is chosen. The chosen chip's ring is that theme's primary,
+`THEME_CHIP_RING` (3 dp) thick and `THEME_CHIP_RING_GAP` (2 dp)
+outside the fill, with the page showing between: primary stands 5.8:1
+or more against the page in every scheme, while against its own
+container it can fall to 1.4:1 (Cobalt Light, whose primary-container
+is the seed's own dark blue), so a ring on the fill's edge would vanish
+into it. In Dark primary is the lighter of the two; a ring darker than
+the fill would vanish into the dark page (primary-container is as low
+as 2.0:1 on it), so primary is the ring in both modes. The label on its
+fill is Material's on-primary-container pair, 4.5:1 at Standard, 7:1 at
+Medium, 11:1 at High (§11.1), and measured on the frame (§11.2). The
+state layer is that theme's on-primary-container; while it shows
+(hovered, focused, held) the label and tick go to white or black,
+whichever on-primary-container leans to, since the pair has no room to
+lose a tenth (Cobalt held fell to 3.89:1); held, every chip's label
+reads 4:1 or more (6.5:1 at High). Mode
 and Contrast are Material segmented buttons `SEGMENTED_H` tall, option
 buttons where three segments do not fit the width (a small panel).
 Under them, **Reduce motion**, a Material switch in a list row

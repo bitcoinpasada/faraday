@@ -390,3 +390,123 @@ fn the_appearance_rows_are_as_tall_as_worked_out() {
         }
     }
 }
+
+/// The pixel at (x, y) of `canvas`, as a colour.
+fn pixel(canvas: &Canvas, x: f32, y: f32) -> Color {
+    let f = canvas.frame();
+    let i = ((y as usize) * usize::from(f.width) + x as usize) * 4;
+    Color::rgb(f.rgba[i], f.rgba[i + 1], f.rgba[i + 2])
+}
+
+/// Settings' theme chips (`docs/THEMES.md` §12): every chip is filled in
+/// its own theme's primary-container in the mode and contrast on screen;
+/// the chosen one alone is ringed in its own primary, with the page
+/// between ring and fill, and a chip not chosen has no edge.
+#[test]
+fn the_chosen_theme_chip_alone_is_ringed_in_its_own_primary() {
+    use faraday_draw::tokens::{FILTER_CHIP_H, THEME_CHIP_RING, THEME_CHIP_RING_GAP};
+    let mut short = Vec::new();
+    for theme in Theme::all() {
+        let mut canvas = canvas();
+        let mut hits = Vec::new();
+        let mut at = Vec::new();
+        {
+            let mut ui: Ui<u8> = Ui::new(&mut canvas, 1.0, &mut hits, None);
+            ui.theme = theme;
+            ui.clear(Role::Surface);
+            for (k, name) in ThemeName::ALL.into_iter().enumerate() {
+                let (x, y) = (24.0, 16.0 + k as f32 * (FILTER_CHIP_H + 12.0));
+                let w = ui.theme_chip(x, y, name, name == theme.name, k as u8);
+                at.push((name, x, y + FILTER_CHIP_H / 2.0, w));
+            }
+        }
+        let page = theme.role(Role::Surface);
+        for (name, x, mid, w) in at {
+            let own = Theme::new(name, theme.mode, theme.contrast);
+            let fill = pixel(&canvas, x + w - 4.0, mid);
+            if fill != own.role(Role::PrimaryContainer) {
+                short.push(format!("{theme:?}: {name:?}'s chip is filled {fill:?}"));
+            }
+            let ring = pixel(
+                &canvas,
+                x - THEME_CHIP_RING_GAP - THEME_CHIP_RING / 2.0,
+                mid,
+            );
+            let want = if name == theme.name {
+                own.role(Role::Primary)
+            } else {
+                page
+            };
+            if ring != want {
+                short.push(format!("{theme:?}: beside {name:?}'s chip is {ring:?}"));
+            }
+            if pixel(&canvas, x - 1.0, mid) != page {
+                short.push(format!(
+                    "{theme:?}: no page between {name:?}'s ring and fill"
+                ));
+            }
+        }
+    }
+    assert!(short.is_empty(), "{short:#?}");
+}
+
+/// The chosen theme chip and one not chosen, pressed: each label keeps
+/// to the pressed floor of the components' test on its own fill with
+/// its own state layer over it, in every scheme.
+#[test]
+fn a_pressed_theme_chip_keeps_its_label_readable_in_every_scheme() {
+    let mut short = Vec::new();
+    for theme in Theme::all() {
+        let floor = if theme.is_high_contrast() { 6.5 } else { 4.0 };
+        let other = ThemeName::ALL
+            .into_iter()
+            .find(|&n| n != theme.name)
+            .expect("ten themes");
+        let other = Theme::new(other, theme.mode, theme.contrast);
+        for pressed in [theme, other] {
+            let lines = read(theme, appearance, Some(20 + pressed.row() as u8));
+            let name = pressed.name.name();
+            let Some(&(_, got)) = lines.iter().find(|(t, _)| t == name) else {
+                short.push(format!("{theme:?}: {name} not drawn"));
+                continue;
+            };
+            if got < floor {
+                short.push(format!("{theme:?}: {name} pressed is {got:.2}:1"));
+            }
+        }
+    }
+    assert!(short.is_empty(), "{short:#?}");
+}
+
+/// A toast too long for a narrow panel's width breaks onto more lines
+/// inside its container rather than running off the screen, every word
+/// of it drawn, in inverse-on-surface.
+#[test]
+fn a_long_toast_wraps_inside_a_narrow_panel() {
+    let text = "Sample wallet and its keys wait for the stick to be put back in";
+    let mut canvas = canvas();
+    canvas.record_ink(true);
+    let mut hits = Vec::new();
+    {
+        let mut ui: Ui<u8> = Ui::new(&mut canvas, 1.0, &mut hits, None);
+        ui.clear(Role::Surface);
+        ui.snackbar((0.0, 268.0, 480.0), text, 1.0, 0.0);
+    }
+    let lines: Vec<_> = canvas
+        .ink()
+        .iter()
+        .filter_map(|i| match &i.kind {
+            InkKind::Text { text, color, .. } => Some((text.clone(), *color, i.rect)),
+            _ => None,
+        })
+        .collect();
+    assert!(lines.len() > 1, "{lines:?}");
+    let ink = Theme::default().role(Role::InverseOnSurface);
+    for (_, color, rect) in &lines {
+        assert_eq!(*color, ink);
+        assert!(rect.x >= 0 && rect.right() <= 268, "{rect:?} off the panel");
+        assert!(rect.bottom() <= 480, "{rect:?} below the foot");
+    }
+    let words: Vec<String> = lines.iter().map(|(t, _, _)| t.clone()).collect();
+    assert_eq!(words.join(" "), text);
+}

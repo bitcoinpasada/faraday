@@ -568,11 +568,21 @@ pub const FILTER_CHIP_ICON: f32 = 18.0;
 /// Filter chips: the gap between two, side by side and row to row.
 pub const FILTER_CHIP_GAP: f32 = 8.0;
 
-/// A theme chip's swatch: the radius of the primary dot inside it.
-pub const THEME_SWATCH_DOT: f32 = 4.0;
+/// A theme chip's leading slot: the radius of the theme's primary dot
+/// in it on a theme not chosen.
+pub const THEME_CHIP_DOT: f32 = 4.0;
 
-/// A theme chip's swatch: the tick drawn in it on the chosen theme.
-pub const THEME_SWATCH_TICK: f32 = 14.0;
+/// A theme chip's leading slot: the tick drawn in it on the chosen
+/// theme.
+pub const THEME_CHIP_TICK: f32 = 14.0;
+
+/// The chosen theme chip's ring, in that theme's primary: its
+/// thickness, as Material's focus indicator (`docs/THEMES.md` §12).
+pub const THEME_CHIP_RING: f32 = 3.0;
+
+/// The chosen theme chip's ring: the band of the page between it and
+/// the chip's fill.
+pub const THEME_CHIP_RING_GAP: f32 = 2.0;
 
 /// A segmented button's height (Material's): Settings' Mode and
 /// Contrast.
@@ -1513,10 +1523,17 @@ pub const DIALOG_MAX: f32 = 560.0;
 /// The gap between a dialog's actions at its end.
 pub const DIALOG_ACTION_GAP: f32 = GAP;
 
-/// The toast's height, one line (Material's snackbar).
+/// The toast's least height, one line (Material's snackbar).
 pub const TOAST_H: f32 = 48.0;
 /// The toast's room each side of its line.
 pub const TOAST_PAD: f32 = 16.0;
+/// The toast's room above and below its text: one line of body medium
+/// in it is [`TOAST_H`] tall, two are Material's 68.
+pub const TOAST_PAD_Y: f32 = 14.0;
+/// The toast's text size: Material's body medium.
+pub const TOAST_TEXT: f32 = 14.0;
+/// The toast's least room to the page's foot and to each side.
+pub const TOAST_MARGIN: f32 = 16.0;
 /// How long the toast stays on screen, ms.
 pub const TOAST_SHOW_MS: u64 = 4000;
 
