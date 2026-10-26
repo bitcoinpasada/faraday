@@ -251,7 +251,7 @@ rule's reach is written down):
 | 3 | Explore | The address and the public key at the path | Public | No | **Show as QR**, no PNG | Compared with another wallet's at the same path by scanning |
 | 4 | Lightning node key | Node id | Public | No | **Show as QR** and **PNG** | A peer or a Lightning wallet takes a node id by scanning, and it is given out more than once |
 | 5 | Vault contents, a recovery sheet (record type 5) | The sheet's descriptor | Public | No | **Show as QR** and **PNG** | The record has no action that loads it; a code is the only way to move its descriptor short of typing it |
-| 6 | Vault contents, an entry | TOTP secret, its `otpauth://` URI | Secret | No | **Hold to show as QR**: the QR sheet marked Secret; no PNG, no file | An authenticator app takes it by scanning; its only other way in is typing a 32-character key. Faraday already reads the same URI in (§2) |
+| 6 | Vault contents, an entry | TOTP secret, its `otpauth://` URI | Secret | No | **Show as QR**: the QR sheet marked Secret; no PNG, no file | An authenticator app takes it by scanning; its only other way in is typing a 32-character key. Faraday already reads the same URI in (§2) |
 | 7 | The signing steps' **Addresses · Compare** | Receive 0/0, 0/1, change 1/0 | Public | No | No | Shown mid-transaction to compare with the online wallet, not to receive |
 | 8 | Any screen | A change address | Public | No | No | Nobody pays to a change address |
 | 9 | Make a new key | Its first address | Public | No | No | A key made here receives nothing until its backup is done (`docs/history/NEW-WALLET.md` §14.3); the card shows "Back up before you receive" instead |
@@ -287,10 +287,10 @@ rule's reach is written down):
   the id, as a GPG key's rows put them.
 - **A recovery sheet's page** (row 5): **Show as QR** and **PNG** on a
   row under **Descriptor**.
-- **An entry's TOTP secret** (row 6): **Hold to show as QR**, a hold
-  button (`vault::screen::hold_button`, `HOLD_MS`) under the held
-  **TOTP secret** row, shown when the URI reads as TOTP; an HOTP or
-  unreadable one shows none.
+- **An entry's TOTP secret** (row 6): **Show as QR**, a button under
+  the masked **TOTP secret** row, shown when the URI reads as TOTP; an
+  HOTP or unreadable one shows none. No hold shows a secret (§4.10 of
+  `docs/DESIGN.md`): a press opens the sheet, Done or leaving closes it.
 
 **What each code holds:**
 
@@ -372,7 +372,7 @@ with a new `QrView::secret(title, text)` (a `QrView::text` with
 | `code_view_no_node` | `No node key on show` |
 | `lightning_show_as_qr` | `Show as QR` |
 | `lightning_png` | `PNG` |
-| `vault_hold_to_show_qr` | `Hold to show as QR` |
+| `vault_show_as_qr` (reused) | `Show as QR` |
 
 The vanity title reuses `vanity_vanity_address`; the recovery sheet's
 buttons reuse `vault_show_as_qr` and the literal `"PNG"` the GPG rows
@@ -423,9 +423,9 @@ One batch, one review, one completion report.
   - a recovery sheet's **PNG** puts `{name}-descriptor.png` For the
     stick and scans back as the descriptor; a 2-of-3 past one code goes
     as parts that assemble to it;
-  - a press on **Hold to show as QR** shorter than the hold opens
-    nothing; a full hold opens the QR sheet marked Secret, with no PNG,
-    and For the stick is unchanged; after a lock no code is on screen;
+  - a press on the TOTP secret's **Show as QR** opens the QR sheet
+    marked Secret, with no PNG, and For the stick is unchanged; after a
+    lock no code is on screen;
   - nothing secret gains a code: the BIP-85 value, the Lightning private
     key, the scan key, an entry's password, a note and a vault key's
     words have no **Show as QR** on their screens, and every view the
@@ -433,7 +433,7 @@ One batch, one review, one completion report.
 - **Snapshots** (`faraday/shells/snapshot/src/main.rs`): the wallet
   card with its pressable address and the receive code open; Explore's
   extended key code; the Lightning node key with its buttons; a
-  recovery sheet's page; an entry with **Hold to show as QR**, and its
+  recovery sheet's page; an entry with its TOTP **Show as QR**, and its
   Secret sheet. At 1280x800, 480x640 and 240x320.
 - **Docs in the batch.** The header and §1 say this section is built;
   `docs/FLOWS.md` already names the actions (F28).

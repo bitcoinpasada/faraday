@@ -4,13 +4,12 @@ use crate::tour::{Tour, type_text};
 use faraday_core::testkit;
 use faraday_core::vault::VaultAction as V;
 use faraday_core::{Action, Screen, StorageEvent};
-use faraday_shell_api::{App, Event};
 
 /// The test vault's key and wallet shown and saved (`docs/BACKUP-FLOW.md`
-/// §17.7): the key with its SeedQR held, its Save to a stick, and the
+/// §17.7): the key masked, then its words and SeedQR shown by their eyes,
+/// its Save to a stick, and the
 /// Spending wallet's Save to a stick.
 pub(crate) fn vault_show_tour(t: &mut Tour) -> Result<(), String> {
-    use faraday_shell_api::TouchPhase;
     let vault = testkit::files()?
         .into_iter()
         .find(|(n, _)| n == "vault.ofv")
@@ -33,23 +32,14 @@ pub(crate) fn vault_show_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::Nav(Screen::VaultContents));
     t.press(Action::Vault(V::Category(0)));
     t.press(Action::Vault(V::Item(0)));
-    let show = Action::Vault(V::ShowSeedQr);
-    let _ = t.app.frame();
-    let (x, y) = t
-        .app
-        .where_offered(show)
-        .ok_or("Show SeedQR is not on screen")?;
-    t.app.event(Event::Touch {
-        x,
-        y,
-        phase: TouchPhase::Down,
-    });
+    // Masked, each secret behind its eye; then the words and the SeedQR
+    // shown by a press on each eye, and hidden again by the next.
+    t.shot("vault-key")?;
+    t.press(Action::Vault(V::Reveal(0)));
+    t.press(Action::Vault(V::ShowSeedQr));
     t.shot("vault-key-seedqr")?;
-    t.app.event(Event::Touch {
-        x,
-        y,
-        phase: TouchPhase::Up,
-    });
+    t.press(Action::Vault(V::Reveal(0)));
+    t.press(Action::Vault(V::ShowSeedQr));
     t.press(Action::Vault(V::SaveToStick));
     t.shot("vault-key-save")?;
     t.press(Action::Cancel);

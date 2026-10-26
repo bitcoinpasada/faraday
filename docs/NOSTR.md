@@ -313,11 +313,11 @@ batch N1 and the flow's batch B1 is built second adds this.
 ### 5.1 The saved entry's page
 
 Today an Entry's page in Vault contents (`vault/screen.rs`, the
-`kind::ENTRY` arm) shows the username, URL and notes as plain rows, the
-password and TOTP secret as held rows revealed by a hold, the live TOTP
-code, and two actions, **Edit** and **Export for KeePass**. Since F28
-(`docs/QR.md` §7) the TOTP secret also has **Hold to show as QR**: its
-`otpauth://` URI on the QR sheet marked Secret, opened by a hold, with
+`kind::ENTRY` arm) shows the username and URL as plain rows, the
+password, TOTP secret and notes as masked rows each shown by its eye, the live
+TOTP code, and two actions, **Edit** and **Export for KeePass**. Since
+F28 (`docs/QR.md` §7) the TOTP secret also has **Show as QR**: its
+`otpauth://` URI on the QR sheet marked Secret, opened by a press, with
 no PNG and no file. Its usual destination, an authenticator app, takes
 it only by scanning. That is the one secret field of an Entry with a
 code. The password field has none, and none is added: there is no

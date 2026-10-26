@@ -770,7 +770,12 @@ chosen machine gives.
 **Vault contents**: the kinds it holds (only those a slot holds
 something of), then a row per add action, the Add icon in the accent
 colour (decision 58): Save a key, Save a wallet, Add an entry, Add a
-note, Make a key, Make keys;
+note, Make a key, Make keys; Save a key lists every key loaded and not
+in the vault, of words or of the master seed a codex32 or SLIP-39 key
+came from, and saves it as a key record (`docs/VAULT.md` §7, type 2:
+the seed payload and, for a codex32 key, its set's facts in field 5);
+a key record's words, an entry's password, TOTP secret and notes, a note and a
+paperkey each show behind their eye (DESIGN §4.10);
 an empty vault shows them as buttons under "Nothing in it yet", then
 **Write it to a stick** → items → details. Unlocked, it opens on Wallets
 where it holds one (decision 42): a wallet's item shows the plan's three
@@ -790,7 +795,7 @@ item's page stacks the same nodes in that order, with no lines.
   dice**, URL, notes, TOTP secret typed or **Scan**) → saved → the entry
   selected in the list; vault marked unsaved.
 - Entries list → **TOTP codes** → the codes screen (below).
-- An entry with a TOTP secret → **Hold to show as QR** under **TOTP
+- An entry with a TOTP secret → **Show as QR** under **TOTP
   secret** → the QR sheet with the stored `otpauth://` URI, marked
   Secret, no PNG, nothing For the stick; **Done** closes it (F28; not
   built, `docs/QR.md` §7).
@@ -1440,8 +1445,8 @@ whose steps decide and open the vaults first.
 more, their sticks, their vaults; then name and email, expiry with 3 years chosen, as `gpg
 --quick-generate-key` makes a key with none given) → created in every vault the plan keeps it in → after the flow's lock
 and writes by place, the key's page: fingerprint, signing subkey, user IDs, validity, **Revocation
-certificate** ("Kept with the key · made {date}"), **Paperkey** (a hold to
-reveal; made only while held). The public key goes For the stick as the
+certificate** ("Kept with the key · made {date}"), **Paperkey** (behind its eye
+as every secret on the page; made only while it shows). The public key goes For the stick as the
 key is made (decision 24). The revocation certificate does not: it is kept
 in the key's record, as GnuPG keeps `openpgp-revocs.d/<FPR>.rev` beside the
 keyring (F32). A key made earlier, with none kept, makes one when its page

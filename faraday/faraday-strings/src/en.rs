@@ -23,7 +23,7 @@ strings! {
     /// Power-off sheet's first line on a PC stick that started with Secure Boot off or unread.
     power_secure_boot_off: "Turn Secure Boot back on in the BIOS before starting Windows.",
     // ----- A vault's key and wallet, shown and saved (docs/BACKUP-FLOW.md §17.7), faraday-core -----
-    /// A key record's SeedQR, shown only while held.
+    /// A key record's SeedQR, shown by its eye.
     vault_show_seedqr: "Show SeedQR",
     /// A vault record's button and the popup's title: its files to the
     /// Outbox, for the stick.
@@ -7191,10 +7191,6 @@ strings! {
     vault_kb: "{} KB",
     /// Text in `stick_field`. `{}`: `medium.noun()`.
     vault_remove_the_first: "Remove the {} first",
-    /// Text in `secret`.
-    vault_release_to_hide: "Release to hide",
-    /// Text in `secret`.
-    vault_hold_to_show: "Hold to show",
     /// Button in `hold_delete`.
     vault_hold_to_delete: "Hold to delete from vault",
     /// Text in `unlock`. `{}`: `app.vaults.time_text(mem, f.header.co…`.
@@ -7479,7 +7475,7 @@ strings! {
     /// Line in `contents_compact`.
     vault_none_here: "None in this vault",
     /// Text in `contents_compact`. `{}`: `app.medium.noun()`.
-    vault_secret_values: "Secret values show only while held. Changes stay in this session until it locks; locking seals them, and the next {} visit writes the vault back over its own file.",
+    vault_secret_values: "A secret value shows after a press on its eye and hides at the next press or when the page is left. Changes stay in this session until it locks; locking seals them, and the next {} visit writes the vault back over its own file.",
     /// Text in `detail`.
     vault_rename_the_vault: "Rename the vault",
     /// Text in `detail`.

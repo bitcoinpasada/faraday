@@ -154,23 +154,20 @@ impl Faraday {
         } else {
             out.kept.push(files);
         }
-        // Where an open vault holds each seed and wallet.
-        // A seed is in a vault when a key record there holds its words,
-        // from any list: told by the hash of their entropy each keeps
-        // (`Key::words_id`, `Vaults::words_id`), not parsed here.
-        let in_vault_key = |id: &[u8; 32]| {
-            self.vaults.open.iter().find_map(|v| {
-                self.vaults
-                    .records(v.id)
-                    .of(kind::KEY)
-                    .any(|(i, _)| self.vaults.words_id(c, v.id, i) == Some(id))
-                    .then(|| v.label(self.vaults.store()))
-            })
-        };
+        // Where an open vault holds each seed: by its words' entropy from
+        // any list (`Key::words_id`, `Vaults::words_id`), not parsed here;
+        // a master seed's key by its record's id.
         // What is in no open vault can be saved into the one open now.
         let can_save = self.vaults.current_id().is_some();
         for (i, k) in self.session.keys.all().enumerate() {
-            let vault = self.session.keys.words_id(c, i).and_then(in_vault_key);
+            let vault = match self.session.keys.seed_record_id(i) {
+                Some(id) => self.vaults.seed_vault(id),
+                None => self
+                    .session
+                    .keys
+                    .words_id(c, i)
+                    .and_then(|w| self.vaults.words_vault(c, w)),
+            };
             let save = (can_save
                 && vault.is_none()
                 && (k.has_words() || self.session.keys.holds_seed_bytes(i)))
@@ -741,7 +738,8 @@ impl Faraday {
                 self.vaults.state.sb_sign = None;
                 self.vaults.state.focus = None;
             }
-            V::Reveal(_) | V::ShowSeedQr => {}
+            V::Reveal(n) => self.vaults.toggle_shown(self.vault_on_page(), n),
+            V::ShowSeedQr => self.vaults.toggle_seedqr(&c, self.vault_on_page()),
             V::WalletQr => self.vault_wallet_qr(),
             V::SaveToStick => self.vault_stick_save_open(),
             V::SaveTick(k) => {
@@ -1690,17 +1688,7 @@ impl Faraday {
 
     /// The position in the slot of the item selected in the kind shown.
     pub fn vault_selected_index(&self) -> Option<usize> {
-        let v = self.vaults.open.get(self.vaults.current)?;
-        let kinds = CATEGORIES[self.vaults.category].1;
-        let items: Vec<usize> = self
-            .vaults
-            .records(v.id)
-            .iter()
-            .filter(|(_, r)| kinds.contains(&r.kind()))
-            .map(|(i, _)| i)
-            .collect();
-        let k = self.vaults.item[self.vaults.category].min(items.len().saturating_sub(1));
-        items.get(k).copied()
+        self.vaults.selected_index()
     }
 
     fn vault_delete(&mut self) {
@@ -3631,31 +3619,17 @@ impl Faraday {
             .map(|r| (at, r))
     }
 
-    /// Makes a SeedQR when a press lands on Show SeedQR: the selected key
-    /// record's code, kept while the press is held (`docs/SPEED.md`
-    /// §3.3: drawing makes no code). Any other press drops one kept.
-    pub(crate) fn vault_seedqr_press(&mut self, pressed: Option<Action>) {
-        let c = self.compute();
-        self.vaults.state.seedqr = None;
-        if pressed != Some(Action::Vault(VaultAction::ShowSeedQr)) {
-            return;
-        }
-        let Some((at, r)) = self.vault_record_of(kind::KEY) else {
-            return;
-        };
-        let Some(m) = self
-            .vaults
-            .store()
-            .words_of(&c, r, faraday_keys::Reveal::SeedQr)
-        else {
-            return;
-        };
-        if m.language() != faraday_bip::bip39::Language::English {
-            return;
-        }
-        if let Ok(mx) = faraday_codec::seedqr::encode_seedqr(&c, &m) {
-            self.vaults.state.seedqr = Some((at, mx));
-        }
+    /// The item page of Vault contents is on screen, no sheet over it:
+    /// where its secrets may show ([`Vaults::shown_here`]).
+    pub(crate) fn vault_on_page(&self) -> bool {
+        self.screen == Screen::VaultContents && self.sheet.is_none()
+    }
+
+    /// After every input: the item page's secrets hidden once the place
+    /// they were shown is left ([`Vaults::shown`]'s invariant).
+    pub(crate) fn vault_shown_tidy(&mut self) {
+        let on = self.vault_on_page();
+        self.vaults.tidy_shown(on);
     }
 
     /// Runs `f` with the selected wallet record as a session wallet, by

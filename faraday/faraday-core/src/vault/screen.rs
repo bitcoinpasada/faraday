@@ -25,8 +25,10 @@ use faraday_vault::records::{field, kind};
 use faraday_vault::{SLOT_SIZES, file_len};
 
 mod save;
+mod secret;
 pub(crate) use save::{gpg_sign_sheet, stick_save_sheet, years_row};
 use save::{images_panel, reasons_row, save_panel};
+use secret::{secret, secret_with, seedqr_box};
 
 fn va(a: V) -> Action {
     Action::Vault(a)
@@ -219,129 +221,6 @@ fn text_area(
     ui.stroke(x, y, w, h, 8.0, if focused { primary } else { rule });
     ui.hit(x, y, w, h, action);
     h
-}
-
-/// A secret value shown only while held.
-fn secret(ui: &mut Ui, x: f32, y: f32, w: f32, value: &str, mono: bool, id: usize) -> f32 {
-    secret_with(ui, x, y, w, || value.to_string().into(), mono, id)
-}
-
-/// A secret value shown only while held, made only then.
-fn secret_with(
-    ui: &mut Ui,
-    x: f32,
-    y: f32,
-    w: f32,
-    value: impl FnOnce() -> zeroize::Zeroizing<String>,
-    mono: bool,
-    id: usize,
-) -> f32 {
-    let (muted, inset) = (Role::OnSurfaceVariant, Role::SurfaceContainerHighest);
-    let (ink, warn) = (Role::OnSurface, Role::Warning);
-    let action = va(V::Reveal(id));
-    let held = ui.is_pressed(action);
-    let face = if mono { W::M } else { W::R };
-    let value = if held {
-        value()
-    } else {
-        zeroize::Zeroizing::new("•".repeat(24))
-    };
-    let shown = if held {
-        crate::secret_text::SecretText::of(&value)
-    } else {
-        crate::secret_text::SecretText::of(&"•".repeat(value.chars().count().clamp(8, 24)))
-    };
-    let tw = w - 28.0;
-    // Measured in a pass that draws nothing, so the field's surface goes
-    // down before the words and does not cover them.
-    let th = if held {
-        ui.c.push_clip(faraday_draw::Rect::new(0, 0, 0, 0));
-        let th = ui.wrap(x + 14.0, y + 10.0, tw, 14.0, face, ink, &shown);
-        ui.c.pop_clip();
-        th
-    } else {
-        20.0
-    };
-    let bh = th.max(20.0) + 38.0;
-    ui.fill(x, y, w, bh, 8.0, inset);
-    ui.stroke(
-        x,
-        y,
-        w,
-        bh,
-        8.0,
-        if held {
-            warn.paint()
-        } else {
-            Role::Warning.with_alpha(110)
-        },
-    );
-    if held {
-        ui.wrap(x + 14.0, y + 10.0, tw, 14.0, face, ink, &shown);
-    } else {
-        ui.text(x + 14.0, y + 10.0, 14.0, W::M, muted, &shown);
-    }
-    let hint = if held {
-        EN.vault_release_to_hide
-    } else {
-        EN.vault_hold_to_show
-    };
-    ui.text(x + 14.0, y + bh - 24.0, 11.0, W::R, warn, hint);
-    ui.hit(x, y, w, bh, action);
-    bh
-}
-
-/// Show SeedQR: the selected key's SeedQR shown only while held, behind
-/// the same hold as its words. The code is the one the press made
-/// ([`Faraday::vault_seedqr_press`]); drawing makes none. Returns the
-/// height.
-fn seedqr_box(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
-    let (muted, inset) = (Role::OnSurfaceVariant, Role::SurfaceContainerHighest);
-    let warn = Role::Warning;
-    let action = va(V::ShowSeedQr);
-    let held = ui.is_pressed(action);
-    let code = app
-        .vaults
-        .seedqr
-        .as_ref()
-        .filter(|(at, _)| held && Some(*at) == app.vault_selected_index())
-        .map(|(_, m)| m);
-    // The code's side, as a code is shown anywhere in the app, or the
-    // field's width where that is less.
-    let class = if ui.compact {
-        faraday_draw::SizeClass::Small
-    } else {
-        faraday_draw::SizeClass::Wide
-    };
-    let side = faraday_draw::tokens::qr_side(class).min(w - 28.0);
-    let bh = if code.is_some() { side + 58.0 } else { 58.0 };
-    ui.fill(x, y, w, bh, 8.0, inset);
-    ui.stroke(
-        x,
-        y,
-        w,
-        bh,
-        8.0,
-        if held {
-            warn.paint()
-        } else {
-            Role::Warning.with_alpha(110)
-        },
-    );
-    match code {
-        Some(m) => crate::screens::qr_code(ui, m, x + 14.0, y + 10.0, side),
-        None => {
-            ui.text(x + 14.0, y + 10.0, 14.0, W::S, muted, EN.vault_show_seedqr);
-        }
-    }
-    let hint = if held {
-        EN.vault_release_to_hide
-    } else {
-        EN.vault_hold_to_show
-    };
-    ui.text(x + 14.0, y + bh - 24.0, 11.0, W::R, warn, hint);
-    ui.hit(x, y, w, bh, action);
-    bh
 }
 
 /// "Hold to delete from vault", filling while it is held.
@@ -3049,6 +2928,8 @@ fn detail(
     ui.text(dx, dy, 13.0, W::R, muted, &line);
     dy += 34.0;
     let mut secret_id = 0usize;
+    // The secrets shown by their eyes here, read once for the page.
+    let shown_fields = app.vaults.fields_shown(app.vault_on_page());
     let field_row = |ui: &mut Ui, dy: &mut f32, label: &str, value: &str, mono: bool| {
         ui.text(dx, *dy, 12.0, W::R, muted, label);
         *dy += 20.0;
@@ -3062,10 +2943,12 @@ fn detail(
             value,
         ) + 14.0;
     };
-    let mut hold_row = |ui: &mut Ui, dy: &mut f32, label: &str, value: &str, mono: bool| {
+    let mut secret_row = |ui: &mut Ui, dy: &mut f32, label: &str, value: &str, mono: bool| {
         ui.text(dx, *dy, 12.0, W::R, muted, label);
         *dy += 20.0;
-        *dy += secret(ui, dx, *dy, dw, value, mono, secret_id) + 14.0;
+        let shown = shown_fields & (1u64 << secret_id.min(63)) != 0;
+        let eye = (va(V::Reveal(secret_id)), shown);
+        *dy += secret(ui, (dx, *dy, dw), value, mono, eye) + 14.0;
         secret_id += 1;
     };
     let mut actions: Vec<(&str, Action)> = Vec::new();
@@ -3078,7 +2961,7 @@ fn detail(
             // Read from the record once for the frame: a secret shown.
             let m = app.record_words_shown(r);
             if let Some(m) = &m {
-                hold_row(ui, &mut dy, EN.vault_words, &words_text(m), true);
+                secret_row(ui, &mut dy, EN.vault_words, &words_text(m), true);
                 if m.language() == faraday_bip::bip39::Language::English {
                     ui.text(dx, dy, 12.0, W::R, muted, EN.board_seedqr);
                     dy += 20.0;
@@ -3191,7 +3074,7 @@ fn detail(
             }
             if r.has(field::PASSWORD) {
                 let p = app.reveal_record(r, field::PASSWORD, Reveal::VaultEntry(Part::Password));
-                hold_row(ui, &mut dy, EN.vault_password, &p, true);
+                secret_row(ui, &mut dy, EN.vault_password, &p, true);
             }
             if let Some(u) = r.public_text(field::URL) {
                 field_row(ui, &mut dy, EN.vault_url, u, true);
@@ -3241,17 +3124,17 @@ fn detail(
                 }
                 dy += 10.0;
                 let t = app.reveal_record(r, field::TOTP, Reveal::VaultEntry(Part::Totp));
-                hold_row(ui, &mut dy, EN.vault_totp_secret, &t, true);
+                secret_row(ui, &mut dy, EN.vault_totp_secret, &t, true);
             }
             if r.has(field::NOTES) {
                 let n = app.reveal_record(r, field::NOTES, Reveal::VaultEntry(Part::EntryNotes));
-                field_row(ui, &mut dy, EN.vault_notes, &n, false);
+                secret_row(ui, &mut dy, EN.vault_notes, &n, false);
             }
             actions.push((EN.vault_edit, va(V::Edit)));
             actions.push((EN.vault_export_for_keepass, va(V::ExportKdbx)));
         }
         kind::NOTE => {
-            hold_row(
+            secret_row(
                 ui,
                 &mut dy,
                 EN.vault_text,
@@ -3299,21 +3182,19 @@ fn detail(
                     None => EN.vault_none_kept.to_string(),
                 };
                 field_row(ui, &mut dy, EN.vault_revocation_certificate, &kept, false);
-                // The paperkey is made only while it is held.
+                // The paperkey is made only while its eye shows it.
                 ui.text(dx, dy, 12.0, W::R, muted, EN.vault_paperkey);
                 dy += 20.0;
                 dy += secret_with(
                     ui,
-                    dx,
-                    dy,
-                    dw,
+                    (dx, dy, dw),
                     || {
                         app.paperkey_shown(r)
                             .map(faraday_keys::Held::release)
                             .unwrap_or_default()
                     },
                     true,
-                    0,
+                    (va(V::Reveal(0)), shown_fields & 1 != 0),
                 ) + 14.0;
                 // The term now, then the new term to choose: nothing is
                 // renewed until one is chosen.

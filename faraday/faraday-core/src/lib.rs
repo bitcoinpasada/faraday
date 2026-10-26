@@ -2683,6 +2683,7 @@ impl Faraday {
         self.board_tidy();
         // The order the flows were begun in, and where each was left.
         self.flows_note();
+        self.vault_shown_tidy();
     }
 
     /// Costs what the actions below cost, the keys' and wallets' work among
@@ -6314,7 +6315,6 @@ impl Faraday {
                 }
                 self.pointer.set_pressed(found);
                 self.vaults.pressed(self.now_ms);
-                self.vault_seedqr_press(found.map(|f| f.0));
                 // A press on a chip of the backup board may be its drag:
                 // the page does not scroll under it (§19.2).
                 if self.board_down(found.map(|f| f.0), x, y) {
@@ -6413,7 +6413,6 @@ impl Faraday {
                     return;
                 }
                 let pressed = self.pointer.take_pressed();
-                self.vaults.clear_seedqr();
                 // A hold acts on the tick that completes it, never on release.
                 if let (Some((a, _)), Some((b, _))) = (pressed, found)
                     && a == b
@@ -7145,6 +7144,7 @@ pub(crate) fn stem(name: &str) -> String {
 impl App for Faraday {
     #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
     fn event(&mut self, event: Event) {
+        self.vault_shown_tidy();
         // Any event but a pointer's motion, a scroll, a hover, a tick, a
         // camera frame or a modifier may change the words typed on Add a
         // key or New key's Words card: the status line's key is worked

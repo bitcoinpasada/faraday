@@ -21,7 +21,7 @@ Read this table, then only the decision you need.
 | [F4](decisions/F4.md) | On the Pi, "SD card" where the app says "stick" | 2026-10-09 | Active | stick |
 | [F5](decisions/F5.md) | Release, test release and dev builds, each named in the release string | 2026-10-10 | Active | release |
 | [F6](decisions/F6.md) | The backup before the spend | 2026-10-10 | Active | backup |
-| [F7](decisions/F7.md) | TOTP codes, and a clock the person can set | 2026-10-11 | Active | keys |
+| [F7](decisions/F7.md) | TOTP codes, and a clock the person can set | 2026-10-11 | Amended by F123 | keys |
 | [F8](decisions/F8.md) | Scan to sign, and a Spend tab that asks for data | 2026-10-11 | Active | wallets |
 | [F9](decisions/F9.md) | Writing over a file on a stick, and an Add glyph | 2026-10-11 | Active | stick |
 | [F10](decisions/F10.md) | The name as a wordmark | 2026-10-11 | Active | design |
@@ -42,7 +42,7 @@ Read this table, then only the decision you need.
 | [F25](history/decisions/F25.md) | The Companion's APK signing key is made, kept and used in Faraday | 2026-10-14 | Replaced by F99 | signing |
 | [F26](decisions/F26.md) | Files of any size on a stick visit, imported whole or only for signing | 2026-10-14 | Amended by F30 | stick |
 | [F27](decisions/F27.md) | Nostr keys from the seed, by BIP-85 application 128002' | 2026-10-14 | Amended by F34 | keys |
-| [F28](decisions/F28.md) | QR codes for public values wherever another device reads them, and for the TOTP secret | 2026-10-14 | Amended by F33 | QR |
+| [F28](decisions/F28.md) | QR codes for public values wherever another device reads them, and for the TOTP secret | 2026-10-14 | Amended by F33, F123 | QR |
 | [F29](decisions/F29.md) | A copy by hand is checked by its form: typed words, or a scan of a SeedQR | 2026-10-14 | Active | backup |
 | [F30](decisions/F30.md) | No released Faraday Desktop; the demo makes no secrets | 2026-10-14 | Amended by F61, F81, F83 | release |
 | [F31](decisions/F31.md) | Decide where a key will be kept, then make it: one backup flow for every secret Faraday makes | 2026-10-14 | Amended by F58, F99 | backup |
@@ -137,3 +137,4 @@ Read this table, then only the decision you need.
 | [F120](decisions/F120.md) | Settings' theme chips are filled in their own theme's colours; the chosen one is ringed | 2026-10-25 | Active | design |
 | [F121](decisions/F121.md) | No codex32 strings for a key of words | 2026-10-26 | Active | backup |
 | [F122](decisions/F122.md) | Make a new wallet: one press takes a stick, and Check opens the backup | 2026-10-26 | Active | backup |
+| [F123](decisions/F123.md) | A secret shows at a press on its eye, never by a hold | 2026-10-26 | Active | keys |

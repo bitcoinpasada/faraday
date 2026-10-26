@@ -52,12 +52,12 @@ the theme (§3), the content kinds (§4) and the screens (§5).
    transaction is a button, **Sign with** (§4.4). A hold (§4.13) confirms signing
    with a GPG or Secure Boot key from a vault, deleting from a
    vault, marking a key revoked, the stick a backup writes to, and wiping
-   a stick; **Hold to show** reveals a held secret (§4.10). A question
+   a stick; no hold shows a secret: its eye does (§4.10). A question
    before an act is a sheet: Lock's, and a flow's Cancel where ending it
    loses something (§4.13).
 8. **Secrets are hidden where they are read.** Words, seeds, private
-   keys, passphrases and shares are masked in place: a held secret's box
-   shows its value only while held, a **Show** button shows one until
+   keys, passphrases and shares are masked in place: a masked secret's
+   eye shows its value until it is pressed again, a **Show** button shows one until
    **Hide**, a passphrase field shows dots (§4.3, §4.10). Faraday has no
    screen for one secret or one string alone (F68).
 9. **One unit.** Amounts are in BTC with eight decimals; there is no
@@ -392,7 +392,7 @@ whole where it is read.
 
 | Kind | Rendering | Behaviour |
 |---|---|---|
-| Held secret | A box outlined in `WARN`, bullets in place of the value and "Hold to show" under it (`secret_with`, `seedqr_box` in vault); the value, or the SeedQR, while it is held, with "Release to hide". | Shown only while a finger or the button is held; the value is made only then. |
+| Masked secret | A box outlined faintly in `WARN`, bullets in place of the value and the eye (`Icon::Eye`, its tooltip "Show") in a `TOUCH` square at its right end (`secret_with`, `seedqr_box` in vault: a key's words and SeedQR, an entry's password, TOTP secret and notes, a note, a paperkey); while it shows, the value or the SeedQR in a box outlined in `WARN` and the struck eye (`Icon::EyeOff`, "Hide"). | A press or tap on the eye shows it, the next hides it; a hold is no different from a press. It hides again once its page is left: another screen, vault, kind or record, the item's form or another panel in its place, a sheet over it, a lock, the idle lock. The value is made only while it shows. |
 | Show and Hide | A **Show** button beside a masked value that becomes **Hide** (BIP-85's value, a vanity counter, a Lightning node key). | Shows the value until Hide. |
 | Secret out | A sheet before a secret leaves the session (`secret_out_sheet`): "This is a secret" or "This may be a secret", what it is, who can use it, and the ways out — sealed in a vault, or unprotected on the stick, ticked to write. | Cancel keeps it in memory. |
 | Worksheet | A codex32 worksheet as the booklet draws it (`docs/CODEX32.md` §7.5, `faraday/faraday-core/src/codex32/screen.rs`): boxes `codex32_box` on a side by the window's class, numbered above in groups of four, the rows' names in a `CODEX32_LABEL_W` column, the staircase as the ladder works down; given boxes (the data, the header) outlined heavier in `TEXT`, the checksum squares in `CODEX32_CHECKSUM_FILL` and bolded, rows read from a table in `CODEX32_LOOKUP_FILL`, the final row under a rule; the box being filled outlined in the accent. The dice de-biasing sheet beside it: five tracks of pads `CODEX32_PAD`, the first value outlined, the second filled, an equal pair struck in `WARN`, and the tree of 32 leaves with the path from die 1 in the accent. | A press on a cell opens its working on a sheet (`CHART_SHEET_WIDTH` wide; the panel's width on a compact window) with **Done**; nothing is computed to open it. |
@@ -639,7 +639,7 @@ is `docs/WALLETS.md` and the Spend tab `docs/SPEND-FROM-BACKUP.md`.
 | `Tools` | The calculators: hashes, encodings, a descriptor's checksum, an xpub's spellings, units, the Miniscript compiler. | Page |
 | `Vaults` | The vaults in Files and those open. | Page |
 | `Unlock` | Unlocking one slot of a vault with its passphrase. | Page |
-| `VaultContents` | An open vault: its kinds, the chosen kind's items, the chosen item, with the add actions; a wallet's item is its chart read parts first (§4.16). | Page |
+| `VaultContents` | An open vault: its kinds, the chosen kind's items, the chosen item, with the add actions; a wallet's item is its chart read parts first (§4.16); an item's secrets masked, each behind its eye (§4.10). | Page |
 | `CreateVault` | Making a vault: where it will be opened, the cost of unlocking, the space per passphrase, its name and passphrases, its size. | Step flow |
 | `Codes` | TOTP codes for the entries in open vaults, with the time they are computed for (`docs/TOTP.md` §5). | Page |
 | `SetTime` | Setting the time by hand: Date and Time (`docs/TOTP.md` §3). | Page |

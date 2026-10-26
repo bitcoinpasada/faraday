@@ -78,11 +78,13 @@ pub enum Icon {
     Dice,
     /// A file.
     File,
-    /// Reveal: hold to show a secret. §4.4's fact marker for a wallet
+    /// Show: a press shows a masked secret, the next hides it again
+    /// ([`Icon::EyeOff`] while it shows). §4.4's fact marker for a wallet
     /// this device can only watch.
     Eye,
-    /// Hidden: the one mark a masked secret panel carries
-    /// (`docs/DESIGN.md` §4.10).
+    /// Hide: on a secret's eye while it shows, a press masks it again;
+    /// the one mark a masked secret panel carries (`docs/DESIGN.md`
+    /// §4.10).
     EyeOff,
     /// Forget, wipe.
     Trash,

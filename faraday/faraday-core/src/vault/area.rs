@@ -306,9 +306,83 @@ impl VaultArea {
         self.state.gpg_years = years;
     }
 
-    /// The seed's SeedQR closed.
-    pub(crate) fn clear_seedqr(&mut self) {
+    /// Every secret the item page shows hidden again, its SeedQR with
+    /// them.
+    pub(crate) fn hide_shown(&mut self) {
+        self.state.shown = None;
         self.state.seedqr = None;
+    }
+
+    /// The secrets shown hidden once the place they were shown is left,
+    /// `on_page` whether the item page is on screen with no sheet over it
+    /// ([`Vaults::shown`]'s invariant). A walk of the record list while
+    /// one is shown.
+    pub(crate) fn tidy_shown(&mut self, on_page: bool) {
+        let left = match self.state.shown {
+            Some(s) => self.state.shown_here(on_page) != Some(s.at),
+            None => true,
+        };
+        if left {
+            self.hide_shown();
+        }
+    }
+
+    /// The eye of secret field `n` on the item page: shows it, or hides
+    /// it again.
+    pub(crate) fn toggle_shown(&mut self, on_page: bool, n: usize) {
+        self.tidy_shown(on_page);
+        let (Some(here), Some(bit)) = (
+            self.state.shown_here(on_page),
+            u32::try_from(n).ok().and_then(|n| 1u64.checked_shl(n)),
+        ) else {
+            return;
+        };
+        let s = self.state.shown.get_or_insert(Shown {
+            at: here,
+            fields: 0,
+        });
+        s.fields ^= bit;
+        if s.fields == 0 && self.state.seedqr.is_none() {
+            self.state.shown = None;
+        }
+    }
+
+    /// Costs a parse of the words and a QR encoding when it shows. The
+    /// eye of Show SeedQR: makes the selected key record's code, kept
+    /// while it is shown (`docs/SPEED.md` §3.3: drawing makes no code),
+    /// or drops it.
+    pub(crate) fn toggle_seedqr(&mut self, c: &Compute, on_page: bool) {
+        self.tidy_shown(on_page);
+        if self.state.seedqr.take().is_some() {
+            if self.state.shown.is_some_and(|s| s.fields == 0) {
+                self.state.shown = None;
+            }
+            return;
+        }
+        let Some(here) = self.state.shown_here(on_page) else {
+            return;
+        };
+        let Some(r) = self
+            .state
+            .records(here.vault)
+            .get(here.record)
+            .filter(|r| r.kind() == kind::KEY)
+        else {
+            return;
+        };
+        let code = self
+            .state
+            .store
+            .words_of(c, r, faraday_keys::Reveal::SeedQr)
+            .filter(|m| m.language() == faraday_bip::bip39::Language::English)
+            .and_then(|m| faraday_codec::seedqr::encode_seedqr(c, &m).ok());
+        if let Some(mx) = code {
+            self.state.seedqr = Some((here.record, mx));
+            self.state.shown.get_or_insert(Shown {
+                at: here,
+                fields: 0,
+            });
+        }
     }
 
     /// Save to a stick closed.
@@ -582,6 +656,85 @@ pub(super) struct Read {
 }
 
 impl Vaults {
+    /// The selected record of the kind shown in the open vault on the
+    /// contents screen, by its place among the vault's records. A walk of
+    /// the record list.
+    pub fn selected_index(&self) -> Option<usize> {
+        let v = self.open.get(self.current)?;
+        let kinds = CATEGORIES[self.category].1;
+        let items: Vec<usize> = self
+            .records(v.id)
+            .iter()
+            .filter(|(_, r)| kinds.contains(&r.kind()))
+            .map(|(i, _)| i)
+            .collect();
+        let k = self.item[self.category].min(items.len().saturating_sub(1));
+        items.get(k).copied()
+    }
+
+    /// Costs what [`Vaults::words_id`] costs. The label of the open vault
+    /// with a key record of the words whose id is `id`, from any list.
+    pub(crate) fn words_vault(&self, c: &Compute, id: &[u8; 32]) -> Option<String> {
+        self.open.iter().find_map(|v| {
+            let mut keys = self.records(v.id).of(kind::KEY);
+            keys.any(|(i, _)| self.words_id(c, v.id, i) == Some(id))
+                .then(|| v.label(self.store()))
+        })
+    }
+
+    /// The label of the open vault holding a key record whose id
+    /// ([`faraday_keys::vault::key_record_id`]) is `id`: where a key of a
+    /// master seed (codex32, SLIP-39) is kept. A hash per key record.
+    pub(crate) fn seed_vault(&self, id: [u8; 32]) -> Option<String> {
+        self.open.iter().find_map(|v| {
+            let mut keys = self.records(v.id).of(kind::KEY);
+            keys.any(|(_, r)| faraday_keys::vault::key_record_id(r) == Some(id))
+                .then(|| v.label(self.store()))
+        })
+    }
+
+    /// Where the item page's secrets are now ([`ShownAt`]), `on_page`
+    /// whether Vault contents is on screen with no sheet over it: the
+    /// selected record with its own page shown, `None` anywhere else. A
+    /// walk of the record list.
+    pub(crate) fn shown_here(&self, on_page: bool) -> Option<ShownAt> {
+        if !on_page
+            || self.form.is_some()
+            || self.prompt.is_some()
+            || self.saving
+            || self.signing
+            || self.sb_images
+        {
+            return None;
+        }
+        Some(ShownAt {
+            vault: self.current_id()?,
+            category: self.category,
+            record: self.selected_index()?,
+            item_open: self.item_open,
+        })
+    }
+
+    /// The item page's secret fields shown here now, a bit each; none
+    /// where they were shown elsewhere. A walk of the record list.
+    pub(crate) fn fields_shown(&self, on_page: bool) -> u64 {
+        match (self.shown, self.shown_here(on_page)) {
+            (Some(s), Some(here)) if s.at == here => s.fields,
+            _ => 0,
+        }
+    }
+
+    /// The selected key's SeedQR, while its eye shows it here. A walk of
+    /// the record list.
+    pub(crate) fn seedqr_shown(&self, on_page: bool) -> Option<&faraday_codec::qr::QrMatrix> {
+        let here = self.shown_here(on_page)?;
+        self.shown
+            .filter(|s| s.at == here)
+            .and(self.seedqr.as_ref())
+            .filter(|(at, _)| *at == here.record)
+            .map(|(_, m)| m)
+    }
+
     /// The open vaults' records, for reading. Every change goes through
     /// [`Vaults::edit`].
     pub fn store(&self) -> &OpenVaults {
@@ -1049,15 +1202,44 @@ pub struct Vaults {
     /// ([`crate::vault::screen::record_is_policy_key`]). In memory only.
     pub(crate) accounts: std::cell::RefCell<Vec<KeyAccount>>,
     pub(super) draws: u64,
-    /// The selected key's SeedQR while Show SeedQR is held, by record
-    /// index: made at the press, dropped at the lift.
+    /// The selected key's SeedQR while its eye shows it, by record
+    /// index: made at the press that shows it, dropped at the press that
+    /// hides it and with [`Vaults::shown`].
     pub(crate) seedqr: Option<(usize, faraday_codec::qr::QrMatrix)>,
+    /// The item page's secrets shown by their eyes, and where. Invariant:
+    /// `None`, and `seedqr` with it, once the place it names is left
+    /// (another screen, vault, kind, record or page of the item, a sheet
+    /// over it, a lock); kept so by [`crate::Faraday::vault_shown_tidy`]
+    /// after every input, and drawing shows a secret only where it was
+    /// shown.
+    pub(crate) shown: Option<Shown>,
     /// Save to a stick's popup, while it is open.
     pub stick_save: Option<crate::vault::out::StickSave>,
     /// The Load sheet an unlock shows, while it is up (F62).
     pub load: Option<crate::vault::load::LoadSheet>,
     /// The sheet of seeds kept with no passphrase, while it is up (F62).
     pub pass_seeds: Option<crate::vault::load::PassSeeds>,
+}
+
+/// Where the item page's secrets were shown, on Vault contents: the open vault,
+/// the kind and the record, with the item's page itself on screen (no
+/// form, prompt, save, signing or images panel over it, and no sheet).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct ShownAt {
+    pub(crate) vault: VaultId,
+    pub(crate) category: usize,
+    pub(crate) record: usize,
+    pub(crate) item_open: bool,
+}
+
+/// The item page's secrets shown by their eyes ([`Vaults::shown`]).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct Shown {
+    /// Where they were shown.
+    pub(crate) at: ShownAt,
+    /// Which secret fields of the record, a bit each by their order on
+    /// the page.
+    pub(crate) fields: u64,
 }
 
 /// Memory in MiB as a person reads it.
@@ -1808,7 +1990,7 @@ pub enum VaultAction {
     Category(usize),
     /// An item of the kind.
     Item(usize),
-    /// Held to show a secret field; does nothing when released.
+    /// Show secret field n of the item, or hide it again: its eye.
     Reveal(usize),
     /// Held to delete the item.
     HoldDelete,
@@ -1922,8 +2104,8 @@ pub enum VaultAction {
     /// On a small panel, back from an item, or what was being added or
     /// made, to the vault's list.
     ItemBack,
-    /// Held to show the selected key's SeedQR (`docs/BACKUP-FLOW.md`
-    /// §17.7); does nothing when released.
+    /// Show the selected key's SeedQR (`docs/BACKUP-FLOW.md` §17.7), or
+    /// hide it again: its eye.
     ShowSeedQr,
     /// The selected wallet's descriptor as the Wallets page shows it.
     WalletQr,

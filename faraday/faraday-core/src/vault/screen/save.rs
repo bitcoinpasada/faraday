@@ -199,7 +199,10 @@ pub(super) fn save_panel(
             .collect();
         for (k, key) in app.session.keys.all().enumerate() {
             let fp = fp_text(key.fingerprint);
-            if held.contains(&fp) || !key.has_words() {
+            // Any key loaded is offered: words, or the master seed a
+            // codex32 or SLIP-39 key was loaded from (VAULT.md §7, type
+            // 2's seed payload).
+            if held.contains(&fp) || !(key.has_words() || app.session.keys.holds_seed_bytes(k)) {
                 continue;
             }
             any = true;
