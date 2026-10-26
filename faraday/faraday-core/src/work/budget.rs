@@ -90,8 +90,11 @@ const FRAME_COSTS: &[(&str, u64, u64)] = &[
     ("Backups", 1213, 77),
     ("Spend tab", 976, 68),
     // Every section on one page from medium windows up, two columns
-    // (2026-10-25): was 1118 and 69 with one section beside a list.
-    ("Settings", 1400, 98),
+    // (2026-10-25): was 1118 and 69 with one section beside a list. The
+    // lines are the two columns' text in sight; a card out of sight is
+    // measured, not drawn, its labels are made once and a path is
+    // sized once (2026-10-26).
+    ("Settings", 798, 98),
     ("Tools", 457, 33),
     ("Power sheet", 2674, 23),
     ("Learn sheet", 71, 28),
@@ -118,7 +121,9 @@ const FRAME_COSTS_PI: &[(&str, u64, u64)] = &[
     ("Vault contents", 4524, 17),
     ("Backups", 696, 23),
     ("Spend tab", 630, 18),
-    ("Settings", 966, 17),
+    // The list of sections since 2026-10-25 (was 966 and 17), its
+    // labels made once and paths sized once (2026-10-26).
+    ("Settings", 68, 12),
     ("Tools", 51, 4),
     ("Power sheet", 2701, 8),
     ("Learn sheet", 133, 14),

@@ -309,8 +309,12 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
     /// `size`: the widest label, its padding and the tick's room, so no
     /// segment changes width as the choice moves.
     pub fn segment_width(&self, size: f32, labels: &[&str]) -> f32 {
+        self.segment_width_of(size, labels.iter().copied())
+    }
+
+    /// [`Ui::segment_width`] over the labels `labels` yields.
+    fn segment_width_of<'s>(&self, size: f32, labels: impl Iterator<Item = &'s str>) -> f32 {
         let widest = labels
-            .iter()
             .map(|l| self.measure(size, W::S, l))
             .fold(0.0, f32::max);
         widest + 2.0 * SEGMENT_PAD + ICON_GLYPH_BUTTON + ICON_GAP
@@ -329,8 +333,7 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
         chosen: Option<usize>,
         slide: Option<f32>,
     ) -> f32 {
-        let labels: Vec<&str> = options.iter().map(|o| o.0).collect();
-        let sw = self.segment_width(size, &labels);
+        let sw = self.segment_width_of(size, options.iter().map(|o| o.0));
         let total = sw * options.len() as f32;
         let r = shape_full(h);
         let shape = self.rect(x, y, total, h);
@@ -402,8 +405,8 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
         options: &[(&str, A)],
         chosen: Option<usize>,
     ) -> f32 {
-        let labels: Vec<&str> = options.iter().map(|o| o.0).collect();
-        if self.segment_width(size, &labels) * options.len() as f32 <= w {
+        let sw = self.segment_width_of(size, options.iter().map(|o| o.0));
+        if sw * options.len() as f32 <= w {
             self.segmented((x, y, h), size, options, chosen, None);
             return h;
         }
@@ -419,9 +422,9 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
             // Cut only when the label is wider than the row: `bw - pad`
             // can come out a hair under the label's own width.
             let shown = if whole <= w {
-                label.to_string()
+                std::borrow::Cow::Borrowed(label)
             } else {
-                self.fit(size, W::S, label, w - pad)
+                std::borrow::Cow::Owned(self.fit(size, W::S, label, w - pad))
             };
             let style = Style::chosen(chosen == Some(i));
             bx += self.button(bx, by, Some(bw), h, &shown, style, action) + GAP;

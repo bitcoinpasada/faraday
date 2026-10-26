@@ -560,11 +560,14 @@ Nothing a person waits on blocks a frame. What holds:
    `motion::TYPED_PAUSE_MS` (400 ms); tests wait with `testkit::pause`.
    The key budget test (§8.3) holds every field to it.
 3. **Rows out of sight are not drawn.** A line of text wholly outside
-   the clip is measured from its advances, not drawn
+   the clip, or under a clip with no room (a pass that only measures),
+   is measured from its advances, not drawn
    (`Canvas::text_with_face`); Files, the visit's lists and a small
    panel's file cards pass over a row out of sight with its height
    worked out without drawing (`Ui::shows`, `parts::wrap_buttons_height`,
-   `file_card`, which checks the two heights agree in a debug build).
+   `file_card`, which checks the two heights agree in a debug build);
+   a card of Settings or a small panel's page (`parts::section`,
+   Settings' Mode card) wholly out of sight is measured and not drawn.
    The scaling test (§8.3) holds every screen to the same lines of text
    drawn with one and five copies of the files (`Canvas::lines_drawn`).
 4. **`Ui::fit` adds the characters' advances once** and stops at the
@@ -574,8 +577,15 @@ Nothing a person waits on blocks a frame. What holds:
    (`Canvas::frost`); a sheet's later frames put back only the box drawn
    over (`Canvas::restore`); a fade passes over runs of 16 pixels where
    the two frames agree (`Canvas::blend_between`); a shadow skips its
-   covered middle (`Canvas::shadow`). The backup board's overdraw is its
-   look and stays.
+   covered middle (`Canvas::shadow`). A clip is a rectangle and builds
+   no mask: a shape across its edge is drawn whole and the pixels of
+   its box outside the clip are put back (`Canvas::draw_path`), so a
+   segmented button's segments cost their own boxes, not a panel-sized
+   mask each. A tall opaque rounded rectangle fills the rows between
+   its corners plainly and only the corners' rows through an outline,
+   the same pixels (`Canvas::fill_rounded_rect`). What a card says that does not
+   change (Settings' idle and scale choices) is made once and kept.
+   The backup board's overdraw is its look and stays.
 
 The batch's account, with its measurements: moved to
 `docs/history/SPEED-LOG.md`.

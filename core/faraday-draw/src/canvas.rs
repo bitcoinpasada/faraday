@@ -11,9 +11,7 @@ use alloc::vec::Vec;
 
 use faraday_crypto::work::Work;
 use faraday_shell_api::{DisplayInfo, Frame};
-use tiny_skia::{
-    FillRule, Mask, Paint, PathBuilder, Pixmap, PremultipliedColorU8, Stroke, Transform,
-};
+use tiny_skia::{FillRule, Paint, PathBuilder, Pixmap, PremultipliedColorU8, Stroke, Transform};
 
 use crate::color::Color;
 use crate::fonts::{Coverage, GlyphCache, SizedFace};
@@ -25,18 +23,10 @@ pub struct Canvas {
     pixmap: Pixmap,
     scale: Scale,
     clips: Vec<Rect>,
-    /// tiny-skia mask for the current clip and the clip it was built
-    /// for, `None` when unclipped.
-    mask: Option<(Rect, Mask)>,
-    /// Masks built for other clips lately. A draw inside a scroll region
-    /// pushes the viewport and pops back to nothing for every widget, so
-    /// the same one or two clips come round again and again; building a
-    /// panel-sized mask for each push and pop was most of the cost of a
-    /// frame on a small board.
-    spare: Vec<(Rect, Mask)>,
     /// Glyph bitmaps filled from the outlines, kept between frames.
     glyphs: GlyphCache,
-    /// Rows put aside while a shape is drawn across the clip's edge.
+    /// The pixels outside the clip put aside while a shape is drawn
+    /// across the clip's edge.
     scratch: Vec<u8>,
     /// The strings drawn since the last [`Canvas::clear`] that ran past
     /// the side of their clip, so that some of their ink is not on the
@@ -97,8 +87,9 @@ pub enum InkKind {
     Wordmark,
 }
 
-/// How many masks are kept for clips that come round again.
-const SPARE_MASKS: usize = 4;
+/// The fewest rows between a rounded rectangle's corners worth filling
+/// apart from them: below it, one path is as quick as three draws.
+const SPLIT_ROWS: i32 = 64;
 
 impl Canvas {
     /// Allocates a framebuffer for `display`. Panics on a zero-sized
@@ -121,8 +112,6 @@ impl Canvas {
             pixmap,
             scale,
             clips: Vec::new(),
-            mask: None,
-            spare: Vec::new(),
             glyphs: GlyphCache::new(),
             scratch: Vec::new(),
             cut: Vec::new(),
@@ -270,39 +259,11 @@ impl Canvas {
     pub fn push_clip(&mut self, rect: Rect) {
         let clip = self.clip().intersect(&rect);
         self.clips.push(clip);
-        self.rebuild_mask();
     }
 
     /// Restores the previous clip.
     pub fn pop_clip(&mut self) {
         self.clips.pop();
-        self.rebuild_mask();
-    }
-
-    fn rebuild_mask(&mut self) {
-        let clip = self.clip();
-        if self.mask.as_ref().is_some_and(|(r, _)| *r == clip) {
-            return;
-        }
-        if let Some(old) = self.mask.take() {
-            self.spare.push(old);
-            if self.spare.len() > SPARE_MASKS {
-                self.spare.remove(0);
-            }
-        }
-        if clip == self.bounds() {
-            return;
-        }
-        if let Some(i) = self.spare.iter().position(|(r, _)| *r == clip) {
-            self.mask = Some(self.spare.remove(i));
-            return;
-        }
-        let mut mask = Mask::new(self.pixmap.width(), self.pixmap.height()).expect("mask size");
-        if !clip.is_empty() {
-            let path = PathBuilder::from_rect(skia_rect(clip));
-            mask.fill_path(&path, FillRule::Winding, false, Transform::identity());
-        }
-        self.mask = Some((clip, mask));
     }
 
     /// Fills the whole canvas, ignoring the clip.
@@ -918,8 +879,23 @@ impl Canvas {
             self.fill_rect(rect, color);
             return;
         }
+        let paint = Self::paint(color);
+        // Opaque, the rows between the corners are whole pixels from
+        // edge to edge, the same as the outline gives them: a plain
+        // fill, and the corners' rows each through an outline of their
+        // own that ends straight across where the plain fill begins.
+        let cap = radius.min(rect.w as f32 / 2.0) as i32 + 2;
+        if color.a == 255 && rect.h - 2 * cap >= SPLIT_ROWS {
+            let mid = Rect::new(rect.x, rect.y + cap, rect.w, rect.h - 2 * cap);
+            for (cut, top) in [(mid.y, true), (mid.bottom(), false)] {
+                let ends = rounded_ends_path(rect, radius, (cut, top));
+                self.draw_path(&ends, &paint, None);
+            }
+            self.fill_rect(mid, color);
+            return;
+        }
         let path = rounded_rect_path(rect, radius, 0.0);
-        self.draw_path(&path, &Self::paint(color), None);
+        self.draw_path(&path, &paint, None);
     }
 
     /// Strokes a rounded rectangle outline `width` pixels thick, inside
@@ -928,11 +904,11 @@ impl Canvas {
         if rect.is_empty() || color.a == 0 || rect.intersect(&self.clip()).is_empty() {
             return;
         }
-        let path = rounded_rect_path(rect, radius, width / 2.0);
         let stroke = Stroke {
             width,
             ..Stroke::default()
         };
+        let path = rounded_rect_path(rect, radius, width / 2.0);
         self.draw_path(&path, &Self::paint(color), Some(&stroke));
     }
 
@@ -954,6 +930,19 @@ impl Canvas {
 
     /// Fills a circle.
     pub fn fill_circle(&mut self, cx: f32, cy: f32, radius: f32, color: Color) {
+        // Wholly outside the clip, as under a pass that only measures:
+        // no path is made.
+        let reach = radius + 2.0;
+        let clip = self.clip();
+        if color.a == 0
+            || clip.is_empty()
+            || cx + reach <= clip.x as f32
+            || cx - reach >= clip.right() as f32
+            || cy + reach <= clip.y as f32
+            || cy - reach >= clip.bottom() as f32
+        {
+            return;
+        }
         let Some(path) = PathBuilder::from_circle(cx, cy, radius) else {
             return;
         };
@@ -984,24 +973,16 @@ impl Canvas {
 
     /// Fills `path`, or strokes it with `stroke`, inside the clip.
     ///
-    /// The clip is a panel-sized mask, and tiny-skia blends through a
-    /// mask about thirty times slower than without one: a scrolled page's
-    /// cards cost a frame its budget. So the mask is used only when it
-    /// has to be. A shape inside the clip needs none. A shape inside the
-    /// clip's columns that crosses its top or bottom edge — a card
-    /// half scrolled out — is drawn whole with no mask, and the rows
-    /// outside the clip it reached are put back as they were: the same
-    /// pixels as the whole shape cut by the clip, which a scroll that
-    /// copies rows and draws the strip it uncovered depends on. Only a
-    /// shape across a side of the clip takes the mask.
+    /// No mask: tiny-skia blends through one about thirty times slower
+    /// than without, and building a panel-sized one for each clip a frame
+    /// pushes (every segment of a segmented button) was most of a
+    /// frame's cost on a large display. A shape across an edge of the
+    /// clip is drawn whole and the pixels of its box outside the clip are
+    /// put back as they were: the same pixels as the whole shape cut by
+    /// the clip, which a scroll that copies rows and draws the strip it
+    /// uncovered depends on. A shape wholly outside the clip is not
+    /// drawn.
     fn draw_path(&mut self, path: &tiny_skia::Path, paint: &Paint, stroke: Option<&Stroke>) {
-        let draw = |pixmap: &mut tiny_skia::PixmapMut, dy: f32, mask: Option<&Mask>| {
-            let ts = Transform::from_translate(0.0, dy);
-            match stroke {
-                Some(s) => pixmap.stroke_path(path, paint, s, ts, mask),
-                None => pixmap.fill_path(path, paint, FillRule::Winding, ts, mask),
-            }
-        };
         // Every pixel the shape's ink can reach: half a stroke's width
         // beyond the path, one more for the anti-aliased edge, and one
         // for the truncation to whole pixels.
@@ -1012,44 +993,53 @@ impl Canvas {
             (b.right() + grow) as i32 + 1,
             (b.bottom() + grow) as i32 + 1,
         );
-        self.damaged(Rect::new(l, t, r - l, bo - t).intersect(&self.clip()));
-        let Some((clip, mask)) = self.mask.as_ref() else {
-            draw(&mut self.pixmap.as_mut(), 0.0, None);
-            return;
-        };
+        let clip = self.clip();
+        self.damaged(Rect::new(l, t, r - l, bo - t).intersect(&clip));
         // A shape wholly outside the clip reaches no pixel the clip
         // keeps: a card scrolled off the page costs its layout and
         // nothing more, however long the page.
-        if r <= clip.x || l >= clip.right() || bo <= clip.y || t >= clip.bottom() {
+        if clip.is_empty()
+            || r <= clip.x
+            || l >= clip.right()
+            || t.max(clip.y) >= bo.min(clip.bottom())
+        {
             return;
         }
-        let inside_columns = l >= clip.x && r <= clip.right();
-        if inside_columns && t >= clip.y && bo <= clip.bottom() {
-            draw(&mut self.pixmap.as_mut(), 0.0, None);
-        } else if inside_columns && !clip.is_empty() {
-            let row = self.pixmap.width() as usize * 4;
-            let height = self.pixmap.height() as i32;
-            // The rows above and below the clip the shape reaches.
-            let span =
-                |from: i32, to: i32| (from < to).then(|| from as usize * row..to as usize * row);
-            let top = span(t.max(0), clip.y.min(height));
-            let bottom = span(clip.bottom().max(0), bo.min(height));
-            let saved = &mut self.scratch;
-            saved.clear();
-            let data = self.pixmap.data();
-            for r in [&top, &bottom].into_iter().flatten() {
-                saved.extend_from_slice(&data[r.clone()]);
+        let (width, height) = (self.pixmap.width() as i32, self.pixmap.height() as i32);
+        let (y0, y1) = (t.max(0), bo.min(height));
+        let row = width as usize * 4;
+        let region = Rect::new(l.max(0), y0, r.min(width) - l.max(0), y1 - y0);
+        let pieces = outside(region, clip);
+        let span = |y: i32, p: &Rect| {
+            let at = y as usize * row;
+            at + p.x as usize * 4..at + p.right() as usize * 4
+        };
+        let saved = &mut self.scratch;
+        saved.clear();
+        let data = self.pixmap.data();
+        for p in &pieces {
+            for y in p.y..p.bottom() {
+                saved.extend_from_slice(&data[span(y, p)]);
             }
-            draw(&mut self.pixmap.as_mut(), 0.0, None);
-            let data = self.pixmap.data_mut();
-            let mut at = 0;
-            for r in [top, bottom].into_iter().flatten() {
+        }
+        // Drawn on the whole canvas, which holds the whole shape: a
+        // shape cut where the clip crosses one of its curves would have
+        // other coverage there than the whole shape has.
+        let mut pixmap = self.pixmap.as_mut();
+        let ts = Transform::identity();
+        match stroke {
+            Some(s) => pixmap.stroke_path(path, paint, s, ts, None),
+            None => pixmap.fill_path(path, paint, FillRule::Winding, ts, None),
+        }
+        let data = self.pixmap.data_mut();
+        let mut at = 0;
+        for p in &pieces {
+            for y in p.y..p.bottom() {
+                let r = span(y, p);
                 let n = r.len();
                 data[r].copy_from_slice(&self.scratch[at..at + n]);
                 at += n;
             }
-        } else {
-            draw(&mut self.pixmap.as_mut(), 0.0, Some(mask));
         }
     }
 
@@ -1081,9 +1071,10 @@ impl Canvas {
         // spare for marks past the ascent and descent, shows nothing:
         // its width is worked out from the advances, and no glyph is
         // looked up or blended (a long list scrolled away, a page's
-        // rows past the panel's foot).
+        // rows past the panel's foot), and nor does any line under a
+        // clip with no room, a pass that only measures.
         let lh = face.line_height();
-        if y + 2 * lh <= clip.y || y - lh >= clip.bottom() {
+        if clip.is_empty() || y + 2 * lh <= clip.y || y - lh >= clip.bottom() {
             for c in s.chars() {
                 pen += i64::from(face.advance_64(c));
             }
@@ -1196,6 +1187,23 @@ impl Canvas {
         }
         lines.len() as i32 * lh
     }
+}
+
+/// The parts of `region` outside `clip`, as four rectangles that do not
+/// overlap: the rows above the clip and below it, then beside it to the
+/// left and the right in the clip's rows. An empty one is
+/// `Rect::default()`, no rows.
+fn outside(region: Rect, clip: Rect) -> [Rect; 4] {
+    let top = clip.y.clamp(region.y, region.bottom());
+    let bottom = clip.bottom().clamp(top, region.bottom());
+    let band = |y0: i32, y1: i32, x0: i32, x1: i32| Rect::new(x0, y0, x1 - x0, y1 - y0);
+    [
+        band(region.y, top, region.x, region.right()),
+        band(bottom, region.bottom(), region.x, region.right()),
+        band(top, bottom, region.x, clip.x.min(region.right())),
+        band(top, bottom, clip.right().max(region.x), region.right()),
+    ]
+    .map(|p| if p.is_empty() { Rect::default() } else { p })
 }
 
 /// The smallest rectangle holding both.
@@ -1381,7 +1389,7 @@ fn rounded_rect_path(rect: Rect, radius: f32, inset: f32) -> tiny_skia::Path {
     let r = rect.right() as f32 - inset;
     let b = rect.bottom() as f32 - inset;
     let radius = radius.min((r - l) / 2.0).min((b - t) / 2.0).max(0.0);
-    let mut pb = PathBuilder::new();
+    let mut pb = PathBuilder::with_capacity(10, 17);
     if radius <= 0.0 {
         pb.move_to(l, t);
         pb.line_to(r, t);
@@ -1405,6 +1413,39 @@ fn rounded_rect_path(rect: Rect, radius: f32, inset: f32) -> tiny_skia::Path {
     pb.finish().expect("non-degenerate path")
 }
 
+/// The top or the bottom of [`rounded_rect_path`]'s outline with no
+/// inset, its two corners and the side between them, down or up to the
+/// row `cut.0` (`cut.1` true for the top) and closed straight across
+/// it. Within its rows its edges are the whole outline's, so it fills
+/// the same pixels there.
+fn rounded_ends_path(rect: Rect, radius: f32, (cut, top): (i32, bool)) -> tiny_skia::Path {
+    let l = rect.x as f32;
+    let t = rect.y as f32;
+    let r = rect.right() as f32;
+    let b = rect.bottom() as f32;
+    let radius = radius.min((r - l) / 2.0).min((b - t) / 2.0).max(0.0);
+    let k = 0.5523 * radius;
+    let c = cut as f32;
+    let mut pb = PathBuilder::with_capacity(8, 15);
+    if top {
+        pb.move_to(l, c);
+        pb.line_to(l, t + radius);
+        pb.cubic_to(l, t + radius - k, l + radius - k, t, l + radius, t);
+        pb.line_to(r - radius, t);
+        pb.cubic_to(r - radius + k, t, r, t + radius - k, r, t + radius);
+        pb.line_to(r, c);
+    } else {
+        pb.move_to(r, c);
+        pb.line_to(r, b - radius);
+        pb.cubic_to(r, b - radius + k, r - radius + k, b, r - radius, b);
+        pb.line_to(l + radius, b);
+        pb.cubic_to(l + radius - k, b, l, b - radius + k, l, b - radius);
+        pb.line_to(l, c);
+    }
+    pb.close();
+    pb.finish().expect("non-degenerate path")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1422,6 +1463,85 @@ mod tests {
             boot: faraday_shell_api::BootState::Unknown,
             memory_mib: None,
         })
+    }
+
+    /// A tall card's fill, drawn fast between its corners, and its edge are
+    /// the pixels of its whole outline filled or stroked, cut by a clip
+    /// or not.
+    #[test]
+    fn a_tall_rounded_rect_is_its_whole_outline() {
+        let tall = || {
+            Canvas::new(&DisplayInfo {
+                width: 64,
+                height: 128,
+                dpi: 160,
+                inset_bottom: 0,
+                inset_top: 0,
+                buttons: 0,
+                camera_fixed: true,
+                secure: faraday_shell_api::SecureHardware::None,
+                boot: faraday_shell_api::BootState::Unknown,
+                memory_mib: None,
+            })
+        };
+        let colors = [
+            Color::rgb(90, 160, 220),
+            Color::rgb(240, 200, 120),
+            Color::rgb(140, 210, 180),
+        ];
+        let rects = [
+            (Rect::new(3, 1, 40, 120), 6.5),
+            (Rect::new(10, 0, 20, 128), 3.0),
+            (Rect::new(2, 4, 58, 100), 14.25),
+        ];
+        // Across the sides and through the third's bottom corners.
+        let regions = [Rect::new(8, 6, 48, 100), Rect::new(8, 10, 48, 90)];
+        for (k, &(rect, radius)) in rects.iter().enumerate() {
+            for width in [0.0, 1.0, 2.0, 1.5] {
+                let draw = |fast: bool, clip: Option<Rect>| {
+                    let mut c = tall();
+                    c.clear(Color::BLACK);
+                    if let Some(r) = clip {
+                        c.push_clip(r);
+                    }
+                    let color = colors[k];
+                    if fast && width == 0.0 {
+                        c.fill_rounded_rect(rect, radius, color);
+                    } else if fast {
+                        c.stroke_rounded_rect(rect, radius, width, color);
+                    } else if width == 0.0 {
+                        let path = rounded_rect_path(rect, radius, 0.0);
+                        c.draw_path(&path, &Canvas::paint(color), None);
+                    } else {
+                        let path = rounded_rect_path(rect, radius, width / 2.0);
+                        let stroke = Stroke {
+                            width,
+                            ..Stroke::default()
+                        };
+                        c.draw_path(&path, &Canvas::paint(color), Some(&stroke));
+                    }
+                    c
+                };
+                let whole = draw(false, None);
+                for (name, c, region) in [
+                    ("fast", draw(true, None), None),
+                    ("fast cut", draw(true, Some(regions[0])), Some(regions[0])),
+                    ("fast cut", draw(true, Some(regions[1])), Some(regions[1])),
+                    ("path cut", draw(false, Some(regions[1])), Some(regions[1])),
+                ] {
+                    for y in 0..128 {
+                        for x in 0..64 {
+                            let want = if region.is_none_or(|r| r.contains(x, y)) {
+                                pixel(&whole, x, y)
+                            } else {
+                                [0, 0, 0, 255]
+                            };
+                            assert_eq!(pixel(&c, x, y), want, "{name} {k} {width} at ({x}, {y})");
+                        }
+                    }
+                }
+            }
+        }
     }
 
     fn pixel(c: &Canvas, x: i32, y: i32) -> [u8; 4] {
@@ -1560,8 +1680,8 @@ mod tests {
     /// A card scrolled half out of its region looks like the whole card
     /// with the part outside the region cut away: the same pixels inside,
     /// nothing outside. Whether the shape crosses the region's top and
-    /// bottom (drawn in the region's rows) or its side (drawn through the
-    /// mask), and for fills, strokes and circles alike. A card scrolled
+    /// bottom or its side, and for fills, strokes and circles alike. A
+    /// card scrolled
     /// wholly out of the region leaves it as it was.
     #[test]
     fn a_page_put_back_again_is_the_page_wherever_a_sheet_drew() {

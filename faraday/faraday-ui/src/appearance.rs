@@ -159,22 +159,16 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
         action: impl Fn(Theme) -> A,
     ) -> f32 {
         let mut at = y;
-        let modes: Vec<(&str, A)> = Mode::ALL
-            .into_iter()
-            .map(|mode| (mode.name(), action(Theme { mode, ..current })))
-            .collect();
-        let levels: Vec<(&str, A)> = Contrast::ALL
-            .into_iter()
-            .map(|contrast| {
-                (
-                    contrast.name(),
-                    action(Theme {
-                        contrast,
-                        ..current
-                    }),
-                )
-            })
-            .collect();
+        let modes = Mode::ALL.map(|mode| (mode.name(), action(Theme { mode, ..current })));
+        let levels = Contrast::ALL.map(|contrast| {
+            (
+                contrast.name(),
+                action(Theme {
+                    contrast,
+                    ..current
+                }),
+            )
+        });
         let rows = [EN.ui_theme_row, EN.ui_mode_row, EN.ui_contrast_row];
         for (i, label) in rows.into_iter().enumerate() {
             if i > 0 {

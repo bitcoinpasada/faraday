@@ -1294,7 +1294,9 @@ pub(crate) fn word_keys(
 
 /// A section of a small panel's page: a card with its title, measured
 /// first so its surface goes down under what `draw` puts in it at the
-/// inner (x, y, w). Returns its height with the gap under it.
+/// inner (x, y, w), and drawn only where any of it is in sight: a card
+/// scrolled away is measured alone (`docs/SPEED.md` §9, item 3).
+/// Returns its height with the gap under it.
 pub(super) fn section(
     ui: &mut Ui,
     x: f32,
@@ -1306,10 +1308,14 @@ pub(super) fn section(
     let (ix, iw) = (x + 14.0, w - 28.0);
     let inner = crate::compact::screen::measured(ui, |ui| draw(ui, ix, y + 44.0, iw));
     let h = 44.0 + inner + 12.0;
+    let taken = h + 14.0;
+    if !ui.shows(y, h) {
+        return taken;
+    }
     ui.card(x, y, w, h, Role::OutlineVariant);
     ui.text(ix, y + 16.0, 15.0, W::S, Role::OnSurface, title);
     draw(ui, ix, y + 44.0, iw);
-    h + 14.0
+    taken
 }
 
 /// Time zone: a label, the offset stepped ±15 minutes, stopping at

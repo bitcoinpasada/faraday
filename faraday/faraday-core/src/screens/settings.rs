@@ -11,6 +11,8 @@ use faraday_draw::tokens::{
     PANE_TOP_BAR, SETTINGS_CARD_MIN, SPACER, TOUCH,
 };
 use faraday_ui::parts::{title, wrap_buttons};
+use std::borrow::Cow;
+use std::sync::OnceLock;
 
 /// The panic key, beside Power off on Settings: the stick shell powers
 /// off at once when Super and S are held this long (`keyboard.rs`).
@@ -80,20 +82,20 @@ fn part_title(app: &View, p: Part) -> &'static str {
 
 /// Section `p`'s explainer, shown under its title while Guided is on
 /// (the flows' setting): what the section does, in a sentence or two.
-fn part_guide(app: &View, p: Part) -> Option<String> {
+fn part_guide(app: &View, p: Part) -> Option<Cow<'static, str>> {
     if !app.guided() {
         return None;
     }
     Some(match p {
-        Part::Mode => EN.settings_guide_mode.to_string(),
-        Part::Session => EN.settings_guide_session.to_string(),
-        Part::Time => EN.settings_guide_time.to_string(),
-        Part::Randomness => EN.settings_guide_randomness.to_string(),
-        Part::Appearance => EN.settings_guide_appearance.to_string(),
-        Part::Scale => EN.settings_guide_scale.to_string(),
-        Part::Signed => EN.settings_guide_signed.to_string(),
-        Part::Stick => fill(EN.settings_guide_stick, &[app.medium.noun()]),
-        Part::About => EN.settings_guide_about.to_string(),
+        Part::Mode => EN.settings_guide_mode.into(),
+        Part::Session => EN.settings_guide_session.into(),
+        Part::Time => EN.settings_guide_time.into(),
+        Part::Randomness => EN.settings_guide_randomness.into(),
+        Part::Appearance => EN.settings_guide_appearance.into(),
+        Part::Scale => EN.settings_guide_scale.into(),
+        Part::Signed => EN.settings_guide_signed.into(),
+        Part::Stick => fill(EN.settings_guide_stick, &[app.medium.noun()]).into(),
+        Part::About => EN.settings_guide_about.into(),
     })
 }
 
@@ -180,21 +182,7 @@ fn session_body(app: &View, ui: &mut Ui, (x, y0, w): (f32, f32, f32)) -> f32 {
     for (label, now, choices, action) in idle_rows(app) {
         ui.text(x, y, 13.0, W::R, Role::OnSurfaceVariant, label);
         y += 22.0;
-        let labels: Vec<String> = choices
-            .iter()
-            .map(|&m| {
-                if m == 0 {
-                    EN.settings_never.to_string()
-                } else {
-                    fill(EN.settings_min, &[&m.to_string()])
-                }
-            })
-            .collect();
-        let items: Vec<(&str, Action)> = labels
-            .iter()
-            .zip(choices.iter())
-            .map(|(l, &m)| (l.as_str(), action(m)))
-            .collect();
+        let items: Vec<(&str, Action)> = choices.iter().map(|&m| (minutes(m), action(m))).collect();
         let on = choices.iter().position(|&m| now == m);
         y += ui.choices((x, y, w, 36.0), 13.0, &items, on) + 10.0;
     }
@@ -258,26 +246,45 @@ fn randomness_body(app: &View, ui: &mut Ui, (x, y0, w): (f32, f32, f32)) -> f32 
     y - y0
 }
 
+/// What an idle timer's choice of `m` minutes says ("Never" for 0),
+/// made once and kept: drawing reads it and allocates nothing.
+fn minutes(m: u16) -> &'static str {
+    use crate::stick::settings::{IDLE_LOCK_CHOICES, IDLE_OFF_CHOICES};
+    static LABELS: OnceLock<Vec<(u16, String)>> = OnceLock::new();
+    let labels = LABELS.get_or_init(|| {
+        IDLE_LOCK_CHOICES
+            .iter()
+            .chain(&IDLE_OFF_CHOICES)
+            .map(|&m| (m, fill(EN.settings_min, &[&m.to_string()])))
+            .collect()
+    });
+    match labels.iter().find(|(n, _)| *n == m) {
+        Some((_, l)) if m != 0 => l,
+        _ => EN.settings_never,
+    }
+}
+
+/// Display scale's choices, in percent; 100 is Auto.
+const SCALES: &[u16] = &[75, 90, 100, 110, 125, 150, 200];
+
 /// Display scale's choices. Returns their height.
 fn scale_body(app: &View, ui: &mut Ui, (x, y0, w): (f32, f32, f32)) -> f32 {
-    let labels: Vec<(String, u16)> = [75u16, 90, 100, 110, 125, 150, 200]
-        .into_iter()
-        .map(|pct| {
-            (
-                if pct == 100 {
-                    EN.settings_auto.to_string()
-                } else {
-                    format!("{pct} %")
-                },
-                pct,
-            )
+    // Made once and kept: drawing reads them and allocates nothing.
+    static LABELS: OnceLock<Vec<String>> = OnceLock::new();
+    let labels = LABELS.get_or_init(|| SCALES.iter().map(|pct| format!("{pct} %")).collect());
+    let items: Vec<(&str, Action)> = SCALES
+        .iter()
+        .zip(labels)
+        .map(|(&pct, label)| {
+            let label = if pct == 100 {
+                EN.settings_auto
+            } else {
+                label.as_str()
+            };
+            (label, Action::Scale(pct))
         })
         .collect();
-    let items: Vec<(&str, Action)> = labels
-        .iter()
-        .map(|(l, pct)| (l.as_str(), Action::Scale(*pct)))
-        .collect();
-    let on = labels.iter().position(|(_, pct)| app.scale_pct() == *pct);
+    let on = SCALES.iter().position(|&pct| app.scale_pct() == pct);
     ui.choices((x, y0, w, 36.0), 13.0, &items, on)
 }
 
@@ -531,6 +538,9 @@ fn mode_card(app: &View, ui: &mut Ui, (x, y, w): (f32, f32, f32), guide: Option<
         crate::compact::screen::measured(ui, |ui| crate::flow::guide_text(ui, at, t)) + GAP
     });
     let h = MODE_ROW + gh + 2.0 * pad;
+    if !ui.shows(y, h) {
+        return h;
+    }
     ui.card(x, y, w, h, Role::OutlineVariant);
     crate::modes::screen::settings_row(app, ui, ix, y + pad, iw);
     if let Some(t) = guide {
