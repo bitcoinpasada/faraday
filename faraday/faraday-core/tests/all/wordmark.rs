@@ -4,6 +4,7 @@
 use faraday_core::ui::pal::Role;
 use faraday_core::ui::{NameSuffix, Ui};
 use faraday_draw::canvas::Canvas;
+use faraday_draw::geom::Rect;
 use faraday_shell_api::{BootState, DisplayInfo, SecureHardware};
 
 /// The width of the name drawn with `suffix`, and how many pixels of the
@@ -69,4 +70,90 @@ fn every_suffix_adds_its_word_after_the_name_and_none_adds_nothing() {
         assert!(w > none_w * 1.5, "{suffix:?}: {w} against {none_w}");
         assert!(ink > 500, "{suffix:?} drew {ink} pixels");
     }
+}
+
+/// Faraday Demo, or the device for `demo` false, on Testnet (in Practice
+/// where `practice`), showing Home in a window `w` by `h` pixels at `dpi`.
+fn home(demo: bool, practice: bool, (w, h, dpi): (u16, u16, u16)) -> faraday_core::Faraday {
+    use faraday_core::{Action, DESKTOP_MODES, Screen, testkit};
+    use faraday_shell_api::{App, Event};
+    let mut app = faraday_core::Faraday::new();
+    app.event(Event::Display(DisplayInfo {
+        width: w,
+        height: h,
+        dpi,
+        inset_bottom: 0,
+        inset_top: 0,
+        buttons: 0,
+        camera_fixed: false,
+        secure: SecureHardware::None,
+        boot: BootState::Unknown,
+        memory_mib: None,
+    }));
+    app.session = faraday_core::wallet::Session::on(testkit::NET);
+    if demo {
+        app.online = true;
+        app.clipboard = true;
+        app.set_modes(DESKTOP_MODES);
+        if practice {
+            testkit::into_demo(&mut app);
+        }
+    }
+    app.press(Action::Nav(Screen::Home));
+    let _ = app.frame();
+    app
+}
+
+/// The boxes of the name's ink in the frame `app` draws, and of every
+/// other thing drawn in the band of the top bar it stands in.
+fn name_and_bar(app: &mut faraday_core::Faraday) -> (Vec<Rect>, Vec<Rect>) {
+    use faraday_draw::canvas::InkKind;
+    let ink = app.drawn_ink();
+    let name: Vec<Rect> = ink
+        .iter()
+        .filter(|i| i.kind == InkKind::Wordmark)
+        .map(|i| i.rect)
+        .collect();
+    let bottom = name.iter().map(|r| r.y + r.h).max().unwrap_or(0);
+    let rest = ink
+        .iter()
+        .filter(|i| i.kind != InkKind::Wordmark && i.rect.y < bottom)
+        .map(|i| i.rect)
+        .collect();
+    (name, rest)
+}
+
+#[test]
+fn faraday_demos_narrow_top_bar_draws_its_name_clear_of_everything_in_the_bar() {
+    // The Pi panel and Narrow, as Faraday Demo's Size menu previews them,
+    // and a phone-wide window, in Practice and on Testnet.
+    for size in [(268, 358, 160), (400, 800, 160), (390, 844, 160)] {
+        for practice in [true, false] {
+            let mut app = home(true, practice, size);
+            let (name, rest) = name_and_bar(&mut app);
+            assert!(!name.is_empty(), "{size:?} {practice}: no name in the bar");
+            let pill = app
+                .hit_box(faraday_core::Action::ModeSheet)
+                .map(|(x, y, w, h)| Rect::new(x.into(), y.into(), w.into(), h.into()));
+            for n in &name {
+                assert!(
+                    n.x >= 0 && n.x + n.w <= i32::from(size.0),
+                    "{size:?} {practice}: the name leaves the window: {n:?}"
+                );
+                for r in rest.iter().chain(pill.iter()) {
+                    assert!(
+                        n.intersect(r).is_empty(),
+                        "{size:?} {practice}: the name {n:?} is drawn over {r:?}"
+                    );
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn the_devices_small_panel_draws_its_name_on_one_line_beside_the_mark() {
+    let mut app = home(false, false, (480, 640, 286));
+    let (name, _) = name_and_bar(&mut app);
+    assert_eq!(name.len(), 1, "FARADAY in one line: {name:?}");
 }

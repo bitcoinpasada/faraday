@@ -95,6 +95,18 @@ const WORDMARK_SUFFIX: &str = include_str!("../assets/wordmark-suffix.txt");
 /// letter starts (its pen, before the letter's own left bearing).
 const SUFFIX_GAP: f32 = 364.0;
 
+/// The name's width with its capitals `cap` units tall, as
+/// [`Ui::wordmark_named`] draws it with `suffix`. Arithmetic on outlines
+/// read once.
+pub fn wordmark_width(cap: f32, suffix: NameSuffix) -> f32 {
+    let mark = wordmark_outlines();
+    let right = match suffix_word(suffix) {
+        Some(word) => mark.right + SUFFIX_GAP + word.right,
+        None => mark.right,
+    };
+    (right - mark.left) * cap / WORDMARK_CAP
+}
+
 /// The word drawn after the wordmark in an app's name.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum NameSuffix {
@@ -1115,7 +1127,98 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
             self.c.fill_contours(&contours, grey);
             right = start + word.right;
         }
-        (right - mark.left) * s
+        let w = (right - mark.left) * s;
+        self.note_name(x, y, w, cap);
+        w
+    }
+
+    /// Notes the name drawn in the box `w` by `h` units at (x, y) as one
+    /// thing read, while the canvas records what it draws.
+    fn note_name(&mut self, x: f32, y: f32, w: f32, h: f32) {
+        let r = self.rect(x, y, w, h);
+        self.c.note(faraday_draw::canvas::InkKind::Wordmark, r);
+    }
+
+    /// The name with the word of the app under FARADAY in place of after
+    /// it, for a bar too narrow for the two side by side: FARADAY's
+    /// capitals `cap` units tall with their top-left at (x, y), the word's
+    /// `WORDMARK_STACK_WORD` of that, `WORDMARK_STACK_GAP` of it under
+    /// FARADAY, both starting at the same left edge. Returns its width and
+    /// height.
+    pub fn wordmark_stacked(
+        &mut self,
+        x: f32,
+        y: f32,
+        cap: f32,
+        color: impl Into<Paint>,
+        suffix: NameSuffix,
+    ) -> (f32, f32) {
+        let color: Paint = color.into();
+        let mark_w = self.wordmark_named(x, y, cap, color, NameSuffix::None);
+        let Some(word) = suffix_word(suffix) else {
+            return (mark_w, cap);
+        };
+        let wc = cap * faraday_draw::tokens::WORDMARK_STACK_WORD;
+        let wy = y + cap * (1.0 + faraday_draw::tokens::WORDMARK_STACK_GAP);
+        let s = wc / WORDMARK_CAP;
+        let k = s * self.f;
+        let left = word
+            .outlines
+            .iter()
+            .flatten()
+            .map(|p| p.0)
+            .fold(f32::MAX, f32::min);
+        let (ox, oy) = ((x + self.ox) * self.f, (wy + self.oy) * self.f);
+        let outlines: Vec<Vec<(f32, f32)>> = word
+            .outlines
+            .iter()
+            .map(|o| {
+                o.iter()
+                    .map(|&(fx, fy)| (ox + (fx - left) * k, oy + (fy + WORDMARK_CAP) * k))
+                    .collect()
+            })
+            .collect();
+        let contours: Vec<&[(f32, f32)]> = outlines.iter().map(Vec::as_slice).collect();
+        let grey = self.col(Role::OnSurfaceVariant);
+        self.c.fill_contours(&contours, grey);
+        let word_w = (word.right - left) * s;
+        self.note_name(x, wy, word_w, wc);
+        (mark_w.max(word_w), wy + wc - y)
+    }
+
+    /// Costs measuring the name and filling its outlines. An app's name
+    /// starting at `x` and ending within `room` units of it, its capitals
+    /// `cap` tall on the line whose top is `y`: beside its word where the
+    /// two fit; else, for an app with a word, the word under FARADAY
+    /// ([`Ui::wordmark_stacked`]), centred on the same line and made
+    /// smaller where FARADAY needs it, down to
+    /// [`faraday_draw::tokens::WORDMARK_CAP_MIN`]; else nothing. Returns
+    /// whether it was drawn.
+    pub fn wordmark_fitted(
+        &mut self,
+        (x, y, room): (f32, f32, f32),
+        cap: f32,
+        color: impl Into<Paint>,
+        suffix: NameSuffix,
+    ) -> bool {
+        let color: Paint = color.into();
+        if wordmark_width(cap, suffix) <= room {
+            self.wordmark_named(x, y, cap, color, suffix);
+            return true;
+        }
+        if suffix == NameSuffix::None {
+            return false;
+        }
+        let small = cap * (room / wordmark_width(cap, NameSuffix::None)).min(1.0);
+        if small < faraday_draw::tokens::WORDMARK_CAP_MIN {
+            return false;
+        }
+        let h = small
+            * (1.0
+                + faraday_draw::tokens::WORDMARK_STACK_GAP
+                + faraday_draw::tokens::WORDMARK_STACK_WORD);
+        self.wordmark_stacked(x, y + (cap - h) / 2.0, small, color, suffix);
+        true
     }
 
     /// The caret of the field typing goes to, `h` units tall at (x, y),

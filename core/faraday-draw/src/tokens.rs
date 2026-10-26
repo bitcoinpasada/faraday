@@ -29,6 +29,15 @@ pub const BODY: f32 = 16.0;
 pub const LABEL: f32 = 14.0;
 /// Caption size: notes, hints and badges.
 pub const CAPTION: f32 = 12.0;
+/// The smallest the wordmark's capitals are drawn in a bar too narrow for
+/// the name beside its word: under it the bar shows the mark alone.
+pub const WORDMARK_CAP_MIN: f32 = 8.0;
+/// The word of an app's name set under FARADAY in such a bar: its
+/// capitals' height as a share of FARADAY's.
+pub const WORDMARK_STACK_WORD: f32 = 0.7;
+/// The gap between FARADAY's foot and the top of the word under it, as a
+/// share of FARADAY's capitals' height.
+pub const WORDMARK_STACK_GAP: f32 = 0.3;
 
 /// The type ramp's scale for a size class, in percent
 /// (`docs/DESIGN.md` §3).

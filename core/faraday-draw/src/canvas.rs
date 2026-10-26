@@ -92,6 +92,9 @@ pub enum InkKind {
     Progress(Option<f32>),
     /// A badge with no label: the dot on a destination.
     Dot,
+    /// An app's name in its lettering: FARADAY, with the word of the app
+    /// it heads beside it or under it.
+    Wordmark,
 }
 
 /// How many masks are kept for clips that come round again.

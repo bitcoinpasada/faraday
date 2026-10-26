@@ -818,30 +818,19 @@ fn lock_row(app: &View, ui: &mut Ui, y: f32, inner: f32, gap: f32) -> f32 {
 /// the mode pill on the right, which opens the mode sheet.
 fn home_head(app: &View, ui: &mut Ui, w: f32, y: f32) {
     ui.mark(M, y, 20.0, 23.0);
-    let mut suffix = crate::screens::name_suffix(app);
+    let suffix = crate::screens::name_suffix(app);
     let pill = crate::modes::screen::shows_pill(app);
     let pw = if pill {
         crate::modes::screen::pill_width(app, ui)
     } else {
         0.0
     };
-    // The pill takes the name's end where the two do not fit: the name
-    // goes without "Desktop".
+    // The name where it ends before the pill; Faraday Demo's word under
+    // FARADAY where the two do not fit side by side; the mark alone where
+    // the pill leaves no room for it.
     let (nx, ny) = (M + 28.0, y + 6.0);
     let room = w - M - pw - faraday_draw::tokens::GAP;
-    let fits = |ui: &mut Ui, suffix| {
-        nx + crate::compact::screen::measured(ui, |ui| {
-            ui.wordmark_named(nx, ny, 11.0, Role::OnSurface, suffix)
-        }) <= room
-    };
-    if pill && !fits(ui, suffix) {
-        suffix = crate::ui::NameSuffix::None;
-    }
-    // With Load samples beside it the pair leaves no room for the name:
-    // the mark stands alone.
-    if fits(ui, suffix) {
-        ui.wordmark_named(nx, ny, 11.0, Role::OnSurface, suffix);
-    }
+    ui.wordmark_fitted((nx, ny, room - nx), 11.0, Role::OnSurface, suffix);
     if pill {
         crate::modes::screen::pill(app, ui, w - M - pw, y - 2.0);
     }
