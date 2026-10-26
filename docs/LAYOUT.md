@@ -168,6 +168,14 @@ each at the text size the person's system asks for.
   sits at the start of its column. Only on compact may a card's or a
   sheet's buttons take its width, one under another where they do not
   fit side by side.
+- **Nothing is cut off at the sides**, down to the Pi's panel (268 dp
+  wide): a line and the button beside it put the button under the
+  line where the two do not fit; a button whose label names more than
+  the column holds (Sign with three fingerprints) has that label as a
+  line above it and a short label of its own (Sign); a name and its
+  source beside a step's Continue wrap in the room left of it. Text
+  wraps or is shortened with an ellipsis; it never runs past its card,
+  its sheet or the panel.
 - **Cards and tiles** sit in grids of columns with a minimum width,
   never stretched beyond the grid's column.
 - **Text** runs at most about 70 characters a line (`MEASURE`, at the
@@ -256,7 +264,12 @@ Wallets at 1280 shows the list and the chosen wallet together, and at
 760 the list alone; a flow in progress shows its chip on every
 destination; at 1920 × 1080 Learn opens beside the page; a scale-2
 window of 1440 × 900 pixels lays out as medium at 720 dp; Larger text
-at 1280 lays out as medium.
+at 1280 lays out as medium. On the Pi's 480 × 640 panel at 286 dpi,
+every screen (empty, with a wallet and its keys, online and in Practice),
+the stateless sheets, the scanners, every step of a spend and the
+sample spend draw no control and no text past a side of the panel or
+of the card or sheet it is in, at every place the page scrolls to
+(`faraday-core` `pi_panel`, `faraday-samples` `pi_panel`).
 
 The snapshot tours gain the sizes 760x1000, 960x580@133, 1920x1080 and
 2560x1440 beside today's.

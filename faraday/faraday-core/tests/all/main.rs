@@ -98,6 +98,7 @@ mod paper;
 mod passphrase_kept;
 mod passphrase_paper;
 mod paste_a_seed;
+mod pi_panel;
 mod pictures;
 mod quit;
 mod restart;

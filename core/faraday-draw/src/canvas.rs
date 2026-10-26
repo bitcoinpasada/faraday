@@ -313,6 +313,13 @@ impl Canvas {
         self.ink.as_deref().unwrap_or(&[])
     }
 
+    /// The strings drawn since the last [`Canvas::clear`] whose ink ran
+    /// past the left or right side of their clip: text a person sees cut
+    /// off.
+    pub fn cut(&self) -> &[String] {
+        &self.cut
+    }
+
     /// Notes a shape drawn as `kind` in `rect`, pixels, while recording
     /// is on: one a person reads as a whole, such as a progress
     /// indicator, which its fills alone do not say.

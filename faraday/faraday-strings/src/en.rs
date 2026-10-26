@@ -4851,6 +4851,9 @@ strings! {
     step_no_signing_key: "No key in this session signs this transaction",
     /// Text in `step_body`. `{}`: `mine.join(", ")`.
     step_sign_with_keys: "Sign with {}",
+    /// The Sign button in `step_body` where `step_sign_with_keys` is too
+    /// wide for it and stands as a line above it.
+    step_sign: "Sign",
     /// Text in `step_body`.
     step_input_inline: "input",
     /// Text in `step_body`.

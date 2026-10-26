@@ -10,6 +10,7 @@ mod handouts;
 mod keys;
 mod load;
 mod passphrase;
+mod pi_panel;
 mod psbt;
 mod pull;
 mod use_sample;

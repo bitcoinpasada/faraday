@@ -484,6 +484,27 @@ impl Faraday {
             .collect()
     }
 
+    /// What the current frame draws cut off at the sides: each control
+    /// and each string that runs past the left or right side of its clip
+    /// (the panel's, a card's, a sheet's). What runs past the foot of a
+    /// page that scrolls is not counted. A control reads as its action and
+    /// its box's left and right, pixels; a string as `text "…"`. For a
+    /// test that nothing is cut off at a panel's width.
+    pub fn drawn_past_sides(&mut self) -> Vec<String> {
+        let _ = self.drawn_ink();
+        let Some(c) = self.canvas.as_ref() else {
+            return Vec::new();
+        };
+        let mut past: Vec<String> = c.cut().iter().map(|s| format!("text {s:?}")).collect();
+        past.extend(
+            self.pointer
+                .cut()
+                .iter()
+                .map(|(r, a)| format!("{a:?} {:?}", (r.x, r.right()))),
+        );
+        past
+    }
+
     /// Everything the current frame draws that a person reads as one
     /// thing (a line of text, an icon, a progress indicator, a badge's
     /// dot), each with the box of its ink in pixels: for a test of what

@@ -48,6 +48,9 @@ pub(crate) struct Pointer {
     focus: Option<Action>,
     /// The tooltip showing and the one coming (`faraday_ui::tooltip`).
     tips: Tips<Action>,
+    /// The controls the last frame drew past a side of their clip, each
+    /// with its box uncut ([`faraday_ui::Ui::cut`]).
+    cut: Vec<(Rect, Action)>,
 }
 
 impl Pointer {
@@ -66,12 +69,23 @@ impl Pointer {
             reach: Vec::new(),
             focus: None,
             tips: Tips::default(),
+            cut: Vec::new(),
         }
     }
 
     /// What the last frame offered to a press, in drawing order.
     pub(crate) fn hits(&self) -> &[(Rect, Action)] {
         &self.hits
+    }
+
+    /// The controls the last frame drew past a side of their clip.
+    pub(crate) fn cut(&self) -> &[(Rect, Action)] {
+        &self.cut
+    }
+
+    /// Keeps the controls a frame drew past a side of their clip.
+    pub(crate) fn set_cut(&mut self, cut: Vec<(Rect, Action)>) {
+        self.cut = cut;
     }
 
     /// Takes the hits out to be filled by the next frame.

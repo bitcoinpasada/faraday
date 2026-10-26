@@ -256,7 +256,6 @@ pub use wallet::SpendState;
 pub use wallet_backup::BackupState;
 
 use crate::strings::{EN, fill};
-use crate::wallet::KeyTexts;
 use faraday_intake::{arrival, seed_in_code, seedqr_words};
 use std::collections::BTreeSet;
 
@@ -264,7 +263,7 @@ use faraday_crypto::work::Compute;
 use faraday_draw::Canvas;
 use faraday_shell_api::{App, Command, DisplayInfo, Event, Frame, Key as KeyIn, TouchPhase};
 
-use wallet::{FileKind, Session, Spend, fp_text};
+use wallet::{FileKind, KeyTexts, Session, Spend, fp_text};
 
 /// Minutes without input before the session locks, at first (F58).
 pub const IDLE_LOCK_MIN: u16 = 30;
@@ -6638,6 +6637,7 @@ impl Faraday {
                 self.trail.set_link(self.screen, ui.back_link, ui.back_hit);
                 scrolled = std::mem::take(&mut ui.scrolled);
                 reach = std::mem::take(&mut ui.reach);
+                self.pointer.set_cut(std::mem::take(&mut ui.cut));
                 follow_to = follow_to.or(ui.follow_to);
                 self.fade.keep_frost(frost_key, ui.frost.take());
                 ui.column

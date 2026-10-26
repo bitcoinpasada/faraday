@@ -438,6 +438,10 @@ pub struct Ui<'a, A> {
     /// Where the step column drew a chip that a press opens, this
     /// frame: its left edge, its foot and its width, units.
     pub chip_at: Option<(f32, f32, f32)>,
+    /// The hits taken this frame whose box ran past the left or right
+    /// side of their clip, each with its box uncut: a control a person
+    /// sees cut off.
+    pub cut: Vec<(Rect, A)>,
     /// Hits are clipped to this rather than to the drawing's clip while
     /// a card's body is revealed: what is not yet uncovered can still be
     /// pressed where it will be.
@@ -541,6 +545,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
             follow_to: None,
             compact: false,
             chip_at: None,
+            cut: Vec::new(),
             hit_clip: None,
             quiet_hover: false,
             own_ring: false,
@@ -1432,7 +1437,13 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
             return;
         }
         let clip = self.hit_clip.unwrap_or_else(|| self.c.clip());
-        let rect = self.rect(x, y, w, h).intersect(&clip);
+        let whole = self.rect(x, y, w, h);
+        let rect = whole.intersect(&clip);
+        // A clip with no room is a pass that measures and draws nothing.
+        let level = !clip.is_empty() && whole.y < clip.bottom() && whole.bottom() > clip.y;
+        if !self.around && level && (whole.x < clip.x || whole.right() > clip.right()) {
+            self.cut.push((whole, action));
+        }
         if rect.w > 0 && rect.h > 0 {
             let screen = i64::from(self.c.width()) * i64::from(self.c.height());
             let small = i64::from(rect.w) * i64::from(rect.h) * 4 < screen;

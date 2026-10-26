@@ -8,6 +8,8 @@ use crate::strings::EN;
 use crate::strings::fill;
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui, W};
+use faraday_draw::tokens::{BUTTON_H, GAP};
+use faraday_ui::parts::wrap_buttons;
 
 /// A row of the Downloads list.
 const ROW: f32 = 44.0;
@@ -146,27 +148,21 @@ fn receive(app: &View, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     let mut y = y0;
     section_label(ui, x, y, EN.transfer_receive);
     y += 28.0;
-    let bw = ui.button(
-        x,
-        y,
-        None,
-        44.0,
+    // The second button goes under the first where the two do not fit
+    // side by side.
+    let mut buttons = vec![(
         EN.transfer_scan_camera,
         Style::Primary,
         Action::TransferReceive,
-    );
+    )];
     if t.opens {
-        ui.button(
-            x + bw + 10.0,
-            y,
-            None,
-            44.0,
+        buttons.push((
             EN.transfer_open_folder,
             Style::Secondary,
             Action::TransferOpenFolder,
-        );
+        ));
     }
-    y += 60.0;
+    y += wrap_buttons(ui, x, y, w, BUTTON_H, &buttons) + GAP;
     for (line, warn) in t.saved.iter().rev() {
         let tone = if *warn {
             Role::Warning

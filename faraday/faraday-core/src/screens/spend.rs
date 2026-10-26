@@ -7,7 +7,9 @@ use crate::ui::pal::*;
 use crate::ui::{Style, Ui, W, btc, short, thousands};
 use crate::wallet::{Session, fp_text, network_name, step, txid_known};
 use crate::{Action, Screen, flow, guide};
-use faraday_draw::tokens::{GAP_SMALL, TABLE_AMOUNT_W, TABLE_LABEL_W};
+use faraday_draw::tokens::{
+    BUTTON_H, CAPTION, GAP, GAP_SMALL, LABEL, PAD, TABLE_AMOUNT_W, TABLE_LABEL_W,
+};
 use faraday_draw::widgets::Icon;
 use faraday_psbt::{Level, OutputKind};
 use faraday_ui::parts::{title, wrap_buttons};
@@ -552,13 +554,22 @@ pub(crate) fn step_body(
     };
     match n {
         0 => {
+            let mut row = BUTTON_H + GAP_SMALL;
             match wallet.and_then(|wi| app.session.wallets.get(wi)) {
                 Some(wl) => {
-                    ui.text(x, cy, 14.0, W::S, Role::OnSurface, &wl.name);
-                    ui.text(
+                    // The name and its source wrap beside Continue, or
+                    // across the column where Continue is at the foot.
+                    let room = if ui.pinning {
+                        w
+                    } else {
+                        w - ui.measure(LABEL, W::S, EN.step_continue) - 2.0 * PAD - GAP
+                    };
+                    let name = ui.wrap(x, cy, room, LABEL, W::S, Role::OnSurface, &wl.name);
+                    let source = ui.wrap(
                         x,
-                        cy + 22.0,
-                        12.0,
+                        cy + name + GAP_SMALL,
+                        room,
+                        CAPTION,
                         W::R,
                         Role::OnSurfaceVariant,
                         &fill(
@@ -566,6 +577,7 @@ pub(crate) fn step_body(
                             &[&Session::shape(wl).to_string(), &wl.source.to_string()],
                         ),
                     );
+                    row = row.max(name + GAP_SMALL + source + GAP);
                 }
                 None => {
                     ui.wrap(
@@ -580,7 +592,7 @@ pub(crate) fn step_body(
                 }
             }
             next(ui, cy, EN.step_continue);
-            cy += 44.0;
+            cy += row;
         }
         1 => {
             match wallet.and_then(|wi| app.session.wallets.get(wi)) {
@@ -1242,19 +1254,10 @@ pub(crate) fn step_body(
             };
             if let Some(r) = reason {
                 ui.text_mid(x, cy, 40.0, 13.0, W::R, Role::OnSurfaceVariant, &r);
+                cy += 44.0;
             } else {
-                let bw = ui.measure(14.0, W::S, &label) + 36.0;
-                ui.button(
-                    x + w - bw,
-                    cy,
-                    Some(bw),
-                    40.0,
-                    &label,
-                    style,
-                    Action::SignHere,
-                );
+                cy += sign_row(ui, (x, cy, w), "", &label, style);
             }
-            cy += 44.0;
         }
         5 => {
             let mine: Vec<String> = i
@@ -1267,17 +1270,17 @@ pub(crate) fn step_body(
                 .collect();
             if !s.spend.signed_here.is_empty() {
                 let fps: Vec<String> = s.spend.signed_here.iter().map(|f| fp_text(*f)).collect();
+                let text = fill(EN.step_signed_keys, &[&fps.join(", ").to_string()]);
                 ui.icon(x, cy + 10.0, 20.0, Icon::Done, 12.0, Role::Ok);
-                ui.text_mid(
-                    x + 26.0,
-                    cy,
-                    40.0,
-                    14.0,
-                    W::S,
-                    Role::Ok,
-                    &fill(EN.step_signed_keys, &[&fps.join(", ").to_string()]),
-                );
-                cy += 44.0;
+                let tx = x + 26.0;
+                if ui.measure(LABEL, W::S, &text) <= x + w - tx {
+                    ui.text_mid(tx, cy, BUTTON_H, LABEL, W::S, Role::Ok, &text);
+                    cy += BUTTON_H + GAP_SMALL;
+                } else {
+                    // The keys wrap under one another on a narrow panel.
+                    cy +=
+                        ui.wrap(tx, cy + GAP, x + w - tx, LABEL, W::S, Role::Ok, &text) + 2.0 * GAP;
+                }
             } else if mine.is_empty() {
                 ui.text_mid(
                     x,
@@ -1291,34 +1294,16 @@ pub(crate) fn step_body(
                 cy += 44.0;
             } else {
                 let label = fill(EN.step_sign_with_keys, &[&mine.join(", ").to_string()]);
-                ui.text_mid(
-                    x,
-                    cy,
-                    40.0,
-                    13.0,
-                    W::R,
-                    Role::OnSurfaceVariant,
-                    &format!(
-                        "{} {}",
-                        i.inputs.len(),
-                        if i.inputs.len() == 1 {
-                            EN.step_input_inline
-                        } else {
-                            EN.step_inputs
-                        }
-                    ),
+                let inputs = format!(
+                    "{} {}",
+                    i.inputs.len(),
+                    if i.inputs.len() == 1 {
+                        EN.step_input_inline
+                    } else {
+                        EN.step_inputs
+                    }
                 );
-                let bw = ui.measure(14.0, W::S, &label) + 36.0;
-                ui.button(
-                    x + w - bw,
-                    cy,
-                    Some(bw),
-                    40.0,
-                    &label,
-                    Style::Primary,
-                    Action::SignHere,
-                );
-                cy += 44.0;
+                cy += sign_row(ui, (x, cy, w), &inputs, &label, Style::Primary);
             }
         }
         6 => {
@@ -2065,6 +2050,53 @@ pub(crate) fn signers_count(
         cy += 44.0;
     }
     cy
+}
+
+/// The Sign row in a column `w` wide at (`x`, `y`): `lead` at its start
+/// and the Sign button, labelled `label`, at its end. Where the two do
+/// not fit side by side the button goes under the line, and where its
+/// label is wider than the column the label is a line of its own above a
+/// button reading Sign. Returns its height.
+fn sign_row(ui: &mut Ui, (x, y, w): (f32, f32, f32), lead: &str, label: &str, style: Style) -> f32 {
+    let lead_size = LABEL - 1.0;
+    let row = BUTTON_H + GAP_SMALL;
+    let bw = ui.measure(LABEL, W::S, label) + 2.0 * PAD;
+    let lw = if lead.is_empty() {
+        0.0
+    } else {
+        ui.text_mid(
+            x,
+            y,
+            BUTTON_H,
+            lead_size,
+            W::R,
+            Role::OnSurfaceVariant,
+            lead,
+        );
+        ui.measure(lead_size, W::R, lead) + GAP
+    };
+    if lw + bw <= w {
+        ui.button(
+            x + w - bw,
+            y,
+            Some(bw),
+            BUTTON_H,
+            label,
+            style,
+            Action::SignHere,
+        );
+        return row;
+    }
+    let mut cy = if lead.is_empty() { y } else { y + BUTTON_H };
+    let label = if bw <= w {
+        label
+    } else {
+        let used = ui.wrap(x, cy, w, lead_size, W::R, Role::OnSurfaceVariant, label);
+        cy += used + GAP;
+        EN.step_sign
+    };
+    ui.button(x, cy, None, BUTTON_H, label, style, Action::SignHere);
+    cy + row - y
 }
 
 /// A file a flow made, as one line: its name, where it is, and Remove
