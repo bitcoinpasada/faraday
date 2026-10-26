@@ -164,8 +164,6 @@ pub enum BoardPress {
     MenuTo(Zone),
     /// The menu closed with nothing chosen: Escape, or a press outside it.
     MenuClose,
-    /// Seed `i`'s codex32 group in the list (`docs/CODEX32.md` §9.2).
-    C32(usize, codex32::C32Board),
 }
 
 /// What a chip's ⋮ menu does with the box chosen (`docs/BACKUP-FLOW.md`
@@ -1386,7 +1384,7 @@ impl Faraday {
             splits: shape.splits && !locked,
             partials: a.partials_on(),
             room: places < plan::codex32::max_places_of(&shape, &a),
-            c32: codex32::groups(&shape, &a, &entry, custom && !locked),
+            c32: codex32::groups(&shape, &a, &entry),
             vaults,
             software_entry: (!has_software && !locked).then(|| entry(Thing::Software)),
             warnings,
@@ -1559,21 +1557,6 @@ impl Faraday {
         };
         let shape = self.plan_shape_now(w);
         self.backup.change_answers(&shape, f);
-    }
-
-    /// The length seed `i`'s codex32 strings take (`docs/CODEX32.md`
-    /// §9.1): 127 characters for a key of words (its 64-byte seed), else
-    /// its master seed's; `None` where the key is not here, or on a
-    /// wallet flow's own plan. A lookup.
-    fn c32_length_of(&self, i: usize) -> Option<u8> {
-        // A wallet flow's own plan makes no set: its keys are made after
-        // it (`docs/BACKUP-FLOW.md` §4).
-        let BoardOf::Backup = self.board_of()? else {
-            return None;
-        };
-        let w = self.backup.state()?.wallet;
-        let k = self.backup_seed_list_now(w).get(i)?.1?;
-        plan::codex32::length_for(self.session.keys.seed_len(k)?)
     }
 
     /// Whether `c` can be picked up: not a cosigner's seed, not what an
@@ -1887,16 +1870,6 @@ impl Faraday {
                 if names && self.board_plan().is_some_and(|(_, a)| a.places < places) {
                     self.backup.place_removed(p);
                 }
-            }
-            BoardPress::C32(i, p) => {
-                // The length a seed's strings take: a key of words its
-                // 64-byte seed, a key loaded from a master seed its own.
-                let length = self.c32_length_of(i);
-                let demo = !self.makes_secrets();
-                if locked || (demo && p == codex32::C32Board::On) {
-                    return;
-                }
-                self.board_change(&|a, shape| codex32::change(a, shape, i, p, length));
             }
             BoardPress::AddVault => {
                 set(self, None);

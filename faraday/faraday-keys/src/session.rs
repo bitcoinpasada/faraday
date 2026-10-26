@@ -358,18 +358,6 @@ impl Keys {
         self.entries.get(i).is_some_and(|e| e.key.seed.is_some())
     }
 
-    /// How many bytes the seed key `i`'s codex32 strings carry are: 64 for
-    /// a key with words (its BIP-39 seed), else the master seed's length
-    /// (`docs/CODEX32.md` §9.1). A length, not the seed. A lookup.
-    pub fn seed_len(&self, i: usize) -> Option<usize> {
-        let e = self.entries.get(i)?;
-        match (&e.key.words, &e.key.seed) {
-            (Some(_), _) => Some(64),
-            (None, Some(s)) => Some(s.len()),
-            (None, None) => None,
-        }
-    }
-
     /// What key `i` says about itself; a lookup, kept when it was added.
     pub fn info(&self, i: usize) -> Option<&KeyInfo> {
         self.entries.get(i).map(|e| &e.info)

@@ -644,7 +644,7 @@ Moved to `docs/history/BACKUP-FLOW-LOG.md`.
   the copies by hand. The checklist's **Templates** item no longer makes
   a file: its body reads "Print {n} from Faraday Starter: Blank
   templates, {words} words, {copy}", with one clause more per codex32
-  length the plan copies by hand ("3 from Blank templates, codex32, 127
+  length the plan places ("3 from Blank templates, codex32, 48
   characters", `docs/CODEX32.md` §9.3, §17.23), and its foot is **Done**, a press,
   as Envelopes' is. Both presses are kept with the wallet's backup
   record, as are the descriptor shown as a code and a passphrase typed
@@ -1309,8 +1309,9 @@ grouped, each a chip (DESIGN §4.17):
 - **Vaults**: one chip per vault of the plan, and **+ vault**, which
   adds one (the vault rows of §10.2: a vault the plan makes).
 - **Watch-only software**, while the board has no software place.
-- Under Seeds, **a seed kept as codex32 strings** is a group of its own,
-  one chip per string by its share index, with **+ share** (§17.23).
+- Under Seeds, **a seed kept as codex32 strings** (a key whose secret is
+  a codex32 set) is a group of its own, one chip per string by its share
+  index (§17.23).
 
 A chip in the list never runs out: dragging it places a copy. Each list
 chip shows how many places keep it ("2 places"), and nothing when none
@@ -2253,24 +2254,24 @@ nothing.
 
 ### 17.23 Codex32 strings (`docs/CODEX32.md` §9; built 2026-10-23)
 
-A seed can be kept as codex32 strings (BIP 93): a set that exists
-(the key was made by Make codex32 shares or loaded from strings, its set's
-plain facts kept with the key and in its vault record, `docs/VAULT.md` §7
-type 2 field 5) or a set the plan makes from the seed. The plan keeps
-each seed's form (`plan::codex32::C32`, a `codex32` line in the plan's
+A seed is kept as codex32 strings (BIP 93) only when its key's secret is
+a codex32 set already: the key was made by Make codex32 shares or loaded
+from strings, its set's plain facts kept with the key and in its vault
+record (`docs/VAULT.md` §7 type 2 field 5). The plan never makes a set
+from a seed, and a key of words is never offered codex32 strings: they
+would hold its 64-byte seed with the passphrase merged in and give back
+neither the words nor the passphrase (owner, 2026-10-26). A plan saved
+before, with a split the plan was to make, reads without that form and
+its strings. The plan keeps each seed's form (`plan::codex32::C32`, a `codex32` line in the plan's
 text: seed, k, length, indices, identifier) and each string is a thing
 of the map, named by its share index.
 
 **The list.** Under Seeds, each seed here is a group: its head
 "9a6a2580 · codex32 w0za · 2 of 3", one chip per string ("A", "C", "D"),
-each reading how many places keep it. A set the plan makes shows its
-**Threshold** and **Strings** steppers, **+ share** (one string more) and
-**Take off codex32**; a seed with no strings shows "9a6a2580 as codex32
-strings" in Customize backup, which turns them on at 2 of 3, its length
-the seed's (127 characters for a key of words, with "127 characters;
-Words is shorter for this key"). A set that exists is fixed: its k and
-indices are the set's. Not in a wallet flow's own plan, whose keys are
-made after it.
+each reading how many places keep it. A set is fixed: its k and
+indices are the set's. A seed with no set has no group and no choice in
+Customize backup. Not in a wallet flow's own plan, whose keys are made
+after it.
 
 **Each zone, each form.**
 
@@ -2303,13 +2304,8 @@ Back up alike). A plan saved before the key had a set reads with it
 
 **The checklist's item, Codex32 strings of seed i** (after the seed's
 copy item). Its body lists each string on paper and its places,
-**Checked** or **Not checked**. A set the plan makes: its foot is **Make
-them**, a split from this device's randomness with the key's identifier
-(`Keys::codex32_shares`); the set's facts go with the key, each string
-placed. Each string then shows in groups of four (String · Codex32QR at
-48 characters) and is typed back on the codex32 keyboard ("Box 17
-differs") or skipped behind the quiz's caution. A set that exists: **Check
-my copy** opens each string to type from its paper; it holds when its
+**Checked** or **Not checked**. Its foot is **Check my copy**, which
+opens each string to type from its paper; it holds when its
 checksum does and its header is the set's ("A · checksum holds, a string
 of name", or "Box 4 is not this set's: not a string of name"), and once k
 are typed, "These strings rebuild this key" or "These strings rebuild

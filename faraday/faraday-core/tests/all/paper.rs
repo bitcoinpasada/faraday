@@ -1,5 +1,6 @@
-//! A key's other paper forms: a Seed XOR split and codex32 shares made
-//! in the backup, typed back into Add a key, give the same key.
+//! A key's other paper form: a Seed XOR split made in the backup, typed
+//! back into Add a key, gives the same key; codex32 strings are not
+//! offered for a key of words.
 
 use faraday_core::paper::PaperForm;
 use faraday_core::testkit;
@@ -79,29 +80,13 @@ fn a_seed_xor_split_typed_back_is_the_same_key() {
     assert_eq!(added_from(3, &parts), want);
 }
 
+/// A key of words is offered Seed XOR as another paper form and never
+/// codex32 strings, which would hold its passphrase-merged seed and give
+/// back neither the words nor the passphrase.
 #[test]
-fn two_of_three_codex32_shares_typed_back_are_the_same_key() {
+fn a_key_of_words_is_not_offered_codex32_strings_by_hand() {
     let mut app = backing_up();
-    let want = app.session.keys[0].fingerprint.0;
-    app.press(Action::BCodex32(2, 3));
-    let Some(PaperForm::Codex32 { k, strings }) = &app.backup().unwrap().paper else {
-        panic!("no shares");
-    };
-    assert_eq!((*k, strings.len()), (2, 3));
-    assert_eq!(added_from(2, &[&strings[0], &strings[2]]), want);
-}
-
-/// The copies by hand's codex32 strings show one at a time
-/// (`docs/CODEX32.md` §9.1): each typed back on the codex32 keyboard, a
-/// box typed wrong named, Skip only after its caution, then the next;
-/// past the last, every string has been written down.
-#[test]
-fn codex32_strings_show_one_at_a_time_each_typed_back() {
-    use faraday_core::codex32_backup::{Found, Press};
-    let mut app = backing_up();
-    // The checklist's copy of the key, its words shown.
     app.press(Action::BChecklist);
-    // The blank templates, printed from Faraday Starter, come first.
     if app.backup().unwrap().open == Some(faraday_core::bstep::BLANK) {
         app.press(Action::BNext(faraday_core::bstep::BLANK));
     }
@@ -110,50 +95,11 @@ fn codex32_strings_show_one_at_a_time_each_typed_back() {
         app.press(Action::BStep(copy));
     }
     app.press(Action::BReveal);
-    app.press(Action::BCodex32(2, 3));
-    let strings: Vec<String> = match &app.backup().unwrap().paper {
-        Some(PaperForm::Codex32 { strings, .. }) => strings.iter().map(|s| s.to_string()).collect(),
-        _ => panic!("no shares"),
-    };
-    let at = |app: &Faraday| app.backup().unwrap().paper_typed.at;
-    let found = |app: &Faraday| app.backup().unwrap().paper_typed.found.clone();
     let _ = app.frame();
     let texts = app.drawn_texts();
-    assert!(texts.iter().any(|t| t == "String 1 of 3"), "{texts:?}");
-    let shown = |s: &str| faraday_ui::grouped(s);
-    let drawn = texts.join(" ");
+    assert!(texts.iter().any(|t| t == "Seed XOR, 3 parts"), "{texts:?}");
     assert!(
-        !drawn.contains(&shown(&strings[1])[..20]),
-        "one string at a time"
-    );
-    // Box 17 typed wrong is named.
-    let mut wrong = strings[0].clone();
-    let other = if &wrong[16..17] == "q" { "p" } else { "q" };
-    wrong.replace_range(16..17, other);
-    typed(&mut app, &wrong[3..]);
-    assert_eq!(found(&app), Some(Found::Differs("Box 17 differs".into())));
-    app.press(Action::BC32(Press::PaperNext));
-    assert_eq!(at(&app), 0, "not on before it is typed back");
-    for _ in 3..wrong.len() {
-        app.event(Event::Key(Key::Backspace));
-    }
-    typed(&mut app, &strings[0][3..]);
-    assert_eq!(found(&app), Some(Found::Holds("String 1 matches".into())));
-    app.press(Action::BC32(Press::PaperNext));
-    assert_eq!(at(&app), 1);
-    // Skip asks first.
-    app.press(Action::BC32(Press::PaperSkip));
-    assert_eq!(at(&app), 1);
-    assert!(app.backup().unwrap().paper_typed.skip_ask);
-    app.press(Action::BC32(Press::PaperSkip));
-    assert_eq!(at(&app), 2);
-    typed(&mut app, &strings[2][3..]);
-    app.press(Action::BC32(Press::PaperNext));
-    assert_eq!(at(&app), 3);
-    let _ = app.frame();
-    assert!(
-        app.drawn_texts()
-            .iter()
-            .any(|t| t == "Every string written down")
+        !texts.iter().any(|t| t.to_lowercase().contains("codex32")),
+        "{texts:?}"
     );
 }

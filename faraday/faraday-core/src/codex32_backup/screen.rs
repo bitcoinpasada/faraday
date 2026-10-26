@@ -40,11 +40,8 @@ fn facts(f: &C32) -> String {
     } else {
         fill(EN.c32_k_of_n, &[&f.k.to_string(), &f.n().to_string()])
     };
-    let mut out = fill(EN.c32_facts, &[&split, &f.length.to_string()]);
-    if let Some(id) = f.id_text() {
-        out = fill(EN.c32_facts_id, &[&id, &out]);
-    }
-    out
+    let out = fill(EN.c32_facts, &[&split, &f.length.to_string()]);
+    fill(EN.c32_facts_id, &[&f.id_text(), &out])
 }
 
 /// Filter chips, one per choice: outlined, the chosen one filled with a
@@ -163,7 +160,7 @@ fn note(ui: &mut Ui, x: f32, y: f32, w: f32, st: &Strings) -> f32 {
 }
 
 /// Seed `i`'s codex32 item, under its title. `foot` says whether the
-/// item's own foot (Make them, Check my copy) is drawn by the checklist
+/// item's own foot (Check my copy) is drawn by the checklist
 /// after it: false while a string or a set action is open, which draw
 /// their own. Returns the height used and that.
 pub(crate) fn item(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, i: usize) -> (f32, bool) {
@@ -222,15 +219,13 @@ pub(crate) fn item(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, i: usize) ->
             .collect();
         let done = b.c32_checked.contains(&(i, j));
         let line = fill(EN.c32_string_at, &[&name(j), &places.join(", ")]);
-        let press = form
-            .fixed()
-            .then(|| a(Press::Open(u8::try_from(j).unwrap_or(0))));
+        let press = Some(a(Press::Open(u8::try_from(j).unwrap_or(0))));
         string_row(ui, (x, cy, w), &line, done, press);
         cy += t::TOUCH;
     }
     // How many strings of a set that exists there are (§9.4).
-    if form.fixed() && form.k >= 2 {
-        let id = form.id_text().unwrap_or_default();
+    if form.k >= 2 {
+        let id = form.id_text();
         crate::screens::stepper(
             ui,
             x,
@@ -263,8 +258,8 @@ pub(crate) fn item(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, i: usize) ->
         None => {}
     }
     cy += note(ui, x, cy, w, st);
-    // The set's actions, once the set exists and is split (§9.7).
-    if form.fixed() && form.k >= 2 {
+    // The set's actions, once the set is split (§9.7).
+    if form.k >= 2 {
         cy += set_actions(ui, x, cy, w, form);
     }
     (cy - y, true)
@@ -325,15 +320,13 @@ fn one_string(
                 cy += ui.wrap(x, cy, w, size, W::M, ink, &g) + t::GAP;
             }
         }
-    } else if !form.fixed() {
-        cy += ui.wrap(x, cy, w, t::LABEL, W::R, muted, EN.c32_not_made) + t::GAP;
     }
     // Written: typed back from the paper. Only drawn and made here:
     // scanned. A string of a set that exists is typed from its paper
     // first, which shows its Codex32QR to draw.
     let written = copy.is_none_or(PaperCopy::written) || !drawn || st.made(j).is_none();
     if written {
-        if st.made(j).is_none() && form.fixed() {
+        if st.made(j).is_none() {
             cy += ui.wrap(x, cy, w, t::LABEL, W::R, muted, EN.c32_type_from_paper) + t::GAP;
         }
         cy += typed_field(ui, x, cy, w, st, "ms1");
@@ -378,7 +371,7 @@ fn one_string(
 /// The set action under way (§9.7). Returns the height.
 fn set_step(ui: &mut Ui, x: f32, y: f32, w: f32, form: &C32, st: &Strings) -> f32 {
     let mut cy = y;
-    let id = form.id_text().unwrap_or_default();
+    let id = form.id_text();
     let mut next: Option<(&str, Action)> = None;
     let made_label;
     match &st.set {
@@ -597,200 +590,6 @@ fn scheme(ui: &mut Ui, x: f32, y: f32, w: f32, (k, n): (u8, u8), st: &Strings) -
     cy += t::PAD + t::GAP_SMALL;
     cy += typed_field(ui, x, cy, w, st, "");
     cy += keyboard(ui, x, cy, w);
-    cy - y
-}
-
-/// The copies by hand's codex32 choice (`docs/CODEX32.md` §9.1): the
-/// threshold, None (the secret alone) or 2 to 9, 2 chosen first; the
-/// strings, `k` to 31, 3 first; and **Make the strings**. Returns the
-/// height used.
-pub(crate) fn paper_choice(ui: &mut Ui, x: f32, y: f32, w: f32, kn: Option<(u8, u8)>) -> f32 {
-    let (k, n) = kn.unwrap_or((2, 3));
-    let mut cy = y;
-    crate::screens::section_label(ui, x, cy, EN.c32_paper_k);
-    cy += t::PAD + t::GAP_SMALL;
-    let labels: Vec<String> = (2..=faraday_bip::codex32::MAX_THRESHOLD)
-        .map(|v| v.to_string())
-        .collect();
-    let mut items: Vec<(&str, bool, Action)> =
-        vec![(EN.c32_paper_none, k == 0, a(Press::PaperK(0)))];
-    items.extend(
-        labels
-            .iter()
-            .zip(2..)
-            .map(|(l, v)| (l.as_str(), k == v, a(Press::PaperK(v)))),
-    );
-    cy += chips(ui, x, cy, w, &items);
-    if k >= 2 {
-        crate::screens::stepper(
-            ui,
-            x,
-            cy,
-            w,
-            EN.codex32_strings,
-            usize::from(n),
-            a(Press::PaperN(-1)),
-            a(Press::PaperN(1)),
-            true,
-        );
-        cy += t::STEPPER_ROW;
-    }
-    cy += faraday_ui::parts::wrap_buttons(
-        ui,
-        x,
-        cy,
-        w,
-        t::TEXT_FIELD,
-        &[(EN.c32_paper_make, Style::Secondary, Action::BCodex32(k, n))],
-    );
-    cy - y
-}
-
-/// The Result's rows over the copies by hand's codex32 strings (§9.1,
-/// §6.7): the split, the length, the identifier, the key's fingerprint,
-/// where the shares' randomness came from, and for a key of words what
-/// the strings hold. Read from the strings shown. Returns the height.
-pub(crate) fn paper_facts(
-    app: &View,
-    ui: &mut Ui,
-    x: f32,
-    y: f32,
-    w: f32,
-    (k, strings): (u8, &[zeroize::Zeroizing<String>]),
-) -> f32 {
-    let Some(first) = strings.first() else {
-        return 0.0;
-    };
-    let id = first.get(4..8).unwrap_or("");
-    let split = if k == 0 {
-        EN.c32_secret_alone.to_string()
-    } else {
-        fill(EN.c32_k_of_n, &[&k.to_string(), &strings.len().to_string()])
-    };
-    let fp = app
-        .backup()
-        .and_then(|b| app.session.keys.info(b.key))
-        .map(|key| crate::wallet::fp_text(key.fingerprint))
-        .unwrap_or_default();
-    let mut rows = vec![
-        fill(EN.c32_made_split, &[&split]),
-        fill(EN.c32_made_length, &[&first.len().to_string()]),
-        fill(EN.c32_made_identifier, &[id]),
-        fill(EN.c32_made_fingerprint, &[&fp]),
-    ];
-    if k >= 2 {
-        rows.push(EN.c32_made_random.to_string());
-    }
-    if first.len() == 127 {
-        rows.push(EN.c32_made_holds.to_string());
-        rows.push(EN.c32_made_not_by_hand.to_string());
-    }
-    let mut cy = y;
-    for r in rows {
-        cy += ui.wrap(x, cy, w, t::LABEL, W::R, Role::OnSurfaceVariant, &r) + t::GAP_SMALL;
-    }
-    cy + t::GAP - y
-}
-
-/// The copies by hand's codex32 strings, one at a time (`docs/CODEX32.md`
-/// §9.1): "String 1 of 3", the string in groups of four to write down,
-/// typed back on the codex32 keyboard ("Box 17 differs"), Skip behind the
-/// quiz's caution and Continue; past the last, the line that each was
-/// written down. Returns the height used.
-pub(crate) fn paper_one(
-    ui: &mut Ui,
-    x: f32,
-    y: f32,
-    w: f32,
-    strings: &[zeroize::Zeroizing<String>],
-    t: &super::PaperTyping,
-) -> f32 {
-    let mut cy = y;
-    let Some(s) = strings.get(t.at) else {
-        return ui.wrap(x, cy, w, t::LABEL, W::R, Role::Ok, EN.c32_paper_all_done) + t::GAP;
-    };
-    let head = fill(
-        EN.c32_paper_string_of,
-        &[&(t.at + 1).to_string(), &strings.len().to_string()],
-    );
-    cy += ui.wrap(x, cy, w, t::BODY, W::S, Role::OnSurface, &head) + t::GAP;
-    let g = faraday_ui::grouped(s);
-    let mut size = t::TITLE;
-    while size > t::CAPTION && ui.wrap_lines(size, W::M, &g, w) > 3 {
-        size -= 1.0;
-    }
-    cy += ui.wrap(x, cy, w, size, W::M, Role::OnSurface, &g) + t::GAP;
-    let mut whole = String::from("ms1");
-    whole.push_str(&t.typed);
-    let wrong = matches!(t.found, Some(Found::Differs(_)));
-    ui.fill(x, cy, w, t::FIELD, t::RADIUS_SMALL, Role::Surface);
-    ui.stroke(
-        x,
-        cy,
-        w,
-        t::FIELD,
-        t::RADIUS_SMALL,
-        if wrong {
-            Role::Error
-        } else {
-            Role::OutlineVariant
-        },
-    );
-    let fit = ui.fit(
-        t::LABEL,
-        W::M,
-        &faraday_ui::grouped(&whole),
-        w - 2.0 * t::GAP,
-    );
-    ui.text_mid(
-        x + t::GAP,
-        cy,
-        t::FIELD,
-        t::LABEL,
-        W::M,
-        Role::OnSurface,
-        &fit,
-    );
-    cy += t::FIELD + t::GAP;
-    cy += match &t.found {
-        Some(Found::Holds(l)) => ui.wrap(x, cy, w, t::LABEL, W::R, Role::Ok, l) + t::GAP,
-        Some(Found::Differs(l)) => ui.wrap(x, cy, w, t::LABEL, W::R, Role::Error, l) + t::GAP,
-        None => 0.0,
-    };
-    if t.typing(strings.len()) {
-        let kind = KeyboardKind::Codex32;
-        faraday_ui::keyboard::keyboard(ui, x, w, cy, kind, OskKeys::default(), ui.compact, |p| {
-            a(Press::PaperKey(p))
-        });
-        cy += faraday_ui::keyboard::height(kind) + t::GAP;
-    }
-    if t.skip_ask {
-        cy += ui.wrap(
-            x,
-            cy,
-            w,
-            t::LABEL,
-            W::R,
-            Role::Warning,
-            EN.codex32_skip_caution,
-        ) + t::GAP;
-    }
-    // In the copy item, whose own foot is pinned: both in place.
-    cy += faraday_ui::parts::wrap_buttons(
-        ui,
-        x,
-        cy,
-        w,
-        t::TEXT_FIELD,
-        &[
-            (EN.codex32_skip, Style::Ghost, a(Press::PaperSkip)),
-            (
-                EN.item_action_continue,
-                Style::Secondary,
-                a(Press::PaperNext),
-            ),
-        ],
-    );
     cy - y
 }
 

@@ -3918,8 +3918,6 @@ strings! {
     /// Toast in `paper_xor`.
     paper_no_words_to_split: "This key has no words to split",
     /// Toast in `paper_codex32`.
-    paper_this_key_has: "This key has no words to make a seed from",
-    /// Toast in `paper_codex32`.
     paper_no_randomness: "No randomness from the system yet. Try again",
     /// Toast in `paper_codex32`. `{}`: `e`.
     paper_codex32: "codex32: {}",
@@ -5218,8 +5216,6 @@ strings! {
     paper_section_seed: "Seed XOR, 3 parts",
     /// Text in `paper_section`. `{}`: `parts.len()`.
     paper_section_parts: "{} parts · every one is needed",
-    /// Text in `paper_section`. `{}`: `strings.len()`, `k`.
-    paper_section_shares: "{} shares · any {} make the seed",
     /// Button in `paper_section`.
     paper_section_put_them: "Put them away",
     // ----- seed_grid (faraday-core/src/screens/backup.rs) -----
@@ -9785,8 +9781,6 @@ strings! {
     c32_share_at: "Share {} · {}",
     /// A string of a set made before, typed from its paper.
     c32_type_from_paper: "Type it from the paper",
-    /// A string not made yet.
-    c32_not_made: "Not made yet",
     /// Back to the item's strings.
     c32_all_strings: "All strings",
     /// Replace a lost share, its title. `{}`: the index, the identifier.
@@ -9817,18 +9811,10 @@ strings! {
     c32_make_new_set: "Make the new set",
     /// Leave a set action.
     c32_leave: "Leave",
-    /// A codex32 seed's group head on the board. `{}`: the seed, the split.
-    c32_board_head: "{} · codex32 · {}",
-    /// The same with its identifier. `{}`: the seed, the identifier, the split.
+    /// A codex32 seed's group head on the board. `{}`: the seed, the identifier, the split.
     c32_board_head_id: "{} · codex32 {} · {}",
     /// A string's chip. `{}`: the seed, the index.
     c32_board_chip: "{} · {}",
-    /// Taking a seed's codex32 strings off the board.
-    c32_board_off: "Take off codex32",
-    /// One string more.
-    c32_board_plus: "+ share",
-    /// A key of words split as codex32.
-    c32_words_shorter: "127 characters; Words is shorter for this key",
     /// Check: a string kept nowhere. `{}`: the index, the seed.
     c32_warn_nowhere: "Share {} of {} is kept nowhere",
     /// Check: a place that keeps enough strings. `{}`: the place, how many, the set.
@@ -9841,30 +9827,6 @@ strings! {
     c32_warn_vault_whole: "Vault {} holds {} whole: one place with its passphrase is enough",
     /// Check: a string as a file in the clear. `{}`: the set.
     c32_warn_file: "A share of {} is a file that is not encrypted; enough such files are the seed",
-    /// The board's codex32 toggle on a seed. `{}`: the seed.
-    c32_board_toggle: "{} as codex32 strings",
-    /// The copies by hand's one codex32 choice.
-    c32_paper_codex32: "codex32",
-    /// The copies by hand's codex32 threshold row.
-    c32_paper_k: "How many to rebuild it?",
-    /// The threshold's first choice: the secret alone.
-    c32_paper_none: "None",
-    /// Make the strings.
-    c32_paper_make: "Make the strings",
-    /// Strings made's rows. `{}`: the value.
-    c32_made_split: "Split · {}",
-    /// `{}`: the length.
-    c32_made_length: "Length · {}",
-    /// `{}`: the identifier.
-    c32_made_identifier: "Identifier · {}",
-    /// `{}`: the fingerprint.
-    c32_made_fingerprint: "Fingerprint · {}",
-    /// Where the shares' randomness came from.
-    c32_made_random: "Random shares · This device",
-    /// A key of words' strings.
-    c32_made_holds: "Holds · the seed, not the words",
-    /// 127 characters.
-    c32_made_not_by_hand: "Not for checking by hand",
     /// Templates item: the codex32 sheets, after the words'. `{}`: how many, the length.
     c32_templates_clause: "{} from Blank templates, codex32, {} characters",
     /// Templates item: the codex32 sheets alone. `{}`: how many, the length.
@@ -9920,12 +9882,6 @@ strings! {
     c32_picture_title: "Codex32 share {} of {}",
     /// The picture's line under its title.
     c32_picture_line: "Secret: a share of a seed",
-    /// The copies by hand's codex32 string typed back the same. `{}`: its number.
-    c32_paper_same: "String {} matches",
-    /// The copies by hand's codex32 string open. `{}`: its number, how many.
-    c32_paper_string_of: "String {} of {}",
-    /// Every copies by hand's codex32 string typed back or skipped.
-    c32_paper_all_done: "Every string written down",
     // ----- Codex32: Make the rest, Add a share, Check a string's worksheet, Practice (docs/CODEX32.md §8.1 to §8.4, §12), faraday-core -----
     /// The codex32 form's button: the set's other strings from the k in.
     c32r_make_the_rest: "Make the rest",

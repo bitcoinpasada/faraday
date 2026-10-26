@@ -3183,7 +3183,6 @@ impl Faraday {
             | Action::BKey(..)
             | Action::BReveal
             | Action::BXor(..)
-            | Action::BCodex32(..)
             | Action::BPaperHide
             | Action::BCompact(..)
             | Action::BPin(..)
@@ -7076,11 +7075,9 @@ fn slow(a: Action) -> bool {
     matches!(
         a,
         Action::BChecklist
-            | Action::BCodex32(..)
-            | Action::BC32(
-                crate::codex32_backup::Press::Make
-                    | crate::codex32_backup::Press::Set(crate::codex32_backup::SetPress::MakeNew)
-            )
+            | Action::BC32(crate::codex32_backup::Press::Set(
+                crate::codex32_backup::SetPress::MakeNew,
+            ))
             | Action::BNewVault(_)
             | Action::CNext(_)
             | Action::CPassLock

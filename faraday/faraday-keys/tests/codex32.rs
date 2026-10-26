@@ -4,7 +4,6 @@
 //! loaded from a master seed writes its shares again and they recover it;
 //! a key of words does too, at any threshold and size.
 
-use faraday_bip::bip39::{Language, Mnemonic};
 use faraday_bip::codex32::{Codex32, Length, Scheme};
 use faraday_bip::keys::Network;
 use faraday_crypto::work::Compute;
@@ -252,7 +251,7 @@ fn a_key_loaded_from_a_seed_writes_its_shares_and_they_recover_it() {
     assert!(keys.info(0).is_some_and(|i| !i.has_words()));
     for (k, n) in [(2u8, 2u8), (2, 3), (3, 5), (5, 9), (9, 31)] {
         let shares = keys
-            .codex32_shares(&c, 0, k, n, &[7; 32], Reveal::PaperForm)
+            .codex32_shares(0, k, n, &[7; 32], Reveal::PaperForm)
             .unwrap_or_else(|_| panic!("{k} of {n}"));
         assert_eq!(shares.len(), usize::from(n));
         let strings: Vec<&str> = shares.iter().map(|s| s.as_str()).collect();
@@ -272,7 +271,7 @@ fn a_key_loaded_from_a_long_seed_writes_shares_at_its_length() {
     let mut keys = Keys::on(Network::Mainnet);
     keys.add_seed(&c, &seed, "").unwrap();
     let shares = keys
-        .codex32_shares(&c, 0, 2, 3, &[1; 32], Reveal::PaperForm)
+        .codex32_shares(0, 2, 3, &[1; 32], Reveal::PaperForm)
         .unwrap();
     assert!(shares.iter().all(|s| s.len() == 74));
     let strings: Vec<&str> = shares.iter().map(|s| s.as_str()).collect();
@@ -293,31 +292,30 @@ fn without_a_threshold_the_key_gives_its_secret_alone() {
     let mut keys = Keys::on(Network::Mainnet);
     keys.add_seed(&c, &seed, "").unwrap();
     let one = keys
-        .codex32_shares(&c, 0, 0, 1, &[0; 32], Reveal::PaperForm)
+        .codex32_shares(0, 0, 1, &[0; 32], Reveal::PaperForm)
         .unwrap();
     assert_eq!(one.len(), 1);
     assert_eq!(recovers(&[one[0].as_str()]), seed);
     assert!(matches!(
-        keys.codex32_shares(&c, 0, 0, 2, &[0; 32], Reveal::PaperForm),
+        keys.codex32_shares(0, 0, 2, &[0; 32], Reveal::PaperForm),
         Err(Paper::Refused(_))
     ));
 }
 
 #[test]
-fn a_key_of_words_writes_its_bip39_seed_as_shares_of_any_size() {
+fn a_key_of_words_is_never_split_into_codex32_strings() {
     let c = compute();
-    let m = Mnemonic::parse(&c, Language::English, ABANDON).unwrap();
-    let want = m.to_seed(&c, b"").unwrap().expose().to_vec();
     let mut keys = Keys::on(Network::Mainnet);
     keys.add_words(&c, ABANDON, "abandon", None).unwrap();
     assert!(!keys.holds_seed_bytes(0));
-    let shares = keys
-        .codex32_shares(&c, 0, 4, 7, &[9; 32], Reveal::PaperForm)
-        .unwrap();
-    assert_eq!(shares.len(), 7);
-    assert!(shares.iter().all(|s| s.len() == 127));
-    let strings: Vec<&str> = shares.iter().map(|s| s.as_str()).collect();
-    assert_eq!(recovers(&strings[3..]), want);
+    for (k, n) in [(0u8, 1u8), (2, 3), (4, 7)] {
+        assert_eq!(
+            keys.codex32_shares(0, k, n, &[9; 32], Reveal::PaperForm)
+                .err(),
+            Some(Paper::Words),
+            "{k} of {n}"
+        );
+    }
 }
 
 #[test]
@@ -328,14 +326,14 @@ fn shares_are_refused_for_a_split_that_bip93_does_not_allow() {
     for (k, n) in [(1u8, 3u8), (10, 12), (3, 2), (2, 32)] {
         assert!(
             matches!(
-                keys.codex32_shares(&c, 0, k, n, &[3; 32], Reveal::PaperForm),
+                keys.codex32_shares(0, k, n, &[3; 32], Reveal::PaperForm),
                 Err(Paper::Refused(_))
             ),
             "{k} of {n}"
         );
     }
     assert!(matches!(
-        keys.codex32_shares(&c, 5, 2, 3, &[3; 32], Reveal::PaperForm),
+        keys.codex32_shares(5, 2, 3, &[3; 32], Reveal::PaperForm),
         Err(Paper::NoWords)
     ));
 }

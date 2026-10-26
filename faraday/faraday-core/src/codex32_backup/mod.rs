@@ -1,10 +1,6 @@
 //! Codex32 strings in a backup (`docs/CODEX32.md` §9): the checklist's
 //! item for a seed kept as codex32 strings, and the set's actions.
 //!
-//! - **A set the plan makes** (§9.2): **Make them** splits the seed with
-//!   this device's randomness (`faraday-keys`, `Keys::codex32_shares`),
-//!   and each string placed on paper is shown, one at a time, and typed
-//!   back on the codex32 keyboard ("Box 17 differs") or skipped.
 //! - **A set that exists** (§9.4): nothing is made; **Check my copy**
 //!   takes each string placed, typed back from the paper, and checks its
 //!   checksum and its header against the set's facts; once enough are
@@ -31,8 +27,6 @@ use crate::strings::{EN, fill};
 /// A press on the codex32 item.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Press {
-    /// **Make them**: the set the plan makes, split now.
-    Make,
     /// The string at this place among the item's opened, to show or to
     /// check.
     Open(u8),
@@ -57,128 +51,10 @@ pub enum Press {
     List,
     /// A set action (§9.7).
     Set(SetPress),
-    /// The copies by hand's **codex32** (§9.1): its choice of `k` and `n`
-    /// opened, at 2 of 3.
-    PaperOpen,
-    /// That choice's threshold: 0 (the secret alone) or 2 to 9.
-    PaperK(u8),
-    /// That choice's strings, one more or one fewer.
-    PaperN(i8),
-    /// A key of the codex32 keyboard on the copies by hand's string open.
-    PaperKey(OskPress),
-    /// **Continue** on the copies by hand's string open: the next one.
-    PaperNext,
-    /// **Skip** on the copies by hand's string open: a first press asks.
-    PaperSkip,
     /// "How many strings of w0za are there?" (`docs/CODEX32.md` §9.4),
     /// for a set that exists: one more or one fewer, from those known to
     /// 31.
     Exist(i8),
-}
-
-/// The copies by hand's codex32 strings, one at a time (`docs/CODEX32.md`
-/// §9.1): the string open, typed back on the codex32 keyboard or skipped
-/// behind the quiz's caution, then the next; past the last, each has been
-/// written down.
-#[derive(Default)]
-pub struct PaperTyping {
-    /// The string open, from 0; the strings' count once every one is
-    /// typed back or skipped.
-    pub at: usize,
-    /// Typed back, after `ms1`.
-    pub typed: Zeroizing<String>,
-    /// What the string typed back was found to be, once whole.
-    pub found: Option<Found>,
-    /// Skip pressed once: the caution is shown.
-    pub skip_ask: bool,
-}
-
-impl PaperTyping {
-    /// A key of the codex32 keyboard on string `want`: the character goes
-    /// in, or the last comes out; at its last box the string typed is
-    /// compared with `want`, box by box.
-    pub fn key(&mut self, want: &str, press: OskPress) {
-        let room = want.len().saturating_sub(3);
-        match press {
-            OskPress::Char(ch) => {
-                let ch = ch.to_ascii_lowercase();
-                if self.typed.len() >= room
-                    || !ch.is_ascii()
-                    || !crate::plan::codex32::CHARSET.contains(&(ch as u8))
-                {
-                    return;
-                }
-                self.typed.push(ch);
-                self.skip_ask = false;
-            }
-            OskPress::Back => {
-                self.typed.pop();
-                self.found = None;
-                return;
-            }
-            _ => return,
-        }
-        if self.typed.len() < room {
-            return;
-        }
-        let typed = want
-            .bytes()
-            .skip(3)
-            .zip(self.typed.bytes())
-            .position(|(a, b)| a != b);
-        self.found = Some(match typed {
-            Some(p) => Found::Differs(fill(EN.codex32_box_differs, &[&(p + 4).to_string()])),
-            None => Found::Holds(fill(EN.c32_paper_same, &[&(self.at + 1).to_string()])),
-        });
-    }
-
-    /// **Continue**: the string typed back the same moves on to the next
-    /// of `n`; otherwise it is said to type it back first.
-    pub fn next(&mut self, n: usize) {
-        if matches!(self.found, Some(Found::Holds(_))) {
-            self.open(self.at + 1, n);
-        }
-    }
-
-    /// **Skip**: the first press shows the caution, the second moves on.
-    pub fn skip(&mut self, n: usize) {
-        if self.skip_ask {
-            self.open(self.at + 1, n);
-        } else {
-            self.skip_ask = true;
-        }
-    }
-
-    fn open(&mut self, at: usize, n: usize) {
-        self.at = at.min(n);
-        self.typed.clear();
-        self.found = None;
-        self.skip_ask = false;
-    }
-
-    /// Whether string `at` waits for its keys: open, and not yet typed
-    /// back the same.
-    pub fn typing(&self, n: usize) -> bool {
-        self.at < n && !matches!(self.found, Some(Found::Holds(_)))
-    }
-}
-
-/// The copies by hand's codex32 choice (§9.1) after `p`, from `now`
-/// (`k`, `n`): a threshold of 0 or 2 to 9, at 0 one string, else `k`
-/// to 31.
-pub fn paper_choice(now: Option<(u8, u8)>, p: Press) -> Option<(u8, u8)> {
-    use faraday_bip::codex32::{MAX_SHARES, MAX_THRESHOLD};
-    let (k, n) = now.unwrap_or((2, 3));
-    Some(match p {
-        Press::PaperOpen => (2, 3),
-        Press::PaperK(0) => (0, 1),
-        Press::PaperK(k) => {
-            let k = k.clamp(2, MAX_THRESHOLD);
-            (k, n.max(k).clamp(3, MAX_SHARES))
-        }
-        Press::PaperN(d) if k >= 2 => (k, n.saturating_add_signed(d).clamp(k, MAX_SHARES)),
-        _ => return now,
-    })
 }
 
 /// A press in the set's actions (§9.7).
@@ -585,7 +461,7 @@ pub fn printed(x: usize, y: usize) -> bool {
 /// checksum, and its header against the set's facts (`docs/CODEX32.md`
 /// §9.4): threshold, identifier, and the index wanted.
 pub fn check(form: &C32, j: usize, typed: &str, made: Option<&str>) -> Found {
-    let id = form.id_text().unwrap_or_default();
+    let id = form.id_text();
     let index = index_char(j).to_ascii_uppercase().to_string();
     if let Some(want) = made {
         return match want.bytes().zip(typed.bytes()).position(|(a, b)| a != b) {
@@ -599,7 +475,7 @@ pub fn check(form: &C32, j: usize, typed: &str, made: Option<&str>) -> Found {
     // Box 4 is the threshold, 5 to 8 the identifier, 9 the index.
     let header: [(bool, usize); 3] = [
         (s.threshold() == form.k, 4),
-        (Some(s.identifier()) == form.identifier, 5),
+        (s.identifier() == form.identifier, 5),
         (
             usize::from(s.share_index()) == usize::from(index_char(j) as u8),
             9,
@@ -617,7 +493,7 @@ pub fn check(form: &C32, j: usize, typed: &str, made: Option<&str>) -> Found {
 /// destroy, and the line; `Err`: the line that says rotating is not
 /// enough.
 pub fn rotation(form: &C32, marks: &[(usize, u8)]) -> Result<(Vec<usize>, String), String> {
-    let id = form.id_text().unwrap_or_default();
+    let id = form.id_text();
     let out: Vec<usize> = marks
         .iter()
         .filter(|(_, m)| *m != 0)
@@ -718,26 +594,4 @@ pub fn stick_name_is(shape: &crate::plan::Shape, what: crate::plan::What, name: 
         .get(i)
         .filter(|x| x.here)
         .is_some_and(|x| stick_name(what, &x.name, j).as_deref() == Some(name))
-}
-
-/// A press on the copies by hand's codex32 string open (§9.1), on the
-/// backup `b`: a key typed back, Continue or Skip. Whether it was taken.
-pub(crate) fn paper_type(b: &mut crate::wallet_backup::BackupState, p: Press) -> bool {
-    let crate::wallet_backup::BackupState {
-        paper, paper_typed, ..
-    } = b;
-    let Some(crate::paper::PaperForm::Codex32 { strings, .. }) = paper.as_ref() else {
-        return false;
-    };
-    let n = strings.len();
-    match p {
-        Press::PaperKey(k) => match strings.get(paper_typed.at) {
-            Some(want) => paper_typed.key(want, k),
-            None => return false,
-        },
-        Press::PaperNext => paper_typed.next(n),
-        Press::PaperSkip => paper_typed.skip(n),
-        _ => return false,
-    }
-    true
 }

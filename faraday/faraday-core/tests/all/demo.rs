@@ -260,17 +260,16 @@ fn offered_anywhere(app: &mut Faraday, a: Action) -> bool {
     false
 }
 
-const SPLITS: [Action; 3] = [Action::BXor(2), Action::BXor(3), Action::BCodex32(2, 3)];
+const SPLITS: [Action; 2] = [Action::BXor(2), Action::BXor(3)];
 
 #[test]
-fn in_the_demo_seed_xor_and_codex32_shares_are_dimmed_and_make_nothing() {
+fn in_the_demo_seed_xor_is_dimmed_and_makes_nothing() {
     let mut app = app_on(true);
     backing_up(&mut app);
     assert!(
         crate::common::has_part(&mut app, "Seed XOR"),
         "the splits are drawn"
     );
-    app.press(Action::BC32(faraday_core::codex32_backup::Press::PaperOpen));
     for a in SPLITS {
         assert!(!offered_anywhere(&mut app, a), "{a:?} is offered");
         app.press(a);
@@ -280,14 +279,10 @@ fn in_the_demo_seed_xor_and_codex32_shares_are_dimmed_and_make_nothing() {
 }
 
 #[test]
-fn on_the_stick_seed_xor_and_codex32_shares_are_made() {
+fn on_the_stick_seed_xor_is_made() {
     for a in SPLITS {
         let mut app = app_on(false);
         backing_up(&mut app);
-        // codex32 is one choice, which opens k and n first (§9.1).
-        if matches!(a, Action::BCodex32(..)) {
-            app.press(Action::BC32(faraday_core::codex32_backup::Press::PaperOpen));
-        }
         assert!(offered_anywhere(&mut app, a), "{a:?} is not offered");
         app.press(a);
         assert!(app.backup().unwrap().paper.is_some(), "{a:?} made nothing");

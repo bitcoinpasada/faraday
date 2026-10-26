@@ -34,6 +34,10 @@ pub enum Dial {
 pub enum Paper {
     /// The key has no words, or they do not read.
     NoWords,
+    /// The key has words: its seed is never split into codex32 strings,
+    /// which would hold its 64-byte seed with the passphrase merged in
+    /// and give back neither the words nor the passphrase.
+    Words,
     /// The split was refused, with the reason's text.
     Refused(String),
     /// Something else went wrong; there is nothing to say.
@@ -219,17 +223,15 @@ impl Keys {
         Ok(Held::of(lines))
     }
 
-    /// Costs a parse of the words and a PBKDF2 for a key with words;
-    /// a split of the seed in either case. Key `i`'s BIP-32 seed as
-    /// codex32 strings (BIP 93): `n` shares, any `k` enough (`k` from 2
-    /// to 9, `n` from `k` to 31), or, with `k` 0 and `n` 1, the secret
-    /// itself. A key with words gives its 64-byte BIP-39 seed (127
-    /// characters); a key loaded from a master seed (`add_seed`) gives
-    /// the seed it was loaded from, at that seed's own length. `draw` is
-    /// fresh randomness the other shares are spread from.
+    /// Key `i`'s master seed as codex32
+    /// strings (BIP 93): `n` shares, any `k` enough (`k` from 2 to 9, `n`
+    /// from `k` to 31), or, with `k` 0 and `n` 1, the secret itself. A key
+    /// loaded from a master seed (`add_seed`) gives the seed it was loaded
+    /// from, at that seed's own length; a key with words is refused
+    /// ([`Paper::Words`]). `draw` is fresh randomness the other shares are
+    /// spread from.
     pub fn codex32_shares(
         &self,
-        c: &Compute,
         i: usize,
         k: u8,
         n: u8,
@@ -238,14 +240,8 @@ impl Keys {
     ) -> Result<Held<Vec<Zeroizing<String>>>, Paper> {
         let s = self.secrets(i).ok_or(Paper::NoWords)?;
         let fp = s.master.fingerprint().0;
-        let made;
         let seed: &[u8] = match (s.words, s.seed) {
-            (Some(words), _) => {
-                let m = Mnemonic::parse(c, s.language, words).map_err(|_| Paper::NoWords)?;
-                made = crate::identity::seed_of(c, &m, s.passphrase.unwrap_or(""))
-                    .ok_or(Paper::Failed)?;
-                made.expose()
-            }
+            (Some(_), _) => return Err(Paper::Words),
             (None, Some(bytes)) => bytes,
             (None, None) => return Err(Paper::NoWords),
         };

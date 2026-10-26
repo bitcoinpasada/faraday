@@ -1,5 +1,6 @@
-//! The board's codex32 parts (`docs/CODEX32.md` §9.2, §9.5): a seed kept
-//! as codex32 strings is a group in the list, its head the set and one
+//! The board's codex32 parts (`docs/CODEX32.md` §9.4, §9.5): a seed kept
+//! as codex32 strings (its key's secret is a set that exists) is a group
+//! in the list, its head the set and one
 //! chip per string by its index; each string is placed as any chip is, in
 //! the forms its zone has (on paper the string or its Codex32QR drawn, on
 //! a stick a text file or a picture, in a vault a share record); and the
@@ -9,37 +10,15 @@
 use super::*;
 use crate::plan::codex32::{C32, index_char, strings_at};
 
-/// A press on a seed's codex32 group in the list.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum C32Board {
-    /// **Codex32**: the seed kept as strings the plan makes, 2 of 3 to
-    /// start.
-    On,
-    /// The strings taken off, the seed as it was.
-    Off,
-    /// The threshold, one more or one fewer.
-    K(i8),
-    /// The strings, one more or one fewer (**+ share** is one more).
-    N(i8),
-}
-
 /// A seed's codex32 group, as the list draws it.
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct C32Group {
     /// The seed, by its place among the wallet's.
     pub seed: usize,
-    /// "9a6a2580 · codex32 w0za · 2 of 3"; for a seed without strings,
-    /// its name and **Codex32** to turn them on.
+    /// "9a6a2580 · codex32 w0za · 2 of 3".
     pub head: String,
     /// The strings, a chip each.
     pub strings: Vec<Entry>,
-    /// The set the plan makes: its threshold and strings, which change
-    /// here; `None` for a set that exists, fixed (§9.4).
-    pub kn: Option<(u8, u8)>,
-    /// The seed has strings.
-    pub on: bool,
-    /// A line under the group: the key of words' length.
-    pub line: Option<String>,
 }
 
 /// A string's chip name: "C".
@@ -54,86 +33,33 @@ fn head(seed: &str, f: &C32) -> String {
     } else {
         fill(EN.c32_k_of_n, &[&f.k.to_string(), &f.n().to_string()])
     };
-    match f.id_text() {
-        Some(id) => fill(EN.c32_board_head_id, &[seed, &id, &split]),
-        None => fill(EN.c32_board_head, &[seed, &split]),
-    }
+    fill(EN.c32_board_head_id, &[seed, &f.id_text(), &split])
 }
 
-/// The codex32 groups of the list: each seed here, its strings where it
-/// has them, and **Codex32** where it has none (only while the board
-/// takes changes). `entry` makes a list chip's entry.
-pub(crate) fn groups(
-    shape: &Shape,
-    a: &Answers,
-    entry: &dyn Fn(Thing) -> Entry,
-    custom: bool,
-) -> Vec<C32Group> {
+/// The codex32 groups of the list: each seed here that has a set, its
+/// strings a chip each. A seed with no set has none: a key of words is
+/// not split into strings (`docs/CODEX32.md` §9.2). `entry` makes a list
+/// chip's entry.
+pub(crate) fn groups(shape: &Shape, a: &Answers, entry: &dyn Fn(Thing) -> Entry) -> Vec<C32Group> {
     shape
         .here()
         .into_iter()
         .filter_map(|i| {
-            let seed = shape.seeds[i].name.as_str();
-            match a.c32(i) {
-                Some(f) => Some(C32Group {
-                    seed: i,
-                    head: head(seed, f),
-                    strings: f
-                        .indices
-                        .iter()
-                        .map(|&j| Entry {
-                            name: string_name(j),
-                            ..entry(Thing::String(i, j))
-                        })
-                        .collect(),
-                    kn: (!f.fixed()).then(|| (f.k, u8::try_from(f.n()).unwrap_or(f.k))),
-                    on: true,
-                    line: (f.length == 127 && !f.fixed()).then(|| EN.c32_words_shorter.to_string()),
-                }),
-                None if custom => Some(C32Group {
-                    seed: i,
-                    head: seed.to_string(),
-                    strings: Vec::new(),
-                    kn: None,
-                    on: false,
-                    line: None,
-                }),
-                None => None,
-            }
+            let f = a.c32(i)?;
+            Some(C32Group {
+                seed: i,
+                head: head(shape.seeds[i].name.as_str(), f),
+                strings: f
+                    .indices
+                    .iter()
+                    .map(|&j| Entry {
+                        name: string_name(j),
+                        ..entry(Thing::String(i, j))
+                    })
+                    .collect(),
+            })
         })
         .collect()
-}
-
-/// `a` with seed `i`'s codex32 form changed by `p`: turned on as 2 of 3
-/// at `length` characters, off, or its threshold or strings stepped; a
-/// set that exists keeps its form (§9.4).
-pub(crate) fn change(a: &mut Answers, shape: &Shape, i: usize, p: C32Board, length: Option<u8>) {
-    use faraday_bip::codex32::{MAX_SHARES, MAX_THRESHOLD};
-    let now = a.c32(i).cloned();
-    if now.as_ref().is_some_and(C32::fixed) {
-        return;
-    }
-    let form = match (p, now) {
-        (C32Board::On, None) => match length {
-            Some(l) => Some(C32::planned(i, 2, 3, l)),
-            None => return,
-        },
-        (C32Board::Off, Some(_)) => None,
-        (C32Board::K(d), Some(f)) => {
-            let k = f.k.saturating_add_signed(d).clamp(2, MAX_THRESHOLD);
-            let n = u8::try_from(f.n()).unwrap_or(k).max(k);
-            Some(C32::planned(i, k, n, f.length))
-        }
-        (C32Board::N(d), Some(f)) => {
-            let n = u8::try_from(f.n())
-                .unwrap_or(f.k)
-                .saturating_add_signed(d)
-                .clamp(f.k.max(1), MAX_SHARES);
-            Some(C32::planned(i, f.k, n, f.length))
-        }
-        _ => return,
-    };
-    a.set_c32(shape, i, form);
 }
 
 /// The checks the codex32 strings add (`docs/CODEX32.md` §9.5), each a
@@ -152,7 +78,7 @@ pub(crate) fn warnings(
     for f in &a.codex32 {
         let i = f.seed;
         let seed = shape.seeds.get(i).map_or("", |s| s.name.as_str());
-        let set = f.id_text().unwrap_or_else(|| seed.to_string());
+        let set = f.id_text();
         let anywhere = strings_at(m, i, &|_| true);
         for &j in &f.indices {
             if !anywhere.contains(&j) {
@@ -217,7 +143,7 @@ pub(crate) fn warnings(
             let vault = (v + 1).to_string();
             if seed_in && string_in {
                 out.push(fill(EN.c32_warn_vault_both, &[&vault, seed]));
-            } else if seed_in && f.fixed() && f.k >= 2 {
+            } else if seed_in && f.k >= 2 {
                 out.push(fill(EN.c32_warn_vault_whole, &[&vault, seed]));
             }
         }

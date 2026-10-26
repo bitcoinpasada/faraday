@@ -1188,19 +1188,11 @@ impl Faraday {
 // ---------------------------------------------------------------------
 
 impl Faraday {
-    /// Costs what the press costs: a split of the seed (Make them, a new
-    /// set), a QR encoding (a string's Codex32QR), an interpolation of the
+    /// Costs what the press costs: a split of the seed (a new set), a QR encoding (a string's Codex32QR), an interpolation of the
     /// strings typed (the rebuild check, a share derived). A press on the
     /// checklist's codex32 item.
     pub(crate) fn backup_c32(&mut self, p: crate::codex32_backup::Press, c: &Compute) {
         use crate::codex32_backup::Press;
-        if matches!(p, Press::PaperOpen | Press::PaperK(_) | Press::PaperN(_)) {
-            return self.backup.paper_c32(p);
-        }
-        if matches!(p, Press::PaperKey(_) | Press::PaperNext | Press::PaperSkip) {
-            self.backup.paper_type(p);
-            return;
-        }
         let Some(b) = self.backup.state() else {
             return;
         };
@@ -1211,10 +1203,6 @@ impl Faraday {
             return;
         };
         match p {
-            Press::Make => {
-                self.c32_make(c, i, key);
-                self.c32_show_drawn(c, i);
-            }
             Press::Open(j) => {
                 if let Some(st) = self.backup.c32_mut() {
                     st.open(usize::from(j));
@@ -1268,12 +1256,6 @@ impl Faraday {
             }
             Press::Set(s) => self.c32_set(c, s, i, key),
             Press::Exist(d) => self.c32_exist(i, key, d),
-            Press::PaperOpen
-            | Press::PaperK(_)
-            | Press::PaperN(_)
-            | Press::PaperKey(_)
-            | Press::PaperNext
-            | Press::PaperSkip => {}
         }
     }
 
@@ -1285,7 +1267,7 @@ impl Faraday {
         let Some(b) = self.backup.state() else {
             return;
         };
-        let Some(mut form) = b.answers.c32(i).cloned().filter(plan::codex32::C32::fixed) else {
+        let Some(mut form) = b.answers.c32(i).cloned() else {
             return;
         };
         let known = form.indices.len();
@@ -1302,56 +1284,6 @@ impl Faraday {
             facts.unknown = form.unknown;
             self.session.keys.set_codex32(key, Some(facts));
         }
-    }
-
-    /// Costs a split of the seed. **Make them**: the set the plan makes
-    /// for seed `i` (session key `key`), from this device's randomness;
-    /// its identifier is the key's (`identifier_for` its fingerprint), its
-    /// form fixed from now on, and its facts kept with the key
-    /// (`docs/CODEX32.md` §9.4). Opens the first string on paper.
-    fn c32_make(&mut self, c: &Compute, i: usize, key: usize) {
-        use crate::plan::codex32::index_of;
-        let Some(b) = self.backup.state() else {
-            return;
-        };
-        let Some(form) = b.answers.c32(i).cloned().filter(|f| !f.fixed()) else {
-            return;
-        };
-        // A split is a fresh secret: none in the demo (`docs/DEMO.md` §5.3).
-        if form.k >= 2 && !self.makes_secrets() {
-            return;
-        }
-        let Some(fp) = self.session.keys.info(key).map(|k| k.fingerprint.0) else {
-            return;
-        };
-        let Some(draw) = self.fresh(b"codex32 plan") else {
-            return self.toast(EN.paper_no_randomness);
-        };
-        let n = u8::try_from(form.indices.len()).unwrap_or(0);
-        let made = match self.session.keys.codex32_shares(
-            c,
-            key,
-            form.k,
-            n,
-            &draw,
-            faraday_keys::Reveal::PaperForm,
-        ) {
-            Ok(strings) => strings,
-            Err(faraday_keys::Paper::Refused(e)) => {
-                return self.toast(&fill(EN.paper_codex32, &[&e]));
-            }
-            Err(_) => return,
-        };
-        let list: Vec<(usize, zeroize::Zeroizing<String>)> = made
-            .iter()
-            .filter_map(|s| Some((index_of(*s.as_bytes().get(8)?)?, s.clone())))
-            .collect();
-        let id = faraday_bip::codex32::identifier_for(fp);
-        let length = list
-            .first()
-            .and_then(|(_, s)| u8::try_from(s.len()).ok())
-            .unwrap_or(form.length);
-        self.c32_fix(c, i, key, (form.k, id, length), list);
     }
 
     /// Costs a map of the plan. Seed `i`'s set, now made: its form fixed
@@ -1378,7 +1310,7 @@ impl Faraday {
             k,
             length,
             indices: list.iter().map(|(j, _)| *j).collect(),
-            identifier: Some(id),
+            identifier: id,
             unknown: 0,
         };
         answers.set_c32(&shape, i, Some(fixed.clone()));
@@ -1598,11 +1530,10 @@ impl Faraday {
     /// `key` its session key.
     fn c32_set(&mut self, c: &Compute, p: crate::codex32_backup::SetPress, i: usize, key: usize) {
         use crate::codex32_backup::{SetPress, SetStep, next_index, rotation};
-        use crate::plan::codex32::C32;
         let Some(b) = self.backup.state() else {
             return;
         };
-        let Some(form) = b.answers.c32(i).cloned().filter(C32::fixed) else {
+        let Some(form) = b.answers.c32(i).cloned() else {
             return;
         };
         let Some(st) = self.backup.c32_mut() else {
@@ -1726,7 +1657,7 @@ impl Faraday {
             SetStep::Scheme(k, n) => {
                 let id = <[u8; 4]>::try_from(typed.as_bytes())
                     .map_err(|_| Some(EN.c32_set_identifier.to_string()))?;
-                if Some(id) == form.identifier {
+                if id == form.identifier {
                     return Err(Some(EN.c32_set_identifier_old.to_string()));
                 }
                 // A new set is a fresh secret: none in the demo.
@@ -1934,7 +1865,7 @@ impl Faraday {
                 if self.session.keys.holds_codex32(k, index) {
                     return None;
                 }
-                let id = b.answers.c32(i)?.id_text().unwrap_or_default();
+                let id = b.answers.c32(i)?.id_text();
                 Some((char::from(index).to_ascii_uppercase(), id))
             })
     }
@@ -2009,7 +1940,7 @@ impl Faraday {
                 None => {
                     let id = answers
                         .c32(s)
-                        .and_then(plan::codex32::C32::id_text)
+                        .map(plan::codex32::C32::id_text)
                         .unwrap_or_default();
                     let share = char::from(index).to_ascii_uppercase().to_string();
                     return Err(fill(EN.c32_vault_missing, &[&share, &id]));

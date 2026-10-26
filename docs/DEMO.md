@@ -214,8 +214,8 @@ so the person types one. `Faraday::demo_passphrase()` is the one test.
 
 ### 5.3 The backup plan in Practice
 
-The plan's form choices that need a split (Seed XOR parts, codex32
-shares, SLIP-39 shares) are dimmed in its multi-choice lists, so a plan
+The plan's form choices that need a split (Seed XOR parts, SLIP-39
+shares) are dimmed in its multi-choice lists, so a plan
 made in Practice is one whose checklist can be finished there. A plan
 read from a vault made elsewhere that names such a form keeps its item,
 with its Make action disabled; the item can be marked done by hand as

@@ -56,7 +56,7 @@ impl Answers {
         for (p, i) in &self.part {
             out.push_str(&format!("part {p} {i}\n"));
         }
-        // Each seed's codex32 form (`docs/CODEX32.md` §9.2): never a
+        // Each seed's codex32 form (`docs/CODEX32.md` §9.4): never a
         // string.
         for f in &self.codex32 {
             out.push_str(&f.to_line());
@@ -226,6 +226,7 @@ impl Answers {
         // Each `spot` line's place and things, read once every answer is:
         // a thing written before the forms takes the `form` answers'.
         let mut lines: Vec<(At, Vec<&str>)> = Vec::new();
+        let mut unmade: Vec<usize> = Vec::new();
         let numbered = |value: &str| -> Option<(usize, Vec<bool>)> {
             let (v, row) = value.split_once(' ')?;
             Some((v.parse().ok()?, flags(row)?))
@@ -278,6 +279,16 @@ impl Answers {
                 }
                 // A seed's codex32 form (`docs/CODEX32.md` §9.2).
                 "codex32" => {
+                    // A split the plan was to make (identifier `-`), saved
+                    // when it made one: dropped, below.
+                    if value.split(' ').nth(4) == Some("-") {
+                        let seed: usize = value.split(' ').next()?.parse().ok()?;
+                        if seed >= shape.seeds.len() {
+                            return None;
+                        }
+                        unmade.push(seed);
+                        continue;
+                    }
                     let f = codex32::C32::from_value(value, shape.seeds.len())?;
                     if a.c32(f.seed).is_some() {
                         return None;
@@ -437,6 +448,16 @@ impl Answers {
                 .iter()
                 .zip(&shape.seeds)
                 .all(|(r, s)| r.is_empty() || (s.here && s.passphrase && r.len() == a.places + 1));
-        fits.then_some(a)
+        if !fits {
+            return None;
+        }
+        // A plan saved when the plan could split a seed into codex32
+        // strings it was to make: that form and its strings are dropped,
+        // the rest of the plan read as written (`docs/CODEX32.md` §9.2).
+        // A set that exists stays.
+        for i in unmade {
+            a.set_c32(shape, i, None);
+        }
+        Some(a)
     }
 }

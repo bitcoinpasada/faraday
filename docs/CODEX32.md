@@ -27,18 +27,19 @@ Sources read for it, each as data and none vendored:
 ## 1. The owner's decisions (2026-10-22)
 
 1. **Full codex32 support for making shares**, as the booklet does.
-2. **Any split, everywhere**: a threshold k of 2 to 9, or none (k = 0,
-   the secret alone), and up to 31 shares, in Add a key, in a backup's
-   copies by hand (the two fixed chips become one codex32 choice that
-   asks k and n) and in the backup plan's form choices.
+2. **Any split where a set is made**: a threshold k of 2 to 9, or none
+   (k = 0, the secret alone), and up to 31 shares, in Add a key (Make
+   codex32 shares) and when a set that exists is rotated (§9.7). A seed
+   is not split into codex32 afterwards: neither a backup's copies by
+   hand nor the backup plan makes strings from a key, and a key of words
+   is never given any (§9.2; owner, 2026-10-26).
 3. **The main flow**: the person puts in their entropy, chooses the
    scheme, and follows every step to the end, as the dice flow for
    BIP-39 words shows all the entropy. It lives in Add a key beside Make
    SLIP-39 shares (§6).
 4. **Lengths**: 48 characters (128 bits) is the default; 74 (256 bits)
    is offered and computed on the device with every row shown; 127 (512
-   bits, BIP 93's long checksum) only where it cannot be avoided, a
-   codex32 backup of a key made of words (§4).
+   bits, BIP 93's long checksum) is not made (§4).
 5. **What the person can check**: the entropy's characters stand
    unchanged in the data of S (k = 0) or of each initial share; every
    checksum row is shown; after any generation, a step to check on
@@ -75,7 +76,7 @@ Sources read for it, each as data and none vendored:
    his examples `L0VE`, `WSFP`, `F0UR`), so the checksum worksheet fills
    live. A suggestion may be offered; the default is typed. The
    identifier from the fingerprint stays where a seed already exists:
-   the copies by hand of a key held and the plan (§9).
+   a set rotated (§9.7).
 3. **A share index already in**: as the Codex32QR profile, the same
    string again is ignored, a different one asks before replacing
    (§8.5).
@@ -533,22 +534,9 @@ working, and every computed cell opens to what made it (§6.4, §7.4).
   string is refused as BIP 93 says; the codex32 keyboard types one case.
   `Codex32::parse` refuses a threshold of 1 (BIP 93: 0 or 2 to 9).
 - **A backup's Other paper forms** (`paper_section`,
-  `faraday/faraday-core/src/screens/backup.rs`; `paper_codex32`,
-  `faraday/faraday-core/src/wallet_backup.rs`; `Keys::codex32_shares`,
-  `faraday/faraday-keys/src/operations.rs`; C8, §9.1): one chip,
-  **codex32**, opening a choice of k (None · 2 to 9, 2 first) and n (k to
-  31, 3 first) and **Make the strings**; for a key with words, the 64-byte
-  BIP-39 seed as 127-character shares, from the system's randomness spread
-  by `faraday-keys`, behind `Reveal::PaperForm`. The strings are drawn as
-  a numbered list under the Result's rows (Split, Length, Identifier,
-  Fingerprint, "Random shares · This device", and at 127 characters
-  "Holds · the seed, not the words" and "Not for checking by hand"), then
-  one string at a time, "String 1 of 3", each typed back on the codex32
-  keyboard ("Box 17 differs", "String 1 matches") or skipped behind the
-  quiz's caution, Continue to the next, and past the last "Every string
-  written down" (`PaperTyping`, `faraday/faraday-core/src/codex32_backup/mod.rs`;
-  `paper_one`, its `screen.rs`; tested in
-  `faraday/faraday-core/tests/all/paper.rs`).
+  `faraday/faraday-core/src/screens/backup.rs`): Seed XOR only. There is
+  no codex32 choice: a key's seed is not split into strings by hand
+  (§9.1).
 - **Backups** (C8, §9; `docs/BACKUP-FLOW.md` §17.23): the plan's codex32
   form (`faraday/faraday-core/src/plan/codex32.rs`: a seed's form, its
   strings as `What::Codex32Share`, `Codex32QrPaper`, `Codex32ShareFile` and
@@ -556,13 +544,13 @@ working, and every computed cell opens to what made it (§6.4, §7.4).
   The standard way for a key with a set, the Templates clause); the
   board's seed group and string chips
   (`faraday/faraday-core/src/board/codex32.rs`); the checklist's item
-  **Codex32 strings of seed i**, Make them or Check my copy string by
-  string, and the set's actions Add a share, Replace a lost share and
+  **Codex32 strings of seed i**, Check my copy string by string, and the
+  set's actions Add a share, Replace a lost share and
   Rotate the set (`faraday/faraday-core/src/codex32_backup/`), their
   arithmetic in `faraday-keys` (`Keys::codex32_rebuilds`, `codex32_derive`,
   `codex32_new_set`); the key's set kept as its plain facts
   (`KeyInfo::codex32`, written by `Keys::add_codex32` at Lock in and by
-  Make them, kept in its vault record and read back,
+  Rotate the set, kept in its vault record and read back,
   `faraday/faraday-vault/src/codex32.rs`, `docs/VAULT.md` §7 type 2 field 5
   and type 15). A seed key goes into a vault as any key does (§9.6).
   Replace a lost share needs k strings: the key's seed does not stand in
@@ -606,8 +594,9 @@ working, and every computed cell opens to what made it (§6.4, §7.4).
   the seed: a seed file or a vault's key record keeps it).
 - **A key loaded from a master seed** (codex32, SLIP-39) keeps its seed
   bytes with its master key (`Keys::add_seed`,
-  `faraday/faraday-keys/src/session.rs`; C4), so `Keys::codex32_shares`
-  writes any k of n again for it, as it does for a key with words.
+  `faraday/faraday-keys/src/session.rs`; C4). `Keys::codex32_shares`
+  splits those bytes at their own length and refuses a key with words
+  (`Paper::Words`); no screen calls it.
 - **The work set** (C4), `faraday/faraday-keys/src/codex32.rs`: the
   secret `WorkSet`, held in faraday-keys, lent only as a paper form
   (§13.1); `Keys::add_codex32` loads the finished set's key.
@@ -657,7 +646,7 @@ working, and every computed cell opens to what made it (§6.4, §7.4).
 |---|---|---|---|---|---|
 | 48 | 16 bytes, 128 bits | 26 | 13 | the dice sheet; the Standard 128-bit checksum sheet; translation sheets for k = 2 and k = 3 only (the site lists higher k as to do; the booklet prints derivation tables to k = 8 but no translation sheet for them) | **the default** for every flow that makes a seed |
 | 74 | 32 bytes, 256 bits | 52 | 13 | the dice sheet; the Standard 256-bit checksum sheet; no translation sheet (the site lists 256 bits as to do) | offered beside 48; computed here with every row shown |
-| 127 | 64 bytes, 512 bits | 103 | 15 (the long checksum) | none: no sheet exists, and none is designed here | only for a codex32 backup of a key made of BIP-39 words, whose seed is 64 bytes; computed here; its Result says "Not for checking by hand" |
+| 127 | 64 bytes, 512 bits | 103 | 15 (the long checksum) | none: no sheet exists, and none is designed here | not made: a set of this length that is loaded or typed in is read and kept; Faraday never splits a key of words into it (§9.2) |
 
 Where no published sheet exists (translation at 74 characters, or at
 k of 4 or more), Faraday's on-screen worksheets are the only worked form;
@@ -783,11 +772,10 @@ included (§8.1).
 
 ### 5.4 Faraday's randomness
 
-Only where a seed that exists is split: the copies by hand of a key
-held (§9.1) and the plan's codex32 form (§9.2), where BIP 93's
+Only where a set that exists is rotated (§9.7), where BIP 93's
 "For an existing secret" needs k − 1 random shares. The bytes come from
 `Faraday::fresh` and are spread inside `faraday-keys` as
-`Keys::codex32_shares` does today; nothing leaves `faraday-keys` but the
+`Keys::codex32_new_set` does; nothing leaves `faraday-keys` but the
 strings, through `Reveal::PaperForm`.
 
 ### 5.5 Faraday Demo's dice roller (codex32)
@@ -1225,9 +1213,9 @@ unknowns, and each one sits in a column whose cells include lookup row
 until box 35 is. Before that, the checksum boxes are drawn pink and
 empty, as on the paper sheet.
 
-At 127 characters (a backup of a word key's seed, §9.1, which has no
-entry step) the same holds with the long checksum: 15 checksum
-characters, and no published table.
+At 127 characters (a set loaded from strings, which has no entry step
+here) the same holds with the long checksum: 15 checksum characters, and
+no published table.
 
 The same worksheet in the verification direction (§8.1, §8.3) fills
 the same way, every box being given: the final row is computed, column
@@ -1270,8 +1258,8 @@ for it.
 
 #### 6.4.5 The identifier: refusals, and the fingerprint where a seed exists
 
-Where a seed already exists (§9.1, §9.2), the identifier is the one
-from the fingerprint, as `Keys::codex32_shares` takes it today. The same
+Where a seed already exists (a set rotated, §9.7), the identifier is
+the one from the fingerprint, as `Keys::codex32_new_set` takes it. The same
 arithmetic would allow it for a fresh set, since S's data is the interpolation of the initial shares'
 data at `s`, position by position, which depends on the data and the
 share indices alone and not on the identifier, so the seed and its
@@ -1799,45 +1787,44 @@ said it would not have, so it is a decision (§14, D2).
 
 ### 9.1 A backup's copies by hand
 
-The Other paper forms' two codex32 chips become one, **codex32**, which
-opens a Choice of k (None · 2 · … · 9, 2 ticked) and n (k to 31, 3
-ticked), then makes the strings (§5.4) and shows them as §6.6 to §6.8 do,
-"Random shares · This device" on the Result. The length is the seed's:
-
-- a key made of BIP-39 words: its 64-byte seed, 127 characters, with
-  "Holds · the seed, not the words" and "Not for checking by hand" on
-  the Result;
-- a key loaded from a master seed (codex32, SLIP-39):
-  its own seed, 48 characters for 16 bytes. For this `faraday-keys` keeps
-  the seed bytes of a key added by `add_seed` beside its master key (owner,
-  §1.1 item 10; KEYS §2 already lists "seed" as key material).
-
-k = 0 needs no randomness and is open in Practice (§12).
+The Other paper forms hold Seed XOR (2 or 3 parts) and no codex32
+choice (owner, 2026-10-26). A key of words has no codex32 form by hand:
+its BIP-39 seed is the 64 bytes the words and the passphrase come to
+through PBKDF2, so strings of it (127 characters) would restore the same
+wallet but never give back the words or the passphrase, a one-way
+conversion with the passphrase baked in. A key loaded from a master seed
+(codex32, SLIP-39) is not split by hand either: a key whose secret is
+codex32 already keeps its set (§9.4).
 
 ### 9.2 The backup plan's codex32 form
 
-A seed's chip on the board gains a third form toggle, **codex32**,
-beside Words and SeedQR (BACKUP-FLOW §17.3). Turning it on asks k and n
-as §9.1 does; the seed's chip then stands for n string chips,
-"9a6a2580 · codex32 2 of 3", each placed at a place by drag or the ⋮
-menu as a share of the description is (`What::Share`). The plan's model
-gains `What::Codex32Share(i, j)` for string j of seed i, Secret, and the
-answers keep k, n and the length per seed. The checks read them as they
-read shares: a place with k strings of one seed holds the seed.
+A seed has a codex32 form on the plan only where its key's secret is a
+codex32 set already (§9.4): the seed's group on the board carries one
+string chip per string of that set, each placed at a place by drag or the
+⋮ menu as a share of the description is (`What::Share`). The plan's
+model has `What::Codex32Share(i, j)` for string j of seed i, Secret, and
+the answers keep k, the identifier, the length and the indices per
+seed. The checks read them as they read shares: a place with k strings
+of one set holds the seed.
 
-The checklist gains **Codex32 strings of seed i**: its body the strings'
-places, its foot **Make them** (§5.4, §6.6 to §6.8), each string typed
-back or skipped, then Done. It is done when every string is shown and
-typed back or skipped; the strings are never written to a file or a
-stick (paper only, as the copies by hand are today). A plan made in
-Practice dims the codex32 toggle for k of 2 or more, as DEMO §5.3 says.
+The board offers no "as codex32 strings" choice, and the plan never
+splits a seed: for a key of words, or any key without a set, the seed
+is kept as words, SeedQR or the seed itself and no codex32 string is
+offered (owner, 2026-10-26). A plan saved earlier with a split the plan
+was to make (a `codex32` line with `-` for its identifier) reads without
+that form and its strings, and the rest of the plan is as saved; a set
+that exists keeps its form.
+
+The checklist has **Codex32 strings of seed i** for a set that exists
+(§9.4); the strings are never written to a file or a stick from it
+(paper only).
 
 ### 9.3 The Templates item
 
-Where a plan copies a seed as codex32, the checklist's **Templates** item
-names that sheet too: "Print 2 from Faraday Starter: Blank templates,
-24 words, words; 3 from Blank templates, codex32, 127 characters"
-(BACKUP-FLOW §10.2's text, one clause per form).
+Where a plan places the strings of a set that exists, the checklist's
+**Templates** item names that sheet too: "Print 2 from Faraday Starter:
+Blank templates, 24 words, words; 3 from Blank templates, codex32, 48
+characters" (BACKUP-FLOW §10.2's text, one clause per form).
 
 ### 9.4 A key that already has a codex32 set (owner, 2026-10-22)
 
@@ -1870,7 +1857,7 @@ same seed, and the plan would not know about the first.
   ("9a6a2580 · codex32 w0za · C"); k and n are not asked. Words and
   SeedQR are not offered (the key has no words); a vault holds the
   seed as for any wordless key. The checklist item **Codex32 strings of
-  seed i** has no **Make them**: its foot is **Check my copy**, string
+  seed i** has its foot **Check my copy**, string
   by string, each typed back (or scanned as Codex32QR) and checked: its
   checksum, and its header against the set's facts (identifier,
   threshold, an index of the set), which catches any copying error of up
@@ -1884,25 +1871,23 @@ same seed, and the plan would not know about the first.
   the others.
 - **A new set on purpose** is **Rotate the set** (§9.7), never a
   second split beside the first.
-- **A key made of words** has no set: §9.1 and §9.2 split its 64-byte
-  seed as written (127 characters, made with this device's randomness,
-  "Not for checking by hand"); the plan's codex32 toggle for it carries
-  the line "127 characters; Words is shorter for this key".
+- **A key made of words** has no set and is given none: the board and
+  the copies by hand offer no codex32 strings for it (§9.1, §9.2).
 
 This follows F31 (decide where a key is kept, then make it): the set
 exists before the plan, so the plan places it rather than making one.
 
 ### 9.5 Shares on the backup board (owner, 2026-10-22)
 
-How a codex32 key's strings are placed on the board (BACKUP-FLOW §17),
-whether the set exists already (§9.4) or the plan makes one (§9.2).
+How a codex32 key's strings are placed on the board (BACKUP-FLOW §17):
+the set exists already (§9.4); the plan makes none (§9.2).
 
 **The list.** Under **Seeds**, a codex32 seed is a group: its head
 "9a6a2580 · codex32 w0za · 2 of 3", then one chip per string by index
 (**A**, **C**, **D**), each reading how many places keep it ("2
-places"), and **+ share**, which derives the next string of the same set
-(§8.2) and adds its chip. A string chip never runs out: dragging places
-a copy, as every list chip does.
+places"). A share added later is the set's action (§9.7), and its chip
+joins the group. A string chip never runs out: dragging places a copy,
+as every list chip does.
 
 **Each zone, each form.** A string placed in a zone is one chip there,
 its index large ("w0za · **C**"), its forms as the chip's toggles
@@ -1957,9 +1942,8 @@ place, on paper, with the wallet description as the standard way places
 it; three places for 2 of 3, so losing any one place leaves two strings
 elsewhere. No vault, no stick file and no Codex32QR are in it; each is
 added in Customize, as a vault and a SeedQR are for BIP-39 words, and
-everything in it changes there (places, which string goes where, forms,
-more strings by + share, another k and n where the plan makes the set,
-§9.2; a set made already keeps its k, §9.4).
+everything in it changes there (places, which string goes where, forms;
+a set made already keeps its k, §9.4).
 
 **A Codex32QR drawn by hand** (owner, §1.1 items 32, 33 and 36). For a
 string kept at a place as `Codex32QrPaper`, the
@@ -2271,7 +2255,7 @@ person chose is kept for the process; the sample's own scheme (2 of 3,
   computed there, lent to drawing through `Reveal::PaperForm`, and the
   seed handed to `add_seed` at Lock in. No new `Reveal` variant: the
   worksheets and strings are a paper form. `Keys::codex32_shares` takes
-  any k and n and keys with a seed and no words (§9.1). New module
+  any k and n and keys with a seed and no words. New module
   faraday/faraday-keys/src/codex32.rs (new).
 - `faraday-core`: a new area folder, faraday/faraday-core/src/codex32/
   (new), mod.rs (the flow's state, §6 and §8), screen.rs (its cards)

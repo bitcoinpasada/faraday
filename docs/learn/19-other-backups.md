@@ -54,9 +54,9 @@ A Codex32QR code is one 48-character string in a QR code, as SeedSigner's codex3
 
 ## Codex32 backups
 
-A backup's copies by hand write a key held as codex32 strings: none, the secret alone, or a threshold of 2 to 9 of up to 31 strings, the random shares drawn from this device. For a key made of BIP-39 words the strings hold the 512-bit seed those words come to, with the passphrase already in it, at 127 characters: a wallet that expects words cannot read them back, and they are not for checking by hand. A key loaded from a master seed gets strings of its own seed's length.
+A backup does not write a key of words as codex32 strings. Strings of its 512-bit seed would hold the passphrase already merged in and give back neither the words nor the passphrase, so a key of words is kept as words or SeedQR.
 
-In the backup plan a seed can be kept as codex32 strings, each string placed on its own. A place with k strings of one set holds the seed. A key made as a codex32 set keeps the set's facts (threshold, identifier, length, indices; no strings), and its backup places that set rather than splitting the seed again. Add a share, Replace a lost share and Rotate the set are the set's actions.
+In the backup plan a key made as a codex32 set, or loaded from strings, keeps those strings, each placed on its own. A place with k strings of one set holds the seed. The key keeps the set's facts (threshold, identifier, length, indices; no strings), and its backup places that set rather than splitting the seed again. Add a share, Replace a lost share and Rotate the set are the set's actions.
 
 ## Single key, backup in shares
 

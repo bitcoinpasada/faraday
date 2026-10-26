@@ -203,7 +203,7 @@ pub struct Answers {
     /// copy that rebuilds, until I destroyed this copy takes it off.
     pub part: Vec<(usize, usize)>,
     /// Each seed kept as codex32 strings: its form (`docs/CODEX32.md`
-    /// §9.2, §9.4).
+    /// §9.4).
     pub codex32: Vec<codex32::C32>,
 }
 
@@ -2557,9 +2557,8 @@ pub enum Item {
     Templates,
     /// Copy seed `i` by hand and check it.
     Copy(usize),
-    /// Seed `i`'s codex32 strings on paper: made and each typed back, or,
-    /// for a set that exists, each copy checked (`docs/CODEX32.md` §9.2,
-    /// §9.4).
+    /// Seed `i`'s codex32 strings on paper: each copy checked
+    /// (`docs/CODEX32.md` §9.4).
     Codex32(usize),
     /// Write seed `i`'s passphrase on paper and check it
     /// (`docs/history/NEW-WALLET.md` §14.7 item 5).

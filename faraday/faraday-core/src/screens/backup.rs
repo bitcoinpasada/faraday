@@ -1467,29 +1467,22 @@ fn item_action(app: &View, n: u8) -> (String, Action) {
             };
             (EN.item_action_check_my.to_string(), action)
         }
-        // A set the plan makes: Make them; one that exists, or once made:
         // Check my copy, on the first string not checked
-        // (`docs/CODEX32.md` §9.2, §9.4).
-        Item::Codex32(i) => match b.answers.c32(i) {
-            Some(f) if !f.fixed() => (
-                EN.item_action_make_them.to_string(),
-                Action::BC32(crate::codex32_backup::Press::Make),
-            ),
-            _ => {
-                let shape = app.plan_shape(b.wallet);
-                let mapped = app.plan_mapped(&shape, &b.answers);
-                let first = crate::plan::codex32::paper_strings(&b.answers, &mapped, i)
-                    .into_iter()
-                    .find(|&j| !b.c32_checked.contains(&(i, j)))
-                    .unwrap_or(0);
-                (
-                    EN.item_action_check_my.to_string(),
-                    Action::BC32(crate::codex32_backup::Press::Open(
-                        u8::try_from(first).unwrap_or(0),
-                    )),
-                )
-            }
-        },
+        // (`docs/CODEX32.md` §9.4).
+        Item::Codex32(i) => {
+            let shape = app.plan_shape(b.wallet);
+            let mapped = app.plan_mapped(&shape, &b.answers);
+            let first = crate::plan::codex32::paper_strings(&b.answers, &mapped, i)
+                .into_iter()
+                .find(|&j| !b.c32_checked.contains(&(i, j)))
+                .unwrap_or(0);
+            (
+                EN.item_action_check_my.to_string(),
+                Action::BC32(crate::codex32_backup::Press::Open(
+                    u8::try_from(first).unwrap_or(0),
+                )),
+            )
+        }
         // Check my copy opens the field; with it open, Compare.
         Item::Passphrase(_) if b.check.is_some() => {
             (EN.item_action_compare.to_string(), Action::BCheck)
@@ -1862,10 +1855,6 @@ fn paper_section(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     section_label(ui, x, cy, EN.paper_section_other);
     cy += 28.0;
     match &b.paper {
-        // The one codex32 choice opened: k and n (`docs/CODEX32.md` §9.1).
-        None if b.paper_c32.is_some() => {
-            cy += crate::codex32_backup::screen::paper_choice(ui, x, cy, w, b.paper_c32);
-        }
         None => {
             let row: Vec<(String, Style, Action)> = vec![
                 (
@@ -1878,54 +1867,14 @@ fn paper_section(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                     Style::Secondary,
                     Action::BXor(3),
                 ),
-                (
-                    EN.c32_paper_codex32.into(),
-                    Style::Secondary,
-                    Action::BC32(crate::codex32_backup::Press::PaperOpen),
-                ),
             ];
             cy += button_rows(ui, x, cy, w, &row);
         }
-        Some(form) => {
-            let (lines, line) = match form {
-                PaperForm::Xor(parts) => (
-                    parts,
-                    fill(EN.paper_section_parts, &[&parts.len().to_string()]),
-                ),
-                PaperForm::Codex32 { k, strings } => (
-                    strings,
-                    fill(
-                        EN.paper_section_shares,
-                        &[&strings.len().to_string(), &k.to_string()],
-                    ),
-                ),
-            };
+        Some(PaperForm::Xor(parts)) => {
+            let line = fill(EN.paper_section_parts, &[&parts.len().to_string()]);
             ui.text(x, cy, 13.0, W::S, Role::Warning, &line);
             cy += 26.0;
-            if let PaperForm::Codex32 { k, strings } = form {
-                cy += crate::codex32_backup::screen::paper_facts(
-                    app,
-                    ui,
-                    x,
-                    cy,
-                    w,
-                    (*k, strings.as_slice()),
-                );
-                // One string at a time, each typed back (§9.1).
-                cy += crate::codex32_backup::screen::paper_one(
-                    ui,
-                    x,
-                    cy,
-                    w,
-                    strings.as_slice(),
-                    &b.paper_typed,
-                );
-            }
-            let lines: &[zeroize::Zeroizing<String>] = match form {
-                PaperForm::Codex32 { .. } => &[],
-                PaperForm::Xor(_) => lines,
-            };
-            for (i, l) in lines.iter().enumerate() {
+            for (i, l) in parts.iter().enumerate() {
                 ui.text(
                     x,
                     cy,

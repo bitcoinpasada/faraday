@@ -570,8 +570,6 @@ pub enum Action {
     POut,
     /// Split the key's words into this many Seed XOR parts.
     BXor(u8),
-    /// codex32 shares of the key's seed, `k` of `n`.
-    BCodex32(u8, u8),
     /// Put the other paper form away.
     BPaperHide,
     /// Read with this camera, by its place in the shell's list.

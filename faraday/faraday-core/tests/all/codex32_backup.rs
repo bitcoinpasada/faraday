@@ -19,7 +19,7 @@ use faraday_shell_api::{App, BootState, DisplayInfo, EntropyBytes, Event, Key, S
 use faraday_ui::keyboard::OskPress;
 use faraday_vault::codex32::{SetFacts, State};
 
-use crate::common::{board, put};
+use crate::common::board;
 
 /// Vector 2: shares A and C, D derived, the secret; the fingerprint of its
 /// seed's key.
@@ -253,26 +253,6 @@ fn a_string_skipped_counts_only_after_the_caution() {
     assert!(app.backup().unwrap().c32_checked.contains(&(0, ix('a'))));
 }
 
-/// The board customised, seed 0 turned to codex32 (2 of 3), three places,
-/// and string `j` placed on paper at place `p`.
-fn planned(app: &mut Faraday) {
-    board(
-        app,
-        BoardPress::C32(0, faraday_core::board::codex32::C32Board::On),
-    );
-    board(app, BoardPress::AddPlace);
-    board(app, BoardPress::AddPlace);
-    let (_, a) = app.board_plan().unwrap();
-    let f = a.c32(0).expect("a form").clone();
-    assert_eq!((f.k, f.indices.len(), f.length), (2, 3, 127));
-    assert!(!f.fixed(), "the plan makes this set");
-    // The seed's words off the first place, a string at each place.
-    crate::common::take_off(app, Zone::Paper(0), Thing::Seed(0));
-    for (p, &j) in f.indices.iter().enumerate() {
-        put(app, Thing::String(0, j), Zone::Paper(p));
-    }
-}
-
 /// Test key 1 and the Spending wallet over it, Back up open.
 fn words_key() -> Faraday {
     let mut app = on();
@@ -293,92 +273,59 @@ fn words_key() -> Faraday {
     app
 }
 
+/// A key of words is never offered codex32 strings: they would hold its
+/// 64-byte seed with the passphrase merged in and give back neither the
+/// words nor the passphrase. A key whose secret is a codex32 set keeps its
+/// strings on the board.
 #[test]
-fn a_set_the_plan_makes_is_made_placed_and_each_string_typed_back() {
+fn a_key_of_words_is_not_offered_codex32_strings() {
+    let drawn = |app: &mut Faraday| {
+        board(app, BoardPress::Customize);
+        let _ = app.frame();
+        app.drawn_texts()
+    };
     let mut app = words_key();
-    planned(&mut app);
-    let c = testkit::compute();
+    let texts = drawn(&mut app);
+    assert!(
+        !texts.iter().any(|t| t.to_lowercase().contains("codex32")),
+        "{texts:?}"
+    );
+    let (_, a) = app.board_plan().unwrap();
+    assert!(a.c32(0).is_none() && a.codex32.is_empty());
+    let mut app = with_set();
+    let texts = drawn(&mut app);
+    assert!(
+        texts.iter().any(|t| t.contains("codex32 name")),
+        "the set's group: {texts:?}"
+    );
+}
+
+/// A plan saved when a seed could be split into codex32 strings the plan
+/// made reads back without that split: its form and strings are dropped
+/// and the rest of the plan is as saved.
+#[test]
+fn a_saved_plan_with_a_split_the_plan_was_to_make_reads_without_it() {
+    let app = words_key();
     let (shape, a) = app.board_plan().unwrap();
-    let m = plan::map(&c, &shape, &a);
-    for p in 0..3 {
-        let held = plan::holds_at(&m, At::Place(p));
-        assert_eq!(
-            held.iter()
-                .filter(|w| plan::codex32::string_of(**w).is_some())
-                .count(),
-            1,
-            "place {p} keeps its string: {held:?}"
-        );
-    }
-    app.press(Action::BChecklist);
-    let items = app.backup_items_now(&c);
-    assert!(items.contains(&bstep::of(plan::Item::Templates)));
-    let n = bstep::of(plan::Item::Codex32(0));
-    app.press(Action::BNext(bstep::BLANK));
-    if app.backup().unwrap().open != Some(n) {
-        app.press(Action::BStep(n));
-    }
-    assert_eq!(app.backup().unwrap().open, Some(n));
-    c32(&mut app, Press::Make);
-    let st = app.backup().unwrap().c32.as_ref().unwrap();
-    let j = st.at.expect("the first string open");
-    let made = st.made(j).unwrap().to_string();
-    assert_eq!(made.len(), 127, "a key of words: its 64-byte seed");
-    let fp = app.session.keys[0].fingerprint.0;
-    let id: String = faraday_bip::codex32::identifier_for(fp)
-        .iter()
-        .map(|&b| char::from(b))
-        .collect();
-    assert_eq!(&made[3..8], &format!("2{id}"), "k and the key's identifier");
-    // The set is the key's now, its strings placed.
-    let facts = app.session.keys[0]
-        .codex32
-        .clone()
-        .expect("the set kept with the key");
-    assert_eq!(facts.strings.len(), 3);
-    assert!(facts.strings.iter().all(|&(_, s)| s == State::Placed));
-    // A box changed is named; the string typed right holds.
-    let mut wrong = made.clone();
-    wrong.replace_range(16..17, if &made[16..17] == "q" { "p" } else { "q" });
-    type_in(&mut app, &wrong);
-    assert_eq!(found(&app), Some(Found::Differs("Box 17 differs".into())));
-    for _ in 0..124 {
-        c32(&mut app, Press::Key(OskPress::Back));
-    }
-    for _ in 0..3 {
-        let st = app.backup().unwrap().c32.as_ref().unwrap();
-        let Some(j) = st.at else { break };
-        let s = st.made(j).unwrap().to_string();
-        type_in(&mut app, &s);
-        assert!(matches!(found(&app), Some(Found::Holds(_))));
-        c32(&mut app, Press::Next);
-    }
-    assert!(app.backup_item_done_now(&c, plan::Item::Codex32(0)));
-    // Any two of the strings made rebuild the key.
-    let parts: Vec<faraday_bip::codex32::Codex32> = app
-        .backup()
-        .unwrap()
-        .c32
-        .as_ref()
-        .unwrap()
-        .held
-        .iter()
-        .take(2)
-        .map(|s| faraday_bip::codex32::Codex32::parse(s).unwrap())
-        .collect();
-    assert_eq!(app.session.keys.codex32_rebuilds(&c, 0, &parts), Some(true));
+    let mut text = a.to_text();
+    text.push_str("codex32 0 2 127 acd - 0\n");
+    let back = plan::Answers::from_text(&shape, &text).expect("reads");
+    assert!(back.c32(0).is_none());
+    assert_eq!(
+        back,
+        plan::Answers::from_text(&shape, &a.to_text()).unwrap()
+    );
 }
 
 #[test]
 fn the_templates_item_names_the_codex32_sheet() {
-    let mut app = words_key();
-    planned(&mut app);
+    let app = with_set();
     let c = testkit::compute();
     let (shape, a) = app.board_plan().unwrap();
     let mapped = plan::Mapped::of(&c, &shape, &a);
     assert_eq!(
         plan::codex32::templates_of(&a, &mapped),
-        vec![(127, plan::codex32::PaperCopy::String, 3)]
+        vec![(48, plan::codex32::PaperCopy::String, 3)]
     );
     assert_eq!(plan::templates(&c, &shape, &a), 0, "no words on paper");
 }

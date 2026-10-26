@@ -117,10 +117,12 @@ impl Keys {
   seed to `add_seed`. It wipes on drop.
 - A key loaded by `add_seed` keeps its seed bytes (`holds_seed_bytes`
   tells whether), wiped when the key is dropped.
-  `Keys::codex32_shares(c, i, k, n, draw, why)` makes any `k` (2 to 9)
+  `Keys::codex32_shares(i, k, n, draw, why)` makes any `k` (2 to 9)
   of `n` (`k` to 31) shares, or with `k` 0 and `n` 1 the secret alone,
-  from the 64-byte BIP-39 seed of a key with words or from the seed
-  bytes of one without, at that seed's own length.
+  from the seed bytes of a key without words, at that seed's own length.
+  A key with words is refused (`Paper::Words`): its 64-byte BIP-39 seed
+  has the passphrase merged in and would give back neither the words nor
+  the passphrase.
 - A BIP-85 child, a vanity find or a FROST share is a new secret. It comes
   back as a `Child` held inside the crate, which leaves only by `add_*` or
   `reveal`.

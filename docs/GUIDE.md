@@ -735,7 +735,7 @@ Press **Customize backup**.
 | On screen | Meaning |
 |---|---|
 | the list on the right | everything the backup can keep: **Seeds**, **Wallet description** (**Whole**), **Vaults** with **+ new vault**, **Watch-only software**; "1 place" beside each says how many places keep it |
-| **3dca6805 as codex32 strings** | keeps the seed as codex32 strings instead of its words, each placed on its own; for a key of words they are 127 characters, not for checking by hand. A key made as codex32 shares is step 4.11 |
+| **3dca6805 · codex32 w0za · 2 of 3** | a key made as codex32 shares or loaded from strings keeps those strings instead of its words, each placed on its own; a key of words is not offered codex32 strings. Making a key as codex32 shares is step 4.11 |
 | on a placed chip, **Words** and **SeedQR** | the forms it is kept in; a press turns one on or off, and the last one on stays on |
 | **×** | takes the chip off that place |
 | **⋮** | its menu (step 4.5) |

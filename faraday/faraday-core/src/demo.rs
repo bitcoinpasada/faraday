@@ -30,10 +30,8 @@ impl Faraday {
         }
         let slip39 = self.keygen.state().is_some_and(|k| k.slip39);
         match action {
-            // Seed XOR parts and codex32 shares are fresh randomness; a
-            // single codex32 string is the seed's own spelling.
+            // Seed XOR parts are fresh randomness.
             Action::BXor(_) => true,
-            Action::BCodex32(k, _) => k >= 2,
             // New key as SLIP-39 shares: its sources and the deal.
             Action::KWay(_) | Action::KMix(_) => slip39,
             Action::KNext => self.keygen.state().is_some_and(|k| {
@@ -82,8 +80,6 @@ impl Faraday {
         let mut all = vec![
             Action::BXor(2),
             Action::BXor(3),
-            Action::BCodex32(2, 3),
-            Action::BCodex32(3, 5),
             Action::KNext,
             Action::KLock,
             Action::Flow(F::Make),

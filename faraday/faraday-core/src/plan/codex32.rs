@@ -1,5 +1,5 @@
-//! A seed kept as codex32 strings (`docs/CODEX32.md` §9.2, §9.4, §9.5):
-//! the seed's codex32 form on the plan, its strings as things the map
+//! A seed kept as codex32 strings (`docs/CODEX32.md` §9.4, §9.5): the
+//! seed's codex32 form on the plan, its strings as things the map
 //! places, what the checks count of them, and The standard way for a key
 //! that already has a set.
 //!
@@ -9,12 +9,11 @@
 //! share added later has an index of its own, and a lost one replaced has
 //! the index it had.
 //!
-//! **Two kinds of form.** A set the plan makes (§9.2): its `k` and `n`
-//! are the person's, its strings made at the checklist from this device's
-//! randomness, at the indices BIP 93 gives a split, in order. A set that
-//! exists (§9.4): the key was made by Make codex32 shares or loaded from
-//! strings, so its strings are on paper already; its `k` and indices are
-//! the set's, fixed, and the checklist checks them rather than making any.
+//! **The form is a set that exists** (§9.4): the key was made by Make
+//! codex32 shares or loaded from strings, so its strings are on paper
+//! already; its `k` and indices are the set's, fixed, and the checklist
+//! checks them rather than making any. A key of words is never given a
+//! form: the plan does not split its seed into strings (§9.2).
 
 use super::*;
 use faraday_vault::codex32::{SetFacts, State};
@@ -35,21 +34,6 @@ pub fn index_of(c: u8) -> Option<usize> {
     CHARSET.iter().position(|&x| x == c.to_ascii_lowercase())
 }
 
-/// The string length a seed of `bytes` bytes is written in (BIP 93): 48
-/// characters for 16 bytes, 74 for 32, 127 for 64; `None` for a length
-/// codex32 has no string for.
-pub fn length_for(bytes: usize) -> Option<u8> {
-    Some(match bytes {
-        16 => 48,
-        20 => 54,
-        24 => 61,
-        28 => 67,
-        32 => 74,
-        64 => 127,
-        _ => return None,
-    })
-}
-
 /// A seed's codex32 form on the plan.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct C32 {
@@ -63,38 +47,14 @@ pub struct C32 {
     /// The strings' share indices, as values, in their order: a split's
     /// in BIP 93's order, a share added after them.
     pub indices: Vec<usize>,
-    /// The set's identifier, once the set exists: made by Make codex32
-    /// shares, loaded from strings, or made at the checklist. While it is
-    /// `None` the plan makes the set, and its `k` and `n` may change.
-    pub identifier: Option<[u8; 4]>,
+    /// The set's identifier.
+    pub identifier: [u8; 4],
     /// Strings of the set known to exist whose index is not known
     /// (§9.4, loaded from strings): counted, never placed.
     pub unknown: u8,
 }
 
 impl C32 {
-    /// A set the plan makes: `k` of `n` (`k` 0 for the secret alone, `n`
-    /// then 1), `length` characters, at the indices a split has.
-    pub fn planned(seed: usize, k: u8, n: u8, length: u8) -> C32 {
-        let indices = if k == 0 {
-            vec![SECRET]
-        } else {
-            faraday_bip::codex32::INDEX_ORDER
-                .iter()
-                .take(usize::from(n.clamp(k, faraday_bip::codex32::MAX_SHARES)))
-                .filter_map(|&c| index_of(c))
-                .collect()
-        };
-        C32 {
-            seed,
-            k,
-            length,
-            indices,
-            identifier: None,
-            unknown: 0,
-        }
-    }
-
     /// The set that exists, from the facts its key keeps: the strings
     /// destroyed are not among those to place.
     pub fn of_set(seed: usize, set: &SetFacts) -> C32 {
@@ -108,14 +68,9 @@ impl C32 {
                 .filter(|&&(_, s)| s != State::Destroyed)
                 .filter_map(|&(c, _)| index_of(c))
                 .collect(),
-            identifier: Some(set.identifier),
+            identifier: set.identifier,
             unknown: set.unknown,
         }
-    }
-
-    /// The set exists: its `k`, `n` and indices are fixed.
-    pub fn fixed(&self) -> bool {
-        self.identifier.is_some()
     }
 
     /// How many strings rebuild the seed: one for the secret alone.
@@ -128,15 +83,13 @@ impl C32 {
         self.indices.len() + usize::from(self.unknown)
     }
 
-    /// The identifier as text, where the set exists.
-    pub fn id_text(&self) -> Option<String> {
-        self.identifier
-            .map(|id| id.iter().map(|&b| char::from(b)).collect())
+    /// The identifier as text.
+    pub fn id_text(&self) -> String {
+        self.identifier.iter().map(|&b| char::from(b)).collect()
     }
 
     /// The form's plan line: `codex32 {seed} {k} {length} {indices} {id}
-    /// {unknown}`, the indices as their characters and `-` for no
-    /// identifier.
+    /// {unknown}`, the indices as their characters.
     pub fn to_line(&self) -> String {
         let indices: String = self.indices.iter().map(|&j| index_char(j)).collect();
         format!(
@@ -149,13 +102,14 @@ impl C32 {
             } else {
                 indices
             },
-            self.id_text().unwrap_or_else(|| "-".to_string()),
+            self.id_text(),
             self.unknown
         )
     }
 
     /// [`C32::to_line`]'s value read back (after `codex32 `); `None` for
-    /// anything that is not a form `seeds` seeds could have.
+    /// anything that is not a form `seeds` seeds could have, a plan saved
+    /// with a set the plan was to make (identifier `-`) among it.
     pub fn from_value(value: &str, seeds: usize) -> Option<C32> {
         let mut parts = value.split(' ');
         let seed: usize = parts.next()?.parse().ok()?;
@@ -165,10 +119,7 @@ impl C32 {
             "-" => Vec::new(),
             s => s.bytes().map(index_of).collect::<Option<Vec<usize>>>()?,
         };
-        let identifier = match parts.next()? {
-            "-" => None,
-            s => Some(<[u8; 4]>::try_from(s.as_bytes()).ok()?),
-        };
+        let identifier = <[u8; 4]>::try_from(parts.next()?.as_bytes()).ok()?;
         let unknown: u8 = parts.next()?.parse().ok()?;
         let form = C32 {
             seed,
@@ -180,7 +131,7 @@ impl C32 {
         };
         let facts = SetFacts {
             threshold: k,
-            identifier: identifier.unwrap_or(*b"qqqq"),
+            identifier,
             length,
             unknown,
             strings: form

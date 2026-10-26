@@ -33,7 +33,6 @@ use crate::{
     vault,
 };
 use faraday_bip::bip39::Language;
-use faraday_keys::Paper;
 use faraday_shell_api::Key as KeyIn;
 use faraday_ui::keyboard::OskPress;
 use zeroize::Zeroize;
@@ -539,7 +538,7 @@ pub struct BackupState {
     /// off (F62). Every other starts on.
     pub no_load: Vec<usize>,
     /// The codex32 item's state, for the seed it was last open on
-    /// (`docs/CODEX32.md` §9.2, §9.4).
+    /// (`docs/CODEX32.md` §9.4).
     pub c32: Option<crate::codex32_backup::Strings>,
     /// The codex32 strings typed back the same, or skipped, in this
     /// backup: each seed and index.
@@ -547,12 +546,6 @@ pub struct BackupState {
     /// The open item, and whether it was done when last looked at: an
     /// item that becomes done moves on to the next.
     pub seen: Option<(u8, bool)>,
-    /// The copies by hand's codex32 choice while open: `k` and `n`
-    /// (`docs/CODEX32.md` §9.1).
-    pub paper_c32: Option<(u8, u8)>,
-    /// The copies by hand's codex32 strings shown one at a time, each
-    /// typed back or skipped (`docs/CODEX32.md` §9.1).
-    pub paper_typed: crate::codex32_backup::PaperTyping,
 }
 
 /// The wallet backup checklist (`Screen::Backup`): the backup under way,
@@ -651,7 +644,6 @@ impl WalletBackupArea {
             }
             Action::BPaperHide => {
                 b.paper = None;
-                b.paper_typed = crate::codex32_backup::PaperTyping::default();
             }
             Action::BCompact(c) => {
                 b.compact = c;
@@ -714,17 +706,6 @@ impl WalletBackupArea {
         let Some(b) = self.state.as_mut() else {
             return false;
         };
-        // The copies by hand's codex32 string open, typed back.
-        if let Some(paper::PaperForm::Codex32 { strings, .. }) = b.paper.as_ref()
-            && b.paper_typed.typing(strings.len())
-        {
-            let press = match key {
-                KeyIn::Char(c) => crate::codex32_backup::Press::PaperKey(OskPress::Char(c)),
-                KeyIn::Backspace => crate::codex32_backup::Press::PaperKey(OskPress::Back),
-                _ => return false,
-            };
-            return crate::codex32_backup::paper_type(b, press);
-        }
         // A codex32 string typed back, or in, on the keyboard.
         if b.open.is_some_and(bstep::is_codex32)
             && b.c32.as_ref().is_some_and(|c| {
@@ -821,20 +802,6 @@ impl WalletBackupArea {
             if let Some(st) = b.c32.as_mut().filter(|st| st.seed == i) {
                 *st = crate::codex32_backup::Strings::new(i);
             }
-        }
-    }
-
-    /// A press on the copies by hand's codex32 string open (§9.1).
-    pub(crate) fn paper_type(&mut self, p: crate::codex32_backup::Press) -> bool {
-        self.state
-            .as_mut()
-            .is_some_and(|b| crate::codex32_backup::paper_type(b, p))
-    }
-
-    /// The copies by hand's codex32 choice changed by `p` (§9.1).
-    pub(crate) fn paper_c32(&mut self, p: crate::codex32_backup::Press) {
-        if let Some(b) = self.state.as_mut() {
-            b.paper_c32 = crate::codex32_backup::paper_choice(b.paper_c32, p);
         }
     }
 
@@ -1174,8 +1141,6 @@ impl WalletBackupArea {
     pub(crate) fn set_paper(&mut self, form: paper::PaperForm) {
         if let Some(b) = self.state.as_mut() {
             b.paper = Some(form);
-            b.paper_c32 = None;
-            b.paper_typed = crate::codex32_backup::PaperTyping::default();
         }
     }
 
@@ -1447,7 +1412,6 @@ impl Faraday {
                 self.backup_item_open(next);
             }
             Action::BXor(n) => self.paper_xor(n),
-            Action::BCodex32(k, n) => self.paper_codex32(k, n),
             Action::BC32(p) => self.backup_c32(p, c),
             Action::BCheck => self.copy_check_open(),
             Action::BScan => {
@@ -1802,37 +1766,6 @@ impl Faraday {
         };
         self.backup.set_paper(paper::PaperForm::Xor(lines));
     }
-
-    /// codex32 shares of the key's BIP-32 seed, `k` of `n`.
-    pub(crate) fn paper_codex32(&mut self, k: u8, n: u8) {
-        let c = self.compute();
-        if k >= 2 && !self.makes_secrets() {
-            return;
-        }
-        if !self.paper_key() {
-            return self.toast(EN.paper_this_key_has);
-        }
-        let Some(draw) = self.fresh(b"codex32") else {
-            return self.toast(EN.paper_no_randomness);
-        };
-        let Some(b) = self.backup.state() else {
-            return;
-        };
-        match self.session.keys.codex32_shares(
-            &c,
-            b.key,
-            k,
-            n,
-            &draw,
-            faraday_keys::Reveal::PaperForm,
-        ) {
-            Ok(strings) => self
-                .backup
-                .set_paper(paper::PaperForm::Codex32 { k, strings }),
-            Err(Paper::Refused(e)) => self.toast(&fill(EN.paper_codex32, &[&e])),
-            Err(_) => {}
-        }
-    }
 }
 
 impl Faraday {
@@ -2080,8 +2013,8 @@ impl Faraday {
         match item {
             // Printed from Faraday Starter: no file is made here.
             plan::Item::Templates => b.printed,
-            // Every string placed on paper made or checked, typed back
-            // or skipped (`docs/CODEX32.md` §9.2).
+            // Every string placed on paper checked, typed back or
+            // skipped (`docs/CODEX32.md` §9.4).
             plan::Item::Codex32(i) => {
                 let shape = self.plan_shape_now(b.wallet);
                 let mapped = self.kept.plan_mapped(c, &shape, &b.answers);

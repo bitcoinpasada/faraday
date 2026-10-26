@@ -66,8 +66,8 @@ standard it is and which software restores it.
   codex32, SLIP-39 and Seed XOR (`faraday/faraday-core/src/forms.rs`);
   New key deals SLIP-39 shares (`faraday/faraday-core/src/keygen/mod.rs`,
   extendable set, iteration exponent 1, a random identifier); a
-  backup's copies offer Words, SeedQR, Compact SeedQR, Seed XOR and
-  codex32 2 of 3 and 3 of 5 of the 64-byte BIP-39 seed
+  backup's copies offer Words, SeedQR, Compact SeedQR and Seed XOR, and
+  never codex32 strings for a key of words (F121)
   (`faraday/faraday-keys/src/operations.rs`); the BIP-39 words tool
   lists each word's number and bits; New key takes hex entropy; the
   Lightning screen reads an aezeed.
@@ -128,7 +128,6 @@ offered, §5).
 |---|---|---|
 | Words (+ passphrase) → master seed, hex (64 bytes) | BIP-32 seed | any BIP-32 library; Faraday; no common wallet takes a raw seed † |
 | Words (+ passphrase) → xprv (or tprv) | BIP-32 master extended private key | Sparrow (master private key), Bitcoin Core (in a descriptor with the wallet's path), Faraday; Electrum takes an xprv as the account, not the master, so its addresses differ † |
-| Words (+ passphrase) → codex32, 127 characters (k = 0, or k of n) | BIP-93, long codex32 | Faraday; the BIP-93 reference code; no wallet in common use reads codex32 † |
 
 Every row in §4.3 to §4.5 that writes a master seed or an xprv says
 which paths the source wallet uses (from the loaded wallets that hold
@@ -166,7 +165,7 @@ not offered (Q5).
 | From → to | Standard | Restores in |
 |---|---|---|
 | LND aezeed (+ its passphrase) → master seed hex (16 bytes), codex32 (48 characters), SLIP-39 (20 words), xprv | BIP-32 seed; BIP-93; SLIP-39; BIP-32 | as above, for the on-chain wallet only |
-| Electrum's seed words → master seed hex, xprv, codex32 (64 bytes) | as above | once Faraday reads Electrum seeds (planned, not scheduled); not offered until then |
+| Electrum's seed words → master seed hex, xprv (64 bytes) | as above | once Faraday reads Electrum seeds (planned, not scheduled); not offered until then |
 
 An aezeed's result says: the paths LND uses (BIP-84 `m/84'/0'/0'`,
 BIP-49 `m/49'/0'/0'` with LND's own change addresses, BIP-86
@@ -283,7 +282,6 @@ records its sources).
 | Words ↔ entropy, numbers, starts | BIP-39's vectors (`tools/vectors/bip39`) | python-mnemonic |
 | Words ↔ Seed XOR | Coldcard's published examples (`tools/vectors/xor`) | Coldcard's `xor_seed` code (Python) |
 | Words → seed, xprv | BIP-39's vectors (seed and xprv columns) | python-mnemonic, embit |
-| Words → codex32 127 | BIP-93's 512-bit vector (`tools/vectors/bip93`) | the BIP-93 reference code (python-codex32) |
 | codex32 ↔ SLIP-39 | BIP-93's and SLIP-39's vectors (`tools/vectors/slip39`), each read and written the other way | python-codex32 and python-shamir-mnemonic over random seeds: the same fingerprint both ways |
 | SLIP-39 with passphrase → codex32 | SLIP-39's vectors (passphrase `TREZOR`) | python-shamir-mnemonic |
 | codex32, SLIP-39, seed → xprv | BIP-32's vectors; BIP-93's and SLIP-39's xprv columns | embit, Bitcoin Core's test framework |
