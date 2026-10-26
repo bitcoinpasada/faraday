@@ -8,6 +8,7 @@
 
 use crate::strings::EN;
 use crate::strings::fill;
+use faraday_bip::bip39::Language;
 use faraday_bip::keys::Fingerprint;
 use faraday_crypto::work::Compute;
 use faraday_shell_api::Command;
@@ -363,10 +364,11 @@ impl Faraday {
 }
 
 impl Faraday {
-    /// Handles the scan sheet's actions (`ScanPaste`, `ScanCamera`, `ScanPart`, `ScanSeed`, `ScanKey`, `Scan`).
+    /// Handles the scan sheet's actions (`ScanPaste`, `ScanCamera`, `ScanPart`, `ScanSeed`, `ScanKey`, `Scan`), and Paste words.
     pub(crate) fn scan_act(&mut self, action: Action) {
         match action {
             Action::ScanPaste => self.scan_paste(),
+            Action::PasteWords => self.entry_paste(),
             Action::ScanCamera(i) => {
                 if self.camera.choose(usize::from(i))
                     && let Some(s) = self.camera.scan_mut()
@@ -419,6 +421,39 @@ impl Faraday {
     }
 }
 
+/// Costs a mnemonic's checksum. The words of `text`, pasted onto the
+/// words form typed from `lang`, as the list's places: split at any
+/// white space and matched in any case, as typing them would be; 12, 15,
+/// 18, 21 or 24 of them, each on the list, with a checksum that holds.
+/// Else what is wrong, in the words a typed key is refused with.
+fn pasted_words(lang: Language, text: &str) -> Result<zeroize::Zeroizing<Vec<u16>>, String> {
+    let words: Vec<&str> = text.split_whitespace().collect();
+    if words.is_empty() {
+        return Err(EN.pasted_nothing.to_string());
+    }
+    if !crate::EntryState::COUNTS
+        .iter()
+        .any(|n| usize::from(*n) == words.len())
+    {
+        return Err(fill(EN.paste_words_count, &[&words.len().to_string()]));
+    }
+    let mut idx = zeroize::Zeroizing::new(Vec::with_capacity(words.len()));
+    for (k, w) in words.iter().enumerate() {
+        let lower = zeroize::Zeroizing::new(w.to_lowercase());
+        let i = crate::forms::typed_index(lang, &lower)
+            .or_else(|| lang.index_of(&lower))
+            .ok_or_else(|| {
+                fill(
+                    EN.forms_word_not_in_list,
+                    &[&(k + 1).to_string(), crate::forms::language_name(lang)],
+                )
+            })?;
+        idx.push(i);
+    }
+    faraday_keys::words::from_indices(lang, &idx).map_err(|e| e.to_string())?;
+    Ok(idx)
+}
+
 /// Costs a mnemonic's checksum (through `secret_text`), a codex32 and a
 /// SLIP-39 parse and a WIF's checksum. Why pasted text is refused for
 /// holding a secret (`docs/DESIGN.md` §4.10): a seed's words, checksum or
@@ -466,6 +501,81 @@ pub(crate) fn pasted_secret(c: &Compute, text: &str, seeds: bool) -> Option<&'st
 }
 
 impl Faraday {
+    /// Whether the words form takes words pasted (F75): Add a key's, a
+    /// Restore slot's and New key's typed key's, with no sheet over it and
+    /// no stick in, on a shell with a clipboard (Faraday Demo; never the
+    /// device) and off Mainnet. A lookup.
+    pub fn entry_pastes(&self) -> bool {
+        self.clipboard
+            && self.mode() != crate::Mode::Mainnet
+            && self.sheet.is_none()
+            && self.entry_typing_here()
+            && self.entry.state().form == crate::forms::Form::Words
+            && self.may_load_keys()
+    }
+
+    /// Whether the page hands Faraday Demo's strip Paste words: where the
+    /// words form takes words pasted, in Practice, whose section of the
+    /// strip holds the page's aids. On Testnet Ctrl+V does the same. A
+    /// lookup.
+    pub fn entry_paste_offered(&self) -> bool {
+        self.entry_pastes() && self.mode() == crate::Mode::Demo
+    }
+
+    /// Paste words: the shell is asked for the clipboard's text, where the
+    /// words form takes words pasted.
+    pub(crate) fn entry_paste(&mut self) {
+        if self.entry_pastes() {
+            self.out.commands.push_back(Command::RequestClipboard {
+                kind: faraday_shell_api::FileKind::Text,
+            });
+        }
+    }
+
+    /// Costs a mnemonic's checksum (`pasted_words`). The clipboard's text
+    /// asked for by Paste words, where no scanner asked: a whole key's
+    /// words go into the words form in place of what it held, as typed,
+    /// the word count set to theirs; anything else leaves the form as it
+    /// was and says why. Returns whether the form took the text.
+    pub(crate) fn entry_pasted(&mut self, text: &str) -> bool {
+        if self.scan_pastes() || !self.entry_pastes() {
+            return false;
+        }
+        let lang = self.entry.state().language();
+        let idx = match pasted_words(lang, text) {
+            Ok(idx) => idx,
+            Err(why) => {
+                self.entry.state_mut().error = Some(why);
+                return true;
+            }
+        };
+        let e = self.entry.state_mut();
+        if e.keys.is_some() {
+            let mut w = crate::forms::word_typer(lang);
+            for &i in idx.iter() {
+                w.put(i);
+            }
+            e.keys = Some(w);
+        } else {
+            let mut typed = zeroize::Zeroizing::new(String::new());
+            for &i in idx.iter() {
+                if let Some(t) = lang.typed(i) {
+                    typed.extend(t.as_chars());
+                }
+                typed.push(' ');
+            }
+            e.typed.set(&typed);
+        }
+        e.word_count = idx.len() as u8;
+        e.on_passphrase = false;
+        e.error = None;
+        e.sample.dismiss();
+        e.forget_probe();
+        true
+    }
+}
+
+impl Faraday {
     /// Whether the scanner on screen offers Paste: one that takes
     /// anything, and, where the shell has a clipboard (the desktop app),
     /// one that loads a seed (F75). Not a TOTP code's, nor a copy
@@ -499,6 +609,16 @@ impl Faraday {
             })
     }
 
+    /// Ctrl+V: the scanner's Paste where a scanner is up, else Paste words
+    /// where the words form has the keyboard (not its passphrase).
+    pub(crate) fn paste(&mut self) {
+        if self.scan_pastes() {
+            self.scan_paste();
+        } else if !self.entry.state().on_passphrase {
+            self.entry_paste();
+        }
+    }
+
     /// Paste on the scanner: the shell is asked for the clipboard's text,
     /// where it has a clipboard.
     pub(crate) fn scan_paste(&mut self) {
@@ -517,7 +637,7 @@ impl Faraday {
     /// its words, SeedQR digits and shares as typed or scanned (F75); the
     /// words go on as one space between each, in lower case.
     pub(crate) fn pasted(&mut self, text: zeroize::Zeroizing<String>) {
-        if self.explore_pasted(&text) || !self.scan_pastes() {
+        if self.entry_pasted(&text) || self.explore_pasted(&text) || !self.scan_pastes() {
             return;
         }
         let c = self.compute();

@@ -503,8 +503,9 @@ The comparison that led here: moved to `docs/history/QR-LOG.md`.
    through the platform's own tool (`wl-paste`, `xclip`, `pbpaste`; the
    Windows API on Windows; `docs/deps/clipboard.md`), run only on a press,
    and sets `Faraday::clipboard`. Ctrl+V (Command+V on macOS) is
-   `Key::Paste` and does what the tile does; it does nothing where the
-   tile is dimmed or the scanner is closed.
+   `Key::Paste` and does what the tile does; with the scanner closed it
+   is Paste words where the words form has the keyboard (F75), and
+   nothing anywhere else.
 6. **Camera failures.** If no frame arrives `NO_PICTURE_MS` (6 s) after
    the sheet opens, the square says "The camera sends no picture". A
    frame arriving later clears it. Every Linux shell skips a frame the

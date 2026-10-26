@@ -2884,6 +2884,7 @@ impl Faraday {
             }
             Action::Osk(p) => self.osk_press(p),
             a @ (Action::ScanPaste
+            | Action::PasteWords
             | Action::ScanCamera(..)
             | Action::ScanPart
             | Action::ScanSeed
@@ -5960,10 +5961,9 @@ impl Faraday {
         if self.selftest_failed() {
             return;
         }
-        // Ctrl+V is the scanner's Paste, and nothing anywhere else.
+        // Ctrl+V is the scanner's Paste, or Paste words on the words form.
         if key == KeyIn::Paste {
-            self.scan_paste();
-            return;
+            return self.paste();
         }
         if self.keygen_walk_key(key) || self.scroll_key(key) {
             return;

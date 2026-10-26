@@ -322,6 +322,7 @@ Practice's alone (`Faraday::roller_offered`).
 |---|---|---|
 | Add a key (and the Spend tab's Type the words) | **Use a sample** | Puts a public sample in place of the person's own key |
 | Add a key | **Use faraday** for the BIP-39 passphrase | Practice's public passphrase (§5.4) |
+| Add a key's words, a Restore slot's, New key's typed key | **Paste words** (Ctrl+V on Testnet too) | A whole key's words from the clipboard, checked as typed (F75) |
 | New key, a typed key | **Use a sample** | As Add a key |
 | New key, the Key card | **Use faraday** for the passphrase and its repeat; the line "Lock in adds sample … in place of these words" | The public passphrase; the line says Practice replaces the key made (§5.1) |
 | New key, the dice entry | The dice roller, "Rolled by this computer" | The computer's dice stand in for the person's own (F96) |

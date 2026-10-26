@@ -780,6 +780,9 @@ pub(crate) fn entry_words(app: &View, ui: &mut Ui, x: f32, y: f32, iw: f32, page
             app.entry_sample_shown().then_some(EN.use_a_sample),
         ),
     );
+    if app.entry_paste_offered() {
+        ui.demo_offer(EN.paste_words, Action::PasteWords);
+    }
     // The words taken, as many boxes as the count chosen.
     y += 6.0;
     y += heading(ui, x, y, EN.compact_words);

@@ -7982,6 +7982,12 @@ strings! {
     /// Button in the "Demo only" card of Check my copy, its grid empty:
     /// it types the sample's words.
     fill_words: "Fill words",
+    /// Button in Faraday Demo's strip, Practice section, while Add a key's
+    /// words form is on screen: the clipboard's words go into it whole.
+    paste_words: "Paste words",
+    /// Refusal on the words form: the words pasted are not as many as a
+    /// key has. `{}`: how many were pasted.
+    paste_words_count: "{} words pasted. A key has 12, 15, 18, 21 or 24",
     /// The scanner's tile, and the step's button, that hands over the
     /// sample transaction.
     scan_sample_psbt: "Load sample PSBT",

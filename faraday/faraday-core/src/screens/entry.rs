@@ -178,6 +178,9 @@ pub(crate) fn entry_words(
         );
     }
     if let Some(w) = app.entry.state().keys.as_deref() {
+        if app.entry_paste_offered() {
+            ui.demo_offer(EN.paste_words, Action::PasteWords);
+        }
         y += button_rows(ui, x, y, width, &langs);
         return keyed_words(app, w, ui, x, y, width, h);
     }
@@ -193,10 +196,13 @@ pub(crate) fn entry_words(
 
     let words: Vec<&str> = app.entry.state().typed.split_whitespace().collect();
     y += word_count_row(app, ui, x, y, width, true);
-    // Use a sample goes in the "Demo only" card while the grid is empty
-    // (`docs/DEMO.md` §14).
+    // Use a sample goes in the host's strip while the grid is empty, and
+    // Paste words while it is on screen (`docs/DESKTOP-HOST.md` §3.1).
     if app.entry_sample_shown() {
         crate::samples::put::offer(ui, Action::UseSample);
+    }
+    if app.entry_paste_offered() {
+        ui.demo_offer(EN.paste_words, Action::PasteWords);
     }
     let grid = (y, app.entry.state().word_boxes(words.len()));
     y = typed_cells(

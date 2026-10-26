@@ -585,6 +585,15 @@ impl WordEntry {
         true
     }
 
+    /// Takes the list's word `index` as the next word, as a press on its
+    /// pill does: for words pasted whole, each already checked against
+    /// the list. Does nothing once the entry holds as many as it can.
+    pub(crate) fn put(&mut self, index: u16) {
+        if self.committed() < ENTRY_WORDS {
+            self.commit(index);
+        }
+    }
+
     fn commit(&mut self, index: u16) {
         self.words[self.committed()] = index;
         self.committed += 1;

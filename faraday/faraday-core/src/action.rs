@@ -577,6 +577,9 @@ pub enum Action {
     ScanCamera(u8),
     /// The scanner's Paste: the clipboard's text, read as a QR.
     ScanPaste,
+    /// Paste words, on Faraday Demo: the clipboard's text as the whole of
+    /// the words form's words (F75).
+    PasteWords,
     /// Open the Learn pages for the screen on show.
     Learn,
     /// The docked keyboard of a small panel.

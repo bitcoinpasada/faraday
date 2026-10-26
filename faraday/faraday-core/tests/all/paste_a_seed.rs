@@ -2,14 +2,19 @@
 //! seed takes its words, SeedQR digits or shares from the clipboard and
 //! loads the key a scan or typing would; a scanner that takes no seed
 //! still refuses one; and a shell with no clipboard shows no Paste there.
+//! Off Mainnet, Add a key's words form takes a whole key's words pasted
+//! (Paste words in the strip in Practice, Ctrl+V), checked as typed words
+//! are, and the device takes none.
 
 use std::str::FromStr;
 
+use crate::common::strip_offers;
 use crate::common::type_text;
 use faraday_bip::bitcoin::bip32::Xpriv;
 use faraday_bip::bitcoin::secp256k1::Secp256k1;
 use faraday_core::seeds::read::Choice;
-use faraday_core::{Action, Faraday, Sheet, StorageEvent, testkit};
+use faraday_core::wallet::Session;
+use faraday_core::{Action, DESKTOP_MODES, Faraday, Sheet, StorageEvent, testkit};
 use faraday_shell_api::{App, Command, Event, FileKind, Key};
 
 /// The BIP-39 reference vectors (passphrase "TREZOR"): the 12- and 24-word
@@ -251,4 +256,153 @@ fn a_shell_with_no_clipboard_shows_no_paste_on_the_seed_scanner() {
             .any(|c| matches!(c, Command::RequestClipboard { .. }));
         assert_eq!(asked, clipboard, "Ctrl+V asked for the clipboard: {asked}");
     }
+}
+
+/// Faraday Demo on Testnet, its clipboard read by Paste, Add a key open.
+fn demo_on_testnet() -> Faraday {
+    let mut app = desktop();
+    app.online = true;
+    app.session = Session::on(testkit::NET);
+    app.set_modes(DESKTOP_MODES);
+    app.press(Action::Entry(None));
+    let _ = app.frame();
+    app
+}
+
+/// Paste words pressed (or Ctrl+V) on the words form, and the clipboard
+/// holding `text`. Returns whether the shell was asked for it.
+fn paste_words(app: &mut Faraday, text: &str, ctrl_v: bool) -> bool {
+    if ctrl_v {
+        app.event(Event::Key(Key::Paste));
+    } else {
+        app.press(Action::PasteWords);
+    }
+    let asked = std::iter::from_fn(|| app.poll_command())
+        .any(|c| matches!(c, Command::RequestClipboard { .. }));
+    app.event(Event::Clipboard {
+        kind: FileKind::Text,
+        text: text.to_string(),
+    });
+    let _ = app.frame();
+    asked
+}
+
+fn words_in(app: &Faraday) -> String {
+    testkit::entry(app).typed.trim().to_string()
+}
+
+/// The key Add key loads from what the words form holds.
+fn added(app: &mut Faraday) -> [u8; 4] {
+    app.press(Action::EntryAdd);
+    assert_eq!(
+        app.session.keys.len(),
+        1,
+        "no key loaded: {:?}",
+        testkit::entry(app).error
+    );
+    app.session.keys[0].fingerprint.0
+}
+
+#[test]
+fn twelve_and_twenty_four_words_pasted_fill_the_words_and_load_the_key_typing_them_loads() {
+    for (k, (words, _)) in VECTORS.into_iter().enumerate() {
+        let mut pasted = demo_on_testnet();
+        assert!(paste_words(&mut pasted, words, k == 1), "{words}");
+        assert_eq!(words_in(&pasted), words);
+        assert_eq!(
+            usize::from(testkit::entry(&pasted).word_count),
+            words.split(' ').count()
+        );
+        let mut typed = demo_on_testnet();
+        type_text(&mut typed, words);
+        assert_eq!(words_in(&typed), words);
+        assert_eq!(added(&mut pasted), added(&mut typed), "{words}");
+    }
+}
+
+#[test]
+fn words_pasted_in_capitals_across_lines_and_tabs_fill_the_words_as_typed() {
+    let (words, _) = VECTORS[1];
+    let messy = format!(
+        "\t {}\r\n",
+        words
+            .to_uppercase()
+            .replacen(' ', "\n", 7)
+            .replacen(' ', "\t", 3)
+    );
+    let mut app = demo_on_testnet();
+    paste_words(&mut app, &messy, true);
+    assert_eq!(words_in(&app), words);
+}
+
+#[test]
+fn a_wrong_checksum_an_unknown_word_or_a_wrong_count_pasted_is_refused_and_the_words_stay() {
+    let (twelve, _) = VECTORS[0];
+    let checksum = twelve.replace("about", "abandon");
+    let unknown = twelve.replacen("abandon", "faraday", 1);
+    let thirteen = format!("{twelve} about");
+    let eleven = twelve.replacen("abandon ", "", 1);
+    for (bad, why) in [
+        (checksum.as_str(), "checksum"),
+        (unknown.as_str(), "Word 1 is not on the English list"),
+        (thirteen.as_str(), "13 words pasted"),
+        (eleven.as_str(), "11 words pasted"),
+        ("   ", "Nothing to paste"),
+    ] {
+        let mut app = demo_on_testnet();
+        type_text(&mut app, "zoo ab");
+        let before = words_in(&app);
+        paste_words(&mut app, bad, false);
+        assert_eq!(words_in(&app), before, "{bad}");
+        let error = testkit::entry(&app).error.clone().unwrap_or_default();
+        assert!(
+            error.to_lowercase().contains(&why.to_lowercase()),
+            "{bad}: {error}"
+        );
+        app.press(Action::EntryAdd);
+        assert!(app.session.keys.is_empty(), "{bad} loaded a key");
+    }
+}
+
+#[test]
+fn the_device_takes_no_words_pasted_on_any_network() {
+    for testnet in [false, true] {
+        let mut app = testkit::started();
+        if testnet {
+            app.session = Session::on(testkit::NET);
+        }
+        app.press(Action::Entry(None));
+        let _ = app.frame();
+        assert!(!app.entry_pastes());
+        let (words, _) = VECTORS[0];
+        for ctrl_v in [false, true] {
+            assert!(!paste_words(&mut app, words, ctrl_v), "the shell was asked");
+        }
+        assert_eq!(words_in(&app), "", "words went in");
+        assert!(!strip_offers(&mut app, Action::PasteWords));
+    }
+}
+
+#[test]
+fn paste_words_is_in_practices_strip_and_a_sample_pasted_loads() {
+    let mut app = desktop();
+    app.online = true;
+    testkit::into_demo(&mut app);
+    app.set_modes(DESKTOP_MODES);
+    app.press(Action::Entry(None));
+    let _ = app.frame();
+    assert!(strip_offers(&mut app, Action::PasteWords));
+    let zebra = testkit::test_words("zebra");
+    assert!(paste_words(&mut app, &zebra, false));
+    assert_eq!(words_in(&app), zebra);
+    added(&mut app);
+}
+
+#[test]
+fn on_testnet_the_strip_has_no_paste_words_and_ctrl_v_pastes() {
+    let mut app = demo_on_testnet();
+    assert!(!strip_offers(&mut app, Action::PasteWords));
+    let (words, _) = VECTORS[0];
+    assert!(paste_words(&mut app, words, true));
+    assert_eq!(words_in(&app), words);
 }
