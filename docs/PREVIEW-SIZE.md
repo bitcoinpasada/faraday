@@ -43,7 +43,7 @@ the navigation (LAYOUT §3), one column or two, and on the Pi size the
 on-screen keyboard rising by itself where a field takes typing. No
 screen knows it is previewed.
 
-The frame is drawn centred in the dark space above the strip with a
+The frame is drawn centred in the host's space above the strip with a
 pixel-wide edge, at the window's own pixels where it fits inside a
 24 dp margin, and scaled down to fit where the window is smaller (each
 window pixel the average of the frame's pixels it covers;

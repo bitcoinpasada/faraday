@@ -16,6 +16,10 @@ use faraday_ui::keyboard::OskPress;
 /// The Pi panel's size in dp, as the Size menu lists it.
 const PI: (u16, u16) = (268, 358);
 
+/// The strip's height at rest in the tests' windows, 160 dpi: a pixel
+/// a dp.
+const STRIP: i32 = faraday_draw::tokens::HOST_STRIP_H as i32;
+
 fn display(w: u16, h: u16) -> Event {
     Event::Display(DisplayInfo {
         width: w,
@@ -154,7 +158,7 @@ fn in_demo_the_strip_holds_the_sticks_samples_and_size_and_the_app_none_of_them(
     assert!(!s.iter().any(|x| x == "Practice"), "no aid on Home: {s:?}");
     // The app is the window less the strip, at its top left; the mode
     // pill stays in it, as the device has it.
-    assert_eq!(host.app_area(), Some((0, 0, 1280, 800 - 56)));
+    assert_eq!(host.app_area(), Some((0, 0, 1280, 800 - STRIP)));
     assert!(
         app_texts(&mut host)
             .iter()
@@ -241,7 +245,7 @@ fn size_shows_the_pi_panel_framed_above_the_strip_and_a_press_inside_reaches_it(
     let (x, y, w, h) = host.app_area().expect("the frame");
     assert_eq!((w, h), (268, 358));
     assert_eq!(x, (1280 - 268) / 2);
-    assert!(y + h <= 800 - 56, "above the strip: {y} + {h}");
+    assert!(y + h <= 800 - STRIP, "above the strip: {y} + {h}");
     app_holds_no_host_item(&mut host);
     // Vaults' tile, pressed where the window shows it.
     let (fx, fy) = host
@@ -256,7 +260,7 @@ fn size_shows_the_pi_panel_framed_above_the_strip_and_a_press_inside_reaches_it(
     // Back to the window's own size.
     click(&mut host, HostPress::Menu(HostMenu::Size));
     click(&mut host, HostPress::Size(None));
-    assert_eq!(host.app_area(), Some((0, 0, 1280, 800 - 56)));
+    assert_eq!(host.app_area(), Some((0, 0, 1280, 800 - STRIP)));
 }
 
 #[test]
@@ -401,7 +405,10 @@ fn the_dice_roller_stands_in_the_strip_on_new_keys_dice_and_rolls_from_there() {
     let (_, ay, _, ah) = host.app_area().unwrap();
     assert!(i32::from(at.1) > ay + ah, "under the app: {at:?}");
     // The strip grows to the roller's row; the app is laid out above it.
-    assert!(ah < 800 - 56, "the strip taller than 56 dp: {ah}");
+    assert!(
+        ah < 800 - STRIP,
+        "the strip grown past its height at rest: {ah}"
+    );
     app_holds_no_host_item(&mut host);
     let texts = app_texts(&mut host);
     assert!(
@@ -548,7 +555,7 @@ fn samples_opens_the_hosts_sheet_above_the_strip_and_what_is_ticked_loads() {
     );
     // It stands above the strip, in This window over the app's foot.
     let (_, y, _, h) = host.sheet_area().expect("the sheet is drawn");
-    assert!(y >= 0 && y + h <= 800 - 56, "the sheet at {y}, {h} tall");
+    assert!(y >= 0 && y + h <= 800 - STRIP, "the sheet at {y}, {h} tall");
     // A tick keeps it open; Load ticked loads the key and closes it.
     let keys = host.app.session.keys.len();
     let i = first_offered(&mut host);
@@ -593,7 +600,10 @@ fn in_the_pi_preview_samples_sheet_stands_beside_the_frame_and_a_press_beside_it
         !overlap(frame, sheet),
         "the sheet {sheet:?} stands over the frame {frame:?}"
     );
-    assert!(sheet.1 + sheet.3 <= 800 - 56, "above the strip: {sheet:?}");
+    assert!(
+        sheet.1 + sheet.3 <= 800 - STRIP,
+        "above the strip: {sheet:?}"
+    );
     // A press on the sheet itself keeps it; one beside it, on the
     // frame, closes it and reaches nothing.
     let (x, y) = (sheet.0 + sheet.2 / 2, sheet.1 + 4);
@@ -680,4 +690,242 @@ fn the_strips_more_rows_are_offered_at_the_clocks_very_start() {
     for a in [Action::UseSample, Action::Samples] {
         assert!(offered.contains(&a), "More offers {a:?}: {offered:?}");
     }
+}
+
+/// The host's text, in the colour it was drawn in, against the pixels
+/// round it, for each line the frame now drawn writes at full strength.
+fn host_reads(host: &mut Host) -> Vec<(String, f64)> {
+    use super::fills_read::{over, ratio, under};
+    use faraday_draw::canvas::InkKind;
+    let (width, height, rgba) = {
+        let f = host.frame();
+        (i32::from(f.width), i32::from(f.height), f.rgba.to_vec())
+    };
+    host.ink()
+        .iter()
+        .filter_map(|i| match &i.kind {
+            InkKind::Text { text, color, .. } if color.a == 255 => {
+                let r = (i.rect.x, i.rect.y, i.rect.w, i.rect.h);
+                let bg = under(&rgba, width, height, r);
+                Some((text.clone(), ratio(over(*color, bg), bg)))
+            }
+            _ => None,
+        })
+        .collect()
+}
+
+/// The colour of the window's pixel (`x`, `y`) in the frame now drawn.
+fn pixel(host: &mut Host, x: i32, y: i32) -> faraday_draw::Color {
+    let f = host.frame();
+    let i = ((y * i32::from(f.width) + x) * 4) as usize;
+    faraday_draw::Color::rgb(f.rgba[i], f.rgba[i + 1], f.rgba[i + 2])
+}
+
+#[test]
+fn the_hosts_colours_follow_the_apps_theme_in_stark_contrast_to_it() {
+    use super::fills_read::{luminance, ratio};
+    use faraday_ui::pal::Role;
+    use faraday_ui::{Mode, Theme};
+    let mut shell = Shell::default();
+    let mut host = desktop(&mut shell, 1, true, (1280, 800));
+    let mut seen = Vec::new();
+    for theme in Theme::all() {
+        host.app.press(Action::Theme(theme));
+        // The strip's own surface at its left end, by the window's foot.
+        let strip = pixel(&mut host, 1, 800 - 2);
+        let app = theme.role(Role::Surface);
+        assert_eq!(strip, theme.role(Role::InverseSurface), "{theme:?}");
+        // A light app has a dark host, a dark app a light one: apart at
+        // a glance.
+        let dark_host = luminance(strip) < luminance(app);
+        assert_eq!(dark_host, theme.mode == Mode::Light, "{theme:?}");
+        let got = ratio(strip, app);
+        assert!(got >= 3.0, "{theme:?}: the strip on the app {got:.2}:1");
+        seen.push(strip);
+    }
+    seen.sort_by_key(|c| (c.r, c.g, c.b));
+    seen.dedup();
+    assert!(seen.len() >= 6, "the strip follows the theme: {seen:?}");
+    // The space round a preview's frame too.
+    click(&mut host, HostPress::Menu(HostMenu::Size));
+    click(&mut host, HostPress::Size(Some(PI)));
+    for theme in Theme::all() {
+        host.app.press(Action::Theme(theme));
+        let round = pixel(&mut host, 2, 2);
+        let got = ratio(round, theme.role(Role::Surface));
+        assert!(got >= 3.0, "{theme:?}: round the frame {got:.2}:1");
+    }
+}
+
+#[test]
+fn what_the_host_writes_reads_on_its_fill_in_every_scheme() {
+    use faraday_ui::Theme;
+    let mut short = Vec::new();
+    let mut scenes: Vec<(&str, Host)> = Vec::new();
+    // Home: the stick pills, Samples, Size.
+    let mut shell = Shell::default();
+    scenes.push(("Home", desktop(&mut shell, 2, true, (1280, 800))));
+    // The Size menu open, its sizes and the size shown checked.
+    let mut shell = Shell::default();
+    let mut menu = desktop(&mut shell, 1, true, (1280, 800));
+    menu.open_menu_at_rest(HostMenu::Size);
+    scenes.push(("the Size menu", menu));
+    // Samples' sheet, a stick in, asking for it out.
+    let mut shell = Shell::default();
+    let mut sheet = desktop(&mut shell, 1, true, (1280, 800));
+    sheet.open_menu_at_rest(HostMenu::Samples);
+    scenes.push(("Samples' sheet", sheet));
+    // Add a key: the aids' section with its buttons and lines.
+    let mut shell = Shell::default();
+    let mut add = desktop(&mut shell, 0, true, (1280, 800));
+    add.app.press(Action::Entry(None));
+    scenes.push(("Add a key", add));
+    // New key's dice: the die, and Roll the section's main press.
+    let mut shell = Shell::default();
+    let mut dice = desktop(&mut shell, 0, true, (1280, 800));
+    dice.app.press(Action::KeyGen(None));
+    dice.app.press(Action::KWords(12));
+    dice.app
+        .press(Action::KWay(faraday_core::keygen::Way::DiceHashed.index()));
+    dice.app.press(Action::KNext);
+    scenes.push(("New key's dice", dice));
+    for (name, host) in &mut scenes {
+        host.record_ink(true);
+        for theme in Theme::all() {
+            host.app.press(Action::Theme(theme));
+            let need = if theme.is_high_contrast() { 7.0 } else { 4.5 };
+            let read = host_reads(host);
+            assert!(!read.is_empty(), "{name}, {theme:?}: nothing written");
+            for (text, got) in read {
+                if got < need {
+                    short.push(format!("{name}, {theme:?}: {text:?} is {got:.2}:1"));
+                }
+            }
+        }
+    }
+    assert!(
+        short.is_empty(),
+        "{} short:\n{}",
+        short.len(),
+        short.join("\n")
+    );
+}
+
+/// A box in the window's pixels: its left and top edges, width, height.
+type Box4 = (i32, i32, i32, i32);
+
+/// Where the strip's always-there controls stand: the first stick's
+/// pill, or Sticks, and Size.
+fn ends(host: &Host) -> (Box4, Box4) {
+    let first = host
+        .offered_area(HostPress::App(Action::StickPill(1)))
+        .or_else(|| host.offered_area(HostPress::Menu(HostMenu::Sticks)))
+        .expect("a stick's pill");
+    let size = host
+        .offered_area(HostPress::Menu(HostMenu::Size))
+        .expect("Size");
+    (first, size)
+}
+
+#[test]
+fn the_strips_controls_are_centred_in_the_window() {
+    for (w, h) in [(1280u16, 800u16), (1920, 1080)] {
+        let mut shell = Shell::default();
+        let mut host = desktop(&mut shell, 2, true, (w, h));
+        let _ = host.frame();
+        let ((x, ..), (sx, _, sw, _)) = ends(&host);
+        let (left, right) = (x, i32::from(w) - (sx + sw));
+        assert!(left > 100, "{w}: the row starts at {x}");
+        assert!((left - right).abs() <= 1, "{w}: {left} left, {right} right");
+    }
+}
+
+#[test]
+fn the_strips_controls_are_48_dp_tall_whatever_the_window_and_the_preview() {
+    let windows = [
+        (1280u16, 800u16),
+        (1920, 1080),
+        (2560, 1440),
+        (960, 1080),
+        (390, 844),
+    ];
+    for (w, h) in windows {
+        let mut at_window = None;
+        for preview in [None, Some(PI)] {
+            let mut shell = Shell::default();
+            let mut host = desktop(&mut shell, 2, true, (w, h));
+            host.set_preview(preview);
+            let _ = host.frame();
+            let (first, size) = ends(&host);
+            for (x, _, cw, ch) in [first, size] {
+                assert!(ch >= 48, "{w}x{h} {preview:?}: a control {ch} tall");
+                assert!(x >= 0 && x + cw <= i32::from(w), "{w}x{h}: at {x}");
+            }
+            // The Pi previewed keeps the strip the window gives.
+            let strip = (host.strip_area(), first.3, size.3);
+            match at_window {
+                None => at_window = Some(strip),
+                Some(s) => assert_eq!(s, strip, "{w}x{h}: the Pi preview's strip"),
+            }
+        }
+    }
+}
+
+/// Add a key in Practice in a window `w` × `h`, two sticks known: the
+/// strip's end is Practice's More.
+fn add_a_key_at(shell: &mut Shell, (w, h): (u16, u16)) -> Host {
+    let mut host = desktop(shell, 2, true, (w, h));
+    host.app.press(Action::Entry(None));
+    let _ = host.frame();
+    host
+}
+
+#[test]
+fn at_a_phone_width_the_strip_scrolls_sideways_and_its_end_is_reached() {
+    let more = HostPress::Menu(HostMenu::More);
+    let sticks = HostPress::Menu(HostMenu::Sticks);
+    // Phone portrait: the strip's row, folded, fits inside the margins.
+    let mut shell = Shell::default();
+    let host = add_a_key_at(&mut shell, (390, 844));
+    let (sx, ..) = host.offered_area(sticks).expect("Sticks");
+    let (mx, _, mw, _) = host.offered_area(more).expect("More");
+    assert!(sx > 16 && mx + mw < 390 - 16, "inside: {sx}, {mx} {mw}");
+    // Narrower still, the row is wider than the window less its margins:
+    // it starts at the margin and the wheel over it scrolls it sideways,
+    // its controls 48 dp tall all the while.
+    let mut shell = Shell::default();
+    let mut host = add_a_key_at(&mut shell, (268, 600));
+    let (x0, y, _, ch) = host.offered_area(sticks).expect("Sticks");
+    assert_eq!((x0, ch), (16, 48), "from the margin, 48 dp tall");
+    let (m0, ..) = host.offered_area(more).expect("More");
+    for _ in 0..10 {
+        host.event(Event::Wheel {
+            x: 10,
+            y: y as u16 + 4,
+            dy: 120,
+        });
+    }
+    let _ = host.frame();
+    let (m1, _, mw, _) = host.offered_area(more).expect("More");
+    assert!(m1 < m0, "the row scrolled: More from {m0} to {m1}");
+    assert!(m1 >= 16 && m1 + mw <= 268 - 16, "More whole at {m1}");
+    click(&mut host, more);
+    assert_eq!(host.menu_open(), Some(HostMenu::More));
+    // A finger drags it back; the press it began on presses nothing.
+    let mut shell = Shell::default();
+    let mut host = add_a_key_at(&mut shell, (268, 600));
+    let (m0, my, ..) = host.offered_area(more).expect("More");
+    let (fx, fy) = ((m0 + 4) as u16, (my + 4) as u16);
+    host.event(Event::Touch {
+        x: fx,
+        y: fy,
+        phase: TouchPhase::Down,
+    });
+    for (x, phase) in [(fx - 30, TouchPhase::Move), (fx - 30, TouchPhase::Up)] {
+        host.event(Event::Touch { x, y: fy, phase });
+    }
+    let _ = host.frame();
+    let (m1, ..) = host.offered_area(more).expect("More");
+    assert!(m1 < m0, "dragged: More from {m0} to {m1}");
+    assert_eq!(host.menu_open(), None, "the drag opened nothing");
 }

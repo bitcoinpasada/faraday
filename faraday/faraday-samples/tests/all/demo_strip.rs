@@ -284,9 +284,10 @@ fn the_aids_stand_in_the_strip_at_the_windows_foot() {
         let (x, y) = host
             .where_offered(HostPress::App(Action::UseSample))
             .expect("Use a sample in the strip");
+        let (_, top, _, sh) = host.strip_area().expect("the strip");
         assert!(
-            i32::from(y) > i32::from(h) - 56,
-            "{w}: Use a sample at {y}, in the 56 dp strip at the foot"
+            i32::from(y) > top && top + sh == i32::from(h),
+            "{w}: Use a sample at {y}, in the strip at the foot from {top}"
         );
         assert!(x < w, "{w}: inside the window");
     }

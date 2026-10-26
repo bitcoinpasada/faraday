@@ -1,18 +1,21 @@
 //! The host's strip and menus (`docs/DESKTOP-HOST.md` §2, §3), drawn in
-//! the host's own look: the dark surface round a preview's frame, small
-//! type, outlined controls in light ink, never the app's surface, colours
-//! or components. Left to right: the stick pills (the boot stick first;
-//! "Sticks · N" holding those that do not fit), Samples, Size, then the
-//! screen's demo aids under "Practice", those with no room in More. Drawing
-//! reads the app's state and what its last frame noted; it works nothing
-//! out but where a control goes.
+//! the host's own look: the app's theme turned inside out (Material's
+//! inverse roles, and the opposite mode's scheme for what stands on them),
+//! so a light app has a dark host and a dark app a light one; never the
+//! app's surface or its components. The always-there controls first (the
+//! stick pills, the boot stick first and "Sticks · N" holding those that
+//! do not fit; Samples; Size), then the screen's demo aids in a section of
+//! their own colour under "Practice", those with no room in More; the
+//! whole row centred, scrolling sideways where even folded it is wider
+//! than the window. Drawing reads the app's state and what its last frame
+//! noted; it works nothing out but where a control goes.
 
 use faraday_draw::Color;
 use faraday_draw::geom::Rect;
 use faraday_draw::tokens as t;
 use faraday_draw::widgets::Icon;
-use faraday_ui::W;
 use faraday_ui::demo::DemoItem;
+use faraday_ui::{Mode, Role, Theme, W};
 
 use super::{Area, Host, HostMenu as Menu, HostPress};
 use crate::fresh::roller::Act as DieAct;
@@ -20,32 +23,96 @@ use crate::samples::{PASSPHRASE, Pick, Roller};
 use crate::strings::{EN, fill};
 use crate::{Action, Faraday};
 
-/// The dark space round a preview's frame: the window's own.
-pub(crate) const SURROUND: Color = Color::rgb(0x11, 0x16, 0x1c);
-/// The strip's surface, a shade darker than the space above it.
-const STRIP: Color = Color::rgb(0x0b, 0x0f, 0x14);
-/// The rule along the strip's top and between its groups.
-const RULE: Color = Color::rgb(0x2a, 0x33, 0x3d);
-/// A control's outline, and the preview frame's edge.
-const EDGE: Color = Color::rgb(0x3a, 0x46, 0x52);
-/// Text and icons.
-const INK: Color = Color::rgb(0xd5, 0xdc, 0xe4);
-/// Secondary text: a menu row's size, the demo's lines.
-const INK_DIM: Color = Color::rgb(0x8b, 0x96, 0xa3);
-/// A control that takes no press now.
-const INK_OFF: Color = Color::rgb(0x55, 0x60, 0x6c);
-/// A menu's surface, raised over the strip and the frame.
-const RAISED: Color = Color::rgb(0x1a, 0x21, 0x29);
-/// Hovered: a light state layer.
-const HOVER: Color = Color::rgba(255, 255, 255, 20);
-/// Pressed: a stronger state layer.
-const PRESS: Color = Color::rgba(255, 255, 255, 40);
-/// A stick that is in.
-const STICK_IN: Color = Color::rgb(0x3f, 0xb9, 0x50);
-/// A stick that is out.
-const STICK_OUT: Color = Color::rgb(0x6e, 0x76, 0x81);
-/// The demo's mark: its head and a stick the flow asks for.
-const DEMO: Color = Color::rgb(0xd2, 0x99, 0x22);
+/// The host's colours for the app's scheme: the strip in the app's
+/// inverse roles, and what stands on it, round it and over it in the
+/// scheme of the app's theme in the opposite mode at the same contrast
+/// level, so each pair is one Material made to read.
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct Look {
+    /// The opposite mode's scheme: the computer's die is drawn in it.
+    pub theme: Theme,
+    /// The space round a preview's frame: that scheme's surface.
+    pub surround: Color,
+    /// The strip: the app's inverse surface.
+    strip: Color,
+    /// The strip's text and outlines' ink: the app's inverse on-surface.
+    ink: Color,
+    /// A control whose menu is open: the app's inverse primary, its
+    /// label in the strip's own colour.
+    accent: Color,
+    /// A control's outline on the strip, and the preview frame's edge.
+    edge: Color,
+    /// The section of the screen's own aids: a tertiary container.
+    section: Color,
+    /// Text and outlines in that section.
+    on_section: Color,
+    /// The step's main press in that section: tertiary.
+    section_main: Color,
+    /// Its label: on-tertiary.
+    on_section_main: Color,
+    /// A menu's or Samples' sheet's surface, raised over the strip:
+    /// Material's surface container.
+    raised: Color,
+    /// Text on it.
+    on_raised: Color,
+    /// Secondary text on it: a heading, a size, a sample's kind.
+    on_raised_dim: Color,
+    /// A menu's and the sheet's edge, and the rule over the sheet's foot.
+    rule: Color,
+    /// The sheet's main press and a tick: primary.
+    main: Color,
+    /// Its label and the tick's check: on-primary.
+    on_main: Color,
+    /// A stick that is in: the OK colour.
+    stick_in: Color,
+    /// A stick that is out: the outline.
+    stick_out: Color,
+    /// A stick the flow asks for, and the sheet's line asking for one out.
+    caution: Color,
+}
+
+impl Look {
+    /// The host's colours for the app's scheme `app`. A lookup.
+    pub(crate) fn of(app: Theme) -> Look {
+        let mode = match app.mode {
+            Mode::Light => Mode::Dark,
+            Mode::Dark => Mode::Light,
+        };
+        let h = Theme::new(app.name, mode, app.contrast);
+        Look {
+            theme: h,
+            surround: h.role(Role::Surface),
+            strip: app.role(Role::InverseSurface),
+            ink: app.role(Role::InverseOnSurface),
+            accent: app.role(Role::InversePrimary),
+            edge: h.role(Role::Outline),
+            section: h.role(Role::TertiaryContainer),
+            on_section: h.role(Role::OnTertiaryContainer),
+            section_main: h.role(Role::Tertiary),
+            on_section_main: h.role(Role::OnTertiary),
+            raised: h.role(Role::SurfaceContainer),
+            on_raised: h.role(Role::OnSurface),
+            on_raised_dim: h.role(Role::OnSurfaceVariant),
+            rule: h.role(Role::OutlineVariant),
+            main: h.role(Role::Primary),
+            on_main: h.role(Role::OnPrimary),
+            stick_in: h.role(Role::Ok),
+            stick_out: h.role(Role::Outline),
+            caution: h.role(Role::Warning),
+        }
+    }
+
+    /// The host's colours for the app as it stands. A lookup.
+    pub(crate) fn now(host: &Host) -> Look {
+        Look::of(host.app.theme())
+    }
+}
+
+/// `ink` at `opacity`: Material's state layer, or what is not available
+/// now.
+fn layer(ink: Color, opacity: f32) -> Color {
+    ink.with_alpha(t::alpha_of(opacity))
+}
 
 type HostUi<'a> = faraday_ui::Ui<'a, HostPress>;
 
@@ -73,12 +140,14 @@ struct Ctl {
     kind: Kind,
 }
 
-/// The padding each side of a control's label.
-const CTL_PAD: f32 = t::GAP + t::GAP_SMALL;
+/// The padding each side of a control's label: Material's button's.
+const CTL_PAD: f32 = t::PAD;
 /// The room a stick's dot takes before its label.
 const DOT_ROOM: f32 = t::GAP + t::GAP_SMALL;
 /// The room a menu's chevron takes after its label.
 const CHEVRON_ROOM: f32 = t::ICON_SMALL;
+/// The room inside the aids' section at either end.
+const SECTION_PAD: f32 = t::GAP;
 
 fn ctl_w(ui: &HostUi, c: &Ctl) -> f32 {
     let extra = match c.kind {
@@ -86,7 +155,7 @@ fn ctl_w(ui: &HostUi, c: &Ctl) -> f32 {
         Kind::Opens(_) => CHEVRON_ROOM,
         _ => 0.0,
     };
-    ui.measure(t::CAPTION, W::S, &c.label) + 2.0 * CTL_PAD + extra
+    ui.measure(t::HOST_LABEL, W::S, &c.label) + 2.0 * CTL_PAD + extra
 }
 
 /// The stick pills' controls: every stick with its state, the boot stick
@@ -274,8 +343,8 @@ fn size_name(preview: Option<(u16, u16)>) -> &'static str {
 struct Fitted {
     sticks: Vec<Ctl>,
     right: Vec<Ctl>,
-    /// "Practice" heads the aids, the die after it, rules between the
-    /// groups; else none, and More reads "Practice".
+    /// "Practice" heads the aids, the die after it; else none, and More
+    /// reads "Practice".
     head: bool,
     demo: Vec<Ctl>,
     demo_more: Vec<Ctl>,
@@ -331,9 +400,10 @@ fn demo_ctls(app: &Faraday) -> (Vec<Ctl>, Vec<String>) {
 /// Costs a text measure per control. Fits the strip's controls in `room`,
 /// the die taking `die_w` before the aids: every stick and every aid
 /// where all fit; else the sticks fold into "Sticks · N" after the boot
-/// stick and as many as fit; then the aids that do not fit go into More;
-/// then the sticks stand as "Sticks · N" alone; narrowest, Size by its
-/// name alone and Samples in More.
+/// stick and as many as fit; then Size reads "Size" alone; then the aids
+/// that do not fit go into More, the step's main press staying; then the
+/// sticks stand as "Sticks · N" alone; then Samples joins More;
+/// narrowest, no "Practice" head and no die.
 fn fit(host: &Host, ui: &HostUi, room: f32, die_w: f32) -> Fitted {
     let app = &host.app;
     let all_sticks = sticks(app);
@@ -346,10 +416,11 @@ fn fit(host: &Host, ui: &HostUi, room: f32, die_w: f32) -> Fitted {
     let (mut demo, lines) = demo_ctls(app);
     let more_ctl = more_ctl(true);
     let sum = |v: &[Ctl]| -> f32 { v.iter().map(|c| ctl_w(ui, c) + t::GAP).sum() };
-    let divider = 2.0 * t::GAP + 1.0;
+    // The section's own room at its ends.
+    let divider = 2.0 * SECTION_PAD;
     let head = |any: bool| {
         if any {
-            divider + ui.measure(t::CAPTION, W::S, EN.host_demo) + t::GAP + die_w
+            divider + ui.measure(t::HOST_LABEL, W::S, EN.host_demo) + t::GAP + die_w
         } else {
             0.0
         }
@@ -358,7 +429,7 @@ fn fit(host: &Host, ui: &HostUi, room: f32, die_w: f32) -> Fitted {
     let n = all_sticks.len();
     let any_aid = !demo.is_empty() || die_w > 0.0;
     let mut right: Vec<Ctl> = samples.iter().cloned().chain([size(false)]).collect();
-    let fixed = |right: &[Ctl], any: bool| sum(right) + divider + head(any);
+    let fixed = |right: &[Ctl], any: bool| sum(right) + head(any);
     let demo_w = sum(&demo);
     // The sticks: all, else folded beside every aid.
     let mut shown = all_sticks.clone();
@@ -377,6 +448,11 @@ fn fit(host: &Host, ui: &HostUi, room: f32, die_w: f32) -> Fitted {
         kept.push(sticks_more(rest));
         shown = kept;
     }
+    // Then Size gives up its size's name, which its menu shows checked,
+    // before an aid leaves the strip.
+    if sum(&shown) + fixed(&right, any_aid) + demo_w > room {
+        right = samples.iter().cloned().chain([size(true)]).collect();
+    }
     // The aids that do not fit go into More; where even More does not
     // fit beside the folded sticks, the sticks stand as one pill, then
     // Size shortens and Samples joins More.
@@ -391,8 +467,8 @@ fn fit(host: &Host, ui: &HostUi, room: f32, die_w: f32) -> Fitted {
             right = vec![size(true)];
             demo_more.extend(samples.iter().cloned());
         }
-        // Narrowest: no "Practice" head, no die and no rules; the sticks'
-        // menu reads "Sticks" and More itself "Practice".
+        // Narrowest: no "Practice" head and no die; the sticks' menu
+        // reads "Sticks" and More itself "Practice".
         if sum(&shown) + fixed(&right, true) + more_w > room {
             head = false;
             if n > 0 {
@@ -403,22 +479,7 @@ fn fit(host: &Host, ui: &HostUi, room: f32, die_w: f32) -> Fitted {
             }
         }
         let left = room - sum(&shown) - fixed(&right, true);
-        let mut used = more_w;
-        let mut kept = Vec::new();
-        for c in demo {
-            let w = ctl_w(ui, &c) + t::GAP;
-            if demo_more
-                .iter()
-                .all(|m| m.press == HostPress::Menu(Menu::Samples))
-                && used + w <= left
-            {
-                used += w;
-                kept.push(c);
-            } else {
-                demo_more.push(c);
-            }
-        }
-        demo = kept;
+        demo = keep_aids(ui, demo, &mut demo_more, left, more_w);
     }
     Fitted {
         sticks: shown,
@@ -430,98 +491,310 @@ fn fit(host: &Host, ui: &HostUi, room: f32, die_w: f32) -> Fitted {
     }
 }
 
-/// What the host drew: what the strip's controls say, left to right, then
-/// the open menu's rows or Samples' sheet's texts; and Samples' sheet,
-/// where it stands in the window's pixels and the furthest its lists
-/// scroll, dp.
-pub(crate) type Drawn = (Vec<String>, Option<(Rect, f32)>);
+/// Costs a text measure per aid. The aids that stay in the strip in
+/// `left` dp, More's `more_w` counted: the step's main press (Next,
+/// Roll) first, then the others in their order while they fit; the rest
+/// go into `more`.
+fn keep_aids(ui: &HostUi, demo: Vec<Ctl>, more: &mut Vec<Ctl>, left: f32, more_w: f32) -> Vec<Ctl> {
+    let main = |c: &Ctl| c.kind == Kind::Primary;
+    let main_w: f32 = demo
+        .iter()
+        .filter(|c| main(c))
+        .map(|c| ctl_w(ui, c) + t::GAP)
+        .sum();
+    let mains_stay = more_w + main_w <= left;
+    let mut used = more_w + if mains_stay { main_w } else { 0.0 };
+    let mut open = more
+        .iter()
+        .all(|m| m.press == HostPress::Menu(Menu::Samples));
+    let mut kept = Vec::new();
+    for c in demo {
+        if mains_stay && main(&c) {
+            kept.push(c);
+            continue;
+        }
+        let w = ctl_w(ui, &c) + t::GAP;
+        if open && used + w <= left {
+            used += w;
+            kept.push(c);
+        } else {
+            open = false;
+            more.push(c);
+        }
+    }
+    kept
+}
+
+/// What the host drew.
+pub(crate) struct Drawn {
+    /// What the strip's controls say, left to right, then the open menu's
+    /// rows or Samples' sheet's texts.
+    pub labels: Vec<String>,
+    /// Samples' sheet: where it stands in the window's pixels and the
+    /// furthest its lists scroll, dp.
+    pub sheet: Option<(Rect, f32)>,
+    /// The furthest the strip's row scrolls sideways, dp: 0 where it fits.
+    pub strip_max: f32,
+}
+
+/// One piece of the strip's row.
+enum Piece<'a> {
+    /// A control.
+    Ctl(&'a Ctl),
+    /// "Practice", heading the section.
+    Head,
+    /// The computer's die.
+    Die(Roller),
+    /// What Practice puts in place of the person's own, cut to fit.
+    Lines(String),
+}
+
+/// The row as it is laid out: the always-there controls, then the aids'
+/// section where there is one.
+struct Row<'a> {
+    always: Vec<Piece<'a>>,
+    section: Vec<Piece<'a>>,
+}
+
+/// A piece's width. A text measure.
+fn piece_w(ui: &HostUi, p: &Piece) -> f32 {
+    match p {
+        Piece::Ctl(c) => ctl_w(ui, c),
+        Piece::Head => ui.measure(t::HOST_LABEL, W::S, EN.host_demo),
+        Piece::Die(_) => t::ROLLER_DIE,
+        Piece::Lines(s) => ui.measure(t::LABEL, W::R, s),
+    }
+}
+
+/// Pieces' widths with a gap between each two. Text measures.
+fn run_w(ui: &HostUi, ps: &[Piece]) -> f32 {
+    let n = ps.len() as f32;
+    ps.iter().map(|p| piece_w(ui, p)).sum::<f32>() + (n - 1.0).max(0.0) * t::GAP
+}
+
+impl Row<'_> {
+    /// The whole row's width: the section's ends included. Text measures.
+    fn width(&self, ui: &HostUi) -> f32 {
+        let a = run_w(ui, &self.always);
+        if self.section.is_empty() {
+            return a;
+        }
+        let between = if self.always.is_empty() { 0.0 } else { t::GAP };
+        a + between + 2.0 * SECTION_PAD + run_w(ui, &self.section)
+    }
+}
+
+/// Costs a text measure per piece. The strip's row from what was fitted,
+/// the lines cut to the room `room` leaves, or left out where it leaves
+/// less than a touch target's width.
+fn lay_out<'a>(ui: &HostUi, fitted: &'a Fitted, shown: Option<Roller>, room: f32) -> Row<'a> {
+    let mut row = Row {
+        always: fitted
+            .sticks
+            .iter()
+            .chain(&fitted.right)
+            .map(Piece::Ctl)
+            .collect(),
+        section: Vec::new(),
+    };
+    let group = !fitted.demo.is_empty() || !fitted.demo_more.is_empty() || shown.is_some();
+    if group {
+        if fitted.head {
+            row.section.push(Piece::Head);
+            if let Some(r) = shown {
+                row.section.push(Piece::Die(r));
+            }
+        }
+        row.section.extend(fitted.demo.iter().map(Piece::Ctl));
+    }
+    // The lines in the room left, More (made by the caller) counted.
+    if !fitted.lines.is_empty() {
+        let text = fitted.lines.join(" · ");
+        let more = if fitted.demo_more.is_empty() {
+            0.0
+        } else {
+            ctl_w(ui, &more_ctl(fitted.head)) + t::GAP
+        };
+        // Where no aid stands, the section opens to hold the lines.
+        let opens = if row.section.is_empty() {
+            t::GAP + 2.0 * SECTION_PAD
+        } else {
+            t::GAP
+        };
+        let left = room - row.width(ui) - more - opens;
+        if left > t::TOUCH {
+            row.section
+                .push(Piece::Lines(ui.fit(t::LABEL, W::R, &text, left)));
+        }
+    }
+    row
+}
 
 /// Draws the host round the app's frame at `area`: the preview's edge,
-/// the strip and its controls, and the menu or Samples' sheet open or
-/// closing.
-pub(crate) fn draw(host: &Host, ui: &mut HostUi, area: Option<Area>) -> Drawn {
+/// the strip and its row of controls, centred, or scrolled `scroll` dp
+/// where it is wider than the window, and the menu or Samples' sheet open
+/// or closing.
+pub(crate) fn draw(host: &Host, ui: &mut HostUi, area: Option<Area>, scroll: f32) -> Drawn {
+    let look = Look::now(host);
     let f = ui.f;
     let (w, h) = (ui.c.width() as f32 / f, ui.c.height() as f32 / f);
     if host.preview.is_some()
         && let Some(a) = area
     {
-        edge(ui, a);
+        edge(ui, a, look.edge);
     }
     let sh = host.strip_dp();
     let top = h - sh;
-    ui.fill(0.0, top, w, sh, 0.0, STRIP);
-    ui.fill(0.0, top, w, 1.0 / f, 0.0, RULE);
+    ui.fill(0.0, top, w, sh, 0.0, look.strip);
     let shown = roller_shown(&host.app);
     let die_w = shown.map_or(0.0, |_| t::ROLLER_DIE + t::GAP);
-    let fitted = fit(host, ui, w - 2.0 * t::PAD, die_w);
+    let room = w - 2.0 * t::PAD;
+    let fitted = fit(host, ui, room, die_w);
+    let more = (!fitted.demo_more.is_empty()).then(|| more_ctl(fitted.head));
+    let mut row = lay_out(ui, &fitted, shown, room);
+    // More ends the aids, before the lines.
+    if let Some(m) = &more {
+        let at = row
+            .section
+            .iter()
+            .position(|p| matches!(p, Piece::Lines(_)))
+            .unwrap_or(row.section.len());
+        row.section.insert(at, Piece::Ctl(m));
+    }
+    let row_w = row.width(ui);
+    // Centred where the row fits; else from the left edge, scrolled.
+    let strip_max = (row_w - room).max(0.0);
+    let mut x = if strip_max > 0.0 {
+        t::PAD - scroll.clamp(0.0, strip_max)
+    } else {
+        (w - row_w) / 2.0
+    };
     let cy = top + (sh - t::HOST_CONTROL_H) / 2.0;
-    let mut x = t::PAD;
     let mut anchors: Vec<(Menu, f32)> = Vec::new();
     let mut labels: Vec<String> = Vec::new();
-    let mut put = |ui: &mut HostUi, c: &Ctl, x: &mut f32, labels: &mut Vec<String>| {
-        labels.push(c.label.clone());
-        if let Kind::Opens(m) = c.kind {
-            anchors.push((m, *x));
+    for p in &row.always {
+        x += piece(
+            host,
+            ui,
+            p,
+            (x, cy, top, sh),
+            false,
+            &mut anchors,
+            &mut labels,
+        ) + t::GAP;
+    }
+    if !row.section.is_empty() {
+        let sw = 2.0 * SECTION_PAD + run_w(ui, &row.section);
+        let sy = top + t::GAP_SMALL;
+        ui.fill(x, sy, sw, sh - 2.0 * t::GAP_SMALL, t::SHAPE_L, look.section);
+        x += SECTION_PAD;
+        for p in &row.section {
+            x += piece(
+                host,
+                ui,
+                p,
+                (x, cy, top, sh),
+                true,
+                &mut anchors,
+                &mut labels,
+            ) + t::GAP;
         }
-        *x += control(host, ui, c, (*x, cy)) + t::GAP;
-    };
-    for c in &fitted.sticks {
-        put(ui, c, &mut x, &mut labels);
     }
-    if !fitted.sticks.is_empty() && fitted.head {
-        x = rule(ui, x, top, sh);
+    if let Some(m) = &more {
+        // What More holds follows its own label.
+        let at = labels
+            .iter()
+            .position(|l| *l == m.label)
+            .map_or(labels.len(), |i| i + 1);
+        let rest: Vec<String> = fitted.demo_more.iter().map(|c| c.label.clone()).collect();
+        labels.splice(at..at, rest);
     }
-    for c in &fitted.right {
-        put(ui, c, &mut x, &mut labels);
+    // The lines, each whole, however short they were cut.
+    labels.extend(fitted.lines.iter().cloned());
+    if strip_max > 0.0 {
+        indicator(
+            ui,
+            &look,
+            (top, sh, room),
+            (row_w, scroll.clamp(0.0, strip_max), strip_max),
+        );
     }
-    let demo_group = !fitted.demo.is_empty() || !fitted.demo_more.is_empty() || shown.is_some();
-    if demo_group {
-        if fitted.head {
-            x = rule(ui, x, top, sh);
-            let hw = ui.text_mid(
+    let (rows, sheet) = menus(host, ui, &fitted, &anchors, (area, top, w));
+    labels.extend(rows);
+    Drawn {
+        labels,
+        sheet,
+        strip_max,
+    }
+}
+
+/// Draws one piece of the row at (`x`, `cy`), in the strip at `top`, `sh`
+/// tall, in the aids' section where `in_section`. Notes a menu's control
+/// in `anchors` and what it says in `labels`. Returns its width.
+fn piece(
+    host: &Host,
+    ui: &mut HostUi,
+    p: &Piece,
+    (x, cy, top, sh): (f32, f32, f32, f32),
+    in_section: bool,
+    anchors: &mut Vec<(Menu, f32)>,
+    labels: &mut Vec<String>,
+) -> f32 {
+    let look = &Look::now(host);
+    match p {
+        Piece::Ctl(c) => {
+            labels.push(c.label.clone());
+            if let Kind::Opens(m) = c.kind {
+                anchors.push((m, x));
+            }
+            control(host, ui, c, (x, cy), on_strip(look, in_section))
+        }
+        Piece::Head => {
+            labels.push(EN.host_demo.to_string());
+            let ink = look.on_section;
+            ui.text_mid(
                 x,
                 cy,
                 t::HOST_CONTROL_H,
-                t::CAPTION,
+                t::HOST_LABEL,
                 W::S,
-                DEMO,
+                ink,
                 EN.host_demo,
-            );
-            x += hw + t::GAP;
-            labels.push(EN.host_demo.to_string());
-            if let Some(r) = shown {
-                let y = top + (sh - crate::fresh::roller::screen::ROW_H) / 2.0;
-                die(host, ui, r, (x, y));
-                x += t::ROLLER_DIE + t::GAP;
-            }
+            )
         }
-        for c in &fitted.demo {
-            put(ui, c, &mut x, &mut labels);
+        Piece::Die(r) => {
+            let y = top + (sh - crate::fresh::roller::screen::ROW_H) / 2.0;
+            die(host, ui, look, *r, (x, y));
+            t::ROLLER_DIE
         }
-        if !fitted.demo_more.is_empty() {
-            put(ui, &more_ctl(fitted.head), &mut x, &mut labels);
-            labels.extend(fitted.demo_more.iter().map(|c| c.label.clone()));
+        Piece::Lines(s) => {
+            let ink = look.on_section;
+            ui.text_mid(x, cy, t::HOST_CONTROL_H, t::LABEL, W::R, ink, s)
         }
     }
-    // What Practice puts in place of the person's own, in the room left.
-    let room = w - t::PAD - x;
-    if !fitted.lines.is_empty() && room > t::TOUCH {
-        let text = fitted.lines.join(" · ");
-        let text = ui.fit(t::CAPTION, W::R, &text, room);
-        ui.text_mid(x, cy, t::HOST_CONTROL_H, t::CAPTION, W::R, INK_DIM, &text);
-    }
-    labels.extend(fitted.lines.iter().cloned());
-    let (rows, sheet) = menus(host, ui, &fitted, &anchors, (area, top, w));
-    labels.extend(rows);
-    (labels, sheet)
+}
+
+/// The strip's scroll indicator along its foot, in a strip at `top`, `sh`
+/// tall, its row `room` wide seen of `row_w`, scrolled `at` of `max`.
+fn indicator(
+    ui: &mut HostUi,
+    look: &Look,
+    (top, sh, room): (f32, f32, f32),
+    (row_w, at, max): (f32, f32, f32),
+) {
+    let bar = t::HOST_INDICATOR;
+    let tw = (room * room / row_w).max(t::TOUCH);
+    let tx = t::PAD + (room - tw) * at / max;
+    let y = top + sh - t::GAP_SMALL - bar;
+    ui.fill(tx, y, tw, bar, bar / 2.0, look.edge);
 }
 
 /// A preview frame's pixel-wide edge round `a`.
-fn edge(ui: &mut HostUi, a: Area) {
+fn edge(ui: &mut HostUi, a: Area, color: Color) {
     let f = ui.f;
     let (x, y) = (a.x as f32 / f - 1.0 / f, a.y as f32 / f - 1.0 / f);
     let (aw, ah) = (a.w as f32 / f + 2.0 / f, a.h as f32 / f + 2.0 / f);
-    ui.stroke(x, y, aw, ah, 0.0, EDGE);
+    ui.stroke(x, y, aw, ah, 0.0, color);
 }
 
 /// The menu or sheet closing and the one open, each over its control at
@@ -534,7 +807,7 @@ fn menus(
     fitted: &Fitted,
     anchors: &[(Menu, f32)],
     (area, top, w): (Option<Area>, f32, f32),
-) -> Drawn {
+) -> (Vec<String>, Option<(Rect, f32)>) {
     let anchor = |m: Menu| anchors.iter().find(|(a, _)| *a == m).map(|(_, x)| *x);
     if let Some((m, at)) = host.leaving {
         let p = crate::motion::progress(Some(at), host.now, crate::motion::MENU_OUT_MS);
@@ -568,64 +841,102 @@ fn menus(
     (Vec::new(), None)
 }
 
-/// A rule between two groups at `x`. Returns where the next group starts.
-fn rule(ui: &mut HostUi, x: f32, top: f32, sh: f32) -> f32 {
-    let rh = t::HOST_CONTROL_H - t::GAP;
-    ui.fill(x, top + (sh - rh) / 2.0, 1.0 / ui.f, rh, 0.0, RULE);
-    x + 1.0 / ui.f + t::GAP + t::GAP
+/// A control's colours where it stands: its label's ink, its outline,
+/// the fill of the step's main press and that press's label.
+#[derive(Clone, Copy)]
+struct Inks {
+    ink: Color,
+    outline: Color,
+    main: Color,
+    on_main: Color,
 }
 
-/// One control at (`x`, `y`): its outline, its state layer, its dot or
-/// chevron and its label; its press over the strip's height, Material's
-/// 48 dp target. Returns its width.
-fn control(host: &Host, ui: &mut HostUi, c: &Ctl, (x, y): (f32, f32)) -> f32 {
+/// The inks of a control on the strip, or in the aids' section.
+fn on_strip(look: &Look, in_section: bool) -> Inks {
+    if in_section {
+        Inks {
+            ink: look.on_section,
+            outline: look.on_section,
+            main: look.section_main,
+            on_main: look.on_section_main,
+        }
+    } else {
+        Inks {
+            ink: look.ink,
+            outline: look.edge,
+            main: look.accent,
+            on_main: look.strip,
+        }
+    }
+}
+
+/// The inks of a control on a menu's or Samples' sheet's surface.
+fn on_raised(look: &Look) -> Inks {
+    Inks {
+        ink: look.on_raised,
+        outline: look.edge,
+        main: look.main,
+        on_main: look.on_main,
+    }
+}
+
+/// One control at (`x`, `y`) in `inks`: its outline, its state layer, its
+/// dot or chevron and its label, 48 dp tall, its press its whole box.
+/// Returns its width.
+fn control(host: &Host, ui: &mut HostUi, c: &Ctl, (x, y): (f32, f32), inks: Inks) -> f32 {
+    let look = Look::now(host);
     let w = ctl_w(ui, c);
     let h = t::HOST_CONTROL_H;
     let r = match c.kind {
-        Kind::Stick { .. } => h / 2.0,
-        _ => t::GAP,
+        Kind::Stick { .. } => t::shape_full(h),
+        _ => t::SHAPE_M,
     };
     let open = matches!(c.kind, Kind::Opens(m) if host.menu.map(|o| o.0) == Some(m));
+    let off = layer(inks.ink, t::DISABLED_CONTENT);
+    // (label, outline, fill)
     let (ink, edge, body) = match &c.kind {
-        Kind::Primary => (STRIP, INK, Some(INK)),
-        Kind::Off => (INK_OFF, Color::rgb(0x2a, 0x33, 0x3d), None),
-        Kind::Stick { asked: true, .. } => (INK, DEMO, None),
-        _ if open => (INK, INK_DIM, Some(Color::rgba(255, 255, 255, 28))),
-        _ => (INK, EDGE, None),
+        Kind::Primary => (inks.on_main, inks.main, Some(inks.main)),
+        Kind::Off => (off, layer(inks.ink, t::DISABLED_CONTAINER), None),
+        Kind::Stick { asked: true, .. } => (inks.ink, look.caution, None),
+        _ if open => (inks.on_main, inks.main, Some(inks.main)),
+        _ => (inks.ink, inks.outline, None),
     };
     if let Some(b) = body {
         ui.fill(x, y, w, h, r, b);
     }
     if c.kind != Kind::Off {
         if ui.is_pressed(c.press) {
-            ui.fill(x, y, w, h, r, PRESS);
+            ui.wash(x, y, w, h, r, layer(ink, t::STATE_PRESS));
         } else if ui.is_hovered(c.press) {
-            ui.fill(x, y, w, h, r, HOVER);
+            ui.wash(x, y, w, h, r, layer(ink, t::STATE_HOVER));
         }
     }
     ui.stroke(x, y, w, h, r, edge);
     let mut tx = x + CTL_PAD;
     if let Kind::Stick { inserted, .. } = c.kind {
-        let tone = if inserted { STICK_IN } else { STICK_OUT };
+        let tone = if inserted {
+            look.stick_in
+        } else {
+            look.stick_out
+        };
         ui.dot(tx + t::GAP_SMALL, y + h / 2.0, t::GAP_SMALL, tone);
         tx += DOT_ROOM;
     }
-    ui.text_mid(tx, y, h, t::CAPTION, W::S, ink, &c.label);
+    ui.text_mid(tx, y, h, t::HOST_LABEL, W::S, ink, &c.label);
     if let Kind::Opens(_) = c.kind {
         let ix = x + w - CTL_PAD - CHEVRON_ROOM + t::GAP_SMALL;
         // The menu opens upward from the strip.
         let iy = y + (h - t::ICON_SMALL) / 2.0;
-        ui.icon(ix, iy, t::ICON_SMALL, Icon::ChevronUp, t::CAPTION, ink);
+        ui.icon(ix, iy, t::ICON_SMALL, Icon::ChevronUp, t::HOST_LABEL, ink);
     }
     if c.kind != Kind::Off {
-        let top = y - (t::TOUCH - h) / 2.0;
-        ui.hit(x, top, w, t::TOUCH, c.press);
+        ui.hit(x, y, w, h, c.press);
     }
     w
 }
 
 /// One row of a menu.
-struct Row {
+struct MenuRow {
     label: String,
     note: String,
     press: Option<HostPress>,
@@ -634,9 +945,10 @@ struct Row {
 }
 
 /// The rows of menu `m`.
-fn rows(host: &Host, fitted: &Fitted, m: Menu) -> Vec<Row> {
+fn rows(host: &Host, fitted: &Fitted, m: Menu) -> Vec<MenuRow> {
     let app = &host.app;
-    let row = |label: String, press: HostPress, chosen: bool| Row {
+    let look = Look::now(host);
+    let row = |label: String, press: HostPress, chosen: bool| MenuRow {
         label,
         note: String::new(),
         press: Some(press),
@@ -648,10 +960,10 @@ fn rows(host: &Host, fitted: &Fitted, m: Menu) -> Vec<Row> {
             .into_iter()
             .map(|c| {
                 let dot = match c.kind {
-                    Kind::Stick { inserted: true, .. } => STICK_IN,
-                    _ => STICK_OUT,
+                    Kind::Stick { inserted: true, .. } => look.stick_in,
+                    _ => look.stick_out,
                 };
-                Row {
+                MenuRow {
                     dot: Some(dot),
                     ..row(c.label, c.press, false)
                 }
@@ -659,7 +971,7 @@ fn rows(host: &Host, fitted: &Fitted, m: Menu) -> Vec<Row> {
             .collect(),
         Menu::Size => sizes()
             .into_iter()
-            .map(|(name, s)| Row {
+            .map(|(name, s)| MenuRow {
                 note: s.map_or_else(String::new, |(w, h)| {
                     fill(EN.settings_preview_dp, &[&w.to_string(), &h.to_string()])
                 }),
@@ -672,7 +984,7 @@ fn rows(host: &Host, fitted: &Fitted, m: Menu) -> Vec<Row> {
             };
             let mut v = Vec::new();
             for (head, items) in crate::codex32::walk_screen::host_play_options(m) {
-                v.push(Row {
+                v.push(MenuRow {
                     label: head.to_string(),
                     note: String::new(),
                     press: None,
@@ -733,39 +1045,42 @@ fn menu(
     (x, top, w): (Option<f32>, f32, f32),
     shown: f32,
 ) {
+    let look = Look::now(host);
     let rows = rows(host, fitted, m);
     if rows.is_empty() {
         return;
     }
-    let row_h = |r: &Row| {
+    let row_h = |r: &MenuRow| {
         if r.press.is_none() {
-            t::HOST_CONTROL_H
+            t::HOST_LINE
         } else {
             t::HOST_MENU_ROW
         }
     };
     let mh = rows.iter().map(row_h).sum::<f32>() + 2.0 * t::GAP;
-    let mw = t::HOST_MENU_W;
+    let mw = t::HOST_MENU_W.min(w - 2.0 * t::PAD);
     let mx = x.unwrap_or(t::PAD).min(w - t::PAD - mw).max(t::PAD);
     let bottom = top - t::GAP_SMALL;
     let my = bottom - mh;
     let seen = mh * shown.clamp(0.0, 1.0);
     let clip = ui.rect(mx, bottom - seen, mw, seen);
     ui.c.push_clip(clip);
-    ui.fill(mx, my, mw, mh, t::GAP_SMALL, RAISED);
-    ui.stroke(mx, my, mw, mh, t::GAP_SMALL, EDGE);
+    ui.fill(mx, my, mw, mh, t::GAP_SMALL, look.raised);
+    ui.stroke(mx, my, mw, mh, t::GAP_SMALL, look.rule);
     let mut ry = my + t::GAP;
     for r in &rows {
         let rh = row_h(r);
         match r.press {
             None => {
-                ui.text_mid(mx + t::PAD, ry, rh, t::CAPTION, W::S, INK_DIM, &r.label);
+                let dim = look.on_raised_dim;
+                ui.text_mid(mx + t::PAD, ry, rh, t::LABEL, W::S, dim, &r.label);
             }
             Some(p) => {
+                let ink = look.on_raised;
                 if ui.is_pressed(p) {
-                    ui.fill(mx, ry, mw, rh, 0.0, PRESS);
+                    ui.wash(mx, ry, mw, rh, 0.0, layer(ink, t::STATE_PRESS));
                 } else if ui.is_hovered(p) {
-                    ui.fill(mx, ry, mw, rh, 0.0, HOVER);
+                    ui.wash(mx, ry, mw, rh, 0.0, layer(ink, t::STATE_HOVER));
                 }
                 let mut tx = mx + t::PAD;
                 if let Some(d) = r.dot {
@@ -778,16 +1093,17 @@ fn menu(
                         ry + (rh - t::ICON_SMALL) / 2.0,
                         t::ICON_SMALL,
                         Icon::Check,
-                        t::LABEL,
-                        INK,
+                        t::HOST_LABEL,
+                        ink,
                     );
                 }
                 let tx = tx + t::ICON_SMALL;
-                ui.text_mid(tx, ry, rh, t::LABEL, W::R, INK, &r.label);
+                ui.text_mid(tx, ry, rh, t::HOST_LABEL, W::R, ink, &r.label);
                 if !r.note.is_empty() {
-                    let nw = ui.measure(t::CAPTION, W::R, &r.note);
+                    let nw = ui.measure(t::LABEL, W::R, &r.note);
                     let nx = mx + mw - t::PAD - nw;
-                    ui.text_mid(nx, ry, rh, t::CAPTION, W::R, INK_DIM, &r.note);
+                    let dim = look.on_raised_dim;
+                    ui.text_mid(nx, ry, rh, t::LABEL, W::R, dim, &r.note);
                 }
                 ui.hit(mx, ry, mw, rh, p);
             }
@@ -798,9 +1114,9 @@ fn menu(
 }
 
 /// The computer's die `which` with its top-left at (`x`, `y`), drawn by
-/// the roller's own code (`fresh/roller/screen.rs`) in the dark scheme of
-/// the person's theme; its controls are the strip's.
-fn die(host: &Host, ui: &mut HostUi, which: Roller, (x, y): (f32, f32)) {
+/// the roller's own code (`fresh/roller/screen.rs`) in the host's scheme,
+/// the app's theme in the opposite mode; its controls are the strip's.
+fn die(host: &Host, ui: &mut HostUi, look: &Look, which: Roller, (x, y): (f32, f32)) {
     let app = &host.app;
     let Some((r, _, _)) = roller_of(app, which) else {
         return;
@@ -808,14 +1124,13 @@ fn die(host: &Host, ui: &mut HostUi, which: Roller, (x, y): (f32, f32)) {
     let mut hits: Vec<(faraday_draw::geom::Rect, Action)> = Vec::new();
     let f = ui.f;
     let mut aui = crate::ui::Ui::new(&mut *ui.c, f, &mut hits, None);
-    let theme = app.theme();
-    aui.theme = faraday_ui::Theme::new(theme.name, faraday_ui::Mode::Dark, theme.contrast);
+    aui.theme = look.theme;
     crate::fresh::roller::screen::die_alone(&mut aui, (x, y), r);
 }
 
 /// Where Samples' sheet stands and how tall it may grow, dp: its left
 /// edge, its width and the highest its top may reach (`docs/DESKTOP-HOST.md`
-/// §6). Beside a preview's frame where the dark space there holds at least
+/// §6). Beside a preview's frame where the host's space there holds at least
 /// a menu's width, the host's own space, the side of Samples first; else
 /// up from Samples at `anchor`, under the frame's foot where it fits
 /// there, else over the app's foot. Arithmetic.
@@ -867,8 +1182,9 @@ fn samples_sheet(
     ui: &mut HostUi,
     (area, anchor, top, w): (Option<Area>, Option<f32>, f32, f32),
     shown: f32,
-) -> Drawn {
+) -> (Vec<String>, Option<(Rect, f32)>) {
     let app = &host.app;
+    let look = Look::now(host);
     if app.samples.is_none() {
         return (Vec::new(), None);
     }
@@ -879,12 +1195,12 @@ fn samples_sheet(
             &[app.medium.noun(), EN.pull_what_load_samples],
         )
     });
-    let (row, line) = (t::HOST_MENU_ROW, t::HOST_CONTROL_H);
+    let (row, line) = (t::HOST_MENU_ROW, t::HOST_LINE);
     let n = state.wallets.len() + state.keys.len();
     let body =
         line + warn.as_ref().map_or(0.0, |_| line) + row + 2.0 * line + n as f32 * row + t::GAP;
     let head = t::GAP + row;
-    let foot = row + 2.0 * t::GAP;
+    let foot = t::HOST_CONTROL_H + 2.0 * t::GAP;
     let want = head + body + foot;
     let (mx, mw, limit) = sheet_place(host, ui.f, (area, anchor, top, w), want);
     let bottom = top - t::GAP_SMALL;
@@ -896,12 +1212,21 @@ fn samples_sheet(
     let seen = mh * shown.clamp(0.0, 1.0);
     let clip = ui.rect(mx, bottom - seen, mw, seen);
     ui.c.push_clip(clip);
-    ui.fill(mx, my, mw, mh, t::GAP_SMALL, RAISED);
-    ui.stroke(mx, my, mw, mh, t::GAP_SMALL, EDGE);
+    ui.fill(mx, my, mw, mh, t::GAP_SMALL, look.raised);
+    ui.stroke(mx, my, mw, mh, t::GAP_SMALL, look.rule);
     // A press on the sheet itself is the sheet's: it closes nothing.
     ui.hit(mx, my, mw, mh, HostPress::Sheet);
     let x = mx + t::PAD;
-    ui.text_mid(x, my + t::GAP, row, t::LABEL, W::S, INK, EN.samples_title);
+    let title = EN.samples_title;
+    ui.text_mid(
+        x,
+        my + t::GAP,
+        row,
+        t::HOST_LABEL,
+        W::S,
+        look.on_raised,
+        title,
+    );
     let mut texts = vec![EN.samples_title.to_string()];
     // The lists, under the title and over the foot.
     let lists = ui.rect(mx, my + head, mw, view);
@@ -925,30 +1250,33 @@ fn sheet_lists(
     texts: &mut Vec<String>,
 ) {
     let app = &host.app;
+    let look = Look::now(host);
     let Some(set) = app.samples else {
         return;
     };
     let state = app.sample_area.sheet();
-    let (row, line) = (t::HOST_MENU_ROW, t::HOST_CONTROL_H);
+    let (row, line) = (t::HOST_MENU_ROW, t::HOST_LINE);
     let (x, iw) = (mx + t::PAD, mw - 2.0 * t::PAD);
     let mut cy = y;
-    let code_w = ui.measure(t::CAPTION, W::M, PASSPHRASE);
-    let lead = ui.fit(t::CAPTION, W::R, EN.samples_password, iw - code_w - t::GAP);
-    let lead_w = ui.text_mid(x, cy, line, t::CAPTION, W::R, INK_DIM, &lead);
+    let code_w = ui.measure(t::LABEL, W::M, PASSPHRASE);
+    let lead = ui.fit(t::LABEL, W::R, EN.samples_password, iw - code_w - t::GAP);
+    let dim = look.on_raised_dim;
+    let lead_w = ui.text_mid(x, cy, line, t::LABEL, W::R, dim, &lead);
+    let ink = look.on_raised;
     ui.text_mid(
         x + lead_w + t::GAP,
         cy,
         line,
-        t::CAPTION,
+        t::LABEL,
         W::M,
-        INK,
+        ink,
         PASSPHRASE,
     );
     texts.push(format!("{} {PASSPHRASE}", EN.samples_password));
     cy += line;
     if let Some(warn) = warn {
-        let shown = ui.fit(t::CAPTION, W::S, &warn, iw);
-        ui.text_mid(x, cy, line, t::CAPTION, W::S, DEMO, &shown);
+        let shown = ui.fit(t::LABEL, W::S, &warn, iw);
+        ui.text_mid(x, cy, line, t::LABEL, W::S, look.caution, &shown);
         texts.push(warn);
         cy += line;
     }
@@ -959,14 +1287,28 @@ fn sheet_lists(
         EN.samples_select_all
     };
     let all = HostPress::App(Action::SamplesAll);
-    let link_w = ui.measure(t::LABEL, W::S, link) + 2.0 * t::GAP;
+    let link_w = ui.measure(t::HOST_LABEL, W::S, link) + 2.0 * t::GAP;
     let ly = cy + (row - line) / 2.0;
     if ui.is_pressed(all) {
-        ui.fill(x - t::GAP, ly, link_w, line, t::GAP, PRESS);
+        ui.wash(
+            x - t::GAP,
+            ly,
+            link_w,
+            line,
+            t::GAP,
+            layer(ink, t::STATE_PRESS),
+        );
     } else if ui.is_hovered(all) {
-        ui.fill(x - t::GAP, ly, link_w, line, t::GAP, HOVER);
+        ui.wash(
+            x - t::GAP,
+            ly,
+            link_w,
+            line,
+            t::GAP,
+            layer(ink, t::STATE_HOVER),
+        );
     }
-    ui.text_mid(x, cy, row, t::LABEL, W::S, INK, link);
+    ui.text_mid(x, cy, row, t::HOST_LABEL, W::S, ink, link);
     ui.hit(x - t::GAP, cy, link_w, row, all);
     texts.push(link.to_string());
     cy += row;
@@ -982,6 +1324,7 @@ fn sheet_lists(
         .collect();
     cy += tick_list(
         ui,
+        &look,
         (mx, mw, cy),
         EN.samples_wallets,
         (&state.wallets, &wallets),
@@ -990,6 +1333,7 @@ fn sheet_lists(
     );
     tick_list(
         ui,
+        &look,
         (mx, mw, cy),
         EN.samples_keys,
         (&state.keys, &keys),
@@ -1003,6 +1347,7 @@ fn sheet_lists(
 /// `pick` of its place. Adds what it says to `texts`; returns its height.
 fn tick_list(
     ui: &mut HostUi,
+    look: &Look,
     (mx, mw, y): (f32, f32, f32),
     heading: &str,
     (rows, names): (&[crate::samples::Row], &[String]),
@@ -1011,15 +1356,16 @@ fn tick_list(
 ) -> f32 {
     let x = mx + t::PAD;
     let mut cy = y;
-    ui.text_mid(x, cy, t::HOST_CONTROL_H, t::CAPTION, W::S, INK_DIM, heading);
+    let dim = look.on_raised_dim;
+    ui.text_mid(x, cy, t::HOST_LINE, t::LABEL, W::S, dim, heading);
     texts.push(heading.to_string());
-    cy += t::HOST_CONTROL_H;
+    cy += t::HOST_LINE;
     for (i, (r, name)) in rows.iter().zip(names).enumerate() {
         let Ok(at) = u8::try_from(i) else {
             break;
         };
         let press = HostPress::App(Action::SampleTick(pick(at)));
-        tick_row(ui, (mx, mw, cy), r, name, press);
+        tick_row(ui, look, (mx, mw, cy), r, name, press);
         texts.push(name.clone());
         cy += t::HOST_MENU_ROW;
     }
@@ -1036,7 +1382,8 @@ fn sheet_foot(
     texts: &mut Vec<String>,
 ) {
     let app = &host.app;
-    ui.fill(mx, fy, mw, 1.0 / ui.f, 0.0, RULE);
+    let look = Look::now(host);
+    ui.fill(mx, fy, mw, 1.0 / ui.f, 0.0, look.rule);
     let load = Ctl {
         label: EN.samples_load.to_string(),
         press: HostPress::App(Action::SamplesLoad),
@@ -1051,11 +1398,11 @@ fn sheet_foot(
         press: HostPress::Menu(Menu::Samples),
         kind: Kind::Button,
     };
-    let by = fy + t::GAP + (t::HOST_MENU_ROW - t::HOST_CONTROL_H) / 2.0;
+    let by = fy + t::GAP;
     let lx = mx + mw - t::PAD - ctl_w(ui, &load);
     let nx = lx - t::GAP - ctl_w(ui, &not_now);
-    control(host, ui, &not_now, (nx, by));
-    control(host, ui, &load, (lx, by));
+    control(host, ui, &not_now, (nx, by), on_raised(&look));
+    control(host, ui, &load, (lx, by), on_raised(&look));
     texts.push(not_now.label);
     texts.push(load.label);
 }
@@ -1065,6 +1412,7 @@ fn sheet_foot(
 /// taking no press, its name, and what it is at the row's end.
 fn tick_row(
     ui: &mut HostUi,
+    look: &Look,
     (x, w, y): (f32, f32, f32),
     r: &crate::samples::Row,
     label: &str,
@@ -1072,39 +1420,38 @@ fn tick_row(
 ) {
     let row = t::HOST_MENU_ROW;
     let on = !r.loaded;
+    let ink = look.on_raised;
     if on {
         if ui.is_pressed(press) {
-            ui.fill(x, y, w, row, 0.0, PRESS);
+            ui.wash(x, y, w, row, 0.0, layer(ink, t::STATE_PRESS));
         } else if ui.is_hovered(press) {
-            ui.fill(x, y, w, row, 0.0, HOVER);
+            ui.wash(x, y, w, row, 0.0, layer(ink, t::STATE_HOVER));
         }
     }
-    let ink = if on { INK } else { INK_OFF };
+    let (ink, tick) = if on {
+        (ink, look.main)
+    } else {
+        let off = layer(ink, t::DISABLED_CONTENT);
+        (off, off)
+    };
     let b = t::ICON_SMALL;
     let (bx, by) = (x + t::PAD, y + (row - b) / 2.0);
     if r.ticked || r.loaded {
-        ui.fill(bx, by, b, b, t::GAP_SMALL, ink);
-        ui.icon(bx, by, b, Icon::Check, t::LABEL, RAISED);
+        ui.wash(bx, by, b, b, t::GAP_SMALL, tick);
+        ui.icon(bx, by, b, Icon::Check, t::LABEL, look.on_main);
     } else {
-        ui.stroke(bx, by, b, b, t::GAP_SMALL, INK_DIM);
+        ui.stroke(bx, by, b, b, t::GAP_SMALL, look.on_raised_dim);
     }
     let tx = bx + b + t::GAP + t::GAP_SMALL;
     let room = x + w - t::PAD - tx;
-    let name = ui.fit(t::LABEL, W::R, label, room);
-    let name_w = ui.text_mid(tx, y, row, t::LABEL, W::R, ink, &name);
+    let name = ui.fit(t::HOST_LABEL, W::R, label, room);
+    let name_w = ui.text_mid(tx, y, row, t::HOST_LABEL, W::R, ink, &name);
     let note_room = room - name_w - t::GAP;
     if note_room > t::TOUCH {
-        let note = ui.fit(t::CAPTION, W::R, &r.kind, note_room);
-        let nw = ui.measure(t::CAPTION, W::R, &note);
-        ui.text_mid(
-            x + w - t::PAD - nw,
-            y,
-            row,
-            t::CAPTION,
-            W::R,
-            INK_DIM,
-            &note,
-        );
+        let note = ui.fit(t::LABEL, W::R, &r.kind, note_room);
+        let nw = ui.measure(t::LABEL, W::R, &note);
+        let dim = if on { look.on_raised_dim } else { ink };
+        ui.text_mid(x + w - t::PAD - nw, y, row, t::LABEL, W::R, dim, &note);
     }
     if on {
         ui.hit(x, y, w, row, press);

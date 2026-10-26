@@ -18,7 +18,7 @@ use super::codex32_make::both_typed_in;
 use super::common::settle_n;
 
 /// WCAG relative luminance.
-fn luminance(c: Color) -> f64 {
+pub(crate) fn luminance(c: Color) -> f64 {
     let lin = |v: u8| {
         let v = f64::from(v) / 255.0;
         if v <= 0.040_45 {
@@ -31,13 +31,13 @@ fn luminance(c: Color) -> f64 {
 }
 
 /// WCAG contrast ratio.
-fn ratio(a: Color, b: Color) -> f64 {
+pub(crate) fn ratio(a: Color, b: Color) -> f64 {
     let (x, y) = (luminance(a), luminance(b));
     (x.max(y) + 0.05) / (x.min(y) + 0.05)
 }
 
 /// `ink` laid over the opaque `under`.
-fn over(ink: Color, under: Color) -> Color {
+pub(crate) fn over(ink: Color, under: Color) -> Color {
     let a = u32::from(ink.a);
     let mix = |f: u8, b: u8| ((u32::from(f) * a + u32::from(b) * (255 - a) + 127) / 255) as u8;
     Color::rgb(
@@ -49,7 +49,12 @@ fn over(ink: Color, under: Color) -> Color {
 
 /// The colour most of the pixels just outside the box (x, y, w, h) are:
 /// the fill a text was drawn on.
-fn under(rgba: &[u8], width: i32, height: i32, (x, y, w, h): (i32, i32, i32, i32)) -> Color {
+pub(crate) fn under(
+    rgba: &[u8],
+    width: i32,
+    height: i32,
+    (x, y, w, h): (i32, i32, i32, i32),
+) -> Color {
     let mut seen: HashMap<(u8, u8, u8), usize> = HashMap::new();
     let mut take = |px: i32, py: i32| {
         if px >= 0 && py >= 0 && px < width && py < height {

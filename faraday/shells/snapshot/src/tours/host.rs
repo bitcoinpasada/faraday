@@ -2,8 +2,8 @@
 //! host, its strip at the window's foot. Home in Practice at the window's
 //! own size, the Size menu, the Pi panel and the 7-inch panel previewed;
 //! Make codex32 shares in Practice with the computer's walk in the strip and
-//! Play's options open; then Home on Testnet, whose strip holds only the
-//! sticks and Size.
+//! Play's options open, and in the dark theme, whose host is light; then
+//! Home on Testnet, whose strip holds only the sticks and Size.
 
 use crate::tour::{Tour, display};
 use faraday_core::{Action, Faraday, Host, HostMenu, Screen, StickInfo, StorageEvent, testkit};
@@ -17,7 +17,7 @@ const SEVEN_INCH: (u16, u16) = (960, 580);
 /// The app's size in a window `win` at 160 dpi: the window less the
 /// host's strip.
 fn app_size(win: (u16, u16)) -> (u16, u16) {
-    (win.0, win.1.saturating_sub(56))
+    (win.0, win.1.saturating_sub(Host::STRIP_DP as u16))
 }
 
 /// The app as Faraday Demo starts it, in Practice or on Testnet, with the
@@ -160,6 +160,14 @@ fn codex32(t: &mut Tour, win: (u16, u16)) -> Result<(), String> {
         }
     }
     shot(t, win, "host-codex32-walk", None, None)?;
+    // The host in the app's theme turned inside out: a dark app, a light
+    // host.
+    let was = t.app.theme();
+    let dark = faraday_core::ui::Mode::Dark;
+    t.press(Action::Theme(faraday_core::ui::Theme { mode: dark, ..was }));
+    shot(t, win, "host-codex32-walk-dark", None, None)?;
+    shot(t, win, "host-codex32-pi-panel-dark", Some(PI), None)?;
+    t.press(Action::Theme(was));
     shot(
         t,
         win,

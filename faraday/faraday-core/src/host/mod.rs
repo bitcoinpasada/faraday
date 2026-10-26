@@ -2,7 +2,7 @@
 //! simulator of the device. The host holds the app and lays it out as the
 //! device would be at the size shown: the window less a strip at its foot
 //! ("This window"), or a device's screen (the Pi panel, the 7-inch panel)
-//! framed and centred in the dark space above the strip, scaled down only
+//! framed and centred in the host's space above the strip, scaled down only
 //! where the window is smaller. The strip, in the host's own look and
 //! outside the app, holds what only Faraday Demo has: the stick pills,
 //! Samples, the preview size and the screen's demo aids. The app draws
@@ -126,6 +126,17 @@ pub struct Host {
     /// Samples' sheet as last drawn: where it stands in the window's
     /// pixels and the furthest its lists scroll, dp.
     sheet_view: Option<(Rect, f32)>,
+    /// How far the strip's row is scrolled sideways, dp, where it is wider
+    /// than the window; the furthest it scrolls in the frame last drawn.
+    strip_scroll: f32,
+    strip_max: f32,
+    /// A press begun on the strip: where, in the window's pixels, the
+    /// strip's scroll then, and whether it has moved past the slop, so
+    /// that it drags the row and presses nothing.
+    drag: Option<(i32, f32, bool)>,
+    /// Recording where the host's text and icons leave their ink
+    /// ([`Host::record_ink`]).
+    ink_on: bool,
 }
 
 impl Host {
@@ -152,6 +163,10 @@ impl Host {
             bare: false,
             sheet_scroll: 0.0,
             sheet_view: None,
+            strip_scroll: 0.0,
+            strip_max: 0.0,
+            drag: None,
+            ink_on: false,
         }
     }
 
@@ -164,6 +179,10 @@ impl Host {
         host.bare = true;
         host
     }
+
+    /// The strip's height at rest, dp: for drivers that lay the app out
+    /// before handing it to a host.
+    pub const STRIP_DP: f32 = t::HOST_STRIP_H;
 
     /// The preview size shown, in dp; `None` for the window itself.
     pub fn preview(&self) -> Option<(u16, u16)> {
@@ -226,6 +245,53 @@ impl Host {
     /// and top edges, its width and height as shown. A lookup.
     pub fn app_area(&self) -> Option<(i32, i32, i32, i32)> {
         self.area().map(|a| (a.x, a.y, a.w, a.h))
+    }
+
+    /// Where the strip stands in the window, in pixels: its left and top
+    /// edges, its width and height. A lookup.
+    pub fn strip_area(&self) -> Option<(i32, i32, i32, i32)> {
+        let d = self.window.filter(|_| !self.bare)?;
+        let h = self.strip_px();
+        Some((0, i32::from(d.height) - h, i32::from(d.width), h))
+    }
+
+    /// Where the host's control for `press` stood in the frame last
+    /// drawn, in the window's pixels: its left and top edges, its width
+    /// and height, as drawn and as pressed. A lookup.
+    pub fn offered_area(&self, press: HostPress) -> Option<(i32, i32, i32, i32)> {
+        self.hits
+            .iter()
+            .rev()
+            .find(|(_, p)| *p == press)
+            .map(|(r, _)| (r.x, r.y, r.w, r.h))
+    }
+
+    /// Starts or stops recording where the host's own text and icons
+    /// leave their ink each frame ([`Host::ink`]): for a test of what
+    /// the host writes reading on what it is written on.
+    pub fn record_ink(&mut self, on: bool) {
+        self.ink_on = on;
+        if let Some(c) = self.canvas.as_mut() {
+            c.record_ink(on);
+        }
+    }
+
+    /// What the host drew in the frame last drawn and where, while
+    /// [`Host::record_ink`] has it on. A lookup.
+    pub fn ink(&self) -> &[faraday_draw::canvas::Ink] {
+        self.canvas.as_ref().map_or(&[], |c| c.ink())
+    }
+
+    /// Whether the window's pixel (`x`, `y`) is on the strip. Arithmetic.
+    fn on_strip(&self, y: i32) -> bool {
+        self.strip_area().is_some_and(|(_, top, _, _)| y >= top)
+    }
+
+    /// Scrolls the strip's row `dy` dp sideways, where it is wider than
+    /// the window.
+    fn scroll_strip(&mut self, dy: f32) {
+        self.strip_scroll = (self.strip_scroll + dy).clamp(0.0, self.strip_max);
+        self.out.push_back(Command::Draw);
     }
 
     /// Costs a frame of the app and the strip. What the strip offers for
@@ -292,11 +358,13 @@ impl Host {
     }
 
     /// The strip's height, dp: `HOST_STRIP_H`, or the computer's dice
-    /// roller's row with a small gap above and below it while the page
-    /// shows one (New key's dice, Generate with dice). A lookup.
+    /// roller's row with a gap above and below it, inside the aids'
+    /// section, while the page shows one (New key's dice, Generate with
+    /// dice). The window's alone: the preview shown changes nothing. A
+    /// lookup.
     pub(crate) fn strip_dp(&self) -> f32 {
         if screen::roller_shown(&self.app).is_some() {
-            t::HOST_STRIP_H.max(crate::fresh::roller::screen::ROW_H + 2.0 * t::GAP_SMALL)
+            t::HOST_STRIP_H.max(crate::fresh::roller::screen::ROW_H + 2.0 * t::GAP)
         } else {
             t::HOST_STRIP_H
         }
@@ -422,6 +490,30 @@ impl Host {
     fn touch(&mut self, x: u16, y: u16, phase: TouchPhase) {
         let (px, py) = (i32::from(x), i32::from(y));
         let area = self.area();
+        // A press on the strip may drag its row sideways where it scrolls.
+        if phase == TouchPhase::Down {
+            self.drag = (self.menu.is_none() && self.on_strip(py) && self.strip_max > 0.0)
+                .then_some((px, self.strip_scroll, false));
+        }
+        if let Some((x0, s0, moved)) = self.drag {
+            let dx = px - x0;
+            let past = moved || (dx.abs() as f32) > crate::motion::SLOP * self.f();
+            if past && phase != TouchPhase::Down {
+                self.drag = Some((x0, s0, true));
+                self.pressed = None;
+                self.held = Held::Nowhere;
+                self.strip_scroll = (s0 - dx as f32 / self.f()).clamp(0.0, self.strip_max);
+                self.out.push_back(Command::Draw);
+                if phase == TouchPhase::Up {
+                    self.drag = None;
+                    self.held = Held::None;
+                }
+                return;
+            }
+            if phase == TouchPhase::Up {
+                self.drag = None;
+            }
+        }
         match phase {
             TouchPhase::Down => {
                 if let Some(h) = self.hit_at(px, py) {
@@ -495,9 +587,12 @@ impl Host {
         });
         // At the window's own size the app's frame covers all above the
         // strip, which the strip's drawing fills: only a preview needs
-        // the dark space round its frame.
+        // the host's space round its frame.
         if self.preview.is_some() || area.is_none() {
-            canvas.clear(screen::SURROUND);
+            canvas.clear(screen::Look::now(self).surround);
+        } else if self.ink_on {
+            // What the host draws this frame alone.
+            canvas.record_ink(true);
         }
         if let Some(a) = area {
             let frame = self.app.frame();
@@ -511,9 +606,11 @@ impl Host {
             let mut ui = faraday_ui::Ui::new(&mut canvas, self.f(), &mut hits, self.pressed);
             ui.hovered = self.hovered;
             if !self.bare {
-                let (labels, sheet) = screen::draw(self, &mut ui, area);
-                self.labels = labels;
-                self.sheet_view = sheet;
+                let drawn = screen::draw(self, &mut ui, area, self.strip_scroll);
+                self.labels = drawn.labels;
+                self.sheet_view = drawn.sheet;
+                self.strip_max = drawn.strip_max;
+                self.strip_scroll = self.strip_scroll.min(drawn.strip_max);
             }
         }
         self.hits = hits;
@@ -581,8 +678,9 @@ impl App for Host {
                 }
                 self.window = Some(d);
                 let mut canvas = Canvas::new(&d);
-                // What no part covers is the host's dark space.
-                canvas.clear(screen::SURROUND);
+                canvas.record_ink(self.ink_on);
+                // What no part covers is the host's own space.
+                canvas.clear(screen::Look::now(self).surround);
                 self.f = canvas.scale().factor();
                 canvas.set_counter(crate::work::core_count);
                 self.canvas = Some(canvas);
@@ -619,22 +717,28 @@ impl App for Host {
             }
             Event::Scroll { x, y, dy } | Event::Wheel { x, y, dy } => {
                 let (px, py) = (i32::from(x), i32::from(y));
+                // How far the host's own lists move, dp.
+                let step = match event {
+                    // The window's pixels per dp: never zero.
+                    Event::Scroll { .. } => f32::from(dy) / self.f(),
+                    _ => f32::from(dy) / crate::motion::SHELL_NOTCH_PX * crate::motion::WHEEL_NOTCH,
+                };
                 if self.menu.is_some() {
                     // Samples' sheet scrolls its lists under the pointer.
-                    let dy = match event {
-                        // The window's pixels per dp: never zero.
-                        Event::Scroll { .. } => f32::from(dy) / self.f(),
-                        _ => {
-                            f32::from(dy) / crate::motion::SHELL_NOTCH_PX
-                                * crate::motion::WHEEL_NOTCH
-                        }
-                    };
                     if self.menu_open() == Some(HostMenu::Samples)
                         && let Some((r, max)) = self.sheet_view
                         && r.contains(px, py)
                     {
-                        self.sheet_scroll = (self.sheet_scroll + dy).clamp(0.0, max);
+                        self.sheet_scroll = (self.sheet_scroll + step).clamp(0.0, max);
                         self.out.push_back(Command::Draw);
+                    }
+                    return;
+                }
+                // The strip's row scrolls sideways under the wheel where
+                // it is wider than the window.
+                if self.on_strip(py) {
+                    if self.strip_max > 0.0 {
+                        self.scroll_strip(step);
                     }
                     return;
                 }

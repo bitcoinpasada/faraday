@@ -1,7 +1,7 @@
 # Faraday Demo as a simulator: the host
 
 **Kind:** Spec
-**Status:** Built (F118, `faraday/faraday-core/src/host/`): the host holds the app, the strip at the window's foot with the sticks, Samples, Size and every practice aid of the screen on show, the preview frame centred above it, the pointer carried in; Samples' sheet is the host's (§6); at the window's own size the shell copies the app's pixels into the window once (§9); the app draws no stick pill, Load samples, Preview size or "Demo only" card.
+**Status:** Built (F118, `faraday/faraday-core/src/host/`): the host holds the app, the strip at the window's foot with the sticks, Samples, Size and every practice aid of the screen on show, the preview frame centred above it, the pointer carried in; the host's colours the app's theme turned inside out, the screen's aids in a section of their own colour, the strip's row centred and scrolling sideways where it is wider than the window, its controls 48 dp tall whatever the window and the preview (§2, §3); Samples' sheet is the host's (§6); at the window's own size the shell copies the app's pixels into the window once (§9); the app draws no stick pill, Load samples, Preview size or "Demo only" card.
 **Open:** the website demo's shell holding the app in the host (in the website's own repository); planned.
 
 The owner asked (2026-10-25) that Faraday Demo read as a simulator of
@@ -14,29 +14,55 @@ a demo stands outside it, in a strip drawn in the host's own look.
 
 | Size shown | The app area | The strip |
 |---|---|---|
-| This window (the default) | the window less the strip, laid out as a device of that size would be | `HOST_STRIP_H` (56 dp) along the window's foot |
-| A preview (Pi panel, 7-inch panel, …; `docs/PREVIEW-SIZE.md` §1) | the screen's size in dp, centred in the dark space above the strip with a pixel-wide edge, at its own pixels where it fits inside `MARGIN_WIDE`, scaled down where the window is smaller | the same, at the window's foot, never inside the frame |
+| This window (the default) | the window less the strip, laid out as a device of that size would be | `HOST_STRIP_H` (64 dp) along the window's foot |
+| A preview (Pi panel, 7-inch panel, …; `docs/PREVIEW-SIZE.md` §1) | the screen's size in dp, centred in the host's space above the strip with a pixel-wide edge, at its own pixels where it fits inside `MARGIN_WIDE`, scaled down where the window is smaller | the same, at the window's foot, never inside the frame |
 
 The app is told the app area as its display and knows nothing else:
 the class, short and low rules, the navigation and the on-screen
-keyboard follow as on that screen. The strip grows only while the page
-shows the computer's dice roller, to the roller's row with a small gap
-above and below (§3.2).
+keyboard follow as on that screen. The strip is the window's: its
+height and its controls' size are set by the window alone, so a Pi
+panel previewed in a 1920 × 1080 window has the same strip as the
+window itself. It grows only while the page shows the computer's dice
+roller, to the roller's row with a gap above and below (§3.2).
 
 ## 2. The host's look
 
-The strip and its menus are the host's, not the app's: the dark surface
-round a preview's frame (`SURROUND`, a shade darker for the strip, a
-hairline rule along its top and between its groups), light ink in
-small type (12 sp, Material's label small), controls outlined and 32 dp
-tall (`HOST_CONTROL_H`) in the middle of a 48 dp press, Material's state
-layers as light washes. They never take the person's theme, the app's
-surface or its components. The step's main press (codex32's Next) is
-filled in the light ink. A stick's pill carries a dot, green while it is
-in, grey while out, and an amber edge while a flow asks for it; "Practice"
-heads Practice aids in the same amber as the mode's caution pill.
+The strip, its menus, Samples' sheet and the space round a preview's
+frame are the host's, not the app's: they never take the app's surface
+or its components. Their colours are the app's theme turned inside out,
+so that the host stands in stark contrast to the app whatever the theme,
+and change with it (theme, Light or Dark, contrast level; THEMES, F113):
+a light app has a dark host, a dark app a light one. The strip is
+Material's inverse surface with inverse on-surface text; everything that
+stands on or round it takes its role from the scheme of the same theme
+in the opposite mode at the same contrast level (the host scheme), each
+pair one Material makes to read:
+
+| Part | Role |
+|---|---|
+| The strip | the app's inverse surface |
+| Its labels; a chevron | the app's inverse on-surface |
+| A control's outline; the preview frame's edge; the scroll indicator | the host scheme's outline |
+| A control whose menu is open | filled in the app's inverse primary, its label in the inverse surface |
+| The space round a preview's frame | the host scheme's surface |
+| The screen's aids' section (§3) | the host scheme's tertiary container, its text and outlines on-tertiary-container |
+| The step's main press there (codex32's Next, Roll) | filled in tertiary, its label on-tertiary |
+| A menu; Samples' sheet | the host scheme's surface container, an outline-variant edge, on-surface text, on-surface-variant for headings, sizes and kinds |
+| The sheet's main press (Load ticked); a tick | primary, on-primary |
+| A stick's dot | OK while it is in, the outline while out; a warning edge while a flow asks for it |
+| Not available now | its ink at Material's disabled opacities |
+| Hovered, pressed | Material's state layers in the control's ink |
+
+Controls are Material's 48 dp (`HOST_CONTROL_H`, the touch target, the
+press their whole box) with labels in title medium (`HOST_LABEL`,
+16 sp), the stick pills fully rounded and the rest at the medium shape;
+the strip is `HOST_STRIP_H`, the controls with 8 dp above and below.
+What the host writes reads on its fill in every theme and scheme, as
+the app's text does (4.5:1, 7:1 at High contrast).
 
 ## 3. The strip, left to right
+
+The strip holds two kinds of control. Those always there come first:
 
 1. **The stick pills**: the boot stick first, then every stick with its
    state ("Stick 2 · out"); a press puts it in or pulls it. Where they
@@ -47,20 +73,31 @@ heads Practice aids in the same amber as the mode's caution pill.
    the host's (§6).
 3. **Size · <size shown>**: opens the Size menu (§5), which lists the
    sizes with their dp, the one shown checked.
-4. **Practice**, then the screen's practice aids (§3.1), only those the screen
-   or flow on screen offers; those with no room go into **More**.
+Then, only on a screen or flow that offers them, its practice aids in a
+section of their own colour (§2), so it is plain they came with the
+screen at hand:
+
+4. **Practice**, then the screen's practice aids (§3.1); those with no
+   room go into **More**; then, in the room left, the lines that say
+   what Practice puts in place of the person's own ("Rolls d20",
+   "Practice puts sample … in place of these strings"), cut to one line.
+
+The row is centred in the window.
 
 Where the window is too narrow for all of it, the strip gives way in
 this order (Material's overflow: the actions that fit, the rest in a
 menu): the sticks fold into **Sticks · N** after the boot stick and as
-many as fit; the aids that do not fit go into **More**; the sticks
-stand as **Sticks · N** alone; **Size** loses its size's name and
-Samples joins More; narrowest (the Pi panel's 268 dp as a window), the
-rules and the "Practice" head go, the sticks' pill reads **Sticks** and More
-reads **Practice**. Every control stays inside the window.
-   After them, in the room left, the lines that say what Practice puts in
-   place of the person's own ("Rolls d20", "Practice puts sample … in place
-   of these strings"), cut to one line.
+many as fit; **Size** loses its size's name, which its menu shows
+checked; the aids that do not fit go into **More**, the step's main
+press (Next, Roll) keeping its place; the sticks stand as **Sticks · N**
+alone; Samples joins More; narrowest (the Pi panel's 268 dp as a
+window), the "Practice" head and the die go, the sticks' pill reads
+**Sticks** and More reads **Practice**. The controls never shrink below
+48 dp: where even then the row is wider than the window less its 16 dp
+margins (a phone held upright, the Pi panel as a window), it starts at
+the margin and scrolls sideways, under the wheel or a finger dragged
+along it (a drag past the slop presses nothing), with a scroll
+indicator along the strip's foot, so its end is always reached.
 
 Off Practice (Testnet, Signet, Regtest) the strip holds the sticks and Size
 only: Practice is the one condition for every aid (`docs/DEMO.md` §14).
@@ -109,14 +146,14 @@ shares' walk and the rollers are read from the flow's state
 
 The computer's one die (New key's dice entry, Create a vault's
 Generate with dice; `docs/CODEX32.md` §5.6) stands first among the
-aids: the die itself, drawn by the roller's own code
-(`fresh/roller/screen.rs`, `die_alone`) in the dark scheme of the
-person's theme, tumbling while a click rolls; then **Roll** (**Stop**
+aids in their section: the die itself, drawn by the roller's own code
+(`fresh/roller/screen.rs`, `die_alone`) in the host scheme (§2),
+tumbling while a click rolls; then **Roll** (**Stop**
 while a click rolls; filled as the step's main press, dimmed once the
 entries are full) and **Rolls per click · 1**, which opens a menu of
 1, 5, 10, To the end and Number (Number takes the count typed on the
 keyboard, which the control then shows). The strip grows to the die's
-height with its bounce (`ROW_H`, 62 dp, and a small gap above and
+height with its bounce (`ROW_H`, 62 dp, and an 8 dp gap above and
 below) only while the die shows; the app is laid out above it.
 
 ## 4. Inside the app area
@@ -132,7 +169,7 @@ Transfer, Make PDF, paste, the seed line, the wordmark) stay in the app.
 ## 5. The menus
 
 Each opens up from its control on the strip: Material's menu, 280 dp
-(`HOST_MENU_W`), rows 48 dp (`HOST_MENU_ROW`), in on the emphasized
+(`HOST_MENU_W`), rows 48 dp (`HOST_MENU_ROW`) with title-medium labels, in on the emphasized
 decelerate over medium 1, out on the emphasized accelerate over short 3,
 at once under Reduce motion. A press outside closes it and does nothing
 else; a choice acts and closes it. Sticks: every stick with its dot.
@@ -142,7 +179,7 @@ More: the aids with no room (and Samples, narrowest). Rolls per click:
 1, 5, 10, To the end, Number, the chosen checked.
 
 **Samples' sheet** opens and closes as the menus do, from the strip's
-top, in the host's look: the title, "In Practice, the sample passphrase is
+top, in the host's look (§2): the title, "In Practice, the sample passphrase is
 faraday", where a stick is in the line that it must be pulled, Select
 all (Unselect all while any is ticked), the sample wallets and keys as
 48 dp rows with a tick box, a loaded one ticked and dimmed, taking no
@@ -152,7 +189,7 @@ scrolling between under the wheel where the room above the strip is
 short. A tick and Select all keep it open; Not now, Load ticked, Back
 and a press beside it close it, a press beside it doing nothing else.
 It stands in the host's own space where there is room: beside a
-preview's frame where the dark space there holds a menu's width
+preview's frame where the host's space there holds a menu's width
 (`HOST_MENU_W`), at most `HOST_SHEET_W` (360 dp), on Samples' side
 first; else under the frame's foot where it fits there; else, as in
 This window, which leaves no host space above the strip, up from
@@ -170,6 +207,22 @@ a stick in, the app's Pull sheet asks for it out, as on the device.
   checkbox rows and its menu's open and close motion.
 - **Bare host with `--panel`**: the window is a device's screen, so no
   strip and no preview; the app draws its own pills as a device does.
+- **The host's colours are the app's theme turned inside out**
+  (owner, 2026-10-26): Material's inverse roles for the strip, and the
+  opposite mode's scheme of the same theme and contrast level for what
+  stands on and round it (§2), so the host is told from the app at a
+  glance in every scheme and changes with it.
+- **The aids' section is a tertiary container** (owner, 2026-10-26:
+  a container role of its own colour): Material's tertiary is the
+  accent for what balances primary and secondary and draws attention,
+  apart from the strip's neutral inverse surface.
+- **48 dp controls with title-medium labels at every window size**
+  (owner, 2026-10-26, from Material 3): the strip grows to hold them and
+  scrolls sideways rather than shrink them; the row is centred.
+- **Size gives up its size's name before an aid leaves the strip, and
+  the step's main press is the last aid to go into More**: Material's
+  overflow keeps the actions and shortens labels first; the size shown
+  stays in the Size menu, checked.
 
 ## 7. What the app no longer draws
 
@@ -208,6 +261,17 @@ reaching nothing. The window as the shell shows the host's parts the
 same as its whole frame at 1366 × 768 and 1280 × 800, with the app's
 frame handed over at the window's size, placed under a menu and in the
 Pi preview; More's rows offered to a script at the clock's very start.
+The host's look: its colours follow the app's theme through every
+scheme, the strip the app's inverse surface, darker than a light app
+and lighter than a dark one, at 3:1 or more against the app's surface,
+and so the space round a preview's frame; what the host writes (Home's
+strip, the Size menu, Samples' sheet, Add a key's aids, New key's die
+and Roll) reads on its fill in every scheme. The strip's controls
+centred at 1280 and 1920; 48 dp tall at 1280 × 800, 1920 × 1080,
+2560 × 1440, a half screen and a phone held upright, the Pi previewed
+keeping the window's strip; at the narrowest the row scrolls under the
+wheel and a finger, its end reached and More opened, a drag pressing
+nothing.
 
 ## 9. Speed
 
@@ -226,3 +290,12 @@ window filled (release, two runs each, before and after): at
 2 3.28–3.70 ms before, 2.44–2.48 ms after, the one copy into the
 window's 16 MB; the Pi preview unchanged (0.78–0.79 ms and
 3.21–3.22 ms).
+
+The strip with 48 dp controls, the aids' section and the centred row:
+the host's frame with the app's unchanged
+(release, best of three runs of 300 frames, Practice on Home and on Add
+a key, This window and the Pi preview): at 1366 × 768 0.08, 0.11 and
+0.35 ms before, 0.11–0.25, 0.16–0.40 and 0.37–0.85 ms after; at
+2560 × 1600 at scale 2 0.24, 0.31 and 1.31 ms before, 0.33–0.84,
+0.49–1.01 and 1.41–4.72 ms after, the spread the build machine's other
+work at the time.

@@ -707,12 +707,20 @@ pub const PREVIEW_SIZES: [(u16, u16); 7] = [
 // Faraday Demo's host (`docs/DESKTOP-HOST.md`): the strip along the
 // window's foot, outside the app, in the host's own look.
 
-/// The host strip's height at the window's foot.
-pub const HOST_STRIP_H: f32 = 56.0;
-/// A control's drawn height in the host strip, in the middle of its
-/// `TOUCH` target's height where the strip allows: Material's small
-/// controls (a chip, a small button) are 32 dp.
-pub const HOST_CONTROL_H: f32 = 32.0;
+/// The host strip's height at the window's foot: its 48 dp controls
+/// with 8 dp above and below. It is set by the window, never by the
+/// preview size the app is shown at.
+pub const HOST_STRIP_H: f32 = HOST_CONTROL_H + 2.0 * GAP;
+/// A control's height in the host strip, drawn as tall as its press:
+/// Material's 48 dp touch target, at every window size.
+pub const HOST_CONTROL_H: f32 = TOUCH;
+/// A host control's label: Material's title medium, 16 sp.
+pub const HOST_LABEL: f32 = BODY;
+/// A line of text in a host menu or Samples' sheet: a heading, a note.
+pub const HOST_LINE: f32 = 32.0;
+/// The strip's scroll indicator's thickness, where its controls are
+/// wider than the window and it scrolls sideways.
+pub const HOST_INDICATOR: f32 = 4.0;
 /// A host menu's width: Material's menu at its widest, 280 dp.
 pub const HOST_MENU_W: f32 = 280.0;
 /// The least a preview's frame is scaled down to fit a small window.
