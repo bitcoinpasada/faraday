@@ -1091,7 +1091,8 @@ impl crate::Faraday {
         &self,
         m: crate::codex32::Codex32Make,
     ) -> crate::codex32::Codex32Make {
-        let m = m.with_dice(self.keygen.dice);
+        let mut m = m.with_dice(self.keygen.dice);
+        m.set_practice(self.roller_offered());
         if self.makes_secrets() {
             return m;
         }
@@ -1835,7 +1836,12 @@ impl crate::Faraday {
         let fresh = (press == C32::Suggest)
             .then(|| self.fresh(b"codex32 identifier"))
             .flatten();
-        let compact = self.compact;
+        // The small panel keeps its pad in the page (`docs/CODEX32.md`
+        // §6.4.7); every other window pins it at the foot or beside.
+        let small =
+            self.compact && self.window().class() == faraday_draw::geom::WindowClass::Compact;
+        let practice = self.roller_offered();
+        let mut follow = crate::codex32::Follow::Work;
         let Some(k) = self.keygen.state.as_mut() else {
             return;
         };
@@ -1845,7 +1851,10 @@ impl crate::Faraday {
         }
         if let Some(m) = k.codex32.as_mut() {
             let before = m.open();
+            let was = m.entry_pos();
+            m.set_practice(practice);
             m.act(&c, press, fresh);
+            follow = crate::codex32::Follow::of(press, was, m.entry_pos());
             // The dice chosen are kept for the session's next flow.
             self.keygen.dice = m.dice_choice();
             k.scroll.follow |= m.open() != before;
@@ -1855,7 +1864,7 @@ impl crate::Faraday {
             // On a small panel the entry stays scrolled to its foot at every
             // press, so the worksheet tabs, the panel and the pad are all in view
             // (`docs/CODEX32.md` §6.4.7).
-            if compact && m.open() == Some(Card::Enter) {
+            if small && m.open() == Some(Card::Enter) {
                 k.scroll.follow = false;
                 k.scroll.y = faraday_draw::tokens::CODEX32_ENTER_SCROLL + m.pad_extra();
             }
@@ -1866,7 +1875,11 @@ impl crate::Faraday {
         {
             self.keygen_codex32_by_hand();
         }
-        self.worksheet_follow();
+        match follow {
+            crate::codex32::Follow::Work => self.worksheet_follow(),
+            crate::codex32::Follow::Calm => self.worksheet_follow_calm(),
+            crate::codex32::Follow::Still => {}
+        }
     }
 
     /// The Entropy card's Continue on **Type shares made by hand**

@@ -17,10 +17,15 @@
 //! [`Codex32Make::track`]); drawing and the sheet marks only read them
 //! (`tracker_screen.rs`). A step of the Practice walk shown clears it
 //! (`walk.rs`), as the walk's step is the one the sheets show then.
+//!
+//! **In practice.** Where the computer's dice are offered, the person's
+//! own faces are steps of the walk's history instead
+//! ([`Codex32Make::walk_own`]): Previous steps back through them as
+//! through the computer's, and the tracker stays clear.
 
 use zeroize::Zeroizing;
 
-use super::walk::Walk;
+use super::walk::{Pos, Walk};
 use super::{Codex32Make, Way};
 
 impl Codex32Make {
@@ -91,6 +96,110 @@ impl Codex32Make {
         };
         self.track.chars = chars;
         self.track.at = at;
+    }
+
+    /// In practice (the computer's dice offered), a change of the entry
+    /// by the person, from `before`, taken into the walk's history
+    /// (owner, 2026-10-26): a face of their own dice is one step, as a
+    /// step Next rolled is, the steps after the one shown dropped (a
+    /// different value from an earlier step takes a different path);
+    /// Backspace shows the step the entry went back to. Returns whether
+    /// it was taken; where not, the walk is forgotten. Arithmetic on the
+    /// character's faces and the worksheet's shape.
+    pub(super) fn walk_own(&mut self, before: Pos) -> bool {
+        if !self.practice || self.way != Way::Dice || self.tour_shown().is_some() {
+            return false;
+        }
+        let now = self.entry_pos();
+        if now < before {
+            return self.walk_seek(now);
+        }
+        self.walk_own_face(before).is_some()
+    }
+
+    /// [`Self::walk_own`] for a face entered: the step it made, put in
+    /// the history after the one shown. Arithmetic.
+    fn walk_own_face(&mut self, before: Pos) -> Option<()> {
+        let (g, k) = self.entry_pos();
+        // The character the face went into: the one in progress, or the
+        // one it made whole and put in its box.
+        let (at, faces, place, whole) = if k > 0 {
+            (g, self.seq.clone(), self.front()?, false)
+        } else {
+            let at = g.checked_sub(1)?;
+            let place = self.entered_place(at)?;
+            let made = self.made.get(place.0)?.get(place.1)?;
+            if made.typed {
+                return None;
+            }
+            (at, Zeroizing::new(made.seq.to_vec()), place, true)
+        };
+        // One face on: within a character, the one making it whole, or
+        // the first of the next once the character held whole went in.
+        let one = match (before.0 == at, before.0 + 1 == at) {
+            (true, _) => before.1 + 1 == faces.len(),
+            (_, true) => k == 1 && before.1 > 0,
+            _ => false,
+        };
+        if !one {
+            return None;
+        }
+        let len = faces.len();
+        let slot = self.walk.chars.iter().position(|c| c.g >= at);
+        // Its faces before this one are steps already where the history
+        // holds them.
+        let (k0, mut rolled) = match slot.map(|s| &self.walk.chars[s]) {
+            Some(old) if old.g == at && old.k0 < len && old.begins(&faces[..len - 1]) => {
+                (old.k0, old.rolled[..len - 1].to_vec())
+            }
+            _ => {
+                let k0 = if before.0 == at { before.1 } else { 0 };
+                (k0, vec![false; k0])
+            }
+        };
+        rolled.resize(len, false);
+        self.walk
+            .chars
+            .truncate(slot.unwrap_or(self.walk.chars.len()));
+        if self.walk.chars.last().is_some_and(|l| l.g + 1 != at) {
+            self.walk.chars.clear();
+        }
+        let mut ch = self.char_steps(faces, k0, at, place, whole)?;
+        if ch.face_steps() == 0 {
+            return None;
+        }
+        ch.rolled = rolled;
+        let s = ch.face_steps() + usize::from(whole);
+        self.walk.chars.push(ch);
+        self.walk.at = (self.walk.chars.len() - 1, s);
+        self.track.clear();
+        Some(())
+    }
+
+    /// The walk shows the latest step, at or before the one shown, whose
+    /// place is `pos`, the entry having gone back there; false where the
+    /// history holds none. A lookup over its steps.
+    fn walk_seek(&mut self, pos: Pos) -> bool {
+        let (slot, s) = self.walk.at;
+        let found = (0..=slot.min(self.walk.chars.len().saturating_sub(1)))
+            .rev()
+            .flat_map(|c| {
+                let top = if c == slot {
+                    s
+                } else {
+                    self.walk.chars[c].steps().len()
+                };
+                (1..=top).rev().map(move |t| (c, t))
+            })
+            .find(|&(c, t)| self.pos_of(c, t) == Some(pos));
+        match found {
+            Some(at) => {
+                self.walk.at = at;
+                self.track.clear();
+                true
+            }
+            None => false,
+        }
     }
 
     /// Whether the tracker has a step `d` (−1 or 1) from the one shown.

@@ -1159,10 +1159,11 @@ fn enter_then_watch(app: &mut Faraday, from: usize, place: impl Fn(&Faraday) -> 
 }
 
 #[test]
-fn an_entry_brings_a_dragged_view_back_to_the_cell_over_several_frames() {
+fn a_character_in_its_box_brings_a_dragged_view_back_over_several_frames() {
     // 1280x800: the view pans. Twenty-two characters in, the view is at
     // the front; the person drags the sheet away, and the next character
-    // sends the view back to the front over several frames.
+    // typed, in its box, sends the view back to it over several frames,
+    // its box being off screen (`docs/LAYOUT.md` §16.4).
     let mut app = typed_a(1280, 800, 22);
     let front = pan(&app);
     assert!(front.y > 0.0);
@@ -1189,10 +1190,10 @@ fn an_entry_brings_a_dragged_view_back_to_the_cell_over_several_frames() {
 }
 
 #[test]
-fn an_entry_brings_a_scrolled_page_back_to_a_whole_sheets_cell() {
+fn a_character_in_its_box_brings_a_scrolled_page_back_to_a_whole_sheet() {
     // 1920x1080: the sheet is whole and the page follows it. Scrolled away
-    // by a drag, the next character brings the page back over several
-    // frames, at once under Reduce motion.
+    // by a drag, the box off screen, the next character typed brings the
+    // page back over several frames, at once under Reduce motion.
     let mut app = typed_a(1920, 1080, 22);
     let front = page_y(&app);
     assert!(front > 0.0);
@@ -1248,5 +1249,69 @@ fn at_1280_by_800_the_page_brings_the_worksheet_above_the_pinned_panel() {
             at.1 + at.3 <= top,
             "{n}: cell {at:?} above the panel at {top}"
         );
+    }
+}
+
+/// The alpha of each line `label` is drawn in: 255 where it reads as
+/// available, less where it is drawn in the disabled state.
+fn label_alphas(app: &mut Faraday, label: &str) -> Vec<u8> {
+    use faraday_draw::canvas::InkKind;
+    app.drawn_ink()
+        .into_iter()
+        .filter_map(|i| match i.kind {
+            InkKind::Text { text, color, .. } if text == label => Some(color.a),
+            _ => None,
+        })
+        .collect()
+}
+
+#[test]
+fn the_identifiers_continue_takes_no_press_and_reads_disabled_until_it_is_whole() {
+    let next = Action::Codex32(C32::Next);
+    let done = Action::Codex32(C32::Key(OskPress::Done));
+    for (w, h, dpi) in [(1280u16, 800u16, 160u16), (960, 580, 160), (480, 640, 286)] {
+        let mut app = on(w, h, dpi);
+        app.press(Action::ReduceMotion(true));
+        opened(&mut app);
+        c32(&mut app, C32::Next);
+        let open = |app: &Faraday| app.keygen().unwrap().codex32.as_ref().unwrap().open();
+        assert_eq!(open(&app), Some(Card::Identifier));
+        for typed in ["", "n", "am"] {
+            for ch in typed.chars() {
+                key(&mut app, ch);
+            }
+            let _ = app.frame();
+            assert!(
+                !app.offers(next),
+                "{w}x{h} {typed:?}: Continue takes no press"
+            );
+            assert!(!app.offers(done), "{w}x{h} {typed:?}: nor Done");
+            let a = label_alphas(&mut app, "Continue");
+            assert!(
+                !a.is_empty() && a.iter().all(|&a| a < 255),
+                "{w}x{h} {typed:?}: {a:?}"
+            );
+        }
+        key(&mut app, 'e');
+        let _ = app.frame();
+        let a = label_alphas(&mut app, "Continue");
+        assert!(
+            !a.is_empty() && a.iter().all(|&a| a == 255),
+            "{w}x{h}: {a:?}"
+        );
+        // On the Pi panel the keyboard's last row stands under the pinned
+        // Continue; on the desktop Done is beside its keys.
+        assert!(
+            dpi > 160 || app.offers(done),
+            "{w}x{h}: Done with it, outlined"
+        );
+        let (x, y) = app.where_offered(next).expect("Continue takes a press");
+        for phase in [
+            faraday_shell_api::TouchPhase::Down,
+            faraday_shell_api::TouchPhase::Up,
+        ] {
+            app.event(Event::Touch { x, y, phase });
+        }
+        assert_eq!(open(&app), Some(Card::Entropy), "{w}x{h}: it goes on");
     }
 }

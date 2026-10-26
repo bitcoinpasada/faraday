@@ -883,6 +883,50 @@ impl Faraday {
         }
     }
 
+    /// [`Self::worksheet_follow`] after a character of the person's put in
+    /// its box, or the Working area's Previous or Next
+    /// (`docs/LAYOUT.md` §16.4; owner, 2026-10-25): the view and the page
+    /// move only where the work is not on screen, the page only where the
+    /// view's part above the input panel cannot hold it, and the dice
+    /// sheet is not followed. Arithmetic.
+    pub(crate) fn worksheet_follow_calm(&mut self) {
+        self.codex32_refit();
+        let key = self.region_key();
+        let f = self.unit_px();
+        let cls = self.window().class();
+        let reduce = self.reduce_motion();
+        if let Some(e) = self.scroll.region_now(key, ui::Slot::Worksheet) {
+            let view = (e.view.w as f32 / f, e.view.h as f32 / f);
+            let room = self.window().height - self.codex32_panel_foot_now();
+            let top = e.view.y as f32 / f;
+            let seen = (room - top).clamp(0.0, view.1);
+            let max = (e.max_x, e.max);
+            if self
+                .keygen
+                .sheet_follow_calm(cls, (view.0, seen), max, reduce)
+            {
+                return;
+            }
+            // Too little of the view above the panel: the page brings it
+            // clear, as on every other press.
+            let down = self.worksheet_page_clear().unwrap_or(0.0);
+            let seen = (room - (top - down)).clamp(faraday_draw::tokens::TOUCH, view.1);
+            self.keygen.sheet_follow(cls, (view.0, seen), max, reduce);
+            return;
+        }
+        let whole = self.scroll.region_now(key, ui::Slot::WorksheetWhole);
+        let page = self.scroll.region_now(key, ui::Slot::Page);
+        if let (Some(s), Some(p)) = (whole, page)
+            && self.sheet.is_none()
+        {
+            let offset = self.keygen.state().map_or(0.0, |k| k.scroll.y);
+            let top = (s.view.y - p.view.y) as f32 / f + offset;
+            let room = p.view.h as f32 / f - self.codex32_panel_foot_now();
+            self.keygen
+                .page_follow_calm(cls, (top, room, p.max), reduce);
+        }
+    }
+
     /// While the step-through shows a roll or a character read down the
     /// tree, the page brings where the dice sheet's work is (the marked
     /// die's track, or the tree) into its room above the input panel, by

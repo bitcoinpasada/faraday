@@ -838,15 +838,27 @@ worksheet's shape), and hold places, not values; drawing reads the
 values from the faces and the kept worksheet. **Play runs** One pass,
 One character (the default), One share or To the end, at **Speed**
 Slow, Normal (the default), Fast or Fastest (a step a frame), and
-reaches what stepping reaches. Any other change of the entry (a face of
-the person's own dice, Backspace, a change of dice, Use a sample)
-forgets the steps; the faces the walk entered stay marked as this
-computer's. The person's own entry has the same steps in its Working
-area (§5.7). Built in `codex32/walk.rs` and `codex32/walk_screen.rs`,
-tested in `codex32/walk_tests.rs` (each step's text for vector 2's
-first character, an equal pair, Previous after Next, Play against
-stepping) and `tests/all/codex32_roller.rs` (the steps on Faraday
-Demo and none on the stick, the arrow keys, Play to the end).
+reaches what stepping reaches. **The person's own faces are steps
+too** (owner, 2026-10-26): wherever the computer's dice are offered, a
+face of the person's own dice is one step of the same history, as a
+step Next rolled is, so Previous keeps going back through both and
+shows each step as it was, and Next after it shows the same faces;
+Next where the person has begun a character rolls only the rest of it.
+A value entered at an earlier step takes a different path from there:
+the steps after it are dropped. Backspace shows the step it takes the
+entry back to. Any other change of the entry (a change of dice, Use a
+sample) forgets the steps; the faces the walk entered stay marked as
+this computer's, the person's never. Without the computer's dice the
+person's own entry has the same steps in its Working area (§5.7).
+Built in `codex32/walk.rs`, `codex32/tracker.rs` (`walk_own`) and
+`codex32/walk_screen.rs`, tested in `codex32/walk_tests.rs` (each
+step's text for vector 2's first character, an equal pair, Previous
+after Next, Play against stepping, Previous back through the person's
+own faces, a different value after Previous dropping the later steps,
+Next rolling the rest of a character begun by hand) and
+`tests/all/codex32_roller.rs` (the steps on Faraday
+Demo and none on
+the stick, the arrow keys, Play to the end, Backspace back to a step).
 
 **The buttons stay put (owner, 2026-10-24; `docs/LAYOUT.md` §16.5).**
 In the card Previous, Next and Play stand in one row over Play's options,
@@ -994,8 +1006,11 @@ The steps are worked out once, when a value is entered or taken back:
 the last character in its box (from its record) and the one in progress
 (from its faces), each with its steps, as the walk works a rolled
 character out; drawing reads them and the kept worksheet. At the step
-that puts a character in its box the view follows the entry as before,
-to the box being filled next. Built in `codex32/tracker.rs` and
+that puts a character in its box the view goes to that box, once, and
+only where it is not on screen; a value of a character still being
+rolled moves nothing, and Previous and Next move the view only where the
+cells they mark would otherwise be off screen (§7.5; `docs/LAYOUT.md`
+§16.4). Built in `codex32/tracker.rs` and
 `codex32/tracker_screen.rs` on `codex32/walk.rs`'s model, tested in
 `codex32/tracker_tests.rs` (each value's step, an equal pair, a character
 completed with its box marked, Next through the worksheet's steps in
@@ -1100,8 +1115,12 @@ A Choice per question, in this order:
 - **Identifier**: four characters typed on the codex32 keyboard,
   before any entropy, the booklet's order (III.1, step 2) and the
   Codex32QR profile's (a self-chosen label such as `L0VE`); the field
-  starts empty and ✓ is live once four characters are in and none is
-  refused (§6.4.5). **Suggest** fills four characters from this
+  starts empty and Continue, the card's one way on and Material's filled
+  button, stands in Material's disabled state and takes no press until
+  four characters are in and none is refused (§6.4.5); the codex32
+  keyboard's Done stands outlined beside its keys, as available as
+  Continue (owner, 2026-10-26: one filled action on the card, the one
+  every card of the flow ends with). **Suggest** fills four characters from this
   device's randomness, which the person may keep or change; the
   identifier is not secret. Typed first, it lets the checksum worksheet
   fill live (§6.4.3), since every checksum cell right of box 4 depends
@@ -1626,10 +1645,13 @@ wheel across; the arrow keys pan it once the pointer is over it (where
 the Demo only card's step-through is open, ← and → step it instead,
 §5.5). At its foot or top a drag up or down, the wheel or a trackpad go
 on to the page. During the entry the view follows the work (owner,
-2026-10-24): when the front moves (a die's face, a character typed, a
-step of the Demo only card or Play), the place that keeps the front
-cell, or the cells the step marks, in view with the least move is
-worked out once, and the view goes there in a timed move on Material's
+2026-10-24; calmer 2026-10-25): when a character goes into its box (the
+last face of its rolls, a character typed), when the Working area or
+the strip's walk steps, or as Play runs, the place that keeps the box,
+or the cells the step marks, in view with the least move is worked out
+once (a character in its box and the Working area's steps move nothing
+where it is on screen already; a value of a character still being
+rolled moves nothing at all, `docs/LAYOUT.md` §16.4), and the view goes there in a timed move on Material's
 standard curve over `motion::SHEET_FOLLOW_MS` (300 ms), its frames paced
 as the fades are, each placed by the time it is drawn at; a new place
 while a move is under way takes over from where the view is, at the

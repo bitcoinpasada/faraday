@@ -76,7 +76,7 @@ Every row of `docs/DEMO.md` §14.1 leaves the app area for the strip.
 | New key, a typed key | **Use a sample** | button |
 | New key, the Key card | **Use faraday** (passphrase, repeat); "Lock in adds sample … in place of these words" | button; line |
 | New key, the dice entry | the computer's die: the die, **Roll** (Stop while it rolls), Rolls per click | the roller (§3.2) |
-| Make codex32 shares, the entry | **Use a sample**; the walk's **Previous**, **Next**, **Play** (Pause); **Play options** (how far Play runs, how fast); "Rolls dN" | buttons, Next filled; a menu; a line |
+| Make codex32 shares, the entry | **Use a sample**; the walk's **Previous** (back through the computer's steps and the person's own faces alike, `docs/CODEX32.md` §5.5), **Next**, **Play** (Pause); **Play options** (how far Play runs, how fast); "Rolls dN" | buttons, Next filled; a menu; a line |
 | Make codex32 shares, the cards after the entry | "Practice puts sample NAME in place of these strings" | line |
 | Vaults, no vault in Files | **Use a sample** | button |
 | Create a vault | **Use faraday** for each passphrase and repeat; the Generate with dice roller; "Practice puts faraday in place of these words" | buttons; the roller (§3.2); line |

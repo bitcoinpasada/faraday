@@ -14,9 +14,13 @@
 //! out of its box until the character's own step), or the character in
 //! its box. Every move of the walk goes through [`Codex32Make::walk_go`],
 //! which brings the entry to the step's place a face or a character at a
-//! time and marks each face as this computer's. Any other change of the
-//! entry (a face of the person's own dice, Backspace, a change of dice,
-//! Use a sample) forgets the walk ([`Codex32Make::act`]).
+//! time and marks each face this computer rolled as its own. In practice
+//! (the computer's dice offered) a face of the person's own dice is a
+//! step of the walk too, the steps after the one shown dropped, and
+//! Backspace goes back to the step it leaves the entry at
+//! ([`Codex32Make::walk_own`], `tracker.rs`; owner, 2026-10-26). Any
+//! other change of the entry (a change of dice, Use a sample, or any
+//! change outside practice) forgets the walk ([`Codex32Make::act`]).
 //!
 //! **Built once.** A character's steps are worked out when its values
 //! are rolled: the dice's places from its faces, and which cells of the
@@ -145,8 +149,12 @@ pub struct WalkChar {
     /// Every face of it, in order: the person's first, where they had
     /// begun it, then the computer's.
     faces: Zeroizing<Vec<u8>>,
-    /// How many faces were the person's.
-    k0: usize,
+    /// How many faces were the person's before the walk took the
+    /// character up: they have no steps of their own.
+    pub(super) k0: usize,
+    /// Which faces this computer rolled, one for each face: the rest the
+    /// person entered, before the walk or as steps of it.
+    pub(super) rolled: Vec<bool>,
     /// Its symbol.
     value: u8,
     /// Its whole sheet, for its own step.
@@ -193,6 +201,16 @@ impl WalkChar {
     /// The steps that enter a face.
     pub(super) fn face_steps(&self) -> usize {
         self.faces.len() - self.k0
+    }
+
+    /// Whether face `k` is one this computer rolled.
+    pub(super) fn rolled(&self, k: usize) -> bool {
+        self.rolled.get(k).copied().unwrap_or(false)
+    }
+
+    /// Whether its faces begin with `faces`.
+    pub(super) fn begins(&self, faces: &[u8]) -> bool {
+        self.faces.len() >= faces.len() && self.faces[..faces.len()] == *faces
     }
 }
 
@@ -256,7 +274,7 @@ impl Walk {
 
 /// Where the entry stands: characters entered in all, and faces into the
 /// one in progress.
-type Pos = (usize, usize);
+pub(super) type Pos = (usize, usize);
 
 impl Codex32Make {
     /// The step-through.
@@ -298,20 +316,12 @@ impl Codex32Make {
     }
 
     /// Where the entry stands now.
-    pub(super) fn entry_pos(&self) -> Pos {
+    pub(crate) fn entry_pos(&self) -> Pos {
         (self.entered_all(), self.seq.len())
     }
 
-    /// Forgets the walk where the entry changed by another way than its
-    /// own: `before` is where the entry stood before the press.
-    pub(super) fn walk_check(&mut self, before: Pos) {
-        if self.entry_pos() != before {
-            self.walk.clear();
-        }
-    }
-
     /// The place of the entry step `s` of character `slot` stands for.
-    fn pos_of(&self, slot: usize, s: usize) -> Option<Pos> {
+    pub(super) fn pos_of(&self, slot: usize, s: usize) -> Option<Pos> {
         let ch = self.walk.chars.get(slot)?;
         Some(if s <= ch.face_steps() {
             (ch.g, ch.k0 + s)
@@ -491,21 +501,38 @@ impl Codex32Make {
         };
         self.walk.wanted = false;
         let g = self.entered_all();
-        let k0 = self.seq.len();
+        let k = self.seq.len();
+        // The person's own faces of this character, each a step of the
+        // walk already (`Codex32Make::walk_own`), stay its steps: the
+        // computer rolls the rest of it.
+        let mine = self
+            .walk
+            .chars
+            .last()
+            .filter(|l| l.g == g && !l.whole() && l.faces.len() == k && l.k0 <= k);
+        let (k0, mut rolled, step) = match mine {
+            Some(l) => (l.k0, l.rolled.clone(), l.face_steps() + 1),
+            None => (k, vec![false; k], 1),
+        };
         let mut faces = Zeroizing::new(self.seq.to_vec());
         faces.extend_from_slice(&more);
-        let Some(ch) = self.walk_char(faces, k0, g, (share, n)) else {
+        rolled.resize(faces.len(), true);
+        let Some(mut ch) = self.walk_char(faces, k0, g, (share, n)) else {
             return false;
         };
+        ch.rolled = rolled;
+        if step > 1 {
+            self.walk.chars.pop();
+        }
         if self.walk.chars.last().is_some_and(|l| l.g + 1 != g) {
             self.walk.clear();
         }
-        if ch.face_steps() == 0 {
+        if ch.face_steps() < step {
             return false;
         }
         self.walk.chars.push(ch);
         let slot = self.walk.chars.len() - 1;
-        self.walk_go(c, slot, 1)
+        self.walk_go(c, slot, step)
     }
 
     /// The character of `faces` (the first `k0` the person's), the `g`-th
@@ -598,12 +625,14 @@ impl Codex32Make {
             Err(_) if !whole => 0,
             Err(_) => return None,
         };
+        let rolled = (0..faces.len()).map(|k| k >= k0).collect();
         Some(WalkChar {
             g,
             share,
             n,
             faces,
             k0,
+            rolled,
             value,
             dice,
             rows,
@@ -629,6 +658,7 @@ impl Codex32Make {
             n,
             faces: Zeroizing::new(Vec::new()),
             k0: 0,
+            rolled: Vec::new(),
             value,
             dice: BookletChar::with_faces(self.dice_choice.faces).ok()?,
             rows: Zeroizing::new(Vec::new()),
@@ -719,7 +749,7 @@ impl Codex32Make {
         };
         let (face, mine, len) = {
             let ch = &self.walk.chars[slot];
-            (ch.faces.get(k).copied(), k >= ch.k0, ch.faces.len())
+            (ch.faces.get(k).copied(), ch.rolled(k), ch.faces.len())
         };
         match face {
             Some(f) if k < len => {
@@ -754,7 +784,7 @@ impl Codex32Make {
         let (last, mine) = {
             let ch = &self.walk.chars[slot];
             let at = ch.faces.len().saturating_sub(1);
-            (ch.faces.get(at).copied(), at >= ch.k0)
+            (ch.faces.get(at).copied(), ch.rolled(at))
         };
         let done = self.entered_all();
         self.roller.trim(done, self.seq.len());

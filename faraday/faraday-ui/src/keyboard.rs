@@ -50,13 +50,28 @@ pub const KEY_ROW: f32 = 32.0;
 /// they sit centred in the strip.
 const KEYS_MAX_W: f32 = 720.0;
 
-/// The keyboard's own state: Shift and the symbol layer.
+/// The keyboard's own state: Shift and the symbol layer, and how its
+/// Done key is drawn.
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub struct Keys {
     /// Shift is on: the next letter is a capital.
     pub shift: bool,
     /// The symbol layer is up.
     pub symbols: bool,
+    /// How Done is drawn.
+    pub done: DoneKey,
+}
+
+/// How the keyboard's Done key is drawn.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub enum DoneKey {
+    /// Filled: the page's one way on.
+    #[default]
+    Primary,
+    /// Outlined: the page's own button is its one way on.
+    Secondary,
+    /// Outlined and not available now: it takes no press.
+    Off,
 }
 
 impl Keys {
@@ -142,7 +157,14 @@ pub fn keyboard<A: Copy + PartialEq>(
             KeyInput::Char(' ') => (String::new(), Style::Secondary, OskPress::Char(' ')),
             KeyInput::Char(c) => (c.to_string(), Style::Secondary, OskPress::Char(c)),
             KeyInput::Backspace => (String::new(), Style::Secondary, OskPress::Back),
-            KeyInput::Done => (EN.compact_done.to_string(), Style::Primary, OskPress::Done),
+            KeyInput::Done => {
+                let style = match keys.done {
+                    DoneKey::Primary => Style::Primary,
+                    DoneKey::Secondary => Style::Secondary,
+                    DoneKey::Off => Style::Disabled,
+                };
+                (EN.compact_done.to_string(), style, OskPress::Done)
+            }
             // Drawn as an icon below: Faraday's fonts have no "⇧".
             KeyInput::Shift => (
                 String::new(),

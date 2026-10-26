@@ -316,7 +316,7 @@ fn dice_body(
             cy += dice_rows(m, ui, x, cy, w, false);
         }
         cy += rolled_line(m, ui, x, cy, w);
-        cy += tree(m, ui, x, cy, w.min(t::CODEX32_TREE_MAX_W));
+        cy += tree(m, ui, x, cy, w.min(t::CODEX32_TREE_MAX_W), false);
         return cy - y + t::GAP;
     }
     let pw = t::ROLLER_PAIR_LABEL_W + 2.0 * t::ROLLER_PAIR_COL + t::ROLLER_PAIR_COL;
@@ -332,7 +332,7 @@ fn dice_body(
     if tw >= t::CODEX32_TREE_MIN_W {
         // The dice the computer rolled, one line across both.
         cy += rolled_line(m, ui, x, cy, w);
-        let th = tree(m, ui, x + lw + t::CODEX32_PANEL_GAP, cy, tw);
+        let th = tree(m, ui, x + lw + t::CODEX32_PANEL_GAP, cy, tw, true);
         let mut ly = cy;
         if rolls {
             ly += pairs(ui, (x, cy, pw), &pairs_of(m), None);
@@ -341,7 +341,7 @@ fn dice_body(
         return ly.max(cy + th) - y + t::GAP;
     }
     if !rolls {
-        cy += tree(m, ui, x, cy, w.min(t::CODEX32_TREE_MAX_W));
+        cy += tree(m, ui, x, cy, w.min(t::CODEX32_TREE_MAX_W), true);
         cy += rolled_line(m, ui, x, cy, w);
         cy += tracks(m, ui, x, cy, w);
         return cy - y + t::GAP;
@@ -350,11 +350,11 @@ fn dice_body(
     let tw = (w - pw - t::CODEX32_PANEL_GAP).min(t::CODEX32_TREE_MAX_W);
     if tw >= t::CODEX32_TREE_MIN_W {
         // The tree beside the rolls, as on the booklet's page.
-        let th = tree(m, ui, x + w - tw, cy, tw);
+        let th = tree(m, ui, x + w - tw, cy, tw, true);
         cy += ph.max(th);
     } else {
         cy += ph + t::GAP;
-        cy += tree(m, ui, x, cy, w.min(t::CODEX32_TREE_MAX_W));
+        cy += tree(m, ui, x, cy, w.min(t::CODEX32_TREE_MAX_W), true);
     }
     cy += rolled_line(m, ui, x, cy, w);
     cy += tracks(m, ui, x, cy, w);
@@ -395,7 +395,13 @@ pub(super) fn rolled_line(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32) 
         .map(|d| fill(EN.codex32_die_short, &[&(d + 1).to_string()]))
         .collect();
     if dice.is_empty() {
-        return 0.0;
+        // In practice the line keeps its room, so the tracks under it
+        // stay put as the computer's and the person's values alternate.
+        return if m.practice() {
+            ui.line(t::CAPTION, W::R) + t::GAP_SMALL
+        } else {
+            0.0
+        };
     }
     let line = fill(EN.codex32_dice_rolled, &[&dice.join(", ")]);
     ui.wrap(x, y, w, t::CAPTION, W::R, Role::OnSurfaceVariant, &line) + t::GAP_SMALL
@@ -792,8 +798,10 @@ fn leaves(ui: &mut Ui, (x, ly, lw): (f32, f32, f32), reached: Option<usize>) {
 /// outline-variant; the path from the root for each bit known from die 1
 /// on, `CODEX32_PATH_STROKE` wide in tertiary, neither the lines' colour
 /// nor the accent's, its nodes in it too, and the leaf reached filled in
-/// it and named once die 5's bit is in.
-fn tree(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+/// it and named once die 5's bit is in. With `keep`, the line naming it
+/// keeps its room before it is named, so nothing under the tree moves as
+/// a character is rolled (`docs/LAYOUT.md` §16.4).
+fn tree(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32, keep: bool) -> f32 {
     let bits = known_bits(m, true);
     let lw = w / TREE.len() as f32;
     let lv = t::CODEX32_TREE_LEVEL * lw;
@@ -868,6 +876,8 @@ fn tree(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             &[&b, &at.to_string(), &char::from(TREE[at]).to_string()],
         );
         h += ui.wrap(x, y + h, w, t::LABEL, W::M, Role::Tertiary, &s) + t::GAP_SMALL;
+    } else if keep {
+        h += ui.line(t::LABEL, W::M) + t::GAP_SMALL;
     }
     // The step-through's character read down the tree: where the page
     // follows it.

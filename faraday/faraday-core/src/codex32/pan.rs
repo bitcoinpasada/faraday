@@ -196,6 +196,14 @@ impl SheetPan {
         )
     }
 
+    /// Whether the rectangle `spot` (left, top, wide, tall) stands wholly
+    /// in a view `view` (wide, tall) where the view is going. Arithmetic.
+    pub fn holds(&self, spot: (f32, f32, f32, f32), view: (f32, f32)) -> bool {
+        let (x, y, w, h) = spot;
+        let (gx, gy) = self.going_to();
+        x >= gx && y >= gy && x + w <= gx + view.0 && y + h <= gy + view.1
+    }
+
     /// The view goes to `to`: at once under `reduce`, else over
     /// [`SHEET_FOLLOW_MS`] from where it is, at the speed it has. The
     /// same place again changes nothing.
@@ -258,6 +266,35 @@ impl SheetPan {
     /// The person moved the view: the follow's move stops where it is.
     pub fn stop(&mut self) {
         self.moving = None;
+    }
+}
+
+/// How the view follows a press on the entry (`docs/LAYOUT.md` §16.4;
+/// owner, 2026-10-25).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Follow {
+    /// To where the work is, as every other press sends it.
+    Work,
+    /// Only as far as brings the work on screen, and not at all where it
+    /// is on screen: a character put in its box, or the Working area's
+    /// Previous or Next.
+    Calm,
+    /// Nothing moves: a value of a character still being rolled, or one
+    /// taken back.
+    Still,
+}
+
+impl Follow {
+    /// How the view follows `press`, the entry having moved from `was`
+    /// (characters entered, faces into the next) to `now`. A lookup.
+    pub(crate) fn of(press: super::C32, was: (usize, usize), now: (usize, usize)) -> Follow {
+        use super::{C32, OskPress};
+        match press {
+            C32::Step(_) => Follow::Calm,
+            _ if now.0 > was.0 => Follow::Calm,
+            C32::Face(_) | C32::Key(OskPress::Char(_) | OskPress::Back) => Follow::Still,
+            _ => Follow::Work,
+        }
     }
 }
 

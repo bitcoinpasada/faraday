@@ -209,8 +209,100 @@ fn play_reaches_the_same_end_as_stepping() {
     }
 }
 
+/// The person's face `f` on the pad.
+fn own(m: &mut Codex32Make, f: u8) {
+    let c = testkit::compute();
+    m.act(&c, C32::Face(f), None);
+}
+
+/// What the entry shows: where it stands, the dice sheet's values, the
+/// step shown and what it reads.
+fn sheet_state(m: &Codex32Make) -> ((usize, usize), Vec<Option<u8>>, Option<String>) {
+    let d = m.dice();
+    let values = (0..5).flat_map(|i| [d.first(i), d.second(i)]).collect();
+    (m.entry_pos(), values, m.walk().shown().map(|_| shown(m)))
+}
+
 #[test]
-fn a_face_of_the_persons_own_dice_forgets_the_walk() {
+fn in_practice_previous_steps_back_through_the_persons_own_faces() {
+    let mut m = entry();
+    m.set_practice(true);
+    let (mut draw, asked) = answers(&[]);
+    // Share A's first character by hand, and two faces of its second.
+    let mut seen = vec![sheet_state(&m)];
+    for f in THREE.into_iter().chain([3, 5]) {
+        own(&mut m, f);
+        assert!(m.walk_can_back(), "Previous takes a press after {f}");
+        seen.push(sheet_state(&m));
+    }
+    assert_eq!(m.entry_pos(), (1, 2));
+    // Back a step at a time: every state the person's faces made is shown
+    // again as it was, down to nothing entered, and nothing is rolled.
+    let mut back = vec![sheet_state(&m)];
+    while m.walk_can_back() {
+        press(&mut m, WalkAct::Previous, &mut draw);
+        back.push(sheet_state(&m));
+    }
+    assert_eq!(m.entry_pos(), (0, 0));
+    for want in &seen {
+        let at = back.iter().find(|b| b.0 == want.0);
+        let at = at.unwrap_or_else(|| panic!("{:?} shown again", want.0));
+        assert_eq!(at.1, want.1, "the dice at {:?} as they were", want.0);
+    }
+    // Forward again by Next: the same faces, none of them rolled.
+    while m.walk_has_more() {
+        press(&mut m, WalkAct::Next, &mut draw);
+    }
+    assert_eq!(sheet_state(&m).0, (1, 2));
+    assert_eq!(m.made_of(0, 0).unwrap().value(), 17);
+    assert_eq!(asked.get(), 0, "nothing rolled");
+    assert!((0..5).all(|d| !m.die_rolled(d)), "no die marked as rolled");
+}
+
+#[test]
+fn in_practice_a_different_face_after_previous_takes_a_different_path() {
+    let mut m = entry();
+    m.set_practice(true);
+    let (mut draw, _) = answers(&[]);
+    for &f in &THREE[..5] {
+        own(&mut m, f);
+    }
+    press(&mut m, WalkAct::Previous, &mut draw);
+    press(&mut m, WalkAct::Previous, &mut draw);
+    assert_eq!(m.entry_pos(), (0, 3));
+    assert!(m.walk_has_more(), "the later faces are still ahead");
+    // Die 4's first roll is 6 this time: the faces after it are gone.
+    own(&mut m, 6);
+    assert_eq!(m.entry_pos(), (0, 4));
+    assert_eq!(m.dice().first(3), Some(6));
+    assert!(!m.walk_has_more(), "the later history is dropped");
+    press(&mut m, WalkAct::Previous, &mut draw);
+    assert_eq!(m.entry_pos(), (0, 3));
+    press(&mut m, WalkAct::Next, &mut draw);
+    assert_eq!(m.dice().first(3), Some(6), "Next shows the new path");
+}
+
+#[test]
+fn in_practice_next_rolls_the_rest_of_a_character_begun_by_hand() {
+    let mut m = entry();
+    m.set_practice(true);
+    let (mut draw, _) = answers(&THREE[3..]);
+    for &f in &THREE[..3] {
+        own(&mut m, f);
+    }
+    press(&mut m, WalkAct::Next, &mut draw);
+    assert_eq!(m.entry_pos(), (0, 4));
+    assert!(m.die_rolled(3), "die 4 is the computer's");
+    assert!(!m.die_rolled(0), "die 1 is the person's");
+    // Previous goes back over the computer's face into the person's.
+    press(&mut m, WalkAct::Previous, &mut draw);
+    press(&mut m, WalkAct::Previous, &mut draw);
+    assert_eq!(m.entry_pos(), (0, 2));
+    assert_eq!(m.dice().first(1), Some(THREE[1]));
+}
+
+#[test]
+fn a_face_of_the_persons_own_dice_forgets_the_walk_outside_practice() {
     let c = testkit::compute();
     let mut m = entry();
     let (mut draw, _) = answers(&THREE);

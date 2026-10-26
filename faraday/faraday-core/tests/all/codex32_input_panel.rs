@@ -721,3 +721,107 @@ fn the_pressed_key_is_emphasised_briefly_and_at_rest_under_reduce_motion() {
         assert_eq!(make(&app).pressed_face(), Some(3), "still drawn pressed");
     }
 }
+
+// ---- The view follows the work, calmly (owner, 2026-10-25) ----
+
+/// `n` frames 16 ms apart, a tick before each, as a shell draws them.
+fn frames(app: &mut Faraday, n: usize) {
+    for _ in 0..n {
+        let now = app.now_ms() + 16;
+        app.event(Event::Tick { now_ms: now });
+        let _ = app.frame();
+    }
+}
+
+/// The page's scroll, the pan, and three things' tops.
+type Spots = (f32, (f32, f32), Option<u16>, Option<i32>, Option<i32>);
+
+/// Where things stand on the entry: the page's scroll, the worksheet's
+/// pan, the pad's 3 and the dice sheet's "Die tracks" and "Working".
+fn where_things_are(app: &mut Faraday) -> Spots {
+    let page = app.keygen().unwrap().scroll.y;
+    let pan = make(app).pan();
+    let key = app.hit_box(face(3)).map(|b| b.1);
+    let tracks = text_at(app, "Die tracks").map(|b| b.1);
+    let working = text_at(app, "Working").map(|b| b.1);
+    (page, (pan.x, pan.y), key, tracks, working)
+}
+
+/// Vector 2's share A begins `3`: its ten rolls on six-faced dice.
+const THREE: [u8; 10] = [1, 2, 2, 2, 1, 2, 1, 1, 1, 2];
+
+#[test]
+fn a_roll_moves_nothing_and_a_character_in_its_box_glides_once() {
+    for (w, h) in [(1280u16, 800u16), (960, 580)] {
+        for practice in [false, true] {
+            let mut app = on_shell(w, h, 160, practice, Way::Dice);
+            app.press(Action::ReduceMotion(false));
+            frames(&mut app, 40);
+            // The page at its top: the worksheet's first box under the
+            // panel at the foot.
+            scroll_page(&mut app, w / 2, h / 3, -4000);
+            frames(&mut app, 40);
+            let at = where_things_are(&mut app);
+            // The first nine rolls: nothing scrolls, pans or moves, at the
+            // press or in the frames after it.
+            for &f in &THREE[..9] {
+                c32(&mut app, C32::Face(f));
+                assert_eq!(where_things_are(&mut app), at, "{w}x{h} {practice}: at {f}");
+                frames(&mut app, 30);
+                assert_eq!(
+                    where_things_are(&mut app),
+                    at,
+                    "{w}x{h} {practice}: after {f}"
+                );
+            }
+            // The tenth puts the character in its box: the view goes to it
+            // once, over several frames, and comes to rest.
+            c32(&mut app, C32::Face(THREE[9]));
+            let mut seen = vec![where_things_are(&mut app)];
+            for _ in 0..40 {
+                frames(&mut app, 1);
+                seen.push(where_things_are(&mut app));
+            }
+            let moving = seen.windows(2).filter(|p| p[0] != p[1]).count();
+            assert!(moving >= 3, "{w}x{h} {practice}: a glide: {seen:?}");
+            let rest = seen[seen.len() - 1];
+            assert_eq!(seen[seen.len() - 5], rest, "{w}x{h} {practice}: at rest");
+            // It came to rest with the character's box above the panel.
+            let panel = app.hit_box(face(3)).unwrap().1;
+            let box10 = Action::Codex32(C32::Cell(faraday_core::codex32::Cell::Given {
+                sheet: 0,
+                b: 10,
+            }));
+            let at = app.hit_box(box10).expect("the character's box on screen");
+            assert!(
+                at.1 + at.3 <= panel,
+                "{w}x{h} {practice}: {at:?} above {panel}"
+            );
+            // The next character's first roll moves nothing again.
+            c32(&mut app, C32::Face(4));
+            frames(&mut app, 30);
+            let after = where_things_are(&mut app);
+            assert_eq!((after.0, after.1), (rest.0, rest.1), "{w}x{h} {practice}");
+        }
+    }
+}
+
+#[test]
+fn the_working_areas_next_moves_nothing_while_its_cells_are_on_screen() {
+    // 1920 x 1080: the worksheet is drawn whole and on screen with the
+    // character just put in its box; stepping through the cells that
+    // character fills keeps the page where it is.
+    let mut app = on_shell(1920, 1080, 160, false, Way::Dice);
+    app.press(Action::ReduceMotion(false));
+    frames(&mut app, 40);
+    for f in THREE {
+        c32(&mut app, C32::Face(f));
+    }
+    frames(&mut app, 40);
+    let at = where_things_are(&mut app);
+    for _ in 0..6 {
+        c32(&mut app, C32::Step(1));
+        frames(&mut app, 30);
+        assert_eq!(where_things_are(&mut app), at);
+    }
+}

@@ -191,13 +191,15 @@ fn next_shows_a_step_at_a_time_and_marks_the_computers_dice() {
         "the first roll's five values, marked"
     );
     // Backspace takes the last value back: it is not the roller's, and
-    // the steps are forgotten.
+    // the walk shows the step it went back to, as Previous would
+    // (owner, 2026-10-26).
     c32(&mut app, C32::Key(OskPress::Back));
     assert!(shows(
         &mut app,
         "Die 1, Die 2, Die 3, Die 4 rolled by this computer"
     ));
-    assert!(make(&app).walk().shown().is_none());
+    assert!(matches!(make(&app).walk().shown(), Some((_, 4, _))));
+    assert!(make(&app).walk_can_back(), "Previous still has a step");
 }
 
 #[test]

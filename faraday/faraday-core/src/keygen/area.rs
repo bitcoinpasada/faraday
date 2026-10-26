@@ -102,6 +102,38 @@ impl KeyGenArea {
         }
     }
 
+    /// [`Self::sheet_follow`] only where the work is not wholly in the
+    /// view (`Codex32Make::follow_front_calm`); false where the view is
+    /// too low to hold it. Arithmetic.
+    pub(crate) fn sheet_follow_calm(
+        &mut self,
+        cls: faraday_draw::geom::WindowClass,
+        view: (f32, f32),
+        max: (f32, f32),
+        reduce: bool,
+    ) -> bool {
+        self.state
+            .as_mut()
+            .and_then(|k| k.codex32.as_mut())
+            .is_none_or(|m| m.follow_front_calm(cls, view, max, reduce))
+    }
+
+    /// [`Self::page_follow`] only where the work is not wholly in the
+    /// page's room (`Codex32Make::follow_page_calm`). Arithmetic.
+    pub(crate) fn page_follow_calm(
+        &mut self,
+        cls: faraday_draw::geom::WindowClass,
+        page: (f32, f32, f32),
+        reduce: bool,
+    ) {
+        if let Some(k) = self.state.as_mut()
+            && let Some(m) = k.codex32.as_mut()
+            && let Some(y) = m.follow_page_calm(cls, page, (k.scroll.y, reduce))
+        {
+            k.scroll.y = y;
+        }
+    }
+
     /// Sends the page to where Make codex32 shares' work is on a
     /// worksheet drawn whole (`Codex32Make::follow_page`): the page's
     /// offset to stand at now. Arithmetic.

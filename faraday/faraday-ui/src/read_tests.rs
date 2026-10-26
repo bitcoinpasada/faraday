@@ -300,6 +300,7 @@ fn keyboard(ui: &mut Ui<u8>) {
         Keys {
             shift: true,
             symbols: false,
+            ..Keys::default()
         },
         true,
         |p: OskPress| match p {

@@ -560,24 +560,39 @@ view.
 
 ### 16.4 The view follows the work
 
-Whenever a value is entered (a face on the pad, a key of the keyboard,
-Use a sample, the Demo only card's Previous, Next, arrow keys or Play),
-the worksheet's view goes to the cell being worked with the timed move
-of `docs/CODEX32.md` §7.5 (`motion::SHEET_FOLLOW_MS`, Material's
-standard curve; at once under Reduce motion), however the person last
-dragged it: a drag, the wheel or a key holds the view only until the
-next entry. Read in the code on 2026-10-24: every path above ends in
-`Faraday::worksheet_follow` (`faraday/faraday-core/src/keygen/mod.rs`,
-`faraday/faraday-core/src/motion.rs`), and `SheetPan::target_for`
-measures from where the view stands after a drag, so this holds today;
-no test drags the view away first (§19). Two things are new:
+The view moves only where the work would otherwise be off screen, and
+never while a character is being rolled (owner, 2026-10-25):
+
+- **A roll moves nothing.** While a character's rolls are entered (a
+  face on the pad, a digit, Backspace), nothing scrolls or pans: the
+  die tracks, the tree and the Working area change in place, the pad
+  stays put, and the dice sheet keeps its layout (the tree's line
+  naming the leaf and, where the computer's dice are offered, the line
+  naming the dice it rolled keep their room while empty).
+- **A character in its box glides once.** When a character goes into
+  its box (its last roll, a character typed, Use a sample), the view
+  goes to that box with the timed move of `docs/CODEX32.md` §7.5
+  (`motion::SHEET_FOLLOW_MS`, Material's standard curve; at once under
+  Reduce motion), however the person last dragged it, and not at all
+  where the box is on screen already; the page moves first only where
+  too little of the worksheet's view stands above the input panel to
+  hold it (`Faraday::worksheet_follow_calm`, `codex32::Follow`).
+- **The Working area's steps.** Its Previous and Next move the view only
+  where the cells the step marks would otherwise be off screen.
+- **The Demo walk.** Its Previous, Next, arrow keys and Play send the
+  view to the cell being worked as before
+  (`Faraday::worksheet_follow`).
+
+Only the small panel (`docs/CODEX32.md` §6.4.7), whose pad stands in
+the page, keeps the page at the entry's foot at every press. Besides:
 
 - **The page follows a whole sheet.** Where the worksheet is drawn
   whole (§16.1) it has no view to move, so the page's own scroll makes
   the same least move, over the same time on the same curve, to bring
   the cell being worked into the room above the input panel.
 - **The dice follow too.** On the step-through's rolls and its
-  character's step, the page brings the marked die's track, or the
+  character's step, as its Previous, Next or Play shows them (not as the
+  person's own face shows one), the page brings the marked die's track, or the
   tree, into its room above the input panel by the least move, over
   the same time on the same curve, at once under Reduce motion, once
   the frame after the step has drawn where it is; in the dice sheet's

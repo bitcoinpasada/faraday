@@ -24,7 +24,7 @@ use super::worksheet_screen as sheet;
 use super::{C32, CARDS, Card, Cell, Codex32Make, Given, SPLITS, Split, Tab, WAYS, Way, char_of};
 use crate::drawing::View;
 use crate::keygen::{KeyGen, kstep};
-use crate::screens::next_button;
+use crate::screens::{next_button, next_button_when};
 use crate::strings::{EN, fill};
 use crate::ui::pal::*;
 use crate::ui::{Slot, Style, Ui, W};
@@ -428,8 +428,20 @@ fn note(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
 
 /// Continue at the card's foot, under its note. Returns the height.
 fn foot(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32, label: &str) -> f32 {
+    foot_when(m, ui, (x, y, w), label, true)
+}
+
+/// [`foot`], Continue in Material's disabled state and taking no press
+/// while `on` is false.
+fn foot_when(
+    m: &Codex32Make,
+    ui: &mut Ui,
+    (x, y, w): (f32, f32, f32),
+    label: &str,
+    on: bool,
+) -> f32 {
     let nh = note(m, ui, x, y, w);
-    let drawn = next_button(ui, x, y + nh, w, label, a(C32::Next));
+    let drawn = next_button_when(ui, (x, y + nh, w), label, a(C32::Next), on);
     nh + if drawn { t::TOUCH } else { t::GAP }
 }
 
@@ -564,9 +576,17 @@ fn scheme(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
 /// The codex32 keyboard, inside the card, its keys this flow's. Returns
 /// its height.
 fn keyboard(ui: &mut Ui, x: f32, y: f32, w: f32, kind: KeyboardKind) -> f32 {
-    faraday_ui::keyboard::keyboard(ui, x, w, y, kind, OskKeys::default(), ui.compact, |p| {
-        a(C32::Key(p))
-    });
+    keyboard_with(ui, (x, y, w), kind, OskKeys::default())
+}
+
+/// [`keyboard`] with its Done key drawn as `keys` says.
+fn keyboard_with(
+    ui: &mut Ui,
+    (x, y, w): (f32, f32, f32),
+    kind: KeyboardKind,
+    keys: OskKeys,
+) -> f32 {
+    faraday_ui::keyboard::keyboard(ui, x, w, y, kind, keys, ui.compact, |p| a(C32::Key(p)));
     faraday_ui::keyboard::height(kind) + t::GAP
 }
 
@@ -631,10 +651,23 @@ fn identifier(m: &Codex32Make, ui: &mut Ui, at: At) -> f32 {
     if let Some(r) = m.id_refused() {
         cy += ui.wrap(x, cy, w, t::LABEL, W::R, Role::Error, r) + t::GAP;
     }
+    // Continue is the card's one way on, as on every card of the flow;
+    // the keyboard's Done stands outlined beside its keys, and both take
+    // no press until the identifier is whole and not taken.
+    let ready = m.id_ready();
     if m.work().is_none() {
-        cy += keyboard(ui, x, cy, w, KeyboardKind::Codex32);
+        let done = if ready {
+            faraday_ui::keyboard::DoneKey::Secondary
+        } else {
+            faraday_ui::keyboard::DoneKey::Off
+        };
+        let keys = OskKeys {
+            done,
+            ..OskKeys::default()
+        };
+        cy += keyboard_with(ui, (x, cy, w), KeyboardKind::Codex32, keys);
     }
-    cy += foot(m, ui, x, cy, w, EN.keygen_continue);
+    cy += foot_when(m, ui, (x, cy, w), EN.keygen_continue, ready);
     cy - y
 }
 

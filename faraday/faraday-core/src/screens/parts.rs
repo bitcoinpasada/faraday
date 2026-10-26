@@ -185,12 +185,25 @@ pub(crate) fn next_button(
     label: &str,
     action: Action,
 ) -> bool {
+    next_button_when(ui, (x, y, w), label, action, true)
+}
+
+/// [`next_button`], drawn in Material's disabled state and taking no
+/// press while `on` is false. Returns whether it was drawn here.
+pub(crate) fn next_button_when(
+    ui: &mut Ui,
+    (x, y, w): (f32, f32, f32),
+    label: &str,
+    action: Action,
+    on: bool,
+) -> bool {
+    let style = Style::Primary.when(on);
     if ui.pinning {
-        ui.pin = Some((label.to_string(), Style::Primary, action));
+        ui.pin = Some((label.to_string(), style, action));
         return false;
     }
     let bw = ui.measure(14.0, W::S, label) + 36.0;
-    ui.button(x + w - bw, y, Some(bw), 40.0, label, Style::Primary, action);
+    ui.button(x + w - bw, y, Some(bw), 40.0, label, style, action);
     true
 }
 

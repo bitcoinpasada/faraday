@@ -51,6 +51,7 @@ pub(crate) mod walk_screen;
 mod walk_tests;
 pub(crate) mod worksheet_screen;
 
+pub(crate) use pan::Follow;
 use pan::SheetFit;
 pub use pan::SheetPan;
 pub use tour::{Tour, TourStep};
@@ -605,6 +606,10 @@ pub struct Codex32Make {
     tour: Tour,
     /// How far the dice sheet's column is scrolled within itself, units.
     pane_y: f32,
+    /// The computer's dice are offered (Faraday Demo in Practice): the
+    /// person's own faces are steps of the walk's history. Set from the
+    /// shell's state before every press ([`Codex32Make::set_practice`]).
+    practice: bool,
 }
 
 impl Codex32Make {
@@ -670,6 +675,7 @@ impl Codex32Make {
             track: Walk::default(),
             tour: Tour::default(),
             pane_y: 0.0,
+            practice: false,
         }
     }
 
@@ -871,6 +877,12 @@ impl Codex32Make {
             .iter()
             .find(|(t, _)| *t == id)
             .map(|(_, w)| w.as_str())
+    }
+
+    /// Whether the identifier is whole and no set on this device has it:
+    /// the Identifier card's Continue takes its press. A lookup.
+    pub fn id_ready(&self) -> bool {
+        self.id_len == 4 && self.id_refused().is_none()
     }
 
     /// The way chosen.
@@ -1078,6 +1090,51 @@ impl Codex32Make {
             let to = self.pan.target_for(spot, view, max, 2.0 * cell);
             self.pan.go_to(to, reduce);
         }
+    }
+
+    /// [`Self::follow_front`] only where the work is not wholly in `view`
+    /// where the view is going: there nothing moves. False where `view`
+    /// is too low to hold the work. Arithmetic on the cells' boxes.
+    pub(crate) fn follow_front_calm(
+        &mut self,
+        cls: faraday_draw::geom::WindowClass,
+        view: (f32, f32),
+        max: (f32, f32),
+        reduce: bool,
+    ) -> bool {
+        let Some((spot, cell)) = self.work_spot(cls) else {
+            return true;
+        };
+        if spot.3 > view.1 {
+            return false;
+        }
+        if !self.pan.holds(spot, view) {
+            let to = self.pan.target_for(spot, view, max, 2.0 * cell);
+            self.pan.go_to(to, reduce);
+        }
+        true
+    }
+
+    /// [`Self::follow_page`] only where the work is not wholly in the
+    /// page's room where the page is going: there nothing moves, and
+    /// `None` is returned. Arithmetic on the cells' boxes.
+    pub(crate) fn follow_page_calm(
+        &mut self,
+        cls: faraday_draw::geom::WindowClass,
+        (top, room, max): (f32, f32, f32),
+        (offset, reduce): (f32, bool),
+    ) -> Option<f32> {
+        let ((_, sy, _, sh), _) = self.work_spot(cls)?;
+        let at = if self.page.moving() {
+            self.page.going_to().1
+        } else {
+            offset
+        };
+        let y = top + sy;
+        if y >= at && y + sh <= at + room {
+            return None;
+        }
+        self.follow_page(cls, (top, room, max), (offset, reduce))
     }
 
     /// The worksheet drawn whole has no view to move: the page's scroll,
@@ -1481,11 +1538,26 @@ impl Codex32Make {
         self.act_press(c, press, fresh);
         self.after_rolls(was);
         // The entry changed by another way than the step-through's own:
-        // its steps are forgotten, and the person's own worked out.
-        self.walk_check(before);
+        // in practice a face of the person's is the walk's next step;
+        // otherwise its steps are forgotten, and the person's own worked
+        // out.
         if self.entry_pos() != before {
+            if !self.walk_own(before) {
+                self.walk.clear();
+            }
             self.track(before);
         }
+    }
+
+    /// Whether the computer's dice are offered, as the shell is now:
+    /// the person's own faces then go into the walk's history. Cheap.
+    pub(crate) fn set_practice(&mut self, on: bool) {
+        self.practice = on;
+    }
+
+    /// Whether the computer's dice are offered, as last set. A lookup.
+    pub fn practice(&self) -> bool {
+        self.practice
     }
 
     /// Costs what [`Self::act`] costs. The press itself.
