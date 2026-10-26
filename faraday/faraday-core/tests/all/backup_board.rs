@@ -27,7 +27,7 @@ const PHRASE: &str = "first vault phrase";
 // ---- helpers ----
 
 /// `n` empty sticks of different serials.
-fn sticks(shell: &mut Shell, n: usize) {
+pub(crate) fn sticks(shell: &mut Shell, n: usize) {
     for k in 1..=n {
         let mut d = Disk::empty(&format!("S{k}"), "KEYSTICK");
         d.serial = Some(k as u32);
@@ -583,7 +583,7 @@ fn an_old_plan_text_loads_with_its_sticks_and_makes_the_same_checklist() {
 /// A 2-of-3 made in Create with one vault set up on stick S1 before its
 /// three keys (typed in), its backup open on Back up's plan with nothing
 /// kept: no words, no paper. The keys' fingerprints.
-fn three_with_a_vault(shell: &mut Shell) -> (Faraday, Vec<[u8; 4]>) {
+pub(crate) fn three_with_a_vault(shell: &mut Shell) -> (Faraday, Vec<[u8; 4]>) {
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
     keep_time(&mut app);
     app.press(Action::CreateWallet);

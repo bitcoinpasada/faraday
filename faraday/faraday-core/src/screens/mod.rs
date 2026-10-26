@@ -87,14 +87,14 @@ enum Area {
     Until,
 }
 
-/// How `screen` takes the room; `board` is whether the backup board is
-/// on screen.
-fn area_of(screen: Screen, board: bool) -> Area {
+/// How `screen` takes the room.
+fn area_of(screen: Screen) -> Area {
     match screen {
-        // Back up and a wallet's backup flow hold the backup board, wide
-        // content, while it is shown (`docs/LAYOUT.md` §17); their other
-        // cards keep the old area.
-        Screen::Backup | Screen::BackupFlow if board => Area::Work,
+        // Back up and a wallet's backup flow hold wide content, the
+        // backup board on their plan's card: they start at the navigation
+        // whether the board is open or not, so the page stands still when
+        // it opens (`docs/LAYOUT.md` §14, §17).
+        Screen::Backup | Screen::BackupFlow => Area::Work,
         Screen::SetTime => Area::Reading(READING_TIME_W),
         Screen::Randomness => Area::Reading(READING_RANDOM_W),
         // Explore is reading content: its fields, values and the
@@ -133,11 +133,11 @@ fn area_of(screen: Screen, board: bool) -> Area {
 /// runs to the edge; a page with no wide layout yet keeps the area the
 /// old frame gave it. Returns how far the page is moved right and its
 /// width. Arithmetic.
-fn page_area(screen: Screen, board: bool, room: f32) -> (f32, f32) {
+fn page_area(screen: Screen, room: f32) -> (f32, f32) {
     if room <= PAGE_AREA_UNTIL_W {
         return (0.0, room);
     }
-    match area_of(screen, board) {
+    match area_of(screen) {
         Area::Reading(w) => ((room - w) / 2.0, w),
         Area::Work => (0.0, room),
         Area::Until => ((room - PAGE_AREA_UNTIL_W) / 2.0, PAGE_AREA_UNTIL_W),
@@ -169,7 +169,15 @@ pub(crate) fn support_pane_place((x0, cw, h): (f32, f32, f32)) -> (f32, f32, f32
 /// spacer. `None` elsewhere: there the board is laid out as before.
 /// Costs a lookup.
 pub(crate) fn board_work_end(app: &crate::Faraday) -> Option<f32> {
-    if app.is_compact() || !app.board_shown() {
+    backup_work_end(app).filter(|_| app.board_shown())
+}
+
+/// [`board_work_end`] whether the board is shown or not: on such a window
+/// Back up and a wallet's backup flow keep their reading column where it
+/// stands with the board open, so no card moves when the board's card
+/// opens or closes (`docs/LAYOUT.md` §14). Costs a lookup.
+pub(crate) fn backup_work_end(app: &crate::Faraday) -> Option<f32> {
+    if app.is_compact() {
         return None;
     }
     let full_w = app.size().0;
@@ -240,7 +248,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
         ui.clear(Role::Surface);
         sidebar(app, ui, win_h);
         let room = full_w - SIDEBAR_W;
-        let (ox, cw) = page_area(app.screen, app.board_shown(), room);
+        let (ox, cw) = page_area(app.screen, room);
         let h = full_h;
         ui.ox = ox;
         let x = SIDEBAR_W;
@@ -494,7 +502,7 @@ fn drop_edge(app: &View, ui: &mut Ui, (full_w, full_h): (f32, f32), kb: bool) {
 /// keyboard, the window's height, drawn up to keep the field in view.
 fn held_frame(app: &View, ui: &mut Ui, full_w: f32, full_h: f32, page: (f32, f32)) {
     let (page_h, lift) = page;
-    let (ox, cw) = page_area(app.screen, app.board_shown(), full_w);
+    let (ox, cw) = page_area(app.screen, full_w);
     ui.ox = ox;
     if app.screen != Screen::Home {
         ui.oy = -lift;
@@ -749,7 +757,7 @@ pub(crate) fn keygen_page_w(app: &crate::Faraday) -> f32 {
         };
     }
     let room = if app.held { full_w } else { full_w - SIDEBAR_W };
-    page_area(Screen::KeyGen, false, room).1
+    page_area(Screen::KeyGen, room).1
 }
 
 /// Whether a one-column page takes the whole area beside the rail rather

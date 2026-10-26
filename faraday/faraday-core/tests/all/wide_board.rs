@@ -2,12 +2,15 @@
 //! stand side by side in columns, two at 1920 × 1080 and three at
 //! 2560 × 1440, and a chip dragged into a place in the second column is
 //! kept there; at 1280 × 800 and 480 × 640 the places stand one under
-//! another, as before.
+//! another, as before. Back up's and a wallet flow's cards stand where
+//! they stand whether the board's card is open or not, and the open
+//! board's rule runs over its columns.
 
-use crate::backup_board::three_on_an_empty_board;
+use crate::backup_board::{sticks, three_on_an_empty_board, three_with_a_vault};
+use crate::common::Shell;
 use faraday_core::board::{BoardPress as BP, Chip, Thing, Zone};
 use faraday_core::plan::{self, At, What};
-use faraday_core::{Action, Faraday};
+use faraday_core::{Action, Faraday, qstep};
 use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware, TouchPhase};
 
 /// The window made `width` × `height` at `dpi`.
@@ -138,5 +141,116 @@ fn on_smaller_windows_the_places_stand_one_under_another() {
             assert_eq!(first.0, next.0, "{w}: Place 2 starts where Place 1 does");
             assert!(next.1 >= first.1 + first.3, "{w}: Place 2 under Place 1");
         }
+    }
+}
+
+/// Where Back up's card `q` heads the page.
+fn plan_card(app: &Faraday, q: u8) -> (u16, u16, u16, u16) {
+    app.hit_box(Action::BQ(q))
+        .unwrap_or_else(|| panic!("card {q} drawn"))
+}
+
+/// Back up's board's card closed, the plan's other cards on the page.
+fn board_closed(app: &mut Faraday) {
+    app.press(Action::BQ(qstep::BOARD));
+    app.settle();
+    let _ = app.frame();
+    assert!(!app.board_shown(), "the board's card closed");
+}
+
+#[test]
+fn back_ups_cards_stand_still_when_the_boards_card_opens() {
+    for (w, h) in [(1280u16, 800u16), (1920, 1080), (2560, 1600)] {
+        let mut app = three_places(w, h, 160);
+        board_closed(&mut app);
+        let before = plan_card(&app, qstep::BOARD);
+        let plan_before = plan_card(&app, qstep::PLAN);
+        app.press(Action::BQ(qstep::BOARD));
+        app.settle();
+        let _ = app.frame();
+        assert!(app.board_shown(), "{w}: the board's card open");
+        let after = plan_card(&app, qstep::BOARD);
+        let plan_after = plan_card(&app, qstep::PLAN);
+        assert_eq!(
+            (before.0, before.2),
+            (after.0, after.2),
+            "{w}: the board's card keeps its place and width"
+        );
+        assert_eq!(
+            (plan_before.0, plan_before.2),
+            (plan_after.0, plan_after.2),
+            "{w}: The plan's card keeps its place and width"
+        );
+    }
+}
+
+#[test]
+fn a_wallet_flows_cards_stand_still_when_the_boards_card_opens() {
+    use faraday_core::backup_flow::Step;
+    use faraday_core::backup_flow::steps::FlowAction as F;
+    for (w, h) in [(1280u16, 800u16), (1920, 1080), (2560, 1600)] {
+        let mut shell = Shell::new();
+        sticks(&mut shell, 3);
+        let (mut app, _) = three_with_a_vault(&mut shell);
+        resize(&mut app, w, h, 160);
+        let i = app.backup_flows().len() - 1;
+        shell.flow(&mut app, F::Show(i));
+        shell.flow(&mut app, F::ChangePlan);
+        let board = F::Plan(faraday_core::PlanPress::Q(qstep::BOARD));
+        if app.board_shown() {
+            shell.flow(&mut app, board);
+        }
+        app.settle();
+        let _ = app.frame();
+        let head = Action::Flow(F::Open(Step::Where.n()));
+        let before = app.hit_box(head).expect("the plan card drawn");
+        assert!(!app.board_shown(), "{w}: the board's card closed");
+        shell.flow(&mut app, board);
+        app.settle();
+        let _ = app.frame();
+        assert!(app.board_shown(), "{w}: the board's card open");
+        let after = app.hit_box(head).expect("the plan card drawn");
+        assert_eq!(before.0, after.0, "{w}: the plan card keeps its place");
+        // At 1280 the board's list takes a side panel, the column giving
+        // it room, as before; on large windows the list is the supporting
+        // pane and the column keeps its width.
+        if w > 1280 {
+            assert_eq!(before.2, after.2, "{w}: the plan card keeps its width");
+        }
+    }
+}
+
+/// Whether a line is drawn across x at row y (within a pixel): the
+/// pixels there differ from the one `below` pixels under it.
+fn line_across(app: &mut Faraday, x: u16, y: u16, below: u16) -> bool {
+    let f = app.frame();
+    let width = usize::from(f.width);
+    let at = |px: u16, py: u16| -> [u8; 3] {
+        let i = (usize::from(py) * width + usize::from(px)) * 4;
+        [f.rgba[i], f.rgba[i + 1], f.rgba[i + 2]]
+    };
+    let under = at(x, y + below);
+    (y.saturating_sub(1)..=y + 1).any(|py| at(x, py) != under)
+}
+
+#[test]
+fn on_large_windows_the_open_boards_rule_runs_over_its_columns() {
+    for (w, h, side) in [(1920u16, 1080u16, 2usize), (2560, 1600, 3)] {
+        let mut app = three_places(w, h, 160);
+        let head = plan_card(&app, qstep::BOARD);
+        let last = place(&app, side - 1).expect("the last place of the first line");
+        let end = last.0 + last.2 - 4;
+        assert!(end > head.0 + head.2, "{w}: the places run past the column");
+        assert!(
+            line_across(&mut app, end, head.1, 20),
+            "{w}: the rule above the board's card runs over its last column"
+        );
+        // Closed, the card's rule keeps the column's width.
+        board_closed(&mut app);
+        let head = plan_card(&app, qstep::BOARD);
+        assert!(
+            !line_across(&mut app, end, head.1, 20),
+            "{w}: a closed card's rule ends with the column"
+        );
     }
 }

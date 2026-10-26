@@ -219,9 +219,12 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     // With the board shown on a large window the page runs to the
     // window's edge: the cards keep the reading column, the board runs
     // on to the supporting pane's spacer, and its list is that pane
-    // (`docs/LAYOUT.md` §14, §17).
+    // (`docs/LAYOUT.md` §14, §17). The plan's other cards and the
+    // checklist keep that column too, so no card moves when the board's
+    // card opens.
+    let wide = crate::screens::backup_work_end(app);
     let work = crate::screens::board_work_end(app);
-    let col_w = match work {
+    let col_w = match wide {
         Some(end) => (end - col_x).min(crate::board::screen::column_w()),
         None => cw - panel_w - 72.0,
     };
@@ -394,7 +397,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 )
             }
         };
-        flow::column_foot(ui, &col, &cards, scroll, &mut body, Some(&mut foot))
+        flow::column_wide(ui, &col, work, &cards, scroll, &mut body, Some(&mut foot))
     };
     app.scroll(Scrolled::Backup, next, again);
     // While the board is shown its list is the right-hand column, the

@@ -53,6 +53,9 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     // On a large window the page runs to the window's edge: the cards
     // keep the reading column, the board runs on to the supporting pane's
     // spacer, and its list is that pane (`docs/LAYOUT.md` §14, §17).
+    // The other cards keep that column, so none moves when the board's
+    // card opens.
+    let wide = crate::screens::backup_work_end(app);
     let work = crate::screens::board_work_end(app);
     let panel_w = if work.is_none() && !ui.compact && app.board_shown() {
         crate::screens::side_panel_w(cw)
@@ -64,7 +67,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         area_x: x0,
         area_w: work.map_or(cw - panel_w, |end| end - x0 + faraday_draw::tokens::SPACER),
         x: col_x,
-        w: match work {
+        w: match wide {
             Some(end) => (end - col_x).min(crate::board::screen::column_w()),
             None if panel_w > 0.0 => cw - panel_w - 72.0,
             None => (cw - 72.0).min(820.0),
@@ -88,7 +91,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         let mut body = |ui: &mut Ui, i: usize, x: f32, y: f32, w: f32| -> f32 {
             body(app_ref, f, ui, steps[i], x, y, w)
         };
-        flow::column(ui, &col, &cards, scroll, &mut body)
+        flow::column_wide(ui, &col, work, &cards, scroll, &mut body, None)
     };
     app.scroll(Scrolled::BackupFlow, next, again);
     if work.is_some() {

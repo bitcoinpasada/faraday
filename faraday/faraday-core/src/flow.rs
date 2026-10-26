@@ -111,10 +111,26 @@ pub type Foot<'a> = &'a mut dyn FnMut(&mut Ui, f32, f32, f32) -> f32;
 
 /// [`column`], with `foot` drawn under the last card at (x, y) in the
 /// column's width, returning its height: what comes after the flow.
-#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub fn column_foot(
     ui: &mut Ui,
     col: &Column,
+    cards: &[Card],
+    scroll: Scroll,
+    body: &mut dyn FnMut(&mut Ui, usize, f32, f32, f32) -> f32,
+    foot: Option<Foot>,
+) -> (Scroll, bool) {
+    column_wide(ui, col, None, cards, scroll, body, foot)
+}
+
+/// [`column_foot`] with the open card holding wide content that runs on
+/// to `wide_end` (`docs/LAYOUT.md` §14): the rules above and under that
+/// card run to `wide_end`; its head and summary stay in the column.
+/// `None` draws every rule at the column's width.
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
+pub fn column_wide(
+    ui: &mut Ui,
+    col: &Column,
+    wide_end: Option<f32>,
     cards: &[Card],
     scroll: Scroll,
     body: &mut dyn FnMut(&mut Ui, usize, f32, f32, f32) -> f32,
@@ -224,6 +240,8 @@ pub fn column_foot(
     // everything will be once they are done is what the page measures.
     let disclosure = ui.disclosure;
     let mut settled = 0.0;
+    let open_rule_w = wide_end.map_or(w, |end| (end - x).max(w));
+    let mut after_open = false;
     for (i, card) in cards.iter().enumerate() {
         let card_top = y;
         if card.open {
@@ -269,8 +287,15 @@ pub fn column_foot(
             open_body = Some(body_h);
         }
         // A step is a flat section on the page, a rule above it
-        // (`docs/DECISIONS.md` F39): no fill and no box.
-        ui.rule(x, card_top, w, Role::OutlineVariant);
+        // (`docs/DECISIONS.md` F39): no fill and no box. The open card's
+        // rules, above it and under it, run as wide as what it holds.
+        let rule_w = if card.open || after_open {
+            open_rule_w
+        } else {
+            w
+        };
+        after_open = card.open;
+        ui.rule(x, card_top, rule_w, Role::OutlineVariant);
         if card.open && card_h < full_h {
             let rect = ui.rect(x, card_top, w, card_h);
             ui.reveal(rect);
@@ -345,7 +370,8 @@ pub fn column_foot(
     }
     // The rule under the last step closes the list of them.
     if !cards.is_empty() {
-        ui.rule(x, y, w, Role::OutlineVariant);
+        let rule_w = if after_open { open_rule_w } else { w };
+        ui.rule(x, y, rule_w, Role::OutlineVariant);
     }
     let mut foot_top = None;
     if let Some(foot) = foot {

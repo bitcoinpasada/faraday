@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Partly built: size classes and density (L1, F101), navigation (L2), Home's lead tile and tile grid (L3), the supporting pane's place and its narrow strip, for codex32's Demo only card (§6); the page area to the window's edge (W1, §15, §19); list and detail for Wallets, Files, Vaults and Backups (L4, §5, §17); Settings' list of sections on compact windows and every section on one page from medium up (§17); the codex32 entry's input panel (W3, §16.3); the rest specified, not built (F92); the rest of wide windows (§13 to §19) specified, not built
-**Open:** the stick's density from its screen's EDID (§7; today its kernel command line's, F101), the top app bar over the wide pages and the step flows (§3; they keep their own heads), Files' two lists each scrolling on its own on the rail's windows (§17; there the page scrolls as one), components that keep their size (L5), Learn in the supporting pane (L6), tours and tests (L7), wide windows: wide content, the codex32 worksheet's fit, the string's boxes, the input panel on compact windows that are not short (§16.3; they keep the small panel's context over the pad), the panel beside the sheets scrolling within itself (it stands at the foot where it is taller than the window), New key's dice and Create a vault's Generate with dice in the panel (their pad, progress line and entries already stand together in one card), the page following a whole sheet, fixed step buttons, the open card's rule at the work width while it holds wide content (§14), and the pages that keep the old 1360 dp area (Wallets' first page, Tools, the tools' catalogue, Codes, a stick visit, an open vault's contents, Transfer, Upgrade, the backup flow's cards but the board; §19) and Decode's outputs at their columns' width (§14 to §17, W2, W4, W5); planned.
+**Open:** the stick's density from its screen's EDID (§7; today its kernel command line's, F101), the top app bar over the wide pages and the step flows (§3; they keep their own heads), Files' two lists each scrolling on its own on the rail's windows (§17; there the page scrolls as one), components that keep their size (L5), Learn in the supporting pane (L6), tours and tests (L7), wide windows: wide content, the codex32 worksheet's fit, the string's boxes, the input panel on compact windows that are not short (§16.3; they keep the small panel's context over the pad), the panel beside the sheets scrolling within itself (it stands at the foot where it is taller than the window), New key's dice and Create a vault's Generate with dice in the panel (their pad, progress line and entries already stand together in one card), the page following a whole sheet, fixed step buttons, and the pages that keep the old 1360 dp area (Wallets' first page, Tools, the tools' catalogue, Codes, a stick visit, an open vault's contents, Transfer, Upgrade; §19) and Decode's outputs at their columns' width (§14 to §17, W2, W4, W5); planned.
 
 Faraday lays its screens out by Material 3's layout and navigation
 rules at every size, from the Pi's 2.8-inch panel to a full monitor.
@@ -368,9 +368,12 @@ A page of reading content only is centred in the room beside the
 navigation (left of a supporting pane where one stands). A page that
 holds wide content starts at the navigation's edge plus its margin: its
 reading parts keep their width at the start, and its wide parts run on
-to the work width's end. While a flow's open card holds wide content,
-the card's rule runs the work width; its head and summary stay where the
-column puts them. On one-column windows (the rail's, §3) a page sits in a
+to the work width's end. A page whose card can hold wide content starts
+there on every card, the wide card open or not, so nothing moves when it
+opens (Back up and a wallet's backup flow, whose plan holds the backup
+board). While a flow's open card holds wide content, the card's rules,
+above and under it, run the work width; its head and summary stay where
+the column puts them. On one-column windows (the rail's, §3) a page sits in a
 `COLUMN_MAX` column centred beside the rail, except Make codex32 shares,
 whose string, sheets and input panel take the whole area beside the rail
 (owner, 2026-10-25; `screens/mod.rs`, `whole_area`).
@@ -655,7 +658,7 @@ is measured to place them.
 | Home | the feed (§4) across the work width: as many `TILE_MIN` columns as fit, tiles at their size, the rest of a short row empty; Scan at the right edge (§15) |
 | Wallets, Files, Vaults, Backups | list and detail (§5, L4) in the whole page area: the list `LIST_PANE` at the start, the detail beside it to the right margin; the detail's reading parts at `COLUMN_MAX`, its chart and tables in the detail's width. Files' two lists ("From the stick", "For the stick") are two list panes side by side; its stick status chip moves to the top strip's row |
 | The structure chart (a wallet's detail, the chart sheet) | wide content in the detail's width; its nodes keep their size (§8); the wallet's buttons under the chart, not at the card's foot |
-| The backup board | wide content: the places laid out in as many columns as the work width holds at the board's place width, so three places stand side by side at 2560 and two at 1920; the board's lists (seeds, vaults, watch-only software) a supporting pane at the right edge (§15) |
+| The backup board | wide content: the places laid out in as many columns as the work width holds at the board's place width, so three places stand side by side at 2560 and two at 1920; the board's lists (seeds, vaults, watch-only software) a supporting pane at the right edge (§15); the page it is on (Back up, a wallet's backup flow) starts at the navigation on every card, so its cards stand still when the board's card opens, and the open card's rules run the work width (§14) |
 | Explore | reading content: the path field as wide as a path (§8), the values in mono in the column, wrapping in groups; the addresses table as wide as its columns, at the start |
 | Spend and every step flow | reading content in the column, centred (§14); a table in a step (Spend's transaction) as wide as its columns; on extra-large the step's Guided text and Learn in the supporting pane (§6, L6) |
 | Settings | (owner, 2026-10-25) On a compact window, the Pi panel and narrow windows, Material's list and detail one pane at a time: the Steps only · Guided choice, then the sections as list items, Mode first with the mode it is on, opening the mode sheet; any other opens that section's card as its own page, the top app bar naming it, and Back (the bar's and the app's) returns to the list where it was scrolled. From medium windows up, no list: every section's card on one page under the Steps only · Guided choice, centred in the page area, in two columns where each is at least `SETTINGS_CARD_MIN` (360 dp) wide, else one; each column at most `COLUMN_MAX` (§14). The first column holds Mode, Session, Time and Randomness, the second Appearance on, so the order reads down the first and then the second and a card never moves between them. Medium keeps one page: measured at 160 dpi with no keys loaded, the page is 2,235 dp tall at 600 × 900 (2.7 screens; 2,787 dp, 3.3 screens, with Guided), 2,039 dp at 768 × 1024 (2.1; 2.6 with Guided) and 1,981 dp at 800 × 1280 (1.6; 2.0), at or under about three screens but with Guided on the smallest, which a list would only split into a press and a Back per section |
@@ -817,7 +820,21 @@ cells; the checks under the board keep the column. The board's lists
 supporting pane (`support_pane_place`), an outlined card as tall as the
 list, scrolling on its own, beside the "Demo only" card where that
 stands too. A drag drops into any column, and onto the pane to take a
-chip off, as before. The page re-lays from its centred area to the
-work width when the board's card opens, since the plan's other cards
-keep the old area. At 1280 × 800, every window up to 1600 dp wide and
+chip off, as before. At 1280 × 800, every window up to 1600 dp wide and
 the small panel the board is as before.
+
+**Built after W7:** Back up and a wallet's backup flow are pages that
+hold wide content whether the board's card is open or not, so on a
+window whose room is wider than the old page area they start at the
+navigation on every card (`screens::backup_work_end`): their reading
+column, a card's body `COLUMN_MAX`, stands at the same place and width
+with the board open or closed, and opening the board's card adds its
+columns and its supporting pane beside the column without moving
+anything; the checklist, the plan's other cards and the flow's other
+steps stand in that column too. With the board closed, Back up's map
+panel stands at the window's edge, as it does at 1280 × 800, and a vault
+made in the flow has its form at the flow's start. While the board's card is
+open its rules, the one above it and the one under it, run to the work
+width's end (`flow::column_wide`); its head and summary stay in the
+column (§14). At 1280 × 800, every window up to 1600 dp wide and the
+small panel nothing moved.
