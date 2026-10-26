@@ -6157,8 +6157,6 @@ strings! {
     /// Faraday Demo's host strip: the computer's die's Rolls per click,
     /// opening its choices. `{}`: the one chosen, or the number typed.
     host_rolls_per_click: "Rolls per click · {}",
-    /// Faraday Demo's host strip: the head of the screen's practice aids.
-    host_demo: "Practice",
     /// Faraday Demo's host strip: the practice aids that do not fit, in a
     /// menu.
     host_more: "More",

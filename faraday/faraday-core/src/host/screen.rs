@@ -353,6 +353,9 @@ struct Fitted {
     /// "Practice" heads the aids, the die after it; else none, and More
     /// reads "Practice".
     head: bool,
+    /// The section's head and narrowest More: the mode's name, "Practice"
+    /// or "Testnet".
+    head_label: &'static str,
     demo: Vec<Ctl>,
     demo_more: Vec<Ctl>,
     lines: Vec<String>,
@@ -384,11 +387,11 @@ fn sticks_ctl(n: usize, mark: bool) -> Ctl {
 }
 
 /// More, opening the aids with no room; narrowest (`!head`), it reads
-/// "Practice".
-fn more_ctl(head: bool) -> Ctl {
+/// `label`, the mode's name.
+fn more_ctl(head: bool, label: &'static str) -> Ctl {
     Ctl {
         mark: false,
-        label: if head { EN.host_more } else { EN.host_demo }.to_string(),
+        label: if head { EN.host_more } else { label }.to_string(),
         press: HostPress::Menu(Menu::More),
         kind: Kind::Opens(Menu::More),
     }
@@ -427,13 +430,14 @@ fn fit(host: &Host, ui: &HostUi, room: f32, die_w: f32) -> Fitted {
     });
     let size = |short: bool| size_ctl(host, short);
     let (mut demo, lines) = demo_ctls(app);
-    let more_ctl = more_ctl(true);
+    let head_label = app.mode().name();
+    let more_ctl = more_ctl(true, head_label);
     let sum = |v: &[Ctl]| -> f32 { v.iter().map(|c| ctl_w(ui, c) + t::GAP).sum() };
     // The section's own room at its ends.
     let divider = 2.0 * SECTION_PAD;
     let head = |any: bool| {
         if any {
-            divider + ui.measure(t::HOST_LABEL, W::S, EN.host_demo) + t::GAP + die_w
+            divider + ui.measure(t::HOST_LABEL, W::S, head_label) + t::GAP + die_w
         } else {
             0.0
         }
@@ -500,6 +504,7 @@ fn fit(host: &Host, ui: &HostUi, room: f32, die_w: f32) -> Fitted {
         sticks: shown,
         right,
         head,
+        head_label,
         demo,
         demo_more,
         lines,
@@ -556,8 +561,8 @@ pub(crate) struct Drawn {
 enum Piece<'a> {
     /// A control.
     Ctl(&'a Ctl),
-    /// "Practice", heading the section.
-    Head,
+    /// The mode's name ("Practice", "Testnet"), heading the section.
+    Head(&'static str),
     /// The computer's die.
     Die(Roller),
     /// What Practice puts in place of the person's own, cut to fit.
@@ -575,7 +580,7 @@ struct Row<'a> {
 fn piece_w(ui: &HostUi, p: &Piece) -> f32 {
     match p {
         Piece::Ctl(c) => ctl_w(ui, c),
-        Piece::Head => ui.measure(t::HOST_LABEL, W::S, EN.host_demo),
+        Piece::Head(label) => ui.measure(t::HOST_LABEL, W::S, label),
         Piece::Die(_) => t::ROLLER_DIE,
         Piece::Lines(s) => ui.measure(t::LABEL, W::R, s),
     }
@@ -615,7 +620,7 @@ fn lay_out<'a>(ui: &HostUi, fitted: &'a Fitted, shown: Option<Roller>, room: f32
     let group = !fitted.demo.is_empty() || !fitted.demo_more.is_empty() || shown.is_some();
     if group {
         if fitted.head {
-            row.section.push(Piece::Head);
+            row.section.push(Piece::Head(fitted.head_label));
             if let Some(r) = shown {
                 row.section.push(Piece::Die(r));
             }
@@ -628,7 +633,7 @@ fn lay_out<'a>(ui: &HostUi, fitted: &'a Fitted, shown: Option<Roller>, room: f32
         let more = if fitted.demo_more.is_empty() {
             0.0
         } else {
-            ctl_w(ui, &more_ctl(fitted.head)) + t::GAP
+            ctl_w(ui, &more_ctl(fitted.head, fitted.head_label)) + t::GAP
         };
         // Where no aid stands, the section opens to hold the lines.
         let opens = if row.section.is_empty() {
@@ -667,7 +672,7 @@ pub(crate) fn draw(host: &Host, ui: &mut HostUi, area: Option<Area>, scroll: f32
     let die_w = shown.map_or(0.0, |_| t::ROLLER_DIE + t::GAP);
     let room = w - 2.0 * t::PAD;
     let fitted = fit(host, ui, room, die_w);
-    let more = (!fitted.demo_more.is_empty()).then(|| more_ctl(fitted.head));
+    let more = (!fitted.demo_more.is_empty()).then(|| more_ctl(fitted.head, fitted.head_label));
     let mut row = lay_out(ui, &fitted, shown, room);
     // More ends the aids, before the lines.
     if let Some(m) = &more {
@@ -766,18 +771,10 @@ fn piece(
             }
             control(host, ui, c, (x, cy), on_strip(look, in_section))
         }
-        Piece::Head => {
-            labels.push(EN.host_demo.to_string());
+        Piece::Head(label) => {
+            labels.push(label.to_string());
             let ink = look.on_section;
-            ui.text_mid(
-                x,
-                cy,
-                t::HOST_CONTROL_H,
-                t::HOST_LABEL,
-                W::S,
-                ink,
-                EN.host_demo,
-            )
+            ui.text_mid(x, cy, t::HOST_CONTROL_H, t::HOST_LABEL, W::S, ink, label)
         }
         Piece::Die(r) => {
             let y = top + (sh - crate::fresh::roller::screen::ROW_H) / 2.0;

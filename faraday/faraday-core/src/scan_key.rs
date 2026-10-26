@@ -514,12 +514,11 @@ impl Faraday {
             && self.may_load_keys()
     }
 
-    /// Whether the page hands Faraday Demo's strip Paste words: where the
-    /// words form takes words pasted, in Practice, whose section of the
-    /// strip holds the page's aids. On Testnet Ctrl+V does the same. A
-    /// lookup.
+    /// Whether the page hands Faraday Demo's strip Paste words: wherever
+    /// the words form takes words pasted, in every mode Faraday Demo has
+    /// (Practice and the test networks; owner, 2026-10-26). A lookup.
     pub fn entry_paste_offered(&self) -> bool {
-        self.entry_pastes() && self.mode() == crate::Mode::Demo
+        self.entry_pastes()
     }
 
     /// Paste words: the shell is asked for the clipboard's text, where the

@@ -568,7 +568,7 @@ nothing of it.
 |---|---|---|---|
 | Switching mode | Practice, Testnet, Signet, Regtest | Practice only | a public page takes samples only; a person's own test seeds belong in the downloaded app |
 | Files | the Inbox and Outbox are folders on disk (Downloads) | sticks in memory, drawn round the laptop | a browser has no folder Faraday may watch |
-| Paste | the clipboard, a seed on a seed scanner and a key's words on the words form (F75) | none | the web shell has no clipboard |
+| Paste | the clipboard, a seed on a seed scanner and a key's words on the words form, by Ctrl+V or the strip's Paste words, in every mode Faraday Demo has (F75) | none | the web shell has no clipboard |
 | Camera | the computer's cameras | one webcam that sees the desk's props | the props are the page's way in |
 
 ## 10. Batches

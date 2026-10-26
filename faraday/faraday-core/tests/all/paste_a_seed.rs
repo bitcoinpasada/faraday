@@ -399,10 +399,13 @@ fn paste_words_is_in_practices_strip_and_a_sample_pasted_loads() {
 }
 
 #[test]
-fn on_testnet_the_strip_has_no_paste_words_and_ctrl_v_pastes() {
+fn on_testnet_the_strip_offers_paste_words_and_it_and_ctrl_v_paste() {
     let mut app = demo_on_testnet();
-    assert!(!strip_offers(&mut app, Action::PasteWords));
+    assert!(strip_offers(&mut app, Action::PasteWords));
     let (words, _) = VECTORS[0];
+    assert!(paste_words(&mut app, words, false));
+    assert_eq!(words_in(&app), words);
+    let mut app = demo_on_testnet();
     assert!(paste_words(&mut app, words, true));
     assert_eq!(words_in(&app), words);
 }

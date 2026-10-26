@@ -105,8 +105,9 @@ many as fit; **Size** loses its size's name, which its menu shows
 checked; the aids that do not fit go into **More**, the step's main
 press (Next, Roll) keeping its place; the sticks stand as **Sticks · N**
 alone; Samples joins More; narrowest (the Pi panel's 268 dp as a
-window), the "Practice" head and the die go, the sticks' pill reads
-**Sticks** and More reads **Practice**. The controls never shrink below
+window), the section's head (the mode's name: "Practice", or
+"Testnet" where Paste words is the one aid) and the die go, the
+sticks' pill reads **Sticks** and More reads the mode's name. The controls never shrink below
 48 dp: where even then the row is wider than the window less its 16 dp
 margins (a phone held upright, the Pi panel as a window), it starts at
 the margin and scrolls sideways, under the wheel or a finger dragged
@@ -124,7 +125,7 @@ Every row of `docs/DEMO.md` §14.1 leaves the app area for the strip.
 |---|---|---|
 | Add a key; the Spend tab's Type the words | **Use a sample** | button |
 | Add a key | **Use faraday** (BIP-39 passphrase) | button |
-| Add a key's words, a Restore slot's, New key's typed key | **Paste words**: the clipboard's words go into the words whole (F75); Ctrl+V does the same there, on Testnet too | button |
+| Add a key's words, a Restore slot's, New key's typed key | **Paste words**: the clipboard's words go into the words whole (F75), in Practice and on the test networks; Ctrl+V does the same there | button |
 | New key, a typed key | **Use a sample** | button |
 | New key, the Key card | **Use faraday** (passphrase, repeat); "Lock in adds sample … in place of these words" | button; line |
 | New key, the dice entry | the computer's die: the die, **Roll**, Rolls per click | the roller (§3.2) |
@@ -290,8 +291,8 @@ panel framed above the strip, a press inside reaching the tile under
 it, one beside it nothing, This window laying the app out again; a menu
 closed by a press beside it that goes no further; Add a key's Use a
 sample and Use faraday in the strip alone, Use a sample filling the
-words, gone on Home; Paste words in Practice's strip and not
-Testnet's (`paste_a_seed.rs`); Make codex32 shares' walk in the strip at three
+words, gone on Home; Paste words in the strip in Practice and on
+Testnet (`paste_a_seed.rs`); Make codex32 shares' walk in the strip at three
 sizes, Next stepping it from one place, the step's count in the app's
 Working area; Play's options choosing a speed; New key's die and
 Generate with dice's in the strip, Roll rolling; Rolls per click's menu
