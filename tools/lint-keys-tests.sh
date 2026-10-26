@@ -9,7 +9,7 @@
 # Faraday ships, on any target: the desktop app, the stick's and the Pi's
 # app, the disk and grant helpers, the boot report and the Starter.
 #
-# A third check: `faraday-samples` (the public samples Demo takes,
+# A third check: `faraday-samples` (the public samples Practice takes,
 # docs/MODES.md §5.4) is public data, but only the desktop app carries it.
 # The stick, the Pi, the disk and grant helpers, the boot report and the
 # Starter's own app must not reach it by a normal dependency, on any target.

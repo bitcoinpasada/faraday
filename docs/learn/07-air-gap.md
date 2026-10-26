@@ -4,7 +4,7 @@
 
 An air-gapped device has no connection to any network. Faraday has no networking code, and the system a stick or a Pi starts has no network drivers at all, so nothing can reach it over a network and nothing can leave it that way. The only ways in and out are QR codes, shown on a screen and read by a camera, and files that you carry across on a stick yourself (on the Pi, the SD card).
 
-Faraday Desktop runs on an ordinary computer that is online. It has no air gap, and a seed that holds funds does not belong there.
+Faraday Demo runs on an ordinary computer that is online. It has no air gap, and a seed that holds funds does not belong there.
 
 ## What crosses the gap
 

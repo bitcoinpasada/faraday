@@ -243,7 +243,7 @@ pub enum PayloadKind {
     AppleStick,
     /// The Pi image (`faraday-pi-…`).
     Pi,
-    /// The desktop app (`faraday-desktop-…`).
+    /// The desktop app (`faraday-demo-…`).
     Desktop,
 }
 
@@ -257,7 +257,7 @@ impl PayloadKind {
             Some(PayloadKind::Stick)
         } else if name.starts_with("faraday-pi-") {
             Some(PayloadKind::Pi)
-        } else if name.starts_with("faraday-desktop-") {
+        } else if name.starts_with("faraday-demo-") {
             Some(PayloadKind::Desktop)
         } else {
             None
@@ -775,7 +775,7 @@ pub struct WriteOrder {
 pub enum StarterCommand {
     /// Write a stick or card as confirmed.
     Write(WriteOrder),
-    /// Install the Starter, and the payload's Faraday Desktop beside it
+    /// Install the Starter, and the payload's Faraday Demo beside it
     /// (§5.2, §5.3).
     Install,
     /// Uninstall exactly what install put here (§5.4).

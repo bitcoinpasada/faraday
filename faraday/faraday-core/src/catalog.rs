@@ -532,7 +532,7 @@ impl Faraday {
                 if let Some(k) = self.inbox.iter().position(|i| i.kind == FileKind::Message) {
                     self.act(Action::CheckMessage(k));
                 } else {
-                    // Demo: the sample message stands in for the one to copy in.
+                    // Practice: the sample message stands in for the one to copy in.
                     self.check_use_sample();
                 }
             }

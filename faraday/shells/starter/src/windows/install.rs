@@ -8,8 +8,8 @@
 //! | | |
 //! |---|---|
 //! | the Starter | `%LOCALAPPDATA%\Programs\Faraday Starter\Faraday Starter.exe`, a copy of the running file |
-//! | the desktop app, with the payload | `%LOCALAPPDATA%\Programs\Faraday Starter\Faraday Desktop.exe`, beside the Starter |
-//! | the Start menu shortcuts | `Faraday Starter.lnk` and, with the desktop app, `Faraday Desktop.lnk`, in the person's Start menu Programs folder |
+//! | the desktop app, with the payload | `%LOCALAPPDATA%\Programs\Faraday Starter\Faraday Demo.exe`, beside the Starter |
+//! | the Start menu shortcuts | `Faraday Starter.lnk` and, with the desktop app, `Faraday Demo.lnk`, in the person's Start menu Programs folder |
 //! | the uninstall entry | `HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\Faraday Starter` |
 //! | the icon | in the `.exe` |
 //!
@@ -17,11 +17,14 @@
 //! and uninstall key) are found and removed by install and
 //! uninstall, when their executable is not there or answers `--version`
 //! as Faraday's Starter; one that does not leaves all its old names alone.
+//! The desktop app's old file and shortcut (`names::LEGACY_DESKTOP`,
+//! from before it was Faraday Demo) go the same way, when the file
+//! answers as Faraday's desktop app.
 //!
 //! The desktop app is the payload's, decompressed and checked against its
 //! manifest line, written beside its place and renamed in. Without it
-//! installed, Open Faraday Desktop runs it from the cache (§5.3,
-//! [`desktop_app`]). A `Faraday Starter.exe` or `Faraday Desktop.exe` that
+//! installed, Open Faraday Demo runs it from the cache (§5.3,
+//! [`desktop_app`]). A `Faraday Starter.exe` or `Faraday Demo.exe` that
 //! does not answer `--version` as Faraday's own program is another
 //! program's, and is neither replaced nor removed (§5.2).
 //! A running copy cannot be deleted on Windows: an install renames the
@@ -221,6 +224,20 @@ pub trait Registry {
 /// and uninstall key, when its executable is not there or answers as the
 /// Starter.
 fn remove_legacy(dirs: &Dirs, ask: Ask<'_>, reg: &mut dyn Registry) -> Result<(), Reason> {
+    for l in &names::LEGACY_DESKTOP {
+        let app = dirs.folder().join(l.win_exe);
+        if app.exists() && !ours_as(ask, &app, Program::DesktopApp) {
+            continue;
+        }
+        // A copy of it that is running cannot be deleted; that is left.
+        let _ = fs::remove_file(&app);
+        let shortcut = dirs.programs.join(l.win_shortcut);
+        match fs::remove_file(&shortcut) {
+            Ok(()) => {}
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+            Err(e) => return Err(file_error(&shortcut, &e)),
+        }
+    }
     for l in &names::LEGACY {
         let app = dirs.legacy_app(l);
         if app.exists() && !ours(ask, &app) {

@@ -8,7 +8,7 @@ use faraday_core::testkit;
 use faraday_core::wallet::{FileKind, Refusal};
 use faraday_core::{Action, Screen, StorageEvent};
 
-/// The Demo's FROST 2-of-3 record, public test data: what a person would
+/// The Practice's FROST 2-of-3 record, public test data: what a person would
 /// carry in from a wallet made by a build with FROST.
 const RECORD: &str = "osk-threshold 1\nthreshold 2\ngroup 03f74b3a5d82b000a1a9078fbf6a7fd26a43dfc5727ea716204d511dd7669a57bc\nshare 0 02a798ae6f5eb7446492a5c8baf71c59e1d259985e663923513f2cfdadbc482187\nshare 1 037e4ced9ae783bf2071688c61a3526ea01da26348b38980d99a126e5896de3583\nshare 2 02bcbf572cb04013d8d1a6b1fd281e60336fd51cbd130fcccabf391565b1e0aaa0\ntr(tpubD6NzVbkrYhZ4XgHkCEtfpuZPJDLaLPxu5ZBEtAbub9GcUX1mTS2t3eCnBaYxKDfyvecpxgGsf4MtTC3gyZz9FD4qq6Km68VSDnpD5vpWm3e/<0;1>/*)#edvh7ggu";
 

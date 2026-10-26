@@ -242,7 +242,7 @@ The cross-check fetches nothing, ever.
    pool's and the seed's draws and the lock, over fixed system answers.
    Built (area `own-randomness`).
 6. What `docs/STANDARDS.md` §0 asks of the rest: the entropy procedures
-   (area `entropy`), Faraday Desktop's dice rollers (`roller`), SeedQR
+   (area `entropy`), Faraday Demo's dice rollers (`roller`), SeedQR
    and the QR encoder (`seedqr`), BBQr and numbered parts (`bbqr`), UR
    (`ur`), the vanity search (`vanity`), the KDBX export read by
    pykeepass (`kdbx`), the Lightning node keys and the aezeed's outer

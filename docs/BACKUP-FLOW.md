@@ -380,7 +380,7 @@ inserted before step 2.
   centred, the hold at the bottom with **Use another stick** beside it);
   Writing is the Progress bar; Done is a Result.
 - **On the Pi** "stick" is "SD card" by `app.medium` (F4). **A developer
-  build of Faraday Desktop** (F30) uses its stick folders as sticks; the
+  build of Faraday Demo** (F30) uses its stick folders as sticks; the
   demo makes none of these keys (F30) and never shows the flow.
 - **Never the stick visit**, at any step, 2 and 6 included. While the
   flow is on screen and not left, a stick arriving is the flow's:
@@ -1175,26 +1175,26 @@ unlocking a vault.
 
 ## 16. Stick pills on every device
 
-(owner, 2026-10-15.) The numbered stick pills that Faraday Desktop and
+(owner, 2026-10-15.) The numbered stick pills that Faraday Demo and
 the website demo draw across the top (`stick/pills.rs`, commit bbcfd1e)
 are drawn on the PC stick and the Pi too, so a person who brings a stick
 back can see it is the one the flow wants.
 
-- **When.** On Faraday Desktop and the demo, always, as today. On a
+- **When.** On Faraday Demo and Practice, always, as today. On a
   device (`shell_sticks` false), only while a backup flow on screen uses
   sticks (`sticks_wanted()` is some): the boot stick's pill, then a pill
   per stick of the flow in the flow's slot order.
 - **Numbering** (owner, 2026-10-15): the boot stick is Stick 1 and is
   still called **Boot stick**; the backup's sticks are numbered from 2,
   "Stick 2", "Stick 3" … ("Card" on the Pi, by `app.medium`, the boot
-  card being Card 1). Everywhere: Faraday Desktop, the demo, the device,
+  card being Card 1). Everywhere: Faraday Demo, Practice, the device,
   the flow's lines and its "Mark it as" line. Where only numbers fit,
-  the boot stick's pill reads "1". Desktop's backup stick folders follow
-  the numbers (`STICK-2` for Stick 2); `BOOTSTICK` stays. A Desktop
+  the boot stick's pill reads "1". Faraday Demo's backup stick folders follow
+  the numbers (`STICK-2` for Stick 2); `BOOTSTICK` stays. A Faraday Demo
   install with a `STICK-1` folder from before renumbers its folders once
   at start, each `STICK-n` to `STICK-(n+1)`, highest first.
 - **No press on a device.** A real stick is put in by hand: the pills
-  carry no action there. On Desktop and the demo a press still plugs or
+  carry no action there. On Faraday Demo and the website's demo a press still plugs or
   pulls, as today.
 - **States.** Out: dim, as today. Wanted now: the flow's `now`, edged in
   its colour, as today's `asked`. In: lit, and on a device only when the
@@ -1244,7 +1244,7 @@ the backup can keep. The person drags a thing from the list into a
 place, or from one place to another. The plan underneath is the map of
 §15.2, unchanged in kind: each drop is a map edit (`plan::Edit`).
 
-Scope: Faraday Desktop and the PC stick, at any window width (§17.12
+Scope: Faraday Demo and the PC stick, at any window width (§17.12
 item 3 for a narrow window). The Pi is not considered here.
 
 ### 17.1 The board
@@ -1559,14 +1559,14 @@ plans on the board, keeping what each checked; none is deleted.
 2. **Place names** are typed by a press on the card's name, while a
    vault is open, as §15.7 says; otherwise the name is not a field.
 3. **A narrow window.** Where the cards and the list do not fit side by
-   side (the `compact` layout of a narrow Desktop window or a small
+   side (the `compact` layout of a narrow Faraday Demo window or a small
    screen), the place cards stack in one column that scrolls (the
    column's scroll and overlay scrollbar, as every page has), and the
    list is a sheet opened by **Add**, at the column's top. Placing is
    by tap only there: a press on a list chip in the sheet closes the
    sheet with the chip selected, and a press on a zone places it. A
    placed chip's forms open as on `wide`. §15's cards are not drawn on
-   Desktop or the PC stick any more.
+   Faraday Demo or the PC stick any more.
 4. **A passphrase in a vault on its own.** A new vault record, type 14
    **Passphrase** (`docs/VAULT.md` §7): the passphrase of the key whose
    fingerprint it names, without the key's words. A passphrase dropped

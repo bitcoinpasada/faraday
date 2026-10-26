@@ -308,7 +308,7 @@ fn on_a_device_the_boot_pill_comes_first_and_no_pill_is_a_press() {
 
 #[test]
 fn the_first_backup_stick_is_stick_2_on_every_shell() {
-    // Faraday Desktop and the demo.
+    // Faraday Demo and the demo.
     let mut shell = Shell::new();
     let mut app = desktop(&mut shell);
     create_with_vaults(&mut app, 2);

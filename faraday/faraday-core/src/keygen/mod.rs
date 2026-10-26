@@ -336,7 +336,7 @@ pub struct KeyGen {
     /// opens and kept in step at every addition and at the lock
     /// (`KeyGenArea::own_changed`).
     pub with_own: bool,
-    /// The one-die roller beside the dice pad (Faraday Desktop,
+    /// The one-die roller beside the dice pad (Faraday Demo,
     /// `docs/CODEX32.md` §5.6): which of the rolls it made.
     pub roller: crate::fresh::roller::Roller,
     /// The roller's number field has the keys.
@@ -1084,7 +1084,7 @@ impl crate::Faraday {
         self.screen = Screen::KeyGen;
     }
 
-    /// Make codex32 shares as this device runs it: in Demo the sample stands in
+    /// Make codex32 shares as this device runs it: in Practice the sample stands in
     /// place of the strings entered (`docs/CODEX32.md` §12). Cheap: the
     /// sample's two strings parsed.
     pub(crate) fn codex32_here(
@@ -1114,11 +1114,11 @@ impl crate::Faraday {
         m.in_demo(sample)
     }
 
-    /// Costs a parse of each string typed in, and in Demo the seed they
+    /// Costs a parse of each string typed in, and in Practice the seed they
     /// carry and its fingerprint. **Make the rest** or **Add a share** on
     /// Add a key's codex32 form (`docs/CODEX32.md` §8.1, §8.2): New key
     /// opens on Make codex32 shares with the `k` strings typed in; the
-    /// form's strings stay as they are. In Demo strings of a set that is
+    /// form's strings stay as they are. In Practice strings of a set that is
     /// not public are refused as any key is (§12).
     pub(crate) fn keygen_codex32_given(&mut self, kind: crate::codex32::Given) {
         let c = self.compute();
@@ -1816,7 +1816,7 @@ impl crate::Faraday {
         match press {
             C32::Lock => return self.keygen_codex32_lock(),
             C32::Walk(w) => return self.keygen_codex32_walk(w),
-            // The Working area's Previous and Next step the Demo walk
+            // The Working area's Previous and Next step the Practice walk
             // while it shows a step (`docs/CODEX32.md` §5.7).
             C32::Step(d) if self.keygen_walk_shown() => {
                 let w = if d < 0 {
@@ -1893,7 +1893,7 @@ impl crate::Faraday {
 
     /// Costs what a step costs: a worksheet column for a character put
     /// in its box, a fresh answer where Next rolls a character. A press on
-    /// the step-through of the "Demo only" card, on Faraday Desktop only
+    /// the step-through of the "Demo only" card, on Faraday Demo only
     /// (`docs/CODEX32.md` §5.5): the view follows the step.
     fn keygen_codex32_walk(&mut self, w: crate::codex32::WalkAct) {
         if !self.roller_offered() {
@@ -1926,7 +1926,7 @@ impl crate::Faraday {
         }
     }
 
-    /// Whether the codex32 Demo walk shows a step. A lookup.
+    /// Whether the codex32 Practice walk shows a step. A lookup.
     fn keygen_walk_shown(&self) -> bool {
         self.keygen
             .state()
@@ -1935,7 +1935,7 @@ impl crate::Faraday {
     }
 
     /// ← and → step the codex32 step-through while its card is on the
-    /// entry (Faraday Desktop, `docs/CODEX32.md` §5.5), the worksheet
+    /// entry (Faraday Demo, `docs/CODEX32.md` §5.5), the worksheet
     /// under the pointer included; Up and Down still pan it. True when
     /// taken.
     pub(crate) fn keygen_walk_key(&mut self, key: faraday_shell_api::Key) -> bool {
@@ -2013,7 +2013,7 @@ impl crate::Faraday {
 
     /// Costs what the faces and values landed cost and a fresh answer for
     /// every 31 of them at most; nothing at rest. The tick of New key's
-    /// moving parts: the codex32 step-through's Play (Faraday Desktop,
+    /// moving parts: the codex32 step-through's Play (Faraday Demo,
     /// `docs/CODEX32.md` §5.5), the codex32 worksheet's view following the
     /// work (§7.5), and the one die beside the dice pad (§5.6). Returns
     /// whether the screen needs a frame.
@@ -2158,7 +2158,7 @@ impl crate::Faraday {
         let Some(work) = m.work() else {
             return;
         };
-        // In Demo only a set of strings already public loads: the sample
+        // In Practice only a set of strings already public loads: the sample
         // in place of the strings entered, or strings typed in (§12).
         if !self.makes_secrets() && !work.is_given() {
             return;

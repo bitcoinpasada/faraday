@@ -1,5 +1,5 @@
 //! Generate with dice on Create a vault: the rolls typed, and beside
-//! them, on Faraday Desktop, the roller (`docs/CODEX32.md` §5.6). A
+//! them, on Faraday Demo, the roller (`docs/CODEX32.md` §5.6). A
 //! rolled value lands on the rolls as a key pressed would, and is marked
 //! as this computer's, so that the passphrase's strength line says
 //! "simulated dice".

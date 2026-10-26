@@ -121,7 +121,7 @@ pub trait Platform: Send + Sync {
     /// thread.
     fn installed(&self) -> Option<Installed>;
 
-    /// Installs the running Starter, and the payload's Faraday Desktop
+    /// Installs the running Starter, and the payload's Faraday Demo
     /// when it carries one for this system, per user (§5.2). Where the
     /// Starter went.
     fn install(&self, payload: Option<&Payload>) -> Result<String, Reason>;

@@ -1,4 +1,4 @@
-//! What New key hands out in Demo: a sample of the length chosen, for
+//! What New key hands out in Practice: a sample of the length chosen, for
 //! every length it offers.
 
 use crate::common::{PASSPHRASE, reference_fingerprint};

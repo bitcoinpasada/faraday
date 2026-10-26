@@ -1,7 +1,7 @@
 //! The stick pills: the boot stick, which is Stick 1, then Stick 2, 3
 //! and on, each a small pill with its state, in or out.
 //!
-//! On Faraday Desktop they stand in its host's strip, outside the app
+//! On Faraday Demo they stand in its host's strip, outside the app
 //! (`docs/DESKTOP-HOST.md` §3): as many as fit, the boot stick's always,
 //! the rest in the host's Sticks menu. A press on a pill, or on a stick
 //! in the menu, asks the shell to insert the stick or pull it; the
@@ -546,7 +546,7 @@ fn layout(pills: &[Pill], ui: &Ui, z: &Size, avail: f32) -> Layout {
 }
 
 /// How tall the strip of pills across a window `window_w` wide is, in
-/// design units: a device's, and Faraday Desktop's on the Pi panel's
+/// design units: a device's, and Faraday Demo's on the Pi panel's
 /// size; 0 where there are none, or where they stand in the top bar.
 pub(crate) fn strip_h(app: &View, ui: &Ui, window_w: f32) -> f32 {
     if app.hosted() {
@@ -606,12 +606,12 @@ fn quiet(pressed: bool) -> (Paint, Paint, Paint) {
 }
 
 /// Draws the strip of pills across the top of the window, over the page
-/// and any sheet: a device's, and Faraday Desktop's on the Pi panel's
+/// and any sheet: a device's, and Faraday Demo's on the Pi panel's
 /// size, where its 44-unit bar has no room for them; none where they
 /// stand in the top bar ([`bar`]). Each takes a press where the shell's
 /// sticks are its own; a device's are put in by hand.
 pub(crate) fn draw(app: &View, ui: &mut Ui, window_w: f32) {
-    // Faraday Desktop's host draws them in its strip (`docs/DESKTOP-HOST.md`).
+    // Faraday Demo's host draws them in its strip (`docs/DESKTOP-HOST.md`).
     if app.hosted() {
         return;
     }
@@ -657,7 +657,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, window_w: f32) {
 
 impl Faraday {
     /// A press that is the shell's, not the page's, so it acts under any
-    /// sheet and waits for nothing: a stick's pill, in Faraday Desktop's
+    /// sheet and waits for nothing: a stick's pill, in Faraday Demo's
     /// host strip or its menu, or a device's strip. Returns whether it
     /// was one.
     pub(crate) fn stick_bar_press(&mut self, action: Action) -> bool {

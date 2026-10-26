@@ -849,7 +849,7 @@ fn the_demo_locks_in_its_sample_with_faraday_when_a_passphrase_is_chosen() {
     assert!(shown.contains(&fp_text(faraday_bip::keys::Fingerprint(with))));
 }
 
-/// The passphrase stays optional in Demo: left empty, the sample goes in
+/// The passphrase stays optional in Practice: left empty, the sample goes in
 /// as it is.
 #[test]
 fn the_demo_locks_in_its_sample_with_no_passphrase_unless_one_is_chosen() {
@@ -868,7 +868,7 @@ fn the_demo_locks_in_its_sample_with_no_passphrase_unless_one_is_chosen() {
     assert!(texts(&mut app).contains(&fp_text(fp)), "{word} ×{n}");
 }
 
-/// Outside Demo, on a test network too, New key adds the key it made.
+/// Outside Practice, on a test network too, New key adds the key it made.
 #[test]
 fn on_a_test_network_outside_demo_new_key_adds_the_key_made() {
     let c = faraday_core::testkit::compute();

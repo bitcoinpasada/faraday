@@ -407,10 +407,10 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
     }
     drop_edge(app, ui, (full_w, full_h), kb > 0.0);
     // A device's stick pills, pinned at the top over the page and any
-    // sheet; Faraday Desktop's, in its top bar, again over a sheet, and
+    // sheet; Faraday Demo's, in its top bar, again over a sheet, and
     // its Sticks menu as it closes.
     crate::stick::pills::draw(app, ui, full_w);
-    // Faraday Desktop's host takes what the page and its sheet offered
+    // Faraday Demo's host takes what the page and its sheet offered
     // for the demo into its strip (`docs/DESKTOP-HOST.md` §3).
     if app.hosted() {
         app.sample_area.note_aids(ui.take_demo());
@@ -452,7 +452,7 @@ fn top_actions_clear(app: &View, ui: &mut Ui, full_w: f32) {
     }
 }
 
-/// A file dragged over Faraday Desktop's window: the page beside the
+/// A file dragged over Faraday Demo's window: the page beside the
 /// navigation edged in the accent as the place it drops, as the board
 /// edges its drop targets (`docs/DESIGN.md` §4.17); over a sheet, the
 /// whole window. Reads the state.

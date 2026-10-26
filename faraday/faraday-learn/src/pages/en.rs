@@ -115,7 +115,7 @@ pub static EN: Learn = Learn {
                 paragraphs: &[
                     "Every computer has a random number generator, built from a hardware source plus the operating system. It is usually fine. Using it for a key asks you to trust this device completely: a generator that is faulty, or built to be predictable, produces keys that look perfectly normal and that its maker can recreate. You can check a die. You cannot check a chip.",
                     "The row names what the device reads. The stick and the Pi read /dev/random, the Linux kernel's generator, which mixes the board's hardware generator with its other sources. On the Pi the board's hardware generator feeds the kernel; the device does not read it directly, so a faulty chip is one source among several. If the read fails, the device makes no key and says so on Home.",
-                    "Faraday Desktop and the Starter read the operating system's generator: getrandom(2) on Linux, ProcessPrng on Windows and getentropy(2) on a Mac. Each waits until the generator is ready.",
+                    "Faraday Demo and the Starter read the operating system's generator: getrandom(2) on Linux, ProcessPrng on Windows and getentropy(2) on a Mac. Each waits until the generator is ready.",
                     "The same generator also seeds everything else the device draws at random, whichever source made the key: a vault's keys and seal nonces, GPG and Secure Boot keys, MuSig2 nonces, a new keyboard's code and the blinding of the device's own calculations. In the website demo, the key made is replaced by one of its public demo keys, whichever source made it.",
                 ],
             },
@@ -261,7 +261,7 @@ pub static EN: Learn = Learn {
                 heading: "What an air gap is",
                 paragraphs: &[
                     "An air-gapped device has no connection to any network. Faraday has no networking code, and the system a stick or a Pi starts has no network drivers at all, so nothing can reach it over a network and nothing can leave it that way. The only ways in and out are QR codes, shown on a screen and read by a camera, and files that you carry across on a stick yourself (on the Pi, the SD card).",
-                    "Faraday Desktop runs on an ordinary computer that is online. It has no air gap, and a seed that holds funds does not belong there.",
+                    "Faraday Demo runs on an ordinary computer that is online. It has no air gap, and a seed that holds funds does not belong there.",
                 ],
             },
             Section {
@@ -596,7 +596,7 @@ pub static EN: Learn = Learn {
             Section {
                 heading: "Network",
                 paragraphs: &[
-                    "Which chain a key and its addresses belong to: mainnet, testnet, signet or regtest. Funds on one network do not exist on another. Settings chooses it as the Mode: Demo, Mainnet, Testnet, Signet or Regtest.",
+                    "Which chain a key and its addresses belong to: mainnet, testnet, signet or regtest. Funds on one network do not exist on another. Settings chooses it as the Mode: Practice, Mainnet, Testnet, Signet or Regtest.",
                 ],
             },
             Section {
@@ -916,7 +916,7 @@ pub static EN: Learn = Learn {
                     "The entropy is your own. Roll dice follows the booklet's dice de-biasing worksheet: five dice are rolled twice; a die whose second value is lower than its first gives 0, one whose second value is higher gives 1, and a die with two equal values is rolled twice again. The five bits are one character, die 1's bit first. The dice may have any number of faces up to twenty: the booklet's sheet has pads 1 to 6 and, for larger dice, pads 7 to 20, and the comparison is the same whatever the faces. Choose the dice on the Entropy card, and a colour for each die, so the sheet's markers match the dice on the table. A ten-faced die's 0 is entered as 10. On a keyboard, a face of two digits is typed as two digits, and a 1 or a 2 alone is followed by Space or Enter. Type the characters takes characters made on paper, from dice or a worksheet. Characters a person makes up are not random, and a share built from them can give the seed away to someone holding fewer than k strings. Faraday's own randomness does not make the seed here.",
                     "The k initial shares are the entropy: their data boxes are the characters rolled or typed, unchanged. The other shares and the secret are derived from them. As each character is entered it drops into its box, and the checksum worksheet and the translation worksheets fill with it. Every cell opens to its working: the rolls that made it, the two cells added, the table row looked up.",
                     "After the last character, Worksheets shows each sheet whole, one tab per sheet, in the booklet's order: the dice and the checksum of each initial share, each derived share, the secret. Strings shows each string to write down and asks for it typed back; a string typed back that differs names the first box that differs. Strings made lists the split, the length, the identifier and the fingerprint. Check on another device lists sets of k strings to load on another implementation: every set must give the same fingerprint. Lock in loads the key.",
-                    "On the stick and the Pi the sheets are shown while the flow is open and masked when it is left; the eye masks and shows them at any time. Faraday Desktop does not mask them: it is online, and a seed that holds real bitcoin is never made there.",
+                    "On the stick and the Pi the sheets are shown while the flow is open and masked when it is left; the eye masks and shows them at any time. Faraday Demo does not mask them: it is online, and a seed that holds real bitcoin is never made there.",
                 ],
             },
             Section {

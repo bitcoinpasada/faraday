@@ -437,10 +437,10 @@ faraday-pi-image: faraday-pi-bin
 # (STARTER §1.3); refuses files carrying a home folder, user name or host
 # name. The stick image must be the release build (release=1); the stick
 # and Pi builds must carry one build ID; --any-build tries it on a test
-# build. Faraday Desktop, out/linux/faraday and out/windows/faraday.exe
+# build. Faraday Demo, out/linux/faraday and out/windows/faraday.exe
 # built with release=1, goes into the payload of its own system as
-# faraday-desktop-VERSION-linux-x86_64.xz and
-# faraday-desktop-VERSION-windows-x86_64.exe.xz (F83), and is never in
+# faraday-demo-VERSION-linux-x86_64.xz and
+# faraday-demo-VERSION-windows-x86_64.exe.xz (F83), and is never in
 # the release folder. The payload has linux/ and windows/, one for each
 # Starter, each holding the two images, that system's desktop app and
 # MANIFEST.

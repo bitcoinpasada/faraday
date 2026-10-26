@@ -1,6 +1,6 @@
 //! The step tracker of the person's own entry (`docs/CODEX32.md` §5.7,
 //! owner 2026-10-24): what their last entry did and what they would do
-//! next on paper, a step at a time, with the sheet marks the Demo walk
+//! next on paper, a step at a time, with the sheet marks the Practice walk
 //! uses. It is the walk's own model ([`Walk`], [`Step`], [`WalkChar`]),
 //! with the person's faces as its source: each value entered shows its
 //! step ("Die 2, second roll: 5. 5 is higher than 3, so bit 1."), a
@@ -15,7 +15,7 @@
 //! progress (from `seq`). Both are worked out again, once, at every
 //! change of the entry by the person ([`Codex32Make::act`] calls
 //! [`Codex32Make::track`]); drawing and the sheet marks only read them
-//! (`tracker_screen.rs`). A step of the Demo walk shown clears it
+//! (`tracker_screen.rs`). A step of the Practice walk shown clears it
 //! (`walk.rs`), as the walk's step is the one the sheets show then.
 
 use zeroize::Zeroizing;
@@ -63,7 +63,7 @@ impl Codex32Make {
     /// put in its box and the one in progress, each with its steps; the
     /// step shown is the last value's, or, where a character has just gone
     /// into its box, its own step (the first of its cells where it was
-    /// typed). A change of more than one character (Demo's sample) shows
+    /// typed). A change of more than one character (Practice's sample) shows
     /// none. Arithmetic on the faces and the worksheet's shape.
     pub(super) fn track(&mut self, before: (usize, usize)) {
         self.track.clear();

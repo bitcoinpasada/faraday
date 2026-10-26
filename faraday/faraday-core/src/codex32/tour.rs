@@ -13,7 +13,7 @@
 //! default, kept on the flow) turns the tour off: the tabs still fill
 //! live.
 //!
-//! **One model.** The Demo walk (`walk.rs`) and the person's own tracker
+//! **One model.** The Practice walk (`walk.rs`) and the person's own tracker
 //! (`tracker.rs`) both go on into these steps, through the Working area's
 //! Previous and Next and the walk's Play; the check's steps are the
 //! walk's own [`Step`]s, read on the share's own checksum worksheet.
@@ -416,7 +416,7 @@ impl Codex32Make {
 
     /// Costs what [`Self::tour_step`] costs: the Enter card's Continue at
     /// the tour's last step, else a lookup. The Working area's Previous
-    /// or Next (`C32::Step`) outside the Demo
+    /// or Next (`C32::Step`) outside the Practice
     /// walk: the tour's step while it shows one; at the tracker's last
     /// step, Next opens the tour where it is ready; else the tracker's.
     pub(super) fn step_press(&mut self, c: &Compute, d: i8) {

@@ -58,7 +58,7 @@ A wallet with several keys that spends only when a set number of them sign.
 
 ## Network
 
-Which chain a key and its addresses belong to: mainnet, testnet, signet or regtest. Funds on one network do not exist on another. Settings chooses it as the Mode: Demo, Mainnet, Testnet, Signet or Regtest.
+Which chain a key and its addresses belong to: mainnet, testnet, signet or regtest. Funds on one network do not exist on another. Settings chooses it as the Mode: Practice, Mainnet, Testnet, Signet or Regtest.
 
 ## NUMS point
 

@@ -120,7 +120,7 @@ fn a_wallets_keys_are_the_sample_keys_its_text_names() {
     }
 }
 
-/// FROST is compiled out of the app (docs/decisions/F109.md): Demo
+/// FROST is compiled out of the app (docs/decisions/F109.md): Practice
 /// offers no FROST sample.
 #[cfg(not(feature = "unreleased"))]
 #[test]

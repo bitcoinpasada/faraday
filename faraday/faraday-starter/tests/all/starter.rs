@@ -54,8 +54,8 @@ pub(super) fn payload(stick_build: &str) -> Payload {
                 'b',
             ),
             file(
-                "faraday-desktop-0.2.0-linux-x86_64.xz",
-                "faraday-desktop-0.2.0-linux-x86_64",
+                "faraday-demo-0.2.0-linux-x86_64.xz",
+                "faraday-demo-0.2.0-linux-x86_64",
                 4_000_000,
                 "0.2.0",
                 'c',
@@ -722,7 +722,7 @@ fn about_lists_the_payload() {
     for s in [
         "faraday-stick-0.2.0-x86_64-uefi.img.xz",
         "faraday-pi-0.2.0-pi3-waveshare-28dpi.img.xz",
-        "faraday-desktop-0.2.0-linux-x86_64.xz",
+        "faraday-demo-0.2.0-linux-x86_64.xz",
         "aaaa aaaa",
         "AAAA AAAA",
         "SHA-256 of faraday-stick-0.2.0-x86_64-uefi.img",
@@ -758,19 +758,19 @@ fn seen_scrolling(starter: &mut Starter, s: &str) -> bool {
 #[test]
 fn home_opens_the_desktop_app_only_where_the_payload_carries_it() {
     let mut starter = starter_with(Vec::new());
-    assert!(seen_scrolling(&mut starter, "Open Faraday Desktop"));
+    assert!(seen_scrolling(&mut starter, "Open Faraday Demo"));
     starter.press(StarterAction::OpenDesktop);
     assert_eq!(commands(&mut starter), vec![StarterCommand::RunDesktop]);
     // A start that failed says why on the row.
     starter.starter_event(StarterEvent::DesktopStarted(Err(Reason::NoDesktopApp)));
-    assert!(seen_scrolling(&mut starter, "carries no Faraday Desktop"));
+    assert!(seen_scrolling(&mut starter, "carries no Faraday Demo"));
     starter.starter_event(StarterEvent::DesktopStarted(Ok(())));
-    assert!(!seen_scrolling(&mut starter, "carries no Faraday Desktop"));
+    assert!(!seen_scrolling(&mut starter, "carries no Faraday Demo"));
 
     let mut p = payload("0.2.0");
-    p.files.retain(|f| !f.name.starts_with("faraday-desktop-"));
+    p.files.retain(|f| !f.name.starts_with("faraday-demo-"));
     starter.starter_event(StarterEvent::Payload(Some(p)));
-    assert!(!seen_scrolling(&mut starter, "Open Faraday Desktop"));
+    assert!(!seen_scrolling(&mut starter, "Open Faraday Demo"));
     starter.press(StarterAction::OpenDesktop);
     assert!(commands(&mut starter).is_empty());
 }

@@ -1,4 +1,4 @@
-//! Faraday's samples (F81, `docs/MODES.md` §5): the public dummies Demo
+//! Faraday's samples (F81, `docs/MODES.md` §5): the public dummies Practice
 //! takes, as data. Keys in every form Faraday reads (a repeated word at
 //! every length, test vectors of BIP-39, SLIP-39, codex32 and Seed XOR, an
 //! LND cipher seed), the testkit's wallets with an

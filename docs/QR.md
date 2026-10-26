@@ -220,7 +220,7 @@ its spec. Where the build and this section differ once built,
 The owner's ask: "offer QR codes wherever it would be convenient for
 users inside Faraday". Every screen named here is Faraday's own, in
 `faraday-core`, drawn the same on the stick, the Pi and Faraday
-Desktop. Nothing in `core/` changes.
+Demo. Nothing in `core/` changes.
 
 ### 7.1 What is decided
 
@@ -297,7 +297,7 @@ rule's reach is written down):
 - A receive address and Explore's address: the address exactly as the
   screen prints it, by `Session::address_shown` or `Session::shown`
   (§1, Sending): not a `bitcoin:` URI, not upper-cased. On Faraday
-  Desktop's mainnet demo that is the address with its checksum broken
+  Demo's mainnet demo that is the address with its checksum broken
   (F20), so the code pays nothing. The QR sheet shows the address whole
   under the code (`QrView::whole`), to read against the code.
 - Explore's public key and extended key, and the node id: the text the
@@ -412,7 +412,7 @@ One batch, one review, one completion report.
     Check, the Spend tab's pages; Vanity's found address; Explore's address,
     public key and extended key at a chosen path; the node id; a
     recovery sheet's descriptor; an entry's TOTP URI;
-  - on Faraday Desktop's mainnet demo, a receive code reads back as the
+  - on Faraday Demo's mainnet demo, a receive code reads back as the
     address with its broken checksum, as printed;
   - a receive address's QR sheet offers no PNG, and **PNG** of it puts
     nothing For the stick;

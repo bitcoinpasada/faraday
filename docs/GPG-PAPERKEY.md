@@ -192,7 +192,7 @@ and **Scan the public key**. With none: "Copy its public key in on a
 stick visit first." and **Scan the public key**. A row pressed, or the
 Files action, opens the flow on that certificate.
 
-In Demo the ways in are dimmed, as Make is (`docs/DEMO.md` §4); Q9.
+In Practice the ways in are dimmed, as Make is (`docs/DEMO.md` §4); Q9.
 
 ### 4.2 The cards
 
@@ -666,7 +666,7 @@ vault had no way to bring it back into Faraday.
 |---|---|---|---|
 | P1 | `faraday-pgp`: the paperkey readers (text, raw), the certificate reader with GnuPG's algorithm names, the rebuild and compare, `restore`; tests 1 to 15 against paperkey 1.6 and GnuPG 2.4, the fixtures and their README; the two fuzz targets; lint-secrets rule 4(c) | Opus | 2 days |
 | P2 | `faraday-keys`: the restore set (`Restore::new`, `line`, `finish`), wiped on drop, the lock's wipe; tests 16 to 18 | Sonnet | 1 day |
-| P3 | `faraday-core`: the ways in (Files' action, Vault contents, the Tools line), the sheet, the head card with line 1, step 4's lines and the hex keyboard, the refusals, the Result, signing per Q2, Demo dimmed; strings; tests 19 to 22; the snapshot tour | Opus | 3 days |
+| P3 | `faraday-core`: the ways in (Files' action, Vault contents, the Tools line), the sheet, the head card with line 1, step 4's lines and the hex keyboard, the refusals, the Result, signing per Q2, Practice dimmed; strings; tests 19 to 22; the snapshot tour | Opus | 3 days |
 | P4 | Scanning the public key: an armoured public key code filed in From the stick as a public file, named `{name}-{fp8}.asc`; its routing row in `docs/QR.md` §2 | Sonnet | 0.5 day |
 | P5 | Only if Q5 says yes: a paperkey code (base16 text or raw) scanned at step 4 fills the lines, each still checked | Sonnet | 0.5 day |
 | P6 | Docs: the Learn page (§9), `docs/FLOWS.md` GPG, `docs/QR.md`, `docs/DEMO.md` §4, `docs/VAULT.md` §7's note, `docs/KEYS.md` §3, the decision recorded with its number, then this file's plan to docs/history/GPG-PAPERKEY-LOG.md (new) and its Kind to Reference | Sonnet | 0.5 day |
@@ -695,7 +695,7 @@ last.
 Answered by the owner on 2026-10-23: every proposal below is taken (Q1
 refused; Q2 at once; Q3 two or more places; Q4 set aside and counted;
 Q5 P5 builds scanning; Q6 not offered; Q7 armour only; Q8 not offered;
-Q9 dimmed in Demo; Q10 not copied; Q11 refused).
+Q9 dimmed in Practice; Q10 not copied; Q11 refused).
 
 - **Q1. Keys made elsewhere.** A key of Faraday's shape made by GnuPG
   (an Ed25519 key that certifies, one Ed25519 signing subkey, no
@@ -732,7 +732,7 @@ Q9 dimmed in Demo; Q10 not copied; Q11 refused).
   at each other value (660 tries) and offering the one that matches, as
   codex32's opt-in correction does (F94). Proposed: not offered; the
   person reads the line again.
-- **Q9. Demo.** Proposed: Restore is dimmed in Demo, as Make is. Or a
+- **Q9. Practice.** Proposed: Restore is dimmed in Practice, as Make is. Or a
   sample key with its certificate and paperkey in `faraday/faraday-samples`,
   for the website's walk-through.
 - **Q10. paperkey's check keys.** They are GPL-2.0; Faraday is MIT.

@@ -1,5 +1,5 @@
 //! The shapes of Faraday's samples (F81, `docs/MODES.md` §5): public
-//! dummies a person can load in Demo. The data is in `faraday-samples`,
+//! dummies a person can load in Practice. The data is in `faraday-samples`,
 //! a crate only the desktop app depends on; this module holds the types
 //! it fills in and what the session does with them, so core never links
 //! the data (`tools/lint-keys-tests.sh` holds that).
@@ -226,7 +226,7 @@ impl Samples {
             .collect()
     }
 
-    /// Every fingerprint Demo takes: each key's with none, and each key
+    /// Every fingerprint Practice takes: each key's with none, and each key
     /// that takes a passphrase with `faraday` too. Allocates a list.
     pub fn public(&self) -> Vec<Fingerprint> {
         self.keys
@@ -237,7 +237,7 @@ impl Samples {
             .collect()
     }
 
-    /// The Lightning node ids Demo takes. Allocates a short list.
+    /// The Lightning node ids Practice takes. Allocates a short list.
     pub fn nodes(&self) -> Vec<[u8; 33]> {
         self.keys.iter().filter_map(|k| k.node).collect()
     }
@@ -489,14 +489,14 @@ pub(crate) enum Roller {
 /// hands the frame.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub(crate) struct Hosted {
-    /// The lines saying what Demo puts in place of the person's own.
+    /// The lines saying what Practice puts in place of the person's own.
     pub lines: Vec<String>,
     /// The computer's dice roller.
     pub roller: Option<Roller>,
 }
 
 /// The samples area: the Load samples sheet's rows, and what the last
-/// frame offered for the demo while Faraday Desktop's host holds the app.
+/// frame offered for the demo while Faraday Demo's host holds the app.
 #[derive(Default)]
 pub(crate) struct SamplesArea {
     sheet: SheetState,
@@ -530,7 +530,7 @@ impl SamplesArea {
 }
 
 impl Faraday {
-    /// Whether the Load samples pill and sheet are on: Demo, with the
+    /// Whether the Load samples pill and sheet are on: Practice, with the
     /// samples set by the shell (the desktop). The stick, the Pi and every
     /// other mode have none.
     pub fn samples_on(&self) -> bool {
@@ -584,7 +584,7 @@ impl Faraday {
             Action::Samples => {
                 let c = self.compute();
                 self.sample_area.sheet = self.samples_rows(&c, set);
-                // Held by Faraday Desktop's host, the sheet is the host's,
+                // Held by Faraday Demo's host, the sheet is the host's,
                 // outside the app (`docs/DESKTOP-HOST.md` §6).
                 if !self.hosted() {
                     self.sheet = Some(Sheet::Samples);
@@ -683,11 +683,11 @@ impl Faraday {
     }
 
     /// What the host's strip holds for the page on screen besides the
-    /// buttons it hands the frame (`docs/DESKTOP-HOST.md` §3.1): in Demo,
-    /// the lines that say what Demo puts in place of the person's own, and
+    /// buttons it hands the frame (`docs/DESKTOP-HOST.md` §3.1): in Practice,
+    /// the lines that say what Practice puts in place of the person's own, and
     /// the computer's dice roller where its dice entry is open. A lookup.
     pub(crate) fn demo_hosted_now(&self) -> Option<Hosted> {
-        // Demo is the one condition for every aid.
+        // Practice is the one condition for every aid.
         if !self.demo_passphrase() {
             return None;
         }
@@ -697,7 +697,7 @@ impl Faraday {
     }
 
     /// The computer's dice roller on the page on screen, where its dice
-    /// entry is open on Faraday Desktop. A lookup.
+    /// entry is open on Faraday Demo. A lookup.
     fn demo_roller_now(&self) -> Option<Roller> {
         if !self.roller_offered() {
             return None;
@@ -720,7 +720,7 @@ impl Faraday {
         }
     }
 
-    /// The lines that say what Demo puts in place of the person's own, on
+    /// The lines that say what Practice puts in place of the person's own, on
     /// the page on screen: New key's sample in place of the words made,
     /// Make codex32 shares' sample set in place of the strings entered,
     /// and Generate with dice's `faraday` in place of the words rolled

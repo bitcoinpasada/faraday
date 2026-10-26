@@ -80,8 +80,8 @@ certificate, then `paperkey --pubring cert.gpg --secrets paperkey.txt
 Anyone who reads a copy of it has the key, so a printed paperkey is kept
 as a secret is.
 
-## Faraday Desktop
+## Faraday Demo
 
-Faraday Desktop is online and testnet-only; a key made on it meets
+Faraday Demo is online and testnet-only; a key made on it meets
 whatever else runs on that computer. A key made on the stick meets no
 network.

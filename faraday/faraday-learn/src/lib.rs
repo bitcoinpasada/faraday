@@ -337,7 +337,7 @@ pub fn extra_copies_page() -> &'static LearnPage {
     known("extra-copies")
 }
 
-/// "The demo and its public seeds".
+/// "Practice and its public seeds".
 pub fn demo_page() -> &'static LearnPage {
     known("demo")
 }

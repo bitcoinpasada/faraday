@@ -1,7 +1,7 @@
-//! Faraday Desktop's host (`docs/DESKTOP-HOST.md`): the app held by the
-//! host, its strip at the window's foot. Home in Demo at the window's
+//! Faraday Demo's host (`docs/DESKTOP-HOST.md`): the app held by the
+//! host, its strip at the window's foot. Home in Practice at the window's
 //! own size, the Size menu, the Pi panel and the 7-inch panel previewed;
-//! Make codex32 shares in Demo with the computer's walk in the strip and
+//! Make codex32 shares in Practice with the computer's walk in the strip and
 //! Play's options open; then Home on Testnet, whose strip holds only the
 //! sticks and Size.
 
@@ -20,7 +20,7 @@ fn app_size(win: (u16, u16)) -> (u16, u16) {
     (win.0, win.1.saturating_sub(56))
 }
 
-/// The app as Faraday Desktop starts it, in Demo or on Testnet, with the
+/// The app as Faraday Demo starts it, in Practice or on Testnet, with the
 /// boot stick in and Stick 2 out.
 fn desktop(t: &mut Tour, win: (u16, u16), demo: bool) {
     t.app = Faraday::new();
@@ -123,7 +123,7 @@ pub(crate) fn host_tour(t: &mut Tour) -> Result<(), String> {
     shot(t, win, "host-testnet-pi-panel", Some(PI), None)
 }
 
-/// Make codex32 shares in Demo on twenty-faced dice, the computer's walk
+/// Make codex32 shares in Practice on twenty-faced dice, the computer's walk
 /// a few steps in: its Previous, Next, Play and Play's options in the
 /// strip, then the menu open; the Pi panel's size too.
 fn codex32(t: &mut Tour, win: (u16, u16)) -> Result<(), String> {

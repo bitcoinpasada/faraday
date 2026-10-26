@@ -97,7 +97,7 @@ pub fn show(app: &mut Faraday, width: u16, height: u16, dpi: u16) {
     }));
 }
 
-/// The desktop's app: online, in Demo, with the samples set, in a window
+/// The desktop's app: online, in Practice, with the samples set, in a window
 /// tall enough to show every row of the sheet at once (a row out of view
 /// offers no press).
 pub fn demo_app() -> Faraday {
@@ -129,7 +129,7 @@ pub fn reference_key_text(words: &str, path: &str) -> String {
     format!("[{}/{path}]{key}", master.fingerprint(&secp))
 }
 
-/// What Faraday Desktop's host strip offers for `app` as it stands, its
+/// What Faraday Demo's host strip offers for `app` as it stands, its
 /// demo aids among them (`docs/DESKTOP-HOST.md` §3.1): the app held by
 /// the host for one frame and given back.
 pub fn strip(app: &mut Faraday) -> Vec<String> {

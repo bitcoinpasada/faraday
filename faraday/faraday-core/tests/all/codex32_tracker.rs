@@ -1,6 +1,6 @@
 //! The Working area of the codex32 entry (`docs/CODEX32.md` §5.7): the
 //! person's own values, each with its step, beside the pad, as a person
-//! entering their dice would notice it; outside Demo nothing rolls.
+//! entering their dice would notice it; outside Practice nothing rolls.
 
 use faraday_core::codex32::{C32, Card, SPLITS, Split, WAYS, WalkAct, Way};
 use faraday_core::keygen::{Start, kstep};

@@ -101,8 +101,8 @@ pub enum NameSuffix {
     None,
     /// Faraday Starter.
     Starter,
-    /// Faraday Desktop.
-    Desktop,
+    /// Faraday Demo.
+    Demo,
 }
 
 /// The wordmark's cap height in its font units.
@@ -147,7 +147,7 @@ fn suffix_word(which: NameSuffix) -> Option<&'static SuffixWord> {
     let key = match which {
         NameSuffix::None => return None,
         NameSuffix::Starter => 0,
-        NameSuffix::Desktop => 1,
+        NameSuffix::Demo => 1,
     };
     let words = WORDS.get_or_init(|| {
         let mut letters: Vec<(char, f32, Outlines)> = Vec::new();
@@ -476,7 +476,7 @@ pub struct Ui<'a, A> {
     pub focused: Option<A>,
     /// The tooltips' anchors drawn and the one shown ([`tooltip`]).
     pub tips: tooltip::TipFrame<A>,
-    /// What the page or sheet drawn so far hands to the frame's "Demo
+    /// What the page or sheet drawn so far hands to the frame's "Practice
     /// only" card ([`demo`]), in the order offered.
     pub demo: Vec<demo::DemoItem<A>>,
 }
@@ -1074,7 +1074,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
     }
 
     /// The wordmark with the word of an app's name after it
-    /// ("Faraday Starter", "Faraday Desktop"), as one name in one lettering.
+    /// ("Faraday Starter", "Faraday Demo"), as one name in one lettering.
     /// The suffix is in Archivo Expanded Regular, in the grey of
     /// secondary text (`docs/DECISIONS.md` F16).
     pub fn wordmark_named(

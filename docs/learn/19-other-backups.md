@@ -32,7 +32,7 @@ The k initial shares are the entropy: their data boxes are the characters rolled
 
 After the last character, Worksheets shows each sheet whole, one tab per sheet, in the booklet's order: the dice and the checksum of each initial share, each derived share, the secret. Strings shows each string to write down and asks for it typed back; a string typed back that differs names the first box that differs. Strings made lists the split, the length, the identifier and the fingerprint. Check on another device lists sets of k strings to load on another implementation: every set must give the same fingerprint. Lock in loads the key.
 
-On the stick and the Pi the sheets are shown while the flow is open and masked when it is left; the eye masks and shows them at any time. Faraday Desktop does not mask them: it is online, and a seed that holds real bitcoin is never made there.
+On the stick and the Pi the sheets are shown while the flow is open and masked when it is left; the eye masks and shows them at any time. Faraday Demo does not mask them: it is online, and a seed that holds real bitcoin is never made there.
 
 ## The codex32 worksheets
 

@@ -34,16 +34,16 @@ need. Each document's header says what kind it is:
 | Did a signing device do only what it was asked? | `docs/SIGNER-CHECK.md` |
 | How does text get larger for people who need it? | `docs/TEXT-SIZE.md` |
 | How is a screen laid out at each window size, from the Pi to a monitor? | `docs/LAYOUT.md` |
-| How does Faraday Desktop show its screens at another screen's size? | `docs/PREVIEW-SIZE.md` |
-| What stands outside the app on Faraday Desktop: the sticks, the size, the demo's aids? | `docs/DESKTOP-HOST.md` |
+| How does Faraday Demo show its screens at another screen's size? | `docs/PREVIEW-SIZE.md` |
+| What stands outside the app on Faraday Demo: the sticks, the size, Practice's aids? | `docs/DESKTOP-HOST.md` |
 | How are the themes' colours made, and which colour role does each component take? | `docs/THEMES.md`; `docs/DESIGN.md` §3 |
 | Can a person add their own randomness, and when is the stick's kernel ready? | `docs/OWN-RANDOMNESS.md` |
 | How does a seed change form and stay the same wallet? | `docs/SEED-CONVERSION.md` |
 | What about Macs? | `docs/MAC.md` |
 | What are TOTP codes and the clock? | `docs/TOTP.md` |
-| What are the demo and the developer builds? | `docs/DEMO.md` |
+| What are Practice and the developer builds? | `docs/DEMO.md` |
 | Why is a flow fast or slow, and how is costly work kept out of drawing? | `docs/SPEED.md`, `docs/COMPUTE.md` |
-| How do the modes, Demo and its samples work? | `docs/MODES.md` |
+| How do the modes, Practice and its samples work? | `docs/MODES.md` |
 | How do scrolling and motion work? | `docs/MOTION.md` |
 | Why is a dependency there? | `docs/deps/<crate>.md`; the policy is DECISIONS F71 |
 | Which tool or lint does what? | `tools/README.md` |
@@ -64,11 +64,11 @@ need. Each document's header says what kind it is:
 - `docs/AUDIT.md`: What is cryptography, and where it lives. Built (the key boundary, F70).
 - `docs/CODEX32.md`: Codex32: making, checking and repairing shares. Built (F93 to F96, F107); no Codex32QR picture for 74 and 127 characters.
 - `docs/COMPUTE.md`: Compute: costly work takes a token. Built (F69).
-- `docs/DEMO.md`: The demo, and Faraday Desktop for developers. Built (F30, F61).
+- `docs/DEMO.md`: Practice, and Faraday Demo for developers. Built (F30, F61).
 - `docs/DESIGN.md`: Design system. Built.
 - `docs/KDBX.md`: KDBX 4: the encrypted file Faraday writes for others. Built.
 - `docs/KEYS.md`: The key boundary: faraday-keys. Built (steps 0 to 4).
-- `docs/PREVIEW-SIZE.md`: Preview size: Faraday Desktop at another screen's size. Built (F110, F118).
+- `docs/PREVIEW-SIZE.md`: Preview size: Faraday Demo at another screen's size. Built (F110, F118).
 - `docs/README.md`: Faraday's documents. Built.
 - `docs/SECURITY-MODEL.md`: Security model. Built.
 - `docs/SPEND-FROM-BACKUP.md`: The Spend tab. Built.
@@ -82,7 +82,7 @@ need. Each document's header says what kind it is:
 
 - `docs/ANTI-EXFIL.md`: Anti-exfil. Planned, not scheduled.
 - `docs/BACKUP-FLOW.md`: The backup flow. Partly built.
-- `docs/DESKTOP-HOST.md`: Faraday Desktop as a simulator: the host. Built (F118); the website's part planned.
+- `docs/DESKTOP-HOST.md`: Faraday Demo as a simulator: the host. Built (F118); the website's part planned.
 - `docs/FLOWS.md`: Flows. Built but for the items under Open.
 - `docs/GPG-PAPERKEY.md`: Restore a GPG key from its paperkey. Not built; its decision is a draft.
 - `docs/GUIDE.md`: Faraday user guide. Sections 1 to 7 written; some pictures of §6 and §7 to redraw.
@@ -90,7 +90,7 @@ need. Each document's header says what kind it is:
 - `docs/LARGE-FILES.md`: Large files on a stick visit. Not built (F26, amended by F30).
 - `docs/LAYOUT.md`: Layout at every window size. Specified (F92), not built.
 - `docs/MAC.md`: Faraday on Macs. Partly built.
-- `docs/MODES.md`: Modes, Demo and samples. Specified (F81), not built.
+- `docs/MODES.md`: Modes, Practice and samples. Specified (F81), not built.
 - `docs/MOTION.md`: Scrolling, motion and appearance. Built; not yet checked by the owner on hardware.
 - `docs/CROSSCHECK.md`: Two implementations of every cryptographic step. Option A decided (F79) and built, its four batches (§10.5); options B and C deferred.
 - `docs/NOSTR.md`: The Nostr key. Not built, not scheduled (F27, amended by F34).

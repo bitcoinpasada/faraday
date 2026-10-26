@@ -1,7 +1,7 @@
 # Codex32: making, checking and repairing shares
 
 **Kind:** Reference
-**Status:** Built. Codex32 in Faraday: the worksheets, symbols and fresh sets in `faraday-bip`, the error-correction decoder, the dice method, the work set, Make codex32 shares and its wallet kind, dice of up to twenty faces in colours the person picks with the booklet's dice sheet drawn as the booklet draws it, hand-made shares, Add a share, Check a string, scanning and the correction in the form, backups, the Starter's templates, both dice rollers on Faraday Desktop, the codex32 one stepping through the work in a Demo only pane that holds its place, and Demo's sample; decisions F93 to F96 and F107. Strings of 74 and 127 characters have no Codex32QR picture, as the profile does not define one (§10.4)
+**Status:** Built. Codex32 in Faraday: the worksheets, symbols and fresh sets in `faraday-bip`, the error-correction decoder, the dice method, the work set, Make codex32 shares and its wallet kind, dice of up to twenty faces in colours the person picks with the booklet's dice sheet drawn as the booklet draws it, hand-made shares, Add a share, Check a string, scanning and the correction in the form, backups, the Starter's templates, both dice rollers on Faraday Demo, the codex32 one stepping through the work in a Practice only pane that holds its place, and Practice's sample; decisions F93 to F96 and F107. Strings of 74 and 127 characters have no Codex32QR picture, as the profile does not define one (§10.4)
 
 The owner's ask: full codex32 support for making shares, as the codex32
 booklet does it, with every step shown so that a person can follow it
@@ -61,12 +61,12 @@ Sources read for it, each as data and none vendored:
 13. **Randomness and the key boundary**: Faraday's own randomness goes
     through faraday-keys (F70); the person's entropy uses the dice pad
     and the mask policy (§5, §13.1).
-14. **Demo**: what each flow does in Demo (§12).
+14. **Practice**: what each flow does in Practice (§12).
 
 ### 1.1 The owner's answers (2026-10-22)
 
-1. **Masking of the live sheets**: on Faraday Desktop, the stick and
-   the Pi alike (F117; first answered as none on Faraday Desktop):
+1. **Masking of the live sheets**: on Faraday Demo, the stick and
+   the Pi alike (F117; first answered as none on Faraday Demo):
    unmasked while the flow is open, masked when it is left, the eye at
    any time (§6.4.6).
 2. **The identifier in Make codex32 shares** is typed by the person,
@@ -79,7 +79,7 @@ Sources read for it, each as data and none vendored:
 3. **A share index already in**: as the Codex32QR profile, the same
    string again is ignored, a different one asks before replacing
    (§8.5).
-4. **Demo**: the sample only, but the process runs: the person rolls and
+4. **Practice**: the sample only, but the process runs: the person rolls and
    watches the whole live process (the sheets, the conversion, the
    checksum); once that screen is finished, the result is replaced by
    the sample (BIP 93 vector 2), with a line saying so, as Create a
@@ -102,7 +102,7 @@ Sources read for it, each as data and none vendored:
    pads 1 to 6 and, for dice of seven faces or more, pads 7 to 20. The
    person says which dice they use (d6 by default; d4, d8, d10, d12,
    d20), picks each die's colour, and sees each die's two rolls side by
-   side; the roller on Faraday Desktop rolls the chosen die; the sheet
+   side; the roller on Faraday Demo rolls the chosen die; the sheet
    on screen and the printed one are drawn as the booklet draws them
    (§5.1, §5.5, §6.4.2, §11).
 10. **Seed bytes**: `faraday-keys` keeps a master seed's bytes for keys
@@ -173,7 +173,7 @@ Sources read for it, each as data and none vendored:
     from the seed with a new identifier). Splits always take fresh
     randomness. The same actions suit SLIP-39 sets, specified
     elsewhere (§9.7).
-27. **Desktop dice rollers** (Faraday Desktop only; the stick and the Pi
+27. **Dice rollers** (Faraday Demo only; the stick and the Pi
     keep real dice typed on the pad): five dice for codex32, one die for
     BIP-39 words and Generate with dice, their values this computer's
     randomness and labelled so (§5.5, §5.6). The entry for real dice
@@ -197,13 +197,13 @@ Added 2026-10-24 (owner):
 30. **Every box of the string is numbered**, small and quiet over each
     box, the groups of four kept (§6.4.1).
 31. **"Demo only"** (owner, 2026-10-24): the computer's dice roller and
-    Demo's **Use a sample** are not the person's entry. They stand in
+    Practice's **Use a sample** are not the person's entry. They stand in
     one outlined box headed "Demo only", at the right of the entry where
     the card is wide enough and under it where not, so the person's own
     dice (the sheet and "Your dice") are the page. Both are offered in
     Demo only (owner, 2026-10-24 evening; `docs/DEMO.md` §14): the roller
-    on Faraday Desktop in Demo, the sample in Demo; in every other mode,
-    Faraday Desktop's too, the box and all it holds are gone, and the
+    on Faraday Demo in Practice, the sample in Practice; in every other mode,
+    Faraday Demo's too, the box and all it holds are gone, and the
     stick and the Pi have neither. The dice's size is one choice, on
     the Entropy card at every size (owner, 2026-10-25), which the pad
     and the box ("Rolls d20") follow; changed in the middle of a
@@ -242,7 +242,7 @@ Added 2026-10-24 (owner):
     shows it, and the worksheets always start on a page of their own
     after the share card and the Codex32QR pages, so nobody reads a
     printed backup as someone else's (§11).
-38. **The demo dice step through the work** (owner, 2026-10-24),
+38. **Practice dice step through the work** (owner, 2026-10-24),
     replacing the roller's one-click choices: in the Demo only card,
     Previous and Next (and ← → while the card's entry is open), a step
     count ("Step 14 of 19 · character 3"), and Play with how far it runs
@@ -297,7 +297,7 @@ working, and every computed cell opens to what made it (§6.4, §7.4).
   is; the website's WebP pictures are not used, as no image decoder
   is to be added. Tested in `five_tests.rs` against the codex32 flow's own
   entry; snapshot tour `dice5`. It stands beside the entry's dice pad,
-  "Your dice", on Faraday Desktop (`codex32/screen.rs`, `pad`; side by
+  "Your dice", on Faraday Demo (`codex32/screen.rs`, `pad`; side by
   side where the card is wide, under the pad where not); its faces enter
   as the pad's keys, the dice of the character in progress it made are
   named under the dice sheet, a character it made is marked in the
@@ -422,20 +422,20 @@ working, and every computed cell opens to what made it (§6.4, §7.4).
   (`Codex32Make::masked`): the eye, Material's icon button (on the small
   panel's bar; on the wide page in the right margin under the ?, clear of
   the cards' rows), masks every character, roll and working
-  as dots and shows them again; on Faraday Desktop, the stick and the Pi the sheets are
+  as dots and shows them again; on Faraday Demo, the stick and the Pi the sheets are
   shown while the flow is open and masked again when the entry is left
   backwards (an earlier card, Start's Change, the entry card closed);
-  Faraday Desktop masks and unmasks as the device (F117); New key keeps nothing when
+  Faraday Demo masks and unmasks as the device (F117); New key keeps nothing when
   its screen is left, so there is nothing to show again. The translation
   symbols are drawn as the booklet's second alphabet's glyphs
-  (`SYMBOL_GLYPHS`, §7.2). In Demo (§12) the entry runs as anywhere,
+  (`SYMBOL_GLYPHS`, §7.2). In Practice (§12) the entry runs as anywhere,
   with **Use a sample** in the "Demo only" box filling the characters left from the
   sample's shares; at the entry's Continue the set entered is dropped and
   the shell's codex32 sample, BIP 93's vector 2, stands in its place
   (`WorkSet::given` with `Making::All`: A, C and D, the sample's 2 of 3 at
-  48 characters), every later card carrying "Demo puts sample NAME in
+  48 characters), every later card carrying "Practice puts sample NAME in
   place of these strings", no Dice tab, "Entropy · sample NAME", and Lock
-  in loading the sample's key; a Demo with no sample shows none
+  in loading the sample's key; a Practice with no sample shows none
   (`codex32_rest.rs`). Hand-made shares (the Entropy card's third way,
   §5.3) go on to Add a key's codex32 form, Make the rest pressed (§8.1).
 - **Single key, backup in shares** (§6.9, D5), a kind of Make a new
@@ -611,7 +611,7 @@ working, and every computed cell opens to what made it (§6.4, §7.4).
 - **The work set** (C4), `faraday/faraday-keys/src/codex32.rs`: the
   secret `WorkSet`, held in faraday-keys, lent only as a paper form
   (§13.1); `Keys::add_codex32` loads the finished set's key.
-- **Demo** refuses a split with k of 2 or more (`faraday/faraday-core/src/demo.rs`,
+- **Practice** refuses a split with k of 2 or more (`faraday/faraday-core/src/demo.rs`,
   `docs/DEMO.md` §4 and §6) and has the BIP 93 samples
   (`docs/MODES.md` §7); Make codex32 shares puts vector 2 in place of
   the strings entered, and Make the rest and Add a share take only a
@@ -679,7 +679,7 @@ that a person can work them.
 The flow takes the person's entropy in one of three ways, chosen on its
 Entropy card (§6.3). Faraday's own randomness is never used to make a
 fresh seed in this flow, with one exception the owner made: Faraday
-Desktop's dice roller (§5.5), whose values are this computer's
+Demo's dice roller (§5.5), whose values are this computer's
 randomness, labelled as such wherever they appear.
 
 ### 5.1 Dice, by the booklet's de-biasing worksheet
@@ -790,9 +790,9 @@ held (§9.1) and the plan's codex32 form (§9.2), where BIP 93's
 `Keys::codex32_shares` does today; nothing leaves `faraday-keys` but the
 strings, through `Reveal::PaperForm`.
 
-### 5.5 Faraday Desktop's dice roller (codex32)
+### 5.5 Faraday Demo's dice roller (codex32)
 
-On Faraday Desktop only, the dice step shows the five dice, numbered 1
+On Faraday Demo only, the dice step shows the five dice, numbered 1
 to 5, the de-biasing worksheet's five tracks, as each die's two rolls
 side by side (owner, 2026-10-24): under **First roll** the die's marker,
 a disc in the die's colour with its first value; under **Second roll**
@@ -809,7 +809,7 @@ pictures are not used, so no image decoder comes into the app.
 **A step at a time** (owner, 2026-10-24, replacing what one click
 rolled). The computer's dice step through the work: **Previous**,
 **Next** and **Play** (Pause while it runs), and ← → while the entry is
-open on Faraday Desktop, the worksheet under the pointer included (Up
+open on Faraday Demo, the worksheet under the pointer included (Up
 and Down still pan it). Next, where every step of the character so far
 is shown, rolls the next character's values first, all of them, as a
 click of One character rolled them (the same answers give the same
@@ -846,7 +846,7 @@ area (§5.7). Built in `codex32/walk.rs` and `codex32/walk_screen.rs`,
 tested in `codex32/walk_tests.rs` (each step's text for vector 2's
 first character, an equal pair, Previous after Next, Play against
 stepping) and `tests/all/codex32_roller.rs` (the steps on Faraday
-Desktop and none on the stick, the arrow keys, Play to the end).
+Demo and none on the stick, the arrow keys, Play to the end).
 
 **The buttons stay put (owner, 2026-10-24; `docs/LAYOUT.md` §16.5).**
 In the card Previous, Next and Play stand in one row over Play's options,
@@ -859,16 +859,16 @@ in `tests/all/codex32_roller.rs` (Next's rectangle the same at every step
 of a character and across characters, in the pane and in the strip).
 
 **Both ways, side by side (owner, 2026-10-22).** The roller never
-replaces the entry for real dice: on Faraday Desktop the dice step
+replaces the entry for real dice: on Faraday Demo the dice step
 shows the stick's entry, **Your dice**, and beside it the roller,
 **Or let Faraday roll**, and the person uses either, or both, at any
 point. A value from the entry is a real die's and is not labelled.
 
 **"Demo only" (owner, 2026-10-24; moved out of the app 2026-10-25,
 F118).** The roller must not look like part of the real app: on
-Faraday Desktop its controls stand in the host's strip at the window's
-foot, outside the app, under "Demo" (`docs/DESKTOP-HOST.md` §3.1):
-Demo's **Use a sample** while a character is left, then Previous, Next
+Faraday Demo its controls stand in the host's strip at the window's
+foot, outside the app, under "Practice" (`docs/DESKTOP-HOST.md` §3.1):
+Practice's **Use a sample** while a character is left, then Previous, Next
 and Play (Pause while it runs), Next filled as the step's main press,
 **Play options** opening a menu of how far Play runs and how fast, and
 "Rolls d20", the dice chosen on the Entropy card. The entry's work (the
@@ -883,7 +883,7 @@ sheet in the page and the input panel: each die's two rolls and
 **Your dice**. The strip reads the walk from `codex32/walk_screen.rs`
 (`host_aids`, `host_play_options`); tested in
 `tests/all/desktop_host.rs` (the walk in the strip, Next stepping it
-from one place at every step, nothing demo-only in the app, Play's
+from one place at every step, nothing practice-only in the app, Play's
 options) and `tests/all/codex32_dice.rs` (none on the stick; a d20
 share played and padded 1 to 20).
 
@@ -919,13 +919,13 @@ too crowded for the whole codex32 sheet (§6.4.7), the dice row and the
 de-biasing sheet stay in view and the checksum worksheet opens on a
 press, every cell with its working (§7.4).
 
-### 5.6 The roller elsewhere on Faraday Desktop
+### 5.6 The roller elsewhere on Faraday Demo
 
-Since 2026-10-24 (owner) this roller is Demo's alone and stands in the
+Since 2026-10-24 (owner) this roller is Practice's alone and stands in the
 page's "Demo only" card (`docs/DEMO.md` §14), not beside the pad; what
 follows describes the roller itself.
 
-Outside codex32, and on Faraday Desktop only: New key's dice for BIP-39
+Outside codex32, and on Faraday Demo only: New key's dice for BIP-39
 words (every dice way of `faraday/faraday-core/src/keygen/mod.rs`) and
 Create a vault's **Generate with dice** (the diceware passphrase) gain
 one die drawn the same way, with **Rolls per click**: 1 (the default)
@@ -950,7 +950,7 @@ rollers against this paragraph (`tools/crosscheck/area_roller.py`).
 
 ### 5.7 The Working area: the person's own entry, a step at a time
 
-Every shell, every mode (owner, 2026-10-24). What the Demo walk (§5.5)
+Every shell, every mode (owner, 2026-10-24). What the Practice walk (§5.5)
 shows a step at a time, the person's own entry shows too: one
 **Working** area in the input panel (`docs/LAYOUT.md` §16.3), beside the
 pad, says what the last value entered did and what to do next on paper.
@@ -976,10 +976,10 @@ in progress, "Roll 6 · character 7"); at the last step, what is entered
 next follows the working: "Next: die 2, first roll." Previous and Next
 are Material's outlined icon buttons (the chevrons, with the tooltips
 "Previous step" and "Next step"). They move only what is shown: nothing
-is entered, taken back or rolled, and outside Demo nothing else offers a
+is entered, taken back or rolled, and outside Practice nothing else offers a
 step (no Play, no roll). Entering the next value is always allowed and
 moves the tracker to it; Backspace moves it back with the entry. While
-the Demo walk shows a step, the same two buttons step the walk.
+the Practice walk shows a step, the same two buttons step the walk.
 
 The area's height is fixed for its width (as many lines as the longest
 step needs there), so the pad beside it never moves as a step's text
@@ -1002,7 +1002,7 @@ completed with its box marked, Next through the worksheet's steps in
 order with their cells marked and Previous back, a new value moving the
 tracker, a typed character) and `tests/all/codex32_tracker.rs` (the step
 beside the pad at 1280x800, 1920x1080 and 480x640, the small panel's
-tile over the pad, outside Demo no walk and no Play, and Next entering
+tile over the pad, outside Practice no walk and no Play, and Next entering
 nothing).
 
 **Past the last checksum: the shares made and S (owner, 2026-10-24).**
@@ -1031,7 +1031,7 @@ where the Checksum tile shows the tour's sheet). Before the tour the
 last checksum box's step ends "Next: Share E."; at its last step, "Next:
 the worksheets.", and Next there goes on to the Worksheets card as
 Continue does. Previous goes back through the same steps, and from the
-first to the last checksum box on the Checksum tab. The Demo walk's
+first to the last checksum box on the Checksum tab. The Practice walk's
 Next and Play reach the same steps (Play stops at the tour's end; its
 reach is a row, a part, a share or the end); a character taken back
 unmakes the set and forgets the tour.
@@ -1053,7 +1053,7 @@ then and kept. Drawing reads them. Built in `codex32/tour.rs` and
 made's box filling on its tab as soon as its inputs exist; after the
 last checksum box Share D's tab with its boxes filled, the steps in the
 booklet's order with their cells marked, the check, then S, then on to
-the worksheets; Previous back out of it; the switch off; the Demo walk
+the worksheets; Previous back out of it; the switch off; the Practice walk
 reaching the same steps, and Play stopping at the end),
 `tests/all/codex32_tour.rs` (at 1280x800, the switch offered, Next
 opening Share D's tab with its first step, and a late check row brought
@@ -1172,7 +1172,7 @@ and the path is drawn only as far as the bits from die 1 run unbroken.
 With typed characters (§5.2) there is no dice sheet: the character goes
 to its box with "typed" as its working.
 
-On Faraday Desktop the Demo only card's step-through (§5.5) fills the
+On Faraday Demo the Demo only card's step-through (§5.5) fills the
 same sheet a step at a time: each step outlines in the accent the pad
 it puts a marker or a die on, and the character's own step shows the
 whole character, its five bits, the path and the leaf, until the next
@@ -1280,10 +1280,10 @@ under a mask shows nothing of its working, which is the opposite of the
 owner's requirement. The owner's answer (§1.1 item 1), an exception
 to the mask policy for this flow:
 
-- **Faraday Desktop, the stick and the Pi** (F117: Faraday Desktop
+- **Faraday Demo, the stick and the Pi** (F117: Faraday Demo
   matches the device; it first had no masking): the sheets are **unmasked while the flow is
   open** and masked again whenever it is left (Back past the first entry
-  card, Cancel, a flow put aside, the device locking or idling, Faraday Desktop closing the flow); the eye
+  card, Cancel, a flow put aside, the device locking or idling, Faraday Demo closing the flow); the eye
   in the app bar masks them at any moment.
 
 #### 6.4.7 How it fits each size class
@@ -1790,7 +1790,7 @@ ticked), then makes the strings (§5.4) and shows them as §6.6 to §6.8 do,
   the seed bytes of a key added by `add_seed` beside its master key (owner,
   §1.1 item 10; KEYS §2 already lists "seed" as key material).
 
-k = 0 needs no randomness and is open in Demo (§12).
+k = 0 needs no randomness and is open in Practice (§12).
 
 ### 9.2 The backup plan's codex32 form
 
@@ -1808,7 +1808,7 @@ places, its foot **Make them** (§5.4, §6.6 to §6.8), each string typed
 back or skipped, then Done. It is done when every string is shown and
 typed back or skipped; the strings are never written to a file or a
 stick (paper only, as the copies by hand are today). A plan made in
-Demo dims the codex32 toggle for k of 2 or more, as DEMO §5.3 says.
+Practice dims the codex32 toggle for k of 2 or more, as DEMO §5.3 says.
 
 ### 9.3 The Templates item
 
@@ -2212,17 +2212,17 @@ Saved as `faraday-blank-template-codex32-{48|74|127}-chars-{string|codex32qr|str
 with `-worksheets` before `.pdf` where they are asked for. Nothing else
 changes in §3.8: no key, seed or wallet is asked for or shown.
 
-## 12. Demo
+## 12. Practice
 
-| Flow | In Demo | Why |
+| Flow | In Practice | Why |
 |---|---|---|
-| Make codex32 shares (§6) | Open, and the process runs whole: the person rolls (on the pad, or the roller in the "Demo only" box on Faraday Desktop) or types, and watches the live sheets, the conversion and the checksums as anywhere. Once the entry screen is finished, the strings are replaced by the sample, BIP 93's vector 2 (`NAME`, k = 2: shares `a`, `c` and the derived `d`), and every later card shows the sample's, with one line: "Demo puts sample NAME in place of these strings". **Use a sample**, in the "Demo only" box beside the entry (§5.5), fills vector 2's own characters for a person who would rather not roll | How the process works is the point; a seed rolled in Demo is a real seed that Demo would not hold, so it never leaves the entry screen. As Generate with dice puts `faraday` in place of the rolled words (DEMO §5.2) |
-| Shares made by hand (§8.1), Add a share (§8.2) | Open for the BIP 93 vectors' strings (the demo's public seeds, MODES §7); a string of any other set is refused as a key that is not public is | The same |
+| Make codex32 shares (§6) | Open, and the process runs whole: the person rolls (on the pad, or the roller in the "Demo only" box on Faraday Demo) or types, and watches the live sheets, the conversion and the checksums as anywhere. Once the entry screen is finished, the strings are replaced by the sample, BIP 93's vector 2 (`NAME`, k = 2: shares `a`, `c` and the derived `d`), and every later card shows the sample's, with one line: "Practice puts sample NAME in place of these strings". **Use a sample**, in the "Demo only" box beside the entry (§5.5), fills vector 2's own characters for a person who would rather not roll | How the process works is the point; a seed rolled in Practice is a real seed that Practice would not hold, so it never leaves the entry screen. As Generate with dice puts `faraday` in place of the rolled words (DEMO §5.2) |
+| Shares made by hand (§8.1), Add a share (§8.2) | Open for the BIP 93 vectors' strings (Practice's public seeds, MODES §7); a string of any other set is refused as a key that is not public is | The same |
 | Check a string (§8.3) | Open for any string | It loads nothing and keeps nothing |
 | Error correction (§8.4) | Open, on the sample strings with boxes changed | A proposal for a public string |
 | Copies by hand, plan form (§9) | k = 0 open; k of 2 or more disabled, as today | k of 2 or more is Faraday's randomness (DEMO §6) |
 | Codex32QR shown | Open for a public seed's string | Another spelling of a public seed |
-| Blank templates | Not in the Starter's Demo; unchanged | Blank sheets hold nothing |
+| Blank templates | Not in the Starter's Practice; unchanged | Blank sheets hold nothing |
 
 The first row is the owner's answer (§1.1 item 4). The scheme the
 person chose is kept for the process; the sample's own scheme (2 of 3,
@@ -2328,7 +2328,7 @@ vector 2's strings and loads its fingerprint; a string typed back with a
 box changed names that box; a share at an index in use is refused or
 replaced as decided; a failing string with the tick off is refused and
 with it on shows the unique proposal and loads only after the boxes are
-typed again from the paper; Check a string loads nothing; Demo refuses
+typed again from the paper; Check a string loads nothing; Practice refuses
 non-sample entropy; each template choice makes a PDF saved under its
 name.
 

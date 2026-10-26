@@ -309,7 +309,7 @@ fn the_mode_pills_press_and_the_sheets_frames_do_no_costly_work() {
     mode_sheet_holds_on(PI);
 }
 
-/// The samples a Demo session offers in this test: the core's own
+/// The samples a Practice session offers in this test: the core's own
 /// handouts, and the Savings wallet over the first three of them (the
 /// real data is in `faraday-samples`, which core does not link).
 fn savings_samples() -> &'static crate::samples::Samples {
@@ -370,7 +370,7 @@ fn sheet_frames_are_free(app: &mut Faraday, what: &str) {
     }
 }
 
-/// Load samples in Demo: Samples pressed (in Faraday Desktop's host
+/// Load samples in Practice: Samples pressed (in Faraday Demo's host
 /// strip), the sheet's frames, a tick and Load ticked, each against its
 /// budget; the sheet at rest does nothing
 /// costly (`docs/MODES.md` §10 M6).

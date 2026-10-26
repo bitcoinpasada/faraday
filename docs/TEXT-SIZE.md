@@ -129,7 +129,7 @@ At 160 dpi (density 1), the smallest window that keeps the wide layout:
 
 | | Standard | Large | Larger |
 |---|---|---|---|
-| Faraday Desktop | 960 × 600 | 1152 × 720 | 1344 × 840 |
+| Faraday Demo | 960 × 600 | 1152 × 720 | 1344 × 840 |
 | The Starter's held app | 1280 dp wide | 1536 dp wide | 1792 dp wide |
 | The Starter's own pages, one column under | 600 dp | 720 dp | 840 dp |
 
@@ -190,7 +190,7 @@ A screen that today works out a list's total height for its scroll
   setting stays as it was. The field lives on the `Settings` area
   struct (`docs/STRUCTURE-PASS.md` §7.4), not on `Faraday`, so the
   ratchet on Faraday's fields does not rise.
-- **Faraday Desktop** keeps it as it keeps the theme: in memory, across
+- **Faraday Demo** keeps it as it keeps the theme: in memory, across
   a lock, not across quitting, as now (§9 item 6).
 - **The Starter.** The Starter's own field, and its held app's: one
   choice, so Transfer and Learn inside the Starter follow the Starter's
@@ -202,7 +202,7 @@ A screen that today works out a list's total height for its scroll
   `text=` line; Uninstall removes it; a Starter run without installing
   keeps it for that run only, so §5.1's "no settings or state file"
   holds for it.
-- **Open Faraday Desktop** (`docs/STARTER.md` §5.3) starts the desktop
+- **Open Faraday Demo** (`docs/STARTER.md` §5.3) starts the desktop
   app with the Starter's choice (`--text larger`), which the desktop
   app takes as its first setting.
 
@@ -310,7 +310,7 @@ Decided (owner, 2026-10-23), each as recommended:
    icons keep their size.
 5. **Where the Starter's Text size is chosen.** Decided: on its About
    page (§6).
-6. **Faraday Desktop.** Decided: it keeps the theme and Text size in
+6. **Faraday Demo.** Decided: it keeps the theme and Text size in
    memory only, until it quits, as now (§6).
 7. **The Starter's storage.** Decided: kept only once the Starter is
    installed, in one file that Uninstall removes; a Starter run without

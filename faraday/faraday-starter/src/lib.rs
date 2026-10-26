@@ -339,7 +339,7 @@ pub enum StarterAction {
     Uninstall,
     /// Uninstall now.
     UninstallNow,
-    /// Open Faraday Desktop.
+    /// Open Faraday Demo.
     OpenDesktop,
     /// Transfer, the desktop app's own.
     Transfer,
@@ -2120,7 +2120,7 @@ impl Starter {
         }
     }
 
-    /// Whether Open Faraday Desktop is offered: the payload carries it, or
+    /// Whether Open Faraday Demo is offered: the payload carries it, or
     /// it is installed.
     pub fn offers_desktop(&self) -> bool {
         self.payload_file(PayloadKind::Desktop).is_some()

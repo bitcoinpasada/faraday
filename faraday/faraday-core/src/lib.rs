@@ -42,7 +42,7 @@
 //!   the screens with no area folder), `drawing`, each area's `screen.rs`
 //!   (`vault/screen.rs`, `keygen/screen.rs`), `glance` (a wallet at a
 //!   glance), `guide` (Guided mode's walk-through), `scan_key`, `pdf` (the
-//!   printed sheets), `picture` (a QR code to keep), `demo` (what Demo
+//!   printed sheets), `picture` (a QR code to keep), `demo` (what Practice
 //!   refuses), `devices` (what else captures the screen or the keys) and
 //!   `edid` (what a screen says it is).
 //! - Flows around a key, seed, words or passphrase: `keygen`, `codex32` (with `codex32/screen.rs`, its checksum worksheet, `codex32/worksheet_screen.rs`, and its dice and the booklet's dice sheet, `codex32/dice_screen.rs`, and the entry's input panel, `codex32/input_panel.rs`), `seeds`
@@ -62,7 +62,7 @@
 //! - Sticks, boot and files: `upgrade`, `transfer` (the desktop as the
 //!   device's QR link), `names` (the Starter's install names),
 //!   `secure_boot/state.rs`.
-//! - Faraday Desktop's host: `host` (the strip at the window's foot, the
+//! - Faraday Demo's host: `host` (the strip at the window's foot, the
 //!   preview frame and the pointer carried into the app, with
 //!   `host/screen.rs`; `docs/DESKTOP-HOST.md`).
 //! - Support: `wordlist`, `learn`, `modes` (F81, with `modes/screen.rs`), `samples` (with `samples/screen.rs`, and `samples/card.rs`, the "Demo only" card every page and sheet hands its demo-only items to), `tools`, `testkit`.
@@ -678,7 +678,7 @@ pub enum Sheet {
     /// **Mode**, from the pill or Settings' Mode row: the modes this app
     /// offers, the one in use marked (F81, `modes/screen.rs`).
     Mode,
-    /// **Load samples**, from the Demo pill's neighbour (`samples/screen.rs`).
+    /// **Load samples**, from the Practice pill's neighbour (`samples/screen.rs`).
     Samples,
     /// The top app bar's ⋮ menu on a compact window (`nav`).
     NavMenu,
@@ -1268,7 +1268,7 @@ pub struct Faraday {
     pub devices: devices::DeviceCheck,
     /// The mode a lock in progress ends in; cleared when it is not gone through.
     next_mode: modes::ModesArea,
-    /// The samples Demo offers, set by the desktop; none elsewhere.
+    /// The samples Practice offers, set by the desktop; none elsewhere.
     pub samples: Option<&'static samples::Samples>,
     /// The Load samples sheet's rows (`samples::SheetState`).
     sample_area: samples::SamplesArea,
@@ -1398,7 +1398,7 @@ impl Faraday {
     }
 
     /// Whether the power sheet offers Restart: the PC stick and the Pi,
-    /// not Faraday Desktop, an app on someone's own system.
+    /// not Faraday Demo, an app on someone's own system.
     pub fn offers_restart(&self) -> bool {
         !self.shell_sticks
     }

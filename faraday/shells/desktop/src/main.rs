@@ -54,7 +54,7 @@
 //! dragged over the window the page is edged as the place it drops. Nothing
 //! received goes into the app's Inbox.
 //!
-//! Every session here opens in Demo, on testnet, in every build; the
+//! Every session here opens in Practice, on testnet, in every build; the
 //! pill and Settings choose Testnet, Signet or Regtest, and a lock
 //! keeps the mode (F81). No warning comes first: every step that takes
 //! a seed carries a line saying never to type one that holds real
@@ -65,7 +65,7 @@
 //! with a fresh one in the same window, with the Inbox and Outbox carried
 //! over, which is what the device's app loop does.
 //!
-//! The app is held by Faraday Desktop's host (`faraday_core::Host`,
+//! The app is held by Faraday Demo's host (`faraday_core::Host`,
 //! `docs/DESKTOP-HOST.md`): a strip at the window's foot holds the stick
 //! pills, Samples, the preview size and the screen's demo aids, outside
 //! the app, and a preview size frames the app as that screen lays it
@@ -179,7 +179,7 @@ struct Shell {
     /// Open on Transfer once the window is up.
     open_transfer: bool,
     size: (u32, u32),
-    /// The app, held by Faraday Desktop's host (`docs/DESKTOP-HOST.md`).
+    /// The app, held by Faraday Demo's host (`docs/DESKTOP-HOST.md`).
     app: Option<AppHost>,
     boxes: Boxes,
     /// The sticks' folders, their pictures read on a thread of their own.
@@ -761,7 +761,7 @@ fn watch_listing(downloads: PathBuf, opens: bool, out: Sender<Listing>) {
 }
 
 /// A fresh app as the desktop runs it: the online Faraday, which turns
-/// sheets into PDFs, in `mode`. Every build starts in Demo (the key
+/// sheets into PDFs, in `mode`. Every build starts in Practice (the key
 /// store's public set, on testnet); a lock starts the fresh session in
 /// the mode the old one chose or was in. No warning comes first: the
 /// steps that take a seed carry a line instead (F81).
@@ -772,7 +772,7 @@ fn desktop_app_in(mode: faraday_core::Mode) -> Faraday {
     // This shell answers `RequestClipboard` (faraday_window::clipboard).
     app.clipboard = true;
     app.shell_sticks = true;
-    // The dice roller (`docs/CODEX32.md` §5.6) is Faraday Desktop's alone.
+    // The dice roller (`docs/CODEX32.md` §5.6) is Faraday Demo's alone.
     app.set_roller_offered(true);
     app.session = faraday_core::wallet::Session::on(mode.network());
     if mode == faraday_core::Mode::Demo {
@@ -1094,7 +1094,7 @@ mod tests {
         assert!(app.restart_requested());
     }
 
-    /// Every build opens in Demo with no sheet; a lock keeps the mode,
+    /// Every build opens in Practice with no sheet; a lock keeps the mode,
     /// and a mode chosen is where the fresh session starts.
     #[test]
     fn every_build_opens_in_demo_with_no_sheet() {

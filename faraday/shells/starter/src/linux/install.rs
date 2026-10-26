@@ -7,15 +7,18 @@
 //! | | |
 //! |---|---|
 //! | the Starter | `~/.local/bin/faraday-starter`, a copy of the running file |
-//! | the desktop app, with the payload | `~/.local/bin/faraday-desktop` |
-//! | the menu entries | `~/.local/share/applications/app.faradayoffline.FaradayStarter.desktop` and `…FaradayDesktop.desktop` |
+//! | the desktop app, with the payload | `~/.local/bin/faraday-demo` |
+//! | the menu entries | `~/.local/share/applications/app.faradayoffline.FaradayStarter.desktop` and `…FaradayDemo.desktop` |
 //! | the icon | `~/.local/share/icons/hicolor/256x256/apps/app.faradayoffline.FaradayStarter.png` |
 //!
 //! Earlier installs (`names::LEGACY`: the Starter as `~/.local/bin/faraday`
 //! or `faraday-starter`, with the menu entry and icon of the same old name)
 //! are replaced by install and removed by uninstall, the executable only
 //! when it answers `--version` as Faraday's Starter (old words included);
-//! nothing else of the old names. The names are in `faraday-core/src/names.rs`.
+//! nothing else of the old names. The desktop app's names from before it was
+//! Faraday Demo (`names::LEGACY_DESKTOP`: `faraday-desktop` and its menu
+//! entry) are replaced and removed the same way, when the file answers as
+//! Faraday's desktop app. The names are in `faraday-core/src/names.rs`.
 //!
 //! Folders an install had to make (`~/.local/bin` and the rest) are the
 //! desktop's shared places; uninstall leaves them. The installed copy's
@@ -196,6 +199,19 @@ fn installed_legacy(dirs: &Dirs) -> Option<Installed> {
 /// is ours or not there; an executable there that is another program's
 /// keeps the names it came with. A file already gone is not an error.
 fn remove_legacy(dirs: &Dirs) -> Result<(), Reason> {
+    for l in &names::LEGACY_DESKTOP {
+        let bin = dirs.home.join(".local/bin").join(l.linux_bin);
+        if bin.exists() && !ours(&bin, Program::DesktopApp) {
+            continue;
+        }
+        for path in [bin, dirs.menu(l.menu_id)] {
+            match fs::remove_file(&path) {
+                Ok(()) => {}
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+                Err(e) => return Err(dirs.file_error(&path, &e)),
+            }
+        }
+    }
     for l in &names::LEGACY {
         let bin = dirs.legacy_bin(l);
         if bin.exists() && !ours(&bin, Program::StarterApp) {

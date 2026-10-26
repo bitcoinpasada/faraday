@@ -1,5 +1,5 @@
 //! Modes (F81, `docs/MODES.md`): what the pill names and the Mode sheet
-//! chooses. One of Demo, Mainnet, Testnet, Signet, Regtest. Demo is not a
+//! chooses. One of Practice, Mainnet, Testnet, Signet, Regtest. Practice is not a
 //! network: it is the key store's public set ([`faraday_keys::Keys::demo`])
 //! on Testnet, so nothing here stores the mode beside the session.
 //!
@@ -13,7 +13,7 @@ use crate::strings::EN;
 use crate::wallet::network_name;
 use faraday_bip::keys::Network;
 
-/// What a session is in: a network, or Demo (the public set on Testnet).
+/// What a session is in: a network, or Practice (the public set on Testnet).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Mode {
     /// The public samples on Testnet.
@@ -31,11 +31,11 @@ pub enum Mode {
 /// The modes of the stick and the Pi, and of a `Faraday::new()`.
 pub const STICK_MODES: &[Mode] = &[Mode::Mainnet, Mode::Testnet, Mode::Signet, Mode::Regtest];
 
-/// The modes of Faraday Desktop and of the website.
+/// The modes of Faraday Demo and of the website.
 pub const DESKTOP_MODES: &[Mode] = &[Mode::Demo, Mode::Testnet, Mode::Signet, Mode::Regtest];
 
 impl Mode {
-    /// The network the mode runs on: Demo is on Testnet.
+    /// The network the mode runs on: Practice is on Testnet.
     pub fn network(self) -> Network {
         match self {
             Mode::Demo | Mode::Testnet => Network::Testnet,
@@ -45,7 +45,7 @@ impl Mode {
         }
     }
 
-    /// The mode of a session on `network` that is not Demo.
+    /// The mode of a session on `network` that is not Practice.
     pub fn of(network: Network) -> Mode {
         match network {
             Network::Mainnet => Mode::Mainnet,
@@ -107,7 +107,7 @@ impl Faraday {
         self.session.modes = modes;
     }
 
-    /// The mode in use: Demo while the key store's public set is on,
+    /// The mode in use: Practice while the key store's public set is on,
     /// otherwise the session's network. Read from the state, never
     /// stored.
     pub fn mode(&self) -> Mode {

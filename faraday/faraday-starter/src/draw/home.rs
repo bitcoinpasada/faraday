@@ -168,7 +168,7 @@ fn home_cards(starter: &Starter) -> Vec<CardSpec<'_>> {
     cards
 }
 
-/// Faraday Desktop's card: the version, and Open (§5.3).
+/// Faraday Demo's card: the version, and Open (§5.3).
 fn desktop_body(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     let mut y = y0;
     let version = starter

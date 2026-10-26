@@ -3,7 +3,7 @@
 //! stands ("Step 12 of 15 · character 1", or "Roll 6 · character 2" for
 //! the character in progress), Previous and Next as Material's outlined
 //! icon buttons, and the step's working in plain arithmetic, the same
-//! text the Demo walk reads (`walk_screen.rs`), with what the person
+//! text the Practice walk reads (`walk_screen.rs`), with what the person
 //! enters next once nothing is left to step through. Its height is fixed
 //! ([`working_area_h`]), so the pad under it never moves as a step's
 //! text changes. Drawing reads the tracker's steps and the kept
@@ -136,7 +136,7 @@ fn next_text(m: &Codex32Make) -> Option<String> {
 }
 
 /// Previous and Next, each with whether it has a step to go to: the
-/// Demo walk's while it shows a step (New key sends the press there),
+/// Practice walk's while it shows a step (New key sends the press there),
 /// else the tracker's.
 fn presses(m: &Codex32Make) -> [(C32, bool); 2] {
     let (back, next) = if m.tour_shown().is_some() {

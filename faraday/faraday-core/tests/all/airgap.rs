@@ -1,4 +1,4 @@
-//! The online app (the desktop) opens in Demo, which takes only public
+//! The online app (the desktop) opens in Practice, which takes only public
 //! seeds (F20, F81), and shows no warning sheet in any mode: a person can
 //! type a seed on an online computer anywhere, so every step that takes
 //! a seed or a secret says once, in a line under its field, never to
@@ -28,7 +28,7 @@ fn wallet_on(network: Network) -> String {
     format!("wpkh({key}/<0;1>/*)")
 }
 
-/// The desktop's app: online, in Demo (the public seeds on testnet), a
+/// The desktop's app: online, in Practice (the public seeds on testnet), a
 /// developer's build with no warning.
 fn desktop() -> Faraday {
     let mut app = testkit::started();
@@ -95,7 +95,7 @@ fn demo_takes_only_public_seeds_and_a_test_mode_takes_any() {
             )
             .is_err()
     );
-    // A testnet session that is not Demo takes any seed.
+    // A testnet session that is not Practice takes any seed.
     let mut other = testkit::started();
     assert!(other.session.keys.add_words(&c, OTHER, "", None).is_ok());
 }
@@ -151,13 +151,13 @@ fn the_device_changes_mode_without_the_warning() {
 fn demo_names_its_learn_page_first_and_the_device_never() {
     let title = |app: &Faraday| app.learn_pages().first().map(|p| p.title);
     let app = desktop();
-    assert_eq!(title(&app), Some("The demo and its public seeds"));
+    assert_eq!(title(&app), Some("Practice and its public seeds"));
     let device = testkit::started();
     assert!(
         device
             .learn_pages()
             .iter()
-            .all(|p| p.title != "The demo and its public seeds")
+            .all(|p| p.title != "Practice and its public seeds")
     );
 }
 

@@ -72,14 +72,14 @@ fn a_payload_carrying_two_systems_desktop_apps_offers_only_this_systems() {
     };
     let manifest = format!(
         "# Faraday Starter payload 0.2.0, commit 0123456789abcdef0123456789abcdef01234567\n{}{}{}",
-        line("faraday-desktop-0.2.0-linux-x86_64.xz"),
-        line("faraday-desktop-0.2.0-windows-x86_64.exe.xz"),
+        line("faraday-demo-0.2.0-linux-x86_64.xz"),
+        line("faraday-demo-0.2.0-windows-x86_64.exe.xz"),
         line("faraday-pi-0.2.0-pi3-waveshare-28dpi.img.xz"),
     );
     let payload = Payload::from_parts(manifest.as_bytes(), Vec::new()).expect("a payload");
     let ours = match std::env::consts::OS {
-        "linux" => "faraday-desktop-0.2.0-linux-x86_64.xz",
-        "windows" => "faraday-desktop-0.2.0-windows-x86_64.exe.xz",
+        "linux" => "faraday-demo-0.2.0-linux-x86_64.xz",
+        "windows" => "faraday-demo-0.2.0-windows-x86_64.exe.xz",
         _ => return,
     };
     let offered: Vec<String> = payload.event().files.into_iter().map(|f| f.name).collect();

@@ -34,7 +34,7 @@ lint:
     python3 tools/clippy.py --locked --workspace --all-targets --features unreleased
     # Advisories, licences, duplicates and sources, against deny.toml.
     # `cargo install --locked cargo-deny` puts it on a machine (README,
-    # "Faraday Desktop, for developers").
+    # "Faraday Demo, for developers").
     cargo deny check
     # Every dependency trusted, audited or exempted, against the committed
     # imports, offline (F71, docs/STRUCTURE-PASS.md §6). `cargo install

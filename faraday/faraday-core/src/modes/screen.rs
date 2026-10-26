@@ -23,7 +23,7 @@ pub(crate) fn shows_pill(app: &View) -> bool {
     app.mode() != Mode::Mainnet
 }
 
-/// The pill's label: the mode's name, and in Demo its network too.
+/// The pill's label: the mode's name, and in Practice its network too.
 fn pill_label(app: &View) -> &'static str {
     match app.mode() {
         Mode::Demo => EN.mode_demo_pill,
@@ -37,7 +37,7 @@ fn mode_width(app: &View, ui: &Ui) -> f32 {
 }
 
 /// The pill's width, for a row that makes room for it. Load samples is
-/// Faraday Desktop's, in its host strip (`docs/DESKTOP-HOST.md`).
+/// Faraday Demo's, in its host strip (`docs/DESKTOP-HOST.md`).
 pub(crate) fn pill_width(app: &View, ui: &Ui) -> f32 {
     mode_width(app, ui)
 }
@@ -175,7 +175,7 @@ fn body(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     cy - y
 }
 
-/// One row: the mode's name, Demo's network as its value, and the mark on
+/// One row: the mode's name, Practice's network as its value, and the mark on
 /// the one in use. A mode that cannot be chosen is dimmed, its label alone.
 fn mode_row(ui: &mut Ui, x: f32, ry: f32, w: f32, m: Mode, on: bool, live: bool) {
     let mark = MODE_ROW;

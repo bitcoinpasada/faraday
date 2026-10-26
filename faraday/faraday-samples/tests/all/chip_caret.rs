@@ -1,4 +1,4 @@
-//! A Demo passphrase field draws its caret as any field does: **Use
+//! A Practice passphrase field draws its caret as any field does: **Use
 //! faraday** stands in the host's strip, not inside the field or
 //! anywhere in the app (`docs/DEMO.md` §5.4, `docs/DESKTOP-HOST.md` §3).
 

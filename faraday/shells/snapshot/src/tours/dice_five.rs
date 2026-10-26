@@ -1,4 +1,4 @@
-//! The dice5 tour: the codex32 five-dice roller of Faraday Desktop
+//! The dice5 tour: the codex32 five-dice roller of Faraday Demo
 //! (`docs/CODEX32.md` §5.5) drawn from its state, alone on the page:
 //! at rest, mid-tumble, landed with each die's two rolls side by side
 //! and an equal pair struck, and twenty-faced dice in other colours. Its

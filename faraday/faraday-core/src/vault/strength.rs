@@ -7,7 +7,7 @@ use crate::vault::{CreateForm, Vaults};
 impl CreateForm {
     /// The side panel's strength of the weakest passphrase, in bits with
     /// the unlock cost `cost`'s: known only when the dice made every one.
-    /// Empty where every passphrase is Demo's `faraday` (`demo`: Demo's
+    /// Empty where every passphrase is Practice's `faraday` (`demo`: Practice's
     /// passphrase is offered), which is not measured (`docs/MODES.md`
     /// §6.2): no line is drawn.
     pub(crate) fn weakest_text(&self, cost: f32, demo: bool) -> String {

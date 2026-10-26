@@ -17,7 +17,7 @@ use faraday_shell_api::{
 };
 use faraday_ui::keyboard::OskPress;
 
-/// Faraday Desktop at `width` × `height` and `dpi`, Reduce motion on,
+/// Faraday Demo at `width` × `height` and `dpi`, Reduce motion on,
 /// on the codex32 entry by six-faced dice, a frame drawn.
 fn on_entry(width: u16, height: u16, dpi: u16) -> Faraday {
     on_shell(width, height, dpi, true, Way::Dice)
@@ -53,7 +53,7 @@ fn on_entropy(width: u16, height: u16, dpi: u16, roller: bool) -> Faraday {
     }));
     app.set_roller_offered(roller);
     if roller {
-        // The roller is Demo's alone (`docs/DEMO.md` §14).
+        // The roller is Practice's alone (`docs/DEMO.md` §14).
         faraday_core::testkit::into_demo(&mut app);
     }
     for i in 0..8u8 {
@@ -280,7 +280,7 @@ fn the_pad_has_no_done_and_continue_stands_in_its_place_once_every_character_is_
         scroll_page(&mut app, 1280 / 2, 800 / 3, 4000);
         let at = app.hit_box(next).expect("Continue offered");
         assert!(at.1 > 800 - 80, "in the panel at the foot: {at:?}");
-        // Outside Demo the strings made go on to the worksheets; Demo's
+        // Outside Practice the strings made go on to the worksheets; Practice's
         // stand in the sample's place once it is loaded.
         if !roller {
             tap(&mut app, next);
@@ -292,7 +292,7 @@ fn the_pad_has_no_done_and_continue_stands_in_its_place_once_every_character_is_
 #[test]
 fn the_dice_size_is_chosen_on_the_entropy_card_and_the_panel_follows_it() {
     // The owner's panel (960 × 580), 1280 × 800 and 1920 × 1080, in
-    // Testnet and in Demo.
+    // Testnet and in Practice.
     for (w, h, dpi) in [
         (1440u16, 870u16, 240u16),
         (1280, 800, 160),
@@ -615,7 +615,7 @@ fn the_tracks_show_only_the_pads_the_dice_reach() {
 
 #[test]
 fn the_tracks_and_the_tree_stand_side_by_side_where_they_fit() {
-    // In Testnet, and in Demo beside the card's narrow column.
+    // In Testnet, and in Practice beside the card's narrow column.
     for (w, h, dpi, demo) in [
         (1440u16, 870u16, 240u16, false),
         (1280, 800, 160, false),
@@ -675,7 +675,7 @@ fn the_key_of_the_roll_shown_is_drawn_pressed_after_a_press_and_after_next() {
     assert_eq!(make(&app).pressed_face(), Some(3));
     let pressed = ink_at(&mut app, three);
     assert_ne!(pressed, ink_at(&mut app, five), "3 drawn pressed");
-    // The Demo walk's Next presses its die's face the same way.
+    // The Practice walk's Next presses its die's face the same way.
     c32(&mut app, C32::Key(OskPress::Back));
     c32(&mut app, C32::Walk(WalkAct::Next));
     let f = make(&app).pressed_face().expect("Next rolled a face");

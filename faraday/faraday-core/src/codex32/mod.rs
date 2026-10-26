@@ -18,7 +18,7 @@
 //! what `seq` gives, worked again from it at every press
 //! ([`Codex32Make::replay`]). `strings`, `fingerprint` and `qr` are
 //! taken from the finished set when its last character arrives and
-//! dropped when any character is taken back. On Faraday Desktop the
+//! dropped when any character is taken back. On Faraday Demo the
 //! five-dice roller (`docs/CODEX32.md` §5.5) stands beside the pad: its
 //! faces enter through [`Codex32Make::roll`] as the pad's keys do, it is
 //! told of every face taken back ([`FiveRoller::trim`]) and starts over
@@ -374,7 +374,7 @@ pub enum C32 {
     /// The open cell's working moved to the neighbouring cell of its row,
     /// before (-1) or after (1) (§7.4).
     CellStep(i8),
-    /// A press on the computer's walk in Faraday Desktop's host strip:
+    /// A press on the computer's walk in Faraday Demo's host strip:
     /// its five dice, a step at a time (§5.5, `docs/DESKTOP-HOST.md`).
     Walk(WalkAct),
     /// The Working area's step before (-1) or after (1) of the person's
@@ -396,7 +396,7 @@ pub enum C32 {
     Colour(u8),
     /// A face pressed on the pad of dice other than six-faced ones.
     Face(u8),
-    /// **Use a sample** on the entry, in Demo (§12): the characters left,
+    /// **Use a sample** on the entry, in Practice (§12): the characters left,
     /// from the sample's shares.
     Sample,
 }
@@ -555,7 +555,7 @@ pub struct Codex32Make {
     /// The sheets are masked (§6.4.6): every character, roll and working
     /// drawn as dots. Set when the flow is left backwards, and by the eye.
     hidden: bool,
-    /// The five-dice roller beside the pad (Faraday Desktop, §5.5).
+    /// The five-dice roller beside the pad (Faraday Demo, §5.5).
     roller: FiveRoller,
     /// Which dice of the character in progress show a value the roller
     /// made: worked out from `seq` at every replay.
@@ -572,12 +572,12 @@ pub struct Codex32Make {
     /// The Entropy card's Continue on shares made by hand: New key hands
     /// over to Add a key's codex32 form.
     hand: bool,
-    /// Demo put its sample in place of the set entered (§12): every card
+    /// Practice put its sample in place of the set entered (§12): every card
     /// after the entry shows the sample's.
     sample: bool,
-    /// In Demo, the sample's published strings, which stand in place of
+    /// In Practice, the sample's published strings, which stand in place of
     /// the set entered (none where the shell gave no sample); `None`
-    /// outside Demo.
+    /// outside Practice.
     demo: Option<Vec<faraday_bip::codex32::Codex32>>,
     /// How far the checksum worksheet shown is panned: the entry's, or
     /// the review's tab's, which starts at its top left.
@@ -673,7 +673,7 @@ impl Codex32Make {
         }
     }
 
-    /// The flow in Demo (§12, `docs/DEMO.md` §5): `sample` is the
+    /// The flow in Practice (§12, `docs/DEMO.md` §5): `sample` is the
     /// published set that stands in place of the strings entered, the
     /// shares of BIP 93's vector 2. Cheap.
     pub(crate) fn in_demo(mut self, sample: Vec<faraday_bip::codex32::Codex32>) -> Codex32Make {
@@ -681,7 +681,7 @@ impl Codex32Make {
         self
     }
 
-    /// Whether the flow runs in Demo.
+    /// Whether the flow runs in Practice.
     pub fn demo(&self) -> bool {
         self.demo.is_some()
     }
@@ -796,7 +796,7 @@ impl Codex32Make {
         self
     }
 
-    /// Demo's sample stands in place of the set entered (§12).
+    /// Practice's sample stands in place of the set entered (§12).
     pub fn sample(&self) -> bool {
         self.sample
     }
@@ -822,7 +822,7 @@ impl Codex32Make {
         self.hidden
     }
 
-    /// The app bar offers the eye: sheets exist (F117: Faraday Desktop as
+    /// The app bar offers the eye: sheets exist (F117: Faraday Demo as
     /// the device).
     pub fn eye_offered(&self) -> bool {
         self.work.is_some()
@@ -953,7 +953,7 @@ impl Codex32Make {
         (self.rolled, self.typed)
     }
 
-    /// The five-dice roller beside the pad (Faraday Desktop, §5.5).
+    /// The five-dice roller beside the pad (Faraday Demo, §5.5).
     pub fn roller(&self) -> &FiveRoller {
         &self.roller
     }
@@ -1443,7 +1443,7 @@ impl Codex32Make {
                 char::from(s.to_ascii_uppercase()).to_string()
             }
         };
-        // The dice are the person's; with Demo's sample in place they made
+        // The dice are the person's; with Practice's sample in place they made
         // no string shown (§12).
         if self.rolled && !self.sample {
             for (s, &i) in initial.iter().enumerate() {
@@ -1746,7 +1746,7 @@ impl Codex32Make {
                 self.finish(Card::Entropy, Card::Enter);
             }
             Some(Card::Enter) if self.strings.is_some() => {
-                // In Demo the strings made never leave the entry: the
+                // In Practice the strings made never leave the entry: the
                 // sample stands in their place (§12).
                 if !self.sample && self.demo.is_some() && !self.put_sample(c) {
                     return;
@@ -1798,10 +1798,10 @@ impl Codex32Make {
         }
     }
 
-    /// Costs what `WorkSet::given` costs for the sample. Demo's sample in
+    /// Costs what `WorkSet::given` costs for the sample. Practice's sample in
     /// place of the set entered (§12): the sample's own scheme, its
     /// strings and every worksheet of it; the characters entered and how
-    /// each was made are dropped. False, with the note, where Demo has no
+    /// each was made are dropped. False, with the note, where Practice has no
     /// sample.
     fn put_sample(&mut self, c: &Compute) -> bool {
         let Some(set) = self.demo.as_ref() else {
@@ -1835,7 +1835,7 @@ impl Codex32Make {
     }
 
     /// Costs what [`Self::put`] costs for each character. **Use a sample**
-    /// in Demo (§12): the characters left of the entry, as typed, from the
+    /// in Practice (§12): the characters left of the entry, as typed, from the
     /// sample's own shares (BIP 93's vector 2), share by share.
     fn use_sample(&mut self, c: &Compute) {
         let Some(set) = self.demo.as_ref() else {
@@ -2151,7 +2151,7 @@ impl Codex32Make {
     /// none, the last character, its rolls back on the sheet less the
     /// last. Cheap but for the work set's own pop.
     fn undo(&mut self) {
-        // A set typed in, or Demo's sample, has no entry to take back.
+        // A set typed in, or Practice's sample, has no entry to take back.
         if self.work.as_ref().is_some_and(WorkSet::is_given) {
             return;
         }

@@ -1,8 +1,8 @@
-//! What a page or a sheet offers only in Demo (`docs/DEMO.md` §14): a
-//! sample, the demo's passphrase, a line saying what Demo puts in place
+//! What a page or a sheet offers only in Practice (`docs/DEMO.md` §14): a
+//! sample, the demo's passphrase, a line saying what Practice puts in place
 //! of the person's own. The page hands each item to the frame
 //! ([`Ui::demo_offer`], [`Ui::demo_line`]) where it would have drawn it;
-//! Faraday Desktop's host takes them into its strip, outside the app
+//! Faraday Demo's host takes them into its strip, outside the app
 //! (`docs/DESKTOP-HOST.md` §3.1), so nothing demo-only is drawn in a
 //! page.
 
@@ -13,7 +13,7 @@ use crate::Ui;
 pub enum DemoItem<A> {
     /// A button: its label and its press.
     Button(&'static str, A),
-    /// A line saying what Demo does in place of the person's own.
+    /// A line saying what Practice does in place of the person's own.
     Line(String),
 }
 

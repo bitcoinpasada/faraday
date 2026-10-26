@@ -1,7 +1,7 @@
 //! The tour of the shares made and S (`docs/CODEX32.md` §5.7): the
 //! translation worksheets filling live, and past the last checksum box
 //! Next going through share D and S in the booklet's order, Previous
-//! back, the choice off, and the Demo walk reaching the same steps.
+//! back, the choice off, and the Practice walk reaching the same steps.
 
 use super::tour::TourStep;
 use super::tour_screen::tour_text;

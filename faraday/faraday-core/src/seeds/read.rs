@@ -493,7 +493,7 @@ impl Faraday {
     }
 
     /// Field `i` of the seed read's passphrase pair was filled by a press
-    /// (Demo's `faraday` chip): focused, and the key the two make is
+    /// (Practice's `faraday` chip): focused, and the key the two make is
     /// worked out once typing pauses, as when typed.
     pub(crate) fn seed_read_filled(&mut self, i: u8) {
         if let Some(s) = self.seed_read.state.as_mut() {

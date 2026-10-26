@@ -23,7 +23,7 @@ menu or app menu.
 People see the app as **Faraday Starter** (owner, 2026-10-12, DECISIONS
 F16), and the code's crates use `starter` as well (DECISIONS F16,
 2026-10-14). The desktop app is **Faraday
-Desktop**, carried inside the Linux and Windows Starters and not
+Demo**, carried inside the Linux and Windows Starters and not
 published on its own (F83, §5.3); the stick is Faraday.
 
 ## 0. Rules for the implementing agent
@@ -56,7 +56,7 @@ downloads".
 | `faraday-stick-X.Y.Z-arm64-apple.img.xz` | the stick image for Macs with M1 or M2 (MAC §4.1, batch A1) |
 | `faraday-mac-boot-X.Y.Z.bin` | the Apple Silicon start-up file that starts any Faraday stick (MAC §4.4, batch A2) |
 
-Faraday Desktop is not a release file of its own (F83): the Linux
+Faraday Demo is not a release file of its own (F83): the Linux
 Starter and the Windows Starter each carry it for their system (§5.3).
 The macOS rows arrive with their batches. Every Starter carries the
 Apple Silicon image and the start-up file template in its payload once
@@ -400,8 +400,8 @@ the computer's facts and the screen's one primary button.
 thing it opens. They hold only what is about this computer and this
 copy of the Starter; the destinations (§3.1d) hold the rest:
 
-- **Faraday Desktop** (F83, §5.3): one line, the version the payload
-  carries, and **Open Faraday Desktop**, a secondary button.
+- **Faraday Demo** (F83, §5.3): one line, the version the payload
+  carries, and **Open Faraday Demo**, a secondary button.
 - **Update the installed Faraday**, a card shown only while the running
   copy is newer than the installed one (§3.5), with **Update**, a
   secondary button. Install itself is the top app bar's action
@@ -632,7 +632,7 @@ bar on those three and the back-arrow bar on every task page, a page's
 content beside the rail at most `CONTENT_MAX` wide (a task page's text
 column 720 dp). Home is the This computer card with the checklist and
 the screen's one primary button inside it, what holds a restart under it,
-then Faraday Desktop, the update and the boot entry cards in the grid;
+then Faraday Demo, the update and the boot entry cards in the grid;
 Make and Tools are two cards each. Install or Update is a button in the
 bar and the ⋮ menu (a popup under it, closed by a press outside) holds
 Appearance, About, Uninstall and Remove the boot entry. A press on a destination
@@ -654,7 +654,7 @@ back in the top app bar and neither the rail nor the bar.
 
 **The owner's answers** (2026-10-23): Home holds only the cards about
 this computer, with no card per destination, since the rail shows the
-destinations; Faraday Desktop and the device keep their own navigation
+destinations; Faraday Demo and the device keep their own navigation
 (F91), pending the owner's look at mock-ups of a medium-width rail.
 
 ### 3.2 Make a Faraday stick
@@ -858,7 +858,7 @@ shell's `pdf.rs` as for §3.8.
 ### 3.5 Install and uninstall
 
 **Install** has no check box: **Install now** is one press, then Done,
-which shows where it went, with Faraday Desktop beside it when the payload carries one (F83, §5.3). When the running copy
+which shows where it went, with Faraday Demo beside it when the payload carries one (F83, §5.3). When the running copy
 is newer than the installed one, the top app bar's action reads
 **Update** and Home shows the Update the installed Faraday card
 (§3.1d).
@@ -1095,7 +1095,7 @@ Per user, never needing administrator rights.
 | The Starter | `~/.local/bin/faraday-starter` (the XDG place for a user's executables, and on PATH on most desktops) | `%LOCALAPPDATA%\Programs\Faraday Starter\Faraday Starter.exe` |
 | Menu | `~/.local/share/applications/app.faradayoffline.FaradayStarter.desktop` "Faraday Starter" | Start menu shortcut `Faraday Starter` |
 | Icon | `~/.local/share/icons/hicolor/256x256/apps/app.faradayoffline.FaradayStarter.png` | in the `.exe` |
-| Faraday Desktop | `~/.local/bin/faraday-desktop`, with its menu entry and the same icon | `Faraday Desktop.exe` beside the Starter, with its Start menu shortcut (§5.3) |
+| Faraday Demo | `~/.local/bin/faraday-demo`, with its menu entry and the same icon | `Faraday Demo.exe` beside the Starter, with its Start menu shortcut (§5.3) |
 | Uninstall entry | — | `HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\Faraday Starter`: name "Faraday Starter", version, publisher "Faraday", icon, size, `UninstallString` = `"…\Faraday Starter.exe" --uninstall` |
 
 On macOS: the Starter at `~/Applications/Faraday Starter.app`, a copy
@@ -1112,47 +1112,47 @@ earlier names) only when the file there answers `--version` as a
 Faraday Starter (orchestrator, 2026-10-12); a file of the same name
 that does not is left alone, and Install says it is in the way.
 
-Faraday Desktop is installed and removed with the Starter (§5.3).
+Faraday Demo is installed and removed with the Starter (§5.3).
 
 ### 5.3 The desktop app from the Starter
 
 Batch DS (F83, owner 2026-10-22; the design batch C1 built and F30
 removed, without its check box): the Starter carries, opens and installs
-Faraday Desktop, and releases do not publish it on its own.
+Faraday Demo, and releases do not publish it on its own.
 
 **The payload** (§1.3). The first staging pass writes each system's
 desktop app into its payload folder, compressed by the same `xz -9e
--T1` as the images: `faraday-desktop-VERSION-linux-x86_64.xz` in
+-T1` as the images: `faraday-demo-VERSION-linux-x86_64.xz` in
 `linux/`, from `out/linux/faraday`, and
-`faraday-desktop-VERSION-windows-x86_64.exe.xz` in `windows/`, from
+`faraday-demo-VERSION-windows-x86_64.exe.xz` in `windows/`, from
 `out/windows/faraday.exe`, both built `release=1`. Staging refuses
 either when it does not carry the build ID as a string, and scans it
 for the build computer's paths as it scans every published file. Each
 gets its `MANIFEST` line like an image, and the manifest does not
-refuse a `faraday-desktop-` file. A Starter offers only its own
-system's app: a `faraday-desktop-` entry counts only when its name ends
+refuse a `faraday-demo-` file. A Starter offers only its own
+system's app: a `faraday-demo-` entry counts only when its name ends
 `-linux-x86_64.xz` on Linux or `-windows-x86_64.exe.xz` on Windows. The
 macOS Starter carries none (F83).
 
-**Releases** (§1.1). No `faraday-desktop-…` file is published, listed in
+**Releases** (§1.1). No `faraday-demo-…` file is published, listed in
 `SHA256SUMS` or put in the release folder; staging refuses a release
 folder that holds one. The release notes and the README's "Verifying a
-release" say Faraday Desktop is inside the Starter.
+release" say Faraday Demo is inside the Starter.
 
-**Open Faraday Desktop** is a row on Home (§3.1) after Blank templates
+**Open Faraday Demo** is a row on Home (§3.1) after Blank templates
 and before Install, with no line under it unless it failed; the app
 itself carries F81's seed line. It runs the installed copy when that
-answers `--version` as Faraday Desktop; otherwise it decompresses the
+answers `--version` as Faraday Demo; otherwise it decompresses the
 payload's copy into `$XDG_CACHE_HOME/faraday/X.Y.Z/` (default
 `~/.cache/faraday/X.Y.Z/`; on Windows
-`%LOCALAPPDATA%\faraday\cache\X.Y.Z\Faraday Desktop.exe`), checks its
+`%LOCALAPPDATA%\faraday\cache\X.Y.Z\Faraday Demo.exe`), checks its
 SHA-256 against the manifest, and runs it. Every start checks the
 cached copy again and writes it again when the sum is not the
 manifest's. The app is started on its own, so closing the Starter does
 not end it; a start that fails within 0.4 seconds is reported on the
 row. The row is shown while the payload carries the app for this system
 or it is installed. If the Material 3 layout (§3.1d) lands first, it is
-Home's Faraday Desktop card (§3.1).
+Home's Faraday Demo card (§3.1).
 
 **Install** (§3.5, §5.2) installs both, with no check box: **Install
 now** stays one press, and installs the desktop app when the payload
@@ -1160,16 +1160,20 @@ carries one for this system.
 
 | | Linux | Windows |
 |---|---|---|
-| Faraday Desktop | `~/.local/bin/faraday-desktop` | `%LOCALAPPDATA%\Programs\Faraday Starter\Faraday Desktop.exe`, beside the Starter |
-| Menu | `~/.local/share/applications/app.faradayoffline.FaradayDesktop.desktop` "Faraday Desktop" | Start menu shortcut `Faraday Desktop` |
+| Faraday Demo | `~/.local/bin/faraday-demo` | `%LOCALAPPDATA%\Programs\Faraday Starter\Faraday Demo.exe`, beside the Starter |
+| Menu | `~/.local/share/applications/app.faradayoffline.FaradayDemo.desktop` "Faraday Demo" | Start menu shortcut `Faraday Demo` |
 | Icon | the Starter's icon | in the `.exe` |
 
 The installed copy is the decompressed payload file, checked against
 its manifest line, written beside its place and renamed in. Install
-and update replace `faraday-desktop` only when the file there answers
-`--version` as Faraday Desktop; a file that does not is left alone, and
+and update replace `faraday-demo` only when the file there answers
+`--version` as Faraday Demo; a file that does not is left alone, and
 Install says it is in the way. A desktop app an earlier Starter
-installed is therefore replaced. **Update the installed Faraday**
+installed is therefore replaced. An install under the old names
+(`faraday-desktop`, `app.faradayoffline.FaradayDesktop.desktop`,
+`Faraday Desktop.exe` and `Faraday Desktop.lnk`, whose `--version`
+answers "Faraday Desktop") is found, replaced on Install and update, and
+removed on Uninstall, as the Starter's own legacy names are. **Update the installed Faraday**
 updates both. Installed's Record lists the desktop app and its menu
 entry.
 
@@ -1183,7 +1187,7 @@ about 6 MB, from about 36 MB to about 42 MB; the owner accepted that
 growth on each system (2026-10-23).
 
 **Tests** (§11): staging puts the desktop app in each payload folder
-with its manifest line and puts no `faraday-desktop-` file in the
+with its manifest line and puts no `faraday-demo-` file in the
 release folder, and refuses one there
 (`faraday/faraday-payload/tests/stage_release.rs`); the manifest lists a
 desktop app like any file (`faraday-payload/tests/payload.rs`); a
@@ -1191,7 +1195,7 @@ Starter built against another system's payload offers no desktop app;
 Open runs the payload's app from a cache it checked, and writes a
 damaged cached copy again; install writes the desktop app's files into
 a temporary home, replaces one that answers `--version` as Faraday
-Desktop, leaves one that does not, and uninstall removes exactly them
+Demo, leaves one that does not, and uninstall removes exactly them
 (`faraday/shells/starter/tests/all/install.rs`, `windows.rs`).
 
 ### 5.4 Uninstalling
@@ -1539,7 +1543,7 @@ on before starting Windows." until F33).
 - **When.** Secure Boot off: shown. Not read: shown, since a PC stick
   starts with Secure Boot on only once a key of the person's own is
   enrolled (§7.7, later), which reads on. On: not shown.
-- **Only the PC stick.** The Pi has no BIOS; Faraday Desktop never
+- **Only the PC stick.** The Pi has no BIOS; Faraday Demo never
   reads the state; a Mac (maker "Apple Inc.") follows `docs/MAC.md`
   §3.2: a T2 Mac's Startup Security line, and none on another Intel
   Mac, whose firmware has no Secure Boot.
@@ -1870,7 +1874,7 @@ what moved.
   backstop for turning Secure Boot back on.
 - **D9 Keeping Secure Boot on:** a later batch.
 - **D10 Names:** "Faraday Starter" to people (F16, which changed v0.2's
-  "Faraday"), "Faraday Desktop" for the desktop app; `faraday-starter` in the
+  "Faraday"), "Faraday Demo" for the desktop app; `faraday-starter` in the
   code.
 - **D11 FARADAYDATA on Windows:** decided (owner, 2026-10-19, #30;
   `docs/DECISIONS.md` F50). FARADAYDATA keeps its drive letter, so a person

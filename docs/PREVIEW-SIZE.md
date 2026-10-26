@@ -1,9 +1,9 @@
-# Preview size: Faraday Desktop at another screen's size
+# Preview size: Faraday Demo at another screen's size
 
 **Kind:** Reference
 **Status:** Built (F110, amended by F118)
 
-Faraday Desktop shows its screens at any of the layout's screen sizes
+Faraday Demo shows its screens at any of the layout's screen sizes
 (`docs/LAYOUT.md` §2) at the press of a choice, so a person can see and
 try Faraday as it looks on the Pi's panel, a 7-inch panel, a
 half-screen window or a full monitor. The owner asked for it
@@ -11,7 +11,7 @@ half-screen window or a full monitor. The owner asked for it
 
 ## 1. The control
 
-**Size · <size shown>** in Faraday Desktop's host strip, at the
+**Size · <size shown>** in Faraday Demo's host strip, at the
 window's foot outside the app (F118, `docs/DESKTOP-HOST.md` §3, §5),
 opens a menu of the sizes, each with its size in dp, the one shown
 checked:
@@ -29,7 +29,7 @@ checked:
 
 The sizes are `PREVIEW_SIZES` in `core/faraday-draw/src/tokens.rs`.
 Out of Settings and out of the app (owner, 2026-10-25): the size is
-Faraday Desktop's, not the device's, so it stands with the host's other
+Faraday Demo's, not the device's, so it stands with the host's other
 controls; the strip is under every screen, so the way back to This
 window is always there.
 
@@ -57,7 +57,7 @@ frame's edge. The keyboard works as in the window.
 
 ## 3. Where it is offered
 
-Only Faraday Desktop's host offers it; the stick, the Pi and the
+Only Faraday Demo's host offers it; the stick, the Pi and the
 Starter have no host, and with `--panel`, whose window already stands
 for a device's screen, the desktop holds the app bare, with no strip.
 The host tells the shell the size chosen (`Command::PreviewSize`), and

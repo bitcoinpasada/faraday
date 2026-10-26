@@ -1,4 +1,4 @@
-//! Demo takes every sample the way a person would load it, and nothing
+//! Practice takes every sample the way a person would load it, and nothing
 //! else: the public set is complete and no other key is in it.
 
 use crate::common::{PASSPHRASE, hex, unhex};
@@ -164,7 +164,7 @@ fn the_lnd_cipher_seed_is_the_one_public_node_and_another_is_refused() {
     let mut none = Keys::on(Network::Testnet);
     none.set_demo(&SAMPLES.handouts(), &SAMPLES.public(), &[]);
     assert!(none.node_from_aezeed(&c, &idx, b"").is_err());
-    // Without Demo, as on the stick, any cipher seed reads.
+    // Without Practice, as on the stick, any cipher seed reads.
     assert!(
         Keys::on(Network::Testnet)
             .node_from_aezeed(&c, &idx, b"")

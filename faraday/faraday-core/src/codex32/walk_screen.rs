@@ -2,7 +2,7 @@
 //! (`docs/CODEX32.md` §5.5): Previous, Next and Play, how far Play runs
 //! and how fast, and the step's working in plain arithmetic that the
 //! Working area beside the pad reads (`tracker_screen.rs`). Previous,
-//! Next, Play and Play's options stand in Faraday Desktop's host strip
+//! Next, Play and Play's options stand in Faraday Demo's host strip
 //! (`docs/DESKTOP-HOST.md` §3.1), which reads them from here.
 //! Every value is read from the walk's character and from the worksheet
 //! the work set keeps (§7.4); nothing here works anything out but where
@@ -233,12 +233,12 @@ fn buttons(m: &Codex32Make) -> [(&'static str, Style, C32); 3] {
     ]
 }
 
-/// One of the entry's demo aids as Faraday Desktop's host strip offers it
+/// One of the entry's demo aids as Faraday Demo's host strip offers it
 /// (`docs/DESKTOP-HOST.md` §3): its label, whether it takes a press,
 /// whether it is the step's main press, and the press.
 pub(crate) type HostAid = (&'static str, bool, bool, C32);
 
-/// What the host strip offers for the entry: Demo's Use a sample while a
+/// What the host strip offers for the entry: Practice's Use a sample while a
 /// character is left, and the computer's walk, Previous, Next and Play
 /// (Pause while it runs), where the entry's "Demo only" card would hold
 /// them; none elsewhere. A lookup.

@@ -1,4 +1,4 @@
-//! What the Starter's writer and Open Faraday Desktop see from a payload
+//! What the Starter's writer and Open Faraday Demo see from a payload
 //! file, and what `--image` sees from a developer's own image
 //! (`docs/STARTER.md` §1.1, §1.3, §4.1). The `.xz` files in `vectors/` were
 //! made by the xz program; `vectors/README.md` says how, and what
@@ -288,7 +288,7 @@ fn a_manifest_parses_into_its_files() {
     assert_eq!(Manifest::parse(&bare).unwrap(), m);
 }
 
-/// A payload carries the images and Faraday Desktop for its system
+/// A payload carries the images and Faraday Demo for its system
 /// (F83): a manifest naming the desktop app lists it like any file.
 #[test]
 fn a_payload_may_list_the_desktop_app_beside_the_images() {
@@ -300,9 +300,9 @@ fn a_payload_may_list_the_desktop_app_beside_the_images() {
         FIXTURE_SIZE,
     );
     let desktop = line(
-        "faraday-desktop-0.2.0-linux-x86_64.xz",
+        "faraday-demo-0.2.0-linux-x86_64.xz",
         ZEROS_XZ_SHA256,
-        "faraday-desktop-0.2.0-linux-x86_64",
+        "faraday-demo-0.2.0-linux-x86_64",
         ZEROS_SHA256,
         ZEROS_SIZE,
     );
@@ -312,7 +312,7 @@ fn a_payload_may_list_the_desktop_app_beside_the_images() {
         names,
         [
             "faraday-stick-0.2.0-x86_64-uefi.img.xz",
-            "faraday-desktop-0.2.0-linux-x86_64.xz"
+            "faraday-demo-0.2.0-linux-x86_64.xz"
         ]
     );
 }

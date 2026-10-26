@@ -1,4 +1,4 @@
-//! Faraday Desktop's dice rollers in New key (`docs/CODEX32.md` §5.5,
+//! Faraday Demo's dice rollers in New key (`docs/CODEX32.md` §5.5,
 //! §5.6): the five dice of the codex32 entry's "Demo only" card, a step
 //! at a time, and the one die beside the dice pad for BIP-39 words. The
 //! values fill the entry as the pad would, what the computer made is
@@ -32,7 +32,7 @@ fn app(offered: bool, reduce: bool) -> Faraday {
     }));
     app.set_roller_offered(offered);
     if offered {
-        // The roller is Demo's alone (`docs/DEMO.md` §14), with its
+        // The roller is Practice's alone (`docs/DEMO.md` §14), with its
         // sample set, BIP 93's vector 2.
         faraday_core::testkit::move_to(&mut app.session, faraday_core::testkit::NET).unwrap();
         app.session.set_demo(crate::codex32_rest::samples());
@@ -119,7 +119,7 @@ fn shows(app: &mut Faraday, text: &str) -> bool {
     app.drawn_texts().iter().any(|t| t == text)
 }
 
-/// Whether Faraday Desktop's host strip offers `text` for the app as it
+/// Whether Faraday Demo's host strip offers `text` for the app as it
 /// stands (`docs/DESKTOP-HOST.md` §3.1).
 fn in_strip(app: &mut Faraday, text: &str) -> bool {
     crate::common::strip(app).iter().any(|t| t == text)
@@ -148,7 +148,7 @@ fn the_five_dice_are_offered_beside_your_dice_on_faraday_desktop_only() {
 
 #[test]
 fn on_faraday_desktop_in_testnet_the_dice_step_offers_no_demo_aid() {
-    // Faraday Desktop, its roller set, but in Testnet: Demo is the one
+    // Faraday Demo, its roller set, but in Testnet: Practice is the one
     // condition for every aid (owner, 2026-10-24).
     let mut test = app(false, true);
     test.set_roller_offered(true);
@@ -157,12 +157,12 @@ fn on_faraday_desktop_in_testnet_the_dice_step_offers_no_demo_aid() {
     let s = crate::common::strip(&mut test);
     assert!(
         !s.iter()
-            .any(|t| t == "Demo" || t == "Next" || t == "Use a sample"),
+            .any(|t| t == "Practice" || t == "Next" || t == "Use a sample"),
         "no aid: {s:?}"
     );
     assert!(shows(&mut test, "Your dice"), "the person's own dice stay");
 
-    // In Demo the same step has them.
+    // In Practice the same step has them.
     let mut demo = app(true, true);
     on_dice_entry(&mut demo);
     assert!(in_strip(&mut demo, "Next") && in_strip(&mut demo, "Use a sample"));
@@ -220,12 +220,12 @@ fn play_to_the_end_makes_the_strings_and_demo_puts_its_sample_in_their_place() {
     assert!(make(&app).strings().is_some(), "every share entered");
     assert!(make(&app).front().is_none());
     to_made(&mut app);
-    // The roller is Demo's alone, so what the computer rolled never
+    // The roller is Practice's alone, so what the computer rolled never
     // leaves the entry (`docs/CODEX32.md` §12).
     assert!(make(&app).sample());
     assert!(in_strip(
         &mut app,
-        "Demo puts sample NAME in place of these strings"
+        "Practice puts sample NAME in place of these strings"
     ));
 }
 
@@ -244,7 +244,7 @@ fn faces_from_both_finish_the_entry_and_demo_puts_its_sample_in_their_place() {
     assert!(make(&app).sample());
     assert!(in_strip(
         &mut app,
-        "Demo puts sample NAME in place of these strings"
+        "Practice puts sample NAME in place of these strings"
     ));
 }
 

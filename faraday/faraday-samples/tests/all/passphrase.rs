@@ -1,6 +1,6 @@
-//! Every passphrase is `faraday` in Demo (`docs/MODES.md` §6.2, §10 M8): a
+//! Every passphrase is `faraday` in Practice (`docs/MODES.md` §6.2, §10 M8): a
 //! passphrase field shows it in a code box, takes no typing, and the flow
-//! goes on with it; outside Demo every field is typed as before. The
+//! goes on with it; outside Practice every field is typed as before. The
 //! tests drive a `Faraday` with the real samples set, as the desktop does.
 
 use crate::common::{demo_app, show};
@@ -52,7 +52,7 @@ fn held(app: &Faraday, fp: [u8; 4]) -> bool {
     app.session.keys.position(Fingerprint(fp)).is_some()
 }
 
-/// A Testnet session with no samples: typed as everywhere outside Demo.
+/// A Testnet session with no samples: typed as everywhere outside Practice.
 fn testnet() -> Faraday {
     let mut app = testkit::started();
     show(&mut app, 1280, 4000, 160);
@@ -129,7 +129,7 @@ fn on_testnet_add_a_keys_passphrase_is_typed_masked_and_edited_as_before() {
     let _ = app.frame();
     assert!(
         !crate::common::strip_offers(&mut app, Action::PassChip(PassField::Entry)),
-        "no chip outside Demo"
+        "no chip outside Practice"
     );
     app.press(Action::EntryPassphrase);
     assert!(
@@ -282,7 +282,7 @@ fn in_demo_generate_with_dice_shows_the_rolled_words_then_puts_faraday_in_place(
     assert!(
         crate::common::strip(&mut app)
             .iter()
-            .any(|t| t == "Demo puts faraday in place of these words")
+            .any(|t| t == "Practice puts faraday in place of these words")
     );
     assert!(
         !shows_part(&mut app, "bits from dice"),
@@ -525,7 +525,7 @@ fn in_demo_the_check_a_signed_message_tile_checks_the_sample_message() {
 
 // An entry's password, a KeePass export, a seed read, a slot.
 
-/// Demo with the sample vault open and one entry made and selected,
+/// Practice with the sample vault open and one entry made and selected,
 /// its password from the chip.
 fn demo_with_an_entry() -> Faraday {
     use faraday_vault::records::kind;

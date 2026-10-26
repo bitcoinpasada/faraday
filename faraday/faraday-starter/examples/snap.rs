@@ -68,8 +68,8 @@ fn payload() -> Payload {
                 "c07b5e33",
             ),
             file(
-                "faraday-desktop-0.2.0-linux-x86_64.xz",
-                "faraday-desktop-0.2.0-linux-x86_64",
+                "faraday-demo-0.2.0-linux-x86_64.xz",
+                "faraday-demo-0.2.0-linux-x86_64",
                 14_500_000,
                 "0.2.0",
                 "5aa1f00e",
@@ -709,14 +709,14 @@ fn run(s: &Snap) -> Result<(), String> {
         version: "0.2.0".into(),
         items: vec![
             (InstallItem::App, "~/.local/bin/faraday-starter".into()),
-            (InstallItem::Desktop, "~/.local/bin/faraday-desktop".into()),
+            (InstallItem::Desktop, "~/.local/bin/faraday-demo".into()),
             (
                 InstallItem::Menu,
                 "~/.local/share/applications/app.faradayoffline.FaradayStarter.desktop".into(),
             ),
             (
                 InstallItem::DesktopMenu,
-                "~/.local/share/applications/app.faradayoffline.FaradayDesktop.desktop".into(),
+                "~/.local/share/applications/app.faradayoffline.FaradayDemo.desktop".into(),
             ),
             (
                 InstallItem::Icon,

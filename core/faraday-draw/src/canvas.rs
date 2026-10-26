@@ -199,7 +199,7 @@ impl Canvas {
     /// Costs a pass over the frame's pixels. Copies `frame` in scaled
     /// down to `w` × `h` with its top-left corner at (`x`, `y`), each
     /// pixel the average of the frame's pixels it covers: a screen of
-    /// another size shown in a smaller window (Faraday Desktop's host).
+    /// another size shown in a smaller window (Faraday Demo's host).
     /// Where `w` and `h` are the frame's own, [`Canvas::place`]. Counted
     /// as a whole copy ([`Work::FullCanvas`]).
     pub fn place_scaled(&mut self, (x, y, w, h): (i32, i32, i32, i32), frame: &Frame<'_>) {

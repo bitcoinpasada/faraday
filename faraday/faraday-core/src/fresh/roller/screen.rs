@@ -1,5 +1,5 @@
 //! The computer's die as it is drawn (`docs/DESIGN.md` §4.3): one die,
-//! its pips, tumbling while a click rolls. Faraday Desktop's host strip
+//! its pips, tumbling while a click rolls. Faraday Demo's host strip
 //! draws it beside its own Roll and Rolls per click
 //! (`docs/DESKTOP-HOST.md` §3.2). Drawing reads the roller; it works
 //! nothing out.
@@ -83,7 +83,7 @@ fn per_labels() -> [&'static str; 4] {
 }
 
 /// The die alone with its top-left at (`x`, `y`), tumbling as the row's
-/// does: Faraday Desktop's host strip draws it beside its own Roll and
+/// does: Faraday Demo's host strip draws it beside its own Roll and
 /// Rolls per click (`docs/DESKTOP-HOST.md` §3.2). Takes `ROW_H`.
 pub(crate) fn die_alone(ui: &mut Ui, (x, y): (f32, f32), r: &Roller) {
     let p = r.progress();

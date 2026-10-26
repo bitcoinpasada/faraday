@@ -51,7 +51,7 @@ enum Part {
 
 /// The sections this app has: the stick's upgrade never in the online
 /// app, which has no boot partition to copy (`docs/history/PLAN.md` §5.5).
-/// The preview size is Faraday Desktop's host's (`docs/DESKTOP-HOST.md`).
+/// The preview size is Faraday Demo's host's (`docs/DESKTOP-HOST.md`).
 fn parts(app: &View) -> Vec<Part> {
     use Part::*;
     let mut v = vec![Mode, Session, Time, Randomness, Appearance, Scale, Signed];

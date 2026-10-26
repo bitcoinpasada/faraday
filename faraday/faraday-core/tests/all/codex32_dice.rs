@@ -213,13 +213,13 @@ fn the_dice_change_between_characters_and_come_back_with_their_rolls() {
     assert_eq!(m.dice().first(0), Some(17));
 }
 
-/// The app on Faraday Desktop (the roller offered) or the stick, Reduce
+/// The app on Faraday Demo (the roller offered) or the stick, Reduce
 /// motion on, on the entry by dice of `faces` faces.
 fn desktop(offered: bool, faces: u8) -> Faraday {
     let mut app = on(1366, 4000);
     app.set_roller_offered(offered);
     if offered {
-        // The roller is Demo's alone (`docs/DEMO.md` §14).
+        // The roller is Practice's alone (`docs/DEMO.md` §14).
         faraday_core::testkit::into_demo(&mut app);
     }
     app.press(Action::ReduceMotion(true));

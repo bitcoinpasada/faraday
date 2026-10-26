@@ -1,8 +1,8 @@
-//! What Demo refuses (F20, F81). A session set up for the demo
+//! What Practice refuses (F20, F81). A session set up for the demo
 //! ([`crate::wallet::Session::set_demo`], on Testnet) takes only the
 //! samples (`crate::samples`).
 
-/// The passphrase and password of Demo, all lowercase: every field that
+/// The passphrase and password of Practice, all lowercase: every field that
 /// takes one offers it in a chip (`docs/MODES.md` §6.2).
 /// Generate with dice on Create a vault puts it in place of the rolled
 /// words (`docs/DEMO.md` §5.2).
@@ -15,7 +15,7 @@ use crate::{Action, Faraday, Screen};
 
 impl Faraday {
     /// Whether this session makes secrets a person could take away: false
-    /// in Demo (`Keys::demo`), true in every other mode, on the stick and
+    /// in Practice (`Keys::demo`), true in every other mode, on the stick and
     /// on a test network alike (`docs/DEMO.md` §2).
     pub fn makes_secrets(&self) -> bool {
         !self.session.keys.demo()
@@ -121,13 +121,13 @@ pub(crate) enum Show {
     Masked,
     /// In the clear; the eye hides it.
     Shown,
-    /// Demo's [`PASSPHRASE`] in its code box, unmasked, with no eye: it is
+    /// Practice's [`PASSPHRASE`] in its code box, unmasked, with no eye: it is
     /// public, and a press in the field lets the person clear or replace
     /// it.
     Code,
 }
 
-/// A passphrase or password field that offers [`PASSPHRASE`] in Demo.
+/// A passphrase or password field that offers [`PASSPHRASE`] in Practice.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PassField {
     /// Add a key's BIP-39 passphrase.
@@ -155,8 +155,8 @@ pub enum PassField {
 }
 
 /// A passphrase field with an eye at its right end, as
-/// [`secret_box`](crate::vault::screen::secret_box) draws it: in Demo what
-/// holds `faraday` is in its code box, and an empty field hands the "Demo
+/// [`secret_box`](crate::vault::screen::secret_box) draws it: in Practice what
+/// holds `faraday` is in its code box, and an empty field hands the "Practice
 /// only" card its **Use faraday** (`docs/DEMO.md` §5.4). `(shown,
 /// focused)`, `(action, eye)`.
 pub(crate) fn pass_box(
@@ -197,7 +197,7 @@ impl PassField {
 }
 
 impl crate::vault::Form {
-    /// Whether field `k` is a vault entry's password, which Demo offers
+    /// Whether field `k` is a vault entry's password, which Practice offers
     /// [`PASSPHRASE`] for.
     pub(crate) fn is_password(&self, k: usize) -> bool {
         use faraday_vault::records::{field, kind};
@@ -206,7 +206,7 @@ impl crate::vault::Form {
 }
 
 impl Faraday {
-    /// Whether this is Demo, where every passphrase field offers
+    /// Whether this is Practice, where every passphrase field offers
     /// [`PASSPHRASE`] in a chip (`docs/MODES.md` §6.2). The one test every
     /// passphrase field asks.
     pub fn demo_passphrase(&self) -> bool {
@@ -224,14 +224,14 @@ impl Faraday {
                 .is_some_and(|(made, _, _)| made.as_str() == PASSPHRASE)
     }
 
-    /// Whether `text` is Demo's public [`PASSPHRASE`], which is not
+    /// Whether `text` is Practice's public [`PASSPHRASE`], which is not
     /// measured for strength.
     pub(crate) fn pass_is_public(&self, text: &str) -> bool {
         self.demo_passphrase() && text == PASSPHRASE
     }
 
     /// How a field holding `text` draws that the eye masks or shows: in
-    /// Demo what holds [`PASSPHRASE`] draws in its code box, unmasked.
+    /// Practice what holds [`PASSPHRASE`] draws in its code box, unmasked.
     pub(crate) fn pass_shows(&self, shown: bool, text: &str) -> Show {
         if self.demo_passphrase() && text == PASSPHRASE {
             Show::Code
@@ -243,7 +243,7 @@ impl Faraday {
     }
 
     /// How field `k` of the entry form draws: masked or shown by the eye,
-    /// and an entry's password holding [`PASSPHRASE`] in Demo in its code
+    /// and an entry's password holding [`PASSPHRASE`] in Practice in its code
     /// box.
     pub(crate) fn field_shows(&self, form: &crate::vault::Form, k: usize) -> Show {
         let text = form.fields.get(k).map_or("", |f| f.2.text.as_str());
@@ -256,7 +256,7 @@ impl Faraday {
         }
     }
 
-    /// The press that fills `field` with [`PASSPHRASE`], in Demo only:
+    /// The press that fills `field` with [`PASSPHRASE`], in Practice only:
     /// what an empty field hands the "Demo only" card. A pair's repeat
     /// hands the press of its first field, which fills both where they
     /// are empty, so the card holds one **Use faraday** for the pair.
@@ -277,7 +277,7 @@ impl Faraday {
         }
     }
 
-    /// Whether `field`, `empty`, hands the card **Use faraday**: Demo, and
+    /// Whether `field`, `empty`, hands the card **Use faraday**: Practice, and
     /// a field that offers it. A lookup.
     pub(crate) fn pass_chip_shown(&self, field: PassField, empty: bool) -> bool {
         empty

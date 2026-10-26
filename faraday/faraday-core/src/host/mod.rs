@@ -1,10 +1,10 @@
-//! Faraday Desktop's host (`docs/DESKTOP-HOST.md`): the desktop app as a
+//! Faraday Demo's host (`docs/DESKTOP-HOST.md`): the desktop app as a
 //! simulator of the device. The host holds the app and lays it out as the
 //! device would be at the size shown: the window less a strip at its foot
 //! ("This window"), or a device's screen (the Pi panel, the 7-inch panel)
 //! framed and centred in the dark space above the strip, scaled down only
 //! where the window is smaller. The strip, in the host's own look and
-//! outside the app, holds what only Faraday Desktop has: the stick pills,
+//! outside the app, holds what only Faraday Demo has: the stick pills,
 //! Samples, the preview size and the screen's demo aids. The app draws
 //! none of them while it is held ([`Faraday::hosted`]); what it offers for
 //! the demo it notes as it draws, and the strip reads that note.
@@ -91,7 +91,7 @@ impl Area {
     }
 }
 
-/// Faraday Desktop's host, holding the app it shows.
+/// Faraday Demo's host, holding the app it shows.
 pub struct Host {
     /// The app.
     pub app: Faraday,

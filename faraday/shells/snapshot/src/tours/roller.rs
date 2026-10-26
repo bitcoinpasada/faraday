@@ -1,5 +1,5 @@
 //! The roller tour: Create a vault's Generate with dice with the dice
-//! roller of Faraday Desktop (`docs/CODEX32.md` §5.6): at rest, with a
+//! roller of Faraday Demo (`docs/CODEX32.md` §5.6): at rest, with a
 //! choice, mid-tumble, landed, the number typed, and rolled to the end
 //! under Reduce motion.
 
@@ -9,7 +9,7 @@ use faraday_core::{Action, StorageEvent};
 
 pub(crate) fn roller_tour(t: &mut Tour) -> Result<(), String> {
     t.app.set_roller_offered(true);
-    // The roller is Demo's alone (`docs/DEMO.md` §14).
+    // The roller is Practice's alone (`docs/DEMO.md` §14).
     faraday_core::testkit::into_demo(&mut t.app);
     t.app.storage(StorageEvent::Memory {
         available_mib: 15_000,

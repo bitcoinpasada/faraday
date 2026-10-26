@@ -720,7 +720,7 @@ fn file_row_extra(
 /// chevron; the whole row opens `action`. Returns its height.
 /// A masked passphrase field with its label at the left (above it on a
 /// small panel): dots for what is typed, the **No passphrase** pill
-/// while it is empty, the caret while it is focused. In Demo `chip` is the press of the
+/// while it is empty, the caret while it is focused. In Practice `chip` is the press of the
 /// `faraday` chip the empty field offers, and `faraday` is drawn in its
 /// code box. Returns the height used.
 #[allow(clippy::too_many_arguments)]
@@ -758,7 +758,7 @@ pub(crate) fn pass_field(
 /// What a BIP-39 passphrase field 40 tall and `w` wide at (x, y) shows:
 /// a dot for each character typed, with the selection and the caret
 /// while `on`, or the **No passphrase** pill while it is empty
-/// (`docs/history/NEW-WALLET.md` §13.4). In Demo (`chip`) the empty field
+/// (`docs/history/NEW-WALLET.md` §13.4). In Practice (`chip`) the empty field
 /// offers the `faraday` chip, and `faraday` is drawn in its code box.
 pub(crate) fn dots_field(
     ui: &mut Ui,
@@ -795,7 +795,7 @@ pub(crate) fn dots_field(
     }
 }
 
-/// A passphrase field in Demo that holds `faraday`: it in its code box at
+/// A passphrase field in Practice that holds `faraday`: it in its code box at
 /// the field's text inset, unmasked (`docs/MODES.md` §6.2). No eye.
 pub(crate) fn code_field(ui: &mut Ui, x: f32, y: f32, w: f32, h: f32, text: &str) {
     ui.fill(

@@ -7,7 +7,7 @@
 Each step is one thing to do, in the order it is done. A path in bold is
 what the screen shows: **Wallets → Add a key** is the Wallets row in the
 sidebar, then the Add a key tile. The pictures are the app's own
-screens, drawn at 1280 × 800, the size Faraday Desktop opens at; a stick
+screens, drawn at 1280 × 800, the size Faraday Demo opens at; a stick
 on a larger screen draws the same pages wider.
 
 The guide uses public test data only. The key made in section 3 is from
@@ -20,7 +20,7 @@ Sections 4 to 7 name places Place 1, Place 2 and Place 3.
 
 Faraday runs from a USB stick on a PC. Faraday Starter, an app for
 Windows and Linux, writes the stick and helps start the PC from it.
-Faraday Desktop (step 1.11) runs Faraday in a window on testnet, for
+Faraday Demo (step 1.11) runs Faraday in a window on testnet, for
 trying it out.
 
 What is needed: a PC with a USB port, and a USB stick of 256 MB or
@@ -271,22 +271,22 @@ load the PC's own Secure Boot keys in the BIOS (Restore Factory Keys,
 or the setting that loads the keys built into the PC). Back in Windows,
 the Starter's Home lists **Turn Secure Boot back on** until it is on.
 
-### 1.11 Faraday Desktop, the alternative
+### 1.11 Faraday Demo, the alternative
 
-Faraday Desktop is Faraday in a window, for trying it. It is inside the
-Starter on Linux and Windows: **Open Faraday Desktop**, on the
-**Faraday Desktop** card of the Starter's Home, runs it, and **Install**
+Faraday Demo is Faraday in a window, for trying it. It is inside the
+Starter on Linux and Windows: **Open Faraday Demo**, on the
+**Faraday Demo** card of the Starter's Home, runs it, and **Install**
 in the Starter's top bar puts it in the app menu beside the Starter. It runs on an online computer, so it has none of the stick's protections: never
 type a seed that holds real bitcoin into it.
 
-![Faraday Desktop's Home, in Demo](guide/1-11-desktop-home.png)
+![Faraday Demo's Home, in Practice](guide/1-11-desktop-home.png)
 
-It opens in **Demo · Testnet**, the pill at the top right. Demo takes
+It opens in **Practice · Testnet**, the pill at the top right. Practice takes
 only the public sample seeds; **Load samples** loads them. The pill
 opens the **Mode** sheet, where **Testnet**, **Signet** and **Regtest**
 take any seed.
 
-In Demo, **Make a new key · Codex32** (step 3.3) runs whole: your rolls
+In Practice, **Make a new key · Codex32** (step 3.3) runs whole: your rolls
 or characters fill the sheets as anywhere, and **Use a sample**, in
 the **Demo only** card beside the entry, fills it with BIP 93's sample
 set instead. Once the entry is
@@ -296,10 +296,10 @@ your own rolls never leave the entry.
 
 | The entry | After it |
 |---|---|
-| ![Make codex32 shares in Demo, Use a sample](guide/1-11-demo-codex32-entry.png) | ![Demo puts sample NAME in place of these strings](guide/1-11-demo-codex32-sample.png) |
-| **Share A · character 1 of 26**, each box numbered, the dice's **First roll** and **Second roll** under them, and **Use a sample** in the **Demo only** card at the right. | **Demo puts sample NAME in place of these strings**, over the sample's worksheets. |
+| ![Make codex32 shares in Practice, Use a sample](guide/1-11-demo-codex32-entry.png) | ![Practice puts sample NAME in place of these strings](guide/1-11-demo-codex32-sample.png) |
+| **Share A · character 1 of 26**, each box numbered, the dice's **First roll** and **Second roll** under them, and **Use a sample** in the **Demo only** card at the right. | **Practice puts sample NAME in place of these strings**, over the sample's worksheets. |
 
-Sections 2 and 3 apply to Faraday Desktop too, with the differences
+Sections 2 and 3 apply to Faraday Demo too, with the differences
 noted there.
 
 ## 2. First boot and Home
@@ -418,7 +418,7 @@ While files wait for the stick, or a vault has changes not saved, the
 buttons read **Hold to power off** and **Hold to restart**: hold one
 until it fills. A short press does nothing.
 
-On Faraday Desktop the same button opens the sheet with **Quit** (**Hold
+On Faraday Demo the same button opens the sheet with **Quit** (**Hold
 to quit**) in place of Power off.
 
 ### 2.4 Settings → Appearance
@@ -482,7 +482,7 @@ Pull the stick out. Faraday keeps running from memory, and Add a key
 opens. A reminder line can show on this sheet, such as **On a TV? Stop:
 a smart TV can record its screen.**; act on it before going on.
 
-Faraday Desktop shows this sheet only while one of its sticks is
+Faraday Demo shows this sheet only while one of its sticks is
 plugged in.
 
 ### 3.3 Start
@@ -572,7 +572,7 @@ taken, and the card says so:
 
 Roll again and type the new roll.
 
-On Faraday Desktop a die beside the box, **Rolled by this computer**,
+On Faraday Demo a die beside the box, **Rolled by this computer**,
 rolls in place of a real die: **Roll**, with **Rolls per click** (1, 5,
 10 or To the end). Each face it rolls is marked as this computer's, and
 the closed Rolls card reads **Entropy · simulated dice** (or **Entropy ·
@@ -613,7 +613,7 @@ A fingerprint of `3dca6805` proves that the words on screen are the
 test words and the key loaded is the one they make. It does not prove
 that the paper copy is right: the quiz (step 3.9) checks that.
 
-In Faraday Desktop's Demo, Lock in adds a public sample in place of the
+In Faraday Demo's Practice, Lock in adds a public sample in place of the
 words made, and the card names the sample; the fingerprint is the
 sample's, not `3dca6805`.
 

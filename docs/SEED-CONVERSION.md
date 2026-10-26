@@ -226,20 +226,20 @@ conversion (PBKDF2, scrypt, a split) runs on the press that asks for
 it, takes the compute token, and its result is kept on the tool's state
 until the flow is left; drawing reads it (`docs/COMPUTE.md`).
 
-## 7. Demo
+## 7. Practice
 
 `docs/DEMO.md` §3: an action is disabled where its result is a secret
 a person could take for a new one; a public seed's own spelling is not
 new.
 
-| Conversion | In Demo | Why |
+| Conversion | In Practice | Why |
 |---|---|---|
 | §4.1, a public seed | Open | Its own words, another spelling |
 | §4.3, a public seed (seed hex, xprv, codex32 k = 0) | Open | Derived from a public seed with no randomness |
 | §4.4 one-to-one (codex32 ↔ SLIP-39 1 of 1, hex, xprv) of a public seed (the BIP-93 and SLIP-39 samples, `docs/MODES.md` §5.1) | Open | No randomness: the same words every time |
 | Any split, k of n with k of 2 or more (Seed XOR, codex32, SLIP-39), and a new set | Disabled, as DEMO §6 disables splits | Fresh randomness: the parts would look like a real backup |
 | §4.5, LND's published vector only (DEMO §6, F81) | Open | The vector is public |
-| A key that is not a public seed | Not reachable | Demo loads only public seeds |
+| A key that is not a public seed | Not reachable | Practice loads only public seeds |
 
 ## 8. SLIP-39 set actions
 
@@ -293,7 +293,7 @@ records its sources).
 And, user-facing: each §5 target is dimmed with its line; a result
 whose read-back fingerprint differed is not shown (a corrupted decoder
 in a test build); SLIP-39 1 of 1 of one seed is the same words twice;
-the Demo rows of §7; leaving the flow drops the results (no secret in
+the Practice rows of §7; leaving the flow drops the results (no secret in
 the kept state, `tools/lint-secrets.sh`).
 
 ## 10. Plan
@@ -311,7 +311,7 @@ keys loaded from a seed); S6 after C8 (codex32 in the backup).
 | S4 | §4.2 and §4.4, settings for splits and groups | Sonnet | 1.5 days |
 | S5 | §4.5 (aezeed) | Sonnet | 0.5 day |
 | S6 | §8 with the backup's set actions | Opus | 1.5 days |
-| S7 | Demo (§7), Learn (`docs/learn/19-other-backups.md` gains a section on converting), DESIGN §5's row, this file's plan to a history log of its own and its Kind to Reference | Sonnet | 0.5 day |
+| S7 | Practice (§7), Learn (`docs/learn/19-other-backups.md` gains a section on converting), DESIGN §5's row, this file's plan to a history log of its own and its Kind to Reference | Sonnet | 0.5 day |
 
 About 8.5 days.
 
@@ -325,7 +325,7 @@ About 8.5 days.
 | a new area folder in faraday-core, convert (its mod.rs and screen.rs) | the tool's state and screen |
 | `faraday/faraday-core/src/screens/catalog.rs` | the tile |
 | `faraday/faraday-strings/src/en.rs` | every string |
-| `docs/DESIGN.md` §5, `docs/FLOWS.md`, `docs/DEMO.md` §6, `docs/CODEX32.md` §10.5 | the screen, the flow, the Demo rows, the pointer here |
+| `docs/DESIGN.md` §5, `docs/FLOWS.md`, `docs/DEMO.md` §6, `docs/CODEX32.md` §10.5 | the screen, the flow, the Practice rows, the pointer here |
 | `docs/README.md` | this file in the Spec list and the By question table |
 
 ## 11. Shamir39

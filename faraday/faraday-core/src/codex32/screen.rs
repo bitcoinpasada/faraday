@@ -689,7 +689,7 @@ fn enter(m: &Codex32Make, ui: &mut Ui, at: At) -> f32 {
             EN.codex32_not_chosen,
         ) + t::GAP;
     }
-    // The computer's dice roller and Demo's sample are not the person's
+    // The computer's dice roller and Practice's sample are not the person's
     // entry: the "Demo only" card holds its place beside the page, or at
     // the window's foot (`pane_screen.rs`; owner, 2026-10-24; §5.5).
     // The share being entered, or the one whose character the
@@ -1636,7 +1636,7 @@ fn made(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = y;
     let (rolled, typed) = m.sources();
     // Faces the roller made say so (§5.5).
-    // The computer's dice are Demo's alone, and Demo puts its sample in
+    // The computer's dice are Practice's alone, and Practice puts its sample in
     // place of what they made: no set made here is from them.
     let entropy = match (rolled, typed) {
         (true, true) => EN.codex32_your_dice_and_characters,

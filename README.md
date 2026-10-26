@@ -379,11 +379,11 @@ Files shows through the webcam and saves each whole file into the same
 folder, under its own name or `received-N`, never over a file already
 there (`name (2).ext`).
 
-Faraday Starter on Linux and Windows carries Faraday Desktop for its
-own system ("Faraday Desktop" below). **Open Faraday Desktop**, a row on
+Faraday Starter on Linux and Windows carries Faraday Demo for its
+own system ("Faraday Demo" below). **Open Faraday Demo**, a row on
 its Home, runs it. **Install** puts it beside the Starter, in
-`~/.local/bin/faraday-desktop` with the menu entry "Faraday Desktop" on
-Linux, and as `Faraday Desktop.exe` in `%LOCALAPPDATA%\Programs\Faraday
+`~/.local/bin/faraday-demo` with the menu entry "Faraday Demo" on
+Linux, and as `Faraday Demo.exe` in `%LOCALAPPDATA%\Programs\Faraday
 Starter` with a Start menu shortcut on Windows; **Uninstall** removes
 them. Faraday Starter for macOS carries none.
 
@@ -391,18 +391,18 @@ Without Faraday Starter, Raspberry Pi Imager and balenaEtcher take the
 `.img.xz` as it is; other tools need it decompressed (`xz -d` on Linux,
 7-Zip on Windows).
 
-## Faraday Desktop
+## Faraday Demo
 
-Faraday Desktop runs Faraday in a window on an ordinary computer, for
+Faraday Demo runs Faraday in a window on an ordinary computer, for
 trying it on testnet and for developing it. A release does not
 publish it on its own: the Linux and Windows Faraday Starters carry it
 (`docs/DECISIONS.md` F83). It has none of the stick's protections and is
-never for a seed that holds funds. It starts in Demo, a mode on
+never for a seed that holds funds. It starts in Practice, a mode on
 testnet that takes only the public seeds (each of `bacon`, `flag`,
 `gas`, `great`, `slice`, `solution`, `summer`, `they`, `trade`, `trap`
 and `zebra`, twenty-four times) and makes no secret a person could keep
 (`docs/DEMO.md`). Testnet, Signet and Regtest, chosen from the mode pill
-or Settings, take any seed. Every build starts in Demo with no warning
+or Settings, take any seed. Every build starts in Practice with no warning
 sheet; each screen that takes a seed or a secret says under its field
 never to type a seed that holds real bitcoin there.
 
@@ -546,7 +546,7 @@ From 0.1.2 the images are published as `.xz` only. `SHA256SUMS` lists
 each `.xz` and, under the `.img` name, the image inside it, so the same
 command checks a download and, after `xz -d`, the image. It lists the
 Linux Starter's `.tar.gz` and, under its own name, the file inside it, so
-either can be checked. Faraday Desktop has no file of its own; it is
+either can be checked. Faraday Demo has no file of its own; it is
 inside each Starter (the Starter's own sum covers it).
 
 On Windows, Gpg4win's `gpg` takes the same first three commands, and

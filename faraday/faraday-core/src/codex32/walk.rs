@@ -1,5 +1,5 @@
 //! The step-through of the "Demo only" card (`docs/CODEX32.md` §5.5,
-//! owner 2026-10-24): on Faraday Desktop the computer's five dice roll a
+//! owner 2026-10-24): on Faraday Demo the computer's five dice roll a
 //! character's values first, as the roller rolls them (this computer's
 //! randomness, `Faraday::fresh`), and the entry then takes them one step
 //! at a time: each die's first roll and its marker's pad, each second
@@ -767,7 +767,7 @@ impl Codex32Make {
         true
     }
 
-    /// The step shown, the one model's: the Demo walk's while it shows
+    /// The step shown, the one model's: the Practice walk's while it shows
     /// one, else the person's own entry's ([`Self::tracker`]), with its
     /// character and its number from 1. A lookup.
     pub fn shown_step(&self) -> Option<(&WalkChar, usize, Step)> {
@@ -830,7 +830,7 @@ impl Codex32Make {
     }
 
     /// The roll the step shown enters, as its character, its step and
-    /// its face: the pad's key a person pressed for it, or the Demo walk
+    /// its face: the pad's key a person pressed for it, or the Practice walk
     /// pressed for them (owner, 2026-10-25). A lookup.
     fn press_key(&self) -> Option<(usize, usize, u8)> {
         match self.shown_step()? {

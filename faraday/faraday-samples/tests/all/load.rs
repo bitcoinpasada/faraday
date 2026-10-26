@@ -1,4 +1,4 @@
-//! Load samples (`docs/MODES.md` §3, §10 M6): in Demo the pill opens a
+//! Load samples (`docs/MODES.md` §3, §10 M6): in Practice the pill opens a
 //! sheet that lists every sample, and Load ticked puts what is ticked in
 //! the session the way a typed or scanned key and wallet go in. The tests
 //! drive a `Faraday` with the real samples set, as the desktop does.
@@ -159,7 +159,7 @@ fn the_sheet_says_the_passphrase_is_faraday_in_a_code_box_and_never_password() {
     assert!(
         texts
             .iter()
-            .any(|t| t == "In Demo, the sample passphrase is")
+            .any(|t| t == "In Practice, the sample passphrase is")
     );
     assert!(texts.iter().any(|t| t == "faraday"));
     assert!(!texts.iter().any(|t| t.contains("password")));
@@ -334,7 +334,7 @@ fn new_keys_next_sample_skips_one_the_sheet_loaded() {
 
 #[test]
 fn on_testnet_and_on_the_stick_no_pill_shows_and_the_action_does_nothing() {
-    // Testnet: samples are set, Demo is not on.
+    // Testnet: samples are set, Practice is not on.
     let mut app = testkit::started();
     testkit::move_to(&mut app.session, Network::Testnet).expect("testnet");
     app.samples = Some(&SAMPLES);
@@ -349,7 +349,7 @@ fn on_testnet_and_on_the_stick_no_pill_shows_and_the_action_does_nothing() {
     assert!(!stick.offers(Action::Samples));
     stick.press(Action::Samples);
     assert_eq!(stick.sheet, None);
-    // Demo with no samples set has no pill either.
+    // Practice with no samples set has no pill either.
     let mut bare = demo_app();
     bare.samples = None;
     let _ = bare.frame();

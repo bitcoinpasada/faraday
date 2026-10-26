@@ -1,4 +1,4 @@
-//! The dice roller of Faraday Desktop beside Generate with dice
+//! The dice roller of Faraday Demo beside Generate with dice
 //! (`docs/CODEX32.md` §5.6): a roll fills the rolls as the keys would,
 //! its values are marked as this computer's, Rolls per click, Reduce
 //! motion, and the roller is not offered on a device shell.
@@ -15,7 +15,7 @@ fn rolling(offered: bool, reduce: bool) -> Faraday {
     let mut app = faraday_core::testkit::started();
     app.set_roller_offered(offered);
     if offered {
-        // The roller is Demo's alone (`docs/DEMO.md` §14).
+        // The roller is Practice's alone (`docs/DEMO.md` §14).
         faraday_core::testkit::into_demo(&mut app);
     }
     for i in 0..8u8 {
@@ -70,7 +70,7 @@ fn a_roll_fills_the_rolls_as_the_keys_would() {
         .text
         .to_string();
     assert_eq!(rolled_phrase, typed_phrase);
-    // In Demo, where the roller is offered, both are `faraday` in place of
+    // In Practice, where the roller is offered, both are `faraday` in place of
     // the words the rolls make (`docs/DEMO.md` §5.2); the words are the
     // rolls' as typed.
     assert_eq!(rolled_phrase, faraday_core::demo::PASSPHRASE);
@@ -81,7 +81,7 @@ fn a_roll_fills_the_rolls_as_the_keys_would() {
     );
 }
 
-/// The roller is Demo's alone, and Demo puts `faraday` in place of the
+/// The roller is Practice's alone, and Practice puts `faraday` in place of the
 /// words the dice make, so no strength line speaks of the computer's
 /// dice: rolled, rolled with typed, or typed, the passphrase is `faraday`
 /// and is not measured (`docs/DEMO.md` §5.2, §14).

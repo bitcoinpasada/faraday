@@ -64,7 +64,7 @@ pub(crate) struct Settings {
     tz_min: i16,
     /// Guided mode: flows show their written walk-through.
     guided: bool,
-    /// Faraday Desktop's host holds the app (`docs/DESKTOP-HOST.md`):
+    /// Faraday Demo's host holds the app (`docs/DESKTOP-HOST.md`):
     /// its stick pills, Load samples, the preview size and every demo
     /// aid stand in the host's strip, outside the app, so the app draws
     /// none of them. Never in the file or the kept state.
@@ -132,12 +132,12 @@ impl Settings {
         self.guided
     }
 
-    /// Whether Faraday Desktop's host holds the app.
+    /// Whether Faraday Demo's host holds the app.
     pub(crate) fn hosted(&self) -> bool {
         self.hosted
     }
 
-    /// Notes that Faraday Desktop's host holds the app.
+    /// Notes that Faraday Demo's host holds the app.
     pub(crate) fn set_hosted(&mut self, on: bool) {
         self.hosted = on;
     }
@@ -446,13 +446,13 @@ impl Faraday {
         self.settings.theme()
     }
 
-    /// The display the app was last given, if any: what Faraday Desktop's
+    /// The display the app was last given, if any: what Faraday Demo's
     /// host holds it at ([`crate::Host::strip_for`]). A lookup.
     pub fn last_display_info(&self) -> Option<faraday_shell_api::DisplayInfo> {
         self.last_display
     }
 
-    /// Whether Faraday Desktop's host holds the app
+    /// Whether Faraday Demo's host holds the app
     /// (`docs/DESKTOP-HOST.md`): then the app draws no stick pills, no
     /// Load samples, no Preview size and no "Demo only" card; the host's
     /// strip holds them. A lookup.
@@ -460,7 +460,7 @@ impl Faraday {
         self.settings.hosted()
     }
 
-    /// Notes that Faraday Desktop's host holds the app ([`crate::Host`]).
+    /// Notes that Faraday Demo's host holds the app ([`crate::Host`]).
     pub(crate) fn set_hosted(&mut self, on: bool) {
         self.settings.set_hosted(on);
         self.out.dirty = true;

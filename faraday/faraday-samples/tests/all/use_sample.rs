@@ -1,4 +1,4 @@
-//! Use a sample (`docs/MODES.md` §6, §10 M7): in Demo, each step that takes
+//! Use a sample (`docs/MODES.md` §6, §10 M7): in Practice, each step that takes
 //! a key offers a chip inside its empty field, or on the scanner a Sample
 //! tile, and a press puts the next sample in as typed or scanned. The tests
 //! drive a `Faraday` with the real samples set, as the desktop does.

@@ -861,8 +861,8 @@ const DESKTOP_XZ: &[u8] = include_bytes!("../vectors/desktop-app.sh.xz");
 const DESKTOP_XZ_SHA: &str = "a96fbc9a0f71df904781e6ca23e78bbfc0052737dfcf2f49ec289c3178dd078a";
 const DESKTOP_SHA: &str = "7b89e3875dc5832ecbbfb9509cf5517200c8e48762c2d983beeaf01ed2094b56";
 const DESKTOP_SIZE: usize = include_bytes!("../vectors/desktop-app.sh").len();
-const WIN_XZ_NAME: &str = "faraday-desktop-0.2.0-windows-x86_64.exe.xz";
-const WIN_INNER: &str = "faraday-desktop-0.2.0-windows-x86_64.exe";
+const WIN_XZ_NAME: &str = "faraday-demo-0.2.0-windows-x86_64.exe.xz";
+const WIN_INNER: &str = "faraday-demo-0.2.0-windows-x86_64.exe";
 
 /// A payload carrying the desktop app for Windows (its bytes are a
 /// small file: nothing here runs it).

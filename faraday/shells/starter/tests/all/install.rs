@@ -1,4 +1,4 @@
-//! Install, uninstall and Open Faraday Desktop on Linux, against a
+//! Install, uninstall and Open Faraday Demo on Linux, against a
 //! temporary home: what a person finds on their computer afterwards.
 //! The "running copy" and the desktop app are small shell scripts, so
 //! the tests start what they install.
@@ -21,8 +21,8 @@ const DESKTOP_SH: &[u8] = include_bytes!("../vectors/desktop-app.sh");
 const DESKTOP_XZ: &[u8] = include_bytes!("../vectors/desktop-app.sh.xz");
 const DESKTOP_XZ_SHA: &str = "a96fbc9a0f71df904781e6ca23e78bbfc0052737dfcf2f49ec289c3178dd078a";
 const DESKTOP_SHA: &str = "7b89e3875dc5832ecbbfb9509cf5517200c8e48762c2d983beeaf01ed2094b56";
-const XZ_NAME: &str = "faraday-desktop-0.2.0-linux-x86_64.xz";
-const INNER: &str = "faraday-desktop-0.2.0-linux-x86_64";
+const XZ_NAME: &str = "faraday-demo-0.2.0-linux-x86_64.xz";
+const INNER: &str = "faraday-demo-0.2.0-linux-x86_64";
 const COMMIT: &str = "0123456789abcdef0123456789abcdef01234567";
 
 /// A new home with what a person already has in it, and the dirs.
@@ -180,7 +180,7 @@ fn uninstall_removes_exactly_what_install_put_there_and_the_cache() {
     let stub = running(&root, faraday_starter::VERSION);
     let before = tree(&root);
     install::install(&dirs, &stub, Some(DESKTOP_SH)).expect("installed");
-    // Also a cached desktop app from an earlier Open Faraday Desktop.
+    // Also a cached desktop app from an earlier Open Faraday Demo.
     let cached = dirs.cache_for("0.2.0").join(INNER);
     fs::create_dir_all(cached.parent().expect("folder")).expect("folder");
     fs::write(&cached, DESKTOP_SH).expect("cached");
@@ -284,7 +284,7 @@ fn a_payload_that_does_not_match_its_manifest_is_not_cached_or_run() {
     assert_eq!(install::desktop_app(&dirs, None), Err(Reason::NoDesktopApp));
 }
 
-/// A program of somebody else's, named `faraday-starter` or `faraday-desktop`.
+/// A program of somebody else's, named `faraday-starter` or `faraday-demo`.
 fn foreign(root: &Path, name: &str) -> PathBuf {
     let p = root.join(".local/bin").join(name);
     fs::create_dir_all(p.parent().expect("folder")).expect("folder");
@@ -323,7 +323,7 @@ fn a_faraday_starter_that_is_somebody_elses_is_not_overwritten_and_install_names
 fn a_faraday_desktop_that_is_somebody_elses_is_not_overwritten_or_removed() {
     let (root, dirs) = home("foreign-desktop");
     let stub = running(&root, faraday_starter::VERSION);
-    let theirs = foreign(&root, "faraday-desktop");
+    let theirs = foreign(&root, "faraday-demo");
     let before = tree(&root);
 
     // Without the desktop app ticked, the Starter installs beside it.
@@ -334,7 +334,7 @@ fn a_faraday_desktop_that_is_somebody_elses_is_not_overwritten_or_removed() {
         found
             .items
             .iter()
-            .all(|(_, shown)| shown != "~/.local/bin/faraday-desktop"),
+            .all(|(_, shown)| shown != "~/.local/bin/faraday-demo"),
         "{found:?}"
     );
 
@@ -343,12 +343,12 @@ fn a_faraday_desktop_that_is_somebody_elses_is_not_overwritten_or_removed() {
     assert_eq!(
         r,
         Err(Reason::InTheWay {
-            path: String::from("~/.local/bin/faraday-desktop")
+            path: String::from("~/.local/bin/faraday-demo")
         })
     );
     assert_eq!(fs::read_to_string(&theirs).expect("kept"), THEIRS);
 
-    // Open Faraday Desktop does not run it; it unpacks its own.
+    // Open Faraday Demo does not run it; it unpacks its own.
     let path = install::desktop_app(&dirs, Some(&payload(DESKTOP_XZ))).expect("unpacked");
     assert_ne!(path, theirs);
 
@@ -509,4 +509,61 @@ fn a_faraday_that_is_somebody_elses_stays_beside_the_new_install() {
     install::uninstall(&dirs).expect("uninstalled");
     assert_eq!(fs::read_to_string(&theirs).expect("kept"), THEIRS);
     assert!(launcher.is_file());
+}
+
+/// The desktop app as installed under its names from before it was
+/// Faraday Demo, answering `--version` with the old words: its file and
+/// its menu entry.
+fn old_desktop(root: &Path) -> [PathBuf; 2] {
+    let l = &names::LEGACY_DESKTOP[0];
+    let bin = root.join(".local/bin").join(l.linux_bin);
+    let entry = root.join(format!(".local/share/applications/{}.desktop", l.menu_id));
+    for (p, text) in [
+        (&bin, "#!/bin/sh\necho Faraday Desktop 0.1.9\n"),
+        (&entry, "[Desktop Entry]\nName=Faraday Desktop\n"),
+    ] {
+        fs::create_dir_all(p.parent().expect("folder")).expect("folder");
+        fs::write(p, text).expect("file");
+    }
+    fs::set_permissions(&bin, fs::Permissions::from_mode(0o755)).expect("mode");
+    [bin, entry]
+}
+
+#[test]
+fn an_install_under_the_desktop_apps_old_name_is_replaced_and_uninstall_removes_it() {
+    let (root, dirs) = home("old-desktop");
+    let old = old_desktop(&root);
+    let stub = running(&root, faraday_starter::VERSION);
+
+    install::install(&dirs, &stub, Some(DESKTOP_SH)).expect("installed");
+    for p in &old {
+        assert!(!p.exists(), "{}", p.display());
+    }
+    for f in OURS.iter() {
+        assert!(root.join(f).is_file(), "{f}");
+    }
+    assert!(
+        root.join(".local/bin/faraday-demo").is_file(),
+        "the app is installed under its new name"
+    );
+
+    // Uninstall alone finds an old install too.
+    let (root, dirs) = home("old-desktop-uninstall");
+    let old = old_desktop(&root);
+    install::uninstall(&dirs).expect("uninstalled");
+    for p in &old {
+        assert!(!p.exists(), "{}", p.display());
+    }
+}
+
+#[test]
+fn a_faraday_desktop_that_is_somebody_elses_stays_beside_the_new_install() {
+    let (root, dirs) = home("foreign-old-desktop");
+    let theirs = foreign(&root, "faraday-desktop");
+    let stub = running(&root, faraday_starter::VERSION);
+
+    install::install(&dirs, &stub, Some(DESKTOP_SH)).expect("installed");
+    assert_eq!(fs::read_to_string(&theirs).expect("kept"), THEIRS);
+    install::uninstall(&dirs).expect("uninstalled");
+    assert_eq!(fs::read_to_string(&theirs).expect("kept"), THEIRS);
 }

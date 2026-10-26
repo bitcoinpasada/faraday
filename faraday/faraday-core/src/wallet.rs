@@ -487,7 +487,7 @@ impl Session {
 
     /// Takes the network a wallet or a PSBT is on. The session moves to it
     /// only when all hold: no key and no wallet is loaded, it is not
-    /// Demo, its network is not fixed, and the mode that network is
+    /// Practice, its network is not fixed, and the mode that network is
     /// belongs to [`Session::modes`]; that is the same as choosing the
     /// mode on an empty session, so no lock is needed (F81,
     /// `docs/MODES.md` §2.8). A network of the same kind needs no move.
@@ -562,7 +562,7 @@ impl Session {
     /// `samples` holds (every sample key, with and without `password`),
     /// and New key hands out the next sample of the length chosen in
     /// place of the key it made ([`faraday_keys::Keys::next_handout`]). A
-    /// lookup: derives nothing. A shell that wants Demo makes the session
+    /// lookup: derives nothing. A shell that wants Practice makes the session
     /// on Testnet first: its addresses are then real testnet addresses,
     /// which no mainnet wallet pays.
     pub fn set_demo(&mut self, samples: &crate::samples::Samples) {
@@ -697,7 +697,7 @@ impl Session {
     }
 
     /// Costs an address derivation (through `address`). An address of the
-    /// wallet as the screen shows it: the address itself, in Demo too.
+    /// wallet as the screen shows it: the address itself, in Practice too.
     pub fn address_shown(&self, c: &Compute, wallet: &Wallet, change: bool, index: u32) -> String {
         self.address(c, wallet, change, index)
     }

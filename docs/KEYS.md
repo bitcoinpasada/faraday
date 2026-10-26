@@ -367,7 +367,7 @@ What was open after step 3:
   - 22 build a `Mnemonic`.
   - `testkit` does the same behind a feature.
 - The samples (F81, `docs/MODES.md` §5): `faraday/faraday-samples` is the
-  public set Demo takes (keys in every form Faraday reads, the testkit's
+  public set Practice takes (keys in every form Faraday reads, the testkit's
   wallets, a vault, a signed message), as data only: strings, bytes and
   fingerprints in the shapes `faraday_core::samples` defines. It derives
   nothing, so rule 4 has nothing to refuse there. The testkit and the

@@ -1,11 +1,11 @@
-//! Use a sample (`docs/MODES.md` §6, §10 M7): in Demo, with samples set,
+//! Use a sample (`docs/MODES.md` §6, §10 M7): in Practice, with samples set,
 //! each step that takes a key hands the "Demo only" card (`card.rs`) a
 //! button while its field is empty, and the scanner its sample, and a
 //! press puts a sample into the step through
 //! the function the step's own input already calls, as if typed or
 //! scanned. Which sample: the next one not loaded, by a cursor on the
 //! step's state; a part of a set fills the next part of the set begun.
-//! Nowhere outside Demo, and nowhere on a shell that sets no samples.
+//! Nowhere outside Practice, and nowhere on a shell that sets no samples.
 //!
 //! Whether a chip shows, and which sample is next, are lookups against
 //! the keys loaded and what the state keeps; a press that derives
@@ -110,7 +110,7 @@ fn origin_of(text: &str) -> Option<[u8; 4]> {
 }
 
 impl Faraday {
-    /// The samples, where Use a sample is on at all: Demo with samples
+    /// The samples, where Use a sample is on at all: Practice with samples
     /// set.
     pub(crate) fn put_on(&self) -> Option<&'static Samples> {
         self.samples.filter(|_| self.samples_on())
@@ -338,7 +338,7 @@ impl Faraday {
     }
 
     /// Whether a step that asks for the transaction draws Load sample
-    /// PSBT: Demo, with samples set. A lookup.
+    /// PSBT: Practice, with samples set. A lookup.
     pub fn sample_psbt_offered(&self) -> bool {
         self.put_on().is_some()
     }
@@ -588,7 +588,7 @@ impl Faraday {
         self.act(Action::CheckMessage(self.inbox.len() - 1));
     }
 
-    /// Whether the aezeed's words field draws Use a sample: Demo, the
+    /// Whether the aezeed's words field draws Use a sample: Practice, the
     /// cipher seed chosen, nothing typed or pressed. A lookup.
     pub fn lightning_sample_shown(&self) -> bool {
         self.put_on().is_some() && self.lightning.sample_shown()
@@ -611,7 +611,7 @@ impl Faraday {
         }
     }
 
-    /// Whether Find an address's field draws Use a sample: Demo, nothing
+    /// Whether Find an address's field draws Use a sample: Practice, nothing
     /// typed or pressed. A lookup.
     pub fn explore_sample_shown(&self) -> bool {
         self.put_on().is_some() && self.explore.sample_shown()
@@ -645,7 +645,7 @@ impl Faraday {
             .and_then(|(_, k)| k.parts.first().copied())
     }
 
-    /// Whether Check my copy's empty grid draws **Fill words**: Demo with
+    /// Whether Check my copy's empty grid draws **Fill words**: Practice with
     /// samples set, the key checked a sample, nothing typed or pressed.
     /// A lookup.
     pub fn copy_check_sample_shown(&self) -> bool {

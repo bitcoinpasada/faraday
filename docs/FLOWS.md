@@ -392,7 +392,7 @@ only. The Quiz's last button reads **Done**. A key added with a
 passphrase is a seed with a passphrase to Back up's plan, which asks
 where it goes.
 
-**The roller** (F96, `docs/CODEX32.md` §5.6; Faraday Desktop only, never
+**The roller** (F96, `docs/CODEX32.md` §5.6; Faraday Demo only, never
 the stick, the Pi or the website). Beside the dice entry of every dice
 way of the randomness step stands one die, drawn as the dice pad's row
 (DESIGN §4, Dice roller): **Rolled by this computer** over it, **Roll**
@@ -568,7 +568,7 @@ before Kept, with "Turn Secure Boot back on in the BIOS before starting
 Windows." in the warning tone, and the QR code of this computer's guide
 under it (`docs/DECISIONS.md` F33, `docs/STARTER.md` §7.5). It asks for
 no press of its own: Power off is the press. Not on the Pi, not on
-Faraday Desktop; a Mac as `docs/MAC.md` §3.2. The sheet also offers
+Faraday Demo; a Mac as `docs/MAC.md` §3.2. The sheet also offers
 **Restart** (below, Restart; F42).
 
 ## Sticks and cards
@@ -741,7 +741,7 @@ button per add action and **Write it to a stick** (Files) (decision
 
 **Generate with dice** (a passphrase's card on Name and passphrases): the
 list (long, short, short 2), the rolls typed with the words they make,
-and the strength so far. On Faraday Desktop the roller of New key (above;
+and the strength so far. On Faraday Demo the roller of New key (above;
 F96, CODEX32 §5.6) stands under the rolls with the same **Rolls per
 click**; **To the end** rolls as far as a passphrase of 77 bits (six
 words of the long list), and at most 20 words' worth of rolls in a
@@ -1509,8 +1509,8 @@ Removed (F99): `docs/history/APK-SIGNING.md`.
 ## Nostr key
 
 (`docs/NOSTR.md`, F27; specified, not built.) BIP-85 application
-128002', on the stick and the Pi only: Faraday Desktop has no Nostr
-key on any network, and the demo has none. Needs a loaded key: with
+128002', on the stick and the Pi only: Faraday Demo has no Nostr
+key on any network, and Practice has none. Needs a loaded key: with
 none, Tools' **Nostr key** tile reads "Load a key", as Child seeds and
 passwords does.
 
@@ -1724,7 +1724,7 @@ down (Dell's: "Shut down can skip the key").
    memory wiped as the app ends; then the computer restarts instead of
    powering off. The sheet's title is "Power"; its line on the computer
    reads "The computer powers off, or restarts".
-2. **Where.** The PC stick and the Pi. Not Faraday Desktop, an app on
+2. **Where.** The PC stick and the Pi. Not Faraday Demo, an app on
    someone's own system, whose sheet stays as it is. The idle power-off
    is unchanged: it never restarts.
 3. **The BIOS key.** Where the sheet shows the Secure Boot reminder

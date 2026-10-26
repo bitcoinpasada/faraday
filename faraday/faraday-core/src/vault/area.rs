@@ -380,7 +380,7 @@ impl VaultArea {
         }
     }
 
-    /// Demo's passphrase put in Create a vault's phrase `i` (its repeat
+    /// Practice's passphrase put in Create a vault's phrase `i` (its repeat
     /// when `again`).
     pub(crate) fn fill_phrase(&mut self, i: usize, again: bool, text: &str) {
         if let Some(c) = self.state.create.as_mut()
@@ -391,13 +391,13 @@ impl VaultArea {
         self.state.unlock_error = None;
     }
 
-    /// Demo's passphrase put in the unlock field.
+    /// Practice's passphrase put in the unlock field.
     pub(crate) fn fill_unlock(&mut self, text: &str) {
         self.state.passphrase.set(text);
         self.state.unlock_error = None;
     }
 
-    /// Demo's passphrase put in the prompt.
+    /// Practice's passphrase put in the prompt.
     pub(crate) fn fill_prompt(&mut self, text: &str) {
         if let Some(p) = self.state.prompt.as_mut() {
             p.text.set(text);
@@ -405,7 +405,7 @@ impl VaultArea {
         }
     }
 
-    /// Demo's passphrase put in the form's field `k`.
+    /// Practice's passphrase put in the form's field `k`.
     pub(crate) fn fill_field(&mut self, k: usize, text: &str) {
         if let Some(f) = self.state.form.as_mut()
             && let Some(x) = f.fields.get_mut(k)
@@ -987,7 +987,7 @@ pub struct Vaults {
     /// Dice being rolled for a passphrase: which one, the rolls, and
     /// which of the three EFF lists.
     pub dice: Option<(usize, TextBox, faraday_bip::diceware::List)>,
-    /// The roller beside the rolls (Faraday Desktop): which of their
+    /// The roller beside the rolls (Faraday Demo): which of their
     /// positions this computer made.
     pub roller: crate::fresh::roller::Roller,
     /// The prompt in the contents.
@@ -1204,7 +1204,7 @@ impl Vaults {
 
     /// Passphrase `i`'s own bits, known only while it is the words the
     /// dice made: a typed passphrase's strength is not measured, nor is
-    /// Demo's `faraday`, which stands in for the rolled words.
+    /// Practice's `faraday`, which stands in for the rolled words.
     pub fn phrase_bits(c: &CreateForm, i: usize) -> Option<f32> {
         let (made, bits, _) = c.from_dice.get(i)?.as_ref()?;
         let (a, b) = c.phrases.get(i)?;
@@ -1860,7 +1860,7 @@ pub enum VaultAction {
     DiceUse,
     /// Put the dice away.
     DiceClose,
-    /// A press on the roller beside the dice entry (Faraday Desktop).
+    /// A press on the roller beside the dice entry (Faraday Demo).
     Roller(crate::fresh::roller::Act),
     /// The selected entry out as a KeePass database, under a passphrase
     /// asked for first.

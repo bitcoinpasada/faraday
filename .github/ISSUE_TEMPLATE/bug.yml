@@ -14,7 +14,7 @@ body:
       options:
         - The stick (PC or Mac)
         - The Pi
-        - Faraday Desktop
+        - Faraday Demo
         - Faraday Starter
         - The website
     validations:

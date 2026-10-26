@@ -342,13 +342,13 @@ Any other file is listed with its size and each such character shown as
 `?`, inert, with "Rename it on another computer" in `WARN`. The disk
 process refuses such a name in WriteBegin.
 
-## 10. The Pi and Faraday Desktop
+## 10. The Pi and Faraday Demo
 
 - **The Pi** works the same way through an SD card visit. Its 1 GB
   makes §4's refusal come sooner, and signing only is the usual way to
   sign a large file there.
-- **Faraday Desktop**'s sticks are folders read through the same storage
-  code (`README.md`, "Faraday Desktop"), so it has the same visit,
+- **Faraday Demo**'s sticks are folders read through the same storage
+  code (`README.md`, "Faraday Demo"), so it has the same visit,
   threshold, choice and rule, with two differences, since the computer's
   memory changes with what else runs on it:
   - *F* is the free memory now, and *L* counts only reads and products

@@ -175,7 +175,7 @@ pub(crate) fn secret_box(
         Role::Primary,
         Role::SurfaceContainerHighest,
     );
-    // Demo's `faraday`: in its code box, no eye; a press in it focuses the
+    // Practice's `faraday`: in its code box, no eye; a press in it focuses the
     // field.
     if show == Show::Code {
         crate::screens::code_field(ui, x, y, w, tokens::TEXT_FIELD, &b.text);

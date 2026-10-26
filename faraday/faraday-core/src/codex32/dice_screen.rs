@@ -110,8 +110,8 @@ pub(super) fn sizes(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32
 }
 
 /// Whether the entry has a "Demo only" box: the computer's dice on
-/// Faraday Desktop, while a character is left to enter or a step of the
-/// step-through to show; Demo's sample, while a character is left.
+/// Faraday Demo, while a character is left to enter or a step of the
+/// step-through to show; Practice's sample, while a character is left.
 pub(super) fn demo_box_offered(m: &Codex32Make, roller: bool) -> bool {
     let dice = roller && m.way() == super::Way::Dice;
     (m.front().is_some() && (dice || m.demo())) || (dice && m.walk().shown().is_some())
@@ -229,7 +229,7 @@ pub(super) fn face_pad(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32) -> 
 
 /// The pressed highlight on the pad's key for `face` at (x, y, w, h)
 /// with corners `r`, where it is the roll the step shown enters, pressed
-/// by the person or by the Demo walk's Next and Play (owner,
+/// by the person or by the Practice walk's Next and Play (owner,
 /// 2026-10-25): Material's pressed state layer in the accent, a stronger
 /// layer over it easing away as the roll is shown (none under Reduce
 /// motion), and the key outlined in the accent.

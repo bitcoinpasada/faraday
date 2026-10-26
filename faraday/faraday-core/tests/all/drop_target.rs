@@ -1,4 +1,4 @@
-//! A file dragged over Faraday Desktop's window (`docs/DESIGN.md` §4.17,
+//! A file dragged over Faraday Demo's window (`docs/DESIGN.md` §4.17,
 //! Window drop target): the page is edged in the accent while it is
 //! over the window, as the board edges where a chip drops, and the edge
 //! goes when the drag leaves or the file is dropped. The device, which

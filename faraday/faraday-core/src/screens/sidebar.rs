@@ -30,7 +30,7 @@ fn sidebar_caps(seeds: usize, wallets: usize, rows: usize) -> (usize, usize) {
 /// The word after the wordmark: the desktop app's, none on the device.
 pub(crate) fn name_suffix(app: &View) -> NameSuffix {
     if app.online {
-        NameSuffix::Desktop
+        NameSuffix::Demo
     } else {
         NameSuffix::None
     }

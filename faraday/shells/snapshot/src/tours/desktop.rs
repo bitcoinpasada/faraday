@@ -44,7 +44,7 @@ pub(crate) fn demo_tour(t: &mut Tour) -> Result<(), String> {
 }
 
 /// The mode pill and sheet (`docs/MODES.md`
-/// §3): Home and the sheet in Demo and on Testnet, then Settings' Mode
+/// §3): Home and the sheet in Practice and on Testnet, then Settings' Mode
 /// row on Mainnet, where no pill shows.
 pub(crate) fn modes_tour(t: &mut Tour) -> Result<(), String> {
     t.app.online = true;
@@ -58,7 +58,7 @@ pub(crate) fn modes_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::ModeSheet);
     t.shot("modes-demo-sheet")?;
     t.press(Action::Cancel);
-    // Where a seed is typed, online, in Demo and on testnet: one line
+    // Where a seed is typed, online, in Practice and on testnet: one line
     // under the field.
     t.press(Action::Entry(None));
     // Use a sample: the chip in the empty grid, pressed, and the share step
@@ -160,7 +160,7 @@ fn demo_psbt(t: &mut Tour) -> Result<(), String> {
     t.shot("modes-demo-spend-read")
 }
 
-/// Passphrases in Demo (`docs/MODES.md` §6.2): each empty field offers the
+/// Passphrases in Practice (`docs/MODES.md` §6.2): each empty field offers the
 /// faraday chip, which fills it; Add a key's, the sample vault's unlock
 /// and Create a vault's pair are shown before and after it.
 fn demo_passphrases(t: &mut Tour) -> Result<(), String> {
@@ -226,7 +226,7 @@ fn testnet_passphrases(t: &mut Tour) -> Result<(), String> {
     Ok(())
 }
 
-/// Check my copy's word grid in Demo, empty with Fill words in its first
+/// Check my copy's word grid in Practice, empty with Fill words in its first
 /// cell, and the backup's template count.
 fn demo_copy_check(t: &mut Tour) -> Result<(), String> {
     use faraday_core::bstep;

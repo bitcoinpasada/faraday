@@ -1,5 +1,5 @@
-//! Demo's aids in the host's strip (`docs/DEMO.md` §14, `docs/DESKTOP-HOST.md`
-//! §3): what a page or a sheet offers only in Demo, or only on Faraday
+//! Practice's aids in the host's strip (`docs/DEMO.md` §14, `docs/DESKTOP-HOST.md`
+//! §3): what a page or a sheet offers only in Practice, or only on Faraday
 //! Desktop in place of the person's own input, stands once in the strip
 //! at the window's foot (in More where the strip has no room) and nowhere
 //! in the app: no "Demo only" card or column, no chip in a page.
@@ -10,7 +10,7 @@ use faraday_core::vault::{RollerAct, VaultAction as V};
 use faraday_core::{Action, Faraday, Host, HostPress, Screen, Sheet, testkit};
 use faraday_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware};
 
-/// Demo with the samples, at `w` × `h` (one pixel a unit).
+/// Practice with the samples, at `w` × `h` (one pixel a unit).
 fn at(w: u16, h: u16) -> Faraday {
     let mut app = demo_app();
     show(&mut app, w, h, 160);
@@ -181,8 +181,8 @@ fn vaults_sample_vault_create_a_vaults_faraday_and_its_dice_are_in_the_strip() {
     assert!(
         strip(&mut app)
             .iter()
-            .any(|t| t == "Demo puts faraday in place of these words"),
-        "the strip says what Demo puts in place of the words"
+            .any(|t| t == "Practice puts faraday in place of these words"),
+        "the strip says what Practice puts in place of the words"
     );
 }
 
@@ -270,7 +270,7 @@ fn outside_demo_the_strip_offers_no_aid() {
     let _ = app.frame();
     assert!(
         !strip_offers(&mut app, Action::KRoller(RollerAct::Roll)),
-        "Faraday Desktop's roller is Demo's alone"
+        "Faraday Demo's roller is Demo's alone"
     );
     app_draws_no_card(&mut app);
 }

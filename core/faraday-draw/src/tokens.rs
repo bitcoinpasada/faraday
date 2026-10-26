@@ -536,7 +536,7 @@ pub const ENTRY_CELL_GAP: f32 = 10.0;
 /// the left, before the word.
 pub const ENTRY_CELL_NUMBER: f32 = 24.0;
 
-/// A passphrase field that takes no typing (Demo's `faraday`): how far
+/// A passphrase field that takes no typing (Practice's `faraday`): how far
 /// its code box stands in from the field's left edge.
 pub const PASS_CODE_INSET: f32 = 12.0;
 
@@ -691,7 +691,7 @@ pub const PREVIEW_SIZES: [(u16, u16); 7] = [
     (1920, 1080),
 ];
 
-// Faraday Desktop's host (`docs/DESKTOP-HOST.md`): the strip along the
+// Faraday Demo's host (`docs/DESKTOP-HOST.md`): the strip along the
 // window's foot, outside the app, in the host's own look.
 
 /// The host strip's height at the window's foot.
@@ -1027,7 +1027,7 @@ pub const CORRECT_TICK: f32 = 18.0;
 
 /// Codex32 correction: from the tick box to its label.
 pub const CORRECT_TICK_LABEL: f32 = 28.0;
-// ----- The dice roller on Faraday Desktop (docs/CODEX32.md §5.6) -----
+// ----- The dice roller on Faraday Demo (docs/CODEX32.md §5.6) -----
 
 /// The roller's die: the side of its square.
 pub const ROLLER_DIE: f32 = 52.0;

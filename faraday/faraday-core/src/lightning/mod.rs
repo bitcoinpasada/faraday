@@ -232,7 +232,7 @@ impl LightningArea {
         true
     }
 
-    /// Demo's passphrase typed into the aezeed's passphrase field.
+    /// Practice's passphrase typed into the aezeed's passphrase field.
     pub(crate) fn set_passphrase(&mut self, text: &str) {
         if let Some(l) = self.state.as_mut() {
             l.passphrase.set(text);

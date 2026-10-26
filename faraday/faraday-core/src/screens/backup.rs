@@ -1148,7 +1148,7 @@ fn backup_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
     cy - y
 }
 
-/// The passphrase typed back for Check my copy, as bullets (in Demo
+/// The passphrase typed back for Check my copy, as bullets (in Practice
 /// `faraday` in its code box, and its chip while empty), under its line.
 /// Returns its height.
 fn typed_passphrase(app: &View, ui: &mut Ui, (x, y, w): (f32, f32, f32), typed: &str) -> f32 {

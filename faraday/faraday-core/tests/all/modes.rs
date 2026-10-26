@@ -1,6 +1,6 @@
-//! Modes (F81, `docs/MODES.md`): Demo, Mainnet, Testnet, Signet and Regtest.
+//! Modes (F81, `docs/MODES.md`): Practice, Mainnet, Testnet, Signet and Regtest.
 //! A mode change is a lock that leaves a fresh session in the mode
-//! chosen, and a lock keeps the mode it was in. Demo is the public seeds
+//! chosen, and a lock keeps the mode it was in. Practice is the public seeds
 //! on testnet: its addresses are real testnet addresses, and its dimmed
 //! actions are live on a test network.
 
@@ -16,7 +16,7 @@ use faraday_shell_api::{App, Event};
 const ABANDON: &str = "abandon abandon abandon abandon abandon abandon abandon abandon abandon \
                        abandon abandon about";
 
-/// The desktop's app: online, in Demo.
+/// The desktop's app: online, in Practice.
 fn demo_app() -> Faraday {
     let mut app = testkit::started();
     app.online = true;
@@ -83,7 +83,7 @@ fn choosing_the_mode_in_use_or_one_not_offered_does_nothing() {
     testkit::move_to(&mut app.session, Network::Mainnet).unwrap();
     app.press(Action::Mode(Mode::Mainnet));
     assert!(!app.restart_requested());
-    // The stick has no Demo.
+    // The stick has no Practice.
     app.press(Action::Mode(Mode::Demo));
     assert!(!app.restart_requested());
     assert_eq!(app.mode_after_restart(), Mode::Mainnet);
@@ -247,7 +247,7 @@ fn the_actions_the_demo_dims_are_live_on_testnet() {
         Action::LShow,
         Action::SScanVault,
     ] {
-        assert!(demo.demo_refuses(a), "{a:?} is open in Demo");
+        assert!(demo.demo_refuses(a), "{a:?} is open in Practice");
         assert!(!testnet.demo_refuses(a), "{a:?} is dimmed on Testnet");
     }
     assert!(!demo.makes_secrets());
@@ -319,7 +319,7 @@ fn off_mainnet_every_page_offers_the_pill_and_it_opens_the_sheet() {
 fn the_pill_names_the_mode_and_in_demo_its_network() {
     let mut app = demo_app();
     shown_on(&mut app, false);
-    assert!(crate::common::has(&mut app, "Demo · Testnet"));
+    assert!(crate::common::has(&mut app, "Practice · Testnet"));
     let mut app = testkit::started();
     testkit::move_to(&mut app.session, Network::Regtest).unwrap();
     shown_on(&mut app, true);
@@ -363,7 +363,9 @@ fn the_sheet_offers_each_mode_marks_the_one_in_use_and_not_now_closes_it() {
             Action::Mode(Mode::Mainnet)
         ));
         let names = crate::common::texts(&mut app);
-        for want in ["Mode", "Demo", "Testnet", "Signet", "Regtest", "Not now"] {
+        for want in [
+            "Mode", "Practice", "Testnet", "Signet", "Regtest", "Not now",
+        ] {
             assert!(names.iter().any(|t| t == want), "{want}: {names:?}");
         }
         assert!(!names.iter().any(|t| t == "Mainnet"));

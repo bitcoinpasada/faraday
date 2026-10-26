@@ -30,7 +30,7 @@ Read this table, then only the decision you need.
 | [F13](decisions/F13.md) | Faraday on Macs: the stick, the desktop app and the Starter | 2026-10-12 | Amended by F30 | platforms |
 | [F14](decisions/F14.md) | Maker pages are published several families at once | 2026-10-12 | Active | Starter |
 | [F15](history/decisions/F15.md) | Faraday Companion: an Android app with no network access | 2026-10-12 | Superseded by F34 | platforms |
-| [F16](decisions/F16.md) | The hub app is Faraday Starter; the desktop app is Faraday Desktop | 2026-10-12 | Active | Starter |
+| [F16](decisions/F16.md) | The hub app is Faraday Starter; the desktop app is Faraday Demo | 2026-10-12 | Amended by F119 | Starter |
 | [F17](history/decisions/F17.md) | The BitLocker step is the recovery key; suspending is the extra-safe choice | 2026-10-13 | Superseded by F33 | Starter |
 | [F18](decisions/F18.md) | Firmware sketches in Faraday Starter and the Companion | 2026-10-13 | Amended by F34, F105 | Starter |
 | [F19](decisions/F19.md) | Audits from experts and AIs, published with Faraday's response | 2026-10-13 | Active | repository |
@@ -95,9 +95,9 @@ Read this table, then only the decision you need.
 | [F78](history/decisions/F78.md) | A window's layout does not follow the compositor's scale above 1.5 | 2026-10-22 | Replaced by F101 | design |
 | [F79](decisions/F79.md) | Faraday's crypto is cross-checked against Python references, offline, at build time | 2026-10-22 | Active | crypto |
 | [F80](decisions/F80.md) | A stick or Pi card has a 64 MiB boot and a 128 MiB FAT32 data partition | 2026-10-22 | Active | stick |
-| [F81](decisions/F81.md) | Modes: a pressable pill, Demo on testnet, samples at every step | 2026-10-22 | Active | design |
+| [F81](decisions/F81.md) | Modes: a pressable pill, Practice on testnet, samples at every step | 2026-10-22 | Amended by F119 | design |
 | [F82](decisions/F82.md) | A first start opens Steps only; Guided is a choice | 2026-10-22 | Active | design |
-| [F83](decisions/F83.md) | Faraday Desktop is inside the Starter, and not published on its own | 2026-10-23 | Active | release |
+| [F83](decisions/F83.md) | Faraday Demo is inside the Starter, and not published on its own | 2026-10-23 | Active | release |
 | [F84](decisions/F84.md) | Check a signer fails closed; unknown fields are findings there and Info in a review | 2026-10-23 | Active | crypto |
 | [F85](decisions/F85.md) | Text size: Standard, Large, Larger, and the layout steps down for it | 2026-10-23 | Active | design |
 | [F86](decisions/F86.md) | Your own randomness is mixed into the session's; the stick's kernel credits what it says it does | 2026-10-23 | Amended by F102 | security |
@@ -110,7 +110,7 @@ Read this table, then only the decision you need.
 | [F93](decisions/F93.md) | Codex32 made by hand, any split | 2026-10-22 | Active | keys |
 | [F94](decisions/F94.md) | Codex32 error correction, opt-in | 2026-10-22 | Active | crypto |
 | [F95](decisions/F95.md) | Codex32QR/v1-48: read, shown, tested | 2026-10-22 | Active | keys |
-| [F96](decisions/F96.md) | Faraday Desktop's dice rollers | 2026-10-22 | Active | keys |
+| [F96](decisions/F96.md) | Faraday Demo's dice rollers | 2026-10-22 | Active | keys |
 | [F97](decisions/F97.md) | .oskb files are no longer read; the vault's record layouts are its own | 2026-10-23 | Active | backup |
 | [F98](decisions/F98.md) | A new wallet's account is asked after its quorum, not on Kind | 2026-10-23 | Active | wallets |
 | [F99](decisions/F99.md) | APK signing is removed | 2026-10-23 | Active | keys |
@@ -131,5 +131,6 @@ Read this table, then only the decision you need.
 | [F114](decisions/F114.md) | Wide content takes the room beside the navigation; reading content keeps its column | 2026-10-24 | Active | design |
 | [F115](decisions/F115.md) | A key flow opened from Make a new wallet has Cancel, back to it; a Keys card with one way on is passed over | 2026-10-24 | Active | design |
 | [F116](decisions/F116.md) | Faraday's scope: an offline signer and keeper of keys, Bitcoin first | 2026-10-25 | Active | scope |
-| [F117](decisions/F117.md) | Faraday Desktop matches the device; it differs only where the platform or an owner decision forces it | 2026-10-25 | Active | design |
-| [F118](decisions/F118.md) | Faraday Desktop is a simulator: what is Desktop or Demo stands in a host strip outside the app | 2026-10-25 | Active | design |
+| [F117](decisions/F117.md) | Faraday Demo matches the device; it differs only where the platform or an owner decision forces it | 2026-10-25 | Amended by F119 | design |
+| [F118](decisions/F118.md) | Faraday Demo is a simulator: what is Faraday Demo's or Practice's stands in a host strip outside the app | 2026-10-25 | Amended by F119 | design |
+| [F119](decisions/F119.md) | Faraday Desktop is Faraday Demo; its Demo mode is Practice | 2026-10-26 | Active | design |

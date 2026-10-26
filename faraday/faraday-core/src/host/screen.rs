@@ -3,7 +3,7 @@
 //! type, outlined controls in light ink, never the app's surface, colours
 //! or components. Left to right: the stick pills (the boot stick first;
 //! "Sticks · N" holding those that do not fit), Samples, Size, then the
-//! screen's demo aids under "Demo", those with no room in More. Drawing
+//! screen's demo aids under "Practice", those with no room in More. Drawing
 //! reads the app's state and what its last frame noted; it works nothing
 //! out but where a control goes.
 
@@ -122,7 +122,7 @@ pub(crate) fn roller_shown(app: &Faraday) -> Option<Roller> {
     app.demo_hosted_now().and_then(|h| h.roller)
 }
 
-/// The screen's demo aids, the lines saying what Demo puts in place of
+/// The screen's demo aids, the lines saying what Practice puts in place of
 /// the person's own, and whether Play's options are offered: Make codex32
 /// shares' entry's from its state, every other page's and sheet's from
 /// what its last frame offered for the "Demo only" card, the computer's
@@ -274,8 +274,8 @@ fn size_name(preview: Option<(u16, u16)>) -> &'static str {
 struct Fitted {
     sticks: Vec<Ctl>,
     right: Vec<Ctl>,
-    /// "Demo" heads the aids, the die after it, rules between the
-    /// groups; else none, and More reads "Demo".
+    /// "Practice" heads the aids, the die after it, rules between the
+    /// groups; else none, and More reads "Practice".
     head: bool,
     demo: Vec<Ctl>,
     demo_more: Vec<Ctl>,
@@ -305,7 +305,7 @@ fn sticks_ctl(n: usize) -> Ctl {
 }
 
 /// More, opening the aids with no room; narrowest (`!head`), it reads
-/// "Demo".
+/// "Practice".
 fn more_ctl(head: bool) -> Ctl {
     Ctl {
         label: if head { EN.host_more } else { EN.host_demo }.to_string(),
@@ -391,8 +391,8 @@ fn fit(host: &Host, ui: &HostUi, room: f32, die_w: f32) -> Fitted {
             right = vec![size(true)];
             demo_more.extend(samples.iter().cloned());
         }
-        // Narrowest: no "Demo" head, no die and no rules; the sticks'
-        // menu reads "Sticks" and More itself "Demo".
+        // Narrowest: no "Practice" head, no die and no rules; the sticks'
+        // menu reads "Sticks" and More itself "Practice".
         if sum(&shown) + fixed(&right, true) + more_w > room {
             head = false;
             if n > 0 {
@@ -503,7 +503,7 @@ pub(crate) fn draw(host: &Host, ui: &mut HostUi, area: Option<Area>) -> Drawn {
             labels.extend(fitted.demo_more.iter().map(|c| c.label.clone()));
         }
     }
-    // What Demo puts in place of the person's own, in the room left.
+    // What Practice puts in place of the person's own, in the room left.
     let room = w - t::PAD - x;
     if !fitted.lines.is_empty() && room > t::TOUCH {
         let text = fitted.lines.join(" · ");

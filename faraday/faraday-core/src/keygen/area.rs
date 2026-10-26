@@ -185,7 +185,7 @@ impl KeyGenArea {
         }
     }
 
-    /// Demo's passphrase typed into field `i` of the Key card.
+    /// Practice's passphrase typed into field `i` of the Key card.
     pub(crate) fn demo_passphrase(&mut self, i: u8, text: &str) {
         if let Some(k) = self.state.as_mut() {
             let t = if i == 0 {

@@ -28,9 +28,9 @@
 # Takes what the builds left (under out/, or the folder --builds names):
 #   out/stick/faraday-x86_64-uefi.img       -> faraday-stick-VERSION-x86_64-uefi.img.xz
 #   out/pi/faraday-pi3-waveshare-28dpi.img  -> faraday-pi-VERSION-pi3-waveshare-28dpi.img.xz
-#   out/linux/faraday        -> faraday-desktop-VERSION-linux-x86_64.xz      (in the Linux payload)
-#   out/windows/faraday.exe  -> faraday-desktop-VERSION-windows-x86_64.exe.xz (in the Windows payload)
-# Faraday Desktop is not published on its own (docs/DECISIONS.md F83):
+#   out/linux/faraday        -> faraday-demo-VERSION-linux-x86_64.xz      (in the Linux payload)
+#   out/windows/faraday.exe  -> faraday-demo-VERSION-windows-x86_64.exe.xz (in the Windows payload)
+# Faraday Demo is not published on its own (docs/DECISIONS.md F83):
 # each Starter's payload carries the one for its own system, compressed
 # like the images, with a MANIFEST line, and the release folder holds no
 # desktop file. Each must carry the build ID the images carry as a string
@@ -60,7 +60,7 @@
 # its own. The macOS Starter, when built, carries no desktop app (F83).
 #
 # Before it finishes, either pass refuses a release folder that holds a
-# file whose name starts faraday-desktop-, and names it.
+# file whose name starts faraday-demo-, and names it.
 #
 # Last, the published-file check (STARTER §2): every file published, and every
 # .img, binary and inner file inside one, goes through `strings`. The
@@ -114,11 +114,11 @@ if [ -z "$second" ]; then
     for f in "$stick" "$pi"; do
         [ -f "$f" ] || die "$f: not built"
     done
-    # Faraday Desktop for each Starter's payload (F83): system, source,
+    # Faraday Demo for each Starter's payload (F83): system, source,
     # name inside the payload file.
     desktops=()
-    for entry in "linux:$builds/linux/faraday:faraday-desktop-$version-linux-x86_64" \
-                 "windows:$builds/windows/faraday.exe:faraday-desktop-$version-windows-x86_64.exe"; do
+    for entry in "linux:$builds/linux/faraday:faraday-demo-$version-linux-x86_64" \
+                 "windows:$builds/windows/faraday.exe:faraday-demo-$version-windows-x86_64.exe"; do
         src="$(cut -d: -f2 <<<"$entry")"
         if [ ! -f "$src" ]; then
             [ "$any" = 1 ] || die "$src: not built (just release=1 faraday-linux-bin; just release=1 faraday-windows-bin build out/windows out/build/run faraday-desktop faraday)"
@@ -353,10 +353,10 @@ scan_tar() {
     for g in "$check"/untar/*; do scan "$g" "$f: ${g#"$check"/untar/}" 0; done
     rm -rf "$check/untar"
 }
-# Faraday Desktop is not published on its own (F83): a release folder
+# Faraday Demo is not published on its own (F83): a release folder
 # holding a desktop app is refused, whichever pass put it there, before the
 # second pass adds anything. A payload folder carries its own system's.
-for f in "$out"/faraday-desktop-*; do
+for f in "$out"/faraday-demo-*; do
     [ -e "$f" ] || continue
     refuse "$f is a desktop app, which a release does not publish on its own (F83); it belongs in a payload folder"
 done

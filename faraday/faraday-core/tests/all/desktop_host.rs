@@ -1,4 +1,4 @@
-//! Faraday Desktop's host (`docs/DESKTOP-HOST.md`): the app laid out as
+//! Faraday Demo's host (`docs/DESKTOP-HOST.md`): the app laid out as
 //! the device in the window less a strip at its foot, or framed at a
 //! preview size; the strip, outside the app, holding the stick pills,
 //! Samples, Size and only the demo aids of the screen on show; nothing
@@ -31,7 +31,7 @@ fn display(w: u16, h: u16) -> Event {
     })
 }
 
-/// Faraday Desktop as it starts, in Demo with its samples or on Testnet,
+/// Faraday Demo as it starts, in Practice with its samples or on Testnet,
 /// with `sticks` in (the boot stick, Stick 2 and on), held by the host
 /// in a window `w` × `h`, on Home, a frame drawn.
 fn desktop(shell: &mut Shell, sticks: usize, demo: bool, (w, h): (u16, u16)) -> Host {
@@ -114,7 +114,7 @@ fn app_texts(host: &mut Host) -> Vec<String> {
     host.app.drawn_texts()
 }
 
-/// Nothing only Faraday Desktop or Demo has is drawn inside the app.
+/// Nothing only Faraday Demo or Practice has is drawn inside the app.
 fn app_holds_no_host_item(host: &mut Host) {
     let texts = app_texts(host);
     for t in [
@@ -151,11 +151,15 @@ fn in_demo_the_strip_holds_the_sticks_samples_and_size_and_the_app_none_of_them(
         assert!(s.iter().any(|x| x == t), "the strip offers {t:?}: {s:?}");
     }
     // Home offers no demo aid.
-    assert!(!s.iter().any(|x| x == "Demo"), "no aid on Home: {s:?}");
+    assert!(!s.iter().any(|x| x == "Practice"), "no aid on Home: {s:?}");
     // The app is the window less the strip, at its top left; the mode
     // pill stays in it, as the device has it.
     assert_eq!(host.app_area(), Some((0, 0, 1280, 800 - 56)));
-    assert!(app_texts(&mut host).iter().any(|t| t == "Demo · Testnet"));
+    assert!(
+        app_texts(&mut host)
+            .iter()
+            .any(|t| t == "Practice · Testnet")
+    );
     app_holds_no_host_item(&mut host);
     // Samples opens the samples sheet, the host's.
     click(&mut host, HostPress::Menu(HostMenu::Samples));
@@ -170,13 +174,16 @@ fn on_testnet_the_strip_holds_the_sticks_and_size_alone() {
     let s = strip(&mut host);
     assert!(s.iter().any(|x| x == "Boot stick · in"), "{s:?}");
     assert!(s.iter().any(|x| x == "Size · This window"), "{s:?}");
-    assert!(!s.iter().any(|x| x == "Samples" || x == "Demo"), "{s:?}");
-    // Not on Add a key either, which offers samples in Demo.
+    assert!(
+        !s.iter().any(|x| x == "Samples" || x == "Practice"),
+        "{s:?}"
+    );
+    // Not on Add a key either, which offers samples in Practice.
     host.app.press(Action::Entry(None));
     let s = strip(&mut host);
     assert!(
-        !s.iter().any(|x| x == "Demo" || x == "Use a sample"),
-        "no demo aid off Demo: {s:?}"
+        !s.iter().any(|x| x == "Practice" || x == "Use a sample"),
+        "no practice aid off Practice: {s:?}"
     );
     app_holds_no_host_item(&mut host);
 }
@@ -275,7 +282,7 @@ fn add_a_key_offers_use_a_sample_and_use_faraday_in_the_strip_alone() {
     let mut host = desktop(&mut shell, 0, true, (1280, 800));
     host.app.press(Action::Entry(None));
     let s = strip(&mut host);
-    for t in ["Demo", "Use a sample", "Use faraday"] {
+    for t in ["Practice", "Use a sample", "Use faraday"] {
         assert!(s.iter().any(|x| x == t), "the strip offers {t:?}: {s:?}");
     }
     app_holds_no_host_item(&mut host);
@@ -291,7 +298,7 @@ fn add_a_key_offers_use_a_sample_and_use_faraday_in_the_strip_alone() {
     host.app.press(Action::Nav(Screen::Home));
     let s = strip(&mut host);
     assert!(
-        !s.iter().any(|x| x == "Use a sample" || x == "Demo"),
+        !s.iter().any(|x| x == "Use a sample" || x == "Practice"),
         "{s:?}"
     );
 }
@@ -326,7 +333,7 @@ fn the_codex32_walk_stands_in_the_strip_and_next_steps_it_from_one_place() {
         let mut host = desktop(&mut shell, 0, true, (w, h));
         on_codex32_dice(&mut host);
         let s = strip(&mut host);
-        for t in ["Demo", "Use a sample", "Previous", "Next", "Play"] {
+        for t in ["Practice", "Use a sample", "Previous", "Next", "Play"] {
             assert!(
                 s.iter().any(|x| x == t),
                 "{w}x{h}: the strip offers {t:?}: {s:?}"
@@ -447,7 +454,7 @@ fn at_the_narrowest_every_control_stands_inside_the_window_and_samples_is_in_the
     let mut host = desktop(&mut shell, 2, true, (268, 600));
     host.app.press(Action::Entry(None));
     let s = strip(&mut host);
-    for t in ["Sticks", "Size", "Demo"] {
+    for t in ["Sticks", "Size", "Practice"] {
         assert!(s.iter().any(|x| x == t), "the strip offers {t:?}: {s:?}");
     }
     for p in [

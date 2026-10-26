@@ -227,7 +227,7 @@ pub enum Action {
     Mode(crate::modes::Mode),
     /// Open the mode sheet: the pill, or Settings' Mode row.
     ModeSheet,
-    /// Open Load samples: its pill, in Demo with samples set (F81).
+    /// Open Load samples: its pill, in Practice with samples set (F81).
     Samples,
     /// Tick or untick a row of the Load samples sheet.
     SampleTick(crate::samples::Pick),
@@ -237,9 +237,9 @@ pub enum Action {
     /// Load what the Load samples sheet has ticked.
     SamplesLoad,
     /// Use a sample: the chip inside an empty field where a key is typed
-    /// (Demo, with samples set).
+    /// (Practice, with samples set).
     UseSample,
-    /// The `faraday` chip inside an empty passphrase field, in Demo: fills
+    /// The `faraday` chip inside an empty passphrase field, in Practice: fills
     /// that field with it.
     PassChip(crate::demo::PassField),
     /// The scanner's Sample tile: reads a sample as the camera would.

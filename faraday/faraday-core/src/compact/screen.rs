@@ -802,7 +802,7 @@ pub(crate) fn entry_words(app: &View, ui: &mut Ui, x: f32, y: f32, iw: f32, page
 /// A list typed on its own keyboard, on a small panel: the word being
 /// typed under `label`, `status` under it, the words it can be as pills
 /// and the keyboard, with the on-screen keyboard's shift as `shift`, and
-/// with `chip`, Use a sample (or `chip`'s own label) handed to the "Demo
+/// with `chip`, Use a sample (or `chip`'s own label) handed to the "Practice
 /// only" card (`docs/DEMO.md` §14). Add a key's word entry and Check my
 /// copy's both draw it. Returns where the next row starts.
 pub(crate) fn keyed_head(

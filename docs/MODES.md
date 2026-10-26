@@ -1,4 +1,4 @@
-# Modes, Demo and samples
+# Modes, Practice and samples
 
 **Kind:** Spec
 **Status:** Built here (F81): M1 to M8, M6b and the follow-ups
@@ -9,13 +9,14 @@ and `docs/DEMO.md` differ, this holds until M8 brings DEMO in line.
 
 ## 1. Words
 
-- **Mode**: what the pill names. One of Demo, Mainnet, Testnet, Signet,
-  Regtest. Demo is not a network: it is the key store's public set on
+- **Mode**: what the pill names. One of Practice, Mainnet, Testnet, Signet,
+  Regtest. Practice is not a network: it is the key store's public set on
   Testnet.
 - **Sample**: a public dummy: a key (in one of the forms of §5.1), a
   wallet with its keys (§5.2), or another input a flow takes (§5.3).
-  "Public seed" and "the demo" leave the product's words; the Learn page
-  and DEMO keep "Demo" as the mode's name.
+  "Public seed" and "the demo" leave the product's words; the mode's name
+  in the product, Learn and these documents is Practice (it was Demo until
+  2026-10-26, F119); the code keeps `Demo`.
 - **Fresh session**: what a lock leaves (`Faraday::lock`, then the
   shell's restart): no keys, no wallets, no screen state.
 
@@ -29,14 +30,17 @@ and `docs/DEMO.md` differ, this holds until M8 brings DEMO in line.
    impl Mode { pub fn network(self) -> Network /* Demo → Testnet */ }
    ```
 
-   `Faraday::mode()` reads the state: Demo while `session.keys.demo()`,
+   The variant `Mode::Demo` is the mode a person reads as Practice (F119);
+   the code identifiers keep Demo.
+
+   `Faraday::mode()` reads the state: Practice while `session.keys.demo()`,
    otherwise the session's network. Nothing stores the mode beside the
    session, so it cannot drift from it.
 2. `Faraday::modes: &'static [Mode]`, set by the shell: `STICK_MODES`
    (Mainnet, Testnet, Signet, Regtest; `Faraday::new()`'s default) and
-   `DESKTOP_MODES` (Demo, Testnet, Signet, Regtest). The desktop and the
+   `DESKTOP_MODES` (Practice, Testnet, Signet, Regtest). The desktop and the
    website set `DESKTOP_MODES`.
-3. **Demo in faraday-keys.** `Keys::demo()` becomes "the shell set the
+3. **Practice in faraday-keys.** `Keys::demo()` becomes "the shell set the
    demo up", with no network condition; `has_demo()` goes (one test,
    one meaning). `Keys::set_demo` takes the public set as values, not
    words: `set_demo(&mut self, handouts: &[(&'static str, u8, Fingerprint)],
@@ -52,13 +56,13 @@ and `docs/DEMO.md` differ, this holds until M8 brings DEMO in line.
    either counts as loaded, §7), and core's `Session::set_demo` takes a
    `faraday_core::samples::Samples` and passes its handouts, public set
    and node ids.
-4. **Demo is on Testnet.** A shell that wants Demo makes
+4. **Practice is on Testnet.** A shell that wants Practice makes
    `Session::on(Network::Testnet)` and calls `Session::set_demo`. Every
    key derives at coin type 1 and every address is a real testnet
    address: `Session::shown` and `broken_checksum` go, with the tests
    that encode them.
 5. `Faraday::makes_secrets()` is `!session.keys.demo()`: unchanged in
-   code, and now it means Demo. `learn.rs`'s two conditions become one
+   code, and now it means Practice. `learn.rs`'s two conditions become one
    (`keys.demo()`).
 6. **A mode change is a lock.** `Action::Mode(Mode)`:
    - the mode in use, or one not in `self.modes`, or any while the
@@ -85,7 +89,7 @@ and `docs/DEMO.md` differ, this holds until M8 brings DEMO in line.
    note (`network_row_items`, `network_row_note`) go.
 8. **`Session::follow`** (a wallet or a PSBT on another network) moves
    the session only when all hold: no key and no wallet loaded, not
-   Demo, the network not fixed, and the mode it moves to in the
+   Practice, the network not fixed, and the mode it moves to in the
    caller's `modes`; it is then the same as choosing that mode on an
    empty session, so no lock is needed. Otherwise a wallet or PSBT of
    another network kind is refused with today's `Refusal::Network` text.
@@ -99,15 +103,15 @@ and `docs/DEMO.md` differ, this holds until M8 brings DEMO in line.
 - **The pill** (DESIGN §4.8, Network): drawn where it is drawn today and
   only off Mainnet, now with a hit target: `Action::ModeSheet` opens
   `Sheet::Mode`. Label: the mode's name ("Testnet", "Signet",
-  "Regtest"), and for Demo its name and its network, "Demo · Testnet"
-  (owner, 2026-10-22: a person sees that Demo runs on testnet), on the
+  "Regtest"), and for Practice its name and its network, "Practice · Testnet"
+  (owner, 2026-10-22: a person sees that Practice runs on testnet), on the
   wide and the compact layout alike; the same caution pill for each. Places:
   `header_network_pill` and `network_pill_left`
   (`faraday/faraday-core/src/screens/mod.rs`), `compact::tools` and
   compact Home (`faraday/faraday-core/src/compact/mod.rs`). The
   comments "a badge … opens nothing" go.
-- **Samples**: in Demo only, when `Faraday::samples` is set (§5),
-  in Faraday Desktop's host strip after the sticks, outside the app
+- **Samples**: in Practice only, when `Faraday::samples` is set (§5),
+  in Faraday Demo's host strip after the sticks, outside the app
   (F118, `docs/DESKTOP-HOST.md` §3); it opens the Load samples sheet.
   The app's bar holds the mode pill alone.
 - **Settings**: the Network row (`network_row_items`) is replaced by one
@@ -116,7 +120,7 @@ and `docs/DEMO.md` differ, this holds until M8 brings DEMO in line.
   door.
 - **The sheet** (`Sheet::Mode`, modes/screen.rs): title "Mode"; one row
   per mode in `self.modes`, in that order, divided by rules; the mode in
-  use marked by a tick in the accent at the row's right; the Demo row
+  use marked by a tick in the accent at the row's right; the Practice row
   carries "Testnet" muted before the tick's place; a press on another row is
   `Action::Mode(m)`; **Not now** at the foot. A row that cannot be
   chosen (the website's three) is dimmed, its label alone: no reason
@@ -130,13 +134,13 @@ and `docs/DEMO.md` differ, this holds until M8 brings DEMO in line.
 
 ## 4. Starting, locking, no warning
 
-**Desktop** (`faraday/shells/desktop/src/main.rs`):
+**Faraday Demo** (`faraday/shells/desktop/src/main.rs`):
 
 - `desktop_app_for(release)` becomes `desktop_app_in(mode, warned)`:
-  `Session::on(mode.network())`, `set_demo` when the mode is Demo,
+  `Session::on(mode.network())`, `set_demo` when the mode is Practice,
   `app.modes = DESKTOP_MODES`, `app.samples = Some(&SAMPLES)` (from M6, with the pill; M5 passes
   `SAMPLES` to `set_demo`).
-  Every build starts in Demo, the developer's, the test's and the
+  Every build starts in Practice, the developer's, the test's and the
   release's.
 - `restart` reads `app.mode_after_restart()` from the app before
   replacing it, and builds `desktop_app_in` with it: the mode carries
@@ -146,20 +150,20 @@ and `docs/DEMO.md` differ, this holds until M8 brings DEMO in line.
   `airgap_warned`, `test_asked`'s use for it, the `test_network_*`
   strings, the boot import's wait under it and `devices.rs`'s guard;
   `Action::Network` goes. A person can type a seed on an online computer
-  in any mode, Demo included (Demo swaps it for a sample only after it
+  in any mode, Practice included (Practice swaps it for a sample only after it
   is typed), so a sheet on one path protects nothing.
 - **Instead, one line at every place a secret is typed** (owner,
   2026-10-22): where the shell sets `Faraday::seed_line` (a seed typed
   here is on an online computer: the desktop, with `Faraday::online`, and
-  the website alone, which does not become Faraday Desktop; never the
+  the website alone, which does not become Faraday Demo; never the
   stick or the Pi), every step where a
   seed or a secret can be typed or pasted draws one caution-tone line
   under its field, `never_real_seed` "Never type a seed that holds real
-  bitcoin here.", in every mode, Demo included: words (BIP-39, every
+  bitcoin here.", in every mode, Practice included: words (BIP-39, every
   length), a seed scanner's Type and Paste, a SLIP-39 share, a codex32
   string, an LND cipher seed and its passphrase, hex entropy, an xprv or
   a WIF, a BIP-39 passphrase, a vault's passphrase where it
-  can be typed (not in Demo, where it is `faraday`, §6.2). A statement
+  can be typed (not in Practice, where it is `faraday`, §6.2). A statement
   of fact in the caution tone, as a key card's line is (DESIGN §4.11);
   one string, one placement rule (under the field, above the keyboard,
   on the wide and the compact layout). Not in README or on the website's
@@ -181,7 +185,7 @@ Mainnet. Settings' file (`faraday-settings.txt`) still holds no network.
 
 Each row is one tick in Load samples and one candidate for Use a
 sample. "Public set" means its fingerprint (or node id) is in
-`Keys::set_demo`'s list, so Demo takes it however it arrives.
+`Keys::set_demo`'s list, so Practice takes it however it arrives.
 
 | Sample | Form | Source | Checked against |
 |---|---|---|---|
@@ -202,14 +206,14 @@ sample. "Public set" means its fingerprint (or node id) is in
 SLIP-39) is public twice: with none, and with `faraday` (§6.2). Both
 fingerprints are in the public set; the vectors' own passphrases
 (`TREZOR`, the Japanese case's) are used only by the test that checks
-the sample against its vector, since Demo never takes another
+the sample against its vector, since Practice never takes another
 passphrase. codex32 and a master seed take none.
 
 Not separate samples, decided: **SeedQR and CompactSeedQR** are
 spellings of words: Use a sample on a scanner that takes a seed hands
 over a sample's Standard SeedQR digits, so the scanner's own decoding
 runs; **xprv, WIF**: Faraday loads no key from them; **a vault**: §5.3;
-**a BIP-85 child**: disabled in Demo (DEMO §4).
+**a BIP-85 child**: disabled in Practice (DEMO §4).
 
 **Loading a set.** A set's tick loads exactly its threshold, the parts
 the vector gives, and so the key; not one short. Practising the last
@@ -227,7 +231,7 @@ cipher seed, through
 Seed XOR and codex32 *splits* of a key held stay disabled (fresh
 randomness), and so does Show for a node's private key. Loading a
 sample set is not a split: its parts are published. DEMO §6's LND
-cipher seed row opens in Demo, and `node_from_aezeed` refuses a cipher
+cipher seed row opens in Practice, and `node_from_aezeed` refuses a cipher
 seed whose node id is not in the public set (`Keys::is_public_node`).
 
 ### 5.2 Wallets
@@ -238,12 +242,12 @@ Legacy, Nested multisig, Legacy multisig, Taproot multisig, Inheritance,
 Taproot tree (`testkit::kits`). Also, decided:
 
 - **MuSig2** (`testkit::musig_policy`): its keys are the three test
-  seeds; MuSig2 is open in Demo.
+  seeds; MuSig2 is open in Practice.
 - **FROST 2 of 3** (`testkit::threshold_record`): shares 1 and 2 are
   bacon and zebra; the record is public. Share 3, computed by the
   testkit's deal, is not a sample and is not loaded. Only in a build
   with `unreleased`: FROST is compiled out of the app (F109), and
-  Demo offers no FROST sample.
+  Practice offers no FROST sample.
 - **3 of 5** (`testkit::three_of_five`): its five keys are master seeds
   01…01 to 05…05, keys with no words; they load as keys and join the
   public set. It has no spend.
@@ -301,7 +305,7 @@ unsigned spend where the testkit makes one (`testkit::unsigned`,
 
 ## 6. Use a sample
 
-In Demo, with `samples` set, each step below hands **Use a sample** to
+In Practice, with `samples` set, each step below hands **Use a sample** to
 the page's "Demo only" card while its field is empty, and the scanner
 its sample (owner, 2026-10-24; `docs/DEMO.md` §14). A
 press puts the sample into the step through the function the step's
@@ -311,7 +315,7 @@ cursor on the step's state that a press moves (no picker); a press
 again replaces it with the next, wrapping. "Not used" means not
 loaded, and for a set, not yet begun.
 
-**Placement.** In Faraday Desktop's host strip (DESIGN §4.19,
+**Placement.** In Faraday Demo's host strip (DESIGN §4.19,
 `docs/DEMO.md` §14), never inside the field or the scanner's band: the field keeps its
 caret and placeholder as in every mode. Never drawn on Mainnet,
 Testnet, Signet or Regtest; drawn on the website. The scanner's button
@@ -333,7 +337,7 @@ to remember, as for real.
 ### 6.1 The field's inner action (faraday-ui)
 
 Since 2026-10-24 (owner) the button stands outside the field, and
-since 2026-10-25 in Faraday Desktop's host strip (`docs/DEMO.md` §14); it shows while the
+since 2026-10-25 in Faraday Demo's host strip (`docs/DEMO.md` §14); it shows while the
 field is empty and the person has not typed in it, and a press in the
 field no longer hides it. The rest of this section, the table of steps
 and what a press puts in, stands.
@@ -352,7 +356,7 @@ and what a press puts in, stands.
   the step is left and opened again. A chip press fills the field and
   hides the chip.
 - **A secret filled by a sample** (a seed's words, a share) is drawn
-  unmasked in Demo: samples are public. Typing into the field masks it
+  unmasked in Practice: samples are public. Typing into the field masks it
   again as the field does today.
 - **Wide**: the chip in the field. **Compact** and the small panel: the
   same chip; where the field is narrower than the chip, its label is
@@ -391,8 +395,8 @@ own path, with the handler's `Compute`.
 
 ### 6.2 Every passphrase field offers `faraday`
 
-In Demo every passphrase and password field works as it does outside
-Demo: empty, typed by the person, masked, with the eye and with the
+In Practice every passphrase and password field works as it does outside
+Practice: empty, typed by the person, masked, with the eye and with the
 caution line "Never type a seed that holds real bitcoin here." under it
 where the shell is online. In addition an empty field hands the "Demo
 only" card **Use faraday** (owner, 2026-10-24; `docs/DEMO.md` §14); a
@@ -408,7 +412,7 @@ masked and is theirs. A second field that types a passphrase back, and
 an unlock, offer the same chip, so `faraday` is always one press away,
 and "The two passphrases differ" shows only when they do. Optional
 fields stay optional (**No passphrase** as before). The Load samples
-sheet and the Learn page each say once what the chip is: "In Demo, the
+sheet and the Learn page each say once what the chip is: "In Practice, the
 sample passphrase is" followed by `faraday` in the same code box. No
 field explains it.
 
@@ -416,7 +420,7 @@ The KeePass export's passphrase has no chip: `faraday` is under its
 minimum of 8 characters, which is unchanged, so it is typed by the
 person, masked, with the eye and the caution line.
 
-`Faraday::demo_passphrase()` (true in Demo) is the one test;
+`Faraday::demo_passphrase()` (true in Practice) is the one test;
 `Faraday::pass_chip` and `pass_chip_draw` draw the chip and
 `Action::PassChip(PassField)` fills the field. Nothing is prefilled and
 no typing is swallowed.
@@ -448,15 +452,15 @@ refuses an empty passphrase and a repeat that differs
 `seed_read_the_two_passphrases`, `create_pass_lock_mismatch`), and measures
 strength only for words the dice made (`Vaults::phrase_bits`; a typed
 passphrase's is not measured). The dice count (how many rolls make a
-word, how many words) is unchanged. In Demo `phrase_bits` gives `None`
+word, how many words) is unchanged. In Practice `phrase_bits` gives `None`
 for `faraday` (the dice's words are dropped), so no strength line is
 drawn for it and the "weakest passphrase" line is left out while every
 passphrase is `faraday`; `PASSPHRASE_WORDS` goes. Outside
-Demo nothing changes: a test types a short passphrase on Testnet and on
+Practice nothing changes: a test types a short passphrase on Testnet and on
 the stick and sees it taken as typed, masked and editable, with the
 dice's strength line where the dice made it.
 
-## 7. New key in Demo
+## 7. New key in Practice
 
 Every source still runs and shows its words. At Lock in, the key made
 is replaced by the next handout **of the word count chosen**:
@@ -481,8 +485,8 @@ the file has them.
 | Name | Text |
 |---|---|
 | `mode_sheet_title` | Mode |
-| `mode_demo` | Demo |
-| `mode_demo_pill` | Demo · Testnet |
+| `mode_demo` | Practice |
+| `mode_demo_pill` | Practice · Testnet |
 | `never_real_seed` | Never type a seed that holds real bitcoin here. |
 | `mode_not_now` | Not now |
 | `settings_mode` | Mode |
@@ -493,7 +497,7 @@ the file has them.
 | `samples_select_all` / `samples_unselect_all` | Select all / Unselect all |
 | `samples_not_now` | Not now |
 | `samples_load` | Load ticked |
-| `samples_password` | In Demo, the sample passphrase is (the passphrase follows in its code box) |
+| `samples_password` | In Practice, the sample passphrase is (the passphrase follows in its code box) |
 | `sample_type` | {} · {} (kind and script, or form and size) |
 | `sample_kind_single` / `sample_kind_multisig` / `sample_kind_musig` / `sample_kind_frost` / `sample_kind_timelock` / `sample_script_tree` | single-sig / {}-of-{} multisig / {}-key MuSig2 / {}-of-{} FROST / timelock recovery / Taproot, script tree (the other scripts are `wallet_legacy`, `wallet_nested_segwit`, `wallet_native_segwit`, `wallet_taproot`) |
 | `sample_form_bip39` / `_slip39` / `_codex32` / `_xor` / `_seed` / `_aezeed` | BIP-39 / SLIP-39 / codex32 / Seed XOR / Master seed / LND cipher seed |
@@ -512,8 +516,8 @@ the file has them.
 | `sample_musig` / `sample_frost` / `sample_three_of_five` | MuSig2 / FROST 2 of 3 / 3 of 5 |
 | `keygen_lock_in_adds` (changed) | Lock in adds sample {} ({}) in place of these words |
 | `keygen_added_public_seed` → `keygen_added_sample` | Added sample {} ({}) in place of the key made |
-| `wallet_is_not_a_key` (changed) | {} is not a sample: Demo takes only samples |
-| `vault_demo_uses_public` (changed) | Demo puts faraday in place of these words |
+| `wallet_is_not_a_key` (changed) | {} is not a sample: Practice takes only samples |
+| `vault_demo_uses_public` (changed) | Practice puts faraday in place of these words |
 | `wallet_public_seeds_only`, `network_row_note_wallets` | removed |
 
 ## 9. The website (batch W1, in its repository)
@@ -527,7 +531,7 @@ nothing of it.
   added.
 - `web/src/lib.rs` (`start`): `Session::on(Network::Testnet)`,
   `set_demo` with the samples, `fix_network`, `app.modes =
-  DESKTOP_MODES`, `app.samples = Some(&SAMPLES)`. The pills show "Demo ·
+  DESKTOP_MODES`, `app.samples = Some(&SAMPLES)`. The pills show "Practice ·
   Testnet" and Load samples; the pill and Settings' Mode row open the
   mode sheet, where Testnet, Signet and Regtest are dimmed.
 - **The stories use the samples** (`web/src/desk.rs`, `story.rs`,
@@ -541,7 +545,7 @@ nothing of it.
     less 2,140 sat to change.
   - **Spend using a Faraday backup**: the boot stick's vault holds Seed
     A and Savings' sample descriptor, with the plan and places as today
-    (`backup_answers`), under the one passphrase `faraday` (Demo's;
+    (`backup_answers`), under the one passphrase `faraday` (Practice's;
     the second, easy slot goes, since it was the same word); Seed B's
     paper and the phone as above. The sticky note says `faraday`.
   - **Start fresh** loads no sample: the story is making a wallet, and
@@ -558,11 +562,11 @@ nothing of it.
 - HANDOFF.md and the page's own words follow: "mainnet" goes from the
   demo's description.
 
-**Where the website and the desktop still differ in Demo**, by design:
+**Where the website and the desktop still differ in Practice**, by design:
 
-| | Desktop | Website | Why |
+| | Faraday Demo | Website | Why |
 |---|---|---|---|
-| Switching mode | Demo, Testnet, Signet, Regtest | Demo only | a public page takes samples only; a person's own test seeds belong in the downloaded app |
+| Switching mode | Practice, Testnet, Signet, Regtest | Practice only | a public page takes samples only; a person's own test seeds belong in the downloaded app |
 | Files | the Inbox and Outbox are folders on disk (Downloads) | sticks in memory, drawn round the laptop | a browser has no folder Faraday may watch |
 | Paste | the clipboard, a seed on a seed scanner (F75) | none | the web shell has no clipboard |
 | Camera | the computer's cameras | one webcam that sees the desk's props | the props are the page's way in |
@@ -589,18 +593,18 @@ wallet would notice.
   choosing a mode with keys loaded leaves a fresh session in that mode
   (no key, no wallet; `mode_after_restart`); a lock keeps the mode;
   choosing one with LockAsk's condition shows LockAsk; a mode not
-  offered does nothing; Demo's addresses are testnet addresses that a
-  testnet wallet accepts; Demo refuses a key not public and takes a
+  offered does nothing; Practice's addresses are testnet addresses that a
+  testnet wallet accepts; Practice refuses a key not public and takes a
   public one with a passphrase that makes a public key; a testnet
   wallet on an empty stick session moves it to Testnet, and is refused
-  once a key is loaded; nothing in Demo follows a mainnet wallet; every
-  action of DEMO §4 is dimmed in Demo and live on Testnet.
-- **Docs**: DEMO §2 (the definition: Demo, a mode on testnet; the
+  once a key is loaded; nothing in Practice follows a mainnet wallet; every
+  action of DEMO §4 is dimmed in Practice and live on Testnet.
+- **Docs**: DEMO §2 (the definition: Practice, a mode on testnet; the
   stick has none), §4's lead line, §5's "broken checksum" and
-  "mainnet" mentions, §6's LND row (open in Demo, LND's vector only,
-  from M7). `docs/learn/faraday/demo.md`: "What the demo is" (Demo is
+  "mainnet" mentions, §6's LND row (open in Practice, LND's vector only,
+  from M7). `docs/learn/faraday/demo.md`: "What Practice is" (Practice is
   Faraday on testnet with sample keys; the desktop starts in it), "The
-  public seeds" (on testnet; Demo takes only samples), the broken
+  public seeds" (on testnet; Practice takes only samples), the broken
   checksum section removed.
 - **Done**: `just` passes; no code reads `has_demo`, `set_network` from a
   press, or `broken_checksum`.
@@ -628,10 +632,10 @@ wallet would notice.
   opens the mode sheet. On Home, on every page's top row, and on every
   Sign review screen."; DESIGN §5's Settings entry (Mode row);
   `docs/FLOWS.md` where it names the Network row.
-- **Done**: snapshots of Home at 480x640 and 1280x800 in Demo and
+- **Done**: snapshots of Home at 480x640 and 1280x800 in Practice and
   Testnet show the pill; the sheet renders on both.
 
-### M3. The desktop starts in Demo; the online warning goes
+### M3. The desktop starts in Practice; the online warning goes
 
 - **Files**: `faraday/shells/desktop/src/main.rs` (`desktop_app_in`,
   `restart`, its tests); `faraday/faraday-core/src/lib.rs`
@@ -646,19 +650,19 @@ wallet would notice.
   xprv, WIF, hex, SLIP-39, codex32, aezeed — find each through the
   functions that take typed secret input).
 - **Tests** (desktop's own; tests/all/airgap.rs rewritten as the rule
-  "no warning"): every build opens in Demo with no sheet; a release
-  build leaving Demo for Testnet goes straight to Testnet in a fresh
+  "no warning"): every build opens in Practice with no sheet; a release
+  build leaving Practice for Testnet goes straight to Testnet in a fresh
   session; a lock in Testnet comes back in Testnet; the boot import
   offers its files at once on every build; on an online app every
-  secret-typing step shows the line, in Demo and on Testnet, and on the
+  secret-typing step shows the line, in Practice and on Testnet, and on the
   stick none does.
-- **Docs**: README's Faraday Desktop section (starts in Demo; Testnet,
+- **Docs**: README's Faraday Demo section (starts in Practice; Testnet,
   Signet, Regtest from the pill); DEMO §1.1 and §2; `docs/STARTER.md`
   §1.1's description of the desktop file; the Learn page's "Test
-  networks" (the desktop starts in Demo; never a seed that holds real
+  networks" (the desktop starts in Practice; never a seed that holds real
   bitcoin, stated as fact).
 - **Done**: `just faraday-snap` of the desktop tour shows
-  Demo on Home.
+  Practice on Home.
 
 ### M4. Stick and Pi keep the mode across a lock
 
@@ -666,7 +670,7 @@ wallet would notice.
   before exit 75; read, check and remove it at start).
 - **Tests** (the stick shell's tests, against a run directory in a
   temporary folder): a lock in Signet starts the next app in Signet; a
-  file naming Demo, or anything else, starts on Mainnet; the file is
+  file naming Practice, or anything else, starts on Mainnet; the file is
   gone after start.
 - **Docs**: the image README's line on what the run directory holds.
 - **Done**: `just` passes.
@@ -679,17 +683,17 @@ wallet would notice.
   types); `faraday/faraday-keys/src/session.rs` (`set_demo` by
   fingerprints, `next_handout(words)`, `is_public_node`);
   `faraday/faraday-keys/src/lightning.rs` (refuse a non-public cipher
-  seed in Demo); `faraday/faraday-core/src/keygen/mod.rs` and
+  seed in Practice); `faraday/faraday-core/src/keygen/mod.rs` and
   `keygen/screen.rs` (handout by length); `tools/lint-keys-tests.sh`
   (§5.4); workspace `Cargo.toml`; `faraday/shells/desktop/Cargo.toml`;
   `supply-chain/` only if cargo-vet asks (it is a path crate).
-- **Tests**: §5.4's; New key at 12, 15, 18, 21 and 24 words in Demo
+- **Tests**: §5.4's; New key at 12, 15, 18, 21 and 24 words in Practice
   adds a sample of that length; with every 12-word sample loaded,
   12-word Lock in is dimmed and 24-word Lock in is not; `just lint`
   fails on a scratch change that makes faraday-stick depend on
   faraday-samples (checked by hand once, not committed).
 - **Docs**: `docs/KEYS.md` (§5.4's crate beside the testkit, in one
-  paragraph); DEMO §5.1; the Learn page's "New key in the demo" (a
+  paragraph); DEMO §5.1; the Learn page's "New key in Practice" (a
   sample of the length chosen); the strings of §8 for New key.
 - **Done**: `cargo tree -i faraday-samples` names only faraday-desktop
   (and faraday-samples' own tests); the desktop's start no longer
@@ -703,7 +707,7 @@ wallet would notice.
   written by `cargo run -p faraday-samples --example regenerate`. Core's
   tests do not link the crate: `testkit::demo_samples()` derives the 21
   handouts (`testkit::SAMPLE_WORDS`) and the crate's tests check the two
-  agree. `Keys::node_from_aezeed` refuses a node not in the set while Demo
+  agree. `Keys::node_from_aezeed` refuses a node not in the set while Practice
   is on; the action stays dimmed until M7. `Faraday::samples` is M6's.
 
 ### M6. Load samples
@@ -716,7 +720,7 @@ wallet would notice.
   `Action::SampleTick`, `Action::SamplesLoad`); the pill in
   `screens/mod.rs` and `compact/mod.rs`; en.rs (`samples_*`,
   `sample_*`).
-- **One line** above the lists, muted: "In Demo, the sample passphrase is"
+- **One line** above the lists, muted: "In Practice, the sample passphrase is"
   (`samples_password`) then `faraday` (`demo::PASSPHRASE`) in the code
   box of §6.2. No "in use" list: with every
   passphrase `faraday`, what is in use is the keys and wallets loaded,
@@ -726,7 +730,7 @@ wallet would notice.
   keys, through §5.1's paths, in the handler, one toast for the count;
   a refusal (a duplicate) is skipped, never shown as an error.
 - **Tests** (faraday-samples' tests/, which drive a `Faraday` with
-  `samples` set): in Demo the pill opens the sheet listing every sample;
+  `samples` set): in Practice the pill opens the sheet listing every sample;
   ticking Savings and Load ticked loads Savings and bacon, zebra and
   summer, and Savings' first address is the testkit's; ticking the
   SLIP-39 2 of 3 set loads its key, whose fingerprint is the vector's;
@@ -735,7 +739,7 @@ wallet would notice.
   sheet loaded; on Testnet and on the stick no pill shows and the action
   does nothing. Budget: the sheet's frames do no costly work; Load
   ticked's press is named in the budget with its derivations.
-- **Docs**: DESIGN §4.8 (the Load samples pill beside the Demo pill);
+- **Docs**: DESIGN §4.8 (the Load samples pill beside the Practice pill);
   the Learn page, a section "Samples": every sample's name and, for
   keys, its words, shares or strings (Learn is not a working screen, so
   a person can type them from there), and that anything sent to them
@@ -765,9 +769,9 @@ Owner, 2026-10-22, after M6.
   Learn page and DEMO.
 - **The code box** of §6.2: the Load samples sheet's line shows
   `faraday` in it; the Learn page's Samples section shows it as inline
-  code. M8 draws every Demo passphrase field the same way.
+  code. M8 draws every Practice passphrase field the same way.
 - **Tests**: every sample row offers its type; the sample vault
-  opens under `faraday` and not under `password`; Demo takes a
+  opens under `faraday` and not under `password`; Practice takes a
   sample with `faraday` as its passphrase and refuses it with
   `password`.
 
@@ -779,7 +783,7 @@ Owner, 2026-10-22, after M6.
   (`scan_sheet`'s third tile); `faraday/faraday-ui/src/lib.rs`
   (`field_action`, §6.1); en.rs
   (`use_a_sample`, `scan_sample`).
-- **Tests** (faraday-samples' tests/): in Demo, for each row, a person
+- **Tests** (faraday-samples' tests/): in Practice, for each row, a person
   presses Use a sample (or the Sample tile) and the flow goes on: Add a
   key with 12 words loads twelve ×12, a second press puts ocean in its
   place; SLIP-39 fills share 1 then share 2 and the key loads; codex32
@@ -791,9 +795,9 @@ Owner, 2026-10-22, after M6.
   is offered. The chip: pressing in an empty field and typing hides it
   and the typed text is kept; a sample-filled share is shown unmasked;
   the second share's chip fills the same set's next share.
-- **Docs**: DESIGN §4.9's scanner band (a Sample tile, in Demo only);
-  DESIGN §4.3 (Use a sample on an entry, in Demo only); DEMO §5.
-- **Done**: snapshots of Add a key and the scanner in Demo, both sizes.
+- **Docs**: DESIGN §4.9's scanner band (a Sample tile, in Practice only);
+  DESIGN §4.3 (Use a sample on an entry, in Practice only); DEMO §5.
+- **Done**: snapshots of Add a key and the scanner in Practice, both sizes.
 - **As built**: `faraday-core/src/samples/put.rs` holds the chip's state
   (`Use`, on `EntryState` and `SeedsState`; a cursor each, one for each
   word count), the choice of the next sample (`sample_choose`, a lookup
@@ -810,7 +814,7 @@ Owner, 2026-10-22, after M6.
   key `wanted`, or one the wallet it is opened for is short of. On the
   small panel the word entry's chip stands in the word being typed, the
   grid being below its keyboard. The Lightning cipher seed action is no
-  longer dimmed in Demo. `EntryRecover` is a slow press. Not offered: a
+  longer dimmed in Practice. `EntryRecover` is a slow press. Not offered: a
   passphrase field (M8).
 
 ### M8. Every passphrase is `faraday`; vaults, Lightning, checks
@@ -820,9 +824,9 @@ Owner, 2026-10-22, after M6.
   `PASSPHRASE_WORDS` gone); `vault/mod.rs` (Generate with dice puts
   `faraday`; `phrase_bits` gives `None` for it); the remaining rows of
   §6's table (the Vaults screen's sample vault, Lightning's cipher seed,
-  whose row opens in Demo, Check a signed message and Check an address,
+  whose row opens in Practice, Check a signed message and Check an address,
   the TOTP code); en.rs (`samples_password`, `vault_demo_uses_public`).
-- **Tests**: in Demo each field of §6.2 shows `faraday`, takes no
+- **Tests**: in Practice each field of §6.2 shows `faraday`, takes no
   typing, and the flow goes on: New key with a passphrase adds the
   handout's `faraday` key, which the public set takes; Create a vault
   makes one that unlocks with `faraday`; Generate with dice shows the
@@ -830,18 +834,18 @@ Owner, 2026-10-22, after M6.
   unlocks to the Load sheet; Lightning's cipher seed row fills LND's
   vector and shows its node id, a typed cipher seed that is not the
   vector is refused, and Show stays dimmed; the signed message checks
-  as valid; the address is found in Spending. Outside Demo, on Testnet
+  as valid; the address is found in Spending. Outside Practice, on Testnet
   and on the stick: a short passphrase is taken as typed, masked and
   editable; two that differ are still refused; the dice's strength
   line is drawn.
 - **Docs**: DEMO §5.2 (`faraday` in place of the rolled words), §6
   (the LND row; typing a password into an Entry: now `faraday`, no
   longer typed), §4 (the Lightning rows unchanged); the Learn page: "In
-  Demo, every passphrase is faraday." once, Generate with dice's
-  passphrase changed, "What the demo does not make" without the cipher
-  seed; DESIGN §4.10's Mask policy (a Demo exception: sample secrets
+  Practice, every passphrase is faraday." once, Generate with dice's
+  passphrase changed, "What Practice does not make" without the cipher
+  seed; DESIGN §4.10's Mask policy (a Practice exception: sample secrets
   and `faraday` are drawn unmasked); DEMO's header and every remaining
-  "mainnet" meaning the demo. DEMO is then Reference again with Demo as
+  "mainnet" meaning Practice. DEMO is then Reference again with Practice as
   built; this file goes to `docs/history/` once W1 is done.
 - **Done**: `just` passes; `bash tools/lint-docs.sh` passes.
 - **Amended** (owner, 2026-10-22): fields are not fixed; each empty one
@@ -856,6 +860,6 @@ secret-typing step there too.
 ## 11. Settled with the owner (2026-10-22)
 
 1. A lock comes back in the mode the person was in, a test network as
-   Demo; leaving a mode is always a choice made on the pill.
-2. Demo's addresses are real testnet addresses: the broken checksum
+   Practice; leaving a mode is always a choice made on the pill.
+2. Practice's addresses are real testnet addresses: the broken checksum
    goes (§2 item 4).

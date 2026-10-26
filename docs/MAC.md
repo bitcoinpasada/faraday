@@ -17,7 +17,7 @@ What it adds:
   `arm64-apple`, through a start-up file the Starter installs once on
   the Mac and Apple's own recovery system seals.
 - **The Starter** runs on macOS. The Linux and Windows
-  Starters carry Faraday Desktop (F83); the macOS Starter carries none,
+  Starters carry Faraday Demo (F83); the macOS Starter carries none,
   and the macOS build is a developer's (§5).
 
 Asahi Linux's work (m1n1, its U-Boot and kernel trees) is what makes
@@ -455,7 +455,7 @@ whatever its machine type; the first-signing build record (`docs/history/PLAN.md
 
 Not published, and dropped from the plan (owner, 2026-10-14, F30): no
 release carries a macOS desktop app, and batch D is not built. F83
-(2026-10-23) puts Faraday Desktop inside the Linux and Windows Starters;
+(2026-10-23) puts Faraday Demo inside the Linux and Windows Starters;
 the macOS Starter carries none. A
 developer with a Mac can still build the desktop shell there; this
 section lists what that build needs, for whoever does it. Nothing here
@@ -463,7 +463,7 @@ is built or tested in this repository.
 
 - Built on a Mac (Apple's SDK licence allows its use only there) by
   `just faraday-mac-desktop`, as a universal binary (x86_64 and
-  arm64), macOS 11 or later, in `Faraday Desktop.app` with
+  arm64), macOS 11 or later, in `Faraday Demo.app` with
   `NSCameraUsageDescription`. Ad-hoc signed, not notarized (owner, F13,
   for the reason F11 gives for Windows). Not released (F30).
 - Changes: the camera through `faraday-avfoundation`, which the tree

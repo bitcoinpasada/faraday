@@ -39,7 +39,7 @@ impl Program {
                 EN.name_faraday_starter_app_old,
                 EN.name_faraday_starter_app_old2,
             ],
-            Program::DesktopApp => [EN.name_faraday_desktop_old, EN.name_faraday_desktop_old],
+            Program::DesktopApp => [EN.name_faraday_desktop_old, EN.name_faraday_desktop_old2],
         }
     }
 }

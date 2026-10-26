@@ -19,7 +19,7 @@ use faraday_ui::keyboard::OskPress;
 use crate::common::form;
 
 /// A 16-byte master seed, not one of the public vectors (a public seed
-/// would put the session in Demo), so its strings are 48 characters.
+/// would put the session in Practice), so its strings are 48 characters.
 const SEED: [u8; 16] = [
     0x5a, 0x17, 0x93, 0x0c, 0xe2, 0x41, 0xb8, 0x6d, 0x24, 0xf1, 0x0e, 0x9b, 0x73, 0xc6, 0x38, 0xad,
 ];

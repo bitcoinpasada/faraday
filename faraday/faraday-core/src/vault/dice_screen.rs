@@ -89,7 +89,7 @@ pub(super) fn dice_panel(
         Action::Vault(V::Dice(app.vaults.dice.as_ref().map_or(0, |d| d.0))),
     );
     cy += 50.0 + never_under(app, ui, x, cy, w);
-    // The computer's roller, on Faraday Desktop only, is in the "Demo
+    // The computer's roller, on Faraday Demo only, is in the "Practice
     // only" card (`docs/CODEX32.md` §5.6, `samples/card.rs`).
     let words = vault::dice_words(&rolls.text, list);
     let per = list.dice_per_word();

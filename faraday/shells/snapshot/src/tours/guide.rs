@@ -26,7 +26,7 @@ const ROLLS: &str = "12341123412234123341234412341523412634123141234212341323412
 /// from the description on it (§7), and the PSBT on it signed after the
 /// second key is scanned in (§6); a single key backed up in codex32
 /// shares (§4.11) and Add a key's codex32 form (§5.1), each in a session of
-/// its own; last, Faraday Desktop's Home and Demo's codex32 sample (§1.11).
+/// its own; last, Faraday Demo's Home and Practice's codex32 sample (§1.11).
 pub(crate) fn guide_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     let size = t.size();
     t.app = Faraday::new();
@@ -105,9 +105,9 @@ pub(crate) fn guide_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     desktop_home(t)
 }
 
-/// §1.11: Faraday Desktop's Home as it opens, in Demo on testnet, with
-/// no stick in; then Make codex32 shares in Demo, its entry with Use a
-/// sample in the Demo only card (no roller: Demo loads no key of its
+/// §1.11: Faraday Demo's Home as it opens, in Practice on testnet, with
+/// no stick in; then Make codex32 shares in Practice, its entry with Use a
+/// sample in the Demo only card (no roller: Practice loads no key of its
 /// own), and the sample in place of the strings once it is pressed.
 fn desktop_home(t: &mut Tour) -> Result<(), String> {
     let size = t.size();

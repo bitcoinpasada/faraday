@@ -279,7 +279,7 @@ fn home(name: &str) -> (PathBuf, Dirs, PathBuf) {
         ),
         ("Library/Caches/other/cache.db", "another program's cache"),
         (
-            "Library/Caches/faraday/0.1.1/faraday-desktop",
+            "Library/Caches/faraday/0.1.1/faraday-demo",
             "a cached desktop app",
         ),
         ("Library/Caches/faraday/notes.txt", "kept"),

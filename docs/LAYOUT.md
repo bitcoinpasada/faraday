@@ -88,9 +88,9 @@ page, and the ⋮ menu where the page has more. It replaces the wide
 layout's back link, title row and top-right row (DESIGN §4.1). It stays
 while the page scrolls under it.
 
-**Faraday Desktop's sticks** stand outside the app, in its host strip
+**Faraday Demo's sticks** stand outside the app, in its host strip
 at the window's foot (owner, 2026-10-25; F118, `docs/DESKTOP-HOST.md`),
-with Samples, the preview size and the screen's demo aids: the app's
+with Samples, the preview size and the screen's practice aids: the app's
 bar holds what the device's does, the mode pill and the ?. Held bare
 (`--panel`), the app draws the pills in a strip above its bar, as the
 stick and the Pi do while a backup flow uses sticks.
@@ -149,7 +149,7 @@ it sits in a strip pinned at the window's foot that opens to the whole
 pane over the page and never scrolls away. Built for Make codex32
 shares' dice sheet in its column (§16.1, `codex32/pane_screen.rs`);
 Learn's pane is planned. The "Demo only" card that stood here is
-Faraday Desktop's host strip now, outside the app (F118,
+Faraday Demo's host strip now, outside the app (F118,
 `docs/DESKTOP-HOST.md`).
 
 ## 7. Density
@@ -280,7 +280,7 @@ the frame budgets stay as they are. The text size work (F85,
 
 ## 13. Wide windows: what is wasted today (2026-10-24)
 
-The owner, from Faraday Desktop on Make codex32 shares' dice entry
+The owner, from Faraday Demo on Make codex32 shares' dice entry
 (2026-10-24): wide empty space left of the flow and right of the Demo
 only card; the checksum worksheet scrolls although the window has room
 for it whole; the card and the top strip's pills stand mid-screen, not
@@ -382,7 +382,7 @@ The Starter's held frame keeps its own rule (`docs/STARTER.md` §3.1d).
 ## 16. Make codex32 shares on a wide window
 
 Where this section names the "Demo only" card, its column or its strip,
-read Faraday Desktop's host strip (F118, `docs/DESKTOP-HOST.md` §3.1):
+read Faraday Demo's host strip (F118, `docs/DESKTOP-HOST.md` §3.1):
 the card is gone from the app, and the entry and its sheets take the
 room it took.
 
@@ -430,7 +430,7 @@ shows pads 1 to 6 and no "Die pads (d7+)" group, d8 up to 8, d10 up to
 10, d12 up to 12, d20 all twenty, the booklet's places otherwise kept;
 changing the dice shows or hides the pads past 6. Tracks and tree stand
 side by side from a 566 dp work width for six-faced dice and from 776 dp
-for twenty-faced ones (for d6 from 960 × 580 up, in Testnet and in Demo, where the "Demo only" card narrows to its 118 dp column (small buttons, 12 dp card padding), 8 dp from the window's edge, on 1280 × 800 and smaller so they do, the work width running up to `SPACER` before it, `docs/CODEX32.md` §5.5). The dice sheet stands only with the
+for twenty-faced ones (for d6 from 960 × 580 up, in Testnet and in Practice, where the "Demo only" card narrows to its 118 dp column (small buttons, 12 dp card padding), 8 dp from the window's edge, on 1280 × 800 and smaller so they do, the work width running up to `SPACER` before it, `docs/CODEX32.md` §5.5). The dice sheet stands only with the
 Checksum tab of the share being rolled, never with a derived share's
 tab or the Secret's (owner, 2026-10-24). Its head row, "Dice
 de-biasing" with Material's expand chevron, is one 48 dp press that
@@ -444,7 +444,7 @@ place, the tree over the tracks, with the Demo only card under it; the
 column scrolls within itself where text drawn larger passes it. Its
 height is measured, `CODEX32_DICE_COLUMN_H` (720 dp) and the card's
 `CODEX32_COLUMN_CARD_H` (480 dp): in Testnet the column stands from
-1920 × 1080, in Demo from 2560 × 1440. Below that both sheets stand in
+1920 × 1080, in Practice from 2560 × 1440. Below that both sheets stand in
 the page, the sheet of the work in hand first so the page scrolls the
 least to it: the dice sheet while a character is rolled, the worksheet
 while the step-through works the checksum. The
@@ -527,7 +527,7 @@ The pad's key of the roll
 the Working area shows stands pressed: Material's pressed state layer in
 the accent and an accent outline, a stronger layer over it as the roll is
 shown easing away over `PRESS_EMPHASIS_MS` (none under Reduce motion),
-whether the person pressed it or the Demo walk's Next or Play rolled it,
+whether the person pressed it or the Practice walk's Next or Play rolled it,
 so the walk reads as a person pressing. It stands:
 
 - **Beside**, where the work width holds `CODEX32_ENTRY_W` (424 dp),
@@ -600,7 +600,7 @@ no test drags the view away first (§19). Two things are new:
 
 ### 16.5 The step-through's buttons stay put
 
-Previous, Next and Play stand in Faraday Desktop's host strip (F118,
+Previous, Next and Play stand in Faraday Demo's host strip (F118,
 `docs/DESKTOP-HOST.md` §3.1), each at one place whatever the step says,
 Play and Pause sharing the wider's width. The step's count and its
 working ("Step 14 of 19 · character 3", then the working) are the

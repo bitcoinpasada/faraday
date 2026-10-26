@@ -56,7 +56,7 @@ Every computer has a random number generator, built from a hardware source plus 
 
 The row names what the device reads. The stick and the Pi read /dev/random, the Linux kernel's generator, which mixes the board's hardware generator with its other sources. On the Pi the board's hardware generator feeds the kernel; the device does not read it directly, so a faulty chip is one source among several. If the read fails, the device makes no key and says so on Home.
 
-Faraday Desktop and the Starter read the operating system's generator: getrandom(2) on Linux, ProcessPrng on Windows and getentropy(2) on a Mac. Each waits until the generator is ready.
+Faraday Demo and the Starter read the operating system's generator: getrandom(2) on Linux, ProcessPrng on Windows and getentropy(2) on a Mac. Each waits until the generator is ready.
 
 The same generator also seeds everything else the device draws at random, whichever source made the key: a vault's keys and seal nonces, GPG and Secure Boot keys, MuSig2 nonces, a new keyboard's code and the blinding of the device's own calculations. In the website demo, the key made is replaced by one of its public demo keys, whichever source made it.
 

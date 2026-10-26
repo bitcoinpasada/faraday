@@ -17,7 +17,7 @@ fn psbt_files(app: &Faraday) -> usize {
         .count()
 }
 
-/// Demo with Savings loaded from the Load samples sheet.
+/// Practice with Savings loaded from the Load samples sheet.
 pub(crate) fn with_savings() -> Faraday {
     let mut app = demo_app();
     app.press(Action::Nav(Screen::Home));

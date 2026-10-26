@@ -21,7 +21,7 @@ use faraday_shell_api::{App, BootState, DisplayInfo, EntropyBytes, Event, Key, S
 use faraday_vault::records::kind;
 
 /// The demo's Learn page.
-const DEMO_PAGE: &str = "The demo and its public seeds";
+const DEMO_PAGE: &str = "Practice and its public seeds";
 
 /// The passphrase of the empty vault in Files.
 const VAULT_PHRASE: &str = "faraday";
@@ -843,7 +843,7 @@ fn in_the_demo_a_vault_from_the_dice_shows_the_rolled_words_then_opens_with_fara
     assert!(
         crate::common::strip(&mut app)
             .iter()
-            .any(|t| t == "Demo puts faraday in place of these words")
+            .any(|t| t == "Practice puts faraday in place of these words")
     );
     // Both fields hold faraday, and the dice's strength is not measured.
     let c = app.vaults().create.as_ref().expect("the form");

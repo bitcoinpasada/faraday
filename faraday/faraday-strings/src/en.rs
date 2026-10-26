@@ -203,7 +203,7 @@ strings! {
     /// Home row.
     starter_row_transfer: "Transfer",
     /// Home row.
-    starter_row_desktop: "Open Faraday Desktop",
+    starter_row_desktop: "Open Faraday Demo",
     /// Home row and page.
     starter_row_install: "Install",
     /// Home row and page.
@@ -231,8 +231,8 @@ strings! {
     starter_card_pi_none: "Not in this Starter",
     /// A card's line naming a version: `{}` the version.
     starter_card_version: "Version {}",
-    /// Home's card for Faraday Desktop.
-    starter_card_desktop: "Faraday Desktop",
+    /// Home's card for Faraday Demo.
+    starter_card_desktop: "Faraday Demo",
     /// Home's update card's line: `{}` the installed version, then the running one.
     starter_card_update_line: "Installed {} · this copy {}",
     /// Home's card for the firmware's Faraday stick entry.
@@ -538,11 +538,11 @@ strings! {
     /// Installed row.
     starter_installed_app: "Faraday Starter",
     /// Installed row.
-    starter_installed_desktop: "Faraday Desktop",
+    starter_installed_desktop: "Faraday Demo",
     /// Installed row.
     starter_installed_menu: "Menu entry",
     /// Installed row.
-    starter_installed_desktop_menu: "Faraday Desktop's menu entry",
+    starter_installed_desktop_menu: "Faraday Demo's menu entry",
     /// Installed row.
     starter_installed_icon: "Icon",
     /// Installed row.
@@ -628,9 +628,9 @@ strings! {
     /// Reason.
     starter_why_no_home: "The home folder is not known",
     /// Reason.
-    starter_why_no_desktop: "Faraday Starter carries no Faraday Desktop for this computer",
+    starter_why_no_desktop: "Faraday Starter carries no Faraday Demo for this computer",
     /// Reason. `{}` sum.
-    starter_why_cache_sum: "Faraday Desktop does not match the manifest: its SHA-256 is {}",
+    starter_why_cache_sum: "Faraday Demo does not match the manifest: its SHA-256 is {}",
     /// Reason. `{}` path, `{}` the system's words.
     starter_why_file: "{}: {}",
     /// Reason. `{}` path of a file that is another program's.
@@ -667,9 +667,9 @@ strings! {
     /// The app menu entry's name, in the desktop entry file install writes.
     starter_menu_name: "Faraday Starter",
     /// The desktop app's menu entry's name.
-    starter_menu_desktop_name: "Faraday Desktop",
+    starter_menu_desktop_name: "Faraday Demo",
     /// The desktop app's menu entry's description.
-    starter_menu_desktop_comment: "Demo, no Mainnet",
+    starter_menu_desktop_comment: "Practice, no Mainnet",
     /// The publisher in the Starter's installed-apps entry and the `.exe`'s properties.
     starter_publisher: "Faraday",
     /// Fault. `{}` the system's words.
@@ -3280,9 +3280,11 @@ strings! {
     /// working name before the F16 rename), still recognised.
     name_faraday_starter_app_old2: "Faraday Hub",
     /// Text in `name`.
-    name_faraday_desktop: "Faraday Desktop",
+    name_faraday_desktop: "Faraday Demo",
     /// The desktop app's name in `--version` before F16, still recognised.
     name_faraday_desktop_old: "Faraday desktop app",
+    /// The desktop app's name in `--version` before it became Faraday Demo, still recognised.
+    name_faraday_desktop_old2: "Faraday Desktop",
     // ----- version_label (faraday-core/src/lib.rs) -----
     /// Text in `version_label`. `{}`: `VERSION`.
     version_label_local: "{} (local build)",
@@ -6107,24 +6109,24 @@ strings! {
     settings_preview_monitor: "Full monitor",
     /// Preview size's value under the choices. `{}`: width, height in dp.
     settings_preview_dp: "{} × {} dp",
-    /// Faraday Desktop's host strip (docs/DESKTOP-HOST.md): the preview
+    /// Faraday Demo's host strip (docs/DESKTOP-HOST.md): the preview
     /// size's button. `{}`: the size shown.
     host_size: "Size · {}",
-    /// Faraday Desktop's host strip: the preview size's button where the
+    /// Faraday Demo's host strip: the preview size's button where the
     /// strip is narrow.
     host_size_short: "Size",
-    /// Faraday Desktop's host strip: the sticks' menu where the strip is
+    /// Faraday Demo's host strip: the sticks' menu where the strip is
     /// narrowest.
     host_sticks_short: "Sticks",
-    /// Faraday Desktop's host strip: the computer's die's Rolls per click,
+    /// Faraday Demo's host strip: the computer's die's Rolls per click,
     /// opening its choices. `{}`: the one chosen, or the number typed.
     host_rolls_per_click: "Rolls per click · {}",
-    /// Faraday Desktop's host strip: the head of the screen's demo aids.
-    host_demo: "Demo",
-    /// Faraday Desktop's host strip: the demo aids that do not fit, in a
+    /// Faraday Demo's host strip: the head of the screen's practice aids.
+    host_demo: "Practice",
+    /// Faraday Demo's host strip: the practice aids that do not fit, in a
     /// menu.
     host_more: "More",
-    /// Faraday Desktop's host strip: Play's options, how far it runs and
+    /// Faraday Demo's host strip: Play's options, how far it runs and
     /// how fast, in a menu.
     host_play_options: "Play options",
     /// Line in `settings`.
@@ -7311,9 +7313,9 @@ strings! {
     vault_matches: "Matches",
     /// Text in `create_body`.
     vault_does_not_match: "Does not match yet",
-    /// Line in `create_body`, in the demo, once the dice made a
+    /// Line in `create_body`, in Practice, once the dice made a
     /// passphrase (`docs/DEMO.md` §5.2).
-    vault_demo_uses_public: "Demo puts faraday in place of these words",
+    vault_demo_uses_public: "Practice puts faraday in place of these words",
     /// Text in `create_body`.
     vault_type_it_then: "Type it, then type it again",
     /// Text in `create_body`. `{}`: `own`, `cost`, `own + cost`.
@@ -7949,9 +7951,9 @@ strings! {
     visit_taken_cancel: "Cancel",
     // ----- modes (faraday-core/src/modes/mod.rs) -----
     /// Text in `Mode::name`.
-    mode_demo: "Demo",
-    /// The pill in Demo: the mode and its network.
-    mode_demo_pill: "Demo · Testnet",
+    mode_demo: "Practice",
+    /// The pill in Practice: the mode and its network.
+    mode_demo_pill: "Practice · Testnet",
     /// Title of the mode sheet.
     mode_sheet_title: "Mode",
     /// Button in the mode sheet.
@@ -8000,7 +8002,7 @@ strings! {
     /// Button in Load samples.
     samples_load: "Load ticked",
     /// Line in Load samples, followed by the passphrase in a code box.
-    samples_password: "In Demo, the sample passphrase is",
+    samples_password: "In Practice, the sample passphrase is",
     /// Toast after Load ticked. `{}`: what loaded, made of `samples_n_*`.
     samples_loaded: "Loaded {}",
     /// Text in `loaded_text`. `{}`: how many.
@@ -8132,7 +8134,7 @@ strings! {
     /// Text in `text`. `{}`: `network_name(*offered)`, `network_name(*loaded)`.
     wallet_is_not_the_network: "{} is not {}, the network of the loaded wallets",
     /// Text in `text`. `{}`: `fp`.
-    wallet_is_not_a_key: "{} is not a sample: Demo takes only samples",
+    wallet_is_not_a_key: "{} is not a sample: Practice takes only samples",
     /// Text in `text`. `{}`: `network_name(*n)`.
     wallet_runs_on_only: "This app runs on {} only",
     /// Text in `source_tag`. `{}`: `source`.
@@ -8348,7 +8350,7 @@ strings! {
     stick_pill_out: "out",
     /// A pill's label and its state: `{}` the label, then the state.
     stick_pill_state: "{} · {}",
-    /// Faraday Desktop's top bar: the pill the sticks that do not fit
+    /// Faraday Demo's top bar: the pill the sticks that do not fit
     /// fold into, which opens the Sticks menu. `{}` how many it holds.
     stick_pill_more: "Sticks · {}",
     /// The Starter's window title.
@@ -8959,7 +8961,7 @@ strings! {
     // ----- New key's sources, checks and dice lists, the self-test, BIP-85's applications, Tools' calculators, Explore's path -----
     /// Row that declines a passphrase.
     passphrase_none: "No passphrase",
-    /// Button in the "Demo only" card that puts the demo's passphrase in
+    /// Button in the "Demo only" card that puts Practice's passphrase in
     /// the empty passphrase fields of the page (DEMO §5.4).
     demo_use_faraday: "Use faraday",
     /// Button that discards the entries.
@@ -9190,7 +9192,7 @@ strings! {
     codex32_correct_repairs_unchecked: "Share repairs unchecked",
     /// Beside a string repaired or filled from the checksum.
     codex32_correct_repaired_not_checked: "Repaired, not checked",
-    // ----- The dice roller on Faraday Desktop (docs/CODEX32.md §5.6), faraday-core -----
+    // ----- The dice roller on Faraday Demo (docs/CODEX32.md §5.6), faraday-core -----
     /// Label over the roller's die: what its values are.
     roller_by_this_computer: "Rolled by this computer",
     /// Button: roll the die as many times as one click rolls.
@@ -9924,7 +9926,7 @@ strings! {
     c32_paper_string_of: "String {} of {}",
     /// Every copies by hand's codex32 string typed back or skipped.
     c32_paper_all_done: "Every string written down",
-    // ----- Codex32: Make the rest, Add a share, Check a string's worksheet, Demo (docs/CODEX32.md §8.1 to §8.4, §12), faraday-core -----
+    // ----- Codex32: Make the rest, Add a share, Check a string's worksheet, Practice (docs/CODEX32.md §8.1 to §8.4, §12), faraday-core -----
     /// The codex32 form's button: the set's other strings from the k in.
     c32r_make_the_rest: "Make the rest",
     /// The codex32 form's button: one more string of the set.
@@ -9954,15 +9956,15 @@ strings! {
     c32r_k_needed: "{} needed",
     /// Strings made's entropy for a set typed in.
     c32r_your_shares: "your shares",
-    /// Demo: the line on every card after the entry. `{}`: the sample's
+    /// Practice: the line on every card after the entry. `{}`: the sample's
     /// identifier.
-    c32r_demo_sample: "Demo puts sample {} in place of these strings",
-    /// Demo: Strings made's entropy. `{}`: the sample's identifier.
+    c32r_demo_sample: "Practice puts sample {} in place of these strings",
+    /// Practice: Strings made's entropy. `{}`: the sample's identifier.
     c32r_entropy_sample: "sample {}",
-    /// Demo: a checksum worksheet's marking for the sample.
+    /// Practice: a checksum worksheet's marking for the sample.
     c32r_the_sample: "the sample",
-    /// Demo with no sample to put in place of the strings entered.
-    c32r_demo_no_sample: "Demo has no sample set to show in place of these strings",
+    /// Practice with no sample to put in place of the strings entered.
+    c32r_demo_no_sample: "Practice has no sample set to show in place of these strings",
     /// Check a string: the final row's first cell that is not SECRETSHARE32's. `{}`: the box.
     c32r_final_differs: "Final row differs at box {}",
     /// Check a string: every row of its worksheet.

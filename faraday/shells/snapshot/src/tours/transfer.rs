@@ -5,7 +5,7 @@ use faraday_core::testkit;
 use faraday_core::{Action, Screen};
 use faraday_shell_api::{App, Event};
 
-/// The desktop as the device's QR link, in Demo.
+/// The desktop as the device's QR link, in Practice.
 pub(crate) fn transfer_tour(t: &mut Tour) -> Result<(), String> {
     let downloads = t.out.join("downloads");
     std::fs::create_dir_all(&downloads).map_err(|e| e.to_string())?;
@@ -27,7 +27,7 @@ pub(crate) fn transfer_tour(t: &mut Tour) -> Result<(), String> {
     put("spending-wallet.txt", spending.descriptor.as_bytes())?;
     let psbt = std::fs::read(t.kit.join("savings-unsigned.psbt")).map_err(|e| e.to_string())?;
     put("savings-unsigned.psbt", &psbt)?;
-    // The online app starts in Demo, on testnet.
+    // The online app starts in Practice, on testnet.
     t.app.online = true;
     t.app.session = faraday_core::wallet::Session::on(testkit::net());
     t.app

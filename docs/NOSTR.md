@@ -31,7 +31,7 @@ Moved to `docs/history/NOSTR-LOG.md`. The design rules it repeated are
   Both start at 1, filled in.
 - It is a seventh application on Faraday's BIP-85 screen, and a Tools
   tile, **Nostr key**, opens that screen with Nostr chosen. Neither
-  exists on Faraday Desktop or in the demo (§7).
+  exists on Faraday Demo or in Practice (§7).
 - The screen shows the npub (public, with Show as QR and PNG), the
   nsec (secret, shown as WIF and xprv are) and the path. The plain nsec
   is never a QR or a picture anywhere: not on this screen, not in the
@@ -166,8 +166,8 @@ about the seed, the fingerprint, the identity or the account.
 `faraday/faraday-keys/src/bip85.rs` (§2.3's note).
 
 Nothing in this section exists while `Faraday::online` is set (Faraday
-Desktop, on every network) or the session is the demo
-(`Session::demo`, which the demo website runs): §7.
+Demo, on every network) or the session is Practice
+(`Session::demo`, which the website's demo runs): §7.
 
 - **The BIP-85 screen** (`Screen::Bip85`): Nostr is the seventh row of
   the Application card, after the six `core/` lists.
@@ -503,11 +503,11 @@ as §5.2 says. Faraday itself never writes such a file.
 An ncryptsec's QR is for the person's Nostr app, which scans it
 itself.
 
-## 7. Faraday Desktop and the demo
+## 7. Faraday Demo and Practice
 
-No Nostr key on Faraday Desktop, on any network, and none in the demo.
-While `Faraday::online` is set (Faraday Desktop) or `Session::demo` is
-on (Faraday Desktop's mainnet and the demo website):
+No Nostr key on Faraday Demo, on any network, and none in Practice.
+While `Faraday::online` is set (Faraday Demo) or `Session::demo` is
+on (Faraday Demo's mainnet and the website's demo):
 
 - the **Nostr key** tile is not in Tools, and Find a tool does not
   find it;
@@ -516,12 +516,12 @@ on (Faraday Desktop's mainnet and the demo website):
   adds no Show as QR, PNG, Export encrypted or Path row. §5.3 still
   holds: it is not exported for KeePass.
 
-Faraday Desktop runs on an online computer, and BIP-85 128002' does not
+Faraday Demo runs on an online computer, and BIP-85 128002' does not
 depend on the network: a test network would show the person's real
-Nostr key there. The demo's public seeds would give Nostr keys anyone
+Nostr key there. Practice's public seeds would give Nostr keys anyone
 can derive.
 
-§6.5 and §6.6 apply on Faraday Desktop too, since they only classify
+§6.5 and §6.6 apply on Faraday Demo too, since they only classify
 files.
 
 ## 8. Strings
@@ -593,7 +593,7 @@ BIP-85 screen with Nostr chosen. Outline, a heading each:
 - **Encrypted export**: what an ncryptsec is, that the password is
   needed to use it, that Nostr apps that import NIP-49 read it, and
   that it is the only way Faraday lets the nsec out.
-- **Only on the device**: Faraday Desktop and the demo have no Nostr
+- **Only on the device**: Faraday Demo and Practice have no Nostr
   key, and why (§7).
 - **Why not NIP-06**: §1's reason, in a paragraph.
 
@@ -669,7 +669,7 @@ In faraday/faraday-core/tests/nostr.rs, unless named otherwise:
   whose username is not the nsec's npub offers neither; with the key
   loaded, an entry whose notes' path was edited shows "Path does not
   give this key";
-- with `online` set, on mainnet and on testnet, and in the demo: no
+- with `online` set, on mainnet and on testnet, and in Practice: no
   Nostr key tile, six applications, and a Nostr entry's page with no
   Nostr actions;
 
@@ -682,7 +682,7 @@ before any other work.
   `faraday-intake`; §3's application and tile; §4's cards, Find a pair
   and the Value card; §5's vault entry, §5.1's page actions and Path
   row, §5.2 and §5.3; §6's encrypted export, its prompt and the file's
-  exposure; §6.6's file kind; §7's rules for Faraday Desktop and the
+  exposure; §6.6's file kind; §7's rules for Faraday Demo and the
   demo; §8's strings; §9's Learn page; §10's vectors and tests; the
   Nostr rows of `docs/QR.md` (§7's table) brought to these file names.
   Renders: the tile, the Identity and account card, Find a pair, the
@@ -710,7 +710,7 @@ After the review of v0.1, the same day:
 12. The nsec is left out of KeePass export: an Entry holding one is not
     exportable for KeePass (§5.3). The encrypted export is the only way
     the nsec leaves; so there is no Out unprotected for it either (§4.4).
-13. No Nostr key on Faraday Desktop, on any network, nor in the demo
+13. No Nostr key on Faraday Demo, on any network, nor in Practice
     (§7).
 14. No fingerprint, identity or account in any file name or label that
     can leave the device; files are named by the npub's first

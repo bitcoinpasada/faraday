@@ -1,8 +1,8 @@
 //! Make the rest, Add a share, Check a string's worksheet, the mark's
-//! line, a set's facts for a key loaded from strings, and Demo's sample
+//! line, a set's facts for a key loaded from strings, and Practice's sample
 //! in place of the strings made (`docs/CODEX32.md` §8.1 to §8.4, §9.4,
 //! §12): what a person typing codex32 strings into Add a key, or making
-//! a set in Demo, would notice. On BIP 93's published vectors 2 and 3.
+//! a set in Practice, would notice. On BIP 93's published vectors 2 and 3.
 
 use faraday_bip::codex32::Codex32;
 use faraday_bip::keys::Network;
@@ -408,7 +408,7 @@ fn entry(app: &mut Faraday, way: Way) {
     );
 }
 
-/// §12: in Demo the person rolls and watches the sheets; once the entry
+/// §12: in Practice the person rolls and watches the sheets; once the entry
 /// is done the sample stands in place of the strings made, every later
 /// card says so, no dice of theirs is read back, and Lock in loads the
 /// sample's key. Use a sample fills the characters left.
@@ -445,20 +445,20 @@ fn in_the_demo_the_sample_stands_in_place_of_the_strings_made() {
     assert!(
         crate::common::strip(&mut app)
             .iter()
-            .any(|t| t == "Demo puts sample NAME in place of these strings")
+            .any(|t| t == "Practice puts sample NAME in place of these strings")
     );
     past_strings(&mut app);
     assert!(
         crate::common::strip(&mut app)
             .iter()
-            .any(|t| t == "Demo puts sample NAME in place of these strings")
+            .any(|t| t == "Practice puts sample NAME in place of these strings")
     );
     c32(&mut app, C32::Lock);
     assert_eq!(app.session.keys.len(), 1);
     assert_eq!(app.session.keys[0].fingerprint.0, NAME_FP);
 }
 
-/// §12: in Demo, Make the rest takes the published strings and refuses a
+/// §12: in Practice, Make the rest takes the published strings and refuses a
 /// set that is not public, as any key is refused.
 #[test]
 fn in_the_demo_make_the_rest_takes_only_a_published_set() {
