@@ -2,7 +2,7 @@
 
 **Kind:** Reference
 **Status:** Built (steps 0 to 4); the "as built" sections of §4 are the boundary as it stands
-**Decisions:** F70
+**Decisions:** F70, F125
 
 F70 decided that one crate, `faraday-keys`, owns every secret in memory,
 and that faraday-core holds handles. This document says what the
@@ -39,15 +39,21 @@ Moved to `docs/history/KEYS-LOG.md`.
   signed files and codes.
 - **Leaving.** Key material leaves only through `reveal(id, Reveal::…)`.
   It returns a guard that borrows the store and wipes its copy on drop.
-  The list of reasons is closed, eleven `Reveal` variants
-  (`faraday/faraday-keys/src/session.rs`; owner, 2026-10-21, Q2 of §9):
+  The list of reasons is closed, fourteen `Reveal` variants
+  (`faraday/faraday-keys/src/session.rs`; owner, 2026-10-21, Q2 of §9;
+  the last three owner, 2026-10-26, F125):
   the words shown; the typed passphrase shown; SeedQR; a copy-by-hand
   check; paper forms (Seed XOR, codex32, SLIP-39 shares, and the work
   set's worksheets and strings); a BIP-85 child
   shown; a Lightning node key shown; GPG paperkey; a vault entry's secret
   (a password or TOTP code); an unprotected file to the Outbox; the
-  backup flow writing words or a SeedQR picture to a stick. A new reason
-  is a new variant, seen in review.
+  backup flow writing words or a SeedQR picture to a stick; and on
+  Explore, each behind its eye, a key's master seed (`SeedShown`), an
+  extended private key (`ExtendedPrivateKey`) and an address's private
+  key (`AddressKey`). A new reason is a new variant, seen in review.
+  A reason gives only its own text: `Reveal::part` names the stored
+  text a reason lends, and Explore's three lend none, so `reveal` and
+  a vault record's reveal give them nothing.
 - **Transient input** stays where it arrives, under lint-secrets' rules,
   until it is handed in:
   - typed words at Done;
@@ -112,8 +118,8 @@ impl Keys {
   checksums, the derived shares, the secret and the seed there and keeps
   them in step with the characters at every push and pop. It leaves only
   as a paper form: `worksheet`, `translation` and `strings` lend their
-  results for `Reveal::PaperForm` and for no other reason (no twelfth
-  variant), and as a key through `Keys::add_codex32`, which hands the
+  results for `Reveal::PaperForm` and for no other reason (no variant
+  of its own), and as a key through `Keys::add_codex32`, which hands the
   seed to `add_seed`. It wipes on drop.
 - A key loaded by `add_seed` keeps its seed bytes (`holds_seed_bytes`
   tells whether), wiped when the key is dropped.
@@ -126,6 +132,36 @@ impl Keys {
 - A BIP-85 child, a vanity find or a FROST share is a new secret. It comes
   back as a `Child` held inside the crate, which leaves only by `add_*` or
   `reveal`.
+- **Explore's eyes** (F125; `faraday/faraday-core/src/explore/shown.rs`).
+  Explore shows a loaded key's secrets, on every build and network, each
+  behind its own eye: one press shows, the next hides, and every eye is
+  closed when Explore opens. The eyes and what each gives, to Explore
+  alone:
+  - the key's own secret: for a key of words, its words and passphrase,
+    lent each frame by `reveal(i, Reveal::Words)` and
+    `reveal(i, Reveal::Passphrase)` (a borrow, nothing kept or made);
+    for a key with no words, `Keys::seed_shown(i, Reveal::SeedShown)`:
+    the master seed in hex, and where its codex32 set is known, the
+    set's secret recovered from the strings this session holds (BIP 93,
+    as written, padding included) and those strings. A codex32 recovery
+    and a checksum per string;
+  - the extended private keys: `Keys::xprv_at(c, i, path,
+    Reveal::ExtendedPrivateKey)`, the root's (the empty path) and the
+    one at the explored path's account (the path itself where it is in
+    none). Costs a key derivation each, so it takes the token;
+  - an address's private key: `Keys::wif_at(c, i, path,
+    Reveal::AddressKey)`, compressed WIF on the store's network, for the
+    address at the path and for each address on the Addresses page, each
+    its own eye. Costs a key derivation.
+
+  Each comes back as `Held` (an `XprivAscii`, a `WifAscii`, or
+  `Zeroizing` strings, every one wiped on drop) and is made once, at the
+  eye's press, and kept on Explore's state (`Shown`) with the key and
+  network it is of. Drawing reads it and derives nothing, never per
+  frame. What is no longer on screen is dropped after every press and
+  key on Explore (another key, another path or account, another page);
+  closing its eye, leaving Explore, the idle warning and a lock drop all
+  of it.
 - **Drawing.** `View` gets `&Keys` read-only and reaches secret text only
   through `View::reveal`. That is one named accessor, and it joins
   COMPUTE's `Allowed` list beside `SecretShown`.
@@ -144,7 +180,7 @@ The plan of steps 0 to 4: moved to `docs/history/KEYS-LOG.md`. What each step bu
 - faraday-core's `Session` holds `wallets` and `keys: Keys`, since the
   wallets and the keys share one network. Callers address a key by its
   place in the store, as before.
-- `Reveal` has eleven variants; `OutboxFile`, `BackupStick` and
+- `Reveal` had eleven variants (fourteen since F125, §2); `OutboxFile`, `BackupStick` and
   `VaultEntry` carry `Part` (the words or the passphrase). A SeedQR
   picture, a paper form, a Lightning key, a BIP-85 child, a vanity find and
   a vault key record are operations of `Keys`, since they cost and take a
@@ -402,4 +438,4 @@ three statements are `docs/AUDIT.md` §2.
 
 ## 9. Questions for the owner
 
-Answered 2026-10-21 (F70); the answers in force are in §2 (Q1, the vault's scope; Q2, the eleven reveals) and §6 (Q4, tests exempt), and the questions: moved to `docs/history/KEYS-LOG.md`.
+Answered 2026-10-21 (F70); the answers in force are in §2 (Q1, the vault's scope; Q2, the eleven reveals, fourteen since F125) and §6 (Q4, tests exempt), and the questions: moved to `docs/history/KEYS-LOG.md`.

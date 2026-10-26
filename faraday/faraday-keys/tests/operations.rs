@@ -420,3 +420,215 @@ fn the_vault_record_of_a_key_holds_its_words_and_passphrase_when_asked() {
         Some([0x73, 0xc5, 0xda, 0x0a])
     );
 }
+
+/// What Explore's eyes show of a key, against published vectors: the root
+/// extended private key of BIP-32's test vector 1 and of BIP 93's codex32
+/// vectors, the account extended private key BIP-84 publishes for the
+/// "abandon" words, the private key of the first address there (it pays
+/// to the address BIP-84 publishes), a codex32 key's seed, secret and
+/// shares as BIP 93 writes them; and that each reason gives only its own
+/// secret.
+mod explore {
+    use std::str::FromStr;
+
+    use super::{ABANDON, compute, unhex};
+    use faraday_bip::bitcoin::bip32::DerivationPath;
+    use faraday_bip::bitcoin::secp256k1::Secp256k1;
+    use faraday_bip::bitcoin::{
+        Address, CompressedPublicKey, Network as Chain, PrivateKey, base58,
+    };
+    use faraday_bip::keys::Network;
+    use faraday_crypto::work::Compute;
+    use faraday_keys::{Keys, Part, Reveal};
+    use serde_json::Value;
+
+    const BIP93: &str = include_str!("../../../tools/vectors/bip93/vectors.json");
+    fn path(p: &str) -> DerivationPath {
+        DerivationPath::from_str(p).unwrap()
+    }
+
+    /// Every reason but the three Explore's eyes name.
+    const OTHERS: [Reveal; 13] = [
+        Reveal::Words,
+        Reveal::Passphrase,
+        Reveal::SeedQr,
+        Reveal::CopyByHand,
+        Reveal::PaperForm,
+        Reveal::Bip85Child,
+        Reveal::LightningKey,
+        Reveal::GpgPaperkey,
+        Reveal::VaultEntry(Part::Words),
+        Reveal::OutboxFile(Part::Words),
+        Reveal::BackupStick(Part::Words),
+        Reveal::VaultEntry(Part::Passphrase),
+        Reveal::BackupStick(Part::Codex32),
+    ];
+
+    fn abandon(c: &Compute) -> Keys {
+        let mut keys = Keys::on(Network::Mainnet);
+        keys.add_words_with(c, ABANDON, "", "abandon", None)
+            .expect("the abandon words");
+        keys
+    }
+
+    #[test]
+    fn the_root_extended_private_key_is_bip32s_vector_1() {
+        let c = compute();
+        let mut keys = Keys::on(Network::Mainnet);
+        keys.add_seed(&c, &unhex("000102030405060708090a0b0c0d0e0f"), "")
+            .unwrap();
+        let root = keys
+            .xprv_at(&c, 0, &DerivationPath::master(), Reveal::ExtendedPrivateKey)
+            .unwrap();
+        assert_eq!(
+            root.as_str(),
+            "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi"
+        );
+        let at = keys
+            .xprv_at(&c, 0, &path("m/0h/1"), Reveal::ExtendedPrivateKey)
+            .unwrap();
+        assert_eq!(
+            at.as_str(),
+            "xprv9wTYmMFdV23N2TdNG573QoEsfRrWKQgWeibmLntzniatZvR9BmLnvSxqu53Kw1UmYPxLgboyZQaXwTCg8MSY3H2EU4pWcQDnRnrVA1xe8fs"
+        );
+    }
+
+    #[test]
+    fn the_account_extended_private_key_is_bip84s() {
+        let c = compute();
+        let keys = abandon(&c);
+        let shown = keys
+            .xprv_at(&c, 0, &path("m/84h/0h/0h"), Reveal::ExtendedPrivateKey)
+            .unwrap();
+        // BIP-84 publishes it as a zprv; Faraday writes the xprv form, the
+        // same 78 bytes under BIP-32's version.
+        let zprv = "zprvAdG4iTXWBoARxkkzNpNh8r6Qag3irQB8PzEMkAFeTRXxHpbF9z4QgEvBRmfvqWvGp42t42nvgGpNgYSJA9iefm1yYNZKEm7z6qUWCroSQnE";
+        let published = base58::decode_check(zprv).unwrap();
+        let ours = base58::decode_check(shown.as_str()).unwrap();
+        assert_eq!(ours[..4], [0x04, 0x88, 0xad, 0xe4]);
+        assert_eq!(ours[4..], published[4..]);
+    }
+
+    #[test]
+    fn the_first_addresss_private_key_pays_to_bip84s_first_address() {
+        let c = compute();
+        let keys = abandon(&c);
+        let wif = keys
+            .wif_at(&c, 0, &path("m/84h/0h/0h/0/0"), Reveal::AddressKey)
+            .unwrap();
+        let key = PrivateKey::from_wif(wif.as_str()).unwrap();
+        assert!(key.compressed);
+        assert_eq!(key.network, Chain::Bitcoin.into());
+        let public = CompressedPublicKey::from_private_key(&Secp256k1::new(), &key).unwrap();
+        assert_eq!(
+            Address::p2wpkh(&public, Chain::Bitcoin).to_string(),
+            "bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu"
+        );
+        // BIP-84's published private key of that address.
+        assert_eq!(
+            wif.as_str(),
+            "KyZpNDKnfs94vbrwhJneDi77V6jF64PWPF8x5cdJb8ifgg2DUc9d"
+        );
+    }
+
+    #[test]
+    fn a_codex32_keys_seed_is_shown_as_bip93_writes_it() {
+        let c = compute();
+        let v: Value = serde_json::from_str(BIP93).unwrap();
+        let set = v["sets"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|s| s["vector"] == "2")
+            .unwrap();
+        let mut keys = Keys::on(Network::Mainnet);
+        keys.add_seed(&c, &unhex(set["seed"].as_str().unwrap()), "")
+            .unwrap();
+        // No set known: the seed itself, in hex.
+        let hex = keys.seed_shown(0, Reveal::SeedShown).unwrap();
+        assert_eq!(hex.len(), 1);
+        assert_eq!(hex[0].as_str(), set["seed"].as_str().unwrap());
+        // The set known and its two shares typed back: the seed, the secret
+        // they recover as BIP 93 writes it, then the shares by index.
+        assert!(keys.set_codex32(
+            0,
+            Some(faraday_vault::codex32::SetFacts {
+                threshold: 2,
+                identifier: *b"name",
+                length: 48,
+                unknown: 0,
+                strings: Vec::new(),
+            })
+        ));
+        let shares: Vec<String> = set["shares"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|s| s.as_str().unwrap().to_lowercase())
+            .collect();
+        let refs: Vec<&str> = shares.iter().map(String::as_str).rev().collect();
+        assert_eq!(keys.keep_codex32(0, &refs), 2);
+        let shown = keys.seed_shown(0, Reveal::SeedShown).unwrap();
+        let shown: Vec<&str> = shown.iter().map(|s| s.as_str()).collect();
+        let secret = set["secret"].as_str().unwrap().to_lowercase();
+        assert_eq!(
+            shown,
+            [
+                set["seed"].as_str().unwrap(),
+                secret.as_str(),
+                &shares[0],
+                &shares[1]
+            ]
+        );
+        // One share alone recovers nothing: the seed and that share.
+        let facts = faraday_vault::codex32::SetFacts {
+            threshold: 2,
+            identifier: *b"name",
+            length: 48,
+            unknown: 0,
+            strings: Vec::new(),
+        };
+        assert!(keys.set_codex32(0, None));
+        assert!(keys.set_codex32(0, Some(facts)));
+        assert_eq!(keys.keep_codex32(0, &[shares[1].as_str()]), 1);
+        let shown = keys.seed_shown(0, Reveal::SeedShown).unwrap();
+        let shown: Vec<&str> = shown.iter().map(|s| s.as_str()).collect();
+        assert_eq!(shown, [set["seed"].as_str().unwrap(), &shares[1]]);
+        // Its root extended private key is the vector's.
+        let root = keys
+            .xprv_at(&c, 0, &DerivationPath::master(), Reveal::ExtendedPrivateKey)
+            .unwrap();
+        assert_eq!(root.as_str(), set["xprv"].as_str().unwrap());
+    }
+
+    #[test]
+    fn each_reason_gives_only_its_own_secret() {
+        let c = compute();
+        let mut keys = abandon(&c);
+        keys.add_seed(&c, &unhex("000102030405060708090a0b0c0d0e0f"), "")
+            .unwrap();
+        let at = path("m/84h/0h/0h/0/0");
+        for why in OTHERS {
+            assert!(keys.xprv_at(&c, 0, &at, why).is_none(), "{why:?}");
+            assert!(keys.wif_at(&c, 0, &at, why).is_none(), "{why:?}");
+            assert!(keys.seed_shown(1, why).is_none(), "{why:?}");
+        }
+        // Explore's reasons lend no stored text: never the words, never the
+        // passphrase, of a key or of a vault record.
+        for why in [
+            Reveal::SeedShown,
+            Reveal::ExtendedPrivateKey,
+            Reveal::AddressKey,
+        ] {
+            assert_eq!(&*keys.reveal(0, why), "", "{why:?}");
+            assert!(keys.xprv_at(&c, 0, &at, Reveal::AddressKey).is_none());
+            assert!(
+                keys.wif_at(&c, 0, &at, Reveal::ExtendedPrivateKey)
+                    .is_none()
+            );
+        }
+        // A key of words has no seed to show: its words are lent instead.
+        assert!(keys.seed_shown(0, Reveal::SeedShown).is_none());
+        assert_eq!(&*keys.reveal(0, Reveal::Words), ABANDON);
+    }
+}

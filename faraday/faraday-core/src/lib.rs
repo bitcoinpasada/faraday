@@ -1892,6 +1892,7 @@ impl Faraday {
             if changed && self.sheet.is_none() {
                 self.sheet = Some(Sheet::IdleWarn);
                 self.idle.set_warn_min(idle / min);
+                self.explore_hide();
             }
             let left = (lock - idle).div_ceil(1000);
             if self.sheet == Some(Sheet::IdleWarn) && self.idle.shown() != Some(left) {
@@ -2511,6 +2512,7 @@ impl Faraday {
         self.keygen.forget();
         self.wordlist.clear();
         self.bip85.clear();
+        self.explore.clear();
         self.secrets.clear();
         self.entry.reset();
         self.save_boxes_for_lock();
@@ -6937,9 +6939,7 @@ impl Faraday {
         if !bip85 {
             self.bip85.clear();
         }
-        if self.screen != Screen::Explore {
-            self.explore.clear();
-        }
+        self.explore_left();
         if self.screen != Screen::Tools {
             self.tools.close();
         }

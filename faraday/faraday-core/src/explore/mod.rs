@@ -1,15 +1,18 @@
-//! Explore: a loaded key's public side at any path. The path is read by
-//! the derivation-path parser and its purpose names the script; the
-//! extended public key, the public key and the address at the path are
-//! derived when drawn. Nothing private is shown or kept. The path's
-//! account's addresses are listed, and searched for one typed, in
-//! [`addresses`] (F76).
+//! Explore: a loaded key at any path. The path is read by the
+//! derivation-path parser and its purpose names the script; the extended
+//! public key, the public key and the address at the path are derived
+//! when drawn. The key's secret, its extended private keys and an
+//! address's private key are each behind an eye, hidden until it is
+//! pressed ([`shown`]). The path's account's addresses are listed, and
+//! searched for one typed, in [`addresses`] (F76).
 
 pub mod addresses;
 mod pages;
 pub(crate) mod screen;
+pub mod shown;
 
 pub use addresses::{Page, XAction};
+pub use shown::{Eye, Shown};
 
 use crate::strings::EN;
 use faraday_bip::bitcoin::bip32::{ChildNumber, DerivationPath};
@@ -57,6 +60,8 @@ pub struct ExploreState {
     pub note: Option<&'static str>,
     /// Use a sample in the address field (`docs/MODES.md` §6).
     pub(crate) sample: crate::samples::put::Use,
+    /// What the eyes show, hidden when Explore opens ([`Shown`]).
+    shown: Shown,
     /// The account's addresses worked out, kept by the account they are
     /// of ([`addresses::Kept`]). Public.
     kept: std::cell::RefCell<addresses::Kept>,
@@ -141,6 +146,7 @@ impl ExploreArea {
             note: None,
             sample: Default::default(),
             kept: Default::default(),
+            shown: Shown::default(),
         });
     }
 
@@ -311,16 +317,39 @@ impl Faraday {
         self.explore.reading(c, &self.session)
     }
 
-    /// One press inside Explore.
+    /// What Explore's eyes show, while it is open.
+    pub fn explore_shown(&self) -> Option<&Shown> {
+        self.explore.shown()
+    }
+
+    /// One press inside Explore. What the eyes hold that the press took
+    /// off screen is dropped after it ([`ExploreArea::prune`]).
     pub(crate) fn explore_act(&mut self, action: crate::Action) {
         use crate::Action as A;
-        if action == A::Explore {
-            return self.explore_open();
+        match action {
+            A::Explore => return self.explore_open(),
+            A::X(XAction::Eye(eye)) => {
+                let c = self.compute();
+                self.explore.eye(&c, &self.session.keys, eye);
+            }
+            A::X(x) => self.explore_x(x),
+            _ => self.explore.act(action, self.explore_coin()),
         }
-        if let A::X(x) = action {
-            return self.explore_x(x);
+        self.explore.prune(&self.session.keys);
+    }
+
+    /// Hides everything Explore's eyes show: the idle warning, so that
+    /// nothing secret stays on screen while no one is there.
+    pub(crate) fn explore_hide(&mut self) {
+        self.explore.hide();
+    }
+
+    /// Forgets Explore's state, what its eyes show with it, once it is
+    /// not on screen: leaving it, however it is left.
+    pub(crate) fn explore_left(&mut self) {
+        if self.screen != Screen::Explore {
+            self.explore.clear();
         }
-        self.explore.act(action, self.explore_coin());
     }
 
     /// Typing into the path. Returns whether the key was taken.
@@ -328,13 +357,16 @@ impl Faraday {
         if self.screen != Screen::Explore {
             return false;
         }
-        match self.explore.state().map(|e| e.page) {
-            Some(Page::Path) => {}
-            Some(_) => return self.explore_page_key(key),
+        let taken = match self.explore.state().map(|e| e.page) {
+            Some(Page::Path) => {
+                let coin = self.explore_coin();
+                self.explore.path_key(key, &mut self.screen, coin)
+            }
+            Some(_) => self.explore_page_key(key),
             None => return false,
-        }
-        let coin = self.explore_coin();
-        self.explore.path_key(key, &mut self.screen, coin)
+        };
+        self.explore.prune(&self.session.keys);
+        taken
     }
 }
 

@@ -13,14 +13,17 @@
 //!   returns a public result (a comparison, a signature, a derived key
 //!   text, a fingerprint, a record);
 //! - a reveal, [`Keys::reveal`], the only way a key's words or passphrase
-//!   leave as text. The reasons are the closed list [`Reveal`].
+//!   leave as text, and Explore's three made for their own reason
+//!   ([`Keys::seed_shown`], [`Keys::xprv_at`], [`Keys::wif_at`]). The
+//!   reasons are the closed list [`Reveal`].
 //!
 //! A key is addressed by its place in the store, `i`, as the callers
 //! already hold it; [`KeyInfo::id`] tells keys apart in all 32 bytes.
 
 use faraday_bip::bip39::{Language, Mnemonic};
+use faraday_bip::bitcoin::bip32::DerivationPath;
 use faraday_bip::bitcoin::secp256k1::PublicKey;
-use faraday_bip::keys::{Fingerprint, MasterKey, Network};
+use faraday_bip::keys::{Fingerprint, MasterKey, Network, WifAscii, XprivAscii};
 use faraday_crypto::work::Compute;
 use faraday_intake::wallet::Refusal;
 use zeroize::Zeroizing;
@@ -115,6 +118,18 @@ pub enum Reveal {
     /// The backup flow writing words, a passphrase or a SeedQR picture to
     /// a stick.
     BackupStick(Part),
+    /// The master seed of a key with no words, shown on Explore behind its
+    /// eye ([`Keys::seed_shown`]): in hex, and where its codex32 set is
+    /// known, the set's secret recovered from the strings this session
+    /// holds, and those strings.
+    SeedShown,
+    /// An extended private key shown on Explore behind its eye
+    /// ([`Keys::xprv_at`]): the root's, or the one at the explored
+    /// path's account.
+    ExtendedPrivateKey,
+    /// The private key of one address, as WIF, shown on Explore behind its
+    /// eye ([`Keys::wif_at`]).
+    AddressKey,
 }
 
 /// Which of a key's two texts a file carries.
@@ -146,16 +161,25 @@ pub enum Part {
 }
 
 impl Reveal {
-    /// Which text this reason gives.
-    pub(crate) fn part(self) -> Part {
-        match self {
+    /// Which of a key's or a record's texts this reason gives; `None` for
+    /// a reason that lends no stored text (Explore's seed, extended
+    /// private keys and address keys, each made by its own method).
+    pub(crate) fn part(self) -> Option<Part> {
+        Some(match self {
             Reveal::Passphrase
             | Reveal::VaultEntry(Part::Passphrase)
             | Reveal::OutboxFile(Part::Passphrase)
             | Reveal::BackupStick(Part::Passphrase) => Part::Passphrase,
             Reveal::VaultEntry(p) | Reveal::OutboxFile(p) | Reveal::BackupStick(p) => p,
-            _ => Part::Words,
-        }
+            Reveal::SeedShown | Reveal::ExtendedPrivateKey | Reveal::AddressKey => return None,
+            Reveal::Words
+            | Reveal::SeedQr
+            | Reveal::CopyByHand
+            | Reveal::PaperForm
+            | Reveal::Bip85Child
+            | Reveal::LightningKey
+            | Reveal::GpgPaperkey => Part::Words,
+        })
     }
 }
 
@@ -745,7 +769,7 @@ impl Keys {
     /// The key's words or passphrase as a reason names them, lent while
     /// the guard lives. Empty for a key without them, or no such key.
     pub fn reveal(&self, i: usize, why: Reveal) -> Revealed<'_> {
-        let text = self.entries.get(i).and_then(|e| match why.part() {
+        let text = self.entries.get(i).and_then(|e| match why.part()? {
             Part::Words | Part::SeedQr => e.key.words.as_deref(),
             Part::Passphrase => e.key.passphrase.as_deref(),
             _ => None,
@@ -1043,6 +1067,80 @@ impl Keys {
                 .with(field::CODEX32_STRING, s.as_bytes())
                 .with(field::CODEX32_KEY, &e.info.fingerprint.0),
         ))
+    }
+
+    // ---- shown on Explore, each behind its eye ----
+
+    /// Key `i`'s master seed as Explore shows it (`Reveal::SeedShown`):
+    /// the seed in lower-case hex; then, where its codex32 set is known,
+    /// the set's secret when this session holds enough of the set's
+    /// strings to recover it (BIP 93: the secret as it was written, its
+    /// padding included, which the seed alone does not give), and the
+    /// strings it holds, by share index. A codex32 recovery and a checksum
+    /// per string. `None` for another reason, a key with words (they are
+    /// lent by [`Keys::reveal`]) or no such key.
+    pub fn seed_shown(&self, i: usize, why: Reveal) -> Option<Held<Vec<Zeroizing<String>>>> {
+        use faraday_bip::codex32::Codex32;
+        if why != Reveal::SeedShown {
+            return None;
+        }
+        let e = self.entries.get(i).filter(|e| e.key.words.is_none())?;
+        let mut out = vec![faraday_intake::secret_buf::hex(e.key.seed.as_ref()?)];
+        let Some(facts) = e.info.codex32.as_ref() else {
+            return Some(Held(out));
+        };
+        let mut held: Vec<&Zeroizing<String>> = e.key.codex32.iter().collect();
+        held.sort_by_key(|s| s.as_bytes().get(8).copied());
+        let parsed: Vec<Codex32> = held
+            .iter()
+            .take(usize::from(facts.threshold))
+            .filter_map(|s| Codex32::parse(s).ok())
+            .collect();
+        if facts.threshold >= 2
+            && parsed.len() == usize::from(facts.threshold)
+            && let Ok(secret) = Codex32::recover(&parsed)
+        {
+            out.push(Zeroizing::new(secret.encode().as_str().to_string()));
+        }
+        out.extend(held.into_iter().cloned());
+        Some(Held(out))
+    }
+
+    /// Costs a key derivation. Key `i`'s extended private key at `path`
+    /// below its master (the empty path: the root's), as text (`xprv…` on
+    /// mainnet, `tprv…` on the test networks), for Explore to show
+    /// (`Reveal::ExtendedPrivateKey`). `None` for another reason or no
+    /// such key.
+    pub fn xprv_at(
+        &self,
+        c: &Compute,
+        i: usize,
+        path: &DerivationPath,
+        why: Reveal,
+    ) -> Option<Held<XprivAscii>> {
+        if why != Reveal::ExtendedPrivateKey {
+            return None;
+        }
+        let master = &self.entries.get(i)?.key.master;
+        Some(Held(master.derive(c, path).xpriv_ascii()))
+    }
+
+    /// Costs a key derivation. The private key at `path` below key `i`'s
+    /// master, as compressed WIF on the store's network, for Explore to
+    /// show beside its address (`Reveal::AddressKey`). `None` for another
+    /// reason or no such key.
+    pub fn wif_at(
+        &self,
+        c: &Compute,
+        i: usize,
+        path: &DerivationPath,
+        why: Reveal,
+    ) -> Option<Held<WifAscii>> {
+        if why != Reveal::AddressKey {
+            return None;
+        }
+        let key = self.entries.get(i)?.key.master.derive(c, path);
+        Some(Held(WifAscii::new(key.secret_key(), self.network)))
     }
 
     /// Costs a parse of the words. A vault key record of key `i`'s words

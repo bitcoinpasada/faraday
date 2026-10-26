@@ -415,8 +415,8 @@ certificate. Restore does not ask for the time first (decision 58).
 - **No new reveal.** The lines checked are never shown again, so
   nothing leaves to be drawn; the paperkey of the restored key is
   shown, as for any key, through the existing `Reveal::GpgPaperkey`
-  (`faraday/faraday-keys/src/session.rs`). The eleven reasons of F70
-  stand.
+  (`faraday/faraday-keys/src/session.rs`). The reasons of F70 (fourteen
+  since F125) stand.
 - **Wiped** when the flow is cancelled, at the idle lock and at step 5's
   lock, with every other secret. The flow's state keeps the certificate
   and the plan (public) across a lock; the lines typed are not kept,
@@ -640,7 +640,7 @@ vault had no way to bring it back into Faraday.
   are not kept.
 - The restored key's bytes are held by `faraday-keys` from each line
   checked, and the key enters the vaults as a made key does. No reveal
-  is added to F70's eleven.
+  is added to F70's list.
 - A restored key signs at once (the owner's answer to Q2 may change
   this).
 

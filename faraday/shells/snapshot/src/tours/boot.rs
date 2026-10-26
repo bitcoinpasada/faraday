@@ -5,7 +5,7 @@ use crate::tour::{
     type_words, vault_place, vault_stick,
 };
 use faraday_core::board::{Thing, Zone};
-use faraday_core::explore::{Page, XAction};
+use faraday_core::explore::{Eye, Page, XAction};
 use faraday_core::testkit;
 use faraday_core::vault::VaultAction as V;
 use faraday_core::{Action, Screen, StorageEvent};
@@ -220,6 +220,16 @@ pub(crate) fn boot_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     t.press(Action::Explore);
     t.press(Action::XPreset(1));
     t.shot("explore")?;
+    // Behind its eyes: the words, the address's private key and the
+    // extended private keys, then hidden again.
+    let eyes = [Eye::Secret, Eye::Wif, Eye::Xprv];
+    for e in eyes {
+        t.press(Action::X(XAction::Eye(e)));
+    }
+    t.shot("explore-shown")?;
+    for e in eyes {
+        t.press(Action::X(XAction::Eye(e)));
+    }
     // Its account's addresses, and a search of them for a part (F76).
     t.press(Action::X(XAction::Page(Page::Addresses)));
     t.shot("explore-addresses")?;

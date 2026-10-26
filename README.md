@@ -299,7 +299,7 @@ ciphertext is can be read apart from everything that draws screens. The
 cryptographic core is a set of library crates with no screens, no input
 and no storage in them. Key use is one crate, `faraday-keys`: it holds
 every key in memory and does every operation on one, and a secret
-leaves it only for one of eleven named reasons (`docs/KEYS.md`); `just`
+leaves it only for one of fourteen named reasons (`docs/KEYS.md`); `just`
 fails if other code touches a key. `docs/AUDIT.md` lists every crate that touches a key,
 what it computes, whether the code is written in this tree or taken from
 a vetted crate, and what it is checked against.

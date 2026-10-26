@@ -988,7 +988,9 @@ impl OpenVaults {
         if !is_secret(r.kind, number) {
             return Revealed::lent("");
         }
-        let part = why.part();
+        let Some(part) = why.part() else {
+            return Revealed::lent("");
+        };
         let lent = |p: Part| -> &str {
             if part == p {
                 r.text(number).unwrap_or("")
@@ -1155,7 +1157,7 @@ impl OpenVaults {
         i: usize,
         why: Reveal,
     ) -> Option<Held<Zeroizing<String>>> {
-        if why.part() != Part::Revocation {
+        if why.part() != Some(Part::Revocation) {
             return None;
         }
         let r = self.slot(id)?.records.records.get(i)?;
@@ -1181,7 +1183,7 @@ impl OpenVaults {
         text: &str,
         why: Reveal,
     ) -> Option<Held<Zeroizing<String>>> {
-        if why.part() != Part::Revocation {
+        if why.part() != Some(Part::Revocation) {
             return None;
         }
         let key = gpg_key(self.slot(id)?.records.records.get(i)?)?;

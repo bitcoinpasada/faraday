@@ -630,7 +630,7 @@ is `docs/WALLETS.md` and the Spend tab `docs/SPEND-FROM-BACKUP.md`.
 | `Message` | Signing a message with a single-key wallet's key. | Step flow |
 | `CheckMessage` | Checking a signed message against its address. | Page |
 | `Decode` | A transaction taken apart, field by field. | Page |
-| `Explore` | A loaded key's public side at a path: the path field, the script, the address, public key and extended key; the account's addresses and Find an address (F76). | Page |
+| `Explore` | A loaded key at a path, opened from its row under Keys: the path field, the script, the address, public key and extended key; the account's addresses and Find an address (F76). Behind their eyes, on the stick and on mainnet too, each one press to show and one to hide and all closed when Explore opens: the key's secret (its words in their numbered grid and its passphrase, or its master seed in hex with its codex32 secret and the strings held), the root's and the account's extended private keys, and an address's private key (WIF) under the address and under each address on the Addresses page; leaving Explore, the idle warning and a lock hide them all (F125, `docs/KEYS.md` §3). | Page |
 | `Bip85` | BIP-85's applications from a loaded key: a child seed's words, a private key, a password, at an index. | Step flow |
 | `Silent` | Silent payments: a loaded key's address, its labels and the payments checked. | Step flow |
 | `Vanity` | A vanity address for a loaded key: the script, the prefix, the dial, the grind and its find. | Step flow |

@@ -4,8 +4,10 @@
 
 use faraday_draw::tokens as T;
 
+use super::Eye;
 use super::addresses::{DEPTHS, PAGE, Search};
-use super::screen::{frame, head, script_name};
+use super::screen::{Cols, eye_button, frame, head, script_name, value_row};
+use super::shown::address_path;
 use crate::Action;
 use crate::drawing::View;
 use crate::explore::{Page, XAction};
@@ -48,13 +50,17 @@ fn top(app: &View, ui: &mut Ui, x: f32, y: f32, width: f32, name: &str) -> f32 {
 /// One address row: its name ("Receive 12") above, the address below,
 /// always whole (§4.5), on one line where it fits and else wrapped; a
 /// found address (`mark` is where it matched) has the matched part in the
-/// accent and heavier. Returns the height used.
+/// accent and heavier. On the Addresses page, `eye` is the row's eye on
+/// its private key, at the row's right end, with the key while shown,
+/// under the address. Returns the height used.
 fn row(
     ui: &mut Ui,
-    (x, y, width): (f32, f32, f32),
+    (x, y, full): (f32, f32, f32),
     at: (bool, u32),
     (a, mark): (&str, Option<&std::ops::Range<usize>>),
+    eye: Option<Option<&str>>,
 ) -> f32 {
+    let width = if eye.is_some() { full - T::TOUCH } else { full };
     let name = if at.0 {
         EN.explore_change_n
     } else {
@@ -78,7 +84,30 @@ fn row(
         a,
         mark.unwrap_or(&none).clone(),
     );
-    y2 - y + used + T::GAP
+    let Some(wif) = eye else {
+        return y2 - y + used + T::GAP;
+    };
+    eye_button(ui, x + width, y, Eye::Row(at.0, at.1), wif.is_some());
+    let mut h = (y2 - y + used + T::GAP).max(T::TOUCH);
+    if let Some(w) = wif {
+        ui.text(
+            x,
+            y + h,
+            T::CAPTION,
+            W::R,
+            Role::OnSurfaceVariant,
+            EN.explore_wif,
+        );
+        h += T::PAD + T::GAP_SMALL;
+        let cols = Cols {
+            x,
+            px: x,
+            pw: width,
+            width,
+        };
+        h += value_row(ui, cols, y + h, "", w);
+    }
+    h
 }
 
 /// A field drawn as Explore's path field is: the text and the caret, a
@@ -160,8 +189,13 @@ pub(super) fn addresses(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         ),
     ];
     y += button_rows(ui, x, y, width, &steps);
+    let account = app.explore_account().map(|of| of.1);
+    let shown = app.explore_shown();
     for (i, a) in app.explore_list() {
-        y += row(ui, (x, y, width), (e.change, i), (&a, None));
+        let wif = account
+            .as_ref()
+            .and_then(|acc| shown.and_then(|s| s.wif(&address_path(acc, e.change, i))));
+        y += row(ui, (x, y, width), (e.change, i), (&a, None), Some(wif));
     }
     crate::compact::screen::finish(app, ui, x0, cw, h, y - start + T::PAD);
 }
@@ -270,6 +304,7 @@ fn result(ui: &mut Ui, x: f32, y: f32, width: f32, s: &Search) -> f32 {
             (x, cy, width),
             (f.change, f.index),
             (&f.address, Some(&f.mark)),
+            None,
         );
     }
     let more = s.matched as usize - s.found.len();

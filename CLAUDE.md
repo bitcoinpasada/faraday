@@ -118,7 +118,7 @@ changes and nothing else has to be kept in step.
     that its `docs/deps/` page calls "not reviewed"; every direct
     dependency has that page. Builds and checks pass `--locked`.
   - Key material lives in `faraday-keys` and leaves only through its
-    eleven named reveals (F70, `docs/KEYS.md`); `lint-secrets` rule 4
+    fourteen named reveals (F70, `docs/KEYS.md`); `lint-secrets` rule 4
     holds it, and `lint-keys-tests` keeps the test helpers that reach a
     key out of shipped binaries.
   - Costly work takes the compute token (`costs-lint`), every string is

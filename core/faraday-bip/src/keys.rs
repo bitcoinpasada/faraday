@@ -328,8 +328,8 @@ impl From<Fingerprint> for bitcoin::bip32::Fingerprint {
 pub const XPRIV_ASCII_MAX: usize = 112;
 
 /// An extended private key in its base58check text form, in a fixed
-/// buffer that zeroizes on drop. The explorer shows it while a hold
-/// button is held; nothing else reads it.
+/// buffer that zeroizes on drop. Explore shows it behind its eye; BIP-85
+/// writes its children's.
 pub struct XprivAscii {
     buf: [u8; XPRIV_ASCII_MAX],
     len: u8,
@@ -381,7 +381,8 @@ pub const WIF_ASCII_MAX: usize = 53;
 
 /// A private key in its compressed WIF text form, in a fixed buffer that
 /// zeroizes on drop. BIP-85's application 2' derives one
-/// ([`crate::bip85::child_wif`]); nothing else writes a WIF.
+/// ([`crate::bip85::child_wif`]), and Explore shows an address's behind
+/// its eye.
 pub struct WifAscii {
     buf: [u8; WIF_ASCII_MAX],
     len: u8,
@@ -683,8 +684,8 @@ impl MasterKey {
         Xpub::from_priv(&self.secp, self.xpriv())
     }
 
-    /// The master extended private key as text (`xprv…`/`tprv…`), for a
-    /// hold-to-reveal row. The buffer zeroizes on drop.
+    /// The master extended private key as text (`xprv…`/`tprv…`). The
+    /// buffer zeroizes on drop.
     pub fn xpriv_ascii(&self) -> XprivAscii {
         XprivAscii::of(self.xpriv())
     }
@@ -883,8 +884,7 @@ impl DerivedKey {
         Xpub::from_priv(&self.secp, &self.xpriv)
     }
 
-    /// This key as text (`xprv…`/`tprv…`), for a hold-to-reveal row. The
-    /// buffer zeroizes on drop.
+    /// This key as text (`xprv…`/`tprv…`). The buffer zeroizes on drop.
     pub fn xpriv_ascii(&self) -> XprivAscii {
         XprivAscii::of(&self.xpriv)
     }

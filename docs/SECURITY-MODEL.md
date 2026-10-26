@@ -219,7 +219,7 @@ Inside the app, one crate holds key material: `faraday-keys`
 (`docs/KEYS.md`, F70). The session's keys and an open vault's decrypted
 records are private fields there; the rest of the app holds a key's
 place and its public facts, and asks the crate to sign, derive or show.
-A secret leaves the crate only for one of eleven named reasons (shown on
+A secret leaves the crate only for one of fourteen named reasons (shown on
 screen, copied by hand, a SeedQR, a paper form, a file to the Outbox and
 the like), as a value that is never printed, never copied by `Clone`,
 and wiped when dropped. `just` fails if code outside the crate names a

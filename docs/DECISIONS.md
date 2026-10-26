@@ -84,7 +84,7 @@ Read this table, then only the decision you need.
 | [F67](decisions/F67.md) | The stick's partitions and files have Faraday's names | 2026-10-21 | Active | stick |
 | [F68](decisions/F68.md) | One strings file; the upstream app removed | 2026-10-21 | Active | repository |
 | [F69](decisions/F69.md) | Costly work takes a token; drawing cannot mint one | 2026-10-21 | Active | speed |
-| [F70](decisions/F70.md) | One crate holds every key: faraday-keys | 2026-10-21 | Active | keys |
+| [F70](decisions/F70.md) | One crate holds every key: faraday-keys | 2026-10-21 | Amended by F125 | keys |
 | [F71](decisions/F71.md) | Dependencies: what cargo-vet says is true | 2026-10-21 | Active | dependencies |
 | [F72](decisions/F72.md) | Faraday's code is its own: a hard fork | 2026-10-21 | Amended by F73, F97 | repository |
 | [F73](decisions/F73.md) | The upstream project is named only in LICENSE | 2026-10-21 | Amended by F97 | repository |
@@ -139,3 +139,4 @@ Read this table, then only the decision you need.
 | [F122](decisions/F122.md) | Make a new wallet: one press takes a stick, and Check opens the backup | 2026-10-26 | Active | backup |
 | [F123](decisions/F123.md) | A secret shows at a press on its eye, never by a hold | 2026-10-26 | Active | keys |
 | [F124](decisions/F124.md) | Randomness is never collected passively; pointer and keys are a source one picks | 2026-10-26 | Active | security |
+| [F125](decisions/F125.md) | Explore shows a key's secrets behind eyes | 2026-10-26 | Active | keys |

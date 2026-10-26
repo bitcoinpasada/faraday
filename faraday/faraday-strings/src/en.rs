@@ -1568,7 +1568,7 @@ strings! {
     explore_load_a_key: "Load a key first",
     // ----- explore (faraday-core/src/explore/screen.rs) -----
     /// Text in `draw`.
-    explore_the_public: "The public side of a loaded key at any path: the extended public key, the public key and the address there. Compare them with what another wallet shows for the same path. Nothing private is shown.",
+    explore_the_public: "The public side of a loaded key at any path: the extended public key, the public key and the address there. Compare them with what another wallet shows for the same path. The key's secret and its private keys show only behind their eyes.",
     /// Line in `draw`.
     explore_path: "Path",
     /// Text in `draw`.
@@ -9172,6 +9172,26 @@ strings! {
     explore_more_n: "{} more not listed",
     /// A paste with a character no address has, or too long for one.
     explore_not_an_address: "Not an address",
+    /// Label beside the eye on the key's own secret: its words and passphrase, or its seed.
+    explore_secret: "Secret",
+    /// Label: the key's seed words, numbered.
+    explore_words: "Words",
+    /// Label: the key's BIP-39 passphrase.
+    explore_passphrase: "Passphrase",
+    /// Label: a key's master seed, in hex.
+    explore_master_seed: "Master seed",
+    /// Label: a key's codex32 secret.
+    explore_codex32_secret: "codex32 secret",
+    /// Label: a codex32 share: `{}` its share index.
+    explore_codex32_share: "codex32 share {}",
+    /// Label beside the eye on an address's private key, and over the key shown.
+    explore_wif: "Private key (WIF)",
+    /// Label beside the eye on the root's and the account's extended private keys.
+    explore_xprvs: "Extended private keys",
+    /// Label: the root's extended private key.
+    explore_xprv_root: "Root",
+    /// Label: an extended private key's path: `{}` the path without `m/`.
+    explore_path_m: "m/{}",
     /// Label: the self-test result.
     settings_selftest: "Self-test",
     /// The self-test passed: `{}` is the check count.

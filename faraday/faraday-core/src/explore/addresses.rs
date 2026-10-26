@@ -82,6 +82,8 @@ pub enum XAction {
     Search,
     /// The clipboard's text into the search field.
     Paste,
+    /// A press on an eye ([`super::Eye`]).
+    Eye(super::Eye),
 }
 
 /// What an account's addresses are worked out from: the key, the
@@ -431,6 +433,8 @@ impl ExploreArea {
             }
             XAction::Search => self.search(of, now),
             XAction::Paste => effect.paste = clipboard,
+            // Faraday::explore_act opens and closes the eyes.
+            XAction::Eye(_) => {}
         }
         effect
     }
