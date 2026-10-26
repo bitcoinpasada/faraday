@@ -394,6 +394,11 @@ pub(crate) fn page_head<'a>(app: &'a View) -> ((&'a str, Action), &'a str) {
         _ if app.screen == Screen::Explore && explore == Some(crate::explore::Page::Find) => {
             EN.explore_find
         }
+        _ if let Some(n) = crate::screens::settings_open(app)
+            && app.screen == Screen::Settings =>
+        {
+            n
+        }
         Some(_) if app.screen == Screen::Wallets && app.glance.open() => EN.compact_at_a_glance,
         Some(w) if app.screen == Screen::Wallets => w.name.as_str(),
         _ => screen_name(app.screen, app.medium),
@@ -434,6 +439,10 @@ pub(crate) fn page_head<'a>(app: &'a View) -> ((&'a str, Action), &'a str) {
         },
         Screen::Tools | Screen::Lightning | Screen::Codes => {
             (EN.compact_tools, Action::Nav(Screen::Catalog))
+        }
+        // A Settings section open as its own page goes back to the list.
+        Screen::Settings if crate::screens::settings_open(app).is_some() => {
+            (EN.compact_settings, Action::SettingsSection(None))
         }
         Screen::Upgrade => (EN.compact_settings, Action::Nav(Screen::Settings)),
         // Add randomness goes back where it was opened: Settings or New key.

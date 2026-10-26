@@ -36,6 +36,13 @@ pub(crate) fn panes_tour(t: &mut Tour) -> Result<(), String> {
     t.shot("panes-backups-chosen")?;
     t.press(Action::Nav(Screen::Settings));
     t.shot("panes-settings")?;
-    t.press(Action::SettingsSection(4));
-    t.shot("panes-settings-appearance")
+    // Settings with Guided on: each card's explainer; on a compact
+    // window, Appearance opened from the list as its own page.
+    t.press(Action::Guided(true));
+    t.shot("panes-settings-guided")?;
+    t.press(Action::SettingsSection(Some(4)));
+    t.shot("panes-settings-appearance")?;
+    t.press(Action::Guided(false));
+    t.press(Action::SettingsSection(None));
+    Ok(())
 }

@@ -4587,8 +4587,6 @@ strings! {
     app_done: "Done",
     /// Text in `PANIC_KEY`.
     app_panic_key_hint: "Super + S held 2 s: power off at once",
-    /// Text in `TIME_FOR`.
-    app_for_totp_codes: "For TOTP codes, GPG and Secure Boot signatures, and backup check dates",
     // ----- loose_card (faraday-core/src/screens/wallets.rs) -----
     /// Text in `loose_card`. `{}`: `fp_text(*only)`.
     loose_card_key_is_loaded: "Key {} is loaded. No wallet uses it.",
@@ -6053,10 +6051,28 @@ strings! {
     settings_set_the_time: "Set the time",
     /// Title in `settings`.
     settings_settings: "Settings",
+    /// Mode's explainer on Settings, shown with Guided on.
+    settings_guide_mode: "The network that keys, wallets and addresses are made for.",
+    /// Session's explainer on Settings, shown with Guided on.
+    settings_guide_session: "Lock and power-off end the session: every key and wallet loaded is gone. Remove every key unloads the keys and keeps the wallets; the timers lock or power off after that long with no input.",
+    /// Time's explainer on Settings, shown with Guided on.
+    settings_guide_time: "TOTP codes, GPG and Secure Boot signatures, and backup check dates read this clock.",
+    /// Randomness' explainer on Settings, shown with Guided on.
+    settings_guide_randomness: "Randomness you add, from the camera, dice, coins or cards, is hashed together with the system's into the session's randomness: what comes out is at least as strong as the stronger of the two.",
+    /// Appearance's explainer on Settings, shown with Guided on.
+    settings_guide_appearance: "Theme, mode and contrast set the colours. Reduce motion shows changes at once, with no slide or fade.",
+    /// Display scale's explainer on Settings, shown with Guided on.
+    settings_guide_scale: "The size of text and controls. Auto is the size for this screen.",
+    /// Signed amounts' explainer on Settings, shown with Guided on.
+    settings_guide_signed: "The amounts each signed input stated are remembered, and the same transaction stated with other amounts is refused. Sealed into an open vault, they last past power-off.",
+    /// The stick's explainer on Settings, shown with Guided on. `{}`: the medium's noun.
+    settings_guide_stick: "Upgrade copies the system this device started from onto another Faraday {}.",
+    /// About's explainer on Settings, shown with Guided on.
+    settings_guide_about: "The self-test runs at every start, before any key is accepted. Run again repeats it.",
     /// Line in `settings`.
     settings_session: "Session",
     /// Text in `settings`. `{}`: `n`, `if n == 1 { EN.settings_key } else { …`.
-    settings_loaded_lost: "{} {} loaded · lost on lock or power-off",
+    settings_loaded: "{} {} loaded",
     /// Text in `settings`.
     settings_key: "key",
     /// Text in `settings`.

@@ -106,9 +106,10 @@ hold signs, disabled while the clock is not known.
 −720 to +840 (−12:00 to +14:00) in steps of 15. That covers every
 offset in use, including +05:30 and +05:45.
 
-- **Settings** gains a section **Time** after **Session**. Under its
-  title the line **For TOTP codes, GPG and Secure Boot signatures, and
-  backup check dates** (everything that reads `clock_now`). It holds a
+- **Settings** gains a section **Time** after **Session**. With
+  Guided on, under its title the explainer **TOTP codes, GPG and Secure
+  Boot signatures, and backup check dates read this clock.** (everything
+  that reads `clock_now`; `docs/DESIGN.md` §5, Settings). It holds a
   row **Now**, the live local date and time (`2026-10-11
   14:02:37`) or `Not known`; a row **Time zone** showing `UTC+02:00`
   (`UTC+00:00` for zero, `UTC−03:30` with a minus sign) between a −

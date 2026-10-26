@@ -115,30 +115,44 @@ pub fn settle_n(app: &mut Faraday, from: u64, n: u64) {
     }
 }
 
-/// On a window that shows Settings as list and detail (expanded and up,
-/// `docs/LAYOUT.md` §17), chooses section `name` from its list pane, as a
-/// person would: a press on the item that reads `name`. On a compact or
-/// medium window, where every section is on the page, nothing.
+/// On a compact window, where Settings is a list of its sections
+/// (`docs/LAYOUT.md` §17), opens section `name` from the list, as a
+/// person would: the list scrolled down until the item that reads `name`
+/// shows, then a press on it. From medium windows up, where every
+/// section is on the page, nothing.
 pub fn settings_section(app: &mut Faraday, name: &str) {
-    let _ = app.frame();
-    let boxes: Vec<(i32, i32, i32, i32)> = app
-        .drawn_text_boxes()
-        .into_iter()
-        .filter(|(t, _)| t == name)
-        .map(|(_, r)| r)
-        .collect();
-    let chosen = (0..16u8).map(Action::SettingsSection).find(|&a| {
-        app.hit_box(a).is_some_and(|(x, y, w, h)| {
-            let (x, y, w, h) = (i32::from(x), i32::from(y), i32::from(w), i32::from(h));
+    for _ in 0..12 {
+        let _ = app.frame();
+        let items: Vec<(Action, (u16, u16, u16, u16))> = (0..16u8)
+            .map(|k| Action::SettingsSection(Some(k)))
+            .filter_map(|a| app.hit_box(a).map(|b| (a, b)))
+            .collect();
+        let Some(&(_, first)) = items.first() else {
+            return;
+        };
+        let boxes: Vec<(i32, i32, i32, i32)> = app
+            .drawn_text_boxes()
+            .into_iter()
+            .filter(|(t, _)| t == name)
+            .map(|(_, r)| r)
+            .collect();
+        let chosen = items.iter().find(|(_, (x, y, w, h))| {
+            let (x, y, w, h) = (i32::from(*x), i32::from(*y), i32::from(*w), i32::from(*h));
             boxes.iter().any(|b| {
                 let (cx, cy) = (b.0 + b.2 / 2, b.1 + b.3 / 2);
                 (x..x + w).contains(&cx) && (y..y + h).contains(&cy)
             })
-        })
-    });
-    if let Some(a) = chosen {
-        app.press(a);
-        let _ = app.frame();
+        });
+        if let Some(&(a, _)) = chosen {
+            app.press(a);
+            let _ = app.frame();
+            return;
+        }
+        app.event(Event::Scroll {
+            x: first.0 + first.2 / 2,
+            y: first.1 + first.3 / 2,
+            dy: 120,
+        });
     }
 }
 

@@ -89,7 +89,9 @@ const FRAME_COSTS: &[(&str, u64, u64)] = &[
     ("Vault contents", 4971, 94),
     ("Backups", 1213, 77),
     ("Spend tab", 976, 68),
-    ("Settings", 1118, 69),
+    // Every section on one page from medium windows up, two columns
+    // (2026-10-25): was 1118 and 69 with one section beside a list.
+    ("Settings", 1400, 98),
     ("Tools", 457, 33),
     ("Power sheet", 2674, 23),
     ("Learn sheet", 71, 28),

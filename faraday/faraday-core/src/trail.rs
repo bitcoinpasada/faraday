@@ -344,12 +344,15 @@ pub(crate) struct Spot {
 }
 
 /// Whether a way back that presses `a` stays on its screen: the chart's
-/// page back to the card, a vault item's page back to the vault's list.
-/// Such a way back is the screen's own step, not a way out of it.
+/// page back to the card, a vault item's page back to the vault's list,
+/// a Settings section's page back to the list of sections. Such a way
+/// back is the screen's own step, not a way out of it.
 pub(crate) fn stays(a: Action) -> bool {
     matches!(
         a,
-        Action::Glance(false) | Action::Vault(VaultAction::ItemBack)
+        Action::Glance(false)
+            | Action::Vault(VaultAction::ItemBack)
+            | Action::SettingsSection(None)
     )
 }
 

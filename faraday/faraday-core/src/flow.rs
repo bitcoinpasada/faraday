@@ -173,19 +173,9 @@ pub fn column_foot(
         );
         bx -= 12.0;
     }
-    // Steps only or Guided: a segmented button (Material's), its fill
-    // sliding between them as the switch moves.
     if col.switch {
-        let options = [
-            (EN.flow_steps_only, Action::Guided(false)),
-            (EN.flow_guided, Action::Guided(true)),
-        ];
-        let labels = [EN.flow_steps_only, EN.flow_guided];
-        let sw = ui.segment_width(12.0, &labels) * 2.0;
-        let chosen = Some(usize::from(col.guided));
-        let slide = Some(ui.guided_shown);
-        bx -= sw;
-        ui.segmented((bx, y + 2.0, 30.0), 12.0, &options, chosen, slide);
+        bx -= guided_width(ui);
+        guided_choice(ui, (bx, y + 2.0), col.guided);
     }
     // The chip beside the heading where it clears the buttons, else on
     // its own line under the heading.
@@ -246,24 +236,7 @@ pub fn column_foot(
         let mut draw_open = |ui: &mut Ui| -> f32 {
             let mut used = 0.0;
             if let Some(text) = guide {
-                let gh = ui.wrap(
-                    inner_x + 14.0,
-                    y + 56.0,
-                    inner_w - 14.0,
-                    14.0,
-                    W::R,
-                    Role::OnSurface,
-                    text,
-                );
-                ui.fill(
-                    inner_x,
-                    y + 56.0,
-                    3.0,
-                    gh,
-                    1.5,
-                    Role::Primary.with_alpha(140),
-                );
-                used += gh;
+                used += guide_text(ui, (inner_x, y + 56.0, inner_w), text);
                 if let Some(t) = learn {
                     used += learn_link(ui, inner_x, y + tokens::GUIDE_CARD_HEAD + used, inner_w, t);
                 }
@@ -723,4 +696,34 @@ pub(crate) fn learn_link(ui: &mut Ui, x: f32, y: f32, w: f32, topic: crate::lear
         Action::LearnTopic(topic),
     );
     tokens::GUIDE_LINK_ABOVE + tokens::GUIDE_LINK_H
+}
+
+/// The width of [`guided_choice`]. Arithmetic.
+pub(crate) fn guided_width(ui: &Ui) -> f32 {
+    ui.segment_width(12.0, &[EN.flow_steps_only, EN.flow_guided]) * 2.0
+}
+
+/// Steps only or Guided from (x, y): Material's segmented button, its
+/// fill sliding between them as the setting changes. A flow's head and
+/// Settings draw this one control for the one setting.
+pub(crate) fn guided_choice(ui: &mut Ui, (x, y): (f32, f32), guided: bool) {
+    let options = [
+        (EN.flow_steps_only, Action::Guided(false)),
+        (EN.flow_guided, Action::Guided(true)),
+    ];
+    let chosen = Some(usize::from(guided));
+    let slide = Some(ui.guided_shown);
+    ui.segmented((x, y, 30.0), 12.0, &options, chosen, slide);
+}
+
+/// A Guided text from (x, y), `w` wide: its words in body text beside a
+/// bar in the accent, as a flow's open card and Settings' cards show it.
+/// Returns its height.
+pub(crate) fn guide_text(ui: &mut Ui, (x, y, w): (f32, f32, f32), text: &str) -> f32 {
+    use tokens::{GUIDE_BAR, GUIDE_INDENT, LABEL};
+    let tx = x + GUIDE_INDENT;
+    let gh = ui.wrap(tx, y, w - GUIDE_INDENT, LABEL, W::R, Role::OnSurface, text);
+    let bar = Role::Primary.with_alpha(140);
+    ui.fill(x, y, GUIDE_BAR, gh, GUIDE_BAR / 2.0, bar);
+    gh
 }

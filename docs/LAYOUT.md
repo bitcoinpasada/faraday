@@ -1,7 +1,7 @@
 # Layout at every window size
 
 **Kind:** Spec
-**Status:** Partly built: size classes and density (L1, F101), navigation (L2), Home's lead tile and tile grid (L3), the supporting pane's place and its narrow strip, for codex32's Demo only card (§6); the page area to the window's edge (W1, §15, §19); list and detail for Wallets, Files, Vaults, Backups and Settings (L4, §5, §17); the codex32 entry's input panel (W3, §16.3); the rest specified, not built (F92); the rest of wide windows (§13 to §19) specified, not built
+**Status:** Partly built: size classes and density (L1, F101), navigation (L2), Home's lead tile and tile grid (L3), the supporting pane's place and its narrow strip, for codex32's Demo only card (§6); the page area to the window's edge (W1, §15, §19); list and detail for Wallets, Files, Vaults and Backups (L4, §5, §17); Settings' list of sections on compact windows and every section on one page from medium up (§17); the codex32 entry's input panel (W3, §16.3); the rest specified, not built (F92); the rest of wide windows (§13 to §19) specified, not built
 **Open:** the stick's density from its screen's EDID (§7; today its kernel command line's, F101), the top app bar over the wide pages and the step flows (§3; they keep their own heads), Files' two lists each scrolling on its own on the rail's windows (§17; there the page scrolls as one), components that keep their size (L5), Learn in the supporting pane (L6), tours and tests (L7), wide windows: wide content, the codex32 worksheet's fit, the string's boxes, the input panel on compact windows that are not short (§16.3; they keep the small panel's context over the pad), the panel beside the sheets scrolling within itself (it stands at the foot where it is taller than the window), New key's dice and Create a vault's Generate with dice in the panel (their pad, progress line and entries already stand together in one card), the page following a whole sheet, fixed step buttons, the open card's rule at the work width while it holds wide content (§14), and the pages that keep the old 1360 dp area (Wallets' first page, Tools, the tools' catalogue, Codes, a stick visit, an open vault's contents, Transfer, Upgrade, the backup flow's cards but the board; §19) and Decode's outputs at their columns' width (§14 to §17, W2, W4, W5); planned.
 
 Faraday lays its screens out by Material 3's layout and navigation
@@ -123,6 +123,7 @@ Material's canonical layouts, by what a screen shows:
 | Screen | Compact, Medium | Expanded and up |
 |---|---|---|
 | Wallets, Files, Vaults, Backups (a list, and the one chosen) | the list; choosing one opens its page | **list and detail**: the list in a pane `LIST_PANE` (360 dp) wide, the chosen one's page beside it; nothing chosen shows the first |
+| Settings | compact: the list of its sections, each opening as its own page; medium: every section on one page, one column | every section on one page, two columns where they fit (§17) |
 | Home | §4 | §4 |
 | A flow's step, a form, a sheet's page | one column, at most `COLUMN_MAX` (720 dp), centred in the space beside the navigation | the same; on extra-large, the step's Guided text and Learn in the supporting pane (§6) |
 | The backup board, the structure chart, Explore | the whole space beside the navigation | the same |
@@ -645,7 +646,7 @@ is measured to place them.
 | The backup board | wide content: the places laid out in as many columns as the work width holds at the board's place width, so three places stand side by side at 2560 and two at 1920; the board's lists (seeds, vaults, watch-only software) a supporting pane at the right edge (§15) |
 | Explore | reading content: the path field as wide as a path (§8), the values in mono in the column, wrapping in groups; the addresses table as wide as its columns, at the start |
 | Spend and every step flow | reading content in the column, centred (§14); a table in a step (Spend's transaction) as wide as its columns; on extra-large the step's Guided text and Learn in the supporting pane (§6, L6) |
-| Settings | reading content, centred, on compact and medium windows; list and detail from expanded windows up (Material's pattern for settings; owner, 2026-10-24), built with L4 |
+| Settings | (owner, 2026-10-25) On a compact window, the Pi panel and narrow windows, Material's list and detail one pane at a time: the Steps only · Guided choice, then the sections as list items, Mode first with the mode it is on, opening the mode sheet; any other opens that section's card as its own page, the top app bar naming it, and Back (the bar's and the app's) returns to the list where it was scrolled. From medium windows up, no list: every section's card on one page under the Steps only · Guided choice, centred in the page area, in two columns where each is at least `SETTINGS_CARD_MIN` (360 dp) wide, else one; each column at most `COLUMN_MAX` (§14). The first column holds Mode, Session, Time and Randomness, the second Appearance on, so the order reads down the first and then the second and a card never moves between them. Medium keeps one page: measured at 160 dpi with no keys loaded, the page is 2,235 dp tall at 600 × 900 (2.7 screens; 2,787 dp, 3.3 screens, with Guided), 2,039 dp at 768 × 1024 (2.1; 2.6 with Guided) and 1,981 dp at 800 × 1280 (1.6; 2.0), at or under about three screens but with Guided on the smallest, which a list would only split into a press and a Back per section |
 | Learn | the sheet below extra-large; the supporting pane on extra-large (§6, L6), at the right edge (§15), except on the codex32 entry, where it stays a sheet and the Demo only card keeps the pane (owner, 2026-10-24) |
 | The Starter | the same rules (`docs/STARTER.md` §3.1d): its page area is the window less the rail, its top bar's actions at the window's edge, a destination's cards in a column of at most `CONTENT_MAX` and a task page's text in `COL_W`, centred in the room beside the rail; nothing is capped by the window |
 | Sheets and dialogs | as §5: `SHEET_MAX`, centred |
@@ -721,7 +722,9 @@ is a token (`tools/lint-tokens.sh`).
 - A reading page sits centred in the room beside the navigation, not at
   the start (§14, built in W1).
 - Settings becomes list and detail from expanded windows up, built
-  with L4 (§5, §17).
+  with L4 (§5, §17); replaced by the owner's call of 2026-10-25: every
+  section on one page from medium up, the list on compact windows only
+  (§17).
 - Learn, opened on the codex32 entry on an extra-large window, stays a
   sheet; the Demo only card keeps the supporting pane, so one pane
   stands at a time (§6, L6).
@@ -744,7 +747,8 @@ pages centred (`docs/STARTER.md` §3.1d), and its top bar's ⋮ stands at
 the edge.
 
 **Built in L4:** from expanded windows up, beside the rail and the
-expanded rail alike, Wallets, Vaults, Backups and Settings show their
+expanded rail alike, Wallets, Vaults and Backups (and Settings, until
+2026-10-25, §17) show their
 list in a pane `LIST_PANE` wide at the start and the one chosen beside
 it to the right margin, `SPACER` between, each scrolling on its own
 (`panes/`, `Slot::ListPane`); the list's items are Material's list
@@ -755,7 +759,8 @@ reading parts keep `COLUMN_MAX`; the wallet's chart takes the detail's
 width. Choosing a locked vault shows its Unlock beside the list; an
 open vault's Contents, a list and detail of their own, take the page
 (Material's nested list and detail shows the deepest two panes).
-Settings' sections are the compact window's cards, one at a time. Files'
+Settings' sections were the compact window's cards, one at a time;
+since 2026-10-25 every card is on one page from medium up (§17). Files'
 From the stick and For the stick are two list panes side by side, what
 stands above them at their width, and its stick status a chip in the top
 strip's row; on the rail's windows the two lists stand side by side

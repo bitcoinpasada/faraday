@@ -597,6 +597,12 @@ impl Scroll {
         self.extent = (!scrolled.is_empty()).then_some((key, scrolled));
     }
 
+    /// Forgets how far the regions last drawn went: the page on show is
+    /// another, on the same screen, and is measured by its next frame.
+    pub(crate) fn forget_drawn(&mut self) {
+        self.extent = None;
+    }
+
     /// The wheel, a trackpad or a finger went to `slot`.
     pub(crate) fn went_to(&mut self, slot: ui::Slot) {
         self.region = slot;
@@ -668,7 +674,7 @@ impl Scroll {
 /// Which offset each screen and sheet scrolls.
 impl Faraday {
     /// The navigation opens `to` (`Action::Nav`): another destination's
-    /// list pane starts at its top, and Settings at its first section
+    /// list pane starts at its top, and Settings at its list
     /// (`docs/LAYOUT.md` §5); Backups opens on its first wallet.
     pub(crate) fn panes_nav(&mut self, to: Screen) {
         // A vault's Unlock and Contents keep the vaults' list beside them.
@@ -684,11 +690,24 @@ impl Faraday {
         }
     }
 
-    /// Settings' section `k` chosen in the list pane: the detail shows it
-    /// from its top.
-    pub(crate) fn settings_section(&mut self, k: u8) {
+    /// Settings' section `k` opened from its list on a compact window,
+    /// from its top, the list's scroll kept; or none, Back to the list
+    /// where it was scrolled (`docs/LAYOUT.md` §17).
+    pub(crate) fn settings_section(&mut self, k: Option<u8>) {
+        let was = self.scroll.panes.settings();
+        // What was gliding on the page left stops, and how far it went is
+        // forgotten: the next page starts where it is put.
+        self.scroll.stop();
+        self.scroll.forget_drawn();
+        match (was, k) {
+            (None, Some(_)) => *self.scroll.panes.list_offset_mut() = self.list_offset,
+            (Some(_), None) => self.list_offset = self.scroll.panes.list_offset(),
+            _ => {}
+        }
+        if k.is_some() {
+            self.list_offset = 0.0;
+        }
         self.scroll.panes.choose_settings(k);
-        self.list_offset = 0.0;
     }
 
     /// A key a scrolled region takes: an arrow on the codex32 worksheet

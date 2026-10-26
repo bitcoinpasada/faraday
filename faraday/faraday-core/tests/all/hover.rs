@@ -69,9 +69,9 @@ fn a_sidebar_item_under_the_pointer_shows_it() {
 fn moving_over_nothing_pressable_draws_no_frame() {
     let mut app = settings();
     while app.poll_command().is_some() {}
-    // Clear of the scrolled page's right edge, where its scrollbar is.
-    app.event(Event::Hover { x: 1200, y: 790 });
-    app.event(Event::Hover { x: 1195, y: 785 });
+    // In the gap between Settings' two columns of cards.
+    app.event(Event::Hover { x: 760, y: 790 });
+    app.event(Event::Hover { x: 761, y: 785 });
     assert!(
         std::iter::from_fn(|| app.poll_command()).next().is_none(),
         "no frame is asked for"

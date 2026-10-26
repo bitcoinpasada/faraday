@@ -60,6 +60,7 @@ pub(crate) use parts::{
 };
 pub(crate) use parts::{camera_row, card_pad, coin_pad, dice_pad};
 pub(crate) use restore::RSTEPS;
+pub(crate) use settings::open_head as settings_open;
 use sheets::{
     devices_sheet, idle_warn_sheet, learn_sheet, lock_ask_sheet, lock_sheet, locked_sheet,
     new_input_sheet, potential_sheet, power_sheet, pull_sheet, qr_sheet, scan_sheet,
@@ -116,7 +117,9 @@ fn area_of(screen: Screen, board: bool) -> Area {
         // pane; Home, whose tiles are a feed across the work width; and
         // the lists, a list pane and the one chosen beside it to the
         // window's edge (`docs/LAYOUT.md` §5, §17).
-        Screen::KeyGen | Screen::Home => Area::Work,
+        // Settings' cards, two columns of them where they fit
+        // (`docs/LAYOUT.md` §17), centred in the room.
+        Screen::KeyGen | Screen::Home | Screen::Settings => Area::Work,
         s if crate::panes::has_list(s) => Area::Work,
         _ => Area::Until,
     }

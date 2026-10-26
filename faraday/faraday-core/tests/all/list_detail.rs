@@ -1,7 +1,8 @@
 //! List and detail (`docs/LAYOUT.md` §5, §17): from expanded windows up,
-//! Wallets, Files, Vaults, Backups and Settings show their list in a pane
-//! at the start and the one chosen beside it; on a compact window the
-//! list and the one chosen are each a page.
+//! Wallets, Files, Vaults and Backups show their list in a pane at the
+//! start and the one chosen beside it; on a compact window the list and
+//! the one chosen are each a page. Settings is a list of its sections on
+//! a compact window only, and every section on one page from medium up.
 
 use crate::common::process;
 use faraday_core::vault::VaultAction as V;
@@ -262,61 +263,128 @@ fn vaults_choosing_a_locked_vault_shows_its_unlock_beside_the_list() {
     );
 }
 
-/// The list pane's item for Settings' section `name`.
-fn section_of(app: &mut Faraday, name: &str) -> Action {
-    let at = boxes(app, name)
-        .into_iter()
-        .min_by_key(|b| b.0)
-        .expect("the section in the list");
+/// Settings' sections, as their cards and the list name them (the test
+/// stick's app is not the online one: it has the Sticks section).
+const SECTIONS: [&str; 9] = [
+    "Mode",
+    "Session",
+    "Time",
+    "Randomness",
+    "Appearance",
+    "Display scale",
+    "Signed amounts",
+    "Sticks",
+    "About",
+];
+
+/// The item in Settings' list that opens section `name`, if one does.
+fn section_of(app: &mut Faraday, name: &str) -> Option<Action> {
+    let at = boxes(app, name).into_iter().next()?;
     let (cx, cy) = (at.0 + at.2 / 2, at.1 + at.3 / 2);
     (0..16u8)
-        .map(Action::SettingsSection)
+        .map(|k| Action::SettingsSection(Some(k)))
         .find(|&a| {
             app.hit_box(a).is_some_and(|(x, y, w, h)| {
                 let (x, y, w, h) = (i32::from(x), i32::from(y), i32::from(w), i32::from(h));
                 (x..x + w).contains(&cx) && (y..y + h).contains(&cy)
             })
         })
-        .expect("its item takes a press")
 }
 
 #[test]
-fn settings_at_1920_shows_its_sections_and_the_one_chosen() {
-    let mut app = with_wallets(1920, 1080, 160);
+fn settings_on_a_wide_window_is_every_section_on_one_page() {
+    // Tall enough for the whole page at once.
+    for (w, h) in [(1280, 1400), (1920, 1400)] {
+        let mut app = with_wallets(w, h, 160);
+        app.press(Action::Nav(Screen::Settings));
+        let _ = app.frame();
+        for name in SECTIONS {
+            assert!(!boxes(&mut app, name).is_empty(), "{name} at {w}");
+            assert!(section_of(&mut app, name).is_none(), "no list at {w}");
+        }
+        // Two columns: Appearance beside Session, not under it.
+        let session = boxes(&mut app, "Session")[0];
+        let appearance = boxes(&mut app, "Appearance")[0];
+        assert!(appearance.0 > session.0 + session.2, "two columns at {w}");
+        assert!(appearance.1 < session.1 + 200, "level with Session at {w}");
+        assert!(
+            !boxes(&mut app, "Lock after").is_empty(),
+            "Session's timers on the same page at {w}"
+        );
+    }
+    // At 1280 × 800, Display scale works from the page as it always has.
+    let mut app = with_wallets(1280, 800, 160);
     app.press(Action::Nav(Screen::Settings));
     let _ = app.frame();
-    for name in ["Session", "Time", "Appearance", "Display scale", "About"] {
-        assert!(!boxes(&mut app, name).is_empty(), "{name} in the list");
-    }
-    // Nothing chosen: the first section, Mode; Display scale's choices
-    // wait until it is chosen.
-    assert!(app.hit_box(Action::Scale(125)).is_none());
-    let scale = section_of(&mut app, "Display scale");
-    let right = item_right(&mut app, scale);
-    app.press(scale);
-    let _ = app.frame();
-    let choice = app
-        .hit_box(Action::Scale(125))
-        .expect("Display scale's 125 %");
-    assert!(i32::from(choice.0) > right, "beside the list");
-    assert!(
-        boxes(&mut app, "Lock after").is_empty(),
-        "one section at a time"
-    );
-    // Chosen, it works as it always has.
+    assert!(app.offers(Action::Scale(125)), "125 % on the page");
     app.press(Action::Scale(125));
     assert_eq!(app.scale_pct(), 125);
 }
 
-#[test]
-fn settings_on_a_compact_window_is_every_section_in_one_column() {
+/// Settings on a Raspberry Pi's panel, 480 × 640 at 286 dpi.
+fn pi_settings() -> Faraday {
     let mut app = with_wallets(480, 640, 286);
     app.press(Action::Nav(Screen::Settings));
     let _ = app.frame();
+    app
+}
+
+#[test]
+fn settings_on_the_pi_panel_is_a_list_and_each_section_its_page() {
+    let mut app = pi_settings();
+    let session = section_of(&mut app, "Session").expect("Session in the list");
+    assert!(boxes(&mut app, "Lock after").is_empty(), "no section open");
+    // Mode first, opening its sheet at once.
+    let mode = boxes(&mut app, "Mode")[0];
+    assert!(mode.1 < boxes(&mut app, "Session")[0].1, "Mode first");
+    assert!(app.offers(Action::ModeSheet), "Mode opens its sheet");
+    app.press(session);
+    let _ = app.frame();
+    assert!(!boxes(&mut app, "Lock after").is_empty(), "Session's page");
+    assert!(section_of(&mut app, "Time").is_none(), "the list gone");
+    // The bar's way back is the list, and Back takes it.
+    assert_eq!(app.back_link(), Some(Action::SettingsSection(None)));
+    app.press(Action::Back);
+    let _ = app.frame();
+    assert_eq!(app.screen, Screen::Settings);
+    assert!(section_of(&mut app, "Time").is_some(), "the list again");
+    assert!(boxes(&mut app, "Lock after").is_empty());
+}
+
+#[test]
+fn back_from_a_settings_section_keeps_where_the_list_was_scrolled() {
+    let mut app = pi_settings();
+    // Down past Mode, short of the list's end.
+    for _ in 0..3 {
+        app.event(Event::Scroll {
+            x: 240,
+            y: 320,
+            dy: 120,
+        });
+        let _ = app.frame();
+    }
+    // The glide over.
+    crate::common::settle(&mut app, 1);
+    let scale = section_of(&mut app, "Display scale").expect("in the list");
+    let before = app.hit_box(scale);
     assert!(
-        app.hit_box(Action::SettingsSection(0)).is_none(),
-        "no list pane"
+        boxes(&mut app, "Mode").is_empty(),
+        "scrolled past Mode on the panel"
     );
+    app.press(scale);
+    let _ = app.frame();
+    assert!(app.hit_box(scale).is_none(), "Display scale's page");
+    app.press(Action::Back);
+    let _ = app.frame();
+    assert_eq!(app.hit_box(scale), before, "the list where it was");
+}
+
+#[test]
+fn settings_on_a_medium_window_is_every_section_on_one_page() {
+    let mut app = with_wallets(768, 1024, 160);
+    app.press(Action::Nav(Screen::Settings));
+    let _ = app.frame();
+    assert!(section_of(&mut app, "Session").is_none(), "no list");
     assert!(
         !boxes(&mut app, "Lock after").is_empty(),
         "Session's timers"

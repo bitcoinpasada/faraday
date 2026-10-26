@@ -642,6 +642,9 @@ pub const GUIDE_CARD_HEAD: f32 = 56.0;
 /// A Guided text: the room under it.
 pub const GUIDE_AFTER: f32 = 18.0;
 
+/// A Guided text: the width of the bar beside it.
+pub const GUIDE_BAR: f32 = 3.0;
+
 // Window size classes (`docs/LAYOUT.md` §2, Material 3's widths and
 // heights, in dp).
 
@@ -811,6 +814,10 @@ pub const SPACER: f32 = 24.0;
 /// A list pane's width in list and detail (`docs/LAYOUT.md` §5):
 /// Material's default pane width.
 pub const LIST_PANE: f32 = 360.0;
+
+/// Settings' cards stand in two columns where each can be this wide
+/// (`docs/LAYOUT.md` §17): Material's default pane width.
+pub const SETTINGS_CARD_MIN: f32 = LIST_PANE;
 
 /// Where a list pane and its detail begin under a wide page's title: the
 /// title's 28 dp top and its 56 dp row.

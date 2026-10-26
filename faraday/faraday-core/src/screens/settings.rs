@@ -6,7 +6,10 @@ use crate::drawing::View;
 use crate::strings::{EN, fill};
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui, W};
-use faraday_draw::tokens::{APPEARANCE_LABEL_W, APPEARANCE_ROW_GAP};
+use faraday_draw::tokens::{
+    APPEARANCE_LABEL_W, APPEARANCE_ROW_GAP, COLUMN_MAX, GAP, GUIDE_AFTER, MARGIN_WIDE, PANE_TOP,
+    PANE_TOP_BAR, SETTINGS_CARD_MIN, SPACER, TOUCH,
+};
 use faraday_ui::parts::{title, wrap_buttons};
 
 /// The panic key, beside Power off on Settings: the stick shell powers
@@ -29,13 +32,11 @@ fn appearance_body(
     h + ui.switch_row((x, y + h, w), EN.settings_reduce_motion, on, motion)
 }
 
-/// What the Time card says reads the clock: everything that calls
-/// `clock_now`.
-const TIME_FOR: &str = EN.app_for_totp_codes;
-
 /// Settings' sections, in their order (`docs/LAYOUT.md` §17): Mode
 /// first, where a short panel reaches it without scrolling (on Mainnet,
 /// where no pill shows, it is the only door to the sheet), then the rest.
+/// On two columns the first holds Mode to Randomness, the second
+/// Appearance on.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Part {
     Mode,
@@ -62,7 +63,7 @@ fn parts(app: &View) -> Vec<Part> {
     v
 }
 
-/// A section's name, as its card and the list pane show it.
+/// A section's name, as its card and the list of sections show it.
 fn part_title(app: &View, p: Part) -> &'static str {
     match p {
         Part::Mode => EN.settings_mode,
@@ -77,14 +78,37 @@ fn part_title(app: &View, p: Part) -> &'static str {
     }
 }
 
-/// Section `p` as a card from (x, y) `w` wide. Returns its height and
-/// the gap under it.
+/// Section `p`'s explainer, shown under its title while Guided is on
+/// (the flows' setting): what the section does, in a sentence or two.
+fn part_guide(app: &View, p: Part) -> Option<String> {
+    if !app.guided() {
+        return None;
+    }
+    Some(match p {
+        Part::Mode => EN.settings_guide_mode.to_string(),
+        Part::Session => EN.settings_guide_session.to_string(),
+        Part::Time => EN.settings_guide_time.to_string(),
+        Part::Randomness => EN.settings_guide_randomness.to_string(),
+        Part::Appearance => EN.settings_guide_appearance.to_string(),
+        Part::Scale => EN.settings_guide_scale.to_string(),
+        Part::Signed => EN.settings_guide_signed.to_string(),
+        Part::Stick => fill(EN.settings_guide_stick, &[app.medium.noun()]),
+        Part::About => EN.settings_guide_about.to_string(),
+    })
+}
+
+/// Section `p` as a card from (x, y) `w` wide, its explainer under its
+/// title while Guided is on. Returns its height and the gap under it.
 fn part(app: &View, ui: &mut Ui, p: Part, (x, y, w): (f32, f32, f32)) -> f32 {
+    let guide = part_guide(app, p);
     if p == Part::Mode {
-        return mode_card(app, ui, x, y, w) + 14.0;
+        return mode_card(app, ui, (x, y, w), guide.as_deref()) + 14.0;
     }
     section(ui, x, y, w, part_title(app, p), &|ui, x, y0, w| {
-        part_body(app, ui, p, (x, y0, w))
+        let g = guide.as_deref().map_or(0.0, |t| {
+            crate::flow::guide_text(ui, (x, y0, w), t) + GUIDE_AFTER
+        });
+        g + part_body(app, ui, p, (x, y0 + g, w))
     })
 }
 
@@ -117,13 +141,13 @@ fn part_body(app: &View, ui: &mut Ui, p: Part, at: (f32, f32, f32)) -> f32 {
     }
 }
 
-/// Session: what a lock loses, Lock, Remove every key, Power off (or
+/// Session: the keys loaded, Lock, Remove every key, Power off (or
 /// Quit), the panic key, and the idle timers. Returns its height.
 fn session_body(app: &View, ui: &mut Ui, (x, y0, w): (f32, f32, f32)) -> f32 {
     let mut y = y0;
     let n = app.session.keys.len();
     let line = fill(
-        EN.settings_loaded_lost,
+        EN.settings_loaded,
         &[
             &n.to_string(),
             (if n == 1 {
@@ -186,11 +210,10 @@ fn session_body(app: &View, ui: &mut Ui, (x, y0, w): (f32, f32, f32)) -> f32 {
     y - y0
 }
 
-/// Time (`docs/TOTP.md` §2): what reads the clock, Now, the time zone and
-/// Set the time. Returns its height.
+/// Time (`docs/TOTP.md` §2): Now, the time zone and Set the time; what
+/// reads the clock is its explainer, under Guided. Returns its height.
 fn time_body(app: &View, ui: &mut Ui, (x, y0, w): (f32, f32, f32)) -> f32 {
     let mut y = y0;
-    y += ui.wrap(x, y, w, 13.0, W::R, Role::OnSurfaceVariant, TIME_FOR) + 12.0;
     ui.text(x, y, 13.0, W::R, Role::OnSurfaceVariant, EN.settings_now);
     y += 20.0;
     y += ui.wrap(x, y, w, 15.0, W::S, Role::OnSurface, &app.now_local_text()) + 10.0;
@@ -341,54 +364,92 @@ fn about_body(app: &View, ui: &mut Ui, (x, y0, w): (f32, f32, f32)) -> f32 {
     y - y0
 }
 
-/// [`draw`] on compact and medium windows: every section, one column,
-/// each row of choices wrapping to the panel.
-fn settings_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
-    let (x, w) = (x0 + crate::compact::M, cw - 2.0 * crate::compact::M);
-    let top = 12.0 - app.list_offset;
-    let mut y = top;
-    for p in parts(app) {
-        y += part(app, ui, p, (x, y, w));
-    }
-    crate::compact::screen::finish(app, ui, x0, cw, h, y - top + 8.0);
+/// Steps only or Guided at (x, y), the flows' control for the same
+/// setting: with Guided on, each card carries its explainer. Returns the
+/// height its row takes.
+fn guided_row(app: &View, ui: &mut Ui, x: f32, y: f32) -> f32 {
+    crate::flow::guided_choice(ui, (x, y), app.guided());
+    TOUCH
 }
 
-/// Settings (`docs/LAYOUT.md` §17): on compact and medium windows every
-/// section in one column; from expanded windows up, list and detail,
-/// the sections in the list pane and the one chosen beside it (owner,
-/// 2026-10-24), Material's pattern for settings.
-pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
-    use crate::panes::screen::{Item, ListPane, shown, split};
-    if !shown(app, crate::Screen::Settings) {
-        return settings_compact(app, ui, x0, cw, h);
-    }
-    let p = split(ui, x0, cw);
-    if !ui.compact {
-        title(ui, p.list.0, 28.0, EN.settings_settings);
-    }
+/// [`draw`] on a compact window (`docs/LAYOUT.md` §17): the sections as
+/// Material's list items, Mode's opening its sheet and each other's
+/// opening that section as its own page, whose Back is the list again.
+fn listed(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
+    use crate::compact::M;
+    use crate::panes::screen::{Item, list_item};
+    let (x, w) = (x0 + M, cw - 2.0 * M);
+    let top = M - app.list_offset;
+    let mut y = top;
+    y += guided_row(app, ui, x, y);
     let parts = parts(app);
-    let at = usize::from(app.scroll.panes().settings()).min(parts.len() - 1);
-    let mut pane = ListPane::begin(app, ui, (p.list.0, p.top, p.list.1, h - p.top));
-    for (k, &q) in parts.iter().enumerate() {
-        let item = Item {
-            headline: part_title(app, q),
-            supporting: "",
-            trailing: None,
-            action: Action::SettingsSection(k as u8),
-        };
-        pane.item(ui, &item, k == at);
+    if let Some(p) = open_part(app, &parts) {
+        y += part(app, ui, p, (x, y, w));
+    } else {
+        for (k, &q) in parts.iter().enumerate() {
+            let mode = q == Part::Mode;
+            let item = Item {
+                headline: part_title(app, q),
+                supporting: if mode { app.mode().name() } else { "" },
+                trailing: None,
+                action: if mode {
+                    Action::ModeSheet
+                } else {
+                    Action::SettingsSection(Some(k as u8))
+                },
+            };
+            y += list_item(ui, (x, y, w), &item, false);
+        }
     }
-    pane.end(ui);
-    // The chosen section, in the detail's reading width, scrolled on
-    // its own.
-    let (dx, dw) = p.detail;
-    let clip = ui.rect(dx, p.top, dw, h - p.top);
-    ui.c.push_clip(clip);
-    let top = p.top - app.list_offset;
-    let ch = part(app, ui, parts[at], (dx, top, p.reading()));
-    ui.c.pop_clip();
-    app.scroll.content_h().set(ch);
-    ui.report_scroll(clip, ch - (h - p.top));
+    // The margin above the first row and under the last.
+    crate::compact::screen::finish(app, ui, x0, cw, h, y - top + 2.0 * M);
+}
+
+/// The section open as its own page on a compact window, if one is.
+fn open_part(app: &View, parts: &[Part]) -> Option<Part> {
+    let k = app.scroll.panes().settings()?;
+    parts.get(usize::from(k)).copied()
+}
+
+/// The name of the Settings section open as its own page, for the top
+/// app bar, and its way back, the list: none while the list shows or
+/// every section is on the page. A lookup.
+pub(crate) fn open_head(app: &View) -> Option<&'static str> {
+    if !crate::panes::settings_listed(app.window()) {
+        return None;
+    }
+    open_part(app, &parts(app)).map(|p| part_title(app, p))
+}
+
+/// Settings (`docs/LAYOUT.md` §17): on a compact window the list of
+/// sections, each opening as its own page (Material's list and detail
+/// one pane at a time); from medium windows up every section on one
+/// page, in two columns where the page holds two cards
+/// `SETTINGS_CARD_MIN` wide (owner, 2026-10-25).
+pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
+    if crate::panes::settings_listed(app.window()) {
+        return listed(app, ui, x0, cw, h);
+    }
+    let room = cw - 2.0 * MARGIN_WIDE;
+    let two = room >= 2.0 * SETTINGS_CARD_MIN + SPACER;
+    let col_w = if two { (room - SPACER) / 2.0 } else { room }.min(COLUMN_MAX);
+    let across = if two { 2.0 * col_w + SPACER } else { col_w };
+    let x = x0 + (cw - across) / 2.0;
+    let mut top = (if ui.compact { PANE_TOP_BAR } else { PANE_TOP }) - app.list_offset;
+    if !ui.compact {
+        title(ui, x, top - PANE_TOP + 28.0, EN.settings_settings);
+    }
+    top += guided_row(app, ui, x, top);
+    let (mut left, mut right) = (top, top);
+    for p in parts(app) {
+        if two && (p as u8) >= (Part::Appearance as u8) {
+            right += part(app, ui, p, (x + col_w + SPACER, right, col_w));
+        } else {
+            left += part(app, ui, p, (x, left, col_w));
+        }
+    }
+    let foot = left.max(right) + MARGIN_WIDE;
+    crate::compact::screen::finish(app, ui, x0, cw, h, foot + app.list_offset);
 }
 
 /// About's foot: the Nakamoto Institute, `w` wide. In the online app its
@@ -459,12 +520,21 @@ fn idle_rows(app: &View) -> Vec<IdleRow> {
     rows
 }
 
-/// The card holding the Mode row, which opens the mode sheet. Returns
-/// its height.
-fn mode_card(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+/// The card holding the Mode row, which opens the mode sheet, and its
+/// explainer under the row while Guided is on. Returns its height.
+fn mode_card(app: &View, ui: &mut Ui, (x, y, w): (f32, f32, f32), guide: Option<&str>) -> f32 {
+    use faraday_draw::tokens::MODE_ROW;
     let pad = 22.0;
-    let h = faraday_draw::tokens::MODE_ROW + 2.0 * pad;
+    let (ix, iw) = (x + pad, w - 2.0 * pad);
+    let at = (ix, y + pad + MODE_ROW, iw);
+    let gh = guide.map_or(0.0, |t| {
+        crate::compact::screen::measured(ui, |ui| crate::flow::guide_text(ui, at, t)) + GAP
+    });
+    let h = MODE_ROW + gh + 2.0 * pad;
     ui.card(x, y, w, h, Role::OutlineVariant);
-    crate::modes::screen::settings_row(app, ui, x + pad, y + pad, w - 2.0 * pad);
+    crate::modes::screen::settings_row(app, ui, ix, y + pad, iw);
+    if let Some(t) = guide {
+        crate::flow::guide_text(ui, (ix, y + pad + MODE_ROW + GAP, iw), t);
+    }
     h
 }

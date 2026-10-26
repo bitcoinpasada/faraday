@@ -251,9 +251,10 @@ pub enum Action {
     Cancel,
     /// Set the display scale, in percent.
     Scale(u16),
-    /// Settings' section `k` chosen in its list pane, from expanded
-    /// windows up (`docs/LAYOUT.md` §5, §17).
-    SettingsSection(u8),
+    /// Settings' section `k` opened as its own page from the list of
+    /// sections on a compact window, or none: back to the list
+    /// (`docs/LAYOUT.md` §17).
+    SettingsSection(Option<u8>),
     /// Draw in this scheme: a theme, mode and contrast (`docs/THEMES.md` §12).
     Theme(ui::Theme),
     /// Reduce motion on or off.
