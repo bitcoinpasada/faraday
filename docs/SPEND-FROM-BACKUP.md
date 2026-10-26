@@ -432,8 +432,8 @@ last step, this is the part you can safely hand over.
 
 ### 12 · Put everything away
 
-**Lead:** Lock Faraday. The vault is sealed again, and the keys are
-forgotten. If the Outbox holds anything you still need (the finished
+**Lead:** Lock Faraday. The vault is sealed again with the keys inside
+it, and none is left in memory. If the Outbox holds anything you still need (the finished
 transaction, or a vault that changed), plug a stick in and the visit
 writes it. Then switch off, take the stick out, and put it back with the
 papers.

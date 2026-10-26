@@ -2027,7 +2027,7 @@ strings! {
     /// Text in `lead`. `{}`: `app.medium.a()`, `app.medium.a()`, `app.medium.noun()`.
     family_two_ways_scanning: "Two ways. Scanning is the simpler: nothing has to lock. Press Scan and hold Sparrow's QR code up to this computer's camera; an animation is read as it loops. Or save the .psbt onto {} and copy it in. Faraday reads {} only while no vault or key is open, so with one open it locks first: it seals the vault, forgets the keys and starts again. Copy the PSBT in, remove the {}, and unlock with the same passphrase. This tab comes back on this page.",
     /// Text in `lead`. `{}`: `app.medium.noun()`, `app.medium.a()`, `app.medium.noun()`, `app.medium.noun()`.
-    family_lock_faraday: "Lock Faraday. The vault is sealed again and the keys are forgotten. If a file you still need waits for the {}, plug {} in and the {} visit writes it. Then switch off, take the {} out, and put it back with the papers.",
+    family_lock_faraday: "Lock Faraday. The vault is sealed again with the keys inside it, and none is left in memory. If a file you still need waits for the {}, plug {} in and the {} visit writes it. Then switch off, take the {} out, and put it back with the papers.",
     /// Text in `lead`.
     family_this_opens_once: "This opens once the transaction is here.",
     /// Text in `lead`.
