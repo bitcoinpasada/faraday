@@ -276,6 +276,14 @@ extent; a motion left from another screen or sheet is stopped.
     medium 2, on its emphasized decelerate curve (`motion::ease_open`,
     F108), and the jump that brings the open card into view
     (`Scroll::follow`) is a glide;
+  - a chart node's side sheet, on the wide layout (DESIGN §4.16),
+    slides in from the window's right edge over 400 ms on Material's
+    emphasized decelerate (`motion::SIDE_SHEET_IN_MS`, medium 4) and
+    out over 200 ms on its emphasized accelerate
+    (`motion::SIDE_SHEET_OUT_MS`, short 4), the page's room narrowing
+    and widening with it; the ticks keep it in step with the open sheet
+    (`Faraday::chart_side_tick`), and another node's sheet replaces it
+    where it stands;
   - a switch's fill slides in 150 ms on Material's standard curve
     (`motion::SWITCH_MS`, `motion::ease_move`);
   - a change of theme, mode or contrast (a different `Theme`, the triple

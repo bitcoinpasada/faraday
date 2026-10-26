@@ -121,6 +121,114 @@ fn framed<A: Copy + PartialEq>(
     }
 }
 
+/// Material's standard side sheet (Material 3, Side sheets;
+/// `docs/DESIGN.md` §4.16): docked against `right`, from `top` down
+/// `h`, `w` wide, drawn `shown` of the way in from the edge (0 to 1).
+/// Its container is the surface, with a divider along its leading
+/// edge and no scrim, so what lies beside it stays as it is and takes
+/// presses. Its header holds `head`'s icon and title and, at its end,
+/// `close` as a text button; what `body` draws is under it, scrolling
+/// where it is taller than the sheet, and the buttons `body` hands over
+/// ([`buttons`]) are pinned at its foot.
+pub fn side_sheet<A: Copy + PartialEq>(
+    ui: &mut Ui<A>,
+    (right, top, w, h): (f32, f32, f32, f32),
+    shown: f32,
+    head: (crate::Glyph, Paint, &str),
+    close: (&str, A),
+    body: &mut Body<'_, A>,
+) {
+    use faraday_draw::tokens::{BUTTON_H, GAP, SIDE_SHEET_PAD as PAD, TOUCH};
+    let sx = right - w * shown.clamp(0.0, 1.0);
+    let (ix, iw) = (sx + PAD, w - 2.0 * PAD);
+    ui.fill(sx, top, w, h, 0.0, Role::Surface);
+    ui.fill(sx, top, 1.0, h, 0.0, Role::OutlineVariant);
+    // The header: the title, and Close at its end in a touch target.
+    let close_w = ui.measure(BUTTON_LABEL, W::S, close.0) + 2.0 * PAD;
+    let th = sheet_head(
+        ui,
+        ix,
+        top + PAD,
+        iw - close_w - GAP,
+        head.0,
+        head.1,
+        head.2,
+    );
+    ui.button(
+        sx + w - PAD / 2.0 - close_w,
+        top + PAD / 2.0 + (TOUCH - BUTTON_H) / 2.0,
+        Some(close_w),
+        BUTTON_H,
+        close.0,
+        Style::Ghost,
+        close.1,
+    );
+    let body_top = top + PAD + th.max(TOUCH - PAD / 2.0);
+    side_body(ui, (sx, body_top, w, top + h - body_top), body);
+}
+
+/// The label size of a button [`BUTTON_H`](faraday_draw::tokens::BUTTON_H)
+/// tall, as [`Ui::button`] draws it.
+const BUTTON_LABEL: f32 = faraday_draw::tokens::LABEL;
+
+/// A side sheet's body ([`side_sheet`]) in the box (x, y, w, h): what
+/// `body` draws, scrolled where it is taller than the box, and its
+/// pinned buttons at the foot under a divider while it scrolls.
+fn side_body<A: Copy + PartialEq>(
+    ui: &mut Ui<A>,
+    (sx, sy, sw, sh): (f32, f32, f32, f32),
+    body: &mut Body<'_, A>,
+) {
+    use faraday_draw::tokens::SIDE_SHEET_PAD as PAD;
+    let (ix, iw) = (sx + PAD, sw - 2.0 * PAD);
+    // Measured first, drawing nothing, for its height and its buttons.
+    let mark = (ui.hits.len(), ui.reach.len());
+    ui.c.push_clip(faraday_draw::Rect::new(0, 0, 0, 0));
+    ui.sheet_pin = None;
+    ui.sheet_pinning = true;
+    let ch = body(ui, ix, 0.0, iw);
+    let pins = ui.sheet_pin.take();
+    let items: Vec<(&str, Style, A)> = pins
+        .iter()
+        .flatten()
+        .map(|(l, s, a)| (l.as_str(), *s, *a))
+        .collect();
+    ui.sheet_pinning = false;
+    let bh = buttons(ui, ix, 0.0, iw, &items);
+    ui.c.pop_clip();
+    ui.hits.truncate(mark.0);
+    ui.reach.truncate(mark.1);
+    let foot = if items.is_empty() {
+        0.0
+    } else {
+        bh + 2.0 * PAD
+    };
+    let view = (sh - foot).max(0.0);
+    let max = (ch + PAD - view).max(0.0);
+    let off = ui.offset.clamp(0.0, max);
+    let clip = ui.rect(sx + 1.0, sy, sw - 1.0, view);
+    ui.c.push_clip(clip);
+    ui.sheet_pinning = true;
+    body(ui, ix, sy - off, iw);
+    ui.sheet_pinning = false;
+    ui.sheet_pin = None;
+    ui.c.pop_clip();
+    ui.report_scroll(clip, max);
+    if !items.is_empty() {
+        if max > 0.0 {
+            ui.fill(
+                sx + 1.0,
+                sy + view,
+                sw - 1.0,
+                1.0,
+                0.0,
+                Role::OutlineVariant,
+            );
+        }
+        buttons(ui, ix, sy + view + PAD, iw, &items);
+    }
+}
+
 /// A dialog (Material's basic dialog, `docs/DESIGN.md` §4.11): its head,
 /// what `body` draws under it, and `actions`, in one box centred in a
 /// frame `w` by `h`; as tall as what it holds, and what is above its

@@ -5,10 +5,11 @@ use crate::drawing::View;
 use crate::strings::EN;
 use crate::ui::pal::*;
 use crate::ui::{Ui, W};
+use faraday_draw::tokens::{CATALOG_COLUMNS_MIN, CATALOG_TILE_MIN, PAGE_INSET};
 use faraday_ui::parts::{section_label, title};
 
-/// Tools: every flow by group, three tiles to a row, each with its
-/// standards; Find a tool narrows them as it is typed.
+/// Tools: every flow by group, as many tiles to a row as fit and at
+/// least three, each with its standards; Find a tool narrows them as it is typed.
 #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     use crate::catalog::{GROUPS, TILES, matches};
@@ -18,7 +19,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let (x, width) = if compact {
         (x0 + crate::compact::M, cw - 2.0 * crate::compact::M)
     } else {
-        (x0 + 48.0, cw - 96.0)
+        (x0 + PAGE_INSET, cw - 2.0 * PAGE_INSET)
     };
     let clip = ui.rect(x0, 0.0, cw, h);
     ui.c.push_clip(clip);
@@ -54,7 +55,13 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     ui.caret(caret_x, y + 9.0, 18.0);
     y += if compact { 54.0 } else { 64.0 };
     let gap = 14.0;
-    let per = if compact { 1 } else { 3 };
+    // As many columns as `CATALOG_TILE_MIN` leaves room for, never
+    // fewer than three beside the navigation (`docs/LAYOUT.md` §17).
+    let per = if compact {
+        1
+    } else {
+        (((width + gap) / (CATALOG_TILE_MIN + gap)) as usize).max(CATALOG_COLUMNS_MIN)
+    };
     let tw3 = (width - (per as f32 - 1.0) * gap) / per as f32;
     let th = 82.0;
     let mut any = false;

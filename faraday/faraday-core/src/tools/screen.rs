@@ -42,8 +42,9 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         crate::compact::screen::finish(app, ui, x0, cw, h, y - top + 16.0);
         return;
     }
-    let x = x0 + 56.0;
-    let width = (cw - 112.0).min(900.0);
+    use faraday_draw::tokens::{TOOLS_COLUMN_W, TOOLS_INSET};
+    let x = x0 + TOOLS_INSET;
+    let width = (cw - 2.0 * TOOLS_INSET).min(TOOLS_COLUMN_W);
     let y = header(app, ui, x, 36.0, width);
     body(app, ui, x, y, width);
 }

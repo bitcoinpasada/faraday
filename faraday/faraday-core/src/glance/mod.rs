@@ -237,7 +237,25 @@ pub(crate) struct GlanceArea {
     /// What the chart's sheets hold between presses: a change asked for,
     /// a name or a passphrase typed (`docs/history/NEW-WALLET.md` §9.5–§9.7).
     work: crate::chart_edit::Work,
+    /// The side sheet's coming and going on a wide window
+    /// (`docs/DESIGN.md` §4.16), as the last tick saw it.
+    side: SideMotion,
 }
+
+/// A side sheet ([`sheet::side`]) seen by the ticks: the one shown and
+/// the one leaving, each with the screen it stands on and the tick it
+/// came in or began to leave at (`None` until a tick). Kept in step with
+/// the chart's open sheet at every tick ([`crate::Faraday::chart_side_tick`]);
+/// drawing reads it, and a sheet opened since the last tick is just
+/// coming in.
+#[derive(Default, Clone, Copy)]
+pub(crate) struct SideMotion {
+    pub(crate) shown: Option<SideSeen>,
+    pub(crate) leaving: Option<SideSeen>,
+}
+
+/// One side sheet as [`SideMotion`] keeps it.
+pub(crate) type SideSeen = ((Press, sheet::Target), crate::Screen, Option<u64>);
 
 impl GlanceArea {
     /// Whether the chart is open as its own page.
@@ -278,6 +296,16 @@ impl GlanceArea {
     /// What the chart's sheets hold, for the glue that edits it.
     pub(crate) fn work_mut(&mut self) -> &mut crate::chart_edit::Work {
         &mut self.work
+    }
+
+    /// The side sheet as the last tick saw it.
+    pub(crate) fn side(&self) -> SideMotion {
+        self.side
+    }
+
+    /// The side sheet as this tick sees it.
+    pub(crate) fn set_side(&mut self, side: SideMotion) {
+        self.side = side;
     }
 }
 

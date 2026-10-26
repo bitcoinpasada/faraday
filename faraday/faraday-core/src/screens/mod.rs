@@ -113,6 +113,15 @@ fn area_of(screen: Screen) -> Area {
         | Screen::Vanity
         | Screen::Decode
         | Screen::Family => Area::Reading(READING_PAGE_W),
+        // Tools, Transfer, Upgrade and a stick visit are reading content
+        // (fields, rows, two lists side by side), each in its own area;
+        // the tools' catalogue is a grid of tiles, wide content
+        // (`docs/LAYOUT.md` §14, §17).
+        Screen::Tools => Area::Reading(faraday_draw::tokens::READING_TOOLS_W),
+        Screen::Transfer => Area::Reading(faraday_draw::tokens::READING_TRANSFER_W),
+        Screen::Upgrade => Area::Reading(faraday_draw::tokens::READING_UPGRADE_W),
+        Screen::Visit => Area::Reading(faraday_draw::tokens::READING_VISIT_W),
+        Screen::Catalog => Area::Work,
         // New key, which holds Make codex32 shares and its supporting
         // pane; Home, whose tiles are a feed across the work width; and
         // the lists, a list pane and the one chosen beside it to the
@@ -221,6 +230,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
     // Under a sheet that has its frosted copy of the page, the page
     // is not drawn again: the copy stands for it.
     let frosted = app.sheet.is_some() && ui.frost.is_some();
+    let side = crate::glance::sheet::side_now(app);
     if !frosted && app.is_compact() {
         ui.clear(Role::Surface);
         // The stick pills take a strip across the top; the page is
@@ -247,7 +257,10 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
     } else if !frosted {
         ui.clear(Role::Surface);
         sidebar(app, ui, win_h);
-        let room = full_w - SIDEBAR_W;
+        // A chart's side sheet takes its width from the room, so the
+        // chart stands beside it (`docs/DESIGN.md` §4.16).
+        let room =
+            full_w - SIDEBAR_W - side.map_or(0.0, |s| s.1 * faraday_draw::tokens::SIDE_SHEET_W);
         let (ox, cw) = page_area(app.screen, room);
         let h = full_h;
         ui.ox = ox;
@@ -318,7 +331,11 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
         notices(app, ui, 0.0, full_w, h);
     }
     let (w, h) = (full_w, full_h);
-    if let Some(sheet) = app.sheet {
+    if let Some(s) = side {
+        // Beside the page, which stays as it is and takes presses.
+        crate::glance::sheet::draw_side(app, ui, s, w, h);
+    }
+    if let Some(sheet) = app.sheet.filter(|_| !side.is_some_and(|s| s.2)) {
         // Everything under a sheet is out of reach.
         ui.clear_hits();
         ui.in_sheet = true;

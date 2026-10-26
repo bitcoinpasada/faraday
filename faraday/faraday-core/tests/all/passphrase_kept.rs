@@ -201,6 +201,7 @@ fn a_passphrase_checked_by_its_fingerprint_leaves_no_trace_but_the_result() {
         press,
         Target::CopyTo(What::Passphrase(0)),
     )));
+    crate::common::a_moment(&mut app);
     app.press(Action::Chart(C::Edit(
         press,
         Edit::Add(At::Place(2), What::Passphrase(0)),

@@ -707,7 +707,7 @@ fn each_seed_is_checked_by_its_own_forms() {
 fn the_chart_checks_a_copy_by_the_form_of_its_line() {
     let chart_has = |app: &mut Faraday, step: Step| {
         app.press(Action::Chart(C::Open(Press::Loaded(0), Target::Key(0))));
-        let _ = app.frame();
+        crate::common::a_moment(app);
         let offers = app.offers(Action::Chart(C::Do(Press::Loaded(0), step)));
         app.press(Action::Cancel);
         offers
@@ -1093,7 +1093,7 @@ fn the_grid_dropped_for_the_words_stays_on_the_map_drawn_in_part_until_destroyed
     let (n, j, at) = part_line(&app).expect("no SeedQR drawn in part on the chart");
     let press = Press::Loaded(0);
     app.press(Action::Chart(C::Open(press, Target::Line(n, j))));
-    let _ = app.frame();
+    crate::common::a_moment(&mut app);
     assert!(shown(&mut app, "Drawn in part"));
     let destroy = Action::Chart(C::Edit(press, Edit::Drop(at, What::SeedQr(0))));
     assert!(app.offers(destroy), "no I destroyed this copy");

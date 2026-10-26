@@ -410,8 +410,9 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     if ui.compact {
         return visit_compact(app, ui, x0, cw, h);
     }
-    let x = x0 + 48.0;
-    let width = cw - 96.0;
+    use faraday_draw::tokens::{PAGE_INSET, VISIT_GAP};
+    let x = x0 + PAGE_INSET;
+    let width = cw - 2.0 * PAGE_INSET;
     let mut y = 36.0;
     title(ui, x, y, app.medium.visit());
     // Where pulling the stick goes.
@@ -474,7 +475,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         );
         return;
     };
-    let colw = (width - 20.0) / 2.0;
+    let colw = (width - VISIT_GAP) / 2.0;
     let colh = h - y - 32.0 - 108.0;
     const ROW: f32 = 56.0;
     // Rows between the heading and the buttons at the card's foot, and
@@ -694,7 +695,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     );
 
     // Import into the Inbox.
-    let ix = x + colw + 20.0;
+    let ix = x + colw + VISIT_GAP;
     ui.card(ix, y, colw, colh, Role::OutlineVariant);
     ui.icon(
         ix + 20.0,

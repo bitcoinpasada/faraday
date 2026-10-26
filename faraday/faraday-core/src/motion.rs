@@ -173,6 +173,13 @@ pub const MENU_IN_MS: u64 = tokens::MOTION_MEDIUM1;
 /// How long it takes to fade out, on Material's standard accelerate:
 /// Material's short 3, quicker out than in.
 pub const MENU_OUT_MS: u64 = tokens::MOTION_SHORT3;
+/// How long a side sheet takes to slide in from the window's edge, on
+/// Material's emphasized decelerate: Material's medium 4, for what
+/// enters the screen (`docs/MOTION.md`).
+pub const SIDE_SHEET_IN_MS: u64 = tokens::MOTION_MEDIUM4;
+/// How long it takes to slide out, on Material's emphasized accelerate:
+/// Material's short 4, for what leaves it.
+pub const SIDE_SHEET_OUT_MS: u64 = tokens::MOTION_SHORT4;
 /// How long a toast takes to rise in, and to fade out at its end:
 /// Material's short 4.
 pub const TOAST_MS: u64 = tokens::MOTION_SHORT4;

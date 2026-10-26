@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Partly built: size classes and density (L1, F101), navigation (L2), Home's lead tile and tile grid (L3), the supporting pane's place and its narrow strip, for codex32's Demo only card (§6); the page area to the window's edge (W1, §15, §19); list and detail for Wallets, Files, Vaults and Backups (L4, §5, §17); Settings' list of sections on compact windows and every section on one page from medium up (§17); the codex32 entry's input panel (W3, §16.3); the rest specified, not built (F92); the rest of wide windows (§13 to §19) specified, not built
-**Open:** the stick's density from its screen's EDID (§7; today its kernel command line's, F101), the top app bar over the wide pages and the step flows (§3; they keep their own heads), Files' two lists each scrolling on its own on the rail's windows (§17; there the page scrolls as one), components that keep their size (L5), Learn in the supporting pane (L6), tours and tests (L7), wide windows: wide content, the codex32 worksheet's fit, the string's boxes, the input panel on compact windows that are not short (§16.3; they keep the small panel's context over the pad), the panel beside the sheets scrolling within itself (it stands at the foot where it is taller than the window), New key's dice and Create a vault's Generate with dice in the panel (their pad, progress line and entries already stand together in one card), the page following a whole sheet, fixed step buttons, and the pages that keep the old 1360 dp area (Wallets' first page, Tools, the tools' catalogue, Codes, a stick visit, an open vault's contents, Transfer, Upgrade; §19) and Decode's outputs at their columns' width (§14 to §17, W2, W4, W5); planned.
+**Open:** the stick's density from its screen's EDID (§7; today its kernel command line's, F101), the top app bar over the wide pages and the step flows (§3; they keep their own heads), Files' two lists each scrolling on its own on the rail's windows (§17; there the page scrolls as one), components that keep their size (L5), Learn in the supporting pane (L6), tours and tests (L7), wide windows: wide content, the codex32 worksheet's fit, the string's boxes, the input panel on compact windows that are not short (§16.3; they keep the small panel's context over the pad), the panel beside the sheets scrolling within itself (it stands at the foot where it is taller than the window), New key's dice and Create a vault's Generate with dice in the panel (their pad, progress line and entries already stand together in one card), the page following a whole sheet, fixed step buttons, and the pages that keep the old 1360 dp area (Wallets' first page, Codes, an open vault's contents; §19) and Decode's outputs at their columns' width (§14 to §17, W2, W4, W5); planned.
 
 Faraday lays its screens out by Material 3's layout and navigation
 rules at every size, from the Pi's 2.8-inch panel to a full monitor.
@@ -657,7 +657,10 @@ is measured to place them.
 |---|---|
 | Home | the feed (§4) across the work width: as many `TILE_MIN` columns as fit, tiles at their size, the rest of a short row empty; Scan at the right edge (§15) |
 | Wallets, Files, Vaults, Backups | list and detail (§5, L4) in the whole page area: the list `LIST_PANE` at the start, the detail beside it to the right margin; the detail's reading parts at `COLUMN_MAX`, its chart and tables in the detail's width. Files' two lists ("From the stick", "For the stick") are two list panes side by side; its stick status chip moves to the top strip's row |
-| The structure chart (a wallet's detail, the chart sheet) | wide content in the detail's width; its nodes keep their size (§8); the wallet's buttons under the chart, not at the card's foot |
+| The structure chart (a wallet's detail, the chart sheet) | wide content in the detail's width; its nodes keep their size (§8); the wallet's buttons under the chart, not at the card's foot. A node's sheet is Material's standard side sheet at the window's right edge, `SIDE_SHEET_W` wide, the page's room narrowed by it so the chart and its highlighted lines stand beside it (DESIGN §4.16); on the rail's and the bar's windows the centred sheet or the panel's page, as before |
+| Tools | reading content in its own area (`READING_TOOLS_W`), centred: its `TOOLS_COLUMN_W` column after its inset |
+| The tools' catalogue | a grid of tiles, wide content: as many columns as `CATALOG_TILE_MIN` leaves room for in the work width, never fewer than `CATALOG_COLUMNS_MIN`, each at the row's share |
+| Transfer, Upgrade, a stick visit | reading content, each in its own area centred in the room: Transfer's Send and Receive side by side, `TRANSFER_W` at most (`READING_TRANSFER_W`); Upgrade's column, `UPGRADE_W` at most (`READING_UPGRADE_W`); a stick visit's two lists, each at most `COLUMN_MAX`, `VISIT_GAP` apart (`READING_VISIT_W`); each between two `PAGE_INSET`s |
 | The backup board | wide content: the places laid out in as many columns as the work width holds at the board's place width, so three places stand side by side at 2560 and two at 1920; the board's lists (seeds, vaults, watch-only software) a supporting pane at the right edge (§15); the page it is on (Back up, a wallet's backup flow) starts at the navigation on every card, so its cards stand still when the board's card opens, and the open card's rules run the work width (§14) |
 | Explore | reading content: the path field as wide as a path (§8), the values in mono in the column, wrapping in groups; the addresses table as wide as its columns, at the start |
 | Spend and every step flow | reading content in the column, centred (§14); a table in a step (Spend's transaction) as wide as its columns; on extra-large the step's Guided text and Learn in the supporting pane (§6, L6) |
@@ -802,9 +805,19 @@ as its columns (`TABLE_LABEL_W`, the longest outpoint or address,
 `TABLE_AMOUNT_W`), never wider than the step. On the small panel and the
 rail's windows nothing changed; Explore's values group only on the wide
 layout. Left at the old 1360 dp area, centred, past an extra-large
-window's room: Wallets' first page, Tools, the catalogue, Codes, a stick
-visit, an open vault's contents, Transfer, Upgrade and the backup flow (step flows and reading
-pages, for a batch to give each its reading area).
+window's room: Wallets' first page, Codes, an open vault's contents and
+the backup flow (step flows and reading pages, for a batch to give each
+its reading area).
+
+**Built since W6:** Tools, Transfer, Upgrade and a stick visit are
+reading content, each laid out in its own area centred in the room past
+an extra-large window's 1360 dp (`READING_TOOLS_W`,
+`READING_TRANSFER_W`, `READING_UPGRADE_W`, `READING_VISIT_W`), a stick
+visit's two lists each growing to `COLUMN_MAX`; the tools' catalogue
+takes the work width, as many tiles to a row as `CATALOG_TILE_MIN`
+leaves room for and never fewer than three, so four stand side by side
+at 1920 dp and five at 2560 dp. At 1280 × 800 and every window up to
+1600 dp wide they are as before (§17).
 
 **Built in W7:** while the backup board is shown (Back up's plan, a
 wallet flow's plan) on a window whose room is wider than the old page

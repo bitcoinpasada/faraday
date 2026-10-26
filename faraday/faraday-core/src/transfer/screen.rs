@@ -30,7 +30,8 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let (x, w) = if compact {
         (x0 + crate::compact::M, cw - 2.0 * crate::compact::M)
     } else {
-        (x0 + 48.0, (cw - 96.0).min(1100.0))
+        use faraday_draw::tokens::{PAGE_INSET, TRANSFER_W};
+        (x0 + PAGE_INSET, (cw - 2.0 * PAGE_INSET).min(TRANSFER_W))
     };
     let clip = ui.rect(x0, 0.0, cw, h);
     ui.c.push_clip(clip);

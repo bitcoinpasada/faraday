@@ -1252,6 +1252,15 @@ pub fn keep_row(app: &mut Faraday, p: usize, row: plan::Row, seeds: &[usize]) {
     }
 }
 
+/// A moment passes, as a shell's ticks bring it: what slides in (a
+/// chart's side sheet) comes to rest where it stands.
+pub fn a_moment(app: &mut Faraday) {
+    let now = app.now_ms();
+    app.event(Event::Tick { now_ms: now + 1 });
+    app.event(Event::Tick { now_ms: now + 1000 });
+    let _ = app.frame();
+}
+
 pub fn shown(app: &mut Faraday, want: &str) -> bool {
     app.drawn_texts().iter().any(|t| t == want)
 }

@@ -245,7 +245,7 @@ fn for_the_stick(app: &Faraday) -> Vec<String> {
 
 fn open(app: &mut Faraday, press: Press, t: Target) {
     app.press(Action::Chart(C::Open(press, t)));
-    let _ = app.frame();
+    crate::common::a_moment(app);
     assert_eq!(app.sheet, Some(Sheet::Chart), "{t:?} opened no sheet");
 }
 
@@ -342,10 +342,11 @@ fn a_key_held_here_shows_its_xpub_and_where_its_seed_is() {
     assert_eq!(app.sheet, Some(Sheet::Qr));
     app.press(Action::Cancel);
     assert_eq!(app.screen, Screen::Wallets);
-    // Where it is: its lines drawn bold, the sheet closed.
+    // Where it is: its lines drawn bold, the sheet staying beside the
+    // chart on a wide window.
     open(&mut app, press, Target::Key(0));
     app.press(Action::Chart(C::Where(press, 0)));
-    assert_eq!(app.sheet, None);
+    assert_eq!(app.sheet, Some(Sheet::Chart));
     assert_eq!(chart(&app, w).focus, Some(0));
     // Typing a copy opens the checklist at its check.
     open(&mut app, press, Target::Key(0));
@@ -412,6 +413,110 @@ fn on_a_small_panel_the_chart_is_its_own_page() {
     app.press(Action::Glance(false));
     assert!(!app.glance());
     assert_eq!(app.screen, Screen::Wallets);
+}
+
+/// Whether two boxes (x, y, w, h) share any point.
+fn overlap(a: (u16, u16, u16, u16), b: (u16, u16, u16, u16)) -> bool {
+    a.0 < b.0 + b.2 && b.0 < a.0 + a.2 && a.1 < b.1 + b.3 && b.1 < a.1 + a.3
+}
+
+#[test]
+fn on_a_wide_window_a_nodes_sheet_stands_beside_the_chart_and_its_lines_stay_in_view() {
+    let mut app = device(1920, 1080, 160);
+    let w = two_of_three(&mut app);
+    planned(&mut app, w, 2);
+    let press = Press::Loaded(w);
+    let key = Action::Chart(C::Open(press, Target::Key(0)));
+    open(&mut app, press, Target::Key(0));
+    // The sheet at the window's right edge, the chart's nodes still
+    // offered beside it.
+    let where_row = Action::Chart(C::Where(press, 0));
+    let row = app
+        .hit_box(where_row)
+        .expect("Where it is on the key's sheet");
+    let close = app.hit_box(Action::Cancel).expect("the sheet's Close");
+    assert!(
+        u32::from(close.0) + u32::from(close.2) > 1920 - 48,
+        "Close {close:?} is not at the window's right"
+    );
+    let node = app.hit_box(key).expect("the key's node under the sheet");
+    assert!(
+        !overlap(node, row),
+        "the key {node:?} lies under the sheet's row {row:?}"
+    );
+    // Where it is: the key's lines bold on the chart, the sheet still
+    // open beside it and the node clear of it.
+    app.press(where_row);
+    crate::common::a_moment(&mut app);
+    assert_eq!(app.sheet, Some(Sheet::Chart));
+    assert_eq!(chart(&app, w).focus, Some(0));
+    let node = app
+        .hit_box(key)
+        .expect("the key's node while its lines show");
+    let row = app.hit_box(where_row).expect("the sheet still open");
+    assert!(
+        !overlap(node, row),
+        "the key {node:?} lies under the sheet {row:?}"
+    );
+    // A press on another node on the chart changes the sheet.
+    let place = Action::Chart(C::Open(press, Target::Node(0)));
+    assert!(
+        app.offers(place),
+        "the places take no press beside the sheet"
+    );
+    app.press(place);
+    let _ = app.frame();
+    assert_eq!(app.chart(), Some((press, Target::Node(0))));
+    assert!(shown(&mut app, "Place 1"), "the place's sheet is not shown");
+    // Back closes it, and the chart is the whole page again.
+    app.event(Event::Back);
+    crate::common::a_moment(&mut app);
+    assert_eq!(app.sheet, None);
+    assert!(
+        !app.offers(Action::Cancel),
+        "the sheet's Close is still offered"
+    );
+    assert!(app.offers(key));
+}
+
+#[test]
+fn a_side_sheet_slides_in_and_under_reduce_motion_is_there_at_once() {
+    for reduce in [false, true] {
+        let mut app = device(1920, 1080, 160);
+        let w = two_of_three(&mut app);
+        planned(&mut app, w, 2);
+        if reduce {
+            app.press(Action::ReduceMotion(true));
+        }
+        let press = Press::Loaded(w);
+        app.press(Action::Chart(C::Open(press, Target::Key(0))));
+        let _ = app.frame();
+        let first = app.hit_box(Action::Chart(C::Where(press, 0)));
+        crate::common::a_moment(&mut app);
+        let rest = app
+            .hit_box(Action::Chart(C::Where(press, 0)))
+            .expect("the sheet at rest");
+        if reduce {
+            assert_eq!(first, Some(rest), "under Reduce motion the sheet moved");
+        } else {
+            assert_ne!(first, Some(rest), "the sheet did not slide in");
+        }
+    }
+}
+
+#[test]
+fn on_a_small_panel_where_it_is_closes_the_sheet_to_show_the_chart() {
+    let mut app = device(480, 640, 286);
+    let w = one_key(&mut app);
+    planned(&mut app, w, 2);
+    app.press(Action::Glance(true));
+    let press = Press::Loaded(w);
+    app.press(Action::Chart(C::Open(press, Target::Key(0))));
+    let _ = app.frame();
+    assert!(shown(&mut app, "Back"), "the sheet is not the panel's page");
+    app.press(Action::Chart(C::Where(press, 0)));
+    assert_eq!(app.sheet, None);
+    assert_eq!(chart(&app, w).focus, Some(0));
 }
 
 /// What the lock saved: For the stick, and the kept state.

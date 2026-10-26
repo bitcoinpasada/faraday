@@ -371,6 +371,12 @@ pub const CHART_SHEET_WIDTH: f32 = 560.0;
 /// Height in dp of an action row on that sheet: one line, its value at
 /// the right.
 pub const CHART_SHEET_ROW: f32 = 44.0;
+/// A side sheet's width (Material 3 Side sheets: 256 to 400 dp): the
+/// widest, so a chart node's sheet keeps its rows and facts on one line
+/// where the centred sheet did (`docs/DESIGN.md` §4.16).
+pub const SIDE_SHEET_W: f32 = 400.0;
+/// A side sheet's padding inside its edges (Material 3 Side sheets).
+pub const SIDE_SHEET_PAD: f32 = 24.0;
 /// The open vault's kinds column, in dp, while a wallet's chart is
 /// shown: narrower, so that the chart beside it has room for five nodes
 /// on a line at the desktop window's size.
@@ -836,6 +842,35 @@ pub const EXPLORE_INSET: f32 = 56.0;
 /// Explore's reading area: its `COLUMN_MAX` column between two
 /// `EXPLORE_INSET`s (`docs/LAYOUT.md` §17).
 pub const READING_EXPLORE_W: f32 = COLUMN_MAX + 2.0 * EXPLORE_INSET;
+/// The inset a page of the older wide layout keeps from its area's
+/// sides (Transfer, Upgrade, a stick visit, the tools' catalogue).
+pub const PAGE_INSET: f32 = 2.0 * MARGIN_WIDE;
+/// Tools' column on a wide window, from the way back to the field's end.
+pub const TOOLS_COLUMN_W: f32 = 900.0;
+/// Tools' inset from its area's left edge on a wide window.
+pub const TOOLS_INSET: f32 = 56.0;
+/// Tools' reading area: its column after its inset, an inset's width
+/// either side in all (`docs/LAYOUT.md` §14).
+pub const READING_TOOLS_W: f32 = TOOLS_COLUMN_W + 2.0 * TOOLS_INSET;
+/// Transfer's two columns, Send and Receive, at their widest together.
+pub const TRANSFER_W: f32 = 1100.0;
+/// Transfer's reading area: its columns between two `PAGE_INSET`s.
+pub const READING_TRANSFER_W: f32 = TRANSFER_W + 2.0 * PAGE_INSET;
+/// Upgrade's column at its widest.
+pub const UPGRADE_W: f32 = 760.0;
+/// Upgrade's reading area: its column between two `PAGE_INSET`s.
+pub const READING_UPGRADE_W: f32 = UPGRADE_W + 2.0 * PAGE_INSET;
+/// The gap between a stick visit's two lists.
+pub const VISIT_GAP: f32 = 20.0;
+/// A stick visit's reading area: its two lists, each at most
+/// `COLUMN_MAX`, the gap between them, between two `PAGE_INSET`s.
+pub const READING_VISIT_W: f32 = 2.0 * COLUMN_MAX + VISIT_GAP + 2.0 * PAGE_INSET;
+/// The narrowest a tile of the tools' catalogue is: its name, its line
+/// and its standards' tags; the catalogue takes as many columns as fit,
+/// never fewer than three beside the navigation (`docs/LAYOUT.md` §17).
+pub const CATALOG_TILE_MIN: f32 = 360.0;
+/// The tools' catalogue's columns beside the navigation, at the least.
+pub const CATALOG_COLUMNS_MIN: usize = 3;
 /// The narrowest a derivation path's field is drawn on a wide window
 /// (`docs/LAYOUT.md` §8): room for `m/86h/1h/0h/1/2147483647` and the
 /// caret at the body size; a longer path widens it, up to the column.

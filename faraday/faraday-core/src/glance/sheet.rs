@@ -1416,6 +1416,54 @@ fn tone_color(t: crate::wallet_backup::Tone) -> Paint {
     }
 }
 
+/// Whether a chart's sheet stands at the window's right as Material's
+/// standard side sheet: on the wide layout, beside the expanded
+/// navigation rail (`docs/DESIGN.md` §4.16). On the rail's and the bar's
+/// windows, where the chart is a column with no lines, it is the
+/// centred sheet or the small panel's page. A lookup.
+pub(crate) fn side(app: &Faraday) -> bool {
+    !app.is_compact() && !app.held
+}
+
+/// The side sheet to draw this frame: its chart and target, how far in
+/// it stands (0 to 1), and whether it is the open one, which takes
+/// presses, or one leaving. `None` where none stands. A lookup.
+pub(crate) fn side_now(app: &Faraday) -> Option<((Press, Target), f32, bool)> {
+    use crate::motion::{SIDE_SHEET_IN_MS, SIDE_SHEET_OUT_MS, ease, ease_open, progress};
+    if !side(app) {
+        return None;
+    }
+    let m = app.glance.side();
+    let reduce = app.reduce_motion();
+    if app.sheet == Some(Sheet::Chart)
+        && let Some(open) = app.glance.chart()
+    {
+        // Opened since the last tick: just coming in.
+        let shown = match m.shown {
+            _ if reduce => 1.0,
+            Some((_, _, Some(at))) => ease_open(progress(Some(at), app.now_ms, SIDE_SHEET_IN_MS)),
+            _ => 0.0,
+        };
+        return Some((open, shown, true));
+    }
+    if reduce {
+        return None;
+    }
+    // Closed since the last tick: still all the way in.
+    let (seen, gone) = match (m.shown, m.leaving) {
+        (Some(s), _) => (s, 0.0),
+        (None, Some(l)) => (
+            l,
+            ease(
+                tokens::EASE_EMPHASIZED_ACCELERATE,
+                progress(l.2, app.now_ms, SIDE_SHEET_OUT_MS),
+            ),
+        ),
+        (None, None) => return None,
+    };
+    (seen.1 == app.screen && gone < 1.0).then_some((seen.0, 1.0 - gone, false))
+}
+
 /// The sheet over the chart. On a small panel it is the page itself, and
 /// Back returns to the chart.
 pub(crate) fn draw(app: &crate::drawing::View, ui: &mut Ui, w: f32, h: f32) {
@@ -1437,68 +1485,128 @@ pub(crate) fn draw(app: &crate::drawing::View, ui: &mut Ui, w: f32, h: f32) {
         EN.glance_sheet_close
     };
     crate::compact::scroll_sheet(ui, place, h, margin, pad, &mut |ui, x, y, iw| {
-        let mut cy = y;
-        cy += crate::compact::sheet_head(ui, x, cy, iw, v.icon, Role::Primary, &v.title);
-        for (label, value, tone) in &v.facts {
-            cy += crate::compact::kv(ui, x, cy, iw, label, value, *tone);
+        let head = crate::compact::sheet_head(ui, x, y, iw, v.icon, Role::Primary, &v.title);
+        head + body(app, ui, &v, (x, y + head, iw), Some(close))
+    });
+}
+
+/// The sheet beside the chart ([`side_now`]): Material's standard side
+/// sheet at the window's right, `w` by `h`, from under the top-right
+/// strip to the foot, the chart and its lines in view beside it and
+/// still taking presses. One leaving takes none.
+pub(crate) fn draw_side(
+    app: &crate::drawing::View,
+    ui: &mut Ui,
+    ((press, target), shown, live): ((Press, Target), f32, bool),
+    w: f32,
+    h: f32,
+) {
+    let Some(v) = app.glance_sheet(press, target) else {
+        return;
+    };
+    let mark = (
+        ui.hits.len(),
+        ui.reach.len(),
+        ui.scrolled.clone(),
+        ui.offset,
+    );
+    if live {
+        ui.in_sheet = true;
+        ui.offset = app.sheet_offset;
+    } else {
+        ui.offset = 0.0;
+    }
+    let top = tokens::SUPPORT_PANE_TOP;
+    faraday_ui::sheet::side_sheet(
+        ui,
+        (w, top, tokens::SIDE_SHEET_W, h - top),
+        shown,
+        (v.icon.into(), Role::Primary.paint(), &v.title),
+        (EN.glance_sheet_close, Action::Cancel),
+        &mut |ui, x, y, iw| body(app, ui, &v, (x, y, iw), None),
+    );
+    ui.in_sheet = false;
+    if !live {
+        ui.hits.truncate(mark.0);
+        ui.reach.truncate(mark.1);
+        ui.scrolled = mark.2;
+        ui.offset = mark.3;
+    }
+}
+
+/// What a chart's sheet holds under its head, at (x, y) in `iw`: its
+/// facts, lines, field, addresses and rows, then its own button and
+/// `close` (none on the side sheet, whose header holds it). Returns its
+/// height.
+fn body(
+    app: &crate::drawing::View,
+    ui: &mut Ui,
+    v: &View,
+    (x, y, iw): (f32, f32, f32),
+    close: Option<&str>,
+) -> f32 {
+    let mut cy = y;
+    for (label, value, tone) in &v.facts {
+        cy += crate::compact::kv(ui, x, cy, iw, label, value, *tone);
+    }
+    for (line, tone) in &v.lines {
+        cy += ui.wrap(x, cy, iw, tokens::LABEL, W::S, *tone, line) + tokens::GAP_SMALL;
+    }
+    for (line, tone) in &v.secret_lines {
+        cy += ui.wrap(x, cy, iw, tokens::LABEL, W::S, *tone, line) + tokens::GAP_SMALL;
+    }
+    if let Some((label, text, hint)) = &v.field {
+        cy += tokens::GAP;
+        cy += field(ui, x, cy, iw, label, text, *hint);
+    }
+    if let Some(wi) = v.addresses {
+        if let Some(wl) = app.session.wallets.get(wi) {
+            cy += crate::screens::descriptor_row(ui, x, cy, iw, wl, Action::QrWallet(wi));
         }
-        for (line, tone) in &v.lines {
-            cy += ui.wrap(x, cy, iw, tokens::LABEL, W::S, *tone, line) + tokens::GAP_SMALL;
-        }
-        for (line, tone) in &v.secret_lines {
-            cy += ui.wrap(x, cy, iw, tokens::LABEL, W::S, *tone, line) + tokens::GAP_SMALL;
-        }
-        if let Some((label, text, hint)) = &v.field {
-            cy += tokens::GAP;
-            cy += field(ui, x, cy, iw, label, text, *hint);
-        }
-        if let Some(wi) = v.addresses {
-            if let Some(wl) = app.session.wallets.get(wi) {
-                cy += crate::screens::descriptor_row(ui, x, cy, iw, wl, Action::QrWallet(wi));
-            }
-            cy += crate::screens::first_addresses(app, ui, wi, x, cy, iw);
-        }
-        for (heading, rows) in &v.groups {
-            if rows.is_empty() {
-                continue;
-            }
-            cy += tokens::GAP;
-            if !heading.is_empty() {
-                cy += ui.wrap(
-                    x,
-                    cy,
-                    iw,
-                    tokens::CAPTION,
-                    W::S,
-                    Role::OnSurfaceVariant,
-                    heading,
-                ) + tokens::GAP;
-            }
-            for r in rows {
-                cy += menu_row(ui, x, cy, iw, r) + tokens::GAP_SMALL;
-            }
+        cy += crate::screens::first_addresses(app, ui, wi, x, cy, iw);
+    }
+    for (heading, rows) in &v.groups {
+        if rows.is_empty() {
+            continue;
         }
         cy += tokens::GAP;
-        let mut buttons: Vec<(&str, Style, Action)> = Vec::new();
-        if let Some((label, Some(a))) = &v.go {
-            buttons.push((label.as_str(), Style::Primary, *a));
-        }
-        buttons.push((close, Style::Secondary, Action::Cancel));
-        cy += crate::compact::buttons(ui, x, cy, iw, &buttons);
-        if let Some((label, None)) = &v.go {
-            cy += tokens::GAP;
+        if !heading.is_empty() {
             cy += ui.wrap(
                 x,
                 cy,
                 iw,
                 tokens::CAPTION,
-                W::R,
+                W::S,
                 Role::OnSurfaceVariant,
-                label,
-            );
+                heading,
+            ) + tokens::GAP;
         }
-        cy - y
-    });
+        for r in rows {
+            cy += menu_row(ui, x, cy, iw, r) + tokens::GAP_SMALL;
+        }
+    }
+    cy += tokens::GAP;
+    let mut buttons: Vec<(&str, Style, Action)> = Vec::new();
+    if let Some((label, Some(a))) = &v.go {
+        buttons.push((label.as_str(), Style::Primary, *a));
+    }
+    if let Some(close) = close {
+        buttons.push((close, Style::Secondary, Action::Cancel));
+    }
+    cy += crate::compact::buttons(ui, x, cy, iw, &buttons);
+    if let Some((label, None)) = &v.go {
+        cy += tokens::GAP;
+        cy += ui.wrap(
+            x,
+            cy,
+            iw,
+            tokens::CAPTION,
+            W::R,
+            Role::OnSurfaceVariant,
+            label,
+        );
+    }
+    cy - y
 }
 
 /// A field being typed: its label over a box with what it shows and the
@@ -1679,13 +1787,25 @@ impl Faraday {
                 if target != Target::Confirm {
                     self.glance.work_mut().ask = None;
                 }
+                // Beside the chart, a sheet newly open slides in from now;
+                // another node's replaces it where it stands.
+                if side(self) && self.sheet != Some(Sheet::Chart) {
+                    self.glance.set_side(glance::SideMotion {
+                        shown: Some(((press, target), self.screen, Some(self.now_ms))),
+                        leaving: None,
+                    });
+                }
                 self.glance.set_chart(Some((press, target)));
                 self.glance.set_focus(None);
                 self.sheet = Some(Sheet::Chart);
                 self.scroll.reset_sheet();
             }
             ChartAction::Where(press, k) => {
-                self.close_chart();
+                // Beside the chart the sheet stays: the lines show
+                // beside it (`docs/DESIGN.md` §4.16).
+                if !side(self) {
+                    self.close_chart();
+                }
                 self.glance.set_focus(Some((press, usize::from(k))));
             }
             ChartAction::Edit(press, e) => self.chart_ask(press, e),
@@ -1766,6 +1886,43 @@ impl Faraday {
                 }
             }
         }
+    }
+
+    /// Keeps the side sheet's coming and going ([`side_now`]) in step
+    /// with the chart's open sheet. Returns whether a frame is wanted for
+    /// it. A lookup.
+    pub(crate) fn chart_side_tick(&mut self, now: u64) -> bool {
+        use crate::motion::{SIDE_SHEET_IN_MS, SIDE_SHEET_OUT_MS};
+        let open = if side(self) && self.sheet == Some(Sheet::Chart) {
+            self.glance.chart()
+        } else {
+            None
+        };
+        let mut m = self.glance.side();
+        let reduce = self.reduce_motion();
+        match (m.shown, open) {
+            (None, Some(c)) => {
+                m.shown = Some((c, self.screen, Some(now)));
+                m.leaving = None;
+            }
+            (Some((_, s, at)), Some(c)) => m.shown = Some((c, s, at.or(Some(now)))),
+            (Some((c, s, _)), None) => {
+                m.shown = None;
+                m.leaving = (!reduce).then_some((c, s, Some(now)));
+            }
+            (None, None) => {}
+        }
+        let leaving = m.leaving.is_some();
+        if m.leaving
+            .is_some_and(|l| l.2.is_some_and(|at| now >= at + SIDE_SHEET_OUT_MS))
+        {
+            m.leaving = None;
+        }
+        let coming = m.shown.is_some_and(|s| {
+            s.2.is_some_and(|at| now < at + SIDE_SHEET_IN_MS + tokens::MOTION_SHORT1)
+        });
+        self.glance.set_side(m);
+        !reduce && (coming || leaving)
     }
 
     fn close_chart(&mut self) {

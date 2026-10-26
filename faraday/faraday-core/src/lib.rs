@@ -7316,9 +7316,8 @@ impl App for Faraday {
                 let fading = motion::bar_alpha(self.scroll.bar_moved_at(), self.now_ms) > 0;
                 self.now_ms = now_ms;
                 // Asked for on every tick while something moves, so the
-                // shell keeps drawing at its frame rate.
-                // A card opening or a toast coming or going starts on its
-                // first tick and wants a frame on each.
+                // shell keeps drawing at its frame rate. A card opening or
+                // a toast coming or going starts on its first tick.
                 if let Some(d) = self.disclosed.as_mut()
                     && d.moving
                     && d.at.is_none()
@@ -7379,6 +7378,7 @@ impl App for Faraday {
                     | self.seed_tick()
                     | self.typed_tick(now_ms)
                     | self.explore_tick(now_ms)
+                    | self.chart_side_tick(now_ms)
                 {
                     self.out.dirty = true;
                     self.out.commands.push_back(Command::Draw);

@@ -180,7 +180,7 @@ fn holds(app: &Faraday, w: usize, name: &str) -> Vec<String> {
 
 fn open(app: &mut Faraday, press: Press, t: Target) {
     app.press(Action::Chart(C::Open(press, t)));
-    let _ = app.frame();
+    crate::common::a_moment(app);
     assert_eq!(app.sheet, Some(Sheet::Chart), "{t:?} opened no sheet");
 }
 
@@ -188,7 +188,7 @@ fn open(app: &mut Faraday, press: Press, t: Target) {
 /// before and after is on the sheet.
 fn edit_and_confirm(app: &mut Faraday, press: Press, edit: Edit) {
     app.press(Action::Chart(C::Edit(press, edit)));
-    let _ = app.frame();
+    crate::common::a_moment(app);
     assert_eq!(
         app.chart(),
         Some((press, Target::Confirm)),
@@ -288,7 +288,7 @@ fn a_change_that_makes_a_check_line_worse_says_so_before_it_is_made() {
         press,
         Edit::Drop(At::Place(0), What::Words(0)),
     )));
-    let _ = app.frame();
+    crate::common::a_moment(&mut app);
     let ask = app.chart_work().ask.as_ref().expect("asked");
     assert_eq!(ask.before.lost, Lost::Yes);
     assert_eq!(ask.after.lost, Lost::No);
@@ -539,7 +539,7 @@ fn a_copy_marked_lost_says_whether_anything_is_lost_that_is_not_elsewhere() {
     // The words at Place 1 lost: they are at Place 2 too.
     let (n, j) = line_of(&app, w, "Place 1", "Key 1 words");
     app.press(Action::Chart(C::Mark(press, n, Some(j), Mark::Lost)));
-    let _ = app.frame();
+    crate::common::a_moment(&mut app);
     assert!(shown(&mut app, "Nothing lost that is not elsewhere"));
     assert!(app.offers(Action::Chart(C::Open(
         press,
@@ -550,10 +550,12 @@ fn a_copy_marked_lost_says_whether_anything_is_lost_that_is_not_elsewhere() {
     let (n2, _) = node_of(&app, w, "Place 2");
     app.press(Action::Chart(C::Mark(press, n2, None, Mark::Lost)));
     let _ = app.frame();
-    assert!(shown(
-        &mut app,
-        "The wallet can no longer be rebuilt from what is left"
-    ));
+    // The line may wrap on the sheet beside the chart.
+    let text = app.drawn_texts().join(" ");
+    assert!(
+        text.contains("The wallet can no longer be rebuilt from what is left"),
+        "{text}"
+    );
     assert!(shown(&mut app, "Back up again now"));
     // A lost thing stays on the chart until it is taken off the plan.
     let (_, j) = line_of(&app, w, "Place 1", "Key 1 words");
