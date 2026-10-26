@@ -137,7 +137,6 @@ changes and nothing else has to be kept in step.
     areas are explicit glue: short `impl Faraday` functions in the area's
     own files.
 - No hosted CI, no GitHub Actions, no metered external services.
-- `local/user-notes.txt` is the owner's own notes; agents ignore it.
 - The remote machine that builds the images is "the build machine" in
   everything written here: docs, comments, commit messages. Never its
   hostname, its owner's name or its address.
@@ -145,11 +144,3 @@ changes and nothing else has to be kept in step.
   names, email addresses, hostnames, IP addresses, local paths, keys
   and tokens, in the diff and in the commit message.
 - Do not use `rm`; use `trash`. Use absolute paths in shell commands.
-- Agents do not commit and do not spawn agents; the orchestrator reviews
-  and commits.
-- The orchestrator hands each task to an agent on the model it needs:
-  Opus for work that takes decisions or judgement (design, a new flow,
-  a spec, a review), Sonnet for mechanical work whose result can be
-  checked (a specified change, a rename, making tests pass), Haiku for
-  menial read-only work (finding files, listing call sites, reading
-  logs).
