@@ -83,6 +83,20 @@ strings! {
     own_coin_keys: "Type H or T · Backspace takes one back · Enter adds",
     /// Keyboard hint under the camera.
     own_camera_keys: "Space takes a picture",
+    /// Source choice, on the desktop.
+    own_source_pointer_keys: "Pointer and keys",
+    /// Inside Pointer and keys' area.
+    own_pointer_keys_area: "Move the pointer here and type",
+    /// Pointer and keys' count, one.
+    own_pointer_move: "pointer move",
+    /// Pointer and keys' count, more than one.
+    own_pointer_moves: "pointer moves",
+    /// Pointer and keys' count, one.
+    own_key: "key",
+    /// Pointer and keys' count, more than one.
+    own_keys: "keys",
+    /// What Pointer and keys has taken. `{}`: the pointer moves, then the keys, each `own_count`.
+    own_pointer_keys_taken: "{}, {}",
     // ----- The stick's device check (docs/STARTER.md §3.1a), faraday-core -----
     /// Title of the sheet that names what is attached.
     devices_title: "Attached to this computer",

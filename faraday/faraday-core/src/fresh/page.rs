@@ -4,10 +4,15 @@
 //! goes into the session at its Add; a camera frame goes in as it is
 //! taken. What a batch makes is its commitment, which `Fresh::own_add`
 //! hashes into the person's accumulator; the batch itself is wiped then,
-//! and at the lock.
+//! and at the lock. Pointer and keys, where the shell has both, takes
+//! the pointer's moves over its area and the keys typed while it is the
+//! source chosen, never anything else (owner, 2026-10-26: nothing is
+//! collected passively), and adds every 64 of them, when the pointer
+//! leaves the area or a key is not its own, and when the
+//! source or the page is left.
 
 use super::OwnSource;
-use faraday_entropy::{CameraNoise, CardDraws, CoinFlips, DiceRolls, FrameStats};
+use faraday_entropy::{CameraNoise, CardDraws, CoinFlips, DiceRolls, FrameStats, PointerKeys};
 use zeroize::Zeroize;
 
 /// A press on Add randomness.
@@ -29,6 +34,9 @@ pub enum Act {
     Suit(u8),
     /// Take the camera's newest frame: it is added at once.
     Frame,
+    /// Pointer and keys' area: drawn as a region so the pointer's moves
+    /// over it are found there; a press on it does nothing.
+    Area,
     /// Take back the batch's last entry.
     Undo,
     /// Forget the batch.
@@ -52,7 +60,7 @@ pub(crate) struct OwnPage {
     source: OwnSource,
     /// The person has chosen `source`: until then no pad is live, no key
     /// is taken and no camera runs (owner, 2026-10-26: nothing is
-    /// collected passively). New key's Generator card opens unchosen.
+    /// collected passively). The page and the card open unchosen.
     chosen: bool,
     /// Rolls not yet added.
     dice: DiceRolls,
@@ -60,6 +68,8 @@ pub(crate) struct OwnPage {
     coins: CoinFlips,
     /// Cards drawn from the deck being entered, not yet added.
     cards: CardDraws,
+    /// Pointer moves and keys not yet added, and their counts.
+    pk: PointerKeys,
     /// A card's rank, picked before its suit.
     rank: Option<u8>,
     /// The camera's newest frame's luma, while the camera is on.
@@ -79,19 +89,9 @@ impl Drop for OwnPage {
 }
 
 impl OwnPage {
-    /// The page as it opens: on Camera where the shell has a camera, on
-    /// Dice where it has none (§2.2).
-    pub(crate) fn new(has_camera: bool) -> Self {
-        let mut page = Self::unchosen();
-        if !has_camera {
-            page.source = OwnSource::Dice;
-        }
-        page.chosen = true;
-        page
-    }
-
-    /// The sources as New key's Generator card offers them: none chosen
-    /// until the person presses one.
+    /// The sources as Add randomness and New key's Generator card offer
+    /// them: none chosen until the person presses one, Camera listed
+    /// first (§2.2).
     pub(crate) fn unchosen() -> Self {
         OwnPage {
             source: OwnSource::Camera,
@@ -99,6 +99,7 @@ impl OwnPage {
             dice: DiceRolls::new(),
             coins: CoinFlips::new(),
             cards: CardDraws::new(),
+            pk: PointerKeys::new(),
             rank: None,
             frame: None,
             last_frame: None,
@@ -114,6 +115,59 @@ impl OwnPage {
     /// Cards not yet added.
     pub(crate) fn cards(&self) -> &CardDraws {
         &self.cards
+    }
+
+    /// Pointer moves and keys taken on this page, added or not.
+    pub(crate) fn pointer_keys(&self) -> (u32, u32) {
+        (self.pk.moves(), self.pk.keys())
+    }
+
+    /// Whether Pointer and keys is the source chosen.
+    pub(crate) fn takes_pointer_keys(&self) -> bool {
+        self.chosen && self.source == OwnSource::PointerKeys
+    }
+
+    /// A pointer move over Pointer and keys' area at `ms`, in the frame's
+    /// pixels: the batch to add once it holds 64. Nothing while another
+    /// source is chosen.
+    pub(crate) fn pointer_moved(&mut self, x: u16, y: u16, ms: u64) -> Option<Batch> {
+        if !self.takes_pointer_keys() {
+            return None;
+        }
+        self.pk.pointer(x, y, ms).then(|| self.flush()).flatten()
+    }
+
+    /// A key typed for Pointer and keys at `ms`: the batch to add once it
+    /// holds 64. `None` too for a key the source does not take, or while
+    /// another source is chosen; [`OwnPage::takes_key`] says which.
+    pub(crate) fn key_typed(&mut self, key: faraday_shell_api::Key, ms: u64) -> Option<Batch> {
+        let code = Self::key_code(key).filter(|_| self.takes_pointer_keys())?;
+        self.pk.key(code, ms).then(|| self.flush()).flatten()
+    }
+
+    /// Whether Pointer and keys takes `key`: a character, Backspace or
+    /// Delete, while it is the source chosen.
+    pub(crate) fn takes_key(&self, key: faraday_shell_api::Key) -> bool {
+        self.takes_pointer_keys() && Self::key_code(key).is_some()
+    }
+
+    /// A key's code in Pointer and keys' record: a character's Unicode
+    /// scalar value; Backspace and Delete the two values after the last
+    /// one. The keys that move about the page are not taken.
+    fn key_code(key: faraday_shell_api::Key) -> Option<u32> {
+        use faraday_shell_api::Key as K;
+        match key {
+            K::Char(c) => Some(u32::from(c)),
+            K::Backspace => Some(0x11_0000),
+            K::Delete => Some(0x11_0001),
+            _ => None,
+        }
+    }
+
+    /// Pointer and keys' batch, to add now, however few it holds.
+    pub(crate) fn flush(&mut self) -> Option<Batch> {
+        let (c, n) = self.pk.commit()?;
+        Some((OwnSource::PointerKeys, c, n))
     }
 
     /// The rank picked, waiting for its suit.
@@ -177,6 +231,7 @@ impl OwnPage {
         self.dice.clear();
         self.coins.clear();
         self.cards.clear();
+        self.pk.clear();
         self.rank = None;
         self.camera_off();
         self.last_frame = None;
@@ -191,12 +246,14 @@ impl OwnPage {
             return None;
         }
         match a {
-            Act::Source(s) if s != OwnSource::PointerKeys => {
+            Act::Source(s) => {
+                // Leaving Pointer and keys adds what it took.
+                let left = (s != self.source).then(|| self.flush()).flatten();
                 self.source = s;
                 self.chosen = true;
                 self.rank = None;
+                return left;
             }
-            Act::Source(_) => {}
             Act::Roll(f) if self.source == OwnSource::Dice => {
                 self.dice.push(f);
             }

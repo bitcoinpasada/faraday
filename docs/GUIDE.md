@@ -554,9 +554,11 @@ their own entry card. A mix ticks its sources under its row and keeps
 
 The Generator card also takes randomness of yours, mixed into the
 operating system's, never in its place. Nothing is chosen at first:
-press **Camera** (with a camera attached), **Dice**, **Coins** or
-**Cards**, enter some, then **Add** (**Undo** takes the last one back,
-**Clear** the batch). Once some is added, the card reads **Randomness
+press **Camera** (with a camera attached), **Dice**, **Coins**,
+**Cards** or **Pointer and keys**, enter some, then **Add** (**Undo**
+takes the last one back, **Clear** the batch). **Pointer and keys**
+takes the pointer's moves over its box and the keys typed while it is
+chosen, and adds them as they come. Once some is added, the card reads **Randomness
 added to the pool**, and **Source** ends **· with your own**. To go on
 without adding any, press **Skip**. Settings' **Randomness** row opens
 the same choices on a page of their own.

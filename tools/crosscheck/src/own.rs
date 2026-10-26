@@ -6,7 +6,8 @@
 //! A batch is taken as New key's sources take it (`faraday_entropy`):
 //! dice rolls and coin flips through `DiceRolls` and `CoinFlips`, one
 //! camera frame through `CameraNoise` (a frame with under 32 distinct
-//! luma values is refused there), and added with `Faraday::own_add`
+//! luma values is refused there), pointer moves and keys through
+//! `PointerKeys` as Add randomness takes them, and added with `Faraday::own_add`
 //! under that source's commitment. The bytes the session then draws are
 //! read through the testkit: `fresh` (a pooled answer, used up),
 //! `seed_draw` (the session seed's draw), and `device_bytes` (what New
@@ -14,7 +15,7 @@
 
 use faraday_core::fresh::{OwnCounts, OwnSource};
 use faraday_core::{Action, testkit};
-use faraday_entropy::{CameraNoise, CoinFlips, DiceRolls};
+use faraday_entropy::{CameraNoise, CoinFlips, DiceRolls, PointerKeys};
 use faraday_shell_api::{App, EntropyBytes, Event};
 use serde_json::{Value, json};
 
@@ -37,6 +38,33 @@ pub fn handle(name: &str, req: &Value) -> Answer {
         "session" => session(req),
         _ => Err(format!("unknown own op {name}")),
     }
+}
+
+/// Pointer moves (`["P", ms, x, y]`) and keys (`["K", ms, code]`) taken
+/// through `PointerKeys` as Add randomness takes them, each full batch
+/// added as it fills and the rest at the end. Whether every batch was
+/// taken (none for no events).
+fn pointer_keys(app: &mut faraday_core::Faraday, events: &Value) -> bool {
+    let mut pk = PointerKeys::new();
+    let mut taken = Vec::new();
+    let mut add = |app: &mut faraday_core::Faraday, pk: &mut PointerKeys| {
+        if let Some((c, n)) = pk.commit() {
+            taken.push(app.own_add(OwnSource::PointerKeys, &c, n));
+        }
+    };
+    for e in events.as_array().expect("events is a list") {
+        let n = |i: usize| e[i].as_u64().expect("a number");
+        let full = match e[0].as_str() {
+            Some("P") => pk.pointer(n(2) as u16, n(3) as u16, n(1)),
+            Some("K") => pk.key(n(2) as u32, n(1)),
+            other => panic!("unknown event {other:?}"),
+        };
+        if full {
+            add(app, &mut pk);
+        }
+    }
+    add(app, &mut pk);
+    !taken.is_empty() && taken.iter().all(|t| *t)
 }
 
 /// A session from its start: each step of `steps` in order, and what
@@ -69,6 +97,7 @@ fn session(req: &Value) -> Answer {
                 let taken = camera.push(&bytes(step, "luma")).1;
                 json!(taken && app.own_add(OwnSource::Camera, &camera.commitment(), 1))
             }
+            "pointer_keys" => json!(pointer_keys(&mut app, &step["events"])),
             "lock" => {
                 app.press(Action::Lock);
                 Value::Null

@@ -1,6 +1,7 @@
 //! `Screen::Randomness`: Add randomness (`docs/OWN-RANDOMNESS.md` §2.2).
-//! The status line, the source chosen (Camera, Dice, Coins, Cards) and
-//! its pad, New key's own, with the batch not yet added and its Add. New
+//! The status line, the source chosen (Camera, Dice, Coins, Cards and,
+//! where the shell has a pointer and keys, Pointer and keys) and its pad,
+//! New key's own, with the batch not yet added and its Add. New
 //! key's Generator card draws the same sources on itself
 //! ([`own_sources`]).
 
@@ -14,17 +15,19 @@ use crate::ui::pal::*;
 use crate::ui::{Style, Ui, W};
 use faraday_draw::tokens::{
     BACK_LINK_ROW, CAPTION, COLUMN_MAX, GAP, GAP_SMALL, LABEL, MARGIN_COMPACT, MARGIN_WIDE,
-    OWN_BUTTON, OWN_LINE_TEXT, OWN_TOP, PAD,
+    OWN_AREA, OWN_BUTTON, OWN_LINE_TEXT, OWN_TOP, PAD, SHAPE_M,
 };
 use faraday_ui::parts::title;
 
 /// The sources a person picks from, in order: Camera only where the
-/// shell has a camera.
-const SOURCES: [(OwnSource, &str); 4] = [
+/// shell has a camera, Pointer and keys only where it has a pointer and
+/// keys.
+const SOURCES: [(OwnSource, &str); 5] = [
     (OwnSource::Camera, EN.own_source_camera),
     (OwnSource::Dice, EN.own_source_dice),
     (OwnSource::Coins, EN.own_source_coins),
     (OwnSource::Cards, EN.own_source_cards),
+    (OwnSource::PointerKeys, EN.own_source_pointer_keys),
 ];
 
 fn own(a: Act) -> Action {
@@ -79,7 +82,11 @@ pub(crate) fn own_sources(
     let mut cy = y;
     let sources: Vec<(&str, Action)> = SOURCES
         .iter()
-        .filter(|(s, _)| *s != OwnSource::Camera || !app.cameras().is_empty() || p.wants_camera())
+        .filter(|(s, _)| match s {
+            OwnSource::Camera => !app.cameras().is_empty() || p.wants_camera(),
+            OwnSource::PointerKeys => app.pointer_keys_offered(),
+            _ => true,
+        })
         .map(|&(s, label)| (label, own(Act::Source(s))))
         .collect();
     // On the Generator card nothing is chosen until a source is pressed.
@@ -147,8 +154,42 @@ fn pad(p: &OwnPage, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             |r| own(Act::Rank(r)),
             |s| own(Act::Suit(s)),
         ),
-        OwnSource::PointerKeys => 0.0,
+        OwnSource::PointerKeys => pointer_keys_area(p, ui, (x, y, w)),
     }
+}
+
+/// Pointer and keys' area, which the pointer's moves are taken over, and
+/// what it has taken. Returns its height.
+fn pointer_keys_area(p: &OwnPage, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
+    ui.fill(x, y, w, OWN_AREA, SHAPE_M, Role::SurfaceContainerHighest);
+    let label = EN.own_pointer_keys_area;
+    let lw = ui.measure(OWN_LINE_TEXT, W::R, label);
+    let lx = x + ((w - lw) / 2.0).max(PAD);
+    ui.text_mid(
+        lx,
+        y,
+        OWN_AREA,
+        OWN_LINE_TEXT,
+        W::R,
+        Role::OnSurfaceVariant,
+        label,
+    );
+    ui.hit_quiet(x, y, w, OWN_AREA, own(Act::Area));
+    let mut cy = y + OWN_AREA + GAP;
+    let (moves, keys) = p.pointer_keys();
+    let count = |n: u32, one: &str, many: &str| {
+        fill(
+            EN.own_count,
+            &[&n.to_string(), if n == 1 { one } else { many }],
+        )
+    };
+    let moves = count(moves, EN.own_pointer_move, EN.own_pointer_moves);
+    let line = fill(
+        EN.own_pointer_keys_taken,
+        &[&moves, &count(keys, EN.own_key, EN.own_keys)],
+    );
+    cy += ui.wrap(x, cy, w, OWN_LINE_TEXT, W::R, Role::OnSurface, &line) + GAP;
+    cy - y
 }
 
 /// What a batch holds before it is added, what the last press could not
@@ -197,7 +238,8 @@ fn batch(p: &OwnPage, ui: &mut Ui, (x, y, w): (f32, f32, f32), card: bool) -> f3
             OwnSource::Dice => EN.own_dice_keys,
             OwnSource::Coins => EN.own_coin_keys,
             OwnSource::Cards => EN.keygen_type_the_rank,
-            OwnSource::Camera | OwnSource::PointerKeys => EN.own_camera_keys,
+            OwnSource::Camera => EN.own_camera_keys,
+            OwnSource::PointerKeys => return cy - y,
         };
         cy += ui.wrap(x, cy, w, CAPTION, W::R, Role::OnSurfaceVariant, hint);
     }

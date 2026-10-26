@@ -1,7 +1,7 @@
 //! The randomness tour (`docs/OWN-RANDOMNESS.md` §2.2): Settings'
-//! Randomness row, Add randomness on Camera with a picture taken, Dice
-//! with a batch entered, Cards with a rank picked, and the row again
-//! with what was added.
+//! Randomness row, Add randomness as it opens with nothing chosen, on
+//! Camera with a picture taken, Dice with a batch entered, Cards with a
+//! rank picked, Pointer and keys, and the row again with what was added.
 
 use crate::tour::Tour;
 use faraday_core::fresh::OwnSource;
@@ -11,6 +11,8 @@ use faraday_shell_api::{App, EntropyBytes, Event};
 
 pub(crate) fn randomness_tour(t: &mut Tour) -> Result<(), String> {
     let own = |a| Action::Own(a);
+    // As the desktop runs it: a pointer and keys.
+    t.app.set_pointer_keys_offered(true);
     t.app.event(Event::EntropySource("getrandom(2)"));
     t.app.event(Event::Entropy(EntropyBytes::new([0x11; 32])));
     t.app.storage(StorageEvent::Cameras(vec![(
@@ -20,6 +22,8 @@ pub(crate) fn randomness_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::Nav(Screen::Settings));
     t.shot("randomness-settings")?;
     t.press(own(Act::Open));
+    t.shot("randomness-open")?;
+    t.press(own(Act::Source(OwnSource::Camera)));
     t.shot("randomness-camera")?;
     // lint-tokens: sample data
     let luma: Vec<u8> = (0..=255u8).cycle().take(64 * 64).collect();
@@ -43,6 +47,8 @@ pub(crate) fn randomness_tour(t: &mut Tour) -> Result<(), String> {
     t.press(own(Act::Suit(1)));
     t.press(own(Act::Rank(11)));
     t.shot("randomness-cards")?;
+    t.press(own(Act::Source(OwnSource::PointerKeys)));
+    t.shot("randomness-pointer-keys")?;
     t.press(Action::Back);
     t.shot("randomness-settings-added")
 }

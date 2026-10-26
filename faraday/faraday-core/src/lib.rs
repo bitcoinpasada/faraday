@@ -7291,15 +7291,15 @@ impl App for Faraday {
                     .pointer
                     .hover()
                     .is_some_and(|(x, y)| self.bar_at(x, y).is_some());
-                let tip = self.pointer.tip_hover(self.now_ms);
-                // Coming over the scrollbar shows it.
+                let tip = self.pointer.tip_hover(self.now_ms) | self.own_pointer(x, y);
+                // Coming over the scrollbar shows it; a move taken draws.
                 if !self.find_hovered() && was == now && !tip {
                     return;
                 }
             }
             Event::HoverEnd => {
                 self.pointer.set_hover(None);
-                let tip = self.pointer.tip_hover(self.now_ms);
+                let tip = self.pointer.tip_hover(self.now_ms) | self.own_flush();
                 if !self.find_hovered() && !tip {
                     return;
                 }

@@ -1000,6 +1000,10 @@ pub const OWN_TOP: f32 = 28.0;
 /// Add randomness: the size of the status line and the batch's line.
 pub const OWN_LINE_TEXT: f32 = 13.0;
 
+/// Pointer and keys' area on Add randomness: the height the pointer
+/// moves over.
+pub const OWN_AREA: f32 = 160.0;
+
 // ----- Codex32 error correction (docs/CODEX32.md §8.4) -----
 
 /// Add a key's other forms: a line of the list of shares or strings in,

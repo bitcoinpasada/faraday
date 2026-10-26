@@ -36,6 +36,10 @@
 //!   the core's entropy request with, hashed.
 //! - **A mix** ([`Mixed`]): SHA-256 over the sources' commitments,
 //!   concatenated in the order they were taken.
+//! - **Pointer and keys** ([`PointerKeys`]): not a key's source but one
+//!   a person adds to the session's randomness; a batch's commitment is
+//!   SHA-256 over its events' records, each with the time and a running
+//!   count.
 //!
 //! Every source states a **commitment**: SHA-256 of its raw input, which
 //! is what a mix combines and what a person can write down before the
@@ -267,6 +271,7 @@ mod device;
 mod dice;
 mod hex;
 mod mix;
+mod pointer_keys;
 mod xor;
 
 pub use booklet::{
@@ -284,6 +289,7 @@ pub use device::DeviceRandom;
 pub use dice::{DiceProcedure, DiceRolls, DiceStats};
 pub use hex::RawHex;
 pub use mix::{MAX_MIX, MIN_MIX, Mixed};
+pub use pointer_keys::{POINTER_KEYS_BATCH, POINTER_KEYS_RECORD, PointerKeys};
 pub use xor::{MAX_XOR_PARTS, MIN_XOR_PARTS, SeedXor};
 
 // ----- what a flow offers -----

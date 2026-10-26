@@ -774,6 +774,8 @@ fn desktop_app_in(mode: faraday_core::Mode) -> Faraday {
     app.shell_sticks = true;
     // The dice roller (`docs/CODEX32.md` §5.6) is Faraday Demo's alone.
     app.set_roller_offered(true);
+    // A pointer and a keyboard: Add randomness offers Pointer and keys.
+    app.set_pointer_keys_offered(true);
     app.session = faraday_core::wallet::Session::on(mode.network());
     if mode == faraday_core::Mode::Demo {
         app.session.set_demo(&faraday_samples::SAMPLES);

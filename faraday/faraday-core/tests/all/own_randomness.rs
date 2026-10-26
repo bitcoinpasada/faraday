@@ -419,7 +419,9 @@ fn settings_randomness_row_counts_what_the_page_added_and_none_after_a_lock() {
     );
     app.press(own(Act::Open));
     assert_eq!(app.screen, Screen::Randomness);
-    // No camera here: the page opens on Dice.
+    // Nothing is chosen as the page opens: a roll takes nothing.
+    app.press(own(Act::Roll(1)));
+    app.press(own(Act::Source(OwnSource::Dice)));
     for i in 0..99u8 {
         app.press(own(Act::Roll(i % 6 + 1)));
     }
@@ -463,6 +465,7 @@ fn dice_typed_on_the_page_mix_in_as_the_known_answers_say() {
     app.press(Action::Nav(Screen::Settings));
     crate::common::settings_section(&mut app, "Randomness");
     app.press(own(Act::Open));
+    app.press(own(Act::Source(OwnSource::Dice)));
     // 7 is no die's face; Backspace takes the second 6 back.
     crate::common::type_text(&mut app, "12345667");
     app.event(Event::Key(Key::Backspace));
@@ -511,7 +514,7 @@ fn coins_and_cards_are_counted_and_a_card_already_out_is_refused() {
 }
 
 #[test]
-fn with_a_camera_the_page_opens_on_it_and_each_picture_is_added_as_taken() {
+fn with_a_camera_it_starts_only_once_chosen_and_each_picture_is_added_as_taken() {
     let mut app = testkit::started();
     answer(&mut app, SEED);
     answer(&mut app, POOLED);
@@ -523,6 +526,13 @@ fn with_a_camera_the_page_opens_on_it_and_each_picture_is_added_as_taken() {
     crate::common::settings_section(&mut app, "Randomness");
     let _ = commands(&mut app);
     app.press(own(Act::Open));
+    assert!(
+        !commands(&mut app).contains(&Command::CameraOn),
+        "nothing started as the page opens"
+    );
+    let camera = own(Act::Source(OwnSource::Camera));
+    assert!(crate::common::offered(&mut app, camera), "Camera offered");
+    app.press(camera);
     assert!(commands(&mut app).contains(&Command::CameraOn));
     // A flat picture is refused, as New key refuses it.
     app.event(Event::CameraFrame {
@@ -647,4 +657,256 @@ fn new_keys_generator_skip_moves_on_with_nothing_added() {
     assert!(!k.with_own && !app.own_counts().any(), "nothing added");
     let words = k.mnemonic.as_ref().unwrap().indices().to_vec();
     assert_eq!(words, words_of(SEED), "the system's bytes alone");
+}
+
+// ----- Pointer and keys (§2.1; test 6) -----
+
+/// SHA-256("faraday pointer keys" ‖ the records of [`POINTER_EVENTS`]),
+/// each record as §2.1 writes it, computed with Python's `hashlib`.
+const POINTER_KEYS_COMMITMENT: &str =
+    "76206ffcb6d7a777e190b9e7624f39c383fecc9eacef6f62c8b6a485550f3ab4";
+/// With that batch of five added after the system's answers.
+const DRAW_POINTER_KEYS: &str = "af3906fa1a2bfe06b925227ae70c6f4591e40964f162a6d49ceb065cc23420ab";
+const FRESH_POINTER_KEYS: &str = "db3dc34ce02d9bda8d5fd4c4b28fcf9678880b590d0a75f69f26aaa10fa80c1d";
+
+/// A pointer move (x, y) or a key (its code), at a time in ms.
+#[derive(Clone, Copy)]
+enum Ev {
+    Move(u16, u16, u64),
+    Key(u32, u64),
+}
+
+/// Three moves, `a`, then Backspace (the code after the last scalar
+/// value).
+const POINTER_EVENTS: [Ev; 5] = [
+    Ev::Move(100, 200, 1000),
+    Ev::Move(101, 202, 1016),
+    Ev::Move(102, 204, 1032),
+    Ev::Key(0x61, 1100),
+    Ev::Key(0x11_0000, 1150),
+];
+
+/// The commitment of `events` as one batch, from a running count of 0.
+fn pointer_keys_commitment(events: &[Ev]) -> [u8; 32] {
+    let mut pk = faraday_entropy::PointerKeys::new();
+    for e in events {
+        match *e {
+            Ev::Move(x, y, ms) => pk.pointer(x, y, ms),
+            Ev::Key(code, ms) => pk.key(code, ms),
+        };
+    }
+    pk.commit().expect("a batch").0
+}
+
+/// The app as the desktop shell makes it, seeded, on Add randomness with
+/// Pointer and keys chosen and drawn.
+fn on_pointer_keys() -> Faraday {
+    let mut app = testkit::started();
+    app.set_pointer_keys_offered(true);
+    answer(&mut app, SEED);
+    answer(&mut app, POOLED);
+    app.press(Action::Nav(Screen::Settings));
+    crate::common::settings_section(&mut app, "Randomness");
+    app.press(own(Act::Open));
+    let source = own(Act::Source(OwnSource::PointerKeys));
+    assert!(crate::common::offered(&mut app, source));
+    app.press(source);
+    let _ = app.frame();
+    app
+}
+
+/// A point inside Pointer and keys' area, `i` pixels in from its corner.
+fn in_area(app: &Faraday, i: u16) -> (u16, u16) {
+    let (x, y, w, h) = app.hit_box(own(Act::Area)).expect("the area drawn");
+    assert!(w > 40 && h > 40, "an area to move over");
+    (x + 4 + i % (w - 8), y + 4 + i % (h - 8))
+}
+
+fn hover(app: &mut Faraday, (x, y): (u16, u16)) {
+    app.event(Event::Hover { x, y });
+}
+
+#[test]
+fn the_pointer_and_keys_commitment_and_its_mix_are_the_known_answers() {
+    let c = pointer_keys_commitment(&POINTER_EVENTS);
+    assert_eq!(hex(c), POINTER_KEYS_COMMITMENT);
+    let mut app = testkit::started();
+    answer(&mut app, SEED);
+    answer(&mut app, POOLED);
+    assert!(app.own_add(OwnSource::PointerKeys, &c, 5));
+    assert_eq!(app.own_counts().pointer_keys, 5);
+    assert_eq!(
+        drawn(&mut app),
+        (
+            DRAW_POINTER_KEYS.to_string(),
+            FRESH_POINTER_KEYS.to_string()
+        )
+    );
+}
+
+#[test]
+fn moves_and_keys_on_the_source_change_the_bytes_and_keep_the_systems() {
+    let mut app = on_pointer_keys();
+    let mut events = Vec::new();
+    for i in 0..10u16 {
+        let ms = 5_000 + u64::from(i) * 17;
+        app.event(Event::Tick { now_ms: ms });
+        let (x, y) = in_area(&app, i * 7);
+        hover(&mut app, (x, y));
+        events.push(Ev::Move(x, y, ms));
+    }
+    app.event(Event::Tick { now_ms: 5_400 });
+    crate::common::type_text(&mut app, "q7");
+    events.push(Ev::Key(u32::from('q'), 5_400));
+    events.push(Ev::Key(u32::from('7'), 5_400));
+    assert!(
+        crate::common::has(&mut app, "10 pointer moves, 2 keys"),
+        "{:?}",
+        app.drawn_texts()
+    );
+    assert_eq!(app.own_counts(), OwnCounts::default(), "not added yet");
+    // Moving off the area adds the batch, as recorded.
+    app.event(Event::HoverEnd);
+    assert_eq!(app.own_counts().pointer_keys, 12);
+    let c = pointer_keys_commitment(&events);
+    let mut direct = testkit::started();
+    answer(&mut direct, SEED);
+    answer(&mut direct, POOLED);
+    assert!(direct.own_add(OwnSource::PointerKeys, &c, 12));
+    let got = drawn(&mut app);
+    assert_eq!(got, drawn(&mut direct), "the events as recorded");
+    assert_ne!(got, (DRAW_PLAIN.to_string(), FRESH_PLAIN.to_string()));
+    // The same events with other system bytes give other bytes.
+    let mut other = testkit::started();
+    answer(&mut other, [0x33; 32]);
+    answer(&mut other, [0x44; 32]);
+    assert!(other.own_add(OwnSource::PointerKeys, &c, 12));
+    assert_ne!(drawn(&mut other), got);
+}
+
+#[test]
+fn sixty_four_events_are_added_as_a_batch_and_the_rest_as_the_page_goes() {
+    let mut app = on_pointer_keys();
+    for i in 0..64u16 {
+        app.event(Event::Tick {
+            now_ms: 9_000 + u64::from(i),
+        });
+        let at = in_area(&app, i);
+        hover(&mut app, at);
+    }
+    assert_eq!(app.own_counts().pointer_keys, 64);
+    let at = in_area(&app, 1);
+    hover(&mut app, at);
+    assert_eq!(app.own_counts().pointer_keys, 64, "the next batch waits");
+    app.press(Action::Back);
+    assert_eq!(
+        app.own_counts().pointer_keys,
+        65,
+        "leaving the page adds it"
+    );
+}
+
+#[test]
+fn pointer_and_keys_count_only_while_chosen_and_made_on_it() {
+    // A shell without a pointer and keys does not offer the source.
+    let mut stick = testkit::started();
+    stick.press(Action::Nav(Screen::Settings));
+    crate::common::settings_section(&mut stick, "Randomness");
+    stick.press(own(Act::Open));
+    let source = own(Act::Source(OwnSource::PointerKeys));
+    assert!(!crate::common::offered(&mut stick, source));
+    stick.press(source);
+    assert!(!crate::common::offered(&mut stick, own(Act::Area)));
+
+    let mut app = on_pointer_keys();
+    let inside = in_area(&app, 3);
+    // On another source of the page: keys are dice, the pointer nothing.
+    app.press(own(Act::Source(OwnSource::Dice)));
+    let _ = app.frame();
+    for i in 0..20 {
+        hover(&mut app, (inside.0 + i, inside.1));
+    }
+    crate::common::type_text(&mut app, "abc");
+    app.event(Event::HoverEnd);
+    app.press(Action::Back);
+    assert_eq!(app.own_counts().pointer_keys, 0);
+    // On Home.
+    app.press(Action::Nav(Screen::Home));
+    let _ = app.frame();
+    for i in 0..20 {
+        hover(&mut app, (inside.0 + i, inside.1));
+    }
+    crate::common::type_text(&mut app, "abc");
+    app.event(Event::HoverEnd);
+    // Off the area while it is the source: nothing.
+    app.press(Action::Nav(Screen::Settings));
+    crate::common::settings_section(&mut app, "Randomness");
+    app.press(own(Act::Open));
+    app.press(own(Act::Source(OwnSource::PointerKeys)));
+    let _ = app.frame();
+    hover(&mut app, (2, 2));
+    app.event(Event::HoverEnd);
+    assert_eq!(app.own_counts().pointer_keys, 0);
+    // Typed into a field: Add a key's words.
+    app.press(Action::Nav(Screen::Home));
+    app.press(Action::Entry(None));
+    assert_eq!(app.screen, Screen::Entry);
+    crate::common::type_text(&mut app, "abandon");
+    assert_eq!(
+        app.own_counts().pointer_keys,
+        0,
+        "a field's keys are its own"
+    );
+}
+
+#[test]
+fn new_keys_generator_takes_pointer_and_keys_on_its_card() {
+    let mut app = crate::keygen::opened();
+    app.set_pointer_keys_offered(true);
+    app.event(Event::Display(tall()));
+    app.press(Action::KWords(12));
+    app.press(Action::KWay(Way::Device.index()));
+    answer(&mut app, SEED);
+    let source = own(Act::Source(OwnSource::PointerKeys));
+    assert!(crate::common::offered(&mut app, source), "on the card");
+    app.press(source);
+    let _ = app.frame();
+    for i in 0..5 {
+        let at = in_area(&app, i);
+        hover(&mut app, at);
+    }
+    app.event(Event::HoverEnd);
+    assert_eq!(app.own_counts().pointer_keys, 5);
+    assert!(crate::common::has(&mut app, "Randomness added to the pool"));
+}
+
+#[test]
+fn make_the_words_with_keys_not_yet_added_puts_them_in_the_key_first() {
+    let mut app = crate::keygen::opened();
+    app.set_pointer_keys_offered(true);
+    app.event(Event::Display(tall()));
+    app.press(Action::KWords(12));
+    app.press(Action::KWay(Way::Device.index()));
+    answer(&mut app, SEED);
+    app.press(own(Act::Source(OwnSource::PointerKeys)));
+    crate::common::type_text(&mut app, "xyz");
+    assert_eq!(app.own_counts().pointer_keys, 0, "still in the batch");
+    // Pressed with no move off the area: the keys are added, and the
+    // key waits for the generator's bytes again.
+    app.press(Action::KNext);
+    assert_eq!(app.own_counts().pointer_keys, 3);
+    let k = app.keygen().unwrap();
+    assert!(k.mnemonic.is_none(), "no words at that press");
+    assert!(k.with_own);
+    answer(&mut app, SEED);
+    app.press(Action::KNext);
+    let words = app
+        .keygen()
+        .unwrap()
+        .mnemonic
+        .as_ref()
+        .expect("words once the bytes are in")
+        .indices()
+        .to_vec();
+    assert_ne!(words, words_of(SEED), "the keys are in the key");
 }

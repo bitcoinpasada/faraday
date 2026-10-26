@@ -25,17 +25,24 @@ The commitments are New key's (`faraday-entropy`), written here from
 flips as `H` and `T`; a camera frame, taken as New key's camera takes
 one (refused under 32 distinct luma values), SHA-256 over the frames'
 SHA-256 digests in order, here one frame: SHA-256(SHA-256(frame)).
+Pointer and keys, from §2.1: each event a 17-byte big-endian record,
+`P` ‖ running count (u32) ‖ ms (u64) ‖ x (u16) ‖ y (u16) for a move and
+`K` ‖ running count ‖ ms ‖ code (u32) for a key, the count running from
+0 across batches; each batch of at most 64 committed as
+SHA-256("faraday pointer keys" ‖ its records), the last however few.
 
 - Fixed sessions: nothing added (the bytes from before §2.3), dice added
   after and before the system's answers, dice then coins chained, a
-  camera frame, and a lock, with the known answers of
+  camera frame, a batch of pointer moves and keys, and a lock, with the
+  known answers of
   `faraday/faraday-core/tests/all/own_randomness.rs` where it has them.
 - Random sessions of answers, dice, coins, frames (some refused, some
-  batches empty), locks, seed draws, fresh bytes and counts, in any
+  batches empty), pointer moves and keys (none to past two batches), locks, seed draws, fresh bytes and counts, in any
   order: before and after the seed, one batch and chained ones.
 """
 
 import hashlib
+import struct
 
 from common import Area
 
@@ -53,6 +60,13 @@ FRESH_DICE = "7e3f2c6b2ebffb02a1d505b8004ffefbacfb7806df8032b1b93589e3693a6c65"
 DRAW_DICE_COINS = "c1b0177f5056c4ec9f56f550f1743f96366034354f5ba066b03ffa105f9d09b6"
 FRESH_DICE_COINS = "881bfdaab65025a43c5b28bcf6b98c228a2b05c2d67c911098962b13a24dfc53"
 DEVICE_DICE = "71018a2755836a806283b23356523a88c063153b225d6eeffe5176180be792b1"
+# Three moves, `a` and Backspace (code 0x110000), as own_randomness.rs
+# adds them after the system's answers.
+POINTER_EVENTS = [["P", 1000, 100, 200], ["P", 1016, 101, 202], ["P", 1032, 102, 204],
+                  ["K", 1100, 0x61], ["K", 1150, 0x110000]]
+DRAW_POINTER_KEYS = "af3906fa1a2bfe06b925227ae70c6f4591e40964f162a6d49ceb065cc23420ab"
+FRESH_POINTER_KEYS = "db3dc34ce02d9bda8d5fd4c4b28fcf9678880b590d0a75f69f26aaa10fa80c1d"
+POINTER_KEYS_BATCH = 64
 
 POOL_MAX = 6
 MAX_ROLLS = 200
@@ -62,6 +76,19 @@ MIN_DISTINCT = 32
 
 def sha(*parts):
     return hashlib.sha256(b"".join(parts)).digest()
+
+
+def pointer_keys_batches(events):
+    """§2.1's commitments of `events`, a batch per 64 and the rest."""
+    records = []
+    for i, e in enumerate(events):
+        if e[0] == "P":
+            records.append(b"P" + struct.pack(">IQHH", i, e[1], e[2], e[3]))
+        else:
+            records.append(b"K" + struct.pack(">IQI", i, e[1], e[2]))
+    return [(sha(b"faraday pointer keys", *records[at:at + POINTER_KEYS_BATCH]),
+             len(records[at:at + POINTER_KEYS_BATCH]))
+            for at in range(0, len(records), POINTER_KEYS_BATCH)]
 
 
 class Session:
@@ -109,6 +136,9 @@ class Session:
             if len(set(luma)) < MIN_DISTINCT:
                 return False
             return self.add("camera_frames", sha(sha(luma)), 1)
+        if do == "pointer_keys":
+            taken = [self.add("pointer_keys", c, n) for c, n in pointer_keys_batches(s["events"])]
+            return bool(taken) and all(taken)
         if do == "lock":
             self.acc = None
             self.counts = dict.fromkeys(self.counts, 0)
@@ -196,12 +226,35 @@ class Own(Area):
         self.session(a + [{"do": "frame", "luma": frame.hex()}, draw(), fresh(), COUNTS])
         self.session(a + [{"do": "frame", "luma": bytes(4096).hex()}, draw(), fresh()],
                      [None, None, False, DRAW_PLAIN, FRESH_PLAIN])
+        # Pointer and keys: one batch of five, as own_randomness.rs adds it.
+        pk = {"do": "pointer_keys", "events": POINTER_EVENTS}
+        self.session(a + [pk, draw(), fresh(), COUNTS],
+                     [None, None, True, DRAW_POINTER_KEYS, FRESH_POINTER_KEYS,
+                      counts(pointer_keys=5)])
+        # None taken; and 130 events, two full batches and two more.
+        self.session(a + [{"do": "pointer_keys", "events": []}, draw()],
+                     [None, None, False, DRAW_PLAIN])
+        many = [["P", 7 * i, i, 2 * i] if i % 3 else ["K", 7 * i, 0x30 + i % 10]
+                for i in range(130)]
+        self.session(a + [{"do": "pointer_keys", "events": many}, draw(), fresh(), COUNTS])
 
     def random_step(self):
         rng = self.rng
         kind = rng.choices(["answer", "dice", "coins", "frame", "lock", "draw", "fresh", "counts",
-                            "device"],
-                           [4, 3, 2, 2, 0.3, 3, 3, 1, 2])[0]
+                            "device", "pointer_keys"],
+                           [4, 3, 2, 2, 0.3, 3, 3, 1, 2, 2])[0]
+        if kind == "pointer_keys":
+            n = rng.choice([0, 1, 5, 63, 64, 65, rng.randint(1, 200)])
+            events = []
+            for _ in range(n):
+                ms = rng.randrange(1 << 40)
+                if rng.random() < 0.7:
+                    events.append(["P", ms, rng.randrange(1 << 16), rng.randrange(1 << 16)])
+                else:
+                    code = rng.choice([rng.randrange(0x20, 0x7f), rng.randrange(0x110000),
+                                       0x110000, 0x110001])
+                    events.append(["K", ms, code])
+            return {"do": "pointer_keys", "events": events}
         if kind == "device":
             return {"do": "device", "bytes": self.randbytes(32).hex()}
         if kind == "answer":

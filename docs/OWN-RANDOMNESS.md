@@ -1,12 +1,12 @@
 # Your own randomness, and the kernel's at boot
 
 **Kind:** Spec
-**Status:** Specified, partly built (F86): §2.3's mixing into the seed and the pool, and the lock (R1, `faraday/faraday-core/src/fresh.rs`); New key's This device mixing and its label (§2.3, §2.4; `faraday/faraday-core/src/keygen/mod.rs`, `device_own`); the Add randomness page with camera, dice, coins and cards, Settings' Randomness row, the status line and New key's link (R2; `faraday/faraday-core/src/fresh/page.rs`, `faraday/faraday-core/src/screens/randomness.rs`); option A (§3.3, R4); the kernel check of §3 done from the repository
-**Open:** pointer and keys (R3, §2.1); §3.5's late seed and the Pi's generator (R5, R6, F102); the boot measurement on one real PC, in passing (§3.4 item 2; QEMU's worst case is measured).
+**Status:** Specified, partly built (F86): §2.3's mixing into the seed and the pool, and the lock (R1, `faraday/faraday-core/src/fresh.rs`); New key's This device mixing and its label (§2.3, §2.4; `faraday/faraday-core/src/keygen/mod.rs`, `device_own`); the Add randomness page with camera, dice, coins and cards, Settings' Randomness row, the status line and New key's link (R2; `faraday/faraday-core/src/fresh/page.rs`, `faraday/faraday-core/src/screens/randomness.rs`); pointer and keys on the desktop app (R3; `core/faraday-entropy/src/pointer_keys.rs`); option A (§3.3, R4); the kernel check of §3 done from the repository
+**Open:** §3.5's late seed and the Pi's generator (R5, R6, F102); the boot measurement on one real PC, in passing (§3.4 item 2; QEMU's worst case is measured).
 
 Two things. (a) A person may add randomness of their own, camera noise,
-dice rolls, coin flips or cards on every shell and pointer movement and
-key timings on the desktop, which is hashed together with the system's bytes into the
+dice rolls, coin flips or cards on every shell and pointer moves and
+keys on the desktop, which is hashed together with the system's bytes into the
 session's seed and pool. It is mixed, never substituted: what comes out
 is at least as strong as the stronger of the two. (b) What the stick's
 and the Pi's kernels do for randomness at boot, read from the image's
@@ -48,7 +48,11 @@ A camera frame is added as it is taken, its commitment that of a
 one-frame `CameraNoise` (SHA-256 over the frame's SHA-256), as R1's
 tests take it. New key's This device bytes taken before an addition,
 not yet made into words, are asked for again, so its label says what
-they hold. Not built: pointer and keys (R3).
+they hold. Pointer and keys (R3) is offered where the shell says it
+has a pointer and keys (`Faraday::set_pointer_keys_offered`: the
+desktop app; the Starter's held app shows only Transfer and Learn, so
+no Add randomness), its events recorded and
+committed by `faraday-entropy`'s `PointerKeys`.
 
 ## 2. Adding your own randomness
 
@@ -60,33 +64,40 @@ they hold. Not built: pointer and keys (R3).
 | Camera noise | every shell with a camera | frames, as New key takes them (`CameraNoise`, the same refusal of a frame with under 32 distinct values) | each frame's SHA-256, as it is taken |
 | Coins | every shell | flips, as New key takes them (`CoinFlips`) | `CoinFlips::commitment`, as New key's |
 | Cards | every shell | draws from a shuffled deck, as New key takes them (`CardDraws`, refusing a card already drawn from its deck) | `CardDraws::commitment`: SHA-256 of the draws' indices, as New key's |
-| Pointer and keys | the desktop app and the Starter's held app | while the page is open (§5 item 4): each pointer move's x and y, each key's code, each with the core's time in ms and a running count | SHA-256 over the events, committed every 64 events and when the page is left |
+| Pointer and keys | the desktop app | while it is the source chosen (§5 item 4): each move of the pointer, with no button down, over its area, its x and y in the frame's pixels; each key typed for it, a character, Backspace or Delete, by its code (a character's Unicode scalar value, Backspace 0x110000, Delete 0x110001); each with the core's time in ms and a running count from 0 | a 17-byte big-endian record per event, `P` ‖ count (u32) ‖ ms (u64) ‖ x (u16) ‖ y (u16) or `K` ‖ count ‖ ms ‖ code (u32); SHA-256("faraday pointer keys" ‖ the records), committed every 64 events, when the pointer leaves the area or the window, when a key is not the source's, when the source or the page is left, and when New key's Make the words is pressed, which then makes no words: the key waits for the generator's bytes again, so they hold the batch |
 
 Nothing is credited: no source claims a number of bits, and the status
 line counts what was taken, not how strong it is. A dice batch of 99
 rolls or more is named as enough for 256 bits on its own, as New key
 names it.
 
-Pointer and key events are taken only while the page is open, never in
-the background: a passphrase's key timings are never hashed into
-anything. This is what is specified until the owner decides §5 item 4;
-the owner leans towards collecting from all on-screen input, mixed in
-automatically, and that answer changes this paragraph, the table's row,
-§2.2, test 6 and batch R3.
+Faraday never collects randomness passively (owner, 2026-10-26).
+Pointer and keys counts only as a source the person picks, on Add
+randomness or on New key's Generator card, and works on deliberately:
+moving the pointer over its area, typing for it. Nothing is gathered in
+the background: not input made while the page is open on another source
+(keys typed while Dice is the source are dice values, never timings),
+not the pointer elsewhere on the page or on any other screen, and never
+a passphrase's or any field's keys. The keys that move about the page
+(Tab, the arrows, Enter, Escape, and Space on a control the keyboard is
+on) are the page's, not the source's.
 
 ### 2.2 Where it is offered
 
 - **Settings › Randomness**: a row with the status line (§2.4); it opens
   **Add randomness**, a page with Camera, Dice, Coins, Cards and, on the
-  desktop, Pointer and keys. It opens on Camera, the default source
-  (owner, 2026-10-23), where the shell has a camera, and on Dice where it
-  has none; the others are a choice away. Each source adds when its
-  batch is done (dice, coins and cards: the **Add** button under the
-  pad; camera: each frame; pointer and keys: as above). The page stays
-  until Back.
+  desktop app, Pointer and keys. Camera is
+  listed first where the shell has a camera; nothing is chosen and
+  nothing started, no camera and no pad, until a source is pressed
+  (owner, 2026-10-26). Each source adds when its batch is done (dice,
+  coins and cards: the **Add** button under the pad; camera: each frame;
+  pointer and keys: as §2.1 says). Pointer and keys' pad is an area to
+  move the pointer over and type, with a count of what it took ("412
+  pointer moves, 30 keys"). The page stays until Back.
 - **New key, This device**: its row's label carries the status (§2.4),
   and the source's step, the Generator card, offers Camera (where the
-  shell has one), Dice, Coins and Cards on the card itself, with no page
+  shell has one), Dice, Coins, Cards and, where the page offers it,
+  Pointer and keys on the card itself, with no page
   to open (owner, 2026-10-25). None is chosen until the person presses
   one: no pad is live, no key is taken and no camera runs before that
   (owner, 2026-10-26: Faraday never collects randomness passively; keys
@@ -141,8 +152,9 @@ Settings' Randomness row, and New key's This device label:
 - "System: {source}" with the shell's `EntropySource`, or "System:
   operating system" when it names none;
 - then "· your own: {counts}", for example "· your own: 6 camera
-  frames, 99 dice rolls, 412 pointer moves", or "· your own: none"; coin
-  flips and cards are counted as dice rolls are.
+  frames, 99 dice rolls, 442 pointer moves and keys", or "· your own:
+  none"; coin flips and cards are counted as dice rolls are, and
+  pointer moves and keys together, as they are added.
 
 New key's label reads "operating system · {source} · with your own"
 once `acc` exists. The strings go in `faraday/faraday-strings/src/en.rs`.
@@ -334,20 +346,27 @@ In `faraday/faraday-core/tests/all/` (a new `own_randomness.rs`):
 5. The status line: Settings' Randomness row reads the system's source
    and "none"; after 99 dice rolls are added, it counts them; after a
    lock, "none" again.
-6. Pointer and key events count only while Add randomness is open: the
-   same events on Home leave the count unchanged.
+6. Pointer and key events count only while Pointer and keys is the
+   chosen source and the events are made on it: the same events on
+   Home, on another source of the page, off its area, or typed into a
+   field leave the count unchanged; a shell that does not say it has a
+   pointer and keys is not offered the source. A batch of pointer moves
+   and keys on the source changes the derived bytes as its records say,
+   and the system's bytes still change the result; 64 events are added
+   as a batch and the rest as the page goes.
 
 The construction (§2.3) is SHA-256 over concatenations; per CLAUDE.md a
 cryptographic change is checked against another implementation, so its
 known answers are added to the Python cross-check (F79) and test 4's
-and a mixed case's bytes are compared with it.
+and a mixed case's bytes are compared with it, as are pointer and
+keys' records and commitment (§2.1).
 
 For §3: `check-kernel-config.sh` fails a board whose `CONFIG_CMDLINE`
 lacks the two parameters (A).
 
 ## 5. Questions for the owner
 
-Answered by the owner on 2026-10-23, except item 4:
+Answered by the owner on 2026-10-23, item 4 on 2026-10-26:
 
 1. **The stick.** Decided: A, do not credit RDRAND or the firmware's
    seed (§3.3). The boot measurement (§3.4) still runs, to confirm no
@@ -356,15 +375,22 @@ Answered by the owner on 2026-10-23, except item 4:
    person added, and its label says so (§2.3, §2.4).
 3. **Where Add randomness is offered.** Decided: Settings and New key
    only (§2.2).
-4. **Pointer and keys.** Decided: only while the page is open, as
-   §2.1 specifies. Collecting timings passively from all on-screen input
-   is set aside (owner, 2026-10-23), not planned.
+4. **Pointer and keys.** Decided (owner, 2026-10-26): Faraday never
+   collects randomness passively. Pointer and keys count only as a
+   source the person picks on the page (Settings' Add randomness, New
+   key's Generator card) and works on deliberately (moving the pointer
+   over the source's area, pressing keys for it). Nothing is gathered in
+   the background, including input made while the page is open on
+   another source, and never a passphrase's or any field's key timings
+   (§2.1).
 5. **At boot.** Decided: not at boot for now; only from Settings and New
    key (§2.2).
 6. **Coins and cards.** Decided: yes, added as sources (§2.1).
 
-Also decided (owner, 2026-10-23): camera noise is the default source;
-the page opens on it, and the others stay available (§2.2).
+Also decided (owner, 2026-10-23): camera noise is the default source,
+listed first, and the others stay available (§2.2). Since 2026-10-26
+(owner) the page opens with nothing chosen, the camera off until Camera
+is pressed.
 
 ## 6. Batches
 
@@ -372,7 +398,7 @@ the page opens on it, and the others stay available (§2.2).
 |---|---|---|
 | R1 | `Own` in `fresh.rs`: adding, the seed's and the pool's mixing, the lock; tests 1–4; the cross-check | small |
 | R2 | The Add randomness page: camera (the default), dice, coins and cards on every shell, through `faraday-entropy`'s accumulators; Settings' row and the status line; New key's label and link; tests 5 | medium |
-| R3 | Pointer and keys on the desktop, once the owner decides §5 item 4; test 6 | small |
+| R3 | Pointer and keys on the desktop app, as §5 item 4 decides: `faraday-entropy`'s `PointerKeys`, the source on the page and the card, its known answers in the cross-check; test 6. Built | small |
 | R4 | The kernel: A (§3.3), the comments at `faraday/image/boards/x86_64-uefi/linux.fragment:267-275`, `kernel.forbidden:8-9`, the Pi fragments' lines 81-82, the stick shell's comment; the dev instrumentation; then the measurement on hardware | small, then hardware |
 
 | R5 | §3.5: the late seed (Home's line gone, a press waiting with "Waiting for randomness", the minute's bound) in `fresh.rs` and the screens that need the seed; tests that a press made before the seed goes on when it arrives and that a minute without one says so | small |
@@ -409,7 +435,7 @@ Edit list:
   answers with 32 bytes from `/dev/random` on the stick and the Pi and
   the operating system's call on the desktop. A person may add dice
   rolls, coin flips, cards, camera noise and, on the desktop, pointer
-  and key timings (Settings › Randomness); these are hashed with the system's bytes
+  moves and keys made on the source for them (Settings › Randomness); these are hashed with the system's bytes
   into the session's seed and every fresh draw, never used alone, so
   what comes out is at least as strong as the stronger of the two. On
   the stick the kernel does not credit the CPU's RDRAND or
@@ -436,7 +462,8 @@ Edit list:
 - `docs/learn/03-randomness.md`, a section after "Mixing":
   "## Adding your own to the device's. Settings › Randomness takes
   camera noise, dice rolls, coin flips and cards, and on a computer the
-  pointer's movement and your typing while the page is open. They are hashed together with the
+  pointer's movement over its box and your typing for it, while it is the
+  source you chose. They are hashed together with the
   device's own randomness for everything the device makes by itself:
   vault keys, encryption keys and the one-time numbers of a signature.
   The device's randomness stays in the hash, so adding yours can only

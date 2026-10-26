@@ -11,7 +11,8 @@
 //! is a [`Seed`] held as an `Option`: until the shell's first answer there
 //! is none, and nothing drawn from it is made.
 //!
-//! What a person adds of their own (dice, coins, cards, camera noise;
+//! What a person adds of their own (dice, coins, cards, camera noise,
+//! pointer and keys;
 //! `docs/OWN-RANDOMNESS.md` §2.3) is hashed into [`Own`]'s accumulator,
 //! which is mixed into the seed and into every pooled answer taken; it
 //! never stands in for the system's bytes, and alone it makes nothing.
@@ -63,7 +64,8 @@ pub enum OwnSource {
     Coins,
     /// Cards drawn; the count is cards.
     Cards,
-    /// Pointer moves and keys while Add randomness is open; the count is
+    /// Pointer moves over its area and keys typed while it is the source
+    /// chosen, where the shell has a pointer and keys; the count is
     /// events.
     PointerKeys,
 }
@@ -190,6 +192,9 @@ pub(crate) struct Fresh {
     pool: Vec<Zeroizing<[u8; 32]>>,
     /// The shell offers the dice roller (Faraday Desktop only).
     roller: bool,
+    /// The shell has a pointer and keys, and Add randomness offers
+    /// Pointer and keys (the desktop app).
+    pointer_keys: bool,
     /// What the person added of their own.
     own: Own,
     /// Add randomness, while it is on show (`page.rs`).
@@ -358,6 +363,19 @@ impl Faraday {
         self.fresh.roller && self.may_load_keys() && self.demo_passphrase()
     }
 
+    /// The shell has a pointer and a keyboard (the desktop app): Add
+    /// randomness offers Pointer and keys
+    /// (`docs/OWN-RANDOMNESS.md` §2.1). Never set on the stick, the Pi or
+    /// the website.
+    pub fn set_pointer_keys_offered(&mut self, on: bool) {
+        self.fresh.pointer_keys = on;
+    }
+
+    /// Whether Add randomness offers Pointer and keys.
+    pub fn pointer_keys_offered(&self) -> bool {
+        self.fresh.pointer_keys
+    }
+
     /// A batch of the person's own randomness (Add randomness,
     /// `docs/OWN-RANDOMNESS.md` §2.3): `commitment` is the batch's, as
     /// New key's source makes it, and `n` how many it holds. Mixed into
@@ -405,13 +423,17 @@ impl Faraday {
     pub(crate) fn own_act(&mut self, a: page::Act) {
         if a == page::Act::Open {
             if self.fresh.page.is_none() {
-                self.fresh.page = Some(page::OwnPage::new(!self.cameras().is_empty()));
+                // Nothing is chosen or started until a source is pressed
+                // (owner, 2026-10-26).
+                self.fresh.page = Some(page::OwnPage::unchosen());
             }
             self.screen = crate::Screen::Randomness;
             self.list_offset = 0.0;
             return;
         }
-        if !self.own_on_show() {
+        if !self.own_on_show()
+            || (a == page::Act::Source(OwnSource::PointerKeys) && !self.fresh.pointer_keys)
+        {
             return;
         }
         // The Generator card's Skip: on to the words, nothing added.
@@ -433,11 +455,80 @@ impl Faraday {
         if !self.own_on_show() {
             return false;
         }
+        if self
+            .own_page()
+            .is_some_and(page::OwnPage::takes_pointer_keys)
+        {
+            return self.own_pointer_key(key);
+        }
         match self.fresh.page.as_ref().and_then(|p| p.key(key)) {
             Some(a) => {
                 self.own_act(a);
                 true
             }
+            None => false,
+        }
+    }
+
+    /// A key while Pointer and keys is the source chosen: a character,
+    /// Backspace or Delete is taken, unless Space presses the control the
+    /// keyboard is on; any other key is the page's, and what was taken
+    /// is added first.
+    fn own_pointer_key(&mut self, key: faraday_shell_api::Key) -> bool {
+        use faraday_shell_api::Key as K;
+        let presses = key == K::Char(' ') && self.pointer.focused().is_some();
+        let now = self.now_ms;
+        let Some(p) = self.fresh.page.as_mut() else {
+            return false;
+        };
+        if presses || !p.takes_key(key) {
+            self.own_flush();
+            return false;
+        }
+        if let Some((source, c, n)) = p.key_typed(key, now) {
+            self.own_add(source, &c, n);
+        }
+        true
+    }
+
+    /// A pointer move with no button down, in the frame's pixels: taken
+    /// when Pointer and keys is the source chosen and the pointer is over
+    /// its area, the topmost thing there; moved off it, what was taken
+    /// is added. Returns whether the frame changes. A lookup.
+    pub(crate) fn own_pointer(&mut self, x: u16, y: u16) -> bool {
+        if !self.own_on_show()
+            || !self
+                .own_page()
+                .is_some_and(page::OwnPage::takes_pointer_keys)
+        {
+            return false;
+        }
+        let area = page::Act::Area;
+        let over = self
+            .pointer
+            .hit_at(i32::from(x), i32::from(y))
+            .is_some_and(|(a, r)| a == crate::Action::Own(area) && r.contains(x.into(), y.into()));
+        if !over {
+            return self.own_flush();
+        }
+        let now = self.now_ms;
+        let batch = self
+            .fresh
+            .page
+            .as_mut()
+            .and_then(|p| p.pointer_moved(x, y, now));
+        if let Some((source, c, n)) = batch {
+            self.own_add(source, &c, n);
+        }
+        true
+    }
+
+    /// Pointer and keys' batch added now, however few it holds: the
+    /// pointer left its area or the window, a key was not its own, or
+    /// the source or the page is left. Returns whether anything was added.
+    pub(crate) fn own_flush(&mut self) -> bool {
+        match self.fresh.page.as_mut().and_then(page::OwnPage::flush) {
+            Some((source, c, n)) => self.own_add(source, &c, n),
             None => false,
         }
     }
@@ -450,6 +541,8 @@ impl Faraday {
     /// the other comes on. A lookup.
     pub(crate) fn own_camera(&mut self, on: bool) {
         if !self.own_on_show() {
+            // Pointer and keys' last events are added as the page goes.
+            self.own_flush();
             self.fresh.page = None;
         } else if self.fresh.page.is_none() && self.screen == crate::Screen::KeyGen {
             self.fresh.page = Some(page::OwnPage::unchosen());

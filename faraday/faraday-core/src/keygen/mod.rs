@@ -1345,8 +1345,10 @@ impl crate::Faraday {
             return;
         }
         // In the demo SLIP-39's sources and its deal do nothing
-        // (`docs/DEMO.md` §4), however the press arrives.
-        if self.demo_refuses(action) {
+        // (`docs/DEMO.md` §4), however the press arrives. What Pointer
+        // and keys took goes into the key first, which then waits for
+        // the generator's bytes again (`docs/OWN-RANDOMNESS.md` §2.1).
+        if self.demo_refuses(action) || (action == A::KNext && self.own_flush()) {
             return;
         }
         if action == A::KeyGenSlip39 {
