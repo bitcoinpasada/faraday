@@ -3,8 +3,9 @@
 use crate::Action;
 use crate::drawing::View;
 use crate::strings::EN;
+use crate::ui::Ui;
 use crate::ui::pal::*;
-use crate::ui::{Ui, W};
+use faraday_draw::tokens::{BODY_M, BODY_S, LABEL_S, TITLE_S};
 use faraday_draw::tokens::{CATALOG_COLUMNS_MIN, CATALOG_TILE_MIN, PAGE_INSET};
 use faraday_ui::parts::{section_label, title};
 
@@ -42,8 +43,8 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     } else {
         (app.tools.find().to_string(), Role::OnSurface)
     };
-    let shown = ui.fit(14.0, W::R, &shown, fw - 28.0);
-    let tw = ui.text_mid(fx + 12.0, y - 2.0, 40.0, 14.0, W::R, tone, &shown);
+    let shown = ui.fit_as(BODY_M, &shown, fw - 28.0);
+    let tw = ui.text_mid_as((fx + 12.0, y - 2.0, 40.0), BODY_M, tone, &shown);
     // Typing on this page always lands here, with no click to focus it
     // first, so the caret is drawn whether or not anything is typed yet:
     // the one sign that this box is already live.
@@ -91,12 +92,11 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 pressed,
             );
             ui.stroke(tx, ty, tw3, th, 10.0, Role::OutlineVariant);
-            let name = ui.fit(14.0, W::S, tile.name, tw3 - 32.0);
-            ui.text(
+            let name = ui.fit_as(TITLE_S, tile.name, tw3 - 32.0);
+            ui.text_as(
                 tx + 16.0,
                 ty + 12.0,
-                14.0,
-                W::S,
+                TITLE_S,
                 if opens {
                     Role::OnSurface.paint()
                 } else {
@@ -104,12 +104,11 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 },
                 &name,
             );
-            let line = ui.fit(12.0, W::R, need.unwrap_or(tile.line), tw3 - 32.0);
-            ui.text(
+            let line = ui.fit_as(BODY_S, need.unwrap_or(tile.line), tw3 - 32.0);
+            ui.text_as(
                 tx + 16.0,
                 ty + 34.0,
-                12.0,
-                W::R,
+                BODY_S,
                 if need.is_some() {
                     Role::Warning
                 } else {
@@ -120,17 +119,14 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             // The standards, as small tags.
             let mut gx = tx + 16.0;
             for tag in tile.tags {
-                let gw = ui.measure(11.0, W::M, tag) + 14.0;
+                let gw = ui.measure_as(LABEL_S.mono(), tag) + 14.0;
                 if gx + gw > tx + tw3 - 12.0 {
                     break;
                 }
                 ui.fill(gx, ty + 56.0, gw, 18.0, 9.0, Role::SurfaceContainerHighest);
-                ui.text_mid(
-                    gx + 7.0,
-                    ty + 56.0,
-                    18.0,
-                    11.0,
-                    W::M,
+                ui.text_mid_as(
+                    (gx + 7.0, ty + 56.0, 18.0),
+                    LABEL_S.mono(),
                     Role::OnSurfaceVariant,
                     tag,
                 );
@@ -143,11 +139,10 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         y += tiles.len().div_ceil(per) as f32 * (th + 10.0) + 16.0;
     }
     if !any {
-        ui.text(
+        ui.text_as(
             x,
             y,
-            14.0,
-            W::R,
+            BODY_M,
             Role::OnSurfaceVariant,
             EN.catalog_no_tool_matches,
         );

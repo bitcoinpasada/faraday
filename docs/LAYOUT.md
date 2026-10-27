@@ -238,6 +238,14 @@ each at the text size the person's system asks for.
   rename fields, the passphrase field of the small panel, Glance's
   field) are `Ui::field_box`, 56 dp, their text in `BODY_L`; the list
   pane's item is `Ui::list_item`.
+
+  Built (L5, part 2): Files and the stick visit, Spend, the sheets (the
+  scanner, the dialogs, Learn), Decode, the entry forms, the tool
+  catalogue, Check a message, Sign a message, Set the time, Add
+  randomness, Transfer, Upgrade and Tools: every line of text is a
+  `TypeRole` (`text_as`, `wrap_as` and the rest), every button
+  `BUTTON_H` tall, the Kind rows' names `TITLE_S` and their second lines
+  `BODY_S`; a monospaced value is its role `.mono()`.
 - **Type** is Material's roles, by size: `HEADLINE_M` 28, `HEADLINE_S`
   24, `TITLE_L` 22, `TITLE_M` 16, `TITLE_S` 14, `BODY_L` 16, `BODY_M`
   14, `BODY_S` 12, `LABEL_L` 14, `LABEL_M` 12, `LABEL_S` 11. They

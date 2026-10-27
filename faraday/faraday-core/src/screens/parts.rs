@@ -7,6 +7,9 @@ use crate::ui::{CoreUi, Style, Ui, W};
 use crate::wallet::{FileKind, Session};
 use crate::{Action, Faraday};
 use faraday_draw::tokens;
+use faraday_draw::tokens::{
+    BODY_M, BODY_S, BUTTON_H, LABEL_L, LABEL_M, LABEL_S, TITLE_M, TITLE_S, TypeRole,
+};
 use faraday_draw::widgets::Icon;
 use faraday_ui::parts::{section_label, wrap_buttons};
 
@@ -21,7 +24,7 @@ pub(crate) fn working_bar(ui: &mut Ui, x: f32, y: f32, w: f32, h: f32) {
 /// [`working_bar`] under `line`, the work under way, in the accent in a
 /// row `h` tall at (x, y), `w` wide.
 pub(crate) fn working_line(ui: &mut Ui, (x, y, w, h): (f32, f32, f32, f32), line: &str) {
-    ui.text_mid(x, y, h, 15.0, W::S, Role::Primary, line);
+    ui.text_mid_as((x, y, h), TITLE_M, Role::Primary, line);
     working_bar(ui, x, y, w, h);
 }
 
@@ -31,7 +34,7 @@ pub(crate) fn guide_text(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, text: 
     if !app.guided() {
         return 0.0;
     }
-    let h = ui.wrap(x + 14.0, y, w - 14.0, 14.0, W::R, Role::OnSurface, text);
+    let h = ui.wrap_as((x + 14.0, y, w - 14.0), BODY_M, Role::OnSurface, text);
     ui.fill(x, y, 3.0, h, 1.5, Role::Primary.with_alpha(140));
     h + 18.0
 }
@@ -205,8 +208,8 @@ pub(crate) fn next_button_when(
         ui.pin = Some((label.to_string(), style, action));
         return false;
     }
-    let bw = ui.measure(14.0, W::S, label) + 36.0;
-    ui.button(x + w - bw, y, Some(bw), 40.0, label, style, action);
+    let bw = ui.measure_as(TITLE_S, label) + 36.0;
+    ui.button(x + w - bw, y, Some(bw), BUTTON_H, label, style, action);
     true
 }
 
@@ -232,19 +235,19 @@ pub(crate) fn buttons_and_next(
     if left.is_empty() && next.is_none() {
         return 0.0;
     }
-    let nw = next.map_or(0.0, |(l, _)| ui.measure(14.0, W::S, l) + 36.0);
+    let nw = next.map_or(0.0, |(l, _)| ui.measure_as(TITLE_S, l) + 36.0);
     if ui.compact {
         // The buttons wrap to the panel's width, each cut to fit; the
         // next goes on their last row when there is room, else under it.
         let (mut bx, mut by) = (x, y);
         for &(label, style, action) in left {
-            let bw = (ui.measure(14.0, W::S, label) + 32.0).min(w);
+            let bw = (ui.measure_as(TITLE_S, label) + 32.0).min(w);
             if bx > x && bx + bw > x + w {
                 bx = x;
                 by += 48.0;
             }
-            let label = ui.fit(14.0, W::S, label, bw - 24.0);
-            bx += ui.button(bx, by, Some(bw), 40.0, &label, style, action) + 6.0;
+            let label = ui.fit_as(TITLE_S, label, bw - 24.0);
+            bx += ui.button(bx, by, Some(bw), BUTTON_H, &label, style, action) + 6.0;
         }
         if next.is_some() && !left.is_empty() && bx + nw + 2.0 > x + w {
             by += 48.0;
@@ -256,11 +259,11 @@ pub(crate) fn buttons_and_next(
     }
     let lw: f32 = left
         .iter()
-        .map(|(l, ..)| ui.measure(14.0, W::S, l) + 32.0 + 6.0)
+        .map(|(l, ..)| ui.measure_as(TITLE_S, l) + 32.0 + 6.0)
         .sum();
     let mut bx = x;
     for &(label, style, action) in left {
-        bx += ui.button(bx, y, None, 40.0, label, style, action) + 6.0;
+        bx += ui.button(bx, y, None, BUTTON_H, label, style, action) + 6.0;
     }
     let below = !left.is_empty() && lw + nw + 8.0 > w;
     let ny = if below { y + 48.0 } else { y };
@@ -355,7 +358,7 @@ pub(crate) fn kind_list(
     for (i, line) in rows {
         let k = &NewKind::ALL[*i];
         let on = chosen == Some(*k);
-        let size = 14.0;
+        let size = TITLE_S;
         let left = x + 14.0;
         // On a compact window the name and the line each wrap, the row
         // growing to hold them, so neither is cut; the name leaves room
@@ -363,12 +366,12 @@ pub(crate) fn kind_list(
         let inner = w - 28.0;
         let (names, lines) = if ui.compact {
             let room = if k.shares() { tokens::ICON_BUTTON } else { 0.0 };
-            let names = lines_of(ui, size, W::S, k.name(), inner - room);
-            (names, lines_of(ui, 12.0, W::R, line, inner))
+            let names = lines_of(ui, size, k.name(), inner - room);
+            (names, lines_of(ui, BODY_S, line, inner))
         } else {
             (Vec::new(), Vec::new())
         };
-        let (name_h, line_h) = (ui.line(size, W::S), ui.line(12.0, W::R));
+        let (name_h, line_h) = (ui.line_as(size), ui.line_as(BODY_S));
         let top = 6.0;
         let line_at = cy + 26.0 + (names.len().max(1) - 1) as f32 * name_h;
         let h = if ui.compact {
@@ -395,19 +398,19 @@ pub(crate) fn kind_list(
         if ui.compact {
             for (n, text) in names.iter().enumerate() {
                 let ty = cy + top + n as f32 * name_h;
-                let end = left + ui.text(left, ty, size, W::S, ink, text);
+                let end = left + ui.text_as(left, ty, size, ink, text);
                 if k.shares() {
                     tip = tip.or(word_at(ui, (left, end, ty + name_h / 2.0), size, text));
                 }
             }
             for (n, text) in lines.iter().enumerate() {
                 let ty = line_at + n as f32 * line_h;
-                ui.text(left, ty, 12.0, W::R, muted, text);
+                ui.text_as(left, ty, BODY_S, muted, text);
             }
         } else {
-            let end = left + ui.text_mid(left, cy, h, size, W::S, ink, k.name());
-            let line = ui.fit(12.0, W::R, line, w - 260.0);
-            ui.text_right(x + w - 14.0, cy, h, 12.0, W::R, muted, &line);
+            let end = left + ui.text_mid_as((left, cy, h), size, ink, k.name());
+            let line = ui.fit_as(BODY_S, line, w - 260.0);
+            ui.text_right_as((x + w - 14.0, cy, h), BODY_S, muted, &line);
             if k.shares() {
                 tip = word_at(ui, (left, end, cy + h / 2.0), size, k.name());
             }
@@ -426,7 +429,7 @@ pub(crate) fn kind_list(
             x,
             cy,
             None,
-            34.0,
+            BUTTON_H,
             EN.kind_rows_more_kinds,
             Style::Ghost,
             more_action,
@@ -436,19 +439,19 @@ pub(crate) fn kind_list(
     cy - y
 }
 
-/// Where "codex32" is in the line `shown`, drawn from `x` at `size`
+/// Where "codex32" is in the line `shown`, drawn from `x` in `size`
 /// and ending at `end`, its middle at height `mid`: (the word's x, its
 /// width, `end`, `mid`); `None` when the line does not hold it.
 fn word_at(
     ui: &Ui,
     (x, end, mid): (f32, f32, f32),
-    size: f32,
+    size: TypeRole,
     shown: &str,
 ) -> Option<(f32, f32, f32, f32)> {
     let word = EN.create_shares_tip_word;
     let at = shown.find(word)?;
-    let from = x + ui.measure(size, W::S, &shown[..at]);
-    Some((from, ui.measure(size, W::S, word), end, mid))
+    let from = x + ui.measure_as(size, &shown[..at]);
+    Some((from, ui.measure_as(size, word), end, mid))
 }
 
 /// Make a new wallet's one explanation on a working screen (owner,
@@ -481,10 +484,10 @@ fn shares_tip(ui: &mut Ui, (word, word_w, end, mid): (f32, f32, f32, f32), (y, h
     ui.tip_anchor((word, y, word_w, h), a, tip, TipKind::Rich);
 }
 
-/// `s` broken at its spaces into lines no wider than `max` at `size`, a
+/// `s` broken at its spaces into lines no wider than `max` in `size`, a
 /// word wider than `max` on a line of its own: the lines drawn one by
 /// one, so where each word lands is known. Slices of `s`, nothing copied.
-fn lines_of<'s>(ui: &Ui, size: f32, weight: W, s: &'s str, max: f32) -> Vec<&'s str> {
+fn lines_of<'s>(ui: &Ui, size: TypeRole, s: &'s str, max: f32) -> Vec<&'s str> {
     let mut out = Vec::new();
     let mut start: Option<usize> = None;
     let mut end = 0;
@@ -499,7 +502,7 @@ fn lines_of<'s>(ui: &Ui, size: f32, weight: W, s: &'s str, max: f32) -> Vec<&'s 
         let word_end = at + word.len();
         match start {
             None => start = Some(at),
-            Some(from) if ui.measure(size, weight, &s[from..word_end]) > max => {
+            Some(from) if ui.measure_as(size, &s[from..word_end]) > max => {
                 out.push(&s[from..end]);
                 start = Some(at);
             }
@@ -527,12 +530,9 @@ pub(crate) fn first_addresses(app: &View, ui: &mut Ui, i: usize, x: f32, y: f32,
     section_label(ui, x, cy, EN.first_addresses_heading);
     cy += 24.0;
     if app.receive_held(wl) {
-        cy += ui.wrap(
-            x,
-            cy,
-            w,
-            13.0,
-            W::S,
+        cy += ui.wrap_as(
+            (x, cy, w),
+            LABEL_L,
             Role::Warning,
             crate::glance::RECEIVE_WARNING,
         ) + 8.0;
@@ -543,7 +543,7 @@ pub(crate) fn first_addresses(app: &View, ui: &mut Ui, i: usize, x: f32, y: f32,
         (EN.first_addresses_receive_0_1, false, 1),
         (EN.first_addresses_change, true, 0),
     ] {
-        ui.text(x, cy + 2.0, 12.0, W::R, Role::OnSurfaceVariant, label);
+        ui.text_as(x, cy + 2.0, BODY_S, Role::OnSurfaceVariant, label);
         let a = app.receive_line(wl, change, idx).0;
         let ax = if ui.compact {
             cy += 20.0;
@@ -552,7 +552,7 @@ pub(crate) fn first_addresses(app: &View, ui: &mut Ui, i: usize, x: f32, y: f32,
             96.0
         };
         cy += ui
-            .wrap(x + ax, cy, w - ax, 13.0, W::M, Role::OnSurface, &a)
+            .wrap_as((x + ax, cy, w - ax), BODY_M.mono(), Role::OnSurface, &a)
             .max(20.0)
             + 10.0;
     }
@@ -619,35 +619,43 @@ pub(super) fn file_row(
     if !extra.is_empty() {
         return file_row_extra(ui, x, y, w, name, detail, done, button, extra);
     }
-    let bw = ui.measure(13.0, W::S, button.0) + 32.0;
-    let done_w = done.map_or(0.0, |t| ui.measure(13.0, W::S, t) + 10.0);
+    let bw = ui.measure_as(LABEL_L, button.0) + 32.0;
+    let done_w = done.map_or(0.0, |t| ui.measure_as(LABEL_L, t) + 10.0);
     let right = bw + done_w;
     let rh = if ui.compact { 52.0 } else { 36.0 };
     let by = y + (rh - 34.0) / 2.0;
-    ui.button(x + w - bw, by, Some(bw), 34.0, button.0, button.1, button.2);
+    ui.button(
+        x + w - bw,
+        by,
+        Some(bw),
+        BUTTON_H,
+        button.0,
+        button.1,
+        button.2,
+    );
     if ui.compact {
         // Where it is takes the second line, in place of what it is, so
         // the name keeps the room beside the button.
         let room = w - bw - 10.0;
-        let name = ui.fit(14.0, W::S, name, room);
-        ui.text(x, y + 6.0, 14.0, W::S, Role::OnSurface, &name);
+        let name = ui.fit_as(TITLE_S, name, room);
+        ui.text_as(x, y + 6.0, TITLE_S, Role::OnSurface, &name);
         let (line, tone) = match done {
             Some(t) => (t, Role::Ok),
             None => (detail, Role::OnSurfaceVariant),
         };
-        let line = ui.fit(12.0, W::R, line, room);
-        ui.text(x, y + 28.0, 12.0, W::R, tone, &line);
+        let line = ui.fit_as(BODY_S, line, room);
+        ui.text_as(x, y + 28.0, BODY_S, tone, &line);
     } else {
         if let Some(t) = done {
-            ui.text_right(x + w - bw - 10.0, y, rh, 13.0, W::S, Role::Ok, t);
+            ui.text_right_as((x + w - bw - 10.0, y, rh), LABEL_L, Role::Ok, t);
         }
         let name_w = 200.0_f32.min(w - right - 10.0);
-        let n = ui.fit(14.0, W::S, name, name_w);
-        ui.text_mid(x, y, 36.0, 14.0, W::S, Role::OnSurface, &n);
+        let n = ui.fit_as(TITLE_S, name, name_w);
+        ui.text_mid_as((x, y, 36.0), TITLE_S, Role::OnSurface, &n);
         let room = w - right - 220.0 - 10.0;
         if room > 60.0 {
-            let d = ui.fit(12.0, W::R, detail, room);
-            ui.text_mid(x + 220.0, y, 36.0, 12.0, W::R, Role::OnSurfaceVariant, &d);
+            let d = ui.fit_as(BODY_S, detail, room);
+            ui.text_mid_as((x + 220.0, y, 36.0), BODY_S, Role::OnSurfaceVariant, &d);
         }
     }
     ui.rule(x, y + rh + 4.0, w, Role::OutlineVariant);
@@ -666,16 +674,16 @@ fn file_row_extra(
     button: (&str, Style, Action),
     extra: &[(&str, Action)],
 ) -> f32 {
-    let done_w = done.map_or(0.0, |t| ui.measure(13.0, W::S, t));
+    let done_w = done.map_or(0.0, |t| ui.measure_as(LABEL_L, t));
     if ui.compact {
         let room = w - if done_w > 0.0 { done_w + 10.0 } else { 0.0 };
-        let n = ui.fit(14.0, W::S, name, room);
-        ui.text(x, y + 6.0, 14.0, W::S, Role::OnSurface, &n);
+        let n = ui.fit_as(TITLE_S, name, room);
+        ui.text_as(x, y + 6.0, TITLE_S, Role::OnSurface, &n);
         if let Some(t) = done {
-            ui.text_right(x + w, y, 28.0, 13.0, W::S, Role::Ok, t);
+            ui.text_right_as((x + w, y, 28.0), LABEL_L, Role::Ok, t);
         }
-        let d = ui.fit(12.0, W::R, detail, w);
-        ui.text(x, y + 28.0, 12.0, W::R, Role::OnSurfaceVariant, &d);
+        let d = ui.fit_as(BODY_S, detail, w);
+        ui.text_as(x, y + 28.0, BODY_S, Role::OnSurfaceVariant, &d);
         let mut items: Vec<(&str, Style, Action)> = extra
             .iter()
             .map(|&(l, a)| (l, Style::Secondary, a))
@@ -686,18 +694,26 @@ fn file_row_extra(
         let gap = 6.0;
         let widths: Vec<f32> = items
             .iter()
-            .map(|(l, ..)| ui.measure(13.0, W::S, l) + 20.0)
+            .map(|(l, ..)| ui.measure_as(LABEL_L, l) + 20.0)
             .collect();
         let used = widths.iter().sum::<f32>() + gap * (items.len() as f32 - 1.0);
         let rh = if used <= w {
             let extra = (w - used) / items.len() as f32;
             let mut bx = x;
             for (&(label, style, action), bw) in items.iter().zip(&widths) {
-                bx += ui.button(bx, y + 50.0, Some(bw + extra), 34.0, label, style, action) + gap;
+                bx += ui.button(
+                    bx,
+                    y + 50.0,
+                    Some(bw + extra),
+                    BUTTON_H,
+                    label,
+                    style,
+                    action,
+                ) + gap;
             }
             50.0 + 34.0
         } else {
-            50.0 + wrap_buttons(ui, x, y + 50.0, w, 34.0, &items) - 8.0
+            50.0 + wrap_buttons(ui, x, y + 50.0, w, BUTTON_H, &items) - 8.0
         };
         ui.rule(x, y + rh + 4.0, w, Role::OutlineVariant);
         return rh + 8.0;
@@ -705,27 +721,35 @@ fn file_row_extra(
     let rh = 36.0;
     let by = y + (rh - 34.0) / 2.0;
     let mut right = x + w;
-    let bw = ui.measure(13.0, W::S, button.0) + 32.0;
+    let bw = ui.measure_as(LABEL_L, button.0) + 32.0;
     right -= bw;
-    ui.button(right, by, Some(bw), 34.0, button.0, button.1, button.2);
+    ui.button(right, by, Some(bw), BUTTON_H, button.0, button.1, button.2);
     right -= 6.0;
     if let Some(t) = done {
-        ui.text_right(right - 4.0, y, rh, 13.0, W::S, Role::Ok, t);
+        ui.text_right_as((right - 4.0, y, rh), LABEL_L, Role::Ok, t);
         right -= done_w + 16.0;
     }
     for &(label, action) in extra.iter().rev() {
-        let bw = ui.measure(13.0, W::S, label) + 32.0;
+        let bw = ui.measure_as(LABEL_L, label) + 32.0;
         right -= bw;
-        ui.button(right, by, Some(bw), 34.0, label, Style::Secondary, action);
+        ui.button(
+            right,
+            by,
+            Some(bw),
+            BUTTON_H,
+            label,
+            Style::Secondary,
+            action,
+        );
         right -= 6.0;
     }
     let name_w = 200.0_f32.min(right - x - 10.0);
-    let n = ui.fit(14.0, W::S, name, name_w);
-    ui.text_mid(x, y, rh, 14.0, W::S, Role::OnSurface, &n);
+    let n = ui.fit_as(TITLE_S, name, name_w);
+    ui.text_mid_as((x, y, rh), TITLE_S, Role::OnSurface, &n);
     let room = right - (x + 220.0) - 10.0;
     if room > 60.0 {
-        let d = ui.fit(12.0, W::R, detail, room);
-        ui.text_mid(x + 220.0, y, rh, 12.0, W::R, Role::OnSurfaceVariant, &d);
+        let d = ui.fit_as(BODY_S, detail, room);
+        ui.text_mid_as((x + 220.0, y, rh), BODY_S, Role::OnSurfaceVariant, &d);
     }
     ui.rule(x, y + rh + 4.0, w, Role::OutlineVariant);
     rh + 8.0
@@ -751,10 +775,10 @@ pub(crate) fn pass_field(
     action: Action,
 ) -> f32 {
     let (px, py, pw) = if ui.compact {
-        ui.text(x, y, 13.0, W::R, Role::OnSurfaceVariant, label);
+        ui.text_as(x, y, BODY_S, Role::OnSurfaceVariant, label);
         (x, y + 22.0, w)
     } else {
-        ui.text_mid(x, y, 40.0, 13.0, W::R, Role::OnSurfaceVariant, label);
+        ui.text_mid_as((x, y, 40.0), BODY_S, Role::OnSurfaceVariant, label);
         (x + 150.0, y, 380.0f32.min(w - 150.0))
     };
     let r = tokens::FIELD_RADIUS;
@@ -800,7 +824,7 @@ pub(crate) fn dots_field(
             x + 12.0,
             y,
             40.0,
-            14.0,
+            BODY_M.size,
             W::M,
             Role::OnSurface,
             &dots,
@@ -832,7 +856,7 @@ pub(crate) fn code_field(ui: &mut Ui, x: f32, y: f32, w: f32, h: f32, text: &str
 /// width.
 pub(crate) fn locked_tag(ui: &mut Ui, x: f32, y: f32) -> f32 {
     let label = EN.locked_tag_text;
-    let width = ui.measure(12.0, W::S, label) + 40.0;
+    let width = ui.measure_as(LABEL_M, label) + 40.0;
     ui.fill(x, y, width, 26.0, 13.0, Role::OkContainer);
     ui.icon(
         x + 6.0,
@@ -842,7 +866,7 @@ pub(crate) fn locked_tag(ui: &mut Ui, x: f32, y: f32) -> f32 {
         10.0,
         Role::OnOkContainer,
     );
-    ui.text_mid(x + 28.0, y, 26.0, 12.0, W::S, Role::OnOkContainer, label);
+    ui.text_mid_as((x + 28.0, y, 26.0), LABEL_M, Role::OnOkContainer, label);
     width
 }
 
@@ -864,16 +888,20 @@ pub(crate) fn descriptor_row(
     if wl.policy().record().is_none() {
         value.push_str(&format!(" · #{}", wl.checksum()));
     }
-    ui.text(
+    ui.text_as(
         x,
         y,
-        12.0,
-        W::R,
+        BODY_S,
         Role::OnSurfaceVariant,
         EN.descriptor_row_descriptor,
     );
     let vh = ui
-        .wrap(x, y + 20.0, w - 28.0, 13.0, W::M, Role::OnSurface, &value)
+        .wrap_as(
+            (x, y + 20.0, w - 28.0),
+            BODY_M.mono(),
+            Role::OnSurface,
+            &value,
+        )
         .max(18.0);
     let h = 20.0 + vh + 8.0;
     ui.icon(
@@ -971,12 +999,9 @@ pub(crate) struct Cells {
 /// at `bottom`. Returns the gap and the line's height.
 pub(crate) fn grid_never(ui: &mut Ui, x: f32, bottom: f32, w: f32) -> f32 {
     tokens::GAP
-        + ui.wrap(
-            x,
-            bottom + tokens::GAP,
-            w,
-            13.0,
-            W::R,
+        + ui.wrap_as(
+            (x, bottom + tokens::GAP, w),
+            BODY_M,
             Role::Warning,
             EN.never_real_seed,
         )
@@ -1018,19 +1043,21 @@ pub(crate) fn typed_cells(
         };
         ui.fill(cx, cy, cellw, 38.0, 8.0, Role::SurfaceContainerHighest);
         ui.stroke(cx, cy, cellw, 38.0, 8.0, edge);
-        ui.text_mid(
-            cx + 10.0,
-            cy,
-            38.0,
-            11.0,
-            W::R,
+        ui.text_mid_as(
+            (cx + 10.0, cy, 38.0),
+            LABEL_S.regular(),
             Role::OnSurfaceVariant,
             &(k + 1).to_string(),
         );
         if let Some(wd) = words.get(k) {
             let last_partial = typing_word && k + 1 == words.len();
             if masked && !last_partial {
-                ui.text_mid(cx + 36.0, cy, 38.0, 14.0, W::M, Role::OnSurface, "••••••");
+                ui.text_mid_as(
+                    (cx + 36.0, cy, 38.0),
+                    BODY_M.mono(),
+                    Role::OnSurface,
+                    "••••••",
+                );
                 continue;
             }
             let found = crate::forms::typed_index(lang, wd);
@@ -1044,7 +1071,7 @@ pub(crate) fn typed_cells(
                 Some(i) if !last_partial => lang.word(i),
                 _ => wd,
             };
-            let tw = ui.text_mid(cx + 36.0, cy, 38.0, 14.0, W::M, c, shown);
+            let tw = ui.text_mid_as((cx + 36.0, cy, 38.0), BODY_M.mono(), c, shown);
             if last_partial && caret {
                 ui.caret(cx + 37.0 + tw, cy + 10.0, 18.0);
             }
@@ -1070,11 +1097,10 @@ pub(crate) fn typed_cells(
         } else {
             format!("{}   {}", cands.join("  "), EN.entry_tab_completes)
         };
-        ui.text(
+        ui.text_as(
             x,
             y,
-            13.0,
-            W::M,
+            BODY_S.mono(),
             if cands.is_empty() {
                 Role::Error
             } else {
@@ -1122,12 +1148,9 @@ pub(crate) fn keyed_cells(
                 Role::OutlineVariant.paint()
             },
         );
-        ui.text_mid(
-            cx + 8.0,
-            cy,
-            36.0,
-            11.0,
-            W::R,
+        ui.text_mid_as(
+            (cx + 8.0, cy, 36.0),
+            LABEL_S.regular(),
             Role::OnSurfaceVariant,
             &(k + 1).to_string(),
         );
@@ -1139,8 +1162,8 @@ pub(crate) fn keyed_cells(
         };
         let tw = match word {
             Some((t, c)) => {
-                let t = ui.fit(14.0, W::M, &t, cellw - 36.0);
-                ui.text_mid(cx + 30.0, cy, 36.0, 14.0, W::M, c, &t)
+                let t = ui.fit_as(BODY_M.mono(), &t, cellw - 36.0);
+                ui.text_mid_as((cx + 30.0, cy, 36.0), BODY_M.mono(), c, &t)
             }
             None => 0.0,
         };
@@ -1179,15 +1202,14 @@ pub(crate) fn keyed_pills(
         } else {
             EN.keyed_words_no_word
         };
-        ui.text_mid(x, y, 30.0, 13.0, W::R, Role::OnSurfaceVariant, line);
+        ui.text_mid_as((x, y, 30.0), BODY_S, Role::OnSurfaceVariant, line);
         y += 34.0;
     } else {
         if hint {
-            ui.text(
+            ui.text_as(
                 x,
                 y,
-                12.0,
-                W::R,
+                BODY_S,
                 Role::OnSurfaceVariant,
                 EN.keyed_words_press_hint,
             );
@@ -1196,7 +1218,7 @@ pub(crate) fn keyed_pills(
         let mut bx = x;
         for (n, &i) in cands.iter().enumerate() {
             let word = lang.word_display(i);
-            let bw = ui.measure(14.0, W::M, word) + 24.0;
+            let bw = ui.measure_as(BODY_M.mono(), word) + 24.0;
             if bx > x && bx + bw > x + width {
                 bx = x;
                 y += 32.0;
@@ -1313,7 +1335,7 @@ pub(super) fn section(
         return taken;
     }
     ui.card(x, y, w, h, Role::OutlineVariant);
-    ui.text(ix, y + 16.0, 15.0, W::S, Role::OnSurface, title);
+    ui.text_as(ix, y + 16.0, TITLE_M, Role::OnSurface, title);
     draw(ui, ix, y + 44.0, iw);
     taken
 }
@@ -1324,22 +1346,12 @@ pub(super) fn section(
 /// line, as the shares card's does. Returns the row's height.
 pub(super) fn tz_row(ui: &mut Ui, x: f32, y: f32, _w: f32, tz_min: i16) -> f32 {
     let (ly, bx, h) = if ui.compact {
-        ui.text(
-            x,
-            y,
-            13.0,
-            W::R,
-            Role::OnSurfaceVariant,
-            EN.tz_row_time_zone,
-        );
+        ui.text_as(x, y, BODY_S, Role::OnSurfaceVariant, EN.tz_row_time_zone);
         (y + 24.0, x, 64.0)
     } else {
-        ui.text_mid(
-            x,
-            y,
-            40.0,
-            13.0,
-            W::R,
+        ui.text_mid_as(
+            (x, y, 40.0),
+            BODY_S,
             Role::OnSurfaceVariant,
             EN.tz_row_time_zone,
         );
@@ -1349,19 +1361,16 @@ pub(super) fn tz_row(ui: &mut Ui, x: f32, y: f32, _w: f32, tz_min: i16) -> f32 {
         bx,
         ly,
         Some(40.0),
-        40.0,
+        BUTTON_H,
         "-",
         Style::Secondary,
         Action::TzStep(-15),
     );
     let v = format!("UTC{}", crate::vault::tz_offset_text(tz_min));
-    let vw = ui.measure(14.0, W::S, &v);
-    ui.text_mid(
-        bx + 48.0 + (84.0 - vw) / 2.0,
-        ly,
-        40.0,
-        14.0,
-        W::S,
+    let vw = ui.measure_as(TITLE_S, &v);
+    ui.text_mid_as(
+        (bx + 48.0 + (84.0 - vw) / 2.0, ly, 40.0),
+        TITLE_S,
         Role::OnSurface,
         &v,
     );
@@ -1369,7 +1378,7 @@ pub(super) fn tz_row(ui: &mut Ui, x: f32, y: f32, _w: f32, tz_min: i16) -> f32 {
         bx + 132.0,
         ly,
         Some(40.0),
-        40.0,
+        BUTTON_H,
         "+",
         Style::Secondary,
         Action::TzStep(15),
@@ -1444,7 +1453,7 @@ pub(crate) fn card_pad(
             x + r as f32 * (bw + 6.0),
             cy,
             Some(bw),
-            44.0,
+            BUTTON_H,
             &ch.to_string(),
             if on { Style::Primary } else { Style::Secondary },
             rank_press(r as u8),
@@ -1467,7 +1476,7 @@ pub(crate) fn card_pad(
             x + s as f32 * (sw + 8.0),
             cy,
             Some(sw),
-            44.0,
+            BUTTON_H,
             &ch.to_string(),
             style,
             suit_press(s as u8),
@@ -1479,15 +1488,12 @@ pub(crate) fn card_pad(
     );
     if ui.compact {
         cy += 52.0;
-        ui.text(x, cy, 12.0, W::R, Role::OnSurfaceVariant, &deck);
+        ui.text_as(x, cy, BODY_S, Role::OnSurfaceVariant, &deck);
         cy += 28.0;
     } else {
-        ui.text_mid(
-            x + 4.0 * 72.0 + 8.0,
-            cy,
-            44.0,
-            12.0,
-            W::R,
+        ui.text_mid_as(
+            (x + 4.0 * 72.0 + 8.0, cy, 44.0),
+            BODY_S,
             Role::OnSurfaceVariant,
             &deck,
         );
@@ -1506,7 +1512,7 @@ pub(crate) fn camera_row(
     last: Option<faraday_entropy::FrameStats>,
     shutter: Action,
 ) -> f32 {
-    use tokens::{GRID, OWN_LINE_TEXT, PAD, TOUCH};
+    use tokens::{GRID, PAD, TOUCH};
     let style = if live {
         Style::Secondary
     } else {
@@ -1519,28 +1525,12 @@ pub(crate) fn camera_row(
         None => EN.keygen_waiting_camera.to_string(),
     };
     let beside = x + bw + PAD;
-    if beside + ui.measure(OWN_LINE_TEXT, W::R, &state) <= x + w {
-        ui.text_mid(
-            beside,
-            y,
-            TOUCH,
-            OWN_LINE_TEXT,
-            W::R,
-            Role::OnSurfaceVariant,
-            &state,
-        );
+    if beside + ui.measure_as(BODY_M, &state) <= x + w {
+        ui.text_mid_as((beside, y, TOUCH), BODY_M, Role::OnSurfaceVariant, &state);
         return TOUCH + GRID + GRID / 2.0;
     }
     let below = y + TOUCH + GRID;
-    let h = ui.wrap(
-        x,
-        below,
-        w,
-        OWN_LINE_TEXT,
-        W::R,
-        Role::OnSurfaceVariant,
-        &state,
-    );
+    let h = ui.wrap_as((x, below, w), BODY_M, Role::OnSurfaceVariant, &state);
     below + h + GRID + GRID / 2.0 - y
 }
 
@@ -1686,11 +1676,10 @@ pub(crate) fn copy_grid(ui: &mut Ui, x: f32, y: f32, w: f32, g: &CopyGrid<'_>) -
             0.0,
             ink,
         );
-        ui.text(
+        ui.text_as(
             x + 2.0 * tokens::GAP,
             cy,
-            tokens::CAPTION,
-            W::R,
+            BODY_S,
             Role::OnSurfaceVariant,
             line,
         );
@@ -1701,7 +1690,7 @@ pub(crate) fn copy_grid(ui: &mut Ui, x: f32, y: f32, w: f32, g: &CopyGrid<'_>) -
     } else {
         fill(EN.copy_grid_block, &[&copy_block_name(pin, n, g.lettered)])
     };
-    cy += ui.wrap(x, cy, w, tokens::BODY, W::S, Role::Primary, &name) + tokens::GAP_SMALL;
+    cy += ui.wrap_as((x, cy, w), TITLE_M, Role::Primary, &name) + tokens::GAP_SMALL;
     cy += wrap_buttons(
         ui,
         x,
@@ -1770,23 +1759,12 @@ fn copy_whole(ui: &mut Ui, (x, y): (f32, f32), cell: f32, g: &CopyGrid<'_>, pin:
         };
         // Each name at the middle of its block.
         let span_here = span.min(side - o);
-        let cw = ui.measure(tokens::CAPTION, W::M, &col);
+        let cw = ui.measure_as(BODY_S.mono(), &col);
         let col_x = gx + o + (span_here - cw) / 2.0;
-        ui.text_mid(
-            col_x,
-            y,
-            lab,
-            tokens::CAPTION,
-            W::M,
-            Role::OnSurfaceVariant,
-            &col,
-        );
-        ui.text_mid(
-            x,
-            gy + o,
-            span_here,
-            tokens::CAPTION,
-            W::M,
+        ui.text_mid_as((col_x, y, lab), BODY_S.mono(), Role::OnSurfaceVariant, &col);
+        ui.text_mid_as(
+            (x, gy + o, span_here),
+            BODY_S.mono(),
             Role::OnSurfaceVariant,
             &row,
         );
@@ -1851,9 +1829,9 @@ fn copy_zoomed(ui: &mut Ui, (x, y): (f32, f32), cell: f32, g: &CopyGrid<'_>, pin
     } else {
         (r0.to_string(), c0.to_string())
     };
-    let cw = ui.measure(tokens::CAPTION, W::M, &col);
+    let cw = ui.measure_as(BODY_S.mono(), &col);
     let col_x = gx + cell + (bw - cw) / 2.0;
-    ui.text_mid(col_x, y, lab, tokens::CAPTION, W::M, Role::Primary, &col);
-    ui.text_mid(x, gy + cell, bh, tokens::CAPTION, W::M, Role::Primary, &row);
+    ui.text_mid_as((col_x, y, lab), BODY_S.mono(), Role::Primary, &col);
+    ui.text_mid_as((x, gy + cell, bh), BODY_S.mono(), Role::Primary, &row);
     lab + side
 }

@@ -12,11 +12,12 @@ use crate::fresh::OwnSource;
 use crate::fresh::page::{Act, OwnPage};
 use crate::strings::{EN, fill};
 use crate::ui::pal::*;
-use crate::ui::{Style, Ui, W};
+use crate::ui::{Style, Ui};
 use faraday_draw::tokens::{
-    BACK_LINK_ROW, CAPTION, COLUMN_MAX, GAP, GAP_SMALL, LABEL, MARGIN_COMPACT, MARGIN_WIDE,
-    OWN_AREA, OWN_BUTTON, OWN_LINE_TEXT, OWN_TOP, PAD, SHAPE_M,
+    BACK_LINK_ROW, COLUMN_MAX, GAP, GAP_SMALL, LABEL, MARGIN_COMPACT, MARGIN_WIDE, OWN_AREA,
+    OWN_BUTTON, OWN_TOP, PAD, SHAPE_M,
 };
+use faraday_draw::tokens::{BODY_M, BODY_S};
 use faraday_ui::parts::title;
 
 /// The sources a person picks from, in order: Camera only where the
@@ -54,15 +55,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         y += BACK_LINK_ROW;
         y += title(ui, x, y, EN.own_add_randomness) + PAD;
     }
-    y += ui.wrap(
-        x,
-        y,
-        w,
-        OWN_LINE_TEXT,
-        W::R,
-        Role::OnSurfaceVariant,
-        &app.own_status(),
-    ) + PAD;
+    y += ui.wrap_as((x, y, w), BODY_M, Role::OnSurfaceVariant, &app.own_status()) + PAD;
     y += own_sources(app, p, ui, (x, y, w), false);
     let content = y + PAD - top;
     crate::compact::screen::finish(app, ui, x0, cw, h, content);
@@ -163,17 +156,9 @@ fn pad(p: &OwnPage, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
 fn pointer_keys_area(p: &OwnPage, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
     ui.fill(x, y, w, OWN_AREA, SHAPE_M, Role::SurfaceContainerHighest);
     let label = EN.own_pointer_keys_area;
-    let lw = ui.measure(OWN_LINE_TEXT, W::R, label);
+    let lw = ui.measure_as(BODY_M, label);
     let lx = x + ((w - lw) / 2.0).max(PAD);
-    ui.text_mid(
-        lx,
-        y,
-        OWN_AREA,
-        OWN_LINE_TEXT,
-        W::R,
-        Role::OnSurfaceVariant,
-        label,
-    );
+    ui.text_mid_as((lx, y, OWN_AREA), BODY_M, Role::OnSurfaceVariant, label);
     ui.hit_quiet(x, y, w, OWN_AREA, own(Act::Area));
     let mut cy = y + OWN_AREA + GAP;
     let (moves, keys) = p.pointer_keys();
@@ -188,7 +173,7 @@ fn pointer_keys_area(p: &OwnPage, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f3
         EN.own_pointer_keys_taken,
         &[&moves, &count(keys, EN.own_key, EN.own_keys)],
     );
-    cy += ui.wrap(x, cy, w, OWN_LINE_TEXT, W::R, Role::OnSurface, &line) + GAP;
+    cy += ui.wrap_as((x, cy, w), BODY_M, Role::OnSurface, &line) + GAP;
     cy - y
 }
 
@@ -209,16 +194,16 @@ fn batch(p: &OwnPage, ui: &mut Ui, (x, y, w): (f32, f32, f32), card: bool) -> f3
         let n = p.batch_len();
         let noun = if n == 1 { one } else { many };
         let line = fill(EN.own_batch, &[&n.to_string(), noun]);
-        cy += ui.wrap(x, cy, w, OWN_LINE_TEXT, W::R, Role::OnSurface, &line) + GAP;
+        cy += ui.wrap_as((x, cy, w), BODY_M, Role::OnSurface, &line) + GAP;
         // As New key names it: 99 rolls are enough for 256 bits alone.
         if p.source() == OwnSource::Dice
             && n >= faraday_entropy::DiceRolls::needed(faraday_entropy::Strength::Bits256)
         {
-            cy += ui.wrap(x, cy, w, OWN_LINE_TEXT, W::R, Role::Ok, EN.own_enough_256) + GAP;
+            cy += ui.wrap_as((x, cy, w), BODY_M, Role::Ok, EN.own_enough_256) + GAP;
         }
     }
     if let Some(n) = p.note() {
-        cy += ui.wrap(x, cy, w, OWN_LINE_TEXT, W::R, Role::Error, n) + GAP;
+        cy += ui.wrap_as((x, cy, w), BODY_M, Role::Error, n) + GAP;
     }
     if unit.is_some() {
         cy += GAP_SMALL;
@@ -241,7 +226,7 @@ fn batch(p: &OwnPage, ui: &mut Ui, (x, y, w): (f32, f32, f32), card: bool) -> f3
             OwnSource::Camera => EN.own_camera_keys,
             OwnSource::PointerKeys => return cy - y,
         };
-        cy += ui.wrap(x, cy, w, CAPTION, W::R, Role::OnSurfaceVariant, hint);
+        cy += ui.wrap_as((x, cy, w), BODY_S, Role::OnSurfaceVariant, hint);
     }
     cy - y
 }

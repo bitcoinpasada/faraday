@@ -4,11 +4,12 @@ use super::parts::{made_place, side_panel_w, spaced};
 use crate::drawing::{Scrolled, View};
 use crate::strings::{EN, fill};
 use crate::ui::pal::*;
-use crate::ui::{Style, Ui, W, btc, short, thousands};
+use crate::ui::{Style, Ui, btc, short, thousands};
 use crate::wallet::{Session, fp_text, network_name, step, txid_known};
 use crate::{Action, Screen, flow, guide};
+use faraday_draw::tokens::{BODY_M, BODY_S, LABEL_L, LABEL_M, TITLE_M, TITLE_S};
 use faraday_draw::tokens::{
-    BUTTON_H, CAPTION, GAP, GAP_SMALL, LABEL, PAD, TABLE_AMOUNT_W, TABLE_LABEL_W,
+    BUTTON_H, GAP, GAP_SMALL, PAD, TABLE_AMOUNT_W, TABLE_LABEL_W, TypeRole,
 };
 use faraday_draw::widgets::Icon;
 use faraday_psbt::{Level, OutputKind};
@@ -37,11 +38,11 @@ fn nonce_check(app: &View, ui: &mut Ui, psbt: &faraday_psbt::Psbt, x: f32, y: f3
     if ui.compact {
         // Wrapped beside its icon on a small panel.
         cy += ui
-            .wrap(x + 26.0, cy + 8.0, w - 26.0, 14.0, W::S, tone, &head)
+            .wrap_as((x + 26.0, cy + 8.0, w - 26.0), TITLE_S, tone, &head)
             .max(20.0)
             + 16.0;
     } else {
-        ui.text_mid(x + 26.0, cy, 36.0, 14.0, W::S, tone, &head);
+        ui.text_mid_as((x + 26.0, cy, 36.0), TITLE_S, tone, &head);
         cy += 40.0;
     }
     for reuse in &check.reused {
@@ -50,20 +51,22 @@ fn nonce_check(app: &View, ui: &mut Ui, psbt: &faraday_psbt::Psbt, x: f32, y: f3
             EN.nonce_check_one_nonce,
             &[&reuse.name().to_string(), &inputs.join(", ").to_string()],
         );
-        cy += ui.wrap(x, cy, w, 13.0, W::S, Role::Error, &line) + 8.0;
+        cy += ui.wrap_as((x, cy, w), LABEL_L, Role::Error, &line) + 8.0;
     }
     const SHOWN: usize = 12;
     for r in check.rows.iter().take(SHOWN) {
-        ui.text_mid(
-            x,
-            cy,
-            30.0,
-            12.0,
-            W::R,
+        ui.text_mid_as(
+            (x, cy, 30.0),
+            BODY_S,
             Role::OnSurfaceVariant,
             &fill(EN.nonce_check_input, &[&r.input.to_string()]),
         );
-        ui.text_mid(x + 70.0, cy, 30.0, 13.0, W::M, Role::OnSurface, &r.name);
+        ui.text_mid_as(
+            (x + 70.0, cy, 30.0),
+            BODY_M.mono(),
+            Role::OnSurface,
+            &r.name,
+        );
         let (t, c) = match (r.verdict, r.recomputed) {
             (Verdict::Invalid, _) => (EN.nonce_check_invalid.to_string(), Role::Error),
             (Verdict::Unchecked(why), _) => (
@@ -82,25 +85,22 @@ fn nonce_check(app: &View, ui: &mut Ui, psbt: &faraday_psbt::Psbt, x: f32, y: f3
         };
         if ui.compact {
             // The verdict in full, under the input.
-            let th = ui.wrap(x, cy + 28.0, w, 12.0, W::R, c, &t);
+            let th = ui.wrap_as((x, cy + 28.0, w), BODY_S, c, &t);
             ui.rule(x, cy + 34.0 + th, w, Role::OutlineVariant);
             cy += th + 36.0;
             continue;
         }
-        let t = ui.fit(12.0, W::R, &t, w - 170.0);
-        ui.text_right(x + w, cy, 30.0, 12.0, W::R, c, &t);
+        let t = ui.fit_as(BODY_S, &t, w - 170.0);
+        ui.text_right_as((x + w, cy, 30.0), BODY_S, c, &t);
         ui.rule(x, cy + 30.0, w, Role::OutlineVariant);
         cy += 32.0;
     }
     if check.rows.len() > SHOWN {
         let rest = &check.rows[SHOWN..];
         let ok = !rest.iter().any(crate::wallet::NonceRow::wrong);
-        ui.text_mid(
-            x,
-            cy,
-            30.0,
-            12.0,
-            W::R,
+        ui.text_mid_as(
+            (x, cy, 30.0),
+            BODY_S,
             if ok {
                 Role::OnSurfaceVariant
             } else {
@@ -143,11 +143,10 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let needed = app.spend_needed();
     if app.wallets.spend().is_none() {
         title(ui, col_x, 28.0, EN.spend_sign_a_transaction);
-        ui.text(
+        ui.text_as(
             col_x,
             80.0,
-            15.0,
-            W::R,
+            BODY_M,
             Role::OnSurfaceVariant,
             EN.spend_no_transaction,
         );
@@ -155,7 +154,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             col_x,
             116.0,
             None,
-            40.0,
+            BUTTON_H,
             EN.spend_open_files,
             Style::Secondary,
             Action::Nav(Screen::Files),
@@ -382,24 +381,20 @@ fn spend_bar(
     ui.fill(x0, y, cw, SPEND_BAR, 0.0, Role::SurfaceContainerLow);
     ui.fill(x0, y, cw, 1.0, 0.0, Role::OutlineVariant);
     let pw = ui.pips(x, y + 14.0, needed, count);
-    ui.text_mid(
-        x + pw + 10.0,
-        y + 4.0,
-        26.0,
-        13.0,
-        W::S,
+    ui.text_mid_as(
+        (x + pw + 10.0, y + 4.0, 26.0),
+        LABEL_L,
         Role::OnSurface,
         &fill(
             EN.spend_bar_count,
             &[&count.to_string(), &needed.to_string()],
         ),
     );
-    let line = ui.fit(12.0, W::R, &need_line, w);
-    ui.text(
+    let line = ui.fit_as(BODY_S, &need_line, w);
+    ui.text_as(
         x,
         y + 30.0,
-        12.0,
-        W::R,
+        BODY_S,
         if missing == 0 {
             Role::Ok
         } else {
@@ -407,8 +402,8 @@ fn spend_bar(
         },
         &line,
     );
-    let label = ui.fit(15.0, W::S, &label, w - 24.0);
-    ui.button(x, y + 52.0, Some(w), 44.0, &label, style, action);
+    let label = ui.fit_as(TITLE_M, &label, w - 24.0);
+    ui.button(x, y + 52.0, Some(w), BUTTON_H, &label, style, action);
 }
 
 /// The height of that foot.
@@ -541,12 +536,12 @@ pub(crate) fn step_body(
             ui.pin = Some((label.to_string(), Style::Primary, Action::StepNext(n)));
             return;
         }
-        let bw = ui.measure(14.0, W::S, label) + 36.0;
+        let bw = ui.measure_as(TITLE_S, label) + 36.0;
         ui.button(
             x + w - bw,
             cy,
             Some(bw),
-            40.0,
+            BUTTON_H,
             label,
             Style::Primary,
             Action::StepNext(n),
@@ -562,15 +557,12 @@ pub(crate) fn step_body(
                     let room = if ui.pinning {
                         w
                     } else {
-                        w - ui.measure(LABEL, W::S, EN.step_continue) - 2.0 * PAD - GAP
+                        w - ui.measure_as(TITLE_S, EN.step_continue) - 2.0 * PAD - GAP
                     };
-                    let name = ui.wrap(x, cy, room, LABEL, W::S, Role::OnSurface, &wl.name);
-                    let source = ui.wrap(
-                        x,
-                        cy + name + GAP_SMALL,
-                        room,
-                        CAPTION,
-                        W::R,
+                    let name = ui.wrap_as((x, cy, room), TITLE_S, Role::OnSurface, &wl.name);
+                    let source = ui.wrap_as(
+                        (x, cy + name + GAP_SMALL, room),
+                        BODY_S,
                         Role::OnSurfaceVariant,
                         &fill(
                             EN.step_wallet_source,
@@ -580,12 +572,9 @@ pub(crate) fn step_body(
                     row = row.max(name + GAP_SMALL + source + GAP);
                 }
                 None => {
-                    ui.wrap(
-                        x,
-                        cy,
-                        w - 140.0,
-                        13.0,
-                        W::R,
+                    ui.wrap_as(
+                        (x, cy, w - 140.0),
+                        BODY_M,
                         Role::Warning,
                         EN.step_no_loaded_wallet,
                     );
@@ -602,7 +591,7 @@ pub(crate) fn step_body(
                         (EN.step_receive_0_1, false, 1),
                         (EN.step_change_1_0, true, 0),
                     ] {
-                        ui.text(x, cy + 2.0, 12.0, W::R, Role::OnSurfaceVariant, label);
+                        ui.text_as(x, cy + 2.0, BODY_S, Role::OnSurfaceVariant, label);
                         let (a, held) = app.receive_line(wl, change, idx);
                         // On a small panel the address goes under its label.
                         let ax = if ui.compact {
@@ -612,17 +601,16 @@ pub(crate) fn step_body(
                             x + 96.0
                         };
                         let col = if held { Role::Warning } else { Role::OnSurface };
-                        let used = ui.wrap(ax, cy, x + w - ax, 13.0, W::M, col, &a);
+                        let used = ui.wrap_as((ax, cy, x + w - ax), BODY_M.mono(), col, &a);
                         cy += used.max(20.0) + 8.0;
                         ui.rule(x, cy - 4.0, w, Role::OutlineVariant);
                     }
                 }
                 None => {
-                    ui.text(
+                    ui.text_as(
                         x,
                         cy,
-                        13.0,
-                        W::R,
+                        BODY_S,
                         Role::OnSurfaceVariant,
                         EN.step_no_wallet_to_show,
                     );
@@ -743,60 +731,45 @@ pub(crate) fn step_body(
             for (k, (label, amount, rest, note)) in rows.iter().enumerate() {
                 let ry = rows_top + k as f32 * row_h;
                 if compact {
-                    ui.text_mid(
-                        x + 12.0,
-                        ry + 4.0,
-                        24.0,
-                        12.0,
-                        W::R,
+                    ui.text_mid_as(
+                        (x + 12.0, ry + 4.0, 24.0),
+                        BODY_S,
                         Role::OnSurfaceVariant,
                         label,
                     );
-                    ui.text_right(
-                        x + w - 12.0,
-                        ry + 4.0,
-                        24.0,
-                        14.0,
-                        W::M,
+                    ui.text_right_as(
+                        (x + w - 12.0, ry + 4.0, 24.0),
+                        BODY_M.mono(),
                         Role::OnSurface,
                         amount,
                     );
-                    let nw = note.map_or(0.0, |(t, _)| ui.measure(12.0, W::R, t) + 8.0);
-                    let rest = ui.fit(12.0, W::R, rest, w - 24.0 - nw);
-                    ui.text_mid(
-                        x + 12.0,
-                        ry + 26.0,
-                        22.0,
-                        12.0,
-                        W::R,
+                    let nw = note.map_or(0.0, |(t, _)| ui.measure_as(BODY_S, t) + 8.0);
+                    let rest = ui.fit_as(BODY_S, rest, w - 24.0 - nw);
+                    ui.text_mid_as(
+                        (x + 12.0, ry + 26.0, 22.0),
+                        BODY_S,
                         Role::OnSurfaceVariant,
                         &rest,
                     );
                     if let Some((t, c)) = note {
-                        ui.text_right(x + w - 12.0, ry + 26.0, 22.0, 12.0, W::R, *c, t);
+                        ui.text_right_as((x + w - 12.0, ry + 26.0, 22.0), BODY_S, *c, t);
                     }
                 } else {
-                    ui.text_mid(
-                        x + 14.0,
-                        ry,
-                        row_h,
-                        12.0,
-                        W::R,
-                        Role::OnSurfaceVariant,
-                        label,
+                    ui.text_mid_as((x + 14.0, ry, row_h), BODY_S, Role::OnSurfaceVariant, label);
+                    let aw = ui.text_mid_as(
+                        (x + 84.0, ry, row_h),
+                        BODY_M.mono(),
+                        Role::OnSurface,
+                        amount,
                     );
-                    let aw = ui.text_mid(x + 84.0, ry, row_h, 14.0, W::M, Role::OnSurface, amount);
-                    ui.text_mid(
-                        x + 98.0 + aw,
-                        ry,
-                        row_h,
-                        13.0,
-                        W::R,
+                    ui.text_mid_as(
+                        (x + 98.0 + aw, ry, row_h),
+                        BODY_S,
                         Role::OnSurfaceVariant,
                         rest,
                     );
                     if let Some((t, c)) = note {
-                        ui.text_right(x + w - 14.0, ry, row_h, 12.0, W::R, *c, t);
+                        ui.text_right_as((x + w - 14.0, ry, row_h), BODY_S, *c, t);
                     }
                 }
                 if k + 1 < rows.len() {
@@ -812,7 +785,7 @@ pub(crate) fn step_body(
                     Level::Caution => Role::Warning,
                     Level::Danger | Level::Blocked => Role::Error,
                 };
-                let used = ui.wrap(x + 22.0, cy, w - 22.0, 13.0, W::R, c, &wn.text);
+                let used = ui.wrap_as((x + 22.0, cy, w - 22.0), BODY_M, c, &wn.text);
                 ui.icon(x, cy, 16.0, Icon::Warning, 10.0, c);
                 cy += used.max(18.0) + 6.0;
                 warned = true;
@@ -857,10 +830,15 @@ pub(crate) fn step_body(
                     )
                     .collect::<Vec<_>>();
                 for (label, amount, what) in &lines {
-                    ui.text(x, cy, 12.0, W::R, Role::OnSurfaceVariant, label);
-                    ui.text_right(x + w, cy - 4.0, 20.0, 12.0, W::M, Role::OnSurface, amount);
+                    ui.text_as(x, cy, BODY_S, Role::OnSurfaceVariant, label);
+                    ui.text_right_as(
+                        (x + w, cy - 4.0, 20.0),
+                        BODY_S.mono(),
+                        Role::OnSurface,
+                        amount,
+                    );
                     cy += 18.0;
-                    cy += ui.wrap(x, cy, w, 12.0, W::M, Role::OnSurface, what) + 10.0;
+                    cy += ui.wrap_as((x, cy, w), BODY_S.mono(), Role::OnSurface, what) + 10.0;
                 }
                 cy += 6.0;
             } else if s.table {
@@ -876,7 +854,7 @@ pub(crate) fn step_body(
                     .iter()
                     .map(String::as_str)
                     .chain(i.outputs.iter().map(|o| o.address.as_str()))
-                    .map(|t| ui.measure(12.0, W::M, t))
+                    .map(|t| ui.measure_as(BODY_S.mono(), t))
                     .fold(0.0, f32::max);
                 let tw = (TABLE_LABEL_W + what + GAP_SMALL + TABLE_AMOUNT_W).min(w);
                 for (inp, at) in i.inputs.iter().zip(&outpoints) {
@@ -884,28 +862,22 @@ pub(crate) fn step_body(
                         .amount
                         .map(|a| btc(a.to_sat()))
                         .unwrap_or_else(|| "?".into());
-                    ui.text(x, cy, 12.0, W::R, Role::OnSurfaceVariant, EN.step_input);
-                    ui.text(x + TABLE_LABEL_W, cy, 12.0, W::M, Role::OnSurface, at);
-                    ui.text_right(x + tw, cy - 4.0, 20.0, 12.0, W::M, Role::OnSurface, &a);
+                    ui.text_as(x, cy, BODY_S, Role::OnSurfaceVariant, EN.step_input);
+                    ui.text_as(x + TABLE_LABEL_W, cy, BODY_S.mono(), Role::OnSurface, at);
+                    ui.text_right_as((x + tw, cy - 4.0, 20.0), BODY_S.mono(), Role::OnSurface, &a);
                     cy += 22.0;
                 }
                 for o in &i.outputs {
-                    ui.text(x, cy, 12.0, W::R, Role::OnSurfaceVariant, EN.step_output);
-                    let used = ui.wrap(
-                        x + TABLE_LABEL_W,
-                        cy,
-                        tw - TABLE_LABEL_W - TABLE_AMOUNT_W,
-                        12.0,
-                        W::M,
+                    ui.text_as(x, cy, BODY_S, Role::OnSurfaceVariant, EN.step_output);
+                    let used = ui.wrap_as(
+                        (x + TABLE_LABEL_W, cy, tw - TABLE_LABEL_W - TABLE_AMOUNT_W),
+                        BODY_S.mono(),
                         Role::OnSurface,
                         &o.address,
                     );
-                    ui.text_right(
-                        x + tw,
-                        cy - 4.0,
-                        20.0,
-                        12.0,
-                        W::M,
+                    ui.text_right_as(
+                        (x + tw, cy - 4.0, 20.0),
+                        BODY_S.mono(),
                         Role::OnSurface,
                         &btc(o.amount.to_sat()),
                     );
@@ -917,7 +889,7 @@ pub(crate) fn step_body(
                 x,
                 cy,
                 None,
-                38.0,
+                BUTTON_H,
                 if s.table {
                     EN.step_hide_the_table
                 } else {
@@ -941,17 +913,14 @@ pub(crate) fn step_body(
                 let compact = ui.compact;
                 for (k, slot) in app.session.slots(wl).iter().enumerate() {
                     let id = k as u32;
-                    ui.text_mid(
-                        x,
-                        cy,
-                        42.0,
-                        12.0,
-                        W::R,
+                    ui.text_mid_as(
+                        (x, cy, 42.0),
+                        BODY_S,
                         Role::OnSurfaceVariant,
                         &fill(EN.step_share_n, &[&(k + 1).to_string()]),
                     );
                     let fp = slot.fingerprint.map(fp_text).unwrap_or_default();
-                    ui.text_mid(x + 64.0, cy, 42.0, 14.0, W::M, Role::OnSurface, &fp);
+                    ui.text_mid_as((x + 64.0, cy, 42.0), BODY_M.mono(), Role::OnSurface, &fp);
                     let (lx, ly) = if compact {
                         (x + 64.0, cy + 36.0)
                     } else {
@@ -984,27 +953,27 @@ pub(crate) fn step_body(
                         } else {
                             EN.step_choose
                         };
-                        let bw = ui.measure(13.0, W::S, label) + 28.0;
+                        let bw = ui.measure_as(LABEL_L, label) + 28.0;
                         ui.button(
                             x + w - bw,
                             ly + 5.0,
                             Some(bw),
-                            32.0,
+                            BUTTON_H,
                             label,
                             if on { Style::Primary } else { Style::Secondary },
                             Action::TOther(id),
                         );
                         bw
                     } else if !tag.is_empty() {
-                        let cw2 = ui.measure(12.0, W::R, tag) + 34.0;
+                        let cw2 = ui.measure_as(BODY_S, tag) + 34.0;
                         ui.chip(x + w - cw2, ly + 8.0, tag, fg, bg);
                         cw2
                     } else {
                         0.0
                     };
                     let label = slot.held_by.clone().unwrap_or_default();
-                    let label = ui.fit(13.0, W::R, &label, x + w - lx - right - 8.0);
-                    ui.text_mid(lx, ly, 42.0, 13.0, W::R, Role::OnSurfaceVariant, &label);
+                    let label = ui.fit_as(BODY_M, &label, x + w - lx - right - 8.0);
+                    ui.text_mid_as((lx, ly, 42.0), BODY_S, Role::OnSurfaceVariant, &label);
                     ui.rule(x, ly + 42.0, w, Role::OutlineVariant);
                     cy = ly + 44.0;
                 }
@@ -1025,10 +994,10 @@ pub(crate) fn step_body(
                     &[&needed.to_string(), &t.signed.len().to_string()],
                 )
             };
-            ui.text_mid(x, cy, 40.0, 13.0, W::R, Role::OnSurfaceVariant, &line);
+            ui.text_mid_as((x, cy, 40.0), BODY_S, Role::OnSurfaceVariant, &line);
             // Under the line when both do not fit on one row.
-            let nw = ui.measure(14.0, W::S, EN.step_continue) + 36.0;
-            if ui.measure(13.0, W::R, &line) + nw + 12.0 > w {
+            let nw = ui.measure_as(TITLE_S, EN.step_continue) + 36.0;
+            if ui.measure_as(BODY_M, &line) + nw + 12.0 > w {
                 cy += 40.0;
             }
             next(ui, cy, EN.step_continue);
@@ -1046,17 +1015,14 @@ pub(crate) fn step_body(
                     // whether it signs here and the way to bring it here.
                     let compact = ui.compact;
                     for (k, slot) in slots.iter().enumerate() {
-                        ui.text_mid(
-                            x,
-                            cy,
-                            42.0,
-                            12.0,
-                            W::R,
+                        ui.text_mid_as(
+                            (x, cy, 42.0),
+                            BODY_S,
                             Role::OnSurfaceVariant,
                             &(k + 1).to_string(),
                         );
                         let fp = slot.fingerprint.map(fp_text).unwrap_or_default();
-                        ui.text_mid(x + 22.0, cy, 42.0, 14.0, W::M, Role::OnSurface, &fp);
+                        ui.text_mid_as((x + 22.0, cy, 42.0), BODY_M.mono(), Role::OnSurface, &fp);
                         // A label that is its fingerprint is not drawn
                         // twice (`docs/history/SCAN-TO-SIGN.md` §3.3).
                         let label = slot
@@ -1065,13 +1031,10 @@ pub(crate) fn step_body(
                             .map(str::trim)
                             .filter(|l| !l.is_empty() && !l.eq_ignore_ascii_case(&fp))
                             .unwrap_or_default();
-                        let label = ui.fit(13.0, W::R, label, w - 124.0);
-                        ui.text_mid(
-                            x + 124.0,
-                            cy,
-                            42.0,
-                            13.0,
-                            W::R,
+                        let label = ui.fit_as(BODY_M, label, w - 124.0);
+                        ui.text_mid_as(
+                            (x + 124.0, cy, 42.0),
+                            BODY_S,
                             Role::OnSurfaceVariant,
                             &label,
                         );
@@ -1090,12 +1053,12 @@ pub(crate) fn step_body(
                         match from_vault {
                             None if with_pass => {
                                 let l = EN.vault_load_with_a_passphrase;
-                                let bw = ui.measure(13.0, W::S, l) + 28.0;
+                                let bw = ui.measure_as(LABEL_L, l) + 28.0;
                                 ui.button(
                                     x + w - bw,
                                     cy + 5.0,
                                     Some(bw),
-                                    32.0,
+                                    BUTTON_H,
                                     l,
                                     if may {
                                         Style::Secondary
@@ -1107,12 +1070,12 @@ pub(crate) fn step_body(
                             }
                             Some(f) => {
                                 let l = EN.step_load_from_vault;
-                                let bw = ui.measure(13.0, W::S, l) + 28.0;
+                                let bw = ui.measure_as(LABEL_L, l) + 28.0;
                                 ui.button(
                                     x + w - bw,
                                     cy + 5.0,
                                     Some(bw),
-                                    32.0,
+                                    BUTTON_H,
                                     l,
                                     if may {
                                         Style::Secondary
@@ -1135,7 +1098,7 @@ pub(crate) fn step_body(
                                         Role::SurfaceContainerHighest,
                                     )
                                 };
-                                let cw2 = ui.measure(12.0, W::R, t) + 34.0;
+                                let cw2 = ui.measure_as(BODY_S, t) + 34.0;
                                 let chip_x = if compact { x + 22.0 } else { x + w - cw2 };
                                 ui.chip(chip_x, cy + 8.0, t, fg, bg);
                             }
@@ -1146,7 +1109,12 @@ pub(crate) fn step_body(
                 }
                 None => {
                     for fp in &i.participating_keys {
-                        ui.text_mid(x, cy, 30.0, 14.0, W::M, Role::OnSurface, &fp_text(*fp));
+                        ui.text_mid_as(
+                            (x, cy, 30.0),
+                            BODY_M.mono(),
+                            Role::OnSurface,
+                            &fp_text(*fp),
+                        );
                         cy += 30.0;
                     }
                 }
@@ -1197,10 +1165,10 @@ pub(crate) fn step_body(
                         Action::Step(step::COLLECT),
                     ));
                 }
-                cy += wrap_buttons(ui, x, cy, w, 38.0, &items) + 2.0;
+                cy += wrap_buttons(ui, x, cy, w, BUTTON_H, &items) + 2.0;
                 if !may {
                     let pull = fill(EN.step_remove_the_first, &[app.medium.noun()]);
-                    ui.text(x, cy, 13.0, W::S, Role::Warning, &pull);
+                    ui.text_as(x, cy, LABEL_L, Role::Warning, &pull);
                     cy += 28.0;
                 }
                 cy += 6.0;
@@ -1253,7 +1221,7 @@ pub(crate) fn step_body(
                 )
             };
             if let Some(r) = reason {
-                ui.text_mid(x, cy, 40.0, 13.0, W::R, Role::OnSurfaceVariant, &r);
+                ui.text_mid_as((x, cy, 40.0), BODY_S, Role::OnSurfaceVariant, &r);
                 cy += 44.0;
             } else {
                 cy += sign_row(ui, (x, cy, w), "", &label, style);
@@ -1273,21 +1241,18 @@ pub(crate) fn step_body(
                 let text = fill(EN.step_signed_keys, &[&fps.join(", ").to_string()]);
                 ui.icon(x, cy + 10.0, 20.0, Icon::Done, 12.0, Role::Ok);
                 let tx = x + 26.0;
-                if ui.measure(LABEL, W::S, &text) <= x + w - tx {
-                    ui.text_mid(tx, cy, BUTTON_H, LABEL, W::S, Role::Ok, &text);
+                if ui.measure_as(TITLE_S, &text) <= x + w - tx {
+                    ui.text_mid_as((tx, cy, BUTTON_H), TITLE_S, Role::Ok, &text);
                     cy += BUTTON_H + GAP_SMALL;
                 } else {
                     // The keys wrap under one another on a narrow panel.
-                    cy +=
-                        ui.wrap(tx, cy + GAP, x + w - tx, LABEL, W::S, Role::Ok, &text) + 2.0 * GAP;
+                    cy += ui.wrap_as((tx, cy + GAP, x + w - tx), TITLE_S, Role::Ok, &text)
+                        + 2.0 * GAP;
                 }
             } else if mine.is_empty() {
-                ui.text_mid(
-                    x,
-                    cy,
-                    40.0,
-                    13.0,
-                    W::R,
+                ui.text_mid_as(
+                    (x, cy, 40.0),
+                    BODY_S,
                     Role::OnSurfaceVariant,
                     EN.step_no_signing_key,
                 );
@@ -1329,7 +1294,7 @@ pub(crate) fn step_body(
                 };
             let complete = s.complete;
             for (fp, label, raw) in &slots {
-                ui.text_mid(x, cy, 44.0, 14.0, W::M, Role::OnSurface, fp);
+                ui.text_mid_as((x, cy, 44.0), BODY_M.mono(), Role::OnSurface, fp);
                 let label = if label.is_empty() {
                     s.spend
                         .collected
@@ -1348,8 +1313,8 @@ pub(crate) fn step_body(
                 } else {
                     (x + 102.0, cy)
                 };
-                let label = ui.fit(13.0, W::R, &label, x + w - lx - 90.0);
-                ui.text_mid(lx, ly, 44.0, 13.0, W::R, Role::OnSurfaceVariant, &label);
+                let label = ui.fit_as(BODY_M, &label, x + w - lx - 90.0);
+                ui.text_mid_as((lx, ly, 44.0), BODY_S, Role::OnSurfaceVariant, &label);
                 let signed = raw.map(|r| s.signers.contains(&r)).unwrap_or(false);
                 let here = raw
                     .map(|r| s.spend.signed_here.iter().any(|f| f.0 == r))
@@ -1363,7 +1328,7 @@ pub(crate) fn step_body(
                 } else {
                     (EN.step_waiting, Role::OnSurfaceVariant)
                 };
-                ui.text_right(x + w, cy, 44.0, 12.0, W::R, c, t);
+                ui.text_right_as((x + w, cy, 44.0), BODY_S, c, t);
                 ui.rule(x, ly + 44.0, w, Role::OutlineVariant);
                 cy = ly + 46.0;
             }
@@ -1380,12 +1345,9 @@ pub(crate) fn step_body(
                 .collect();
             if !complete {
                 if copies.is_empty() {
-                    ui.text_mid(
-                        x,
-                        cy,
-                        30.0,
-                        13.0,
-                        W::R,
+                    ui.text_mid_as(
+                        (x, cy, 30.0),
+                        BODY_S,
                         Role::OnSurfaceVariant,
                         EN.step_no_cosigner_s,
                     );
@@ -1394,13 +1356,13 @@ pub(crate) fn step_body(
                 for (k, name) in &copies {
                     // No wider than the column; a long name is cut.
                     let label = fill(EN.step_add_source, &[&name.to_string()]);
-                    let bw = (ui.measure(14.0, W::S, &label) + 32.0).min(w);
-                    let label = ui.fit(14.0, W::S, &label, bw - 24.0);
+                    let bw = (ui.measure_as(TITLE_S, &label) + 32.0).min(w);
+                    let label = ui.fit_as(TITLE_S, &label, bw - 24.0);
                     ui.button(
                         x,
                         cy,
                         Some(bw),
-                        38.0,
+                        BUTTON_H,
                         &label,
                         Style::Secondary,
                         Action::Collect(*k),
@@ -1416,7 +1378,7 @@ pub(crate) fn step_body(
                     x,
                     cy,
                     w,
-                    38.0,
+                    BUTTON_H,
                     &[
                         (EN.step_show_as_qr, Style::Secondary, Action::QrPart),
                         (EN.step_scan_a_copy, Style::Secondary, Action::Scan),
@@ -1438,11 +1400,10 @@ pub(crate) fn step_body(
                 .collect();
             ui.fill(x, cy, w, 150.0, 10.0, Role::SurfaceContainerHighest);
             ui.stroke(x, cy, w, 150.0, 10.0, Role::OutlineVariant);
-            ui.text(
+            ui.text_as(
                 x + 14.0,
                 cy + 14.0,
-                14.0,
-                W::S,
+                TITLE_S,
                 Role::OnSurface,
                 EN.step_carry_file,
             );
@@ -1455,17 +1416,10 @@ pub(crate) fn step_body(
                 })
                 .to_string()],
             );
-            let sub = ui.fit(12.0, W::R, &sub, w - 28.0);
-            ui.text(
-                x + 14.0,
-                cy + 38.0,
-                12.0,
-                W::R,
-                Role::OnSurfaceVariant,
-                &sub,
-            );
+            let sub = ui.fit_as(BODY_S, &sub, w - 28.0);
+            ui.text_as(x + 14.0, cy + 38.0, BODY_S, Role::OnSurfaceVariant, &sub);
             let name = format!("{}-partly-signed.osk", crate::result_stem(&s.spend.source));
-            ui.text(x + 14.0, cy + 62.0, 12.0, W::M, Role::OnSurface, &name);
+            ui.text_as(x + 14.0, cy + 62.0, BODY_S.mono(), Role::OnSurface, &name);
             let (label, style) = if s.out_signed {
                 (EN.step_kept, Style::Disabled)
             } else {
@@ -1475,7 +1429,7 @@ pub(crate) fn step_body(
                 x + 14.0,
                 cy + 98.0,
                 None,
-                36.0,
+                BUTTON_H,
                 label,
                 style,
                 Action::CarryToOutbox,
@@ -1507,7 +1461,7 @@ pub(crate) fn step_body(
                         ],
                     ),
                 };
-                ui.wrap(x, cy, w, 13.0, W::R, Role::Warning, &line);
+                ui.wrap_as((x, cy, w), BODY_M, Role::Warning, &line);
                 cy += 44.0;
             } else {
                 // Side by side; on a small panel one under the other.
@@ -1547,8 +1501,8 @@ pub(crate) fn step_body(
                         _ => (EN.step_make_again, Style::Secondary, *action),
                     };
                     // Where the buttons go: in a row when they fit.
-                    let lw = ui.measure(13.0, W::S, label) + 32.0;
-                    let qw = ui.measure(13.0, W::S, EN.step_show_as_qr) + 32.0;
+                    let lw = ui.measure_as(LABEL_L, label) + 32.0;
+                    let qw = ui.measure_as(LABEL_L, EN.step_show_as_qr) + 32.0;
                     let stacked = k == 0 && lw + 8.0 + qw > half - 28.0;
                     let by = if compact { cy + 92.0 } else { cy + 112.0 };
                     let card_h = if stacked {
@@ -1560,16 +1514,9 @@ pub(crate) fn step_body(
                     };
                     ui.fill(bx, cy, half, card_h, 10.0, Role::SurfaceContainerHighest);
                     ui.stroke(bx, cy, half, card_h, 10.0, Role::OutlineVariant);
-                    ui.text(bx + 14.0, cy + 14.0, 14.0, W::S, Role::OnSurface, head);
-                    let sub = ui.fit(12.0, W::R, sub, half - 28.0);
-                    ui.text(
-                        bx + 14.0,
-                        cy + 38.0,
-                        12.0,
-                        W::R,
-                        Role::OnSurfaceVariant,
-                        &sub,
-                    );
+                    ui.text_as(bx + 14.0, cy + 14.0, TITLE_S, Role::OnSurface, head);
+                    let sub = ui.fit_as(BODY_S, sub, half - 28.0);
+                    ui.text_as(bx + 14.0, cy + 38.0, BODY_S, Role::OnSurfaceVariant, &sub);
                     let detail = if k == 0 {
                         format!("{}-signed.psbt", crate::result_stem(&s.spend.source))
                     } else {
@@ -1584,9 +1531,15 @@ pub(crate) fn step_body(
                             ],
                         )
                     };
-                    let detail = ui.fit(12.0, W::M, &detail, half - 28.0);
-                    ui.text(bx + 14.0, cy + 66.0, 12.0, W::M, Role::OnSurface, &detail);
-                    let bw = ui.button(bx + 14.0, by, Some(lw), 36.0, label, style, action);
+                    let detail = ui.fit_as(BODY_S.mono(), &detail, half - 28.0);
+                    ui.text_as(
+                        bx + 14.0,
+                        cy + 66.0,
+                        BODY_S.mono(),
+                        Role::OnSurface,
+                        &detail,
+                    );
+                    let bw = ui.button(bx + 14.0, by, Some(lw), BUTTON_H, label, style, action);
                     if k == 0 {
                         let (qx, qy) = if stacked {
                             (bx + 14.0, by + 44.0)
@@ -1597,14 +1550,14 @@ pub(crate) fn step_body(
                             qx,
                             qy,
                             Some(qw),
-                            36.0,
+                            BUTTON_H,
                             EN.step_show_as_qr,
                             Style::Secondary,
                             Action::QrSigned,
                         );
                     }
                     if let Some((t, _)) = &place {
-                        ui.text_right(bx + half - 14.0, cy + 14.0, 20.0, 12.0, W::S, Role::Ok, t);
+                        ui.text_right_as((bx + half - 14.0, cy + 14.0, 20.0), LABEL_M, Role::Ok, t);
                     }
                     card_y += card_h + 10.0;
                 }
@@ -1617,7 +1570,7 @@ pub(crate) fn step_body(
                     x,
                     cy,
                     w,
-                    38.0,
+                    BUTTON_H,
                     &[
                         (
                             EN.step_decode_button,
@@ -1638,12 +1591,9 @@ pub(crate) fn step_body(
                 if s.show_hex
                     && let Some(hex) = s.spend.finished_hex()
                 {
-                    let th = ui.wrap(
-                        x + 12.0,
-                        cy + 10.0,
-                        w - 24.0,
-                        12.0,
-                        W::M,
+                    let th = ui.wrap_as(
+                        (x + 12.0, cy + 10.0, w - 24.0),
+                        BODY_S.mono(),
                         Role::OnSurface,
                         &spaced(&hex),
                     );
@@ -1656,16 +1606,13 @@ pub(crate) fn step_body(
             if let Some(wl) = wallet.and_then(|wi| app.session.wallets.get(wi)) {
                 let rows = crate::wallet::musig_nonces(&app.session, wl, &s.spend.psbt);
                 for (slot, fp, here, has) in &rows {
-                    ui.text_mid(
-                        x,
-                        cy,
-                        40.0,
-                        12.0,
-                        W::R,
+                    ui.text_mid_as(
+                        (x, cy, 40.0),
+                        BODY_S,
                         Role::OnSurfaceVariant,
                         &slot.to_string(),
                     );
-                    ui.text_mid(x + 22.0, cy, 40.0, 14.0, W::M, Role::OnSurface, fp);
+                    ui.text_mid_as((x + 22.0, cy, 40.0), BODY_M.mono(), Role::OnSurface, fp);
                     if *here {
                         // On a small panel it goes under the key.
                         let (hx, hy) = if ui.compact {
@@ -1673,12 +1620,9 @@ pub(crate) fn step_body(
                         } else {
                             (x + 124.0, cy)
                         };
-                        ui.text_mid(
-                            hx,
-                            hy,
-                            40.0,
-                            13.0,
-                            W::R,
+                        ui.text_mid_as(
+                            (hx, hy, 40.0),
+                            BODY_S,
                             Role::OnSurfaceVariant,
                             EN.step_this_device,
                         );
@@ -1691,7 +1635,7 @@ pub(crate) fn step_body(
                     } else {
                         (EN.step_waiting, Role::OnSurfaceVariant)
                     };
-                    ui.text_right(x + w, cy, 40.0, 12.0, W::R, c, t);
+                    ui.text_right_as((x + w, cy, 40.0), BODY_S, c, t);
                     ui.rule(x, cy + 40.0, w, Role::OutlineVariant);
                     cy += 42.0;
                 }
@@ -1715,7 +1659,7 @@ pub(crate) fn step_body(
                     .map(|(l, (k, _))| (l.as_str(), Style::Secondary, Action::Collect(*k)))
                     .collect();
                 if !items.is_empty() {
-                    cy += wrap_buttons(ui, x, cy, w, 36.0, &items) + 2.0;
+                    cy += wrap_buttons(ui, x, cy, w, BUTTON_H, &items) + 2.0;
                 }
                 let part = format!("{}-part.psbt", crate::result_stem(&s.spend.source));
                 cy += made_line(app, ui, x, cy, w, &part);
@@ -1726,7 +1670,7 @@ pub(crate) fn step_body(
                     x,
                     cy,
                     w,
-                    38.0,
+                    BUTTON_H,
                     &[(EN.step_show_as_qr, Style::Secondary, Action::QrPart)],
                 ) + 2.0;
                 if !others_in && !mine_in {
@@ -1734,7 +1678,7 @@ pub(crate) fn step_body(
                         x,
                         cy,
                         None,
-                        38.0,
+                        BUTTON_H,
                         EN.step_go_first_share,
                         Style::Secondary,
                         Action::SignHere,
@@ -1753,11 +1697,10 @@ pub(crate) fn step_body(
                 {
                     let top = cy;
                     ui.fill(x, cy, w, 0.0, 0.0, Role::SurfaceContainerHighest);
-                    ui.text(
+                    ui.text_as(
                         x + 14.0,
                         cy + 12.0,
-                        13.0,
-                        W::S,
+                        LABEL_L,
                         Role::OnSurface,
                         &fill(EN.step_path, &[&(k + 1).to_string()]),
                     );
@@ -1775,7 +1718,7 @@ pub(crate) fn step_body(
                         } else {
                             (Role::OnSurfaceVariant, Role::SurfaceContainerHighest)
                         };
-                        let kw = ui.measure(12.0, W::R, &t) + 34.0;
+                        let kw = ui.measure_as(BODY_S, &t) + 34.0;
                         if kx > left && kx + kw > x + w - 10.0 {
                             kx = left;
                             ky += 30.0;
@@ -1784,22 +1727,20 @@ pub(crate) fn step_body(
                     }
                     let mut ly = ky + 32.0;
                     if p.locks.is_empty() {
-                        ui.text(
+                        ui.text_as(
                             x + 14.0,
                             ly,
-                            12.0,
-                            W::R,
+                            BODY_S,
                             Role::OnSurfaceVariant,
                             EN.step_no_wait,
                         );
                         ly += 20.0;
                     }
                     for l in &p.locks {
-                        ui.text(
+                        ui.text_as(
                             x + 14.0,
                             ly,
-                            12.0,
-                            W::R,
+                            BODY_S,
                             Role::OnSurfaceVariant,
                             &fill(EN.step_waits, &[&l.to_string()]),
                         );
@@ -1810,7 +1751,7 @@ pub(crate) fn step_body(
                     } else {
                         (EN.step_this_transaction, Role::OnSurfaceVariant)
                     };
-                    ly += ui.wrap(x + 14.0, ly, w - 28.0, 12.0, W::R, c, verdict) + 12.0;
+                    ly += ui.wrap_as((x + 14.0, ly, w - 28.0), BODY_S, c, verdict) + 12.0;
                     ui.stroke(x, top, w, ly - top, 10.0, Role::OutlineVariant);
                     cy = ly + 8.0;
                 }
@@ -1821,7 +1762,7 @@ pub(crate) fn step_body(
         _ => {}
     }
     if let Some(e) = &s.error {
-        let used = ui.wrap(x, cy, w, 13.0, W::R, Role::Error, e);
+        let used = ui.wrap_as((x, cy, w), BODY_M, Role::Error, e);
         cy += used + 6.0;
     }
     cy - y
@@ -1854,11 +1795,10 @@ fn spend_panel(
     let x = px + 26.0;
     let w = pw - 52.0;
     let mut y = faraday_draw::tokens::SIDE_PANEL_TOP;
-    ui.text(
+    ui.text_as(
         x,
         y,
-        13.0,
-        W::S,
+        LABEL_L,
         Role::OnSurfaceVariant,
         EN.spend_panel_this_transaction,
     );
@@ -1878,14 +1818,14 @@ fn spend_panel(
     } else {
         EN.spend_panel_none.to_string()
     };
-    let facts: [(&str, String, W, u8); 6] = [
+    let facts: [(&str, String, TypeRole, u8); 6] = [
         (
             EN.spend_panel_wallet,
             wallet
                 .and_then(|wi| app.session.wallets.get(wi))
                 .map(|wl| wl.name.clone())
                 .unwrap_or_else(|| EN.spend_panel_not_loaded.into()),
-            W::R,
+            BODY_M,
             0,
         ),
         (
@@ -1894,10 +1834,10 @@ fn spend_panel(
                 EN.spend_panel_btc,
                 &[&btc(i.amount_to_others.to_sat()).to_string()],
             ),
-            W::M,
+            BODY_M.mono(),
             2,
         ),
-        (EN.spend_panel_to_label, to, W::M, 2),
+        (EN.spend_panel_to_label, to, BODY_M.mono(), 2),
         (
             EN.spend_panel_fee,
             fill(
@@ -1910,21 +1850,21 @@ fn spend_panel(
                     .to_string(),
                 ],
             ),
-            W::R,
+            BODY_M,
             2,
         ),
-        (EN.spend_panel_change, change, W::R, 2),
+        (EN.spend_panel_change, change, BODY_M, 2),
         (
             EN.spend_panel_txid,
             short(&s.spend.txid.to_string()),
-            W::M,
+            BODY_M.mono(),
             3,
         ),
     ];
     for (k, v, wt, step) in facts.iter() {
-        ui.text_mid(x, y, 38.0, 12.0, W::R, Role::OnSurfaceVariant, k);
-        let v = ui.fit(13.0, *wt, v, w - 70.0);
-        ui.text_right(x + w, y, 38.0, 13.0, *wt, Role::OnSurface, &v);
+        ui.text_mid_as((x, y, 38.0), BODY_S, Role::OnSurfaceVariant, k);
+        let v = ui.fit_as(*wt, v, w - 70.0);
+        ui.text_right_as((x + w, y, 38.0), *wt, Role::OnSurface, &v);
         ui.rule(x, y + 38.0, w, Role::OutlineVariant);
         ui.hit(x, y, w, 38.0, Action::Step(*step));
         y += 40.0;
@@ -1933,12 +1873,9 @@ fn spend_panel(
     let fy = h - 26.0 - 46.0 - 14.0 - 82.0;
     ui.fill(x, fy, w, 82.0, 12.0, Role::SurfaceContainerHighest);
     ui.stroke(x, fy, w, 82.0, 12.0, Role::OutlineVariant);
-    ui.text_mid(
-        x + 16.0,
-        fy + 10.0,
-        26.0,
-        13.0,
-        W::R,
+    ui.text_mid_as(
+        (x + 16.0, fy + 10.0, 26.0),
+        BODY_S,
         Role::OnSurfaceVariant,
         EN.spend_panel_signatures,
     );
@@ -1946,24 +1883,18 @@ fn spend_panel(
         EN.spend_panel_count,
         &[&count.to_string(), &needed.to_string()],
     );
-    let lw = ui.measure(13.0, W::S, &label);
-    ui.text_mid(
-        x + w - 16.0 - lw,
-        fy + 10.0,
-        26.0,
-        13.0,
-        W::S,
+    let lw = ui.measure_as(LABEL_L, &label);
+    ui.text_mid_as(
+        (x + w - 16.0 - lw, fy + 10.0, 26.0),
+        LABEL_L,
         Role::OnSurface,
         &label,
     );
     let pips_w = needed as f32 * 34.0 - 6.0;
     ui.pips(x + w - 26.0 - lw - pips_w, fy + 18.0, needed, count);
-    ui.text_mid(
-        x + 16.0,
-        fy + 44.0,
-        26.0,
-        13.0,
-        W::R,
+    ui.text_mid_as(
+        (x + 16.0, fy + 44.0, 26.0),
+        BODY_M,
         if missing == 0 {
             Role::Ok
         } else {
@@ -1972,12 +1903,12 @@ fn spend_panel(
         &need_line,
     );
     let by = h - 26.0 - 46.0;
-    let label = ui.fit(15.0, W::S, &action_label, w - 32.0);
+    let label = ui.fit_as(TITLE_M, &action_label, w - 32.0);
     ui.button(
         x,
         by,
         Some(w),
-        46.0,
+        BUTTON_H,
         &label,
         Style::Primary,
         Action::Primary,
@@ -2012,14 +1943,11 @@ pub(crate) fn signers_count(
             ],
         )
     };
-    let line = ui.fit(13.0, W::S, &line, w);
+    let line = ui.fit_as(LABEL_L, &line, w);
     let mut cy = y;
-    let mut used = ui.text_mid(
-        x,
-        cy,
-        40.0,
-        13.0,
-        W::S,
+    let mut used = ui.text_mid_as(
+        (x, cy, 40.0),
+        LABEL_L,
         if enough {
             Role::OnSurface
         } else {
@@ -2029,7 +1957,7 @@ pub(crate) fn signers_count(
     );
     if enough {
         let t = EN.signers_count_can_spend;
-        let cw = ui.measure(12.0, W::R, t) + 34.0;
+        let cw = ui.measure_as(BODY_S, t) + 34.0;
         if used + 10.0 + cw > w {
             cy += 36.0;
             ui.chip(x, cy + 7.0, t, Role::OnOkContainer, Role::OkContainer);
@@ -2045,7 +1973,7 @@ pub(crate) fn signers_count(
             used += 10.0 + cw;
         }
     }
-    let nw = ui.measure(14.0, W::S, EN.signers_count_continue) + 36.0;
+    let nw = ui.measure_as(TITLE_S, EN.signers_count_continue) + 36.0;
     if !ui.pinning && used + nw + 12.0 > w {
         cy += 44.0;
     }
@@ -2058,22 +1986,13 @@ pub(crate) fn signers_count(
 /// label is wider than the column the label is a line of its own above a
 /// button reading Sign. Returns its height.
 fn sign_row(ui: &mut Ui, (x, y, w): (f32, f32, f32), lead: &str, label: &str, style: Style) -> f32 {
-    let lead_size = LABEL - 1.0;
     let row = BUTTON_H + GAP_SMALL;
-    let bw = ui.measure(LABEL, W::S, label) + 2.0 * PAD;
+    let bw = ui.measure_as(TITLE_S, label) + 2.0 * PAD;
     let lw = if lead.is_empty() {
         0.0
     } else {
-        ui.text_mid(
-            x,
-            y,
-            BUTTON_H,
-            lead_size,
-            W::R,
-            Role::OnSurfaceVariant,
-            lead,
-        );
-        ui.measure(lead_size, W::R, lead) + GAP
+        ui.text_mid_as((x, y, BUTTON_H), BODY_S, Role::OnSurfaceVariant, lead);
+        ui.measure_as(BODY_S, lead) + GAP
     };
     if lw + bw <= w {
         ui.button(
@@ -2091,7 +2010,7 @@ fn sign_row(ui: &mut Ui, (x, y, w): (f32, f32, f32), lead: &str, label: &str, st
     let label = if bw <= w {
         label
     } else {
-        let used = ui.wrap(x, cy, w, lead_size, W::R, Role::OnSurfaceVariant, label);
+        let used = ui.wrap_as((x, cy, w), BODY_S, Role::OnSurfaceVariant, label);
         cy += used + GAP;
         EN.step_sign
     };
@@ -2108,22 +2027,22 @@ fn made_line(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, file: &str) -> f32
     };
     let mut right = x + w;
     if let Some(k) = k {
-        let bw = ui.measure(13.0, W::S, EN.made_line_remove) + 32.0;
+        let bw = ui.measure_as(LABEL_L, EN.made_line_remove) + 32.0;
         right -= bw;
         ui.button(
             right,
             y,
             Some(bw),
-            34.0,
+            BUTTON_H,
             EN.made_line_remove,
             Style::Ghost,
             Action::OutboxRemove(k),
         );
         right -= 10.0;
     }
-    let sw = ui.measure(13.0, W::S, &state);
-    ui.text_mid(right - sw, y, 34.0, 13.0, W::S, Role::Ok, &state);
-    let n = ui.fit(13.0, W::M, file, (right - sw - 10.0 - x).max(0.0));
-    ui.text_mid(x, y, 34.0, 13.0, W::M, Role::OnSurface, &n);
+    let sw = ui.measure_as(LABEL_L, &state);
+    ui.text_mid_as((right - sw, y, 34.0), LABEL_L, Role::Ok, &state);
+    let n = ui.fit_as(BODY_M.mono(), file, (right - sw - 10.0 - x).max(0.0));
+    ui.text_mid_as((x, y, 34.0), BODY_M.mono(), Role::OnSurface, &n);
     44.0
 }

@@ -7,9 +7,10 @@ use crate::screens::title;
 use crate::strings::EN;
 use crate::strings::fill;
 use crate::ui::pal::*;
-use crate::ui::{Style, Ui, W};
+use crate::ui::{Style, Ui};
 use crate::upgrade::{Fit, Step, UpgradeState, version};
 use crate::{Action, BootPart};
+use faraday_draw::tokens::{BODY_M, BODY_S, BUTTON_H, LABEL_L, TITLE_M};
 
 /// A row of the list of sticks to upgrade.
 const ROW: f32 = 44.0;
@@ -72,15 +73,15 @@ fn heading(
         ui.icon(x, y, 26.0, faraday_draw::widgets::Icon::Check, 12.0, ink);
     } else {
         let s = n.to_string();
-        let tw = ui.measure(13.0, W::S, &s);
-        ui.text_mid(x + 13.0 - tw / 2.0, y, 26.0, 13.0, W::S, ink, &s);
+        let tw = ui.measure_as(LABEL_L, &s);
+        ui.text_mid_as((x + 13.0 - tw / 2.0, y, 26.0), LABEL_L, ink, &s);
     }
     let tone = if now {
         Role::OnSurface
     } else {
         Role::OnSurfaceVariant
     };
-    let th = ui.wrap(x + 38.0, y + 3.0, w - 38.0, 16.0, W::S, tone, label);
+    let th = ui.wrap_as((x + 38.0, y + 3.0, w - 38.0), TITLE_M, tone, label);
     th.max(26.0) + 12.0
 }
 
@@ -97,10 +98,10 @@ fn value_row(
     if ui.compact {
         return crate::compact::kv(ui, x, y, w, key, value, tone);
     }
-    let kw = ui.measure(13.0, W::R, key) + 24.0;
-    ui.text_mid(x, y, 36.0, 13.0, W::R, Role::OnSurfaceVariant, key);
-    let v = ui.fit(14.0, W::R, value, w - kw);
-    ui.text_right(x + w, y, 36.0, 14.0, W::R, tone, &v);
+    let kw = ui.measure_as(BODY_M, key) + 24.0;
+    ui.text_mid_as((x, y, 36.0), BODY_S, Role::OnSurfaceVariant, key);
+    let v = ui.fit_as(BODY_M, value, w - kw);
+    ui.text_right_as((x + w, y, 36.0), BODY_M, tone, &v);
     ui.rule(x, y + 36.0, w, Role::OutlineVariant);
     38.0
 }
@@ -141,7 +142,7 @@ fn source(app: &View, ui: &mut Ui, u: &UpgradeState, step: Step, x: f32, y0: f32
             Role::OnSurfaceVariant.paint(),
         );
     } else if let Some(why) = &u.refused {
-        y += ui.wrap(ix, y, iw, 13.0, W::S, Role::Error, why) + 8.0;
+        y += ui.wrap_as((ix, y, iw), LABEL_L, Role::Error, why) + 8.0;
     }
     y - y0
 }
@@ -185,12 +186,9 @@ fn target(app: &View, ui: &mut Ui, u: &UpgradeState, step: Step, x: f32, y0: f32
                 );
             }
             let name = format!("{} {}", app.medium.cap(), disk(p));
-            ui.text_mid(
-                ix,
-                y,
-                ROW,
-                13.0,
-                W::S,
+            ui.text_mid_as(
+                (ix, y, ROW),
+                LABEL_L,
                 if on {
                     Role::OnSurface
                 } else {
@@ -199,7 +197,7 @@ fn target(app: &View, ui: &mut Ui, u: &UpgradeState, step: Step, x: f32, y0: f32
                 &name,
             );
             let v = version(p.release.as_deref());
-            ui.text_right(ix + iw, y, ROW, 12.0, W::R, Role::OnSurfaceVariant, &v);
+            ui.text_right_as((ix + iw, y, ROW), BODY_S, Role::OnSurfaceVariant, &v);
             ui.hit(ix - 8.0, y, iw + 16.0, ROW, action);
             y += ROW;
             ui.rule(ix, y, iw, Role::OutlineVariant);
@@ -273,7 +271,7 @@ fn target(app: &View, ui: &mut Ui, u: &UpgradeState, step: Step, x: f32, y0: f32
     };
     y += 8.0;
     if let Some((line, tone)) = note {
-        y += ui.wrap(ix, y, iw, 13.0, W::S, tone, &line) + 8.0;
+        y += ui.wrap_as((ix, y, iw), LABEL_L, tone, &line) + 8.0;
     }
     if let Some((why, pulled)) = &u.failed {
         let line = if *pulled {
@@ -281,7 +279,7 @@ fn target(app: &View, ui: &mut Ui, u: &UpgradeState, step: Step, x: f32, y0: f32
         } else {
             fill(EN.upgrade_not_written, &[&why.to_string()])
         };
-        y += ui.wrap(ix, y, iw, 13.0, W::S, Role::Error, &line) + 8.0;
+        y += ui.wrap_as((ix, y, iw), LABEL_L, Role::Error, &line) + 8.0;
     }
     y += 4.0;
     if u.writing.is_some() {
@@ -300,7 +298,7 @@ fn target(app: &View, ui: &mut Ui, u: &UpgradeState, step: Step, x: f32, y0: f32
         ix,
         y,
         Some(160.0f32.min(iw)),
-        44.0,
+        BUTTON_H,
         label,
         style,
         Action::UpgradeWrite,
@@ -342,7 +340,7 @@ fn done(app: &View, ui: &mut Ui, u: &UpgradeState, step: Step, x: f32, y0: f32, 
     } else {
         let mut bx = ix;
         for (label, style, action) in items {
-            bx += ui.button(bx, y, None, 44.0, label, style, action) + 10.0;
+            bx += ui.button(bx, y, None, BUTTON_H, label, style, action) + 10.0;
         }
         y += 44.0;
     }

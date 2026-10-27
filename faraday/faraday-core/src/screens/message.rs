@@ -4,8 +4,9 @@ use super::parts::{file_row, made_state, next_button, pin_button};
 use crate::drawing::{Scrolled, View};
 use crate::strings::{EN, fill};
 use crate::ui::pal::*;
-use crate::ui::{Style, Ui, W, short};
+use crate::ui::{Style, Ui, short};
 use crate::{Action, Code, Screen, flow, guide};
+use faraday_draw::tokens::{BODY_M, BODY_S, BUTTON_H};
 use faraday_ui::parts::wrap_buttons;
 
 pub(crate) const MSTEPS: [&str; 4] = [
@@ -130,16 +131,13 @@ fn message_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                 } else {
                     Style::Secondary
                 };
-                bx += ui.button(bx, cy, None, 36.0, &wl.name, style, Action::MWallet(wi)) + 8.0;
+                bx += ui.button(bx, cy, None, BUTTON_H, &wl.name, style, Action::MWallet(wi)) + 8.0;
             }
             cy += 48.0;
             if let Some(wl) = m.wallet.and_then(|wi| app.session.wallets.get(wi)) {
-                ui.text_mid(
-                    x,
-                    cy,
-                    36.0,
-                    12.0,
-                    W::R,
+                ui.text_mid_as(
+                    (x, cy, 36.0),
+                    BODY_S,
                     Role::OnSurfaceVariant,
                     &fill(EN.message_receive_address, &[&m.index.to_string()]),
                 );
@@ -147,7 +145,7 @@ fn message_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                     x + 170.0,
                     cy,
                     Some(40.0),
-                    36.0,
+                    BUTTON_H,
                     "-",
                     Style::Secondary,
                     Action::MIndex(-1),
@@ -156,19 +154,16 @@ fn message_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                     x + 216.0,
                     cy,
                     Some(40.0),
-                    36.0,
+                    BUTTON_H,
                     "+",
                     Style::Secondary,
                     Action::MIndex(1),
                 );
                 cy += 46.0;
                 let (a, held) = app.receive_line(wl, false, m.index);
-                cy += ui.wrap(
-                    x,
-                    cy,
-                    w,
-                    14.0,
-                    W::M,
+                cy += ui.wrap_as(
+                    (x, cy, w),
+                    BODY_M.mono(),
                     if held { Role::Warning } else { Role::OnSurface },
                     &a,
                 ) + 12.0;
@@ -214,12 +209,9 @@ fn message_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                     Role::Primary.with_alpha(40),
                 );
             }
-            ui.wrap(
-                x + 14.0,
-                cy + 12.0,
-                w - 28.0,
-                14.0,
-                W::R,
+            ui.wrap_as(
+                (x + 14.0, cy + 12.0, w - 28.0),
+                BODY_M,
                 if m.text.is_empty() {
                     Role::OnSurfaceVariant
                 } else {
@@ -233,7 +225,7 @@ fn message_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                 x,
                 cy,
                 None,
-                38.0,
+                BUTTON_H,
                 if m.typing {
                     EN.message_stop_typing
                 } else {
@@ -242,12 +234,9 @@ fn message_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                 Style::Secondary,
                 Action::MType,
             );
-            ui.text_mid(
-                x + 120.0,
-                cy,
-                38.0,
-                12.0,
-                W::R,
+            ui.text_mid_as(
+                (x + 120.0, cy, 38.0),
+                BODY_S,
                 Role::OnSurfaceVariant,
                 &fill(
                     EN.message_characters,
@@ -287,7 +276,7 @@ fn message_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                     bx,
                     cy,
                     Some(110.0),
-                    38.0,
+                    BUTTON_H,
                     label,
                     style,
                     Action::MFormat(is322),
@@ -313,16 +302,10 @@ fn message_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                     }
                 }
                 Some(sig) => {
-                    ui.text(
-                        x,
-                        cy,
-                        12.0,
-                        W::R,
-                        Role::OnSurfaceVariant,
-                        EN.message_signature,
-                    );
+                    ui.text_as(x, cy, BODY_S, Role::OnSurfaceVariant, EN.message_signature);
                     cy += 20.0;
-                    cy += ui.wrap(x, cy, w, 13.0, W::M, Role::OnSurface, &sig.signature) + 14.0;
+                    cy += ui.wrap_as((x, cy, w), BODY_M.mono(), Role::OnSurface, &sig.signature)
+                        + 14.0;
                     // Made For the stick as it was signed.
                     let file = format!(
                         "message-{}.txt",
@@ -347,7 +330,7 @@ fn message_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                         x,
                         cy,
                         w,
-                        38.0,
+                        BUTTON_H,
                         &[
                             (EN.message_show_as_qr, Style::Secondary, Action::MQr),
                             (&png, Style::Secondary, Action::CodePng(Code::Message)),
@@ -356,7 +339,7 @@ fn message_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                 }
             }
             if let Some(e) = &m.error {
-                cy += ui.wrap(x, cy, w, 13.0, W::R, Role::Error, e) + 6.0;
+                cy += ui.wrap_as((x, cy, w), BODY_M, Role::Error, e) + 6.0;
             }
         }
     }

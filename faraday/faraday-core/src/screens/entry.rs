@@ -10,6 +10,7 @@ use crate::ui::pal::*;
 use crate::ui::{CoreUi, Style, Ui, W};
 use crate::wallet::fp_text;
 use crate::{Action, Screen};
+use faraday_draw::tokens::{BODY_M, BODY_S, BUTTON_H, HEADLINE_S, LABEL_L, TITLE_S};
 use faraday_draw::widgets::Icon;
 use faraday_ui::parts::{button_rows, section_label, wrap_buttons};
 
@@ -36,11 +37,10 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         10.0,
         Role::OnSurfaceVariant,
     );
-    ui.text(
+    ui.text_as(
         x + 14.0,
         y,
-        12.0,
-        W::R,
+        BODY_S,
         Role::OnSurfaceVariant,
         app.named_back((
             if app.entry_leave() == Screen::Family {
@@ -72,8 +72,8 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         }
         (None, None) => EN.entry_add_a_key.to_string(),
     };
-    let heading = ui.fit(26.0, W::S, &heading, width);
-    ui.text(x, y, 26.0, W::S, Role::OnSurface, &heading);
+    let heading = ui.fit_as(HEADLINE_S.medium(), &heading, width);
+    ui.text_as(x, y, HEADLINE_S.medium(), Role::OnSurface, &heading);
     y += 48.0;
     // The words form is the one everyday way in; the other three are
     // behind Other forms, or already shown when a Tools tile opened one
@@ -107,7 +107,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         x,
         y,
         Some(width),
-        40.0,
+        BUTTON_H,
         EN.entry_scan_a_seedqr,
         if entry_typed(app) {
             Style::Secondary
@@ -253,16 +253,13 @@ pub(crate) fn word_count_row(
     let chosen = app.entry.state().words_chosen();
     let mut bx = x;
     if labelled {
-        ui.text_mid(
-            x,
-            y,
-            32.0,
-            13.0,
-            W::S,
+        ui.text_mid_as(
+            (x, y, 32.0),
+            LABEL_L,
             Role::OnSurfaceVariant,
             EN.word_count_row_words,
         );
-        bx += ui.measure(13.0, W::S, EN.word_count_row_words) + 14.0;
+        bx += ui.measure_as(LABEL_L, EN.word_count_row_words) + 14.0;
     }
     let counts = crate::EntryState::COUNTS;
     let gap = 6.0;
@@ -277,7 +274,7 @@ pub(crate) fn word_count_row(
             bx,
             y,
             Some(bw),
-            32.0,
+            BUTTON_H,
             &n.to_string(),
             style,
             Action::EntryWordCount(n),
@@ -342,7 +339,7 @@ fn keyed_words(
         Some(e) => (e.clone(), Role::Error.paint()),
         None => keyed_status(app, lang, &taken),
     };
-    ui.text_right(x + width, y - 4.0, 24.0, 13.0, W::S, tone, &status);
+    ui.text_right_as((x + width, y - 4.0, 24.0), LABEL_L, tone, &status);
     // What the keys typed can be: a pill each, pressed to take it.
     y += keyed_pills(ui, x, y, width, w, lang, true);
     // The keyboard, laid out in design units, its keys as tall as the
@@ -420,10 +417,10 @@ fn entry_status(
             Role::OnSurfaceVariant,
         ),
     };
-    ui.text(x, y, 14.0, W::S, status.1, &status.0);
+    ui.text_as(x, y, TITLE_S, status.1, &status.0);
     y += 30.0;
     if let Some(e) = &app.entry.state().error {
-        ui.text(x, y, 13.0, W::R, Role::Error, e);
+        ui.text_as(x, y, BODY_M, Role::Error, e);
     }
     y + 34.0
 }
@@ -435,12 +432,9 @@ fn entry_status(
 fn entry_finish(app: &View, ui: &mut Ui, x: f32, y: f32, width: f32, h: f32) -> f32 {
     // An optional BIP-39 passphrase: the same words with another
     // passphrase are another key.
-    ui.text_mid(
-        x,
-        y,
-        40.0,
-        13.0,
-        W::R,
+    ui.text_mid_as(
+        (x, y, 40.0),
+        BODY_S,
         Role::OnSurfaceVariant,
         EN.entry_finish_bip39_passphrase,
     );
@@ -478,7 +472,7 @@ fn entry_finish(app: &View, ui: &mut Ui, x: f32, y: f32, width: f32, h: f32) -> 
         x,
         by,
         Some(140.0),
-        46.0,
+        BUTTON_H,
         EN.entry_finish_add_key,
         if entry_typed(app) {
             Style::Primary
@@ -491,7 +485,7 @@ fn entry_finish(app: &View, ui: &mut Ui, x: f32, y: f32, width: f32, h: f32) -> 
         x + 152.0,
         by,
         None,
-        46.0,
+        BUTTON_H,
         EN.entry_finish_clear,
         Style::Ghost,
         Action::EntryClear,
@@ -501,7 +495,7 @@ fn entry_finish(app: &View, ui: &mut Ui, x: f32, y: f32, width: f32, h: f32) -> 
         new_x,
         by,
         None,
-        46.0,
+        BUTTON_H,
         EN.entry_finish_new_key,
         Style::Secondary,
         Action::KeyGen(None),
@@ -519,14 +513,14 @@ fn entry_finish(app: &View, ui: &mut Ui, x: f32, y: f32, width: f32, h: f32) -> 
 /// (beside the "Demo only" card, a medium window) on its own line under
 /// them, wrapped, never cut. Returns the row's foot.
 fn keys_hint(ui: &mut Ui, (x, width): (f32, f32), (hx, by): (f32, f32), hint: &str) -> f32 {
-    use faraday_draw::tokens::{CAPTION, GAP};
+    use faraday_draw::tokens::GAP;
     let (muted, row) = (Role::OnSurfaceVariant, 46.0);
-    if hx + ui.measure(CAPTION, W::R, hint) <= x + width {
-        ui.text_mid(hx, by, row, CAPTION, W::R, muted, hint);
+    if hx + ui.measure_as(BODY_S, hint) <= x + width {
+        ui.text_mid_as((hx, by, row), BODY_S, muted, hint);
         by + row
     } else {
         let hy = by + row + GAP;
-        hy + ui.wrap(x, hy, width, CAPTION, W::R, muted, hint)
+        hy + ui.wrap_as((x, hy, width), BODY_S, muted, hint)
     }
 }
 
@@ -559,12 +553,9 @@ pub(crate) fn entry_stick(app: &View, ui: &mut Ui, x: f32, y: f32) {
             12.0,
             Role::OnSurfaceVariant,
         );
-        ui.text_mid(
-            x + 24.0,
-            y,
-            36.0,
-            13.0,
-            W::R,
+        ui.text_mid_as(
+            (x + 24.0, y, 36.0),
+            BODY_S,
             Role::OnSurfaceVariant,
             &fill(EN.entry_stick_from_plug, &[app.medium.a()]),
         );
@@ -573,7 +564,7 @@ pub(crate) fn entry_stick(app: &View, ui: &mut Ui, x: f32, y: f32) {
             x,
             y,
             None,
-            36.0,
+            BUTTON_H,
             EN.entry_stick_copy_files,
             Style::Secondary,
             Action::Nav(Screen::Visit),
@@ -630,7 +621,7 @@ pub(crate) fn entry_form(
         y += 54.0 + never_below(app, ui, x, y + 44.0, width);
     }
     if let Some(e) = &app.entry.state().error {
-        y += ui.wrap(x, y, width, 13.0, W::R, Role::Error, e) + 8.0;
+        y += ui.wrap_as((x, y, width), BODY_M, Role::Error, e) + 8.0;
     }
     y += codex32_found(app, ui, x, y, width);
     // What is in.
@@ -649,7 +640,7 @@ pub(crate) fn entry_form(
     for (n, l) in lines.iter().enumerate() {
         ui.icon(x, y - 2.0, 18.0, Icon::Done, 10.0, Role::Ok);
         let indent = faraday_draw::tokens::PART_INDENT;
-        ui.text(x + indent, y, 13.0, W::R, Role::OnSurface, l);
+        ui.text_as(x + indent, y, BODY_M, Role::OnSurface, l);
         y += 24.0;
         y += codex32_mark(app, ui, x + indent, y, width - indent, n);
     }
@@ -659,12 +650,9 @@ pub(crate) fn entry_form(
     }
     // A SLIP-39 backup's passphrase; a Seed XOR key's BIP-39 one.
     if form != Form::Codex32 && flow.is_none() {
-        ui.text_mid(
-            x,
-            y,
-            40.0,
-            13.0,
-            W::R,
+        ui.text_mid_as(
+            (x, y, 40.0),
+            BODY_S,
             Role::OnSurfaceVariant,
             EN.entry_form_passphrase,
         );
@@ -710,7 +698,7 @@ pub(crate) fn entry_form(
         x,
         by,
         None,
-        46.0,
+        BUTTON_H,
         if checking {
             EN.codex32_form_check_it
         } else {
@@ -727,7 +715,7 @@ pub(crate) fn entry_form(
         x + aw + 8.0,
         by,
         None,
-        46.0,
+        BUTTON_H,
         EN.entry_form_scan_a_qr,
         Style::Secondary,
         Action::ScanPart,
@@ -741,7 +729,7 @@ pub(crate) fn entry_form(
         x + aw + 8.0,
         by,
         None,
-        46.0,
+        BUTTON_H,
         label,
         if ready {
             Style::Primary
@@ -796,12 +784,9 @@ fn entry_field(app: &View, ui: &mut Ui, x: f32, y: f32, width: f32, form: crate:
         t
     };
     let shown = ui.fit_secret(14.0, W::M, &typed, width - 24.0);
-    ui.text_mid(
-        x + if empty && on { 18.0 } else { 12.0 },
-        y,
-        44.0,
-        14.0,
-        W::M,
+    ui.text_mid_as(
+        (x + if empty && on { 18.0 } else { 12.0 }, y, 44.0),
+        BODY_M.mono(),
         if app.entry.state().typed.is_empty() {
             Role::OnSurfaceVariant
         } else {
@@ -854,7 +839,7 @@ pub(crate) fn codex32_tick(app: &View, ui: &mut Ui, x: f32, y: f32, width: f32) 
 fn codex32_clash(ui: &mut Ui, x: f32, y: f32, width: f32, clash: &crate::forms::Clash) -> f32 {
     use crate::codex32_correct::screen::{line, string_boxes};
     use crate::forms::C32Press;
-    use faraday_draw::tokens::{CORRECT_GAP, LABEL};
+    use faraday_draw::tokens::CORRECT_GAP;
     let index = clash
         .text
         .as_str()
@@ -879,16 +864,13 @@ fn codex32_clash(ui: &mut Ui, x: f32, y: f32, width: f32, clash: &crate::forms::
         (EN.codex32_form_held, clash.held.as_str()),
         (EN.codex32_form_new, clash.text.as_str()),
     ] {
-        h += ui.wrap(x, y + h, width, LABEL, W::S, Role::OnSurfaceVariant, label);
+        h += ui.wrap_as((x, y + h, width), TITLE_S, Role::OnSurfaceVariant, label);
         h += string_boxes(ui, x, y + h, width, text, &clash.differ) + CORRECT_GAP;
     }
     let boxes: Vec<String> = clash.differ.iter().map(ToString::to_string).collect();
-    h += ui.wrap(
-        x,
-        y + h,
-        width,
-        LABEL,
-        W::R,
+    h += ui.wrap_as(
+        (x, y + h, width),
+        BODY_M,
         Role::OnSurfaceVariant,
         &fill(EN.codex32_form_differ, &[&boxes.join(", ")]),
     ) + CORRECT_GAP;
@@ -917,7 +899,7 @@ fn codex32_clash(ui: &mut Ui, x: f32, y: f32, width: f32, clash: &crate::forms::
 /// typed in, and its mark. Returns its height.
 pub(crate) fn codex32_found(app: &View, ui: &mut Ui, x: f32, y: f32, width: f32) -> f32 {
     use crate::codex32_correct::screen::line;
-    use faraday_draw::tokens::{CORRECT_GAP, CORRECT_LINE_TEXT};
+    use faraday_draw::tokens::CORRECT_GAP;
     let e = app.entry.state();
     if e.codex32.already {
         return line(
@@ -939,32 +921,21 @@ pub(crate) fn codex32_found(app: &View, ui: &mut Ui, x: f32, y: f32, width: f32)
         (Icon::Error, Role::Error, EN.codex32_form_fails)
     };
     let mut h = line(ui, x, y, width, icon, tone.paint(), text);
-    h += ui.wrap(
-        x,
-        y + h,
-        width,
-        CORRECT_LINE_TEXT,
-        W::R,
-        Role::OnSurface,
-        &checked.what,
-    );
+    h += ui.wrap_as((x, y + h, width), BODY_M, Role::OnSurface, &checked.what);
     if let Some(of) = checked.of_the_set {
         let (text, tone) = if of {
             (EN.codex32_form_of_the_set, Role::Ok)
         } else {
             (EN.codex32_form_not_of_the_set, Role::Error)
         };
-        h += ui.wrap(x, y + h, width, CORRECT_LINE_TEXT, W::R, tone, text);
+        h += ui.wrap_as((x, y + h, width), BODY_M, tone, text);
     }
     // Strings of its set the open vaults keep (§9.5).
     if checked.holds && e.codex32.check_in_vaults > 0 {
         let n = e.codex32.check_in_vaults.to_string();
-        h += ui.wrap(
-            x,
-            y + h,
-            width,
-            CORRECT_LINE_TEXT,
-            W::R,
+        h += ui.wrap_as(
+            (x, y + h, width),
+            BODY_M,
             Role::OnSurface,
             &fill(EN.c32r_in_vaults, &[&n]),
         );

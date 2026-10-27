@@ -4,8 +4,9 @@ use super::parts::guide_text_learn;
 use crate::drawing::View;
 use crate::strings::{EN, fill};
 use crate::ui::pal::*;
-use crate::ui::{Ui, W, grouped};
+use crate::ui::{Ui, grouped};
 use crate::{Action, Screen};
+use faraday_draw::tokens::{BODY_M, BODY_S, TITLE_M, TITLE_S};
 use faraday_draw::widgets::Icon;
 use faraday_ui::parts::title;
 
@@ -35,7 +36,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             Role::OnSurfaceVariant,
         );
         let (label, _) = app.named_back((EN.check_wallets, Action::Nav(Screen::WalletsStart)));
-        ui.text(x + 14.0, y, 12.0, W::R, Role::OnSurfaceVariant, label);
+        ui.text_as(x + 14.0, y, BODY_S, Role::OnSurfaceVariant, label);
         ui.hit(
             x - 4.0,
             y - 4.0,
@@ -54,23 +55,19 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         y += guide_text_learn(app, ui, x, y, width, guide, crate::learn::Topic::Message);
     }
     let Some(item) = app.message.checking().and_then(|i| app.inbox.get(i)) else {
-        ui.text(
+        ui.text_as(
             x,
             y,
-            14.0,
-            W::R,
+            BODY_M,
             Role::OnSurfaceVariant,
             EN.check_no_signed_message,
         );
         return;
     };
     let Some(c) = app.message_check(&String::from_utf8_lossy(&item.bytes)) else {
-        ui.wrap(
-            x,
-            y,
-            width,
-            14.0,
-            W::R,
+        ui.wrap_as(
+            (x, y, width),
+            BODY_M,
             Role::Error,
             &fill(EN.check_not_a_signed, &[app.session.network().name()]),
         );
@@ -91,10 +88,14 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         Err(e) => (fill(EN.check_the_signature, &[&e.to_string()]), Role::Error),
     };
     // The verdict's card grows to its wrapped line.
-    let (size, lx) = if compact { (14.0, 46.0) } else { (16.0, 54.0) };
+    let (size, lx) = if compact {
+        (TITLE_S, 46.0)
+    } else {
+        (TITLE_M, 54.0)
+    };
     let line_h = if compact {
         ui.c.push_clip(faraday_draw::Rect::new(0, 0, 0, 0));
-        let lh = ui.wrap(x + lx, y, width - lx - 14.0, size, W::S, color, &line);
+        let lh = ui.wrap_as((x + lx, y, width - lx - 14.0), size, color, &line);
         ui.c.pop_clip();
         lh
     } else {
@@ -125,22 +126,14 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         color,
     );
     if compact {
-        ui.wrap(
-            x + lx,
-            y + 16.0,
-            width - lx - 14.0,
-            size,
-            W::S,
-            color,
-            &line,
-        );
+        ui.wrap_as((x + lx, y + 16.0, width - lx - 14.0), size, color, &line);
     } else {
-        ui.text_mid(x + 54.0, y, 64.0, 16.0, W::S, color, &line);
+        ui.text_mid_as((x + 54.0, y, 64.0), TITLE_M, color, &line);
     }
     y += card_h + 20.0;
     let rows = [
-        (EN.check_file, item.name.clone(), W::M),
-        (EN.check_address, grouped(&c.signed.address), W::M),
+        (EN.check_file, item.name.clone(), BODY_M.mono()),
+        (EN.check_address, grouped(&c.signed.address), BODY_M.mono()),
         (
             EN.check_wallet,
             match c.wallet {
@@ -156,19 +149,19 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 ),
                 None => EN.check_not_an_address.to_string(),
             },
-            W::R,
+            BODY_M,
         ),
     ];
     let vx = if compact { 0.0 } else { 100.0 };
     for (k, v, face) in rows.iter() {
-        ui.text(x, y, 12.0, W::R, Role::OnSurfaceVariant, k);
+        ui.text_as(x, y, BODY_S, Role::OnSurfaceVariant, k);
         if compact {
             y += 18.0;
         }
-        let used = ui.wrap(x + vx, y, width - vx, 14.0, *face, Role::OnSurface, v);
+        let used = ui.wrap_as((x + vx, y, width - vx), *face, Role::OnSurface, v);
         y += used.max(20.0) + 12.0;
     }
-    ui.text(x, y, 12.0, W::R, Role::OnSurfaceVariant, EN.check_message);
+    ui.text_as(x, y, BODY_S, Role::OnSurfaceVariant, EN.check_message);
     if compact {
         y += 18.0;
     } else {
@@ -182,12 +175,9 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         );
         y += 12.0;
     }
-    y += ui.wrap(
-        x + vx,
-        y,
-        width - vx,
-        14.0,
-        W::R,
+    y += ui.wrap_as(
+        (x + vx, y, width - vx),
+        BODY_M,
         Role::OnSurface,
         &c.signed.message,
     );

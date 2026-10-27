@@ -7,10 +7,12 @@ use crate::ui::{CoreUi, Glyph, Style, Ui, W};
 use crate::wallet::fp_text;
 use crate::{Action, Screen};
 use faraday_draw::tokens as T;
+use faraday_draw::tokens::{
+    BODY_M, BODY_S, BUTTON_H, HEADLINE_S, LABEL_L, LABEL_M, LABEL_S, TITLE_M, TITLE_S, sheet_head,
+};
 use faraday_draw::widgets::Icon;
 use faraday_ui::parts::{
-    STEP_INDENT, STEP_SIDE, button_rows, measure_wrap, qr_code, sheet_box, step_circle,
-    wrap_buttons,
+    STEP_INDENT, STEP_SIDE, button_rows, qr_code, sheet_box, step_circle, wrap_buttons,
 };
 
 /// The potential sheet's fields under its head: where the seed was
@@ -46,12 +48,9 @@ fn potential_body(
     let mut cy = y;
     if let Some(s) = seed {
         let from: Vec<String> = s.sources.iter().map(|src| src.name(app)).collect();
-        cy += ui.wrap(
-            x,
-            cy,
-            iw,
-            12.0,
-            W::R,
+        cy += ui.wrap_as(
+            (x, cy, iw),
+            BODY_S,
             Role::OnSurfaceVariant,
             &fill(EN.potential_sources, &[&from.join(" · ").to_string()]),
         ) + 10.0;
@@ -61,7 +60,7 @@ fn potential_body(
             Some(crate::inbox::SeedSource::Slip39(_)) => EN.potential_slip_39_passphrase,
             _ => EN.potential_bip_39_passphrase,
         };
-        cy += ui.wrap(x, cy, iw, 13.0, W::S, Role::OnSurface, label) + 6.0;
+        cy += ui.wrap_as((x, cy, iw), LABEL_L, Role::OnSurface, label) + 6.0;
         if app.pass_is_public(&p.passphrase) {
             super::parts::code_field(ui, x, cy, iw, T::TEXT_FIELD_SHEET, &p.passphrase);
             ui.hit(x, cy, iw, T::TEXT_FIELD_SHEET, Action::PotentialType);
@@ -84,8 +83,8 @@ fn potential_body(
                     Role::OutlineVariant
                 },
             );
-            let shown = ui.fit_secret(14.0, W::M, &shown, iw - 60.0);
-            let tw = ui.text_mid(x + 12.0, cy, 44.0, 14.0, W::M, Role::OnSurface, &shown);
+            let shown = ui.fit_secret(BODY_M.size, W::M, &shown, iw - 60.0);
+            let tw = ui.text_mid_as((x + 12.0, cy, 44.0), BODY_M.mono(), Role::OnSurface, &shown);
             if p.typing {
                 ui.caret(x + 13.0 + tw, cy + 13.0, 18.0);
             }
@@ -115,42 +114,40 @@ fn potential_body(
         cy += 56.0;
     }
     if let Some((key, fixed)) = xpub {
-        let k = ui.fit(12.0, W::M, key, iw);
-        ui.text(x, cy, 12.0, W::M, Role::OnSurfaceVariant, &k);
+        let k = ui.fit_as(BODY_S.mono(), key, iw);
+        ui.text_as(x, cy, BODY_S.mono(), Role::OnSurfaceVariant, &k);
         cy += 24.0;
         if *fixed {
             let line = fill(
                 EN.potential_as_its_path,
                 &[crate::family::kind_name(p.kind)],
             );
-            cy += ui.wrap(x, cy, iw, 14.0, W::S, Role::OnSurface, &line) + 10.0;
+            cy += ui.wrap_as((x, cy, iw), TITLE_S, Role::OnSurface, &line) + 10.0;
         } else {
             cy += kinds(ui, x, cy, iw);
         }
     } else {
         if let Some(with) = p.with {
-            ui.text(
+            ui.text_as(
                 x,
                 cy,
-                12.0,
-                W::R,
+                BODY_S,
                 Role::OnSurfaceVariant,
                 EN.potential_fingerprint,
             );
-            ui.text(x + 90.0, cy, 13.0, W::M, Role::OnSurface, &fp_text(with));
+            ui.text_as(x + 90.0, cy, BODY_M.mono(), Role::OnSurface, &fp_text(with));
             cy += 24.0;
         }
         match matched {
             Some(name) => {
                 let line = fill(EN.potential_key_of_wallet, &[name]);
-                cy += ui.wrap(x, cy, iw, 13.0, W::S, Role::Ok, &line) + 10.0;
+                cy += ui.wrap_as((x, cy, iw), LABEL_L, Role::Ok, &line) + 10.0;
             }
             None => {
-                ui.text(
+                ui.text_as(
                     x,
                     cy,
-                    12.0,
-                    W::R,
+                    BODY_S,
                     Role::OnSurfaceVariant,
                     EN.potential_single_key,
                 );
@@ -160,7 +157,7 @@ fn potential_body(
         }
     }
     if let Some(e) = &p.error {
-        cy += ui.wrap(x, cy, iw, 13.0, W::R, Role::Error, e) + 8.0;
+        cy += ui.wrap_as((x, cy, iw), BODY_M, Role::Error, e) + 8.0;
     }
     cy - y
 }
@@ -230,20 +227,20 @@ pub(crate) fn learn_tabs(
 ) -> f32 {
     let (mut bx, mut by) = (x, y);
     for (label, style, action) in items {
-        let natural = ui.measure(13.0, W::S, label) + 32.0;
+        let natural = ui.measure_as(LABEL_L, label) + 32.0;
         if natural <= w {
             if bx > x && bx + natural > x + w {
                 bx = x;
                 by += 40.0;
             }
-            bx += ui.button(bx, by, Some(natural), 32.0, label, *style, *action) + 6.0;
+            bx += ui.button(bx, by, Some(natural), BUTTON_H, label, *style, *action) + 6.0;
         } else {
             if bx > x {
                 bx = x;
                 by += 40.0;
             }
-            let lines = ui.wrap_lines(13.0, W::S, label, w - 24.0).max(1);
-            let line_h = ui.line(13.0, W::S);
+            let lines = ui.wrap_lines_as(LABEL_L, label, w - 24.0).max(1);
+            let line_h = ui.line_as(LABEL_L);
             let bh = 32.0 + (lines - 1) as f32 * line_h;
             // An empty-labelled button draws this style's background,
             // border and hit region exactly as any other; the label is
@@ -252,7 +249,7 @@ pub(crate) fn learn_tabs(
             ui.button(bx, by, Some(w), bh, "", *style, *action);
             let fg = style.label();
             let top = by + (bh - lines as f32 * line_h) / 2.0;
-            ui.wrap(bx + 12.0, top, w - 24.0, 13.0, W::S, fg, label);
+            ui.wrap_as((bx + 12.0, top, w - 24.0), LABEL_L, fg, label);
             by += bh + 6.0;
             bx = x;
         }
@@ -346,11 +343,11 @@ pub(super) fn devices_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         &mut |ui, x, y, iw| {
             let mut cy = y;
             for (l, tone) in &lines {
-                cy += ui.wrap(x, cy, iw, 14.0, W::R, *tone, l) + 8.0;
+                cy += ui.wrap_as((x, cy, iw), BODY_M, *tone, l) + 8.0;
             }
             if let Some((f, tone)) = foot {
                 cy += 4.0;
-                cy += ui.wrap(x, cy, iw, 14.0, W::S, tone, f) + 8.0;
+                cy += ui.wrap_as((x, cy, iw), TITLE_S, tone, f) + 8.0;
             }
             cy - y
         },
@@ -384,9 +381,9 @@ pub(super) fn pull_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         head,
         &mut |ui, x, y, iw| {
             let mut cy = y;
-            cy += ui.wrap(x, cy, iw, 13.0, W::R, Role::OnSurfaceVariant, &line) + 16.0;
+            cy += ui.wrap_as((x, cy, iw), BODY_S, Role::OnSurfaceVariant, &line) + 16.0;
             for r in &reminders {
-                cy += ui.wrap(x, cy, iw, 14.0, W::R, reminder_tone(r), r) + 8.0;
+                cy += ui.wrap_as((x, cy, iw), BODY_M, reminder_tone(r), r) + 8.0;
             }
             cy - y
         },
@@ -481,12 +478,12 @@ fn kept_sheet(
         &mut |ui, x, y, iw| {
             let mut cy = y;
             if !line.is_empty() {
-                let size = if line_tone == Role::Warning.paint() {
-                    14.0
+                let role = if line_tone == Role::Warning.paint() {
+                    BODY_M
                 } else {
-                    13.0
+                    BODY_S
                 };
-                cy += ui.wrap(x, cy, iw, size, W::R, line_tone, line) + 12.0;
+                cy += ui.wrap_as((x, cy, iw), role, line_tone, line) + 12.0;
             }
             if let Some((label, value)) = row {
                 cy += crate::compact::kv(ui, x, cy, iw, label, value, Role::OnSurface);
@@ -496,7 +493,7 @@ fn kept_sheet(
                 let side = if ui.compact { 104.0f32 } else { 160.0 }.min(iw);
                 qr_code(ui, m, x, cy, side);
                 cy += side + 10.0;
-                cy += ui.wrap(x, cy, iw, 12.0, W::M, Role::OnSurfaceVariant, code) + 12.0;
+                cy += ui.wrap_as((x, cy, iw), BODY_S.mono(), Role::OnSurfaceVariant, code) + 12.0;
             }
             for (name, lines) in sections {
                 if lines.is_empty() {
@@ -504,18 +501,18 @@ fn kept_sheet(
                 }
                 ui.rule(x, cy, iw, Role::OutlineVariant);
                 cy += 12.0;
-                ui.text(x, cy, 12.0, W::R, Role::OnSurfaceVariant, name);
+                ui.text_as(x, cy, BODY_S, Role::OnSurfaceVariant, name);
                 cy += 22.0;
                 for (text, tone, act) in lines {
                     let Some(act) = *act else {
-                        cy += ui.wrap(x, cy, iw, 14.0, W::R, *tone, text) + 8.0;
+                        cy += ui.wrap_as((x, cy, iw), BODY_M, *tone, text) + 8.0;
                         continue;
                     };
                     // The line beside its button, at the right.
-                    let bw = ui.measure(T::LABEL, W::S, EN.vault_save) + 2.0 * T::PAD;
-                    let inset = (T::CHIP_LINE - T::LABEL) / 2.0;
+                    let bw = ui.measure_as(TITLE_S, EN.vault_save) + 2.0 * T::PAD;
+                    let inset = (T::CHIP_LINE - ui.line_as(BODY_M)) / 2.0;
                     let tw = iw - bw - T::GAP;
-                    let th = ui.wrap(x, cy + inset, tw, T::LABEL, W::R, *tone, text);
+                    let th = ui.wrap_as((x, cy + inset, tw), BODY_M, *tone, text);
                     ui.button(
                         x + iw - bw,
                         cy,
@@ -692,7 +689,7 @@ pub(super) fn scan_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     // §4.2).
     let intake = sc.purpose == crate::ScanPurpose::Intake;
     let hint = if intake { app.family_hint() } else { None };
-    let hint_h = hint.map_or(0.0, |t| measure_wrap(ui, side_w, 12.0, W::R, t) + 8.0);
+    let hint_h = hint.map_or(0.0, |t| ui.wrap_height_as(BODY_S, t, side_w) + 8.0);
     // A scanner that loads a seed can be given one by Type or Paste.
     let seed_scan = app.seed_line
         && matches!(
@@ -703,7 +700,7 @@ pub(super) fn scan_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
                 | crate::ScanPurpose::Intake
         );
     let never_h = if seed_scan {
-        measure_wrap(ui, side_w, 13.0, W::R, EN.never_real_seed) + 8.0
+        ui.wrap_height_as(BODY_S, EN.never_real_seed, side_w) + 8.0
     } else {
         0.0
     };
@@ -734,31 +731,27 @@ pub(super) fn scan_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         (crate::ScanPurpose::Transfer, _) => EN.scan_receive_into_downloads.to_string(),
         _ => EN.scan_scan_a_qr_code.to_string(),
     };
-    let title = ui.fit(18.0, W::S, &title, sw - 64.0);
-    ui.text(x + 32.0, y + 26.0, 18.0, W::S, Role::OnSurface, &title);
+    let title = ui.fit_as(TITLE_M, &title, sw - 64.0);
+    ui.text_as(x + 32.0, y + 26.0, TITLE_M, Role::OnSurface, &title);
     for (k, key) in keys.iter().enumerate() {
-        let key = ui.fit(13.0, W::M, key, sw - 64.0);
-        ui.text(
+        let key = ui.fit_as(BODY_M.mono(), key, sw - 64.0);
+        ui.text_as(
             x + 32.0,
             y + top + k as f32 * 20.0,
-            13.0,
-            W::M,
+            BODY_M.mono(),
             Role::OnSurface,
             &key,
         );
     }
     if let Some(t) = hint {
         let ty = y + top + keys.len() as f32 * 20.0;
-        ui.wrap(x + 32.0, ty, side_w, 12.0, W::R, Role::OnSurface, t);
+        ui.wrap_as((x + 32.0, ty, side_w), BODY_S, Role::OnSurface, t);
     }
     if seed_scan {
         let ty = y + top + keys.len() as f32 * 20.0 + hint_h;
-        ui.wrap(
-            x + 32.0,
-            ty,
-            side_w,
-            13.0,
-            W::R,
+        ui.wrap_as(
+            (x + 32.0, ty, side_w),
+            BODY_M,
             Role::Warning,
             EN.never_real_seed,
         );
@@ -808,7 +801,7 @@ pub(super) fn scan_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     // where the shell has one (F75, `docs/QR.md` §8 item 5).
     let paste = !ui.compact && app.scan_pastes();
     let paste_w = if paste {
-        ui.measure(14.0, W::S, EN.scan_paste) + 32.0 + 12.0
+        ui.measure_as(TITLE_S, EN.scan_paste) + 32.0 + 12.0
     } else {
         0.0
     };
@@ -822,7 +815,7 @@ pub(super) fn scan_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
             .map(|(i, (id, name))| {
                 let on = chosen.map_or(i == 0, |c| c == id);
                 (
-                    ui.fit(12.0, W::S, name, sw - 96.0),
+                    ui.fit_as(LABEL_M, name, sw - 96.0),
                     Style::chosen(on),
                     Action::ScanCamera(i as u8),
                 )
@@ -838,7 +831,7 @@ pub(super) fn scan_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
             .map(|(i, (id, name))| {
                 let on = chosen.map_or(i == 0, |c| c == id);
                 (
-                    ui.fit(12.0, W::S, name, 180.0),
+                    ui.fit_as(LABEL_M, name, 180.0),
                     Style::chosen(on),
                     Action::ScanCamera(i as u8),
                 )
@@ -868,15 +861,23 @@ pub(super) fn scan_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
                 x + 32.0,
                 foot - 52.0,
                 Some(sw - 64.0),
-                44.0,
+                BUTTON_H,
                 label,
                 Style::Secondary,
                 action,
             );
         } else {
-            let bw = ui.measure(14.0, W::S, label) + 32.0;
+            let bw = ui.measure_as(TITLE_S, label) + 32.0;
             left -= bw;
-            ui.button(left, foot, Some(bw), 44.0, label, Style::Secondary, action);
+            ui.button(
+                left,
+                foot,
+                Some(bw),
+                BUTTON_H,
+                label,
+                Style::Secondary,
+                action,
+            );
             left -= 12.0;
         }
     }
@@ -886,7 +887,7 @@ pub(super) fn scan_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
             left - bw,
             foot,
             Some(bw),
-            44.0,
+            BUTTON_H,
             EN.scan_paste,
             if app.clipboard {
                 Style::Secondary
@@ -900,7 +901,7 @@ pub(super) fn scan_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         x + sw - 32.0 - 120.0,
         foot,
         Some(120.0),
-        44.0,
+        BUTTON_H,
         if intake { EN.scan_done } else { EN.scan_cancel },
         if intake {
             Style::Primary
@@ -940,9 +941,9 @@ fn viewfinder_over(
             ui.fill(bx, by, st, arm, 0.0, tone);
         }
     }
-    let size = tokens::VIEWFINDER_STATE_SIZE;
+    let size = BODY_S;
     let pad = tokens::VIEWFINDER_BAND_PAD;
-    let line_h = ui.line(size, W::R);
+    let line_h = ui.line_as(size);
     let parts = sc.parts_read();
     let bar = parts.map_or(0.0, |_| pad + tokens::PROGRESS_H);
     let band_h = pad + line_h + bar + pad;
@@ -955,16 +956,9 @@ fn viewfinder_over(
         0.0,
         VIEWFINDER_BAND.with_alpha(tokens::VIEWFINDER_BAND_ALPHA),
     );
-    let line = ui.fit(size, W::R, sc.state_line(), w - 2.0 * pad);
-    let lw = ui.measure(size, W::R, &line);
-    ui.text(
-        x + (w - lw) / 2.0,
-        band_y + pad,
-        size,
-        W::R,
-        VIEWFINDER,
-        &line,
-    );
+    let line = ui.fit_as(size, sc.state_line(), w - 2.0 * pad);
+    let lw = ui.measure_as(size, &line);
+    ui.text_as(x + (w - lw) / 2.0, band_y + pad, size, VIEWFINDER, &line);
     if let Some(share) = parts {
         let (bx, by, bw) = (x + pad, band_y + pad + line_h + pad, w - 2.0 * pad);
         ui.progress((bx, by, bw), Some(share), None);
@@ -985,16 +979,16 @@ pub(super) fn qr_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     if let Some(t) = &q.whole {
         for _ in 0..2 {
             let tw = (side + 64.0).max(420.0) - 64.0;
-            whole_h = measure_wrap(ui, tw, 11.0, W::M, t) + 10.0;
+            whole_h = ui.wrap_height_as(LABEL_S.mono(), t, tw) + 10.0;
             side = (h - 272.0 - whole_h).clamp(240.0, 560.0);
         }
-        whole_h = measure_wrap(ui, (side + 64.0).max(420.0) - 64.0, 11.0, W::M, t) + 10.0;
+        whole_h = ui.wrap_height_as(LABEL_S.mono(), t, (side + 64.0).max(420.0) - 64.0) + 10.0;
     }
     let sw = (side + 64.0).max(420.0);
     let sh = side + 242.0 + whole_h;
     let (x, y) = sheet_box(ui, w, h, sw, sh);
-    let t = ui.fit(18.0, W::S, &q.title, sw - 64.0);
-    ui.text(x + 32.0, y + 26.0, 18.0, W::S, Role::OnSurface, &t);
+    let t = ui.fit_as(TITLE_M, &q.title, sw - 64.0);
+    ui.text_as(x + 32.0, y + 26.0, TITLE_M, Role::OnSurface, &t);
     let sub = if q.frames.len() > 1 {
         fill(
             EN.qr_frame_count,
@@ -1007,25 +1001,22 @@ pub(super) fn qr_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     } else {
         q.subtitle.clone()
     };
-    let sub = ui.fit(12.0, W::R, &sub, sw - 64.0);
-    ui.text(x + 32.0, y + 50.0, 12.0, W::R, Role::OnSurfaceVariant, &sub);
+    let sub = ui.fit_as(BODY_S, &sub, sw - 64.0);
+    ui.text_as(x + 32.0, y + 50.0, BODY_S, Role::OnSurfaceVariant, &sub);
     // Whether scanning it is safe, said beside the code itself.
     let (tag, tone) = if q.secret {
         (EN.qr_secret_whoever_scans, Role::Error)
     } else {
         (EN.qr_public_safe_to_scan, Role::Ok)
     };
-    ui.text(x + 32.0, y + 66.0, 12.0, W::S, tone, tag);
+    ui.text_as(x + 32.0, y + 66.0, LABEL_M, tone, tag);
     if let Some(m) = q.frames.get(q.frame) {
         qr_code(ui, m, x + (sw - side) / 2.0, y + 86.0, side);
     }
     if let Some(t) = &q.whole {
-        ui.wrap(
-            x + 32.0,
-            y + 86.0 + side + 10.0,
-            sw - 64.0,
-            11.0,
-            W::M,
+        ui.wrap_as(
+            (x + 32.0, y + 86.0 + side + 10.0, sw - 64.0),
+            LABEL_S.mono(),
             Role::OnSurface,
             t,
         );
@@ -1067,7 +1058,7 @@ pub(super) fn qr_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
             bx,
             y + sh - 32.0 - 44.0,
             None,
-            44.0,
+            BUTTON_H,
             &fill(EN.qr_png, &[app.medium.for_the()]),
             Style::Secondary,
             Action::QrPng,
@@ -1085,7 +1076,7 @@ pub(super) fn qr_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         x + sw - 32.0 - 100.0,
         y + sh - 32.0 - 44.0,
         Some(100.0),
-        44.0,
+        BUTTON_H,
         EN.qr_done,
         Style::Primary,
         Action::Cancel,
@@ -1161,16 +1152,16 @@ fn qr_sheet_compact(app: &View, q: &crate::QrView, ui: &mut Ui, w: f32, h: f32) 
         } else {
             q.title.clone()
         };
-        let t = ui.fit(16.0, W::S, &title, iw);
-        ui.text(x, cy, 16.0, W::S, Role::OnSurface, &t);
+        let t = ui.fit_as(TITLE_M, &title, iw);
+        ui.text_as(x, cy, TITLE_M, Role::OnSurface, &t);
         cy += 22.0;
         let (tag, tone) = if q.secret {
             (EN.qr_sheet_secret_whoever, Role::Error)
         } else {
             (EN.qr_sheet_public_safe, Role::Ok)
         };
-        let tag = ui.fit(12.0, W::S, tag, iw);
-        ui.text(x, cy, 12.0, W::S, tone, &tag);
+        let tag = ui.fit_as(LABEL_M, tag, iw);
+        ui.text_as(x, cy, LABEL_M, tone, &tag);
         cy += 22.0;
         // The room down to the Done button: the margins, the padding, and
         // the button with its own. A descriptor's whole text and the
@@ -1189,7 +1180,7 @@ fn qr_sheet_compact(app: &View, q: &crate::QrView, ui: &mut Ui, w: f32, h: f32) 
         }
         cy += side + 8.0;
         if let Some(t) = &q.whole {
-            cy += ui.wrap(x, cy, iw, 11.0, W::M, Role::OnSurface, t) + 8.0;
+            cy += ui.wrap_as((x, cy, iw), LABEL_S.mono(), Role::OnSurface, t) + 8.0;
         }
         if !cycles.is_empty() {
             let n = cycles.len() as f32;
@@ -1199,7 +1190,7 @@ fn qr_sheet_compact(app: &View, q: &crate::QrView, ui: &mut Ui, w: f32, h: f32) 
                     x + i as f32 * (bw + 6.0),
                     cy,
                     Some(bw),
-                    40.0,
+                    BUTTON_H,
                     label,
                     style,
                     action,
@@ -1248,27 +1239,23 @@ pub(super) fn new_input_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         head,
         &mut |ui, x, y, iw| {
             let mut cy = y;
-            cy += ui.wrap(x, cy, iw, 14.0, W::M, Role::OnSurface, &d.name) + 6.0;
-            cy += ui.wrap(
-                x,
-                cy,
-                iw,
-                12.0,
-                W::R,
+            cy += ui.wrap_as((x, cy, iw), BODY_M.mono(), Role::OnSurface, &d.name) + 6.0;
+            cy += ui.wrap_as(
+                (x, cy, iw),
+                BODY_S,
                 Role::OnSurfaceVariant,
                 EN.new_input_the_name,
             ) + 12.0;
             if d.keyboard && d.code.is_none() && app.seed_missing() {
-                cy += ui.wrap(x, cy, iw, 13.0, W::S, Role::Error, EN.new_input_no_code) + 12.0;
+                cy += ui.wrap_as((x, cy, iw), LABEL_L, Role::Error, EN.new_input_no_code) + 12.0;
             }
             if d.keyboard
                 && let Some(code) = d.code.as_deref()
             {
-                ui.text(
+                ui.text_as(
                     x,
                     cy,
-                    13.0,
-                    W::S,
+                    LABEL_L,
                     Role::OnSurfaceVariant,
                     EN.new_input_type_code,
                 );
@@ -1300,13 +1287,18 @@ pub(super) fn new_input_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
                         if done { Role::Ok } else { Role::OutlineVariant },
                     );
                     let cs = c.to_string();
-                    let tw = ui.measure(24.0, W::M, &cs);
+                    let tw = ui.measure_as(HEADLINE_S.mono(), &cs);
                     let ink = if done {
                         Role::OnOkContainer
                     } else {
                         Role::OnSurface
                     };
-                    ui.text_mid(cx + (bw - tw) / 2.0, cy, 52.0, 24.0, W::M, ink, &cs);
+                    ui.text_mid_as(
+                        (cx + (bw - tw) / 2.0, cy, 52.0),
+                        HEADLINE_S.mono(),
+                        ink,
+                        &cs,
+                    );
                 }
                 cy += 64.0;
             }
@@ -1434,23 +1426,23 @@ pub(super) fn locked_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         head,
         &mut |ui, x, y, iw| {
             let mut cy = y;
-            cy += ui.wrap(x, cy, iw, 13.0, W::R, muted, EN.locked_locked_after) + 12.0;
+            cy += ui.wrap_as((x, cy, iw), BODY_M, muted, EN.locked_locked_after) + 12.0;
             if let Some(off) = app.idle_off_at() {
                 let line = fill(
                     EN.locked_power_off_countdown,
                     &[&(clock_text(off.saturating_sub(app.idle_ms()))).to_string()],
                 );
-                cy += ui.wrap(x, cy, iw, 13.0, W::S, ink, &line) + 10.0;
+                cy += ui.wrap_as((x, cy, iw), LABEL_L, ink, &line) + 10.0;
             }
             if shown > 0 {
                 let line = fill(
                     EN.locked_no_power_off,
                     &[&app.outbox.len().to_string(), app.medium.for_the()],
                 );
-                cy += ui.wrap(x, cy, iw, 13.0, W::S, Role::Warning, &line) + 8.0;
+                cy += ui.wrap_as((x, cy, iw), LABEL_L, Role::Warning, &line) + 8.0;
                 for item in app.outbox.iter().take(shown) {
-                    let n = ui.fit(13.0, W::M, &item.name, iw);
-                    ui.text(x, cy, 13.0, W::M, ink, &n);
+                    let n = ui.fit_as(BODY_M.mono(), &item.name, iw);
+                    ui.text_as(x, cy, BODY_M.mono(), ink, &n);
                     cy += 24.0;
                 }
             }
@@ -1551,7 +1543,7 @@ pub(super) fn learn_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
             x + sw - pad - done_w,
             y + 14.0,
             Some(done_w),
-            34.0,
+            BUTTON_H,
             EN.learn_done,
             Style::Secondary,
             Action::Cancel,
@@ -1588,26 +1580,15 @@ pub(super) fn learn_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let clip = ui.rect(x, top, sw, view);
     ui.c.push_clip(clip);
     let mut cy = top + 12.0 - app.learn().scroll;
-    cy += ui.wrap(
-        bx,
-        cy,
-        bw,
-        if compact { 18.0 } else { 22.0 },
-        W::S,
+    cy += ui.wrap_as(
+        (bx, cy, bw),
+        sheet_head(compact).medium(),
         Role::OnSurface,
         page.title,
     ) + 16.0;
     for section in page.sections {
         if !section.heading.is_empty() {
-            cy += ui.wrap(
-                bx,
-                cy,
-                bw,
-                if compact { 15.0 } else { 16.0 },
-                W::S,
-                Role::Primary,
-                section.heading,
-            ) + 8.0;
+            cy += ui.wrap_as((bx, cy, bw), TITLE_M, Role::Primary, section.heading) + 8.0;
         }
         // Under a step: what follows it, up to the next step or section,
         // is indented under it.
@@ -1616,7 +1597,7 @@ pub(super) fn learn_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
             if let Some((n, text)) = faraday_learn::step(para) {
                 under = true;
                 let tx = bx + STEP_INDENT;
-                let line = ui.line(14.0, W::R);
+                let line = ui.line_as(BODY_M);
                 // The circle level with the text's first line.
                 let circle_y = cy + (line - STEP_SIDE) / 2.0;
                 step_circle(
@@ -1627,7 +1608,7 @@ pub(super) fn learn_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
                     ticked.contains(&n),
                     Some(Action::LearnStep(n)),
                 );
-                let h = ui.wrap(tx, cy, bw - STEP_INDENT, 14.0, W::R, Role::OnSurface, text);
+                let h = ui.wrap_as((tx, cy, bw - STEP_INDENT), BODY_M, Role::OnSurface, text);
                 cy += h.max(STEP_SIDE + circle_y - cy) + 12.0;
                 continue;
             }
@@ -1636,7 +1617,7 @@ pub(super) fn learn_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
             } else {
                 (bx, bw)
             };
-            cy += ui.wrap(px, cy, pw, 14.0, W::R, Role::OnSurface, para) + 12.0;
+            cy += ui.wrap_as((px, cy, pw), BODY_M, Role::OnSurface, para) + 12.0;
         }
         cy += 10.0;
     }
@@ -1722,25 +1703,25 @@ pub(super) fn secret_out_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
             }
             cy += 4.0;
             if to_vault {
-                ui.text(x, cy, 13.0, W::S, Role::Ok, EN.secret_out_sealed);
+                ui.text_as(x, cy, LABEL_L, Role::Ok, EN.secret_out_sealed);
                 cy += 24.0;
             }
             match vault.filter(|_| to_vault) {
                 Some((name, true)) => {
-                    let line = ui.fit(13.0, W::S, &fill(EN.secret_out_in_vault, &[name]), iw);
-                    ui.text(x, cy, 13.0, W::S, Role::Ok, &line);
+                    let line = ui.fit_as(LABEL_L, &fill(EN.secret_out_in_vault, &[name]), iw);
+                    ui.text_as(x, cy, LABEL_L, Role::Ok, &line);
                     cy += 30.0;
                 }
                 Some((name, false)) => {
                     // In place: the sheet's foot holds the Outbox's
                     // button and Cancel.
                     let label = fill(EN.secret_out_save_into, &[name]);
-                    let label = ui.fit(15.0, W::S, &label, iw - 24.0);
+                    let label = ui.fit_as(TITLE_M, &label, iw - 24.0);
                     ui.button(
                         x,
                         cy,
                         Some(iw),
-                        46.0,
+                        BUTTON_H,
                         &label,
                         Style::Primary,
                         Action::SecretVault,
@@ -1750,25 +1731,22 @@ pub(super) fn secret_out_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
                 // Make or unlock one: the sheet waits, and opens again.
                 None if to_vault => {
                     if let Some((label, a)) = app.vault_way(app.screen) {
-                        let label = ui.fit(15.0, W::S, &label, iw - 24.0);
-                        ui.button(x, cy, Some(iw), 46.0, &label, Style::Primary, a);
+                        let label = ui.fit_as(TITLE_M, &label, iw - 24.0);
+                        ui.button(x, cy, Some(iw), BUTTON_H, &label, Style::Primary, a);
                         cy += 58.0;
                     }
                 }
                 None => {}
             }
-            ui.text(x, cy, 13.0, W::S, Role::Error, &unprotected);
+            ui.text_as(x, cy, LABEL_L, Role::Error, &unprotected);
             cy += 24.0;
             if forms.len() > 1 {
-                cy += wrap_buttons(ui, x, cy, iw, 34.0, &forms) + 4.0;
+                cy += wrap_buttons(ui, x, cy, iw, BUTTON_H, &forms) + 4.0;
             }
             ui.checkbox(x, cy + 1.0, app.secrets.ack(), true);
-            let lh = ui.wrap(
-                x + 28.0,
-                cy,
-                iw - 28.0,
-                13.0,
-                W::R,
+            let lh = ui.wrap_as(
+                (x + 28.0, cy, iw - 28.0),
+                BODY_M,
                 Role::OnSurface,
                 &out.ack.text(app.medium),
             );

@@ -5,7 +5,8 @@ use crate::Action;
 use crate::drawing::View;
 use crate::strings::EN;
 use crate::ui::pal::*;
-use crate::ui::{Style, Ui, W};
+use crate::ui::{Style, Ui};
+use faraday_draw::tokens::{BODY_S, BUTTON_H, TITLE_M};
 use faraday_draw::widgets::Icon;
 use faraday_ui::parts::{section_label, title, wrap_buttons};
 
@@ -15,14 +16,7 @@ fn back_link(app: &View, ui: &mut Ui, x: f32, y: f32) {
     let muted = Role::OnSurfaceVariant;
     ui.icon(x - 4.0, y, 16.0, Icon::ChevronLeft, 10.0, muted);
     let name = app.back_link_name(app.set_time.back_to());
-    ui.text(
-        x + 14.0,
-        y,
-        12.0,
-        W::R,
-        muted,
-        app.named_back((name, back)).0,
-    );
+    ui.text_as(x + 14.0, y, BODY_S, muted, app.named_back((name, back)).0);
     ui.hit(x - 4.0, y - 4.0, 70.0, 24.0, back);
     ui.back(back);
 }
@@ -42,22 +36,16 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     y += 64.0;
     // Context: Now, and the time zone.
     ui.card(x, y, width, 112.0, Role::OutlineVariant);
-    ui.text_mid(
-        x + 22.0,
-        y + 16.0,
-        32.0,
-        13.0,
-        W::R,
+    ui.text_mid_as(
+        (x + 22.0, y + 16.0, 32.0),
+        BODY_S,
         Role::OnSurfaceVariant,
         EN.set_time_now,
     );
     let now = app.now_local_text();
-    ui.text_right(
-        x + width - 22.0,
-        y + 16.0,
-        32.0,
-        15.0,
-        W::S,
+    ui.text_right_as(
+        (x + width - 22.0, y + 16.0, 32.0),
+        TITLE_M,
         Role::OnSurface,
         &now,
     );
@@ -96,7 +84,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         bx,
         y,
         Some(120.0),
-        46.0,
+        BUTTON_H,
         EN.set_time_set,
         Style::Primary.when(ready),
         Action::SetTimeSet,
@@ -106,7 +94,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             bx,
             y,
             None,
-            46.0,
+            BUTTON_H,
             EN.set_time_keep_button,
             Style::Secondary,
             Action::SetTimeKeep,
@@ -116,7 +104,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         bx,
         y,
         None,
-        46.0,
+        BUTTON_H,
         EN.set_time_back,
         Style::Ghost,
         Action::SetTimeBack,
@@ -130,7 +118,7 @@ fn set_time_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, _h: f32) {
     let mut y = top;
     y += section(ui, x, y, w, EN.set_time_now, &|ui, x, y0, w| {
         let mut y = y0;
-        y += ui.wrap(x, y, w, 15.0, W::S, Role::OnSurface, &app.now_local_text()) + 10.0;
+        y += ui.wrap_as((x, y, w), TITLE_M, Role::OnSurface, &app.now_local_text()) + 10.0;
         y += tz_row(ui, x, y, w, app.tz_min());
         y - y0
     });
@@ -174,5 +162,5 @@ fn set_time_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, _h: f32) {
         ));
     }
     items.push((EN.set_time_back, Style::Ghost, Action::SetTimeBack));
-    wrap_buttons(ui, x, y, w, 44.0, &items);
+    wrap_buttons(ui, x, y, w, BUTTON_H, &items);
 }

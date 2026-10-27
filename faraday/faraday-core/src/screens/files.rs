@@ -4,9 +4,10 @@ use super::parts::{guide_text_learn, kind_line, pull_line};
 use crate::drawing::View;
 use crate::strings::{EN, fill};
 use crate::ui::pal::*;
-use crate::ui::{Style, Ui, W};
+use crate::ui::{Style, Ui};
 use crate::wallet::{FileKind, fp_text};
 use crate::{Action, Screen};
+use faraday_draw::tokens::{BODY_M, BODY_S, BUTTON_H, LABEL_L, LABEL_M, TITLE_M, TITLE_S};
 use faraday_draw::widgets::Icon;
 use faraday_ui::parts::{title, wrap_buttons};
 
@@ -57,23 +58,19 @@ fn inbox_panel(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         13.0,
         Role::Primary,
     );
-    ui.text_mid(
-        x + 48.0,
-        y + 14.0,
-        28.0,
-        15.0,
-        W::S,
+    ui.text_mid_as(
+        (x + 48.0, y + 14.0, 28.0),
+        TITLE_M,
         Role::OnSurface,
         app.medium.from_box(),
     );
     let mut ty = y + 52.0;
     let may = app.may_load_keys();
     if !wallets.is_empty() {
-        ui.text(
+        ui.text_as(
             x + 20.0,
             ty,
-            13.0,
-            W::S,
+            LABEL_L,
             Role::OnSurfaceVariant,
             EN.inbox_panel_wallets,
         );
@@ -95,7 +92,7 @@ fn inbox_panel(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                 11.0,
                 Role::OnSurfaceVariant,
             );
-            let nw = ui.text_mid(rx + 26.0, ty, 34.0, 14.0, W::S, Role::OnSurface, &fw.name);
+            let nw = ui.text_mid_as((rx + 26.0, ty, 34.0), TITLE_S, Role::OnSurface, &fw.name);
             let n = fw.keys.len().max(1);
             let line = fill(
                 EN.inbox_panel_of_here,
@@ -121,19 +118,16 @@ fn inbox_panel(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                     .to_string(),
                 ],
             );
-            let line = ui.fit(12.0, W::R, &line, w - nw - 260.0);
-            ui.text_mid(
-                rx + 40.0 + nw,
-                ty,
-                34.0,
-                12.0,
-                W::R,
+            let line = ui.fit_as(BODY_S, &line, w - nw - 260.0);
+            ui.text_mid_as(
+                (rx + 40.0 + nw, ty, 34.0),
+                BODY_S,
                 Role::OnSurfaceVariant,
                 &line,
             );
             if fw.seeds_here >= fw.needed {
                 let tag = EN.inbox_panel_ready_to_sign;
-                let tw = ui.measure(12.0, W::S, tag) + 20.0;
+                let tw = ui.measure_as(LABEL_M, tag) + 20.0;
                 ui.fill(
                     x + w - 20.0 - tw,
                     ty + 5.0,
@@ -142,12 +136,9 @@ fn inbox_panel(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                     12.0,
                     Role::OkContainer,
                 );
-                ui.text_mid(
-                    x + w - 10.0 - tw,
-                    ty,
-                    34.0,
-                    12.0,
-                    W::S,
+                ui.text_mid_as(
+                    (x + w - 10.0 - tw, ty, 34.0),
+                    LABEL_M,
                     Role::OnOkContainer,
                     tag,
                 );
@@ -155,12 +146,9 @@ fn inbox_panel(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             ty += 38.0;
         }
         if wallets.len() > ROWS {
-            ui.text_mid(
-                x + 20.0,
-                ty - 6.0,
-                22.0,
-                12.0,
-                W::R,
+            ui.text_mid_as(
+                (x + 20.0, ty - 6.0, 22.0),
+                BODY_S,
                 Role::OnSurfaceVariant,
                 &fill(
                     EN.inbox_panel_more_loaded,
@@ -188,18 +176,19 @@ fn inbox_panel(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             x + 20.0,
             ty + 4.0,
             None,
-            40.0,
+            BUTTON_H,
             &label,
             Style::Primary.when(chosen > 0),
             Action::InboxLoad,
         );
         if !may {
-            ui.text_mid(
-                x + 20.0 + ui.measure(14.0, W::S, &label) + 52.0,
-                ty + 4.0,
-                40.0,
-                12.0,
-                W::R,
+            ui.text_mid_as(
+                (
+                    x + 20.0 + ui.measure_as(TITLE_S, &label) + 52.0,
+                    ty + 4.0,
+                    40.0,
+                ),
+                BODY_S,
                 Role::Warning,
                 &fill(EN.inbox_panel_keys_load, &[app.medium.noun()]),
             );
@@ -207,11 +196,10 @@ fn inbox_panel(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         ty += 54.0;
     }
     if !potential.is_empty() {
-        ui.text(
+        ui.text_as(
             x + 20.0,
             ty,
-            13.0,
-            W::S,
+            LABEL_L,
             Role::OnSurfaceVariant,
             EN.inbox_panel_loose_keys,
         );
@@ -225,33 +213,22 @@ fn inbox_panel(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                 11.0,
                 Role::OnSurfaceVariant,
             );
-            ui.text_mid(
-                x + 46.0,
-                ty,
-                38.0,
-                14.0,
-                W::M,
+            ui.text_mid_as(
+                (x + 46.0, ty, 38.0),
+                BODY_M.mono(),
                 Role::OnSurface,
                 &fp_text(s.fingerprint),
             );
             let from: Vec<String> = s.sources.iter().map(|src| src.name(app)).collect();
-            let line = ui.fit(12.0, W::R, &from.join(" · "), w - 420.0);
-            ui.text_mid(
-                x + 140.0,
-                ty,
-                38.0,
-                12.0,
-                W::R,
-                Role::OnSurfaceVariant,
-                &line,
-            );
+            let line = ui.fit_as(BODY_S, &from.join(" · "), w - 420.0);
+            ui.text_mid_as((x + 140.0, ty, 38.0), BODY_S, Role::OnSurfaceVariant, &line);
             let label = EN.inbox_panel_make_wallet;
-            let bw = ui.measure(13.0, W::S, label) + 28.0;
+            let bw = ui.measure_as(LABEL_L, label) + 28.0;
             ui.button(
                 x + w - 20.0 - bw,
                 ty + 3.0,
                 Some(bw),
-                32.0,
+                BUTTON_H,
                 label,
                 if may {
                     Style::Secondary
@@ -263,12 +240,9 @@ fn inbox_panel(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             ty += 42.0;
         }
         if potential.len() > ROWS {
-            ui.text_mid(
-                x + 20.0,
-                ty - 6.0,
-                22.0,
-                12.0,
-                W::R,
+            ui.text_mid_as(
+                (x + 20.0, ty - 6.0, 22.0),
+                BODY_S,
                 Role::OnSurfaceVariant,
                 &fill(
                     EN.inbox_panel_more,
@@ -280,11 +254,10 @@ fn inbox_panel(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         ty += 10.0;
     }
     if !found.xpubs.is_empty() {
-        ui.text(
+        ui.text_as(
             x + 20.0,
             ty,
-            13.0,
-            W::S,
+            LABEL_L,
             Role::OnSurfaceVariant,
             EN.inbox_panel_loose_xpubs,
         );
@@ -302,7 +275,7 @@ fn inbox_panel(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                 .fingerprint
                 .map(fp_text)
                 .unwrap_or_else(|| EN.inbox_panel_no_origin.to_string());
-            ui.text_mid(x + 46.0, ty, 38.0, 14.0, W::M, Role::OnSurface, &fp);
+            ui.text_mid_as((x + 46.0, ty, 38.0), BODY_M.mono(), Role::OnSurface, &fp);
             let line = format!(
                 "{} · {}",
                 xp.path.clone().unwrap_or_default(),
@@ -311,23 +284,15 @@ fn inbox_panel(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                     .and_then(|k| app.inbox.get(*k))
                     .map_or(String::new(), |it| it.name.clone())
             );
-            let line = ui.fit(12.0, W::R, &line, w - 460.0);
-            ui.text_mid(
-                x + 140.0,
-                ty,
-                38.0,
-                12.0,
-                W::R,
-                Role::OnSurfaceVariant,
-                &line,
-            );
+            let line = ui.fit_as(BODY_S, &line, w - 460.0);
+            ui.text_mid_as((x + 140.0, ty, 38.0), BODY_S, Role::OnSurfaceVariant, &line);
             let label = EN.inbox_panel_make_watch_only;
-            let bw = ui.measure(13.0, W::S, label) + 28.0;
+            let bw = ui.measure_as(LABEL_L, label) + 28.0;
             ui.button(
                 x + w - 20.0 - bw,
                 ty + 3.0,
                 Some(bw),
-                32.0,
+                BUTTON_H,
                 label,
                 Style::Secondary,
                 Action::XpubOpen(i),
@@ -337,26 +302,17 @@ fn inbox_panel(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         ty += 10.0;
     }
     if !found.waiting.is_empty() {
-        ui.text(
+        ui.text_as(
             x + 20.0,
             ty,
-            13.0,
-            W::S,
+            LABEL_L,
             Role::OnSurfaceVariant,
             EN.inbox_panel_not_complete,
         );
         ty += 26.0;
         for q in found.waiting.iter().take(ROWS) {
-            let line = ui.fit(13.0, W::R, &q.line, w - 200.0);
-            ui.text_mid(
-                x + 20.0,
-                ty,
-                36.0,
-                13.0,
-                W::R,
-                Role::OnSurfaceVariant,
-                &line,
-            );
+            let line = ui.fit_as(BODY_M, &q.line, w - 200.0);
+            ui.text_mid_as((x + 20.0, ty, 36.0), BODY_S, Role::OnSurfaceVariant, &line);
             ty += 40.0;
         }
     }
@@ -370,7 +326,7 @@ fn add_to_vault(app: &View, ui: &mut Ui, x: f32, y: f32, k: usize, style: Style)
         return 0.0;
     }
     let action = Action::Vault(crate::vault::VaultAction::AddFile(k));
-    ui.button(x, y, None, 36.0, EN.add_to_vault_button, style, action) + 8.0
+    ui.button(x, y, None, BUTTON_H, EN.add_to_vault_button, style, action) + 8.0
 }
 
 /// Restore the wallet, on a share of a split backup: the shares in the
@@ -388,7 +344,7 @@ fn restore_shares_button(app: &View, ui: &mut Ui, x: f32, y: f32) -> f32 {
                 x,
                 y,
                 None,
-                36.0,
+                BUTTON_H,
                 &fill(
                     EN.restore_shares_button_restore,
                     &[&texts.len().to_string()],
@@ -402,12 +358,12 @@ fn restore_shares_button(app: &View, ui: &mut Ui, x: f32, y: f32) -> f32 {
                 EN.restore_shares_button_progress,
                 &[&m.have.len().to_string(), &m.n.to_string()],
             );
-            ui.text_mid(x, y, 36.0, 13.0, W::R, Role::Warning, &line);
-            ui.measure(13.0, W::R, &line) + 16.0
+            ui.text_mid_as((x, y, 36.0), BODY_M, Role::Warning, &line);
+            ui.measure_as(BODY_M, &line) + 16.0
         }
         Err(e) => {
-            ui.text_mid(x, y, 36.0, 13.0, W::R, Role::Error, &e);
-            ui.measure(13.0, W::R, &e) + 16.0
+            ui.text_mid_as((x, y, 36.0), BODY_M, Role::Error, &e);
+            ui.measure_as(BODY_M, &e) + 16.0
         }
     }
 }
@@ -426,14 +382,14 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     title(ui, x, y, EN.files_files);
     stick_chip(app, ui, x0 + cw - MARGIN_WIDE);
     let label = EN.files_in_memory_emptied;
-    let pw = ui.measure(12.0, W::R, label) + 24.0;
+    let pw = ui.measure_as(BODY_S, label) + 24.0;
     ui.pill(x + width - pw, y + 2.0, 30.0, label);
-    let sw = ui.measure(13.0, W::S, EN.files_scan_a_qr_code) + 32.0;
+    let sw = ui.measure_as(LABEL_L, EN.files_scan_a_qr_code) + 32.0;
     ui.button(
         x + width - pw - 12.0 - sw,
         y,
         Some(sw),
-        36.0,
+        BUTTON_H,
         EN.files_scan_a_qr_code,
         Style::Secondary,
         Action::Scan,
@@ -463,12 +419,9 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             13.0,
             Role::OnWarningContainer,
         );
-        ui.text_mid(
-            x + 44.0,
-            y,
-            48.0,
-            14.0,
-            W::S,
+        ui.text_mid_as(
+            (x + 44.0, y, 48.0),
+            TITLE_S,
             Role::OnWarningContainer,
             &pull_line(app),
         );
@@ -483,19 +436,11 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     }
     let colw = (width - SPACER) / 2.0;
     // Inbox.
-    let lw = ui.text(
-        x,
-        y,
-        15.0,
-        W::S,
-        Role::OnSurfaceVariant,
-        app.medium.from_box(),
-    );
-    ui.text(
+    let lw = ui.text_as(x, y, TITLE_M, Role::OnSurfaceVariant, app.medium.from_box());
+    ui.text_as(
         x + lw + 10.0,
         y + 2.0,
-        13.0,
-        W::R,
+        BODY_S,
         Role::OnSurfaceVariant,
         &app.inbox.len().to_string(),
     );
@@ -545,8 +490,8 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             14.0,
             Role::OnSecondaryContainer,
         );
-        let name = ui.fit(14.0, W::M, &item.name, colw - 90.0);
-        ui.text(x + 66.0, iy + 14.0, 14.0, W::M, Role::OnSurface, &name);
+        let name = ui.fit_as(BODY_M.mono(), &item.name, colw - 90.0);
+        ui.text_as(x + 66.0, iy + 14.0, BODY_M.mono(), Role::OnSurface, &name);
         let line = if item.kind == FileKind::Vault
             && app
                 .vault_files()
@@ -557,14 +502,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         } else {
             kind_line(item.kind, item.bytes.len())
         };
-        ui.text(
-            x + 66.0,
-            iy + 36.0,
-            12.0,
-            W::R,
-            Role::OnSurfaceVariant,
-            &line,
-        );
+        ui.text_as(x + 66.0, iy + 36.0, BODY_S, Role::OnSurfaceVariant, &line);
         let mut bx = x + 66.0;
         let same_spend = app.wallets.spend().is_some_and(|s| {
             item.psbt()
@@ -576,7 +514,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                     bx,
                     iy + 64.0,
                     None,
-                    36.0,
+                    BUTTON_H,
                     EN.files_add_to_signatures,
                     Style::Primary,
                     Action::Collect(k),
@@ -590,7 +528,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                         bx,
                         iy + 64.0,
                         None,
-                        36.0,
+                        BUTTON_H,
                         EN.files_import_into_vault,
                         Style::Primary,
                         Action::Vault(action),
@@ -605,7 +543,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                     bx,
                     iy + 64.0,
                     None,
-                    36.0,
+                    BUTTON_H,
                     if open {
                         EN.files_contents
                     } else {
@@ -625,25 +563,20 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                     bx,
                     iy + 64.0,
                     None,
-                    36.0,
+                    BUTTON_H,
                     EN.files_sign,
-                    Style::Primary,
+                    Style::Tonal,
                     Action::StartSpend(k),
                 ) + 8.0;
             }
             FileKind::Psbt => {
-                let style = if app.session.wallets.is_empty() && app.session.keys.is_empty() {
-                    Style::Secondary
-                } else {
-                    Style::Primary
-                };
                 bx += ui.button(
                     bx,
                     iy + 64.0,
                     None,
-                    36.0,
+                    BUTTON_H,
                     EN.files_sign,
-                    style,
+                    Style::Tonal,
                     Action::StartSpend(k),
                 ) + 8.0;
             }
@@ -652,7 +585,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                     bx,
                     iy + 64.0,
                     None,
-                    36.0,
+                    BUTTON_H,
                     EN.files_load_the_wallet,
                     Style::Primary,
                     Action::LoadWallet(k),
@@ -666,7 +599,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                     bx,
                     iy + 64.0,
                     None,
-                    36.0,
+                    BUTTON_H,
                     EN.files_decode,
                     Style::Primary,
                     Action::DecodeInbox(k),
@@ -680,7 +613,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                     bx,
                     iy + 64.0,
                     None,
-                    36.0,
+                    BUTTON_H,
                     EN.files_load_this_key,
                     Style::Primary,
                     Action::LoadKey(k),
@@ -691,7 +624,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                     bx,
                     iy + 64.0,
                     None,
-                    36.0,
+                    BUTTON_H,
                     EN.files_check_the_signature,
                     Style::Primary,
                     Action::CheckMessage(k),
@@ -702,7 +635,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                     bx,
                     iy + 64.0,
                     None,
-                    36.0,
+                    BUTTON_H,
                     EN.files_make_pdf,
                     Style::Primary,
                     Action::PdfInbox(k),
@@ -724,13 +657,10 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     if app.inbox.is_empty() {
         ui.stroke(x, iy, colw, 72.0, 12.0, Role::OutlineVariant);
         let t = &fill(EN.files_empty_files_are, &[app.medium.a()]);
-        let tw = ui.measure(13.0, W::R, t);
-        ui.text_mid(
-            x + (colw - tw) / 2.0,
-            iy,
-            72.0,
-            13.0,
-            W::R,
+        let tw = ui.measure_as(BODY_M, t);
+        ui.text_mid_as(
+            (x + (colw - tw) / 2.0, iy, 72.0),
+            BODY_S,
             Role::OnSurfaceVariant,
             t,
         );
@@ -738,19 +668,11 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     // Outbox, its title above the scrolled lists.
     let ox = x + colw + SPACER;
     ui.c.pop_clip();
-    let lw = ui.text(
-        ox,
-        y,
-        15.0,
-        W::S,
-        Role::OnSurfaceVariant,
-        app.medium.for_box(),
-    );
-    ui.text(
+    let lw = ui.text_as(ox, y, TITLE_M, Role::OnSurfaceVariant, app.medium.for_box());
+    ui.text_as(
         ox + lw + 10.0,
         y + 2.0,
-        13.0,
-        W::R,
+        BODY_S,
         Role::OnSurfaceVariant,
         &app.outbox.len().to_string(),
     );
@@ -788,15 +710,8 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         if group.is_empty() {
             continue;
         }
-        let lw = ui.text(ox, oy, 12.0, W::S, tone, label);
-        ui.text(
-            ox + lw + 10.0,
-            oy,
-            12.0,
-            W::R,
-            Role::OnSurfaceVariant,
-            &line,
-        );
+        let lw = ui.text_as(ox, oy, LABEL_M, tone, label);
+        ui.text_as(ox + lw + 10.0, oy, BODY_S, Role::OnSurfaceVariant, &line);
         oy += 24.0;
         for (k, item) in group {
             if !ui.shows(oy, 66.0) {
@@ -828,20 +743,13 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 36.0,
                 crate::file_menu::Row::Out(k),
             );
-            let state_w = ui.measure(12.0, W::R, state.0);
-            ui.text_right(dots_x - 12.0, oy + 14.0, 20.0, 12.0, W::R, state.1, state.0);
+            let state_w = ui.measure_as(BODY_S, state.0);
+            ui.text_right_as((dots_x - 12.0, oy + 14.0, 20.0), BODY_S, state.1, state.0);
             let room = (dots_x - 12.0 - state_w - 12.0 - (ox + 66.0)).max(0.0);
-            let name = ui.fit(14.0, W::M, &item.name, room);
-            ui.text(ox + 66.0, oy + 14.0, 14.0, W::M, Role::OnSurface, &name);
-            let line = ui.fit(12.0, W::R, &line, (dots_x - 12.0 - (ox + 66.0)).max(0.0));
-            ui.text(
-                ox + 66.0,
-                oy + 36.0,
-                12.0,
-                W::R,
-                Role::OnSurfaceVariant,
-                &line,
-            );
+            let name = ui.fit_as(BODY_M.mono(), &item.name, room);
+            ui.text_as(ox + 66.0, oy + 14.0, BODY_M.mono(), Role::OnSurface, &name);
+            let line = ui.fit_as(BODY_S, &line, (dots_x - 12.0 - (ox + 66.0)).max(0.0));
+            ui.text_as(ox + 66.0, oy + 36.0, BODY_S, Role::OnSurfaceVariant, &line);
             oy += 78.0;
         }
         oy += 6.0;
@@ -849,13 +757,10 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     if app.outbox.is_empty() {
         ui.stroke(ox, oy, colw, 72.0, 12.0, Role::OutlineVariant);
         let t = EN.files_empty;
-        let tw = ui.measure(13.0, W::R, t);
-        ui.text_mid(
-            ox + (colw - tw) / 2.0,
-            oy,
-            72.0,
-            13.0,
-            W::R,
+        let tw = ui.measure_as(BODY_M, t);
+        ui.text_mid_as(
+            (ox + (colw - tw) / 2.0, oy, 72.0),
+            BODY_S,
             Role::OnSurfaceVariant,
             t,
         );
@@ -883,12 +788,9 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             11.0,
             Role::OnSurfaceVariant,
         );
-        ui.text_mid(
-            x + 26.0,
-            fy,
-            48.0,
-            12.0,
-            W::R,
+        ui.text_mid_as(
+            (x + 26.0, fy, 48.0),
+            BODY_S,
             Role::OnSurfaceVariant,
             &fill(EN.files_power_off_asks, &[app.medium.for_the()]),
         );
@@ -964,12 +866,12 @@ fn stick_status(app: &View) -> (String, Option<Action>) {
 /// the row's mode pill and ? begin, or at `right` where none stands
 /// (`docs/LAYOUT.md` §17).
 fn stick_chip(app: &View, ui: &mut Ui, right: f32) {
-    use faraday_draw::tokens::{GAP, LIST_SUPPORTING, STATUS_CHIP_H, STATUS_CHIP_PAD, TOP_ROW_MID};
+    use faraday_draw::tokens::{GAP, STATUS_CHIP_H, STATUS_CHIP_PAD, TOP_ROW_MID};
     let (label, action) = stick_status(app);
     // A gap before the row, which covers from a gap left of it.
     let right = (ui.top_row_left - GAP).min(right);
     let dot = GAP;
-    let bw = ui.measure(LIST_SUPPORTING, W::R, &label) + 2.0 * STATUS_CHIP_PAD + dot + GAP;
+    let bw = ui.measure_as(LABEL_L, &label) + 2.0 * STATUS_CHIP_PAD + dot + GAP;
     let (bx, by) = (right - bw, TOP_ROW_MID - STATUS_CHIP_H / 2.0);
     let r = STATUS_CHIP_H / 2.0;
     ui.fill(bx, by, bw, STATUS_CHIP_H, r, Role::Primary.with_alpha(16));
@@ -978,7 +880,7 @@ fn stick_chip(app: &View, ui: &mut Ui, right: f32) {
     ui.dot(cx, TOP_ROW_MID, dot / 2.0, Role::Primary);
     let tx = bx + STATUS_CHIP_PAD + dot + GAP;
     let ink = Role::OnSurface;
-    ui.text_mid(tx, by, STATUS_CHIP_H, LIST_SUPPORTING, W::R, ink, &label);
+    ui.text_mid_as((tx, by, STATUS_CHIP_H), LABEL_L, ink, &label);
     if let Some(a) = action {
         ui.hit(bx, by - GAP, bw, STATUS_CHIP_H + 2.0 * GAP, a);
     }
@@ -988,19 +890,19 @@ fn stick_chip(app: &View, ui: &mut Ui, right: f32) {
 /// 14:02", then a row per file, "verified" or why it was not. Nothing on
 /// it is written again. Returns its height.
 fn receipt_rows(ui: &mut Ui, r: &crate::Receipt, tz_min: i16, x: f32, y: f32, w: f32) -> f32 {
-    let head = ui.fit(12.0, W::S, &r.heading(tz_min), w);
-    ui.text(x, y, 12.0, W::S, Role::Ok, &head);
+    let head = ui.fit_as(LABEL_M, &r.heading(tz_min), w);
+    ui.text_as(x, y, LABEL_M, Role::Ok, &head);
     let mut ry = y + 30.0;
     for f in &r.files {
         let (state, tone) = match &f.failure {
             None => (EN.receipt_rows_verified.to_string(), Role::Ok),
             Some(why) => (why.clone(), Role::Error),
         };
-        let state = ui.fit(12.0, W::R, &state, w / 2.0);
-        let sw = ui.measure(12.0, W::R, &state);
-        ui.text_right(x + w, ry - 4.0, 20.0, 12.0, W::R, tone, &state);
-        let name = ui.fit(13.0, W::M, &f.name, (w - sw - 12.0).max(0.0));
-        ui.text(x, ry, 13.0, W::M, Role::OnSurface, &name);
+        let state = ui.fit_as(BODY_S, &state, w / 2.0);
+        let sw = ui.measure_as(BODY_S, &state);
+        ui.text_right_as((x + w, ry - 4.0, 20.0), BODY_S, tone, &state);
+        let name = ui.fit_as(BODY_M.mono(), &f.name, (w - sw - 12.0).max(0.0));
+        ui.text_as(x, ry, BODY_M.mono(), Role::OnSurface, &name);
         ry += 28.0;
     }
     ry - y
@@ -1049,12 +951,9 @@ pub(crate) fn vault_panel(app: &View, ui: &mut Ui, v: usize, x: f32, y: f32, w: 
     };
     ui.card(x, y, w, h, Role::OutlineVariant);
     ui.icon(x + 20.0, y + 18.0, 20.0, Icon::Lock, 13.0, Role::Primary);
-    ui.text_mid(
-        x + 48.0,
-        y + 14.0,
-        28.0,
-        15.0,
-        W::S,
+    ui.text_mid_as(
+        (x + 48.0, y + 14.0, 28.0),
+        TITLE_M,
         Role::OnSurface,
         &fill(
             EN.vault_panel_open,
@@ -1068,15 +967,12 @@ pub(crate) fn vault_panel(app: &View, ui: &mut Ui, v: usize, x: f32, y: f32, w: 
     if !waiting.is_empty() && !folded {
         let all = waiting.iter().all(|r| r.chosen);
         let label = EN.vault_panel_select;
-        let lw = ui.measure(13.0, W::S, label);
+        let lw = ui.measure_as(LABEL_L, label);
         let sx = x + w - 24.0 - lw - 28.0;
         ui.checkbox(sx, y + 19.0, all, true);
-        ui.text_mid(
-            sx + 28.0,
-            y + 14.0,
-            28.0,
-            13.0,
-            W::S,
+        ui.text_mid_as(
+            (sx + 28.0, y + 14.0, 28.0),
+            LABEL_L,
             Role::OnSurfaceVariant,
             label,
         );
@@ -1090,11 +986,10 @@ pub(crate) fn vault_panel(app: &View, ui: &mut Ui, v: usize, x: f32, y: f32, w: 
     }
     if !together.is_empty() {
         let mut ty = y + 52.0;
-        ui.text(
+        ui.text_as(
             x + 20.0,
             ty,
-            13.0,
-            W::S,
+            LABEL_L,
             Role::OnSurfaceVariant,
             EN.vault_panel_seeded_wallets,
         );
@@ -1115,7 +1010,7 @@ pub(crate) fn vault_panel(app: &View, ui: &mut Ui, v: usize, x: f32, y: f32, w: 
                 11.0,
                 Role::OnSurfaceVariant,
             );
-            let nw = ui.text_mid(rx + 26.0, ty, 36.0, 14.0, W::S, Role::OnSurface, &wt.name);
+            let nw = ui.text_mid_as((rx + 26.0, ty, 36.0), TITLE_S, Role::OnSurface, &wt.name);
             let here = wt.keys.len();
             let line = fill(
                 EN.vault_panel_keys_here,
@@ -1129,18 +1024,15 @@ pub(crate) fn vault_panel(app: &View, ui: &mut Ui, v: usize, x: f32, y: f32, w: 
                     }),
                 ],
             );
-            ui.text_mid(
-                rx + 40.0 + nw,
-                ty,
-                36.0,
-                12.0,
-                W::R,
+            ui.text_mid_as(
+                (rx + 40.0 + nw, ty, 36.0),
+                BODY_S,
                 Role::OnSurfaceVariant,
                 &line,
             );
             if here >= wt.needed {
                 let tag = EN.vault_panel_ready_to_sign;
-                let tw = ui.measure(12.0, W::S, tag) + 20.0;
+                let tw = ui.measure_as(LABEL_M, tag) + 20.0;
                 ui.fill(
                     x + w - 20.0 - tw,
                     ty + 6.0,
@@ -1149,12 +1041,9 @@ pub(crate) fn vault_panel(app: &View, ui: &mut Ui, v: usize, x: f32, y: f32, w: 
                     12.0,
                     Role::OkContainer,
                 );
-                ui.text_mid(
-                    x + w - 10.0 - tw,
-                    ty,
-                    36.0,
-                    12.0,
-                    W::S,
+                ui.text_mid_as(
+                    (x + w - 10.0 - tw, ty, 36.0),
+                    LABEL_M,
                     Role::OnOkContainer,
                     tag,
                 );
@@ -1165,12 +1054,9 @@ pub(crate) fn vault_panel(app: &View, ui: &mut Ui, v: usize, x: f32, y: f32, w: 
             ty += 40.0;
         }
         if more > 0 {
-            ui.text_mid(
-                x + 20.0,
-                ty - 4.0,
-                26.0,
-                12.0,
-                W::R,
+            ui.text_mid_as(
+                (x + 20.0, ty - 4.0, 26.0),
+                BODY_S,
                 Role::OnSurfaceVariant,
                 &fill(EN.vault_panel_more_listed, &[&more.to_string()]),
             );
@@ -1187,7 +1073,7 @@ pub(crate) fn vault_panel(app: &View, ui: &mut Ui, v: usize, x: f32, y: f32, w: 
             x + 20.0,
             ty + 4.0,
             None,
-            40.0,
+            BUTTON_H,
             &label,
             Style::Primary.when(chosen > 0),
             Action::Vault(V::LoadWithKeys(v)),
@@ -1201,7 +1087,7 @@ pub(crate) fn vault_panel(app: &View, ui: &mut Ui, v: usize, x: f32, y: f32, w: 
             x + 20.0 + lw + 12.0,
             ty + 4.0,
             None,
-            40.0,
+            BUTTON_H,
             &each,
             Style::Ghost,
             Action::Vault(V::EachShown(v)),
@@ -1211,7 +1097,7 @@ pub(crate) fn vault_panel(app: &View, ui: &mut Ui, v: usize, x: f32, y: f32, w: 
                 x + 20.0 + lw + ew + 24.0,
                 ty + 4.0,
                 None,
-                40.0,
+                BUTTON_H,
                 EN.vault_panel_go_to_wallets,
                 Style::Secondary,
                 Action::Nav(Screen::WalletsStart),
@@ -1242,20 +1128,21 @@ pub(crate) fn vault_panel(app: &View, ui: &mut Ui, v: usize, x: f32, y: f32, w: 
             11.0,
             Role::OnSurfaceVariant,
         );
-        let name = ui.fit(14.0, W::S, &row.name, colw * 0.5 - 24.0);
-        ui.text_mid(rx + 52.0, ry, 34.0, 14.0, W::S, Role::OnSurface, &name);
+        let name = ui.fit_as(TITLE_S, &row.name, colw * 0.5 - 24.0);
+        ui.text_mid_as((rx + 52.0, ry, 34.0), TITLE_S, Role::OnSurface, &name);
         let detail = if row.loaded {
             EN.vault_panel_loaded.to_string()
         } else {
             row.detail.clone()
         };
-        let face = if row.seed && !row.loaded { W::M } else { W::R };
-        let detail = ui.fit(12.0, face, &detail, colw * 0.45);
-        ui.text_right(
-            rx + colw,
-            ry,
-            34.0,
-            12.0,
+        let face = if row.seed && !row.loaded {
+            BODY_S.mono()
+        } else {
+            BODY_S
+        };
+        let detail = ui.fit_as(face, &detail, colw * 0.45);
+        ui.text_right_as(
+            (rx + colw, ry, 34.0),
             face,
             if row.loaded {
                 Role::Ok
@@ -1296,7 +1183,7 @@ pub(crate) fn vault_panel(app: &View, ui: &mut Ui, v: usize, x: f32, y: f32, w: 
         x + 20.0,
         by,
         None,
-        40.0,
+        BUTTON_H,
         &label,
         Style::Primary.when(seeds + wallets > 0),
         Action::Vault(V::LoadChosen(v)),
@@ -1307,7 +1194,7 @@ pub(crate) fn vault_panel(app: &View, ui: &mut Ui, v: usize, x: f32, y: f32, w: 
             x + 20.0 + bw + 12.0,
             by,
             None,
-            40.0,
+            BUTTON_H,
             EN.vault_panel_go_to_wallets,
             Style::Secondary,
             Action::Nav(Screen::WalletsStart),
@@ -1337,18 +1224,15 @@ fn inbox_panel_compact(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let draw = |ui: &mut Ui| -> f32 {
         let mut ty = y + 14.0;
         ui.icon(ix, ty, 20.0, Icon::Download, 13.0, Role::Primary);
-        ui.text_mid(
-            ix + 28.0,
-            ty - 4.0,
-            28.0,
-            15.0,
-            W::S,
+        ui.text_mid_as(
+            (ix + 28.0, ty - 4.0, 28.0),
+            TITLE_M,
             Role::OnSurface,
             app.medium.from_box(),
         );
         ty += 36.0;
         if !wallets.is_empty() {
-            ui.text(ix, ty, 13.0, W::S, Role::OnSurfaceVariant, EN.inbox_wallets);
+            ui.text_as(ix, ty, LABEL_L, Role::OnSurfaceVariant, EN.inbox_wallets);
             ty += 24.0;
             let many = wallets.len() > 1;
             for (i, fw) in wallets.iter().enumerate().take(ROWS) {
@@ -1367,8 +1251,8 @@ fn inbox_panel_compact(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                     11.0,
                     Role::OnSurfaceVariant,
                 );
-                let name = ui.fit(14.0, W::S, &fw.name, ix + iw - rx - 26.0);
-                ui.text(rx + 26.0, ty + 2.0, 14.0, W::S, Role::OnSurface, &name);
+                let name = ui.fit_as(TITLE_S, &fw.name, ix + iw - rx - 26.0);
+                ui.text_as(rx + 26.0, ty + 2.0, TITLE_S, Role::OnSurface, &name);
                 ty += 24.0;
                 let n = fw.keys.len().max(1);
                 let line = fill(
@@ -1391,11 +1275,11 @@ fn inbox_panel_compact(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                         .to_string(),
                     ],
                 );
-                let line = ui.fit(12.0, W::R, &line, ix + iw - rx - 26.0);
-                ui.text(rx + 26.0, ty, 12.0, W::R, Role::OnSurfaceVariant, &line);
+                let line = ui.fit_as(BODY_S, &line, ix + iw - rx - 26.0);
+                ui.text_as(rx + 26.0, ty, BODY_S, Role::OnSurfaceVariant, &line);
                 ty += 20.0;
                 if fw.seeds_here >= fw.needed {
-                    ui.text(rx + 26.0, ty, 12.0, W::S, Role::Ok, EN.inbox_ready_to_sign);
+                    ui.text_as(rx + 26.0, ty, LABEL_M, Role::Ok, EN.inbox_ready_to_sign);
                     ty += 20.0;
                 }
                 if many {
@@ -1405,7 +1289,7 @@ fn inbox_panel_compact(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             }
             if wallets.len() > ROWS {
                 let more = fill(EN.inbox_more_loaded, &[&(wallets.len() - ROWS).to_string()]);
-                ty += ui.wrap(ix, ty, iw, 12.0, W::R, Role::OnSurfaceVariant, &more) + 8.0;
+                ty += ui.wrap_as((ix, ty, iw), BODY_S, Role::OnSurfaceVariant, &more) + 8.0;
             }
             let chosen = wallets
                 .iter()
@@ -1423,14 +1307,18 @@ fn inbox_panel_compact(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                 (n, false) => fill(EN.inbox_load_wallets, &[&n.to_string()]),
             };
             let style = Style::Primary.when(chosen > 0);
-            ty += wrap_buttons(ui, ix, ty, iw, 40.0, &[(&label, style, Action::InboxLoad)]);
+            ty += wrap_buttons(
+                ui,
+                ix,
+                ty,
+                iw,
+                BUTTON_H,
+                &[(&label, style, Action::InboxLoad)],
+            );
             if !may {
-                ty += ui.wrap(
-                    ix,
-                    ty,
-                    iw,
-                    12.0,
-                    W::R,
+                ty += ui.wrap_as(
+                    (ix, ty, iw),
+                    BODY_S,
                     Role::Warning,
                     &fill(EN.inbox_keys_load_once, &[app.medium.noun()]),
                 ) + 8.0;
@@ -1438,29 +1326,21 @@ fn inbox_panel_compact(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             ty += 6.0;
         }
         if !potential.is_empty() {
-            ui.text(
-                ix,
-                ty,
-                13.0,
-                W::S,
-                Role::OnSurfaceVariant,
-                EN.inbox_loose_keys,
-            );
+            ui.text_as(ix, ty, LABEL_L, Role::OnSurfaceVariant, EN.inbox_loose_keys);
             ty += 24.0;
             for s in potential.iter().take(ROWS) {
                 ui.icon(ix, ty + 2.0, 20.0, Icon::Keys, 11.0, Role::OnSurfaceVariant);
-                ui.text(
+                ui.text_as(
                     ix + 26.0,
                     ty + 2.0,
-                    14.0,
-                    W::M,
+                    BODY_M.mono(),
                     Role::OnSurface,
                     &fp_text(s.fingerprint),
                 );
                 ty += 24.0;
                 let from: Vec<String> = s.sources.iter().map(|src| src.name(app)).collect();
-                let line = ui.fit(12.0, W::R, &from.join(" · "), iw - 26.0);
-                ui.text(ix + 26.0, ty, 12.0, W::R, Role::OnSurfaceVariant, &line);
+                let line = ui.fit_as(BODY_S, &from.join(" · "), iw - 26.0);
+                ui.text_as(ix + 26.0, ty, BODY_S, Role::OnSurfaceVariant, &line);
                 ty += 22.0;
                 let style = if may {
                     Style::Secondary
@@ -1472,7 +1352,7 @@ fn inbox_panel_compact(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                     ix + 26.0,
                     ty,
                     iw - 26.0,
-                    32.0,
+                    BUTTON_H,
                     &[(
                         EN.inbox_make_it_a_wallet,
                         style,
@@ -1482,16 +1362,15 @@ fn inbox_panel_compact(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             }
             if potential.len() > ROWS {
                 let more = fill(EN.inbox_more, &[&(potential.len() - ROWS).to_string()]);
-                ty += ui.wrap(ix, ty, iw, 12.0, W::R, Role::OnSurfaceVariant, &more) + 8.0;
+                ty += ui.wrap_as((ix, ty, iw), BODY_S, Role::OnSurfaceVariant, &more) + 8.0;
             }
             ty += 4.0;
         }
         if !found.xpubs.is_empty() {
-            ui.text(
+            ui.text_as(
                 ix,
                 ty,
-                13.0,
-                W::S,
+                LABEL_L,
                 Role::OnSurfaceVariant,
                 EN.inbox_loose_xpubs,
             );
@@ -1509,7 +1388,7 @@ fn inbox_panel_compact(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                     .fingerprint
                     .map(fp_text)
                     .unwrap_or_else(|| EN.inbox_no_origin.to_string());
-                ui.text(ix + 26.0, ty + 2.0, 14.0, W::M, Role::OnSurface, &fp);
+                ui.text_as(ix + 26.0, ty + 2.0, BODY_M.mono(), Role::OnSurface, &fp);
                 ty += 24.0;
                 let line = format!(
                     "{} · {}",
@@ -1519,15 +1398,15 @@ fn inbox_panel_compact(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                         .and_then(|k| app.inbox.get(*k))
                         .map_or(String::new(), |it| it.name.clone())
                 );
-                let line = ui.fit(12.0, W::R, &line, iw - 26.0);
-                ui.text(ix + 26.0, ty, 12.0, W::R, Role::OnSurfaceVariant, &line);
+                let line = ui.fit_as(BODY_S, &line, iw - 26.0);
+                ui.text_as(ix + 26.0, ty, BODY_S, Role::OnSurfaceVariant, &line);
                 ty += 22.0;
                 ty += wrap_buttons(
                     ui,
                     ix + 26.0,
                     ty,
                     iw - 26.0,
-                    32.0,
+                    BUTTON_H,
                     &[(
                         EN.inbox_make_it_a_watch,
                         Style::Secondary,
@@ -1538,17 +1417,16 @@ fn inbox_panel_compact(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             ty += 4.0;
         }
         if !found.waiting.is_empty() {
-            ui.text(
+            ui.text_as(
                 ix,
                 ty,
-                13.0,
-                W::S,
+                LABEL_L,
                 Role::OnSurfaceVariant,
                 EN.inbox_not_complete,
             );
             ty += 24.0;
             for q in found.waiting.iter().take(ROWS) {
-                ty += ui.wrap(ix, ty, iw, 13.0, W::R, Role::OnSurfaceVariant, &q.line) + 8.0;
+                ty += ui.wrap_as((ix, ty, iw), BODY_S, Role::OnSurfaceVariant, &q.line) + 8.0;
             }
         }
         ty - y + 6.0
@@ -1590,23 +1468,19 @@ fn vault_panel_compact(app: &View, ui: &mut Ui, v: usize, x: f32, y: f32, w: f32
                 &open.label(app.vaults.store()).to_string(),
             ],
         );
-        let title = ui.fit(15.0, W::S, &title, iw - 28.0);
-        ui.text_mid(
-            ix + 28.0,
-            ty - 4.0,
-            28.0,
-            15.0,
-            W::S,
+        let title = ui.fit_as(TITLE_M, &title, iw - 28.0);
+        ui.text_mid_as(
+            (ix + 28.0, ty - 4.0, 28.0),
+            TITLE_M,
             Role::OnSurface,
             &title,
         );
         ty += 36.0;
         if !together.is_empty() {
-            ui.text(
+            ui.text_as(
                 ix,
                 ty,
-                13.0,
-                W::S,
+                LABEL_L,
                 Role::OnSurfaceVariant,
                 EN.vault_seeded_wallets,
             );
@@ -1627,8 +1501,8 @@ fn vault_panel_compact(app: &View, ui: &mut Ui, v: usize, x: f32, y: f32, w: f32
                     11.0,
                     Role::OnSurfaceVariant,
                 );
-                let name = ui.fit(14.0, W::S, &wt.name, ix + iw - rx - 26.0);
-                ui.text(rx + 26.0, ty + 2.0, 14.0, W::S, Role::OnSurface, &name);
+                let name = ui.fit_as(TITLE_S, &wt.name, ix + iw - rx - 26.0);
+                ui.text_as(rx + 26.0, ty + 2.0, TITLE_S, Role::OnSurface, &name);
                 ty += 24.0;
                 let here = wt.keys.len();
                 let line = fill(
@@ -1643,10 +1517,10 @@ fn vault_panel_compact(app: &View, ui: &mut Ui, v: usize, x: f32, y: f32, w: f32
                         }),
                     ],
                 );
-                ui.text(rx + 26.0, ty, 12.0, W::R, Role::OnSurfaceVariant, &line);
+                ui.text_as(rx + 26.0, ty, BODY_S, Role::OnSurfaceVariant, &line);
                 ty += 20.0;
                 if here >= wt.needed {
-                    ui.text(rx + 26.0, ty, 12.0, W::S, Role::Ok, EN.vault_ready_to_sign);
+                    ui.text_as(rx + 26.0, ty, LABEL_M, Role::Ok, EN.vault_ready_to_sign);
                     ty += 20.0;
                 }
                 if many {
@@ -1662,7 +1536,7 @@ fn vault_panel_compact(app: &View, ui: &mut Ui, v: usize, x: f32, y: f32, w: f32
             }
             if more > 0 {
                 let line = fill(EN.vault_more_listed_under, &[&more.to_string()]);
-                ty += ui.wrap(ix, ty, iw, 12.0, W::R, Role::OnSurfaceVariant, &line) + 8.0;
+                ty += ui.wrap_as((ix, ty, iw), BODY_S, Role::OnSurfaceVariant, &line) + 8.0;
             }
             let chosen = together.iter().filter(|w| w.chosen || !many).count();
             let label = match chosen {
@@ -1691,7 +1565,7 @@ fn vault_panel_compact(app: &View, ui: &mut Ui, v: usize, x: f32, y: f32, w: f32
                     Action::Nav(Screen::WalletsStart),
                 ));
             }
-            ty += wrap_buttons(ui, ix, ty, iw, 40.0, &items);
+            ty += wrap_buttons(ui, ix, ty, iw, BUTTON_H, &items);
             if !folded {
                 ui.rule(ix, ty, iw, Role::OutlineVariant);
                 ty += 12.0;
@@ -1704,11 +1578,10 @@ fn vault_panel_compact(app: &View, ui: &mut Ui, v: usize, x: f32, y: f32, w: f32
         if !waiting.is_empty() {
             let all = waiting.iter().all(|r| r.chosen);
             ui.checkbox(ix, ty + 4.0, all, true);
-            ui.text(
+            ui.text_as(
                 ix + 28.0,
                 ty + 2.0,
-                13.0,
-                W::S,
+                LABEL_L,
                 Role::OnSurfaceVariant,
                 EN.vault_select_all,
             );
@@ -1741,14 +1614,15 @@ fn vault_panel_compact(app: &View, ui: &mut Ui, v: usize, x: f32, y: f32, w: f32
             } else {
                 row.detail.clone()
             };
-            let face = if row.seed && !row.loaded { W::M } else { W::R };
-            let dw = ui.measure(12.0, face, &detail).min(iw * 0.4);
-            let detail = ui.fit(12.0, face, &detail, dw);
-            ui.text_right(
-                ix + iw,
-                ty,
-                26.0,
-                12.0,
+            let face = if row.seed && !row.loaded {
+                BODY_S.mono()
+            } else {
+                BODY_S
+            };
+            let dw = ui.measure_as(face, &detail).min(iw * 0.4);
+            let detail = ui.fit_as(face, &detail, dw);
+            ui.text_right_as(
+                (ix + iw, ty, 26.0),
                 face,
                 if row.loaded {
                     Role::Ok
@@ -1757,8 +1631,8 @@ fn vault_panel_compact(app: &View, ui: &mut Ui, v: usize, x: f32, y: f32, w: f32
                 },
                 &detail,
             );
-            let name = ui.fit(14.0, W::S, &row.name, iw - 54.0 - dw - 8.0);
-            ui.text(ix + 54.0, ty + 3.0, 14.0, W::S, Role::OnSurface, &name);
+            let name = ui.fit_as(TITLE_S, &row.name, iw - 54.0 - dw - 8.0);
+            ui.text_as(ix + 54.0, ty + 3.0, TITLE_S, Role::OnSurface, &name);
             if !row.loaded {
                 ui.hit(
                     ix - 4.0,
@@ -1806,7 +1680,7 @@ fn vault_panel_compact(app: &View, ui: &mut Ui, v: usize, x: f32, y: f32, w: f32
                 Action::Nav(Screen::WalletsStart),
             ));
         }
-        ty += wrap_buttons(ui, ix, ty, iw, 40.0, &items);
+        ty += wrap_buttons(ui, ix, ty, iw, BUTTON_H, &items);
         ty - y + 4.0
     };
     let h = measured(ui, |ui| draw(ui));
@@ -1882,16 +1756,15 @@ fn inbox_actions(app: &View, k: usize, item: &crate::Item) -> (Buttons, Note) {
         #[cfg(feature = "unreleased")]
         FileKind::Carry => out.push((
             EN.inbox_actions_sign.into(),
-            Style::Primary,
+            Style::Tonal,
             Action::StartSpend(k),
         )),
         FileKind::Psbt => {
-            let style = if app.session.wallets.is_empty() && app.session.keys.is_empty() {
-                Style::Secondary
-            } else {
-                Style::Primary
-            };
-            out.push((EN.inbox_actions_sign.into(), style, Action::StartSpend(k)));
+            out.push((
+                EN.inbox_actions_sign.into(),
+                Style::Tonal,
+                Action::StartSpend(k),
+            ));
         }
         FileKind::Wallet | FileKind::SecretWallet => {
             out.push((
@@ -1982,29 +1855,27 @@ fn file_card(
         ui.icon(x + 12.0, cy, 32.0, icon, 13.0, ink);
         let dw = 32.0;
         let room = w - 56.0 - 12.0 - dw - 8.0;
-        let n = ui.fit(14.0, W::M, name, room);
-        ui.text(x + 56.0, cy, 14.0, W::M, Role::OnSurface, &n);
+        let n = ui.fit_as(BODY_M.mono(), name, room);
+        ui.text_as(x + 56.0, cy, BODY_M.mono(), Role::OnSurface, &n);
         crate::file_menu::dots(app, ui, x + w - 12.0 - dw, cy, dw, row);
-        let l = ui.fit(12.0, W::R, line, room);
-        ui.text(x + 56.0, cy + 20.0, 12.0, W::R, Role::OnSurfaceVariant, &l);
+        let l = ui.fit_as(BODY_S, line, room);
+        ui.text_as(x + 56.0, cy + 20.0, BODY_S, Role::OnSurfaceVariant, &l);
         cy += 46.0;
         if let Some((t, c)) = note {
-            cy += ui.wrap(x + 12.0, cy, w - 24.0, 13.0, W::R, *c, t) + 8.0;
+            cy += ui.wrap_as((x + 12.0, cy, w - 24.0), BODY_M, *c, t) + 8.0;
         }
         let items: Vec<(&str, Style, Action)> = buttons
             .iter()
             .map(|(l, s, a)| (l.as_str(), *s, *a))
             .collect();
-        cy += wrap_buttons(ui, x + 12.0, cy, w - 24.0, 36.0, &items);
+        cy += wrap_buttons(ui, x + 12.0, cy, w - 24.0, BUTTON_H, &items);
         cy - y + 2.0
     };
     // Its height worked out from what it holds, so a card scrolled out of
     // sight is passed over, not drawn.
     let labels: Vec<&str> = buttons.iter().map(|(l, ..)| l.as_str()).collect();
-    let note_h = note.map_or(0.0, |(t, _)| {
-        faraday_ui::parts::measure_wrap(ui, w - 24.0, 13.0, W::R, t) + 8.0
-    });
-    let h = 60.0 + note_h + faraday_ui::parts::wrap_buttons_height(ui, w - 24.0, 36.0, &labels);
+    let note_h = note.map_or(0.0, |(t, _)| ui.wrap_height_as(BODY_S, t, w - 24.0) + 8.0);
+    let h = 60.0 + note_h + faraday_ui::parts::wrap_buttons_height(ui, w - 24.0, BUTTON_H, &labels);
     if !ui.shows(y, h) {
         return h;
     }
@@ -2057,8 +1928,8 @@ fn compact_head(app: &View, ui: &mut Ui, (x, y0, w): (f32, f32, f32)) -> f32 {
     ui.fill(x, y, w, 44.0, 10.0, Role::Primary.with_alpha(16));
     ui.stroke(x, y, w, 44.0, 10.0, Role::Primary.with_alpha(110));
     ui.dot(x + 18.0, y + 22.0, 4.0, Role::Primary);
-    let label = ui.fit(14.0, W::R, &label, w - 44.0);
-    ui.text_mid(x + 32.0, y, 44.0, 14.0, W::R, Role::OnSurface, &label);
+    let label = ui.fit_as(BODY_M, &label, w - 44.0);
+    ui.text_mid_as((x + 32.0, y, 44.0), BODY_M, Role::OnSurface, &label);
     if let Some(a) = action {
         ui.hit(x, y, w, 44.0, a);
     }
@@ -2067,17 +1938,16 @@ fn compact_head(app: &View, ui: &mut Ui, (x, y0, w): (f32, f32, f32)) -> f32 {
         x,
         y,
         Some(w),
-        40.0,
+        BUTTON_H,
         EN.files_scan_a_qr_code,
         Style::Secondary,
         Action::Scan,
     );
     y += 48.0;
-    ui.text(
+    ui.text_as(
         x,
         y,
-        12.0,
-        W::R,
+        BODY_S,
         Role::OnSurfaceVariant,
         EN.files_in_memory_emptied,
     );
@@ -2101,19 +1971,11 @@ fn compact_head(app: &View, ui: &mut Ui, (x, y0, w): (f32, f32, f32)) -> f32 {
 fn compact_inbox(app: &View, ui: &mut Ui, (x, y0, w): (f32, f32, f32)) -> f32 {
     let mut y = y0;
     // Inbox.
-    let lw = ui.text(
-        x,
-        y,
-        15.0,
-        W::S,
-        Role::OnSurfaceVariant,
-        app.medium.from_box(),
-    );
-    ui.text(
+    let lw = ui.text_as(x, y, TITLE_M, Role::OnSurfaceVariant, app.medium.from_box());
+    ui.text_as(
         x + lw + 10.0,
         y + 2.0,
-        13.0,
-        W::R,
+        BODY_S,
         Role::OnSurfaceVariant,
         &app.inbox.len().to_string(),
     );
@@ -2149,12 +2011,9 @@ fn compact_inbox(app: &View, ui: &mut Ui, (x, y0, w): (f32, f32, f32)) -> f32 {
         ) + 10.0;
     }
     if app.inbox.is_empty() {
-        y += ui.wrap(
-            x,
-            y,
-            w,
-            13.0,
-            W::R,
+        y += ui.wrap_as(
+            (x, y, w),
+            BODY_S,
             Role::OnSurfaceVariant,
             &fill(EN.files_empty_files_are, &[app.medium.a()]),
         ) + 14.0;
@@ -2169,19 +2028,11 @@ fn compact_outbox(app: &View, ui: &mut Ui, (x, y0, w): (f32, f32, f32)) -> f32 {
     let mut y = y0;
     // Outbox, grouped by who may read it.
     y += 8.0;
-    let lw = ui.text(
-        x,
-        y,
-        15.0,
-        W::S,
-        Role::OnSurfaceVariant,
-        app.medium.for_box(),
-    );
-    ui.text(
+    let lw = ui.text_as(x, y, TITLE_M, Role::OnSurfaceVariant, app.medium.for_box());
+    ui.text_as(
         x + lw + 10.0,
         y + 2.0,
-        13.0,
-        W::R,
+        BODY_S,
         Role::OnSurfaceVariant,
         &app.outbox.len().to_string(),
     );
@@ -2215,9 +2066,9 @@ fn compact_outbox(app: &View, ui: &mut Ui, (x, y0, w): (f32, f32, f32)) -> f32 {
         if group.is_empty() {
             continue;
         }
-        ui.text(x, y, 12.0, W::S, tone, label);
+        ui.text_as(x, y, LABEL_M, tone, label);
         y += 18.0;
-        y += ui.wrap(x, y, w, 12.0, W::R, Role::OnSurfaceVariant, &line) + 8.0;
+        y += ui.wrap_as((x, y, w), BODY_S, Role::OnSurfaceVariant, &line) + 8.0;
         for (k, item) in group {
             let (edge, icon, ink) = match exposure {
                 Exposure::Public => (
@@ -2249,7 +2100,7 @@ fn compact_outbox(app: &View, ui: &mut Ui, (x, y0, w): (f32, f32, f32)) -> f32 {
         y += 4.0;
     }
     if app.outbox.is_empty() {
-        ui.text(x, y, 13.0, W::R, Role::OnSurfaceVariant, EN.files_empty);
+        ui.text_as(x, y, BODY_S, Role::OnSurfaceVariant, EN.files_empty);
         y += 26.0;
     }
     if let Some(r) = app.visit.receipt().as_ref() {
@@ -2266,12 +2117,9 @@ fn compact_tail(app: &View, ui: &mut Ui, (x, y0, w): (f32, f32, f32)) -> f32 {
     if !app.outbox.is_empty() {
         y += 6.0;
         ui.icon(x, y, 18.0, Icon::Power, 10.0, Role::OnSurfaceVariant);
-        y += ui.wrap(
-            x + 24.0,
-            y + 1.0,
-            w - 24.0,
-            12.0,
-            W::R,
+        y += ui.wrap_as(
+            (x + 24.0, y + 1.0, w - 24.0),
+            BODY_S,
             Role::OnSurfaceVariant,
             &fill(EN.files_power_off_asks, &[app.medium.for_the()]),
         ) + 10.0;

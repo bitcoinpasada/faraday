@@ -7,7 +7,8 @@ use crate::screens::{section_label, title};
 use crate::strings::EN;
 use crate::strings::fill;
 use crate::ui::pal::*;
-use crate::ui::{Style, Ui, W};
+use crate::ui::{Style, Ui};
+use faraday_draw::tokens::{BODY_M, BODY_S, LABEL_L};
 use faraday_draw::tokens::{BUTTON_H, GAP};
 use faraday_ui::parts::wrap_buttons;
 
@@ -65,24 +66,23 @@ fn send(app: &View, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     section_label(ui, x, y, EN.transfer_send);
     y += 24.0;
     if !t.dir.is_empty() {
-        let dir = ui.fit(12.0, W::M, &t.dir, w);
-        ui.text(x, y, 12.0, W::M, Role::OnSurfaceVariant, &dir);
+        let dir = ui.fit_as(BODY_S.mono(), &t.dir, w);
+        ui.text_as(x, y, BODY_S.mono(), Role::OnSurfaceVariant, &dir);
         y += 22.0;
     }
     if let Some(path) = t.reading.as_deref() {
         let name = path.rsplit('/').next().unwrap_or(path);
-        let line = ui.fit(13.0, W::R, &fill(EN.transfer_reading, &[name]), w);
-        ui.text(x, y, 13.0, W::R, Role::OnSurfaceVariant, &line);
+        let line = ui.fit_as(BODY_M, &fill(EN.transfer_reading, &[name]), w);
+        ui.text_as(x, y, BODY_S, Role::OnSurfaceVariant, &line);
         y += 24.0;
     } else if let Some(why) = t.refused.as_deref() {
-        y += ui.wrap(x, y, w, 13.0, W::S, Role::Error, why) + 10.0;
+        y += ui.wrap_as((x, y, w), LABEL_L, Role::Error, why) + 10.0;
     }
     if t.files.is_empty() {
-        ui.text(
+        ui.text_as(
             x,
             y + 4.0,
-            13.0,
-            W::R,
+            BODY_S,
             Role::OnSurfaceVariant,
             EN.transfer_no_files,
         );
@@ -107,13 +107,10 @@ fn send(app: &View, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
         } else {
             size_text(*size)
         };
-        let tw = ui.measure(12.0, W::R, &tail);
-        ui.text_right(
-            x + w,
-            y,
-            ROW,
-            12.0,
-            W::R,
+        let tw = ui.measure_as(BODY_S, &tail);
+        ui.text_right_as(
+            (x + w, y, ROW),
+            BODY_S,
             if over {
                 Role::Warning
             } else {
@@ -121,13 +118,10 @@ fn send(app: &View, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
             },
             &tail,
         );
-        let label = ui.fit(13.0, W::S, name, w - tw - 16.0);
-        ui.text_mid(
-            x,
-            y,
-            ROW,
-            13.0,
-            W::S,
+        let label = ui.fit_as(LABEL_L, name, w - tw - 16.0);
+        ui.text_mid_as(
+            (x, y, ROW),
+            LABEL_L,
             if over {
                 crate::ui::off()
             } else {
@@ -170,7 +164,7 @@ fn receive(app: &View, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
         } else {
             Role::OnSurface
         };
-        y += ui.wrap(x, y, w, 12.0, W::R, tone, line) + 8.0;
+        y += ui.wrap_as((x, y, w), BODY_S, tone, line) + 8.0;
     }
     y - y0
 }

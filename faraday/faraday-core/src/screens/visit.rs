@@ -4,9 +4,12 @@ use super::parts::{guide_text_learn, kind_line, pull_line, size_text};
 use crate::drawing::View;
 use crate::strings::{EN, fill};
 use crate::ui::pal::*;
-use crate::ui::{Style, Ui, W};
+use crate::ui::{Style, Ui};
 use crate::wallet::FileKind;
 use crate::{Action, Faraday, Screen};
+use faraday_draw::tokens::{
+    BODY_M, BODY_S, BUTTON_H, HEADLINE_M, LABEL_L, LABEL_M, TITLE_M, TITLE_S,
+};
 use faraday_draw::widgets::Icon;
 use faraday_ui::parts::{title, wrap_buttons};
 
@@ -23,18 +26,17 @@ fn visit_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     app.visit.bar(crate::Column::Outbox).set(None);
     app.visit.bar(crate::Column::Stick).set(None);
     let Some(stick) = app.stick.get(app.visit.stick) else {
-        ui.text(
+        ui.text_as(
             x,
             y,
-            15.0,
-            W::R,
+            BODY_M,
             Role::OnSurfaceVariant,
             &fill(EN.visit_no_attached, &[app.medium.noun()]),
         );
         return;
     };
     // Where pulling the stick goes.
-    let then = ui.fit(12.0, W::R, &app.visit_then(), w - 34.0);
+    let then = ui.fit_as(BODY_S, &app.visit_then(), w - 34.0);
     ui.chip(
         x,
         y,
@@ -58,9 +60,9 @@ fn visit_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 (st.label.as_str(), style, Action::VisitStick(k))
             })
             .collect();
-        y += wrap_buttons(ui, x, y, w, 34.0, &items) + 4.0;
+        y += wrap_buttons(ui, x, y, w, BUTTON_H, &items) + 4.0;
     } else {
-        ui.text(x, y, 13.0, W::S, Role::OnSurfaceVariant, &stick.label);
+        ui.text_as(x, y, LABEL_L, Role::OnSurfaceVariant, &stick.label);
         y += 26.0;
     }
     // What is left to do: pull the stick, and where the copied files went.
@@ -69,7 +71,7 @@ fn visit_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         x,
         y,
         Some(w),
-        40.0,
+        BUTTON_H,
         EN.visit_open_files,
         Style::Secondary,
         Action::Nav(Screen::Files),
@@ -77,18 +79,15 @@ fn visit_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     y += 50.0;
     for (line, ok) in app.visit.log.iter().rev().take(2) {
         let c = if *ok { Role::Ok } else { Role::Error };
-        y += ui.wrap(x, y, w, 13.0, W::R, c, line) + 6.0;
+        y += ui.wrap_as((x, y, w), BODY_M, c, line) + 6.0;
     }
     y += 8.0;
 
     // Import into the Inbox.
     ui.icon(x, y, 20.0, Icon::Download, 13.0, Role::Primary);
-    ui.text_mid(
-        x + 28.0,
-        y - 4.0,
-        28.0,
-        15.0,
-        W::S,
+    ui.text_mid_as(
+        (x + 28.0, y - 4.0, 28.0),
+        TITLE_M,
         Role::OnSurface,
         app.medium.on_box(),
     );
@@ -96,8 +95,8 @@ fn visit_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     // Everything comes in by default: Unselect all, while any is ticked.
     if !app.visit.inn.is_empty() {
         let t = EN.visit_unselect_all;
-        let tw = ui.measure(13.0, W::S, t);
-        ui.text(x, y + 2.0, 13.0, W::S, Role::Primary, t);
+        let tw = ui.measure_as(LABEL_L, t);
+        ui.text_as(x, y + 2.0, LABEL_L, Role::Primary, t);
         ui.hit(x - 6.0, y - 6.0, tw + 12.0, 34.0, Action::VisitInAll);
         y += 34.0;
     }
@@ -118,19 +117,16 @@ fn visit_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         let held = app.inbox_holds(name, *size);
         let tag = EN.visit_in_faraday;
         let tw = if held {
-            ui.measure(12.0, W::S, tag) + 8.0
+            ui.measure_as(LABEL_M, tag) + 8.0
         } else {
             0.0
         };
-        let n = ui.fit(14.0, W::M, name, w - 32.0 - tw - dw);
-        ui.text(x + 32.0, y + 4.0, 14.0, W::M, fg, &n);
+        let n = ui.fit_as(BODY_M.mono(), name, w - 32.0 - tw - dw);
+        ui.text_as(x + 32.0, y + 4.0, BODY_M.mono(), fg, &n);
         if held {
-            ui.text_right(
-                x + w - dw,
-                y + 2.0,
-                20.0,
-                12.0,
-                W::S,
+            ui.text_right_as(
+                (x + w - dw, y + 2.0, 20.0),
+                LABEL_M,
                 Role::OnSurfaceVariant,
                 tag,
             );
@@ -145,12 +141,11 @@ fn visit_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             // Read at boot, not copied in.
             None => EN.visit_settings.to_string(),
         };
-        let sub = ui.fit(12.0, W::R, &sub, w - 32.0 - dw);
-        ui.text(
+        let sub = ui.fit_as(BODY_S, &sub, w - 32.0 - dw);
+        ui.text_as(
             x + 32.0,
             y + 26.0,
-            12.0,
-            W::R,
+            BODY_S,
             if kind.is_some() {
                 Role::OnSurfaceVariant.paint()
             } else {
@@ -177,7 +172,7 @@ fn visit_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     }
     if stick.files.is_empty() {
         let none = fill(EN.visit_no_files, &[app.medium.noun()]);
-        ui.text(x, y, 13.0, W::R, Role::OnSurfaceVariant, &none);
+        ui.text_as(x, y, BODY_S, Role::OnSurfaceVariant, &none);
         y += 28.0;
     }
     // Delete files: the one way into deleting from the stick.
@@ -186,7 +181,7 @@ fn visit_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         x,
         y,
         w,
-        36.0,
+        BUTTON_H,
         &[(EN.visit_delete_files, Style::Ghost, Action::DeleteFiles)],
     );
     let nin = app.visit.inn.len();
@@ -208,7 +203,7 @@ fn visit_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         x,
         y,
         w,
-        42.0,
+        BUTTON_H,
         &[
             (
                 &label,
@@ -229,12 +224,9 @@ fn visit_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 
     // Write to the stick: the Outbox, and copies from the Inbox.
     ui.icon(x, y, 20.0, Icon::Export, 13.0, Role::Primary);
-    ui.text_mid(
-        x + 28.0,
-        y - 4.0,
-        28.0,
-        15.0,
-        W::S,
+    ui.text_mid_as(
+        (x + 28.0, y - 4.0, 28.0),
+        TITLE_M,
         Role::OnSurface,
         EN.visit_in_faraday,
     );
@@ -243,11 +235,10 @@ fn visit_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let settings_on = app.visit_settings_on();
     let all = visit_all_out(app);
     ui.checkbox(x + 2.0, y + 4.0, all, true);
-    ui.text(
+    ui.text_as(
         x + 32.0,
         y + 2.0,
-        13.0,
-        W::S,
+        LABEL_L,
         Role::OnSurfaceVariant,
         EN.visit_select_all,
     );
@@ -263,13 +254,12 @@ fn visit_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         // No action: the stick holds the file already, drawn greyed.
         let held = action.is_none();
         ui.checkbox(x + 2.0, y + 10.0, on && !held, !held);
-        let tw = ui.measure(12.0, W::S, tag.0) + 8.0;
-        let n = ui.fit(14.0, W::M, name, w - 32.0 - tw);
-        ui.text(
+        let tw = ui.measure_as(LABEL_M, tag.0) + 8.0;
+        let n = ui.fit_as(BODY_M.mono(), name, w - 32.0 - tw);
+        ui.text_as(
             x + 32.0,
             y + 4.0,
-            14.0,
-            W::M,
+            BODY_M.mono(),
             if held {
                 crate::ui::off()
             } else {
@@ -277,13 +267,12 @@ fn visit_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             },
             &n,
         );
-        ui.text_right(x + w, y + 2.0, 20.0, 12.0, W::S, tag.1, tag.0);
-        let l = ui.fit(12.0, W::R, line, w - 32.0);
-        ui.text(
+        ui.text_right_as((x + w, y + 2.0, 20.0), LABEL_M, tag.1, tag.0);
+        let l = ui.fit_as(BODY_S, line, w - 32.0);
+        ui.text_as(
             x + 32.0,
             y + 26.0,
-            12.0,
-            W::R,
+            BODY_S,
             if held {
                 crate::ui::off()
             } else {
@@ -329,11 +318,10 @@ fn visit_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         );
     }
     if app.outbox.is_empty() {
-        ui.text(
+        ui.text_as(
             x,
             y,
-            13.0,
-            W::R,
+            BODY_S,
             Role::OnSurfaceVariant,
             &fill(EN.visit_nothing_waits, &[app.medium.for_the()]),
         );
@@ -341,12 +329,9 @@ fn visit_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     }
     let shown = app.visit_inbox_shown();
     if !shown.is_empty() {
-        ui.text_mid(
-            x,
-            y,
-            30.0,
-            13.0,
-            W::S,
+        ui.text_mid_as(
+            (x, y, 30.0),
+            LABEL_L,
             Role::OnSurfaceVariant,
             app.medium.from_box(),
         );
@@ -385,7 +370,7 @@ fn visit_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         x,
         y,
         Some(w),
-        42.0,
+        BUTTON_H,
         &label,
         Style::Primary.when(nout > 0),
         Action::VisitWrite,
@@ -416,7 +401,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let mut y = 36.0;
     title(ui, x, y, app.medium.visit());
     // Where pulling the stick goes.
-    let tw = ui.measure(28.0, W::S, app.medium.visit());
+    let tw = ui.measure_as(HEADLINE_M.medium(), app.medium.visit());
     ui.chip(
         x + tw + 14.0,
         y + 4.0,
@@ -433,7 +418,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     };
     for (k, st) in app.stick.iter().enumerate().rev() {
         let label = st.label.clone();
-        let wdt = ui.measure(13.0, W::S, &label) + 28.0;
+        let wdt = ui.measure_as(LABEL_L, &label) + 28.0;
         chx -= wdt;
         let current = k == app.visit.stick;
         ui.fill(
@@ -447,7 +432,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         let edge = selected_or(current, Role::OutlineVariant);
         ui.stroke(chx, chy, wdt, 32.0, 16.0, edge);
         let ink = on_selected(current, Role::OnSurface);
-        ui.text_mid(chx + 14.0, chy, 32.0, 13.0, W::S, ink, &label);
+        ui.text_mid_as((chx + 14.0, chy, 32.0), LABEL_L, ink, &label);
         ui.hit(chx, chy, wdt, 32.0, Action::VisitStick(k));
         chx -= 8.0;
     }
@@ -465,11 +450,10 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         crate::learn::Topic::AirGap,
     );
     let Some(stick) = app.stick.get(app.visit.stick) else {
-        ui.text(
+        ui.text_as(
             x,
             y,
-            15.0,
-            W::R,
+            BODY_M,
             Role::OnSurfaceVariant,
             &fill(EN.visit_no_attached, &[app.medium.noun()]),
         );
@@ -486,12 +470,9 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     // Write to the stick: the Outbox, and copies from the Inbox.
     ui.card(x, y, colw, colh, Role::OutlineVariant);
     ui.icon(x + 20.0, y + 20.0, 22.0, Icon::Export, 14.0, Role::Primary);
-    ui.text_mid(
-        x + 50.0,
-        y + 20.0,
-        22.0,
-        16.0,
-        W::S,
+    ui.text_mid_as(
+        (x + 50.0, y + 20.0, 22.0),
+        TITLE_M,
         Role::OnSurface,
         EN.visit_in_faraday,
     );
@@ -514,28 +495,23 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     ui.c.push_clip(clip);
     let mut ry = list_top - shift;
     ui.checkbox(x + 22.0, ry + 15.0, settings_on, true);
-    ui.text(
+    ui.text_as(
         x + 54.0,
         ry + 6.0,
-        14.0,
-        W::M,
+        BODY_M.mono(),
         Role::OnSurface,
         crate::stick::settings::FILE,
     );
-    ui.text(
+    ui.text_as(
         x + 54.0,
         ry + 28.0,
-        12.0,
-        W::R,
+        BODY_S,
         Role::OnSurfaceVariant,
         EN.visit_settings,
     );
-    ui.text_right(
-        x + colw - 20.0,
-        ry + 6.0,
-        20.0,
-        12.0,
-        W::S,
+    ui.text_right_as(
+        (x + colw - 20.0, ry + 6.0, 20.0),
+        LABEL_M,
         Role::OnSurfaceVariant,
         EN.visit_public,
     );
@@ -556,13 +532,12 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         // No action: the stick holds the file already, drawn greyed.
         let held = action.is_none();
         ui.checkbox(x + 22.0, ry + 15.0, on && !held, !held);
-        let tw = ui.measure(12.0, W::S, tag.0) + 12.0;
-        let name = ui.fit(14.0, W::M, name, colw - 74.0 - tw);
-        ui.text(
+        let tw = ui.measure_as(LABEL_M, tag.0) + 12.0;
+        let name = ui.fit_as(BODY_M.mono(), name, colw - 74.0 - tw);
+        ui.text_as(
             x + 54.0,
             ry + 6.0,
-            14.0,
-            W::M,
+            BODY_M.mono(),
             if held {
                 crate::ui::off()
             } else {
@@ -570,12 +545,11 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             },
             &name,
         );
-        let line = ui.fit(12.0, W::R, line, colw - 90.0);
-        ui.text(
+        let line = ui.fit_as(BODY_S, line, colw - 90.0);
+        ui.text_as(
             x + 54.0,
             ry + 28.0,
-            12.0,
-            W::R,
+            BODY_S,
             if held {
                 crate::ui::off()
             } else {
@@ -583,7 +557,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             },
             &line,
         );
-        ui.text_right(x + colw - 20.0, ry + 6.0, 20.0, 12.0, W::S, tag.1, tag.0);
+        ui.text_right_as((x + colw - 20.0, ry + 6.0, 20.0), LABEL_M, tag.1, tag.0);
         if let Some(action) = action {
             ui.hit(x + 12.0, ry, colw - 24.0, 50.0, action);
         }
@@ -613,24 +587,18 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         ry += ROW;
     }
     if app.outbox.is_empty() {
-        ui.text_mid(
-            x + 22.0,
-            ry,
-            HEAD,
-            13.0,
-            W::R,
+        ui.text_mid_as(
+            (x + 22.0, ry, HEAD),
+            BODY_S,
             Role::OnSurfaceVariant,
             &fill(EN.visit_nothing_waits, &[app.medium.for_the()]),
         );
         ry += HEAD;
     }
     if !shown.is_empty() {
-        ui.text_mid(
-            x + 22.0,
-            ry + 4.0,
-            HEAD - 4.0,
-            13.0,
-            W::S,
+        ui.text_mid_as(
+            (x + 22.0, ry + 4.0, HEAD - 4.0),
+            LABEL_L,
             Role::OnSurfaceVariant,
             app.medium.from_box(),
         );
@@ -683,12 +651,12 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             }),
         ],
     );
-    let bw = ui.measure(14.0, W::S, &label) + 36.0;
+    let bw = ui.measure_as(TITLE_S, &label) + 36.0;
     ui.button(
         x + colw - 20.0 - bw,
         y + colh - 62.0,
         Some(bw),
-        42.0,
+        BUTTON_H,
         &label,
         Style::Primary.when(nout > 0),
         Action::VisitWrite,
@@ -705,12 +673,9 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         14.0,
         Role::Primary,
     );
-    ui.text_mid(
-        ix + 50.0,
-        y + 20.0,
-        22.0,
-        16.0,
-        W::S,
+    ui.text_mid_as(
+        (ix + 50.0, y + 20.0, 22.0),
+        TITLE_M,
         Role::OnSurface,
         app.medium.on_box(),
     );
@@ -748,24 +713,20 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         let held = app.inbox_holds(name, *size);
         let tag = EN.visit_in_faraday;
         let tw = if held {
-            ui.measure(12.0, W::S, tag) + 12.0
+            ui.measure_as(LABEL_M, tag) + 12.0
         } else {
             0.0
         };
-        let n = ui.fit(
-            14.0,
-            W::M,
+        let n = ui.fit_as(
+            BODY_M.mono(),
             name,
             colw - if held { 74.0 + tw + dw } else { room },
         );
-        ui.text(ix + 54.0, ry + 6.0, 14.0, W::M, fg, &n);
+        ui.text_as(ix + 54.0, ry + 6.0, BODY_M.mono(), fg, &n);
         if held {
-            ui.text_right(
-                ix + colw - 20.0 - dw,
-                ry + 6.0,
-                20.0,
-                12.0,
-                W::S,
+            ui.text_right_as(
+                (ix + colw - 20.0 - dw, ry + 6.0, 20.0),
+                LABEL_M,
                 Role::OnSurfaceVariant,
                 tag,
             );
@@ -780,15 +741,8 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             // Read at boot, not copied in.
             None => EN.visit_settings.to_string(),
         };
-        let sub = ui.fit(12.0, W::R, &sub, colw - room);
-        ui.text(
-            ix + 54.0,
-            ry + 28.0,
-            12.0,
-            W::R,
-            Role::OnSurfaceVariant,
-            &sub,
-        );
+        let sub = ui.fit_as(BODY_S, &sub, colw - room);
+        ui.text_as(ix + 54.0, ry + 28.0, BODY_S, Role::OnSurfaceVariant, &sub);
         if kind.is_some() {
             ui.hit(ix + 12.0, ry, colw - 24.0 - dw, 50.0, Action::VisitIn(k));
         }
@@ -819,7 +773,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let ry = list_top + track_h;
     if stick.files.is_empty() {
         let none = fill(EN.visit_no_files, &[app.medium.noun()]);
-        ui.text(ix + 22.0, ry, 13.0, W::R, Role::OnSurfaceVariant, &none);
+        ui.text_as(ix + 22.0, ry, BODY_S, Role::OnSurfaceVariant, &none);
     }
     // Delete files: the one way into deleting from the stick.
     let zy = y + colh - 62.0 - 44.0;
@@ -827,7 +781,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         ix + 20.0,
         zy,
         None,
-        32.0,
+        BUTTON_H,
         EN.visit_delete_files,
         Style::Ghost,
         Action::DeleteFiles,
@@ -835,12 +789,12 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let nin = app.visit.inn.len();
     let enabled = nin > 0;
     let load_label = EN.visit_import_and_load;
-    let load_bw = ui.measure(14.0, W::S, load_label) + 36.0;
+    let load_bw = ui.measure_as(TITLE_S, load_label) + 36.0;
     ui.button(
         ix + colw - 20.0 - load_bw,
         y + colh - 62.0,
         Some(load_bw),
-        42.0,
+        BUTTON_H,
         load_label,
         Style::Primary.when(enabled),
         Action::VisitCopyAndLoad,
@@ -856,12 +810,12 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             }),
         ],
     );
-    let bw = ui.measure(14.0, W::S, &label) + 36.0;
+    let bw = ui.measure_as(TITLE_S, &label) + 36.0;
     ui.button(
         ix + colw - 28.0 - load_bw - bw,
         y + colh - 62.0,
         Some(bw),
-        42.0,
+        BUTTON_H,
         &label,
         if enabled {
             Style::Secondary
@@ -883,22 +837,19 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         13.0,
         Role::OnWarningContainer,
     );
-    ui.text_mid(
-        x + 44.0,
-        ay,
-        44.0,
-        14.0,
-        W::S,
+    ui.text_mid_as(
+        (x + 44.0, ay, 44.0),
+        TITLE_S,
         Role::OnWarningContainer,
         &pull_line(app),
     );
     let open_label = EN.visit_open_files;
-    let obw = ui.measure(14.0, W::S, open_label) + 32.0;
+    let obw = ui.measure_as(TITLE_S, open_label) + 32.0;
     ui.button(
         x + width - 12.0 - obw,
         ay + 2.0,
         Some(obw),
-        40.0,
+        BUTTON_H,
         open_label,
         Style::Secondary,
         Action::Nav(Screen::Files),
@@ -909,8 +860,8 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let mut lx = x;
     for (line, ok) in app.visit.log.iter().rev().take(2) {
         let c = if *ok { Role::Ok } else { Role::Error };
-        let t = ui.fit(13.0, W::R, line, width / 2.0 - 20.0);
-        let used = ui.text_mid(lx, fy, 44.0, 13.0, W::R, c, &t);
+        let t = ui.fit_as(BODY_M, line, width / 2.0 - 20.0);
+        let used = ui.text_mid_as((lx, fy, 44.0), BODY_M, c, &t);
         lx += used + 24.0;
     }
 }
@@ -984,15 +935,12 @@ fn visit_inbox_tag(item: &crate::Item) -> (&'static str, crate::ui::Paint) {
 /// card's right edge at `right`, its top at `y`.
 fn visit_select_all(ui: &mut Ui, right: f32, y: f32, all: bool, action: Action) {
     let label = EN.visit_select_all_select;
-    let lw = ui.measure(13.0, W::S, label);
+    let lw = ui.measure_as(LABEL_L, label);
     let sx = right - 24.0 - lw - 28.0;
     ui.checkbox(sx, y + 22.0, all, true);
-    ui.text_mid(
-        sx + 28.0,
-        y + 16.0,
-        30.0,
-        13.0,
-        W::S,
+    ui.text_mid_as(
+        (sx + 28.0, y + 16.0, 30.0),
+        LABEL_L,
         Role::OnSurfaceVariant,
         label,
     );
@@ -1003,9 +951,9 @@ fn visit_select_all(ui: &mut Ui, right: f32, y: f32, all: bool, action: Action) 
 /// heading: the card's right edge at `right`, its top at `y`.
 fn visit_unselect_all(ui: &mut Ui, right: f32, y: f32) {
     let label = EN.visit_unselect_all_unselect;
-    let lw = ui.measure(13.0, W::S, label);
+    let lw = ui.measure_as(LABEL_L, label);
     let sx = right - 24.0 - lw;
-    ui.text_mid(sx, y + 16.0, 30.0, 13.0, W::S, Role::Primary, label);
+    ui.text_mid_as((sx, y + 16.0, 30.0), LABEL_L, Role::Primary, label);
     ui.hit(sx - 8.0, y + 12.0, lw + 16.0, 38.0, Action::VisitInAll);
 }
 
@@ -1054,11 +1002,10 @@ fn visit_list_bar(
     }
     let below = all_h - shift - track_h;
     if below > 0.0 {
-        ui.text(
+        ui.text_as(
             card.0 + 22.0,
             top + track_h,
-            12.0,
-            W::R,
+            BODY_S,
             Role::OnSurfaceVariant,
             &fill(
                 EN.visit_list_bar_more,
