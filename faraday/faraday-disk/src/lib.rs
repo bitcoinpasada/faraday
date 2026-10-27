@@ -283,14 +283,20 @@ impl Disks {
         };
         if !f.open {
             // Not handed out yet: nothing on it can be read or written. It
-            // waits, and is told from a stick that is not there.
+            // waits, and is told from a stick that is not there. A card
+            // whose lock switch is set cannot be opened for writing at all:
+            // it is locked, and never comes to be handed out.
             return Some(Stick {
                 id: f.id.clone(),
                 label: named(f),
                 boot: f.boot,
                 serial: None,
                 files: Vec::new(),
-                problem: Some(Problem::NotYet),
+                problem: Some(if f.read_only {
+                    Problem::ReadOnly
+                } else {
+                    Problem::NotYet
+                }),
             });
         }
         if let Some(s) = self.seen.get(&f.id) {

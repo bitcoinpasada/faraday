@@ -459,3 +459,17 @@ fn a_stick_not_handed_out_yet_is_listed_as_waiting_not_as_unusable() {
     assert_eq!(list[0].problem, Some(Problem::NotYet));
     assert!(list[0].files.is_empty());
 }
+
+#[test]
+fn a_locked_card_that_cannot_be_opened_is_listed_as_locked_not_as_waiting() {
+    let c = compute();
+    let m = Machine::new("locked");
+    // A card with its lock switch set, which this process cannot open
+    // for writing: it is locked, and never comes to be handed out.
+    m.disk("sdb", 4, &[("", fat16("LOCKED"), false)]);
+    m.read_only("sdb", Some("sdb1"));
+    let mut d = Disks::new(&m.sys(), &m.dev());
+    let list = sticks(d.handle(&c, Request::List));
+    assert_eq!(list.len(), 1);
+    assert_eq!(list[0].problem, Some(Problem::ReadOnly));
+}
