@@ -110,7 +110,9 @@ internal error rather than carrying on.
     from it** with two choices: **Not now**, which leaves the stick
     untouched, and **Lock and use stick**, which locks (below) before
     the stick is read. While a stick is attached, passphrase fields take
-    no typing and no key is loaded.
+    no typing and no key is loaded; every field of a vault entry or note
+    counts as a passphrase field, and an entry or note is not opened for
+    editing, since that puts its secrets in the form.
 
   What the kernel does read from such a stick is its USB descriptors and
   its partition table. Its storage interface is the only one authorised,

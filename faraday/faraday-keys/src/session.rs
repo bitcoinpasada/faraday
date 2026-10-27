@@ -331,6 +331,11 @@ pub struct Keys {
     /// Set by a shell that must stay on the network it started on
     /// ([`Keys::fix_network`]): every other one is refused.
     network_fixed: bool,
+    /// While a stick is attached, the name the app gives it ("stick",
+    /// "SD card"): no key is added (`docs/SECURITY-MODEL.md`). Kept in
+    /// step with the sticks the shell reports by the one place they
+    /// change ([`Keys::set_stick_attached`]).
+    stick: Option<&'static str>,
 }
 
 impl Default for Keys {
@@ -347,7 +352,15 @@ impl Keys {
             network,
             demo: None,
             network_fixed: false,
+            stick: None,
         }
+    }
+
+    /// A stick is attached, called `noun`, or none is (`None`): while one
+    /// is, every way a key is added refuses ([`Refusal::StickAttached`]),
+    /// before anything is derived.
+    pub fn set_stick_attached(&mut self, noun: Option<&'static str>) {
+        self.stick = noun;
     }
 
     // ---- public reads ----
@@ -495,6 +508,14 @@ impl Keys {
         });
     }
 
+    /// No key is added while a stick is attached.
+    fn no_stick(&self) -> Result<(), Refusal> {
+        match self.stick {
+            Some(noun) => Err(Refusal::StickAttached(noun)),
+            None => Ok(()),
+        }
+    }
+
     /// Refuses a key that is not a sample while the demo is on.
     fn allowed(&self, fp: Fingerprint) -> Result<(), Refusal> {
         if self.demo() && !self.is_public(fp) {
@@ -553,6 +574,7 @@ impl Keys {
         label: &str,
         wanted: Option<Fingerprint>,
     ) -> Result<Fingerprint, Refusal> {
+        self.no_stick()?;
         let lang = mnemonic.language();
         let seed = mnemonic
             .to_seed(c, passphrase.as_bytes())
@@ -608,6 +630,7 @@ impl Keys {
         seed: &[u8],
         label: &str,
     ) -> Result<Fingerprint, Refusal> {
+        self.no_stick()?;
         let bytes = faraday_crypto::SeedBytes::new(seed)
             .ok_or_else(|| Refusal::Words(faraday_strings::EN.wallet_a_master_seed.to_string()))?;
         let master =

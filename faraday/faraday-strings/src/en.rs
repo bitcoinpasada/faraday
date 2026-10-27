@@ -3309,9 +3309,13 @@ strings! {
     stick_kind_qr_codes: "QR codes in a PNG",
     /// Text in `stick_kind`.
     stick_kind_file: "File",
-    // ----- stick_keys (faraday-core/src/lib.rs) -----
-    /// Text in `stick_keys`. `{}`: `m.noun()`.
+    // ----- keys_load (faraday-core/src/stick/mod.rs) -----
+    /// Text in `keys_load`, and the refusal of a key added with a stick
+    /// attached. `{}`: `m.noun()`.
     stick_keys_keys_load: "Keys load only with no {} attached",
+    /// Said when a vault entry's or note's field is pressed, or the entry
+    /// opened to edit, with a stick attached. `{}`: `m.noun()`.
+    vaults_fields_with_stick: "Fields of a vault entry take no typing while a {} is attached",
     // ----- of (faraday-core/src/lib.rs) -----
     /// Text in `of`.
     of_ur_crypto_psbt_one: "ur:crypto-psbt · one code",

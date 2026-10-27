@@ -24,6 +24,7 @@ mod strength;
 pub use area::*;
 pub use search::{SearchAct, SearchIn};
 
+use crate::stick;
 use crate::strings::EN;
 use crate::strings::fill;
 use faraday_bip::bitcoin::hashes::{Hash, HashEngine, sha256};
@@ -783,8 +784,10 @@ impl Faraday {
                     self.vaults.changed(id);
                 }
             }
-            V::Load => self.vault_load_selected(),
-            V::Edit => self.vault_form(true),
+            V::Load if !stick::refuses(self, false) => self.vault_load_selected(),
+            V::Edit if !stick::refuses(self, true) => self.vault_form(true),
+            V::PromptGo if !stick::refuses(self, false) => self.vault_prompt_go(),
+            V::Load | V::Edit | V::PromptGo => {}
             V::AddKind(k) => {
                 self.vault_act(V::Category(k));
                 self.vault_act(V::Add);
@@ -810,7 +813,7 @@ impl Faraday {
             }
             V::SaveKey(k) => self.vault_save_key(k),
             V::SaveWallet(k) => self.vault_save_wallet(k),
-            V::FocusField(k) => self.vaults.state.focus = Some(Focus::Field(k)),
+            V::FocusField(k) => stick::focus(self, Focus::Field(k)),
             V::FormSave => self.vault_form_save(),
             V::FormCancel => {
                 self.vaults.state.form = None;
@@ -831,7 +834,7 @@ impl Faraday {
                         fields: vec![(field::LABEL, EN.vaults_name, name, false)],
                     });
                     self.vaults.state.saving = false;
-                    self.vaults.state.focus = Some(Focus::Field(0));
+                    stick::focus(self, Focus::Field(0));
                 }
             }
             V::ShowTyped => self.vaults.state.typed_shown = !self.vaults.typed_shown,
@@ -863,18 +866,17 @@ impl Faraday {
                     text: TextBox::default(),
                     error: None,
                 });
-                self.vaults.state.focus = Some(Focus::Prompt);
+                stick::focus(self, Focus::Prompt);
             }
             V::SaveKeyWithPassphrase(k) => self.vault_save_key_with(k, true),
-            V::FocusPrompt => self.vaults.state.focus = Some(Focus::Prompt),
-            V::PromptGo => self.vault_prompt_go(),
+            V::FocusPrompt => stick::focus(self, Focus::Prompt),
             V::ExportKdbx => {
                 self.vaults.state.prompt = Some(Prompt {
                     purpose: Purpose::Kdbx,
                     text: TextBox::default(),
                     error: None,
                 });
-                self.vaults.state.focus = Some(Focus::Prompt);
+                stick::focus(self, Focus::Prompt);
             }
             V::PromptCancel => {
                 self.vaults.state.prompt = None;
@@ -1770,7 +1772,7 @@ impl Faraday {
             fields: vec![(3, EN.vaults_description, TextBox::default(), false)],
         });
         self.vaults.state.saving = false;
-        self.vaults.state.focus = Some(Focus::Field(0));
+        stick::focus(self, Focus::Field(0));
     }
 
     fn vault_form(&mut self, edit: bool) {
@@ -1833,7 +1835,7 @@ impl Faraday {
             fields,
         });
         self.vaults.state.saving = false;
-        self.vaults.state.focus = Some(Focus::Field(0));
+        stick::focus(self, Focus::Field(0));
     }
 
     fn vault_form_save(&mut self) {
@@ -2354,10 +2356,7 @@ impl Faraday {
         };
         // Nothing secret is typed while a stick is attached: the key is
         // taken and dropped.
-        if !self.may_load_keys()
-            && matches!(focus, Focus::Passphrase | Focus::Phrase(..) | Focus::Dice)
-        {
-            self.vaults.state.focus = None;
+        if stick::refuses_focus(self, focus) {
             return true;
         }
         if key == K::Escape {

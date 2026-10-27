@@ -438,12 +438,6 @@ fn copy_indices(bytes: &[u8]) -> Option<zeroize::Zeroizing<Vec<u16>>> {
     Some(zeroize::Zeroizing::new(m.indices().to_vec()))
 }
 
-/// Said on the camera when what it read would load a key with a stick
-/// attached.
-fn stick_keys(m: Medium) -> String {
-    fill(EN.stick_keys_keys_load, &[m.noun()])
-}
-
 /// A file in the Inbox or the Outbox.
 #[derive(Clone)]
 pub struct Item {
@@ -1931,6 +1925,9 @@ impl Faraday {
         let had = !self.stick.is_empty();
         let ids_before: Vec<String> = self.stick.iter().map(|s| s.id.clone()).collect();
         self.stick.set_sticks(sticks);
+        // The keys follow: no way of adding one adds it with a stick in.
+        let noun = (!self.stick.is_empty()).then(|| self.medium.noun());
+        self.session.keys.set_stick_attached(noun);
         let present: Vec<String> = self.stick.iter().map(|s| s.id.clone()).collect();
         // What the shell found unusable comes with each listing: a stick
         // that no longer reports a problem has none.
@@ -4299,7 +4296,7 @@ impl Faraday {
                 ScanPurpose::Seed | ScanPurpose::KeyPart | ScanPurpose::WalletKey(_)
             )
         {
-            scan.note = Some(stick_keys(medium));
+            scan.note = Some(stick::keys_load(medium));
             return;
         }
         if scan.purpose == ScanPurpose::VaultEntry {
@@ -4410,7 +4407,7 @@ impl Faraday {
         if intake {
             if let Some(words) = seed_in_code(&c, &bytes) {
                 if sticks {
-                    scan.note = Some(stick_keys(medium));
+                    scan.note = Some(stick::keys_load(medium));
                     return;
                 }
                 self.family_intake_seed(&words);
@@ -4431,7 +4428,7 @@ impl Faraday {
             }
             if sticks {
                 if let Some(scan) = self.camera.scan_mut() {
-                    scan.note = Some(stick_keys(medium));
+                    scan.note = Some(stick::keys_load(medium));
                 }
                 return;
             }

@@ -4,7 +4,53 @@ pub(crate) mod pills;
 pub mod settings;
 pub mod wipe;
 
-use crate::StickInfo;
+use crate::medium::Medium;
+use crate::strings::{EN, fill};
+use crate::vault::Focus;
+use crate::{Faraday, StickInfo};
+
+/// Said where what would load a key, or take a secret typed, waits for no
+/// stick attached: on the camera, and in a vault's fields.
+pub(crate) fn keys_load(m: Medium) -> String {
+    fill(EN.stick_keys_keys_load, &[m.noun()])
+}
+
+/// The one check of the stick rule for a vault (`docs/SECURITY-MODEL.md`):
+/// while a stick is attached a passphrase takes no typing and no key is
+/// loaded, and no field of a vault entry or note (`entry`) takes typing or
+/// is filled. A passphrase or a key also waits for a passed self-test
+/// ([`Faraday::may_load_keys`]); an entry's fields wait for the stick
+/// alone. Returns whether it refused; typing then goes nowhere and, with a
+/// stick attached, the screen says why.
+pub(crate) fn refuses(app: &mut Faraday, entry: bool) -> bool {
+    let attached = !app.stick.is_empty();
+    if !(attached || !entry && !app.may_load_keys()) {
+        return false;
+    }
+    app.vaults.set_focus(None);
+    if attached {
+        let line = if entry {
+            fill(EN.vaults_fields_with_stick, &[app.medium.noun()])
+        } else {
+            keys_load(app.medium)
+        };
+        app.toast(&line);
+    }
+    true
+}
+
+/// Whether typing at `focus` is a secret the stick rule refuses
+/// ([`refuses`]); an entry's field (editing an entry, too) is one.
+pub(crate) fn refuses_focus(app: &mut Faraday, focus: Focus) -> bool {
+    app.vaults.focus_is_secret(focus) && refuses(app, matches!(focus, Focus::Field(_)))
+}
+
+/// Typing goes to `focus`, unless the stick rule refuses it.
+pub(crate) fn focus(app: &mut Faraday, focus: Focus) {
+    if !refuses_focus(app, focus) {
+        app.vaults.set_focus(Some(focus));
+    }
+}
 
 /// The stick area: the sticks present, the pills pressed, the questions
 /// asked of a stick being wiped, the problems the shell found. Reads of

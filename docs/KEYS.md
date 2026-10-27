@@ -39,6 +39,10 @@ Moved to `docs/history/KEYS-LOG.md`.
 - **Operations** on key material are functions of `faraday-keys`. They
   return public results: signatures, xpubs, addresses, fingerprints,
   signed files and codes.
+- **No key joins while a stick is attached.** Every way of adding a key
+  refuses, before anything is derived, while faraday-core says a stick
+  is attached (`Keys::set_stick_attached`, set where the sticks the
+  shell reports change; `docs/SECURITY-MODEL.md`).
 - **Leaving.** Key material leaves only through `reveal(id, Reveal::…)`.
   It returns a guard that borrows the store and wipes its copy on drop.
   The list of reasons is closed, fourteen `Reveal` variants

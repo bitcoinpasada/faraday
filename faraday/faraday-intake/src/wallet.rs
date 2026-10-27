@@ -62,6 +62,9 @@ pub enum Refusal {
     NotAllowed(String),
     /// The session's network is fixed, at this one.
     NetworkFixed(Network),
+    /// A stick is attached, called this ("stick", "SD card"): keys load
+    /// only with none (`docs/SECURITY-MODEL.md`).
+    StickAttached(&'static str),
 }
 
 impl Refusal {
@@ -88,6 +91,7 @@ impl Refusal {
             ),
             Refusal::NotAllowed(fp) => fill(EN.wallet_is_not_a_key, &[&fp.to_string()]),
             Refusal::NetworkFixed(n) => fill(EN.wallet_runs_on_only, &[network_name(*n)]),
+            Refusal::StickAttached(noun) => fill(EN.stick_keys_keys_load, &[noun]),
         }
     }
 }

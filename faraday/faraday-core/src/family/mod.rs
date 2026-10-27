@@ -1087,7 +1087,7 @@ impl Faraday {
         };
         if !self.may_load_keys() {
             if let Some(scan) = self.camera.scan_mut() {
-                scan.note = Some(crate::stick_keys(self.medium));
+                scan.note = Some(crate::stick::keys_load(self.medium));
             }
             return true;
         }

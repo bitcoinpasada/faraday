@@ -1149,6 +1149,14 @@ pub struct Form {
     pub fields: Vec<(u8, &'static str, TextBox, bool)>,
 }
 
+impl Form {
+    /// Whether what is typed into it is secret: an entry's or a note's
+    /// form. A name, a label or a description is not.
+    pub fn holds_secrets(&self) -> bool {
+        matches!(self.kind, kind::ENTRY | kind::NOTE)
+    }
+}
+
 /// Work that waits for a frame saying it is under way.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Work {
@@ -1411,6 +1419,17 @@ impl Vaults {
             CUSTOM => (CUSTOM, c.memory, c.passes),
             k => (k, PRESETS[k].1, PRESETS[k].2),
         })
+    }
+
+    /// Whether typing at `focus` is a secret: a passphrase, a
+    /// passphrase's dice, the prompt's passphrase, or an entry's or a
+    /// note's field. A vault's name, a label and a search are not.
+    pub(crate) fn focus_is_secret(&self, focus: Focus) -> bool {
+        match focus {
+            Focus::Passphrase | Focus::Phrase(..) | Focus::Dice | Focus::Prompt => true,
+            Focus::Field(_) => self.form.as_ref().is_some_and(Form::holds_secrets),
+            Focus::Rolls | Focus::Search(_) | Focus::Name => false,
+        }
     }
 
     /// The most unlock memory this computer gives a vault, MiB: the
