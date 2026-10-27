@@ -313,12 +313,12 @@ fn decode_indices(indices: &str) -> Result<(usize, usize), Fault> {
 
 /// A single-part `ur:crypto-psbt`.
 pub fn encode_psbt(psbt: &[u8]) -> String {
-    encode_single(PSBT_TYPE, &cbor_bytes(psbt))
+    encode_single(PSBT_TYPE, &zeroize::Zeroizing::new(cbor_bytes(psbt)))
 }
 
 /// A single-part `ur:bytes`.
 pub fn encode_bytes(bytes: &[u8]) -> String {
-    encode_single(BYTES_TYPE, &cbor_bytes(bytes))
+    encode_single(BYTES_TYPE, &zeroize::Zeroizing::new(cbor_bytes(bytes)))
 }
 
 /// Decodes a single-part UR.
@@ -380,7 +380,8 @@ impl Encoder {
         if payload.is_empty() {
             return Err(Error::Empty);
         }
-        let inner = fountain::Encoder::new(&cbor_bytes(payload), fragment_len.max(1))?;
+        let framed = zeroize::Zeroizing::new(cbor_bytes(payload));
+        let inner = fountain::Encoder::new(&framed, fragment_len.max(1))?;
         Ok(Encoder { inner, ur_type })
     }
 
@@ -396,13 +397,12 @@ impl Encoder {
 
     /// The next part, `ur:<type>/<seq>-<count>/…`.
     pub fn next_part(&mut self) -> String {
-        let part = self.inner.next_part();
-        alloc::format!(
-            "ur:{}/{}/{}",
-            self.ur_type,
-            part.sequence_id(),
-            bytewords::encode(&part.cbor())
-        )
+        let mut part = self.inner.next_part();
+        let cbor = zeroize::Zeroizing::new(part.cbor());
+        let words = zeroize::Zeroizing::new(bytewords::encode(&cbor));
+        let text = alloc::format!("ur:{}/{}/{}", self.ur_type, part.sequence_id(), *words);
+        zeroize::Zeroize::zeroize(&mut part.data);
+        text
     }
 }
 

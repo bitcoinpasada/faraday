@@ -11,6 +11,7 @@
 
 use faraday_codec::qr::{Ecc, Payload, QrMatrix, encode, encode_bounded};
 use faraday_crypto::work::Compute;
+use zeroize::{Zeroize, Zeroizing};
 
 /// What a QR view shows.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -110,6 +111,13 @@ fn code_error<E: core::fmt::Debug>(e: E) -> Error {
     Error::Code(format!("{e:?}"))
 }
 
+/// The text of parts that may spell a secret, wiped.
+fn wipe(mut parts: Vec<String>) {
+    for p in &mut parts {
+        p.zeroize();
+    }
+}
+
 /// What a sender makes: what it is, and the codes, cycled when there is
 /// more than one.
 pub type Frames = (Made, Vec<QrMatrix>);
@@ -120,7 +128,7 @@ pub type Frames = (Made, Vec<QrMatrix>);
 pub fn frames(c: &Compute, source: &Source, format: Format, part: usize) -> Result<Frames, Error> {
     Ok(match (source, format) {
         (Source::Psbt(bytes), Format::Ur) => {
-            let single = faraday_codec::ur::encode_psbt(bytes).to_ascii_uppercase();
+            let single = Zeroizing::new(faraday_codec::ur::encode_psbt(bytes).to_ascii_uppercase());
             if let Ok(m) = encode_bounded(c, Payload::Alphanumeric(single.as_bytes()), Ecc::Low, 20)
             {
                 (Made::UrPsbtOne, vec![m])
@@ -143,13 +151,9 @@ pub fn frames(c: &Compute, source: &Source, format: Format, part: usize) -> Resu
             bbqr_frames(c, 'U', text.as_bytes(), part)?
         }
         (Source::Key(_, Some(ur)), Format::Ur) => {
-            let m = encode_bounded(
-                c,
-                Payload::Alphanumeric(ur.to_ascii_uppercase().as_bytes()),
-                Ecc::Low,
-                20,
-            )
-            .map_err(code_error)?;
+            let upper = Zeroizing::new(ur.to_ascii_uppercase());
+            let m = encode_bounded(c, Payload::Alphanumeric(upper.as_bytes()), Ecc::Low, 20)
+                .map_err(code_error)?;
             (Made::UrAccount, vec![m])
         }
         (Source::Key(text, None), Format::Ur) => {
@@ -158,7 +162,7 @@ pub fn frames(c: &Compute, source: &Source, format: Format, part: usize) -> Resu
             (Made::KeyOne, vec![m])
         }
         (Source::File(name, data), f) => {
-            let env = envelope(name, data)?;
+            let env = Zeroizing::new(envelope(name, data)?);
             match f {
                 Format::Ur => ur_bytes_frames(c, &env, true, part)?,
                 Format::Bbqr | Format::Parts => bbqr_frames(c, 'J', &env, part)?,
@@ -191,11 +195,13 @@ pub fn parts_frames(c: &Compute, text: &str, part: usize) -> Result<Frames, Erro
     } else {
         crate::specter::encode(text, part)
     };
-    numbered(c, parts)
+    let made = numbered(c, &parts);
+    wipe(parts);
+    made
 }
 
 /// Costs a QR encoding (through `encode`).
-fn numbered(c: &Compute, parts: Vec<String>) -> Result<Frames, Error> {
+fn numbered(c: &Compute, parts: &[String]) -> Result<Frames, Error> {
     let frames = parts
         .iter()
         .map(|p| encode(c, Payload::Bytes(p.as_bytes()), Ecc::Low).map_err(code_error))
@@ -215,7 +221,9 @@ pub fn bbqr_frames(c: &Compute, t: char, data: &[u8], part: usize) -> Result<Fra
     let frames = parts
         .iter()
         .map(|p| encode(c, Payload::Alphanumeric(p.as_bytes()), Ecc::Low).map_err(code_error))
-        .collect::<Result<Vec<_>, _>>()?;
+        .collect::<Result<Vec<_>, _>>();
+    wipe(parts);
+    let frames = frames?;
     let made = if frames.len() == 1 {
         Made::BbqrOne(t)
     } else {
@@ -228,7 +236,7 @@ pub fn bbqr_frames(c: &Compute, t: char, data: &[u8], part: usize) -> Result<Fra
 /// `ur_bytes_animated`). Bytes as `ur:bytes`: one code when it fits,
 /// else animated.
 pub fn ur_bytes_frames(c: &Compute, data: &[u8], file: bool, part: usize) -> Result<Frames, Error> {
-    let single = faraday_codec::ur::encode_bytes(data).to_ascii_uppercase();
+    let single = Zeroizing::new(faraday_codec::ur::encode_bytes(data).to_ascii_uppercase());
     if let Ok(m) = encode_bounded(c, Payload::Alphanumeric(single.as_bytes()), Ecc::Low, 20) {
         return Ok((Made::UrBytesOne { file }, vec![m]));
     }
@@ -285,7 +293,7 @@ pub fn animated(
     let count = (len.div_ceil(frag) * 2).max(4);
     (0..count)
         .map(|_| {
-            let part = enc.next_part().to_ascii_uppercase();
+            let part = Zeroizing::new(enc.next_part().to_ascii_uppercase());
             encode(c, Payload::Alphanumeric(part.as_bytes()), Ecc::Low).map_err(code_error)
         })
         .collect()

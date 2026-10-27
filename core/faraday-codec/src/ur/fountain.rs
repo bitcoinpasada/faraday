@@ -40,7 +40,7 @@ impl Part {
         push_uint(&mut out, self.sequence_count as u32);
         push_uint(&mut out, self.message_length as u32);
         push_uint(&mut out, self.checksum);
-        out.extend_from_slice(&super::cbor_bytes(&self.data));
+        out.extend_from_slice(&zeroize::Zeroizing::new(super::cbor_bytes(&self.data)));
         out
     }
 
@@ -201,6 +201,17 @@ impl Encoder {
         }
     }
 }
+
+/// The fragments hold the message: wiped when the encoder is dropped.
+impl Drop for Encoder {
+    fn drop(&mut self) {
+        for f in &mut self.fragments {
+            zeroize::Zeroize::zeroize(f);
+        }
+    }
+}
+
+impl zeroize::ZeroizeOnDrop for Encoder {}
 
 /// Accumulates parts until every fragment is resolved. What it has read
 /// is wiped when it is dropped: a code read by the camera may be a seed.
@@ -475,6 +486,14 @@ mod tests {
 
     fn hex(bytes: &[u8]) -> alloc::string::String {
         bytes.iter().map(|b| alloc::format!("{b:02x}")).collect()
+    }
+
+    #[test]
+    fn an_encoder_and_a_qr_matrix_are_wiped_on_drop() {
+        // What holds a message on its way to a code is wiped with it.
+        fn wiped_on_drop<T: zeroize::ZeroizeOnDrop>() {}
+        wiped_on_drop::<Encoder>();
+        wiped_on_drop::<crate::qr::QrMatrix>();
     }
 
     #[test]

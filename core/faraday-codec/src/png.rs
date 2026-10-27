@@ -50,7 +50,10 @@ pub fn qr_png(matrix: &QrMatrix, scale: usize) -> Vec<u8> {
         }
     }
 
-    file(side, side, 1, &raw)
+    // The picture may be of a secret: the rows made here are wiped.
+    let out = file(side, side, 1, &raw);
+    zeroize::Zeroize::zeroize(&mut raw);
+    out
 }
 
 /// A greyscale picture `width` × `height` pixels as a PNG file:

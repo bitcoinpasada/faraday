@@ -264,9 +264,9 @@ pub struct QrView {
     pub whole: Option<String>,
 }
 
-/// A code on screen may be a seed: what it was made from is wiped when
-/// the sheet closes. The codes themselves are `faraday-codec`'s, which has no
-/// way to wipe them.
+/// A code on screen may be a seed: what it was made from, the codes
+/// (each `QrMatrix` wipes its modules) and the text shown under them are
+/// wiped when the sheet closes.
 impl Drop for QrView {
     fn drop(&mut self) {
         use zeroize::Zeroize;
@@ -284,6 +284,13 @@ impl Drop for QrView {
         }
         self.title.zeroize();
         self.subtitle.zeroize();
+        for m in &mut self.frames {
+            m.zeroize();
+        }
+        self.frames.clear();
+        if let Some(w) = &mut self.whole {
+            w.zeroize();
+        }
     }
 }
 
