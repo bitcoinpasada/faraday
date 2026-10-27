@@ -726,11 +726,17 @@ destinations; Faraday Demo and the device keep their own navigation
      stick whose version was not read asks for administrator permission
      once to read it (§4.1, D22), and Continue waits for the answer;
      *New Faraday stick* needs no version and asks nothing.
+   - **Boot file**, for a stick for a PC or an Intel Mac (§4.5, F133):
+     *The release's (unsigned)*, ticked at first, or *One I signed*,
+     which lists the `.efi` files in Downloads to take one from and
+     waits for one to be taken before Continue goes on.
 3. **Confirm** (Record; when the disk is no longer the one confirmed it
    says so, the action button is disabled and **Choose again** returns
    to the disk list) the stick (maker, model, size, device, serial),
    what is on it (its Faraday version, when it is a Faraday stick),
-   what is written (the build ID and the `.img` SHA-256), the warning
+   what is written (the build ID and the `.img` SHA-256), the boot
+   file (the release's, or one signed with its certificate's name and
+   SHA-256, §4.5), the warning
    from step 2 if there is one, and the action button: *Erase and
    write* or *Write*. Then the system's own prompt where there is one
    (§2).
@@ -1119,6 +1125,72 @@ and the computer writes them again the next time it mounts the stick.
 The rule is `faraday_files::foreign`; the device's disk process, the
 desktop app's stick folders and its Downloads listing all list through
 it.
+
+### 4.5 A boot file one signed (F133)
+
+Faraday can sign its own `BOOTX64.EFI` with the person's Secure Boot db
+key (Files → Sign in Secure Boot, the key in a vault), so that a computer with
+that key enrolled starts the stick with Secure Boot on (§7.7). Keep
+data and a new stick write the release's boot file unless the person
+brings one they signed for this release; the device writes no boot
+partition (F128).
+
+- **Where it comes from.** What to write's *One I signed* lists the
+  `.efi` files in the Downloads folder Transfer uses (`--downloads`),
+  the newest first, by name; a file dropped on the window is taken as
+  one tapped. The signed file reaches Downloads as any file does, from
+  the Faraday stick's FARADAYDATA or another stick. No system file
+  dialog is opened.
+- **What is checked**, when it is tapped and again by the writer
+  (`faraday/shells/starter/src/signed.rs`): its Authenticode image hash
+  (`faraday_sb::pe::image_hash`, which leaves the signature, its
+  directory entry and the checksum out) equals the image hash of the
+  release's own `EFI/BOOT/BOOTX64.EFI`, read from the boot partition of
+  the payload file decompressed and checked against its manifest
+  (`faraday_fat::Volume::read_in`) and padded to eight bytes as a signer
+  pads it; and its certificate table is one signature alone at its end:
+  where the release's program ends, ending the file, its one entry's
+  length rounded to eight the whole table.
+- **Only the signature is taken from it.** The file written is built
+  from the release's own bytes, padded, with the chosen file's checksum,
+  certificate-table entry and certificate table
+  (`faraday_sb::pe::transplant`), so every byte the signature does not
+  cover is the release's by construction. The signature must hold over
+  what is built, by a certificate it carries (`faraday_sb::pe::signer`).
+- **Refused by name** otherwise: "This is not this release's boot file"
+  (a file that is no EFI program, another program, the release's program
+  with one byte changed, another release's, a table not where the
+  program ends), "This boot file holds more than the release's program
+  and one signature" (bytes after the table, two signatures), "This boot
+  file is not signed" (no table), "This boot file has no signature that
+  holds". Which key signed it is not judged here: the computer's db
+  decides that when it starts the stick. A file larger than a boot
+  partition is refused before it is read whole.
+- **What is shown**, on What to write and on Confirm: the certificate's
+  name, as the file's maker chose it, without control or direction
+  characters and at most 64 characters, and the certificate's SHA-256,
+  "compare it with your db key's": the SHA-256 is what tells whose key
+  signed it.
+- **The writer.** The order names the file by its full path and the
+  SHA-256 it had when taken. The writer (on Windows the elevated copy,
+  `--boot-file PATH --boot-file-sha256 HEX`, 64 lower-case hex digits
+  and a full path on a drive, `X:\` then names, or the whole list is
+  refused: never `\\server\share`, `\\?\` or `\\.\`, a `:` stream, `/`,
+  `.` or `..`, or a name Windows takes for a device; the window refuses
+  such a file when it is tapped) reads the file again, opening the file
+  itself and never what a reparse point leads to, refusing anything but
+  a plain file, and saying which file could not be read but none of the
+  system's words, refuses it when its SHA-256 differs ("changed after it was
+  chosen"), and checks it against the release again, all before the
+  disk is unmounted or opened. It then writes the release's image, whole
+  or its boot partition alone as §4.1 says, with that one file written
+  over where it is (`faraday_fat::Volume::rewrite_in`): its clusters, the
+  clusters it grows by, its entry in `EFI/BOOT` and the FATs differ from
+  the release's boot partition, nothing else. The release's SHA-256 is
+  still checked on the image as it streams, and what is written is read
+  back and compared as for any write.
+- A Pi card and a stick for a Mac with M1 or M2 have no boot file
+  choice.
 
 ## 5. Install, run without installing, uninstall
 
@@ -1696,6 +1768,10 @@ Microsoft keys be removed (on some laptops that stops the graphics
 firmware loading). Surface has no custom keys. Not in the first
 release (§12, D9).
 
+Once the person's db key signs Faraday's boot file, a new release
+keeps that: Keep data writes the boot file they signed for it (§4.5,
+F133), checked to be the release's own program.
+
 Enrolling a key does not escape BitLocker: the db's contents are part
 of the TPM's PCR 7 measurement, so adding a key changes it exactly as
 turning Secure Boot off does, and Windows asks for the recovery key at
@@ -1956,3 +2032,7 @@ what moved.
   earlier" (§4.1). A copy of the version on FARADAYDATA or in the GPT was
   rejected: what Windows reads without elevation is not updated by keep
   data.
+- **D23 A signed boot file** (owner, 2026-10-26, option 1; F133): keep
+  data and a new stick can write a boot file the person signed with
+  their own db key, taken from Downloads and checked to be the
+  release's own program, signed (§4.5).

@@ -55,6 +55,7 @@ use faraday_starter::api::{Reason, Source, StarterCommand, StarterEvent, WriteOr
 use faraday_starter::{Starter, StarterAction};
 use faraday_starter_shell::payload::{Image, Payload};
 use faraday_starter_shell::platform::{self, Platform};
+use faraday_starter_shell::signed;
 use faraday_starter_shell::writer::Job;
 use faraday_storage::{Boxes, Dirs, Host, serve_with};
 use faraday_window::camera::{self, Camera};
@@ -286,10 +287,16 @@ impl Shell {
         }
     }
 
-    /// A file dropped on the window while Faraday Demo is open, for its
-    /// Transfer to send.
+    /// A file dropped on the window: while Faraday Demo is open, for its
+    /// Transfer to send; otherwise for What to write's boot file (§4.5).
     fn dropped(&mut self, event_loop: &ActiveEventLoop, path: &std::path::Path) {
         let (Some(demo), Some(host)) = (self.demo.as_mut(), self.starter.demo()) else {
+            if let Ok(full) = std::path::absolute(path) {
+                self.starter.file_dropped(full.display().to_string());
+                let mut events = Vec::new();
+                self.answer(event_loop, &mut events);
+                self.redraw();
+            }
             return;
         };
         demo.dropped(&mut host.app, path);
@@ -440,6 +447,23 @@ impl Shell {
                     let _ = tx.send(StarterEvent::RecoveryKey(system.recovery_key()));
                 });
             }
+            StarterCommand::ListBootFiles => {
+                let (tx, folder) = (self.tx.clone(), self.host.downloads.clone());
+                std::thread::spawn(move || {
+                    let files = signed::list(&folder);
+                    let folder = folder.display().to_string();
+                    let _ = tx.send(StarterEvent::BootFiles { folder, files });
+                });
+            }
+            StarterCommand::CheckBootFile { path, source } => {
+                let (tx, job) = (self.tx.clone(), self.job(&source));
+                std::thread::spawn(move || {
+                    let result = job
+                        .ok_or(Reason::NotCarried)
+                        .and_then(|job| signed::choose(std::path::Path::new(&path), &job));
+                    let _ = tx.send(StarterEvent::BootFileChecked { path, result });
+                });
+            }
         }
     }
 
@@ -453,10 +477,10 @@ impl Shell {
         )
     }
 
-    /// Starts a confirmed write, from the payload or the developer's
-    /// image the Starter named.
-    fn write(&mut self, order: WriteOrder) {
-        let job = match &order.source {
+    /// What the writer takes for `source`: the payload file or the
+    /// developer's image the Starter named, when it is carried. A lookup.
+    fn job(&self, source: &Source) -> Option<Job> {
+        match source {
             Source::Payload { name, inner_sha256 } => self
                 .payload
                 .as_ref()
@@ -468,8 +492,13 @@ impl Shell {
                     i.path.display().to_string() == *path && i.sum.sha256.to_string() == *sha256
                 })
                 .map(|i| Job::Image(i.clone())),
-        };
-        let Some(job) = job else {
+        }
+    }
+
+    /// Starts a confirmed write, from the payload or the developer's
+    /// image the Starter named.
+    fn write(&mut self, order: WriteOrder) {
+        let Some(job) = self.job(&order.source) else {
             let _ = self.tx.send(StarterEvent::Written(Err(Reason::NotCarried)));
             return;
         };
@@ -618,7 +647,7 @@ impl ApplicationHandler for Shell {
                 self.redraw();
             }
             WindowEvent::CloseRequested => event_loop.exit(),
-            WindowEvent::DroppedFile(path) if self.starter.showing_demo() => {
+            WindowEvent::DroppedFile(path) => {
                 self.dropped(event_loop, &path);
             }
             WindowEvent::HoveredFile(_) if self.starter.showing_demo() => self.hovered(true),

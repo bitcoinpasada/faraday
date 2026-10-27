@@ -4,9 +4,12 @@
 //!
 //! What it does is the subset Faraday needs and nothing more: the files
 //! in a partition's root directory are listed, read, created, renamed and
-//! deleted. Subdirectories are listed and never entered. Nothing formats
-//! a partition, and nothing edits a file in place: a write is a new file,
-//! read back, then renamed over the old one by the caller.
+//! deleted. Subdirectories are listed and never entered, but by
+//! [`Volume::read_in`] and [`Volume::rewrite_in`], which the Starter alone
+//! calls, on a release's own boot partition, for its `EFI/BOOT/BOOTX64.EFI`
+//! (`docs/STARTER.md` §4.5). Nothing formats a partition, and nothing
+//! else edits a file in place: a write is a new file, read back, then
+//! renamed over the old one by the caller.
 //!
 //! Every number on the disk is untrusted. The boot sector is checked
 //! before anything else is read, every cluster number is checked against
@@ -564,16 +567,19 @@ impl<D: Disk> Volume<D> {
                 self.disk.read_at(self.root_start, &mut b)?;
                 Ok(b)
             }
-            Kind::Fat32 => {
-                let mut b = vec![0u8; chain.len() * self.cluster_bytes as usize];
-                for (k, &c) in chain.iter().enumerate() {
-                    let at = self.cluster_at(c);
-                    let n = self.cluster_bytes as usize;
-                    self.disk.read_at(at, &mut b[k * n..(k + 1) * n])?;
-                }
-                Ok(b)
-            }
+            Kind::Fat32 => self.chain_bytes(chain),
         }
+    }
+
+    /// The bytes of a chain's clusters, in order.
+    fn chain_bytes(&mut self, chain: &[u32]) -> Result<Vec<u8>, Error> {
+        let n = self.cluster_bytes as usize;
+        let mut b = vec![0u8; chain.len() * n];
+        for (k, &c) in chain.iter().enumerate() {
+            let at = self.cluster_at(c);
+            self.disk.read_at(at, &mut b[k * n..(k + 1) * n])?;
+        }
+        Ok(b)
     }
 
     /// The root directory's files and directories.
@@ -1056,6 +1062,126 @@ impl<D: Disk> Volume<D> {
         let e = self.find(name)?.filter(|e| !e.dir).ok_or(Error::NotFound)?;
         self.erase_entries(&e)?;
         self.free_chain(e.cluster)
+    }
+
+    /// The file at `path`, its folders first (`["EFI", "BOOT",
+    /// "BOOTX64.EFI"]`), and where its short entry is on the disk. The
+    /// folders named are entered for this alone, each bounded as the
+    /// root is ([`MAX_ROOT_BYTES`]); no other is.
+    fn find_in(&mut self, path: &[&str]) -> Result<(Entry, u64), Error> {
+        let (file, folders) = path.split_last().ok_or(Error::NotFound)?;
+        let mut chain = self.root_chain()?;
+        let mut root = true;
+        for name in folders {
+            let bytes = if root {
+                self.root_bytes(&chain)?
+            } else {
+                self.chain_bytes(&chain)?
+            };
+            let e = parse_dir(&bytes)
+                .into_iter()
+                .find(|e| e.dir && same_name(&e.name, name))
+                .ok_or(Error::NotFound)?;
+            chain = self.chain_within(
+                e.cluster,
+                self.max_root_clusters(),
+                "a folder longer than FAT allows",
+            )?;
+            root = false;
+        }
+        let bytes = if root {
+            self.root_bytes(&chain)?
+        } else {
+            self.chain_bytes(&chain)?
+        };
+        let e = parse_dir(&bytes)
+            .into_iter()
+            .find(|e| !e.dir && same_name(&e.name, file))
+            .ok_or(Error::NotFound)?;
+        let i = e.slots.1;
+        let at = if root {
+            self.slot_at(&chain, i)
+        } else {
+            let per = self.cluster_bytes as usize / 32;
+            self.cluster_at(chain[i / per]) + (i % per) as u64 * 32
+        };
+        Ok((e, at))
+    }
+
+    /// Costs a read of the folders on `path` and of the file: the
+    /// contents of the file at `path`, its folders first, refused when
+    /// larger than `max` bytes. For the Starter's look at a release's own
+    /// boot partition (`EFI/BOOT/BOOTX64.EFI`), the one place a folder is
+    /// entered.
+    pub fn read_in(&mut self, path: &[&str], max: u32) -> Result<Vec<u8>, Error> {
+        let (e, _) = self.find_in(path)?;
+        if e.size > max {
+            return Err(Error::TooLarge);
+        }
+        if e.size == 0 {
+            return Ok(Vec::new());
+        }
+        let size = e.size as usize;
+        let cb = self.cluster_bytes as usize;
+        let chain = self.chain_start(e.cluster, size.div_ceil(cb))?;
+        let mut out = vec![0u8; size];
+        for (k, part) in out.chunks_mut(cb).enumerate() {
+            let at = self.cluster_at(chain[k]);
+            self.disk.read_at(at, part)?;
+        }
+        Ok(out)
+    }
+
+    /// Costs a read of the folders on `path` and a write of `data`: the
+    /// file at `path` (as [`Volume::read_in`] finds it) written over where
+    /// it is, the one edit in place this crate makes. Its clusters are
+    /// kept and written over in order, as many more taken (lowest first)
+    /// as `data` needs or those it no longer needs freed, the chain's end
+    /// and its entry's size set; its name, its place in its folder and
+    /// every other file stay as they were. For the Starter's signed boot
+    /// file (`docs/STARTER.md` §4.5), on a release's boot partition held
+    /// in memory: a crash midway leaves a file of neither content.
+    pub fn rewrite_in(&mut self, path: &[&str], data: &[u8]) -> Result<(), Error> {
+        let size = u32::try_from(data.len()).map_err(|_| Error::TooLarge)?;
+        let (e, at) = self.find_in(path)?;
+        let cb = self.cluster_bytes as usize;
+        let need = data.len().div_ceil(cb);
+        let mut chain = if e.cluster == 0 {
+            Vec::new()
+        } else {
+            self.chain(e.cluster)?
+        };
+        let had = chain.len();
+        if need > had {
+            chain.extend(self.free_clusters(need - had)?);
+        }
+        let mut block = vec![0u8; cb];
+        for (k, &c) in chain[..need].iter().enumerate() {
+            let part = &data[k * cb..data.len().min((k + 1) * cb)];
+            block.fill(0);
+            block[..part.len()].copy_from_slice(part);
+            let at = self.cluster_at(c);
+            self.disk.write_at(at, &block)?;
+        }
+        // The chain: from the last cluster kept, each to the next, the
+        // last to its end; then those past it freed.
+        for k in had.min(need).saturating_sub(1)..need {
+            let next = chain.get(k + 1).filter(|_| k + 1 < need).copied();
+            self.fat_set(chain[k], next.unwrap_or(self.eoc()))?;
+        }
+        for &c in chain.iter().take(had).skip(need) {
+            self.fat_set(c, 0)?;
+        }
+        if need != had {
+            self.fsinfo_unknown()?;
+        }
+        let first = chain.first().copied().filter(|_| need > 0).unwrap_or(0);
+        let mut entry = [0u8; 32];
+        self.disk.read_at(at, &mut entry)?;
+        entry[20..22].copy_from_slice(&((first >> 16) as u16).to_le_bytes());
+        entry[26..28].copy_from_slice(&(first as u16).to_le_bytes());
+        entry[28..32].copy_from_slice(&size.to_le_bytes());
+        self.disk.write_at(at, &entry)
     }
 }
 

@@ -10,6 +10,7 @@ mod key_sheets;
 mod macos;
 mod platform;
 mod scheme;
+mod signed_boot;
 mod template;
 mod windows;
 mod writer;

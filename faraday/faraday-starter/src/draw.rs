@@ -30,6 +30,7 @@ type Ui<'a> = faraday_ui::Ui<'a, Action>;
 const S: &Strings = &EN;
 
 mod appearance;
+mod boot_file;
 mod home;
 mod nav;
 
@@ -691,6 +692,14 @@ pub(crate) fn reason_text(r: &Reason) -> String {
         Reason::NotRead => S.starter_why_not_read.to_string(),
         Reason::NoRecoveryKey => S.starter_why_no_recovery_key.to_string(),
         Reason::KeyFolder => S.starter_why_key_folder.to_string(),
+        Reason::BootFileOther => S.starter_why_boot_file_other.to_string(),
+        Reason::BootFileUnsigned => S.starter_why_boot_file_unsigned.to_string(),
+        Reason::BootFileBroken => S.starter_why_boot_file_broken.to_string(),
+        Reason::BootFileLayout => S.starter_why_boot_file_layout.to_string(),
+        Reason::BootFileRead(p) => fill(S.starter_why_boot_file_read, &[p]),
+        Reason::BootFileChanged(p) => fill(S.starter_why_boot_file_changed, &[p]),
+        Reason::BootFileLarge(p) => fill(S.starter_why_boot_file_large, &[p]),
+        Reason::ReleaseBootFile(d) => fill(S.starter_why_release_boot_file, &[d]),
     }
 }
 
@@ -1033,8 +1042,9 @@ fn mode(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
         y += 12.0;
         y += line(ui, x, y, w, &reason_text(why), Role::Error);
     }
+    y += boot_file::section(starter, ui, x, y, w);
     y += 20.0;
-    let style = if chosen.is_some() && !starter.keep_unread() {
+    let style = if chosen.is_some() && !starter.keep_unread() && starter.boot_ready() {
         Style::Primary
     } else {
         Style::Disabled
@@ -1086,6 +1096,7 @@ fn confirm(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
         (Mode::Whole, Target::Pi) => S.starter_mode_whole_card,
     };
     y += fact_row(ui, x, y, w, S.starter_writes, writes);
+    y += boot_file::confirm_rows(starter, ui, x, y, w);
     let build = image
         .build
         .as_deref()

@@ -226,9 +226,15 @@ partition is smaller than 64 MiB (one made with a 48 MB one) has to be
 written whole, which empties its data partition: copy its files to
 another stick first. A Pi card is written whole.
 
-**With Secure Boot.** Keep data writes the release's own
-`BOOTX64.EFI`, which does not carry your db signature: sign the new
-file before the stick starts with Secure Boot on.
+**With Secure Boot.** The release's own `BOOTX64.EFI` does not carry
+your db signature. Sign the new release's `BOOTX64.EFI` on Faraday
+(Files → **Sign in Secure Boot**) and put the signed file in the computer's
+Downloads folder; then, on What to write, choose Boot file → **One I
+signed** and the file. The Starter takes it only when it is this
+release's own program with one signature that holds, shows the
+signing certificate's name and SHA-256 (compare the SHA-256 with your db
+key's), and writes the release's own bytes with that signature in place
+of the release's file (`docs/DECISIONS.md` F133).
 
 ## Choosing a computer
 

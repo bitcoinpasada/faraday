@@ -9,6 +9,8 @@
 //! - [`platform`]: the seam. Everything that differs between operating
 //!   systems is behind [`platform::Platform`]; [`linux`] is Linux's,
 //!   [`windows`] Windows', [`macos`] macOS's.
+//! - [`signed`]: a boot file the person signed, checked to be the
+//!   release's own program before the writer puts it in its place (F133).
 //! - [`stick`]: which Faraday a stick holds, read from its boot
 //!   partition alone.
 //! - [`scheme`]: Light or Dark at start, from this computer's own
@@ -28,6 +30,7 @@ pub mod payload;
 pub mod pdf;
 pub mod platform;
 pub mod scheme;
+pub mod signed;
 pub mod stick;
 pub mod windows;
 pub mod writer;

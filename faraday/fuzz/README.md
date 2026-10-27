@@ -96,6 +96,7 @@ shipped binary does.
 | `vault_entries` | `entries::parse` and `totp::parse`: a vault entries file and a TOTP setup code. |
 | `files_proto` | The disk process pipe: `Response::decode` and `Request::decode`, each decoded value encoded and decoded again to the same value, and the framing read as a stream. |
 | `pe_image` | `pe::image_hash`, `check` against a fixed key's certificate and against a certificate from the input, `sign`, `x509::Cert::read` and `der::children`. |
+| `pe_transplant` | `pe::transplant` against a fixed release PE (`faraday-sb`'s `tests/vectors/tiny.efi`) and `pe::signer`, on the input as a signed boot file: whenever it is taken, what is built has the release's image hash and is the release's bytes but for the checksum, the certificate-table entry and the table. |
 | `gpt` | The Starter's `gpt::read` and `faraday_boot` over the input as a disk image, with the header's and the entries' checksums made right first; the Starter shell's `gpt.rs` is included by path. And `faraday_boot::find_release`, with which the Starter reads a stick's version, over the input as a boot partition's bytes. |
 | `v4l2_luma` | The V4L2 shell's frame converters (`luma`, `chroma`, the two downscales) over a format, a size, a stride and a buffer taken from the input; `abi.rs` and `convert.rs` are included by path. |
 | `manifest` | `faraday_payload::Manifest::parse`. |

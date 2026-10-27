@@ -14,9 +14,9 @@ use std::process::ExitCode;
 
 use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
 use faraday_starter::api::{
-    BitLocker, BitLockerStep, Bus, Computer, Concern, DevImage, Disk, FaradayStick, InUse,
-    InstallItem, Installed, Kind, Mode, Os, Payload, PayloadFile, Protection, Reason, RecoveryKey,
-    StarterEvent, Volume, WriteStage,
+    BitLocker, BitLockerStep, BootFile, BootSigner, Bus, Computer, Concern, DevImage, Disk,
+    FaradayStick, InUse, InstallItem, Installed, Kind, Mode, Os, Payload, PayloadFile, Protection,
+    Reason, RecoveryKey, StarterEvent, Volume, WriteStage,
 };
 use faraday_starter::decide::Target;
 use faraday_starter::notes::Notes;
@@ -231,6 +231,48 @@ impl Snap<'_> {
         }
         self.shot(starter, name)
     }
+}
+
+/// What to write's Boot file, "One I signed" (§4.5): the files in
+/// Downloads, one refused, one taken, then Confirm.
+fn boot_file_shots(s: &Snap, h: &mut Starter) -> Result<(), String> {
+    const DOWNLOADS: &str = "/media/stick/Downloads";
+    h.press(StarterAction::BootChoice(true));
+    let files = vec![
+        format!("{DOWNLOADS}/BOOTX64-signed.EFI"),
+        format!("{DOWNLOADS}/BOOTX64.EFI"),
+    ];
+    h.starter_event(StarterEvent::BootFiles {
+        folder: DOWNLOADS.into(),
+        files: files.clone(),
+    });
+    s.shot_end(h, "stick-2-what-boot-file-list")?;
+    h.press(StarterAction::BootFile(1));
+    s.shot_end(h, "stick-2-what-boot-file-checking")?;
+    h.starter_event(StarterEvent::BootFileChecked {
+        path: files[1].clone(),
+        result: Err(Reason::BootFileUnsigned),
+    });
+    s.shot_end(h, "stick-2-what-boot-file-refused")?;
+    h.press(StarterAction::BootFile(0));
+    h.starter_event(StarterEvent::BootFileChecked {
+        path: files[0].clone(),
+        result: Ok((
+            BootFile {
+                path: files[0].clone(),
+                sha256: "3f0a9c2e".repeat(8),
+            },
+            BootSigner {
+                subject: "Faraday db".into(),
+                fingerprint: "5a1c0e7b2d9f4c3a".repeat(4),
+            },
+        )),
+    });
+    s.shot_end(h, "stick-2-what-boot-file-signed")?;
+    h.press(StarterAction::Continue);
+    s.shot_end(h, "stick-3-confirm-boot-file-signed")?;
+    h.press(StarterAction::Back);
+    Ok(())
 }
 
 fn to(starter: &mut Starter, id: &str, mode: Mode) {
@@ -536,6 +578,7 @@ fn run(s: &Snap) -> Result<(), String> {
     h.press(n);
     h.press(StarterAction::Mode(Mode::KeepData));
     s.shot(&mut h, "stick-2-what-faraday")?;
+    boot_file_shots(s, &mut h)?;
     let mut h = s.starter();
     h.starter_event(StarterEvent::Disks(vec![stick(
         "sde",

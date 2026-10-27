@@ -177,3 +177,10 @@ path = "fuzz_targets/plist.rs"
 test = false
 doc = false
 bench = false
+
+[[bin]]
+name = "pe_transplant"
+path = "fuzz_targets/pe_transplant.rs"
+test = false
+doc = false
+bench = false

@@ -23,6 +23,9 @@ faraday-core = { path = "../../faraday-core" }
 faraday-crypto = { path = "../../../core/faraday-crypto" }
 faraday-payload = { path = "../../faraday-payload" }
 faraday-fat = { path = "../../faraday-fat" }
+# A boot file the person signed (docs/STARTER.md §4.5, F133): its
+# Authenticode image hash and the certificate its signature carries.
+faraday-sb = { path = "../../faraday-sb" }
 faraday-storage = { path = "../../faraday-storage" }
 faraday-window = { path = "../window" }
 # Faraday Demo, run inside the Starter's window (F126, docs/STARTER.md

@@ -134,6 +134,14 @@ pub(crate) fn reason_fields(r: &Reason) -> (&'static str, Vec<String>) {
         Reason::NotRead => ("NotRead", vec![]),
         Reason::NoRecoveryKey => ("NoRecoveryKey", vec![]),
         Reason::KeyFolder => ("KeyFolder", vec![]),
+        Reason::BootFileOther => ("BootFileOther", vec![]),
+        Reason::BootFileUnsigned => ("BootFileUnsigned", vec![]),
+        Reason::BootFileBroken => ("BootFileBroken", vec![]),
+        Reason::BootFileLayout => ("BootFileLayout", vec![]),
+        Reason::BootFileRead(p) => ("BootFileRead", vec![s(p)]),
+        Reason::BootFileChanged(p) => ("BootFileChanged", vec![s(p)]),
+        Reason::BootFileLarge(p) => ("BootFileLarge", vec![s(p)]),
+        Reason::ReleaseBootFile(d) => ("ReleaseBootFile", vec![s(d)]),
     }
 }
 
@@ -215,31 +223,52 @@ fn code(n: u64) -> Result<u32, String> {
     u32::try_from(n).map_err(|_| String::from("not a code"))
 }
 
+/// The reasons that carry nothing, by their names.
+const BARE: [(&str, Reason); 26] = [
+    ("NoWriter", Reason::NoWriter),
+    ("NotCarried", Reason::NotCarried),
+    ("InUseSwap", Reason::InUse(InUse::Swap)),
+    ("InUseSystem", Reason::InUse(InUse::System)),
+    ("InUseHeld", Reason::InUse(InUse::Held)),
+    ("InUseUnchecked", Reason::InUse(InUse::Unchecked)),
+    ("BootOnly", Reason::BootOnly),
+    ("PayloadSum", Reason::PayloadSum),
+    ("Gone", Reason::Gone),
+    ("BootLabel", Reason::BootLabel),
+    ("BootShort", Reason::BootShort),
+    ("PayloadChanged", Reason::PayloadChanged),
+    ("NoHome", Reason::NoHome),
+    ("NoStick", Reason::NoStick),
+    ("SameBuild", Reason::SameBuild),
+    ("Declined", Reason::Declined),
+    ("Unsupported", Reason::Unsupported),
+    ("NoAdmin", Reason::NoAdmin),
+    ("NotEncrypted", Reason::NotEncrypted),
+    ("NotRead", Reason::NotRead),
+    ("NoRecoveryKey", Reason::NoRecoveryKey),
+    ("KeyFolder", Reason::KeyFolder),
+    ("BootFileOther", Reason::BootFileOther),
+    ("BootFileUnsigned", Reason::BootFileUnsigned),
+    ("BootFileBroken", Reason::BootFileBroken),
+    ("BootFileLayout", Reason::BootFileLayout),
+];
+
 pub(crate) fn reason(name: &str, f: &mut Fields<'_>) -> Result<Reason, String> {
     Ok(match name {
-        "NoWriter" => Reason::NoWriter,
-        "NotCarried" => Reason::NotCarried,
         "Changed" => Reason::Changed {
             device: f.s()?,
             serial: f.s()?,
             size: f.n()?,
         },
         "InUseMounted" => Reason::InUse(InUse::Mounted(f.s()?)),
-        "InUseSwap" => Reason::InUse(InUse::Swap),
-        "InUseSystem" => Reason::InUse(InUse::System),
-        "InUseHeld" => Reason::InUse(InUse::Held),
-        "InUseUnchecked" => Reason::InUse(InUse::Unchecked),
-        "BootOnly" => Reason::BootOnly,
         "TooSmall" => Reason::TooSmall {
             disk: f.n()?,
             image: f.n()?,
         },
-        "PayloadSum" => Reason::PayloadSum,
         "ImageChanged" => Reason::ImageChanged {
             path: f.s()?,
             sha256: f.s()?,
         },
-        "Gone" => Reason::Gone,
         "Bus" => Reason::Bus(f.s()?),
         "Unmounting" => Reason::Unmounting(f.s()?),
         "OpenWrite" => Reason::OpenWrite(f.s()?),
@@ -261,8 +290,6 @@ pub(crate) fn reason(name: &str, f: &mut Fields<'_>) -> Result<Reason, String> {
             image: f.n()?,
             stick: f.n()?,
         },
-        "BootLabel" => Reason::BootLabel,
-        "BootShort" => Reason::BootShort,
         "TableChanged" => Reason::TableChanged(f.s()?),
         "ReadingTable" => Reason::ReadingTable(f.s()?),
         "BackEnds" => Reason::BackEnds {
@@ -279,7 +306,6 @@ pub(crate) fn reason(name: &str, f: &mut Fields<'_>) -> Result<Reason, String> {
         },
         "SourceRead" => Reason::SourceRead(f.s()?),
         "WriteFailed" => Reason::WriteFailed(f.s()?),
-        "PayloadChanged" => Reason::PayloadChanged,
         "Damaged" => Reason::Damaged(f.s()?),
         "Longer" => Reason::Longer(f.n()?),
         "Shorter" => Reason::Shorter {
@@ -287,7 +313,6 @@ pub(crate) fn reason(name: &str, f: &mut Fields<'_>) -> Result<Reason, String> {
             actual: f.n()?,
         },
         "WrongSum" => Reason::WrongSum(f.s()?),
-        "NoHome" => Reason::NoHome,
         "File" => Reason::File {
             path: f.s()?,
             detail: f.s()?,
@@ -300,21 +325,20 @@ pub(crate) fn reason(name: &str, f: &mut Fields<'_>) -> Result<Reason, String> {
         "Restart" => Reason::Restart(f.s()?),
         "Missing" => Reason::Missing(f.s()?),
         "BootEntry" => Reason::BootEntry(f.s()?),
-        "NoStick" => Reason::NoStick,
-        "SameBuild" => Reason::SameBuild,
-        "Declined" => Reason::Declined,
-        "Unsupported" => Reason::Unsupported,
-        "NoAdmin" => Reason::NoAdmin,
         "Managed" => Reason::Managed(code(f.n()?)?),
         "BitLocker" => Reason::BitLocker {
             call: f.s()?,
             code: code(f.n()?)?,
         },
-        "NotEncrypted" => Reason::NotEncrypted,
-        "NotRead" => Reason::NotRead,
-        "NoRecoveryKey" => Reason::NoRecoveryKey,
-        "KeyFolder" => Reason::KeyFolder,
-        other => return Err(format!("{other}: not a reason")),
+        "BootFileChanged" => Reason::BootFileChanged(f.s()?),
+        "BootFileRead" => Reason::BootFileRead(f.s()?),
+        "BootFileLarge" => Reason::BootFileLarge(f.s()?),
+        "ReleaseBootFile" => Reason::ReleaseBootFile(f.s()?),
+        other => BARE
+            .iter()
+            .find(|(n, _)| *n == other)
+            .map(|(_, r)| r.clone())
+            .ok_or_else(|| format!("{other}: not a reason"))?,
     })
 }
 

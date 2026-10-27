@@ -8,7 +8,9 @@
 //! 1. The disk is still the one confirmed: the same device, serial and
 //!    size, and the computer does not use it.
 //! 2. What is written fits it; a payload file matches its manifest, and
-//!    a developer's image still has the SHA-256 Confirm showed.
+//!    a developer's image still has the SHA-256 Confirm showed. A boot
+//!    file the person signed is still the file chosen, and the release's
+//!    own program signed (`crate::signed`, §4.5).
 //! 3. What the desktop mounted from it is unmounted, and it is opened
 //!    to write, exclusively and synchronously; its identity is read
 //!    again after the open and must be what it was.
@@ -17,7 +19,8 @@
 //!    partition's range is written; a whole image's own boot partition
 //!    is taken from inside it as it streams.
 //! 5. The source is decompressed as it is written, and its SHA-256 must
-//!    be the manifest's (or Confirm's); then everything is flushed.
+//!    be the manifest's (or Confirm's); a signed boot file's partition
+//!    goes in place of the source's own; then everything is flushed.
 //! 6. Everything written is read back from the disk and compared with
 //!    the source, decompressed again.
 //! 7. *Keep data*: the partition table is what it was.
@@ -34,6 +37,7 @@ use faraday_starter::api::{InUse, Mode, Reason, StarterEvent, StickFault, WriteO
 
 use crate::gpt::{self, Boot};
 use crate::payload::Image;
+use crate::signed::{self, Patch};
 
 /// What is written and compared at a time.
 const CHUNK: usize = 4 << 20;
@@ -162,6 +166,29 @@ impl Source<'_> {
         matches!(self, Source::Image(i) if i.boot_only)
     }
 
+    /// Costs a decompression of the whole source and its SHA-256: the
+    /// boot partition it writes (its own FARADAYBOOT, or the whole of a
+    /// boot partition image) and where that starts in it, checked as a
+    /// write checks them: the manifest's sum (or Confirm's), a Faraday
+    /// stick's partition table, a FAT32 boot sector labelled FARADAYBOOT.
+    fn boot_partition(&self) -> Result<(u64, Vec<u8>), Reason> {
+        if self.boot_only() {
+            let mut out = Placed::new(Memory(Vec::new()), 0, true);
+            self.pump(&mut out, &mut |_, _| {})
+                .map_err(payload_reason)?;
+            return Ok((0, out.out.sink.0));
+        }
+        let everything = Boot {
+            offset: 0,
+            len: u64::MAX,
+        };
+        let mut out = Window::new(Memory(Vec::new()), everything, self.size());
+        self.pump(&mut out, &mut |_, _| {})
+            .map_err(payload_reason)?;
+        let at = out.range.map_or(0, |(from, _)| from);
+        Ok((at, out.out.sink.0))
+    }
+
     /// Streams the source into `out`, decompressed, and succeeds only if
     /// what went in has the expected size and SHA-256.
     fn pump(
@@ -212,6 +239,14 @@ impl Source<'_> {
         }
         Ok(())
     }
+}
+
+/// Costs a decompression of the whole source and its SHA-256: the boot
+/// partition `source` writes and where it starts in it, as a write would
+/// write it ([`Source`]'s own check), for a signed boot file's check
+/// (`crate::signed`).
+pub fn boot_partition(source: &Source<'_>) -> Result<(u64, Vec<u8>), Reason> {
+    source.boot_partition()
 }
 
 fn sum<R: Read>(src: R, kind: ImageKind) -> Result<(Sha256Sum, u64), Reason> {
@@ -311,6 +346,10 @@ pub fn write(
         }
     }
     source.check()?;
+    let patch = match &order.boot_file {
+        Some(f) => Some(signed::prepare(f, &source)?),
+        None => None,
+    };
     let block = device.block();
     if !block.is_power_of_two() || !(512..=ALIGN as u64).contains(&block) {
         return Err(Reason::Device {
@@ -353,13 +392,14 @@ pub fn write(
     };
     // 5. Written and flushed.
     {
-        let mut out = plan.writer(Writing {
+        let out = plan.writer(Writing {
             disk: &mut disk,
             buf: None,
             block: block as usize,
         });
+        let mut out = Patched::new(out, patch.as_ref());
         source
-            .pump(&mut *out, &mut |d, t| progress(WriteStage::Writing, d, t))
+            .pump(&mut out, &mut |d, t| progress(WriteStage::Writing, d, t))
             .map_err(payload_reason)?;
     }
     disk.sync_all().map_err(|e| Reason::Flush {
@@ -372,9 +412,9 @@ pub fn write(
     // 6. Read back and compared.
     let mut back = device.open_read()?;
     {
-        let mut out = plan.writer(Comparing(&mut back));
+        let mut out = Patched::new(plan.writer(Comparing(&mut back)), patch.as_ref());
         source
-            .pump(&mut *out, &mut |d, t| {
+            .pump(&mut out, &mut |d, t| {
                 progress(WriteStage::ReadingBack, d, t)
             })
             .map_err(|e| read_back_reason(e, &order.device))?;
@@ -619,6 +659,63 @@ struct Writing<'a> {
 
 /// Compares with the disk, a few megabytes at a time.
 struct Comparing<'a>(&'a mut File);
+
+/// Gathers a boot partition in memory (`Source::boot_partition`).
+struct Memory(Vec<u8>);
+
+impl Flush for Memory {
+    fn flush_at(&mut self, at: u64, data: &[u8]) -> io::Result<()> {
+        let from = usize::try_from(at).map_err(io::Error::other)?;
+        let to = from + data.len();
+        if self.0.len() < to {
+            self.0.resize(to, 0);
+        }
+        self.0[from..to].copy_from_slice(data);
+        Ok(())
+    }
+}
+
+/// The source's stream on its way to the disk, with a signed boot
+/// file's partition (`crate::signed`) in place of the source's own:
+/// written so, and compared so when it is read back. The source's own
+/// SHA-256 is still the one checked, before this.
+struct Patched<'a, 'p> {
+    out: Box<dyn Write + 'a>,
+    pos: u64,
+    patch: Option<&'p Patch>,
+}
+
+impl<'a, 'p> Patched<'a, 'p> {
+    fn new(out: Box<dyn Write + 'a>, patch: Option<&'p Patch>) -> Self {
+        Patched { out, pos: 0, patch }
+    }
+}
+
+impl Write for Patched<'_, '_> {
+    fn write(&mut self, data: &[u8]) -> io::Result<usize> {
+        let at = self.pos;
+        let end = at + data.len() as u64;
+        self.pos = end;
+        let Some(p) = self.patch else {
+            self.out.write_all(data)?;
+            return Ok(data.len());
+        };
+        let (from, to) = (at.max(p.at), end.min(p.at + p.bytes.len() as u64));
+        if from >= to {
+            self.out.write_all(data)?;
+            return Ok(data.len());
+        }
+        let mut chunk = data.to_vec();
+        chunk[(from - at) as usize..(to - at) as usize]
+            .copy_from_slice(&p.bytes[(from - p.at) as usize..(to - p.at) as usize]);
+        self.out.write_all(&chunk)?;
+        Ok(data.len())
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        self.out.flush()
+    }
+}
 
 /// Bytes gathered for one contiguous stretch of the disk.
 struct Gathered {

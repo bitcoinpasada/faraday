@@ -587,6 +587,28 @@ pub enum Reason {
     NoRecoveryKey,
     /// No folder of this user's alone could be made for a key sheet.
     KeyFolder,
+    /// A boot file chosen as one the person signed is not this
+    /// release's program: its image hash is not the release's
+    /// `BOOTX64.EFI`'s, or it is no EFI program (§4.5, F133).
+    BootFileOther,
+    /// A boot file chosen as one the person signed carries no signature.
+    BootFileUnsigned,
+    /// Its signature does not hold over it.
+    BootFileBroken,
+    /// It holds more than the release's program and one signature alone
+    /// at its end.
+    BootFileLayout,
+    /// The boot file could not be opened or read as a plain file: the
+    /// file. No system's words.
+    BootFileRead(String),
+    /// The boot file chosen is not what it was when chosen: the file.
+    BootFileChanged(String),
+    /// The boot file chosen is larger than a boot partition: the file.
+    BootFileLarge(String),
+    /// The release's own boot file could not be read from its boot
+    /// partition, or the signed one put there: why, in the filesystem's
+    /// words.
+    ReleaseBootFile(String),
     /// Not on this computer.
     Unsupported,
 }
@@ -719,6 +741,22 @@ pub enum StarterEvent {
         /// What was read, or why not.
         result: Result<Option<String>, Reason>,
     },
+    /// [`StarterCommand::ListBootFiles`] answered: the `.efi` files in
+    /// `folder`, as full paths, newest first (§4.5).
+    BootFiles {
+        /// The folder looked in, as a person reads it.
+        folder: String,
+        /// The files.
+        files: Vec<String>,
+    },
+    /// [`StarterCommand::CheckBootFile`] answered: the file as the order
+    /// names it and who signed it, or why it is refused (§4.5, F133).
+    BootFileChecked {
+        /// The file, as the command named it.
+        path: String,
+        /// Taken, or why not.
+        result: Result<(BootFile, BootSigner), Reason>,
+    },
 }
 
 /// How a stick or card is written (§3.2 step 2).
@@ -751,6 +789,28 @@ pub enum Source {
     },
 }
 
+/// A boot file the person signed with their own Secure Boot db key,
+/// written in place of the release's `EFI/BOOT/BOOTX64.EFI` (§4.5, F133),
+/// as chosen: the writer reads it again and refuses it when it is not
+/// these bytes or not the release's program signed.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BootFile {
+    /// The file, as a full path.
+    pub path: String,
+    /// Its SHA-256 when it was chosen and checked, hex.
+    pub sha256: String,
+}
+
+/// Who signed a boot file, as its signature says: the certificate whose
+/// key signed it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BootSigner {
+    /// The certificate's subject common name; empty when it has none.
+    pub subject: String,
+    /// The certificate's SHA-256 fingerprint, hex.
+    pub fingerprint: String,
+}
+
 /// A confirmed write: everything the writer checks again before it
 /// writes (§4.1).
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -767,6 +827,9 @@ pub struct WriteOrder {
     pub size: u64,
     /// Whole or keep data.
     pub mode: Mode,
+    /// A boot file the person signed, in place of the release's; `None`
+    /// for the release's own.
+    pub boot_file: Option<BootFile>,
 }
 
 /// What the Starter asks the shell to do.
@@ -860,5 +923,18 @@ pub enum StarterCommand {
         serial: String,
         /// Its size in bytes.
         size: u64,
+    },
+    /// List the `.efi` files in the Downloads folder, for What to
+    /// write's "One I signed" (§4.5); answered by
+    /// [`StarterEvent::BootFiles`].
+    ListBootFiles,
+    /// Check the file at `path` against the boot file `source` carries
+    /// (§4.5, F133): the release's own program, signed. Answered by
+    /// [`StarterEvent::BootFileChecked`].
+    CheckBootFile {
+        /// The file, as a full path.
+        path: String,
+        /// What the stick is written from.
+        source: Source,
     },
 }

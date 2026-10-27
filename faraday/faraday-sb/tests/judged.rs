@@ -339,3 +339,154 @@ fn blinding_leaves_the_signature_as_it_was() {
     let two = pe::sign(&mut Stream::new(&[4; 32], 0), &image, &k.db).unwrap();
     assert_eq!(one, two);
 }
+
+/// What the Starter reads from a boot file a person signed
+/// (`docs/STARTER.md` §4.5): the image hash it had before it was signed,
+/// whatever its length, and the certificate whose key signed it, read
+/// from the signature itself.
+#[test]
+fn a_signed_image_names_its_signer_and_keeps_the_image_hash_it_had_unsigned() {
+    let k = keys();
+    // One whose length is a multiple of eight, and one signing pads.
+    let mut odd = tiny_pe();
+    odd.extend_from_slice(&[0x11, 0x22, 0x33]);
+    for image in [tiny_pe(), odd] {
+        let signed = pe::sign(&mut blind(), &image, &k.db).unwrap();
+        assert_eq!(
+            pe::image_hash(&signed).unwrap(),
+            pe::hash_as_signed(&image).unwrap()
+        );
+        assert_eq!(
+            pe::signer(&signed).unwrap(),
+            pe::Signer::By(k.db.cert.clone())
+        );
+        // Signed again with another key: the same program, another signer.
+        let other = pe::sign(&mut blind(), &signed, &k.kek).unwrap();
+        assert_eq!(
+            pe::image_hash(&other).unwrap(),
+            pe::hash_as_signed(&image).unwrap()
+        );
+        assert_eq!(
+            pe::signer(&other).unwrap(),
+            pe::Signer::By(k.kek.cert.clone())
+        );
+        assert_eq!(pe::signer(&image).unwrap(), pe::Signer::Unsigned);
+        // A byte of its code changed after signing: the signature no
+        // longer holds, and the image hash is another program's.
+        let mut altered = signed.clone();
+        altered[0x200] ^= 1;
+        assert_eq!(pe::signer(&altered).unwrap(), pe::Signer::Broken);
+        assert_ne!(
+            pe::image_hash(&altered).unwrap(),
+            pe::hash_as_signed(&image).unwrap()
+        );
+    }
+    assert_eq!(pe::signer(b"not an image"), Err(faraday_sb::Error::Image));
+}
+
+/// The security directory entry: its file offset, then its size.
+const CERT_DIR: usize = 0x44 + 20 + 112 + 4 * 8;
+
+fn set_dir(image: &mut [u8], at: usize, size: usize) {
+    image[CERT_DIR..CERT_DIR + 4].copy_from_slice(&(at as u32).to_le_bytes());
+    image[CERT_DIR + 4..CERT_DIR + 8].copy_from_slice(&(size as u32).to_le_bytes());
+}
+
+fn dir(image: &[u8]) -> (usize, usize) {
+    let n = |at: usize| u32::from_le_bytes(image[at..at + 4].try_into().unwrap()) as usize;
+    (n(CERT_DIR), n(CERT_DIR + 4))
+}
+
+/// The release's image with a signed copy's signature on it, built from
+/// the release's bytes: taken only when the copy is the same program
+/// with one signature alone at its end.
+#[test]
+fn a_signature_is_moved_onto_the_releases_bytes_only_when_it_is_alone_at_the_end() {
+    let k = keys();
+    let release = tiny_pe();
+    let signed = pe::sign(&mut blind(), &release, &k.db).unwrap();
+    let built = pe::transplant(&release, &signed).unwrap();
+    assert_eq!(built, signed);
+    assert_eq!(
+        pe::signer(&built).unwrap(),
+        pe::Signer::By(k.db.cert.clone())
+    );
+    assert_eq!(
+        pe::transplant(&release, &release),
+        Err(pe::Transplant::Unsigned)
+    );
+    let mut other = release.clone();
+    other[0x200] = 0x90;
+    let other = pe::sign(&mut blind(), &other, &k.db).unwrap();
+    assert_eq!(pe::transplant(&release, &other), Err(pe::Transplant::Other));
+    assert_eq!(
+        pe::transplant(&release, b"not an image"),
+        Err(pe::Transplant::Other)
+    );
+
+    // Bytes appended after the table.
+    let mut appended = signed.clone();
+    appended.extend_from_slice(&[0u8; 16]);
+    assert_eq!(
+        pe::transplant(&release, &appended),
+        Err(pe::Transplant::Layout)
+    );
+    // Two signatures in the table: the test db key's and another key's.
+    let (at, size) = dir(&signed);
+    let second = pe::sign(&mut blind(), &release, &k.kek).unwrap();
+    let (at2, size2) = dir(&second);
+    let mut two = signed.clone();
+    two.extend_from_slice(&second[at2..at2 + size2]);
+    set_dir(&mut two, at, size + size2);
+    assert_eq!(pe::transplant(&release, &two), Err(pe::Transplant::Layout));
+    // The table not where the program ends: bytes put before it.
+    let mut moved = signed[..at].to_vec();
+    moved.extend_from_slice(&[0u8; 8]);
+    moved.extend_from_slice(&signed[at..]);
+    set_dir(&mut moved, at + 8, size);
+    assert!(pe::transplant(&release, &moved).is_err());
+    // A table that does not end the file, its entry pointing short.
+    let mut short = signed.clone();
+    set_dir(&mut short, at, size - 8);
+    assert!(pe::transplant(&release, &short).is_err());
+}
+
+/// Images signed by other implementations (`tests/vectors/make.sh`:
+/// sbsigntool's sbsign and osslsigncode, under a test key whose
+/// certificate is `cert.der`) are read as theirs: the image hash Faraday
+/// gives the unsigned program, the signer named, the signature checked,
+/// and the signature moved onto the unsigned program's bytes gives the
+/// same file.
+#[test]
+fn images_signed_by_sbsign_and_osslsigncode_are_read_and_their_signer_named() {
+    let tiny = include_bytes!("vectors/tiny.efi");
+    let cert = include_bytes!("vectors/cert.der");
+    assert_eq!(&tiny[..], tiny_pe().as_slice());
+    assert_eq!(
+        faraday_sb::common_name(cert).as_deref(),
+        Some("Test sbsign db")
+    );
+    for (tool, signed) in [
+        ("sbsign", &include_bytes!("vectors/tiny.sbsign.efi")[..]),
+        (
+            "osslsigncode",
+            &include_bytes!("vectors/tiny.osslsigncode.efi")[..],
+        ),
+    ] {
+        assert_eq!(
+            pe::image_hash(signed).unwrap(),
+            pe::hash_as_signed(tiny).unwrap(),
+            "{tool}"
+        );
+        assert_eq!(pe::check(signed, cert).unwrap(), Check::Valid, "{tool}");
+        assert_eq!(
+            pe::signer(signed).unwrap(),
+            pe::Signer::By(cert.to_vec()),
+            "{tool}"
+        );
+        assert_eq!(pe::transplant(tiny, signed).unwrap(), signed, "{tool}");
+        let mut altered = signed.to_vec();
+        altered[0x200] ^= 1;
+        assert_eq!(pe::signer(&altered).unwrap(), pe::Signer::Broken, "{tool}");
+    }
+}

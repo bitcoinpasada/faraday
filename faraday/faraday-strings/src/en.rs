@@ -368,6 +368,28 @@ strings! {
     starter_keep_newer: "This stick holds a newer Faraday: {}",
     /// Keep data writing a dev build.
     starter_keep_dev: "Writes a dev build, with a serial console",
+    /// What to write's section and Confirm's row (docs/STARTER.md §4.5).
+    starter_boot_file: "Boot file",
+    /// Boot file option: the release's BOOTX64.EFI as it is.
+    starter_boot_release: "The release's (unsigned)",
+    /// Boot file option: one the person signed with their own db key.
+    starter_boot_signed: "One I signed",
+    /// Its second line before a file is chosen.
+    starter_boot_signed_sub: "BOOTX64.EFI signed with your db key",
+    /// Row: the name on the signing certificate, the file's own choice.
+    starter_boot_cert_name: "Certificate name",
+    /// A signer's certificate with no common name.
+    starter_boot_signer_unnamed: "None",
+    /// Row: the signing certificate's SHA-256, what the person compares.
+    starter_boot_fingerprint: "Certificate SHA-256: compare it with your db key's",
+    /// Row: the chosen file.
+    starter_boot_chosen_file: "File",
+    /// Label over the boot files found: `{}` the folder.
+    starter_boot_in: "In {}",
+    /// No boot file found: `{}` the folder.
+    starter_boot_none_in: "No .efi file in {}",
+    /// A boot file being checked against the release.
+    starter_boot_checking: "Checking against this release",
     /// Confirm refused.
     starter_not_confirmed_stick: "Not the stick confirmed: it was removed or changed",
     /// Confirm refused.
@@ -678,6 +700,22 @@ strings! {
     /// Reason: no folder that only this user can open could be made for
     /// the sheet with the recovery key. Nothing was written.
     starter_why_key_folder: "No folder that only you can open could be made for the sheet. Nothing was written.",
+    /// Reason: a signed boot file of another program.
+    starter_why_boot_file_other: "This is not this release's boot file",
+    /// Reason: the release's boot file, or another, with no signature that holds.
+    starter_why_boot_file_unsigned: "This boot file is not signed",
+    /// Reason: a signature that does not hold over the file.
+    starter_why_boot_file_broken: "This boot file has no signature that holds",
+    /// Reason: bytes after the signature, or more than one signature.
+    starter_why_boot_file_layout: "This boot file holds more than the release's program and one signature",
+    /// Reason: `{}` the file.
+    starter_why_boot_file_read: "{} could not be read",
+    /// Reason: `{}` the file, changed after it was chosen.
+    starter_why_boot_file_changed: "{} changed after it was chosen. Nothing was written.",
+    /// Reason: `{}` the file.
+    starter_why_boot_file_large: "{} is larger than a boot partition",
+    /// Reason: `{}` the filesystem's words.
+    starter_why_release_boot_file: "The release's boot file could not be read or replaced: {}",
     /// Reason.
     starter_why_unsupported: "Not on this computer",
     /// The app menu entry's name, in the desktop entry file install writes.

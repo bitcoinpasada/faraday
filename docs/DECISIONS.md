@@ -25,7 +25,7 @@ Read this table, then only the decision you need.
 | [F8](decisions/F8.md) | Scan to sign, and a Spend tab that asks for data | 2026-10-11 | Active | wallets |
 | [F9](decisions/F9.md) | Writing over a file on a stick, and an Add glyph | 2026-10-11 | Active | stick |
 | [F10](decisions/F10.md) | The name as a wordmark | 2026-10-11 | Active | design |
-| [F11](decisions/F11.md) | The Starter: one download that makes sticks and cards | 2026-10-12 | Amended by F12, F13, F30, F33, F128 | Starter |
+| [F11](decisions/F11.md) | The Starter: one download that makes sticks and cards | 2026-10-12 | Amended by F12, F13, F30, F33, F128, F133 | Starter |
 | [F12](decisions/F12.md) | The Starter, reviewed: what the owner changed in v0.2 | 2026-10-12 | Amended by F30, F33 | Starter |
 | [F13](decisions/F13.md) | Faraday on Macs: the stick, the desktop app and the Starter | 2026-10-12 | Amended by F30 | platforms |
 | [F14](decisions/F14.md) | Maker pages are published several families at once | 2026-10-12 | Active | Starter |
@@ -142,8 +142,9 @@ Read this table, then only the decision you need.
 | [F125](decisions/F125.md) | Explore shows a key's secrets behind eyes | 2026-10-26 | Active | keys |
 | [F126](decisions/F126.md) | Faraday Demo runs inside Faraday Starter; one theme in a session | 2026-10-26 | Active | Starter |
 | [F127](decisions/F127.md) | FROST removed from the repository until its standards are published | 2026-10-26 | Active | wallets |
-| [F128](decisions/F128.md) | Upgrading a stick is the Starter's; Faraday writes no boot partition | 2026-10-26 | Active | stick |
+| [F128](decisions/F128.md) | Upgrading a stick is the Starter's; Faraday writes no boot partition | 2026-10-26 | Amended by F133 | stick |
 | [F129](decisions/F129.md) | A secret saved as a plain file asks for a hold | 2026-10-26 | Active | keys |
 | [F130](decisions/F130.md) | The boot import reads names and sizes until Import, then only the ticked files | 2026-10-27 | Active | stick |
 | [F131](decisions/F131.md) | Zeroing a stick's free space or its partition takes a hold | 2026-10-27 | Active | stick |
 | [F132](decisions/F132.md) | A tr() wallet states who can spend by the key path | 2026-10-26 | Active | wallets |
+| [F133](decisions/F133.md) | The Starter writes a boot file the person signed, once it is checked to be the release's own | 2026-10-27 | Active | Starter |

@@ -924,3 +924,78 @@ fn clusters_past_a_whole_cluster_size_are_zeroed_too() {
         );
     }
 }
+
+/// The Starter's signed boot file (`docs/STARTER.md` §4.5): a boot
+/// partition made as the stick's is (`genimage.cfg`: FAT32, 512-byte
+/// clusters, `EFI/BOOT/BOOTX64.EFI` put there by mtools) has that file
+/// read and written over in its folder, longer and then shorter, and
+/// mtools and `fsck.fat` read the result as the new file and nothing
+/// else changed.
+#[test]
+fn a_file_in_a_folder_is_read_and_written_over_where_it_is() {
+    if !have_tools() {
+        return;
+    }
+    let dir = scratch("rewrite");
+    let img = mkfs(
+        &dir,
+        &["-F", "32", "-s", "1", "-n", "FARADAYBOOT"],
+        64 * 1024,
+    );
+    let i = img.to_str().unwrap();
+    for folder in ["::EFI", "::EFI/BOOT"] {
+        assert!(mtools("mmd", &["-i", i, folder]).0, "mmd {folder}");
+    }
+    let src = dir.join("src");
+    let boot = pattern(30_000, 1);
+    std::fs::write(&src, &boot).unwrap();
+    assert!(
+        mtools(
+            "mcopy",
+            &["-i", i, src.to_str().unwrap(), "::EFI/BOOT/BOOTX64.EFI"]
+        )
+        .0
+    );
+    std::fs::write(&src, pattern(700, 2)).unwrap();
+    assert!(mtools("mcopy", &["-i", i, src.to_str().unwrap(), "::cmdline.txt"]).0);
+    let path = ["EFI", "BOOT", "BOOTX64.EFI"];
+
+    let mut v = open(&img);
+    assert_eq!(v.read_in(&path, 1 << 20).unwrap(), boot);
+    assert_eq!(v.read_in(&path, 100), Err(Error::TooLarge));
+    assert_eq!(v.read_in(&["EFI", "BOOT"], 1 << 20), Err(Error::NotFound));
+    assert_eq!(
+        v.read_in(&["EFI", "BOOT", "BOOTIA32.EFI"], 1 << 20),
+        Err(Error::NotFound)
+    );
+    let (free_before, _) = v.space().unwrap();
+    // Longer by a signature: 1,800 bytes past the old end, four clusters.
+    let mut longer = boot.clone();
+    longer[100] ^= 0xFF;
+    longer.extend_from_slice(&pattern(1_800, 3));
+    v.rewrite_in(&path, &longer).unwrap();
+    assert_eq!(v.read_in(&path, 1 << 20).unwrap(), longer);
+    let (free_after, _) = v.space().unwrap();
+    assert_eq!(free_before - free_after, 4 * 512);
+    save(v, &img);
+    fsck_clean(&img);
+    let out = dir.join("out");
+    let read_out = |name: &str| {
+        let _ = std::fs::remove_file(&out);
+        assert!(
+            mtools("mcopy", &["-n", "-i", i, name, out.to_str().unwrap()]).0,
+            "{name}"
+        );
+        std::fs::read(&out).unwrap()
+    };
+    assert_eq!(read_out("::EFI/BOOT/BOOTX64.EFI"), longer);
+    assert_eq!(read_out("::cmdline.txt"), pattern(700, 2));
+
+    // Shorter again: the clusters it no longer needs are free.
+    let mut v = open(&img);
+    v.rewrite_in(&path, &boot).unwrap();
+    assert_eq!(v.space().unwrap().0, free_before);
+    save(v, &img);
+    fsck_clean(&img);
+    assert_eq!(read_out("::EFI/BOOT/BOOTX64.EFI"), boot);
+}

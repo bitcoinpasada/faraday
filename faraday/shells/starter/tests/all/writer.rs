@@ -30,15 +30,15 @@ fn fixture_img() -> Vec<u8> {
         .collect()
 }
 
-fn tmp(name: &str) -> PathBuf {
+pub(crate) fn tmp(name: &str) -> PathBuf {
     Path::new(env!("CARGO_TARGET_TMPDIR")).join(format!("starter-writer-{name}"))
 }
 
 /// A disk that is a regular file, as confirmed or as it is now.
-struct FileDisk {
+pub(crate) struct FileDisk {
     path: PathBuf,
     now: Identity,
-    calls: Vec<&'static str>,
+    pub(crate) calls: Vec<&'static str>,
     /// Its blocks, when it is a raw disk that takes whole blocks only:
     /// then it is written straight to the disk too (`O_DIRECT`), which
     /// refuses an unaligned offset or length.
@@ -49,7 +49,7 @@ struct FileDisk {
 }
 
 impl FileDisk {
-    fn new(path: &Path) -> FileDisk {
+    pub(crate) fn new(path: &Path) -> FileDisk {
         FileDisk {
             path: path.to_path_buf(),
             now: Identity {
@@ -65,7 +65,7 @@ impl FileDisk {
     }
 
     /// The order a person confirmed for this disk as it was then.
-    fn order(&self, source: Confirmed, mode: Mode) -> WriteOrder {
+    pub(crate) fn order(&self, source: Confirmed, mode: Mode) -> WriteOrder {
         WriteOrder {
             source,
             disk: String::from("/org/freedesktop/UDisks2/block_devices/sdx"),
@@ -73,6 +73,7 @@ impl FileDisk {
             serial: self.now.serial.clone(),
             size: self.now.size,
             mode,
+            boot_file: None,
         }
     }
 }
@@ -140,7 +141,7 @@ fn payload_source() -> Confirmed {
     }
 }
 
-fn run(
+pub(crate) fn run(
     order: &WriteOrder,
     job: &Job,
     disk: &mut FileDisk,
@@ -275,12 +276,12 @@ fn a_disk_that_reports_no_serial_is_written_as_any_other() {
 
 // ---- keep data ------------------------------------------------------------
 
-const SECTOR: u64 = 512;
+pub(crate) const SECTOR: u64 = 512;
 /// A small stick: 8 MiB, FARADAYBOOT at 1 MiB for 2 MiB, FARADAYDATA after it.
-const STICK: u64 = 8 << 20;
-const BOOT_FIRST: u64 = 2048;
+pub(crate) const STICK: u64 = 8 << 20;
+pub(crate) const BOOT_FIRST: u64 = 2048;
 const BOOT_SECTORS: u64 = 4096;
-const DATA_FIRST: u64 = BOOT_FIRST + BOOT_SECTORS;
+pub(crate) const DATA_FIRST: u64 = BOOT_FIRST + BOOT_SECTORS;
 const DATA_LAST: u64 = STICK / SECTOR - 34;
 
 /// A GUID string as GPT stores it.
@@ -302,7 +303,7 @@ fn guid_bytes(s: &str) -> [u8; 16] {
 
 /// A stick image with Faraday's partition table (or another disk UUID),
 /// its data partition filled with `data`.
-fn stick_image(disk_uuid: &str, data: u8) -> Vec<u8> {
+pub(crate) fn stick_image(disk_uuid: &str, data: u8) -> Vec<u8> {
     stick_layout(
         [disk_uuid, gpt::BOOT_UUID, gpt::DATA_UUID],
         ["FARADAYBOOT", "FARADAYDATA"],
@@ -399,7 +400,7 @@ fn image_file(name: &str, bytes: &[u8]) -> Image {
 }
 
 /// Every byte outside `[from, to)` is as it was.
-fn untouched_outside(before: &[u8], after: &[u8], from: usize, to: usize) {
+pub(crate) fn untouched_outside(before: &[u8], after: &[u8], from: usize, to: usize) {
     assert_eq!(before.len(), after.len());
     assert_eq!(
         &before[..from],
@@ -886,6 +887,7 @@ fn a_disk_the_computer_uses_but_not_through_a_desktop_mount_is_refused_with_noth
             serial: serial.into(),
             size,
             mode: Mode::Whole,
+            boot_file: None,
         };
         let mut target = Target {
             bus: Recording {

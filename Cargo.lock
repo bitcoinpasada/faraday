@@ -1102,6 +1102,7 @@ dependencies = [
  "faraday-desktop",
  "faraday-fat",
  "faraday-payload",
+ "faraday-sb",
  "faraday-shell-api",
  "faraday-starter",
  "faraday-storage",

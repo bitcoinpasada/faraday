@@ -16,6 +16,7 @@
 
 pub mod api;
 mod appearance;
+mod boot_file;
 pub mod concern;
 pub mod decide;
 mod demo;
@@ -306,6 +307,10 @@ pub enum StarterAction {
     Appearance,
     /// Draw in this scheme, from the Appearance page.
     Theme(faraday_ui::Theme),
+    /// Boot file: the release's own (`false`) or one I signed (`true`).
+    BootChoice(bool),
+    /// A boot file of the listing, by its place in it, to be checked.
+    BootFile(u16),
     /// Make a Faraday stick, or a Pi card: the disk list.
     Make(Target),
     /// The This computer card's button ([`Card`]).
@@ -498,6 +503,8 @@ impl StarterAction {
             StarterAction::CloseMenu => (62, 0),
             StarterAction::Appearance => (63, 0),
             StarterAction::Theme(t) => (64, t.row() as u32),
+            StarterAction::BootChoice(signed) => (65, u32::from(signed)),
+            StarterAction::BootFile(n) => (66, u32::from(n)),
         };
         (kind << 16) | arg
     }
@@ -582,6 +589,8 @@ impl StarterAction {
             62 => StarterAction::CloseMenu,
             63 => StarterAction::Appearance,
             64 => StarterAction::Theme(faraday_ui::Theme::from_row(arg as usize)?),
+            65 => StarterAction::BootChoice(arg == 1),
+            66 => StarterAction::BootFile(arg as u16),
             _ => return None,
         })
     }
@@ -612,6 +621,8 @@ pub struct Making {
     pub progress: Option<(WriteStage, u64, u64)>,
     /// How the write ended.
     pub result: Option<Result<(), Reason>>,
+    /// The boot file a stick is written with (§4.5, F133).
+    pub boot: boot_file::BootPick,
 }
 
 /// What a stick or card is written from: a payload file, or a developer's
@@ -1510,6 +1521,9 @@ impl Starter {
                 }
             }
             StarterEvent::BootEntry(e) => self.boot_entry = e,
+            e @ (StarterEvent::BootFiles { .. } | StarterEvent::BootFileChecked { .. }) => {
+                self.boot_event(e);
+            }
             StarterEvent::BootEntryRemoved(r) => {
                 self.entry_removing = false;
                 match r {
@@ -1788,6 +1802,7 @@ impl Starter {
                     refused: None,
                     progress: None,
                     result: None,
+                    boot: boot_file::BootPick::default(),
                 });
                 if target == Target::Stick && self.asks_which() {
                     self.go(Page::Which);
@@ -1871,7 +1886,8 @@ impl Starter {
                     .as_ref()
                     .and_then(|m| m.mode)
                     .is_some_and(|mode| self.mode_refusal(mode).is_none())
-                    && !self.keep_unread();
+                    && !self.keep_unread()
+                    && self.boot_ready();
                 if self.page == Page::Mode
                     && ready
                     && let Some(m) = self.making.as_mut()
@@ -1882,6 +1898,8 @@ impl Starter {
                 }
             }
             StarterAction::Write => self.write(),
+            StarterAction::BootChoice(signed) => self.boot_choice(signed),
+            StarterAction::BootFile(n) => self.boot_file_tapped(n),
             StarterAction::Again => {
                 if let Some(target) = self.making.as_ref().map(|m| m.target) {
                     self.act(StarterAction::Make(target));
@@ -2167,7 +2185,7 @@ impl Starter {
             }
             return;
         }
-        if self.no_writer || self.mode_refusal(mode).is_some() || self.keep_unread() {
+        if !self.may_write(mode) {
             return;
         }
         self.out.push_back(StarterCommand::Write(WriteOrder {
@@ -2177,6 +2195,7 @@ impl Starter {
             serial,
             size,
             mode,
+            boot_file: self.boot_order(),
         }));
         if let Some(m) = self.making.as_mut() {
             m.refused = None;

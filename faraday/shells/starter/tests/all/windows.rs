@@ -12,8 +12,8 @@ use std::path::{Path, PathBuf};
 use faraday_core::strings::EN;
 use faraday_core::{Program, names};
 use faraday_starter::api::{
-    Bus, FaradayStick, InUse, InstallItem, Mode, Os, Reason, Source, StickFault, WriteOrder,
-    WriteStage,
+    BootFile, Bus, FaradayStick, InUse, InstallItem, Mode, Os, Reason, Source, StickFault,
+    WriteOrder, WriteStage,
 };
 use faraday_starter::decide::{Refusal, Target, offers};
 use faraday_starter_shell::stick;
@@ -292,6 +292,7 @@ fn order(source: Source, serial: &str, mode: Mode) -> WriteOrder {
         serial: serial.to_string(),
         size: 8_004_304_896,
         mode,
+        boot_file: None,
     }
 }
 
@@ -455,6 +456,64 @@ fn a_malformed_order_is_refused_before_anything_is_opened() {
     assert!(Elevated::parse(&image(r"C:\out\a.img", None)).is_err());
 }
 
+/// A boot file the person signed (`docs/STARTER.md` §4.5) reaches the
+/// elevated writer by its full path and the SHA-256 Confirm read, which
+/// the writer reads and checks again before it writes; any other form
+/// of either refuses the whole list.
+#[test]
+fn the_elevated_writer_takes_a_signed_boot_file_by_its_full_path_and_sum() {
+    let signed = Elevated {
+        pipe: PIPE.into(),
+        order: WriteOrder {
+            boot_file: Some(BootFile {
+                path: r"D:\Signed files\BOOTX64 (signed).EFI".into(),
+                sha256: SUM.into(),
+            }),
+            ..order(
+                Source::Payload {
+                    name: "faraday-stick-0.3.0-x86_64-uefi.img.xz".into(),
+                    inner_sha256: SUM.into(),
+                },
+                "GGG444",
+                Mode::KeepData,
+            )
+        },
+        image_size: None,
+    };
+    let good = signed.args();
+    assert_eq!(Elevated::parse(&split(&command_line(&good))), Ok(signed));
+    let with = |key: &str, value: &str| {
+        let mut a = good.clone();
+        let i = a.iter().position(|k| k == key).expect("key");
+        a[i + 1] = value.to_string();
+        a
+    };
+    let refused = [
+        with("--boot-file", r"Downloads\BOOTX64.EFI"),
+        with("--boot-file", "BOOTX64.EFI"),
+        with("--boot-file", r"\\.\pipe\x"),
+        with("--boot-file", r"\\?\C:\Downloads\BOOTX64.EFI"),
+        with("--boot-file", r"\\server\share\BOOTX64.EFI"),
+        with("--boot-file", r"C:\Downloads\BOOTX64.EFI:hidden"),
+        with("--boot-file", r"C:\Downloads\..\BOOTX64.EFI"),
+        with("--boot-file", r"C:\Downloads\CON.efi"),
+        with("--boot-file", r"C:\Downloads\com1"),
+        with("--boot-file", "C:/Downloads/BOOTX64.EFI"),
+        with("--boot-file", r"C:\"),
+        with("--boot-file", "C:\\a\nb.efi"),
+        with("--boot-file-sha256", "abc"),
+        with("--boot-file-sha256", &SUM.to_uppercase()),
+        good.iter()
+            .take_while(|a| *a != "--boot-file-sha256")
+            .cloned()
+            .collect(),
+        [good.clone(), vec!["--boot-file".into(), r"C:\b.efi".into()]].concat(),
+    ];
+    for args in refused {
+        assert!(Elevated::parse(&args).is_err(), "{args:?} was taken");
+    }
+}
+
 fn every_reason() -> Vec<Reason> {
     let s = || String::from("words\twith a tab\\ and\nlines");
     vec![
@@ -538,6 +597,14 @@ fn every_reason() -> Vec<Reason> {
         Reason::SameBuild,
         Reason::Declined,
         Reason::Unsupported,
+        Reason::BootFileOther,
+        Reason::BootFileUnsigned,
+        Reason::BootFileBroken,
+        Reason::BootFileLayout,
+        Reason::BootFileRead(s()),
+        Reason::BootFileChanged(s()),
+        Reason::BootFileLarge(s()),
+        Reason::ReleaseBootFile(s()),
     ]
 }
 

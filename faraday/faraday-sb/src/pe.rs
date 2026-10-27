@@ -136,14 +136,9 @@ fn spc_content(digest: &[u8; 32]) -> Vec<u8> {
     ])
 }
 
-/// The image signed by `signer` (the db key): any certificate table it
-/// had is dropped, the image is padded to eight bytes, and the signature
-/// goes after it as the new table. `rng` blinds the signing.
-pub fn sign(
-    rng: &mut crate::rng::Stream,
-    pe: &[u8],
-    signer: &x509::Pair,
-) -> Result<Vec<u8>, Error> {
+/// The image as signing takes it: any certificate table dropped, its
+/// entry zeroed, and padded with zeros to a multiple of eight bytes.
+fn unsigned(pe: &[u8]) -> Result<(Layout, Vec<u8>), Error> {
     let l = layout(pe)?;
     let mut image = pe.to_vec();
     if let Some((at, _)) = l.certs {
@@ -153,6 +148,26 @@ pub fn sign(
     while !image.len().is_multiple_of(8) {
         image.push(0);
     }
+    Ok((l, image))
+}
+
+/// Costs a SHA-256 of the image: the image hash it has once signed, by
+/// [`sign`] or any signer that pads it to eight bytes as Authenticode
+/// does. Equal to [`image_hash`] of every signed copy of the same program,
+/// whoever signed it; a byte changed anywhere it covers gives another.
+pub fn hash_as_signed(pe: &[u8]) -> Result<[u8; 32], Error> {
+    image_hash(&unsigned(pe)?.1)
+}
+
+/// The image signed by `signer` (the db key): any certificate table it
+/// had is dropped, the image is padded to eight bytes, and the signature
+/// goes after it as the new table. `rng` blinds the signing.
+pub fn sign(
+    rng: &mut crate::rng::Stream,
+    pe: &[u8],
+    signer: &x509::Pair,
+) -> Result<Vec<u8>, Error> {
+    let (l, mut image) = unsigned(pe)?;
     let digest = image_hash(&image)?;
     let content = spc_content(&digest);
     let (_, value, _) = der::read(&content, 0).ok_or(Error::Image)?;
@@ -202,6 +217,111 @@ pub enum Check {
     Altered,
     /// The signature could not be read.
     Unreadable,
+}
+
+/// Why [`transplant`] took no signature from a signed copy.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Transplant {
+    /// The release's own image is not one this crate reads.
+    Release,
+    /// The signed copy is not the release's program: not an image, or its
+    /// image hash is another's.
+    Other,
+    /// The signed copy carries no certificate table.
+    Unsigned,
+    /// Its certificate table is not one signature alone at its end:
+    /// bytes after it, a table that does not end the file, or more than
+    /// one entry in it.
+    Layout,
+}
+
+/// Costs two Authenticode image hashes: the release's image, prepared as
+/// signing prepares it (padded to eight bytes, no table), with the
+/// checksum and certificate-table entry of `signed` and then `signed`'s
+/// certificate table, when `signed` is the same program with one
+/// signature appended and nothing else. Every byte the signature does
+/// not cover is then the release's by construction; whether the
+/// signature holds is [`signer`]'s to say, on the result.
+pub fn transplant(release: &[u8], signed: &[u8]) -> Result<Vec<u8>, Transplant> {
+    let (l, mut image) = unsigned(release).map_err(|_| Transplant::Release)?;
+    let s = layout(signed).map_err(|_| Transplant::Other)?;
+    let ours = image_hash(&image).map_err(|_| Transplant::Release)?;
+    if image_hash(signed).map_err(|_| Transplant::Other)? != ours
+        || s.checksum != l.checksum
+        || s.cert_dir != l.cert_dir
+    {
+        return Err(Transplant::Other);
+    }
+    let Some((at, size)) = s.certs else {
+        return Err(Transplant::Unsigned);
+    };
+    // One WIN_CERTIFICATE, its length rounded to eight the whole table,
+    // the table where the release's image ends and ending the file.
+    let first = u32_at(signed, at).ok_or(Transplant::Layout)?;
+    if at != image.len() || at + size != signed.len() || first < 8 || first.div_ceil(8) * 8 != size
+    {
+        return Err(Transplant::Layout);
+    }
+    image[l.checksum..l.checksum + 4].copy_from_slice(&signed[s.checksum..s.checksum + 4]);
+    image[l.cert_dir..l.cert_dir + 8].copy_from_slice(&signed[s.cert_dir..s.cert_dir + 8]);
+    image.extend_from_slice(&signed[at..]);
+    Ok(image)
+}
+
+/// Who signed an image, as the signature itself says.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Signer {
+    /// No signature.
+    Unsigned,
+    /// A signature that no certificate it carries checks: unreadable,
+    /// over another image, or by a key it does not carry.
+    Broken,
+    /// Signed over this image by the key of this certificate (DER),
+    /// which the signature carries.
+    By(Vec<u8>),
+}
+
+/// Costs an RSA verification per certificate the signature carries: the
+/// certificate, of those carried in the image's first signature, whose
+/// key made that signature over this image. Says nothing of whether a
+/// computer trusts it: that is its db's to say.
+pub fn signer(pe: &[u8]) -> Result<Signer, Error> {
+    let l = layout(pe)?;
+    let Some((at, size)) = l.certs else {
+        return Ok(Signer::Unsigned);
+    };
+    let carried = carried_certs(pe, at, size).unwrap_or_default();
+    for cert in carried {
+        if read_signature(pe, at, size, &cert) == Some(Check::Valid) {
+            return Ok(Signer::By(cert));
+        }
+    }
+    Ok(Signer::Broken)
+}
+
+/// The certificates the first signature carries: SignedData's
+/// `[0] certificates`, each whole.
+fn carried_certs(pe: &[u8], at: usize, size: usize) -> Option<Vec<Vec<u8>>> {
+    let table = pe.get(at..at + size)?;
+    if u16_at(table, 6)? != 0x0002 {
+        return None;
+    }
+    let ci = table.get(8..u32_at(table, 0)?.min(table.len()))?;
+    let (_, ci_v, _) = der::read(ci, 0)?;
+    let parts = der::children(&ci[ci_v.clone()])?;
+    let inner = &ci[ci_v][parts.get(1)?.1.clone()];
+    let (_, sd_v, _) = der::read(inner, 0)?;
+    let sd = &inner[sd_v];
+    let (_, certs) = der::children(sd)?.into_iter().find(|(t, _)| *t == 0xa0)?;
+    let bytes = &sd[certs];
+    let mut out = Vec::new();
+    let mut at = 0;
+    while at < bytes.len() {
+        let (_, _, next) = der::read(bytes, at)?;
+        out.push(bytes.get(at..next)?.to_vec());
+        at = next;
+    }
+    Some(out)
 }
 
 /// Checks the first signature in an image against `cert`.
