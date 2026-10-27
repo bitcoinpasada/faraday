@@ -12,6 +12,7 @@
 
 pub(crate) mod cards;
 pub mod codex32;
+mod groups;
 mod text;
 
 pub use text::{at_code, at_read, held_in, tag_of, what_code, what_read};
@@ -3819,7 +3820,8 @@ fn seed_keys(boxes: &[Spot], p: usize) -> u64 {
 /// group of `M` places, rebuilds the description, and no place that
 /// cannot spend sees the balance alone; failing that, the first where
 /// the groups rebuild. Every group of places is tried for each way: a
-/// search, bounded by a step budget, once, on the press.
+/// search, bounded by a step budget, once, on the press (above 16 places
+/// the groups are checked within a budget, `groups.rs`).
 pub fn hand_out(c: &Compute, shape: &Shape, a: &Answers) -> HandOut {
     let boxes = place_map(c, shape, a);
     let places = places_of(&boxes).max(1);
@@ -3828,20 +3830,7 @@ pub fn hand_out(c: &Compute, shape: &Shape, a: &Answers) -> HandOut {
     let all: u64 = (1u64 << n) - 1;
     let seeds: Vec<u64> = (0..places).map(|p| seed_keys(&boxes, p)).collect();
     let most = m.saturating_sub(1).min(n.saturating_sub(1)).max(1);
-    // The groups that must rebuild: by bit mask of places, up to 16
-    // places tried in full.
-    let groups: Vec<u64> = if places <= 16 {
-        (1u64..(1 << places))
-            .filter(|&g| {
-                let keys = (0..places)
-                    .filter(|p| g & (1 << p) != 0)
-                    .fold(0u64, |k, p| k | seeds[p]);
-                g.count_ones() as usize >= m || keys.count_ones() as usize >= m
-            })
-            .collect()
-    } else {
-        Vec::new()
-    };
+    let groups = groups::Groups::new(&seeds, m, all);
     let masks = |omit: usize| -> Vec<u64> {
         split_plan(n, m, omit)
             .iter()
@@ -3849,14 +3838,6 @@ pub fn hand_out(c: &Compute, shape: &Shape, a: &Answers) -> HandOut {
             .collect()
     };
     let can_spend = |p: usize| seeds[p].count_ones() as usize >= m;
-    let rebuilds = |shares: &[u64], pick: &[usize]| {
-        groups.iter().all(|&g| {
-            (0..places)
-                .filter(|p| g & (1 << p) != 0)
-                .fold(0u64, |k, p| k | seeds[p] | shares[pick[p]])
-                == all
-        })
-    };
     let sees_alone = |shares: &[u64], pick: &[usize]| -> Vec<usize> {
         (0..places)
             .filter(|&p| !can_spend(p) && (seeds[p] | shares[pick[p]]) == all)
@@ -3873,7 +3854,7 @@ pub fn hand_out(c: &Compute, shape: &Shape, a: &Answers) -> HandOut {
                 &mut pick,
                 &mut budget,
                 &|p, j| !(strict && !can_spend(p) && (seeds[p] | shares[j]) == all),
-                &|pick| rebuilds(&shares, pick),
+                &|pick| groups.rebuild(&shares, pick),
             );
             if found {
                 return HandOut {

@@ -1260,6 +1260,23 @@ fn in_shares_a_share_on_paper_at_a_place_is_on_the_map_there() {
     assert!(!a.partials_on());
 }
 
+/// A 2-of-3 over seventeen places, partial descriptions added: three
+/// shares over seventeen places leave some two places holding the same
+/// share, so the hand-out does not say the plan rebuilds, and the board
+/// offers Keep it only, never Take it off every place.
+#[test]
+fn above_sixteen_places_a_hand_out_is_not_called_rebuilding_unchecked() {
+    let c = faraday_core::testkit::compute();
+    let shape = two_of_three();
+    let mut a = Answers::preset(&shape, Preset::Standard);
+    while a.places < 17 {
+        a.add_place(&shape);
+    }
+    assert_eq!(a.places, 17);
+    let out = a.add_partials(&c, &shape);
+    assert!(!out.rebuilds, "{out:?}");
+}
+
 /// A 2-of-3 over two places, one holding two seeds: that place spends
 /// and sees; the other, with one seed, does not see the balance from its
 /// share; both together rebuild the description.
