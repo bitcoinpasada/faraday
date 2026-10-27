@@ -8,7 +8,7 @@ use crate::drawing::{Scrolled, View};
 use crate::strings::{EN, fill};
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui, W};
-use crate::wallet::{FileKind, fp_text, key_line};
+use crate::wallet::{fp_text, key_line};
 use crate::{Action, Code, Screen, flow, guide};
 use faraday_draw::tokens;
 use faraday_ui::parts::button_rows;
@@ -258,6 +258,35 @@ fn create_vault_rows(
     cy - y
 }
 
+/// A key or wallet file of the Inbox with no key for the kind: its name
+/// as a disabled item, no press, its reason under it. Returns the height.
+fn refused_file_row(ui: &mut Ui, x: f32, y: f32, w: f32, f: &crate::create::KeyFile) -> f32 {
+    let Err(why) = &f.key else {
+        return 0.0;
+    };
+    let faint = Role::OnSurface.at(tokens::DISABLED_CONTENT);
+    let name = fill(EN.create_slot_source, &[&f.name]);
+    let name = ui.fit(tokens::REFUSED_FILE_NAME, W::S, &name, w);
+    ui.text(
+        x,
+        y + tokens::REFUSED_FILE_NAME_Y,
+        tokens::REFUSED_FILE_NAME,
+        W::S,
+        faint,
+        &name,
+    );
+    let h = ui.wrap(
+        x,
+        y + tokens::REFUSED_FILE_REASON_Y,
+        w,
+        tokens::REFUSED_FILE_REASON,
+        W::R,
+        faint,
+        why,
+    );
+    tokens::REFUSED_FILE_REASON_Y + h + tokens::REFUSED_FILE_GAP
+}
+
 #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
     use crate::create::Source;
@@ -342,19 +371,13 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
             if c.kind.account_card() == Some(n) {
                 cy += account_row(ui, x, cy, w, c);
             }
-            let key_files: Vec<(usize, String, String)> = app
-                .inbox
+            // The Inbox's key and wallet files, from the drawing memo:
+            // those with a key for this kind are offered, the others
+            // listed after the slots with why.
+            let all_files = app.create_key_files();
+            let key_files: Vec<(usize, &str, &str)> = all_files
                 .iter()
-                .enumerate()
-                // Files with a key for this kind: an account xpub, or a
-                // wallet file that carries account keys (Coldcard's export).
-                .filter_map(|(i, it)| {
-                    if !matches!(it.kind, FileKind::Key | FileKind::Wallet) {
-                        return None;
-                    }
-                    let text = crate::create::key_for(c.kind, &String::from_utf8_lossy(&it.bytes))?;
-                    Some((i, it.name.clone(), text))
-                })
+                .filter_map(|f| Some((f.at, f.name.as_str(), f.key.as_deref().ok()?)))
                 .collect();
             // The way on leads: New key on the first slot still empty,
             // Continue once every slot is filled.
@@ -462,7 +485,7 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                             continue;
                         }
                         row.push((
-                            fill(EN.create_slot_source, &[&name.to_string()]),
+                            fill(EN.create_slot_source, &[name]),
                             Style::Secondary,
                             Action::CSlotFile(slot as u8, *i),
                         ));
@@ -593,6 +616,11 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                 }
                 ui.rule(x, cy, w, Role::OutlineVariant);
                 cy += 10.0;
+            }
+            if !locked {
+                for f in all_files.iter().filter(|f| f.key.is_err()) {
+                    cy += refused_file_row(ui, x, cy, w, f);
+                }
             }
             if let Some(e) = &c.error {
                 cy += ui.wrap(x, cy, w, 13.0, W::R, Role::Error, e) + 6.0;

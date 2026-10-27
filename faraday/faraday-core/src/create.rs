@@ -528,6 +528,47 @@ pub fn key_for(kind: NewKind, text: &str) -> Option<String> {
     key_for_slot(kind, text).ok()
 }
 
+/// One key or wallet file of the Inbox as Make a new wallet's Keys card
+/// lists it: the key it offers a slot, or why it offers none.
+#[derive(Clone, Debug)]
+pub struct KeyFile {
+    /// Its place in the Inbox.
+    pub at: usize,
+    /// Its name.
+    pub name: String,
+    /// [`key_for_slot`] for the kind being made.
+    pub key: Result<String, String>,
+}
+
+impl Faraday {
+    /// Costs [`key_for_slot`] for each key or wallet file of the Inbox.
+    /// The files Make a new wallet's Keys card lists, offered or refused
+    /// ([`crate::drawing::View::create_key_files`]); none for a kind whose
+    /// keys are not files.
+    pub(crate) fn create_key_files_now(&self, _c: &Compute) -> std::rc::Rc<Vec<KeyFile>> {
+        let Some(kind) = self.create.state().map(|c| c.kind) else {
+            return std::rc::Rc::default();
+        };
+        if kind.shares() {
+            return std::rc::Rc::default();
+        }
+        std::rc::Rc::new(
+            self.inbox
+                .iter()
+                .enumerate()
+                .filter(|(_, it)| {
+                    matches!(it.kind, wallet::FileKind::Key | wallet::FileKind::Wallet)
+                })
+                .map(|(at, it)| KeyFile {
+                    at,
+                    name: it.name.clone(),
+                    key: key_for_slot(kind, &String::from_utf8_lossy(&it.bytes)),
+                })
+                .collect(),
+        )
+    }
+}
+
 /// Costs a read of the file's keys (a base58 decode each). The key in a
 /// file for a slot of a `kind` wallet, or why there is none: of the keys the file offers, the first with its origin at the
 /// kind's derivation (any account), its path's coin type that of its
@@ -1314,11 +1355,10 @@ impl Faraday {
         })
     }
 
-    /// Costs what `create_vaults_now` costs, and a read of each Inbox file
-    /// for a key of the kind. Whether Make a new wallet's Keys card would
+    /// Costs what `create_vaults_now` costs. Whether Make a new wallet's Keys card would
     /// offer one way on only: a single key's slot, empty, whose one choice
-    /// is its key flow, **New key** (no key in the session, no key file in
-    /// the Inbox, no open vault's key and no locked vault) or **Make
+    /// is its key flow, **New key** (no key in the session, no key or wallet
+    /// file in the Inbox, offered or refused, no open vault's key and no locked vault) or **Make
     /// codex32 shares** for a backup in shares, which takes no other key.
     /// Such a card is passed over: the key flow opens in its place.
     pub(crate) fn create_keys_one_way(&self, c: &Compute) -> bool {
@@ -1337,10 +1377,12 @@ impl Faraday {
         if !self.session.keys.is_empty() {
             return false;
         }
-        let file = self.inbox.iter().any(|it| {
-            matches!(it.kind, wallet::FileKind::Key | wallet::FileKind::Wallet)
-                && create::key_for(cs.kind, &String::from_utf8_lossy(&it.bytes)).is_some()
-        });
+        // A file the card lists, offered or refused: the card shows, so
+        // the person sees why a refused file is not taken.
+        let file = self
+            .inbox
+            .iter()
+            .any(|it| matches!(it.kind, wallet::FileKind::Key | wallet::FileKind::Wallet));
         if file {
             return false;
         }

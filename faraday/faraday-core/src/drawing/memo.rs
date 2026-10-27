@@ -48,6 +48,15 @@ impl View<'_> {
             .clone()
     }
 
+    /// The Inbox files Create's Keys card lists
+    /// ([`crate::Faraday::create_key_files_now`]), once a frame.
+    pub(crate) fn create_key_files(&self) -> Rc<Vec<crate::create::KeyFile>> {
+        self.drawing
+            .create_key_files
+            .get_or_init(|| self.filled(|c| self.app.create_key_files_now(c)))
+            .clone()
+    }
+
     /// The backup board as the frame draws it
     /// ([`crate::Faraday::board_view_now`]), once a frame.
     pub(crate) fn board_view(&self) -> Option<Rc<BoardView>> {

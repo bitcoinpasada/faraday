@@ -3605,7 +3605,7 @@ strings! {
     /// Why, in `create_scan_not_in_slot`. `{}`: how many keys.
     create_scan_keys: "it holds {} keys, not one",
     /// Why, in `create_scan_not_in_slot`.
-    create_scan_no_origin: "its key has no fingerprint and path",
+    create_scan_no_origin: "its key has no fingerprint and derivation path; most wallets export a key with them",
     /// Why, in `create_scan_not_in_slot`. `{}`: the key's path, the kind's name.
     create_scan_not_for: "its key at m/{} is not for {}",
     /// Why, in `create_scan_not_in_slot`.

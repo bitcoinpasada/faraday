@@ -1943,3 +1943,14 @@ pub const EASE_STANDARD_ACCELERATE: Easing = [0.3, 0.0, 1.0, 1.0];
 pub const EASE_EMPHASIZED_DECELERATE: Easing = [0.05, 0.7, 0.1, 1.0];
 /// Emphasized accelerate: a large part of the page leaving.
 pub const EASE_EMPHASIZED_ACCELERATE: Easing = [0.3, 0.0, 0.8, 0.15];
+
+/// A file the Keys card lists but cannot use: its name's size.
+pub const REFUSED_FILE_NAME: f32 = 14.0;
+/// Its reason's size.
+pub const REFUSED_FILE_REASON: f32 = 13.0;
+/// The reason's top below the row's top.
+pub const REFUSED_FILE_REASON_Y: f32 = 26.0;
+/// The name's top below the row's top.
+pub const REFUSED_FILE_NAME_Y: f32 = 4.0;
+/// Space under the reason.
+pub const REFUSED_FILE_GAP: f32 = 10.0;

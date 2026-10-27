@@ -229,7 +229,7 @@ fn a_descriptor_that_cannot_be_the_waiting_key_is_filed_and_says_why() {
     let cases = [
         (
             checksummed(&format!("wpkh({bare}/<0;1>/*)")),
-            "no fingerprint and path",
+            "no fingerprint and derivation path; most wallets export a key with them",
         ),
         (bad_sum, "checksum"),
         (
@@ -317,7 +317,10 @@ fn a_cosigners_key_that_cannot_be_the_waiting_key_is_filed_and_says_why() {
     let key = testkit::key(2, "48h/1h/0h/2h");
     let bare = key[key.find(']').unwrap() + 1..].to_string();
     let cases = [
-        (bare, "no fingerprint and path"),
+        (
+            bare,
+            "no fingerprint and derivation path; most wallets export a key with them",
+        ),
         (testkit::key(2, "84h/1h/0h"), "is not for"),
         (
             format!(
@@ -863,4 +866,58 @@ fn ctrl_v_on_the_open_scanner_pastes_and_elsewhere_does_nothing() {
     app.clipboard = true;
     app.event(Event::Key(faraday_shell_api::Key::Paste));
     assert!(!asks_for_clipboard(&mut app));
+}
+
+/// Make a new wallet on a single key, on its Keys card, with `name` holding
+/// `bytes` in the Inbox.
+fn keys_card_with_file(name: &str, bytes: &[u8]) -> Faraday {
+    let mut app = testkit::started();
+    app.storage(StorageEvent::Restored {
+        inbox: vec![(name.to_string(), bytes.to_vec())],
+        outbox: Vec::new(),
+        kept: Vec::new(),
+    });
+    app.press(Action::CreateWallet);
+    app.press(Action::CKind(0));
+    app.press(Action::CNext(faraday_core::cstep::KIND));
+    app.press(Action::CVaults(false));
+    app.press(Action::CNext(faraday_core::cstep::WHERE));
+    let _ = app.frame();
+    app
+}
+
+#[test]
+fn an_xpub_file_with_no_origin_is_listed_on_the_keys_card_disabled_with_its_reason() {
+    let key = testkit::key(2, "84h/1h/0h");
+    let bare = key[key.find(']').unwrap() + 1..].to_string();
+    let mut app = keys_card_with_file("xpub-bare.txt", bare.as_bytes());
+    assert_eq!(
+        app.create().unwrap().open,
+        Some(faraday_core::cstep::KEYS),
+        "the card is shown, not passed over"
+    );
+    let texts = app.drawn_texts();
+    assert!(texts.iter().any(|t| t == "From xpub-bare.txt"), "{texts:?}");
+    assert!(
+        texts
+            .iter()
+            .any(|t| t == faraday_core::strings::EN.create_scan_no_origin),
+        "{texts:?}"
+    );
+    assert!(!app.offers(Action::CSlotFile(0, 0)));
+    app.press(Action::CSlotFile(0, 0));
+    assert_eq!(slot(&app, 0), faraday_core::create::Source::Empty);
+}
+
+#[test]
+fn an_xpub_file_with_its_origin_is_still_offered_on_the_keys_card() {
+    let key = testkit::key(2, "84h/1h/0h");
+    let mut app = keys_card_with_file("xpub-origin.txt", key.as_bytes());
+    assert!(app.offers(Action::CSlotFile(0, 0)));
+    let texts = app.drawn_texts();
+    assert!(
+        !texts
+            .iter()
+            .any(|t| t == faraday_core::strings::EN.create_scan_no_origin)
+    );
 }

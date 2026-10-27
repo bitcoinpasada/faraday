@@ -1023,7 +1023,7 @@ guarantees for this file's rule:
   Lock in opens Check with **Back up wallet** at its foot.
 - **The Keys card** (decisions 35, 36 and 39). Where it would offer
   one way on only (a single key's empty slot with no key in the
-  session, no key file in the Inbox and no vault's key, or a backup in
+  session, no key or wallet file in the Inbox, offered or refused, and no vault's key, or a backup in
   shares, whose one way is Make codex32 shares), the Continue on the
   card before it opens that key flow for slot 1 in its place; Keys
   stays in the list of steps, not done, and is done with the key once
@@ -1041,8 +1041,12 @@ guarantees for this file's rule:
   for a slot, from a scan or from Files, since its path would be a
   guess; a descriptor of several keys is not split. What cannot be the
   slot's key (no origin, another kind or network, no key for the kind, a
-  checksum that does not hold) stays in Files, the toast naming why.
-  While a
+  checksum that does not hold) stays in Files, the toast naming why;
+  a key or wallet file in the Inbox that cannot be a slot's key is still
+  listed on the card, disabled, with its reason under its name (a key
+  with no origin: it needs its fingerprint and derivation path, which
+  most wallets export), and a single key's card with such a file is
+  shown, not passed over. While a
   slot is empty there is no button at the foot: the first empty slot's
   own **New key** leads; once no slot is empty the foot reads **Make the
   wallet**. A slot
