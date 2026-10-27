@@ -16,16 +16,16 @@ Read this table, then only the decision you need.
 | F# | Title | Date | Status | Area |
 |---|---|---|---|---|
 | [F1](decisions/F1.md) | The boot import, and one line of fact on its sheet | 2026-10-08 | Active | stick |
-| [F2](decisions/F2.md) | Faraday upgrades another Faraday stick, and never signs inside the upgrade | 2026-10-08 | Amended by F11 | stick |
+| [F2](decisions/F2.md) | Faraday upgrades another Faraday stick, and never signs inside the upgrade | 2026-10-08 | Amended by F11, F128 | stick |
 | [F3](decisions/F3.md) | A multi-choice list beside Choice, for the backup's plan | 2026-10-09 | Active | design |
 | [F4](decisions/F4.md) | On the Pi, "SD card" where the app says "stick" | 2026-10-09 | Active | stick |
-| [F5](decisions/F5.md) | Release, test release and dev builds, each named in the release string | 2026-10-10 | Active | release |
+| [F5](decisions/F5.md) | Release, test release and dev builds, each named in the release string | 2026-10-10 | Amended by F128 | release |
 | [F6](decisions/F6.md) | The backup before the spend | 2026-10-10 | Active | backup |
 | [F7](decisions/F7.md) | TOTP codes, and a clock the person can set | 2026-10-11 | Amended by F123 | keys |
 | [F8](decisions/F8.md) | Scan to sign, and a Spend tab that asks for data | 2026-10-11 | Active | wallets |
 | [F9](decisions/F9.md) | Writing over a file on a stick, and an Add glyph | 2026-10-11 | Active | stick |
 | [F10](decisions/F10.md) | The name as a wordmark | 2026-10-11 | Active | design |
-| [F11](decisions/F11.md) | The Starter: one download that makes sticks and cards | 2026-10-12 | Amended by F12, F13, F30, F33 | Starter |
+| [F11](decisions/F11.md) | The Starter: one download that makes sticks and cards | 2026-10-12 | Amended by F12, F13, F30, F33, F128 | Starter |
 | [F12](decisions/F12.md) | The Starter, reviewed: what the owner changed in v0.2 | 2026-10-12 | Amended by F30, F33 | Starter |
 | [F13](decisions/F13.md) | Faraday on Macs: the stick, the desktop app and the Starter | 2026-10-12 | Amended by F30 | platforms |
 | [F14](decisions/F14.md) | Maker pages are published several families at once | 2026-10-12 | Active | Starter |
@@ -81,7 +81,7 @@ Read this table, then only the decision you need.
 | [F64](decisions/F64.md) | Other wallets' formats, the less common under More options | 2026-10-20 | Active | wallets |
 | [F65](history/decisions/F65.md) | Upstream's code taken in house: a soft fork | 2026-10-20 | Replaced by F72 | repository |
 | [F66](decisions/F66.md) | Hardened steps are written `h` | 2026-10-20 | Active | wallets |
-| [F67](decisions/F67.md) | The stick's partitions and files have Faraday's names | 2026-10-21 | Active | stick |
+| [F67](decisions/F67.md) | The stick's partitions and files have Faraday's names | 2026-10-21 | Amended by F128 | stick |
 | [F68](decisions/F68.md) | One strings file; the upstream app removed | 2026-10-21 | Active | repository |
 | [F69](decisions/F69.md) | Costly work takes a token; drawing cannot mint one | 2026-10-21 | Active | speed |
 | [F70](decisions/F70.md) | One crate holds every key: faraday-keys | 2026-10-21 | Amended by F125 | keys |
@@ -91,10 +91,10 @@ Read this table, then only the decision you need.
 | [F74](decisions/F74.md) | The structure is held by `just` | 2026-10-21 | Active | repository |
 | [F75](decisions/F75.md) | A seed can be pasted on the desktop | 2026-10-22 | Active | keys |
 | [F76](decisions/F76.md) | The key explorer lists an account's addresses and finds one | 2026-10-22 | Active | wallets |
-| [F77](decisions/F77.md) | Back lands on the screen seen before, as it was seen | 2026-10-22 | Amended by F104 | design |
+| [F77](decisions/F77.md) | Back lands on the screen seen before, as it was seen | 2026-10-22 | Amended by F104, F128 | design |
 | [F78](history/decisions/F78.md) | A window's layout does not follow the compositor's scale above 1.5 | 2026-10-22 | Replaced by F101 | design |
 | [F79](decisions/F79.md) | Faraday's crypto is cross-checked against Python references, offline, at build time | 2026-10-22 | Active | crypto |
-| [F80](decisions/F80.md) | A stick or Pi card has a 64 MiB boot and a 128 MiB FAT32 data partition | 2026-10-22 | Active | stick |
+| [F80](decisions/F80.md) | A stick or Pi card has a 64 MiB boot and a 128 MiB FAT32 data partition | 2026-10-22 | Amended by F128 | stick |
 | [F81](decisions/F81.md) | Modes: a pressable pill, Practice on testnet, samples at every step | 2026-10-22 | Amended by F119 | design |
 | [F82](decisions/F82.md) | A first start opens Steps only; Guided is a choice | 2026-10-22 | Active | design |
 | [F83](decisions/F83.md) | Faraday Demo is inside the Starter, and not published on its own | 2026-10-23 | Amended by F126 | release |
@@ -142,3 +142,4 @@ Read this table, then only the decision you need.
 | [F125](decisions/F125.md) | Explore shows a key's secrets behind eyes | 2026-10-26 | Active | keys |
 | [F126](decisions/F126.md) | Faraday Demo runs inside Faraday Starter; one theme in a session | 2026-10-26 | Active | Starter |
 | [F127](decisions/F127.md) | FROST removed from the repository until its standards are published | 2026-10-26 | Active | wallets |
+| [F128](decisions/F128.md) | Upgrading a stick is the Starter's; Faraday writes no boot partition | 2026-10-26 | Active | stick |

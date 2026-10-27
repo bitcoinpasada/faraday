@@ -27,14 +27,9 @@ pub use pages::{Page, Section};
 /// the desktop app, the stick and the Starter carry the same text. The
 /// guides to starting a computer from the stick
 /// (`docs/learn/faraday/boot/*.md`) are `faraday-guides`' own table, not
-/// this one, except `replace-faraday`, which the stick's Upgrade screen
-/// shows directly ([`known`]).
-const OWN: [(&str, &str); 10] = [
-    // Upgrading a stick from another stick (`docs/history/PLAN.md` §5.5).
-    (
-        "upgrade-a-stick",
-        include_str!("../../../docs/learn/faraday/upgrade-a-stick.md"),
-    ),
+/// this one, except `replace-faraday`, which the Starter's Keep data
+/// shows ([`known`]).
+const OWN: [(&str, &str); 9] = [
     // A multisig backup's shares (`docs/history/NEW-WALLET.md` §4.2).
     (
         "shares",
@@ -305,11 +300,6 @@ pub fn steps(page: &LearnPage) -> Vec<u32> {
         .flat_map(|s| s.paragraphs.iter())
         .filter_map(|p| step(p).map(|(n, _)| n))
         .collect()
-}
-
-/// "Upgrading a Faraday stick".
-pub fn upgrade_page() -> &'static LearnPage {
-    known("upgrade-a-stick")
 }
 
 /// "Shares of a wallet description".

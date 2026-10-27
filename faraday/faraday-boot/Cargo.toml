@@ -1,18 +1,15 @@
 [package]
 name = "faraday-boot"
 version = "0.1.7"
-description = "The boot copier (docs/history/PLAN.md §5.5): unprivileged, it reads the boot partition of the stick Faraday started from raw into memory, accepts it only if it carries the running kernel's release string, and writes it raw over another Faraday stick's boot partition, reading back and comparing; it reads no FAT"
+description = "Which Faraday a stick's boot partition holds: the kernel's release string found in its bytes, as Faraday Starter reads a stick's version (docs/STARTER.md §4.1)"
 edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
 repository.workspace = true
 publish = false
 
-# It opens device nodes, reads /sys and /proc/version, and speaks its
-# pipe protocol with std alone. Its one dependency is Faraday's wording,
-# for the reasons it gives that the upgrade screen shows.
+# std alone: the caller hands it the bytes.
 [dependencies]
-faraday-strings = { path = "../faraday-strings" }
 
 [lints]
 workspace = true

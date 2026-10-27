@@ -1227,7 +1227,7 @@ impl Starter {
                 None => Some(ModeRefusal::NotFaraday),
                 Some(stick) => {
                     let build = image.and_then(|i| i.build);
-                    (decide::keep_data(stick, build.as_deref()) == faraday_core::upgrade::Fit::Same)
+                    (decide::keep_data(stick, build.as_deref()) == faraday_core::build::Fit::Same)
                         .then_some(ModeRefusal::Same)
                 }
             },
@@ -1729,7 +1729,6 @@ impl Starter {
         {
             pages.insert(0, page);
         }
-        pages.push(faraday_learn::upgrade_page());
         pages
     }
 
@@ -2132,7 +2131,7 @@ impl Starter {
         let Some(i) = &self.installed else {
             return false;
         };
-        let n = faraday_core::upgrade::version_number;
+        let n = faraday_core::build::version_number;
         // A copy that does not report a version is older than any.
         match (n(VERSION), n(&i.version)) {
             (Some(r), Some(i)) => r > i,

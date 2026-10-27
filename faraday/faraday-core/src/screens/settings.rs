@@ -49,25 +49,20 @@ enum Part {
     Appearance,
     Scale,
     Signed,
-    Stick,
     About,
 }
 
-/// The sections this app has: the stick's upgrade never in the online
-/// app, which has no boot partition to copy (`docs/history/PLAN.md` §5.5).
-/// The preview size is Faraday Demo's host's (`docs/DESKTOP-HOST.md`).
-fn parts(app: &View) -> Vec<Part> {
+/// The sections, the same in every app. The preview size is Faraday
+/// Demo's host's (`docs/DESKTOP-HOST.md`).
+fn parts() -> Vec<Part> {
     use Part::*;
-    let mut v = vec![Mode, Session, Time, Randomness, Appearance, Scale, Signed];
-    if !app.online {
-        v.push(Stick);
-    }
-    v.push(About);
-    v
+    vec![
+        Mode, Session, Time, Randomness, Appearance, Scale, Signed, About,
+    ]
 }
 
 /// A section's name, as its card and the list of sections show it.
-fn part_title(app: &View, p: Part) -> &'static str {
+fn part_title(p: Part) -> &'static str {
     match p {
         Part::Mode => EN.settings_mode,
         Part::Session => EN.settings_session,
@@ -76,7 +71,6 @@ fn part_title(app: &View, p: Part) -> &'static str {
         Part::Appearance => EN.settings_appearance,
         Part::Scale => EN.settings_display_scale,
         Part::Signed => EN.settings_signed_amounts,
-        Part::Stick => app.medium.caps(),
         Part::About => EN.settings_about,
     }
 }
@@ -95,7 +89,6 @@ fn part_guide(app: &View, p: Part) -> Option<Cow<'static, str>> {
         Part::Appearance => EN.settings_guide_appearance.into(),
         Part::Scale => EN.settings_guide_scale.into(),
         Part::Signed => EN.settings_guide_signed.into(),
-        Part::Stick => fill(EN.settings_guide_stick, &[app.medium.noun()]).into(),
         Part::About => EN.settings_guide_about.into(),
     })
 }
@@ -107,7 +100,7 @@ fn part(app: &View, ui: &mut Ui, p: Part, (x, y, w): (f32, f32, f32)) -> f32 {
     if p == Part::Mode {
         return mode_card(app, ui, (x, y, w), guide.as_deref()) + 14.0;
     }
-    section(ui, x, y, w, part_title(app, p), &|ui, x, y0, w| {
+    section(ui, x, y, w, part_title(p), &|ui, x, y0, w| {
         let g = guide.as_deref().map_or(0.0, |t| {
             crate::flow::guide_text(ui, (x, y0, w), t) + GUIDE_AFTER
         });
@@ -117,7 +110,6 @@ fn part(app: &View, ui: &mut Ui, p: Part, (x, y, w): (f32, f32, f32)) -> f32 {
 
 /// What section `p` holds, from (x, y) `w` wide. Returns its height.
 fn part_body(app: &View, ui: &mut Ui, p: Part, at: (f32, f32, f32)) -> f32 {
-    let (x, y, w) = at;
     match p {
         Part::Mode => 0.0,
         Part::Session => session_body(app, ui, at),
@@ -130,16 +122,6 @@ fn part_body(app: &View, ui: &mut Ui, p: Part, at: (f32, f32, f32)) -> f32 {
         }
         Part::Scale => scale_body(app, ui, at),
         Part::Signed => signed_body(app, ui, at),
-        Part::Stick => {
-            wrap_buttons(
-                ui,
-                x,
-                y,
-                w,
-                BUTTON_H,
-                &[(app.medium.upgrade(), Style::Secondary, Action::UpgradeOpen)],
-            ) - 8.0
-        }
         Part::About => about_body(app, ui, at),
     }
 }
@@ -375,14 +357,14 @@ fn listed(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let top = M - app.list_offset;
     let mut y = top;
     y += guided_row(app, ui, x, y);
-    let parts = parts(app);
+    let parts = parts();
     if let Some(p) = open_part(app, &parts) {
         y += part(app, ui, p, (x, y, w));
     } else {
         for (k, &q) in parts.iter().enumerate() {
             let mode = q == Part::Mode;
             let item = Item {
-                headline: part_title(app, q),
+                headline: part_title(q),
                 supporting: if mode { app.mode().name() } else { "" },
                 trailing: None,
                 action: if mode {
@@ -411,7 +393,7 @@ pub(crate) fn open_head(app: &View) -> Option<&'static str> {
     if !crate::panes::settings_listed(app.window()) {
         return None;
     }
-    open_part(app, &parts(app)).map(|p| part_title(app, p))
+    open_part(app, &parts()).map(part_title)
 }
 
 /// Settings (`docs/LAYOUT.md` §17): on a compact window the list of
@@ -434,7 +416,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     }
     top += guided_row(app, ui, x, top);
     let (mut left, mut right) = (top, top);
-    for p in parts(app) {
+    for p in parts() {
         if two && (p as u8) >= (Part::Appearance as u8) {
             right += part(app, ui, p, (x + col_w + SPACER, right, col_w));
         } else {

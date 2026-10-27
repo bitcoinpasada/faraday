@@ -144,26 +144,6 @@ fn transfer_holds_send_and_receive_either_side_of_the_rooms_middle() {
 }
 
 #[test]
-fn upgrade_stands_centred_in_the_room_on_a_big_window() {
-    for (w, h) in [(1920u16, 1080u16), (2560, 1600)] {
-        let mut app = shown(w, h);
-        app.press(Action::Nav(Screen::Settings));
-        app.press(Action::UpgradeOpen);
-        let _ = app.frame();
-        assert_eq!(app.screen, Screen::Upgrade);
-        // Its lines are shorter than its column, so its title is what
-        // shows where the column stands: nearer the room's middle than
-        // the navigation.
-        let title = text_left(&mut app, "Upgrade a Faraday stick");
-        let middle = room_middle(w);
-        assert!(
-            middle - title < (middle - SIDEBAR) / 2.0,
-            "{w}: Upgrade's title starts at {title}, the room's middle is {middle}"
-        );
-    }
-}
-
-#[test]
 fn a_stick_visits_two_lists_stand_centred_in_the_room_on_a_big_window() {
     use faraday_core::{StickInfo, StorageEvent};
     for (w, h) in [(1920u16, 1080u16), (2560, 1600)] {

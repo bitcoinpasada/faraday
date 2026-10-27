@@ -68,7 +68,7 @@ pub fn parse_version_output(output: &str) -> Option<(Program, &str)> {
 }
 
 /// Whether this is a release build: a build ID with nothing after the
-/// version (`upgrade::describe`). Test releases, dev builds and a plain
+/// version (`build::describe`). Test releases, dev builds and a plain
 /// `cargo build` are not.
 pub fn is_release() -> bool {
     BUILD.is_some_and(|b| !b.contains('+'))
@@ -79,7 +79,7 @@ pub fn is_release() -> bool {
 /// a local build.
 pub fn version_label() -> String {
     match BUILD {
-        Some(build) => crate::upgrade::describe(build),
+        Some(build) => crate::build::describe(build),
         None => fill(EN.version_label_local, &[VERSION]),
     }
 }

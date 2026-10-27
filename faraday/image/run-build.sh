@@ -18,7 +18,7 @@ root="$(pwd)"
 image="$root/faraday/image"
 binaries="$root/out/faraday/$board"
 [ -d "$image/boards/$board" ] || { echo "no such board: $board" >&2; exit 1; }
-for b in faraday faraday-disk faraday-grant faraday-boot; do
+for b in faraday faraday-disk faraday-grant; do
     [ -f "$binaries/$b" ] || { echo "$binaries/$b: not built" >&2; exit 1; }
 done
 
@@ -39,9 +39,8 @@ fi
 # The kernel's release string carries the Faraday build ID (docs/DECISIONS.md
 # F5): a release's version alone, otherwise the version, the commit and the
 # kind (test, the default, or dev), with `.dirty-XXXXXXXX` before the kind
-# when the tree differs from the commit. The upgrade takes a boot partition
-# as the source only if it holds the running kernel's release string, and
-# shows a target's version from the one it holds. It comes from the commit,
+# when the tree differs from the commit. The Starter reads a stick's
+# version from the one its boot partition holds. It comes from the commit,
 # never the clock, so two builders get the same bytes. build.sh writes it
 # into a kernel fragment of its own.
 localversion="-faraday-$(FARADAY_DEV="$dev" "$image/build-id.sh")"
@@ -57,8 +56,8 @@ if [ "$head" != "$commit" ]; then
     exit 1
 fi
 "${DOCKER:-docker}" build -t faraday-image "$image"
-# /binary holds the app (faraday) and the disk process, the grant helper
-# (docs/history/PLAN.md §4.3) and the boot copier (§5.5) beside it.
+# /binary holds the app (faraday) and the disk process and the grant
+# helper (docs/history/PLAN.md §4.3) beside it.
 in_container() {
     "${DOCKER:-docker}" run --rm \
         -e BOARD="$board" -e PANEL="$panel" -e DEV="$dev" \
@@ -110,7 +109,7 @@ in_container /image/build.sh
 printf '%s\n' "$kernel_source" > "$source_stamp"
 
 # The PC's kernel carries its release string uncompressed in the bzImage
-# setup code, which is what the upgrade reads (docs/history/PLAN.md §5.5).
+# setup code, which is what the Starter reads (docs/STARTER.md §4.1).
 kernel="$root/out/pi/$variant/output/images/bzImage"
 if [ -f "$kernel" ] && ! grep -qaF -- "$localversion " "$kernel"; then
     echo "$kernel does not carry the release string $localversion" >&2

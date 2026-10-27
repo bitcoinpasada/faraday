@@ -273,7 +273,7 @@ each at the text size the person's system asks for.
   Built (L5, part 2): Files and the stick visit, Spend, the sheets (the
   scanner, the dialogs, Learn), Decode, the entry forms, the tool
   catalogue, Check a message, Sign a message, Set the time, Add
-  randomness, Transfer, Upgrade and Tools: every line of text is a
+  randomness, Transfer and Tools: every line of text is a
   `TypeRole` (`text_as`, `wrap_as` and the rest), every button
   `BUTTON_H` tall, the Kind rows' names `TITLE_S` and their second lines
   `BODY_S`; a monospaced value is its role `.mono()`.
@@ -757,7 +757,7 @@ is measured to place them.
 | The structure chart (a wallet's detail, the chart sheet) | wide content in the detail's width; its nodes keep their size (§8); the wallet's buttons under the chart, not at the card's foot. A node's sheet is Material's standard side sheet at the window's right edge, `SIDE_SHEET_W` wide, the page's room narrowed by it so the chart and its highlighted lines stand beside it (DESIGN §4.16); on the rail's and the bar's windows the centred sheet or the panel's page, as before |
 | Tools | reading content in its own area (`READING_TOOLS_W`), centred: its `TOOLS_COLUMN_W` column after its inset |
 | The tools' catalogue | a grid of tiles, wide content: as many columns as `CATALOG_TILE_MIN` leaves room for in the work width, never fewer than `CATALOG_COLUMNS_MIN`, each at the row's share |
-| Transfer, Upgrade, a stick visit | reading content, each in its own area centred in the room: Transfer's Send and Receive side by side, `TRANSFER_W` at most (`READING_TRANSFER_W`); Upgrade's column, `UPGRADE_W` at most (`READING_UPGRADE_W`); a stick visit's two lists, each at most `COLUMN_MAX`, `VISIT_GAP` apart (`READING_VISIT_W`); each between two `PAGE_INSET`s |
+| Transfer, a stick visit | reading content, each in its own area centred in the room: Transfer's Send and Receive side by side, `TRANSFER_W` at most (`READING_TRANSFER_W`); a stick visit's two lists, each at most `COLUMN_MAX`, `VISIT_GAP` apart (`READING_VISIT_W`); each between two `PAGE_INSET`s |
 | The backup board | wide content: the places laid out in as many columns as the work width holds at the board's place width, so three places stand side by side at 2560 and two at 1920; the board's lists (seeds, vaults, watch-only software) a supporting pane at the right edge (§15); the page it is on (Back up, a wallet's backup flow) starts at the navigation on every card, so its cards stand still when the board's card opens, and the open card's rules run the work width (§14) |
 | Explore | reading content: the path field as wide as a path (§8), the values in mono in the column, wrapping in groups; the addresses table as wide as its columns, at the start |
 | Spend and every step flow | reading content in the column, centred (§14); a table in a step (Spend's transaction) as wide as its columns; on extra-large the step's Guided text and Learn in the supporting pane (§6, L6) |
@@ -905,10 +905,10 @@ layout. The pages W6 left at the old 1360 dp area past an
 extra-large window's room have their areas since: the pages below and
 the backup flow ("Built after W7").
 
-**Built since W6:** Tools, Transfer, Upgrade and a stick visit are
+**Built since W6:** Tools, Transfer and a stick visit are
 reading content, each laid out in its own area centred in the room past
 an extra-large window's 1360 dp (`READING_TOOLS_W`,
-`READING_TRANSFER_W`, `READING_UPGRADE_W`, `READING_VISIT_W`), a stick
+`READING_TRANSFER_W`, `READING_VISIT_W`), a stick
 visit's two lists each growing to `COLUMN_MAX`; the tools' catalogue
 takes the work width, as many tiles to a row as `CATALOG_TILE_MIN`
 leaves room for and never fewer than three, so four stand side by side

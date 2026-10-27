@@ -29,7 +29,7 @@
 #   /ccache     the compiler cache, shared by every combination (out/pi/ccache)
 #   /binary     the static binaries from `just faraday-pi-bin` or
 #               `just faraday-stick-bin` (out/faraday/<board>/): the app,
-#               faraday, and faraday-disk, faraday-grant and faraday-boot
+#               faraday, and faraday-disk and faraday-grant
 #   /image      faraday/image, read-only
 #
 # and from run-build.sh, in the environment: FAT_SERIAL_BOOT and
@@ -203,18 +203,20 @@ if grep -q '@FAT_SERIAL_' "$gen/genimage.cfg"; then
 fi
 
 # ---- the kernel's release string: Faraday's version and commit
-# (run-build.sh), which the upgrade reads (docs/DECISIONS.md F5).
+# (run-build.sh), which the Starter reads (docs/DECISIONS.md F5).
 install_gen "$gen/localversion.fragment" <<EOF
 # Faraday's version and commit (run-build.sh).
 CONFIG_LOCALVERSION="${FARADAY_LOCALVERSION:?}"
 # CONFIG_LOCALVERSION_AUTO is not set
 EOF
 
-# ---- the disk process, the grant helper (docs/history/PLAN.md §4.3) and the boot
-# copier (§5.5), beside the app in /usr/bin. The app itself is the
-# faraday package's.
+# ---- the disk process and the grant helper (docs/history/PLAN.md §4.3),
+# beside the app in /usr/bin. The app itself is the faraday package's.
 mkdir -p "$gen/overlay/usr/bin"
-for b in faraday-disk faraday-grant faraday-boot; do
+# The overlay is kept between builds: an earlier build's boot copier is
+# taken out of it, so no image carries one.
+find "$gen/overlay/usr/bin" -name faraday-boot -delete
+for b in faraday-disk faraday-grant; do
     if ! cmp -s "/binary/$b" "$gen/overlay/usr/bin/$b"; then
         install -m 0755 "/binary/$b" "$gen/overlay/usr/bin/$b"
     fi

@@ -48,7 +48,6 @@ pub(crate) mod standard;
 pub(crate) mod themes;
 pub(crate) mod tooltips;
 pub(crate) mod transfer;
-pub(crate) mod upgrade;
 pub(crate) mod vault_show;
 pub(crate) mod vaultway;
 pub(crate) mod visit;

@@ -5,7 +5,7 @@
 file faraday/faraday-core/src/backup_flow/steps.rs 2954
 file faraday/faraday-core/src/backup_flow/wallet.rs 2818
 file faraday/faraday-core/src/board/mod.rs 2540
-file faraday/faraday-core/src/lib.rs 7356
+file faraday/faraday-core/src/lib.rs 7327
 file faraday/faraday-core/src/plan/mod.rs 4022
 file faraday/faraday-core/src/vault/mod.rs 3874
 file faraday/faraday-core/src/vault/screen.rs 3403
@@ -15,11 +15,11 @@ file faraday/faraday-core/tests/all/backup_flow_wallet.rs 5811
 # Functions over 100 lines (clippy's too_many_lines, each under an
 # `expect`), and functions with too many arguments (each under an
 # `allow`).
-expect too_many_lines 177
+expect too_many_lines 176
 allow too_many_arguments 64
 
 # Faraday's top-level fields (lib.rs's `pub struct Faraday`): only falls.
-fields Faraday 84
+fields Faraday 83
 
 # Files under faraday/ with an inherent `impl Faraday {`: the list only
 # shrinks.
@@ -77,7 +77,6 @@ impl-faraday faraday/faraday-core/src/stick/wipe.rs
 impl-faraday faraday/faraday-core/src/tools/mod.rs
 impl-faraday faraday/faraday-core/src/trail.rs
 impl-faraday faraday/faraday-core/src/transfer/mod.rs
-impl-faraday faraday/faraday-core/src/upgrade/mod.rs
 impl-faraday faraday/faraday-core/src/vanity/mod.rs
 impl-faraday faraday/faraday-core/src/vault/mod.rs
 impl-faraday faraday/faraday-core/src/visit_taken.rs

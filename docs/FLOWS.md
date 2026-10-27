@@ -1697,7 +1697,7 @@ Every screen whose state is kept when it is left, read from the code:
 | GPG, Secure Boot keys | Tools | `backup_flows` | past Where it will be kept | Done | the kind's tile resumes one not made; nothing lets one go | kept |
 | A wallet's backup flow, on its own | Wallets | `backup_flows` | past The plan, or the keys made | Done | Back up's plan | kept |
 | New key, Add a key | — | `keygen` | | | dropped when its screen is left | |
-| BIP-85, Silent payments, Lightning, Explore, the calculators, Vanity, the word list, Upgrade | — | dropped when left | | | | |
+| BIP-85, Silent payments, Lightning, Explore, the calculators, Vanity, the word list | — | dropped when left | | | | |
 | A transaction taken apart, Check a message, a stick visit, Set the time | — | one page, or set afresh each time | | | | |
 
 What the spec did not foresee:

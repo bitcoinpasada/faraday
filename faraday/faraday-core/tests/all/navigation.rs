@@ -9,7 +9,7 @@
 use faraday_core::in_progress::Going;
 use faraday_core::nav::Nav;
 use faraday_core::testkit;
-use faraday_core::{Action, BootPart, Faraday, Screen, Sheet, StickInfo, StorageEvent, cstep};
+use faraday_core::{Action, Faraday, Screen, Sheet, StickInfo, StorageEvent, cstep};
 use faraday_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware, TouchPhase};
 
 /// The app on a window `width` × `height` pixels at `dpi`, drawn once.
@@ -201,82 +201,6 @@ fn a_flow_in_progress_shows_its_chip_on_every_destination() {
             assert_eq!(app.screen, Screen::Create, "the chip on {dest:?}");
         }
     }
-}
-
-const RUNNING: &str = "6.6.84-faraday-0.2.0+4d0680b1a2b3";
-const MB: u64 = 1 << 20;
-
-fn part(id: &str, release: Option<&str>, source: bool) -> BootPart {
-    BootPart {
-        id: id.into(),
-        size: 64 * MB,
-        release: release.map(str::to_string),
-        source,
-    }
-}
-
-#[test]
-fn a_stick_being_written_hides_the_navigation() {
-    let mut app = Faraday::new();
-    app.event(Event::Display(DisplayInfo {
-        width: 400,
-        height: 800,
-        dpi: 160,
-        inset_bottom: 0,
-        inset_top: 0,
-        buttons: 0,
-        camera_fixed: false,
-        secure: SecureHardware::None,
-        boot: BootState::Unknown,
-        memory_mib: None,
-    }));
-    app.press(Action::Nav(Screen::Settings));
-    let _ = app.frame();
-    app.press(Action::UpgradeOpen);
-    assert_eq!(app.screen, Screen::Upgrade);
-    app.storage(StorageEvent::Boots(vec![part(
-        "sda1@sda#1",
-        Some(RUNNING),
-        false,
-    )]));
-    app.storage(StorageEvent::BootSource {
-        id: "sda1@sda#1".into(),
-        release: RUNNING.into(),
-        size: 64 * MB,
-    });
-    app.storage(StorageEvent::Sticks(vec![StickInfo {
-        serial: None,
-        id: "sdb2@sdb#2".into(),
-        label: "FARADAYDATA".into(),
-        boot: false,
-        files: Vec::new(),
-    }]));
-    app.storage(StorageEvent::Boots(vec![
-        part("sda1@sda#1", Some(RUNNING), true),
-        part("sdb1@sdb#2", None, false),
-    ]));
-    assert!(
-        at(&mut app, Action::Nav(Screen::Files)).is_some(),
-        "the bar, before"
-    );
-    app.press(Action::UpgradeWrite);
-    assert!(app.nav_hidden());
-    assert!(
-        at(&mut app, Action::Nav(Screen::Files)).is_none(),
-        "the bar while the stick is written"
-    );
-    assert!(
-        !app.offers(Action::NavMenu(None)),
-        "the ⋮ menu while written"
-    );
-    app.storage(StorageEvent::BootWritten {
-        id: "sdb1@sdb#2".into(),
-        release: RUNNING.into(),
-    });
-    assert!(
-        at(&mut app, Action::Nav(Screen::Files)).is_some(),
-        "the bar, after"
-    );
 }
 
 /// The y of Home's Make a new wallet tile and of Restore a wallet's.

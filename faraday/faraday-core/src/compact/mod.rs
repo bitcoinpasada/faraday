@@ -76,7 +76,6 @@ pub(crate) fn screen_name(s: Screen, medium: crate::Medium) -> &'static str {
         Screen::Vanity => EN.compact_vanity_address,
         Screen::Decode => EN.compact_transaction,
         Screen::Transfer => EN.compact_transfer,
-        Screen::Upgrade => medium.upgrade(),
         Screen::BackupFlow => EN.backup_flow_heading,
     }
 }
@@ -456,7 +455,6 @@ pub(crate) fn page_head<'a>(app: &'a View) -> ((&'a str, Action), &'a str) {
         Screen::Settings if crate::screens::settings_open(app).is_some() => {
             (EN.compact_settings, Action::SettingsSection(None))
         }
-        Screen::Upgrade => (EN.compact_settings, Action::Nav(Screen::Settings)),
         // Add randomness goes back where it was opened: Settings or New key.
         Screen::Randomness => (
             app.trail_name().unwrap_or(EN.compact_settings),

@@ -17,8 +17,8 @@ is no virtio anything and no virtual hard disk.
 tries the file channel with a stick that is not the boot stick. Any raw
 disk image with a FAT partition on it will do.
 
-faraday/tools' QEMU checks (qemu-check.py, disk-test.py,
-upgrade-check.py) import `command` and the QMP helpers below from here,
+faraday/tools' QEMU checks (qemu-check.py, disk-test.py) import
+`command` and the QMP helpers below from here,
 so that the machine they check is the machine the owner looks at.
 
 VNC listens on the loopback address only. The way to see it from another

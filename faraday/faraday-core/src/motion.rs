@@ -1109,7 +1109,6 @@ impl Faraday {
             | Screen::Decode
             | Screen::Catalog
             | Screen::Transfer
-            | Screen::Upgrade
             | Screen::Backups
             | Screen::Settings
             | Screen::SetTime

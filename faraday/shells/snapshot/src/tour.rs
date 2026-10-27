@@ -172,17 +172,13 @@ impl Tour {
                     outbox,
                     kept,
                 } => self.boxes = Some((inbox, outbox, kept)),
-                // The tour gives the upgrade's answers itself.
                 StorageCommand::OpenDownloads
                 | StorageCommand::OpenInstitute
                 | StorageCommand::Wipe { .. }
                 | StorageCommand::Rename { .. }
                 | StorageCommand::Hash { .. }
                 | StorageCommand::ZeroFree { .. }
-                | StorageCommand::MakeEmpty { .. }
-                | StorageCommand::BootRead
-                | StorageCommand::BootWrite { .. }
-                | StorageCommand::BootForget => {}
+                | StorageCommand::MakeEmpty { .. } => {}
             }
         }
     }

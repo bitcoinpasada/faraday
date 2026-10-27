@@ -31,8 +31,8 @@ faraday-window = { path = "../window" }
 faraday-desktop = { path = "../desktop" }
 faraday-shell-api = { path = "../../../core/faraday-shell-api" }
 winit.workspace = true
-# A Faraday stick's release string (`find_release`), as the stick's own
-# upgrade reads it.
+# A Faraday stick's release string (`find_release`), read from its boot
+# partition (docs/STARTER.md §4.1).
 faraday-boot = { path = "../../faraday-boot" }
 # The BitLocker recovery key read for the sheet (docs/STARTER.md §6, F49),
 # and wiping it and every buffer it passes through (windows/bitlocker.rs,

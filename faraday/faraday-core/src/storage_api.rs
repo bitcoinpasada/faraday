@@ -19,21 +19,6 @@ pub struct StickInfo {
     pub files: Vec<(String, u64)>,
 }
 
-/// A boot partition the boot copier has, while the app upgrades a stick
-/// (`docs/history/PLAN.md` §5.5).
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct BootPart {
-    /// The copier's name for it; the app hands this back unchanged.
-    pub id: String,
-    /// Its size in bytes.
-    pub size: u64,
-    /// The Faraday release string found on it, or `None` for a stick
-    /// made before Faraday put one in its kernel.
-    pub release: Option<String>,
-    /// The source was read from it.
-    pub source: bool,
-}
-
 /// What the shell tells the app about storage.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum StorageEvent {
@@ -264,41 +249,6 @@ pub enum StorageEvent {
         /// Why.
         reason: String,
     },
-    /// The boot partitions the boot copier has now, sent while
-    /// [`Faraday::upgrading`] and whenever they change.
-    Boots(Vec<BootPart>),
-    /// The source was read: the boot partition holding the running
-    /// Faraday.
-    BootSource {
-        /// The partition.
-        id: String,
-        /// The running kernel's release string, which it holds.
-        release: String,
-        /// Its size in bytes.
-        size: u64,
-    },
-    /// No source was taken.
-    BootSourceFailed {
-        /// Why.
-        reason: String,
-    },
-    /// A boot partition was written, read back and matched.
-    BootWritten {
-        /// The partition.
-        id: String,
-        /// The release string it now carries.
-        release: String,
-    },
-    /// A boot partition was not written.
-    BootWriteFailed {
-        /// The partition.
-        id: String,
-        /// Why.
-        reason: String,
-        /// The stick went during the write: it does not boot until it is
-        /// written again.
-        pulled: bool,
-    },
     /// A stick the shell cannot use as the backup flow needs: not a FAT32
     /// stick as Faraday reads one, or one that cannot be written
     /// (`docs/BACKUP-FLOW.md` §4.2).
@@ -430,18 +380,6 @@ pub enum StorageCommand {
     OpenDownloads,
     /// Open nakamotoinstitute.org in this computer's browser.
     OpenInstitute,
-    /// Have the boot copier read the boot partition that holds the
-    /// running Faraday (`docs/history/PLAN.md` §5.5).
-    BootRead,
-    /// Have the boot copier write the source over this boot partition,
-    /// read back and compare. The app names the partition; it never hands
-    /// the copier bytes.
-    BootWrite {
-        /// The partition, as [`BootPart::id`] named it.
-        target: String,
-    },
-    /// The upgrade has ended: the copier drops the source.
-    BootForget,
     /// Keep the Inbox and Outbox where the next process finds them. They
     /// hold nothing secret (`docs/history/PLAN.md` §5.2).
     SaveBoxes {

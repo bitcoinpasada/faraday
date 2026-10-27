@@ -52,10 +52,9 @@ in `justfile` and `faraday/faraday.just`.
 | `faraday/tools/alloc-count/` | test | `faraday-core`'s frame budgets (`docs/SPEED.md`) | allocator that counts allocations per thread; tests only |
 | `faraday/tools/argon2-bench/` | dev aid | `docs/VAULT.md` §3.1 | times the vault's Argon2id presets on a machine |
 | `faraday/tools/stage-release.sh` | release | `just faraday-release-stage`, `faraday-release-stage-starter` | stages a release's files and `SHA256SUMS` under `out/release/VERSION/` |
-| `faraday/tools/stick-qemu.py` | test | `disk-test.py`, `qemu-check.py`, `upgrade-check.py`; `faraday/image/README.md` | boots the stick image in QEMU with OVMF the way a laptop does |
+| `faraday/tools/stick-qemu.py` | test | `disk-test.py`, `qemu-check.py`; `faraday/image/README.md` | boots the stick image in QEMU with OVMF the way a laptop does |
 | `faraday/tools/qemu-check.py` | test | by hand (`faraday/image/README.md`) | boots the stick image headless and photographs it |
 | `faraday/tools/disk-test.py` | test | by hand | boots the dev stick image and checks the stick rule |
-| `faraday/tools/upgrade-check.py` | test | `just faraday-upgrade-check` | upgrades an older stick from a new one in QEMU and boots it |
 | `faraday/tools/sb-ovmf-check.py` | test | `just faraday-sb-ovmf` | Secure Boot end to end in OVMF with `faraday-sb`'s keys |
 | `faraday/tools/core-check.py` | test | by hand (`docs/INTEROP.md`) | Faraday against Bitcoin Core on regtest |
 

@@ -396,9 +396,8 @@ pub fn write(
 
 /// Reads the stick's partition table and up to `faraday_boot::MAX_PARTITION`
 /// bytes of its boot partition: which Faraday the stick on `disk` holds
-/// (`len` bytes long, `device` as a person knows it), read as the
-/// stick's own Upgrade a Faraday stick finds it, the kernel's release
-/// string searched for in the boot partition's bytes
+/// (`len` bytes long, `device` as a person knows it): the kernel's
+/// release string searched for in the boot partition's bytes
 /// (`faraday_boot::find_release`). The partition table must be a
 /// Faraday stick's, as keep data checks it; `None` for a stick made
 /// before Faraday put its version there. Read in aligned blocks, as a
@@ -454,15 +453,13 @@ pub fn release_on_stick<R: Read + Seek>(
 
 /// Keep data's second check, in the elevated writer on Windows:
 /// writing build `build` over a stick that holds the release
-/// string `on_stick` is refused when it is the same build, by the
-/// stick's own rule (`faraday_core::upgrade::compare`). A source with
+/// string `on_stick` is refused when it is the same build, by Keep
+/// data's rule (`faraday_core::build::compare`). A source with
 /// no build ID it can be compared by passes, as Confirm lets it.
 pub fn refuse_same_build(on_stick: Option<&str>, build: Option<&str>) -> Result<(), Reason> {
-    let on_stick = on_stick.and_then(faraday_core::upgrade::build_id);
+    let on_stick = on_stick.and_then(faraday_core::build::build_id);
     match build {
-        Some(b)
-            if faraday_core::upgrade::compare(on_stick, b) == faraday_core::upgrade::Fit::Same =>
-        {
+        Some(b) if faraday_core::build::compare(on_stick, b) == faraday_core::build::Fit::Same => {
             Err(Reason::SameBuild)
         }
         _ => Ok(()),

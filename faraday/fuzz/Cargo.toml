@@ -144,13 +144,6 @@ doc = false
 bench = false
 
 [[bin]]
-name = "boot_proto"
-path = "fuzz_targets/boot_proto.rs"
-test = false
-doc = false
-bench = false
-
-[[bin]]
 name = "pe_image"
 path = "fuzz_targets/pe_image.rs"
 test = false

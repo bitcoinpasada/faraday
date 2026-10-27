@@ -970,7 +970,7 @@ pub const EXPLORE_INSET: f32 = 56.0;
 /// `EXPLORE_INSET`s (`docs/LAYOUT.md` §17).
 pub const READING_EXPLORE_W: f32 = COLUMN_MAX + 2.0 * EXPLORE_INSET;
 /// The inset a page of the older wide layout keeps from its area's
-/// sides (Transfer, Upgrade, a stick visit, the tools' catalogue).
+/// sides (Transfer, a stick visit, the tools' catalogue).
 pub const PAGE_INSET: f32 = 2.0 * MARGIN_WIDE;
 /// Tools' column on a wide window, from the way back to the field's end.
 pub const TOOLS_COLUMN_W: f32 = 900.0;
@@ -983,10 +983,6 @@ pub const READING_TOOLS_W: f32 = TOOLS_COLUMN_W + 2.0 * TOOLS_INSET;
 pub const TRANSFER_W: f32 = 1100.0;
 /// Transfer's reading area: its columns between two `PAGE_INSET`s.
 pub const READING_TRANSFER_W: f32 = TRANSFER_W + 2.0 * PAGE_INSET;
-/// Upgrade's column at its widest.
-pub const UPGRADE_W: f32 = 760.0;
-/// Upgrade's reading area: its column between two `PAGE_INSET`s.
-pub const READING_UPGRADE_W: f32 = UPGRADE_W + 2.0 * PAGE_INSET;
 /// The gap between a stick visit's two lists.
 pub const VISIT_GAP: f32 = 20.0;
 /// A stick visit's reading area: its two lists, each at most

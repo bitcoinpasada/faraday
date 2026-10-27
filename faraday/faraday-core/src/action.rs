@@ -311,17 +311,6 @@ pub enum Action {
     DeleteGo,
     /// Stop zeroing after the step under way.
     ZeroStop,
-    /// Settings → Upgrade a Faraday stick.
-    UpgradeOpen,
-    /// The upgrade: the n-th stick in to upgrade, when more than one is.
-    UpgradePick(u8),
-    /// The upgrade: write the stick on show.
-    UpgradeWrite,
-    /// The upgrade: another stick, from the same source.
-    UpgradeAgain,
-    /// Upgrade's Done: back to the screen it was opened from, as it was
-    /// seen (F77).
-    UpgradeDone,
     /// The QR view as BBQr (`true`) or UR.
     QrFormat(u8),
     /// The QR view's bytes of data a frame.

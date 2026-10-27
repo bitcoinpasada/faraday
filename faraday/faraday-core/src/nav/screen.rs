@@ -46,17 +46,11 @@ fn dest<'s>(
 
 /// What waits at a destination, as its badge (`docs/DESIGN.md` §4.1):
 /// on Files, how many files the Inbox holds; on the stick visit, a dot
-/// while a stick attached has not been visited, unless an upgrade is
-/// writing a stick or has written one: a stick being upgraded is not
-/// waiting. Each reads the state.
+/// while a stick attached has not been visited. Each reads the state.
 pub(crate) fn badge_of(app: &View, s: Screen) -> Badge {
-    let upgrading = app
-        .upgrade
-        .state()
-        .is_some_and(|u| u.writing.is_some() || u.done.is_some());
     match s {
         Screen::Files => Badge::Count(app.inbox.len()),
-        Screen::Visit if app.stick.waits() && !upgrading => Badge::Dot,
+        Screen::Visit if app.stick.waits() => Badge::Dot,
         _ => Badge::None,
     }
 }

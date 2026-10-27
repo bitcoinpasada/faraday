@@ -15,7 +15,7 @@ use crate::{Action, Faraday, Screen, testkit};
 /// or drops what the next press needs (a lock, a wipe, a change of
 /// mode (`Mode(..)`; the pill's `ModeSheet` is walked), a removal; a shorter idle lock locks on the next tick), or
 /// is a hold that a press does not finish.
-const SKIP: [&str; 17] = [
+const SKIP: [&str; 16] = [
     "Lock",
     "PowerOff",
     "Restart",
@@ -26,7 +26,6 @@ const SKIP: [&str; 17] = [
     "Delete",
     "Remove",
     "Erase",
-    "Upgrade",
     "Exit",
     "Hold",
     "StickPill",

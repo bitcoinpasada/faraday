@@ -1,7 +1,7 @@
 //! Renders Faraday's screens to PNG along one scripted tour.
 //!
 //! ```text
-//! faraday-snapshot [--sd-card] [--network mainnet] WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy|scan|public|seedfile|vaultway|kept|again|plan|board|inbox|transfer|upgrade|glance|chartedit|fromvault|first|restore|osk|flow|bootplace|passseeds|power|pills|guide|tour|codex32]
+//! faraday-snapshot [--sd-card] [--network mainnet] WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy|scan|public|seedfile|vaultway|kept|again|plan|board|inbox|transfer|glance|chartedit|fromvault|first|restore|osk|flow|bootplace|passseeds|power|pills|guide|tour|codex32]
 //! ```
 //!
 //! `--sd-card` runs the tour as the Pi's stick shell starts the app:
@@ -58,11 +58,7 @@
 //! Transfer over a Downloads folder made in `OUT_DIR/downloads` (a PSBT,
 //! a descriptor, a 100 KB file and one over 256 KiB): the list, a PSBT
 //! sent, the larger file refused, and Receive saving a descriptor and a
-//! seed's words sent from a device; with `upgrade`, Upgrade a Faraday
-//! stick from Settings, the lock it asks for with a key loaded, and each
-//! step with the boot copier's answers given by hand: the source read, an
-//! older stick, a newer one beside it, one too small, one pulled during
-//! the write, and one written; with `glance`, the Wallets card's chart
+//! seed's words sent from a device; with `glance`, the Wallets card's chart
 //! at a glance (`docs/history/NEW-WALLET.md` §6): a one-key wallet with no plan,
 //! then with Paper and vault, and a 2-of-3 with two keys here, the second
 //! with a passphrase, and a cosigner, with Paper and vault and the
@@ -172,7 +168,6 @@ fn run(
         Some("m3") => return tours::m3::m3_tour(&mut t),
         Some("inbox") => return tours::inbox::inbox_tour(&mut t),
         Some("transfer") => return tours::transfer::transfer_tour(&mut t),
-        Some("upgrade") => return tours::upgrade::upgrade_tour(&mut t),
         Some("glance") => return tours::glance::glance_tour(c, &mut t),
         Some("chartedit") => return tours::chart_edit::chart_edit_tour(c, &mut t),
         Some("fromvault") => return tours::from_vault::from_vault_tour(c, &mut t),
@@ -240,7 +235,7 @@ fn main() -> ExitCode {
     }
     if !(4..=5).contains(&args.len()) {
         eprintln!(
-            "usage: faraday-snapshot [--sd-card] [--network NAME] WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy|scan|public|seedfile|vaultway|kept|again|plan|inbox|transfer|upgrade|glance|chartedit|fromvault|first|restore|osk|flow|walletflow|demo|modes|vaultshow|addkey|cancel|guide|tour|codex32]"
+            "usage: faraday-snapshot [--sd-card] [--network NAME] WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy|scan|public|seedfile|vaultway|kept|again|plan|inbox|transfer|glance|chartedit|fromvault|first|restore|osk|flow|walletflow|demo|modes|vaultshow|addkey|cancel|guide|tour|codex32]"
         );
         return ExitCode::from(2);
     }
@@ -299,7 +294,6 @@ fn main() -> ExitCode {
             "m3",
             "inbox",
             "transfer",
-            "upgrade",
             "glance",
             "chartedit",
             "fromvault",
@@ -339,7 +333,7 @@ fn main() -> ExitCode {
         .contains(&m)
     }) {
         eprintln!(
-            "the tour is spend, devices, themes, tooltips, compact, seeds, keys, visit, copy, scan, public, seedfile, vaultway, kept, again, plan, board, menu, m3, inbox, transfer, upgrade, glance, chartedit, fromvault, first, restore, osk, flow, bootplace, passseeds, power, pills, walletflow, demo, modes, vaultshow, addkey, keygen, codex32correct, createfrom, inprogress, cancel, std, parts, panes, guide, roller, randomness, dice5, codex32, codex32tour, codex32form, createshares, codex32backup or tour"
+            "the tour is spend, devices, themes, tooltips, compact, seeds, keys, visit, copy, scan, public, seedfile, vaultway, kept, again, plan, board, menu, m3, inbox, transfer, glance, chartedit, fromvault, first, restore, osk, flow, bootplace, passseeds, power, pills, walletflow, demo, modes, vaultshow, addkey, keygen, codex32correct, createfrom, inprogress, cancel, std, parts, panes, guide, roller, randomness, dice5, codex32, codex32tour, codex32form, createshares, codex32backup or tour"
         );
         return ExitCode::from(2);
     }

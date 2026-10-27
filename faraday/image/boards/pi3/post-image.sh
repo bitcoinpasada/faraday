@@ -3,7 +3,7 @@
 # common/post-image.sh runs genimage (genimage.cfg lists it). The Pi's
 # kernel is a compressed zImage, so its release string is not in the
 # image's bytes; this file holds it, a line, so faraday-boot's
-# find_release, the staging script and the Starter read the Pi card's
+# find_release (the Starter's), and the staging script read the Pi card's
 # build ID as they read a stick's (docs/STARTER.md §1.3).
 set -e
 

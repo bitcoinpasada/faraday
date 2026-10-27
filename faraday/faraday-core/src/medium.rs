@@ -158,15 +158,6 @@ impl Medium {
         }
     }
 
-    /// Settings' way into upgrading another Faraday medium from the one
-    /// the device started from (`docs/history/PLAN.md` §5.5), and the screen's name.
-    pub const fn upgrade(self) -> &'static str {
-        match self {
-            Medium::Stick => EN.medium_upgrade_a_faraday_stick,
-            Medium::SdCard => EN.medium_upgrade_a_faraday,
-        }
-    }
-
     /// What the medium the device started from is called.
     pub const fn boot(self) -> &'static str {
         match self {

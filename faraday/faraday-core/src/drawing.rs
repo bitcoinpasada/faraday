@@ -358,18 +358,15 @@ impl Faraday {
 
     /// The step on screen must not be left, so the rail and the bar are
     /// not drawn for it (`docs/LAYOUT.md` §3, as F51's Cancel rule): a
-    /// stick being written by the upgrade or a backup flow, or a backup
-    /// flow's key being made. A lookup.
+    /// stick being written by a backup flow, or a backup flow's key being
+    /// made. A lookup.
     pub fn nav_hidden(&self) -> bool {
-        let upgrade =
-            self.screen == Screen::Upgrade && self.upgrade().is_some_and(|u| u.writing.is_some());
-        let flow = self.screen == Screen::BackupFlow
+        self.screen == Screen::BackupFlow
             && self
                 .flows
                 .on()
                 .and_then(|i| self.flows.get(i))
-                .is_some_and(|f| f.live.writing.is_some() || f.live.making);
-        upgrade || flow
+                .is_some_and(|f| f.live.writing.is_some() || f.live.making)
     }
 
     /// The window as `docs/LAYOUT.md` §2 classes it: its size in dp at

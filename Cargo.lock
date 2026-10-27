@@ -757,9 +757,6 @@ dependencies = [
 [[package]]
 name = "faraday-boot"
 version = "0.1.7"
-dependencies = [
- "faraday-strings",
-]
 
 [[package]]
 name = "faraday-codec"
@@ -1132,7 +1129,6 @@ dependencies = [
 name = "faraday-storage"
 version = "0.1.7"
 dependencies = [
- "faraday-boot",
  "faraday-codec",
  "faraday-core",
  "faraday-crypto",

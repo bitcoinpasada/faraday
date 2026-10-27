@@ -718,8 +718,8 @@ destinations; Faraday Demo and the device keep their own navigation
    - *Replace Faraday, keep data*: only on a Faraday stick. The boot
      partition is written; the data partition, with its vaults and
      settings, is not read and not written. One line under it states
-     the fact the Learn page explains (§4.4). The stick's own upgrade
-     rules apply (F2, F5; owner, D15): the same build string as the
+     the fact the Learn page explains (§4.4). F2 and F5's rules
+     apply (owner, D15): the same build string as the
      stick already holds is refused with the reason; an older Faraday
      over a newer stick is warned about on Confirm and can still be
      written; anything else is written. On Windows, ticking it on a
@@ -999,8 +999,7 @@ reports success.
 
 **What the Starter reads from a Faraday stick.** Only the boot
 partition, and only to learn which Faraday it holds: the build string
-(F5) the stick's own Upgrade a Faraday stick reads from another stick
-(`faraday-core/src/upgrade/mod.rs`): the kernel release string in
+(F5), compared by `faraday-core/src/build.rs`: the kernel release string in
 `EFI/BOOT/BOOTX64.EFI` on a stick, or `faraday-build.txt` on a Pi
 card (§1.3). On Linux it is read from the desktop's own mount of
 FARADAYBOOT; when FARADAYBOOT is not mounted, the Starter has udisks2 mount it
@@ -1030,8 +1029,8 @@ Confirm. What was read stands for the session until the stick is
 written. A declined prompt says so on What to write and nothing is
 written. As a second check, the elevated writer reads the stick's
 version again before a keep-data write and refuses the same build.
-Linux and macOS read the version as above and never ask; the image and
-Upgrade a Faraday stick are unchanged.
+Linux and macOS read the version as above and never ask; the image is
+unchanged.
 
 ### 4.2 Which disks are offered
 
@@ -1084,9 +1083,10 @@ or writes FARADAYDATA. The fact the person should know is that plugging the
 stick into this computer is what exposes it: the computer can read and
 write the data partition whatever the Starter does, and Windows mounts
 it with a drive letter. The vaults there are encrypted; the settings
-file is not. The Learn page "Replacing Faraday on a stick" says this
-and points to Settings → Upgrade a Faraday stick, which upgrades a
-stick from another stick without an online computer.
+file is not. The Learn page "Replacing Faraday on a stick" says this.
+Keep data is how a Faraday stick is upgraded: Faraday itself writes no
+boot partition, and the Starter checks every image against the
+release's manifest before it writes it (F128).
 
 **FARADAYDATA from Windows and macOS** (owner, 2026-10-19;
 D11). FARADAYDATA keeps the drive letter Windows gives it, so a person can
@@ -1813,8 +1813,7 @@ on every Pi, because the Pi's USB already allows cameras
 (docs/history/PLAN.md §3); a camera module works on the legacy camera stack, which
 reads Camera Module v1 and v2, not v3. The Starter's Pi card page says
 which. HDMI with no touch needs a USB keyboard and mouse, which the Pi
-forbids today (§12, D2). *Replace Faraday, keep data* for a Pi card
-follows when the Pi has its upgrade (docs/history/PLAN.md §5.5).
+forbids today (§12, D2). A Pi card is upgraded by writing it whole.
 
 ## 10. Security
 
@@ -1928,7 +1927,7 @@ what moved.
 - **D14 Linux download:** a `.tar.gz`, so the executable bit survives
   and nobody runs `chmod` (§1.2).
 - **D15 Keep data reads the stick's version** from the boot partition
-  and applies the stick's own upgrade rules (§3.2, §4.1).
+  and applies F2 and F5's rules (§3.2, §4.1).
 - **D16 Guard order:** the key in hand first, then suspend.
   Superseded by F33.
 - **D17 Resuming:** the person's act through the Starter, with a logon
@@ -1956,4 +1955,4 @@ what moved.
   administrator prompt, and "version not read" kept apart from "0.1.0 or
   earlier" (§4.1). A copy of the version on FARADAYDATA or in the GPT was
   rejected: what Windows reads without elevation is not updated by keep
-  data or Upgrade a Faraday stick.
+  data.

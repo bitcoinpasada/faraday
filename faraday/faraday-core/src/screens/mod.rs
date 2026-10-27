@@ -115,13 +115,12 @@ fn area_of(screen: Screen) -> Area {
         | Screen::Vanity
         | Screen::Decode
         | Screen::Family => Area::Reading(READING_PAGE_W),
-        // Tools, Transfer, Upgrade and a stick visit are reading content
+        // Tools, Transfer and a stick visit are reading content
         // (fields, rows, two lists side by side), each in its own area;
         // the tools' catalogue is a grid of tiles, wide content
         // (`docs/LAYOUT.md` §14, §17).
         Screen::Tools => Area::Reading(faraday_draw::tokens::READING_TOOLS_W),
         Screen::Transfer => Area::Reading(faraday_draw::tokens::READING_TRANSFER_W),
-        Screen::Upgrade => Area::Reading(faraday_draw::tokens::READING_UPGRADE_W),
         Screen::Visit => Area::Reading(faraday_draw::tokens::READING_VISIT_W),
         Screen::Catalog => Area::Work,
         // New key, which holds Make codex32 shares and its supporting
@@ -585,7 +584,6 @@ fn dispatch(app: &View, ui: &mut Ui, x: f32, cw: f32, h: f32) {
         Screen::Decode => decode::draw(app, ui, x, cw, h),
         Screen::Catalog => catalog::draw(app, ui, x, cw, h),
         Screen::Transfer => crate::transfer::screen::draw(app, ui, x, cw, h),
-        Screen::Upgrade => crate::upgrade::screen::draw(app, ui, x, cw, h),
         Screen::BackupFlow => crate::backup_flow::screen::draw(app, ui, x, cw, h),
     }
 }

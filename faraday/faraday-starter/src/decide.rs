@@ -4,7 +4,7 @@
 //! (§3.1), on a Mac too (§3.1's "On a Mac", `docs/MAC.md` §6). The screens draw these; the tests check them through the
 //! screens.
 
-use faraday_core::upgrade::{Fit, compare};
+use faraday_core::build::{Fit, compare};
 use faraday_strings::EN;
 use faraday_strings::fill;
 
@@ -135,13 +135,13 @@ pub fn boot_menu_entry(vendor: &str, model: &str, computer: &Computer) -> Option
 /// Keep data's rule for writing build `build` over `stick` (F2, F5, D15):
 /// [`Fit::Same`] is refused; [`Fit::Newer`] and [`Fit::Dev`] are warned
 /// about on Confirm; [`Fit::Fits`] is written. An image with no build ID
-/// it can be compared by is written. The comparison is the stick's own
-/// (`faraday_core::upgrade::compare`).
+/// it can be compared by is written. The comparison is F5's build IDs
+/// (`faraday_core::build::compare`).
 pub fn keep_data(stick: &FaradayStick, build: Option<&str>) -> Fit {
     let on_stick = stick
         .release
         .as_deref()
-        .and_then(faraday_core::upgrade::build_id);
+        .and_then(faraday_core::build::build_id);
     match build {
         Some(b) => compare(on_stick, b),
         None => Fit::Fits,
@@ -153,7 +153,7 @@ pub fn keep_data(stick: &FaradayStick, build: Option<&str>) -> Fit {
 /// kept apart from a stick made before Faraday put its version there.
 pub fn version_of(stick: &FaradayStick) -> String {
     if stick.read {
-        faraday_core::upgrade::version(stick.release.as_deref())
+        faraday_core::build::version(stick.release.as_deref())
     } else {
         EN.starter_version_not_read.to_string()
     }

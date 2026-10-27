@@ -150,9 +150,8 @@ or file format.
 `faraday-grant` (the `CAP_CHOWN` helper), `faraday-files` (the Place
 trait, the pipe protocol), `faraday-storage` (Inbox/Outbox, PDFs),
 `faraday-scanner` (camera frames), `faraday-strings` (the words on
-screen), `faraday-boot` (the boot copier: copies a boot partition raw,
-identified by the running kernel's release string, which is not a
-signature), `faraday-ui` (the desktop app's and the Starter's drawing),
+screen), `faraday-boot` (the release string the Starter reads a
+stick's version by), `faraday-ui` (the desktop app's and the Starter's drawing),
 `faraday-learn` and `faraday-guides` (Learn pages and the start-from-stick
 guides), `faraday-starter` (the Starter's state and screens; it writes
 images through `faraday-payload` and holds a `faraday-core` in online

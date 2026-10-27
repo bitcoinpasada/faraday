@@ -1,7 +1,7 @@
 //! A Faraday stick whose version Windows did not let the Starter read
 //! (option e): Home and Which stick say "version not read",
 //! never "0.1.0 or earlier"; New stick needs no version; keep data asks
-//! the elevated copy to read it once, then applies the stick's own
+//! the elevated copy to read it once, then applies Keep data's
 //! rules; a declined prompt says so and nothing is written.
 
 use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
@@ -116,10 +116,10 @@ fn read(s: &mut Starter, result: Result<Option<String>, Reason>) {
 fn a_version_not_read_says_so_and_never_0_1_0_or_earlier() {
     let mut s = starter();
     assert!(shows(&mut s, "Faraday stick attached · version not read"));
-    assert!(!shows(&mut s, EN.upgrade_0_1_0_or_earlier));
+    assert!(!shows(&mut s, EN.build_0_1_0_or_earlier));
     s.press(StarterAction::Make(Target::Stick));
     assert!(shows(&mut s, "Faraday stick · version not read"));
-    assert!(!shows(&mut s, EN.upgrade_0_1_0_or_earlier));
+    assert!(!shows(&mut s, EN.build_0_1_0_or_earlier));
 
     // A stick read and found to hold no version is one made before
     // Faraday put it there.

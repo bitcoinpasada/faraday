@@ -18,14 +18,13 @@ fonts and writes the pixels into that framebuffer. Keys, clicks and
 touches arrive as raw kernel input events, read per device.
 
 The whole running system is the Linux kernel, BusyBox init with a short
-boot script, and four Rust programs:
+boot script, and three Rust programs:
 
 | Program | Runs as | Does |
 |---|---|---|
 | `faraday` | its own unprivileged user | The application. Holds every secret. |
 | `faraday-disk` | a second unprivileged user | Reads and writes FAT on sticks and cards. Holds no key or passphrase: files pass through it to and from a stick, and are wiped once passed. Cannot read the application's memory or files. |
-| `faraday-grant` | its own user, with `CAP_CHOWN` only | Hands a stick's partitions to `faraday-disk` and authorises USB interfaces, deciding from `/sys` alone. Reads nothing from a stick. |
-| `faraday-boot` | a fourth unprivileged user | Upgrades a Faraday stick: copies the boot partition of the stick Faraday started from, raw, over another stick's. Has a boot partition only while the application is on its Upgrade screen, reads no FAT, and is never handed bytes to write. |
+| `faraday-grant` | its own user, with `CAP_CHOWN` only | Hands a stick's partitions to `faraday-disk` and authorises USB interfaces, deciding from `/sys` alone. Reads nothing from a stick, and hands no process a boot partition: Faraday writes none (F128); a stick is upgraded with Faraday Starter. |
 
 No process can trace another, and each user's processes are invisible
 to the others in `/proc`.
@@ -36,15 +35,14 @@ to the others in `/proc`.
   mounts `/proc`, `/sys` and `/dev` with nothing on them executable,
   sets the kernel's ptrace restriction, hides kernel addresses, sets the
   USB authorisation policy, creates the RAM directories and pipes the
-  programs use, and starts the other three programs. It mounts no
+  programs use, and starts the other two programs. It mounts no
   storage.
 - **`faraday-grant`** starts as root and, before it reads anything,
   drops to its own user keeping only `CAP_CHOWN`, empties its capability
   bounding set and sets no-new-privileges.
-- **After boot**, the root processes are init and three shell loops: one
-  restarts the application under its user each time it locks, the others
-  restart `faraday-disk` and `faraday-boot` under their users if they
-  exit. When the
+- **After boot**, the root processes are init and two shell loops: one
+  restarts the application under its user each time it locks, the other
+  restarts `faraday-disk` under its user if it exits. When the
   application ends, init powers the machine off. None of these reads
   anything from a stick, a camera, a keyboard or a file.
 - **Nobody can become root.** There is no login prompt, no getty, no

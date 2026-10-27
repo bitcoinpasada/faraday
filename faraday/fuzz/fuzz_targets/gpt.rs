@@ -4,7 +4,9 @@
 //! CRCs must hold or the reader stops at the first check, so the target
 //! rewrites both for each sector size before the call, as a hostile
 //! writer would. The Starter shell is a binary crate, so `gpt.rs` is
-//! included by path.
+//! included by path. The same bytes as a boot partition's, searched for
+//! the release string the Starter reads a stick's version by
+//! (`faraday_boot::find_release`).
 
 #![no_main]
 
@@ -74,6 +76,10 @@ fn table(disk: &[u8]) {
 }
 
 fuzz_target!(|data: &[u8]| {
+    if let Some(release) = faraday_boot::find_release(data) {
+        assert!(release.len() <= faraday_boot::MAX_RELEASE);
+        assert!(release.contains("-faraday-"));
+    }
     table(data);
     for sector in [512, 4096] {
         let mut disk = data.to_vec();

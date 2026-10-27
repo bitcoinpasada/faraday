@@ -3883,10 +3883,6 @@ strings! {
     medium_stick_visit: "Stick visit",
     /// Text in `visit`.
     medium_sd_card_visit: "SD card visit",
-    /// Text in `upgrade`.
-    medium_upgrade_a_faraday_stick: "Upgrade a Faraday stick",
-    /// Text in `upgrade`.
-    medium_upgrade_a_faraday: "Upgrade a Faraday SD card",
     /// Text in `boot`.
     medium_boot_stick: "Boot stick",
     /// Text in `boot`.
@@ -5958,8 +5954,6 @@ strings! {
     settings_guide_scale: "The size of text and controls. Auto is the size for this screen.",
     /// Signed amounts' explainer on Settings, shown with Guided on.
     settings_guide_signed: "The amounts each signed input stated are remembered, and the same transaction stated with other amounts is refused. Sealed into an open vault, they last past power-off.",
-    /// The stick's explainer on Settings, shown with Guided on. `{}`: the medium's noun.
-    settings_guide_stick: "Upgrade copies the system this device started from onto another Faraday {}.",
     /// About's explainer on Settings, shown with Guided on.
     settings_guide_about: "The self-test runs at every start, before any key is accepted. Run again repeats it.",
     /// Line in `settings`.
@@ -6083,14 +6077,8 @@ strings! {
     /// Text in `kept_sections`.
     kept_sections_then: "Then",
     // ----- lock (faraday-core/src/screens/sheets.rs) -----
-    /// Text in `lock_sheet`.
-    lock_fresh_start_upgrade: "A fresh start, and the upgrade",
     /// Text in `lock_sheet`. `{}`: `app.medium.noun()`.
     lock_a_fresh_start: "A fresh start, and the {} visit",
-    /// Text in `lock_sheet`.
-    lock_lock_and_upgrade: "Lock and upgrade",
-    /// Text in `lock_sheet`.
-    lock_the_upgrade_runs: "The upgrade runs in a fresh session",
     /// Text in `lock_sheet`. `{}`: `app.medium.a_cap()`.
     lock_is_attached: "{} is attached",
     /// Text in `lock_sheet`. `{}`: `app.medium.noun()`.
@@ -6907,65 +6895,17 @@ strings! {
     ui_monochrome: "Monochrome",
     /// Mark on the chip of the theme a first start is in.
     ui_default_theme: "Default",
-    // ----- upgrade (faraday-core/src/upgrade/mod.rs) -----
+    // ----- build (faraday-core/src/build.rs) -----
     /// Text in `version`.
-    upgrade_0_1_0_or_earlier: "0.1.0 or earlier",
+    build_0_1_0_or_earlier: "0.1.0 or earlier",
     /// Text in `describe`. `{}`: `number`, `commit`.
-    upgrade_test_release_short: "{} test release ({})",
+    build_test_release_short: "{} test release ({})",
     /// Text in `describe`. `{}`: `number`, `commit`, `fp`.
-    upgrade_test_release: "{} test release ({}, changes {})",
+    build_test_release: "{} test release ({}, changes {})",
     /// Text in `describe`. `{}`: `number`, `commit`.
-    upgrade_dev: "{} dev ({})",
+    build_dev: "{} dev ({})",
     /// Text in `describe`. `{}`: `number`, `commit`, `fp`.
-    upgrade_dev_changes: "{} dev ({}, changes {})",
-    // ----- upgrade (faraday-core/src/upgrade/screen.rs) -----
-    /// Text in `source`. `{}`: `app.medium.noun()`.
-    upgrade_insert_medium: "Insert the {} Faraday started from",
-    /// Label in `source`.
-    upgrade_read: "Read",
-    /// Label in `source`.
-    upgrade_reading: "Reading",
-    /// Text in `target`. `{}`: `app.medium.noun()`.
-    upgrade_remove_it_insert: "Remove it. Insert the {} to upgrade",
-    /// Text in `target`.
-    upgrade_file: "file",
-    /// Text in `target`.
-    upgrade_files: "files",
-    /// Label in `target`.
-    upgrade_its_data_partition: "Its data partition",
-    /// Label in `target`.
-    upgrade_target_contents: "On it",
-    /// Label in `target`.
-    upgrade_to_be_written: "To be written",
-    /// Text in `target`.
-    upgrade_newer_than: "Newer than this Faraday",
-    /// Text in `target`.
-    upgrade_writes_a_dev: "Writes a dev build, with a serial console",
-    /// Text in `target`.
-    upgrade_same_version: "Already this version",
-    /// Text in `target`. `{}`: `has`, `needs`.
-    upgrade_boot_partition: "Boot partition {} MB · needs {} MB",
-    /// Text in `target`.
-    upgrade_removed_during: "Removed during the write: it does not start until upgraded again · its data partition was not written",
-    /// Text in `target`. `{}`: `why`.
-    upgrade_not_written: "Not written: {}",
-    /// Text in `target`.
-    upgrade_writing: "Writing",
-    /// Text in `target`.
-    upgrade_upgrade: "Upgrade",
-    /// Label in `done`.
-    upgrade_written_read: "Written, read back and matched",
-    /// Text in `done`. `{}`: `app.medium.noun()`.
-    upgrade_remove_medium: "Remove the {}",
-    /// Text in `done`. `{}`: `app.medium.noun()`.
-    upgrade_upgrade_another: "Upgrade another {}",
-    /// Text in `done`.
-    upgrade_done: "Done",
-    // ----- upgrade (faraday-boot/src/lib.rs) -----
-    /// Text in `read_source`. `{}`: how many boot partitions hold it.
-    upgrade_several_hold: "{} sticks in carry this version · Remove all but the one Faraday started from",
-    /// Text in `read_source`. `{}`: its MB, this Faraday's MB.
-    upgrade_source_size: "The stick carrying this version has a {} MB boot partition; this Faraday's is {} MB",
+    build_dev_changes: "{} dev ({}, changes {})",
     // ----- vanity (faraday-core/src/vanity/mod.rs) -----
     /// Text in `script_name`.
     vanity_legacy: "Legacy",

@@ -18,7 +18,8 @@
 //! here (`tools/lint-layout.sh` fails when one is not):
 //!
 //! - The shell's protocol and the app's types: `storage_api` (sticks and
-//!   storage events), `version`, `action` (the `Action` enum), `qr_view`
+//!   storage events), `version`, `build` (a build ID described and
+//!   compared, F5), `action` (the `Action` enum), `qr_view`
 //!   (the QR view and the camera's scan state), `receipt` and `state` (the
 //!   state of Entry, Message and the stick visit). Each other area's state
 //!   is in its own `mod.rs` or file: `DecodeState` in `decode`,
@@ -59,7 +60,7 @@
 //!   `bstep` (the checklist's items, numbered), `codex32_backup` (its
 //!   codex32 item and the set's actions, with its `screen.rs`).
 //! - Vaults: `codes` (TOTP codes); `vault` is listed with the flows above.
-//! - Sticks, boot and files: `upgrade`, `transfer` (the desktop as the
+//! - Sticks, boot and files: `transfer` (the desktop as the
 //!   device's QR link), `names` (the Starter's install names),
 //!   `secure_boot/state.rs`.
 //! - Faraday Demo's host: `host` (the strip at the window's foot, the
@@ -113,11 +114,11 @@
 //! | `Decode` | `screens/decode.rs` |
 //! | `Catalog` | `screens/catalog.rs` |
 //! | `Transfer` | `transfer/screen.rs` |
-//! | `Upgrade` | `upgrade/screen.rs` |
 //! | `BackupFlow` | `backup_flow/screen.rs` |
 
 // The shell's protocol and the app's types: storage, version, actions, QR view, receipt, state.
 mod action;
+pub mod build;
 mod qr_view;
 mod receipt;
 mod state;
@@ -209,7 +210,6 @@ pub mod codes;
 // Sticks, boot and files.
 pub mod names;
 pub mod transfer;
-pub mod upgrade;
 
 // Support: word lists, the Learn pages, the tools page, test data.
 pub mod host;
@@ -248,7 +248,7 @@ pub use screens::qr_code;
 pub use secure_boot::state::SecureBootAtStart;
 pub use state::{EntryState, MessageState, VisitState};
 pub use stick::pills::{BOOT_FOLDER, FIRST_BACKUP, Pill, SticksWanted, backup_folder};
-pub use storage_api::{BootPart, StickInfo, StorageCommand, StorageEvent};
+pub use storage_api::{StickInfo, StorageCommand, StorageEvent};
 pub use version::{
     BUILD, Program, VERSION, is_release, parse_version_output, version_label, version_line,
 };
@@ -350,9 +350,6 @@ pub enum Screen {
     /// The online app as the device's QR link: files out as codes, in by
     /// camera ([`transfer`]). Only when [`Faraday::online`].
     Transfer,
-    /// Upgrading another Faraday stick from the one Faraday started from
-    /// ([`upgrade`]). Never in the online app.
-    Upgrade,
     /// The shared backup flow: where a key will be kept, its sticks, its
     /// vaults, the key, the lock and the writes (`docs/BACKUP-FLOW.md`).
     BackupFlow,
@@ -1200,8 +1197,6 @@ pub struct Faraday {
     camera: scan_key::Camera,
     /// Transfer, in the online app.
     transfer: transfer::TransferArea,
-    /// The upgrade, while it is on screen.
-    upgrade: upgrade::UpgradeArea,
     /// The caret, the selection, Shift, where the last frame drew the
     /// fields' characters and the caret's blink.
     typing: edit::TypingArea,
@@ -1344,7 +1339,6 @@ impl Faraday {
             secrets: secrets::SecretsArea::default(),
             camera: scan_key::Camera::default(),
             transfer: transfer::TransferArea::default(),
-            upgrade: upgrade::UpgradeArea::default(),
             typing: edit::TypingArea::new(),
             trail: trail::Trail::default(),
             seed_read: seeds::SeedsArea::default(),
@@ -1441,7 +1435,6 @@ impl Faraday {
         let event = match self
             .settings_event(event)
             .and_then(|e| self.import_event(e))
-            .and_then(|e| self.upgrade_event(e))
         {
             Some(e) => e,
             None => {
@@ -1709,12 +1702,6 @@ impl Faraday {
             } => self.input_new(id, name, keyboard, pointer),
             StorageEvent::InputTyped { id, ch } => self.input_typed(id, ch),
             StorageEvent::InputGone { id } => self.input_gone(id),
-            // The boot copier's answers, taken by `upgrade_event`.
-            StorageEvent::Boots(_)
-            | StorageEvent::BootSource { .. }
-            | StorageEvent::BootSourceFailed { .. }
-            | StorageEvent::BootWritten { .. }
-            | StorageEvent::BootWriteFailed { .. } => {}
             StorageEvent::Restored {
                 inbox,
                 outbox,
@@ -1968,8 +1955,7 @@ impl Faraday {
         if self.stick.is_empty() {
             self.stick.set_held(false);
             self.stick.set_not_now(false);
-            // The lock Upgrade asked for stays up: it waits on no stick.
-            if self.sheet == Some(Sheet::Lock) && !self.upgrade.after_lock() {
+            if self.sheet == Some(Sheet::Lock) {
                 self.sheet = None;
             }
             // A passphrase waiting on the stick takes typing now.
@@ -2071,11 +2057,7 @@ impl Faraday {
         let boot = self.stick.iter().find(|s| s.boot).cloned();
         if !self.clean() {
             self.stick.set_not_now(false);
-            self.upgrade.set_after_lock(false);
             self.sheet = Some(Sheet::Lock);
-        } else if self.upgrading() {
-            // The upgrade reads boot partitions; the data partitions the
-            // disk process lists stay where they are, unvisited.
         } else {
             self.visit.out = self.visit_default_out(&c);
             self.visit.inn = self.visit_default_in();
@@ -2684,8 +2666,7 @@ impl Faraday {
             Action::NotNow => {
                 self.next_mode.clear();
                 self.sheet = None;
-                // Asked for by Upgrade, with no stick in: nothing waits.
-                self.stick.set_not_now(!self.upgrade.take_after_lock());
+                self.stick.set_not_now(true);
             }
             Action::PowerAsk => {
                 // An open vault's changes are never sealed at power-off:
@@ -2981,11 +2962,6 @@ impl Faraday {
                         .push_back(StorageCommand::OpenInstitute);
                 }
             }
-            a @ (Action::UpgradeOpen
-            | Action::UpgradePick(..)
-            | Action::UpgradeWrite
-            | Action::UpgradeAgain
-            | Action::UpgradeDone) => self.upgrade_act(a),
             a @ (Action::BackupsOf(..) | Action::BackupsPage(..)) => self.backups_act(a, &c),
             Action::Nav(s) => {
                 self.glance.set_focus(None);
@@ -6782,11 +6758,6 @@ impl Faraday {
         self.explore_left();
         if self.screen != Screen::Tools {
             self.tools.close();
-        }
-        // Leaving the upgrade ends it: the copier drops the source and
-        // the boot partitions go back to root.
-        if self.screen != Screen::Upgrade {
-            self.upgrade_leave();
         }
         if self.sheet != Some(Sheet::WordList) {
             self.wordlist.clear();

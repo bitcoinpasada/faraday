@@ -37,7 +37,6 @@ fn explainers() -> Vec<String> {
         EN.settings_guide_appearance,
         EN.settings_guide_scale,
         EN.settings_guide_signed,
-        EN.settings_guide_stick,
         EN.settings_guide_about,
     ]
     .iter()

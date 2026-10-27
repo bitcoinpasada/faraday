@@ -95,9 +95,8 @@ shipped binary does.
 | `vault_records` | `records::Contents::decode` over a slot's plaintext, then the records written out again. |
 | `vault_entries` | `entries::parse` and `totp::parse`: a vault entries file and a TOTP setup code. |
 | `files_proto` | The disk process pipe: `Response::decode` and `Request::decode`, each decoded value encoded and decoded again to the same value, and the framing read as a stream. |
-| `boot_proto` | The same for the boot copier pipe; `find_release` over a boot partition's bytes. |
 | `pe_image` | `pe::image_hash`, `check` against a fixed key's certificate and against a certificate from the input, `sign`, `x509::Cert::read` and `der::children`. |
-| `gpt` | The Starter's `gpt::read` and `faraday_boot` over the input as a disk image, with the header's and the entries' checksums made right first; the Starter shell's `gpt.rs` is included by path. |
+| `gpt` | The Starter's `gpt::read` and `faraday_boot` over the input as a disk image, with the header's and the entries' checksums made right first; the Starter shell's `gpt.rs` is included by path. And `faraday_boot::find_release`, with which the Starter reads a stick's version, over the input as a boot partition's bytes. |
 | `v4l2_luma` | The V4L2 shell's frame converters (`luma`, `chroma`, the two downscales) over a format, a size, a stride and a buffer taken from the input; `abi.rs` and `convert.rs` are included by path. |
 | `manifest` | `faraday_payload::Manifest::parse`. |
 | `plist` | The Starter's macOS property list reader; `plist.rs` is included by path. |

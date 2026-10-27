@@ -3,8 +3,8 @@
 # release=1 makes a published release build: it refuses a dev image, a
 # version override and a tree that differs from its commit
 # (docs/DECISIONS.md F5). version=X.Y.Z makes a test or dev build claim
-# another version, for trying the upgrade's newer-Faraday warning between
-# test builds (F5).
+# another version, for trying the Starter's Keep data newer-Faraday
+# warning between test builds (F5).
 release := "0"
 version := ""
 
@@ -268,21 +268,9 @@ faraday-starter-icon:
 faraday-sb-ovmf out="out/sb-ovmf-check":
     python3 -B faraday/tools/sb-ovmf-check.py "{{out}}"
 
-# Upgrading a stick in QEMU (docs/history/PLAN.md §5.5): the dev stick image boots, an
-# older stick image (OLD) is plugged in, and the boot copier writes the
-# new boot partition over the older stick's; then the upgraded stick boots
-# the new release, its data partition byte for byte what it was. Root on
-# the dev console stands in for the app, which no input in QEMU can drive
-# (faraday/tools/upgrade-check.py says what is and is not exercised).
-# Needs QEMU, OVMF and mtools; uses KVM where /dev/kvm opens and emulates
-# the CPU, slower, where it does not; console logs in out/upgrade-check/
-[group('test')]
-faraday-upgrade-check old out="out/upgrade-check":
-    python3 -B faraday/tools/upgrade-check.py out/stick/faraday-x86_64-uefi-dev.img "{{old}}" "{{out}}"
-
 # The stick's app for x86-64, static against musl, at
-# out/faraday/x86_64-uefi/faraday, and beside it faraday-disk,
-# faraday-grant and faraday-boot: what faraday/image/run-build.sh puts in
+# out/faraday/x86_64-uefi/faraday, and beside it faraday-disk
+# and faraday-grant: what faraday/image/run-build.sh puts in
 # the image. The board's board.conf (faraday/image/boards/) names the
 # Rust target and the C compiler.
 [group('build')]
@@ -303,13 +291,12 @@ faraday-stick-bin:
     # status hides a failure of the command inside it.
     FARADAY_BUILD="$(FARADAY_RELEASE={{release}} FARADAY_DEV={{dev}} FARADAY_VERSION={{version}} faraday/image/build-id.sh)"
     export FARADAY_BUILD
-    cargo build --release --locked --target "$RUST_TARGET" -p faraday-stick -p faraday-disk -p faraday-grant -p faraday-boot
+    cargo build --release --locked --target "$RUST_TARGET" -p faraday-stick -p faraday-disk -p faraday-grant
     mkdir -p out/faraday/{{stick_board}}
     cp "target/$RUST_TARGET/release/faraday" "target/$RUST_TARGET/release/faraday-disk" \
-        "target/$RUST_TARGET/release/faraday-grant" "target/$RUST_TARGET/release/faraday-boot" \
-        out/faraday/{{stick_board}}/
+        "target/$RUST_TARGET/release/faraday-grant" out/faraday/{{stick_board}}/
     file out/faraday/{{stick_board}}/faraday out/faraday/{{stick_board}}/faraday-disk \
-        out/faraday/{{stick_board}}/faraday-grant out/faraday/{{stick_board}}/faraday-boot
+        out/faraday/{{stick_board}}/faraday-grant
 
 # The Faraday USB stick image, at out/stick/faraday-x86_64-uefi.img
 # (dev=1: -dev.img, with a console and a login on ttyS0), and beside it
@@ -370,7 +357,7 @@ faraday-stick-boot +args:
 
 # The Pi's app, cross-compiled for the board the `board` variable names
 # (armv7, static against glibc), at out/faraday/<board>/faraday, and
-# beside it faraday-disk, faraday-grant and faraday-boot, as for the
+# beside it faraday-disk and faraday-grant, as for the
 # stick.
 #
 #   just faraday-pi-bin                  the owner's board (pi3)
@@ -393,13 +380,12 @@ faraday-pi-bin:
     # status hides a failure of the command inside it.
     FARADAY_BUILD="$(FARADAY_RELEASE={{release}} FARADAY_DEV={{dev}} FARADAY_VERSION={{version}} faraday/image/build-id.sh)"
     export FARADAY_BUILD
-    cargo build --release --locked --target "$RUST_TARGET" -p faraday-stick -p faraday-disk -p faraday-grant -p faraday-boot
+    cargo build --release --locked --target "$RUST_TARGET" -p faraday-stick -p faraday-disk -p faraday-grant
     mkdir -p out/faraday/{{board}}
     cp "target/$RUST_TARGET/release/faraday" "target/$RUST_TARGET/release/faraday-disk" \
-        "target/$RUST_TARGET/release/faraday-grant" "target/$RUST_TARGET/release/faraday-boot" \
-        out/faraday/{{board}}/
+        "target/$RUST_TARGET/release/faraday-grant" out/faraday/{{board}}/
     file out/faraday/{{board}}/faraday out/faraday/{{board}}/faraday-disk \
-        out/faraday/{{board}}/faraday-grant out/faraday/{{board}}/faraday-boot
+        out/faraday/{{board}}/faraday-grant
 
 # The Faraday microSD card image, at
 # out/pi/faraday-<board>-<panel>.img (dev=1: -dev.img, with a console and

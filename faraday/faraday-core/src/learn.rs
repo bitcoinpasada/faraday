@@ -7,10 +7,9 @@
 use faraday_learn::Page as LearnPage;
 use faraday_learn::pages::EN;
 
-use faraday_learn::known;
 pub use faraday_learn::{
     GUIDES, MAKERS, Maker, backup_plan_check_page, demo_page, gpg_page, guide_address, guide_id,
-    keys_kept_page, maker, page, shares_page, time_page, upgrade_page, vaults_page,
+    keys_kept_page, maker, page, shares_page, time_page, vaults_page,
 };
 
 use crate::create::NewKind;
@@ -286,15 +285,8 @@ impl Faraday {
             | Screen::VaultContents => {
                 vec![vaults_page(), &EN.passphrases]
             }
-            Screen::Settings if self.online => vec![keys_kept_page(), &EN.glossary],
-            Screen::Settings => vec![keys_kept_page(), &EN.glossary, upgrade_page()],
+            Screen::Settings => vec![keys_kept_page(), &EN.glossary],
             Screen::SetTime | Screen::Codes => vec![time_page()],
-            // A stick can also be replaced from a computer, keeping its
-            // data (`docs/STARTER.md` §4.4); a Pi card cannot yet (§3.3).
-            Screen::Upgrade if self.medium == crate::medium::Medium::Stick => {
-                vec![upgrade_page(), known("replace-faraday")]
-            }
-            Screen::Upgrade => vec![upgrade_page()],
             Screen::Decode => vec![&EN.verifying, &EN.tools],
             Screen::Catalog => vec![&EN.tools, &EN.glossary],
             Screen::Transfer => vec![&EN.air_gap, &EN.coordinators],

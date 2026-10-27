@@ -1,7 +1,7 @@
 //! The website's guides to starting a computer from the stick
 //! (`docs/STARTER.md` §7): every page under `docs/learn/faraday/boot/`
-//! except `replace-faraday`, which stays `faraday-learn`'s (the stick's
-//! Upgrade screen shows it directly, without this crate). Read by the
+//! except `replace-faraday`, which stays `faraday-learn`'s (the Starter's
+//! Keep data shows it). Read by the
 //! Starter, and published by the website at
 //! `https://faradayoffline.app/start/<id>` (§7.4); the desktop app and
 //! the stick carry only the address of the guide for this computer

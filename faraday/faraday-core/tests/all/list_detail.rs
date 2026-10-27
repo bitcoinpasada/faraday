@@ -263,9 +263,8 @@ fn vaults_choosing_a_locked_vault_shows_its_unlock_beside_the_list() {
     );
 }
 
-/// Settings' sections, as their cards and the list name them (the test
-/// stick's app is not the online one: it has the Sticks section).
-const SECTIONS: [&str; 9] = [
+/// Settings' sections, as their cards and the list name them.
+const SECTIONS: [&str; 8] = [
     "Mode",
     "Session",
     "Time",
@@ -273,7 +272,6 @@ const SECTIONS: [&str; 9] = [
     "Appearance",
     "Display scale",
     "Signed amounts",
-    "Sticks",
     "About",
 ];
 

@@ -555,26 +555,10 @@ pub(super) fn lock_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         .first()
         .map(|s| s.label.clone())
         .unwrap_or_default();
-    // Asked for by Upgrade rather than by a stick arriving.
-    let upgrade = app.upgrade_after_lock();
-    let then = if upgrade {
-        EN.lock_fresh_start_upgrade.to_string()
-    } else {
-        fill(EN.lock_a_fresh_start, &[app.medium.noun()])
-    };
-    let (attached, use_it, line) = if upgrade {
-        (
-            app.medium.upgrade().to_string(),
-            EN.lock_lock_and_upgrade.to_string(),
-            EN.lock_the_upgrade_runs.to_string(),
-        )
-    } else {
-        (
-            fill(EN.lock_is_attached, &[app.medium.a_cap()]),
-            fill(EN.lock_lock_and_use, &[app.medium.noun()]),
-            fill(EN.lock_nothing_has_been, &[&label.to_string()]),
-        )
-    };
+    let then = fill(EN.lock_a_fresh_start, &[app.medium.noun()]);
+    let attached = fill(EN.lock_is_attached, &[app.medium.a_cap()]);
+    let use_it = fill(EN.lock_lock_and_use, &[app.medium.noun()]);
+    let line = fill(EN.lock_nothing_has_been, &[&label.to_string()]);
     kept_sheet(
         app,
         ui,

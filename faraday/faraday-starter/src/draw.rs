@@ -5,7 +5,7 @@
 //! bar with the way back.
 
 use faraday_core::Action;
-use faraday_core::upgrade::{Fit, describe, version};
+use faraday_core::build::{Fit, describe, version};
 use faraday_draw::widgets::Icon;
 use faraday_strings::fill;
 use faraday_strings::{EN, Strings};

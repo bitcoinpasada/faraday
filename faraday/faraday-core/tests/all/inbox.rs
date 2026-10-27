@@ -222,7 +222,7 @@ fn files_restores_a_wallet_from_its_shares() {
 
 use faraday_core::{Screen as S, Sheet, StickInfo};
 
-const SCREENS: [S; 29] = [
+const SCREENS: [S; 28] = [
     S::Home,
     S::WalletsStart,
     S::Wallets,
@@ -251,7 +251,6 @@ const SCREENS: [S; 29] = [
     S::Decode,
     S::Catalog,
     S::Transfer,
-    S::Upgrade,
 ];
 
 /// What `app` draws, each string tagged with where it was drawn.

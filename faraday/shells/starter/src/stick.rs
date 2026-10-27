@@ -1,6 +1,6 @@
 //! Which Faraday a stick holds (§4.1): the kernel's release string on
-//! its boot partition (`docs/DECISIONS.md` F5), found as the stick's
-//! own Upgrade a Faraday stick finds it (`faraday_boot::find_release`).
+//! its boot partition (`docs/DECISIONS.md` F5), found by
+//! `faraday_boot::find_release`.
 //! Only the boot partition is read, read-only, and only these two
 //! files on it; the data partition is never opened.
 

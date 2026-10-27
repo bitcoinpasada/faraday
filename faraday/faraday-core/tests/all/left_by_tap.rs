@@ -1,5 +1,5 @@
 //! A screen that keeps nothing when it is left (New key, BIP-85, Explore,
-//! the calculators, Vanity, Lightning, Silent payments, Upgrade) forgets
+//! the calculators, Vanity, Lightning, Silent payments) forgets
 //! what it held however it is left: a tap on the sidebar or on Back, the
 //! mouse's back button, or a scripted press. Opened again it is fresh,
 //! and a secret it showed is not drawn.
@@ -7,7 +7,7 @@
 use faraday_core::keygen::Start;
 use faraday_core::tools::Tool;
 use faraday_core::vanity::{VanityAction as V, vstep};
-use faraday_core::{Action, Faraday, Screen, StorageCommand, StorageEvent, testkit};
+use faraday_core::{Action, Faraday, Screen, testkit};
 use faraday_shell_api::{App, Event, Key, TouchPhase};
 
 /// A press where the last frame drew `action`, as a finger makes it.
@@ -242,26 +242,6 @@ fn silent_payments_left_by_a_tap_opens_again_fresh() {
     );
     app.press(Action::Silent);
     assert_eq!(app.silent().unwrap().open, fresh);
-}
-
-#[test]
-fn upgrade_left_by_a_tap_lets_the_boot_partitions_go() {
-    let mut app = testkit::started();
-    app.press(Action::Nav(Screen::Settings));
-    let _ = app.frame();
-    app.press(Action::UpgradeOpen);
-    assert_eq!(app.screen, Screen::Upgrade);
-    while app.poll_storage().is_some() {}
-    tap(&mut app, Action::Nav(Screen::WalletsStart));
-    assert!(!app.upgrading(), "Upgrade ends when it is left");
-    let asked: Vec<StorageCommand> = std::iter::from_fn(|| app.poll_storage()).collect();
-    assert!(
-        asked.contains(&StorageCommand::BootForget),
-        "the copier drops the source: {asked:?}"
-    );
-    // A boot partition arriving now is not taken for an upgrade.
-    app.storage(StorageEvent::Boots(Vec::new()));
-    assert!(!app.upgrading());
 }
 
 #[test]

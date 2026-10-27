@@ -207,48 +207,24 @@ SD card", "Remove the SD card".
 
 ## Upgrading a stick
 
-Faraday copies itself onto another Faraday stick: Settings → **Upgrade a
-Faraday stick**. The boot partition of the stick Faraday started from is
-written over the other stick's, read back and compared; the other
-stick's data partition, with its vaults and settings file, is not
-written. A stick that holds vaults then never needs another computer.
+A Faraday stick is upgraded from a computer with Faraday Starter: Make
+a Faraday stick → **Replace Faraday, keep data**. It checks the new
+release's image against the release's manifest, writes the stick's boot
+partition, reads it back and compares; the data partition, with its
+vaults and settings file, is not read and not written. Faraday itself
+writes no boot partition (`docs/DECISIONS.md` F128). Plugging the stick
+into the computer is what exposes its data partition: the vaults there
+are encrypted, the settings file is not.
 
-1. If anything is unlocked, Faraday locks first and opens the upgrade in
-   the fresh session.
-2. Insert the stick Faraday started from (it may still be in). Faraday
-   takes it by what it holds: its kernel carries this Faraday's version
-   and commit. This identifies a version and is not a signature, so if
-   more than one stick in carries this version, Faraday takes none and
-   asks you to remove all but the one it started from. A stick whose
-   boot partition is not the size Faraday's image makes is not taken
-   either.
-3. Remove it and insert the stick to upgrade, or have both in at once.
-   The screen shows the version on that stick and the one to be written,
-   marks a stick that carries a newer Faraday, and refuses one whose
-   boot partition is smaller than 64 MiB (a stick made with a 48 MB one)
-   or that already carries this version. **Upgrade** writes, reads back and compares.
+A stick that already holds the same build is not written; an older
+Faraday over a newer one is marked on Confirm. A stick whose boot
+partition is smaller than 64 MiB (one made with a 48 MB one) has to be
+written whole, which empties its data partition: copy its files to
+another stick first. A Pi card is written whole.
 
-A stick pulled during the write does not start until it is upgraded
-again; its data partition is not touched. Sticks from Faraday 0.1.0 and
-earlier carry no version and show as "0.1.0 or earlier". The Raspberry
-Pi does not have the upgrade yet.
-
-**With Secure Boot.** The copy is byte for byte, so a stick whose
-`BOOTX64.EFI` carries your db signature passes it on. Faraday does not
-sign inside the upgrade. Sign each new release once through a spare
-stick, so that the stick holding your vaults never meets an online
-computer:
-
-1. On a computer, write the new release onto a spare stick, and copy
-   its `EFI/BOOT/BOOTX64.EFI` onto the spare's data partition as well.
-2. Start from your signed vault stick. Copy `BOOTX64.EFI` in from the
-   spare, unlock the vault that holds your db key, sign it,
-   lock, and write only the signed file back to the spare.
-3. On the computer, copy the signed file over `EFI/BOOT/BOOTX64.EFI` on
-   the spare's boot partition.
-4. Start from the spare, and upgrade the vault stick from it.
-
-The same steps are in the app, on the Upgrade screen's Learn page.
+**With Secure Boot.** Keep data writes the release's own
+`BOOTX64.EFI`, which does not carry your db signature: sign the new
+file before the stick starts with Secure Boot on.
 
 ## Choosing a computer
 
@@ -448,7 +424,6 @@ just faraday-stick-image                  # out/stick/faraday-x86_64-uefi.img
 just dev=1 faraday-stick-image            # + a serial console and root login, for development
 just dev=1 faraday-stick-boot /dev/sdX    # development: rewrite a stick's boot partition alone
 just faraday-starter --image out/stick/faraday-x86_64-uefi-dev.img   # write a dev image (below)
-just faraday-upgrade-check OLD.img        # QEMU: the dev image upgrades an older stick image
 ```
 
 A build this way is a test release unless built with `release=1`, which
@@ -503,7 +478,7 @@ the commit's first twelve hex digits and the kind of build, test or dev
 (and `.dirty-XXXXXXXX` for a tree that differs from its commit), never a
 date (`docs/DECISIONS.md` F5). The Pi image carries the same string in
 `faraday-build.txt` on its boot partition, since its kernel is
-compressed; Upgrade and the Starter read a Pi card's version from that
+compressed; the Starter reads a Pi card's version from that
 file, and a card made before it existed reads as it always did. Each
 FAT filesystem in an image (the boot and the data partition, on the
 stick and on the Pi) is stamped with a volume serial that is a function

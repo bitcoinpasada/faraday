@@ -158,7 +158,7 @@ fn a_faraday_stick_is_known_by_its_partitions_and_read_from_its_boot_volume_alon
         Some("6.6.84-faraday-0.1.1+a18020f88663.test")
     );
     assert_eq!(
-        faraday_core::upgrade::version(stick::release_at(&root).as_deref()),
+        faraday_core::build::version(stick::release_at(&root).as_deref()),
         "0.1.1 test release (a18020f88663)"
     );
 }

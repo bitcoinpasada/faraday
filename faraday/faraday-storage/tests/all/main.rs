@@ -6,5 +6,4 @@ mod pictures;
 mod settings_write;
 mod stick_folders;
 mod transfer;
-mod upgrade;
 mod vault_write;

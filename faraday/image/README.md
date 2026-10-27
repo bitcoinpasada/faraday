@@ -482,7 +482,7 @@ The image is 193 MiB and 20 KiB: 1 MiB before the first partition, the
 two partitions, and the backup GPT. A stick or card made before F80 has
 a 48 MB (stick) or 32 MB (card) boot partition and a 32 MB FAT16 data
 partition. Faraday reads and writes that data partition as any other;
-Upgrade a Faraday stick and the Starter's keep data refuse to write a
+the Starter's keep data refuses to write a
 64 MiB boot partition onto it, so its files are moved to a new stick by
 hand.
 
