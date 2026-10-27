@@ -42,6 +42,10 @@ pub const MAX_ROOT_BYTES: usize = 65536 * 32;
 /// How much of the FAT is read at a time when it is searched or counted.
 pub const FAT_PIECE: usize = 64 << 10;
 
+/// The most clusters FAT16's 16-bit cluster numbers can name, short of
+/// the reserved values at the top.
+const FAT16_MAX_CLUSTERS: u32 = 0xFFF4;
+
 /// The most clusters FAT32's 28-bit cluster numbers can name, short of
 /// the reserved values at the top.
 const FAT32_MAX_CLUSTERS: u32 = 0x0FFF_FFF5;
@@ -303,6 +307,9 @@ impl<D: Disk> Volume<D> {
         } else if clusters < 4085 {
             return Err(Error::Fat12);
         } else {
+            if clusters > FAT16_MAX_CLUSTERS {
+                return Err(Error::NotFat("more clusters than FAT16 holds"));
+            }
             if root_entries == 0 {
                 return Err(Error::NotFat("a FAT16 volume with no root directory"));
             }
@@ -433,7 +440,11 @@ impl<D: Disk> Volume<D> {
         for k in 0..u64::from(self.fats) {
             let at = self.fat_entry_at(c) + k * self.fat_bytes;
             match self.kind {
-                Kind::Fat16 => self.disk.write_at(at, &(v as u16).to_le_bytes())?,
+                Kind::Fat16 => {
+                    let v = u16::try_from(v)
+                        .map_err(|_| Error::Corrupt("a cluster number FAT16 cannot hold"))?;
+                    self.disk.write_at(at, &v.to_le_bytes())?
+                }
                 Kind::Fat32 => {
                     // The top four bits are reserved and kept.
                     let mut b = [0u8; 4];
@@ -1263,5 +1274,23 @@ mod tests {
         let taken = [*b"SAVING~1PSB"];
         let (s, _) = short_name("savings-unsigned.psbt", &taken).unwrap();
         assert_eq!(&s, b"SAVING~2PSB");
+    }
+
+    #[test]
+    fn a_stick_whose_fat16_claims_more_clusters_than_fat16_holds_is_not_offered() {
+        // 70000 one-sector clusters under a 16-bit FAT.
+        let (reserved, fat_sectors, root_sectors, clusters) = (1u32, 274u32, 32u32, 70_000u32);
+        let total = reserved + fat_sectors + root_sectors + clusters;
+        let mut img = vec![0u8; total as usize * 512];
+        img[11..13].copy_from_slice(&512u16.to_le_bytes());
+        img[13] = 1;
+        img[14..16].copy_from_slice(&1u16.to_le_bytes());
+        img[16] = 1;
+        img[17..19].copy_from_slice(&512u16.to_le_bytes());
+        img[32..36].copy_from_slice(&total.to_le_bytes());
+        img[22..24].copy_from_slice(&274u16.to_le_bytes());
+        img[510] = 0x55;
+        img[511] = 0xAA;
+        assert!(matches!(Volume::open(img), Err(Error::NotFat(_))));
     }
 }

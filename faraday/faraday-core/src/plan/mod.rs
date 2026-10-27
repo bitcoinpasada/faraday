@@ -1694,14 +1694,22 @@ impl Have {
             | What::Seed(i)
             | What::SeedFile(i)
             | What::SeedQrFile(i) => {
-                self.seeds[i] = true;
+                if let Some(s) = self.seeds.get_mut(i) {
+                    *s = true;
+                }
             }
             What::SeedPassphrase(i) => {
-                self.seeds[i] = true;
-                self.pass[i] = true;
+                if let Some(s) = self.seeds.get_mut(i) {
+                    *s = true;
+                }
+                if let Some(s) = self.pass.get_mut(i) {
+                    *s = true;
+                }
             }
             What::Passphrase(i) | What::PassphraseFile(i) | What::PassphraseSealed(i) => {
-                self.pass[i] = true;
+                if let Some(s) = self.pass.get_mut(i) {
+                    *s = true;
+                }
             }
             What::Sheet | What::Wallet | What::WalletFile(_) | What::SoftwareFile => {
                 self.wallet = true;
@@ -3564,23 +3572,12 @@ impl Note {
         }
     }
 
-    /// [`Note::to_text`] read back.
-    pub fn from_text(s: &str) -> Option<Note> {
-        let mut parts = s.splitn(4, ' ');
-        let kind = parts.next()?;
-        let a = parts.next()?;
-        let b = parts.next().unwrap_or("");
-        let rest = parts.next().unwrap_or("");
-        let after = |n: usize| s.splitn(n + 1, ' ').nth(n).unwrap_or("").to_string();
-        Some(match kind {
-            "checked" => Note::Checked(at_read(a)?, what_read(b)?, rest.to_string()),
-            "keychecked" => Note::KeyChecked(fp_read(a)?, after(2)),
-            "lost" => Note::Marked(at_read(a)?, what_read(b)?, Mark::Lost),
-            "exposed" => Note::Marked(at_read(a)?, what_read(b)?, Mark::Exposed),
-            "holder" => Note::Holder(fp_read(a)?, after(2)),
-            "vaultname" => Note::VaultName(a.parse().ok()?, after(2)),
-            _ => return None,
-        })
+    /// [`Note::to_text`] read back for a wallet of `seeds` seeds: None for
+    /// a note on a seed it does not have.
+    pub fn from_text(s: &str, seeds: usize) -> Option<Note> {
+        let note = text::note_read(s)?;
+        let on_seed = note.on().and_then(|(_, w)| w.seed_index());
+        on_seed.is_none_or(|i| i < seeds).then_some(note)
     }
 
     /// The thing of the map it is on, when it is on one.

@@ -10,8 +10,8 @@ use crate::common::{
 use faraday_core::Faraday;
 use faraday_core::board::{BoardPress, Chip, Thing, Zone};
 use faraday_core::plan::{
-    Answers, At, Form, Found, Item, Lost, Preset, Question, Row, Seed, Shape, Spot, What, check,
-    checklist, form, place_map, seeds, software, wallet,
+    Answers, At, Form, Found, Item, Lost, Note, Preset, Question, Row, Seed, Shape, Spot, What,
+    check, checklist, form, place_map, seeds, software, wallet,
 };
 
 fn seed(name: &str, here: bool) -> Seed {
@@ -278,6 +278,28 @@ fn the_answers_read_back_as_the_vault_keeps_them() {
     assert_eq!(Answers::from_text(&shape, &text), Some(a));
     // Not for another shape.
     assert_eq!(Answers::from_text(&one_key(), &text), None);
+}
+
+/// A vault whose plan record was crafted to name more places than the
+/// wallet could have, or a seed it does not have, opens with the plan read
+/// as absent.
+#[test]
+fn a_plan_naming_what_the_wallet_does_not_have_is_read_as_absent() {
+    let shape = two_of_three();
+    let a = Answers::preset(&shape, Preset::PaperVaultSoftware);
+    let text = a.to_text();
+    assert_eq!(Answers::from_text(&shape, &text), Some(a.clone()));
+    let places = format!("places {}\n", a.places);
+    let huge = text.replace(&places, "places 1000000000\n");
+    assert_ne!(huge, text);
+    assert_eq!(Answers::from_text(&shape, &huge), None);
+    assert_eq!(
+        Answers::from_text(&shape, &format!("{text}part 0 99\n")),
+        None
+    );
+    // A note on a seed the wallet has is kept, on one it does not, not.
+    assert!(Note::from_text("exposed place0 seed2", 3).is_some());
+    assert!(Note::from_text("exposed place0 seed99", 3).is_none());
 }
 
 /// A plan a test build saved with access layers (`layers` and `route`

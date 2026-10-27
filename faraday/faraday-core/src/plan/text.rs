@@ -235,7 +235,11 @@ impl Answers {
             let (name, value) = line.split_once(' ')?;
             match name {
                 "seeds" => a.seeds = bits(value)?,
-                "places" => a.places = value.parse().ok()?,
+                "places" => {
+                    // More than the places a person could ever add (rows
+                    // above are held to the same 1024) is not a plan.
+                    a.places = value.parse().ok().filter(|&n| n <= 1024)?;
+                }
                 "split" => a.split = value == "1",
                 "sticks" if value.contains(' ') => sticks.push(numbered(value)?),
                 "sticks" => one_stick = Some(flags(value)?),
@@ -299,7 +303,10 @@ impl Answers {
                 // A SeedQR drawn in part (§14.7 item 3).
                 "part" => {
                     let (p, i) = value.split_once(' ')?;
-                    let pi = (p.parse().ok()?, i.parse().ok()?);
+                    let pi: (usize, usize) = (p.parse().ok()?, i.parse().ok()?);
+                    if pi.1 >= shape.seeds.len() {
+                        return None;
+                    }
                     if !a.part.contains(&pi) {
                         a.part.push(pi);
                     }
@@ -459,5 +466,46 @@ impl Answers {
             a.set_c32(shape, i, None);
         }
         Some(a)
+    }
+}
+
+/// [`Note::to_text`] read back, whatever seed it names.
+pub(super) fn note_read(s: &str) -> Option<Note> {
+    let mut parts = s.splitn(4, ' ');
+    let kind = parts.next()?;
+    let a = parts.next()?;
+    let b = parts.next().unwrap_or("");
+    let rest = parts.next().unwrap_or("");
+    let after = |n: usize| s.splitn(n + 1, ' ').nth(n).unwrap_or("").to_string();
+    Some(match kind {
+        "checked" => Note::Checked(at_read(a)?, what_read(b)?, rest.to_string()),
+        "keychecked" => Note::KeyChecked(fp_read(a)?, after(2)),
+        "lost" => Note::Marked(at_read(a)?, what_read(b)?, Mark::Lost),
+        "exposed" => Note::Marked(at_read(a)?, what_read(b)?, Mark::Exposed),
+        "holder" => Note::Holder(fp_read(a)?, after(2)),
+        "vaultname" => Note::VaultName(a.parse().ok()?, after(2)),
+        _ => return None,
+    })
+}
+
+impl What {
+    /// The seed it is of, when it is of one.
+    pub fn seed_index(self) -> Option<usize> {
+        match self {
+            What::Words(i)
+            | What::SeedQr(i)
+            | What::Passphrase(i)
+            | What::Seed(i)
+            | What::SeedPassphrase(i)
+            | What::PassphraseSealed(i)
+            | What::SeedFile(i)
+            | What::SeedQrFile(i)
+            | What::PassphraseFile(i)
+            | What::Codex32Share(i, _)
+            | What::Codex32QrPaper(i, _)
+            | What::Codex32ShareFile(i, _)
+            | What::Codex32QrFile(i, _) => Some(i),
+            _ => None,
+        }
     }
 }

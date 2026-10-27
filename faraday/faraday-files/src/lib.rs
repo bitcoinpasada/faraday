@@ -490,10 +490,11 @@ pub fn rename(place: &mut dyn Place, from: &str, to: &str) -> Result<(), Unrenam
     {
         let vaults = from.to_ascii_lowercase().ends_with(".ofv")
             && other.to_ascii_lowercase().ends_with(".ofv")
-            && len == *olen;
+            && len == *olen
+            && len <= MAX_READ;
         let same = vaults && {
-            let a = place.read(from, len).ok();
-            let b = place.read(other, len).ok();
+            let a = place.read(from, MAX_READ).ok();
+            let b = place.read(other, MAX_READ).ok();
             match (a, b) {
                 (Some(a), Some(b)) => {
                     vault_identity(&a, len).is_some()
@@ -540,7 +541,9 @@ pub fn finish_vault_writes(place: &mut dyn Place) {
             let _ = place.remove(n);
             continue;
         }
-        if place.read(n, *len).is_ok_and(|b| whole_vault(&b)) {
+        // A part file larger than any vault is a crafted one: it goes
+        // without being read.
+        if *len <= MAX_READ && place.read(n, MAX_READ).is_ok_and(|b| whole_vault(&b)) {
             let _ = place.rename(n, name);
         } else {
             let _ = place.remove(n);

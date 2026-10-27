@@ -90,12 +90,13 @@ impl Faraday {
             return Vec::new();
         };
         let want = crate::wallet::same_wallet(wallet.policy());
+        let seeds = self.plan_shape_of(wallet).seeds.len();
         self.vaults
             .described_of(c, open.id, kind::PLAN)
             .filter(|(_, _, d)| d.same == want)
             .flat_map(|(_, r, _)| {
                 r.public_all(field::PLAN_NOTE)
-                    .filter_map(|b| Note::from_text(&String::from_utf8_lossy(b)))
+                    .filter_map(|b| Note::from_text(&String::from_utf8_lossy(b), seeds))
                     .collect::<Vec<_>>()
             })
             .collect()
