@@ -54,7 +54,7 @@
 //!   `chart_edit`, `boot_import`, `backup_flow/wallet.rs` and `codex32_correct` (§8.4's correction, with its `screen.rs`). They hold
 //!   handles and public results; key use is `faraday-keys` (F70,
 //!   `docs/KEYS.md`), and `tools/lint-secrets.sh` rule 4 holds it.
-//! - Wallets and PSBTs: `plan`, `decode`, `family`, `explore`, `catalog`, `register`.
+//! - Wallets and PSBTs: `plan`, `decode`, `family`, `explore`, `catalog`, `register`, `review`.
 //! - Backups and the backup flow: `backup_flow`, `backups`, `board`,
 //!   `held` (the backup before spending), `restore`, `wallet_backup`,
 //!   `bstep` (the checklist's items, numbered), `codex32_backup` (its
@@ -180,6 +180,7 @@ pub mod keygen;
 pub mod lightning;
 pub mod paper;
 pub mod quiz;
+mod review;
 pub mod secrets;
 pub mod secure_boot;
 pub mod seeds;
@@ -2654,8 +2655,7 @@ impl Faraday {
             Action::Cancel => {
                 *self.visit.pull_mut() = None;
                 self.vaults.clear_stick_save();
-                self.devices.after = None;
-                self.devices.over_import = false;
+                self.devices.cancel();
                 // A seed read and not loaded is wiped.
                 self.seed_read.clear();
                 self.stick.clear_delete_ask();
@@ -2931,6 +2931,7 @@ impl Faraday {
             | Action::StartSpend(..)
             | Action::Step(..)
             | Action::StepNext(..)
+            | Action::ReviewHold
             | Action::ToggleTable
             | Action::SignHere
             | Action::Collect(..)
@@ -2994,6 +2995,7 @@ impl Faraday {
             | Action::ModeSheet
             | Action::DevicesCheck
             | Action::DevicesContinue
+            | Action::DevicesHold
             | Action::DevicesUnderstood) => self.devices_act(a),
             Action::PassChip(f) => self.demo_pass_chip(f),
             a @ (Action::Samples
@@ -5454,13 +5456,7 @@ impl Faraday {
         let before = s.spend.psbt.to_bytes();
         let mut psbt = s.spend.psbt.clone();
         let mut nonce_only = false;
-        // The spend's inspection chooses the keys when it is of this
-        // PSBT and session as they are; else signing inspects.
-        let inputs = self.session.inspect_inputs();
-        let known = s.inspected_for(&inputs).then_some(&s.inspection);
-        let signed = self
-            .session
-            .sign_with(&c, &mut psbt, &seed, &mut s.musig, known);
+        let signed = self.session.sign_spend(&c, &mut psbt, &seed, s);
         // A session whose every nonce has signed is over: the next pass
         // over this transaction opens a new one, never the same nonce.
         if s.musig.as_ref().is_some_and(|m| m.is_empty()) {
@@ -5550,7 +5546,7 @@ impl Faraday {
             let mut psbt = s.spend.psbt.clone();
             match &seed {
                 Some(seed) => {
-                    if self.session.sign(&c, &mut psbt, seed, &mut s.musig).is_ok() {
+                    if self.session.sign_spend(&c, &mut psbt, seed, s).is_ok() {
                         s.spend.psbt = psbt;
                     }
                     if s.musig.as_ref().is_some_and(|m| m.is_empty()) {

@@ -1404,18 +1404,19 @@ impl Keys {
     }
 
     /// Costs what `faraday_psbt::sign` costs. Signs `psbt` with the keys in
-    /// `selection`.
+    /// `selection`, against the context and past the holdable dangers in
+    /// `accepted` (F136).
     pub fn sign(
         &self,
         c: &Compute,
         psbt: &mut faraday_psbt::Psbt,
         selection: &[Fingerprint],
-        ctx: faraday_psbt::Context<'_>,
+        (ctx, accepted): (faraday_psbt::Context<'_>, &[faraday_psbt::WarningKind]),
         musig: &mut Option<faraday_psbt::MusigSession>,
         seed: &Zeroizing<[u8; 32]>,
     ) -> Result<faraday_psbt::SignResult, faraday_psbt::Error> {
         let masters: Vec<&MasterKey> = self.entries.iter().map(|e| &e.key.master).collect();
-        crate::psbt::sign(c, psbt, &masters, selection, &ctx, musig, seed)
+        crate::psbt::sign(c, psbt, &masters, selection, (&ctx, accepted), musig, seed)
     }
 }
 

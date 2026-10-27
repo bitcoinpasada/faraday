@@ -4,7 +4,7 @@
 use faraday_bip::keys::{Fingerprint, MasterKey};
 use faraday_crypto::work::Compute;
 use faraday_psbt::verify::Determinism;
-use faraday_psbt::{Aux, Context, KeyRef, MusigSession, Nonce, Psbt, SignResult};
+use faraday_psbt::{Aux, Context, KeyRef, MusigSession, Nonce, Psbt, SignResult, WarningKind};
 use zeroize::Zeroizing;
 
 /// Costs a key derivation per master key (through `from_master`). The
@@ -26,13 +26,15 @@ pub fn recompute_signatures(c: &Compute, psbt: &Psbt, masters: &[&MasterKey]) ->
 
 /// Costs what `faraday_psbt::sign` costs. Signs `psbt` with the
 /// `masters` chosen by `selection`; `seed` is the pass's own randomness
-/// for the nonces it draws.
+/// for the nonces it draws. `accepted`, beside the context, is the
+/// holdable dangers the person held past (F136); every other danger
+/// refuses.
 pub fn sign(
     c: &Compute,
     psbt: &mut Psbt,
     masters: &[&MasterKey],
     selection: &[Fingerprint],
-    ctx: &Context<'_>,
+    (ctx, accepted): (&Context<'_>, &[WarningKind]),
     musig: &mut Option<MusigSession>,
     seed: &Zeroizing<[u8; 32]>,
 ) -> Result<SignResult, faraday_psbt::Error> {
@@ -42,7 +44,7 @@ pub fn sign(
         masters,
         selection,
         ctx,
-        false,
+        accepted,
         Nonce::default(),
         Aux::default(),
         musig,

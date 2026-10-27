@@ -61,7 +61,11 @@ that carries no previous transaction in a transaction of more than one
 input, which BIP-174's signer signs (`faraday_psbt::sign`), and it holds a
 finalized input to the same rule, refusing the PSBT when such an input is
 final but for a taproot one, since a final witness is the coordinator's;
-BIP-174's own signer vector is such a PSBT, final input or not. Faraday signs a taproot leaf with a `pkh`
+BIP-174's own signer vector is such a PSBT, final input or not. Faraday
+refuses a PSBT any input of which asks for a `NONE` or `SINGLE` sighash,
+which BIP-174's signer signs, and one none of the held keys can sign,
+which BIP-174's signer answers with nothing signed: dangers no hold
+accepts (F136). Faraday signs a taproot leaf with a `pkh`
 but leaves it unfinalized (`faraday_psbt::finalize`: `miniscript` 12
 cannot write that satisfaction); the reference does the same, and counts
 each such leaf it could have satisfied. Faraday signs an input spent
@@ -116,6 +120,9 @@ class Refused(Exception):
 # Every miniscript this area builds or reads a fixture's wallet for,
 # beside its script (`miniscript_ref.Scripts`).
 SCRIPTS = ms.Scripts()
+# The sighash types that leave outputs open to change after signing: a
+# danger Faraday refuses with no way past it (F136), a known difference.
+OPEN = [2, 3, 0x82, 0x83]
 # Satisfiable taproot leaves with a `pkh` the reference left unfinalized,
 # as Faraday does: a known difference, counted.
 PKH_LEFT = [0]
@@ -667,6 +674,23 @@ def leaf_keys(script, version):
     return [] if node is None else [k.bytes() for k in node.keys]
 
 
+def takes_part(inp, masters, wallets):
+    """Whether a held master takes part in `inp` as Faraday's inspection
+    counts it: a single-key or multisig input whose origins name one, a
+    key-path input whose key origin does, and a miniscript or a taproot
+    tree only through a wallet in use (F136's `NoParticipatingKey`)."""
+    if inp.kind is None:
+        return False
+    ecdsa = any(origin(v)[0] in masters for _, v in of_type(inp.m, 0x06))
+    tap = [tap_origin(v) for _, v in of_type(inp.m, 0x16)]
+    if inp.kind in ("p2pkh", "p2wpkh", "p2sh-p2wpkh", "p2sh-multi", "p2wsh-multi",
+                    "p2sh-p2wsh-multi"):
+        return ecdsa
+    if inp.kind == "tr-key":
+        return any(fp in masters for ls, fp, _ in tap if not ls)
+    return bool(wallets) and (ecdsa or any(fp in masters for _, fp, _ in tap))
+
+
 def ref_sign(raw, masters, nonce, wallets=()):
     """BIP-174's signer over `raw` with every master in `masters`
     (fingerprint → btc.Key), the wallets in `wallets` registered: the
@@ -695,6 +719,14 @@ def ref_sign(raw, masters, nonce, wallets=()):
             added = sign_input(inp, inputs, tx, masters, nonce)
         count += len(added)
         out_ins.append(list(m) + added)
+    # Where BIP-174's signer signs, the dangers no hold accepts (F136),
+    # each named by the kind Faraday's refusal must give.
+    for inp in inputs:
+        ht_field = one(inp.m, 0x03)
+        if ht_field and int.from_bytes(ht_field, "little") in OPEN:
+            raise Known("a NONE or SINGLE sighash, which no hold accepts", "UnusualSighash")
+    if not any(takes_part(inp, masters, wallets) for inp in inputs):
+        raise Known("none of the held keys can sign", "NoParticipatingKey")
     signed = write(g, out_ins, outs)
     complete = ref_finalize(signed, check_only=True)
     return {"psbt": signed.hex(), "signatures": count, "complete": complete}

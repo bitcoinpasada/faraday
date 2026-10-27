@@ -152,9 +152,37 @@ so `multi()` stays `multi()`.
 From `faraday-psbt`'s inspection, plus the Wallets tab's additions, which are
 non-cryptographic and live in `faraday-core`:
 
-- **Change** is labelled only when it re-derives from the wallet's keys;
-  an output that claims to be change and does not is **change, unverified**,
-  and needs explicit confirmation.
+- **Change** is labelled only when it re-derives from the wallet's keys.
+  An output that claims to be change and cannot be verified (its origin
+  names a key not loaded, or a path under no loaded account) is drawn under
+  **Sends** as a payment, with its address and amount, never as change;
+  its caution stays among the warnings (F136). One that names a loaded key
+  and is not that key's address is refused (`ChangeSpoof`).
+- **Review stops** where nothing would sign (F136): a blocked warning, or a
+  danger with no way past it, stops the Review step with the refusal and
+  what to do instead, and signing refuses it too. No key here taking
+  part is no stop: the spend goes on to collect the signatures made
+  elsewhere. Only two dangers have a
+  way past, and it is a hold: **Fee holds** below.
+- **Fee holds.** A fee of 20 % or more of what is sent, or over 0.01 BTC
+  (`HighFee`), and a rate of 1000 sat/vB or more (`AbsurdFeeRate`), show
+  the fee, its rate and its share of what is sent, the cases such a fee
+  is for (a child paying for its parent, a large batch, a consolidation),
+  and **Hold to pay this fee**. Signing is passed those dangers by name
+  only after the hold. The fee is worked out from checked amounts only;
+  a fee that cannot be worked out reads **Not known**, never zero. A fee
+  of 5 to 20 % is a caution.
+- **A spend path that waits longer than the transaction's sequence and
+  locktime allow** (`TimelockNotMet`) is refused when no way to spend
+  the wallet that the person's keys take part in is open under that
+  sequence and locktime: the transaction can never be valid. The
+  coordinator sets the input's sequence or the transaction's locktime
+  to the path's wait and makes it again. While another way of theirs is
+  open, the path read from the PSBT (which may lack a cosigner's
+  origin) is not refused.
+- **A key origin that names a loaded key at a path under its account, and
+  derives another key than the input's**, is refused at Review, as signing
+  refuses it. A path under no loaded account is a caution.
 - **Amounts** from a full previous transaction must hash to the outpoint
   and agree with any `witnessUtxo`; an amount that is only stated is
   **amount unchecked**.
@@ -169,7 +197,12 @@ non-cryptographic and live in `faraday-core`:
   A single-input
   transaction is signed from its `witnessUtxo`: a false amount there
   gives a signature no node accepts. Taproot inputs commit to every
-  amount and need no previous transaction.
+  amount and need no previous transaction. The rule holds for an input
+  another party brings (a payjoin, a coinjoin) too, though it is never
+  signed here: an input that names none of the loaded keys is never
+  signed, and nothing tells it from one of the person's own whose key
+  origin a coordinator left off, so its amount is checked as theirs
+  would be.
 - **Signed-amount memory**: the amounts each input stated are remembered
   against the unsigned transaction's hash. The same transaction stated
   differently is refused with no override. The memory is kept in
@@ -182,7 +215,8 @@ non-cryptographic and live in `faraday-core`:
 - **Add the previous transactions**: raw transactions typed, scanned or
   read from Files, each kept only if it hashes to an outpoint being
   spent. It opens itself when the transaction needs it.
-- **Anything other than `SIGHASH_ALL`** stops, and those inputs are refused.
+- **Sighash.** `ALL|ANYONECANPAY` signs, with a caution. `NONE`, `SINGLE` and
+  a non-standard value are refused, with no way past (F136).
 - **A script of several keys** (a `multi`, a miniscript, a taproot leaf
   of two or more keys) is signed only for a registered wallet whose
   script it is at the chain and index the input states (F135); otherwise

@@ -76,6 +76,9 @@ changes and nothing else has to be kept in step.
   path, an ambiguous input); refuse what cannot be verified rather than
   assume; accepting more than a standard requires is the owner's
   decision, recorded in DECISIONS.
+- A check that keeps keys or money safe has no way past it unless a
+  decision names a legitimate case; that way past is a hold naming the
+  case (STANDARDS §0, F136).
 - A type re-implemented from a `core/` one keeps what the original works
   out once and keeps (a key's fingerprint, its share); a spec that
   re-implements a `core/` type lists those values.

@@ -35,6 +35,13 @@ decision F109):
   of Faraday's own is in the app only once it has been reviewed, or
   when it can only add to a standard's strength (mixing a person's own
   randomness into the system's); §7 lists them for outside review.
+- **No way past a check without a legitimate reason** (F136). A check that
+  keeps a person's keys or money safe has no way past it unless a decision
+  names a real case that needs one. Where one does, the way past is a hold,
+  and the hold says what is not checked and the case it is for. A
+  transaction that can never be valid, or a claim about the person's own
+  key that is false, is refused. A note that keeps nothing safe (dust,
+  address reuse) is a note, not a check, and needs no hold.
 - **Checked against an implementation Faraday did not write.** Anything
   that makes or reads a key, a secret, a seed or backup encoding, an
   address, a signature or a transaction is checked against an

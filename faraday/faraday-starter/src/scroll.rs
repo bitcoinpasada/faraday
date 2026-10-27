@@ -7,10 +7,14 @@
 //! it. The motion asks for frames only while it moves (`docs/SPEED.md`
 //! §12). An open sheet scrolls by its own offset, from its top each time
 //! it opens, so the page under it keeps its place and its frosted copy.
+//! A hold (`docs/DESIGN.md`'s hold, F136) acts on the tick that has seen
+//! it held to the end, never on release: Continue anyway's and keep
+//! data's write over a newer stick.
 
 use faraday_core::Action;
 use faraday_core::motion::{Motion, Region, SLOP};
 use faraday_draw::Rect;
+use faraday_draw::tokens::HOLD_MS;
 use faraday_shell_api::TouchPhase;
 
 use crate::{Page, Sheet, Starter, StarterAction, draw};
@@ -41,6 +45,10 @@ pub(crate) struct Scroller {
     drag: Option<((i32, i32), i32, bool)>,
     /// The press under way only stopped a coast, and does nothing else.
     swallow: bool,
+    /// The last tick's time, ms.
+    now_ms: u64,
+    /// When the hold pressed now went down, ms.
+    held_since: Option<u64>,
 }
 
 impl Starter {
@@ -110,9 +118,61 @@ impl Starter {
         moved
     }
 
-    /// A tick: what coasts or springs back moves on. Returns whether a
-    /// frame is wanted for it.
+    /// Whether `action` acts only when held to the end (F136): Continue
+    /// anyway's answer, and Write on Confirm when keep data writes an
+    /// older release over a newer stick. A lookup.
+    pub(crate) fn is_hold(&self, action: StarterAction) -> bool {
+        match action {
+            StarterAction::LetThrough => true,
+            StarterAction::Write => self.writes_older(),
+            _ => false,
+        }
+    }
+
+    /// The hold pressed now, if what is pressed is one. A lookup.
+    fn pressed_hold(&self) -> Option<StarterAction> {
+        match self.pressed {
+            Some(Action::Host(code)) => StarterAction::from_code(code).filter(|a| self.is_hold(*a)),
+            _ => None,
+        }
+    }
+
+    /// How far `action`'s hold has been held, 0 to 1: what its button
+    /// fills. A lookup.
+    pub(crate) fn held_part(&self, action: StarterAction) -> f32 {
+        match self.scroller.held_since {
+            Some(since) if self.pressed_hold() == Some(action) => {
+                self.scroller.now_ms.saturating_sub(since).min(HOLD_MS) as f32 / HOLD_MS as f32
+            }
+            _ => 0.0,
+        }
+    }
+
+    /// A tick for the hold pressed now: done once held to the end.
+    /// Returns whether a frame is wanted for it.
+    fn hold_tick(&mut self, now_ms: u64) -> bool {
+        let Some(since) = self.scroller.held_since else {
+            return false;
+        };
+        let Some(action) = self.pressed_hold() else {
+            self.scroller.held_since = None;
+            return true;
+        };
+        if now_ms.saturating_sub(since) >= HOLD_MS {
+            self.scroller.held_since = None;
+            self.pressed = None;
+            self.act(action);
+        }
+        true
+    }
+
+    /// A tick: what coasts or springs back moves on, and a hold fills.
+    /// Returns whether a frame is wanted for it.
     pub(crate) fn scroll_tick(&mut self, now_ms: u64) -> bool {
+        self.scroller.now_ms = now_ms;
+        if self.hold_tick(now_ms) {
+            return true;
+        }
         if self.scroller.on.is_some_and(|on| on != self.place()) {
             self.scroller.motion.stop();
             self.scroller.on = None;
@@ -143,6 +203,8 @@ impl Starter {
                     s.drag = Some(((x, y), y, false));
                 }
                 self.pressed = self.hit_at(x, y);
+                let now = self.scroller.now_ms;
+                self.scroller.held_since = self.pressed_hold().map(|_| now);
             }
             TouchPhase::Move => {
                 if let Some(((x0, y0), last, dragging)) = self.scroller.drag {
@@ -175,10 +237,13 @@ impl Starter {
                     return false;
                 }
                 let pressed = self.pressed.take();
+                self.scroller.held_since = None;
+                // A hold let go before its end does nothing.
                 if let Some(a) = pressed
                     && self.hit_at(x, y) == Some(a)
                     && let Action::Host(code) = a
                     && let Some(action) = StarterAction::from_code(code)
+                    && !self.is_hold(action)
                 {
                     self.act(action);
                 }

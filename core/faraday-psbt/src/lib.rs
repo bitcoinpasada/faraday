@@ -61,7 +61,7 @@
 //! the amount the PSBT states, so without that transaction the amount is
 //! the coordinator's word, and two signing rounds over two different lies
 //! pay the difference to the miner. Such an input is a [`Level::Blocked`]
-//! warning and is never signed, with or without `force`. A transaction
+//! warning and is never signed, whatever is passed as accepted. A transaction
 //! with one input is signed from its `witness_utxo` alone: the attack
 //! needs two signatures the chain accepts, and a lone input signed over a
 //! lie gives a signature no node accepts and nothing to combine it with.

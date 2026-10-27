@@ -164,11 +164,11 @@ fn spending_review(claimed: bool) -> Faraday {
     app
 }
 
-/// The side panel's Change line says Verified only when every output
-/// claimed as change is verified; one that is only claimed is counted
-/// there as unverified.
+/// The side panel's Change line counts verified change only: an output
+/// that is only claimed as change is among what it sends (F136), so the
+/// panel reads Verified for the change that is, and never Unverified.
 #[test]
-fn the_panel_says_verified_change_only_when_every_change_is_verified() {
+fn the_panel_counts_only_verified_change() {
     // The value beside the panel's Change label.
     let panel_change = |claimed: bool| {
         let mut app = spending_review(claimed);
@@ -184,7 +184,7 @@ fn the_panel_says_verified_change_only_when_every_change_is_verified() {
         shown[panel + label + 1].clone()
     };
     assert_eq!(panel_change(false), "Verified");
-    assert_eq!(panel_change(true), "1 of 2 unverified");
+    assert_eq!(panel_change(true), "Verified");
 }
 
 #[test]

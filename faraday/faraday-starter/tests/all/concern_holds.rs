@@ -182,7 +182,11 @@ fn continue_anyway_asks_once_and_lets_that_item_through_for_the_session() {
     tap(&mut starter, StarterAction::Cancel);
     assert!(!can_restart(&mut starter));
     tap(&mut starter, n);
+    assert!(shows(&mut starter, "Only for a screen or switch"));
+    // A tap on the hold lets nothing through; held, it does (F136).
     tap(&mut starter, StarterAction::LetThrough);
+    assert_eq!(starter.sheet, Some(Sheet::LetThrough));
+    crate::starter::hold(&mut starter, StarterAction::LetThrough);
     assert_eq!(starter.sheet, None);
     // The KVM still holds; the TV is not named any more.
     assert!(!can_restart(&mut starter));

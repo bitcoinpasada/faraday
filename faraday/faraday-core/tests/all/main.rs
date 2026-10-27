@@ -116,6 +116,7 @@ mod register_wallet;
 mod restart;
 mod restore;
 mod restore_shares;
+mod review_stops;
 mod roller;
 mod rounds;
 mod save_without_encryption;

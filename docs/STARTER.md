@@ -471,8 +471,10 @@ restart buttons stay closed while such a screen is attached, with
 line names the screen ("Samsung QN65 is a TV. A TV can record what it
 shows: use another screen or computer."). A screen read as a TV that
 is not one can be let through once per session with **Continue
-anyway**, which asks once and names the item. The Learn page "Screens
-and devices that can record" says why.
+anyway**, which asks once and names the item, and lets it through only
+with **Hold to continue** under the case it is for, "Only for a screen
+or switch that is your own, in front of you." (F136). The Learn page
+"Screens and devices that can record" says why.
 
 On the stick, Faraday has no graphics driver (DRM is forbidden; the
 picture is the firmware's framebuffer). Its kernel is 6.18 longterm
@@ -485,7 +487,7 @@ but none of the CEA-861 extension, so on the stick only a name names a
 TV (or a KVM): such a screen is held at start by its name, on a laptop
 too (its lid may be shut with a TV on HDMI), and Check again does not
 release it, since the screen is still the one the firmware named;
-Continue anyway does. A screen whose maker is not a TV maker, or a
+Continue anyway does, after its hold (F136). A screen whose maker is not a TV maker, or a
 computer's own panel, needs no reminder. A TV maker's separate screen
 whose name names no TV, or a firmware that passed no EDID, gets the
 reminder.
@@ -722,8 +724,10 @@ destinations; Faraday Demo and the device keep their own navigation
      the fact the Learn page explains (§4.4). F2 and F5's rules
      apply (owner, D15): the same build string as the
      stick already holds is refused with the reason; an older Faraday
-     over a newer stick is warned about on Confirm and can still be
-     written; anything else is written. On Windows, ticking it on a
+     over a newer stick is warned about on Confirm, with the case it is
+     for ("Only to go back to an older release."), and is written only
+     with **Hold to write the older release** (F136); anything else is
+     written. On Windows, ticking it on a
      stick whose version was not read asks for administrator permission
      once to read it (§4.1, D22), and Continue waits for the answer;
      *New Faraday stick* needs no version and asks nothing.
@@ -1032,7 +1036,7 @@ MiB of FARADAYBOOT, and answers the release string found there
 (`faraday_boot::find_release`), or none for a stick made before versions
 were recorded. The Starter then applies the same rules as on Linux: the
 same build refused, an older Faraday over a newer stick warned about on
-Confirm. What was read stands for the session until the stick is
+Confirm and written only after its hold. What was read stands for the session until the stick is
 written. A declined prompt says so on What to write and nothing is
 written. As a second check, the elevated writer reads the stick's
 version again before a keep-data write and refuses the same build.

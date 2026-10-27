@@ -243,7 +243,7 @@ fn two_of_the_three_keys_sign_and_the_input_finalizes() {
         &[&abandon, &zoo],
         &[abandon.fingerprint(), zoo.fingerprint()],
         &ctx,
-        false,
+        &[],
         Nonce::LowR,
         Aux::Deterministic,
         &mut None,
@@ -387,7 +387,7 @@ fn a_third_key_signs_too_and_the_witness_still_holds_two() {
 
 /// The leaf of a taproot multisig names three keys, so its input is
 /// signed only while the wallet is registered: with none, the spend is
-/// Blocked, forced or not.
+/// Blocked, held or not.
 #[test]
 fn a_taproot_multisig_input_is_not_signed_without_its_wallet() {
     let c = Compute::unchecked();
@@ -407,7 +407,7 @@ fn a_taproot_multisig_input_is_not_signed_without_its_wallet() {
         "{:?}",
         insp.warnings
     );
-    for force in [false, true] {
+    for accepted in [Vec::new(), vec![faraday_psbt::WarningKind::AbsurdFeeRate]] {
         let mut attempt = psbt.clone();
         let result = sign(
             &c,
@@ -415,7 +415,7 @@ fn a_taproot_multisig_input_is_not_signed_without_its_wallet() {
             &[&abandon],
             &[abandon.fingerprint()],
             &ctx,
-            force,
+            &accepted,
             Nonce::LowR,
             Aux::Deterministic,
             &mut None,

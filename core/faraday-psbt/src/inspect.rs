@@ -43,20 +43,23 @@ pub const HIGH_FEE_DANGER_ABS: Amount = Amount::from_sat(1_000_000);
 /// `-maxfeerate`-style sanity limit is far above any real market rate).
 pub const ABSURD_FEE_RATE_SAT_VB: u64 = 1000;
 
-/// How serious a warning is. Danger warnings block signing unless the
-/// caller forces it; the UI requires a distinct confirm gesture. Blocked
-/// warnings are evidence that the PSBT itself is hostile, and no override
-/// signs them.
+/// How serious a warning is (`docs/STANDARDS.md` §0, F136). A danger
+/// refuses signing at the API, unless its kind is one a decision names
+/// as holdable ([`WarningKind::is_holdable`]) and the caller passes that
+/// kind by name, which the app does only after the person's hold. A
+/// blocked warning is a transaction that lies about itself or can never
+/// be valid, and nothing signs it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Level {
     /// Worth knowing; nothing wrong.
     Info,
     /// Unusual; read before signing.
     Caution,
-    /// Likely theft or loss; signing is refused without an override.
+    /// Likely theft or loss; signing is refused, but for a holdable kind
+    /// the caller passes by name.
     Danger,
-    /// The transaction lies about itself, or hides what it is spending;
-    /// signing is refused with or without an override.
+    /// The transaction lies about itself, hides what it is spending, or
+    /// can never be valid; signing is refused, whatever is passed.
     Blocked,
 }
 
@@ -196,6 +199,20 @@ pub enum WarningKind {
         /// The wait it does not meet.
         lock: Lock,
     },
+}
+
+impl WarningKind {
+    /// Whether a danger of this kind has a way past it: a hold, for the
+    /// legitimate case F136 names. A fee this high is paid on purpose by
+    /// a child paying for its parent, a large batch or a consolidation.
+    /// No other kind is holdable, and [`crate::sign`] refuses any other
+    /// kind passed to it as accepted.
+    pub fn is_holdable(&self) -> bool {
+        matches!(
+            self,
+            WarningKind::HighFee { .. } | WarningKind::AbsurdFeeRate
+        )
+    }
 }
 
 /// A ranked warning with display text.
@@ -534,6 +551,49 @@ impl Inspection {
             .map(|w| w.kind.clone())
             .collect()
     }
+
+    /// Whether nothing signs this transaction: a blocked warning, or a
+    /// danger with no hold past it (F136).
+    pub fn refuses(&self) -> bool {
+        self.warnings.iter().any(|w| {
+            w.level == Level::Blocked || (w.level == Level::Danger && !w.kind.is_holdable())
+        })
+    }
+
+    /// The kinds of the dangers a hold accepts, in the order they are
+    /// ranked: what [`crate::sign`] is passed once the person has held.
+    pub fn holdable(&self) -> Vec<WarningKind> {
+        self.warnings
+            .iter()
+            .filter(|w| w.level == Level::Danger && w.kind.is_holdable())
+            .map(|w| w.kind.clone())
+            .collect()
+    }
+
+    /// The fee as a whole percentage of what the transaction sends to
+    /// others, or of every output for a transfer to itself: the share a
+    /// [`WarningKind::HighFee`] is about. `None` when the fee is not known
+    /// or nothing is sent.
+    pub fn fee_share_pct(&self) -> Option<u64> {
+        self.fee_rate_sat_vb?;
+        let base = if self.amount_to_others > Amount::ZERO {
+            self.amount_to_others
+        } else {
+            self.total_out
+        };
+        (base > Amount::ZERO).then(|| self.fee.to_sat().saturating_mul(100) / base.to_sat())
+    }
+
+    /// The kinds of the dangers `accepted` does not accept.
+    pub fn dangers_left(&self, accepted: &[WarningKind]) -> Vec<WarningKind> {
+        self.warnings
+            .iter()
+            .filter(|w| {
+                w.level == Level::Danger && !(w.kind.is_holdable() && accepted.contains(&w.kind))
+            })
+            .map(|w| w.kind.clone())
+            .collect()
+    }
 }
 
 fn warn(warnings: &mut Vec<Warning>, level: Level, kind: WarningKind, text: String) {
@@ -673,14 +733,7 @@ pub fn inspect(c: &Compute, psbt: &Psbt, ctx: &Context) -> Inspection {
                             is_ours = true;
                             push_unique(&mut participating, fp);
                         }
-                        Some(_) => warn(
-                            &mut warnings,
-                            Level::Caution,
-                            WarningKind::UnknownDerivation,
-                            format!(
-                                "input {i} names your key {fp} at {path}, but the derived key does not match the input"
-                            ),
-                        ),
+                        Some(d) => mismatch(&mut warnings, i, fp, path, d.key == *pk),
                         None => {
                             push_unique(&mut participating, fp);
                             warn(
@@ -718,14 +771,7 @@ pub fn inspect(c: &Compute, psbt: &Psbt, ctx: &Context) -> Inspection {
                         let path = &claim.path;
                         if ctx.is_ours(fp) {
                             match derives_to(c, &secp, ctx, fp, path, &key.inner) {
-                                Some(_) => warn(
-                                    &mut warnings,
-                                    Level::Caution,
-                                    WarningKind::UnknownDerivation,
-                                    format!(
-                                        "input {i} names your key {fp} at {path}, but the derived key does not match the input"
-                                    ),
-                                ),
+                                Some(_) => mismatch(&mut warnings, i, fp, path, false),
                                 None => {
                                     push_unique(&mut participating, fp);
                                     warn(
@@ -853,13 +899,12 @@ pub fn inspect(c: &Compute, psbt: &Psbt, ctx: &Context) -> Inspection {
                             is_ours = true;
                             push_unique(&mut participating, fp);
                         }
-                        Some(_) => warn(
+                        Some(d) => mismatch(
                             &mut warnings,
-                            Level::Caution,
-                            WarningKind::UnknownDerivation,
-                            format!(
-                                "input {i} names your key {fp} at {path}, but the derived key does not match the input"
-                            ),
+                            i,
+                            fp,
+                            path,
+                            d.key.x_only_public_key().0 == *xonly,
                         ),
                         None => {
                             push_unique(&mut participating, fp);
@@ -958,18 +1003,24 @@ pub fn inspect(c: &Compute, psbt: &Psbt, ctx: &Context) -> Inspection {
             + input.tap_script_sigs.len();
 
         let spend_route = spend_route(c, &secp, ctx, input, &cl, tx, i);
-        if let Some(SpendRoute::Script(path)) = &spend_route {
+        // Refused only when no way the person's keys take part in is
+        // open: the path read from the PSBT may be the coordinator's
+        // guess, its other keys' origins left off (F136).
+        if let Some(SpendRoute::Script(path)) = &spend_route
+            && path.locks.iter().any(|l| !lock_met(*l, tx, i))
+            && !own_path_open(c, ctx, input, &cl, tx, i)
+        {
             for lock in &path.locks {
                 if !lock_met(*lock, tx, i) {
                     warn(
                         &mut warnings,
-                        Level::Caution,
+                        Level::Blocked,
                         WarningKind::TimelockNotMet {
                             path: path.clone(),
                             lock: *lock,
                         },
                         format!(
-                            "input {i} spends a path that waits {}, which this transaction's sequence and locktime do not meet",
+                            "input {i} spends a path that waits {}, which this transaction's sequence and locktime do not meet; it can never be valid",
                             wait(*lock)
                         ),
                     );
@@ -1217,11 +1268,18 @@ pub fn inspect(c: &Compute, psbt: &Psbt, ctx: &Context) -> Inspection {
         );
     }
 
-    // The wallet the PSBT defines, offered where nothing else blocks.
+    // The wallet the PSBT defines, offered where nothing else blocks. A
+    // key under a loaded fingerprint that is not its key blocks (F136)
+    // and is still offered: registering refuses that key by name.
     let register = warnings
         .iter()
         .filter(|w| w.level == Level::Blocked)
-        .all(|w| w.kind == WarningKind::WalletNotRegistered)
+        .all(|w| {
+            matches!(
+                w.kind,
+                WarningKind::WalletNotRegistered | WarningKind::UnknownDerivation
+            )
+        })
         .then(|| crate::register::offer(c, psbt, &unregistered, &multisig_ours))
         .flatten();
 
@@ -1250,6 +1308,38 @@ pub fn inspect(c: &Compute, psbt: &Psbt, ctx: &Context) -> Inspection {
         is_self_transfer,
         register,
     }
+}
+
+/// A key origin naming loaded key `fp` at a `path` under its account
+/// that does not give input `i`'s key or script. A key other than the
+/// one the input names is a false claim about the person's own key, and
+/// is blocked: signing refuses it too ([`crate::Error::KeyMismatch`]).
+/// The input's own key in a script other than the account's is a
+/// caution: the key is the person's, and signing checks it against the
+/// script it spends.
+fn mismatch(
+    warnings: &mut Vec<Warning>,
+    i: usize,
+    fp: Fingerprint,
+    path: &DerivationPath,
+    same_key: bool,
+) {
+    let (level, text) = if same_key {
+        (
+            Level::Caution,
+            format!(
+                "input {i} names your key {fp} at {path}, in a script other than that account's"
+            ),
+        )
+    } else {
+        (
+            Level::Blocked,
+            format!(
+                "input {i} names your key {fp} at {path}, but the derived key does not match the input"
+            ),
+        )
+    };
+    warn(warnings, level, WarningKind::UnknownDerivation, text);
 }
 
 /// Whether a taproot script-path input carries something this crate can
@@ -1318,6 +1408,38 @@ fn lock_met(lock: Lock, tx: &Transaction, index: usize) -> bool {
         }
         Lock::Preimage => true,
     }
+}
+
+/// Costs what `wallet_claim` costs. Whether input `index` spends a
+/// registered wallet with a way to spend it that a loaded key takes part
+/// in and that the transaction's own sequence and locktime leave open.
+fn own_path_open(
+    work: &Compute,
+    ctx: &Context,
+    input: &Input,
+    c: &Classified,
+    tx: &Transaction,
+    index: usize,
+) -> bool {
+    let Some(utxo) = c.utxo.as_ref() else {
+        return false;
+    };
+    let Some(claim) = ctx.wallet_claim(work, input_origins(input), &utxo.script_pubkey) else {
+        return false;
+    };
+    let Some(policy) = ctx.wallets.get(claim.wallet) else {
+        return false;
+    };
+    let keys = policy.keys();
+    let own = |k: usize| {
+        keys.get(k)
+            .and_then(|key| key.fingerprint())
+            .is_some_and(|fp| ctx.is_ours(fp))
+    };
+    policy
+        .spend_paths()
+        .iter()
+        .any(|p| p.keys.iter().any(|&k| own(k)) && p.locks.iter().all(|l| lock_met(*l, tx, index)))
 }
 
 /// The keys a registered wallet's policy derives at one address, in the

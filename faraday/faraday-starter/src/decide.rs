@@ -148,6 +148,28 @@ pub fn keep_data(stick: &FaradayStick, build: Option<&str>) -> Fit {
     }
 }
 
+impl crate::Starter {
+    /// Whether Confirm's Write keeps data and writes an older release over
+    /// the newer one the stick holds ([`Fit::Newer`]): its Write is then a
+    /// hold that names going back to an older release (F136). A lookup.
+    pub(crate) fn writes_older(&self) -> bool {
+        let Some(m) = self.making.as_ref() else {
+            return false;
+        };
+        if self.page != crate::Page::Confirm || m.mode != Some(crate::api::Mode::KeepData) {
+            return false;
+        }
+        let (Some((id, ..)), Some(image)) = (m.confirmed.as_ref(), self.image(m.target)) else {
+            return false;
+        };
+        self.disks
+            .iter()
+            .find(|d| &d.id == id)
+            .and_then(|d| d.faraday.as_ref())
+            .is_some_and(|stick| keep_data(stick, image.build.as_deref()) == Fit::Newer)
+    }
+}
+
 /// The Faraday version `stick` holds, as Home and Which stick say it:
 /// "version not read" when FARADAYBOOT was not read (Windows),
 /// kept apart from a stick made before Faraday put its version there.

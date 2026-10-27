@@ -128,7 +128,7 @@ pub fn signed_by(dir: &Path, holders: &[&str]) -> (Psbt, SignResult) {
         &refs,
         &selection,
         &ctx,
-        false,
+        &[],
         Nonce::LowR,
         Aux::Deterministic,
         &mut None,

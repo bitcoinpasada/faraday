@@ -93,6 +93,9 @@ pub enum Action {
     Step(u8),
     /// Close a step card as done and open the next.
     StepNext(u8),
+    /// Review's hold past a holdable danger (F136): the dangers are
+    /// accepted for signing and Review closes as done.
+    ReviewHold,
     /// Show or hide the full transaction table.
     ToggleTable,
     /// Sign with every session key the transaction names.
@@ -177,6 +180,9 @@ pub enum Action {
     DevicesCheck,
     /// The device check's Continue anyway: asks first.
     DevicesContinue,
+    /// The hold under Continue anyway's question: lets the items through
+    /// for this session (F136).
+    DevicesHold,
     /// I understand, under the reminders before a secret.
     DevicesUnderstood,
     /// Power off.
@@ -836,4 +842,25 @@ pub enum MarkTip {
     Warning,
     /// The link mark.
     Link,
+}
+
+/// Whether an action acts when held long enough rather than on release.
+pub fn is_hold(a: Action) -> bool {
+    matches!(
+        a,
+        Action::Vault(
+            crate::vault::VaultAction::HoldDelete
+                | crate::vault::VaultAction::HoldWipe
+                | crate::vault::VaultAction::SbHoldSign
+                | crate::vault::VaultAction::GpgHoldSign
+                | crate::vault::VaultAction::GpgHoldRevoke
+        ) | Action::Flow(crate::backup_flow::steps::FlowAction::Hold)
+            | Action::HoldPowerOff
+            | Action::HoldRestart
+            | Action::SecretHold
+            | Action::KeyPathHold
+            | Action::RegisterHold
+            | Action::ReviewHold
+            | Action::DevicesHold
+    )
 }

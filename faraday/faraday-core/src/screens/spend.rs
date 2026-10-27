@@ -9,7 +9,7 @@ use crate::wallet::{Session, fp_text, network_name, step, txid_known};
 use crate::{Action, Screen, flow, guide};
 use faraday_draw::tokens::{BODY_M, BODY_S, LABEL_L, LABEL_M, TITLE_M, TITLE_S};
 use faraday_draw::tokens::{
-    BUTTON_H, GAP, GAP_SMALL, PAD, TABLE_AMOUNT_W, TABLE_LABEL_W, TypeRole,
+    BUTTON_H, CHIP_LINE, GAP, GAP_SMALL, PAD, TABLE_AMOUNT_W, TABLE_LABEL_W, TypeRole,
 };
 use faraday_draw::widgets::Icon;
 use faraday_psbt::{Level, OutputKind};
@@ -330,12 +330,11 @@ fn spend_bar(
 /// The height of that foot.
 const SPEND_BAR: f32 = 104.0;
 
+/// The outputs that pay away from the wallet: every output but verified
+/// change. One that claims to be change and cannot be verified is a
+/// payment like any other (F136).
 fn recipients(inspection: &faraday_psbt::Inspection) -> Vec<&faraday_psbt::OutputInfo> {
-    inspection
-        .outputs
-        .iter()
-        .filter(|o| matches!(o.kind, OutputKind::Recipient))
-        .collect()
+    inspection.outputs.iter().filter(|o| !o.is_ours()).collect()
 }
 
 pub(crate) fn step_summary(app: &View, n: u8, wallet: Option<usize>, needed: usize) -> String {
@@ -348,16 +347,16 @@ pub(crate) fn step_summary(app: &View, n: u8, wallet: Option<usize>, needed: usi
             None => EN.step_summary_no_loaded.to_string(),
         },
         1 if reached => EN.step_summary_addresses.to_string(),
-        2 if reached => fill(
-            EN.step_summary_sends,
-            &[
-                &btc(i.amount_to_others.to_sat()).to_string(),
-                &(i.fee_rate_sat_vb
-                    .map(|r| format!("{r:.1}"))
-                    .unwrap_or_else(|| "?".into()))
-                .to_string(),
-            ],
-        ),
+        2 if reached => match i.fee_rate_sat_vb {
+            Some(rate) => fill(
+                EN.step_summary_sends,
+                &[&btc(i.amount_to_others.to_sat()), &format!("{rate:.1}")],
+            ),
+            None => fill(
+                EN.step_summary_sends_fee_not_known,
+                &[&btc(i.amount_to_others.to_sat())],
+            ),
+        },
         4 if reached => {
             let here = i
                 .participating_keys
@@ -553,32 +552,30 @@ pub(crate) fn step_body(
                             Some((EN.step_verified, Role::Ok.paint())),
                         ));
                     }
-                    OutputKind::UnverifiedChange { .. } => {
-                        rows.push((
-                            EN.step_change.into(),
-                            btc(o.amount.to_sat()),
-                            fill(EN.step_to_address, &[&short(&o.address).to_string()]),
-                            Some((EN.step_unverified, Role::Warning.paint())),
-                        ));
-                    }
-                    OutputKind::Recipient => {}
+                    OutputKind::UnverifiedChange { .. } | OutputKind::Recipient => {}
                 }
             }
-            rows.push((
-                EN.step_fee.into(),
-                btc(i.fee.to_sat()),
-                fill(
-                    EN.step_sat_sat_vb,
-                    &[
-                        &thousands(i.fee.to_sat()).to_string(),
-                        &(i.fee_rate_sat_vb
-                            .map(|r| format!("{r:.1}"))
-                            .unwrap_or_else(|| "?".into()))
-                        .to_string(),
-                    ],
+            // A fee that cannot be worked out is not known, never zero.
+            rows.push(match i.fee_rate_sat_vb {
+                Some(rate) => (
+                    EN.step_fee.into(),
+                    btc(i.fee.to_sat()),
+                    fill(
+                        EN.step_sat_sat_vb,
+                        &[
+                            &thousands(i.fee.to_sat()).to_string(),
+                            &format!("{rate:.1}"),
+                        ],
+                    ),
+                    None,
                 ),
-                None,
-            ));
+                None => (
+                    EN.step_fee.into(),
+                    EN.step_fee_not_known.to_string(),
+                    String::new(),
+                    None,
+                ),
+            });
             let unchecked = i.inputs.iter().any(|inp| inp.amount.is_none());
             rows.push((
                 EN.step_spends.into(),
@@ -831,6 +828,12 @@ pub(crate) fn step_body(
                 }
                 cy += 6.0;
             }
+            // A transaction nothing signs stops here, and a holdable
+            // danger is held past here (F136).
+            let stop = crate::review::review_stop(i, &s.held);
+            if let Some(why) = stop {
+                cy += review_stop_block(app, ui, (x, cy, w), i, why);
+            }
             ui.button(
                 x,
                 cy,
@@ -844,7 +847,9 @@ pub(crate) fn step_body(
                 Style::Secondary,
                 Action::ToggleTable,
             );
-            next(ui, cy, EN.step_continue);
+            if stop.is_none() {
+                next(ui, cy, EN.step_continue);
+            }
             cy += 44.0;
         }
         4 => {
@@ -1551,22 +1556,14 @@ fn spend_panel(
         .first()
         .map(|o| short(&o.address))
         .unwrap_or_else(|| "·".into());
-    // Verified only when every output claimed as change is.
-    let verified = i.outputs.iter().filter(|o| o.is_ours()).count();
-    let unverified = i
-        .outputs
-        .iter()
-        .filter(|o| matches!(o.kind, OutputKind::UnverifiedChange { .. }))
-        .count();
-    let change = match (verified, unverified) {
-        (0, 0) => EN.spend_panel_none.to_string(),
-        (_, 0) => EN.spend_panel_verified.to_string(),
-        (0, _) => EN.spend_panel_unverified.to_string(),
-        (v, u) => fill(
-            EN.spend_panel_some_unverified,
-            &[&u.to_string(), &(v + u).to_string()],
-        ),
-    };
+    // Change is verified change only: an output that claims to be change
+    // and cannot be verified is among what it sends (F136).
+    let change = if i.outputs.iter().any(|o| o.is_ours()) {
+        EN.spend_panel_verified
+    } else {
+        EN.spend_panel_none
+    }
+    .to_string();
     let facts: [(&str, String, TypeRole, u8); 6] = [
         (
             EN.spend_panel_wallet,
@@ -1589,16 +1586,13 @@ fn spend_panel(
         (EN.spend_panel_to_label, to, BODY_M.mono(), 2),
         (
             EN.spend_panel_fee,
-            fill(
-                EN.spend_panel_sat_sat,
-                &[
-                    &thousands(i.fee.to_sat()).to_string(),
-                    &(i.fee_rate_sat_vb
-                        .map(|r| format!("{r:.1}"))
-                        .unwrap_or_else(|| "?".into()))
-                    .to_string(),
-                ],
-            ),
+            match i.fee_rate_sat_vb {
+                Some(rate) => fill(
+                    EN.spend_panel_sat_sat,
+                    &[&thousands(i.fee.to_sat()), &format!("{rate:.1}")],
+                ),
+                None => EN.step_fee_not_known.to_string(),
+            },
             BODY_M,
             2,
         ),
@@ -1727,6 +1721,54 @@ pub(crate) fn signers_count(
         cy += 44.0;
     }
     cy
+}
+
+/// Review's foot when it does not go on (F136), `why` as
+/// `review::review_stop` gives it, in a column `w` wide at (`x`, `y`):
+/// for a transaction nothing signs, what to do instead; for a fee a hold
+/// accepts, the fee, its rate and its share of what is sent, the cases
+/// such a fee is for, and the hold. Returns its height.
+fn review_stop_block(
+    app: &View,
+    ui: &mut Ui,
+    (x, y, w): (f32, f32, f32),
+    i: &faraday_psbt::Inspection,
+    why: &str,
+) -> f32 {
+    let mut cy = y;
+    if why != EN.step_review_hold_first {
+        cy += ui.wrap_as((x, cy, w), BODY_M, Role::Error, why) + GAP;
+        return cy - y;
+    }
+    let facts = fill(
+        EN.step_fee_hold_facts,
+        &[
+            &thousands(i.fee.to_sat()),
+            &i.fee_rate_sat_vb
+                .map(|r| format!("{r:.1}"))
+                .unwrap_or_default(),
+            &i.fee_share_pct().unwrap_or_default().to_string(),
+        ],
+    );
+    cy += ui.wrap_as((x, cy, w), BODY_M, Role::Error, &facts) + GAP_SMALL;
+    cy += ui.wrap_as(
+        (x, cy, w),
+        BODY_M,
+        Role::OnSurfaceVariant,
+        EN.step_fee_hold_cases,
+    ) + GAP;
+    crate::vault::screen::hold_button_in(
+        app,
+        ui,
+        x,
+        cy,
+        w,
+        EN.step_fee_hold,
+        Action::ReviewHold,
+        Role::Error.paint(),
+    );
+    cy += CHIP_LINE + GAP;
+    cy - y
 }
 
 /// The Sign row in a column `w` wide at (`x`, `y`): `lead` at its start

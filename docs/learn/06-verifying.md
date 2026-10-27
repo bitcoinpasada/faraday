@@ -28,6 +28,6 @@ The Nonce check lists every signature the transaction already carries, with the 
 
 ## Warning cards
 
-When Faraday cannot confirm something, the review shows a warning under the transaction. A danger is in red: an input whose value cannot be checked, a signature type that does not cover the outputs, a fee out of all proportion to the amount. Change it cannot rebuild from a loaded wallet is marked Unverified.
+When Faraday cannot confirm something, the review shows a warning under the transaction. A danger is in red: an input whose value cannot be checked, a signature type that does not cover the outputs, a fee out of all proportion to the amount. Change it cannot rebuild from a loaded wallet is shown as a payment, under Sends. A danger stops the review: Faraday does not sign it. Only a fee this high has a way past, a hold, for a child paying for its parent, a large batch or a consolidation.
 
 A warning you cannot explain is a reason not to sign. Go back to your coordinator and find out why.

@@ -520,7 +520,7 @@ fn a_silent_payment_is_signed_through_its_version_0_form() {
         &[&master],
         &[master.fingerprint()],
         &ctx,
-        true,
+        &[],
         Nonce::LowR,
         Aux::Deterministic,
         &mut None,

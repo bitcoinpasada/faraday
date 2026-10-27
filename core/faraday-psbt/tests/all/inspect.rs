@@ -134,14 +134,14 @@ fn spoofed_change_blocks_signing() {
             wallets: &[],
             musig_session: None,
         };
-        for force in [false, true] {
+        for accepted in [Vec::new(), vec![WarningKind::AbsurdFeeRate]] {
             let err = sign(
                 &c,
                 &mut psbt,
                 &[&abandon],
                 &[abandon.fingerprint()],
                 &ctx,
-                force,
+                &accepted,
                 Nonce::LowR,
                 Aux::Deterministic,
                 &mut None,
@@ -150,7 +150,7 @@ fn spoofed_change_blocks_signing() {
             .unwrap_err();
             assert!(
                 matches!(&err, Error::Blocked(kinds) if kinds.contains(&WarningKind::ChangeSpoof)),
-                "{script_type} forced {force}: {err}"
+                "{script_type} accepted {accepted:?}: {err}"
             );
             assert!(psbt.inner().inputs[0].partial_sigs.is_empty());
             assert!(psbt.inner().inputs[0].tap_key_sig.is_none());
@@ -211,7 +211,7 @@ fn change_under_an_unloaded_account_is_unverified() {
         &[&abandon],
         &[abandon.fingerprint()],
         &insp_ctx(&keys),
-        false,
+        &[],
         Nonce::LowR,
         Aux::Deterministic,
         &mut None,
@@ -371,8 +371,11 @@ fn two_inputs_one_output(script_type: ScriptType) -> Psbt {
     psbt
 }
 
-/// Signs every input naming the abandon key, with or without `force`.
-fn sign_abandon(psbt: &mut Psbt, force: bool) -> Result<faraday_psbt::SignResult, Error> {
+/// Signs every input naming the abandon key, past the `accepted` holds.
+fn sign_abandon(
+    psbt: &mut Psbt,
+    accepted: &[WarningKind],
+) -> Result<faraday_psbt::SignResult, Error> {
     let c = Compute::unchecked();
     let abandon = master(ABANDON, NET);
     let keys = [KeyRef::from_master(&c, &abandon, 0).unwrap()];
@@ -388,7 +391,7 @@ fn sign_abandon(psbt: &mut Psbt, force: bool) -> Result<faraday_psbt::SignResult
         &[&abandon],
         &[abandon.fingerprint()],
         &ctx,
-        force,
+        accepted,
         Nonce::LowR,
         Aux::Deterministic,
         &mut None,
@@ -418,7 +421,7 @@ fn single_types(script_type: ScriptType) -> [PsbtSighashType; 2] {
 }
 
 #[test]
-fn single_on_an_input_with_no_output_of_its_index_is_refused_even_forced() {
+fn single_on_an_input_with_no_output_of_its_index_is_refused_even_held() {
     for script_type in ScriptType::ALL {
         for sighash in single_types(script_type) {
             let mut psbt = two_inputs_one_output(script_type);
@@ -435,11 +438,11 @@ fn single_on_an_input_with_no_output_of_its_index_is_refused_even_forced() {
                 "input 1 asks to sign with SIGHASH_SINGLE but the transaction has no output 1; \
                  such a signature would commit to nothing"
             );
-            for force in [false, true] {
-                let err = sign_abandon(&mut psbt, force).unwrap_err();
+            for accepted in [Vec::new(), vec![WarningKind::AbsurdFeeRate]] {
+                let err = sign_abandon(&mut psbt, &accepted).unwrap_err();
                 assert!(
                     matches!(&err, Error::Blocked(k) if k.contains(&WarningKind::UnusualSighash)),
-                    "{script_type} {sighash} forced {force}: {err}"
+                    "{script_type} {sighash} accepted {accepted:?}: {err}"
                 );
                 assert!(nothing_signed(&psbt), "{script_type} {sighash}");
             }
@@ -447,8 +450,10 @@ fn single_on_an_input_with_no_output_of_its_index_is_refused_even_forced() {
     }
 }
 
+/// SINGLE leaves every other output open to change after signing, and
+/// no decision names a case for it, so no hold accepts it (F136).
 #[test]
-fn single_on_an_input_with_its_output_signs_only_when_forced() {
+fn single_on_an_input_with_its_output_is_refused_even_held() {
     for script_type in ScriptType::ALL {
         for sighash in single_types(script_type) {
             let mut psbt = basic(script_type);
@@ -468,25 +473,21 @@ fn single_on_an_input_with_its_output_signs_only_when_forced() {
                 "{}",
                 w.text
             );
-            let err = sign_abandon(&mut psbt, false).unwrap_err();
+            let err = sign_abandon(&mut psbt, &[]).unwrap_err();
             assert!(
                 matches!(&err, Error::Danger(k) if k.contains(&WarningKind::UnusualSighash)),
                 "{script_type} {sighash}: {err}"
             );
             assert!(nothing_signed(&psbt));
-            let signed = sign_abandon(&mut psbt, true).unwrap();
-            assert_eq!(signed.signed_inputs.len(), 1, "{script_type} {sighash}");
-            assert_eq!(
-                u32::from(*signed.signed_inputs[0].sig_bytes.last().unwrap()),
-                sighash.to_u32(),
-                "{script_type} {sighash}: the signature states the type asked"
-            );
+            let err = sign_abandon(&mut psbt, &[WarningKind::UnusualSighash]).unwrap_err();
+            assert_eq!(err, Error::NotHoldable(WarningKind::UnusualSighash));
+            assert!(nothing_signed(&psbt));
         }
     }
 }
 
 #[test]
-fn all_and_default_still_sign_unforced() {
+fn all_and_default_still_sign_with_nothing_held() {
     for script_type in ScriptType::ALL {
         let asked: Vec<Option<PsbtSighashType>> = if script_type == ScriptType::Taproot {
             vec![
@@ -505,7 +506,7 @@ fn all_and_default_still_sign_unforced() {
                 find(&insp, &WarningKind::UnusualSighash).is_none(),
                 "{script_type} {sighash:?}"
             );
-            let signed = sign_abandon(&mut psbt, false).unwrap();
+            let signed = sign_abandon(&mut psbt, &[]).unwrap();
             assert_eq!(signed.signed_inputs.len(), 1, "{script_type} {sighash:?}");
         }
     }
@@ -613,7 +614,7 @@ fn no_participating_key() {
             &[&zoo],
             &[zoo.fingerprint()],
             &ctx,
-            false,
+            &[],
             Nonce::LowR,
             Aux::Deterministic,
             &mut None,
@@ -621,20 +622,22 @@ fn no_participating_key() {
         ),
         Err(Error::Danger(vec![WarningKind::NoParticipatingKey]))
     );
-    let r = sign(
-        &c,
-        &mut psbt,
-        &[&zoo],
-        &[zoo.fingerprint()],
-        &ctx,
-        true,
-        Nonce::LowR,
-        Aux::Deterministic,
-        &mut None,
-        &faraday_crypto::Zeroizing::new([0u8; 32]),
-    )
-    .unwrap();
-    assert!(r.signed_inputs.is_empty() && !r.complete);
+    // No hold accepts it.
+    assert_eq!(
+        sign(
+            &c,
+            &mut psbt,
+            &[&zoo],
+            &[zoo.fingerprint()],
+            &ctx,
+            &[WarningKind::NoParticipatingKey],
+            Nonce::LowR,
+            Aux::Deterministic,
+            &mut None,
+            &faraday_crypto::Zeroizing::new([0u8; 32]),
+        ),
+        Err(Error::NotHoldable(WarningKind::NoParticipatingKey))
+    );
     // No keys loaded at all.
     let insp = inspect(
         &c,
@@ -713,7 +716,7 @@ fn missing_and_lying_utxo() {
             &[&abandon],
             &[abandon.fingerprint()],
             &ctx,
-            true,
+            &[],
             Nonce::LowR,
             Aux::Deterministic,
             &mut None,
@@ -728,7 +731,7 @@ fn missing_and_lying_utxo() {
 /// the transaction beside it the amount is the coordinator's word, and
 /// with a second input to combine with, two rounds over two different
 /// lies pay the difference to the miner, so the input blocks signing
-/// whatever the caller forces. The lie can be on either input, so one
+/// whatever is held. The lie can be on either input, so one
 /// input carrying its transaction does not unblock the other.
 #[test]
 fn segwit_v0_inputs_without_their_previous_transaction_block_a_transaction_of_two() {
@@ -752,14 +755,14 @@ fn segwit_v0_inputs_without_their_previous_transaction_block_a_transaction_of_tw
                 "{script_type} without {missing:?}: {:?}",
                 insp.warnings
             );
-            for force in [false, true] {
+            for accepted in [Vec::new(), vec![WarningKind::AbsurdFeeRate]] {
                 let err = sign(
                     &c,
                     &mut psbt,
                     &[&abandon],
                     &[abandon.fingerprint()],
                     &ctx,
-                    force,
+                    &accepted,
                     Nonce::LowR,
                     Aux::Deterministic,
                     &mut None,
@@ -769,7 +772,7 @@ fn segwit_v0_inputs_without_their_previous_transaction_block_a_transaction_of_tw
                 assert!(
                     matches!(&err, Error::Blocked(kinds)
                         if kinds.iter().all(|k| *k == WarningKind::AmountUnverified)),
-                    "{script_type} without {missing:?} forced {force}: {err:?}"
+                    "{script_type} without {missing:?} accepted {accepted:?}: {err:?}"
                 );
                 assert!(
                     psbt.inner()
@@ -814,7 +817,7 @@ fn a_single_input_transaction_is_signed_without_its_previous_transaction() {
             &[&abandon],
             &[abandon.fingerprint()],
             &ctx,
-            false,
+            &[],
             Nonce::LowR,
             Aux::Deterministic,
             &mut None,
@@ -896,7 +899,7 @@ fn a_p2wsh_input_without_its_previous_transaction_is_blocked() {
             &[&abandon],
             &[abandon.fingerprint()],
             &ctx,
-            true,
+            &[],
             Nonce::LowR,
             Aux::Deterministic,
             &mut None,
@@ -932,13 +935,14 @@ fn mixed_script_types_is_info() {
         wallets: &[],
         musig_session: None,
     };
+    // The two inputs' fee is a high one, held past as the person would.
     let r = sign(
         &c,
         &mut psbt,
         &[&abandon],
         &[abandon.fingerprint()],
         &ctx,
-        true,
+        &insp.holdable(),
         Nonce::LowR,
         Aux::Deterministic,
         &mut None,
@@ -971,14 +975,14 @@ fn a_finalized_input_without_its_previous_transaction_is_blocked() {
         input.non_witness_utxo = None;
         input.witness_utxo.as_mut().unwrap().value -= Amount::from_sat(100);
     };
-    let sign_forced = |psbt: &mut Psbt| {
+    let sign_now = |psbt: &mut Psbt| {
         sign(
             &c,
             psbt,
             &[&abandon],
             &[abandon.fingerprint()],
             &ctx,
-            true,
+            &[],
             Nonce::LowR,
             Aux::Deterministic,
             &mut None,
@@ -999,7 +1003,7 @@ fn a_finalized_input_without_its_previous_transaction_is_blocked() {
             insp.warnings
         );
         assert_eq!(
-            sign_forced(&mut psbt),
+            sign_now(&mut psbt),
             Err(Error::Blocked(vec![WarningKind::AmountUnverified]))
         );
     }
@@ -1017,7 +1021,7 @@ fn a_finalized_input_without_its_previous_transaction_is_blocked() {
         let insp = inspect(&c, &psbt, &ctx);
         assert!(has(&insp, Level::Blocked, &WarningKind::AmountUnverified));
         assert_eq!(
-            sign_forced(&mut psbt),
+            sign_now(&mut psbt),
             Err(Error::Blocked(vec![WarningKind::AmountUnverified]))
         );
     }
@@ -1051,4 +1055,112 @@ fn a_finalized_input_without_its_previous_transaction_is_blocked() {
         Level::Blocked,
         &WarningKind::AmountUnverified
     ));
+}
+
+/// A fee this high is paid on purpose for a child paying for its parent,
+/// a large batch or a consolidation (F136), so it is a danger a hold
+/// passes: signing refuses it until each such danger is passed by name,
+/// and refuses any kind no hold accepts.
+#[test]
+fn a_high_fee_and_an_absurd_rate_sign_only_after_the_hold() {
+    let c = Compute::unchecked();
+    let abandon = master(ABANDON, NET);
+    let keys = [KeyRef::from_master(&c, &abandon, 0).unwrap()];
+    let ctx = insp_ctx(&keys);
+    // Half of what it sends; then a third of it, at a rate above the limit.
+    for (input, sends, change, rate) in [
+        (100_000, 60_000, 10_000, false),
+        (1_000_000, 600_000, 200_000, true),
+    ] {
+        let mut b = Build::new(ScriptType::NativeSegwit, NET);
+        b.input_value = input;
+        b.recipients.push((foreign_script(), sends));
+        b.change = Some(change);
+        let mut psbt = single_sig(&abandon, &b);
+        let insp = inspect(&c, &psbt, &ctx);
+        let held = insp.holdable();
+        assert!(!insp.refuses(), "{:?}", insp.warnings);
+        assert!(
+            matches!(held[..], [WarningKind::HighFee { .. }, ..]),
+            "{held:?}"
+        );
+        assert_eq!(held.contains(&WarningKind::AbsurdFeeRate), rate);
+        assert_eq!(
+            insp.fee_share_pct(),
+            Some((input - sends - change) * 100 / sends)
+        );
+        let attempt = |psbt: &mut Psbt, accepted: &[WarningKind]| {
+            sign(
+                &c,
+                psbt,
+                &[&abandon],
+                &[abandon.fingerprint()],
+                &ctx,
+                accepted,
+                Nonce::LowR,
+                Aux::Deterministic,
+                &mut None,
+                &faraday_crypto::Zeroizing::new([0u8; 32]),
+            )
+        };
+        // Nothing held: nothing signed.
+        assert_eq!(attempt(&mut psbt, &[]), Err(Error::Danger(held.clone())));
+        assert!(nothing_signed(&psbt));
+        // One of two held: the other still refuses.
+        if rate {
+            assert_eq!(
+                attempt(&mut psbt, &held[..1]),
+                Err(Error::Danger(vec![WarningKind::AbsurdFeeRate]))
+            );
+            assert!(nothing_signed(&psbt));
+        }
+        // A kind no hold accepts, beside the held ones: refused.
+        let mut more = held.clone();
+        more.push(WarningKind::AmountUnverified);
+        assert_eq!(
+            attempt(&mut psbt, &more),
+            Err(Error::NotHoldable(WarningKind::AmountUnverified))
+        );
+        assert!(nothing_signed(&psbt));
+        // Held: signed.
+        let done = attempt(&mut psbt, &held).unwrap();
+        assert_eq!(done.signed_inputs.len(), 1);
+    }
+}
+
+/// An input that names none of the loaded keys is never signed, though
+/// it spends a coin of the same key: the signer signs only what a key
+/// origin names (F136). The inspection does not count it as the person's.
+#[test]
+fn an_input_with_its_key_origin_stripped_is_not_signed() {
+    let c = Compute::unchecked();
+    let abandon = master(ABANDON, NET);
+    let keys = [KeyRef::from_master(&c, &abandon, 0).unwrap()];
+    let ctx = insp_ctx(&keys);
+    for script_type in ScriptType::ALL {
+        let mut psbt = two_inputs(script_type);
+        let input = &mut psbt.inner_mut().inputs[1];
+        input.bip32_derivation.clear();
+        input.tap_key_origins.clear();
+        let insp = inspect(&c, &psbt, &ctx);
+        assert!(insp.inputs[0].is_ours, "{script_type}");
+        assert!(!insp.inputs[1].is_ours, "{script_type}");
+        let done = sign(
+            &c,
+            &mut psbt,
+            &[&abandon],
+            &[abandon.fingerprint()],
+            &ctx,
+            &insp.holdable(),
+            Nonce::LowR,
+            Aux::Deterministic,
+            &mut None,
+            &faraday_crypto::Zeroizing::new([0u8; 32]),
+        )
+        .unwrap_or_else(|e| panic!("{script_type}: {e:?} {:?}", insp.warnings));
+        assert_eq!(done.signed_inputs.len(), 1, "{script_type}");
+        assert_eq!(done.signed_inputs[0].index, 0, "{script_type}");
+        let stripped = &psbt.inner().inputs[1];
+        assert!(stripped.partial_sigs.is_empty() && stripped.tap_key_sig.is_none());
+    }
 }

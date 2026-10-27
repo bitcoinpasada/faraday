@@ -138,6 +138,14 @@ corpus keeps out of it and the area says why.
   refusal names `WalletNotRegistered`;
   half the corpus's `multi` and miniscript inputs come with their wallet
   registered, so their signatures are still compared.
+- PSBT signing: Faraday refuses a PSBT any input of which asks for a
+  `NONE` or `SINGLE` sighash, and one none of the held keys can sign:
+  dangers no hold accepts (F136); BIP-174's signer signs the first and
+  answers the second with nothing signed. `area_sign.py` expects both
+  refusals, counting a held key as taking part as Faraday's inspection
+  does (a miniscript or a taproot tree only through a wallet in use),
+  checks that Faraday's refusal names the warning, `UnusualSighash` or
+  `NoParticipatingKey`, and counts them.
 - Taproot `pkh` leaves: Faraday signs a taproot leaf that checks its
   key by hash but does not finalize it (`faraday_psbt::finalize`):
   `miniscript` 12's finalizer looks the key up among the ECDSA origins

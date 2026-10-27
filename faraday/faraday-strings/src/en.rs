@@ -124,10 +124,11 @@ strings! {
     devices_check_again: "Check again",
     /// The button that goes on with them attached.
     devices_continue: "Continue anyway",
-    /// The line Continue anyway asks with.
-    devices_continue_ask: "What is listed stays possible while they are attached.",
-    /// The button that answers it.
-    devices_continue_yes: "Yes, continue",
+    /// The line Continue anyway asks with: the case its hold is for
+    /// (F136).
+    devices_continue_ask: "Only for a screen or switch that is your own, in front of you. What is listed stays possible while it is attached.",
+    /// The hold that answers it (F136).
+    devices_continue_hold: "Hold to continue",
     /// Toast: Check again found them still attached.
     devices_still: "Still attached",
     /// The sheet's Power off, for a virtual machine.
@@ -366,6 +367,10 @@ strings! {
     starter_dev_image: "Not Faraday Starter's own image",
     /// Keep data over a newer stick: `{}` its version.
     starter_keep_newer: "This stick holds a newer Faraday: {}",
+    /// Confirm's line under it: the case its hold is for (F136).
+    starter_keep_older_case: "Only to go back to an older release.",
+    /// Confirm's Write over a newer stick, a hold (F136).
+    starter_keep_older_hold: "Hold to write the older release",
     /// Keep data writing a dev build.
     starter_keep_dev: "Writes a dev build, with a serial console",
     /// What to write's section and Confirm's row (docs/STARTER.md §4.5).
@@ -858,6 +863,10 @@ strings! {
     starter_let_through_ask: "Continue with {} attached?",
     /// Continue anyway's sheet: how long it lasts.
     starter_let_through_until: "Until this app is closed.",
+    /// Continue anyway's sheet: the case its hold is for (F136).
+    starter_let_through_case: "Only for a screen or switch that is your own, in front of you.",
+    /// Continue anyway's hold (F136).
+    starter_let_through_hold: "Hold to continue",
     /// The link to the Learn page of that name (STARTER §3.1b).
     starter_learn_secure_boot_bitlocker: "What Secure Boot and BitLocker are",
     /// The link to the Learn page on screens that record (STARTER §3.1a).
@@ -4778,6 +4787,9 @@ strings! {
     step_summary_addresses: "Addresses · Compare",
     /// Text in `step_summary`. `{}`: `btc(i.amount_to_others.to_sat())`, `i.fee_rate_sat_vb .map(|r| format!("{…`.
     step_summary_sends: "Sends {} BTC · fee {} sat/vB",
+    /// Text in `step_summary` when the fee cannot be worked out (F136).
+    /// `{}`: what it sends.
+    step_summary_sends_fee_not_known: "Sends {} BTC · fee not known",
     /// Text in `step_summary`. `{}`: `here`, `needed`.
     step_summary_here_needed: "{} here · {} needed",
     /// Text in `step_summary`.
@@ -4820,9 +4832,28 @@ strings! {
     /// Text in `step_body`. `{}`: `short(&o.address)`.
     step_to_address: "to {}",
     /// Text in `step_body`.
-    step_unverified: "Unverified",
-    /// Text in `step_body`.
     step_fee: "Fee",
+    /// The fee on Review and in the spend panel when an input's amount is
+    /// not known, so the fee cannot be worked out (F136).
+    step_fee_not_known: "Not known",
+    /// Review's line when Faraday signs nothing of the transaction: a
+    /// blocked or a danger warning with no hold (F136).
+    step_review_refused: "Faraday does not sign this transaction. Make it again in the coordinator without what is marked above.",
+    /// Review's line when an input's spend path waits longer than the
+    /// transaction's sequence and locktime allow (F136).
+    step_review_timelock: "This transaction can never be valid. In the coordinator, set the input's sequence or the transaction's locktime to the path's wait, then make it again.",
+    /// Review's line when only a wallet not registered stops it (F135,
+    /// F136): the register offer above it is the way on.
+    step_review_register: "Faraday signs this transaction once its wallet is registered.",
+    /// Review's line when Continue is pressed before a fee's hold (F136).
+    step_review_hold_first: "Hold to pay this fee first.",
+    /// Review's facts above the fee's hold (F136). `{}`: the fee in sat,
+    /// its rate in sat/vB, its share of what is sent in percent.
+    step_fee_hold_facts: "Fee {} sat · {} sat/vB · {}% of what it sends",
+    /// Review's line naming the cases a fee this high is for (F136).
+    step_fee_hold_cases: "A fee this high is paid on purpose for a child paying for its parent, a large batch or a consolidation.",
+    /// Review's hold past a high fee or an absurd fee rate (F136).
+    step_fee_hold: "Hold to pay this fee",
     /// Text in `step_body`. `{}`: `thousands(i.fee.to_sat())`, `i.fee_rate_sat_vb .map(|r| format!("{…`.
     step_sat_sat_vb: "{} sat · {} sat/vB",
     /// Text in `step_body`.
@@ -4945,11 +4976,6 @@ strings! {
     spend_panel_this_transaction: "This transaction",
     /// Text in `spend_panel`.
     spend_panel_verified: "Verified",
-    /// Text in `spend_panel`.
-    spend_panel_unverified: "Unverified",
-    /// Text in `spend_panel`. `{}`: the change outputs not verified, all
-    /// the outputs claimed as change.
-    spend_panel_some_unverified: "{} of {} unverified",
     /// Text in `spend_panel`.
     spend_panel_none: "None",
     /// Text in `spend_panel`.

@@ -410,6 +410,14 @@ impl DeviceCheck {
         }
     }
 
+    /// Cancel: what was pressed while held is not done, and Continue
+    /// anyway asks again before its hold (F136).
+    pub(crate) fn cancel(&mut self) {
+        self.after = None;
+        self.over_import = false;
+        self.asking = false;
+    }
+
     /// A virtual machine is among the items: no Continue anyway.
     pub fn refuses(&self) -> bool {
         self.held.iter().any(|c| c.kind == Kind::VirtualMachine)
@@ -534,15 +542,24 @@ impl Faraday {
         }
     }
 
-    /// Continue anyway: the first press asks, the second lets every item
-    /// through for this session. Never for a virtual machine.
+    /// Continue anyway: the press asks, naming the case it is for (a
+    /// screen or switch that is the person's own, in front of them), and
+    /// the hold under that lets every item through for this session
+    /// (F136). Never for a virtual machine.
     pub(crate) fn device_continue(&mut self) {
         let d = &mut self.devices;
         if d.refuses() {
             return;
         }
-        if !d.asking {
-            d.asking = true;
+        d.asking = true;
+    }
+
+    /// The hold under Continue anyway's question: every item the sheet
+    /// names is let through for this session. Never for a virtual
+    /// machine, and only once the sheet asks.
+    pub(crate) fn device_let_through(&mut self) {
+        let d = &mut self.devices;
+        if d.refuses() || !d.asking {
             return;
         }
         d.asking = false;
@@ -566,6 +583,7 @@ impl Faraday {
             Action::ModeSheet => self.mode_sheet_open(),
             Action::DevicesCheck => self.device_check(),
             Action::DevicesContinue => self.device_continue(),
+            Action::DevicesHold => self.device_let_through(),
             Action::DevicesUnderstood => self.device_understood(),
             // `act_inner` passes only the actions matched above.
             _ => unreachable!(),

@@ -17,6 +17,8 @@ use faraday_core::edid::from_boot_params;
 use faraday_core::{Action, Faraday, Screen, Sheet, StickInfo, StorageEvent};
 use faraday_shell_api::{App, DisplayInfo, Event};
 
+use crate::common::hold;
+
 const CPU: &str = "processor\t: 0\nflags\t\t: fpu vme de pse tsc msr\n";
 const CPU_VM: &str = "processor\t: 0\nflags\t\t: fpu vme de pse tsc msr hypervisor\n";
 
@@ -343,14 +345,28 @@ fn check_again_after_it_is_pulled_releases_and_carries_on() {
     assert_eq!(app.screen, Screen::Entry);
 }
 
+/// Continue anyway asks, naming the case it is for, and only its hold
+/// lets the item through (F136): a press again does not.
 #[test]
-fn continue_anyway_asks_once_then_lets_it_through() {
+fn continue_anyway_asks_then_lets_it_through_after_the_hold() {
     let mut app = shown(laptop());
     app.usb_devices(&[kvm()]);
     app.press(Action::DevicesContinue);
     assert_eq!(app.sheet, Some(Sheet::Devices));
-    assert!(says(&mut app, "What is listed stays possible"));
+    assert!(says(&mut app, "Only for a screen or switch"));
+    assert!(says(&mut app, "Hold to continue"));
     app.press(Action::DevicesContinue);
+    assert_eq!(app.sheet, Some(Sheet::Devices));
+    // Cancelled, it asks again before the hold.
+    app.press(Action::Cancel);
+    assert!(!app.devices.asking);
+    app.press(Action::Entry(None));
+    assert_eq!(app.sheet, Some(Sheet::Devices));
+    assert!(!says(&mut app, "Hold to continue"));
+    app.press(Action::DevicesHold);
+    assert_eq!(app.sheet, Some(Sheet::Devices));
+    app.press(Action::DevicesContinue);
+    hold(&mut app, Action::DevicesHold);
     assert_eq!(app.sheet, None);
     app.press(Action::Entry(None));
     assert_eq!(app.screen, Screen::Entry);
@@ -376,9 +392,9 @@ fn a_virtual_machine_has_no_continue_anyway() {
     assert!(says(&mut app, "QEMU: a virtual machine's host"));
     assert!(says(&mut app, "Faraday must start on a real computer."));
     assert!(app.where_offered(Action::DevicesContinue).is_none());
-    // Pressed anyway, twice, it goes nowhere; a key never loads.
+    // Pressed anyway, and held, it goes nowhere; a key never loads.
     app.press(Action::DevicesContinue);
-    app.press(Action::DevicesContinue);
+    app.press(Action::DevicesHold);
     app.press(Action::DevicesCheck);
     assert_eq!(app.sheet, Some(Sheet::Devices));
     app.press(Action::Cancel);
@@ -436,7 +452,7 @@ fn a_kvm_and_the_reminders_share_one_sheet() {
     assert!(says(&mut app, "PiKVM Composite KVM Device"));
     assert!(says(&mut app, TV_LINE));
     app.press(Action::DevicesContinue);
-    app.press(Action::DevicesContinue);
+    hold(&mut app, Action::DevicesHold);
     assert_eq!(app.sheet, None);
     assert_eq!(app.screen, Screen::Entry);
     app.press(Action::Nav(Screen::Unlock));
@@ -549,7 +565,7 @@ fn a_screen_whose_edid_names_a_tv_is_held_by_its_name_without_asking() {
     app.press(Action::DevicesCheck);
     assert_eq!(app.sheet, Some(Sheet::Devices));
     app.press(Action::DevicesContinue);
-    app.press(Action::DevicesContinue);
+    hold(&mut app, Action::DevicesHold);
     assert_eq!(app.sheet, None);
     assert_eq!(app.screen, Screen::Entry);
 

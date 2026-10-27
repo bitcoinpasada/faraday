@@ -38,7 +38,7 @@ fn sign_now(
     psbt: &mut Psbt,
     keys: &[&MasterKey],
     ctx: &Context,
-    force: bool,
+    accepted: &[WarningKind],
 ) -> Result<faraday_psbt::SignResult, Error> {
     let selection: Vec<_> = keys.iter().map(|k| k.fingerprint()).collect();
     sign(
@@ -47,7 +47,7 @@ fn sign_now(
         keys,
         &selection,
         ctx,
-        force,
+        accepted,
         Nonce::LowR,
         Aux::Deterministic,
         &mut None,
@@ -93,9 +93,9 @@ fn two_of_three() -> (MasterKey, MasterKey, MasterKey, Psbt) {
 }
 
 /// With no wallet registered, the 2-of-3 input is Blocked by the new
-/// kind and nothing is signed, whatever `force` says.
+/// kind and nothing is signed, whatever is held.
 #[test]
-fn an_unregistered_two_of_three_input_is_blocked_forced_or_not() {
+fn an_unregistered_two_of_three_input_is_blocked_held_or_not() {
     let c = Compute::unchecked();
     let (abandon, zoo, _, psbt) = two_of_three();
     let keys = [KeyRef::from_master(&c, &abandon, 0).unwrap()];
@@ -117,9 +117,9 @@ fn an_unregistered_two_of_three_input_is_blocked_forced_or_not() {
         blocked[0].text,
         "input 0 spends from a wallet of several keys that is not registered here; register the wallet to sign"
     );
-    for force in [false, true] {
+    for accepted in [Vec::new(), vec![WarningKind::AbsurdFeeRate]] {
         let mut attempt = psbt.clone();
-        let r = sign_now(&c, &mut attempt, &[&abandon], &ctx, force);
+        let r = sign_now(&c, &mut attempt, &[&abandon], &ctx, &accepted);
         assert!(
             matches!(&r, Err(Error::Blocked(kinds)) if kinds == &[WarningKind::WalletNotRegistered]),
             "{r:?}"
@@ -146,7 +146,7 @@ fn the_same_input_signs_once_its_wallet_is_registered() {
     let insp = inspect(&c, &psbt, &ctx);
     assert!(!insp.has_blocked(), "{:?}", insp.warnings);
     assert!(insp.register.is_none(), "nothing to register");
-    let r = sign_now(&c, &mut psbt, &[&abandon], &ctx, false).expect("a registered wallet");
+    let r = sign_now(&c, &mut psbt, &[&abandon], &ctx, &[]).expect("a registered wallet");
     assert_eq!(r.signed_inputs.len(), 1);
 }
 
@@ -220,7 +220,7 @@ fn a_psbt_with_global_xpubs_registers_its_wallet_and_then_signs() {
             index: 0
         }
     );
-    let r = sign_now(&c, &mut psbt, &[&abandon], &ctx, false).expect("now registered");
+    let r = sign_now(&c, &mut psbt, &[&abandon], &ctx, &[]).expect("now registered");
     assert_eq!(r.signed_inputs.len(), 1);
 }
 
@@ -319,7 +319,7 @@ fn a_single_key_spend_needs_no_registered_wallet() {
     };
     let insp = inspect(&c, &psbt, &ctx);
     assert!(!insp.has_blocked(), "{:?}", insp.warnings);
-    sign_now(&c, &mut psbt, &[&abandon], &ctx, false).expect("a single-key spend");
+    sign_now(&c, &mut psbt, &[&abandon], &ctx, &[]).expect("a single-key spend");
 }
 
 /// An input none of whose keys is loaded here is not this device's to
@@ -486,7 +486,7 @@ fn a_spend_from_the_second_of_two_wallets_sharing_a_key_signs() {
     let insp = inspect(&c, &psbt, &ctx);
     assert!(!insp.has_blocked(), "{:?}", insp.warnings);
     assert_eq!(insp.multisig.as_ref().unwrap().wallet, Some(1));
-    let r = sign_now(&c, &mut psbt, &[&abandon], &ctx, false).expect("the second wallet");
+    let r = sign_now(&c, &mut psbt, &[&abandon], &ctx, &[]).expect("the second wallet");
     assert_eq!(r.signed_inputs.len(), 1);
 }
 

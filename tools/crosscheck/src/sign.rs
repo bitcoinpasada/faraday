@@ -1,7 +1,8 @@
 //! PSBT signing and finalizing end to end: `faraday_psbt::sign` with
 //! every key the request holds selected, as the Sign screen calls it once
 //! the person has confirmed (deterministic Schnorr auxiliary randomness,
-//! the request's ECDSA nonce rule, the inspection's dangers confirmed),
+//! the request's ECDSA nonce rule, the inspection's holdable dangers held
+//! past and no other danger accepted),
 //! then `faraday_psbt::finalize`, which builds each final scriptSig and
 //! witness and extracts the transaction.
 
@@ -12,7 +13,7 @@ use faraday_bip::keys::{MasterKey, Network};
 use faraday_bip::policy::WalletPolicy;
 use faraday_crypto::work::Compute;
 use faraday_crypto::{Secret, SeedBytes};
-use faraday_psbt::{Aux, Context, KeyRef, Nonce, Psbt, finalize, sign};
+use faraday_psbt::{Aux, Context, KeyRef, Nonce, Psbt, finalize, inspect, sign};
 use serde_json::{Value, json};
 
 use crate::Answer;
@@ -72,13 +73,15 @@ pub fn handle(name: &str, req: &Value) -> Answer {
             let held: Vec<&MasterKey> = masters.iter().collect();
             let selection: Vec<_> = masters.iter().map(MasterKey::fingerprint).collect();
             let mut psbt = Psbt::parse_bytes(&c, &bytes(req, "psbt")).map_err(err)?;
+            // What the person can hold past on Review, and nothing more.
+            let accepted = inspect(&c, &psbt, &ctx).holdable();
             let done = sign(
                 &c,
                 &mut psbt,
                 &held,
                 &selection,
                 &ctx,
-                true,
+                &accepted,
                 nonce,
                 Aux::Deterministic,
                 &mut None,

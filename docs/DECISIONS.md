@@ -150,3 +150,4 @@ Read this table, then only the decision you need.
 | [F133](decisions/F133.md) | The Starter writes a boot file the person signed, once it is checked to be the release's own | 2026-10-27 | Active | Starter |
 | [F134](decisions/F134.md) | Faraday signs a boot program only when it is a release's own | 2026-10-27 | Active | security |
 | [F135](decisions/F135.md) | A script of several keys is signed only for a registered wallet | 2026-10-27 | Active | wallets |
+| [F136](decisions/F136.md) | No way past a check without a legitimate reason | 2026-10-27 | Active | security |

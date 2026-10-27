@@ -258,8 +258,9 @@ pub(crate) fn learn_tabs(
     by - y + 44.0
 }
 
-/// The device check's buttons: Check again, then Continue anyway (asked
-/// once), or Power off on a virtual machine, which has no way on.
+/// The device check's buttons: Check again, then Continue anyway, whose
+/// question has its hold in the body (F136), or Power off on a virtual
+/// machine, which has no way on.
 fn devices_buttons(app: &View) -> Vec<(&'static str, Style, Action)> {
     let s = &crate::strings::EN;
     let d = &app.devices;
@@ -282,11 +283,7 @@ fn devices_buttons(app: &View) -> Vec<(&'static str, Style, Action)> {
     if d.refuses() {
         b.push((s.devices_power_off, Style::Primary, Action::PowerAsk));
     } else if d.asking {
-        b.push((
-            s.devices_continue_yes,
-            Style::Primary,
-            Action::DevicesContinue,
-        ));
+        b.push((s.devices_cancel, Style::Secondary, Action::Cancel));
     } else {
         b.push((
             s.devices_continue,
@@ -349,6 +346,20 @@ pub(super) fn devices_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
             if let Some((f, tone)) = foot {
                 cy += 4.0;
                 cy += ui.wrap_as((x, cy, iw), TITLE_S, tone, f) + 8.0;
+            }
+            // Continue anyway's hold, under the case it is for (F136).
+            if d.asking && !d.refuses() {
+                crate::vault::screen::hold_button_in(
+                    app,
+                    ui,
+                    x,
+                    cy,
+                    iw,
+                    s.devices_continue_hold,
+                    Action::DevicesHold,
+                    Role::Warning.paint(),
+                );
+                cy += T::CHIP_LINE + T::GAP;
             }
             cy - y
         },

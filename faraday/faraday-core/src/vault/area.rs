@@ -14,6 +14,8 @@ use faraday_vault::{self as fv, Cost, Header, Record};
 
 use crate::{Action, Screen, flow};
 
+pub use crate::action::is_hold;
+
 /// The vault area.
 pub(crate) struct VaultArea {
     pub(super) state: Vaults,
@@ -2314,25 +2316,6 @@ pub enum VaultAction {
     SaveTick(u8),
     /// The ticked files to the Outbox, for the stick.
     SaveToStickGo,
-}
-
-/// Whether an action acts when held long enough rather than on release.
-pub fn is_hold(a: Action) -> bool {
-    matches!(
-        a,
-        Action::Vault(
-            VaultAction::HoldDelete
-                | VaultAction::HoldWipe
-                | VaultAction::SbHoldSign
-                | VaultAction::GpgHoldSign
-                | VaultAction::GpgHoldRevoke
-        ) | Action::Flow(crate::backup_flow::steps::FlowAction::Hold)
-            | Action::HoldPowerOff
-            | Action::HoldRestart
-            | Action::SecretHold
-            | Action::KeyPathHold
-            | Action::RegisterHold
-    )
 }
 
 impl Vaults {

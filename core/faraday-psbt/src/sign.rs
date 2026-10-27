@@ -40,7 +40,7 @@ use miniscript::{ExtParams, Miniscript, SigType, Tap, ToPublicKey};
 use crate::classify::{Classified, ScriptKind, classify, spent_output};
 use crate::context::Context;
 use crate::finalize::{is_complete, key_in_script};
-use crate::inspect::{MusigRound, inspect, musig_keyed_here, musig_round};
+use crate::inspect::{MusigRound, WarningKind, inspect, musig_keyed_here, musig_round};
 use crate::musig::MusigSession;
 use crate::psbt::{Error, Psbt};
 
@@ -197,9 +197,11 @@ pub struct SignResult {
 /// `keys`, the RFC 6979 nonce `nonce` names and the Schnorr auxiliary
 /// randomness `aux` carries.
 ///
-/// Refuses (before touching the PSBT) when the inspection has any
-/// blocked warning, whatever `force` says; when it has any danger warning
-/// and `force` is false; when a selected fingerprint has no master key;
+/// Refuses (before touching the PSBT) when `accepted` names a kind no
+/// hold accepts ([`WarningKind::is_holdable`]); when the inspection has
+/// any blocked warning; when it has a danger warning `accepted` does not
+/// name, which is every danger but a holdable one the person held past
+/// (F136); when a selected fingerprint has no master key;
 /// and when an input that names a selected key spends a script this crate
 /// cannot sign. A SegWit v0 input with no previous transaction, in a
 /// transaction with more than one input, is refused in both places: the
@@ -227,19 +229,23 @@ pub fn sign(
     keys: &[&MasterKey],
     selection: &[Fingerprint],
     ctx: &Context,
-    force: bool,
+    accepted: &[WarningKind],
     nonce: Nonce,
     aux: Aux,
     session: &mut Option<MusigSession>,
     seed: &Zeroizing<[u8; 32]>,
 ) -> Result<SignResult, Error> {
     c.count(Work::Sign);
+    if let Some(kind) = accepted.iter().find(|k| !k.is_holdable()) {
+        return Err(Error::NotHoldable(kind.clone()));
+    }
     let inspection = inspect(c, psbt, ctx);
     if inspection.has_blocked() {
         return Err(Error::Blocked(inspection.blocked()));
     }
-    if !force && inspection.has_danger() {
-        return Err(Error::Danger(inspection.dangers()));
+    let dangers = inspection.dangers_left(accepted);
+    if !dangers.is_empty() {
+        return Err(Error::Danger(dangers));
     }
     let mut selected: Vec<(Fingerprint, &MasterKey)> = Vec::with_capacity(selection.len());
     for fp in selection {

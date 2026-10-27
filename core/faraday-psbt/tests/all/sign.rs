@@ -130,7 +130,7 @@ fn sign_verify_finalize_every_script_type() {
             &[&abandon],
             &[abandon.fingerprint()],
             &ctx,
-            false,
+            &[],
             Nonce::LowR,
             Aux::Deterministic,
             &mut None,
@@ -214,7 +214,7 @@ fn sign_verify_finalize_every_script_type() {
         // A second finalize is a no-op that still extracts.
         assert_eq!(finalize(&mut psbt).unwrap().unwrap(), tx);
         // A finalized PSBT names no keys any more: refused as "nothing to
-        // sign", and a forced attempt touches nothing.
+        // sign", with no hold past it, and the attempt touches nothing.
         assert_eq!(
             sign(
                 &c,
@@ -222,7 +222,7 @@ fn sign_verify_finalize_every_script_type() {
                 &[&abandon],
                 &[abandon.fingerprint()],
                 &ctx,
-                false,
+                &[],
                 Nonce::LowR,
                 Aux::Deterministic,
                 &mut None,
@@ -230,20 +230,7 @@ fn sign_verify_finalize_every_script_type() {
             ),
             Err(Error::Danger(vec![WarningKind::NoParticipatingKey]))
         );
-        let again = sign(
-            &c,
-            &mut psbt,
-            &[&abandon],
-            &[abandon.fingerprint()],
-            &ctx,
-            true,
-            Nonce::LowR,
-            Aux::Deterministic,
-            &mut None,
-            &faraday_crypto::Zeroizing::new([0u8; 32]),
-        )
-        .unwrap();
-        assert!(again.signed_inputs.is_empty() && again.complete);
+        assert_eq!(finalize(&mut psbt).unwrap().unwrap(), tx);
     }
 }
 
@@ -267,7 +254,7 @@ fn signing_needs_a_matching_master_key() {
             &[&zoo],
             &[abandon.fingerprint()],
             &ctx,
-            false,
+            &[],
             Nonce::LowR,
             Aux::Deterministic,
             &mut None,
@@ -282,7 +269,7 @@ fn signing_needs_a_matching_master_key() {
         &[&zoo],
         &[zoo.fingerprint()],
         &ctx,
-        false,
+        &[],
         Nonce::LowR,
         Aux::Deterministic,
         &mut None,
@@ -315,6 +302,9 @@ fn key_origin_that_does_not_match_the_derived_key_is_refused() {
     }
     let insp = inspect(&c, &psbt, &ctx);
     assert!(!insp.inputs[0].is_ours);
+    // A false claim about the person's own key: Review refuses it as
+    // signing does (F136).
+    assert!(insp.refuses());
     assert_eq!(
         sign(
             &c,
@@ -322,13 +312,13 @@ fn key_origin_that_does_not_match_the_derived_key_is_refused() {
             &[&abandon],
             &[abandon.fingerprint()],
             &ctx,
-            true,
+            &[],
             Nonce::LowR,
             Aux::Deterministic,
             &mut None,
             &faraday_crypto::Zeroizing::new([0u8; 32]),
         ),
-        Err(Error::KeyMismatch { input: 0 })
+        Err(Error::Blocked(vec![WarningKind::UnknownDerivation]))
     );
     assert!(psbt.inner().inputs[0].partial_sigs.is_empty());
 }
@@ -354,6 +344,13 @@ fn a_taproot_tree_with_no_way_into_it_is_refused() {
     ));
     let insp = inspect(&c, &psbt, &ctx);
     assert_eq!(insp.inputs[0].script_type, ScriptKind::P2trScript);
+    assert!(
+        insp.warnings
+            .iter()
+            .any(|w| w.kind == WarningKind::UnsupportedInput),
+        "{:?}",
+        insp.warnings
+    );
     assert_eq!(
         sign(
             &c,
@@ -361,16 +358,13 @@ fn a_taproot_tree_with_no_way_into_it_is_refused() {
             &[&abandon],
             &[abandon.fingerprint()],
             &ctx,
-            true,
+            &[],
             Nonce::LowR,
             Aux::Deterministic,
             &mut None,
             &faraday_crypto::Zeroizing::new([0u8; 32]),
         ),
-        Err(Error::Unsupported {
-            input: 0,
-            reason: "no leaf or key path of this taproot input is one of ours"
-        })
+        Err(Error::Danger(vec![WarningKind::NoParticipatingKey]))
     );
 }
 
@@ -460,7 +454,7 @@ fn a_taproot_signature_beside_an_input_without_its_spent_output_does_not_stop_th
         &[&abandon],
         &[abandon.fingerprint()],
         &ctx,
-        true,
+        &[],
         Nonce::LowR,
         Aux::Deterministic,
         &mut None,
@@ -496,14 +490,14 @@ fn a_key_path_input_with_osk_records_is_blocked_and_not_signed() {
     let before = psbt.clone();
     let insp = inspect(&c, &psbt, &ctx);
     assert!(insp.blocked().contains(&WarningKind::UnreadRecords));
-    for force in [false, true] {
+    for accepted in [Vec::new(), vec![WarningKind::AbsurdFeeRate]] {
         let r = sign(
             &c,
             &mut psbt,
             &[&abandon],
             &[abandon.fingerprint()],
             &ctx,
-            force,
+            &accepted,
             Nonce::LowR,
             Aux::Deterministic,
             &mut None,

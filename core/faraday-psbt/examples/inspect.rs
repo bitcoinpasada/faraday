@@ -4,7 +4,7 @@
 //! signed PSBT or the final transaction.
 //!
 //! ```text
-//! cargo run -p faraday-psbt --example inspect -- --psbt <base64 or file> [--words "..."] [--passphrase X] [--network regtest] [--sign] [--force] [--out file]
+//! cargo run -p faraday-psbt --example inspect -- --psbt <base64 or file> [--words "..."] [--passphrase X] [--network regtest] [--sign] [--hold] [--out file]
 //! cargo run -p faraday-psbt --example inspect -- --make-test-psbt <file> [--network regtest] [--script-type native-segwit]
 //! ```
 //!
@@ -27,7 +27,7 @@ mod builder;
 
 const USAGE: &str = "\
 usage: inspect --psbt <base64|file> [--words \"<12..24 words>\"] [--passphrase <ascii>]
-               [--network <mainnet|testnet|signet|regtest>] [--sign] [--force] [--out <file>]
+               [--network <mainnet|testnet|signet|regtest>] [--sign] [--hold] [--out <file>]
        inspect --make-test-psbt <file> [--network <name>] [--script-type <legacy|nested-segwit|native-segwit|taproot>]
 
 Demo tool: prints secrets to the terminal. Use test seeds only.";
@@ -43,7 +43,7 @@ struct Args {
     network: Network,
     script_type: ScriptType,
     sign: bool,
-    force: bool,
+    hold: bool,
     out: Option<String>,
 }
 
@@ -57,7 +57,7 @@ fn parse_args() -> Result<Args, String> {
         network: Network::Regtest,
         script_type: ScriptType::NativeSegwit,
         sign: false,
-        force: false,
+        hold: false,
         out: None,
     };
     while let Some(flag) = args.next() {
@@ -79,7 +79,7 @@ fn parse_args() -> Result<Args, String> {
                     .ok_or(format!("unknown script type {name}"))?;
             }
             "--sign" => a.sign = true,
-            "--force" => a.force = true,
+            "--hold" => a.hold = true,
             "--out" => a.out = Some(value("--out")?),
             "-h" | "--help" => return Err(USAGE.into()),
             other => return Err(format!("unknown argument {other}\n{USAGE}")),
@@ -315,21 +315,23 @@ fn run(a: Args) -> Result<(), String> {
     };
     let fp: Fingerprint = master.fingerprint();
     println!("\n== Signing with {fp} ==");
+    // The app's hold: only a danger a decision names as holdable (F136).
+    let held = if a.hold { insp.holdable() } else { Vec::new() };
     let result = sign(
         &c,
         &mut psbt,
         &[master],
         &[fp],
         &ctx,
-        a.force,
+        &held,
         Nonce::LowR,
         Aux::Deterministic,
         &mut None,
         &faraday_crypto::Zeroizing::new([0u8; 32]),
     )
     .map_err(|e| {
-        if insp.has_danger() && !a.force {
-            format!("{e}; pass --force after reading the danger warnings")
+        if !insp.refuses() && !insp.holdable().is_empty() && !a.hold {
+            format!("{e}; pass --hold after reading the fee warnings")
         } else {
             e.to_string()
         }

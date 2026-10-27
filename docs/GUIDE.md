@@ -314,7 +314,7 @@ what is attached to the PC:
 | Screen | Meaning | Press |
 |---|---|---|
 | **Self-test failed**, with the **Check** that failed, over the whole window | Faraday's own cryptography did not reproduce a published test vector | **Exit**. Do not use this stick: write a new one (section 1) and report the check's name. |
-| ![Attached to this computer](guide/2-1-attached.png) **Attached to this computer**, naming a KVM ("a KVM can show this screen and type on this computer from elsewhere") or a TV ("a TV can record what it shows") | that device can record the screen or type | unplug it and press **Check again**. **Continue anyway** asks once more (**What is listed stays possible while they are attached.**) with **Yes, continue**. |
+| ![Attached to this computer](guide/2-1-attached.png) **Attached to this computer**, naming a KVM ("a KVM can show this screen and type on this computer from elsewhere") or a TV ("a TV can record what it shows") | that device can record the screen or type | unplug it and press **Check again**. **Continue anyway** asks once more, naming the case (**Only for a screen or switch that is your own, in front of you. What is listed stays possible while it is attached.**), with **Hold to continue**. |
 | the same sheet naming a virtual machine ("a virtual machine's host sees and can change everything in it") | Faraday is not running on the PC itself | **Power off**: Faraday must start on a real computer |
 
 A keyboard or mouse plugged in after Faraday starts does nothing until
@@ -1432,12 +1432,12 @@ in its own words, in red for danger. A PSBT opened from Files (its
 | A fee of 0.012 BTC | Another wallet's PSBT |
 |---|---|
 | ![The fee warnings](guide/6-8-fee.png) | ![Change unverified](guide/6-8-other-wallet.png) |
-| **fee 1200000 is 80% of the amount sent** and **fee rate is about 6349 sat/vB**. | **Wallet** reads **No loaded wallet matches**; **Change** reads **Unverified**, with **output 1 claims to be change of a wallet you are using, but the script is not that address**. |
+| **fee 1200000 is 80% of the amount sent** and **fee rate is about 6349 sat/vB**. | **Wallet** reads **No loaded wallet matches**; the change is a second **Sends** row and **Change** reads **None**, with **output 1 claims to be change of a wallet you are using, but the script is not that address**. |
 
 | On the card | Meaning | Do |
 |---|---|---|
-| **Change** with **Unverified**, "output … claims to be change of a wallet you are using, but the script is not that address" | an output claims to be change but does not derive from this wallet's keys | do not sign: the "change" may pay someone else |
-| "fee … is …% of the amount sent" | the fee is a large share of the amount, or above 0.01 BTC | do not sign; write the payment again in Sparrow with a lower fee |
+| A second **Sends** row, and "output … claims to be change of a wallet you are using, but the script is not that address" | an output claims to be change but does not derive from this wallet's keys; it is shown as a payment | do not sign: the "change" may pay someone else |
+| "fee … is …% of the amount sent" | the fee is a large share of the amount, or above 0.01 BTC; Review stops at **Hold to pay this fee** | do not sign; write the payment again in Sparrow with a lower fee. Hold only for a child paying for its parent, a large batch or a consolidation |
 | "fee rate is about … sat/vB" | 1,000 sat/vB or more | the same |
 | **Wallet** with **No loaded wallet matches**; on its card, "No loaded wallet matches this transaction. Change cannot be verified until its wallet is loaded." | the PSBT spends from a wallet not loaded here | load the right wallet, or the right PSBT |
 | "input … spends from a wallet of several keys that is not registered here; register the wallet to sign", with **Register this wallet** under it | the wallet this PSBT spends is not registered here, and the PSBT names its cosigners' keys | press **Register this wallet**: check the shape (**2 of 3, P2WSH, sorted**), the cosigners and the one marked **Yours**, then hold **Hold to register**; the card can then be signed |

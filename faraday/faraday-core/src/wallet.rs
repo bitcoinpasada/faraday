@@ -915,7 +915,7 @@ impl Session {
     }
 
     /// Costs what `sign_with` costs. Signs `psbt` with every session key it
-    /// names. Returns the fingerprints that signed.
+    /// names, past no danger. Returns the fingerprints that signed.
     pub fn sign(
         &self,
         c: &Compute,
@@ -923,13 +923,14 @@ impl Session {
         seed: &zeroize::Zeroizing<[u8; 32]>,
         musig: &mut Option<faraday_psbt::MusigSession>,
     ) -> Result<Vec<Fingerprint>, String> {
-        self.sign_with(c, psbt, seed, musig, None).map(|s| s.by)
+        self.sign_with(c, psbt, seed, musig, None, &[])
+            .map(|s| s.by)
     }
 
-    /// Costs what `key_refs`, `inspect` and the rest it calls cost. Signs
-    /// `psbt` with every session key it names. `known` is the inspection
-    /// of `psbt` with this session when the caller keeps one current (the
-    /// open spend's): it chooses the keys without inspecting again.
+    /// Costs what `key_refs`, `inspect` and the rest cost. Signs `psbt` with
+    /// every session key it names, past the holdable dangers in `accepted`
+    /// alone (F136). `known` is `psbt`'s inspection with this session when
+    /// the caller keeps one current (the open spend's): it chooses the keys.
     pub fn sign_with(
         &self,
         c: &Compute,
@@ -937,6 +938,7 @@ impl Session {
         seed: &zeroize::Zeroizing<[u8; 32]>,
         musig: &mut Option<faraday_psbt::MusigSession>,
         known: Option<&Inspection>,
+        accepted: &[faraday_psbt::WarningKind],
     ) -> Result<Signed, String> {
         let refs = self.key_refs(c);
         let policies = self.policies();
@@ -960,7 +962,7 @@ impl Session {
         }
         let result = self
             .keys
-            .sign(c, psbt, &selection, ctx, musig, seed)
+            .sign(c, psbt, &selection, (ctx, accepted), musig, seed)
             .map_err(|e| e.to_string())?;
         let mut by: Vec<Fingerprint> = result.signed_inputs.iter().map(|s| s.fingerprint).collect();
         by.dedup();
@@ -1814,6 +1816,8 @@ pub struct SpendState {
     pub open: Option<u8>,
     /// Steps closed as done.
     pub done: [bool; 10],
+    /// The holdable dangers held on Review (F136), passed to signing.
+    pub held: Vec<faraday_psbt::WarningKind>,
     /// The full table is shown.
     pub table: bool,
     /// The last refusal or failure.
@@ -1876,6 +1880,7 @@ impl SpendState {
             spend,
             open: None,
             done: [false; 10],
+            held: Vec::new(),
             table: false,
             error: None,
             inspection,
@@ -2383,8 +2388,17 @@ impl Faraday {
                     self.family_step_moved(false);
                 }
             }
+            Action::ReviewHold => {
+                let inputs = self.session.inspect_inputs();
+                if crate::review::hold(self.wallets.spend_mut(), &inputs) {
+                    self.wallet_act(Action::StepNext(wallet::step::TRANSACTION));
+                }
+            }
             Action::StepNext(n) => {
                 if let Some(s) = self.wallets.spend_mut() {
+                    if n == wallet::step::TRANSACTION && crate::review::stopped(s) {
+                        return;
+                    }
                     s.done[n as usize] = true;
                     s.open = s.steps.iter().copied().find(|&i| !s.done[i as usize]);
                     s.error = None;

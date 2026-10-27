@@ -70,7 +70,8 @@ A claim that names a loaded key and passes step 2 but fails 3 or 4 is a
 `ChangeSpoof` danger: the coordinator is lying. A claim that names an
 unloaded key, or a path not under a loaded account (a BIP-48 multisig
 path, another account index), is an `UnverifiedChange` caution and is
-counted as a payment to others. Multisig change is verified only by
+counted as a payment to others; the Sign screens draw it as one, never as
+change (F136). Multisig change is verified only by
 re-deriving it from a registered wallet; with none registered it is
 unverified, whatever script the PSBT states for it. Inputs are verified the same way; a
 multisig input is "ours" only where a loaded key's account (single-sig or
@@ -78,7 +79,10 @@ BIP-48), or the xpub a registered wallet holds for that fingerprint,
 derives the script's key at the path the input states. Where neither
 derives the path, the key still takes part, with an `UnknownDerivation`
 caution, and the input is not called ours; where the derived key is
-another, the key does not take part and the caution says so.
+another, the claim about the person's own key is false: the key does not
+take part and the `UnknownDerivation` is blocked, as signing refuses it
+(F136). The same key in a script other than its account's stays a
+caution.
 
 A scriptPubKey carries no network. `NetworkMismatch` is raised from what
 does: loaded accounts for another network, global xpubs with other version
@@ -89,16 +93,18 @@ bytes, and BIP-44/49/84/86/48 paths whose coin type is not the context's.
 | Warning | Level | Rule |
 |---|---|---|
 | `HighFee` | Caution | fee ≥ `HIGH_FEE_CAUTION_PCT` (5 %) of the amount to others (of all outputs for a self-transfer) |
-| `HighFee` | Danger | fee ≥ `HIGH_FEE_DANGER_PCT` (20 %), or fee > `HIGH_FEE_DANGER_ABS` (0.01 BTC) |
-| `AbsurdFeeRate` | Danger | ≥ `ABSURD_FEE_RATE_SAT_VB` (1000 sat/vB) |
+| `HighFee` | Danger, holdable | fee ≥ `HIGH_FEE_DANGER_PCT` (20 %), or fee > `HIGH_FEE_DANGER_ABS` (0.01 BTC) |
+| `AbsurdFeeRate` | Danger, holdable | ≥ `ABSURD_FEE_RATE_SAT_VB` (1000 sat/vB) |
 | `DustOutput` | Caution | below `bitcoin`'s `minimal_non_dust` for the script |
 | `UnusualSighash` | Caution | `ALL\|ANYONECANPAY` |
 | `UnusualSighash` | Danger | `NONE` (outputs not committed to), `SINGLE` on an input that has an output of its index (only that output is committed to), or a non-standard value |
-| `UnusualSighash` | Blocked | `SINGLE` on an input with no output of its index: the signature would commit to nothing; `sign` refuses with or without `force` |
-| `ChangeSpoof`, `UtxoMismatch`, `AmountUnverified` | Blocked | the coordinator is lying or hiding what it spends; `sign` refuses with or without `force`. `UtxoMismatch` covers the BIP-174 signer checks (wrong `non_witness_utxo`, redeem/witness script not matching the program, outputs above inputs); `AmountUnverified` is a SegWit v0 input with no `non_witness_utxo` in a transaction with more than one input |
-| `WalletNotRegistered` | Blocked | an input that names a loaded key spends a script of several keys (a `multi` of two or more, a miniscript naming two or more, a taproot script path that carries leaves which, with its internal key unless that is BIP 341's unspendable point, name two or more, or which are not its whole tree; a taproot input carrying no leaf spends its key path and is not held) and no registered wallet that holds a loaded key gives its script at the chain and index it states; `sign` refuses with or without `force` |
+| `UnusualSighash` | Blocked | `SINGLE` on an input with no output of its index: the signature would commit to nothing |
+| `ChangeSpoof`, `UtxoMismatch`, `AmountUnverified` | Blocked | the coordinator is lying or hiding what it spends. `UtxoMismatch` covers the BIP-174 signer checks (wrong `non_witness_utxo`, redeem/witness script not matching the program, outputs above inputs); `AmountUnverified` is a SegWit v0 input with no `non_witness_utxo` in a transaction with more than one input |
+| `WalletNotRegistered` | Blocked | an input that names a loaded key spends a script of several keys (a `multi` of two or more, a miniscript naming two or more, a taproot script path that carries leaves which, with its internal key unless that is BIP 341's unspendable point, name two or more, or which are not its whole tree; a taproot input carrying no leaf spends its key path and is not held) and no registered wallet that holds a loaded key gives its script at the chain and index it states |
+| `TimelockNotMet` | Blocked | the spend path waits longer than the transaction's sequence and locktime allow, and no way of the wallet a loaded key takes part in is open: it can never be valid |
+| `UnknownDerivation` | Blocked | a loaded key at a path under its account that derives another key than the input names |
 | `MissingUtxo`, `NoParticipatingKey`, `NetworkMismatch` | Danger | see above |
-| `UnverifiedChange`, `UnknownDerivation`, `AddressReuse`, `NonStandardScript`, `UnsupportedInput` | Caution | `NonStandardScript` is `Info` for a zero-value OP_RETURN |
+| `UnverifiedChange`, `UnknownDerivation`, `AddressReuse`, `NonStandardScript`, `UnsupportedInput` | Caution | `UnknownDerivation` for a path under no loaded account, or the key in another script; `NonStandardScript` is `Info` for a zero-value OP_RETURN |
 | `MixedScriptTypes`, `LocktimeInFuture` | Info | the signer has no clock; a set locktime is reported, not judged |
 
 ## Registering a wallet from the PSBT
@@ -143,7 +149,7 @@ steps anywhere in a PSBT is refused when it is parsed.
 
 ## Signing
 
-`sign(&mut psbt, &[&MasterKey], &selection, &ctx, force)`:
+`sign(&mut psbt, &[&MasterKey], &selection, &ctx, accepted)`:
 
 - derives each input's key at the path the PSBT states for the selected
   fingerprint, and refuses (`KeyMismatch`) if the derived key is not the
@@ -154,10 +160,14 @@ steps anywhere in a PSBT is refused when it is parsed.
   verifies every signature against the public key before writing it
   (`VerifyFailed` otherwise); returns the bytes per input for comparison
   with another implementation;
-- refuses (`Danger`) while the inspection has any danger warning unless
-  `force` is set; the UI asks for the distinct confirm gesture first;
+- refuses (`NotHoldable`) when `accepted` names a kind no hold accepts:
+  only `HighFee` and `AbsurdFeeRate` are holdable (F136);
+- refuses (`Danger`) while the inspection has a danger warning whose kind
+  `accepted` does not name; the app passes a holdable kind only after the
+  person's hold on Review ("Hold to pay this fee"), and every other danger
+  has no way past it;
 - refuses (`Blocked`) while the inspection has any blocked warning,
-  whatever `force` says.
+  whatever `accepted` names.
 
 The derived key lives in the signing function's frame and is erased on
 drop (`faraday_bip::keys::DerivedKey`). `bitcoin` forces two copies for

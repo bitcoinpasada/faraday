@@ -282,10 +282,14 @@ pub enum Error {
     },
     /// A selected fingerprint is not among the supplied master keys.
     NoSuchKey(Fingerprint),
-    /// The inspection has danger-level warnings and `force` was not set.
+    /// The inspection has danger-level warnings the caller did not pass
+    /// as accepted: every danger but a holdable one (F136).
     Danger(Vec<WarningKind>),
-    /// The inspection has blocked-level warnings. No `force` signs these.
+    /// The inspection has blocked-level warnings. Nothing signs these.
     Blocked(Vec<WarningKind>),
+    /// A kind passed as accepted that no hold accepts
+    /// ([`WarningKind::is_holdable`]).
+    NotHoldable(WarningKind),
     /// The signature hash could not be computed (missing script or UTXO
     /// data, non-standard sighash type).
     Sighash {
@@ -342,11 +346,10 @@ impl fmt::Display for Error {
             }
             Error::NoSuchKey(fp) => write!(f, "no loaded key with fingerprint {fp}"),
             Error::Danger(kinds) => {
-                write!(
-                    f,
-                    "refused: {} danger warning(s) need explicit confirmation",
-                    kinds.len()
-                )
+                write!(f, "refused: {} danger warning(s)", kinds.len())
+            }
+            Error::NotHoldable(kind) => {
+                write!(f, "refused: {kind:?} is not a warning a hold accepts")
             }
             Error::Blocked(kinds) => {
                 write!(f, "refused: {} blocking warning(s)", kinds.len())

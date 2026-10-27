@@ -36,8 +36,8 @@ mod nav;
 
 use faraday_draw::tokens::{
     BODY_L, BODY_M, BODY_S, BUTTON_H, CONTENT_MAX, DISABLED_CONTAINER, DISABLED_CONTENT, GAP,
-    LABEL_L, LABEL_S, LIST_1, LIST_2, MARGIN_COMPACT, MARGIN_WIDE, NAV_BAR_H, PROGRESS_H, RAIL_W,
-    STATE_PRESS, TITLE_L, TITLE_M, TITLE_S,
+    LABEL_L, LABEL_S, LIST_1, LIST_2, MARGIN_COMPACT, MARGIN_WIDE, NAV_BAR_H, PAD, PROGRESS_H,
+    RAIL_W, STATE_PRESS, TITLE_L, TITLE_M, TITLE_S,
 };
 
 /// The widest a task page's column grows (a text column, not a grid).
@@ -1132,6 +1132,7 @@ fn confirm(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
             Fit::Newer => {
                 let s = fill(S.starter_keep_newer, &[&version(stick.release.as_deref())]);
                 y += warning(ui, x, y, w, &s);
+                y += line(ui, x, y, w, S.starter_keep_older_case, Role::Warning);
             }
             Fit::Dev => y += warning(ui, x, y, w, S.starter_keep_dev),
             _ => {}
@@ -1146,6 +1147,19 @@ fn confirm(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     if starter.no_writer {
         y += line(ui, x, y, w, S.starter_no_writer, Role::Warning);
     }
+    y + 4.0 + write_buttons(starter, ui, (x, y + 4.0, w), mode, matches)
+}
+
+/// Confirm's Write, as `mode` names it, and Choose again before it when
+/// the disk is not the one confirmed; over a newer stick in keep data,
+/// Write is a hold (F136). Returns their height.
+fn write_buttons(
+    starter: &Starter,
+    ui: &mut Ui,
+    (x, y, w): (f32, f32, f32),
+    mode: Mode,
+    matches: bool,
+) -> f32 {
     let label = match mode {
         Mode::Whole => S.starter_erase_and_write,
         Mode::KeepData => S.starter_write,
@@ -1155,10 +1169,9 @@ fn confirm(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     } else {
         Style::Disabled
     };
-    y += 4.0;
     if !matches {
         // The disk is gone or changed: the only way on is to choose again.
-        return y + buttons(
+        return buttons(
             ui,
             x,
             y,
@@ -1169,7 +1182,41 @@ fn confirm(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
             ],
         );
     }
-    y + buttons(ui, x, y, w, &[(label, style, StarterAction::Write)])
+    if style == Style::Primary && starter.is_hold(StarterAction::Write) {
+        return hold(
+            starter,
+            ui,
+            (x, y, w),
+            S.starter_keep_older_hold,
+            StarterAction::Write,
+        );
+    }
+    buttons(ui, x, y, w, &[(label, style, StarterAction::Write)])
+}
+
+/// A hold (`docs/DESIGN.md`'s hold, F136): an outlined button in the
+/// error tone that fills while it is held and acts once held to the end
+/// ([`Starter::is_hold`]); let go before, nothing happens. Returns its
+/// height.
+fn hold(
+    starter: &Starter,
+    ui: &mut Ui,
+    (x, y, w): (f32, f32, f32),
+    label: &str,
+    action: StarterAction,
+) -> f32 {
+    let h = faraday_draw::tokens::CHIP_LINE;
+    let bw = (ui.measure_as(LABEL_L, label) + 2.0 * PAD).min(w);
+    let label = ui.fit_as(LABEL_L, label, bw - 2.0 * PAD);
+    let tone = Role::Error.paint();
+    let part = starter.held_part(action);
+    if part > 0.0 {
+        ui.fill(x, y, bw * part, h, 10.0, tone.with_alpha(60));
+    }
+    ui.stroke(x, y, bw, h, 10.0, tone.with_alpha(115));
+    ui.text_mid_as((x + PAD, y, h), LABEL_L, tone, &label);
+    ui.hit(x, y, bw, h, action.host());
+    h + GAP
 }
 
 fn writing(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
@@ -1844,14 +1891,8 @@ fn let_through_sheet(starter: &Starter, ui: &mut Ui, w: f32, h: f32) {
     };
     let ask = fill(S.starter_let_through_ask, &[&name]);
     let line_text = concern_text(c);
-    let actions = [
-        (S.starter_cancel, Style::Secondary, StarterAction::Cancel),
-        (
-            S.starter_continue_anyway,
-            Style::Primary,
-            StarterAction::LetThrough,
-        ),
-    ];
+    // The way past is a hold under the case it is for (F136).
+    let actions = [(S.starter_cancel, Style::Secondary, StarterAction::Cancel)];
     let title = (Icon::Warning, Role::Warning, ask.as_str());
     dialog(
         ui,
@@ -1867,6 +1908,14 @@ fn let_through_sheet(starter: &Starter, ui: &mut Ui, w: f32, h: f32) {
                 iw,
                 S.starter_let_through_until,
                 Role::OnSurfaceVariant,
+            );
+            y += line(ui, x, y, iw, S.starter_let_through_case, Role::Warning);
+            y += hold(
+                starter,
+                ui,
+                (x, y, iw),
+                S.starter_let_through_hold,
+                StarterAction::LetThrough,
             );
             y - y0
         },

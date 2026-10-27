@@ -103,7 +103,7 @@ fn two_of_three_sortedmulti() {
         &[&abandon, &zoo],
         &[abandon.fingerprint()],
         &ctx,
-        false,
+        &[],
         Nonce::LowR,
         Aux::Deterministic,
         &mut None,
@@ -135,7 +135,7 @@ fn two_of_three_sortedmulti() {
         &[&abandon, &zoo],
         &[zoo.fingerprint()],
         &ctx,
-        false,
+        &[],
         Nonce::LowR,
         Aux::Deterministic,
         &mut None,
@@ -191,7 +191,7 @@ fn two_of_three_sortedmulti() {
         &[&legal],
         &[legal.fingerprint()],
         &ctx,
-        false,
+        &[],
         Nonce::LowR,
         Aux::Deterministic,
         &mut None,
@@ -329,7 +329,7 @@ fn bip174_signer_finalizer_extractor() {
     ];
     assert_eq!(insp.blocked(), held);
     assert!(insp.register.is_none());
-    for force in [false, true] {
+    for accepted in [Vec::new(), vec![WarningKind::AbsurdFeeRate]] {
         assert_eq!(
             sign(
                 &c,
@@ -337,14 +337,14 @@ fn bip174_signer_finalizer_extractor() {
                 &[&master],
                 &[fp],
                 &ctx,
-                force,
+                &accepted,
                 Nonce::First,
                 Aux::Deterministic,
                 &mut None,
                 &faraday_crypto::Zeroizing::new([0u8; 32]),
             ),
             Err(Error::Blocked(held.clone())),
-            "forced {force}"
+            "accepted {accepted:?}"
         );
     }
     assert!(
@@ -373,7 +373,7 @@ fn bip174_signer_finalizer_extractor() {
             &[&master],
             &[fp],
             &ctx,
-            true,
+            &[],
             Nonce::First,
             Aux::Deterministic,
             &mut None,
@@ -439,7 +439,7 @@ fn multisig_under_low_r() {
         &[&abandon, &zoo],
         &[abandon.fingerprint(), zoo.fingerprint()],
         &ctx,
-        false,
+        &[],
         Nonce::LowR,
         Aux::Deterministic,
         &mut None,
@@ -866,7 +866,7 @@ fn a_cosigner_key_under_a_loaded_fingerprint_is_not_ours() {
         insp.participating_keys
     );
     assert!(
-        insp.warnings.iter().any(|w| w.level == Level::Caution
+        insp.warnings.iter().any(|w| w.level == Level::Blocked
             && w.kind == WarningKind::UnknownDerivation
             && w.text.contains("the derived key does not match the input")),
         "{:?}",

@@ -183,6 +183,27 @@ fn tap(starter: &mut Starter, action: StarterAction) {
     });
 }
 
+/// A hold on screen, `action`, held past its time and let go (F136).
+pub(super) fn hold(starter: &mut Starter, action: StarterAction) {
+    let _ = starter.drawn_texts();
+    let (x, y) = starter.where_offered(action).expect("offered");
+    let t0 = 1_000_000;
+    starter.event(Event::Tick { now_ms: t0 });
+    starter.event(Event::Touch {
+        x,
+        y,
+        phase: TouchPhase::Down,
+    });
+    starter.event(Event::Tick {
+        now_ms: t0 + faraday_draw::tokens::HOLD_MS + 100,
+    });
+    starter.event(Event::Touch {
+        x,
+        y,
+        phase: TouchPhase::Up,
+    });
+}
+
 fn commands(starter: &mut Starter) -> Vec<StarterCommand> {
     std::iter::from_fn(|| starter.next_command()).collect()
 }
@@ -397,8 +418,10 @@ fn keep_data_refuses_the_same_build() {
     assert!(starter.offers_action(StarterAction::Mode(Mode::Whole)));
 }
 
+/// Writing an older release over a newer stick is a hold that names
+/// going back to an older release (F136): a tap writes nothing.
 #[test]
-fn keep_data_warns_about_an_older_faraday_over_a_newer_stick_and_writes_it() {
+fn keep_data_writes_an_older_faraday_over_a_newer_stick_only_after_the_hold() {
     let mut starter = starter_with(vec![faraday_stick(
         "sdb",
         "Mine",
@@ -410,7 +433,13 @@ fn keep_data_warns_about_an_older_faraday_over_a_newer_stick_and_writes_it() {
         &mut starter,
         "This stick holds a newer Faraday: 0.3.0"
     ));
-    starter.press(StarterAction::Write);
+    assert!(shows(&mut starter, "Only to go back to an older release."));
+    assert!(shows(&mut starter, "Hold to write the older release"));
+    let _ = commands(&mut starter);
+    tap(&mut starter, StarterAction::Write);
+    assert!(commands(&mut starter).is_empty());
+    assert_eq!(starter.page, Page::Confirm);
+    hold(&mut starter, StarterAction::Write);
     assert_eq!(commands(&mut starter).len(), 1);
 
     // An older stick: no warning.
