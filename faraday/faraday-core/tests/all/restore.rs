@@ -762,3 +762,40 @@ fn a_wallet_restored_from_a_vault_named_vault_goes_the_vault_route() {
     let app = restored_from_vault_named("Vault");
     assert_eq!(app.family().route, Some(Route::Vault));
 }
+
+/// A seed whose fingerprint a description names, but whose key at that
+/// slot's path is not the slot's key, is not that key: the whole key is
+/// matched, not its four bytes.
+#[test]
+fn a_seed_with_a_slots_fingerprint_but_not_its_key_is_refused() {
+    let mut app = shown();
+    let k = |n: usize, account: u32| testkit::key(n, &format!("m/48'/1'/{account}'/2'"));
+    // Test key 2's origin, with its key at account 1 written in place of
+    // its key at account 0.
+    let (origin, _) = k(1, 0)
+        .split_once(']')
+        .map(|(o, x)| (o.to_string(), x.to_string()))
+        .unwrap();
+    let (_, other) = k(1, 1)
+        .split_once(']')
+        .map(|(o, x)| (o.to_string(), x.to_string()))
+        .unwrap();
+    let forged = format!("{origin}]{other}");
+    let description = format!(
+        "wsh(sortedmulti(2,{}/<0;1>/*,{forged}/<0;1>/*,{}/<0;1>/*))",
+        k(0, 0),
+        k(2, 0)
+    );
+    app.press(Action::RestoreWallet);
+    app.press(Action::Scan);
+    app.event(Event::Scanned {
+        bytes: description.into_bytes(),
+    });
+    app.press(Action::RVaults(false));
+    app.press(Action::RNext(WHERE));
+    assert_eq!(app.restore().unwrap().open, Some(SEEDS));
+    let keys = app.session.keys.len();
+    type_seed(&mut app, &testkit::test_words("zebra"));
+    assert_eq!(app.restore().unwrap().error.as_deref(), Some(NOT_A_KEY));
+    assert_eq!(app.session.keys.len(), keys, "the seed was taken");
+}

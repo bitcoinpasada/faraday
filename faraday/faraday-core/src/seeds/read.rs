@@ -347,7 +347,7 @@ impl Faraday {
         }
         let restoring = self.entry.state().back == Some(Screen::Restore)
             || (s.loaded.is_some() && self.screen == Screen::Restore);
-        if restoring && let Some(why) = self.restore_refusal(fp) {
+        if restoring && let Some(why) = self.restore_refusal(fp, None) {
             if let Some(s) = self.seed_read.state.as_mut() {
                 s.error = Some(why);
             }

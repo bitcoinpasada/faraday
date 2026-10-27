@@ -5115,21 +5115,15 @@ impl Faraday {
         }
         // Restore takes a seed only into a slot it fills: with the
         // description known, one of its keys (`docs/history/NEW-WALLET.md` §12.1).
-        if back == Some(Screen::Restore) {
-            let fp = faraday_keys::identity::fingerprint_of_mnemonic(
-                &c,
-                &m,
-                &self.entry.state().passphrase,
-            )
-            .ok();
-            if let Some(why) = fp.and_then(|fp| self.restore_refusal(fp)) {
-                if let Some(r) = self.restore.state_mut() {
-                    r.error = Some(why);
-                }
-                self.entry.reset();
-                self.screen = Screen::Restore;
-                return;
+        if back == Some(Screen::Restore)
+            && let Some(why) = self.restore_refusal_typed(&c, &m)
+        {
+            if let Some(r) = self.restore.state_mut() {
+                r.error = Some(why);
             }
+            self.entry.reset();
+            self.screen = Screen::Restore;
+            return;
         }
         let pass = secret_text::SecretText::of(self.entry.state().passphrase.as_str());
         let said = |app: &mut Self, fp: faraday_bip::keys::Fingerprint| match for_wallet {

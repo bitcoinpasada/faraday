@@ -5,6 +5,7 @@
 
 use crate::strings::EN;
 use crate::strings::fill;
+use faraday_bip::bitcoin::bip32::Xpub;
 use faraday_bip::multisig_config;
 use faraday_crypto::work::Compute;
 
@@ -88,6 +89,11 @@ pub fn parts(text: &str) -> Option<ConfigParts> {
         keys,
     })
 }
+
+/// A seed's extended public key at a path, for [`Faraday::restore_refusal`]
+/// to match a slot's whole key: `None` when it cannot be worked out.
+pub(crate) type KeyAt<'a> =
+    dyn Fn(&faraday_bip::bitcoin::bip32::DerivationPath) -> Option<Xpub> + 'a;
 
 /// Whether a config holds fewer keys than its policy names: a share.
 pub fn is_share(text: &str) -> bool {
@@ -771,19 +777,34 @@ impl Faraday {
         r.error = None;
     }
 
+    /// Costs what `key_at` costs, once for each slot of fingerprint `fp`.
     /// Why Restore does not take the seed whose key is `fp`, if it does
     /// not: with the description known, not one of its keys; from the
     /// seeds alone, no slot left. Once the wallet is made and Keys is
     /// closed, a key added is no seed of Restore's: nothing to refuse.
-    pub(crate) fn restore_refusal(&self, fp: faraday_bip::keys::Fingerprint) -> Option<String> {
+    /// `key_at` gives the seed's extended public key at a path: a slot of
+    /// its fingerprint is its slot only when the slot's key is that key,
+    /// all of it, not its four bytes alone. Without it the fingerprint
+    /// finds the slot, and the key is matched once it is loaded
+    /// ([`Faraday::restore_took`]).
+    pub(crate) fn restore_refusal(
+        &self,
+        fp: faraday_bip::keys::Fingerprint,
+        key_at: Option<&KeyAt<'_>>,
+    ) -> Option<String> {
         let r = self.restore.state.as_ref().filter(|r| !r.keys_made())?;
         if r.described {
             let w = self.session.wallets.get(r.wallet?)?;
-            let ours = self
-                .session
-                .slots(w)
-                .iter()
-                .any(|s| s.fingerprint == Some(fp));
+            let ours = self.session.slots(w).iter().any(|s| {
+                s.fingerprint == Some(fp)
+                    && match (key_at, s.key.as_ref()) {
+                        (Some(at), Some(k)) => k.path().and_then(at).is_some_and(|x| {
+                            x.public_key == k.xpub().public_key
+                                && x.chain_code == k.xpub().chain_code
+                        }),
+                        _ => true,
+                    }
+            });
             return (!ours).then(|| NOT_A_KEY.to_string());
         }
         let s = r.seeds.as_ref()?;
@@ -791,11 +812,47 @@ impl Faraday {
             .then(|| EN.restore_refusal_every.to_string())
     }
 
+    /// Costs a PBKDF2, and a key derivation for each slot of the seed's
+    /// fingerprint. Why Restore does not take the seed words `m` make with
+    /// the passphrase typed on Add a key, if it does not
+    /// ([`Faraday::restore_refusal`]), its whole key matched.
+    pub(crate) fn restore_refusal_typed(
+        &self,
+        c: &Compute,
+        m: &faraday_bip::bip39::Mnemonic,
+    ) -> Option<String> {
+        let pass = self.entry.state().passphrase.as_str();
+        let fp = faraday_keys::identity::fingerprint_of_mnemonic(c, m, pass).ok()?;
+        let network = self.session.network();
+        let at = |p: &faraday_bip::bitcoin::bip32::DerivationPath| {
+            let words = faraday_keys::identity::Material::Words(m);
+            faraday_keys::identity::xpub_at(c, words, pass, network, p)
+        };
+        self.restore_refusal(fp, Some(&at))
+    }
+
     /// A seed for Restore's open slot, loaded: matched to the
     /// description's keys or put in the slot (`docs/history/NEW-WALLET.md`
     /// §12.1).
     pub(crate) fn restore_took(&mut self, fp: faraday_bip::keys::Fingerprint) {
-        if let Some(why) = self.restore_refusal(fp) {
+        let c = self.compute();
+        // The key is loaded, the last of its fingerprint: its whole key at
+        // each slot's path.
+        let keys = &self.session.keys;
+        let just = keys
+            .all()
+            .enumerate()
+            .filter(|(_, i)| i.fingerprint == fp)
+            .map(|(k, _)| k)
+            .last();
+        let at = |p: &faraday_bip::bitcoin::bip32::DerivationPath| -> Option<Xpub> {
+            let k = just?;
+            let text = keys
+                .key_text(&c, k, &faraday_keys::texts::Spec::Path(p.clone()))?
+                .ok()?;
+            text.rsplit(']').next()?.parse().ok()
+        };
+        if let Some(why) = self.restore_refusal(fp, Some(&at)) {
             if let Some(r) = self.restore.state.as_mut() {
                 r.error = Some(why);
             }
