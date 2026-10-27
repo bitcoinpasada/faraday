@@ -555,6 +555,65 @@ fn a_string_not_here_stops_lock_and_write() {
     assert!(!app.restart_requested(), "not locked");
 }
 
+/// A codex32 string's file let out for a stick is a secret let out:
+/// after the lock, with the wallet loaded again, Backups says the stick
+/// that keeps it is unprotected, as it says of a seed's words.
+#[test]
+fn backups_says_a_stick_with_a_string_let_out_is_unprotected() {
+    let c = testkit::compute();
+    let mut shell = Shell::new();
+    let mut app = made_with_set();
+    let wallet = &app.session.wallets[0];
+    let (name, descriptor) = (
+        wallet.name.clone(),
+        wallet.policy().to_descriptor_checksummed(),
+    );
+    files_on_two_sticks(&mut app);
+    codex32_item(&mut app);
+    type_each_back(&mut app);
+    testkit::type_passphrases(&mut app);
+    app.press(Action::BNext(bstep::ENVELOPE));
+    shell.flow(&mut app, F::WalletLock);
+    let_seed_files_out(&mut app);
+    shell.pump(&mut app);
+    let mut app = shell.restart();
+    assert!(
+        app.outbox
+            .iter()
+            .any(|i| i.name == "codex32-fab6868a-a.txt" && i.secret),
+        "{:?}",
+        app.outbox.iter().map(|i| &i.name).collect::<Vec<_>>()
+    );
+    app.session
+        .add_wallet(
+            &c,
+            &name,
+            &descriptor,
+            "test",
+            faraday_core::wallet::Origin::Named,
+        )
+        .unwrap();
+    let all = app.backups_now(&c);
+    let lines = all.iter().find_map(|e| e.lines.clone()).unwrap_or_else(|| {
+        panic!(
+            "no plan: {:?}",
+            all.iter().map(|e| &e.name).collect::<Vec<_>>()
+        )
+    });
+    // Place 1's stick keeps share A's file, Place 2's D's picture, Place
+    // 3's none.
+    let state = |p: usize| {
+        lines
+            .iter()
+            .find(|l| l.at == Some(At::Place(p)))
+            .map(|l| l.state.clone())
+            .unwrap_or_else(|| panic!("{lines:?}"))
+    };
+    assert_eq!(state(0), "For the stick, unprotected", "{lines:?}");
+    assert_eq!(state(1), "For the stick, unprotected", "{lines:?}");
+    assert_eq!(state(2), "For the stick", "{lines:?}");
+}
+
 #[test]
 fn strings_on_two_sticks_are_written_and_rebuild_the_key() {
     let c = testkit::compute();

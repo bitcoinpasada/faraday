@@ -610,6 +610,11 @@ impl Faraday {
                                 out.secret.extend(name);
                             }
                         }
+                        // A codex32 string's file is a share of a seed: a
+                        // secret, as a seed's words are.
+                        What::Codex32ShareFile(..) | What::Codex32QrFile(..) => out
+                            .secret
+                            .extend(crate::codex32_backup::stick_names(&shape, a, *what)),
                         What::Wallet if spot.at == At::Files => out.files.extend(public.clone()),
                         What::Wallet if spot.at == At::Software && a.form[plan::form::TEXT] => {
                             out.files.extend(public.clone())
