@@ -1716,10 +1716,12 @@ pub(super) fn learn_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     }
 }
 
-/// Where a secret goes: the open vault, or, once the person has said they
-/// understand what it gives away, the Outbox unprotected.
-#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
+/// Where a secret goes: the open vault, or, past **Save without
+/// encryption?**'s hold, the Outbox unprotected (F129).
 pub(super) fn secret_out_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
+    if let Some(plain) = app.secrets.plain() {
+        return plain_sheet(app, ui, (w, h), plain);
+    }
     let Some(out) = app.secrets.out() else {
         return;
     };
@@ -1749,11 +1751,6 @@ pub(super) fn secret_out_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
             (f.label, style, Action::SecretForm(i as u8))
         })
         .collect();
-    let out_style = if app.secrets.ack() {
-        Style::Secondary
-    } else {
-        Style::Disabled
-    };
     // A file a visit would copy to another stick is ticked there, not put
     // in the Outbox; text Faraday cannot tell about may be a secret.
     let head = if out.ack == crate::secrets::Ack::Unknown {
@@ -1761,17 +1758,11 @@ pub(super) fn secret_out_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     } else {
         EN.secret_out_title
     };
-    let put_label = fill(EN.secret_out_put_it_unprotected, &[app.medium.for_the()]);
-    let (unprotected, out_label) = if out.to_visit {
-        (
-            fill(EN.secret_out_unprotected_medium, &[app.medium.noun()]),
-            EN.secret_out_tick_hint,
-        )
+    let out_label = fill(EN.secret_out_put_it_unprotected, &[app.medium.for_the()]);
+    let unprotected = if out.to_visit {
+        fill(EN.secret_out_unprotected_medium, &[app.medium.noun()])
     } else {
-        (
-            fill(EN.secret_out_unprotected, &[app.medium.for_the()]),
-            put_label.as_str(),
-        )
+        fill(EN.secret_out_unprotected, &[app.medium.for_the()])
     };
     let to_vault = !matches!(out.keep, crate::secrets::Keep::None);
     let title = (Icon::Lock.into(), Role::Warning.paint(), head);
@@ -1830,20 +1821,64 @@ pub(super) fn secret_out_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
             if forms.len() > 1 {
                 cy += wrap_buttons(ui, x, cy, iw, BUTTON_H, &forms) + 4.0;
             }
-            ui.checkbox(x, cy + 1.0, app.secrets.ack(), true);
-            let lh = ui.wrap_as(
-                (x + 28.0, cy, iw - 28.0),
-                BODY_M,
-                Role::OnSurface,
-                &out.ack.text(app.medium),
-            );
-            ui.hit(x - 4.0, cy - 6.0, iw, lh + 12.0, Action::SecretAck);
-            cy += lh + 12.0;
             cy - y
         },
         &[
-            (out_label, out_style, Action::SecretUnprotected),
+            (&out_label, Style::Secondary, Action::SecretUnprotected),
             (EN.secret_out_cancel, Style::Ghost, Action::Cancel),
         ],
+    );
+}
+
+/// **Save without encryption?** (F129): a secret about to be saved as a
+/// plain file, outside any vault. Its two lines say where it goes and how
+/// safe that is, the one explanation a working sheet carries; the hold in
+/// its body saves it; **Put it in a vault** where the secret sheet's
+/// secret can go into the open vault, else **Cancel**.
+fn plain_sheet(app: &View, ui: &mut Ui, (w, h): (f32, f32), plain: &crate::secrets::Plain) {
+    let first = match plain.then {
+        crate::secrets::PlainThen::Transfer(..) => {
+            fill(EN.plain_goes_into, &[&plain.name, &plain.on])
+        }
+        _ => fill(
+            EN.plain_goes_on,
+            &[&plain.name, &plain.on, app.medium.noun()],
+        ),
+    };
+    let second = fill(EN.plain_as_safe, &[&plain.keep]);
+    let to_vault = matches!(plain.then, crate::secrets::PlainThen::Secret)
+        && app.vaults.open.get(app.vaults.current).is_some()
+        && app
+            .secrets
+            .out()
+            .is_some_and(|o| !matches!(o.keep, crate::secrets::Keep::None));
+    let other = if to_vault {
+        (EN.plain_into_vault, Style::Secondary, Action::SecretVault)
+    } else {
+        (EN.secret_out_cancel, Style::Ghost, Action::Cancel)
+    };
+    let title = (Icon::Lock.into(), Role::Warning.paint(), EN.plain_title);
+    crate::compact::dialog(
+        ui,
+        (w, h, T::DIALOG_MAX),
+        title,
+        &mut |ui, x, y, iw| {
+            let mut cy = y;
+            cy += ui.wrap_as((x, cy, iw), BODY_M, Role::OnSurface, &first) + T::GAP;
+            cy += ui.wrap_as((x, cy, iw), BODY_M, Role::OnSurfaceVariant, &second) + T::GAP;
+            crate::vault::screen::hold_button_in(
+                app,
+                ui,
+                x,
+                cy,
+                iw,
+                EN.plain_hold,
+                Action::SecretHold,
+                Role::Error.paint(),
+            );
+            cy += T::CHIP_LINE + T::GAP;
+            cy - y
+        },
+        &[other],
     );
 }

@@ -830,18 +830,14 @@ pub fn make_released(app: &mut Faraday, kind: Kind, fields: &[&str]) -> Option<S
     toast
 }
 
-/// Past **Lock and write**'s secret sheet for each seed the plan keeps as
-/// a file on a stick: the line ticked and the seed let out, once per seed
-/// (`docs/BACKUP-FLOW.md` §17.12 item 6). Returns how many sheets it
-/// went through.
+/// Past **Lock and write**'s **Save without encryption?** for each file
+/// the plan keeps on a stick at a place that holds a secret and was not
+/// held for at its drop: held, once per file (F129,
+/// `docs/BACKUP-FLOW.md` §17.12 item 6). Returns how many holds it took.
 pub fn let_seed_files_out(app: &mut Faraday) -> usize {
     let mut n = 0;
-    while app.sheet == Some(Sheet::SecretOut)
-        && testkit::secret_out(app).is_some_and(|o| o.to_lock.is_some())
-        && n < 16
-    {
-        app.press(Action::SecretAck);
-        app.press(Action::SecretUnprotected);
+    while app.sheet == Some(Sheet::SecretOut) && testkit::plain_asked(app).is_some() && n < 16 {
+        app.press(Action::SecretHold);
         n += 1;
     }
     n
@@ -859,6 +855,11 @@ pub fn board(app: &mut Faraday, p: BoardPress) {
         app.press(Action::Board(BoardPress::Customize));
     }
     app.press(Action::Board(p));
+    // A secret kept as a plain file on a stick asks for the hold (F129):
+    // held.
+    if testkit::plain_asked(app).is_some() {
+        app.press(Action::SecretHold);
+    }
     // A drop that let a place see the balance asks (§19.5): kept.
     if app.sheet == Some(faraday_core::Sheet::BoardSees) {
         app.press(Action::Board(BoardPress::SeesKeep));

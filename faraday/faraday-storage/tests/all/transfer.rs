@@ -296,7 +296,7 @@ fn each_file_received_is_saved_once_and_a_second_of_the_same_name_gets_2() {
 }
 
 #[test]
-fn a_seeds_words_received_are_saved_and_said_to_hold_a_secret() {
+fn a_seeds_words_received_are_saved_past_the_hold_and_said_to_hold_a_secret() {
     let dir = downloads("secret");
     let words = testkit::test_words(testkit::TEST_SEEDS[0].0);
     let env = faraday_qr::envelope::pack("seed-words.txt", words.as_bytes(), "file").unwrap();
@@ -312,6 +312,9 @@ fn a_seeds_words_received_are_saved_and_said_to_hold_a_secret() {
     app.press(Action::TransferReceive);
     receive(&mut app, &mut boxes, &host, &parts);
     let path = dir.join("seed-words.txt");
+    assert!(!path.exists(), "nothing is saved before the hold");
+    app.press(Action::SecretHold);
+    serve_with(&mut app, &mut boxes, Some(&host), &mut Dirs::default());
     assert_eq!(fs::read_to_string(&path).unwrap(), words);
     let said = format!("Saved {}: this file holds a secret", path.display());
     assert_eq!(app.scan().and_then(|s| s.note.clone()), Some(said.clone()));

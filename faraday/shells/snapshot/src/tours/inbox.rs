@@ -53,9 +53,9 @@ pub(crate) fn inbox_tour(t: &mut Tour) -> Result<(), String> {
         scroll(t, 400);
         t.shot("inbox-text-sheet-foot")?;
     }
-    t.press(Action::SecretAck);
-    t.shot("inbox-text-ack")?;
     t.press(Action::SecretUnprotected);
+    t.shot("inbox-text-plain")?;
+    t.press(Action::SecretHold);
     t.press(Action::VisitInbox(3));
     t.shot("inbox-words-sheet")?;
     t.press(Action::Cancel);

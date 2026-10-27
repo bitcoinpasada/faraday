@@ -752,7 +752,7 @@ impl Faraday {
                     f.ticked = !f.ticked;
                 }
             }
-            V::SaveToStickGo => self.vault_stick_save_write(),
+            V::SaveToStickGo => self.vault_stick_save_ask(),
             V::LoadTick(_) | V::LoadTickAll | V::LoadTicked | V::LoadNotNow => {
                 self.load_sheet_act(a)
             }
@@ -1148,7 +1148,7 @@ impl Faraday {
                 match held {
                     Action::Vault(v) => self.vault_act(v),
                     Action::Flow(f) => self.flow_act(f),
-                    _ => self.power_act(held, &c),
+                    _ => self.hold_done(held, &c),
                 }
             }
             redraw = true;

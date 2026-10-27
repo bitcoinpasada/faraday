@@ -280,6 +280,10 @@ fn save_to_a_stick_says_the_seed_line_first_and_writes_the_ticked_forms() {
     let (txt, png) = (format!("seed-{fp}.txt"), format!("seedqr-{fp}.png"));
     assert!(texts.contains(&txt) && texts.contains(&png), "{texts:?}");
     app.press(Action::Vault(V::SaveToStickGo));
+    // A key's words and SeedQR as plain files ask for the hold (F129).
+    assert_eq!(app.sheet, Some(Sheet::SecretOut));
+    assert!(app.outbox.is_empty(), "nothing is written before the hold");
+    app.press(Action::SecretHold);
     assert_eq!(app.sheet, None);
     let words_file = outbox(&app, &txt);
     assert!(words_file.secret);
@@ -298,6 +302,7 @@ fn save_to_a_stick_writes_only_the_form_left_ticked() {
     // Words untouched, SeedQR unticked.
     app.press(Action::Vault(V::SaveTick(1)));
     app.press(Action::Vault(V::SaveToStickGo));
+    app.press(Action::SecretHold);
     assert_eq!(outbox_names(&app), vec![format!("seed-{}.txt", fp())]);
 }
 

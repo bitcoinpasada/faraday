@@ -461,9 +461,10 @@ pub enum Action {
     NewWalletFrom(usize),
     /// The secret on its way out into the open vault.
     SecretVault,
-    /// The person has read what the secret gives away, or unread it.
-    SecretAck,
-    /// The secret to the Outbox, unprotected.
+    /// **Hold to save without encryption**: the secret, a plan's file or a
+    /// received file saved as a plain file (F129). Acts when held.
+    SecretHold,
+    /// The secret sheet's **Unprotected**: asks for the hold.
     SecretUnprotected,
     /// The form the secret's file takes, by index.
     SecretForm(u8),

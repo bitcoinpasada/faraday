@@ -717,89 +717,6 @@ impl Faraday {
         }
     }
 
-    /// Costs what `plan_mapped` costs. The first seed Back up's plan keeps
-    /// as a file on a stick at a place whose warning the person has not
-    /// been through ([`crate::plan::Answers::seeds_on_stick_files`]): the
-    /// gate **Lock and write** passes only once there is none. Computes
-    /// from the state as it is.
-    pub fn backup_stick_seed_unwarned(&self, c: &Compute) -> Option<usize> {
-        let b = self.backup.state()?;
-        let shape = self.plan_shape_now(b.wallet);
-        self.plan_mapped(c, &shape, &b.answers)
-            .seeds_on_stick_files(&shape)
-            .into_iter()
-            .find(|&i| {
-                shape.seeds.get(i).is_some_and(|x| {
-                    !b.files_warned
-                        .iter()
-                        .any(|f| f.eq_ignore_ascii_case(&x.name))
-                })
-            })
-    }
-
-    /// The secret sheet's warning for seed `i`'s files on a stick, before
-    /// they are made: what the seed gives whoever finds the stick, and the
-    /// line to tick. Past it the seed is let out and the lock goes on.
-    fn offer_stick_seed(&mut self, i: usize) {
-        let c = self.compute();
-        let Some(b) = self.backup.state() else {
-            return;
-        };
-        let w = b.wallet;
-        let shape = self.plan_shape_now(w);
-        let Some(seed) = shape.seeds.get(i) else {
-            return;
-        };
-        let fp = seed.name.clone();
-        let names: Vec<String> = plan::map(&c, &shape, &b.answers)
-            .iter()
-            .filter(|s| matches!(s.at, plan::At::Stick(..)))
-            .flat_map(|s| s.holds.iter().map(|(x, _)| *x))
-            .filter(|x| {
-                matches!(*x, plan::What::SeedFile(j) | plan::What::SeedQrFile(j)
-                    | plan::What::PassphraseFile(j) if j == i)
-            })
-            .filter_map(|x| seed_stick_name(x, &fp))
-            .fold(Vec::new(), |mut v, n| {
-                if !v.contains(&n) {
-                    v.push(n);
-                }
-                v
-            });
-        let need = self
-            .session
-            .wallets
-            .get(w)
-            .map_or(1, |wl| crate::wallet::Session::quorum(wl).0);
-        let gives = if need <= 1 {
-            EN.secrets_seed_warning.to_string()
-        } else {
-            let more = need - 1;
-            fill(
-                EN.secrets_whoever_has,
-                &[
-                    &fp,
-                    &more.to_string(),
-                    if more == 1 {
-                        EN.secrets_key
-                    } else {
-                        EN.secrets_keys
-                    },
-                ],
-            )
-        };
-        let mut out = crate::secrets::SecretOut::new(
-            names.join(", "),
-            zeroize::Zeroizing::new(Vec::new()),
-            EN.secrets_a_wallet_s,
-            &gives,
-        );
-        out.keep = crate::secrets::Keep::None;
-        out.ack = crate::secrets::Ack::Seed;
-        out.to_lock = Some(fp);
-        self.offer_secret(out);
-    }
-
     /// Gives each stick of flow `i` the files it will hold
     /// ([`Faraday::wallet_slot_files`]).
     fn wallet_assign_files(&mut self, i: usize, w: usize) {
@@ -872,17 +789,17 @@ impl Faraday {
         }
         let answers = b.answers.clone();
         let shape = self.plan_shape_now(w);
-        // A seed's file on a stick is made only past the warning that it
-        // is not protected, as the seed files item made one: nothing is
-        // made or written until the person has said so for each seed
-        // (`docs/BACKUP-FLOW.md` §17.12 item 6).
-        if let Some(i) = self.backup_stick_seed_unwarned(&c) {
-            return self.offer_stick_seed(i);
-        }
         // A codex32 string's file is written from the string this session
         // holds: one it does not hold is typed in its item first.
         if let Some((share, id)) = self.backup_stick_string_missing(&c) {
             return self.toast(&fill(EN.c32_vault_missing, &[&share.to_string(), &id]));
+        }
+        // A secret's file on a stick at a place is made only past **Save
+        // without encryption?**'s hold, once per file: nothing is made or
+        // written until it is held for each (F129, `docs/BACKUP-FLOW.md`
+        // §17.12 item 6).
+        if let Some(plain) = self.backup_lock_plain(&c) {
+            return self.plain_ask(plain);
         }
         let used = answers.vaults_made(&shape);
         // Every vault of the plan is open, and holds what the plan puts

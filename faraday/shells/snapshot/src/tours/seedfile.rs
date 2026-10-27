@@ -81,16 +81,17 @@ pub(crate) fn seedfile_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     t.press(Action::BStep(bstep::FILES));
     t.press(Action::BFile);
     t.press(Action::SecretForm(1));
-    t.press(Action::SecretAck);
     t.shot("seedfile-sheet-seedqr")?;
     scroll(t, 240);
     t.shot("seedfile-sheet-seedqr-down")?;
     t.press(Action::SecretUnprotected);
+    t.shot("seedfile-plain")?;
+    t.press(Action::SecretHold);
     t.press(Action::BCompact(true));
     t.press(Action::BFile);
     t.press(Action::SecretForm(1));
-    t.press(Action::SecretAck);
     t.press(Action::SecretUnprotected);
+    t.press(Action::SecretHold);
     let pictures: Vec<_> = t
         .app
         .outbox

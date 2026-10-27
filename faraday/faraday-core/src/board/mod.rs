@@ -887,7 +887,7 @@ impl Faraday {
     }
 
     /// Place `p`'s name on the board on screen.
-    fn board_place_name(&self, p: usize) -> String {
+    pub(crate) fn board_place_name(&self, p: usize) -> String {
         if self.board_backup_names() {
             self.place_name(p)
         } else {
@@ -1556,7 +1556,7 @@ impl Faraday {
             return;
         };
         let shape = self.plan_shape_now(w);
-        self.backup.change_answers(&shape, f);
+        self.backup_change_plain(&shape, f);
     }
 
     /// Whether `c` can be picked up: not a cosigner's seed, not what an
@@ -2294,12 +2294,12 @@ impl Faraday {
     /// **Take it off** (`docs/BACKUP-FLOW.md` §17.5). Computes from the
     /// state as it is: the check of each place before and after, a map
     /// worked out each.
-    fn board_sees_ask(&mut self, was: Answers) {
+    pub(crate) fn board_sees_ask(&mut self, was: Answers) {
         let c = self.compute();
         let Some((shape, now)) = self.board_plan() else {
             return;
         };
-        if now == was {
+        if now == was || self.secrets.plain().is_some() {
             return;
         }
         let places = now.places.min(was.places);

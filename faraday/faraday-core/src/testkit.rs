@@ -1571,6 +1571,12 @@ pub fn secret_out(app: &crate::Faraday) -> Option<&crate::secrets::SecretOut> {
     app.secrets.out()
 }
 
+/// What **Save without encryption?** asks the hold for (F129): the
+/// file's name and where it goes, if it is up.
+pub fn plain_asked(app: &crate::Faraday) -> Option<(String, String)> {
+    app.secrets.plain().map(|p| (p.name.clone(), p.on.clone()))
+}
+
 /// Opens Create's card `step`, as a press on it does.
 pub fn create_open_card(app: &mut crate::Faraday, step: u8) {
     if let Some(c) = app.create.state_mut() {

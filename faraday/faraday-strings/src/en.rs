@@ -6345,8 +6345,6 @@ strings! {
     secret_out_put_it_unprotected: "Put it {} unprotected",
     /// Text in `secret_out_sheet`. `{}`: `app.medium.noun()`.
     secret_out_unprotected_medium: "Unprotected, on the {}",
-    /// Text in `secret_out_sheet`.
-    secret_out_tick_hint: "Tick it to write",
     /// Text in `secret_out_sheet`. `{}`: `app.medium.for_the()`.
     secret_out_unprotected: "Unprotected, {}",
     /// Text in `secret_out_sheet`.
@@ -6363,13 +6361,28 @@ strings! {
     secret_out_save_into: "Save into {}",
     /// Button in `secret_out_sheet`.
     secret_out_cancel: "Cancel",
+    // ----- plain (faraday-core/src/screens/sheets.rs, `plain_sheet`; F129) -----
+    /// Title of `plain_sheet`: a secret about to be saved as a plain file.
+    plain_title: "Save without encryption?",
+    /// Line in `plain_sheet`. `{}`: the file's name, where it goes, the
+    /// medium's noun.
+    plain_goes_on: "{} goes on the {} as a plain file, outside any vault. Anyone who has the {} can read it.",
+    /// Line in `plain_sheet`, Transfer's Receive. `{}`: the file's name,
+    /// the folder.
+    plain_goes_into: "{} goes into {} as a plain file, outside any vault. Anyone who has this computer can read it.",
+    /// Line in `plain_sheet`. `{}`: the medium's noun, or
+    /// `plain_computer`.
+    plain_as_safe: "That is as safe as writing it on paper: it is as safe as the place you keep the {}.",
+    /// What Transfer's Receive saves into, in `plain_as_safe`.
+    plain_computer: "computer",
+    /// Where a plan's file goes, in `plain_goes_on`. `{}`: the medium's
+    /// noun, the place.
+    plain_stick_at: "{} at {}",
+    /// The hold in `plain_sheet`.
+    plain_hold: "Hold to save without encryption",
+    /// Button in `plain_sheet`, with a vault open: the secret into it.
+    plain_into_vault: "Put it in a vault",
     // ----- secrets (faraday-core/src/secrets.rs) -----
-    /// Text in `text`. `{}`: `noun`.
-    secrets_anyone_who: "Anyone who copies the {} or sees the code can read it",
-    /// Text in `text`. `{}`: `noun`.
-    secrets_i_understand: "I understand: anyone who copies the {} or sees this file can spend these coins",
-    /// Text in `text`. `{}`: `noun`.
-    secrets_faraday_cannot: "Faraday cannot tell whether this is a secret: anyone who copies the {} can read it",
     /// Text in `offer_seed`.
     secrets_words: "Words",
     /// Text in `offer_seed`. `{}`: `fps`.

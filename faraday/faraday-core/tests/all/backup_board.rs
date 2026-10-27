@@ -332,8 +332,8 @@ fn seed_bs_words_file_beside_vault_1_is_written_in_one_visit_and_the_stick_is_re
     shell.flow(&mut app, F::WalletLock);
     assert_eq!(
         let_seed_files_out(&mut app),
-        2,
-        "Seed B's and Seed C's files, past the warning"
+        0,
+        "held for at the drop: none at the lock"
     );
     let mut app = restart(&mut shell, &mut app);
     assert_eq!(step(&app), Step::Write);
@@ -431,8 +431,8 @@ fn a_seed_kept_nowhere_holds_the_plan() {
     shell.flow(&mut app, F::WalletLock);
     assert_eq!(
         let_seed_files_out(&mut app),
-        1,
-        "the seed's file, past the warning"
+        0,
+        "held for at the drop: none at the lock"
     );
     let mut app = restart(&mut shell, &mut app);
     // No key is loaded after the lock: the flow holds it back.
@@ -705,7 +705,7 @@ fn two_sticks_of_files_at_one_place_are_written_as_two_sticks_each_recognised() 
     assert_eq!(app.backup().unwrap().stage, BStage::Checklist);
     app.press(Action::BNext(bstep::ENVELOPE));
     shell.flow(&mut app, F::WalletLock);
-    assert_eq!(let_seed_files_out(&mut app), 3);
+    assert_eq!(let_seed_files_out(&mut app), 0, "held at the drop");
     let mut app = restart(&mut shell, &mut app);
     let seed = |i: usize| stick_name("seed", fps[i], "txt");
     {
@@ -734,45 +734,35 @@ fn two_sticks_of_files_at_one_place_are_written_as_two_sticks_each_recognised() 
     assert!(names(&shell, "S2").contains(&seed(2)));
 }
 
-/// A plan that keeps a seed's words file on a stick shows the secret
-/// sheet's warning at **Lock and write**, before anything is made or
-/// written: until the person ticks the line and lets it out, no file is
-/// made and nothing locks.
+/// A seed's words file dropped on a stick asks **Save without
+/// encryption?**'s hold at the drop, once for that file (F129); held, the
+/// next seeds' files dropped are held for too, **Lock and write** asks
+/// nothing more, and the three files are made at the lock.
 #[test]
-fn a_seeds_words_file_on_a_stick_is_made_only_past_the_warning() {
+fn a_seeds_words_file_on_a_stick_asks_the_hold_at_the_drop_and_not_at_the_lock() {
     let mut shell = Shell::new();
     sticks(&mut shell, 1);
     let mut app = three_here();
     keep_time(&mut app);
     no_words(&mut app);
     no_paper_description(&mut app);
-    files_at(&mut app, 0, &[0, 1, 2]);
+    app.press(Action::Board(BP::Chip(Chip::List(Thing::Seed(0)))));
+    app.press(Action::Board(BP::Zone(Zone::NewStick(0))));
+    assert_eq!(app.sheet, Some(Sheet::SecretOut), "the hold, at the drop");
+    let (name, on) = testkit::plain_asked(&app).unwrap();
+    assert!(
+        name.starts_with("seed-") && name.ends_with(".txt"),
+        "{name}"
+    );
+    assert_eq!(on, "stick at Place 1");
+    assert!(app.outbox.iter().all(|i| !i.secret), "no seed file made");
+    app.press(Action::SecretHold);
+    assert_eq!((app.sheet, testkit::plain_asked(&app)), (None, None));
+    files_at(&mut app, 0, &[1, 2]);
     app.press(Action::BChecklist);
-    assert_eq!(app.backup().unwrap().stage, BStage::Checklist);
     app.press(Action::BNext(bstep::ENVELOPE));
     shell.flow(&mut app, F::WalletLock);
-    assert_eq!(app.sheet, Some(Sheet::SecretOut), "the warning first");
-    let out = testkit::secret_out(&app).unwrap();
-    assert_eq!(out.ack, faraday_core::secrets::Ack::Seed);
-    assert!(out.name.starts_with("seed-") && out.name.ends_with(".txt"));
-    let nothing_yet = |app: &Faraday, shell: &Shell| {
-        assert!(app.outbox.iter().all(|i| !i.secret), "no seed file made");
-        assert!(app.backup_flows().iter().all(|f| f.step != Step::Write));
-        assert!(!app.restart_requested(), "no lock");
-        assert!(shell.writes.is_empty(), "nothing written");
-    };
-    nothing_yet(&app, &shell);
-    // Without the line ticked, nothing goes out.
-    app.press(Action::SecretUnprotected);
-    assert_eq!(app.sheet, Some(Sheet::SecretOut));
-    nothing_yet(&app, &shell);
-    // Past it for Seed A, the next seed's warning; past all three, the
-    // files are made and the lock comes.
-    app.press(Action::SecretAck);
-    app.press(Action::SecretUnprotected);
-    assert_eq!(app.sheet, Some(Sheet::SecretOut), "Seed B's warning");
-    nothing_yet(&app, &shell);
-    assert_eq!(let_seed_files_out(&mut app), 2);
+    assert_eq!(let_seed_files_out(&mut app), 0, "nothing more at the lock");
     assert_eq!(app.outbox.iter().filter(|i| i.secret).count(), 3);
     shell.pump(&mut app);
     assert!(app.restart_requested(), "locked");
@@ -843,8 +833,12 @@ fn offered_on_page(app: &mut Faraday, a: Action) -> bool {
 
 /// [`on_screen`], or `None` where the page offers `a` nowhere.
 fn find(app: &mut Faraday, a: Action) -> Option<(u16, u16)> {
-    // A drop that let a place see the balance asks (§19.5): kept. The
-    // board takes changes once Customize backup is pressed (§19.6).
+    // A plain secret file is held for (F129); a drop that let a place see
+    // the balance asks (§19.5): kept. The board takes changes once
+    // Customize backup is pressed (§19.6).
+    if testkit::plain_asked(app).is_some() {
+        app.press(Action::SecretHold);
+    }
     if app.sheet == Some(faraday_core::Sheet::BoardSees) {
         app.press(Action::Board(BP::SeesKeep));
     }

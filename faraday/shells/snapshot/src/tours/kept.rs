@@ -27,8 +27,8 @@ pub(crate) fn kept_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     t.press(Action::BChecklist);
     t.press(Action::BNext(bstep::BLANK));
     t.press(Action::BFile);
-    t.press(Action::SecretAck);
     t.press(Action::SecretUnprotected);
+    t.press(Action::SecretHold);
     scroll_to_open_next(t);
     t.shot("kept-two-of-three")?;
     let vault = testkit::files()?

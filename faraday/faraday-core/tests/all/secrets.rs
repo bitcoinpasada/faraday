@@ -87,8 +87,8 @@ fn a_secret_let_out_stays_a_secret_across_a_lock() {
     let fp = app.session.keys[0].fingerprint.0;
     app.press(Action::LKey(fp));
     app.press(Action::LOut);
-    app.press(Action::SecretAck);
     app.press(Action::SecretUnprotected);
+    app.press(Action::SecretHold);
     assert_eq!(app.outbox.len(), 1);
     assert_eq!(app.outbox[0].exposure(), Exposure::Secret);
 

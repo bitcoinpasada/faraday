@@ -124,7 +124,7 @@ fn a_seed_file_beside_the_wallets_vault_leaves_the_public_files_another_stick() 
     assert!(app.key_held(&c, fp), "held until its sticks are written");
     shell.flow(&mut app, F::WalletLock);
     assert_eq!(app.toast_text(), None);
-    assert_eq!(let_seed_files_out(&mut app), 1, "the seed's file let out");
+    assert_eq!(let_seed_files_out(&mut app), 0, "held at the drop");
     let mut app = restart(&mut shell, &mut app);
     assert!(
         app.backup_flows()[0].waiting(),

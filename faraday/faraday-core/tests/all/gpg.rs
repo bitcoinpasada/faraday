@@ -521,8 +521,8 @@ fn the_revocation_is_exported_through_the_secret_sheet_as_a_rev_file() {
     );
     // Nothing is in the Outbox until the person says they understand.
     assert_eq!(app.outbox.len(), 1);
-    app.press(Action::SecretAck);
     app.press(Action::SecretUnprotected);
+    app.press(Action::SecretHold);
     let item = app
         .outbox
         .iter()

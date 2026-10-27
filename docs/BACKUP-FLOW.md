@@ -1027,6 +1027,11 @@ drawn on The plan card, where Make the checklist would be.
   place's turn (§4.6), named "Files ({place})"; its files are the seed
   files and the public files that place keeps. A stick of files at a
   place may hold both; nothing warns (§10.2's rule for public files).
+  A seed's words, SeedQR or passphrase file, or a codex32 string's
+  file, put on a stick at a place asks **Save without encryption?**'s
+  hold at the drop, once for that file (F129): **Cancel** leaves the
+  plan as it was before the drop, and a file held for asks nothing at
+  **Lock and write**.
 
 ### 15.3 Strings
 
@@ -1616,7 +1621,14 @@ plans on the board, keeping what each checked; none is deleted.
    name for its file; for a seed, `seed-{fingerprint}.txt`,
    `seedqr-{fingerprint}.png` and `passphrase-{fingerprint}.txt`. Each
    stick's files are one checklist item with the stick's write (§17.4);
-   paper forms are the copy items they are today.
+   paper forms are the copy items they are today. A seed's file put on a
+   stick asks **Save without encryption?**'s hold when it is placed,
+   once for that file (§15.2, F129). A secret's file a plan keeps on a
+   stick at a place and no drop held for (from a preset or a plan saved
+   before: a seed's words, SeedQR or passphrase, a codex32 string) is
+   asked at **Lock and write**, by the same sheet, one file at a time,
+   before anything is made; its **Cancel** stops the lock and leaves the
+   plan as it is.
 7. **Vaults.** The same vault may have two sticks at one place: dropping
    it on a place that has it adds a stick. A vault leaves the plan by the
    × on its list chip, its sticks with it, with a warning line when it

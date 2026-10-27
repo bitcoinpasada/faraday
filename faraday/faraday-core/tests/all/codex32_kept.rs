@@ -588,3 +588,44 @@ fn a_place_counts_its_shares() {
         "{two:?}"
     );
 }
+
+/// A codex32 string's file on a stick at a place that the plan came with,
+/// not dropped there, asks **Save without encryption?**'s hold at Lock and
+/// write, once, and nothing of it is made or locked before (F129); Cancel
+/// stops the lock and leaves the plan as it is.
+#[test]
+fn a_string_file_the_plan_came_with_asks_the_hold_once_at_lock_and_write() {
+    let mut shell = Shell::new();
+    let mut app = made_with_set();
+    board_edit(&mut app, |m| {
+        plan::with_added(&m, At::Stick(0, 0), What::Codex32ShareFile(0, ix('a')))
+    });
+    assert_eq!(testkit::plain_asked(&app), None, "nothing asked before");
+    codex32_item(&mut app);
+    type_each_back(&mut app);
+    testkit::type_passphrases(&mut app);
+    app.press(Action::BNext(bstep::ENVELOPE));
+    shell.flow(&mut app, F::WalletLock);
+    let (name, on) = testkit::plain_asked(&app).expect("the hold, at Lock and write");
+    assert_eq!(on, "stick at Place 1");
+    let made = |app: &Faraday| app.outbox.iter().any(|i| i.name == name);
+    assert!(!made(&app), "nothing made before the hold");
+    assert!(!app.restart_requested(), "not locked");
+    // Cancel: no lock, and the plan keeps the file.
+    app.press(Action::Cancel);
+    assert_eq!(testkit::plain_asked(&app), None);
+    shell.pump(&mut app);
+    assert!(!app.restart_requested(), "not locked");
+    assert!(!made(&app));
+    let kept = plan::holds_at(&backup_map(&app), At::Stick(0, 0));
+    assert!(
+        kept.contains(&What::Codex32ShareFile(0, ix('a'))),
+        "{kept:?}"
+    );
+    // Again, held: the one file, then the lock.
+    shell.flow(&mut app, F::WalletLock);
+    assert_eq!(let_seed_files_out(&mut app), 1, "asked once");
+    assert!(app.outbox.iter().any(|i| i.name == name && i.secret));
+    shell.pump(&mut app);
+    assert!(app.restart_requested(), "locked: {:?}", app.toast_text());
+}

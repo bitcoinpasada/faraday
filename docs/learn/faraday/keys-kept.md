@@ -8,7 +8,7 @@ The lock and power-off sheets list what is wiped and, for each key and wallet, w
 
 ## What is written
 
-A key is written only in two ways. Sealed in a vault, it is encrypted under the vault's passphrase. Saved as a file, its words or SeedQR picture are written unprotected, and only after a tick that says anyone who copies the file can spend with it.
+A key is written only in two ways. Sealed in a vault, it is encrypted under the vault's passphrase. Saved as a file, its words or SeedQR picture are written unprotected, and only after a hold on Save without encryption, which says anyone who has the stick can read it.
 
 What Faraday keeps across a lock, until the computer is turned off, holds no secret: each vault's name, its wallets' names and shapes, and its keys' fingerprints.
 

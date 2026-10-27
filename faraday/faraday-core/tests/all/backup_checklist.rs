@@ -365,8 +365,8 @@ fn a_place_name_is_kept_in_the_vault_and_in_no_file() {
     app.press(Action::QrWallet(w));
     app.press(Action::Cancel);
     app.press(Action::BFile);
-    app.press(Action::SecretAck);
     app.press(Action::SecretUnprotected);
+    app.press(Action::SecretHold);
     assert!(app.outbox.len() >= 6, "{:?}", app.outbox.len());
     for item in &app.outbox {
         assert!(

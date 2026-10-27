@@ -277,8 +277,9 @@ backup) or secret (anyone holding it can use what is in it). Public
 files go For the stick as they are. A secret goes into the open vault by
 default and leaves only inside the vault file; the one way For the stick
 unprotected is the secret sheet, which names the file, what it is and
-who can use it, and enables **Put it for the stick unprotected** only
-once the person ticks that anyone with the stick can read it. For the
+who can use it; its **Put it for the stick unprotected** opens **Save
+without encryption?**, and only its **Hold to save without encryption**,
+held to the end, lets the file out (F129). For the
 stick lists the three apart, Public, Sealed and Unprotected secrets, a
 stick visit tags each row, and an unprotected secret is not ticked for
 writing until the person ticks it on the visit. A secret let out this
@@ -618,10 +619,10 @@ visit** directly.
   Select all ticks it. A secret kind (words, seed
   parts, entries), text and a file Faraday does not read
   open the secret sheet instead, never ticked by Select all: text, words,
-  seed parts and entries may go into the open vault as a note; past the
-  line ("Faraday cannot tell whether this is a secret" for text and
-  other files) **Tick it to write** ticks the row. Nothing goes For the
-  stick. A picture is what its codes hold.
+  seed parts and entries may go into the open vault as a note ("This
+  may be a secret" heads the sheet for text and other files); its
+  unprotected button opens **Save without encryption?**, whose hold
+  ticks the row (F129). Nothing goes For the stick. A picture is what its codes hold.
 - **On the stick** (right): every file it reads ticked but a seed's (by
   its name: words, SeedQR, BIP-85), one over 18 MiB and one already From
   the stick by name and size (decision 29); **Unselect all** clears
@@ -1596,8 +1597,10 @@ anything else in the file envelope) → format, frame rate and part size →
 **Receive** → the webcam reads anything, routes nothing → each whole
 file saved into `~/Downloads` under its own name (envelope) or
 `received-N.psbt` / `.txt`, never over a file ("name (2).ext") → "Saved
-{path}", or "Saved {path}: this file holds a secret" for words, a
-SeedQR, seed parts or entries → the camera stays on for
+{path}"; a file that holds a secret (words, a SeedQR, seed parts or
+entries) is saved only past **Save without
+encryption?**'s hold (F129), **Cancel** saving nothing, and then "Saved
+{path}: this file holds a secret" → the camera stays on for
 the next → **Cancel**. Nothing goes into the desktop app's Files; a file
 to use in the desktop Faraday is copied in from a stick folder.
 

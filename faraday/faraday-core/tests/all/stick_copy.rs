@@ -284,8 +284,8 @@ fn a_seed_in_the_inbox_is_written_only_past_the_secret_sheet() {
             !app.visit().from_inbox.contains(name),
             "{name} ticked unasked"
         );
-        app.press(Action::SecretAck);
         app.press(Action::SecretUnprotected);
+        app.press(Action::SecretHold);
         assert_eq!(app.sheet, None);
         assert!(app.visit().from_inbox.contains(name), "{name} not ticked");
         assert!(app.outbox.is_empty(), "{name} went to the Outbox");
@@ -322,15 +322,11 @@ fn text_is_offered_as_something_faraday_cannot_tell_about() {
     app.press(row(&app, &notes.0).unwrap());
     let out = testkit::secret_out(&app).expect("no secret sheet");
     assert_eq!(out.ack, Ack::Unknown);
-    assert_eq!(
-        out.ack.text(app.medium),
-        "Faraday cannot tell whether this is a secret: anyone who copies the stick can read it"
-    );
     // The sheet holds nothing the Inbox does not: the stick stays open
     // to the write while it is up, as the shell asks each frame.
     assert!(app.clean(), "the secret sheet closed the stick");
-    app.press(Action::SecretAck);
     app.press(Action::SecretUnprotected);
+    app.press(Action::SecretHold);
     assert!(app.clean(), "the secret sheet closed the stick");
     let wrote = write(&mut app, &[&b]);
     assert_eq!(wrote.len(), 1);

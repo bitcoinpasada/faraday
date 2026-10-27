@@ -319,7 +319,7 @@ small panel:
   keeps, **Seed words by hand** · **SeedQR by hand** · **Vault 1**,
   **Vault 2** … (a row per vault of the plan, named as the vault set up
   for it is) · **Seed as a file, unprotected** (on the place's stick of
-  files; the secret sheet's warning and "I understand", below) ·
+  files; **Save without encryption?**'s hold, F129, below) ·
   **Passphrase** (where a seed here has one). A wallet with no seed here
   has the vaults' rows alone. A press on a row opens its sheet, "{row} ·
   {place}": the seeds loaded here, by fingerprint, any number ticked,
@@ -463,9 +463,9 @@ replaced (2026-10-15, F35).
    planned), the wallet where planned, and no other vault's seed.
 4. **The seeds as files**: **Make it** opens the secret sheet for the
    first seed whose file is not made:
-   "Save into {vault}" there writes the same key record; or, once "I
-   understand: anyone who copies the stick or sees this file can spend
-   these coins" is ticked, the words (`{wallet}-{fp}-words.txt`) or the
+   "Save into {vault}" there writes the same key record; or, past
+   **Save without encryption?**'s hold (F129), the words
+   (`{wallet}-{fp}-words.txt`) or the
    SeedQR as a labelled PNG (`{wallet}-{fp}-seedqr.png` or
    `-compactseedqr.png`) go For the stick under Unprotected secrets,
    unticked on a stick visit; never the passphrase. Done when each

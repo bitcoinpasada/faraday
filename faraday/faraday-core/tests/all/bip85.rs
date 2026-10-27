@@ -82,8 +82,8 @@ fn a_value_goes_out_only_through_the_secret_sheet() {
     app.press(Action::POut);
     assert_eq!(app.sheet, Some(Sheet::SecretOut));
     assert!(app.outbox.is_empty());
-    app.press(Action::SecretAck);
     app.press(Action::SecretUnprotected);
+    app.press(Action::SecretHold);
     assert_eq!(app.outbox.len(), 1);
 }
 

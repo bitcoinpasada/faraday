@@ -181,8 +181,8 @@ fn seed_file(app: &mut Faraday, form: u8) -> (String, Vec<u8>) {
     app.press(Action::BFile);
     assert_eq!(app.sheet, Some(Sheet::SecretOut));
     app.press(Action::SecretForm(form));
-    app.press(Action::SecretAck);
     app.press(Action::SecretUnprotected);
+    app.press(Action::SecretHold);
     assert_eq!(app.sheet, None);
     let item = app.outbox.last().expect("nothing reached the Outbox");
     assert!(item.secret, "{} is not listed as a secret", item.name);
@@ -259,20 +259,17 @@ fn the_secret_sheet_saves_a_seed_as_a_key_and_not_a_note() {
 }
 
 #[test]
-fn the_unprotected_button_does_nothing_until_the_warning_is_ticked() {
+fn the_unprotected_button_does_nothing_until_the_hold() {
     let mut app = device(Vec::new());
     backing_up(&mut app, false);
     app.press(Action::BFile);
     app.press(Action::SecretUnprotected);
-    assert_eq!(secrets_out(&app), 0, "out before the warning was ticked");
+    assert_eq!(secrets_out(&app), 0, "out before the hold");
     assert_eq!(app.sheet, Some(Sheet::SecretOut));
-    // Ticked and unticked again, still nothing.
-    app.press(Action::SecretAck);
-    app.press(Action::SecretAck);
+    // Pressed again, still nothing.
     app.press(Action::SecretUnprotected);
     assert_eq!(secrets_out(&app), 0);
-    app.press(Action::SecretAck);
-    app.press(Action::SecretUnprotected);
+    app.press(Action::SecretHold);
     assert_eq!(secrets_out(&app), 1);
 }
 
@@ -281,14 +278,14 @@ fn cancelling_the_sheet_lets_nothing_out() {
     let mut app = device(Vec::new());
     backing_up(&mut app, false);
     app.press(Action::BFile);
-    app.press(Action::SecretAck);
+    app.press(Action::SecretUnprotected);
     app.press(Action::Cancel);
     assert!(
         testkit::secret_out(&app).is_none(),
         "the secret is still held"
     );
     assert_eq!(secrets_out(&app), 0);
-    // Opened again, the warning is unticked.
+    // Opened again, it asks for the hold again.
     app.press(Action::BFile);
     app.press(Action::SecretUnprotected);
     assert_eq!(secrets_out(&app), 0);

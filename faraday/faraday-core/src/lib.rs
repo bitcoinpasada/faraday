@@ -2892,7 +2892,7 @@ impl Faraday {
                 self.explore_act(Action::XKey(fp));
             }
             a @ (Action::SecretVault
-            | Action::SecretAck
+            | Action::SecretHold
             | Action::SecretUnprotected
             | Action::SecretForm(..)) => self.secret_act(a),
             Action::LearnPage(i) => self.learn.show_page(i),
@@ -6890,7 +6890,7 @@ fn slow(a: Action) -> bool {
             | Action::SamplePsbt
             | Action::PLoad
             | Action::PotentialMake
-            | Action::SecretUnprotected
+            | Action::SecretHold
             | Action::SeedRead(seeds::read::Choice::Plain | seeds::read::Choice::WithPass)
             | Action::Seeds(seeds::SeedsAction::Make | seeds::SeedsAction::Sample(_))
             | Action::SelfTestRun
@@ -6923,7 +6923,7 @@ fn working_text(a: Action) -> Option<&'static str> {
     use crate::backup_flow::steps::FlowAction as F;
     matches!(
         a,
-        Action::BChecklist | Action::SecretUnprotected | Action::Flow(F::WalletLock)
+        Action::BChecklist | Action::SecretHold | Action::Flow(F::WalletLock)
     )
     .then_some(EN.working_files)
 }

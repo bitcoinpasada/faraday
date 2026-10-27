@@ -270,17 +270,16 @@ impl TransferArea {
     /// Costs what reading a code costs (a PSBT parse, a SHA-256 of the
     /// file). One code read on Receive, into the camera's `scan`. A whole
     /// file goes to the shell to save in Downloads; the camera stays on
-    /// for the next.
+    /// for the next. A secret is not saved: it is returned, its name and
+    /// bytes, for the hold that saves it (F129).
     pub(crate) fn scanned(
         &mut self,
         c: &Compute,
         scan: &mut ScanState,
         bytes: &zeroize::Zeroizing<Vec<u8>>,
         out: &mut Out,
-    ) {
-        let Some((named, ext, data)) = read_any(c, scan, bytes) else {
-            return;
-        };
+    ) -> Option<(String, zeroize::Zeroizing<Vec<u8>>)> {
+        let (named, ext, data) = read_any(c, scan, bytes)?;
         let digest = {
             let mut whole = named.clone().unwrap_or_default().into_bytes();
             whole.push(0);
@@ -294,7 +293,7 @@ impl TransferArea {
         if self.state.last == Some(digest) {
             // Already saved: the line says so again.
             scan.note = self.state.saved.last().map(|(l, _)| l.clone());
-            return;
+            return None;
         }
         self.state.last = Some(digest);
         let name = match named {
@@ -305,10 +304,27 @@ impl TransferArea {
             }
         };
         // A secret the device let out past its secret sheet is saved as
-        // asked, and said to be one.
+        // asked, past the hold, and said to be one.
         let secret = wallet::classify(c, &name, &data).exposure() == Exposure::Secret
             || crate::seed_in_code(c, bytes).is_some()
             || crate::secret_text(c, &String::from_utf8_lossy(&data)).is_some();
+        if secret {
+            return Some((name, zeroize::Zeroizing::new(data)));
+        }
+        self.save(scan, name, data, false, out);
+        None
+    }
+
+    /// File `name` to the shell, to save in Downloads; `secret` when it
+    /// holds one.
+    fn save(
+        &mut self,
+        scan: &mut ScanState,
+        name: String,
+        data: Vec<u8>,
+        secret: bool,
+        out: &mut Out,
+    ) {
         scan.note = Some(fill(EN.transfer_saving, &[&name.to_string()]));
         self.state.saving.push_back(secret);
         out.storage_out
@@ -428,7 +444,36 @@ impl Faraday {
         let Some(scan) = self.camera.scan_mut() else {
             return;
         };
-        self.transfer.scanned(&c, scan, &bytes, &mut self.out);
+        let Some((name, data)) = self.transfer.scanned(&c, scan, &bytes, &mut self.out) else {
+            return;
+        };
+        // A secret waits for **Hold to save without encryption** (F129).
+        let dir = self.transfer.state.dir.clone();
+        self.plain_ask(crate::secrets::Plain {
+            name: name.clone(),
+            on: dir,
+            keep: EN.plain_computer.to_string(),
+            then: crate::secrets::PlainThen::Transfer(name, data),
+        });
+    }
+
+    /// A received secret, past its hold: saved into the folder, and the
+    /// camera's sheet back for the next code.
+    pub(crate) fn transfer_save(&mut self, name: String, data: zeroize::Zeroizing<Vec<u8>>) {
+        self.transfer_skip();
+        let Some(scan) = self.camera.scan_mut() else {
+            return;
+        };
+        self.transfer
+            .save(scan, name, data.to_vec(), true, &mut self.out);
+    }
+
+    /// A received secret not saved: the camera's sheet back, where it is
+    /// still on.
+    pub(crate) fn transfer_skip(&mut self) {
+        if self.camera.scan_mut().is_some() {
+            self.sheet = Some(Sheet::Scan);
+        }
     }
 
     /// The shell saved a received file, or could not.

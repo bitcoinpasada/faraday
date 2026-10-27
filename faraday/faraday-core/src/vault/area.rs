@@ -2236,6 +2236,7 @@ pub fn is_hold(a: Action) -> bool {
         ) | Action::Flow(crate::backup_flow::steps::FlowAction::Hold)
             | Action::HoldPowerOff
             | Action::HoldRestart
+            | Action::SecretHold
     )
 }
 

@@ -1391,8 +1391,8 @@ fn a_seed_let_out_unprotected_is_written_to_the_stick_of_files_and_to_no_other()
     shell.flow(&mut app, F::WalletLock);
     assert_eq!(
         let_seed_files_out(&mut app),
-        1,
-        "the seed's file, past the warning"
+        0,
+        "held for at the drop: none at the lock"
     );
     assert!(
         app.outbox
@@ -1561,8 +1561,8 @@ fn a_seed_kept_only_as_a_file_is_held_until_its_stick_is_written() {
     shell.flow(&mut app, F::WalletLock);
     assert_eq!(
         let_seed_files_out(&mut app),
-        1,
-        "the seed's file, past the warning"
+        0,
+        "held for at the drop: none at the lock"
     );
     let mut app = restart(&mut shell, &mut app);
     let held = app.backup_flows()[0].wallet.as_ref().unwrap().held.clone();
@@ -2515,8 +2515,8 @@ fn a_key_with_its_vault_written_but_not_its_seed_file_is_held() {
     shell.flow(&mut app, F::WalletLock);
     assert_eq!(
         let_seed_files_out(&mut app),
-        1,
-        "the seed's file, past the warning"
+        0,
+        "held for at the drop: none at the lock"
     );
     let mut app = restart(&mut shell, &mut app);
     write_sticks(&mut shell, &mut app, &["S1"]);
@@ -2603,8 +2603,8 @@ fn a_seed_file_let_out_and_then_dropped_from_the_plan_is_not_written_beside_the_
     save_vaults(&mut app);
     // The seed's file is let out on the secret sheet.
     app.press(Action::BFile);
-    app.press(Action::SecretAck);
     app.press(Action::SecretUnprotected);
+    app.press(Action::SecretHold);
     assert!(app.outbox.iter().any(|i| i.secret));
     // Then the plan drops seed files and keeps the wallet as files.
     no_seed_files_at(&mut app, p);
@@ -3473,8 +3473,8 @@ fn a_seed_kept_as_a_file_at_a_place_is_released_once_that_stick_is_written() {
     shell.flow(&mut app, F::WalletLock);
     assert_eq!(
         let_seed_files_out(&mut app),
-        1,
-        "the seed's file, past the warning"
+        0,
+        "held for at the drop: none at the lock"
     );
     let mut app = restart(&mut shell, &mut app);
     assert_eq!(app.flow().unwrap().slots[0].target, Target::PlaceFiles(1));
@@ -3524,8 +3524,8 @@ fn each_places_stick_of_files_takes_only_that_places_seed_file() {
     shell.flow(&mut app, F::WalletLock);
     assert_eq!(
         let_seed_files_out(&mut app),
-        3,
-        "each seed's file, past the warning"
+        0,
+        "held for at the drop: none at the lock"
     );
     assert_eq!(app.outbox.iter().filter(|i| i.secret).count(), 3);
     let mut app = restart(&mut shell, &mut app);
@@ -4739,8 +4739,8 @@ fn a_seed_file_taken_off_after_the_lock_is_refused_and_its_stick_keeps_its_files
     shell.flow(&mut app, F::WalletLock);
     assert_eq!(
         let_seed_files_out(&mut app),
-        3,
-        "each seed's file, past the warning"
+        0,
+        "held for at the drop: none at the lock"
     );
     let mut app = restart(&mut shell, &mut app);
     shell.flow(&mut app, F::ChangePlan);
@@ -4833,8 +4833,8 @@ fn a_held_key_is_not_left_on_a_stale_file_after_the_lock() {
     shell.flow(&mut app, F::WalletLock);
     assert_eq!(
         let_seed_files_out(&mut app),
-        1,
-        "the seed's file, past the warning"
+        0,
+        "held for at the drop: none at the lock"
     );
     let mut app = restart(&mut shell, &mut app);
     shell.flow(&mut app, F::ChangePlan);

@@ -1006,3 +1006,24 @@ fn nothing_is_cut_off_on_any_screen_of_the_online_app() {
     found.extend(every_spend_step(&mut rig));
     assert_none(&found);
 }
+
+/// **Save without encryption?** (F129), from a BIP-85 password's
+/// **Unprotected** on the secret sheet, on the stick and in the demo
+/// preview.
+#[test]
+fn nothing_is_cut_off_on_save_without_encryption() {
+    let mut found = Vec::new();
+    for on in [On::Stick, On::Preview] {
+        let mut rig = rig(on, Mode::Testnet, Vec::new());
+        add_key(&mut rig, testkit::TEST_SEEDS[0].0);
+        rig.press(Action::Bip85);
+        for a in [Action::PApp(4), Action::PNext, Action::PNext, Action::POut] {
+            rig.press(a);
+        }
+        rig.press(Action::SecretUnprotected);
+        rig.settle();
+        assert!(testkit::plain_asked(&rig).is_some(), "the hold is asked");
+        found.extend(check(&mut rig, "save without encryption").0);
+    }
+    assert_none(&found);
+}

@@ -110,6 +110,7 @@ mod restart;
 mod restore;
 mod roller;
 mod rounds;
+mod save_without_encryption;
 mod scan;
 mod scan_a_key;
 mod scroll;

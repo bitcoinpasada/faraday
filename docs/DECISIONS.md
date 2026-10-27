@@ -143,3 +143,4 @@ Read this table, then only the decision you need.
 | [F126](decisions/F126.md) | Faraday Demo runs inside Faraday Starter; one theme in a session | 2026-10-26 | Active | Starter |
 | [F127](decisions/F127.md) | FROST removed from the repository until its standards are published | 2026-10-26 | Active | wallets |
 | [F128](decisions/F128.md) | Upgrading a stick is the Starter's; Faraday writes no boot partition | 2026-10-26 | Active | stick |
+| [F129](decisions/F129.md) | A secret saved as a plain file asks for a hold | 2026-10-26 | Active | keys |
