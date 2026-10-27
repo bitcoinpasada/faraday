@@ -295,6 +295,85 @@ fn save_to_a_stick_says_the_seed_line_first_and_writes_the_ticked_forms() {
     assert_eq!(vault_now(&app), before, "the vault holds something new");
 }
 
+/// A Japanese seed kept in a vault, saved to a stick as its words: the
+/// file is the words as Add a key reads them, the longest list's words
+/// whole.
+#[test]
+fn a_japanese_seed_saved_to_a_stick_is_its_words() {
+    use faraday_vault::records;
+    let c = testkit::compute();
+    let m = Mnemonic::from_entropy(Language::Japanese, &[0xb7; 32]).unwrap();
+    let record = faraday_vault::Record::new(kind::KEY)
+        .with(field::KEY, &records::words_payload(&m))
+        .with(field::KEY_LABEL, b"Japanese");
+    let vault = faraday_vault::create(
+        &c,
+        faraday_vault::SLOT_SIZES[0],
+        faraday_vault::Cost {
+            memory_kib: 64 * 1024,
+            passes: 1,
+            lanes: 1,
+        },
+        &[b"japanese phrase"],
+        &[faraday_vault::Contents {
+            records: vec![record],
+        }],
+        &[0x6a; 32],
+    )
+    .unwrap();
+    let mut app = Faraday::new();
+    app.event(Event::Display(DisplayInfo {
+        width: 1366,
+        height: 768,
+        dpi: 160,
+        inset_bottom: 0,
+        inset_top: 0,
+        buttons: 0,
+        camera_fixed: false,
+        secure: SecureHardware::None,
+        boot: BootState::Unknown,
+        memory_mib: None,
+    }));
+    app.storage(StorageEvent::Restored {
+        inbox: vec![("japanese.ofv".into(), vault)],
+        outbox: Vec::new(),
+        kept: Vec::new(),
+    });
+    app.storage(StorageEvent::Memory {
+        available_mib: 15_000,
+    });
+    faraday_core::testkit::vault_speed(&mut app, Some(180));
+    app.press(Action::Vault(V::OpenFrom(0, Screen::Files)));
+    crate::common::type_text(&mut app, "japanese phrase");
+    app.press(Action::Vault(V::Unlock));
+    for t in 1..60u64 {
+        if !app.vaults().open.is_empty() {
+            break;
+        }
+        let _ = app.frame();
+        app.event(Event::Tick { now_ms: t * 1000 });
+    }
+    assert_eq!(app.vaults().open.len(), 1);
+    app.press(Action::Nav(Screen::VaultContents));
+    app.press(Action::Vault(V::Category(0)));
+    app.press(Action::Vault(V::Item(0)));
+    app.press(Action::Vault(V::SaveToStick));
+    app.press(Action::Vault(V::SaveTick(1)));
+    app.press(Action::Vault(V::SaveToStickGo));
+    app.press(Action::SecretHold);
+    let file = app
+        .outbox
+        .iter()
+        .find(|i| i.name.starts_with("seed-") && i.name.ends_with(".txt"))
+        .expect("the words file");
+    let want: Vec<&str> = m
+        .indices()
+        .iter()
+        .map(|&i| Language::Japanese.word(i))
+        .collect();
+    assert_eq!(file.bytes, format!("{}\n", want.join(" ")).into_bytes());
+}
+
 #[test]
 fn save_to_a_stick_writes_only_the_form_left_ticked() {
     let mut app = on_key();

@@ -44,3 +44,25 @@ pub struct StickSave {
     /// Its lines.
     pub files: Vec<SaveFile>,
 }
+
+/// A seed's words, one line, as Add a key reads them, in a buffer sized
+/// first to the bytes of these words in their own list (a Japanese or
+/// Korean word takes three bytes a letter), so that no copy is left
+/// behind by a reallocation. Wiped when dropped.
+pub(crate) fn words_line(m: &faraday_bip::bip39::Mnemonic) -> zeroize::Zeroizing<Vec<u8>> {
+    let lang = m.language();
+    let len = m
+        .indices()
+        .iter()
+        .map(|i| lang.word(*i).len() + 1)
+        .sum::<usize>();
+    let mut v = zeroize::Zeroizing::new(Vec::with_capacity(len.max(1)));
+    for (k, i) in m.indices().iter().enumerate() {
+        if k > 0 {
+            v.push(b' ');
+        }
+        v.extend_from_slice(lang.word(*i).as_bytes());
+    }
+    v.push(b'\n');
+    v
+}

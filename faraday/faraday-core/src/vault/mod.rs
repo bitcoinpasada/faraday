@@ -3815,20 +3815,7 @@ impl Faraday {
                         continue;
                     };
                     let bytes = if f.what == out::SaveWhat::Words {
-                        // The words, one line, as Add a key reads them.
-                        // Sized first so that no copy is left behind by a
-                        // reallocation.
-                        let lang = m.language();
-                        let mut v =
-                            zeroize::Zeroizing::new(Vec::with_capacity(m.indices().len() * 9 + 1));
-                        for (k, i) in m.indices().iter().enumerate() {
-                            if k > 0 {
-                                v.push(b' ');
-                            }
-                            v.extend_from_slice(lang.word(*i).as_bytes());
-                        }
-                        v.push(b'\n');
-                        Some(v)
+                        Some(out::words_line(m))
                     } else {
                         crate::backup_flow::wallet::seedqr_png(&c, m, fp)
                     };
