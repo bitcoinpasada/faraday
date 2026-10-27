@@ -14,10 +14,11 @@ use crate::codex32::dice_screen::paint;
 use crate::codex32::{DieColour, DieRow};
 use crate::strings::{EN, fill};
 use crate::ui::Paint;
-use crate::ui::{Ui, W, pal::*};
+use crate::ui::{Ui, pal::*};
+use faraday_draw::tokens::{BODY_S, LABEL_L, LABEL_M};
 use faraday_draw::tokens::{
     GAP_SMALL, INPUT_ROLLS_COL, INPUT_ROLLS_LINE, INPUT_ROLLS_STRUCK, ROLLER_BOUNCE, ROLLER_DIE,
-    ROLLER_DIE_RADIUS, ROLLER_FIVE_GAP, ROLLER_GAP, ROLLER_LABEL, ROLLER_PAIR_COL, ROLLER_PAIR_DIE,
+    ROLLER_DIE_RADIUS, ROLLER_FIVE_GAP, ROLLER_GAP, ROLLER_PAIR_COL, ROLLER_PAIR_DIE,
     ROLLER_PAIR_LABEL_W, ROLLER_PIP, ROLLER_PIP_OFFSET, ROLLER_SWAY,
 };
 use faraday_entropy::booklet::BOOKLET_DICE;
@@ -97,9 +98,9 @@ fn die(ui: &mut Ui, d: &Die, masked: bool) {
 
 /// `s` centred on (`cx`, `cy`).
 fn number(ui: &mut Ui, (cx, cy): (f32, f32), s: &str, ink: Paint) {
-    let w = ui.measure(ROLLER_LABEL + 1.0, W::S, s);
-    let h = ui.line(ROLLER_LABEL + 1.0, W::S);
-    ui.text(cx - w / 2.0, cy - h / 2.0, ROLLER_LABEL + 1.0, W::S, ink, s);
+    let w = ui.measure_as(LABEL_L, s);
+    let h = ui.line_as(LABEL_L);
+    ui.text_as(cx - w / 2.0, cy - h / 2.0, LABEL_L, ink, s);
 }
 
 /// A die's marker: a disc in the die's colour, ringed, its value on it;
@@ -137,17 +138,16 @@ pub fn pairs(ui: &mut Ui, (x, y, w): (f32, f32, f32), p: &Pairs, r: Option<&Five
         .enumerate()
     {
         let hx = x + lw + i as f32 * col;
-        let hw = ui.measure(ROLLER_LABEL, W::S, head);
-        ui.text(
+        let hw = ui.measure_as(LABEL_M, head);
+        ui.text_as(
             hx + (col - hw) / 2.0,
             cy,
-            ROLLER_LABEL,
-            W::S,
+            LABEL_M,
             Role::OnSurfaceVariant,
             head,
         );
     }
-    cy += ui.line(ROLLER_LABEL, W::S) + ROLLER_GAP / 2.0;
+    cy += ui.line_as(LABEL_M) + ROLLER_GAP / 2.0;
     let progress = r.map_or(0.0, FiveRoller::progress);
     let lift = ROLLER_BOUNCE * (progress * std::f32::consts::PI).sin();
     let sway = ROLLER_SWAY * (progress * std::f32::consts::TAU).sin() * (1.0 - progress);
@@ -157,7 +157,7 @@ pub fn pairs(ui: &mut Ui, (x, y, w): (f32, f32, f32), p: &Pairs, r: Option<&Five
     let row = d + ROLLER_FIVE_GAP;
     for (die_i, &colour) in p.colours.iter().enumerate() {
         let name = fill(EN.codex32_die_n, &[&(die_i + 1).to_string()]);
-        ui.text_mid(x, cy, d, ROLLER_LABEL, W::S, Role::OnSurface, &name);
+        ui.text_mid_as((x, cy, d), LABEL_M, Role::OnSurface, &name);
         let tumbling = r.is_some_and(|r| r.tumbling(die_i));
         let shown = r.map_or(0, |r| r.shown(die_i));
         let (l, s) = if tumbling { (lift, sway) } else { (0.0, 0.0) };
@@ -201,7 +201,7 @@ pub fn pairs(ui: &mut Ui, (x, y, w): (f32, f32, f32), p: &Pairs, r: Option<&Five
         die(ui, &dd, p.masked && !dd.tumbling);
         if let Some(text) = pair_text(p, die_i) {
             let tx = x + lw + 2.0 * col;
-            ui.text_mid(tx, cy, d, ROLLER_LABEL, W::M, Role::Primary, &text);
+            ui.text_mid_as((tx, cy, d), BODY_S.mono(), Role::Primary, &text);
         }
         cy += row;
     }
@@ -225,13 +225,10 @@ pub fn pairs_across(ui: &mut Ui, (x, y, w): (f32, f32, f32), p: &Pairs, struck: 
     let centre = |i: usize| left(i) + pair_w / 2.0;
     for i in 0..BOOKLET_DICE {
         let name = fill(EN.codex32_die_n, &[&(i + 1).to_string()]);
-        let nw = ui.measure(ROLLER_LABEL, W::S, &name);
-        ui.text_mid(
-            centre(i) - nw / 2.0,
-            cy,
-            line,
-            ROLLER_LABEL,
-            W::S,
+        let nw = ui.measure_as(LABEL_M, &name);
+        ui.text_mid_as(
+            (centre(i) - nw / 2.0, cy, line),
+            LABEL_M,
             Role::OnSurface,
             &name,
         );
@@ -259,13 +256,10 @@ pub fn pairs_across(ui: &mut Ui, (x, y, w): (f32, f32, f32), p: &Pairs, struck: 
     cy += d + GAP_SMALL;
     for i in 0..BOOKLET_DICE {
         if let Some(text) = pair_text(p, i) {
-            let tw = ui.measure(ROLLER_LABEL, W::M, &text);
-            ui.text_mid(
-                centre(i) - tw / 2.0,
-                cy,
-                line,
-                ROLLER_LABEL,
-                W::M,
+            let tw = ui.measure_as(BODY_S.mono(), &text);
+            ui.text_mid_as(
+                (centre(i) - tw / 2.0, cy, line),
+                BODY_S.mono(),
                 Role::Primary,
                 &text,
             );
@@ -294,8 +288,8 @@ pub fn struck_across(ui: &mut Ui, (x, y, w, h): (f32, f32, f32, f32), p: &Pairs)
             EN.codex32_die_equal,
             &[&(usize::from(row.die) + 1).to_string(), &f, &sc],
         );
-        let s = ui.fit(ROLLER_LABEL, W::R, &s, w);
-        let tw = ui.text_mid(x, y, h, ROLLER_LABEL, W::R, Role::Warning, &s);
+        let s = ui.fit_as(BODY_S, &s, w);
+        let tw = ui.text_mid_as((x, y, h), BODY_S, Role::Warning, &s);
         ui.fill(x, y + h / 2.0, tw.min(w), 1.0, 0.0, Role::Warning);
     }
 }
@@ -350,8 +344,8 @@ fn struck(ui: &mut Ui, (x, y, w): (f32, f32, f32), p: &Pairs) -> f32 {
             EN.codex32_die_equal,
             &[&(usize::from(row.die) + 1).to_string(), &f, &sc],
         );
-        let tw = ui.text(x, cy, ROLLER_LABEL, W::R, Role::Warning, &s);
-        let lh = ui.line(ROLLER_LABEL, W::R);
+        let tw = ui.text_as(x, cy, BODY_S, Role::Warning, &s);
+        let lh = ui.line_as(BODY_S);
         ui.fill(x, cy + lh / 2.0, tw.min(w), 1.0, 0.0, Role::Warning);
         cy += lh + ROLLER_GAP / 2.0;
     }
@@ -396,24 +390,22 @@ pub fn preview(r: &FiveRoller, p: &Pairs, width: u16, height: u16, dpi: u16) -> 
         let mut ui = Ui::new(&mut canvas, f, &mut hits, None);
         ui.fill(0.0, 0.0, w, h, 0.0, Role::Surface);
         let (x, mut y) = (PAD, PAD);
-        ui.text(
+        ui.text_as(
             x,
             y,
-            ROLLER_LABEL + 1.0,
-            W::S,
+            LABEL_L,
             Role::OnSurface,
             EN.roller_or_let_faraday_roll,
         );
-        y += ui.line(ROLLER_LABEL + 1.0, W::S) + ROLLER_GAP / 2.0;
-        ui.text(
+        y += ui.line_as(LABEL_L) + ROLLER_GAP / 2.0;
+        ui.text_as(
             x,
             y,
-            ROLLER_LABEL,
-            W::R,
+            BODY_S,
             Role::OnSurfaceVariant,
             EN.roller_by_this_computer,
         );
-        y += ui.line(ROLLER_LABEL, W::R) + ROLLER_GAP;
+        y += ui.line_as(BODY_S) + ROLLER_GAP;
         pairs(&mut ui, (x, y, w - PAD - PAD), p, Some(r));
     }
     canvas.frame().rgba.to_vec()

@@ -11,9 +11,10 @@ use crate::plan::{self, At};
 use crate::screens::{SOFTWARE_ROWS, held_item, next_button, section_label, ticked};
 use crate::strings::EN;
 use crate::strings::fill;
+use crate::ui::Ui;
 use crate::ui::pal::*;
-use crate::ui::{Ui, W};
 use crate::{Action, PlanPress, qrow, qstep};
+use faraday_draw::tokens::{BODY_S, LABEL_L};
 
 /// The plan a set of cards draws, and whose it is.
 pub(crate) struct PlanCtx {
@@ -199,12 +200,9 @@ pub(crate) fn body(app: &View, ui: &mut Ui, ctx: &PlanCtx, q: u8, x: f32, y: f32
     let held = ctx.wallet.is_some_and(|wl| !app.wallet_held(wl).is_empty());
     if q == qstep::BOARD {
         if held {
-            cy += ui.wrap(
-                x,
-                cy,
-                w,
-                13.0,
-                W::R,
+            cy += ui.wrap_as(
+                (x, cy, w),
+                BODY_S,
                 Role::OnSurfaceVariant,
                 EN.plan_a_key_made_here,
             ) + 12.0;
@@ -284,18 +282,11 @@ pub(crate) fn map_rows(
         if boxed {
             cy += 10.0;
         }
-        let name = ui.fit(13.0, W::S, &name, iw);
-        ui.text(ix, cy, 13.0, W::S, Role::OnSurface, &name);
+        let name = ui.fit_as(LABEL_L, &name, iw);
+        ui.text_as(ix, cy, LABEL_L, Role::OnSurface, &name);
         cy += 22.0;
         if spot.holds.is_empty() {
-            ui.text(
-                ix,
-                cy,
-                12.0,
-                W::R,
-                Role::OnSurfaceVariant,
-                EN.map_rows_nothing,
-            );
+            ui.text_as(ix, cy, BODY_S, Role::OnSurfaceVariant, EN.map_rows_nothing);
             cy += 20.0;
         }
         for (what, tag) in &spot.holds {
@@ -304,8 +295,8 @@ pub(crate) fn map_rows(
                 Tag::Sealed => Role::Primary,
                 Tag::Public => Role::OnSurfaceVariant,
             };
-            let tw = ui.measure(11.0, W::R, tag.label());
-            ui.text_right(ix + iw, cy, 18.0, 11.0, W::R, tone, tag.label());
+            let tw = ui.measure_as(BODY_S, tag.label());
+            ui.text_right_as((ix + iw, cy, 18.0), BODY_S, tone, tag.label());
             let mut lx = ix;
             if ctx.checklist {
                 let state = held_item(spot.at, *what, &items).map(|it| app.backup_item_done(it));
@@ -323,13 +314,12 @@ pub(crate) fn map_rows(
                 }
                 lx += 14.0;
             }
-            let label = ui.fit(
-                12.0,
-                W::R,
+            let label = ui.fit_as(
+                BODY_S,
                 &what.label(shape, app.medium),
                 ix + iw - lx - tw - 8.0,
             );
-            ui.text_mid(lx, cy, 18.0, 12.0, W::R, Role::OnSurface, &label);
+            ui.text_mid_as((lx, cy, 18.0), BODY_S, Role::OnSurface, &label);
             cy += 20.0;
         }
         if boxed {
@@ -347,10 +337,10 @@ pub(crate) fn map_rows(
             cy += 10.0;
         }
         let tag = plan::Tag::Sealed.name();
-        let tw = ui.measure(11.0, W::R, tag);
-        ui.text_right(ix + iw, cy, 18.0, 11.0, W::R, Role::Primary, tag);
+        let tw = ui.measure_as(BODY_S, tag);
+        ui.text_right_as((ix + iw, cy, 18.0), BODY_S, Role::Primary, tag);
         cy += ui
-            .wrap(ix, cy, iw - tw - 8.0, 12.0, W::R, Role::OnSurface, line)
+            .wrap_as((ix, cy, iw - tw - 8.0), BODY_S, Role::OnSurface, line)
             .max(18.0)
             + 2.0;
         if boxed {
@@ -380,7 +370,7 @@ pub(crate) fn check_rows(app: &View, ui: &mut Ui, ctx: &PlanCtx, x: f32, y: f32,
         &name,
         app.medium.noun(),
     ) {
-        h += ui.wrap(x, y + h, w, 12.0, W::R, Role::Error, &why) + 8.0;
+        h += ui.wrap_as((x, y + h, w), BODY_S, Role::Error, &why) + 8.0;
     }
     h
 }

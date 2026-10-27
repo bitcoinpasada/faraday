@@ -9,6 +9,7 @@ use crate::strings::fill;
 use crate::ui::pal::*;
 use crate::ui::{CoreUi, Style, Ui, W};
 use faraday_draw::tokens as T;
+use faraday_draw::tokens::{BODY_M, BODY_S, BUTTON_H};
 
 pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     if app.lightning.state().is_none() {
@@ -64,7 +65,7 @@ fn header(app: &View, ui: &mut Ui, x: f32, mut y: f32, width: f32, guide: &str) 
         Role::OnSurfaceVariant,
     );
     let (label, _) = app.named_back((EN.lightning_wallets, Action::Nav(l.back)));
-    ui.text(x + 14.0, y, 12.0, W::R, Role::OnSurfaceVariant, label);
+    ui.text_as(x + 14.0, y, BODY_S, Role::OnSurfaceVariant, label);
     ui.hit(x - 4.0, y - 4.0, 70.0, 24.0, Action::Nav(l.back));
     ui.back(Action::Nav(l.back));
     y += 22.0;
@@ -140,30 +141,24 @@ fn body(
             s.push_str(ui.caret_char());
             s
         };
-        let shown = ui.fit_secret(14.0, W::M, &shown, width - 90.0);
+        let shown = ui.fit_secret(BODY_M.size, W::M, &shown, width - 90.0);
         // Use a sample goes in the "Demo only" card while the field is
         // empty (`docs/DEMO.md` §14).
         if app.lightning_sample_shown() {
             crate::samples::put::offer(ui, Action::UseSample);
         }
-        ui.text_mid(x + 12.0, y, 44.0, 14.0, W::M, Role::OnSurface, &shown);
-        ui.text_right(
-            x + width - 12.0,
-            y,
-            44.0,
-            12.0,
-            W::R,
+        ui.text_mid_as((x + 12.0, y, 44.0), BODY_M.mono(), Role::OnSurface, &shown);
+        ui.text_right_as(
+            (x + width - 12.0, y, 44.0),
+            BODY_S,
             Role::OnSurfaceVariant,
             &fill(EN.lightning_word_count, &[&n.to_string()]),
         );
         y += 52.0;
         y += crate::screens::never_real_seed(app, ui, x, y, width);
-        ui.text_mid(
-            x,
-            y,
-            40.0,
-            13.0,
-            W::R,
+        ui.text_mid_as(
+            (x, y, 40.0),
+            BODY_S,
             Role::OnSurfaceVariant,
             EN.lightning_passphrase,
         );
@@ -196,8 +191,8 @@ fn body(
             } else {
                 format!("{}{}", "•".repeat(l.passphrase.len()), ui.caret_char())
             };
-            let p = ui.fit(13.0, W::M, &p, pw - 24.0);
-            ui.text_mid(px + 12.0, y, 40.0, 13.0, W::M, Role::OnSurface, &p);
+            let p = ui.fit_as(BODY_M.mono(), &p, pw - 24.0);
+            ui.text_mid_as((px + 12.0, y, 40.0), BODY_M.mono(), Role::OnSurface, &p);
         }
         ui.hit(px, y, pw, 40.0, Action::LPassphrase);
         app.pass_chip_draw(ui, l.passphrase.is_empty(), crate::demo::PassField::Aezeed);
@@ -210,7 +205,7 @@ fn body(
             rx,
             ry,
             None,
-            40.0,
+            BUTTON_H,
             EN.lightning_read_button,
             Style::Primary,
             Action::LResolve,
@@ -218,43 +213,34 @@ fn body(
         y = ry + 52.0;
     }
     if let Some(e) = &l.error {
-        y += ui.wrap(x, y, width, 13.0, W::R, Role::Error, e) + 10.0;
+        y += ui.wrap_as((x, y, width), BODY_S, Role::Error, e) + 10.0;
     }
     let Some(n) = &l.node else {
         return y;
     };
     let id: String = n.public().iter().map(|b| format!("{b:02x}")).collect();
-    ui.text(
-        x,
-        y,
-        13.0,
-        W::R,
-        Role::OnSurfaceVariant,
-        EN.lightning_node_id,
-    );
+    ui.text_as(x, y, BODY_S, Role::OnSurfaceVariant, EN.lightning_node_id);
     y += below;
     y += ui
-        .wrap(vx, y, vw, 14.0, W::M, Role::OnSurface, &id)
+        .wrap_as((vx, y, vw), BODY_M.mono(), Role::OnSurface, &id)
         .max(20.0)
         + 10.0;
     if let Some((yy, m, d)) = n.birthday() {
-        ui.text(x, y, 13.0, W::R, Role::OnSurfaceVariant, EN.lightning_made);
+        ui.text_as(x, y, BODY_S, Role::OnSurfaceVariant, EN.lightning_made);
         y += below;
-        ui.text(
+        ui.text_as(
             vx,
             y,
-            14.0,
-            W::M,
+            BODY_M.mono(),
             Role::OnSurface,
             &format!("{yy}-{m:02}-{d:02}"),
         );
         y += 30.0;
     }
-    ui.text(
+    ui.text_as(
         x,
         y,
-        13.0,
-        W::R,
+        BODY_S,
         Role::OnSurfaceVariant,
         EN.lightning_private_key,
     );
@@ -266,7 +252,7 @@ fn body(
         zeroize::Zeroizing::new("••••••••••••".to_string())
     };
     y += ui
-        .wrap(vx, y, vw, 14.0, W::M, Role::OnSurface, &private)
+        .wrap_as((vx, y, vw), BODY_M.mono(), Role::OnSurface, &private)
         .max(20.0)
         + 12.0;
     let mut row = vec![(

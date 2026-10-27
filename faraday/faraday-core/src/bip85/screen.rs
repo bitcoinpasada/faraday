@@ -3,12 +3,13 @@
 use crate::bip85::Bip85App;
 use crate::strings::EN;
 use crate::strings::fill;
+use faraday_draw::tokens::{BODY_L, BODY_M, BODY_S, BUTTON_H, TITLE_M};
 
 use crate::bip85::{APPS, Bip85State, app_name, lengths, pstep};
 use crate::drawing::{Scrolled, View};
 use crate::screens::{button_rows, next_button};
 use crate::ui::pal::*;
-use crate::ui::{Style, Ui, W};
+use crate::ui::{Style, Ui};
 use crate::wallet::fp_text;
 use crate::{Action, flow};
 
@@ -158,12 +159,12 @@ fn card(app: &View, b: &Bip85State, ui: &mut Ui, s: u8, x: f32, y: f32, w: f32) 
                     x,
                     cy,
                     Some(44.0),
-                    40.0,
+                    BUTTON_H,
                     "-",
                     Style::Secondary,
                     Action::PLength(-1),
                 );
-                ui.text_mid(x + mw + 16.0, cy, 40.0, 15.0, W::S, Role::OnSurface, &l);
+                ui.text_mid_as((x + mw + 16.0, cy, 40.0), TITLE_M, Role::OnSurface, &l);
                 // On a small panel + sits at the row's end and the range
                 // goes under the row.
                 let px = if ui.compact {
@@ -175,7 +176,7 @@ fn card(app: &View, b: &Bip85State, ui: &mut Ui, s: u8, x: f32, y: f32, w: f32) 
                     px,
                     cy,
                     Some(44.0),
-                    40.0,
+                    BUTTON_H,
                     "+",
                     Style::Secondary,
                     Action::PLength(1),
@@ -183,15 +184,12 @@ fn card(app: &View, b: &Bip85State, ui: &mut Ui, s: u8, x: f32, y: f32, w: f32) 
                 let range = fill(EN.bip85_index_range, &[&lo.to_string(), &hi.to_string()]);
                 if ui.compact {
                     cy += 46.0;
-                    ui.text(x, cy, 12.0, W::R, Role::OnSurfaceVariant, &range);
+                    ui.text_as(x, cy, BODY_S, Role::OnSurfaceVariant, &range);
                     cy += 28.0;
                 } else {
-                    ui.text_mid(
-                        x + mw + 230.0,
-                        cy,
-                        40.0,
-                        12.0,
-                        W::R,
+                    ui.text_mid_as(
+                        (x + mw + 230.0, cy, 40.0),
+                        BODY_S,
                         Role::OnSurfaceVariant,
                         &range,
                     );
@@ -210,7 +208,7 @@ fn card(app: &View, b: &Bip85State, ui: &mut Ui, s: u8, x: f32, y: f32, w: f32) 
                 x,
                 cy,
                 Some(44.0),
-                44.0,
+                BUTTON_H,
                 "-",
                 Style::Secondary,
                 Action::PIndex(-1),
@@ -225,26 +223,30 @@ fn card(app: &View, b: &Bip85State, ui: &mut Ui, s: u8, x: f32, y: f32, w: f32) 
             );
             ui.stroke(x + mw + 8.0, cy, 180.0, 44.0, 8.0, Role::Primary);
             let index = format!("{}{}", b.index, ui.caret_char());
-            ui.text_mid(x + mw + 20.0, cy, 44.0, 16.0, W::M, Role::OnSurface, &index);
+            ui.text_mid_as(
+                (x + mw + 20.0, cy, 44.0),
+                BODY_L.mono(),
+                Role::OnSurface,
+                &index,
+            );
             ui.button(
                 x + mw + 196.0,
                 cy,
                 Some(44.0),
-                44.0,
+                BUTTON_H,
                 "+",
                 Style::Secondary,
                 Action::PIndex(1),
             );
             cy += 56.0;
             if b.index().is_none() {
-                ui.text(x, cy, 13.0, W::R, Role::Error, EN.bip85_index_limits);
+                ui.text_as(x, cy, BODY_S, Role::Error, EN.bip85_index_limits);
                 cy += 24.0;
             }
-            ui.text(
+            ui.text_as(
                 x,
                 cy,
-                12.0,
-                W::R,
+                BODY_S,
                 Role::OnSurfaceVariant,
                 EN.bip85_type_the_digits,
             );
@@ -260,13 +262,18 @@ fn card(app: &View, b: &Bip85State, ui: &mut Ui, s: u8, x: f32, y: f32, w: f32) 
             } else {
                 (120.0, 0.0)
             };
-            ui.text(x, cy, 12.0, W::R, Role::OnSurfaceVariant, EN.bip85_path);
+            ui.text_as(x, cy, BODY_S, Role::OnSurfaceVariant, EN.bip85_path);
             cy += below;
             cy += ui
-                .wrap(x + vx, cy, w - vx, 13.0, W::M, Role::OnSurface, &b.path())
+                .wrap_as(
+                    (x + vx, cy, w - vx),
+                    BODY_M.mono(),
+                    Role::OnSurface,
+                    &b.path(),
+                )
                 .max(20.0)
                 + 6.0;
-            ui.text(x, cy, 12.0, W::R, Role::OnSurfaceVariant, app_name(b.app));
+            ui.text_as(x, cy, BODY_S, Role::OnSurfaceVariant, app_name(b.app));
             cy += below;
             // Derived for this frame only, and wiped with it: a secret
             // shown, which nothing keeps.
@@ -274,7 +281,7 @@ fn card(app: &View, b: &Bip85State, ui: &mut Ui, s: u8, x: f32, y: f32, w: f32) 
             let shown =
                 value.as_ref().map_or("••••••••••••", |v| v.as_str());
             cy += ui
-                .wrap(x + vx, cy, w - vx, 14.0, W::M, Role::OnSurface, shown)
+                .wrap_as((x + vx, cy, w - vx), BODY_M.mono(), Role::OnSurface, shown)
                 .max(20.0)
                 + 12.0;
             let mut row: Vec<(String, Style, Action)> = vec![(

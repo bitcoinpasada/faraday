@@ -6,13 +6,14 @@
 use crate::drawing::View;
 use crate::strings::EN;
 use crate::strings::fill;
+use faraday_draw::tokens::{BODY_M, BODY_S, HEADLINE_S, LABEL_L, LABEL_M};
 use faraday_draw::widgets::Icon;
 
 use crate::Action;
 use crate::boot_import::{ImportAction as I, ImportCount, ImportVault, ImportView};
 use crate::compact::{buttons, scroll_sheet, sheet_head};
 use crate::ui::pal::*;
-use crate::ui::{Glyph, Style, Ui, W};
+use crate::ui::{Glyph, Style, Ui};
 use crate::vault::screen::{stick_banner, stick_field};
 use crate::vault::{Focus, VaultAction as V, Work};
 
@@ -54,8 +55,13 @@ fn head(ui: &mut Ui, x: f32, y: f32, w: f32, icon: Glyph, title: &str) -> f32 {
         return sheet_head(ui, x, y, w, icon, Role::Primary, title);
     }
     ui.icon(x, y, 30.0, icon, 18.0, Role::Primary);
-    let t = ui.fit(20.0, W::S, title, w - 42.0);
-    ui.text_mid(x + 42.0, y, 30.0, 20.0, W::S, Role::OnSurface, &t);
+    let t = ui.fit_as(HEADLINE_S.medium(), title, w - 42.0);
+    ui.text_mid_as(
+        (x + 42.0, y, 30.0),
+        HEADLINE_S.medium(),
+        Role::OnSurface,
+        &t,
+    );
     46.0
 }
 
@@ -81,7 +87,7 @@ fn picker(
         app.medium.icon(),
         &fill(EN.boot_import_read_source, &[label]),
     );
-    cy += ui.wrap(x, cy, w, 14.0, W::S, Role::OnSurface, &c.line()) + 16.0;
+    cy += ui.wrap_as((x, cy, w), LABEL_L, Role::OnSurface, &c.line()) + 16.0;
     // Unselect all while any is ticked; Select all once none is.
     let any = v.files.iter().any(|f| f.chosen);
     if v.files.iter().any(|f| f.enabled) {
@@ -90,8 +96,8 @@ fn picker(
         } else {
             EN.visit_select_all
         };
-        let tw = ui.measure(13.0, W::S, t);
-        ui.text_mid(x, cy - 6.0, 30.0, 13.0, W::S, Role::Primary, t);
+        let tw = ui.measure_as(LABEL_L, t);
+        ui.text_mid_as((x, cy - 6.0, 30.0), LABEL_L, Role::Primary, t);
         ui.hit(x - 6.0, cy - 6.0, tw + 12.0, 30.0, ia(I::All));
         cy += 30.0;
     }
@@ -157,21 +163,14 @@ fn unlock(
         12.0,
         Role::OnSurfaceVariant,
     );
-    let name = ui.fit(14.0, W::M, &vault.title, w - 28.0);
-    ui.text(x + 28.0, cy + 2.0, 14.0, W::M, Role::OnSurface, &name);
+    let name = ui.fit_as(BODY_M.mono(), &vault.title, w - 28.0);
+    ui.text_as(x + 28.0, cy + 2.0, BODY_M.mono(), Role::OnSurface, &name);
     let line = fill(
         EN.boot_import_locked,
         &[&crate::vault::file_text(vault.len).to_string()],
     );
-    let line = ui.fit(12.0, W::R, &line, w - 28.0);
-    ui.text(
-        x + 28.0,
-        cy + 24.0,
-        12.0,
-        W::R,
-        Role::OnSurfaceVariant,
-        &line,
-    );
+    let line = ui.fit_as(BODY_S, &line, w - 28.0);
+    ui.text_as(x + 28.0, cy + 24.0, BODY_S, Role::OnSurfaceVariant, &line);
     cy += 52.0;
     cy += passphrase(app, ui, x, cy, w, vault.file);
     cy += buttons(ui, x, cy, w, &foot);
@@ -203,12 +202,12 @@ fn passphrase(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, file: usize) -> f
     }
     cy += 50.0 + crate::screens::never_under(app, ui, x, cy, w);
     if app.vaults.working == Some(Work::Unlock) {
-        let lh = ui.wrap(x, cy, w, 14.0, W::S, Role::Primary, &unlocking(app, file)) + 10.0;
+        let lh = ui.wrap_as((x, cy, w), LABEL_L, Role::Primary, &unlocking(app, file)) + 10.0;
         crate::screens::working_bar(ui, x, cy, w, lh);
         cy += lh;
     }
     if let Some(e) = &app.vaults.unlock_error {
-        cy += ui.wrap(x, cy, w, 13.0, W::R, Role::Error, e) + 10.0;
+        cy += ui.wrap_as((x, cy, w), BODY_S, Role::Error, e) + 10.0;
     }
     cy + 4.0 - y
 }
@@ -225,7 +224,7 @@ fn typing(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, title: &str, file: us
     } else {
         (title.to_string(), Role::OnSurfaceVariant)
     };
-    cy += ui.wrap(x, cy, w, 12.0, W::S, tone, &line) + 6.0;
+    cy += ui.wrap_as((x, cy, w), LABEL_M, tone, &line) + 6.0;
     crate::demo::pass_box(
         app,
         ui,
@@ -272,15 +271,12 @@ fn files(ui: &mut Ui, x: f32, y: f32, w: f32, v: &ImportView) -> f32 {
         } else {
             crate::ui::off()
         };
-        let name = ui.fit(14.0, W::M, &f.name, tw);
-        ui.text(tx, cy + 2.0, 14.0, W::M, fg, &name);
+        let name = ui.fit_as(BODY_M.mono(), &f.name, tw);
+        ui.text_as(tx, cy + 2.0, BODY_M.mono(), fg, &name);
         cy += 24.0;
-        cy += ui.wrap(
-            tx,
-            cy,
-            tw,
-            12.0,
-            W::R,
+        cy += ui.wrap_as(
+            (tx, cy, tw),
+            BODY_S,
             if f.enabled {
                 Role::OnSurfaceVariant.paint()
             } else {

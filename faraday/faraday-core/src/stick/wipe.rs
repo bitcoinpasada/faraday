@@ -19,12 +19,13 @@ use crate::drawing::View;
 use crate::strings::EN;
 use crate::strings::fill;
 use faraday_draw::tokens;
+use faraday_draw::tokens::{BODY_M, BODY_S, HEADLINE_S, LABEL_L, TITLE_M};
 use faraday_draw::widgets::Icon;
 
 use crate::compact::{buttons, scroll_sheet};
 use crate::screens::wrap_buttons;
 use crate::ui::pal::*;
-use crate::ui::{Style, Ui, W};
+use crate::ui::{Style, Ui};
 use crate::{Action, Faraday, Sheet, StorageCommand};
 
 /// What zeros do not reach.
@@ -515,8 +516,13 @@ pub(crate) fn delete_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
             cy += crate::compact::sheet_head(ui, x, cy, iw, Icon::Error, Role::Error, &title);
         } else {
             ui.icon(x, cy, 30.0, Icon::Error, 18.0, Role::Error);
-            let t = ui.fit(20.0, W::S, &title, iw - 42.0);
-            ui.text_mid(x + 42.0, cy, 30.0, 20.0, W::S, Role::OnSurface, &t);
+            let t = ui.fit_as(HEADLINE_S.medium(), &title, iw - 42.0);
+            ui.text_mid_as(
+                (x + 42.0, cy, 30.0),
+                HEADLINE_S.medium(),
+                Role::OnSurface,
+                &t,
+            );
             cy += 46.0;
         }
         // The danger, in its own band.
@@ -531,8 +537,8 @@ pub(crate) fn delete_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
             13.0,
             Role::OnErrorContainer,
         );
-        let band = ui.fit(13.0, W::S, EN.stick_wipe_danger_zone, iw - 48.0);
-        ui.text_mid(x + 38.0, cy, bh, 13.0, W::S, Role::OnErrorContainer, &band);
+        let band = ui.fit_as(LABEL_L, EN.stick_wipe_danger_zone, iw - 48.0);
+        ui.text_mid_as((x + 38.0, cy, bh), LABEL_L, Role::OnErrorContainer, &band);
         cy += bh + 14.0;
         // What: three choices.
         let choices = [
@@ -562,10 +568,10 @@ pub(crate) fn delete_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
                 ui.fill(x + 19.0, cy + 22.0, 8.0, 8.0, 4.0, mark);
             }
             let ink = on_selected(on, Role::OnSurface);
-            ui.text(x + 44.0, cy + 8.0, 14.0, W::S, ink, label);
-            let line = ui.fit(12.0, W::R, line, iw - 56.0);
+            ui.text_as(x + 44.0, cy + 8.0, LABEL_L, ink, label);
+            let line = ui.fit_as(BODY_S, line, iw - 56.0);
             let muted = on_selected(on, Role::OnSurfaceVariant);
-            ui.text(x + 44.0, cy + 29.0, 12.0, W::R, muted, &line);
+            ui.text_as(x + 44.0, cy + 29.0, BODY_S, muted, &line);
             ui.hit(x, cy, iw, 52.0, action);
             cy += 58.0;
         }
@@ -574,27 +580,27 @@ pub(crate) fn delete_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
             What::Files => {
                 if files.is_empty() {
                     let none = fill(EN.stick_wipe_no_files, &[app.medium.noun()]);
-                    ui.text(x, cy, 13.0, W::R, Role::OnSurfaceVariant, &none);
+                    ui.text_as(x, cy, BODY_S, Role::OnSurfaceVariant, &none);
                     cy += 28.0;
                 }
                 for (k, (name, size)) in files.iter().enumerate() {
                     let on = d.chosen.contains(name);
                     ui.checkbox(x + 2.0, cy + 10.0, on, true);
                     let sz = size_text(*size);
-                    let sw = ui.measure(12.0, W::R, &sz);
-                    let n = ui.fit(13.0, W::M, name, iw - 44.0 - sw);
-                    ui.text_mid(x + 32.0, cy, 38.0, 13.0, W::M, Role::OnSurface, &n);
-                    ui.text_right(x + iw, cy, 38.0, 12.0, W::R, Role::OnSurfaceVariant, &sz);
+                    let sw = ui.measure_as(BODY_S, &sz);
+                    let n = ui.fit_as(BODY_M.mono(), name, iw - 44.0 - sw);
+                    ui.text_mid_as((x + 32.0, cy, 38.0), BODY_M.mono(), Role::OnSurface, &n);
+                    ui.text_right_as((x + iw, cy, 38.0), BODY_S, Role::OnSurfaceVariant, &sz);
                     ui.hit(x - 4.0, cy, iw + 8.0, 38.0, Action::DeletePick(k));
                     cy += 40.0;
                 }
                 cy += 8.0;
             }
             What::Free => {
-                cy += ui.wrap(x, cy, iw, 13.0, W::S, Role::OnSurface, &amount(false)) + 12.0;
+                cy += ui.wrap_as((x, cy, iw), LABEL_L, Role::OnSurface, &amount(false)) + 12.0;
             }
             What::Whole => {
-                cy += ui.wrap(x, cy, iw, 13.0, W::S, Role::OnSurface, &amount(true)) + 10.0;
+                cy += ui.wrap_as((x, cy, iw), LABEL_L, Role::OnSurface, &amount(true)) + 10.0;
                 let pass_style = |n: u8| {
                     if d.passes == n {
                         Style::Primary
@@ -621,22 +627,19 @@ pub(crate) fn delete_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
                         ),
                     ],
                 );
-                cy += ui.wrap(
-                    x,
-                    cy,
-                    iw,
-                    12.0,
-                    W::R,
+                cy += ui.wrap_as(
+                    (x, cy, iw),
+                    BODY_S,
                     Role::OnSurfaceVariant,
                     EN.stick_wipe_two_passes,
                 ) + 12.0;
             }
         }
-        cy += ui.wrap(x, cy, iw, 13.0, W::S, Role::OnSurface, WITHIN) + 8.0;
-        cy += ui.wrap(x, cy, iw, 12.0, W::R, Role::OnSurfaceVariant, REACH) + 10.0;
-        cy += ui.wrap(x, cy, iw, 12.0, W::R, Role::OnSurfaceVariant, BOUNDARY) + 10.0;
-        cy += ui.wrap(x, cy, iw, 12.0, W::R, Role::OnSurfaceVariant, LIMIT) + 10.0;
-        cy += ui.wrap(x, cy, iw, 12.0, W::R, Role::OnSurfaceVariant, SECRET) + 12.0;
+        cy += ui.wrap_as((x, cy, iw), LABEL_L, Role::OnSurface, WITHIN) + 8.0;
+        cy += ui.wrap_as((x, cy, iw), BODY_S, Role::OnSurfaceVariant, REACH) + 10.0;
+        cy += ui.wrap_as((x, cy, iw), BODY_S, Role::OnSurfaceVariant, BOUNDARY) + 10.0;
+        cy += ui.wrap_as((x, cy, iw), BODY_S, Role::OnSurfaceVariant, LIMIT) + 10.0;
+        cy += ui.wrap_as((x, cy, iw), BODY_S, Role::OnSurfaceVariant, SECRET) + 12.0;
         // A vault chosen is deleted by a hold (decision 4).
         if hold {
             crate::vault::screen::hold_button_in(
@@ -725,18 +728,18 @@ pub(crate) fn zeroing_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let pad = if ui.compact { 16.0 } else { 32.0 };
     scroll_sheet(ui, place, h, 8.0, pad, &mut |ui, x, y, iw| {
         let mut cy = y;
-        let t = ui.fit(18.0, W::S, &title, iw);
-        ui.text_mid(x, cy, 30.0, 18.0, W::S, Role::OnSurface, &t);
+        let t = ui.fit_as(TITLE_M, &title, iw);
+        ui.text_mid_as((x, cy, 30.0), TITLE_M, Role::OnSurface, &t);
         cy += 44.0;
         ui.progress((x, cy, iw), Some(share), None);
         cy += tokens::PROGRESS_H + 2.0 * tokens::GAP;
-        ui.text(x, cy, 14.0, W::S, Role::OnSurface, &line);
+        ui.text_as(x, cy, LABEL_L, Role::OnSurface, &line);
         cy += 26.0;
         if let Some(p) = &pass {
-            ui.text(x, cy, 13.0, W::R, Role::OnSurfaceVariant, p);
+            ui.text_as(x, cy, BODY_S, Role::OnSurfaceVariant, p);
             cy += 24.0;
         }
-        cy += ui.wrap(x, cy, iw, 13.0, W::R, Role::OnSurfaceVariant, &keep) + 14.0;
+        cy += ui.wrap_as((x, cy, iw), BODY_S, Role::OnSurfaceVariant, &keep) + 14.0;
         cy += buttons(ui, x, cy, iw, &[(stop_label, stop_style, Action::ZeroStop)]);
         cy - y
     });

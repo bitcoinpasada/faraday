@@ -1400,9 +1400,6 @@ pub const ROLLER_COUNT_DIGITS: usize = 4;
 /// The roller: the gap between its parts.
 pub const ROLLER_GAP: f32 = 10.0;
 
-/// The roller: the size of its small labels.
-pub const ROLLER_LABEL: f32 = 12.0;
-
 // ---------------------------------------------------------------------
 // Codex32 worksheets (`docs/CODEX32.md` §6.4.7, §7.5, §13.4)
 // ---------------------------------------------------------------------

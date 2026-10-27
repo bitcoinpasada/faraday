@@ -24,6 +24,7 @@ use crate::strings::EN;
 use crate::strings::fill;
 use faraday_bip::keys::Fingerprint;
 use faraday_crypto::work::Compute;
+use faraday_draw::tokens::{BODY_M, BODY_S, LABEL_L};
 use faraday_draw::widgets::Icon;
 use faraday_shell_api::Key as KeyIn;
 
@@ -31,7 +32,7 @@ use crate::scan_key::{Found, key_of};
 use crate::screens::pass_field;
 use crate::secret_text::SecretText;
 use crate::ui::pal::*;
-use crate::ui::{Style, Ui, W};
+use crate::ui::{Style, Ui};
 use crate::wallet::fp_text;
 use crate::{Action, Faraday, Screen, Sheet};
 
@@ -571,8 +572,13 @@ pub(crate) fn sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     items.insert(0, cancel);
     // A key's line: what it is made with, and its fingerprint.
     let key_line = |ui: &mut Ui, x: f32, y: f32, iw: f32, label: &str, fp: Fingerprint| -> f32 {
-        ui.text_mid(x, y, 30.0, 13.0, W::R, Role::OnSurfaceVariant, label);
-        ui.text_right(x + iw, y, 30.0, 14.0, W::M, Role::OnSurface, &fp_text(fp));
+        ui.text_mid_as((x, y, 30.0), BODY_S, Role::OnSurfaceVariant, label);
+        ui.text_right_as(
+            (x + iw, y, 30.0),
+            BODY_M.mono(),
+            Role::OnSurface,
+            &fp_text(fp),
+        );
         34.0
     };
     let body = |ui: &mut Ui, x: f32, y: f32, iw: f32| -> f32 {
@@ -612,21 +618,18 @@ pub(crate) fn sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
             if let Some(fp) = with {
                 cy += key_line(ui, x, cy, iw, EN.seed_read_with_passphrase, fp);
             } else if differ {
-                cy += ui.wrap(
-                    x,
-                    cy,
-                    iw,
-                    13.0,
-                    W::R,
+                cy += ui.wrap_as(
+                    (x, cy, iw),
+                    BODY_S,
                     Role::Warning,
                     EN.seed_read_the_two_passphrases,
                 ) + 10.0;
             }
         }
         if let Some(e) = &s.error {
-            cy += ui.wrap(x, cy + 4.0, iw, 13.0, W::S, Role::Error, e) + 14.0;
+            cy += ui.wrap_as((x, cy + 4.0, iw), LABEL_L, Role::Error, e) + 14.0;
         } else if let Some(r) = &s.reason {
-            cy += ui.wrap(x, cy + 4.0, iw, 13.0, W::S, Role::Warning, r) + 14.0;
+            cy += ui.wrap_as((x, cy + 4.0, iw), LABEL_L, Role::Warning, r) + 14.0;
         }
         cy - y
     };

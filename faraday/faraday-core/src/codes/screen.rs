@@ -9,8 +9,9 @@ use crate::screens::title;
 use crate::strings::EN;
 use crate::strings::fill;
 use crate::ui::pal::*;
-use crate::ui::{Style, Ui, W};
+use crate::ui::{Style, Ui};
 use crate::vault::{Focus, SearchIn, VaultAction as V};
+use faraday_draw::tokens::{BODY_L, BODY_M, BODY_S, BUTTON_H, LABEL_L, LABEL_M, TITLE_M};
 
 /// The value row at the top: local time with seconds under its label and
 /// the zone, and Set the time (§5.3). The zone is in the label, so the
@@ -20,19 +21,19 @@ fn now_row(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         EN.codes_now_utc,
         &[&crate::vault::tz_offset_text(app.tz_min()).to_string()],
     );
-    ui.text(x, y + 10.0, 12.0, W::R, Role::OnSurfaceVariant, &label);
+    ui.text_as(x, y + 10.0, BODY_S, Role::OnSurfaceVariant, &label);
     let text = match app.clock_now() {
         Some(t) => crate::vault::time_of_day_secs(crate::vault::local_secs(t, app.tz_min())),
         None => EN.codes_not_known.to_string(),
     };
-    let bw = ui.measure(14.0, W::S, EN.codes_set_the_time) + 32.0;
-    let text = ui.fit(16.0, W::S, &text, (w - bw - 12.0).max(0.0));
-    ui.text(x, y + 28.0, 16.0, W::S, Role::OnSurface, &text);
+    let bw = ui.measure_as(LABEL_L, EN.codes_set_the_time) + 32.0;
+    let text = ui.fit_as(TITLE_M, &text, (w - bw - 12.0).max(0.0));
+    ui.text_as(x, y + 28.0, TITLE_M, Role::OnSurface, &text);
     ui.button(
         x + w - bw,
         y + 8.0,
         Some(bw),
-        40.0,
+        BUTTON_H,
         EN.codes_set_the_time,
         Style::Secondary,
         Action::OpenSetTime,
@@ -43,17 +44,14 @@ fn now_row(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
 /// A small text pill, right-anchored at `right`, as the network's badge draws
 /// (`docs/DESIGN.md` §4.8): the HOTP and Unreadable badges.
 fn pill_right(ui: &mut Ui, right: f32, y: f32, label: &str) {
-    let tw = ui.measure(12.0, W::S, label);
+    let tw = ui.measure_as(LABEL_M, label);
     let pw = tw + 24.0;
     let x = right - pw;
     ui.fill(x, y, pw, 26.0, 13.0, Role::OnSurfaceVariant.with_alpha(30));
     ui.stroke(x, y, pw, 26.0, 13.0, Role::OnSurfaceVariant.with_alpha(110));
-    ui.text_mid(
-        x + (pw - tw) / 2.0,
-        y,
-        26.0,
-        12.0,
-        W::S,
+    ui.text_mid_as(
+        (x + (pw - tw) / 2.0, y, 26.0),
+        LABEL_M,
         Role::OnSurfaceVariant,
         label,
     );
@@ -68,8 +66,8 @@ fn code_row(ui: &mut Ui, x: f32, y: f32, w: f32, r: &CodeRow) -> f32 {
     crate::ui::fill_pressed(ui, (x, y, w, h, 12.0), Role::SurfaceContainerLow, pressed);
     ui.stroke(x, y, w, h, 12.0, Role::OutlineVariant);
     ui.hit(x, y, w, h, action);
-    let t = ui.fit(15.0, W::S, &r.title, w - 140.0);
-    ui.text(x + 16.0, y + 14.0, 15.0, W::S, Role::OnSurface, &t);
+    let t = ui.fit_as(TITLE_M, &r.title, w - 140.0);
+    ui.text_as(x + 16.0, y + 14.0, TITLE_M, Role::OnSurface, &t);
     let sub = if r.account.is_empty() {
         r.vault_name.clone()
     } else if r.vault_name.is_empty() {
@@ -78,8 +76,8 @@ fn code_row(ui: &mut Ui, x: f32, y: f32, w: f32, r: &CodeRow) -> f32 {
         format!("{} · {}", r.account, r.vault_name)
     };
     if !sub.is_empty() {
-        let sub = ui.fit(12.0, W::R, &sub, w - 140.0);
-        ui.text(x + 16.0, y + 36.0, 12.0, W::R, Role::OnSurfaceVariant, &sub);
+        let sub = ui.fit_as(BODY_S, &sub, w - 140.0);
+        ui.text_as(x + 16.0, y + 36.0, BODY_S, Role::OnSurfaceVariant, &sub);
     }
     match &r.kind {
         CodeKind::Code {
@@ -87,18 +85,17 @@ fn code_row(ui: &mut Ui, x: f32, y: f32, w: f32, r: &CodeRow) -> f32 {
             left,
             period,
         } => {
-            let cw = ui.measure(18.0, W::M, grouped);
-            ui.text(
+            let cw = ui.measure_as(BODY_L.mono(), grouped);
+            ui.text_as(
                 x + w - 16.0 - cw,
                 y + 16.0,
-                18.0,
-                W::M,
+                BODY_L.mono(),
                 Role::OnSurface,
                 grouped,
             );
             // The seconds left at the bar's end, on its line.
             let secs = format!("{left} s");
-            let sw = ui.measure(11.0, W::R, "88 s") + 10.0;
+            let sw = ui.measure_as(BODY_S, "88 s") + 10.0;
             let bw = w - 32.0 - sw;
             ui.fill(
                 x + 16.0,
@@ -121,12 +118,9 @@ fn code_row(ui: &mut Ui, x: f32, y: f32, w: f32, r: &CodeRow) -> f32 {
                 3.0,
                 Role::Primary,
             );
-            ui.text_right(
-                x + w - 16.0,
-                y + 51.0,
-                18.0,
-                11.0,
-                W::R,
+            ui.text_right_as(
+                (x + w - 16.0, y + 51.0, 18.0),
+                BODY_S,
                 Role::OnSurfaceVariant,
                 &secs,
             );
@@ -176,7 +170,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let rows = codes_rows(app, now);
     y += search(app, ui, x, y, w, rows.is_empty());
     if rows.is_empty() {
-        ui.text(x, y, 14.0, W::R, Role::OnSurfaceVariant, none_line(app));
+        ui.text_as(x, y, BODY_M, Role::OnSurfaceVariant, none_line(app));
         y += 36.0;
     } else {
         for r in &rows {
@@ -189,22 +183,22 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     } else {
         let scan = EN.codes_scan_a_setup;
         let add = EN.codes_add_an_entry;
-        let sw = ui.measure(14.0, W::S, scan) + 32.0;
+        let sw = ui.measure_as(LABEL_L, scan) + 32.0;
         ui.button(
             x,
             y,
             Some(sw),
-            44.0,
+            BUTTON_H,
             scan,
             Style::Secondary,
             va(V::ScanEntry),
         );
-        let aw = ui.measure(14.0, W::S, add) + 32.0;
+        let aw = ui.measure_as(LABEL_L, add) + 32.0;
         ui.button(
             x + sw + 10.0,
             y,
             Some(aw),
-            44.0,
+            BUTTON_H,
             add,
             Style::Secondary,
             Action::CodesAdd,
@@ -229,7 +223,7 @@ fn compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let rows = codes_rows(app, now);
     y += search(app, ui, x, y, w, rows.is_empty());
     if rows.is_empty() {
-        ui.text(x, y, 13.0, W::R, Role::OnSurfaceVariant, none_line(app));
+        ui.text_as(x, y, BODY_S, Role::OnSurfaceVariant, none_line(app));
         y += 32.0;
     } else {
         for r in &rows {
@@ -245,7 +239,7 @@ fn compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             x,
             y,
             None,
-            44.0,
+            BUTTON_H,
             EN.codes_scan_a_setup,
             Style::Secondary,
             va(V::ScanEntry),
@@ -255,7 +249,7 @@ fn compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             x,
             y,
             None,
-            44.0,
+            BUTTON_H,
             EN.codes_add_an_entry,
             Style::Secondary,
             Action::CodesAdd,

@@ -13,6 +13,7 @@ use crate::strings::fill;
 use crate::ui::pal::*;
 use crate::ui::{CoreUi, Style, Ui, W, grouped};
 use crate::wallet::FileKind;
+use faraday_draw::tokens::{BODY_L, BODY_M, BODY_S, BUTTON_H, LABEL_L, TITLE_L};
 
 fn sa(a: S) -> Action {
     Action::Seeds(a)
@@ -66,8 +67,8 @@ pub(crate) fn quorum(ui: &mut Ui, s: &SeedsState, x: f32, y: f32, w: f32) -> f32
     let mut cy = y;
     let n = s.n.max(1);
     let big = fill(EN.seeds_quorum, &[&s.m.max(1).to_string(), &n.to_string()]);
-    ui.text(x, cy, 22.0, W::S, Role::OnSurface, &big);
-    let bw = ui.measure(22.0, W::S, &big);
+    ui.text_as(x, cy, TITLE_L.medium(), Role::OnSurface, &big);
+    let bw = ui.measure_as(TITLE_L.medium(), &big);
     let line = if n == 1 {
         EN.seeds_one_key_signs.to_string()
     } else {
@@ -84,12 +85,9 @@ pub(crate) fn quorum(ui: &mut Ui, s: &SeedsState, x: f32, y: f32, w: f32) -> f32
             ],
         )
     };
-    ui.text_mid(
-        x + bw + 14.0,
-        cy,
-        30.0,
-        13.0,
-        W::R,
+    ui.text_mid_as(
+        (x + bw + 14.0, cy, 30.0),
+        BODY_S,
         Role::OnSurfaceVariant,
         &line,
     );
@@ -107,10 +105,10 @@ pub(crate) fn quorum(ui: &mut Ui, s: &SeedsState, x: f32, y: f32, w: f32) -> f32
             continue;
         };
         if ui.compact {
-            ui.text(x, cy, 13.0, W::S, Role::OnSurfaceVariant, label);
+            ui.text_as(x, cy, LABEL_L, Role::OnSurfaceVariant, label);
             cy += 20.0;
         } else {
-            ui.text_mid(x, cy, 40.0, 13.0, W::S, Role::OnSurfaceVariant, label);
+            ui.text_mid_as((x, cy, 40.0), LABEL_L, Role::OnSurfaceVariant, label);
         }
         cy += ui.slider(sx, cy, sw, id, lo as u8, hi as u8, v as u8) + 4.0;
     }
@@ -134,25 +132,22 @@ pub(crate) fn cosigner(
     let mut cy = y;
     let text = s.cosigners.get(k).map(String::as_str).unwrap_or("");
     let focused = s.focus == Some(Focus::Cosigner(k as u8));
-    ui.text_mid(
-        x,
-        cy,
-        40.0,
-        12.0,
-        W::R,
+    ui.text_mid_as(
+        (x, cy, 40.0),
+        BODY_S,
         Role::OnSurfaceVariant,
         &slot.to_string(),
     );
     match seeds::cosigner_key(text).filter(|_| !focused) {
         Some(key) => {
-            let cw = ui.measure(13.0, W::S, EN.seeds_change) + 32.0;
-            let shown = ui.fit(14.0, W::M, &seeds::cosigner_label(&key), w - 34.0 - cw);
-            ui.text_mid(x + 22.0, cy, 40.0, 14.0, W::M, Role::Ok, &shown);
+            let cw = ui.measure_as(LABEL_L, EN.seeds_change) + 32.0;
+            let shown = ui.fit_as(BODY_M.mono(), &seeds::cosigner_label(&key), w - 34.0 - cw);
+            ui.text_mid_as((x + 22.0, cy, 40.0), BODY_M.mono(), Role::Ok, &shown);
             ui.button(
                 x + w - cw,
                 cy + 2.0,
                 Some(cw),
-                36.0,
+                BUTTON_H,
                 EN.seeds_change,
                 Style::Ghost,
                 sa(S::Clear(k as u8)),
@@ -178,12 +173,9 @@ pub(crate) fn cosigner(
             );
             cy += 48.0;
             if !text.trim().is_empty() && !focused {
-                cy += ui.wrap(
-                    x + 22.0,
-                    cy,
-                    w - 22.0,
-                    12.0,
-                    W::R,
+                cy += ui.wrap_as(
+                    (x + 22.0, cy, w - 22.0),
+                    BODY_S,
                     Role::Error,
                     EN.seeds_not_an_account,
                 ) + 6.0;
@@ -240,12 +232,9 @@ pub(crate) fn shape(
     // A box for each key whose seed is not here.
     if !s.cosigners.is_empty() {
         cy += 6.0;
-        cy += ui.wrap(
-            x,
-            cy,
-            w,
-            13.0,
-            W::S,
+        cy += ui.wrap_as(
+            (x, cy, w),
+            LABEL_L,
             Role::OnSurfaceVariant,
             EN.seeds_cosigners_account,
         ) + 10.0;
@@ -255,18 +244,15 @@ pub(crate) fn shape(
     }
     // The kind.
     cy += 8.0;
-    ui.text(x, cy, 13.0, W::S, Role::OnSurfaceVariant, EN.seeds_kind);
+    ui.text_as(x, cy, LABEL_L, Role::OnSurfaceVariant, EN.seeds_kind);
     cy += 24.0;
     for (k, kind) in s.kinds().iter().enumerate() {
         let on = *kind == s.kind;
         ui.checkbox(x, cy + 11.0, on, true);
         let name = kind_label(*kind);
-        ui.text_mid(
-            x + 30.0,
-            cy,
-            40.0,
-            14.0,
-            W::S,
+        ui.text_mid_as(
+            (x + 30.0, cy, 40.0),
+            LABEL_L,
             if on {
                 Role::OnSurface
             } else {
@@ -275,21 +261,18 @@ pub(crate) fn shape(
             name,
         );
         let rh = if ui.compact {
-            let l = ui.fit(12.0, W::R, kind.line(), w - 30.0);
-            ui.text_mid(
-                x + 30.0,
-                cy + 28.0,
-                20.0,
-                12.0,
-                W::R,
+            let l = ui.fit_as(BODY_S, kind.line(), w - 30.0);
+            ui.text_mid_as(
+                (x + 30.0, cy + 28.0, 20.0),
+                BODY_S,
                 Role::OnSurfaceVariant,
                 &l,
             );
             52.0
         } else {
-            let nw = ui.measure(14.0, W::S, name);
-            let l = ui.fit(12.0, W::R, kind.line(), w - 60.0 - nw);
-            ui.text_right(x + w, cy, 40.0, 12.0, W::R, Role::OnSurfaceVariant, &l);
+            let nw = ui.measure_as(LABEL_L, name);
+            let l = ui.fit_as(BODY_S, kind.line(), w - 60.0 - nw);
+            ui.text_right_as((x + w, cy, 40.0), BODY_S, Role::OnSurfaceVariant, &l);
             40.0
         };
         ui.hit(x, cy, w, rh, sa(S::Kind(k as u8)));
@@ -298,11 +281,10 @@ pub(crate) fn shape(
     }
     // The path.
     cy += 12.0;
-    ui.text(
+    ui.text_as(
         x,
         cy,
-        13.0,
-        W::S,
+        LABEL_L,
         Role::OnSurfaceVariant,
         EN.seeds_derivation_path,
     );
@@ -310,22 +292,16 @@ pub(crate) fn shape(
     let standard = s.custom.is_none();
     ui.checkbox(x, cy + 11.0, standard, true);
     let std_path = s.kind.path_at(net, s.account);
-    ui.text_mid(
-        x + 30.0,
-        cy,
-        40.0,
-        14.0,
-        W::S,
+    ui.text_mid_as(
+        (x + 30.0, cy, 40.0),
+        LABEL_L,
         Role::OnSurface,
         EN.seeds_standard,
     );
-    let pw = ui.measure(14.0, W::S, EN.seeds_standard) + 44.0;
-    ui.text_mid(
-        x + pw,
-        cy,
-        40.0,
-        14.0,
-        W::M,
+    let pw = ui.measure_as(LABEL_L, EN.seeds_standard) + 44.0;
+    ui.text_mid_as(
+        (x + pw, cy, 40.0),
+        BODY_M.mono(),
         if standard {
             Role::OnSurface
         } else {
@@ -351,12 +327,9 @@ pub(crate) fn shape(
         cy += 50.0;
     }
     ui.checkbox(x, cy + 11.0, !standard, true);
-    ui.text_mid(
-        x + 30.0,
-        cy,
-        40.0,
-        14.0,
-        W::S,
+    ui.text_mid_as(
+        (x + 30.0, cy, 40.0),
+        LABEL_L,
         Role::OnSurface,
         EN.seeds_custom_path,
     );
@@ -380,23 +353,22 @@ pub(crate) fn shape(
     cy += 8.0;
     match app.seeds_address(s) {
         Ok(a) => {
-            ui.text(
+            ui.text_as(
                 x,
                 cy,
-                12.0,
-                W::R,
+                BODY_S,
                 Role::OnSurfaceVariant,
                 EN.seeds_first_receive,
             );
             cy += 22.0;
-            cy += ui.wrap(x, cy, w, 15.0, W::M, Role::OnSurface, &grouped(&a)) + 14.0;
+            cy += ui.wrap_as((x, cy, w), BODY_L.mono(), Role::OnSurface, &grouped(&a)) + 14.0;
         }
         Err(e) => {
-            cy += ui.wrap(x, cy, w, 13.0, W::R, Role::Warning, &e) + 12.0;
+            cy += ui.wrap_as((x, cy, w), BODY_S, Role::Warning, &e) + 12.0;
         }
     }
     if let Some(e) = &s.error {
-        cy += ui.wrap(x, cy, w, 13.0, W::R, Role::Error, e) + 10.0;
+        cy += ui.wrap_as((x, cy, w), BODY_S, Role::Error, e) + 10.0;
     }
     let left: &[(&str, Style, Action)] = if back {
         &[(EN.seeds_back_to_the_seeds, Style::Secondary, sa(S::Keys))]
@@ -446,15 +418,15 @@ fn field(
         },
     );
     if text.is_empty() && !focused {
-        let hint = ui.fit(13.0, W::R, hint, w - 24.0);
-        ui.text_mid(x + 12.0, y, 40.0, 13.0, W::R, Role::OnSurfaceVariant, &hint);
+        let hint = ui.fit_as(BODY_S, hint, w - 24.0);
+        ui.text_mid_as((x + 12.0, y, 40.0), BODY_S, Role::OnSurfaceVariant, &hint);
     } else {
         // The end typed last stays in view, or the caret.
         ui.typed(
             x + 12.0,
             y,
             40.0,
-            14.0,
+            BODY_M.size,
             W::M,
             Role::OnSurface,
             text,

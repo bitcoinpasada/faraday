@@ -7,9 +7,10 @@ use crate::silent::{SilentState, sstep};
 use crate::strings::EN;
 use crate::strings::fill;
 use crate::ui::pal::*;
-use crate::ui::{Style, Ui, W};
+use crate::ui::{Style, Ui};
 use crate::wallet::fp_text;
 use crate::{Action, Code, flow};
+use faraday_draw::tokens::{BODY_M, BODY_S, BUTTON_H, LABEL_L, TITLE_M};
 
 pub(crate) const TITLES: [&str; sstep::COUNT] = [
     EN.silent_key,
@@ -120,13 +121,10 @@ fn card(app: &View, s: &SilentState, ui: &mut Ui, k: u8, x: f32, y: f32, w: f32)
         sstep::ADDRESS if !app.silent_shown().key_here && s.wallet.is_some() => {
             // The wallet's own address needs no key; labels do.
             let a = app.silent_shown().address.unwrap_or_default();
-            cy += ui.wrap(x, cy, w, 14.0, W::M, Role::OnSurface, &a) + 14.0;
-            cy += ui.wrap(
-                x,
-                cy,
-                w,
-                13.0,
-                W::R,
+            cy += ui.wrap_as((x, cy, w), BODY_M.mono(), Role::OnSurface, &a) + 14.0;
+            cy += ui.wrap_as(
+                (x, cy, w),
+                BODY_S,
                 Role::OnSurfaceVariant,
                 EN.silent_its_key_is_not_loaded,
             ) + 12.0;
@@ -149,7 +147,7 @@ fn card(app: &View, s: &SilentState, ui: &mut Ui, k: u8, x: f32, y: f32, w: f32)
                 x,
                 cy,
                 Some(44.0),
-                40.0,
+                BUTTON_H,
                 "-",
                 Style::Secondary,
                 Action::SLabel(-1),
@@ -159,19 +157,19 @@ fn card(app: &View, s: &SilentState, ui: &mut Ui, k: u8, x: f32, y: f32, w: f32)
             } else {
                 fill(EN.silent_label, &[&s.label.to_string()])
             };
-            ui.text_mid(x + mw + 16.0, cy, 40.0, 15.0, W::S, Role::OnSurface, &label);
+            ui.text_mid_as((x + mw + 16.0, cy, 40.0), TITLE_M, Role::OnSurface, &label);
             ui.button(
                 x + mw + 150.0,
                 cy,
                 Some(44.0),
-                40.0,
+                BUTTON_H,
                 "+",
                 Style::Secondary,
                 Action::SLabel(1),
             );
             cy += 52.0;
             let a = app.silent_shown().address.unwrap_or_default();
-            cy += ui.wrap(x, cy, w, 14.0, W::M, Role::OnSurface, &a) + 14.0;
+            cy += ui.wrap_as((x, cy, w), BODY_M.mono(), Role::OnSurface, &a) + 14.0;
             let row = vec![
                 (
                     EN.silent_show_as_qr.to_string(),
@@ -289,12 +287,12 @@ fn check_card(app: &View, s: &SilentState, ui: &mut Ui, x: f32, y: f32, w: f32) 
     use crate::silent::check::Checked;
     let mut cy = y;
     if let Some((name, check)) = s.check.as_ref() {
-        ui.text(x, cy, 13.0, W::S, Role::OnSurface, name);
+        ui.text_as(x, cy, LABEL_L, Role::OnSurface, name);
         cy += 24.0;
         match check.result() {
             Some(r) => {
                 let (line, tone) = checked_text(r);
-                ui.text(x, cy, 14.0, W::S, tone, &line);
+                ui.text_as(x, cy, LABEL_L, tone, &line);
                 cy += 26.0;
                 if let Checked::Paid(paid) = r {
                     for p in paid {
@@ -311,7 +309,7 @@ fn check_card(app: &View, s: &SilentState, ui: &mut Ui, x: f32, y: f32, w: f32) 
                                 &to.to_string(),
                             ],
                         );
-                        ui.text(x + 12.0, cy, 13.0, W::M, Role::OnSurface, &row);
+                        ui.text_as(x + 12.0, cy, BODY_M.mono(), Role::OnSurface, &row);
                         cy += 22.0;
                     }
                 }
@@ -321,12 +319,9 @@ fn check_card(app: &View, s: &SilentState, ui: &mut Ui, x: f32, y: f32, w: f32) 
                     .waiting_for()
                     .map(|t| t.to_string())
                     .unwrap_or_default();
-                cy += ui.wrap(
-                    x,
-                    cy,
-                    w,
-                    13.0,
-                    W::R,
+                cy += ui.wrap_as(
+                    (x, cy, w),
+                    BODY_S,
                     Role::Warning,
                     &fill(EN.silent_needs_the_transaction, &[&txid.to_string()]),
                 ) + 8.0;
@@ -349,11 +344,10 @@ fn check_card(app: &View, s: &SilentState, ui: &mut Ui, x: f32, y: f32, w: f32) 
         })
         .collect();
     if txs.is_empty() {
-        ui.text(
+        ui.text_as(
             x,
             cy,
-            13.0,
-            W::R,
+            BODY_S,
             Role::OnSurfaceVariant,
             EN.silent_no_transaction,
         );
