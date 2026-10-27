@@ -125,7 +125,7 @@ const ROW: StarterAction = StarterAction::Item(Item::MakeStick);
 
 #[test]
 fn a_finger_drag_scrolls_home_and_presses_nothing_and_a_tap_presses() {
-    let mut s = starter(400, 400);
+    let mut s = starter(400, 460);
     let (x, y0) = at(&mut s, ROW);
     // Up by 100 pixels, starting on the checklist's row.
     let now = drag(&mut s, (x, y0), -100, 5, 1000);

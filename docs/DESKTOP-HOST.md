@@ -1,7 +1,7 @@
 # Faraday Demo as a simulator: the host
 
 **Kind:** Spec
-**Status:** Built (F118, `faraday/faraday-core/src/host/`): the host holds the app, the strip at the window's foot with the sticks, Samples, Size and every practice aid of the screen on show, the preview frame centred above it, the pointer carried in; the host's colours the app's theme turned inside out, the screen's aids in a section of their own colour, the strip's row centred and scrolling sideways where it is wider than the window, its controls 48 dp tall whatever the window and the preview (§2, §3); Samples' sheet is the host's (§6); at the window's own size the shell copies the app's pixels into the window once (§9); the menus fade in and out (§5); the menus, Samples' sheet and the strip's row scroll under a finger and coast after it, a tap pressing once (§5); a stick the app asks for has its pill marked, pulsing (§3); the app's frame carries a focus border (§4); the die's values are in the entry at the click (§3.2); the app draws no stick pill, Load samples, Preview size or "Demo only" card.
+**Status:** Built (F118, `faraday/faraday-core/src/host/`): the host holds the app, the strip at the window's foot with the sticks, Samples, Size and every practice aid of the screen on show, the preview frame centred above it, the pointer carried in; the host's colours the app's theme turned inside out, the screen's aids in a section of their own colour, the strip's row centred and scrolling sideways where it is wider than the window, its controls 48 dp tall whatever the window and the preview (§2, §3); Samples' sheet is the host's (§6); at the window's own size the shell copies the app's pixels into the window once (§9); the menus fade in and out (§5); the menus, Samples' sheet and the strip's row scroll under a finger and coast after it, a tap pressing once (§5); a stick the app asks for has its pill marked, pulsing (§3); the app's frame carries a focus border (§4); the die's values are in the entry at the click (§3.2); the app draws no stick pill, Load samples, Preview size or "Demo only" card; it runs inside Faraday Starter's window, under the Starter's top app bar (§1, F126).
 **Open:** the website demo's shell holding the app in the host (in the website's own repository); planned.
 
 The owner asked (2026-10-25) that Faraday Demo read as a simulator of
@@ -11,6 +11,14 @@ Demo's or Practice's. The app area shows exactly what the device shows
 a demo stands outside it, in a strip drawn in the host's own look.
 
 ## 1. The window
+
+The host runs in Faraday Starter's window (F126, `docs/STARTER.md`
+§5.3): Open Faraday Demo on the Starter's Home gives it the space under
+the Starter's top app bar, which reads "Faraday Demo" and holds the way
+back to Home, and "the window" below is that space. Developers run it
+in a window of its own too (`cargo run -p faraday-desktop`), which is
+the whole window; both hold the same host and the same Demo side
+(`faraday_desktop::Demo`).
 
 | Size shown | The app area | The strip |
 |---|---|---|
@@ -371,6 +379,12 @@ nothing; the press a system makes of a touch is dropped until 500 ms
 after the lift.
 
 ## 9. Speed
+
+Inside the Starter (§1) the Starter places the host's frame under its
+bar (`Starter::compose_demo`), so the host's frame is drawn whole and
+copied once more, into the Starter's canvas; the parts below are the
+Demo's own window's. That copy has not yet been timed in a late-flow
+session (`docs/SPEED.md` §7).
 
 The app's own frames cost what they did (`docs/SPEED.md` §7, the late
 flow at 1366 × 768 and 2560 × 1600: every screen within the run-to-run

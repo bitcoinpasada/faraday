@@ -18,6 +18,10 @@ pub const MEMORY: &str = r"SYSTEM\CurrentControlSet\Control\Session Manager\Memo
 /// `HKLM\…\Services\veracrypt`: VeraCrypt's driver is installed
 /// (§6.4). Any value there, `Start` read, counts.
 pub const VERACRYPT: &str = r"SYSTEM\CurrentControlSet\Services\veracrypt";
+/// `HKCU\…\Themes\Personalize`: its `AppsUseLightTheme` DWORD is the app
+/// mode a person chose in Settings, read at start for Light or Dark
+/// (F126, `crate::scheme::windows`).
+pub const PERSONALIZE: &str = r"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize";
 
 /// `GetFirmwareType`'s `FirmwareTypeUefi`.
 pub const FIRMWARE_UEFI: u32 = 2;

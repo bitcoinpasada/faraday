@@ -25,6 +25,10 @@ faraday-payload = { path = "../../faraday-payload" }
 faraday-fat = { path = "../../faraday-fat" }
 faraday-storage = { path = "../../faraday-storage" }
 faraday-window = { path = "../window" }
+# Faraday Demo, run inside the Starter's window (F126, docs/STARTER.md
+# §5.3): its sticks, storage and fresh app, and through it the public
+# samples Practice takes (faraday-samples, tools/lint-keys-tests.sh).
+faraday-desktop = { path = "../desktop" }
 faraday-shell-api = { path = "../../../core/faraday-shell-api" }
 winit.workspace = true
 # A Faraday stick's release string (`find_release`), as the stick's own

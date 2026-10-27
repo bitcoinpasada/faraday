@@ -1,6 +1,8 @@
 //! udisks2 over the system bus (`rustbus`, `docs/deps/rustbus.md`): the
 //! transport under [`super::Udisks`]. Everything it reads goes into
 //! [`Objects`] at once; what the objects mean is [`super::udisks`]'s.
+//! Beside it, one call on the session bus at start: the desktop portal's
+//! light or dark preference ([`portal_color_scheme`], F126).
 //!
 //! The Starter never runs as root (§2, D13). udisks2 asks polkit, and
 //! polkit decides whether a password is asked for: opening a disk
@@ -238,6 +240,47 @@ impl Udisks for Bus {
             .map_err(|e| bus_error(format!("{e:?}")))?;
         self.call(&mut msg, QUICK).map(drop)
     }
+}
+
+/// How long the desktop portal gets to answer at start: past this the
+/// Starter opens without its answer (F126).
+const PORTAL_WAIT: Duration = Duration::from_millis(700);
+
+/// The XDG desktop portal's `org.freedesktop.appearance` `color-scheme`
+/// over the session bus, the one call the Starter makes there: `ReadOne`,
+/// or `Read` for a portal older than version 2 (`crate::scheme::portal`
+/// reads the number). `None` when there is no session bus or portal, or
+/// it does not answer within [`PORTAL_WAIT`]. Costs a connection and one
+/// or two calls; made once, at start.
+pub fn portal_color_scheme() -> Option<u32> {
+    let conn = RpcConn::session_conn(Timeout::Duration(PORTAL_WAIT)).ok()?;
+    let mut bus = Bus { conn };
+    for member in ["ReadOne", "Read"] {
+        let mut msg = MessageBuilder::new()
+            .call(member)
+            .on("/org/freedesktop/portal/desktop")
+            .with_interface("org.freedesktop.portal.Settings")
+            .at("org.freedesktop.portal.Desktop")
+            .build();
+        msg.body
+            .push_param2("org.freedesktop.appearance", "color-scheme")
+            .ok()?;
+        let Ok(reply) = bus.call(&mut msg, PORTAL_WAIT) else {
+            continue;
+        };
+        let Ok(v) = reply.body.parser().get::<Variant<'_, '_>>() else {
+            continue;
+        };
+        // `Read` wraps the value in one more variant.
+        let n = v
+            .get::<u32>()
+            .ok()
+            .or_else(|| v.get::<Variant<'_, '_>>().ok()?.get::<u32>().ok());
+        if n.is_some() {
+            return n;
+        }
+    }
+    None
 }
 
 /// The descriptor udisks2 passed, as a `File` that closes it.

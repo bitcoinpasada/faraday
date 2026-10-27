@@ -10,9 +10,18 @@
 # app, the disk and grant helpers, the boot report and the Starter.
 #
 # A third check: `faraday-samples` (the public samples Practice takes,
-# docs/MODES.md §5.4) is public data, but only the desktop app carries it.
-# The stick, the Pi, the disk and grant helpers, the boot report and the
-# Starter's own app must not reach it by a normal dependency, on any target.
+# docs/MODES.md §5.4) is public data, carried only by Faraday Demo: the
+# desktop app (`faraday-desktop`) and Faraday Starter, in whose window
+# Faraday Demo runs (docs/decisions/F126.md), so the Starter reaches it
+# through `faraday-desktop` alone. The samples are strings, bytes and
+# fingerprints that anyone may read, and Faraday Demo starts in Practice
+# on testnet, where they are its only keys (F81); the Starter already
+# carried faraday-core and faraday-keys for Transfer and Learn, so no key
+# path is new to it. The stick, the Pi, the disk and grant helpers and the
+# boot report hold real keys or run beside them and must not reach it by a
+# normal dependency, on any target; nor may the Starter's own crate
+# (`faraday-starter`, its pages and decisions), which takes the Demo's
+# app from the shell.
 #
 # A fourth: no shipped binary turns on the `unreleased` feature, behind
 # which FROST and signing across places are compiled out of the app
@@ -56,16 +65,26 @@ if grep -qE 'feature "unreleased"' <<< "$tree$core$strings"; then
     exit 1
 fi
 
-# The tree of dependents of faraday-samples, over the five binaries; any of
-# them in it is a path from that binary to the crate. A binary that does not
-# reach the crate prints nothing of itself.
+# The tree of dependents of faraday-samples, over the four binaries that
+# must not reach it and the Starter's own crate; any of them in it is a path
+# to the crate. One that does not reach the crate prints nothing of itself.
 samples=$(cargo tree -q --color never --target all -e normal \
     -p faraday-stick -p faraday-disk -p faraday-grant \
-    -p faraday-boot -p faraday-starter-shell -i faraday-samples 2>&1 || true)
+    -p faraday-boot -p faraday-starter -i faraday-samples 2>&1 || true)
 
-if grep -qE '(faraday-stick|faraday-disk|faraday-grant|faraday-boot|faraday-starter-shell) v' <<< "$samples"; then
-    echo "lint-keys-tests: a binary other than the desktop app depends on faraday-samples"
+if grep -qE '(faraday-stick|faraday-disk|faraday-grant|faraday-boot|faraday-starter) v' <<< "$samples"; then
+    echo "lint-keys-tests: a binary other than Faraday Demo's (the desktop app, the Starter) depends on faraday-samples"
     echo "$samples"
+    exit 1
+fi
+
+# The Starter reaches it only through Faraday Demo's crate: every path from
+# faraday-starter-shell to faraday-samples runs through faraday-desktop.
+direct=$(cargo tree -q --color never --target all -e normal --depth 1 \
+    -p faraday-starter-shell 2>&1 || true)
+if grep -qE '^[├└]── faraday-samples v' <<< "$direct"; then
+    echo "lint-keys-tests: the Starter depends on faraday-samples other than through faraday-desktop"
+    echo "$direct"
     exit 1
 fi
 echo "lint-keys-tests: ok"

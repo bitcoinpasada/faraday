@@ -379,13 +379,12 @@ Files shows through the webcam and saves each whole file into the same
 folder, under its own name or `received-N`, never over a file already
 there (`name (2).ext`).
 
-Faraday Starter on Linux and Windows carries Faraday Demo for its
-own system ("Faraday Demo" below). **Open Faraday Demo**, a row on
-its Home, runs it. **Install** puts it beside the Starter, in
-`~/.local/bin/faraday-demo` with the menu entry "Faraday Demo" on
-Linux, and as `Faraday Demo.exe` in `%LOCALAPPDATA%\Programs\Faraday
-Starter` with a Start menu shortcut on Windows; **Uninstall** removes
-them. Faraday Starter for macOS carries none.
+Faraday Starter on Linux and Windows has Faraday Demo inside it
+("Faraday Demo" below). **Open Faraday Demo**, a card on its Home,
+shows it in the Starter's own window; the way back returns to Home. It
+is not installed on its own: **Install**, update and **Uninstall**
+remove the copy an earlier Starter installed beside itself. Faraday
+Starter for macOS carries none.
 
 Without Faraday Starter, Raspberry Pi Imager and balenaEtcher take the
 `.img.xz` as it is; other tools need it decompressed (`xz -d` on Linux,
@@ -395,8 +394,9 @@ Without Faraday Starter, Raspberry Pi Imager and balenaEtcher take the
 
 Faraday Demo runs Faraday in a window on an ordinary computer, for
 trying it on testnet and for developing it. A release does not
-publish it on its own: the Linux and Windows Faraday Starters carry it
-(`docs/DECISIONS.md` F83). It has none of the stick's protections and is
+publish it on its own: it runs inside the Linux and Windows Faraday
+Starters (`docs/DECISIONS.md` F83, F126), and its theme there is the
+Starter's. It has none of the stick's protections and is
 never for a seed that holds funds. It starts in Practice, a mode on
 testnet that takes only the public seeds (each of `bacon`, `flag`,
 `gas`, `great`, `slice`, `solution`, `summer`, `they`, `trade`, `trap`
@@ -412,6 +412,11 @@ or Wayland client libraries at runtime, including `libxkbcommon-x11`.
 The check, `just`, needs cargo-nextest and cargo-deny (`cargo install
 --locked cargo-nextest cargo-deny`); the FAT tests use `mkfs.fat`,
 `fsck.fat` and mtools, and skip with a note when they are missing.
+
+For developers it also builds as a window of its own, which holds the
+same host and the same Demo side as the Starter's (`faraday_desktop::Demo`,
+`faraday/shells/desktop/src/lib.rs`); `cargo run -p faraday-starter-shell`
+opens it inside the Starter.
 
 ```
 cargo build -p faraday-desktop --release          # target/release/faraday

@@ -552,11 +552,7 @@ strings! {
     /// Installed row.
     starter_installed_app: "Faraday Starter",
     /// Installed row.
-    starter_installed_desktop: "Faraday Demo",
-    /// Installed row.
     starter_installed_menu: "Menu entry",
-    /// Installed row.
-    starter_installed_desktop_menu: "Faraday Demo's menu entry",
     /// Installed row.
     starter_installed_icon: "Icon",
     /// Installed row.
@@ -641,10 +637,6 @@ strings! {
     starter_why_wrong_sum: "The decompressed image's SHA-256 is {}, not the expected one",
     /// Reason.
     starter_why_no_home: "The home folder is not known",
-    /// Reason.
-    starter_why_no_desktop: "Faraday Starter carries no Faraday Demo for this computer",
-    /// Reason. `{}` sum.
-    starter_why_cache_sum: "Faraday Demo does not match the manifest: its SHA-256 is {}",
     /// Reason. `{}` path, `{}` the system's words.
     starter_why_file: "{}: {}",
     /// Reason. `{}` path of a file that is another program's.
@@ -680,10 +672,6 @@ strings! {
     starter_why_unsupported: "Not on this computer",
     /// The app menu entry's name, in the desktop entry file install writes.
     starter_menu_name: "Faraday Starter",
-    /// The desktop app's menu entry's name.
-    starter_menu_desktop_name: "Faraday Demo",
-    /// The desktop app's menu entry's description.
-    starter_menu_desktop_comment: "Practice, no Mainnet",
     /// The publisher in the Starter's installed-apps entry and the `.exe`'s properties.
     starter_publisher: "Faraday",
     /// Fault. `{}` the system's words.

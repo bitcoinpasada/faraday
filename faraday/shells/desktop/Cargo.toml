@@ -1,7 +1,7 @@
 [package]
 name = "faraday-desktop"
 version = "0.1.7"
-description = "Faraday in a window, with folders for sticks: the quickest way to try the screens"
+description = "Faraday Demo: its side of a window (sticks as folders, storage, the fresh app a lock starts), shared with the Starter's window, and the developer's window of its own"
 edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
@@ -18,7 +18,8 @@ faraday-core = { path = "../../faraday-core" }
 faraday-bip = { path = "../../../core/faraday-bip" }
 faraday-storage = { path = "../../faraday-storage" }
 # The public samples Practice takes (docs/MODES.md §5.4): public data only,
-# in no other shipped binary (tools/lint-keys-tests.sh).
+# in no shipped binary but Faraday Demo's: this one and the Starter, which
+# runs Faraday Demo in its window (F126, tools/lint-keys-tests.sh).
 faraday-samples = { path = "../../faraday-samples" }
 faraday-shell-api = { path = "../../../core/faraday-shell-api" }
 # `pin-pages`: the `mlock` that keeps the loaded master keys out of swap.

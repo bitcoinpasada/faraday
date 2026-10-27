@@ -275,9 +275,11 @@ the Starter's Home lists **Turn Secure Boot back on** until it is on.
 
 Faraday Demo is Faraday in a window, for trying it. It is inside the
 Starter on Linux and Windows: **Open Faraday Demo**, on the
-**Faraday Demo** card of the Starter's Home, runs it, and **Install**
-in the Starter's top bar puts it in the app menu beside the Starter. It runs on an online computer, so it has none of the stick's protections: never
-type a seed that holds real bitcoin into it.
+**Faraday Demo** card of the Starter's Home, shows it in the Starter's
+window, and the back arrow in the Starter's top bar returns to Home. A
+theme chosen in it is the Starter's too, until the Starter closes. It
+runs on an online computer, so it has none of the stick's protections:
+never type a seed that holds real bitcoin into it.
 
 ![Faraday Demo's Home, in Practice](guide/1-11-desktop-home.png)
 

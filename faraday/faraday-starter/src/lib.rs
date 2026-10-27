@@ -18,6 +18,7 @@ pub mod api;
 mod appearance;
 pub mod concern;
 pub mod decide;
+mod demo;
 mod draw;
 pub mod macs;
 pub mod notes;
@@ -759,6 +760,8 @@ pub struct Starter {
 
     /// The desktop app's Transfer and Learn.
     held: Faraday,
+    /// Faraday Demo, while it is on screen (F126, [`Starter::show_demo`]).
+    demo: Option<Box<demo::Held>>,
     /// The held app is on screen.
     showing: bool,
     /// The held app shows Learn as a destination, opened from the rail or
@@ -861,6 +864,7 @@ impl Starter {
             max: 0.0,
             seen: Vec::new(),
             held,
+            demo: None,
             learn_dest: false,
             held_touch: false,
             window: None,
@@ -1309,7 +1313,7 @@ impl Starter {
         let mut texts = if self.showing {
             self.held.drawn_texts()
         } else {
-            Vec::new()
+            self.demo_texts()
         };
         if let Some(c) = self.canvas.as_mut() {
             c.record_ink(true);
@@ -1598,6 +1602,9 @@ impl Starter {
     /// The destination on screen (§3.1d): Learn while the held app shows
     /// it as one, none on any task page. A lookup.
     pub(crate) fn on_destination(&self) -> Option<Destination> {
+        if self.demo.is_some() {
+            return None;
+        }
         if self.showing {
             return self.learn_dest.then_some(Destination::Learn);
         }
@@ -1733,7 +1740,7 @@ impl Starter {
         if action != StarterAction::Menu {
             self.menu = false;
         }
-        if self.showing && !self.act_over_held(action) {
+        if self.demo_act(action) || (self.showing && !self.act_over_held(action)) {
             return;
         }
         let c = self.held.compute();
@@ -1946,12 +1953,7 @@ impl Starter {
                     self.out.push_back(StarterCommand::Uninstall);
                 }
             }
-            StarterAction::OpenDesktop => {
-                if self.offers_desktop() {
-                    self.desktop_failed = None;
-                    self.out.push_back(StarterCommand::RunDesktop);
-                }
-            }
+            StarterAction::OpenDesktop => self.open_demo_asked(),
             StarterAction::Transfer => self.show_held(None, false),
             StarterAction::Learn => {
                 let pages = self.learn_pages();
@@ -2124,17 +2126,6 @@ impl Starter {
         }
     }
 
-    /// Whether Open Faraday Demo is offered: the payload carries it, or
-    /// it is installed.
-    pub fn offers_desktop(&self) -> bool {
-        self.payload_file(PayloadKind::Desktop).is_some()
-            || self.installed.as_ref().is_some_and(|i| {
-                i.items
-                    .iter()
-                    .any(|(item, _)| *item == api::InstallItem::Desktop)
-            })
-    }
-
     /// Whether the running copy is newer than the installed one (or the
     /// installed one reports no version).
     pub fn update_offered(&self) -> bool {
@@ -2296,6 +2287,7 @@ impl Starter {
         self.frost = None;
         self.window = Some(d);
         self.fit_held();
+        self.fit_demo();
     }
 
     fn render(&mut self) {
@@ -2385,7 +2377,12 @@ impl Facts<'_> {
 
 impl App for Starter {
     fn event(&mut self, event: Event) {
-        let event = if self.showing {
+        let event = if self.demo.is_some() {
+            match self.demo_event(event) {
+                Some(e) => e,
+                None => return,
+            }
+        } else if self.showing {
             match self.held_event(event) {
                 Some(e) => e,
                 None => return,
@@ -2458,7 +2455,9 @@ impl App for Starter {
     }
 
     fn frame(&mut self) -> Frame<'_> {
-        if self.showing {
+        if self.demo.is_some() {
+            self.compose_demo();
+        } else if self.showing {
             self.compose();
         } else if self.dirty {
             self.dirty = false;

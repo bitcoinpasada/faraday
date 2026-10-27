@@ -6,6 +6,7 @@ mod budget;
 mod colours_read;
 mod concern_holds;
 mod concern_rules;
+mod demo;
 mod mac;
 mod navigation;
 mod notes;

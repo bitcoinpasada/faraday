@@ -188,7 +188,11 @@ impl Snap<'_> {
         while starter.poll_command().is_some() {}
         starter.event(Event::Tick { now_ms: 10_000 });
         starter.held().settle();
+        if let Some(demo) = starter.demo() {
+            demo.app.settle();
+        }
         while starter.poll_command().is_some() {}
+        while starter.poll_demo_command().is_some() {}
         let frame = starter.frame();
         let path = self.out.join(format!("{name}.png"));
         let file = std::fs::File::create(&path).map_err(|e| format!("{}: {e}", path.display()))?;
@@ -709,14 +713,9 @@ fn run(s: &Snap) -> Result<(), String> {
         version: "0.2.0".into(),
         items: vec![
             (InstallItem::App, "~/.local/bin/faraday-starter".into()),
-            (InstallItem::Desktop, "~/.local/bin/faraday-demo".into()),
             (
                 InstallItem::Menu,
                 "~/.local/share/applications/app.faradayoffline.FaradayStarter.desktop".into(),
-            ),
-            (
-                InstallItem::DesktopMenu,
-                "~/.local/share/applications/app.faradayoffline.FaradayDemo.desktop".into(),
             ),
             (
                 InstallItem::Icon,
@@ -784,6 +783,7 @@ fn run(s: &Snap) -> Result<(), String> {
     h.press(StarterAction::Learn);
     s.shot(&mut h, "learn")?;
     destination_shots(s)?;
+    demo_shots(s)?;
     step_shots(s)?;
     guide_shots(s)?;
     guide_start_shots(s)
@@ -812,6 +812,20 @@ fn destination_shots(s: &Snap) -> Result<(), String> {
         "6.6.84-faraday-0.2.0",
     )]));
     s.shot(&mut h, "make-stick-attached")?;
+    Ok(())
+}
+
+/// Faraday Demo inside the Starter's window (F126): opened from Home
+/// under the top app bar with its host's strip, and Home again after the
+/// way back.
+fn demo_shots(s: &Snap) -> Result<(), String> {
+    let mut h = s.starter();
+    h.press(StarterAction::OpenDesktop);
+    let app = faraday_desktop::desktop_app_in(faraday_core::Mode::Demo);
+    h.show_demo(faraday_core::Host::new(app));
+    s.shot(&mut h, "demo")?;
+    h.press(StarterAction::Back);
+    s.shot(&mut h, "demo-left")?;
     Ok(())
 }
 

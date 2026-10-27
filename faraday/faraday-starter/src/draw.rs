@@ -56,7 +56,7 @@ pub(crate) fn frame(starter: &Starter, ui: &mut Ui) -> f32 {
         sheet_over(starter, ui, w, h, sheet);
         return starter.max;
     }
-    if starter.showing {
+    if starter.showing || starter.showing_demo() {
         held_chrome(starter, ui);
         return starter.max;
     }
@@ -127,9 +127,10 @@ pub(crate) fn frame(starter: &Starter, ui: &mut Ui) -> f32 {
     max
 }
 /// The Starter's own frame round the held desktop app (§3.1d): the top
-/// app bar over it, with the way back on Transfer and a Learn page opened
-/// from a page, and on the Learn destination the rail or the bar at the
-/// foot. The held app's frame is copied in under it ([`Starter::compose`]).
+/// app bar over it, with the way back on Transfer, a Learn page opened
+/// from a page and Faraday Demo (F126), and on the Learn destination the
+/// rail or the bar at the foot. The held app's frame, or the Demo's, is
+/// copied in under it ([`Starter::compose`], [`Starter::compose_demo`]).
 fn held_chrome(starter: &Starter, ui: &mut Ui) {
     let (w, h) = (starter.w, starter.h);
     let compact = starter.compact();
@@ -173,6 +174,9 @@ fn sheet_over(starter: &Starter, ui: &mut Ui, w: f32, h: f32, sheet: Sheet) {
 
 /// A page's name, as its title and its bar say it.
 fn page_name(starter: &Starter) -> String {
+    if starter.showing_demo() {
+        return S.starter_card_desktop.to_string();
+    }
     if starter.showing {
         return if starter.held.screen == faraday_core::Screen::Transfer {
             S.starter_row_transfer
@@ -223,6 +227,10 @@ fn page_name_of(starter: &Starter, page: Page) -> String {
 
 /// Where the way back goes, by name; none while a write runs.
 fn back_name(starter: &Starter) -> Option<String> {
+    // Faraday Demo goes back to Home, where it was opened.
+    if starter.showing_demo() {
+        return Some(destination_name(starter.page));
+    }
     if starter.showing {
         // Transfer or a Learn page goes back to the page it was opened
         // from; the Learn destination has none.
@@ -662,8 +670,6 @@ pub(crate) fn reason_text(r: &Reason) -> String {
         }
         Reason::WrongSum(sum) => fill(S.starter_why_wrong_sum, &[sum]),
         Reason::NoHome => S.starter_why_no_home.to_string(),
-        Reason::NoDesktopApp => S.starter_why_no_desktop.to_string(),
-        Reason::CacheSum(sum) => fill(S.starter_why_cache_sum, &[sum]),
         Reason::File { path, detail } => fill(S.starter_why_file, &[path, detail]),
         Reason::InTheWay { path } => fill(S.starter_why_in_the_way, &[path]),
         Reason::Start { path, detail } => fill(S.starter_why_start, &[path, detail]),
@@ -1889,9 +1895,7 @@ fn install(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
 fn item_name(item: InstallItem) -> &'static str {
     match item {
         InstallItem::App => S.starter_installed_app,
-        InstallItem::Desktop => S.starter_installed_desktop,
         InstallItem::Menu => S.starter_installed_menu,
-        InstallItem::DesktopMenu => S.starter_installed_desktop_menu,
         InstallItem::Icon => S.starter_installed_icon,
         InstallItem::UninstallEntry => S.starter_installed_entry,
     }

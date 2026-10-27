@@ -243,8 +243,6 @@ pub enum PayloadKind {
     AppleStick,
     /// The Pi image (`faraday-pi-…`).
     Pi,
-    /// The desktop app (`faraday-demo-…`).
-    Desktop,
 }
 
 impl PayloadKind {
@@ -257,8 +255,6 @@ impl PayloadKind {
             Some(PayloadKind::Stick)
         } else if name.starts_with("faraday-pi-") {
             Some(PayloadKind::Pi)
-        } else if name.starts_with("faraday-demo-") {
-            Some(PayloadKind::Desktop)
         } else {
             None
         }
@@ -324,12 +320,8 @@ pub struct DevImage {
 pub enum InstallItem {
     /// The Starter.
     App,
-    /// The desktop app.
-    Desktop,
     /// The Starter's menu entry or Start menu shortcut.
     Menu,
-    /// The desktop app's menu entry or shortcut.
-    DesktopMenu,
     /// The icon.
     Icon,
     /// Windows: the entry in Installed apps.
@@ -528,10 +520,6 @@ pub enum Reason {
     WrongSum(String),
     /// The home folder is not known.
     NoHome,
-    /// The payload carries no desktop app.
-    NoDesktopApp,
-    /// The cached desktop app does not match the manifest.
-    CacheSum(String),
     /// A file or folder could not be written, read or removed.
     File {
         /// Where.
@@ -660,7 +648,8 @@ pub enum StarterEvent {
     InstallDone(Result<String, Reason>),
     /// The uninstall ended.
     UninstallDone(Result<(), Reason>),
-    /// The desktop app was started, or why not.
+    /// Faraday Demo opened in the window (F126, §5.3), or why not: its
+    /// stick folders could not be made.
     DesktopStarted(Result<(), Reason>),
     /// The restart into firmware settings was refused or failed, with
     /// why (a restart that happens sends nothing).
@@ -775,14 +764,17 @@ pub struct WriteOrder {
 pub enum StarterCommand {
     /// Write a stick or card as confirmed.
     Write(WriteOrder),
-    /// Install the Starter, and the payload's Faraday Demo beside it
-    /// (§5.2, §5.3).
+    /// Install the Starter (§5.2), removing an earlier install's
+    /// Faraday Demo (§5.3).
     Install,
     /// Uninstall exactly what install put here (§5.4).
     Uninstall,
-    /// Run the desktop app: the installed one, else from the payload
-    /// (§5.3).
-    RunDesktop,
+    /// Open Faraday Demo in the window, under the top app bar (F126,
+    /// §5.3): the shell makes its app and hands it to
+    /// [`crate::Starter::show_demo`].
+    OpenDemo,
+    /// Faraday Demo was left: the shell lets go of what it kept for it.
+    DemoClosed,
     /// Restart into firmware settings (§7.3).
     RestartIntoFirmware,
     /// Restart from the stick (§3.1): Windows' advanced startup, whose

@@ -37,6 +37,10 @@ png.workspace = true
 # The test kit's `learn_scroll_to`, for the tests and `examples/snap.rs`;
 # never in the Starter itself.
 faraday-core = { path = "../faraday-core", features = ["testkit"] }
+# Faraday Demo's app as the shell makes it, for the tests and
+# `examples/snap.rs` that open it inside the Starter (F126); the Starter
+# itself takes it from the shell.
+faraday-desktop = { path = "../shells/desktop" }
 
 [lints]
 workspace = true

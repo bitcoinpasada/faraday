@@ -6,6 +6,9 @@ the system bus: `GetManagedObjects` for the disks, its signals for a
 disk plugged in or pulled out, `Filesystem.Mount` (read-only) and
 `Filesystem.Unmount`, `Block.OpenDevice`, which passes back an open
 file descriptor for the disk, and `Block.Rescan`.
+It also makes one call on the session bus at start: the XDG desktop
+portal's `org.freedesktop.portal.Settings` `ReadOne` (or `Read`) of
+`org.freedesktop.appearance` `color-scheme`, for Light or Dark (F126).
 `faraday/shells/starter/src/linux/bus.rs` is the only code that uses it, and
 only on Linux; what udisks2's answers mean is read in `udisks.rs` with
 no D-Bus in it, so the tests feed recorded answers.

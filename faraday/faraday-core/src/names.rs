@@ -8,12 +8,12 @@
 
 /// The installed Starter on Linux, in `~/.local/bin`.
 pub const LINUX_BIN: &str = "faraday-starter";
-/// The installed desktop app on Linux, in `~/.local/bin`.
-pub const LINUX_DESKTOP_BIN: &str = "faraday-demo";
 /// The Starter's menu entry and icon (reverse-DNS, so never a developer's
 /// own `faraday.desktop`), and its Windows manifest identity.
 pub const MENU_ID: &str = "app.faradayoffline.FaradayStarter";
-/// The desktop app's menu entry and Windows manifest identity.
+/// The developer's Faraday Demo's Windows manifest identity
+/// (`shells/desktop/build.rs`); an earlier Starter's install of the Demo
+/// had its menu entry under it ([`LEGACY_DESKTOP`]).
 pub const MENU_DESKTOP_ID: &str = "app.faradayoffline.FaradayDemo";
 
 /// `%LOCALAPPDATA%\Programs\<this>`, the uninstall key and the Run value.
@@ -22,11 +22,9 @@ pub const WIN_NAME: &str = "Faraday Starter";
 pub const WIN_EXE: &str = "Faraday Starter.exe";
 /// The Start menu shortcut.
 pub const WIN_SHORTCUT: &str = "Faraday Starter.lnk";
-/// The installed desktop app on Windows, beside the Starter's, and the
-/// name of its cached copy (`docs/STARTER.md` §5.3).
+/// The developer's Faraday Demo on Windows (`shells/desktop/build.rs`),
+/// and the name an earlier Starter installed it under ([`LEGACY_DESKTOP`]).
 pub const WIN_DESKTOP_EXE: &str = "Faraday Demo.exe";
-/// The desktop app's Start menu shortcut.
-pub const WIN_DESKTOP_SHORTCUT: &str = "Faraday Demo.lnk";
 
 /// One earlier install's names, found and removed by install and
 /// uninstall when it is Faraday's. These never change.
@@ -64,9 +62,10 @@ pub const LEGACY: [Legacy; 2] = [
     },
 ];
 
-/// The desktop app's names before it was Faraday Demo, found and removed
-/// by install and uninstall when the file there answers `--version` as
-/// Faraday's desktop app (old words included). These never change.
+/// The names Faraday Demo was installed under beside the Starter, before
+/// it ran inside the Starter's window (F126), found and removed by
+/// install, update and uninstall when the file there answers `--version`
+/// as Faraday's desktop app (old words included). These never change.
 pub struct LegacyDesktop {
     /// Linux: the app in `~/.local/bin`.
     pub linux_bin: &'static str,
@@ -78,10 +77,19 @@ pub struct LegacyDesktop {
     pub win_shortcut: &'static str,
 }
 
-/// The names the desktop app was installed under as "Faraday Desktop".
-pub const LEGACY_DESKTOP: [LegacyDesktop; 1] = [LegacyDesktop {
-    linux_bin: "faraday-desktop",
-    menu_id: "app.faradayoffline.FaradayDesktop",
-    win_exe: "Faraday Desktop.exe",
-    win_shortcut: "Faraday Desktop.lnk",
-}];
+/// The names an earlier Starter installed the desktop app under: as
+/// "Faraday Demo" (F119), and before that as "Faraday Desktop".
+pub const LEGACY_DESKTOP: [LegacyDesktop; 2] = [
+    LegacyDesktop {
+        linux_bin: "faraday-demo",
+        menu_id: MENU_DESKTOP_ID,
+        win_exe: WIN_DESKTOP_EXE,
+        win_shortcut: "Faraday Demo.lnk",
+    },
+    LegacyDesktop {
+        linux_bin: "faraday-desktop",
+        menu_id: "app.faradayoffline.FaradayDesktop",
+        win_exe: "Faraday Desktop.exe",
+        win_shortcut: "Faraday Desktop.lnk",
+    },
+];

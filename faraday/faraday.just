@@ -42,8 +42,8 @@ stick_panel := "efi-framebuffer"
 # The desktop app at out/linux/faraday, built in a Debian 11 container
 # (faraday/build/linux) against glibc 2.31, so one file runs on Ubuntu
 # 20.04 and later, Debian 11 and later, Fedora 32 and later and Arch
-# (docs/STARTER.md §1.2). With release=1 it is the file the Linux
-# Starter's payload carries (docs/DECISIONS.md F83). The
+# (docs/STARTER.md §1.2). It is a developer's build: people run Faraday
+# Demo inside the Starter, which carries it compiled in (F126). The
 # Wayland and X11 libraries are loaded from the
 # desktop it runs on. The Starter is built the same way with
 # the arguments `out/linux out/build/run faraday-starter-shell faraday-starter`, against the payload a first
@@ -96,11 +96,10 @@ faraday-linux-bin out="out/linux" cache="out/build/run" package="faraday-desktop
 # into OUT/BIN.exe, with its icon, version and asInvoker manifest, and
 # checked: no library beside Windows' own, no local path in its strings.
 # Parameters are positional, in this order, as faraday-linux-bin's are;
-# the last two default to the Starter; the desktop app with release=1 is
-# the file the Windows Starter's payload carries (F83).
+# the last two default to the Starter, which carries Faraday Demo compiled
+# in (F126); the desktop app alone is a developer's build.
 # FARADAY_STARTER_PAYLOAD=out/payload/VERSION/windows
-# builds that payload into the Starter (the stick and Pi images and the
-# desktop app); without
+# builds that payload into the Starter (the stick and Pi images); without
 # it the Starter offers only --image. what
 # `clippy` runs clippy for the Windows target on that package instead.
 #
@@ -437,13 +436,10 @@ faraday-pi-image: faraday-pi-bin
 # (STARTER §1.3); refuses files carrying a home folder, user name or host
 # name. The stick image must be the release build (release=1); the stick
 # and Pi builds must carry one build ID; --any-build tries it on a test
-# build. Faraday Demo, out/linux/faraday and out/windows/faraday.exe
-# built with release=1, goes into the payload of its own system as
-# faraday-demo-VERSION-linux-x86_64.xz and
-# faraday-demo-VERSION-windows-x86_64.exe.xz (F83), and is never in
-# the release folder. The payload has linux/ and windows/, one for each
-# Starter, each holding the two images, that system's desktop app and
-# MANIFEST.
+# build. Faraday Demo is compiled into the Starter (F126) and staged
+# nowhere: no faraday-demo file is in the payload or the release folder.
+# The payload has linux/ and windows/, one for each Starter, each holding
+# the two images and MANIFEST.
 #
 #   just faraday-release-stage 0.2.0
 #   just faraday-release-stage 0.2.0 --any-build --out DIR

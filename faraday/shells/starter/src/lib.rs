@@ -11,6 +11,11 @@
 //!   [`windows`] Windows', [`macos`] macOS's.
 //! - [`stick`]: which Faraday a stick holds, read from its boot
 //!   partition alone.
+//! - [`scheme`]: Light or Dark at start, from this computer's own
+//!   setting (F126).
+//!
+//! Faraday Demo runs in the same window (F126, `docs/STARTER.md` §5.3):
+//! `faraday_desktop::Demo` serves it, as in the Demo's own window.
 //!
 //! The window loop is `main.rs`, built on `faraday-window` as the
 //! desktop app is.
@@ -22,6 +27,7 @@ pub mod macos;
 pub mod payload;
 pub mod pdf;
 pub mod platform;
+pub mod scheme;
 pub mod stick;
 pub mod windows;
 pub mod writer;

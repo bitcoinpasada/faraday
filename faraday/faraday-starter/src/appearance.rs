@@ -1,8 +1,10 @@
 //! The Starter's Appearance (`docs/THEMES.md` §14): the scheme its pages
 //! are drawn in, chosen on the Appearance page from the ⋮ menu, and the
-//! held desktop app drawn in the same. The Starter keeps no settings
-//! file (`docs/STARTER.md` §5.1): it opens in Cobalt, Light, Standard,
-//! and a choice lasts until it closes.
+//! held desktop app and Faraday Demo drawn in the same; a theme chosen in
+//! the Demo is the Starter's too (F126, `crate::demo`). The Starter keeps
+//! no settings file (`docs/STARTER.md` §5.1): it opens in Cobalt at
+//! Standard contrast, Light or Dark as this computer's own setting says
+//! (the shell reads it at start), and a choice lasts until it closes.
 
 use crate::Starter;
 

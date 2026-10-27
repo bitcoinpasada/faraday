@@ -30,7 +30,7 @@ Read this table, then only the decision you need.
 | [F13](decisions/F13.md) | Faraday on Macs: the stick, the desktop app and the Starter | 2026-10-12 | Amended by F30 | platforms |
 | [F14](decisions/F14.md) | Maker pages are published several families at once | 2026-10-12 | Active | Starter |
 | [F15](history/decisions/F15.md) | Faraday Companion: an Android app with no network access | 2026-10-12 | Superseded by F34 | platforms |
-| [F16](decisions/F16.md) | The hub app is Faraday Starter; the desktop app is Faraday Demo | 2026-10-12 | Amended by F119 | Starter |
+| [F16](decisions/F16.md) | The hub app is Faraday Starter; the desktop app is Faraday Demo | 2026-10-12 | Amended by F119, F126 | Starter |
 | [F17](history/decisions/F17.md) | The BitLocker step is the recovery key; suspending is the extra-safe choice | 2026-10-13 | Superseded by F33 | Starter |
 | [F18](decisions/F18.md) | Firmware sketches in Faraday Starter and the Companion | 2026-10-13 | Amended by F34, F105 | Starter |
 | [F19](decisions/F19.md) | Audits from experts and AIs, published with Faraday's response | 2026-10-13 | Active | repository |
@@ -97,7 +97,7 @@ Read this table, then only the decision you need.
 | [F80](decisions/F80.md) | A stick or Pi card has a 64 MiB boot and a 128 MiB FAT32 data partition | 2026-10-22 | Active | stick |
 | [F81](decisions/F81.md) | Modes: a pressable pill, Practice on testnet, samples at every step | 2026-10-22 | Amended by F119 | design |
 | [F82](decisions/F82.md) | A first start opens Steps only; Guided is a choice | 2026-10-22 | Active | design |
-| [F83](decisions/F83.md) | Faraday Demo is inside the Starter, and not published on its own | 2026-10-23 | Active | release |
+| [F83](decisions/F83.md) | Faraday Demo is inside the Starter, and not published on its own | 2026-10-23 | Amended by F126 | release |
 | [F84](decisions/F84.md) | Check a signer fails closed; unknown fields are findings there and Info in a review | 2026-10-23 | Active | crypto |
 | [F85](decisions/F85.md) | Text size: Standard, Large, Larger, and the layout steps down for it | 2026-10-23 | Active | design |
 | [F86](decisions/F86.md) | Your own randomness is mixed into the session's; the stick's kernel credits what it says it does | 2026-10-23 | Amended by F102, F124 | security |
@@ -127,16 +127,17 @@ Read this table, then only the decision you need.
 | [F110](decisions/F110.md) | Faraday Desktop shows its screens at another screen's size | 2026-10-24 | Amended by F118 | design |
 | [F111](decisions/F111.md) | The Material 3 components and patterns Faraday leaves out | 2026-10-24 | Active | design |
 | [F112](decisions/F112.md) | One explanation on a working screen: the tooltip on "codex32" in Make a new wallet's Kind card | 2026-10-24 | Active | design |
-| [F113](decisions/F113.md) | Colour follows Material 3's colour system: ten seeded themes, Light and Dark, three contrast levels | 2026-10-24 | Active | design |
+| [F113](decisions/F113.md) | Colour follows Material 3's colour system: ten seeded themes, Light and Dark, three contrast levels | 2026-10-24 | Amended by F126 | design |
 | [F114](decisions/F114.md) | Wide content takes the room beside the navigation; reading content keeps its column | 2026-10-24 | Active | design |
 | [F115](decisions/F115.md) | A key flow opened from Make a new wallet has Cancel, back to it; a Keys card with one way on is passed over | 2026-10-24 | Active | design |
 | [F116](decisions/F116.md) | Faraday's scope: an offline signer and keeper of keys, Bitcoin first | 2026-10-25 | Active | scope |
 | [F117](decisions/F117.md) | Faraday Demo matches the device; it differs only where the platform or an owner decision forces it | 2026-10-25 | Amended by F119 | design |
 | [F118](decisions/F118.md) | Faraday Demo is a simulator: what is Faraday Demo's or Practice's stands in a host strip outside the app | 2026-10-25 | Amended by F119 | design |
-| [F119](decisions/F119.md) | Faraday Desktop is Faraday Demo; its Demo mode is Practice | 2026-10-26 | Active | design |
+| [F119](decisions/F119.md) | Faraday Desktop is Faraday Demo; its Demo mode is Practice | 2026-10-26 | Amended by F126 | design |
 | [F120](decisions/F120.md) | Settings' theme chips are filled in their own theme's colours; the chosen one is ringed | 2026-10-25 | Active | design |
 | [F121](decisions/F121.md) | No codex32 strings for a key of words | 2026-10-26 | Active | backup |
 | [F122](decisions/F122.md) | Make a new wallet: one press takes a stick, and Check opens the backup | 2026-10-26 | Active | backup |
 | [F123](decisions/F123.md) | A secret shows at a press on its eye, never by a hold | 2026-10-26 | Active | keys |
 | [F124](decisions/F124.md) | Randomness is never collected passively; pointer and keys are a source one picks | 2026-10-26 | Active | security |
 | [F125](decisions/F125.md) | Explore shows a key's secrets behind eyes | 2026-10-26 | Active | keys |
+| [F126](decisions/F126.md) | Faraday Demo runs inside Faraday Starter; one theme in a session | 2026-10-26 | Active | Starter |

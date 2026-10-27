@@ -28,15 +28,9 @@
 # Takes what the builds left (under out/, or the folder --builds names):
 #   out/stick/faraday-x86_64-uefi.img       -> faraday-stick-VERSION-x86_64-uefi.img.xz
 #   out/pi/faraday-pi3-waveshare-28dpi.img  -> faraday-pi-VERSION-pi3-waveshare-28dpi.img.xz
-#   out/linux/faraday        -> faraday-demo-VERSION-linux-x86_64.xz      (in the Linux payload)
-#   out/windows/faraday.exe  -> faraday-demo-VERSION-windows-x86_64.exe.xz (in the Windows payload)
-# Faraday Demo is not published on its own (docs/DECISIONS.md F83):
-# each Starter's payload carries the one for its own system, compressed
-# like the images, with a MANIFEST line, and the release folder holds no
-# desktop file. Each must carry the build ID the images carry as a string
-# (so it is a release build when they are); --any-build lets a desktop
-# app not built be left out with a note, so a test build of the images
-# alone can be staged.
+# Faraday Demo is neither a release file nor a payload file: it runs inside
+# the Starter's window, compiled into the Starter (docs/decisions/F126.md),
+# so no faraday-demo build is taken or staged.
 #
 # Images are published as .xz only (F11). SHA256SUMS lists each file
 # published and, under its .img name, the image inside each .xz, so
@@ -54,13 +48,12 @@
 #
 # Second, the payload the Starter embeds (STARTER §1.3), in out/payload/VERSION/
 # (with --out DIR, in DIR.payload; --payload DIR names it): one folder per
-# system, linux/ and windows/, each with hard links to the two image .xz,
-# that system's desktop app as .xz and its own MANIFEST (the first line
-# is the same in both). The two folders stay apart: each Starter embeds
-# its own. The macOS Starter, when built, carries no desktop app (F83).
+# system, linux/ and windows/, each with hard links to the two image .xz
+# and its own MANIFEST (the first line is the same in both). The two
+# folders stay apart: each Starter embeds its own.
 #
 # Before it finishes, either pass refuses a release folder that holds a
-# file whose name starts faraday-demo-, and names it.
+# file whose name starts faraday-demo- (F83, F126), and names it.
 #
 # Last, the published-file check (STARTER §2): every file published, and every
 # .img, binary and inner file inside one, goes through `strings`. The
@@ -114,19 +107,6 @@ if [ -z "$second" ]; then
     for f in "$stick" "$pi"; do
         [ -f "$f" ] || die "$f: not built"
     done
-    # Faraday Demo for each Starter's payload (F83): system, source,
-    # name inside the payload file.
-    desktops=()
-    for entry in "linux:$builds/linux/faraday:faraday-demo-$version-linux-x86_64" \
-                 "windows:$builds/windows/faraday.exe:faraday-demo-$version-windows-x86_64.exe"; do
-        src="$(cut -d: -f2 <<<"$entry")"
-        if [ ! -f "$src" ]; then
-            [ "$any" = 1 ] || die "$src: not built (just release=1 faraday-linux-bin; just release=1 faraday-windows-bin build out/windows out/build/run faraday-desktop faraday)"
-            echo "$src: not built; no desktop app staged for it (--any-build)"
-            continue
-        fi
-        desktops+=("$entry")
-    done
     for tool in xz strings mtype; do
         command -v "$tool" >/dev/null || die "$tool is not installed"
     done
@@ -160,12 +140,6 @@ if [ -z "$second" ]; then
         die "the builds are $stick_id, not the release $version (build them with release=1, or pass --any-build)"
     fi
     build="$stick_id"
-    # Each desktop app carries that build ID as a string.
-    for entry in ${desktops[@]+"${desktops[@]}"}; do
-        src="$(cut -d: -f2 <<<"$entry")"
-        grep -aqF -- "$build" "$src" || die "$src does not carry the build ID $build (build it from the same commit with release=1, or pass --any-build for a test build)"
-        echo "$src: carries $build"
-    done
 
     [ ! -e "$out" ] || die "$out exists; move it aside first"
     [ ! -e "$payload" ] || die "$payload exists; move it aside first"
@@ -208,17 +182,6 @@ if [ -z "$second" ]; then
         dir="$payload/$system"
         ln "$out/$stick_name.xz" "$dir/$stick_name.xz"
         ln "$out/$pi_name.xz" "$dir/$pi_name.xz"
-        # This system's desktop app, if it was built.
-        desktop_xz="" desktop_inner="" desktop_src=""
-        for entry in ${desktops[@]+"${desktops[@]}"}; do
-            [ "${entry%%:*}" = "$system" ] || continue
-            desktop_src="$(cut -d: -f2 <<<"$entry")"
-            desktop_inner="$(cut -d: -f3 <<<"$entry")"
-            desktop_xz="$desktop_inner.xz"
-            echo "Compressing $desktop_xz"
-            xz -9e -T1 -c "$desktop_src" > "$dir/$desktop_xz"
-            xz -t "$dir/$desktop_xz"
-        done
         manifest_line() { # payload file, inner name, inner file
             printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$1" "$(sha256sum < "$dir/$1" | cut -d' ' -f1)" \
                 "$2" "$(sha256sum < "$3" | cut -d' ' -f1)" "$(stat -c %s "$3")" "$build"
@@ -227,7 +190,6 @@ if [ -z "$second" ]; then
             echo "# Faraday Starter payload $version, commit $commit"
             manifest_line "$stick_name.xz" "$stick_name" "$stick"
             manifest_line "$pi_name.xz" "$pi_name" "$pi"
-            [ -z "$desktop_xz" ] || manifest_line "$desktop_xz" "$desktop_inner" "$desktop_src"
         } > "$dir/MANIFEST"
     done
 fi
@@ -353,12 +315,12 @@ scan_tar() {
     for g in "$check"/untar/*; do scan "$g" "$f: ${g#"$check"/untar/}" 0; done
     rm -rf "$check/untar"
 }
-# Faraday Demo is not published on its own (F83): a release folder
-# holding a desktop app is refused, whichever pass put it there, before the
-# second pass adds anything. A payload folder carries its own system's.
+# Faraday Demo is not published on its own (F83) and runs inside the
+# Starter (F126): a release folder holding a desktop app is refused,
+# whichever pass put it there, before the second pass adds anything.
 for f in "$out"/faraday-demo-*; do
     [ -e "$f" ] || continue
-    refuse "$f is a desktop app, which a release does not publish on its own (F83); it belongs in a payload folder"
+    refuse "$f is a desktop app, which a release does not publish (F83): Faraday Demo is inside the Starter (F126)"
 done
 if [ -n "$second" ]; then
     [ -z "$starter" ] || add_starter

@@ -1,8 +1,7 @@
-//! What the Starter's writer and Open Faraday Demo see from a payload
-//! file, and what `--image` sees from a developer's own image
-//! (`docs/STARTER.md` §1.1, §1.3, §4.1). The `.xz` files in `vectors/` were
-//! made by the xz program; `vectors/README.md` says how, and what
-//! `sha256sum` gives for each.
+//! What the Starter's writer sees from a payload file, and what `--image`
+//! sees from a developer's own image (`docs/STARTER.md` §1.1, §1.3,
+//! §4.1). The `.xz` files in `vectors/` were made by the xz program;
+//! `vectors/README.md` says how, and what `sha256sum` gives for each.
 
 use std::io::Cursor;
 
@@ -286,35 +285,6 @@ fn a_manifest_parses_into_its_files() {
     let mut bare = text.clone();
     bare.pop();
     assert_eq!(Manifest::parse(&bare).unwrap(), m);
-}
-
-/// A payload carries the images and Faraday Demo for its system
-/// (F83): a manifest naming the desktop app lists it like any file.
-#[test]
-fn a_payload_may_list_the_desktop_app_beside_the_images() {
-    let stick = line(
-        "faraday-stick-0.2.0-x86_64-uefi.img.xz",
-        FIXTURE_XZ_SHA256,
-        "faraday-stick-0.2.0-x86_64-uefi.img",
-        FIXTURE_SHA256,
-        FIXTURE_SIZE,
-    );
-    let desktop = line(
-        "faraday-demo-0.2.0-linux-x86_64.xz",
-        ZEROS_XZ_SHA256,
-        "faraday-demo-0.2.0-linux-x86_64",
-        ZEROS_SHA256,
-        ZEROS_SIZE,
-    );
-    let m = Manifest::parse(&manifest(&[stick, desktop])).unwrap();
-    let names: Vec<&str> = m.files().iter().map(|f| f.name.as_str()).collect();
-    assert_eq!(
-        names,
-        [
-            "faraday-stick-0.2.0-x86_64-uefi.img.xz",
-            "faraday-demo-0.2.0-linux-x86_64.xz"
-        ]
-    );
 }
 
 #[test]

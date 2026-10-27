@@ -281,14 +281,18 @@ unsigned spend where the testkit makes one (`testkit::unsigned`,
   so lint-secrets rule 4 has nothing to refuse there.
 - Names on screen are not in the crate: each sample carries a key into
   `faraday/faraday-strings/src/en.rs` (§8).
-- `Faraday::samples: Option<&'static Samples>`, set by the desktop and
-  the website. With `None` (the stick, the Pi, the Starter's Faraday)
+- `Faraday::samples: Option<&'static Samples>`, set by Faraday Demo (in
+  its own window and inside the Starter, F126) and the website. With
+  `None` (the stick, the Pi, the Faraday the Starter holds for Transfer
+  and Learn)
   no pill, no sheet and no Use a sample is drawn or acted on.
 - **Gate**: the crate, not a feature. `tools/lint-keys-tests.sh` gains
   a third check: `cargo tree -i faraday-samples` over faraday-stick,
-  faraday-disk, faraday-grant, faraday-boot and faraday-starter-shell
-  (normal edges, every target) must find nothing. The desktop depends on
-  it normally; faraday-core never does.
+  faraday-disk, faraday-grant, faraday-boot and the Starter's own crate
+  `faraday-starter` (normal edges, every target) must find nothing. The
+  desktop depends on it normally, and the Starter's binary
+  (`faraday-starter-shell`) through `faraday-desktop` alone, since
+  Faraday Demo runs inside it (F126); faraday-core never does.
 - **The test** (faraday-samples' tests/, faraday-core's `testkit` as a
   dev-dependency): every word sample's fingerprint equals what
   `Keys::add_words_with` gives; every wallet's descriptor equals the

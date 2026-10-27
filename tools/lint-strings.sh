@@ -66,6 +66,7 @@ faraday/faraday-learn/src/*.rs
 faraday/faraday-guides/src/*.rs
 faraday/faraday-intake/src/*.rs
 faraday/shells/desktop/src/main.rs
+faraday/shells/desktop/src/lib.rs
 faraday/shells/starter/src/main.rs"
 
 # shellcheck disable=SC2086

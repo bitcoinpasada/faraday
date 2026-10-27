@@ -53,13 +53,6 @@ pub(super) fn payload(stick_build: &str) -> Payload {
                 "0.2.0",
                 'b',
             ),
-            file(
-                "faraday-demo-0.2.0-linux-x86_64.xz",
-                "faraday-demo-0.2.0-linux-x86_64",
-                4_000_000,
-                "0.2.0",
-                'c',
-            ),
         ],
     }
 }
@@ -722,7 +715,6 @@ fn about_lists_the_payload() {
     for s in [
         "faraday-stick-0.2.0-x86_64-uefi.img.xz",
         "faraday-pi-0.2.0-pi3-waveshare-28dpi.img.xz",
-        "faraday-demo-0.2.0-linux-x86_64.xz",
         "aaaa aaaa",
         "AAAA AAAA",
         "SHA-256 of faraday-stick-0.2.0-x86_64-uefi.img",
@@ -756,27 +748,27 @@ fn seen_scrolling(starter: &mut Starter, s: &str) -> bool {
 }
 
 #[test]
-fn home_opens_the_desktop_app_only_where_the_payload_carries_it() {
+fn home_offers_faraday_demo_with_this_starters_version_and_says_why_it_did_not_open() {
     let mut starter = starter_with(Vec::new());
     assert!(seen_scrolling(&mut starter, "Open Faraday Demo"));
+    assert!(seen_scrolling(
+        &mut starter,
+        &format!("Version {}", faraday_starter::VERSION)
+    ));
     starter.press(StarterAction::OpenDesktop);
-    assert_eq!(commands(&mut starter), vec![StarterCommand::RunDesktop]);
-    // A start that failed says why on the row.
-    starter.starter_event(StarterEvent::DesktopStarted(Err(Reason::NoDesktopApp)));
-    assert!(seen_scrolling(&mut starter, "carries no Faraday Demo"));
+    assert_eq!(commands(&mut starter), vec![StarterCommand::OpenDemo]);
+    // An open that failed says why on the card.
+    starter.starter_event(StarterEvent::DesktopStarted(Err(Reason::File {
+        path: "~/faraday-sticks".into(),
+        detail: "Permission denied".into(),
+    })));
+    assert!(seen_scrolling(&mut starter, "Permission denied"));
     starter.starter_event(StarterEvent::DesktopStarted(Ok(())));
-    assert!(!seen_scrolling(&mut starter, "carries no Faraday Demo"));
-
-    let mut p = payload("0.2.0");
-    p.files.retain(|f| !f.name.starts_with("faraday-demo-"));
-    starter.starter_event(StarterEvent::Payload(Some(p)));
-    assert!(!seen_scrolling(&mut starter, "Open Faraday Demo"));
-    starter.press(StarterAction::OpenDesktop);
-    assert!(commands(&mut starter).is_empty());
+    assert!(!seen_scrolling(&mut starter, "Permission denied"));
 }
 
 #[test]
-fn install_is_one_press_with_no_check_box_for_the_desktop_app() {
+fn install_is_one_press_with_no_check_box() {
     let mut starter = starter_with(Vec::new());
     starter.press(StarterAction::Install);
     assert!(!shows(&mut starter, "Also install"));

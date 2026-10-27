@@ -72,22 +72,22 @@
 //! out. A lock keeps the size; a new launch opens at the window's own.
 //! With `--panel`, whose window is already a device's screen, the app is
 //! held bare: no strip and no preview.
+//!
+//! This window is the developer's (`cargo run -p faraday-desktop`): people
+//! open Faraday Demo inside Faraday Starter's window (F126,
+//! `docs/STARTER.md` §5.3). What the Demo does apart from the window is
+//! `faraday_desktop::Demo`, which both hold.
 #![cfg_attr(windows, windows_subsystem = "windows")]
 
-use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
-use std::sync::mpsc::{Receiver, Sender, channel};
 use std::time::{Duration, Instant};
 
 use faraday_core::strings::{EN, fill};
-use faraday_core::{
-    Action, BOOT_FOLDER, Faraday, Host as AppHost, Screen, StickInfo, StorageEvent,
-};
+use faraday_core::{Action, Faraday, Host as AppHost, Screen};
+use faraday_desktop::{Asked, Demo, Paths};
 use faraday_shell_api::{App, Command, Event};
-use faraday_storage::{Boxes, Dirs, Host, serve_with, stick_info};
-use faraday_window::camera::{self, Camera};
-use faraday_window::clipboard::Clipboard;
+use faraday_window::camera::Camera;
 use faraday_window::drag::TitleDrag;
 use faraday_window::entropy;
 use faraday_window::input::Pointer;
@@ -100,16 +100,9 @@ use winit::event::WindowEvent;
 use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
 use winit::window::{Window, WindowId};
 
-/// How often the Downloads folder and the cameras are looked at again,
-/// on a thread of their own ([`watch_listing`]); and the sticks.
-const RESCAN: Duration = Duration::from_millis(700);
 /// A frame or an event slower than this is reported in a test build.
 const SLOW: Duration = Duration::from_millis(50);
 const TITLE: &str = EN.desktop_title;
-/// The boot stick's folder (Stick 1), and the first backup stick's,
-/// Stick 2.
-const BOOT: &str = BOOT_FOLDER;
-const FIRST: &str = "STICK-2";
 
 /// A device's screen, shown at its true size on this one.
 #[derive(Clone, Copy)]
@@ -161,31 +154,16 @@ fn screen_ppi() -> Option<f64> {
 }
 
 struct Shell {
-    sticks_dir: PathBuf,
     /// A device's screen to stand for, when given.
     panel: Option<Panel>,
-    /// Where PDFs are saved, and the Downloads folder Transfer uses.
-    host: Host,
-    /// What [`watch_listing`] reads: the Downloads folder and the
-    /// cameras, sent when either changed.
-    listing: Receiver<Listing>,
-    /// The newest of what [`watch_listing`] sent; a fresh app is given it
-    /// again.
-    latest: Option<Listing>,
-    /// The Downloads folder as last listed to the app.
-    listed: Option<StorageEvent>,
-    /// The cameras as last listed to the app.
-    cameras: Option<Vec<(String, String)>>,
+    /// The Demo's side of the window: sticks, storage, Downloads, the
+    /// clipboard and the preview size.
+    demo: Demo,
     /// Open on Transfer once the window is up.
     open_transfer: bool,
     size: (u32, u32),
     /// The app, held by Faraday Demo's host (`docs/DESKTOP-HOST.md`).
     app: Option<AppHost>,
-    boxes: Boxes,
-    /// The sticks' folders, their pictures read on a thread of their own.
-    dirs: Dirs,
-    attached: BTreeSet<String>,
-    seen: Vec<StickInfo>,
     /// The window and its surface (`faraday-window`).
     view: Option<View>,
     shown: (u32, u32),
@@ -193,8 +171,6 @@ struct Shell {
     scale: f64,
     /// The ticks and the frames' pace (`faraday-window`).
     pace: Pacer,
-    /// When the sticks, the clock and the memory are next looked at.
-    next_scan: Instant,
     /// When a slow frame or event was last printed.
     last_slow: Option<Instant>,
     /// The mouse, a finger and the keyboard (`faraday-window`).
@@ -205,11 +181,6 @@ struct Shell {
     /// The webcam, when the app asks for it, and the scanner that reads
     /// its frames on its own thread (`faraday-window`).
     lens: Lens,
-    /// The system clipboard, read for the scanner's Paste.
-    clipboard: Clipboard,
-    /// The screen size the app is shown at, in dp, or `None` for the
-    /// window's own (`docs/PREVIEW-SIZE.md`).
-    preview: Option<(u16, u16)>,
 }
 
 impl Shell {
@@ -221,9 +192,7 @@ impl Shell {
     /// What the app is told of the preview: the size shown, or nothing
     /// with `--panel`, where none is offered.
     fn offered(&self) -> Option<Event> {
-        self.panel.is_none().then_some(Event::PreviewOffered {
-            chosen: self.preview,
-        })
+        self.panel.is_none().then(|| self.demo.offered())
     }
 
     /// `app` held as this window shows it: by the host with its strip, or
@@ -240,15 +209,10 @@ impl Shell {
         self.view.as_ref().map(|v| &*v.window)
     }
 
-    fn sticks(&self) -> Vec<StickInfo> {
-        self.attached
-            .iter()
-            // A folder renamed or removed is a stick pulled.
-            .filter(|name| self.sticks_dir.join(name).is_dir())
-            // The boot stick's first plugging in a session, at start,
-            // reads its settings file and brings up the boot import.
-            .map(|name| stick_info(&self.sticks_dir.join(name), name, name == BOOT))
-            .collect()
+    fn redraw(&self) {
+        if let Some(w) = self.window() {
+            w.request_redraw();
+        }
     }
 
     /// Delivers one event, then answers what the app asked for. A lock
@@ -287,12 +251,10 @@ impl Shell {
 
     /// Delivers `event`; returns the time spent on storage.
     fn deliver(&mut self, event_loop: &ActiveEventLoop, event: Event) -> Duration {
-        let mut served = false;
         let mut storage = Duration::ZERO;
         let ticked = matches!(event, Event::Tick { .. });
         self.pace.before(&event);
         let mut draw = false;
-        let mut toggles = Vec::new();
         let mut events = vec![event];
         while let Some(e) = events.pop() {
             let Some(app) = self.app.as_mut() else {
@@ -305,121 +267,91 @@ impl Shell {
                     Command::RequestEntropy => events.extend(entropy()),
                     Command::CameraOn => events.extend(self.lens.on(&mut app.app)),
                     Command::CameraOff => self.lens.off(),
-                    Command::RequestClipboard { kind } => {
-                        events.push(self.clipboard.answer(kind));
-                    }
-                    // The host shows the size; kept here across a lock.
-                    Command::PreviewSize { size } if self.panel.is_none() => {
-                        self.preview = size;
-                    }
-                    Command::Exit => {
-                        if app.app.restart_requested() {
-                            for line in serve_with(
-                                &mut app.app,
-                                &mut self.boxes,
-                                Some(&self.host),
-                                &mut self.dirs,
-                            ) {
-                                eprintln!("{line}");
-                            }
+                    other => match self.demo.command(&mut app.app, other) {
+                        Asked::Nothing => {}
+                        Asked::Event(e) => events.push(e),
+                        Asked::Restart => {
                             self.restart(event_loop);
                             return Duration::ZERO;
                         }
-                        event_loop.exit();
-                        return Duration::ZERO;
-                    }
-                    _ => {}
+                        Asked::Exit => {
+                            event_loop.exit();
+                            return Duration::ZERO;
+                        }
+                    },
                 }
             }
-            // The sticks the person clicked on, plugged in or pulled.
-            let app = &mut app.app;
-            toggles.extend(app.take_stick_toggles());
             // A camera the person chose on the scan sheet.
-            self.lens.chosen(app);
-            served |= app.storage_pending();
-            let at = Instant::now();
-            for line in serve_with(app, &mut self.boxes, Some(&self.host), &mut self.dirs) {
-                eprintln!("{line}");
-            }
-            storage += at.elapsed();
+            self.lens.chosen(&mut app.app);
+            storage += self.demo.took(&mut app.app);
         }
         if ticked {
             self.pace.animating = draw;
         }
         // A stick toggled or a storage command served changes a stick's
         // files: look again now. Otherwise the timer looks.
-        let looks = served || !toggles.is_empty();
-        for name in toggles {
-            self.toggle(&name);
+        let at = Instant::now();
+        if let Some(app) = self.app.as_mut()
+            && self.demo.settle(&mut app.app)
+        {
+            self.after_rescan(event_loop);
         }
-        if looks {
-            let at = Instant::now();
-            self.rescan(event_loop, false);
-            storage += at.elapsed();
-        }
+        storage += at.elapsed();
         self.pace.storage_took(storage);
-        if draw && let Some(w) = self.window() {
-            w.request_redraw();
+        if draw {
+            self.redraw();
         }
         storage
     }
 
     fn restart(&mut self, event_loop: &ActiveEventLoop) {
-        let mode = self
-            .app
-            .as_ref()
-            .map_or(faraday_core::Mode::Demo, |h| h.app.mode_after_restart());
-        self.app = Some(self.held(desktop_app_in(mode)));
-        // Pictures the last app asked for are not this one's.
-        self.dirs = Dirs::default();
-        self.seen.clear();
+        let Some(old) = self.app.as_ref() else {
+            return;
+        };
+        let fresh = self.demo.restart(&old.app);
+        self.app = Some(self.held(fresh));
         let display = self.display();
         let offered = self.offered();
-        let restored = self.boxes.restore();
         if let Some(app) = self.app.as_mut() {
             app.event(display);
             if let Some(o) = offered {
                 app.event(o);
             }
-            app.app.storage(restored);
+            self.demo.restarted(&mut app.app);
         }
         let tick = self.pace.tick();
         self.send(event_loop, tick);
-        self.rescan(event_loop, true);
-        // The new app has been told nothing yet: give it the newest
-        // listing again, without waiting for the next change.
-        self.listed = None;
-        self.cameras = None;
-        self.relist();
+        self.after_rescan(event_loop);
     }
 
-    /// Tells the app what Downloads holds and which cameras there are,
-    /// when that changed: the newest of what [`watch_listing`] read, or
-    /// the last one again for a fresh app. A lookup; the reading is done
-    /// on that thread.
-    fn relist(&mut self) {
-        if let Some(now) = self.listing.try_iter().last() {
-            self.latest = Some(now);
-        }
-        let Some(now) = self.latest.clone() else {
-            return;
-        };
+    /// After the sticks were looked at: a stick pulled lets what waited
+    /// under the Pull sheet carry on, and a Scan turns the camera on here.
+    fn after_rescan(&mut self, event_loop: &ActiveEventLoop) {
         let Some(app) = self.app.as_mut().map(|h| &mut h.app) else {
             return;
         };
-        let mut changed = false;
-        if self.listed.as_ref() != Some(&now.files) {
-            app.storage(now.files.clone());
-            self.listed = Some(now.files);
-            changed = true;
+        let mut events = Vec::new();
+        while let Some(c) = app.poll_command() {
+            match c {
+                Command::CameraOn => events.extend(self.lens.on(app)),
+                Command::CameraOff => self.lens.off(),
+                Command::Exit if !app.restart_requested() => event_loop.exit(),
+                _ => {}
+            }
         }
-        if self.cameras.as_ref() != Some(&now.cameras) {
-            app.storage(StorageEvent::Cameras(now.cameras.clone()));
-            self.cameras = Some(now.cameras);
-            changed = true;
+        self.lens.chosen(app);
+        for e in events {
+            self.send(event_loop, e);
         }
-        if changed && let Some(w) = self.window() {
-            w.request_redraw();
+        self.redraw();
+    }
+
+    /// The newest Downloads listing and cameras, to the app.
+    fn relist(&mut self) {
+        if let Some(app) = self.app.as_mut().map(|h| &mut h.app)
+            && self.demo.relist(app)
+        {
+            self.redraw();
         }
     }
 
@@ -428,10 +360,8 @@ impl Shell {
         let Some(app) = self.app.as_mut().map(|h| &mut h.app) else {
             return;
         };
-        app.storage(StorageEvent::Hovered(over));
-        if let Some(w) = self.window() {
-            w.request_redraw();
-        }
+        app.storage(faraday_core::StorageEvent::Hovered(over));
+        self.redraw();
     }
 
     /// A file dropped on the window, for Transfer to send.
@@ -439,74 +369,13 @@ impl Shell {
         let Some(app) = self.app.as_mut().map(|h| &mut h.app) else {
             return;
         };
-        let size = std::fs::metadata(path).map(|m| m.len()).unwrap_or(0);
-        app.storage(StorageEvent::Dropped {
-            path: path.display().to_string(),
-            size,
-        });
-        for line in serve_with(app, &mut self.boxes, Some(&self.host), &mut self.dirs) {
-            eprintln!("{line}");
-        }
+        self.demo.dropped(app, path);
         while let Some(c) = app.poll_command() {
             if c == Command::Exit && !app.restart_requested() {
                 event_loop.exit();
             }
         }
-        if let Some(w) = self.window() {
-            w.request_redraw();
-        }
-    }
-
-    fn rescan(&mut self, event_loop: &ActiveEventLoop, force: bool) {
-        let now = self.sticks();
-        if !force && now == self.seen {
-            return;
-        }
-        self.seen = now.clone();
-        if let Some(app) = self.app.as_mut().map(|h| &mut h.app) {
-            app.storage(StorageEvent::Sticks(now));
-            if let Ok(t) = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH) {
-                app.storage(StorageEvent::Clock {
-                    unix_secs: t.as_secs(),
-                });
-            }
-            if let Some(available_mib) = faraday_storage::memory_available_mib() {
-                app.storage(StorageEvent::Memory { available_mib });
-            }
-            for line in serve_with(app, &mut self.boxes, Some(&self.host), &mut self.dirs) {
-                eprintln!("{line}");
-            }
-            // A stick pulled lets what waited under the Pull sheet carry
-            // on, and a Scan turns the camera on here.
-            let mut events = Vec::new();
-            while let Some(c) = app.poll_command() {
-                match c {
-                    Command::CameraOn => events.extend(self.lens.on(app)),
-                    Command::CameraOff => self.lens.off(),
-                    Command::Exit if !app.restart_requested() => event_loop.exit(),
-                    _ => {}
-                }
-            }
-            self.lens.chosen(app);
-            for e in events {
-                self.send(event_loop, e);
-            }
-        }
-        if let Some(w) = self.window() {
-            w.request_redraw();
-        }
-    }
-
-    /// Plugs the stick of folder `name` in, or pulls it out. A backup
-    /// stick's folder is made the first time it is plugged in.
-    fn toggle(&mut self, name: &str) {
-        if self.attached.remove(name) {
-            return;
-        }
-        if name != BOOT {
-            let _ = std::fs::create_dir_all(self.sticks_dir.join(name));
-        }
-        self.attached.insert(name.to_string());
+        self.redraw();
     }
 
     fn draw(&mut self) {
@@ -601,7 +470,10 @@ impl ApplicationHandler for Shell {
         if let Some(o) = self.offered() {
             self.send(event_loop, o);
         }
-        self.rescan(event_loop, true);
+        if let Some(app) = self.app.as_mut() {
+            self.demo.rescan(&mut app.app, true);
+        }
+        self.after_rescan(event_loop);
         self.relist();
         if std::mem::take(&mut self.open_transfer) {
             self.send_press(event_loop, Action::Nav(Screen::Transfer));
@@ -656,9 +528,7 @@ impl ApplicationHandler for Shell {
                     let display = self.display();
                     self.send(event_loop, display);
                 }
-                if let Some(w) = self.window() {
-                    w.request_redraw();
-                }
+                self.redraw();
             }
             // The mouse, a finger, the wheel and the keyboard, as the
             // shell API's events (`faraday-window`).
@@ -668,7 +538,7 @@ impl ApplicationHandler for Shell {
                 // the window, a double-click maximises it; not in a
                 // preview, whose window is a frame for another size; nor
                 // the press the system makes of a finger's.
-                if self.preview.is_none()
+                if self.demo.preview().is_none()
                     && !self.pointer.is_echo(&other)
                     && let (Some(view), Some(app)) = (self.view.as_ref(), self.app.as_ref())
                     && self
@@ -705,9 +575,11 @@ impl ApplicationHandler for Shell {
             self.pace.ticked_at(now, refresh);
         }
         self.relist();
-        if now >= self.next_scan {
-            self.rescan(event_loop, false);
-            self.next_scan = now + RESCAN;
+        if self.demo.due(now)
+            && let Some(app) = self.app.as_mut()
+            && self.demo.rescan(&mut app.app, false)
+        {
+            self.after_rescan(event_loop);
         }
         event_loop.set_control_flow(ControlFlow::WaitUntil(self.pace.next_tick));
     }
@@ -719,160 +591,48 @@ impl ApplicationHandler for Shell {
     }
 }
 
-/// What Transfer lists of this computer: the Downloads folder and the
-/// cameras.
-#[derive(Clone, PartialEq)]
-struct Listing {
-    files: StorageEvent,
-    cameras: Vec<(String, String)>,
+/// The command line's options.
+struct Options {
+    paths: Paths,
+    size: (u32, u32),
+    panel: Option<Panel>,
+    open_transfer: bool,
+    timings: bool,
 }
 
-/// Whether `now` is to be sent: it differs from the last one sent (the
-/// first always is). A lookup.
-fn is_new(last: &mut Option<Listing>, now: &Listing) -> bool {
-    if last.as_ref() == Some(now) {
-        return false;
-    }
-    *last = Some(now.clone());
-    true
+const HELP: &str = "faraday [--sticks DIR] [--size WxH] [--transfer] [--downloads DIR] [--panel INCHES [--aspect W:H] [--ppi N]] [--timings]\n  the sticks are the pills at the top of the window\n  --transfer: open on Transfer · --downloads: the folder Transfer sends from and saves into (default ~/Downloads)\n  --panel: a device's screen at its true size: 2.8 is the Pi's panel (3:4), 5 a phone (9:16)\n  --aspect: the panel's width to height · --ppi: this screen's pixels per inch, if its EDID is wrong\n  --timings: once a second, what the frames cost (render, copy to the window, frame to frame) on stderr";
+
+/// Prints `why` and gives the exit code of a command line not understood.
+fn refused(why: &str) -> ExitCode {
+    eprintln!("faraday: {why}");
+    ExitCode::from(2)
 }
 
-/// Costs a directory listing with each file's metadata and a camera
-/// enumeration (Media Foundation's on Windows) every [`RESCAN`], on a
-/// thread of its own so the window's thread never waits on either; sends
-/// the listing when it changed, the first at once.
-fn watch_listing(downloads: PathBuf, opens: bool, out: Sender<Listing>) {
-    std::thread::spawn(move || {
-        let host = Host {
-            print: PathBuf::new(),
-            downloads,
-            opens,
-        };
-        let mut last = None;
-        loop {
-            let now = Listing {
-                files: host.files(),
-                cameras: camera::list(),
-            };
-            if is_new(&mut last, &now) && out.send(now).is_err() {
-                return;
-            }
-            std::thread::sleep(RESCAN);
-        }
-    });
-}
-
-/// A fresh app as the desktop runs it: the online Faraday, which turns
-/// sheets into PDFs, in `mode`. Every build starts in Practice (the key
-/// store's public set, on testnet); a lock starts the fresh session in
-/// the mode the old one chose or was in. No warning comes first: the
-/// steps that take a seed carry a line instead (F81).
-fn desktop_app_in(mode: faraday_core::Mode) -> Faraday {
-    let mut app = Faraday::new();
-    app.online = true;
-    app.seed_line = true;
-    // This shell answers `RequestClipboard` (faraday_window::clipboard).
-    app.clipboard = true;
-    app.shell_sticks = true;
-    // The dice roller (`docs/CODEX32.md` §5.6) is Faraday Demo's alone.
-    app.set_roller_offered(true);
-    // A pointer and a keyboard: Add randomness offers Pointer and keys.
-    app.set_pointer_keys_offered(true);
-    app.session = faraday_core::wallet::Session::on(mode.network());
-    if mode == faraday_core::Mode::Demo {
-        app.session.set_demo(&faraday_samples::SAMPLES);
-    }
-    app.samples = Some(&faraday_samples::SAMPLES);
-    app.set_modes(faraday_core::DESKTOP_MODES);
-    app
-}
-
-/// Makes the stick folders the first time: `faraday-sticks`, an empty
-/// boot stick and an empty Stick 2. The boot stick starts empty and the
-/// desktop never adds to it: a person puts there the files to boot with
-/// (owner, 2026-10-19). Nothing in a folder is ever moved, renamed or
-/// removed here, so a person's sticks stay as they left them across
-/// installs and new versions (owner, 2026-10-20). A boot stick folder
-/// renamed or removed is not made again: the app then starts with no
-/// stick in. Stick 2 is a stick the app starts with, made if it is not
-/// there.
-fn prepare(dir: &Path) -> Result<(), String> {
-    let boot = dir.join(BOOT);
-    let first_stick = dir.join(FIRST);
-    // Made once: the mark says the folders have been made here.
-    let made = dir.join(".faraday-sticks");
-    if !made.exists() {
-        std::fs::create_dir_all(&boot).map_err(|e| format!("{}: {e}", boot.display()))?;
-        std::fs::write(&made, "BOOTSTICK and STICK-2 made\n")
-            .map_err(|e| format!("{}: {e}", made.display()))?;
-    }
-    std::fs::create_dir_all(&first_stick).map_err(|e| format!("{}: {e}", first_stick.display()))
-}
-
-/// The person's home folder: `HOME`, and on Windows `USERPROFILE` when
-/// `HOME` is not set. Downloads is `Downloads` in it; a Downloads folder
-/// that Windows has moved elsewhere is not followed.
-fn home() -> Option<PathBuf> {
-    let home = std::env::var_os("HOME").filter(|h| !h.is_empty());
-    #[cfg(windows)]
-    let home = home.or_else(|| std::env::var_os("USERPROFILE").filter(|h| !h.is_empty()));
-    home.map(PathBuf::from)
-}
-
-#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
-fn main() -> ExitCode {
-    // `--version` answers before anything else is initialised: the
-    // Starter asks an installed copy this (docs/STARTER.md §5.2).
-    if std::env::args().nth(1).as_deref() == Some("--version") {
-        println!(
-            "{}",
-            faraday_core::version_line(
-                faraday_core::Program::DesktopApp,
-                faraday_core::BUILD.unwrap_or(faraday_core::VERSION)
-            )
-        );
-        return ExitCode::SUCCESS;
-    }
-    let mut sticks_dir = home()
-        .map(|h| h.join("faraday-sticks"))
-        .unwrap_or_else(|| PathBuf::from("faraday-sticks"));
+/// Reads the command line; `Err` is the exit code, the reason printed.
+fn options() -> Result<Options, ExitCode> {
+    let mut paths = Paths::in_home();
     let mut size = (1280, 800);
-    let mut panel: Option<f64> = None;
-    let mut aspect: Option<(f64, f64)> = None;
-    let mut ppi: Option<f64> = None;
-    let mut open_transfer = false;
-    let mut timings = false;
-    let mut downloads = home()
-        .map(|h| h.join("Downloads"))
-        .unwrap_or_else(|| PathBuf::from("Downloads"));
+    let (mut panel, mut aspect, mut ppi) = (None, None, None);
+    let (mut open_transfer, mut timings) = (false, false);
     let mut args = std::env::args().skip(1);
     while let Some(a) = args.next() {
+        let mut dir = |what: &str| {
+            args.next().map(PathBuf::from).ok_or_else(|| {
+                eprintln!("faraday: {what} needs a directory");
+                ExitCode::from(2)
+            })
+        };
         match a.as_str() {
-            "--sticks" => match args.next() {
-                Some(d) => sticks_dir = PathBuf::from(d),
-                None => {
-                    eprintln!("faraday: --sticks needs a directory");
-                    return ExitCode::from(2);
-                }
-            },
+            "--sticks" => paths.sticks = dir("--sticks")?,
+            "--downloads" => paths.downloads = dir("--downloads")?,
             "--transfer" => open_transfer = true,
             "--timings" => timings = true,
-            "--downloads" => match args.next() {
-                Some(d) => downloads = PathBuf::from(d),
-                None => {
-                    eprintln!("faraday: --downloads needs a directory");
-                    return ExitCode::from(2);
-                }
-            },
             "--panel" => match args
                 .next()
-                .and_then(|s| s.trim_end_matches("in").parse().ok())
+                .and_then(|s| s.trim_end_matches("in").parse::<f64>().ok())
             {
                 Some(i) if (1.0..=13.0).contains(&i) => panel = Some(i),
-                _ => {
-                    eprintln!("faraday: --panel needs a diagonal in inches, 1 to 13");
-                    return ExitCode::from(2);
-                }
+                _ => return Err(refused("--panel needs a diagonal in inches, 1 to 13")),
             },
             "--aspect" => {
                 let parsed = args.next().and_then(|s| {
@@ -881,41 +641,27 @@ fn main() -> ExitCode {
                 });
                 match parsed {
                     Some((w, h)) if w > 0.0 && h > 0.0 => aspect = Some((w, h)),
-                    _ => {
-                        eprintln!("faraday: --aspect needs W:H, such as 3:4");
-                        return ExitCode::from(2);
-                    }
+                    _ => return Err(refused("--aspect needs W:H, such as 3:4")),
                 }
             }
-            "--ppi" => match args.next().and_then(|s| s.parse().ok()) {
+            "--ppi" => match args.next().and_then(|s| s.parse::<f64>().ok()) {
                 Some(p) if (50.0..=1000.0).contains(&p) => ppi = Some(p),
-                _ => {
-                    eprintln!("faraday: --ppi needs this screen's pixels per inch");
-                    return ExitCode::from(2);
-                }
+                _ => return Err(refused("--ppi needs this screen's pixels per inch")),
             },
             "--size" => {
                 let parsed = args.next().and_then(|s| {
                     let (w, h) = s.split_once('x')?;
                     Some((w.parse().ok()?, h.parse().ok()?))
                 });
-                match parsed {
-                    Some(s) => size = s,
-                    None => {
-                        eprintln!("faraday: --size needs WxH");
-                        return ExitCode::from(2);
-                    }
-                }
+                size = parsed.ok_or_else(|| refused("--size needs WxH"))?;
             }
             "--help" | "-h" => {
-                println!(
-                    "faraday [--sticks DIR] [--size WxH] [--transfer] [--downloads DIR] [--panel INCHES [--aspect W:H] [--ppi N]] [--timings]\n  the sticks are the pills at the top of the window\n  --transfer: open on Transfer · --downloads: the folder Transfer sends from and saves into (default ~/Downloads)\n  --panel: a device's screen at its true size: 2.8 is the Pi's panel (3:4), 5 a phone (9:16)\n  --aspect: the panel's width to height · --ppi: this screen's pixels per inch, if its EDID is wrong\n  --timings: once a second, what the frames cost (render, copy to the window, frame to frame) on stderr"
-                );
-                return ExitCode::SUCCESS;
+                println!("{HELP}");
+                return Err(ExitCode::SUCCESS);
             }
             other => {
                 eprintln!("faraday: unknown argument {other}");
-                return ExitCode::from(2);
+                return Err(ExitCode::from(2));
             }
         }
     }
@@ -923,7 +669,7 @@ fn main() -> ExitCode {
         Some(inches) => {
             let Some(ppi) = ppi.or_else(screen_ppi) else {
                 eprintln!("faraday: this screen's pixels per inch are unknown: give --ppi");
-                return ExitCode::from(2);
+                return Err(ExitCode::from(2));
             };
             let aspect = aspect.unwrap_or(if inches < 4.0 {
                 (3.0, 4.0)
@@ -939,18 +685,41 @@ fn main() -> ExitCode {
         }
         None => None,
     };
-    if let Err(e) = prepare(&sticks_dir) {
-        eprintln!("faraday: {e}");
-        return ExitCode::FAILURE;
+    Ok(Options {
+        paths,
+        size,
+        panel,
+        open_transfer,
+        timings,
+    })
+}
+
+fn main() -> ExitCode {
+    // `--version` answers before anything else is initialised: the
+    // Starter asks an earlier install's copy this (docs/STARTER.md §5.2).
+    if std::env::args().nth(1).as_deref() == Some("--version") {
+        println!(
+            "{}",
+            faraday_core::version_line(
+                faraday_core::Program::DesktopApp,
+                faraday_core::BUILD.unwrap_or(faraday_core::VERSION)
+            )
+        );
+        return ExitCode::SUCCESS;
     }
-    eprintln!("faraday: sticks are folders in {}", sticks_dir.display());
-    // The boot stick is in at start, as the stick the device booted from
-    // is; none when the folder has been renamed or removed. Every other
-    // stick is out until its pill is clicked.
-    let mut attached = BTreeSet::new();
-    if sticks_dir.join(BOOT).is_dir() {
-        attached.insert(BOOT.to_string());
-    }
+    let o = match options() {
+        Ok(o) => o,
+        Err(code) => return code,
+    };
+    let sticks = o.paths.sticks.clone();
+    let demo = match Demo::open(o.paths) {
+        Ok(d) => d,
+        Err(e) => {
+            eprintln!("faraday: {e}");
+            return ExitCode::FAILURE;
+        }
+    };
+    eprintln!("faraday: sticks are folders in {}", sticks.display());
     let event_loop = match EventLoop::new() {
         Ok(l) => l,
         Err(e) => {
@@ -958,53 +727,25 @@ fn main() -> ExitCode {
             return ExitCode::FAILURE;
         }
     };
-    let print_dir = home()
-        .map(|h| h.join("faraday-print"))
-        .unwrap_or_else(|| PathBuf::from("faraday-print"));
-    let app = desktop_app_in(faraday_core::Mode::Demo);
-    let pace = Pacer::new(timings);
-    let next_scan = pace.epoch;
-    let opens = faraday_storage::can_open_folders();
-    let (sender, listing) = channel();
-    watch_listing(downloads.clone(), opens, sender);
+    let app = faraday_desktop::desktop_app_in(faraday_core::Mode::Demo);
     let mut shell = Shell {
-        panel,
-        host: Host {
-            print: print_dir,
-            downloads,
-            opens,
-        },
-        listing,
-        latest: None,
-        listed: None,
-        cameras: None,
-        open_transfer,
-        sticks_dir,
-        size,
-        app: Some(if panel.is_some() {
+        panel: o.panel,
+        demo,
+        open_transfer: o.open_transfer,
+        size: o.size,
+        app: Some(if o.panel.is_some() {
             AppHost::bare(app)
         } else {
             AppHost::new(app)
         }),
-        boxes: Boxes::Memory {
-            inbox: Vec::new(),
-            outbox: Vec::new(),
-            kept: Vec::new(),
-        },
-        dirs: Dirs::default(),
-        attached,
-        seen: Vec::new(),
         view: None,
-        shown: size,
+        shown: o.size,
         scale: 1.0,
-        pace,
-        next_scan,
+        pace: Pacer::new(o.timings),
         last_slow: None,
         pointer: Pointer::new(),
         title: TitleDrag::default(),
         lens: Lens::new(Camera::new(None, false)),
-        clipboard: Clipboard::system(),
-        preview: None,
     };
     match event_loop.run_app(&mut shell) {
         Ok(()) => ExitCode::SUCCESS,
@@ -1012,111 +753,5 @@ fn main() -> ExitCode {
             eprintln!("faraday: {e}");
             ExitCode::FAILURE
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    /// The boot stick starts empty and the desktop adds nothing to it;
-    /// what a person put in the stick folders, hidden files included, is
-    /// left byte for byte by every later start (owner, 2026-10-20).
-    #[test]
-    fn a_persons_stick_folders_stay_as_they_left_them() {
-        let dir = std::env::temp_dir().join(format!("faraday-prepare-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
-        prepare(&dir).unwrap();
-        let boot = dir.join(BOOT);
-        let two = dir.join(FIRST);
-        assert_eq!(std::fs::read_dir(&boot).unwrap().count(), 0);
-        assert_eq!(std::fs::read_dir(&two).unwrap().count(), 0);
-        let files = [
-            (boot.join("vault.ofv"), b"vault bytes".to_vec()),
-            (boot.join(".faraday-testkit"), b"an old mark".to_vec()),
-            (boot.join("spend.psbt"), b"psbt".to_vec()),
-            (two.join("SHA256SUMS"), b"sums".to_vec()),
-            (dir.join("STICK-3").join("notes.txt"), b"notes".to_vec()),
-        ];
-        for (path, bytes) in &files {
-            std::fs::create_dir_all(path.parent().unwrap()).unwrap();
-            std::fs::write(path, bytes).unwrap();
-        }
-        let listing = |d: &Path| {
-            let mut names: Vec<_> = std::fs::read_dir(d)
-                .unwrap()
-                .map(|e| e.unwrap().file_name())
-                .collect();
-            names.sort();
-            names
-        };
-        let before: Vec<_> = [&dir, &boot, &two].iter().map(|d| listing(d)).collect();
-        prepare(&dir).unwrap();
-        prepare(&dir).unwrap();
-        let after: Vec<_> = [&dir, &boot, &two].iter().map(|d| listing(d)).collect();
-        assert_eq!(before, after);
-        for (path, bytes) in &files {
-            assert_eq!(&std::fs::read(path).unwrap(), bytes, "{}", path.display());
-        }
-        // A boot stick removed is not made again.
-        std::fs::remove_dir_all(&boot).unwrap();
-        prepare(&dir).unwrap();
-        assert!(!boot.exists());
-        std::fs::remove_dir_all(&dir).unwrap();
-    }
-
-    /// The desktop opens on testnet, which takes any seed, with no
-    /// warning to acknowledge; mainnet, chosen from Network, is still the
-    /// demo that takes only public seeds (F20).
-    /// The listing thread tells the window only of a change.
-    #[test]
-    fn a_listing_is_sent_only_when_it_changed() {
-        let mut last = None;
-        let mut now = Listing {
-            files: StorageEvent::Cameras(Vec::new()),
-            cameras: Vec::new(),
-        };
-        assert!(is_new(&mut last, &now));
-        assert!(!is_new(&mut last, &now));
-        now.cameras.push(("0".into(), "Webcam".into()));
-        assert!(is_new(&mut last, &now));
-        assert!(!is_new(&mut last, &now));
-    }
-
-    #[test]
-    fn the_desktop_opens_in_demo_on_testnet_and_a_mode_change_locks() {
-        let c = faraday_core::testkit::compute();
-        let mut app = desktop_app_in(faraday_core::Mode::Demo);
-        assert_eq!(app.mode(), faraday_core::Mode::Demo);
-        assert_eq!(app.session.network(), faraday_core::testkit::NET);
-        let other = "zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong";
-        assert!(app.session.keys.add_words(&c, other, "", None).is_err());
-        let public = faraday_core::testkit::test_words("zebra");
-        assert!(app.session.keys.add_words(&c, &public, "", None).is_ok());
-        app.press(faraday_core::Action::Mode(faraday_core::Mode::Signet));
-        assert_eq!(app.mode_after_restart(), faraday_core::Mode::Signet);
-        assert!(app.restart_requested());
-    }
-
-    /// Every build opens in Practice with no sheet; a lock keeps the mode,
-    /// and a mode chosen is where the fresh session starts.
-    #[test]
-    fn every_build_opens_in_demo_with_no_sheet() {
-        let app = desktop_app_in(faraday_core::Mode::Demo);
-        assert!(app.sheet.is_none());
-        assert_eq!(app.mode(), faraday_core::Mode::Demo);
-        assert_eq!(app.session.network(), faraday_core::testkit::NET);
-    }
-
-    #[test]
-    fn leaving_demo_for_testnet_starts_a_fresh_testnet_session() {
-        let mut app = desktop_app_in(faraday_core::Mode::Demo);
-        app.press(faraday_core::Action::Mode(faraday_core::Mode::Testnet));
-        let fresh = desktop_app_in(app.mode_after_restart());
-        assert!(fresh.sheet.is_none());
-        assert_eq!(fresh.mode(), faraday_core::Mode::Testnet);
-        assert!(!fresh.session.keys.demo());
-        let locked = desktop_app_in(fresh.mode_after_restart());
-        assert_eq!(locked.mode(), faraday_core::Mode::Testnet);
     }
 }

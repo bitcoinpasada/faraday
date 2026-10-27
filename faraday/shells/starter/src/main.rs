@@ -27,6 +27,15 @@
 //! The window, its pacing and its input are the desktop app's
 //! (`faraday-window`); everything that differs between operating systems
 //! is behind `faraday_starter_shell::platform::Platform`.
+//!
+//! Faraday Demo runs in this window (F126, `docs/STARTER.md` §5.3): Open
+//! Faraday Demo on Home shows it under the top app bar, its sticks the
+//! folders in `~/faraday-sticks` and its Downloads the Starter's, served
+//! by `faraday_desktop::Demo` as in the Demo's own window; the bar's way
+//! back, the window's close button or the Demo's power off returns to
+//! Home. The Starter opens in Cobalt, Light or Dark as this computer's
+//! own setting says (`faraday_starter_shell::scheme`), and a theme chosen
+//! in the Demo is the Starter's until it closes.
 
 #![deny(unsafe_code)]
 // A window program on Windows: no console opens beside it.
@@ -38,8 +47,9 @@ use std::sync::Arc;
 use std::sync::mpsc::{Receiver, Sender, channel};
 use std::time::{Duration, Instant};
 
-use faraday_core::StorageEvent;
 use faraday_core::strings::EN;
+use faraday_core::{Host as AppHost, StorageEvent};
+use faraday_desktop::{Asked, Demo, Paths};
 use faraday_shell_api::{App, Command, Event};
 use faraday_starter::api::{Reason, Source, StarterCommand, StarterEvent, WriteOrder};
 use faraday_starter::{Starter, StarterAction};
@@ -108,6 +118,9 @@ struct Shell {
     /// A press on the top bar's empty room that may move the window.
     title: TitleDrag,
     lens: Lens,
+    /// Faraday Demo's side of the window while it is open (F126): its
+    /// sticks, storage, clipboard and preview size.
+    demo: Option<Demo>,
 }
 
 impl Shell {
@@ -154,7 +167,9 @@ impl Shell {
                 _ => {}
             }
         }
-        self.lens.chosen(self.starter.held());
+        if !self.starter.showing_demo() {
+            self.lens.chosen(self.starter.held());
+        }
         for line in serve_with(
             self.starter.held(),
             &mut self.boxes,
@@ -163,10 +178,127 @@ impl Shell {
         ) {
             eprintln!("{line}");
         }
+        draw |= self.answer_demo(events);
         while let Some(c) = self.starter.next_command() {
             self.command(c);
         }
         draw
+    }
+
+    /// Answers Faraday Demo's commands and serves its sticks and storage
+    /// while it is open (F126); a lock in it starts a fresh one, and its
+    /// power off leaves it. Whether a frame was asked for.
+    fn answer_demo(&mut self, events: &mut Vec<Event>) -> bool {
+        let mut draw = false;
+        // A look at the sticks can ask for more: a few rounds at most.
+        for _ in 0..4 {
+            let commands: Vec<Command> =
+                std::iter::from_fn(|| self.starter.poll_demo_command()).collect();
+            let (Some(demo), Some(host)) = (self.demo.as_mut(), self.starter.demo()) else {
+                return draw;
+            };
+            let mut end = Asked::Nothing;
+            for c in commands {
+                match c {
+                    Command::Draw => draw = true,
+                    Command::RequestEntropy => events.extend(entropy()),
+                    Command::CameraOn => events.extend(self.lens.on(&mut host.app)),
+                    Command::CameraOff => self.lens.off(),
+                    other => match demo.command(&mut host.app, other) {
+                        Asked::Nothing => {}
+                        Asked::Event(e) => events.push(e),
+                        a @ (Asked::Restart | Asked::Exit) => end = a,
+                    },
+                }
+            }
+            self.lens.chosen(&mut host.app);
+            demo.took(&mut host.app);
+            let looked = demo.settle(&mut host.app);
+            match end {
+                Asked::Restart => {
+                    self.restart_demo();
+                    draw = true;
+                }
+                Asked::Exit => {
+                    self.lens.off();
+                    self.starter.close_demo();
+                    return true;
+                }
+                Asked::Nothing | Asked::Event(_) if !looked => return draw,
+                Asked::Nothing | Asked::Event(_) => draw = true,
+            }
+        }
+        draw
+    }
+
+    /// Opens Faraday Demo in the window: its stick folders made the first
+    /// time, its app in Practice, held by its host under the top app bar.
+    fn open_demo(&mut self) {
+        let paths = Paths {
+            sticks: Paths::in_home().sticks,
+            downloads: self.host.downloads.clone(),
+            print: self.host.print.clone(),
+        };
+        let sticks = paths.sticks.display().to_string();
+        let mut demo = match Demo::open(paths) {
+            Ok(d) => d,
+            Err(detail) => {
+                let failed = Reason::File {
+                    path: sticks,
+                    detail,
+                };
+                let _ = self.tx.send(StarterEvent::DesktopStarted(Err(failed)));
+                return;
+            }
+        };
+        let app = faraday_desktop::desktop_app_in(faraday_core::Mode::Demo);
+        self.starter.show_demo(AppHost::new(app));
+        if let Some(host) = self.starter.demo() {
+            host.event(demo.offered());
+            demo.rescan(&mut host.app, true);
+            demo.relist(&mut host.app);
+        }
+        self.demo = Some(demo);
+        let _ = self.tx.send(StarterEvent::DesktopStarted(Ok(())));
+        self.redraw();
+    }
+
+    /// A lock in Faraday Demo: a fresh app in its place, in the mode the
+    /// old one chose, given what the old one kept.
+    fn restart_demo(&mut self) {
+        let (Some(demo), Some(old)) = (self.demo.as_mut(), self.starter.demo()) else {
+            return;
+        };
+        let fresh = demo.restart(&old.app);
+        self.starter.show_demo(AppHost::new(fresh));
+        if let (Some(demo), Some(host)) = (self.demo.as_mut(), self.starter.demo()) {
+            host.event(demo.offered());
+            demo.restarted(&mut host.app);
+        }
+    }
+
+    /// A file dragged over the window (`over`) while Faraday Demo is open,
+    /// or the drag gone.
+    fn hovered(&mut self, over: bool) {
+        if let Some(host) = self.starter.demo() {
+            host.app.storage(StorageEvent::Hovered(over));
+            self.redraw();
+        }
+    }
+
+    /// A file dropped on the window while Faraday Demo is open, for its
+    /// Transfer to send.
+    fn dropped(&mut self, event_loop: &ActiveEventLoop, path: &std::path::Path) {
+        let (Some(demo), Some(host)) = (self.demo.as_mut(), self.starter.demo()) else {
+            return;
+        };
+        demo.dropped(&mut host.app, path);
+        let mut events = Vec::new();
+        self.answer(event_loop, &mut events);
+        for e in events {
+            self.send(event_loop, e);
+        }
+        self.redraw();
     }
 
     /// What the Starter asks of the system.
@@ -193,9 +325,9 @@ impl Shell {
                 });
             }
             StarterCommand::Install => {
-                let (system, tx, payload) = self.threaded();
+                let (system, tx, _) = self.threaded();
                 std::thread::spawn(move || {
-                    let done = system.install(payload.as_ref());
+                    let done = system.install();
                     let ok = done.is_ok();
                     let _ = tx.send(StarterEvent::InstallDone(done));
                     if ok {
@@ -219,13 +351,10 @@ impl Shell {
                     let _ = tx.send(StarterEvent::BootEntry(system.boot_entry()));
                 });
             }
-            StarterCommand::RunDesktop => {
-                let (system, tx, payload) = self.threaded();
-                std::thread::spawn(move || {
-                    let _ = tx.send(StarterEvent::DesktopStarted(
-                        system.run_desktop(payload.as_ref()),
-                    ));
-                });
+            StarterCommand::OpenDemo => self.open_demo(),
+            StarterCommand::DemoClosed => {
+                self.lens.off();
+                self.demo = None;
             }
             StarterCommand::CheckAgain => {
                 let _ = self.check.send(());
@@ -394,6 +523,29 @@ impl Shell {
         }
     }
 
+    /// Faraday Demo's Downloads listing and cameras, to its app, and its
+    /// sticks looked at again when the timer says (F126). A lookup but
+    /// for the look at the sticks, which is the Demo's own.
+    fn demo_due(&mut self, event_loop: &ActiveEventLoop, now: Instant) {
+        let (changed, looked) = match (self.demo.as_mut(), self.starter.demo()) {
+            (Some(demo), Some(host)) => (
+                demo.relist(&mut host.app),
+                demo.due(now) && demo.rescan(&mut host.app, false),
+            ),
+            _ => return,
+        };
+        if looked {
+            let mut events = Vec::new();
+            self.answer(event_loop, &mut events);
+            for e in events {
+                self.send(event_loop, e);
+            }
+        }
+        if changed || looked {
+            self.redraw();
+        }
+    }
+
     fn display(&self) -> Event {
         view::display(self.shown, self.scale, None)
     }
@@ -415,6 +567,10 @@ impl LensHost for Pass<'_> {
     }
 
     fn faraday(&mut self) -> Option<&mut faraday_core::Faraday> {
+        // Faraday Demo's app while it is open, the held app's otherwise.
+        if self.shell.starter.showing_demo() {
+            return self.shell.starter.demo().map(|h| &mut h.app);
+        }
         Some(self.shell.starter.held())
     }
 }
@@ -453,7 +609,22 @@ impl ApplicationHandler for Shell {
 
     fn window_event(&mut self, event_loop: &ActiveEventLoop, _id: WindowId, event: WindowEvent) {
         match event {
+            // Closed while Faraday Demo is open, the window goes back to
+            // Home (F126).
+            WindowEvent::CloseRequested if self.starter.showing_demo() => {
+                self.starter.close_demo();
+                let mut events = Vec::new();
+                self.answer(event_loop, &mut events);
+                self.redraw();
+            }
             WindowEvent::CloseRequested => event_loop.exit(),
+            WindowEvent::DroppedFile(path) if self.starter.showing_demo() => {
+                self.dropped(event_loop, &path);
+            }
+            WindowEvent::HoveredFile(_) if self.starter.showing_demo() => self.hovered(true),
+            WindowEvent::HoveredFileCancelled if self.starter.showing_demo() => {
+                self.hovered(false);
+            }
             WindowEvent::RedrawRequested => {
                 if self.pace.paced {
                     let tick = self.pace.tick();
@@ -515,11 +686,13 @@ impl ApplicationHandler for Shell {
             self.pace.ticked_at(now, refresh);
         }
         self.relist();
+        self.demo_due(event_loop, now);
         event_loop.set_control_flow(ControlFlow::WaitUntil(self.pace.next_tick));
     }
 
     fn exiting(&mut self, _event_loop: &ActiveEventLoop) {
         self.lens.off();
+        self.demo = None;
         self.view = None;
         faraday_starter_shell::pdf::remove_key_sheets(&self.key_sheets);
         self.key_sheets.clear();
@@ -688,6 +861,8 @@ fn main() -> ExitCode {
     let computer = system.computer();
     let payload = Payload::built_in();
     let mut starter = Starter::new();
+    // Cobalt, Light or Dark as this computer's own setting says (F126).
+    starter.set_theme(faraday_starter_shell::scheme::at_start(system.dark()));
     starter.starter_event(StarterEvent::Computer(computer));
     starter.starter_event(StarterEvent::OtherEncryption(system.other_encryption()));
     starter.starter_event(StarterEvent::Payload(payload.as_ref().map(Payload::event)));
@@ -761,6 +936,7 @@ fn main() -> ExitCode {
         pointer: Pointer::new(),
         title: TitleDrag::default(),
         lens: Lens::new(Camera::new(None, false)),
+        demo: None,
     };
     let ran = event_loop.run_app(&mut shell);
     // However the loop ended, the key's sheets go.

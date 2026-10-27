@@ -594,9 +594,13 @@ Appearance page opened from the top app bar's ⋮ menu (`docs/STARTER.md`
 §3.1d), a task page as About is, with the way back in the bar: as a
 sheet, as first written, the ten chips and the two rows ran past the
 foot of a compact window, and a Starter sheet does not scroll (C3). It
-opens in Cobalt, Light, Standard. The Starter keeps no
-settings file (`docs/STARTER.md` §5.1), so a choice lasts until it
-closes. The Faraday screens it holds draw in the same scheme. The Text
+opens in Cobalt at Standard contrast, in Light or Dark as the operating
+system's own setting asks apps (F126; Light when it says neither). The
+Starter keeps no settings file (`docs/STARTER.md` §5.1), so a choice
+lasts until it closes. The Faraday screens it holds draw in the same
+scheme, and Faraday Demo inside it shares it: the Demo opens in the
+Starter's theme, and a theme chosen in the Demo is the Starter's
+(F126, `docs/STARTER.md` §5.3). The Text
 size row (`docs/TEXT-SIZE.md`, the Starter's part) joins the same sheet
 when it is built.
 

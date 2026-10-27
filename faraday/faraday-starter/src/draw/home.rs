@@ -168,22 +168,16 @@ fn home_cards(starter: &Starter) -> Vec<CardSpec<'_>> {
     cards
 }
 
-/// Faraday Demo's card: the version, and Open (§5.3).
+/// Faraday Demo's card: its version, which is this Starter's, and Open
+/// (§5.3, F126).
 fn desktop_body(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     let mut y = y0;
-    let version = starter
-        .payload
-        .as_ref()
-        .map(|p| p.version.clone())
-        .or_else(|| starter.installed.as_ref().map(|i| i.version.clone()));
-    if let Some(v) = version {
-        y += card_line(
-            ui,
-            (x, y, w),
-            &fill(S.starter_card_version, &[&v]),
-            Role::OnSurfaceVariant,
-        );
-    }
+    y += card_line(
+        ui,
+        (x, y, w),
+        &fill(S.starter_card_version, &[crate::VERSION]),
+        Role::OnSurfaceVariant,
+    );
     if let Some(why) = starter.desktop_failed.as_ref() {
         y += card_line(ui, (x, y, w), &reason_text(why), Role::Warning);
     }

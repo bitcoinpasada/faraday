@@ -423,7 +423,9 @@ What was open after step 3:
   samples crate are the two bodies of dummy data, and neither is key
   code: the testkit stays out of every shipped binary by
   `lint-keys-tests.sh`'s first two checks, and the samples crate by its
-  third, which lets only the desktop app depend on it. Its tests check
+  third, which lets only Faraday Demo's two binaries depend on it: the
+  desktop app, and the Starter, in whose window it runs (F126), through
+  `faraday-desktop` alone. Its tests check
   every value against the testkit, the published vectors and another
   implementation of BIP-39 and BIP-32. `Keys::set_demo` takes the
   fingerprints as literals; nothing derives at the desktop's start.

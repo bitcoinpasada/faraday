@@ -12,9 +12,10 @@
 //! implementation; `examples/regenerate.rs` writes `src/data.rs` and
 //! `data/` again when one of those changes.
 //!
-//! Only the desktop app depends on this crate. The stick, the Pi, the disk
-//! and grant helpers, the boot report and the Starter must not
-//! (`tools/lint-keys-tests.sh`).
+//! Only Faraday Demo depends on this crate: the desktop app, and the
+//! Starter through it, since Faraday Demo runs in the Starter's window
+//! (F126). The stick, the Pi, the disk and grant helpers, the boot report
+//! and the Starter's own crate must not (`tools/lint-keys-tests.sh`).
 //!
 //! The `name` of a sample is the name of its string in
 //! `faraday-strings`; the strings are not here.

@@ -1,10 +1,11 @@
 //! Staging a release (`faraday/tools/stage-release.sh`, `docs/STARTER.md`
 //! §1.3, §5.3) over test builds: what the owner signs holds the stick and
-//! Pi images and no desktop file, each Starter's payload holds the images
-//! and Faraday Demo for its own system (F83), and a release folder
-//! holding a desktop app is refused by name. The builds are small
-//! stand-ins carrying a build ID where the script reads one; the script
-//! needs xz, strings and mtools, as on the build machine.
+//! Pi images, each Starter's payload holds the images and its MANIFEST,
+//! and no Faraday Demo file is needed or staged anywhere: it is compiled
+//! into the Starter (F126). A release folder holding a desktop app is
+//! refused by name. The builds are small stand-ins carrying a build ID
+//! where the script reads one; the script needs xz, strings and mtools, as
+//! on the build machine.
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -15,8 +16,6 @@ use faraday_payload::Manifest;
 const VERSION: &str = "0.9.0";
 /// The kernel release string a build carries, as the script reads it.
 const RELEASE: &str = "6.6.84-faraday-0.9.0-test";
-/// The build ID that release string gives, which each desktop app carries.
-const BUILD: &str = "0.9.0-test";
 
 fn fresh(name: &str) -> PathBuf {
     let root = Path::new(env!("CARGO_TARGET_TMPDIR")).join(format!("stage-release-{name}"));
@@ -85,19 +84,6 @@ fn builds(root: &Path) -> PathBuf {
     builds
 }
 
-/// Faraday Demo's two builds under `builds/`, as the container builds
-/// leave them, each carrying `build` as its build ID.
-fn desktop_builds(builds: &Path, build: &str) {
-    fs::create_dir_all(builds.join("linux")).expect("folder");
-    fs::create_dir_all(builds.join("windows")).expect("folder");
-    let app = format!("Faraday Demo {build}\n").repeat(100);
-    fs::write(builds.join("linux/faraday"), &app).expect("linux");
-    fs::write(builds.join("windows/faraday.exe"), &app).expect("windows");
-}
-
-const DESKTOP_LINUX: &str = "faraday-demo-0.9.0-linux-x86_64";
-const DESKTOP_WINDOWS: &str = "faraday-demo-0.9.0-windows-x86_64.exe";
-
 fn script() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../tools/stage-release.sh")
 }
@@ -114,7 +100,6 @@ fn stage(args: &[&str]) -> Output {
 /// folders.
 fn first_pass(root: &Path) -> (PathBuf, PathBuf) {
     let builds = builds(root);
-    desktop_builds(&builds, BUILD);
     let (out, payload) = (root.join("release"), root.join("payload"));
     let done = stage(&[
         VERSION,
@@ -143,8 +128,10 @@ fn names(dir: &Path) -> Vec<String> {
     v
 }
 
+/// With no Faraday Demo built at all, each payload holds the two images
+/// and its MANIFEST, and the release holds the images and SHA256SUMS.
 #[test]
-fn each_payload_holds_the_images_and_its_own_desktop_app_and_the_release_holds_none() {
+fn each_payload_holds_the_images_alone_and_staging_needs_no_faraday_demo() {
     let root = fresh("staged");
     let (out, payload) = first_pass(&root);
     let stick = format!("faraday-stick-{VERSION}-x86_64-uefi.img");
@@ -165,7 +152,7 @@ fn each_payload_holds_the_images_and_its_own_desktop_app_and_the_release_holds_n
             pi.clone(),
         ]
     );
-    // No standalone desktop file in the release folder.
+    // No desktop file in the release folder.
     assert_eq!(
         names(&out),
         ["SHA256SUMS", &format!("{pi}.xz"), &format!("{stick}.xz")]
@@ -178,20 +165,11 @@ fn each_payload_holds_the_images_and_its_own_desktop_app_and_the_release_holds_n
         .unwrap_or_err("sha256sum");
     assert!(checked.status.success(), "{checked:?}");
 
-    for (system, inner, build) in [
-        ("linux", DESKTOP_LINUX, "builds/linux/faraday"),
-        ("windows", DESKTOP_WINDOWS, "builds/windows/faraday.exe"),
-    ] {
+    for system in ["linux", "windows"] {
         let dir = payload.join(system);
-        let xz = format!("{inner}.xz");
         assert_eq!(
             names(&dir),
-            [
-                "MANIFEST",
-                xz.as_str(),
-                &format!("{pi}.xz"),
-                &format!("{stick}.xz")
-            ],
+            ["MANIFEST", &format!("{pi}.xz"), &format!("{stick}.xz")],
             "{system}"
         );
         let m = Manifest::parse(&fs::read(dir.join("MANIFEST")).expect("MANIFEST"))
@@ -199,21 +177,9 @@ fn each_payload_holds_the_images_and_its_own_desktop_app_and_the_release_holds_n
         let files: Vec<&str> = m.files().iter().map(|f| f.name.as_str()).collect();
         assert_eq!(
             files,
-            [format!("{stick}.xz"), format!("{pi}.xz"), xz.clone()],
+            [format!("{stick}.xz"), format!("{pi}.xz")],
             "{system}"
         );
-        // The manifest line holds the desktop app as built, and the .xz
-        // decompresses to it.
-        let built = fs::read(root.join(build)).expect("build");
-        let line = m.files().last().expect("the desktop line");
-        assert_eq!(line.inner_name, inner);
-        assert_eq!(line.inner_size, built.len() as u64);
-        let unpacked = Command::new("xz")
-            .args(["-d", "-c"])
-            .arg(dir.join(&xz))
-            .output()
-            .unwrap_or_err("xz");
-        assert_eq!(unpacked.stdout, built, "{system}");
     }
 }
 
@@ -256,28 +222,4 @@ fn staging_refuses_a_release_folder_holding_a_desktop_app_and_names_it() {
             .exists()
     );
     assert!(out.join("SHA256SUMS").is_file());
-}
-
-#[test]
-fn a_desktop_app_that_does_not_carry_the_images_build_id_is_refused_and_named() {
-    let root = fresh("other-build");
-    let builds = builds(&root);
-    desktop_builds(&builds, "0.9.0+0123456789ab.test");
-    let done = stage(&[
-        VERSION,
-        "--any-build",
-        "--builds",
-        builds.to_str().expect("a path"),
-        "--out",
-        root.join("release").to_str().expect("a path"),
-        "--payload",
-        root.join("payload").to_str().expect("a path"),
-    ]);
-    assert!(!done.status.success(), "another build was staged");
-    let said = String::from_utf8_lossy(&done.stderr);
-    assert!(
-        said.contains("linux/faraday does not carry the build ID"),
-        "{said}"
-    );
-    assert!(!root.join("release").exists());
 }
