@@ -1417,20 +1417,33 @@ impl OpenVaults {
 
     /// A parse of each codex32 share record's string. The share strings
     /// every open vault keeps of the set `typed` is of (its identifier,
-    /// threshold and length), at indices none of `typed` has, one per
-    /// index, as their text (`docs/CODEX32.md` §9.5). None where `typed`
-    /// is empty or the secret alone.
-    fn codex32_more_of(&self, typed: &[faraday_bip::codex32::Codex32]) -> Vec<Zeroizing<String>> {
+    /// threshold and length), at indices none of `typed` has, as their
+    /// text (`docs/CODEX32.md` §9.5), grouped by the key each record
+    /// names: one group per fingerprint, one string per index in each.
+    /// Strings of two seeds may share an identifier, a threshold and a
+    /// length; only one group's strings are ever combined. A record that
+    /// names no key is in none. None where `typed` is empty or the secret
+    /// alone.
+    fn codex32_more_of(
+        &self,
+        typed: &[faraday_bip::codex32::Codex32],
+    ) -> Vec<([u8; 4], Vec<Zeroizing<String>>)> {
         use faraday_bip::codex32::Codex32;
         let Some(first) = typed.first().filter(|f| f.threshold() >= 2) else {
             return Vec::new();
         };
-        let mut out: Vec<(u8, Zeroizing<String>)> = Vec::new();
+        // Each key's strings, by fingerprint: one per index.
+        type Group = ([u8; 4], Vec<(u8, Zeroizing<String>)>);
+        let mut out: Vec<Group> = Vec::new();
         for r in self.slots.iter().flat_map(|s| s.records.records.iter()) {
             if r.kind != kind::CODEX32_SHARE {
                 continue;
             }
-            let Some(text) = r.text(field::CODEX32_STRING) else {
+            let (Some(text), Some(fp)) = (
+                r.text(field::CODEX32_STRING),
+                r.field(field::CODEX32_KEY)
+                    .and_then(|b| <[u8; 4]>::try_from(b).ok()),
+            ) else {
                 continue;
             };
             let Ok(s) = Codex32::parse(text) else {
@@ -1440,15 +1453,24 @@ impl OpenVaults {
             let same = s.identifier() == first.identifier()
                 && s.threshold() == first.threshold()
                 && s.payload().len() == first.payload().len();
-            if same
-                && !s.is_secret()
-                && !typed.iter().any(|t| t.share_index() == i)
-                && !out.iter().any(|(j, _)| *j == i)
-            {
-                out.push((i, Zeroizing::new(text.to_ascii_lowercase())));
+            if !same || s.is_secret() || typed.iter().any(|t| t.share_index() == i) {
+                continue;
+            }
+            let at = match out.iter().position(|(f, _)| *f == fp) {
+                Some(at) => at,
+                None => {
+                    out.push((fp, Vec::new()));
+                    out.len() - 1
+                }
+            };
+            let group = &mut out[at].1;
+            if !group.iter().any(|(j, _)| *j == i) {
+                group.push((i, Zeroizing::new(text.to_ascii_lowercase())));
             }
         }
-        out.into_iter().map(|(_, t)| t).collect()
+        out.into_iter()
+            .map(|(fp, g)| (fp, g.into_iter().map(|(_, t)| t).collect()))
+            .collect()
     }
 
     /// Costs what `Keys::codex32_of_seed` costs, and a parse of each
@@ -1464,26 +1486,41 @@ impl OpenVaults {
         i: usize,
         string: &faraday_bip::codex32::Codex32,
     ) -> Option<bool> {
-        let more = self.codex32_more_of(std::slice::from_ref(string));
+        // Only the open vaults' strings of key `i`'s own seed: strings of
+        // the same set header kept for another seed never join it.
+        let fp = keys.info(i)?.fingerprint.0;
+        let more = self
+            .codex32_more_of(std::slice::from_ref(string))
+            .into_iter()
+            .find(|(f, _)| *f == fp)
+            .map(|(_, g)| g)
+            .unwrap_or_default();
         keys.codex32_of_seed(c, i, string, &more)
     }
 
     /// A parse of each codex32 share record's string. How many strings
     /// of the set `typed` is of the open vaults add to it: at indices
-    /// none of `typed` has, one per index (`docs/CODEX32.md` §9.5).
-    /// Public: a count.
+    /// none of `typed` has, one per index, of the one key whose records
+    /// hold the most (`docs/CODEX32.md` §9.5). Public: a count.
     pub fn codex32_count(&self, typed: &[faraday_bip::codex32::Codex32]) -> usize {
-        self.codex32_more_of(typed).len()
+        self.codex32_more_of(typed)
+            .iter()
+            .map(|(_, g)| g.len())
+            .max()
+            .unwrap_or(0)
     }
 
-    /// Costs a parse of each codex32 share record's string and, where `k`
-    /// strings are in, an interpolation, an HMAC-SHA512 and what
-    /// `add_seed` costs. Strings typed into the codex32 form gathered with
-    /// the open vaults' strings of their set (`docs/CODEX32.md` §9.5):
-    /// once `typed` and those make `k`, the seed they make loads as a key
-    /// labelled `label`, its set's facts the indices of both and its
-    /// strings kept ([`Keys::keep_codex32`]). `None` while fewer than `k`
-    /// are in; a refusal where the key does not load.
+    /// Costs a parse of each codex32 share record's string and, for each
+    /// key whose records make up `k` with those typed, an interpolation,
+    /// an HMAC-SHA512 and a fingerprint, and what `add_seed` costs.
+    /// Strings typed into the codex32 form gathered with the open vaults'
+    /// strings of their set (`docs/CODEX32.md` §9.5), one key's records
+    /// at a time: once `typed` and those make `k`, and the seed they make
+    /// has the fingerprint the records name, it loads as a key labelled
+    /// `label`, its set's facts the indices of both and its strings kept
+    /// ([`Keys::keep_codex32`]). `None` while fewer than `k` are in; a
+    /// refusal where no key's records make their own key with those
+    /// typed, or the key does not load.
     pub fn codex32_with_typed(
         &self,
         c: &Compute,
@@ -1495,23 +1532,42 @@ impl OpenVaults {
         use fv::codex32::{SetFacts, State};
         let first = typed.first()?;
         let need = usize::from(first.threshold());
-        let more = self.codex32_more_of(typed);
-        if need < 2 || typed.len() >= need || typed.len() + more.len() < need {
+        if need < 2 || typed.len() >= need {
             return None;
         }
-        let mut texts: Vec<Zeroizing<String>> = typed
-            .iter()
-            .map(|s| Zeroizing::new(s.encode().as_str().to_string()))
-            .collect();
-        texts.extend(more);
-        let parts: Vec<Codex32> = texts
-            .iter()
-            .take(need)
-            .filter_map(|t| Codex32::parse(t).ok())
-            .collect();
-        let seed = match crate::operations::codex32_seed(&parts) {
-            Ok(s) => s,
-            Err(e) => return Some(Err(Refusal::Words(e.to_string()))),
+        // Each key's records with those typed, until one makes the key
+        // its records name; never strings of two keys together.
+        let mut tried = false;
+        let mut found = None;
+        for (fp, more) in self.codex32_more_of(typed) {
+            if typed.len() + more.len() < need {
+                continue;
+            }
+            tried = true;
+            let mut texts: Vec<Zeroizing<String>> = typed
+                .iter()
+                .map(|s| Zeroizing::new(s.encode().as_str().to_string()))
+                .collect();
+            texts.extend(more);
+            let parts: Vec<Codex32> = texts
+                .iter()
+                .take(need)
+                .filter_map(|t| Codex32::parse(t).ok())
+                .collect();
+            let Ok(seed) = crate::operations::codex32_seed(&parts) else {
+                continue;
+            };
+            if crate::identity::fingerprint_of_seed(c, &seed) == Some(Fingerprint(fp)) {
+                found = Some((texts, seed));
+                break;
+            }
+        }
+        let Some((texts, seed)) = found else {
+            return tried.then(|| {
+                Err(Refusal::Words(
+                    faraday_strings::EN.c32_vault_other_seed.to_string(),
+                ))
+            });
         };
         let fp = match keys.add_seed(c, &seed, label) {
             Ok(fp) => fp,

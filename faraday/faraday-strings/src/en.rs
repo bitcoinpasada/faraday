@@ -9872,6 +9872,10 @@ strings! {
     c32_round_other_seed: "Share {} of {} is of another seed than {}",
     /// The key the string is of is not loaded. `{}`: its fingerprint.
     c32_round_no_key: "Key {} is not here: add it from its copy first",
+    /// After `wallet_not_a_valid`: the strings typed and an open vault's
+    /// strings of the same identifier make no key the vault's records
+    /// name; nothing loads.
+    c32_vault_other_seed: "the open vaults' strings of this set are of another seed",
     /// A vault's share record, its row. `{}`: the index, the key's fingerprint.
     c32_vault_row: "Share {} of {}",
     /// The share record's line. `{}`: the identifier, the threshold.

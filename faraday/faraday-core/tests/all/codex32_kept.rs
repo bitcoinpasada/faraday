@@ -433,6 +433,80 @@ fn shares_of_another_key_named_in_a_record_load_nothing() {
     assert!(app.session.keys.is_empty());
 }
 
+/// Share C of another seed's 2-of-3 set under vector 2's identifier
+/// (`name`) and length, as a vault's share record naming that seed's own
+/// key; with that key's fingerprint.
+fn other_seeds_c() -> (Record, [u8; 4]) {
+    use faraday_bip::codex32::Codex32;
+    let c = testkit::compute();
+    let seed = [0x5au8; 16];
+    let secret = Codex32::from_seed(2, *b"name", &seed).unwrap();
+    let set = secret.split(2, 3, &[9u8; 64]).unwrap();
+    let share = match set.iter().find(|s| s.share_index() == b'c') {
+        Some(s) => Codex32::parse(s.encode().as_str()).unwrap(),
+        None => Codex32::derive_share(&set[..2], b'c').unwrap(),
+    };
+    let fp = faraday_keys::identity::fingerprint_of_seed(&c, &seed)
+        .unwrap()
+        .0;
+    assert_ne!(fp, FP);
+    let text = share.encode().as_str().to_string();
+    assert_eq!(text.len(), A.len());
+    (
+        Record::new(kind::CODEX32_SHARE)
+            .with(field::CODEX32_STRING, text.as_bytes())
+            .with(field::CODEX32_KEY, &fp),
+        fp,
+    )
+}
+
+/// Types string `s` into the codex32 form and presses Enter.
+fn type_string(app: &mut Faraday, s: &str) {
+    app.press(Action::Entry(None));
+    app.press(Action::EntryForm(2));
+    type_text(app, s);
+    app.event(Event::Key(Key::Enter));
+}
+
+/// Strings of two seeds under one identifier, threshold and length in an
+/// open vault: a string of vector 2's set typed in loads vector 2's key,
+/// with its own seed's share, and never a key the two seeds' strings
+/// would make together.
+#[test]
+fn a_string_typed_loads_its_own_seed_beside_another_seeds_share() {
+    let (other, other_fp) = other_seeds_c();
+    let mut app = device(vec![(
+        "home.ofv".into(),
+        vault_of(PHRASE, vec![other, share_record(D)], 11),
+    )]);
+    unlock_on_vaults(&mut app, "home.ofv", PHRASE);
+    assert!(app.session.keys.is_empty());
+    type_string(&mut app, A);
+    let fps: Vec<[u8; 4]> = (0..app.session.keys.len())
+        .map(|k| app.session.keys[k].fingerprint.0)
+        .collect();
+    assert!(fps.iter().all(|f| *f == FP), "{fps:?}");
+    assert!(!fps.contains(&other_fp));
+    let k = app
+        .session
+        .keys
+        .position_of(FP)
+        .unwrap_or_else(|| panic!("{:?}", testkit::entry(&app).error));
+    let facts = app.session.keys[k].codex32.clone().expect("its set");
+    assert_eq!(facts.indices(), vec![b'a', b'd']);
+}
+
+/// A string typed in beside only another seed's share of the same
+/// identifier, threshold and length loads no key.
+#[test]
+fn a_string_typed_with_only_another_seeds_share_loads_nothing() {
+    let (other, _) = other_seeds_c();
+    let mut app = device(vec![("home.ofv".into(), vault_of(PHRASE, vec![other], 12))]);
+    unlock_on_vaults(&mut app, "home.ofv", PHRASE);
+    type_string(&mut app, A);
+    assert!(app.session.keys.is_empty(), "a key loaded");
+}
+
 /// Vector 2's key's single-key wallet made in Create, Back up open on it
 /// with nothing on paper but its strings, one per place.
 fn made_with_set() -> Faraday {

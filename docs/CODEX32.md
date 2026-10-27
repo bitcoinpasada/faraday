@@ -1960,7 +1960,12 @@ place with that vault's passphrase, as a vault's seed does
 after another in a session, are gathered as the codex32 form gathers
 typed ones (§8.1, §8.5: same set, distinct indices); once k are in, the
 key loads, with its fingerprint shown. A vault's string and a typed or
-scanned paper string add up the same way. Spend from a backup, step by
+scanned paper string add up the same way. The vaults' strings are taken
+one key at a time, by the fingerprint each record names: strings of two
+seeds under one identifier, threshold and length are never combined,
+and a key loads only where the seed the strings make has the
+fingerprint its records name; otherwise nothing loads and the form says
+the vaults' strings are of another seed. Spend from a backup, step by
 step, reads this.
 
 **The standard way** (owner, 2026-10-22: as BIP-39's, paper only, with

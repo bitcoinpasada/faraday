@@ -106,8 +106,16 @@ pub struct Merged {
     pub whole: Option<String>,
 }
 
-/// Merges shares of one wallet. Shares that disagree on the quorum or the
-/// format, or that hold more keys than the policy names, are refused.
+/// A derivation as written, `'` and `h` alike, for comparing two.
+fn same_derivation(a: &str, b: &str) -> bool {
+    let norm = |d: &str| d.trim().to_ascii_lowercase().replace('\'', "h");
+    norm(a) == norm(b)
+}
+
+/// Merges shares of one wallet. Shares that disagree on the quorum, the
+/// format or the name (where both carry one), that hold more keys than
+/// the policy names, or that give one fingerprint two xpubs or two
+/// derivations, are refused: sheets of two wallets are never combined.
 pub fn merge(texts: &[String]) -> Result<Merged, String> {
     let mut all: Option<ConfigParts> = None;
     for t in texts {
@@ -118,13 +126,22 @@ pub fn merge(texts: &[String]) -> Result<Merged, String> {
                 if a.m != p.m || a.n != p.n || !a.format.eq_ignore_ascii_case(&p.format) {
                     return Err(EN.restore_these_shares.into());
                 }
-                for k in p.keys {
-                    if !a.keys.iter().any(|x| x.0.eq_ignore_ascii_case(&k.0)) {
-                        if a.keys.len() >= a.n {
-                            return Err(EN.restore_these_shares.into());
-                        }
-                        a.keys.push(k);
+                match (&a.name, &p.name) {
+                    (Some(x), Some(y)) if x.trim() != y.trim() => {
+                        return Err(EN.restore_these_shares.into());
                     }
+                    (None, Some(_)) => a.name = p.name.clone(),
+                    _ => {}
+                }
+                for k in p.keys {
+                    let same_fp = || a.keys.iter().filter(|x| x.0.eq_ignore_ascii_case(&k.0));
+                    if same_fp().any(|x| x.2 == k.2 && same_derivation(&x.1, &k.1)) {
+                        continue;
+                    }
+                    if same_fp().next().is_some() || a.keys.len() >= a.n {
+                        return Err(EN.restore_these_shares.into());
+                    }
+                    a.keys.push(k);
                 }
             }
         }
@@ -239,8 +256,8 @@ pub fn sheets_rebuild(c: &Compute, network: Network, wallet: &Wallet, plan: &[Ve
 }
 
 /// Whether two of a policy's keys name one fingerprint: one seed at two
-/// of its keys, whose sheets [`merge`] cannot tell apart from sheets of
-/// two wallets. A lookup.
+/// of its keys, which [`merge`] cannot tell apart from sheets of two
+/// wallets and refuses. A lookup.
 pub fn repeats_a_seed(policy: &faraday_bip::policy::WalletPolicy) -> bool {
     let fps: Vec<_> = policy
         .keys()
@@ -950,7 +967,8 @@ impl Faraday {
     /// Costs what `read_kept` costs. The texts of the shares chosen on the
     /// restore screen, and those kept in the open vaults, each vault
     /// share's wallet read as a description no record keeps
-    /// ([`Kept::read_kept`]).
+    /// ([`Kept::read_kept`]): a vault's share only where its wallet holds
+    /// every key of the shares chosen, all of one wallet.
     pub fn restore_share_texts(&self, c: &Compute) -> Vec<String> {
         let Some(r) = self.restore.state.as_ref() else {
             return Vec::new();
@@ -965,18 +983,48 @@ impl Faraday {
         // §15.6), each where it agrees with the shares in hand.
         use faraday_vault::records::{field, kind};
         // One wallet's shares, told by field 5, never by name: the first
-        // that merges with what is in hand.
+        // that merges with what is in hand, and only a share whose wallet
+        // holds every key the sheets in hand name and every key of its
+        // own; a share whose wallet does not read is not taken.
+        let hand: Vec<(String, String)> = texts
+            .iter()
+            .filter_map(|t| parts(t))
+            .flat_map(|p| p.keys.into_iter().map(|(f, _, x)| (f, x)))
+            .collect();
         let mut wallet: Option<String> = None;
         for o in &self.vaults.open {
             for (_, rec) in self.vaults.records(o.id).of(kind::WALLET_SHARE) {
                 let Some(t) = rec.public_text(field::SHARE) else {
                     continue;
                 };
-                let of = rec
+                let Some(policy) = rec
                     .public_text(field::SHARE_WALLET)
                     .and_then(|d| self.kept.read_kept(c, d))
-                    .map(|p| p.checksum().to_string());
+                else {
+                    continue;
+                };
+                let of = Some(policy.checksum().to_string());
                 if wallet.is_some() && of != wallet {
+                    continue;
+                }
+                let Some(own) = parts(t) else {
+                    continue;
+                };
+                let holds = |(f, x): &(String, String)| {
+                    policy.keys().iter().any(|k| {
+                        k.fingerprint()
+                            .is_some_and(|p| fp_text(p).eq_ignore_ascii_case(f))
+                            && k.xpub().to_string() == x.trim()
+                    })
+                };
+                let quorum = policy.quorum().or_else(|| policy.tapscript_quorum());
+                if quorum != Some((own.m, own.n))
+                    || !hand.iter().all(holds)
+                    || !own
+                        .keys
+                        .iter()
+                        .all(|(f, _, x)| holds(&(f.clone(), x.clone())))
+                {
                     continue;
                 }
                 if texts.iter().any(|x| x.trim() == t.trim()) {

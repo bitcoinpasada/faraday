@@ -114,6 +114,7 @@ mod pictures;
 mod quit;
 mod restart;
 mod restore;
+mod restore_shares;
 mod roller;
 mod rounds;
 mod save_without_encryption;
