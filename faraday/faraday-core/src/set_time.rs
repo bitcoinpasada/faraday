@@ -81,6 +81,11 @@ impl SetTimeArea {
         self.back_to
     }
 
+    /// Typing goes to neither field.
+    pub(crate) fn clear_focus(&mut self) {
+        self.focus = None;
+    }
+
     /// Focuses a field.
     pub(crate) fn set_focus(&mut self, f: Focus) {
         self.focus = Some(f);

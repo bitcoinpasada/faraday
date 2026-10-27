@@ -242,7 +242,9 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
     /// field goes. Returns the height it takes with the gap under it.
     pub fn field_label(&mut self, x: f32, y: f32, label: &str) -> f32 {
         self.text_as(x, y, FIELD_LABEL, Role::OnSurfaceVariant, label);
-        self.line_as(FIELD_LABEL) + FIELD_GAP
+        let h = self.line_as(FIELD_LABEL) + FIELD_GAP;
+        self.label_at = Some((y + self.oy, y + h + self.oy));
+        h
     }
 
     /// An outlined text field's box (Material 3 Text fields) at (x, y),
@@ -261,6 +263,10 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
             (None, true) => (Role::Primary, FIELD_EDGE_ACTIVE),
             (None, false) => (Role::Outline, FIELD_EDGE),
         };
+        if focused {
+            let h = self.field_height(w, error);
+            self.note_focus(x, y, w, h);
+        }
         let fh = self.field_h();
         let rect = self.rect(x, y, w, fh);
         let color = self.col(edge);
@@ -274,6 +280,24 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
             }
             None => fh,
         }
+    }
+
+    /// A field's supporting text (Material 3 Text fields) under it at
+    /// (x, y), `w` wide, in body small and `color`: while `focused` it
+    /// is part of the field typing goes to ([`Ui::focus_box`]), kept in
+    /// view above the keyboard with it. Returns its height.
+    pub fn field_supporting(
+        &mut self,
+        (x, y, w): (f32, f32, f32),
+        color: impl Into<Paint>,
+        text: &str,
+        focused: bool,
+    ) -> f32 {
+        let h = self.wrap_as((x, y, w), BODY_S, color, text);
+        if focused {
+            self.note_focus(x, y, w, h);
+        }
+        h
     }
 
     /// The height [`Ui::field_box`] takes `w` wide with `error`.

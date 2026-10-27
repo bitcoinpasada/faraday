@@ -1006,6 +1006,21 @@ pub(crate) struct Osk {
     /// How far the wide layout drew the page up, units, on the last
     /// frame.
     lift: f32,
+    /// The focused field is to be brought into view above the keyboard
+    /// once drawn: the keyboard came up, or another field took focus.
+    reveal: bool,
+    /// The keyboard was up on the last frame.
+    was_shown: bool,
+    /// The focused field the last frame drew, by the press it takes: a
+    /// field drawn focused after it is another, brought into view.
+    kept: Option<Action>,
+    /// The focused field this frame drew, when it drew one.
+    drawn: Option<Option<Action>>,
+    /// Where the last pass drew the focused field with its label, pixels.
+    drawn_box: Option<faraday_draw::Rect>,
+    /// On a small panel, the field typing goes to was pressed since the
+    /// last frame: the keyboard comes up for it.
+    pressed: bool,
 }
 
 /// A small panel's own state: the docked keyboard and the walk-through
@@ -1014,8 +1029,9 @@ pub(crate) struct Osk {
 /// has one, and is given here as plain values.
 #[derive(Debug, Default)]
 pub(crate) struct CompactArea {
-    /// The docked keyboard.
-    osk: Osk,
+    /// The docked keyboard, kept off the stack: `Faraday` is moved
+    /// whole, and a debug build's stack is small.
+    osk: Box<Osk>,
     /// On a small panel, the walk-through shown: the screen, and the
     /// step's place or [`ABOUT_PAGE`]. Behind a tap there, so the
     /// controls keep the panel.
@@ -1073,8 +1089,12 @@ impl CompactArea {
         wanted: bool,
     ) -> bool {
         let rose = field.is_some() && field != self.osk.was_field;
+        // On a small panel a field focused by itself (a page or a step
+        // opening) leaves the keyboard down; one pressed, or reached from
+        // another while the keyboard is up, brings it up.
+        let up = !compact || std::mem::take(&mut self.osk.pressed) || self.osk.was_shown;
         if rose {
-            self.osk.hidden = false;
+            self.osk.hidden = !up;
             self.osk.field_at = down_y;
         }
         self.osk.was_field = field;
@@ -1084,6 +1104,41 @@ impl CompactArea {
             self.osk.manual = false;
         }
         rose
+    }
+
+    /// Before a frame: the field the last frame drew focused is settled
+    /// in view, and a field newly focused (`rose`), or the keyboard come
+    /// up (`shown`), is to be brought into view once drawn.
+    pub(crate) fn begin(&mut self, rose: bool, shown: bool) {
+        self.osk.drawn_box = None;
+        if let Some(drawn) = self.osk.drawn.take() {
+            self.osk.kept = drawn;
+            self.osk.reveal = false;
+        }
+        self.osk.reveal |= rose || (shown && !self.osk.was_shown);
+        self.osk.was_shown = shown;
+    }
+
+    /// On a small panel, a field focused by itself is to be left
+    /// unfocused: the keyboard was down and the field was not pressed.
+    pub(crate) fn unasked(&self, field: Option<&String>) -> bool {
+        field.is_some()
+            && field != self.osk.was_field.as_ref()
+            && !self.osk.pressed
+            && !self.osk.was_shown
+    }
+
+    /// The field typing goes to was pressed: the keyboard comes up.
+    pub(crate) fn press_field(&mut self) {
+        self.osk.pressed = true;
+        self.osk.hidden = false;
+    }
+
+    /// A pass drew the focused field, pressed with `action`: whether it
+    /// is to be brought into view above the keyboard.
+    pub(crate) fn reveal_due(&mut self, action: Option<Action>) -> bool {
+        self.osk.drawn = Some(action);
+        self.osk.reveal || self.osk.kept != action
     }
 
     /// How far the wide layout draws the page up while its keyboard is
@@ -1199,6 +1254,9 @@ impl Faraday {
                 f => f.is_some() && crate::vault::screen::contents_detail(self),
             },
             Screen::Vanity => self.vanity.typing_prefix(),
+            // Set the time's date and time, typed on a panel with no
+            // keyboard of its own.
+            Screen::SetTime => self.set_time.focus().is_some(),
             // Find an address's field.
             Screen::Explore => self
                 .explore
@@ -1284,6 +1342,20 @@ impl Faraday {
         }
     }
 
+    /// Where the on-screen keyboard's top edge is while it is up, pixels
+    /// down the window: for a test that what is typed into is above it.
+    pub fn keyboard_top(&self) -> Option<u16> {
+        let kb = self.osk_height();
+        (kb > 0.0).then(|| ((self.h - kb) * self.f).round() as u16)
+    }
+
+    /// The field typing goes to, with its label, as the last frame drew
+    /// it on a small panel, pixels (x, y, w, h), in view or not: for a
+    /// test that it stands above the keyboard.
+    pub fn focused_field(&self) -> Option<(i32, i32, i32, i32)> {
+        self.panel.osk.drawn_box.map(|r| (r.x, r.y, r.w, r.h))
+    }
+
     /// The keyboard's height when it is up, else nothing.
     pub(crate) fn osk_height(&self) -> f32 {
         if self.osk_shown() {
@@ -1310,44 +1382,110 @@ impl Faraday {
         })
     }
 
-    /// A field newly focused, or another field than before, brings the
-    /// keyboard up again. Returns whether it came up on this frame.
-    pub(crate) fn osk_track(&mut self) -> bool {
+    /// Before a frame: a field newly focused, or another field than
+    /// before, brings the keyboard up again; on a small panel that, or
+    /// the keyboard brought up by hand, asks for the focused field to be
+    /// brought into view above it once drawn ([`Self::osk_follow`]).
+    pub(crate) fn osk_track(&mut self) {
         // A bar's overflow menu over the page leaves its field as it was:
         // the field is not focused anew when the menu closes.
         if matches!(self.sheet, Some(crate::Sheet::NavMenu(Some(_)))) {
-            return false;
+            return;
+        }
+        // A page or step that focuses its field by itself on a small
+        // panel opens at its top with nothing focused (owner,
+        // 2026-10-27); a press on the field focuses it.
+        // A page whose typing has no field to press (a codex32 share, a
+        // KEY typed) keeps its keyboard up, as it always did.
+        if self.compact && self.panel.unasked(self.osk_field().as_ref()) {
+            self.osk_blur();
+            if self.osk_auto() {
+                self.panel.press_field();
+            }
         }
         let field = self.osk_field();
         let wanted = self.osk_wanted();
-        self.panel
-            .track(field, self.pointer.down_at().1, self.compact, wanted)
+        let rose = self
+            .panel
+            .track(field, self.pointer.down_at().1, self.compact, wanted);
+        let shown = self.compact && self.osk_shown();
+        self.panel.begin(rose, shown);
     }
 
-    /// The keyboard just came up over the panel's foot: when the press
-    /// that focused the field was under where the keyboard now is, the
-    /// page scrolls that far, so the field stays in view. `f` is pixels a
-    /// design unit; `visible` the height left above the keyboard.
-    pub(crate) fn osk_reveal(&mut self, f: f32, visible: f32) {
-        self.osk_reveal_at(self.pointer.down_at().1, f, visible);
-    }
-
-    fn osk_reveal_at(&mut self, at: i32, f: f32, visible: f32) {
-        // A search bar opens Material's search view, the bar at its top.
-        if matches!(self.vaults.focus, Some(crate::vault::Focus::Search(_))) {
-            return;
+    /// The fields the docked keyboard types into, unfocused: Vaults'
+    /// passphrases, names and a form's fields, Set the time's, a new
+    /// wallet's passphrase. Typing then goes nowhere until one is
+    /// pressed.
+    fn osk_blur(&mut self) {
+        use crate::vault::Focus as F;
+        if matches!(
+            self.vaults.focus,
+            Some(F::Passphrase | F::Phrase(..) | F::Field(_) | F::Name | F::Prompt)
+        ) {
+            self.vaults.set_focus(None);
         }
-        let tapped = at as f32 / f.max(0.01);
-        let over = tapped + 56.0 - visible;
-        if over > 0.0
-            && let Some(slot) = self.scroll_slot()
+        self.set_time.clear_focus();
+        if let Some(c) = self.create.state_mut() {
+            c.pass_focus = None;
+        }
+    }
+
+    /// After a press on a small panel: a press on a field, the one
+    /// typing goes to or one the last frame drew, brings the docked
+    /// keyboard up for it, however it was put away.
+    pub(crate) fn osk_after(&mut self, action: Action) {
+        if self.compact
+            && self.osk_auto()
+            && (self.typing_target() == Some(action) || self.typing.is_field(action))
         {
-            *slot += over;
-            self.out.dirty = true;
-            self.out
-                .commands
-                .push_back(faraday_shell_api::Command::Draw);
+            self.panel.press_field();
         }
+    }
+
+    /// After a drawing pass on a small panel with the keyboard up: where
+    /// the focused field (`field`, pixels, with its label; pressed with
+    /// `action`) is newly focused or the keyboard has just come up, the
+    /// page's region scrolls so the field stands within it, clear of the
+    /// keyboard's top and of the region's top by [`KEYBOARD_CLEAR`],
+    /// only as far as it must, and within how far the region scrolls.
+    /// Returns whether it scrolled, so the pass is drawn again. Cheap.
+    ///
+    /// [`KEYBOARD_CLEAR`]: faraday_draw::tokens::KEYBOARD_CLEAR
+    pub(crate) fn osk_follow(
+        &mut self,
+        field: Option<faraday_draw::Rect>,
+        action: Option<Action>,
+        regions: &[crate::ui::Scrolled],
+    ) -> bool {
+        self.panel.osk.drawn_box = field;
+        // A search bar opens Material's search view, the bar at its top.
+        if !self.compact
+            || !self.osk_shown()
+            || matches!(self.vaults.focus, Some(crate::vault::Focus::Search(_)))
+        {
+            return false;
+        }
+        let Some(field) = field else {
+            return false;
+        };
+        if !self.panel.reveal_due(action) {
+            return false;
+        }
+        let Some(region) = regions.iter().find(|r| r.slot == crate::ui::Slot::Page) else {
+            return false;
+        };
+        let by = reveal_by(field, region.view, self.f);
+        let (f, max) = (self.f.max(0.01), region.max);
+        let Some(slot) = self.page_slot() else {
+            return false;
+        };
+        let to = ((*slot + by).clamp(0.0, max) * f).round() / f;
+        if (to - *slot).abs() * f < 0.5 {
+            return false;
+        }
+        *slot = to;
+        self.sheet_offset = to;
+        true
     }
 
     /// How far the wide layout draws the page up while its keyboard is
@@ -1388,6 +1526,25 @@ impl Faraday {
         if let Some(k) = self.panel.press(p, address) {
             self.key(k);
         }
+    }
+}
+
+/// How far, in units, a region seen through `view` scrolls so `field`
+/// (both pixels, `f` a unit) stands within it, [`KEYBOARD_CLEAR`] clear
+/// of its top and its foot: up when the field runs past its foot, never
+/// so far that the field's top leaves it; down when the field is above
+/// its top; else not at all.
+///
+/// [`KEYBOARD_CLEAR`]: faraday_draw::tokens::KEYBOARD_CLEAR
+fn reveal_by(field: faraday_draw::Rect, view: faraday_draw::Rect, f: f32) -> f32 {
+    use faraday_draw::tokens::KEYBOARD_CLEAR;
+    let f = f.max(0.01);
+    let top = (field.y - view.y) as f32 / f - KEYBOARD_CLEAR;
+    let foot = (field.bottom() - view.bottom()) as f32 / f + KEYBOARD_CLEAR;
+    if foot > 0.0 {
+        foot.min(top)
+    } else {
+        top.min(0.0)
     }
 }
 

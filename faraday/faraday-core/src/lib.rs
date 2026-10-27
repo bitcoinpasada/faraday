@@ -2575,6 +2575,7 @@ impl Faraday {
         self.flows_note();
         self.vault_shown_tidy();
         self.key_path_after(asked, action);
+        self.osk_after(action);
     }
 
     /// Costs what the actions below cost, the keys' and wallets' work among
@@ -6264,16 +6265,11 @@ impl Faraday {
         let mut follow_to = None;
         let (mut scrolled, mut caret, mut reach) = (Vec::new(), None, Vec::new());
         let mut tips = Vec::new();
-        // A field newly focused brings the keyboard up; on a small panel
-        // the page scrolls so the field stays in view above it. Worked
-        // out before drawing, which reads the keyboard as it now is.
-        if self.osk_track() && self.compact {
-            let kb = self.osk_height();
-            if kb > 0.0 {
-                self.osk_reveal(self.f, self.h - kb);
-            }
-        }
-        for _ in 0..2 {
+        // A field newly focused brings the keyboard up, worked out before
+        // drawing, which reads the keyboard as it now is; on a small panel
+        // the page scrolls the field into view above it (`osk_follow`).
+        self.osk_track();
+        for _ in 0..3 {
             hits.clear();
             let disclosure = self
                 .disclosed
@@ -6311,7 +6307,7 @@ impl Faraday {
                 ui.frost = self.fade.take_frost(&frost_key);
                 ui.guided_shown = self.guided_shown();
                 ui.about_open = self.panel.about_on(self.screen, self.sheet.is_none());
-                ui.offset = page_offset;
+                ui.offset = self.screen_slot().map_or(page_offset, |o| *o);
                 ui.active = slot;
                 ui.compact = self.compact;
                 ui.caret_on = self.caret_on();
@@ -6329,9 +6325,9 @@ impl Faraday {
                 self.pointer.set_cut(std::mem::take(&mut ui.cut));
                 follow_to = follow_to.or(ui.follow_to);
                 self.fade.keep_frost(frost_key, ui.frost.take());
-                ui.column
+                (ui.column, ui.focus_box, ui.focus_action)
             };
-            if !self.disclose(key, column) {
+            if !(self.osk_follow(column.1, column.2, &scrolled) | self.disclose(key, column.0)) {
                 break;
             }
         }

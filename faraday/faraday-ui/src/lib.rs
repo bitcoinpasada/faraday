@@ -479,6 +479,17 @@ pub struct Ui<'a, A> {
     /// The foot of the caret drawn this frame, units down the window:
     /// what the wide layout's keyboard keeps in view above it.
     pub caret_foot: Option<f32>,
+    /// The field typing goes to, as drawn this frame: its box, the line
+    /// typed in it and its caret, with its label where
+    /// [`Ui::field_label`] drew one just above it; in pixels down the
+    /// window. What a page scrolls into view above the keyboard.
+    pub focus_box: Option<Rect>,
+    /// The action that field is pressed with, where it drew a line of
+    /// typing ([`Ui::typed`]): tells one focused field from another.
+    pub focus_action: Option<A>,
+    /// The last label [`Ui::field_label`] drew: its top and the foot of
+    /// the gap under it, units down the window.
+    label_at: Option<(f32, f32)>,
     /// Actions every button draws dimmed this frame, whatever style the
     /// screen asked for: what the app refuses while it is in this state
     /// (the demo's actions that would make a secret, `docs/DEMO.md` §7).
@@ -499,6 +510,17 @@ pub struct Ui<'a, A> {
     /// What the page or sheet drawn so far hands to the frame's "Practice
     /// only" card ([`demo`]), in the order offered.
     pub demo: Vec<demo::DemoItem<A>>,
+}
+
+/// The smallest rectangle holding both.
+fn union(a: Rect, b: Rect) -> Rect {
+    let (x, y) = (a.x.min(b.x), a.y.min(b.y));
+    Rect::new(
+        x,
+        y,
+        a.right().max(b.right()) - x,
+        a.bottom().max(b.bottom()) - y,
+    )
 }
 
 /// A step card opening and the one closing, part of the way.
@@ -570,6 +592,9 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
             caret_on: true,
             caret_drawn: false,
             caret_foot: None,
+            focus_box: None,
+            focus_action: None,
+            label_at: None,
             dimmed: Vec::new(),
             reach: Vec::new(),
             primaries: 0,
@@ -926,6 +951,10 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
             }
         }
         self.text_mid(x, y, h, size, w, color, &text[at[from]..at[to]]);
+        if focused {
+            self.note_focus(x, y, room, h);
+            self.focus_action = Some(action);
+        }
         if focused && selected.is_none() {
             use faraday_draw::tokens::{CARET_MIN, CARET_OVER};
             let ch = (size + CARET_OVER).max(CARET_MIN);
@@ -1195,9 +1224,22 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
     pub fn caret(&mut self, x: f32, y: f32, h: f32) {
         self.caret_drawn = true;
         self.caret_foot = Some(y + h + self.oy);
+        self.note_focus(x, y, 2.0, h);
         if self.caret_on {
             self.fill(x, y, 2.0, h, 1.0, Role::Primary);
         }
+    }
+
+    /// Part of the field typing goes to, drawn at (x, y), `w` by `h`
+    /// units: its box, its line or its caret, joined into
+    /// [`Ui::focus_box`] with the label drawn just above it.
+    pub fn note_focus(&mut self, x: f32, y: f32, w: f32, h: f32) {
+        let top = match self.label_at {
+            Some((label, foot)) if (foot - (y + self.oy)).abs() < 0.5 => label - self.oy,
+            _ => y,
+        };
+        let part = self.rect(x, top, w, y + h - top);
+        self.focus_box = Some(self.focus_box.map_or(part, |b| union(b, part)));
     }
 
     /// The caret as a character after the text typed, for a field drawn

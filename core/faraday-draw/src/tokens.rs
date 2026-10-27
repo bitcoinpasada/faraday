@@ -955,6 +955,11 @@ pub const BADGE_LABEL: f32 = 11.0;
 /// The page's side margin on a compact window.
 pub const MARGIN_COMPACT: f32 = 16.0;
 
+/// The room a page keeps between the field typing goes to and the
+/// on-screen keyboard's top, and between that field and the top of the
+/// page's region when it is brought down into view: the compact margin.
+pub const KEYBOARD_CLEAR: f32 = MARGIN_COMPACT;
+
 /// The page's side margin on every wider window.
 pub const MARGIN_WIDE: f32 = 24.0;
 

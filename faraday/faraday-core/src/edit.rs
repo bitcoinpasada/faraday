@@ -105,6 +105,12 @@ impl TypingArea {
         self.fields = fields;
     }
 
+    /// Whether the last frame drew a line of typing pressed with
+    /// `action`: a field.
+    pub(crate) fn is_field(&self, action: Action) -> bool {
+        self.fields.iter().any(|f| f.action == action)
+    }
+
     /// The last drawn edge before character `i` of the field pressed
     /// with `action`, in pixels.
     fn edge(&self, action: Action, i: usize) -> Option<i32> {

@@ -78,6 +78,9 @@ pub(crate) fn flow_tour(t: &mut Tour) -> Result<(), String> {
     t.tick();
     t.shot("flow-7-create-vault")?;
     t.press(Action::Flow(F::CreateVault(1)));
+    // A finger on the first passphrase: a small panel opens the page
+    // with nothing focused.
+    t.press(Action::Vault(V::CFocus(0, false)));
     t.shot("flow-8-create-vault-form")?;
     type_text(t, "a second vault phrase");
     t.press(Action::Vault(V::CFocus(0, true)));

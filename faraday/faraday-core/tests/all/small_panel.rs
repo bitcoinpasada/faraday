@@ -172,12 +172,15 @@ fn a_passphrase_field_brings_the_keyboard_and_stays_above_it() {
     tap(&mut app, Action::Nav(Screen::Vaults));
     tap(&mut app, Action::Vault(V::Create));
     assert_eq!(app.screen, Screen::CreateVault);
-    // It opens on Name and passphrases.
+    // It opens on Name and passphrases at its top, nothing focused and
+    // the keyboard down; a tap on a field brings it up.
     let key = Action::Osk(OskPress::Char('a'));
     assert!(
-        on_panel(&mut app, key).is_some(),
-        "the first passphrase is up to type"
+        on_panel(&mut app, key).is_none(),
+        "the page opens with the keyboard down"
     );
+    tap(&mut app, Action::Vault(V::CFocus(0, false)));
+    assert!(on_panel(&mut app, key).is_some(), "a tap brings it up");
     // Put away, then another field pressed: the keyboard comes back, and
     // the field it covered moves up above it.
     tap(&mut app, Action::Osk(OskPress::Hide));

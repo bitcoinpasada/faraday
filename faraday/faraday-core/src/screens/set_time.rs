@@ -117,8 +117,12 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 }
 
 /// [`set_time_screen`] on a small panel.
-fn set_time_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, _h: f32) {
+fn set_time_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let (x, w) = (x0 + crate::compact::M, cw - 2.0 * crate::compact::M);
+    // Scrolled as far as the end it last drew to, so its fields come up
+    // above the keyboard.
+    let clip = ui.rect(x0, 0.0, cw, h);
+    ui.c.push_clip(clip);
     let top = 12.0 - app.list_offset;
     let mut y = top;
     y += section(ui, x, y, w, EN.set_time_now, &|ui, x, y0, w| {
@@ -170,5 +174,8 @@ fn set_time_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, _h: f32) {
         ));
     }
     items.push((EN.set_time_back, Style::Ghost, Action::SetTimeBack));
-    wrap_buttons(ui, x, y, w, BUTTON_H, &items);
+    y += wrap_buttons(ui, x, y, w, BUTTON_H, &items);
+    ui.c.pop_clip();
+    app.scroll.content_h().set(y - top + PAD);
+    ui.report_scroll(clip, app.scroll.content_h().get() - h);
 }

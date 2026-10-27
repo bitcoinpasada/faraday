@@ -1425,10 +1425,10 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                 } else {
                     (EN.vault_type_it_then, muted)
                 };
-                ui.text_as(x, cy, BODY_S, color, status);
-                cy += 22.0;
-                // Its strength: the dice's bits and the cost's, when the
-                // dice made it.
+                let on = matches!(app.vaults.focus, Some(Focus::Phrase(j, _)) if j == i);
+                let line = ui.field_supporting((x, cy, w), color, status, on);
+                cy += line.max(22.0);
+                // Its strength: the dice's bits and the cost's, if dice made it.
                 let (_, mem, passes) = app.vaults.form_cost().unwrap_or((0, 64, 3));
                 let cost = vault::cost_bits(mem, passes);
                 let strength = match vault::Vaults::phrase_bits(c, i) {
