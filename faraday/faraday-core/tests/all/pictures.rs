@@ -31,7 +31,7 @@ fn visiting() -> Faraday {
 /// PNG, and handed to the app.
 fn scan(app: &mut Faraday, name: &str, png: &[u8]) {
     let c = faraday_core::testkit::compute();
-    let payloads = faraday_files::qr_in_png(&c, png).expect("a PNG");
+    let payloads = faraday_files::qr_in_png(&c, png).expect("a PNG").to_vec();
     assert!(!payloads.is_empty(), "{name}: no code read");
     app.storage(StorageEvent::QrRead {
         name: name.to_string(),

@@ -395,7 +395,7 @@ fn codex32qr_pictures_scanned_load_the_stated_keys() {
     let c = testkit::compute();
     let read = |path: &str| -> Vec<u8> {
         let png = std::fs::read(format!("{DIR}{path}")).expect(path);
-        let payloads = faraday_files::qr_in_png(&c, &png).expect("a PNG");
+        let payloads = faraday_files::qr_in_png(&c, &png).expect("a PNG").to_vec();
         assert_eq!(payloads.len(), 1, "{path}: one code");
         let text = std::str::from_utf8(&payloads[0]).expect("text");
         assert!(text.len() == 48 && text == text.to_uppercase(), "{path}");
@@ -436,7 +436,7 @@ fn a_byte_mode_codex32qr_picture_still_scans() {
         let code = encode_bounded(&c, Payload::Bytes(upper.as_bytes()), Ecc::Low, 3).unwrap();
         assert_eq!(code.version(), 3);
         let png = faraday_codec::png::qr_png(&code, 8);
-        let payloads = faraday_files::qr_in_png(&c, &png).expect("a PNG");
+        let payloads = faraday_files::qr_in_png(&c, &png).expect("a PNG").to_vec();
         assert_eq!(payloads, vec![upper.into_bytes()]);
         app.press(Action::ScanPart);
         app.event(Event::Scanned {

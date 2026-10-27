@@ -49,7 +49,7 @@ fn a_picture_larger_than_the_limit_is_refused_from_its_header() {
     let c = compute();
     for (w, h) in [(4097, 4096), (4096, 4097), (65_535, 65_535), (100_000, 200)] {
         assert_eq!(
-            qr_in_png(&c, &claims(w, h)),
+            qr_in_png(&c, &claims(w, h)).map(|v| v.to_vec()),
             Err("the image is too large".to_string()),
             "{w} × {h}"
         );
@@ -87,7 +87,7 @@ fn a_code_is_read_dark_on_light_and_light_on_dark() {
     let payload = b"xpub6CUGRUonZSQ4TWtTMmzXdrXDtypWKiKrhko4egpiMZbpiaQL2jkwSB1icqYh2cfDfVxdx4df189oLKnC5fSwqPfgyP3hooxujYzAu3fDVmz";
     for light in [false, true] {
         assert_eq!(
-            qr_in_png(&c, &code_png(payload, light)),
+            qr_in_png(&c, &code_png(payload, light)).map(|v| v.to_vec()),
             Ok(vec![payload.to_vec()]),
             "light on dark: {light}"
         );

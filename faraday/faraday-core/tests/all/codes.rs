@@ -156,7 +156,7 @@ fn key_scanned(name: &str, png: &[u8]) -> String {
     app.storage(StorageEvent::QrRead {
         name: name.to_string(),
         bytes: png.to_vec(),
-        payloads: faraday_files::qr_in_png(&c, png).expect("a PNG"),
+        payloads: faraday_files::qr_in_png(&c, png).expect("a PNG").to_vec(),
     });
     let item = app
         .inbox()

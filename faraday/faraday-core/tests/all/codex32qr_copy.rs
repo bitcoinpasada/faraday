@@ -320,7 +320,7 @@ fn a_copy_drawn_on_the_sheet_scanned_back_is_checked() {
     assert_eq!(note, "Not a codex32 string");
     // The drawn copy holds: checked, and the camera closes.
     app.event(Event::Scanned {
-        bytes: found[0].bytes.clone(),
+        bytes: found[0].bytes.to_vec(),
     });
     assert!(app.scan().is_none(), "the camera closes");
     assert!(app.backup().unwrap().c32_checked.contains(&(0, j)));

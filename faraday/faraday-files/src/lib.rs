@@ -622,23 +622,27 @@ pub type Picture = (Vec<u8>, Vec<Vec<u8>>);
 /// its bytes and its QR codes ([`Picture`]).
 pub fn read_qr_png(c: &Compute, place: &mut dyn Place, name: &str) -> Result<Picture, String> {
     let bytes = read(place, name)?;
-    let codes = qr_in_png(c, &bytes).unwrap_or_default();
-    Ok((bytes, codes))
+    // Moved, not copied, to whoever holds the picture.
+    let mut codes = qr_in_png(c, &bytes).unwrap_or_default();
+    Ok((bytes, std::mem::take(&mut *codes)))
 }
 
 /// Costs [`qr_in_png`]: a picture's bytes as the disk process answers
 /// them ([`proto::Response::Qr`]), the bytes as they are, and its QR
 /// codes, none when they cannot be read.
 pub fn picture_answer(c: &Compute, bytes: Vec<u8>) -> proto::Response {
-    let codes = qr_in_png(c, &bytes).unwrap_or_default();
+    // Moved into the answer, which wipes them when it is dropped.
+    let mut codes = qr_in_png(c, &bytes).unwrap_or_default();
+    let codes = std::mem::take(&mut *codes);
     proto::Response::Qr { bytes, codes }
 }
 
 /// Costs a PNG decode and [`faraday_codec::decode::decode_picture`]: a
 /// third of a second for a 12-megapixel photograph, seconds on a Pi, so
 /// a shell reads pictures off its own thread. The QR codes in a PNG's
-/// bytes, dark on light or light on dark.
-pub fn qr_in_png(c: &Compute, bytes: &[u8]) -> Result<Vec<Vec<u8>>, String> {
+/// bytes, dark on light or light on dark, wiped when dropped: a code may
+/// be a SeedQR.
+pub fn qr_in_png(c: &Compute, bytes: &[u8]) -> Result<zeroize::Zeroizing<Vec<Vec<u8>>>, String> {
     c.count(Work::PngDecode);
     let mut decoder = png::Decoder::new(std::io::Cursor::new(bytes));
     decoder.set_transformations(png::Transformations::normalize_to_color8());
@@ -678,8 +682,10 @@ pub fn qr_in_png(c: &Compute, bytes: &[u8]) -> Result<Vec<Vec<u8>>, String> {
         return Err("the image's pixels do not add up".into());
     }
     // A code printed light on dark is read too.
-    Ok(faraday_codec::decode::decode_picture(c, w, h, &luma)
-        .into_iter()
-        .map(|d| d.bytes)
-        .collect())
+    Ok(zeroize::Zeroizing::new(
+        faraday_codec::decode::decode_picture(c, w, h, &luma)
+            .into_iter()
+            .map(|mut d| std::mem::take(&mut *d.bytes))
+            .collect(),
+    ))
 }

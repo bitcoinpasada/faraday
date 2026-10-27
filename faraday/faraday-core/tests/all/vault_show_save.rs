@@ -118,7 +118,7 @@ fn seedqr_digits() -> Vec<u8> {
     let (w, h, px) = mx.to_luma(4, faraday_codec::qr::QUIET_ZONE);
     let found = faraday_codec::decode_luma(&c, w, h, &px);
     assert_eq!(found.len(), 1);
-    found[0].bytes.clone()
+    found[0].bytes.to_vec()
 }
 
 /// The codes a camera reads off the screen drawn now.
@@ -134,7 +134,7 @@ fn on_screen(app: &mut Faraday) -> Vec<Vec<u8>> {
         .collect();
     faraday_codec::decode_luma(&c, usize::from(f.width), usize::from(f.height), &luma)
         .into_iter()
-        .map(|d| d.bytes)
+        .map(|d| d.bytes.to_vec())
         .collect()
 }
 

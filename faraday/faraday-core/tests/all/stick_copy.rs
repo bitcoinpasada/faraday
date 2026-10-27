@@ -100,7 +100,8 @@ fn pump(app: &mut Faraday, sticks: &[&Stick]) -> Vec<(String, String, Vec<u8>)> 
                         let bytes = s.files[&name].clone();
                         let codes =
                             faraday_files::qr_in_png(&faraday_core::testkit::compute(), &bytes)
-                                .unwrap_or_default();
+                                .unwrap_or_default()
+                                .to_vec();
                         (bytes, codes)
                     }
                 };

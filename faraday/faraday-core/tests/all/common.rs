@@ -415,7 +415,8 @@ impl Shell {
                             Vec::new()
                         }
                         None => faraday_files::qr_in_png(&faraday_core::testkit::compute(), &bytes)
-                            .unwrap_or_default(),
+                            .unwrap_or_default()
+                            .to_vec(),
                     };
                     app.storage(StorageEvent::QrRead {
                         name,

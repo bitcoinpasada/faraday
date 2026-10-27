@@ -355,7 +355,7 @@ fn no_file_holds_the_passphrase() {
     for (name, bytes) in &files {
         let mut read = vec![bytes.clone()];
         if name.ends_with(".png") {
-            read.extend(faraday_files::qr_in_png(&c, bytes).expect("a PNG"));
+            read.extend(faraday_files::qr_in_png(&c, bytes).expect("a PNG").to_vec());
         }
         for b in read {
             assert!(

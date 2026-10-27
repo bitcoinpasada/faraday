@@ -179,7 +179,9 @@ fn copied_in(files: &[(String, Vec<u8>)]) -> Faraday {
         files.iter().filter(|(n, _)| n.ends_with(".png")).collect();
     pictures.sort_by(|a, b| a.0.cmp(&b.0));
     for (name, bytes) in pictures {
-        let payloads = faraday_files::qr_in_png(&c, bytes).unwrap_or_default();
+        let payloads = faraday_files::qr_in_png(&c, bytes)
+            .unwrap_or_default()
+            .to_vec();
         assert!(!payloads.is_empty(), "{name} holds a code");
         app.storage(StorageEvent::QrRead {
             name: name.clone(),

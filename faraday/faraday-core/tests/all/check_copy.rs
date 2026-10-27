@@ -171,7 +171,7 @@ fn read_off(matrix: &faraday_codec::qr::QrMatrix) -> Vec<u8> {
     let (w, h, px) = matrix.to_luma(4, faraday_codec::qr::QUIET_ZONE);
     let found = faraday_codec::decode_luma(&c, w, h, &px);
     assert_eq!(found.len(), 1, "one code in the frame");
-    found[0].bytes.clone()
+    found[0].bytes.to_vec()
 }
 
 fn standard(words: &str) -> Vec<u8> {

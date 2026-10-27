@@ -18,8 +18,11 @@
 //!
 //! Secrets: SeedQR payloads live in fixed buffers inside [`Secret`]
 //! wrappers, the encoder's scratch space zeroizes, and the resulting
-//! [`qr::QrMatrix`] zeroizes on drop. Everything else here (PSBTs, URs,
-//! addresses, keys) is public data.
+//! [`qr::QrMatrix`] zeroizes on drop. A code read from a frame
+//! ([`decode::Decoded`]) and a UR's parts being put together
+//! ([`ur::Decoder`]) are wiped when dropped: what a camera reads may be a
+//! seed. Everything else here (PSBTs, URs, addresses, keys) is public
+//! data.
 //!
 //! [`Secret`]: faraday_crypto::Secret
 

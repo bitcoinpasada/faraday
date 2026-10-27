@@ -7,6 +7,7 @@
 use alloc::vec::Vec;
 
 use faraday_crypto::work::{Compute, Work};
+use zeroize::Zeroizing;
 
 use crate::classify::{PayloadKind, classify};
 
@@ -14,8 +15,9 @@ use crate::classify::{PayloadKind, classify};
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Decoded {
     /// The payload bytes: digits for numeric mode, the text's bytes for
-    /// alphanumeric, the raw bytes for byte mode.
-    pub bytes: Vec<u8>,
+    /// alphanumeric, the raw bytes for byte mode. Wiped when dropped: a
+    /// code read may be a SeedQR.
+    pub bytes: Zeroizing<Vec<u8>>,
     /// What [`classify`] makes of the bytes.
     pub kind: PayloadKind,
 }
@@ -72,8 +74,9 @@ pub fn decode_picture(c: &Compute, width: usize, height: usize, luma: &[u8]) -> 
 fn read<G: rqrr::BitGrid>(grids: Vec<rqrr::Grid<G>>) -> Vec<Decoded> {
     let mut out = Vec::new();
     for grid in grids {
-        let mut bytes = Vec::new();
-        if grid.decode_to(&mut bytes).is_err() {
+        // What a grid decodes to is wiped, whole or not.
+        let mut bytes = Zeroizing::new(Vec::new());
+        if grid.decode_to(&mut *bytes).is_err() {
             continue;
         }
         let kind = classify(&bytes);
@@ -93,7 +96,7 @@ mod tests {
         let (w, h, px) = m.to_luma(4, QUIET_ZONE);
         let found = decode_luma(&c, w, h, &px);
         assert_eq!(found.len(), 1, "one code in the frame");
-        assert_eq!(found[0].bytes, expect);
+        assert_eq!(found[0].bytes.as_slice(), expect);
         found[0].kind.clone()
     }
 
@@ -139,7 +142,7 @@ mod tests {
         let (w, h, px) = m.to_luma(3, QUIET_ZONE);
         let found = decode_luma(&c, w, h, &px);
         assert_eq!(found.len(), 1);
-        assert_eq!(found[0].bytes, big);
+        assert_eq!(found[0].bytes.as_slice(), big);
     }
 
     #[test]

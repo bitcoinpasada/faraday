@@ -540,7 +540,7 @@ fn strings_on_two_sticks_are_written_and_rebuild_the_key() {
         .iter()
         .find(|(n, _)| n == "codex32qr-fab6868a-d.png")
         .expect("D's Codex32QR");
-    let read = faraday_files::qr_in_png(&c, &picture.1).unwrap();
+    let read = faraday_files::qr_in_png(&c, &picture.1).unwrap().to_vec();
     assert_eq!(read, vec![D.to_ascii_uppercase().into_bytes()]);
     // The two files, copied into a Faraday with nothing in it, are the
     // key's seed.
