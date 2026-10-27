@@ -66,7 +66,8 @@ fn value(c: u8) -> Option<u32> {
 
 /// Decodes `text`. ASCII whitespace is ignored anywhere (files end with a
 /// newline); any other character outside the alphabet, padding in the
-/// wrong place, or a dangling single sextet is an error. Padding may be
+/// wrong place, a dangling single sextet, or non-zero bits left over in
+/// the last sextet is an error. Padding may be
 /// omitted at the end.
 pub fn decode(text: &str) -> Result<Vec<u8>, DecodeError> {
     let mut out = Vec::with_capacity(text.len() / 4 * 3);
@@ -103,6 +104,12 @@ pub fn decode(text: &str) -> Result<Vec<u8>, DecodeError> {
         _ => return Err(DecodeError),
     };
     if padding != 0 && padding != expected_padding {
+        return Err(DecodeError);
+    }
+    // The bits left over in the last sextet are padding: RFC 4648 §3.5
+    // has an encoder write them as zero, and so the decoder takes only
+    // that one spelling of the bytes.
+    if acc != 0 {
         return Err(DecodeError);
     }
     Ok(out)
@@ -150,6 +157,17 @@ mod tests {
         assert!(decode("Zg=").is_err());
         assert!(decode("Zg==Zg").is_err());
         assert!(decode("Zm8==").is_err());
+    }
+
+    #[test]
+    fn padding_bits_that_are_not_zero_are_refused() {
+        // "Zh==" and "Zm9=" decode to the bytes of "Zg==" and "Zm8=" but
+        // carry non-zero bits in the last sextet: not canonical.
+        for text in ["Zh==", "Zh", "Zm9=", "Zm9", "Zg==", "Zm8="] {
+            let canonical = text == "Zg==" || text == "Zm8=";
+            assert_eq!(decode(text).is_ok(), canonical, "{text}");
+        }
+        assert_eq!(decode("Zm8").unwrap(), b"fo");
     }
 
     #[test]
