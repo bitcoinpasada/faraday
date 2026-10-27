@@ -249,7 +249,7 @@ fn two_of_the_three_keys_sign_and_the_input_finalizes() {
         Nonce::LowR,
         Aux::Deterministic,
         &mut None,
-        [0u8; 32],
+        &faraday_crypto::Zeroizing::new([0u8; 32]),
         &[],
         &[],
     )

@@ -331,7 +331,7 @@ impl KeyGenArea {
         &mut self,
         action: crate::Action,
         c: &Compute,
-        draw: Option<[u8; 32]>,
+        draw: Option<zeroize::Zeroizing<[u8; 32]>>,
         now_ms: u64,
     ) {
         use crate::Action as A;
@@ -437,7 +437,7 @@ impl KeyGenArea {
                     }
                     if k.finish_entry() {
                         if k.slip39 {
-                            if let Err(e) = draw.map_or(Ok(()), |r| k.deal(c, r)) {
+                            if let Err(e) = draw.as_ref().map_or(Ok(()), |r| k.deal(c, r)) {
                                 k.note = Some(e);
                                 return;
                             }

@@ -144,8 +144,9 @@ fn xpriv_from_bytes(bytes: &[u8]) -> Result<Xpriv, Error> {
     if bytes[45] != 0 {
         return Err(Error::Pad(bytes[45]));
     }
-    SecretKey::from_slice(&bytes[46..])
+    let mut key = SecretKey::from_slice(&bytes[46..])
         .map_err(|e| Error::Key(bitcoin::bip32::Error::Secp256k1(e)))?;
+    key.non_secure_erase();
     Xpriv::decode(bytes).map_err(Error::Key)
 }
 

@@ -134,7 +134,7 @@ pub fn signed_by(dir: &Path, holders: &[&str]) -> (Psbt, SignResult) {
         Nonce::LowR,
         Aux::Deterministic,
         &mut None,
-        [0u8; 32],
+        &faraday_crypto::Zeroizing::new([0u8; 32]),
         &[],
         &[],
     )

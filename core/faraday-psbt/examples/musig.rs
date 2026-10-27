@@ -101,7 +101,7 @@ pub fn core_first_signed(dir: &Path) -> Psbt {
         Nonce::LowR,
         Aux::Deterministic,
         &mut None,
-        [0u8; 32],
+        &faraday_crypto::Zeroizing::new([0u8; 32]),
         &[],
         &[],
     )
@@ -144,7 +144,7 @@ pub fn device_first_nonce(dir: &Path) -> (Psbt, Option<MusigSession>) {
         Nonce::LowR,
         Aux::Deterministic,
         &mut session,
-        SESSION_SEED,
+        &faraday_crypto::Zeroizing::new(SESSION_SEED),
         &[],
         &[],
     )
@@ -185,7 +185,7 @@ pub fn device_first_signed(dir: &Path) -> Psbt {
         Nonce::LowR,
         Aux::Deterministic,
         &mut session,
-        SESSION_SEED,
+        &faraday_crypto::Zeroizing::new(SESSION_SEED),
         &[],
         &[],
     )

@@ -22,6 +22,8 @@
 
 use std::io::{Read, Write};
 
+use zeroize::Zeroizing;
+
 /// The largest frame either side sends or takes: the largest file plus
 /// room for its name, or for a picture's codes beside its bytes.
 pub const MAX_FRAME: u32 = super::MAX_READ as u32 + 1024 * 1024;
@@ -353,7 +355,7 @@ impl Request {
     /// Reads a frame's bytes.
     pub fn decode(b: &[u8]) -> Result<Request, Malformed> {
         let mut i = In(b);
-        let r = match i.u8()? {
+        let mut r = match i.u8()? {
             1 => Request::List,
             2 => Request::Read {
                 stick: i.str()?,
@@ -395,7 +397,11 @@ impl Request {
             },
             _ => return Err(Malformed),
         };
-        i.end()?;
+        // A file read in full is wiped when bytes follow it.
+        if let Err(e) = i.end() {
+            r.wipe();
+            return Err(e);
+        }
         Ok(r)
     }
 }
@@ -491,7 +497,7 @@ impl Response {
     /// Reads a frame's bytes.
     pub fn decode(b: &[u8]) -> Result<Response, Malformed> {
         let mut i = In(b);
-        let r = match i.u8()? {
+        let mut r = match i.u8()? {
             0x81 => {
                 let n = i.u16()?;
                 let mut sticks = Vec::new();
@@ -524,13 +530,18 @@ impl Response {
             0x82 => Response::Bytes(i.bytes()?),
             0x83 => Response::Written(i.str()?),
             0x84 => {
-                let bytes = i.bytes()?;
+                // Wiped on every return: a count or code that does not
+                // read leaves nothing of the picture behind.
+                let mut bytes = Zeroizing::new(i.bytes()?);
                 let n = i.u16()?;
-                let mut codes = Vec::new();
+                let mut codes: Zeroizing<Vec<Vec<u8>>> = Zeroizing::new(Vec::new());
                 for _ in 0..n {
                     codes.push(i.bytes()?);
                 }
-                Response::Qr { bytes, codes }
+                Response::Qr {
+                    bytes: core::mem::take(&mut *bytes),
+                    codes: core::mem::take(&mut *codes),
+                }
             }
             0x85 => Response::Wiped,
             0x86 => Response::Space {
@@ -553,7 +564,11 @@ impl Response {
             0xFF => Response::Failed(i.str()?),
             _ => return Err(Malformed),
         };
-        i.end()?;
+        // A file or codes read in full are wiped when bytes follow them.
+        if let Err(e) = i.end() {
+            r.wipe();
+            return Err(e);
+        }
         Ok(r)
     }
 }
@@ -574,9 +589,9 @@ pub fn send(w: &mut dyn Write, seq: u32, payload: &[u8]) -> std::io::Result<()> 
     sent
 }
 
-/// Takes one frame and its sequence number; `None` when the other end has
-/// closed.
-pub fn receive(r: &mut dyn Read) -> std::io::Result<Option<(u32, Vec<u8>)>> {
+/// Takes one frame and its sequence number, the frame wiped when it is
+/// dropped; `None` when the other end has closed.
+pub fn receive(r: &mut dyn Read) -> std::io::Result<Option<(u32, Zeroizing<Vec<u8>>)>> {
     let mut head = [0u8; 8];
     match r.read_exact(&mut head) {
         Ok(()) => {}
@@ -588,7 +603,7 @@ pub fn receive(r: &mut dyn Read) -> std::io::Result<Option<(u32, Vec<u8>)>> {
     if len > MAX_FRAME {
         return Err(std::io::Error::other("frame too large"));
     }
-    let mut buf = vec![0u8; len as usize];
+    let mut buf = Zeroizing::new(vec![0u8; len as usize]);
     r.read_exact(&mut buf)?;
     Ok(Some((seq, buf)))
 }

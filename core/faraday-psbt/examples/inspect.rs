@@ -327,7 +327,7 @@ fn run(a: Args) -> Result<(), String> {
         Nonce::LowR,
         Aux::Deterministic,
         &mut None,
-        [0u8; 32],
+        &faraday_crypto::Zeroizing::new([0u8; 32]),
         &[],
         &[],
     )

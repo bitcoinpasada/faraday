@@ -167,7 +167,8 @@ impl State {
             block.copy_from_slice(&extracted[n * BLOCK..(n + 1) * BLOCK]);
         }
         extracted.zeroize();
-        let (ik, jk, lk) = (sub[0], sub[1], sub[2]);
+        let (mut ik, mut jk, mut lk) = (sub[0], sub[1], sub[2]);
+        sub.zeroize();
 
         let mut i = [ik, ik];
         double(&mut i[1]);
@@ -190,6 +191,9 @@ impl State {
 
         let key4 = [jk, ik, lk, [0u8; BLOCK]];
         let key10 = [ik, jk, lk, ik, jk, lk, ik, jk, lk, ik];
+        ik.zeroize();
+        jk.zeroize();
+        lk.zeroize();
         State {
             i,
             j,

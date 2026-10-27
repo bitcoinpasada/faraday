@@ -278,13 +278,15 @@ impl Fresh {
     /// passes, so a nonce shared again is never the one shared before.
     /// `None` until the session is seeded, and the shell is asked: a
     /// round is never opened on bytes the system did not give.
-    pub(crate) fn sign_seed(&mut self, out: &mut Out) -> Option<[u8; 32]> {
+    pub(crate) fn sign_seed(&mut self, out: &mut Out) -> Option<Zeroizing<[u8; 32]>> {
         let Some(seed) = self.seed.as_ref() else {
             out.command(Command::RequestEntropy);
             return None;
         };
         self.sign_draws += 1;
-        Some(seed.draw(b"faraday sign seed", &self.sign_draws.to_le_bytes()))
+        Some(Zeroizing::new(
+            seed.draw(b"faraday sign seed", &self.sign_draws.to_le_bytes()),
+        ))
     }
 
     /// `what` hashed with the session's seed and `count`, or `None`
@@ -591,7 +593,7 @@ impl Faraday {
 
     /// The seed a signing pass draws a MuSig2 or FROST round's secret
     /// nonces from (see [`Fresh::sign_seed`]).
-    pub(crate) fn sign_seed(&mut self) -> Option<[u8; 32]> {
+    pub(crate) fn sign_seed(&mut self) -> Option<Zeroizing<[u8; 32]>> {
         self.fresh.sign_seed(&mut self.out)
     }
 

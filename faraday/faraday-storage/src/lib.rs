@@ -1002,7 +1002,7 @@ fn serve_queued(
 /// sequence number and dropped.
 pub struct DiskProcess {
     tx: fs::File,
-    answers: std::sync::mpsc::Receiver<(u32, Vec<u8>)>,
+    answers: std::sync::mpsc::Receiver<(u32, zeroize::Zeroizing<Vec<u8>>)>,
     seq: u32,
     /// The sticks the last listing found unusable: their ids, and whether
     /// the reason is that they are read-only (else not FAT).
@@ -1059,7 +1059,7 @@ impl DiskProcess {
     /// An answer that is not to the request asked now: the picture's,
     /// kept for [`Sticks::pictures_read`]; any other is a late one,
     /// wiped.
-    fn aside(&mut self, seq: u32, mut frame: Vec<u8>) {
+    fn aside(&mut self, seq: u32, mut frame: zeroize::Zeroizing<Vec<u8>>) {
         use faraday_files::proto::Response;
         if self.picture.as_ref().is_some_and(|p| p.0 == seq)
             && let Some((_, stick, name, _)) = self.picture.take()

@@ -59,7 +59,7 @@ fn signing_twice_is_byte_identical() {
                     nonce,
                     Aux::Deterministic,
                     &mut None,
-                    [0u8; 32],
+                    &faraday_crypto::Zeroizing::new([0u8; 32]),
                     &[],
                     &[],
                 )
@@ -85,7 +85,7 @@ fn signing_twice_is_byte_identical() {
                 nonce,
                 Aux::Deterministic,
                 &mut None,
-                [0u8; 32],
+                &faraday_crypto::Zeroizing::new([0u8; 32]),
                 &[],
                 &[],
             )
@@ -134,7 +134,7 @@ fn low_r_gives_the_shortest_signature() {
                 Nonce::LowR,
                 Aux::Deterministic,
                 &mut None,
-                [0u8; 32],
+                &faraday_crypto::Zeroizing::new([0u8; 32]),
                 &[],
                 &[],
             )
@@ -241,7 +241,7 @@ fn fresh_auxiliary_randomness_changes_a_taproot_signature() {
             Nonce::LowR,
             aux,
             &mut None,
-            [0u8; 32],
+            &faraday_crypto::Zeroizing::new([0u8; 32]),
             &[],
             &[],
         )

@@ -802,7 +802,7 @@ impl Session {
         &self,
         c: &Compute,
         psbt: &mut Psbt,
-        seed: [u8; 32],
+        seed: &zeroize::Zeroizing<[u8; 32]>,
         musig: &mut Option<faraday_psbt::MusigSession>,
     ) -> Result<Vec<Fingerprint>, String> {
         self.sign_with(c, psbt, seed, musig, &[], None, None)
@@ -821,7 +821,7 @@ impl Session {
         &self,
         c: &Compute,
         psbt: &mut Psbt,
-        seed: [u8; 32],
+        seed: &zeroize::Zeroizing<[u8; 32]>,
         musig: &mut Option<faraday_psbt::MusigSession>,
         others: &[u32],
         carry: Option<&faraday_keys::carry::Section>,

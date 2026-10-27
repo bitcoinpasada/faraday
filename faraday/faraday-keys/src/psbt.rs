@@ -9,6 +9,7 @@ use faraday_psbt::verify::Determinism;
 use faraday_psbt::{
     Aux, Context, KeyRef, MusigSession, Nonce, Psbt, ShareDoor, ShareKey, SignResult,
 };
+use zeroize::Zeroizing;
 
 /// A key that may sign as a FROST share: the public share its words are,
 /// and the words and list they are in, from which the secret share is
@@ -54,7 +55,7 @@ pub fn sign(
     selection: &[Fingerprint],
     ctx: &Context<'_>,
     musig: &mut Option<MusigSession>,
-    seed: [u8; 32],
+    seed: &Zeroizing<[u8; 32]>,
     holders: &[ShareHolder<'_>],
     others: &[u32],
 ) -> Result<SignResult, faraday_psbt::Error> {

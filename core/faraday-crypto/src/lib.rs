@@ -66,4 +66,4 @@ pub use sealed::{
 };
 pub use secret::Secret;
 pub use wipe::WipeOnFree;
-pub use zeroize::{Zeroize, ZeroizeOnDrop};
+pub use zeroize::{Zeroize, ZeroizeOnDrop, Zeroizing};

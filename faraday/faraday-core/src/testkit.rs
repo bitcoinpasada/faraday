@@ -535,7 +535,12 @@ pub fn spend_of(kit: &Kit) -> Result<(Psbt, Option<(String, Psbt)>), String> {
         )
         .map_err(|e| e.text())?;
     let mut signed = psbt.clone();
-    let by = session.sign(&c, &mut signed, [0; 32], &mut None)?;
+    let by = session.sign(
+        &c,
+        &mut signed,
+        &faraday_crypto::Zeroizing::new([0; 32]),
+        &mut None,
+    )?;
     if by.is_empty() {
         return Err(format!("{}: the cosigner did not sign", kit.id));
     }
@@ -992,8 +997,18 @@ pub fn musig_rounds() -> Result<(Psbt, Vec<(String, Psbt)>, Vec<(String, Psbt)>)
     // Test key 1 signs last, twice with different seeds: the same bytes.
     let mut device = with_nonces.clone();
     let mut again = with_nonces.clone();
-    session.sign(&c, &mut device, [7; 32], &mut None)?;
-    session.sign(&c, &mut again, [9; 32], &mut None)?;
+    session.sign(
+        &c,
+        &mut device,
+        &faraday_crypto::Zeroizing::new([7; 32]),
+        &mut None,
+    )?;
+    session.sign(
+        &c,
+        &mut again,
+        &faraday_crypto::Zeroizing::new([9; 32]),
+        &mut None,
+    )?;
     if device.to_bytes() != again.to_bytes() {
         return Err("the last signer's MuSig2 pass depends on the session seed".into());
     }
@@ -1097,7 +1112,15 @@ pub fn threshold_carry() -> Result<Vec<u8>, String> {
         )
         .map_err(|e| e.text())?;
     let mut psbt = threshold_unsigned()?;
-    let signed = session.sign_with(&c, &mut psbt, [5; 32], &mut None, &[1], None, None)?;
+    let signed = session.sign_with(
+        &c,
+        &mut psbt,
+        &faraday_crypto::Zeroizing::new([5; 32]),
+        &mut None,
+        &[1],
+        None,
+        None,
+    )?;
     let section = signed
         .carry
         .ok_or("the first location left no carry section")?;

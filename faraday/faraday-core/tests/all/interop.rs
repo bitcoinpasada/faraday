@@ -1147,7 +1147,12 @@ fn a_psbt_electrum_builds_from_a_bare_zpub_is_not_signed_here() {
             )
             .unwrap();
         session
-            .sign(&c, psbt, [0; 32], &mut None)
+            .sign(
+                &c,
+                psbt,
+                &faraday_crypto::Zeroizing::new([0; 32]),
+                &mut None,
+            )
             .unwrap_or_default()
     };
     let mut bare = testkit::unsigned(&kit_of(format!(

@@ -579,7 +579,11 @@ impl KeyGen {
     /// Costs a PBKDF2 (through `split`). Deals the master secret into
     /// `slip_m` of `slip_n` shares, with `random` for the split's own
     /// randomness (a fresh draw from the system's generator).
-    pub fn deal(&mut self, c: &Compute, random: [u8; 32]) -> Result<(), String> {
+    pub fn deal(
+        &mut self,
+        c: &Compute,
+        random: &zeroize::Zeroizing<[u8; 32]>,
+    ) -> Result<(), String> {
         use faraday_bip::slip39;
         let Some(secret) = self.secret.as_ref() else {
             return Err(EN.keygen_no_secret_yet.to_string());
@@ -591,10 +595,10 @@ impl KeyGen {
             for chunk in out.chunks_mut(32) {
                 let mut e = sha256::Hash::engine();
                 e.input(b"faraday slip39 split");
-                e.input(&random);
+                e.input(&random[..]);
                 e.input(&counter.to_le_bytes());
                 counter += 1;
-                let h = sha256::Hash::from_engine(e).to_byte_array();
+                let h = zeroize::Zeroizing::new(sha256::Hash::from_engine(e).to_byte_array());
                 chunk.copy_from_slice(&h[..chunk.len()]);
             }
         };
@@ -1369,7 +1373,7 @@ impl crate::Faraday {
                 .state()
                 .is_some_and(|k| k.slip39 && k.open == Some(kstep::ENTER));
         let draw = if dealing {
-            self.fresh(b"slip39 split")
+            self.fresh(b"slip39 split").map(zeroize::Zeroizing::new)
         } else {
             None
         };

@@ -164,7 +164,7 @@ fn pass(
         faraday_psbt::Nonce::LowR,
         faraday_psbt::Aux::Deterministic,
         &mut session,
-        SEED,
+        &faraday_crypto::Zeroizing::new(SEED),
         &keys,
         others,
     )

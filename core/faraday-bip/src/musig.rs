@@ -37,6 +37,7 @@ use bitcoin::secp256k1::{
 };
 use bitcoin::{NetworkKind, ScriptBuf};
 use faraday_crypto::sha256;
+use zeroize::Zeroizing;
 
 use crate::keys::Network;
 
@@ -1052,10 +1053,11 @@ pub fn nonce_gen<C: Verification + bitcoin::secp256k1::Signing>(
     msg: Option<&[u8]>,
     extra_in: Option<&[u8]>,
 ) -> Result<(SecNonce, PubNonce), Error> {
-    let mut seed = *rand;
+    let mut seed = Zeroizing::new(*rand);
     if let Some(sk) = sk {
-        let masked = tagged_hash(b"MuSig/aux", &[rand]);
-        for (s, m) in seed.iter_mut().zip(sk.secret_bytes().iter().zip(masked)) {
+        let masked = Zeroizing::new(tagged_hash(b"MuSig/aux", &[rand]));
+        let sk_bytes = Zeroizing::new(sk.secret_bytes());
+        for (s, m) in seed.iter_mut().zip(sk_bytes.iter().zip(masked.iter())) {
             *s = m.0 ^ m.1;
         }
     }
@@ -1071,12 +1073,12 @@ pub fn nonce_gen<C: Verification + bitcoin::secp256k1::Signing>(
         }
     }
     let extra_in = extra_in.unwrap_or(&[]);
-    let mut k = [[0u8; 32]; 2];
+    let mut k = Zeroizing::new([[0u8; 32]; 2]);
     for (i, k) in k.iter_mut().enumerate() {
         *k = reduce(tagged_hash(
             b"MuSig/nonce",
             &[
-                &seed,
+                &seed[..],
                 &[pk_bytes.len() as u8],
                 &pk_bytes,
                 &[aggpk.len() as u8],
@@ -1191,30 +1193,32 @@ pub fn sign<C: Verification + bitcoin::secp256k1::Signing>(
     sk: &bitcoin::secp256k1::SecretKey,
     session: &SessionValues,
 ) -> Result<PartialSig, Error> {
-    let (k1, k2) = (secnonce.k1, secnonce.k2);
-    for k in [&k1, &k2] {
+    let mut k1 = Zeroizing::new(secnonce.k1);
+    let mut k2 = Zeroizing::new(secnonce.k2);
+    for k in [&*k1, &*k2] {
         if *k == [0u8; 32] || at_least_order(k) {
             return Err(Error::SecNonce);
         }
     }
-    let even = session.r.x_only_public_key().1 == Parity::Even;
-    let (k1, k2) = if even {
-        (k1, k2)
-    } else {
-        (negate_mod_order(&k1), negate_mod_order(&k2))
-    };
-    let d0 = sk.secret_bytes();
+    if session.r.x_only_public_key().1 != Parity::Even {
+        *k1 = negate_mod_order(&k1);
+        *k2 = negate_mod_order(&k2);
+    }
+    let d0 = Zeroizing::new(sk.secret_bytes());
     let point = sk.public_key(secp);
     if point.serialize() != secnonce.pk {
         return Err(Error::SecNonce);
     }
     let a = session_coeff(session, &point)?;
     let g = parity_factor(&session.aggregate.point);
-    let d = mul_mod_order(&mul_mod_order(&g, &session.aggregate.gacc), &d0);
-    let s = add_mod_order(
-        &add_mod_order(&k1, &mul_mod_order(&session.b, &k2)),
-        &mul_mod_order(&mul_mod_order(&session.e, &a), &d),
-    );
+    let d = Zeroizing::new(mul_mod_order(
+        &mul_mod_order(&g, &session.aggregate.gacc),
+        &d0,
+    ));
+    let bk2 = Zeroizing::new(mul_mod_order(&session.b, &k2));
+    let nonce_part = Zeroizing::new(add_mod_order(&k1, &bk2));
+    let key_part = Zeroizing::new(mul_mod_order(&mul_mod_order(&session.e, &a), &d));
+    let s = add_mod_order(&nonce_part, &key_part);
     Ok(PartialSig(s))
 }
 
@@ -1294,10 +1298,10 @@ pub fn deterministic_sign<C: Verification + bitcoin::secp256k1::Signing>(
     msg: &[u8],
     rand: Option<&[u8; 32]>,
 ) -> Result<(PubNonce, PartialSig), Error> {
-    let mut seed = sk.secret_bytes();
+    let mut seed = Zeroizing::new(sk.secret_bytes());
     if let Some(rand) = rand {
-        let masked = tagged_hash(b"MuSig/aux", &[rand]);
-        for (s, m) in seed.iter_mut().zip(masked) {
+        let masked = Zeroizing::new(tagged_hash(b"MuSig/aux", &[rand]));
+        for (s, m) in seed.iter_mut().zip(masked.iter()) {
             *s ^= m;
         }
     }
@@ -1306,12 +1310,12 @@ pub fn deterministic_sign<C: Verification + bitcoin::secp256k1::Signing>(
         aggregate = aggregate.apply_tweak(secp, &tweak.bytes, tweak.x_only)?;
     }
     let aggpk = aggregate.serialize_x_only();
-    let mut k = [[0u8; 32]; 2];
+    let mut k = Zeroizing::new([[0u8; 32]; 2]);
     for (i, k) in k.iter_mut().enumerate() {
         *k = reduce(tagged_hash(
             b"MuSig/deterministic/nonce",
             &[
-                &seed,
+                &seed[..],
                 &aggothernonce.0,
                 &aggpk,
                 &(msg.len() as u64).to_be_bytes(),

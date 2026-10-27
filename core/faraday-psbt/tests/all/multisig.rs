@@ -107,7 +107,7 @@ fn two_of_three_sortedmulti() {
         Nonce::LowR,
         Aux::Deterministic,
         &mut None,
-        [0u8; 32],
+        &faraday_crypto::Zeroizing::new([0u8; 32]),
         &[],
         &[],
     )
@@ -141,7 +141,7 @@ fn two_of_three_sortedmulti() {
         Nonce::LowR,
         Aux::Deterministic,
         &mut None,
-        [0u8; 32],
+        &faraday_crypto::Zeroizing::new([0u8; 32]),
         &[],
         &[],
     )
@@ -201,7 +201,7 @@ fn two_of_three_sortedmulti() {
         Nonce::LowR,
         Aux::Deterministic,
         &mut None,
-        [0u8; 32],
+        &faraday_crypto::Zeroizing::new([0u8; 32]),
         &[],
         &[],
     )
@@ -337,7 +337,7 @@ fn bip174_signer_finalizer_extractor() {
                 Nonce::First,
                 Aux::Deterministic,
                 &mut None,
-                [0u8; 32],
+                &faraday_crypto::Zeroizing::new([0u8; 32]),
                 &[],
                 &[],
             ),
@@ -369,7 +369,7 @@ fn bip174_signer_finalizer_extractor() {
         Nonce::First,
         Aux::Deterministic,
         &mut None,
-        [0u8; 32],
+        &faraday_crypto::Zeroizing::new([0u8; 32]),
         &[],
         &[],
     )
@@ -439,7 +439,7 @@ fn bip174_under_low_r() {
         Nonce::LowR,
         Aux::Deterministic,
         &mut None,
-        [0u8; 32],
+        &faraday_crypto::Zeroizing::new([0u8; 32]),
         &[],
         &[],
     )

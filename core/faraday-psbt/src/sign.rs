@@ -33,8 +33,8 @@ use bitcoin::sighash::{Prevouts, SighashCache, TapSighashType};
 use bitcoin::taproot::{TapLeafHash, TapNodeHash};
 use bitcoin::{PublicKey, ScriptBuf, TxOut, ecdsa, taproot};
 use faraday_bip::keys::{Fingerprint, MasterKey};
-use faraday_crypto::Zeroize;
 use faraday_crypto::work::{Compute, Work};
+use faraday_crypto::{Zeroize, Zeroizing};
 use miniscript::{ExtParams, Miniscript, SigType, Tap, ToPublicKey};
 
 use crate::classify::{Classified, ScriptKind, classify, spent_output};
@@ -234,7 +234,7 @@ pub fn sign(
     nonce: Nonce,
     aux: Aux,
     session: &mut Option<MusigSession>,
-    seed: [u8; 32],
+    seed: &Zeroizing<[u8; 32]>,
     shares: &[ShareKey],
     others: &[u32],
 ) -> Result<SignResult, Error> {
@@ -287,7 +287,7 @@ pub fn sign(
                 return Err(Error::MissingUtxo { input: i });
             }
             let pass = sign_threshold(
-                psbt, &mut cache, i, &cl, ti, shares, others, ctx.carry, &seed,
+                psbt, &mut cache, i, &cl, ti, shares, others, ctx.carry, seed,
             )?;
             signed_inputs.extend(pass.signatures);
             threshold_entries.extend(pass.entries);
@@ -399,7 +399,7 @@ pub fn sign(
                     continue;
                 }
                 let done = sign_musig(
-                    c, psbt, &mut cache, i, &cl, musig, &mine, &selected, aux, txid, session, &seed,
+                    c, psbt, &mut cache, i, &cl, musig, &mine, &selected, aux, txid, session, seed,
                 )?;
                 nonces_shared += done.nonces_shared;
                 signed_inputs.extend(done.signatures);

@@ -72,7 +72,7 @@ fn pass(
         Nonce::LowR,
         Aux::Deterministic,
         &mut session,
-        SEED,
+        &faraday_crypto::Zeroizing::new(SEED),
         &keys,
         others,
     )

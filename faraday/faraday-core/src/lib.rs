@@ -5651,7 +5651,7 @@ impl Faraday {
                 }
                 return;
             }
-            None => [0u8; 32],
+            None => zeroize::Zeroizing::new([0u8; 32]),
         };
         // The same transaction stating other amounts than when it was
         // signed here is refused, with no override (`docs/WALLETS.md` §3.3).
@@ -5728,7 +5728,7 @@ impl Faraday {
         let (others, carry): (&[u32], Option<&faraday_keys::carry::Section>) = (&[], None);
         let signed =
             self.session
-                .sign_with(&c, &mut psbt, seed, &mut s.musig, others, carry, known);
+                .sign_with(&c, &mut psbt, &seed, &mut s.musig, others, carry, known);
         // A session whose every nonce has signed is over: the next pass
         // over this transaction opens a new one, never the same nonce.
         if s.musig.as_ref().is_some_and(|m| m.is_empty()) {
@@ -5830,7 +5830,7 @@ impl Faraday {
             .is_some_and(|w| wallet::Kind::of(w.policy()) == wallet::Kind::MuSig);
         if musig && !s.spend.signed_here.is_empty() && s.spend.finish().is_err() {
             let mut psbt = s.spend.psbt.clone();
-            match seed {
+            match &seed {
                 Some(seed) => {
                     if self.session.sign(&c, &mut psbt, seed, &mut s.musig).is_ok() {
                         s.spend.psbt = psbt;

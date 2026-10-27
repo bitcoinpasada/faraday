@@ -88,7 +88,7 @@ fn the_device_signs_last_after_bitcoin_core() {
         Nonce::LowR,
         Aux::Deterministic,
         &mut None,
-        [0u8; 32],
+        &faraday_crypto::Zeroizing::new([0u8; 32]),
         &[],
         &[],
     )
@@ -214,7 +214,7 @@ fn a_psbt_with_no_nonce_on_it_shares_this_devices_nonce() {
         Nonce::LowR,
         Aux::Deterministic,
         &mut session,
-        [3u8; 32],
+        &faraday_crypto::Zeroizing::new([3u8; 32]),
         &[],
         &[],
     )
@@ -551,7 +551,7 @@ fn a_second_signer_and_the_device_finish_the_transaction() {
         Nonce::LowR,
         Aux::Deterministic,
         &mut None,
-        [0u8; 32],
+        &faraday_crypto::Zeroizing::new([0u8; 32]),
         &[],
         &[],
     )
@@ -595,7 +595,7 @@ fn a_second_signer_and_the_device_finish_the_transaction() {
         Nonce::LowR,
         Aux::Deterministic,
         &mut None,
-        [0u8; 32],
+        &faraday_crypto::Zeroizing::new([0u8; 32]),
         &[],
         &[],
     )
@@ -653,7 +653,7 @@ fn a_bad_partial_signature_names_its_participant() {
         Nonce::LowR,
         Aux::Deterministic,
         &mut None,
-        [0u8; 32],
+        &faraday_crypto::Zeroizing::new([0u8; 32]),
         &[],
         &[],
     )
@@ -756,7 +756,7 @@ fn pass(
         Nonce::LowR,
         Aux::Deterministic,
         session,
-        [seed; 32],
+        &faraday_crypto::Zeroizing::new([seed; 32]),
         &[],
         &[],
     )

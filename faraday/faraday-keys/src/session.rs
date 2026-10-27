@@ -1319,7 +1319,7 @@ impl Keys {
         ctx: faraday_psbt::Context<'_>,
         carry: Option<&crate::carry::Section>,
         musig: &mut Option<faraday_psbt::MusigSession>,
-        seed: [u8; 32],
+        seed: &Zeroizing<[u8; 32]>,
         others: &[u32],
     ) -> Result<(faraday_psbt::SignResult, Option<crate::carry::Section>), faraday_psbt::Error>
     {

@@ -75,7 +75,7 @@ pub fn handle(name: &str, req: &Value) -> Answer {
                 nonce,
                 Aux::Deterministic,
                 &mut None,
-                [0u8; 32],
+                &faraday_crypto::Zeroizing::new([0u8; 32]),
                 &[],
                 &[],
             )

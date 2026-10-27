@@ -38,6 +38,8 @@ use core::fmt;
 use faraday_crypto::work::Compute;
 use faraday_crypto::{Secret, Zeroize, ZeroizeOnDrop, hmac_sha256, pbkdf2_hmac_sha256};
 
+use zeroize::Zeroizing;
+
 use crate::wordlists::slip39 as wordlist;
 
 /// Words in the shortest share (a 128-bit master secret).
@@ -594,7 +596,7 @@ impl ZeroizeOnDrop for Share {}
 impl Share {
     /// Reads a share from its words, separated by any ASCII whitespace.
     pub fn parse(mnemonic: &str) -> Result<Self, Error> {
-        let mut indices = [0u16; MAX_WORDS];
+        let mut indices = Zeroizing::new([0u16; MAX_WORDS]);
         let mut n = 0;
         for w in mnemonic.split_ascii_whitespace() {
             if n == MAX_WORDS {
@@ -631,23 +633,23 @@ impl Share {
             return Err(Error::InvalidWordCount);
         }
         let value_len = (RADIX_BITS * value_words.len() - padding) / 8;
-        let mut value = [0u8; MAX_STRENGTH_BYTES + 8];
-        let mut acc: u64 = 0;
+        let mut value = Zeroizing::new([0u8; MAX_STRENGTH_BYTES + 8]);
+        let mut acc = Zeroizing::new(0u64);
         let mut bits = 0usize;
         let mut out = 0usize;
         for (i, &w) in value_words.iter().enumerate() {
-            acc = (acc << 10) | u64::from(w);
+            *acc = (*acc << 10) | u64::from(w);
             bits += 10;
             if i == 0 {
-                if acc >> (bits - padding) != 0 {
+                if *acc >> (bits - padding) != 0 {
                     return Err(Error::NonZeroPadding);
                 }
                 bits -= padding;
-                acc &= (1u64 << bits) - 1;
+                *acc &= (1u64 << bits) - 1;
             }
             while bits >= 8 {
                 bits -= 8;
-                value[out] = (acc >> bits) as u8;
+                value[out] = (*acc >> bits) as u8;
                 out += 1;
             }
         }
@@ -657,10 +659,10 @@ impl Share {
             return Err(Error::InvalidSecretLength);
         }
 
-        let mut words = [0u16; MAX_WORDS];
+        let mut words = Zeroizing::new([0u16; MAX_WORDS]);
         words[..indices.len()].copy_from_slice(indices);
         Ok(Self {
-            indices: words,
+            indices: *words,
             word_count: indices.len() as u8,
             identifier: (head >> 25) as u16,
             extendable,

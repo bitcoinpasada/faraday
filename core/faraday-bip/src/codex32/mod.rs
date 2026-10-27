@@ -423,9 +423,9 @@ impl Codex32 {
             return Err(Error::BadThreshold);
         }
 
-        let mut data = [0u8; MAX_DATA_LEN];
+        let mut out = Codex32::default();
         for (i, &c) in b[3..].iter().enumerate() {
-            data[i] = charval(c).ok_or(Error::BadCharacter {
+            out.data[i] = charval(c).ok_or(Error::BadCharacter {
                 position: (i + 3) as u8,
             })?;
         }
@@ -434,16 +434,14 @@ impl Codex32 {
         if !b[3].is_ascii_digit() {
             return Err(Error::BadThreshold);
         }
-        if b[3] == b'0' && data[5] != SECRET_INDEX {
+        if b[3] == b'0' && out.data[5] != SECRET_INDEX {
             return Err(Error::SecretIndexRequired);
         }
-        if !verify_checksum(&data[..len]) {
+        if !verify_checksum(&out.data[..len]) {
             return Err(Error::BadChecksum);
         }
-        Ok(Codex32 {
-            data,
-            len: len as u8,
-        })
+        out.len = len as u8;
+        Ok(out)
     }
 
     /// The threshold: 0 for a secret that was never split, else 2 to 9.
@@ -524,19 +522,17 @@ impl Codex32 {
         if !SEED_LENGTHS.contains(&seed.len()) {
             return Err(Error::BadSeedLength);
         }
-        let mut data = [0u8; MAX_DATA_LEN];
-        data[0] = charval(b'0' + threshold).ok_or(Error::BadThreshold)?;
-        for (slot, &c) in data[1..5].iter_mut().zip(&identifier) {
+        let mut out = Codex32::default();
+        out.data[0] = charval(b'0' + threshold).ok_or(Error::BadThreshold)?;
+        for (slot, &c) in out.data[1..5].iter_mut().zip(&identifier) {
             *slot = charval(c).ok_or(Error::BadIdentifier)?;
         }
-        data[5] = SECRET_INDEX;
+        out.data[5] = SECRET_INDEX;
 
-        let len = HEADER_LEN + seed_symbols(seed, &mut data[HEADER_LEN..]);
-        let len = append_checksum(&mut data, len);
-        Ok(Codex32 {
-            data,
-            len: len as u8,
-        })
+        let len = HEADER_LEN + seed_symbols(seed, &mut out.data[HEADER_LEN..]);
+        let len = append_checksum(&mut out.data, len);
+        out.len = len as u8;
+        Ok(out)
     }
 
     /// Writes the string in lowercase.
@@ -731,19 +727,17 @@ fn interpolate(set: &[Codex32], x: u8) -> Codex32 {
     let mut weights = [0u8; MAX_THRESHOLD as usize];
     lagrange(&xs[..set.len()], x, &mut weights[..set.len()]);
 
-    let mut data = [0u8; MAX_DATA_LEN];
+    let mut out = Codex32::default();
     let len = usize::from(set[0].len);
-    for (i, slot) in data[..len].iter_mut().enumerate() {
+    for (i, slot) in out.data[..len].iter_mut().enumerate() {
         let mut v = 0u8;
         for (w, s) in weights.iter().zip(set) {
             v ^= gf_mul(*w, s.data[i]);
         }
         *slot = v;
     }
-    Codex32 {
-        data,
-        len: len as u8,
-    }
+    out.len = len as u8;
+    out
 }
 
 #[cfg(test)]

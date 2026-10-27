@@ -134,7 +134,7 @@ fn the_liana_spend_completes_with_the_first_key_alone() {
         Nonce::LowR,
         Aux::Deterministic,
         &mut None,
-        [0u8; 32],
+        &faraday_crypto::Zeroizing::new([0u8; 32]),
         &[],
         &[],
     )
@@ -196,7 +196,7 @@ fn the_liana_recovery_spend_waits_for_the_recovery_key() {
         Nonce::LowR,
         Aux::Deterministic,
         &mut None,
-        [0u8; 32],
+        &faraday_crypto::Zeroizing::new([0u8; 32]),
         &[],
         &[],
     )
@@ -226,7 +226,7 @@ fn the_liana_recovery_spend_waits_for_the_recovery_key() {
         Nonce::LowR,
         Aux::Deterministic,
         &mut None,
-        [0u8; 32],
+        &faraday_crypto::Zeroizing::new([0u8; 32]),
         &[],
         &[],
     )
@@ -286,7 +286,7 @@ fn a_recovery_spend_below_its_timelock_stays_partial() {
         Nonce::LowR,
         Aux::Deterministic,
         &mut None,
-        [0u8; 32],
+        &faraday_crypto::Zeroizing::new([0u8; 32]),
         &[],
         &[],
     )
@@ -330,7 +330,7 @@ fn the_tree_key_path_spend_signs_with_the_internal_key() {
         Nonce::LowR,
         Aux::Deterministic,
         &mut None,
-        [0u8; 32],
+        &faraday_crypto::Zeroizing::new([0u8; 32]),
         &[],
         &[],
     )
@@ -395,7 +395,7 @@ fn the_tree_leaf_spend_signs_under_the_leaf_hash() {
         Nonce::LowR,
         Aux::Deterministic,
         &mut None,
-        [0u8; 32],
+        &faraday_crypto::Zeroizing::new([0u8; 32]),
         &[],
         &[],
     )
@@ -508,7 +508,7 @@ fn a_taproot_pkh_leaf_is_signed_and_left_to_finalize() {
         Nonce::LowR,
         Aux::Deterministic,
         &mut None,
-        [0u8; 32],
+        &faraday_crypto::Zeroizing::new([0u8; 32]),
         &[],
         &[],
     )

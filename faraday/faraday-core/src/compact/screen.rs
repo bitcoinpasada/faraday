@@ -940,16 +940,19 @@ fn entry_field(app: &View, ui: &mut Ui, x: f32, y: f32, iw: f32, form: crate::fo
     if app.entry_sample_shown() {
         crate::samples::put::offer(ui, Action::UseSample);
     }
+    // What is typed may be a share or a seed's words: the copy drawn
+    // here is wiped when the frame is done with it.
     let typed = if empty {
-        match form {
+        zeroize::Zeroizing::new(match form {
             Form::Codex32 => "ms1…".to_string(),
             _ => EN.compact_words_of_one.to_string(),
-        }
+        })
     } else {
-        let mut t = app.entry.state().typed.to_string();
-        if on {
-            t.push_str(ui.caret_char());
-        }
+        let held = app.entry.state().typed.as_str();
+        let caret = if on { ui.caret_char() } else { "" };
+        let mut t = zeroize::Zeroizing::new(String::with_capacity(held.len() + caret.len()));
+        t.push_str(held);
+        t.push_str(caret);
         t
     };
     // The caret stands before the hint while nothing is typed.
