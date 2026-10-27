@@ -1465,6 +1465,25 @@ sheets rebuild it, an xpub fills a cosigner's box, a SLIP-39 share or a
 codex32 string goes to Add a key's form for it, and a PSBT waits for
 Bring the transaction here.
 
+**Registering a wallet from a spend** (F135). A spend from a wallet of
+several keys that is not registered here is blocked: the Transaction
+card's warnings say "input 0 spends from a wallet of several keys that
+is not registered here; register the wallet to sign". Where the PSBT
+carries the cosigners' extended keys, **Register this wallet** under it
+opens a dialog: the shape ("2 of 3, P2WSH, sorted"), a line per
+cosigner (fingerprint · path, "· Yours" for a key loaded here), **Name**
+(the PSBT's file name, "Savings Unsigned" for `savings-unsigned.psbt`),
+**Hold to register** and **Cancel**. The hold adds the wallet and the
+spend goes on from the same card, now signable; a wallet whose keys do
+not give the spend's addresses, or none of whose keys is a loaded key's
+own, stays unregistered and the dialog says which ("These keys do not
+give input 0's address", "None of these keys is yours"). Where the spend
+cannot tell sorted keys from keys in the order listed, the dialog adds
+"Most coordinators sort the keys" over **Sorted** (chosen) and **In
+this order**. Where the PSBT does
+not carry the keys, the card says "Load this wallet's descriptor to
+sign": Files, a code or Restore load it, and the spend goes on.
+
 ## GPG
 
 Every GPG action needs an open vault (the secret key lives there). With

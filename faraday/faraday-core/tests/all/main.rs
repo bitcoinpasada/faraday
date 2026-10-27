@@ -112,6 +112,7 @@ mod paste_a_seed;
 mod pi_panel;
 mod pictures;
 mod quit;
+mod register_wallet;
 mod restart;
 mod restore;
 mod restore_shares;

@@ -511,6 +511,25 @@ pub fn unsigned(kit: &Kit) -> Result<Psbt, String> {
     Ok(Psbt::from(psbt))
 }
 
+/// The unsigned spend of a test wallet with every key's extended public
+/// key and origin in its global map (BIP 174's `PSBT_GLOBAL_XPUB`), as
+/// Sparrow and Bitcoin Core write a multisig spend.
+pub fn unsigned_with_xpubs(kit: &Kit) -> Result<Psbt, String> {
+    let c = compute();
+    let policy =
+        WalletPolicy::parse_any(&c, &kit.descriptor).map_err(|e| format!("{}: {e}", kit.id))?;
+    let mut psbt = unsigned(kit)?;
+    for key in policy.keys() {
+        let (Some(fp), Some(path)) = (key.fingerprint(), key.path()) else {
+            return Err(format!("{}: a key with no origin", kit.id));
+        };
+        psbt.inner_mut()
+            .xpub
+            .insert(*key.xpub(), (fp.into(), path.clone()));
+    }
+    Ok(psbt)
+}
+
 /// The unsigned spend of a test wallet and, when it has a cosigner, the
 /// same transaction signed by that test key alone.
 pub fn spend_of(kit: &Kit) -> Result<(Psbt, Option<(String, Psbt)>), String> {

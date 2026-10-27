@@ -162,6 +162,9 @@ impl Faraday {
         if self.sheet == Some(Sheet::Rename) {
             return self.visit.files_menu().renaming.is_some();
         }
+        if self.sheet == Some(Sheet::Register) {
+            return self.register_typing();
+        }
         match self.screen {
             Screen::Family => self.vaults.focus.is_some() || self.seeds_typing(),
             Screen::Restore => self.seeds_typing(),
@@ -217,6 +220,9 @@ impl Faraday {
         }
         if self.sheet == Some(Sheet::Rename) {
             return Some(crate::file_menu::FIELD);
+        }
+        if self.sheet == Some(Sheet::Register) {
+            return Some(Action::RegisterField);
         }
         if self.sheet == Some(Sheet::SeedRead) {
             return self
@@ -296,6 +302,7 @@ impl Faraday {
             Action::SeedRead(_) => self.seed_read.state()?.field()?,
             Action::Rename => self.wallets.renaming().map(String::as_str)?,
             crate::file_menu::FIELD => &self.visit.files_menu().renaming.as_ref()?.stem,
+            Action::RegisterField => &self.wallets.spend()?.register.as_ref()?.name,
             Action::BName(p) => self.backup.state()?.names.get(usize::from(p))?,
             Action::MType => &self.message.state()?.text,
             Action::KPassField(0) => &self.keygen.state()?.passphrase,

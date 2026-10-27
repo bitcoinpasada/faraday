@@ -127,6 +127,10 @@ pub enum WarningKind {
     /// A MuSig2 input's participants are not those of any registered
     /// wallet.
     MusigWalletNotRegistered,
+    /// An input this device would sign spends a script of several keys
+    /// (`multi`, a miniscript, a taproot leaf of several) that no
+    /// registered wallet gives at the chain and index it states.
+    WalletNotRegistered,
     /// A MuSig2 input carries a public nonce of this device's that no
     /// open session holds the secret for, so this pass draws a new one
     /// and drops the partial signatures made against the old one.
@@ -489,6 +493,10 @@ pub struct Inspection {
     pub inscriptions: Vec<crate::verify::Inscription>,
     /// Every output is verified change.
     pub is_self_transfer: bool,
+    /// The wallet the PSBT defines, offered for registering, where the
+    /// only blocks are [`WarningKind::WalletNotRegistered`] and the PSBT
+    /// carries every cosigner's extended key ([`crate::register`]).
+    pub register: Option<crate::register::Registration>,
 }
 
 impl Inspection {
@@ -550,6 +558,11 @@ pub fn inspect(c: &Compute, psbt: &Psbt, ctx: &Context) -> Inspection {
     let mut musig: Option<MusigSummary> = None;
     let mut kinds: Vec<ScriptKind> = Vec::new();
     let mut input_scripts: Vec<ScriptBuf> = Vec::new();
+    // The inputs held for want of a registered wallet, and which keys of
+    // each multisig input a loaded key derives, for the register offer.
+    let mut unregistered: Vec<usize> = Vec::new();
+    let mut multisig_ours: alloc::collections::BTreeMap<usize, Vec<bool>> =
+        alloc::collections::BTreeMap::new();
     let mut total_in = Amount::ZERO;
     let mut fee_known = true;
     let mut has_witness = false;
@@ -633,6 +646,15 @@ pub fn inspect(c: &Compute, psbt: &Psbt, ctx: &Context) -> Inspection {
         let mut is_ours = false;
         let mut origin: Option<KeyOrigin> = None;
         let mut musig_established: Option<MusigInput> = None;
+        // The registered wallet whose script this input is, for the kinds
+        // a wallet of several keys can be.
+        let registered = match cl.kind {
+            ScriptKind::Multisig { .. }
+            | ScriptKind::Miniscript { .. }
+            | ScriptKind::P2trScript
+            | ScriptKind::Unknown => wallet_input(c, ctx, input, spk.as_deref()),
+            _ => None,
+        };
         match cl.kind {
             ScriptKind::P2pkh | ScriptKind::P2shP2wpkh | ScriptKind::P2wpkh => {
                 for (pk, (fp, path)) in &input.bip32_derivation {
@@ -680,6 +702,7 @@ pub fn inspect(c: &Compute, psbt: &Psbt, ctx: &Context) -> Inspection {
                     .expect("multisig kind carries the script");
                 let cosigners = cosigners(c, &secp, ms, input, ctx);
                 let ours = cosigners.iter().any(|c| c.ours);
+                multisig_ours.insert(i, cosigners.iter().map(|c| c.ours).collect());
                 for (key, cosigner) in ms.keys.iter().zip(&cosigners) {
                     if let Some(fp) = cosigner.fingerprint {
                         let path = input.bip32_derivation[&key.inner].1.clone();
@@ -727,7 +750,7 @@ pub fn inspect(c: &Compute, psbt: &Psbt, ctx: &Context) -> Inspection {
                             n: usize::from(n),
                             cosigners,
                             ours,
-                            wallet: wallet_input(c, ctx, input, spk.as_deref()),
+                            wallet: registered,
                         })
                     }
                     Some(first) if first.m != usize::from(m) || first.n != usize::from(n) => warn(
@@ -874,7 +897,7 @@ pub fn inspect(c: &Compute, psbt: &Psbt, ctx: &Context) -> Inspection {
                 // is the rule a multisig input is read by, and it is the
                 // only thing that says whose these coins are, since the
                 // script itself is not one this crate takes apart.
-                if wallet_input(c, ctx, input, spk.as_deref()).is_some() {
+                if registered.is_some() {
                     is_ours = true;
                     for (fp, _) in input
                         .bip32_derivation
@@ -893,6 +916,26 @@ pub fn inspect(c: &Compute, psbt: &Psbt, ctx: &Context) -> Inspection {
                     }
                 }
             }
+        }
+
+        // A script of several keys is signed only for a registered
+        // wallet whose script it is: the coordinator's word for who the
+        // cosigners are is not taken. Only an input that names a loaded
+        // key is held to it, since no other input is signed here.
+        if !finalized
+            && registered.is_none()
+            && crate::register::several_keys(c, &secp, input, cl.kind, spk.as_deref())
+            && input_origins(input).any(|(fp, _)| ctx.is_ours(fp))
+        {
+            warn(
+                &mut warnings,
+                Level::Blocked,
+                WarningKind::WalletNotRegistered,
+                format!(
+                    "input {i} spends from a wallet of several keys that is not registered here; register the wallet to sign"
+                ),
+            );
+            unregistered.push(i);
         }
 
         let sighash = sighash_kind(input, cl.kind, spk.as_deref());
@@ -1174,6 +1217,14 @@ pub fn inspect(c: &Compute, psbt: &Psbt, ctx: &Context) -> Inspection {
         );
     }
 
+    // The wallet the PSBT defines, offered where nothing else blocks.
+    let register = warnings
+        .iter()
+        .filter(|w| w.level == Level::Blocked)
+        .all(|w| w.kind == WarningKind::WalletNotRegistered)
+        .then(|| crate::register::offer(c, psbt, &unregistered, &multisig_ours))
+        .flatten();
+
     warnings.sort_by_key(|w| core::cmp::Reverse(w.level));
 
     Inspection {
@@ -1197,6 +1248,7 @@ pub fn inspect(c: &Compute, psbt: &Psbt, ctx: &Context) -> Inspection {
         nonce_reuse,
         inscriptions,
         is_self_transfer,
+        register,
     }
 }
 
@@ -1477,9 +1529,11 @@ fn cosigners<C: Verification>(
 }
 
 /// Costs a key derivation. Whether `key` is what the loaded key `fp`
-/// derives at `path`: from its accounts, single-signature or BIP-48, and
-/// otherwise from the xpub a registered wallet holds for it. `None` where
-/// `fp` is not loaded or neither derives the path.
+/// derives at `path`: from its accounts, single-signature or BIP-48, or
+/// from the extended keys the session worked out from it for its
+/// wallets' paths ([`crate::KeyRef::extra`]). A wallet's own word for a key
+/// under the person's fingerprint is never taken. `None` where `fp` is
+/// not loaded or none of those derives the path.
 fn derives_to<C: Verification>(
     c: &Compute,
     secp: &Secp256k1<C>,
@@ -1488,36 +1542,8 @@ fn derives_to<C: Verification>(
     path: &DerivationPath,
     key: &PublicKey,
 ) -> Option<bool> {
-    let loaded = ctx.key(fp)?;
-    if let Some(derived) = loaded.derive_key(c, secp, path) {
-        return Some(derived == *key);
-    }
-    let components: Vec<ChildNumber> = path.into_iter().copied().collect();
-    let mut answer = None;
-    for policy in ctx.wallets {
-        for wallet_key in policy.keys().iter().filter(|k| k.fingerprint() == Some(fp)) {
-            let Some(prefix) = wallet_key.path() else {
-                continue;
-            };
-            let prefix: Vec<ChildNumber> = prefix.into_iter().copied().collect();
-            if components.len() != prefix.len() + 2 || components[..prefix.len()] != prefix[..] {
-                continue;
-            }
-            let leaf = components[prefix.len()..].to_vec();
-            if leaf.iter().any(ChildNumber::is_hardened) {
-                continue;
-            }
-            c.count(Work::KeyDerive);
-            let Ok(derived) = wallet_key.xpub().derive_pub(secp, &leaf) else {
-                continue;
-            };
-            if derived.public_key == *key {
-                return Some(true);
-            }
-            answer = Some(false);
-        }
-    }
-    answer
+    let derived = ctx.key(fp)?.derive_key(c, secp, path)?;
+    Some(derived == *key)
 }
 
 fn sighash_kind(input: &Input, kind: ScriptKind, spk: Option<&bitcoin::Script>) -> SighashKind {

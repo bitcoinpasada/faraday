@@ -37,11 +37,6 @@ pub fn handle(name: &str, req: &Value) -> Answer {
                 let xprv = Xpriv::from_str(xprv).map_err(err)?;
                 masters.push(MasterKey::from_xpriv(&c, xprv).map_err(err)?);
             }
-            let refs: Vec<KeyRef> = masters
-                .iter()
-                .map(|m| KeyRef::from_master(&c, m, 0))
-                .collect::<Result<_, _>>()
-                .map_err(err)?;
             // The wallets in use, as the app holds a registered one: a
             // change output of one is then verified rather than refused.
             let wallets: Vec<WalletPolicy> = texts(req, "wallets")
@@ -49,6 +44,20 @@ pub fn handle(name: &str, req: &Value) -> Answer {
                 .map(|t| WalletPolicy::parse_any(&c, t))
                 .collect::<Result<_, _>>()
                 .map_err(err)?;
+            // Each key as the app's session gives it: its accounts, and the
+            // extended key it has at every path a wallet names under its
+            // fingerprint, which is what says the wallet holds it.
+            let mut refs: Vec<KeyRef> = Vec::new();
+            for m in &masters {
+                let mut r = KeyRef::from_master(&c, m, 0).map_err(err)?;
+                for key in wallets.iter().flat_map(WalletPolicy::keys) {
+                    let Some(path) = key.path() else { continue };
+                    if key.fingerprint() == Some(m.fingerprint()) && r.xpub_at(path).is_none() {
+                        r.extra.push((path.clone(), m.derive(&c, path).to_xpub(&c)));
+                    }
+                }
+                refs.push(r);
+            }
             let ctx = Context {
                 network,
                 keys: &refs,

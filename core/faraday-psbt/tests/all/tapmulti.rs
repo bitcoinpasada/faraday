@@ -384,3 +384,47 @@ fn a_third_key_signs_too_and_the_witness_still_holds_two() {
         "the transaction Bitcoin Core accepted"
     );
 }
+
+/// The leaf of a taproot multisig names three keys, so its input is
+/// signed only while the wallet is registered: with none, the spend is
+/// Blocked, forced or not.
+#[test]
+fn a_taproot_multisig_input_is_not_signed_without_its_wallet() {
+    let c = Compute::unchecked();
+    let (_, psbt) = spend();
+    let abandon = master(ABANDON, NET);
+    let keys = [KeyRef::from_master(&c, &abandon, 0).expect("accounts")];
+    let ctx = Context {
+        network: NET,
+        keys: &keys,
+        wallets: &[],
+        musig_session: None,
+    };
+    let insp = inspect(&c, &psbt, &ctx);
+    assert!(
+        insp.blocked()
+            .contains(&faraday_psbt::WarningKind::WalletNotRegistered),
+        "{:?}",
+        insp.warnings
+    );
+    for force in [false, true] {
+        let mut attempt = psbt.clone();
+        let result = sign(
+            &c,
+            &mut attempt,
+            &[&abandon],
+            &[abandon.fingerprint()],
+            &ctx,
+            force,
+            Nonce::LowR,
+            Aux::Deterministic,
+            &mut None,
+            &faraday_crypto::Zeroizing::new([0u8; 32]),
+        );
+        assert!(
+            matches!(&result, Err(faraday_psbt::Error::Blocked(_))),
+            "{result:?}"
+        );
+        assert_eq!(attempt, psbt);
+    }
+}

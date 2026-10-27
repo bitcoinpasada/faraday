@@ -109,6 +109,29 @@ fn refuse_in_v0(maps: &[Map], inputs: usize) -> Result<(), Error> {
     Ok(())
 }
 
+/// A key origin of more than [`faraday_bip::keys::MAX_PATH_STEPS`]
+/// steps, anywhere in the PSBT, is refused: signing derives a key along
+/// it, and no wallet's path is that long.
+fn refuse_long_paths(inner: &bitcoin::Psbt) -> Result<(), Error> {
+    let long = |p: &bitcoin::bip32::DerivationPath| p.len() > faraday_bip::keys::MAX_PATH_STEPS;
+    let any = inner.xpub.values().any(|(_, p)| long(p))
+        || inner.inputs.iter().any(|i| {
+            i.bip32_derivation.values().any(|(_, p)| long(p))
+                || i.tap_key_origins.values().any(|(_, (_, p))| long(p))
+        })
+        || inner.outputs.iter().any(|o| {
+            o.bip32_derivation.values().any(|(_, p)| long(p))
+                || o.tap_key_origins.values().any(|(_, (_, p))| long(p))
+        });
+    if any {
+        return Err(Error::Parse(alloc::format!(
+            "a key origin of more than {} steps",
+            faraday_bip::keys::MAX_PATH_STEPS
+        )));
+    }
+    Ok(())
+}
+
 impl Psbt {
     /// Costs a decode of the whole PSBT, counted once its magic bytes
     /// match (bytes without them cost a comparison): parses the binary
@@ -125,6 +148,7 @@ impl Psbt {
         let (inputs, outputs) = (inner.inputs.len(), inner.outputs.len());
         let raw = maps_of(bytes, inputs, outputs)?;
         refuse_in_v0(&raw, inputs)?;
+        refuse_long_paths(&inner)?;
         let canonical = maps_of(&inner.serialize(), inputs, outputs)?;
         Ok(Self {
             inner,

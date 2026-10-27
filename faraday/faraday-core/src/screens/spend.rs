@@ -708,6 +708,34 @@ pub(crate) fn step_body(
                 cy += used.max(18.0) + 6.0;
                 warned = true;
             }
+            // Held for want of a registered wallet: register the one the
+            // PSBT defines, or, where it defines none, load its
+            // descriptor (`docs/FLOWS.md`, Spend).
+            if i.warnings
+                .iter()
+                .any(|wn| wn.kind == faraday_psbt::WarningKind::WalletNotRegistered)
+            {
+                if i.register.is_some() {
+                    let bw = ui.measure_as(LABEL_L, EN.register_head) + 2.0 * PAD;
+                    ui.button(
+                        x,
+                        cy,
+                        Some(bw.min(w)),
+                        BUTTON_H,
+                        EN.register_head,
+                        Style::Tonal,
+                        Action::RegisterOpen,
+                    );
+                    cy += BUTTON_H + GAP;
+                } else {
+                    cy += ui.wrap_as(
+                        (x, cy, w),
+                        BODY_M,
+                        Role::OnSurfaceVariant,
+                        EN.register_load_descriptor,
+                    ) + GAP;
+                }
+            }
             if !warned {
                 let mut chx = x;
                 chx += ui.chip(

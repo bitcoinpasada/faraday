@@ -1,7 +1,7 @@
 //! Change detection and the policy warnings, each built from a hostile or
 //! unusual PSBT.
 
-use crate::common::builder::{Build, single_sig, sorted_multisig};
+use crate::common::builder::{Build, multisig_policy, single_sig, sorted_multisig};
 use crate::common::{ABANDON, LEGAL, ZOO, master};
 use bitcoin::psbt::PsbtSighashType;
 use bitcoin::secp256k1::{Message, Secp256k1, XOnlyPublicKey};
@@ -870,8 +870,13 @@ fn a_p2wsh_input_without_its_previous_transaction_is_blocked() {
     let zoo = master(ZOO, NET);
     let legal = master(LEGAL, NET);
     let keys = [KeyRef::from_master(&c, &abandon, 0).unwrap()];
-    let ctx = insp_ctx(&keys);
     let cosigners = [&abandon, &zoo, &legal];
+    // The wallet is registered, so the amount is the only thing held.
+    let wallets = [multisig_policy(&cosigners, 2, NET)];
+    let ctx = Context {
+        wallets: &wallets,
+        ..insp_ctx(&keys)
+    };
     let mut psbt = sorted_multisig(&cosigners, 2, NET, 100_000, &[(foreign_script(), 148_000)]);
     let other = sorted_multisig(&cosigners, 2, NET, 50_000, &[(foreign_script(), 49_000)]);
     let inner = psbt.inner_mut();

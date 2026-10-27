@@ -578,6 +578,8 @@ impl Faraday {
                 }
                 true
             }
+            // The register sheet's name, beside Rename's (`register.rs`).
+            Some(Sheet::Register) => self.register_key(key),
             Some(Sheet::Rename) => {
                 let Some(r) = self.visit.files_menu_mut().renaming.as_mut() else {
                     return false;

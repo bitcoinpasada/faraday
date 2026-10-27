@@ -507,11 +507,13 @@ impl Faraday {
         });
     }
 
-    /// Costs what `secret_hold` and `power_act` cost. A hold held to its
-    /// end, from the tick: the secret's, or a lock's or power's.
+    /// Costs what `secret_hold`, `register_act` and `power_act` cost. A
+    /// hold held to its end, from the tick: the secret's, the register
+    /// sheet's, or a lock's or power's.
     pub(crate) fn hold_done(&mut self, held: Action, c: &faraday_crypto::work::Compute) {
         match held {
             Action::SecretHold => self.secret_hold(),
+            Action::RegisterHold => self.register_act(held),
             _ => self.power_act(held, c),
         }
     }

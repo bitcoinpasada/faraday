@@ -380,6 +380,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
             Sheet::WordList | Sheet::IdleWarn | Sheet::Zeroing => None,
             Sheet::BoardMenu => Some(Action::Board(crate::board::BoardPress::MenuClose)),
             Sheet::KeyPath => Some(Action::KeyPathCancel),
+            Sheet::Register => Some(Action::RegisterCancel),
             _ => Some(Action::Cancel),
         };
         // What the page under it handed over for the demo is not the
@@ -413,6 +414,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
             Sheet::Taken => crate::visit_taken::taken_sheet(app, ui, w, h),
             Sheet::Devices => devices_sheet(app, ui, w, h),
             Sheet::KeyPath => key_path_sheet(app, ui, w, h),
+            Sheet::Register => crate::register::sheet(app, ui, w, h),
             Sheet::VaultSave => crate::vault::screen::stick_save_sheet(app, ui, w, h),
             Sheet::CancelFlow(g) => crate::in_progress::cancel_sheet(app, ui, g, w, h),
             Sheet::CancelKey => crate::in_progress::cancel_key_sheet(app, ui, w, h),

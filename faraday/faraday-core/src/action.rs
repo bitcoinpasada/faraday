@@ -192,6 +192,19 @@ pub enum Action {
     KeyPathHold,
     /// The key path sheet's Cancel: the waiting wallet is not added.
     KeyPathCancel,
+    /// The Spend review's **Register this wallet**: the sheet opens on
+    /// the wallet the PSBT defines.
+    RegisterOpen,
+    /// The register sheet's name field: typing goes to it.
+    RegisterField,
+    /// The register sheet's hold: the wallet is checked against the
+    /// spend's scripts and added.
+    RegisterHold,
+    /// The register sheet's Cancel: nothing is registered.
+    RegisterCancel,
+    /// The register sheet's choice of reading where the spend allows
+    /// two: 0 `sortedmulti`, 1 `multi`.
+    RegisterReading(u8),
     /// Minutes without input before locking; 0 for never.
     IdleLock(u16),
     /// Minutes without input before powering off; 0 for never.

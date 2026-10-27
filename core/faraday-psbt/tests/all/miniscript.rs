@@ -707,3 +707,113 @@ fn a_version_one_spend_does_not_take_a_path_its_version_cannot_meet() {
         "at version 1 it arms nothing"
     );
 }
+
+/// A miniscript input names two keys, so it is signed only while its
+/// wallet is registered: with none, the spend is Blocked and nothing is
+/// written, forced or not.
+#[test]
+fn a_miniscript_input_is_not_signed_without_its_wallet() {
+    let c = Compute::unchecked();
+    let psbt = Psbt::parse_base64(&c, LIANA_PSBT.trim()).expect("the fixture transaction");
+    let abandon = master(ABANDON);
+    let keys = [KeyRef::from_master(&c, &abandon, 0).expect("accounts")];
+    let ctx = Context {
+        network: NET,
+        keys: &keys,
+        wallets: &[],
+        musig_session: None,
+    };
+    let insp = inspect(&c, &psbt, &ctx);
+    assert!(
+        insp.blocked().contains(&WarningKind::WalletNotRegistered),
+        "{:?}",
+        insp.warnings
+    );
+    assert!(
+        insp.register.is_none(),
+        "only a multisig is registered from a PSBT"
+    );
+    for force in [false, true] {
+        let mut attempt = psbt.clone();
+        let result = sign(
+            &c,
+            &mut attempt,
+            &[&abandon],
+            &[abandon.fingerprint()],
+            &ctx,
+            force,
+            Nonce::LowR,
+            Aux::Deterministic,
+            &mut None,
+            &faraday_crypto::Zeroizing::new([0u8; 32]),
+        );
+        assert!(
+            matches!(&result, Err(faraday_psbt::Error::Blocked(k)) if k.contains(&WarningKind::WalletNotRegistered)),
+            "{result:?}"
+        );
+        assert_eq!(attempt, psbt);
+    }
+}
+
+/// Whether the review of `psbt`, with `words`' key loaded and no wallet,
+/// holds it for want of a registered wallet.
+fn held_without_wallet(psbt: &Psbt, words: &str) -> bool {
+    let c = Compute::unchecked();
+    let keys = [KeyRef::from_master(&c, &master(words), 0).expect("accounts")];
+    let ctx = Context {
+        network: NET,
+        keys: &keys,
+        wallets: &[],
+        musig_session: None,
+    };
+    inspect(&c, psbt, &ctx)
+        .blocked()
+        .contains(&WarningKind::WalletNotRegistered)
+}
+
+/// A taproot tree spent by its key path carries the tree's root and no
+/// leaf: the person's own internal key spends it alone, so it is not
+/// held for a registered wallet.
+#[test]
+fn a_tree_key_path_spend_by_the_internal_key_is_not_held() {
+    let c = Compute::unchecked();
+    let psbt = Psbt::parse_base64(&c, TREE_KEYPATH_PSBT.trim()).expect("the fixture transaction");
+    assert!(psbt.inner().inputs[0].tap_scripts.is_empty());
+    assert!(!held_without_wallet(&psbt, ABANDON));
+}
+
+/// Two leaves of one key each are a wallet of two keys between them:
+/// the tree's spend with both leaves carried, as `miniscript` fills a
+/// PSBT in from the wallet, is held without the wallet.
+#[test]
+fn a_tree_of_single_key_leaves_is_held_without_its_wallet() {
+    use faraday_bip::miniscript::descriptor::{Descriptor, DescriptorPublicKey};
+    use faraday_bip::miniscript::psbt::PsbtExt;
+    let c = Compute::unchecked();
+    let psbt = Psbt::parse_base64(&c, TREE_PSBT.trim()).expect("the fixture transaction");
+    let policy = WalletPolicy::parse_any(&c, TREE_POLICY).expect("the fixture wallet");
+    let d: Descriptor<DescriptorPublicKey> = policy.to_descriptor().parse().expect("a descriptor");
+    let input = d.into_single_descriptors().expect("two chains")[0]
+        .clone()
+        .at_derivation_index(0)
+        .expect("an address");
+    let mut inner = psbt.inner().clone();
+    inner.inputs[0].tap_scripts.clear();
+    inner
+        .update_input_with_descriptor(0, &input)
+        .expect("the input is the wallet's first address");
+    assert_eq!(inner.inputs[0].tap_scripts.len(), 2);
+    let both = Psbt::from(inner);
+    assert!(held_without_wallet(&both, LEGAL));
+}
+
+/// The tree's spend as the fixture carries it: the one leaf it spends,
+/// of one key, and not the other, so not the whole tree. Held all the
+/// same.
+#[test]
+fn a_tree_with_a_leaf_left_out_is_held_without_its_wallet() {
+    let c = Compute::unchecked();
+    let psbt = Psbt::parse_base64(&c, TREE_PSBT.trim()).expect("the fixture transaction");
+    assert_eq!(psbt.inner().inputs[0].tap_scripts.len(), 1);
+    assert!(held_without_wallet(&psbt, LEGAL));
+}

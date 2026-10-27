@@ -1154,6 +1154,9 @@ impl Faraday {
         if self.sheet == Some(crate::Sheet::Rename) {
             return self.visit.files_menu().renaming.is_some();
         }
+        if self.sheet == Some(crate::Sheet::Register) {
+            return self.register_typing();
+        }
         if self.sheet.is_some() {
             return false;
         }

@@ -15,6 +15,7 @@ use faraday_bip::policy::{KeyPath, Template, WalletPolicy, Wrapper};
 use faraday_crypto::work::Compute;
 use faraday_psbt::verify::Verdict;
 use faraday_psbt::{Context, Inspection, KeyRef, Psbt};
+use faraday_shell_api::Key as KeyIn;
 
 /// The network a session starts on, before a wallet or a PSBT says
 /// otherwise.
@@ -441,6 +442,14 @@ pub struct Session {
     /// in this session, which [`Session::add_policy`] adds without asking
     /// again.
     key_path_confirmed: Vec<String>,
+    /// The extended public keys worked out from loaded keys at the paths
+    /// wallets name under their fingerprints ([`Session::key_refs`]), by
+    /// network, key ([`master_id`]) and path. Each is a function of
+    /// those three alone, so an entry is never wrong while it is kept,
+    /// whatever keys and wallets come and go; it is derived once, the
+    /// first time a wallet names the path, and dropped with the keys
+    /// ([`Session::wipe`]).
+    pub(crate) key_xpubs: std::cell::RefCell<Vec<crate::register::KeyXpub>>,
 }
 
 /// A wallet waiting for its key path to be confirmed: what
@@ -481,6 +490,7 @@ impl Default for Session {
             key_marks: crate::codex32_correct::KeyMarks::default(),
             key_path_asked: None,
             key_path_confirmed: Vec::new(),
+            key_xpubs: std::cell::RefCell::new(Vec::new()),
         }
     }
 }
@@ -538,6 +548,7 @@ impl Session {
             key_marks: crate::codex32_correct::KeyMarks::default(),
             key_path_asked: None,
             key_path_confirmed: Vec::new(),
+            key_xpubs: std::cell::RefCell::new(Vec::new()),
         }
     }
 
@@ -723,6 +734,7 @@ impl Session {
     pub fn wipe(&mut self) {
         self.keys.clear();
         self.wallets.clear();
+        self.key_xpubs.borrow_mut().clear();
     }
 
     /// The keys loaded that no wallet loaded uses, in the order they
@@ -832,9 +844,14 @@ impl Session {
         self.address(c, wallet, change, index)
     }
 
-    /// Costs a key derivation (through `from_master`).
+    /// Costs a key derivation (through `from_master`), and what
+    /// `register::wallet_xpubs` costs. The keys as the inspection sees
+    /// them, with the extended public keys each gives at its wallets'
+    /// paths.
     fn key_refs(&self, c: &Compute) -> Vec<KeyRef> {
-        self.keys.key_refs(c)
+        let mut refs = self.keys.key_refs(c);
+        crate::register::wallet_xpubs(self, c, &mut refs);
+        refs
     }
 
     fn policies(&self) -> Vec<WalletPolicy> {
@@ -1839,6 +1856,8 @@ pub struct SpendState {
     /// true, closing every card (an interactive collapse) leaves `open`
     /// at `None` rather than reopening one.
     pub opened: bool,
+    /// The register sheet, while it is open over this spend.
+    pub register: Option<crate::register::RegisterAsk>,
 }
 
 impl SpendState {
@@ -1874,6 +1893,7 @@ impl SpendState {
             complete: false,
             musig: None,
             opened: false,
+            register: None,
         }
     }
 
@@ -2099,6 +2119,181 @@ impl Faraday {
         }
     }
 
+    /// Costs what `faraday_psbt::register` and `add_policy` cost: the
+    /// register sheet's actions (`RegisterOpen`, `RegisterField`,
+    /// `RegisterReading`, `RegisterHold`, `RegisterCancel`). The hold
+    /// registers the wallet the spend's PSBT defines, as the reading
+    /// chosen, once its descriptor gives the spend's scripts and one of
+    /// its keys is a loaded key's own at its path, adds it as a wallet
+    /// file is added, and inspects the spend again; a refusal stays on
+    /// the sheet.
+    pub(crate) fn register_act(&mut self, action: Action) {
+        let Some(s) = self.wallets.spend_mut() else {
+            return;
+        };
+        match action {
+            Action::RegisterOpen if s.inspection.register.is_some() => {
+                s.register = Some(crate::register::RegisterAsk::new(&s.spend.source));
+                self.sheet = Some(Sheet::Register);
+            }
+            Action::RegisterField => {
+                if let Some(ask) = s.register.as_mut() {
+                    ask.typing = true;
+                }
+            }
+            Action::RegisterReading(k) => {
+                if let Some(ask) = s.register.as_mut() {
+                    ask.reading = usize::from(k);
+                    ask.refused = None;
+                }
+            }
+            Action::RegisterCancel => {
+                s.register = None;
+                self.sheet = None;
+            }
+            Action::RegisterHold => {
+                let (Some(ask), Some(offer)) = (&s.register, &s.inspection.register) else {
+                    return;
+                };
+                let name = ask.name_or(&crate::register::name_of_file(&s.spend.source));
+                let reading = ask.reading;
+                let (source, psbt, offer) =
+                    (s.spend.source.clone(), s.spend.psbt.clone(), offer.clone());
+                let c = self.compute();
+                let keys = &self.session.keys;
+                let yours =
+                    |fp: Fingerprint, path: &faraday_bip::bitcoin::bip32::DerivationPath| {
+                        keys.xpub_at(&c, keys.position(fp)?, path)
+                    };
+                let added = faraday_psbt::register(&c, &psbt, &offer, reading, &yours)
+                    .map_err(|r| crate::register::refusal_text(r, &offer))
+                    .and_then(|policy| {
+                        self.session
+                            .add_policy(&c, &name, policy, &source, Origin::Named)
+                            .map_err(|e| e.text())
+                    });
+                match added {
+                    Ok(i) => {
+                        if let Some(s) = self.wallets.spend_mut() {
+                            s.register = None;
+                        }
+                        self.sheet = None;
+                        self.wallets.set_wallet(i);
+                        self.refresh_spend();
+                        self.toast(&fill(EN.register_added, &[&name]));
+                    }
+                    Err(why) => {
+                        if let Some(ask) =
+                            self.wallets.spend_mut().and_then(|s| s.register.as_mut())
+                        {
+                            ask.refused = Some(why);
+                        }
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+
+    /// Costs what `spend_source`, `inspect` and `refresh_spend` cost.
+    /// Opens the spend of Files' PSBT `index` on the Spend tab.
+    pub(crate) fn start_spend(&mut self, index: usize) {
+        let c = self.compute();
+        let Some(name) = self.inbox.get(index).map(|i| i.name.clone()) else {
+            return;
+        };
+        let Some(psbt) = self.spend_source(&c, index) else {
+            return;
+        };
+        if let Err(e) = self.session.follow_psbt(&psbt) {
+            self.toast(&e.text());
+            return;
+        }
+        let spend = Spend::new(psbt, &name);
+        // Inspected once here; `refresh_spend` below finds it current.
+        let inspection = self.session.inspect(&c, &spend.psbt);
+        let inputs = self.session.inspect_inputs();
+        let mut state = SpendState::new(spend, inspection, inputs);
+        state.done[0] = true;
+        self.wallets.set_spend(state);
+        self.refresh_spend();
+        self.screen = Screen::Spend;
+    }
+
+    /// Costs an inspection when the PSBT or the session changed, and
+    /// what `signers_by` and `wallet_for` cost. Keeps the open spend in
+    /// step with the session: its inspection, signers, wallet and steps.
+    pub(crate) fn refresh_spend(&mut self) {
+        let c = self.compute();
+        if let Some(s) = self.wallets.spend_mut() {
+            // Inspected once each time the PSBT or the session changes,
+            // not on every press that refreshes the spend.
+            let inputs = self.session.inspect_inputs();
+            if !s.inspected_for(&inputs) {
+                s.inspection = self.session.inspect(&c, &s.spend.psbt);
+                s.inspected = Some((s.spend.psbt.clone(), inputs));
+            }
+            s.signers = s
+                .spend
+                .signers_by(&c, &self.session, Some(&s.inspection))
+                .iter()
+                .map(|f| f.0)
+                .collect();
+            s.wallet = self.session.wallet_for(&c, &s.spend.psbt);
+            let wallet = s.wallet.and_then(|w| self.session.wallets.get(w));
+            let kind = wallet.map(|w| wallet::Kind::of(w.policy()));
+            s.needed = wallet.map(wallet::needed).unwrap_or(1);
+            // With no wallet loaded the signers come from the PSBT alone,
+            // and a second device may still be needed.
+            let kind = kind.unwrap_or(if s.inspection.participating_keys.len() > 1 {
+                wallet::Kind::Multi(faraday_bip::policy::Wrapper::Wsh)
+            } else {
+                wallet::Kind::Single(faraday_bip::keys::ScriptType::NativeSegwit)
+            });
+            s.steps = kind.steps();
+            s.complete = s.spend.finished.is_some() || s.spend.finish().is_ok();
+            // Check is done already, this power-on, when this wallet was
+            // checked before (`docs/WALLETS.md` §4): the flow opens on
+            // the next card without a default instead.
+            if let Some(wallet) = wallet {
+                let checksum = wallet.checksum().to_string();
+                if self.memory.is_checked(&checksum) {
+                    s.done[wallet::step::CHECK as usize] = true;
+                }
+            }
+            let stale = s.open.is_some_and(|open| !s.steps.contains(&open));
+            if stale || !s.opened {
+                s.open = s.steps.iter().copied().find(|&n| !s.done[n as usize]);
+                s.opened = true;
+            }
+        }
+        self.spend_files_out();
+    }
+
+    /// Whether the register sheet's name field has focus. A lookup.
+    pub(crate) fn register_typing(&self) -> bool {
+        self.wallets
+            .spend()
+            .and_then(|s| s.register.as_ref())
+            .is_some_and(|ask| ask.typing)
+    }
+
+    /// A key on the register sheet: typed into the name while it has
+    /// focus, Escape closing the sheet. Whether it took the key.
+    pub(crate) fn register_key(&mut self, key: KeyIn) -> bool {
+        if self.sheet != Some(Sheet::Register) {
+            return false;
+        }
+        if key == KeyIn::Escape {
+            self.register_act(Action::RegisterCancel);
+            return true;
+        }
+        self.wallets
+            .spend_mut()
+            .and_then(|s| s.register.as_mut())
+            .is_some_and(|ask| ask.key(key))
+    }
+
     /// Costs what `add_wallet` costs. Loads the wallet an Inbox file
     /// describes, named after the file.
     pub(crate) fn load_wallet(&mut self, index: usize) {
@@ -2107,20 +2302,8 @@ impl Faraday {
             return;
         };
         let text = String::from_utf8_lossy(&item.bytes).into_owned();
-        let name = crate::stem(&item.name);
         let source = item.name.clone();
-        let name = name
-            .strip_suffix("-wallet")
-            .unwrap_or(&name)
-            .split(['-', '_'])
-            .map(|w| {
-                let mut c = w.chars();
-                c.next()
-                    .map(|f| f.to_uppercase().collect::<String>() + c.as_str())
-                    .unwrap_or_default()
-            })
-            .collect::<Vec<_>>()
-            .join(" ");
+        let name = crate::register::name_of_file(&item.name);
         // A wallet .json carries its own name.
         let name = wallet::json_label(&text).unwrap_or(name);
         match self

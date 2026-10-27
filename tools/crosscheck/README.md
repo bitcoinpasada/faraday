@@ -128,6 +128,16 @@ corpus keeps out of it and the area says why.
   (`faraday_psbt::sign`); BIP-174's signer signs it, and BIP-174's own
   signer vector is such a PSBT. `area_sign.py` checks the refusal and
   counts it.
+- PSBT signing, wallets: Faraday signs an input spent from a script of
+  several keys (a `multi` of two or more, a miniscript naming two or
+  more, a taproot script path whose carried leaves name two or more
+  with its internal key, or are not its whole tree) only for a registered wallet that holds one of
+  its keys and whose script it is; BIP-174's signer signs any.
+  `area_sign.py` refuses where no wallet the request registers holds a
+  held key and gives the input, and counts it only where Faraday's
+  refusal names `WalletNotRegistered`;
+  half the corpus's `multi` and miniscript inputs come with their wallet
+  registered, so their signatures are still compared.
 - Taproot `pkh` leaves: Faraday signs a taproot leaf that checks its
   key by hash but does not finalize it (`faraday_psbt::finalize`):
   `miniscript` 12's finalizer looks the key up among the ECDSA origins

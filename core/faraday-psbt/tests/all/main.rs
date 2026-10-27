@@ -14,6 +14,7 @@ mod miniscript;
 mod multisig;
 mod musig;
 mod nonce;
+mod registered;
 mod sign;
 mod silent;
 mod tapmulti;

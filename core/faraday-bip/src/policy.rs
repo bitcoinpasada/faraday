@@ -1291,6 +1291,12 @@ fn check(template: &Template, keys: &[PolicyKey]) -> Result<(), Error> {
         if keys[..i].iter().any(|k| k.xpub == key.xpub) {
             return Err(Error::Key);
         }
+        if key
+            .path()
+            .is_some_and(|p| p.len() > crate::keys::MAX_PATH_STEPS)
+        {
+            return Err(Error::Key);
+        }
         // BIP-388 writes every key of a policy with its origin. Only a
         // single-key wallet is allowed without one, because that is the
         // wallet a bare extended public key makes and its addresses need

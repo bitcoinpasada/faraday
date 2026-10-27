@@ -8169,6 +8169,59 @@ strings! {
     wallet_key_path_cancel: "Cancel",
     /// Toast once the wallet is added from the key path sheet. `{}`: its name.
     wallet_key_path_added: "{} added",
+    // ----- Register this wallet, from a spend (docs/FLOWS.md, Spend), faraday-core -----
+    /// The Spend review's button under the line that holds a spend from
+    /// a wallet of several keys not registered here, where the PSBT
+    /// carries the cosigners' keys; and the register sheet's title.
+    register_head: "Register this wallet",
+    /// The Spend review's line under that block where the PSBT does not
+    /// carry the cosigners' keys.
+    register_load_descriptor: "Load this wallet's descriptor to sign",
+    /// The register sheet's shape line. `{}`: the threshold, the number
+    /// of keys, the script (`register_p2wsh` and the like), then
+    /// `register_sorted` or `register_in_order`.
+    register_shape: "{} of {}, {}, {}",
+    /// The script in `register_shape`.
+    register_p2wsh: "P2WSH",
+    /// The script in `register_shape`.
+    register_p2sh: "P2SH",
+    /// The script in `register_shape`.
+    register_p2sh_p2wsh: "P2SH-P2WSH",
+    /// The key order in `register_shape`: `sortedmulti`.
+    register_sorted: "sorted",
+    /// The key order in `register_shape`: `multi`, the keys in the order listed.
+    register_in_order: "keys in this order",
+    /// A cosigner's line on the register sheet. `{}`: its fingerprint, then its path.
+    register_cosigner: "{} · {}",
+    /// A cosigner's line on the register sheet, a loaded key. `{}`: its fingerprint, then its path.
+    register_cosigner_yours: "{} · {} · Yours",
+    /// The register sheet's name field's label.
+    register_name: "Name",
+    /// The register sheet's hold.
+    register_hold: "Hold to register",
+    /// The register sheet's dismissive action.
+    register_cancel: "Cancel",
+    /// Toast once the wallet is registered. `{}`: its name.
+    register_added: "{} registered",
+    /// The register sheet's refusal: the descriptor built from the
+    /// PSBT's keys does not read as a wallet.
+    register_refused_descriptor: "These keys do not make a wallet",
+    /// The register sheet's refusal. `{}`: the input's number.
+    register_refused_input: "These keys do not give input {}'s address",
+    /// The register sheet's refusal. `{}`: the output's number.
+    register_refused_output: "Output {} names this wallet but is not its address",
+    /// The register sheet's refusal: no key of the wallet is one loaded here.
+    register_refused_not_yours: "None of these keys is yours",
+    /// The register sheet's refusal: a key under a loaded key's
+    /// fingerprint that the loaded key does not give. `{}`: the
+    /// fingerprint, then the path.
+    register_refused_not_your_key: "Key {} at {} has your fingerprint but is not your key",
+    /// The register sheet's line over the two readings, where the spend allows both.
+    register_reading_line: "Most coordinators sort the keys",
+    /// The register sheet's choice: `sortedmulti`.
+    register_reading_sorted: "Sorted",
+    /// The register sheet's choice: `multi`, the keys in the order listed.
+    register_reading_in_order: "In this order",
     /// Text in `source_tag`. `{}`: `source`.
     wallet_source_tag: "From {}",
     /// Text in `source_tag`. `{}`: `source`.

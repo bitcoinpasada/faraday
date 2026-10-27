@@ -9,7 +9,9 @@
 
 use std::str::FromStr;
 
-use crate::common::builder::{Build, funding_tx, single_sig, sorted_multisig_change};
+use crate::common::builder::{
+    Build, funding_tx, multisig_policy, single_sig, sorted_multisig_change,
+};
 use crate::common::{ABANDON, LEGAL, ZOO, master};
 use bitcoin::bip32::DerivationPath;
 use bitcoin::hashes::Hash;
@@ -211,14 +213,14 @@ fn the_signatures_inside_a_finalized_witness_are_read_back_and_verify() {
         &mut psbt,
         &[&abandon, &zoo],
         &[abandon.fingerprint(), zoo.fingerprint()],
-        &ctx(&keys, &[]),
+        &ctx(&keys, &[multisig_policy(&[&abandon, &zoo], 2, NET)]),
         false,
         Nonce::LowR,
         Aux::Deterministic,
         &mut None,
         &faraday_crypto::Zeroizing::new([0u8; 32]),
     )
-    .expect("both keys sign");
+    .expect("both keys sign their registered wallet");
     valid(&psbt, "a 2-of-2 p2wsh, partly signed");
     finalize(&mut psbt).expect("two of two finalizes");
     let found = verdicts(&psbt);

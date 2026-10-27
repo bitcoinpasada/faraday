@@ -64,11 +64,22 @@ final but for a taproot one, since a final witness is the coordinator's;
 BIP-174's own signer vector is such a PSBT, final input or not. Faraday signs a taproot leaf with a `pkh`
 but leaves it unfinalized (`faraday_psbt::finalize`: `miniscript` 12
 cannot write that satisfaction); the reference does the same, and counts
-each such leaf it could have satisfied.
+each such leaf it could have satisfied. Faraday signs an input spent
+from a script of several keys (a `multi` of two or more, a miniscript
+naming two or more, a taproot leaf of two or more) only for a registered
+wallet whose script it is, where BIP-174's signer signs any; the
+reference refuses where no wallet the request registers gives the input
+(a `multi` or `wsh` miniscript wallet's script derived at the chain and
+index the input's origins name and compared; a fixture's taproot wallet
+taken as the spend Bitcoin Core built from it) and counts each such
+PSBT. The random corpus registers the wallet of half its `multi` and
+miniscript inputs, built from the cosigners' account keys at one chain
+and index, so their signatures are still compared.
 """
 
 import base64
 import io
+import re
 
 import area_msg
 import btc
@@ -88,6 +99,7 @@ use_reference("bip39")
 from mnemonic import Mnemonic  # noqa: E402
 
 N = btc.N
+NUMS_HEX = "50929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0"
 TAPSCRIPT = 0xC0
 STANDARD = [1, 2, 3, 0x81, 0x82, 0x83]
 TAPROOT = [0, 1, 2, 3, 0x81, 0x82, 0x83]
@@ -155,7 +167,191 @@ def register_policy(text, raw):
 
 
 class Known(Refused):
-    """A refusal Faraday makes where BIP-174 signs."""
+    """A refusal Faraday makes where BIP-174 signs; `kind` is the
+    warning Faraday's refusal must name, where it is one."""
+
+    def __init__(self, why, kind=None):
+        super().__init__(why)
+        self.kind = kind
+
+
+KEY_EXPR = re.compile(r"\[([0-9a-f]{8})((?:/[0-9]+[h']?)*)\]([xt]pub[1-9A-HJ-NP-Za-km-z]+)/<0;1>/\*")
+
+
+def read_wallet(text):
+    """A wallet's template, `@i/**` for each key, and its keys as
+    (fingerprint, path, xpub): BIP-388's two-part form or a descriptor."""
+    lines = [x.strip() for x in text.splitlines() if x.strip() and not x.startswith("#")]
+    keys = []
+    if "@" in lines[0]:
+        exprs = [k.strip() for line in lines[1:] for k in line.split(",") if k.strip()]
+        for e in exprs:
+            fp, path = e[1:].split("]", 1)[0].split("/", 1)
+            keys.append((bytes.fromhex(fp), btc.parse_path("m/" + path),
+                         btc.decode(e.split("]", 1)[1], False)))
+        return lines[0], keys
+
+    def sub(m):
+        keys.append((bytes.fromhex(m.group(1)), btc.parse_path("m" + m.group(2)),
+                     btc.decode(m.group(3), False)))
+        return f"@{len(keys) - 1}/**"
+    return KEY_EXPR.sub(sub, " ".join(lines).split("#")[0]), keys
+
+
+def input_origins(m):
+    """Every key origin an input states, (fingerprint, path)."""
+    return ([origin(v) for _, v in of_type(m, 0x06)]
+            + [tap_origin(v)[1:] for _, v in of_type(m, 0x16)])
+
+
+def holds(keys, masters):
+    """Whether a wallet holds a held master's key, as Faraday's
+    `Context::holds` asks: one of its keys is under a held fingerprint
+    and is that master's extended key at its path, and none under a held
+    fingerprint is another key."""
+    mine = [masters[fp].derive(path).neuter().serialize() == x.serialize()
+            for fp, path, x in keys if fp in masters]
+    return bool(mine) and all(mine)
+
+
+def split_top(text):
+    """`a,b` split at its first comma outside brackets."""
+    depth = 0
+    for j, ch in enumerate(text):
+        depth += ch in "({"
+        depth -= ch in ")}"
+        if ch == "," and depth == 0:
+            return text[:j], text[j + 1:]
+    raise ValueError("no comma")
+
+
+def tap_items(tree, leaf):
+    """A `tr()` tree as Core's `taproot_construct` takes it, each leaf
+    made by `leaf`."""
+    names = iter(range(1 << 20))
+
+    def node(t):
+        if t.startswith("{"):
+            a, b = split_top(t[1:-1])
+            return [node(a), node(b)]
+        return (f"l{next(names)}", leaf(t))
+    top = node(tree)
+    return top if isinstance(top, list) else [top]
+
+
+def wallet_script(template, keys, place):
+    """The scriptPubKey the wallet `template` over `keys` pays at
+    `place` (its chain and index), or None for a template this reference
+    does not build."""
+    pubs = [x.derive(place).pub for _, _, x in keys]
+
+    def fill(t, tap):
+        for i in reversed(range(len(pubs))):
+            t = t.replace(f"@{i}/**", (pubs[i][1:] if tap else pubs[i]).hex())
+        return t
+    if template.startswith("tr("):
+        internal, tree = split_top(template[3:-1])
+        ik = fill(internal, True)
+        if len(ik) != 64:
+            return None
+
+        def leaf(t):
+            if t.startswith("sortedmulti_a("):
+                k, rest = t[len("sortedmulti_a("):-1].split(",", 1)
+                xs = sorted(bytes.fromhex(fill(x, True)) for x in rest.split(","))
+                return SCRIPTS.add(f"multi_a({k},{','.join(x.hex() for x in xs)})", True)
+            return SCRIPTS.add(fill(t, True), True)
+        info = S.taproot_construct(bytes.fromhex(ik), tap_items(tree, leaf))
+        return bytes(info.scriptPubKey)
+    for head, wrap in (("sh(wsh(", lambda sc: p2sh(p2wsh(sc))), ("wsh(", p2wsh),
+                       ("sh(", p2sh)):
+        if template.startswith(head):
+            inner = template[len(head):-head.count("(")]
+            break
+    else:
+        return None
+    multi = re.fullmatch(r"(sorted)?multi\((\d+),(.*)\)", inner)
+    if multi:
+        ks = [pubs[int(i)] for i in re.findall(r"@(\d+)/\*\*", multi.group(3))]
+        script = multisig_script(int(multi.group(2)), sorted(ks) if multi.group(1) else ks)
+    elif head == "sh(":
+        return None
+    else:
+        script = SCRIPTS.add(fill(inner, False), False)
+    return wrap(script)
+
+
+def wallet_gives(text, inp, masters):
+    """Whether the wallet `text` holds a held master's key and gives
+    `inp`'s script at a chain and index one of the input's origins names
+    under one of its keys: the wallet's script built here at that place
+    (`multi`, `wsh` miniscript, or a `tr()` tree through Core's
+    `taproot_construct`) and compared."""
+    template, keys = read_wallet(text)
+    if not holds(keys, masters):
+        return False
+    spk = bytes(inp.utxo.scriptPubKey)
+    for fp, path in input_origins(inp.m):
+        for kfp, kpath, _ in keys:
+            if (fp == kfp and len(path) == len(kpath) + 2 and path[:-2] == kpath
+                    and path[-2] in (0, 1) and path[-1] < HARDENED):
+                if wallet_script(template, keys, path[-2:]) == spk:
+                    return True
+    return False
+
+
+def tree_whole(inp):
+    """The internal key of a taproot input whose carried leaves are its
+    whole tree, else None: one internal key and one root from every
+    control block, that key tweaked by that root the output spent, and
+    every hash beside a leaf a carried leaf or a node built from carried
+    leaves."""
+    built, beside, top = set(), [], None
+    for control, value in of_type(inp.m, 0x15):
+        node = tap_leaf_hash(value[:-1], value[-1])
+        built.add(node)
+        internal = control[1:33]
+        for j in range(33, len(control), 32):
+            sibling = control[j:j + 32]
+            beside.append(sibling)
+            node = TaggedHash("TapBranch", min(node, sibling) + max(node, sibling))
+            built.add(node)
+        if top is None:
+            top = (internal, node)
+        elif top != (internal, node):
+            return None
+    if top is None or not all(h in built for h in beside):
+        return None
+    return top[0] if p2tr(*top)[0] == bytes(inp.utxo.scriptPubKey) else None
+
+
+def several_keys(inp):
+    """Whether an input spends a script of more than one key: a `multi`
+    of two or more, a miniscript naming two or more, or a taproot script
+    path carrying leaves which, with the internal key unless it is BIP
+    341's unspendable point, name two or more between them, any of which
+    is no miniscript known here, or which are not the output's whole
+    tree. One that carries no leaf spends by its key path, one key."""
+    if inp.kind in ("p2wsh-multi", "p2sh-p2wsh-multi", "p2sh-multi"):
+        return len(inp.script_keys()) > 1
+    if inp.kind in ("p2wsh-ms", "p2sh-p2wsh-ms"):
+        node = SCRIPTS.node(inp.ws, False)
+        return node is None or len({k.bytes() for k in node.keys}) > 1
+    if inp.kind == "tr-script":
+        if not of_type(inp.m, 0x15):
+            return False
+        internal = tree_whole(inp)
+        if internal is None:
+            return True
+        keys = set() if internal.hex() == NUMS_HEX else {internal}
+        for _, value in of_type(inp.m, 0x15):
+            script, version = value[:-1], value[-1]
+            node = SCRIPTS.node(script, True) if version == TAPSCRIPT else None
+            if node is None:
+                return True
+            keys |= {k.bytes()[-32:] for k in node.keys}
+        return len(keys) > 1
+    return False
 
 
 # ----- PSBT maps ----------------------------------------------------------------
@@ -471,12 +667,20 @@ def leaf_keys(script, version):
     return [] if node is None else [k.bytes() for k in node.keys]
 
 
-def ref_sign(raw, masters, nonce):
+def ref_sign(raw, masters, nonce, wallets=()):
     """BIP-174's signer over `raw` with every master in `masters`
-    (fingerprint → btc.Key): the signed PSBT, the number of signatures,
-    and whether every input can now be finalized."""
+    (fingerprint → btc.Key), the wallets in `wallets` registered: the
+    signed PSBT, the number of signatures, and whether every input can
+    now be finalized."""
     g, ins, outs, tx = parse(raw)
     inputs = [Input(m, tx, i) for i, m in enumerate(ins)]
+    for inp in inputs:
+        if inp.final or inp.kind is None or not several_keys(inp):
+            continue
+        named = any(fp in masters for fp, _ in input_origins(inp.m))
+        if named and not any(wallet_gives(w, inp, masters) for w in wallets):
+            raise Known("an input of several keys whose wallet is not registered",
+                        kind="WalletNotRegistered")
     if len(inputs) > 1:
         for inp in inputs:
             spk = bytes(inp.utxo.scriptPubKey) if inp.utxo is not None else b""
@@ -790,18 +994,29 @@ class Sign(Area):
         inputs = {"psbt": raw.hex(), "seeds": [s.hex() for s in seeds], "xprvs": xprvs,
                   "network": network, "nonce": nonce, "wallets": list(wallets)}
 
+        named = []
+
         def ref():
             try:
-                return ref_sign(raw, masters, nonce)
-            except Known:
+                return ref_sign(raw, masters, nonce, wallets)
+            except Known as e:
                 self.known += 1
+                if e.kind:
+                    named.append(e.kind)
                 raise
 
         def norm(answer):
             if answer[0] != "ok":
                 return answer
             return ("ok", dict(answer[1], psbt=canonical(bytes.fromhex(answer[1]["psbt"]))))
-        return self.compare("sign.sign", inputs, ref, normalize=norm)
+        answer = self.compare("sign.sign", inputs, ref, normalize=norm)
+        # A known difference with a warning of its own is Faraday's refusal
+        # only where Faraday's refusal names that warning.
+        for kind in named:
+            if answer[0] != "err" or kind not in str(answer[1]):
+                raise Mismatch(self.name, "sign.sign", inputs, answer, ("err", kind),
+                               f"the refusal does not name {kind}")
+        return answer
 
     def finalize(self, raw):
         theirs = self.rust.call("sign.finalize", psbt=raw.hex())
@@ -957,8 +1172,11 @@ class Sign(Area):
         ins = []
         total = 0
         presign = []
+        wallets = []
         for i in range(n_in):
             m, spk, value, seq, extra = self.input_spec(i, n_out)
+            if "wallet" in extra:
+                wallets.append(extra["wallet"])
             prev, at = self.funding(spk, value)
             total += value
             tx.vin.append(CTxIn(COutPoint(prev.txid_int, at), b"", seq))
@@ -991,7 +1209,7 @@ class Sign(Area):
                 ins[i] = ins[i] + added
         raw = write(g, ins, outs)
         held = [s for s, _ in self.ours]
-        self.round(raw, held, [], network, masters)
+        self.round(raw, held, [], network, masters, wallets=wallets)
 
     def sighash(self, i, n_out, taproot):
         choices = (TAPROOT if taproot else STANDARD)
@@ -1031,12 +1249,21 @@ class Sign(Area):
         if kind == "multi":
             n = self.rng.randrange(1, 6)
             need = self.rng.randrange(1, n + 1)
-            slots = [self.key(48, self.holder(), 2) for _ in range(n)]
+            registered = n > 1 and self.rng.random() < 0.5
+            if registered:
+                slots, exprs = self.wallet_keys(n)
+            else:
+                slots = [self.key(48, self.holder(), 2) for _ in range(n)]
             keys = [s[0] for s in slots]
-            if self.rng.random() < 0.5:
+            ordered = self.rng.random() < 0.5
+            if ordered:
                 keys = sorted(keys)
             script = multisig_script(need, keys)
             wrap = self.rng.choice(["p2sh", "p2wsh", "p2sh-p2wsh"])
+            if registered:
+                body = f"{'sortedmulti' if ordered else 'multi'}({need},{','.join(exprs)})"
+                extra["wallet"] = {"p2sh": f"sh({body})", "p2wsh": f"wsh({body})",
+                                   "p2sh-p2wsh": f"sh(wsh({body}))"}[wrap]
             if wrap == "p2sh":
                 spk = p2sh(script)
                 fields.append((b"\x04", script))
@@ -1062,6 +1289,27 @@ class Sign(Area):
             fields += self.ht_field(self.sighash(i, n_out, True))
             return fields, spk, value, seq, extra
         return self.tree_input(i, n_out, value, extra)
+
+    def wallet_keys(self, n):
+        """`n` keys of a registered wallet at one chain and index, each at
+        its own BIP-48 account of a held or a foreign master: the slots
+        (pub, fingerprint, path, master) and each key's descriptor
+        expression."""
+        coin = HARDENED + (1 if self.test else 0)
+        chain, index = self.rng.randrange(0, 2), self.rng.randrange(0, 1 << 20)
+        slots, exprs, accounts = [], [], set()
+        while len(slots) < n:
+            master = self.holder() or self.new_master()[1]
+            account = self.rng.randrange(0, 1 << 20)
+            if (master.fingerprint(), account) in accounts:
+                continue
+            accounts.add((master.fingerprint(), account))
+            head = [48 + HARDENED, coin, account + HARDENED, 2 + HARDENED]
+            path = head + [chain, index]
+            slots.append((master.derive(path).pub, master.fingerprint(), path, master))
+            xpub = master.derive(head).neuter().serialize()
+            exprs.append(f"[{master.fingerprint().hex()}/{btc.path_text(head)[2:]}]{xpub}/<0;1>/*")
+        return slots, exprs
 
     def cosigners(self, slots):
         foreign = {fp: m for _, fp, _, m in slots
@@ -1106,17 +1354,25 @@ class Sign(Area):
 
     def ms_input(self, i, n_out, value, extra):
         template, n = self.rng.choice(self.MS)
-        slots = [self.key(48, self.holder(), 2) for _ in range(n)]
+        registered = n > 1 and self.rng.random() < 0.5
+        if registered:
+            slots, exprs = self.wallet_keys(n)
+        else:
+            slots = [self.key(48, self.holder(), 2) for _ in range(n)]
         older, after = self.locks(i)
         text = template.format(*[s[0].hex() for s in slots], N=older, T=after)
         script = SCRIPTS.add(text, False)
         fields = []
-        if self.rng.random() < 0.5:
+        native = self.rng.random() < 0.5
+        if native:
             spk = p2wsh(script)
             fields.append((b"\x05", script))
         else:
             spk = p2sh(p2wsh(script))
             fields += [(b"\x04", p2wsh(script)), (b"\x05", script)]
+        if registered:
+            body = template.format(*exprs, N=older, T=after)
+            extra["wallet"] = f"wsh({body})" if native else f"sh(wsh({body}))"
         for pk, fp, path, _ in slots:
             fields.append((b"\x06" + pk, ser_origin(fp, path)))
         extra["cosigners"] = self.cosigners(slots)

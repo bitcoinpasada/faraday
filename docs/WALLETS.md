@@ -183,6 +183,20 @@ non-cryptographic and live in `faraday-core`:
   read from Files, each kept only if it hashes to an outpoint being
   spent. It opens itself when the transaction needs it.
 - **Anything other than `SIGHASH_ALL`** stops, and those inputs are refused.
+- **A script of several keys** (a `multi`, a miniscript, a taproot leaf
+  of two or more keys) is signed only for a registered wallet whose
+  script it is at the chain and index the input states (F135); otherwise
+  the transaction is blocked, with no override (`WalletNotRegistered`).
+  A PSBT that carries its cosigners' extended keys (BIP 174's global
+  xpubs) and spends one `multi` shape offers **Register this wallet**:
+  its shape, its cosigners and which is yours, a name, and a hold that
+  adds the wallet once its descriptor gives every input's script and
+  every change output's that claims it and one of its keys is a loaded
+  key's own ("None of these keys is yours" otherwise); where the spend
+  cannot tell `sortedmulti` from `multi`, the sheet offers both, sorted
+  first. Otherwise the line says to load the wallet's descriptor. A
+  wallet that holds none of the loaded keys, however it came in,
+  verifies no change and signs nothing of several keys.
 - Fee, dust, network, unknown paths and the deterministic nonce check
   are shown.
 

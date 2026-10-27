@@ -175,7 +175,7 @@ fn sheets() -> Vec<Sheet> {
         SecretOut, WriteOut, IdleWarn, Potential, Import, Pull, Chart, BoardList, BoardSees,
         BoardPartials, BoardMenu, SeedRead, Delete, Zeroing, Taken, Devices, VaultSave,
         CancelFlow(Going::Create), CancelKey, FileMenu, Rename, Details, UnlockLoad,
-        PassphraseSeeds, GpgSign, Mode, Samples, NavMenu, KeyLengths, KeyPath)
+        PassphraseSeeds, GpgSign, Mode, Samples, NavMenu, KeyLengths, KeyPath, Register)
 }
 
 fn flow_steps() -> Vec<FlowStep> {
@@ -1118,5 +1118,64 @@ fn nothing_is_cut_off_where_a_wallet_states_another_key_spends_it_alone() {
     rig.press(Action::Step(step::TRANSACTION));
     rig.settle();
     found.extend(check(&mut rig, "the spend's check").0);
+    assert_none(&found);
+}
+
+/// A spend from a wallet not registered here, its PSBT carrying the
+/// cosigners' extended keys: the spend's check with the blocked line and
+/// **Register this wallet**, the sheet with the wallet's shape, its three
+/// cosigners, the name and the hold, the sheet refusing a PSBT whose keys
+/// do not give its input, and the spend once registered, are
+/// whole on the Pi panel.
+#[test]
+fn nothing_is_cut_off_where_a_wallet_is_registered_from_its_spend() {
+    let k = kit("savings");
+    let unsigned = testkit::unsigned_with_xpubs(&k).unwrap();
+    // The same spend whose third key's entry is another account's key.
+    let c = testkit::compute();
+    let policy = faraday_bip::policy::WalletPolicy::parse_any(&c, &k.descriptor).unwrap();
+    let other = faraday_bip::policy::WalletPolicy::parse_any(
+        &c,
+        &format!("wpkh({}/<0;1>/*)", testkit::key(2, "m/48'/1'/1'/2'")),
+    )
+    .unwrap();
+    let mut wrong = unsigned.clone();
+    let xpubs = &mut wrong.inner_mut().xpub;
+    let origin = xpubs.remove(policy.keys()[2].xpub()).unwrap();
+    xpubs.insert(*other.keys()[0].xpub(), origin);
+    let mut rig = rig(
+        On::Stick,
+        Mode::Testnet,
+        vec![
+            ("savings-unsigned.psbt".to_string(), unsigned.to_bytes()),
+            ("savings-wrong.psbt".to_string(), wrong.to_bytes()),
+        ],
+    );
+    add_key(&mut rig, testkit::TEST_SEEDS[0].0);
+    rig.press(Action::StartSpend(1));
+    rig.press(Action::RegisterOpen);
+    rig.press(Action::RegisterHold);
+    rig.settle();
+    assert!(rig.session.wallets.is_empty());
+    let mut found = check(&mut rig, "the register sheet, refused").0;
+    rig.press(Action::RegisterCancel);
+    rig.press(Action::StartSpend(0));
+    assert!(rig.spend().is_some());
+    if rig.spend().unwrap().open != Some(step::TRANSACTION) {
+        rig.press(Action::Step(step::TRANSACTION));
+    }
+    rig.settle();
+    found.extend(check(&mut rig, "the spend's check, blocked").0);
+    rig.press(Action::RegisterOpen);
+    rig.settle();
+    assert_eq!(rig.sheet, Some(Sheet::Register));
+    found.extend(check(&mut rig, "the register sheet").0);
+    rig.press(Action::RegisterField);
+    rig.settle();
+    found.extend(check(&mut rig, "the register sheet, its name typed").0);
+    rig.press(Action::RegisterHold);
+    rig.settle();
+    assert_eq!(rig.session.wallets.len(), 1);
+    found.extend(check(&mut rig, "the spend, registered").0);
     assert_none(&found);
 }

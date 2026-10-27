@@ -54,7 +54,7 @@
 //!   `chart_edit`, `boot_import`, `backup_flow/wallet.rs` and `codex32_correct` (§8.4's correction, with its `screen.rs`). They hold
 //!   handles and public results; key use is `faraday-keys` (F70,
 //!   `docs/KEYS.md`), and `tools/lint-secrets.sh` rule 4 holds it.
-//! - Wallets and PSBTs: `plan`, `decode`, `family`, `explore`, `catalog`.
+//! - Wallets and PSBTs: `plan`, `decode`, `family`, `explore`, `catalog`, `register`.
 //! - Backups and the backup flow: `backup_flow`, `backups`, `board`,
 //!   `held` (the backup before spending), `restore`, `wallet_backup`,
 //!   `bstep` (the checklist's items, numbered), `codex32_backup` (its
@@ -195,6 +195,7 @@ pub mod decode;
 pub mod explore;
 pub mod family;
 pub mod plan;
+mod register;
 
 // Backups and the backup flow.
 pub mod backup_flow;
@@ -263,7 +264,7 @@ use faraday_crypto::work::Compute;
 use faraday_draw::Canvas;
 use faraday_shell_api::{App, Command, DisplayInfo, Event, Frame, Key as KeyIn, TouchPhase};
 
-use wallet::{FileKind, KeyTexts, Session, Spend, fp_text};
+use wallet::{FileKind, KeyTexts, Session, fp_text};
 
 /// Minutes without input before the session locks, at first (F58).
 pub const IDLE_LOCK_MIN: u16 = 30;
@@ -382,8 +383,7 @@ struct Disclosed {
 /// (`faraday-files` `MAX_READ`): a larger one is listed and not read.
 pub const READ_MAX: u64 = 18 * 1024 * 1024;
 
-/// A file named as Faraday names a seed it writes out: its words, its
-/// SeedQR, a BIP-85 child.
+/// A file named as Faraday names a seed it writes out: its words, its SeedQR, a BIP-85 child.
 fn seed_by_name(name: &str) -> bool {
     let lower = name.to_ascii_lowercase();
     lower.ends_with("words.txt") || lower.ends_with("seedqr.png") || lower.starts_with("bip85-")
@@ -636,6 +636,8 @@ pub enum Sheet {
     /// waiting to be added: the danger line naming that key, Cancel, and
     /// a hold that adds it (F132).
     KeyPath,
+    /// The wallet a spend's PSBT defines, to register with a hold (F135).
+    Register,
     /// A vault record's Save to a stick: its files, to tick, and Save
     /// (`docs/BACKUP-FLOW.md` §17.7).
     VaultSave,
@@ -2484,76 +2486,6 @@ impl Faraday {
         self.out.commands.push_back(Command::Exit);
     }
 
-    fn start_spend(&mut self, index: usize) {
-        let c = self.compute();
-        let Some(name) = self.inbox.get(index).map(|i| i.name.clone()) else {
-            return;
-        };
-        let Some(psbt) = self.spend_source(&c, index) else {
-            return;
-        };
-        if let Err(e) = self.session.follow_psbt(&psbt) {
-            self.toast(&e.text());
-            return;
-        }
-        let spend = Spend::new(psbt, &name);
-        // Inspected once here; `refresh_spend` below finds it current.
-        let inspection = self.session.inspect(&c, &spend.psbt);
-        let inputs = self.session.inspect_inputs();
-        let mut state = SpendState::new(spend, inspection, inputs);
-        state.done[0] = true;
-        self.wallets.set_spend(state);
-        self.refresh_spend();
-        self.screen = Screen::Spend;
-    }
-
-    fn refresh_spend(&mut self) {
-        let c = self.compute();
-        if let Some(s) = self.wallets.spend_mut() {
-            // Inspected once each time the PSBT or the session changes,
-            // not on every press that refreshes the spend.
-            let inputs = self.session.inspect_inputs();
-            if !s.inspected_for(&inputs) {
-                s.inspection = self.session.inspect(&c, &s.spend.psbt);
-                s.inspected = Some((s.spend.psbt.clone(), inputs));
-            }
-            s.signers = s
-                .spend
-                .signers_by(&c, &self.session, Some(&s.inspection))
-                .iter()
-                .map(|f| f.0)
-                .collect();
-            s.wallet = self.session.wallet_for(&c, &s.spend.psbt);
-            let wallet = s.wallet.and_then(|w| self.session.wallets.get(w));
-            let kind = wallet.map(|w| wallet::Kind::of(w.policy()));
-            s.needed = wallet.map(wallet::needed).unwrap_or(1);
-            // With no wallet loaded the signers come from the PSBT alone,
-            // and a second device may still be needed.
-            let kind = kind.unwrap_or(if s.inspection.participating_keys.len() > 1 {
-                wallet::Kind::Multi(faraday_bip::policy::Wrapper::Wsh)
-            } else {
-                wallet::Kind::Single(faraday_bip::keys::ScriptType::NativeSegwit)
-            });
-            s.steps = kind.steps();
-            s.complete = s.spend.finished.is_some() || s.spend.finish().is_ok();
-            // Check is done already, this power-on, when this wallet was
-            // checked before (`docs/WALLETS.md` §4): the flow opens on
-            // the next card without a default instead.
-            if let Some(wallet) = wallet {
-                let checksum = wallet.checksum().to_string();
-                if self.memory.is_checked(&checksum) {
-                    s.done[wallet::step::CHECK as usize] = true;
-                }
-            }
-            let stale = s.open.is_some_and(|open| !s.steps.contains(&open));
-            if stale || !s.opened {
-                s.open = s.steps.iter().copied().find(|&n| !s.done[n as usize]);
-                s.opened = true;
-            }
-        }
-        self.spend_files_out();
-    }
-
     /// Finish makes both results For the stick the moment the
     /// transaction is finished: the signed PSBT and the finished
     /// transaction. One the person removed is not made again unless they
@@ -3051,6 +2983,11 @@ impl Faraday {
             | Action::IdleLock(..)
             | Action::IdleOff(..)) => self.power_act(a, &c),
             a @ (Action::KeyPathHold | Action::KeyPathCancel) => self.key_path_act(a),
+            a @ (Action::RegisterOpen
+            | Action::RegisterField
+            | Action::RegisterHold
+            | Action::RegisterCancel
+            | Action::RegisterReading(_)) => self.register_act(a),
             a @ (Action::InputUse(..)
             | Action::InputIgnore(..)
             | Action::Mode(..)

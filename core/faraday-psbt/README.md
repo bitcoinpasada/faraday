@@ -40,6 +40,7 @@ key:
 | `total_in`, `total_out`, `amount_to_others`, `change_total`, `is_self_transfer` | totals; unverified change counts as "others" |
 | `participating_keys` | loaded keys that can sign at least one input |
 | `multisig` | `m`, `n`, cosigners in script order with fingerprint / signed / ours |
+| `register` | the wallet the PSBT defines, offered for registering (below), when the only blocks are `WalletNotRegistered` |
 | `warnings[]` | ranked `Info` / `Caution` / `Danger` / `Blocked`, blocks first |
 
 Supported input scripts: p2pkh (BIP-44), p2sh-p2wpkh (BIP-49), p2wpkh
@@ -95,9 +96,50 @@ bytes, and BIP-44/49/84/86/48 paths whose coin type is not the context's.
 | `UnusualSighash` | Danger | `NONE` (outputs not committed to), `SINGLE` on an input that has an output of its index (only that output is committed to), or a non-standard value |
 | `UnusualSighash` | Blocked | `SINGLE` on an input with no output of its index: the signature would commit to nothing; `sign` refuses with or without `force` |
 | `ChangeSpoof`, `UtxoMismatch`, `AmountUnverified` | Blocked | the coordinator is lying or hiding what it spends; `sign` refuses with or without `force`. `UtxoMismatch` covers the BIP-174 signer checks (wrong `non_witness_utxo`, redeem/witness script not matching the program, outputs above inputs); `AmountUnverified` is a SegWit v0 input with no `non_witness_utxo` in a transaction with more than one input |
+| `WalletNotRegistered` | Blocked | an input that names a loaded key spends a script of several keys (a `multi` of two or more, a miniscript naming two or more, a taproot script path that carries leaves which, with its internal key unless that is BIP 341's unspendable point, name two or more, or which are not its whole tree; a taproot input carrying no leaf spends its key path and is not held) and no registered wallet that holds a loaded key gives its script at the chain and index it states; `sign` refuses with or without `force` |
 | `MissingUtxo`, `NoParticipatingKey`, `NetworkMismatch` | Danger | see above |
 | `UnverifiedChange`, `UnknownDerivation`, `AddressReuse`, `NonStandardScript`, `UnsupportedInput` | Caution | `NonStandardScript` is `Info` for a zero-value OP_RETURN |
 | `MixedScriptTypes`, `LocktimeInFuture` | Info | the signer has no clock; a set locktime is reported, not judged |
+
+## Registering a wallet from the PSBT
+
+An input of several keys is signed only for a registered wallet
+(`WalletNotRegistered` above). A PSBT whose only blocks are those, and
+which carries BIP 174's global xpubs, offers its wallet
+(`Inspection::register`, a `Registration`) when:
+
+- every blocked input is a `multi` of one shape: one wrapper (p2sh,
+  p2wsh or p2sh-p2wsh), one threshold, one count of keys;
+- every key of those inputs states its origin, and exactly one global
+  xpub has that origin less its last two steps (a chain, 0 or 1, and an
+  unhardened index);
+- the keys are sorted in every input (`sortedmulti`), or are in one
+  order of cosigners in every input (`multi`); where both hold, each
+  reading is tried against the spend's scripts and those that give them
+  all are offered (`Registration::readings`, `sortedmulti` first);
+- no key's origin is the master itself.
+
+`register(&psbt, &registration, reading, yours)` writes the descriptor
+(`wsh(sortedmulti(2,[fp/path]xpub/<0;1>/*,…))`), reads it as a
+`WalletPolicy`, and returns it only once it gives the script of every
+input of that shape at the chain and index the input states, and of every
+output whose key origins name one of its chains;
+`RegisterRefusal::Input(i)` or `Output(i)` names the first it does not
+give, `RegisterRefusal::NotYourKey(i)` where cosigner `i` is under a
+loaded fingerprint and is not what `yours` (the loaded key's own,
+worked out from it) gives at its path, and `RegisterRefusal::NotYours`
+where no cosigner is.
+
+A registered wallet counts only where it holds a loaded key
+(`Context::holds`: one of its keys is a loaded key's own extended key at
+its path, from `KeyRef`'s accounts or `KeyRef::extra`, and none under a
+loaded fingerprint is another key): one that holds none verifies no
+change and lets no input of several keys be signed. A cosigner is the
+person's only where the loaded key itself derives it; a wallet's xpub
+under the person's fingerprint is not taken for theirs.
+
+A key origin of more than `faraday_bip::keys::MAX_PATH_STEPS` (16)
+steps anywhere in a PSBT is refused when it is parsed.
 
 ## Signing
 

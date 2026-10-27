@@ -327,6 +327,12 @@ impl From<Fingerprint> for bitcoin::bip32::Fingerprint {
 /// checksum encode to at most 112 characters.
 pub const XPRIV_ASCII_MAX: usize = 112;
 
+/// The most steps a key origin's path may have, in a wallet's keys or a
+/// PSBT's. No wallet standard goes past six (BIP-48's four, a chain and
+/// an index); a path longer than this is refused, never cut, so that a
+/// derivation from it stays one bounded piece of work.
+pub const MAX_PATH_STEPS: usize = 16;
+
 /// An extended private key in its base58check text form, in a fixed
 /// buffer that zeroizes on drop. Explore shows it behind its eye; BIP-85
 /// writes its children's.

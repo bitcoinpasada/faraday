@@ -1,9 +1,9 @@
 //! Multisig: a 2-of-3 `sortedmulti` p2wsh built from three test seeds,
 //! and the BIP-174 role chain (p2sh and p2sh-p2wsh 2-of-2) signed,
 //! finalized and extracted against the vectors Bitcoin Core produced.
-//! The role chain's p2sh-p2wsh input carries no previous transaction, so
-//! the signer blocks it, finalized or not, and the chain is followed from
-//! the combiner vector.
+//! The role chain's wallet is not registered here and its p2sh-p2wsh
+//! input carries no previous transaction, so the signer blocks it,
+//! finalized or not, and the chain is followed from the combiner vector.
 
 use std::str::FromStr;
 
@@ -48,15 +48,16 @@ fn two_of_three_sortedmulti() {
     );
     let unsigned = psbt.clone();
 
-    // Two of the three keys are loaded.
+    // Two of the three keys are loaded, and the wallet is registered.
     let keys = [
         KeyRef::from_master(&c, &abandon, 0).unwrap(),
         KeyRef::from_master(&c, &zoo, 0).unwrap(),
     ];
+    let wallets = [multisig_policy(&[&abandon, &zoo, &legal], 2, NET)];
     let ctx = Context {
         network: NET,
         keys: &keys,
-        wallets: &[],
+        wallets: &wallets,
         musig_session: None,
     };
     let insp = inspect(&c, &psbt, &ctx);
@@ -180,7 +181,7 @@ fn two_of_three_sortedmulti() {
     let ctx = Context {
         network: NET,
         keys: &keys,
-        wallets: &[],
+        wallets: &wallets,
         musig_session: None,
     };
     let mut fresh = unsigned.clone();
@@ -241,17 +242,14 @@ fn multisig_participation_by_fingerprint_only() {
     );
 }
 
-/// The BIP-174 chain, as far as this signer will go down it. The
-/// vector's p2sh-p2wsh input carries `witness_utxo` and no previous
-/// transaction, which this signer refuses, so the vector as published is
-/// blocked. With that input arriving already final — the state the
-/// finalizer vector leaves it in — the legacy input beside it is signed,
-/// and its two signatures, the finalizer PSBT and the extracted
-/// transaction are the vectors' own bytes.
-///
-/// The vectors were made without grinding — one of the legacy input's
-/// signatures carries a 33-byte `r` — so they are the First setting's
-/// bytes.
+/// The BIP-174 chain, as far as this signer will go down it. Both
+/// inputs spend 2-of-2 scripts of a wallet that is not registered here
+/// and cannot be (its keys sit at hardened leaves, and the vector
+/// carries no global xpubs), and the p2sh-p2wsh input carries
+/// `witness_utxo` and no previous transaction, so the vector as
+/// published is blocked, and stays blocked with that input already
+/// final. The finalizer and extractor are followed from the combiner
+/// vector, which holds Bitcoin Core's signatures.
 #[test]
 #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn bip174_signer_finalizer_extractor() {
@@ -317,9 +315,20 @@ fn bip174_signer_finalizer_extractor() {
             .all(|w| w.kind != WarningKind::ChangeSpoof)
     );
 
-    // Input 1 states its amount and carries nothing that commits to it,
-    // so the vector as published is refused however it is asked.
-    assert_eq!(insp.blocked(), vec![WarningKind::AmountUnverified]);
+    // Both inputs spend scripts of two keys that no registered wallet
+    // gives, and input 1 states its amount and carries nothing that
+    // commits to it, so the vector as published is refused however it is
+    // asked. Its keys sit at hardened leaves (m/0'/0'/n'), which no
+    // wallet's `/<0;1>/*` derives and no global xpub could define, so
+    // nothing is offered to register and the chain cannot be signed
+    // here at all.
+    let held = vec![
+        WarningKind::WalletNotRegistered,
+        WarningKind::AmountUnverified,
+        WarningKind::WalletNotRegistered,
+    ];
+    assert_eq!(insp.blocked(), held);
+    assert!(insp.register.is_none());
     for force in [false, true] {
         assert_eq!(
             sign(
@@ -334,7 +343,7 @@ fn bip174_signer_finalizer_extractor() {
                 &mut None,
                 &faraday_crypto::Zeroizing::new([0u8; 32]),
             ),
-            Err(Error::Blocked(vec![WarningKind::AmountUnverified])),
+            Err(Error::Blocked(held.clone())),
             "forced {force}"
         );
     }
@@ -352,10 +361,11 @@ fn bip174_signer_finalizer_extractor() {
     let finalizer = Psbt::parse_bytes(&c, &unhex(get("finalizer").get("hex"))).unwrap();
     let mut psbt = Psbt::parse_bytes(&c, &unhex(get("updater-sighash-all").get("hex"))).unwrap();
     psbt.inner_mut().inputs[1] = finalizer.inner().inputs[1].clone();
-    assert_eq!(
-        inspect(&c, &psbt, &ctx).blocked(),
-        vec![WarningKind::AmountUnverified]
-    );
+    let held = vec![
+        WarningKind::WalletNotRegistered,
+        WarningKind::AmountUnverified,
+    ];
+    assert_eq!(inspect(&c, &psbt, &ctx).blocked(), held);
     assert_eq!(
         sign(
             &c,
@@ -369,7 +379,7 @@ fn bip174_signer_finalizer_extractor() {
             &mut None,
             &faraday_crypto::Zeroizing::new([0u8; 32]),
         ),
-        Err(Error::Blocked(vec![WarningKind::AmountUnverified]))
+        Err(Error::Blocked(held))
     );
 
     // The rest of the chain from the combiner vector, which holds both
@@ -402,10 +412,11 @@ fn multisig_under_low_r() {
         KeyRef::from_master(&c, &abandon, 0).unwrap(),
         KeyRef::from_master(&c, &zoo, 0).unwrap(),
     ];
+    let wallets = [multisig_policy(&[&abandon, &zoo, &legal], 2, NET)];
     let ctx = Context {
         network: NET,
         keys: &keys,
-        wallets: &[],
+        wallets: &wallets,
         musig_session: None,
     };
     let recipient = legal

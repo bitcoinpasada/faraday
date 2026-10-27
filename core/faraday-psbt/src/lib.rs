@@ -44,6 +44,18 @@
 //! is not yet spendable or a cosigner who has not signed leaves the
 //! transaction partial.
 //!
+//! An input spent from a script of several keys (a `multi` of two or
+//! more, a miniscript naming two or more, a taproot script path whose
+//! carried leaves name two or more with its internal key or are not its
+//! whole tree) that names
+//! a loaded key is signed only when a registered wallet
+//! ([`Context::wallets`]) that holds a loaded key ([`Context::holds`])
+//! gives its script at the chain and index it
+//! states; otherwise it is a [`Level::Blocked`] warning,
+//! [`WarningKind::WalletNotRegistered`]. A PSBT that carries every
+//! cosigner's extended key (BIP 174's global xpubs) offers its wallet
+//! for registering ([`Inspection::register`], [`register()`]).
+//!
 //! A SegWit v0 input of a transaction with more than one input must
 //! carry the transaction it spends (`non_witness_utxo`). BIP-143 signs
 //! the amount the PSBT states, so without that transaction the amount is
@@ -80,6 +92,7 @@ mod inspect;
 pub mod message;
 pub mod musig;
 mod psbt;
+mod register;
 mod sign;
 pub mod silent;
 pub mod transaction;
@@ -97,6 +110,7 @@ pub use inspect::{
 };
 pub use musig::{MusigSession, MusigSessionView};
 pub use psbt::{Error, Psbt};
+pub use register::{Reading, RegisterRefusal, RegisteredKey, Registration, register};
 pub use sign::{Aux, InputSignature, MusigRole, Nonce, Schnorr, SigKind, SignResult, sign};
 
 /// The rust-bitcoin version this crate is built against, re-exported so

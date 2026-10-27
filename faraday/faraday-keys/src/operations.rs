@@ -114,9 +114,14 @@ impl Keys {
         bip85::child(c, self.secrets(i)?.master, app, index).map(Held::of)
     }
 
-    /// Costs a key derivation and an elliptic-curve multiplication. The
-    /// extended public key at `path` below key `i`.
+    /// Costs a key derivation of at most
+    /// [`faraday_bip::keys::MAX_PATH_STEPS`] steps and an elliptic-curve
+    /// multiplication. The extended public key at `path` below key `i`;
+    /// `None` for a longer path, which no wallet has.
     pub fn xpub_at(&self, c: &Compute, i: usize, path: &DerivationPath) -> Option<Xpub> {
+        if path.len() > faraday_bip::keys::MAX_PATH_STEPS {
+            return None;
+        }
         Some(self.secrets(i)?.master.derive(c, path).to_xpub(c))
     }
 

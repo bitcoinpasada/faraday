@@ -117,8 +117,7 @@ impl VaultArea {
         &mut self.state.summaries
     }
 
-    /// Changes open vault `id`'s records through `change`
-    /// ([`Vaults::edit`]).
+    /// Changes open vault `id`'s records through `change` ([`Vaults::edit`]).
     pub(crate) fn edit<T>(&mut self, id: VaultId, change: impl FnOnce(&mut OpenVaults) -> T) -> T {
         self.state.edit(id, change)
     }
@@ -2332,6 +2331,7 @@ pub fn is_hold(a: Action) -> bool {
             | Action::HoldRestart
             | Action::SecretHold
             | Action::KeyPathHold
+            | Action::RegisterHold
     )
 }
 

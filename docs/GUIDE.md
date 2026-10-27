@@ -1440,6 +1440,8 @@ in its own words, in red for danger. A PSBT opened from Files (its
 | "fee … is …% of the amount sent" | the fee is a large share of the amount, or above 0.01 BTC | do not sign; write the payment again in Sparrow with a lower fee |
 | "fee rate is about … sat/vB" | 1,000 sat/vB or more | the same |
 | **Wallet** with **No loaded wallet matches**; on its card, "No loaded wallet matches this transaction. Change cannot be verified until its wallet is loaded." | the PSBT spends from a wallet not loaded here | load the right wallet, or the right PSBT |
+| "input … spends from a wallet of several keys that is not registered here; register the wallet to sign", with **Register this wallet** under it | the wallet this PSBT spends is not registered here, and the PSBT names its cosigners' keys | press **Register this wallet**: check the shape (**2 of 3, P2WSH, sorted**), the cosigners and the one marked **Yours**, then hold **Hold to register**; the card can then be signed |
+| the same, with "Load this wallet's descriptor to sign" under it | the wallet is not registered here and the PSBT does not carry its keys | load the wallet's descriptor (Files, a code, or **Restore an existing wallet**) |
 | **Amount unchecked** on **Spends** | an input's amount is only stated, not proved by its previous transaction | do not sign a transaction of several inputs; Faraday refuses one, with no way past |
 | **No key in this session signs this transaction** | none of the keys here is one of the transaction's | load the wallet's keys |
 
