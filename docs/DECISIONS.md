@@ -24,7 +24,7 @@ Read this table, then only the decision you need.
 | [F7](decisions/F7.md) | TOTP codes, and a clock the person can set | 2026-10-11 | Amended by F123 | keys |
 | [F8](decisions/F8.md) | Scan to sign, and a Spend tab that asks for data | 2026-10-11 | Active | wallets |
 | [F9](decisions/F9.md) | Writing over a file on a stick, and an Add glyph | 2026-10-11 | Active | stick |
-| [F10](decisions/F10.md) | The name as a wordmark | 2026-10-11 | Active | design |
+| [F10](decisions/F10.md) | The name as a wordmark | 2026-10-11 | Amended by F137 | design |
 | [F11](decisions/F11.md) | The Starter: one download that makes sticks and cards | 2026-10-12 | Amended by F12, F13, F30, F33, F128, F133 | Starter |
 | [F12](decisions/F12.md) | The Starter, reviewed: what the owner changed in v0.2 | 2026-10-12 | Amended by F30, F33 | Starter |
 | [F13](decisions/F13.md) | Faraday on Macs: the stick, the desktop app and the Starter | 2026-10-12 | Amended by F30 | platforms |
@@ -127,7 +127,7 @@ Read this table, then only the decision you need.
 | [F110](decisions/F110.md) | Faraday Desktop shows its screens at another screen's size | 2026-10-24 | Amended by F118 | design |
 | [F111](decisions/F111.md) | The Material 3 components and patterns Faraday leaves out | 2026-10-24 | Active | design |
 | [F112](decisions/F112.md) | One explanation on a working screen: the tooltip on "codex32" in Make a new wallet's Kind card | 2026-10-24 | Active | design |
-| [F113](decisions/F113.md) | Colour follows Material 3's colour system: ten seeded themes, Light and Dark, three contrast levels | 2026-10-24 | Amended by F126 | design |
+| [F113](decisions/F113.md) | Colour follows Material 3's colour system: ten seeded themes, Light and Dark, three contrast levels | 2026-10-24 | Amended by F126, F138 | design |
 | [F114](decisions/F114.md) | Wide content takes the room beside the navigation; reading content keeps its column | 2026-10-24 | Active | design |
 | [F115](decisions/F115.md) | A key flow opened from Make a new wallet has Cancel, back to it; a Keys card with one way on is passed over | 2026-10-24 | Active | design |
 | [F116](decisions/F116.md) | Faraday's scope: an offline signer and keeper of keys, Bitcoin first | 2026-10-25 | Active | scope |
@@ -151,3 +151,5 @@ Read this table, then only the decision you need.
 | [F134](decisions/F134.md) | Faraday signs a boot program only when it is a release's own | 2026-10-27 | Active | security |
 | [F135](decisions/F135.md) | A script of several keys is signed only for a registered wallet | 2026-10-27 | Active | wallets |
 | [F136](decisions/F136.md) | No way past a check without a legitimate reason | 2026-10-27 | Active | security |
+| [F137](decisions/F137.md) | The keyhole sits lower in the shield | 2026-10-26 | Active | design |
+| [F138](decisions/F138.md) | The floating action takes Material's primary colour style | 2026-10-27 | Active | design |

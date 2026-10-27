@@ -1066,8 +1066,8 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         let lit = stroke.mix(Color::rgb(0xff, 0xff, 0xff), 0.5);
         // The keyhole: a round head and a slot widening below it, wound
         // against the shield so that it is a hole.
-        let (cx, head_y, head_r) = (ox + sw / 2.0, oy + 0.28 * sh, 0.15 * sw);
-        let (waist, foot, foot_y) = (0.045 * sw, 0.15 * sw, oy + 0.61 * sh);
+        let (cx, head_y, head_r) = (ox + sw / 2.0, oy + 0.31 * sh, 0.15 * sw);
+        let (waist, foot, foot_y) = (0.045 * sw, 0.15 * sw, oy + 0.64 * sh);
         let join = (head_r * head_r - waist * waist).sqrt();
         let from = join.atan2(-waist);
         let to = join.atan2(waist) + std::f32::consts::TAU;
@@ -1751,8 +1751,9 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         width
     }
 
-    /// A floating action: a pill in the accent colour over the page, its
-    /// icon and its word, its bottom-right corner at (`right`, `bottom`).
+    /// A floating action: a pill over the page in Material's primary FAB
+    /// colour style (filled in primary, its icon and its word in
+    /// on-primary; F138), its bottom-right corner at (`right`, `bottom`).
     /// Returns its width.
     pub fn fab(&mut self, right: f32, bottom: f32, icon: Icon, label: &str, action: A) -> f32 {
         // Smaller on a small panel, where it floats over more of the page.
@@ -1773,24 +1774,13 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
             faraday_draw::tokens::ELEVATION_FAB
         };
         self.shadow(x, y, width, h, SHAPE_L, level);
-        self.fill(x, y, width, h, SHAPE_L, Role::PrimaryContainer);
-        self.state_layer(
-            (x, y, width, h, SHAPE_L),
-            Role::OnPrimaryContainer.paint(),
-            action,
-        );
+        self.fill(x, y, width, h, SHAPE_L, Role::Primary);
+        self.state_layer((x, y, width, h, SHAPE_L), Role::OnPrimary.paint(), action);
         self.focus_ring((x, y, width, h, SHAPE_L), action);
         let iy = y + (h - ICON_GLYPH) / 2.0;
-        self.icon(
-            x + pad,
-            iy,
-            ICON_GLYPH,
-            icon,
-            ICON_GLYPH,
-            Role::OnPrimaryContainer,
-        );
+        self.icon(x + pad, iy, ICON_GLYPH, icon, ICON_GLYPH, Role::OnPrimary);
         let at = (x + pad + lead, y, h);
-        self.text_mid_as(at, LABEL_L, Role::OnPrimaryContainer, label);
+        self.text_mid_as(at, LABEL_L, Role::OnPrimary, label);
         self.hit_drawn(x, y, width, h, action);
         width
     }

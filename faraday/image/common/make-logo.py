@@ -7,7 +7,7 @@ mark.txt); it is accepted and not drawn.
 The kernel draws its logo at the top left of the framebuffer and does
 not scale it, so the logo is made the size build.sh asks for: the whole
 panel on a Pi, a 320 x 320 square on a PC. The mark is a pixel grid of
-'#' (the stroke), 'o' (its lit edge) and '.' (black), scaled by a whole
+'#' (the stroke), 'o' (its lit edge) and '.' (the field), scaled by a whole
 number to about a quarter of the logo's width. The name is a 5x7 pixel
 font. Three colours, well inside the 224 a CLUT224 logo may use.
 
@@ -25,10 +25,12 @@ import os
 import sys
 
 BLACK = (0, 0, 0)
-# Faraday's: Cobalt's accent (#0062A3, faraday-ui's COBALT ACCENT), and its
-# lit edge, the accent mixed half with white as the app's `Ui::mark` draws it;
-# the name is drawn in the lit edge's blue, which reads on the black screen.
-FARADAY = {"#": (0x00, 0x62, 0xA3), "o": (0x80, 0xB1, 0xD1)}
+# The mark as the app's `Ui::mark` draws it in the default theme on its
+# Light page (faraday-ui's pal/schemes.rs, Cobalt Light at Standard
+# contrast): the field Cobalt Light's surface (#FAF8FF), the shield in
+# primary (#00327D), its edge primary mixed half with white, the name in
+# primary (owner, 2026-10-27).
+COLOURS = {"field": (0xFA, 0xF8, 0xFF), "#": (0x00, 0x32, 0x7D), "o": (0x80, 0x99, 0xBE), "name": (0x00, 0x32, 0x7D)}
 
 FARADAY_MARK = os.path.join(os.path.dirname(os.path.abspath(__file__)), "faraday-mark.txt")
 
@@ -40,6 +42,7 @@ FONT = {
     "Y": ["#...#", "#...#", ".#.#.", "..#..", "..#..", "..#..", "..#.."],
 }
 GLYPH_W, GLYPH_H, GLYPH_GAP = 5, 7, 1
+PHI = (1 + 5 ** 0.5) / 2
 
 
 def read_mark(path):
@@ -92,9 +95,11 @@ def draw_word(canvas, word, centre, top, scale, colour):
         blit(canvas, FONT[letter], {"#": colour}, left + i * (GLYPH_W + GLYPH_GAP) * scale, top, scale)
 
 
-def build(faraday, width, height):
+def build(faraday, width, height, golden=False):
     """Faraday's mark over FARADAY, the pair centred on the logo. The name
-    is set at the smallest whole scale that makes it wider than the mark."""
+    is set at the smallest whole scale that makes it wider than the mark.
+    With golden, the logo is a square whose side is the pair's longer side
+    times the golden ratio, the pair drawn at the size `width` gives it."""
     left, right, used_top, used_bottom = bounds(faraday)
     scale = max(1, round(width / 4 / (right - left)))
     text_scale = (right - left) * scale // word_width("FARADAY", 1) + 1
@@ -102,14 +107,18 @@ def build(faraday, width, height):
         text_scale -= 1
     gap = 2 * scale
     block = (used_bottom - used_top) * scale + gap + GLYPH_H * text_scale
+    if golden:
+        block_w = max((right - left) * scale, word_width("FARADAY", text_scale))
+        width = height = round(max(block, block_w) * PHI)
     top = max(0, (height - block) // 2)
     baseline = top + (used_bottom - used_top) * scale
     centre = width // 2
-    canvas = [[BLACK] * width for _ in range(height)]
+    colours = COLOURS
+    canvas = [[colours["field"]] * width for _ in range(height)]
     x = centre - (left + right) * scale // 2
     y = baseline - used_bottom * scale
-    blit(canvas, faraday, FARADAY, x, y, scale)
-    draw_word(canvas, "FARADAY", centre, baseline + gap, text_scale, FARADAY["o"])
+    blit(canvas, faraday, {"#": colours["#"], "o": colours["o"]}, x, y, scale)
+    draw_word(canvas, "FARADAY", centre, baseline + gap, text_scale, colours["name"])
     return canvas
 
 
@@ -128,15 +137,17 @@ def main():
     ap.add_argument("--width", type=int, required=True, help="logo width")
     ap.add_argument("--height", type=int, required=True, help="logo height")
     ap.add_argument("--out", required=True, help="the PPM to write")
+    ap.add_argument("--golden", action="store_true",
+                    help="a square the golden ratio around the mark and name (a display not known yet)")
     args = ap.parse_args()
     if args.width <= 0 or args.height <= 0:
         raise SystemExit("the panel has no pixels")
-    canvas = build(read_mark(args.faraday_mark), args.width, args.height)
+    canvas = build(read_mark(args.faraday_mark), args.width, args.height, args.golden)
     write_ppm(canvas, args.out)
     colours = {c for row in canvas for c in row}
     if len(colours) > 224:
         raise SystemExit(f"{len(colours)} colours; a CLUT224 logo may have 224")
-    print(f"logo {args.width}x{args.height}, {len(colours)} colours -> {args.out}", file=sys.stderr)
+    print(f"logo {len(canvas[0])}x{len(canvas)}, {len(colours)} colours -> {args.out}", file=sys.stderr)
 
 
 if __name__ == "__main__":

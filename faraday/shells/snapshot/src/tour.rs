@@ -198,6 +198,7 @@ impl Tour {
         }
         let size = self.size();
         let medium = self.app.medium;
+        let theme = self.app.theme();
         self.app = Faraday::new();
         self.app.medium = medium;
         // A lock keeps the mode, and the tours' wallets are on the test
@@ -207,6 +208,11 @@ impl Tour {
             self.app.devices = laptop();
         }
         self.app.event(display(size, self.dpi));
+        // A lock keeps the settings, the scheme among them
+        // (`FARADAY_SNAP_THEME`).
+        if theme != self.app.theme() {
+            self.app.press(Action::Theme(theme));
+        }
     }
 
     pub(crate) fn size(&mut self) -> (u16, u16) {

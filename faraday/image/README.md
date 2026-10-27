@@ -295,10 +295,17 @@ The framebuffer console takes the display a second or two after power, well
 before the app has a frame, and paints the kernel's logo on it.
 `common/make-logo.py` generates that logo at the panel's exact size:
 `common/faraday-mark.txt` is Faraday's mark as a pixel grid, scaled by a
-whole number to about a quarter of the logo's width and centred on black,
-with the word FARADAY under it in a 5 × 7 pixel font the script holds. The kernel
-draws its logo at the top left and does not scale it, so a full-panel image
-is how a mark is centred.
+whole number to about a quarter of the logo's width, with the word FARADAY
+under it in a 5 × 7 pixel font the script holds. The kernel draws its logo
+at the top left and does not scale it, so a full-panel image is how a mark
+is centred; a PC's display is not known until it is on, so its logo is a
+square, its side the mark and name's longer side times the golden ratio
+(the pair drawn at the size a 320-wide logo gives it), that
+`fbcon=logo-pos:center` puts in the middle. The logo
+is drawn as the app's Light page: Cobalt Light's surface, the shield in
+primary with its edge lit half with white, the name in primary (owner,
+2026-10-27). On the Pi it is the whole screen; on a PC it is a light square
+in the middle of a black one.
 
 `external.mk` copies the generated file over the kernel's own
 `drivers/video/logo/logo_linux_clut224.ppm` when the tree is unpacked, and

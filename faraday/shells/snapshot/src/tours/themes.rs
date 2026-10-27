@@ -57,6 +57,8 @@ pub(crate) fn themes_tour(t: &mut Tour) -> Result<(), String> {
         t.press(Action::Nav(Screen::Backup));
         t.shot(&format!("theme-{slug}-board"))?;
         t.press(Action::Nav(Screen::Settings));
+        // Settings is a list of its sections; Appearance is the fifth.
+        t.press(Action::SettingsSection(Some(4)));
         scroll_to(t, Action::Theme(theme));
         t.shot(&format!("theme-{slug}-appearance"))?;
     }
@@ -73,6 +75,8 @@ pub(crate) fn themes_tour(t: &mut Tour) -> Result<(), String> {
     let first = Theme::default();
     t.press(Action::Theme(first));
     t.press(Action::Nav(Screen::Settings));
+    // Settings is a list of its sections; Appearance is the fifth.
+    t.press(Action::SettingsSection(Some(4)));
     scroll_to(t, Action::Theme(first));
     t.shot("settings-appearance")?;
     scroll_to(t, Action::ReduceMotion(!t.app.reduce_motion()));
@@ -84,6 +88,8 @@ pub(crate) fn themes_tour(t: &mut Tour) -> Result<(), String> {
     ] {
         t.press(Action::Theme(theme));
         t.press(Action::Nav(Screen::Settings));
+        // Settings is a list of its sections; Appearance is the fifth.
+        t.press(Action::SettingsSection(Some(4)));
         scroll_to(t, Action::Theme(theme));
         t.shot(&format!("settings-appearance-{}", theme.slug()))?;
     }

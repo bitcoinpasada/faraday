@@ -290,8 +290,12 @@ fi
 logo_w="${LOGO_WIDTH:-${WIDTH:-}}"
 logo_h="${LOGO_HEIGHT:-${HEIGHT:-}}"
 [ -n "$logo_w" ] || { echo "$panel_dir/panel.conf has neither WIDTH nor LOGO_WIDTH" >&2; exit 1; }
+# A display not known yet gets a square the golden ratio around the mark
+# and its name, the pair at the size LOGO_WIDTH gives it (owner, 2026-10-27).
+golden=()
+[ -z "${LOGO_WIDTH:-}" ] || golden=(--golden)
 python3 "$image/common/make-logo.py" --mark "$image/common/mark.txt" \
-    --width "$logo_w" --height "$logo_h" --out "$gen/logo.ppm"
+    --width "$logo_w" --height "$logo_h" "${golden[@]}" --out "$gen/logo.ppm"
 
 # ---- the paths fragment: every Buildroot option whose value is a list of
 # files, which is to say every option that depends on which parts are in

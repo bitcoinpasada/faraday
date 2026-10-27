@@ -272,7 +272,7 @@ the same.
 | Tonal button | secondary-container | on-secondary-container | |
 | Outlined button | none | primary | outline |
 | Text button | none | primary | |
-| Floating action | primary-container | on-primary-container | shadow, level 3 |
+| Floating action | primary (Material's primary FAB colour style, F138) | on-primary | shadow, level 3; state layer on-primary |
 | Card (Faraday's, edged) | surface-container-low | on-surface; on-surface-variant for supporting text | outline-variant |
 | Outlined card (Material's) | surface | on-surface | outline-variant |
 | Filled card | surface-container-highest | on-surface | |

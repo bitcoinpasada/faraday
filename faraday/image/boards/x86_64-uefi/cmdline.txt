@@ -5,7 +5,7 @@
 # internal ports; every other USB device waits for faraday-grant, which
 # authorises its interfaces one class at a time (docs/history/PLAN.md §4.6).
 #
-# fbcon=logo-pos:center: a PC's boot logo is a 320 x 320 square (its
+# fbcon=logo-pos:center: a PC's boot logo is a small square (its
 # panel's size is not known when the image is built), which the kernel
 # would draw at the top left of the screen; this puts it in the middle.
 #
