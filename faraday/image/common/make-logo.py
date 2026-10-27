@@ -11,8 +11,11 @@ panel on a Pi, a 320 x 320 square on a PC. The mark is a pixel grid of
 number to about a quarter of the logo's width. The name is a 5x7 pixel
 font. Three colours, well inside the 224 a CLUT224 logo may use.
 
-The same faraday-mark.txt is Faraday's mark in the app's sidebar
-(faraday-core `Ui::mark`).
+faraday-mark.txt is Faraday's mark as the app draws it (faraday-ui
+`Ui::mark`, F140) at 17 x 23 squares, set by hand: the edge one square
+wide all round and a stair of one square a row to the tip, as the even
+band reads at this size, and the keyhole's neck one square, so its head
+stands apart from its slot.
 
 The output is a plain (ASCII, P3) PPM: the kernel's pnmtologo refuses
 binary PNM ("Binary PNM is not supported").

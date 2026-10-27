@@ -24,7 +24,7 @@ Read this table, then only the decision you need.
 | [F7](decisions/F7.md) | TOTP codes, and a clock the person can set | 2026-10-11 | Amended by F123 | keys |
 | [F8](decisions/F8.md) | Scan to sign, and a Spend tab that asks for data | 2026-10-11 | Active | wallets |
 | [F9](decisions/F9.md) | Writing over a file on a stick, and an Add glyph | 2026-10-11 | Active | stick |
-| [F10](decisions/F10.md) | The name as a wordmark | 2026-10-11 | Amended by F137 | design |
+| [F10](decisions/F10.md) | The name as a wordmark | 2026-10-11 | Amended by F137, F140 | design |
 | [F11](decisions/F11.md) | The Starter: one download that makes sticks and cards | 2026-10-12 | Amended by F12, F13, F30, F33, F128, F133 | Starter |
 | [F12](decisions/F12.md) | The Starter, reviewed: what the owner changed in v0.2 | 2026-10-12 | Amended by F30, F33 | Starter |
 | [F13](decisions/F13.md) | Faraday on Macs: the stick, the desktop app and the Starter | 2026-10-12 | Amended by F30 | platforms |
@@ -151,6 +151,7 @@ Read this table, then only the decision you need.
 | [F134](decisions/F134.md) | Faraday signs a boot program only when it is a release's own | 2026-10-27 | Active | security |
 | [F135](decisions/F135.md) | A script of several keys is signed only for a registered wallet | 2026-10-27 | Active | wallets |
 | [F136](decisions/F136.md) | No way past a check without a legitimate reason | 2026-10-27 | Active | security |
-| [F137](decisions/F137.md) | The keyhole sits lower in the shield | 2026-10-26 | Active | design |
+| [F137](decisions/F137.md) | The keyhole sits lower in the shield | 2026-10-26 | Amended by F140 | design |
 | [F138](decisions/F138.md) | The floating action takes Material's primary colour style | 2026-10-27 | Active | design |
 | [F139](decisions/F139.md) | A compact top app bar's title steps down to Title M where Title L would be cut | 2026-10-27 | Active | design |
+| [F140](decisions/F140.md) | The mark in golden proportions | 2026-10-27 | Active | design |

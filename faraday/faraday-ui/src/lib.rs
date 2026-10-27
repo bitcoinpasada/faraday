@@ -12,6 +12,7 @@ mod controls;
 pub mod demo;
 pub mod keyboard;
 mod lists;
+mod mark;
 pub mod nav;
 pub mod parts;
 pub mod region;
@@ -82,9 +83,6 @@ fn bar_thickness(f: f32) -> i32 {
 
 /// Faraday's colours: the roles, the generated schemes and the paints.
 pub mod pal;
-
-/// Faraday's mark as a pixel grid, the one the boot logo is drawn from.
-const MARK: &str = include_str!("../../image/common/faraday-mark.txt");
 
 /// Faraday's name as outlines: SVG path data in font units.
 const WORDMARK: &str = include_str!("../assets/wordmark.txt");
@@ -1034,59 +1032,23 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
     }
 
     /// Faraday's mark in a box `w` by `h` units at (x, y): the keyhole
-    /// shield of the boot logo (`faraday/image/common/faraday-mark.txt`),
-    /// drawn as smooth outlines at the grid's proportions rather than its
-    /// squares, the shield in the accent with its rim lighter and the
-    /// keyhole cut through.
+    /// shield (`mark`), fitted to the box and centred, the shield in
+    /// primary with its band lit half with white and the keyhole cut
+    /// through. Its outlines are worked out once; drawing scales them.
     pub fn mark(&mut self, x: f32, y: f32, w: f32, h: f32) {
-        let rows: Vec<&[u8]> = MARK
-            .lines()
-            .filter(|l| !l.trim().is_empty())
-            .map(str::as_bytes)
-            .collect();
-        let used = |c: &u8| *c != b'.';
-        let Some(top) = rows.iter().position(|r| r.iter().any(used)) else {
-            return;
-        };
-        let bottom = rows.iter().rposition(|r| r.iter().any(used)).unwrap_or(top) + 1;
-        let left = rows
-            .iter()
-            .filter_map(|r| r.iter().position(used))
-            .min()
-            .unwrap_or(0);
-        let right = rows
-            .iter()
-            .filter_map(|r| r.iter().rposition(used))
-            .max()
-            .unwrap_or(left)
-            + 1;
-        // The grid's proportions, fitted to the box and centred.
-        let aspect = (bottom - top) as f32 / (right - left) as f32;
+        let m = mark::outlines();
         let area = self.rect(x, y, w, h);
-        let sw = (area.w as f32).min(area.h as f32 / aspect);
-        let sh = sw * aspect;
-        let ox = area.x as f32 + (area.w as f32 - sw) / 2.0;
-        let oy = area.y as f32 + (area.h as f32 - sh) / 2.0;
+        let s = (area.w as f32 / mark::WIDTH).min(area.h as f32 / mark::HEIGHT);
+        let ox = area.x as f32 + (area.w as f32 - s * mark::WIDTH) / 2.0;
+        let oy = area.y as f32 + (area.h as f32 - s * mark::HEIGHT) / 2.0;
+        let place = |o: &[(f32, f32)]| -> Vec<(f32, f32)> {
+            o.iter()
+                .map(|&(px, py)| (ox + px * s, oy + py * s))
+                .collect()
+        };
+        let (outer, inner, hole) = (place(&m.outer), place(&m.inner), place(&m.hole));
         let stroke = self.col(Role::Primary);
         let lit = stroke.mix(Color::rgb(0xff, 0xff, 0xff), 0.5);
-        // The keyhole: a round head and a slot widening below it, wound
-        // against the shield so that it is a hole.
-        let (cx, head_y, head_r) = (ox + sw / 2.0, oy + 0.31 * sh, 0.15 * sw);
-        let (waist, foot, foot_y) = (0.045 * sw, 0.15 * sw, oy + 0.64 * sh);
-        let join = (head_r * head_r - waist * waist).sqrt();
-        let from = join.atan2(-waist);
-        let to = join.atan2(waist) + std::f32::consts::TAU;
-        let mut hole: Vec<(f32, f32)> = (0..=48)
-            .map(|i| {
-                let a = from + (to - from) * i as f32 / 48.0;
-                (cx + head_r * a.cos(), head_y + head_r * a.sin())
-            })
-            .collect();
-        hole.extend([(cx + foot, foot_y), (cx - foot, foot_y)]);
-        hole.reverse();
-        let rim = (0.07 * sw).max(1.0);
-        let outer = shield(ox, oy, sw, sh);
-        let inner = shield(ox + rim, oy + rim, sw - 2.0 * rim, sh - 2.4 * rim);
         self.c.fill_contours(&[&outer, &hole], lit);
         self.c.fill_contours(&[&inner, &hole], stroke);
     }
@@ -1991,40 +1953,6 @@ pub fn thousands(n: u64) -> String {
         }
         out.push(ch);
     }
-    out
-}
-
-/// The shield's outline in a box `w` by `h` pixels at (x, y), clockwise:
-/// a flat top with rounded corners, straight sides to six tenths of the
-/// way down, and curved sides meeting in a point.
-fn shield(x: f32, y: f32, w: f32, h: f32) -> Vec<(f32, f32)> {
-    use std::f32::consts::{FRAC_PI_2, PI};
-    let r = 0.12 * w;
-    let mut out = Vec::new();
-    for (cx, from) in [(x + r, PI), (x + w - r, PI + FRAC_PI_2)] {
-        out.extend((0..=8).map(|i| {
-            let a = from + FRAC_PI_2 * i as f32 / 8.0;
-            (cx + r * a.cos(), y + r + r * a.sin())
-        }));
-    }
-    let side = y + 0.60 * h;
-    let tip = (x + w / 2.0, y + h);
-    // A quadratic curve from the foot of a side to the tip, its control
-    // point just inside the side.
-    let curve = |sx: f32, cx: f32| {
-        (0..=16).map(move |i| {
-            let t = i as f32 / 16.0;
-            let u = 1.0 - t;
-            let ctrl = (cx, side + 0.25 * h);
-            (
-                u * u * sx + 2.0 * u * t * ctrl.0 + t * t * tip.0,
-                u * u * side + 2.0 * u * t * ctrl.1 + t * t * tip.1,
-            )
-        })
-    };
-    out.extend(curve(x + w, x + w - 0.02 * w));
-    let left: Vec<(f32, f32)> = curve(x, x + 0.02 * w).collect();
-    out.extend(left.into_iter().rev());
     out
 }
 

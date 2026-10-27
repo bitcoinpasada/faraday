@@ -264,6 +264,21 @@ SeedSigner icon font and Font Awesome 6 Free Solid) with Faraday's own
 drawings beside it (`Glyph::Stick`, the shield `Ui::mark`, the wordmark
 `Ui::wordmark`). Each glyph is stored once as an outline and filled at
 the exact pixel size a display asks for.
+The mark (F140) is a keyhole shield 100 by 135.3 units: its sides run
+straight to the height over the golden ratio (83.62), then curve to the
+tip; its top corners are rounded at the band times the golden ratio
+(11.33). The band, the shield's lighter rim, is 7 units wide everywhere:
+the inner shield is the outer one moved in by 7. The keyhole's head is as
+wide as its foot, the inner width over the golden ratio squared (32.85);
+its neck is 9.86, in the proportion F10 drew it to the head; the slot runs
+from the head's centre to the foot the head's width times the golden
+ratio; and the keyhole's middle, between the head's top and the foot,
+stays where F137 put it (56.8 units down). The shield is in primary, the
+band primary mixed half with white. `Ui::mark` draws it in the app and
+the Starter's icon; the boot logo's pixel grid
+(`faraday/image/common/faraday-mark.txt`) is it at 17 by 23 squares, set
+by hand: the edge one square all round, a one-square stair to the tip, a
+one-square neck.
 Anything read character by character is set in the mono face:
 fingerprints, hex, paths, addresses, extended keys, txids, a descriptor
 row's value, and the words as typed and offered on word entry; prose,
