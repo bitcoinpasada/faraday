@@ -3,6 +3,7 @@
 //! detail that choose how long and why (`vault/screen.rs`).
 
 use super::*;
+use faraday_draw::tokens::{BODY_L, BODY_M, BODY_S, BUTTON_H, LABEL_L, TITLE_M};
 
 /// **Sign with {key}**, opened by Sign a file's **Sign** (F63): the files
 /// ticked, each with its size and the start of its SHA-256; the time the
@@ -41,40 +42,40 @@ pub(crate) fn gpg_sign_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
             let mut cy = y;
             for f in &chosen {
                 let line = format!("{} · {}", f.name, gpg_file_size(f.size as u64));
-                let line = ui.fit(14.0, W::M, &line, iw);
-                ui.text(x, cy, 14.0, W::M, ink, &line);
+                let line = ui.fit_as(BODY_M.mono(), &line, iw);
+                ui.text_as(x, cy, BODY_M.mono(), ink, &line);
                 cy += 22.0;
                 let hex: String = f.hash[..8].iter().map(|b| format!("{b:02x}")).collect();
-                ui.text(x, cy, 12.0, W::M, muted, &format!("{hex}…"));
+                ui.text_as(x, cy, BODY_S.mono(), muted, &format!("{hex}…"));
                 cy += 22.0;
                 ui.rule(x, cy, iw, Role::OutlineVariant);
                 cy += 10.0;
             }
             // The time the signatures will carry, and the way to change it.
-            ui.text(x, cy, 12.0, W::R, muted, EN.vault_signature_time);
+            ui.text_as(x, cy, BODY_S, muted, EN.vault_signature_time);
             cy += 20.0;
-            let set_w = ui.measure(13.0, W::S, EN.vault_set_the_time) + 30.0;
+            let set_w = ui.measure_as(LABEL_L, EN.vault_set_the_time) + 30.0;
             let tone = if now.is_some() { ink } else { warn };
             if ui.compact {
-                cy += ui.wrap(x, cy, iw, 14.0, W::M, tone, &when) + 8.0;
+                cy += ui.wrap_as((x, cy, iw), BODY_M.mono(), tone, &when) + 8.0;
                 ui.button(
                     x,
                     cy,
                     Some(set_w),
-                    36.0,
+                    BUTTON_H,
                     EN.vault_set_the_time,
                     Style::Secondary,
                     Action::OpenSetTime,
                 );
                 cy += 46.0;
             } else {
-                let t = ui.fit(14.0, W::M, &when, iw - set_w - 12.0);
-                ui.text_mid(x, cy, 36.0, 14.0, W::M, tone, &t);
+                let t = ui.fit_as(BODY_M.mono(), &when, iw - set_w - 12.0);
+                ui.text_mid_as((x, cy, 36.0), BODY_M.mono(), tone, &t);
                 ui.button(
                     x + iw - set_w,
                     cy,
                     Some(set_w),
-                    36.0,
+                    BUTTON_H,
                     EN.vault_set_the_time,
                     Style::Secondary,
                     Action::OpenSetTime,
@@ -100,7 +101,7 @@ pub(crate) fn gpg_sign_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
                     x,
                     cy,
                     None,
-                    36.0,
+                    BUTTON_H,
                     &label,
                     Style::Disabled,
                     va(V::GpgHoldSign),
@@ -134,16 +135,16 @@ pub(crate) fn stick_save_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let body = |ui: &mut Ui, x: f32, y: f32, iw: f32| -> f32 {
         let mut cy = y;
         if s.seed {
-            cy += ui.wrap(x, cy, iw, 13.0, W::S, warn, EN.vault_anyone_who_finds) + 14.0;
+            cy += ui.wrap_as((x, cy, iw), LABEL_L, warn, EN.vault_anyone_who_finds) + 14.0;
         }
         for (k, f) in s.files.iter().enumerate() {
             let top = cy;
             ui.checkbox(x, cy + 11.0, f.ticked, true);
-            ui.text_mid(x + 30.0, cy, 40.0, 14.0, W::S, ink, &f.label);
+            ui.text_mid_as((x + 30.0, cy, 40.0), LABEL_L, ink, &f.label);
             cy += 34.0;
             for n in &f.names {
-                let n = ui.fit(12.0, W::M, n, iw - 30.0);
-                ui.text(x + 30.0, cy, 12.0, W::M, muted, &n);
+                let n = ui.fit_as(BODY_S.mono(), n, iw - 30.0);
+                ui.text_as(x + 30.0, cy, BODY_S.mono(), muted, &n);
                 cy += 18.0;
             }
             cy += 6.0;
@@ -176,11 +177,10 @@ pub(super) fn save_panel(
 ) -> f32 {
     let (muted, ink) = (Role::OnSurfaceVariant, Role::OnSurface);
     let keys = app.vaults.category == 0;
-    ui.text(
+    ui.text_as(
         dx,
         dy,
-        18.0,
-        W::S,
+        TITLE_M,
         ink,
         if keys {
             EN.vault_save_a_key
@@ -206,7 +206,7 @@ pub(super) fn save_panel(
                 continue;
             }
             any = true;
-            ui.text_mid(dx, dy, 40.0, 14.0, W::M, ink, &fp);
+            ui.text_mid_as((dx, dy, 40.0), BODY_M.mono(), ink, &fp);
             let label = if key.has_passphrase {
                 fill(EN.vault_bip_39_passphrase_n, &[&key.label.to_string()])
             } else {
@@ -214,8 +214,8 @@ pub(super) fn save_panel(
             };
             if ui.compact {
                 // The key and its name, then its buttons under them.
-                let label = ui.fit(13.0, W::R, &label, dw - 100.0);
-                ui.text_mid(dx + 100.0, dy, 40.0, 13.0, W::R, muted, &label);
+                let label = ui.fit_as(BODY_S, &label, dw - 100.0);
+                ui.text_mid_as((dx + 100.0, dy, 40.0), BODY_S, muted, &label);
                 dy += 42.0;
                 let mut items = vec![(EN.vault_save, Style::Secondary, va(V::SaveKey(k)))];
                 if key.has_passphrase {
@@ -232,8 +232,8 @@ pub(super) fn save_panel(
             }
             let two = key.has_passphrase;
             let room = if two { dw - 110.0 } else { dw - 200.0 };
-            let label = ui.fit(13.0, W::R, &label, room);
-            ui.text_mid(dx + 100.0, dy, 40.0, 13.0, W::R, muted, &label);
+            let label = ui.fit_as(BODY_S, &label, room);
+            ui.text_mid_as((dx + 100.0, dy, 40.0), BODY_S, muted, &label);
             if two {
                 dy += 40.0;
             }
@@ -241,18 +241,18 @@ pub(super) fn save_panel(
                 dx + dw - 80.0,
                 dy + 2.0,
                 Some(80.0),
-                36.0,
+                BUTTON_H,
                 EN.vault_save,
                 Style::Secondary,
                 va(V::SaveKey(k)),
             );
             if key.has_passphrase {
-                let pw = ui.measure(13.0, W::S, EN.vault_save_passphrase_button) + 26.0;
+                let pw = ui.measure_as(LABEL_L, EN.vault_save_passphrase_button) + 26.0;
                 ui.button(
                     dx + dw - 88.0 - pw,
                     dy + 2.0,
                     Some(pw),
-                    36.0,
+                    BUTTON_H,
                     EN.vault_save_passphrase_button,
                     Style::Secondary,
                     va(V::SaveKeyWithPassphrase(k)),
@@ -262,7 +262,7 @@ pub(super) fn save_panel(
             dy += 48.0;
         }
         if !any {
-            ui.text(dx, dy, 13.0, W::R, muted, EN.vault_every_key_saved);
+            ui.text_as(dx, dy, BODY_S, muted, EN.vault_every_key_saved);
             dy += 30.0;
         }
     } else {
@@ -278,15 +278,15 @@ pub(super) fn save_panel(
             any = true;
             if ui.compact {
                 // The name over its shape, Save beside them.
-                let name = ui.fit(14.0, W::S, &wl.name, dw - 96.0);
-                ui.text(dx, dy + 2.0, 14.0, W::S, ink, &name);
-                let shape = ui.fit(12.0, W::R, &Session::shape(wl), dw - 96.0);
-                ui.text(dx, dy + 24.0, 12.0, W::R, muted, &shape);
+                let name = ui.fit_as(LABEL_L, &wl.name, dw - 96.0);
+                ui.text_as(dx, dy + 2.0, LABEL_L, ink, &name);
+                let shape = ui.fit_as(BODY_S, &Session::shape(wl), dw - 96.0);
+                ui.text_as(dx, dy + 24.0, BODY_S, muted, &shape);
                 ui.button(
                     dx + dw - 80.0,
                     dy + 4.0,
                     Some(80.0),
-                    36.0,
+                    BUTTON_H,
                     EN.vault_save,
                     Style::Secondary,
                     va(V::SaveWallet(k)),
@@ -295,14 +295,14 @@ pub(super) fn save_panel(
                 dy += 52.0;
                 continue;
             }
-            ui.text_mid(dx, dy, 40.0, 14.0, W::S, ink, &wl.name);
-            let shape = ui.fit(12.0, W::R, &Session::shape(wl), dw - 260.0);
-            ui.text_mid(dx + 150.0, dy, 40.0, 12.0, W::R, muted, &shape);
+            ui.text_mid_as((dx, dy, 40.0), LABEL_L, ink, &wl.name);
+            let shape = ui.fit_as(BODY_S, &Session::shape(wl), dw - 260.0);
+            ui.text_mid_as((dx + 150.0, dy, 40.0), BODY_S, muted, &shape);
             ui.button(
                 dx + dw - 80.0,
                 dy + 2.0,
                 Some(80.0),
-                36.0,
+                BUTTON_H,
                 EN.vault_save,
                 Style::Secondary,
                 va(V::SaveWallet(k)),
@@ -311,7 +311,7 @@ pub(super) fn save_panel(
             dy += 48.0;
         }
         if !any {
-            ui.text(dx, dy, 13.0, W::R, muted, EN.vault_every_wallet);
+            ui.text_as(dx, dy, BODY_S, muted, EN.vault_every_wallet);
             dy += 30.0;
         }
     }
@@ -382,30 +382,29 @@ pub(super) fn images_panel(app: &View, ui: &mut Ui, dx: f32, mut dy: f32, dw: f3
     if let Some((k, checked)) = &app.vaults.sb_sign
         && let Some(item) = app.inbox.get(*k)
     {
-        ui.text(
+        ui.text_as(
             dx,
             dy,
-            18.0,
-            W::S,
+            TITLE_M,
             ink,
             &fill(EN.vault_sign_n, &[&item.name.to_string()]),
         );
         dy += 40.0;
-        ui.text(dx, dy, 12.0, W::R, muted, "SHA-256");
+        ui.text_as(dx, dy, BODY_S, muted, "SHA-256");
         dy += 20.0;
         // Taken when the image came in (`Item::sha`): a lookup.
         let hash = item
             .sha
             .map(|s| crate::secure_boot::image_sha256(&s))
             .unwrap_or_default();
-        dy += ui.wrap(dx, dy, dw, 15.0, W::M, ink, &hash) + 14.0;
+        dy += ui.wrap_as((dx, dy, dw), BODY_L.mono(), ink, &hash) + 14.0;
         // What the release check found when the image was picked (F134),
         // kept on the state: a refusal is named and leaves only Back.
         let (line, role) = match checked {
             Ok(r) => (fill(EN.secureboot_release_boot, &[r.version()]), muted),
             Err(r) => (crate::secure_boot::refusal_text(r), Role::Error),
         };
-        dy += ui.wrap(dx, dy, dw, 13.0, W::R, role, &line) + 16.0;
+        dy += ui.wrap_as((dx, dy, dw), BODY_S, role, &line) + 16.0;
         let back_x = if checked.is_ok() {
             dx + 10.0
                 + hold_button(
@@ -424,14 +423,14 @@ pub(super) fn images_panel(app: &View, ui: &mut Ui, dx: f32, mut dy: f32, dw: f3
             back_x,
             dy,
             None,
-            36.0,
+            BUTTON_H,
             EN.vault_back,
             Style::Ghost,
             va(V::SbImages),
         );
         return dy + 48.0;
     }
-    ui.text(dx, dy, 18.0, W::S, ink, EN.vault_sign_or_check);
+    ui.text_as(dx, dy, TITLE_M, ink, EN.vault_sign_or_check);
     dy += 40.0;
     let images: Vec<(usize, &crate::Item)> = app
         .inbox
@@ -440,11 +439,10 @@ pub(super) fn images_panel(app: &View, ui: &mut Ui, dx: f32, mut dy: f32, dw: f3
         .filter(|(_, i)| crate::secure_boot::is_image(&i.name))
         .collect();
     if images.is_empty() {
-        ui.text(
+        ui.text_as(
             dx,
             dy,
-            13.0,
-            W::R,
+            BODY_S,
             muted,
             &fill(EN.vault_no_efi_image, &[app.medium.from_the()]),
         );
@@ -453,18 +451,18 @@ pub(super) fn images_panel(app: &View, ui: &mut Ui, dx: f32, mut dy: f32, dw: f3
     for (k, it) in images {
         // On a small panel the name has a line of its own.
         let room = if ui.compact { dw } else { dw - 200.0 };
-        let name = ui.fit(14.0, W::M, &it.name, room);
-        ui.text_mid(dx, dy, 40.0, 14.0, W::M, ink, &name);
+        let name = ui.fit_as(BODY_M.mono(), &it.name, room);
+        ui.text_mid_as((dx, dy, 40.0), BODY_M.mono(), ink, &name);
         if ui.compact {
             dy += 36.0;
         }
         if app.selected_waits().is_some() {
-            let bw = ui.measure(13.0, W::S, EN.backup_flow_first) + 30.0;
+            let bw = ui.measure_as(LABEL_L, EN.backup_flow_first) + 30.0;
             ui.button(
                 dx + dw - 168.0 - bw - 8.0,
                 dy + 2.0,
                 Some(bw),
-                36.0,
+                BUTTON_H,
                 EN.backup_flow_first,
                 Style::Secondary,
                 back_up_first(crate::backup_flow::Kind::SecureBoot),
@@ -474,7 +472,7 @@ pub(super) fn images_panel(app: &View, ui: &mut Ui, dx: f32, mut dy: f32, dw: f3
                 dx + dw - 80.0,
                 dy + 2.0,
                 Some(80.0),
-                36.0,
+                BUTTON_H,
                 EN.vault_sign,
                 Style::Secondary,
                 va(V::SbPick(k)),
@@ -484,7 +482,7 @@ pub(super) fn images_panel(app: &View, ui: &mut Ui, dx: f32, mut dy: f32, dw: f3
             dx + dw - 168.0,
             dy + 2.0,
             Some(80.0),
-            36.0,
+            BUTTON_H,
             EN.vault_check,
             Style::Secondary,
             va(V::SbCheck(k)),
@@ -494,13 +492,13 @@ pub(super) fn images_panel(app: &View, ui: &mut Ui, dx: f32, mut dy: f32, dw: f3
     }
     if let Some(said) = &app.vaults.sb_checked {
         dy += 6.0;
-        dy += ui.wrap(dx, dy, dw, 13.0, W::S, ink, said) + 10.0;
+        dy += ui.wrap_as((dx, dy, dw), LABEL_L, ink, said) + 10.0;
     }
     ui.button(
         dx,
         dy + 8.0,
         None,
-        36.0,
+        BUTTON_H,
         EN.vault_back_to_the_keys,
         Style::Ghost,
         va(V::SbImages),

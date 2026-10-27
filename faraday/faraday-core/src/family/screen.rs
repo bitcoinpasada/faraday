@@ -5,7 +5,7 @@
 use crate::strings::EN;
 use crate::strings::fill;
 use faraday_draw::tokens::{BODY_M, BODY_S, BUTTON_H, LABEL_L, LABEL_M, TITLE_M};
-use faraday_draw::tokens::{GAP, GAP_SMALL, PROGRESS_H};
+use faraday_draw::tokens::{FIELD_H, GAP, GAP_SMALL, PROGRESS_H};
 use faraday_draw::widgets::Icon;
 
 use crate::drawing::{Scrolled, View};
@@ -1284,7 +1284,7 @@ fn vault(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     } else {
         crate::vault::screen::stick_field(app.medium, ui, x, cy, w);
     }
-    cy += 52.0 + crate::screens::never_under(app, ui, x, cy, w);
+    cy += FIELD_H + 12.0 + crate::screens::never_under(app, ui, x, cy, w);
     if app.vaults.working == Some(crate::vault::Work::Unlock) {
         ui.text_mid_as((x, cy, 42.0), LABEL_L, Role::Primary, EN.family_unlocking);
         crate::screens::working_bar(ui, x, cy, w, 42.0);

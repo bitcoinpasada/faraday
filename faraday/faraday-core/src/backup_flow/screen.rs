@@ -9,10 +9,11 @@ use crate::backup_flow::{BackupFlow, Confirm, Step};
 use crate::drawing::{Scrolled, View};
 use crate::strings::{EN as FEN, fill};
 use crate::ui::pal::*;
-use crate::ui::{Style, Ui, W};
+use crate::ui::{Style, Ui};
 use crate::vault::screen::{hold_button_in, stick_banner, stick_field, text_box};
 use crate::vault::{self, Focus, VaultAction as V};
 use crate::{Action, Faraday, flow};
+use faraday_draw::tokens::{BODY_M, BODY_S, BUTTON_H, FIELD_H, LABEL_L, TITLE_M};
 use faraday_draw::widgets::Icon;
 
 /// A button, and the room it takes with the gap under it.
@@ -250,7 +251,7 @@ fn body(app: &View, f: &BackupFlow, ui: &mut Ui, s: Step, x: f32, y: f32, w: f32
             x,
             cy,
             None,
-            32.0,
+            BUTTON_H,
             FEN.backup_flow_change_plan,
             Style::Ghost,
             fa(F::ChangePlan),
@@ -282,15 +283,8 @@ fn where_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) -
                 names.join(", ")
             )
         };
-        ui.text(
-            x,
-            cy,
-            14.0,
-            W::S,
-            Role::OnSurface,
-            &BackupFlow::place_name(p),
-        );
-        ui.text(x + 90.0, cy, 14.0, W::R, Role::OnSurfaceVariant, &keeps);
+        ui.text_as(x, cy, LABEL_L, Role::OnSurface, &BackupFlow::place_name(p));
+        ui.text_as(x + 90.0, cy, BODY_M, Role::OnSurfaceVariant, &keeps);
         cy += 26.0;
         let mut items: Vec<(String, Style, Action)> = Vec::new();
         if written {
@@ -364,7 +358,7 @@ fn where_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) -
         x,
         cy,
         None,
-        32.0,
+        BUTTON_H,
         FEN.backup_flow_add_place,
         Style::Secondary,
         fa(F::AddPlace),
@@ -389,12 +383,11 @@ fn where_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) -
             .iter()
             .map(|&p| BackupFlow::place_name(p))
             .collect();
-        ui.text(x, cy, 14.0, W::S, Role::OnSurface, &line);
-        ui.text(
+        ui.text_as(x, cy, LABEL_L, Role::OnSurface, &line);
+        ui.text_as(
             x,
             cy + 22.0,
-            12.0,
-            W::R,
+            BODY_S,
             Role::OnSurfaceVariant,
             &places.join(", "),
         );
@@ -404,12 +397,12 @@ fn where_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) -
             } else {
                 FEN.backup_flow_existing_vault
             };
-            let bw = ui.measure(13.0, W::S, other) + 32.0;
+            let bw = ui.measure_as(LABEL_L, other) + 32.0;
             ui.button(
                 x + w - bw,
                 cy,
                 Some(bw),
-                32.0,
+                BUTTON_H,
                 other,
                 Style::Secondary,
                 fa(F::VaultExisting(v)),
@@ -418,12 +411,9 @@ fn where_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) -
         cy += 50.0;
     }
     if sticks < min {
-        cy += ui.wrap(
-            x,
-            cy,
-            w,
-            13.0,
-            W::R,
+        cy += ui.wrap_as(
+            (x, cy, w),
+            BODY_S,
             Role::Warning,
             &fill(FEN.backup_flow_at_least, &[&min.to_string()]),
         ) + 10.0;
@@ -437,7 +427,7 @@ fn where_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) -
         x,
         cy,
         None,
-        40.0,
+        BUTTON_H,
         FEN.backup_flow_continue_make,
         style,
         fa(F::Continue),
@@ -448,7 +438,7 @@ fn where_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) -
 // ---- helpers ----
 
 fn line(ui: &mut Ui, x: f32, y: f32, w: f32, text: &str, color: crate::ui::Paint) -> f32 {
-    ui.wrap(x, y, w, 14.0, W::R, color, text) + 10.0
+    ui.wrap_as((x, y, w), BODY_M, color, text) + 10.0
 }
 
 /// The medium's icon and a line centred, as Insert is.
@@ -461,16 +451,9 @@ fn insert(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, text: &str) -> f32 {
         22.0,
         Role::OnSurfaceVariant,
     );
-    let tw = ui.measure(14.0, W::S, text).min(w);
-    let t = ui.fit(14.0, W::S, text, w);
-    ui.text(
-        x + (w - tw) / 2.0,
-        y + 54.0,
-        14.0,
-        W::S,
-        Role::OnSurface,
-        &t,
-    );
+    let tw = ui.measure_as(LABEL_L, text).min(w);
+    let t = ui.fit_as(LABEL_L, text, w);
+    ui.text_as(x + (w - tw) / 2.0, y + 54.0, LABEL_L, Role::OnSurface, &t);
     84.0
 }
 
@@ -511,18 +494,17 @@ fn slot_rows(
             s.bound.as_ref().map(|b| b.label.clone())
         };
         let room = match &tail {
-            Some(t) => w - ui.measure(13.0, W::M, t) - 12.0,
+            Some(t) => w - ui.measure_as(BODY_S.mono(), t) - 12.0,
             None => w,
         };
         let name = app
             .flow_slot_row(k)
             .unwrap_or_else(|| cap(&f.target_name(&s.target, m)));
-        let name = ui.fit(13.0, W::R, &name, room);
-        ui.text(
+        let name = ui.fit_as(BODY_S, &name, room);
+        ui.text_as(
             x,
             cy,
-            13.0,
-            W::R,
+            BODY_S,
             if done {
                 Role::OnSurface
             } else {
@@ -531,7 +513,7 @@ fn slot_rows(
             &name,
         );
         if let Some(t) = tail {
-            ui.text_right(x + w, cy - 4.0, 22.0, 13.0, W::M, Role::Ok, &t);
+            ui.text_right_as((x + w, cy - 4.0, 22.0), BODY_S.mono(), Role::Ok, &t);
         }
         cy += 24.0;
         // The stick just taken for this place, while it is in: the
@@ -553,7 +535,7 @@ fn sticks_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) 
             x,
             cy,
             None,
-            40.0,
+            BUTTON_H,
             &fill(FEN.backup_flow_lock_bring, &[app.medium.nouns()]),
             Style::Primary,
             fa(F::LockBring),
@@ -605,7 +587,7 @@ fn stick_card(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) -
                     x,
                     cy,
                     None,
-                    36.0,
+                    BUTTON_H,
                     &fill(FEN.backup_flow_use_read, &[&st.label, &at]),
                     Style::Secondary,
                     fa(F::UseBoot(i)),
@@ -619,12 +601,9 @@ fn stick_card(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) -
         return cy - y;
     };
     if !r.bound {
-        cy += ui.wrap(
-            x,
-            cy,
-            w,
-            14.0,
-            W::S,
+        cy += ui.wrap_as(
+            (x, cy, w),
+            LABEL_L,
             Role::OnSurface,
             &app.flow_insert_line(r.slot),
         ) + 8.0;
@@ -640,7 +619,7 @@ fn stick_card(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) -
             x,
             cy,
             None,
-            36.0,
+            BUTTON_H,
             &fill(FEN.backup_flow_use_another, &[m]),
             Style::Secondary,
             fa(F::UseAnother),
@@ -741,13 +720,13 @@ fn stick_card(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) -
 /// is too narrow. Returns the height.
 fn hold_row(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, label: &str, other: &str) -> f32 {
     let bw = hold_button_in(app, ui, x, y, w, label, fa(F::Hold), Role::Primary.paint());
-    let ow = ui.measure(14.0, W::S, other) + 32.0;
+    let ow = ui.measure_as(LABEL_L, other) + 32.0;
     if bw + 10.0 + ow <= w {
         ui.button(
             x + bw + 10.0,
             y,
             None,
-            36.0,
+            BUTTON_H,
             other,
             Style::Ghost,
             fa(F::UseAnother),
@@ -758,7 +737,7 @@ fn hold_row(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, label: &str, other:
             x,
             y + 44.0,
             None,
-            36.0,
+            BUTTON_H,
             other,
             Style::Ghost,
             fa(F::UseAnother),
@@ -774,13 +753,13 @@ fn files_rows(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32, s
     for v in f.vaults_of(slot) {
         if let Some(s) = f.sealed_of(v) {
             let line = format!("{} · {}", s.name, vault::file_text(s.len));
-            cy += ui.wrap(x, cy, w, 13.0, W::M, Role::OnSurfaceVariant, &line) + 6.0;
+            cy += ui.wrap_as((x, cy, w), BODY_S.mono(), Role::OnSurfaceVariant, &line) + 6.0;
         }
     }
     for n in &f.slots[slot].files {
         if let Some(it) = app.outbox.iter().find(|i| &i.name == n) {
             let line = format!("{} · {}", n, vault::file_text(it.bytes.len()));
-            cy += ui.wrap(x, cy, w, 13.0, W::M, Role::OnSurfaceVariant, &line) + 6.0;
+            cy += ui.wrap_as((x, cy, w), BODY_S.mono(), Role::OnSurfaceVariant, &line) + 6.0;
         }
     }
     cy - y + 6.0
@@ -845,14 +824,14 @@ fn bind_card(
     if let Some(v) = undecided {
         let vp = &f.plan.vaults[v];
         let title = fill(FEN.backup_flow_which_vault, &[&BackupFlow::vault_name(v)]);
-        cy += ui.wrap(x, cy, w, 14.0, W::S, Role::OnSurface, &title) + 8.0;
+        cy += ui.wrap_as((x, cy, w), LABEL_L, Role::OnSurface, &title) + 8.0;
         if !vp.existing {
             cy += btn(
                 ui,
                 x,
                 cy,
                 Some(w),
-                40.0,
+                BUTTON_H,
                 FEN.backup_flow_beside,
                 Style::Primary,
                 fa(F::PickBeside(v)),
@@ -873,8 +852,8 @@ fn bind_card(
             );
             ui.fill(x, cy, w, 44.0, 10.0, Role::SurfaceContainerLow);
             ui.stroke(x, cy, w, 44.0, 10.0, Role::OutlineVariant);
-            let t = ui.fit(13.0, W::M, &line, w - 24.0);
-            ui.text_mid(x + 12.0, cy, 44.0, 13.0, W::M, Role::OnSurface, &t);
+            let t = ui.fit_as(BODY_S.mono(), &line, w - 24.0);
+            ui.text_mid_as((x + 12.0, cy, 44.0), BODY_S.mono(), Role::OnSurface, &t);
             ui.hit(x, cy, w, 44.0, fa(F::PickFile(v, k)));
             cy += 52.0;
         }
@@ -900,7 +879,7 @@ fn bind_card(
                 x,
                 cy,
                 None,
-                40.0,
+                BUTTON_H,
                 &label,
                 Style::Primary,
                 fa(F::Tap),
@@ -926,7 +905,7 @@ fn bind_card(
             x,
             cy - 8.0,
             None,
-            32.0,
+            BUTTON_H,
             &fill(FEN.backup_flow_use_another, &[m]),
             Style::Ghost,
             fa(F::UseAnother),
@@ -963,11 +942,10 @@ fn vaults_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) 
         let name = BackupFlow::vault_name(v);
         if open(v) {
             ui.icon(x, cy, 22.0, Icon::Done, 12.0, Role::Ok);
-            ui.text(
+            ui.text_as(
                 x + 28.0,
                 cy + 2.0,
-                14.0,
-                W::R,
+                BODY_M,
                 Role::OnSurface,
                 &format!("{name} · {}", FEN.backup_flow_unlocked),
             );
@@ -988,16 +966,13 @@ fn vaults_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) 
                 Style::Primary
             };
             let label = fill(label, &[&name]);
-            cy += btn(ui, x, cy, None, 40.0, &label, style, fa(action), 52.0);
+            cy += btn(ui, x, cy, None, BUTTON_H, &label, style, fa(action), 52.0);
             continue;
         }
         if vp.salt.is_some() {
-            cy += ui.wrap(
-                x,
-                cy,
-                w,
-                14.0,
-                W::S,
+            cy += ui.wrap_as(
+                (x, cy, w),
+                LABEL_L,
                 Role::OnSurface,
                 &fill(FEN.backup_flow_unlock_vault, &[&name]),
             ) + 10.0;
@@ -1018,7 +993,7 @@ fn vaults_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) 
             } else {
                 stick_field(app.medium, ui, x, cy, w);
             }
-            cy += 52.0 + crate::screens::never_under(app, ui, x, cy, w);
+            cy += FIELD_H + 12.0 + crate::screens::never_under(app, ui, x, cy, w);
             if app.vaults.working == Some(vault::Work::Unlock) {
                 cy += line(
                     ui,
@@ -1038,7 +1013,7 @@ fn vaults_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) 
                     x,
                     cy,
                     None,
-                    40.0,
+                    BUTTON_H,
                     &fill(FEN.backup_flow_unlock_vault, &[&name]),
                     style,
                     Action::Vault(V::Unlock),
@@ -1047,12 +1022,9 @@ fn vaults_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) 
                     Some(mib) => fill(FEN.backup_flow_free, &[&vault::mib_text(mib)]),
                     None => String::new(),
                 };
-                ui.text_mid(
-                    x + bw + 14.0,
-                    cy,
-                    40.0,
-                    13.0,
-                    W::R,
+                ui.text_mid_as(
+                    (x + bw + 14.0, cy, 40.0),
+                    BODY_S,
                     Role::OnSurfaceVariant,
                     &free,
                 );
@@ -1068,7 +1040,7 @@ fn vaults_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) 
                 x,
                 cy,
                 None,
-                32.0,
+                BUTTON_H,
                 FEN.backup_flow_no_passphrase,
                 Style::Ghost,
                 fa(F::NoPass(v)),
@@ -1105,12 +1077,9 @@ fn make_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) ->
     }
     let mut cy = y;
     if f.made && !f.adding {
-        cy += ui.wrap(
-            x,
-            cy,
-            w,
-            15.0,
-            W::S,
+        cy += ui.wrap_as(
+            (x, cy, w),
+            TITLE_M,
             Role::Ok,
             &fill(FEN.backup_flow_made, &[f.kind.name()]),
         ) + 12.0;
@@ -1130,7 +1099,7 @@ fn make_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) ->
             x,
             cy,
             None,
-            40.0,
+            BUTTON_H,
             FEN.backup_flow_continue_make,
             Style::Primary,
             fa(F::MadeContinue),
@@ -1152,7 +1121,7 @@ fn make_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) ->
             x,
             cy,
             None,
-            40.0,
+            BUTTON_H,
             FEN.backup_flow_copy_key,
             Style::Primary,
             fa(F::CopyKey),
@@ -1175,7 +1144,7 @@ fn make_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) ->
     }
     if let Some(form) = &app.vaults.form {
         for (k, (_, label, b, _)) in form.fields.iter().enumerate() {
-            ui.text(x, cy, 12.0, W::R, Role::OnSurfaceVariant, label);
+            ui.text_as(x, cy, BODY_S, Role::OnSurfaceVariant, label);
             cy += 20.0;
             let focused = app.vaults.focus == Some(Focus::Field(k));
             text_box(
@@ -1188,10 +1157,10 @@ fn make_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) ->
                 focused,
                 Action::Vault(V::FocusField(k)),
             );
-            cy += 52.0;
+            cy += FIELD_H + 12.0;
         }
         if f.kind == crate::backup_flow::Kind::Gpg {
-            ui.text(x, cy, 12.0, W::R, Role::OnSurfaceVariant, FEN.vault_expires);
+            ui.text_as(x, cy, BODY_S, Role::OnSurfaceVariant, FEN.vault_expires);
             cy += 22.0;
             cy += crate::vault::screen::years_row(
                 ui,
@@ -1208,7 +1177,7 @@ fn make_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) ->
         x,
         cy,
         None,
-        40.0,
+        BUTTON_H,
         FEN.backup_flow_make_the_key,
         Style::Primary,
         fa(F::Make),
@@ -1246,8 +1215,8 @@ fn result_rows(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) 
             (FEN.vault_show_as_qr, Action::ShowCode(code)),
             ("PNG", Action::CodePng(code)),
         ] {
-            let bw = ui.measure(13.0, W::S, label) + 30.0;
-            ui.button(bx, cy, Some(bw), 36.0, label, Style::Secondary, action);
+            let bw = ui.measure_as(LABEL_L, label) + 30.0;
+            ui.button(bx, cy, Some(bw), BUTTON_H, label, Style::Secondary, action);
             bx += bw + 8.0;
         }
         48.0
@@ -1288,13 +1257,10 @@ fn result_rows(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) 
 }
 
 fn row(ui: &mut Ui, x: f32, y: f32, w: f32, label: &str, value: &str, mono: bool) -> f32 {
-    ui.text(x, y, 12.0, W::R, Role::OnSurfaceVariant, label);
-    let h = ui.wrap(
-        x,
-        y + 20.0,
-        w,
-        14.0,
-        if mono { W::M } else { W::R },
+    ui.text_as(x, y, BODY_S, Role::OnSurfaceVariant, label);
+    let h = ui.wrap_as(
+        (x, y + 20.0, w),
+        if mono { BODY_M.mono() } else { BODY_M },
         Role::OnSurface,
         value,
     );
@@ -1334,10 +1300,10 @@ fn lock_body(app: &View, _f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) -
         if lines.is_empty() {
             continue;
         }
-        ui.text(x, cy, 12.0, W::R, Role::OnSurfaceVariant, title);
+        ui.text_as(x, cy, BODY_S, Role::OnSurfaceVariant, title);
         cy += 22.0;
         for (l, tone) in lines {
-            cy += ui.wrap(x, cy, w, 14.0, W::R, tone, &l) + 6.0;
+            cy += ui.wrap_as((x, cy, w), BODY_M, tone, &l) + 6.0;
         }
         cy += 6.0;
     }
@@ -1346,7 +1312,7 @@ fn lock_body(app: &View, _f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) -
         x,
         cy,
         None,
-        40.0,
+        BUTTON_H,
         FEN.backup_flow_lock_and_write,
         Style::Primary,
         fa(F::LockWrite),
@@ -1371,7 +1337,7 @@ fn done_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) ->
     if !f.all_written() {
         return 0.0;
     }
-    cy += ui.wrap(x, cy, w, 15.0, W::S, Role::Ok, FEN.backup_flow_done) + 12.0;
+    cy += ui.wrap_as((x, cy, w), TITLE_M, Role::Ok, FEN.backup_flow_done) + 12.0;
     for (k, s) in f.slots.iter().enumerate() {
         let Some(wr) = &s.written else {
             continue;
@@ -1380,23 +1346,17 @@ fn done_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) ->
             .flow_slot_row(k)
             .unwrap_or_else(|| f.target_short(&s.target, app.medium.noun()));
         let at = read_time(app, wr.time);
-        cy += ui.wrap(
-            x,
-            cy,
-            w,
-            13.0,
-            W::R,
+        cy += ui.wrap_as(
+            (x, cy, w),
+            BODY_S,
             Role::OnSurface,
             &format!("{name} · {} · {at}", wr.label),
         ) + 4.0;
         // What was written to it, the public files with the copies.
         let files: Vec<&str> = wr.files.iter().map(|(n, _)| n.as_str()).collect();
-        cy += ui.wrap(
-            x,
-            cy,
-            w,
-            12.0,
-            W::M,
+        cy += ui.wrap_as(
+            (x, cy, w),
+            BODY_S.mono(),
             Role::OnSurfaceVariant,
             &files.join(", "),
         ) + 8.0;

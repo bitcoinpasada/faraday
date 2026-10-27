@@ -7,11 +7,12 @@ use super::parts::{
 use crate::drawing::{Scrolled, View};
 use crate::strings::{EN, fill};
 use crate::ui::pal::*;
-use crate::ui::{CoreUi, Style, Ui, W};
+use crate::ui::{CoreUi, Style, Ui};
 use crate::wallet::{Session, fp_text, key_line};
 use crate::{Action, Code, Faraday, Screen, flow, guide};
 use faraday_crypto::work::Compute;
 use faraday_draw::tokens as T;
+use faraday_draw::tokens::{BODY_L, BODY_M, BODY_S, BUTTON_H, LABEL_L, LABEL_S, TITLE_M};
 use faraday_draw::widgets::Icon;
 use faraday_keys::Reveal;
 use faraday_ui::parts::{button_rows, section_label, title, wrap_buttons};
@@ -447,7 +448,7 @@ fn plan_body(
     }
     cy += 8.0;
     if let Some(line) = crate::plan::cards::stickless_line(app, ctx) {
-        cy += ui.wrap(x, cy, w, 13.0, W::S, Role::Warning, &line) + 12.0;
+        cy += ui.wrap_as((x, cy, w), LABEL_L, Role::Warning, &line) + 12.0;
     }
     if let Some(line) = crate::plan::cards::held_line(app, ctx, app.backup_kept_nowhere()) {
         // On a small panel, where the way on is pinned at the foot, the
@@ -456,7 +457,7 @@ fn plan_body(
             ui.pin = Some((line, Style::PrimaryOff, Action::BChecklist));
             return cy - y;
         }
-        cy += ui.wrap(x, cy, w, 13.0, W::S, Role::Warning, &line) + 12.0;
+        cy += ui.wrap_as((x, cy, w), LABEL_L, Role::Warning, &line) + 12.0;
         return cy - y;
     }
     if next_button(ui, x, cy, w, EN.plan_make_the_checklist, Action::BChecklist) {
@@ -521,21 +522,18 @@ fn wallet_pick(app: &View, ui: &mut Ui, x: f32, y: f32, chip_w: f32, right: f32)
     for (k, wl) in app.session.wallets.iter().enumerate() {
         let ry = y + 4.0 + k as f32 * rh;
         let (fg, weight) = if k == current {
-            (Role::Primary, W::S)
+            (Role::Primary, LABEL_L)
         } else {
-            (Role::OnSurface, W::R)
+            (Role::OnSurface, BODY_M)
         };
         // The name first, up to half the row; the shape in what is left.
-        let nw = ui.measure(14.0, weight, &wl.name).min(lw / 2.0);
-        let name = ui.fit(14.0, weight, &wl.name, nw);
-        let shape = ui.fit(12.0, W::R, &Session::shape(wl), lw - nw - 48.0);
-        ui.text_mid(x + 14.0, ry, rh, 14.0, weight, fg, &name);
-        ui.text_right(
-            x + lw - 14.0,
-            ry,
-            rh,
-            12.0,
-            W::R,
+        let nw = ui.measure_as(weight, &wl.name).min(lw / 2.0);
+        let name = ui.fit_as(weight, &wl.name, nw);
+        let shape = ui.fit_as(BODY_S, &Session::shape(wl), lw - nw - 48.0);
+        ui.text_mid_as((x + 14.0, ry, rh), weight, fg, &name);
+        ui.text_right_as(
+            (x + lw - 14.0, ry, rh),
+            BODY_S,
             Role::OnSurfaceVariant,
             &shape,
         );
@@ -555,12 +553,9 @@ fn backup_done(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     };
     let mut cy = y;
     ui.icon(x, cy, 24.0, Icon::Success, 13.0, Role::Ok);
-    ui.text_mid(
-        x + 32.0,
-        cy,
-        24.0,
-        15.0,
-        W::S,
+    ui.text_mid_as(
+        (x + 32.0, cy, 24.0),
+        TITLE_M,
         Role::Ok,
         EN.backup_done_backup,
     );
@@ -600,14 +595,14 @@ pub(crate) fn extra_copies(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f
     }
     let mut cy = y;
     let text = fill(EN.backup_extra_copies, &[app.medium.noun()]);
-    cy += ui.wrap(x, cy, w, 13.0, W::R, Role::OnSurfaceVariant, &text) + 6.0;
+    cy += ui.wrap_as((x, cy, w), BODY_S, Role::OnSurfaceVariant, &text) + 6.0;
     let label = EN.backup_extra_copies_link;
-    let bw = (ui.measure(13.0, W::S, label) + 24.0).min(w);
+    let bw = (ui.measure_as(LABEL_L, label) + 24.0).min(w);
     ui.button(
         x,
         cy,
         Some(bw),
-        32.0,
+        BUTTON_H,
         label,
         Style::Ghost,
         Action::LearnTopic(crate::learn::Topic::ExtraCopies),
@@ -662,17 +657,17 @@ pub(crate) fn shares_table(
     let mut cy = y;
     let label = EN.shares_card_keys_left;
     if most == 0 {
-        ui.text_mid(x, cy, 36.0, 13.0, W::R, Role::OnSurfaceVariant, label);
-        ui.text_mid(x + w - 20.0, cy, 36.0, 14.0, W::S, Role::OnSurface, "0");
+        ui.text_mid_as((x, cy, 36.0), BODY_S, Role::OnSurfaceVariant, label);
+        ui.text_mid_as((x + w - 20.0, cy, 36.0), LABEL_L, Role::OnSurface, "0");
         cy += 44.0;
     } else {
         // On a small panel the slider goes under the label.
         let (sx, sw) = if ui.compact {
-            ui.text(x, cy, 13.0, W::S, Role::OnSurfaceVariant, label);
+            ui.text_as(x, cy, LABEL_L, Role::OnSurfaceVariant, label);
             cy += 20.0;
             (x, w)
         } else {
-            ui.text_mid(x, cy, 40.0, 13.0, W::R, Role::OnSurfaceVariant, label);
+            ui.text_mid_as((x, cy, 40.0), BODY_S, Role::OnSurfaceVariant, label);
             (x + 190.0, (w - 190.0).min(320.0))
         };
         let top = u8::try_from(most).unwrap_or(u8::MAX);
@@ -682,24 +677,23 @@ pub(crate) fn shares_table(
     let plan = crate::wallet_backup::split_plan(keys_n, m, omit);
     for (k, row) in plan.iter().enumerate() {
         let fps: Vec<String> = row.iter().map(|&j| fp(j)).collect();
-        ui.text(
+        ui.text_as(
             x,
             cy,
-            12.0,
-            W::R,
+            BODY_S,
             Role::OnSurfaceVariant,
             &fill(EN.shares_card_share, &[&(k + 1).to_string()]),
         );
         // On a narrow panel a share's keys go over more than one line.
-        let gap = ui.measure(13.0, W::M, "  ");
+        let gap = ui.measure_as(BODY_S.mono(), "  ");
         let mut fx = x + 70.0;
         for fp in &fps {
-            let fw = ui.measure(13.0, W::M, fp);
+            let fw = ui.measure_as(BODY_S.mono(), fp);
             if fx > x + 70.0 && fx + fw > x + w {
                 fx = x + 70.0;
                 cy += 20.0;
             }
-            ui.text(fx, cy, 13.0, W::M, Role::OnSurface, fp);
+            ui.text_as(fx, cy, BODY_S.mono(), Role::OnSurface, fp);
             fx += fw + gap;
         }
         cy += 24.0;
@@ -736,12 +730,9 @@ pub(crate) fn shares_table(
         ),
     ];
     for (l, ok) in lines.iter() {
-        cy += ui.wrap(
-            x,
-            cy,
-            w,
-            13.0,
-            W::R,
+        cy += ui.wrap_as(
+            (x, cy, w),
+            BODY_S,
             if *ok { Role::Ok } else { Role::Warning },
             l,
         ) + 4.0;
@@ -757,12 +748,9 @@ fn backup_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = y;
     match n {
         bstep::BLANK => {
-            ui.text_mid(
-                x,
-                cy,
-                38.0,
-                13.0,
-                W::R,
+            ui.text_mid_as(
+                (x, cy, 38.0),
+                BODY_S,
                 Role::OnSurfaceVariant,
                 EN.backup_seed_words,
             );
@@ -781,7 +769,7 @@ fn backup_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                     bx,
                     cy,
                     Some(bw),
-                    38.0,
+                    BUTTON_H,
                     &words.to_string(),
                     style,
                     Action::BWords(words),
@@ -815,7 +803,7 @@ fn backup_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                 clauses.push(c32_templates_clause(clauses.is_empty(), len, copy, n));
             }
             let line = clauses.join("; ");
-            cy += ui.wrap(x, cy, w, 14.0, W::R, Role::OnSurface, &line) + 16.0;
+            cy += ui.wrap_as((x, cy, w), BODY_M, Role::OnSurface, &line) + 16.0;
             if item_next(app, ui, x, cy, w, n) {
                 cy += 48.0;
             }
@@ -830,12 +818,9 @@ fn backup_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
         n if bstep::is_copy(n) => {
             let keys = app.backup_keys(b.wallet);
             if keys.is_empty() {
-                ui.wrap(
-                    x,
-                    cy,
-                    w,
-                    13.0,
-                    W::R,
+                ui.wrap_as(
+                    (x, cy, w),
+                    BODY_S,
                     Role::OnSurfaceVariant,
                     EN.backup_no_typed_key,
                 );
@@ -857,7 +842,7 @@ fn backup_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                 x,
                 cy,
                 None,
-                38.0,
+                BUTTON_H,
                 if b.reveal {
                     EN.backup_hide_the_seed
                 } else {
@@ -885,8 +870,8 @@ fn backup_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                     &word_count.to_string(),
                 ],
             );
-            let info = ui.fit(13.0, W::R, &info, x + w - ix);
-            ui.text_mid(ix, iy, 38.0, 13.0, W::R, Role::OnSurfaceVariant, &info);
+            let info = ui.fit_as(BODY_S, &info, x + w - ix);
+            ui.text_mid_as((ix, iy, 38.0), BODY_S, Role::OnSurfaceVariant, &info);
             cy = iy + 52.0;
             // The seed is not drawn while the typed check is open.
             if b.reveal && b.check.is_none() {
@@ -905,40 +890,33 @@ fn backup_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                         .index_of(wd)
                         .map(|v| format!("{v:04}"))
                         .unwrap_or_default();
-                    ui.text(
+                    ui.text_as(
                         cx,
                         ry,
-                        12.0,
-                        W::R,
+                        BODY_S,
                         Role::OnSurfaceVariant,
                         &format!("{:>2}", i + 1),
                     );
                     if ui.compact {
-                        ui.text(cx + 20.0, ry, 13.0, W::M, Role::OnSurface, wd);
-                        ui.text_right(
-                            cx + colw - 8.0,
-                            ry - 3.0,
-                            20.0,
-                            11.0,
-                            W::M,
+                        ui.text_as(cx + 20.0, ry, BODY_S.mono(), Role::OnSurface, wd);
+                        ui.text_right_as(
+                            (cx + colw - 8.0, ry - 3.0, 20.0),
+                            LABEL_S.mono(),
                             Role::OnSurfaceVariant,
                             &idx,
                         );
                     } else {
-                        ui.text(cx + 26.0, ry, 14.0, W::M, Role::OnSurface, wd);
-                        ui.text(cx + 104.0, ry, 12.0, W::M, Role::OnSurfaceVariant, &idx);
+                        ui.text_as(cx + 26.0, ry, BODY_M.mono(), Role::OnSurface, wd);
+                        ui.text_as(cx + 104.0, ry, BODY_S.mono(), Role::OnSurfaceVariant, &idx);
                     }
                 }
                 cy += rows as f32 * 26.0 + 16.0;
                 // SeedQR numbers the English list's words: another list's
                 // words have no SeedQR another signer would read right.
                 if forms.seedqr && lang != faraday_bip::bip39::Language::English {
-                    cy += ui.wrap(
-                        x,
-                        cy,
-                        w,
-                        13.0,
-                        W::R,
+                    cy += ui.wrap_as(
+                        (x, cy, w),
+                        BODY_S,
                         Role::OnSurfaceVariant,
                         EN.backup_seedqr_english_only,
                     ) + 12.0;
@@ -1028,12 +1006,9 @@ fn backup_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
             } else {
                 EN.backup_not_shown
             };
-            ui.text_mid(
-                x,
-                cy,
-                38.0,
-                13.0,
-                W::S,
+            ui.text_mid_as(
+                (x, cy, 38.0),
+                LABEL_L,
                 if b.shown {
                     Role::Ok
                 } else {
@@ -1109,8 +1084,8 @@ fn backup_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                     let crate::plan::At::Place(p) = spot.at else {
                         continue;
                     };
-                    let head = ui.fit(13.0, W::S, &app.place_name(p), w);
-                    ui.text(x, cy, 13.0, W::S, Role::OnSurface, &head);
+                    let head = ui.fit_as(LABEL_L, &app.place_name(p), w);
+                    ui.text_as(x, cy, LABEL_L, Role::OnSurface, &head);
                     cy += 22.0;
                     let holds: Vec<String> = spot
                         .holds
@@ -1122,12 +1097,9 @@ fn backup_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                     } else {
                         holds.join(" · ")
                     };
-                    cy += ui.wrap(
-                        x + 12.0,
-                        cy,
-                        w - 12.0,
-                        12.0,
-                        W::R,
+                    cy += ui.wrap_as(
+                        (x + 12.0, cy, w - 12.0),
+                        BODY_S,
                         Role::OnSurfaceVariant,
                         &line,
                     ) + 10.0;
@@ -1156,12 +1128,9 @@ fn backup_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
 /// Returns its height.
 fn typed_passphrase(app: &View, ui: &mut Ui, (x, y, w): (f32, f32, f32), typed: &str) -> f32 {
     let mut cy = y;
-    cy += ui.wrap(
-        x,
-        cy,
-        w,
-        12.0,
-        W::R,
+    cy += ui.wrap_as(
+        (x, cy, w),
+        BODY_S,
         Role::OnSurfaceVariant,
         EN.copy_check_your_copys_passphrase,
     ) + 4.0;
@@ -1171,8 +1140,8 @@ fn typed_passphrase(app: &View, ui: &mut Ui, (x, y, w): (f32, f32, f32), typed: 
         ui.fill(x, cy, w, 42.0, 8.0, Role::SurfaceContainerHighest);
         ui.stroke(x, cy, w, 42.0, 8.0, Role::Primary);
         let dots = "•".repeat(typed.chars().count());
-        let dots = ui.fit(14.0, W::M, &dots, w - 30.0);
-        ui.text_mid(x + 12.0, cy, 42.0, 14.0, W::M, Role::OnSurface, &dots);
+        let dots = ui.fit_as(BODY_M.mono(), &dots, w - 30.0);
+        ui.text_mid_as((x + 12.0, cy, 42.0), BODY_M.mono(), Role::OnSurface, &dots);
     }
     app.pass_chip_draw(ui, typed.is_empty(), crate::demo::PassField::Check);
     cy += 42.0 + 12.0 + never_below(app, ui, x, cy + 42.0, w);
@@ -1204,7 +1173,7 @@ fn copy_check(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             Role::Error
         };
         let line = crate::wallet_backup::copy_scan_line(found);
-        cy += ui.wrap(x, cy, w, 13.0, W::S, c, &line) + 12.0;
+        cy += ui.wrap_as((x, cy, w), LABEL_L, c, &line) + 12.0;
     }
     // A SeedQR copy kept as the words instead (§14.7 item 3): what stays
     // of the grid, then Keep the words only, or the scans without a match
@@ -1216,19 +1185,19 @@ fn copy_check(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     {
         if b.answers.part.iter().any(|&(_, s)| s == i) {
             let line = fill(EN.copy_check_drawn_in_part, &[&key.fingerprint.to_string()]);
-            cy += ui.wrap(x, cy, w, 13.0, W::R, Role::Warning, &line) + 12.0;
+            cy += ui.wrap_as((x, cy, w), BODY_S, Role::Warning, &line) + 12.0;
         }
         let misses = b.misses_of(key.fingerprint.0);
         if keep_words_offered(app, i) {
             if misses >= crate::copy_check::MISSES {
                 let line = fill(EN.copy_check_scans_without, &[&misses.to_string()]);
-                cy += ui.wrap(x, cy, w, 13.0, W::S, Role::Warning, &line) + 12.0;
+                cy += ui.wrap_as((x, cy, w), LABEL_L, Role::Warning, &line) + 12.0;
             } else if b.check.is_none() {
                 ui.button(
                     x,
                     cy,
                     None,
-                    36.0,
+                    BUTTON_H,
                     EN.copy_check_keep_the_words,
                     Style::Secondary,
                     Action::BKeepWords,
@@ -1247,7 +1216,7 @@ fn copy_check(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             (crate::plan::CopyForm::Words, EN.copy_check_your_copy)
         };
         if b.checked.contains(&(key.fingerprint.0, form)) {
-            cy += ui.wrap(x, cy, w, 13.0, W::S, Role::Ok, line) + 12.0;
+            cy += ui.wrap_as((x, cy, w), LABEL_L, Role::Ok, line) + 12.0;
         }
         return cy - y;
     };
@@ -1258,12 +1227,12 @@ fn copy_check(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     }
     // How the last comparison went, and Clear.
     let line = c.error.as_deref().unwrap_or("");
-    let lh = ui.wrap(x, cy, w - 88.0, 13.0, W::S, Role::Error, line);
+    let lh = ui.wrap_as((x, cy, w - 88.0), LABEL_L, Role::Error, line);
     ui.button(
         x + w - 80.0,
         cy - 8.0,
         Some(80.0),
-        32.0,
+        BUTTON_H,
         EN.copy_check_clear,
         Style::Ghost,
         Action::BCheckClear,
@@ -1285,12 +1254,9 @@ fn word_check(
     let mut cy = y;
     let lang = c.lang;
     if !ui.compact {
-        cy += ui.wrap(
-            x,
-            cy,
-            w,
-            12.0,
-            W::R,
+        cy += ui.wrap_as(
+            (x, cy, w),
+            BODY_S,
             Role::OnSurfaceVariant,
             EN.copy_check_your_copys_words,
         ) + 4.0;
@@ -1303,7 +1269,7 @@ fn word_check(
     let error = c.error.as_deref();
     match c.keys.as_deref() {
         None => {
-            cy += ui.wrap(x, cy, w, 13.0, W::S, Role::OnSurfaceVariant, &label) + 8.0;
+            cy += ui.wrap_as((x, cy, w), LABEL_L, Role::OnSurfaceVariant, &label) + 8.0;
             // Fill words goes in the "Demo only" card while the grid is
             // empty (`docs/DEMO.md` §14).
             if app.copy_check_sample_shown() {
@@ -1335,7 +1301,7 @@ fn word_check(
             cy += never_real_seed(app, ui, x, cy, w);
         }
         Some(k) => {
-            cy += ui.wrap(x, cy, w, 13.0, W::S, Role::OnSurfaceVariant, &label) + 8.0;
+            cy += ui.wrap_as((x, cy, w), LABEL_L, Role::OnSurfaceVariant, &label) + 8.0;
             let taken: Vec<u16> = k.committed_indices().collect();
             let prefix: String = k.prefix().iter().collect();
             let cells = Cells {
@@ -1360,12 +1326,9 @@ fn passphrase_item(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         return 0.0;
     };
     let Some(key) = app.session.keys.info(b.key) else {
-        ui.wrap(
-            x,
-            y,
-            w,
-            13.0,
-            W::R,
+        ui.wrap_as(
+            (x, y, w),
+            BODY_S,
             Role::OnSurfaceVariant,
             EN.backup_no_typed_key,
         );
@@ -1376,7 +1339,7 @@ fn passphrase_item(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         x,
         cy,
         None,
-        38.0,
+        BUTTON_H,
         if b.reveal {
             EN.backup_hide_the_passphrase
         } else {
@@ -1398,21 +1361,18 @@ fn passphrase_item(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         EN.backup_passphrase_item,
         &[&key_line(key.fingerprint, &key.label).to_string()],
     );
-    let info = ui.fit(13.0, W::R, &info, x + w - ix);
-    ui.text_mid(ix, iy, 38.0, 13.0, W::R, Role::OnSurfaceVariant, &info);
+    let info = ui.fit_as(BODY_S, &info, x + w - ix);
+    ui.text_mid_as((ix, iy, 38.0), BODY_S, Role::OnSurfaceVariant, &info);
     cy = iy + 52.0;
     // The passphrase is not drawn while the check is open.
     if b.reveal && b.check.is_none() {
         if key.has_passphrase {
             let shown = app.reveal(b.key, Reveal::Passphrase);
-            cy += ui.wrap(x, cy, w, 16.0, W::M, Role::OnSurface, &shown) + 16.0;
+            cy += ui.wrap_as((x, cy, w), BODY_L.mono(), Role::OnSurface, &shown) + 16.0;
         } else {
-            cy += ui.wrap(
-                x,
-                cy,
-                w,
-                13.0,
-                W::R,
+            cy += ui.wrap_as(
+                (x, cy, w),
+                BODY_S,
                 Role::OnSurfaceVariant,
                 EN.backup_no_passphrase_kept,
             ) + 12.0;
@@ -1581,7 +1541,7 @@ fn item_next(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, n: u8) -> bool {
     {
         return false;
     }
-    let label = ui.fit(14.0, W::S, &label, w - 36.0);
+    let label = ui.fit_as(LABEL_L, &label, w - 36.0);
     next_button(ui, x, y, w, &label, action)
 }
 
@@ -1621,10 +1581,10 @@ fn sticks_item(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             if lines.is_empty() {
                 continue;
             }
-            ui.text(x, cy, 12.0, W::R, Role::OnSurfaceVariant, title);
+            ui.text_as(x, cy, BODY_S, Role::OnSurfaceVariant, title);
             cy += 22.0;
             for (l, tone) in lines {
-                cy += ui.wrap(x, cy, w, 13.0, W::R, tone, &l) + 6.0;
+                cy += ui.wrap_as((x, cy, w), BODY_S, tone, &l) + 6.0;
             }
             cy += 6.0;
         }
@@ -1647,20 +1607,17 @@ fn sticks_item(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             },
         );
         let tail = done.clone().unwrap_or_default();
-        let room = w - ui.measure(12.0, W::M, &tail) - 30.0;
-        let head = ui.fit(13.0, W::S, &name, room);
-        ui.text_mid(x + 18.0, cy, 18.0, 13.0, W::S, Role::OnSurface, &head);
+        let room = w - ui.measure_as(BODY_S.mono(), &tail) - 30.0;
+        let head = ui.fit_as(LABEL_L, &name, room);
+        ui.text_mid_as((x + 18.0, cy, 18.0), LABEL_L, Role::OnSurface, &head);
         if done.is_some() {
-            ui.text_right(x + w, cy, 18.0, 12.0, W::M, Role::Ok, &tail);
+            ui.text_right_as((x + w, cy, 18.0), BODY_S.mono(), Role::Ok, &tail);
         }
         cy += 24.0;
         if !files.is_empty() {
-            cy += ui.wrap(
-                x + 18.0,
-                cy,
-                w - 18.0,
-                12.0,
-                W::M,
+            cy += ui.wrap_as(
+                (x + 18.0, cy, w - 18.0),
+                BODY_S.mono(),
                 Role::OnSurfaceVariant,
                 &files.join(", "),
             ) + 8.0;
@@ -1683,8 +1640,8 @@ fn vault_row(ui: &mut Ui, x: f32, y: f32, w: f32, label: &str, has: bool) -> f32
             Role::OnSurfaceVariant
         },
     );
-    let label = ui.fit(13.0, W::R, label, w - 18.0);
-    ui.text_mid(x + 18.0, y, 18.0, 13.0, W::R, Role::OnSurface, &label);
+    let label = ui.fit_as(BODY_S, label, w - 18.0);
+    ui.text_mid_as((x + 18.0, y, 18.0), BODY_S, Role::OnSurface, &label);
     24.0
 }
 
@@ -1706,15 +1663,15 @@ fn vault_item(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, v: usize) -> f32 
         && app.backup_vault_taken(v, cur)
     {
         let line = fill(EN.vault_item_holds_another, &[&o.name.to_string()]);
-        let line = ui.fit(13.0, W::S, &line, w);
-        ui.text(x, cy + 4.0, 13.0, W::S, Role::Warning, &line);
+        let line = ui.fit_as(LABEL_L, &line, w);
+        ui.text_as(x, cy + 4.0, LABEL_L, Role::Warning, &line);
         cy += 32.0;
     }
     let head = match open {
         Some(o) => fill(EN.vault_item_into, &[&o.name.to_string()]),
         None => EN.vault_item_into_vault.to_string(),
     };
-    let head = ui.fit(13.0, W::S, &head, w);
+    let head = ui.fit_as(LABEL_L, &head, w);
     section_label(ui, x, cy, &head);
     cy += 28.0;
     let (own, _) = app.backup_vault_seeds(v);
@@ -1765,16 +1722,8 @@ fn vault_item(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, v: usize) -> f32 
         let top = cy;
         cy += 4.0;
         ui.checkbox(x, cy, on, true);
-        let label = ui.fit(13.0, W::S, EN.vault_load_at_unlock, w - 28.0);
-        ui.text_mid(
-            x + 28.0,
-            cy - 2.0,
-            22.0,
-            13.0,
-            W::S,
-            Role::OnSurface,
-            &label,
-        );
+        let label = ui.fit_as(LABEL_L, EN.vault_load_at_unlock, w - 28.0);
+        ui.text_mid_as((x + 28.0, cy - 2.0, 22.0), LABEL_L, Role::OnSurface, &label);
         cy += 28.0;
         ui.hit(
             x - 4.0,
@@ -1790,8 +1739,8 @@ fn vault_item(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, v: usize) -> f32 
         && let Some((label, action)) = app.vault_unlock_way(Screen::Backup)
     {
         cy += 4.0;
-        let label = ui.fit(14.0, W::S, &label, w - 36.0);
-        ui.button(x, cy, None, 40.0, &label, Style::Secondary, action);
+        let label = ui.fit_as(LABEL_L, &label, w - 36.0);
+        ui.button(x, cy, None, BUTTON_H, &label, Style::Secondary, action);
         cy += 48.0;
     }
     cy + 4.0 - y
@@ -1828,15 +1777,12 @@ fn seed_files(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         } else {
             EN.seed_files_not_made
         };
-        let sw = ui.measure(12.0, W::R, state);
-        let name = ui.fit(13.0, W::S, &name, w - sw - 30.0);
-        ui.text_mid(x + 18.0, cy, 18.0, 13.0, W::S, Role::OnSurface, &name);
-        ui.text_right(
-            x + w,
-            cy,
-            18.0,
-            12.0,
-            W::R,
+        let sw = ui.measure_as(BODY_S, state);
+        let name = ui.fit_as(LABEL_L, &name, w - sw - 30.0);
+        ui.text_mid_as((x + 18.0, cy, 18.0), LABEL_L, Role::OnSurface, &name);
+        ui.text_right_as(
+            (x + w, cy, 18.0),
+            BODY_S,
             if made {
                 Role::Ok
             } else {
@@ -1875,19 +1821,12 @@ fn paper_section(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         }
         Some(PaperForm::Xor(parts)) => {
             let line = fill(EN.paper_section_parts, &[&parts.len().to_string()]);
-            ui.text(x, cy, 13.0, W::S, Role::Warning, &line);
+            ui.text_as(x, cy, LABEL_L, Role::Warning, &line);
             cy += 26.0;
             for (i, l) in parts.iter().enumerate() {
-                ui.text(
-                    x,
-                    cy,
-                    12.0,
-                    W::R,
-                    Role::OnSurfaceVariant,
-                    &format!("{}", i + 1),
-                );
+                ui.text_as(x, cy, BODY_S, Role::OnSurfaceVariant, &format!("{}", i + 1));
                 cy += ui
-                    .wrap(x + 28.0, cy, w - 28.0, 13.0, W::M, Role::OnSurface, l)
+                    .wrap_as((x + 28.0, cy, w - 28.0), BODY_S.mono(), Role::OnSurface, l)
                     .max(18.0)
                     + 10.0;
             }
@@ -1895,7 +1834,7 @@ fn paper_section(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                 x,
                 cy,
                 None,
-                34.0,
+                BUTTON_H,
                 EN.paper_section_put_them,
                 Style::Ghost,
                 Action::BPaperHide,
@@ -1950,14 +1889,7 @@ fn backup_panel(app: &View, ui: &mut Ui, px: f32, pw: f32, h: f32) {
     ui.c.pop_clip();
     let foot = h - ch - 16.0;
     let top = faraday_draw::tokens::SIDE_PANEL_TOP;
-    ui.text(
-        x,
-        top,
-        13.0,
-        W::S,
-        Role::OnSurfaceVariant,
-        EN.backup_panel_map,
-    );
+    ui.text_as(x, top, LABEL_L, Role::OnSurfaceVariant, EN.backup_panel_map);
     let clip = ui.rect(px, top + 24.0, pw, foot - top - 32.0);
     ui.c.push_clip(clip);
     map_rows(app, ui, x, top + 28.0, w, true);
@@ -1987,15 +1919,15 @@ fn kept_rows(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     };
     let mut cy = y;
     let (line, t) = &kept.wallet;
-    cy += ui.wrap(x, cy, w, 13.0, W::S, tone(*t), line) + 16.0;
-    ui.text(x, cy, 13.0, W::S, Role::OnSurfaceVariant, EN.kept_rows_keys);
+    cy += ui.wrap_as((x, cy, w), LABEL_L, tone(*t), line) + 16.0;
+    ui.text_as(x, cy, LABEL_L, Role::OnSurfaceVariant, EN.kept_rows_keys);
     cy += 26.0;
     for seed in &kept.seeds {
-        let name = ui.fit(13.0, W::M, &seed.name, w);
-        ui.text(x, cy, 13.0, W::M, Role::OnSurface, &name);
+        let name = ui.fit_as(BODY_S.mono(), &seed.name, w);
+        ui.text_as(x, cy, BODY_S.mono(), Role::OnSurface, &name);
         cy += 22.0;
         for (line, t) in &seed.lines {
-            cy += ui.wrap(x + 12.0, cy, w - 12.0, 12.0, W::R, tone(*t), line) + 4.0;
+            cy += ui.wrap_as((x + 12.0, cy, w - 12.0), BODY_S, tone(*t), line) + 4.0;
         }
         cy += 8.0;
     }
@@ -2190,7 +2122,7 @@ fn public_rows_for(
             x,
             cy,
             None,
-            36.0,
+            BUTTON_H,
             EN.public_rows_for_more_options,
             Style::Ghost,
             Action::PublicMore(i),

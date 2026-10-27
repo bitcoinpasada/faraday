@@ -4,12 +4,13 @@
 
 use crate::drawing::View;
 use crate::strings::EN;
+use faraday_draw::tokens::{BODY_M, BODY_S, FIELD_H, LABEL_L, TITLE_L, TITLE_M};
 use faraday_draw::widgets::Icon;
 
 use crate::Action;
 use crate::compact::{buttons, scroll_sheet, sheet_head};
 use crate::ui::pal::*;
-use crate::ui::{Style, Ui, W};
+use crate::ui::{Style, Ui};
 use crate::vault::VaultAction as V;
 use crate::vault::load::{LoadCard, LoadSeed, LoadView};
 
@@ -46,11 +47,11 @@ fn body(ui: &mut Ui, x: f32, y: f32, w: f32, view: &LoadView, may: bool) -> f32 
         sheet_head(ui, x, cy, w, Icon::Download, Role::Primary, &view.title)
     } else {
         ui.icon(x, cy, 30.0, Icon::Download, 18.0, Role::Primary);
-        let t = ui.fit(20.0, W::S, &view.title, w - 42.0);
-        ui.text_mid(x + 42.0, cy, 30.0, 20.0, W::S, Role::OnSurface, &t);
+        let t = ui.fit_as(TITLE_L.medium(), &view.title, w - 42.0);
+        ui.text_mid_as((x + 42.0, cy, 30.0), TITLE_L.medium(), Role::OnSurface, &t);
         46.0
     };
-    cy += ui.wrap(x, cy, w, 14.0, W::S, Role::OnSurface, &view.count) + 16.0;
+    cy += ui.wrap_as((x, cy, w), LABEL_L, Role::OnSurface, &view.count) + 16.0;
     // Unselect all while any is ticked; Select all once none is.
     let any = view.any_ticked();
     if view.tickable() {
@@ -59,8 +60,8 @@ fn body(ui: &mut Ui, x: f32, y: f32, w: f32, view: &LoadView, may: bool) -> f32 
         } else {
             EN.visit_select_all
         };
-        let tw = ui.measure(13.0, W::S, t);
-        ui.text_mid(x, cy - 6.0, 30.0, 13.0, W::S, Role::Primary, t);
+        let tw = ui.measure_as(LABEL_L, t);
+        ui.text_mid_as((x, cy - 6.0, 30.0), LABEL_L, Role::Primary, t);
         ui.hit(x - 6.0, cy - 6.0, tw + 12.0, 30.0, va(V::LoadTickAll));
         cy += 30.0;
     }
@@ -93,13 +94,12 @@ fn body(ui: &mut Ui, x: f32, y: f32, w: f32, view: &LoadView, may: bool) -> f32 
 
 /// "Loaded" at the right of a line at `y`, greyed. Returns the width it
 /// took, with its gap.
-fn loaded_tag(ui: &mut Ui, right: f32, y: f32, size: f32) -> f32 {
-    let lw = ui.measure(size, W::R, EN.load_sheet_loaded);
-    ui.text(
+fn loaded_tag(ui: &mut Ui, right: f32, y: f32) -> f32 {
+    let lw = ui.measure_as(BODY_S, EN.load_sheet_loaded);
+    ui.text_as(
         right - lw,
         y,
-        size,
-        W::R,
+        BODY_S,
         Role::OnSurfaceVariant,
         EN.load_sheet_loaded,
     );
@@ -112,16 +112,15 @@ fn loaded_tag(ui: &mut Ui, right: f32, y: f32, size: f32) -> f32 {
 fn seed_line(ui: &mut Ui, tx: f32, y: f32, right: f32, s: &LoadSeed) -> f32 {
     let mut cy = y;
     let tag = if s.loaded {
-        loaded_tag(ui, right, cy, 12.0)
+        loaded_tag(ui, right, cy)
     } else {
         0.0
     };
-    let line = ui.fit(13.0, W::M, &s.line, right - tx - tag);
-    ui.text(
+    let line = ui.fit_as(BODY_S.mono(), &s.line, right - tx - tag);
+    ui.text_as(
         tx,
         cy,
-        13.0,
-        W::M,
+        BODY_S.mono(),
         if s.loaded {
             Role::OnSurfaceVariant
         } else {
@@ -131,7 +130,7 @@ fn seed_line(ui: &mut Ui, tx: f32, y: f32, right: f32, s: &LoadSeed) -> f32 {
     );
     cy += 20.0;
     if let Some(also) = &s.also_line {
-        cy += ui.wrap(tx, cy, right - tx, 12.0, W::R, Role::OnSurfaceVariant, also) + 2.0;
+        cy += ui.wrap_as((tx, cy, right - tx), BODY_S, Role::OnSurfaceVariant, also) + 2.0;
     }
     cy - y
 }
@@ -147,16 +146,15 @@ fn wallet_card(ui: &mut Ui, x: f32, y: f32, w: f32, c: &LoadCard) -> f32 {
         ui.checkbox(ix, cy + 1.0, c.ticked, true);
     }
     let tag = if c.loaded {
-        loaded_tag(ui, right, cy + 1.0, 12.0)
+        loaded_tag(ui, right, cy + 1.0)
     } else {
         0.0
     };
-    let name = ui.fit(15.0, W::S, &c.name, right - tx - tag);
-    ui.text(
+    let name = ui.fit_as(TITLE_M, &c.name, right - tx - tag);
+    ui.text_as(
         tx,
         cy,
-        15.0,
-        W::S,
+        TITLE_M,
         if c.done {
             Role::OnSurfaceVariant
         } else {
@@ -166,15 +164,15 @@ fn wallet_card(ui: &mut Ui, x: f32, y: f32, w: f32, c: &LoadCard) -> f32 {
     );
     cy += 24.0;
     if !c.kind.is_empty() {
-        let kind = ui.fit(12.0, W::R, &c.kind, right - tx);
-        ui.text(tx, cy, 12.0, W::R, Role::OnSurfaceVariant, &kind);
+        let kind = ui.fit_as(BODY_S, &c.kind, right - tx);
+        ui.text_as(tx, cy, BODY_S, Role::OnSurfaceVariant, &kind);
         cy += 22.0;
     }
     for s in &c.seeds {
         cy += seed_line(ui, tx, cy, right, s);
     }
     if let Some(e) = &c.elsewhere {
-        cy += ui.wrap(tx, cy, right - tx, 12.0, W::R, Role::OnSurfaceVariant, e) + 2.0;
+        cy += ui.wrap_as((tx, cy, right - tx), BODY_S, Role::OnSurfaceVariant, e) + 2.0;
     }
     cy += PAD - 4.0;
     ui.stroke(x, y, w, cy - y, 10.0, Role::OutlineVariant);
@@ -189,7 +187,7 @@ fn wallet_card(ui: &mut Ui, x: f32, y: f32, w: f32, c: &LoadCard) -> f32 {
 fn keys_card(ui: &mut Ui, x: f32, y: f32, w: f32, keys: &[LoadSeed]) -> f32 {
     let (ix, right) = (x + PAD, x + w - PAD);
     let mut cy = y + PAD;
-    ui.text(ix, cy, 15.0, W::S, Role::OnSurface, EN.load_sheet_keys_card);
+    ui.text_as(ix, cy, TITLE_M, Role::OnSurface, EN.load_sheet_keys_card);
     cy += 26.0;
     for s in keys {
         let top = cy - 4.0;
@@ -236,15 +234,15 @@ pub(crate) fn pass_seeds(app: &View, ui: &mut Ui, w: f32, h: f32) {
             )
         } else {
             ui.icon(x, cy, 30.0, Icon::Lock, 18.0, Role::Primary);
-            let t = ui.fit(20.0, W::S, EN.pass_seeds_title, iw - 42.0);
-            ui.text_mid(x + 42.0, cy, 30.0, 20.0, W::S, Role::OnSurface, &t);
+            let t = ui.fit_as(TITLE_L.medium(), EN.pass_seeds_title, iw - 42.0);
+            ui.text_mid_as((x + 42.0, cy, 30.0), TITLE_L.medium(), Role::OnSurface, &t);
             46.0
         };
         let row = |ui: &mut Ui, cy: f32, s: &crate::vault::load::PassSeed| -> f32 {
-            let vault = ui.fit(12.0, W::R, &s.vault_name, iw);
-            ui.text(x, cy, 12.0, W::R, Role::OnSurfaceVariant, &vault);
-            let line = ui.fit(14.0, W::M, &s.line, iw);
-            ui.text(x, cy + 20.0, 14.0, W::M, Role::OnSurface, &line);
+            let vault = ui.fit_as(BODY_S, &s.vault_name, iw);
+            ui.text_as(x, cy, BODY_S, Role::OnSurfaceVariant, &vault);
+            let line = ui.fit_as(BODY_M.mono(), &s.line, iw);
+            ui.text_as(x, cy + 20.0, BODY_M.mono(), Role::OnSurface, &line);
             44.0
         };
         let picked = p
@@ -275,11 +273,10 @@ pub(crate) fn pass_seeds(app: &View, ui: &mut Ui, w: f32, h: f32) {
             }
             Some(s) => {
                 cy += row(ui, cy, s) + 8.0;
-                ui.text(
+                ui.text_as(
                     x,
                     cy,
-                    12.0,
-                    W::R,
+                    BODY_S,
                     Role::OnSurfaceVariant,
                     EN.pass_seeds_passphrase,
                 );
@@ -302,9 +299,9 @@ pub(crate) fn pass_seeds(app: &View, ui: &mut Ui, w: f32, h: f32) {
                         (va(V::FocusPrompt), va(V::ShowTyped)),
                         crate::demo::PassField::Prompt,
                     );
-                    cy += 50.0 + crate::screens::never_under(app, ui, x, cy, iw);
+                    cy += FIELD_H + 10.0 + crate::screens::never_under(app, ui, x, cy, iw);
                     if let Some(e) = &q.error {
-                        cy += ui.wrap(x, cy, iw, 13.0, W::R, Role::Error, e) + 10.0;
+                        cy += ui.wrap_as((x, cy, iw), BODY_S, Role::Error, e) + 10.0;
                     }
                 }
                 let back = if seeds.len() > 1 {

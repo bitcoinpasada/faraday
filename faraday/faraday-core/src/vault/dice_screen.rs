@@ -8,8 +8,9 @@ use crate::screens::never_under;
 use crate::strings::EN;
 use crate::strings::fill;
 use crate::ui::pal::*;
-use crate::ui::{Style, Ui, W};
+use crate::ui::{Style, Ui};
 use crate::vault::{self, Focus, TextBox, VaultAction as V};
+use faraday_draw::tokens::{BODY_M, BODY_S, BUTTON_H, FIELD_H, LABEL_L, LABEL_S};
 
 fn va(a: V) -> Action {
     Action::Vault(a)
@@ -31,7 +32,7 @@ pub(super) fn dice_panel(
     let mut cy = y;
     ui.fill(x, cy, w, 4.0, 2.0, Role::Primary.with_alpha(60));
     cy += 14.0;
-    ui.text(x, cy, 13.0, W::S, Role::OnSurface, EN.dice_list_title);
+    ui.text_as(x, cy, LABEL_L, Role::OnSurface, EN.dice_list_title);
     cy += 22.0;
     let lists = [
         (List::Large, EN.dice_list_large, EN.dice_list_large_detail),
@@ -56,24 +57,21 @@ pub(super) fn dice_panel(
         } else {
             (x + k as f32 * (lw + 10.0), cy)
         };
-        let detail = ui.fit(11.0, W::R, detail, lw - 20.0);
+        let detail = ui.fit_as(LABEL_S.regular(), detail, lw - 20.0);
         use crate::ui::pal::{on_selected, selected_or};
         let fill_ = selected_or(on, Role::SurfaceContainerHighest);
         ui.fill(bx, cy, lw, 44.0, 8.0, fill_);
         ui.stroke(bx, cy, lw, 44.0, 8.0, selected_or(on, Role::OutlineVariant));
         let ink = on_selected(on, Role::OnSurface);
-        ui.text(bx + 10.0, cy + 6.0, 13.0, W::S, ink, name);
+        ui.text_as(bx + 10.0, cy + 6.0, LABEL_L, ink, name);
         let muted = on_selected(on, Role::OnSurfaceVariant);
-        ui.text(bx + 10.0, cy + 24.0, 11.0, W::R, muted, &detail);
+        ui.text_as(bx + 10.0, cy + 24.0, LABEL_S.regular(), muted, &detail);
         ui.hit(bx, cy, lw, 44.0, Action::Vault(V::DiceList(k as u8)));
     }
     cy += if compact { 3.0 * 52.0 + 4.0 } else { 56.0 };
-    cy += ui.wrap(
-        x,
-        cy,
-        w,
-        13.0,
-        W::S,
+    cy += ui.wrap_as(
+        (x, cy, w),
+        LABEL_L,
         Role::OnSurface,
         &fill(EN.vault_dice_per_word, &[&list.dice_per_word().to_string()]),
     ) + 8.0;
@@ -88,7 +86,7 @@ pub(super) fn dice_panel(
         focused,
         Action::Vault(V::Dice(app.vaults.dice.as_ref().map_or(0, |d| d.0))),
     );
-    cy += 50.0 + never_under(app, ui, x, cy, w);
+    cy += FIELD_H + 10.0 + never_under(app, ui, x, cy, w);
     // The computer's roller, on Faraday Demo only, is in the "Practice
     // only" card (`docs/CODEX32.md` §5.6, `samples/card.rs`).
     let words = vault::dice_words(&rolls.text, list);
@@ -97,21 +95,13 @@ pub(super) fn dice_panel(
     // The words as the rolls make them, each a pill that opens it in its
     // list, as New key shows its words.
     if words.is_empty() {
-        ui.text(
-            x,
-            cy,
-            13.0,
-            W::R,
-            Role::OnSurfaceVariant,
-            EN.vault_no_word_yet,
-        );
+        ui.text_as(x, cy, BODY_S, Role::OnSurfaceVariant, EN.vault_no_word_yet);
         cy += 26.0;
     } else {
-        ui.text(
+        ui.text_as(
             x,
             cy,
-            12.0,
-            W::R,
+            BODY_S,
             Role::OnSurfaceVariant,
             crate::wordlist::PRESS_A_WORD,
         );
@@ -122,7 +112,7 @@ pub(super) fn dice_panel(
             .iter()
             .zip(vault::dice_word_indices(&rolls.text, list))
         {
-            let bw = ui.measure(14.0, W::M, word) + 24.0;
+            let bw = ui.measure_as(BODY_M.mono(), word) + 24.0;
             if bx > x && bx + bw > x + w {
                 bx = x;
                 cy += 32.0;
@@ -164,12 +154,9 @@ pub(super) fn dice_panel(
             .to_string(),
         ],
     );
-    cy += ui.wrap(
-        x,
-        cy,
-        w,
-        12.0,
-        W::R,
+    cy += ui.wrap_as(
+        (x, cy, w),
+        BODY_S,
         if bits >= vault::STRONG_BITS {
             Role::Ok
         } else {
@@ -178,12 +165,9 @@ pub(super) fn dice_panel(
         &status,
     ) + 8.0;
     // How long is long enough, and where the lists come from.
-    cy += ui.wrap(
-        x,
-        cy,
-        w,
-        12.0,
-        W::R,
+    cy += ui.wrap_as(
+        (x, cy, w),
+        BODY_S,
         Role::OnSurfaceVariant,
         &vault::dice_aim(list),
     ) + 12.0;
@@ -196,7 +180,7 @@ pub(super) fn dice_panel(
         x,
         cy,
         None,
-        36.0,
+        BUTTON_H,
         EN.vault_use_these_words,
         style,
         va(V::DiceUse),
@@ -205,7 +189,7 @@ pub(super) fn dice_panel(
         x + uw + 8.0,
         cy,
         None,
-        36.0,
+        BUTTON_H,
         EN.vault_cancel,
         Style::Ghost,
         va(V::DiceClose),

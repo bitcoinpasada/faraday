@@ -12,7 +12,8 @@ use crate::drawing::View;
 use crate::screens::stepper;
 use crate::strings::{EN as FEN, fill};
 use crate::ui::pal::*;
-use crate::ui::{Style, Ui, W};
+use crate::ui::{Style, Ui};
+use faraday_draw::tokens::{BODY_M, BODY_S, BUTTON_H, LABEL_L, TITLE_M};
 
 fn fa(a: F) -> Action {
     Action::Flow(a)
@@ -68,21 +69,18 @@ pub(crate) fn where_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32
             } else {
                 FEN.backup_flow_existing_vault
             };
-            ui.text_mid(
-                x + 12.0,
-                cy,
-                32.0,
-                13.0,
-                W::S,
+            ui.text_mid_as(
+                (x + 12.0, cy, 32.0),
+                LABEL_L,
                 Role::OnSurface,
                 &fill(FEN.backup_flow_pick_title, &[&label, state]),
             );
-            let bw = ui.measure(13.0, W::S, other) + 32.0;
+            let bw = ui.measure_as(LABEL_L, other) + 32.0;
             ui.button(
                 x + w - bw,
                 cy,
                 Some(bw),
-                32.0,
+                BUTTON_H,
                 other,
                 if ctx.enabled {
                     Style::Secondary
@@ -99,13 +97,13 @@ pub(crate) fn where_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32
             continue;
         }
         if let Some(line) = cards::stickless_line(app, &ctx) {
-            cy += ui.wrap(x + 12.0, cy, w - 12.0, 13.0, W::S, Role::Warning, &line) + 12.0;
+            cy += ui.wrap_as((x + 12.0, cy, w - 12.0), LABEL_L, Role::Warning, &line) + 12.0;
         }
         if let Some(line) = cards::held_line(app, &ctx, None) {
             if ui.pinning {
                 ui.pin = Some((line, Style::Disabled, fa(F::Continue)));
             } else {
-                cy += ui.wrap(x + 12.0, cy, w - 12.0, 13.0, W::S, Role::Warning, &line) + 12.0;
+                cy += ui.wrap_as((x + 12.0, cy, w - 12.0), LABEL_L, Role::Warning, &line) + 12.0;
             }
             continue;
         }
@@ -148,12 +146,12 @@ fn card_head(
         );
     }
     ui.stroke(x, y, w, h, 8.0, Role::OutlineVariant);
-    let tw = ui.measure(14.0, W::S, title).min(w * 0.5);
-    let t = ui.fit(14.0, W::S, title, w * 0.5);
-    ui.text_mid(x + 12.0, y, h, 14.0, W::S, Role::OnSurface, &t);
+    let tw = ui.measure_as(LABEL_L, title).min(w * 0.5);
+    let t = ui.fit_as(LABEL_L, title, w * 0.5);
+    ui.text_mid_as((x + 12.0, y, h), LABEL_L, Role::OnSurface, &t);
     if !open {
-        let s = ui.fit(12.0, W::R, summary, w - tw - 36.0);
-        ui.text_right(x + w - 12.0, y, h, 12.0, W::R, Role::OnSurfaceVariant, &s);
+        let s = ui.fit_as(BODY_S, summary, w - tw - 36.0);
+        ui.text_right_as((x + w - 12.0, y, h), BODY_S, Role::OnSurfaceVariant, &s);
     }
     ui.hit(x, y, w, h, toggle);
     h + 8.0
@@ -165,37 +163,28 @@ pub(crate) fn make_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32,
     let mut cy = y;
     if f.made {
         let name = f.subject.as_ref().map_or(String::new(), |s| s.name.clone());
-        cy += ui.wrap(x, cy, w, 15.0, W::S, Role::Ok, &name) + 12.0;
+        cy += ui.wrap_as((x, cy, w), TITLE_M, Role::Ok, &name) + 12.0;
         for &v in &f.made_in {
-            cy += ui.wrap(
-                x,
-                cy,
-                w,
-                14.0,
-                W::R,
+            cy += ui.wrap_as(
+                (x, cy, w),
+                BODY_M,
                 Role::OnSurface,
                 &fill(FEN.backup_flow_in_vault, &[&BackupFlow::vault_name(v)]),
             ) + 10.0;
         }
         if f.adding {
-            cy += ui.wrap(
-                x,
-                cy,
-                w,
-                14.0,
-                W::R,
+            cy += ui.wrap_as(
+                (x, cy, w),
+                BODY_M,
                 Role::OnSurfaceVariant,
                 FEN.backup_flow_copy_across,
             ) + 10.0;
             // A seed kept only on paper is typed back from its copy.
             let missing = app.wallet_round_missing(app.flow_index_of(f));
             if !missing.is_empty() {
-                cy += ui.wrap(
-                    x,
-                    cy,
-                    w,
-                    14.0,
-                    W::S,
+                cy += ui.wrap_as(
+                    (x, cy, w),
+                    LABEL_L,
                     Role::Warning,
                     &fill(FEN.backup_flow_on_paper_only, &[&missing.join(", ")]),
                 ) + 10.0;
@@ -203,7 +192,7 @@ pub(crate) fn make_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32,
                     x,
                     cy,
                     None,
-                    40.0,
+                    BUTTON_H,
                     FEN.backup_flow_add_from_copy,
                     Style::Secondary,
                     Action::Entry(None),
@@ -225,7 +214,7 @@ pub(crate) fn make_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32,
                 x,
                 cy,
                 None,
-                40.0,
+                BUTTON_H,
                 FEN.backup_flow_copy_key,
                 Style::Primary,
                 fa(F::CopyKey),
@@ -236,7 +225,7 @@ pub(crate) fn make_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32,
                 x,
                 cy,
                 None,
-                40.0,
+                BUTTON_H,
                 FEN.backup_flow_continue_make,
                 Style::Primary,
                 fa(F::MadeContinue),
@@ -249,7 +238,7 @@ pub(crate) fn make_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32,
         x,
         cy,
         None,
-        40.0,
+        BUTTON_H,
         FEN.backup_flow_make_the_keys,
         Style::Primary,
         fa(F::WalletMake),
@@ -268,24 +257,18 @@ fn ask_card(
     next: Option<Action>,
 ) -> f32 {
     let mut cy = y;
-    cy += ui.wrap(
-        x,
-        cy,
-        w,
-        14.0,
-        W::R,
+    cy += ui.wrap_as(
+        (x, cy, w),
+        BODY_M,
         Role::OnSurface,
         FEN.backup_flow_use_vaults_question,
     ) + 6.0;
     // A vault on a stick is read before the keys only: after them the
     // lock a new stick needs would wipe them (`docs/BACKUP-FLOW.md` §17.21
     // item 5).
-    cy += ui.wrap(
-        x,
-        cy,
-        w,
-        13.0,
-        W::R,
+    cy += ui.wrap_as(
+        (x, cy, w),
+        BODY_S,
         Role::OnSurfaceVariant,
         FEN.backup_flow_vaults_on_sticks,
     ) + 14.0;
@@ -303,7 +286,7 @@ fn ask_card(
         x,
         cy,
         Some(bw),
-        40.0,
+        BUTTON_H,
         FEN.plan_yes,
         style(ask.answer == Some(true)),
         yes,
@@ -312,7 +295,7 @@ fn ask_card(
         x + bw + 10.0,
         cy,
         Some(bw),
-        40.0,
+        BUTTON_H,
         FEN.plan_no,
         style(ask.answer == Some(false)),
         no,
@@ -322,14 +305,14 @@ fn ask_card(
     // (F103).
     if let (false, Some(next)) = (locked, next) {
         let label = FEN.create_continue;
-        let lw = ui.measure(14.0, W::S, label) + 36.0;
+        let lw = ui.measure_as(LABEL_L, label) + 36.0;
         // Nothing is asked of the person until they have answered.
         let style = if ask.answer.is_some() {
             Style::Primary
         } else {
             Style::Disabled
         };
-        ui.button(x + w - lw, cy, Some(lw), 40.0, label, style, next);
+        ui.button(x + w - lw, cy, Some(lw), BUTTON_H, label, style, next);
         cy += 48.0;
     }
     cy - y
@@ -346,12 +329,9 @@ fn count_card(
     next: Action,
 ) -> f32 {
     let mut cy = y;
-    cy += ui.wrap(
-        x,
-        cy,
-        w,
-        14.0,
-        W::R,
+    cy += ui.wrap_as(
+        (x, cy, w),
+        BODY_M,
         Role::OnSurface,
         FEN.backup_flow_how_many_question,
     ) + 14.0;
@@ -370,8 +350,16 @@ fn count_card(
     cy += 52.0;
     if !locked {
         let label = FEN.create_continue;
-        let lw = ui.measure(14.0, W::S, label) + 36.0;
-        ui.button(x + w - lw, cy, Some(lw), 40.0, label, Style::Primary, next);
+        let lw = ui.measure_as(LABEL_L, label) + 36.0;
+        ui.button(
+            x + w - lw,
+            cy,
+            Some(lw),
+            BUTTON_H,
+            label,
+            Style::Primary,
+            next,
+        );
         cy += 48.0;
     }
     cy - y
@@ -462,14 +450,14 @@ pub(crate) fn create_flow_card(
             )
         }
     };
-    cy += ui.wrap(x, cy, w, 14.0, W::R, Role::OnSurface, &line) + 14.0;
+    cy += ui.wrap_as((x, cy, w), BODY_M, Role::OnSurface, &line) + 14.0;
     let label = FEN.backup_flow_change;
-    let bw = ui.measure(14.0, W::S, label) + 36.0;
+    let bw = ui.measure_as(LABEL_L, label) + 36.0;
     ui.button(
         x + w - bw,
         cy,
         Some(bw),
-        40.0,
+        BUTTON_H,
         label,
         Style::Secondary,
         fa(F::Show(i)),

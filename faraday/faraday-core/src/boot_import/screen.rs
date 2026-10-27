@@ -7,7 +7,9 @@
 use crate::drawing::View;
 use crate::strings::EN;
 use crate::strings::fill;
-use faraday_draw::tokens::{BODY_M, BODY_S, GAP, HEADLINE_S, LABEL_L, LABEL_M, PROGRESS_H};
+use faraday_draw::tokens::{
+    BODY_M, BODY_S, FIELD_H, GAP, HEADLINE_S, LABEL_L, LABEL_M, PROGRESS_H,
+};
 use faraday_draw::widgets::Icon;
 
 use crate::Action;
@@ -220,7 +222,7 @@ fn passphrase(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, file: usize) -> f
     } else {
         stick_field(app.medium, ui, x, cy, w);
     }
-    cy += 50.0 + crate::screens::never_under(app, ui, x, cy, w);
+    cy += FIELD_H + 10.0 + crate::screens::never_under(app, ui, x, cy, w);
     if app.vaults.working == Some(Work::Unlock) {
         let lh = ui.wrap_as((x, cy, w), LABEL_L, Role::Primary, &unlocking(app, file)) + 10.0;
         crate::screens::working_bar(ui, x, cy, w, lh);

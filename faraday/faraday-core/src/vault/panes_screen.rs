@@ -9,9 +9,10 @@ use crate::panes::screen::{Item, ListPane, split};
 use crate::screens::{guide_text, title};
 use crate::strings::{EN, fill};
 use crate::ui::pal::*;
-use crate::ui::{Style, Ui, W};
+use crate::ui::{Style, Ui};
 use crate::vault::{self, VaultAction as V};
 use crate::{Action, Screen};
+use faraday_draw::tokens::{BODY_M, BODY_S, LABEL_L, TITLE_M};
 use faraday_draw::tokens::{BUTTON_H, GAP, LIST_PAD, MARGIN_WIDE, SHAPE_M, TOUCH};
 use faraday_draw::widgets::Icon;
 
@@ -173,7 +174,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         Some(f) => y += card(app, ui, (dx, y, w), at, f) + MARGIN_WIDE,
         None => {
             let muted = Role::OnSurfaceVariant;
-            y += ui.wrap(dx, y, w, 15.0, W::R, muted, EN.vault_no_vault_in_files) + GAP;
+            y += ui.wrap_as((dx, y, w), BODY_M, muted, EN.vault_no_vault_in_files) + GAP;
             // The sample vault goes in the "Demo only" card (`docs/DEMO.md` §14).
             if app.put_on().is_some() {
                 crate::samples::put::offer(ui, crate::Action::UseSample);
@@ -213,7 +214,7 @@ fn card(
     let line = super::screen::list_line(app, f, where_);
     let head = TOUCH + GAP;
     let line_h =
-        crate::compact::screen::measured(ui, |ui| ui.wrap(ix, y, iw, 13.0, W::R, muted, &line));
+        crate::compact::screen::measured(ui, |ui| ui.wrap_as((ix, y, iw), BODY_S, muted, &line));
     let ch = pad + head + line_h + GAP + TOUCH / 2.0 + GAP + BUTTON_H + pad;
     ui.fill(x, y, w, ch, SHAPE_M, Role::SurfaceContainerLow);
     ui.stroke(x, y, w, ch, SHAPE_M, l.edge);
@@ -222,13 +223,19 @@ fn card(
     ui.icon(ix, cy, TOUCH, Icon::Lock, 20.0, l.icon);
     let tx = ix + TOUCH + 2.0 * GAP;
     let tw = iw - TOUCH - 2.0 * GAP;
-    let t = ui.fit(16.0, W::S, &l.title, tw);
-    ui.text(tx, cy, 16.0, W::S, Role::OnSurface, &t);
-    let name = ui.fit(12.0, W::M, &f.name, tw);
-    ui.text(tx, cy + TOUCH / 2.0 + GAP / 2.0, 12.0, W::M, muted, &name);
+    let t = ui.fit_as(TITLE_M, &l.title, tw);
+    ui.text_as(tx, cy, TITLE_M, Role::OnSurface, &t);
+    let name = ui.fit_as(BODY_S.mono(), &f.name, tw);
+    ui.text_as(
+        tx,
+        cy + TOUCH / 2.0 + GAP / 2.0,
+        BODY_S.mono(),
+        muted,
+        &name,
+    );
     cy += head;
-    cy += ui.wrap(ix, cy, iw, 13.0, W::R, muted, &line) + GAP;
-    ui.text(ix, cy, 13.0, W::S, l.tone, &l.state);
+    cy += ui.wrap_as((ix, cy, iw), BODY_S, muted, &line) + GAP;
+    ui.text_as(ix, cy, LABEL_L, l.tone, &l.state);
     cy += TOUCH / 2.0 + GAP;
     // An open vault: what is in it, and Lock, which seals it (and every
     // other) into the Outbox. A locked one: Unlock.

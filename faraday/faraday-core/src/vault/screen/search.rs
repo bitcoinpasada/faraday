@@ -9,10 +9,10 @@ use crate::strings::EN;
 use crate::ui::pal::*;
 use crate::ui::{Ui, W};
 use crate::vault::{Focus, OpenVault, SearchAct, SearchIn, VaultAction as V};
+use faraday_draw::tokens::{BODY_L, BODY_M, BODY_S, LABEL_L, TITLE_M};
 use faraday_draw::tokens::{
-    BODY, CAPTION, GAP, GAP_SMALL, LABEL, PAD, RADIUS_SMALL, SEARCH_BAR_H, SEARCH_GLYPH,
-    SEARCH_ICON, SEARCH_INSET, TOUCH, VAULT_ITEM_GAP, VAULT_ITEM_H, VAULT_ITEM_LINE,
-    VAULT_ITEM_PAD, VAULT_ITEM_TOP,
+    GAP, GAP_SMALL, PAD, RADIUS_SMALL, SEARCH_BAR_H, SEARCH_GLYPH, SEARCH_ICON, SEARCH_INSET,
+    TOUCH, VAULT_ITEM_GAP, VAULT_ITEM_H, VAULT_ITEM_LINE, VAULT_ITEM_PAD, VAULT_ITEM_TOP,
 };
 use faraday_draw::widgets::Icon;
 use faraday_keys::vault::RecordView;
@@ -54,15 +54,15 @@ pub(crate) fn bar(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, s: SearchIn) 
     let clear = if q.is_empty() { 0.0 } else { TOUCH };
     let room = (x + w - tx - SEARCH_INSET - clear).max(0.0);
     if q.is_empty() {
-        let shown = ui.fit(BODY, W::R, hint(s, app.vaults.category), room);
-        ui.text_mid(tx, y, h, BODY, W::R, Role::OnSurfaceVariant, &shown);
+        let shown = ui.fit_as(BODY_L, hint(s, app.vaults.category), room);
+        ui.text_mid_as((tx, y, h), BODY_L, Role::OnSurfaceVariant, &shown);
     }
     ui.typed(
         tx,
         y,
         h,
-        BODY,
-        W::R,
+        BODY_L.size,
+        W::from(BODY_L.face),
         Role::OnSurface,
         q,
         room,
@@ -72,12 +72,9 @@ pub(crate) fn bar(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, s: SearchIn) 
     if !q.is_empty() {
         let cx = x + w - GAP_SMALL - TOUCH;
         let cy = y + (h - TOUCH) / 2.0;
-        ui.text_mid(
-            cx + (TOUCH - ui.measure(BODY, W::S, "×")) / 2.0,
-            cy,
-            TOUCH,
-            BODY,
-            W::S,
+        ui.text_mid_as(
+            (cx + (TOUCH - ui.measure_as(TITLE_M, "×")) / 2.0, cy, TOUCH),
+            TITLE_M,
             Role::OnSurfaceVariant,
             "×",
         );
@@ -123,14 +120,14 @@ pub(crate) fn item_rows(
 ) {
     let (ink, muted) = (Role::OnSurface, Role::OnSurfaceVariant);
     if items.is_empty() {
-        ui.text(x, y, LABEL, W::R, muted, none_line(app));
+        ui.text_as(x, y, BODY_M, muted, none_line(app));
         return;
     }
     let room = w - 2.0 * VAULT_ITEM_PAD;
     let row_h = |ui: &Ui, title: &str, mono: bool| {
-        let weight = if mono { W::M } else { W::S };
-        let lines = ui.wrap_lines(LABEL, weight, title, room);
-        VAULT_ITEM_H + (lines - 1) as f32 * ui.line(LABEL, weight)
+        let role = if mono { BODY_M.mono() } else { LABEL_L };
+        let lines = ui.wrap_lines_as(role, title, room);
+        VAULT_ITEM_H + (lines - 1) as f32 * ui.line_as(role)
     };
     // The first item drawn: the selected one stays on screen.
     let mut first = sel.min(items.len() - 1);
@@ -172,12 +169,12 @@ pub(crate) fn item_rows(
             selected_or(on, Role::OutlineVariant),
         );
         let (ink, muted) = (on_selected(on, ink), on_selected(on, muted));
-        let weight = if mono { W::M } else { W::S };
+        let role = if mono { BODY_M.mono() } else { LABEL_L };
         let tx = x + VAULT_ITEM_PAD;
-        let title_h = ui.wrap(tx, iy + VAULT_ITEM_TOP, room, LABEL, weight, ink, &t);
-        let line_y = iy + VAULT_ITEM_LINE + title_h - ui.line(LABEL, weight);
-        let line = ui.fit(CAPTION, W::R, &line, room);
-        ui.text(tx, line_y, CAPTION, W::R, muted, &line);
+        let title_h = ui.wrap_as((tx, iy + VAULT_ITEM_TOP, room), role, ink, &t);
+        let line_y = iy + VAULT_ITEM_LINE + title_h - ui.line_as(role);
+        let line = ui.fit_as(BODY_S, &line, room);
+        ui.text_as(tx, line_y, BODY_S, muted, &line);
         ui.hit(x, iy, w, h, va(V::Item(k)));
         iy += h + VAULT_ITEM_GAP;
     }
@@ -201,7 +198,7 @@ pub(crate) fn compact_rows(
         iy += row(ui, x, iy, w, None, &t, &line, muted.paint(), action);
     }
     if items.is_empty() {
-        ui.text(x, iy, LABEL, W::R, muted, none_line(app));
+        ui.text_as(x, iy, BODY_M, muted, none_line(app));
         iy += TOUCH;
     }
     iy - y

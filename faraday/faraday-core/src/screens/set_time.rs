@@ -6,7 +6,7 @@ use crate::drawing::View;
 use crate::strings::EN;
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui};
-use faraday_draw::tokens::{BODY_S, BUTTON_H, GAP, PAD, TITLE_M};
+use faraday_draw::tokens::{BODY_S, BUTTON_H, FIELD_H, GAP, PAD, TITLE_M};
 use faraday_draw::widgets::Icon;
 use faraday_ui::parts::{section_label, title, wrap_buttons};
 
@@ -69,7 +69,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         app.set_time.focus() == Some(crate::set_time::Focus::Date),
         Action::SetTimeFocus(crate::set_time::Focus::Date),
     );
-    y += 56.0;
+    y += FIELD_H + 16.0;
     section_label(ui, x, y, EN.set_time_time);
     y += 26.0;
     crate::vault::screen::text_box(
@@ -82,7 +82,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         app.set_time.focus() == Some(crate::set_time::Focus::Time),
         Action::SetTimeFocus(crate::set_time::Focus::Time),
     );
-    y += 70.0;
+    y += FIELD_H + 30.0;
     let ready = app.set_time_ready();
     let mut bx = x;
     bx += ui.button(
@@ -142,7 +142,7 @@ fn set_time_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, _h: f32) {
         app.set_time.focus() == Some(crate::set_time::Focus::Date),
         Action::SetTimeFocus(crate::set_time::Focus::Date),
     );
-    y += 56.0;
+    y += FIELD_H + 16.0;
     section_label(ui, x, y, EN.set_time_time);
     y += 26.0;
     crate::vault::screen::text_box(
@@ -155,7 +155,7 @@ fn set_time_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, _h: f32) {
         app.set_time.focus() == Some(crate::set_time::Focus::Time),
         Action::SetTimeFocus(crate::set_time::Focus::Time),
     );
-    y += 66.0;
+    y += FIELD_H + 26.0;
     let ready = app.set_time_ready();
     let mut items: Vec<(&str, Style, Action)> = vec![(
         EN.set_time_set,

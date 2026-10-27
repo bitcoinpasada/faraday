@@ -3,6 +3,7 @@
 //! it hides again once its page is left ([`crate::vault::Vaults::shown`]).
 
 use super::*;
+use faraday_draw::tokens::{BODY_M, LABEL_L};
 
 /// A secret value at `(x, y)`, `w` wide, masked until its eye shows it;
 /// `eye` its eye's press and whether it shows. Returns the height.
@@ -51,7 +52,7 @@ pub(super) fn secret_with(
     let (muted, inset) = (Role::OnSurfaceVariant, Role::SurfaceContainerHighest);
     let (ink, warn) = (Role::OnSurface, Role::Warning);
     let shown = eye.1;
-    let face = if mono { W::M } else { W::R };
+    let role = if mono { BODY_M.mono() } else { BODY_M };
     let text = if shown {
         crate::secret_text::SecretText::of(&value())
     } else {
@@ -63,7 +64,7 @@ pub(super) fn secret_with(
     // down before the words and does not cover them.
     let th = if shown {
         ui.c.push_clip(faraday_draw::Rect::new(0, 0, 0, 0));
-        let th = ui.wrap(x + 14.0, y + 14.0, tw, 14.0, face, ink, &text);
+        let th = ui.wrap_as((x + 14.0, y + 14.0, tw), role, ink, &text);
         ui.c.pop_clip();
         th
     } else {
@@ -78,9 +79,9 @@ pub(super) fn secret_with(
     };
     ui.stroke(x, y, w, bh, 8.0, edge);
     if shown {
-        ui.wrap(x + 14.0, y + 14.0, tw, 14.0, face, ink, &text);
+        ui.wrap_as((x + 14.0, y + 14.0, tw), role, ink, &text);
     } else {
-        ui.text(x + 14.0, y + 14.0, 14.0, W::M, muted, &text);
+        ui.text_as(x + 14.0, y + 14.0, BODY_M.mono(), muted, &text);
     }
     secret_eye(ui, x, y, w, eye);
     bh
@@ -114,12 +115,9 @@ pub(super) fn seedqr_box(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32
     match code {
         Some(m) => crate::screens::qr_code(ui, m, x + 14.0, y + 14.0, side),
         None => {
-            ui.text_mid(
-                x + 14.0,
-                y,
-                tokens::TOUCH,
-                14.0,
-                W::S,
+            ui.text_mid_as(
+                (x + 14.0, y, tokens::TOUCH),
+                LABEL_L,
                 muted,
                 EN.vault_show_seedqr,
             );

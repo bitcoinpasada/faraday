@@ -8,7 +8,8 @@ use crate::wallet::fp_text;
 use crate::{Action, Screen};
 use faraday_draw::tokens as T;
 use faraday_draw::tokens::{
-    BODY_M, BODY_S, BUTTON_H, HEADLINE_S, LABEL_L, LABEL_M, LABEL_S, TITLE_M, TITLE_S, sheet_head,
+    BODY_M, BODY_S, BUTTON_H, FIELD_H, HEADLINE_S, LABEL_L, LABEL_M, LABEL_S, TITLE_M, TITLE_S,
+    sheet_head,
 };
 use faraday_draw::widgets::Icon;
 use faraday_ui::parts::{
@@ -111,7 +112,7 @@ fn potential_body(
         } else {
             crate::vault::screen::stick_field(app.medium, ui, x, cy, iw);
         }
-        cy += 56.0;
+        cy += FIELD_H + 8.0;
     }
     if let Some((key, fixed)) = xpub {
         let k = ui.fit_as(BODY_S.mono(), key, iw);
