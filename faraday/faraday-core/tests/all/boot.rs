@@ -61,6 +61,7 @@ fn booted() -> (Faraday, Vec<u8>) {
 fn later() -> (Faraday, Vec<u8>) {
     let (mut app, vault) = booted();
     app.press(Action::Import(I::Go));
+    pump(&mut app, &vault);
     app.press(Action::Import(I::Later));
     (app, vault)
 }

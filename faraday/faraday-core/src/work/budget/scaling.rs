@@ -157,7 +157,8 @@ fn a_frame_does_the_same_work_with_five_times_the_files_and_every_wallet() {
 }
 
 /// The boot stick's import sheet, the stick holding `copies` copies of
-/// the test stick's files and the test vault, every read answered.
+/// the test stick's files and the test vault, listed before Import
+/// (F130), any read answered.
 fn boot_import(copies: usize) -> Faraday {
     use crate::{StorageCommand, StorageEvent};
     use faraday_shell_api::App;

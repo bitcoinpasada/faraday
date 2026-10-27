@@ -1,7 +1,8 @@
 //! A stick's pictures are read for their QR codes off the shell's
 //! thread, one at a time (`docs/SPEED.md` §9): a pass of the shell's
 //! storage returns while a photograph is still being read, the boot
-//! stick's sheet is drawn meanwhile and says the picture is being read,
+//! stick's sheet, Import pressed, is drawn meanwhile and says the
+//! pictures are being read,
 //! and each picture's codes come in on a later pass.
 
 use std::fs;
@@ -9,7 +10,8 @@ use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
 use faraday_codec::qr::{self, Ecc, Payload, QUIET_ZONE};
-use faraday_core::{Faraday, Sheet, StorageEvent, testkit};
+use faraday_core::boot_import::ImportAction;
+use faraday_core::{Action, Faraday, Sheet, StorageEvent, testkit};
 use faraday_shell_api::App;
 use faraday_storage::{Boxes, Dirs, serve_with, stick_info};
 
@@ -47,7 +49,6 @@ fn code(text: &str) -> Vec<u8> {
 
 #[test]
 fn a_sticks_pictures_come_in_while_its_sheet_is_drawn() {
-    let c = faraday_core::testkit::compute();
     let stick =
         Stick(std::env::temp_dir().join(format!("faraday-pictures-{}", std::process::id())));
     let _ = fs::remove_dir_all(&stick.0);
@@ -81,16 +82,24 @@ fn a_sticks_pictures_come_in_while_its_sheet_is_drawn() {
         Some(Sheet::Import),
         "the boot stick's sheet is up"
     );
-    let count = app.import_count_now(&c).expect("the sheet counts");
+    // Import reads them (F130).
+    app.press(Action::Import(ImportAction::Go));
+    serve_with(&mut app, &mut boxes, None, &mut dirs);
+    let _ = app.frame();
+    let count = app.import_count().expect("the sheet counts");
     assert!(
         count.reading >= 1,
         "the pass returned with the photograph still being read: {count:?}"
+    );
+    assert!(
+        app.drawn_texts().iter().any(|t| t.contains("files read")),
+        "the sheet does not say the files are being read"
     );
 
     // Frames go on being drawn while the pictures are read.
     let until = Instant::now() + Duration::from_secs(60);
     let mut frames = 0;
-    while app.import_count_now(&c).is_some_and(|c| c.reading > 0) {
+    while app.import_count().is_some_and(|c| c.reading > 0) {
         assert!(Instant::now() < until, "the pictures were never read");
         std::thread::sleep(Duration::from_millis(5));
         serve_with(&mut app, &mut boxes, None, &mut dirs);
@@ -98,7 +107,7 @@ fn a_sticks_pictures_come_in_while_its_sheet_is_drawn() {
         frames += 1;
     }
     assert!(frames > 1, "frames were drawn while the pictures were read");
-    let count = app.import_count_now(&c).expect("the sheet counts");
-    assert_eq!(count.copied, 2, "both pictures came in: {count:?}");
-    assert_eq!(count.wallets, 1, "the code's wallet is offered: {count:?}");
+    // The code's wallet came in; the photograph held none.
+    assert_eq!(app.session.wallets.len(), 1, "the code's wallet is loaded");
+    assert!(app.import().is_none(), "the import is not over");
 }

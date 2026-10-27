@@ -473,17 +473,23 @@ from the seeds card returns to Wallets with the key still loaded.
 ## Session
 
 **Boot.** Firmware loads the system → the boot medium's data partition
-copied into memory, but a file over 18 MiB (F26, specified, not built:
-over 64 MiB, counted and left for a stick visit), a PNG as what its QR
-codes hold, nothing of it in Files yet → the import sheet over Home
-(decision 27, F60): "Read from {label}", what was read in one line ("1
-vault · 2 PSBTs · 4 other files"), every vault and file with a
-checkbox, all ticked (a seed's file too), **Unselect all** / **Select
+listed, nothing of it read but each file's name and size (F130), nothing
+of it in Files yet → the import sheet over Home (decision 27, F60):
+"Read from {label}", the files counted by their names in one line ("1
+vault · 2 PSBTs · 4 other files, by their names"), every vault and file
+with a checkbox and what it is by its name ("PSBT, by its name ·
+1.2 KB"), all ticked (a seed's file too), **Unselect all** / **Select
 all** above them →
-- **Import** (disabled while nothing is ticked), the stick in or out →
-  what is ticked comes in: the files From the stick, their wallets and
-  keys through Files' loader (a seed of any kind, with the stick in,
-  loads as it is pulled), the vaults into
+- **Import** (disabled while nothing is ticked, and while the stick is
+  out: "Put the stick back in to import") → the ticked files, and no
+  other, read from the stick, a file over 18 MiB failing its read (F26,
+  specified, not built: over 64 MiB, counted and left for a stick
+  visit), a PNG as what its QR codes hold; the sheet lists them, "3 of 5
+  files read", its ticks fixed → once all are answered, what they held
+  comes in, with "Imported 1 wallet · 2 keys · 5 files" (and "· 1 not
+  read" when the stick went first): the files From the stick, their
+  wallets and keys through Files' loader (a seed of any kind, with the
+  stick in, loads as it is pulled), the vaults into
   Files, locked → with no vault, Home, leading with **Sign {psbt}** when
   one came; with vaults, each in turn on the sheet: its name, "Pull the
   stick to continue" (Pi: "Pull the SD card to continue") while it is
@@ -498,11 +504,13 @@ all** above them →
   loaded from vault.ofv" (decision 43; Home when no wallet loaded); a
   wrong passphrase → stays, says so; **Cancel** → the vault stays in
   Files, locked → the next vault, or Home;
-- **Later**, or a tap beside the sheet → Home, nothing brought in; Home
-  leads with **Import from {label}** (after Import, **Unlock {name}**),
-  which opens the sheet again; with the stick still in, the stick visit
-  brings in what it ticks;
-- the stick pulled before a choice → the sheet stays as it is;
+- **Later**, or a tap beside the sheet → Home, nothing read, nothing
+  brought in; Home leads with **Import from {label}** (after Import,
+  **Unlock {name}**), which opens the sheet again; with the stick still
+  in, the stick visit brings in what it ticks;
+- the stick pulled before a choice → the sheet stays as it is, Import
+  waiting for the stick; put back, the sheet comes up again over Home,
+  ticks kept;
 - nothing on the medium but the settings file → no sheet; Home.
 
 **Unlock.** Choose a vault (its memory need shown first) → passphrase →

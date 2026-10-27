@@ -96,9 +96,6 @@ pub(crate) struct Drawing {
     /// The session's keys and wallets no open vault holds
     /// ([`crate::Faraday::unsaved_now`]).
     pub unsaved: OnceCell<(Vec<String>, Vec<String>)>,
-    /// What the boot stick brought, counted
-    /// ([`crate::Faraday::import_count_now`]).
-    pub import_count: OnceCell<Option<crate::boot_import::ImportCount>>,
 }
 
 impl Drawing {

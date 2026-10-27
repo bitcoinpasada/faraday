@@ -2064,10 +2064,9 @@ impl Faraday {
             if self.sheet == Some(Sheet::Import) {
                 self.sheet = None;
             }
-            // The boot stick alone at its first look leaves Home on
-            // screen, with the import over it when it holds anything.
-            let boot_only = self.stick.iter().all(|s| s.boot);
-            if !(boot_only && first_look && self.screen == Screen::Home) {
+            // The boot stick alone at its first look, or back for its
+            // import, leaves Home on screen (`boot_import`).
+            if !self.import_keeps_home(first_look, boot.as_ref()) {
                 // A stick arriving in the middle of Create or Restore
                 // brings the person back there when it is pulled.
                 if matches!(

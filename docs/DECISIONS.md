@@ -74,7 +74,7 @@ Read this table, then only the decision you need.
 | [F57](decisions/F57.md) | A new vault's slots go by the vault's name | 2026-10-20 | Active | vault |
 | [F58](decisions/F58.md) | No idle lock while a new wallet's keys are kept nowhere; 30 and 60 minutes | 2026-10-20 | Active | backup |
 | [F59](history/decisions/F59.md) | APK signing is switched off in the app; its code stays | 2026-10-20 | Replaced by F99 | signing |
-| [F60](decisions/F60.md) | The boot sheet is a picker; a file row offers a vault only while one is open | 2026-10-20 | Amended by F62 | stick |
+| [F60](decisions/F60.md) | The boot sheet is a picker; a file row offers a vault only while one is open | 2026-10-20 | Amended by F62, F130 | stick |
 | [F61](decisions/F61.md) | Faraday Desktop is published again, testnet only for real seeds | 2026-10-20 | Amended by F81, F83 | release |
 | [F62](decisions/F62.md) | Unlocking a vault asks what to load | 2026-10-20 | Active | vault |
 | [F63](decisions/F63.md) | Sign a file signs from a sheet that shows the time | 2026-10-20 | Active | signing |
@@ -144,3 +144,4 @@ Read this table, then only the decision you need.
 | [F127](decisions/F127.md) | FROST removed from the repository until its standards are published | 2026-10-26 | Active | wallets |
 | [F128](decisions/F128.md) | Upgrading a stick is the Starter's; Faraday writes no boot partition | 2026-10-26 | Active | stick |
 | [F129](decisions/F129.md) | A secret saved as a plain file asks for a hold | 2026-10-26 | Active | keys |
+| [F130](decisions/F130.md) | The boot import reads names and sizes until Import, then only the ticked files | 2026-10-27 | Active | stick |

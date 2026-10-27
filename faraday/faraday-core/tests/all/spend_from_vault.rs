@@ -31,7 +31,7 @@ fn pump(app: &mut Faraday, vault: &[u8]) {
     }
 }
 
-/// Started from the boot stick, the stick pulled, the vault's passphrase
+/// Started from the boot stick, Import pressed, the stick pulled, the vault's passphrase
 /// typed on the import sheet, Unlock pressed and its Load sheet's Load
 /// ticked, with everything ticked.
 fn unlocked() -> Faraday {
@@ -49,10 +49,10 @@ fn unlocked() -> Faraday {
         boot: true,
         files: vec![("vault.ofv".into(), vault.len() as u64)],
     }]));
+    app.press(Action::Import(I::Go));
     pump(&mut app, &vault);
     app.storage(StorageEvent::Sticks(Vec::new()));
     let _ = app.frame();
-    app.press(Action::Import(I::Go));
     for c in testkit::VAULT_PASSPHRASES[0].chars() {
         app.event(Event::Key(Key::Char(c)));
     }

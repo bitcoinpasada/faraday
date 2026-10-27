@@ -1,7 +1,7 @@
 //! A stick that has been in a Windows computer or a Mac holds their own
 //! files beside the PSBT a person put there (`docs/STARTER.md` §4.4,
-//! D11): Faraday lists, counts and reads the PSBT alone, at the first
-//! look at the boot stick and on a visit, and a file Faraday writes
+//! D11): Faraday lists, counts and reads the PSBT alone, at the boot
+//! stick's import and on a visit, and a file Faraday writes
 //! leaves the PSBT and their files as they were.
 
 use std::fs;
@@ -83,16 +83,18 @@ fn the_boot_stick_reads_and_counts_the_psbt_alone() {
         "FARADAYDATA",
         true,
     )]));
-    let asked = pump(&mut app, &dir);
-    assert_eq!(asked, [PSBT], "only the PSBT is read");
+    // Listed, nothing read before Import (F130).
+    assert!(pump(&mut app, &dir).is_empty(), "a file read before Import");
     assert_eq!(app.sheet, Some(Sheet::Import));
     let texts = app.drawn_texts().join("\n");
     assert!(texts.contains("1 PSBT"), "{texts}");
     assert!(!texts.contains("other file"), "{texts}");
-    // Nothing comes in by the pull; Import brings it in (F60).
-    app.storage(StorageEvent::Sticks(Vec::new()));
     assert!(inbox(&app).is_empty());
+    // Import reads the PSBT alone and brings it in (F60).
     app.press(Action::Import(faraday_core::boot_import::ImportAction::Go));
+    let asked = pump(&mut app, &dir);
+    assert_eq!(asked, [PSBT], "only the PSBT is read");
+    app.storage(StorageEvent::Sticks(Vec::new()));
     assert_eq!(inbox(&app), [PSBT]);
     let _ = fs::remove_dir_all(&dir);
 }

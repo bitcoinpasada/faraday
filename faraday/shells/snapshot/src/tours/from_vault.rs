@@ -33,9 +33,9 @@ pub(crate) fn from_vault_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
         available_mib: 15_000,
     });
     faraday_core::testkit::vault_speed(&mut t.app, Some(180));
+    t.press(Action::Import(I::Go));
     t.app.storage(StorageEvent::Sticks(Vec::new()));
     t.pump();
-    t.press(Action::Import(I::Go));
     t.press(Action::Vault(V::FocusPassphrase));
     type_text(t, testkit::VAULT_PASSPHRASES[0]);
     t.press(Action::Import(I::Submit));

@@ -1,12 +1,13 @@
-//! The boot import's sheet (`boot_import`, F60): what was read from the
-//! boot stick, each file with its checkbox, with Later and Import; after
-//! Import, each vault it brought in turn with its passphrase field, once
-//! the stick is out, and Cancel.
+//! The boot import's sheet (`boot_import`, F60, F130): the boot stick's
+//! files by name and size, each with its checkbox, with Later and Import;
+//! while Import reads the ticked ones, how many are read; after, each
+//! vault it brought in turn with its passphrase field, once the stick is
+//! out, and Cancel.
 
 use crate::drawing::View;
 use crate::strings::EN;
 use crate::strings::fill;
-use faraday_draw::tokens::{BODY_M, BODY_S, HEADLINE_S, LABEL_L, LABEL_M};
+use faraday_draw::tokens::{BODY_M, BODY_S, GAP, HEADLINE_S, LABEL_L, LABEL_M, PROGRESS_H};
 use faraday_draw::widgets::Icon;
 
 use crate::Action;
@@ -65,8 +66,9 @@ fn head(ui: &mut Ui, x: f32, y: f32, w: f32, icon: Glyph, title: &str) -> f32 {
     46.0
 }
 
-/// What was read: "1 vault · 2 other files", every file with its
-/// checkbox, Later and Import. Returns its height.
+/// The stick's files: "1 vault · 2 other files, by their names", or
+/// while Import reads, "3 of 7 files read"; every file with its checkbox,
+/// Later and Import. Returns its height.
 #[allow(clippy::too_many_arguments)]
 fn picker(
     app: &View,
@@ -87,7 +89,21 @@ fn picker(
         app.medium.icon(),
         &fill(EN.boot_import_read_source, &[label]),
     );
-    cy += ui.wrap_as((x, cy, w), LABEL_L, Role::OnSurface, &c.line()) + 16.0;
+    if app.import_reading() {
+        // The ticked files being read, Import pressed: a count, so
+        // Material's determinate indicator under it.
+        cy += ui.wrap_as((x, cy, w), LABEL_L, Role::OnSurface, &c.line()) + GAP;
+        let done = (c.asked - c.reading) as f32 / c.asked.max(1) as f32;
+        ui.progress((x, cy, w), Some(done), None);
+        cy += PROGRESS_H + GAP;
+    } else {
+        cy += ui.wrap_as((x, cy, w), LABEL_L, Role::OnSurface, &c.line()) + 16.0;
+        // Nothing is read until Import, and Import reads the stick.
+        if !app.import_stick_in() {
+            let back = fill(EN.boot_import_put_back, &[app.medium.noun()]);
+            cy += stick_banner(ui, x, cy, w, &back);
+        }
+    }
     // Unselect all while any is ticked; Select all once none is.
     let any = v.files.iter().any(|f| f.chosen);
     if v.files.iter().any(|f| f.enabled) {
@@ -109,7 +125,11 @@ fn picker(
         w,
         &[
             (EN.boot_import_later, Style::Secondary, ia(I::Later)),
-            (EN.boot_import_import, Style::Primary.when(any), ia(I::Go)),
+            (
+                EN.boot_import_import,
+                Style::Primary.when(app.import_may_go()),
+                ia(I::Go),
+            ),
         ],
     );
     cy - y

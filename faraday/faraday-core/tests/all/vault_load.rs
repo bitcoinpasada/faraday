@@ -391,9 +391,9 @@ fn from_the_boot_sheet_each_unlock_asks_what_to_load_before_the_next() {
             .map(|(n, b)| (n.clone(), b.len() as u64))
             .collect(),
     }]));
+    app.press(Action::Import(I::Go));
     pump(&mut app, &files);
     app.storage(StorageEvent::Sticks(Vec::new()));
-    app.press(Action::Import(I::Go));
     let unlock = |app: &mut Faraday, phrase: &str| {
         type_text(app, phrase);
         app.press(Action::Import(I::Submit));

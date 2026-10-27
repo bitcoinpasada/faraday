@@ -90,22 +90,25 @@ seed's words; Restore's Quorum card, 2 of 3.
 
 The boot stick's data partition can carry what a session needs: vaults,
 wallet descriptors, PSBTs, seed words, pictures of QR codes. Faraday
-reads it once, when it first sees the stick after power-on, and does
-not leave it attached while anything secret is open.
+lists it when it first sees the stick after power-on, reads only what
+the person chooses to import, and does not leave it attached while
+anything secret is open.
 
-1. **Copied into memory.** Every file on the stick is read into RAM and
-   held apart: nothing enters Files until the import. A PNG is not kept
-   as a picture: its QR codes are read, and what they hold is kept, a
-   SeedQR as its seed words. A file Faraday reads as nothing it knows,
-   up to 18 MiB, is kept as a File, which can be signed with a GPG key
-   or sent as QR codes.
+1. **Listed, not read.** When the stick first appears, Faraday reads
+   only its list of files, each one's name and size (F130). None of
+   the files is opened.
 2. **Choose what to import.** A sheet reads "Read from {label}", one
-   line of what was read ("1 vault · 2 PSBTs · 4 other files"), and
-   lists every vault and file, each ticked, a seed's file too, with
-   **Unselect all**, **Later** and **Import** (F60). **Import** brings
-   in what is ticked: the files into Files, the wallets and keys they
-   hold, and the vaults into Files, locked. A seed imported with the
-   stick still in loads as the stick is pulled.
+   line counting the files by their names ("1 vault · 2 PSBTs · 4 other
+   files, by their names"), and lists every vault and file by name and
+   size, each ticked, a seed's file too, with **Unselect all**,
+   **Later** and **Import** (F60). **Import** reads the ticked files and
+   no other, then brings in what they hold: the files into Files, the
+   wallets and keys they hold, and the vaults into Files, locked. A PNG
+   is not kept as a picture: its QR codes are read, and what they hold
+   is kept, a SeedQR as its seed words. A file Faraday reads as nothing
+   it knows, up to 18 MiB, is kept as a File, which can be signed with a
+   GPG key or sent as QR codes. A seed imported with the stick still in
+   loads as the stick is pulled.
 3. **Pull the stick, then unlock.** Keys never load and passphrases are
    never typed while a stick is attached. Each vault imported offers its
    passphrase field in turn, with **Unlock** and **Cancel**; Cancel
@@ -117,13 +120,14 @@ not leave it attached while anything secret is open.
    **Load ticked** loads them; **Not now** loads nothing and leaves the
    vault open.
 
-**Later**, or a tap beside the sheet, brings in nothing: the copied
-files wait in memory and Home leads with the import, which opens the
-sheet again; the Sticks row in the sidebar does too. Locking wipes
-whatever was not imported. A later
-insertion of the boot stick in the same power-on is an ordinary stick
-visit; the desktop app's Boot stick pill stands for the boot stick, so
-its first plugging in a session runs the import.
+**Later**, or a tap beside the sheet, reads and brings in nothing:
+Home leads with the import, which opens the sheet again; the Sticks row
+in the sidebar does too. Locking drops the import. Import needs the
+stick in: pulled before Import, the sheet asks for it back, and putting
+it back brings the sheet up again. Any other later insertion of the
+boot stick in the same power-on is an ordinary stick visit; the desktop
+app's Boot stick pill stands for the boot stick, so its first plugging
+in a session runs the import.
 
 ## A second stick for storage
 

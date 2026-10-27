@@ -45,10 +45,10 @@ fn unlocked() -> Faraday {
         boot: true,
         files: vec![("vault.ofv".into(), vault.len() as u64)],
     }]));
+    app.press(Action::Import(faraday_core::boot_import::ImportAction::Go));
     pump(&mut app, &vault);
     app.storage(StorageEvent::Sticks(Vec::new()));
     let _ = app.frame();
-    app.press(Action::Import(faraday_core::boot_import::ImportAction::Go));
     for c in testkit::VAULT_PASSPHRASES[0].chars() {
         app.event(Event::Key(Key::Char(c)));
     }

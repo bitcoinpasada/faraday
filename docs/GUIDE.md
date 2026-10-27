@@ -1573,9 +1573,10 @@ A wallet backed up into a vault (section 4) comes back from the vault's
 stick:
 
 1. Start Faraday from the Faraday stick that holds the vault, or plug
-   the vault's stick in on Home with no key loaded. Faraday reads the
-   stick (**Read from …**), lists **Locked · vault.ofv**, and asks
-   **Pull the stick to continue**.
+   the vault's stick in on Home with no key loaded. Faraday lists the
+   stick's files by name (**Read from …**); press **Import**: it reads
+   the ticked files, lists **Locked · vault.ofv**, and asks **Pull the
+   stick to continue**.
 2. Pull the stick, type the vault's passphrase and press **Unlock**.
 3. **Load from vault.ofv** lists what the vault holds, each seed and
    wallet saved with **Load at unlock** (step 4.8) ticked. Press **Load

@@ -439,6 +439,7 @@ fn home_lead_rule_3_an_import_waiting() {
     // vault, and the tap reopens the sheet with its passphrase field.
     app.press(faraday_core::boot_import::OPEN);
     app.press(Action::Import(faraday_core::boot_import::ImportAction::Go));
+    pump(&mut app, &files);
     app.press(faraday_core::boot_import::LATER);
     app.storage(StorageEvent::Sticks(Vec::new()));
     let _ = app.frame();

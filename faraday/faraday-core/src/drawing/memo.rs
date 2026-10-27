@@ -12,7 +12,6 @@ use faraday_bip::keys::Fingerprint;
 use super::View;
 use crate::backups::Entry;
 use crate::board::BoardView;
-use crate::boot_import::ImportCount;
 use crate::create_from::CreateVaults;
 use crate::in_progress::Row;
 use crate::inbox::Found;
@@ -64,15 +63,6 @@ impl View<'_> {
             .board
             .get_or_init(|| self.filled(|c| self.app.board_view_now(c)))
             .clone()
-    }
-
-    /// What the boot stick brought, counted
-    /// ([`crate::Faraday::import_count_now`]), once a frame.
-    pub fn import_count(&self) -> Option<ImportCount> {
-        *self
-            .drawing
-            .import_count
-            .get_or_init(|| self.filled(|c| self.app.import_count_now(c)))
     }
 
     /// The keys here that are held ([`crate::Faraday::held_keys_now`]), once a

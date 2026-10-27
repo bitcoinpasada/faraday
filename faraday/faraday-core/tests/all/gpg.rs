@@ -1256,6 +1256,8 @@ fn files_from_a_second_stick_after_the_boot_stick_are_offered_for_signing() {
         boot: true,
         files: listing(&boot),
     }]));
+    assert_eq!(app.sheet, Some(Sheet::Import));
+    app.press(Action::Import(faraday_core::boot_import::ImportAction::Go));
     while let Some(c) = app.poll_storage() {
         if let StorageCommand::Read { stick, name } = c {
             let bytes = boot.iter().find(|(n, _)| *n == name).unwrap().1.clone();
@@ -1264,8 +1266,6 @@ fn files_from_a_second_stick_after_the_boot_stick_are_offered_for_signing() {
     }
     app.storage(StorageEvent::Sticks(Vec::new()));
     let _ = app.frame();
-    assert_eq!(app.sheet, Some(Sheet::Import));
-    app.press(Action::Import(faraday_core::boot_import::ImportAction::Go));
     type_text(&mut app, testkit::VAULT_PASSPHRASES[0]);
     app.press(Action::Import(
         faraday_core::boot_import::ImportAction::Submit,
@@ -1385,16 +1385,16 @@ fn files_imported_from_the_boot_sheet_are_offered_for_signing() {
             .map(|(n, b)| (n.clone(), b.len() as u64))
             .collect(),
     }]));
+    assert_eq!(app.sheet, Some(Sheet::Import));
+    let view = app.import_view().unwrap();
+    assert!(view.files.iter().all(|f| f.chosen), "{view:?}");
+    app.press(Action::Import(faraday_core::boot_import::ImportAction::Go));
     while let Some(c) = app.poll_storage() {
         if let StorageCommand::Read { stick, name } = c {
             let bytes = boot.iter().find(|(n, _)| *n == name).unwrap().1.clone();
             app.storage(StorageEvent::Read { stick, name, bytes });
         }
     }
-    assert_eq!(app.sheet, Some(Sheet::Import));
-    let view = app.import_view().unwrap();
-    assert!(view.files.iter().all(|f| f.chosen), "{view:?}");
-    app.press(Action::Import(faraday_core::boot_import::ImportAction::Go));
     for (name, bytes) in &files {
         let item = app.inbox().iter().find(|i| i.name == *name);
         assert_eq!(item.map(|i| &i.bytes[..]), Some(&bytes[..]), "{name}");

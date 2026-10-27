@@ -1,21 +1,23 @@
-//! The boot import (`docs/history/PLAN.md` §5.4; F60): the first look at the boot
-//! stick in a power-on copies every file on it into memory, and the sheet
-//! lists each with a checkbox, every one ticked. **Import** brings in what
-//! is ticked: the files From the stick, their wallets and keys through the
-//! Inbox's loader (`Faraday::load_found_in`), and the vaults into Files,
-//! locked, each then offered its Unlock in turn with **Cancel**; an
-//! unlock shows the vault's Load sheet (F62, `vault_load`) before the
-//! next. **Later** brings in nothing. Until then nothing read enters Files: what is not
-//! imported is dropped, its bytes wiped as each [`Item`] drops.
+//! The boot import (`docs/history/PLAN.md` §5.4; F60, F130): the first
+//! look at the boot stick in a power-on lists its files by name and size,
+//! nothing of them read, and the sheet lists each with a checkbox, every
+//! one ticked, with what it is by its name alone. **Import** reads the
+//! ticked files, and those alone, then brings in what they held: the
+//! files From the stick, their wallets and keys through the Inbox's
+//! loader (`Faraday::load_found_in`), and the vaults into Files, locked,
+//! each then offered its Unlock in turn with **Cancel**; an unlock shows
+//! the vault's Load sheet (F62, `vault_load`) before the next. **Later**
+//! reads nothing and brings in nothing. With the stick pulled before
+//! Import the sheet asks for it back; its return brings the sheet up again.
+//! What is read is held only until the reads are done, its bytes wiped as
+//! each [`Item`] drops.
 
 pub(crate) mod screen;
 
 use crate::strings::EN;
 use crate::strings::fill;
-use faraday_crypto::work::Compute;
 use std::collections::BTreeSet;
 
-use crate::inbox::SeedSource;
 use crate::vault::{Focus, VaultAction};
 use crate::wallet::FileKind;
 use crate::{
@@ -27,14 +29,14 @@ use crate::{
 pub enum ImportAction {
     /// Show the sheet over Home.
     Open,
-    /// Later: close it. Nothing is imported; what was read stays in
-    /// memory for the sheet to open again.
+    /// Later: close it. Nothing is read or imported; the list stays for
+    /// the sheet to open again.
     Later,
     /// Tick or untick file n of [`ImportView::files`].
     File(usize),
     /// Unselect all while any is ticked; Select all once none is.
     All,
-    /// Import what is ticked.
+    /// Read what is ticked, and import what it holds.
     Go,
     /// Unlock the vault the sheet offers, with the passphrase typed.
     Submit,
@@ -46,7 +48,9 @@ pub enum ImportAction {
 /// Where one file of the boot stick stands.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Staged {
-    /// Asked for; not answered yet.
+    /// Listed by its name and size alone: nothing of it read.
+    Listed,
+    /// Ticked when Import was pressed, and asked for; not answered yet.
     Reading,
     /// Read into memory.
     Read,
@@ -72,7 +76,8 @@ pub struct StagedFile {
     pub state: Staged,
 }
 
-/// The boot stick's files, held in memory until the import.
+/// The boot stick's files: their names and sizes until Import, then what
+/// the ticked ones held until it is done.
 #[derive(Default)]
 pub struct ImportState {
     /// The stick's label.
@@ -81,8 +86,11 @@ pub struct ImportState {
     pub stick: String,
     /// Every file on it but the settings file, in the stick's order.
     pub files: Vec<StagedFile>,
-    /// What the files read as: one item for a file, a vault's included,
-    /// and one for each code a picture held.
+    /// Import was pressed: the ticked files were asked for, and the
+    /// ticks are fixed.
+    asked: bool,
+    /// What the files Import asked for read as: one item for a file, a
+    /// vault's included, and one for each code a picture held.
     items: Vec<Item>,
     /// The file each item came from, by place in `files`.
     item_file: Vec<usize>,
@@ -105,7 +113,8 @@ pub struct ImportFile {
     pub line: String,
     /// Ticked for the import.
     pub chosen: bool,
-    /// It can be ticked: read, and something Faraday reads.
+    /// It can be ticked: Import not yet pressed, and a kind Faraday
+    /// reads.
     pub enabled: bool,
 }
 
@@ -133,34 +142,38 @@ pub struct ImportView {
     pub files: Vec<ImportFile>,
 }
 
-/// What the boot stick brought, counted.
+/// The boot stick's files, counted for the sheet's line: by their names
+/// until Import, then how many of those it asked for are read.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct ImportCount {
-    /// Files read into memory.
-    pub copied: usize,
-    /// Files still being read.
-    pub reading: usize,
-    /// Files not read: kinds Faraday does not read, or failed reads.
-    pub not_read: usize,
-    /// Vault files.
+    /// Vault files, by their names.
     pub vaults: usize,
-    /// Wallets, once each.
-    pub wallets: usize,
-    /// Keys, once each.
-    pub keys: usize,
-    /// Files read that are none of these.
-    pub other: usize,
-    /// Files read that are, or whose codes hold, a PSBT.
+    /// PSBTs, by their names.
     pub psbts: usize,
+    /// Other files Faraday reads, by their names.
+    pub other: usize,
+    /// After Import: the files it asked for.
+    pub asked: usize,
+    /// After Import: those still being read.
+    pub reading: usize,
 }
 
 impl ImportCount {
-    /// The sheet's one line of what was read: "1 vault · 2 PSBTs · 4
-    /// other files", leaving out what there is none of.
+    /// The sheet's one line: before Import, "1 vault · 2 PSBTs · 4 other
+    /// files, by their names", leaving out what there is none of; after,
+    /// "3 of 7 files read".
     pub fn line(&self) -> String {
+        if self.asked > 0 {
+            return fill(
+                EN.boot_import_files_read,
+                &[
+                    &(self.asked - self.reading).to_string(),
+                    &self.asked.to_string(),
+                ],
+            );
+        }
         let n =
             |k: usize, one: &str, many: &str| format!("{k} {}", if k == 1 { one } else { many });
-        let other = self.copied - self.vaults - self.psbts;
         let parts: Vec<String> = [
             (
                 self.vaults,
@@ -168,7 +181,11 @@ impl ImportCount {
                 EN.boot_import_vaults,
             ),
             (self.psbts, EN.boot_import_psbt, EN.boot_import_psbts),
-            (other, EN.boot_import_other_file, EN.boot_import_other_files),
+            (
+                self.other,
+                EN.boot_import_other_file,
+                EN.boot_import_other_files,
+            ),
         ]
         .into_iter()
         .filter(|(k, ..)| *k > 0)
@@ -177,14 +194,22 @@ impl ImportCount {
         if parts.is_empty() {
             EN.boot_import_no_files.to_string()
         } else {
-            parts.join(" · ")
+            fill(EN.boot_import_by_names, &[&parts.join(" · ")])
         }
     }
 }
 
+/// A file's extension, lower case: all the sheet knows of what it is
+/// before Import.
+fn ext(name: &str) -> String {
+    name.rsplit_once('.')
+        .map(|(_, e)| e.to_ascii_lowercase())
+        .unwrap_or_default()
+}
+
 /// A picture's file name.
 fn is_png(name: &str) -> bool {
-    name.to_ascii_lowercase().ends_with(".png")
+    ext(name) == "png"
 }
 
 /// `name`, or `stem-2.ext`, … when `taken` says it is in use.
@@ -203,16 +228,6 @@ fn free_name(name: &str, taken: impl Fn(&str) -> bool) -> String {
 }
 
 impl ImportState {
-    /// The item places a seed source among the items names.
-    fn source_items(src: &SeedSource) -> Vec<usize> {
-        match src {
-            SeedSource::Words(k) => vec![*k],
-            SeedSource::WordsWith(k, p) => vec![*k, *p],
-            SeedSource::Slip39(ks) | SeedSource::Codex32(ks) => ks.clone(),
-            SeedSource::Loaded => Vec::new(),
-        }
-    }
-
     /// The place of the file named `name`, while it waits for its read.
     fn waiting(&self, name: &str) -> Option<usize> {
         self.files
@@ -313,7 +328,8 @@ impl Faraday {
     }
 
     /// The boot stick has arrived for the first time this power-on with
-    /// files on it: every one is asked for, the sheet comes up over Home.
+    /// files on it: they are listed by the names and sizes its listing
+    /// gave, none of them read (F130), and the sheet comes up over Home.
     pub(crate) fn import_start(&mut self, boot: &StickInfo) {
         let mut state = ImportState {
             label: boot.label.clone(),
@@ -324,27 +340,23 @@ impl Faraday {
             if crate::stick::settings::is_file(name) {
                 continue;
             }
-            let readable = stick_kind(name).is_some();
             state.files.push(StagedFile {
                 name: name.clone(),
                 size: *size,
-                state: if readable {
-                    Staged::Reading
+                state: if stick_kind(name).is_some() {
+                    Staged::Listed
                 } else {
                     Staged::NotRead
                 },
             });
-            if !readable {
-                continue;
-            }
-            let (stick, name) = (boot.id.clone(), name.clone());
-            self.out.storage_out.push_back(if is_png(&name) {
-                StorageCommand::ReadQr { stick, name }
-            } else {
-                StorageCommand::Read { stick, name }
-            });
         }
         self.import.set(state);
+        self.import_sheet_up();
+    }
+
+    /// The import's sheet over Home, or waiting under the new-device
+    /// sheet.
+    fn import_sheet_up(&mut self) {
         *self.visit.after_visit_mut() = None;
         self.screen = Screen::Home;
         // A device waiting to be believed is asked about first
@@ -354,6 +366,37 @@ impl Faraday {
         } else {
             self.sheet = Some(Sheet::Import);
         }
+    }
+
+    /// A stick arrived in a clean process: whether Home stays on screen
+    /// instead of a stick visit. It does for the boot stick alone at its
+    /// first look, with the import over it when it holds anything; and
+    /// for the boot stick alone put back while its import waits to be
+    /// pressed, which makes it the import's stick again and brings the
+    /// sheet up over Home (F130).
+    pub(crate) fn import_keeps_home(&mut self, first_look: bool, boot: Option<&StickInfo>) -> bool {
+        if !self.stick.iter().all(|s| s.boot) {
+            return false;
+        }
+        if first_look {
+            return self.screen == Screen::Home;
+        }
+        let Some(b) = boot else {
+            return false;
+        };
+        let Some(imp) = self.import.state_mut().filter(|i| !i.asked) else {
+            return false;
+        };
+        imp.stick = b.id.clone();
+        self.import_sheet_up();
+        true
+    }
+
+    /// Whether the import's stick is in.
+    fn import_stick_in(&self) -> bool {
+        self.import
+            .state()
+            .is_some_and(|i| self.stick.iter().any(|s| s.id == i.stick))
     }
 
     /// Takes the storage answers the import asked for and hands every
@@ -381,6 +424,7 @@ impl Faraday {
             }
             other => return Some(other),
         }
+        self.import_if_read();
         None
     }
 
@@ -394,8 +438,8 @@ impl Faraday {
         })
     }
 
-    /// A file the import asked for, read: held here, a vault too, until
-    /// the person chooses.
+    /// A file Import asked for, read: held here, a vault too, until every
+    /// file it asked for is answered.
     fn import_read(&mut self, name: &str, bytes: Vec<u8>) {
         let c = self.compute();
         let Some(imp) = self.import.state_mut() else {
@@ -488,23 +532,24 @@ impl Faraday {
         }
     }
 
-    /// The boot stick was pulled: what it had not answered never will be.
-    /// Nothing comes in by the pull (F60); a vault imported and waiting
-    /// has its passphrase field ready.
+    /// The boot stick was pulled: what it had not answered never will be,
+    /// and Import goes on with what was read. Nothing comes in by the pull
+    /// before Import (F60); a vault imported and waiting has its passphrase
+    /// field ready.
     pub(crate) fn import_stick_gone(&mut self) {
-        let present: Vec<String> = self.stick.iter().map(|s| s.id.clone()).collect();
+        if self.import_stick_in() {
+            return;
+        }
         let noun = self.medium.noun();
         let Some(imp) = self.import.state_mut() else {
             return;
         };
-        if present.contains(&imp.stick) {
-            return;
-        }
         for f in imp.files.iter_mut() {
             if f.state == Staged::Reading {
                 f.state = Staged::Failed(fill(EN.boot_import_the_was, &[noun]));
             }
         }
+        self.import_if_read();
         if self.sheet == Some(Sheet::Import) && self.vaults.focus.is_none() {
             self.screen = Screen::Home;
             self.import_field_ready();
@@ -531,62 +576,55 @@ impl Faraday {
         self.import_view()?.vaults.into_iter().next()
     }
 
-    /// Costs a read of every file it brought that may describe a wallet or
-    /// a seed. What the boot stick brought, counted for the sheet's first
-    /// line. Kept in the drawing memo while a frame is drawn
-    /// (`docs/SPEED.md` §3.3).
-    ///
-    /// Works out [`crate::drawing::View::import_count`].
-    pub fn import_count_now(&self, c: &Compute) -> Option<ImportCount> {
+    /// What the boot stick holds, counted for the sheet's line: by the
+    /// files' names before Import, then how many of those it asked for
+    /// are read.
+    pub fn import_count(&self) -> Option<ImportCount> {
         let imp = self.import.state()?;
-        let found = self.found_in(c, &imp.items);
         let mut c = ImportCount::default();
-        let mut known: BTreeSet<usize> = BTreeSet::new();
-        for w in found.to_load() {
-            c.wallets += 1;
-            known.extend(w.files.iter().filter_map(|k| imp.item_file.get(*k)));
-        }
-        for s in found.seeds.iter().filter(|s| !s.loaded) {
-            c.keys += 1;
-            for src in &s.sources {
-                for k in ImportState::source_items(src) {
-                    known.extend(imp.item_file.get(k));
-                }
-            }
-        }
-        for (f, file) in imp.files.iter().enumerate() {
+        for file in &imp.files {
             match &file.state {
-                Staged::Reading => c.reading += 1,
-                Staged::NotRead | Staged::Failed(_) => c.not_read += 1,
-                Staged::Vault => {
-                    c.copied += 1;
-                    c.vaults += 1;
+                Staged::NotRead => {}
+                Staged::Listed if !imp.asked => match ext(&file.name).as_str() {
+                    "ofv" => c.vaults += 1,
+                    "psbt" => c.psbts += 1,
+                    _ => c.other += 1,
+                },
+                Staged::Listed => {}
+                Staged::Reading => {
+                    c.asked += 1;
+                    c.reading += 1;
                 }
-                Staged::Read | Staged::Codes(_) => {
-                    c.copied += 1;
-                    if imp
-                        .item_file
-                        .iter()
-                        .zip(&imp.items)
-                        .any(|(g, i)| *g == f && i.kind == FileKind::Psbt)
-                    {
-                        c.psbts += 1;
-                    }
-                    let wallet_or_key = known.contains(&f)
-                        || imp.item_file.iter().zip(&imp.items).any(|(g, i)| {
-                            *g == f && matches!(i.kind, FileKind::Wallet | FileKind::Share)
-                        });
-                    if !wallet_or_key {
-                        c.other += 1;
-                    }
+                Staged::Read | Staged::Vault | Staged::Codes(_) | Staged::Failed(_) => {
+                    c.asked += 1;
                 }
             }
         }
         Some(c)
     }
 
+    /// Whether Import was pressed and its reads are not all answered.
+    pub fn import_reading(&self) -> bool {
+        self.import
+            .state()
+            .is_some_and(|i| i.asked && i.unlocking.is_none())
+    }
+
+    /// Whether Import can be pressed: the list still picks, something is
+    /// ticked, and the stick is in to be read.
+    pub fn import_may_go(&self) -> bool {
+        self.import_stick_in()
+            && self.import.state().is_some_and(|i| {
+                !i.asked
+                    && i.files
+                        .iter()
+                        .any(|f| f.state == Staged::Listed && !i.skip.contains(&f.name))
+            })
+    }
+
     /// What the import sheet lists: while it picks, every file with its
-    /// checkbox; after Import, the vaults it brought still locked.
+    /// checkbox; while Import reads, the files it asked for; after, the
+    /// vaults it brought still locked.
     pub fn import_view(&self) -> Option<ImportView> {
         let imp = self.import.state()?;
         let mut view = ImportView::default();
@@ -613,12 +651,20 @@ impl Faraday {
         }
         for (f, file) in imp.files.iter().enumerate() {
             let size = crate::screens::size_text(file.size as usize);
-            let (line, enabled) = match &file.state {
-                Staged::Reading => (fill(EN.boot_import_being_read, &[&size.to_string()]), false),
-                Staged::NotRead => (fill(EN.boot_import_not_a_kind, &[&size.to_string()]), false),
-                Staged::Failed(why) => (fill(EN.boot_import_not_read, &[&why.to_string()]), false),
-                Staged::Vault => (fill(EN.boot_import_vault_n, &[&size.to_string()]), true),
-                Staged::Codes(said) => (said.clone(), imp.item_file.contains(&f)),
+            let line = match &file.state {
+                // Once Import is pressed, the files it did not ask for
+                // are not listed.
+                Staged::Listed | Staged::NotRead if imp.asked => continue,
+                // What it is by its name alone: nothing of it is read.
+                Staged::Listed => fill(
+                    EN.boot_import_by_name,
+                    &[stick_kind(&file.name).unwrap_or_default(), &size],
+                ),
+                Staged::NotRead => fill(EN.boot_import_not_a_kind, &[&size]),
+                Staged::Reading => fill(EN.boot_import_being_read, &[&size]),
+                Staged::Failed(why) => fill(EN.boot_import_not_read, &[why]),
+                Staged::Vault => fill(EN.boot_import_vault_n, &[&size]),
+                Staged::Codes(said) => said.clone(),
                 Staged::Read => {
                     let kind = imp
                         .item_file
@@ -626,13 +672,14 @@ impl Faraday {
                         .position(|g| *g == f)
                         .and_then(|k| imp.items.get(k))
                         .map_or(FileKind::Other, |i| i.kind);
-                    (crate::screens::kind_line(kind, file.size as usize), true)
+                    crate::screens::kind_line(kind, file.size as usize)
                 }
             };
+            let enabled = !imp.asked && file.state == Staged::Listed;
             view.files.push(ImportFile {
                 name: file.name.clone(),
                 line,
-                chosen: enabled && !imp.skip.contains(&file.name),
+                chosen: imp.asked || (enabled && !imp.skip.contains(&file.name)),
                 enabled,
             });
         }
@@ -671,7 +718,10 @@ impl Faraday {
                 }
             }
             I::All => {
-                let Some(view) = self.import_view() else {
+                let Some(view) = self
+                    .import_view()
+                    .filter(|v| v.files.iter().any(|f| f.enabled))
+                else {
                     return;
                 };
                 let any = view.files.iter().any(|f| f.chosen);
@@ -709,34 +759,59 @@ impl Faraday {
         }
     }
 
-    /// Imports what is ticked (F60): the files From the stick, with the
-    /// wallets and keys they hold through the Inbox's loader (a seed's
-    /// words with the stick still in load as it is pulled, as Import and
-    /// load's do); the vaults into Files, locked, each then offered its
-    /// Unlock. The rest is wiped.
+    /// Import pressed (F130): the ticked files, and those alone, are asked
+    /// of the stick; once every one is answered, what they held comes in
+    /// ([`Faraday::import_if_read`]). Nothing ticked, or the stick out:
+    /// Import is disabled, and the choice stays open.
     pub(crate) fn import_go(&mut self) {
+        if !self.import_may_go() {
+            return;
+        }
         let Some(imp) = self.import.state_mut() else {
             return;
         };
-        if imp.unlocking.is_some() {
+        imp.asked = true;
+        for f in imp.files.iter_mut() {
+            if f.state != Staged::Listed || imp.skip.contains(&f.name) {
+                continue;
+            }
+            f.state = Staged::Reading;
+            let (stick, name) = (imp.stick.clone(), f.name.clone());
+            self.out.storage_out.push_back(if is_png(&name) {
+                StorageCommand::ReadQr { stick, name }
+            } else {
+                StorageCommand::Read { stick, name }
+            });
+        }
+    }
+
+    /// Once every file Import asked for is answered, brings in what they
+    /// held (F60): the files From the stick, with the wallets and keys they
+    /// hold through the Inbox's loader (a seed's words with the stick
+    /// still in load as it is pulled, as Import and load's do); the vaults
+    /// into Files, locked, each then offered its Unlock.
+    fn import_if_read(&mut self) {
+        let Some(imp) = self.import.state_mut() else {
+            return;
+        };
+        if !imp.asked
+            || imp.unlocking.is_some()
+            || imp.files.iter().any(|f| f.state == Staged::Reading)
+        {
             return;
         }
         let label = imp.label.clone();
-        let ticked: BTreeSet<usize> = (0..imp.files.len())
-            .filter(|&f| !imp.skip.contains(&imp.files[f].name) && imp.item_file.contains(&f))
-            .collect();
-        // Nothing ticked: Import is disabled, and the choice stays open.
-        if ticked.is_empty() {
-            return;
-        }
+        let failed = imp
+            .files
+            .iter()
+            .filter(|f| matches!(f.state, Staged::Failed(_)))
+            .count();
         let items = std::mem::take(&mut imp.items);
         let item_file = std::mem::take(&mut imp.item_file);
+        let files: BTreeSet<usize> = item_file.iter().copied().collect();
         let mut vaults: Vec<String> = Vec::new();
         let mut plain: Vec<Item> = Vec::new();
-        for (item, f) in items.into_iter().zip(item_file) {
-            if !ticked.contains(&f) {
-                continue;
-            }
+        for item in items {
             if item.kind == FileKind::Vault {
                 self.vault_read_from(&item.name, &item.bytes, &label);
                 self.inbox.retain(|i| i.name != item.name);
@@ -767,30 +842,43 @@ impl Faraday {
         self.wallets.set_wallet(0);
         let keys = self.session.keys.len() - keys_before;
         let wallets = self.session.wallets.len() - wallets_before;
+        self.import_toast(wallets, keys, files.len(), failed);
+        if let Some(imp) = self.import.state_mut() {
+            imp.unlocking = Some(vaults);
+        }
+        // The sheet put off while the files were read stays off: Home
+        // leads with the vault's Unlock.
+        if self.sheet == Some(Sheet::Import) {
+            self.import_next();
+        } else {
+            self.import_settle();
+        }
+    }
+
+    /// What Import brought in, said: "Imported 1 wallet · 2 keys · 6
+    /// files", and "· 1 not read" when a file it asked for was not.
+    fn import_toast(&mut self, wallets: usize, keys: usize, files: usize, failed: usize) {
         let count =
             |n: usize, one: &str, many: &str| format!("{n} {}", if n == 1 { one } else { many });
-        self.toast(&fill(
+        let mut said = fill(
             EN.boot_import_imported,
             &[
                 &count(
                     wallets,
                     EN.boot_import_wallet_inline,
                     EN.boot_import_wallets_inline,
-                )
-                .to_string(),
-                &count(keys, EN.boot_import_key, EN.boot_import_keys).to_string(),
-                &count(
-                    ticked.len(),
-                    EN.boot_import_file,
-                    EN.boot_import_files_inline,
-                )
-                .to_string(),
+                ),
+                &count(keys, EN.boot_import_key, EN.boot_import_keys),
+                &count(files, EN.boot_import_file, EN.boot_import_files_inline),
             ],
-        ));
-        if let Some(imp) = self.import.state_mut() {
-            imp.unlocking = Some(vaults);
+        );
+        if failed > 0 {
+            said = format!(
+                "{said} · {}",
+                fill(EN.boot_import_n_not_read, &[&failed.to_string()])
+            );
         }
-        self.import_next();
+        self.toast(&said);
     }
 
     /// The stick is pulled: every seed the files Import brought in with

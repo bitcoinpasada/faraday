@@ -13,10 +13,12 @@ use faraday_crypto::work::Compute;
 use faraday_shell_api::{App, Event};
 
 /// Costs what `vault_place`, `keep_vault`, `vault_off` and the rest it
-/// calls cost. A fresh session at boot: the boot stick's files are
-/// copied into memory and the sheet lists them, each ticked (F60);
-/// pulling the stick leaves the sheet as it was. Import brings them in
-/// and puts the vault's passphrase on the sheet. A wrong passphrase
+/// calls cost. A fresh session at boot: the sheet lists the boot stick's
+/// files by name and size, each ticked, nothing read (F60, F130);
+/// pulling the stick leaves the sheet as it was and asks for it back,
+/// and putting it back brings the sheet up again. Import reads the
+/// ticked files and brings them in, and once the stick is pulled puts
+/// the vault's passphrase on the sheet. A wrong passphrase
 /// stays; Later leaves Home leading with the vault's Unlock; the right
 /// passphrase loads the vault's wallets and keys. Then a wallet made
 /// here is saved into the vault.
@@ -28,7 +30,7 @@ pub(crate) fn boot_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     let mut boot = t.stick();
     boot.boot = true;
     boot.label = "FARADAY".into();
-    t.app.storage(StorageEvent::Sticks(vec![boot]));
+    t.app.storage(StorageEvent::Sticks(vec![boot.clone()]));
     t.pump();
     t.app.storage(StorageEvent::Memory {
         available_mib: 15_000,
@@ -41,10 +43,16 @@ pub(crate) fn boot_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
         return Err("the boot stick's files did not come up for the import".into());
     }
     t.shot("boot-import-stick")?;
+    // Pulled before Import, the sheet asks for it back: Import reads it.
     t.app.storage(StorageEvent::Sticks(Vec::new()));
     t.pump();
     if t.app.sheet != Some(Sheet::Import) || t.app.import_field().is_some() {
         return Err("pulling the boot stick did not leave the sheet's list".into());
+    }
+    t.shot("boot-import-pulled")?;
+    t.app.storage(StorageEvent::Sticks(vec![boot]));
+    if t.app.sheet != Some(Sheet::Import) || t.app.screen != Screen::Home {
+        return Err("the boot stick put back did not bring the sheet up again".into());
     }
     let (w, h) = t.size();
     t.app.event(Event::Scroll {
@@ -53,7 +61,17 @@ pub(crate) fn boot_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
         dy: i16::MAX,
     });
     t.shot("boot-import-end")?;
-    t.press(Action::Import(I::Go));
+    // Import reads the ticked files, then the stick is pulled.
+    t.app.press(Action::Import(I::Go));
+    t.app.event(Event::Scroll {
+        x: w / 2,
+        y: h / 2,
+        dy: i16::MIN,
+    });
+    t.shot_unanswered("boot-import-reading", 0)?;
+    t.pump();
+    t.app.storage(StorageEvent::Sticks(Vec::new()));
+    t.pump();
     if t.app.sheet != Some(Sheet::Import) || t.app.import_field().is_none() {
         return Err("Import did not put the vault's passphrase on the sheet".into());
     }

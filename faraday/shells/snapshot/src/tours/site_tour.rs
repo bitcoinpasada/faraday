@@ -78,9 +78,9 @@ fn boot(t: &mut Tour) -> Result<(), String> {
         return Err("the boot stick's files did not come up for the import".into());
     }
     t.shot("boot-read")?;
+    t.press(Action::Import(I::Go));
     t.app.storage(StorageEvent::Sticks(Vec::new()));
     t.pump();
-    t.press(Action::Import(I::Go));
     t.press(Action::Vault(V::FocusPassphrase));
     type_text(t, testkit::VAULT_PASSPHRASES[0]);
     t.shot("boot-unlock")?;
