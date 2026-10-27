@@ -106,6 +106,11 @@ pub struct FoundWallet {
     pub loaded: bool,
 }
 
+/// How many times the Inbox pairs a words file with a passphrase file
+/// beside it: each pair is a seed worked out (a PBKDF2), so past this many
+/// the rest are not tried.
+pub const PAIRS_TRIED: usize = 64;
+
 /// A backup still short of parts.
 #[derive(Debug, Clone)]
 pub struct Waiting {
@@ -706,9 +711,10 @@ impl Faraday {
     }
 
     /// Costs what `source_fingerprint`, `config_name_kept` and `read_kept`
-    /// cost. Everything `items` give, put together, with the session's own
-    /// keys and wallets: the Inbox, or the files a boot import holds.
-    /// Places in what it returns are places in `items`.
+    /// cost, a words file and a passphrase file paired at most
+    /// [`PAIRS_TRIED`] times. Everything `items` give, put together, with
+    /// the session's own keys and wallets: the Inbox, or the files a boot
+    /// import holds. Places in what it returns are places in `items`.
     #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
     pub(crate) fn found_in(&self, c: &Compute, items: &[Item]) -> Found {
         let mut found = Found::default();
@@ -746,12 +752,21 @@ impl Faraday {
                     .then(|| (k, fp.to_ascii_lowercase()))
             })
             .collect();
+        // Each pair is a seed worked out: past the bound the rest are not
+        // tried, and the Inbox says how many.
+        let mut tried = 0usize;
+        let mut untried = 0usize;
         for (k, item) in items.iter().enumerate() {
             if item.kind != FileKind::Words {
                 continue;
             }
             let mut with = false;
             for (p, name) in &passphrase_files {
+                if tried == PAIRS_TRIED {
+                    untried += 1;
+                    continue;
+                }
+                tried += 1;
                 let src = SeedSource::WordsWith(k, *p);
                 if let Some(fp) = self.source_fingerprint(c, items, &src)
                     && fp_text(fp).eq_ignore_ascii_case(name)
@@ -767,6 +782,14 @@ impl Faraday {
             if let Some(fp) = self.source_fingerprint(c, items, &src) {
                 add_seed(&mut found, fp, stem(&item.name), src, loaded_fp(fp));
             }
+        }
+        if untried > 0 {
+            found.waiting.push(Waiting {
+                line: fill(
+                    EN.inbox_pairs_untried,
+                    &[&untried.to_string(), &PAIRS_TRIED.to_string()],
+                ),
+            });
         }
         // Split seeds: SLIP-39 shares by their identifier, codex32 strings
         // by theirs.

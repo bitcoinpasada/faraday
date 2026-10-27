@@ -1597,3 +1597,38 @@ fn a_plan_saved_before_the_cards_shows_on_them_as_its_map() {
     assert_eq!(place_map(&c, &shape, &b), place_map(&c, &shape, &a));
     assert_eq!(Answers::from_text(&shape, &b.to_text()), Some(b));
 }
+
+/// How near a place brings a spend is a search over the other places,
+/// bounded: a plan of 26 places, each keeping one of 26 seeds, 13 to
+/// sign, is past the bound, and the place's tag says the spend was not
+/// worked out rather than a count it did not reach.
+#[test]
+fn a_reach_past_the_searchs_bound_says_it_was_not_worked_out() {
+    let c = faraday_core::testkit::compute();
+    let seeds: Vec<faraday_core::plan::Seed> = (0..26)
+        .map(|i| faraday_core::plan::Seed {
+            name: format!("{:08x}", 0x1000_0000u32 + i),
+            here: true,
+            passphrase: false,
+        })
+        .collect();
+    let shape = faraday_core::plan::Shape {
+        m: 13,
+        keys: 26,
+        seeds,
+        splits: true,
+        vaults: 0,
+    };
+    let mut a = faraday_core::plan::Answers::default();
+    a.set_map(
+        (0..26)
+            .map(|i| Spot {
+                at: At::Place(i),
+                holds: vec![(What::Words(i), faraday_core::plan::Tag::Secret)],
+            })
+            .collect(),
+    );
+    let r = faraday_core::plan::reach(&c, &shape, &a, 0).expect("the place keeps a seed");
+    let (text, _) = r.tag();
+    assert!(text.contains("not worked out"), "{text}");
+}

@@ -13,6 +13,7 @@
 pub(crate) mod cards;
 pub mod codex32;
 mod groups;
+pub use groups::REACH_STEPS;
 mod text;
 use text::fp_code;
 
@@ -1957,46 +1958,21 @@ pub struct Reach {
     /// The seeds this place gives to sign with, its vaults read, at most
     /// the quorum.
     pub seeds: usize,
-}
-
-impl Reach {
-    /// The place's spend tag and how it reads: spending alone in the
-    /// clear is a warning, with a vault's passphrase the vault's accent,
-    /// the rest neutral.
-    pub fn tag(self) -> (String, AloneKind) {
-        let kind = match (self.more, self.vault) {
-            (0, false) => AloneKind::CanSpend,
-            (_, true) => AloneKind::NeedsVault,
-            _ => AloneKind::SeesBalance,
-        };
-        let text = match (self.more, self.vault) {
-            (0, false) => EN.board_spend_alone.to_string(),
-            (0, true) => EN.board_spend_alone_vault.to_string(),
-            (1, false) => EN.board_spend_more_one.to_string(),
-            (1, true) => EN.board_spend_vault_more_one.to_string(),
-            (k, false) => fill(EN.board_spend_more, &[&k.to_string()]),
-            (k, true) => fill(EN.board_spend_vault_more, &[&k.to_string()]),
-        };
-        (text, kind)
-    }
-
-    /// Whether `self` is nearer a spend than `was`: fewer places, or as
-    /// many without the vault's passphrase.
-    pub fn nearer_than(self, was: Option<Reach>) -> bool {
-        was.is_none_or(|w| (self.more, self.vault) < (w.more, w.vault))
-    }
+    /// The search stopped at its bound ([`REACH_STEPS`]): `more` and
+    /// `vault` are not worked out, and the tag says so.
+    pub cut: bool,
 }
 
 /// Costs a map of the plan and a search over the places, at most the
-/// quorum deep. What place `p` brings to a spend: `None` when it keeps
-/// no seed, or no set of places adds up to a spend. Every other place
-/// counts with its vaults read.
+/// quorum deep and [`REACH_STEPS`] long. What place `p` brings to a
+/// spend: `None` when it keeps no seed, or no set of places adds up to a
+/// spend. Every other place counts with its vaults read.
 pub fn reach(c: &Compute, shape: &Shape, a: &Answers, p: usize) -> Option<Reach> {
     reach_on(shape, &Mapped::of(c, shape, a), p)
 }
 
 /// [`reach`] on the map `mapped`. Costs a search over the places, at most
-/// the quorum deep.
+/// the quorum deep and [`REACH_STEPS`] long.
 pub fn reach_on(shape: &Shape, mapped: &Mapped, p: usize) -> Option<Reach> {
     let boxes: &[Spot] = &mapped.places;
     let m = shape.m.max(1);
@@ -2042,51 +2018,49 @@ pub fn reach_on(shape: &Shape, mapped: &Mapped, p: usize) -> Option<Reach> {
         .filter(|&&q| q != p)
         .map(|&q| read(q, true))
         .collect();
-    let fewest = |start: (u64, u64)| -> Option<usize> {
+    // Groups of places looked at, against the bound.
+    let steps = std::cell::Cell::new(0usize);
+    // `Err` once the bound is reached.
+    let fewest = |start: (u64, u64)| -> Result<Option<usize>, ()> {
         // Only places that add something can help.
         let useful: Vec<(u64, u64)> = others
             .iter()
             .copied()
             .filter(|&(s, ps)| s & !start.0 != 0 || ps & !start.1 != 0)
             .collect();
-        fn search(
-            from: &[(u64, u64)],
-            have: (u64, u64),
-            left: usize,
-            signs: &dyn Fn((u64, u64)) -> usize,
-            m: usize,
-        ) -> bool {
-            if signs(have) >= m {
-                return true;
-            }
-            if left == 0 {
-                return false;
-            }
-            (0..from.len()).any(|i| {
-                let (s, ps) = from[i];
-                search(
-                    &from[i + 1..],
-                    (have.0 | s, have.1 | ps),
-                    left - 1,
-                    signs,
-                    m,
-                )
-            })
-        }
         let most = useful.len().min(m);
-        (0..=most).find(|&k| search(&useful, start, k, &signs, m))
+        for k in 0..=most {
+            if groups::reach_search(&useful, start, k, &signs, m, &steps)? {
+                return Ok(Some(k));
+            }
+        }
+        Ok(None)
     };
-    let with = fewest(open)?;
+    let seeds = signs(open).min(m);
+    let cut = Reach {
+        more: 0,
+        vault: false,
+        seeds,
+        cut: true,
+    };
+    let Ok(with) = fewest(open) else {
+        return Some(cut);
+    };
+    let with = with?;
     let plain = read(p, false);
     let without = if plain == open {
         Some(with)
     } else {
-        fewest(plain)
+        match fewest(plain) {
+            Ok(w) => w,
+            Err(()) => return Some(cut),
+        }
     };
     Some(Reach {
         more: with,
         vault: without != Some(with),
-        seeds: signs(open).min(m),
+        seeds,
+        cut: false,
     })
 }
 

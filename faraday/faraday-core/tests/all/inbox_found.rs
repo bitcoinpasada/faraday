@@ -251,3 +251,29 @@ fn an_xpub_whose_seed_is_here_gives_way_to_the_seed() {
     assert!(found.xpubs.is_empty());
     assert_eq!(found.potential().len(), 1);
 }
+
+/// Each passphrase file beside a seed's words is tried with each words
+/// file, a seed made for each: past a bound the pairing stops, and Files
+/// says how many were left untried rather than working on.
+#[test]
+fn too_many_words_and_passphrase_files_stop_the_pairing_and_say_so() {
+    let c = testkit::compute();
+    let mut files: Vec<(String, Vec<u8>)> = Vec::new();
+    for k in 0..9 {
+        let seed = ["bacon", "zebra", "summer"][k % 3];
+        files.push((format!("words-{k}.txt"), words(seed)));
+    }
+    for k in 0..8 {
+        files.push((
+            format!("passphrase-0000000{k}.txt"),
+            format!("pass {k}\n").into_bytes(),
+        ));
+    }
+    let app = with_inbox(files);
+    let found = app.inbox_found_now(&c);
+    assert!(
+        found.waiting.iter().any(|w| w.line.contains("not tried")),
+        "{:?}",
+        found.waiting.iter().map(|w| &w.line).collect::<Vec<_>>()
+    );
+}

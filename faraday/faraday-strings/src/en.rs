@@ -3433,6 +3433,9 @@ strings! {
     /// A visit's line: a file came in under a name Files already holds.
     /// `{}`: its name on the stick, then the name it is kept under.
     storage_event_kept_as: "{} is in Files already: this one kept as {}",
+    /// Files' line when the words and passphrase files are too many to
+    /// pair. `{}`: how many pairs were left, then how many were tried.
+    inbox_pairs_untried: "{} words and passphrase file pairs not tried, past the first {}",
     /// Text in `storage_event`.
     storage_event_it_stays: "It stays in Files",
     /// Text in `storage_event`. `{}`: `self.medium.for_the()`.
@@ -8856,6 +8859,9 @@ strings! {
     /// The same button while the software place is on the board: takes it
     /// off.
     board_take_off_watch: "Take off watch-only software",
+    /// A place's spend tag when the search over the other places stopped
+    /// at its bound.
+    board_spend_not_worked_out: "Spend: not worked out, too many places to search",
     /// A place's spend tag (`docs/BACKUP-FLOW.md` §17.22): its seeds alone sign.
     board_spend_alone: "Can spend alone",
     /// Its seeds sign alone, with the vault's passphrase.

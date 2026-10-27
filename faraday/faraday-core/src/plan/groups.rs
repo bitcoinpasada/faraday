@@ -5,6 +5,9 @@
 
 use std::cell::Cell;
 
+use super::{AloneKind, Reach};
+use crate::strings::{EN, fill};
+
 /// The most places whose groups are listed in full.
 const LISTED: usize = 16;
 
@@ -97,4 +100,77 @@ impl<'a> Groups<'a> {
                 )
         })
     }
+}
+
+// ---- how near a place brings a spend (`super::reach`) ----
+
+/// How many groups of places [`super::reach`] looks at for one place before it
+/// stops: a plan of up to 13 places is searched whole.
+pub const REACH_STEPS: usize = 1 << 17;
+
+impl Reach {
+    /// The place's spend tag and how it reads: spending alone in the
+    /// clear is a warning, with a vault's passphrase the vault's accent,
+    /// the rest neutral. A search cut short says the spend was not worked
+    /// out, read as a warning: it is not known not to spend.
+    pub fn tag(self) -> (String, AloneKind) {
+        if self.cut {
+            return (
+                EN.board_spend_not_worked_out.to_string(),
+                AloneKind::CanSpend,
+            );
+        }
+        let kind = match (self.more, self.vault) {
+            (0, false) => AloneKind::CanSpend,
+            (_, true) => AloneKind::NeedsVault,
+            _ => AloneKind::SeesBalance,
+        };
+        let text = match (self.more, self.vault) {
+            (0, false) => EN.board_spend_alone.to_string(),
+            (0, true) => EN.board_spend_alone_vault.to_string(),
+            (1, false) => EN.board_spend_more_one.to_string(),
+            (1, true) => EN.board_spend_vault_more_one.to_string(),
+            (k, false) => fill(EN.board_spend_more, &[&k.to_string()]),
+            (k, true) => fill(EN.board_spend_vault_more, &[&k.to_string()]),
+        };
+        (text, kind)
+    }
+
+    /// Whether `self` is nearer a spend than `was`: fewer places, or as
+    /// many without the vault's passphrase.
+    pub fn nearer_than(self, was: Option<Reach>) -> bool {
+        !self.cut && was.is_none_or(|w| w.cut || (self.more, self.vault) < (w.more, w.vault))
+    }
+}
+
+/// [`super::reach_on`]'s search, a step per group of places looked at: whether
+/// `have` with at most `left` more of the places `from` holds
+/// enough seeds to sign (`signs` of it at least `m`): `Err` once `steps`
+/// reaches [`REACH_STEPS`].
+pub(super) fn reach_search(
+    from: &[(u64, u64)],
+    have: (u64, u64),
+    left: usize,
+    signs: &dyn Fn((u64, u64)) -> usize,
+    m: usize,
+    steps: &std::cell::Cell<usize>,
+) -> Result<bool, ()> {
+    if steps.get() >= REACH_STEPS {
+        return Err(());
+    }
+    steps.set(steps.get() + 1);
+    if signs(have) >= m {
+        return Ok(true);
+    }
+    if left == 0 {
+        return Ok(false);
+    }
+    for i in 0..from.len() {
+        let (s, ps) = from[i];
+        let next = (have.0 | s, have.1 | ps);
+        if reach_search(&from[i + 1..], next, left - 1, signs, m, steps)? {
+            return Ok(true);
+        }
+    }
+    Ok(false)
 }
