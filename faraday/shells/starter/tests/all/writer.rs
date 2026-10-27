@@ -753,3 +753,87 @@ fn the_elevated_writer_refuses_keep_data_of_the_build_the_stick_already_holds() 
     assert_eq!(writer::refuse_same_build(None, Some("0.2.0")), Ok(()));
     assert_eq!(writer::refuse_same_build(on, None), Ok(()));
 }
+
+/// udisks2 answering from a recording, remembering what the writer asked.
+#[cfg(target_os = "linux")]
+struct Recording {
+    objects: faraday_starter_shell::linux::udisks::Objects,
+    calls: Vec<String>,
+}
+
+#[cfg(target_os = "linux")]
+impl faraday_starter_shell::linux::Udisks for Recording {
+    fn objects(&mut self) -> Result<faraday_starter_shell::linux::udisks::Objects, String> {
+        Ok(self.objects.clone())
+    }
+    fn wait(&mut self, _: std::time::Duration) -> Result<bool, String> {
+        Ok(false)
+    }
+    fn mount_ro(&mut self, object: &str) -> Result<PathBuf, String> {
+        self.calls.push(format!("mount {object}"));
+        Err(String::from("no"))
+    }
+    fn unmount(&mut self, object: &str) -> Result<(), String> {
+        self.calls.push(format!("unmount {object}"));
+        Ok(())
+    }
+    fn open(
+        &mut self,
+        object: &str,
+        _: faraday_starter_shell::linux::Open,
+    ) -> Result<File, String> {
+        self.calls.push(format!("open {object}"));
+        Err(String::from("no"))
+    }
+    fn rescan(&mut self, object: &str) -> Result<(), String> {
+        self.calls.push(format!("rescan {object}"));
+        Ok(())
+    }
+}
+
+#[cfg(target_os = "linux")]
+#[test]
+fn a_disk_the_computer_uses_but_not_through_a_desktop_mount_is_refused_with_nothing_unmounted_or_written()
+ {
+    use faraday_starter::api::InUse;
+    use faraday_starter_shell::linux::Target;
+    use faraday_starter_shell::linux::udisks::Objects;
+    let recorded = std::fs::read_to_string(
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/udisks/in-use.txt"),
+    )
+    .expect("a recorded answer");
+    let objects = Objects::parse(&recorded).expect("a well-formed recording");
+    let job = payload(XZ).job(NAME, IMG_SHA).expect("carried");
+    let cases = [
+        (
+            "sdh",
+            2_000_398_934_016,
+            "JJJ101",
+            InUse::Mounted("/mnt/backup".into()),
+        ),
+        ("sdi", 1_000_204_886_016, "KKK202", InUse::Held),
+        ("sdj", 4_000_787_030_016, "LLL303", InUse::Held),
+        ("sdk", 16_008_609_792, "MMM404", InUse::Unchecked),
+    ];
+    for (name, size, serial, why) in cases {
+        let block = format!("/org/freedesktop/UDisks2/block_devices/{name}");
+        let order = WriteOrder {
+            source: payload_source(),
+            disk: block.clone(),
+            device: format!("/dev/{name}"),
+            serial: serial.into(),
+            size,
+            mode: Mode::Whole,
+        };
+        let mut target = Target {
+            bus: Recording {
+                objects: objects.clone(),
+                calls: Vec::new(),
+            },
+            block,
+        };
+        let r = writer::write(&order, job.source(), &mut target, &mut |_, _, _| {});
+        assert_eq!(r, Err(Reason::InUse(why)), "{name}");
+        assert_eq!(target.bus.calls, Vec::<String>::new(), "{name}");
+    }
+}

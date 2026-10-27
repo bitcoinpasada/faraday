@@ -9,6 +9,12 @@
 //! from their `Block.Id*`, `Filesystem.MountPoints` and
 //! `Swapspace.Active`, and from any unlocked `Block` whose
 //! `CryptoBackingDevice` is one of them.
+//!
+//! What the kernel says is built on a block (its `holders` in sysfs) is
+//! not udisks2's to tell: the transport reads it and records it on the
+//! block as a `Holders` interface with a `Names` list, empty when
+//! nothing holds it. A whole disk or partition with no `Holders` was not
+//! checked, and the disk is in use ([`InUse::Unchecked`]).
 
 use std::collections::BTreeMap;
 use std::path::PathBuf;
@@ -66,8 +72,23 @@ pub struct Found {
 }
 
 /// Where the desktop mounts removable disks: a partition mounted
-/// anywhere else is one the computer uses (§4.2).
-const DESKTOP_MOUNTS: [&str; 3] = ["/run/media/", "/media/", "/mnt/"];
+/// anywhere else (the `fstab` places under `/mnt` included) is one the
+/// computer uses (§4.2).
+const DESKTOP_MOUNTS: [&str; 2] = ["/run/media/", "/media/"];
+
+/// The interface the transport records a block's holders on.
+pub const HOLDERS: &str = "Holders";
+/// Its property: the kernel names of the devices built on the block.
+pub const HOLDERS_NAMES: &str = "Names";
+
+/// A block's kernel name (`sdb1`, from `Block.Device` = `/dev/sdb1`),
+/// which names its directory in `/sys/class/block`.
+pub fn kernel_name(device: &str) -> Option<&str> {
+    device
+        .rsplit('/')
+        .next()
+        .filter(|n| !n.is_empty() && *n != "." && *n != "..")
+}
 
 fn text(bytes: &[u8]) -> String {
     let end = bytes.iter().position(|&b| b == 0).unwrap_or(bytes.len());
@@ -180,8 +201,20 @@ impl Objects {
         blocks
     }
 
+    /// Whether a block has a holder: `Some(true)` when the kernel lists
+    /// one, `Some(false)` when it lists none, `None` when the holders
+    /// were not read.
+    fn held(&self, block: &str) -> Option<bool> {
+        match self.props(block, HOLDERS)?.get(HOLDERS_NAMES) {
+            Some(Value::ByteLists(l)) => Some(l.iter().any(|b| !text(b).is_empty())),
+            _ => None,
+        }
+    }
+
     /// Why the computer uses the disk `whole`, when it does: a mount
-    /// point outside the desktop's places, or active swap.
+    /// point outside the desktop's places, active swap, a device the
+    /// kernel lists as built on the disk or one of its partitions, or,
+    /// when that could not be read, that it was not checked.
     pub fn in_use(&self, whole: &str) -> Option<InUse> {
         let blocks = self.blocks_of(whole);
         for b in &blocks {
@@ -192,10 +225,22 @@ impl Objects {
                 }
             }
         }
-        blocks
-            .iter()
-            .any(|b| self.bool(b, "Swapspace", "Active"))
-            .then_some(InUse::Swap)
+        if blocks.iter().any(|b| self.bool(b, "Swapspace", "Active")) {
+            return Some(InUse::Swap);
+        }
+        // The disk and its partitions: what is unlocked from them is
+        // held by them already.
+        let held: Vec<Option<bool>> = std::iter::once(whole)
+            .chain(self.partitions(whole))
+            .map(|b| self.held(b))
+            .collect();
+        if held.contains(&Some(true)) {
+            Some(InUse::Held)
+        } else if held.contains(&None) {
+            Some(InUse::Unchecked)
+        } else {
+            None
+        }
     }
 
     /// The filesystems the desktop mounted from the disk `whole`, to
@@ -324,6 +369,17 @@ impl Objects {
     ///     Drive o /org/freedesktop/UDisks2/drives/Maker_Stick_1234
     ///   Filesystem
     ///     MountPoints aay /run/media/me/STICK,/mnt/other
+    /// ```
+    ///
+    /// A block's holders, as the transport reads them from sysfs, are a
+    /// `Holders` interface with `Names aay`, the holders' kernel names
+    /// separated by commas, empty for none. A block meant to be free
+    /// states them, since one without is not checked:
+    ///
+    /// ```text
+    /// /org/freedesktop/UDisks2/block_devices/sdb1
+    ///   Holders
+    ///     Names aay dm-3,md127
     /// ```
     ///
     /// Types: `s`, `b`, `t`/`u`, `o`, `ay` (text), `aay` (text, comma

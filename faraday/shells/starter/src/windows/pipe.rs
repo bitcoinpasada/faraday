@@ -82,6 +82,8 @@ pub(crate) fn reason_fields(r: &Reason) -> (&'static str, Vec<String>) {
         Reason::InUse(InUse::Mounted(at)) => ("InUseMounted", vec![s(at)]),
         Reason::InUse(InUse::Swap) => ("InUseSwap", vec![]),
         Reason::InUse(InUse::System) => ("InUseSystem", vec![]),
+        Reason::InUse(InUse::Held) => ("InUseHeld", vec![]),
+        Reason::InUse(InUse::Unchecked) => ("InUseUnchecked", vec![]),
         Reason::BootOnly => ("BootOnly", vec![]),
         Reason::TooSmall { disk, image } => ("TooSmall", vec![n(*disk), n(*image)]),
         Reason::PayloadSum => ("PayloadSum", vec![]),
@@ -224,6 +226,8 @@ pub(crate) fn reason(name: &str, f: &mut Fields<'_>) -> Result<Reason, String> {
         "InUseMounted" => Reason::InUse(InUse::Mounted(f.s()?)),
         "InUseSwap" => Reason::InUse(InUse::Swap),
         "InUseSystem" => Reason::InUse(InUse::System),
+        "InUseHeld" => Reason::InUse(InUse::Held),
+        "InUseUnchecked" => Reason::InUse(InUse::Unchecked),
         "BootOnly" => Reason::BootOnly,
         "TooSmall" => Reason::TooSmall {
             disk: f.n()?,

@@ -169,11 +169,19 @@ pub enum Bus {
 /// and cannot be chosen.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum InUse {
-    /// A partition on it is mounted somewhere other than `/run/media`,
-    /// `/media` or `/mnt`: the mount point.
+    /// A partition on it is mounted somewhere other than `/run/media`
+    /// or `/media` (`/mnt` and the rest are the computer's own places):
+    /// the mount point.
     Mounted(String),
     /// A partition on it is active swap.
     Swap,
+    /// Linux: the kernel lists another device built on the disk or one of
+    /// its partitions (an LVM physical volume, a RAID member, an opened
+    /// encrypted volume).
+    Held,
+    /// Linux: what is built on the disk or its partitions could not be
+    /// read, so the disk is not offered.
+    Unchecked,
     /// Windows: it holds the Windows, boot or page-file volume.
     System,
 }

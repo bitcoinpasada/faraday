@@ -1,0 +1,141 @@
+# udisks2's GetManagedObjects, recorded by hand in the form
+# faraday_starter_shell::linux::udisks::Objects::parse reads, for disks the
+# computer uses in ways a mount point does not show. The makers, models and
+# serials are made up.
+#
+# A USB disk mounted from fstab at /mnt/backup.
+/org/freedesktop/UDisks2/drives/Acme_Backup_JJJ101
+  Drive
+    Vendor s Acme
+    Model s Backup
+    Serial s JJJ101
+    Size t 2000398934016
+    ConnectionBus s usb
+    Removable b true
+/org/freedesktop/UDisks2/block_devices/sdh
+  Block
+    Device ay /dev/sdh
+    Drive o /org/freedesktop/UDisks2/drives/Acme_Backup_JJJ101
+  Holders
+    Names aay
+/org/freedesktop/UDisks2/block_devices/sdh1
+  Block
+    Device ay /dev/sdh1
+    Drive o /org/freedesktop/UDisks2/drives/Acme_Backup_JJJ101
+    IdUsage s filesystem
+    IdType s ext4
+  Partition
+    Number u 1
+    Table o /org/freedesktop/UDisks2/block_devices/sdh
+  Filesystem
+    MountPoints aay /mnt/backup
+  Holders
+    Names aay
+#
+# A USB disk whose partition is an LVM physical volume; the logical volume
+# on it is mounted.
+/org/freedesktop/UDisks2/drives/Acme_Pool_KKK202
+  Drive
+    Vendor s Acme
+    Model s Pool
+    Serial s KKK202
+    Size t 1000204886016
+    ConnectionBus s usb
+    Removable b true
+/org/freedesktop/UDisks2/block_devices/sdi
+  Block
+    Device ay /dev/sdi
+    Drive o /org/freedesktop/UDisks2/drives/Acme_Pool_KKK202
+  Holders
+    Names aay
+/org/freedesktop/UDisks2/block_devices/sdi1
+  Block
+    Device ay /dev/sdi1
+    Drive o /org/freedesktop/UDisks2/drives/Acme_Pool_KKK202
+    IdUsage s raid
+    IdType s LVM2_member
+  Partition
+    Number u 1
+    Table o /org/freedesktop/UDisks2/block_devices/sdi
+  Holders
+    Names aay dm-3
+/org/freedesktop/UDisks2/block_devices/dm_2d3
+  Block
+    Device ay /dev/dm-3
+    Drive o /
+    IdUsage s filesystem
+    IdType s ext4
+  Filesystem
+    MountPoints aay /srv/data
+#
+# A USB disk that is a member of a RAID array, with no partitions.
+/org/freedesktop/UDisks2/drives/Acme_Array_LLL303
+  Drive
+    Vendor s Acme
+    Model s Array
+    Serial s LLL303
+    Size t 4000787030016
+    ConnectionBus s usb
+    Removable b true
+/org/freedesktop/UDisks2/block_devices/sdj
+  Block
+    Device ay /dev/sdj
+    Drive o /org/freedesktop/UDisks2/drives/Acme_Array_LLL303
+    IdUsage s raid
+    IdType s linux_raid_member
+  Holders
+    Names aay md127
+#
+# A USB disk whose holders could not be read: no Holders on its blocks.
+/org/freedesktop/UDisks2/drives/Acme_Blind_MMM404
+  Drive
+    Vendor s Acme
+    Model s Blind
+    Serial s MMM404
+    Size t 16008609792
+    ConnectionBus s usb
+    Removable b true
+/org/freedesktop/UDisks2/block_devices/sdk
+  Block
+    Device ay /dev/sdk
+    Drive o /org/freedesktop/UDisks2/drives/Acme_Blind_MMM404
+/org/freedesktop/UDisks2/block_devices/sdk1
+  Block
+    Device ay /dev/sdk1
+    Drive o /org/freedesktop/UDisks2/drives/Acme_Blind_MMM404
+    IdUsage s filesystem
+    IdType s vfat
+  Partition
+    Number u 1
+    Table o /org/freedesktop/UDisks2/block_devices/sdk
+  Holders
+    Names aay
+#
+# A USB stick the desktop mounted under /run/media, nothing built on it.
+/org/freedesktop/UDisks2/drives/Acme_Plain_NNN505
+  Drive
+    Vendor s Acme
+    Model s Plain
+    Serial s NNN505
+    Size t 16008609792
+    ConnectionBus s usb
+    Removable b true
+/org/freedesktop/UDisks2/block_devices/sdl
+  Block
+    Device ay /dev/sdl
+    Drive o /org/freedesktop/UDisks2/drives/Acme_Plain_NNN505
+  Holders
+    Names aay
+/org/freedesktop/UDisks2/block_devices/sdl1
+  Block
+    Device ay /dev/sdl1
+    Drive o /org/freedesktop/UDisks2/drives/Acme_Plain_NNN505
+    IdUsage s filesystem
+    IdType s vfat
+  Partition
+    Number u 1
+    Table o /org/freedesktop/UDisks2/block_devices/sdl
+  Filesystem
+    MountPoints aay /run/media/someone/PLAIN
+  Holders
+    Names aay

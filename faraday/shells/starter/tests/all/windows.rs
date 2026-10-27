@@ -468,6 +468,8 @@ fn every_reason() -> Vec<Reason> {
         Reason::InUse(InUse::Mounted(s())),
         Reason::InUse(InUse::Swap),
         Reason::InUse(InUse::System),
+        Reason::InUse(InUse::Held),
+        Reason::InUse(InUse::Unchecked),
         Reason::BootOnly,
         Reason::TooSmall { disk: 1, image: 2 },
         Reason::PayloadSum,

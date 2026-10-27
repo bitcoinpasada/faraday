@@ -297,3 +297,70 @@ fn a_disk_unlocked_by_the_tpm_is_found_in_crypttab() {
         "root UUID=1234 none luks,discard\n# x y z tpm2-device=auto\n"
     ));
 }
+
+#[test]
+fn a_disk_the_computer_uses_through_fstab_lvm_or_raid_or_cannot_be_checked_is_refused_and_a_free_one_is_offered()
+ {
+    let disks = listed(&recorded("in-use.txt"));
+    let list = offers(&disks, Target::Stick, Some(IMAGE));
+    let refusal = |dev: &str| {
+        list.iter()
+            .find(|o| o.disk.device == dev)
+            .unwrap_or_else(|| panic!("{dev} is listed"))
+            .refused
+            .clone()
+    };
+    // Mounted at /mnt/backup: the computer's own place, not the desktop's.
+    assert_eq!(
+        refusal("/dev/sdh"),
+        Some(Refusal::InUse(InUse::Mounted("/mnt/backup".into())))
+    );
+    // A logical volume on a partition's physical volume.
+    assert_eq!(refusal("/dev/sdi"), Some(Refusal::InUse(InUse::Held)));
+    // A RAID member, with its array on the whole disk.
+    assert_eq!(refusal("/dev/sdj"), Some(Refusal::InUse(InUse::Held)));
+    // Nothing says what is built on it.
+    assert_eq!(refusal("/dev/sdk"), Some(Refusal::InUse(InUse::Unchecked)));
+    // Automounted by the desktop, nothing built on it.
+    assert_eq!(refusal("/dev/sdl"), None);
+}
+
+#[test]
+fn an_opened_encrypted_volume_holds_its_disk_whether_or_not_it_is_mounted() {
+    let text = recorded("attached.txt");
+    // The cleartext mounted nowhere: still held by the opened volume.
+    let unmounted = text.replace("    MountPoints aay /home\n", "    MountPoints aay\n");
+    let all = listed(&unmounted);
+    let vault = all.iter().find(|d| d.device == "/dev/sdd").expect("listed");
+    assert_eq!(vault.in_use, Some(InUse::Held));
+}
+
+#[test]
+fn holders_are_read_from_the_kernel_and_a_block_it_does_not_list_is_not_checked() {
+    use faraday_starter_shell::linux::bus::record_holders;
+    let sys = Path::new(env!("CARGO_TARGET_TMPDIR")).join("starter-disks-sys-block");
+    let _ = std::fs::remove_dir_all(&sys);
+    // sdh and sdh1 are in sysfs, sdh1 held by dm-0; the rest are not.
+    for dir in ["sdh/holders", "sdh1/holders/dm-0"] {
+        std::fs::create_dir_all(sys.join(dir)).expect("a folder");
+    }
+    let mut recording = objects(&recorded("in-use.txt"));
+    // What the recording stated is replaced by what the kernel says.
+    for ifaces in recording.0.values_mut() {
+        ifaces.remove("Holders");
+    }
+    record_holders(&mut recording, &sys);
+    let block = |dev: &str| format!("/org/freedesktop/UDisks2/block_devices/{dev}");
+    assert_eq!(
+        recording.in_use(&block("sdh")),
+        Some(InUse::Mounted("/mnt/backup".into()))
+    );
+    assert_eq!(recording.in_use(&block("sdi")), Some(InUse::Unchecked));
+    // Without the mount, sdh1's dm-0 holds the disk.
+    recording
+        .0
+        .get_mut(&block("sdh1"))
+        .expect("there")
+        .remove("Filesystem");
+    assert_eq!(recording.in_use(&block("sdh")), Some(InUse::Held));
+}

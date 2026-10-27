@@ -12,7 +12,7 @@
 
 use std::collections::{BTreeMap, HashMap};
 use std::fs::File;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use rustbus::connection::Timeout;
@@ -20,7 +20,7 @@ use rustbus::wire::unmarshal::traits::Variant;
 use rustbus::wire::{ObjectPath, UnixFd};
 use rustbus::{MessageBuilder, MessageType, RpcConn};
 
-use super::udisks::{Objects, Props, Value, short};
+use super::udisks::{HOLDERS, HOLDERS_NAMES, Objects, Props, Value, kernel_name, short};
 use super::{Open, Udisks};
 
 const SERVICE: &str = "org.freedesktop.UDisks2";
@@ -143,6 +143,57 @@ fn value(v: &Variant<'_, '_>) -> Value {
     }
 }
 
+/// Where the kernel lists block devices.
+const SYS_BLOCK: &str = "/sys/class/block";
+
+/// Costs a directory read per block: records on every block the kernel
+/// names of the devices built on it, read from
+/// `<sys_block>/<name>/holders`. A block whose holders cannot be read
+/// (no device name, no directory, a read error) gets nothing recorded,
+/// and the disk it belongs to is not offered.
+pub fn record_holders(objects: &mut Objects, sys_block: &Path) {
+    for ifaces in objects.0.values_mut() {
+        let Some(block) = ifaces.get("Block") else {
+            continue;
+        };
+        let device = match block.get("Device") {
+            Some(Value::Bytes(b)) => {
+                let end = b.iter().position(|&c| c == 0).unwrap_or(b.len());
+                String::from_utf8_lossy(&b[..end]).into_owned()
+            }
+            _ => continue,
+        };
+        // A symlink under /dev (`/dev/mapper/x`) names the kernel's own
+        // device: the kernel name is its target's.
+        let resolved = std::fs::canonicalize(&device)
+            .ok()
+            .map(|p| p.to_string_lossy().into_owned());
+        let Some(name) = kernel_name(resolved.as_deref().unwrap_or(&device)) else {
+            continue;
+        };
+        let Ok(dir) = std::fs::read_dir(sys_block.join(name).join("holders")) else {
+            continue;
+        };
+        let mut names = Vec::new();
+        let mut complete = true;
+        for entry in dir {
+            match entry {
+                Ok(e) => {
+                    let mut n = e.file_name().to_string_lossy().into_owned().into_bytes();
+                    n.push(0);
+                    names.push(n);
+                }
+                Err(_) => complete = false,
+            }
+        }
+        if complete {
+            let mut props = Props::new();
+            props.insert(HOLDERS_NAMES.to_string(), Value::ByteLists(names));
+            ifaces.insert(HOLDERS.to_string(), props);
+        }
+    }
+}
+
 type Managed<'a, 'b> =
     HashMap<ObjectPath<String>, HashMap<String, HashMap<String, Variant<'a, 'b>>>>;
 
@@ -168,6 +219,7 @@ impl Udisks for Bus {
             }
             objects.0.insert(path.as_ref().to_string(), entry);
         }
+        record_holders(&mut objects, Path::new(SYS_BLOCK));
         Ok(objects)
     }
 

@@ -1040,9 +1040,16 @@ Upgrade a Faraday stick are unchanged.
   a Pi card, an SD card in the computer's own reader (Linux `mmcblk*`;
   Windows bus types SD and MMC).
 - Never a disk with a partition the computer uses: on Linux mounted
-  anywhere but `/run/media`, `/media` or `/mnt` (udisks2's
-  `Filesystem.MountPoints`), or swap (`Swapspace.Active`); on Windows
-  the disk holding the Windows, boot or page-file volume.
+  anywhere but `/run/media` or `/media`, where the desktop mounts
+  removable disks (udisks2's `Filesystem.MountPoints`; a disk mounted
+  at `/mnt` or elsewhere is in use), or swap (`Swapspace.Active`), or
+  with a holder: another device built on the whole disk or on any of
+  its partitions, listed by the kernel in
+  `/sys/class/block/<name>/holders` (LVM, RAID, an opened encrypted
+  volume, whether or not its contents are mounted). When the holders
+  of the disk or of one of its partitions cannot be read, the disk is
+  refused: the Starter offers only a disk it can show is free. On
+  Windows the disk holding the Windows, boot or page-file volume.
 - Never a disk smaller than the image: 193 MiB and 20 KiB for the
   stick, 196 MiB for the Pi card (F80). The minimum the Starter states
   is a USB stick or SD card of 256 MB or larger: with none attached,

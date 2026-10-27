@@ -300,6 +300,10 @@ strings! {
     starter_refused_mounted: "Used by this computer: mounted at {}",
     /// A disk the computer uses.
     starter_refused_swap: "Used by this computer: swap",
+    /// A disk the computer uses: another device is built on it.
+    starter_refused_held: "Used by this computer: another device is built on it",
+    /// A disk whose use could not be checked.
+    starter_refused_unchecked: "Not checked: what uses it could not be read",
     /// A disk the computer uses.
     starter_refused_system: "Holds this computer's system",
     /// A disk too small: `{}` the size needed.
@@ -577,6 +581,10 @@ strings! {
     starter_why_mounted: "A partition on it is mounted at {}. Nothing was written.",
     /// Reason.
     starter_why_swap: "A partition on it is in use as swap. Nothing was written.",
+    /// Reason.
+    starter_why_held: "Another device is built on it or on one of its partitions. Nothing was written.",
+    /// Reason.
+    starter_why_unchecked: "What uses it could not be read. Nothing was written.",
     /// Reason.
     starter_why_system: "It holds this computer's system. Nothing was written.",
     /// Reason.

@@ -90,7 +90,7 @@ same way as a stick.
 | a volume name, then **files on them** | the stick holds files; writing erases them |
 | **Faraday stick ·** and a version | the stick already holds Faraday |
 | dimmed, **Smaller than the image: needs …** | the stick is too small; it cannot be pressed |
-| dimmed, **Used by this computer: mounted at …**, **Used by this computer: swap** or **Holds this computer's system** | the PC uses this disk; it cannot be pressed |
+| dimmed, **Used by this computer: mounted at …**, **Used by this computer: swap**, **Used by this computer: another device is built on it**, **Not checked: what uses it could not be read** or **Holds this computer's system** | the PC uses this disk; it cannot be pressed |
 
 With no USB disk attached the page reads **No USB stick attached · 256
 MB or larger**. The list follows sticks as they are plugged in and

@@ -632,6 +632,8 @@ pub(crate) fn reason_text(r: &Reason) -> String {
         }
         Reason::InUse(InUse::Mounted(at)) => fill(S.starter_why_mounted, &[at]),
         Reason::InUse(InUse::Swap) => S.starter_why_swap.to_string(),
+        Reason::InUse(InUse::Held) => S.starter_why_held.to_string(),
+        Reason::InUse(InUse::Unchecked) => S.starter_why_unchecked.to_string(),
         Reason::InUse(InUse::System) => S.starter_why_system.to_string(),
         Reason::BootOnly => S.starter_why_boot_only.to_string(),
         Reason::TooSmall { disk, image } => {
@@ -781,6 +783,8 @@ fn refusal_text(r: &Refusal) -> String {
     match r {
         Refusal::InUse(InUse::Mounted(at)) => fill(S.starter_refused_mounted, &[at]),
         Refusal::InUse(InUse::Swap) => S.starter_refused_swap.to_string(),
+        Refusal::InUse(InUse::Held) => S.starter_refused_held.to_string(),
+        Refusal::InUse(InUse::Unchecked) => S.starter_refused_unchecked.to_string(),
         Refusal::InUse(InUse::System) => S.starter_refused_system.to_string(),
         Refusal::TooSmall(needs) => fill(S.starter_refused_small, &[&size_text(*needs)]),
     }

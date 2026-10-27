@@ -19,6 +19,8 @@
     Drive o /org/freedesktop/UDisks2/drives/Acme_Stick_AAA111
   PartitionTable
     Type s dos
+  Holders
+    Names aay
 /org/freedesktop/UDisks2/block_devices/sdb1
   Block
     Device ay /dev/sdb1
@@ -33,6 +35,8 @@
     Name s
   Filesystem
     MountPoints aay /run/media/someone/HOLIDAY
+  Holders
+    Names aay
 #
 # An SD card in the computer's own reader.
 /org/freedesktop/UDisks2/drives/SD_Card_BBB222
@@ -48,6 +52,8 @@
     Device ay /dev/mmcblk0
     Size t 31914983424
     Drive o /org/freedesktop/UDisks2/drives/SD_Card_BBB222
+  Holders
+    Names aay
 #
 # A USB disk this computer started from: a partition mounted at /.
 /org/freedesktop/UDisks2/drives/Acme_Portable_CCC333
@@ -62,6 +68,8 @@
   Block
     Device ay /dev/sdc
     Drive o /org/freedesktop/UDisks2/drives/Acme_Portable_CCC333
+  Holders
+    Names aay
 /org/freedesktop/UDisks2/block_devices/sdc1
   Block
     Device ay /dev/sdc1
@@ -73,6 +81,8 @@
     Table o /org/freedesktop/UDisks2/block_devices/sdc
   Filesystem
     MountPoints aay /
+  Holders
+    Names aay
 #
 # A USB disk holding /home, inside an unlocked LUKS partition.
 /org/freedesktop/UDisks2/drives/Acme_Vault_DDD444
@@ -87,6 +97,8 @@
   Block
     Device ay /dev/sdd
     Drive o /org/freedesktop/UDisks2/drives/Acme_Vault_DDD444
+  Holders
+    Names aay
 /org/freedesktop/UDisks2/block_devices/sdd1
   Block
     Device ay /dev/sdd1
@@ -96,6 +108,8 @@
   Partition
     Number u 1
     Table o /org/freedesktop/UDisks2/block_devices/sdd
+  Holders
+    Names aay dm-0
 /org/freedesktop/UDisks2/block_devices/dm_2d0
   Block
     Device ay /dev/dm-0
@@ -119,6 +133,8 @@
   Block
     Device ay /dev/sde
     Drive o /org/freedesktop/UDisks2/drives/Acme_Swap_EEE555
+  Holders
+    Names aay
 /org/freedesktop/UDisks2/block_devices/sde1
   Block
     Device ay /dev/sde1
@@ -130,6 +146,8 @@
     Table o /org/freedesktop/UDisks2/block_devices/sde
   Swapspace
     Active b true
+  Holders
+    Names aay
 #
 # A USB stick smaller than the stick image, empty.
 /org/freedesktop/UDisks2/drives/Acme_Tiny_FFF666
@@ -144,6 +162,8 @@
   Block
     Device ay /dev/sdf
     Drive o /org/freedesktop/UDisks2/drives/Acme_Tiny_FFF666
+  Holders
+    Names aay
 #
 # The computer's own NVMe disk, mounted at / and /home: never listed.
 /org/freedesktop/UDisks2/drives/Acme_SSD_GGG777
@@ -157,6 +177,8 @@
   Block
     Device ay /dev/nvme0n1
     Drive o /org/freedesktop/UDisks2/drives/Acme_SSD_GGG777
+  Holders
+    Names aay
 /org/freedesktop/UDisks2/block_devices/nvme0n1p2
   Block
     Device ay /dev/nvme0n1p2
@@ -167,3 +189,5 @@
     Table o /org/freedesktop/UDisks2/block_devices/nvme0n1
   Filesystem
     MountPoints aay /
+  Holders
+    Names aay
