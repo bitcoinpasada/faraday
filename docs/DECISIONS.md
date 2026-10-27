@@ -115,7 +115,7 @@ Read this table, then only the decision you need.
 | [F98](decisions/F98.md) | A new wallet's account is asked after its quorum, not on Kind | 2026-10-23 | Active | wallets |
 | [F99](decisions/F99.md) | APK signing is removed | 2026-10-23 | Active | keys |
 | [F100](decisions/F100.md) | The 7-inch and 10-inch panels run in landscape, with portrait a setting | 2026-10-23 | Active | design |
-| [F101](decisions/F101.md) | A window is laid out at its screen's own density; F78 is superseded | 2026-10-23 | Active | design |
+| [F101](decisions/F101.md) | A window is laid out at its screen's own density; F78 is superseded | 2026-10-23 | Amended by F100 | design |
 | [F102](decisions/F102.md) | A late seed is said only at a press that needs it; the Pi's generator is mixed, not credited | 2026-10-23 | Active | security |
 | [F103](decisions/F103.md) | A choice that decides a step moves on by itself | 2026-10-23 | Active | design |
 | [F104](decisions/F104.md) | Back and Forward move within a flow's steps | 2026-10-23 | Active | design |

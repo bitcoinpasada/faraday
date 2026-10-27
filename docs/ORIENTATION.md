@@ -414,7 +414,7 @@ Edit list:
 
 ## 14. Questions for the owner
 
-Asked 2026-10-26; the recommendation follows each.
+Asked 2026-10-26; answered 2026-10-27, each as recommended (F100).
 
 1. The density from the EDID on screens of 11 inches or less, and
    `faraday.dpi` kept elsewhere (§2.1, amending F101)? Yes: at 160 dpi a
