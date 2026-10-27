@@ -11,7 +11,7 @@ use faraday_strings::fill;
 use faraday_strings::{EN, Strings};
 use faraday_ui::Role;
 use faraday_ui::parts::qr_code;
-use faraday_ui::{Glyph, NameSuffix, Style, W};
+use faraday_ui::{Glyph, NameSuffix, Paint, Style};
 
 use crate::api::{Concern, InUse, InstallItem, Kind, Mode, Os, Reason, StickFault, WriteStage};
 use crate::decide::{Item, Refusal, State, Target};
@@ -35,8 +35,9 @@ mod home;
 mod nav;
 
 use faraday_draw::tokens::{
-    CONTENT_MAX, DISABLED_CONTAINER, DISABLED_CONTENT, GAP, MARGIN_COMPACT, MARGIN_WIDE, NAV_BAR_H,
-    PROGRESS_H, RAIL_W, STATE_PRESS,
+    BODY_L, BODY_M, BODY_S, BUTTON_H, CONTENT_MAX, DISABLED_CONTAINER, DISABLED_CONTENT, GAP,
+    LABEL_L, LABEL_S, LIST_1, LIST_2, MARGIN_COMPACT, MARGIN_WIDE, NAV_BAR_H, PROGRESS_H, RAIL_W,
+    STATE_PRESS, TITLE_L, TITLE_M, TITLE_S,
 };
 
 /// The widest a task page's column grows (a text column, not a grid).
@@ -280,13 +281,31 @@ fn destination_name(page: Page) -> String {
 
 /// A section's label. Returns its height.
 fn label(ui: &mut Ui, x: f32, y: f32, s: &str) -> f32 {
-    ui.text(x, y, 13.0, W::S, Role::OnSurfaceVariant, s);
-    24.0
+    ui.text_as(x, y, TITLE_S, Role::OnSurfaceVariant, s);
+    ui.line_as(TITLE_S) + GAP / 2.0
+}
+
+/// A list item's two lines (Material 3 Lists): `head` in Body L over
+/// `sub` in Body M, the pair centred in the band `h` tall from y, each
+/// cut to its room.
+fn two_lines(
+    ui: &mut Ui,
+    (tx, y, h): (f32, f32, f32),
+    (room, sub_room): (f32, f32),
+    (head, head_ink): (&str, Paint),
+    (sub, sub_ink): (&str, Paint),
+) {
+    let (hl, sl) = (ui.line_as(BODY_L), ui.line_as(BODY_M));
+    let top = y + (h - hl - sl) / 2.0;
+    let head = ui.fit_as(BODY_L, head, room);
+    ui.text_mid_as((tx, top, hl), BODY_L, head_ink, &head);
+    let sub = ui.fit_as(BODY_M, sub, sub_room);
+    ui.text_mid_as((tx, top + hl, sl), BODY_M, sub_ink, &sub);
 }
 
 /// A line of fact, wrapped. Returns its height with the gap under it.
 fn line(ui: &mut Ui, x: f32, y: f32, w: f32, s: &str, tone: Role) -> f32 {
-    ui.wrap(x, y, w, 13.0, W::R, tone, s) + 10.0
+    ui.wrap_as((x, y, w), BODY_M, tone, s) + 10.0
 }
 
 /// A label and its value: on one row with the value at the right on a
@@ -294,15 +313,15 @@ fn line(ui: &mut Ui, x: f32, y: f32, w: f32, s: &str, tone: Role) -> f32 {
 /// its height.
 fn value_row(ui: &mut Ui, x: f32, y: f32, w: f32, key: &str, value: &str, tone: Role) -> f32 {
     if ui.compact {
-        ui.text(x, y, 12.0, W::R, Role::OnSurfaceVariant, key);
-        let vh = ui.wrap(x, y + 18.0, w, 14.0, W::R, tone, value);
+        ui.text_as(x, y, BODY_S, Role::OnSurfaceVariant, key);
+        let vh = ui.wrap_as((x, y + 18.0, w), BODY_M, tone, value);
         ui.rule(x, y + 24.0 + vh, w, Role::OutlineVariant);
         return vh + 32.0;
     }
-    let kw = ui.measure(13.0, W::R, key) + 24.0;
-    ui.text_mid(x, y, 36.0, 13.0, W::R, Role::OnSurfaceVariant, key);
-    let v = ui.fit(14.0, W::R, value, w - kw);
-    ui.text_right(x + w, y, 36.0, 14.0, W::R, tone, &v);
+    let kw = ui.measure_as(BODY_M, key) + 24.0;
+    ui.text_mid_as((x, y, 36.0), BODY_M, Role::OnSurfaceVariant, key);
+    let v = ui.fit_as(BODY_M, value, w - kw);
+    ui.text_right_as((x + w, y, 36.0), BODY_M, tone, &v);
     ui.rule(x, y + 36.0, w, Role::OutlineVariant);
     38.0
 }
@@ -331,8 +350,8 @@ fn radio_mark(ui: &mut Ui, x: f32, cy: f32, on: bool, enabled: bool) {
 /// A label over a long value in the mono face, in groups of four,
 /// wrapped (a SHA-256, a fingerprint, a path). Returns its height.
 fn mono_row(ui: &mut Ui, x: f32, y: f32, w: f32, key: &str, value: &str) -> f32 {
-    ui.text(x, y + 8.0, 12.0, W::R, Role::OnSurfaceVariant, key);
-    let vh = ui.wrap(x, y + 28.0, w, 13.0, W::M, Role::OnSurface, value);
+    ui.text_as(x, y + 8.0, BODY_S, Role::OnSurfaceVariant, key);
+    let vh = ui.wrap_as((x, y + 28.0, w), BODY_M.mono(), Role::OnSurface, value);
     ui.rule(x, y + 36.0 + vh, w, Role::OutlineVariant);
     vh + 40.0
 }
@@ -353,7 +372,7 @@ fn nav_row(
     action: Option<StarterAction>,
 ) -> f32 {
     let compact = ui.compact;
-    let h = if compact { 54.0 } else { 58.0 };
+    let h = if sub.is_empty() { LIST_1 } else { LIST_2 };
     let enabled = action.is_some();
     let pressed = action.is_some_and(|a| ui.is_pressed(a.host()));
     ui.card(x, y, w, h, Role::OutlineVariant);
@@ -378,35 +397,40 @@ fn nav_row(
     let tail_w = if tail.is_empty() {
         0.0
     } else {
-        ui.measure(12.0, W::R, tail) + 12.0
+        ui.measure_as(LABEL_S, tail) + 12.0
     };
     let chevron = if enabled { 22.0 } else { 0.0 };
     let room = w - (tx - x) - 12.0 - tail_w - chevron;
-    let head = ui.fit(14.0, W::S, head, room);
     let fg = if enabled {
         Role::OnSurface.paint()
     } else {
         Role::OnSurface.at(DISABLED_CONTENT)
     };
-    if sub.is_empty() {
-        ui.text_mid(tx, y, h, 14.0, W::S, fg, &head);
+    let head_l = ui.line_as(BODY_L);
+    // The headline's band: the row's middle, or the first of two lines.
+    let head_band = if sub.is_empty() {
+        (y, h)
     } else {
-        ui.text(tx, y + 9.0, 14.0, W::S, fg, &head);
-        let sub = ui.fit(12.0, W::R, sub, w - (tx - x) - 12.0 - chevron);
+        (y + (h - head_l - ui.line_as(BODY_M)) / 2.0, head_l)
+    };
+    if sub.is_empty() {
+        let head = ui.fit_as(BODY_L, head, room);
+        ui.text_mid_as((tx, y, h), BODY_L, fg, &head);
+    } else {
         let tone = if enabled {
             Role::OnSurfaceVariant
         } else {
             Role::Warning
         };
-        ui.text(tx, y + 30.0, 12.0, W::R, tone, &sub);
+        let sub_room = w - (tx - x) - 12.0 - chevron;
+        // The second line may run under the value at the right.
+        let rooms = (room, sub_room);
+        two_lines(ui, (tx, y, h), rooms, (head, fg), (sub, tone.paint()));
     }
     if !tail.is_empty() {
-        ui.text_right(
-            x + w - 12.0 - chevron,
-            y,
-            if sub.is_empty() { h } else { 30.0 },
-            12.0,
-            W::R,
+        ui.text_right_as(
+            (x + w - 12.0 - chevron, head_band.0, head_band.1),
+            LABEL_S,
             if enabled {
                 Role::OnSurfaceVariant.paint()
             } else {
@@ -434,12 +458,9 @@ fn nav_row(
 fn warning(ui: &mut Ui, x: f32, y: f32, w: f32, s: &str) -> f32 {
     // Measured first, where nothing shows: the band needs the text's height.
     ui.c.push_clip(faraday_draw::Rect::new(0, 0, 0, 0));
-    let th = ui.wrap(
-        x + 14.0,
-        y + 10.0,
-        w - 28.0,
-        13.0,
-        W::S,
+    let th = ui.wrap_as(
+        (x + 14.0, y + 10.0, w - 28.0),
+        TITLE_S,
         Role::OnWarningContainer,
         s,
     );
@@ -447,12 +468,9 @@ fn warning(ui: &mut Ui, x: f32, y: f32, w: f32, s: &str) -> f32 {
     let bh = th + 20.0;
     ui.fill(x, y, w, bh, 10.0, Role::WarningContainer);
     ui.stroke(x, y, w, bh, 10.0, Role::Warning.with_alpha(110));
-    ui.wrap(
-        x + 14.0,
-        y + 10.0,
-        w - 28.0,
-        13.0,
-        W::S,
+    ui.wrap_as(
+        (x + 14.0, y + 10.0, w - 28.0),
+        TITLE_S,
         Role::OnWarningContainer,
         s,
     );
@@ -468,14 +486,14 @@ pub(crate) fn link(ui: &mut Ui, x: f32, y: f32, w: f32, id: LearnId) -> f32 {
     }
     let label = learn_title(id);
     let action = StarterAction::LearnPage(id).host();
-    let label = ui.fit(13.0, W::S, label, w);
-    let tw = ui.measure(13.0, W::S, &label);
+    let label = ui.fit_as(TITLE_S, label, w);
+    let tw = ui.measure_as(TITLE_S, &label);
     let tone = if ui.is_pressed(action) || ui.is_hovered(action) {
         Role::OnSurface
     } else {
         Role::Primary
     };
-    ui.text_mid(x, y, 28.0, 13.0, W::S, tone, &label);
+    ui.text_mid_as((x, y, 28.0), TITLE_S, tone, &label);
     ui.hit(x - 4.0, y, tw + 8.0, 28.0, action);
     32.0
 }
@@ -568,44 +586,49 @@ fn buttons(ui: &mut Ui, x: f32, y: f32, w: f32, items: &[(&str, Style, StarterAc
         let share = (w - (n - 1.0) * 8.0) / n;
         let fits = items
             .iter()
-            .all(|(l, ..)| ui.measure(15.0, W::S, l) + 24.0 <= share);
+            .all(|(l, ..)| ui.measure_as(LABEL_L, l) + 24.0 <= share);
         if fits {
             for (i, &(l, s, a)) in items.iter().enumerate() {
                 ui.button(
                     x + i as f32 * (share + 8.0),
                     y,
                     Some(share),
-                    46.0,
+                    BUTTON_H,
                     l,
                     s,
                     a.host(),
                 );
             }
-            return 46.0;
+            return BUTTON_H;
         }
         for (i, &(l, s, a)) in items.iter().enumerate() {
-            let l = ui.fit(15.0, W::S, l, w - 24.0);
-            ui.button(x, y + i as f32 * 54.0, Some(w), 46.0, &l, s, a.host());
+            let l = ui.fit_as(LABEL_L, l, w - 24.0);
+            ui.button(
+                x,
+                y + i as f32 * (BUTTON_H + 8.0),
+                Some(w),
+                BUTTON_H,
+                &l,
+                s,
+                a.host(),
+            );
         }
-        return n * 54.0 - 8.0;
+        return n * (BUTTON_H + 8.0) - 8.0;
     }
     let mut bx = x;
     for &(l, s, a) in items {
-        bx += ui.button(bx, y, None, 44.0, l, s, a.host()) + 10.0;
+        bx += ui.button(bx, y, None, BUTTON_H, l, s, a.host()) + 10.0;
     }
-    44.0
+    BUTTON_H
 }
 
 /// A numbered step's heading, or a tick once it is done. Returns its
 /// height.
 fn step_head(ui: &mut Ui, x: f32, y: f32, w: f32, n: usize, text: &str, done: bool) -> f32 {
     ui.badge(x, y, &n.to_string(), done, !done);
-    let th = ui.wrap(
-        x + 38.0,
-        y + 3.0,
-        w - 38.0,
-        15.0,
-        W::S,
+    let th = ui.wrap_as(
+        (x + 38.0, y + 3.0, w - 38.0),
+        TITLE_M,
         Role::OnSurface,
         text,
     );
@@ -985,7 +1008,7 @@ fn mode(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
         let action = StarterAction::Mode(m).host();
         let on = chosen == Some(m);
         let enabled = refused.is_none();
-        let rh = 60.0;
+        let rh = LIST_2;
         if enabled {
             ui.state_layer(
                 (x - 6.0, y + 2.0, w + 12.0, rh - 4.0, 8.0),
@@ -997,18 +1020,11 @@ fn mode(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
         let cy = y + rh / 2.0;
         radio_mark(ui, x, cy, on, enabled);
         let tx = x + 36.0;
-        ui.text(
-            tx,
-            y + 10.0,
-            15.0,
-            W::S,
-            if enabled {
-                Role::OnSurface.paint()
-            } else {
-                Role::OnSurface.at(DISABLED_CONTENT)
-            },
-            head,
-        );
+        let ink = if enabled {
+            Role::OnSurface.paint()
+        } else {
+            Role::OnSurface.at(DISABLED_CONTENT)
+        };
         let (sub, tone) = match refused {
             Some(ModeRefusal::Same) => (S.starter_mode_same, Role::Warning),
             Some(ModeRefusal::BootOnly) => (S.starter_mode_boot_only, Role::Warning),
@@ -1017,20 +1033,17 @@ fn mode(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
             }
             _ => (sub, Role::OnSurfaceVariant),
         };
-        let sub = ui.fit(12.0, W::R, sub, w - 40.0);
-        ui.text(tx, y + 34.0, 12.0, W::R, tone, &sub);
+        let rooms = (w - 40.0, w - 40.0);
+        two_lines(ui, (tx, y, rh), rooms, (head, ink), (sub, tone.paint()));
         if enabled {
             ui.hit(x - 6.0, y, w + 12.0, rh, action);
         }
         y += rh;
         // The one fact the Learn page explains (§4.4).
         if m == Mode::KeepData {
-            y += ui.wrap(
-                tx,
-                y,
-                w - 36.0,
-                12.0,
-                W::R,
+            y += ui.wrap_as(
+                (tx, y, w - 36.0),
+                BODY_S,
                 Role::OnSurfaceVariant,
                 S.starter_mode_keep_fact,
             ) + 6.0;
@@ -1203,7 +1216,7 @@ fn done(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     };
     ui.icon(x - 4.0, y, 40.0, icon, 26.0, tone);
     let name = page_name(starter);
-    ui.text_mid(x + 44.0, y, 40.0, 22.0, W::S, tone, &name);
+    ui.text_mid_as((x + 44.0, y, 40.0), TITLE_L, tone, &name);
     y += 56.0;
     match &m.result {
         Some(Ok(())) => {
@@ -1572,7 +1585,7 @@ fn notes_block(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     }
     // Beside Print, on Windows with BitLocker on (F49): the tick box
     // that puts the recovery key on the sheet, unticked until ticked.
-    let tick_w = 18.0 + 12.0 + ui.measure(14.0, W::R, S.starter_notes_include_key);
+    let tick_w = 18.0 + 12.0 + ui.measure_as(BODY_M, S.starter_notes_include_key);
     let (tx, ty) = if ui.compact {
         let bh = buttons(
             ui,
@@ -1586,9 +1599,9 @@ fn notes_block(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     } else {
         let bw = ui.button(
             x,
-            y,
+            y + (44.0 - BUTTON_H) / 2.0,
             None,
-            44.0,
+            BUTTON_H,
             S.starter_notes_print,
             print,
             StarterAction::PrintNotes.host(),
@@ -1602,12 +1615,9 @@ fn notes_block(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
         a,
     );
     ui.checkbox(tx, ty + 13.0, starter.include_key, true);
-    ui.text_mid(
-        tx + 30.0,
-        ty,
-        44.0,
-        14.0,
-        W::R,
+    ui.text_mid_as(
+        (tx + 30.0, ty, 44.0),
+        BODY_M,
         Role::OnSurface,
         S.starter_notes_include_key,
     );
@@ -1704,12 +1714,12 @@ fn bitlocker_block(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f
 /// A value row whose value is never cut: under its label, wrapped, when
 /// it does not fit beside it (a long menu path). Returns its height.
 fn note_row(ui: &mut Ui, x: f32, y: f32, w: f32, key: &str, value: &str, tone: Role) -> f32 {
-    let kw = ui.measure(13.0, W::R, key) + 24.0;
-    if ui.compact || ui.measure(14.0, W::R, value) <= w - kw {
+    let kw = ui.measure_as(BODY_M, key) + 24.0;
+    if ui.compact || ui.measure_as(BODY_M, value) <= w - kw {
         return value_row(ui, x, y, w, key, value, tone);
     }
-    ui.text(x, y + 8.0, 13.0, W::R, Role::OnSurfaceVariant, key);
-    let vh = ui.wrap(x, y + 30.0, w, 14.0, W::R, tone, value);
+    ui.text_as(x, y + 8.0, BODY_M, Role::OnSurfaceVariant, key);
+    let vh = ui.wrap_as((x, y + 30.0, w), BODY_M, tone, value);
     ui.rule(x, y + 38.0 + vh, w, Role::OutlineVariant);
     vh + 40.0
 }
@@ -1732,12 +1742,9 @@ fn phone_code(
         return 0.0;
     };
     qr_code(ui, m, x, y, side);
-    let th = ui.wrap(
-        x,
-        y + side + 10.0,
-        w,
-        12.0,
-        W::M,
+    let th = ui.wrap_as(
+        (x, y + side + 10.0, w),
+        BODY_S.mono(),
         Role::OnSurfaceVariant,
         address,
     );
@@ -1996,7 +2003,7 @@ fn about(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
             y += label(ui, x, y, S.starter_payload);
             for f in &p.files {
                 y += 4.0;
-                y += ui.wrap(x, y, w, 14.0, W::S, Role::OnSurface, &f.name) + 4.0;
+                y += ui.wrap_as((x, y, w), TITLE_S, Role::OnSurface, &f.name) + 4.0;
                 y += fact_row(ui, x, y, w, S.starter_build, &describe(&f.build_id));
                 y += mono_row(ui, x, y, w, S.starter_sha_xz, &grouped(&f.sha256));
                 let inner = fill(S.starter_sha_inner, &[&f.inner]);
@@ -2023,7 +2030,7 @@ fn about(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     }
     y += 16.0;
     y += label(ui, x, y, S.starter_release_key);
-    y += ui.wrap(x, y, w, 13.0, W::M, Role::OnSurface, FINGERPRINT) + 18.0;
+    y += ui.wrap_as((x, y, w), BODY_M.mono(), Role::OnSurface, FINGERPRINT) + 18.0;
     y += label(ui, x, y, S.starter_check_title);
     y += line(ui, x, y, w, S.starter_check_text, Role::OnSurface);
     for cmd in [
@@ -2031,7 +2038,7 @@ fn about(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
         S.starter_check_cmd_verify,
         S.starter_check_cmd_sums,
     ] {
-        y += ui.wrap(x, y, w, 12.0, W::M, Role::OnSurfaceVariant, cmd) + 6.0;
+        y += ui.wrap_as((x, y, w), BODY_S.mono(), Role::OnSurfaceVariant, cmd) + 6.0;
     }
     if starter.computer.os == Os::Windows {
         y += 12.0;
@@ -2211,7 +2218,7 @@ fn tick_row(
     action: StarterAction,
 ) -> f32 {
     let a = action.host();
-    let rh = 52.0;
+    let rh = LIST_1;
     ui.state_layer(
         (x - 6.0, y + 2.0, w + 12.0, rh - 4.0, 8.0),
         Role::OnSurface.paint(),
@@ -2219,7 +2226,7 @@ fn tick_row(
     );
     let cy = y + rh / 2.0;
     radio_mark(ui, x, cy, on, true);
-    ui.text_mid(x + 36.0, y, rh, 15.0, W::S, Role::OnSurface, head);
+    ui.text_mid_as((x + 36.0, y, rh), BODY_L, Role::OnSurface, head);
     ui.hit(x - 6.0, y, w + 12.0, rh, a);
     ui.rule(x, y + rh, w, Role::OutlineVariant);
     rh

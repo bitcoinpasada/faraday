@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Partly built: size classes and density (L1, F101), navigation (L2), Home's lead tile and tile grid (L3), the supporting pane's place and its narrow strip, for codex32's Demo only card (§6); the page area to the window's edge (W1, §15, §19); list and detail for Wallets, Files, Vaults and Backups (L4, §5, §17); Settings' list of sections on compact windows and every section on one page from medium up (§17); the codex32 entry's input panel (W3, §16.3); Learn in the supporting pane on extra-large windows (L6, §6); the rest specified, not built (F92); the rest of wide windows (§13 to §19) specified, not built
-**Open:** the stick's density from its screen's EDID (§7; today its kernel command line's, F101), the top app bar over the wide pages and the step flows (§3; they keep their own heads), Files' two lists each scrolling on its own on the rail's windows (§17; there the page scrolls as one), components that keep their size (L5: the size set and the type roles are built in `faraday-ui`, part 1; the screens of `faraday-core` and the Starter still write their own sizes, part 2), tours and tests (L7), wide windows: wide content, the codex32 worksheet's fit, the string's boxes, the input panel on compact windows that are not short (§16.3; they keep the small panel's context over the pad), the panel beside the sheets scrolling within itself (it stands at the foot where it is taller than the window), New key's dice and Create a vault's Generate with dice in the panel (their pad, progress line and entries already stand together in one card), the page following a whole sheet, fixed step buttons and Decode's outputs at their columns' width (§14 to §17, W2, W4, W5); planned.
+**Open:** the stick's density from its screen's EDID (§7; today its kernel command line's, F101), the top app bar over the wide pages and the step flows (§3; they keep their own heads), Files' two lists each scrolling on its own on the rail's windows (§17; there the page scrolls as one), components that keep their size (L5: the size set and the type roles are built in `faraday-ui`, part 1; the screens of `faraday-core` still write their own sizes, part 2), tours and tests (L7), wide windows: wide content, the codex32 worksheet's fit, the string's boxes, the input panel on compact windows that are not short (§16.3; they keep the small panel's context over the pad), the panel beside the sheets scrolling within itself (it stands at the foot where it is taller than the window), New key's dice and Create a vault's Generate with dice in the panel (their pad, progress line and entries already stand together in one card), the page following a whole sheet, fixed step buttons and Decode's outputs at their columns' width (§14 to §17, W2, W4, W5); planned.
 
 Faraday lays its screens out by Material 3's layout and navigation
 rules at every size, from the Pi's 2.8-inch panel to a full monitor.
@@ -288,6 +288,17 @@ each at the text size the person's system asks for.
   boxes' characters, and the cell notes, keep the sizes their cell
   geometry gives. The vault and backup flow screens still write their
   own sizes.
+
+  Built (L5, part 3): Faraday Demo's host strip, its menus and Samples
+  sheet, the samples' own sheet, and Faraday Starter's pages draw by
+  role: the strip's controls and a menu's rows `LABEL_L`, its section
+  head and a menu's sub-heading `TITLE_S`; the Starter's section labels
+  and card headings `TITLE_S`, its lines and value rows `BODY_M`, step
+  heads `TITLE_M`, every button `BUTTON_H`. The Starter's rows that
+  open or choose something (the checklist, a row that opens a page, the
+  write modes, a choice) are list items: `LIST_2` with a headline in
+  `BODY_L` over its line in `BODY_M`, `LIST_1` with the headline alone,
+  a value at the right in `LABEL_S`.
 - **Type** is Material's roles, by size: `HEADLINE_M` 28, `HEADLINE_S`
   24, `TITLE_L` 22, `TITLE_M` 16, `TITLE_S` 14, `BODY_L` 16, `BODY_M`
   14, `BODY_S` 12, `LABEL_L` 14, `LABEL_M` 12, `LABEL_S` 11. They

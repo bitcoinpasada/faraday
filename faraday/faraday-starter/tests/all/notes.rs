@@ -225,7 +225,8 @@ fn on_linux_the_sheet_says_the_computer_starts_as_before() {
 fn the_page_says_what_to_do_when_the_setting_cannot_be_found_under_the_secure_boot_step() {
     let mut s = start_page(unknown());
     let off = position(&mut s, "Turn Secure Boot off").expect("the step");
-    let line = position(&mut s, NOT_FOUND).expect("the line");
+    // The line wraps, so its first words stand for it.
+    let line = position(&mut s, "If the Secure Boot setting cannot be found").expect("the line");
     let next = position(&mut s, "Start from the stick").expect("the next step");
     assert!(off < line && line < next);
 }

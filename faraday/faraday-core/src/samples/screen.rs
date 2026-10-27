@@ -11,8 +11,8 @@ use crate::drawing::View;
 use crate::modes::screen::{head, place};
 use crate::strings::{EN, fill};
 use crate::ui::pal::*;
-use crate::ui::{Style, Ui, W};
-use faraday_draw::tokens::{CAPTION, GAP, LABEL, PAD, TOUCH};
+use crate::ui::{Style, Ui};
+use faraday_draw::tokens::{BODY_M, GAP, LABEL_L, LABEL_M, PAD, TOUCH};
 use faraday_draw::widgets::Icon;
 
 /// The sheet, over the screen it was opened from.
@@ -42,8 +42,8 @@ fn list(rows: &[Row], name: impl Fn(usize) -> String, pick: fn(u8) -> Pick) -> L
 
 /// A small heading over a list. Returns its height.
 fn heading(ui: &mut Ui, x: f32, y: f32, text: &str) -> f32 {
-    ui.text(x, y, CAPTION, W::S, Role::OnSurfaceVariant, text);
-    CAPTION + GAP
+    ui.text_as(x, y, LABEL_M, Role::OnSurfaceVariant, text);
+    ui.line_as(LABEL_M) + GAP
 }
 
 /// The title, the line, Select all, the two lists and the buttons. Returns
@@ -56,7 +56,7 @@ fn body(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     cy += head(ui, (x, cy, w), Icon::Download, EN.samples_title);
     cy += ui.code_line(
         (x, cy, w),
-        LABEL,
+        BODY_M.size,
         Role::OnSurfaceVariant,
         EN.samples_password,
         PASSPHRASE,
@@ -68,7 +68,7 @@ fn body(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             EN.pull_medium_to_reason,
             &[app.medium.noun(), EN.pull_what_load_samples],
         );
-        cy += ui.wrap(x, cy, w, LABEL, W::S, Role::Warning, &line) + PAD;
+        cy += ui.wrap_as((x, cy, w), LABEL_L, Role::Warning, &line) + PAD;
     }
     // Unselect all while any is ticked; Select all once none is.
     let any = state.any_ticked();
@@ -77,8 +77,8 @@ fn body(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     } else {
         EN.samples_select_all
     };
-    let lw = ui.measure(LABEL, W::S, link);
-    ui.text_mid(x, cy, TOUCH, LABEL, W::S, Role::Primary, link);
+    let lw = ui.measure_as(LABEL_L, link);
+    ui.text_mid_as((x, cy, TOUCH), LABEL_L, Role::Primary, link);
     ui.hit(x - GAP, cy, lw + 2.0 * GAP, TOUCH, Action::SamplesAll);
     cy += TOUCH;
     cy += heading(ui, x, cy, EN.samples_wallets);

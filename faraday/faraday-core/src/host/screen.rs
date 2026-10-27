@@ -15,7 +15,7 @@ use faraday_draw::geom::Rect;
 use faraday_draw::tokens as t;
 use faraday_draw::widgets::Icon;
 use faraday_ui::demo::DemoItem;
-use faraday_ui::{Mode, Role, Theme, W};
+use faraday_ui::{Mode, Role, Theme};
 
 use super::{Area, Host, HostMenu as Menu, HostPress};
 use crate::fresh::roller::Act as DieAct;
@@ -157,7 +157,7 @@ fn ctl_w(ui: &HostUi, c: &Ctl) -> f32 {
         Kind::Opens(_) => CHEVRON_ROOM,
         _ => 0.0,
     };
-    ui.measure(t::HOST_LABEL, W::S, &c.label) + 2.0 * CTL_PAD + extra
+    ui.measure_as(t::LABEL_L, &c.label) + 2.0 * CTL_PAD + extra
 }
 
 /// The stick pills' controls: every stick with its state, the boot stick
@@ -437,7 +437,7 @@ fn fit(host: &Host, ui: &HostUi, room: f32, die_w: f32) -> Fitted {
     let divider = 2.0 * SECTION_PAD;
     let head = |any: bool| {
         if any {
-            divider + ui.measure(t::HOST_LABEL, W::S, head_label) + t::GAP + die_w
+            divider + ui.measure_as(t::TITLE_S, head_label) + t::GAP + die_w
         } else {
             0.0
         }
@@ -580,9 +580,9 @@ struct Row<'a> {
 fn piece_w(ui: &HostUi, p: &Piece) -> f32 {
     match p {
         Piece::Ctl(c) => ctl_w(ui, c),
-        Piece::Head(label) => ui.measure(t::HOST_LABEL, W::S, label),
+        Piece::Head(label) => ui.measure_as(t::TITLE_S, label),
         Piece::Die(_) => t::ROLLER_DIE,
-        Piece::Lines(s) => ui.measure(t::LABEL, W::R, s),
+        Piece::Lines(s) => ui.measure_as(t::BODY_M, s),
     }
 }
 
@@ -644,7 +644,7 @@ fn lay_out<'a>(ui: &HostUi, fitted: &'a Fitted, shown: Option<Roller>, room: f32
         let left = room - row.width(ui) - more - opens;
         if left > t::TOUCH {
             row.section
-                .push(Piece::Lines(ui.fit(t::LABEL, W::R, &text, left)));
+                .push(Piece::Lines(ui.fit_as(t::BODY_M, &text, left)));
         }
     }
     row
@@ -775,7 +775,7 @@ fn piece(
         Piece::Head(label) => {
             labels.push(label.to_string());
             let ink = look.on_section;
-            ui.text_mid(x, cy, t::HOST_CONTROL_H, t::HOST_LABEL, W::S, ink, label)
+            ui.text_mid_as((x, cy, t::HOST_CONTROL_H), t::TITLE_S, ink, label)
         }
         Piece::Die(r) => {
             let y = top + (sh - crate::fresh::roller::screen::ROW_H) / 2.0;
@@ -784,7 +784,7 @@ fn piece(
         }
         Piece::Lines(s) => {
             let ink = look.on_section;
-            ui.text_mid(x, cy, t::HOST_CONTROL_H, t::LABEL, W::R, ink, s)
+            ui.text_mid_as((x, cy, t::HOST_CONTROL_H), t::BODY_M, ink, s)
         }
     }
 }
@@ -954,12 +954,12 @@ fn control(host: &Host, ui: &mut HostUi, c: &Ctl, (x, y): (f32, f32), inks: Inks
         ui.dot(tx + t::GAP_SMALL, y + h / 2.0, t::GAP_SMALL, tone);
         tx += DOT_ROOM;
     }
-    ui.text_mid(tx, y, h, t::HOST_LABEL, W::S, ink, &c.label);
+    ui.text_mid_as((tx, y, h), t::LABEL_L, ink, &c.label);
     if let Kind::Opens(_) = c.kind {
         let ix = x + w - CTL_PAD - CHEVRON_ROOM + t::GAP_SMALL;
         // The menu opens upward from the strip.
         let iy = y + (h - t::ICON_SMALL) / 2.0;
-        ui.icon(ix, iy, t::ICON_SMALL, Icon::ChevronUp, t::HOST_LABEL, ink);
+        ui.icon(ix, iy, t::ICON_SMALL, Icon::ChevronUp, t::TITLE_M.size, ink);
     }
     if c.kind != Kind::Off {
         ui.hit(x, y, w, h, c.press);
@@ -1113,7 +1113,7 @@ fn menu(
         match r.press {
             None => {
                 let dim = look.on_raised_dim;
-                ui.text_mid(mx + t::PAD, ry, rh, t::LABEL, W::S, dim, &r.label);
+                ui.text_mid_as((mx + t::PAD, ry, rh), t::TITLE_S, dim, &r.label);
             }
             Some(p) => {
                 let ink = look.on_raised;
@@ -1133,17 +1133,17 @@ fn menu(
                         ry + (rh - t::ICON_SMALL) / 2.0,
                         t::ICON_SMALL,
                         Icon::Check,
-                        t::HOST_LABEL,
+                        t::TITLE_M.size,
                         ink,
                     );
                 }
                 let tx = tx + t::ICON_SMALL;
-                ui.text_mid(tx, ry, rh, t::HOST_LABEL, W::R, ink, &r.label);
+                ui.text_mid_as((tx, ry, rh), t::LABEL_L, ink, &r.label);
                 if !r.note.is_empty() {
-                    let nw = ui.measure(t::LABEL, W::R, &r.note);
+                    let nw = ui.measure_as(t::BODY_M, &r.note);
                     let nx = mx + mw - t::PAD - nw;
                     let dim = look.on_raised_dim;
-                    ui.text_mid(nx, ry, rh, t::LABEL, W::R, dim, &r.note);
+                    ui.text_mid_as((nx, ry, rh), t::BODY_M, dim, &r.note);
                 }
                 ui.hit(mx, ry, mw, rh, p);
             }
@@ -1291,12 +1291,9 @@ fn samples_sheet(
     ui.hit(mx, my, mw, mh, HostPress::Sheet);
     let x = mx + t::PAD;
     let title = EN.samples_title;
-    ui.text_mid(
-        x,
-        my + t::GAP,
-        row,
-        t::HOST_LABEL,
-        W::S,
+    ui.text_mid_as(
+        (x, my + t::GAP, row),
+        t::sheet_head(false),
         look.on_raised,
         title,
     );
@@ -1331,25 +1328,22 @@ fn sheet_lists(
     let (row, line) = (t::HOST_MENU_ROW, t::HOST_LINE);
     let (x, iw) = (mx + t::PAD, mw - 2.0 * t::PAD);
     let mut cy = y;
-    let code_w = ui.measure(t::LABEL, W::M, PASSPHRASE);
-    let lead = ui.fit(t::LABEL, W::R, EN.samples_password, iw - code_w - t::GAP);
+    let code_w = ui.measure_as(t::BODY_M.mono(), PASSPHRASE);
+    let lead = ui.fit_as(t::BODY_M, EN.samples_password, iw - code_w - t::GAP);
     let dim = look.on_raised_dim;
-    let lead_w = ui.text_mid(x, cy, line, t::LABEL, W::R, dim, &lead);
+    let lead_w = ui.text_mid_as((x, cy, line), t::BODY_M, dim, &lead);
     let ink = look.on_raised;
-    ui.text_mid(
-        x + lead_w + t::GAP,
-        cy,
-        line,
-        t::LABEL,
-        W::M,
+    ui.text_mid_as(
+        (x + lead_w + t::GAP, cy, line),
+        t::BODY_M.mono(),
         ink,
         PASSPHRASE,
     );
     texts.push(format!("{} {PASSPHRASE}", EN.samples_password));
     cy += line;
     if let Some(warn) = warn {
-        let shown = ui.fit(t::LABEL, W::S, &warn, iw);
-        ui.text_mid(x, cy, line, t::LABEL, W::S, look.caution, &shown);
+        let shown = ui.fit_as(t::LABEL_L, &warn, iw);
+        ui.text_mid_as((x, cy, line), t::LABEL_L, look.caution, &shown);
         texts.push(warn);
         cy += line;
     }
@@ -1360,7 +1354,7 @@ fn sheet_lists(
         EN.samples_select_all
     };
     let all = HostPress::App(Action::SamplesAll);
-    let link_w = ui.measure(t::HOST_LABEL, W::S, link) + 2.0 * t::GAP;
+    let link_w = ui.measure_as(t::LABEL_L, link) + 2.0 * t::GAP;
     let ly = cy + (row - line) / 2.0;
     if ui.is_pressed(all) {
         ui.wash(
@@ -1381,7 +1375,7 @@ fn sheet_lists(
             layer(ink, t::STATE_HOVER),
         );
     }
-    ui.text_mid(x, cy, row, t::HOST_LABEL, W::S, ink, link);
+    ui.text_mid_as((x, cy, row), t::LABEL_L, ink, link);
     ui.hit(x - t::GAP, cy, link_w, row, all);
     texts.push(link.to_string());
     cy += row;
@@ -1430,7 +1424,7 @@ fn tick_list(
     let x = mx + t::PAD;
     let mut cy = y;
     let dim = look.on_raised_dim;
-    ui.text_mid(x, cy, t::HOST_LINE, t::LABEL, W::S, dim, heading);
+    ui.text_mid_as((x, cy, t::HOST_LINE), t::TITLE_S, dim, heading);
     texts.push(heading.to_string());
     cy += t::HOST_LINE;
     for (i, (r, name)) in rows.iter().zip(names).enumerate() {
@@ -1513,20 +1507,20 @@ fn tick_row(
     let (bx, by) = (x + t::PAD, y + (row - b) / 2.0);
     if r.ticked || r.loaded {
         ui.wash(bx, by, b, b, t::GAP_SMALL, tick);
-        ui.icon(bx, by, b, Icon::Check, t::LABEL, look.on_main);
+        ui.icon(bx, by, b, Icon::Check, t::BODY_M.size, look.on_main);
     } else {
         ui.stroke(bx, by, b, b, t::GAP_SMALL, look.on_raised_dim);
     }
     let tx = bx + b + t::GAP + t::GAP_SMALL;
     let room = x + w - t::PAD - tx;
-    let name = ui.fit(t::HOST_LABEL, W::R, label, room);
-    let name_w = ui.text_mid(tx, y, row, t::HOST_LABEL, W::R, ink, &name);
+    let name = ui.fit_as(t::BODY_L, label, room);
+    let name_w = ui.text_mid_as((tx, y, row), t::BODY_L, ink, &name);
     let note_room = room - name_w - t::GAP;
     if note_room > t::TOUCH {
-        let note = ui.fit(t::LABEL, W::R, &r.kind, note_room);
-        let nw = ui.measure(t::LABEL, W::R, &note);
+        let note = ui.fit_as(t::BODY_M, &r.kind, note_room);
+        let nw = ui.measure_as(t::BODY_M, &note);
         let dim = if on { look.on_raised_dim } else { ink };
-        ui.text_mid(x + w - t::PAD - nw, y, row, t::LABEL, W::R, dim, &note);
+        ui.text_mid_as((x + w - t::PAD - nw, y, row), t::BODY_M, dim, &note);
     }
     if on {
         ui.hit(x, y, w, row, press);

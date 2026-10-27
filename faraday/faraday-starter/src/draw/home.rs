@@ -5,16 +5,15 @@
 
 use super::*;
 use faraday_draw::Rect;
-use faraday_draw::tokens::{CARD_MIN_W, GAP, MARGIN_COMPACT, MARGIN_WIDE, PAD};
+use faraday_draw::tokens::{
+    BODY_M, BUTTON_H, CARD_MIN_W, GAP, LABEL_L, LIST_2, MARGIN_COMPACT, MARGIN_WIDE, PAD, TITLE_M,
+    TITLE_S,
+};
 
 use crate::Class;
 
-/// The height a card's heading takes.
-const HEAD_H: f32 = 20.0;
-/// A button's height inside a card.
-const BUTTON_H: f32 = 44.0;
-/// A checklist row's height.
-const ROW_H: f32 = 54.0;
+/// A checklist row's height: a two-line list item.
+const ROW_H: f32 = LIST_2;
 
 /// What a card holds, drawn at (x, y), `w` wide: returns its height.
 type Body<'a> = dyn FnMut(&mut Ui, f32, f32, f32) -> f32 + 'a;
@@ -41,21 +40,15 @@ fn measured(ui: &mut Ui, draw: &mut dyn FnMut(&mut Ui) -> f32) -> f32 {
 /// A card's height with `body` inside it, `w` wide.
 fn card_height(ui: &mut Ui, w: f32, body: &mut Body) -> f32 {
     let inner = w - 2.0 * PAD;
-    PAD + HEAD_H + measured(ui, &mut |ui| body(ui, 0.0, 0.0, inner)) + PAD
+    PAD + ui.line_as(TITLE_S) + measured(ui, &mut |ui| body(ui, 0.0, 0.0, inner)) + PAD
 }
 
 /// A card `h` tall at (x, y), `w` wide, with its heading and `body`.
 fn draw_card(ui: &mut Ui, (x, y, w, h): (f32, f32, f32, f32), heading: &str, body: &mut Body) {
     ui.card(x, y, w, h, Role::OutlineVariant);
-    ui.text(
-        x + PAD,
-        y + PAD,
-        12.0,
-        W::S,
-        Role::OnSurfaceVariant,
-        heading,
-    );
-    body(ui, x + PAD, y + PAD + HEAD_H, w - 2.0 * PAD);
+    ui.text_as(x + PAD, y + PAD, TITLE_S, Role::OnSurfaceVariant, heading);
+    let head_h = ui.line_as(TITLE_S);
+    body(ui, x + PAD, y + PAD + head_h, w - 2.0 * PAD);
 }
 
 /// The grid's gutter: the page's margin.
@@ -114,7 +107,7 @@ fn card_button(
     style: Style,
     action: StarterAction,
 ) -> f32 {
-    let label = ui.fit(15.0, W::S, label, w - 24.0);
+    let label = ui.fit_as(LABEL_L, label, w - 24.0);
     let bw = starter.compact().then_some(w);
     ui.button(x, y, bw, BUTTON_H, &label, style, action.host());
     BUTTON_H
@@ -122,7 +115,7 @@ fn card_button(
 
 /// A line of a card: wrapped, then a gap. Returns its height.
 fn card_line(ui: &mut Ui, (x, y, w): (f32, f32, f32), s: &str, tone: Role) -> f32 {
-    ui.wrap(x, y, w, 13.0, W::R, tone, s) + 4.0
+    ui.wrap_as((x, y, w), BODY_M, tone, s) + 4.0
 }
 
 // ---------------------------------------------------------------------
@@ -349,7 +342,7 @@ fn computer_body(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32
     let mut y = y0;
     // A Mac's name can be long (one identifier, several years): it wraps.
     y += ui
-        .wrap(x, y, w, 16.0, W::S, Role::OnSurface, &name)
+        .wrap_as((x, y, w), TITLE_M, Role::OnSurface, &name)
         .max(20.0)
         + 6.0;
     for (l, tone) in &lines {
@@ -411,11 +404,14 @@ fn checklist(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
                 Role::OnSurface
             },
         );
-        let head = ui.fit(14.0, W::S, item_label(starter, row.item), w - 80.0);
-        ui.text(tx, y + 8.0, 14.0, W::S, fg, &head);
-        let state = ui.fit(12.0, W::R, &state_text(&row.state), w - 80.0);
         let muted = faraday_ui::pal::on_selected(lit, Role::OnSurfaceVariant);
-        ui.text(tx, y + 30.0, 12.0, W::R, muted, &state);
+        two_lines(
+            ui,
+            (tx, y, ROW_H),
+            (w - 80.0, w - 80.0),
+            (item_label(starter, row.item), fg),
+            (state_text(&row.state).as_str(), muted),
+        );
         let (cx, cy) = (x + w - 24.0, y + (ROW_H - 20.0) / 2.0);
         ui.icon(cx, cy, 20.0, Icon::ChevronRight, 9.0, muted);
         ui.hit(x - 6.0, y, w + 12.0, ROW_H, action.host());

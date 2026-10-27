@@ -4,13 +4,11 @@
 
 use super::*;
 use faraday_draw::tokens::{
-    APP_BAR_H, CAPTION, ELEVATION_RAISED, GAP, GAP_SMALL, GRID, ICON_SMALL, LABEL, MARGIN_COMPACT,
-    NAV_BAR_H, PAD, SHAPE_S, TOUCH,
+    APP_BAR_H, BUTTON_H, ELEVATION_RAISED, GAP, GAP_SMALL, GRID, ICON_SMALL, LABEL_L, LABEL_M,
+    LABEL_S, MARGIN_COMPACT, NAV_BAR_H, PAD, SHAPE_S, TOUCH,
 };
 use faraday_ui::nav::{self as fnav, AppBar, Rail};
 
-/// The height of a top app bar's own button.
-const BAR_BUTTON_H: f32 = 40.0;
 /// The ⋮ menu's width.
 const MENU_W: f32 = 280.0;
 
@@ -104,7 +102,7 @@ pub(super) fn top_bar(starter: &Starter, ui: &mut Ui, rail_w: f32, aw: f32) {
     let dest = starter.on_destination();
     ui.ox = rail_w;
     let install = dest.and(install_action(starter));
-    let button_w = install.map(|(label, _)| ui.measure(LABEL, W::S, label) + 2.0 * PAD);
+    let button_w = install.map(|(label, _)| ui.measure_as(LABEL_L, label) + 2.0 * PAD);
     let mut right = aw - GAP_SMALL;
     let mut ends = right;
     if dest.is_some() {
@@ -136,9 +134,9 @@ pub(super) fn top_bar(starter: &Starter, ui: &mut Ui, rail_w: f32, aw: f32) {
         // A compact window's name is a size smaller, to leave the install
         // action room beside it.
         let cap = if starter.compact() {
-            CAPTION - GAP / 4.0
+            LABEL_S.size
         } else {
-            CAPTION
+            LABEL_M.size
         };
         ui.wordmark_named(
             nx,
@@ -153,9 +151,9 @@ pub(super) fn top_bar(starter: &Starter, ui: &mut Ui, rail_w: f32, aw: f32) {
         if let (Some((label, action)), Some(bw)) = (install, button_w) {
             ui.button(
                 right - GAP - bw,
-                (APP_BAR_H - BAR_BUTTON_H) / 2.0,
+                (APP_BAR_H - BUTTON_H) / 2.0,
                 None,
-                BAR_BUTTON_H,
+                BUTTON_H,
                 label,
                 Style::Secondary,
                 action.host(),
@@ -179,7 +177,7 @@ pub(super) fn menu(starter: &Starter, ui: &mut Ui, w: f32) {
         let ry = py + GAP / 2.0 + i as f32 * TOUCH;
         let a = action.host();
         ui.state_layer((px, ry, MENU_W, TOUCH, SHAPE_S), Role::OnSurface.paint(), a);
-        ui.text_mid(px + PAD, ry, TOUCH, LABEL, W::R, Role::OnSurface, label);
+        ui.text_mid_as((px + PAD, ry, TOUCH), LABEL_L, Role::OnSurface, label);
         ui.hit_quiet(px, ry, MENU_W, TOUCH, a);
     }
 }
