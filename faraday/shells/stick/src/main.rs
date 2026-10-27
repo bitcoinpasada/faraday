@@ -363,6 +363,26 @@ const DISK_RESPONSES: &str = "/run/faraday-disk/responses";
 /// is there, and takes every one back when it goes.
 const CLEAN_MARKER: &str = "/run/faraday-clean/clean";
 
+/// Writes a marker file holding `body`, or removes it; removing one that
+/// is not there is done.
+fn put_marker(path: &Path, on: bool, body: &[u8]) -> std::io::Result<()> {
+    if on {
+        std::fs::write(path, body)
+    } else {
+        match std::fs::remove_file(path) {
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
+            r => r,
+        }
+    }
+}
+
+/// Whether a marker that should be gone is still there: removing it
+/// failed. A marker that could not be written (off the device there is no
+/// directory for it) is not there, which is what no marker means.
+fn marker_stuck(on: bool, done: &std::io::Result<()>) -> bool {
+    !on && done.is_err()
+}
+
 /// Everything the command line can change.
 struct Args {
     /// The framebuffer to write; a regular file off-device.
@@ -702,6 +722,8 @@ struct Shell {
     dirs: Dirs,
     /// What the clean marker last said: `None` before it was written.
     clean: Option<bool>,
+    /// The clean marker could not be removed, and is tried again.
+    clean_stuck: bool,
     /// The USB devices last reported to the app's device check: `None`
     /// before the first report.
     usb: Option<Vec<faraday_core::devices::UsbDevice>>,
@@ -1284,28 +1306,21 @@ impl Shell {
     fn publish_clean(&mut self) {
         let Some(app) = self.app.as_mut() else { return };
         let clean = app.clean() && !app.restart_requested();
-        if self.clean == Some(clean) {
+        if self.clean == Some(clean) && !self.clean_stuck {
             return;
         }
-        let done = if clean {
-            std::fs::write(CLEAN_MARKER, b"clean\n")
-        } else {
-            match std::fs::remove_file(CLEAN_MARKER) {
-                Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
-                r => r,
-            }
-        };
-        match done {
-            Ok(()) => self.clean = Some(clean),
-            // Off the device there is no marker directory; nothing waits
-            // on it there.
-            Err(e) => {
-                if self.verbose && self.clean.is_none() {
-                    eprintln!("clean marker {CLEAN_MARKER}: {e}");
-                }
-                self.clean = Some(clean);
-            }
+        let done = put_marker(Path::new(CLEAN_MARKER), clean, b"clean\n");
+        let stuck = marker_stuck(clean, &done);
+        if let Err(e) = &done
+            && ((self.verbose && self.clean.is_none()) || (stuck && !self.clean_stuck))
+        {
+            // Off the device there is no marker directory and nothing
+            // waits on it; a marker that is there and cannot be removed
+            // is said once, and removed again at the next change.
+            eprintln!("clean marker {CLEAN_MARKER}: {e}");
         }
+        self.clean_stuck = stuck;
+        self.clean = Some(clean);
     }
 
     /// The sticks: from the disk process when there is one, else the boot
@@ -1552,6 +1567,7 @@ fn run(args: Args) -> Result<Exit, String> {
         },
         dirs: Dirs::default(),
         clean: None,
+        clean_stuck: false,
         usb: None,
         held: initial
             .iter()
@@ -2132,6 +2148,32 @@ mod tests {
         assert_eq!(Exit::PowerOff.status(), 0);
         assert_eq!(Exit::Lock.status(), 75);
         assert_eq!(Exit::Restart.status(), 76);
+    }
+
+    #[test]
+    fn a_marker_that_cannot_be_removed_is_not_taken_for_removed() {
+        let dir = scratch("marker");
+        // A marker that is a directory with something in it cannot be
+        // removed as a file.
+        let stuck = dir.join("clean");
+        std::fs::create_dir_all(stuck.join("inside")).unwrap();
+        let done = put_marker(&stuck, false, b"");
+        assert!(done.is_err());
+        assert!(marker_stuck(false, &done));
+        // One that is not there is removed already.
+        let done = put_marker(&dir.join("missing"), false, b"");
+        assert!(done.is_ok());
+        assert!(!marker_stuck(false, &done));
+        // One that is written is there; one that cannot be written
+        // (no directory off the device) is not, and is no stuck marker.
+        let marker = dir.join("upgrade");
+        assert!(put_marker(&marker, true, b"upgrade\n").is_ok());
+        assert_eq!(std::fs::read(&marker).unwrap(), b"upgrade\n");
+        assert!(put_marker(&marker, false, b"").is_ok());
+        assert!(!marker.exists());
+        let done = put_marker(&dir.join("no/dir/marker"), true, b"x");
+        assert!(done.is_err());
+        assert!(!marker_stuck(true, &done));
     }
 
     fn scratch(name: &str) -> PathBuf {

@@ -55,6 +55,17 @@ if [ "$head" != "$commit" ]; then
     echo "out/pi/buildroot is not the pinned Buildroot ($commit)" >&2
     exit 1
 fi
+# The pinned commit with something changed or added in the tree is not the
+# pinned Buildroot either.
+if ! tree_state="$(git -C out/pi/buildroot status --porcelain)"; then
+    echo "out/pi/buildroot: git cannot read its state" >&2
+    exit 1
+fi
+if [ -n "$tree_state" ]; then
+    echo "out/pi/buildroot is the pinned Buildroot ($commit) with changes:" >&2
+    echo "$tree_state" | head -20 >&2
+    exit 1
+fi
 "${DOCKER:-docker}" build -t faraday-image "$image"
 # /binary holds the app (faraday) and the disk process and the grant
 # helper (docs/history/PLAN.md §4.3) beside it.

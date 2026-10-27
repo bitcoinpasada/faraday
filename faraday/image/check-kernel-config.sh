@@ -52,6 +52,13 @@ read_list() {
         case "$line" in ''|'#'*) continue ;; esac
         sym="${line%% *}"
         reason="$(echo "${line#"$sym"}" | sed 's/^ *//')"
+        # A symbol is upper-case letters, digits and underscores, without
+        # CONFIG_: anything else (a prefix, a value, a typo with a stray
+        # character) would match nothing in the config and so pass.
+        if [ "$name" != cmdline ] && ! [[ "$sym" =~ ^[A-Z0-9_]+$ && "$sym" != CONFIG_* ]]; then
+            echo "$file: $sym is not a kernel option name (no CONFIG_ prefix, no value)" >&2
+            exit 2
+        fi
         if [ -z "$reason" ]; then
             echo "$file: $sym has no reason" >&2
             exit 2
@@ -91,6 +98,13 @@ for entry in ${forbidden[@]+"${forbidden[@]}"}; do
     sym="${entry%%|*}"
     rest="${entry#*|}"
     line="$(grep -E "^CONFIG_$sym=[ym]\$" "$config" || true)"
+    # An option the config does not mention at all, set or unset, is
+    # either misspelt or not offered on this board (the kernel leaves out
+    # an option whose dependencies are not met): said, so that a typo
+    # does not stay a rule that checks nothing.
+    if ! grep -qE "^(CONFIG_$sym=|# CONFIG_$sym is not set\$)" "$config"; then
+        echo "kernel config: note: forbidden CONFIG_$sym is not in this config at all (misspelt, or not offered here)" >&2
+    fi
     if [ -n "$line" ]; then
         echo "kernel config: $line" >&2
         echo "               must not be built: ${rest%%|*}" >&2
