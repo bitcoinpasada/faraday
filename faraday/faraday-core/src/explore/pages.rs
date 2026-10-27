@@ -15,6 +15,7 @@ use crate::screens::button_rows;
 use crate::strings::{EN, fill};
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui, W, thousands};
+use faraday_draw::tokens::{BODY_L, BODY_M, BODY_S, FIELD_H, FIELD_PAD, LABEL_L};
 
 /// A press on these pages.
 fn xa(a: XAction) -> Action {
@@ -35,16 +36,9 @@ fn top(app: &View, ui: &mut Ui, x: f32, y: f32, width: f32, name: &str) -> f32 {
     };
     let path = account.to_string().replace('\'', "h");
     let line = fill(EN.explore_account_path, &[&path, script_name(script)]);
-    ui.text(
-        x,
-        y,
-        T::CAPTION,
-        W::R,
-        Role::OnSurfaceVariant,
-        EN.explore_account,
-    );
+    ui.text_as(x, y, BODY_S, Role::OnSurfaceVariant, EN.explore_account);
     y += T::PAD + T::GAP_SMALL;
-    y + ui.wrap(x, y, width, T::LABEL, W::M, Role::OnSurface, &line) + T::PAD
+    y + ui.wrap_as((x, y, width), BODY_M.mono(), Role::OnSurface, &line) + T::PAD
 }
 
 /// One address row: its name ("Receive 12") above, the address below,
@@ -66,11 +60,10 @@ fn row(
     } else {
         EN.explore_receive_n
     };
-    ui.text(
+    ui.text_as(
         x,
         y,
-        T::CAPTION,
-        W::R,
+        BODY_S,
         Role::OnSurfaceVariant,
         &fill(name, &[&at.1.to_string()]),
     );
@@ -78,8 +71,8 @@ fn row(
     let none = 0..0;
     let used = ui.wrap_marked(
         (x, y2, width),
-        T::LABEL,
-        W::M,
+        (BODY_M.mono()).size,
+        W::from((BODY_M.mono()).face),
         (Role::OnSurface.paint(), Role::Primary.paint()),
         a,
         mark.unwrap_or(&none).clone(),
@@ -90,14 +83,7 @@ fn row(
     eye_button(ui, x + width, y, Eye::Row(at.0, at.1), wif.is_some());
     let mut h = (y2 - y + used + T::GAP).max(T::TOUCH);
     if let Some(w) = wif {
-        ui.text(
-            x,
-            y + h,
-            T::CAPTION,
-            W::R,
-            Role::OnSurfaceVariant,
-            EN.explore_wif,
-        );
+        ui.text_as(x, y + h, BODY_S, Role::OnSurfaceVariant, EN.explore_wif);
         h += T::PAD + T::GAP_SMALL;
         let cols = Cols {
             x,
@@ -111,34 +97,29 @@ fn row(
 }
 
 /// A field drawn as Explore's path field is: the text and the caret, a
-/// red edge when `bad`. Returns the height used.
-fn field(ui: &mut Ui, x: f32, y: f32, width: f32, text: &str, bad: bool, chip: bool) -> f32 {
-    ui.fill(x, y, width, T::FIELD, T::GAP, Role::SurfaceContainerHighest);
-    ui.stroke(
-        x,
-        y,
-        width,
-        T::FIELD,
-        T::GAP,
-        if bad { Role::Error } else { Role::Primary },
-    );
+/// red edge and its `error` line under it. Returns the height used.
+fn field(
+    ui: &mut Ui,
+    (x, y, width): (f32, f32, f32),
+    text: &str,
+    error: Option<&str>,
+    chip: bool,
+) -> f32 {
+    let used = ui.field_box((x, y, width), true, error);
     // Use a sample goes in the "Demo only" card while the field is empty
     // (`docs/DEMO.md` §14).
     if chip {
         crate::samples::put::offer(ui, Action::UseSample);
     }
     let shown = format!("{text}{}", ui.caret_char());
-    let shown = ui.fit(T::BODY, W::M, &shown, width - T::PAD * 2.0);
-    ui.text_mid(
-        x + T::PAD,
-        y,
-        T::FIELD,
-        T::BODY,
-        W::M,
+    let shown = ui.fit_as(BODY_L.mono(), &shown, width - FIELD_PAD * 2.0);
+    ui.text_mid_as(
+        (x + FIELD_PAD, y, FIELD_H),
+        BODY_L.mono(),
         Role::OnSurface,
         &shown,
     );
-    T::FIELD + T::GAP
+    used + T::GAP
 }
 
 /// The Addresses page: Receive | Change, the first index as a field
@@ -164,17 +145,10 @@ pub(super) fn addresses(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         ),
     ];
     y += button_rows(ui, x, y, width, &chains);
-    ui.text(
-        x,
-        y,
-        T::CAPTION,
-        W::R,
-        Role::OnSurfaceVariant,
-        EN.explore_from_index,
-    );
+    ui.text_as(x, y, BODY_S, Role::OnSurfaceVariant, EN.explore_from_index);
     y += T::PAD + T::GAP_SMALL;
     let fw = if ui.compact { width } else { width / 2.0 };
-    y += field(ui, x, y, fw, &e.from.to_string(), false, false);
+    y += field(ui, (x, y, fw), &e.from.to_string(), None, false);
     let page = PAGE.to_string();
     let steps = [
         (
@@ -208,20 +182,10 @@ pub(super) fn find(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     };
     let (x, width, start, y) = frame(app, ui, x0, cw);
     let mut y = top(app, ui, x, y, width, EN.explore_find);
-    ui.text(
-        x,
-        y,
-        T::CAPTION,
-        W::R,
-        Role::OnSurfaceVariant,
-        EN.explore_address,
-    );
+    ui.text_as(x, y, BODY_S, Role::OnSurfaceVariant, EN.explore_address);
     y += T::PAD + T::GAP_SMALL;
     let chip = app.explore_sample_shown();
-    y += field(ui, x, y, width, &e.query, e.note.is_some(), chip);
-    if let Some(n) = e.note {
-        y += ui.wrap(x, y, width, T::CAPTION, W::R, Role::Error, n) + T::GAP;
-    }
+    y += field(ui, (x, y, width), &e.query, e.note, chip);
     let running = e.search.as_ref().is_some_and(Search::running);
     let mut acts = Vec::new();
     if app.clipboard {
@@ -234,11 +198,10 @@ pub(super) fn find(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     if !acts.is_empty() {
         y += button_rows(ui, x, y, width, &acts);
     }
-    ui.text(
+    ui.text_as(
         x,
         y,
-        T::CAPTION,
-        W::R,
+        BODY_S,
         Role::OnSurfaceVariant,
         EN.explore_look_through,
     );
@@ -286,17 +249,17 @@ fn result(ui: &mut Ui, x: f32, y: f32, width: f32, s: &Search) -> f32 {
             EN.explore_searched,
             &[&thousands(u64::from(s.next)), &depth],
         );
-        cy += ui.wrap(x, cy, width, T::LABEL, W::S, Role::OnSurface, &line) + T::GAP;
+        cy += ui.wrap_as((x, cy, width), LABEL_L, Role::OnSurface, &line) + T::GAP;
         let done = s.next as f32 / s.depth.max(1) as f32;
         ui.progress((x, cy, width), Some(done), None);
         cy += T::PROGRESS_H + T::GAP;
     } else if s.matched == 0 {
         let line = fill(EN.explore_not_in_the_first, &[&depth]);
-        return ui.wrap(x, cy, width, T::LABEL, W::S, Role::Warning, &line) + T::GAP;
+        return ui.wrap_as((x, cy, width), LABEL_L, Role::Warning, &line) + T::GAP;
     }
     if s.matched > 0 {
         let line = fill(EN.explore_found_n, &[&thousands(u64::from(s.matched))]);
-        cy += ui.wrap(x, cy, width, T::LABEL, W::S, Role::Ok, &line) + T::GAP;
+        cy += ui.wrap_as((x, cy, width), LABEL_L, Role::Ok, &line) + T::GAP;
     }
     for f in &s.found {
         cy += row(
@@ -310,15 +273,7 @@ fn result(ui: &mut Ui, x: f32, y: f32, width: f32, s: &Search) -> f32 {
     let more = s.matched as usize - s.found.len();
     if more > 0 {
         let line = fill(EN.explore_more_n, &[&thousands(more as u64)]);
-        cy += ui.wrap(
-            x,
-            cy,
-            width,
-            T::CAPTION,
-            W::R,
-            Role::OnSurfaceVariant,
-            &line,
-        ) + T::GAP;
+        cy += ui.wrap_as((x, cy, width), BODY_S, Role::OnSurfaceVariant, &line) + T::GAP;
     }
     cy - y
 }

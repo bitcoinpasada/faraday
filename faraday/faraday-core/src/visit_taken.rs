@@ -13,8 +13,9 @@ use faraday_draw::widgets::Icon;
 
 use crate::compact::{buttons, scroll_sheet};
 use crate::ui::pal::*;
-use crate::ui::{Style, Ui, W};
+use crate::ui::{Style, Ui};
 use crate::{Action, Faraday, READ_MAX, Screen, Sheet, StorageCommand, sha256_of, stick};
+use faraday_draw::tokens::BODY_M;
 
 /// What becomes of one file whose name is taken.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -404,12 +405,17 @@ pub(crate) fn taken_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
             cy += crate::compact::sheet_head(ui, x, cy, iw, Icon::File, Role::OnSurface, &title);
         } else {
             ui.icon(x, cy, 30.0, Icon::File, 18.0, Role::OnSurface);
-            let t = ui.fit(20.0, W::S, &title, iw - 42.0);
-            ui.text_mid(x + 42.0, cy, 30.0, 20.0, W::S, Role::OnSurface, &t);
+            let t = ui.fit_as(faraday_draw::tokens::sheet_head(false), &title, iw - 42.0);
+            ui.text_mid_as(
+                (x + 42.0, cy, 30.0),
+                faraday_draw::tokens::sheet_head(false),
+                Role::OnSurface,
+                &t,
+            );
             cy += 46.0;
         }
         for line in &rows {
-            cy += ui.wrap(x, cy, iw, 13.0, W::M, Role::OnSurface, line) + 10.0;
+            cy += ui.wrap_as((x, cy, iw), BODY_M.mono(), Role::OnSurface, line) + 10.0;
         }
         cy += 8.0;
         cy += buttons(

@@ -162,6 +162,18 @@ fn the_time_card_says_what_the_time_is_for_when_guided() {
     app.press(Action::Guided(false));
     assert!(!says(&mut app), "no explainer with Steps only");
     app.press(Action::Guided(true));
+    // The Time card sits below Session's on this page: scrolled to, as a
+    // person would.
+    for _ in 0..6 {
+        if says(&mut app) {
+            break;
+        }
+        app.event(Event::Scroll {
+            x: 700,
+            y: 400,
+            dy: 120,
+        });
+    }
     assert!(says(&mut app), "the explainer with Guided");
 }
 

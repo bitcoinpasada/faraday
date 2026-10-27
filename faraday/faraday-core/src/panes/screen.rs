@@ -3,14 +3,10 @@
 //! Material's two-line list items.
 
 use crate::drawing::View;
-use crate::ui::pal::*;
-use crate::ui::{Paint, Ui, W};
+use crate::ui::{Paint, Ui};
 use crate::{Action, Screen};
-use faraday_draw::tokens::{
-    COLUMN_MAX, GAP, LIST_1, LIST_2, LIST_HEADLINE, LIST_HEADLINE_Y, LIST_PAD, LIST_PANE,
-    LIST_SUPPORTING, LIST_SUPPORTING_Y, LIST_TRAILING, MARGIN_WIDE, PANE_TOP, PANE_TOP_BAR,
-    SHAPE_L, SPACER, STATE_PRESS,
-};
+use faraday_draw::tokens::{COLUMN_MAX, LIST_PANE, MARGIN_WIDE, PANE_TOP, PANE_TOP_BAR, SPACER};
+use faraday_ui::roles::ListItem;
 
 /// Where the two panes stand: each one's left edge and width, and the
 /// top both begin at.
@@ -130,67 +126,15 @@ impl ListPane {
     }
 }
 
-/// A list item from (x, y), `w` wide, two lines, or one where it has no
-/// supporting line; `chosen` in Material's selected state (secondary
-/// container). Returns its height.
-pub(crate) fn list_item(ui: &mut Ui, (x, y, w): (f32, f32, f32), it: &Item, chosen: bool) -> f32 {
-    let one = it.supporting.is_empty();
-    let ih = if one { LIST_1 } else { LIST_2 };
-    if !ui.shows(y, ih) {
-        return ih;
-    }
-    if chosen {
-        ui.fill(x, y, w, ih, SHAPE_L, selected_or(true, Role::Surface));
-    }
-    if ui.is_pressed(it.action) {
-        ui.wash(x, y, w, ih, SHAPE_L, Role::OnSurface.at(STATE_PRESS));
-    }
-    let ink = on_selected(chosen, Role::OnSurface);
-    if one {
-        let name = ui.fit(LIST_HEADLINE, W::S, it.headline, w - 2.0 * LIST_PAD);
-        ui.text_mid(x + LIST_PAD, y, ih, LIST_HEADLINE, W::S, ink, &name);
-        ui.hit(x, y, w, ih, it.action);
-        return ih;
-    }
-    let inner = w - 2.0 * LIST_PAD;
-    let mut room = inner;
-    if let Some((t, tone)) = it.trailing {
-        let tw = ui.measure(LIST_TRAILING, W::S, t);
-        let tone = if chosen {
-            on_selected(true, Role::OnSurface)
-        } else {
-            tone
-        };
-        ui.text_right(
-            x + w - LIST_PAD,
-            y + LIST_HEADLINE_Y,
-            LIST_HEADLINE,
-            LIST_TRAILING,
-            W::S,
-            tone,
-            t,
-        );
-        room -= tw + GAP;
-    }
-    let name = ui.fit(LIST_HEADLINE, W::S, it.headline, room);
-    ui.text(
-        x + LIST_PAD,
-        y + LIST_HEADLINE_Y,
-        LIST_HEADLINE,
-        W::S,
-        ink,
-        &name,
-    );
-    let line = ui.fit(LIST_SUPPORTING, W::R, it.supporting, inner);
-    let muted = on_selected(chosen, Role::OnSurfaceVariant);
-    ui.text(
-        x + LIST_PAD,
-        y + LIST_SUPPORTING_Y,
-        LIST_SUPPORTING,
-        W::R,
-        muted,
-        &line,
-    );
-    ui.hit(x, y, w, LIST_2, it.action);
-    ih
+/// A list item from (x, y), `w` wide, of one, two or three lines by its
+/// supporting line (`Ui::list_item`); `chosen` in Material's selected
+/// state (secondary container). Returns its height.
+pub(crate) fn list_item(ui: &mut Ui, at: (f32, f32, f32), it: &Item, chosen: bool) -> f32 {
+    let item = ListItem {
+        headline: it.headline,
+        supporting: it.supporting,
+        trailing: it.trailing,
+        action: it.action,
+    };
+    ui.list_item(at, &item, chosen)
 }

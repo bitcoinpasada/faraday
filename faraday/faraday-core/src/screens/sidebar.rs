@@ -5,9 +5,10 @@ use super::parts::sign_readiness;
 use crate::drawing::View;
 use crate::strings::{EN, fill};
 use crate::ui::pal::*;
-use crate::ui::{Glyph, NameSuffix, Style, Ui, W};
+use crate::ui::{Glyph, NameSuffix, Style, Ui};
 use crate::wallet::{Session, fp_text};
 use crate::{Action, Screen, Sheet};
+use faraday_draw::tokens::{BODY_S, BUTTON_H, LABEL_M, LABEL_S};
 use faraday_draw::tokens::{STATE_PRESS, TOUCH};
 use faraday_draw::widgets::Icon;
 
@@ -54,13 +55,13 @@ fn flow_row(ui: &mut Ui, y: f32, r: &crate::in_progress::Row, lit: bool) {
     let room = right - tx;
     // The name keeps what it needs up to a little over half the row; the
     // step has the rest.
-    let nw = ui.measure(12.0, W::S, &r.name).min(room * 0.6);
-    let step = ui.fit(11.0, W::R, &r.step, room - nw - 8.0);
-    let sw = ui.measure(11.0, W::R, &step);
-    let name = ui.fit(12.0, W::S, &r.name, room - sw - 8.0);
+    let nw = ui.measure_as(LABEL_M, &r.name).min(room * 0.6);
+    let step = ui.fit_as(BODY_S, &r.step, room - nw - 8.0);
+    let sw = ui.measure_as(BODY_S, &step);
+    let name = ui.fit_as(LABEL_M, &r.name, room - sw - 8.0);
     let fg = crate::ui::pal::on_selected(lit, Role::OnSurfaceVariant);
-    ui.text_mid(tx, y, FLOW_ROW, 12.0, W::S, fg, &name);
-    ui.text_right(right, y, FLOW_ROW, 11.0, W::R, fg, &step);
+    ui.text_mid_as((tx, y, FLOW_ROW), LABEL_M, fg, &name);
+    ui.text_right_as((right, y, FLOW_ROW), BODY_S, fg, &step);
     ui.hit(x, y, w, FLOW_ROW, action);
 }
 
@@ -207,14 +208,14 @@ pub(super) fn sidebar(app: &View, ui: &mut Ui, h: f32) {
         .enumerate()
         {
             if i > 0 {
-                sx += ui.text_mid(sx, fy, 20.0, 11.0, W::R, Role::OnSurfaceVariant, " · ");
+                sx += ui.text_mid_as((sx, fy, 20.0), BODY_S, Role::OnSurfaceVariant, " · ");
             }
             let fg = if label == stage {
                 Role::Primary
             } else {
                 Role::OnSurfaceVariant
             };
-            sx += ui.text_mid(sx, fy, 20.0, 11.0, W::S, fg, label);
+            sx += ui.text_mid_as((sx, fy, 20.0), LABEL_S, fg, label);
         }
         ui.hit(16.0, fy - 4.0, SIDEBAR_W - 32.0, 28.0, open_files);
     }
@@ -234,13 +235,10 @@ pub(super) fn sidebar(app: &View, ui: &mut Ui, h: f32) {
         if total == 0 {
             return;
         }
-        ui.text_mid(28.0, *fy, HEAD, 12.0, W::S, Role::OnSurfaceVariant, title);
-        ui.text_right(
-            SIDEBAR_W - 24.0,
-            *fy,
-            HEAD,
-            12.0,
-            W::S,
+        ui.text_mid_as((28.0, *fy, HEAD), LABEL_M, Role::OnSurfaceVariant, title);
+        ui.text_right_as(
+            (SIDEBAR_W - 24.0, *fy, HEAD),
+            LABEL_M,
             Role::OnSurfaceVariant,
             &total.to_string(),
         );
@@ -260,23 +258,20 @@ pub(super) fn sidebar(app: &View, ui: &mut Ui, h: f32) {
             if let Some(c) = mark {
                 ui.dot(18.0, *fy + ROW / 2.0, 3.5, c);
             }
-            let face = if mono { W::M } else { W::S };
-            let head = ui.fit(12.0, face, &head, rows_w * 0.55);
-            let hw = ui.text_mid(28.0, *fy, ROW, 12.0, face, Role::OnSurface, &head);
+            let role = if mono { BODY_S.mono() } else { LABEL_M };
+            let head = ui.fit_as(role, &head, rows_w * 0.55);
+            let hw = ui.text_mid_as((28.0, *fy, ROW), role, Role::OnSurface, &head);
             // A key loaded with a passphrase says so at the row's end:
             // the same words without it are another key.
             let tag_w = if pass {
                 let t = EN.sidebar_passphrase;
-                ui.text_right(
-                    SIDEBAR_W - 24.0,
-                    *fy,
-                    ROW,
-                    11.0,
-                    W::R,
+                ui.text_right_as(
+                    (SIDEBAR_W - 24.0, *fy, ROW),
+                    BODY_S,
                     Role::OnSurfaceVariant,
                     t,
                 );
-                ui.measure(11.0, W::R, t) + 8.0
+                ui.measure_as(BODY_S, t) + 8.0
             } else {
                 0.0
             };
@@ -285,8 +280,8 @@ pub(super) fn sidebar(app: &View, ui: &mut Ui, h: f32) {
                     Some(c) if c == Role::Ok.paint() => Role::Ok,
                     _ => Role::OnSurfaceVariant,
                 };
-                let tail = ui.fit(12.0, W::R, &tail, rows_w - hw - 8.0 - tag_w);
-                ui.text_mid(36.0 + hw, *fy, ROW, 12.0, W::R, tone, &tail);
+                let tail = ui.fit_as(BODY_S, &tail, rows_w - hw - 8.0 - tag_w);
+                ui.text_mid_as((36.0 + hw, *fy, ROW), BODY_S, tone, &tail);
             }
             ui.hit(16.0, *fy, SIDEBAR_W - 32.0, ROW, action);
             *fy += ROW;
@@ -297,7 +292,7 @@ pub(super) fn sidebar(app: &View, ui: &mut Ui, h: f32) {
                 let press = Role::OnSurface.at(STATE_PRESS);
                 ui.wash(16.0, *fy, SIDEBAR_W - 32.0, ROW, 6.0, press);
             }
-            ui.text_mid(28.0, *fy, ROW, 12.0, W::S, Role::Primary, &line);
+            ui.text_mid_as((28.0, *fy, ROW), LABEL_M, Role::Primary, &line);
             ui.hit(16.0, *fy, SIDEBAR_W - 32.0, ROW, more);
             *fy += ROW;
         }
@@ -385,9 +380,9 @@ pub(super) fn sidebar(app: &View, ui: &mut Ui, h: f32) {
     }
     let muted = on_selected(here, Role::OnSurfaceVariant);
     ui.icon(22.0, fy, 20.0, Glyph::Icon(Icon::File), 12.0, muted);
-    ui.text_mid(46.0, fy, 20.0, 12.0, W::R, muted, EN.sidebar_files);
+    ui.text_mid_as((46.0, fy, 20.0), BODY_S, muted, EN.sidebar_files);
     let ink = on_selected(here, Role::OnSurface);
-    ui.text_right(SIDEBAR_W - 24.0, fy, 20.0, 12.0, W::R, ink, &files);
+    ui.text_right_as((SIDEBAR_W - 24.0, fy, 20.0), BODY_S, ink, &files);
     ui.hit(
         16.0,
         fy - 4.0,
@@ -418,8 +413,8 @@ pub(super) fn sidebar(app: &View, ui: &mut Ui, h: f32) {
     }
     let muted = on_selected(open, Role::OnSurfaceVariant);
     ui.icon(22.0, fy, 20.0, app.medium.icon(), 12.0, muted);
-    ui.text_mid(46.0, fy, 20.0, 12.0, W::R, muted, app.medium.caps());
-    let sticks = ui.fit(12.0, W::R, &sticks, 110.0);
+    ui.text_mid_as((46.0, fy, 20.0), BODY_S, muted, app.medium.caps());
+    let sticks = ui.fit_as(BODY_S, &sticks, 110.0);
     let tone = on_selected(
         open,
         if waiting {
@@ -428,7 +423,7 @@ pub(super) fn sidebar(app: &View, ui: &mut Ui, h: f32) {
             Role::OnSurface
         },
     );
-    ui.text_right(SIDEBAR_W - 24.0, fy, 20.0, 12.0, W::R, tone, &sticks);
+    ui.text_right_as((SIDEBAR_W - 24.0, fy, 20.0), BODY_S, tone, &sticks);
     if waiting {
         ui.hit(
             16.0,
@@ -444,7 +439,7 @@ pub(super) fn sidebar(app: &View, ui: &mut Ui, h: f32) {
             16.0,
             fy,
             Some(SIDEBAR_W - 32.0 - 44.0),
-            36.0,
+            BUTTON_H,
             EN.sidebar_lock,
             Style::Secondary,
             Action::LockAsk,
@@ -482,12 +477,12 @@ pub(crate) const LOCK_PILL_H: f32 = 24.0;
 /// "Auto-lock off until backup complete" as an outlined pill at (x, y),
 /// `w` wide at most (`docs/history/NEW-WALLET.md` §18). Returns its height.
 pub(crate) fn lock_held_pill(ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
-    let (size, pad) = (11.0, 8.0);
-    let text = ui.fit(size, W::R, EN.lock_held_pill, w - 2.0 * pad);
-    let pw = (ui.measure(size, W::R, &text) + 2.0 * pad).min(w);
+    let (role, pad) = (LABEL_S.regular(), 8.0);
+    let text = ui.fit_as(role, EN.lock_held_pill, w - 2.0 * pad);
+    let pw = (ui.measure_as(role, &text) + 2.0 * pad).min(w);
     let r = LOCK_PILL_H / 2.0;
     ui.fill(x, y, pw, LOCK_PILL_H, r, Role::SurfaceContainerLow);
     ui.stroke(x, y, pw, LOCK_PILL_H, r, Role::Primary);
-    ui.text_mid(x + pad, y, LOCK_PILL_H, size, W::R, Role::Primary, &text);
+    ui.text_mid_as((x + pad, y, LOCK_PILL_H), role, Role::Primary, &text);
     LOCK_PILL_H
 }

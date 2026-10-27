@@ -401,7 +401,9 @@ fn a_flow_s_page_title_carries_no_count() {
     // has its default (`docs/history/SIMPLIFY.md` §3.1). The title wraps onto
     // its own line or lines, with no count joined onto it.
     assert!(
-        texts.iter().any(|t| t == "Name and" || t == "passphrases"),
+        texts
+            .iter()
+            .any(|t| t == "Name and passphrases" || t == "Name and" || t == "passphrases"),
         "the title's words are drawn on their own: {texts:?}"
     );
     assert!(

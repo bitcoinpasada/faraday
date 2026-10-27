@@ -4,8 +4,9 @@ use crate::drawing::View;
 use crate::in_progress::Going;
 use crate::strings::{EN, fill};
 use crate::ui::pal::*;
-use crate::ui::{Glyph, Ui, W};
+use crate::ui::{Glyph, Ui};
 use crate::{Action, Screen};
+use faraday_draw::tokens::{BODY_M, BODY_S, LABEL_L, TITLE_M};
 use faraday_draw::tokens::{
     HOME_TILE_ICON, HOME_TILE_INSET, HOME_TILE_TEXT_X, LEAD_MAX, MARGIN_WIDE, TILE_H, TILE_MIN,
 };
@@ -310,8 +311,8 @@ fn tiles(app: &View, ui: &mut Ui, (x, y): (f32, f32), width: f32, gap: f32) {
     let need = ways
         .iter()
         .map(|(_, label, sub, _)| {
-            ui.measure(15.0, W::S, label)
-                .max(ui.measure(13.0, W::R, sub))
+            ui.measure_as(TITLE_M, label)
+                .max(ui.measure_as(BODY_S, sub))
         })
         .fold(0.0, f32::max)
         + HOME_TILE_TEXT_X
@@ -341,21 +342,19 @@ fn tiles(app: &View, ui: &mut Ui, (x, y): (f32, f32), width: f32, gap: f32) {
             Role::OnSecondaryContainer,
         );
         let room = tilew - HOME_TILE_TEXT_X - ix - ix;
-        let label = ui.fit(15.0, W::S, label, room);
-        ui.text(
+        let label = ui.fit_as(TITLE_M, label, room);
+        ui.text_as(
             tx + HOME_TILE_TEXT_X,
             ty + 20.0,
-            15.0,
-            W::S,
+            TITLE_M,
             Role::OnSurface,
             &label,
         );
-        let sub = ui.fit(13.0, W::R, sub, room);
-        ui.text(
+        let sub = ui.fit_as(BODY_S, sub, room);
+        ui.text_as(
             tx + HOME_TILE_TEXT_X,
             ty + 46.0,
-            13.0,
-            W::R,
+            BODY_S,
             Role::OnSurfaceVariant,
             &sub,
         );
@@ -375,8 +374,8 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32) {
     // The system gave no randomness: nothing seals until a restart.
     if app.seed_missing() {
         ui.icon(x - 4.0, y - 6.0, 28.0, Icon::Error, 14.0, Role::Error);
-        let line = ui.fit(14.0, W::S, EN.seed_missing, width - 28.0);
-        ui.text(x + 26.0, y, 14.0, W::S, Role::Error, &line);
+        let line = ui.fit_as(LABEL_L, EN.seed_missing, width - 28.0);
+        ui.text_as(x + 26.0, y, LABEL_L, Role::Error, &line);
         y += 36.0;
     }
     section_label(ui, x, y, EN.home_start);
@@ -420,15 +419,14 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32) {
         };
         ui.fill(x + 20.0, y + 24.0, 48.0, 48.0, 12.0, ibg);
         ui.icon(x + 20.0, y + 24.0, 48.0, icon, 20.0, ifg);
-        let label = ui.fit(19.0, W::S, &label, lead_w - 184.0);
-        ui.text(x + 86.0, y + 22.0, 19.0, W::S, Role::OnSurface, &label);
+        let label = ui.fit_as(TITLE_M, &label, lead_w - 184.0);
+        ui.text_as(x + 86.0, y + 22.0, TITLE_M, Role::OnSurface, &label);
         if !sub.is_empty() {
-            let sub = ui.fit(14.0, W::R, &sub, lead_w - 184.0);
-            ui.text(
+            let sub = ui.fit_as(BODY_M, &sub, lead_w - 184.0);
+            ui.text_as(
                 x + 86.0,
                 y + 54.0,
-                14.0,
-                W::R,
+                BODY_M,
                 if enabled {
                     Role::OnSurfaceVariant
                 } else {

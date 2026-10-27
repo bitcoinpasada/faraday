@@ -11,8 +11,9 @@ use crate::explore::{Eye, PRESETS, Page, Shown, XAction};
 use crate::screens::{button_rows, guide_text_learn, title};
 use crate::strings::fill;
 use crate::ui::pal::*;
-use crate::ui::{Style, Ui, W};
+use crate::ui::{Style, Ui};
 use faraday_draw::tokens::{self as T, COLUMN_MAX, EXPLORE_INSET, PATH_FIELD_W};
+use faraday_draw::tokens::{BODY_L, BODY_M, BODY_S, FIELD_H, FIELD_PAD};
 use faraday_keys::Reveal;
 use zeroize::Zeroizing;
 
@@ -58,12 +59,9 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let cols = Cols { x, px, pw, width };
     y += secret(app, ui, cols, y);
     // The path.
-    ui.text_mid(
-        x,
-        y,
-        44.0,
-        13.0,
-        W::R,
+    ui.text_mid_as(
+        (x, y, FIELD_H),
+        BODY_S,
         Role::OnSurfaceVariant,
         EN.explore_path,
     );
@@ -78,27 +76,18 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let fw = if compact {
         pw
     } else {
-        (ui.measure(15.0, W::M, &path) + 24.0).clamp(PATH_FIELD_W.min(pw), pw)
+        (ui.measure_as(BODY_L.mono(), &path) + 24.0).clamp(PATH_FIELD_W.min(pw), pw)
     };
-    ui.fill(px, y, fw, 44.0, 8.0, Role::SurfaceContainerHighest);
-    ui.stroke(
-        px,
-        y,
-        fw,
-        44.0,
-        8.0,
-        if err.is_some() {
-            Role::Error
-        } else {
-            Role::Primary
-        },
+    // Dropped to the box's own width: its error line wraps under it.
+    let boxed = ui.field_box((px, y, fw), true, err);
+    let path = ui.fit_as(BODY_L.mono(), &path, fw - 2.0 * FIELD_PAD);
+    ui.text_mid_as(
+        (px + FIELD_PAD, y, FIELD_H),
+        BODY_L.mono(),
+        Role::OnSurface,
+        &path,
     );
-    let path = ui.fit(15.0, W::M, &path, fw - 24.0);
-    ui.text_mid(px + 12.0, y, 44.0, 15.0, W::M, Role::OnSurface, &path);
-    y += 52.0;
-    if let Some(m) = err {
-        y += ui.wrap(px, y, pw, 13.0, W::R, Role::Error, m) + 8.0;
-    }
+    y += boxed + 8.0;
     let presets: Vec<(String, Style, Action)> = PRESETS
         .iter()
         .enumerate()
@@ -136,12 +125,9 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             )
         })
         .collect();
-    ui.text_mid(
-        x,
-        y,
-        32.0,
-        13.0,
-        W::R,
+    ui.text_mid_as(
+        (x, y, 32.0),
+        BODY_S,
         Role::OnSurfaceVariant,
         EN.explore_script,
     );
@@ -224,7 +210,7 @@ pub(super) fn value_row(ui: &mut Ui, at: Cols, y: f32, label: &str, value: &str)
     }
     let grouped = grouped(ui.compact, value);
     cy += ui
-        .wrap(px, cy, pw, 14.0, W::M, Role::OnSurface, &grouped)
+        .wrap_as((px, cy, pw), BODY_M.mono(), Role::OnSurface, &grouped)
         .max(20.0)
         + 12.0;
     cy - y
@@ -234,7 +220,7 @@ pub(super) fn value_row(ui: &mut Ui, at: Cols, y: f32, label: &str, value: &str)
 /// value goes below it: nothing on the wide layout, where the value is
 /// beside it.
 fn name(ui: &mut Ui, at: Cols, y: f32, label: &str) -> f32 {
-    ui.text(at.x, y, 13.0, W::R, Role::OnSurfaceVariant, label);
+    ui.text_as(at.x, y, BODY_S, Role::OnSurfaceVariant, label);
     if ui.compact { 20.0 } else { 0.0 }
 }
 
@@ -258,15 +244,7 @@ fn grouped(compact: bool, value: &str) -> Zeroizing<String> {
 /// height used.
 pub(super) fn eye_row(ui: &mut Ui, at: Cols, y: f32, label: &str, eye: Eye, shown: bool) -> f32 {
     let Cols { x, width, .. } = at;
-    ui.text_mid(
-        x,
-        y,
-        T::TOUCH,
-        T::CAPTION,
-        W::R,
-        Role::OnSurfaceVariant,
-        label,
-    );
+    ui.text_mid_as((x, y, T::TOUCH), BODY_S, Role::OnSurfaceVariant, label);
     eye_button(ui, x + width - T::TOUCH, y, eye, shown);
     T::TOUCH
 }
@@ -365,17 +343,9 @@ fn word_grid(ui: &mut Ui, words: &str, x: f32, y: f32, w: f32) -> f32 {
         );
         ui.stroke(cx, cy, cell, h, T::FIELD_RADIUS, Role::OutlineVariant);
         let number = (i + 1).to_string();
-        ui.text_mid(
-            cx + gap,
-            cy,
-            h,
-            T::CAPTION,
-            W::R,
-            Role::OnSurfaceVariant,
-            &number,
-        );
+        ui.text_mid_as((cx + gap, cy, h), BODY_S, Role::OnSurfaceVariant, &number);
         let wx = cx + gap + T::ENTRY_CELL_NUMBER;
-        ui.text_mid(wx, cy, h, T::LABEL, W::M, Role::OnSurface, word);
+        ui.text_mid_as((wx, cy, h), BODY_M.mono(), Role::OnSurface, word);
         n = i + 1;
     }
     n.div_ceil(cols) as f32 * T::ENTRY_ROW + T::GAP
@@ -440,7 +410,7 @@ pub(super) fn head(ui: &mut Ui, x: f32, mut y: f32, back: (&str, Action), name: 
         10.0,
         Role::OnSurfaceVariant,
     );
-    ui.text(x + 14.0, y, 12.0, W::R, Role::OnSurfaceVariant, back.0);
+    ui.text_as(x + 14.0, y, BODY_S, Role::OnSurfaceVariant, back.0);
     ui.hit(x - 4.0, y - 4.0, 70.0, 24.0, back.1);
     ui.back(back.1);
     y += 22.0;

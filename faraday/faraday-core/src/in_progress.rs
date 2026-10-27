@@ -25,6 +25,7 @@ use crate::glance::{Now, Reads};
 use crate::plan::At;
 use crate::strings::EN;
 use crate::{BStage, Faraday, Screen, bstep};
+use faraday_draw::tokens::BODY_M;
 
 /// A flow that can be in progress.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -796,8 +797,8 @@ impl Faraday {
 pub(crate) fn cancel_sheet(app: &View, ui: &mut crate::ui::Ui, g: Going, w: f32, h: f32) {
     use crate::Action;
     use crate::compact::{buttons, scroll_sheet};
+    use crate::ui::Style;
     use crate::ui::pal::*;
-    use crate::ui::{Style, W};
     use faraday_draw::widgets::Icon;
     let title = app.cancel_title(g);
     let line = app.cancel_loses(g).unwrap_or_default();
@@ -815,11 +816,16 @@ pub(crate) fn cancel_sheet(app: &View, ui: &mut crate::ui::Ui, g: Going, w: f32,
             cy += crate::compact::sheet_head(ui, x, cy, iw, Icon::Warning, Role::Warning, title);
         } else {
             ui.icon(x, cy, 30.0, Icon::Warning, 18.0, Role::Warning);
-            let t = ui.fit(20.0, W::S, title, iw - 42.0);
-            ui.text_mid(x + 42.0, cy, 30.0, 20.0, W::S, Role::OnSurface, &t);
+            let t = ui.fit_as(faraday_draw::tokens::sheet_head(false), title, iw - 42.0);
+            ui.text_mid_as(
+                (x + 42.0, cy, 30.0),
+                faraday_draw::tokens::sheet_head(false),
+                Role::OnSurface,
+                &t,
+            );
             cy += 46.0;
         }
-        cy += ui.wrap(x, cy, iw, 14.0, W::R, Role::OnSurface, line) + 18.0;
+        cy += ui.wrap_as((x, cy, iw), BODY_M, Role::OnSurface, line) + 18.0;
         cy += buttons(
             ui,
             x,
@@ -843,8 +849,8 @@ pub(crate) fn cancel_sheet(app: &View, ui: &mut crate::ui::Ui, g: Going, w: f32,
 /// new wallet shown again; **Keep going** and **Discard**. Reads only.
 pub(crate) fn cancel_key_sheet(_app: &View, ui: &mut crate::ui::Ui, w: f32, h: f32) {
     use crate::Action;
+    use crate::ui::Style;
     use crate::ui::pal::*;
-    use crate::ui::{Style, W};
     use faraday_draw::widgets::Icon;
     let head = (
         Icon::Warning.into(),
@@ -865,16 +871,8 @@ pub(crate) fn cancel_key_sheet(_app: &View, ui: &mut crate::ui::Ui, w: f32, h: f
         head,
         &mut |ui, x, y, iw| {
             // Material's supporting text, Body Medium (14).
-            let size = faraday_draw::tokens::LABEL;
-            ui.wrap(
-                x,
-                y,
-                iw,
-                size,
-                W::R,
-                Role::OnSurface,
-                EN.flow_cancel_key_line,
-            ) + faraday_draw::tokens::GAP
+            ui.wrap_as((x, y, iw), BODY_M, Role::OnSurface, EN.flow_cancel_key_line)
+                + faraday_draw::tokens::GAP
         },
         &actions,
     );

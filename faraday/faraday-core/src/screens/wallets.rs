@@ -7,7 +7,8 @@ use crate::ui::pal::*;
 use crate::ui::{Style, Ui, W};
 use crate::wallet::{Session, fp_text, key_line};
 use crate::{Action, Screen};
-use faraday_draw::tokens::{self, BUTTON_H};
+use faraday_draw::tokens::{self};
+use faraday_draw::tokens::{BODY_L, BODY_M, BODY_S, BUTTON_H, LABEL_L, LABEL_M, TITLE_L};
 use faraday_draw::widgets::Icon;
 use faraday_ui::parts::{section_label, title, wrap_buttons};
 
@@ -73,7 +74,7 @@ pub(crate) fn backup_line(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, i: us
     } else {
         Role::Warning
     };
-    let h = ui.wrap(x, y, w, 13.0, W::R, tone, &line);
+    let h = ui.wrap_as((x, y, w), BODY_M, tone, &line);
     ui.hit(x, y - 6.0, w, h + 12.0, action);
     h + 16.0
 }
@@ -120,12 +121,9 @@ pub(crate) fn missing_keys_line(
             Role::OnSurfaceVariant,
         );
         let mut cy =
-            y + ui.wrap(
-                x + 20.0,
-                y,
-                w - 20.0,
-                12.0,
-                W::R,
+            y + ui.wrap_as(
+                (x + 20.0, y, w - 20.0),
+                BODY_S,
                 Role::OnSurfaceVariant,
                 &line,
             ) + 8.0;
@@ -134,7 +132,7 @@ pub(crate) fn missing_keys_line(
                 x + 20.0,
                 cy,
                 Some(w - 20.0),
-                36.0,
+                BUTTON_H,
                 EN.missing_keys_line_unlock,
                 if app.may_load_keys() {
                     Style::Secondary
@@ -148,14 +146,14 @@ pub(crate) fn missing_keys_line(
         return cy - y;
     }
     ui.icon(x, y + 10.0, 20.0, Icon::Info, 11.0, Role::OnSurfaceVariant);
-    let line = ui.fit(13.0, W::R, &line, w - 140.0);
-    let lw = ui.text_mid(x + 26.0, y, 40.0, 13.0, W::R, Role::OnSurfaceVariant, &line);
+    let line = ui.fit_as(BODY_S, &line, w - 140.0);
+    let lw = ui.text_mid_as((x + 26.0, y, 40.0), BODY_S, Role::OnSurfaceVariant, &line);
     if let Some(i) = locked {
         ui.button(
             x + 40.0 + lw,
             y + 4.0,
             None,
-            32.0,
+            BUTTON_H,
             EN.missing_keys_line_unlock,
             if app.may_load_keys() {
                 Style::Secondary
@@ -179,22 +177,19 @@ pub(crate) fn loose_card(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32
     let mut cy = y;
     if let [only] = loose.as_slice() {
         let line = fill(EN.loose_card_key_is_loaded, &[&fp_text(*only).to_string()]);
-        cy += ui.wrap(x, cy, w, 15.0, W::R, Role::OnSurface, &line) + 16.0;
+        cy += ui.wrap_as((x, cy, w), BODY_L, Role::OnSurface, &line) + 16.0;
         cy += mark_line(app, ui, x, cy, w, *only);
     } else {
         let line = fill(EN.loose_card_keys_are, &[&loose.len().to_string()]);
-        cy += ui.wrap(x, cy, w, 15.0, W::R, Role::OnSurface, &line) + 10.0;
+        cy += ui.wrap_as((x, cy, w), BODY_L, Role::OnSurface, &line) + 10.0;
         for fp in &loose {
             let on = fp.0 == picked;
             ui.checkbox(x, cy + 11.0, on, true);
             let line = key_line(*fp, app.session.keys.key_label(*fp).unwrap_or(""));
-            let line = ui.fit(14.0, W::M, &line, w - 30.0);
-            ui.text_mid(
-                x + 30.0,
-                cy,
-                40.0,
-                14.0,
-                W::M,
+            let line = ui.fit_as(BODY_M.mono(), &line, w - 30.0);
+            ui.text_mid_as(
+                (x + 30.0, cy, 40.0),
+                BODY_M.mono(),
                 if on {
                     Role::OnSurface
                 } else {
@@ -225,7 +220,7 @@ pub(crate) fn loose_card(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32
     cy += if ui.compact {
         crate::compact::screen::stack(ui, x, cy, w, &items)
     } else {
-        wrap_buttons(ui, x, cy, w, 40.0, &items)
+        wrap_buttons(ui, x, cy, w, BUTTON_H, &items)
     };
     cy - y
 }
@@ -284,15 +279,8 @@ fn wallet_list(app: &View, ui: &mut Ui, rect: (f32, f32, f32, f32)) {
         pane.advance(TOUCH / 2.0 + GAP);
         for fp in &loose {
             let line = key_line(*fp, app.session.keys.key_label(*fp).unwrap_or(""));
-            let line = ui.fit(13.0, W::R, &line, listw - 2.0 * LIST_PAD);
-            ui.text(
-                x + LIST_PAD,
-                pane.at().2,
-                13.0,
-                W::R,
-                Role::OnSurface,
-                &line,
-            );
+            let line = ui.fit_as(BODY_S, &line, listw - 2.0 * LIST_PAD);
+            ui.text_as(x + LIST_PAD, pane.at().2, BODY_S, Role::OnSurface, &line);
             pane.advance(22.0);
             let h = mark_line(app, ui, x + LIST_PAD, pane.at().2, listw, *fp);
             pane.advance(h);
@@ -348,7 +336,7 @@ fn add_key_button(app: &View, ui: &mut Ui, pane: &mut crate::panes::screen::List
         ),
         None => (EN.wallets_add_a_key.to_string(), Action::KeyGen(None)),
     };
-    let add_label = ui.fit(14.0, W::S, &add_label, listw - 2.0 * LIST_PAD - 32.0);
+    let add_label = ui.fit_as(LABEL_L, &add_label, listw - 2.0 * LIST_PAD - 32.0);
     let y = pane.at().2;
     let style = if app.may_load_keys() {
         Style::Secondary
@@ -421,17 +409,14 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         ui.fill(x, y, width, 48.0, 12.0, bg);
         ui.stroke(x, y, width, 48.0, 12.0, Role::Primary.with_alpha(76));
         ui.icon(x + 14.0, y + 14.0, 20.0, Icon::File, 13.0, Role::Primary);
-        let nw = ui.text_mid(x + 44.0, y, 48.0, 14.0, W::M, Role::OnSurface, &name);
-        ui.text_mid(
-            x + 56.0 + nw,
-            y,
-            48.0,
-            14.0,
-            W::R,
+        let nw = ui.text_mid_as((x + 44.0, y, 48.0), BODY_M.mono(), Role::OnSurface, &name);
+        ui.text_mid_as(
+            (x + 56.0 + nw, y, 48.0),
+            BODY_M,
             Role::OnSurfaceVariant,
             where_,
         );
-        ui.text_right(x + width - 18.0, y, 48.0, 14.0, W::S, Role::Primary, verb);
+        ui.text_right_as((x + width - 18.0, y, 48.0), LABEL_L, Role::Primary, verb);
         ui.hit(x, y, width, 48.0, action);
         y += 64.0;
     }
@@ -454,12 +439,9 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             loose_card(app, ui, cx + 24.0, y + 24.0, cwid - 48.0);
         } else {
             let msg = EN.wallets_no_wallet_loaded;
-            ui.wrap(
-                cx + 24.0,
-                y + 24.0,
-                cwid - 48.0,
-                15.0,
-                W::R,
+            ui.wrap_as(
+                (cx + 24.0, y + 24.0, cwid - 48.0),
+                BODY_L,
                 Role::OnSurfaceVariant,
                 msg,
             );
@@ -495,8 +477,8 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 ix,
                 cy - 4.0,
                 38.0,
-                22.0,
-                W::S,
+                (TITLE_L.medium()).size,
+                W::from((TITLE_L.medium()).face),
                 Role::OnSurface,
                 name,
                 348.0,
@@ -504,22 +486,21 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 Action::Rename,
             );
             ui.hit(ix - 6.0, cy - 4.0, 360.0, 38.0, Action::Rename);
-            ui.text(
+            ui.text_as(
                 ix + 370.0,
                 cy + 8.0,
-                12.0,
-                W::R,
+                BODY_S,
                 Role::OnSurfaceVariant,
                 EN.wallets_enter_keeps,
             );
         }
         None => {
-            let nw = ui.text(ix, cy, 22.0, W::S, Role::OnSurface, &wlt.name);
+            let nw = ui.text_as(ix, cy, TITLE_L.medium(), Role::OnSurface, &wlt.name);
             let rw = ui.button(
                 ix + nw + 14.0,
                 cy,
                 None,
-                30.0,
+                BUTTON_H,
                 EN.wallets_rename,
                 Style::Ghost,
                 Action::Rename,
@@ -528,10 +509,9 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             // §16.2), beside Rename where it fits before the source's
             // pill, so the foot keeps its one row; else in the foot.
             let bx = ix + nw + 14.0 + rw + 6.0;
-            let bw = ui.measure(14.0, W::S, EN.wallets_new_wallet_button) + 32.0;
-            let pill = ui.measure(
-                12.0,
-                W::R,
+            let bw = ui.measure_as(LABEL_L, EN.wallets_new_wallet_button) + 32.0;
+            let pill = ui.measure_as(
+                BODY_S,
                 &crate::wallet::source_tag(&wlt.source, wlt.origin, true),
             ) + 24.0;
             if new_from && bx + bw + 12.0 <= ix + iw - pill {
@@ -539,7 +519,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                     bx,
                     cy,
                     None,
-                    30.0,
+                    BUTTON_H,
                     EN.wallets_new_wallet_button,
                     Style::Ghost,
                     Action::NewWalletFrom(app.wallets.wallet()),
@@ -549,17 +529,10 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         }
     }
     let src = crate::wallet::source_tag(&wlt.source, wlt.origin, true);
-    let sw = ui.measure(12.0, W::R, &src) + 24.0;
+    let sw = ui.measure_as(BODY_S, &src) + 24.0;
     ui.pill(ix + iw - sw, cy, 28.0, &src);
     cy += 34.0;
-    ui.text(
-        ix,
-        cy,
-        14.0,
-        W::R,
-        Role::OnSurfaceVariant,
-        &Session::shape(wlt),
-    );
+    ui.text_as(ix, cy, BODY_M, Role::OnSurfaceVariant, &Session::shape(wlt));
     cy += 26.0;
     if let Some(r) = wlt.policy().silent() {
         // Where its backup is (§5.2): a press opens Backups on it.
@@ -636,12 +609,9 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     ui.fill(ix, cy, iw, 50.0, 10.0, Role::SurfaceContainerHighest);
     ui.stroke(ix, cy, iw, 50.0, 10.0, Role::OutlineVariant);
     let pw = ui.pips(ix + 16.0, cy + 20.0, m, here);
-    ui.text_mid(
-        ix + 30.0 + pw,
-        cy,
-        50.0,
-        14.0,
-        W::S,
+    ui.text_mid_as(
+        (ix + 30.0 + pw, cy, 50.0),
+        LABEL_L,
         Role::OnSurface,
         &fill(
             EN.wallets_of_signatures,
@@ -652,7 +622,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     // (`docs/history/SCAN-TO-SIGN.md` §2.2).
     if app.can_spend(app.wallets.wallet()) {
         let t = EN.wallets_can_spend;
-        let chipw = ui.measure(12.0, W::R, t) + 34.0;
+        let chipw = ui.measure_as(BODY_S, t) + 34.0;
         ui.chip(
             ix + iw - 16.0 - chipw,
             cy + 12.0,
@@ -662,12 +632,12 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         );
     } else {
         let label = EN.wallets_scan_a_key;
-        let bw = ui.measure(14.0, W::S, label) + 32.0;
+        let bw = ui.measure_as(LABEL_L, label) + 32.0;
         ui.button(
             ix + iw - 9.0 - bw,
             cy + 7.0,
             Some(bw),
-            36.0,
+            BUTTON_H,
             label,
             Style::Primary.when(app.may_load_keys()),
             Action::ScanKey(app.wallets.wallet()),
@@ -677,11 +647,10 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 
     // The wallet at a glance (`docs/history/NEW-WALLET.md` §6): its keys and
     // its backup, where each thing is and what each place gives.
-    ui.text(
+    ui.text_as(
         ix,
         cy,
-        13.0,
-        W::S,
+        LABEL_M,
         Role::OnSurfaceVariant,
         EN.wallets_at_a_glance,
     );
@@ -703,22 +672,18 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         cy += missing_keys_line(app, ui, &slots, Screen::Wallets, ix, cy, iw);
     }
     cy += 16.0;
-    ui.text(
+    ui.text_as(
         ix,
         cy,
-        13.0,
-        W::S,
+        LABEL_M,
         Role::OnSurfaceVariant,
         EN.wallets_first_receive,
     );
     cy += 24.0;
     let (addr, held) = app.receive_line(wlt, false, 0);
-    cy += ui.wrap(
-        ix,
-        cy,
-        iw,
-        15.0,
-        W::M,
+    cy += ui.wrap_as(
+        (ix, cy, iw),
+        BODY_L.mono(),
         if held { Role::Warning } else { Role::OnSurface },
         &addr,
     ) + 8.0;
@@ -745,7 +710,7 @@ fn place_actions(
     items: &[(&str, Style, Action)],
     end: (&str, Style, Action),
 ) -> (Vec<(usize, f32, f32)>, f32, usize) {
-    let width = |ui: &Ui, label: &str| (ui.measure(14.0, W::S, label) + 32.0).min(w);
+    let width = |ui: &Ui, label: &str| (ui.measure_as(LABEL_L, label) + 32.0).min(w);
     let mut placed: Vec<(usize, f32, f32)> = Vec::new();
     let (mut row, mut bx) = (0usize, 0.0f32);
     for &(label, ..) in items {
@@ -786,10 +751,10 @@ fn card_actions(
     ui.rule(x, rule, w, Role::OutlineVariant);
     let row_y = |r: usize| rule + ACTIONS_RULE_GAP + r as f32 * (BUTTON_H + tokens::GAP);
     for (&(label, style, action), &(r, px, bw)) in items.iter().zip(placed) {
-        let label = ui.fit(14.0, W::S, label, bw - 24.0);
+        let label = ui.fit_as(LABEL_L, label, bw - 24.0);
         ui.button(x + px, row_y(r), Some(bw), BUTTON_H, &label, style, action);
     }
-    let label = ui.fit(14.0, W::S, end.0, ew - 24.0);
+    let label = ui.fit_as(LABEL_L, end.0, ew - 24.0);
     ui.button(
         x + w - ew,
         row_y(rows - 1),
@@ -816,12 +781,12 @@ fn silent_wallet_card(
     let (muted, ink) = (Role::OnSurfaceVariant, Role::OnSurface);
     let may = app.may_load_keys();
     let mut cy = y;
-    ui.text(ix, cy, 13.0, W::S, muted, EN.silent_wallet_card_key);
+    ui.text_as(ix, cy, LABEL_M, muted, EN.silent_wallet_card_key);
     cy += 24.0;
     let held = app.session.keys.key_label(r.fingerprint);
-    ui.text_mid(ix, cy, 46.0, 14.0, W::M, ink, &fp_text(r.fingerprint));
+    ui.text_mid_as((ix, cy, 46.0), BODY_M.mono(), ink, &fp_text(r.fingerprint));
     if let Some(label) = held {
-        ui.text_mid(ix + 104.0, cy, 46.0, 13.0, W::R, muted, label);
+        ui.text_mid_as((ix + 104.0, cy, 46.0), BODY_S, muted, label);
     }
     let (state, fg, bg) = if held.is_some() {
         (
@@ -855,27 +820,28 @@ fn silent_wallet_card(
             )
         }
     });
-    let bw = button.map_or(0.0, |(l, _, _)| ui.measure(13.0, W::S, l) + 28.0);
-    let chipw = ui.measure(12.0, W::R, state) + 34.0;
+    let bw = button.map_or(0.0, |(l, _, _)| ui.measure_as(LABEL_L, l) + 28.0);
+    let chipw = ui.measure_as(BODY_S, state) + 34.0;
     ui.chip(ix + iw - bw - 10.0 - chipw, cy + 10.0, state, fg, bg);
     if let Some((label, style, action)) = button {
         let style = if may { style } else { Style::Disabled };
-        ui.button(ix + iw - bw, cy + 7.0, Some(bw), 32.0, label, style, action);
+        ui.button(
+            ix + iw - bw,
+            cy + 7.0,
+            Some(bw),
+            BUTTON_H,
+            label,
+            style,
+            action,
+        );
     }
     ui.rule(ix, cy + 46.0, iw, Role::OutlineVariant);
     cy += 64.0;
-    ui.text(
-        ix,
-        cy,
-        13.0,
-        W::S,
-        muted,
-        EN.silent_wallet_card_address_label,
-    );
+    ui.text_as(ix, cy, LABEL_M, muted, EN.silent_wallet_card_address_label);
     cy += 24.0;
-    cy += ui.wrap(ix, cy, iw, 14.0, W::M, ink, &r.address()) + 18.0;
-    ui.text(ix, cy, 13.0, W::S, muted, EN.silent_wallet_card_labels);
-    ui.text(ix + 180.0, cy, 13.0, W::M, ink, &r.labels.to_string());
+    cy += ui.wrap_as((ix, cy, iw), BODY_M.mono(), ink, &r.address()) + 18.0;
+    ui.text_as(ix, cy, LABEL_M, muted, EN.silent_wallet_card_labels);
+    ui.text_as(ix + 180.0, cy, BODY_M.mono(), ink, &r.labels.to_string());
     let items = [
         (
             EN.silent_wallet_card_address,

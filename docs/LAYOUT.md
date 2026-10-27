@@ -221,8 +221,23 @@ each at the text size the person's system asks for.
   supporting text takes (`faraday_ui::roles::ListItem`). The
   multi-choice list's rows are list items, `parts::button_rows` and the
   sheets' and dialogs' buttons are `BUTTON_H`. A key of the on-screen
-  keyboards and pads keeps its own label (`key_label`). The screens in
-  `faraday-core` still write their own sizes (L5, part 2).
+  keyboards and pads keeps its own label (`key_label`).
+
+  Built (L5, part 2, the shell of `faraday-core`): Home, Wallets and
+  its start, Restore, Settings, the sidebar, the compact screens and
+  their top bar, the step flows' head and cards (`flow.rs`), the Files
+  menu, the in-progress and visit-taken sheets, the menus, Glance, the
+  Modes sheet, Explore, the word lists and the list pane's item write
+  their text by role and their buttons at `BUTTON_H`; the segmented
+  buttons are `SEGMENTED_H` with `LABEL_L`. A step flow's heading is
+  `HEADLINE_S` in its medium face on every flow; a sheet's head is
+  `sheet_head`. The compact bar's two lines are the place Back goes in
+  `BODY_S` over the page's name in `TITLE_M` (the bar is 44 dp, too low
+  for `TITLE_L`). The text fields that were boxes filled and edged in
+  place (Explore's path, index and address, the word list's search, the
+  rename fields, the passphrase field of the small panel, Glance's
+  field) are `Ui::field_box`, 56 dp, their text in `BODY_L`; the list
+  pane's item is `Ui::list_item`.
 - **Type** is Material's roles, by size: `HEADLINE_M` 28, `HEADLINE_S`
   24, `TITLE_L` 22, `TITLE_M` 16, `TITLE_S` 14, `BODY_L` 16, `BODY_M`
   14, `BODY_S` 12, `LABEL_L` 14, `LABEL_M` 12, `LABEL_S` 11. They

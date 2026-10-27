@@ -26,10 +26,11 @@ use faraday_draw::tokens;
 use crate::drawing::View;
 use crate::plan::{self, At, Tag, What};
 use crate::ui::pal::*;
-use crate::ui::{Style, Ui, W};
+use crate::ui::{Style, Ui};
 use crate::wallet::{Session, fp_text};
 use crate::wallet_backup::Tone;
 use crate::{Action, Faraday};
+use faraday_draw::tokens::{BODY_M, BODY_S, BUTTON_H, LABEL_L, LABEL_M, TITLE_M, TypeRole};
 use faraday_keys::vault::{RecordView, VaultId};
 
 /// What the chart, its sheet and the checklist's titles read of the app
@@ -1033,8 +1034,7 @@ fn backup_nodes(
 /// A line of text in a node, and what a press on that line opens.
 struct Text {
     text: String,
-    size: f32,
-    weight: W,
+    role: TypeRole,
     color: Paint,
     press: Option<Action>,
     /// Struck through: a thing marked lost or exposed (§9.6).
@@ -1042,11 +1042,10 @@ struct Text {
 }
 
 impl Text {
-    fn new(text: impl Into<String>, size: f32, weight: W, color: Paint) -> Text {
+    fn new(text: impl Into<String>, role: TypeRole, color: Paint) -> Text {
         Text {
             text: text.into(),
-            size,
-            weight,
+            role,
             color,
             press: None,
             struck: false,
@@ -1080,18 +1079,19 @@ struct Node {
 impl Node {
     /// The width its title and lines ask for, with its padding.
     fn natural(&self, ui: &Ui) -> f32 {
-        let tag = self.tag.map_or(0.0, |(t, _)| {
-            ui.measure(tokens::CAPTION, W::R, t) + tokens::GAP
-        });
-        let title = ui.measure(tokens::LABEL, W::S, &self.title) + tag;
+        let tag = self
+            .tag
+            .map_or(0.0, |(t, _)| ui.measure_as(BODY_S, t) + tokens::GAP);
+        let title = ui.measure_as(LABEL_L, &self.title) + tag;
         let lines = self
             .lines
             .iter()
-            .map(|l| ui.measure(l.size, l.weight, &l.text))
+            .map(|l| ui.measure_as(l.role, &l.text))
             .fold(title, f32::max);
-        let button = self.button.as_ref().map_or(0.0, |(l, ..)| {
-            ui.measure(tokens::CAPTION, W::S, l) + 2.0 * tokens::PAD
-        });
+        let button = self
+            .button
+            .as_ref()
+            .map_or(0.0, |(l, ..)| ui.measure_as(LABEL_M, l) + 2.0 * tokens::PAD);
         lines.max(button) + 2.0 * tokens::CHART_NODE_PAD
     }
 
@@ -1101,21 +1101,18 @@ impl Node {
     fn tag_under(&self, ui: &Ui, w: f32) -> bool {
         self.tag.is_some_and(|(t, _)| {
             let inner = w - 2.0 * tokens::CHART_NODE_PAD;
-            ui.measure(tokens::LABEL, W::S, &self.title)
-                + tokens::GAP
-                + ui.measure(tokens::CAPTION, W::R, t)
-                > inner
+            ui.measure_as(LABEL_L, &self.title) + tokens::GAP + ui.measure_as(BODY_S, t) > inner
         })
     }
 
     fn height(&self, ui: &Ui, w: f32) -> f32 {
         let inner = w - 2.0 * tokens::CHART_NODE_PAD;
-        let mut h = 2.0 * tokens::CHART_NODE_PAD + ui.line(tokens::LABEL, W::S);
+        let mut h = 2.0 * tokens::CHART_NODE_PAD + ui.line_as(LABEL_L);
         if self.tag_under(ui, w) {
-            h += ui.line(tokens::CAPTION, W::R);
+            h += ui.line_as(BODY_S);
         }
         for l in &self.lines {
-            h += ui.wrap_lines(l.size, l.weight, &l.text, inner) as f32 * ui.line(l.size, l.weight);
+            h += ui.wrap_lines_as(l.role, &l.text, inner) as f32 * ui.line_as(l.role);
         }
         if self.button.is_some() {
             h += tokens::GAP + tokens::CHART_BUTTON;
@@ -1139,9 +1136,9 @@ impl Node {
         let tag_w = match self.tag {
             Some(_) if under => 0.0,
             Some((t, c)) => {
-                let tw = ui.measure(tokens::CAPTION, W::R, t);
-                let lh = ui.line(tokens::LABEL, W::S);
-                ui.text_right(x + w - pad, cy, lh, tokens::CAPTION, W::R, c, t);
+                let tw = ui.measure_as(BODY_S, t);
+                let lh = ui.line_as(LABEL_L);
+                ui.text_right_as((x + w - pad, cy, lh), BODY_S, c, t);
                 tw + tokens::GAP
             }
             None => 0.0,
@@ -1151,18 +1148,18 @@ impl Node {
         if let Some(a) = self.action {
             ui.hit(x, y, w, h, a);
         }
-        let title = ui.fit(tokens::LABEL, W::S, &self.title, inner - tag_w);
-        ui.text(x + pad, cy, tokens::LABEL, W::S, Role::OnSurface, &title);
-        cy += ui.line(tokens::LABEL, W::S);
+        let title = ui.fit_as(LABEL_L, &self.title, inner - tag_w);
+        ui.text_as(x + pad, cy, LABEL_L, Role::OnSurface, &title);
+        cy += ui.line_as(LABEL_L);
         if let Some((t, c)) = self.tag.filter(|_| under) {
-            ui.text(x + pad, cy, tokens::CAPTION, W::R, c, t);
-            cy += ui.line(tokens::CAPTION, W::R);
+            ui.text_as(x + pad, cy, BODY_S, c, t);
+            cy += ui.line_as(BODY_S);
         }
         for l in &self.lines {
-            let lh = ui.wrap(x + pad, cy, inner, l.size, l.weight, l.color, &l.text);
+            let lh = ui.wrap_as((x + pad, cy, inner), l.role, l.color, &l.text);
             if l.struck {
-                let one = ui.line(l.size, l.weight);
-                let tw = ui.measure(l.size, l.weight, &l.text).min(inner);
+                let one = ui.line_as(l.role);
+                let tw = ui.measure_as(l.role, &l.text).min(inner);
                 ui.rule(x + pad, cy + one / 2.0, tw, l.color);
             }
             if let Some(a) = l.press {
@@ -1171,7 +1168,7 @@ impl Node {
             cy += lh;
         }
         if let Some((label, style, action)) = &self.button {
-            let label = ui.fit(tokens::CAPTION, W::S, label, inner);
+            let label = ui.fit_as(LABEL_M, label, inner);
             ui.button(
                 x + pad,
                 cy + tokens::GAP,
@@ -1233,15 +1230,13 @@ fn rows(g: &Glance, compact: bool) -> [Vec<Node>; 3] {
     let open = |t: Target| Some(Action::Chart(C::Open(g.press, t)));
     let mut wallet_lines = vec![Text::new(
         format!("{} · #{}", g.shape, g.checksum),
-        tokens::CAPTION,
-        W::R,
+        BODY_S,
         Role::OnSurfaceVariant.paint(),
     )];
     if g.held {
         wallet_lines.push(Text::new(
             RECEIVE_WARNING.to_string(),
-            tokens::CAPTION,
-            W::S,
+            LABEL_M,
             Role::Warning.paint(),
         ));
     }
@@ -1259,33 +1254,17 @@ fn rows(g: &Glance, compact: bool) -> [Vec<Node>; 3] {
         .map(|(i, k)| {
             let mut lines = Vec::new();
             if let Some(l) = &k.label {
-                lines.push(Text::new(
-                    l.clone(),
-                    tokens::CAPTION,
-                    W::R,
-                    Role::OnSurfaceVariant.paint(),
-                ));
+                lines.push(Text::new(l.clone(), BODY_S, Role::OnSurfaceVariant.paint()));
             }
             if let Some(h) = &k.holder {
-                lines.push(Text::new(
-                    h.clone(),
-                    tokens::CAPTION,
-                    W::R,
-                    Role::OnSurface.paint(),
-                ));
+                lines.push(Text::new(h.clone(), BODY_S, Role::OnSurface.paint()));
             }
             if let Some(d) = &k.checked {
-                lines.push(Text::new(
-                    checked_text(d),
-                    tokens::CAPTION,
-                    W::R,
-                    Role::Ok.paint(),
-                ));
+                lines.push(Text::new(checked_text(d), BODY_S, Role::Ok.paint()));
             }
             lines.push(Text::new(
                 k.state.clone(),
-                tokens::CAPTION,
-                W::S,
+                LABEL_M,
                 if k.state == WAITING {
                     Role::Warning.paint()
                 } else if k.here {
@@ -1300,7 +1279,7 @@ fn rows(g: &Glance, compact: bool) -> [Vec<Node>; 3] {
                 } else {
                     Role::OnSurfaceVariant.paint()
                 };
-                lines.push(Text::new(way, tokens::CAPTION, W::S, tone).pressed(k.action));
+                lines.push(Text::new(way, LABEL_M, tone).pressed(k.action));
             }
             Node {
                 title: fill(
@@ -1322,8 +1301,7 @@ fn rows(g: &Glance, compact: bool) -> [Vec<Node>; 3] {
                 let mut lines: Vec<Text> = if compact {
                     vec![Text::new(
                         n.keys_held.clone(),
-                        tokens::CAPTION,
-                        W::R,
+                        BODY_S,
                         Role::OnSurface.paint(),
                     )]
                 } else {
@@ -1337,36 +1315,25 @@ fn rows(g: &Glance, compact: bool) -> [Vec<Node>; 3] {
                             match n.marks.get(j).copied().flatten() {
                                 Some(m) => Text::new(
                                     format!("{h} · {}", m.label()),
-                                    tokens::CAPTION,
-                                    W::R,
+                                    BODY_S,
                                     Role::Error.paint(),
                                 )
                                 .struck()
                                 .pressed(line),
-                                None => Text::new(
-                                    h.clone(),
-                                    tokens::CAPTION,
-                                    W::R,
-                                    Role::OnSurface.paint(),
-                                )
-                                .pressed(line),
+                                None => Text::new(h.clone(), BODY_S, Role::OnSurface.paint())
+                                    .pressed(line),
                             }
                         })
                         .collect()
                 };
                 if let Some(s) = &n.stick {
-                    lines.push(Text::new(
-                        s.clone(),
-                        tokens::CAPTION,
-                        W::R,
-                        Role::OnSurfaceVariant.paint(),
-                    ));
+                    lines.push(Text::new(s.clone(), BODY_S, Role::OnSurfaceVariant.paint()));
                 }
                 if let Some((s, t)) = &n.state {
-                    lines.push(Text::new(s.clone(), tokens::CAPTION, W::R, tone_color(*t)));
+                    lines.push(Text::new(s.clone(), BODY_S, tone_color(*t)));
                 }
                 if let (Some(s), Some(k)) = (&n.alone, n.alone_kind) {
-                    lines.push(Text::new(s.clone(), tokens::CAPTION, W::S, alone_color(k)));
+                    lines.push(Text::new(s.clone(), LABEL_M, alone_color(k)));
                 }
                 Node {
                     title: n.name.clone(),
@@ -1861,27 +1828,24 @@ fn check_facts(
     if let Some(p) = c.one_place {
         cy += tokens::GAP;
         let line = fill(EN.plan_all_at_one_place, &[&place(p)]);
-        cy += ui.wrap(x, cy, w, tokens::LABEL, W::R, Role::Warning, &line);
+        cy += ui.wrap_as((x, cy, w), BODY_M, Role::Warning, &line);
     }
     if c.passphrase_apart {
         cy += tokens::GAP;
-        cy += ui.wrap(
-            x,
-            cy,
-            w,
-            tokens::LABEL,
-            W::R,
+        cy += ui.wrap_as(
+            (x, cy, w),
+            BODY_M,
             Role::OnSurfaceVariant,
             EN.plan_passphrase_apart,
         );
         cy += tokens::GAP;
         let label = EN.plan_add_passphrase;
-        let bw = ui.measure(tokens::LABEL, W::S, label) + 32.0;
+        let bw = ui.measure_as(LABEL_L, label) + 32.0;
         ui.button(
             x,
             cy,
             Some(bw),
-            34.0,
+            BUTTON_H,
             label,
             Style::Secondary,
             Action::PlanAddPass,
@@ -1923,22 +1887,16 @@ fn check_boxes(ui: &mut Ui, x: f32, y: f32, w: f32, c: plan::Check, beside: bool
     // Each box's height, measured before it is drawn.
     let measure = |ui: &mut Ui, label: &str, value: &str| -> f32 {
         ui.c.push_clip(faraday_draw::Rect::new(0, 0, 0, 0));
-        let mut h = ui.wrap(
-            0.0,
-            0.0,
-            box_w - 2.0 * pad,
-            tokens::CAPTION,
-            W::R,
+        let mut h = ui.wrap_as(
+            (0.0, 0.0, box_w - 2.0 * pad),
+            BODY_S,
             Role::OnSurfaceVariant,
             label,
         );
         h += tokens::GAP_SMALL;
-        h += ui.wrap(
-            0.0,
-            0.0,
-            box_w - 2.0 * pad,
-            tokens::TITLE,
-            W::S,
+        h += ui.wrap_as(
+            (0.0, 0.0, box_w - 2.0 * pad),
+            TITLE_M,
             Role::OnSurfaceVariant,
             value,
         );
@@ -1961,21 +1919,10 @@ fn check_boxes(ui: &mut Ui, x: f32, y: f32, w: f32, c: plan::Check, beside: bool
         ui.stroke(bx, by, box_w, bh, tokens::RADIUS_SMALL, tone.with_alpha(90));
         let tx = bx + pad;
         let tw = box_w - 2.0 * pad;
-        let lh = ui.wrap(
-            tx,
-            by + pad,
-            tw,
-            tokens::CAPTION,
-            W::R,
-            Role::OnSurfaceVariant,
-            label,
-        );
-        ui.wrap(
-            tx,
-            by + pad + lh + tokens::GAP_SMALL,
-            tw,
-            tokens::TITLE,
-            W::S,
+        let lh = ui.wrap_as((tx, by + pad, tw), BODY_S, Role::OnSurfaceVariant, label);
+        ui.wrap_as(
+            (tx, by + pad + lh + tokens::GAP_SMALL, tw),
+            TITLE_M,
             tone,
             value,
         );

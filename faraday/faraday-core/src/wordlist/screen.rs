@@ -10,9 +10,10 @@ use crate::screens::sheet_box;
 use crate::strings::EN;
 use crate::strings::fill;
 use crate::ui::pal::*;
-use crate::ui::{Style, Ui, W};
+use crate::ui::{Style, Ui};
 use crate::wordlist::{LISTS, WordListAction as WL};
 use faraday_draw::tokens as T;
+use faraday_draw::tokens::{BODY_L, BODY_M, BUTTON_H, FIELD_H, FIELD_PAD, LABEL_M};
 
 /// A row's height, in design units.
 const ROW: f32 = 28.0;
@@ -36,7 +37,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, w: f32, h: f32) {
         x + sw - pad - back_w,
         y + 14.0,
         Some(back_w),
-        34.0,
+        BUTTON_H,
         EN.wordlist_back,
         Style::Secondary,
         Action::WordList(WL::Close),
@@ -82,44 +83,38 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let row = if !compact || !st.find.is_empty() {
         let fw = search_field(ui, (bx, cy, bw), st);
         let room = bw - fw - T::GAP;
-        let about = ui.fit(T::LABEL, W::R, &about, room);
-        let ah = T::TEXT_FIELD;
-        ui.text_right(
-            bx + bw,
-            cy,
-            ah,
-            T::LABEL,
-            W::R,
+        let about = ui.fit_as(BODY_M, &about, room);
+        ui.text_right_as(
+            (bx + bw, cy, FIELD_H),
+            BODY_M,
             Role::OnSurfaceVariant,
             &about,
         );
-        T::TEXT_FIELD + T::GAP
+        FIELD_H + T::GAP
     } else {
-        ui.text(bx, cy, T::LABEL, W::R, Role::OnSurfaceVariant, &about);
+        ui.text_as(bx, cy, BODY_M, Role::OnSurfaceVariant, &about);
         T::LABEL + T::PAD
     };
     cy += row;
     // The columns: number, code, word.
-    let num_w = ui.measure(14.0, W::M, "0000");
-    let code_w = ui.measure(14.0, W::M, &st.list.code(0));
+    let num_w = ui.measure_as(BODY_M.mono(), "0000");
+    let code_w = ui.measure_as(BODY_M.mono(), &st.list.code(0));
     let (nx, cx, wx) = (bx + 12.0, bx + 24.0 + num_w, bx + 48.0 + num_w + code_w);
-    ui.text(
+    ui.text_as(
         nx,
         cy,
-        12.0,
-        W::S,
+        LABEL_M,
         Role::OnSurfaceVariant,
         EN.wordlist_number_column,
     );
-    ui.text(
+    ui.text_as(
         cx,
         cy,
-        12.0,
-        W::S,
+        LABEL_M,
         Role::OnSurfaceVariant,
         st.list.code_heading(),
     );
-    ui.text(wx, cy, 12.0, W::S, Role::OnSurfaceVariant, EN.wordlist_word);
+    ui.text_as(wx, cy, LABEL_M, Role::OnSurfaceVariant, EN.wordlist_word);
     cy += 22.0;
     ui.rule(bx, cy - 4.0, bw, Role::OutlineVariant);
     let top = cy;
@@ -151,16 +146,18 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, w: f32, h: f32) {
             ui.fill(bx, ry, bw, ROW - 2.0, 6.0, Role::SecondaryContainer);
         }
         let number = (i + 1).to_string();
-        let nw = ui.measure(14.0, W::M, &number);
+        let nw = ui.measure_as(BODY_M.mono(), &number);
         let tone = crate::ui::pal::on_selected(marked, Role::OnSurfaceVariant);
-        ui.text_mid(nx + num_w - nw, ry, ROW - 2.0, 14.0, W::M, tone, &number);
-        ui.text_mid(cx, ry, ROW - 2.0, 14.0, W::M, tone, &st.list.code(i));
-        ui.text_mid(
-            wx,
-            ry,
-            ROW - 2.0,
-            14.0,
-            W::M,
+        ui.text_mid_as(
+            (nx + num_w - nw, ry, ROW - 2.0),
+            BODY_M.mono(),
+            tone,
+            &number,
+        );
+        ui.text_mid_as((cx, ry, ROW - 2.0), BODY_M.mono(), tone, &st.list.code(i));
+        ui.text_mid_as(
+            (wx, ry, ROW - 2.0),
+            BODY_M.mono(),
             crate::ui::pal::on_selected(marked, Role::OnSurface),
             word,
         );
@@ -186,25 +183,21 @@ fn search_field(
     st: &crate::wordlist::WordListState,
 ) -> f32 {
     let fw = (w / 2.0).min(T::SEARCH_FIELD_MAX);
-    let h = T::TEXT_FIELD;
-    ui.fill(x, y, fw, h, T::FIELD_RADIUS, Role::SurfaceContainerHighest);
-    ui.stroke(x, y, fw, h, T::FIELD_RADIUS, Role::Primary);
-    let inner = fw - 2.0 * T::PAD;
+    let h = FIELD_H;
+    ui.field_box((x, y, fw), true, None);
+    let inner = fw - 2.0 * FIELD_PAD;
     if st.find.is_empty() {
-        let hint = ui.fit(T::LABEL, W::R, st.list.search_hint(), inner);
-        ui.text_mid(
-            x + T::PAD,
-            y,
-            h,
-            T::LABEL,
-            W::R,
-            Role::OnSurfaceVariant,
-            &hint,
-        );
+        let hint = ui.fit_as(BODY_L, st.list.search_hint(), inner);
+        ui.text_mid_as((x + FIELD_PAD, y, h), BODY_L, Role::OnSurfaceVariant, &hint);
     } else {
         let shown = format!("{}{}", st.find, ui.caret_char());
-        let shown = ui.fit(T::LABEL, W::M, &shown, inner);
-        ui.text_mid(x + T::PAD, y, h, T::LABEL, W::M, Role::OnSurface, &shown);
+        let shown = ui.fit_as(BODY_L.mono(), &shown, inner);
+        ui.text_mid_as(
+            (x + FIELD_PAD, y, h),
+            BODY_L.mono(),
+            Role::OnSurface,
+            &shown,
+        );
     }
     fw
 }

@@ -4,9 +4,10 @@ use super::parts::{FROM_KEY, sign_readiness};
 use crate::drawing::View;
 use crate::strings::{EN, fill};
 use crate::ui::pal::*;
-use crate::ui::{Style, Ui, W};
+use crate::ui::{Style, Ui};
 use crate::wallet::{Session, key_line};
 use crate::{Action, Screen};
+use faraday_draw::tokens::{BODY_M, BODY_S, BUTTON_H, LABEL_L, LABEL_M, TITLE_M};
 use faraday_draw::widgets::Icon;
 use faraday_ui::parts::{section_label, title, wrap_buttons};
 
@@ -35,7 +36,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             EN.start_start_from_what.to_string()
         };
         let lead_w = width.min(820.0);
-        let used = ui.wrap(x, y, lead_w, 14.0, W::R, Role::OnSurfaceVariant, &text);
+        let used = ui.wrap_as((x, y, lead_w), BODY_M, Role::OnSurfaceVariant, &text);
         let link = crate::flow::learn_link(ui, x, y + used, lead_w, crate::learn::Topic::StartHere);
         y += used + link + 20.0;
     }
@@ -51,14 +52,14 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         y += 24.0;
         for fp in &loose {
             let line = key_line(*fp, app.session.keys.key_label(*fp).unwrap_or(""));
-            let line = ui.fit(14.0, W::M, &line, width);
-            ui.text_mid(x, y, 30.0, 14.0, W::M, Role::OnSurface, &line);
+            let line = ui.fit_as(BODY_M.mono(), &line, width);
+            ui.text_mid_as((x, y, 30.0), BODY_M.mono(), Role::OnSurface, &line);
             y += 34.0;
             ui.button(
                 x,
                 y,
                 Some(width),
-                44.0,
+                BUTTON_H,
                 FROM_KEY,
                 Style::Secondary,
                 Action::KeyWallet(fp.0, 1),
@@ -103,7 +104,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 x,
                 y,
                 width,
-                40.0,
+                BUTTON_H,
                 &[
                     (
                         EN.start_spend_backup,
@@ -223,16 +224,16 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         // row grows to the tallest label and sub among them, so the row
         // stays even and nothing is cut off.
         let label_room = tw - 100.0;
-        let label_line_h = ui.line(16.0, W::S);
-        let sub_line_h = ui.line(13.0, W::R);
+        let label_line_h = ui.line_as(TITLE_M);
+        let sub_line_h = ui.line_as(BODY_S);
         let max_label_lines = ways
             .iter()
-            .map(|(_, label, _, _)| ui.wrap_lines(16.0, W::S, label, label_room))
+            .map(|(_, label, _, _)| ui.wrap_lines_as(TITLE_M, label, label_room))
             .max()
             .unwrap_or(1);
         let max_sub_lines = ways
             .iter()
-            .map(|(_, _, sub, _)| ui.wrap_lines(13.0, W::R, sub, label_room))
+            .map(|(_, _, sub, _)| ui.wrap_lines_as(BODY_S, sub, label_room))
             .max()
             .unwrap_or(1);
         let card_h = 92.0
@@ -258,34 +259,28 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             );
             let on_tile = Role::OnSecondaryContainer;
             ui.icon(tx + 20.0, y + 24.0, 44.0, *icon, 18.0, on_tile);
-            if ui.wrap_lines(16.0, W::S, label, label_room) > 1 {
-                ui.wrap(
-                    tx + 82.0,
-                    y + 24.0,
-                    label_room,
-                    16.0,
-                    W::S,
+            if ui.wrap_lines_as(TITLE_M, label, label_room) > 1 {
+                ui.wrap_as(
+                    (tx + 82.0, y + 24.0, label_room),
+                    TITLE_M,
                     Role::OnSurface,
                     label,
                 );
             } else {
-                let label = ui.fit(16.0, W::S, label, label_room);
-                ui.text(tx + 82.0, y + 24.0, 16.0, W::S, Role::OnSurface, &label);
+                let label = ui.fit_as(TITLE_M, label, label_room);
+                ui.text_as(tx + 82.0, y + 24.0, TITLE_M, Role::OnSurface, &label);
             }
             let sub_y = y + 24.0 + max_label_lines as f32 * label_line_h + 2.0;
-            if ui.wrap_lines(13.0, W::R, sub, label_room) > 1 {
-                ui.wrap(
-                    tx + 82.0,
-                    sub_y,
-                    label_room,
-                    13.0,
-                    W::R,
+            if ui.wrap_lines_as(BODY_S, sub, label_room) > 1 {
+                ui.wrap_as(
+                    (tx + 82.0, sub_y, label_room),
+                    BODY_S,
                     Role::OnSurfaceVariant,
                     sub,
                 );
             } else {
-                let sub = ui.fit(13.0, W::R, sub, label_room);
-                ui.text(tx + 82.0, sub_y, 13.0, W::R, Role::OnSurfaceVariant, &sub);
+                let sub = ui.fit_as(BODY_S, sub, label_room);
+                ui.text_as(tx + 82.0, sub_y, BODY_S, Role::OnSurfaceVariant, &sub);
             }
             ui.hit(tx, y, tw, card_h, *action);
         }
@@ -293,13 +288,13 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         let files = app.vault_files();
         if let Some(i) = files.iter().position(|f| f.open.is_none()) {
             let line = fill(EN.start_is_in_files_locked, &[&files[i].name.to_string()]);
-            ui.text_mid(x, y, 40.0, 14.0, W::R, Role::OnSurfaceVariant, &line);
-            let lw = ui.measure(14.0, W::R, &line);
+            ui.text_mid_as((x, y, 40.0), BODY_M, Role::OnSurfaceVariant, &line);
+            let lw = ui.measure_as(BODY_M, &line);
             ui.button(
                 x + lw + 16.0,
                 y,
                 None,
-                40.0,
+                BUTTON_H,
                 EN.start_unlock,
                 Style::Secondary,
                 Action::Vault(crate::vault::VaultAction::Open(i)),
@@ -321,12 +316,9 @@ pub(crate) fn wallet_rows(
     open: &dyn Fn(usize) -> Action,
 ) -> f32 {
     if app.session.wallets.is_empty() {
-        ui.text_mid(
-            x,
-            y,
-            30.0,
-            13.0,
-            W::R,
+        ui.text_mid_as(
+            (x, y, 30.0),
+            BODY_S,
             Role::OnSurfaceVariant,
             EN.wallet_rows_none_loaded,
         );
@@ -439,7 +431,7 @@ pub(crate) fn wallet_rows(
             1 => Role::OnSurface,
             _ => Role::OnSurfaceVariant,
         };
-        let mw = ui.measure(12.0, W::S, &marker) + 20.0;
+        let mw = ui.measure_as(LABEL_M, &marker) + 20.0;
         if ready == 2 {
             ui.fill(
                 rx + rw - 10.0 - mw,
@@ -450,16 +442,13 @@ pub(crate) fn wallet_rows(
                 Role::OkContainer,
             );
         }
-        ui.text_mid(rx + rw - mw, ry, 44.0, 12.0, W::S, tone, &marker);
-        let name = ui.fit(14.0, W::S, &w.name, rw * 0.4);
-        let nw = ui.text_mid(rx + 14.0, ry, 44.0, 14.0, W::S, Role::OnSurface, &name);
-        let shape = ui.fit(12.0, W::R, &Session::shape(w), rw - nw - mw - 50.0);
-        ui.text_mid(
-            rx + 26.0 + nw,
-            ry,
-            44.0,
-            12.0,
-            W::R,
+        ui.text_mid_as((rx + rw - mw, ry, 44.0), LABEL_M, tone, &marker);
+        let name = ui.fit_as(LABEL_L, &w.name, rw * 0.4);
+        let nw = ui.text_mid_as((rx + 14.0, ry, 44.0), LABEL_L, Role::OnSurface, &name);
+        let shape = ui.fit_as(BODY_S, &Session::shape(w), rw - nw - mw - 50.0);
+        ui.text_mid_as(
+            (rx + 26.0 + nw, ry, 44.0),
+            BODY_S,
             Role::OnSurfaceVariant,
             &shape,
         );
@@ -468,8 +457,8 @@ pub(crate) fn wallet_rows(
     let mut used = shown.div_ceil(cols) as f32 * 52.0;
     if shown < total {
         let more = fill(EN.wallet_rows_more, &[&(total - shown).to_string()]);
-        let mw = ui.measure(12.0, W::S, &more) + 8.0;
-        ui.text_mid(x, y + used - 4.0, 24.0, 12.0, W::S, Role::Primary, &more);
+        let mw = ui.measure_as(LABEL_M, &more) + 8.0;
+        ui.text_mid_as((x, y + used - 4.0, 24.0), LABEL_M, Role::Primary, &more);
         ui.hit(x, y + used - 4.0, mw, 24.0, open(order[shown]));
         used += 24.0;
     }

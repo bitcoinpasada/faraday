@@ -29,9 +29,10 @@ use crate::chart_edit::OFF;
 use crate::glance::{self, Backup, BackupNode, Glance, Press};
 use crate::plan::{self, At, Edit, Item, Mark, What};
 use crate::ui::pal::*;
-use crate::ui::{Style, Ui, W};
+use crate::ui::{Style, Ui};
 use crate::vault::VaultAction as V;
 use crate::{Action, Faraday, Screen, Sheet, bstep};
+use faraday_draw::tokens::{BODY_L, BODY_S, FIELD_GAP, FIELD_H, FIELD_PAD, LABEL_L, LABEL_M};
 use faraday_keys::Reveal;
 
 /// What on the chart a sheet is for.
@@ -1550,10 +1551,10 @@ fn body(
         cy += crate::compact::kv(ui, x, cy, iw, label, value, *tone);
     }
     for (line, tone) in &v.lines {
-        cy += ui.wrap(x, cy, iw, tokens::LABEL, W::S, *tone, line) + tokens::GAP_SMALL;
+        cy += ui.wrap_as((x, cy, iw), LABEL_L, *tone, line) + tokens::GAP_SMALL;
     }
     for (line, tone) in &v.secret_lines {
-        cy += ui.wrap(x, cy, iw, tokens::LABEL, W::S, *tone, line) + tokens::GAP_SMALL;
+        cy += ui.wrap_as((x, cy, iw), LABEL_L, *tone, line) + tokens::GAP_SMALL;
     }
     if let Some((label, text, hint)) = &v.field {
         cy += tokens::GAP;
@@ -1571,15 +1572,7 @@ fn body(
         }
         cy += tokens::GAP;
         if !heading.is_empty() {
-            cy += ui.wrap(
-                x,
-                cy,
-                iw,
-                tokens::CAPTION,
-                W::S,
-                Role::OnSurfaceVariant,
-                heading,
-            ) + tokens::GAP;
+            cy += ui.wrap_as((x, cy, iw), LABEL_M, Role::OnSurfaceVariant, heading) + tokens::GAP;
         }
         for r in rows {
             cy += menu_row(ui, x, cy, iw, r) + tokens::GAP_SMALL;
@@ -1596,15 +1589,7 @@ fn body(
     cy += crate::compact::buttons(ui, x, cy, iw, &buttons);
     if let Some((label, None)) = &v.go {
         cy += tokens::GAP;
-        cy += ui.wrap(
-            x,
-            cy,
-            iw,
-            tokens::CAPTION,
-            W::R,
-            Role::OnSurfaceVariant,
-            label,
-        );
+        cy += ui.wrap_as((x, cy, iw), BODY_S, Role::OnSurfaceVariant, label);
     }
     cy - y
 }
@@ -1612,40 +1597,14 @@ fn body(
 /// A field being typed: its label over a box with what it shows and the
 /// caret. Returns its height.
 fn field(ui: &mut Ui, x: f32, y: f32, w: f32, label: &str, text: &str, hint: bool) -> f32 {
-    let lh = ui.wrap(
-        x,
-        y,
-        w,
-        tokens::CAPTION,
-        W::S,
-        Role::OnSurfaceVariant,
-        label,
-    ) + tokens::GAP_SMALL;
-    let h = tokens::CHART_SHEET_ROW;
+    let lh = ui.wrap_as((x, y, w), BODY_S, Role::OnSurfaceVariant, label) + FIELD_GAP;
+    let h = FIELD_H;
     let by = y + lh;
-    ui.fill(
-        x,
-        by,
-        w,
-        h,
-        tokens::RADIUS_SMALL,
-        Role::SurfaceContainerHighest,
-    );
-    ui.stroke(
-        x,
-        by,
-        w,
-        h,
-        tokens::RADIUS_SMALL,
-        Role::Primary.with_alpha(110),
-    );
-    let shown = ui.fit(tokens::LABEL, W::R, text, w - 2.0 * tokens::PAD);
-    let tw = ui.text_mid(
-        x + tokens::PAD,
-        by,
-        h,
-        tokens::LABEL,
-        W::R,
+    ui.field_box((x, by, w), true, None);
+    let shown = ui.fit_as(BODY_L, text, w - 2.0 * FIELD_PAD);
+    let tw = ui.text_mid_as(
+        (x + FIELD_PAD, by, h),
+        BODY_L,
         if hint {
             Role::OnSurfaceVariant
         } else {
@@ -1653,8 +1612,8 @@ fn field(ui: &mut Ui, x: f32, y: f32, w: f32, label: &str, text: &str, hint: boo
         },
         &shown,
     );
-    let cx = x + tokens::PAD + if hint { 0.0 } else { tw };
-    ui.caret(cx, by + (h - tokens::LABEL) / 2.0, tokens::LABEL);
+    let cx = x + FIELD_PAD + if hint { 0.0 } else { tw };
+    ui.caret(cx, by + (h - BODY_L.size) / 2.0, BODY_L.size);
     lh + h
 }
 
@@ -1681,24 +1640,21 @@ fn menu_row(ui: &mut Ui, x: f32, y: f32, w: f32, r: &Row) -> f32 {
     let sub_w = if r.sub.is_empty() {
         0.0
     } else {
-        ui.measure(tokens::CAPTION, W::R, &r.sub).min(room / 2.0)
+        ui.measure_as(BODY_S, &r.sub).min(room / 2.0)
     };
     let label_room = room - sub_w - if sub_w > 0.0 { tokens::GAP } else { 0.0 };
-    let label = ui.fit(tokens::LABEL, W::S, &r.label, label_room);
+    let label = ui.fit_as(LABEL_L, &r.label, label_room);
     let tone = if r.action.is_some() {
         Role::OnSurface
     } else {
         Role::OnSurfaceVariant
     };
-    ui.text_mid(x + pad, y, h, tokens::LABEL, W::S, tone, &label);
+    ui.text_mid_as((x + pad, y, h), LABEL_L, tone, &label);
     if sub_w > 0.0 {
-        let sub = ui.fit(tokens::CAPTION, W::R, &r.sub, sub_w);
-        ui.text_right(
-            x + w - pad - chevron,
-            y,
-            h,
-            tokens::CAPTION,
-            W::R,
+        let sub = ui.fit_as(BODY_S, &r.sub, sub_w);
+        ui.text_right_as(
+            (x + w - pad - chevron, y, h),
+            BODY_S,
             Role::OnSurfaceVariant,
             &sub,
         );

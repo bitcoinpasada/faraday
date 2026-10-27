@@ -31,7 +31,7 @@ use crate::drawing::View;
 use crate::nav::Nav;
 use crate::strings::{EN, fill};
 use crate::ui::pal::*;
-use crate::ui::{Style, Ui, W};
+use crate::ui::{Style, Ui};
 use crate::{Action, Screen, Sheet};
 pub(crate) use backup::{SOFTWARE_ROWS, extra_copies, held_item, item_title, item_title_now};
 pub(crate) use create::CSTEPS;
@@ -40,6 +40,7 @@ pub(crate) use entry::{
     codex32_check_button, codex32_found, codex32_head, codex32_mark, codex32_tick, entry_form,
     entry_scan, entry_stick, entry_typed, entry_words, keyed_status, word_count_row,
 };
+use faraday_draw::tokens::{BODY_S, BUTTON_H, LABEL_L, TITLE_M};
 use faraday_draw::tokens::{
     COLUMN_MAX, MARGIN_WIDE, NAV_BAR_H, PAGE_AREA_UNTIL_W, RAIL_W, READING_EXPLORE_W,
     READING_PAGE_W, READING_RANDOM_W, READING_TIME_W, SPACER, SUPPORT_PANE, SUPPORT_PANE_TOP,
@@ -314,13 +315,10 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
             let pressed = ui.is_pressed(Action::Learn);
             crate::ui::fill_pressed(ui, (qx, qy, 28.0, 28.0, 14.0), Role::Surface, pressed);
             ui.stroke(qx, qy, 28.0, 28.0, 14.0, Role::OutlineVariant);
-            let tw = ui.measure(14.0, W::S, "?");
-            ui.text_mid(
-                qx + 14.0 - tw / 2.0,
-                qy,
-                28.0,
-                14.0,
-                W::S,
+            let tw = ui.measure_as(LABEL_L, "?");
+            ui.text_mid_as(
+                (qx + 14.0 - tw / 2.0, qy, 28.0),
+                LABEL_L,
                 Role::OnSurfaceVariant,
                 "?",
             );
@@ -690,8 +688,16 @@ fn draw_compact(app: &View, ui: &mut Ui, area: (f32, f32), h: f32, kb: bool, y0:
             ui.fill(0.0, y, aw, 1.0, 0.0, Role::OutlineVariant);
             ui.ox = cx;
             let m = crate::compact::M;
-            let label = ui.fit(15.0, W::S, &label, w - 2.0 * m - 24.0);
-            ui.button(m, y + 10.0, Some(w - 2.0 * m), 44.0, &label, style, action);
+            let label = ui.fit_as(TITLE_M, &label, w - 2.0 * m - 24.0);
+            ui.button(
+                m,
+                y + 10.0,
+                Some(w - 2.0 * m),
+                BUTTON_H,
+                &label,
+                style,
+                action,
+            );
             foot = y;
         }
     }
@@ -704,7 +710,7 @@ fn draw_compact(app: &View, ui: &mut Ui, area: (f32, f32), h: f32, kb: bool, y0:
 fn notices(app: &View, ui: &mut Ui, x: f32, cw: f32, h: f32) {
     if app.stick.not_now() && !app.stick.is_empty() && app.sheet.is_none() {
         let msg = &fill(EN.notices_remove_medium, &[app.medium.noun()]);
-        let bw = ui.measure(14.0, W::S, msg) + 40.0;
+        let bw = ui.measure_as(LABEL_L, msg) + 40.0;
         let bx = x + (cw - bw) / 2.0;
         ui.shadow(
             bx,
@@ -716,12 +722,9 @@ fn notices(app: &View, ui: &mut Ui, x: f32, cw: f32, h: f32) {
         );
         ui.fill(bx, h - 64.0, bw, 44.0, 10.0, Role::WarningContainer);
         ui.stroke(bx, h - 64.0, bw, 44.0, 10.0, Role::Warning.with_alpha(110));
-        ui.text_mid(
-            bx + 20.0,
-            h - 64.0,
-            44.0,
-            14.0,
-            W::S,
+        ui.text_mid_as(
+            (bx + 20.0, h - 64.0, 44.0),
+            LABEL_L,
             Role::OnWarningContainer,
             msg,
         );
@@ -799,31 +802,21 @@ fn selftest_failed(ui: &mut Ui, w: f32, h: f32, check: &str) {
     let x = (w - cw) / 2.0;
     let mut y = (h / 2.0 - 120.0).max(24.0);
     ui.icon(x, y, 30.0, Icon::Error, 18.0, Role::Error);
-    ui.text_mid(
-        x + 42.0,
-        y,
-        30.0,
-        20.0,
-        W::S,
+    ui.text_mid_as(
+        (x + 42.0, y, 30.0),
+        faraday_draw::tokens::sheet_head(false),
         Role::OnSurface,
         s.selftest_failed_title,
     );
     y += 56.0;
-    ui.text(
-        x,
-        y,
-        12.0,
-        W::R,
-        Role::OnSurfaceVariant,
-        s.selftest_check_row,
-    );
+    ui.text_as(x, y, BODY_S, Role::OnSurfaceVariant, s.selftest_check_row);
     y += 20.0;
-    y += ui.wrap(x, y, cw, 15.0, W::S, Role::Error, check) + 32.0;
+    y += ui.wrap_as((x, y, cw), TITLE_M, Role::Error, check) + 32.0;
     ui.button(
         x,
         y,
         Some(140.0),
-        46.0,
+        BUTTON_H,
         s.selftest_exit,
         Style::Primary,
         Action::PowerOff,

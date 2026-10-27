@@ -29,6 +29,7 @@ use crate::strings::EN;
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui, W};
 use crate::{Action, Faraday, FileKind, Screen, Sheet, StorageCommand, stick};
+use faraday_draw::tokens::{BODY_M, FIELD_H, FIELD_PAD, LABEL_M};
 
 /// A file row with a ⋮, by its place in its list.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -688,8 +689,13 @@ fn head(ui: &mut Ui, x: f32, y: f32, iw: f32, title: &str) -> f32 {
         return crate::compact::sheet_head(ui, x, y, iw, Icon::File, Role::OnSurface, title);
     }
     ui.icon(x, y, 30.0, Icon::File, 18.0, Role::OnSurface);
-    let t = ui.fit(20.0, W::S, title, iw - 42.0);
-    ui.text_mid(x + 42.0, y, 30.0, 20.0, W::S, Role::OnSurface, &t);
+    let t = ui.fit_as(faraday_draw::tokens::sheet_head(false), title, iw - 42.0);
+    ui.text_mid_as(
+        (x + 42.0, y, 30.0),
+        faraday_draw::tokens::sheet_head(false),
+        Role::OnSurface,
+        &t,
+    );
     46.0
 }
 
@@ -706,42 +712,38 @@ pub(crate) fn rename_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     scroll_sheet(ui, place, h, margin, pad, &mut |ui, x, y, iw| {
         let mut cy = y;
         cy += head(ui, x, cy, iw, &title);
-        let fh = 40.0;
+        let fh = FIELD_H;
         let ew = if r.ext.is_empty() {
             0.0
         } else {
-            ui.measure(14.0, W::M, &r.ext) + tokens::GAP_SMALL
+            ui.measure_as(BODY_M.mono(), &r.ext) + tokens::GAP_SMALL
         };
         let fw = iw - ew;
-        ui.fill(x, cy, fw, fh, 8.0, Role::SurfaceContainerHighest);
-        ui.stroke(x, cy, fw, fh, 8.0, Role::Primary);
+        ui.field_box((x, cy, fw), true, None);
         ui.typed(
-            x + 12.0,
+            x + FIELD_PAD,
             cy,
             fh,
-            14.0,
-            W::M,
+            (BODY_M.mono()).size,
+            W::from((BODY_M.mono()).face),
             Role::OnSurface,
             &r.stem,
-            fw - 24.0,
+            fw - 2.0 * FIELD_PAD,
             true,
             FIELD,
         );
         ui.hit(x, cy, fw, fh, FIELD);
         if ew > 0.0 {
-            ui.text_mid(
-                x + fw + tokens::GAP_SMALL,
-                cy,
-                fh,
-                14.0,
-                W::M,
+            ui.text_mid_as(
+                (x + fw + tokens::GAP_SMALL, cy, fh),
+                BODY_M.mono(),
                 Role::OnSurfaceVariant,
                 &r.ext,
             );
         }
         cy += fh + tokens::GAP_SMALL;
         if let Err(Some(why)) = &checked {
-            cy += ui.wrap(x, cy, iw, 13.0, W::R, Role::Error, why) + tokens::GAP_SMALL;
+            cy += ui.wrap_as((x, cy, iw), BODY_M, Role::Error, why) + tokens::GAP_SMALL;
         }
         cy += tokens::GAP_SMALL;
         let go = Style::Primary.when(checked.is_ok());
@@ -785,15 +787,15 @@ pub(crate) fn details_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         let mut cy = y;
         cy += head(ui, x, cy, iw, EN.file_menu_details);
         for (label, value) in rows {
-            ui.text(x, cy, 12.0, W::S, Role::OnSurfaceVariant, label);
+            ui.text_as(x, cy, LABEL_M, Role::OnSurfaceVariant, label);
             cy += 18.0;
-            cy += ui.wrap(x, cy, iw, 14.0, W::M, Role::OnSurface, value) + tokens::GAP;
+            cy += ui.wrap_as((x, cy, iw), BODY_M.mono(), Role::OnSurface, value) + tokens::GAP;
         }
-        ui.text(x, cy, 12.0, W::S, Role::OnSurfaceVariant, EN.details_sha);
+        ui.text_as(x, cy, LABEL_M, Role::OnSurfaceVariant, EN.details_sha);
         cy += 18.0;
         for line in &sha {
-            let shown = ui.fit(14.0, W::M, line, iw);
-            ui.text(x, cy, 14.0, W::M, Role::OnSurface, &shown);
+            let shown = ui.fit_as(BODY_M.mono(), line, iw);
+            ui.text_as(x, cy, BODY_M.mono(), Role::OnSurface, &shown);
             cy += 22.0;
         }
         cy += tokens::GAP;

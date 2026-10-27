@@ -16,8 +16,11 @@ use faraday_draw::widgets::Icon;
 use crate::Action;
 use crate::ui::Disclosure;
 use crate::ui::pal::*;
-use crate::ui::{Style, Ui, W};
+use crate::ui::{Style, Ui};
 use faraday_draw::tokens;
+use faraday_draw::tokens::{
+    BODY_M, BODY_S, BUTTON_H, HEADLINE_S, LABEL_L, LABEL_M, SEGMENTED_H, TITLE_M,
+};
 
 /// How far in from a step's left edge its body is drawn, under its title.
 pub const BODY_INDENT: f32 = 58.0;
@@ -155,12 +158,12 @@ pub fn column_wide(
             10.0,
             Role::OnSurfaceVariant,
         );
-        let lw = ui.text(x + 14.0, y, 12.0, W::R, Role::OnSurfaceVariant, label);
+        let lw = ui.text_as(x + 14.0, y, BODY_S, Role::OnSurfaceVariant, label);
         ui.hit(x - 4.0, y - 4.0, lw + 30.0, 24.0, action);
         ui.back(action);
         y += 22.0;
     }
-    let hw = ui.text(x, y, 26.0, W::S, Role::OnSurface, col.heading);
+    let hw = ui.text_as(x, y, HEADLINE_S.medium(), Role::OnSurface, col.heading);
     // Cancel at the right end, then Steps only or Guided beside it;
     // laid out from the right.
     // The wide layout's top-right row (the mode pill and the ?) stands
@@ -175,14 +178,14 @@ pub fn column_wide(
         x + w
     };
     if col.cancel {
-        let bw = ui.measure(13.0, W::S, EN.flow_cancel) + 32.0;
+        let bw = ui.measure_as(LABEL_L, EN.flow_cancel) + 32.0;
         bx -= bw;
         let a = Action::CancelFlow;
         ui.button(
             bx,
             y + 2.0,
             Some(bw),
-            30.0,
+            BUTTON_H,
             EN.flow_cancel,
             Style::Secondary,
             a,
@@ -218,12 +221,9 @@ pub fn column_wide(
     }
     y += 52.0 + chip_line;
     if let Some(note) = col.note {
-        let nh = ui.wrap(
-            x + 14.0,
-            y,
-            w - 14.0,
-            13.0,
-            W::R,
+        let nh = ui.wrap_as(
+            (x + 14.0, y, w - 14.0),
+            BODY_S,
             Role::OnSurfaceVariant,
             note,
         );
@@ -311,12 +311,9 @@ pub fn column_wide(
             card.done,
             card.open,
         );
-        ui.text_mid(
-            x + 58.0,
-            card_top,
-            56.0,
-            15.0,
-            W::S,
+        ui.text_mid_as(
+            (x + 58.0, card_top, 56.0),
+            TITLE_M,
             Role::OnSurface,
             &card.title,
         );
@@ -324,30 +321,27 @@ pub fn column_wide(
         // right, in place of the chevron, over the value it is set to.
         let change = !card.open && card.default;
         let change_w = if change {
-            ui.measure(13.0, W::S, EN.flow_change)
+            ui.measure_as(LABEL_L, EN.flow_change)
         } else {
             0.0
         };
         if !card.open {
-            let tw = ui.measure(15.0, W::S, &card.title);
+            let tw = ui.measure_as(TITLE_M, &card.title);
             let right_reserved = if change { 28.0 + change_w } else { 60.0 };
             let room = w - 58.0 - tw - right_reserved;
-            let face = if card.mono { W::M } else { W::R };
-            let s = ui.fit(13.0, face, &card.summary, room);
+            let role = if card.mono { BODY_S.mono() } else { BODY_S };
+            let s = ui.fit_as(role, &card.summary, room);
             let edge = if change {
                 x + w - 18.0 - change_w - 10.0
             } else {
                 x + w - 46.0
             };
-            ui.text_right(edge, card_top, 56.0, 13.0, face, Role::OnSurfaceVariant, &s);
+            ui.text_right_as((edge, card_top, 56.0), role, Role::OnSurfaceVariant, &s);
         }
         if change {
-            ui.text_right(
-                x + w - 18.0,
-                card_top,
-                56.0,
-                13.0,
-                W::S,
+            ui.text_right_as(
+                (x + w - 18.0, card_top, 56.0),
+                LABEL_L,
                 Role::Primary,
                 EN.flow_change,
             );
@@ -440,7 +434,7 @@ fn paged(
     let mut y = top + 10.0;
     let inner = w - 2.0 * M;
     if let Some(chip) = col.chip {
-        let chip = ui.fit(12.0, W::R, chip, inner - 34.0);
+        let chip = ui.fit_as(BODY_S, chip, inner - 34.0);
         let cw = ui.chip(
             M,
             y,
@@ -461,20 +455,12 @@ fn paged(
             // Change, which opens it.
             let mut defaults = false;
             for c in cards[..i].iter().filter(|c| c.default && !c.open) {
-                let cw = ui.measure(13.0, W::S, EN.flow_change);
+                let cw = ui.measure_as(LABEL_L, EN.flow_change);
                 let line = format!("{} · {}", c.title, c.summary);
-                let face = if c.mono { W::M } else { W::R };
-                let line = ui.fit(13.0, face, &line, inner - cw - 16.0);
-                ui.text_mid(M, y, 34.0, 13.0, face, Role::OnSurfaceVariant, &line);
-                ui.text_right(
-                    M + inner,
-                    y,
-                    34.0,
-                    13.0,
-                    W::S,
-                    Role::Primary,
-                    EN.flow_change,
-                );
+                let role = if c.mono { BODY_S.mono() } else { BODY_S };
+                let line = ui.fit_as(role, &line, inner - cw - 16.0);
+                ui.text_mid_as((M, y, 34.0), role, Role::OnSurfaceVariant, &line);
+                ui.text_right_as((M + inner, y, 34.0), LABEL_L, Role::Primary, EN.flow_change);
                 ui.hit(M, y, inner, 34.0, c.toggle);
                 y += 36.0;
                 defaults = true;
@@ -493,11 +479,11 @@ fn paged(
                 EN.flow_step_count,
                 &[&(i + 1).to_string(), &cards.len().to_string()],
             );
-            let count_w = ui.measure(12.0, W::R, &count);
+            let count_w = ui.measure_as(BODY_S, &count);
             let title_w = inner - count_w - 10.0;
-            let lh = ui.line(18.0, W::S);
-            let th = ui.wrap(M, y, title_w, 18.0, W::S, Role::OnSurface, &card.title);
-            ui.text_right(M + inner, y, lh, 12.0, W::R, Role::OnSurfaceVariant, &count);
+            let lh = ui.line_as(TITLE_M);
+            let th = ui.wrap_as((M, y, title_w), TITLE_M, Role::OnSurface, &card.title);
+            ui.text_right_as((M + inner, y, lh), BODY_S, Role::OnSurfaceVariant, &count);
             ui.hit(M, y, inner, th, card.toggle);
             y += th + 10.0;
             y += body(ui, i, M, y, inner);
@@ -512,12 +498,9 @@ fn paged(
                     y += about(ui, M, y, inner, label, i as u8, (text, card.learn));
                 } else {
                     y += 8.0;
-                    let gh = ui.wrap(
-                        M + 12.0,
-                        y,
-                        inner - 12.0,
-                        13.0,
-                        W::R,
+                    let gh = ui.wrap_as(
+                        (M + 12.0, y, inner - 12.0),
+                        BODY_S,
                         Role::OnSurfaceVariant,
                         text,
                     );
@@ -528,12 +511,9 @@ fn paged(
         }
         None => {
             if let Some(note) = col.note {
-                let nh = ui.wrap(
-                    M + 12.0,
-                    y,
-                    inner - 12.0,
-                    13.0,
-                    W::R,
+                let nh = ui.wrap_as(
+                    (M + 12.0, y, inner - 12.0),
+                    BODY_S,
                     Role::OnSurfaceVariant,
                     note,
                 );
@@ -555,18 +535,11 @@ fn paged(
                 ui.rule(M, y, inner, Role::OutlineVariant);
                 ui.badge(M + 10.0, y + 13.0, &(i + 1).to_string(), card.done, false);
                 let tw = inner - 70.0;
-                let title = ui.fit(14.0, W::S, &card.title, tw);
-                ui.text(M + 46.0, y + 8.0, 14.0, W::S, Role::OnSurface, &title);
-                let face = if card.mono { W::M } else { W::R };
-                let summary = ui.fit(12.0, face, &card.summary, tw);
-                ui.text(
-                    M + 46.0,
-                    y + 29.0,
-                    12.0,
-                    face,
-                    Role::OnSurfaceVariant,
-                    &summary,
-                );
+                let title = ui.fit_as(LABEL_L, &card.title, tw);
+                ui.text_as(M + 46.0, y + 8.0, LABEL_L, Role::OnSurface, &title);
+                let role = if card.mono { BODY_S.mono() } else { BODY_S };
+                let summary = ui.fit_as(role, &card.summary, tw);
+                ui.text_as(M + 46.0, y + 29.0, role, Role::OnSurfaceVariant, &summary);
                 ui.icon(
                     M + inner - 24.0,
                     y + 16.0,
@@ -620,10 +593,10 @@ fn paged(
     // The ?, the keyboard and Cancel go over its right end
     // (`compact::flow_bar_tools`).
     let room = ui.bar_tools_x.unwrap_or(w - M) - BAR_H;
-    let label = ui.fit(11.0, W::R, back.0, room);
-    ui.text(BAR_H, 5.0, 11.0, W::R, Role::OnSurfaceVariant, &label);
-    let heading = ui.fit(16.0, W::S, col.heading, room);
-    ui.text(BAR_H, 19.0, 16.0, W::S, Role::OnSurface, &heading);
+    let label = ui.fit_as(BODY_S, back.0, room);
+    ui.text_as(BAR_H, 5.0, BODY_S, Role::OnSurfaceVariant, &label);
+    let heading = ui.fit_as(TITLE_M, col.heading, room);
+    ui.text_as(BAR_H, 19.0, TITLE_M, Role::OnSurface, &heading);
 
     let max = (content_h - (col.h - BAR_H)).max(0.0);
     ui.report_scroll(clip, max);
@@ -663,15 +636,7 @@ pub(crate) fn about(
         );
     }
     ui.icon(x, cy + 8.0, 20.0, Icon::Info, 11.0, Role::OnSurfaceVariant);
-    ui.text_mid(
-        x + 26.0,
-        cy,
-        36.0,
-        13.0,
-        W::S,
-        Role::OnSurfaceVariant,
-        label,
-    );
+    ui.text_mid_as((x + 26.0, cy, 36.0), LABEL_M, Role::OnSurfaceVariant, label);
     ui.icon(
         x + w - 22.0,
         cy + 8.0,
@@ -687,12 +652,9 @@ pub(crate) fn about(
     ui.hit(x, cy, w, 36.0, action);
     cy += 42.0;
     if open {
-        let gh = ui.wrap(
-            x + 12.0,
-            cy,
-            w - 12.0,
-            13.0,
-            W::R,
+        let gh = ui.wrap_as(
+            (x + 12.0, cy, w - 12.0),
+            BODY_S,
             Role::OnSurfaceVariant,
             text,
         );
@@ -711,7 +673,7 @@ pub(crate) fn about(
 /// Returns its height with the gap above it.
 pub(crate) fn learn_link(ui: &mut Ui, x: f32, y: f32, w: f32, topic: crate::learn::Topic) -> f32 {
     let label = topic.label();
-    let bw = (ui.measure(tokens::GUIDE_LINK_TEXT, W::S, label) + tokens::GUIDE_LINK_PAD).min(w);
+    let bw = (ui.measure_as(LABEL_L, label) + tokens::GUIDE_LINK_PAD).min(w);
     ui.button(
         x,
         y + tokens::GUIDE_LINK_ABOVE,
@@ -726,7 +688,7 @@ pub(crate) fn learn_link(ui: &mut Ui, x: f32, y: f32, w: f32, topic: crate::lear
 
 /// The width of [`guided_choice`]. Arithmetic.
 pub(crate) fn guided_width(ui: &Ui) -> f32 {
-    ui.segment_width(12.0, &[EN.flow_steps_only, EN.flow_guided]) * 2.0
+    ui.segment_width(LABEL_L.size, &[EN.flow_steps_only, EN.flow_guided]) * 2.0
 }
 
 /// Steps only or Guided from (x, y): Material's segmented button, its
@@ -739,16 +701,16 @@ pub(crate) fn guided_choice(ui: &mut Ui, (x, y): (f32, f32), guided: bool) {
     ];
     let chosen = Some(usize::from(guided));
     let slide = Some(ui.guided_shown);
-    ui.segmented((x, y, 30.0), 12.0, &options, chosen, slide);
+    ui.segmented((x, y, SEGMENTED_H), LABEL_L.size, &options, chosen, slide);
 }
 
 /// A Guided text from (x, y), `w` wide: its words in body text beside a
 /// bar in the accent, as a flow's open card and Settings' cards show it.
 /// Returns its height.
 pub(crate) fn guide_text(ui: &mut Ui, (x, y, w): (f32, f32, f32), text: &str) -> f32 {
-    use tokens::{GUIDE_BAR, GUIDE_INDENT, LABEL};
+    use tokens::{GUIDE_BAR, GUIDE_INDENT};
     let tx = x + GUIDE_INDENT;
-    let gh = ui.wrap(tx, y, w - GUIDE_INDENT, LABEL, W::R, Role::OnSurface, text);
+    let gh = ui.wrap_as((tx, y, w - GUIDE_INDENT), BODY_M, Role::OnSurface, text);
     let bar = Role::Primary.with_alpha(140);
     ui.fill(x, y, GUIDE_BAR, gh, GUIDE_BAR / 2.0, bar);
     gh

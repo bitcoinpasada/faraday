@@ -5,11 +5,12 @@ use crate::Action;
 use crate::drawing::View;
 use crate::strings::{EN, fill};
 use crate::ui::pal::*;
-use crate::ui::{Style, Ui, W};
+use crate::ui::{Style, Ui};
 use faraday_draw::tokens::{
     APPEARANCE_LABEL_W, APPEARANCE_ROW_GAP, COLUMN_MAX, GAP, GUIDE_AFTER, MARGIN_WIDE, PANE_TOP,
     PANE_TOP_BAR, SETTINGS_CARD_MIN, SPACER, TOUCH,
 };
+use faraday_draw::tokens::{BODY_M, BODY_S, BUTTON_H, LABEL_L, SEGMENTED_H, TITLE_M};
 use faraday_ui::parts::{title, wrap_buttons};
 use std::borrow::Cow;
 use std::sync::OnceLock;
@@ -135,7 +136,7 @@ fn part_body(app: &View, ui: &mut Ui, p: Part, at: (f32, f32, f32)) -> f32 {
                 x,
                 y,
                 w,
-                38.0,
+                BUTTON_H,
                 &[(app.medium.upgrade(), Style::Secondary, Action::UpgradeOpen)],
             ) - 8.0
         }
@@ -159,7 +160,7 @@ fn session_body(app: &View, ui: &mut Ui, (x, y0, w): (f32, f32, f32)) -> f32 {
             }),
         ],
     );
-    y += ui.wrap(x, y, w, 13.0, W::R, Role::OnSurfaceVariant, &line) + 10.0;
+    y += ui.wrap_as((x, y, w), BODY_S, Role::OnSurfaceVariant, &line) + 10.0;
     let mut items: Vec<(&str, Style, Action)> = Vec::new();
     if app.holds_secret() {
         items.push((EN.settings_lock, Style::Secondary, Action::LockAsk));
@@ -175,16 +176,16 @@ fn session_body(app: &View, ui: &mut Ui, (x, y0, w): (f32, f32, f32)) -> f32 {
         EN.settings_power_off_button
     };
     items.push((leave, Style::Secondary, Action::PowerAsk));
-    y += wrap_buttons(ui, x, y, w, 38.0, &items) + 4.0;
+    y += wrap_buttons(ui, x, y, w, BUTTON_H, &items) + 4.0;
     if !app.online {
-        y += ui.wrap(x, y, w, 13.0, W::R, Role::OnSurfaceVariant, PANIC_KEY) + 10.0;
+        y += ui.wrap_as((x, y, w), BODY_S, Role::OnSurfaceVariant, PANIC_KEY) + 10.0;
     }
     for (label, now, choices, action) in idle_rows(app) {
-        ui.text(x, y, 13.0, W::R, Role::OnSurfaceVariant, label);
+        ui.text_as(x, y, BODY_S, Role::OnSurfaceVariant, label);
         y += 22.0;
         let items: Vec<(&str, Action)> = choices.iter().map(|&m| (minutes(m), action(m))).collect();
         let on = choices.iter().position(|&m| now == m);
-        y += ui.choices((x, y, w, 36.0), 13.0, &items, on) + 10.0;
+        y += ui.choices((x, y, w, SEGMENTED_H), LABEL_L.size, &items, on) + 10.0;
     }
     if !app.ignored_inputs().is_empty() {
         let names: Vec<&str> = app
@@ -193,7 +194,7 @@ fn session_body(app: &View, ui: &mut Ui, (x, y0, w): (f32, f32, f32)) -> f32 {
             .map(|(_, n)| n.as_str())
             .collect();
         let line = fill(EN.settings_ignored_until, &[&names.join(", ").to_string()]);
-        y += ui.wrap(x, y, w, 13.0, W::R, Role::Warning, &line) + 6.0;
+        y += ui.wrap_as((x, y, w), BODY_M, Role::Warning, &line) + 6.0;
     }
     y - y0
 }
@@ -202,15 +203,15 @@ fn session_body(app: &View, ui: &mut Ui, (x, y0, w): (f32, f32, f32)) -> f32 {
 /// reads the clock is its explainer, under Guided. Returns its height.
 fn time_body(app: &View, ui: &mut Ui, (x, y0, w): (f32, f32, f32)) -> f32 {
     let mut y = y0;
-    ui.text(x, y, 13.0, W::R, Role::OnSurfaceVariant, EN.settings_now);
+    ui.text_as(x, y, BODY_S, Role::OnSurfaceVariant, EN.settings_now);
     y += 20.0;
-    y += ui.wrap(x, y, w, 15.0, W::S, Role::OnSurface, &app.now_local_text()) + 10.0;
+    y += ui.wrap_as((x, y, w), TITLE_M, Role::OnSurface, &app.now_local_text()) + 10.0;
     y += tz_row(ui, x, y, w, app.tz_min()) + 10.0;
     y += ui.button(
         x,
         y,
         None,
-        38.0,
+        BUTTON_H,
         EN.settings_set_the_time,
         Style::Secondary,
         Action::OpenSetTime,
@@ -221,18 +222,10 @@ fn time_body(app: &View, ui: &mut Ui, (x, y0, w): (f32, f32, f32)) -> f32 {
 /// Randomness (`docs/OWN-RANDOMNESS.md` §2.2, §2.4): the status line and
 /// Add randomness. Returns its height.
 fn randomness_body(app: &View, ui: &mut Ui, (x, y0, w): (f32, f32, f32)) -> f32 {
-    use faraday_draw::tokens::{GAP, OWN_BUTTON, OWN_LINE_TEXT};
+    use faraday_draw::tokens::{GAP, OWN_BUTTON};
     let status = app.own_status();
     let mut y = y0;
-    y += ui.wrap(
-        x,
-        y,
-        w,
-        OWN_LINE_TEXT,
-        W::R,
-        Role::OnSurfaceVariant,
-        &status,
-    ) + GAP;
+    y += ui.wrap_as((x, y, w), BODY_S, Role::OnSurfaceVariant, &status) + GAP;
     ui.button(
         x,
         y,
@@ -285,7 +278,7 @@ fn scale_body(app: &View, ui: &mut Ui, (x, y0, w): (f32, f32, f32)) -> f32 {
         })
         .collect();
     let on = SCALES.iter().position(|&pct| app.scale_pct() == pct);
-    ui.choices((x, y0, w, 36.0), 13.0, &items, on)
+    ui.choices((x, y0, w, SEGMENTED_H), LABEL_L.size, &items, on)
 }
 
 /// Signed amounts: how many are remembered, and whether they are sealed
@@ -304,14 +297,14 @@ fn signed_body(app: &View, ui: &mut Ui, (x, y0, w): (f32, f32, f32)) -> f32 {
             }),
         ],
     );
-    ui.text(x, y, 13.0, W::R, Role::OnSurfaceVariant, &line);
+    ui.text_as(x, y, BODY_S, Role::OnSurfaceVariant, &line);
     y += 24.0;
     let items = [
         (EN.settings_sealed_into, Action::SealAmounts(true)),
         (EN.settings_kept_until, Action::SealAmounts(false)),
     ];
     let on = Some(usize::from(!app.seal_amounts()));
-    y += ui.choices((x, y, w, 38.0), 14.0, &items, on);
+    y += ui.choices((x, y, w, SEGMENTED_H), LABEL_L.size, &items, on);
     y - y0
 }
 
@@ -333,7 +326,7 @@ fn about_body(app: &View, ui: &mut Ui, (x, y0, w): (f32, f32, f32)) -> f32 {
         },
     ];
     for l in &lines {
-        y += ui.wrap(x, y, w, 13.0, W::R, Role::OnSurfaceVariant, l) + 8.0;
+        y += ui.wrap_as((x, y, w), BODY_S, Role::OnSurfaceVariant, l) + 8.0;
     }
     let s = &EN;
     let (result, tone) = match app.selftest() {
@@ -345,22 +338,15 @@ fn about_body(app: &View, ui: &mut Ui, (x, y0, w): (f32, f32, f32)) -> f32 {
         None => (EN.settings_not_run.to_string(), Role::OnSurfaceVariant),
     };
     y += 4.0;
-    ui.text(
-        x,
-        y,
-        13.0,
-        W::R,
-        Role::OnSurfaceVariant,
-        s.settings_selftest,
-    );
+    ui.text_as(x, y, BODY_S, Role::OnSurfaceVariant, s.settings_selftest);
     y += 20.0;
-    y += ui.wrap(x, y, w, 13.0, W::S, tone, &result) + 8.0;
+    y += ui.wrap_as((x, y, w), LABEL_L, tone, &result) + 8.0;
     y += wrap_buttons(
         ui,
         x,
         y,
         w,
-        34.0,
+        BUTTON_H,
         &[(
             s.settings_selftest_run,
             Style::Secondary,
@@ -467,15 +453,15 @@ fn institute_note(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     const SITE: &str = "nakamotoinstitute.org";
     let note = fill(EN.institute_note_visit, &[SITE]);
     if !app.online {
-        return ui.wrap(x, y, w, 13.0, W::R, Role::OnSurfaceVariant, &note);
+        return ui.wrap_as((x, y, w), BODY_S, Role::OnSurfaceVariant, &note);
     }
     // Word by word, breaking at a space as `Ui::wrap` does, the site's
     // name in the accent, underlined and pressable.
-    let line_h = ui.line(13.0, W::R);
-    let space = ui.measure(13.0, W::R, " ");
+    let line_h = ui.line_as(BODY_S);
+    let space = ui.measure_as(BODY_S, " ");
     let (mut cx, mut cy) = (x, y);
     for word in note.split_whitespace() {
-        let ww = ui.measure(13.0, W::R, word);
+        let ww = ui.measure_as(BODY_S, word);
         if cx > x && cx + ww > x + w {
             cx = x;
             cy += line_h;
@@ -486,7 +472,7 @@ fn institute_note(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             } else {
                 Role::Primary
             };
-            ui.text(cx, cy, 13.0, W::R, tone, word);
+            ui.text_as(cx, cy, BODY_S, tone, word);
             ui.fill(cx, cy + line_h - 3.0, ww, 1.0, 0.0, tone);
             ui.hit(
                 cx - 2.0,
@@ -496,7 +482,7 @@ fn institute_note(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                 Action::OpenInstitute,
             );
         } else {
-            ui.text(cx, cy, 13.0, W::R, Role::OnSurfaceVariant, word);
+            ui.text_as(cx, cy, BODY_S, Role::OnSurfaceVariant, word);
         }
         cx += ww + space;
     }

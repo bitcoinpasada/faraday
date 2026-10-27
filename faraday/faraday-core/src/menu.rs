@@ -13,7 +13,8 @@ use faraday_shell_api::Key as KeyIn;
 
 use crate::Action;
 use crate::ui::pal::*;
-use crate::ui::{Style, Ui, W};
+use crate::ui::{Style, Ui};
+use faraday_draw::tokens::{BODY_M, LABEL_M};
 
 /// One row of a menu.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -158,13 +159,10 @@ fn rows(ui: &mut Ui, v: &View, x: f32, y: f32, w: f32) -> f32 {
                     cy += tokens::GAP_SMALL;
                 }
                 let hx = x + tokens::GAP_SMALL;
-                let shown = ui.fit(tokens::CAPTION, W::S, name, w - tokens::GAP_SMALL);
-                ui.text_mid(
-                    hx,
-                    cy,
-                    tokens::BOARD_ZONE_LABEL,
-                    tokens::CAPTION,
-                    W::S,
+                let shown = ui.fit_as(LABEL_M, name, w - tokens::GAP_SMALL);
+                ui.text_mid_as(
+                    (hx, cy, tokens::BOARD_ZONE_LABEL),
+                    LABEL_M,
                     Role::OnSurfaceVariant,
                     &shown,
                 );
@@ -192,8 +190,8 @@ fn rows(ui: &mut Ui, v: &View, x: f32, y: f32, w: f32) -> f32 {
                     );
                 }
                 let ix = x + tokens::GAP_SMALL + if under { tokens::BOARD_PAD } else { 0.0 };
-                let shown = ui.fit(tokens::LABEL, W::R, label, x + w - ix - tokens::GAP_SMALL);
-                ui.text_mid(ix, cy, rh, tokens::LABEL, W::R, Role::OnSurface, &shown);
+                let shown = ui.fit_as(BODY_M, label, x + w - ix - tokens::GAP_SMALL);
+                ui.text_mid_as((ix, cy, rh), BODY_M, Role::OnSurface, &shown);
                 ui.hit(x, cy, w, rh, a);
                 cy += rh;
                 k += 1;
@@ -229,13 +227,10 @@ pub(crate) fn draw(ui: &mut Ui, w: f32, h: f32, v: &View) {
     let pw = tokens::BOARD_POPUP_WIDTH.min(w - 2.0 * margin);
     let iw = pw - 2.0 * pad;
     let body = |ui: &mut Ui, x: f32, y: f32| -> f32 {
-        let shown = ui.fit(tokens::CAPTION, W::S, v.title, iw - tokens::GAP_SMALL);
-        ui.text_mid(
-            x + tokens::GAP_SMALL,
-            y,
-            tokens::BOARD_ZONE_LABEL,
-            tokens::CAPTION,
-            W::S,
+        let shown = ui.fit_as(LABEL_M, v.title, iw - tokens::GAP_SMALL);
+        ui.text_mid_as(
+            (x + tokens::GAP_SMALL, y, tokens::BOARD_ZONE_LABEL),
+            LABEL_M,
             Role::OnSurface,
             &shown,
         );

@@ -11,10 +11,11 @@ use crate::drawing::View;
 use crate::strings::EN;
 use crate::ui::Paint;
 use crate::ui::pal::*;
-use crate::ui::{Style, Ui, W};
+use crate::ui::{Style, Ui};
 use crate::wallet::network_name;
+use faraday_draw::tokens::{BODY_M, LABEL_L, LABEL_M};
 use faraday_draw::tokens::{
-    CAPTION, GAP, LABEL, MODE_PILL_HEIGHT, MODE_PILL_PAD, MODE_ROW, MODE_SHEET_WIDTH, PAD, TITLE,
+    GAP, LABEL, MODE_PILL_HEIGHT, MODE_PILL_PAD, MODE_ROW, MODE_SHEET_WIDTH, PAD,
 };
 use faraday_draw::widgets::Icon;
 
@@ -33,7 +34,7 @@ fn pill_label(app: &View) -> &'static str {
 
 /// The mode pill's own width.
 fn mode_width(app: &View, ui: &Ui) -> f32 {
-    ui.measure(CAPTION, W::S, pill_label(app)) + 2.0 * MODE_PILL_PAD
+    ui.measure_as(LABEL_M, pill_label(app)) + 2.0 * MODE_PILL_PAD
 }
 
 /// The pill's width, for a row that makes room for it. Load samples is
@@ -47,7 +48,7 @@ fn chip(ui: &mut Ui, (px, py, pw): (f32, f32, f32), label: &str, tone: Paint, ac
     let h = MODE_PILL_HEIGHT;
     ui.fill(px, py, pw, h, h / 2.0, tone.with_alpha(30));
     ui.stroke(px, py, pw, h, h / 2.0, tone.with_alpha(110));
-    ui.text_mid(px + MODE_PILL_PAD, py, h, CAPTION, W::S, tone, label);
+    ui.text_mid_as((px + MODE_PILL_PAD, py, h), LABEL_M, tone, label);
     ui.hit(px, py, pw, h, action);
 }
 
@@ -68,15 +69,7 @@ pub(crate) fn pill(app: &View, ui: &mut Ui, px: f32, py: f32) -> f32 {
 /// Settings' Mode row: "Mode" and the mode's name, a chevron; it opens
 /// the sheet. Returns its height.
 pub(crate) fn settings_row(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
-    ui.text_mid(
-        x,
-        y,
-        MODE_ROW,
-        LABEL,
-        W::S,
-        Role::OnSurface,
-        EN.settings_mode,
-    );
+    ui.text_mid_as((x, y, MODE_ROW), LABEL_L, Role::OnSurface, EN.settings_mode);
     ui.icon(
         x + w - MODE_ROW / 2.0 - GAP,
         y,
@@ -86,13 +79,10 @@ pub(crate) fn settings_row(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f
         Role::OnSurfaceVariant,
     );
     let name = app.mode().name();
-    let nw = ui.measure(LABEL, W::R, name);
-    ui.text_mid(
-        x + w - 3.0 * GAP - nw,
-        y,
-        MODE_ROW,
-        LABEL,
-        W::R,
+    let nw = ui.measure_as(BODY_M, name);
+    ui.text_mid_as(
+        (x + w - 3.0 * GAP - nw, y, MODE_ROW),
+        BODY_M,
         Role::OnSurfaceVariant,
         name,
     );
@@ -130,8 +120,13 @@ pub(crate) fn head(ui: &mut Ui, (x, y, w): (f32, f32, f32), icon: Icon, title: &
         sheet_head(ui, x, y, w, icon, Role::Primary, title)
     } else {
         ui.icon(x, y, 30.0, icon, 18.0, Role::Primary);
-        let t = ui.fit(TITLE, W::S, title, w - 42.0);
-        ui.text_mid(x + 42.0, y, 30.0, TITLE, W::S, Role::OnSurface, &t);
+        let t = ui.fit_as(faraday_draw::tokens::sheet_head(false), title, w - 42.0);
+        ui.text_mid_as(
+            (x + 42.0, y, 30.0),
+            faraday_draw::tokens::sheet_head(false),
+            Role::OnSurface,
+            &t,
+        );
         46.0
     }
 }
@@ -184,26 +179,18 @@ fn mode_row(ui: &mut Ui, x: f32, ry: f32, w: f32, m: Mode, on: bool, live: bool)
     } else {
         crate::ui::off()
     };
-    ui.text_mid(x + GAP, ry, MODE_ROW, LABEL, W::R, fg, m.name());
+    ui.text_mid_as((x + GAP, ry, MODE_ROW), BODY_M, fg, m.name());
     if on {
         ui.icon(x + w - mark, ry, mark, Icon::Done, LABEL, Role::Primary);
     }
     if m == Mode::Demo {
         let value = network_name(m.network());
-        let vw = ui.measure(LABEL, W::R, value);
+        let vw = ui.measure_as(BODY_M, value);
         let vc = if live {
             Role::OnSurfaceVariant.paint()
         } else {
             crate::ui::off()
         };
-        ui.text_mid(
-            x + w - mark - GAP - vw,
-            ry,
-            MODE_ROW,
-            LABEL,
-            W::R,
-            vc,
-            value,
-        );
+        ui.text_mid_as((x + w - mark - GAP - vw, ry, MODE_ROW), BODY_M, vc, value);
     }
 }

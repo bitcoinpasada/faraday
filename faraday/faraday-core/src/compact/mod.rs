@@ -14,8 +14,9 @@ use faraday_draw::widgets::Icon;
 
 use crate::drawing::View;
 use crate::ui::pal::*;
-use crate::ui::{Glyph, Style, Ui, W};
+use crate::ui::{Glyph, Style, Ui};
 use crate::{Action, Faraday, Screen};
+use faraday_draw::tokens::{BODY_S, BUTTON_H, LABEL_L, LABEL_S, TITLE_M};
 pub(crate) use faraday_ui::sheet::{
     buttons, dialog, kv, kv_sheet, scroll_sheet, sheet, sheet_head,
 };
@@ -110,10 +111,10 @@ pub(crate) fn bar(app: &View, ui: &mut Ui, w: f32, back: (&str, Action), name: &
     // The page's own name, and above it, small, where Back goes.
     let x = BAR_H;
     let room = right - x;
-    let label = ui.fit(11.0, W::R, label, room);
-    ui.text(x, 5.0, 11.0, W::R, Role::OnSurfaceVariant, &label);
-    let name = ui.fit(16.0, W::S, name, room);
-    ui.text(x, 19.0, 16.0, W::S, Role::OnSurface, &name);
+    let label = ui.fit_as(BODY_S, label, room);
+    ui.text_as(x, 5.0, BODY_S, Role::OnSurfaceVariant, &label);
+    let name = ui.fit_as(TITLE_M, name, room);
+    ui.text_as(x, 19.0, TITLE_M, Role::OnSurface, &name);
     BAR_H
 }
 
@@ -222,7 +223,7 @@ fn tools(app: &View, ui: &mut Ui, w: f32) -> f32 {
     // (`docs/FLOWS.md`, Cancel; F51).
     if app.cancel_shown() {
         let a = Action::CancelFlow;
-        let cw = ui.measure(13.0, W::S, EN.flow_cancel) + 20.0;
+        let cw = ui.measure_as(LABEL_L, EN.flow_cancel) + 20.0;
         let cx = right - cw;
         if draw {
             if ui.is_pressed(a) {
@@ -235,12 +236,9 @@ fn tools(app: &View, ui: &mut Ui, w: f32) -> f32 {
                     Role::OnSurface.at(faraday_draw::tokens::STATE_PRESS),
                 );
             }
-            ui.text_mid(
-                cx + 10.0,
-                0.0,
-                BAR_H,
-                13.0,
-                W::S,
+            ui.text_mid_as(
+                (cx + 10.0, 0.0, BAR_H),
+                LABEL_L,
                 Role::OnSurfaceVariant,
                 EN.flow_cancel,
             );
@@ -362,13 +360,10 @@ fn help(ui: &mut Ui, x: f32, y: f32) {
     let pressed = ui.is_pressed(Action::Learn);
     crate::ui::fill_pressed(ui, (x, y, 30.0, 30.0, 15.0), Role::Surface, pressed);
     ui.stroke(x, y, 30.0, 30.0, 15.0, Role::OutlineVariant);
-    let tw = ui.measure(14.0, W::S, "?");
-    ui.text_mid(
-        x + 15.0 - tw / 2.0,
-        y,
-        30.0,
-        14.0,
-        W::S,
+    let tw = ui.measure_as(LABEL_L, "?");
+    ui.text_mid_as(
+        (x + 15.0 - tw / 2.0, y, 30.0),
+        LABEL_L,
         Role::OnSurfaceVariant,
         "?",
     );
@@ -497,7 +492,7 @@ pub(crate) fn home(app: &View, ui: &mut Ui, w: f32, h: f32) {
 
     // The system gave no randomness: nothing seals until a restart.
     if app.seed_missing() {
-        y += ui.wrap(M, y, inner, 13.0, W::S, Role::Error, EN.seed_missing) + 10.0;
+        y += ui.wrap_as((M, y, inner), LABEL_L, Role::Error, EN.seed_missing) + 10.0;
     }
 
     // What this session holds.
@@ -556,15 +551,12 @@ pub(crate) fn home(app: &View, ui: &mut Ui, w: f32, h: f32) {
     );
     ui.stroke(M, y, inner, 52.0, 10.0, Role::OutlineVariant);
     ui.dot(M + 16.0, y + 18.0, 4.0, dot);
-    let line = ui.fit(14.0, W::S, &line, inner - 40.0);
-    ui.text_mid(M + 28.0, y + 6.0, 24.0, 14.0, W::S, Role::OnSurface, &line);
-    let sub = ui.fit(12.0, W::R, &sub, inner - 40.0);
-    ui.text_mid(
-        M + 28.0,
-        y + 26.0,
-        20.0,
-        12.0,
-        W::R,
+    let line = ui.fit_as(LABEL_L, &line, inner - 40.0);
+    ui.text_mid_as((M + 28.0, y + 6.0, 24.0), LABEL_L, Role::OnSurface, &line);
+    let sub = ui.fit_as(BODY_S, &sub, inner - 40.0);
+    ui.text_mid_as(
+        (M + 28.0, y + 26.0, 20.0),
+        BODY_S,
         Role::OnSurfaceVariant,
         &sub,
     );
@@ -597,14 +589,14 @@ pub(crate) fn home(app: &View, ui: &mut Ui, w: f32, h: f32) {
         .enumerate()
         {
             if i > 0 {
-                sx += ui.text_mid(sx, y, 22.0, 11.0, W::R, Role::OnSurfaceVariant, " · ");
+                sx += ui.text_mid_as((sx, y, 22.0), BODY_S, Role::OnSurfaceVariant, " · ");
             }
             let fg = if label == stage {
                 Role::Primary
             } else {
                 Role::OnSurfaceVariant
             };
-            sx += ui.text_mid(sx, y, 22.0, 11.0, W::S, fg, label);
+            sx += ui.text_mid_as((sx, y, 22.0), LABEL_S, fg, label);
         }
         ui.hit(M, y, inner, 22.0, open_files);
         y += 22.0 + 10.0;
@@ -659,8 +651,8 @@ pub(crate) fn home(app: &View, ui: &mut Ui, w: f32, h: f32) {
         );
         ui.stroke(M, y, lead_w, 44.0, 10.0, edge);
         ui.icon(M + 8.0, y + 8.0, 28.0, icon, 14.0, tone);
-        let label = ui.fit(14.0, W::S, &label, lead_w - 60.0);
-        ui.text_mid(M + 44.0, y, 44.0, 14.0, W::S, Role::OnSurface, &label);
+        let label = ui.fit_as(LABEL_L, &label, lead_w - 60.0);
+        ui.text_mid_as((M + 44.0, y, 44.0), LABEL_L, Role::OnSurface, &label);
         if let Some(a) = action {
             ui.icon(
                 M + lead_w - 26.0,
@@ -721,31 +713,28 @@ pub(crate) fn home(app: &View, ui: &mut Ui, w: f32, h: f32) {
             // The icon beside the name, one line under it
             // (`docs/LAYOUT.md` §4).
             let room = tw - GRID_TILE_TEXT_X - GRID_TILE_INSET;
-            let label = ui.fit(14.0, W::S, label, room);
+            let label = ui.fit_as(LABEL_L, label, room);
             let tx = tx + GRID_TILE_TEXT_X;
             if sub.is_empty() {
-                ui.text_mid(tx, ty, th, 14.0, W::S, fg, &label);
+                ui.text_mid_as((tx, ty, th), LABEL_L, fg, &label);
             } else {
-                ui.text(tx, ty + 10.0, 14.0, W::S, fg, &label);
-                let sub = ui.fit(12.0, W::R, sub, room);
+                ui.text_as(tx, ty + 10.0, LABEL_L, fg, &label);
+                let sub = ui.fit_as(BODY_S, sub, room);
                 let c = if *enabled {
                     Role::OnSurfaceVariant
                 } else {
                     Role::Warning
                 };
-                ui.text(tx, ty + 30.0, 12.0, W::R, c, &sub);
+                ui.text_as(tx, ty + 30.0, BODY_S, c, &sub);
             }
         } else {
-            let label = ui.fit(14.0, W::S, label, tw - 24.0);
-            ui.text(tx + 12.0, ty + 48.0, 14.0, W::S, fg, &label);
+            let label = ui.fit_as(LABEL_L, label, tw - 24.0);
+            ui.text_as(tx + 12.0, ty + 48.0, LABEL_L, fg, &label);
             if !sub.is_empty() {
-                let sub = ui.fit(11.0, W::R, sub, tw - 54.0);
-                ui.text_right(
-                    tx + tw - 10.0,
-                    ty + 12.0,
-                    30.0,
-                    11.0,
-                    W::R,
+                let sub = ui.fit_as(BODY_S, sub, tw - 54.0);
+                ui.text_right_as(
+                    (tx + tw - 10.0, ty + 12.0, 30.0),
+                    BODY_S,
                     if *enabled {
                         Role::OnSurfaceVariant
                     } else {
@@ -791,7 +780,7 @@ fn lock_row(app: &View, ui: &mut Ui, y: f32, inner: f32, gap: f32) -> f32 {
             M,
             y,
             Some(inner - pw - gap),
-            44.0,
+            BUTTON_H,
             EN.compact_lock,
             Style::Secondary,
             Action::LockAsk,

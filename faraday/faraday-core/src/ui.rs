@@ -3,6 +3,7 @@
 //! drawing that only the desktop app has ([`CoreUi`]).
 
 use crate::Action;
+use faraday_draw::tokens::{LABEL_M, LABEL_S};
 
 pub use faraday_ui::pal;
 pub use faraday_ui::{
@@ -130,30 +131,25 @@ impl CoreUi for Ui<'_> {
         };
         self.dot(vx, mid, r, bg);
         let v = value.to_string();
-        let vw = self.measure(12.0, W::S, &v);
-        self.text_mid(
-            vx - vw / 2.0,
-            mid - 10.0,
-            20.0,
-            12.0,
-            W::S,
+        let vw = self.measure_as(LABEL_M, &v);
+        self.text_mid_as(
+            (vx - vw / 2.0, mid - 10.0, 20.0),
+            LABEL_M,
             Role::OnPrimary,
             &v,
         );
         let (l, h) = (lo.to_string(), hi.to_string());
-        self.text(
-            x + pad - self.measure(11.0, W::R, &l) / 2.0,
+        self.text_as(
+            x + pad - self.measure_as(LABEL_S, &l) / 2.0,
             y + 38.0,
-            11.0,
-            W::R,
+            LABEL_S,
             Role::OnSurfaceVariant,
             &l,
         );
-        self.text(
-            x + pad + track - self.measure(11.0, W::R, &h) / 2.0,
+        self.text_as(
+            x + pad + track - self.measure_as(LABEL_S, &h) / 2.0,
             y + 38.0,
-            11.0,
-            W::R,
+            LABEL_S,
             Role::OnSurfaceVariant,
             &h,
         );
