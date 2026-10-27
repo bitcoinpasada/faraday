@@ -502,6 +502,85 @@ fn tick(app: &mut Faraday, now_ms: u64) {
     app.event(Event::Tick { now_ms });
 }
 
+/// The Delete sheet's hold: down at `t0`, held past its time, let go.
+fn hold_go(app: &mut Faraday, t0: u64) {
+    let _ = app.frame();
+    let hold = Action::Vault(faraday_core::vault::VaultAction::HoldWipe);
+    let (x, y) = app.where_offered(hold).expect("the hold is on the sheet");
+    tick(app, t0);
+    app.event(Event::Touch {
+        x,
+        y,
+        phase: TouchPhase::Down,
+    });
+    tick(app, t0 + faraday_core::vault::HOLD_MS + 100);
+    app.event(Event::Touch {
+        x,
+        y,
+        phase: TouchPhase::Up,
+    });
+}
+
+/// Zeroing the free space or the whole partition takes a hold, as
+/// deleting a vault does: a press of the sheet's button sends nothing,
+/// a hold let go too soon sends nothing, and the hold to its end starts
+/// zeroing.
+#[test]
+fn zeroing_takes_a_hold() {
+    use faraday_core::Sheet;
+    for (what, label, first) in [
+        (
+            1,
+            "Hold to zero the free space",
+            StorageCommand::ZeroFree {
+                stick: "S".into(),
+                from: 2,
+            },
+        ),
+        (
+            2,
+            "Hold to zero the whole partition",
+            StorageCommand::MakeEmpty { stick: "S".into() },
+        ),
+    ] {
+        // Tall enough for the whole sheet, the hold at its foot.
+        let mut app = with_stick_at(1, (1366, 1400, 160));
+        app.press(Action::DeleteFiles);
+        app.press(Action::DeleteWhat(what));
+        asked(&mut app);
+        let _ = app.frame();
+        assert!(!app.offers(Action::DeleteGo), "no plain button");
+        let texts = app.drawn_texts();
+        assert!(texts.iter().any(|t| t == label), "{texts:?}");
+        app.press(Action::DeleteGo);
+        assert!(asked(&mut app).is_empty(), "a press alone zeroes nothing");
+        assert_eq!(app.sheet, Some(Sheet::Delete));
+        // Let go too soon.
+        let hold = Action::Vault(faraday_core::vault::VaultAction::HoldWipe);
+        let (x, y) = app.where_offered(hold).unwrap();
+        tick(&mut app, 1_000);
+        app.event(Event::Touch {
+            x,
+            y,
+            phase: TouchPhase::Down,
+        });
+        tick(&mut app, 1_300);
+        app.event(Event::Touch {
+            x,
+            y,
+            phase: TouchPhase::Up,
+        });
+        tick(&mut app, 3_000);
+        assert!(
+            asked(&mut app).is_empty(),
+            "a hold let go too soon zeroes nothing"
+        );
+        hold_go(&mut app, 5_000);
+        assert_eq!(app.sheet, Some(Sheet::Zeroing));
+        assert_eq!(asked(&mut app), vec![first]);
+    }
+}
+
 /// Delete files is the one way in: a sheet that says it cannot be undone
 /// and that only the files partition is written. Chosen files are deleted
 /// only on its button, each with zeros, and the answer is said on the
@@ -574,7 +653,7 @@ fn the_free_space_is_zeroed_a_step_a_tick() {
     assert!(text.contains("3.0 GB to write"), "{text}");
     assert!(text.contains("partition table"), "{text}");
     asked(&mut app);
-    app.press(Action::DeleteGo);
+    hold_go(&mut app, 1_000);
     assert_eq!(app.sheet, Some(Sheet::Zeroing));
     assert_eq!(
         asked(&mut app),
@@ -615,12 +694,12 @@ fn the_free_space_is_zeroed_a_step_a_tick() {
 /// zeroed twice.
 #[test]
 fn the_whole_partition_is_made_empty_then_zeroed_for_each_pass() {
-    let mut app = with_stick(1);
+    let mut app = with_stick_at(1, (1366, 1400, 160));
     app.press(Action::DeleteFiles);
     app.press(Action::DeleteWhat(2));
     app.press(Action::DeletePasses(2));
     asked(&mut app);
-    app.press(Action::DeleteGo);
+    hold_go(&mut app, 100);
     assert_eq!(
         asked(&mut app),
         vec![StorageCommand::MakeEmpty { stick: "S".into() }]
@@ -665,7 +744,7 @@ fn zeroing_stops_on_stop_and_on_a_pull() {
     let mut app = with_stick(1);
     app.press(Action::DeleteFiles);
     app.press(Action::DeleteWhat(1));
-    app.press(Action::DeleteGo);
+    hold_go(&mut app, 100);
     asked(&mut app);
     app.press(Action::ZeroStop);
     app.storage(StorageEvent::Zeroing {
@@ -682,7 +761,7 @@ fn zeroing_stops_on_stop_and_on_a_pull() {
 
     app.press(Action::DeleteFiles);
     app.press(Action::DeleteWhat(1));
-    app.press(Action::DeleteGo);
+    hold_go(&mut app, 20_000);
     app.storage(StorageEvent::Sticks(Vec::new()));
     assert!(app.zeroing().is_none());
     assert_eq!(app.sheet, None);

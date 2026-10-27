@@ -1992,7 +1992,10 @@ fn stopping_a_whole_wipe_after_the_partition_was_emptied_reopens_the_copies() {
     shell.press(&mut app, Action::DeleteFiles);
     app.press(Action::DeleteWhat(2));
     app.press(Action::DeletePasses(1));
-    shell.press(&mut app, Action::DeleteGo);
+    shell.hold(
+        &mut app,
+        Action::Vault(faraday_core::vault::VaultAction::HoldWipe),
+    );
     assert_eq!(
         app.backup_flows()[0].written_of(),
         (2, 2),
@@ -2128,7 +2131,10 @@ fn a_whole_wipe_that_fails_or_is_cut_off_before_its_first_answer_reopens_the_cop
         shell.press(&mut app, Action::DeleteFiles);
         app.press(Action::DeleteWhat(2));
         app.press(Action::DeletePasses(1));
-        shell.press(&mut app, Action::DeleteGo);
+        shell.hold(
+            &mut app,
+            Action::Vault(faraday_core::vault::VaultAction::HoldWipe),
+        );
         assert_eq!(app.backup_flows()[0].written_of(), (2, 2), "{cut}");
         if cut == "fails" {
             app.storage(faraday_core::StorageEvent::ZeroFailed {

@@ -5,7 +5,7 @@ use super::devices::devices_tour;
 use super::seeds::seeds_tour;
 use super::spend::spend_tour;
 use crate::tour::{
-    Tour, copy_digits, flow_at_make, flow_made, shares_on_paper, type_text, type_words,
+    Tour, copy_digits, flow_at_make, flow_made, scroll_to, shares_on_paper, type_text, type_words,
 };
 use faraday_core::file_menu::{FilePress, Row};
 use faraday_core::testkit;
@@ -282,6 +282,9 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
     t.press(Action::DeleteWhat(2));
     t.press(Action::DeletePasses(2));
     t.shot("visit-delete-whole")?;
+    // Zeroing is a hold, at the sheet's foot (F131).
+    scroll_to(t, Action::Vault(V::HoldWipe));
+    t.shot("visit-delete-whole-hold")?;
     t.press(Action::Cancel);
     t.press(Action::VisitInAll);
     for name in [

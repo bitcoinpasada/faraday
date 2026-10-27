@@ -145,3 +145,4 @@ Read this table, then only the decision you need.
 | [F128](decisions/F128.md) | Upgrading a stick is the Starter's; Faraday writes no boot partition | 2026-10-26 | Active | stick |
 | [F129](decisions/F129.md) | A secret saved as a plain file asks for a hold | 2026-10-26 | Active | keys |
 | [F130](decisions/F130.md) | The boot import reads names and sizes until Import, then only the ticked files | 2026-10-27 | Active | stick |
+| [F131](decisions/F131.md) | Zeroing a stick's free space or its partition takes a hold | 2026-10-27 | Active | stick |

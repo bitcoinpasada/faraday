@@ -189,12 +189,16 @@ impl Faraday {
     }
 
     /// Whether the sheet's button is a hold: a vault is among the files
-    /// chosen (`docs/FLOWS.md` decisions 4 and 61).
+    /// chosen (`docs/FLOWS.md` decisions 4 and 61), or the free space or
+    /// the whole partition is zeroed (F131).
     pub(crate) fn delete_holds(&self) -> bool {
         self.stick
             .delete_ask
             .as_ref()
-            .is_some_and(|d| d.what == What::Files && d.chosen.iter().any(|f| is_vault_name(f)))
+            .is_some_and(|d| match d.what {
+                What::Files => d.chosen.iter().any(|f| is_vault_name(f)),
+                What::Free | What::Whole => true,
+            })
     }
 
     /// The sheet's choice of what.
@@ -474,17 +478,21 @@ pub(crate) fn delete_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         What::Whole => EN.stick_wipe_zero_partition.to_string(),
     };
     let hold = app.delete_holds();
-    let held_go = fill(
-        EN.stick_wipe_hold_delete,
-        &[
-            &n.to_string(),
-            (if n == 1 {
-                EN.stick_wipe_file
-            } else {
-                EN.stick_wipe_files
-            }),
-        ],
-    );
+    let held_go = match d.what {
+        What::Files => fill(
+            EN.stick_wipe_hold_delete,
+            &[
+                &n.to_string(),
+                (if n == 1 {
+                    EN.stick_wipe_file
+                } else {
+                    EN.stick_wipe_files
+                }),
+            ],
+        ),
+        What::Free => EN.stick_wipe_hold_zero_free.to_string(),
+        What::Whole => EN.stick_wipe_hold_zero_partition.to_string(),
+    };
     let go_style = Style::Primary.when(d.what != What::Files || n != 0);
     let amount = |whole: bool| -> String {
         match d.space {
@@ -640,7 +648,8 @@ pub(crate) fn delete_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         cy += ui.wrap_as((x, cy, iw), BODY_S, Role::OnSurfaceVariant, BOUNDARY) + 10.0;
         cy += ui.wrap_as((x, cy, iw), BODY_S, Role::OnSurfaceVariant, LIMIT) + 10.0;
         cy += ui.wrap_as((x, cy, iw), BODY_S, Role::OnSurfaceVariant, SECRET) + 12.0;
-        // A vault chosen is deleted by a hold (decision 4).
+        // A vault chosen is deleted by a hold (decision 4); zeroing the
+        // free space or the partition is a hold too (F131).
         if hold {
             crate::vault::screen::hold_button_in(
                 app,
@@ -753,7 +762,8 @@ impl Faraday {
             Action::DeleteWhat(k) => self.delete_what(k),
             Action::DeletePick(k) => self.delete_pick(k),
             Action::DeletePasses(n) => self.delete_passes(n),
-            // A vault chosen is deleted by the hold alone (decision 4).
+            // A vault chosen is deleted, and zeroing starts, by the hold
+            // alone (decision 4, F131).
             Action::DeleteGo if !self.delete_holds() => self.delete_go(),
             Action::DeleteGo => {}
             Action::ZeroStop => self.zero_stop(),

@@ -516,6 +516,12 @@ impl Shell {
         self.pump(app);
     }
 
+    /// `a`, a hold, held on screen to its end, then the shell's answers.
+    pub fn hold(&mut self, app: &mut Faraday, a: Action) {
+        hold(app, a);
+        self.pump(app);
+    }
+
     pub fn flow(&mut self, app: &mut Faraday, a: F) {
         self.press(app, Action::Flow(a));
     }
@@ -1300,6 +1306,27 @@ pub fn device(inbox: Files) -> Faraday {
     faraday_core::testkit::vault_speed(&mut app, Some(180));
     let _ = app.frame();
     app
+}
+
+/// A hold on screen, `a`, held past its time and let go.
+pub fn hold(app: &mut Faraday, a: Action) {
+    let _ = app.frame();
+    let (x, y) = app.where_offered(a).expect("the hold is on screen");
+    let t0 = app.now_ms() + 1_000;
+    app.event(Event::Tick { now_ms: t0 });
+    app.event(Event::Touch {
+        x,
+        y,
+        phase: faraday_shell_api::TouchPhase::Down,
+    });
+    app.event(Event::Tick {
+        now_ms: t0 + faraday_core::vault::HOLD_MS + 100,
+    });
+    app.event(Event::Touch {
+        x,
+        y,
+        phase: faraday_shell_api::TouchPhase::Up,
+    });
 }
 
 pub fn add_key(app: &mut Faraday, seed: &str) {

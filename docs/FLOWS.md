@@ -669,12 +669,15 @@ visit** directly.
   wrote, and what zeros do not reach (a stick's or SD card's controller
   can keep old copies of blocks; a secret ever saved to the stick
   unencrypted is surely removed only by destroying the stick); and one
-  button naming the action ("Delete 2 files with zeros", "Zero the free
-  space", "Zero the whole partition") or Cancel. Where a vault file is
+  button naming the action ("Delete 2 files with zeros"), or the hold
+  below, and Cancel. Where a vault file is
   among those chosen the button is a hold, "Hold to delete 1 file with
   zeros": changing a passphrase makes a new vault, and the old file,
   still openable with the old passphrase, stays on the stick until
-  deleted. The disk process does the work; a file's answer is a line on
+  deleted. Zeroing the free space or the whole partition is a hold too,
+  "Hold to zero the free space", "Hold to zero the whole partition"
+  (F131): what it writes over cannot be read back, and a press alone
+  starts nothing. The disk process does the work; a file's answer is a line on
   the visit ("{file} deleted, zeros over it first", or why not). The free
   space is zeroed in steps of about 8 MB, each asked for on the tick
   after the last one's answer, read back, the first step also clearing
