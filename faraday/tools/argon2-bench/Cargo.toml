@@ -1,6 +1,6 @@
 [package]
 name = "faraday-argon2-bench"
-version = "0.1.7"
+version = "0.1.8"
 description = "Times the vault presets' Argon2id on this machine, for docs/VAULT.md §3.1's table"
 edition.workspace = true
 license.workspace = true

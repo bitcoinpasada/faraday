@@ -8,7 +8,7 @@ signs with them on a machine that has no network.
 
 Every document, and which one answers which question: `docs/README.md`.
 
-> **Use at your own risk.** Faraday is not reviewed. 0.1.7 is a
+> **Use at your own risk.** Faraday is not reviewed. 0.1.8 is a
 > pre-release: no one outside the project has reviewed its code, its
 > cryptography or its builds, and no second builder has reproduced it.
 > It comes with no warranty of any kind (see `LICENSE`). Check a
@@ -567,10 +567,10 @@ PowerShell prints a file's sum to compare with its line in
 `SHA256SUMS`:
 
 ```
-Get-FileHash -Algorithm SHA256 .\faraday-stick-0.1.7-x86_64-uefi.img.xz
+Get-FileHash -Algorithm SHA256 .\faraday-stick-0.1.8-x86_64-uefi.img.xz
 ```
 
-The release tags are signed with the same key: `git tag -v v0.1.7`.
+The release tags are signed with the same key: `git tag -v v0.1.8`.
 
 ## Repository layout
 

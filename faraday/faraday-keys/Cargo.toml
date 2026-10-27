@@ -1,6 +1,6 @@
 [package]
 name = "faraday-keys"
-version = "0.1.7"
+version = "0.1.8"
 description = "Where Faraday's key material is held and used: the session's keys, the open vaults, every operation on them, and the fourteen reasons a secret leaves (docs/KEYS.md)"
 edition.workspace = true
 license.workspace = true
