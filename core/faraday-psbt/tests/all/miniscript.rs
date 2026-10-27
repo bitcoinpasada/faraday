@@ -492,3 +492,218 @@ fn a_taproot_pkh_leaf_is_signed_and_left_to_finalize() {
     assert_eq!(finalize(&mut psbt).expect("nothing wrong"), None);
     assert!(psbt.inner().inputs[0].final_script_witness.is_none());
 }
+
+/// The Liana recovery spend's review with the given transaction
+/// version and the recovery key loaded beside the first.
+fn recovery_review(version: i32) -> faraday_psbt::Inspection {
+    let c = Compute::unchecked();
+    let policy = WalletPolicy::parse_any(&c, LIANA_POLICY).expect("the fixture wallet");
+    let keys = [
+        KeyRef::from_master(&c, &master(ABANDON), 0).expect("accounts"),
+        KeyRef::from_master(&c, &master(ZOO), 0).expect("accounts"),
+    ];
+    let wallets = [policy];
+    let mut psbt =
+        Psbt::parse_base64(&c, LIANA_RECOVERY_PSBT.trim()).expect("the fixture transaction");
+    psbt.inner_mut().unsigned_tx.version = bitcoin::transaction::Version(version);
+    let ctx = Context {
+        network: NET,
+        keys: &keys,
+        wallets: &wallets,
+        musig_session: None,
+    };
+    inspect(&c, &psbt, &ctx)
+}
+
+/// A relative wait is a rule of version 2 transactions (BIP 68): at
+/// version 1 the chain reads no wait from the sequence, so the
+/// recovery path's `older` is not met whatever the sequence says.
+#[test]
+fn a_relative_wait_is_not_met_by_a_version_one_transaction() {
+    let not_met = |insp: &faraday_psbt::Inspection| {
+        insp.warnings.iter().any(|w| {
+            w.kind
+                == WarningKind::TimelockNotMet {
+                    path: path(&[1], &[Lock::Blocks(52_560)]),
+                    lock: Lock::Blocks(52_560),
+                }
+        })
+    };
+    let one = recovery_review(1);
+    assert!(not_met(&one), "{:?}", one.warnings);
+    let two = recovery_review(2);
+    assert!(!not_met(&two), "{:?}", two.warnings);
+
+    // Signed by the recovery key, the version 1 spend stays partial: the
+    // chain would refuse it.
+    let c = Compute::unchecked();
+    let policy = WalletPolicy::parse_any(&c, LIANA_POLICY).expect("the fixture wallet");
+    let (abandon, zoo) = (master(ABANDON), master(ZOO));
+    let keys = [
+        KeyRef::from_master(&c, &abandon, 0).expect("accounts"),
+        KeyRef::from_master(&c, &zoo, 0).expect("accounts"),
+    ];
+    let wallets = [policy];
+    let ctx = Context {
+        network: NET,
+        keys: &keys,
+        wallets: &wallets,
+        musig_session: None,
+    };
+    let mut psbt =
+        Psbt::parse_base64(&c, LIANA_RECOVERY_PSBT.trim()).expect("the fixture transaction");
+    psbt.inner_mut().unsigned_tx.version = bitcoin::transaction::Version::ONE;
+    let result = sign(
+        &c,
+        &mut psbt,
+        &[&abandon, &zoo],
+        &[abandon.fingerprint(), zoo.fingerprint()],
+        &ctx,
+        false,
+        Nonce::LowR,
+        Aux::Deterministic,
+        &mut None,
+        &faraday_crypto::Zeroizing::new([0u8; 32]),
+    )
+    .expect("the recovery key is ours");
+    assert_eq!(result.signed_inputs.len(), 1);
+    assert!(!result.complete, "version 1 arms no relative wait");
+    assert!(finalize(&mut psbt).expect("no error").is_none());
+}
+
+/// The Liana wallet with its recovery path behind `after(height)`
+/// rather than `older`, and its recovery spend: the fixture's input
+/// with the script that policy derives at the same index, the
+/// locktime `height`, and `sequence` on the input.
+fn absolute_recovery(height: u32, sequence: u32) -> (WalletPolicy, Psbt) {
+    use miniscript::descriptor::{Descriptor, DescriptorPublicKey};
+    let c = Compute::unchecked();
+    let secp = bitcoin::secp256k1::Secp256k1::verification_only();
+    let text = LIANA_POLICY.replace("older(52560)", &format!("after({height})"));
+    let policy = WalletPolicy::parse_any(&c, &text).expect("the wallet with an absolute wait");
+    let mut psbt =
+        Psbt::parse_base64(&c, LIANA_RECOVERY_PSBT.trim()).expect("the fixture transaction");
+    let inner = psbt.inner_mut();
+    let (fp, origin) = inner.inputs[0]
+        .bip32_derivation
+        .values()
+        .next()
+        .cloned()
+        .expect("the recovery key's origin");
+    let (change, index) = policy
+        .leaf_of(fp.into(), &origin)
+        .expect("the origin is the wallet's");
+    let descriptor: Descriptor<DescriptorPublicKey> = policy
+        .to_descriptor()
+        .parse()
+        .expect("the wallet's descriptor");
+    let chain = descriptor
+        .into_single_descriptors()
+        .expect("two chains")
+        .remove(usize::from(change));
+    let witness_script = chain
+        .at_derivation_index(index)
+        .expect("an unhardened index")
+        .derived_descriptor(&secp)
+        .expect("derived keys")
+        .explicit_script()
+        .expect("a wsh script");
+    let script_pubkey = witness_script.to_p2wsh();
+    assert_eq!(
+        policy
+            .script_at(&c, change, index)
+            .expect("the wallet's script"),
+        script_pubkey
+    );
+    inner.inputs[0].witness_script = Some(witness_script);
+    inner.inputs[0].non_witness_utxo = None;
+    inner.inputs[0]
+        .witness_utxo
+        .as_mut()
+        .expect("the spent output")
+        .script_pubkey = script_pubkey;
+    inner.unsigned_tx.version = bitcoin::transaction::Version::TWO;
+    inner.unsigned_tx.lock_time =
+        bitcoin::absolute::LockTime::from_height(height).expect("a height");
+    inner.unsigned_tx.input[0].sequence = bitcoin::Sequence(sequence);
+    (policy, psbt)
+}
+
+/// An absolute wait is met only when the input's sequence leaves the
+/// locktime in force: with the final sequence, 0xFFFFFFFF, the chain
+/// ignores the locktime and `after` fails, however late the locktime.
+#[test]
+fn an_absolute_wait_is_not_met_with_a_final_sequence() {
+    let c = Compute::unchecked();
+    let keys = [
+        KeyRef::from_master(&c, &master(ABANDON), 0).expect("accounts"),
+        KeyRef::from_master(&c, &master(ZOO), 0).expect("accounts"),
+    ];
+    let height = 900_000;
+    let not_met = |sequence: u32| {
+        let (policy, psbt) = absolute_recovery(height, sequence);
+        let wallets = [policy];
+        let ctx = Context {
+            network: NET,
+            keys: &keys,
+            wallets: &wallets,
+            musig_session: None,
+        };
+        let insp = inspect(&c, &psbt, &ctx);
+        assert_eq!(
+            insp.inputs[0].spend_route,
+            Some(SpendRoute::Script(path(&[1], &[Lock::Height(height)]))),
+            "{:?}",
+            insp.warnings
+        );
+        insp.warnings.iter().any(|w| {
+            w.kind
+                == WarningKind::TimelockNotMet {
+                    path: path(&[1], &[Lock::Height(height)]),
+                    lock: Lock::Height(height),
+                }
+        })
+    };
+    assert!(
+        not_met(0xFFFF_FFFF),
+        "the final sequence disables the locktime"
+    );
+    assert!(!not_met(0xFFFF_FFFE), "a sequence below final keeps it");
+}
+
+/// Where a spend could take either path, a version 1 transaction arms
+/// no relative wait, so the review names the path with no wait as the
+/// one it spends, not the recovery path that version cannot meet.
+#[test]
+fn a_version_one_spend_does_not_take_a_path_its_version_cannot_meet() {
+    let c = Compute::unchecked();
+    let policy = WalletPolicy::parse_any(&c, LIANA_POLICY).expect("the fixture wallet");
+    let keys = [
+        KeyRef::from_master(&c, &master(ABANDON), 0).expect("accounts"),
+        KeyRef::from_master(&c, &master(ZOO), 0).expect("accounts"),
+    ];
+    let wallets = [policy];
+    let ctx = Context {
+        network: NET,
+        keys: &keys,
+        wallets: &wallets,
+        musig_session: None,
+    };
+    let route = |version: i32| {
+        let mut psbt = Psbt::parse_base64(&c, LIANA_PSBT.trim()).expect("the fixture transaction");
+        let inner = psbt.inner_mut();
+        inner.unsigned_tx.version = bitcoin::transaction::Version(version);
+        inner.unsigned_tx.input[0].sequence = bitcoin::Sequence::from_height(52_560);
+        inspect(&c, &psbt, &ctx).inputs[0].spend_route.clone()
+    };
+    assert_eq!(
+        route(2),
+        Some(SpendRoute::Script(path(&[1], &[Lock::Blocks(52_560)]))),
+        "at version 2 the sequence arms the recovery path"
+    );
+    assert_eq!(
+        route(1),
+        Some(SpendRoute::Script(path(&[0], &[]))),
+        "at version 1 it arms nothing"
+    );
+}

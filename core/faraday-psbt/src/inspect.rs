@@ -19,7 +19,7 @@ use bitcoin::psbt::{Input, Output};
 use bitcoin::secp256k1::{PublicKey, Secp256k1, Verification};
 use bitcoin::sighash::{EcdsaSighashType, TapSighashType};
 use bitcoin::taproot::TapTweakHash;
-use bitcoin::{Address, Amount, ScriptBuf, Sequence, TxOut, Txid, VarInt};
+use bitcoin::{Address, Amount, ScriptBuf, Sequence, Transaction, TxOut, Txid, VarInt};
 use faraday_bip::keys::Fingerprint;
 use faraday_crypto::work::{Compute, Work};
 
@@ -889,10 +889,10 @@ pub fn inspect(c: &Compute, psbt: &Psbt, ctx: &Context) -> Inspection {
             + usize::from(input.tap_key_sig.is_some())
             + input.tap_script_sigs.len();
 
-        let spend_route = spend_route(c, &secp, ctx, input, &cl, txin.sequence, tx.lock_time);
+        let spend_route = spend_route(c, &secp, ctx, input, &cl, tx, i);
         if let Some(SpendRoute::Script(path)) = &spend_route {
             for lock in &path.locks {
-                if !lock_met(*lock, txin.sequence, tx.lock_time) {
+                if !lock_met(*lock, tx, i) {
                     warn(
                         &mut warnings,
                         Level::Caution,
@@ -1206,25 +1206,39 @@ fn wait(lock: Lock) -> String {
     }
 }
 
-/// Whether a transaction with this input sequence and this locktime has
-/// already waited the wait out. A preimage is not a wait: nothing about
-/// the transaction says whether the spender has it.
-fn lock_met(lock: Lock, sequence: Sequence, locktime: LockTime) -> bool {
-    let relative = sequence.to_consensus_u32();
+/// Whether input `index` of `tx` has already waited the wait out, as
+/// the chain reads it. A relative wait is a rule of version 2 and later
+/// (BIP 68): at version 1 the sequence holds no wait. An absolute wait
+/// holds only while the input's sequence is not final, 0xFFFFFFFF, which
+/// turns the locktime off for it (BIP 65). A preimage is not a wait:
+/// nothing about the transaction says whether the spender has it.
+fn lock_met(lock: Lock, tx: &Transaction, index: usize) -> bool {
+    let Some(txin) = tx.input.get(index) else {
+        return false;
+    };
+    let relative = txin.sequence.to_consensus_u32();
+    let versioned = tx.version.0.cast_unsigned() >= 2;
     let disabled = relative & (1 << 31) != 0;
     let is_time = relative & (1 << 22) != 0;
     let count = relative & 0xffff;
+    let locked = txin.sequence != Sequence::MAX;
     match lock {
-        Lock::Blocks(n) => !disabled && !is_time && count >= n,
-        Lock::Intervals(n) => !disabled && is_time && count >= n,
-        Lock::Height(n) => match locktime {
-            LockTime::Blocks(h) => h.to_consensus_u32() >= n,
-            LockTime::Seconds(_) => false,
-        },
-        Lock::Time(n) => match locktime {
-            LockTime::Blocks(_) => false,
-            LockTime::Seconds(t) => t.to_consensus_u32() >= n,
-        },
+        Lock::Blocks(n) => versioned && !disabled && !is_time && count >= n,
+        Lock::Intervals(n) => versioned && !disabled && is_time && count >= n,
+        Lock::Height(n) => {
+            locked
+                && match tx.lock_time {
+                    LockTime::Blocks(h) => h.to_consensus_u32() >= n,
+                    LockTime::Seconds(_) => false,
+                }
+        }
+        Lock::Time(n) => {
+            locked
+                && match tx.lock_time {
+                    LockTime::Blocks(_) => false,
+                    LockTime::Seconds(t) => t.to_consensus_u32() >= n,
+                }
+        }
         Lock::Preimage => true,
     }
 }
@@ -1287,8 +1301,8 @@ fn spend_route<C: Verification>(
     ctx: &Context,
     input: &Input,
     c: &Classified,
-    sequence: Sequence,
-    locktime: LockTime,
+    tx: &Transaction,
+    index: usize,
 ) -> Option<SpendRoute> {
     let spk = &c.utxo.as_ref()?.script_pubkey;
     let claim = ctx.wallet_claim(work, input_origins(input), spk)?;
@@ -1348,7 +1362,7 @@ fn spend_route<C: Verification>(
     // they stand, which is how an unmet timelock still names its path.
     let met: Vec<SpendPath> = candidates
         .iter()
-        .filter(|p| p.locks.iter().all(|l| lock_met(*l, sequence, locktime)))
+        .filter(|p| p.locks.iter().all(|l| lock_met(*l, tx, index)))
         .cloned()
         .collect();
     let pool = if met.is_empty() { candidates } else { met };
