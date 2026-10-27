@@ -93,7 +93,7 @@ need. Each document's header says what kind it is:
 - `docs/MAC.md`: Faraday on Macs. Partly built.
 - `docs/MODES.md`: Modes, Practice and samples. Specified (F81), not built.
 - `docs/MOTION.md`: Scrolling, motion and appearance. Built; not yet checked by the owner on hardware.
-- `docs/CROSSCHECK.md`: Two implementations of every cryptographic step. Option A decided (F79) and built, its four batches (§10.5); options B and C deferred.
+- `docs/CROSSCHECK.md`: Two implementations of every cryptographic step. Option A decided (F79) and built (§10.5); options B and C deferred.
 - `docs/NOSTR.md`: The Nostr key. Not built, not scheduled (F27, amended by F34).
 - `docs/ORIENTATION.md`: Panel orientation. Specified (F100), not built.
 - `docs/OWN-RANDOMNESS.md`: Your own randomness, and the kernel's at boot. Specified (F86), not built.

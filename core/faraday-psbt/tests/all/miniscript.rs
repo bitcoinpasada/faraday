@@ -422,3 +422,105 @@ fn the_tree_leaf_spend_signs_under_the_leaf_hash() {
         "signature, leaf script and control block"
     );
 }
+
+/// A taproot leaf that checks its key by hash, `and_v(v:pkh(K),older(N))`,
+/// with the delay waited out and the device holding `K`: the device signs
+/// the leaf and leaves the input for the coordinator to finalize, since
+/// `miniscript`'s finalizer cannot write a taproot `pkh` (it looks for the
+/// key among the ECDSA origins and stops the program when it finds none).
+#[test]
+fn a_taproot_pkh_leaf_is_signed_and_left_to_finalize() {
+    use bitcoin::bip32::DerivationPath;
+    use bitcoin::hashes::Hash;
+    use bitcoin::secp256k1::{Secp256k1, XOnlyPublicKey};
+    use bitcoin::taproot::{LeafVersion, TapLeafHash, TaprootBuilder};
+    use bitcoin::{Amount, OutPoint, ScriptBuf, Sequence, Transaction, TxIn, TxOut, absolute};
+    use faraday_bip::miniscript::{Miniscript, Tap};
+    use std::str::FromStr;
+
+    let c = Compute::unchecked();
+    let abandon = master(ABANDON);
+    let path = DerivationPath::from_str("m/86'/1'/0'/0/0").unwrap();
+    let x = abandon
+        .derive(&c, &path)
+        .to_xpub(&c)
+        .public_key
+        .x_only_public_key()
+        .0;
+    let leaf = Miniscript::<XOnlyPublicKey, Tap>::from_str(&format!("and_v(v:pkh({x}),older(10))"))
+        .unwrap()
+        .encode();
+    let secp = Secp256k1::verification_only();
+    let internal = XOnlyPublicKey::from_slice(&faraday_bip::tapmulti::NUMS).unwrap();
+    let info = TaprootBuilder::new()
+        .add_leaf(0, leaf.clone())
+        .unwrap()
+        .finalize(&secp, internal)
+        .unwrap();
+    let control = info
+        .control_block(&(leaf.clone(), LeafVersion::TapScript))
+        .unwrap();
+    let tx = Transaction {
+        version: bitcoin::transaction::Version::TWO,
+        lock_time: absolute::LockTime::ZERO,
+        input: vec![TxIn {
+            previous_output: OutPoint::new(bitcoin::Txid::from_byte_array([7; 32]), 0),
+            sequence: Sequence::from_height(10),
+            ..TxIn::default()
+        }],
+        output: vec![TxOut {
+            value: Amount::from_sat(90_000),
+            script_pubkey: ScriptBuf::new_p2wpkh(&bitcoin::WPubkeyHash::from_byte_array([1; 20])),
+        }],
+    };
+    let mut inner = bitcoin::Psbt::from_unsigned_tx(tx).unwrap();
+    let leaf_hash = TapLeafHash::from_script(&leaf, LeafVersion::TapScript);
+    let input = &mut inner.inputs[0];
+    input.witness_utxo = Some(TxOut {
+        value: Amount::from_sat(100_000),
+        script_pubkey: ScriptBuf::new_p2tr_tweaked(info.output_key()),
+    });
+    input.tap_internal_key = Some(internal);
+    input.tap_merkle_root = info.merkle_root();
+    input
+        .tap_scripts
+        .insert(control, (leaf.clone(), LeafVersion::TapScript));
+    input
+        .tap_key_origins
+        .insert(x, (vec![leaf_hash], (abandon.fingerprint().into(), path)));
+    let mut psbt = Psbt::parse_bytes(&c, &inner.serialize()).unwrap();
+    let keys = [KeyRef::from_master(&c, &abandon, 0).unwrap()];
+    let ctx = Context {
+        network: NET,
+        keys: &keys,
+        wallets: &[],
+        musig_session: None,
+        shares: &[],
+        carry: None,
+    };
+    let result = sign(
+        &c,
+        &mut psbt,
+        &[&abandon],
+        &[abandon.fingerprint()],
+        &ctx,
+        true,
+        Nonce::LowR,
+        Aux::Deterministic,
+        &mut None,
+        [0u8; 32],
+        &[],
+        &[],
+    )
+    .expect("the leaf is signed");
+    assert_eq!(result.signed_inputs.len(), 1);
+    assert_eq!(result.signed_inputs[0].kind, SigKind::Schnorr);
+    assert!(!result.complete);
+    assert!(
+        psbt.inner().inputs[0]
+            .tap_script_sigs
+            .contains_key(&(x, leaf_hash))
+    );
+    assert_eq!(finalize(&mut psbt).expect("nothing wrong"), None);
+    assert!(psbt.inner().inputs[0].final_script_witness.is_none());
+}

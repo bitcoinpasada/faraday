@@ -1,8 +1,8 @@
 # Two implementations of every cryptographic step
 
 **Kind:** Spec
-**Status:** Option A decided (F79) and built, §10.5 items 1 to 4; options B and C deferred
-**Open:** what §10.5 item 4 leaves (PSBT signing and finalizing end to end, taproot outputs with script trees, miniscript); B and C wait for the owner (§9).
+**Status:** Option A decided (F79) and built, §10.5 items 1 to 6; options B and C deferred
+**Open:** what §10.5 item 6 leaves (a second AEZ, LND node keys beyond the two recorded), not scheduled; B and C wait for the owner (§9).
 
 ## 1. The idea
 
@@ -143,8 +143,8 @@ Only for B and C, when they come back:
 Decided 2026-10-22 (owner, F79). Items 1 to 6 of §10.5 are built, in
 `tools/crosscheck/` (its README says how to run it, what each area
 checks and where Faraday reads a case otherwise than its reference),
-with the stamp check `tools/lint-crosscheck.sh`. What items 4 and 6
-leave is listed under them.
+with the stamp check `tools/lint-crosscheck.sh`. What item 6 leaves is
+listed under it.
 
 ### 10.1 What runs
 
@@ -187,11 +187,12 @@ parallel. Secrets in the cross-check are test data only.
 Each run has a time budget, and each area's corpus is sized to fit it,
 so adding an area does not lengthen the run much.
 
-- The stamp run, all sixteen areas in parallel on the build machine
-  (2026-10-23, shared with other work): 204 s, the slowest area MuSig2
-  at 200 s; the batch 2 to 4 areas 29 to 152 s each (vault 48 s, of
-  which 26 whole vaults at 8 MiB of Argon2id; BIP-39 96 s; signed
-  messages 152 s); own randomness 9 s. Pure-Python curve arithmetic takes about 5 to 30 ms
+- The stamp run, all twenty-seven areas in parallel on the build
+  machine (2026-10-26, shared with other work): 147 s, the slowest area
+  MuSig2 at 145 s; signed messages 128 s, BIP-39 111 s, vault 56 s;
+  PSBT signing and finalizing 82 s (205 PSBTs signed, 342 inputs
+  finalized, 135 transactions extracted), taproot trees 115 s,
+  miniscript 67 s; own randomness 11 s. Pure-Python curve arithmetic takes about 5 to 30 ms
   an operation, so an area gets a few thousand random cases.
 - The run before a release: about ten times the cases, estimated at 30
   to 60 minutes.
@@ -214,6 +215,10 @@ The cross-check fetches nothing, ever.
   `python3-nacl` or their equivalents), installed once on the machine
   that runs the cross-check and verified by the distribution's
   signatures, not by pip. Their versions are in the stamp.
+- **python-bip380**, Antoine Poinsot's miniscript, is copied from its
+  signed commit (`tools/reference/miniscript/README.md`), the signature
+  checked against the key Bitcoin Core's `guix.sigs` publishes; two
+  shims stand in for the libsecp256k1 packages it imports.
 - **Bitcoin Core's functional-test framework** is copied from the
   release tag `v31.1` (`tools/reference/core/`); BIP-32, BIP-137,
   BIP-322 and the PSBT BIPs' readers are written in the areas from the
@@ -231,12 +236,13 @@ The cross-check fetches nothing, ever.
    construction (`docs/VAULT.md`). Built (area `vault`).
 3. BIP-39 and BIP-32 derivation. Built (areas `bip39`, `bip32`).
 4. What comes from rust-bitcoin and rust-miniscript: sighash, PSBT,
-   addresses, descriptor checksums, transaction ids, signed messages.
-   Built (areas `addr`, `tx`, `psbt`, `msg`), except: PSBT signing and
-   finalizing end to end (`faraday_psbt::sign`, `finalize`), whose
-   nonces and sighashes are checked separately but not the signed PSBT;
-   taproot outputs with script trees (BIP-341's `scriptPubKey` vectors);
-   and miniscript's scripts and satisfactions. Not scheduled.
+   addresses, descriptor checksums, transaction ids, signed messages,
+   PSBT signing and finalizing end to end (`faraday_psbt::sign`,
+   `finalize`), taproot outputs with script trees (BIP-341's
+   `scriptPubKey` vectors), and the scripts miniscript descriptors pay
+   to and their satisfactions, against Antoine Poinsot's python-bip380
+   and Bitcoin Core's miniscript vectors. Built (areas `addr`, `tx`,
+   `psbt`, `msg`, `sign`, `taproot`, `miniscript`).
 5. Randomness a person adds of their own, mixed into the session's
    (`docs/OWN-RANDOMNESS.md` §2.3): the accumulator, the reseeding, the
    pool's and the seed's draws and the lock, over fixed system answers.

@@ -8,7 +8,7 @@ and both answers.
 
 ## Running it
 
-    just crosscheck              the stamp run: fixed seed, about 3 minutes
+    just crosscheck              the stamp run: fixed seed, about 3 to 4 minutes
     just crosscheck --fresh      before a release: a new seed, ten times the cases
     just crosscheck --area musig one area (no stamp is written)
     just crosscheck --seed S     reproduce a run
@@ -56,6 +56,9 @@ as a disagreement: a cross-check that cannot fail is worse than none.
 | `addr` | `faraday_bip::address::parse`, `bitcoin`'s `Address::from_script`, `faraday_bip::account` (account xpub, SLIP-132, descriptor, addresses), `faraday_bip::descriptor`'s checksum | Bitcoin Core's functional-test framework (`core/`): `segwit_addr.py`, Base58Check, `descriptors.py`; BIP 380's own checksum code as the BIP prints it (`bip380/`); `btc.py`; BIP-86's tweak written in the area | BIP-350's and BIP-173's addresses, BIP-380's checksum cases, BIP-49's, 84's and 86's accounts (`tools/vectors/addresses/`) | scripts of every address kind on every network, written and read back, then changed; accounts of every type at random indices; random descriptors' checksums |
 | `tx` | `faraday_psbt::transaction::read_raw`, `bitcoin`'s `SighashCache` as `faraday_psbt::sign` calls it | Core's `messages.py` and `script.py` (`core/`) | Core's 500 legacy sighashes, BIP-143's thirteen, BIP-341's key-path sighashes (`tools/vectors/sighash/`) | random transactions with and without witnesses (txid, wtxid, weight, bytes), cut or lengthened; every input hashed as legacy, BIP-143 P2WPKH and P2WSH, BIP-341 key and script path under every hash type |
 | `psbt` | `faraday_psbt::Psbt` (version 0, over `bitcoin`), `faraday_psbt::v2::PsbtV2` (version 2, Faraday's own) | BIP-174, 370 and 371 written out in `area_psbt.py`, over Core's `CTransaction` | every PSBT of BIP-174's, 370's and 371's test vectors (`tools/vectors/psbt-bips/`), with BIP-370's locktimes | random version 0 and 2 PSBTs with every field Faraday reads, taproot trees among them, written back byte for byte as read, then broken one rule at a time; BIP-370's locktime under every mix of required locktimes |
+| `sign` | `faraday_psbt::sign` (every held key selected, deterministic Schnorr, both RFC 6979 nonce rules) and `faraday_psbt::finalize` | BIP-174's signer and finalizer and BIP-371's fields written out in `area_sign.py`, over Core's `script.py` sighashes and `taproot_construct`, `key.py`'s RFC 6979 ECDSA, BIP-340 signing and tweak, `area_msg.py`'s low-R grind; python-bip380 (`miniscript/`) for a miniscript's satisfaction | BIP-174's signer, finalizer and extractor vectors; the Core-built spends of `tools/vectors/psbt/` (2-of-3 `sortedmulti`, the Liana wallet down both paths, a taproot tree by a leaf and by the key path, BIP 387's taproot multisig), signed by every subset of their keys | PSBTs of one to four inputs: P2PKH, P2SH-P2WPKH, P2WPKH, `multi`/`sortedmulti` in P2SH, P2WSH and P2SH-P2WSH, P2TR key path, P2TR script path (`pk`, `pkh`, timelocked keys, `or_d`, `multi_a`) with the key path beside it, miniscript in P2WSH and P2SH-P2WSH; held and foreign keys, cosigners' signatures already on, every standard sighash type, timelocks met and not; every signature made again byte for byte and verified, the signed PSBT's pairs, each final scriptSig and witness, the cleared fields and the extracted transaction; an origin that derives another key refused |
+| `taproot` | `bitcoin`'s `TaprootBuilder` and `TaprootSpendInfo` (as `faraday_bip::tapmulti` and `miniscript`'s `tr()` build trees), `ScriptBuf::new_p2tr` as `faraday_psbt::sign` checks a key path, `Address::p2tr_tweaked`, `ControlBlock` decoding and `verify_taproot_commitment` | Core's `taproot_construct`, `key.py`'s tweak and `segwit_addr.py`; BIP-341's script-path check written out in `area_taproot.py` | BIP-341's `scriptPubKey` wallet vectors, all seven (`tools/vectors/sighash/`) | trees of 0 to 12 leaves in random shapes with random scripts and leaf versions over random internal keys: leaf hashes, Merkle root, tweak, output key and parity, script, address, control blocks; each control block checked, then changed eleven ways; internal keys that are no point, odd leaf versions and 0x50 refused |
+| `miniscript` | `faraday_bip::policy::WalletPolicy` (a wallet's descriptor and the script it pays at an index), `faraday_bip::policy::parse_script_descriptor`, a witness script read back as `faraday_psbt` reads one | Antoine Poinsot's python-bip380 (`miniscript/`), with keys from `btc.py` and Core's `taproot_construct` for trees | Bitcoin Core's miniscript unit tests, 97 miniscripts in P2WSH and Tapscript (`tools/vectors/miniscript/`) | wallets of the Liana, Nunchuk, Sparrow and recovery shapes in `wsh()` and `sh(wsh())`, `multi`/`sortedmulti` in `sh()`, `wsh()`, `sh(wsh())`, `tr()` with trees of one to six leaves or a lone `sortedmulti_a`, over random accounts on every network, at random indices of both chains; the same made not sane, refused |
 | `own-randomness` | `faraday_core`'s `fresh.rs` (`Own`, the session seed and pool) through the testkit's `fresh` and `seed_draw`, with `faraday_entropy`'s dice, coin, camera and pointer-and-keys commitments | `docs/OWN-RANDOMNESS.md` §2.1 and §2.3 written out in `area_own.py` over `hashlib` | the known answers of `faraday/faraday-core/tests/all/own_randomness.rs`: nothing added, dice before and after the system's answers, dice then coins, a batch of pointer moves and keys, a lock | random sessions of system answers, dice, coins, camera frames (some refused, some empty) and pointer moves and keys (none to several batches), locks, seed draws, fresh bytes and counts, in any order |
 | `msg` | `faraday_psbt::message` (BIP-137, BIP-322 simple: sign, verify, virtual txids) | BIP-137 and BIP-322 written out in `area_msg.py`: ECDSA with RFC 6979 as libsecp256k1 states it, Core's `script.py` sighashes, `secp256k1lab`'s BIP-340 | BIP-322's hashes, txids, simple signatures and error cases; Trezor's and Electrum's BIP-137 signatures (`tools/vectors/message/`), made again from Trezor's keys | random keys, address forms, networks and messages: signatures made byte for byte under both nonce rules and both aux choices, checked, then checked against a changed message, another address, a changed byte and a moved header |
 | `entropy` | `faraday_entropy`: dice under the three procedures, coins, hex, cards, camera frames, the device's answer, a mix | the procedures written out in `area_entropy.py` over `hashlib`, from `tools/reference/entropy/README.md` and the dice sources quoted in `tools/reference/dice/README.md` | Coldcard's `rolls.py` digest, EntropyLab's six-as-zero and direct word selection (`tools/vectors/entropy/`) | runs of every source at every strength, short of the count, at it and past it, with faces, cards, frames and characters the pads refuse and every source past its limit; mixes of one to six sources given by their inputs |
@@ -123,6 +126,23 @@ corpus keeps out of it and the area says why.
   finishes a set URKit's does not; the area then checks the message is
   the one sent and counts the set.
 
+- PSBT signing: Faraday refuses to sign a SegWit v0 input with no
+  previous transaction in a transaction of more than one input
+  (`faraday_psbt::sign`); BIP-174's signer signs it, and BIP-174's own
+  signer vector is such a PSBT. `area_sign.py` checks the refusal and
+  counts it.
+- Taproot `pkh` leaves: Faraday signs a taproot leaf that checks its
+  key by hash but does not finalize it (`faraday_psbt::finalize`):
+  `miniscript` 12's finalizer looks the key up among the ECDSA origins
+  and panics, and would push 33 bytes where the leaf hashed 32.
+  `area_sign.py` leaves such a leaf unfinalized too and counts each one
+  it could have satisfied.
+- Miniscript: Faraday reads `sortedmulti_a` only as a `tr()`'s one leaf;
+  BIP 387 allows it deeper in a tree. Two of Bitcoin Core's sane
+  miniscripts are refused, as `miniscript` refuses them: `or_b(0,a:0)`,
+  which has no satisfaction, and a `d:` used as a unit under Tapscript.
+  `area_miniscript.py` checks and counts each.
+
 From batches 2 to 4 the areas meet these as they come and compare them
 with Faraday's reading, so each is checked to still hold exactly, and
 count them in the run's output ("N of them a known difference"):
@@ -173,6 +193,7 @@ run fails. A passing run writes their versions into the stamp.
 | `crosscheck.py` | the self-test, the areas in parallel, the stamp |
 | `common.py` | the Rust process, the comparison, the reference check |
 | `area_*.py` | one area each |
-| `btc.py` | Base58Check and BIP-32 written from the BIPs, which `bip32`, `addr`, `psbt` and `msg` share |
+| `btc.py` | Base58Check and BIP-32 written from the BIPs, which `bip32`, `addr`, `psbt`, `msg`, `sign` and `miniscript` share |
+| `miniscript_ref.py` | python-bip380 set up for `sign` and `miniscript`: its shims, RIPEMD-160 from the BIPs repository, and the scripts kept beside their miniscript text |
 | `references.sha256` | every vendored file the areas import or read, with its SHA-256 |
 | `stamp.py`, `stamp` | the stamp and its check |

@@ -190,21 +190,64 @@ fn a_miniscript_key_without_both_chains_is_refused() {
     );
 }
 
+/// A miniscript wallet whose script is not sane is refused, as Bitcoin
+/// Core refuses it: one with a spend that needs no signature, one with a
+/// block delay and a time delay in one branch, in `wsh` and in a taproot
+/// leaf, and one that names a key twice.
+#[test]
+fn a_miniscript_that_is_not_sane_is_refused() {
+    let c = Compute::unchecked();
+    let (_, keys) = LIANA.split_once('\n').expect("a template line");
+    let (_, tree_keys) = TREE.split_once('\n').expect("a template line");
+    for (template, keys) in [
+        ("wsh(or_d(pk(@0/**),or_d(pk(@1/**),older(52560))))", keys),
+        (
+            "wsh(or_d(pk(@0/**),and_v(v:pkh(@1/**),and_v(v:older(52560),older(4194305)))))",
+            keys,
+        ),
+        (
+            "tr(@0/**,{or_d(pk(@1/**),older(4320)),pk(@2/**)})",
+            tree_keys,
+        ),
+        (
+            "wsh(or_d(multi(2,@0/**,@1/**,@2/**),and_v(v:pkh(@2/**),older(1008))))",
+            tree_keys,
+        ),
+    ] {
+        let text = format!("{template}\n{keys}");
+        assert_eq!(
+            WalletPolicy::parse_any(&c, &text),
+            Err(Error::Template),
+            "{template}"
+        );
+    }
+    assert!(WalletPolicy::parse_any(&c, LIANA).is_ok());
+    assert!(WalletPolicy::parse_any(&c, TREE).is_ok());
+}
+
 /// A threshold with a recovery leaf: every combination of keys that
 /// satisfies the threshold is one line, and the recovery path is another.
 #[test]
 fn a_threshold_lists_every_combination_that_satisfies_it() {
     let c = Compute::unchecked();
-    let keys: Vec<String> = WalletPolicy::parse_any(&c, TREE)
+    let mut keys: Vec<String> = WalletPolicy::parse_any(&c, TREE)
         .expect("the fixture wallet")
         .keys()
         .iter()
         .map(|k| k.key_text())
         .collect();
+    // The recovery key is a fourth key: a miniscript that names one key
+    // twice is not sane, and is refused.
+    keys.push(
+        WalletPolicy::parse_any(&c, LIANA)
+            .expect("the fixture wallet")
+            .keys()[1]
+            .key_text(),
+    );
     let refs: Vec<&str> = keys.iter().map(String::as_str).collect();
     let policy = WalletPolicy::from_parts(
         &c,
-        "wsh(or_d(multi(2,@0/**,@1/**,@2/**),and_v(v:pkh(@2/**),older(1008))))",
+        "wsh(or_d(multi(2,@0/**,@1/**,@2/**),and_v(v:pkh(@3/**),older(1008))))",
         &refs,
     )
     .expect("a 2-of-3 with a recovery leaf");
@@ -214,7 +257,7 @@ fn a_threshold_lists_every_combination_that_satisfies_it() {
             path(&[0, 1], &[]),
             path(&[0, 2], &[]),
             path(&[1, 2], &[]),
-            path(&[2], &[Lock::Blocks(1_008)]),
+            path(&[3], &[Lock::Blocks(1_008)]),
         ]
     );
 }

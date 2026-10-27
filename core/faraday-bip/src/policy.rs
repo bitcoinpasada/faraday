@@ -1076,7 +1076,7 @@ fn parse_miniscript(text: &str) -> Result<WalletPolicy, Error> {
         Some(rewritten) => (rewritten.as_str(), true),
         None => (text, false),
     };
-    let script = Descriptor::<DescriptorPublicKey>::from_str(text).map_err(|_| Error::Template)?;
+    let script = read_script_descriptor::<DescriptorPublicKey>(text)?;
     let template = match &script {
         Descriptor::Wsh(_) => Template::Miniscript {
             kind: MiniscriptKind::Wsh,
@@ -1126,6 +1126,32 @@ fn parse_miniscript(text: &str) -> Result<WalletPolicy, Error> {
         checksum: [0; 8],
     }
     .sealed())
+}
+
+/// Costs a parse of the descriptor: `text` read the way a miniscript
+/// wallet's descriptor is read ([`read_script_descriptor`]), with keys
+/// of any kind `miniscript` reads. The crypto cross-check reads Bitcoin
+/// Core's miniscript vectors, whose keys are raw, through this.
+pub fn parse_script_descriptor<Pk: miniscript::FromStrKey>(
+    c: &Compute,
+    text: &str,
+) -> Result<Descriptor<Pk>, Error> {
+    c.count(Work::DescriptorParse);
+    read_script_descriptor(text)
+}
+
+/// `text` read by `miniscript` as a descriptor whose miniscript is
+/// sane, the rule the PSBT reader holds a witness script to
+/// (`ExtParams::sane`): every spend needs a signature, none is
+/// malleable, no timelocks of two kinds are mixed, no key is repeated
+/// and every satisfaction fits the consensus and standardness limits.
+/// `miniscript`'s descriptor parser checks the types only; Bitcoin Core
+/// refuses a descriptor that is not sane, and so does this. Uncounted,
+/// for the readers here that count once themselves.
+fn read_script_descriptor<Pk: miniscript::FromStrKey>(text: &str) -> Result<Descriptor<Pk>, Error> {
+    let script = Descriptor::<Pk>::from_str(text).map_err(|_| Error::Template)?;
+    script.sanity_check().map_err(|_| Error::Template)?;
+    Ok(script)
 }
 
 /// The internal key of a `tr()`, as the descriptor writes it.

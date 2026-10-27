@@ -24,6 +24,7 @@ mod frost;
 mod json;
 mod kdbx;
 mod lightning;
+mod miniscript;
 mod msg;
 mod musig;
 mod own;
@@ -31,8 +32,10 @@ mod parts;
 mod psbt;
 mod roller;
 mod seedqr;
+mod sign;
 mod silent;
 mod slip39;
+mod taproot;
 mod tx;
 mod ur;
 mod vanity;
@@ -58,6 +61,9 @@ fn dispatch(op: &str, req: &Value) -> Answer {
         "addr" => addr::handle(name, req),
         "tx" => tx::handle(name, req),
         "psbt" => psbt::handle(name, req),
+        "sign" => sign::handle(name, req),
+        "taproot" => taproot::handle(name, req),
+        "miniscript" => miniscript::handle(name, req),
         "msg" => msg::handle(name, req),
         "slip39" => slip39::handle(name, req),
         "codex32" => codex32::handle(name, req),

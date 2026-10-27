@@ -22,9 +22,10 @@ use alloc::vec::Vec;
 use bitcoin::opcodes::OP_0;
 use bitcoin::psbt::Input;
 use bitcoin::script::{Builder, PushBytesBuf};
-use bitcoin::secp256k1::Secp256k1;
+use bitcoin::secp256k1::{Secp256k1, XOnlyPublicKey};
 use bitcoin::{PublicKey, ScriptBuf, Transaction, Witness, ecdsa};
 use miniscript::psbt::PsbtExt;
+use miniscript::{ExtParams, Miniscript, Tap, Terminal};
 
 use crate::classify::{Classified, ScriptKind, Wrapper, classify, spent_output};
 use crate::psbt::{Error, Psbt};
@@ -234,15 +235,37 @@ fn build_final(
 /// the PSBT exactly as it was. Its own interpreter check is what makes a
 /// refusal mean "not satisfied yet" rather than "wrong": an unmet
 /// timelock and a missing cosigner both end here.
+///
+/// A taproot leaf with a `pkh` is left out of the attempt. `miniscript`
+/// 12 fills a `pkh`'s key in a satisfaction from the input's ECDSA key
+/// origins whatever the context, so for a taproot leaf it finds no key
+/// and panics on its own `expect`, after a signature for that leaf was
+/// written; and the key it would push is 33 bytes where the leaf hashed
+/// 32. Such a leaf is signed for and left for the coordinator to
+/// finalize; any other leaf, or the key path, still finalizes here.
 fn satisfy(psbt: &bitcoin::Psbt, index: usize) -> Option<Final> {
     let secp = Secp256k1::verification_only();
     let mut attempt = psbt.clone();
+    attempt.inputs[index]
+        .tap_scripts
+        .retain(|_, (script, _)| !leaf_has_pkh(script));
     attempt.finalize_inp_mut(&secp, index).ok()?;
     let input = &attempt.inputs[index];
     Some((
         input.final_script_sig.clone(),
         input.final_script_witness.clone(),
     ))
+}
+
+/// Whether a taproot leaf, read as a miniscript, checks a key by its
+/// hash (`pkh`, or a raw `pkh` read from the script).
+fn leaf_has_pkh(script: &ScriptBuf) -> bool {
+    let Ok(ms) = Miniscript::<XOnlyPublicKey, Tap>::parse_with_ext(script, &ExtParams::allow_all())
+    else {
+        return false;
+    };
+    ms.iter()
+        .any(|node| matches!(node.node, Terminal::PkH(_) | Terminal::RawPkH(_)))
 }
 
 fn push(sig: &ecdsa::Signature) -> PushBytesBuf {
