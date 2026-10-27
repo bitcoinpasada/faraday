@@ -400,6 +400,31 @@ fn a_final_input_whose_funding_transaction_lacks_the_spent_output_is_refused() {
     );
 }
 
+/// An input the finalizer cannot build names itself: the second input,
+/// a script this crate does not know, is the one the refusal reports.
+#[test]
+fn a_refused_second_input_is_named_when_the_psbt_is_finalized() {
+    let mut inner = build(ScriptType::NativeSegwit).inner().clone();
+    let funding = crate::common::builder::funding_tx(ScriptBuf::from_bytes(vec![0x51]), 5_000);
+    inner.unsigned_tx.input.push(bitcoin::TxIn {
+        previous_output: bitcoin::OutPoint::new(funding.compute_txid(), 0),
+        ..Default::default()
+    });
+    inner.inputs.push(bitcoin::psbt::Input {
+        witness_utxo: Some(funding.output[0].clone()),
+        non_witness_utxo: Some(funding),
+        ..Default::default()
+    });
+    let mut psbt = reread(inner);
+    assert_eq!(
+        finalize(&mut psbt),
+        Err(Error::Finalize {
+            input: 1,
+            reason: "unknown script type"
+        })
+    );
+}
+
 /// A taproot input's signature commits to every input's spent output;
 /// another input whose funding transaction lacks the output it spends
 /// leaves that signature unchecked and the PSBT unsigned, and stops

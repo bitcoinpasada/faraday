@@ -138,7 +138,10 @@ fn build_final(
     c: &Classified,
     input: &Input,
 ) -> Result<Option<Final>, Error> {
-    let index_err = |reason| Error::Finalize { input: 0, reason };
+    let index_err = |reason| Error::Finalize {
+        input: index,
+        reason,
+    };
     let single = || {
         input
             .partial_sigs
