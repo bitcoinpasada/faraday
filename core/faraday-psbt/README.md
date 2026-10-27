@@ -206,7 +206,8 @@ script-path MuSig2 spend and is refused: `tr(musig())` has no tree.
   `non_witness_utxo`, in a transaction with more than one input: BIP-143
   signs the amount the PSBT states, so without the transaction it spends
   the amount is unverifiable and two rounds of the lie pay the difference
-  to the miner. A transaction with one input is signed from its
+  to the miner. A finalized input is held to this too, except a taproot
+  one, since its final witness is the coordinator's. A transaction with one input is signed from its
   `witness_utxo` alone, because a lie there produces one signature the
   chain rejects and nothing to combine it with. Taproot commits to every
   amount it spends and needs no such transaction.

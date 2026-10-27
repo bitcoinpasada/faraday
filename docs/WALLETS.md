@@ -164,7 +164,9 @@ non-cryptographic and live in `faraday-core`:
   amount an input states, so two signing rounds over two different
   stated amounts give two valid signatures that pay the difference to
   the miner (the 2020 two-round attack). The fix is the previous
-  transaction, in the PSBT or brought in through Files. A single-input
+  transaction, in the PSBT or brought in through Files. A finalized input
+  is checked the same way, since its final witness is the coordinator's.
+  A single-input
   transaction is signed from its `witnessUtxo`: a false amount there
   gives a signature no node accepts. Taproot inputs commit to every
   amount and need no previous transaction.

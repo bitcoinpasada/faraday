@@ -236,6 +236,21 @@ pub(crate) fn spent_output(psbt: &bitcoin::Psbt, index: usize) -> Option<&TxOut>
     input.non_witness_utxo.as_ref()?.output.get(vout as usize)
 }
 
+/// Whether an input's amount cannot be verified on this device.
+///
+/// BIP-143 signs the amount an input states rather than the
+/// transaction it came from, so a SegWit v0 amount is worth only the
+/// previous transaction the PSBT carries beside it. Taproot commits to
+/// every amount it spends and needs no such transaction. One input
+/// alone cannot be stated wrongly to any profit: the single signature is
+/// made over the stated amount and no node accepts it otherwise.
+/// A finalized input is held to this too, since its final witness is the
+/// coordinator's. `needs_previous_tx` says the input is of a kind whose
+/// amount only its previous transaction proves.
+fn amount_unverified(psbt: &bitcoin::Psbt, input: &Input, needs_previous_tx: bool) -> bool {
+    psbt.inputs.len() > 1 && input.non_witness_utxo.is_none() && needs_previous_tx
+}
+
 /// Classifies input `index` of `psbt`.
 #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub(crate) fn classify(psbt: &bitcoin::Psbt, index: usize) -> Classified {
@@ -291,6 +306,10 @@ pub(crate) fn classify(psbt: &bitcoin::Psbt, index: usize) -> Classified {
         } else {
             ScriptKind::Unknown
         };
+        // Its final witness is the coordinator's, so the amount is held to
+        // the same rule as any other input's. The redeem and witness
+        // scripts are gone, so only the scriptPubKey tells what signs it.
+        let unverified = amount_unverified(psbt, input, !spk.is_p2tr());
         return Classified {
             kind,
             utxo: Some(utxo),
@@ -298,7 +317,7 @@ pub(crate) fn classify(psbt: &bitcoin::Psbt, index: usize) -> Classified {
             script_keys: Vec::new(),
             satisfaction_weight: None,
             problems,
-            amount_unverified: false,
+            amount_unverified: unverified,
         };
     }
     let mut multisig = None;
@@ -386,15 +405,10 @@ pub(crate) fn classify(psbt: &bitcoin::Psbt, index: usize) -> Classified {
         ScriptKind::Unknown
     };
 
-    // BIP-143 signs the amount an input states rather than the
-    // transaction it came from, so a SegWit v0 amount is worth only the
-    // previous transaction the PSBT carries beside it. Taproot commits to
-    // every amount it spends and needs no such transaction. One input
-    // alone cannot be lied to profitably: the single signature is made
-    // over the lie and no node accepts it.
-    let amount_unverified = psbt.inputs.len() > 1
-        && input.non_witness_utxo.is_none()
-        && matches!(
+    let amount_unverified = amount_unverified(
+        psbt,
+        input,
+        matches!(
             kind,
             ScriptKind::P2wpkh
                 | ScriptKind::P2shP2wpkh
@@ -403,7 +417,8 @@ pub(crate) fn classify(psbt: &bitcoin::Psbt, index: usize) -> Classified {
                     ..
                 }
                 | ScriptKind::Miniscript { .. }
-        );
+        ),
+    );
 
     let (script_keys, satisfaction_weight) = match kind {
         ScriptKind::Miniscript { wrapper } => {

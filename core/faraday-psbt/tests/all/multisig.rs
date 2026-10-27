@@ -2,7 +2,8 @@
 //! and the BIP-174 role chain (p2sh and p2sh-p2wsh 2-of-2) signed,
 //! finalized and extracted against the vectors Bitcoin Core produced.
 //! The role chain's p2sh-p2wsh input carries no previous transaction, so
-//! the signer blocks it and the chain is followed with that input final.
+//! the signer blocks it, finalized or not, and the chain is followed from
+//! the combiner vector.
 
 use std::str::FromStr;
 
@@ -336,36 +337,36 @@ fn bip174_signer_finalizer_extractor() {
             .all(|i| i.partial_sigs.is_empty())
     );
 
-    // The same PSBT with the p2sh-p2wsh input already final, which is
-    // how the finalizer vector leaves it. A final input is signed by
-    // nobody, so the amount it states is nobody's business any more.
+    // The same PSBT with the p2sh-p2wsh input already final, which is how
+    // the finalizer vector leaves it. Its final witness is the
+    // coordinator's, so the amount it states is held to the same rule and
+    // the PSBT is refused until the input carries its previous transaction.
     let finalizer = Psbt::parse_bytes(&c, &unhex(get("finalizer").get("hex"))).unwrap();
     let mut psbt = Psbt::parse_bytes(&c, &unhex(get("updater-sighash-all").get("hex"))).unwrap();
     psbt.inner_mut().inputs[1] = finalizer.inner().inputs[1].clone();
-
-    let r = sign(
-        &c,
-        &mut psbt,
-        &[&master],
-        &[fp],
-        &ctx,
-        false,
-        Nonce::First,
-        Aux::Deterministic,
-        &mut None,
-        &faraday_crypto::Zeroizing::new([0u8; 32]),
-    )
-    .unwrap();
-    assert_eq!(r.signed_inputs.len(), 2, "both keys of the one open input");
-    assert!(r.complete);
-    // Both signatures are the bytes Bitcoin Core produced for that input.
-    let combiner = Psbt::parse_bytes(&c, &unhex(get("combiner").get("hex"))).unwrap();
     assert_eq!(
-        psbt.inner().inputs[0].partial_sigs,
-        combiner.inner().inputs[0].partial_sigs,
-        "signer vectors"
+        inspect(&c, &psbt, &ctx).blocked(),
+        vec![WarningKind::AmountUnverified]
+    );
+    assert_eq!(
+        sign(
+            &c,
+            &mut psbt,
+            &[&master],
+            &[fp],
+            &ctx,
+            true,
+            Nonce::First,
+            Aux::Deterministic,
+            &mut None,
+            &faraday_crypto::Zeroizing::new([0u8; 32]),
+        ),
+        Err(Error::Blocked(vec![WarningKind::AmountUnverified]))
     );
 
+    // The rest of the chain from the combiner vector, which holds both
+    // signatures Bitcoin Core produced.
+    let mut psbt = Psbt::parse_bytes(&c, &unhex(get("combiner").get("hex"))).unwrap();
     let tx = finalize(&mut psbt).unwrap().expect("complete");
     assert_eq!(
         psbt.to_bytes(),
@@ -379,41 +380,45 @@ fn bip174_signer_finalizer_extractor() {
     );
 }
 
-/// The same chain under Low R, on the input the signer will sign. One of
-/// its vector signatures already has a low `r` and comes out unchanged;
-/// the other, whose vector `r` is 33 bytes, is ground to a different,
-/// shorter signature that still verifies, and the PSBT still finalizes
-/// and extracts a valid transaction.
+/// A 2-of-3 p2wsh spend signed under Low R: every signature has a low `r`
+/// and a short DER encoding, verifies against an independently computed
+/// sighash, and the PSBT finalizes and extracts a transaction that
+/// round-trips.
 #[test]
-fn bip174_under_low_r() {
+fn multisig_under_low_r() {
     let c = Compute::unchecked();
-    let recs = records("tools/vectors/psbt/bip174-roles.txt");
-    let get = |name: &str| {
-        recs.iter()
-            .find(|r| r.opt("case") == Some(&format!("role {name}")))
-            .unwrap_or_else(|| panic!("no role {name}"))
-            .clone()
-    };
-    let tprv = Xpriv::from_str(recs[0].get("master-tprv")).unwrap();
-    let master = MasterKey::from_xpriv(&c, tprv).unwrap();
-    let fp = master.fingerprint();
-    let keys = [KeyRef::from_master(&c, &master, 0).unwrap()];
+    let abandon = master(ABANDON, NET);
+    let zoo = master(ZOO, NET);
+    let legal = master(LEGAL, NET);
+    let keys = [
+        KeyRef::from_master(&c, &abandon, 0).unwrap(),
+        KeyRef::from_master(&c, &zoo, 0).unwrap(),
+    ];
     let ctx = Context {
-        network: Network::Testnet,
+        network: NET,
         keys: &keys,
         wallets: &[],
         musig_session: None,
     };
-
-    let finalizer = Psbt::parse_bytes(&c, &unhex(get("finalizer").get("hex"))).unwrap();
-    let mut psbt = Psbt::parse_bytes(&c, &unhex(get("updater-sighash-all").get("hex"))).unwrap();
-    psbt.inner_mut().inputs[1] = finalizer.inner().inputs[1].clone();
+    let recipient = legal
+        .account_xpub(&c, ScriptType::NativeSegwit, 0)
+        .unwrap()
+        .address(false, 3)
+        .unwrap()
+        .script_pubkey();
+    let mut psbt = sorted_multisig(
+        &[&abandon, &zoo, &legal],
+        2,
+        NET,
+        100_000,
+        &[(recipient, 99_000)],
+    );
     let unsigned = psbt.clone();
     sign(
         &c,
         &mut psbt,
-        &[&master],
-        &[fp],
+        &[&abandon, &zoo],
+        &[abandon.fingerprint(), zoo.fingerprint()],
         &ctx,
         false,
         Nonce::LowR,
@@ -422,38 +427,29 @@ fn bip174_under_low_r() {
         &faraday_crypto::Zeroizing::new([0u8; 32]),
     )
     .unwrap();
-    let combiner = Psbt::parse_bytes(&c, &unhex(get("combiner").get("hex"))).unwrap();
 
     let secp = Secp256k1::new();
-    let (mut same, mut ground) = (0, 0);
+    let mut signatures = 0;
     for (i, input) in psbt.inner().inputs.iter().enumerate() {
-        let theirs = &combiner.inner().inputs[i].partial_sigs;
         for (pk, sig) in &input.partial_sigs {
-            let der = sig.signature.serialize_der();
-            assert!(der.len() <= 70, "input {i}: {} DER bytes", der.len());
+            assert!(
+                sig.signature.serialize_der().len() <= 70,
+                "input {i}: long DER"
+            );
             assert!(
                 sig.signature.serialize_compact()[0] < 0x80,
                 "input {i}: high R"
             );
-            let vector = &theirs[pk];
-            if vector.signature.serialize_der().len() <= 70 {
-                assert_eq!(sig, vector, "input {i}: a low-R vector signature changed");
-                same += 1;
-            } else {
-                assert_ne!(sig, vector, "input {i}: the high-R vector was not ground");
-                ground += 1;
-            }
-            // The ground signature is a signature of the same input.
             let msg = sighash_of(&unsigned, i);
             secp.verify_ecdsa(&msg, &sig.signature, &pk.inner)
                 .unwrap_or_else(|e| panic!("input {i}: {e}"));
+            signatures += 1;
         }
     }
-    assert_eq!((same, ground), (1, 1));
+    assert_eq!(signatures, 2);
 
     let tx = finalize(&mut psbt).unwrap().expect("complete");
-    assert_eq!(tx.input.len(), 2);
-    assert_ne!(serialize(&tx), unhex(get("extractor").get("tx")));
+    assert_eq!(tx.input.len(), 1);
     assert_eq!(
         deserialize::<Transaction>(&serialize(&tx)).unwrap(),
         tx,

@@ -58,8 +58,10 @@ the chain and index the input's origins name.
 
 Known differences, counted: Faraday refuses to sign a SegWit v0 input
 that carries no previous transaction in a transaction of more than one
-input, which BIP-174's signer signs (`faraday_psbt::sign`); BIP-174's own
-signer vector is such a PSBT. Faraday signs a taproot leaf with a `pkh`
+input, which BIP-174's signer signs (`faraday_psbt::sign`), and it holds a
+finalized input to the same rule, refusing the PSBT when such an input is
+final but for a taproot one, since a final witness is the coordinator's;
+BIP-174's own signer vector is such a PSBT, final input or not. Faraday signs a taproot leaf with a `pkh`
 but leaves it unfinalized (`faraday_psbt::finalize`: `miniscript` 12
 cannot write that satisfaction); the reference does the same, and counts
 each such leaf it could have satisfied.
@@ -475,6 +477,12 @@ def ref_sign(raw, masters, nonce):
     and whether every input can now be finalized."""
     g, ins, outs, tx = parse(raw)
     inputs = [Input(m, tx, i) for i, m in enumerate(ins)]
+    if len(inputs) > 1:
+        for inp in inputs:
+            spk = bytes(inp.utxo.scriptPubKey) if inp.utxo is not None else b""
+            taproot = len(spk) == 34 and spk[:2] == b"\x51\x20"
+            if inp.final and inp.utxo is not None and not inp.has_prev and not taproot:
+                raise Known("a final input with no previous transaction beside another input")
     out_ins = []
     count = 0
     for inp, m in zip(inputs, ins):
@@ -851,19 +859,16 @@ class Sign(Area):
         # As published: the P2SH-P2WSH input carries no previous
         # transaction, so Faraday refuses the PSBT.
         self.sign(psbt("updater-sighash-all"), [], [tprv], "testnet", "first", masters)
-        # With that input final, as the finalizer leaves it, the legacy
-        # input is signed: its signatures are the combiner's.
+        # With that input final, as the finalizer leaves it, Faraday refuses
+        # it too: the final input still carries no previous transaction.
         g, ins, outs, tx = parse(psbt("updater-sighash-all"))
         fin = parse(psbt("finalizer"))
         ins[1] = fin[1][1]
         raw = write(g, ins, outs)
-        signed = self.sign(raw, [], [tprv], "testnet", "first", masters)
-        theirs = parse(bytes.fromhex(signed[1]["psbt"]))[1][0]
-        combiner = parse(psbt("combiner"))[1][0]
-        if sorted(of_type(theirs, 0x02)) != sorted(of_type(combiner, 0x02)):
-            raise Mismatch(self.name, "sign.sign", {"psbt": raw.hex()}, signed, "the combiner's",
-                           "the signatures are not BIP-174's")
-        done = self.finalize(bytes.fromhex(signed[1]["psbt"]))
+        self.sign(raw, [], [tprv], "testnet", "first", masters)
+        # The rest of the chain from the combiner vector, which holds both
+        # signatures Bitcoin Core produced.
+        done = self.finalize(psbt("combiner"))
         if canonical(bytes.fromhex(done[1]["psbt"])) != canonical(psbt("finalizer")):
             raise Mismatch(self.name, "sign.finalize", {}, done, "BIP-174's finalizer PSBT")
         extracted = roles["role extractor"]["tx"][0]

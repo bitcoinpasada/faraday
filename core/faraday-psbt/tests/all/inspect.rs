@@ -791,3 +791,107 @@ fn mixed_script_types_is_info() {
     assert_eq!(r.signed_inputs.len(), 2);
     assert!(r.complete);
 }
+
+/// A finalized input's amount is checked as any other's: its final witness
+/// is the coordinator's, so with a second input the amount is trusted only
+/// when the previous transaction is carried beside it, or the input is
+/// taproot. Either of two inputs may be the finalized one.
+#[test]
+fn a_finalized_input_without_its_previous_transaction_is_blocked() {
+    use bitcoin::Witness;
+
+    let c = Compute::unchecked();
+    let abandon = master(ABANDON, NET);
+    let keys = [KeyRef::from_master(&c, &abandon, 0).unwrap()];
+    let ctx = insp_ctx(&keys);
+    let junk = Witness::from_slice(&[vec![0u8; 3]]);
+
+    let finalize_understated = |psbt: &mut Psbt, i: usize| {
+        let input = &mut psbt.inner_mut().inputs[i];
+        input.final_script_witness = Some(junk.clone());
+        input.partial_sigs.clear();
+        input.bip32_derivation.clear();
+        input.non_witness_utxo = None;
+        input.witness_utxo.as_mut().unwrap().value -= Amount::from_sat(100);
+    };
+    let sign_forced = |psbt: &mut Psbt| {
+        sign(
+            &c,
+            psbt,
+            &[&abandon],
+            &[abandon.fingerprint()],
+            &ctx,
+            true,
+            Nonce::LowR,
+            Aux::Deterministic,
+            &mut None,
+            &faraday_crypto::Zeroizing::new([0u8; 32]),
+        )
+    };
+
+    // Both rounds: whichever input is the finalized one.
+    for finalized in [0, 1] {
+        let mut psbt = two_inputs(ScriptType::NativeSegwit);
+        finalize_understated(&mut psbt, finalized);
+        let insp = inspect(&c, &psbt, &ctx);
+        assert!(
+            insp.warnings.iter().any(|w| w.level == Level::Blocked
+                && w.kind == WarningKind::AmountUnverified
+                && w.text.contains(&format!("input {finalized} "))),
+            "finalized {finalized}: {:?}",
+            insp.warnings
+        );
+        assert_eq!(
+            sign_forced(&mut psbt),
+            Err(Error::Blocked(vec![WarningKind::AmountUnverified]))
+        );
+    }
+
+    // A finalized P2WSH and a finalized P2SH input read the same.
+    let script = ScriptBuf::from_bytes(vec![0x51]);
+    for spk in [script.to_p2wsh(), script.to_p2sh()] {
+        let mut psbt = two_inputs(ScriptType::NativeSegwit);
+        finalize_understated(&mut psbt, 1);
+        psbt.inner_mut().inputs[1]
+            .witness_utxo
+            .as_mut()
+            .unwrap()
+            .script_pubkey = spk;
+        let insp = inspect(&c, &psbt, &ctx);
+        assert!(has(&insp, Level::Blocked, &WarningKind::AmountUnverified));
+        assert_eq!(
+            sign_forced(&mut psbt),
+            Err(Error::Blocked(vec![WarningKind::AmountUnverified]))
+        );
+    }
+
+    // Not blocked: the previous transaction carried beside it.
+    let mut psbt = two_inputs(ScriptType::NativeSegwit);
+    finalize_understated(&mut psbt, 1);
+    let other = two_inputs(ScriptType::NativeSegwit);
+    psbt.inner_mut().inputs[1].witness_utxo = other.inner().inputs[1].witness_utxo.clone();
+    psbt.inner_mut().inputs[1].non_witness_utxo = other.inner().inputs[1].non_witness_utxo.clone();
+    assert!(!has(
+        &inspect(&c, &psbt, &ctx),
+        Level::Blocked,
+        &WarningKind::AmountUnverified
+    ));
+
+    // Not blocked: a taproot input commits every signature to every amount.
+    let mut psbt = two_inputs(ScriptType::Taproot);
+    finalize_understated(&mut psbt, 1);
+    assert!(!has(
+        &inspect(&c, &psbt, &ctx),
+        Level::Blocked,
+        &WarningKind::AmountUnverified
+    ));
+
+    // Not blocked: one input alone, as for an input not finalized.
+    let mut psbt = basic(ScriptType::NativeSegwit);
+    finalize_understated(&mut psbt, 0);
+    assert!(!has(
+        &inspect(&c, &psbt, &ctx),
+        Level::Blocked,
+        &WarningKind::AmountUnverified
+    ));
+}
