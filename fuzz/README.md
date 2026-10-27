@@ -136,6 +136,8 @@ cargo +nightly fuzz run --fuzz-dir fuzz decode_luma fuzz/artifacts/decode_luma/r
 | `message_verify` | `faraday_psbt::message::verify` over the test vector key's four addresses; `parse_signed` on the whole input, its result verified |
 | `xkey` | `faraday_bip::xkey::decode_xpriv` / `decode_xpub`, `slip132::decode_xpub` |
 | `pgp_armor` | `faraday_pgp::read_public` |
+| `pgp_paperkey` | `faraday_pgp::paperkey::read_text`, `read_raw`, `line` and `check` on what reads, then `entries` |
+| `pgp_restore` | `faraday_pgp::Certificate::read` on the whole input, then `restore` with the input as a paperkey's data against what read and against a Faraday key's certificate, and that key's own data with the input laid over it |
 | `json` | `faraday_bip::json::parse`, written back with `quote` and read again; `faraday_bip::coldcard::parse` |
 | `decode_luma` | `faraday_codec::decode_luma`, the frame's width and height taken from the first two bytes |
 | `seed_parts` | SLIP-39 `Share::parse` and codex32 `Codex32::parse` on every line, then `recover` over what parsed (SLIP-39 only at iteration exponent 0, so a run stays fast) |

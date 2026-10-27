@@ -28,7 +28,9 @@ Moved to `docs/history/KEYS-LOG.md`.
     the key (`Keys::keep_codex32`), leaving only as a stick's file
     (`BackupStick(Part::Codex32)`) or a vault's share record
     (`VaultEntry(Part::Codex32)`);
-  - GPG and Secure Boot private keys;
+  - GPG and Secure Boot private keys, and a GPG key's paperkey being
+    typed back (the restore set, `gpg::Restore`,
+    `faraday/faraday-keys/src/gpg.rs`): the bytes of each line checked;
   - TOTP secrets;
   - the whole open vault: every decrypted record, passwords and notes
     included (owner, 2026-10-21, Q1 of §9: every decrypted vault byte is
@@ -123,6 +125,15 @@ impl Keys {
   seed to `add_seed`. It wipes on drop.
 - A key loaded by `add_seed` keeps its seed bytes (`holds_seed_bytes`
   tells whether), wiped when the key is dropped.
+- A GPG key restored from its paperkey (`docs/GPG-PAPERKEY.md` §6) is
+  held the same way: `gpg::Restore::new` takes the public certificate;
+  `line` takes each line as it is ended, checks its CRC and what the
+  data's headers say, and keeps its bytes or refuses it and keeps
+  nothing; what it tells is public (the lines checked, the count, the
+  fingerprints read). The lines are never shown again, so it has no
+  reveal. `finish` makes the key and gives it as `create` does, a
+  `MadeKey` with its facts and certificate; `wipe` forgets the lines and
+  keeps the certificate, for a lock. It wipes on drop.
   `Keys::codex32_shares(i, k, n, draw, why)` makes any `k` (2 to 9)
   of `n` (`k` to 31) shares, or with `k` 0 and `n` 1 the secret alone,
   from the seed bytes of a key without words, at that seed's own length.

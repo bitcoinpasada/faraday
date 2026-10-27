@@ -88,6 +88,20 @@ doc = false
 bench = false
 
 [[bin]]
+name = "pgp_paperkey"
+path = "fuzz_targets/pgp_paperkey.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "pgp_restore"
+path = "fuzz_targets/pgp_restore.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
 name = "json"
 path = "fuzz_targets/json.rs"
 test = false

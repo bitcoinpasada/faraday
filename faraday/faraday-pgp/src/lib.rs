@@ -4,15 +4,18 @@
 //! signatures, a revocation certificate, and the secret parts in
 //! `paperkey`'s text form.
 //!
-//! The only OpenPGP read from outside is [`read_public`]: it says whether
-//! a file is one ASCII-armoured block of public packets, a public key or a
+//! The OpenPGP read from outside is [`read_public`]: it says whether a
+//! file is one ASCII-armoured block of public packets, a public key or a
 //! signature, and reads every packet in full to its exact end, so that no
-//! byte of it is a secret in another packet's clothes. The inputs to
-//! everything else are
-//! the key's own seeds, its creation times, its user IDs and its expiry,
-//! which a vault keeps (`docs/VAULT.md` §7, type 7). Every signature is
-//! Ed25519's and so deterministic: the same key and time give the same
-//! bytes.
+//! byte of it is a secret in another packet's clothes. On it stands the
+//! reading back of a key from its paperkey (`docs/GPG-PAPERKEY.md`):
+//! [`paperkey`] reads paperkey's two forms, and [`certificate`] reads a
+//! public certificate and restores the key from it and the paperkey's
+//! entries, making every signature of the key's again to compare. The
+//! inputs to everything else are the key's own seeds, its creation times,
+//! its user IDs and its expiry, which a vault keeps (`docs/VAULT.md` §7,
+//! type 7). Every signature is Ed25519's and so deterministic: the same
+//! key and time give the same bytes.
 //!
 //! The formats are RFC 4880 as RFC 9580 keeps them for version 4: the
 //! EdDSALegacy public-key algorithm (22) over the Ed25519 curve, SHA-1
@@ -24,6 +27,11 @@
 
 extern crate alloc;
 
+pub mod certificate;
+pub mod paperkey;
+
+pub use certificate::{Certificate, Refusal, Restored, restore};
+
 use alloc::string::String;
 use alloc::vec::Vec;
 
@@ -33,12 +41,13 @@ use sha2::{Digest, Sha256, Sha512};
 use zeroize::{Zeroize, ZeroizeOnDrop, Zeroizing};
 
 /// The EdDSALegacy public-key algorithm.
-const EDDSA: u8 = 22;
+pub(crate) const EDDSA: u8 = 22;
 /// The Ed25519 curve's OID, as its length and bytes.
-const ED25519_OID: [u8; 10] = [0x09, 0x2B, 0x06, 0x01, 0x04, 0x01, 0xDA, 0x47, 0x0F, 0x01];
+pub(crate) const ED25519_OID: [u8; 10] =
+    [0x09, 0x2B, 0x06, 0x01, 0x04, 0x01, 0xDA, 0x47, 0x0F, 0x01];
 
 /// Packet tags.
-mod tag {
+pub(crate) mod tag {
     pub const SIGNATURE: u8 = 2;
     pub const SECRET_KEY: u8 = 5;
     pub const PUBLIC_KEY: u8 = 6;
@@ -48,7 +57,7 @@ mod tag {
 }
 
 /// Signature types.
-mod sig {
+pub(crate) mod sig {
     pub const BINARY: u8 = 0x00;
     pub const POSITIVE_CERTIFICATION: u8 = 0x13;
     pub const SUBKEY_BINDING: u8 = 0x18;
@@ -57,7 +66,7 @@ mod sig {
 }
 
 /// Signature subpacket types.
-mod sub {
+pub(crate) mod sub {
     pub const CREATED: u8 = 2;
     pub const KEY_EXPIRES: u8 = 9;
     pub const PREFERRED_SYMMETRIC: u8 = 11;
@@ -119,6 +128,18 @@ impl Reason {
             0 => Some(Reason::Unspecified),
             1 => Some(Reason::Compromised),
             2 => Some(Reason::Superseded),
+            3 => Some(Reason::Retired),
+            _ => None,
+        }
+    }
+
+    /// The reason a revocation's code names (RFC 4880 §5.2.3.23), for the
+    /// four Faraday writes.
+    pub fn from_code(code: u8) -> Option<Reason> {
+        match code {
+            0 => Some(Reason::Unspecified),
+            1 => Some(Reason::Superseded),
+            2 => Some(Reason::Compromised),
             3 => Some(Reason::Retired),
             _ => None,
         }
@@ -220,7 +241,7 @@ fn length(n: usize) -> Vec<u8> {
 }
 
 /// A packet with a new-format header.
-fn packet(tag: u8, body: &[u8]) -> Vec<u8> {
+pub(crate) fn packet(tag: u8, body: &[u8]) -> Vec<u8> {
     let mut out = alloc::vec![0xC0 | tag];
     out.extend(length(body.len()));
     out.extend_from_slice(body);
@@ -236,7 +257,7 @@ fn subpacket(kind: u8, data: &[u8]) -> Vec<u8> {
 }
 
 /// A public key's packet body, primary or subkey alike.
-fn public_body(seed: &[u8; 32], created: u32) -> Vec<u8> {
+pub(crate) fn public_body(seed: &[u8; 32], created: u32) -> Vec<u8> {
     let public = SigningKey::from_bytes(seed).verifying_key();
     let mut point = alloc::vec![0x40];
     point.extend_from_slice(public.as_bytes());
@@ -257,7 +278,7 @@ fn key_hashed(body: &[u8]) -> Vec<u8> {
 }
 
 /// The version-4 fingerprint of a public key body.
-fn fingerprint_of(body: &[u8]) -> [u8; 20] {
+pub(crate) fn fingerprint_of(body: &[u8]) -> [u8; 20] {
     Sha1::digest(key_hashed(body)).into()
 }
 
@@ -558,7 +579,7 @@ fn push_packet(out: &mut Vec<u8>, tag: u8, body: &[u8]) {
 
 /// The packet at `at`: its tag, where its body starts, and where it ends.
 /// Reads only the new-format headers this crate writes.
-fn next_packet(bytes: &[u8], at: usize) -> (u8, usize, usize) {
+pub(crate) fn next_packet(bytes: &[u8], at: usize) -> (u8, usize, usize) {
     let t = bytes[at] & 0x3f;
     let first = bytes[at + 1] as usize;
     let (len, head) = if first < 192 {
@@ -754,11 +775,27 @@ pub fn read_public_armor(bytes: &[u8]) -> Option<Armor> {
 /// The block [`read_block`] reads, only when its checksum is there and
 /// right. Without it a file is not taken for public: GnuPG 2.4 writes the
 /// checksum, and RFC 9580 makes it optional for a reader, which is a
-/// reason to read the block (see [`read_block`]) and not a reason to take
-/// it for public.
+/// reason to read the block and not a reason to take it for public.
 pub fn read_public(bytes: &[u8]) -> Option<PublicArmor> {
     let (block, crc_ok) = read_block(bytes)?;
     crc_ok.then_some(block)
+}
+
+/// One ASCII-armoured block of public packets, and whether its checksum
+/// line is there and right: what the reader below (`read_block_packets`)
+/// takes, and nothing else.
+pub fn read_block(bytes: &[u8]) -> Option<(PublicArmor, bool)> {
+    read_block_packets(bytes).map(|b| (b.armor, b.crc_ok))
+}
+
+/// A block of public packets read in full: what [`read_block`] says of
+/// it, the packets' bytes, and each packet's tag and body.
+pub(crate) struct Block {
+    pub(crate) armor: PublicArmor,
+    pub(crate) crc_ok: bool,
+    pub(crate) data: Vec<u8>,
+    /// Each packet's tag and where its body is in `data`.
+    pub(crate) packets: Vec<(u8, core::ops::Range<usize>)>,
 }
 
 /// One ASCII-armoured OpenPGP block of public packets (RFC 4880 §6, RFC
@@ -778,7 +815,7 @@ pub fn read_public(bytes: &[u8]) -> Option<PublicArmor> {
 /// tag was changed to a public one: its body does not end where a public
 /// key's does.
 #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
-pub fn read_block(bytes: &[u8]) -> Option<(PublicArmor, bool)> {
+pub(crate) fn read_block_packets(bytes: &[u8]) -> Option<Block> {
     if !bytes.is_ascii() {
         return None;
     }
@@ -848,6 +885,7 @@ pub fn read_block(bytes: &[u8]) -> Option<(PublicArmor, bool)> {
     let crc_ok = checksum == Some(crc24(&data));
     // Whole packets, each read to its end.
     let mut tags = Vec::new();
+    let mut packets = Vec::new();
     let mut at = 0usize;
     while at < data.len() {
         let first = data[at];
@@ -901,9 +939,15 @@ pub fn read_block(bytes: &[u8]) -> Option<(PublicArmor, bool)> {
             return None;
         }
         tags.push(packet_tag);
+        packets.push((packet_tag, from..to));
         at = to;
     }
-    Some((PublicArmor { kind, tags, texts }, crc_ok))
+    Some(Block {
+        armor: PublicArmor { kind, tags, texts },
+        crc_ok,
+        data,
+        packets,
+    })
 }
 
 /// Text from a packet or subpacket into `texts`; `strict` refuses what is

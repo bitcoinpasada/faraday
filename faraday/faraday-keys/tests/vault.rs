@@ -323,3 +323,311 @@ fn a_key_record_copied_between_vaults_is_the_same_key_there() {
         "lacking the field asked"
     );
 }
+
+// ---- A GPG key restored from its paperkey (docs/GPG-PAPERKEY.md §8) ----
+
+const MADE: u32 = 1_780_000_000;
+const YEAR: u32 = 31_536_000;
+
+/// A key as Make makes one, with seeds that start with zero bytes (a
+/// shorter secret MPI).
+fn gpg_made() -> faraday_keys::gpg::Made {
+    let mut primary = zeroize::Zeroizing::new([0x31u8; 32]);
+    primary[0] = 0;
+    let mut subkey = zeroize::Zeroizing::new([0x42u8; 32]);
+    subkey[..2].fill(0);
+    faraday_keys::gpg::create(
+        &primary,
+        &subkey,
+        MADE,
+        "Test Person <test@example.com>".to_string(),
+        2 * YEAR,
+    )
+}
+
+/// The certificate armoured, read for a restore.
+fn read_cert(packets: &[u8]) -> faraday_pgp::Certificate {
+    let text = faraday_pgp::armor(faraday_pgp::Armor::PublicKey, packets);
+    faraday_pgp::Certificate::read(text.as_bytes()).expect("a certificate of Faraday's shape")
+}
+
+/// Two vaults opened from one empty file, Make's key in the first: the
+/// store, their ids, and the key's paperkey as its page shows it.
+fn with_made(c: &Compute, made: &faraday_keys::gpg::Made) -> (OpenVaults, [vault::VaultId; 2]) {
+    let file = made_with(c, b"pass", Vec::new());
+    let mut store = OpenVaults::default();
+    let (a, _) = store.unlock(c, file.clone(), b"pass").expect("opens");
+    let (b, _) = store.unlock(c, file, b"pass").expect("opens");
+    store.insert(a, &made.key).expect("kept");
+    (store, [a, b])
+}
+
+/// The lines typed back, one at a time, as printed: number, colon, bytes
+/// and CRC.
+fn typed_back(restore: &mut faraday_keys::gpg::Restore, paperkey: &str) {
+    for (i, l) in paperkey.lines().enumerate() {
+        assert_eq!(restore.next(), i as u32 + 1);
+        restore.line(i as u32 + 1, l).expect("each line is taken");
+    }
+    assert!(restore.complete());
+}
+
+/// Test 16: a key made by Make, its paperkey revealed and typed back
+/// against its certificate: the record restored is Make's, field for
+/// field and byte for byte, the kept revocation included.
+#[test]
+fn a_key_restored_from_its_paperkey_is_the_record_make_wrote() {
+    let c = compute();
+    let made = gpg_made();
+    let (mut store, [a, b]) = with_made(&c, &made);
+    let shown = store
+        .gpg_paperkey(store.records(a).get(0).unwrap(), Reveal::GpgPaperkey)
+        .expect("the paperkey");
+    let mut restore = faraday_keys::gpg::Restore::new(read_cert(&made.certificate));
+    assert_eq!(restore.lines(), None, "the count waits for the lengths");
+    typed_back(&mut restore, &shown);
+    assert_eq!(restore.lines(), Some(7));
+    assert_eq!(
+        restore.fingerprints(),
+        &[made.facts.fingerprint, made.facts.subkey_fingerprint]
+    );
+    let restored = restore.finish(&c).expect("restored");
+    assert_eq!(restored.set_aside, 0);
+    assert_eq!(restored.revoked, None);
+    assert_eq!(restored.made.certificate, made.certificate);
+    assert_eq!(restored.made.facts.fingerprint, made.facts.fingerprint);
+    assert_eq!(restored.made.facts.expiry, made.facts.expiry);
+    store.insert(b, &restored.made.key).expect("kept");
+    let (mine, theirs) = (
+        store.records(a).get(0).unwrap(),
+        store.records(b).get(0).unwrap(),
+    );
+    for n in 1..=9 {
+        assert_eq!(mine.has(n), theirs.has(n), "field {n}");
+        assert_eq!(mine.public(n), theirs.public(n), "field {n}");
+    }
+    let rev = Reveal::OutboxFile(Part::Revocation);
+    assert_eq!(
+        **store.gpg_revocation_file(a, 0, rev).unwrap(),
+        **store.gpg_revocation_file(b, 0, rev).unwrap(),
+        "the kept revocation"
+    );
+    // The two vaults, sealed under one nonce, are the same bytes: every
+    // field of the two records, secret ones included, is the same.
+    let nonce = [3u8; 24];
+    assert_eq!(store.sealed(a, &nonce), store.sealed(b, &nonce));
+}
+
+/// A line mistyped is refused and nothing of it kept; once typed right,
+/// the restore goes on; a line typed again clears it and those after.
+#[test]
+fn a_mistyped_line_is_refused_and_typed_again() {
+    let c = compute();
+    let made = gpg_made();
+    let (store, [a, _]) = with_made(&c, &made);
+    let shown = store
+        .gpg_paperkey(store.records(a).get(0).unwrap(), Reveal::GpgPaperkey)
+        .expect("the paperkey");
+    let lines: Vec<&str> = shown.lines().collect();
+    let mut restore = faraday_keys::gpg::Restore::new(read_cert(&made.certificate));
+    restore.line(1, lines[0]).expect("line 1");
+    let wrong = lines[1].replacen(": 00 ", ": 01 ", 1);
+    assert_eq!(
+        restore.line(2, &wrong),
+        Err(faraday_keys::gpg::LineRefused::Line(
+            faraday_pgp::paperkey::LineError::Crc
+        ))
+    );
+    assert_eq!(restore.next(), 2, "nothing of it is kept");
+    assert_eq!(
+        restore.line(3, lines[2]),
+        Err(faraday_keys::gpg::LineRefused::Line(
+            faraday_pgp::paperkey::LineError::Number { typed: 3 }
+        ))
+    );
+    assert_eq!(
+        restore.line(2, &lines[1].replacen("  2:", "  4:", 1)),
+        Err(faraday_keys::gpg::LineRefused::Line(
+            faraday_pgp::paperkey::LineError::Number { typed: 4 }
+        ))
+    );
+    for (i, l) in lines.iter().enumerate().skip(1) {
+        restore.line(i as u32 + 1, l).expect("taken");
+    }
+    assert!(restore.complete());
+    restore.again(3);
+    assert!(!restore.complete());
+    assert_eq!(restore.next(), 3);
+    for (i, l) in lines.iter().enumerate().skip(2) {
+        restore.line(i as u32 + 1, l).expect("taken again");
+    }
+    assert!(restore.finish(&c).is_ok());
+    // A lock: every line forgotten, the certificate kept.
+    restore.wipe();
+    assert_eq!(restore.next(), 1);
+    assert_eq!(restore.checked(), 0);
+    assert_eq!(restore.certificate().fingerprint(), made.facts.fingerprint);
+    assert!(restore.finish(&c).is_err(), "nothing to restore from");
+}
+
+/// `gpg --verify` of `sig` over `data` with `cert` imported, at `now`.
+/// `None` when gpg is missing and `FARADAY_SKIP_GNUPG=1` says to skip.
+fn gnupg_verifies(cert: &[u8], data: &[u8], sig: &str, now: u32) -> Option<String> {
+    let dir = std::env::temp_dir().join(format!("faraday-keys-restore-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o700)).unwrap();
+    }
+    let gpg = |args: &[&str]| {
+        std::process::Command::new("gpg")
+            .arg("--homedir")
+            .arg(&dir)
+            .args(["--batch", "--no-tty", "--status-fd", "1"])
+            .arg("--faked-system-time")
+            .arg(format!("{now}!"))
+            .args(args)
+            .output()
+    };
+    let files = [
+        ("cert.asc", cert),
+        ("data.txt", data),
+        ("data.txt.asc", sig.as_bytes()),
+    ];
+    for (name, bytes) in files {
+        std::fs::write(dir.join(name), bytes).unwrap();
+    }
+    let path = |n: &str| dir.join(n).to_str().unwrap().to_string();
+    let out = match gpg(&["--import", &path("cert.asc")]) {
+        Ok(o) => o,
+        Err(_) if std::env::var("FARADAY_SKIP_GNUPG").is_ok_and(|v| v == "1") => return None,
+        Err(e) => panic!("gpg is not installed ({e}); set FARADAY_SKIP_GNUPG=1 to skip"),
+    };
+    assert!(
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let out = gpg(&["--verify", &path("data.txt.asc"), &path("data.txt")]).unwrap();
+    let _ = std::fs::remove_dir_all(&dir);
+    Some(String::from_utf8_lossy(&out.stdout).into_owned())
+}
+
+/// Tests 17 and 18: the restored key signs a file with the same bytes as
+/// Make's at the same time, which `gpg --verify` takes; Renew and Make a
+/// revocation on it give what they give on Make's.
+#[test]
+fn a_restored_key_signs_renews_and_revokes_as_makes_does() {
+    let c = compute();
+    let made = gpg_made();
+    let (mut store, [a, b]) = with_made(&c, &made);
+    let shown = store
+        .gpg_paperkey(store.records(a).get(0).unwrap(), Reveal::GpgPaperkey)
+        .expect("the paperkey");
+    let mut restore = faraday_keys::gpg::Restore::new(read_cert(&made.certificate));
+    typed_back(&mut restore, &shown);
+    let restored = restore.finish(&c).expect("restored");
+    store.insert(b, &restored.made.key).expect("kept");
+
+    let data = b"A file signed after a restore.\n";
+    let at = MADE + 600;
+    let mine = store.gpg_sign_armored(a, 0, data, at).expect("signs");
+    let theirs = store.gpg_sign_armored(b, 0, data, at).expect("signs");
+    assert_eq!(mine, theirs);
+    let cert = faraday_pgp::armor(faraday_pgp::Armor::PublicKey, &restored.made.certificate);
+    if let Some(said) = gnupg_verifies(cert.as_bytes(), data, &theirs, at + 60) {
+        assert!(
+            said.contains("GOODSIG") && said.contains("VALIDSIG"),
+            "{said}"
+        );
+    }
+
+    let renewed = MADE + YEAR;
+    let expiry = Some(renewed - MADE + 2 * YEAR);
+    assert_eq!(
+        store.gpg_certificate(a, 0, renewed, expiry),
+        store.gpg_certificate(b, 0, renewed, expiry)
+    );
+    let rev = Reveal::OutboxFile(Part::Revocation);
+    let (mine, theirs) = (
+        store
+            .gpg_new_revocation_file(a, 0, renewed, faraday_pgp::Reason::Retired, "Gone", rev)
+            .expect("a revocation"),
+        store
+            .gpg_new_revocation_file(b, 0, renewed, faraday_pgp::Reason::Retired, "Gone", rev)
+            .expect("a revocation"),
+    );
+    assert_eq!(**mine, **theirs);
+}
+
+/// A certificate with the key's revocation in it restores marked revoked
+/// at the revocation's time, as Make's record is once marked.
+#[test]
+fn a_revoked_certificate_restores_a_record_marked_revoked() {
+    let c = compute();
+    let made = gpg_made();
+    let (store, [a, _]) = with_made(&c, &made);
+    let shown = store
+        .gpg_paperkey(store.records(a).get(0).unwrap(), Reveal::GpgPaperkey)
+        .expect("the paperkey");
+    let when = MADE + 900;
+    let rev = store
+        .gpg_new_revocation_file(
+            a,
+            0,
+            when,
+            faraday_pgp::Reason::Compromised,
+            "",
+            Reveal::OutboxFile(Part::Revocation),
+        )
+        .expect("a revocation");
+    // The revocation's packets, from the armour after the file's colon.
+    let armoured = rev.split_once("\n:").expect("the colon").1;
+    // Where OpenPGP puts it: straight after the primary key's packet.
+    let cert = &made.certificate;
+    let primary_end = 2 + usize::from(cert[1]);
+    let mut both = cert[..primary_end].to_vec();
+    both.extend(packets_of(armoured));
+    both.extend_from_slice(&cert[primary_end..]);
+    let mut restore = faraday_keys::gpg::Restore::new(read_cert(&both));
+    typed_back(&mut restore, &shown);
+    let restored = restore.finish(&c).expect("restored");
+    assert_eq!(restored.revoked, Some(when));
+    assert_eq!(
+        restored.made.key.view().public(gpg_field::REVOKED),
+        Some(&when.to_le_bytes()[..])
+    );
+}
+
+/// The packets of one armoured block.
+fn packets_of(armoured: &str) -> Vec<u8> {
+    let body: String = armoured
+        .lines()
+        .skip_while(|l| !l.is_empty())
+        .skip(1)
+        .take_while(|l| !l.starts_with('='))
+        .collect();
+    let mut out = Vec::new();
+    let mut acc = 0u32;
+    let mut bits = 0;
+    for ch in body.bytes() {
+        let v = match ch {
+            b'A'..=b'Z' => ch - b'A',
+            b'a'..=b'z' => ch - b'a' + 26,
+            b'0'..=b'9' => ch - b'0' + 52,
+            b'+' => 62,
+            b'/' => 63,
+            _ => continue,
+        };
+        acc = acc << 6 | u32::from(v);
+        bits += 6;
+        if bits >= 8 {
+            bits -= 8;
+            out.push((acc >> bits) as u8);
+            acc &= (1 << bits) - 1;
+        }
+    }
+    out
+}

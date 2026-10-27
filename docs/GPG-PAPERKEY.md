@@ -1,8 +1,8 @@
 # Restore a GPG key from its paperkey
 
 **Kind:** Spec
-**Status:** Specified from the owner's ask (2026-10-15), not built; the decision is drafted in §10 as F-next, for the owner
-**Open:** all of it, batches P1 to P6 (§11.2): reading a paperkey and a certificate in `faraday-pgp`, the restore set in `faraday-keys`, the flow, scanning, and the docs
+**Status:** Specified from the owner's ask (2026-10-15); P1 and P2 built (reading a paperkey and a certificate, the restore and its tests against paperkey and GnuPG in `faraday-pgp`; the restore set in `faraday-keys`); the decision is drafted in §10 as F-next, for the owner
+**Open:** batches P3 to P6 (§11.2): the flow in faraday-core and the lock's call to the restore set's wipe, scanning, and the docs
 
 A person whose GPG key's vault is lost, but who wrote down its paperkey,
 brings the key back into a vault and signs with it again. Today the
