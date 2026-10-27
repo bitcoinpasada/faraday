@@ -10,8 +10,9 @@ the website's Audits page shows it.
 
 Faraday invites audits from experts and AIs and publishes each one at
 `https://faradayoffline.app/audits/`. An entry has the submitter's
-summary, Faraday's verdict on each finding, and links to the full prompt
-and output. Critical and high findings are sent privately and published
+summary, Faraday's short response, and links to the full prompt and
+output, to Faraday's reply on the issue, which gives the verdict on each
+finding, and to anything else written about it. Critical and high findings are sent privately and published
 once fixed. A hash posted on the day they are sent shows that the file
 published later is the one that was sent.
 
@@ -206,18 +207,20 @@ One entry per audit on the Audits page, newest first:
 
 - the model and its version, or the expert's credit name; the date; the
   commit audited, and how many releases behind the current one it is
-- the submitter's summary, unedited
+- the submitter's summary, unedited; when none came with the audit,
+  one written by Faraday and marked as Faraday's
 - the findings counted by severity, with the private count shown as
   private until published
-- Faraday's response: the verdict on each finding, and a line or two
-  overall
+- Faraday's short response: a line or two overall
 - links to `prompt.md`, `audit.md` and, once published, `private.md`,
-  with the hash and the issue
+  with the hash and the issue; to Faraday's reply on the issue, with the
+  verdict on each finding; and to anything else Faraday wrote about it
 
 The site keeps its own copies of the submitted files, so its publish
 check scans them for personal information like any other file. The page
 also says what an entry means: it records what was submitted and
-Faraday's verdict on each finding. It is not an endorsement, and it does
+Faraday's short response; the verdict on each finding is in Faraday's
+reply on the issue. It is not an endorsement, and it does
 not prove which model wrote the output.
 
 ## 7. What the hash proves
