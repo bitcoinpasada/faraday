@@ -37,6 +37,10 @@ pub enum Slot {
     /// The codex32 entry's "Demo only" card, a supporting pane that
     /// scrolls within itself (`Codex32Make::pane_offset`, `faraday-core`).
     DemoPane,
+    /// Learn's supporting pane on an extra-large window, which scrolls
+    /// within itself beside the page (`docs/LAYOUT.md` §6;
+    /// `LearnState::scroll`, `faraday-core`).
+    LearnPane,
     /// Where the codex32 dice sheet's work is while the step-through
     /// rolls: the marked die's track, or the tree on the character's
     /// step; and, in the tour of the shares made, the marked cells of a

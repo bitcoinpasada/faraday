@@ -1168,6 +1168,16 @@ pub const SUPPORT_PANE: f32 = 400.0;
 /// the eye), never level with them (owner, 2026-10-24).
 pub const SUPPORT_PANE_TOP: f32 = 2.0 * TOUCH;
 
+/// Learn's supporting pane (`docs/LAYOUT.md` §6): the margin at each
+/// side of its tabs and text, and the tabs' top inside it.
+pub const LEARN_PANE_PAD: f32 = PAD;
+/// The top of the close button's target in Learn's pane, at its top
+/// end: its middle level with the middle of the first row of tabs, whose
+/// chips are 32 dp tall at `LEARN_PANE_PAD`.
+pub const LEARN_PANE_CLOSE_TOP: f32 = LEARN_PANE_PAD + 16.0 - TOUCH / 2.0;
+/// The room between paragraphs in Learn's pane, under its Body M text.
+pub const LEARN_PANE_PARA: f32 = GAP + GAP_SMALL;
+
 /// The input panel's width where it stands beside the sheets
 /// (`docs/LAYOUT.md` §16.3): the codex32 entry's rolls, dice and pad.
 pub const CODEX32_ENTRY_W: f32 = 424.0;

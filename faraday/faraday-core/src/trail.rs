@@ -596,6 +596,8 @@ impl Faraday {
             // A sheet's own way out, as Escape takes it.
             (Some(Sheet::Lock), _) => {}
             (Some(_), _) => self.act(Action::Cancel),
+            // Learn's supporting pane goes first, as Escape takes it.
+            (None, _) if self.learn_pane_shown() => self.learn_close(),
             // Out of the screen, where the link lands (F77); a step
             // within it, as the link takes it.
             (None, Some(a)) => self.act(self.as_back(a)),

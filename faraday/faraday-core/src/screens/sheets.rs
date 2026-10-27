@@ -1511,9 +1511,166 @@ pub(super) fn power_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     );
 }
 
+/// How the Learn sheet or Learn's supporting pane lays out its tabs and
+/// the page on show: one body, [`learn_body`], drawn by both.
+pub(super) struct LearnLook {
+    /// The margin at each side of the tabs and the text.
+    pub(super) pad: f32,
+    /// The tabs' top below the box's.
+    pub(super) tabs_top: f32,
+    /// The room left at the tabs' end, for Done or the close button.
+    pub(super) end: f32,
+    /// A single tab still takes its row (not on the small panel).
+    pub(super) one_tab_row: bool,
+    /// The text's view's top below the tabs.
+    pub(super) after_tabs: f32,
+    /// How far above the text's view the rule stands.
+    pub(super) rule: f32,
+    /// The text's inset within the margin, at each side.
+    pub(super) inset: f32,
+    /// The text's top within its view.
+    pub(super) text_top: f32,
+    /// The room under the text's view, inside the box.
+    pub(super) foot: f32,
+    /// The page's title.
+    pub(super) head: T::TypeRole,
+    /// A section's heading.
+    pub(super) heading: T::TypeRole,
+    /// The running text and the steps.
+    pub(super) body: T::TypeRole,
+    /// The room under the title, a heading, a paragraph and a section.
+    pub(super) after: [f32; 4],
+    /// What is scrolled out of the text's view takes no press.
+    pub(super) clip_hits: bool,
+}
+
+/// The Learn sheet's tabs: a direct way to the Spend tab first
+/// (`docs/history/SIMPLIFY.md` §6.2), except from the Spend tab itself
+/// and in a held app (`Faraday::held`), which has none; then one per
+/// page, the one on show marked.
+fn learn_tab_items(app: &View) -> Vec<(String, Style, Action)> {
+    let mut tabs: Vec<(String, Style, Action)> = Vec::new();
+    if app.screen != Screen::Family && !app.held {
+        tabs.push((
+            EN.learn_spending_step.to_string(),
+            Style::Secondary,
+            Action::LearnSpend,
+        ));
+    }
+    tabs.extend(app.learn().pages.iter().enumerate().map(|(i, p)| {
+        let style = if i == app.learn().page {
+            Style::Primary
+        } else {
+            Style::Secondary
+        };
+        (p.title.to_string(), style, Action::LearnPage(i as u8))
+    }));
+    tabs
+}
+
+/// Learn's tabs and the page on show in the box (x, y, w, h), laid out
+/// as `look` sets them: the body the Learn sheet and Learn's supporting
+/// pane both draw. The text scrolls by Learn's own offset, kept after
+/// the pass. Returns the text's view and how far it scrolls; nothing
+/// where no page is open.
+pub(super) fn learn_body(
+    app: &View,
+    ui: &mut Ui,
+    look: &LearnLook,
+    (x, y, sw, sh): (f32, f32, f32, f32),
+) -> Option<(faraday_draw::Rect, f32)> {
+    let page = app.learn().pages.get(app.learn().page).copied()?;
+    let pad = look.pad;
+    // Tabs, one per page; on a small panel they wrap.
+    let tabs = learn_tab_items(app);
+    let tabs_w = sw - 2.0 * pad - look.end;
+    let tabs_h = if tabs.len() > 1 || look.one_tab_row {
+        learn_tabs(ui, x + pad, y + look.tabs_top, tabs_w, &tabs) - 44.0 + 34.0
+    } else {
+        34.0
+    };
+    let top = y + look.tabs_top + tabs_h + look.after_tabs;
+    ui.rule(
+        x + pad,
+        top - look.rule,
+        sw - 2.0 * pad,
+        Role::OutlineVariant,
+    );
+    let (bx, bw) = (x + pad + look.inset, sw - 2.0 * pad - 2.0 * look.inset);
+    let view = sh - (top - y) - look.foot;
+    let clip = ui.rect(x, top, sw, view);
+    let scroll = app.learn().scroll;
+    ui.c.push_clip(clip);
+    let mark = ui.hits.len();
+    let text = learn_page(app, ui, look, page, (bx, top + look.text_top - scroll, bw));
+    if look.clip_hits {
+        let mut k = mark;
+        while k < ui.hits.len() {
+            let r = ui.hits[k].0.intersect(&clip);
+            if r.w <= 0 || r.h <= 0 {
+                ui.hits.remove(k);
+            } else {
+                ui.hits[k].0 = r;
+                k += 1;
+            }
+        }
+    }
+    ui.c.pop_clip();
+    let max = (look.text_top + text - view).max(0.0);
+    app.learn_scroll(max, scroll.min(max));
+    Some((clip, max))
+}
+
+/// The page's title and its sections from (x, y), `w` wide: headings,
+/// paragraphs, and steps with their circles, what follows a step indented
+/// under it. Returns the height used.
+fn learn_page(
+    app: &View,
+    ui: &mut Ui,
+    look: &LearnLook,
+    page: &'static faraday_learn::Page,
+    (bx, y, bw): (f32, f32, f32),
+) -> f32 {
+    let ticked = app.learn_ticked(page);
+    let [after_head, after_heading, after_para, after_section] = look.after;
+    let mut cy = y;
+    cy += ui.wrap_as((bx, cy, bw), look.head, Role::OnSurface, page.title) + after_head;
+    for section in page.sections {
+        if !section.heading.is_empty() {
+            let at = (bx, cy, bw);
+            cy += ui.wrap_as(at, look.heading, Role::Primary, section.heading) + after_heading;
+        }
+        // Under a step: what follows it, up to the next step or section,
+        // is indented under it.
+        let mut under = false;
+        for para in section.paragraphs {
+            if let Some((n, text)) = faraday_learn::step(para) {
+                under = true;
+                let tx = bx + STEP_INDENT;
+                let line = ui.line_as(look.body);
+                // The circle level with the text's first line.
+                let circle_y = cy + (line - STEP_SIDE) / 2.0;
+                let action = Some(Action::LearnStep(n));
+                step_circle(ui, bx, circle_y, n, ticked.contains(&n), action);
+                let at = (tx, cy, bw - STEP_INDENT);
+                let h = ui.wrap_as(at, look.body, Role::OnSurface, text);
+                cy += h.max(STEP_SIDE + circle_y - cy) + after_para;
+                continue;
+            }
+            let (px, pw) = if under {
+                (bx + STEP_INDENT, bw - STEP_INDENT)
+            } else {
+                (bx, bw)
+            };
+            cy += ui.wrap_as((px, cy, pw), look.body, Role::OnSurface, para) + after_para;
+        }
+        cy += after_section;
+    }
+    cy - y
+}
+
 /// The Learn pages for the screen under the sheet: a tab for
 /// each, the page's sections, scrolled by the wheel or the arrow keys.
-#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub(super) fn learn_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let compact = ui.compact;
     let (sw, sh, pad) = if compact {
@@ -1531,13 +1688,10 @@ pub(super) fn learn_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         let (x, y) = sheet_box(ui, w, h, sw, sh);
         (x, y, sw, sh)
     };
-    let Some(page) = app.learn().pages.get(app.learn().page).copied() else {
+    if app.learn().pages.get(app.learn().page).is_none() {
         return;
-    };
-    let ticked = app.learn_ticked(page);
-    // Tabs, one per page, and Done; on a small panel they wrap.
+    }
     let done_w = if compact { 72.0 } else { 96.0 };
-    let tabs_w = sw - 2.0 * pad - if app.held { 0.0 } else { done_w + 8.0 };
     if !app.held {
         ui.button(
             x + sw - pad - done_w,
@@ -1549,84 +1703,26 @@ pub(super) fn learn_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
             Action::Cancel,
         );
     }
-    // The sheet's first row (`docs/history/SIMPLIFY.md` §6.2): a direct way to
-    // the Spend tab, except from the Spend tab itself and in a held app
-    // (`Faraday::held`), which has none.
-    let mut tabs: Vec<(String, Style, Action)> = Vec::new();
-    if app.screen != Screen::Family && !app.held {
-        tabs.push((
-            EN.learn_spending_step.to_string(),
-            Style::Secondary,
-            Action::LearnSpend,
-        ));
-    }
-    tabs.extend(app.learn().pages.iter().enumerate().map(|(i, p)| {
-        let style = if i == app.learn().page {
-            Style::Primary
-        } else {
-            Style::Secondary
-        };
-        (p.title.to_string(), style, Action::LearnPage(i as u8))
-    }));
-    let tabs_h = if tabs.len() > 1 || !compact {
-        learn_tabs(ui, x + pad, y + 14.0, tabs_w, &tabs) - 44.0 + 34.0
-    } else {
-        34.0
+    let look = LearnLook {
+        pad,
+        tabs_top: 14.0,
+        end: if app.held { 0.0 } else { done_w + 8.0 },
+        one_tab_row: !compact,
+        after_tabs: 18.0,
+        rule: 8.0,
+        inset: 4.0,
+        text_top: 12.0,
+        foot: 12.0,
+        head: sheet_head(compact).medium(),
+        heading: TITLE_M,
+        body: BODY_M,
+        after: [16.0, 8.0, 12.0, 10.0],
+        clip_hits: false,
     };
-    let top = y + 14.0 + tabs_h + 18.0;
-    ui.rule(x + pad, top - 8.0, sw - 2.0 * pad, Role::OutlineVariant);
-    let (bx, bw) = (x + pad + 4.0, sw - 2.0 * pad - 8.0);
-    let view = sh - (top - y) - 12.0;
-    let clip = ui.rect(x, top, sw, view);
-    ui.c.push_clip(clip);
-    let mut cy = top + 12.0 - app.learn().scroll;
-    cy += ui.wrap_as(
-        (bx, cy, bw),
-        sheet_head(compact).medium(),
-        Role::OnSurface,
-        page.title,
-    ) + 16.0;
-    for section in page.sections {
-        if !section.heading.is_empty() {
-            cy += ui.wrap_as((bx, cy, bw), TITLE_M, Role::Primary, section.heading) + 8.0;
-        }
-        // Under a step: what follows it, up to the next step or section,
-        // is indented under it.
-        let mut under = false;
-        for para in section.paragraphs {
-            if let Some((n, text)) = faraday_learn::step(para) {
-                under = true;
-                let tx = bx + STEP_INDENT;
-                let line = ui.line_as(BODY_M);
-                // The circle level with the text's first line.
-                let circle_y = cy + (line - STEP_SIDE) / 2.0;
-                step_circle(
-                    ui,
-                    bx,
-                    circle_y,
-                    n,
-                    ticked.contains(&n),
-                    Some(Action::LearnStep(n)),
-                );
-                let h = ui.wrap_as((tx, cy, bw - STEP_INDENT), BODY_M, Role::OnSurface, text);
-                cy += h.max(STEP_SIDE + circle_y - cy) + 12.0;
-                continue;
-            }
-            let (px, pw) = if under {
-                (bx + STEP_INDENT, bw - STEP_INDENT)
-            } else {
-                (bx, bw)
-            };
-            cy += ui.wrap_as((px, cy, pw), BODY_M, Role::OnSurface, para) + 12.0;
-        }
-        cy += 10.0;
+    if let Some((clip, max)) = learn_body(app, ui, &look, (x, y, sw, sh)) {
+        // The overlay scrollbar, held and dragged as on any page.
+        ui.report_scroll(clip, max);
     }
-    ui.c.pop_clip();
-    let content = cy + app.learn().scroll - top;
-    let max = (content - view).max(0.0);
-    app.learn_scroll(max, app.learn().scroll.min(max));
-    // The overlay scrollbar, held and dragged as on any page.
-    ui.report_scroll(clip, max);
 }
 
 /// Where a secret goes: the open vault, or, once the person has said they

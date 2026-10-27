@@ -159,7 +159,7 @@ pub(super) fn sidebar(app: &View, ui: &mut Ui, h: f32) {
                 y,
                 Glyph::Icon(Icon::Learn),
                 EN.sidebar_learn,
-                app.sheet == Some(Sheet::Learn),
+                app.sheet == Some(Sheet::Learn) || app.learn_pane_shown(),
                 Action::Learn,
             );
             y += TOUCH;

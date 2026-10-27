@@ -1,8 +1,8 @@
 # Layout at every window size
 
 **Kind:** Spec
-**Status:** Partly built: size classes and density (L1, F101), navigation (L2), Home's lead tile and tile grid (L3), the supporting pane's place and its narrow strip, for codex32's Demo only card (§6); the page area to the window's edge (W1, §15, §19); list and detail for Wallets, Files, Vaults and Backups (L4, §5, §17); Settings' list of sections on compact windows and every section on one page from medium up (§17); the codex32 entry's input panel (W3, §16.3); the rest specified, not built (F92); the rest of wide windows (§13 to §19) specified, not built
-**Open:** the stick's density from its screen's EDID (§7; today its kernel command line's, F101), the top app bar over the wide pages and the step flows (§3; they keep their own heads), Files' two lists each scrolling on its own on the rail's windows (§17; there the page scrolls as one), components that keep their size (L5: the size set and the type roles are built in `faraday-ui`, part 1; the screens of `faraday-core` and the Starter still write their own sizes, part 2), Learn in the supporting pane (L6), tours and tests (L7), wide windows: wide content, the codex32 worksheet's fit, the string's boxes, the input panel on compact windows that are not short (§16.3; they keep the small panel's context over the pad), the panel beside the sheets scrolling within itself (it stands at the foot where it is taller than the window), New key's dice and Create a vault's Generate with dice in the panel (their pad, progress line and entries already stand together in one card), the page following a whole sheet, fixed step buttons and Decode's outputs at their columns' width (§14 to §17, W2, W4, W5); planned.
+**Status:** Partly built: size classes and density (L1, F101), navigation (L2), Home's lead tile and tile grid (L3), the supporting pane's place and its narrow strip, for codex32's Demo only card (§6); the page area to the window's edge (W1, §15, §19); list and detail for Wallets, Files, Vaults and Backups (L4, §5, §17); Settings' list of sections on compact windows and every section on one page from medium up (§17); the codex32 entry's input panel (W3, §16.3); Learn in the supporting pane on extra-large windows (L6, §6); the rest specified, not built (F92); the rest of wide windows (§13 to §19) specified, not built
+**Open:** the stick's density from its screen's EDID (§7; today its kernel command line's, F101), the top app bar over the wide pages and the step flows (§3; they keep their own heads), Files' two lists each scrolling on its own on the rail's windows (§17; there the page scrolls as one), components that keep their size (L5: the size set and the type roles are built in `faraday-ui`, part 1; the screens of `faraday-core` and the Starter still write their own sizes, part 2), tours and tests (L7), wide windows: wide content, the codex32 worksheet's fit, the string's boxes, the input panel on compact windows that are not short (§16.3; they keep the small panel's context over the pad), the panel beside the sheets scrolling within itself (it stands at the foot where it is taller than the window), New key's dice and Create a vault's Generate with dice in the panel (their pad, progress line and entries already stand together in one card), the page following a whole sheet, fixed step buttons and Decode's outputs at their columns' width (§14 to §17, W2, W4, W5); planned.
 
 Faraday lays its screens out by Material 3's layout and navigation
 rules at every size, from the Pi's 2.8-inch panel to a full monitor.
@@ -160,10 +160,26 @@ them (`SUPPORT_PANE_TOP`), against the right edge with the 24 dp margin
 window too narrow for the page beside it, what the person acts on in
 it sits in a strip pinned at the window's foot that opens to the whole
 pane over the page and never scrolls away. Built for Make codex32
-shares' dice sheet in its column (§16.1, `codex32/pane_screen.rs`);
-Learn's pane is planned. The "Demo only" card that stood here is
+shares' dice sheet in its column (§16.1, `codex32/pane_screen.rs`)
+and for Learn (`screens/learn_pane.rs`). The "Demo only" card that stood here is
 Faraday Demo's host strip now, outside the app (F118,
 `docs/DESKTOP-HOST.md`).
+
+Learn's pane, from 1600 dp: the ? and Learn in the sidebar open it
+beside the page, which is laid out in the room left of it, so nothing
+of the page is under it and the page takes presses as before. The pane
+is a card in the surface-container role, Material's large shape; its
+tabs and ticked steps are the sheet's, the page's title is in Title L
+and its text in Body M, and its close button, Material's standard icon
+button in a 48 dp target, stands at its top end. The close button, the
+? pressed again, Escape and the mouse's back button put it away. When
+the screen or its step changes, the pane shows that screen's Learn
+pages, on the tab it showed where they have it, else on the first.
+One pane stands at a time: the codex32 entry (its dice sheet's
+column), Back up and a wallet's backup flow (the board's lists) keep
+the place for their own, and Learn is the sheet there; a pane open on
+arriving there is put away. A window resized across 1600 dp moves
+Learn between the pane and the sheet, on the page it shows.
 
 ## 7. Density
 
@@ -377,7 +393,7 @@ The snapshot tours gain the sizes 760x1000, 960x580@133, 1920x1080 and
 | L3 | Home (§4): the lead tile and the tile grid | Sonnet |
 | L4 | List and detail (§5) for Wallets, Files, Vaults and Backups, and Settings (§17); built | Opus |
 | L5 | Components keep their size (§8): buttons, fields, the measure, across the screens; the size set (`BUTTON_H`, `FIELD_H` outlined, `LIST_1`–`LIST_3`) and the type roles in place of the fifteen sizes, by file owner, after the Material 3 components (`OUTLINE`, Tonal, the field box) are in `faraday-ui`; the `lint-tokens` counts fall | Sonnet |
-| L6 | The supporting pane (§6) | Sonnet |
+| L6 | The supporting pane (§6); built | Sonnet |
 | L7 | The tours at the new sizes, the tests (§11), DESIGN §3 rewritten to this spec, then this plan to `docs/history/` and this file a Reference | Sonnet |
 
 L1 before the rest; L2 before L3 and L4. Each batch is timed in a
@@ -746,7 +762,7 @@ is measured to place them.
 | Explore | reading content: the path field as wide as a path (§8), the values in mono in the column, wrapping in groups; the addresses table as wide as its columns, at the start |
 | Spend and every step flow | reading content in the column, centred (§14); a table in a step (Spend's transaction) as wide as its columns; on extra-large the step's Guided text and Learn in the supporting pane (§6, L6) |
 | Settings | (owner, 2026-10-25) On a compact window, the Pi panel and narrow windows, Material's list and detail one pane at a time: the Steps only · Guided choice, then the sections as list items, Mode first with the mode it is on, opening the mode sheet; any other opens that section's card as its own page, the top app bar naming it, and Back (the bar's and the app's) returns to the list where it was scrolled. From medium windows up, no list: every section's card on one page under the Steps only · Guided choice, centred in the page area, in two columns where each is at least `SETTINGS_CARD_MIN` (360 dp) wide, else one; each column at most `COLUMN_MAX` (§14). The first column holds Mode, Session, Time and Randomness, the second Appearance on, so the order reads down the first and then the second and a card never moves between them. Medium keeps one page: measured at 160 dpi with no keys loaded, the page is 2,235 dp tall at 600 × 900 (2.7 screens; 2,787 dp, 3.3 screens, with Guided), 2,039 dp at 768 × 1024 (2.1; 2.6 with Guided) and 1,981 dp at 800 × 1280 (1.6; 2.0), at or under about three screens but with Guided on the smallest, which a list would only split into a press and a Back per section |
-| Learn | the sheet below extra-large; the supporting pane on extra-large (§6, L6), at the right edge (§15), except on the codex32 entry, where it stays a sheet and the Demo only card keeps the pane (owner, 2026-10-24) |
+| Learn | the sheet below extra-large; the supporting pane on extra-large (§6, L6), at the right edge (§15), except on the codex32 entry, where it stays a sheet and the Demo only card keeps the pane (owner, 2026-10-24), and on Back up and a wallet's backup flow, whose board's lists keep it |
 | The Starter | the same rules (`docs/STARTER.md` §3.1d): its page area is the window less the rail, its top bar's actions at the window's edge, a destination's cards in a column of at most `CONTENT_MAX` and a task page's text in `COL_W`, centred in the room beside the rail; nothing is capped by the window |
 | Sheets and dialogs | as §5: `SHEET_MAX`, centred |
 | The Pi panel and compact windows | unchanged by §13 to §17, but for the input panel on compact windows that are not short (§16.3) |
@@ -832,8 +848,8 @@ is a token (`tools/lint-tokens.sh`).
 row, the eye, the keyboard button, the supporting pane and Home's Scan
 stand `MARGIN_WIDE` from the window's right edge (Scan, drawn by the frame, also from the foot);
 `screens::support_pane_place` is the one place any supporting pane
-stands (the Demo only card uses it; L6's pane and the board's lists
-will). Past an extra-large window's 1360 dp of room (`page_area`,
+stands (the Demo only card uses it, and so do Learn's pane and the
+board's lists). Past an extra-large window's 1360 dp of room (`page_area`,
 `faraday-core/src/screens/mod.rs`), a reading page is laid out in its
 own area (`READING_PAGE_W`, or Settings', Set the time's and Add
 randomness' own) centred in the room; New key takes the whole room;

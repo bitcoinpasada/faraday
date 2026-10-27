@@ -1,8 +1,11 @@
 //! The ? on a screen opens the Learn pages for what is on it: a
 //! multisig being created opens Multisig, a new key opens Randomness, and
-//! another tab shows the next page.
+//! another tab shows the next page. On an extra-large window Learn stands
+//! in a supporting pane beside the page (`docs/LAYOUT.md` §6), follows
+//! the page, scrolls on its own and closes; below it, it is the sheet.
 
 use faraday_core::{Action, Faraday, Sheet};
+use faraday_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware};
 
 fn shown(app: &Faraday) -> &'static str {
     app.learn().pages[app.learn().page].title
@@ -54,4 +57,161 @@ fn the_vaults_screen_names_the_vaults_page() {
     app.press(Action::Learn);
     assert_eq!(app.sheet, Some(Sheet::Learn));
     assert_eq!(shown(&app), "Vaults");
+}
+
+/// The window, `width` × `height` at 160 dpi: one pixel a unit.
+fn window(app: &mut Faraday, width: u16, height: u16) {
+    app.event(Event::Display(DisplayInfo {
+        width,
+        height,
+        dpi: 160,
+        inset_bottom: 0,
+        inset_top: 0,
+        buttons: 0,
+        camera_fixed: false,
+        secure: SecureHardware::None,
+        boot: BootState::Unknown,
+        memory_mib: None,
+    }));
+}
+
+fn frame(app: &mut Faraday) {
+    let _ = app.frame();
+}
+
+/// Make a new wallet's kinds, with Learn opened from its ?, on a window
+/// `width` × `height`, drawn.
+fn learn_on_create(width: u16, height: u16) -> Faraday {
+    let mut app = faraday_core::testkit::started();
+    window(&mut app, width, height);
+    app.press(Action::CreateWallet);
+    app.press(Action::Learn);
+    frame(&mut app);
+    app
+}
+
+#[test]
+fn at_1920_learn_opens_beside_the_page_whose_controls_stay_pressable() {
+    let mut app = learn_on_create(1920, 1080);
+    assert_eq!(app.sheet, None, "no sheet over the page");
+    assert!(
+        app.offers(Action::LearnClose),
+        "the pane and its close button"
+    );
+    assert!(app.offers(Action::LearnPage(0)), "the pane's tabs");
+    let first = shown(&app);
+    // The page's kinds take a press beside the pane, none of them under it.
+    let tab = app
+        .hit_box(Action::LearnPage(0))
+        .expect("the pane's first tab");
+    let kind = app.hit_box(Action::CKind(4)).expect("a kind on the page");
+    assert!(
+        u32::from(kind.0) + u32::from(kind.2) <= u32::from(tab.0),
+        "the kind {kind:?} stands left of the pane's tab {tab:?}"
+    );
+    app.press(Action::CKind(4));
+    frame(&mut app);
+    assert!(app.offers(Action::LearnClose), "the pane stays open");
+    assert_ne!(shown(&app), first, "and shows the multisig's pages");
+}
+
+#[test]
+fn at_1280_learn_opens_as_the_sheet() {
+    let app = learn_on_create(1280, 800);
+    assert_eq!(app.sheet, Some(Sheet::Learn));
+    assert!(!app.offers(Action::LearnClose), "no pane");
+    assert!(!app.offers(Action::CKind(4)), "the page is under the sheet");
+}
+
+#[test]
+fn the_pane_follows_the_step_to_its_pages() {
+    let mut app = learn_on_create(1920, 1080);
+    // A multisig chosen: the pane shows the pages about it.
+    app.press(Action::CKind(4));
+    frame(&mut app);
+    assert_eq!(shown(&app), "Multisig");
+    assert!(app.offers(Action::LearnClose));
+    // A new key: its pages; the tab on show stays where the next
+    // screen's pages have it too.
+    app.press(Action::Entry(None));
+    app.press(Action::KeyGen(None));
+    frame(&mut app);
+    assert_eq!(shown(&app), "Randomness");
+    app.press(Action::LearnPage(1));
+    let words = shown(&app);
+    app.press(Action::Entry(None));
+    frame(&mut app);
+    assert_eq!(
+        shown(&app),
+        words,
+        "the same page, on the next screen's tab"
+    );
+    assert_eq!(app.learn().page, 0);
+    assert!(app.offers(Action::LearnClose));
+}
+
+#[test]
+fn the_close_button_and_escape_put_the_pane_away() {
+    let mut app = learn_on_create(1920, 1080);
+    app.press(Action::LearnClose);
+    frame(&mut app);
+    assert!(!app.offers(Action::LearnClose), "the pane is away");
+    assert!(!app.offers(Action::LearnPage(0)));
+    assert_eq!(app.sheet, None);
+    assert!(app.offers(Action::CKind(4)), "the page as it was");
+    // Opened again, Escape puts it away and leaves the page on screen.
+    app.press(Action::Learn);
+    frame(&mut app);
+    assert!(app.offers(Action::LearnClose));
+    let screen = app.screen;
+    app.event(Event::Key(Key::Escape));
+    frame(&mut app);
+    assert!(!app.offers(Action::LearnClose));
+    assert_eq!(app.screen, screen, "Escape left the page where it was");
+}
+
+#[test]
+fn a_long_page_scrolls_inside_the_pane_while_the_page_beside_stays() {
+    let mut app = learn_on_create(1920, 600);
+    let kind = app.hit_box(Action::CKind(4)).expect("a kind on the page");
+    let tab = app.hit_box(Action::LearnPage(0)).expect("the pane's tab");
+    // Over the pane's text, under its tabs.
+    let (x, y) = (tab.0 + tab.2 / 2, tab.1 + 200);
+    for _ in 0..10 {
+        app.event(Event::Scroll { x, y, dy: 40 });
+        frame(&mut app);
+    }
+    app.event(Event::ScrollEnd { x, y });
+    for _ in 0..30 {
+        frame(&mut app);
+    }
+    assert!(app.learn().scroll > 0.0, "the pane's text moved");
+    assert_eq!(
+        app.hit_box(Action::LearnPage(0)),
+        Some(tab),
+        "the pane's tabs hold their place"
+    );
+    assert_eq!(
+        app.hit_box(Action::CKind(4)),
+        Some(kind),
+        "the page beside did not move"
+    );
+}
+
+#[test]
+fn resizing_across_1600_moves_learn_between_pane_and_sheet() {
+    let mut app = learn_on_create(1920, 1080);
+    app.press(Action::LearnPage(1));
+    let page = shown(&app);
+    window(&mut app, 1280, 800);
+    frame(&mut app);
+    assert_eq!(app.sheet, Some(Sheet::Learn), "the sheet below 1600");
+    assert!(!app.offers(Action::LearnClose));
+    assert_eq!(shown(&app), page, "on the page it showed");
+    window(&mut app, 1920, 1080);
+    frame(&mut app);
+    assert_eq!(app.sheet, None, "the pane again from 1600");
+    assert!(app.offers(Action::LearnClose));
+    assert!(app.offers(Action::CKind(4)), "the page takes presses");
+    assert_eq!(shown(&app), page);
 }

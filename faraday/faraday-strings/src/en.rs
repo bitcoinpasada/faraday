@@ -6479,6 +6479,9 @@ strings! {
     learn_done: "Done",
     /// Text in `learn_sheet`.
     learn_spending_step: "Spending, step by step",
+    /// The close button's label in Learn's supporting pane
+    /// (`screens/learn_pane.rs`).
+    learn_close: "Close",
     // ----- secret_out (faraday-core/src/screens/sheets.rs) -----
     /// Text in `secret_out_sheet`.
     secret_out_this_may: "This may be a secret",

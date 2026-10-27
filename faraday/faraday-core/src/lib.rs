@@ -76,8 +76,8 @@
 //!
 //! Every `Screen` variant and the file that draws it. An area draws in its
 //! own `screen.rs`; a screen with no area folder is in `screens/`, whose
-//! `mod.rs` holds the frame and the dispatch, `sidebar.rs` the sidebar,
-//! `sheets.rs` the sheets and `parts.rs` what two or more screens share.
+//! `mod.rs` holds the frame and the dispatch, `sidebar.rs` the sidebar, `sheets.rs` the sheets,
+//! `learn_pane.rs` Learn's supporting pane and `parts.rs` what two or more screens share.
 //!
 //! | `Screen` | Drawn in |
 //! |---|---|
@@ -2787,7 +2787,7 @@ impl Faraday {
                         self.backup.copy_missed(fp.0);
                     }
                 }
-                self.sheet = None;
+                self.learn_cancel();
                 self.qr.close();
                 self.glance.set_chart(None);
                 self.glance.work_mut().secret.clear();
@@ -2871,14 +2871,11 @@ impl Faraday {
             Action::Host(_) => {}
             Action::Family(f) => self.family_act(f),
             Action::Vanity(v) => self.vanity_act(v),
-            Action::Learn => self.learn_open(),
+            Action::Learn | Action::LearnClose => self.learn_press(action),
             Action::NavMenu(to) => self.nav_menu(to),
             Action::LearnShares => self.learn_shares(),
             Action::LearnTopic(t) => self.learn_topic(t),
-            Action::LearnSpend => {
-                self.sheet = None;
-                self.screen = Screen::Family;
-            }
+            Action::LearnSpend => self.learn_spend(),
             Action::Osk(p) => self.osk_press(p),
             a @ (Action::ScanPaste
             | Action::PasteWords
@@ -5957,7 +5954,7 @@ impl Faraday {
         if key == KeyIn::Paste {
             return self.paste();
         }
-        if self.keygen_walk_key(key) || self.scroll_key(key) {
+        if self.learn_key(key) || self.keygen_walk_key(key) || self.scroll_key(key) {
             return;
         }
         if self.board_key(key) {
@@ -6135,6 +6132,7 @@ impl Faraday {
             ui::Slot::FilesOut => Some(self.visit.files_out_offset_mut()),
             ui::Slot::ListPane => Some(self.scroll.list_pane_offset_mut()),
             ui::Slot::BoardList => Some(self.flows.board_list_offset_mut()),
+            ui::Slot::LearnPane => Some(self.learn.scroll_mut()),
             ui::Slot::Worksheet | ui::Slot::DemoPane => self.codex32_slot(),
             ui::Slot::Page | ui::Slot::WorksheetWhole | ui::Slot::DiceWork => self.page_slot(),
         }
@@ -6496,14 +6494,16 @@ impl Faraday {
 
     /// Brings what drawing only looks up in step before a frame is drawn
     /// (`docs/SPEED.md` §3.3, `docs/COMPUTE.md` §4): each open vault's
-    /// records read again when they changed, and the codex32 worksheet's
-    /// fitted cell with the window. Called before every [`Self::render`].
+    /// records read again when they changed, the codex32 worksheet's fit,
+    /// and Learn's place and pages ([`Self::learn_place`]). Before every
+    /// [`Self::render`].
     fn before_frame(&mut self) {
         let c = self.compute();
         for o in &self.vaults.open {
             self.vaults.warm(&c, o.id);
         }
         self.codex32_refit();
+        self.learn_place();
     }
 
     /// Draws the frame. Costs a full draw of the screen; the answers the

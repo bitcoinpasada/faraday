@@ -584,6 +584,9 @@ pub enum Action {
     Learn,
     /// The docked keyboard of a small panel.
     Osk(compact::OskPress),
+    /// Learn's supporting pane's close button: puts the pane away
+    /// (`docs/LAYOUT.md` §6).
+    LearnClose,
     /// Show the Learn sheet's page.
     LearnPage(u8),
     /// Tick step `n` of the guide page on show in the Learn sheet, or

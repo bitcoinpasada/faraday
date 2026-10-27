@@ -322,13 +322,132 @@ impl Faraday {
         }
     }
 
+    /// The ? and Learn in the navigation open Learn on the screen's
+    /// first page, as the sheet or, on an extra-large window, the
+    /// supporting pane beside the page; pressed again while the pane is
+    /// shown, and the pane's close button, put the pane away.
+    pub(crate) fn learn_press(&mut self, action: crate::Action) {
+        if action == crate::Action::LearnClose || self.learn_pane_shown() {
+            self.learn_close();
+        } else {
+            self.learn_open();
+            self.learn_place();
+        }
+    }
+
     /// Opens the Learn sheet on the screen's first page.
-    pub(crate) fn learn_open(&mut self) {
+    fn learn_open(&mut self) {
         let pages = self.learn_pages();
         if pages.is_empty() {
             return;
         }
         self.learn.open(pages, &mut self.sheet);
+    }
+
+    /// The Learn sheet's first row, **Spending, step by step**: the sheet
+    /// closes and the Spend tab opens; a pane stays beside it and follows
+    /// it there.
+    pub(crate) fn learn_spend(&mut self) {
+        self.sheet = None;
+        self.screen = Screen::Family;
+    }
+
+    /// Whether the window holds Learn as a supporting pane beside the
+    /// page (`docs/LAYOUT.md` §6): an extra-large window (1600 dp and
+    /// over) beside the sidebar, not held. Below it Learn is the sheet.
+    /// A lookup.
+    fn learn_pane_room(&self) -> bool {
+        !self.is_compact()
+            && !self.held
+            && self.window().class() == faraday_draw::geom::WindowClass::ExtraLarge
+    }
+
+    /// Whether the screen on show leaves the supporting pane's place to
+    /// Learn: one pane stands at a time, so the codex32 entry (its dice
+    /// sheet's column) and Back up and a wallet's backup flow (the
+    /// board's lists) keep the place for their own, and Learn is the
+    /// sheet there (`docs/LAYOUT.md` §17, §19). A lookup.
+    fn learn_pane_place_free(&self) -> bool {
+        let codex32 = self.screen == Screen::KeyGen
+            && self.keygen.state().is_some_and(|k| k.codex32.is_some());
+        !codex32 && !matches!(self.screen, Screen::Backup | Screen::BackupFlow)
+    }
+
+    /// Whether Learn stands as the supporting pane this frame: open as
+    /// the pane, on a window and a screen that hold it, with no chart's
+    /// side sheet in the pane's place. A lookup.
+    pub(crate) fn learn_pane_shown(&self) -> bool {
+        self.learn.pane_open()
+            && self.learn_pane_room()
+            && self.learn_pane_place_free()
+            && crate::glance::sheet::side_now(self).is_none()
+    }
+
+    /// Puts the supporting pane away: by its close button, Escape, the
+    /// mouse's back button, or the ? pressed again. The wheel and the
+    /// arrow keys move the page again.
+    pub(crate) fn learn_close(&mut self) {
+        self.learn.close_pane();
+        self.scroll.went_to(crate::ui::Slot::Page);
+    }
+
+    /// Cancel's part in Learn: the open sheet closes; with no sheet open,
+    /// Learn's supporting pane is put away, as Cancel closes the sheet.
+    pub(crate) fn learn_cancel(&mut self) {
+        if self.sheet.is_none() {
+            self.learn_close();
+        }
+        self.sheet = None;
+    }
+
+    /// Escape while the supporting pane is shown and no sheet is over
+    /// the page puts the pane away, as it closes the sheet. True when it
+    /// took the key.
+    pub(crate) fn learn_key(&mut self, key: faraday_shell_api::Key) -> bool {
+        let take = key == faraday_shell_api::Key::Escape
+            && self.sheet.is_none()
+            && self.learn_pane_shown();
+        if take {
+            self.learn_close();
+        }
+        take
+    }
+
+    /// Keeps Learn where the window and the screen put it, and the pane's
+    /// pages the screen's: called before every frame is drawn and after
+    /// Learn opens. The sheet becomes the pane once the window holds one
+    /// (extra-large), and the pane the sheet once it does not, unless
+    /// another sheet is up; a pane on a screen that keeps the pane's
+    /// place for its own goes. While the pane is open its pages are the
+    /// Learn pages of the screen on show ([`Faraday::learn_pages`]),
+    /// worked out again here and compared with the ones it last
+    /// followed, so a change of screen or step changes them however it
+    /// came; the tab on show stays where the new pages have it, else the
+    /// first is shown. Costs a lookup of the screen's pages while Learn
+    /// is open.
+    pub(crate) fn learn_place(&mut self) {
+        if self.learn.pane_open() {
+            if self.sheet.is_some() {
+                return;
+            }
+            if !self.learn_pane_room() {
+                self.learn.move_to_sheet(&mut self.sheet);
+                self.scroll.went_to(crate::ui::Slot::Page);
+                return;
+            }
+            let now = self.learn_pages();
+            if now.is_empty() || !self.learn_pane_place_free() {
+                self.learn_close();
+            } else {
+                self.learn.follow(now);
+            }
+        } else if self.sheet == Some(crate::Sheet::Learn)
+            && self.learn_pane_room()
+            && self.learn_pane_place_free()
+        {
+            let now = self.learn_pages();
+            self.learn.move_to_pane(&mut self.sheet, now);
+        }
     }
 
     /// Opens the Learn sheet on a Guided card's topic.
@@ -345,8 +464,11 @@ impl Faraday {
     /// The Learn sheet on `page`: on its tab where the screen's pages
     /// have it, else on it alone.
     pub(crate) fn learn_on(&mut self, page: &'static LearnPage) {
-        self.learn_open();
+        if !self.learn.pane_open() {
+            self.learn_open();
+        }
         self.learn.on(page, &mut self.sheet);
+        self.learn_place();
     }
 
     /// Opens the Learn sheet on `pages` over the screen on show: for the
@@ -384,6 +506,14 @@ pub(crate) struct LearnArea {
     /// this session, by page; a page with none ticked is not here.
     /// Session state only, in memory, never written to a file.
     ticks: Vec<(&'static LearnPage, Vec<u32>)>,
+    /// Learn is open as the supporting pane beside the page, on an
+    /// extra-large window (`docs/LAYOUT.md` §6), not as the sheet.
+    pane: bool,
+    /// The screen's Learn pages as the pane last followed them. Kept in
+    /// step with the screen by [`Faraday::learn_place`] before every
+    /// frame: once the screen's pages are no longer these, the pane's
+    /// pages become the new ones. Empty while the pane is not open.
+    followed: Vec<&'static LearnPage>,
 }
 
 impl LearnArea {
@@ -413,7 +543,60 @@ impl LearnArea {
             pages,
             ..LearnState::default()
         };
+        self.close_pane();
         *sheet = Some(crate::Sheet::Learn);
+    }
+
+    /// Whether Learn is open as the supporting pane.
+    pub(crate) fn pane_open(&self) -> bool {
+        self.pane
+    }
+
+    /// The open sheet becomes the pane, on the pages and tab it shows;
+    /// `screen` is the screen's pages now, which the pane follows from
+    /// here.
+    pub(crate) fn move_to_pane(
+        &mut self,
+        sheet: &mut Option<crate::Sheet>,
+        screen: Vec<&'static LearnPage>,
+    ) {
+        *sheet = None;
+        self.pane = true;
+        self.followed = screen;
+    }
+
+    /// The pane becomes the sheet, on the pages and tab it shows.
+    pub(crate) fn move_to_sheet(&mut self, sheet: &mut Option<crate::Sheet>) {
+        self.close_pane();
+        *sheet = Some(crate::Sheet::Learn);
+    }
+
+    /// The pane is put away.
+    pub(crate) fn close_pane(&mut self) {
+        self.pane = false;
+        self.followed.clear();
+    }
+
+    /// The screen's pages are `screen` now: where they are not the ones
+    /// the pane last followed, the pane shows them, on the tab it showed
+    /// where they have it, else on the first from its top.
+    pub(crate) fn follow(&mut self, screen: Vec<&'static LearnPage>) {
+        let same = screen.len() == self.followed.len()
+            && screen
+                .iter()
+                .zip(&self.followed)
+                .all(|(a, b)| std::ptr::eq(*a, *b));
+        if same {
+            return;
+        }
+        let on = self.state.pages.get(self.state.page).copied();
+        let at = on.and_then(|p| screen.iter().position(|q| std::ptr::eq(*q, p)));
+        if at.is_none() {
+            self.state.scroll = 0.0;
+        }
+        self.state.page = at.unwrap_or(0);
+        self.state.pages.clone_from(&screen);
+        self.followed = screen;
     }
 
     /// Moves the sheet to `page`'s tab where it has one, else shows

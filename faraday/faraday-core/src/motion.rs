@@ -685,6 +685,9 @@ impl Scroll {
             // The codex32 "Demo only" card scrolls within itself, on a
             // small panel too: it is pinned at the foot there.
             ui::Slot::DemoPane if screen == Screen::KeyGen && sheet_none => ui::Slot::DemoPane,
+            // Learn's supporting pane scrolls within itself beside the
+            // page (`docs/LAYOUT.md` §6); put away, the page has it back.
+            ui::Slot::LearnPane if sheet_none => ui::Slot::LearnPane,
             _ => ui::Slot::Page,
         }
     }

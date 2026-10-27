@@ -14,6 +14,7 @@ mod decode;
 mod entry;
 mod files;
 mod home;
+mod learn_pane;
 mod message;
 mod parts;
 pub(crate) mod randomness;
@@ -267,7 +268,12 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
         // chart stands beside it (`docs/DESIGN.md` §4.16).
         let room =
             full_w - SIDEBAR_W - side.map_or(0.0, |s| s.1 * faraday_draw::tokens::SIDE_SHEET_W);
-        let (ox, cw) = page_area(app.screen, room);
+        // Learn's supporting pane takes its room at the right, so the
+        // page is laid out beside it and nothing of it is under the pane
+        // (`docs/LAYOUT.md` §6).
+        let pane = app.learn_pane_shown();
+        let beside = if pane { support_pane_room() } else { 0.0 };
+        let (ox, cw) = page_area(app.screen, room - beside);
         let h = full_h;
         ui.ox = ox;
         let x = SIDEBAR_W;
@@ -290,11 +296,15 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
         if strip > 0.0 {
             ui.fill(x, 0.0, room, strip, 0.0, Role::Surface);
         }
+        if pane {
+            learn_pane::draw(app, ui, (x, full_w - x, h));
+        }
         // Home's Scan floats at the window's right edge and foot
-        // (`docs/LAYOUT.md` §15), whatever area its tiles are laid out in.
+        // (`docs/LAYOUT.md` §15), whatever area its tiles are laid out
+        // in; beside Learn's pane, at the page's edge.
         if app.screen == Screen::Home {
             ui.fab(
-                full_w - MARGIN_WIDE,
+                full_w - if pane { beside } else { MARGIN_WIDE },
                 full_h - MARGIN_WIDE,
                 Icon::Scan,
                 EN.home_scan,
