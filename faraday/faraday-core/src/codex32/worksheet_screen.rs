@@ -566,6 +566,7 @@ pub(crate) fn draw(
     let clip = ui.rect(x, y, vw, vh);
     ui.c.push_clip(clip);
     let mark = ui.hits.len();
+    let cut_from = (ui.c.cut_mark(), ui.cut.len());
     let (cells, marks) = cells(s, &g);
     let seen = |cx: f32, cy: f32| {
         cx + ox + g.cell >= x && cx + ox <= x + vw && cy + oy + g.cell >= y && cy + oy <= y + vh
@@ -623,6 +624,12 @@ pub(crate) fn draw(
             ui.hits[k].0 = r;
             k += 1;
         }
+    }
+    // What a view that pans sideways holds past its sides is scrolled
+    // there, not cut off.
+    if max.0 > 0.0 {
+        ui.c.scrolled_across(cut_from.0);
+        ui.cut.truncate(cut_from.1);
     }
     ui.c.pop_clip();
     if fit.is_some() {

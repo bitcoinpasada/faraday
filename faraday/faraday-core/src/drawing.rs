@@ -300,6 +300,9 @@ pub(crate) struct After {
     pub lift: Option<f32>,
 }
 
+/// A string a frame draws and the box of its ink in pixels (x, y, w, h).
+pub type DrawnText = (String, (i32, i32, i32, i32));
+
 impl Faraday {
     /// Whether (x, y), in pixels, is empty room in the top strip: in the
     /// top band of the window (the pills' strip when it is taller, else
@@ -492,6 +495,40 @@ impl Faraday {
     /// test that nothing is cut off at a panel's width.
     pub fn drawn_past_sides(&mut self) -> Vec<String> {
         let _ = self.drawn_ink();
+        self.past_sides()
+    }
+
+    /// [`Self::drawn_past_sides`] and [`Self::drawn_text_boxes`] from one
+    /// frame drawn: for a test that walks a page and checks it at each
+    /// place it scrolls to.
+    pub fn drawn_past_sides_and_text(&mut self) -> (Vec<String>, Vec<DrawnText>) {
+        let texts = self
+            .drawn_ink()
+            .into_iter()
+            .filter_map(|i| match i.kind {
+                faraday_draw::canvas::InkKind::Text { text, .. } => {
+                    Some((text, (i.rect.x, i.rect.y, i.rect.w, i.rect.h)))
+                }
+                _ => None,
+            })
+            .collect();
+        (self.past_sides(), texts)
+    }
+
+    /// The actions the last frame drawn offers to a press, once each, in
+    /// drawing order: for a test that walks what a page offers. A lookup.
+    pub fn drawn_actions(&self) -> Vec<crate::Action> {
+        let mut out = Vec::new();
+        for (_, a) in self.pointer.hits() {
+            if !out.contains(a) {
+                out.push(*a);
+            }
+        }
+        out
+    }
+
+    /// What the frame last drawn ran past the sides of its clips.
+    fn past_sides(&self) -> Vec<String> {
         let Some(c) = self.canvas.as_ref() else {
             return Vec::new();
         };

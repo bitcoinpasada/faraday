@@ -543,6 +543,9 @@ pub struct Codex32Make {
     seen: Vec<bool>,
     view: u8,
     panel: u8,
+    /// Where the page stood on each tab last left, by its row and place
+    /// ([`Codex32Make::tab_shown`]): a tab shown again shows that place.
+    tab_scrolls: Vec<((u8, u8), f32)>,
     cell: Option<Cell>,
     strings: Option<Held<Vec<Zeroizing<String>>>>,
     fingerprint: Option<[u8; 4]>,
@@ -647,6 +650,7 @@ impl Codex32Make {
             seen: Vec::new(),
             view: 0,
             panel: 0,
+            tab_scrolls: Vec::new(),
             cell: None,
             strings: None,
             fingerprint: None,
@@ -1426,6 +1430,34 @@ impl Codex32Make {
     /// The small panel's context (see [`C32::Panel`]).
     pub fn panel(&self) -> u8 {
         self.panel
+    }
+
+    /// The tab shown now in the row of tabs `press` is in, as the row (0
+    /// the small panel's context, 1 the strip of worksheets beside the
+    /// entry, 2 the review's tabs) and its place; `None` for a press that
+    /// is not a tab's. A lookup.
+    pub(crate) fn tab_shown(&self, press: C32) -> Option<(u8, u8)> {
+        match press {
+            C32::Panel(_) => Some((0, self.panel)),
+            C32::View(_) => Some((1, self.view)),
+            C32::Tab(_) | C32::TabStep(_) => Some((2, self.tab)),
+            _ => None,
+        }
+    }
+
+    /// Keeps `y`, the page's scroll, as where tab `tab` was left.
+    pub(crate) fn keep_tab_scroll(&mut self, tab: (u8, u8), y: f32) {
+        self.tab_scrolls.retain(|(t, _)| *t != tab);
+        self.tab_scrolls.push((tab, y));
+    }
+
+    /// Where the page stood when tab `tab` was last left, if it was. A
+    /// lookup.
+    pub(crate) fn tab_scroll(&self, tab: (u8, u8)) -> Option<f32> {
+        self.tab_scrolls
+            .iter()
+            .find(|(t, _)| *t == tab)
+            .map(|(_, y)| *y)
     }
 
     /// The cell whose working is open.

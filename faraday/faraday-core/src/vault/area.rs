@@ -149,6 +149,21 @@ impl VaultArea {
         self.state.category = c;
     }
 
+    /// Shows kind `c` in the contents as its tab does: on a small panel
+    /// (`compact`) the list `offset` scrolls is kept for the kind left and
+    /// set to where kind `c` was left.
+    pub(crate) fn show_category(&mut self, c: usize, offset: &mut f32, compact: bool) {
+        let v = &mut self.state;
+        let c = c.min(CATEGORIES.len() - 1);
+        if compact && c != v.category {
+            if let Some(kept) = v.category_scroll.get_mut(v.category) {
+                *kept = *offset;
+            }
+            *offset = v.category_scroll.get(c).copied().unwrap_or(0.0);
+        }
+        v.category = c;
+    }
+
     /// Shows kind `c` in the contents, as chosen: listed while it holds
     /// nothing.
     pub(crate) fn choose_category(&mut self, c: usize) {
@@ -1116,6 +1131,9 @@ pub struct Vaults {
     pub category_chosen: bool,
     /// The item shown in each kind.
     pub item: [usize; 7],
+    /// On a small panel, where each kind's list was scrolled to when it
+    /// was last left: a kind shown again shows that place.
+    pub category_scroll: [f32; 7],
     /// On a small panel, the chosen item is the page, not the list.
     pub item_open: bool,
     /// Adding or editing an item.

@@ -478,7 +478,7 @@ fn read_only(k: &KeyGen, ui: &mut Ui, s: u8, x: f32, y: f32, w: f32) -> f32 {
         _ => {
             if k.has_check() {
                 cy = check_rows(k, k.active(), ui, x, cy, w);
-                cy = verdict(k, ui, x, cy);
+                cy = verdict(k, ui, x, cy, w);
             } else {
                 cy = check_rows(k, k.source, ui, x, cy, w);
             }
@@ -489,16 +489,22 @@ fn read_only(k: &KeyGen, ui: &mut Ui, s: u8, x: f32, y: f32, w: f32) -> f32 {
 
 /// The randomness check's verdict: "Fair: no cautions", or each caution
 /// in `warning`. Returns where the next row starts.
-fn verdict(k: &KeyGen, ui: &mut Ui, x: f32, y: f32) -> f32 {
+fn verdict(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = y;
     let cautions = k.caution_lines();
     if cautions.is_empty() {
         ui.text(x, cy, 13.0, W::S, Role::Ok, EN.keygen_fair_no_cautions);
         cy += 22.0;
     }
+    caution_rows(ui, x, cy, w, &cautions)
+}
+
+/// Each caution, wrapped to `w`, in the warning colour. Returns where the
+/// next row starts.
+fn caution_rows(ui: &mut Ui, x: f32, y: f32, w: f32, cautions: &[&str]) -> f32 {
+    let mut cy = y;
     for c in cautions {
-        ui.text(x, cy, 13.0, W::R, Role::Warning, c);
-        cy += 22.0;
+        cy += ui.wrap(x, cy, w, 13.0, W::R, Role::Warning, c) + faraday_draw::tokens::GAP_SMALL;
     }
     cy
 }
@@ -1308,7 +1314,7 @@ fn entries(app: &View, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             }
         }
         Some(Source::Coins) => {
-            cy += coin_pad(ui, x, cy, Action::KFlip(true), Action::KFlip(false));
+            cy += coin_pad(ui, (x, cy, w), Action::KFlip(true), Action::KFlip(false));
             if k.reveals() {
                 cy = reveal(k, ui, x, cy, w);
             }
@@ -1383,12 +1389,9 @@ fn entries(app: &View, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         section_label(ui, x, cy, EN.keygen_randomness_check);
         cy += 26.0;
         cy = check_rows(k, active, ui, x, cy, w);
-        cy = verdict(k, ui, x, cy);
+        cy = verdict(k, ui, x, cy, w);
     } else {
-        for c in k.caution_lines() {
-            ui.text(x, cy, 13.0, W::R, Role::Warning, c);
-            cy += 22.0;
-        }
+        cy = caution_rows(ui, x, cy, w, &k.caution_lines());
     }
     // What the last press did.
     if let Some(n) = &k.note {
@@ -1968,10 +1971,7 @@ fn coin_check(coins: &CoinFlips, ui: &mut Ui, x: f32, y: f32) -> f32 {
 /// SLIP-39's Check card: the counts, the cautions, and Roll again.
 fn check(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = check_rows(k, k.source, ui, x, y, w);
-    for c in k.caution_lines() {
-        ui.text(x, cy, 13.0, W::R, Role::Warning, c);
-        cy += 22.0;
-    }
+    cy = caution_rows(ui, x, cy, w, &k.caution_lines());
     cy += 6.0;
     cy += buttons_and_next(
         ui,

@@ -160,7 +160,9 @@ fn osk_toggle(app: &View, ui: &mut Ui, draw: bool, right: f32) -> f32 {
     } else {
         OskPress::Show
     });
-    let kx = right - 34.0;
+    // Its target reaches 4 past the key on each side and ends at `right`:
+    // clear of the ? beside it.
+    let kx = right - 38.0;
     let ky = (BAR_H - 34.0) / 2.0;
     if draw {
         if shown || ui.is_pressed(action) {
@@ -174,13 +176,28 @@ fn osk_toggle(app: &View, ui: &mut Ui, draw: bool, right: f32) -> f32 {
     kx - 6.0
 }
 
-/// The ? when the page has something in Learn, and the keyboard where
-/// the page types, at the bar's right end. Returns where they begin.
-/// A negative `w` measures without drawing.
+/// Where the Back button's target ends: nothing else on the bar reaches
+/// left of it.
+const BACK_END: f32 = BAR_H + faraday_draw::tokens::GAP;
+
+/// The ? when the page has something in Learn, the mode, the keyboard
+/// where the page types, the eye and Cancel, at the bar's right end.
+/// Returns where they begin. A negative `w` measures without drawing.
+/// Where they would reach the Back button, the ? is left off: the bar
+/// keeps Cancel, the eye and the mode; the page's Learn stays on Home,
+/// and on a step's About row where the step names one
+/// (`docs/DESIGN.md` §4.1).
 fn tools(app: &View, ui: &mut Ui, w: f32) -> f32 {
+    let help = !app.learn_pages().is_empty();
+    let help = help && tools_from(app, ui, -w.abs(), true) >= BACK_END;
+    tools_from(app, ui, w, help)
+}
+
+/// [`tools`], the ? on the bar when `help_on`.
+fn tools_from(app: &View, ui: &mut Ui, w: f32, help_on: bool) -> f32 {
     let draw = w > 0.0;
     let w = w.abs();
-    let mut right = if app.learn_pages().is_empty() {
+    let mut right = if !help_on {
         w - M
     } else {
         if draw {

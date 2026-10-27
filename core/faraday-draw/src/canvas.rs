@@ -295,6 +295,18 @@ impl Canvas {
         &self.cut
     }
 
+    /// Where the strings [`Canvas::cut`] lists end now: a mark for
+    /// [`Canvas::scrolled_across`]. A lookup.
+    pub fn cut_mark(&self) -> usize {
+        self.cut.len()
+    }
+
+    /// The strings cut since `mark` were drawn in a view that pans
+    /// sideways: they are scrolled out of it, not cut off.
+    pub fn scrolled_across(&mut self, mark: usize) {
+        self.cut.truncate(mark);
+    }
+
     /// Notes a shape drawn as `kind` in `rect`, pixels, while recording
     /// is on: one a person reads as a whole, such as a progress
     /// indicator, which its fills alone do not say.

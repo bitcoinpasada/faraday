@@ -188,7 +188,22 @@ each at the text size the person's system asks for.
   line above it and a short label of its own (Sign); a name and its
   source beside a step's Continue wrap in the room left of it. Text
   wraps or is shortened with an ellipsis; it never runs past its card,
-  its sheet or the panel.
+  its sheet or the panel, and no line is drawn over another. A view
+  that pans sideways (a codex32 worksheet) is scrolled there, not cut.
+  The small panel's bar holds Back, the page's name, Cancel, the eye,
+  the mode pill and the ?: the name is shortened, or left off where
+  they leave it no room, and the ? where they would reach Back's target
+  (DESIGN §4.1). The test is `tests/all/pi_panel.rs`: on the stick's
+  Pi (480 × 640 at 286 dpi) and in Faraday Demo's Pi preview, on
+  Mainnet, Testnet and in Practice, it walks every screen and sheet
+  (listed by a match that fails to build when one is added), each step
+  card, tab and section a page offers, and the flows' steps (New key
+  with BIP-39, SLIP-39 and Make codex32 shares from New key and from
+  Make a new wallet, every kind of Make a new wallet and Restore, a
+  spend, the Spend tab, a vault's contents, the backup flow of each
+  kind at each step, every Tools tile), scrolled top to foot, and fails
+  on a control or a line past the sides of its clip, a line drawn over
+  another, or two touch targets of the bar that overlap.
 - **Cards and tiles** sit in grids of columns with a minimum width,
   never stretched beyond the grid's column.
 - **Text** runs at most about 70 characters a line (`MEASURE`, at the

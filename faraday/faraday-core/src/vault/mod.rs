@@ -350,17 +350,11 @@ impl Faraday {
     pub(crate) fn vault_act(&mut self, a: VaultAction) {
         let c = self.compute();
         use VaultAction as V;
-        // A small panel's contents page changes to another page: it starts at its top.
+        // A small panel's contents page changes to another page: it starts
+        // at its top. A kind's tab keeps its own place (`show_category`).
         if matches!(
             a,
-            V::Item(_)
-                | V::ItemBack
-                | V::Add
-                | V::AddKind(_)
-                | V::Edit
-                | V::Rename
-                | V::Category(_)
-                | V::Search(_)
+            V::Item(_) | V::ItemBack | V::Add | V::AddKind(_) | V::Edit | V::Rename | V::Search(_)
         ) {
             self.list_offset = 0.0;
         }
@@ -714,7 +708,8 @@ impl Faraday {
             }
             V::Category(k) => {
                 self.gpg_page_reset();
-                self.vaults.state.category = k.min(CATEGORIES.len() - 1);
+                self.vaults
+                    .show_category(k, &mut self.list_offset, self.compact);
                 self.vaults.set_item_offset(0.0);
                 self.vaults.state.category_chosen = true;
                 self.vaults.state.form = None;

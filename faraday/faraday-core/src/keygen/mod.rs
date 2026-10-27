@@ -1887,12 +1887,27 @@ impl crate::Faraday {
             k.open = Some(kstep::CODEX32);
             k.scroll.follow = true;
         }
+        let mut back_to_tab = false;
         if let Some(m) = k.codex32.as_mut() {
             let before = m.open();
             let was = m.entry_pos();
+            let tab_was = m.tab_shown(press);
             m.set_practice(practice);
             m.act(&c, press, fresh);
             follow = crate::codex32::Follow::of(press, was, m.entry_pos());
+            // Each tab keeps where its page stood: a tab shown again shows
+            // the place it was left at, and nothing follows the work.
+            if let (Some(was), Some(now)) = (tab_was, m.tab_shown(press))
+                && was != now
+            {
+                m.keep_tab_scroll(was, k.scroll.y);
+                if let Some(y) = m.tab_scroll(now) {
+                    k.scroll.y = y;
+                    k.scroll.follow = false;
+                    follow = crate::codex32::Follow::Still;
+                    back_to_tab = true;
+                }
+            }
             // The dice chosen are kept for the session's next flow.
             self.keygen.dice = m.dice_choice();
             k.scroll.follow |= m.open() != before;
@@ -1902,7 +1917,7 @@ impl crate::Faraday {
             // On a small panel the entry stays scrolled to its foot at every
             // press, so the worksheet tabs, the panel and the pad are all in view
             // (`docs/CODEX32.md` §6.4.7).
-            if small && m.open() == Some(Card::Enter) {
+            if small && m.open() == Some(Card::Enter) && !back_to_tab {
                 k.scroll.follow = false;
                 k.scroll.y = faraday_draw::tokens::CODEX32_ENTER_SCROLL + m.pad_extra();
             }

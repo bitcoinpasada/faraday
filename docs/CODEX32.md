@@ -1308,6 +1308,13 @@ The worksheet's boxes are drawn at token sizes (§13.4). On `small` and
 panel selects the nearest column and opens the cell sheet on that
 column's cells, each listed with its working (§7.4).
 
+Each tab keeps where its page was scrolled to, at every size: the small
+panel's **Dice · Checksum · String · Working**, the strip of worksheets
+beside the entry and the worksheets' review. A tab shown again shows the
+place it was left at, and the view does not follow the work on that
+press; a tab not shown before opens where it always does (owner,
+2026-10-26; `faraday/faraday-core/tests/all/codex32_tabs.rs`).
+
 ### 6.5 The worksheets
 
 After the last character, a review of every worksheet, already filled

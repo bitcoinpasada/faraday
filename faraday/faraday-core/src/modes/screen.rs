@@ -24,17 +24,19 @@ pub(crate) fn shows_pill(app: &View) -> bool {
     app.mode() != Mode::Mainnet
 }
 
-/// The pill's label: the mode's name, and in Practice its network too.
-fn pill_label(app: &View) -> &'static str {
+/// The pill's label: the mode's name, and in Practice on a window wider
+/// than the small panel its network too. On the small panel the bar has
+/// no room for more than the name (`docs/MODES.md` §3).
+fn pill_label(app: &View, ui: &Ui) -> &'static str {
     match app.mode() {
-        Mode::Demo => EN.mode_demo_pill,
+        Mode::Demo if !ui.compact => EN.mode_demo_pill,
         m => m.name(),
     }
 }
 
 /// The mode pill's own width.
 fn mode_width(app: &View, ui: &Ui) -> f32 {
-    ui.measure_as(LABEL_M, pill_label(app)) + 2.0 * MODE_PILL_PAD
+    ui.measure_as(LABEL_M, pill_label(app, ui)) + 2.0 * MODE_PILL_PAD
 }
 
 /// The pill's width, for a row that makes room for it. Load samples is
@@ -56,10 +58,11 @@ fn chip(ui: &mut Ui, (px, py, pw): (f32, f32, f32), label: &str, tone: Paint, ac
 /// mode and opens the sheet. Returns its width.
 pub(crate) fn pill(app: &View, ui: &mut Ui, px: f32, py: f32) -> f32 {
     let mw = mode_width(app, ui);
+    let label = pill_label(app, ui);
     chip(
         ui,
         (px, py, mw),
-        pill_label(app),
+        label,
         Role::Warning.paint(),
         Action::ModeSheet,
     );

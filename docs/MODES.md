@@ -105,7 +105,10 @@ and `docs/DEMO.md` differ, this holds until M8 brings DEMO in line.
   `Sheet::Mode`. Label: the mode's name ("Testnet", "Signet",
   "Regtest"), and for Practice its name and its network, "Practice · Testnet"
   (owner, 2026-10-22: a person sees that Practice runs on testnet), on the
-  wide and the compact layout alike; the same caution pill for each. Places:
+  wide layout; on the small panel's bar (a compact window, the Pi's 268
+  dp) "Practice" alone, as every other mode's pill reads its name, so
+  the bar keeps Cancel, the eye and the ? (owner, 2026-10-26;
+  DESIGN §4.1); the same caution pill for each. Places:
   `header_network_pill` and `network_pill_left`
   (`faraday/faraday-core/src/screens/mod.rs`), `compact::tools` and
   compact Home (`faraday/faraday-core/src/compact/mod.rs`). The

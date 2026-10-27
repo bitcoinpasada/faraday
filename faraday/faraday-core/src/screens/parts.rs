@@ -1410,21 +1410,28 @@ pub(crate) fn dice_pad(
     68.0
 }
 
-/// The coin pad: Heads and Tails. Returns its height.
-pub(crate) fn coin_pad(ui: &mut Ui, x: f32, y: f32, heads: Action, tails: Action) -> f32 {
+/// The coin pad: Heads and Tails side by side, each at most 160 wide and
+/// half of `w` less the gap between them. Returns its height.
+pub(crate) fn coin_pad(
+    ui: &mut Ui,
+    (x, y, w): (f32, f32, f32),
+    heads: Action,
+    tails: Action,
+) -> f32 {
+    let bw = ((w - tokens::GAP) / 2.0).min(160.0);
     ui.button(
         x,
         y,
-        Some(160.0),
+        Some(bw),
         56.0,
         EN.create_heads,
         Style::Secondary,
         heads,
     );
     ui.button(
-        x + 168.0,
+        x + bw + tokens::GAP,
         y,
-        Some(160.0),
+        Some(bw),
         56.0,
         EN.create_tails,
         Style::Secondary,

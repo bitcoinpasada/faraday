@@ -178,8 +178,12 @@ fn wrap_paragraph(
         pos = we;
 
         if !empty {
-            if fits(pen + space + word_w) {
-                pen += space + word_w;
+            // Every space between the words is drawn, so every one counts:
+            // a run of two keeps a line measured to fit from running past
+            // its width.
+            let gap = space * (ws - line_end) as u32;
+            if fits(pen + gap + word_w) {
+                pen += gap + word_w;
                 line_end = we;
                 continue;
             }
@@ -290,6 +294,17 @@ mod tests {
             lines("XChaCha20-Poly1305", w),
             vec!["XChaCha20-", "Poly1305"]
         );
+    }
+
+    #[test]
+    fn a_line_with_two_spaces_between_words_stays_inside_its_width() {
+        let a = face();
+        let w = width(&a, "1:25 1  2:52 0");
+        let ls = lines("1:25 1  2:52 0  3:52 0", w - 1);
+        assert!(ls.len() > 1);
+        for l in &ls {
+            assert!(width(&a, l) < w, "{l:?}");
+        }
     }
 
     #[test]
