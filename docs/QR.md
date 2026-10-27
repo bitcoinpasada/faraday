@@ -466,8 +466,15 @@ The comparison that led here: moved to `docs/history/QR-LOG.md`.
 4. **Viewfinder.** Corner brackets over the camera's picture: white
    (`pal::VIEWFINDER`) while looking, green (`pal::VIEWFINDER_READ`)
    while a read QR is in view (the ten preview frames the outline lasts).
-   The outline round a found QR stays as it is: amber when found, green
-   when read. The state line and the parts bar are drawn inside the
+   The outline round a found QR follows its corners as the scanner
+   reports them, taken to the picture as drawn (the frame scaled to fill
+   the picture and its longer side cropped, as the preview is; no shell
+   mirrors the preview, so neither is the outline): warning
+   (`Role::Warning`) when found, ok (`Role::Ok`) when read,
+   `VIEWFINDER_OUTLINE_STROKE` thick with rounded corners, edged
+   `VIEWFINDER_OUTLINE_EDGE` each side in the role's on-colour
+   (`OnWarning`, `OnOk`), so one of the two reads over any picture
+   (`found_outline`). The state line and the parts bar are drawn inside the
    picture, at its bottom, on a translucent dark band
    (`pal::VIEWFINDER_BAND` at `VIEWFINDER_BAND_ALPHA`), in white. Nothing
    is above the picture but the title. The state line shows "Starting the

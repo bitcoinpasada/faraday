@@ -159,5 +159,45 @@ pub(crate) fn scan_tour(t: &mut Tour) -> Result<(), String> {
     if t.app.sheet != Some(faraday_core::Sheet::Scan) {
         return Err("pulling the stick did not open the camera".into());
     }
-    t.shot("scan-after-pull")
+    t.shot("scan-after-pull")?;
+    // A code in the camera's picture, found and then read: outlined
+    // where it is (`docs/QR.md` §8 item 4).
+    use faraday_codec::qr::{self, Ecc, Payload, QUIET_ZONE};
+    let m = qr::encode(
+        &testkit::compute(),
+        Payload::Bytes(b"faraday viewfinder"),
+        Ecc::Low,
+    )
+    .map_err(|e| format!("{e:?}"))?;
+    let scale = 6;
+    let (cw, ch, code) = m.to_luma(scale, QUIET_ZONE);
+    let (w, h) = (640usize, 480usize);
+    let mut luma: Vec<u8> = (0..w * h)
+        .map(|i| (90 + (i % w) / 8 + (i / w) / 6) as u8)
+        .collect();
+    let (x0, y0) = (w / 2 - cw / 2 + 40, h / 2 - ch / 2);
+    for y in 0..ch {
+        luma[(y0 + y) * w + x0..(y0 + y) * w + x0 + cw]
+            .copy_from_slice(&code[y * cw..(y + 1) * cw]);
+    }
+    t.app.event(Event::CameraFrame {
+        width: w as u16,
+        height: h as u16,
+        luma,
+        chroma: None,
+    });
+    let q = QUIET_ZONE * scale;
+    let (l, tp) = ((x0 + q) as u16, (y0 + q) as u16);
+    let (r, b) = ((x0 + cw - q) as u16, (y0 + ch - q) as u16);
+    for (read, name) in [(false, "scan-found"), (true, "scan-read")] {
+        t.app.storage(faraday_core::StorageEvent::QrSeen {
+            width: w as u16,
+            height: h as u16,
+            corners: [(l, tp), (r, tp), (r, b), (l, b)],
+            module_tenths: 60,
+            read,
+        });
+        t.shot(name)?;
+    }
+    Ok(())
 }

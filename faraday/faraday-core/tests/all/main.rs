@@ -122,6 +122,7 @@ mod rounds;
 mod save_without_encryption;
 mod scan;
 mod scan_a_key;
+mod scan_viewfinder;
 mod scroll;
 mod sd_card;
 mod secrets;

@@ -790,6 +790,7 @@ dependencies = [
  "faraday-psbt",
  "faraday-qr",
  "faraday-sb",
+ "faraday-scanner",
  "faraday-selftest",
  "faraday-shell-api",
  "faraday-strings",

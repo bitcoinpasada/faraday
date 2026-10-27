@@ -944,6 +944,30 @@ impl Canvas {
         self.draw_path(&path, &Self::paint(color), Some(&stroke));
     }
 
+    /// Strokes the closed outline through `points`, in pixels, `width`
+    /// pixels thick, its corners rounded.
+    pub fn stroke_closed(&mut self, points: &[(f32, f32)], width: f32, color: Color) {
+        let Some((&(x0, y0), rest)) = points.split_first() else {
+            return;
+        };
+        if color.a == 0 {
+            return;
+        }
+        let mut pb = PathBuilder::new();
+        pb.move_to(x0, y0);
+        for &(x, y) in rest {
+            pb.line_to(x, y);
+        }
+        pb.close();
+        let Some(path) = pb.finish() else { return };
+        let stroke = Stroke {
+            width,
+            line_join: tiny_skia::LineJoin::Round,
+            ..Stroke::default()
+        };
+        self.draw_path(&path, &Self::paint(color), Some(&stroke));
+    }
+
     /// Fills a circle.
     pub fn fill_circle(&mut self, cx: f32, cy: f32, radius: f32, color: Color) {
         // Wholly outside the clip, as under a pass that only measures:

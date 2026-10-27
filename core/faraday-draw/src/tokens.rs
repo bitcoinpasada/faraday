@@ -407,6 +407,12 @@ pub const PREVIEW_MAX: usize = 400;
 pub const VIEWFINDER_BRACKET_SHARE: f32 = 1.0 / 6.0;
 /// Stroke in dp of a corner bracket.
 pub const VIEWFINDER_BRACKET_STROKE: f32 = 3.0;
+/// Stroke in dp of the outline round a code the scanner found
+/// (`docs/QR.md` §8 item 4), as the brackets'.
+pub const VIEWFINDER_OUTLINE_STROKE: f32 = VIEWFINDER_BRACKET_STROKE;
+/// Width in dp of the edge in the outline's on-colour each side of it,
+/// so it reads over a dark picture and a light one alike.
+pub const VIEWFINDER_OUTLINE_EDGE: f32 = 1.5;
 /// How far in dp the brackets stand inside the picture's edge.
 pub const VIEWFINDER_BRACKET_INSET: f32 = GAP;
 /// Space in dp round the state line and the parts bar on their band
