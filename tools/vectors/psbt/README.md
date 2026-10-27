@@ -26,6 +26,8 @@
 | `wallet-musig-device-first-nonce.psbt` | The other order, round 1: the funded spend with this device's public nonce on it and nothing signed |
 | `wallet-musig-device-first-core.psbt` | Core's answer to it, after two `walletprocesspsbt` calls: Core's public nonce and Core's partial signature |
 | `wallet-musig-device-first-signed.psbt` | The device's round 2 over that: its partial signature, the aggregate as the key-path signature, and the input final |
+| `finalize-or-b.psbt` | The cross-check's seeded sign case `4fde5465…`, signed and not final: input 3 spends `wsh(or_b(pk(A),s:pk(B)))` with a 72-byte signature from A and a 71-byte one from B |
+| `finalize-or-b-final.psbt` | python-bip380's finalized answer to it: input 3's witness carries B's signature and A's empty push, the smaller of the two satisfactions (`core/faraday-psbt/tests/all/satisfaction.rs`) |
 
 ## The miniscript wallets' addresses
 

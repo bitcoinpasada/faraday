@@ -15,6 +15,13 @@
 //! signature, stops the input: the finalizer refuses it and the PSBT
 //! stays partial, as a multisig waiting on a cosigner does. The crate
 //! needs no `std` for any of this.
+//!
+//! For a `wsh` or `sh(wsh)` miniscript, which of several satisfactions
+//! the witness carries is then chosen again by the real size of its
+//! signatures ([`smallest`]), and that witness, where it differs, goes
+//! through the same interpreter check.
+
+mod smallest;
 
 use alloc::string::ToString;
 use alloc::vec::Vec;
@@ -23,9 +30,10 @@ use bitcoin::opcodes::OP_0;
 use bitcoin::psbt::Input;
 use bitcoin::script::{Builder, PushBytesBuf};
 use bitcoin::secp256k1::{Secp256k1, XOnlyPublicKey};
+use bitcoin::sighash::Prevouts;
 use bitcoin::{PublicKey, ScriptBuf, Transaction, Witness, ecdsa};
 use miniscript::psbt::PsbtExt;
-use miniscript::{ExtParams, Miniscript, Tap, Terminal};
+use miniscript::{ExtParams, Interpreter, Miniscript, Segwitv0, Tap, Terminal};
 
 use crate::classify::{Classified, ScriptKind, Wrapper, classify, spent_output};
 use crate::psbt::{Error, Psbt};
@@ -226,7 +234,10 @@ fn build_final(
                 }
             }
         }
-        ScriptKind::Miniscript { .. } | ScriptKind::P2trScript => satisfy(psbt, index),
+        ScriptKind::Miniscript { .. } => {
+            satisfy(psbt, index).map(|chosen| by_size(psbt, index, c, chosen))
+        }
+        ScriptKind::P2trScript => satisfy(psbt, index),
         ScriptKind::Unknown => return Err(index_err("unknown script type")),
     })
 }
@@ -258,6 +269,58 @@ fn satisfy(psbt: &bitcoin::Psbt, index: usize) -> Option<Final> {
         input.final_script_sig.clone(),
         input.final_script_witness.clone(),
     ))
+}
+
+/// Costs one signature check per signature when the witness changes
+/// (the interpreter's): a `wsh` or `sh(wsh)` miniscript input's final
+/// witness as [`smallest`] chooses it, in place of the one `miniscript`
+/// built, `chosen`.
+///
+/// Only the stack before the witness script changes. The new witness
+/// is taken only if `miniscript`'s interpreter accepts it for this
+/// input; otherwise, as when the choice is the same, `chosen` stands,
+/// so which inputs are finalized is `miniscript`'s answer alone.
+fn by_size(psbt: &bitcoin::Psbt, index: usize, c: &Classified, chosen: Final) -> Final {
+    let (script_sig, Some(witness)) = &chosen else {
+        return chosen;
+    };
+    let (Some(utxo), Some(ws)) = (&c.utxo, &psbt.inputs[index].witness_script) else {
+        return chosen;
+    };
+    let Ok(ms) = Miniscript::<PublicKey, Segwitv0>::parse_with_ext(ws, &ExtParams::allow_all())
+    else {
+        return chosen;
+    };
+    let Some(mut stack) = smallest::stack(psbt, index, &ms) else {
+        return chosen;
+    };
+    let elements: Vec<Vec<u8>> = witness.iter().map(<[u8]>::to_vec).collect();
+    if elements.last() != Some(&ws.to_bytes()) || elements[..elements.len() - 1] == stack[..] {
+        return chosen;
+    }
+    stack.push(ws.to_bytes());
+    let candidate = Witness::from_slice(&stack);
+    let empty = ScriptBuf::new();
+    let sig = script_sig.as_ref().unwrap_or(&empty);
+    let tx = &psbt.unsigned_tx;
+    let Ok(interpreter) = Interpreter::from_txdata(
+        &utxo.script_pubkey,
+        sig,
+        &candidate,
+        tx.input[index].sequence,
+        tx.lock_time,
+    ) else {
+        return chosen;
+    };
+    let secp = Secp256k1::verification_only();
+    let prevouts = Prevouts::One(index, utxo);
+    if interpreter
+        .iter(&secp, tx, index, &prevouts)
+        .any(|step| step.is_err())
+    {
+        return chosen;
+    }
+    (script_sig.clone(), Some(candidate))
 }
 
 /// Whether a taproot leaf, read as a miniscript, checks a key by its
