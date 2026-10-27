@@ -6123,6 +6123,15 @@ strings! {
     /// Settings' switch row: nothing slides, glides, coasts or fades
     /// (`docs/MOTION.md`).
     settings_reduce_motion: "Reduce motion",
+    /// Appearance's row under Contrast: how large text is drawn
+    /// (`docs/TEXT-SIZE.md` §2).
+    settings_text_size: "Text size",
+    /// Text size's first choice: text at its own size.
+    settings_text_standard: "Standard",
+    /// Text size's second choice: text 1.2 times its size.
+    settings_text_large: "Large",
+    /// Text size's third choice: text 1.4 times its size.
+    settings_text_larger: "Larger",
     /// Line in `settings`.
     settings_display_scale: "Display scale",
     /// Text in `settings`.

@@ -337,9 +337,10 @@ impl Faraday {
 
     /// Whether the window as it is now takes one-column pages: every
     /// navigation but the expanded rail; held inside the Starter, a
-    /// window under the wide layout's 1280 dp. A lookup.
+    /// window under the wide layout's 1280 dp. Both counted at the
+    /// person's text size ([`Faraday::layout_window`]). A lookup.
     pub(crate) fn one_column(&self) -> bool {
-        let window = self.window();
+        let window = self.layout_window();
         if self.held {
             return window.width < faraday_draw::tokens::WINDOW_HELD_WIDE;
         }
@@ -347,10 +348,23 @@ impl Faraday {
     }
 
     /// The navigation the window gets (`docs/LAYOUT.md` §3): the menu,
-    /// the bar, the rail or the expanded rail, by its class and height.
-    /// A lookup.
+    /// the bar, the rail or the expanded rail, by its class and height
+    /// at the person's text size. A lookup.
     pub fn nav(&self) -> crate::nav::Nav {
-        crate::nav::Nav::of(&self.window(), self.held, self.compact)
+        crate::nav::Nav::of(&self.layout_window(), self.held, self.compact)
+    }
+
+    /// The window the layout is chosen for (`docs/TEXT-SIZE.md` §4): its
+    /// size in dp, with the Display scale counted ([`Faraday::window`]),
+    /// divided by the text size's factor, so larger text takes the
+    /// layout of a smaller window. A lookup.
+    pub(crate) fn layout_window(&self) -> faraday_draw::geom::Window {
+        let w = self.window();
+        let t = self.text_size().factor();
+        faraday_draw::geom::Window {
+            width: w.width / t,
+            height: w.height / t,
+        }
     }
 
     /// The step on screen must not be left, so the rail and the bar are

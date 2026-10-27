@@ -28,23 +28,26 @@ pub fn button_rows<A: Copy + PartialEq>(
     w: f32,
     items: &[(String, Style, A)],
 ) -> f32 {
+    // As tall as larger text needs (`docs/TEXT-SIZE.md` §5).
+    let bh = ui.button_height(BUTTON_H);
     let (mut bx, mut by) = (x, y);
     for (label, style, action) in items {
         // No wider than the row; a long label is cut.
         let bw = (ui.measure_as(LABEL_L, label) + 2.0 * BUTTON_PAD).min(w);
         if bx > x && bx + bw > x + w {
             bx = x;
-            by += BUTTON_H + GAP;
+            by += bh + GAP;
         }
         let label = ui.fit_as(LABEL_L, label, bw - BUTTON_PAD);
-        bx += ui.button(bx, by, Some(bw), BUTTON_H, &label, *style, *action) + GAP;
+        bx += ui.button(bx, by, Some(bw), bh, &label, *style, *action) + GAP;
     }
-    by - y + BUTTON_H + GAP
+    by - y + bh + GAP
 }
 
-/// Buttons `h` high laid left to right, wrapping to a new row at the
-/// width, as a narrow column needs. Returns the height they took and the
-/// gap under them.
+/// Buttons `h` high, or as tall as larger text needs
+/// ([`Ui::button_height`]), laid left to right, wrapping to a new row at
+/// the width, as a narrow column needs. Returns the height they took and
+/// the gap under them.
 pub fn wrap_buttons<A: Copy + PartialEq>(
     ui: &mut Ui<A>,
     x: f32,
@@ -53,6 +56,7 @@ pub fn wrap_buttons<A: Copy + PartialEq>(
     h: f32,
     items: &[(&str, Style, A)],
 ) -> f32 {
+    let h = ui.button_height(h);
     let (mut bx, mut by) = (x, y);
     for &(label, style, action) in items {
         let bw = (ui.measure_as(LABEL_L, label) + 2.0 * BUTTON_PAD).min(w);
@@ -74,6 +78,7 @@ pub fn wrap_buttons_height<A: Copy + PartialEq>(
     h: f32,
     labels: &[&str],
 ) -> f32 {
+    let h = ui.button_height(h);
     let (mut bx, mut by) = (0.0, 0.0);
     for label in labels {
         let bw = (ui.measure_as(LABEL_L, label) + 2.0 * BUTTON_PAD).min(w);

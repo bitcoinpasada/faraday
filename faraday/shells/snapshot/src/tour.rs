@@ -384,6 +384,33 @@ impl Tour {
         let mut w = enc.write_header().map_err(|e| e.to_string())?;
         w.write_image_data(frame.rgba).map_err(|e| e.to_string())?;
         println!("{}", path.display());
+        if std::env::var_os("FARADAY_SNAP_TEXT").is_some() {
+            self.note_cut(name)?;
+        }
+        Ok(())
+    }
+
+    /// Adds to `cut.txt` each line of text the frame on screen, picture
+    /// `name`, cuts off at a side of its clip (`docs/TEXT-SIZE.md` §7).
+    fn note_cut(&mut self, name: &str) -> Result<(), String> {
+        use std::io::Write;
+        let (past, _) = self.app.drawn_past_sides_and_text();
+        let cut: Vec<String> = past
+            .into_iter()
+            .filter(|p| p.starts_with("text "))
+            .collect();
+        if cut.is_empty() {
+            return Ok(());
+        }
+        let path = self.out.join("cut.txt");
+        let mut f = std::fs::OpenOptions::new()
+            .append(true)
+            .create(true)
+            .open(&path)
+            .map_err(|e| format!("{}: {e}", path.display()))?;
+        for c in cut {
+            writeln!(f, "{:02}-{name}: {c}", self.n).map_err(|e| e.to_string())?;
+        }
         Ok(())
     }
 }

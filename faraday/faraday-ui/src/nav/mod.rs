@@ -134,9 +134,17 @@ fn item<A: Copy + PartialEq>(ui: &mut Ui<A>, x: f32, y: f32, w: f32, h: f32, d: 
     } else {
         LABEL_M.regular()
     };
-    let label = ui.fit_as(role, d.label, w - 2.0 * GAP_SMALL);
-    let lw = ui.measure_as(role, &label);
+    // A one-line slot: fitted down to Standard (`docs/TEXT-SIZE.md` §3).
+    let room = w - 2.0 * GAP_SMALL;
+    let lw = ui.text_fit_width(role, d.label, room);
     let ly = top + NAV_PILL_H + NAV_LABEL_GAP;
-    ui.text_as(x + (w - lw) / 2.0, ly, role, fg, &label);
+    // The band its own line tall, so the label's top is at `ly`.
+    let band = (
+        x + (w - lw) / 2.0,
+        ly,
+        ui.line(role.size, role.face.into()),
+        room,
+    );
+    ui.text_fit_as(band, role, fg, d.label);
     ui.hit_quiet(x, y, w, h, d.action);
 }

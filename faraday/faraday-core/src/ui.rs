@@ -8,7 +8,7 @@ use faraday_draw::tokens::{LABEL_M, LABEL_S};
 pub use faraday_ui::pal;
 pub use faraday_ui::{
     BAR_GRAB, BarGeometry, Contrast, Disclosure, Glyph, Mode, NameSuffix, Paint, Role, Scrolled,
-    Slot, Style, Theme, ThemeName, W, btc, grouped, short, thousands,
+    Slot, Style, TextSize, Theme, ThemeName, W, btc, grouped, short, thousands,
 };
 
 /// What is written or drawn on a control that is not available now:

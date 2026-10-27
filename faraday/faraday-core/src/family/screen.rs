@@ -365,7 +365,7 @@ fn loaded(app: &View, ui: &mut Ui, x0: f32, cw: f32) -> f32 {
 fn loaded_compact(app: &View, ui: &mut Ui, cw: f32, h: f32) {
     use crate::compact::screen::measured;
     use crate::compact::{BAR_H, M};
-    use crate::screens::{missing_keys_line, section_label, wrap_buttons};
+    use crate::screens::{section_label, wrap_buttons};
     let (x, w) = (M, cw - 2.0 * M);
     let clip = ui.rect(0.0, BAR_H, cw, h - BAR_H);
     ui.c.push_clip(clip);
@@ -432,119 +432,7 @@ fn loaded_compact(app: &View, ui: &mut Ui, cw: f32, h: f32) {
         y += 42.0;
     }
     for (i, wl) in app.session.wallets.iter().enumerate() {
-        let slots = app.session.slots(wl);
-        let here = slots.iter().filter(|s| s.held_by.is_some()).count();
-        let need = crate::wallet::needed(wl);
-        let ready = here >= need;
-        let (marker, tone) = if ready {
-            (
-                fill(
-                    EN.family_can_spend_count,
-                    &[&here.min(need).to_string(), &need.to_string()],
-                ),
-                Role::Ok,
-            )
-        } else if here > 0 {
-            (
-                fill(
-                    EN.family_here_needed,
-                    &[
-                        &here.to_string(),
-                        (if here == 1 {
-                            EN.family_key
-                        } else {
-                            EN.family_keys
-                        }),
-                        &need.to_string(),
-                    ],
-                ),
-                Role::Warning,
-            )
-        } else {
-            (EN.family_no_key_here.to_string(), Role::OnSurfaceVariant)
-        };
-        // The keys still missing: where they may be. Measured first so
-        // the card is drawn at its height.
-        let missing = |ui: &mut Ui, y: f32| -> f32 {
-            if ready {
-                return 0.0;
-            }
-            let used = missing_keys_line(
-                app,
-                ui,
-                &slots,
-                crate::Screen::Family,
-                x + 18.0,
-                y,
-                w - 32.0,
-            );
-            if used > 0.0 {
-                used
-            } else {
-                ui.wrap_as(
-                    (x + 14.0, y, w - 28.0),
-                    BODY_S,
-                    Role::OnSurfaceVariant,
-                    EN.family_an_open_vault,
-                ) + 8.0
-            }
-        };
-        let mh = measured(ui, |ui| missing(ui, y));
-        let ch = 70.0 + mh + 40.0 + 14.0;
-        ui.card(
-            x,
-            y,
-            w,
-            ch,
-            if ready {
-                Role::Ok.with_alpha(90)
-            } else {
-                Role::OutlineVariant.paint()
-            },
-        );
-        ui.icon(
-            x + 14.0,
-            y + 12.0,
-            20.0,
-            Icon::Wallet,
-            12.0,
-            Role::OnSurfaceVariant,
-        );
-        let name = ui.fit_as(TITLE_M, &wl.name, w - 60.0);
-        ui.text_mid_as((x + 42.0, y + 4.0, 36.0), TITLE_M, Role::OnSurface, &name);
-        let shape = ui.fit_as(BODY_S, &Session::shape(wl), w - 56.0);
-        ui.text_mid_as(
-            (x + 42.0, y + 28.0, 18.0),
-            BODY_S,
-            Role::OnSurfaceVariant,
-            &shape,
-        );
-        let marker = ui.fit_as(LABEL_M, &marker, w - 56.0);
-        ui.text_mid_as((x + 42.0, y + 46.0, 18.0), LABEL_M, tone, &marker);
-        missing(ui, y + 70.0);
-        let label = if ready {
-            EN.family_spend_from_button
-        } else {
-            EN.family_open_button
-        };
-        ui.button(
-            x + 14.0,
-            y + 70.0 + mh,
-            Some(w - 28.0),
-            BUTTON_H,
-            label,
-            if ready {
-                Style::Primary
-            } else {
-                Style::Secondary
-            },
-            if ready {
-                fa(F::SpendFrom(i))
-            } else {
-                Action::OpenWallet(i)
-            },
-        );
-        y += ch + 10.0;
+        y += wallet_card_compact(app, ui, (x, y, w), i, wl) + 10.0;
     }
 
     // Seeds that open no wallet loaded.
@@ -613,6 +501,138 @@ fn loaded_compact(app: &View, ui: &mut Ui, cw: f32, h: f32) {
         (EN.family_home, Action::Nav(crate::Screen::Home)),
         EN.family_spend,
     );
+}
+
+/// What a loaded wallet's card says of its keys here: can spend, how
+/// many are here of how many needed, or none, and its tone.
+fn keys_marker(here: usize, need: usize) -> (String, Role) {
+    if here >= need {
+        (
+            fill(
+                EN.family_can_spend_count,
+                &[&here.min(need).to_string(), &need.to_string()],
+            ),
+            Role::Ok,
+        )
+    } else if here > 0 {
+        let keys = if here == 1 {
+            EN.family_key
+        } else {
+            EN.family_keys
+        };
+        (
+            fill(
+                EN.family_here_needed,
+                &[&here.to_string(), keys, &need.to_string()],
+            ),
+            Role::Warning,
+        )
+    } else {
+        (EN.family_no_key_here.to_string(), Role::OnSurfaceVariant)
+    }
+}
+
+/// A loaded wallet's card on a one-column page, `i` the wallet `wl`,
+/// from (x, y) `w` wide: its name, shape and keys' marker, where the keys
+/// still missing may be, and Spend from it or Open. Its lines advance by
+/// their roles, so the card grows with the text size
+/// (`docs/TEXT-SIZE.md` §5). Returns its height.
+fn wallet_card_compact(
+    app: &View,
+    ui: &mut Ui,
+    (x, y, w): (f32, f32, f32),
+    i: usize,
+    wl: &crate::wallet::Wallet,
+) -> f32 {
+    use crate::compact::screen::measured;
+    use crate::screens::missing_keys_line;
+    let slots = app.session.slots(wl);
+    let here = slots.iter().filter(|s| s.held_by.is_some()).count();
+    let need = crate::wallet::needed(wl);
+    let ready = here >= need;
+    let (marker, tone) = keys_marker(here, need);
+    // The keys still missing: where they may be. Measured first so
+    // the card is drawn at its height.
+    let missing = |ui: &mut Ui, y: f32| -> f32 {
+        if ready {
+            return 0.0;
+        }
+        let used = missing_keys_line(
+            app,
+            ui,
+            &slots,
+            crate::Screen::Family,
+            x + 18.0,
+            y,
+            w - 32.0,
+        );
+        if used > 0.0 {
+            used
+        } else {
+            ui.wrap_as(
+                (x + 14.0, y, w - 28.0),
+                BODY_S,
+                Role::OnSurfaceVariant,
+                EN.family_an_open_vault,
+            ) + 8.0
+        }
+    };
+    // What larger text adds to each line: nothing at Standard.
+    let more = 1.0 - 1.0 / ui.text_factor();
+    let (dn, ds, dm) = (
+        ui.line_as(TITLE_M) * more,
+        ui.line_as(BODY_S) * more,
+        ui.line_as(LABEL_M) * more,
+    );
+    let head = 70.0 + dn + ds + dm;
+    let bh = ui.button_height(BUTTON_H);
+    let mh = measured(ui, |ui| missing(ui, y));
+    let ch = head + mh + bh + 14.0;
+    ui.card(
+        x,
+        y,
+        w,
+        ch,
+        if ready {
+            Role::Ok.with_alpha(90)
+        } else {
+            Role::OutlineVariant.paint()
+        },
+    );
+    let ib = ui.row_icon(20.0);
+    let icon = ui.row_icon(12.0);
+    ui.icon(
+        x + 14.0,
+        y + 12.0,
+        ib,
+        Icon::Wallet,
+        icon,
+        Role::OnSurfaceVariant,
+    );
+    let name = ui.fit_as(TITLE_M, &wl.name, w - 60.0);
+    let band = (x + 42.0, y + 4.0, 36.0 + dn);
+    ui.text_mid_as(band, TITLE_M, Role::OnSurface, &name);
+    let shape = ui.fit_as(BODY_S, &Session::shape(wl), w - 56.0);
+    let band = (x + 42.0, y + 28.0 + dn, 18.0 + ds);
+    ui.text_mid_as(band, BODY_S, Role::OnSurfaceVariant, &shape);
+    let marker = ui.fit_as(LABEL_M, &marker, w - 56.0);
+    let band = (x + 42.0, y + 46.0 + dn + ds, 18.0 + dm);
+    ui.text_mid_as(band, LABEL_M, tone, &marker);
+    missing(ui, y + head);
+    let label = if ready {
+        EN.family_spend_from_button
+    } else {
+        EN.family_open_button
+    };
+    // The button's top where its grown height starts.
+    let by = y + head + mh + (bh - BUTTON_H) / 2.0;
+    let (style, action) = if ready {
+        (Style::Primary, fa(F::SpendFrom(i)))
+    } else {
+        (Style::Secondary, Action::OpenWallet(i))
+    };
+    ui.button(x + 14.0, by, Some(w - 28.0), BUTTON_H, label, style, action);
+    ch
 }
 
 /// One line of what to do next, with its button. Returns its height.

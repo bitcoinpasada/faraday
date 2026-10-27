@@ -1043,6 +1043,22 @@ pub const LIST_3: f32 = 88.0;
 /// its first line.
 pub const LIST_3_TOP: f32 = 12.0;
 
+/// The least room above and below a one- or two-line list item's lines
+/// (Material 3 Lists' 8 dp): where larger text needs more than the
+/// item's height, the item grows to its lines and this
+/// (`docs/TEXT-SIZE.md` §5).
+pub const LIST_PAD_V: f32 = 8.0;
+
+/// The least room above and below a button's label (Material 3
+/// Buttons' 8 dp content padding): a button grows to its label and this
+/// where larger text needs more than [`BUTTON_H`].
+pub const BUTTON_PAD_V: f32 = 8.0;
+
+/// The least room above and below a text field's line (Material 3 Text
+/// fields' 16 dp): a field grows to its line and this where larger text
+/// needs more than [`FIELD_H`].
+pub const FIELD_PAD_V: f32 = 16.0;
+
 /// A text field's height (Material 3 Text fields, outlined; the same on
 /// every window, `docs/LAYOUT.md` §8).
 pub const FIELD_H: f32 = 56.0;
@@ -1818,6 +1834,24 @@ pub const ICON_GAP: f32 = GAP;
 /// The smallest text drawn: Material's label-small. A size asked for
 /// under it is drawn at it.
 pub const TEXT_MIN: f32 = 11.0;
+
+/// Text size Large (Settings › Appearance, F85): every role's size and
+/// line height times 1.2, in percent (`docs/TEXT-SIZE.md` §2).
+pub const TEXT_LARGE_PCT: u16 = 120;
+
+/// Text size Larger: every role's size and line height times 1.4, in
+/// percent.
+pub const TEXT_LARGER_PCT: u16 = 140;
+
+/// `p` percent as a factor: 120 is 1.2.
+pub fn percent(p: u16) -> f32 {
+    f32::from(p) / 100.0
+}
+
+/// The step a one-line slot's text fits down by, in percent of its
+/// Standard size, from the text size's own down to Standard
+/// (`docs/TEXT-SIZE.md` §3).
+pub const TEXT_FIT_STEP_PCT: u16 = 10;
 
 /// A segmented button's room each side of a segment's label.
 pub const SEGMENT_PAD: f32 = 12.0;

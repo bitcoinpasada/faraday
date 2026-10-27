@@ -35,9 +35,11 @@ pub(crate) fn row(
 ) -> f32 {
     let enabled = action.is_some();
     let pressed = action.is_some_and(|a| ui.is_pressed(a));
+    // The icon grows with the label (`docs/TEXT-SIZE.md` §3).
+    let ib = ui.row_icon(32.0);
     let mut tx = x + 14.0;
     if icon.is_some() {
-        tx = x + 52.0;
+        tx = x + 20.0 + ib;
     }
     let room = x + w - tx - if enabled { 26.0 } else { 10.0 };
     // A label that does not fit at its size breaks at a space onto
@@ -45,7 +47,15 @@ pub(crate) fn row(
     // never cut off, the label this row is given is always shown whole.
     let lines = ui.wrap_lines_as(LABEL_L, label, room);
     let line_h = ui.line_as(LABEL_L);
-    let h = 56.0 + (lines - 1) as f32 * line_h;
+    // What larger text adds to the label's line and the line under it
+    // (`docs/TEXT-SIZE.md` §5): nothing at Standard.
+    let more = 1.0 - 1.0 / ui.text_factor();
+    let sub_h = if sub.is_empty() {
+        0.0
+    } else {
+        ui.line_as(BODY_S)
+    };
+    let h = 56.0 + (lines - 1) as f32 * line_h + (line_h + sub_h) * more;
     crate::ui::fill_pressed(ui, (x, y, w, h, 10.0), Role::SurfaceContainerLow, pressed);
     ui.stroke(x, y, w, h, 10.0, Role::OutlineVariant.paint());
     if let Some(i) = icon {
@@ -60,8 +70,8 @@ pub(crate) fn row(
                 crate::ui::off(),
             )
         };
-        ui.fill(x + 10.0, y + 12.0, 32.0, 32.0, 8.0, bg);
-        ui.icon(x + 10.0, y + 12.0, 32.0, i, 14.0, fg);
+        ui.fill(x + 10.0, y + 12.0, ib, ib, 8.0, bg);
+        ui.icon(x + 10.0, y + 12.0, ib, i, ui.row_icon(14.0), fg);
     }
     let label_color = if enabled {
         Role::OnSurface.paint()
@@ -74,7 +84,7 @@ pub(crate) fn row(
     } else {
         let label = ui.fit_as(LABEL_L, label, room);
         ui.text_as(tx, y + 9.0, LABEL_L, label_color, &label);
-        y + 30.0
+        y + 30.0 + line_h * more
     };
     if !sub.is_empty() {
         let sub = ui.fit_as(BODY_S, sub, room);

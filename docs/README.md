@@ -103,7 +103,7 @@ need. Each document's header says what kind it is:
 - `docs/SPEED.md`: Speed in long flows. Built but for the glyph cache (§3.8).
 - `docs/STARTER.md`: The Starter. Partly built.
 - `docs/STRUCTURE-PASS.md`: The structure pass. Built.
-- `docs/TEXT-SIZE.md`: Text size. Specified (F85), not built.
+- `docs/TEXT-SIZE.md`: Text size. Partly built (F85): the setting and the components.
 
 **Record**
 

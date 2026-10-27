@@ -1663,7 +1663,8 @@ new keyboards are ignored without a code until Faraday starts again.
 **No camera, or the camera is refused** → the scanner says which, and
 offers Type and Read a file.
 
-**Settings**: keyboard layout (US first), display scale, idle lock and
+**Settings**: keyboard layout (US first), display scale, text size
+(Standard, Large; Larger to follow, `docs/TEXT-SIZE.md`), idle lock and
 power-off times (30 and 60 minutes at first, F58), reduce motion, light
 or dark (light on a device with no settings saved, decision 32), the
 network (decision 14), ignored devices, **Time** and About (version, build hash). They are kept across a

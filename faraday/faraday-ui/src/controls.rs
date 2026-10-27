@@ -406,6 +406,8 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
         chosen: Option<usize>,
     ) -> f32 {
         let sw = self.segment_width_of(size, options.iter().map(|o| o.0));
+        // A row as tall as larger text needs (`docs/TEXT-SIZE.md` §5).
+        let h = self.button_height(h);
         if sw * options.len() as f32 <= w {
             self.segmented((x, y, h), size, options, chosen, None);
             return h;
@@ -435,6 +437,7 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
     /// How tall [`Ui::choices`] draws `labels` in a width `w`, `h` a row,
     /// worked out from their widths with nothing drawn.
     pub fn choices_h(&self, w: f32, h: f32, size: f32, labels: &[&str]) -> f32 {
+        let h = self.button_height(h);
         if self.segment_width(size, labels) * labels.len() as f32 <= w {
             return h;
         }

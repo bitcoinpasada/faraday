@@ -83,17 +83,11 @@ pub fn destination_row<A: Copy + PartialEq>(
     let end_w = end.map_or(0.0, |e| ui.measure_as(LABEL_M.regular(), e) + GRID);
     // Material's label large, the current destination's heavier.
     let role = if current { LABEL_L } else { LABEL_L.regular() };
-    // Shortened only where it does not fit: a frame of the expanded rail
-    // makes no string for a label that fits.
+    // A one-line slot: larger text fits down to Standard, and is
+    // shortened there only where it still does not fit
+    // (`docs/TEXT-SIZE.md` §3).
     let room = right - tx - end_w;
-    let fitted;
-    let label = if ui.measure_as(role, label) <= room {
-        label
-    } else {
-        fitted = ui.fit_as(role, label, room);
-        fitted.as_str()
-    };
-    ui.text_mid_as((tx, y, TOUCH), role, fg, label);
+    ui.text_fit_as((tx, y, TOUCH, room), role, fg, label);
     if let Some(e) = end {
         ui.text_right_as((right, y, TOUCH), LABEL_M.regular(), fg, e);
     }

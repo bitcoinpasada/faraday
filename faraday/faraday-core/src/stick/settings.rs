@@ -49,6 +49,8 @@ pub(crate) struct Settings {
     /// The scheme the screens are drawn in: a theme, a mode and a
     /// contrast level (`docs/THEMES.md` §3).
     theme: crate::ui::Theme,
+    /// How large text is drawn (`docs/TEXT-SIZE.md` §2).
+    text: crate::ui::TextSize,
     /// Reduce motion: nothing slides, glides, coasts or stretches.
     reduce_motion: bool,
     /// Minutes without input before the session locks; 0 for never
@@ -76,6 +78,7 @@ impl Default for Settings {
         Self {
             scale_pct: 100,
             theme: crate::ui::Theme::default(),
+            text: crate::ui::TextSize::Standard,
             reduce_motion: false,
             idle_lock_min: crate::IDLE_LOCK_MIN,
             qr_frame_ms: crate::QR_SPEEDS[0],
@@ -100,6 +103,16 @@ impl Settings {
     /// The scheme.
     pub(crate) fn theme(&self) -> crate::ui::Theme {
         self.theme
+    }
+
+    /// How large text is drawn.
+    pub(crate) fn text_size(&self) -> crate::ui::TextSize {
+        self.text
+    }
+
+    /// Sets how large text is drawn.
+    pub(crate) fn set_text_size(&mut self, text: crate::ui::TextSize) {
+        self.text = text;
     }
 
     /// Whether motion is reduced.
@@ -187,11 +200,12 @@ impl Settings {
     /// file holds after its first line, and the start of the kept set.
     pub(crate) fn body(&self) -> String {
         format!(
-            "scale={}\ntheme={}\nmode={}\ncontrast={}\nmotion={}\nguided={}\nqr-ms={}\nidle-lock={}\nidle-off={}\ntz={}\n",
+            "scale={}\ntheme={}\nmode={}\ncontrast={}\ntext={}\nmotion={}\nguided={}\nqr-ms={}\nidle-lock={}\nidle-off={}\ntz={}\n",
             self.scale_pct,
             self.theme.name.id(),
             self.theme.mode.id(),
             self.theme.contrast.id(),
+            self.text.id(),
             if self.reduce_motion {
                 "reduced"
             } else {
@@ -207,7 +221,8 @@ impl Settings {
 
     /// Takes one setting if its value is one Settings offers. A line from
     /// a stick (`from_stick`) cannot choose never for an idle time.
-    /// Returns whether it was a scale, which the glue lays out at once.
+    /// Returns whether it was a scale or a text size, which the glue lays
+    /// out at once.
     pub(crate) fn apply(&mut self, key: &str, value: &str, from_stick: bool) -> bool {
         match key {
             "scale" => {
@@ -235,6 +250,15 @@ impl Settings {
             "contrast" => {
                 if let Some(contrast) = crate::ui::Contrast::from_id(value) {
                     self.theme.contrast = contrast;
+                }
+            }
+            // Only the sizes Settings knows, Larger read as Large while it
+            // is not offered; anything else leaves the size as it was
+            // (`docs/TEXT-SIZE.md` §2, §6).
+            "text" => {
+                if let Some(t) = crate::ui::TextSize::from_id(value) {
+                    self.text = t.offered();
+                    return true;
                 }
             }
             "motion" => match value {
@@ -292,8 +316,8 @@ impl Faraday {
         format!("{HEADER}\n{}", self.settings_body())
     }
 
-    /// Takes one setting if its value is one Settings offers; a scale is
-    /// laid out at once.
+    /// Takes one setting if its value is one Settings offers; a scale or
+    /// a text size is laid out at once.
     pub(crate) fn apply_setting(&mut self, key: &str, value: &str, from_stick: bool) {
         if self.settings.apply(key, value, from_stick) {
             self.layout_scale();
@@ -402,13 +426,22 @@ impl Faraday {
 
 impl Faraday {
     /// Settings' Appearance presses: the display scale, the preview size,
-    /// motion and the palette. Laying the screens out again on a new
+    /// the text size, motion and the palette. Laying the screens out again on a new
     /// scale costs what a display event does.
     pub(crate) fn appearance_act(&mut self, a: crate::Action) {
         use crate::Action;
         match a {
             Action::Scale(pct) => {
                 self.settings.set_scale(pct);
+                if let Some(d) = self.last_display {
+                    self.display(d);
+                }
+                self.save_boxes();
+            }
+            // Laid out again at once, as a scale is: the text size counts
+            // in the one-column decision (`docs/TEXT-SIZE.md` §4).
+            Action::TextSize(t) => {
+                self.settings.set_text_size(t);
                 if let Some(d) = self.last_display {
                     self.display(d);
                 }
@@ -434,6 +467,12 @@ impl Faraday {
     pub fn draw_in(&mut self, theme: crate::ui::Theme) {
         self.settings.set_theme(theme);
         self.out.dirty = true;
+    }
+
+    /// How large the person has text drawn (Settings › Appearance,
+    /// `docs/TEXT-SIZE.md` §2).
+    pub fn text_size(&self) -> crate::ui::TextSize {
+        self.settings.text_size()
     }
 
     /// The person's display scale, in percent of the automatic one.

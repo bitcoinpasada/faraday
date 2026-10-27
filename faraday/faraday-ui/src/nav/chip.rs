@@ -23,11 +23,36 @@ pub struct Chip<'s, A> {
 
 /// Chip `c` at (x, y), at most `max` wide: its icon, its head and, muted
 /// after it, its tail. A press anywhere in its touch target takes its
-/// action. Returns its width.
+/// action. Its text is a one-line slot: larger text fits down to
+/// Standard (`docs/TEXT-SIZE.md` §3). Returns its width.
 pub fn status_chip<A: Copy + PartialEq>(
     ui: &mut Ui<A>,
     (x, y, max): (f32, f32, f32),
     c: &Chip<A>,
+) -> f32 {
+    let lead = if c.icon.is_some() {
+        ICON_SMALL + GAP_SMALL
+    } else {
+        0.0
+    };
+    let inner = max - 2.0 * STATUS_CHIP_PAD - lead;
+    // Material's chip label: label large, in the face the head asks for.
+    let size = LABEL_L.size;
+    let mut wide = ui.measure(size, c.head.1, c.head.0);
+    if !c.tail.is_empty() {
+        wide += GRID + ui.measure(size, W::R, c.tail);
+    }
+    let k = ui.fit_factor_of(wide, inner);
+    ui.fixed_text(|ui| chip_drawn(ui, (x, y, max), c, (size * k, lead, inner)))
+}
+
+/// [`status_chip`] with its text at `size`, the lead before it and the
+/// room inside it worked out.
+fn chip_drawn<A: Copy + PartialEq>(
+    ui: &mut Ui<A>,
+    (x, y, max): (f32, f32, f32),
+    c: &Chip<A>,
+    (size, lead, inner): (f32, f32, f32),
 ) -> f32 {
     let Chip {
         icon,
@@ -35,14 +60,6 @@ pub fn status_chip<A: Copy + PartialEq>(
         tail,
         action,
     } = *c;
-    // Material's chip label: label large, in the face the head asks for.
-    let size = LABEL_L.size;
-    let lead = if icon.is_some() {
-        ICON_SMALL + GAP_SMALL
-    } else {
-        0.0
-    };
-    let inner = max - 2.0 * STATUS_CHIP_PAD - lead;
     let hw_full = ui.measure(size, head.1, head.0);
     let head_s = ui.fit(size, head.1, head.0, inner.min(hw_full));
     let hw = ui.measure(size, head.1, &head_s);

@@ -131,6 +131,20 @@ pub fn keyboard<A: Copy + PartialEq>(
     compact: bool,
     act: impl Fn(OskPress) -> A,
 ) {
+    // The keys keep their size whatever the text size: they are set by
+    // what must fit on the panel (`docs/TEXT-SIZE.md` §3).
+    ui.fixed_text(|ui| keys_drawn(ui, (x, w, y), kind, keys, compact, act));
+}
+
+/// [`keyboard`]'s keys, drawn at the text's Standard size.
+fn keys_drawn<A: Copy + PartialEq>(
+    ui: &mut Ui<A>,
+    (x, w, y): (f32, f32, f32),
+    kind: KeyboardKind,
+    keys: Keys,
+    compact: bool,
+    act: impl Fn(OskPress) -> A,
+) {
     let rows = keyboard::rows(kind) as f32;
     ui.fill(x, y, w, rows * row(kind) + 8.0, 0.0, Role::SurfaceContainer);
     ui.fill(x, y, w, 1.0, 0.0, Role::OutlineVariant);

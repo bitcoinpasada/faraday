@@ -273,6 +273,9 @@ pub enum Action {
     SettingsSection(Option<u8>),
     /// Draw in this scheme: a theme, mode and contrast (`docs/THEMES.md` §12).
     Theme(ui::Theme),
+    /// Draw text at this size (Settings › Appearance, `docs/TEXT-SIZE.md`
+    /// §2).
+    TextSize(ui::TextSize),
     /// Reduce motion on or off.
     ReduceMotion(bool),
     /// Guided mode on or off.

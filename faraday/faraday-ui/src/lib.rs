@@ -24,7 +24,7 @@ pub mod tooltip;
 pub use controls::{Reach, Style, focus_step, reach_at};
 pub use pal::{Paint, Role, ThemeName};
 pub use region::{Scrolled, Slot};
-pub use theme::{Contrast, Mode, Theme};
+pub use theme::{Contrast, Mode, TextSize, Theme};
 
 use faraday_draw::fonts::Family;
 use faraday_draw::text::{self, TextAlign};
@@ -360,6 +360,10 @@ pub struct Ui<'a, A> {
     pub f: f32,
     /// The canvas's type ramp over its length scale.
     tr: f32,
+    /// The person's text size factor (`docs/TEXT-SIZE.md` §2): every
+    /// type role's size and line height times it, 1 inside
+    /// [`Ui::fixed_text`].
+    text: f32,
     /// Where each action can be pressed, in pixels.
     pub hits: &'a mut Vec<(Rect, A)>,
     /// The action under a finger that is down.
@@ -524,6 +528,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
             c,
             f,
             tr,
+            text: 1.0,
             hits,
             pressed,
             layer: 0,
@@ -1269,12 +1274,38 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
             W::S => Family::SemiBold,
             W::M => Family::Mono,
         };
+        // The text size applies here, once, so every measure, line, wrap
+        // and draw built on it sees it (`docs/TEXT-SIZE.md` §3).
+        let size = size * self.text;
         let size = if w == W::M {
             size / self.tr * 0.94
         } else {
             size / self.tr
         };
         Font::new(family, size)
+    }
+
+    /// Draws text `t` times its size from here on: the person's text size
+    /// (`docs/TEXT-SIZE.md` §2), set once a frame before anything is
+    /// drawn.
+    pub fn set_text_size(&mut self, t: crate::TextSize) {
+        self.text = t.factor();
+    }
+
+    /// What every text size and line height is multiplied by now: the
+    /// person's text size, or 1 inside [`Ui::fixed_text`].
+    pub fn text_factor(&self) -> f32 {
+        self.text
+    }
+
+    /// `draw` with text at its Standard size, whatever the text size: what
+    /// keeps its size as the text grows (a keyboard's keys, a pad). The
+    /// factor is put back after.
+    pub fn fixed_text<R>(&mut self, draw: impl FnOnce(&mut Self) -> R) -> R {
+        let text = std::mem::replace(&mut self.text, 1.0);
+        let r = draw(self);
+        self.text = text;
+        r
     }
 
     /// The width of `s` in design units.
@@ -1641,9 +1672,13 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         style: Style,
         action: A,
     ) -> f32 {
-        let r = faraday_draw::tokens::shape_full(h);
+        // Taller where larger text needs it, about the same middle
+        // (`docs/TEXT-SIZE.md` §5).
+        let grown = self.button_height(h);
+        let y = y - (grown - h) / 2.0;
+        let r = faraday_draw::tokens::shape_full(grown);
         let size = faraday_draw::tokens::LABEL_L.size;
-        self.button_drawn((x, y, w, h, r), size, label, style, action)
+        self.button_drawn((x, y, w, grown, r), size, label, style, action)
     }
 
     /// [`Ui::button`] with corners of `r` rather than round ends: a key
@@ -1656,8 +1691,10 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         style: Style,
         action: A,
     ) -> f32 {
+        // A key keeps its size whatever the text size: the keyboards
+        // and pads are set by what must fit on the panel.
         let size = faraday_draw::tokens::key_label(at.3);
-        self.button_drawn(at, size, label, style, action)
+        self.fixed_text(|ui| ui.button_drawn(at, size, label, style, action))
     }
 
     /// A button or a key with its label at `size` in the medium face:
@@ -1735,13 +1772,18 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         use faraday_draw::tokens::{
             FIELD_ACTION_HEIGHT as CH, FIELD_ACTION_INSET as IN, FIELD_ACTION_TEXT as TX, TOUCH,
         };
-        let width = (self.measure_as(TX, label) + 2.0 * IN).min(w - 2.0 * IN);
+        // A one-line slot: the field's inset either side of the chip and
+        // the chip's own inside it; larger text fits down to Standard
+        // (`docs/TEXT-SIZE.md` §3).
+        let room = (w - 2.0 * IN) - 2.0 * IN;
+        let tw = self.text_fit_width(TX, label, room);
+        let width = (tw + 2.0 * IN).min(w - 2.0 * IN);
         let (cx, cy) = (x + IN, y + (h - CH) / 2.0);
         self.state_layer((cx, cy, width, CH, SHAPE_S), Role::Primary.paint(), action);
         self.stroke(cx, cy, width, CH, SHAPE_S, Role::Outline);
         self.focus_ring((cx, cy, width, CH, SHAPE_S), action);
-        let tw = self.measure_as(TX, label);
-        self.text_mid_as((cx + (width - tw) / 2.0, cy, CH), TX, Role::Primary, label);
+        let band = (cx + (width - tw) / 2.0, cy, CH, room);
+        self.text_fit_as(band, TX, Role::Primary, label);
         let hit_h = if self.compact {
             TOUCH.max(CH)
         } else {

@@ -74,6 +74,10 @@ pub enum InkKind {
         /// The colour it was drawn in: what a test of its contrast
         /// against what is under it reads.
         color: Color,
+        /// Whether some of its ink runs past the left or right side of
+        /// its clip, so a person sees it cut off. A clip's top and foot
+        /// are where a page scrolls and are not counted.
+        cut: bool,
     },
     /// An icon glyph.
     Icon(crate::widgets::Icon),
@@ -1138,6 +1142,7 @@ impl Canvas {
                 text: String::from(s),
                 family,
                 color,
+                cut,
             },
             bbox,
         );

@@ -5,12 +5,12 @@
 //! uses.
 
 use crate::pal::{Role, ThemeName};
-use crate::{Contrast, Mode, Theme, Ui};
+use crate::{Contrast, Mode, TextSize, Theme, Ui};
 use faraday_draw::Color;
 use faraday_draw::tokens::{
     APPEARANCE_LABEL_GAP, APPEARANCE_ROW_GAP, BODY_L, BODY_M, FILTER_CHIP_GAP, FILTER_CHIP_H,
-    FILTER_CHIP_ICON, FILTER_CHIP_LEAD, FILTER_CHIP_TRAIL, GAP, LABEL_L, SEGMENTED_H, SHAPE_S,
-    STATE_HOVER, STATE_PRESS, SWITCH_EDGE, SWITCH_H, SWITCH_HANDLE_OFF, SWITCH_HANDLE_ON,
+    FILTER_CHIP_ICON, FILTER_CHIP_LEAD, FILTER_CHIP_TRAIL, GAP, LABEL_L, LIST_PAD_V, SEGMENTED_H,
+    SHAPE_S, STATE_HOVER, STATE_PRESS, SWITCH_EDGE, SWITCH_H, SWITCH_HANDLE_OFF, SWITCH_HANDLE_ON,
     SWITCH_HANDLE_PRESSED, SWITCH_STATE, SWITCH_W, THEME_CHIP_DOT, THEME_CHIP_RING,
     THEME_CHIP_RING_GAP, THEME_CHIP_TICK, TOUCH, alpha_of, shape_full,
 };
@@ -170,7 +170,11 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
             let (cx, cw, top) = match label_w {
                 Some(lw) => {
                     // The label level with the control's first line.
-                    let line = if i == 0 { FILTER_CHIP_H } else { SEGMENTED_H };
+                    let line = if i == 0 {
+                        FILTER_CHIP_H
+                    } else {
+                        self.button_height(SEGMENTED_H)
+                    };
                     self.text_mid_as((x, at, line), BODY_M, Role::OnSurfaceVariant, label);
                     (x + lw, w - lw, at)
                 }
@@ -197,6 +201,36 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
             at = top + used;
         }
         at - y
+    }
+
+    /// Text size's row (`docs/TEXT-SIZE.md` §2) from (x, y), `w` wide, as
+    /// [`Ui::appearance`] draws Contrast's: its label in a column
+    /// `label_w` wide with the offered sizes beside it, or, with
+    /// `label_w` `None`, over them; `current` chosen. `action` names the
+    /// press that chooses a size. Returns the height used.
+    pub fn text_size_row(
+        &mut self,
+        (x, y, w): (f32, f32, f32),
+        label_w: Option<f32>,
+        current: TextSize,
+        action: impl Fn(TextSize) -> A,
+    ) -> f32 {
+        let sizes = TextSize::OFFERED.map(|t| (t.name(), action(t)));
+        let label = EN.settings_text_size;
+        let (cx, cw, top) = match label_w {
+            Some(lw) => {
+                let line = self.button_height(SEGMENTED_H);
+                self.text_mid_as((x, y, line), BODY_M, Role::OnSurfaceVariant, label);
+                (x + lw, w - lw, y)
+            }
+            None => {
+                self.text_as(x, y, BODY_M, Role::OnSurfaceVariant, label);
+                (x, w, y + self.line_as(BODY_M) + APPEARANCE_LABEL_GAP)
+            }
+        };
+        let chosen = TextSize::OFFERED.iter().position(|&t| t == current);
+        let used = self.choices((cx, top, cw, SEGMENTED_H), LABEL_L.size, &sizes, chosen);
+        top + used - y
     }
 
     /// A switch (Material's) at (x, y), [`SWITCH_W`] by [`SWITCH_H`]: on,
@@ -273,10 +307,11 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
         action: A,
     ) -> f32 {
         let room = w - SWITCH_W - GAP;
+        let h = self.row_height(TOUCH, self.line_as(BODY_L), LIST_PAD_V);
         let shown = self.fit_as(BODY_L, label, room);
-        self.text_mid_as((x, y, TOUCH), BODY_L, Role::OnSurface, &shown);
-        self.switch(x + w - SWITCH_W, y + (TOUCH - SWITCH_H) / 2.0, on, action);
-        TOUCH
+        self.text_mid_as((x, y, h), BODY_L, Role::OnSurface, &shown);
+        self.switch(x + w - SWITCH_W, y + (h - SWITCH_H) / 2.0, on, action);
+        h
     }
 }
 

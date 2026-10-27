@@ -13,9 +13,9 @@ use crate::pal::*;
 use crate::{Ui, W};
 use faraday_draw::text;
 use faraday_draw::tokens::{
-    BODY_L, BODY_M, BODY_S, FIELD_EDGE, FIELD_EDGE_ACTIVE, FIELD_GAP, FIELD_H, FIELD_PAD,
-    FIELD_RADIUS, GAP, LABEL_S, LIST_1, LIST_2, LIST_3, LIST_3_TOP, LIST_PAD, SHAPE_L, TypeFace,
-    TypeRole,
+    BODY_L, BODY_M, BODY_S, BUTTON_PAD_V, FIELD_EDGE, FIELD_EDGE_ACTIVE, FIELD_GAP, FIELD_H,
+    FIELD_PAD, FIELD_PAD_V, FIELD_RADIUS, GAP, LABEL_L, LABEL_S, LIST_1, LIST_2, LIST_3,
+    LIST_3_TOP, LIST_PAD, LIST_PAD_V, SHAPE_L, TEXT_FIT_STEP_PCT, TypeFace, TypeRole,
 };
 
 impl From<TypeFace> for W {
@@ -53,9 +53,109 @@ pub struct ListItem<'s, A> {
 
 impl<A: Copy + PartialEq> Ui<'_, A> {
     /// The height of one line in `role`, in design units: its line height
-    /// at this canvas's type size.
+    /// at this canvas's type size, times the text size.
     pub fn line_as(&self, role: TypeRole) -> f32 {
-        role.line * self.c.scale().factor() / self.f
+        role.line * self.text_factor() * self.c.scale().factor() / self.f
+    }
+
+    /// A height that text sets (`docs/TEXT-SIZE.md` §5): at Standard,
+    /// and inside [`Ui::fixed_text`], `token` as it is; at a larger text
+    /// size, `token` or `lines` (the height its text takes now) with
+    /// `pad` above and below, whichever is larger. Arithmetic.
+    pub fn row_height(&self, token: f32, lines: f32, pad: f32) -> f32 {
+        if self.text_factor() <= 1.0 {
+            return token;
+        }
+        token.max(lines + 2.0 * pad)
+    }
+
+    /// The height a button asked to be `h` tall is drawn: `h`, or its
+    /// label's line and Material's content padding where larger text
+    /// needs more. Arithmetic.
+    pub fn button_height(&self, h: f32) -> f32 {
+        self.row_height(h, self.line_as(LABEL_L), BUTTON_PAD_V)
+    }
+
+    /// A text field's height: [`FIELD_H`], or its line and Material's
+    /// padding where larger text needs more. Arithmetic.
+    pub fn field_h(&self) -> f32 {
+        self.row_height(FIELD_H, self.line_as(FIELD_TEXT), FIELD_PAD_V)
+    }
+
+    /// The side of a row's leading icon asked to be `side`: it grows with
+    /// the row's label, by the text size (`docs/TEXT-SIZE.md` §3).
+    /// Arithmetic.
+    pub fn row_icon(&self, side: f32) -> f32 {
+        side * self.text_factor()
+    }
+
+    /// The factor `s` in `role` is drawn at in a one-line slot `max`
+    /// wide (`docs/TEXT-SIZE.md` §3): the text size's own, or the largest
+    /// step of [`TEXT_FIT_STEP_PCT`] under it that fits, never under
+    /// Standard. Measures `s` once.
+    pub fn fit_factor(&self, role: TypeRole, s: &str, max: f32) -> f32 {
+        self.fit_factor_of(self.measure_as(role, s), max)
+    }
+
+    /// [`Ui::fit_factor`] for a line `wide` at the text size now: the
+    /// factor it is drawn at in a slot `max` wide. Arithmetic.
+    pub fn fit_factor_of(&self, wide: f32, max: f32) -> f32 {
+        let t = self.text_factor();
+        let step = faraday_draw::tokens::percent(TEXT_FIT_STEP_PCT);
+        // A line's width goes with its size, so one measure says where
+        // each step would end.
+        let wide = wide / t;
+        let mut k = t;
+        while k > 1.0 && wide * k > max {
+            k = (k - step).max(1.0);
+        }
+        k
+    }
+
+    /// `s` in `role` in a one-line slot from x, `max` wide, centred in a
+    /// band `h` tall from y: at the text size where it fits, else fitted
+    /// down to Standard ([`Ui::fit_factor`]) and cut there with an
+    /// ellipsis. Returns its width.
+    pub fn text_fit_as(
+        &mut self,
+        (x, y, h, max): (f32, f32, f32, f32),
+        role: TypeRole,
+        color: impl Into<Paint>,
+        s: &str,
+    ) -> f32 {
+        let color: Paint = color.into();
+        let k = self.fit_factor(role, s, max);
+        let sized = TypeRole {
+            size: role.size * k,
+            line: role.line * k,
+            ..role
+        };
+        self.fixed_text(|ui| {
+            // No string is made for a line that fits.
+            if ui.measure_as(sized, s) <= max {
+                return ui.text_mid_as((x, y, h), sized, color, s);
+            }
+            let shown = ui.fit_as(sized, s, max);
+            ui.text_mid_as((x, y, h), sized, color, &shown)
+        })
+    }
+
+    /// How wide [`Ui::text_fit_as`] draws `s` in `role` in a slot `max`
+    /// wide. Makes the cut string only where it does not fit.
+    pub fn text_fit_width(&self, role: TypeRole, s: &str, max: f32) -> f32 {
+        let k = self.fit_factor(role, s, max);
+        let t = self.text_factor();
+        let wide = self.measure_as(role, s) * k / t;
+        if wide <= max {
+            return wide;
+        }
+        // Cut at Standard, as `text_fit_as` cuts it.
+        let sized = TypeRole {
+            size: role.size * k / t,
+            line: role.line * k / t,
+            ..role
+        };
+        self.measure_as(sized, &self.fit_as(sized, s, max))
     }
 
     /// The width of `s` in `role`.
@@ -161,25 +261,27 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
             (None, true) => (Role::Primary, FIELD_EDGE_ACTIVE),
             (None, false) => (Role::Outline, FIELD_EDGE),
         };
-        let rect = self.rect(x, y, w, FIELD_H);
+        let fh = self.field_h();
+        let rect = self.rect(x, y, w, fh);
         let color = self.col(edge);
         let line = (width * self.f).max(1.0);
         self.c
             .stroke_rounded_rect(rect, FIELD_RADIUS * self.f, line, color);
         match error {
             Some(e) => {
-                let at = (x + FIELD_PAD, y + FIELD_H + FIELD_GAP, w - 2.0 * FIELD_PAD);
-                FIELD_H + FIELD_GAP + self.wrap_as(at, BODY_S, Role::Error, e)
+                let at = (x + FIELD_PAD, y + fh + FIELD_GAP, w - 2.0 * FIELD_PAD);
+                fh + FIELD_GAP + self.wrap_as(at, BODY_S, Role::Error, e)
             }
-            None => FIELD_H,
+            None => fh,
         }
     }
 
     /// The height [`Ui::field_box`] takes `w` wide with `error`.
     pub fn field_height(&self, w: f32, error: Option<&str>) -> f32 {
+        let fh = self.field_h();
         match error {
-            Some(e) => FIELD_H + FIELD_GAP + self.wrap_height_as(BODY_S, e, w - 2.0 * FIELD_PAD),
-            None => FIELD_H,
+            Some(e) => fh + FIELD_GAP + self.wrap_height_as(BODY_S, e, w - 2.0 * FIELD_PAD),
+            None => fh,
         }
     }
 
@@ -195,13 +297,40 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
         }
     }
 
+    /// The room `it`'s headline has `w` wide: the item's inside, less
+    /// its trailing text and the gap before it.
+    fn list_head_room(&self, w: f32, it: &ListItem<'_, A>) -> f32 {
+        let inner = w - 2.0 * LIST_PAD;
+        match it.trailing {
+            Some((t, _)) => inner - self.measure_as(LABEL_S, t) - GAP,
+            None => inner,
+        }
+    }
+
+    /// How many lines `it`'s headline takes `w` wide: one at Standard,
+    /// where it is cut to fit; at a larger text size two where it does not
+    /// fit on one (`docs/TEXT-SIZE.md` §3), the second cut to fit.
+    fn list_head_lines(&self, w: f32, it: &ListItem<'_, A>) -> usize {
+        if self.text_factor() <= 1.0
+            || self.measure_as(BODY_L, it.headline) <= self.list_head_room(w, it)
+        {
+            1
+        } else {
+            2
+        }
+    }
+
     /// The height [`Ui::list_item`] takes for `it`, `w` wide:
-    /// [`LIST_1`], [`LIST_2`] or [`LIST_3`].
+    /// [`LIST_1`], [`LIST_2`] or [`LIST_3`], or its lines and Material's
+    /// padding where larger text needs more.
     pub fn list_item_height(&self, w: f32, it: &ListItem<'_, A>) -> f32 {
+        let (head, sup) = (self.line_as(BODY_L), self.line_as(BODY_M));
+        // A headline larger text breaks onto a second line adds it.
+        let head = head * self.list_head_lines(w, it) as f32;
         match self.list_lines(w, it) {
-            1 => LIST_1,
-            2 => LIST_2,
-            _ => LIST_3,
+            1 => self.row_height(LIST_1, head, LIST_PAD_V),
+            2 => self.row_height(LIST_2, head + sup, LIST_PAD_V),
+            _ => self.row_height(LIST_3, head + 2.0 * sup, LIST_3_TOP),
         }
     }
 
@@ -225,23 +354,36 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
         }
         let ink = on_selected(chosen, Role::OnSurface);
         self.state_layer((x, y, w, h, SHAPE_L), ink, it.action);
-        let (head, sup) = (self.line_as(BODY_L), self.line_as(BODY_M));
+        let (line, sup) = (self.line_as(BODY_L), self.line_as(BODY_M));
+        let head_lines = self.list_head_lines(w, it);
+        let head = line * head_lines as f32;
         let top = match lines {
             1 => y + (h - head) / 2.0,
             2 => y + (h - head - sup) / 2.0,
             _ => y + LIST_3_TOP,
         };
         let (tx, inner) = (x + LIST_PAD, w - 2.0 * LIST_PAD);
-        let mut room = inner;
+        let room = self.list_head_room(w, it);
         if let Some((t, tone)) = it.trailing {
             let tone = if chosen { ink } else { tone };
-            self.text_right_as((x + w - LIST_PAD, top, head), LABEL_S, tone, t);
-            room -= self.measure_as(LABEL_S, t) + GAP;
+            self.text_right_as((x + w - LIST_PAD, top, line), LABEL_S, tone, t);
         }
-        let name = self.fit_as(BODY_L, it.headline, room);
-        self.text_mid_as((tx, top, head), BODY_L, ink, &name);
+        if head_lines == 1 {
+            let name = self.fit_as(BODY_L, it.headline, room);
+            self.text_mid_as((tx, top, line), BODY_L, ink, &name);
+        } else {
+            let end = self.first_line_end(BODY_L, it.headline, room);
+            let (one, rest) = it.headline.split_at(end);
+            self.text_mid_as((tx, top, line), BODY_L, ink, one.trim_end());
+            let rest = self.fit_as(BODY_L, rest.trim_start(), room);
+            self.text_mid_as((tx, top + line, line), BODY_L, ink, &rest);
+        }
         let muted = on_selected(chosen, Role::OnSurfaceVariant);
-        let first = self.list_supporting(it.supporting, inner, lines);
+        let first = if lines < 3 {
+            it.supporting.len()
+        } else {
+            self.first_line_end(BODY_M, it.supporting, inner)
+        };
         let (one, rest) = it.supporting.split_at(first);
         self.text_mid_as((tx, top + head, sup), BODY_M, muted, one.trim_end());
         if lines == 3 {
@@ -253,14 +395,11 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
         h
     }
 
-    /// Where a list item's supporting text breaks: the byte its first line
-    /// ends at, all of it on one line and two lines alike.
-    fn list_supporting(&self, s: &str, inner: f32, lines: usize) -> usize {
-        if lines < 3 {
-            return s.len();
-        }
-        let face = self.font(BODY_M.size, W::R).sized(self.c.scale());
-        text::wrap(&face, s, self.px(inner))
+    /// Where `s` in `role` wrapped `max` wide breaks: the byte its first
+    /// line ends at.
+    fn first_line_end(&self, role: TypeRole, s: &str, max: f32) -> usize {
+        let face = self.font(role.size, role.face.into()).sized(self.c.scale());
+        text::wrap(&face, s, self.px(max))
             .first()
             .map_or(s.len(), |&(_, end)| end)
     }

@@ -3025,9 +3025,7 @@ impl Faraday {
             | Action::RestoreShares) => self.restore_act(a, &c),
             a @ Action::Cancel => self.cancel_act(a),
             Action::File(p) => self.file_act(p),
-            Action::About(k) => {
-                self.panel.toggle_about(self.screen, k);
-            }
+            Action::About(k) => self.panel.toggle_about(self.screen, k),
             Action::Guided(on) => {
                 if on != self.guided() {
                     // The switch's pill slides from where it shows now.
@@ -3144,9 +3142,10 @@ impl Faraday {
             | Action::QrFormat(..)
             | Action::QrPartSize(..)
             | Action::QrSpeed(..)) => self.qr_act(a, &c),
-            a @ (Action::Scale(_) | Action::ReduceMotion(_) | Action::Theme(_)) => {
-                self.appearance_act(a)
-            }
+            a @ (Action::Scale(_)
+            | Action::TextSize(_)
+            | Action::ReduceMotion(_)
+            | Action::Theme(_)) => self.appearance_act(a),
             Action::SettingsSection(k) => self.settings_section(k),
             // Acted on before (`act_inner`), or never pressed (a mark).
             Action::StickPill(_) | Action::Mark(..) => {}
@@ -6296,6 +6295,7 @@ impl Faraday {
                     &mut hits,
                     self.pointer.pressed().map(|p| p.0),
                 );
+                ui.set_text_size(self.text_size());
                 ui.edit = self.edit_now();
                 ui.theme = self.theme();
                 ui.hovered = self.pointer.hovered();

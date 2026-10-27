@@ -664,3 +664,56 @@ fn a_list_items_long_supporting_text_keeps_inside_its_item() {
         assert!(r.x >= 16 && r.right() <= 316, "{r:?} past the item");
     }
 }
+
+/// At Larger a list item's headline too long for one line is shown
+/// whole on two, inside its item, and the item grows to hold them over
+/// its supporting line; at Standard the same headline is one line.
+#[test]
+fn at_larger_a_list_items_long_headline_takes_two_lines_inside_its_item() {
+    use crate::TextSize;
+    use crate::roles::ListItem;
+    let head = "Savings for the family";
+    let drawn = |size: TextSize| {
+        let mut canvas = canvas();
+        canvas.record_ink(true);
+        let mut hits = Vec::new();
+        let h = {
+            let mut ui: Ui<u8> = Ui::new(&mut canvas, 1.0, &mut hits, None);
+            ui.set_text_size(size);
+            ui.clear(Role::Surface);
+            let it = ListItem {
+                headline: head,
+                supporting: "2 of 3",
+                trailing: None,
+                action: 1,
+            };
+            ui.list_item((16.0, 16.0, 240.0), &it, false)
+        };
+        let lines: Vec<(String, faraday_draw::Rect)> = canvas
+            .ink()
+            .iter()
+            .filter_map(|i| match &i.kind {
+                InkKind::Text { text, .. } => Some((text.clone(), i.rect)),
+                _ => None,
+            })
+            .collect();
+        (h, lines)
+    };
+    let (_, standard) = drawn(TextSize::Standard);
+    assert!(standard.iter().any(|(t, _)| t == head), "{standard:?}");
+    let (h, larger) = drawn(TextSize::Larger);
+    let heads: Vec<_> = larger.iter().filter(|(t, _)| t != "2 of 3").collect();
+    assert_eq!(heads.len(), 2, "{larger:?}");
+    let words: Vec<&str> = heads.iter().map(|(t, _)| t.as_str()).collect();
+    assert_eq!(words.join(" "), head);
+    let sup = larger.iter().find(|(t, _)| t == "2 of 3").map(|(_, r)| *r);
+    let sup = sup.expect("the supporting line is shown");
+    for (_, r) in &heads {
+        assert!(r.x >= 16 && r.right() <= 256, "{r:?} past the item");
+        assert!(r.bottom() <= sup.y + 1, "{r:?} over the supporting line");
+    }
+    assert!(
+        sup.bottom() as f32 <= 16.0 + h,
+        "{sup:?} past the item's foot"
+    );
+}

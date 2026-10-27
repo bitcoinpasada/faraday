@@ -133,6 +133,17 @@ fn run(
     {
         app.press(Action::Theme(theme));
     }
+    // `FARADAY_SNAP_TEXT=large|larger` takes the tour at that text size
+    // (`docs/TEXT-SIZE.md` §7), and each frame with text cut off at a
+    // side is listed in `cut.txt` beside the frames.
+    let text = std::env::var("FARADAY_SNAP_TEXT").ok();
+    if let Some(words) = &text {
+        let size = faraday_core::ui::TextSize::from_id(words)
+            .ok_or_else(|| format!("FARADAY_SNAP_TEXT={words}: standard, large or larger"))?;
+        app.press(Action::TextSize(size));
+        let cut = out.join("cut.txt");
+        std::fs::write(&cut, "").map_err(|e| format!("{}: {e}", cut.display()))?;
+    }
     let mut t = Tour {
         app,
         out: out.to_path_buf(),

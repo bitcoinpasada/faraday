@@ -46,15 +46,17 @@ pub fn app_bar<A: Copy + PartialEq>(ui: &mut Ui<A>, w: f32, bar: &AppBar<A>, rig
         ui.tip_plain((bx, by, TOUCH, TOUCH), action, bar.back_tip);
         ui.back(action);
         x = bx + TOUCH;
-        let label = ui.fit_as(BODY_S, label, room(x));
-        let name = ui.fit_as(TITLE_L, bar.title, room(x));
+        // The bar's two lines are one-line slots: larger text fits down
+        // to Standard (`docs/TEXT-SIZE.md` §3).
         let (lh, th) = (ui.line_as(BODY_S), ui.line_as(TITLE_L));
         let top = (APP_BAR_H - lh - th) / 2.0;
-        ui.text_mid_as((x, top, lh), BODY_S, Role::OnSurfaceVariant, &label);
-        ui.text_mid_as((x, top + lh, th), TITLE_L, Role::OnSurface, &name);
+        let back = (x, top, lh, room(x));
+        ui.text_fit_as(back, BODY_S, Role::OnSurfaceVariant, label);
+        let name = (x, top + lh, th, room(x));
+        ui.text_fit_as(name, TITLE_L, Role::OnSurface, bar.title);
     } else {
-        let name = ui.fit_as(TITLE_L, bar.title, room(x));
-        ui.text_mid_as((x, 0.0, APP_BAR_H), TITLE_L, Role::OnSurface, &name);
+        let name = (x, 0.0, APP_BAR_H, room(x));
+        ui.text_fit_as(name, TITLE_L, Role::OnSurface, bar.title);
     }
 }
 

@@ -148,7 +148,12 @@ pub(crate) fn measure(ui: &mut Ui, draw: &mut dyn FnMut(&mut Ui) -> f32) -> f32 
 /// choices there, indented under it; the arrows' choice edged. Returns
 /// their height.
 fn rows(ui: &mut Ui, v: &View, x: f32, y: f32, w: f32) -> f32 {
-    let rh = tokens::BOARD_MENU_ROW;
+    // As tall as larger text needs (`docs/TEXT-SIZE.md` §5).
+    let rh = ui.row_height(
+        tokens::BOARD_MENU_ROW,
+        ui.line_as(BODY_M),
+        tokens::LIST_PAD_V,
+    );
     let mut cy = y;
     let mut k = 0;
     let mut under = false;

@@ -3,7 +3,11 @@
 //! ```text
 //! faraday [--sticks DIR] [--size WxH] [--transfer]
 //!         [--downloads DIR] [--panel INCHES [--aspect W:H] [--ppi N]]
+//!         [--text standard|large|larger]
 //! ```
+//!
+//! `--text` starts the app at that text size, as Settings › Appearance
+//! sets it (`docs/TEXT-SIZE.md` §6).
 //!
 //! The window draws at the display's own resolution and can be resized;
 //! the app lays itself out for whatever size it is given.
@@ -161,6 +165,8 @@ struct Shell {
     demo: Demo,
     /// Open on Transfer once the window is up.
     open_transfer: bool,
+    /// The text size to start at, once the window is up.
+    text: Option<faraday_core::ui::TextSize>,
     size: (u32, u32),
     /// The app, held by Faraday Demo's host (`docs/DESKTOP-HOST.md`).
     app: Option<AppHost>,
@@ -475,6 +481,9 @@ impl ApplicationHandler for Shell {
         }
         self.after_rescan(event_loop);
         self.relist();
+        if let Some(t) = self.text.take() {
+            self.send_press(event_loop, Action::TextSize(t));
+        }
         if std::mem::take(&mut self.open_transfer) {
             self.send_press(event_loop, Action::Nav(Screen::Transfer));
         }
@@ -597,10 +606,11 @@ struct Options {
     size: (u32, u32),
     panel: Option<Panel>,
     open_transfer: bool,
+    text: Option<faraday_core::ui::TextSize>,
     timings: bool,
 }
 
-const HELP: &str = "faraday [--sticks DIR] [--size WxH] [--transfer] [--downloads DIR] [--panel INCHES [--aspect W:H] [--ppi N]] [--timings]\n  the sticks are the pills at the top of the window\n  --transfer: open on Transfer · --downloads: the folder Transfer sends from and saves into (default ~/Downloads)\n  --panel: a device's screen at its true size: 2.8 is the Pi's panel (3:4), 5 a phone (9:16)\n  --aspect: the panel's width to height · --ppi: this screen's pixels per inch, if its EDID is wrong\n  --timings: once a second, what the frames cost (render, copy to the window, frame to frame) on stderr";
+const HELP: &str = "faraday [--sticks DIR] [--size WxH] [--transfer] [--downloads DIR] [--panel INCHES [--aspect W:H] [--ppi N]] [--text standard|large|larger] [--timings]\n  the sticks are the pills at the top of the window\n  --transfer: open on Transfer · --downloads: the folder Transfer sends from and saves into (default ~/Downloads)\n  --panel: a device's screen at its true size: 2.8 is the Pi's panel (3:4), 5 a phone (9:16)\n  --aspect: the panel's width to height · --ppi: this screen's pixels per inch, if its EDID is wrong\n  --text: the text size to start at, as Settings sets it\n  --timings: once a second, what the frames cost (render, copy to the window, frame to frame) on stderr";
 
 /// Prints `why` and gives the exit code of a command line not understood.
 fn refused(why: &str) -> ExitCode {
@@ -614,6 +624,7 @@ fn options() -> Result<Options, ExitCode> {
     let mut size = (1280, 800);
     let (mut panel, mut aspect, mut ppi) = (None, None, None);
     let (mut open_transfer, mut timings) = (false, false);
+    let mut text = None;
     let mut args = std::env::args().skip(1);
     while let Some(a) = args.next() {
         let mut dir = |what: &str| {
@@ -627,6 +638,13 @@ fn options() -> Result<Options, ExitCode> {
             "--downloads" => paths.downloads = dir("--downloads")?,
             "--transfer" => open_transfer = true,
             "--timings" => timings = true,
+            "--text" => match args
+                .next()
+                .and_then(|s| faraday_core::ui::TextSize::from_id(&s))
+            {
+                Some(t) => text = Some(t),
+                None => return Err(refused("--text needs standard, large or larger")),
+            },
             "--panel" => match args
                 .next()
                 .and_then(|s| s.trim_end_matches("in").parse::<f64>().ok())
@@ -690,6 +708,7 @@ fn options() -> Result<Options, ExitCode> {
         size,
         panel,
         open_transfer,
+        text,
         timings,
     })
 }
@@ -732,6 +751,7 @@ fn main() -> ExitCode {
         panel: o.panel,
         demo,
         open_transfer: o.open_transfer,
+        text: o.text,
         size: o.size,
         app: Some(if o.panel.is_some() {
             AppHost::bare(app)

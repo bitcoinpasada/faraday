@@ -186,6 +186,74 @@ impl Contrast {
     }
 }
 
+/// How large text is drawn (Settings › Appearance, F85,
+/// `docs/TEXT-SIZE.md` §2): every type role's size and line height times
+/// its factor, for Faraday and the Starter alike.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub enum TextSize {
+    /// Text at its own size.
+    #[default]
+    Standard,
+    /// Text 1.2 times its size (`TEXT_LARGE_PCT`).
+    Large,
+    /// Text 1.4 times its size (`TEXT_LARGER_PCT`).
+    Larger,
+}
+
+impl TextSize {
+    /// Every choice, in the order Settings offers them.
+    pub const ALL: [TextSize; 3] = [TextSize::Standard, TextSize::Large, TextSize::Larger];
+
+    /// The choices Settings offers now: Larger waits until the screens
+    /// are refitted for it (`docs/TEXT-SIZE.md` §2).
+    pub const OFFERED: [TextSize; 2] = [TextSize::Standard, TextSize::Large];
+
+    /// The offered choice nearest to this one: Larger reads as Large.
+    pub fn offered(self) -> TextSize {
+        match self {
+            TextSize::Larger => TextSize::Large,
+            t => t,
+        }
+    }
+
+    /// What Settings calls it.
+    pub fn name(self) -> &'static str {
+        match self {
+            TextSize::Standard => EN.settings_text_standard,
+            TextSize::Large => EN.settings_text_large,
+            TextSize::Larger => EN.settings_text_larger,
+        }
+    }
+
+    /// The word a settings file writes it as (`text=`).
+    pub fn id(self) -> &'static str {
+        match self {
+            TextSize::Standard => "standard",
+            TextSize::Large => "large",
+            TextSize::Larger => "larger",
+        }
+    }
+
+    /// The choice a settings file's `text=` word names.
+    pub fn from_id(id: &str) -> Option<TextSize> {
+        TextSize::ALL.into_iter().find(|t| t.id() == id)
+    }
+
+    /// Its factor in percent: 100, or the two tokens.
+    pub fn pct(self) -> u16 {
+        match self {
+            TextSize::Standard => 100,
+            TextSize::Large => faraday_draw::tokens::TEXT_LARGE_PCT,
+            TextSize::Larger => faraday_draw::tokens::TEXT_LARGER_PCT,
+        }
+    }
+
+    /// Its factor: what every text size and line height is multiplied by.
+    pub fn factor(self) -> f32 {
+        faraday_draw::tokens::percent(self.pct())
+    }
+}
+
 impl Theme {
     /// The scheme a settings file's `theme=` word opens in before any
     /// `mode=` or `contrast=` line (`docs/THEMES.md` §13): each of the

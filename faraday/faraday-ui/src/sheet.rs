@@ -290,7 +290,8 @@ fn end_buttons<A: Copy + PartialEq>(
     if items.is_empty() {
         return 0.0;
     }
-    let h = BUTTON_H;
+    // As tall as larger text needs (`docs/TEXT-SIZE.md` §5).
+    let h = ui.button_height(BUTTON_H);
     let widths: Vec<f32> = items
         .iter()
         .map(|(l, ..)| ui.measure_as(LABEL_L, l) + 2.0 * BUTTON_PAD)
@@ -372,27 +373,21 @@ pub fn buttons<A: Copy + PartialEq>(
     }
     let n = items.len() as f32;
     let share = (w - (n - 1.0) * GAP) / n;
+    // As tall as larger text needs (`docs/TEXT-SIZE.md` §5).
+    let bh = ui.button_height(BUTTON_H);
     let fits = items
         .iter()
         .all(|(l, ..)| ui.measure_as(LABEL_L, l) + BUTTON_PAD <= share);
     if fits {
         for (i, &(label, style, action)) in items.iter().enumerate() {
             let bx = x + i as f32 * (share + GAP);
-            ui.button(bx, y, Some(share), BUTTON_H, label, style, action);
+            ui.button(bx, y, Some(share), bh, label, style, action);
         }
-        BUTTON_H
+        bh
     } else {
-        let step = BUTTON_H + GAP;
+        let step = bh + GAP;
         for (i, &(label, style, action)) in items.iter().enumerate() {
-            ui.button(
-                x,
-                y + i as f32 * step,
-                Some(w),
-                BUTTON_H,
-                label,
-                style,
-                action,
-            );
+            ui.button(x, y + i as f32 * step, Some(w), bh, label, style, action);
         }
         n * step - GAP
     }

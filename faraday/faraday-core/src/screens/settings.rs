@@ -20,16 +20,18 @@ use std::sync::OnceLock;
 const PANIC_KEY: &str = EN.app_panic_key_hint;
 
 /// Settings' Appearance (`docs/THEMES.md` §12): Theme, Mode and
-/// Contrast, then the Reduce motion switch (`docs/MOTION.md` §3.5), from
-/// (x, y) `w` wide, each row's label in a column `label_w` wide or over
-/// its control. Returns the height.
+/// Contrast, Text size (`docs/TEXT-SIZE.md` §2), then the Reduce motion
+/// switch (`docs/MOTION.md` §3.5), from (x, y) `w` wide, each row's label
+/// in a column `label_w` wide or over its control. Returns the height.
 fn appearance_body(
     app: &View,
     ui: &mut Ui,
     (x, y, w): (f32, f32, f32),
     label_w: Option<f32>,
 ) -> f32 {
-    let h = ui.appearance((x, y, w), label_w, app.theme(), Action::Theme) + APPEARANCE_ROW_GAP;
+    let mut h = ui.appearance((x, y, w), label_w, app.theme(), Action::Theme) + APPEARANCE_ROW_GAP;
+    let text = (x, y + h, w);
+    h += ui.text_size_row(text, label_w, app.text_size(), Action::TextSize) + APPEARANCE_ROW_GAP;
     let on = app.reduce_motion();
     let motion = Action::ReduceMotion(!on);
     h + ui.switch_row((x, y + h, w), EN.settings_reduce_motion, on, motion)

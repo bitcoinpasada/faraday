@@ -6,7 +6,7 @@
 //! each old theme in the scheme `docs/THEMES.md` §13 maps it to.
 
 use faraday_core::stick::settings::FILE;
-use faraday_core::ui::{Contrast, Mode, Theme, ThemeName};
+use faraday_core::ui::{Contrast, Mode, TextSize, Theme, ThemeName};
 use faraday_core::{Action, Faraday, Screen, StickInfo, StorageCommand, StorageEvent};
 use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
 
@@ -91,6 +91,7 @@ fn scheme(name: ThemeName, mode: Mode, contrast: Contrast) -> Theme {
 
 fn same_settings(a: &Faraday, b: &Faraday) -> bool {
     a.theme() == b.theme()
+        && a.text_size() == b.text_size()
         && a.scale_pct() == b.scale_pct()
         && a.reduce_motion() == b.reduce_motion()
         && a.guided() == b.guided()
@@ -192,6 +193,7 @@ fn a_changed_setting_is_written_to_the_boot_stick_and_reads_back_the_same() {
         Contrast::Medium,
     )));
     app.press(Action::Scale(150));
+    app.press(Action::TextSize(TextSize::Large));
     app.press(Action::Nav(Screen::Visit));
     app.press(Action::VisitWrite);
     let wrote = pump(&mut app, None);
@@ -204,6 +206,25 @@ fn a_changed_setting_is_written_to_the_boot_stick_and_reads_back_the_same() {
     // Written, they match the stick again: the next visit leaves them.
     app.press(Action::VisitWrite);
     assert!(pump(&mut app, None).iter().all(|(_, n, _)| n != FILE));
+}
+
+/// The text size is read before the passphrase, as the theme is
+/// (`docs/TEXT-SIZE.md` §6); a word Settings does not offer leaves it at
+/// Standard.
+#[test]
+fn the_boot_sticks_text_size_applies_before_the_passphrase() {
+    // Larger is not offered yet, so a stored one reads as Large.
+    let app = booted(Some(b"faraday-settings 1\ntheme=nord\ntext=larger\n"));
+    assert_eq!(app.text_size(), TextSize::Large);
+    let app = booted(Some(b"faraday-settings 1\ntext=large\n"));
+    assert_eq!(app.text_size(), TextSize::Large);
+    for file in [
+        b"faraday-settings 1\ntext=huge\n".as_slice(),
+        b"faraday-settings 1\ntext=\n".as_slice(),
+        b"faraday-settings 1\ntext=Larger\n".as_slice(),
+    ] {
+        assert_eq!(booted(Some(file)).text_size(), TextSize::Standard);
+    }
 }
 
 #[test]

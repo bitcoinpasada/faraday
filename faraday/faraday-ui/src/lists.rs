@@ -5,8 +5,8 @@
 use crate::pal::*;
 use crate::{Ui, W};
 use faraday_draw::tokens::{
-    BODY_L, BODY_M, GAP, GAP_SMALL, ICON_GLYPH_BUTTON, LIST_1, LIST_2, LIST_INDENT, LIST_RESERVE,
-    MULTI_CHECK_X, RADIUS_SMALL,
+    BODY_L, BODY_M, GAP, GAP_SMALL, ICON_GLYPH_BUTTON, LIST_1, LIST_2, LIST_INDENT, LIST_PAD_V,
+    LIST_RESERVE, MULTI_CHECK_X, RADIUS_SMALL,
 };
 
 impl<A: Copy + PartialEq> Ui<'_, A> {
@@ -22,7 +22,8 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
     /// [`Ui::multi_list`] with a value under each row's label, as a value
     /// row has (`docs/DESIGN.md` §4.2): `values[i]` is the muted line
     /// under `rows[i]`'s label. A row with no value has none. Each row is
-    /// [`LIST_2`] tall, a two-line list item. Returns the list's height.
+    /// [`LIST_2`] tall, a two-line list item, or taller where larger text
+    /// needs it. Returns the list's height.
     pub fn multi_list_valued(
         &mut self,
         x: f32,
@@ -45,6 +46,13 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
         values: &[String],
         rh: f32,
     ) -> f32 {
+        // As tall as larger text needs (`docs/TEXT-SIZE.md` §5).
+        let lines = if values.is_empty() {
+            self.line_as(BODY_L)
+        } else {
+            self.line_as(BODY_L) + self.line_as(BODY_M)
+        };
+        let rh = self.row_height(rh, lines, LIST_PAD_V);
         for (i, (label, on, enabled, action)) in rows.iter().enumerate() {
             let ry = y + i as f32 * rh;
             let cy = ry + (rh - ICON_GLYPH_BUTTON) / 2.0;

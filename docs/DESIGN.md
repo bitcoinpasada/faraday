@@ -109,6 +109,15 @@ times the person's Display scale (F101). The window's size class
 (`Faraday::window()`, `docs/LAYOUT.md` §2) and its height pick the
 navigation in the table above.
 
+Text size (Settings › Appearance: Standard, Large, Larger, F85)
+multiplies every text size by 1, 1.2 or 1.4. Keyboards, QR codes and
+icons keep their sizes, except a row's icon, which grows with its label;
+a one-line slot that cannot grow fits its text down to Standard; a row
+or button grows to its text. The one-column layout's thresholds are
+multiplied by the text factor and the Display scale, so at Larger a
+window takes the one-column layout where it would be 1.4 times too
+small for Standard (`docs/TEXT-SIZE.md` §4).
+
 Sizes are design units (dp). The tokens are names in
 `core/faraday-draw/src/tokens.rs`: the type roles (below), the older
 ramp the screens not yet moved to them still write (title 20, body 16,
@@ -663,7 +672,7 @@ is `docs/WALLETS.md` and the Spend tab `docs/SPEND-FROM-BACKUP.md`.
 | `Codes` | TOTP codes for the entries in open vaults, with the time they are computed for, under a search bar (§4.3, `docs/TOTP.md` §5). | Page |
 | `SetTime` | Setting the time by hand: Date and Time (`docs/TOTP.md` §3). | Page |
 | `Randomness` | Add randomness, from Settings: the status line, the source (Camera, Dice, Coins, Cards and, on the desktop app, Pointer and keys), none chosen and nothing started until one is pressed, and New key's pad for it, the batch and its Add, or Pointer and keys' area and its count (`docs/OWN-RANDOMNESS.md` §2.1, §2.2). New key's Generator card draws the same sources on itself. | Page |
-| `Settings` | **Steps only · Guided**, the flows' control and setting; then Mode; the session (the keys loaded) and Lock; lock and power-off timers; the time; Randomness (the status line and Add randomness, `docs/OWN-RANDOMNESS.md` §2.4); Appearance (Theme as filter chips, one per theme, Cobalt's marked Default; Mode, Light · Dark; Contrast, Standard · Medium · High; the Reduce motion switch, THEMES §12) and the display scale; what is remembered; About. With Guided on, each card carries a one- or two-sentence explainer under its title, beside the Guided text's accent bar (what Lock, Remove every key and the timers do; what reads the clock; how added randomness is mixed; what Appearance, Display scale and Signed amounts set; when the self-test runs); with Steps only, labels, values and actions only. On a compact window a list of the sections, each its own page; from medium up every card on one page (`docs/LAYOUT.md` §17). | Page |
+| `Settings` | **Steps only · Guided**, the flows' control and setting; then Mode; the session (the keys loaded) and Lock; lock and power-off timers; the time; Randomness (the status line and Add randomness, `docs/OWN-RANDOMNESS.md` §2.4); Appearance (Theme as filter chips, one per theme, Cobalt's marked Default; Mode, Light · Dark; Contrast, Standard · Medium · High; Text size, Standard · Large, Larger to follow, `docs/TEXT-SIZE.md` §2; the Reduce motion switch, THEMES §12) and the display scale; what is remembered; About. With Guided on, each card carries a one- or two-sentence explainer under its title, beside the Guided text's accent bar (what Lock, Remove every key and the timers do; what reads the clock; how added randomness is mixed; what Appearance, Display scale and Signed amounts set; when the self-test runs); with Steps only, labels, values and actions only. On a compact window a list of the sections, each its own page; from medium up every card on one page (`docs/LAYOUT.md` §17). | Page |
 | `Transfer` | The desktop app as the device's QR link: files out as codes, in by camera. Only in the desktop app. | Page |
 
 The sheets (`Sheet` in `faraday/faraday-core/src/lib.rs`, drawn in

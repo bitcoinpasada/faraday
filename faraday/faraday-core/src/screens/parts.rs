@@ -1211,17 +1211,21 @@ pub(crate) fn keyed_pills(
             );
             y += 22.0;
         }
-        let mut bx = x;
-        for (n, &i) in cands.iter().enumerate() {
-            let word = lang.word_display(i);
-            let bw = ui.measure_as(BODY_M.mono(), word) + 24.0;
-            if bx > x && bx + bw > x + width {
-                bx = x;
-                y += 32.0;
+        // The candidates over the keys keep their size, as the keys do
+        // (`docs/TEXT-SIZE.md` §3).
+        y = ui.fixed_text(|ui| {
+            let mut bx = x;
+            for (n, &i) in cands.iter().enumerate() {
+                let word = lang.word_display(i);
+                let bw = ui.measure_as(BODY_M.mono(), word) + 24.0;
+                if bx > x && bx + bw > x + width {
+                    bx = x;
+                    y += 32.0;
+                }
+                bx += ui.word_pill(bx, y, word, Action::EntryCandidate(n as u8)) + 6.0;
             }
-            bx += ui.word_pill(bx, y, word, Action::EntryCandidate(n as u8)) + 6.0;
-        }
-        y += 36.0;
+            y + 36.0
+        });
     }
     y - top
 }
@@ -1237,77 +1241,82 @@ pub(crate) fn word_keys(
     width: f32,
     kh: f32,
 ) -> f32 {
-    use faraday_draw::widgets::keyboard::{self, KeyInput, Modifiers};
-    let kind = w.keyboard();
-    let rows = keyboard::rows(kind) as f32;
-    let area = faraday_draw::geom::Rect::new(x as i32, y as i32, width as i32, (rows * kh) as i32);
-    let ctx = faraday_draw::layout::LayoutCtx::new(
-        faraday_draw::geom::Scale::new(160),
-        faraday_draw::geom::SizeClass::Wide,
-    );
-    let mods = Modifiers {
-        shift,
-        symbols: false,
-    };
-    for cap in keyboard::keys(kind, area, &ctx, w.enabled_keys(), None, mods) {
-        let r = cap.rect;
-        let (kx, ky, kw, kh) = (r.x as f32, r.y as f32, r.w as f32 - 4.0, r.h as f32 - 4.0);
-        match cap.input {
-            KeyInput::Char(c) => {
-                let style = if cap.enabled {
-                    Style::Secondary
-                } else {
-                    Style::Disabled
-                };
-                ui.button(
-                    kx,
-                    ky,
-                    Some(kw),
-                    kh,
-                    &c.to_string(),
-                    style,
-                    Action::EntryKey(c),
-                );
+    // The keys keep their size whatever the text size
+    // (`docs/TEXT-SIZE.md` §3).
+    ui.fixed_text(|ui| {
+        use faraday_draw::widgets::keyboard::{self, KeyInput, Modifiers};
+        let kind = w.keyboard();
+        let rows = keyboard::rows(kind) as f32;
+        let area =
+            faraday_draw::geom::Rect::new(x as i32, y as i32, width as i32, (rows * kh) as i32);
+        let ctx = faraday_draw::layout::LayoutCtx::new(
+            faraday_draw::geom::Scale::new(160),
+            faraday_draw::geom::SizeClass::Wide,
+        );
+        let mods = Modifiers {
+            shift,
+            symbols: false,
+        };
+        for cap in keyboard::keys(kind, area, &ctx, w.enabled_keys(), None, mods) {
+            let r = cap.rect;
+            let (kx, ky, kw, kh) = (r.x as f32, r.y as f32, r.w as f32 - 4.0, r.h as f32 - 4.0);
+            match cap.input {
+                KeyInput::Char(c) => {
+                    let style = if cap.enabled {
+                        Style::Secondary
+                    } else {
+                        Style::Disabled
+                    };
+                    ui.button(
+                        kx,
+                        ky,
+                        Some(kw),
+                        kh,
+                        &c.to_string(),
+                        style,
+                        Action::EntryKey(c),
+                    );
+                }
+                KeyInput::Backspace => {
+                    ui.button(
+                        kx,
+                        ky,
+                        Some(kw),
+                        kh,
+                        "",
+                        Style::Secondary,
+                        Action::EntryKeyBack,
+                    );
+                    ui.icon(
+                        kx + kw / 2.0 - 9.0,
+                        ky + kh / 2.0 - 9.0,
+                        18.0,
+                        Icon::Delete,
+                        12.0,
+                        Role::OnSurface,
+                    );
+                }
+                KeyInput::Shift => {
+                    let style = if shift {
+                        Style::Primary
+                    } else {
+                        Style::Secondary
+                    };
+                    ui.button(
+                        kx,
+                        ky,
+                        Some(kw),
+                        kh,
+                        EN.word_keys_shift,
+                        style,
+                        Action::EntryShift,
+                    );
+                }
+                _ => {}
             }
-            KeyInput::Backspace => {
-                ui.button(
-                    kx,
-                    ky,
-                    Some(kw),
-                    kh,
-                    "",
-                    Style::Secondary,
-                    Action::EntryKeyBack,
-                );
-                ui.icon(
-                    kx + kw / 2.0 - 9.0,
-                    ky + kh / 2.0 - 9.0,
-                    18.0,
-                    Icon::Delete,
-                    12.0,
-                    Role::OnSurface,
-                );
-            }
-            KeyInput::Shift => {
-                let style = if shift {
-                    Style::Primary
-                } else {
-                    Style::Secondary
-                };
-                ui.button(
-                    kx,
-                    ky,
-                    Some(kw),
-                    kh,
-                    EN.word_keys_shift,
-                    style,
-                    Action::EntryShift,
-                );
-            }
-            _ => {}
         }
-    }
-    y + rows * kh + 12.0
+        y + rows * kh + 12.0
+    })
 }
 
 /// A section of a small panel's page: a card with its title, measured
@@ -1391,19 +1400,23 @@ pub(crate) fn dice_pad(
     style: &dyn Fn(u8) -> Style,
     press: fn(u8) -> Action,
 ) -> f32 {
-    let bw = ((w - 5.0 * 8.0) / 6.0).min(84.0);
-    for f in 1..=6u8 {
-        ui.button(
-            x + f32::from(f - 1) * (bw + 8.0),
-            y,
-            Some(bw),
-            56.0,
-            &f.to_string(),
-            style(f),
-            press(f),
-        );
-    }
-    68.0
+    // A pad keeps its size whatever the text size, as a keyboard's keys
+    // do (`docs/TEXT-SIZE.md` §3).
+    ui.fixed_text(|ui| {
+        let bw = ((w - 5.0 * 8.0) / 6.0).min(84.0);
+        for f in 1..=6u8 {
+            ui.button(
+                x + f32::from(f - 1) * (bw + 8.0),
+                y,
+                Some(bw),
+                56.0,
+                &f.to_string(),
+                style(f),
+                press(f),
+            );
+        }
+        68.0
+    })
 }
 
 /// The coin pad: Heads and Tails side by side, each at most 160 wide and
@@ -1414,26 +1427,30 @@ pub(crate) fn coin_pad(
     heads: Action,
     tails: Action,
 ) -> f32 {
-    let bw = ((w - tokens::GAP) / 2.0).min(160.0);
-    ui.button(
-        x,
-        y,
-        Some(bw),
-        56.0,
-        EN.create_heads,
-        Style::Secondary,
-        heads,
-    );
-    ui.button(
-        x + bw + tokens::GAP,
-        y,
-        Some(bw),
-        56.0,
-        EN.create_tails,
-        Style::Secondary,
-        tails,
-    );
-    68.0
+    // A pad keeps its size whatever the text size, as a keyboard's keys
+    // do (`docs/TEXT-SIZE.md` §3).
+    ui.fixed_text(|ui| {
+        let bw = ((w - tokens::GAP) / 2.0).min(160.0);
+        ui.button(
+            x,
+            y,
+            Some(bw),
+            56.0,
+            EN.create_heads,
+            Style::Secondary,
+            heads,
+        );
+        ui.button(
+            x + bw + tokens::GAP,
+            y,
+            Some(bw),
+            56.0,
+            EN.create_tails,
+            Style::Secondary,
+            tails,
+        );
+        68.0
+    })
 }
 
 /// The card pad: the thirteen ranks, then the four suits, a suit pressed
@@ -1448,61 +1465,65 @@ pub(crate) fn card_pad(
     rank_press: fn(u8) -> Action,
     suit_press: fn(u8) -> Action,
 ) -> f32 {
-    let mut cy = y;
-    let bw = ((w - 12.0 * 6.0) / 13.0).min(52.0);
-    for (r, ch) in faraday_entropy::RANKS.iter().enumerate() {
-        let on = rank == Some(r as u8);
-        ui.button(
-            x + r as f32 * (bw + 6.0),
-            cy,
-            Some(bw),
-            BUTTON_H,
-            &ch.to_string(),
-            if on { Style::Primary } else { Style::Secondary },
-            rank_press(r as u8),
-        );
-    }
-    cy += 52.0;
-    for (s, ch) in faraday_entropy::SUITS.iter().enumerate() {
-        let taken = rank
-            .and_then(|r| faraday_entropy::card_index(r, s as u8))
-            .is_some_and(|i| cards.drawn(i));
-        let style = if rank.is_none() || taken {
-            Style::Disabled
-        } else {
-            Style::Secondary
-        };
-        // Four to the row's width at most; on a small panel the
-        // deck goes under them.
-        let sw = ((w - 3.0 * 8.0) / 4.0).min(64.0);
-        ui.button(
-            x + s as f32 * (sw + 8.0),
-            cy,
-            Some(sw),
-            BUTTON_H,
-            &ch.to_string(),
-            style,
-            suit_press(s as u8),
-        );
-    }
-    let deck = fill(
-        EN.keygen_deck_status,
-        &[&cards.deck().to_string(), &cards.in_deck().to_string()],
-    );
-    if ui.compact {
+    // A pad keeps its size whatever the text size, as a keyboard's keys
+    // do (`docs/TEXT-SIZE.md` §3).
+    ui.fixed_text(|ui| {
+        let mut cy = y;
+        let bw = ((w - 12.0 * 6.0) / 13.0).min(52.0);
+        for (r, ch) in faraday_entropy::RANKS.iter().enumerate() {
+            let on = rank == Some(r as u8);
+            ui.button(
+                x + r as f32 * (bw + 6.0),
+                cy,
+                Some(bw),
+                BUTTON_H,
+                &ch.to_string(),
+                if on { Style::Primary } else { Style::Secondary },
+                rank_press(r as u8),
+            );
+        }
         cy += 52.0;
-        ui.text_as(x, cy, BODY_S, Role::OnSurfaceVariant, &deck);
-        cy += 28.0;
-    } else {
-        ui.text_mid_as(
-            (x + 4.0 * 72.0 + 8.0, cy, 44.0),
-            BODY_S,
-            Role::OnSurfaceVariant,
-            &deck,
+        for (s, ch) in faraday_entropy::SUITS.iter().enumerate() {
+            let taken = rank
+                .and_then(|r| faraday_entropy::card_index(r, s as u8))
+                .is_some_and(|i| cards.drawn(i));
+            let style = if rank.is_none() || taken {
+                Style::Disabled
+            } else {
+                Style::Secondary
+            };
+            // Four to the row's width at most; on a small panel the
+            // deck goes under them.
+            let sw = ((w - 3.0 * 8.0) / 4.0).min(64.0);
+            ui.button(
+                x + s as f32 * (sw + 8.0),
+                cy,
+                Some(sw),
+                BUTTON_H,
+                &ch.to_string(),
+                style,
+                suit_press(s as u8),
+            );
+        }
+        let deck = fill(
+            EN.keygen_deck_status,
+            &[&cards.deck().to_string(), &cards.in_deck().to_string()],
         );
-        cy += 56.0;
-    }
-    cy - y
+        if ui.compact {
+            cy += 52.0;
+            ui.text_as(x, cy, BODY_S, Role::OnSurfaceVariant, &deck);
+            cy += 28.0;
+        } else {
+            ui.text_mid_as(
+                (x + 4.0 * 72.0 + 8.0, cy, 44.0),
+                BODY_S,
+                Role::OnSurfaceVariant,
+                &deck,
+            );
+            cy += 56.0;
+        }
+        cy - y
+    })
 }
 
 /// The camera's shutter, live once a frame has arrived, with what the

@@ -1,8 +1,8 @@
 # Text size
 
 **Kind:** Spec
-**Status:** Specified, not built (F85)
-**Open:** all of it: the setting and its storage (T1), components that grow with their text (T2), the screens at Larger (T3), the Starter (T4), the tours and tests (T5); planned after the structure pass.
+**Status:** Partly built (F85): the setting, its storage, the one-column decision and the desktop app's `--text` (T1); the components that grow with their text and the canvas's `cut` note (T2); `FARADAY_SNAP_TEXT` and `cut.txt` (T5)
+**Open:** the screens at Larger, their line advances written in place, and Larger offered in Settings (T3); the Starter (T4); the justfile's Larger renders (T5); tests 6, 8 and 9, and test 5 beyond Home, Settings and a sheet; planned.
 
 Settings › Appearance gains **Text size**: Standard, Large, Larger. It
 makes text larger and lets the layout make room for it. It is kept as
@@ -18,6 +18,14 @@ choices are F85; §9 records the owner's answers (2026-10-23).
   panel and inside the Starter, times the person's **Display scale**
   (`scale_pct`, Settings' 75 % to 200 %). Every length and every text
   size is multiplied by `f`.
+- **Text size.** `Ui` carries the person's factor (`Ui::set_text_size`,
+  once a frame, from `Settings`); `Ui::font` multiplies every size by
+  it and `Ui::line_as` every role's line, so the type roles
+  (`faraday/faraday-ui/src/roles.rs`) and the sizes written in place both
+  scale. `Ui::fixed_text` draws at factor 1; `Ui::text_fit_as` fits a
+  one-line slot down to Standard; `Ui::row_height`, `button_height`,
+  `field_h` and `row_icon` give a component's height and its row's icon
+  at the text size, each its token at Standard (§5).
 - **The size class's type scale.** `faraday_draw::geom::Scale` carries
   `tokens::type_scale_pct` (Small 100, Mobile 110, Wide 130) and the
   narrow cut on Small (`tokens::narrow_text`). The class is
@@ -40,20 +48,22 @@ choices are F85; §9 records the owner's answers (2026-10-23).
   Text is placed in them by `text_mid`. Paragraphs wrap (`Ui::wrap`,
   `wrap_lines`, `parts::measure_wrap`) and their cards grow with them.
 - **The layout.** `self.compact` (one column) is decided from the
-  window before the Display scale is applied (§1 finding below).
+  window in dp at its density times the Display scale (F101), divided
+  by the text factor (`Faraday::layout_window`, §4).
 - **Kept.** `stick/settings.rs`'s `settings_body` writes `scale=`,
-  `theme=`, `motion=` and the rest; the kept set carries it across a
+  `theme=`, `text=`, `motion=` and the rest; the kept set carries it across a
   lock, and `faraday-settings.txt` on the boot stick across a power-off.
   The desktop app's kept set is in memory (`Boxes::Memory`), so it lasts
   across a lock but not across quitting. The Starter keeps nothing
   (`docs/STARTER.md` §5.1: "there is no settings or state file") and
   has no theme of its own to choose.
 
-**Finding.** The Display scale is applied after the one-column decision.
-A 1280 × 800 window at 160 dpi with Display scale 200 % keeps the wide
-layout and draws it into 640 × 400 dp, so the sidebar and the page are
-cut off. T1 makes the Display scale count in the same decision as Text
-size (§4), which removes this.
+**Finding.** The Display scale was applied after the one-column
+decision: a 1280 × 800 window at 160 dpi with Display scale 200 % kept
+the wide layout and drew it into 640 × 400 dp, so the sidebar and the
+page were cut off. The Display scale now counts in the same decision as
+Text size (§4): that window is 640 × 400 dp and takes one column
+(`faraday/faraday-core/tests/all/text_size.rs`).
 
 ## 2. The setting
 
@@ -71,8 +81,12 @@ size (§4), which removes this.
   `f` and the Display scale, and leaves the class's own handling as it
   is: the narrow cut on Small stays, and `Ui::font` still cancels the
   class's ramp for faraday-ui text.
-- Settings › Appearance: a **Text size** row under Contrast, three
-  options as Contrast's are, the chosen one selected. Pressing one lays the
+- Settings › Appearance: a **Text size** row under Contrast, its
+  options as Contrast's are, the chosen one selected. Until T3 has
+  refitted the screens it offers Standard and Large only (owner,
+  2026-10-27): Larger stays in the code and in renders
+  (`FARADAY_SNAP_TEXT=larger`), and a stored `text=larger` reads as
+  Large (`TextSize::OFFERED`, `TextSize::offered`). Pressing one lays the
   screen out again at once (as `Action::Scale` does: `display` again
   with the last display) and saves the kept set.
 - The strings, in `faraday/faraday-strings/src/en.rs`:
@@ -93,7 +107,7 @@ the factor to 1 for what it draws and puts it back.
 | A row's label and value (list rows, menu rows, value rows, stacked rows) | Larger; wraps to a second line where it does not fit; the row grows to its lines (§5). |
 | Titles: a page's title, a card's title | Larger; wraps. |
 | A button's label, a choice's label | Larger; the button grows to its line (height) and `wrap_buttons` puts fewer on a line. |
-| One-line slots that cannot grow: the small panel's bar title, a mode pill, a chip, a tag, a board chip, a chart node's name, a tab, the viewfinder's state line, the field above a keyboard | Fit-down: the largest size from the asked size × factor down to the asked size that fits the slot's width (`Ui::text_fit`). Never smaller than Standard. |
+| One-line slots that cannot grow: the small panel's bar title, a mode pill, a chip, a tag, a board chip, a chart node's name, a tab, the viewfinder's state line, the field above a keyboard | Fit-down: the largest size from the asked size × factor down to the asked size that fits the slot's width (`Ui::text_fit_as`). Never smaller than Standard. |
 | Data in the mono face: fingerprints, hex, paths, addresses, xpubs, txids, descriptors | Larger; addresses and keys already break by character and wrap. Inside a chip or a node, fit-down. |
 | Keyboards: keys, the candidate strip, the kana grid, the card pad, the dice pad | Unchanged (`fixed_text`). Their sizes are set by what must fit on the panel. |
 | QR codes and SeedQR, the scanner's picture | Unchanged: they are pictures. Their captions are text and grow. |
@@ -107,29 +121,30 @@ No length grows with the text except a height that text sets (§5).
 
 The one-column decision counts the text factor and the Display scale. Let
 `t` be the text factor (1.0, 1.2, 1.4) and `s` the Display scale
-(0.75 to 2.0). The decision in `display` becomes:
+(0.75 to 2.0). `Faraday::layout_window` is the window's size in dp at
+its density times `s` (`Faraday::window`, F101), both sides divided by
+`t`; the navigation and the one-column decision read it:
 
-- a panel is one-column when its width in dp at its density is under
-  600 × `t` × `s` (today 600);
-- a window is one-column when its width in dp, divided by `t`, is
-  under the wide layout's class (today its width at its density times
-  `s`, under 1200 dp: F101, which replaced the fit to 1280 × 800 and
-  F78's floor);
-- inside the Starter, the held app is one-column under 1280 × `t` × `s`
-  dp (today 1280).
+- a window takes the wide layout (the expanded rail) where that size is
+  large or extra-large (`WINDOW_LARGE`, 1200 dp, and over) and not low
+  (`WINDOW_LOW`, 600 dp tall); every other window is one-column, a
+  panel among them;
+- inside the Starter, the held app is one-column where that width is
+  under `WINDOW_HELD_WIDE`, 1280 dp: under 1280 × `t` × `s` dp of the
+  window itself.
 
 So Larger needs a window 1.4 times the size Standard needs to keep the
 sidebar, the same step a narrow window takes. `f` itself is unchanged:
 the wide layout at Larger draws at the same dp widths with larger text.
-The factor's thresholds are names in `tokens.rs`
-(`ONE_COLUMN_UNDER` 600, `HELD_ONE_COLUMN_UNDER` 1280; the two numbers
-written in place in `display` today).
+The thresholds are the window classes' own tokens; no number is written
+in place for them.
 
-At 160 dpi (density 1), the smallest window that keeps the wide layout:
+At 160 dpi (density 1) and Display scale 100 %, the smallest window that
+keeps the wide layout:
 
 | | Standard | Large | Larger |
 |---|---|---|---|
-| Faraday Demo | 960 × 600 | 1152 × 720 | 1344 × 840 |
+| Faraday Demo | 1200 × 600 | 1440 × 720 | 1680 × 840 |
 | The Starter's held app | 1280 dp wide | 1536 dp wide | 1792 dp wide |
 | The Starter's own pages, one column under | 600 dp | 720 dp | 840 dp |
 
@@ -163,11 +178,18 @@ changes.
 A height that holds text becomes the larger of its token and what its
 text needs:
 
-- `Ui::row_height(token, lines)`: `token`, or the lines' height
-  (`Ui::line` per line) plus the row's padding, whichever is larger.
-  List rows, menu rows (`menu_row`), value rows (`value_row`,
-  `stacked_row`), sheet rows (`CHART_SHEET_ROW`, `MODE_ROW`,
-  `BOARD_MENU_ROW`) take it; their touch target is the grown row.
+- `Ui::row_height(token, lines, pad)`: `token` at Standard; at a
+  larger size `token`, or the lines' height (`Ui::line_as` per line)
+  plus `pad` above and below, whichever is larger.
+  List items (`Ui::list_item`), multi-choice rows, the switch row,
+  segmented choices, buttons (`Ui::button`, a sheet's and a dialog's),
+  text fields (`Ui::field_box`), the small panel's menu row
+  (`compact::row`, its icon by `Ui::row_icon`) and the board's menu rows
+  (`BOARD_MENU_ROW`) take it; their touch target is the grown row.
+  A list item's headline that does not fit its line at a larger size
+  takes a second line, and the item grows by it.
+  `CHART_SHEET_ROW` and `MODE_ROW` hold Larger's line as they are. The
+  screens' own value and stacked rows take it with T3.
 - `wrap_buttons` and `wrap_buttons_height` take the button's height as
   a floor and grow it to the label's line plus padding.
 - A line's advance written in place (`y += 24.0` after a 13 dp line) is
@@ -202,9 +224,11 @@ A screen that today works out a list's total height for its scroll
   `text=` line; Uninstall removes it; a Starter run without installing
   keeps it for that run only, so §5.1's "no settings or state file"
   holds for it.
-- **Open Faraday Demo** (`docs/STARTER.md` §5.3) starts the desktop
-  app with the Starter's choice (`--text larger`), which the desktop
-  app takes as its first setting.
+- **Open Faraday Demo** (`docs/STARTER.md` §5.3) runs the Demo in the
+  Starter's own window (F126), so the Demo takes the Starter's choice
+  and a choice made in the Demo is the Starter's for the session, as
+  the theme is. The desktop app's `--text larger` starts it at a size
+  from the command line.
 
 ## 7. Tests
 
@@ -255,7 +279,7 @@ agents.
 | T1 | `TextSize` and its tokens; `Ui` carries the factor (`Ui::new` takes it, `Ui::font` applies it), `fixed_text`, `text_fit`; Settings' row and `Action::TextSize`; the `text=` line; the one-column decision counts `t` and `s` (§4); tests 1–4, 7 | small |
 | T2 | Components grow: `row_height`, menu, value and stacked rows and their icons, sheet rows, `wrap_buttons`; keyboards and the dice pad inside `fixed_text`; one-line slots on `text_fit`; the canvas's `cut` note; test 5's check as a helper | medium |
 | T3 | The screens: each area's line advances written in place replaced by `ui.line`, its fixed heights by `row_height`, until the tours at Larger list nothing in `cut.txt`; by area, most self-contained first, as the structure pass orders them; tests 5–6 | large |
-| T4 | The Starter: its pages on the same components, its row, its storage, `--text` to the desktop app; tests 8–9 | medium |
+| T4 | The Starter: its pages on the same components, its row, its storage, the size shared with the Demo it holds; tests 8–9 | medium |
 | T5 | `FARADAY_SNAP_TEXT`, `cut.txt`, the justfile; `faraday-snapshots` renders each size at Standard and Larger (`out/snapshots/faraday/WxH-larger/`); the docs of §10 | small |
 
 T3 is most of the work: every screen that writes a line's advance in
@@ -265,7 +289,9 @@ heights are all from tokens and `ui.line` needs no change beyond T2.
 Edit list:
 
 - `core/faraday-draw/src/tokens.rs`: `TEXT_LARGE_PCT`,
-  `TEXT_LARGER_PCT`, `ONE_COLUMN_UNDER`, `HELD_ONE_COLUMN_UNDER`.
+  `TEXT_LARGER_PCT`, `TEXT_FIT_STEP_PCT`, `LIST_PAD_V`, `BUTTON_PAD_V`,
+  `FIELD_PAD_V` (the one-column thresholds are the window classes'
+  tokens, §4).
 - `core/faraday-draw/src/canvas.rs`: the `cut` note on recorded text
   ink.
 - `faraday/faraday-ui/src/lib.rs`: `TextSize`; `Ui`'s factor, `font`,

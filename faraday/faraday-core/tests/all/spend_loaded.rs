@@ -196,3 +196,60 @@ fn the_walk_through_is_one_press_away() {
     assert!(!app.family_overview());
     assert_eq!(app.family().open, Some(Open::Page(page::MAP)));
 }
+
+/// The ink boxes of a loaded wallet's name, shape and keys' line on the
+/// Pi's panel at `size`, with Savings loaded and one of its keys.
+fn card_lines_at(size: faraday_core::ui::TextSize) -> Vec<(String, (i32, i32, i32, i32))> {
+    let mut app = with_files(vec![savings()]);
+    app.event(Event::Display(DisplayInfo {
+        width: 480,
+        height: 640,
+        dpi: 286,
+        inset_bottom: 0,
+        inset_top: 0,
+        buttons: 0,
+        camera_fixed: false,
+        secure: SecureHardware::None,
+        boot: BootState::Unknown,
+        memory_mib: None,
+    }));
+    add_key(&mut app, 0);
+    app.press(Action::LoadWallet(0));
+    app.press(Action::TextSize(size));
+    app.press(Action::Nav(Screen::Family));
+    let lines: Vec<_> = app
+        .drawn_text_boxes()
+        .into_iter()
+        .filter(|(t, _)| t == "Savings" || t.starts_with("2 of 3") || t.starts_with("1 key"))
+        .collect();
+    // The card's own name, the one just over its shape: the bar at the
+    // top names the wallet too.
+    let shape = lines
+        .iter()
+        .find(|(t, _)| t.starts_with("2 of 3"))
+        .map(|(_, b)| b.1);
+    let shape = shape.expect("the wallet's shape is shown");
+    let card: Vec<_> = lines
+        .into_iter()
+        .filter(|(t, b)| t != "Savings" || (b.1 < shape && shape - b.1 < 2 * b.3))
+        .collect();
+    assert_eq!(card.len(), 3, "{card:?}");
+    card
+}
+
+/// On a one-column page a loaded wallet's card grows with larger text:
+/// its name, its shape and its keys' line stand one under another, none
+/// over the next, at Standard and at Large.
+#[test]
+fn a_loaded_wallets_card_keeps_its_lines_apart_at_every_offered_size() {
+    use faraday_core::ui::TextSize;
+    for size in TextSize::OFFERED {
+        let lines = card_lines_at(size);
+        let mut tops: Vec<_> = lines.iter().map(|(_, b)| *b).collect();
+        tops.sort_by_key(|b| b.1);
+        for pair in tops.windows(2) {
+            let (a, b) = (pair[0], pair[1]);
+            assert!(a.1 + a.3 <= b.1 + 1, "{size:?}: {lines:?}");
+        }
+    }
+}
