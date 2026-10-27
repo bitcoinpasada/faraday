@@ -56,7 +56,7 @@ fn flow_keep(shell: &mut Shell, app: &mut Faraday, p: usize, row: Row, seeds: &[
 }
 
 /// A press on the flow's own board (`docs/BACKUP-FLOW.md` §17.12 item 1).
-fn flow_board(shell: &mut Shell, app: &mut Faraday, press: BoardPress) {
+pub(crate) fn flow_board(shell: &mut Shell, app: &mut Faraday, press: BoardPress) {
     assert!(
         matches!(app.board_of(), Some(faraday_core::board::BoardOf::Flow(_))),
         "the flow's board is on screen"
@@ -76,13 +76,13 @@ fn flow_put(shell: &mut Shell, app: &mut Faraday, t: Thing, z: Zone) {
 
 /// Vault `v`'s zone at the first place of the flow's plan that keeps its
 /// stick.
-fn flow_vault_zone(app: &Faraday, v: usize) -> Zone {
+pub(crate) fn flow_vault_zone(app: &Faraday, v: usize) -> Zone {
     let p = flow_place_of(app, v);
     Zone::Vault(p, vault_stick(app, p, v).expect("its stick"), v)
 }
 
 /// `t` sealed in vault `v` on the flow's board.
-fn flow_into_vault(shell: &mut Shell, app: &mut Faraday, v: usize, t: Thing) {
+pub(crate) fn flow_into_vault(shell: &mut Shell, app: &mut Faraday, v: usize, t: Thing) {
     let z = flow_vault_zone(app, v);
     flow_put(shell, app, t, z);
 }
@@ -178,7 +178,7 @@ pub(crate) fn step(app: &Faraday) -> Step {
 }
 
 /// `n` empty sticks of different serials.
-fn sticks(shell: &mut Shell, n: usize) {
+pub(crate) fn sticks(shell: &mut Shell, n: usize) {
     for k in 1..=n {
         let mut d = Disk::empty(&format!("S{k}"), "KEYSTICK");
         d.serial = Some(k as u32);
@@ -204,7 +204,7 @@ fn multi_index() -> u8 {
 
 /// Make a new wallet, with `count` vaults to set up before the keys;
 /// `multi` for the 2-of-3.
-fn create_with_vaults(app: &mut Faraday, multi: bool, count: usize) {
+pub(crate) fn create_with_vaults(app: &mut Faraday, multi: bool, count: usize) {
     create_single_key(app);
     if multi {
         app.press(Action::CKind(multi_index()));
@@ -218,7 +218,7 @@ fn create_with_vaults(app: &mut Faraday, multi: bool, count: usize) {
 }
 
 /// The sticks of the setup, in order, each one at a time.
-fn bring_in_all(shell: &mut Shell, app: &mut Faraday, disks: &[&str]) {
+pub(crate) fn bring_in_all(shell: &mut Shell, app: &mut Faraday, disks: &[&str]) {
     for d in disks {
         shell.plug(app, d);
         shell.flow(app, F::Tap);
@@ -228,7 +228,7 @@ fn bring_in_all(shell: &mut Shell, app: &mut Faraday, disks: &[&str]) {
 
 /// Saves into the open vaults what the plan puts in each, by the
 /// checklist's vault items.
-fn save_vaults(app: &mut Faraday) {
+pub(crate) fn save_vaults(app: &mut Faraday) {
     let c = testkit::compute();
     let vaults: Vec<usize> = app
         .backup_items_now(&c)
@@ -263,7 +263,7 @@ fn no_visit(shell: &Shell) {
     assert!(shell.sheets.iter().all(|s| *s != Sheet::Lock));
 }
 
-fn ofv(shell: &Shell, d: &str) -> Option<Vec<u8>> {
+pub(crate) fn ofv(shell: &Shell, d: &str) -> Option<Vec<u8>> {
     shell
         .disk(d)
         .files

@@ -1912,7 +1912,14 @@ the vault gains a record type, **15 Codex32 share** (1 the string; 2 the
 key's fingerprint; at most one per index per vault), beside type 13's
 wallet share, with a vector; a vault without it reads as today. A vault
 that holds the seed and also a string of it is allowed and warned
-(below).
+(below). A vault holds exactly the plan's strings of the plan's set:
+the vault item's save and the backup flow's round put in each string the
+plan keeps there and take out each share record of the seed of another
+set (its header's threshold or identifier not the set's, as after
+**Rotate the set**, §9.7) or at an index the plan does not keep there;
+the item is done only then. A string added to or taken from a vault
+after the lock sends that vault back to be filled and written
+(BACKUP-FLOW §15.8).
 
 **Plain files are allowed** (owner, §1.1 item 18). A string with k of 2
 or more reveals nothing alone, so a `.txt` or `.png` of one on a stick

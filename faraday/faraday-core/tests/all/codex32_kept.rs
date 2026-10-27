@@ -25,20 +25,20 @@ use faraday_vault::records::{field, kind};
 use faraday_vault::{Contents, Cost, Record};
 
 /// Vector 2: shares A, C and D; the fingerprint of its seed's key.
-const A: &str = "ms12namea320zyxwvutsrqpnmlkjhgfedcaxrpp870hkkqrm";
-const C: &str = "ms12namecacdefghjklmnpqrstuvwxyz023ftr2gdzmpy6pn";
-const D: &str = "ms12namedll4f8jlh4e5vdvuldlfxu2jhdnlsm97xvenrxeg";
-const FP: [u8; 4] = [0xfa, 0xb6, 0x86, 0x8a];
+pub(crate) const A: &str = "ms12namea320zyxwvutsrqpnmlkjhgfedcaxrpp870hkkqrm";
+pub(crate) const C: &str = "ms12namecacdefghjklmnpqrstuvwxyz023ftr2gdzmpy6pn";
+pub(crate) const D: &str = "ms12namedll4f8jlh4e5vdvuldlfxu2jhdnlsm97xvenrxeg";
+pub(crate) const FP: [u8; 4] = [0xfa, 0xb6, 0x86, 0x8a];
 
-const PHRASE: &str = "home phrase";
+pub(crate) const PHRASE: &str = "home phrase";
 
-fn ix(c: char) -> usize {
+pub(crate) fn ix(c: char) -> usize {
     plan::codex32::index_of(c as u8).unwrap()
 }
 
 /// Vector 2's key typed in from strings A and C, its set known as one of
 /// 2 of 3 with A, C and D.
-fn key_from_strings(app: &mut Faraday) {
+pub(crate) fn key_from_strings(app: &mut Faraday) {
     app.press(Action::Entry(None));
     app.press(Action::EntryForm(2));
     for s in [A, C] {
@@ -69,7 +69,7 @@ fn key_from_strings(app: &mut Faraday) {
 
 /// A single-key wallet over the key typed in, loaded, and Back up open on
 /// it: its set's strings one per place on paper.
-fn wallet_and_backup(app: &mut Faraday) {
+pub(crate) fn wallet_and_backup(app: &mut Faraday) {
     let c = testkit::compute();
     let k = app.session.keys.position_of(FP).unwrap();
     let text = app
@@ -97,7 +97,7 @@ fn wallet_and_backup(app: &mut Faraday) {
 }
 
 /// The checklist made and its codex32 item open.
-fn codex32_item(app: &mut Faraday) {
+pub(crate) fn codex32_item(app: &mut Faraday) {
     if app.backup().unwrap().stage != BStage::Checklist {
         app.press(Action::BChecklist);
     }
@@ -121,7 +121,7 @@ fn codex32_item(app: &mut Faraday) {
 
 /// Each string on paper typed back from its paper in the codex32 item,
 /// open again where the checklist moved on.
-fn type_each_back(app: &mut Faraday) {
+pub(crate) fn type_each_back(app: &mut Faraday) {
     open_item(app, bstep::of(plan::Item::Codex32(0)));
     for s in [A, C, D] {
         let j = plan::codex32::index_of(s.as_bytes()[8]).unwrap();
@@ -163,7 +163,7 @@ fn board_edit(app: &mut Faraday, f: impl FnOnce(Vec<Spot>) -> Vec<Spot>) {
 }
 
 /// The share records open vault `o` holds: each string and fingerprint.
-fn share_records(app: &Faraday, o: usize) -> Vec<(Vec<u8>, Vec<u8>)> {
+pub(crate) fn share_records(app: &Faraday, o: usize) -> Vec<(Vec<u8>, Vec<u8>)> {
     contents(app, o)
         .of(kind::CODEX32_SHARE)
         .map(|(_, r)| {
@@ -177,7 +177,7 @@ fn share_records(app: &Faraday, o: usize) -> Vec<(Vec<u8>, Vec<u8>)> {
 
 /// Unlocks vault file `name` from the Vaults tab with `phrase`, loading
 /// nothing on its Load sheet.
-fn unlock_on_vaults(app: &mut Faraday, name: &str, phrase: &str) {
+pub(crate) fn unlock_on_vaults(app: &mut Faraday, name: &str, phrase: &str) {
     app.press(Action::Nav(Screen::Vaults));
     let n = app
         .vault_files()
@@ -207,7 +207,7 @@ fn unlock_on_vaults(app: &mut Faraday, name: &str, phrase: &str) {
 }
 
 /// A vault file whose one slot, opened by `phrase`, holds `records`.
-fn vault_of(phrase: &str, records: Vec<Record>, seed: u8) -> Vec<u8> {
+pub(crate) fn vault_of(phrase: &str, records: Vec<Record>, seed: u8) -> Vec<u8> {
     let c = testkit::compute();
     let mut all = vec![Record::new(kind::SLOT_LABEL).with(field::LABEL, b"Vault")];
     all.extend(records);

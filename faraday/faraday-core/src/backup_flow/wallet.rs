@@ -1629,10 +1629,10 @@ impl Faraday {
                     None => return self.toast(EN.backup_flow_unlock_first),
                 }
             }
-            // Each codex32 string the plan keeps in the vault (`docs/CODEX32.md` §9.5).
-            match self.c32_round_records(&c, (&wf.shape, &wf.answers), v, o, &w.add) {
-                Ok(more) => w.add.extend(more),
-                Err(line) => return self.toast(&line),
+            // Exactly the plan's codex32 strings, of its set (`docs/CODEX32.md` §9.5).
+            let both = (&mut w.add, &mut w.out);
+            if let Err(line) = self.c32_round_records(&c, (&wf.shape, &wf.answers), v, o, both) {
+                return self.toast(&line);
             }
             // The plan record goes with them, so the next backup finds it:
             // this wallet's, and nothing else of the holder's.
@@ -2371,10 +2371,10 @@ const PASS_ALONE_MARK: usize = 5_000_000;
 /// of another wallet at all.
 const OTHER_WALLET: &str = "*";
 
-/// Costs what `vault_shares` and `vault_passphrases` cost. What vault
-/// `v` of the plan holds: its seeds, the wallet description where the
-/// plan puts it there, and each passphrase the plan puts in with its
-/// seed. A plan changed after the lock that asks for more is a round.
+/// Costs what `vault_shares`, `vault_passphrases` and `vault_marks` cost.
+/// What vault `v` of the plan holds: its seeds, the description where the
+/// plan puts it there, each passphrase put in with its seed, and each
+/// codex32 string. A plan changed after the lock that asks for more is a round.
 pub(crate) fn sealed_marks(
     c: &Compute,
     wf: &crate::backup_flow::WalletFlow,
@@ -2401,9 +2401,9 @@ pub(crate) fn sealed_marks(
             marks.push(PASS_MARK + s);
         }
     }
-    for s in wf.answers.vault_passphrases(c, &wf.shape, v) {
-        marks.push(PASS_ALONE_MARK + s);
-    }
+    let alone = wf.answers.vault_passphrases(c, &wf.shape, v);
+    marks.extend(alone.into_iter().map(|s| PASS_ALONE_MARK + s));
+    marks.extend(plan::codex32::vault_marks(c, &wf.shape, &wf.answers, v));
     marks
 }
 

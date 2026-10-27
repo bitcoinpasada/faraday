@@ -589,7 +589,18 @@ impl Faraday {
         // Each codex32 string the plan keeps in the vault, as a share
         // record (`docs/CODEX32.md` §9.5): once per key and index. A
         // string this session does not hold is named, to be typed in its
-        // item first.
+        // item first. A share record of a codex32 seed of the plan that the
+        // plan does not keep here, of another set or at another index,
+        // goes: the vault holds exactly the plan's strings.
+        let gone = self.backup_vault_c32_strays(&c, cur, v);
+        if !gone.is_empty()
+            && let Some(id) = self.vaults.open.get(cur).map(|o| o.id)
+        {
+            self.vaults.edit(id, |s| {
+                s.remove_where(id, |r| r.home().is_some_and(|(_, i)| gone.contains(&i)))
+            });
+            self.vaults.changed(id);
+        }
         for (k, index, _) in self.backup_vault_strings(&c, v) {
             if self.vault_holds_string(cur, k, index) {
                 continue;

@@ -44,6 +44,7 @@ mod codex32_roller;
 mod codex32_tabs;
 mod codex32_tour;
 mod codex32_tracker;
+mod codex32_vault_set;
 mod codex32qr_copy;
 mod collect;
 mod common;

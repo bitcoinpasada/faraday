@@ -1534,14 +1534,14 @@ impl OpenVaults {
 
     /// Whether open vault `id` keeps a codex32 share record of the key
     /// with fingerprint `fp` at share index `index` (a bech32 character,
-    /// lower case). A lookup.
-    pub fn holds_codex32(&self, id: VaultId, fp: [u8; 4], index: u8) -> bool {
+    /// lower case) of the set `set` (its threshold and identifier): a
+    /// string of another set of the same key is not it. A lookup.
+    pub fn holds_codex32(&self, id: VaultId, fp: [u8; 4], set: (u8, [u8; 4]), index: u8) -> bool {
         self.slot(id).is_some_and(|s| {
-            s.records.records.iter().any(|r| {
-                r.kind == kind::CODEX32_SHARE
-                    && r.field(field::CODEX32_KEY) == Some(&fp[..])
-                    && codex32_header(r).is_some_and(|(_, _, j)| j == index)
-            })
+            s.records
+                .records
+                .iter()
+                .any(|r| codex32_share_is(RecordView::of(r), fp, set, Some(index)))
         })
     }
 
@@ -1816,6 +1816,24 @@ fn phrase_of(m: &Mnemonic) -> Zeroizing<String> {
 /// No more of the string. `None` for no such record. A lookup.
 pub fn codex32_share_header(r: RecordView<'_>) -> Option<(u8, [u8; 4], u8)> {
     (r.kind() == kind::CODEX32_SHARE).then(|| codex32_header(r.raw()))?
+}
+
+/// Whether `r` is a codex32 share record of the key with fingerprint
+/// `fp`, of the set `set` (its threshold and identifier, either case), at
+/// share index `index` where one is given (a bech32 character, lower
+/// case). A lookup.
+pub fn codex32_share_is(
+    r: RecordView<'_>,
+    fp: [u8; 4],
+    (k, id): (u8, [u8; 4]),
+    index: Option<u8>,
+) -> bool {
+    r.public(field::CODEX32_KEY) == Some(&fp[..])
+        && codex32_share_header(r).is_some_and(|(rk, rid, j)| {
+            rk == k
+                && rid.eq_ignore_ascii_case(&id)
+                && index.is_none_or(|x| x == j.to_ascii_lowercase())
+        })
 }
 
 fn codex32_header(r: &Record) -> Option<(u8, [u8; 4], u8)> {

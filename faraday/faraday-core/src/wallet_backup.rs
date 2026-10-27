@@ -2156,8 +2156,9 @@ impl Faraday {
 
     /// Costs what `backup_vault_wanted`, `vault_holds_seed`,
     /// `vault_has_wallet` and the rest it calls cost. Whether open vault
-    /// `o` holds what the plan puts in vault `v` and no seed only another
-    /// vault is to hold.
+    /// `o` holds what the plan puts in vault `v`, no seed only another
+    /// vault is to hold, and no codex32 string of the plan's seeds the plan
+    /// does not keep there (of another set, or at another index).
     pub(crate) fn backup_open_fits(&self, c: &Compute, v: usize, o: usize) -> bool {
         use crate::vault::screen::vault_has_wallet;
         let Some(b) = self.backup.state() else {
@@ -2190,6 +2191,7 @@ impl Faraday {
                 .backup_vault_strings(c, v)
                 .iter()
                 .all(|&(k, index, _)| self.vault_holds_string(o, k, index))
+            && self.backup_vault_c32_strays(c, o, v).is_empty()
     }
 
     /// Costs what `backup_vault_shares`, `backup_vault_passphrases` and

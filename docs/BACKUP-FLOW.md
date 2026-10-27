@@ -1142,7 +1142,7 @@ the board list's stepper.
 (owner, 2026-10-15.) After **Lock and write** no wallet and no key is
 loaded, so the plan changes there only in **what goes into a vault and
 where a vault's sticks are kept.** That is a seed, its passphrase, the
-description or a share in a vault; a vault's stick added to or taken
+description, a share or a codex32 string in a vault; a vault's stick added to or taken
 from a place; a place added, or the last place taken away while it
 keeps only vaults' sticks (a place before another is not taken away:
 the later places would be renumbered, sticks already named by place
@@ -1158,8 +1158,9 @@ filled, sealed and written (§10.2), in a round of the flow
   and, of the vaults that hold the keys, those holding the seeds it
   takes (`flow_needed_vaults`). **Copy the key** ("The new vault takes
   the key from one that holds it") puts into it each seed, passphrase,
-  the description and each share the plan now gives it, and takes out
-  what the plan no longer does; every vault of the round takes its
+  the description, each share and each codex32 string the plan now
+  gives it, and takes out what the plan no longer does; every vault of
+  the round takes its
   part, or none does. A seed no open vault holds (kept only on paper,
   wiped at the lock) is named, "{seed} is kept only on paper", with
   **Add the key from its copy** to type it back in.
@@ -2342,6 +2343,13 @@ checked or skipped. The strings go to no file and no stick from here.
 strings the plan keeps in that vault, worded as the board's place lines
 count them ("1 of 2 shares of 9a6a2580"), marked once the open vault holds
 each of them (`board::codex32::vault_lines`, from the plan's kept map).
+**A vault holds exactly the plan's strings of the plan's set**: a share
+record counts only where its header's threshold and identifier are the
+set's, so after **Rotate the set** a string of the old set in the vault
+is not the plan's and the item is not done; the item is not done either
+while the vault holds a string of the seed the plan does not keep there.
+Its save, and the flow's round after the lock (§15.8), take such a
+record out and put the plan's string in.
 
 **The set's actions** (`docs/CODEX32.md` §9.7), under the item's list for
 a split set that exists, and from the chart's sheet on a string (its rows

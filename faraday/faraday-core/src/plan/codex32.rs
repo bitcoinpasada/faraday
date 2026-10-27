@@ -478,3 +478,20 @@ impl Mapped {
         out
     }
 }
+
+/// The base of a codex32 string's mark among the marks a vault was sealed
+/// with (`backup_flow::wallet::sealed_marks`), above the seeds', the
+/// description's, the shares' and the passphrases'.
+const VAULT_MARK: usize = 6_000_000;
+
+/// Costs a map of the plan. Each codex32 string the plan `(shape, a)`
+/// keeps in vault `v` ([`Mapped::vault_strings`]) as a sealed mark,
+/// `VAULT_MARK + 32 * seed + index`: one added to or taken from the vault
+/// after the lock is a change of what it holds (`docs/CODEX32.md` §9.5).
+pub fn vault_marks(c: &Compute, shape: &Shape, a: &Answers, v: usize) -> Vec<usize> {
+    Mapped::of(c, shape, a)
+        .vault_strings(a, v)
+        .into_iter()
+        .map(|(s, j)| VAULT_MARK + 32 * s + j)
+        .collect()
+}
