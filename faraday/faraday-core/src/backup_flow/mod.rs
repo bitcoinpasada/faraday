@@ -17,6 +17,7 @@ mod area;
 pub(crate) mod screen;
 pub mod steps;
 pub(crate) mod wallet;
+pub(crate) mod wallet_files;
 pub(crate) mod wallet_screen;
 
 pub(crate) use area::BackupFlowArea;
@@ -329,7 +330,7 @@ impl Target {
     /// Sort key: places and their vaults in order, each vault's sticks
     /// there in order, the place's sticks of files after them, then the
     /// extras.
-    fn key(self) -> (u8, usize, usize, usize) {
+    pub(crate) fn key(self) -> (u8, usize, usize, usize) {
         match self {
             Target::Place(p) => (0, p, 0, 0),
             Target::PlaceVault(p, v) => (0, p, v + 1, 0),
@@ -393,6 +394,10 @@ pub struct Plan {
     pub place_files: Vec<usize>,
     /// Which stick carries the public files.
     pub public_on: PublicOn,
+    /// The stick of place `public_at` that carries the public files, where
+    /// the plan names one: a wallet's stick there that keeps no secret
+    /// file (`docs/BACKUP-FLOW.md` §10.2). None: the place's first stick.
+    pub public_stick: Option<Target>,
 }
 
 /// Which stick carries a plan's public files.
@@ -420,6 +425,7 @@ impl Plan {
             public: false,
             place_files: Vec::new(),
             public_on: PublicOn::Place,
+            public_stick: None,
         }
     }
 
@@ -573,14 +579,19 @@ pub fn plan_of_on(a: &crate::plan::Answers, m: &crate::plan::Mapped) -> Plan {
         files_spot.is_some_and(|s| s.holds.iter().any(|(w, _)| matches!(w, What::SeedFile(_))));
     let wallet_files = files_spot.is_some_and(|s| s.holds.iter().any(|(w, _)| *w == What::Wallet));
     let public_any = crate::plan::public_stick_on(a, m);
-    // The stick of public files is read on an online computer: a plain
-    // seed file never shares it by default, however the plan keeps the
-    // description (`docs/history/BACKUP-FLOW-LOG.md` §16, a default the owner may
-    // change). Public files beside an encrypted vault copy are allowed.
-    let (public_on, public_at) = match with_wallet {
-        Some(p) if public_any => (PublicOn::Place, p),
-        _ if wallet_files && !seed_files => (PublicOn::Files, 0),
-        _ => (PublicOn::Own, 0),
+    // The stick of public files is read on an online computer: a secret
+    // file never shares it, on the stick of files or at a place, so a plan
+    // accepted at the lock can be written (`docs/BACKUP-FLOW.md` §10.2).
+    // The public files go on the wallet's place's first stick that keeps
+    // no secret file, else on the stick of files where it keeps the
+    // wallet and no seed, else on a stick of their own. Public files
+    // beside an encrypted vault copy are allowed.
+    let clean_stick =
+        with_wallet.and_then(|p| wallet_files::public_stick_at(sticks, p).map(|t| (p, t)));
+    let (public_on, public_at, public_stick) = match clean_stick {
+        Some((p, t)) if public_any => (PublicOn::Place, p, Some(t)),
+        _ if wallet_files && !seed_files => (PublicOn::Files, 0, None),
+        _ => (PublicOn::Own, 0, None),
     };
     Plan {
         places,
@@ -591,6 +602,7 @@ pub fn plan_of_on(a: &crate::plan::Answers, m: &crate::plan::Mapped) -> Plan {
         public: public_on == PublicOn::Own && public_any,
         place_files,
         public_on,
+        public_stick,
     }
 }
 
@@ -1175,6 +1187,7 @@ impl BackupFlow {
             public: false,
             place_files: Vec::new(),
             public_on: PublicOn::Place,
+            public_stick: None,
         }
     }
 
@@ -1325,14 +1338,23 @@ impl BackupFlow {
     }
 
     /// The slot that carries the key's public files: the stick of files or
-    /// the stick of public files where the plan says so, else the first
-    /// stick of the place the plan names, else the first.
+    /// the stick of public files where the plan says so, else the stick of
+    /// the place the plan names for them, else that place's first stick,
+    /// else the first.
     pub(crate) fn public_slot(&self) -> Option<usize> {
         let by = |t: Target| self.slots.iter().position(|s| s.target == t);
         match self.plan.public_on {
             PublicOn::Files => return by(Target::Files),
             PublicOn::Own => return by(Target::Public),
             PublicOn::Place => {}
+        }
+        if let Some(k) = self
+            .plan
+            .public_stick
+            .filter(|t| t.place().or(t.files_place()) == Some(self.plan.public_at))
+            .and_then(by)
+        {
+            return Some(k);
         }
         self.slots_at(self.plan.public_at)
             .first()
@@ -1518,6 +1540,9 @@ pub fn encode(flows: &[BackupFlow]) -> Vec<u8> {
         if !f.plan.place_files.is_empty() {
             let list: Vec<String> = f.plan.place_files.iter().map(|p| p.to_string()).collect();
             out.push_str(&format!("pfiles\t{}\n", list.join(",")));
+        }
+        if let Some(t) = f.plan.public_stick {
+            out.push_str(&format!("pstick\t{}\n", t.code()));
         }
         if let Some(w) = &f.wallet {
             out.push_str(&format!(
@@ -1783,6 +1808,10 @@ fn read_line(fl: &mut BackupFlow, f: &[&str], hex_array: fn(&str) -> Option<[u8;
                 _ => PublicOn::Place,
             };
             true
+        }
+        ["pstick", t] => {
+            fl.plan.public_stick = Target::from_code(t);
+            fl.plan.public_stick.is_some()
         }
         ["pfiles", list] => {
             let Some(places) = list

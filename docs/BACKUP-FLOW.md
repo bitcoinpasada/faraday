@@ -616,9 +616,13 @@ Moved to `docs/history/BACKUP-FLOW-LOG.md`.
     the plan keeps seeds as files;
   - **the stick of public files**: the public files where the plan keeps
     the wallet as files or gives the software its text form, and the
-    sheet or shares as PDFs, to print. It goes to an online computer.
-    Where the plan's `At::Files` spot holds public files, it is that
-    spot's stick; otherwise a stick of its own.
+    sheet or shares as PDFs, to print. It goes to an online computer,
+    so it never keeps a secret file (a seed's words, SeedQR or
+    passphrase, or a codex32 string, as a file). Where a place that
+    keeps a vault's stick holds the wallet, it is that place's first
+    stick, in the flow's order, that keeps no secret file; else, where
+    the plan's `At::Files` spot holds the wallet and no seed's file,
+    that spot's stick; otherwise a stick of its own.
   The last two are named after step 2 and checked at step 6.
 - **The public files** are those of `backup_public_names_for`, with the
   account keys added (owner, 2026-10-14; FLOWS decision 6 lists them):
@@ -636,13 +640,17 @@ Moved to `docs/history/BACKUP-FLOW-LOG.md`.
   files: `savings-wallet.json`, `xpub-{fp}.txt` and `xpub-{fp}-bsms.txt`
   for each of the three keys, and `savings-backup.pdf`.
 - **Which stick the public files share is the person's choice**
-  (owner, 2026-10-14). Where the plan's map puts them on a stick that
-  also keeps a vault copy (a chart edit, NEW-WALLET §9.7) or a seed's
-  file, the flow writes them there, with no warning and nothing
-  blocked. The backup's Learn page states, as a fact, that a stick of
-  public files is read on the online computer that runs the software or
-  prints the sheets, and that whatever else is on that stick goes there
-  with it (§14 item 6).
+  (owner, 2026-10-14), short of a secret file. Where the plan's map puts
+  them on a stick that also keeps a vault copy (a chart edit,
+  NEW-WALLET §9.7), the flow writes them there, with no warning and
+  nothing blocked. A secret file never shares their stick, so a plan
+  accepted at the lock can be written: the stick is chosen as above,
+  and **Lock and write** refuses a plan that would still put a secret
+  file on it, before anything is sealed or made, naming the file and
+  the stick (`backup_flow_public_secret`). The backup's Learn page
+  states, as a fact, that a stick of public files is read on the online
+  computer that runs the software or prints the sheets, and that
+  whatever else is on that stick goes there with it (§14 item 6).
 - **A new last item, `Item::Sticks`, Write to sticks**, after Envelopes,
   in any plan with a stick to write: its body a row per stick, "Vault 1
   (Place 1)", "Stick of files · 1 file", each ticked as written, its

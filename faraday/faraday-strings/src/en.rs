@@ -8297,6 +8297,9 @@ strings! {
     /// The checklist or Lock and write of a backup past its lock and not
     /// done: refused.
     backup_flow_past_lock: "This backup is past its lock; finish the writes, then Back up again",
+    /// Lock and write of a plan that keeps a secret file on the stick that
+    /// carries the public files: refused. The file, then the stick.
+    backup_flow_public_secret: "This plan keeps {} on {}, the stick that carries the public files",
     /// Foot of step 2 when a secret is open.
     backup_flow_lock_bring: "Lock and bring in the {}",
     /// Asks for a stick.

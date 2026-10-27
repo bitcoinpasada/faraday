@@ -2396,7 +2396,7 @@ fn vault_with_key(label: &str, phrase: &str, seed: u8, n: usize) -> Vec<u8> {
 }
 
 /// Loads the keys of the first vault of a fresh process into it.
-fn load_first_vault(app: &mut Faraday, phrase: &str) {
+pub(crate) fn load_first_vault(app: &mut Faraday, phrase: &str) {
     app.press(Action::Nav(Screen::Vaults));
     app.press(Action::Vault(faraday_core::vault::VaultAction::Open(0)));
     faraday_core::testkit::vault_speed(app, Some(180));
