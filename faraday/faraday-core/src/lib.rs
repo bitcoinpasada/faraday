@@ -3842,7 +3842,7 @@ impl Faraday {
     /// text. None for any other file.
     #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
     pub fn public_pictures(&self, c: &Compute, wallet: usize, what: u8) -> Vec<picture::Labelled> {
-        let Some(w) = self.session.wallets.get(wallet) else {
+        let Some(w) = self.public_wallet(c, wallet) else {
             return Vec::new();
         };
         let stem = file_stem(&w.name);
@@ -4013,7 +4013,7 @@ impl Faraday {
     #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
     fn public_files(&mut self, wallet: usize, what: u8, bytes: bool) -> Vec<(String, Vec<u8>)> {
         let c = self.compute();
-        let Some(w) = self.session.wallets.get(wallet) else {
+        let Some(w) = self.public_wallet(&c, wallet) else {
             return Vec::new();
         };
         let omit = self
@@ -4800,7 +4800,7 @@ impl Faraday {
             Code::Descriptor(i) => {
                 let w = wallet(i)?;
                 let stem = file_stem(&w.name);
-                let mut lines = self.wallet_label(w);
+                let mut lines = self.silent_marks(c, i, self.wallet_label(w))?;
                 let text = w.policy().to_descriptor_checksummed();
                 if let Some((_, sum)) = text.rsplit_once('#') {
                     lines.push(fill(EN.code_view_descriptor, &[sum]));

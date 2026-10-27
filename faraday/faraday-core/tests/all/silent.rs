@@ -21,12 +21,46 @@ use faraday_shell_api::{App, Event, Key};
 
 fn with_key() -> Faraday {
     let mut app = faraday_core::testkit::started();
+    add_key(&mut app);
+    app
+}
+
+/// The first test key typed into Add a key.
+fn add_key(app: &mut Faraday) {
     app.press(Action::Entry(None));
     for c in faraday_core::testkit::test_words(faraday_core::testkit::TEST_SEEDS[0].0).chars() {
         app.event(Event::Key(Key::Char(c)));
     }
     app.press(Action::EntryAdd);
-    app
+}
+
+/// Everything the current frame draws, one line after another.
+fn drawn(app: &mut Faraday) -> String {
+    app.drawn_texts().join(" ")
+}
+
+/// The first test key's silent payments record at `account`, its points
+/// derived at `at`, with the scan key replaced by `scan` when given.
+fn record_of(account: u32, at: u32, scan: Option<PublicKey>) -> SilentWallet {
+    let c = faraday_core::testkit::compute();
+    let app = with_key();
+    let secp = Secp256k1::new();
+    let r = Receiver::derive(&c, app.session.keys.master_for_tests(0), at);
+    SilentWallet {
+        network: app.session.network(),
+        fingerprint: app.session.keys[0].fingerprint,
+        account,
+        scan: scan.unwrap_or_else(|| r.scan_public_key(&secp)),
+        spend: r.spend_public_key(),
+        labels: 0,
+    }
+}
+
+/// A scan key that is not the test key's.
+fn another_scan_key() -> PublicKey {
+    SecretKey::from_slice(&[0x33u8; 32])
+        .unwrap()
+        .public_key(&Secp256k1::new())
 }
 
 #[test]
@@ -360,4 +394,152 @@ fn after_a_label_is_handed_out_the_wallets_checksum_is_its_exported_files() {
         faraday_core::wallet::read_wallet(&c, &text).expect("the file reads as a wallet");
     assert_eq!(exported.silent().unwrap().labels, 2);
     assert_eq!(exported.checksum(), after);
+}
+
+#[test]
+fn a_record_with_the_keys_spend_key_and_another_scan_key_is_refused_while_the_key_is_loaded() {
+    let bad = record_of(0, 0, Some(another_scan_key()));
+    let fp = faraday_core::wallet::fp_text(bad.fingerprint).to_string();
+    let mut app = with_key();
+    files(&mut app, &[("silent-1.txt", bad.to_text().into_bytes())]);
+    app.press(Action::LoadWallet(0));
+    assert!(app.session.wallets.is_empty());
+    let toast = app.toast_text().unwrap_or_default();
+    assert!(
+        toast.contains(&format!("does not match key {fp}")),
+        "{toast}"
+    );
+    // It stays in Files.
+    assert_eq!(app.inbox().len(), 1);
+}
+
+#[test]
+fn a_record_loaded_before_its_key_shows_no_address_once_the_key_says_it_is_not_its() {
+    let c = faraday_core::testkit::compute();
+    let bad = record_of(0, 0, Some(another_scan_key()));
+    let fp = faraday_core::wallet::fp_text(bad.fingerprint).to_string();
+    let mut app = faraday_core::testkit::started();
+    files(&mut app, &[("silent-1.txt", bad.to_text().into_bytes())]);
+    app.press(Action::LoadWallet(0));
+    assert_eq!(app.session.wallets.len(), 1, "{:?}", app.toast_text());
+    // Without its key the card shows the record's address, not checked.
+    app.press(Action::Nav(Screen::Wallets));
+    let text = drawn(&mut app);
+    assert!(text.contains("Not checked"), "{text}");
+    assert!(!text.contains("does not match"), "{text}");
+    add_key(&mut app);
+    // The card: no address, and why.
+    app.press(Action::Nav(Screen::Wallets));
+    let text = drawn(&mut app);
+    assert!(text.contains(&format!("does not match key {fp}")), "{text}");
+    // Its key chip and its row say so, where they said the key is here
+    // and the wallet can spend.
+    assert!(text.contains("Does not match its key"), "{text}");
+    assert!(text.contains("Does not match"), "{text}");
+    assert!(!text.contains("Can spend"), "{text}");
+    assert!(!app.drawn_texts().iter().any(|t| t == "Here"), "{text}");
+    assert!(!text.contains("Not checked"), "{text}");
+    let address = bad.address();
+    assert!(!text.contains(&address[..16]), "{text}");
+    // Its page: no address, no labels, no scan key.
+    app.press(Action::SWallet(0));
+    assert_eq!(app.screen, Screen::Silent);
+    assert_eq!(app.silent_address(&c), None);
+    assert!(!app.silent_key_here(&c));
+    let text = drawn(&mut app);
+    assert!(text.contains(&format!("does not match key {fp}")), "{text}");
+    app.press(Action::SLabel(1));
+    assert_eq!(app.silent_address(&c), None);
+    assert_eq!(app.silent_record(&c), None);
+    // Its code and its public files are not made.
+    assert!(
+        app.code_view(&c, faraday_core::Code::Descriptor(0))
+            .is_err()
+    );
+    app.press(Action::SRecord);
+    app.press(Action::SQr(false));
+    assert!(app.outbox.is_empty());
+}
+
+#[test]
+fn a_record_at_another_account_than_its_points_is_refused_and_one_at_its_own_account_is_the_keys() {
+    let c = faraday_core::testkit::compute();
+    // Account 1 stated, account 0's points.
+    let mut app = with_key();
+    files(
+        &mut app,
+        &[("silent-1.txt", record_of(1, 0, None).to_text().into_bytes())],
+    );
+    app.press(Action::LoadWallet(0));
+    assert!(app.session.wallets.is_empty());
+    assert!(
+        app.toast_text()
+            .unwrap_or_default()
+            .contains("does not match key")
+    );
+    // Account 1 stated and its own points: the key's wallet at account 1.
+    let mut app = with_key();
+    files(
+        &mut app,
+        &[("silent-1.txt", record_of(1, 1, None).to_text().into_bytes())],
+    );
+    app.press(Action::LoadWallet(0));
+    assert_eq!(app.session.wallets.len(), 1, "{:?}", app.toast_text());
+    app.press(Action::SWallet(0));
+    let secp = Secp256k1::new();
+    let r = Receiver::derive(&c, app.session.keys.master_for_tests(0), 1);
+    let derived = r.address(&secp).unwrap().as_str().to_string();
+    assert_eq!(app.silent_address(&c).as_deref(), Some(derived.as_str()));
+    assert!(app.silent_key_here(&c));
+    // A label is the key's at that account too.
+    app.press(Action::SLabel(1));
+    let one = r.labelled_address(&secp, 1).unwrap().as_str().to_string();
+    assert_eq!(app.silent_address(&c).as_deref(), Some(one.as_str()));
+}
+
+#[test]
+fn the_keys_own_record_with_the_key_loaded_shows_the_address_the_key_gives_unmarked() {
+    let c = faraday_core::testkit::compute();
+    let mut app = with_key();
+    files(
+        &mut app,
+        &[("silent-1.txt", record_of(0, 0, None).to_text().into_bytes())],
+    );
+    app.press(Action::LoadWallet(0));
+    assert_eq!(app.session.wallets.len(), 1, "{:?}", app.toast_text());
+    let secp = Secp256k1::new();
+    let r = Receiver::derive(&c, app.session.keys.master_for_tests(0), 0);
+    let derived = r.address(&secp).unwrap().as_str().to_string();
+    app.press(Action::Nav(Screen::Wallets));
+    let text = drawn(&mut app);
+    assert!(!text.contains("Not checked"), "{text}");
+    assert!(!text.contains("does not match"), "{text}");
+    app.press(Action::SWallet(0));
+    assert_eq!(app.silent_address(&c).as_deref(), Some(derived.as_str()));
+    let text = drawn(&mut app);
+    assert!(!text.contains("Not checked"), "{text}");
+    assert!(app.code_view(&c, faraday_core::Code::Descriptor(0)).is_ok());
+}
+
+#[test]
+fn the_keys_own_record_without_the_key_shows_its_address_marked_not_checked() {
+    let c = faraday_core::testkit::compute();
+    let honest = record_of(0, 0, None);
+    let fp = faraday_core::wallet::fp_text(honest.fingerprint).to_string();
+    let mut app = faraday_core::testkit::started();
+    files(&mut app, &[("silent-1.txt", honest.to_text().into_bytes())]);
+    app.press(Action::LoadWallet(0));
+    app.press(Action::SWallet(0));
+    assert_eq!(app.silent_address(&c), Some(honest.address()));
+    let line = format!("Not checked: load key {fp} to check this address");
+    let text = drawn(&mut app);
+    assert!(text.contains("Not checked"), "{text}");
+    app.press(Action::Nav(Screen::Wallets));
+    let text = drawn(&mut app);
+    assert!(text.contains("Not checked"), "{text}");
+    // Its code says so too.
+    let view = app
+        .code_view(&c, faraday_core::Code::Descriptor(0))
+        .unwrap();
+    assert!(view.label.contains(&line), "{:?}", view.label);
 }

@@ -1,7 +1,6 @@
 //! The sidebar: the tabs, the wallets and seeds, and what is under way.
 
 use super::SIDEBAR_W;
-use super::parts::sign_readiness;
 use crate::drawing::View;
 use crate::strings::{EN, fill};
 use crate::ui::pal::*;
@@ -331,7 +330,7 @@ pub(super) fn sidebar(app: &View, ui: &mut Ui, h: f32) {
         .wallets
         .iter()
         .enumerate()
-        .map(|(i, w)| (i, sign_readiness(app, w)))
+        .map(|(i, _)| (i, app.readiness(i)))
         .collect();
     ranked.sort_by_key(|&(i, r)| (std::cmp::Reverse(r), i));
     let mut wallet_rows = ranked.into_iter().map(|(i, ready)| {
@@ -343,6 +342,7 @@ pub(super) fn sidebar(app: &View, ui: &mut Ui, h: f32) {
             EN.sidebar_single_key.to_string()
         };
         let mark = match ready {
+            _ if app.silent_differs(i) => Some(Role::Error.paint()),
             2 => Some(Role::Ok.paint()),
             1 => Some(Role::OnSurfaceVariant.paint()),
             _ => None,

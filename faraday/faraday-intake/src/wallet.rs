@@ -65,6 +65,10 @@ pub enum Refusal {
     /// A stick is attached, called this ("stick", "SD card"): keys load
     /// only with none (`docs/SECURITY-MODEL.md`).
     StickAttached(&'static str),
+    /// A silent payments wallet whose scan key or spend key is not what
+    /// the loaded key with its fingerprint (this one) gives at its
+    /// account.
+    SilentDiffers(String),
 }
 
 impl Refusal {
@@ -92,6 +96,7 @@ impl Refusal {
             Refusal::NotAllowed(fp) => fill(EN.wallet_is_not_a_key, &[&fp.to_string()]),
             Refusal::NetworkFixed(n) => fill(EN.wallet_runs_on_only, &[network_name(*n)]),
             Refusal::StickAttached(noun) => fill(EN.stick_keys_keys_load, &[noun]),
+            Refusal::SilentDiffers(fp) => fill(EN.wallet_silent_differs, &[&fp.to_string()]),
         }
     }
 }

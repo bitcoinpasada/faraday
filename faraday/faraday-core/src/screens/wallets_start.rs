@@ -1,6 +1,6 @@
 //! `Screen::WalletsStart`: the Wallets tab's first page, every flow by what the person has.
 
-use super::parts::{FROM_KEY, sign_readiness};
+use super::parts::FROM_KEY;
 use crate::drawing::View;
 use crate::strings::{EN, fill};
 use crate::ui::pal::*;
@@ -327,11 +327,11 @@ pub(crate) fn wallet_rows(
     let total = app.session.wallets.len();
     if ui.compact {
         let mut order: Vec<usize> = (0..total).collect();
-        order.sort_by_key(|&i| std::cmp::Reverse(sign_readiness(app, &app.session.wallets[i])));
+        order.sort_by_key(|&i| std::cmp::Reverse(app.readiness(i)));
         let mut cy = y;
         for &i in &order {
             let w = &app.session.wallets[i];
-            let ready = sign_readiness(app, w);
+            let ready = app.readiness(i);
             let (m, _) = Session::quorum(w);
             let here = app
                 .session
@@ -341,6 +341,9 @@ pub(crate) fn wallet_rows(
                 .count()
                 .min(m);
             let (state, tone) = match ready {
+                _ if app.silent_differs(i) => {
+                    (EN.wallets_does_not_match.to_string(), Role::Error.paint())
+                }
                 2 => (
                     fill(
                         EN.wallet_rows_can_spend,
@@ -377,14 +380,14 @@ pub(crate) fn wallet_rows(
     let rw = (width - gap) / 2.0;
     // Ready wallets first, as the corner lists them.
     let mut order: Vec<usize> = (0..total).collect();
-    order.sort_by_key(|&i| std::cmp::Reverse(sign_readiness(app, &app.session.wallets[i])));
+    order.sort_by_key(|&i| std::cmp::Reverse(app.readiness(i)));
     let shown = (rows * cols).min(total);
     for (k, &i) in order.iter().enumerate().take(shown) {
         let w = &app.session.wallets[i];
         let rx = x + (k % cols) as f32 * (rw + gap);
         let ry = y + (k / cols) as f32 * 52.0;
         let action = open(i);
-        let ready = sign_readiness(app, w);
+        let ready = app.readiness(i);
         ui.fill(
             rx,
             ry,
@@ -418,7 +421,9 @@ pub(crate) fn wallet_rows(
             .count()
             .min(m);
         // The marker on the right: ready, how many here, or none.
+        let differs = app.silent_differs(i);
         let marker = match ready {
+            _ if differs => EN.wallets_does_not_match.to_string(),
             2 => fill(
                 EN.wallet_rows_can_spend,
                 &[&here.to_string(), &m.to_string()],
@@ -427,6 +432,7 @@ pub(crate) fn wallet_rows(
             _ => EN.wallet_rows_watch_only.to_string(),
         };
         let tone = match ready {
+            _ if differs => Role::Error,
             2 => Role::OnOkContainer,
             1 => Role::OnSurface,
             _ => Role::OnSurfaceVariant,

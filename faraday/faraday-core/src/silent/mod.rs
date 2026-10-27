@@ -64,24 +64,89 @@ pub struct SilentState {
 }
 
 /// What the Silent page shows that is derived from its key: whether the
-/// wallet's key is loaded, and the address on show. Public.
+/// wallet's key is loaded, the address on show, and how the wallet's
+/// record stands against the loaded keys. Public.
 #[derive(Clone, Default)]
 pub struct SilentShown {
-    /// Whether the wallet's key is loaded ([`Faraday::silent_key_here`]).
+    /// Whether the wallet's key is loaded and gives the wallet's two
+    /// points ([`Faraday::silent_key_here`]).
     pub key_here: bool,
     /// The address on show ([`Faraday::silent_address`]).
     pub address: Option<String>,
+    /// How the record of the wallet the page is of stands against the
+    /// loaded keys; `None` on a key's page with no wallet, whose address
+    /// is derived from the key.
+    pub check: Option<RecordCheck>,
 }
 
-/// What [`SilentShown`] is derived from: the key, the label, the wallet,
-/// the loaded key's id and the network.
+/// What [`SilentShown`] is derived from: the key, the label, the wallet
+/// and its record, the ids of the loaded keys with the key's fingerprint,
+/// and the network.
 pub(crate) type SilentShownOf = (
     Option<[u8; 4]>,
     u32,
     Option<usize>,
-    Option<[u8; 32]>,
+    Option<SilentWallet>,
+    Vec<[u8; 32]>,
     faraday_bip::keys::Network,
 );
+
+/// How a silent payments wallet's record stands against the loaded keys:
+/// both of its points, the scan key and the spend key, against what a
+/// loaded key with its fingerprint gives at its account. Public.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum RecordCheck {
+    /// A loaded key with the record's fingerprint gives both of its
+    /// points at its account: its address is that key's, derived here.
+    Matches,
+    /// No key with the record's fingerprint is loaded that could check
+    /// it: its address is as the record states it, not checked.
+    #[default]
+    Unchecked,
+    /// A key with the record's fingerprint is loaded and gives another
+    /// scan key or spend key at the record's account: the record has no
+    /// address here.
+    Differs,
+}
+
+/// Costs two key derivations per loaded key with the record's
+/// fingerprint. Record `w` checked against the loaded keys, with the
+/// receiver of the key that gives both of its points and that key's
+/// place, when one does.
+pub(crate) fn check_record(
+    c: &Compute,
+    keys: &faraday_keys::Keys,
+    w: &SilentWallet,
+) -> (RecordCheck, Option<(Receiver, usize)>) {
+    let mut differs = false;
+    for place in 0..keys.len() {
+        if keys[place].fingerprint != w.fingerprint {
+            continue;
+        }
+        let Some(r) = keys.silent_receiver(c, place, w.account) else {
+            continue;
+        };
+        if r.scan_public_key() == w.scan && r.spend_public_key() == w.spend {
+            return (RecordCheck::Matches, Some((r, place)));
+        }
+        differs = true;
+    }
+    let check = if differs {
+        RecordCheck::Differs
+    } else {
+        RecordCheck::Unchecked
+    };
+    (check, None)
+}
+
+/// The ids of the loaded keys with fingerprint `fp`: what a record over
+/// `fp` is checked against.
+pub(crate) fn ids_of(keys: &faraday_keys::Keys, fp: [u8; 4]) -> Vec<[u8; 32]> {
+    keys.all()
+        .filter(|k| k.fingerprint.0 == fp)
+        .map(|k| k.id.0)
+        .collect()
+}
 
 /// The Silent payments flow's area: its state while it is open.
 #[derive(Default)]
@@ -175,20 +240,65 @@ impl SilentArea {
         session.wallets.get(i)?.policy().silent()
     }
 
-    /// Costs what `derive` costs. The scan and spend keys, derived from the
-    /// loaded key: `None` while that key is not loaded, or where it is not
-    /// the key the wallet was written from (a fingerprint is four bytes;
-    /// the wallet is the two points).
-    fn receiver(&self, c: &Compute, session: &Session) -> Option<(Receiver, [u8; 4])> {
-        let s = self.state.as_ref()?;
-        let place = session.keys.position_of(s.key?)?;
-        let r = session.keys.silent_receiver(c, place, 0)?;
-        if let Some(w) = self.wallet(session)
-            && w.spend != r.spend_public_key()
-        {
-            return None;
+    /// Costs two key derivations per loaded key with the wallet's
+    /// fingerprint. How the record of the wallet the page is of stands
+    /// against the loaded keys (`None` on a key's page with no wallet),
+    /// and the scan and spend keys derived from the loaded key with the
+    /// key's fingerprint. On a wallet's page they are derived at the
+    /// record's account and only from a key that gives both of the
+    /// record's points (a fingerprint is four bytes; the wallet is the two
+    /// points); on a key's page, at account 0.
+    fn derived(
+        &self,
+        c: &Compute,
+        session: &Session,
+    ) -> (Option<RecordCheck>, Option<(Receiver, [u8; 4])>) {
+        let Some(s) = self.state.as_ref() else {
+            return (None, None);
+        };
+        if let Some(w) = self.wallet(session) {
+            if s.key != Some(w.fingerprint.0) {
+                return (Some(RecordCheck::Unchecked), None);
+            }
+            let (check, r) = check_record(c, &session.keys, w);
+            let r = r.map(|(r, place)| (r, session.keys[place].fingerprint.0));
+            return (Some(check), r);
         }
-        Some((r, session.keys[place].fingerprint.0))
+        let r = s.key.and_then(|fp| {
+            let place = session.keys.position_of(fp)?;
+            let r = session.keys.silent_receiver(c, place, 0)?;
+            Some((r, session.keys[place].fingerprint.0))
+        });
+        (None, r)
+    }
+
+    /// Costs what `derived` costs. The scan and spend keys, derived from
+    /// the loaded key: `None` while that key is not loaded, or where it
+    /// does not give both of the wallet's points at its account.
+    fn receiver(&self, c: &Compute, session: &Session) -> Option<(Receiver, [u8; 4])> {
+        self.derived(c, session).1
+    }
+
+    /// The address on show from what [`SilentArea::derived`] gives: the
+    /// one derived from the key wherever the key gives it; with no key to
+    /// check it, the record's own unlabelled one, which the page marks
+    /// unchecked; none where the record differs from the key.
+    fn address_of(
+        &self,
+        session: &Session,
+        check: Option<RecordCheck>,
+        r: Option<&(Receiver, [u8; 4])>,
+    ) -> Option<String> {
+        let s = self.state.as_ref()?;
+        if let Some((r, _)) = r {
+            return r.address(s.label);
+        }
+        match check {
+            Some(RecordCheck::Unchecked) if s.label == 0 => {
+                self.wallet(session).map(SilentWallet::address)
+            }
+            _ => None,
+        }
     }
 
     /// Costs two key derivations and an address the first time. What the
@@ -199,52 +309,52 @@ impl SilentArea {
         let Some(s) = self.state.as_ref() else {
             return SilentShown::default();
         };
-        let loaded = session
-            .keys
-            .all()
-            .find(|k| Some(k.fingerprint.0) == s.key)
-            .map(|k| k.id.0);
-        let of = (s.key, s.label, s.wallet, loaded, session.network());
+        let loaded = s.key.map_or_else(Vec::new, |fp| ids_of(&session.keys, fp));
+        let record = self.wallet(session).cloned();
+        let of = (s.key, s.label, s.wallet, record, loaded, session.network());
         if let Some((o, shown)) = s.shown.borrow().as_ref()
             && *o == of
         {
             return shown.clone();
         }
+        let (check, r) = self.derived(c, session);
         let shown = SilentShown {
-            key_here: self.key_here(c, session),
-            address: self.address(c, session),
+            key_here: r.is_some(),
+            address: self.address_of(session, check, r.as_ref()),
+            check,
         };
         *s.shown.borrow_mut() = Some((of, shown.clone()));
         shown
     }
 
-    /// Costs two key derivations: whether the wallet's key is loaded, which
-    /// labels, the scan key and a check need.
+    /// Costs two key derivations: whether the wallet's key is loaded and
+    /// gives both of its points, which labels, the scan key and a check
+    /// need.
     pub(crate) fn key_here(&self, c: &Compute, session: &Session) -> bool {
         self.receiver(c, session).is_some()
     }
 
-    /// Costs two key derivations and an address, none for the wallet's own:
-    /// the address on show, unlabelled or with the chosen label. The
-    /// unlabelled one is the wallet's own, with or without its key; a
-    /// labelled one needs the scan private key.
+    /// Costs two key derivations and an address: the address on show,
+    /// unlabelled or with the chosen label, derived from the loaded key
+    /// that gives both of the wallet's points. With no such key loaded, a
+    /// wallet's own unlabelled address as its record states it, which
+    /// [`SilentShown::check`] marks unchecked; none where a loaded key
+    /// with its fingerprint gives other points.
     pub(crate) fn address(&self, c: &Compute, session: &Session) -> Option<String> {
-        let s = self.state.as_ref()?;
-        if s.label == 0
-            && let Some(w) = self.wallet(session)
-        {
-            return Some(w.address());
-        }
-        let (r, _) = self.receiver(c, session)?;
-        r.address(s.label)
+        let (check, r) = self.derived(c, session);
+        self.address_of(session, check, r.as_ref())
     }
 
-    /// Costs what `receiver` costs. The public record a coordinator keeps:
+    /// Costs what `derived` costs. The public record a coordinator keeps:
     /// the network, the key's origin, the labels handed out and the
-    /// address.
+    /// address. A wallet's record as it is, checked or not; none where a
+    /// loaded key with its fingerprint gives other points.
     pub(crate) fn record(&self, c: &Compute, session: &Session) -> Option<String> {
         if let Some(w) = self.wallet(session) {
-            return Some(w.to_text());
+            return match self.derived(c, session).0 {
+                Some(RecordCheck::Differs) => None,
+                _ => Some(w.to_text()),
+            };
         }
         let s = self.state.as_ref()?;
         let (r, fp) = self.receiver(c, session)?;
@@ -287,6 +397,10 @@ impl SilentArea {
             s.key.ok_or(EN.silent_choose_a_key)?,
         ));
         let mut lines = vec![fill(EN.silent_silent_payment, &[&fp.to_string()])];
+        let check = self.derived(c, session).0;
+        if check == Some(RecordCheck::Differs) {
+            return Err(fill(EN.silent_record_differs, &[&fp.to_string()]));
+        }
         let (title, text, name) = match code {
             crate::Code::Silent(uri) => {
                 let a = self.address(c, session).ok_or(EN.silent_no_address)?;
@@ -304,11 +418,17 @@ impl SilentArea {
                     a
                 };
                 lines.push(EN.silent_public_receives.to_string());
+                if check == Some(RecordCheck::Unchecked) {
+                    lines.push(fill(EN.silent_not_checked, &[&fp.to_string()]));
+                }
                 (EN.silent_silent_payments_address, text, name)
             }
             _ => {
                 let text = self.record(c, session).ok_or(EN.silent_no_record)?;
                 lines.push(EN.silent_public_watch.to_string());
+                if check == Some(RecordCheck::Unchecked) {
+                    lines.push(fill(EN.silent_not_checked, &[&fp.to_string()]));
+                }
                 (
                     EN.silent_silent_payments_record,
                     text,
@@ -489,6 +609,72 @@ impl Faraday {
     /// page shows of its key ([`SilentShown`]), kept on the flow's state.
     pub(crate) fn silent_shown(&self, c: &Compute) -> SilentShown {
         self.silent.shown(c, &self.session)
+    }
+
+    /// Costs two key derivations the first time. How session wallet `i`'s
+    /// silent payments record stands against the loaded keys, kept by the
+    /// record and the ids of the loaded keys with its fingerprint (a
+    /// lookup after); `None` for any other wallet.
+    pub(crate) fn silent_wallet_check(&self, c: &Compute, i: usize) -> Option<RecordCheck> {
+        let w = self.session.wallets.get(i)?.policy().silent()?;
+        Some(self.kept.silent_check(c, &self.session.keys, w))
+    }
+
+    /// Costs two key derivations. [`Faraday::silent_wallet_check`] worked
+    /// out from the record and the keys as they are, for a decision.
+    pub(crate) fn silent_wallet_check_now(&self, c: &Compute, i: usize) -> Option<RecordCheck> {
+        let w = self.session.wallets.get(i)?.policy().silent()?;
+        Some(check_record(c, &self.session.keys, w).0)
+    }
+
+    /// Costs two key derivations for a silent payments wallet, nothing for
+    /// another. The lines under wallet `i`'s code, `lines`: a silent
+    /// payments wallet's "descriptor" is its address, so its code is
+    /// marked not checked while no key with its fingerprint is loaded, and
+    /// not made where a loaded key with its fingerprint gives other points.
+    pub(crate) fn silent_marks(
+        &self,
+        c: &Compute,
+        i: usize,
+        mut lines: Vec<String>,
+    ) -> Result<Vec<String>, String> {
+        let Some(r) = self
+            .session
+            .wallets
+            .get(i)
+            .and_then(|w| w.policy().silent())
+        else {
+            return Ok(lines);
+        };
+        let fp = fp_text(r.fingerprint).to_string();
+        match self.silent_wallet_check_now(c, i) {
+            Some(RecordCheck::Differs) => Err(fill(EN.silent_record_differs, &[&fp])),
+            Some(RecordCheck::Unchecked) => {
+                lines.push(fill(EN.silent_not_checked, &[&fp]));
+                Ok(lines)
+            }
+            _ => Ok(lines),
+        }
+    }
+
+    /// Costs two key derivations for a silent payments wallet, nothing for
+    /// another. Session wallet `i`, for its public files: none for a
+    /// silent payments wallet whose record a loaded key contradicts, whose
+    /// "descriptor" is an address that is not the key's.
+    pub(crate) fn public_wallet(&self, c: &Compute, i: usize) -> Option<&crate::wallet::Wallet> {
+        if self.silent_wallet_check_now(c, i) == Some(RecordCheck::Differs) {
+            return None;
+        }
+        self.session.wallets.get(i)
+    }
+
+    /// Says why a wallet `added` from a vault was refused, where it is a
+    /// silent payments record a loaded key contradicts; any other refusal
+    /// is left to the count of wallets loaded.
+    pub(crate) fn silent_refused(&mut self, added: Result<usize, crate::wallet::Refusal>) {
+        if let Err(e @ crate::wallet::Refusal::SilentDiffers(_)) = added {
+            self.toast(&e.text());
+        }
     }
 
     /// Costs two key derivations: whether the wallet's key is loaded.

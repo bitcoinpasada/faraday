@@ -71,7 +71,9 @@ use sheets::{
 use sidebar::sidebar;
 pub(crate) use sidebar::{lock_held_pill, name_suffix};
 pub(crate) use spend::{STEPS as SPEND_TITLES, signers_count, step_body, step_summary};
-pub(crate) use wallets::{backup_line, loose_card, missing_keys_line, slot_marks};
+pub(crate) use wallets::{
+    backup_line, loose_card, missing_keys_line, silent_address_lines, slot_marks,
+};
 
 const SIDEBAR_W: f32 = 240.0;
 

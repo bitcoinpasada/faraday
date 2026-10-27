@@ -50,6 +50,18 @@ const FP_MEMO_KEPT: usize = 64;
 /// ([`Kept::seeds_address`]); the next one empties the list.
 const SEEDS_ADDRESSES_KEPT: usize = 16;
 
+/// The most silent payments records kept checked against the loaded keys
+/// ([`Kept::silent_check`]); the next one drops the oldest.
+const SILENT_CHECKS_KEPT: usize = 8;
+
+/// A silent payments record checked, by the record and the ids of the
+/// loaded keys with its fingerprint ([`Kept::silent_check`]).
+type KeptSilentCheck = (
+    faraday_bip::silent_wallet::SilentWallet,
+    Vec<[u8; 32]>,
+    crate::silent::RecordCheck,
+);
+
 /// A description's first receive address on a network, or why there is
 /// none ([`Kept::seeds_address`]).
 type KeptAddress = (String, Network, Result<String, String>);
@@ -93,6 +105,9 @@ pub(crate) struct Kept {
     /// Seeds' fingerprints with no passphrase, by a hash of the secret:
     /// the Inbox's wallets and seeds are put together on every frame.
     fp_memo: RefCell<Vec<([u8; 32], Fingerprint)>>,
+    /// Silent payments records checked against the loaded keys, each by
+    /// the record and the ids of the loaded keys with its fingerprint.
+    silent_checks: RefCell<Vec<KeptSilentCheck>>,
 }
 
 impl Kept {
@@ -134,6 +149,11 @@ impl Kept {
                 "seeds' fingerprints (fp_memo)",
                 self.fp_memo.borrow().len(),
                 FP_MEMO_KEPT,
+            ),
+            (
+                "silent payments records checked (silent_check)",
+                self.silent_checks.borrow().len(),
+                SILENT_CHECKS_KEPT,
             ),
         ]
     }
@@ -317,6 +337,35 @@ impl Kept {
         }
         kept.push((d.to_string(), net, a.clone()));
         a
+    }
+
+    /// Costs two key derivations per loaded key with the record's
+    /// fingerprint the first time. Silent payments record `w` checked
+    /// against the loaded keys ([`crate::silent::check_record`]): kept by
+    /// the record and the ids of the loaded keys with its fingerprint,
+    /// which are all the check reads, a lookup after.
+    pub(crate) fn silent_check(
+        &self,
+        c: &Compute,
+        keys: &faraday_keys::Keys,
+        w: &faraday_bip::silent_wallet::SilentWallet,
+    ) -> crate::silent::RecordCheck {
+        let ids = crate::silent::ids_of(keys, w.fingerprint.0);
+        if let Some((.., check)) = self
+            .silent_checks
+            .borrow()
+            .iter()
+            .find(|(r, i, _)| r == w && *i == ids)
+        {
+            return *check;
+        }
+        let check = crate::silent::check_record(c, keys, w).0;
+        let mut kept = self.silent_checks.borrow_mut();
+        if kept.len() >= SILENT_CHECKS_KEPT {
+            kept.remove(0);
+        }
+        kept.push((w.clone(), ids, check));
+        check
     }
 
     /// The fingerprint of a seed with no passphrase, remembered by a hash
@@ -728,6 +777,36 @@ impl View<'_> {
     /// the first time.
     pub fn tools_keys(&self) -> Vec<(String, String)> {
         self.kept(|c| self.app.tools_keys(c))
+    }
+
+    /// How session wallet `i`'s silent payments record stands against the
+    /// loaded keys ([`crate::Faraday::silent_wallet_check`]), kept by the
+    /// record and the keys; `None` for any other wallet. Costs two key
+    /// derivations the first time.
+    pub(crate) fn silent_wallet_check(&self, i: usize) -> Option<crate::silent::RecordCheck> {
+        self.kept(|c| self.app.silent_wallet_check(c, i))
+    }
+
+    /// Whether session wallet `i` is a silent payments wallet whose record
+    /// a loaded key with its fingerprint contradicts
+    /// ([`View::silent_wallet_check`]). Costs two key derivations the
+    /// first time.
+    pub(crate) fn silent_differs(&self, i: usize) -> bool {
+        self.silent_wallet_check(i) == Some(crate::silent::RecordCheck::Differs)
+    }
+
+    /// How far the keys here go to sign for session wallet `i`, as
+    /// [`crate::screens::sign_readiness`] says, with none for a silent
+    /// payments wallet whose record its loaded key contradicts
+    /// ([`View::silent_differs`]). Costs what that costs the first time.
+    pub(crate) fn readiness(&self, i: usize) -> u8 {
+        if self.silent_differs(i) {
+            return 0;
+        }
+        self.session
+            .wallets
+            .get(i)
+            .map_or(0, |w| crate::screens::sign_readiness(self, w))
     }
 
     /// What the Silent page shows of its key

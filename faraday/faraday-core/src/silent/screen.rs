@@ -3,14 +3,14 @@
 
 use crate::drawing::{Scrolled, View};
 use crate::screens::{button_rows, next_button};
-use crate::silent::{SilentState, sstep};
+use crate::silent::{RecordCheck, SilentState, sstep};
 use crate::strings::EN;
 use crate::strings::fill;
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui};
 use crate::wallet::fp_text;
 use crate::{Action, Code, flow};
-use faraday_draw::tokens::{BODY_M, BODY_S, BUTTON_H, LABEL_L, TITLE_M};
+use faraday_draw::tokens::{BODY_M, BODY_S, BUTTON_H, GAP, LABEL_L, PAD, TITLE_M};
 
 pub(crate) const TITLES: [&str; sstep::COUNT] = [
     EN.silent_key,
@@ -118,10 +118,35 @@ fn card(app: &View, s: &SilentState, ui: &mut Ui, k: u8, x: f32, y: f32, w: f32)
                 .collect();
             cy += button_rows(ui, x, cy, w, &row);
         }
+        // A record a loaded key contradicts: no address, no labels, no scan
+        // key and no check.
+        _ if app.silent_shown().check == Some(RecordCheck::Differs) => {
+            let fp = s
+                .key
+                .map(|fp| fp_text(faraday_bip::keys::Fingerprint(fp)).to_string())
+                .unwrap_or_default();
+            cy += ui.wrap_as(
+                (x, cy, w),
+                BODY_M,
+                Role::Error,
+                &fill(EN.silent_record_differs, &[&fp]),
+            ) + PAD;
+        }
         sstep::ADDRESS if !app.silent_shown().key_here && s.wallet.is_some() => {
-            // The wallet's own address needs no key; labels do.
+            // The wallet's own address needs no key, and is not checked
+            // without it; labels need it.
             let a = app.silent_shown().address.unwrap_or_default();
-            cy += ui.wrap_as((x, cy, w), BODY_M.mono(), Role::OnSurface, &a) + 14.0;
+            cy += ui.wrap_as((x, cy, w), BODY_M.mono(), Role::OnSurface, &a) + GAP;
+            let fp = s
+                .key
+                .map(|fp| fp_text(faraday_bip::keys::Fingerprint(fp)).to_string())
+                .unwrap_or_default();
+            cy += ui.wrap_as(
+                (x, cy, w),
+                BODY_S,
+                Role::Warning,
+                &fill(EN.silent_not_checked, &[&fp]),
+            ) + GAP;
             cy += ui.wrap_as(
                 (x, cy, w),
                 BODY_S,

@@ -1244,7 +1244,9 @@ guarantees for this file's rule:
   content; a row's **PNG** is that button without the sheet, and says
   "{name} waits for the stick". Labels under the code: `Key {fp} · {kind}
   · {path}` for a key, `Silent payment address · {fp}` for the silent
-  payments address and record, `Signed by {address}` for a message, the
+  payments address and record (with "Not checked: load key {fp} to check
+  this address" while a wallet's key is not loaded; no code where a loaded
+  key with its fingerprint gives another scan key or spend key), `Signed by {address}` for a message, the
   wallet's shape and keys for its files. A file past one code says so
   instead of writing parts; a PSBT, a transaction, a file shown from
   Files and a secret offer no picture.

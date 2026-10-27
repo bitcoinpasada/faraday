@@ -1596,12 +1596,11 @@ impl Faraday {
             .len();
         let before = self.session.wallets.len();
         for (policy, name) in descs {
-            let _ = self.session.add_policy(
-                &name,
-                policy,
-                EN.vaults_vault,
-                crate::wallet::Origin::Vault,
-            );
+            let to = crate::wallet::Origin::Vault;
+            let added = self
+                .session
+                .add_policy(&c, &name, policy, EN.vaults_vault, to);
+            self.silent_refused(added);
         }
         wallets += self.session.wallets.len() - before;
         self.refresh_spend();

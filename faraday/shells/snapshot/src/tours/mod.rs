@@ -42,6 +42,7 @@ pub(crate) mod restore;
 pub(crate) mod roller;
 pub(crate) mod seedfile;
 pub(crate) mod seeds;
+pub(crate) mod silent;
 pub(crate) mod site_tour;
 pub(crate) mod spend;
 pub(crate) mod standard;

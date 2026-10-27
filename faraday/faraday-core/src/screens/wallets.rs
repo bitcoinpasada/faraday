@@ -1,6 +1,6 @@
 //! `Screen::Wallets`: the Wallets tab, the wallets, the wallet card and every flow (`docs/WALLETS.md`).
 
-use super::parts::{FROM_KEY, sign_readiness};
+use super::parts::FROM_KEY;
 use crate::drawing::View;
 use crate::strings::{EN, fill};
 use crate::ui::pal::*;
@@ -244,7 +244,8 @@ fn wallet_list(app: &View, ui: &mut Ui, rect: (f32, f32, f32, f32)) {
     }
     for (i, wlt) in app.session.wallets.iter().enumerate() {
         // Can spend at its end (`docs/history/SCAN-TO-SIGN.md` §2.4).
-        let can = sign_readiness(app, wlt) == 2;
+        let can = app.readiness(i) == 2;
+        let differs = app.silent_differs(i);
         let (m, _) = Session::quorum(wlt);
         let here = app
             .session
@@ -267,7 +268,11 @@ fn wallet_list(app: &View, ui: &mut Ui, rect: (f32, f32, f32, f32)) {
         let item = crate::panes::screen::Item {
             headline: &wlt.name,
             supporting: &line,
-            trailing: can.then(|| (EN.wallets_can_spend, Role::Ok.paint())),
+            trailing: if differs {
+                Some((EN.wallets_does_not_match, Role::Error.paint()))
+            } else {
+                can.then(|| (EN.wallets_can_spend, Role::Ok.paint()))
+            },
             action: Action::PickWallet(i),
         };
         pane.item(ui, &item, i == app.wallets.wallet());
@@ -766,6 +771,42 @@ fn card_actions(
     );
 }
 
+/// A silent payments wallet's address as its card shows it, by how its
+/// record stands against the loaded keys: the address where a loaded key
+/// gives both of its points; the address and a caution while no key with
+/// its fingerprint is loaded; no address and a danger line where a loaded
+/// key with its fingerprint gives other points. Returns its height.
+pub(crate) fn silent_address_lines(
+    app: &View,
+    ui: &mut Ui,
+    r: &faraday_bip::silent_wallet::SilentWallet,
+    (x, y, w): (f32, f32, f32),
+) -> f32 {
+    use crate::silent::RecordCheck;
+    let fp = fp_text(r.fingerprint).to_string();
+    match app.silent_wallet_check(app.wallets.wallet()) {
+        Some(RecordCheck::Differs) => ui.wrap_as(
+            (x, y, w),
+            BODY_M,
+            Role::Error,
+            &fill(EN.silent_record_differs, &[&fp]),
+        ),
+        Some(RecordCheck::Matches) => {
+            ui.wrap_as((x, y, w), BODY_M.mono(), Role::OnSurface, &r.address())
+        }
+        _ => {
+            let h =
+                ui.wrap_as((x, y, w), BODY_M.mono(), Role::OnSurface, &r.address()) + tokens::GAP;
+            h + ui.wrap_as(
+                (x, y + h, w),
+                BODY_S,
+                Role::Warning,
+                &fill(EN.silent_not_checked, &[&fp]),
+            )
+        }
+    }
+}
+
 /// A silent payments wallet's card: its key, its address and the labels
 /// handed out, then its page. It has nothing to sign: sending to and from
 /// silent payments waits on upstream.
@@ -788,7 +829,13 @@ fn silent_wallet_card(
     if let Some(label) = held {
         ui.text_mid_as((ix + 104.0, cy, 46.0), BODY_S, muted, label);
     }
-    let (state, fg, bg) = if held.is_some() {
+    let (state, fg, bg) = if app.silent_differs(app.wallets.wallet()) {
+        (
+            EN.silent_wallet_card_differs,
+            Role::OnErrorContainer,
+            Role::ErrorContainer,
+        )
+    } else if held.is_some() {
         (
             EN.silent_wallet_card_here,
             Role::OnOkContainer,
@@ -839,7 +886,7 @@ fn silent_wallet_card(
     cy += 64.0;
     ui.text_as(ix, cy, LABEL_M, muted, EN.silent_wallet_card_address_label);
     cy += 24.0;
-    cy += ui.wrap_as((ix, cy, iw), BODY_M.mono(), ink, &r.address()) + 18.0;
+    cy += silent_address_lines(app, ui, r, (ix, cy, iw)) + 18.0;
     ui.text_as(ix, cy, LABEL_M, muted, EN.silent_wallet_card_labels);
     ui.text_as(ix + 180.0, cy, BODY_M.mono(), ink, &r.labels.to_string());
     let items = [

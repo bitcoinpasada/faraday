@@ -4634,6 +4634,10 @@ strings! {
     wallets_of_signatures: "{} of {} signatures possible here",
     /// Text in `wallets`.
     wallets_can_spend: "Can spend",
+    /// A wallet's row in the Wallets list and the wallet rows, in place of
+    /// Can spend, for a silent payments wallet whose record the loaded key
+    /// with its fingerprint contradicts.
+    wallets_does_not_match: "Does not match its key",
     /// Text in `wallets`.
     wallets_scan_a_key: "Scan a key",
     /// Line in `wallets`.
@@ -4647,6 +4651,10 @@ strings! {
     silent_wallet_card_here: "Here",
     /// Text in `silent_wallet_card`.
     silent_wallet_card_not_here: "Not here",
+    /// Chip on a silent payments wallet's card, wide and small panel,
+    /// where the loaded key with its fingerprint gives another scan key or
+    /// spend key.
+    silent_wallet_card_differs: "Does not match",
     /// Text in `silent_wallet_card`.
     silent_wallet_card_load: "Load from vault",
     /// Text in `silent_wallet_card`.
@@ -6597,6 +6605,14 @@ strings! {
     silent_added_to_your: "Added to your wallets",
     /// Toast in `silent_check`.
     silent_not_a_transaction: "Not a transaction",
+    /// Caution under a silent payments wallet's address while no key with
+    /// its fingerprint is loaded, and a line of its QR picture. `{}`: the
+    /// key's fingerprint.
+    silent_not_checked: "Not checked: load key {} to check this address",
+    /// Danger line in place of a silent payments wallet's address where a
+    /// loaded key with its fingerprint gives another scan key or spend
+    /// key, and the error of its QR code. `{}`: the key's fingerprint.
+    silent_record_differs: "This wallet's record does not match key {}: its scan key or spend key is not that key's. Do not use its address",
     // ----- silent (faraday-core/src/silent/screen.rs) -----
     /// Text in `TITLES`.
     silent_key: "Key",
@@ -8036,6 +8052,10 @@ strings! {
     wallet_is_not_a_key: "{} is not a sample: Practice takes only samples",
     /// Text in `text`. `{}`: `network_name(*n)`.
     wallet_runs_on_only: "This app runs on {} only",
+    /// Text in `text`: a silent payments wallet refused because a loaded
+    /// key with its fingerprint gives another scan key or spend key. `{}`:
+    /// the key's fingerprint.
+    wallet_silent_differs: "This wallet's record does not match key {}: its scan key or spend key is not that key's",
     /// Text in `source_tag`. `{}`: `source`.
     wallet_source_tag: "From {}",
     /// Text in `source_tag`. `{}`: `source`.

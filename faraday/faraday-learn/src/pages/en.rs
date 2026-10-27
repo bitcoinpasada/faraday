@@ -1001,6 +1001,12 @@ pub static EN: Learn = Learn {
                 ],
             },
             Section {
+                heading: "A wallet's record and its key",
+                paragraphs: &[
+                    "A silent payments wallet loaded from a file, a code or a vault is a record: the network, the key's fingerprint and account, the labels handed out and the address. Both of the address's keys are checked against the key the record names, at the record's account, whenever that key is loaded: a record they match shows the address the key gives; a record whose scan key or spend key is not the key's is not loaded, and one loaded before its key shows no address once the key is. While the key is not loaded, the address is shown as the record states it, marked not checked.",
+                ],
+            },
+            Section {
                 heading: "Labels",
                 paragraphs: &[
                     "A label turns the one address into several. Label 1, label 2 and so on each give a different `sp1q` string, all found by the same scan key and spendable by the same spend key. Give one to each payer and you can tell payments apart without publishing separate wallets.",

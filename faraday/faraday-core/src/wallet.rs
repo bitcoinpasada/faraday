@@ -496,8 +496,9 @@ impl Session {
         self.follow(psbt_network(psbt, self.network()))
     }
 
-    /// Costs what `read_wallet` costs. Adds the wallet the text describes,
-    /// under `name`, unless the same descriptor is already loaded. `origin`
+    /// Costs what `read_wallet` and `add_policy` cost. Adds the wallet the
+    /// text describes, under `name`, unless the same descriptor is already
+    /// loaded. `origin`
     /// is what [`Wallet::source`] is: the caller already knows this (it is
     /// the one that chose `source`'s words), so it says so here rather than
     /// this reading the text back.
@@ -509,18 +510,29 @@ impl Session {
         source: &str,
         origin: Origin,
     ) -> Result<usize, Refusal> {
-        self.add_policy(name, read_wallet(c, text)?, source, origin)
+        self.add_policy(c, name, read_wallet(c, text)?, source, origin)
     }
 
+    /// Costs two key derivations per loaded key with a silent payments
+    /// wallet's fingerprint, nothing for any other wallet.
     /// [`Session::add_wallet`] of a description read before (a vault's
-    /// kept records): no parse.
+    /// kept records): no parse. A silent payments wallet whose scan key or
+    /// spend key is not what a loaded key with its fingerprint gives at
+    /// its account is refused.
     pub fn add_policy(
         &mut self,
+        c: &Compute,
         name: &str,
         policy: WalletPolicy,
         source: &str,
         origin: Origin,
     ) -> Result<usize, Refusal> {
+        if let Some(w) = policy.silent()
+            && crate::silent::check_record(c, &self.keys, w).0
+                == crate::silent::RecordCheck::Differs
+        {
+            return Err(Refusal::SilentDiffers(fp_text(w.fingerprint).to_string()));
+        }
         let descriptor = same_wallet(&policy);
         if let Some(i) = self
             .wallets

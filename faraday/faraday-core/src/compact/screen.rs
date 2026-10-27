@@ -411,7 +411,13 @@ fn silent_card(
         Role::OnSurface,
         &fp_text(r.fingerprint),
     );
-    let (state, fg, bg) = if held.is_some() {
+    let (state, fg, bg) = if app.silent_differs(app.wallets.wallet()) {
+        (
+            EN.silent_wallet_card_differs,
+            Role::OnErrorContainer,
+            Role::ErrorContainer,
+        )
+    } else if held.is_some() {
         (EN.compact_here, Role::OnOkContainer, Role::OkContainer)
     } else {
         (
@@ -452,7 +458,7 @@ fn silent_card(
     }
     cy += 10.0;
     cy += heading(ui, x, cy, EN.compact_address);
-    cy += ui.wrap_as((x, cy, iw), BODY_M.mono(), Role::OnSurface, &r.address()) + 14.0;
+    cy += crate::screens::silent_address_lines(app, ui, r, (x, cy, iw)) + 14.0;
     ui.text_as(
         x,
         cy,
