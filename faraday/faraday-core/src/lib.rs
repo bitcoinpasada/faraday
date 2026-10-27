@@ -7214,14 +7214,9 @@ impl App for Faraday {
                 chroma,
             } => match self.camera.scan_mut() {
                 Some(s) => {
-                    if let Some((_, _, old)) = s.frame.as_mut() {
-                        zeroize::Zeroize::zeroize(old);
-                    }
-                    if let Some(old) = s.chroma.as_mut() {
-                        zeroize::Zeroize::zeroize(old);
-                    }
-                    s.frame = Some((width, height, luma));
-                    s.chroma = chroma;
+                    // The frame replaced is wiped as it drops.
+                    s.frame = Some((width, height, zeroize::Zeroizing::new(luma)));
+                    s.chroma = chroma.map(zeroize::Zeroizing::new);
                     s.frames = s.frames.wrapping_add(1);
                     s.waiting_since = None;
                     if s.no_picture == Some(NoPicture::Silent) {

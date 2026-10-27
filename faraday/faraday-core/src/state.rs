@@ -527,6 +527,11 @@ fn add_slip39(parts: &mut forms::Parts, text: &str) -> Result<(), String> {
     if parts.slip39.iter().any(|t| t.indices() == s.indices()) {
         return Err(EN.forms_share_duplicate.to_string());
     }
+    // Never past the room made at the start: a list that grows leaves a
+    // copy of every share behind.
+    if parts.slip39.len() >= parts.slip39.capacity().min(forms::SLIP39_ROOM) {
+        return Err(EN.forms_shares_full.to_string());
+    }
     parts.slip39.push(s);
     Ok(())
 }

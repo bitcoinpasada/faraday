@@ -60,10 +60,12 @@ pub enum ScanPurpose {
 /// What the camera sheet holds.
 #[derive(Default)]
 pub struct ScanState {
-    /// The newest preview frame: width, height, luma.
-    pub frame: Option<(u16, u16, Vec<u8>)>,
-    /// Its NV12 chroma plane, when the camera gives colour.
-    pub chroma: Option<Vec<u8>>,
+    /// The newest preview frame: width, height, luma. Wiped when it is
+    /// replaced or dropped: a frame may picture a SeedQR.
+    pub frame: Option<(u16, u16, zeroize::Zeroizing<Vec<u8>>)>,
+    /// Its NV12 chroma plane, when the camera gives colour, wiped the same
+    /// way.
+    pub chroma: Option<zeroize::Zeroizing<Vec<u8>>>,
     /// What the scanner last saw of a code, and at which preview frame.
     pub seen: Option<(Seen, u32)>,
     /// Preview frames shown so far.
@@ -217,12 +219,13 @@ pub(crate) fn ur_note(decoder: &faraday_codec::ur::Decoder, restarted: bool) -> 
 
 impl Drop for ScanState {
     fn drop(&mut self) {
-        // A frame may hold a picture of a SeedQR.
+        // A frame may hold a picture of a SeedQR: wiped here, as each
+        // frame replaced is by its own guard.
         if let Some((_, _, luma)) = self.frame.as_mut() {
-            zeroize::Zeroize::zeroize(luma);
+            zeroize::Zeroize::zeroize(&mut **luma);
         }
         if let Some(uv) = self.chroma.as_mut() {
-            zeroize::Zeroize::zeroize(uv);
+            zeroize::Zeroize::zeroize(&mut **uv);
         }
     }
 }

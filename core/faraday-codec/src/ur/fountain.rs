@@ -202,7 +202,8 @@ impl Encoder {
     }
 }
 
-/// Accumulates parts until every fragment is resolved.
+/// Accumulates parts until every fragment is resolved. What it has read
+/// is wiped when it is dropped: a code read by the camera may be a seed.
 #[derive(Default)]
 pub struct Decoder {
     decoded: BTreeMap<usize, Vec<u8>>,
@@ -213,6 +214,21 @@ pub struct Decoder {
     message_length: usize,
     checksum: u32,
     fragment_length: usize,
+}
+
+impl Drop for Decoder {
+    fn drop(&mut self) {
+        use zeroize::Zeroize;
+        for v in self.decoded.values_mut() {
+            v.zeroize();
+        }
+        for v in self.buffer.values_mut() {
+            v.zeroize();
+        }
+        for (_, v) in &mut self.queue {
+            v.zeroize();
+        }
+    }
 }
 
 impl Decoder {

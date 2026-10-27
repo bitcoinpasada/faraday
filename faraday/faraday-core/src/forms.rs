@@ -55,15 +55,21 @@ pub struct Parts {
     pub codex32_vaults: usize,
 }
 
-/// Room for every share a backup can have, made at the start: a list
-/// that grows moves its shares to a larger buffer and frees the old one
-/// as it is, which would leave a copy of each share behind.
+/// Room for every codex32 string a set can have, made at the start: one
+/// per character of the bech32 alphabet. A list that grows moves its
+/// shares to a larger buffer and frees the old one as it is, which would
+/// leave a copy of each share behind.
 const PART_ROOM: usize = 32;
+
+/// Room for every SLIP-39 share a set can have, made at the start for the
+/// same reason: 16 groups of 16 members, SLIP-39's most. A share past it
+/// is refused rather than moving the others.
+pub(crate) const SLIP39_ROOM: usize = 16 * 16;
 
 impl Default for Parts {
     fn default() -> Self {
         Parts {
-            slip39: Vec::with_capacity(PART_ROOM),
+            slip39: Vec::with_capacity(SLIP39_ROOM),
             codex32: Vec::with_capacity(PART_ROOM),
             xor: SeedXor::default(),
             codex32_vaults: 0,

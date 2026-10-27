@@ -584,6 +584,7 @@ dependencies = [
  "faraday-codec",
  "faraday-crypto",
  "miniz_oxide 0.8.9",
+ "zeroize",
 ]
 
 [[package]]

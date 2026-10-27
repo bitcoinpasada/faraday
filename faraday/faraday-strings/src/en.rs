@@ -2185,6 +2185,8 @@ strings! {
     forms_other_seed_string: "That string is of another seed: its id differs",
     /// Error in `form_add_part`.
     forms_share_duplicate: "That share is in already",
+    /// A SLIP-39 share past the most a set can have (16 groups of 16).
+    forms_shares_full: "256 shares are in: a SLIP-39 set has no more",
     /// Text in `form_add_part`. `{}`: `e`.
     forms_not_bip_39_words: "Not BIP-39 words: {}",
     /// Error in `form_add_part`.

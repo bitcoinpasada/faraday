@@ -148,12 +148,22 @@ pub enum Got {
     },
 }
 
-/// A transfer being put together.
+/// A transfer being put together. The parts read are wiped when it is
+/// dropped: a transfer may be a secret.
 #[derive(Debug, Default)]
 pub struct Collector {
     header: Option<(u8, u8, usize)>,
     parts: BTreeMap<usize, Vec<u8>>,
     bytes: usize,
+}
+
+impl Drop for Collector {
+    fn drop(&mut self) {
+        use zeroize::Zeroize;
+        for v in self.parts.values_mut() {
+            v.zeroize();
+        }
+    }
 }
 
 impl Collector {
@@ -230,13 +240,15 @@ impl Collector {
         {
             return Err(Error::Malformed("its parts are of uneven length"));
         }
-        let joined: Vec<u8> = self.parts.values().flatten().copied().collect();
+        // Wiped when dropped: what is handed on is moved out, not copied.
+        let mut joined =
+            zeroize::Zeroizing::new(self.parts.values().flatten().copied().collect::<Vec<u8>>());
         let data = if encoding == b'Z' {
             miniz_oxide::inflate::decompress_to_vec_with_limit(&joined, MAX_DATA).map_err(|_| {
                 Error::Malformed("its compressed data does not inflate within 360 KiB")
             })?
         } else {
-            joined
+            std::mem::take(&mut *joined)
         };
         Ok(Got::Done {
             file_type: char::from(file_type),

@@ -754,7 +754,13 @@ pub(super) fn scan_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     // A QR found and read, still in view: the brackets turn green.
     let mut read_in_view = false;
     if let Some((fw, fh, luma)) = sc.frame.as_ref() {
-        ui.c.luma(rect, *fw, *fh, luma, sc.chroma.as_deref());
+        ui.c.luma(
+            rect,
+            *fw,
+            *fh,
+            luma,
+            sc.chroma.as_ref().map(|c| c.as_slice()),
+        );
         // The code the scanner last found, outlined where it is: green
         // once read, amber while it is found and not read.
         // Gone ten preview frames after the scanner stops seeing it.

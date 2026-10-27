@@ -407,7 +407,8 @@ impl Encoder {
 }
 
 /// Accumulates the parts of a multi-part UR (and accepts a single-part
-/// one) until the message is complete.
+/// one) until the message is complete. A message not taken out is wiped
+/// when it is dropped, with the parts read.
 #[derive(Default)]
 pub struct Decoder {
     inner: Option<fountain::Decoder>,
@@ -509,8 +510,19 @@ impl Decoder {
     }
 
     /// Takes the message out, once complete.
-    pub fn into_message(self) -> Option<Message> {
-        self.done
+    pub fn into_message(mut self) -> Option<Message> {
+        self.done.take()
+    }
+}
+
+impl Drop for Decoder {
+    fn drop(&mut self) {
+        use zeroize::Zeroize;
+        match self.done.as_mut() {
+            Some(Message::Psbt(b) | Message::Bytes(b)) => b.zeroize(),
+            Some(Message::Other { cbor, .. }) => cbor.zeroize(),
+            None => {}
+        }
     }
 }
 

@@ -23,11 +23,21 @@ pub fn parse(text: &str) -> Option<(usize, usize, &str)> {
     (n >= 1 && n <= m && m <= MAX_PARTS && !body.is_empty()).then_some((n, m, body))
 }
 
-/// Parts being put together.
+/// Parts being put together. The parts read are wiped when it is
+/// dropped: a transfer may be a secret.
 #[derive(Debug, Default)]
 pub struct Collector {
     total: usize,
     parts: BTreeMap<usize, String>,
+}
+
+impl Drop for Collector {
+    fn drop(&mut self) {
+        use zeroize::Zeroize;
+        for v in self.parts.values_mut() {
+            v.zeroize();
+        }
+    }
 }
 
 /// Where the parts stand.
@@ -67,7 +77,9 @@ impl Collector {
             let missing = (1..=m).filter(|i| !self.parts.contains_key(i)).collect();
             return Got::Part(self.parts.len(), m, missing);
         }
-        Got::Done(self.parts.values().cloned().collect())
+        // Joined straight from the parts, which stay to catch a part
+        // read again with other text: no copy of a part is made.
+        Got::Done(self.parts.values().map(String::as_str).collect())
     }
 }
 
