@@ -389,3 +389,25 @@ impl super::Vaults {
         view
     }
 }
+
+// ---- a vault file as Files lists it ----
+
+impl super::VaultFile {
+    /// File `it`, whose header is `header`: in For the stick or not, and
+    /// open vault `open` when one of its slots is. No copies yet.
+    pub(crate) fn new(
+        it: &crate::Item,
+        in_outbox: bool,
+        header: faraday_vault::Header,
+        open: Option<usize>,
+    ) -> Self {
+        Self {
+            name: it.name.clone(),
+            in_outbox,
+            header,
+            len: it.bytes.len(),
+            open,
+            copies: Vec::new(),
+        }
+    }
+}

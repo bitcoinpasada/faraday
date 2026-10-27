@@ -214,7 +214,9 @@ impl Faraday {
                 let Ok(header) = fv::read_header(&it.bytes) else {
                     continue;
                 };
-                if out.iter().any(|v| v.header.salt == header.salt) {
+                // A copy of a vault listed already, under another name.
+                if let Some(v) = out.iter_mut().find(|v| v.header.salt == header.salt) {
+                    v.copies.push(it.name.clone());
                     continue;
                 }
                 let open = self
@@ -222,13 +224,7 @@ impl Faraday {
                     .open
                     .iter()
                     .position(|o| o.header().salt == header.salt);
-                out.push(VaultFile {
-                    name: it.name.clone(),
-                    in_outbox,
-                    header,
-                    len: it.bytes.len(),
-                    open,
-                });
+                out.push(VaultFile::new(it, in_outbox, header, open));
             }
         }
         // Open vaults whose file is in neither box still list.

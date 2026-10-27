@@ -1085,6 +1085,9 @@ strings! {
     /// Text in `import_toast`, after `boot_import_imported` and a " · " when a file
     /// Import asked for was not read. `{}`: how many.
     boot_import_n_not_read: "{} not read",
+    /// The import's toast when a file came in beside one of the same
+    /// name in Files. `{}`: the toast so far, then the new names.
+    boot_import_kept_as: "{} · already in Files, kept as {}",
     /// Text in `import_if_read`.
     boot_import_wallet_inline: "wallet",
     /// Text in `import_if_read`.
@@ -3427,6 +3430,9 @@ strings! {
     storage_event_wrote_read: "Wrote {}, read back and matched",
     /// Text in `storage_event`. `{}`: `name`, `wrote_as`.
     storage_event_wrote: "Wrote {} as {}, read back and matched",
+    /// A visit's line: a file came in under a name Files already holds.
+    /// `{}`: its name on the stick, then the name it is kept under.
+    storage_event_kept_as: "{} is in Files already: this one kept as {}",
     /// Text in `storage_event`.
     storage_event_it_stays: "It stays in Files",
     /// Text in `storage_event`. `{}`: `self.medium.for_the()`.

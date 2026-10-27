@@ -493,10 +493,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         let name = ui.fit_as(BODY_M.mono(), &item.name, colw - 90.0);
         ui.text_as(x + 66.0, iy + 14.0, BODY_M.mono(), Role::OnSurface, &name);
         let line = if item.kind == FileKind::Vault
-            && app
-                .vault_files()
-                .iter()
-                .any(|f| f.name == item.name && f.open.is_some())
+            && vault_of_row(&app.vault_files(), item).is_some_and(|f| f.open.is_some())
         {
             kind_line(item.kind, item.bytes.len()).replace(EN.files_locked, EN.files_open)
         } else {
@@ -537,25 +534,27 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             }
             FileKind::Vault => {
                 let files = app.vault_files();
-                let at = files.iter().position(|f| f.name == item.name).unwrap_or(0);
-                let open = files.get(at).is_some_and(|f| f.open.is_some());
-                bx += ui.button(
-                    bx,
-                    iy + 64.0,
-                    None,
-                    BUTTON_H,
-                    if open {
-                        EN.files_contents
-                    } else {
-                        EN.files_unlock
-                    },
-                    if open {
-                        Style::Secondary
-                    } else {
-                        Style::Primary
-                    },
-                    Action::Vault(crate::vault::VaultAction::Open(at)),
-                ) + 8.0;
+                // The row's own vault, or no button.
+                if let Some(at) = vault_at(&files, item) {
+                    let open = files[at].open.is_some();
+                    bx += ui.button(
+                        bx,
+                        iy + 64.0,
+                        None,
+                        BUTTON_H,
+                        if open {
+                            EN.files_contents
+                        } else {
+                            EN.files_unlock
+                        },
+                        if open {
+                            Style::Secondary
+                        } else {
+                            Style::Primary
+                        },
+                        Action::Vault(crate::vault::VaultAction::Open(at)),
+                    ) + 8.0;
+                }
             }
             FileKind::Psbt => {
                 bx += ui.button(
@@ -1724,22 +1723,24 @@ fn inbox_actions(app: &View, k: usize, item: &crate::Item) -> (Buttons, Note) {
         }
         FileKind::Vault => {
             let files = app.vault_files();
-            let at = files.iter().position(|f| f.name == item.name).unwrap_or(0);
-            let open = files.get(at).is_some_and(|f| f.open.is_some());
-            out.push((
-                if open {
-                    EN.inbox_actions_contents
-                } else {
-                    EN.inbox_actions_unlock
-                }
-                .into(),
-                if open {
-                    Style::Secondary
-                } else {
-                    Style::Primary
-                },
-                Action::Vault(crate::vault::VaultAction::Open(at)),
-            ));
+            // The row's own vault, or no button.
+            if let Some(at) = vault_at(&files, item) {
+                let open = files[at].open.is_some();
+                out.push((
+                    if open {
+                        EN.inbox_actions_contents
+                    } else {
+                        EN.inbox_actions_unlock
+                    }
+                    .into(),
+                    if open {
+                        Style::Secondary
+                    } else {
+                        Style::Primary
+                    },
+                    Action::Vault(crate::vault::VaultAction::Open(at)),
+                ));
+            }
         }
         FileKind::Psbt => {
             out.push((
@@ -1964,10 +1965,7 @@ fn compact_inbox(app: &View, ui: &mut Ui, (x, y0, w): (f32, f32, f32)) -> f32 {
     y += 28.0;
     for (k, item) in app.inbox.iter().enumerate() {
         let line = if item.kind == FileKind::Vault
-            && app
-                .vault_files()
-                .iter()
-                .any(|f| f.name == item.name && f.open.is_some())
+            && vault_of_row(&app.vault_files(), item).is_some_and(|f| f.open.is_some())
         {
             kind_line(item.kind, item.bytes.len()).replace(EN.files_locked, EN.files_open)
         } else {
@@ -2118,4 +2116,23 @@ fn compact_tail(app: &View, ui: &mut Ui, (x, y0, w): (f32, f32, f32)) -> f32 {
         Some(crate::learn::Topic::AirGap),
     );
     y - y0
+}
+
+/// The place among `files` ([`crate::Faraday::vault_files`]) of the vault
+/// From the stick row `item` is: its own file by name in that list, or
+/// the vault it is a copy of ([`crate::vault::VaultFile::copies`]), never
+/// a For the stick file of its name that is another vault; `None` when it
+/// is neither. A lookup.
+fn vault_at(files: &[crate::vault::VaultFile], item: &crate::Item) -> Option<usize> {
+    files
+        .iter()
+        .position(|f| (f.name == item.name && !f.in_outbox) || f.copies.contains(&item.name))
+}
+
+/// [`vault_at`]'s vault file.
+fn vault_of_row<'a>(
+    files: &'a [crate::vault::VaultFile],
+    item: &crate::Item,
+) -> Option<&'a crate::vault::VaultFile> {
+    vault_at(files, item).map(|i| &files[i])
 }

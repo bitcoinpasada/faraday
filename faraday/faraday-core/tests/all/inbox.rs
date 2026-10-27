@@ -409,3 +409,126 @@ fn no_screen_or_sheet_calls_either_half_inbox_or_outbox() {
         );
     }
 }
+
+/// A second copy of an open vault in Files, under another name, is that
+/// vault: its row says it is open and offers its Contents, never another
+/// vault's Unlock.
+#[test]
+fn a_copy_of_an_open_vault_under_another_name_is_that_vault() {
+    let b = crate::common::vault("B", &["b phrase"], 0x31);
+    let mut app = crate::common::process(
+        vec![
+            (
+                "a.ofv".to_string(),
+                crate::common::vault("A", &["a phrase"], 0x30),
+            ),
+            ("b.ofv".to_string(), b.clone()),
+            ("b-copy.ofv".to_string(), b),
+        ],
+        Vec::new(),
+        Vec::new(),
+    );
+    app.press(Action::Vault(V::Open(1)));
+    crate::common::unlock(&mut app, "b phrase");
+    assert_eq!(app.vaults().open.len(), 1, "B did not open");
+    app.press(Action::Nav(Screen::Files));
+    let _ = app.frame();
+    let texts = app.drawn_texts();
+    let contents = texts.iter().filter(|t| t.as_str() == "Contents").count();
+    assert_eq!(contents, 2, "b.ofv and its copy are both open: {texts:?}");
+}
+
+/// A file read from a stick under a name Files already holds, with other
+/// bytes, is kept beside it under a numbered name, and the visit says so;
+/// the same bytes again change nothing.
+#[test]
+fn a_second_file_of_the_same_name_is_kept_under_a_numbered_name() {
+    let mut app = with_files(vec![("notes.txt".to_string(), b"first\n".to_vec())]);
+    app.storage(StorageEvent::Read {
+        stick: "s".into(),
+        name: "notes.txt".into(),
+        bytes: b"second\n".to_vec(),
+    });
+    let names: Vec<(&str, &[u8])> = app
+        .inbox()
+        .iter()
+        .map(|i| (i.name.as_str(), i.bytes.as_slice()))
+        .collect();
+    assert_eq!(
+        names,
+        vec![
+            ("notes.txt", b"first\n".as_slice()),
+            ("notes-2.txt", b"second\n".as_slice())
+        ]
+    );
+    assert!(
+        app.visit()
+            .log
+            .iter()
+            .any(|(l, _)| l.contains("notes-2.txt")),
+        "{:?}",
+        app.visit().log
+    );
+    app.storage(StorageEvent::Read {
+        stick: "s".into(),
+        name: "notes.txt".into(),
+        bytes: b"first\n".to_vec(),
+    });
+    assert_eq!(app.inbox().len(), 2, "the same bytes again are no new file");
+}
+
+/// A From the stick vault row whose name a For the stick vault also
+/// has, another vault, is its own vault: with the For the stick one open
+/// and its own locked, the row offers Unlock, not the other's Contents.
+#[test]
+fn a_vault_row_names_its_own_vault_not_another_of_its_name() {
+    let mut app = crate::common::process(
+        vec![(
+            "v.ofv".to_string(),
+            crate::common::vault("B", &["b phrase"], 0x31),
+        )],
+        vec![(
+            "v.ofv".to_string(),
+            crate::common::vault("A", &["a phrase"], 0x30),
+        )],
+        Vec::new(),
+    );
+    app.press(Action::Vault(V::Open(0)));
+    crate::common::unlock(&mut app, "a phrase");
+    assert_eq!(app.vaults().open.len(), 1, "A did not open");
+    app.press(Action::Nav(Screen::Files));
+    let _ = app.frame();
+    let texts = app.drawn_texts();
+    assert!(texts.iter().any(|t| t == "Unlock"), "{texts:?}");
+    assert!(!texts.iter().any(|t| t == "Contents"), "{texts:?}");
+}
+
+/// A vault written to a stick stays in Files as the stick holds it; a
+/// file of its name Files holds, another vault, stays too, the written
+/// one numbered beside it, and the visit says so.
+#[test]
+fn a_written_vault_beside_another_of_its_name_is_kept_numbered() {
+    let a = crate::common::vault("A", &["a phrase"], 0x30);
+    let b = crate::common::vault("B", &["b phrase"], 0x31);
+    let mut app = crate::common::process(
+        vec![("v.ofv".to_string(), b.clone())],
+        vec![("v.ofv".to_string(), a.clone())],
+        Vec::new(),
+    );
+    app.storage(StorageEvent::Written {
+        stick: "s".into(),
+        name: "v.ofv".into(),
+        wrote_as: "v.ofv".into(),
+    });
+    let held: Vec<(&str, bool)> = app
+        .inbox()
+        .iter()
+        .map(|i| (i.name.as_str(), i.bytes == a))
+        .collect();
+    assert_eq!(held, vec![("v.ofv", false), ("v-2.ofv", true)]);
+    assert!(
+        app.visit().log.iter().any(|(l, _)| l.contains("v-2.ofv")),
+        "{:?}",
+        app.visit().log
+    );
+}

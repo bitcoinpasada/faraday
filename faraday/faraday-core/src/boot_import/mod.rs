@@ -811,17 +811,39 @@ impl Faraday {
         let files: BTreeSet<usize> = item_file.iter().copied().collect();
         let mut vaults: Vec<String> = Vec::new();
         let mut plain: Vec<Item> = Vec::new();
-        for item in items {
+        // A file whose name Files holds with other bytes comes in beside
+        // it under a numbered name, said in the toast; one Files holds
+        // with the same bytes is read for what it gives, not kept twice.
+        let mut renamed: Vec<String> = Vec::new();
+        let mut already: BTreeSet<String> = BTreeSet::new();
+        for mut item in items {
+            let again = self
+                .inbox
+                .iter()
+                .any(|i| i.name == item.name && i.bytes == item.bytes);
             if item.kind == FileKind::Vault {
+                if again {
+                    self.inbox.retain(|i| i.name != item.name);
+                } else {
+                    let name = self.free_inbox_name(&item.name);
+                    if name != item.name {
+                        renamed.push(name.clone());
+                    }
+                    item.name = name;
+                }
                 self.vault_read_from(&item.name, &item.bytes, &label);
-                self.inbox.retain(|i| i.name != item.name);
                 vaults.push(item.name.clone());
                 self.inbox.push(item);
+            } else if again {
+                already.insert(item.name.clone());
+                plain.push(item);
             } else {
-                let mut item = item;
                 let taken = |n: &str| plain.iter().any(|p: &Item| p.name == n);
-                let name = self.free_inbox_name(&item.name);
-                item.name = free_name(&name, taken);
+                let name = free_name(&self.free_inbox_name(&item.name), taken);
+                if name != item.name {
+                    renamed.push(name.clone());
+                }
+                item.name = name;
                 plain.push(item);
             }
         }
@@ -836,13 +858,14 @@ impl Faraday {
             self.import
                 .hold_for_pull(plain.iter().map(|i| i.name.clone()));
         }
-        self.inbox.extend(plain);
+        self.inbox
+            .extend(plain.into_iter().filter(|i| !already.contains(&i.name)));
         self.save_boxes();
         self.refresh_spend();
         self.wallets.set_wallet(0);
         let keys = self.session.keys.len() - keys_before;
         let wallets = self.session.wallets.len() - wallets_before;
-        self.import_toast(wallets, keys, files.len(), failed);
+        self.import_toast(wallets, keys, files.len(), failed, &renamed);
         if let Some(imp) = self.import.state_mut() {
             imp.unlocking = Some(vaults);
         }
@@ -856,8 +879,16 @@ impl Faraday {
     }
 
     /// What Import brought in, said: "Imported 1 wallet · 2 keys · 6
-    /// files", and "· 1 not read" when a file it asked for was not.
-    fn import_toast(&mut self, wallets: usize, keys: usize, files: usize, failed: usize) {
+    /// files", "· 1 not read" when a file it asked for was not, and the
+    /// names of the files kept beside others of their names.
+    fn import_toast(
+        &mut self,
+        wallets: usize,
+        keys: usize,
+        files: usize,
+        failed: usize,
+        renamed: &[String],
+    ) {
         let count =
             |n: usize, one: &str, many: &str| format!("{n} {}", if n == 1 { one } else { many });
         let mut said = fill(
@@ -877,6 +908,9 @@ impl Faraday {
                 "{said} · {}",
                 fill(EN.boot_import_n_not_read, &[&failed.to_string()])
             );
+        }
+        if !renamed.is_empty() {
+            said = fill(EN.boot_import_kept_as, &[&said, &renamed.join(", ")]);
         }
         self.toast(&said);
     }

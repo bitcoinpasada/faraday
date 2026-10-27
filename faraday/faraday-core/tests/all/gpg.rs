@@ -747,11 +747,12 @@ fn signing_takes_a_hold() {
     )));
 }
 
-/// The ticks are keyed by name and hash: a stick visit that replaces a
-/// ticked file's bytes while Sign with {key} is open leaves it unticked,
-/// and the hold signs nothing.
+/// The ticks are keyed by name and hash: a stick visit's file of a
+/// ticked file's name comes in beside it, and a ticked file whose bytes
+/// change while Sign with {key} is open is left unticked, and the hold
+/// signs nothing.
 #[test]
-fn a_stick_visit_that_replaces_a_ticked_file_drops_its_tick() {
+fn a_ticked_file_whose_bytes_change_drops_its_tick() {
     let c = faraday_core::testkit::compute();
     let mut app = signing();
     let k = listed(&app, "SHA256SUMS");
@@ -763,17 +764,27 @@ fn a_stick_visit_that_replaces_a_ticked_file_drops_its_tick() {
         "SHA256SUMS".to_string(),
         b"# Faraday 0.1.0, commit 7fcc43a\n0000  faraday-0.1.0-linux-x86_64\n".to_vec(),
     );
-    // What a stick visit's Copy answers with: the file read from a stick.
+    // What a stick visit's Copy answers with: a file of the same name,
+    // kept beside the ticked one.
     app.storage(StorageEvent::Read {
         stick: "S".into(),
         name: changed.0.clone(),
         bytes: changed.1.clone(),
     });
-    let item = app.inbox().iter().find(|i| i.name == "SHA256SUMS").unwrap();
-    assert_eq!(
-        item.bytes, changed.1,
-        "the stick's file is the one in the Inbox"
-    );
+    let named: Vec<&str> = app
+        .inbox()
+        .iter()
+        .map(|i| i.name.as_str())
+        .filter(|n| n.starts_with("SHA256SUMS"))
+        .collect();
+    assert_eq!(named, ["SHA256SUMS", "SHA256SUMS-2"]);
+    // The ticked file's bytes change under its name.
+    let at = app
+        .inbox()
+        .iter()
+        .position(|i| i.name == "SHA256SUMS")
+        .unwrap();
+    faraday_core::testkit::inbox_item_mut(&mut app, at).bytes = changed.1.clone();
     // The sheet lists no file to sign.
     let sheet = drawn(&mut app);
     assert!(!sheet.contains("Holdtosign1file"), "{sheet}");

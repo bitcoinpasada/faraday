@@ -1305,3 +1305,47 @@ fn a_vaults_words_and_master_seed_keys_load_on_unlock() {
         assert_eq!(key_fps(&app), [want], "{kind}, Vaults");
     }
 }
+
+/// A boot stick file whose name Files holds with other bytes comes in
+/// beside it under a numbered name, and the toast says so; one Files
+/// holds with the same bytes is not kept twice.
+#[test]
+fn import_keeps_a_file_of_a_held_name_beside_it_and_a_same_one_once() {
+    let files = stick_files();
+    let wallet = files
+        .iter()
+        .find(|(n, _)| n == "zebra-wallet.txt")
+        .unwrap()
+        .clone();
+    let mut app = testkit::started();
+    faraday_core::testkit::move_to(&mut app.session, faraday_core::testkit::NET).unwrap();
+    app.storage(StorageEvent::Restored {
+        inbox: vec![("notes.txt".into(), b"Other notes\n".to_vec()), wallet],
+        outbox: Vec::new(),
+        kept: Vec::new(),
+    });
+    app.storage(StorageEvent::Memory {
+        available_mib: 15_000,
+    });
+    faraday_core::testkit::vault_speed(&mut app, Some(100));
+    app.storage(StorageEvent::Sticks(vec![boot_stick(&files)]));
+    pump(&mut app, &files);
+    go(&mut app, &files);
+    let names = inbox_names(&app);
+    let count = |n: &str| names.iter().filter(|x| x.as_str() == n).count();
+    assert_eq!(count("notes.txt"), 1, "{names:?}");
+    assert_eq!(count("notes-2.txt"), 1, "{names:?}");
+    assert_eq!(count("zebra-wallet.txt"), 1, "{names:?}");
+    assert!(
+        !names.iter().any(|n| n == "zebra-wallet-2.txt"),
+        "{names:?}"
+    );
+    let held = app.inbox().iter().find(|i| i.name == "notes.txt").unwrap();
+    assert_eq!(held.bytes, b"Other notes\n");
+    assert!(
+        app.toast_text()
+            .is_some_and(|t| t.ends_with("already in Files, kept as notes-2.txt")),
+        "{:?}",
+        app.toast_text()
+    );
+}

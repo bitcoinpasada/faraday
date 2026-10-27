@@ -579,6 +579,9 @@ pub struct VaultFile {
     pub len: usize,
     /// The open vault it is, when one of its slots is open.
     pub open: Option<usize>,
+    /// The names of the other files in Files that are this vault (the
+    /// same header salt), which it is listed once for.
+    pub copies: Vec<String>,
 }
 
 /// A wallet in an open vault that holds some of its seeds too.

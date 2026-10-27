@@ -184,3 +184,35 @@ fn a_seedqr_picture_read_on_a_visit_loads_its_key_when_the_stick_is_pulled() {
         "the key did not load on pulling the stick"
     );
 }
+
+/// Import and load of a words file whose name Files already holds with
+/// other words: the stick's copy is kept under a numbered name and only
+/// it loads at the pull, never the file that was there before.
+#[test]
+fn import_and_load_under_a_held_name_loads_only_the_copy_from_the_stick() {
+    let mut app = faraday_core::testkit::started();
+    app.storage(StorageEvent::Restored {
+        inbox: vec![(
+            FILE.to_string(),
+            faraday_core::testkit::test_words("zebra").into_bytes(),
+        )],
+        outbox: Vec::new(),
+        kept: Vec::new(),
+    });
+    attach(&mut app);
+    app.press(Action::Nav(Screen::Visit));
+    app.press(Action::VisitIn(0));
+    app.press(Action::VisitCopyAndLoad);
+    app.storage(StorageEvent::Read {
+        stick: STICK.to_string(),
+        name: FILE.to_string(),
+        bytes: words().into_bytes(),
+    });
+    assert!(app.inbox().iter().any(|i| i.name == "key-1-words-2.txt"));
+    detach(&mut app);
+    assert_eq!(app.session.keys.len(), 1, "a key not asked for loaded");
+    let c = faraday_core::testkit::compute();
+    let fp =
+        faraday_keys::identity::fingerprint_of_words(&c, &words(), "").expect("the stick's words");
+    assert_eq!(app.session.keys[0].fingerprint, fp);
+}

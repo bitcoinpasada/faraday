@@ -1486,23 +1486,24 @@ impl Faraday {
             StorageEvent::Read { stick, name, bytes } => {
                 // A file Faraday reads as nothing else still comes in, as
                 // a File: to sign, or to send as codes.
-                let item = Item::new(&c, &name, bytes);
+                let kept = self.inbox_name_for(&name, &bytes);
+                let item = Item::new(&c, &kept, bytes);
                 if item.kind == FileKind::Vault
                     && let Some(s) = self.stick.iter().find(|s| s.id == stick)
                 {
                     let label = s.label.clone();
-                    self.vault_read_from(&name, &item.bytes, &label);
+                    self.vault_read_from(&item.name, &item.bytes, &label);
                 }
                 // The visit's rows say what came in; only a seed waiting
                 // for the stick's removal is worth a line.
-                let line = (item.kind == FileKind::Words && self.visit.load_after.contains(&name))
-                    .then(|| {
-                        fill(
-                            EN.storage_event_copied_words,
-                            &[&name.to_string(), self.medium.noun()],
-                        )
-                    });
-                self.inbox.retain(|i| i.name != name);
+                let line = (item.kind == FileKind::Words
+                    && self.visit.load_after.contains(&item.name))
+                .then(|| {
+                    fill(
+                        EN.storage_event_copied_words,
+                        &[&item.name.to_string(), self.medium.noun()],
+                    )
+                });
                 self.inbox.push(item);
                 if let Some(line) = line {
                     self.visit.log.push((line, true));
@@ -1529,18 +1530,7 @@ impl Faraday {
                     // unlock again; its copy from before goes.
                     if let Some(k) = self.outbox.iter().position(|i| i.name == name) {
                         let item = self.outbox.remove(k);
-                        if item.kind == FileKind::Vault
-                            && let Ok(h) = faraday_vault::read_header(&item.bytes)
-                        {
-                            self.inbox.retain(|i| {
-                                i.name != item.name
-                                    && !(i.kind == FileKind::Vault
-                                        && faraday_vault::read_header(&i.bytes)
-                                            .is_ok_and(|o| o.salt == h.salt))
-                            });
-                            self.inbox
-                                .push(Item::new(&c, &item.name, item.bytes.clone()));
-                        }
+                        self.inbox_vault_written(&c, &item);
                     }
                     self.visit.out.remove(&name);
                 }

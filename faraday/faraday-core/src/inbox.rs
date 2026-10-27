@@ -659,6 +659,52 @@ impl Faraday {
         self.found_in(c, &self.inbox)
     }
 
+    /// The name a file read from a stick as `name` comes into Files under:
+    /// its own, replacing a file of that name with the same bytes. A file
+    /// Files holds under it with other bytes is kept, this one numbered
+    /// beside it, and the visit says so. A lookup per file.
+    pub(crate) fn inbox_name_for(&mut self, name: &str, bytes: &[u8]) -> String {
+        if !self
+            .inbox
+            .iter()
+            .any(|i| i.name == name && i.bytes != bytes)
+        {
+            self.inbox.retain(|i| i.name != name);
+            return name.to_string();
+        }
+        let kept = self.free_inbox_name(name);
+        // The seed asked for is this copy's, not the file held before.
+        if self.visit.load_after.remove(name) {
+            self.visit.load_after.insert(kept.clone());
+        }
+        let told = fill(EN.storage_event_kept_as, &[name, &kept]);
+        self.visit.log.push((told, true));
+        kept
+    }
+
+    /// Costs a SHA-256 of the vault (through `Item::new`) and a header read
+    /// per vault in Files. A vault written from For the stick stays in
+    /// Files as the stick now holds it: its copy from before goes; another
+    /// file of its name stays, the vault numbered beside it and said.
+    pub(crate) fn inbox_vault_written(&mut self, c: &Compute, item: &Item) {
+        if item.kind != FileKind::Vault {
+            return;
+        }
+        let Ok(h) = faraday_vault::read_header(&item.bytes) else {
+            return;
+        };
+        self.inbox.retain(|i| {
+            !(i.kind == FileKind::Vault
+                && faraday_vault::read_header(&i.bytes).is_ok_and(|o| o.salt == h.salt))
+        });
+        let kept = self.free_inbox_name(&item.name);
+        if kept != item.name {
+            let told = fill(EN.storage_event_kept_as, &[&item.name, &kept]);
+            self.visit.log.push((told, true));
+        }
+        self.inbox.push(Item::new(c, &kept, item.bytes.clone()));
+    }
+
     /// Costs what `source_fingerprint`, `config_name_kept` and `read_kept`
     /// cost. Everything `items` give, put together, with the session's own
     /// keys and wallets: the Inbox, or the files a boot import holds.
