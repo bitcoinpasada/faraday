@@ -13,6 +13,8 @@
 use faraday_bip::codex32::SYMBOL_GLYPHS;
 use faraday_draw::geom::{SizeClass, WindowClass};
 use faraday_draw::tokens as t;
+use faraday_draw::tokens::{BODY_L, LABEL_L, LABEL_M, LABEL_S, TypeRole};
+use faraday_draw::tokens::{BODY_M, BODY_S, TITLE_L, TITLE_S};
 use faraday_draw::widgets::Icon;
 use faraday_draw::widgets::keyboard::KeyboardKind;
 use faraday_keys::{Reveal, WorkSet};
@@ -279,7 +281,7 @@ pub(super) fn choice(ui: &mut Ui, x: f32, y: f32, w: f32, items: &[(&str, bool, 
     let inset = (t::TOUCH - t::CODEX32_CHOICE_H) / 2.0;
     let h = ui.choices(
         (x, y + inset, w, t::CODEX32_CHOICE_H),
-        t::LABEL,
+        LABEL_L.size,
         &options,
         chosen,
     );
@@ -304,7 +306,7 @@ fn tabs(ui: &mut Ui, x: f32, y: f32, w: f32, items: &[TabItem]) -> f32 {
     let widths: Vec<f32> = items
         .iter()
         .map(|i| {
-            ui.measure(t::LABEL, W::S, &i.label)
+            ui.measure_as(TITLE_S, &i.label)
                 + 2.0 * t::PAD
                 + if i.seen { icon + t::GAP_SMALL } else { 0.0 }
         })
@@ -345,7 +347,7 @@ fn tabs(ui: &mut Ui, x: f32, y: f32, w: f32, items: &[TabItem]) -> f32 {
         } else {
             Role::OnSurfaceVariant
         };
-        let lw = ui.measure(t::LABEL, W::S, &item.label);
+        let lw = ui.measure_as(TITLE_S, &item.label);
         let seen = if item.seen { icon + t::GAP_SMALL } else { 0.0 };
         let lx = tx + (tw - lw - seen) / 2.0;
         if item.seen {
@@ -358,15 +360,7 @@ fn tabs(ui: &mut Ui, x: f32, y: f32, w: f32, items: &[TabItem]) -> f32 {
                 Role::Ok,
             );
         }
-        ui.text_mid(
-            lx + seen,
-            y,
-            t::CODEX32_TAB,
-            t::LABEL,
-            W::S,
-            colour,
-            &item.label,
-        );
+        ui.text_mid_as((lx + seen, y, t::CODEX32_TAB), TITLE_S, colour, &item.label);
         if item.on {
             ui.fill(
                 tx,
@@ -421,7 +415,7 @@ pub(crate) fn body(
 /// height.
 fn note(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     match m.note() {
-        Some(n) => ui.wrap(x, y, w, t::LABEL, W::R, Role::Error, n) + t::GAP,
+        Some(n) => ui.wrap_as((x, y, w), BODY_M, Role::Error, n) + t::GAP,
         None => 0.0,
     }
 }
@@ -479,7 +473,7 @@ fn given_first(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         } else {
             (EN.c32r_give_index, Role::OnSurfaceVariant)
         };
-        cy += ui.wrap(x, cy, w, t::LABEL, W::R, tone, line) + t::GAP;
+        cy += ui.wrap_as((x, cy, w), BODY_M, tone, line) + t::GAP;
         if open {
             cy += keyboard(ui, x, cy, w, KeyboardKind::Codex32);
         }
@@ -559,12 +553,9 @@ fn scheme(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         cy += t::STEPPER_ROW;
     }
     if k >= 4 {
-        cy += ui.wrap(
-            x,
-            cy,
-            w,
-            t::LABEL,
-            W::R,
+        cy += ui.wrap_as(
+            (x, cy, w),
+            BODY_M,
             Role::OnSurfaceVariant,
             &fill(EN.codex32_no_translation_sheet, &[&k.to_string()]),
         ) + t::GAP;
@@ -614,13 +605,10 @@ fn identifier(m: &Codex32Make, ui: &mut Ui, at: At) -> f32 {
         );
         if let Some(c) = id.chars().nth(i) {
             let s = c.to_string();
-            let cw = ui.measure(t::TITLE, W::M, &s);
-            ui.text_mid(
-                bx + (b - cw) / 2.0,
-                cy,
-                b,
-                t::TITLE,
-                W::M,
+            let cw = ui.measure_as(TITLE_L.mono(), &s);
+            ui.text_mid_as(
+                (bx + (b - cw) / 2.0, cy, b),
+                TITLE_L.mono(),
                 Role::OnSurface,
                 &s,
             );
@@ -630,7 +618,7 @@ fn identifier(m: &Codex32Make, ui: &mut Ui, at: At) -> f32 {
     if m.work().is_none() {
         // Beside the boxes where it fits, else under them.
         let boxes = f32::from(ID_LEN) * (b + t::GAP);
-        let bw = ui.measure(t::LABEL, W::S, EN.codex32_suggest) + 2.0 * t::PAD;
+        let bw = ui.measure_as(TITLE_S, EN.codex32_suggest) + 2.0 * t::PAD;
         let (sx, sy) = if boxes + bw <= w {
             (x + boxes, cy - t::GAP - (b + t::TOUCH) / 2.0)
         } else {
@@ -649,7 +637,7 @@ fn identifier(m: &Codex32Make, ui: &mut Ui, at: At) -> f32 {
         );
     }
     if let Some(r) = m.id_refused() {
-        cy += ui.wrap(x, cy, w, t::LABEL, W::R, Role::Error, r) + t::GAP;
+        cy += ui.wrap_as((x, cy, w), BODY_M, Role::Error, r) + t::GAP;
     }
     // Continue is the card's one way on, as on every card of the flow;
     // the keyboard's Done stands outlined beside its keys, and both take
@@ -682,12 +670,9 @@ fn entropy(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         .collect();
     cy += choice(ui, x, cy, w, &items);
     if m.way() == Way::Typed {
-        cy += ui.wrap(
-            x,
-            cy,
-            w,
-            t::LABEL,
-            W::R,
+        cy += ui.wrap_as(
+            (x, cy, w),
+            BODY_M,
             Role::OnSurfaceVariant,
             EN.codex32_not_chosen,
         ) + t::GAP;
@@ -712,12 +697,9 @@ fn enter(m: &Codex32Make, ui: &mut Ui, at: At) -> f32 {
     };
     let mut cy = y;
     if m.way() == Way::Typed {
-        cy += ui.wrap(
-            x,
-            cy,
-            w,
-            t::LABEL,
-            W::R,
+        cy += ui.wrap_as(
+            (x, cy, w),
+            BODY_M,
             Role::OnSurfaceVariant,
             EN.codex32_not_chosen,
         ) + t::GAP;
@@ -1207,11 +1189,10 @@ fn grid(
     let s = t::codex32_box(cls);
     let gx = x + t::CODEX32_LABEL_W;
     for n in (from..=to).filter(|n| (n - 1) % 4 == 0 || *n == from) {
-        ui.text(
+        ui.text_as(
             box_x(gx, from, n, s),
             y,
-            t::CODEX32_NUMBER,
-            W::R,
+            LABEL_S.regular(),
             Role::OnSurfaceVariant,
             &n.to_string(),
         );
@@ -1226,8 +1207,8 @@ fn grid(
                 Role::OutlineVariant,
             );
         }
-        let name = ui.fit(t::CAPTION, W::R, &row.name, t::CODEX32_LABEL_W - t::GAP);
-        ui.text_mid(x, cy, s, t::CAPTION, W::R, Role::OnSurfaceVariant, &name);
+        let name = ui.fit_as(BODY_S, &row.name, t::CODEX32_LABEL_W - t::GAP);
+        ui.text_mid_as((x, cy, s), BODY_S, Role::OnSurfaceVariant, &name);
         for (i, v) in row.cells.iter().enumerate() {
             let b = row.start + i;
             if b < from || b > to {
@@ -1305,7 +1286,7 @@ fn translation(
     };
     let tg = ts.target_index();
     let head = fill(EN.codex32_translation_to, &[&target_name(tg)]);
-    let mut cy = y + ui.wrap(x, y, w, t::LABEL, W::S, Role::OnSurface, &head) + t::GAP_SMALL;
+    let mut cy = y + ui.wrap_as((x, y, w), TITLE_S, Role::OnSurface, &head) + t::GAP_SMALL;
     let k = ts.threshold();
     let label = if ts.is_recovery() {
         EN.codex32_recovery_symbols
@@ -1407,21 +1388,21 @@ fn symbols_line(
     each: impl Fn(usize) -> String,
     k: usize,
 ) -> f32 {
-    let (size, ink) = (t::CAPTION, Role::OnSurfaceVariant);
-    let line = ui.line(size, W::R);
+    let ink = Role::OnSurfaceVariant;
+    let line = ui.line_as(BODY_S);
     let head = format!("{label}:");
-    ui.text(x, y, size, W::R, ink, &head);
-    let (mut cx, mut cy) = (x + ui.measure(size, W::R, &head) + t::GAP, y);
+    ui.text_as(x, y, BODY_S, ink, &head);
+    let (mut cx, mut cy) = (x + ui.measure_as(BODY_S, &head) + t::GAP, y);
     for i in 0..k {
         let text = each(i);
-        let tw = ui.measure(size, W::S, &text);
+        let tw = ui.measure_as(LABEL_M, &text);
         if cx > x && cx + tw > x + w {
             cx = x;
             cy += line + t::GAP_SMALL;
         }
         let on = marks.contains(&(Cell::Symbol { sheet, i: i as u8 }, true));
         let role = if on { Role::Primary } else { Role::OnSurface };
-        ui.text(cx, cy, size, W::S, role, &text);
+        ui.text_as(cx, cy, LABEL_M, role, &text);
         if on {
             let o = t::GAP_SMALL;
             let (bx, by, bw, bh) = (cx - o, cy - o / 2.0, tw + 2.0 * o, line + o);
@@ -1490,7 +1471,7 @@ fn dice_review(
         };
         if m.masked() {
             let line = fill(EN.codex32_box_masked, &[&(n + 10).to_string(), MASK]);
-            cy += ui.wrap(x, cy, w, t::CAPTION, W::M, Role::OnSurface, &line) + t::GAP_SMALL;
+            cy += ui.wrap_as((x, cy, w), BODY_S.mono(), Role::OnSurface, &line) + t::GAP_SMALL;
             continue;
         }
         let rows: Vec<String> = made
@@ -1526,7 +1507,7 @@ fn dice_review(
         } else {
             line
         };
-        cy += ui.wrap(x, cy, w, t::CAPTION, W::M, Role::OnSurface, &line) + t::GAP_SMALL;
+        cy += ui.wrap_as((x, cy, w), BODY_S.mono(), Role::OnSurface, &line) + t::GAP_SMALL;
     }
     cy - y + t::GAP
 }
@@ -1561,16 +1542,13 @@ fn typed_back(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             Role::OutlineVariant
         },
     );
-    let fit = ui.fit(t::LABEL, W::M, &shown, w - 2.0 * t::GAP);
-    ui.text_mid(x + t::GAP, y, t::FIELD, t::LABEL, W::M, ink, &fit);
+    let fit = ui.fit_as(BODY_M.mono(), &shown, w - 2.0 * t::GAP);
+    ui.text_mid_as((x + t::GAP, y, t::FIELD), BODY_M.mono(), ink, &fit);
     let mut cy = y + t::FIELD + t::GAP;
     if let Some(b) = differs {
-        cy += ui.wrap(
-            x,
-            cy,
-            w,
-            t::LABEL,
-            W::R,
+        cy += ui.wrap_as(
+            (x, cy, w),
+            BODY_M,
             Role::Error,
             &fill(EN.codex32_box_differs, &[&b.to_string()]),
         ) + t::GAP;
@@ -1618,38 +1596,23 @@ fn strings(m: &Codex32Make, ui: &mut Ui, at: At) -> f32 {
             } else {
                 faraday_ui::grouped(s)
             };
-            let mut size = t::TITLE;
-            while size > t::CAPTION && ui.wrap_lines(size, W::M, &g, w) > 3 {
-                size -= 1.0;
-            }
-            cy += ui.wrap(x, cy, w, size, W::M, ink, &g) + t::GAP;
+            let role = [BODY_L, BODY_M]
+                .into_iter()
+                .map(TypeRole::mono)
+                .find(|r| ui.wrap_lines_as(*r, &g, w) <= 3)
+                .unwrap_or(BODY_S.mono());
+            cy += ui.wrap_as((x, cy, w), role, ink, &g) + t::GAP;
         }
     }
     cy += typed_back(m, ui, x, cy, w);
     let (checked, ask) = m.checked();
     if checked.get(m.at()).copied().unwrap_or(false) {
-        cy += ui.wrap(
-            x,
-            cy,
-            w,
-            t::LABEL,
-            W::R,
-            Role::Ok,
-            EN.codex32_typed_back_same,
-        ) + t::GAP;
+        cy += ui.wrap_as((x, cy, w), BODY_M, Role::Ok, EN.codex32_typed_back_same) + t::GAP;
     } else {
         cy += keyboard(ui, x, cy, w, KeyboardKind::Codex32);
     }
     if ask {
-        cy += ui.wrap(
-            x,
-            cy,
-            w,
-            t::LABEL,
-            W::R,
-            Role::Warning,
-            EN.codex32_skip_caution,
-        ) + t::GAP;
+        cy += ui.wrap_as((x, cy, w), BODY_M, Role::Warning, EN.codex32_skip_caution) + t::GAP;
     }
     let nh = note(m, ui, x, cy, w);
     cy += nh;
@@ -1731,9 +1694,9 @@ fn made(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
 /// value here is read character by character), a rule under it. Returns
 /// the height.
 fn fact(ui: &mut Ui, x: f32, y: f32, w: f32, label: &str, value: &str) -> f32 {
-    ui.text(x, y, t::CAPTION, W::R, Role::OnSurfaceVariant, label);
-    let ly = ui.line(t::CAPTION, W::R) + t::GAP_SMALL;
-    let vh = ui.wrap(x, y + ly, w, t::LABEL, W::M, Role::OnSurface, value);
+    ui.text_as(x, y, BODY_S, Role::OnSurfaceVariant, label);
+    let ly = ui.line_as(BODY_S) + t::GAP_SMALL;
+    let vh = ui.wrap_as((x, y + ly, w), BODY_M.mono(), Role::OnSurface, value);
     ui.rule(x, y + ly + vh + t::GAP_SMALL, w, Role::OutlineVariant);
     ly + vh + t::GAP
 }
@@ -1810,7 +1773,7 @@ pub(crate) fn cell_sheet(app: &View, m: &Codex32Make, ui: &mut Ui, x0: f32, cw: 
         &mut |ui, x, y, iw| {
             let mut cy = y;
             for l in &lines {
-                cy += ui.wrap(x, cy, iw, t::LABEL, W::R, Role::OnSurface, l) + t::GAP_SMALL;
+                cy += ui.wrap_as((x, cy, iw), BODY_M, Role::OnSurface, l) + t::GAP_SMALL;
             }
             cy - y
         },
@@ -1827,7 +1790,7 @@ fn step_buttons(ui: &mut Ui, x: f32, y: f32, w: f32) {
     ];
     let mut bx = x;
     for (label, act) in items {
-        let bw = ui.measure(t::LABEL, W::S, label) + 2.0 * t::PAD;
+        let bw = ui.measure_as(TITLE_S, label) + 2.0 * t::PAD;
         if bx + bw > x + w + 0.5 {
             break;
         }
@@ -1855,7 +1818,7 @@ fn cell_page(app: &View, ui: &mut Ui, (x0, cw, h): (f32, f32, f32), head: &str, 
     let iw = cw - 2.0 * M;
     let mut cy = BAR_H + t::PAD;
     for l in lines {
-        cy += ui.wrap(M, cy, iw, t::LABEL, W::R, Role::OnSurface, l) + t::GAP;
+        cy += ui.wrap_as((M, cy, iw), BODY_M, Role::OnSurface, l) + t::GAP;
     }
     step_buttons(ui, M, (cy + t::GAP).min(h - t::TOUCH - t::GAP), iw);
 }

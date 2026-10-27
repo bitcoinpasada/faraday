@@ -10,16 +10,16 @@
 //! so the form that holds the correction names its own action for a
 //! [`Press`] (`to`). Drawing reads the state and works nothing out.
 
+use faraday_draw::tokens::{BODY_L, BODY_M, LABEL_S, TITLE_S};
 use faraday_draw::tokens::{
-    CORRECT_BOX, CORRECT_BOX_GAP, CORRECT_BOX_RADIUS, CORRECT_BOX_TEXT, CORRECT_GAP, CORRECT_GROUP,
-    CORRECT_GROUP_GAP, CORRECT_ICON, CORRECT_ICON_SIZE, CORRECT_LINE_TEXT, CORRECT_NUMBER_ROW,
-    CORRECT_NUMBER_TEXT, CORRECT_PAIR_ROW, CORRECT_PAIR_TEXT, CORRECT_ROW_GAP, CORRECT_TICK,
-    CORRECT_TICK_LABEL, CORRECT_TICK_ROW, LABEL,
+    CORRECT_BOX, CORRECT_BOX_GAP, CORRECT_BOX_RADIUS, CORRECT_GAP, CORRECT_GROUP,
+    CORRECT_GROUP_GAP, CORRECT_ICON, CORRECT_ICON_SIZE, CORRECT_NUMBER_ROW, CORRECT_PAIR_ROW,
+    CORRECT_ROW_GAP, CORRECT_TICK, CORRECT_TICK_LABEL, CORRECT_TICK_ROW,
 };
 use faraday_draw::widgets::Icon;
 use faraday_ui::pal::*;
 use faraday_ui::sheet::buttons;
-use faraday_ui::{Style, Ui, W};
+use faraday_ui::{Style, Ui};
 
 use super::{BoxShown, Correction, Mark, Press, Step};
 use crate::strings::{EN, fill};
@@ -35,12 +35,9 @@ pub fn tick_row<A: Copy + PartialEq>(
     to: impl Fn(Press) -> A,
 ) -> f32 {
     ui.checkbox(x, y + (CORRECT_TICK_ROW - CORRECT_TICK) / 2.0, c.on(), true);
-    ui.text_mid(
-        x + CORRECT_TICK_LABEL,
-        y,
-        CORRECT_TICK_ROW,
-        CORRECT_LINE_TEXT,
-        W::R,
+    ui.text_mid_as(
+        (x + CORRECT_TICK_LABEL, y, CORRECT_TICK_ROW),
+        BODY_M,
         Role::OnSurface,
         EN.codex32_correct_suggest,
     );
@@ -76,12 +73,13 @@ pub fn line<A: Copy + PartialEq>(
     text: &str,
 ) -> f32 {
     ui.icon(x, y, CORRECT_ICON, icon, CORRECT_ICON_SIZE, tone);
-    let h = ui.wrap(
-        x + CORRECT_ICON + CORRECT_BOX_GAP,
-        y,
-        width - CORRECT_ICON - CORRECT_BOX_GAP,
-        CORRECT_LINE_TEXT,
-        W::R,
+    let h = ui.wrap_as(
+        (
+            x + CORRECT_ICON + CORRECT_BOX_GAP,
+            y,
+            width - CORRECT_ICON - CORRECT_BOX_GAP,
+        ),
+        BODY_M,
         tone,
         text,
     );
@@ -220,12 +218,9 @@ fn retype<A: Copy + PartialEq>(
     h += boxes(ui, x, y + h, width, c);
     h += CORRECT_GAP;
     let (typed, total) = c.retyped();
-    h += ui.wrap(
-        x,
-        y + h,
-        width,
-        CORRECT_LINE_TEXT,
-        W::R,
+    h += ui.wrap_as(
+        (x, y + h, width),
+        BODY_M,
         Role::OnSurfaceVariant,
         &fill(
             EN.codex32_correct_typed_of,
@@ -251,7 +246,7 @@ fn retype<A: Copy + PartialEq>(
 /// A section label (DESIGN §4.12), wrapped where the panel is narrow,
 /// and the gap under it.
 fn heading<A: Copy + PartialEq>(ui: &mut Ui<A>, x: f32, y: f32, width: f32, title: &str) -> f32 {
-    ui.wrap(x, y, width, LABEL, W::S, Role::OnSurfaceVariant, title) + CORRECT_GAP
+    ui.wrap_as((x, y, width), TITLE_S, Role::OnSurfaceVariant, title) + CORRECT_GAP
 }
 
 /// The page of pairs on show, "Box 17 · q → p", and under them the page
@@ -276,12 +271,9 @@ fn pairs<A: Copy + PartialEq>(
                 char::from(e.now()).encode_utf8(&mut now),
             ],
         );
-        ui.text_mid(
-            x,
-            y + h,
-            CORRECT_PAIR_ROW,
-            CORRECT_PAIR_TEXT,
-            W::M,
+        ui.text_mid_as(
+            (x, y + h, CORRECT_PAIR_ROW),
+            BODY_L.mono(),
             Role::OnSurface,
             &pair,
         );
@@ -292,12 +284,9 @@ fn pairs<A: Copy + PartialEq>(
     };
     if pages > 1 {
         h += CORRECT_ROW_GAP;
-        ui.text_mid(
-            x,
-            y + h,
-            CORRECT_PAIR_ROW,
-            CORRECT_LINE_TEXT,
-            W::R,
+        ui.text_mid_as(
+            (x, y + h, CORRECT_PAIR_ROW),
+            BODY_M,
             Role::OnSurfaceVariant,
             &fill(
                 EN.codex32_correct_page,
@@ -415,13 +404,10 @@ fn boxes<A: Copy + PartialEq>(ui: &mut Ui<A>, x: f32, y: f32, width: f32, c: &Co
         if let Some((ch, tone)) = ch {
             let mut buf = [0u8; 4];
             let s = char::from(ch).encode_utf8(&mut buf);
-            let tw = ui.measure(CORRECT_BOX_TEXT, W::M, s);
-            ui.text_mid(
-                bx + (CORRECT_BOX - tw) / 2.0,
-                by,
-                CORRECT_BOX,
-                CORRECT_BOX_TEXT,
-                W::M,
+            let tw = ui.measure_as(BODY_L.mono(), s);
+            ui.text_mid_as(
+                (bx + (CORRECT_BOX - tw) / 2.0, by, CORRECT_BOX),
+                BODY_L.mono(),
                 tone,
                 s,
             );
@@ -429,13 +415,14 @@ fn boxes<A: Copy + PartialEq>(ui: &mut Ui<A>, x: f32, y: f32, width: f32, c: &Co
         }
         if !matches!(shown, BoxShown::Locked(_)) {
             let num = n.to_string();
-            let tw = ui.measure(CORRECT_NUMBER_TEXT, W::R, &num);
-            ui.text_mid(
-                bx + (CORRECT_BOX - tw) / 2.0,
-                by + CORRECT_BOX,
-                CORRECT_NUMBER_ROW,
-                CORRECT_NUMBER_TEXT,
-                W::R,
+            let tw = ui.measure_as(LABEL_S.regular(), &num);
+            ui.text_mid_as(
+                (
+                    bx + (CORRECT_BOX - tw) / 2.0,
+                    by + CORRECT_BOX,
+                    CORRECT_NUMBER_ROW,
+                ),
+                LABEL_S.regular(),
                 muted,
                 &num,
             );
@@ -494,13 +481,10 @@ pub fn string_boxes<A: Copy + PartialEq>(
         }
         let mut buf = [0u8; 4];
         let s = char::from(ch).encode_utf8(&mut buf);
-        let tw = ui.measure(CORRECT_BOX_TEXT, W::M, s);
-        ui.text_mid(
-            bx + (CORRECT_BOX - tw) / 2.0,
-            by,
-            CORRECT_BOX,
-            CORRECT_BOX_TEXT,
-            W::M,
+        let tw = ui.measure_as(BODY_L.mono(), s);
+        ui.text_mid_as(
+            (bx + (CORRECT_BOX - tw) / 2.0, by, CORRECT_BOX),
+            BODY_L.mono(),
             if differs {
                 Role::Error
             } else {
@@ -511,13 +495,14 @@ pub fn string_boxes<A: Copy + PartialEq>(
         zeroize::Zeroize::zeroize(&mut buf);
         if differs {
             let num = (i + 1).to_string();
-            let tw = ui.measure(CORRECT_NUMBER_TEXT, W::R, &num);
-            ui.text_mid(
-                bx + (CORRECT_BOX - tw) / 2.0,
-                by + CORRECT_BOX,
-                CORRECT_NUMBER_ROW,
-                CORRECT_NUMBER_TEXT,
-                W::R,
+            let tw = ui.measure_as(LABEL_S.regular(), &num);
+            ui.text_mid_as(
+                (
+                    bx + (CORRECT_BOX - tw) / 2.0,
+                    by + CORRECT_BOX,
+                    CORRECT_NUMBER_ROW,
+                ),
+                LABEL_S.regular(),
                 Role::Error,
                 &num,
             );

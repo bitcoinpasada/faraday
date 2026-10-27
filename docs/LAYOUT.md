@@ -280,9 +280,14 @@ each at the text size the person's system asks for.
 
   Built (L5, part 2): Family, the seeds, Backups, Wipe, Vanity, Codes,
   Boot import, Lightning, the plan's cards, BIP 85, Silent payments and
-  the roller's five-dice screen draw by role and `BUTTON_H`. The
-  keygen, codex32, vault, create and backup flow screens still write
-  their own sizes.
+  the roller's five-dice screen draw by role and `BUTTON_H`.
+
+  Built (L5, part 3): the key generator, the codex32 screens (work,
+  dice, tour, tracker, worksheet, backup and correction), Create and
+  the Board draw by role and `BUTTON_H`. The worksheet's and the string
+  boxes' characters, and the cell notes, keep the sizes their cell
+  geometry gives. The vault and backup flow screens still write their
+  own sizes.
 - **Type** is Material's roles, by size: `HEADLINE_M` 28, `HEADLINE_S`
   24, `TITLE_L` 22, `TITLE_M` 16, `TITLE_S` 14, `BODY_L` 16, `BODY_M`
   14, `BODY_S` 12, `LABEL_L` 14, `LABEL_M` 12, `LABEL_S` 11. They

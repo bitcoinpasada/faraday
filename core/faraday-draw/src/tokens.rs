@@ -1288,9 +1288,6 @@ pub const OWN_BUTTON: f32 = 40.0;
 /// Add randomness's way back: from the page's top to its row.
 pub const OWN_TOP: f32 = 28.0;
 
-/// Add randomness: the size of the status line and the batch's line.
-pub const OWN_LINE_TEXT: f32 = 13.0;
-
 /// Pointer and keys' area on Add randomness: the height the pointer
 /// moves over.
 pub const OWN_AREA: f32 = 160.0;
@@ -1320,27 +1317,14 @@ pub const CORRECT_GROUP_GAP: f32 = GRID;
 /// Codex32 correction: a box's corner radius.
 pub const CORRECT_BOX_RADIUS: f32 = 4.0;
 
-/// Codex32 correction: the size of a box's character.
-pub const CORRECT_BOX_TEXT: f32 = 16.0;
-
 /// Codex32 correction: the row under a box that carries its number.
 pub const CORRECT_NUMBER_ROW: f32 = 16.0;
-
-/// Codex32 correction: the size of a box's number.
-pub const CORRECT_NUMBER_TEXT: f32 = 11.0;
 
 /// Codex32 correction: the gap between two rows of boxes.
 pub const CORRECT_ROW_GAP: f32 = GAP_SMALL;
 
 /// Codex32 correction: a pair's row, "Box 17 · q → p".
 pub const CORRECT_PAIR_ROW: f32 = 28.0;
-
-/// Codex32 correction: the size of a pair's text.
-pub const CORRECT_PAIR_TEXT: f32 = 16.0;
-
-/// Codex32 correction: the size of a line (a refusal, a caution, the
-/// count typed, the line beside a fingerprint).
-pub const CORRECT_LINE_TEXT: f32 = 14.0;
 
 /// Codex32 correction: the space between the panel's parts.
 pub const CORRECT_GAP: f32 = GRID;
@@ -1436,8 +1420,6 @@ pub const CODEX32_BOX_GAP: f32 = 2.0;
 pub const CODEX32_GROUP_GAP: f32 = 8.0;
 /// The air between two rows of the staircase.
 pub const CODEX32_ROW_GAP: f32 = 4.0;
-/// A box number's size, above its box.
-pub const CODEX32_NUMBER: f32 = 11.0;
 /// The room the box numbers take above a row.
 pub const CODEX32_NUMBER_ROW: f32 = 16.0;
 /// A box's corners.
@@ -1950,11 +1932,7 @@ pub const EASE_EMPHASIZED_DECELERATE: Easing = [0.05, 0.7, 0.1, 1.0];
 /// Emphasized accelerate: a large part of the page leaving.
 pub const EASE_EMPHASIZED_ACCELERATE: Easing = [0.3, 0.0, 0.8, 0.15];
 
-/// A file the Keys card lists but cannot use: its name's size.
-pub const REFUSED_FILE_NAME: f32 = 14.0;
-/// Its reason's size.
-pub const REFUSED_FILE_REASON: f32 = 13.0;
-/// The reason's top below the row's top.
+/// A file the Keys card lists but cannot use: the reason's top below the row's top.
 pub const REFUSED_FILE_REASON_Y: f32 = 26.0;
 /// The name's top below the row's top.
 pub const REFUSED_FILE_NAME_Y: f32 = 4.0;

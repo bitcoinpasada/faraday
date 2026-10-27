@@ -10,6 +10,7 @@
 //! worksheet; nothing here works anything out but where a line goes.
 
 use faraday_draw::tokens as t;
+use faraday_draw::tokens::{BODY_M, TITLE_S};
 use faraday_draw::widgets::Icon;
 
 use super::screen::{MASK, a};
@@ -17,8 +18,8 @@ use super::walk_screen::step_text;
 use super::{C32, Codex32Make, Way};
 use crate::drawing::View;
 use crate::strings::{EN, fill};
+use crate::ui::Ui;
 use crate::ui::pal::*;
-use crate::ui::{Ui, W};
 
 /// Whether Previous and Next stand beside the text in an area `w` wide,
 /// else in the first row with the head.
@@ -188,7 +189,7 @@ pub(super) fn draw_beside(
     // Narrow, the area is the small panel's Working tile, which names it.
     let cx = if beside(w) {
         let head = EN.codex32_track_head;
-        x + ui.text_mid(x, y, head_h, t::LABEL, W::S, Role::OnSurface, head) + t::GAP
+        x + ui.text_mid_as((x, y, head_h), TITLE_S, Role::OnSurface, head) + t::GAP
     } else {
         x
     };
@@ -197,23 +198,15 @@ pub(super) fn draw_beside(
     } else {
         x + w - 2.0 * t::TOUCH
     };
-    let count = ui.fit(t::LABEL, W::R, &count, count_end - cx);
-    ui.text_mid(
-        cx,
-        y,
-        head_h,
-        t::LABEL,
-        W::R,
-        Role::OnSurfaceVariant,
-        &count,
-    );
+    let count = ui.fit_as(BODY_M, &count, count_end - cx);
+    ui.text_mid_as((cx, y, head_h), BODY_M, Role::OnSurfaceVariant, &count);
     // The step's working, masked with the sheets (§6.4.6).
     let text = if m.masked() && !text.is_empty() {
         MASK.repeat(3)
     } else {
         text
     };
-    ui.wrap(x, y + head_h, tw, t::LABEL, W::R, Role::OnSurface, &text);
+    ui.wrap_as((x, y + head_h, tw), BODY_M, Role::OnSurface, &text);
     let bt = (t::TOUCH - t::ICON_BUTTON) / 2.0;
     let row_h = if beside(w) { h } else { t::TOUCH };
     let (bx, by) = match buttons {
@@ -276,26 +269,26 @@ pub(super) fn draw_line(
         text
     };
     let head = EN.codex32_track_head;
-    let mut cx = x + ui.text_mid(x, y, line, t::LABEL, W::S, Role::OnSurface, head) + t::GAP;
+    let mut cx = x + ui.text_mid_as((x, y, line), TITLE_S, Role::OnSurface, head) + t::GAP;
     if !count.is_empty() {
-        let count = ui.fit(t::LABEL, W::R, &count, (x + w - cx).max(0.0));
+        let count = ui.fit_as(BODY_M, &count, (x + w - cx).max(0.0));
         let ink = Role::OnSurfaceVariant;
-        cx += ui.text_mid(cx, y, line, t::LABEL, W::R, ink, &count) + t::GAP;
+        cx += ui.text_mid_as((cx, y, line), BODY_M, ink, &count) + t::GAP;
     }
     // The working runs on from the head's line, the rest wrapped under.
     let room = x + w - cx;
     let mut first = String::new();
     let mut rest = text.as_str();
     for (i, _) in text.match_indices(' ').chain([(text.len(), "")]) {
-        if ui.measure(t::LABEL, W::R, &text[..i]) > room {
+        if ui.measure_as(BODY_M, &text[..i]) > room {
             break;
         }
         first = text[..i].to_string();
         rest = text[i..].trim_start();
     }
-    ui.text_mid(cx, y, line, t::LABEL, W::R, Role::OnSurface, &first);
+    ui.text_mid_as((cx, y, line), BODY_M, Role::OnSurface, &first);
     if !rest.is_empty() {
-        ui.wrap(x, y + line, w, t::LABEL, W::R, Role::OnSurface, rest);
+        ui.wrap_as((x, y + line, w), BODY_M, Role::OnSurface, rest);
     }
     let bt = (t::TOUCH - t::ICON_BUTTON) / 2.0;
     arrows(m, ui, (px + bt, py + bt));

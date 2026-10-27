@@ -7,10 +7,11 @@ use super::parts::{
 use crate::drawing::{Scrolled, View};
 use crate::strings::{EN, fill};
 use crate::ui::pal::*;
-use crate::ui::{Style, Ui, W};
+use crate::ui::{Style, Ui};
 use crate::wallet::{fp_text, key_line};
 use crate::{Action, Code, Screen, flow, guide};
 use faraday_draw::tokens;
+use faraday_draw::tokens::{BODY_M, BODY_S, BUTTON_H, LABEL_L, LABEL_M, TITLE_S};
 use faraday_ui::parts::button_rows;
 
 pub(crate) const CSTEPS: [&str; crate::cstep::COUNT] = [
@@ -236,8 +237,8 @@ fn create_vault_rows(
         if row.is_empty() {
             continue;
         }
-        let name = ui.fit(12.0, W::S, &group.name, w);
-        ui.text(x, cy, 12.0, W::S, Role::OnSurfaceVariant, &name);
+        let name = ui.fit_as(LABEL_M, &group.name, w);
+        ui.text_as(x, cy, LABEL_M, Role::OnSurfaceVariant, &name);
         cy += 20.0;
         cy += button_rows(ui, x, cy, w, &row);
     }
@@ -266,21 +267,11 @@ fn refused_file_row(ui: &mut Ui, x: f32, y: f32, w: f32, f: &crate::create::KeyF
     };
     let faint = Role::OnSurface.at(tokens::DISABLED_CONTENT);
     let name = fill(EN.create_slot_source, &[&f.name]);
-    let name = ui.fit(tokens::REFUSED_FILE_NAME, W::S, &name, w);
-    ui.text(
-        x,
-        y + tokens::REFUSED_FILE_NAME_Y,
-        tokens::REFUSED_FILE_NAME,
-        W::S,
-        faint,
-        &name,
-    );
-    let h = ui.wrap(
-        x,
-        y + tokens::REFUSED_FILE_REASON_Y,
-        w,
-        tokens::REFUSED_FILE_REASON,
-        W::R,
+    let name = ui.fit_as(TITLE_S, &name, w);
+    ui.text_as(x, y + tokens::REFUSED_FILE_NAME_Y, TITLE_S, faint, &name);
+    let h = ui.wrap_as(
+        (x, y + tokens::REFUSED_FILE_REASON_Y, w),
+        BODY_M,
         faint,
         why,
     );
@@ -356,7 +347,7 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                     ],
                 )
             };
-            cy += ui.wrap(x, cy, w, 13.0, W::R, Role::OnSurface, &sentence) + 14.0;
+            cy += ui.wrap_as((x, cy, w), BODY_M, Role::OnSurface, &sentence) + 14.0;
             // The account, below the quorum (F98).
             if c.kind.account_card() == Some(n) {
                 cy += account_row(ui, x, cy, w, c);
@@ -387,13 +378,13 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
             let vaults = app.create_vaults();
             for (slot, src) in c.slots.iter().enumerate() {
                 let label = format!("{} {}", EN.create_key, slot + 1);
-                ui.text(x, cy + 4.0, 13.0, W::S, Role::OnSurface, &label);
+                ui.text_as(x, cy + 4.0, LABEL_L, Role::OnSurface, &label);
                 // A key locked in with a passphrase here says so
                 // (`docs/history/NEW-WALLET.md` §3.6).
                 if let Source::Here(fp) = src
                     && c.pass_locked.contains(fp)
                 {
-                    let tw = ui.measure(12.0, W::S, EN.create_locked_line) + 40.0;
+                    let tw = ui.measure_as(LABEL_M, EN.create_locked_line) + 40.0;
                     locked_tag(ui, x + w - tw, cy);
                 }
                 let (state, color) = match src {
@@ -422,11 +413,11 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                 };
                 let indent = if ui.compact {
                     cy += 22.0;
-                    let state = ui.fit(13.0, W::R, &state, w);
-                    ui.text(x, cy + 4.0, 13.0, W::R, color, &state);
+                    let state = ui.fit_as(BODY_M, &state, w);
+                    ui.text_as(x, cy + 4.0, BODY_M, color, &state);
                     0.0
                 } else {
-                    ui.text(x + 70.0, cy + 4.0, 13.0, W::R, color, &state);
+                    ui.text_as(x + 70.0, cy + 4.0, BODY_M, color, &state);
                     70.0
                 };
                 cy += 28.0;
@@ -599,14 +590,14 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                         );
                         cy += never_real_seed(app, ui, px, cy, pw);
                         if let Some(n) = &c.pass_note {
-                            cy += ui.wrap(px, cy, pw, 13.0, W::R, Role::Error, n) + 6.0;
+                            cy += ui.wrap_as((px, cy, pw), BODY_M, Role::Error, n) + 6.0;
                         }
-                        let bw = ui.measure(14.0, W::S, EN.create_lock_button) + 36.0;
+                        let bw = ui.measure_as(TITLE_S, EN.create_lock_button) + 36.0;
                         ui.button(
                             px + pw - bw,
                             cy,
                             Some(bw),
-                            40.0,
+                            BUTTON_H,
                             EN.create_lock_button,
                             Style::Primary,
                             Action::CPassLock,
@@ -623,7 +614,7 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                 }
             }
             if let Some(e) = &c.error {
-                cy += ui.wrap(x, cy, w, 13.0, W::R, Role::Error, e) + 6.0;
+                cy += ui.wrap_as((x, cy, w), BODY_M, Role::Error, e) + 6.0;
             }
             // The foot shows once every slot is filled: Make the wallet,
             // which makes it; the slot's own New key leads until then.
@@ -677,11 +668,10 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                 cy += 6.0;
                 cy += check_foot(app, ui, x, cy, w, c.done[n as usize]);
             } else {
-                ui.text(
+                ui.text_as(
                     x,
                     cy,
-                    13.0,
-                    W::R,
+                    BODY_S,
                     Role::OnSurfaceVariant,
                     EN.create_make_the_wallet,
                 );
@@ -709,7 +699,7 @@ fn check_foot(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, checked: bool) ->
             EN.create_move_the_money,
             &[&app.session.wallets[old].name.to_string()],
         );
-        let label = ui.fit(14.0, W::S, &label, w - 32.0);
+        let label = ui.fit_as(TITLE_S, &label, w - 32.0);
         (
             label,
             Style::Secondary,
@@ -770,15 +760,7 @@ fn shares_quorum(ui: &mut Ui, x: f32, y: f32, w: f32, c: &crate::CreateState) ->
         EN.create_shares_any,
         &[&c.share_k.to_string(), &c.share_n.to_string()],
     );
-    cy += ui.wrap(
-        x,
-        cy,
-        w,
-        tokens::CAPTION + 1.0,
-        W::R,
-        Role::OnSurface,
-        &line,
-    ) + tokens::PAD;
+    cy += ui.wrap_as((x, cy, w), BODY_M, Role::OnSurface, &line) + tokens::PAD;
     if c.kind.account_card() == Some(crate::cstep::QUORUM) {
         cy += account_row(ui, x, cy, w, c);
     }
@@ -850,19 +832,19 @@ fn change_row(
     value: &str,
     change: Option<(&str, Action)>,
 ) -> f32 {
-    let bw = change.map_or(0.0, |(l, _)| ui.measure(13.0, W::S, l) + 32.0);
+    let bw = change.map_or(0.0, |(l, _)| ui.measure_as(LABEL_L, l) + 32.0);
     let vw = if change.is_some() { w - bw - 10.0 } else { w };
-    ui.text(x, y, 12.0, W::R, Role::OnSurfaceVariant, label);
+    ui.text_as(x, y, BODY_S, Role::OnSurfaceVariant, label);
     let vh = ui
-        .wrap(x, y + 20.0, vw, 13.0, W::M, Role::OnSurface, value)
+        .wrap_as((x, y + 20.0, vw), BODY_M.mono(), Role::OnSurface, value)
         .max(18.0);
     let h = 20.0 + vh + 8.0;
     if let Some((l, action)) = change {
         ui.button(
             x + w - bw,
-            y + (h - 34.0) / 2.0,
+            y + (h - BUTTON_H) / 2.0,
             Some(bw),
-            34.0,
+            BUTTON_H,
             l,
             Style::Ghost,
             action,

@@ -25,6 +25,7 @@
 
 use faraday_draw::geom::WindowClass;
 use faraday_draw::tokens as t;
+use faraday_draw::tokens::{BODY_M, TITLE_S};
 use faraday_draw::widgets::Icon;
 use faraday_draw::widgets::keyboard::KeyboardKind;
 use faraday_entropy::booklet::BOOKLET_DICE;
@@ -41,7 +42,7 @@ use crate::fresh::roller::five_screen::{
 };
 use crate::strings::{EN, fill};
 use crate::ui::pal::*;
-use crate::ui::{Style, Ui, W};
+use crate::ui::{Style, Ui};
 
 /// Where the input panel stands on this window.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -576,7 +577,7 @@ pub(crate) fn draw(m: &Codex32Make, ui: &mut Ui, at: PanelAt, (x0, cw, h): (f32,
 /// one way on once every character is in.
 fn continue_button(ui: &mut Ui, x: f32, y: f32, w: f32) {
     let label = EN.keygen_continue;
-    let bw = ui.measure(t::LABEL, W::S, label) + 2.0 * t::SPACER;
+    let bw = ui.measure_as(TITLE_S, label) + 2.0 * t::SPACER;
     ui.button(
         x + w - bw,
         y,
@@ -628,21 +629,21 @@ fn pad(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32) {
     };
     let lw = t::INPUT_PAD_LABEL_W;
     let head = if p.label {
-        ui.fit(t::LABEL, W::S, EN.codex32_your_dice_head, lw)
+        ui.fit_as(TITLE_S, EN.codex32_your_dice_head, lw)
     } else {
         String::new()
     };
     let role = Role::OnSurfaceVariant;
     match &note {
         None => {
-            ui.text_mid(x, y, t::TOUCH, t::LABEL, W::S, role, &head);
+            ui.text_mid_as((x, y, t::TOUCH), TITLE_S, role, &head);
         }
         Some(n) => {
-            let lh = ui.line(t::LABEL, W::S);
+            let lh = ui.line_as(TITLE_S);
             let top = y + (t::TOUCH - 2.0 * lh) / 2.0;
-            ui.text(x, top, t::LABEL, W::S, role, &head);
-            let shown = ui.fit(t::LABEL, W::M, n, lw);
-            ui.text(x, top + lh, t::LABEL, W::M, ink, &shown);
+            ui.text_as(x, top, TITLE_S, role, &head);
+            let shown = ui.fit_as(BODY_M.mono(), n, lw);
+            ui.text_as(x, top + lh, BODY_M.mono(), ink, &shown);
         }
     }
     let faces = usize::from(m.dice_choice().faces);

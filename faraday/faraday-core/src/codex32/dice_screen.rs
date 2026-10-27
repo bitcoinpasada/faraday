@@ -12,6 +12,7 @@
 use crate::ui::Paint;
 use faraday_draw::Color;
 use faraday_draw::tokens as t;
+use faraday_draw::tokens::{BODY_L, BODY_M, BODY_S, LABEL_M, TITLE_S};
 use faraday_draw::widgets::Icon;
 use faraday_entropy::booklet::{BOOKLET_DICE, TREE};
 
@@ -20,7 +21,7 @@ use super::{C32, Codex32Make, DIE_SIZES, DieColour};
 use crate::fresh::roller::five_screen::{Pairs, pairs};
 use crate::strings::{EN, fill};
 use crate::ui::pal::*;
-use crate::ui::{Slot, Style, Ui, W};
+use crate::ui::{Slot, Style, Ui};
 
 // ---------------------------------------------------------------------
 // The dice' colours
@@ -79,7 +80,7 @@ pub(super) fn chooser(m: &Codex32Make, ui: &mut Ui, (x, y, w): (f32, f32, f32)) 
             EN.codex32_die_colour,
             &[&(d + 1).to_string(), colour_name(c)],
         );
-        let cw = 2.0 * (t::CODEX32_SWATCH + t::GAP) + t::GAP + ui.measure(t::LABEL, W::S, &label);
+        let cw = 2.0 * (t::CODEX32_SWATCH + t::GAP) + t::GAP + ui.measure_as(TITLE_S, &label);
         if cx > x && cx + cw > x + w {
             cx = x;
             cy += t::TOUCH;
@@ -144,12 +145,9 @@ fn colour_chip(
     let (sx, sy) = (x + t::GAP + sr, top + t::CODEX32_CHIP_H / 2.0);
     ui.dot(sx, sy, sr + 1.0, Role::OutlineVariant);
     ui.dot(sx, sy, sr, body);
-    ui.text_mid(
-        sx + sr + t::GAP,
-        top,
-        t::CODEX32_CHIP_H,
-        t::LABEL,
-        W::S,
+    ui.text_mid_as(
+        (sx + sr + t::GAP, top, t::CODEX32_CHIP_H),
+        TITLE_S,
         Role::OnSurface,
         label,
     );
@@ -173,16 +171,13 @@ pub(super) fn face_pad(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32) -> 
         } else {
             fill(EN.codex32_face_pending, &[&d.to_string()])
         };
-        cy += ui.wrap(x, cy, w, t::LABEL, W::M, Role::Primary, &s) + t::GAP_SMALL;
+        cy += ui.wrap_as((x, cy, w), BODY_M.mono(), Role::Primary, &s) + t::GAP_SMALL;
     }
     let n = usize::from(m.dice_choice().faces);
     if n == 10 {
-        cy += ui.wrap(
-            x,
-            cy,
-            w,
-            t::LABEL,
-            W::R,
+        cy += ui.wrap_as(
+            (x, cy, w),
+            BODY_M,
             Role::OnSurfaceVariant,
             EN.codex32_d10_zero,
         ) + t::GAP_SMALL;
@@ -367,7 +362,7 @@ fn dice_body(
 /// Returns its height.
 fn head_row(m: &Codex32Make, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
     let head = EN.codex32_dice_sheet;
-    ui.text_mid(x, y, t::TOUCH, t::LABEL, W::S, Role::OnSurface, head);
+    ui.text_mid_as((x, y, t::TOUCH), TITLE_S, Role::OnSurface, head);
     let ic = t::ICON_SMALL;
     let icon = if m.dice_sheet_open() {
         Icon::ChevronUp
@@ -398,13 +393,13 @@ pub(super) fn rolled_line(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32) 
         // In practice the line keeps its room, so the tracks under it
         // stay put as the computer's and the person's values alternate.
         return if m.practice() {
-            ui.line(t::CAPTION, W::R) + t::GAP_SMALL
+            ui.line_as(BODY_S) + t::GAP_SMALL
         } else {
             0.0
         };
     }
     let line = fill(EN.codex32_dice_rolled, &[&dice.join(", ")]);
-    ui.wrap(x, y, w, t::CAPTION, W::R, Role::OnSurfaceVariant, &line) + t::GAP_SMALL
+    ui.wrap_as((x, y, w), BODY_S, Role::OnSurfaceVariant, &line) + t::GAP_SMALL
 }
 
 /// The line a die's row reads: "4 then 2 · lower · 0", or the first value
@@ -450,7 +445,7 @@ pub(super) fn dice_rows(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32, pa
         let line = die_line(m, die);
         let on = m.shown_dice().first(die).is_none() || m.shown_dice().second(die).is_none();
         let text = fill(EN.codex32_die_n, &[&(die + 1).to_string()]);
-        let lh = ui.line(t::LABEL, W::R);
+        let lh = ui.line_as(BODY_M);
         swatch(ui, x + t::CODEX32_SWATCH, cy + lh / 2.0, colour);
         let tx = x + 2.0 * t::CODEX32_SWATCH + t::GAP_SMALL;
         let marked = m.walk_die_mark().is_some_and(|(d, _)| d == die);
@@ -461,12 +456,11 @@ pub(super) fn dice_rows(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32, pa
         } else {
             Role::OnSurfaceVariant
         };
-        ui.text(tx, cy, t::LABEL, W::S, ink, &text);
-        ui.text(
+        ui.text_as(tx, cy, TITLE_S, ink, &text);
+        ui.text_as(
             x + t::CODEX32_LABEL_W,
             cy,
-            t::LABEL,
-            W::M,
+            BODY_M.mono(),
             Role::OnSurface,
             &line,
         );
@@ -482,8 +476,8 @@ pub(super) fn dice_rows(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32, pa
                 None => "·".to_string(),
             })
             .collect();
-        ui.text(x, cy, t::BODY, W::M, Role::Primary, &s.join(" "));
-        cy += ui.line(t::BODY, W::M) + t::GAP;
+        ui.text_as(x, cy, BODY_L.mono(), Role::Primary, &s.join(" "));
+        cy += ui.line_as(BODY_L.mono()) + t::GAP;
     }
     cy - y
 }
@@ -510,8 +504,8 @@ pub(super) fn struck(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32) -> f3
             EN.codex32_die_equal,
             &[&(usize::from(row.die) + 1).to_string(), &f, &sc],
         );
-        let tw = ui.text(x, cy, t::CAPTION, W::R, Role::Warning, &s);
-        let lh = ui.line(t::CAPTION, W::R);
+        let tw = ui.text_as(x, cy, BODY_S, Role::Warning, &s);
+        let lh = ui.line_as(BODY_S);
         ui.fill(x, cy + lh / 2.0, tw.min(w), 1.0, 0.0, Role::Warning);
         cy += lh + t::GAP_SMALL;
     }
@@ -643,15 +637,8 @@ fn tracks(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let u = ((w - lw - t::CODEX32_PANEL_GAP) / span).min(t::CODEX32_TRACK_UNIT);
     let tx = x + lw;
     let mut cy = y + t::GAP;
-    ui.text(
-        x,
-        cy,
-        t::LABEL,
-        W::S,
-        Role::OnSurface,
-        EN.codex32_die_tracks,
-    );
-    cy += ui.line(t::LABEL, W::S);
+    ui.text_as(x, cy, TITLE_S, Role::OnSurface, EN.codex32_die_tracks);
+    cy += ui.line_as(TITLE_S);
     ui.rule(x, cy, lw + span * u, Role::OutlineVariant);
     cy += t::GAP_SMALL;
     // The heads over the pads, where the booklet sets them; the d7+
@@ -665,27 +652,20 @@ fn tracks(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let heads = if large { &heads[..] } else { &heads[..2] };
     for (i, &(hx, s)) in heads.iter().enumerate() {
         let next = heads.get(i + 1).map_or(f32::MAX, |n| tx + n.0 * u);
-        let sw = ui.measure(t::CAPTION, W::S, s);
+        let sw = ui.measure_as(LABEL_M, s);
         if tx + hx * u + sw + t::GAP_SMALL <= next {
-            ui.text(tx + hx * u, cy, t::CAPTION, W::S, Role::OnSurfaceVariant, s);
+            ui.text_as(tx + hx * u, cy, LABEL_M, Role::OnSurfaceVariant, s);
         }
     }
-    cy += ui.line(t::CAPTION, W::S) + t::GAP_SMALL;
+    cy += ui.line_as(LABEL_M) + t::GAP_SMALL;
     let colours = m.dice_choice().colours;
     let th = (t::CODEX32_TRACK_TOP + 1.0) * u;
     for (die, &colour) in colours.iter().enumerate() {
         let name = fill(EN.codex32_die_n, &[&(die + 1).to_string()]);
-        let lh = ui.line(t::CAPTION, W::S);
+        let lh = ui.line_as(LABEL_M);
         swatch(ui, x + t::CODEX32_SWATCH, cy + th / 2.0 - lh / 2.0, colour);
         let nx = x + 2.0 * t::CODEX32_SWATCH + t::GAP_SMALL;
-        ui.text(
-            nx,
-            cy + th / 2.0 - lh,
-            t::CAPTION,
-            W::S,
-            Role::OnSurface,
-            &name,
-        );
+        ui.text_as(nx, cy + th / 2.0 - lh, LABEL_M, Role::OnSurface, &name);
         track(m, ui, (tx, cy, u), die);
         // The step-through's die: where the page follows its roll.
         if m.walk_die_mark().is_some_and(|(d, _)| d == die) {
@@ -699,7 +679,7 @@ fn tracks(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                 b.to_string()
             };
             let bx = tx + span * u + t::GAP;
-            ui.text_mid(bx, cy, th, t::LABEL, W::M, Role::Primary, &text);
+            ui.text_mid_as((bx, cy, th), BODY_M.mono(), Role::Primary, &text);
         }
         cy += th + t::CODEX32_TRACK_SPACE;
     }
@@ -708,9 +688,9 @@ fn tracks(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
 
 /// `s` centred on (`cx`, `cy`) in the caption size.
 fn centred(ui: &mut Ui, (cx, cy): (f32, f32), s: &str, ink: Paint) {
-    let w = ui.measure(t::CAPTION, W::S, s);
-    let h = ui.line(t::CAPTION, W::S);
-    ui.text(cx - w / 2.0, cy - h / 2.0, t::CAPTION, W::S, ink, s);
+    let w = ui.measure_as(LABEL_M, s);
+    let h = ui.line_as(LABEL_M);
+    ui.text_as(cx - w / 2.0, cy - h / 2.0, LABEL_M, ink, s);
 }
 
 /// Die `die`'s track with its top-left at (`tx`, `top`), `u` dp to the
@@ -769,11 +749,11 @@ fn track(m: &Codex32Make, ui: &mut Ui, (tx, top, u): (f32, f32, f32), die: usize
 /// The 32 leaves in the booklet's order from (x, y), `lw` apart; the
 /// leaf `reached`, if any, filled in the path's colour.
 fn leaves(ui: &mut Ui, (x, ly, lw): (f32, f32, f32), reached: Option<usize>) {
-    let lh = ui.line(t::CAPTION, W::M);
+    let lh = ui.line_as(BODY_S.mono());
     for (i, &leaf) in TREE.iter().enumerate() {
         let s = char::from(leaf.to_ascii_uppercase()).to_string();
         let on = reached == Some(i);
-        let cw = ui.measure(t::CAPTION, W::M, &s);
+        let cw = ui.measure_as(BODY_S.mono(), &s);
         let lx = x + i as f32 * lw + (lw - cw) / 2.0;
         if on {
             let side = lw.max(lh);
@@ -788,7 +768,7 @@ fn leaves(ui: &mut Ui, (x, ly, lw): (f32, f32, f32), reached: Option<usize>) {
         } else {
             Role::OnSurface
         };
-        ui.text(lx, ly, t::CAPTION, W::M, ink, &s);
+        ui.text_as(lx, ly, BODY_S.mono(), ink, &s);
     }
 }
 
@@ -868,16 +848,16 @@ fn tree(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32, keep: bool) -> f32
     }
     let ly = top + BOOKLET_DICE as f32 * lv + t::GAP_SMALL;
     leaves(ui, (x, ly, lw), path.then_some(at));
-    let mut h = ly - y + ui.line(t::CAPTION, W::M) + t::GAP_SMALL;
+    let mut h = ly - y + ui.line_as(BODY_S.mono()) + t::GAP_SMALL;
     if path && bits.iter().all(Option::is_some) {
         let b: String = bits.iter().map(|b| b.unwrap_or(0).to_string()).collect();
         let s = fill(
             EN.codex32_path_leaf,
             &[&b, &at.to_string(), &char::from(TREE[at]).to_string()],
         );
-        h += ui.wrap(x, y + h, w, t::LABEL, W::M, Role::Tertiary, &s) + t::GAP_SMALL;
+        h += ui.wrap_as((x, y + h, w), BODY_M.mono(), Role::Tertiary, &s) + t::GAP_SMALL;
     } else if keep {
-        h += ui.line(t::LABEL, W::M) + t::GAP_SMALL;
+        h += ui.line_as(BODY_M.mono()) + t::GAP_SMALL;
     }
     // The step-through's character read down the tree: where the page
     // follows it.

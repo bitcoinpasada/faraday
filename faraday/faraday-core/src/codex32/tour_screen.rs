@@ -9,6 +9,7 @@
 
 use faraday_draw::geom::WindowClass;
 use faraday_draw::tokens as t;
+use faraday_draw::tokens::TITLE_S;
 use faraday_keys::{Reveal, WorkSet};
 
 use super::screen::{a, glyph, target_name};
@@ -18,8 +19,8 @@ use super::walk_screen::{sum_inputs, sum_text_of, table_text_of, up};
 use super::worksheet_screen::{self, Paper, Sheet, paper};
 use super::{C32, Codex32Make};
 use crate::strings::{EN, fill};
+use crate::ui::Ui;
 use crate::ui::pal::*;
-use crate::ui::{Ui, W};
 
 /// An initial share's name, its capital: "A".
 fn input_name(i: u8) -> String {
@@ -218,7 +219,7 @@ pub(super) fn check_sheet(
     };
     let tg = work.targets().get(n).copied().unwrap_or(b's');
     let head = fill(EN.codex32_tour_check_head, &[&target_name(tg)]);
-    let hh = ui.wrap(x, y, w, t::LABEL, W::S, Role::OnSurface, &head) + t::GAP_SMALL;
+    let hh = ui.wrap_as((x, y, w), TITLE_S, Role::OnSurface, &head) + t::GAP_SMALL;
     let marks = m.tour_check_cells(n);
     let s = |p| Sheet {
         sh: p,

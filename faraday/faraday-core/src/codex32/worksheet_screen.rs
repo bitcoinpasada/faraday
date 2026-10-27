@@ -24,6 +24,7 @@
 use crate::ui::Paint;
 use faraday_draw::geom::WindowClass;
 use faraday_draw::tokens as t;
+use faraday_draw::tokens::{BODY_M, TITLE_S};
 use faraday_keys::{Reveal, WorkSet};
 
 use super::screen::share_name;
@@ -764,7 +765,7 @@ pub(crate) fn entry_sheet(
         return 0.0;
     };
     let head = fill(EN.codex32_checksum_of, &[&share_name(work, share)]);
-    let hh = ui.wrap(x, y, w, t::LABEL, W::S, Role::OnSurface, &head) + t::GAP_SMALL;
+    let hh = ui.wrap_as((x, y, w), TITLE_S, Role::OnSurface, &head) + t::GAP_SMALL;
     let marks = m.walk_cells(share);
     let s = |sh| Sheet {
         sh,
@@ -806,7 +807,7 @@ pub(crate) fn review_sheet(
             },
         ],
     );
-    let hh = ui.wrap(x, y, w, t::LABEL, W::S, Role::OnSurface, &head) + t::GAP_SMALL;
+    let hh = ui.wrap_as((x, y, w), TITLE_S, Role::OnSurface, &head) + t::GAP_SMALL;
     let s = |sh| Sheet {
         sh,
         id: share as u8,
@@ -849,7 +850,7 @@ pub(crate) fn check_sheet(
     if let Some(i) = sh.first_difference() {
         let b = sh.sum_box(sh.steps()) + i;
         let line = fill(EN.c32r_final_differs, &[&b.to_string()]);
-        h += ui.wrap(x, y + h, w, t::LABEL, W::R, Role::Error, &line) + t::GAP;
+        h += ui.wrap_as((x, y + h, w), BODY_M, Role::Error, &line) + t::GAP;
     }
     h
 }
