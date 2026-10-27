@@ -62,12 +62,13 @@ lint:
     python3 tools/learn/sync.py check
 
 # Fetch the audit sets supply-chain/config.toml imports, write them to
-# imports.lock, and drop exemptions they now cover (F71). Online; run it
-# when chosen, and when a trust entry is renewed before its end date.
+# imports.lock, and drop exemptions they now cover (F71), keeping those
+# the fuzz workspaces still need; then vet all three offline
+# (tools/vet-refresh.py). Online; run it when chosen, and when a trust
+# entry is renewed before its end date.
 [group('lint')]
 vet-refresh:
-    cargo vet
-    cargo vet prune
+    python3 tools/vet-refresh.py
 
 # BIP 445's reference implementation as the second share of the
 # threshold fixture spend. Not part of the

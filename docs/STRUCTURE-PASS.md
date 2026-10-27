@@ -75,29 +75,58 @@ The plan as written: moved to `docs/history/STRUCTURE-PASS-LOG.md`.
 ## 6. Dependency policy (F71)
 
 `cargo vet --locked` is in `just lint`
-and passes: 88 trust entries, the imported audits, and 141 exemptions
-(223 before). Trust is by the publisher of each locked version, all
-under F71's named groups: rust-bitcoin (apoelstra: `bitcoin`,
-`bitcoin-io`, `bitcoin-internals`, `bech32`, `miniscript`), RustCrypto
-(tarcieri and RustCrypto's GitHub publishing, `github:RustCrypto/*`:
-the hashes, MACs, AEADs, password hashes, `rsa`, `der`/`spki`/`pkcs*`,
-`crypto-bigint`, `signature`, `ed25519`, `zeroize`), dalek (rozbb:
-`curve25519-dalek`, `ed25519-dalek`), and the publishers Mozilla, ISRG
-and the Bytecode Alliance already trust (dtolnay, sunfishcode,
-kennykerr, BurntSushi, epage, alexcrichton, rust-lang-owner, cuviper).
-Every trust entry ends on 2027-10-01; the board carries the renewal a
-month before. Exempt and not reviewed where the publisher is in none of
-those groups: `crypto-primes` (fjarri), `fiat-crypto` (JasonGross),
-`hex_lit` (another rust-bitcoin maintainer, not named in F71), and the
-desktop window stack's long tail. `just vet-refresh` (online) updates the
-imports and prunes. Every direct dependency has a `docs/deps/` page with
-a **Review.** line saying which of the three covers it. `third_party/rqrr`
-carries `[policy.rqrr] audit-as-crates-io = false`: offline, cargo vet
-took the vendored copy as first-party already, but `cargo vet` online
-(as `vet-refresh` runs it) refuses it without the line, since it matches
-a published version. No real audit was written (F71's sha1 and PGP case): `sha1` and
-every crate `faraday-pgp` uses are now trusted by publisher; an audit by
-reading remains possible, and would be labelled by who read it.
+and passes: 88 trust entries, the imported audits, 15 audits of
+Faraday's own, and 128 exemptions (223 at first). Trust is by the
+publisher of each locked version, all under F71's named groups:
+rust-bitcoin (apoelstra: `bitcoin`, `bitcoin-io`, `bitcoin-internals`,
+`bech32`, `miniscript`), RustCrypto (tarcieri and RustCrypto's GitHub
+publishing, `github:RustCrypto/*`: the hashes, MACs, AEADs, password
+hashes, `rsa`, `der`/`spki`/`pkcs*`, `crypto-bigint`, `signature`,
+`ed25519`, `zeroize`), dalek (rozbb: `curve25519-dalek`,
+`ed25519-dalek`), and the publishers Mozilla, ISRG and the Bytecode
+Alliance already trust (dtolnay, sunfishcode, kennykerr, BurntSushi,
+epage, alexcrichton, rust-lang-owner, cuviper). Every trust entry ends on 2027-10-01; the board carries
+the renewal a month before.
+
+Faraday's own audits are under the criteria
+`safe-to-deploy-read-by-ai`, defined in `supply-chain/audits.toml` as
+implying `safe-to-deploy`: each was read by an AI model for the project,
+and its notes say what was read. They cover every crate the signing and
+key crates (`faraday-keys`, `faraday-psbt`, `faraday-bip`,
+`faraday-crypto`, `faraday-vault`, `faraday-backup`, `faraday-entropy`)
+and the stick's binary reach that was exempt, except `tiny-skia` and
+`tiny-skia-path` 0.12.0: whole crates `hex_lit`, `crypto-primes`,
+`typenum`, `strict-num` and `getrandom` 0.3.4 (on which the imported
+audits of the desktop shell's `getrandom` 0.4.3 rest), and deltas from
+an imported audit for `arrayvec`, `tinyvec`, `miniz_oxide`, `png`,
+`flate2`, `crc32fast`, `simd-adler32`, `bitflags`, `bytemuck` and `log`.
+
+The 128 exemptions stay "not reviewed". 117 are crates of the desktop
+window stack, what `faraday-window` reaches on any target with every
+feature cargo vet turns on, the drawing library `tiny-skia` 0.12.0
+among them (about 27,000 lines with `tiny-skia-path`, SIMD pipelines
+included, left for a pass of its own). The other eleven are `cc` and `find-msvc-tools`, now published by the
+cc repository's GitHub publishing (`github:rust-lang/cc-rs`), which F71
+does not name; the
+Starter's D-Bus and payload crates (`rustbus`, `rustbus_derive`, `nix`,
+`memoffset`, `lzma-rust2`), `zlib-rs` (reached only through `png`'s
+optional `zlib-rs` feature), `bip39` (a dev-dependency, exempt as
+`safe-to-run`), and the fuzz crates' `arbitrary` and `libfuzzer-sys`. Importing Google's chromium,
+chromiumos and fuchsia audit sets as well would cover none of them
+(tried on a copy of the store); Google's own set already
+aggregates them.
+
+`just vet-refresh` (online, `tools/vet-refresh.py`) updates the imports
+and prunes, then puts back the exemptions the fuzz workspaces still
+need, since cargo vet prunes against one workspace at a time and would
+drop `arbitrary` and `libfuzzer-sys`, and vets all three workspaces
+offline. Every direct dependency has a `docs/deps/` page with a
+**Review.** line saying what covers it. `third_party/rqrr` carries
+`[policy.rqrr] audit-as-crates-io = false`: offline, cargo vet took the
+vendored copy as first-party already, but `cargo vet` online (as
+`vet-refresh` runs it) refuses it without the line, since it matches a
+published version. `sha1` and every crate `faraday-pgp` uses are
+trusted by publisher.
 
 The measurements that led to F71: moved to `docs/history/STRUCTURE-PASS-LOG.md`.
 

@@ -1,7 +1,202 @@
 
 # cargo-vet audits file
 
-[audits]
+[criteria.safe-to-deploy-read-by-ai]
+description = """
+safe-to-deploy as cargo vet defines it, judged from a reading of the crate's
+source by an AI model (Claude) working for the project, not by a person (F71).
+The notes say what was read."""
+implies = "safe-to-deploy"
+
+[[audits.arrayvec]]
+who = "bitcoinpasada <bitcoinpasada@proton.me>"
+criteria = "safe-to-deploy-read-by-ai"
+delta = "0.7.6 -> 0.7.8"
+notes = """
+Read the whole diff. New `spare_capacity_mut` returns the safe slice of the
+`MaybeUninit` buffer past `len`. `extend` now forgets a zero-sized element
+after counting it, fixing a double drop. The length type is u16 on 16-bit
+targets, with the capacity check to match. The rest is lifetime syntax, docs,
+tests and CI. No build script, no I/O."""
+
+[[audits.bitflags]]
+who = "bitcoinpasada <bitcoinpasada@proton.me>"
+criteria = "safe-to-deploy-read-by-ai"
+delta = "2.11.1 -> 2.13.2"
+notes = """
+Read the diff of src/. It adds the `#[bitflags(flag_name = ...)]` attribute
+and an iterator over the names equal to a value, all in `macro_rules!` and
+safe code; the crate keeps `forbid(unsafe_code)` outside tests and no
+`unsafe` line changed. No build script, no I/O."""
+
+[[audits.bytemuck]]
+who = "bitcoinpasada <bitcoinpasada@proton.me>"
+criteria = "safe-to-deploy-read-by-ai"
+delta = "1.22.0 -> 1.25.2"
+notes = """
+Read the diff of src/ and the manifest (line endings ignored). New unsafe
+impls, each sound: `NoUninit` for arrays of char, bool and the NonZero
+integers (no padding, every byte initialized); `AnyBitPattern` for arrays of
+`MaybeUninit<T>` where T is; `ZeroableInOption` for function pointers of up
+to 13 arguments (None is the null pointer); `Pod`/`Zeroable` for
+`core::simd::Simd` behind the nightly feature, gated by date with
+`rustversion`. Also `core::error::Error` impls and a safe helper trait for
+the derive crate. No build script, no I/O."""
+
+[[audits.crc32fast]]
+who = "bitcoinpasada <bitcoinpasada@proton.me>"
+criteria = "safe-to-deploy-read-by-ai"
+delta = "1.4.2 -> 1.5.1"
+notes = """
+Read the diff of src/, build.rs and the manifest. The new build script runs
+`$RUSTC --version` and prints cfgs for rustc 1.80 and 1.89, nothing else.
+New AVX2 and AVX-512 VPCLMULQDQ paths, chosen only after runtime detection
+(or the compile-time target features without std): every unaligned load is
+preceded by a length check that leaves at least that many bytes (256 then
+128 per round for AVX2, 2048 then 256 for AVX-512, 16 for the tail). The
+aarch64 path adds a three-stream loop over `align_to::<u64>`, sound for u8
+to u64, recombined with `combine`; `combine` is now a table-driven GF(2)
+multiply in safe code. No I/O."""
+
+[[audits.crypto-primes]]
+who = "bitcoinpasada <bitcoinpasada@proton.me>"
+criteria = "safe-to-deploy-read-by-ai"
+version = "0.7.2"
+notes = """
+Searched every file for `unsafe`, `std`, process, file and network use,
+`include!`/`include_bytes!` and `asm!`: there is none outside the README
+included as docs; the crate is `no_std` with no build script and no proc
+macro. Read lib.rs, hazmat.rs, presets.rs (BPSW: Miller-Rabin base 2 and a
+strong Lucas test with A* base), generic.rs and the sieve; the rest is
+arithmetic over crypto-bigint. Candidates come only from the caller's
+`CryptoRng`. The optional `rayon` (multicore) and test-only openssl, rug and
+glass_pumpkin are not enabled in Faraday's lock. Primality testing runs in
+variable time; that is a property of the algorithm, not a criterion here."""
+
+[[audits.flate2]]
+who = "bitcoinpasada <bitcoinpasada@proton.me>"
+criteria = "safe-to-deploy-read-by-ai"
+delta = "1.1.5 -> 1.1.10"
+notes = """
+Read the diff of src/ and the manifest. The crate moves to `no_std` with
+`alloc` and `std` re-exported; the Rust backend file is renamed
+(rust.rs to miniz_oxide.rs) with partial flush now passed through; a new
+optional zlib-rs backend in safe code; in gzip, a decoder reset, the mtime as
+a Duration and the extra field held to u16 length, all safe code; CRC kept behind an inner type per backend. The unsafe code that remains
+(the C zlib FFI and writing into a Vec's spare capacity, its length clamped
+to the capacity) is unchanged apart from `std` to `core` paths and cfg
+names. `document-features` is an optional docs-only proc macro. No build
+script, no I/O beyond the caller's readers and writers."""
+
+[[audits.getrandom]]
+who = "bitcoinpasada <bitcoinpasada@proton.me>"
+criteria = "safe-to-deploy-read-by-ai"
+version = "0.3.4"
+notes = """
+Read build.rs, lib.rs, backends.rs, util.rs, util_libc.rs, error.rs, lazy.rs
+and the backends Faraday's targets use: Linux and Android (getrandom(2)
+found with dlsym or linked on musl, with the /dev/urandom fallback that first
+polls /dev/random until the pool is ready, and the raw-syscall `asm!`
+backend), Windows (`ProcessPrng`) and macOS (`getentropy` in 256-byte
+chunks). Each fills only the buffer it is given, loops on short reads and
+EINTR, and returns the OS error otherwise; the `MaybeUninit` casts are
+sound. The build script runs `$RUSTC -vV` (through `RUSTC_WRAPPER` if set)
+and prints cfgs for MemorySanitizer and old Windows targets. The other
+backends (RDRAND, RNDR, UEFI, WASI, wasm, ESP-IDF and the rest) are chosen
+only on their own targets or by an explicit cfg, and were checked for that
+gating, not read line by line. No network access; the only files opened are
+/dev/random and /dev/urandom."""
+
+[[audits.hex_lit]]
+who = "bitcoinpasada <bitcoinpasada@proton.me>"
+criteria = "safe-to-deploy-read-by-ai"
+version = "0.1.1"
+notes = """
+Read all of it: src/lib.rs (310 lines) and build.rs. The build script runs
+`$RUSTC --version` and prints `rust_v_1_46`/`rust_v_1_57` cfgs. The one
+`unsafe` is `from_utf8_unchecked` over a buffer of ASCII letters and digits
+built for a panic message, which is sound. The rest is `macro_rules!` and
+const fns that decode hex at compile time. No I/O, no dependencies."""
+
+[[audits.log]]
+who = "bitcoinpasada <bitcoinpasada@proton.me>"
+criteria = "safe-to-deploy-read-by-ai"
+delta = "0.4.29 -> 0.4.34"
+notes = """
+Read the diff of src/. Keys can now hold a `&'static str`; `std::net` address
+types gain `ToValue` through their Display; the `Box<T: Log>` impl needs only
+`alloc`; macro key capture is split by literal, ident and expression. No
+`unsafe` line changed, no build script, no I/O."""
+
+[[audits.miniz_oxide]]
+who = "bitcoinpasada <bitcoinpasada@proton.me>"
+criteria = "safe-to-deploy-read-by-ai"
+delta = "0.8.9 -> 0.9.1"
+notes = """
+Read the diff of src/ and the manifest. The crate keeps
+`forbid(unsafe_code)`. Changes: compressor window-bits parameters with the
+zlib header written to match, partial and sync flush variants, a
+`decompress_with_limit` that caps output through `OutputBuffer`, a stricter
+Huffman table check (over-subscribed code lengths rejected), a boxed LZ
+buffer on wasm, and `simd-adler32` raised to 0.3.8. No build script, no I/O."""
+
+[[audits.png]]
+who = "bitcoinpasada <bitcoinpasada@proton.me>"
+criteria = "safe-to-deploy-read-by-ai"
+delta = "0.18.0-rc -> 0.18.1"
+notes = """
+The crate keeps `forbid(unsafe_code)`; no `unsafe` appears in the diff. Read
+the manifest and lib.rs changes and searched src/ for file, process, network
+and environment use: only doc comments and tests open files. The decoder,
+unfiltering (now split into filter/ with a portable-SIMD path behind the
+nightly feature) and Adam7 changes are safe Rust over caller-provided
+readers. No build script."""
+
+[[audits.simd-adler32]]
+who = "bitcoinpasada <bitcoinpasada@proton.me>"
+criteria = "safe-to-deploy-read-by-ai"
+delta = "0.3.7 -> 0.3.10"
+notes = """
+Read the diff of src/. The NEON path is replaced by a port of Chromium's
+adler32_simd: compiled only with the `neon` target feature on aarch64, it
+reads each 32-byte block from `chunks_exact(32)` with two 16-byte loads and
+four 4-element weight arrays, all in bounds; chunks are at most 5536 bytes,
+so the u16 column sums cannot overflow. The wasm path is cfg-gated by
+architecture; the other changes are tests and `std` to `core`. No build
+script, no I/O."""
+
+[[audits.strict-num]]
+who = "bitcoinpasada <bitcoinpasada@proton.me>"
+criteria = "safe-to-deploy-read-by-ai"
+version = "0.1.1"
+notes = """
+Read all of it: src/lib.rs (785 lines), finite and bounded f32/f64 newtypes.
+The `unsafe fn new_unchecked` constructors only mark the caller's promise of
+the invariant; there is no unsafe operation in the crate. `no_std`, optional
+`float-cmp`, no build script, no I/O."""
+
+[[audits.tinyvec]]
+who = "bitcoinpasada <bitcoinpasada@proton.me>"
+criteria = "safe-to-deploy-read-by-ai"
+delta = "1.13.3 -> 1.13.2"
+notes = """
+Read the whole diff, from the audited 1.13.3 back to the locked 1.13.2: the
+only code change is that 1.13.2 takes `impl_mirrored!` from the
+`tinyvec_macros` crate (a dependency under the `alloc` feature) where 1.13.3
+inlines the same macro. Manifest and changelog otherwise. No unsafe code."""
+
+[[audits.typenum]]
+who = "bitcoinpasada <bitcoinpasada@proton.me>"
+criteria = "safe-to-deploy-read-by-ai"
+version = "1.20.1"
+notes = """
+The crate is `no_std` and `forbid(unsafe_code)`, with `build = false`, no
+dependency enabled (scale-info is optional) and no proc macro. Read lib.rs
+and checked that the generated files are only type aliases and trait impls
+(src/gen/consts.rs, `pub type` over `UInt`/`B0`/`B1`;
+src/gen/generic_const_mappings.rs, `impl ToUInt for Const<N>`); searched
+everything for file, process, network and environment use and found none.
+Most of the 41k lines are those generated files and tests/generated.rs."""
 
 [[trusted.aead]]
 criteria = "safe-to-deploy"

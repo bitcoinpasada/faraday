@@ -16,6 +16,7 @@ in `justfile` and `faraday/faraday.just`.
 | Path | Stage | What uses it | What it does |
 |---|---|---|---|
 | `tools/clippy.py` | lint | `just lint`, `tools/check-macos.sh` | clippy with warnings as errors; also fails on a warning about `clippy.toml` |
+| `tools/vet-refresh.py` | lint | `just vet-refresh` | fetches the imported audit sets and prunes (online), keeps the exemptions the fuzz workspaces still need, then vets all three workspaces offline (F71) |
 | `tools/lint-secrets.sh` | lint | `just lint` | secret-hygiene lint (below) |
 | `tools/lint-strings.sh` | lint | `just lint` | user-facing-strings lint (below) |
 | `tools/lint-tokens.sh` | lint | `just lint` | design-token lint (below) |
@@ -101,7 +102,7 @@ feeds.
 
 - `python3 tools/clippy.py --locked --workspace --all-targets`: clippy with `-D warnings`.
 - `cargo deny check`: advisories, licences, duplicates and sources, against `deny.toml`.
-- `cargo vet --locked`: every dependency trusted by a named publisher, covered by an imported audit, or an exemption, against the committed `supply-chain/` and `imports.lock`, offline (F71). `just vet-refresh` fetches the imports and prunes, online, when chosen; trust entries end within a year and are renewed with it.
+- `cargo vet --locked`: every dependency trusted by a named publisher, covered by an imported audit, or an exemption, against the committed `supply-chain/` and `imports.lock`, offline (F71). `just vet-refresh` fetches the imports and prunes, online, when chosen, keeping what the fuzz workspaces need; trust entries end within a year and are renewed with it.
 - `cargo fmt --all --check`: formatting.
 - `lint-secrets.sh`: in `core/*/src` and `faraday-core/src`, no printing or logging macros and no `Debug` derive on secret type names; no heap text (`String`, `to_string`, `format!`) in the files that hold secrets (a new one is added to `SECRET_FILES`); and rule 4, the key boundary: under `faraday/` outside `faraday-keys`, no key or seed in hand, no seed words made into a `Mnemonic`, no primitive's secret-taking function, and no held secret taken out of its guard outside one named site (`docs/KEYS.md`).
 - `lint-strings.sh`: no wording literal in screen code; every user-facing string is in `faraday-strings/src/en.rs`, which is also checked for untidy strings and for strings no code uses (a key no Rust file names as `.key` fails). Learn pages and self-test names are outside it.

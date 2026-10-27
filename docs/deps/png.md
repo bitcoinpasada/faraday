@@ -25,7 +25,7 @@ costly work through the compute token (`docs/COMPUTE.md`).
 **Version and features.** `png = "0.18"`, default features, in the
 workspace `Cargo.toml`.
 
-**Review.** Not reviewed: an exemption in `supply-chain/config.toml` (F71).
+**Review.** Version 0.18.1 is audited from 0.18.0-rc, which audits imported from other organisations cover (`supply-chain/imports.lock`), under `safe-to-deploy-read-by-ai`: the diff was read by an AI model for the project (F71, `supply-chain/audits.toml`). So are `flate2`, `crc32fast` and `simd-adler32` under it.
 
 **Reopen when** `faraday-files` reads only pictures `faraday_codec::png`
 wrote (the in-house writer then needs a reader and this crate goes from the
