@@ -76,7 +76,7 @@ The plan as written: moved to `docs/history/STRUCTURE-PASS-LOG.md`.
 
 `cargo vet --locked` is in `just lint`
 and passes: 88 trust entries, the imported audits, 15 audits of
-Faraday's own, and 128 exemptions (223 at first). Trust is by the
+Faraday's own, and 144 exemptions (223 at first). Trust is by the
 publisher of each locked version, all under F71's named groups:
 rust-bitcoin (apoelstra: `bitcoin`, `bitcoin-io`, `bitcoin-internals`,
 `bech32`, `miniscript`), RustCrypto (tarcieri and RustCrypto's GitHub
@@ -88,10 +88,12 @@ Alliance already trust (dtolnay, sunfishcode, kennykerr, BurntSushi,
 epage, alexcrichton, rust-lang-owner, cuviper). Every trust entry ends on 2027-10-01; the board carries
 the renewal a month before.
 
-Faraday's own audits are under the criteria
-`safe-to-deploy-read-by-ai`, defined in `supply-chain/audits.toml` as
+Faraday's own reads are recorded under the criteria
+`ai-says-safe-to-deploy`, defined in `supply-chain/audits.toml` as not
 implying `safe-to-deploy`: each was read by an AI model for the project,
-and its notes say what was read. They cover every crate the signing and
+and its notes say what was read. It is not a human audit and grants no
+trust; every crate it covers stays an exemption in `supply-chain/config.toml`
+and is "not reviewed" by a person. The reads cover every crate the signing and
 key crates (`faraday-keys`, `faraday-psbt`, `faraday-bip`,
 `faraday-crypto`, `faraday-vault`, `faraday-backup`, `faraday-entropy`)
 and the stick's binary reach that was exempt, except `tiny-skia` and
@@ -101,7 +103,8 @@ audits of the desktop shell's `getrandom` 0.4.3 rest), and deltas from
 an imported audit for `arrayvec`, `tinyvec`, `miniz_oxide`, `png`,
 `flate2`, `crc32fast`, `simd-adler32`, `bitflags`, `bytemuck` and `log`.
 
-The 128 exemptions stay "not reviewed". 117 are crates of the desktop
+The 144 exemptions stay "not reviewed", the 16 crates the AI reads cover
+among them. 117 are crates of the desktop
 window stack, what `faraday-window` reaches on any target with every
 feature cargo vet turns on, the drawing library `tiny-skia` 0.12.0
 among them (about 27,000 lines with `tiny-skia-path`, SIMD pipelines

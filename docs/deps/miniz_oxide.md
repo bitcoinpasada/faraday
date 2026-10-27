@@ -20,4 +20,4 @@ resolves to.
 **Reopen when** `png` leaves the graph or moves to another major version
 of `miniz_oxide`; then weigh the inflater on its own.
 
-**Review.** Version 0.8.9, the one this edge takes, is covered by audits imported from other organisations (`supply-chain/imports.lock`); not read here. Version 0.9.1, which `flate2` takes for `png`'s encoder, is audited from 0.8.9 under `safe-to-deploy-read-by-ai`: the diff was read by an AI model for the project (F71, `supply-chain/audits.toml`).
+**Review.** Version 0.8.9, the one this edge takes, is covered by audits imported from other organisations (`supply-chain/imports.lock`); not read here. Version 0.9.1, which `flate2` takes for `png`'s encoder, is an exemption, not reviewed by a human; its diff from 0.8.9 was read by an AI model for the project, recorded under `ai-says-safe-to-deploy`, which grants no trust (F71, `supply-chain/audits.toml`).

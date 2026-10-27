@@ -20,6 +20,7 @@ list is published that is not NFKD-invariant in a way this changes.
 
 **Review.** `unicode-normalization` is covered by an audit imported from
 other organisations (`supply-chain/imports.lock`); `tinyvec` 1.13.2, which
-it brings, is audited from the imported audits' 1.13.3 under
-`safe-to-deploy-read-by-ai`: the diff was read by an AI model for the
-project (F71, `supply-chain/audits.toml`).
+it brings, is an exemption, not reviewed by a human: its diff from the
+imported audits' 1.13.3 was read by an AI model for the project, recorded
+under `ai-says-safe-to-deploy`, which grants no trust (F71,
+`supply-chain/audits.toml`).

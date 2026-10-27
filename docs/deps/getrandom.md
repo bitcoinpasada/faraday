@@ -19,4 +19,4 @@ graph twice through `winit`'s platform crates, so it costs nothing.
 **Reopen when** the desktop shell moves to a platform layer that
 exposes an RNG of its own.
 
-**Review.** Version 0.4.3 is covered by audits imported from other organisations (`supply-chain/imports.lock`) from 0.3.4 onward; 0.3.4, which `ahash` in the window stack takes, is audited under `safe-to-deploy-read-by-ai`: read by an AI model for the project, the Linux, Windows and macOS backends in full (F71, `supply-chain/audits.toml`).
+**Review.** Version 0.4.3 is audited by other organisations (`supply-chain/imports.lock`) only as a delta from 0.3.4, so with 0.3.4 an exemption it is one too; 0.3.4, which `ahash` in the window stack takes, is an exemption, not reviewed by a human; an AI model read it for the project, the Linux, Windows and macOS backends in full, recorded under `ai-says-safe-to-deploy`, which grants no trust (F71, `supply-chain/audits.toml`).

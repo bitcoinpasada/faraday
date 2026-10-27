@@ -51,6 +51,10 @@ version = "1.5.0"
 criteria = "safe-to-deploy"
 notes = "F71: not reviewed; the fuzz crates only (docs/deps/libfuzzer-sys.md), in no shipped binary"
 
+[[exemptions.arrayvec]]
+version = "0.7.8"
+criteria = "safe-to-deploy"
+
 [[exemptions.as-raw-xcb-connection]]
 version = "1.0.1"
 criteria = "safe-to-deploy"
@@ -59,8 +63,16 @@ criteria = "safe-to-deploy"
 version = "2.2.2"
 criteria = "safe-to-run"
 
+[[exemptions.bitflags]]
+version = "2.13.2"
+criteria = "safe-to-deploy"
+
 [[exemptions.block2]]
 version = "0.5.1"
+criteria = "safe-to-deploy"
+
+[[exemptions.bytemuck]]
+version = "1.25.2"
 criteria = "safe-to-deploy"
 
 [[exemptions.bytemuck_derive]]
@@ -95,8 +107,16 @@ criteria = "safe-to-deploy"
 version = "0.23.2"
 criteria = "safe-to-deploy"
 
+[[exemptions.crc32fast]]
+version = "1.5.1"
+criteria = "safe-to-deploy"
+
 [[exemptions.crossbeam-utils]]
 version = "0.8.23"
+criteria = "safe-to-deploy"
+
+[[exemptions.crypto-primes]]
+version = "0.7.2"
 criteria = "safe-to-deploy"
 
 [[exemptions.ctor]]
@@ -155,6 +175,10 @@ criteria = "safe-to-deploy"
 version = "0.1.12"
 criteria = "safe-to-deploy"
 
+[[exemptions.flate2]]
+version = "1.1.10"
+criteria = "safe-to-deploy"
+
 [[exemptions.foreign-types-macros]]
 version = "0.2.4"
 criteria = "safe-to-deploy"
@@ -171,8 +195,20 @@ criteria = "safe-to-deploy"
 version = "1.1.0"
 criteria = "safe-to-deploy"
 
+[[exemptions.getrandom]]
+version = "0.3.4"
+criteria = "safe-to-deploy"
+
+[[exemptions.getrandom]]
+version = "0.4.3"
+criteria = "safe-to-deploy"
+
 [[exemptions.hermit-abi]]
 version = "0.5.3"
+criteria = "safe-to-deploy"
+
+[[exemptions.hex_lit]]
+version = "0.1.1"
 criteria = "safe-to-deploy"
 
 [[exemptions.jni]]
@@ -212,6 +248,10 @@ criteria = "safe-to-deploy"
 version = "0.1.23"
 criteria = "safe-to-deploy"
 
+[[exemptions.log]]
+version = "0.4.34"
+criteria = "safe-to-deploy"
+
 [[exemptions.lzma-rust2]]
 version = "0.22.0"
 criteria = "safe-to-deploy"
@@ -222,6 +262,10 @@ criteria = "safe-to-deploy"
 
 [[exemptions.memoffset]]
 version = "0.7.1"
+criteria = "safe-to-deploy"
+
+[[exemptions.miniz_oxide]]
+version = "0.9.1"
 criteria = "safe-to-deploy"
 
 [[exemptions.ndk]]
@@ -340,6 +384,10 @@ criteria = "safe-to-deploy"
 version = "0.2.3"
 criteria = "safe-to-deploy"
 
+[[exemptions.png]]
+version = "0.18.1"
+criteria = "safe-to-deploy"
+
 [[exemptions.polling]]
 version = "3.11.0"
 criteria = "safe-to-deploy"
@@ -384,6 +432,10 @@ criteria = "safe-to-deploy"
 version = "0.10.1"
 criteria = "safe-to-deploy"
 
+[[exemptions.simd-adler32]]
+version = "0.3.10"
+criteria = "safe-to-deploy"
+
 [[exemptions.simd_cesu8]]
 version = "1.2.0"
 criteria = "safe-to-deploy"
@@ -408,6 +460,10 @@ criteria = "safe-to-deploy"
 version = "0.4.8"
 criteria = "safe-to-deploy"
 
+[[exemptions.strict-num]]
+version = "0.1.1"
+criteria = "safe-to-deploy"
+
 [[exemptions.tiny-skia]]
 version = "0.11.4"
 criteria = "safe-to-deploy"
@@ -428,12 +484,20 @@ criteria = "safe-to-deploy"
 version = "0.2.5"
 criteria = "safe-to-deploy"
 
+[[exemptions.tinyvec]]
+version = "1.13.2"
+criteria = "safe-to-deploy"
+
 [[exemptions.tracing]]
 version = "0.1.44"
 criteria = "safe-to-deploy"
 
 [[exemptions.ttf-parser]]
 version = "0.25.1"
+criteria = "safe-to-deploy"
+
+[[exemptions.typenum]]
+version = "1.20.1"
 criteria = "safe-to-deploy"
 
 [[exemptions.version_check]]

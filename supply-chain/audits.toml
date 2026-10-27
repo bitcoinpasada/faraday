@@ -1,16 +1,17 @@
 
 # cargo-vet audits file
 
-[criteria.safe-to-deploy-read-by-ai]
+[criteria.ai-says-safe-to-deploy]
 description = """
-safe-to-deploy as cargo vet defines it, judged from a reading of the crate's
-source by an AI model (Claude) working for the project, not by a person (F71).
-The notes say what was read."""
-implies = "safe-to-deploy"
+An AI model (Claude) read the crate's source for the project and found nothing
+unsafe, by the standard of safe-to-deploy as cargo vet defines it. This is not
+a human audit and grants no trust: it does not imply safe-to-deploy, and a
+crate covered only by it stays an exemption (F71). The notes say what was
+read."""
 
 [[audits.arrayvec]]
 who = "bitcoinpasada <bitcoinpasada@proton.me>"
-criteria = "safe-to-deploy-read-by-ai"
+criteria = "ai-says-safe-to-deploy"
 delta = "0.7.6 -> 0.7.8"
 notes = """
 Read the whole diff. New `spare_capacity_mut` returns the safe slice of the
@@ -21,7 +22,7 @@ tests and CI. No build script, no I/O."""
 
 [[audits.bitflags]]
 who = "bitcoinpasada <bitcoinpasada@proton.me>"
-criteria = "safe-to-deploy-read-by-ai"
+criteria = "ai-says-safe-to-deploy"
 delta = "2.11.1 -> 2.13.2"
 notes = """
 Read the diff of src/. It adds the `#[bitflags(flag_name = ...)]` attribute
@@ -31,7 +32,7 @@ safe code; the crate keeps `forbid(unsafe_code)` outside tests and no
 
 [[audits.bytemuck]]
 who = "bitcoinpasada <bitcoinpasada@proton.me>"
-criteria = "safe-to-deploy-read-by-ai"
+criteria = "ai-says-safe-to-deploy"
 delta = "1.22.0 -> 1.25.2"
 notes = """
 Read the diff of src/ and the manifest (line endings ignored). New unsafe
@@ -45,7 +46,7 @@ the derive crate. No build script, no I/O."""
 
 [[audits.crc32fast]]
 who = "bitcoinpasada <bitcoinpasada@proton.me>"
-criteria = "safe-to-deploy-read-by-ai"
+criteria = "ai-says-safe-to-deploy"
 delta = "1.4.2 -> 1.5.1"
 notes = """
 Read the diff of src/, build.rs and the manifest. The new build script runs
@@ -60,7 +61,7 @@ multiply in safe code. No I/O."""
 
 [[audits.crypto-primes]]
 who = "bitcoinpasada <bitcoinpasada@proton.me>"
-criteria = "safe-to-deploy-read-by-ai"
+criteria = "ai-says-safe-to-deploy"
 version = "0.7.2"
 notes = """
 Searched every file for `unsafe`, `std`, process, file and network use,
@@ -75,7 +76,7 @@ variable time; that is a property of the algorithm, not a criterion here."""
 
 [[audits.flate2]]
 who = "bitcoinpasada <bitcoinpasada@proton.me>"
-criteria = "safe-to-deploy-read-by-ai"
+criteria = "ai-says-safe-to-deploy"
 delta = "1.1.5 -> 1.1.10"
 notes = """
 Read the diff of src/ and the manifest. The crate moves to `no_std` with
@@ -90,7 +91,7 @@ script, no I/O beyond the caller's readers and writers."""
 
 [[audits.getrandom]]
 who = "bitcoinpasada <bitcoinpasada@proton.me>"
-criteria = "safe-to-deploy-read-by-ai"
+criteria = "ai-says-safe-to-deploy"
 version = "0.3.4"
 notes = """
 Read build.rs, lib.rs, backends.rs, util.rs, util_libc.rs, error.rs, lazy.rs
@@ -109,7 +110,7 @@ gating, not read line by line. No network access; the only files opened are
 
 [[audits.hex_lit]]
 who = "bitcoinpasada <bitcoinpasada@proton.me>"
-criteria = "safe-to-deploy-read-by-ai"
+criteria = "ai-says-safe-to-deploy"
 version = "0.1.1"
 notes = """
 Read all of it: src/lib.rs (310 lines) and build.rs. The build script runs
@@ -120,7 +121,7 @@ const fns that decode hex at compile time. No I/O, no dependencies."""
 
 [[audits.log]]
 who = "bitcoinpasada <bitcoinpasada@proton.me>"
-criteria = "safe-to-deploy-read-by-ai"
+criteria = "ai-says-safe-to-deploy"
 delta = "0.4.29 -> 0.4.34"
 notes = """
 Read the diff of src/. Keys can now hold a `&'static str`; `std::net` address
@@ -130,7 +131,7 @@ types gain `ToValue` through their Display; the `Box<T: Log>` impl needs only
 
 [[audits.miniz_oxide]]
 who = "bitcoinpasada <bitcoinpasada@proton.me>"
-criteria = "safe-to-deploy-read-by-ai"
+criteria = "ai-says-safe-to-deploy"
 delta = "0.8.9 -> 0.9.1"
 notes = """
 Read the diff of src/ and the manifest. The crate keeps
@@ -142,7 +143,7 @@ buffer on wasm, and `simd-adler32` raised to 0.3.8. No build script, no I/O."""
 
 [[audits.png]]
 who = "bitcoinpasada <bitcoinpasada@proton.me>"
-criteria = "safe-to-deploy-read-by-ai"
+criteria = "ai-says-safe-to-deploy"
 delta = "0.18.0-rc -> 0.18.1"
 notes = """
 The crate keeps `forbid(unsafe_code)`; no `unsafe` appears in the diff. Read
@@ -154,7 +155,7 @@ readers. No build script."""
 
 [[audits.simd-adler32]]
 who = "bitcoinpasada <bitcoinpasada@proton.me>"
-criteria = "safe-to-deploy-read-by-ai"
+criteria = "ai-says-safe-to-deploy"
 delta = "0.3.7 -> 0.3.10"
 notes = """
 Read the diff of src/. The NEON path is replaced by a port of Chromium's
@@ -167,7 +168,7 @@ script, no I/O."""
 
 [[audits.strict-num]]
 who = "bitcoinpasada <bitcoinpasada@proton.me>"
-criteria = "safe-to-deploy-read-by-ai"
+criteria = "ai-says-safe-to-deploy"
 version = "0.1.1"
 notes = """
 Read all of it: src/lib.rs (785 lines), finite and bounded f32/f64 newtypes.
@@ -177,7 +178,7 @@ the invariant; there is no unsafe operation in the crate. `no_std`, optional
 
 [[audits.tinyvec]]
 who = "bitcoinpasada <bitcoinpasada@proton.me>"
-criteria = "safe-to-deploy-read-by-ai"
+criteria = "ai-says-safe-to-deploy"
 delta = "1.13.3 -> 1.13.2"
 notes = """
 Read the whole diff, from the audited 1.13.3 back to the locked 1.13.2: the
@@ -187,7 +188,7 @@ inlines the same macro. Manifest and changelog otherwise. No unsafe code."""
 
 [[audits.typenum]]
 who = "bitcoinpasada <bitcoinpasada@proton.me>"
-criteria = "safe-to-deploy-read-by-ai"
+criteria = "ai-says-safe-to-deploy"
 version = "1.20.1"
 notes = """
 The crate is `no_std` and `forbid(unsafe_code)`, with `build = false`, no
