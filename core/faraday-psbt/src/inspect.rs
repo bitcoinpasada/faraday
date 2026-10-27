@@ -403,7 +403,8 @@ pub struct Cosigner {
     /// Whether this key's signature is present on the first multisig
     /// input.
     pub signed: bool,
-    /// Whether the fingerprint is a loaded key.
+    /// Whether a loaded key, derived at the path the input states for
+    /// this key, is this key.
     pub ours: bool,
 }
 
@@ -677,7 +678,7 @@ pub fn inspect(c: &Compute, psbt: &Psbt, ctx: &Context) -> Inspection {
                     .multisig
                     .as_ref()
                     .expect("multisig kind carries the script");
-                let cosigners = cosigners(ms, input, ctx);
+                let cosigners = cosigners(c, &secp, ms, input, ctx);
                 let ours = cosigners.iter().any(|c| c.ours);
                 for (key, cosigner) in ms.keys.iter().zip(&cosigners) {
                     if let Some(fp) = cosigner.fingerprint {
@@ -689,9 +690,33 @@ pub fn inspect(c: &Compute, psbt: &Psbt, ctx: &Context) -> Inspection {
                         if cosigner.ours {
                             origin = Some(claim);
                             push_unique(&mut participating, fp);
-                        } else {
-                            origin.get_or_insert(claim);
+                            continue;
                         }
+                        let path = &claim.path;
+                        if ctx.is_ours(fp) {
+                            match derives_to(c, &secp, ctx, fp, path, &key.inner) {
+                                Some(_) => warn(
+                                    &mut warnings,
+                                    Level::Caution,
+                                    WarningKind::UnknownDerivation,
+                                    format!(
+                                        "input {i} names your key {fp} at {path}, but the derived key does not match the input"
+                                    ),
+                                ),
+                                None => {
+                                    push_unique(&mut participating, fp);
+                                    warn(
+                                        &mut warnings,
+                                        Level::Caution,
+                                        WarningKind::UnknownDerivation,
+                                        format!(
+                                            "input {i} names your key {fp} at {path}, which is not under a loaded account; ownership is checked only when signing"
+                                        ),
+                                    );
+                                }
+                            }
+                        }
+                        origin.get_or_insert(claim);
                     }
                 }
                 is_ours = ours;
@@ -1422,21 +1447,77 @@ fn input_origins(input: &Input) -> impl Iterator<Item = (Fingerprint, &Derivatio
         )
 }
 
-fn cosigners(ms: &Multisig, input: &Input, ctx: &Context) -> Vec<Cosigner> {
+/// Costs a key derivation per cosigner a loaded fingerprint names. The
+/// keys of a multisig script, with whose each one is: a key is a loaded
+/// key's only where that key, derived at the path the input states for
+/// it, is this key, so a fingerprint stated against a cosigner's key
+/// claims nothing.
+fn cosigners<C: Verification>(
+    c: &Compute,
+    secp: &Secp256k1<C>,
+    ms: &Multisig,
+    input: &Input,
+    ctx: &Context,
+) -> Vec<Cosigner> {
     ms.keys
         .iter()
         .map(|key| {
-            let fingerprint = input
-                .bip32_derivation
-                .get(&key.inner)
-                .map(|(fp, _)| Fingerprint::from(*fp));
+            let stated = input.bip32_derivation.get(&key.inner);
+            let fingerprint = stated.map(|(fp, _)| Fingerprint::from(*fp));
+            let ours = stated.is_some_and(|(fp, path)| {
+                derives_to(c, secp, ctx, (*fp).into(), path, &key.inner) == Some(true)
+            });
             Cosigner {
                 fingerprint,
                 signed: input.partial_sigs.contains_key(key),
-                ours: fingerprint.is_some_and(|fp| ctx.is_ours(fp)),
+                ours,
             }
         })
         .collect()
+}
+
+/// Costs a key derivation. Whether `key` is what the loaded key `fp`
+/// derives at `path`: from its accounts, single-signature or BIP-48, and
+/// otherwise from the xpub a registered wallet holds for it. `None` where
+/// `fp` is not loaded or neither derives the path.
+fn derives_to<C: Verification>(
+    c: &Compute,
+    secp: &Secp256k1<C>,
+    ctx: &Context,
+    fp: Fingerprint,
+    path: &DerivationPath,
+    key: &PublicKey,
+) -> Option<bool> {
+    let loaded = ctx.key(fp)?;
+    if let Some(derived) = loaded.derive_key(c, secp, path) {
+        return Some(derived == *key);
+    }
+    let components: Vec<ChildNumber> = path.into_iter().copied().collect();
+    let mut answer = None;
+    for policy in ctx.wallets {
+        for wallet_key in policy.keys().iter().filter(|k| k.fingerprint() == Some(fp)) {
+            let Some(prefix) = wallet_key.path() else {
+                continue;
+            };
+            let prefix: Vec<ChildNumber> = prefix.into_iter().copied().collect();
+            if components.len() != prefix.len() + 2 || components[..prefix.len()] != prefix[..] {
+                continue;
+            }
+            let leaf = components[prefix.len()..].to_vec();
+            if leaf.iter().any(ChildNumber::is_hardened) {
+                continue;
+            }
+            c.count(Work::KeyDerive);
+            let Ok(derived) = wallet_key.xpub().derive_pub(secp, &leaf) else {
+                continue;
+            };
+            if derived.public_key == *key {
+                return Some(true);
+            }
+            answer = Some(false);
+        }
+    }
+    answer
 }
 
 fn sighash_kind(input: &Input, kind: ScriptKind, spk: Option<&bitcoin::Script>) -> SighashKind {

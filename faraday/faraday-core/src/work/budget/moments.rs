@@ -268,8 +268,8 @@ const OPEN: Table = &[
     ),
     (
         Work::KeyDerive,
-        12,
-        "the inspection's context: each of the two seeds' six account xpubs (KeyRef::from_master)",
+        14,
+        "the inspection's context: each of the two seeds' six account xpubs (KeyRef::from_master) (12); each loaded seed's cosigner key derived at the path the input states, to check it is the script's (2)",
     ),
     (
         Work::WalletMatch,
@@ -301,8 +301,8 @@ const SIGN: Table = &[
     ),
     (
         Work::KeyDerive,
-        44,
-        "three contexts of the two seeds' six account xpubs each (36): the signing's, the signed PSBT's inspection and the nonce check's (kept on the spend); each seed's key derived and checked against the input's key as it signs (4); each signature's key derived again to recompute its nonce (4)",
+        48,
+        "three contexts of the two seeds' six account xpubs each (36): the signing's, the signed PSBT's inspection and the nonce check's (kept on the spend); each of the two inspections derives each loaded seed's cosigner key at the path the input states (4); each seed's key derived and checked against the input's key as it signs (4); each signature's key derived again to recompute its nonce (4)",
     ),
     (
         Work::DescriptorParse,

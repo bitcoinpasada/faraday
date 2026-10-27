@@ -8,8 +8,8 @@ use core::fmt;
 use bitcoin::hashes::hash160;
 use bitcoin::opcodes::all::{OP_CHECKMULTISIG, OP_PUSHNUM_1, OP_PUSHNUM_16};
 use bitcoin::psbt::Input;
-use bitcoin::script::Instruction;
-use bitcoin::{PublicKey, Script, TxOut};
+use bitcoin::script::{Builder, Instruction};
+use bitcoin::{PublicKey, Script, ScriptBuf, TxOut};
 use miniscript::{
     ExtParams, Miniscript, MiniscriptKey, ScriptContext, Segwitv0, SigType, Terminal, ToPublicKey,
 };
@@ -144,7 +144,10 @@ pub struct Multisig {
 
 impl Multisig {
     /// Parses a standard multisig script: `m` and `n` as `OP_1..OP_16`,
-    /// compressed or uncompressed keys, `1 <= m <= n`.
+    /// compressed or uncompressed keys, `1 <= m <= n`. Only the exact
+    /// form is one: `OP_m`, then every key in its minimal push, then
+    /// `OP_n OP_CHECKMULTISIG`, and nothing else; the script is written
+    /// out again from what was read and must be the same bytes.
     pub fn parse(script: &Script) -> Option<Self> {
         let mut m = None;
         let mut keys = Vec::new();
@@ -156,7 +159,7 @@ impl Multisig {
             }
             match ins.ok()? {
                 Instruction::Op(op) if m.is_none() => m = Some(small_int(op)?),
-                Instruction::PushBytes(bytes) if n.is_none() => {
+                Instruction::PushBytes(bytes) if m.is_some() && n.is_none() => {
                     keys.push(PublicKey::from_slice(bytes.as_bytes()).ok()?);
                 }
                 Instruction::Op(op) if n.is_none() => n = Some(small_int(op)?),
@@ -168,7 +171,21 @@ impl Multisig {
         if !done || m == 0 || m > n || keys.len() != n {
             return None;
         }
-        Some(Self { m, keys })
+        let multisig = Self { m, keys };
+        (multisig.script().as_script() == script).then_some(multisig)
+    }
+
+    /// The script in its exact form: `OP_m <key>… OP_n OP_CHECKMULTISIG`.
+    fn script(&self) -> ScriptBuf {
+        // Both counts are 1 to 16, which `push_int` writes as `OP_1..OP_16`.
+        let count = |k: usize| i64::try_from(k).unwrap_or(0);
+        let mut b = Builder::new().push_int(count(self.m));
+        for key in &self.keys {
+            b = b.push_key(key);
+        }
+        b.push_int(count(self.keys.len()))
+            .push_opcode(OP_CHECKMULTISIG)
+            .into_script()
     }
 
     /// Keys in the script.

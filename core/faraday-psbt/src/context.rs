@@ -9,7 +9,7 @@ use bitcoin::secp256k1::{PublicKey, Secp256k1, Verification};
 use faraday_bip::account::{AccountXpub, MultisigAccountXpub};
 use faraday_bip::keys::{self, Fingerprint, MasterKey, MultisigScriptType, Network, ScriptType};
 use faraday_bip::policy::WalletPolicy;
-use faraday_crypto::work::Compute;
+use faraday_crypto::work::{Compute, Work};
 
 /// A loaded key as the inspector sees it: its master fingerprint and the
 /// account xpubs it can derive addresses from.
@@ -90,6 +90,44 @@ impl KeyRef {
                 key,
                 script_pubkey,
             });
+        }
+        None
+    }
+
+    /// Costs a key derivation: the public key at `path`, if it is
+    /// `account/change/index` below one of the listed accounts, the
+    /// single-signature ones or BIP-48's, with both leaf components
+    /// unhardened. The script is not part of the answer: a multisig
+    /// script needs the cosigners.
+    pub(crate) fn derive_key<C: Verification>(
+        &self,
+        c: &Compute,
+        secp: &Secp256k1<C>,
+        path: &DerivationPath,
+    ) -> Option<PublicKey> {
+        c.count(Work::KeyDerive);
+        let components: Vec<ChildNumber> = path.to_u32_vec().iter().map(|&n| n.into()).collect();
+        let accounts = self
+            .accounts
+            .iter()
+            .map(|a| (a.path(), a.xpub()))
+            .chain(self.multisig.iter().map(|a| (a.path(), a.xpub())));
+        for (account, xpub) in accounts {
+            let prefix: Vec<ChildNumber> = account.into_iter().copied().collect();
+            if components.len() != prefix.len() + 2 || components[..prefix.len()] != prefix[..] {
+                continue;
+            }
+            let leaf = &components[prefix.len()..];
+            if !matches!(
+                (leaf[0], leaf[1]),
+                (
+                    ChildNumber::Normal { index: 0 | 1 },
+                    ChildNumber::Normal { .. }
+                )
+            ) {
+                continue;
+            }
+            return Some(xpub.derive_pub(secp, &leaf.to_vec()).ok()?.public_key);
         }
         None
     }

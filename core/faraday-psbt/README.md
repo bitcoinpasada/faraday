@@ -72,8 +72,12 @@ path, another account index), is an `UnverifiedChange` caution and is
 counted as a payment to others. Multisig change is verified only by
 re-deriving it from a registered wallet; with none registered it is
 unverified, whatever script the PSBT states for it. Inputs are verified the same way; a
-multisig input is "ours" when a script key's origin names a loaded
-fingerprint, and the real key check happens when signing.
+multisig input is "ours" only where a loaded key's account (single-sig or
+BIP-48), or the xpub a registered wallet holds for that fingerprint,
+derives the script's key at the path the input states. Where neither
+derives the path, the key still takes part, with an `UnknownDerivation`
+caution, and the input is not called ours; where the derived key is
+another, the key does not take part and the caution says so.
 
 A scriptPubKey carries no network. `NetworkMismatch` is raised from what
 does: loaded accounts for another network, global xpubs with other version

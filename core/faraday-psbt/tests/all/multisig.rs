@@ -294,8 +294,16 @@ fn bip174_signer_finalizer_extractor() {
             n: 2
         }
     );
-    assert!(insp.inputs.iter().all(|i| i.is_ours));
+    // The inputs' keys sit under m/0'/0': no loaded account derives them,
+    // so neither input is said to be ours; the key still takes part, and
+    // the review says ownership is checked when signing.
+    assert!(insp.inputs.iter().all(|i| !i.is_ours));
     assert_eq!(insp.participating_keys, vec![fp]);
+    assert!(
+        insp.warnings
+            .iter()
+            .any(|w| w.level == Level::Caution && w.kind == WarningKind::UnknownDerivation)
+    );
     // The outputs claim origins under m/0'/0'/4' and 5': not verifiable
     // from BIP-44/49/84/86 accounts, so unverified, not spoofed.
     assert!(
@@ -732,4 +740,137 @@ fn multisig_change_scripts_that_only_hold_our_key_are_unverified() {
         );
         assert_eq!(insp.amount_to_others.to_sat(), 99_000);
     }
+}
+
+/// A 1-of-1 multisig spend of abandon's whose witness script is
+/// `script` instead, with the spent output paying to it.
+fn with_witness_script(script: ScriptBuf) -> Psbt {
+    let abandon = master(ABANDON, NET);
+    let recipient = ScriptBuf::new_op_return(b"x");
+    let mut psbt = sorted_multisig(&[&abandon], 1, NET, 100_000, &[(recipient, 99_000)]);
+    let input = &mut psbt.inner_mut().inputs[0];
+    input.non_witness_utxo = None;
+    input.witness_utxo.as_mut().unwrap().script_pubkey = script.to_p2wsh();
+    input.witness_script = Some(script);
+    psbt
+}
+
+/// Only the exact multisig form is read as multisig: `OP_m`, each key
+/// pushed in its minimal form, `OP_n`, `OP_CHECKMULTISIG`. A key pushed
+/// before `OP_m`, or a key pushed with `OP_PUSHDATA1`, is a script the
+/// device does not take apart, and the input is not a multisig input.
+#[test]
+fn only_the_exact_multisig_form_is_read_as_multisig() {
+    let c = Compute::unchecked();
+    let abandon = master(ABANDON, NET);
+    let keys = [KeyRef::from_master(&c, &abandon, 0).unwrap()];
+    let ctx = Context {
+        network: NET,
+        keys: &keys,
+        wallets: &[],
+        musig_session: None,
+    };
+    let honest = with_witness_script(
+        sorted_multisig(&[&abandon], 1, NET, 100_000, &[])
+            .inner()
+            .inputs[0]
+            .witness_script
+            .clone()
+            .unwrap(),
+    );
+    let script = honest.inner().inputs[0].witness_script.clone().unwrap();
+    let bytes = script.as_bytes();
+    assert_eq!(bytes.len(), 1 + 34 + 2, "OP_1 <key> OP_1 OP_CHECKMULTISIG");
+    assert!(matches!(
+        inspect(&c, &honest, &ctx).inputs[0].script_type,
+        ScriptKind::Multisig { m: 1, n: 1, .. }
+    ));
+    let key = &bytes[1..35];
+
+    // The key pushed before OP_1.
+    let mut before = key.to_vec();
+    before.extend_from_slice(&[0x51, 0x51, 0xae]);
+    // The key pushed with OP_PUSHDATA1.
+    let mut pushdata = vec![0x51, 0x4c];
+    pushdata.extend_from_slice(key);
+    pushdata.extend_from_slice(&[0x51, 0xae]);
+    for script in [before, pushdata] {
+        let psbt = with_witness_script(ScriptBuf::from_bytes(script.clone()));
+        let insp = inspect(&c, &psbt, &ctx);
+        assert_eq!(
+            insp.inputs[0].script_type,
+            ScriptKind::Unknown,
+            "{}",
+            ScriptBuf::from_bytes(script)
+        );
+        assert!(insp.multisig.is_none());
+    }
+}
+
+/// A multisig input is this device's only where a loaded key, derived at
+/// the path the input states, is the key in the script. A cosigner's key
+/// stated under a loaded key's fingerprint, at that key's path, is not
+/// the loaded key's, and the input is not said to be its.
+#[test]
+fn a_cosigner_key_under_a_loaded_fingerprint_is_not_ours() {
+    let c = Compute::unchecked();
+    let abandon = master(ABANDON, NET);
+    let zoo = master(ZOO, NET);
+    let legal = master(LEGAL, NET);
+    let other = master(
+        "letter advice cage absurd amount doctor acoustic avoid letter advice cage above",
+        NET,
+    );
+    let recipient = ScriptBuf::new_op_return(b"x");
+    let mut psbt = sorted_multisig(
+        &[&zoo, &legal, &other],
+        2,
+        NET,
+        100_000,
+        &[(recipient, 99_000)],
+    );
+    // The third cosigner's key is stated as abandon's.
+    let other_fp = bitcoin::bip32::Fingerprint::from(other.fingerprint().0);
+    let abandon_fp = bitcoin::bip32::Fingerprint::from(abandon.fingerprint().0);
+    for (fp, _) in psbt.inner_mut().inputs[0].bip32_derivation.values_mut() {
+        if *fp == other_fp {
+            *fp = abandon_fp;
+        }
+    }
+    let keys = [KeyRef::from_master(&c, &abandon, 0).unwrap()];
+    let ctx = Context {
+        network: NET,
+        keys: &keys,
+        wallets: &[],
+        musig_session: None,
+    };
+    let insp = inspect(&c, &psbt, &ctx);
+    let ms = insp.multisig.as_ref().unwrap();
+    assert!(!ms.ours, "{:?}", ms.cosigners);
+    assert!(ms.cosigners.iter().all(|c| !c.ours));
+    assert!(!insp.inputs[0].is_ours);
+    assert!(
+        !insp.participating_keys.contains(&abandon.fingerprint()),
+        "{:?}",
+        insp.participating_keys
+    );
+    assert!(
+        insp.warnings.iter().any(|w| w.level == Level::Caution
+            && w.kind == WarningKind::UnknownDerivation
+            && w.text.contains("the derived key does not match the input")),
+        "{:?}",
+        insp.warnings
+    );
+
+    // The same spend with abandon really a cosigner is abandon's.
+    let honest = sorted_multisig(
+        &[&zoo, &legal, &abandon],
+        2,
+        NET,
+        100_000,
+        &[(ScriptBuf::new_op_return(b"x"), 99_000)],
+    );
+    let insp = inspect(&c, &honest, &ctx);
+    assert!(insp.multisig.as_ref().unwrap().ours);
+    assert!(insp.inputs[0].is_ours);
 }
