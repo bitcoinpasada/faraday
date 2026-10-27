@@ -1069,3 +1069,68 @@ fn two_keys_of_one_wallet_share_and_sign_together() {
     let tx = finalize(&mut psbt).unwrap().expect("every input is final");
     assert_eq!(tx.input[0].witness.len(), 1);
 }
+
+/// Both keys of a wallet are this device's. One shared its nonce in an
+/// earlier pass, and this session holds it; the other's nonce on the
+/// PSBT is one no session holds. The pass that holds both replaces the
+/// second key's nonce and signs with the first, and every partial
+/// signature it reports is on the PSBT it hands back, whichever key
+/// went first.
+#[test]
+fn a_pass_that_shares_and_signs_reports_what_the_psbt_holds() {
+    let c = Compute::unchecked();
+    let abandon = master(ABANDON, NET);
+    let zoo = master(ZOO, NET);
+    let policy = two_key_policy(&abandon, &zoo);
+    let both = [
+        KeyRef::from_master(&c, &abandon, 0).unwrap(),
+        KeyRef::from_master(&c, &zoo, 0).unwrap(),
+    ];
+    let wallets = [policy.clone()];
+    for (first, second) in [(&abandon, &zoo), (&zoo, &abandon)] {
+        let mut psbt = two_key_psbt(&policy, &abandon, &zoo);
+        let alone = [KeyRef::from_master(&c, first, 0).unwrap()];
+        let mut session = None;
+        {
+            let ctx = context_with(&alone, &wallets, None);
+            let out = pass(&mut psbt, &[first], &ctx, &mut session, 0x81);
+            assert_eq!(out.nonces_shared, 1);
+        }
+        // The second key's nonce, from a session that is gone.
+        let established = {
+            let ctx = context_with(&alone, &wallets, None);
+            inspect(&c, &psbt, &ctx).inputs[0].musig.clone().unwrap()
+        };
+        let msg = key_path_sighash(&psbt);
+        let (_, stale) = other_nonce(
+            second,
+            &established.output_key.x_only_public_key().0.serialize(),
+            &msg,
+            0x83,
+        );
+        faraday_psbt::musig::write_pub_nonce(
+            &mut psbt.inner_mut().inputs[0],
+            &account_xpub(second).public_key,
+            &established.output_key,
+            &stale,
+        );
+
+        let view = session.as_ref().unwrap().view();
+        let ctx = context_with(&both, &wallets, Some(&view));
+        let out = pass(&mut psbt, &[&abandon, &zoo], &ctx, &mut session, 0x82);
+        assert_eq!(out.nonces_shared, 1, "the second key's nonce, replaced");
+        let held: Vec<Vec<u8>> = faraday_psbt::musig::partial_sigs(&psbt.inner().inputs[0])
+            .unwrap()
+            .into_iter()
+            .map(|e| e.value.serialize().to_vec())
+            .collect();
+        let reported: Vec<Vec<u8>> = out
+            .signed_inputs
+            .iter()
+            .filter(|s| s.musig == Some(MusigRole::Partial))
+            .map(|s| s.sig_bytes.clone())
+            .collect();
+        assert_eq!(reported, held, "first {}", first.fingerprint());
+        assert!(!out.complete);
+    }
+}

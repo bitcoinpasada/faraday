@@ -813,9 +813,23 @@ fn sign_musig(
         .collect();
     drop(view);
 
+    // A nonce shared clears every partial signature on the input, since
+    // they were made under the aggregate nonce it changes. The rounds
+    // that share go first, so a signature this pass makes is made under
+    // the nonces the input ends with and stays on it, and what the pass
+    // reports is what the PSBT holds.
+    let order = mine
+        .iter()
+        .zip(&rounds)
+        .filter(|(_, r)| matches!(r, MusigRound::Share { .. }))
+        .chain(
+            mine.iter()
+                .zip(&rounds)
+                .filter(|(_, r)| !matches!(r, MusigRound::Share { .. })),
+        );
     let mut written = Vec::new();
     let mut nonces_shared = 0usize;
-    for (participation, round) in mine.iter().zip(&rounds) {
+    for (participation, round) in order {
         let (_, master) = selected
             .iter()
             .find(|(f, _)| *f == participation.fingerprint)
