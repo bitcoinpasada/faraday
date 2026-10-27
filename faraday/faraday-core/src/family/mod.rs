@@ -545,6 +545,8 @@ impl Faraday {
             Some(s) => {
                 let next = s.steps.iter().copied().find(|&n| !s.done[n as usize]);
                 match next {
+                    // The spend's Check is the tab's Check the money.
+                    Some(step::CHECK) => Open::Page(page::CHECK),
                     Some(n) => {
                         s.open = Some(n);
                         Open::Spend
@@ -623,6 +625,14 @@ impl Faraday {
                 {
                     let checksum = wallet.checksum().to_string();
                     self.mark_checked(&checksum);
+                }
+                // The spend's own Check is this page, done by the person.
+                if p == page::CHECK
+                    && self.family_page_done(page::CHECK)
+                    && let Some(s) = self.wallets.spend_mut()
+                {
+                    s.done[step::CHECK as usize] = true;
+                    s.open = s.steps.iter().copied().find(|&n| !s.done[n as usize]);
                 }
                 self.family_advance(p);
             }
@@ -1647,13 +1657,18 @@ impl Faraday {
             self.family.state.wallet = Some(wl.name.clone());
             self.wallets.set_wallet(w);
         }
+        // The addresses are checked on the tab's own page, Check the
+        // money: the spend's Check is done only once the person did it.
+        let checked = self.family_page_done(page::CHECK);
         if let Some(s) = self.wallets.spend_mut() {
-            // The addresses were checked on the tab's own page.
             s.done[step::WALLET as usize] = true;
-            s.done[step::CHECK as usize] = true;
+            s.done[step::CHECK as usize] |= checked;
             s.open = s.steps.iter().copied().find(|&n| !s.done[n as usize]);
         }
-        self.family.state.open = Some(Open::Spend);
+        self.family_step_moved(false);
+        if self.family.state.open.is_none() {
+            self.family.state.open = Some(Open::Spend);
+        }
         self.family.state.scroll.follow = true;
     }
 
@@ -1737,9 +1752,12 @@ impl Faraday {
 
     /// After the spend's own step cards change on this tab: the card open
     /// follows the spend's, and the last page opens after the last step.
+    /// The spend's Check is no card of the tab: its open is Check the
+    /// money, the tab's own page.
     pub(crate) fn family_step_moved(&mut self, closed_as_done: bool) {
         let open = self.wallets.spend().and_then(|s| s.open);
         self.family.state.open = match (open, closed_as_done) {
+            (Some(step::CHECK), _) => Some(Open::Page(page::CHECK)),
             (Some(_), _) => Some(Open::Spend),
             (None, true) => Some(Open::Page(page::AWAY)),
             (None, false) => None,

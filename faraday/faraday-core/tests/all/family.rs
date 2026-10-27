@@ -302,6 +302,34 @@ fn read_the_transaction_leads_to_verifying_in_learn() {
     );
 }
 
+/// A transaction brought before Check the money is done leaves the
+/// spend's Check undone: after the transaction is read, Check the money
+/// opens, and only the person's own answer there marks it done.
+#[test]
+fn a_spend_is_checked_only_when_the_person_checked_the_money() {
+    let mut app = with_files(vec![vault_file(), savings_psbt()], Vec::new());
+    unlock_on_tab(&mut app);
+    let savings = wallet_at(&app, "Savings");
+    app.press(Action::Family(F::Choose(savings)));
+    assert!(!app.family_page_done(page::CHECK));
+    let at = inbox_at(&app, "savings-unsigned.psbt");
+    app.press(Action::Family(F::UsePsbt(at)));
+    let s = app.spend().unwrap();
+    assert!(s.done[step::WALLET as usize]);
+    assert!(
+        !s.done[step::CHECK as usize],
+        "the check was marked done unasked"
+    );
+    assert_eq!(s.open, Some(step::TRANSACTION));
+    app.press(Action::StepNext(step::TRANSACTION));
+    assert_eq!(app.family().open, Some(Open::Page(page::CHECK)));
+    app.press(Action::Family(F::Next(page::CHECK)));
+    let s = app.spend().unwrap();
+    assert!(s.done[step::CHECK as usize]);
+    assert_ne!(app.family().open, Some(Open::Page(page::CHECK)));
+    assert_ne!(s.open, Some(step::CHECK));
+}
+
 #[test]
 fn a_vault_with_the_wallet_and_one_key_takes_the_second_key_from_its_words() {
     let mut app = with_files(vec![vault_file(), savings_psbt()], Vec::new());
