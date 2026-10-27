@@ -62,10 +62,7 @@ pub fn compile(
     if text.is_empty() {
         return Err(String::new());
     }
-    let mut filled = String::from(text);
-    for (token, expression) in keys {
-        filled = filled.replace(token.as_str(), expression);
-    }
+    let filled = substitute(text, keys);
     let policy: Concrete<String> = filled.parse().map_err(one_line)?;
     let descriptor = match script {
         PolicyScript::Segwit => policy
@@ -94,6 +91,32 @@ pub fn compile(
     })
 }
 
+/// `text` with each token written as a whole argument, after `(` or `,`
+/// and before `,` or `)`, replaced by its expression, in one pass: a
+/// token inside a longer word or an origin's brackets, and a token that
+/// an expression put in happens to contain, stay as they were.
+fn substitute(text: &str, keys: &[(String, String)]) -> String {
+    let mut out = String::with_capacity(text.len());
+    let mut rest = text;
+    let mut before = None;
+    while !rest.is_empty() {
+        let end = rest.find(['(', ',', ')']).unwrap_or(rest.len());
+        let (argument, tail) = rest.split_at(end);
+        let after = tail.chars().next();
+        let name = argument.trim();
+        let whole = matches!(before, Some('(' | ',')) && matches!(after, Some(',' | ')'));
+        match keys.iter().find(|(token, _)| token == name) {
+            Some((_, expression)) if whole && !name.is_empty() => out.push_str(expression),
+            _ => out.push_str(argument),
+        }
+        let Some(delimiter) = after else { break };
+        out.push(delimiter);
+        before = Some(delimiter);
+        rest = &tail[1..];
+    }
+    out
+}
+
 /// The key tokens a compiled descriptor names, in the order its text
 /// writes them. `Tr` visits its leaves before its internal key, so the
 /// position in the text is what orders them for a reader.
@@ -115,4 +138,45 @@ fn one_line<E: core::fmt::Display>(error: E) -> String {
     let text = alloc::format!("{error}");
     let line = text.lines().next().unwrap_or("").trim();
     String::from(line)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn keys_of(text: &str, tokens: &[(&str, &str)]) -> Result<Vec<String>, String> {
+        let tokens: Vec<(String, String)> = tokens
+            .iter()
+            .map(|(t, e)| (String::from(*t), String::from(*e)))
+            .collect();
+        compile(&Compute::unchecked(), text, PolicyScript::Segwit, &tokens).map(|f| f.keys)
+    }
+
+    #[test]
+    fn a_token_stands_for_its_key_where_a_whole_key_is_written() {
+        assert_eq!(
+            keys_of("or(pk(73c5da0a),pk(abcd1234))", &[("73c5da0a", "KEYA")]).unwrap(),
+            ["KEYA", "abcd1234"]
+        );
+    }
+
+    #[test]
+    fn a_token_inside_a_longer_word_is_left_alone() {
+        assert_eq!(
+            keys_of("pk(x73c5da0a)", &[("73c5da0a", "KEYA")]).unwrap(),
+            ["x73c5da0a"]
+        );
+        assert_eq!(
+            keys_of("pk(73c5da0ab)", &[("73c5da0a", "KEYA")]).unwrap(),
+            ["73c5da0ab"]
+        );
+    }
+
+    #[test]
+    fn what_a_token_became_is_not_read_for_tokens_again() {
+        assert_eq!(
+            keys_of("or(pk(aa),pk(bb))", &[("aa", "bbkey"), ("bb", "other")]).unwrap(),
+            ["bbkey", "other"]
+        );
+    }
 }
