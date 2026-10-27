@@ -291,12 +291,13 @@ fn bottom_sheet(ui: &mut Ui<u8>) {
 
 /// A text field's label kept outside it, a field at rest and one
 /// focused in error with its error line, buttons [`BUTTON_H`] tall, and
-/// list items of one, two and three lines, the second chosen. The
-/// chosen item's code is past the controls pressed: chosen and held, its
-/// tonal fill under the state layer is below the pressed floor in some
-/// schemes, as a tonal button's is.
+/// list items of one, two and three lines, the second chosen (its code,
+/// [`CHOSEN_ITEM`], is among the controls pressed).
 ///
 /// [`BUTTON_H`]: faraday_draw::tokens::BUTTON_H
+/// The press code of the chosen list item in [`fields_and_lists`].
+const CHOSEN_ITEM: u8 = 4;
+
 fn fields_and_lists(ui: &mut Ui<u8>) {
     use crate::roles::ListItem;
     use faraday_draw::tokens::BUTTON_H;
@@ -315,7 +316,7 @@ fn fields_and_lists(ui: &mut Ui<u8>) {
     }
     let items = [
         ("Settings", "", 3),
-        ("Spending wallet", "2 of 3 · Native SegWit", 40),
+        ("Spending wallet", "2 of 3 · Native SegWit", CHOSEN_ITEM),
         (
             "Family vault",
             "Three keys at three places, each a different kind, so that no one loss or theft opens it",
@@ -379,8 +380,15 @@ fn what_the_components_write_reads_on_what_they_are_drawn_on_in_every_scheme() {
                 // fill at 0.10 (`docs/THEMES.md` §8), which costs a
                 // tonal fill up to a tenth of its contrast for as long
                 // as it is pressed: 4:1 and, at High contrast, 6.5:1.
+                // A chosen control held down keeps about 3.8:1 in Dark at
+                // Standard contrast, its tonal fill under the layer
+                // (owner, 2026-10-24: the pressed-state contrast call).
+                let chosen_held = name == "fields and lists"
+                    && pressed == Some(CHOSEN_ITEM)
+                    && theme.mode == crate::Mode::Dark;
                 let floor = match (pressed, need > 4.5) {
                     (None, _) => need,
+                    (Some(_), false) if chosen_held => 3.8,
                     (Some(_), false) => 4.0,
                     (Some(_), true) => 6.5,
                 };
