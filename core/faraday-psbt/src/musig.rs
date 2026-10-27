@@ -363,7 +363,23 @@ impl MusigSession {
     ) {
         self.held
             .retain(|(i, pk, _, _)| *i != input || *pk != participant);
+        if self.held.len() == self.held.capacity() {
+            // Growing moves every secret nonce to a new allocation; the
+            // old one is wiped before it is given back.
+            let mut grown = Vec::with_capacity((self.held.capacity() * 2).max(4));
+            grown.append(&mut self.held);
+            self.wipe_spare();
+            self.held = grown;
+        }
         self.held.push((input, participant, public, secret));
+        self.wipe_spare();
+    }
+
+    /// Wipes the part of the list's allocation past its length, where a
+    /// nonce moved or taken out leaves its bytes behind.
+    fn wipe_spare(&mut self) {
+        use faraday_crypto::Zeroize;
+        self.held.spare_capacity_mut().zeroize();
     }
 
     /// Takes the secret nonce for `participant` on `input` out of the
@@ -379,6 +395,7 @@ impl MusigSession {
             .iter()
             .position(|(i, pk, _, _)| *i == input && pk == participant)?;
         let (_, _, public, secret) = self.held.remove(at);
+        self.wipe_spare();
         Some((public, secret))
     }
 }
@@ -393,6 +410,10 @@ impl Drop for MusigSession {
     fn drop(&mut self) {
         use faraday_crypto::Zeroize;
         self.seed.zeroize();
+        // Each secret nonce wipes itself as it is dropped; what earlier
+        // moves left past the length is wiped here.
+        self.held.clear();
+        self.wipe_spare();
     }
 }
 
