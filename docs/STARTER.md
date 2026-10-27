@@ -622,6 +622,22 @@ no frame; a touch while it coasts stops it and opens nothing; in a
 window too short for the restart sheet a drag scrolls the sheet, its
 buttons staying at its foot, and the page under it keeps its place.
 
+A page whose content changes in place (a warning confirmed away, a
+line added, BitLocker's answer, a stick coming or going, What to
+write's choices) keeps what the person last pressed on it where it was
+on screen; where that control is gone, the nearest one drawn before it
+keeps its place and what followed moves up into the gap (with none
+drawn before it in view, the page keeps its scroll). The scroll is held within the page's
+new length, so a page grown shorter shows its end, never space above
+the view, and a page opens at its top only when it is a new page. The
+press is forgotten once the page is scrolled or left. Tests are
+`tests/all/scroll_kept.rs`: on the Start page at a compact and a large
+window, confirming the rescue brings the next control up into view and
+leaves the pointer on no other control, Suspend's answer puts Resume under the
+pointer with the restart in view, a press after either lands on what is
+under the pointer, and a page grown shorter while at its end shows its
+end.
+
 **Pages inside a task** (§3.2's steps, §3.4, §3.5, §3.7, §3.8's pages,
 and Transfer and Learn's own screens) are not destinations: they keep
 the top app bar with a back arrow and the page's name in place of the

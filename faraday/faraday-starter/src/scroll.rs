@@ -10,6 +10,11 @@
 //! A hold (`docs/DESIGN.md`'s hold, F136) acts on the tick that has seen
 //! it held to the end, never on release: Continue anyway's and keep
 //! data's write over a newer stick.
+//! A page whose content changes in place keeps what the person last
+//! pressed on it where it was on screen (or, where that is gone, the
+//! nearest control drawn before it, so that what followed moves up into
+//! its place), within the page's new length; only a new page opens at
+//! its top.
 
 use faraday_core::Action;
 use faraday_core::motion::{Motion, Region, SLOP};
@@ -49,6 +54,23 @@ pub(crate) struct Scroller {
     now_ms: u64,
     /// When the hold pressed now went down, ms.
     held_since: Option<u64>,
+    /// What was last pressed on the page, until the page is scrolled or
+    /// left.
+    anchor: Option<Anchor>,
+}
+
+/// A control on the page: what it does, and its top and its foot down
+/// the window, units; an edge the view cut off is not known.
+type Mark = (Action, Option<f32>, Option<f32>);
+
+/// The control last pressed on a page and those drawn before it in
+/// view, as they stood then: the pressed one first, then the others,
+/// nearest first. With none of them drawn any more, the page keeps its
+/// scroll.
+#[derive(Debug)]
+struct Anchor {
+    page: Page,
+    marks: Vec<Mark>,
 }
 
 impl Starter {
@@ -66,6 +88,15 @@ impl Starter {
     /// A lookup.
     pub(crate) fn sheet_offset(&self) -> f32 {
         self.scroller.sheet_offset
+    }
+
+    /// What a press at (x, y), in pixels, does as the last frame drew
+    /// it, for tests that touch it. A pass over the frame's presses.
+    pub fn offered_at(&self, x: i32, y: i32) -> Option<StarterAction> {
+        match self.hit_at(x, y)? {
+            Action::Host(code) => StarterAction::from_code(code),
+            _ => None,
+        }
     }
 
     /// What the motion moves now. A lookup.
@@ -105,6 +136,7 @@ impl Starter {
     /// Returns whether it moved: at an end, a turn further moves nothing.
     pub(crate) fn wheel(&mut self, dy: i16) -> bool {
         self.scroller.motion.stop();
+        self.scroller.anchor = None;
         let step = f32::from(dy) / self.f.max(0.1);
         let moved = self.region(|_, r| {
             let to = (*r.offset + step).clamp(0.0, r.max.unwrap_or(0.0).max(0.0));
@@ -213,6 +245,7 @@ impl Starter {
                         // Past the slop the press is a drag: nothing under
                         // the finger is pressed, the page follows.
                         self.pressed = None;
+                        self.scroller.anchor = None;
                         self.scroller.drag = Some(((x0, y0), y, true));
                         self.scroller.on = Some(self.place());
                         let dy = (last - y) as f32 / f;
@@ -245,6 +278,7 @@ impl Starter {
                     && let Some(action) = StarterAction::from_code(code)
                     && !self.is_hold(action)
                 {
+                    self.mark(a);
                     self.act(action);
                 }
             }
@@ -257,7 +291,7 @@ impl Starter {
     /// sheet from its top, and notes where the region that scrolls now
     /// stands and how far the sheet goes. Returns how far the page can
     /// scroll, units.
-    pub(crate) fn frame_scrolled(&mut self, ui: &mut Ui) -> f32 {
+    fn frame_scrolled(&mut self, ui: &mut Ui) -> f32 {
         if self.sheet != self.scroller.shown_sheet {
             self.scroller.shown_sheet = self.sheet;
             self.scroller.sheet_offset = 0.0;
@@ -280,5 +314,106 @@ impl Starter {
             s.sheet_offset = s.sheet_offset.min(m);
         }
         max
+    }
+
+    /// Costs the frame's drawing, twice where the page changed under
+    /// what was last pressed on it. Draws the frame, then, where the
+    /// page's content moved what was last pressed (or the control
+    /// before it, where it is gone) or the page grew shorter than how far
+    /// it is scrolled, draws it again scrolled to keep that control where
+    /// it was, within the page's new length.
+    pub(crate) fn render(&mut self) {
+        let Some(mut canvas) = self.canvas.take() else {
+            return;
+        };
+        let mut hits = std::mem::take(&mut self.hits);
+        self.offset = self.offset.clamp(0.0, self.max.max(0.0));
+        for again in [false, true] {
+            hits.clear();
+            let mut ui = faraday_ui::Ui::new(&mut canvas, self.f, &mut hits, self.pressed);
+            ui.theme = self.theme;
+            ui.hovered = self.hovered;
+            ui.compact = self.compact();
+            ui.primaries = 0;
+            ui.offset = self.offset;
+            ui.frost = self.sheet.and(self.frost.take());
+            self.max = self.frame_scrolled(&mut ui);
+            self.frost = ui.frost.take();
+            self.primaries = ui.primaries;
+            match self.kept_at(&hits) {
+                Some(to) if !again => self.offset = to,
+                _ => break,
+            }
+        }
+        self.hits = hits;
+        self.canvas = Some(canvas);
+    }
+
+    /// Notes `pressed`, pressed on the page, and the controls drawn
+    /// before it in view, where they stand: what a change to the page keeps
+    /// in place. A pass over the frame's presses.
+    fn mark(&mut self, pressed: Action) {
+        self.scroller.anchor = None;
+        let Some(view) = self.page_view() else {
+            return;
+        };
+        let marks = self.marks(&self.hits, view);
+        let Some(i) = marks.iter().position(|m| m.0 == pressed) else {
+            return;
+        };
+        let mut order = vec![marks[i]];
+        order.extend(marks[..i].iter().rev());
+        self.scroller.anchor = Some(Anchor {
+            page: self.page,
+            marks: order,
+        });
+    }
+
+    /// Where the page shows, pixels, while it alone is drawn and still: no
+    /// sheet, menu or held app over it, nothing coasting. A lookup.
+    fn page_view(&self) -> Option<Rect> {
+        let still = !self.scroller.motion.moving() && self.scroller.drag.is_none();
+        let alone = self.sheet.is_none() && !self.menu && !self.showing && !self.showing_demo();
+        self.scroller.view.filter(|_| still && alone)
+    }
+
+    /// The page's controls in `hits` that show in `view`, each with its
+    /// edges down the window. A pass over the frame's presses.
+    fn marks(&self, hits: &[(Rect, Action)], view: Rect) -> Vec<Mark> {
+        let f = self.f.max(0.1);
+        let at = |px: i32| px as f32 / f;
+        hits.iter()
+            .filter(|(r, _)| !r.intersect(&view).is_empty())
+            .map(|(r, a)| {
+                let top = (r.y > view.y).then(|| at(r.y));
+                let foot = (r.bottom() < view.bottom()).then(|| at(r.bottom()));
+                (*a, top, foot)
+            })
+            .collect()
+    }
+
+    /// How far the page is to be scrolled after the frame just drawn
+    /// into `hits`, when not where it is: moved by as far as the first of
+    /// the anchor's controls still drawn has moved on screen, within the
+    /// page's length. A pass over the frame's presses.
+    fn kept_at(&mut self, hits: &[(Rect, Action)]) -> Option<f32> {
+        if let Some(a) = &self.scroller.anchor
+            && a.page != self.page
+        {
+            self.scroller.anchor = None;
+        }
+        let view = self.page_view()?;
+        let now = self.marks(hits, view);
+        let moved = self.scroller.anchor.as_ref().and_then(|a| {
+            a.marks.iter().find_map(|(act, top, foot)| {
+                let (_, t, b) = now.iter().find(|m| m.0 == *act)?;
+                match (top, t, foot, b) {
+                    (Some(was), Some(is), ..) | (_, _, Some(was), Some(is)) => Some(is - was),
+                    _ => None,
+                }
+            })
+        });
+        let to = (self.offset + moved.unwrap_or(0.0)).clamp(0.0, self.max.max(0.0));
+        ((to - self.offset).abs() * self.f >= 0.5).then_some(to)
     }
 }

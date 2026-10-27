@@ -2314,31 +2314,6 @@ impl Starter {
         self.fit_demo();
     }
 
-    fn render(&mut self) {
-        let Some(mut canvas) = self.canvas.take() else {
-            return;
-        };
-        let mut hits = std::mem::take(&mut self.hits);
-        hits.clear();
-        self.offset = self.offset.clamp(0.0, self.max.max(0.0));
-        let max = {
-            let mut ui = faraday_ui::Ui::new(&mut canvas, self.f, &mut hits, self.pressed);
-            ui.theme = self.theme;
-            ui.hovered = self.hovered;
-            ui.compact = self.compact();
-            ui.primaries = 0;
-            ui.offset = self.offset;
-            ui.frost = self.sheet.and(self.frost.take());
-            let max = self.frame_scrolled(&mut ui);
-            self.frost = ui.frost.take();
-            self.primaries = ui.primaries;
-            max
-        };
-        self.max = max;
-        self.hits = hits;
-        self.canvas = Some(canvas);
-    }
-
     /// The frame while the held app is on screen (§3.1d): its frame
     /// copied in under the top app bar, then the Starter's bar, and the
     /// rail or the bar at the foot on Learn, drawn round and over it.

@@ -11,6 +11,7 @@ mod demo;
 mod mac;
 mod navigation;
 mod notes;
+mod scroll_kept;
 mod secure_boot;
 mod starter;
 mod steps;
