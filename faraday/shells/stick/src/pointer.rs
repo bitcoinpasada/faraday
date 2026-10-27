@@ -243,10 +243,10 @@ impl Pointer {
     pub fn feed(&mut self, ev: RawEvent, out: &mut Vec<Wake>) {
         match ev.kind {
             EV_REL => match ev.code {
-                REL_X => self.dx += ev.value,
-                REL_Y => self.dy += ev.value,
-                REL_WHEEL if !self.hi_res => self.notches += ev.value,
-                REL_WHEEL_HI_RES if self.hi_res => self.fine += ev.value,
+                REL_X => self.dx = self.dx.saturating_add(ev.value),
+                REL_Y => self.dy = self.dy.saturating_add(ev.value),
+                REL_WHEEL if !self.hi_res => self.notches = self.notches.saturating_add(ev.value),
+                REL_WHEEL_HI_RES if self.hi_res => self.fine = self.fine.saturating_add(ev.value),
                 _ => {}
             },
             EV_ABS => match ev.code {
@@ -354,8 +354,8 @@ impl Pointer {
                 if let Some((lx, ly)) = slot.last
                     && self.touching
                 {
-                    let d = (slot.at.0 - lx, slot.at.1 - ly);
-                    let far = |d: (i32, i32)| d.0.abs() + d.1.abs();
+                    let d = (slot.at.0.saturating_sub(lx), slot.at.1.saturating_sub(ly));
+                    let far = |d: (i32, i32)| d.0.unsigned_abs().saturating_add(d.1.unsigned_abs());
                     if best.is_none_or(|b| far(d) > far(b)) {
                         best = Some(d);
                     }
@@ -367,7 +367,7 @@ impl Pointer {
         } else if std::mem::take(&mut self.abs_new) && self.touching {
             let d = self
                 .last_abs
-                .map(|(lx, ly)| (self.abs.0 - lx, self.abs.1 - ly));
+                .map(|(lx, ly)| (self.abs.0.saturating_sub(lx), self.abs.1.saturating_sub(ly)));
             self.last_abs = Some(self.abs);
             d
         } else {
@@ -382,11 +382,11 @@ impl Pointer {
             // Two fingers scroll only while nothing holds the button;
             // under a held click every finger moves the pointer.
             if self.two && !self.left {
-                self.pan.0 += dx;
-                self.pan.1 += dy;
+                self.pan.0 = self.pan.0.saturating_add(dx);
+                self.pan.1 = self.pan.1.saturating_add(dy);
             } else {
-                self.dx += dx;
-                self.dy += dy;
+                self.dx = self.dx.saturating_add(dx);
+                self.dy = self.dy.saturating_add(dy);
             }
         }
         if (self.dx, self.dy) != (0, 0) {
@@ -415,7 +415,10 @@ impl Pointer {
         if let Some(down) = self.button.take() {
             out.push(Wake::Pointer(Motion::Button(down)));
         }
-        let turned = self.notches * HI_RES_PER_NOTCH + self.fine;
+        let turned = self
+            .notches
+            .saturating_mul(HI_RES_PER_NOTCH)
+            .saturating_add(self.fine);
         if turned != 0 {
             out.push(Wake::Pointer(Motion::Wheel(turned)));
             self.notches = 0;
@@ -485,6 +488,31 @@ mod tests {
                 Motion::Button(true),
                 Motion::Button(false),
                 Motion::Wheel(-120),
+            ]
+        );
+    }
+
+    #[test]
+    fn a_device_reporting_enormous_travel_moves_to_the_limit_not_round() {
+        let mut mouse = Pointer::new(false, false, false);
+        assert_eq!(
+            run(
+                &mut mouse,
+                &[
+                    ev(EV_REL, REL_X, i32::MAX),
+                    ev(EV_REL, REL_X, i32::MAX),
+                    ev(EV_REL, REL_Y, i32::MIN),
+                    ev(EV_REL, REL_Y, -1),
+                    ev(EV_REL, REL_WHEEL, i32::MAX),
+                    syn(),
+                ],
+            ),
+            vec![
+                Motion::Move {
+                    dx: i32::MAX,
+                    dy: i32::MIN
+                },
+                Motion::Wheel(i32::MAX),
             ]
         );
     }
