@@ -1555,8 +1555,22 @@ pub const NAME_MAX: usize = 40;
 
 /// The file name, less `.ofv`, a vault named `typed` is written under:
 /// letters, digits, hyphens and underscores, spaces made hyphens,
-/// anything else left out; `vault` when that leaves nothing.
+/// anything else left out; `vault` when that leaves nothing, and a
+/// Windows device name (`con`, `com1`) with `-vault` after it.
 pub fn vault_stem(typed: &str) -> String {
+    /// Whether Windows takes a name for a device, in any case.
+    fn windows_device(name: &str) -> bool {
+        let n = name.as_bytes();
+        let numbered = |prefix: &[u8]| {
+            n.len() == 4 && n[..3].eq_ignore_ascii_case(prefix) && matches!(n[3], b'1'..=b'9')
+        };
+        ["con", "prn", "aux", "nul"]
+            .iter()
+            .any(|d| d.eq_ignore_ascii_case(name))
+            || numbered(b"com")
+            || numbered(b"lpt")
+    }
+
     let mut out = String::new();
     for c in typed.trim().chars() {
         if out.chars().count() >= NAME_MAX {
@@ -1571,6 +1585,10 @@ pub fn vault_stem(typed: &str) -> String {
     let out = out.trim_matches('-');
     if out.is_empty() {
         "vault".to_string()
+    } else if windows_device(out) {
+        // A name Windows keeps for a device (`con`, `aux`, `com1`) cannot
+        // be a file's.
+        format!("{out}-vault")
     } else {
         out.to_string()
     }

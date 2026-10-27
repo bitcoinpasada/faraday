@@ -257,14 +257,48 @@ pub fn foreign(name: &str) -> bool {
     name.starts_with('.') || WINDOWS_OWN.iter().any(|w| w.eq_ignore_ascii_case(name))
 }
 
-/// A name the app may use: one path component, no hidden files, and
-/// none of an operating system's own ([`foreign`]).
+/// Whether Windows takes `name` for a device (`CON`, `NUL`, `COM1`,
+/// `LPT3`...), whatever follows its first dot.
+pub fn device_name(name: &str) -> bool {
+    let stem = name.split('.').next().unwrap_or("").trim_end();
+    let numbered = |prefix: &str| {
+        stem.len() == 4
+            && stem.as_bytes()[..3].eq_ignore_ascii_case(prefix.as_bytes())
+            && matches!(stem.as_bytes()[3], b'1'..=b'9')
+    };
+    ["CON", "PRN", "AUX", "NUL"]
+        .iter()
+        .any(|d| d.eq_ignore_ascii_case(stem))
+        || numbered("COM")
+        || numbered("LPT")
+}
+
+/// A name the app may read or remove: one path component, no hidden
+/// files, and none of an operating system's own ([`foreign`]).
 pub fn checked(name: &str) -> Result<&str, String> {
     if name.is_empty()
         || foreign(name)
         || name.contains('/')
         || name.contains('\\')
         || name.contains('\0')
+    {
+        return Err(format!("{name:?} is not a file name"));
+    }
+    Ok(name)
+}
+
+/// A name the app may write: [`checked`], and one Windows can open: no
+/// `: < > " | ? *` or control character, no trailing space or dot, and
+/// not a device's name ([`device_name`]). A file already on a stick under
+/// a name that fails this is still read and removed under [`checked`].
+pub fn checked_for_write(name: &str) -> Result<&str, String> {
+    checked(name)?;
+    if name
+        .chars()
+        .any(|c| c.is_control() || ":<>\"|?*".contains(c))
+        || name.ends_with(' ')
+        || name.ends_with('.')
+        || device_name(name)
     {
         return Err(format!("{name:?} is not a file name"));
     }
@@ -337,7 +371,7 @@ fn put_checked(place: &mut dyn Place, temp: &str, bytes: &[u8]) -> Result<(), St
 /// Writes a file as a new file, reads it back, compares, and renames it
 /// into place. Returns the name it was written under.
 pub fn write(place: &mut dyn Place, name: &str, bytes: &[u8]) -> Result<String, String> {
-    let name = free_name(place, checked(name)?)?;
+    let name = free_name(place, checked_for_write(name)?)?;
     let temp = format!(".faraday-{name}.part");
     put_checked(place, &temp, bytes)?;
     if has(place, &name)? {
@@ -358,7 +392,7 @@ pub fn write(place: &mut dyn Place, name: &str, bytes: &[u8]) -> Result<String, 
 /// old file as it was. With no file of that name, the same as [`write`].
 /// Returns the name it was written under.
 pub fn write_replacing(place: &mut dyn Place, name: &str, bytes: &[u8]) -> Result<String, String> {
-    let name = checked(name)?;
+    let name = checked_for_write(name)?;
     let Some(old) = place
         .files()?
         .into_iter()
@@ -451,7 +485,7 @@ pub fn write_vault_over(
     // read back whole takes its name, or the person's new one.
     place.remove(&original)?;
     let to = if renamed {
-        free_name(place, checked(name)?)?
+        free_name(place, checked_for_write(name)?)?
     } else {
         original
     };
@@ -479,7 +513,7 @@ pub enum Unrenamed {
 /// files where both are vaults of one length.
 pub fn rename(place: &mut dyn Place, from: &str, to: &str) -> Result<(), Unrenamed> {
     let from = checked(from).map_err(Unrenamed::Failed)?;
-    let to = checked(to).map_err(Unrenamed::Failed)?;
+    let to = checked_for_write(to).map_err(Unrenamed::Failed)?;
     let files = place.files().map_err(Unrenamed::Failed)?;
     let Some(&(_, len)) = files.iter().find(|(n, _)| n == from) else {
         return Err(Unrenamed::Failed(format!("{from} is not on the stick")));

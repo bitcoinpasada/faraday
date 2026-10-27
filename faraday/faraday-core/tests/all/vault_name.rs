@@ -99,3 +99,17 @@ fn an_open_vault_is_locked_or_looked_into_from_the_list_and_the_sidebar() {
     let _ = app.frame();
     assert!(app.offers(Action::Vault(V::Open(0))), "its contents, again");
 }
+
+/// A name Windows keeps for a device is not a vault's file name: the
+/// vault is written under a name of its own.
+#[test]
+fn a_vault_named_for_a_windows_device_is_written_under_a_safe_name() {
+    use faraday_core::vault::vault_stem;
+    for typed in ["con", "AUX", "Nul", "prn", "com1", "LPT9"] {
+        assert_eq!(vault_stem(typed), format!("{typed}-vault"), "{typed}");
+    }
+    assert_eq!(vault_stem("console"), "console");
+    assert_eq!(vault_stem("com10"), "com10");
+    assert_eq!(vault_stem("my vault"), "my-vault");
+    assert_eq!(vault_stem(""), "vault");
+}
