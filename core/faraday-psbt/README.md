@@ -69,7 +69,9 @@ A claim that names a loaded key and passes step 2 but fails 3 or 4 is a
 `ChangeSpoof` danger: the coordinator is lying. A claim that names an
 unloaded key, or a path not under a loaded account (a BIP-48 multisig
 path, another account index), is an `UnverifiedChange` caution and is
-counted as a payment to others. Inputs are verified the same way; a
+counted as a payment to others. Multisig change is verified only by
+re-deriving it from a registered wallet; with none registered it is
+unverified, whatever script the PSBT states for it. Inputs are verified the same way; a
 multisig input is "ours" when a script key's origin names a loaded
 fingerprint, and the real key check happens when signing.
 

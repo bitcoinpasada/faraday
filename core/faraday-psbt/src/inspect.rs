@@ -28,7 +28,7 @@ use miniscript::{ExtParams, Miniscript, SigType, Tap, ToPublicKey};
 
 use crate::Psbt;
 use crate::classify::{Classified, Multisig, ScriptKind, classify};
-use crate::context::{Context, KeyRef};
+use crate::context::Context;
 
 mod sighash;
 
@@ -1633,63 +1633,30 @@ fn output_claims<C: Verification>(
                 );
             }
             None => {
-                if !tainted && let Some((change, index)) = multisig_change(out, spk, key, path, &pk)
-                {
-                    return OutputKind::Change {
-                        key: fp,
-                        change,
-                        index,
-                    };
-                }
                 kind = OutputKind::UnverifiedChange { key: fp };
+                let text = if path
+                    .into_iter()
+                    .next()
+                    .is_some_and(|c| *c == ChildNumber::Hardened { index: 48 })
+                {
+                    format!(
+                        "output {i} claims to be change of your key {fp} at {path}; no wallet registered on this device holds that script, so it is counted as a payment to others. Register the wallet to check its change."
+                    )
+                } else {
+                    format!(
+                        "output {i} claims to be change of your key {fp} at {path}, which is not under a loaded account; treat it as a payment to others"
+                    )
+                };
                 warn(
                     warnings,
                     Level::Caution,
                     WarningKind::UnverifiedChange,
-                    format!(
-                        "output {i} claims to be change of your key {fp} at {path}, which is not under a loaded account; treat it as a payment to others"
-                    ),
+                    text,
                 );
             }
         }
     }
     kind
-}
-
-/// Multisig change the device can check with no wallet registered:
-/// the output carries the script it pays to,
-/// the scriptPubKey commits to that script, and one of the script's keys
-/// is this key at the stated BIP-48 path.
-///
-/// The threshold and the cosigners are still the coordinator's word,
-/// which is what registering a wallet policy settles; what is proved here
-/// is that the money goes to a script holding a key of ours on a change
-/// chain, rather than anywhere the coordinator likes.
-fn multisig_change(
-    out: &Output,
-    spk: &bitcoin::Script,
-    key: &KeyRef,
-    path: &DerivationPath,
-    pk: &PublicKey,
-) -> Option<(bool, u32)> {
-    let witness_script = out.witness_script.as_ref()?;
-    let pays_the_script = match &out.redeem_script {
-        Some(redeem) => *redeem == witness_script.to_p2wsh() && *spk == redeem.to_p2sh(),
-        None => *spk == witness_script.to_p2wsh(),
-    };
-    if !pays_the_script {
-        return None;
-    }
-    let (change, index, ours) = key.derive_multisig(path)?;
-    if ours != *pk {
-        return None;
-    }
-    let serialized = ours.serialize();
-    let in_the_script = witness_script
-        .instructions()
-        .filter_map(Result::ok)
-        .any(|i| i.push_bytes().is_some_and(|b| b.as_bytes() == serialized));
-    in_the_script.then_some((change, index))
 }
 
 fn locktime(lt: LockTime) -> Locktime {

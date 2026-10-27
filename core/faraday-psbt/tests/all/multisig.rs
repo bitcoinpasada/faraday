@@ -563,14 +563,13 @@ fn change_of_a_registered_wallet() {
     assert_eq!(insp.multisig.as_ref().unwrap().wallet, None);
 }
 
-/// Change of a multisig wallet with nothing registered, when the
-/// coordinator states the script it pays to: the device derives its own
-/// key on the BIP-48 change branch, finds it in that script, and sees the
-/// output commits to it, so the money counts as change and not as a
-/// payment to others. A wallet none of whose keys is ours stays a payment
-/// to others whatever it claims.
+/// Change of a multisig wallet with nothing registered is unverified,
+/// even when the coordinator states the script it pays to: the threshold
+/// and the cosigners are the coordinator's word until the wallet is
+/// registered, so the output counts as a payment to others and carries a
+/// caution that says what fixes it.
 #[test]
-fn bip48_change_is_ours_before_a_wallet_is_registered() {
+fn bip48_change_is_unverified_before_a_wallet_is_registered() {
     let c = Compute::unchecked();
     let abandon = master(ABANDON, NET);
     let zoo = master(ZOO, NET);
@@ -601,21 +600,19 @@ fn bip48_change_is_ours_before_a_wallet_is_registered() {
         },
     );
     assert!(!insp.has_danger(), "{:?}", insp.warnings);
-    assert_eq!(
+    assert!(matches!(
         insp.outputs[1].kind,
-        OutputKind::Change {
-            key: abandon.fingerprint(),
-            change: true,
-            index: 0
-        }
-    );
-    assert!(insp.outputs[1].is_ours());
-    assert_eq!(insp.change_total.to_sat(), 39_000);
-    assert_eq!(insp.amount_to_others.to_sat(), 60_000);
+        OutputKind::UnverifiedChange { .. }
+    ));
+    assert!(!insp.outputs[1].is_ours());
+    assert_eq!(insp.change_total.to_sat(), 0);
+    assert_eq!(insp.amount_to_others.to_sat(), 99_000);
     assert!(
+        insp.warnings.iter().any(|w| w.level == Level::Caution
+            && w.kind == WarningKind::UnverifiedChange
+            && w.text.contains("Register the wallet to check its change")),
+        "{:?}",
         insp.warnings
-            .iter()
-            .all(|w| w.kind != WarningKind::UnverifiedChange)
     );
 
     // The key that derives the change branch is the loaded one, not a
@@ -649,4 +646,90 @@ fn bip48_change_is_ours_before_a_wallet_is_registered() {
     ));
     assert_eq!(insp.change_total.to_sat(), 0);
     assert_eq!(insp.amount_to_others.to_sat(), 99_000);
+}
+
+/// A change output whose script merely holds this key, or whose threshold
+/// is lower than the wallet's, is unverified with no wallet registered
+/// and a blocked spoof once the real wallet is.
+#[test]
+fn multisig_change_scripts_that_only_hold_our_key_are_unverified() {
+    use bitcoin::PublicKey;
+    use bitcoin::opcodes::OP_TRUE;
+    use bitcoin::opcodes::all::{OP_CHECKMULTISIG, OP_DROP};
+    use bitcoin::script::Builder;
+
+    let c = Compute::unchecked();
+    let abandon = master(ABANDON, NET);
+    let zoo = master(ZOO, NET);
+    let legal = master(LEGAL, NET);
+    let recipient = legal
+        .account_xpub(&c, ScriptType::NativeSegwit, 0)
+        .unwrap()
+        .address(false, 3)
+        .unwrap()
+        .script_pubkey();
+    let keys = [KeyRef::from_master(&c, &abandon, 0).unwrap()];
+    let path = crate::common::builder::bip48_path(NET).extend([
+        bitcoin::bip32::ChildNumber::from_normal_idx(1).unwrap(),
+        bitcoin::bip32::ChildNumber::from_normal_idx(0).unwrap(),
+    ]);
+    let ours = PublicKey::new(abandon.derive(&c, &path).to_xpub(&c).public_key);
+    let theirs = PublicKey::new(zoo.derive(&c, &path).to_xpub(&c).public_key);
+    let scripts = [
+        Builder::new()
+            .push_key(&ours)
+            .push_opcode(OP_DROP)
+            .push_opcode(OP_TRUE)
+            .into_script(),
+        Builder::new()
+            .push_int(1)
+            .push_key(&ours)
+            .push_key(&theirs)
+            .push_int(2)
+            .push_opcode(OP_CHECKMULTISIG)
+            .into_script(),
+    ];
+    let wallets = [multisig_policy(&[&abandon, &zoo, &legal], 2, NET)];
+    for script in scripts {
+        let mut psbt = sorted_multisig_change_with_script(
+            &[&abandon, &zoo, &legal],
+            2,
+            NET,
+            100_000,
+            &[(recipient.clone(), 60_000)],
+            39_000,
+        );
+        let inner = psbt.inner_mut();
+        inner.unsigned_tx.output[1].script_pubkey = script.to_p2wsh();
+        inner.outputs[1].witness_script = Some(script);
+        inner.outputs[1]
+            .bip32_derivation
+            .retain(|k, _| *k == ours.inner);
+
+        let ctx = |wallets| Context {
+            network: NET,
+            keys: &keys,
+            wallets,
+            musig_session: None,
+        };
+        let insp = inspect(&c, &psbt, &ctx(&[]));
+        assert!(matches!(
+            insp.outputs[1].kind,
+            OutputKind::UnverifiedChange { .. }
+        ));
+        assert_eq!(insp.change_total.to_sat(), 0);
+        assert_eq!(insp.amount_to_others.to_sat(), 99_000);
+
+        let insp = inspect(&c, &psbt, &ctx(&wallets));
+        assert!(matches!(
+            insp.outputs[1].kind,
+            OutputKind::UnverifiedChange { .. }
+        ));
+        assert!(
+            insp.warnings
+                .iter()
+                .any(|w| w.level == Level::Blocked && w.kind == WarningKind::ChangeSpoof)
+        );
+        assert_eq!(insp.amount_to_others.to_sat(), 99_000);
+    }
 }

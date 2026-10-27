@@ -16,11 +16,8 @@ use faraday_crypto::work::Compute;
 ///
 /// Change and input ownership are verified by re-deriving from these
 /// xpubs, so only paths below a listed
-/// account can be verified. The multisig accounts are BIP-48's two,
-/// which let a multisig change output be checked before any wallet
-/// policy is registered; the cosigners still come from the PSBT's own
-/// witness script, so what they buy is the one key the device can prove
-/// is its own.
+/// account can be verified. The multisig accounts are BIP-48's two; a
+/// multisig change output is verified only against a registered wallet.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct KeyRef {
     /// The master fingerprint, as it appears in key origins.
@@ -96,27 +93,6 @@ impl KeyRef {
         }
         None
     }
-
-    /// Re-derives `path` if it is `change/index` below one of the BIP-48
-    /// accounts, with both leaf components unhardened. The script is not
-    /// part of the answer: a multisig script needs the cosigners.
-    pub(crate) fn derive_multisig(&self, path: &DerivationPath) -> Option<(bool, u32, PublicKey)> {
-        let components: Vec<ChildNumber> = path.to_u32_vec().iter().map(|&n| n.into()).collect();
-        for account in &self.multisig {
-            let prefix: Vec<ChildNumber> = account.path().into_iter().copied().collect();
-            if components.len() != prefix.len() + 2 || components[..prefix.len()] != prefix[..] {
-                continue;
-            }
-            let (change, index) = match (components[prefix.len()], components[prefix.len() + 1]) {
-                (ChildNumber::Normal { index: c @ (0 | 1) }, ChildNumber::Normal { index }) => {
-                    (c == 1, index)
-                }
-                _ => continue,
-            };
-            return Some((change, index, account.key_at(change, index).ok()?));
-        }
-        None
-    }
 }
 
 /// The result of re-deriving a key-origin path from an account xpub.
@@ -141,7 +117,7 @@ pub struct Context<'a> {
     pub keys: &'a [KeyRef],
     /// The BIP-388 wallet policies in use this session. Change of one of
     /// them is verified by re-deriving its script; with none registered,
-    /// a multisig change output can only be claimed.
+    /// a multisig change output is unverified and counted as sent.
     pub wallets: &'a [WalletPolicy],
     /// What the open MuSig2 session holds, when one is open.
     /// It decides whether a public nonce
