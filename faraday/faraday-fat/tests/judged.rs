@@ -786,3 +786,141 @@ fn the_fat_is_read_a_piece_at_a_time() {
     std::fs::write(&img, w.bytes).unwrap();
     fsck_clean(&img);
 }
+
+/// A partition that stops taking writes after `left` of them, as a stick
+/// pulled part way.
+struct Pulled {
+    bytes: Vec<u8>,
+    left: usize,
+}
+
+impl Disk for Pulled {
+    fn size(&self) -> u64 {
+        self.bytes.len() as u64
+    }
+    fn read_at(&mut self, offset: u64, buf: &mut [u8]) -> Result<(), Error> {
+        self.bytes.read_at(offset, buf)
+    }
+    fn write_at(&mut self, offset: u64, buf: &[u8]) -> Result<(), Error> {
+        if self.left == 0 {
+            return Err(Error::Io);
+        }
+        self.left -= 1;
+        self.bytes.write_at(offset, buf)
+    }
+}
+
+/// A rename interrupted at any write never leaves two entries on one
+/// chain (the file is under one name, or under none with its clusters
+/// left lost for a check to reclaim); one that finishes leaves the new
+/// name.
+#[test]
+fn a_rename_cut_part_way_leaves_no_two_entries_on_one_chain() {
+    if !have_tools() {
+        return;
+    }
+    for (name, args, kib, _) in volumes() {
+        let dir = scratch(&format!("rename-cut-{name}"));
+        let img = mkfs(&dir, &args, kib);
+        let mut v = open(&img);
+        v.create("wallet.txt.new", &pattern(5_000, 9)).unwrap();
+        let base = v.into_disk();
+        let mut finished = false;
+        for left in 0..40 {
+            let mut v = Volume::open(Pulled {
+                bytes: base.clone(),
+                left,
+            })
+            .unwrap();
+            let done = v.rename("wallet.txt.new", "wallet.txt").is_ok();
+            let mut v = Volume::open(v.into_disk().bytes).unwrap();
+            let names: Vec<String> = v.list().unwrap().into_iter().map(|e| e.name).collect();
+            assert!(names.len() <= 1, "{name}: cut after {left}: {names:?}");
+            for n in &names {
+                assert_eq!(v.read(n, 1 << 20).unwrap(), pattern(5_000, 9), "{name}");
+            }
+            if done {
+                assert_eq!(names, ["wallet.txt"], "{name}");
+                finished = true;
+                break;
+            }
+        }
+        assert!(finished, "{name}");
+    }
+}
+
+/// A name that differs only in case is a rename too.
+#[test]
+fn a_rename_that_changes_only_the_case_works() {
+    if !have_tools() {
+        return;
+    }
+    for (name, args, kib, _) in volumes() {
+        let dir = scratch(&format!("rename-case-{name}"));
+        let img = mkfs(&dir, &args, kib);
+        let mut v = open(&img);
+        v.create("README.TXT", b"hello").unwrap();
+        v.rename("README.TXT", "readme.txt").unwrap();
+        let names: Vec<String> = v.list().unwrap().into_iter().map(|e| e.name).collect();
+        assert_eq!(names, ["readme.txt"], "{name}");
+        assert_eq!(v.read("readme.txt", 1 << 20).unwrap(), b"hello");
+    }
+}
+
+/// What is past a file's end in its last cluster, and in clusters its
+/// chain holds beyond its size, is zeroed with the free space: the
+/// file's last cluster is the one its size says, not the chain's last.
+#[test]
+fn bytes_past_a_files_end_are_zeroed_by_its_size_not_by_its_chain() {
+    if !have_tools() {
+        return;
+    }
+    for (name, args, kib, _) in volumes() {
+        let dir = scratch(&format!("zero-tail-{name}"));
+        let img = mkfs(&dir, &args, kib);
+        mput(&dir, &img, "LEFT.TXT", &marked(b"past-the-end ", 20_000));
+        let mut bytes = std::fs::read(&img).unwrap();
+        // The size in its entry cut to 1,300 bytes, as a file truncated
+        // by a program that left the chain as it was.
+        let at = bytes.windows(11).position(|w| w == b"LEFT    TXT").unwrap();
+        bytes[at + 28..at + 32].copy_from_slice(&1_300u32.to_le_bytes());
+        let count = |b: &[u8]| b.windows(13).filter(|w| *w == b"past-the-end ").count();
+        let before = count(&bytes);
+        let mut v = Volume::open(bytes).unwrap();
+        v.zero_free(2, 1 << 30).unwrap();
+        let after = count(&v.into_disk());
+        // Only the file's first 1,300 bytes keep the text.
+        assert!(before > 1_000, "{name}: {before}");
+        assert!(after <= 1_300 / 13 + 1, "{name}: {after} left of {before}");
+    }
+}
+
+/// A file whose size is whole clusters, in a chain that runs longer than
+/// its size needs: the clusters past its size are zeroed with the free
+/// space too.
+#[test]
+fn clusters_past_a_whole_cluster_size_are_zeroed_too() {
+    if !have_tools() {
+        return;
+    }
+    for (name, args, kib, _) in volumes() {
+        let dir = scratch(&format!("zero-whole-{name}"));
+        let img = mkfs(&dir, &args, kib);
+        mput(&dir, &img, "LEFT.TXT", &marked(b"past-the-end ", 20_000));
+        let mut bytes = std::fs::read(&img).unwrap();
+        let at = bytes.windows(11).position(|w| w == b"LEFT    TXT").unwrap();
+        // Two whole clusters, whatever the volume's cluster size is.
+        let cb = u32::from(u16::from_le_bytes([bytes[11], bytes[12]])) * u32::from(bytes[13]);
+        bytes[at + 28..at + 32].copy_from_slice(&(2 * cb).to_le_bytes());
+        let count = |b: &[u8]| b.windows(13).filter(|w| *w == b"past-the-end ").count();
+        let before = count(&bytes);
+        let mut v = Volume::open(bytes).unwrap();
+        v.zero_free(2, 1 << 30).unwrap();
+        let after = count(&v.into_disk());
+        assert!(before > 1_000, "{name}: {before}");
+        assert!(
+            after <= (2 * cb as usize) / 13 + 1,
+            "{name}: {after} of {before}"
+        );
+    }
+}

@@ -966,17 +966,42 @@ impl<D: Disk> Volume<D> {
         }
         let cb = u64::from(self.cluster_bytes);
         let mut runs = Vec::new();
-        for e in parse_dir(&bytes) {
-            if e.dir || e.size == 0 || e.cluster == 0 {
+        // Each file's chain, and the clusters its size says it holds; a
+        // folder's whole chain is held by the folder.
+        let entries = parse_dir(&bytes);
+        let mut held: Vec<u32> = Vec::new();
+        let mut chains = Vec::new();
+        for e in &entries {
+            if e.cluster == 0 || (!e.dir && e.size == 0) {
                 continue;
             }
-            let tail = u64::from(e.size) % cb;
-            if tail == 0 {
-                continue;
+            if e.dir {
+                if let Ok(chain) = self.chain(e.cluster) {
+                    held.extend_from_slice(&chain);
+                }
+            } else {
+                let chain = self.chain(e.cluster)?;
+                let needed = u64::from(e.size).div_ceil(cb) as usize;
+                held.extend(chain.iter().take(needed));
+                chains.push((e.size, chain));
             }
-            let chain = self.chain(e.cluster)?;
-            if let Some(&last) = chain.last() {
-                runs.push((self.cluster_at(last) + tail, cb - tail));
+        }
+        for (size, chain) in chains {
+            // The file's own last cluster, by its size: a chain may run
+            // longer than the size needs, and what is past the file's end,
+            // whole clusters included, is not the file's, unless a cluster
+            // is also another entry's.
+            let tail = u64::from(size) % cb;
+            let needed = u64::from(size).div_ceil(cb) as usize;
+            if tail != 0
+                && let Some(&c) = chain.get(needed - 1)
+            {
+                runs.push((self.cluster_at(c) + tail, cb - tail));
+            }
+            for &c in chain.iter().skip(needed) {
+                if !held.contains(&c) {
+                    runs.push((self.cluster_at(c), cb));
+                }
             }
         }
         self.zero_runs(&runs)
