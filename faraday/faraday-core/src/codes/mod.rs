@@ -31,6 +31,9 @@ pub enum CodeKind {
     Hotp,
     /// Field 6 does not read at all.
     Unreadable,
+    /// The clock is not known: no code is worked out until the time is
+    /// set (`docs/TOTP.md` §1.3).
+    NoClock,
 }
 
 /// One row of the codes screen (§5.3).
@@ -52,6 +55,12 @@ pub struct CodeRow {
 /// Every row the search bar's query holds, in the order §5.3 draws them:
 /// vault by vault in the order they were opened, then in record order.
 pub fn codes_rows(app: &Faraday, now: u64) -> Vec<CodeRow> {
+    codes_rows_at(app, Some(now))
+}
+
+/// [`codes_rows`] at `now`, or with the clock not known: each TOTP entry
+/// then says to set the time first, and no code is worked out.
+pub fn codes_rows_at(app: &Faraday, now: Option<u64>) -> Vec<CodeRow> {
     let mut out = Vec::new();
     let many = app.vaults.open.len() > 1;
     for (v, ov) in app.vaults.open.iter().enumerate() {
@@ -63,7 +72,7 @@ pub fn codes_rows(app: &Faraday, now: u64) -> Vec<CodeRow> {
             let Some(t) = app.vaults.store().totp(
                 ov.id,
                 at,
-                Some(now),
+                now,
                 faraday_keys::Reveal::VaultEntry(faraday_keys::Part::Totp),
             ) else {
                 continue;
@@ -77,6 +86,7 @@ pub fn codes_rows(app: &Faraday, now: u64) -> Vec<CodeRow> {
                 .or_else(|| r.public_text(field::USERNAME).map(str::to_string))
                 .unwrap_or_default();
             let kind = match t.code {
+                Ok(_) if now.is_none() => CodeKind::NoClock,
                 Ok(Some(code)) => CodeKind::Code {
                     grouped: code.grouped,
                     left: code.left,

@@ -3047,7 +3047,7 @@ fn detail(
                 // §6).
                 ui.text(dx, dy, 12.0, W::R, muted, EN.vault_code);
                 dy += 20.0;
-                let now = app.clock_checked().then(|| app.clock_now().unwrap_or(0));
+                let now = app.clock_now().filter(|_| app.clock_checked());
                 match app.entry_code(r, now) {
                     Ok(Some(code)) => {
                         let (grouped, left) = (code.grouped, code.left);

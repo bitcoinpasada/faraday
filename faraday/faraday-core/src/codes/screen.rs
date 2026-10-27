@@ -3,7 +3,7 @@
 //! has none.
 
 use crate::Action;
-use crate::codes::{CodeKind, CodeRow, codes_rows, va};
+use crate::codes::{CodeKind, CodeRow, codes_rows_at, va};
 use crate::drawing::View;
 use crate::screens::title;
 use crate::strings::EN;
@@ -125,8 +125,14 @@ fn code_row(ui: &mut Ui, x: f32, y: f32, w: f32, r: &CodeRow) -> f32 {
                 &secs,
             );
         }
-        CodeKind::Hotp => pill_right(ui, x + w - 16.0, y + 14.0, "HOTP"),
-        CodeKind::Unreadable => pill_right(ui, x + w - 16.0, y + 14.0, EN.codes_unreadable),
+        CodeKind::Hotp | CodeKind::Unreadable | CodeKind::NoClock => {
+            let badge = match r.kind {
+                CodeKind::Hotp => "HOTP",
+                CodeKind::Unreadable => EN.codes_unreadable,
+                _ => EN.codes_set_the_time_first,
+            };
+            pill_right(ui, x + w - 16.0, y + 14.0, badge);
+        }
     }
     h + 12.0
 }
@@ -166,8 +172,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     title(ui, x, y, EN.codes_totp_codes);
     y += 60.0;
     y += now_row(app, ui, x, y, w) + 12.0;
-    let now = app.clock_now().unwrap_or(0);
-    let rows = codes_rows(app, now);
+    let rows = codes_rows_at(app, app.clock_now());
     y += search(app, ui, x, y, w, rows.is_empty());
     if rows.is_empty() {
         ui.text_as(x, y, BODY_M, Role::OnSurfaceVariant, none_line(app));
@@ -219,8 +224,7 @@ fn compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     if !view {
         y += now_row(app, ui, x, y, w) + 8.0;
     }
-    let now = app.clock_now().unwrap_or(0);
-    let rows = codes_rows(app, now);
+    let rows = codes_rows_at(app, app.clock_now());
     y += search(app, ui, x, y, w, rows.is_empty());
     if rows.is_empty() {
         ui.text_as(x, y, BODY_S, Role::OnSurfaceVariant, none_line(app));

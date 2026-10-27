@@ -2434,19 +2434,6 @@ impl Faraday {
 }
 
 impl Faraday {
-    /// Now on this computer's clock, Unix seconds: the last time the
-    /// shell said, moved on by the ticks since, corrected by the offset
-    /// a time set by hand gives it (`docs/TOTP.md` §1.2). With no offset,
-    /// a reading below [`CLOCK_FLOOR`] is not known.
-    pub fn clock_now(&self) -> Option<u64> {
-        let at = self.vaults.unix_secs?;
-        let raw = at + self.now_ms.saturating_sub(self.vaults.clock_at_ms) / 1000;
-        match self.vaults.clock_offset {
-            Some(off) => Some((raw as i64 + off).max(0) as u64),
-            None => (raw >= CLOCK_FLOOR).then_some(raw),
-        }
-    }
-
     /// Set or Keep this time has been pressed this power-on
     /// (`docs/TOTP.md` §1.3); the desktop app counts as checked whenever
     /// its clock is known.

@@ -233,6 +233,39 @@ impl Faraday {
         }
     }
 
+    /// Now on this computer's clock, Unix seconds: the last time the
+    /// shell said, moved on by the ticks since, corrected by the offset
+    /// a time set by hand gives it (`docs/TOTP.md` §1.2). With no offset,
+    /// a reading below [`crate::vault::CLOCK_FLOOR`] is not known.
+    pub fn clock_now(&self) -> Option<u64> {
+        let since = self.now_ms.saturating_sub(self.vaults.clock_at_ms) / 1000;
+        let raw = match self.vaults.unix_secs {
+            Some(at) => at + since,
+            // No clock reading: a time set by hand counts on from Set by
+            // the app's own ticks.
+            None if self.vaults.clock_offset.is_some() => since,
+            None => return None,
+        };
+        match self.vaults.clock_offset {
+            Some(off) => Some((raw as i64 + off).max(0) as u64),
+            None => (raw >= crate::vault::CLOCK_FLOOR).then_some(raw),
+        }
+    }
+
+    /// What the time starts from, when it is not this computer's clock: no
+    /// clock reading at all, or a time set by hand counted on from Set by
+    /// the app's own ticks. `None` while the shell gives a clock reading.
+    pub fn clock_source(&self) -> Option<&'static str> {
+        if self.vaults.unix_secs.is_some() {
+            return None;
+        }
+        Some(if self.vaults.clock_offset.is_some() {
+            EN.set_time_counted_from_set
+        } else {
+            EN.set_time_no_reading
+        })
+    }
+
     /// Steps the time zone by `delta` minutes, stopping at −12:00 and
     /// +14:00 (`docs/TOTP.md` §2.1). The same action for Settings' row
     /// and Set the time's context row.

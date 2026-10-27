@@ -1349,6 +1349,8 @@ strings! {
     codes_set_the_time: "Set the time",
     /// Text in `code_row`.
     codes_unreadable: "Unreadable",
+    /// A TOTP row's badge while the clock is not known.
+    codes_set_the_time_first: "Set the time first",
     /// Title in `draw`.
     codes_totp_codes: "TOTP codes",
     /// Line in `compact`.
@@ -6635,6 +6637,10 @@ strings! {
     // ----- set_time (faraday-core/src/set_time.rs) -----
     /// Text in `now_local_text`.
     set_time_not_known: "Not known",
+    /// Under Set the time's Now, while the shell gives no clock reading.
+    set_time_no_reading: "No clock reading",
+    /// Under Set the time's Now, once a time is set with no clock reading.
+    set_time_counted_from_set: "Counted from Set: no clock reading",
     /// Toast in `set_time_set`. `{}`: `h`, `mi`.
     set_time_done_toast: "Time set to {}:{}",
     // ----- silent (faraday-core/src/silent/mod.rs) -----

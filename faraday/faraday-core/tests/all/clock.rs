@@ -339,3 +339,34 @@ fn set_is_not_offered_for_an_impossible_date_or_time() {
     app.press(Action::SetTimeSet);
     assert_eq!(app.screen, Screen::SetTime, "no such time as 24:00");
 }
+
+/// A time set with no clock reading counts on the app's own ticks, which
+/// start again in the next process: it is not kept across a lock, and
+/// the next process has the time not known and its checked mark gone.
+#[test]
+fn a_time_set_with_no_clock_reading_is_not_kept_across_a_lock() {
+    let mut app = vault_app(None);
+    app.press(Action::OpenSetTime);
+    app.press(Action::SetTimeFocus(Focus::Date));
+    type_text(&mut app, "2026-10-11");
+    app.press(Action::SetTimeFocus(Focus::Time));
+    type_text(&mut app, "14:02");
+    app.press(Action::SetTimeSet);
+    assert!(app.clock_now().is_some());
+    let mut kept = Vec::new();
+    while let Some(c) = app.poll_storage() {
+        if let StorageCommand::SaveBoxes { kept: k, .. } = c {
+            kept = k;
+        }
+    }
+    let mut next = Faraday::new();
+    next.event(display());
+    next.storage(StorageEvent::Restored {
+        inbox: Vec::new(),
+        outbox: Vec::new(),
+        kept,
+    });
+    next.event(Event::Tick { now_ms: 5_000 });
+    assert_eq!(next.clock_now(), None, "{}", next.now_local_text());
+    assert!(!next.clock_checked());
+}

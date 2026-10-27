@@ -6,7 +6,7 @@ use crate::drawing::View;
 use crate::strings::EN;
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui};
-use faraday_draw::tokens::{BODY_S, BUTTON_H, TITLE_M};
+use faraday_draw::tokens::{BODY_S, BUTTON_H, GAP, PAD, TITLE_M};
 use faraday_draw::widgets::Icon;
 use faraday_ui::parts::{section_label, title, wrap_buttons};
 
@@ -51,6 +51,11 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     );
     tz_row(ui, x + 22.0, y + 60.0, width - 44.0, app.tz_min());
     y += 132.0;
+    // What the time starts from, when it is not this computer's clock.
+    if let Some(from) = app.clock_source() {
+        ui.text_as(x, y, BODY_S, Role::OnSurfaceVariant, from);
+        y += PAD + GAP;
+    }
     // Entry: Date and Time.
     section_label(ui, x, y, EN.set_time_date);
     y += 26.0;
@@ -119,6 +124,9 @@ fn set_time_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, _h: f32) {
     y += section(ui, x, y, w, EN.set_time_now, &|ui, x, y0, w| {
         let mut y = y0;
         y += ui.wrap_as((x, y, w), TITLE_M, Role::OnSurface, &app.now_local_text()) + 10.0;
+        if let Some(from) = app.clock_source() {
+            y += ui.wrap_as((x, y, w), BODY_S, Role::OnSurfaceVariant, from) + GAP;
+        }
         y += tz_row(ui, x, y, w, app.tz_min());
         y - y0
     });

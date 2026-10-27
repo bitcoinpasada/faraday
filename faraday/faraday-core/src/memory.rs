@@ -404,7 +404,11 @@ impl Faraday {
         // against the shell's own clock, and whether it has been checked
         // this power-on. Lost at power-off, when the Pi's clock restarts
         // at 1970 and the offset would no longer mean anything.
-        if self.vaults.clock_checked || self.vaults.clock_offset.is_some() {
+        // With no clock reading the time counts on the app's own ticks,
+        // which start again in the next process: nothing is kept.
+        if self.vaults.unix_secs.is_some()
+            && (self.vaults.clock_checked || self.vaults.clock_offset.is_some())
+        {
             let mut text = format!("checked={}\n", u8::from(self.vaults.clock_checked));
             if let Some(off) = self.vaults.clock_offset {
                 text.push_str(&format!("offset={off}\n"));

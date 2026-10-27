@@ -112,6 +112,53 @@ fn from_tools_with_no_vault_open_codes_leads_to_unlock_then_the_codes() {
     assert_eq!(app.screen, Screen::Codes);
 }
 
+/// With the clock not known, the codes screen shows no code: each row
+/// says to set the time first, and no code for 1970 is drawn.
+#[test]
+fn with_the_clock_not_known_the_codes_say_set_the_time_first() {
+    let mut app = fresh_app(Some(1000), false);
+    open_codes_from_tools(&mut app);
+    assert_eq!(app.screen, Screen::SetTime);
+    app.press(Action::SetTimeBack);
+    assert_eq!(app.screen, Screen::Codes, "Back goes to the codes");
+    assert!(app.clock_now().is_none());
+    let epoch = faraday_vault::totp::parse("otpauth://totp/Example:you?secret=JBSWY3DPEHPK3PXP")
+        .unwrap()
+        .code(0);
+    let _ = app.frame();
+    let text = app.drawn_texts().join("\n");
+    assert!(text.contains("Set the time first"), "{text}");
+    assert!(
+        !text.contains(&faraday_vault::totp::grouped(&epoch)),
+        "a code for 1970 is drawn: {text}"
+    );
+}
+
+/// With no clock reading at all, Set the time says so, and the time
+/// set counts on from Set by Faraday's own ticks.
+#[test]
+fn set_the_time_with_no_clock_reading_says_so_and_counts_from_set() {
+    let mut app = fresh_app(None, false);
+    app.press(Action::OpenSetTime);
+    assert_eq!(app.screen, Screen::SetTime);
+    let _ = app.frame();
+    let text = app.drawn_texts().join("\n");
+    assert!(text.contains("No clock reading"), "{text}");
+    app.press(Action::SetTimeFocus(Focus::Date));
+    type_text(&mut app, "2026-10-11");
+    app.press(Action::SetTimeFocus(Focus::Time));
+    type_text(&mut app, "14:02");
+    app.press(Action::SetTimeSet);
+    let set = app.clock_now().expect("the time set is the clock");
+    let later = app.now_ms() + 61_000;
+    app.event(Event::Tick { now_ms: later });
+    assert_eq!(app.clock_now(), Some(set + 61), "it counts on from Set");
+    app.press(Action::OpenSetTime);
+    let _ = app.frame();
+    let text = app.drawn_texts().join("\n");
+    assert!(text.contains("Counted from Set"), "{text}");
+}
+
 #[test]
 fn a_pi_like_clock_opens_set_the_time_first_then_shows_the_code() {
     // Below the floor, as the Pi reports at boot: not known.
