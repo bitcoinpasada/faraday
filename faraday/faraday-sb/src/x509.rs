@@ -247,7 +247,13 @@ fn unix_of(t: u8, v: &[u8]) -> Option<u64> {
         digits(rest.get(6..8)?)?,
         digits(rest.get(8..10)?)?,
     );
-    if !(1..=12).contains(&m) || !(1..=31).contains(&d) || rest.get(10) != Some(&b'Z') {
+    if !(1..=12).contains(&m)
+        || !(1..=31).contains(&d)
+        || h > 23
+        || mi > 59
+        || s > 59
+        || rest.get(10) != Some(&b'Z')
+    {
         return None;
     }
     // Howard Hinnant's days-from-civil.
@@ -301,4 +307,30 @@ pub fn signer_info(
     parts.push(octets(signature));
     let refs: Vec<&[u8]> = parts.iter().map(Vec::as_slice).collect();
     Ok(seq(&refs))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_time_with_an_hour_minute_or_second_out_of_range_is_no_time() {
+        assert_eq!(
+            unix_of(tag::UTC_TIME, b"250101000000Z"),
+            Some(1_735_689_600)
+        );
+        assert_eq!(
+            unix_of(tag::UTC_TIME, b"250101235959Z"),
+            Some(1_735_775_999)
+        );
+        for bad in [
+            &b"250101240000Z"[..],
+            b"250101006000Z",
+            b"250101000060Z",
+            b"250101990000Z",
+        ] {
+            assert_eq!(unix_of(tag::UTC_TIME, bad), None, "{bad:?}");
+        }
+        assert_eq!(unix_of(tag::GENERALIZED_TIME, b"20250101250000Z"), None);
+    }
 }
