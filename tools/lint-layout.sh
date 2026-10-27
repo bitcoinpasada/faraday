@@ -135,6 +135,11 @@ for n, line in enumerate(open(COUNTS, encoding="utf-8"), 1):
              f"`fields Faraday N` or `impl-faraday PATH`")
 
 
+for key in ("expect too_many_lines", "allow too_many_arguments", "fields Faraday"):
+    if key not in counts:
+        fail(f"{COUNTS} has no `{key} N` line")
+
+
 def ratchet(what, now, kept, where):
     if now > kept:
         fail(f"{where}: {what} is {now}, above {kept} in {COUNTS}: "

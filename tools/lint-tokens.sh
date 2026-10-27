@@ -86,8 +86,13 @@ if [ ! -f "$COUNTS" ]; then
     echo "lint-tokens: missing $COUNTS"
     exit 1
 fi
+# Every crate measured below must have a line: an empty or short counts
+# file fails closed.
+MEASURED="faraday-core faraday-ui"
+seen=" "
 while read -r crate want; do
     [ -n "$crate" ] || continue
+    seen="$seen$crate "
     case "$crate" in
         faraday-core) dir=faraday/faraday-core/src ;;
         faraday-ui) dir=faraday/faraday-ui/src ;;
@@ -107,6 +112,15 @@ while read -r crate want; do
         status=1
     fi
 done < "$COUNTS"
+for crate in $MEASURED; do
+    case "$seen" in
+        *" $crate "*) ;;
+        *)
+            echo "lint-tokens: $crate has no line in $COUNTS"
+            status=1
+            ;;
+    esac
+done
 
 if [ "$status" -eq 0 ]; then
     echo "lint-tokens: ok"
