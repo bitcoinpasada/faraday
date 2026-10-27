@@ -21,6 +21,7 @@ mod dleq;
 mod json;
 mod miniscript;
 mod musig;
+mod policy_key_path;
 mod readings;
 mod recovery;
 mod silent;

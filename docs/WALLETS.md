@@ -186,6 +186,21 @@ non-cryptographic and live in `faraday-core`:
 - Fee, dust, network, unknown paths and the deterministic nonce check
   are shown.
 
+### 3.4 The key path of a `tr()` wallet
+
+Every `tr()` wallet with a script tree states who can spend it by the
+key path, its internal key alone (F132): "Key path: none
+(unspendable)" for the NUMS point or an extended key over it; "Key
+path: <the key> alone" for one of the wallet's keys; and for any other
+key the danger line naming that key in groups of four. Only the first
+reads as "k of n". The third is added only after a hold on a sheet
+that names the key, after which the flow that asked goes on; it keeps
+the danger line on its card, counts its signatures against its leaf's
+own quorum, reads "Another key can spend" in the error tone where a
+wallet reads "Can spend", and a spend from it repeats the line as a
+caution at the head of the review's warnings. None is refused for its
+key path.
+
 ## 4. Spending
 
 The Wallets tab's order, kept for every kind: **load the wallet → the
@@ -206,7 +221,7 @@ own.
 |---|---|---|
 | Single-sig | Load (or the vault's wallet) → Transaction → Check → Sign → Finish | No Signers or Collect: the vault key is the wallet. |
 | Multisig (`wsh`, `sh(wsh)`) | Load → Transaction → Check → Signers → Sign → Collect → Finish | The Wallets tab's flow as it stands. The txid row is refused for `sh(wsh)`. |
-| Taproot multisig, `tr(H, sortedmulti_a)` | as multisig | Script-path signatures only (the internal key is unspendable); the review says which leaf. |
+| Taproot multisig, `tr(H, sortedmulti_a)` | as multisig | Script-path signatures only (the internal key is unspendable); the review says which leaf. A `multi_a` tree over any other internal key is a Taproot tree (§3.4). |
 | Miniscript, Taproot tree (imported) | Load → **Path** → Transaction → Check → Signers → Sign → Collect → Finish | Signs every signature its keys can give; Finish completes only when the script is satisfied, and says which condition is unmet (a cosigner, or a timelock not yet reached). |
 | Recovery (Liana shapes) | Load → **Path** → Transaction → Check → Signers → Sign → Collect → Finish | **Path**: the primary path, or a recovery path, with its timelock in blocks and whether the transaction's inputs have aged enough (from the PSBT's sequence values). |
 | MuSig2, `tr(musig(…))` | Load → Transaction → Check → **Round 1: nonces** → Collect nonces → **Round 2: sign** → Collect partial signatures → Finish | Two rounds; every signer must take part. See §4.2. |

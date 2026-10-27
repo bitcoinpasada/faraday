@@ -336,13 +336,17 @@ pub(super) fn sidebar(app: &View, ui: &mut Ui, h: f32) {
     let mut wallet_rows = ranked.into_iter().map(|(i, ready)| {
         let w = &app.session.wallets[i];
         let (m, n) = Session::quorum(w);
-        let shape = if n > 1 {
+        // A key not of the wallet spends it alone: no "k of n" (F132).
+        let shape = if crate::wallet::another_key_spends(w) {
+            EN.sidebar_another_key.to_string()
+        } else if n > 1 {
             fill(EN.sidebar_count, &[&m.to_string(), &n.to_string()])
         } else {
             EN.sidebar_single_key.to_string()
         };
         let mark = match ready {
             _ if app.silent_differs(i) => Some(Role::Error.paint()),
+            _ if crate::wallet::another_key_spends(w) => Some(Role::Error.paint()),
             2 => Some(Role::Ok.paint()),
             1 => Some(Role::OnSurfaceVariant.paint()),
             _ => None,

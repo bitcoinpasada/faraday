@@ -270,6 +270,8 @@ fn wallet_list(app: &View, ui: &mut Ui, rect: (f32, f32, f32, f32)) {
             supporting: &line,
             trailing: if differs {
                 Some((EN.wallets_does_not_match, Role::Error.paint()))
+            } else if crate::wallet::another_key_spends(wlt) {
+                Some((EN.wallets_another_can_spend, Role::Error.paint()))
             } else {
                 can.then(|| (EN.wallets_can_spend, Role::Ok.paint()))
             },
@@ -539,6 +541,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     cy += 34.0;
     ui.text_as(ix, cy, BODY_M, Role::OnSurfaceVariant, &Session::shape(wlt));
     cy += 26.0;
+    cy += super::parts::key_path_line(app, ui, (ix, cy, iw), wlt.policy());
     if let Some(r) = wlt.policy().silent() {
         // Where its backup is (§5.2): a press opens Backups on it.
         cy += backup_line(app, ui, ix, cy, iw, app.wallets.wallet());
@@ -626,15 +629,18 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     // Short: one Scan a key for any missing key; enough: Can spend
     // (`docs/history/SCAN-TO-SIGN.md` §2.2).
     if app.can_spend(app.wallets.wallet()) {
-        let t = EN.wallets_can_spend;
+        // A key not of the wallet spends it alone: never the plain green.
+        let (t, on, bg) = if crate::wallet::another_key_spends(wlt) {
+            (
+                EN.wallets_another_can_spend,
+                Role::OnErrorContainer,
+                Role::ErrorContainer,
+            )
+        } else {
+            (EN.wallets_can_spend, Role::OnOkContainer, Role::OkContainer)
+        };
         let chipw = ui.measure_as(BODY_S, t) + 34.0;
-        ui.chip(
-            ix + iw - 16.0 - chipw,
-            cy + 12.0,
-            t,
-            Role::OnOkContainer,
-            Role::OkContainer,
-        );
+        ui.chip(ix + iw - 16.0 - chipw, cy + 12.0, t, on, bg);
     } else {
         let label = EN.wallets_scan_a_key;
         let bw = ui.measure_as(LABEL_L, label) + 32.0;

@@ -229,6 +229,27 @@ impl PolicyKey {
     }
 }
 
+/// Who can spend a `tr()` wallet with a script tree by its key path:
+/// the internal key alone, without the tree. Every such wallet states
+/// it (`docs/decisions/F132.md`).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum KeyPath {
+    /// The internal key is BIP 341's NUMS point `H`, or an extended key
+    /// whose public key is `H` (every child of it is `H` plus a tweak
+    /// anyone can work out): nobody can spend by the key path, and the
+    /// tree is the only way to spend.
+    Unspendable,
+    /// The internal key is the wallet's key at this index in
+    /// [`WalletPolicy::keys`], an extended key with its origin: that key
+    /// alone spends by the key path.
+    WalletKey(usize),
+    /// The internal key is some other key: a plain public key that is
+    /// not `H`. Whoever holds it spends every coin alone. The x-only
+    /// public key in hex. (An extended key with no origin is read only
+    /// over `H`; the variant names any key that could arrive here.)
+    Other(String),
+}
+
 /// A registered wallet: a descriptor template and its keys.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct WalletPolicy {
@@ -246,6 +267,11 @@ pub struct WalletPolicy {
     /// The silent payments record, for [`Template::Silent`] and no
     /// other template, which is the text such a wallet is written as.
     silent: Option<SilentWallet>,
+    /// Who can spend by the key path, for a `tr()` with a script tree
+    /// ([`Template::Tree`]) and no other template. Worked out once from
+    /// `script` when the policy is read; `script` never changes after,
+    /// so it stays in step with it.
+    key_path: Option<KeyPath>,
     /// The BIP-380 checksum of [`to_descriptor`](Self::to_descriptor),
     /// worked out once when the policy is made. A function of the fields
     /// above, so the derived `PartialEq` is unchanged by it.
@@ -313,6 +339,7 @@ impl WalletPolicy {
             script: None,
             sorted_a: None,
             silent: None,
+            key_path: None,
             checksum: [0; 8],
         }
         .sealed())
@@ -355,6 +382,7 @@ impl WalletPolicy {
             script: None,
             sorted_a: None,
             silent: None,
+            key_path: None,
             checksum: [0; 8],
         }
         .sealed())
@@ -391,6 +419,7 @@ impl WalletPolicy {
             script: None,
             sorted_a: None,
             silent: None,
+            key_path: None,
             checksum: [0; 8],
         }
         .sealed())
@@ -406,6 +435,7 @@ impl WalletPolicy {
             script: None,
             sorted_a: None,
             silent: Some(silent),
+            key_path: None,
             checksum: [0; 8],
         }
         .sealed()
@@ -448,25 +478,46 @@ impl WalletPolicy {
         }
     }
 
+    /// Who can spend by the key path, for a `tr()` with a script tree;
+    /// `None` for every other wallet. A lookup: worked out when the
+    /// policy was read.
+    pub fn key_path(&self) -> Option<&KeyPath> {
+        self.key_path.as_ref()
+    }
+
     /// Whether the key path cannot be spent: the internal key is BIP
-    /// 341's NUMS point, so the tree is the only way to spend.
+    /// 341's NUMS point (or an extended key over it), so the tree is the
+    /// only way to spend.
     ///
     /// `false` for every wallet whose key path someone holds, and for a
     /// wallet whose internal key is some other key nobody claims — a
     /// device cannot tell that one from a key path it simply does not
     /// have.
     pub fn key_path_unspendable(&self) -> bool {
-        self.internal_key()
-            .as_ref()
-            .is_some_and(crate::tapmulti::is_nums)
+        self.key_path == Some(KeyPath::Unspendable)
     }
 
     /// `(signatures required, keys)` for a BIP 387 tapscript multisig:
-    /// a `tr()` whose tree is one `multi_a` or `sortedmulti_a` leaf.
+    /// a `tr()` whose key path nobody can spend and whose tree is one
+    /// `multi_a` or `sortedmulti_a` leaf over every key of the wallet.
+    ///
+    /// `None` when someone can spend by the key path: "2 of 3" would
+    /// leave out the one key that spends alone, so such a wallet is a
+    /// tree whose key path is its first way to spend.
     pub fn tapscript_quorum(&self) -> Option<(usize, usize)> {
-        if let Some(threshold) = self.sorted_a {
-            return Some((threshold, self.keys.len()));
+        if !self.key_path_unspendable() {
+            return None;
         }
+        self.leaf_quorum()
+    }
+
+    /// `(signatures required, keys)` of a `tr()` tree's script path alone,
+    /// when the tree is one `multi_a` or `sortedmulti_a` leaf over every
+    /// key of the wallet, whoever holds the key path. What the script
+    /// asks for; [`tapscript_quorum`](Self::tapscript_quorum) is what the
+    /// wallet as a whole asks for, and is `None` when someone can spend
+    /// by the key path.
+    pub fn leaf_quorum(&self) -> Option<(usize, usize)> {
         let Some(Descriptor::Tr(tr)) = &self.script else {
             return None;
         };
@@ -476,7 +527,12 @@ impl WalletPolicy {
         if leaves.next().is_some() || !text.contains("multi_a(") {
             return None;
         }
-        let threshold = multi_a_threshold(&text)?;
+        // A sorted leaf is held as its `multi_a` twin over the same keys,
+        // so the leaf is counted the same way for both.
+        let threshold = match self.sorted_a {
+            Some(threshold) => threshold,
+            None => multi_a_threshold(&text)?,
+        };
         let keys = leaf.iter_pk().count();
         (keys == self.keys.len()).then_some((threshold, keys))
     }
@@ -831,10 +887,20 @@ impl WalletPolicy {
         let Some(script) = &self.script else {
             return Vec::new();
         };
-        let Some(semantic) = crate::recovery::lift(script) else {
+        // A key path whose holder is not one of the wallet's keys is no
+        // path of theirs: the tree's paths are listed, and the key path
+        // is stated on its own ([`KeyPath`]).
+        let semantic = match (&self.key_path, script) {
+            (Some(KeyPath::Unspendable | KeyPath::Other(_)), Descriptor::Tr(tr)) => {
+                use miniscript::policy::Liftable;
+                tr.tap_tree().as_ref().and_then(|t| t.lift().ok())
+            }
+            _ => crate::recovery::lift(script),
+        };
+        let Some(semantic) = semantic else {
             return Vec::new();
         };
-        let keys = descriptor_keys(script);
+        let keys = wallet_keys(script);
         crate::spend::spend_paths(&semantic, &keys).unwrap_or_default()
     }
 }
@@ -985,13 +1051,8 @@ fn parse_miniscript(text: &str) -> Result<WalletPolicy, Error> {
     // keys: nobody holds it and nothing derives from it, so it stays in
     // the template's text where a person can read it, and the keys are
     // the extended keys of the tree.
-    let internal = internal_key_text(&script);
-    let keys: Vec<PolicyKey> = descriptor_keys(&script)
+    let keys: Vec<PolicyKey> = wallet_keys(&script)
         .iter()
-        .filter(|key| {
-            !matches!(key, DescriptorPublicKey::Single(_))
-                || internal.as_deref() != Some(alloc::format!("{key}").as_str())
-        })
         .map(wallet_key)
         .collect::<Result<_, _>>()?;
     let sorted_a = match sorted {
@@ -1003,13 +1064,33 @@ fn parse_miniscript(text: &str) -> Result<WalletPolicy, Error> {
     {
         return Err(Error::Threshold);
     }
+    // A key with no origin is taken only as a `tr()`'s internal key over
+    // the NUMS point, which descends from no master; any other key, a
+    // leaf's included, carries the origin BIP-388 writes.
+    let internal_nums = matches!(&script, Descriptor::Tr(tr)
+        if !matches!(tr.internal_key(), DescriptorPublicKey::Single(_))
+            && keys.first().is_some_and(|k| crate::tapmulti::is_nums(&k.xpub.public_key.x_only_public_key().0)));
+    if keys
+        .iter()
+        .enumerate()
+        .any(|(i, k)| k.origin.is_none() && !(i == 0 && internal_nums))
+    {
+        return Err(Error::Key);
+    }
     check(&template, &keys)?;
+    let key_path = match &script {
+        Descriptor::Tr(tr) if matches!(template, Template::Tree) => {
+            Some(key_path_of(tr.internal_key(), &keys))
+        }
+        _ => None,
+    };
     Ok(WalletPolicy {
         template,
         keys,
         script: Some(script),
         sorted_a,
         silent: None,
+        key_path,
         checksum: [0; 8],
     }
     .sealed())
@@ -1039,6 +1120,61 @@ fn read_script_descriptor<Pk: miniscript::FromStrKey>(text: &str) -> Result<Desc
     let script = Descriptor::<Pk>::from_str(text).map_err(|_| Error::Template)?;
     script.sanity_check().map_err(|_| Error::Template)?;
     Ok(script)
+}
+
+/// The descriptor's keys that are the wallet's keys, in the order a
+/// person reads them: every key but a `tr()`'s internal key where that
+/// is a plain public key — the NUMS point a script-only wallet writes
+/// there, or another key a descriptor states. Nothing derives from a
+/// plain key, so it stays in the template's text where a person can read
+/// it, and its holder is what [`KeyPath`] states.
+fn wallet_keys(script: &Descriptor<DescriptorPublicKey>) -> Vec<DescriptorPublicKey> {
+    let internal = internal_key_text(script);
+    descriptor_keys(script)
+        .into_iter()
+        .filter(|key| {
+            !matches!(key, DescriptorPublicKey::Single(_))
+                || internal.as_deref() != Some(alloc::format!("{key}").as_str())
+        })
+        .collect()
+}
+
+/// Who spends a `tr()` by its key path, from its internal key and the
+/// wallet's keys (`docs/decisions/F132.md`): `H` or an extended key over
+/// `H` nobody; an extended key with its origin, that key of the wallet;
+/// anything else, a key the wallet does not hold.
+fn key_path_of(internal: &DescriptorPublicKey, keys: &[PolicyKey]) -> KeyPath {
+    match internal {
+        DescriptorPublicKey::Single(single) => {
+            let key = match single.key {
+                miniscript::descriptor::SinglePubKey::FullKey(k) => k.inner.x_only_public_key().0,
+                miniscript::descriptor::SinglePubKey::XOnly(k) => k,
+            };
+            if crate::tapmulti::is_nums(&key) {
+                KeyPath::Unspendable
+            } else {
+                KeyPath::Other(alloc::format!("{key}"))
+            }
+        }
+        DescriptorPublicKey::XPub(x) => xkey_path(&x.xkey, keys),
+        DescriptorPublicKey::MultiXPub(x) => xkey_path(&x.xkey, keys),
+    }
+}
+
+/// [`key_path_of`] for an extended internal key.
+fn xkey_path(xkey: &Xpub, keys: &[PolicyKey]) -> KeyPath {
+    // Unhardened derivation adds a tweak anyone can work out to the
+    // parent's point, so every child of `H` is as unspendable as `H`.
+    if crate::tapmulti::is_nums(&xkey.public_key.x_only_public_key().0) {
+        return KeyPath::Unspendable;
+    }
+    match keys
+        .iter()
+        .position(|k| k.xpub == *xkey && k.origin.is_some())
+    {
+        Some(i) => KeyPath::WalletKey(i),
+        None => KeyPath::Other(alloc::format!("{xkey}")),
+    }
 }
 
 /// The internal key of a `tr()`, as the descriptor writes it.
@@ -1160,11 +1296,12 @@ fn check(template: &Template, keys: &[PolicyKey]) -> Result<(), Error> {
         // wallet a bare extended public key makes and its addresses need
         // nothing else.
         // So is a taproot tree's internal key where no key of the wallet
-        // can take the key path: the descriptor then writes a key
-        // derived from the leaves so that anyone can see the key path is
-        // unspendable, and it descends from no master. `tr()` writes the
-        // internal key first, so it is the key at index zero and no
-        // other.
+        // can take the key path: the descriptor then writes a key over
+        // the NUMS point, derived from the leaves, so that anyone can see
+        // the key path is unspendable, and it descends from no master.
+        // `tr()` writes the internal key first, so it is the key at index
+        // zero and no other; `parse_miniscript` takes it only over the
+        // NUMS point.
         let originless = matches!(template, Template::Single { .. })
             || (matches!(template, Template::Tree) && i == 0);
         if key.origin.is_none() && !originless {

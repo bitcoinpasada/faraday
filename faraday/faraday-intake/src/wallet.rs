@@ -69,6 +69,9 @@ pub enum Refusal {
     /// the loaded key with its fingerprint (this one) gives at its
     /// account.
     SilentDiffers(String),
+    /// A key that is not one of the wallet's spends it alone by the key
+    /// path, and the person has not confirmed it yet (F132).
+    KeyPathUnconfirmed,
 }
 
 impl Refusal {
@@ -97,6 +100,7 @@ impl Refusal {
             Refusal::NetworkFixed(n) => fill(EN.wallet_runs_on_only, &[network_name(*n)]),
             Refusal::StickAttached(noun) => fill(EN.stick_keys_keys_load, &[noun]),
             Refusal::SilentDiffers(fp) => fill(EN.wallet_silent_differs, &[&fp.to_string()]),
+            Refusal::KeyPathUnconfirmed => EN.wallet_key_path_unconfirmed.to_string(),
         }
     }
 }

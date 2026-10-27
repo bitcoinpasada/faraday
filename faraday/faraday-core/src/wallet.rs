@@ -11,7 +11,7 @@ use faraday_bip::bip39::{Language, Mnemonic};
 use faraday_bip::bitcoin::consensus::encode::serialize_hex;
 use faraday_bip::bitcoin::{Transaction, Txid};
 use faraday_bip::keys::{Fingerprint, Network, ScriptType};
-use faraday_bip::policy::{Template, WalletPolicy, Wrapper};
+use faraday_bip::policy::{KeyPath, Template, WalletPolicy, Wrapper};
 use faraday_crypto::work::Compute;
 use faraday_psbt::verify::Verdict;
 use faraday_psbt::{Context, Inspection, KeyRef, Psbt};
@@ -383,6 +383,40 @@ pub fn key_line(fp: Fingerprint, label: &str) -> String {
     }
 }
 
+/// Whether a key that is not one of the wallet's spends it alone by the
+/// key path (F132). A lookup: the key path was worked out when the
+/// wallet was read. Its signatures are then counted against the script
+/// path's own quorum, and its readiness never reads as a plain "Can
+/// spend".
+pub fn another_key_spends(wallet: &Wallet) -> bool {
+    matches!(wallet.policy.key_path(), Some(KeyPath::Other(_)))
+}
+
+/// Whether a press that asked for a wallet whose key path another key
+/// holds is run again once the hold confirms it (F132): only the presses
+/// that do nothing before they add the wallet but read Files and work
+/// names out, so that a second run is the first run with the wallet
+/// added. Every other press (a bulk load from Files, a vault's records,
+/// typed seeds, a backup flow's step, a boot import) has its wallet added
+/// by the hold alone, with a toast.
+pub fn replays(action: Action) -> bool {
+    use crate::family::FamilyAction as F;
+    matches!(
+        action,
+        Action::LoadWallet(_)
+            | Action::RUse(_)
+            | Action::RRebuild
+            | Action::RestoreShares
+            | Action::Family(F::UseWallet(_) | F::Rebuild)
+    )
+}
+
+/// The danger line of a wallet whose key path a key not of its own
+/// spends, naming that key in groups of four (F132).
+pub fn key_path_danger(key: &str) -> String {
+    fill(EN.wallet_key_path_other, &[&faraday_ui::grouped(key)])
+}
+
 /// Keys and wallets for this session. Nothing here is written anywhere.
 pub struct Session {
     /// Keys that can sign, and the network they derive for.
@@ -398,6 +432,44 @@ pub struct Session {
     /// beside the key's fingerprint wherever it is shown. Never taken
     /// away.
     pub key_marks: crate::codex32_correct::KeyMarks,
+    /// A wallet whose key path a key not of the wallet spends, waiting
+    /// for the person to confirm it before it is added (F132): what
+    /// [`Session::add_policy`] was asked to add. `None` while nothing
+    /// waits.
+    key_path_asked: Option<Box<KeyPathAsk>>,
+    /// The descriptors of the wallets of that kind the person confirmed
+    /// in this session, which [`Session::add_policy`] adds without asking
+    /// again.
+    key_path_confirmed: Vec<String>,
+}
+
+/// A wallet waiting for its key path to be confirmed: what
+/// [`Session::add_policy`] was called with.
+pub struct KeyPathAsk {
+    /// The name it is added under.
+    pub name: String,
+    /// The wallet, read.
+    pub policy: WalletPolicy,
+    /// Where it came from, as [`Wallet::source`] has it.
+    pub source: String,
+    /// What that source is.
+    pub origin: Origin,
+    /// The press that asked for it, run again once the hold confirms it,
+    /// so the flow that asked goes on as if nothing had been asked, with
+    /// the Inbox's names and sizes as they were then
+    /// ([`Faraday::inbox_print`]). `None` for a wallet that came in
+    /// without a press, or by one that does not run twice the same
+    /// ([`replays`]); that wallet is added by the hold itself.
+    pub replay: Option<(Action, u64)>,
+}
+
+/// How a `tr()` wallet's key path line reads (F132): its text, and
+/// whether it is the danger line, a key that is not one of the wallet's.
+pub struct KeyPathLine {
+    /// The line.
+    pub text: String,
+    /// A key not of the wallet spends everything alone.
+    pub danger: bool,
 }
 
 impl Default for Session {
@@ -407,6 +479,8 @@ impl Default for Session {
             wallets: Vec::new(),
             modes: crate::modes::STICK_MODES,
             key_marks: crate::codex32_correct::KeyMarks::default(),
+            key_path_asked: None,
+            key_path_confirmed: Vec::new(),
         }
     }
 }
@@ -462,6 +536,8 @@ impl Session {
             wallets: Vec::new(),
             modes: crate::modes::STICK_MODES,
             key_marks: crate::codex32_correct::KeyMarks::default(),
+            key_path_asked: None,
+            key_path_confirmed: Vec::new(),
         }
     }
 
@@ -545,6 +621,23 @@ impl Session {
         {
             return Ok(i);
         }
+        // A wallet a key not of its own can spend alone is added only
+        // once the person has confirmed it (F132): it waits, and the
+        // sheet that asks reads it from here.
+        if matches!(policy.key_path(), Some(KeyPath::Other(_)))
+            && !self.key_path_confirmed.contains(&descriptor)
+        {
+            if self.key_path_asked.is_none() {
+                self.key_path_asked = Some(Box::new(KeyPathAsk {
+                    name: name.to_string(),
+                    policy,
+                    source: source.to_string(),
+                    origin,
+                    replay: None,
+                }));
+            }
+            return Err(Refusal::KeyPathUnconfirmed);
+        }
         self.follow(policy_network(&policy, self.network()))?;
         self.wallets.push(Wallet::new(
             name.to_string(),
@@ -553,6 +646,65 @@ impl Session {
             origin,
         ));
         Ok(self.wallets.len() - 1)
+    }
+
+    /// The wallet waiting for its key path to be confirmed, if one is.
+    pub fn key_path_asked(&self) -> Option<&KeyPathAsk> {
+        self.key_path_asked.as_deref()
+    }
+
+    /// The press `action` asked for the waiting wallet, if one waits and
+    /// no press is noted for it yet.
+    pub fn key_path_replay(&mut self, action: Action, inbox: u64) {
+        if let Some(ask) = self.key_path_asked.as_mut() {
+            ask.replay.get_or_insert((action, inbox));
+        }
+    }
+
+    /// Writes the descriptor out. The person confirmed the waiting
+    /// wallet's key path: the same wallet is added without asking again
+    /// in this session, and the waiting wallet is handed back for its
+    /// press to run again or, with none, to be added. `None` when none
+    /// waits.
+    pub fn key_path_confirm(&mut self) -> Option<KeyPathAsk> {
+        let ask = self.key_path_asked.take()?;
+        self.key_path_confirmed.push(same_wallet(&ask.policy));
+        Some(*ask)
+    }
+
+    /// The waiting wallet is not added.
+    pub fn key_path_drop(&mut self) {
+        self.key_path_asked = None;
+    }
+
+    /// Who can spend `policy` by its key path, as a line (F132): `None`
+    /// for a wallet with no script tree. A lookup: the key path was
+    /// worked out when the policy was read.
+    pub fn key_path_line(&self, policy: &WalletPolicy) -> Option<KeyPathLine> {
+        Some(match policy.key_path()? {
+            KeyPath::Unspendable => KeyPathLine {
+                text: EN.wallet_key_path_none.to_string(),
+                danger: false,
+            },
+            KeyPath::WalletKey(i) => {
+                let fp = policy.keys().get(*i).and_then(|k| k.fingerprint());
+                let holder = match fp {
+                    Some(fp) => match self.keys.key_label(fp) {
+                        Some(label) => key_line(fp, label),
+                        None => fp_text(fp),
+                    },
+                    None => fill(EN.wallet_key_n, &[&(i + 1).to_string()]),
+                };
+                KeyPathLine {
+                    text: fill(EN.wallet_key_path_alone, &[&holder]),
+                    danger: false,
+                }
+            }
+            KeyPath::Other(key) => KeyPathLine {
+                text: key_path_danger(key),
+                danger: true,
+            },
+        })
     }
 
     /// Sets the demo up (F20, F81): the session takes only the public set
@@ -622,6 +774,7 @@ impl Session {
             .policy
             .quorum()
             .or_else(|| wallet.policy.tapscript_quorum())
+            .or_else(|| another_key_spends(wallet).then(|| wallet.policy.leaf_quorum())?)
             .unwrap_or((1, wallet.policy.keys().len().max(1)))
     }
 
@@ -1028,6 +1181,7 @@ pub fn needed(wallet: &Wallet) -> usize {
         .policy
         .quorum()
         .or_else(|| wallet.policy.tapscript_quorum())
+        .or_else(|| another_key_spends(wallet).then(|| wallet.policy.leaf_quorum())?)
         .map(|(m, _)| m)
         .unwrap_or(1)
 }
@@ -1839,6 +1993,125 @@ impl crate::trail::StepFlow for SpendSteps {
 }
 
 impl Faraday {
+    /// After a press: the press that asked for a waiting wallet is noted
+    /// for the hold to run again, where it [`replays`] (`asked` is
+    /// whether one waited before it), and the key path sheet opens.
+    pub(crate) fn key_path_after(&mut self, asked: bool, action: Action) {
+        if !asked && replays(action) {
+            let inbox = self.inbox_print();
+            self.session.key_path_replay(action, inbox);
+        }
+        self.key_path_sheet_open();
+    }
+
+    /// The Inbox's file names and sizes, as one number: a press that
+    /// names a file by its place reads the same file only while this is
+    /// unchanged. A lookup over the names; no file is read.
+    pub(crate) fn inbox_print(&self) -> u64 {
+        use std::hash::{Hash, Hasher};
+        let mut h = std::collections::hash_map::DefaultHasher::new();
+        for item in self.inbox.iter() {
+            item.name.hash(&mut h);
+            item.bytes.len().hash(&mut h);
+        }
+        h.finish()
+    }
+
+    /// Opens the key path sheet over what is on screen while a wallet
+    /// waits for its key path to be confirmed (F132). Whether it opened.
+    pub(crate) fn key_path_sheet_open(&mut self) -> bool {
+        if self.session.key_path_asked().is_some() && self.sheet != Some(Sheet::KeyPath) {
+            self.sheet = Some(Sheet::KeyPath);
+            return true;
+        }
+        false
+    }
+
+    /// Costs what `add_policy` costs: handles the key path sheet's
+    /// actions (`KeyPathHold`, `KeyPathCancel`).
+    pub(crate) fn key_path_act(&mut self, action: Action) {
+        match action {
+            Action::KeyPathHold => {
+                self.sheet = None;
+                let Some(ask) = self.session.key_path_confirm() else {
+                    return;
+                };
+                // The press that asked runs again and goes on as it would
+                // have, while Files holds what it held; a wallet that came
+                // in any other way is added here, and the toast says so.
+                let descriptor = same_wallet(&ask.policy);
+                if let Some((press, inbox)) = ask.replay
+                    && inbox == self.inbox_print()
+                {
+                    self.act(press);
+                    if self
+                        .session
+                        .wallets
+                        .iter()
+                        .any(|w| same_wallet(&w.policy) == descriptor)
+                    {
+                        return;
+                    }
+                }
+                let c = self.compute();
+                match self
+                    .session
+                    .add_policy(&c, &ask.name, ask.policy, &ask.source, ask.origin)
+                {
+                    Ok(i) => {
+                        let name = self.session.wallets[i].name.clone();
+                        self.wallets.set_wallet(i);
+                        self.refresh_spend();
+                        self.toast(&fill(EN.wallet_key_path_added, &[&name]));
+                    }
+                    Err(e) => self.toast(&e.text()),
+                }
+            }
+            Action::KeyPathCancel => {
+                self.session.key_path_drop();
+                self.sheet = None;
+            }
+            _ => {}
+        }
+    }
+
+    /// Costs what `add_wallet` costs. Loads the wallet an Inbox file
+    /// describes, named after the file.
+    pub(crate) fn load_wallet(&mut self, index: usize) {
+        let c = self.compute();
+        let Some(item) = self.inbox.get(index) else {
+            return;
+        };
+        let text = String::from_utf8_lossy(&item.bytes).into_owned();
+        let name = crate::stem(&item.name);
+        let source = item.name.clone();
+        let name = name
+            .strip_suffix("-wallet")
+            .unwrap_or(&name)
+            .split(['-', '_'])
+            .map(|w| {
+                let mut c = w.chars();
+                c.next()
+                    .map(|f| f.to_uppercase().collect::<String>() + c.as_str())
+                    .unwrap_or_default()
+            })
+            .collect::<Vec<_>>()
+            .join(" ");
+        // A wallet .json carries its own name.
+        let name = wallet::json_label(&text).unwrap_or(name);
+        match self
+            .session
+            .add_wallet(&c, &name, &text, &source, wallet::Origin::Named)
+        {
+            Ok(i) => {
+                self.wallets.set_wallet(i);
+                self.screen = Screen::Wallets;
+                self.refresh_spend();
+            }
+            Err(e) => self.toast(&e.text()),
+        }
+    }
+
     /// The wallet chosen on the Wallets tab.
     pub fn wallet_index(&self) -> usize {
         self.wallets.wallet()

@@ -1838,3 +1838,24 @@ fn copy_zoomed(ui: &mut Ui, (x, y): (f32, f32), cell: f32, g: &CopyGrid<'_>, pin
     ui.text_mid_as((x, gy + cell, bh), BODY_S.mono(), Role::Primary, &row);
     lab + side
 }
+
+/// Who can spend a `tr()` wallet with a script tree by its key path
+/// (F132), under its shape: a secondary line, or for a key not of the
+/// wallet the danger line in the error colour. Its height; nothing for
+/// every other wallet.
+pub(crate) fn key_path_line(
+    app: &View,
+    ui: &mut Ui,
+    (x, y, w): (f32, f32, f32),
+    policy: &faraday_bip::policy::WalletPolicy,
+) -> f32 {
+    let Some(line) = app.session.key_path_line(policy) else {
+        return 0.0;
+    };
+    let h = if line.danger {
+        ui.wrap_as((x, y, w), BODY_M, Role::Error, &line.text)
+    } else {
+        ui.wrap_as((x, y, w), BODY_S, Role::OnSurfaceVariant, &line.text)
+    };
+    h + faraday_draw::tokens::GAP_SMALL
+}

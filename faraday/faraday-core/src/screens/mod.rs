@@ -60,12 +60,12 @@ pub(crate) use parts::{
     next_button_when, pass_field, pin_button, side_panel_w, sign_readiness, size_text, stepper,
     ticked, word_keys, working_bar, working_line,
 };
-pub(crate) use parts::{camera_row, card_pad, coin_pad, dice_pad};
+pub(crate) use parts::{camera_row, card_pad, coin_pad, dice_pad, key_path_line};
 pub(crate) use restore::RSTEPS;
 pub(crate) use settings::open_head as settings_open;
 use sheets::{
-    devices_sheet, idle_warn_sheet, learn_sheet, lock_ask_sheet, lock_sheet, locked_sheet,
-    new_input_sheet, potential_sheet, power_sheet, pull_sheet, qr_sheet, scan_sheet,
+    devices_sheet, idle_warn_sheet, key_path_sheet, learn_sheet, lock_ask_sheet, lock_sheet,
+    locked_sheet, new_input_sheet, potential_sheet, power_sheet, pull_sheet, qr_sheet, scan_sheet,
     secret_out_sheet, write_out_sheet,
 };
 use sidebar::sidebar;
@@ -379,6 +379,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
             // Zeroing stops by its own Stop, never by a press beside it.
             Sheet::WordList | Sheet::IdleWarn | Sheet::Zeroing => None,
             Sheet::BoardMenu => Some(Action::Board(crate::board::BoardPress::MenuClose)),
+            Sheet::KeyPath => Some(Action::KeyPathCancel),
             _ => Some(Action::Cancel),
         };
         // What the page under it handed over for the demo is not the
@@ -411,6 +412,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
             Sheet::Zeroing => crate::stick::wipe::zeroing_sheet(app, ui, w, h),
             Sheet::Taken => crate::visit_taken::taken_sheet(app, ui, w, h),
             Sheet::Devices => devices_sheet(app, ui, w, h),
+            Sheet::KeyPath => key_path_sheet(app, ui, w, h),
             Sheet::VaultSave => crate::vault::screen::stick_save_sheet(app, ui, w, h),
             Sheet::CancelFlow(g) => crate::in_progress::cancel_sheet(app, ui, g, w, h),
             Sheet::CancelKey => crate::in_progress::cancel_key_sheet(app, ui, w, h),

@@ -226,6 +226,7 @@ pub(crate) fn wallet_card(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         crate::wallet::source_tag(&wlt.source, wlt.origin, false)
     );
     cy += ui.wrap_as((x, cy, iw), BODY_S, Role::OnSurfaceVariant, &line) + 8.0;
+    cy += crate::screens::key_path_line(app, ui, (x, cy, iw), wlt.policy());
     // Where its backup is (§5.2): a press opens Backups on it.
     cy += crate::screens::backup_line(app, ui, x, cy, iw, app.wallets.wallet());
 
@@ -257,13 +258,17 @@ pub(crate) fn wallet_card(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         &sigs,
     );
     if can {
-        ui.chip(
-            x + 14.0,
-            cy + 38.0,
-            EN.compact_can_spend,
-            Role::OnOkContainer,
-            Role::OkContainer,
-        );
+        // A key not of the wallet spends it alone: never the plain green.
+        let (t, on, bg) = if crate::wallet::another_key_spends(wlt) {
+            (
+                EN.wallets_another_can_spend,
+                Role::OnErrorContainer,
+                Role::ErrorContainer,
+            )
+        } else {
+            (EN.compact_can_spend, Role::OnOkContainer, Role::OkContainer)
+        };
+        ui.chip(x + 14.0, cy + 38.0, t, on, bg);
     } else {
         ui.button(
             x + 10.0,

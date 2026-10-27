@@ -632,6 +632,10 @@ pub enum Sheet {
     /// named with what it can do, and before a secret the reminders
     /// (`devices`).
     Devices,
+    /// A wallet a key not of its own can spend alone by the key path,
+    /// waiting to be added: the danger line naming that key, Cancel, and
+    /// a hold that adds it (F132).
+    KeyPath,
     /// A vault record's Save to a stick: its files, to tick, and Save
     /// (`docs/BACKUP-FLOW.md` §17.7).
     VaultSave,
@@ -2636,6 +2640,7 @@ impl Faraday {
     }
 
     fn act(&mut self, action: Action) {
+        let asked = self.session.key_path_asked().is_some();
         // A choice in a file's ⋮ menu closes the menu first.
         self.file_menu_chosen(action);
         self.act_moving_on(action);
@@ -2646,6 +2651,7 @@ impl Faraday {
         // The order the flows were begun in, and where each was left.
         self.flows_note();
         self.vault_shown_tidy();
+        self.key_path_after(asked, action);
     }
 
     /// Costs what the actions below cost, the keys' and wallets' work among
@@ -2675,6 +2681,7 @@ impl Faraday {
                     self.sheet = Some(Sheet::Power);
                 }
             }
+            Action::KeyPathHold => self.key_path_act(action),
             Action::PowerOff | Action::HoldPowerOff => {
                 self.sheet = None;
                 self.out.commands.push_back(Command::Exit);
@@ -3053,6 +3060,7 @@ impl Faraday {
             | Action::HoldRestart
             | Action::IdleLock(..)
             | Action::IdleOff(..)) => self.power_act(a, &c),
+            a @ (Action::KeyPathHold | Action::KeyPathCancel) => self.key_path_act(a),
             a @ (Action::InputUse(..)
             | Action::InputIgnore(..)
             | Action::Mode(..)
@@ -5182,41 +5190,6 @@ impl Faraday {
         }
     }
 
-    fn load_wallet(&mut self, index: usize) {
-        let c = self.compute();
-        let Some(item) = self.inbox.get(index) else {
-            return;
-        };
-        let text = String::from_utf8_lossy(&item.bytes).into_owned();
-        let name = stem(&item.name);
-        let source = item.name.clone();
-        let name = name
-            .strip_suffix("-wallet")
-            .unwrap_or(&name)
-            .split(['-', '_'])
-            .map(|w| {
-                let mut c = w.chars();
-                c.next()
-                    .map(|f| f.to_uppercase().collect::<String>() + c.as_str())
-                    .unwrap_or_default()
-            })
-            .collect::<Vec<_>>()
-            .join(" ");
-        // A wallet .json carries its own name.
-        let name = wallet::json_label(&text).unwrap_or(name);
-        match self
-            .session
-            .add_wallet(&c, &name, &text, &source, wallet::Origin::Named)
-        {
-            Ok(i) => {
-                self.wallets.set_wallet(i);
-                self.screen = Screen::Wallets;
-                self.refresh_spend();
-            }
-            Err(e) => self.toast(&e.text()),
-        }
-    }
-
     /// Loads the key an Inbox file's words spell, the same as typing them
     /// into Add a key. Refused with no stick attached.
     fn load_key(&mut self, index: usize) -> bool {
@@ -7172,6 +7145,7 @@ impl App for Faraday {
                     | self.typed_tick(now_ms)
                     | self.explore_tick(now_ms)
                     | self.chart_side_tick(now_ms)
+                    | self.key_path_sheet_open()
                 {
                     self.out.dirty = true;
                     self.out.commands.push_back(Command::Draw);

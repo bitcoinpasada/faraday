@@ -4210,6 +4210,8 @@ strings! {
     sidebar_count: "{} of {}",
     /// Text in `sidebar`.
     sidebar_single_key: "single key",
+    /// A wallet's count in the sidebar when a key not of its own spends it alone (F132).
+    sidebar_another_key: "another key",
     /// Text in `sidebar`.
     sidebar_wallets: "Wallets",
     /// Line in `sidebar`.
@@ -4640,6 +4642,10 @@ strings! {
     /// Can spend, for a silent payments wallet whose record the loaded key
     /// with its fingerprint contradicts.
     wallets_does_not_match: "Does not match its key",
+    /// Chip and list mark in `wallets` and `wallet_card` for a wallet a key not of its own spends alone (F132).
+    wallets_another_can_spend: "Another key can spend",
+    /// Text in `wallet_rows` for such a wallet. `{}`: `here`, `m`.
+    wallet_rows_another_can_spend: "{} of {} here · another key can spend",
     /// Text in `wallets`.
     wallets_scan_a_key: "Scan a key",
     /// Line in `wallets`.
@@ -8058,6 +8064,27 @@ strings! {
     /// key with its fingerprint gives another scan key or spend key. `{}`:
     /// the key's fingerprint.
     wallet_silent_differs: "This wallet's record does not match key {}: its scan key or spend key is not that key's",
+    /// Text in `text`: a wallet a key not of its own spends alone, not
+    /// added until its sheet is confirmed (F132).
+    wallet_key_path_unconfirmed: "Not added yet: its key path is to be confirmed",
+    /// A `tr()` wallet's key path line, the NUMS point (F132).
+    wallet_key_path_none: "Key path: none (unspendable)",
+    /// A `tr()` wallet's key path line, a key of the wallet. `{}`: the key's fingerprint and label.
+    wallet_key_path_alone: "Key path: {} alone",
+    /// The key path's holder when its fingerprint is unknown. `{}`: its number from 1.
+    wallet_key_n: "key {}",
+    /// A `tr()` wallet's danger line, a key that is not one of the wallet's (F132). `{}`: the key, in groups of four.
+    wallet_key_path_other: "A key that is not one of this wallet's keys can spend everything alone, without the other signatures: {}",
+    /// The key path sheet's title (F132).
+    wallet_key_path_head: "Another key spends this wallet alone",
+    /// The key path sheet's hold (F132).
+    wallet_key_path_hold: "Hold to add this wallet",
+    /// The key path sheet's line, over the key (F132). `{}`: the wallet's name.
+    wallet_key_path_sheet_line: "{}: this key is not one of its keys and can spend everything alone, without the other signatures",
+    /// The key path sheet's dismissive action.
+    wallet_key_path_cancel: "Cancel",
+    /// Toast once the wallet is added from the key path sheet. `{}`: its name.
+    wallet_key_path_added: "{} added",
     /// Text in `source_tag`. `{}`: `source`.
     wallet_source_tag: "From {}",
     /// Text in `source_tag`. `{}`: `source`.

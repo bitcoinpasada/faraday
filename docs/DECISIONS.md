@@ -146,3 +146,4 @@ Read this table, then only the decision you need.
 | [F129](decisions/F129.md) | A secret saved as a plain file asks for a hold | 2026-10-26 | Active | keys |
 | [F130](decisions/F130.md) | The boot import reads names and sizes until Import, then only the ticked files | 2026-10-27 | Active | stick |
 | [F131](decisions/F131.md) | Zeroing a stick's free space or its partition takes a hold | 2026-10-27 | Active | stick |
+| [F132](decisions/F132.md) | A tr() wallet states who can spend by the key path | 2026-10-26 | Active | wallets |

@@ -175,7 +175,7 @@ fn sheets() -> Vec<Sheet> {
         SecretOut, WriteOut, IdleWarn, Potential, Import, Pull, Chart, BoardList, BoardSees,
         BoardPartials, BoardMenu, SeedRead, Delete, Zeroing, Taken, Devices, VaultSave,
         CancelFlow(Going::Create), CancelKey, FileMenu, Rename, Details, UnlockLoad,
-        PassphraseSeeds, GpgSign, Mode, Samples, NavMenu, KeyLengths)
+        PassphraseSeeds, GpgSign, Mode, Samples, NavMenu, KeyLengths, KeyPath)
 }
 
 fn flow_steps() -> Vec<FlowStep> {
@@ -1070,5 +1070,53 @@ fn nothing_is_cut_off_where_the_round_types_a_codex32_string() {
         assert_eq!(rig.screen, Screen::Entry, "{}", rig.label);
         found.extend(walk(&mut rig, "typing the round's codex32 string"));
     }
+    assert_none(&found);
+}
+
+/// A taproot multisig wallet whose key path a key not of the wallet
+/// spends (F129): its sheet, its card and its spend's check, with the
+/// danger line naming the key, are whole on the Pi panel.
+#[test]
+fn nothing_is_cut_off_where_a_wallet_states_another_key_spends_it_alone() {
+    let p = "m/48'/1'/0'/3'";
+    let k = testkit::Kit {
+        id: "shared",
+        name: "Shared",
+        descriptor: format!(
+            "tr(79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798,multi_a(2,{}/<0;1>/*,{}/<0;1>/*,{}/<0;1>/*))",
+            testkit::key(0, p),
+            testkit::key(1, p),
+            testkit::key(2, p)
+        ),
+        cosigner: None,
+        fee: 1_820,
+    };
+    let unsigned = testkit::unsigned(&k).unwrap();
+    let mut rig = rig(
+        On::Stick,
+        Mode::Testnet,
+        vec![
+            ("shared-wallet.txt".to_string(), k.descriptor.into_bytes()),
+            ("shared-unsigned.psbt".to_string(), unsigned.to_bytes()),
+        ],
+    );
+    let at = |app: &Faraday, name: &str| app.inbox().iter().position(|i| i.name == name).unwrap();
+    let w = at(&rig, "shared-wallet.txt");
+    rig.press(Action::LoadWallet(w));
+    rig.settle();
+    assert_eq!(rig.sheet, Some(Sheet::KeyPath));
+    let mut found = check(&mut rig, "the key path sheet").0;
+    rig.press(Action::KeyPathHold);
+    add_key(&mut rig, testkit::TEST_SEEDS[0].0);
+    add_key(&mut rig, testkit::TEST_SEEDS[1].0);
+    rig.press(Action::Nav(Screen::Wallets));
+    rig.settle();
+    found.extend(check(&mut rig, "the wallet card").0);
+    let psbt = at(&rig, "shared-unsigned.psbt");
+    rig.press(Action::StartSpend(psbt));
+    assert!(rig.spend().is_some());
+    rig.press(Action::Step(step::TRANSACTION));
+    rig.settle();
+    found.extend(check(&mut rig, "the spend's check").0);
     assert_none(&found);
 }

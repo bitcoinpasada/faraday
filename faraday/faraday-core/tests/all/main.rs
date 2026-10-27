@@ -84,6 +84,7 @@ mod inputs;
 mod interop;
 mod interop_outcomes;
 mod kdbx;
+mod key_path;
 mod keygen;
 mod keygen_slip39;
 mod keygen_steps;

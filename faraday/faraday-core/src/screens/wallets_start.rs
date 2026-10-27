@@ -344,6 +344,13 @@ pub(crate) fn wallet_rows(
                 _ if app.silent_differs(i) => {
                     (EN.wallets_does_not_match.to_string(), Role::Error.paint())
                 }
+                _ if crate::wallet::another_key_spends(w) => (
+                    fill(
+                        EN.wallet_rows_another_can_spend,
+                        &[&here.to_string(), &m.to_string()],
+                    ),
+                    Role::Error.paint(),
+                ),
                 2 => (
                     fill(
                         EN.wallet_rows_can_spend,
@@ -406,7 +413,9 @@ pub(crate) fn wallet_rows(
             rw,
             44.0,
             10.0,
-            if ready == 2 {
+            if crate::wallet::another_key_spends(w) {
+                Role::Error.with_alpha(90)
+            } else if ready == 2 {
                 Role::Ok.with_alpha(90)
             } else {
                 Role::OutlineVariant.paint()
@@ -424,6 +433,10 @@ pub(crate) fn wallet_rows(
         let differs = app.silent_differs(i);
         let marker = match ready {
             _ if differs => EN.wallets_does_not_match.to_string(),
+            _ if crate::wallet::another_key_spends(w) => fill(
+                EN.wallet_rows_another_can_spend,
+                &[&here.to_string(), &m.to_string()],
+            ),
             2 => fill(
                 EN.wallet_rows_can_spend,
                 &[&here.to_string(), &m.to_string()],
@@ -433,12 +446,13 @@ pub(crate) fn wallet_rows(
         };
         let tone = match ready {
             _ if differs => Role::Error,
+            _ if crate::wallet::another_key_spends(w) => Role::Error,
             2 => Role::OnOkContainer,
             1 => Role::OnSurface,
             _ => Role::OnSurfaceVariant,
         };
         let mw = ui.measure_as(LABEL_M, &marker) + 20.0;
-        if ready == 2 {
+        if ready == 2 && !crate::wallet::another_key_spends(w) {
             ui.fill(
                 rx + rw - 10.0 - mw,
                 ry + 10.0,

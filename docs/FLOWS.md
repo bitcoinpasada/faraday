@@ -957,6 +957,10 @@ guarantees for this file's rule:
 - **Every way in reaches a wallet card** (`docs/WALLETS.md` §2) that says what
   the wallet is, which keys can sign here, how many signatures the
   transaction has and needs, and the one thing still to do.
+- **A `tr()` wallet states who can spend by the key path** (F132,
+  `docs/WALLETS.md` §3.4) on its card, on Make a new wallet's Check and,
+  for a key not of the wallet, on a sheet that takes a hold before the
+  wallet is added and as a caution on every spend from it.
 - **A transaction never stops at "can't sign"**: a missing key opens **Scan
   a key**, which takes any of the wallet's missing keys (below); a
   missing signature opens **Collect**; a missing wallet opens **Load the

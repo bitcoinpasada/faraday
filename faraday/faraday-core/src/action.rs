@@ -188,6 +188,10 @@ pub enum Action {
     HoldPowerOff,
     /// Restart, held, as [`Action::HoldPowerOff`].
     HoldRestart,
+    /// The key path sheet's hold: the waiting wallet is added (F132).
+    KeyPathHold,
+    /// The key path sheet's Cancel: the waiting wallet is not added.
+    KeyPathCancel,
     /// Minutes without input before locking; 0 for never.
     IdleLock(u16),
     /// Minutes without input before powering off; 0 for never.

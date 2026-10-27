@@ -2309,6 +2309,7 @@ pub fn is_hold(a: Action) -> bool {
             | Action::HoldPowerOff
             | Action::HoldRestart
             | Action::SecretHold
+            | Action::KeyPathHold
     )
 }
 

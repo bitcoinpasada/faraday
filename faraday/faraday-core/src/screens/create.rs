@@ -667,6 +667,7 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                 // wallet's code with the descriptor's full text under it.
                 cy += descriptor_row(ui, x, cy, w, wl, Action::QrWallet(c.built.unwrap_or(0)));
                 cy += path_row(ui, x, cy, w, &c.path, app.create_can_take_back());
+                cy += super::parts::key_path_line(app, ui, (x, cy, w), wl.policy());
                 // Single key, backup in shares: the set its key was made
                 // as (`docs/CODEX32.md` §6.9).
                 if let Some(set) = c.shares_set.as_ref().filter(|_| c.kind.shares()) {
