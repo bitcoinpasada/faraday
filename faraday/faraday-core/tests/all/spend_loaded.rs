@@ -124,6 +124,69 @@ fn a_seed_with_no_wallet_spends_as_a_single_key_wallet() {
     assert_eq!(app.family_wallet(), Some(0));
 }
 
+/// The Spending wallet's spend in the signing review, with its first
+/// output stating, or not, an origin under a key that is not loaded.
+fn spending_review(claimed: bool) -> Faraday {
+    let kit = kit("spending");
+    let mut psbt = testkit::unsigned(&kit).unwrap().inner().clone();
+    if claimed {
+        let key = psbt.outputs[1]
+            .bip32_derivation
+            .keys()
+            .next()
+            .copied()
+            .unwrap();
+        let path = psbt.outputs[1].bip32_derivation[&key].1.clone();
+        psbt.outputs[0].bip32_derivation.insert(
+            key,
+            (
+                faraday_bip::bitcoin::bip32::Fingerprint::from([0xde, 0xad, 0xbe, 0xef]),
+                path,
+            ),
+        );
+    }
+    let psbt = faraday_psbt::Psbt::from(psbt);
+    let mut app = testkit::started();
+    app.storage(StorageEvent::Restored {
+        inbox: vec![
+            ("spend.psbt".to_string(), psbt.to_bytes()),
+            (
+                "spending-wallet.txt".to_string(),
+                kit.descriptor.clone().into_bytes(),
+            ),
+        ],
+        outbox: Vec::new(),
+        kept: Vec::new(),
+    });
+    app.press(Action::LoadWallet(1));
+    add_key(&mut app, 0);
+    app.press(Action::StartSpend(0));
+    app
+}
+
+/// The side panel's Change line says Verified only when every output
+/// claimed as change is verified; one that is only claimed is counted
+/// there as unverified.
+#[test]
+fn the_panel_says_verified_change_only_when_every_change_is_verified() {
+    // The value beside the panel's Change label.
+    let panel_change = |claimed: bool| {
+        let mut app = spending_review(claimed);
+        let shown = crate::common::texts(&mut app);
+        let panel = shown
+            .iter()
+            .position(|t| t == "This transaction")
+            .unwrap_or_else(|| panic!("{shown:?}"));
+        let label = shown[panel..]
+            .iter()
+            .position(|t| t == "Change")
+            .unwrap_or_else(|| panic!("{shown:?}"));
+        shown[panel + label + 1].clone()
+    };
+    assert_eq!(panel_change(false), "Verified");
+    assert_eq!(panel_change(true), "1 of 2 unverified");
+}
+
 #[test]
 fn the_walk_through_is_one_press_away() {
     let mut app = with_files(Vec::new());

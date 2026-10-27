@@ -4888,6 +4888,9 @@ strings! {
     spend_panel_verified: "Verified",
     /// Text in `spend_panel`.
     spend_panel_unverified: "Unverified",
+    /// Text in `spend_panel`. `{}`: the change outputs not verified, all
+    /// the outputs claimed as change.
+    spend_panel_some_unverified: "{} of {} unverified",
     /// Text in `spend_panel`.
     spend_panel_none: "None",
     /// Text in `spend_panel`.

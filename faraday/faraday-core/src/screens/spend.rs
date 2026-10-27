@@ -1523,16 +1523,21 @@ fn spend_panel(
         .first()
         .map(|o| short(&o.address))
         .unwrap_or_else(|| "·".into());
-    let change = if i.outputs.iter().any(|o| o.is_ours()) {
-        EN.spend_panel_verified.to_string()
-    } else if i
+    // Verified only when every output claimed as change is.
+    let verified = i.outputs.iter().filter(|o| o.is_ours()).count();
+    let unverified = i
         .outputs
         .iter()
-        .any(|o| matches!(o.kind, OutputKind::UnverifiedChange { .. }))
-    {
-        EN.spend_panel_unverified.to_string()
-    } else {
-        EN.spend_panel_none.to_string()
+        .filter(|o| matches!(o.kind, OutputKind::UnverifiedChange { .. }))
+        .count();
+    let change = match (verified, unverified) {
+        (0, 0) => EN.spend_panel_none.to_string(),
+        (_, 0) => EN.spend_panel_verified.to_string(),
+        (0, _) => EN.spend_panel_unverified.to_string(),
+        (v, u) => fill(
+            EN.spend_panel_some_unverified,
+            &[&u.to_string(), &(v + u).to_string()],
+        ),
     };
     let facts: [(&str, String, TypeRole, u8); 6] = [
         (
