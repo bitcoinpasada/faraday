@@ -463,14 +463,15 @@ fn pasted_words(lang: Language, text: &str) -> Result<zeroize::Zeroizing<Vec<u16
 /// refuses only a private key.
 pub(crate) fn pasted_secret(c: &Compute, text: &str, seeds: bool) -> Option<&'static str> {
     let t = text.trim();
-    let english = faraday_bip::bip39::Language::English;
     let words: Vec<&str> = t.split_whitespace().collect();
+    // Words of any of the word lists Faraday reads, checksum or not.
     if !seeds
         && matches!(words.len(), 12 | 15 | 18 | 21 | 24)
-        && words.iter().all(|w| {
-            english
-                .index_of(&zeroize::Zeroizing::new(w.to_lowercase()))
-                .is_some()
+        && faraday_bip::bip39::Language::ALL.iter().any(|lang| {
+            words.iter().all(|w| {
+                lang.index_of(&zeroize::Zeroizing::new(w.to_lowercase()))
+                    .is_some()
+            })
         })
     {
         return Some(EN.pasted_words);

@@ -491,3 +491,24 @@ fn the_found_row_draws_the_matched_part_in_the_accent() {
     assert!(p1 < w1 - (w1 - w0) / 4, "the end is not accent");
     assert!((p1 - p0) * 3 < w1 - w0, "only the matched characters");
 }
+
+/// Words of any word list Faraday reads are a seed's words, refused as
+/// a paste whether or not their checksum holds: French ones too.
+#[test]
+fn a_paste_of_another_word_lists_words_is_refused() {
+    use faraday_shell_api::FileKind;
+    let mut app = on_page(None, 0, Page::Find);
+    app.clipboard = true;
+    app.press(Action::X(XAction::Paste));
+    app.event(Event::Clipboard {
+        kind: FileKind::Text,
+        text: ["abaisser"; 12].join(" "),
+    });
+    let e = app.explore().unwrap();
+    assert!(e.query.is_empty(), "the words went in: {}", e.query);
+    assert_eq!(
+        e.note,
+        Some("Those are a seed's words. No seed is taken here"),
+        "the words are refused and named"
+    );
+}
