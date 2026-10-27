@@ -22,7 +22,9 @@ pub const START_NETWORK: Network = Network::Mainnet;
 
 // The description reader (`faraday-intake`),
 // at the paths this crate has always had them.
-pub use faraday_intake::wallet::{Refusal, network_name, network_of_key, policy_network};
+pub use faraday_intake::wallet::{
+    Refusal, network_name, network_of_key, policy_network, wallet_name,
+};
 
 pub use faraday_keys::identity::master_id;
 pub use faraday_keys::{WordsId, words_id};
@@ -103,7 +105,9 @@ pub struct Signed {
 
 /// A wallet described by its public keys.
 pub struct Wallet {
-    /// What the person called it.
+    /// What the person called it: one line of text ([`wallet_name`]),
+    /// as [`Wallet::new`] and a rename make it; a sheet written for the
+    /// wallet makes it so again.
     pub name: String,
     /// The policy, as it was read.
     policy: WalletPolicy,
@@ -126,10 +130,10 @@ pub struct Wallet {
 }
 
 impl Wallet {
-    /// Makes a wallet.
+    /// Makes a wallet, its name made one line of text ([`wallet_name`]).
     pub fn new(name: String, policy: WalletPolicy, source: String, origin: Origin) -> Wallet {
         Wallet {
-            name,
+            name: wallet_name(&name).into_owned(),
             policy,
             source,
             origin,

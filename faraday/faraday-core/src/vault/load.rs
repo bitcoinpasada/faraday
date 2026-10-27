@@ -186,9 +186,7 @@ impl super::Vaults {
                     .iter()
                     .any(|k| k.fingerprint().map(fp_text).as_deref() == Some(fp.as_str()))
                     .then(|| {
-                        w.public_text(field::WALLET_NAME)
-                            .unwrap_or(EN.vaults_wallet)
-                            .to_string()
+                        super::wallet_name_in(w, field::WALLET_NAME, EN.vaults_wallet).into_owned()
                     })
             })
     }
@@ -268,10 +266,8 @@ impl super::Vaults {
             .records(open.id)
             .of(kind::WALLET)
             .map(|(i, r)| {
-                let name = r
-                    .public_text(field::WALLET_NAME)
-                    .unwrap_or(EN.vaults_wallet)
-                    .to_string();
+                let name =
+                    super::wallet_name_in(r, field::WALLET_NAME, EN.vaults_wallet).into_owned();
                 let policy = self.described(c, open.id, i).map(|d| &d.policy);
                 let fps = policy.as_ref().map_or_else(Vec::new, |p| {
                     p.keys()

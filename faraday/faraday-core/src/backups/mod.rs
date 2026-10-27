@@ -789,9 +789,8 @@ impl Faraday {
                     continue;
                 }
                 let w = Wallet::new(
-                    r.public_text(field::WALLET_NAME)
-                        .unwrap_or(EN.backups_wallet)
-                        .to_string(),
+                    crate::vault::wallet_name_in(r, field::WALLET_NAME, EN.backups_wallet)
+                        .into_owned(),
                     d.policy.clone(),
                     EN.backups_vault.to_string(),
                     crate::wallet::Origin::Vault,

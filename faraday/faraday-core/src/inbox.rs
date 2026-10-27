@@ -979,7 +979,7 @@ impl Faraday {
             })
             .collect::<Vec<_>>()
             .join(" ");
-        crate::wallet::json_label(&text).unwrap_or(name)
+        crate::wallet::wallet_name(&crate::wallet::json_label(&text).unwrap_or(name)).into_owned()
     }
 
     /// Loads the chosen wallets the Inbox describes, each with the seeds

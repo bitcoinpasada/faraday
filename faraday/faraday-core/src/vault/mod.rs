@@ -1462,10 +1462,7 @@ impl Faraday {
         let mut out = Vec::new();
         for (i, r, d) in self.vaults.described_of(c, open.id, kind::WALLET) {
             let policy = d.policy.clone();
-            let name = r
-                .public_text(field::WALLET_NAME)
-                .unwrap_or(EN.vaults_wallet)
-                .to_string();
+            let name = wallet_name_in(r, field::WALLET_NAME, EN.vaults_wallet).into_owned();
             let wallet = crate::wallet::Wallet::new(
                 name.clone(),
                 policy,
@@ -1583,9 +1580,7 @@ impl Faraday {
             if let Some(d) = self.vaults.described(&c, open.id, i) {
                 descs.push((
                     d.policy.clone(),
-                    r.public_text(field::WALLET_NAME)
-                        .unwrap_or(EN.vaults_wallet)
-                        .to_string(),
+                    wallet_name_in(r, field::WALLET_NAME, EN.vaults_wallet).into_owned(),
                 ));
             }
         }
@@ -1730,10 +1725,7 @@ impl Faraday {
             }
             kind::WALLET => {
                 let text = r.public_text(field::WALLET).unwrap_or("").to_string();
-                let name = r
-                    .public_text(field::WALLET_NAME)
-                    .unwrap_or(EN.vaults_wallet)
-                    .to_string();
+                let name = wallet_name_in(r, field::WALLET_NAME, EN.vaults_wallet).into_owned();
                 match self.session.add_wallet(
                     &c,
                     &name,
@@ -2491,9 +2483,7 @@ impl Faraday {
                 .of(kind::WALLET)
                 .map(|(i, r)| {
                     (
-                        r.public_text(field::WALLET_NAME)
-                            .unwrap_or(EN.vaults_wallet)
-                            .to_string(),
+                        wallet_name_in(r, field::WALLET_NAME, EN.vaults_wallet).into_owned(),
                         self.vaults
                             .described(&c, v.id, i)
                             .map(|d| d.shape.clone())
@@ -3617,10 +3607,7 @@ impl Faraday {
         let c = self.compute();
         let (_, r) = self.vault_record_of(kind::WALLET)?;
         let text = r.public_text(field::WALLET)?.to_string();
-        let name = r
-            .public_text(field::WALLET_NAME)
-            .unwrap_or(EN.vaults_wallet)
-            .to_string();
+        let name = wallet_name_in(r, field::WALLET_NAME, EN.vaults_wallet).into_owned();
         let policy = crate::wallet::read_wallet(&c, &text).ok()?;
         let same = crate::wallet::same_wallet(&policy);
         if let Some(i) = self

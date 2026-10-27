@@ -3921,6 +3921,8 @@ strings! {
     // ----- pdf (faraday-core/src/pdf.rs) -----
     /// Error in `fields`.
     pdf_not_a_faraday_sheet: "not a Faraday sheet",
+    /// Error in `fields`: a field read once appears twice. `{}`: the field.
+    pdf_sheet_names_twice: "this sheet names {} twice",
     /// Text in `sheet`. `{}`: `other`.
     pdf_a_sheet_of_kind: "a sheet of kind {} is not one this build prints",
     /// Text in `wallet_sheet`. `{}`: `name`.

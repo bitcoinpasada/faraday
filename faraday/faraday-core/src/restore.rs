@@ -812,9 +812,8 @@ impl Faraday {
         };
         let (Some(text), name) = (
             rec.public_text(field::WALLET).map(str::to_string),
-            rec.public_text(field::WALLET_NAME)
-                .unwrap_or(EN.restore_from_vault_wallet)
-                .to_string(),
+            crate::vault::wallet_name_in(rec, field::WALLET_NAME, EN.restore_from_vault_wallet)
+                .into_owned(),
         ) else {
             return;
         };

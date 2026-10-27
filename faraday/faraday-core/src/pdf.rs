@@ -305,18 +305,31 @@ pub fn notes(
     document(c, vec![p])
 }
 
-/// The fields of a sheet file, in order.
+/// The fields of a sheet that may appear more than once, one line each:
+/// a share's lines, a wallet's keys and addresses, the envelopes' places
+/// and what each holds. Every other field is read once ([`get`]).
+const REPEATED: [&str; 5] = ["line", "key", "address", "place", "thing"];
+
+/// The fields of a sheet file, in order. Refused when a field other than
+/// the [`REPEATED`] ones appears twice: which of the two the sheet means
+/// cannot be told.
 fn fields(text: &str) -> Result<Vec<(String, String)>, String> {
     let mut lines = text.lines();
     if lines.next().map(str::trim) != Some("faraday-sheet 1") {
         return Err(EN.pdf_not_a_faraday_sheet.into());
     }
-    Ok(lines
+    let f: Vec<(String, String)> = lines
         .filter_map(|l| {
             l.split_once(':')
                 .map(|(k, v)| (k.trim().to_string(), v.trim().to_string()))
         })
-        .collect())
+        .collect();
+    for (i, (k, _)) in f.iter().enumerate() {
+        if !REPEATED.contains(&k.as_str()) && f[..i].iter().any(|(e, _)| e == k) {
+            return Err(fill(EN.pdf_sheet_names_twice, &[k]));
+        }
+    }
+    Ok(f)
 }
 
 fn get<'a>(f: &'a [(String, String)], key: &str) -> Option<&'a str> {

@@ -513,9 +513,7 @@ pub(crate) fn of_vault_on(reads: &impl Reads, v: usize, r: usize) -> Option<Glan
         .get(r)
         .filter(|x| x.kind() == kind::WALLET)?;
     let wallet = crate::wallet::Wallet::new(
-        rec.public_text(field::WALLET_NAME)
-            .unwrap_or(EN.glance_wallet)
-            .to_string(),
+        crate::vault::wallet_name_in(rec, field::WALLET_NAME, EN.glance_wallet).into_owned(),
         reads.described(open.id, r)?.policy.clone(),
         String::new(),
         crate::wallet::Origin::Named,

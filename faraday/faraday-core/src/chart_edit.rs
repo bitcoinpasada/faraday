@@ -771,7 +771,7 @@ impl Faraday {
         };
         let mut text = format!(
             "faraday-sheet 1\nkind: envelopes\nname: {}\nshape: {}\n",
-            g.name.replace('\n', " "),
+            crate::wallet::wallet_name(&g.name),
             g.shape
         );
         for n in nodes {

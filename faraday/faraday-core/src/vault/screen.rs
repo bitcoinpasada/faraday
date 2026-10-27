@@ -1729,10 +1729,7 @@ fn item_heading(app: &View, r: RecordView<'_>) -> (String, String, bool) {
             (fp, line.join(" · "), true)
         }
         kind::WALLET => {
-            let name = r
-                .public_text(field::WALLET_NAME)
-                .unwrap_or(EN.vault_wallet)
-                .to_string();
+            let name = super::wallet_name_in(r, field::WALLET_NAME, EN.vault_wallet).into_owned();
             let mut line = app
                 .record_described(r)
                 .map_or_else(|| EN.vault_wallet.into(), |d| d.shape.clone());
@@ -1817,8 +1814,7 @@ fn item_heading(app: &View, r: RecordView<'_>) -> (String, String, bool) {
                 fill(
                     EN.backup_flow_vault_share,
                     &[
-                        r.public_text(field::SHARE_WALLET_NAME)
-                            .unwrap_or(EN.vault_wallet),
+                        &super::wallet_name_in(r, field::SHARE_WALLET_NAME, EN.vault_wallet),
                         &n(field::SHARE_NUMBER),
                         &n(field::SHARE_OF),
                     ],

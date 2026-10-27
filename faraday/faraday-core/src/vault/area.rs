@@ -1540,6 +1540,16 @@ impl Vaults {
     }
 }
 
+/// The wallet name record `r` keeps in field `number`, as one line of
+/// text ([`crate::wallet::wallet_name`]); `or` where it keeps none.
+pub(crate) fn wallet_name_in<'a>(
+    r: RecordView<'a>,
+    number: u8,
+    or: &'a str,
+) -> std::borrow::Cow<'a, str> {
+    crate::wallet::wallet_name(r.public_text(number).unwrap_or(or))
+}
+
 /// Longest name a vault's file takes, before `.ofv`.
 pub const NAME_MAX: usize = 40;
 
@@ -2371,10 +2381,7 @@ impl Vaults {
             });
             rows.push(VaultRow {
                 record: i,
-                name: r
-                    .public_text(field::WALLET_NAME)
-                    .unwrap_or(EN.vaults_wallet)
-                    .to_string(),
+                name: wallet_name_in(r, field::WALLET_NAME, EN.vaults_wallet).into_owned(),
                 detail: described.map(|d| d.shape.clone()).unwrap_or_default(),
                 seed: false,
                 loaded,

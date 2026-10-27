@@ -157,6 +157,7 @@ mod vault_summary;
 mod vault_tabs;
 mod vault_way;
 mod visit;
+mod wallet_names;
 mod wallet_setup;
 mod wallets_page;
 mod way_back;

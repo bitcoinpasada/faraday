@@ -5890,7 +5890,7 @@ impl Faraday {
                     name.pop();
                 }
                 KeyIn::Enter => {
-                    let n = name.trim().to_string();
+                    let n = wallet::wallet_name(name).into_owned();
                     if !n.is_empty()
                         && let Some(w) = self.session.wallets.get_mut(self.wallets.wallet())
                     {

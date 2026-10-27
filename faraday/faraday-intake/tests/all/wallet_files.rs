@@ -301,6 +301,17 @@ fn a_specter_multisig_file_reads_as_a_3_of_n_multi_with_its_first_address() {
 }
 
 #[test]
+fn a_wallet_files_label_over_several_lines_is_one_line_of_text() {
+    let text = "{\"label\": \" Savings\\ndescriptor: wpkh(x)\u{2028}line: y\\r\\u0085\\t \", \"descriptor\": \"\"}";
+    assert_eq!(
+        json_label(text).as_deref(),
+        Some("Savingsdescriptor: wpkh(x)line: y")
+    );
+    // A label of control characters and spaces alone is no label.
+    assert_eq!(json_label("{\"label\": \"\\n\\t\\u2029 \"}"), None);
+}
+
+#[test]
 fn text_with_no_label_has_no_json_label() {
     assert_eq!(json_label(&interop("sparrow/jade-keystore.txt")), None);
     assert_eq!(json_label("{\"label\": \"  \"}"), None);

@@ -26,7 +26,7 @@ use faraday_crypto::work::Compute;
 use crate::copy_check::{PIN_MAX, Typed, WordCheck, WordsUse, copy_key};
 use crate::forms;
 use crate::plan::{CopyChecks, CopyForm, CopyForms};
-use crate::wallet::{Kind, Session, Wallet, fp_text};
+use crate::wallet::{Kind, Session, Wallet, fp_text, wallet_name};
 use crate::{
     Action, BStage, Code, Command, Faraday, Later, PlanPress, ScanPurpose, ScanState, Screen,
     Sheet, board, bstep, copy_check, file_stem, flow, paper, plan, plan_cards_on, qrow, qstep, ui,
@@ -235,7 +235,7 @@ fn sanitize(name: &str) -> String {
 pub fn sheet_share(wallet: &Wallet, part: usize, of: usize, share: &str) -> String {
     let (m, n) = Session::quorum(wallet);
     let mut out = String::from("faraday-sheet 1\nkind: share\n");
-    out.push_str(&format!("name: {}\n", wallet.name));
+    out.push_str(&format!("name: {}\n", wallet_name(&wallet.name)));
     out.push_str(&format!("shape: {}\n", Session::shape(wallet)));
     out.push_str(&format!("part: {part} of {of}\n"));
     out.push_str(&format!("quorum: {m} of {n}\n"));
@@ -252,7 +252,7 @@ pub fn sheet_share(wallet: &Wallet, part: usize, of: usize, share: &str) -> Stri
 pub fn sheet_wallet(c: &Compute, session: &Session, wallet: &Wallet) -> String {
     let mut out = String::from("faraday-sheet 1\nkind: wallet\n");
     out.push_str(&format!("network: {}\n", session.network().name()));
-    out.push_str(&format!("name: {}\n", wallet.name));
+    out.push_str(&format!("name: {}\n", wallet_name(&wallet.name)));
     out.push_str(&format!("shape: {}\n", Session::shape(wallet)));
     out.push_str(&format!(
         "descriptor: {}\n",
@@ -327,7 +327,11 @@ pub fn sheet_blank(
         network.name()
     );
     if let Some(w) = wallet {
-        out.push_str(&format!("name: {}\nshape: {}\n", w.name, Session::shape(w)));
+        out.push_str(&format!(
+            "name: {}\nshape: {}\n",
+            wallet_name(&w.name),
+            Session::shape(w)
+        ));
     }
     out
 }

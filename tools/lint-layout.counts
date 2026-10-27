@@ -7,8 +7,8 @@ file faraday/faraday-core/src/backup_flow/wallet.rs 2564
 file faraday/faraday-core/src/board/mod.rs 2540
 file faraday/faraday-core/src/lib.rs 7314
 file faraday/faraday-core/src/plan/mod.rs 4022
-file faraday/faraday-core/src/vault/mod.rs 3846
-file faraday/faraday-core/src/vault/screen.rs 3403
+file faraday/faraday-core/src/vault/mod.rs 3833
+file faraday/faraday-core/src/vault/screen.rs 3399
 file faraday/faraday-core/tests/all/backup_board.rs 2776
 file faraday/faraday-core/tests/all/backup_flow_wallet.rs 5811
 
