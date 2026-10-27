@@ -1759,6 +1759,11 @@ impl Faraday {
         let field = if f == 0 { &mut c.pass } else { &mut c.pass2 };
         match key {
             KeyIn::Char(ch) if (' '..='~').contains(&ch) => field.push(ch),
+            // Anything else is refused, and the slot says so.
+            KeyIn::Char(ch) if !ch.is_control() => {
+                c.pass_note = Some(crate::state::ascii_refused());
+                return true;
+            }
             KeyIn::Backspace => {
                 field.pop();
             }

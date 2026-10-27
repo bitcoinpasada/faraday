@@ -33,6 +33,9 @@ pub struct EntryState {
     pub label: String,
     /// The last refusal.
     pub error: Option<String>,
+    /// `error` is the passphrase field's refusal of the key just typed:
+    /// it stays until the next key.
+    pub refused: bool,
     /// Where to go once the key is added.
     pub back: Option<Screen>,
     /// The BIP-39 passphrase, when one is typed.
@@ -246,6 +249,12 @@ impl EntryArea {
         match key {
             // BIP-39 passphrases here are printable ASCII (BIP-39's seed derivation).
             K::Char(c) if (' '..='~').contains(&c) => e.passphrase.push(c),
+            // Anything else is refused, and the field says so
+            // (`docs/STANDARDS.md`).
+            K::Char(c) if !c.is_control() => {
+                e.error = Some(ascii_refused());
+                e.refused = true;
+            }
             K::Backspace => {
                 e.passphrase.pop();
             }
@@ -257,9 +266,12 @@ impl EntryArea {
         to
     }
 
-    /// Forgets the last refusal.
+    /// Forgets the last refusal, but the passphrase field's refusal of
+    /// the key just typed, which stays until the next key.
     pub(crate) fn clear_error(&mut self) {
-        self.state.error = None;
+        if !std::mem::take(&mut self.state.refused) {
+            self.state.error = None;
+        }
     }
 
     /// Costs what a correction's outcome costs (a codex32 string checked,
@@ -518,6 +530,13 @@ enum Added {
     Already,
     /// Another string is in at its index, at this place among them.
     Clash(Codex32, usize),
+}
+
+/// What a passphrase field says of a letter it refuses: a passphrase
+/// here is printable ASCII (`docs/STANDARDS.md`). It names no letter: the
+/// field is masked.
+pub(crate) fn ascii_refused() -> String {
+    EN.passphrase_ascii_only.to_string()
 }
 
 /// One SLIP-39 share more, refused when it is not one or is a repeat.

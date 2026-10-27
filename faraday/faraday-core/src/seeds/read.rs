@@ -473,6 +473,12 @@ impl Faraday {
         match key {
             // BIP-39 passphrases here are printable ASCII (BIP-39's seed derivation).
             KeyIn::Char(ch) if (' '..='~').contains(&ch) => field.push(ch),
+            // Anything else is refused, and the sheet says so
+            // (`docs/STANDARDS.md`).
+            KeyIn::Char(c) if !c.is_control() => {
+                s.error = Some(crate::state::ascii_refused());
+                return true;
+            }
             KeyIn::Backspace => {
                 field.pop();
             }

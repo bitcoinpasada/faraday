@@ -4,6 +4,7 @@ mod about_link;
 mod airgap;
 mod amounts;
 mod appearance;
+mod ascii_passphrase;
 mod backup_again;
 mod backup_board;
 mod backup_checklist;

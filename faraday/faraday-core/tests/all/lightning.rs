@@ -66,3 +66,23 @@ fn a_loaded_key_gives_ldk_nodes_node_id() {
         "027cf7c81dc777e46572ff964f17650a0f6f783319fcc140fb9a69425e2fbdc93c"
     );
 }
+
+/// A letter outside printable ASCII typed into the aezeed's passphrase is
+/// not taken, and the screen says it is refused.
+#[test]
+fn the_aezeed_passphrase_refuses_a_letter_outside_ascii_and_says_so() {
+    let mut app = faraday_core::testkit::started();
+    app.press(Action::Lightning);
+    app.press(Action::LAezeed);
+    app.press(Action::LPassphrase);
+    for c in "café".chars() {
+        app.event(Event::Key(Key::Char(c)));
+    }
+    assert_eq!(&*app.lightning().unwrap().passphrase, "caf");
+    let _ = app.frame();
+    let texts = app.drawn_texts();
+    assert!(
+        texts.iter().any(|t| t == crate::ascii_passphrase::REFUSED),
+        "{texts:?}"
+    );
+}

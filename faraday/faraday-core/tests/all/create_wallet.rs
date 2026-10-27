@@ -902,3 +902,25 @@ fn new_key_opened_from_home_keeps_its_back_and_has_no_cancel() {
     app.press(Action::Nav(Screen::Home));
     assert_eq!(app.screen, Screen::Home);
 }
+
+/// A letter outside printable ASCII typed into a slot's passphrase is
+/// not taken, and the slot says it is refused.
+#[test]
+fn a_slots_passphrase_refuses_a_letter_outside_ascii_and_says_so() {
+    let mut app = testkit::started();
+    let first = key_made_on_its_own(&mut app);
+    app.press(Action::CreateWallet);
+    app.press(Action::CKind(0));
+    app.press(Action::CVaults(false));
+    app.press(Action::CNext(cstep::WHERE));
+    app.press(Action::CSlotHere(0, first));
+    app.press(Action::CPassOpen(0));
+    type_text(&mut app, "café");
+    assert_eq!(&*app.create().unwrap().pass, "caf");
+    let _ = app.frame();
+    let texts = app.drawn_texts();
+    assert!(
+        texts.iter().any(|t| t == crate::ascii_passphrase::REFUSED),
+        "{texts:?}"
+    );
+}

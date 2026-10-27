@@ -209,6 +209,11 @@ impl LightningArea {
         };
         match key {
             K::Char(c) if l.on_passphrase && (' '..='~').contains(&c) => field.push(c),
+            // Anything else is refused, and the screen says so.
+            K::Char(c) if l.on_passphrase && !c.is_control() => {
+                l.error = Some(crate::state::ascii_refused());
+                return true;
+            }
             K::Char(c) if c.is_ascii_alphabetic() => field.push(c.to_ascii_lowercase()),
             K::Char(' ') => {
                 if !field.is_empty() && !field.ends_with(' ') {

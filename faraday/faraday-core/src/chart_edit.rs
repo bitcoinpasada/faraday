@@ -26,6 +26,8 @@ pub struct Work {
     pub secret: SecretText,
     /// What the last check of a passphrase found.
     pub result: Option<bool>,
+    /// A letter typed was refused: a passphrase here is printable ASCII.
+    pub refused: bool,
     /// Where each thing of a place being removed goes, by its line: a
     /// place by number, [`OFF`] off the map, `None` not chosen yet.
     pub dest: Vec<Option<u8>>,
@@ -719,13 +721,17 @@ impl Faraday {
                     KeyIn::Char(c) if (' '..='~').contains(&c) => {
                         self.glance.work_mut().secret.push(c);
                         self.glance.work_mut().result = None;
+                        self.glance.work_mut().refused = false;
                     }
+                    // Anything else is refused, and the sheet says so.
+                    KeyIn::Char(c) if !c.is_control() => self.glance.work_mut().refused = true,
                     KeyIn::Backspace | KeyIn::Delete => {
                         self.glance.work_mut().secret.pop();
                         self.glance.work_mut().result = None;
                     }
                     KeyIn::Enter => self.chart_pass_try(press),
                     KeyIn::Escape => {
+                        self.glance.work_mut().refused = false;
                         self.glance.work_mut().secret.clear();
                         self.glance.set_chart(None);
                         self.sheet = None;

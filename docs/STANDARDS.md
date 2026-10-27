@@ -207,7 +207,8 @@ Not recorded in a decision, each refusing what a standard allows:
 - BIP-39 passphrase: printable ASCII only, at most 256 bytes
   (`core/faraday-bip/src/bip39.rs`). BIP 39 allows any NFKD-normalised
   UTF-8, so a wallet made elsewhere with a non-ASCII passphrase cannot be
-  restored here.
+  restored here. A letter outside it typed into a passphrase field is
+  not taken, and the field says it is refused.
 - SLIP-39 secrets above 256 bits.
 - Any PSBT sighash other than SIGHASH_ALL is refused for signing
   (`docs/WALLETS.md` §3.3).

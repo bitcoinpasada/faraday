@@ -1445,3 +1445,21 @@ fn lock_in_moves_on_to_the_words_with_no_continue() {
     assert!(k.locked);
     assert_eq!(k.open, Some(kstep::WORDS), "Lock in went on by itself");
 }
+
+/// A letter outside printable ASCII typed into the Key card's passphrase
+/// is not taken, and the card says it is refused.
+#[test]
+fn the_key_cards_passphrase_refuses_a_letter_outside_ascii_and_says_so() {
+    let mut app = slot_flow(true);
+    flip_all(&mut app);
+    app.press(Action::KNext);
+    app.press(Action::KPassField(0));
+    type_text(&mut app, "café");
+    assert_eq!(&*app.keygen().unwrap().passphrase, "caf");
+    let _ = app.frame();
+    let texts = app.drawn_texts();
+    assert!(
+        texts.iter().any(|t| t == crate::ascii_passphrase::REFUSED),
+        "{texts:?}"
+    );
+}

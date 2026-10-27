@@ -1337,6 +1337,10 @@ pub(crate) fn view(app: &crate::drawing::View, press: Press, target: Target) -> 
                     .push((EN.glance_sheet_mismatch.to_string(), Role::Error.paint())),
                 None => {}
             }
+            if app.glance.work().refused {
+                let line = crate::state::ascii_refused();
+                v.lines.push((line, Role::Error.paint()));
+            }
             v.go = Some((
                 EN.glance_sheet_check_button.to_string(),
                 (typed > 0).then_some(Action::Chart(ChartAction::PassTry(press))),
