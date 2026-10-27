@@ -66,6 +66,9 @@ pub(crate) enum Fault {
     InvalidSequence,
     /// The part belongs to a different message than the ones before.
     InconsistentPart,
+    /// More distinct parts arrived than a message of that many
+    /// fragments takes to resolve; the decoder starts over.
+    TooManyParts,
     /// The joined fragments are longer than the message and the excess
     /// is not zero padding.
     InvalidPadding,
@@ -96,6 +99,7 @@ impl fmt::Display for Fault {
             Fault::EmptyPart => "expected non-empty part",
             Fault::InvalidSequence => "invalid sequence",
             Fault::InconsistentPart => "part is inconsistent with previous ones",
+            Fault::TooManyParts => "too many parts for the message",
             Fault::InvalidPadding => "invalid padding",
             Fault::MessageChecksum => "invalid message checksum",
             Fault::EmptyMessage => "expected non-empty message",
@@ -156,6 +160,7 @@ impl Error {
             Fault::InvalidChecksum
             | Fault::InconsistentPart
             | Fault::MessageChecksum
+            | Fault::TooManyParts
             | Fault::InvalidIndices => Error::Mismatch,
             other => Error::Malformed(other.to_string()),
         }

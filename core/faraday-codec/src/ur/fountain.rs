@@ -213,6 +213,12 @@ impl Drop for Encoder {
 
 impl zeroize::ZeroizeOnDrop for Encoder {}
 
+/// How many distinct parts a decoder keeps per fragment of the message.
+const MAX_PARTS_PER_FRAGMENT: usize = 4;
+
+/// Distinct parts a decoder keeps beyond that, for short messages.
+const PARTS_SLACK: usize = 64;
+
 /// Accumulates parts until every fragment is resolved. What it has read
 /// is wiped when it is dropped: a code read by the camera may be a seed.
 #[derive(Default)]
@@ -266,6 +272,13 @@ impl Decoder {
         let indexes = part.indexes();
         if self.received.contains(&indexes) {
             return Ok(false);
+        }
+        // An honest stream resolves in a small multiple of its fragment
+        // count; one that has not by now is not going to, and what it
+        // left is dropped so that the next code starts clean.
+        if self.received.len() >= MAX_PARTS_PER_FRAGMENT * self.sequence_count + PARTS_SLACK {
+            *self = Decoder::default();
+            return Err(Fault::TooManyParts);
         }
         self.received.insert(indexes.clone());
         if indexes.len() == 1 {
@@ -714,6 +727,48 @@ mod tests {
             decoder.receive(part).unwrap();
         }
         assert!(!decoder.receive(encoder.next_part()).unwrap());
+        assert_eq!(decoder.message().unwrap(), Some(message));
+    }
+
+    #[test]
+    fn a_stream_that_never_resolves_stops_and_an_honest_one_reads_after_it() {
+        // Mixes of two fragments reduce nothing against each other, so a
+        // stream of them never resolves a fragment.
+        let mut decoder = Decoder::default();
+        let mut sequence = 0;
+        let mut taken = 0;
+        let mut stopped = false;
+        while sequence < 1_000_000 {
+            sequence += 1;
+            let part = Part {
+                sequence,
+                sequence_count: 200,
+                message_length: 1000,
+                checksum: 0x1234_5678,
+                data: alloc::vec![7; 5],
+            };
+            if part.indexes().len() != 2 {
+                continue;
+            }
+            match decoder.receive(part) {
+                Ok(true) => taken += 1,
+                Ok(false) => {}
+                Err(fault) => {
+                    assert_eq!(fault, Fault::TooManyParts);
+                    stopped = true;
+                    break;
+                }
+            }
+        }
+        assert!(stopped, "{taken} distinct parts were all kept");
+        assert!(taken <= 4 * 200 + 64, "{taken}");
+        assert_eq!(decoder.resolved_fragment_count(), None, "it starts over");
+
+        let message = make_message("Wolf", 1000);
+        let mut encoder = Encoder::new(&message, 100).unwrap();
+        while !decoder.complete() {
+            decoder.receive(encoder.next_part()).unwrap();
+        }
         assert_eq!(decoder.message().unwrap(), Some(message));
     }
 
