@@ -1168,14 +1168,8 @@ impl Faraday {
         } else if self.vaults.passphrase.text.is_empty() {
             Some(EN.vaults_type_the_passphrase.to_string())
         } else {
-            let need = vault_need_mib(f.header.cost.memory_kib / 1024, f.header.slot_len);
-            match self.vaults.memory_free_mib {
-                Some(free) if need > free => Some(fill(
-                    EN.vaults_needs_this_computer,
-                    &[&mib_text(need).to_string(), &mib_text(free).to_string()],
-                )),
-                _ => None,
-            }
+            self.vaults
+                .unlock_memory_refusal(f.header.cost.memory_kib / 1024, f.header.slot_len)
         };
         self.vaults.state.unlock_error = error;
         if self.vaults.unlock_error.is_none() {
@@ -2087,8 +2081,7 @@ impl Faraday {
     }
 
     fn vault_create_check(&mut self) {
-        let free = self.vaults.memory_free_mib;
-        let cost = self.vaults.form_cost();
+        let memory = self.vaults.create_memory_refusal();
         let medium = self.medium;
         let Some(c) = self.vaults.state.create.as_mut() else {
             return;
@@ -2113,12 +2106,8 @@ impl Faraday {
         {
             c.open = Some(vstep::PHRASES);
             Some(EN.vaults_two_passphrases.to_string())
-        } else if let (Some(free), Some((_, mem, _))) = (free, cost)
-            && vault_need_mib(mem, c.slot) > free
-        {
-            Some(EN.vaults_choose_a_cost.to_string())
         } else {
-            None
+            memory
         };
         c.error = error;
         if c.error.is_none() {

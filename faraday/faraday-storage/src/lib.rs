@@ -209,23 +209,60 @@ impl Sticks for Dirs {
     }
 }
 
+/// Costs a run of `/usr/bin/vm_stat` on macOS, a file read elsewhere.
 /// The memory this machine has free for a vault's Argon2id, in MiB, from
 /// the system's own estimate: Linux's `MemAvailable`, Windows' available
-/// physical memory. `None` where there is none (macOS for now): the vault
-/// then offers its largest unlock memory and checks none against this
-/// computer.
+/// physical memory, macOS's free, inactive and speculative pages as
+/// `vm_stat` prints them ([`vm_stat_available_mib`]). `None` where it
+/// cannot be read: the vault then unlocks and makes only vaults of
+/// Light's memory, which opens anywhere (`docs/VAULT.md` §3.1).
 pub fn memory_available_mib() -> Option<u32> {
     #[cfg(windows)]
     {
         windows_memory::available_mib()
     }
-    #[cfg(not(windows))]
+    #[cfg(target_os = "macos")]
+    {
+        let out = std::process::Command::new("/usr/bin/vm_stat")
+            .output()
+            .ok()?;
+        if !out.status.success() {
+            return None;
+        }
+        vm_stat_available_mib(std::str::from_utf8(&out.stdout).ok()?)
+    }
+    #[cfg(not(any(windows, target_os = "macos")))]
     {
         let info = fs::read_to_string("/proc/meminfo").ok()?;
         let line = info.lines().find(|l| l.starts_with("MemAvailable:"))?;
         let kib: u64 = line.split_whitespace().nth(1)?.parse().ok()?;
         u32::try_from(kib / 1024).ok()
     }
+}
+
+/// The memory free for a vault in `vm_stat`'s output, MiB: its free,
+/// inactive and speculative pages times the page size its first line
+/// names ("(page size of 16384 bytes)"). `None` when any of the four is
+/// missing or not a number.
+pub fn vm_stat_available_mib(text: &str) -> Option<u32> {
+    let mut lines = text.lines();
+    let size: u64 = lines
+        .next()?
+        .split("page size of ")
+        .nth(1)?
+        .split_whitespace()
+        .next()?
+        .parse()
+        .ok()?;
+    let pages = |name: &str| -> Option<u64> {
+        let line = text.lines().find(|l| l.starts_with(name))?;
+        line[name.len()..].trim().trim_end_matches('.').parse().ok()
+    };
+    let free = pages("Pages free:")?;
+    let inactive = pages("Pages inactive:")?;
+    let speculative = pages("Pages speculative:")?;
+    let bytes = (free + inactive + speculative).checked_mul(size)?;
+    u32::try_from(bytes >> 20).ok()
 }
 
 /// `GlobalMemoryStatusEx`, declared here by hand: one function of

@@ -1432,13 +1432,51 @@ impl Vaults {
         }
     }
 
+    /// Why this computer does not unlock a vault of `memory_mib` unlock
+    /// memory and `slot_len` slots, by what it has free; `None` when it
+    /// does. Not knowing what it has free, it unlocks only Light's, which
+    /// opens anywhere (`docs/VAULT.md` §3.1).
+    pub(crate) fn unlock_memory_refusal(&self, memory_mib: u32, slot_len: u32) -> Option<String> {
+        let need = vault_need_mib(memory_mib, slot_len);
+        match self.memory_free_mib {
+            Some(free) if need > free => Some(fill(
+                EN.vaults_needs_this_computer,
+                &[&mib_text(need), &mib_text(free)],
+            )),
+            None if memory_mib > LIGHT_MIB => Some(fill(
+                EN.vaults_memory_unknown_unlock,
+                &[&mib_text(LIGHT_MIB), &mib_text(memory_mib)],
+            )),
+            _ => None,
+        }
+    }
+
+    /// Why the Create form's cost is not made here, by what this computer
+    /// has free; `None` when it is. Not knowing what it has free, it makes
+    /// only Light's (`docs/VAULT.md` §3.1).
+    pub(crate) fn create_memory_refusal(&self) -> Option<String> {
+        let (_, mem, _) = self.form_cost()?;
+        let slot = self.create.as_ref()?.slot;
+        match self.memory_free_mib {
+            Some(free) if vault_need_mib(mem, slot) > free => {
+                Some(EN.vaults_choose_a_cost.to_string())
+            }
+            None if mem > LIGHT_MIB => Some(fill(
+                EN.vaults_memory_unknown_create,
+                &[&mib_text(LIGHT_MIB)],
+            )),
+            _ => None,
+        }
+    }
+
     /// The most unlock memory this computer gives a vault, MiB: the
     /// largest custom memory that fits in what it has free beside twice
     /// the file and the app ([`vault_need_mib`]), at most 4 GiB, which is
-    /// as much as a vault needs; 4 GiB when it does not say.
+    /// as much as a vault needs; Light's, which opens anywhere, when it
+    /// does not say (`docs/VAULT.md` §3.1).
     pub fn here_limit(&self) -> u32 {
         let Some(free) = self.memory_free_mib else {
-            return MAX_UNLOCK_MIB;
+            return LIGHT_MIB;
         };
         let slot = self.create.as_ref().map_or(fv::DEFAULT_SLOT, |c| c.slot);
         CUSTOM_MEMORY
@@ -1873,6 +1911,11 @@ pub fn parse_tz_offset(s: &str) -> Option<i16> {
     let total = sign * (hh * 60 + mm);
     (-720..=840).contains(&total).then_some(total)
 }
+
+/// Light's unlock memory, MiB: the cost that opens anywhere, and the most
+/// a computer that does not say what memory it has free unlocks or makes
+/// (`docs/VAULT.md` §3.1).
+pub const LIGHT_MIB: u32 = PRESETS[0].1;
 
 /// The presets of `docs/VAULT.md` §3.1: name, memory in MiB, passes, in
 /// order of memory.

@@ -7703,6 +7703,9 @@ strings! {
     vaults_type_the_passphrase: "Type the passphrase",
     /// Text in `vault_unlock_check`. `{}`: `mib_text(need)`, `mib_text(free)`.
     vaults_needs_this_computer: "Needs {}. This computer has {} free.",
+    /// Text in `vault_unlock_check`, free memory not reported. `{}`:
+    /// Light's memory, then the vault's.
+    vaults_memory_unknown_unlock: "This computer does not say how much memory it has free. It unlocks vaults of {}; this one takes {}.",
     /// Toast in `vault_unlock`. `{}`: `self.vaults.open[v].name`.
     vaults_unlocked: "{} unlocked",
     /// Toast in `unlock_landed`. `{}`: `what`, `from`.
@@ -7781,6 +7784,9 @@ strings! {
     vaults_two_passphrases: "Two passphrases are the same. Each must differ",
     /// Text in `vault_create_check`.
     vaults_choose_a_cost: "Choose a cost this computer can allocate",
+    /// Text in `vault_create_check`, free memory not reported. `{}`:
+    /// Light's memory.
+    vaults_memory_unknown_create: "This computer does not say how much memory it has free. Choose Light, {}, which opens anywhere.",
     /// Error in `vault_create`.
     vaults_no_randomness: "No randomness from the system yet. Try again",
     /// Toast in `vault_create`.

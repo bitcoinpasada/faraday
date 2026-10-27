@@ -92,6 +92,7 @@ mod left_by_tap;
 mod lightning;
 mod list_detail;
 mod loose_key;
+mod memory_unknown;
 mod mode_files;
 mod modes;
 mod mouse_buttons;

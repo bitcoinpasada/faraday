@@ -95,6 +95,17 @@ it is created on.
 **Memory is a hard limit, time is not.** A machine without the memory
 cannot open the vault at any speed. A slow machine opens it slowly.
 
+What a machine has free is Linux's `MemAvailable`, Windows' available
+physical memory, and on macOS the free, inactive and speculative pages
+`vm_stat` prints times its page size.
+
+**A machine that does not say what it has free** (where that cannot be
+read) unlocks and makes only vaults of Light's memory,
+64 MiB, which opens anywhere: Unlock says so for a vault of more and
+does not start, and Create suggests Light and refuses a larger cost,
+naming Light. Going ahead on a guess could take more memory than the
+machine has.
+
 **The passphrase matters more than the cost.** Doubling the memory or the
 passes doubles the work of every guess, which is worth one bit of
 passphrase strength. The whole range from 64 MiB to 4 GiB is a factor of

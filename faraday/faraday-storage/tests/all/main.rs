@@ -7,3 +7,4 @@ mod settings_write;
 mod stick_folders;
 mod transfer;
 mod vault_write;
+mod vm_stat;
