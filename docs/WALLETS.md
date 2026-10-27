@@ -173,7 +173,10 @@ non-cryptographic and live in `faraday-core`:
   differently is refused with no override. The memory is kept in
   `/run/faraday`, outside the app process, so it survives a lock; with
   a vault open it is also sealed into that vault (on by default, a setting),
-  so it survives power-off. Decided 2026-10-04.
+  so it survives power-off. Decided 2026-10-04. What a vault remembers
+  is read at its unlock and counts while the vault is open, for whichever
+  wallet signs the transaction; it is not sealed into another vault or
+  kept across a lock (the vault keeps it).
 - **Add the previous transactions**: raw transactions typed, scanned or
   read from Files, each kept only if it hashes to an outpoint being
   spent. It opens itself when the transaction needs it.

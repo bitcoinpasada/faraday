@@ -127,11 +127,17 @@ pub fn from_record(r: faraday_keys::vault::RecordView<'_>) -> Option<Signed> {
 /// The memory area: the signed amounts, whether they are sealed into an
 /// open vault on lock, and the wallets checked this power-on. All three
 /// are kept across a lock by [`Faraday::kept`] and gone at power-off.
+/// What an open vault remembers is held apart, by the vault: it counts
+/// while the vault is open and is never sealed into another vault.
 #[derive(Debug)]
 pub(crate) struct MemoryArea {
-    /// The amounts each signed transaction's inputs stated
+    /// The amounts each transaction signed here stated
     /// (`docs/WALLETS.md` §3.3).
     signed_amounts: Vec<Signed>,
+    /// What each open vault remembers, by the vault: read at its unlock,
+    /// counted while it is open, never sealed into another vault or kept
+    /// across a lock (the vault keeps it).
+    held: Vec<(faraday_keys::vault::VaultId, Signed)>,
     /// Seal the signed-amount memory into an open vault on lock.
     seal_amounts: bool,
     /// The wallets, by descriptor checksum, a person has pressed
@@ -144,6 +150,7 @@ impl Default for MemoryArea {
     fn default() -> Self {
         MemoryArea {
             signed_amounts: Vec::new(),
+            held: Vec::new(),
             seal_amounts: true,
             checked_wallets: Vec::new(),
         }
@@ -156,14 +163,19 @@ impl MemoryArea {
         &self.signed_amounts
     }
 
-    /// Whether the same transaction was signed here stating other amounts.
-    pub(crate) fn refused(&self, psbt: &Psbt) -> bool {
+    /// Whether the same transaction was signed stating other amounts:
+    /// here, or as one of the open vaults `open` remembers. The
+    /// transaction's hash is what ties a record to it.
+    pub(crate) fn refused(&self, psbt: &Psbt, open: &[faraday_keys::vault::VaultId]) -> bool {
         let Some((hash, amounts)) = stated(psbt) else {
             return false;
         };
-        self.signed_amounts
-            .iter()
-            .any(|(h, a)| *h == hash && *a != amounts)
+        let other = |(h, a): &Signed| *h == hash && *a != amounts;
+        self.signed_amounts.iter().any(other)
+            || self
+                .held
+                .iter()
+                .any(|(id, e)| open.contains(id) && other(e))
     }
 
     /// Remembers what a signed transaction's inputs stated.
@@ -180,14 +192,11 @@ impl MemoryArea {
         }
     }
 
-    /// Takes in the signed amounts an open vault holds that are not
-    /// remembered yet.
-    pub(crate) fn take_held(&mut self, held: Vec<Signed>) {
-        for e in held {
-            if !self.signed_amounts.iter().any(|(h, _)| *h == e.0) {
-                self.signed_amounts.push(e);
-            }
-        }
+    /// What open vault `id` remembers, in place of what it was read to
+    /// hold before.
+    pub(crate) fn take_held(&mut self, id: faraday_keys::vault::VaultId, held: Vec<Signed>) {
+        self.held.retain(|(v, _)| *v != id);
+        self.held.extend(held.into_iter().map(|e| (id, e)));
     }
 
     /// The memory's transactions whose hash is not in `have`, as vault
@@ -241,9 +250,12 @@ impl MemoryArea {
 }
 
 impl Faraday {
-    /// Whether the same transaction was signed here stating other amounts.
+    /// Whether the same transaction was signed stating other amounts:
+    /// here, or as an open vault remembers it.
     pub fn amounts_refused(&self, psbt: &Psbt) -> bool {
-        self.memory.refused(psbt)
+        let open: Vec<faraday_keys::vault::VaultId> =
+            self.vaults.open.iter().map(|o| o.id).collect();
+        self.memory.refused(psbt, &open)
     }
 
     /// Remembers what a signed transaction's inputs stated.
@@ -251,7 +263,8 @@ impl Faraday {
         self.memory.remember(psbt);
     }
 
-    /// Takes in the signed amounts an open vault holds.
+    /// Takes in the signed amounts open vault `id` holds, held by the
+    /// vault.
     pub(crate) fn amounts_from_vault(&mut self, id: faraday_keys::vault::VaultId) {
         let held: Vec<Signed> = self
             .vaults
@@ -259,7 +272,7 @@ impl Faraday {
             .of(kind::AMOUNTS)
             .filter_map(|(_, r)| from_record(r))
             .collect();
-        self.memory.take_held(held);
+        self.memory.take_held(id, held);
     }
 
     /// Whether a wallet of this descriptor checksum has been checked
