@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Partly built: size classes and density (L1, F101), navigation (L2), Home's lead tile and tile grid (L3), the supporting pane's place and its narrow strip, for codex32's Demo only card (§6); the page area to the window's edge (W1, §15, §19); list and detail for Wallets, Files, Vaults and Backups (L4, §5, §17); Settings' list of sections on compact windows and every section on one page from medium up (§17); the codex32 entry's input panel (W3, §16.3); the rest specified, not built (F92); the rest of wide windows (§13 to §19) specified, not built
-**Open:** the stick's density from its screen's EDID (§7; today its kernel command line's, F101), the top app bar over the wide pages and the step flows (§3; they keep their own heads), Files' two lists each scrolling on its own on the rail's windows (§17; there the page scrolls as one), components that keep their size (L5), Learn in the supporting pane (L6), tours and tests (L7), wide windows: wide content, the codex32 worksheet's fit, the string's boxes, the input panel on compact windows that are not short (§16.3; they keep the small panel's context over the pad), the panel beside the sheets scrolling within itself (it stands at the foot where it is taller than the window), New key's dice and Create a vault's Generate with dice in the panel (their pad, progress line and entries already stand together in one card), the page following a whole sheet, fixed step buttons and Decode's outputs at their columns' width (§14 to §17, W2, W4, W5); planned.
+**Open:** the stick's density from its screen's EDID (§7; today its kernel command line's, F101), the top app bar over the wide pages and the step flows (§3; they keep their own heads), Files' two lists each scrolling on its own on the rail's windows (§17; there the page scrolls as one), components that keep their size (L5: the size set and the type roles are built in `faraday-ui`, part 1; the screens of `faraday-core` and the Starter still write their own sizes, part 2), Learn in the supporting pane (L6), tours and tests (L7), wide windows: wide content, the codex32 worksheet's fit, the string's boxes, the input panel on compact windows that are not short (§16.3; they keep the small panel's context over the pad), the panel beside the sheets scrolling within itself (it stands at the foot where it is taller than the window), New key's dice and Create a vault's Generate with dice in the panel (their pad, progress line and entries already stand together in one card), the page following a whole sheet, fixed step buttons and Decode's outputs at their columns' width (§14 to §17, W2, W4, W5); planned.
 
 Faraday lays its screens out by Material 3's layout and navigation
 rules at every size, from the Pi's 2.8-inch panel to a full monitor.
@@ -201,11 +201,28 @@ each at the text size the person's system asks for.
 - **One size set** (owner, 2026-10-23, from the Material 3 review):
   - every button 40 dp tall (`BUTTON_H`), its label 14;
   - every text field 56 dp tall (`FIELD_H`), outlined: a 1 dp
-    `OUTLINE` edge, 2 dp `ACCENT` when focused, 2 dp `ERR` with its
-    error line under it, the label kept outside. Whether the desktop
-    is drawn denser (48) is decided in L5 and recorded;
+    outline edge, 2 dp primary when focused, 2 dp error with its
+    error line under it, the label kept outside. The desktop is not
+    drawn denser: a field is 56 on every window, Material's default
+    density, since Material keeps its denser steps for a dense layout
+    used with a pointer alone, and the same screens are touched on the
+    Pi and the stick;
   - list rows 56, 72 or 88 dp by one, two or three lines (`LIST_1`,
     `LIST_2`, `LIST_3`), the headline 16 and the supporting line 14.
+
+  Built (L5, part 1): the sizes are tokens in
+  `core/faraday-draw/src/tokens.rs` (`BUTTON_H`, `BUTTON_PAD`,
+  `FIELD_H`, `FIELD_EDGE`, `FIELD_EDGE_ACTIVE`, `FIELD_PAD`,
+  `FIELD_GAP`, `LIST_1` to `LIST_3`), and `faraday-ui` draws them:
+  `Ui::button` labels every button in `LABEL_L`; `Ui::field_label` and
+  `Ui::field_box` are the outlined field, its label above it and its
+  error line under it (`Ui::field_height` measures it); `Ui::list_item`
+  is the one-, two- or three-line list item, by how much its
+  supporting text takes (`faraday_ui::roles::ListItem`). The
+  multi-choice list's rows are list items, `parts::button_rows` and the
+  sheets' and dialogs' buttons are `BUTTON_H`. A key of the on-screen
+  keyboards and pads keeps its own label (`key_label`). The screens in
+  `faraday-core` still write their own sizes (L5, part 2).
 - **Type** is Material's roles, by size: `HEADLINE_M` 28, `HEADLINE_S`
   24, `TITLE_L` 22, `TITLE_M` 16, `TITLE_S` 14, `BODY_L` 16, `BODY_M`
   14, `BODY_S` 12, `LABEL_L` 14, `LABEL_M` 12, `LABEL_S` 11. They
@@ -215,6 +232,24 @@ each at the text size the person's system asks for.
   heading one of 28 or 24 for every flow, a sheet's head 24 (22 on the
   small panel), and `TITLE` 20 is retired. Each role carries its line
   height. The typeface stays Noto (F91, F92).
+
+  Built (L5, part 1): the roles are `TypeRole` values in
+  `core/faraday-draw/src/tokens.rs`, each its size, its line height
+  and its face (`TypeFace`): Material's regular is Noto Sans, its
+  medium Noto Sans SemiBold, the heavier text face Faraday has;
+  `.mono()` sets a role in Noto Sans Mono for data, and `.medium()` and
+  `.regular()` change its face. `faraday-ui` draws text by role
+  (`faraday/faraday-ui/src/roles.rs`): `Ui::text_as`, `text_mid_as`,
+  `text_right_as`, `measure_as`, `fit_as`, `wrap_as`, `wrap_lines_as`,
+  `wrap_height_as` and `line_as`, each the method of the same name at
+  the role's size and face, so `ui.text(x, y, 12.0, W::R, ink, s)`
+  becomes `ui.text_as(x, y, BODY_S, ink, s)`; `line_as` is the role's
+  line height and `wrap_as` spaces its lines by it. A page's title
+  (`parts::title`) is `HEADLINE_M`, a section's label `TITLE_S`, a
+  sheet's or dialog's head `tokens::sheet_head`, the top app bar's
+  title `TITLE_L`, the navigation labels `LABEL_M` (the rail's rows
+  `LABEL_L`), the snackbar and a rich tooltip `BODY_M`, a plain
+  tooltip `BODY_S`.
 
 ## 9. Tokens
 
@@ -226,7 +261,9 @@ width), `NAV_BAR_H` 80, `APP_BAR_H` 64, `NAV_PILL_W` 56, `NAV_PILL_H`
 32; `MARGIN_COMPACT` 16, `MARGIN_WIDE` 24, `SPACER` 24; `TILE_MIN`
 200, `LEAD_MAX` 560, `LIST_PANE` 360, `COLUMN_MAX` 720, `SHEET_MAX`
 560, `SUPPORT_PANE` 400, `SUPPORT_PANE_TOP` 96 (below the top-right
-strip's two 48 dp rows), `MEASURE` 70 characters. The Starter's
+strip's two 48 dp rows), `MEASURE` 70 characters; the size set and
+the type roles of §8 (`BUTTON_H`, `FIELD_H`, `LIST_1` to `LIST_3`,
+`HEADLINE_M` to `LABEL_S`). The Starter's
 (`docs/STARTER.md` §3.1d) are the same names where they are the same
 thing.
 

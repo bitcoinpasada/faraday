@@ -5,10 +5,10 @@
 //! current one on a pill.
 
 use super::{Dest, item};
+use crate::Ui;
 use crate::pal::*;
-use crate::{Ui, W};
 use faraday_draw::tokens::{
-    CAPTION, GAP, GRID, ICON_SMALL, LABEL, NAV_ICON, NAV_ICON_GAP, NAV_ITEM_H, NAV_RAIL_TOP, PAD,
+    GAP, GRID, ICON_SMALL, LABEL_L, LABEL_M, NAV_ICON, NAV_ICON_GAP, NAV_ITEM_H, NAV_RAIL_TOP, PAD,
     RAIL_W, TOUCH,
 };
 
@@ -80,21 +80,22 @@ pub fn destination_row<A: Copy + PartialEq>(
     super::badge(ui, (ix + inset, iy + inset, NAV_ICON), d.badge);
     let tx = ix + ICON_SMALL + NAV_ICON_GAP;
     let right = x + w - PAD;
-    let end_w = end.map_or(0.0, |e| ui.measure(CAPTION, W::R, e) + GRID);
-    let face = if current { W::S } else { W::R };
+    let end_w = end.map_or(0.0, |e| ui.measure_as(LABEL_M.regular(), e) + GRID);
+    // Material's label large, the current destination's heavier.
+    let role = if current { LABEL_L } else { LABEL_L.regular() };
     // Shortened only where it does not fit: a frame of the expanded rail
     // makes no string for a label that fits.
     let room = right - tx - end_w;
     let fitted;
-    let label = if ui.measure(LABEL, face, label) <= room {
+    let label = if ui.measure_as(role, label) <= room {
         label
     } else {
-        fitted = ui.fit(LABEL, face, label, room);
+        fitted = ui.fit_as(role, label, room);
         fitted.as_str()
     };
-    ui.text_mid(tx, y, TOUCH, LABEL, face, fg, label);
+    ui.text_mid_as((tx, y, TOUCH), role, fg, label);
     if let Some(e) = end {
-        ui.text_right(right, y, TOUCH, CAPTION, W::R, fg, e);
+        ui.text_right_as((right, y, TOUCH), LABEL_M.regular(), fg, e);
     }
     ui.hit_quiet(x, y, w, TOUCH, action);
 }

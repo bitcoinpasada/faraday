@@ -22,7 +22,7 @@ pub use rail::{Rail, destination_row, rail};
 use crate::pal::*;
 use crate::{Glyph, Ui, W};
 use faraday_draw::tokens::{
-    BADGE_LABEL, BADGE_LARGE, BADGE_PAD, BADGE_SMALL, CAPTION, GAP_SMALL, NAV_ICON, NAV_LABEL_GAP,
+    BADGE_LABEL, BADGE_LARGE, BADGE_PAD, BADGE_SMALL, GAP_SMALL, LABEL_M, NAV_ICON, NAV_LABEL_GAP,
     NAV_PILL_H, NAV_PILL_W,
 };
 use faraday_strings::EN;
@@ -98,7 +98,7 @@ pub fn badge<A: Copy + PartialEq>(ui: &mut Ui<A>, glyph: (f32, f32, f32), badge:
 
 /// The height a destination's pill and label take together.
 fn item_content() -> f32 {
-    NAV_PILL_H + NAV_LABEL_GAP + CAPTION + GAP_SMALL
+    NAV_PILL_H + NAV_LABEL_GAP + LABEL_M.line
 }
 
 /// A destination as the rail and the bar draw it: its icon on a pill
@@ -128,10 +128,15 @@ fn item<A: Copy + PartialEq>(ui: &mut Ui<A>, x: f32, y: f32, w: f32, h: f32, d: 
     ui.icon(ix, top, NAV_PILL_H, d.icon, NAV_ICON, icon_fg);
     let inset = (NAV_PILL_H - NAV_ICON) / 2.0;
     badge(ui, (ix + inset, top + inset, NAV_ICON), d.badge);
-    let face = if d.current { W::S } else { W::R };
-    let label = ui.fit(CAPTION, face, d.label, w - 2.0 * GAP_SMALL);
-    let lw = ui.measure(CAPTION, face, &label);
+    // Material's label medium, the current destination's heavier.
+    let role = if d.current {
+        LABEL_M
+    } else {
+        LABEL_M.regular()
+    };
+    let label = ui.fit_as(role, d.label, w - 2.0 * GAP_SMALL);
+    let lw = ui.measure_as(role, &label);
     let ly = top + NAV_PILL_H + NAV_LABEL_GAP;
-    ui.text(x + (w - lw) / 2.0, ly, CAPTION, face, fg, &label);
+    ui.text_as(x + (w - lw) / 2.0, ly, role, fg, &label);
     ui.hit_quiet(x, y, w, h, d.action);
 }

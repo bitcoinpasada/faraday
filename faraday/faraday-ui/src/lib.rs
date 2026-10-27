@@ -15,6 +15,7 @@ mod lists;
 pub mod nav;
 pub mod parts;
 pub mod region;
+pub mod roles;
 pub mod sheet;
 pub mod snackbar;
 mod theme;
@@ -923,7 +924,8 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         }
         self.text_mid(x, y, h, size, w, color, &text[at[from]..at[to]]);
         if focused && selected.is_none() {
-            let ch = (size + 4.0).max(18.0);
+            use faraday_draw::tokens::{CARET_MIN, CARET_OVER};
+            let ch = (size + CARET_OVER).max(CARET_MIN);
             self.caret(left(caret) + 1.0, y + (h - ch) / 2.0, ch);
         }
         let edges = (from..=to).map(|i| self.px(left(i) + self.ox)).collect();
@@ -1640,26 +1642,35 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         action: A,
     ) -> f32 {
         let r = faraday_draw::tokens::shape_full(h);
-        self.button_in((x, y, w, h, r), label, style, action)
+        let size = faraday_draw::tokens::LABEL_L.size;
+        self.button_drawn((x, y, w, h, r), size, label, style, action)
     }
 
     /// [`Ui::button`] with corners of `r` rather than round ends: a key
-    /// of the on-screen keyboard.
+    /// of the on-screen keyboard, its label the key's
+    /// ([`faraday_draw::tokens::key_label`]).
     pub fn button_in(
         &mut self,
-        (x, y, w, h, r): (f32, f32, Option<f32>, f32, f32),
+        at: (f32, f32, Option<f32>, f32, f32),
         label: &str,
         style: Style,
         action: A,
     ) -> f32 {
-        use faraday_draw::tokens::{ICON_GAP, ICON_GLYPH_BUTTON};
-        let size = if h >= 44.0 {
-            15.0
-        } else if h >= 38.0 {
-            14.0
-        } else {
-            13.0
-        };
+        let size = faraday_draw::tokens::key_label(at.3);
+        self.button_drawn(at, size, label, style, action)
+    }
+
+    /// A button or a key with its label at `size` in the medium face:
+    /// [`Ui::button`] and [`Ui::button_in`].
+    fn button_drawn(
+        &mut self,
+        (x, y, w, h, r): (f32, f32, Option<f32>, f32, f32),
+        size: f32,
+        label: &str,
+        style: Style,
+        action: A,
+    ) -> f32 {
+        use faraday_draw::tokens::{BUTTON_PAD, ICON_GAP, ICON_GLYPH_BUTTON};
         let weight = W::S;
         let style = if self.dimmed.contains(&action) {
             style.off()
@@ -1672,7 +1683,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
             0.0
         };
         let tw = self.measure(size, weight, label);
-        let width = w.unwrap_or(tw + 32.0 + tick);
+        let width = w.unwrap_or(tw + 2.0 * BUTTON_PAD + tick);
         let faint = Role::OnSurface.at(faraday_draw::tokens::DISABLED_CONTAINER);
         match style {
             Style::Primary => {
@@ -1724,21 +1735,13 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         use faraday_draw::tokens::{
             FIELD_ACTION_HEIGHT as CH, FIELD_ACTION_INSET as IN, FIELD_ACTION_TEXT as TX, TOUCH,
         };
-        let width = (self.measure(TX, W::S, label) + 2.0 * IN).min(w - 2.0 * IN);
+        let width = (self.measure_as(TX, label) + 2.0 * IN).min(w - 2.0 * IN);
         let (cx, cy) = (x + IN, y + (h - CH) / 2.0);
         self.state_layer((cx, cy, width, CH, SHAPE_S), Role::Primary.paint(), action);
         self.stroke(cx, cy, width, CH, SHAPE_S, Role::Outline);
         self.focus_ring((cx, cy, width, CH, SHAPE_S), action);
-        let tw = self.measure(TX, W::S, label);
-        self.text_mid(
-            cx + (width - tw) / 2.0,
-            cy,
-            CH,
-            TX,
-            W::S,
-            Role::Primary,
-            label,
-        );
+        let tw = self.measure_as(TX, label);
+        self.text_mid_as((cx + (width - tw) / 2.0, cy, CH), TX, Role::Primary, label);
         let hit_h = if self.compact {
             TOUCH.max(CH)
         } else {
@@ -1753,14 +1756,16 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
     /// Returns its width.
     pub fn fab(&mut self, right: f32, bottom: f32, icon: Icon, label: &str, action: A) -> f32 {
         // Smaller on a small panel, where it floats over more of the page.
-        let (h, size, pad) = if self.compact {
-            (40.0, 14.0, 10.0)
-        } else {
-            (48.0, 15.0, 14.0)
+        use faraday_draw::tokens::{
+            FAB_H, FAB_H_COMPACT, FAB_PAD, FAB_PAD_COMPACT, ICON_GAP, ICON_GLYPH, LABEL_L, SHAPE_L,
         };
-        use faraday_draw::tokens::{ICON_GAP, ICON_GLYPH, SHAPE_L};
+        let (h, pad) = if self.compact {
+            (FAB_H_COMPACT, FAB_PAD_COMPACT)
+        } else {
+            (FAB_H, FAB_PAD)
+        };
         let lead = ICON_GLYPH + ICON_GAP;
-        let width = self.measure(size, W::S, label) + 2.0 * pad + lead;
+        let width = self.measure_as(LABEL_L, label) + 2.0 * pad + lead;
         let (x, y) = (right - width, bottom - h);
         let level = if self.is_hovered(action) {
             faraday_draw::tokens::ELEVATION_RAISED
@@ -1784,15 +1789,8 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
             ICON_GLYPH,
             Role::OnPrimaryContainer,
         );
-        self.text_mid(
-            x + pad + lead,
-            y,
-            h,
-            size,
-            W::S,
-            Role::OnPrimaryContainer,
-            label,
-        );
+        let at = (x + pad + lead, y, h);
+        self.text_mid_as(at, LABEL_L, Role::OnPrimaryContainer, label);
         self.hit_drawn(x, y, width, h, action);
         width
     }
@@ -1808,28 +1806,29 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
     ) -> f32 {
         let bg: Paint = bg.into();
         let fg: Paint = fg.into();
-        let h = 26.0;
+        use faraday_draw::tokens::{BODY_S, TAG_DOT_R, TAG_DOT_TEXT_X, TAG_H as H};
         let width = self.chip_width(label);
-        self.fill(x, y, width, h, 13.0, bg);
-        self.dot(x + 13.0, y + h / 2.0, 3.0, fg);
-        self.text_mid(x + 22.0, y, h, 12.0, W::R, fg, label);
+        self.fill(x, y, width, H, H / 2.0, bg);
+        self.dot(x + H / 2.0, y + H / 2.0, TAG_DOT_R, fg);
+        self.text_mid_as((x + TAG_DOT_TEXT_X, y, H), BODY_S, fg, label);
         width
     }
 
     /// How wide [`Ui::chip`] draws `label`.
     pub fn chip_width(&self, label: &str) -> f32 {
-        self.measure(12.0, W::R, label) + 34.0
+        use faraday_draw::tokens::{BODY_S, TAG_DOT_TEXT_X, TAG_PAD};
+        self.measure_as(BODY_S, label) + TAG_DOT_TEXT_X + TAG_PAD
     }
 
     /// A word in a pill that a press opens in its list, where words are
     /// shown as they are made. Returns its width.
     pub fn word_pill(&mut self, x: f32, y: f32, word: &str, action: A) -> f32 {
-        let h = 26.0;
-        use faraday_draw::tokens::SHAPE_S;
-        let width = self.measure(14.0, W::M, word) + 24.0;
+        use faraday_draw::tokens::{BODY_M, SHAPE_S, TAG_H as h, TAG_PAD};
+        let role = BODY_M.mono();
+        let width = self.measure_as(role, word) + 2.0 * TAG_PAD;
         self.fill(x, y, width, h, SHAPE_S, Role::SurfaceContainerHighest);
         self.stroke(x, y, width, h, SHAPE_S, Role::Outline);
-        self.text_mid(x + 12.0, y, h, 14.0, W::M, Role::OnSurface, word);
+        self.text_mid_as((x + TAG_PAD, y, h), role, Role::OnSurface, word);
         self.hit_shaped((x, y, width, h, SHAPE_S), action);
         width
     }
@@ -1842,25 +1841,27 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
     /// [`Ui::pill`] with its label in `color`.
     pub fn pill_in(&mut self, x: f32, y: f32, h: f32, label: &str, color: impl Into<Paint>) -> f32 {
         let color: Paint = color.into();
-        let width = self.measure(12.0, W::R, label) + 24.0;
+        use faraday_draw::tokens::{BODY_S, TAG_PAD};
+        let width = self.measure_as(BODY_S, label) + 2.0 * TAG_PAD;
         // An assist chip (Material's): no container, an outline.
         self.stroke(x, y, width, h, h / 2.0, Role::Outline);
-        self.text_mid(x + 12.0, y, h, 12.0, W::R, color, label);
+        self.text_mid_as((x + TAG_PAD, y, h), BODY_S, color, label);
         width
     }
 
     /// Threshold pips: `filled` of `n`.
     pub fn pips(&mut self, x: f32, y: f32, n: usize, filled: usize) -> f32 {
+        use faraday_draw::tokens::{PIP_GAP, PIP_H, PIP_W};
         let mut cx = x;
         for i in 0..n {
             if i < filled {
-                self.fill(cx, y, 28.0, 10.0, 5.0, Role::Ok);
+                self.fill(cx, y, PIP_W, PIP_H, PIP_H / 2.0, Role::Ok);
             } else {
-                self.stroke(cx, y, 28.0, 10.0, 5.0, Role::Outline);
+                self.stroke(cx, y, PIP_W, PIP_H, PIP_H / 2.0, Role::Outline);
             }
-            cx += 34.0;
+            cx += PIP_W + PIP_GAP;
         }
-        cx - x - 6.0
+        cx - x - PIP_GAP
     }
 
     /// A numbered or ticked step badge.
@@ -1872,12 +1873,14 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         } else {
             (Role::SurfaceContainerHighest, Role::OnSurfaceVariant)
         };
-        self.dot(x + 13.0, y + 13.0, 13.0, bg);
+        use faraday_draw::tokens::{LABEL_M, STEP_BADGE as D, STEP_BADGE_TICK};
+        let r = D / 2.0;
+        self.dot(x + r, y + r, r, bg);
         if done {
-            self.icon(x, y, 26.0, Icon::Done, 12.0, fg);
+            self.icon(x, y, D, Icon::Done, STEP_BADGE_TICK, fg);
         } else {
-            let tw = self.measure(12.0, W::S, label);
-            self.text_mid(x + 13.0 - tw / 2.0, y, 26.0, 12.0, W::S, fg, label);
+            let tw = self.measure_as(LABEL_M, label);
+            self.text_mid_as((x + r - tw / 2.0, y, D), LABEL_M, fg, label);
         }
     }
 
@@ -1898,7 +1901,14 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
                 )
             };
             self.wash(x, y, SIDE, SIDE, R, fill);
-            self.icon(x, y, SIDE, Icon::Done, 11.0, tick);
+            self.icon(
+                x,
+                y,
+                SIDE,
+                Icon::Done,
+                faraday_draw::tokens::CHECK_TICK,
+                tick,
+            );
         } else {
             let edge = self.col(if enabled {
                 Role::OnSurfaceVariant.paint()

@@ -289,6 +289,51 @@ fn bottom_sheet(ui: &mut Ui<u8>) {
     );
 }
 
+/// A text field's label kept outside it, a field at rest and one
+/// focused in error with its error line, buttons [`BUTTON_H`] tall, and
+/// list items of one, two and three lines, the second chosen. The
+/// chosen item's code is past the controls pressed: chosen and held, its
+/// tonal fill under the state layer is below the pressed floor in some
+/// schemes, as a tonal button's is.
+///
+/// [`BUTTON_H`]: faraday_draw::tokens::BUTTON_H
+fn fields_and_lists(ui: &mut Ui<u8>) {
+    use crate::roles::ListItem;
+    use faraday_draw::tokens::BUTTON_H;
+    let top = 16.0 + ui.field_label(16.0, 16.0, "Amount");
+    ui.field_label(320.0, 16.0, "Address");
+    ui.field_box((16.0, top, 280.0), false, None);
+    let why = Some("Not an address on this network");
+    let fh = ui.field_box((320.0, top, 280.0), true, why);
+    let by = top + fh + 16.0;
+    let mut x = 16.0;
+    for (label, style, a) in [
+        ("Continue", Style::Primary, 1),
+        ("Back", Style::Secondary, 2),
+    ] {
+        x += ui.button(x, by, None, BUTTON_H, label, style, a) + 8.0;
+    }
+    let items = [
+        ("Settings", "", 3),
+        ("Spending wallet", "2 of 3 · Native SegWit", 40),
+        (
+            "Family vault",
+            "Three keys at three places, each a different kind, so that no one loss or theft opens it",
+            5,
+        ),
+    ];
+    let mut ly = by + 56.0;
+    for (k, (headline, supporting, action)) in items.into_iter().enumerate() {
+        let it = ListItem {
+            headline,
+            supporting,
+            trailing: Some(("Now", Role::OnSurfaceVariant.paint())),
+            action,
+        };
+        ly += ui.list_item((16.0, ly, 300.0), &it, k == 1);
+    }
+}
+
 /// The on-screen keyboard, Shift on.
 fn keyboard(ui: &mut Ui<u8>) {
     keyboard::keyboard(
@@ -312,8 +357,9 @@ fn keyboard(ui: &mut Ui<u8>) {
 
 #[test]
 fn what_the_components_write_reads_on_what_they_are_drawn_on_in_every_scheme() {
-    let scenes: [(&str, Scene); 6] = [
+    let scenes: [(&str, Scene); 7] = [
         ("controls", controls),
+        ("fields and lists", fields_and_lists),
         ("appearance", appearance),
         ("navigation", navigation),
         ("dialog", dialog),
@@ -510,4 +556,103 @@ fn a_long_toast_wraps_inside_a_narrow_panel() {
     }
     let words: Vec<String> = lines.iter().map(|(t, _, _)| t.clone()).collect();
     assert_eq!(words.join(" "), text);
+}
+
+/// Every line of text `scene` draws, with where it was drawn, in the
+/// default theme.
+fn texts(scene: Scene) -> Vec<(String, faraday_draw::Rect)> {
+    let mut canvas = canvas();
+    canvas.record_ink(true);
+    let mut hits = Vec::new();
+    {
+        let mut ui: Ui<u8> = Ui::new(&mut canvas, 1.0, &mut hits, None);
+        ui.clear(Role::Surface);
+        scene(&mut ui);
+    }
+    canvas
+        .ink()
+        .iter()
+        .filter_map(|i| match &i.kind {
+            InkKind::Text { text, .. } => Some((text.clone(), i.rect)),
+            _ => None,
+        })
+        .collect()
+}
+
+/// A field in error says what is wrong in a line under the field, in
+/// the error colour, and the field takes that line's room; a field at
+/// rest shows no such line. Its label stands above it, outside.
+#[test]
+fn a_field_in_error_says_why_under_it() {
+    use faraday_draw::tokens::FIELD_H;
+    let why = "Not an address on this network";
+    let mut canvas = canvas();
+    canvas.record_ink(true);
+    let mut hits = Vec::new();
+    let (rest, wrong, top) = {
+        let mut ui: Ui<u8> = Ui::new(&mut canvas, 1.0, &mut hits, None);
+        ui.clear(Role::Surface);
+        let top = 16.0 + ui.field_label(16.0, 16.0, "Address");
+        let rest = ui.field_box((16.0, top, 280.0), false, None);
+        let wrong = ui.field_box((320.0, top, 280.0), false, Some(why));
+        (rest, wrong, top)
+    };
+    assert!(wrong > rest, "{wrong} {rest}");
+    let error = Theme::default().role(Role::Error);
+    let mut said = false;
+    for i in canvas.ink() {
+        if let InkKind::Text { text, color, .. } = &i.kind {
+            if text == "Address" {
+                assert!(
+                    i.rect.bottom() as f32 <= top,
+                    "the label is inside the field"
+                );
+            }
+            if text == why {
+                said = true;
+                assert_eq!(*color, error);
+                assert!(i.rect.x >= 320, "the error line is not under its field");
+                assert!(
+                    i.rect.y as f32 >= top + FIELD_H,
+                    "{:?} not under the field",
+                    i.rect
+                );
+                assert!(
+                    i.rect.bottom() as f32 <= top + wrong,
+                    "{:?} past its room",
+                    i.rect
+                );
+            }
+        }
+    }
+    assert!(said, "the error is not shown");
+}
+
+/// A list item's supporting text too long for one line takes a second
+/// inside its item, cut with an ellipsis rather than running past its
+/// end, under its headline; a short one stays on one line.
+#[test]
+fn a_list_items_long_supporting_text_keeps_inside_its_item() {
+    let lines = texts(fields_and_lists);
+    let find = |s: &str| {
+        lines
+            .iter()
+            .filter(|(t, _)| t.starts_with(s))
+            .map(|(_, r)| *r)
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(find("2 of 3").len(), 1, "{lines:?}");
+    let first = find("Three keys");
+    assert_eq!(first.len(), 1, "{lines:?}");
+    let head = find("Family vault");
+    assert_eq!(head.len(), 1, "{lines:?}");
+    assert!(head[0].y < first[0].y, "{head:?} not over {first:?}");
+    let second: Vec<_> = lines
+        .iter()
+        .filter(|(t, r)| r.y > first[0].y && r.x == first[0].x && t.ends_with('…'))
+        .collect();
+    assert_eq!(second.len(), 1, "{lines:?}");
+    for r in [first[0], second[0].1] {
+        assert!(r.x >= 16 && r.right() <= 316, "{r:?} past the item");
+    }
 }

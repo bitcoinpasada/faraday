@@ -43,7 +43,7 @@ fn use_boot_stick_takes_it_for_vault_1_and_its_pull_opens_create_a_vault() {
     assert!(app.flow().unwrap().slots[0].bound.is_some(), "one press");
     assert_eq!(step(&app), Step::Vaults);
     assert_eq!(app.sheet, Some(Sheet::Pull));
-    expect(
+    expect_wrapped(
         &mut app,
         "Pull the stick to create the vault, then your key",
     );

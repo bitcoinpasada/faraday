@@ -500,22 +500,21 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
         (minus, plus): (A, A),
         enabled: bool,
     ) {
-        let size = STEPPER_LABEL_TEXT;
+        let role = STEPPER_LABEL_TEXT;
         let span = 2.0 * ICON_BUTTON + STEPPER_COUNT_W;
         let bx = if self.compact {
             x + w - span
         } else {
-            x + (self.measure(size, W::R, label) + GAP).max(STEPPER_LABEL_COL)
+            x + (self.measure_as(role, label) + GAP).max(STEPPER_LABEL_COL)
         };
         let h = ICON_BUTTON;
-        self.text_mid(x, y, h, size, W::R, Role::OnSurfaceVariant, label);
+        self.text_mid_as((x, y, h), role, Role::OnSurfaceVariant, label);
         let less = (bx, y);
         self.outlined_icon_button(less, Icon::Remove, EN.tip_decrease, enabled, minus);
         let v = value.to_string();
-        let vw = self.measure(STEPPER_VALUE_TEXT, W::S, &v);
+        let vw = self.measure_as(STEPPER_VALUE_TEXT, &v);
         let vx = bx + h + (STEPPER_COUNT_W - vw) / 2.0;
-        let vs = STEPPER_VALUE_TEXT;
-        self.text_mid(vx, y, h, vs, W::S, Role::OnSurface, &v);
+        self.text_mid_as((vx, y, h), STEPPER_VALUE_TEXT, Role::OnSurface, &v);
         let more = (bx + h + STEPPER_COUNT_W, y);
         self.outlined_icon_button(more, Icon::Add, EN.tip_increase, enabled, plus);
     }

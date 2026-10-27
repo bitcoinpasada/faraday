@@ -747,6 +747,14 @@ pub fn expect(app: &mut Faraday, want: &str) {
     assert!(t.iter().any(|x| x == want), "{want:?} not in {t:?}");
 }
 
+/// Panics with everything drawn when `want` is not on the screen, on one
+/// line or wrapped onto several that follow each other.
+pub fn expect_wrapped(app: &mut Faraday, want: &str) {
+    let t = texts(app);
+    let all = t.join(" ");
+    assert!(all.contains(want), "{want:?} not in {t:?}");
+}
+
 /// Panics with everything drawn when no text contains `part`.
 pub fn expect_part(app: &mut Faraday, part: &str) {
     let t = texts(app);

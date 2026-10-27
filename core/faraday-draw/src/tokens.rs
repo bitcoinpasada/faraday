@@ -21,7 +21,105 @@ use crate::geom::{SizeClass, WindowClass};
 // Type ramp
 // ---------------------------------------------------------------------
 
-/// Title size: app bar titles and headings.
+/// The face a type role is set in: Material's weight drawn in the faces
+/// Faraday has (`docs/LAYOUT.md` §8). Material's regular, 400, is Noto
+/// Sans; its medium, 500, is Noto Sans SemiBold, the one heavier text
+/// face Faraday carries. `Mono` is Noto Sans Mono at the role's size
+/// and line, for what is read character by character (DESIGN §3).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TypeFace {
+    /// Material's regular: Noto Sans.
+    Regular,
+    /// Material's medium: Noto Sans SemiBold.
+    Medium,
+    /// Noto Sans Mono.
+    Mono,
+}
+
+/// One of Material 3's type roles (`docs/LAYOUT.md` §8): its size, its
+/// line height and its face. `faraday-ui` draws text by role
+/// (`Ui::text_as`, `Ui::wrap_as` and the rest), its lines spaced by
+/// `line`.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct TypeRole {
+    /// The size in dp (Material's sp).
+    pub size: f32,
+    /// The line height in dp: how far apart the lines of a paragraph in
+    /// this role stand.
+    pub line: f32,
+    /// The face.
+    pub face: TypeFace,
+}
+
+impl TypeRole {
+    /// This role in the monospace face, at its size and line: data in a
+    /// role's place (a fingerprint in a body line).
+    pub const fn mono(self) -> TypeRole {
+        TypeRole {
+            face: TypeFace::Mono,
+            ..self
+        }
+    }
+
+    /// This role in the medium face: Faraday's emphasis inside a line of
+    /// a regular role, where Material would set the same size heavier.
+    pub const fn medium(self) -> TypeRole {
+        TypeRole {
+            face: TypeFace::Medium,
+            ..self
+        }
+    }
+
+    /// This role in the regular face.
+    pub const fn regular(self) -> TypeRole {
+        TypeRole {
+            face: TypeFace::Regular,
+            ..self
+        }
+    }
+}
+
+const fn role(size: f32, line: f32, face: TypeFace) -> TypeRole {
+    TypeRole { size, line, face }
+}
+
+/// Material's headline medium, 28 on 36, regular: a page's title.
+pub const HEADLINE_M: TypeRole = role(28.0, 36.0, TypeFace::Regular);
+/// Material's headline small, 24 on 32, regular: a sheet's head and a
+/// step flow's heading.
+pub const HEADLINE_S: TypeRole = role(24.0, 32.0, TypeFace::Regular);
+/// Material's title large, 22 on 28, regular: the top app bar's title
+/// and a sheet's head on the small panel.
+pub const TITLE_L: TypeRole = role(22.0, 28.0, TypeFace::Regular);
+/// Material's title medium, 16 on 24, medium.
+pub const TITLE_M: TypeRole = role(16.0, 24.0, TypeFace::Medium);
+/// Material's title small, 14 on 20, medium: a section's label.
+pub const TITLE_S: TypeRole = role(14.0, 20.0, TypeFace::Medium);
+/// Material's body large, 16 on 24, regular: a list item's headline.
+pub const BODY_L: TypeRole = role(16.0, 24.0, TypeFace::Regular);
+/// Material's body medium, 14 on 20, regular: running text, a list
+/// item's supporting line, the snackbar.
+pub const BODY_M: TypeRole = role(14.0, 20.0, TypeFace::Regular);
+/// Material's body small, 12 on 16, regular: a field's label and its
+/// supporting or error line, a plain tooltip.
+pub const BODY_S: TypeRole = role(12.0, 16.0, TypeFace::Regular);
+/// Material's label large, 14 on 20, medium: a button's label.
+pub const LABEL_L: TypeRole = role(14.0, 20.0, TypeFace::Medium);
+/// Material's label medium, 12 on 16, medium: a navigation label.
+pub const LABEL_M: TypeRole = role(12.0, 16.0, TypeFace::Medium);
+/// Material's label small, 11 on 16, medium: a badge, a list item's
+/// trailing text.
+pub const LABEL_S: TypeRole = role(11.0, 16.0, TypeFace::Medium);
+
+/// A sheet's head: [`HEADLINE_S`], and [`TITLE_L`] on the small panel
+/// (`docs/LAYOUT.md` §8).
+pub const fn sheet_head(compact: bool) -> TypeRole {
+    if compact { TITLE_L } else { HEADLINE_S }
+}
+
+/// Title size: app bar titles and headings. Retired by the type roles
+/// (`docs/LAYOUT.md` §8): kept only until the screens that still write
+/// it move to [`TITLE_L`] or [`HEADLINE_S`]; nothing new reads it.
 pub const TITLE: f32 = 20.0;
 /// Body text size.
 pub const BODY: f32 = 16.0;
@@ -530,8 +628,9 @@ pub const FIELD_ACTION_HEIGHT: f32 = 26.0;
 /// edge and the chip, and between the chip's edge and its label.
 pub const FIELD_ACTION_INSET: f32 = 10.0;
 
-/// The chip inside an empty entry field: the size of its label.
-pub const FIELD_ACTION_TEXT: f32 = 13.0;
+/// The chip inside an empty entry field: its label, Material's label
+/// large (a chip's label).
+pub const FIELD_ACTION_TEXT: TypeRole = LABEL_L;
 
 /// A word cell of Add a key on a wide display: its height.
 pub const ENTRY_CELL_HEIGHT: f32 = 38.0;
@@ -939,6 +1038,109 @@ pub const LIST_1: f32 = 56.0;
 
 /// A two-line list item's height (Material 3 Lists).
 pub const LIST_2: f32 = 72.0;
+
+/// A three-line list item's height (Material 3 Lists): its headline and
+/// two lines of supporting text.
+pub const LIST_3: f32 = 88.0;
+
+/// The headline's top in a three-line list item: Material's 12 dp above
+/// its first line.
+pub const LIST_3_TOP: f32 = 12.0;
+
+/// A text field's height (Material 3 Text fields, outlined; the same on
+/// every window, `docs/LAYOUT.md` §8).
+pub const FIELD_H: f32 = 56.0;
+
+/// A text field's edge at rest: Material's 1 dp outline.
+pub const FIELD_EDGE: f32 = 1.0;
+
+/// A text field's edge while focused or in error: Material's 2 dp.
+pub const FIELD_EDGE_ACTIVE: f32 = 2.0;
+
+/// A text field's room at its start and end, before what is typed and
+/// before its supporting line (Material: 16 dp).
+pub const FIELD_PAD: f32 = 16.0;
+
+/// The gap between a text field and its error line under it, and
+/// between its label kept outside and the field (Material: 4 dp).
+pub const FIELD_GAP: f32 = 4.0;
+
+/// How far in a multi-choice row's checkbox stands from the row's start.
+pub const MULTI_CHECK_X: f32 = 10.0;
+
+/// A tag's height: the status chip with its dot, a word's pill and a
+/// plain pill (`Ui::chip`, `Ui::word_pill`, `Ui::pill`).
+pub const TAG_H: f32 = 26.0;
+
+/// A tag's room from its edge to its label, each side.
+pub const TAG_PAD: f32 = 12.0;
+
+/// The dot of a status chip: its radius.
+pub const TAG_DOT_R: f32 = 3.0;
+
+/// Where a status chip's label starts, past its dot.
+pub const TAG_DOT_TEXT_X: f32 = 22.0;
+
+/// A threshold pip: its width.
+pub const PIP_W: f32 = 28.0;
+
+/// A threshold pip: its height (its ends round).
+pub const PIP_H: f32 = 10.0;
+
+/// The gap between two threshold pips.
+pub const PIP_GAP: f32 = 6.0;
+
+/// A step badge's side: a circle holding its number or a tick.
+pub const STEP_BADGE: f32 = 26.0;
+
+/// The tick in a step badge.
+pub const STEP_BADGE_TICK: f32 = 12.0;
+
+/// The side of a guide step's circle.
+pub const STEP_SIDE: f32 = 30.0;
+
+/// How far a step's text, and what follows it up to the next step, sits
+/// in from the column's edge.
+pub const STEP_INDENT: f32 = 42.0;
+
+/// The side of the square a tap on a step's circle lands in: larger
+/// than the circle.
+pub const STEP_TOUCH: f32 = 44.0;
+
+/// The tick in a checked checkbox.
+pub const CHECK_TICK: f32 = 11.0;
+
+/// A floating action's height on the small panel, and elsewhere.
+pub const FAB_H_COMPACT: f32 = 40.0;
+/// A floating action's height off the small panel.
+pub const FAB_H: f32 = 48.0;
+/// A floating action's room at its ends on the small panel.
+pub const FAB_PAD_COMPACT: f32 = 10.0;
+/// A floating action's room at its ends off the small panel.
+pub const FAB_PAD: f32 = 14.0;
+
+/// The caret's height over the text size in a field drawn as one string,
+/// and the least it is.
+pub const CARET_OVER: f32 = 4.0;
+/// The least a caret is tall.
+pub const CARET_MIN: f32 = 18.0;
+
+/// The label of a key of the on-screen keyboards and pads, by the key's
+/// height: 15 from 44 dp, 14 from 38, 13 below. A key is not a button:
+/// its label keeps the size it was designed at on each keyboard.
+pub const fn key_label(h: f32) -> f32 {
+    if h >= 44.0 {
+        15.0
+    } else if h >= 38.0 {
+        14.0
+    } else {
+        13.0
+    }
+}
+
+/// Where a button's label is set off from its ends: Material 3's small
+/// (40 dp) button, 16 dp each side.
+pub const BUTTON_PAD: f32 = 16.0;
 
 /// A list item's room at its start and end (Material 3 Lists).
 pub const LIST_PAD: f32 = 16.0;
@@ -1519,10 +1721,11 @@ pub const CODEX32_ENTER_SCROLL: f32 = 140.0;
 /// Material's icon button: its container, round, drawn in a `TOUCH`
 /// target with an `ICON_GLYPH` icon (the codex32 sheets' eye).
 pub const ICON_BUTTON: f32 = 40.0;
-/// A stepper's label (`faraday_ui`'s `Ui::stepper`), body small.
-pub const STEPPER_LABEL_TEXT: f32 = 13.0;
-/// A stepper's count between its − and +, title medium.
-pub const STEPPER_VALUE_TEXT: f32 = 18.0;
+/// A stepper's label (`faraday_ui`'s `Ui::stepper`): Material's body
+/// medium.
+pub const STEPPER_LABEL_TEXT: TypeRole = BODY_M;
+/// A stepper's count between its − and +: Material's title medium.
+pub const STEPPER_VALUE_TEXT: TypeRole = TITLE_M;
 /// The room for a stepper's count between its two icon buttons.
 pub const STEPPER_COUNT_W: f32 = 44.0;
 /// How far in from a stepper's label its − stands on the wide layout,
@@ -1650,8 +1853,8 @@ pub const TOAST_PAD: f32 = 16.0;
 /// The toast's room above and below its text: one line of body medium
 /// in it is [`TOAST_H`] tall, two are Material's 68.
 pub const TOAST_PAD_Y: f32 = 14.0;
-/// The toast's text size: Material's body medium.
-pub const TOAST_TEXT: f32 = 14.0;
+/// The toast's text: Material's body medium.
+pub const TOAST_TEXT: TypeRole = BODY_M;
 /// The toast's least room to the page's foot and to each side.
 pub const TOAST_MARGIN: f32 = 16.0;
 /// How long the toast stays on screen, ms.
@@ -1666,7 +1869,7 @@ pub const TIP_PLAIN_PAD_X: f32 = 8.0;
 /// A plain tooltip's room above and below its text.
 pub const TIP_PLAIN_PAD_Y: f32 = 4.0;
 /// A plain tooltip's text: Material's body small.
-pub const TIP_PLAIN_TEXT: f32 = 12.0;
+pub const TIP_PLAIN_TEXT: TypeRole = BODY_S;
 /// A rich tooltip's widest (Material 3's rich tooltip).
 pub const TIP_RICH_MAX_W: f32 = 320.0;
 /// A rich tooltip's room each side of its text.
@@ -1674,7 +1877,7 @@ pub const TIP_RICH_PAD_X: f32 = 16.0;
 /// A rich tooltip's room above and below its text.
 pub const TIP_RICH_PAD_Y: f32 = 12.0;
 /// A rich tooltip's supporting text: Material's body medium.
-pub const TIP_RICH_TEXT: f32 = 14.0;
+pub const TIP_RICH_TEXT: TypeRole = BODY_M;
 /// A rich tooltip's elevation level.
 pub const TIP_RICH_LEVEL: u8 = 2;
 /// The gap between a tooltip and what it is about.

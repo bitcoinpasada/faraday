@@ -5,7 +5,7 @@
 use crate::pal::*;
 use crate::{Glyph, Ui, W};
 use faraday_draw::tokens::{
-    CAPTION, GAP_SMALL, GRID, ICON_SMALL, NAV_ICON, STATUS_CHIP_H, STATUS_CHIP_PAD, TOUCH,
+    GAP_SMALL, GRID, ICON_SMALL, LABEL_L, NAV_ICON, STATUS_CHIP_H, STATUS_CHIP_PAD, TOUCH,
 };
 
 /// What a status chip shows and does.
@@ -35,7 +35,8 @@ pub fn status_chip<A: Copy + PartialEq>(
         tail,
         action,
     } = *c;
-    let size = CAPTION;
+    // Material's chip label: label large, in the face the head asks for.
+    let size = LABEL_L.size;
     let lead = if icon.is_some() {
         ICON_SMALL + GAP_SMALL
     } else {

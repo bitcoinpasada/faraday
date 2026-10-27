@@ -106,7 +106,8 @@ times the person's Display scale (F101). The window's size class
 navigation in the table above.
 
 Sizes are design units (dp). The tokens are names in
-`core/faraday-draw/src/tokens.rs`: the type ramp (title 20, body 16,
+`core/faraday-draw/src/tokens.rs`: the type roles (below), the older
+ramp the screens not yet moved to them still write (title 20, body 16,
 label 14, caption 12), the grid and gaps, the radii, the touch floor,
 the field heights, the board's and the chart's dimensions, the scanner's
 and the QR code's.
@@ -130,6 +131,18 @@ Material 3's tokens are named there too (F108):
   button or a chip.
 - **Text**: nothing is drawn under `TEXT_MIN`, 11, Material's
   label-small; `Ui` draws a smaller size asked for at it.
+- **Type roles**: Material's type scale as `TypeRole`s, each a size, a
+  line height and a face: `HEADLINE_M` 28/36, `HEADLINE_S` 24/32,
+  `TITLE_L` 22/28 regular; `TITLE_M` 16/24 and `TITLE_S` 14/20 medium;
+  `BODY_L` 16/24, `BODY_M` 14/20, `BODY_S` 12/16 regular; `LABEL_L`
+  14/20, `LABEL_M` 12/16, `LABEL_S` 11/16 medium. Medium is drawn in
+  Noto Sans SemiBold. `faraday-ui` draws by role (`Ui::text_as` and its
+  kin, `docs/LAYOUT.md` §8); its components use them, and the screens
+  move to them from the sizes they write (L5).
+- **Size set**: buttons `BUTTON_H` 40 with their label in `LABEL_L`;
+  text fields `FIELD_H` 56, outlined, label above and error line
+  under (`Ui::field_box`); list items `LIST_1`, `LIST_2`, `LIST_3`, 56,
+  72 and 88 (`Ui::list_item`).
 - **Motion**: Material's durations, `MOTION_SHORT1` to
   `MOTION_EXTRA_LONG4` (50 to 1000 ms), and its easings,
   `EASE_STANDARD`, `EASE_STANDARD_DECELERATE`,

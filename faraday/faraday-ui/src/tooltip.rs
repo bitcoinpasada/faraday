@@ -23,8 +23,8 @@ use faraday_draw::tokens::{
     TIP_RICH_PAD_X, TIP_RICH_PAD_Y, TIP_RICH_TEXT,
 };
 
+use crate::Ui;
 use crate::pal::{Paint, Role};
-use crate::{Ui, W};
 
 /// A plain tooltip's container: Material's inverse surface.
 pub const TIP_PLAIN_FILL: Paint = Paint::role(Role::InverseSurface);
@@ -333,7 +333,7 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
         let f = self.f;
         let (ax, ay) = (t.at.x as f32 / f - self.ox, t.at.y as f32 / f - self.oy);
         let (aw, ah) = (t.at.w as f32 / f, t.at.h as f32 / f);
-        let (size, pad_x, pad_y, max_w) = match t.kind {
+        let (role, pad_x, pad_y, max_w) = match t.kind {
             TipKind::Plain => (
                 TIP_PLAIN_TEXT,
                 TIP_PLAIN_PAD_X,
@@ -351,15 +351,16 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
         let canvas_h = self.c.height() as f32 / f;
         let margin = faraday_draw::tokens::PAD;
         let max_w = max_w.min(canvas_w - 2.0 * margin);
-        let text_w = self.measure(size, W::R, t.text);
+        let text_w = self.measure_as(role, t.text);
         let inner = (max_w - 2.0 * pad_x).max(1.0);
-        let lines = self.wrap_lines(size, W::R, t.text, inner);
+        let lines = self.wrap_lines_as(role, t.text, inner);
         let w = if lines == 1 {
             text_w + 2.0 * pad_x
         } else {
             max_w
         };
-        let h = lines as f32 * self.line(size, W::R) + 2.0 * pad_y;
+        let lh = self.line_as(role);
+        let h = lines as f32 * lh + 2.0 * pad_y;
         let h = if t.kind == TipKind::Plain {
             h.max(TIP_PLAIN_MIN_H)
         } else {
@@ -384,8 +385,9 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
         match t.kind {
             TipKind::Plain => {
                 self.fill(x, y, w, h, SHAPE_XS, TIP_PLAIN_FILL);
-                let ty = y + (h - lines as f32 * self.line(size, W::R)) / 2.0;
-                self.wrap(x + pad_x, ty, inner, size, W::R, TIP_PLAIN_INK, t.text);
+                let ty = y + (h - lines as f32 * lh) / 2.0;
+                let ty = ty + (lh - self.line(role.size, role.face.into())) / 2.0;
+                self.wrap_as((x + pad_x, ty, inner), role, TIP_PLAIN_INK, t.text);
             }
             TipKind::Rich => {
                 self.shadow(x, y, w, h, SHAPE_M, TIP_RICH_LEVEL);
@@ -393,15 +395,8 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
                 if self.theme.is_high_contrast() {
                     self.stroke(x, y, w, h, SHAPE_M, TIP_RICH_EDGE);
                 }
-                self.wrap(
-                    x + pad_x,
-                    y + pad_y,
-                    inner,
-                    size,
-                    W::R,
-                    TIP_RICH_INK,
-                    t.text,
-                );
+                let ty = y + pad_y + (lh - self.line(role.size, role.face.into())) / 2.0;
+                self.wrap_as((x + pad_x, ty, inner), role, TIP_RICH_INK, t.text);
             }
         }
     }

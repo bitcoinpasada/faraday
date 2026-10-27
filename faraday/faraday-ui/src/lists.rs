@@ -5,7 +5,8 @@
 use crate::pal::*;
 use crate::{Ui, W};
 use faraday_draw::tokens::{
-    CAPTION, GAP, GAP_SMALL, LABEL, LIST_INDENT, LIST_RESERVE, RADIUS_SMALL, ROW,
+    BODY_L, BODY_M, GAP, GAP_SMALL, ICON_GLYPH_BUTTON, LIST_1, LIST_2, LIST_INDENT, LIST_RESERVE,
+    MULTI_CHECK_X, RADIUS_SMALL,
 };
 
 impl<A: Copy + PartialEq> Ui<'_, A> {
@@ -15,14 +16,13 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
     /// dimmed and takes no tap. The rows are `(label, ticked, enabled,
     /// action)`. Returns the list's height; Continue goes under it.
     pub fn multi_list(&mut self, x: f32, y: f32, w: f32, rows: &[(String, bool, bool, A)]) -> f32 {
-        let rh = if self.compact { 44.0 } else { 40.0 };
-        self.multi_rows(x, y, w, rows, &[], rh)
+        self.multi_rows(x, y, w, rows, &[], LIST_1)
     }
 
     /// [`Ui::multi_list`] with a value under each row's label, as a value
     /// row has (`docs/DESIGN.md` §4.2): `values[i]` is the muted line
     /// under `rows[i]`'s label. A row with no value has none. Each row is
-    /// [`ROW`] tall. Returns the list's height.
+    /// [`LIST_2`] tall, a two-line list item. Returns the list's height.
     pub fn multi_list_valued(
         &mut self,
         x: f32,
@@ -31,7 +31,7 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
         rows: &[(String, bool, bool, A)],
         values: &[String],
     ) -> f32 {
-        self.multi_rows(x, y, w, rows, values, ROW)
+        self.multi_rows(x, y, w, rows, values, LIST_2)
     }
 
     /// The rows of [`Ui::multi_list`] and [`Ui::multi_list_valued`], each
@@ -47,8 +47,9 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
     ) -> f32 {
         for (i, (label, on, enabled, action)) in rows.iter().enumerate() {
             let ry = y + i as f32 * rh;
-            self.checkbox(x + 10.0, ry + (rh - 18.0) / 2.0, *on, *enabled);
-            let shown = self.fit(LABEL, W::R, label, w - LIST_RESERVE);
+            let cy = ry + (rh - ICON_GLYPH_BUTTON) / 2.0;
+            self.checkbox(x + MULTI_CHECK_X, cy, *on, *enabled);
+            let shown = self.fit_as(BODY_L, label, w - LIST_RESERVE);
             let fg = if *enabled {
                 Role::OnSurface.paint()
             } else {
@@ -56,26 +57,19 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
             };
             match values.get(i) {
                 Some(value) => {
-                    let (lh, vh) = (self.line(LABEL, W::R), self.line(CAPTION, W::R));
-                    let top = ry + (rh - lh - GAP_SMALL - vh) / 2.0;
-                    self.text(x + LIST_INDENT, top, LABEL, W::R, fg, &shown);
-                    let value = self.fit(CAPTION, W::R, value, w - LIST_RESERVE);
+                    let (lh, vh) = (self.line_as(BODY_L), self.line_as(BODY_M));
+                    let top = ry + (rh - lh - vh) / 2.0;
+                    self.text_mid_as((x + LIST_INDENT, top, lh), BODY_L, fg, &shown);
+                    let value = self.fit_as(BODY_M, value, w - LIST_RESERVE);
                     let vc = if *enabled {
                         Role::OnSurfaceVariant.paint()
                     } else {
                         Role::OnSurface.at(faraday_draw::tokens::DISABLED_CONTENT)
                     };
-                    self.text(
-                        x + LIST_INDENT,
-                        top + lh + GAP_SMALL,
-                        CAPTION,
-                        W::R,
-                        vc,
-                        &value,
-                    );
+                    self.text_mid_as((x + LIST_INDENT, top + lh, vh), BODY_M, vc, &value);
                 }
                 None => {
-                    self.text_mid(x + LIST_INDENT, ry, rh, LABEL, W::R, fg, &shown);
+                    self.text_mid_as((x + LIST_INDENT, ry, rh), BODY_L, fg, &shown);
                 }
             }
             if i + 1 < rows.len() {

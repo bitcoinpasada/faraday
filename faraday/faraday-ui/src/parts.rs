@@ -4,20 +4,23 @@
 
 use crate::pal::*;
 use crate::{Style, Ui, W};
+use faraday_draw::tokens::{BUTTON_H, BUTTON_PAD, GAP, HEADLINE_M, LABEL_L, LABEL_M, TITLE_S};
 
-/// A page's title. Returns its height.
+/// A page's title, in Material's headline medium. Returns its height:
+/// the role's line.
 pub fn title<A: Copy + PartialEq>(ui: &mut Ui<A>, x: f32, y: f32, s: &str) -> f32 {
-    ui.text(x, y, 28.0, W::S, Role::OnSurface, s);
-    ui.line(28.0, W::S)
+    ui.text_as(x, y, HEADLINE_M, Role::OnSurface, s);
+    ui.line_as(HEADLINE_M)
 }
 
-/// A section's label.
+/// A section's label, in Material's title small.
 pub fn section_label<A: Copy + PartialEq>(ui: &mut Ui<A>, x: f32, y: f32, s: &str) {
-    ui.text(x, y, 14.0, W::S, Role::OnSurfaceVariant, s);
+    ui.text_as(x, y, TITLE_S, Role::OnSurfaceVariant, s);
 }
 
-/// Buttons laid left to right, wrapping to a new row at the width.
-/// Returns the height they took, a row being 44.
+/// Buttons [`BUTTON_H`] tall laid left to right, wrapping to a new row
+/// at the width. Returns the height they took, a row being a button and
+/// the gap under it.
 pub fn button_rows<A: Copy + PartialEq>(
     ui: &mut Ui<A>,
     x: f32,
@@ -28,15 +31,15 @@ pub fn button_rows<A: Copy + PartialEq>(
     let (mut bx, mut by) = (x, y);
     for (label, style, action) in items {
         // No wider than the row; a long label is cut.
-        let bw = (ui.measure(13.0, W::S, label) + 32.0).min(w);
+        let bw = (ui.measure_as(LABEL_L, label) + 2.0 * BUTTON_PAD).min(w);
         if bx > x && bx + bw > x + w {
             bx = x;
-            by += 40.0;
+            by += BUTTON_H + GAP;
         }
-        let label = ui.fit(13.0, W::S, label, bw - 24.0);
-        bx += ui.button(bx, by, Some(bw), 32.0, &label, *style, *action) + 6.0;
+        let label = ui.fit_as(LABEL_L, label, bw - BUTTON_PAD);
+        bx += ui.button(bx, by, Some(bw), BUTTON_H, &label, *style, *action) + GAP;
     }
-    by - y + 44.0
+    by - y + BUTTON_H + GAP
 }
 
 /// Buttons `h` high laid left to right, wrapping to a new row at the
@@ -50,18 +53,17 @@ pub fn wrap_buttons<A: Copy + PartialEq>(
     h: f32,
     items: &[(&str, Style, A)],
 ) -> f32 {
-    let size = if h >= 38.0 { 14.0 } else { 13.0 };
     let (mut bx, mut by) = (x, y);
     for &(label, style, action) in items {
-        let bw = (ui.measure(size, W::S, label) + 32.0).min(w);
+        let bw = (ui.measure_as(LABEL_L, label) + 2.0 * BUTTON_PAD).min(w);
         if bx > x && bx + bw > x + w {
             bx = x;
-            by += h + 8.0;
+            by += h + GAP;
         }
-        let label = ui.fit(size, W::S, label, bw - 24.0);
-        bx += ui.button(bx, by, Some(bw), h, &label, style, action) + 8.0;
+        let label = ui.fit_as(LABEL_L, label, bw - BUTTON_PAD);
+        bx += ui.button(bx, by, Some(bw), h, &label, style, action) + GAP;
     }
-    by - y + h + 8.0
+    by - y + h + GAP
 }
 
 /// The height [`wrap_buttons`] takes for these labels, `h` high in `w`,
@@ -72,17 +74,16 @@ pub fn wrap_buttons_height<A: Copy + PartialEq>(
     h: f32,
     labels: &[&str],
 ) -> f32 {
-    let size = if h >= 38.0 { 14.0 } else { 13.0 };
     let (mut bx, mut by) = (0.0, 0.0);
     for label in labels {
-        let bw = (ui.measure(size, W::S, label) + 32.0).min(w);
+        let bw = (ui.measure_as(LABEL_L, label) + 2.0 * BUTTON_PAD).min(w);
         if bx > 0.0 && bx + bw > w {
             bx = 0.0;
-            by += h + 8.0;
+            by += h + GAP;
         }
-        bx += bw + 8.0;
+        bx += bw + GAP;
     }
-    by + h + 8.0
+    by + h + GAP
 }
 
 /// The height `draw` takes, drawing nothing and keeping no hits: what a
@@ -192,16 +193,7 @@ pub fn qr_code<A: Copy + PartialEq>(
     }
 }
 
-/// The side of a guide step's circle.
-pub const STEP_SIDE: f32 = 30.0;
-
-/// How far a step's text, and what follows it up to the next step, sits
-/// in from the column's edge.
-pub const STEP_INDENT: f32 = 42.0;
-
-/// The side of the square a tap on a step's circle lands in: the touch
-/// size, larger than the circle.
-pub const STEP_TOUCH: f32 = 44.0;
+pub use faraday_draw::tokens::{STEP_INDENT, STEP_SIDE, STEP_TOUCH};
 
 /// A ticked step's green: one colour in every theme, so the number in
 /// white reads on it.
@@ -222,7 +214,7 @@ pub fn step_circle<A: Copy + PartialEq>(
     let d = STEP_SIDE;
     let r = d / 2.0;
     let label = n.to_string();
-    let size = if label.len() > 1 { 13.0 } else { 14.0 };
+    let role = if label.len() > 1 { LABEL_M } else { TITLE_S };
     let pressed = action.is_some_and(|a| ui.is_pressed(a));
     let fg = if ticked {
         ui.dot(x + r, y + r, r, STEP_DONE);
@@ -243,8 +235,8 @@ pub fn step_circle<A: Copy + PartialEq>(
         Role::OnSurface.paint()
     };
     // White is no colour of the theme's: it is drawn as it is.
-    let tw = ui.measure(size, W::S, &label);
-    ui.text_mid(x + r - tw / 2.0, y, d, size, W::S, fg, &label);
+    let tw = ui.measure_as(role, &label);
+    ui.text_mid_as((x + r - tw / 2.0, y, d), role, fg, &label);
     if let Some(a) = action {
         let pad = (STEP_TOUCH - d) / 2.0;
         ui.hit_quiet(x - pad, y - pad, STEP_TOUCH, STEP_TOUCH, a);

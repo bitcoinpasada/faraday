@@ -3,8 +3,8 @@
 //! inverse roles, so it reads as standing apart from the page in every
 //! theme, mode and contrast.
 
+use crate::Ui;
 use crate::pal::Role;
-use crate::{Ui, W};
 use faraday_draw::tokens::{
     ELEVATION_FAB, SHAPE_XS, TOAST_H, TOAST_MARGIN, TOAST_PAD, TOAST_PAD_Y, TOAST_TEXT,
 };
@@ -24,7 +24,7 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
     pub fn snackbar(&mut self, (x, cw, foot): (f32, f32, f32), text: &str, shown: f32, rise: f32) {
         let fade = |r: Role| r.at(shown);
         let room = (cw - 2.0 * TOAST_MARGIN).max(0.0);
-        let one = self.measure(TOAST_TEXT, W::R, text);
+        let one = self.measure_as(TOAST_TEXT, text);
         let line = one.min((room - 2.0 * TOAST_PAD).max(0.0));
         let mut lines = 0usize;
         let mut from = 0;
@@ -33,7 +33,7 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
             from = next;
         }
         let lines = lines.max(1);
-        let lh = self.line(TOAST_TEXT, W::R);
+        let lh = self.line_as(TOAST_TEXT);
         let h = (lines as f32 * lh + 2.0 * TOAST_PAD_Y).max(TOAST_H);
         let w = line + 2.0 * TOAST_PAD;
         let tx = x + (cw - w) / 2.0;
@@ -45,14 +45,8 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
         let mut y = ty + (h - lines as f32 * lh) / 2.0;
         let mut from = 0;
         while let Some((shown_line, next)) = self.snackbar_line(text, from, line) {
-            self.text(
-                tx + TOAST_PAD,
-                y,
-                TOAST_TEXT,
-                W::R,
-                fade(SNACKBAR_INK),
-                shown_line,
-            );
+            let at = (tx + TOAST_PAD, y, lh);
+            self.text_mid_as(at, TOAST_TEXT, fade(SNACKBAR_INK), shown_line);
             y += lh;
             from = next;
         }
@@ -69,7 +63,7 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
         let mut end = None;
         for word in text[start..].split_whitespace() {
             let stop = word.as_ptr() as usize - text.as_ptr() as usize + word.len();
-            if end.is_some() && self.measure(TOAST_TEXT, W::R, &text[start..stop]) > max {
+            if end.is_some() && self.measure_as(TOAST_TEXT, &text[start..stop]) > max {
                 break;
             }
             end = Some(stop);

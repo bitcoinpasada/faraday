@@ -5,14 +5,14 @@
 //! uses.
 
 use crate::pal::{Role, ThemeName};
-use crate::{Contrast, Mode, Theme, Ui, W};
+use crate::{Contrast, Mode, Theme, Ui};
 use faraday_draw::Color;
 use faraday_draw::tokens::{
-    APPEARANCE_LABEL_GAP, APPEARANCE_ROW_GAP, FILTER_CHIP_GAP, FILTER_CHIP_H, FILTER_CHIP_ICON,
-    FILTER_CHIP_LEAD, FILTER_CHIP_TRAIL, GAP, LABEL, SEGMENTED_H, SHAPE_S, STATE_HOVER,
-    STATE_PRESS, SWITCH_EDGE, SWITCH_H, SWITCH_HANDLE_OFF, SWITCH_HANDLE_ON, SWITCH_HANDLE_PRESSED,
-    SWITCH_STATE, SWITCH_W, THEME_CHIP_DOT, THEME_CHIP_RING, THEME_CHIP_RING_GAP, THEME_CHIP_TICK,
-    TOUCH, alpha_of, shape_full,
+    APPEARANCE_LABEL_GAP, APPEARANCE_ROW_GAP, BODY_L, BODY_M, FILTER_CHIP_GAP, FILTER_CHIP_H,
+    FILTER_CHIP_ICON, FILTER_CHIP_LEAD, FILTER_CHIP_TRAIL, GAP, LABEL_L, SEGMENTED_H, SHAPE_S,
+    STATE_HOVER, STATE_PRESS, SWITCH_EDGE, SWITCH_H, SWITCH_HANDLE_OFF, SWITCH_HANDLE_ON,
+    SWITCH_HANDLE_PRESSED, SWITCH_STATE, SWITCH_W, THEME_CHIP_DOT, THEME_CHIP_RING,
+    THEME_CHIP_RING_GAP, THEME_CHIP_TICK, TOUCH, alpha_of, shape_full,
 };
 use faraday_draw::widgets::Icon;
 use faraday_strings::EN;
@@ -24,10 +24,10 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
         let mut w = FILTER_CHIP_LEAD
             + FILTER_CHIP_ICON
             + GAP
-            + self.measure(LABEL, W::S, name.name())
+            + self.measure_as(LABEL_L, name.name())
             + FILTER_CHIP_TRAIL;
         if name == ThemeName::default() {
-            w += GAP + self.measure(LABEL, W::R, EN.ui_default_theme);
+            w += GAP + self.measure_as(LABEL_L.regular(), EN.ui_default_theme);
         }
         w
     }
@@ -66,17 +66,10 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
             self.dot(cx, cy, THEME_CHIP_DOT, own.role(Role::Primary));
         }
         let lx = x + FILTER_CHIP_LEAD + FILTER_CHIP_ICON + GAP;
-        let lw = self.text_mid(lx, y, h, LABEL, W::S, content, name.name());
+        let lw = self.text_mid_as((lx, y, h), LABEL_L, content, name.name());
         if name == ThemeName::default() {
-            self.text_mid(
-                lx + lw + GAP,
-                y,
-                h,
-                LABEL,
-                W::R,
-                content,
-                EN.ui_default_theme,
-            );
+            let at = (lx + lw + GAP, y, h);
+            self.text_mid_as(at, LABEL_L.regular(), content, EN.ui_default_theme);
         }
         self.focus_ring((x, y, w, h, SHAPE_S), action);
         self.hit_drawn(x, y, w, h, action);
@@ -125,7 +118,7 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
     pub fn appearance_h(&self, w: f32, label_w: Option<f32>) -> f32 {
         let (cw, head) = match label_w {
             Some(lw) => (w - lw, 0.0),
-            None => (w, self.line(LABEL, W::R) + APPEARANCE_LABEL_GAP),
+            None => (w, self.line_as(BODY_M) + APPEARANCE_LABEL_GAP),
         };
         let mut chips = FILTER_CHIP_H;
         let mut cx = 0.0;
@@ -141,8 +134,8 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
         let levels = Contrast::ALL.map(Contrast::name);
         let rows = [
             chips,
-            self.choices_h(cw, SEGMENTED_H, LABEL, &modes),
-            self.choices_h(cw, SEGMENTED_H, LABEL, &levels),
+            self.choices_h(cw, SEGMENTED_H, LABEL_L.size, &modes),
+            self.choices_h(cw, SEGMENTED_H, LABEL_L.size, &levels),
         ];
         rows.iter().map(|r| r + head).sum::<f32>() + 2.0 * APPEARANCE_ROW_GAP
     }
@@ -178,25 +171,25 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
                 Some(lw) => {
                     // The label level with the control's first line.
                     let line = if i == 0 { FILTER_CHIP_H } else { SEGMENTED_H };
-                    self.text_mid(x, at, line, LABEL, W::R, Role::OnSurfaceVariant, label);
+                    self.text_mid_as((x, at, line), BODY_M, Role::OnSurfaceVariant, label);
                     (x + lw, w - lw, at)
                 }
                 None => {
-                    self.text(x, at, LABEL, W::R, Role::OnSurfaceVariant, label);
-                    (x, w, at + self.line(LABEL, W::R) + APPEARANCE_LABEL_GAP)
+                    self.text_as(x, at, BODY_M, Role::OnSurfaceVariant, label);
+                    (x, w, at + self.line_as(BODY_M) + APPEARANCE_LABEL_GAP)
                 }
             };
             let used = match i {
                 0 => self.theme_chips((cx, top, cw), current, &action),
                 1 => self.choices(
                     (cx, top, cw, SEGMENTED_H),
-                    LABEL,
+                    LABEL_L.size,
                     &modes,
                     Some(current.mode as usize),
                 ),
                 _ => self.choices(
                     (cx, top, cw, SEGMENTED_H),
-                    LABEL,
+                    LABEL_L.size,
                     &levels,
                     Some(current.contrast as usize),
                 ),
@@ -280,8 +273,8 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
         action: A,
     ) -> f32 {
         let room = w - SWITCH_W - GAP;
-        let shown = self.fit(LABEL, W::R, label, room);
-        self.text_mid(x, y, TOUCH, LABEL, W::R, Role::OnSurface, &shown);
+        let shown = self.fit_as(BODY_L, label, room);
+        self.text_mid_as((x, y, TOUCH), BODY_L, Role::OnSurface, &shown);
         self.switch(x + w - SWITCH_W, y + (TOUCH - SWITCH_H) / 2.0, on, action);
         TOUCH
     }

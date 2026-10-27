@@ -5,7 +5,8 @@
 use faraday_draw::widgets::Icon;
 
 use crate::pal::*;
-use crate::{Style, Ui, W};
+use crate::{Style, Ui};
+use faraday_draw::tokens::{BODY_M, BODY_S, BUTTON_H, BUTTON_PAD, GAP, GAP_SMALL, LABEL_L, PAD};
 
 /// What a sheet holds: drawn at (x, y) in a width, it returns the height
 /// it took.
@@ -15,7 +16,7 @@ pub type Body<'b, A> = dyn for<'r, 'u> FnMut(&'r mut Ui<'u, A>, f32, f32, f32) -
 /// what `body` draws (measured first, drawing nothing), centred. `body`
 /// draws at (x, y) in a width and returns the height it took.
 pub fn sheet<A: Copy + PartialEq>(ui: &mut Ui<A>, w: f32, h: f32, body: &mut Body<'_, A>) {
-    scroll_sheet(ui, (8.0, w - 16.0), h, 8.0, 16.0, body);
+    scroll_sheet(ui, (GAP, w - 2.0 * GAP), h, GAP, PAD, body);
 }
 
 /// A sheet `sw` wide at `sx`, as tall as what `body` draws and at most
@@ -138,13 +139,13 @@ pub fn side_sheet<A: Copy + PartialEq>(
     close: (&str, A),
     body: &mut Body<'_, A>,
 ) {
-    use faraday_draw::tokens::{BUTTON_H, GAP, SIDE_SHEET_PAD as PAD, TOUCH};
+    use faraday_draw::tokens::{SIDE_SHEET_PAD as PAD, TOUCH};
     let sx = right - w * shown.clamp(0.0, 1.0);
     let (ix, iw) = (sx + PAD, w - 2.0 * PAD);
     ui.fill(sx, top, w, h, 0.0, Role::Surface);
     ui.fill(sx, top, 1.0, h, 0.0, Role::OutlineVariant);
     // The header: the title, and Close at its end in a touch target.
-    let close_w = ui.measure(BUTTON_LABEL, W::S, close.0) + 2.0 * PAD;
+    let close_w = ui.measure_as(LABEL_L, close.0) + 2.0 * PAD;
     let th = sheet_head(
         ui,
         ix,
@@ -166,10 +167,6 @@ pub fn side_sheet<A: Copy + PartialEq>(
     let body_top = top + PAD + th.max(TOUCH - PAD / 2.0);
     side_body(ui, (sx, body_top, w, top + h - body_top), body);
 }
-
-/// The label size of a button [`BUTTON_H`](faraday_draw::tokens::BUTTON_H)
-/// tall, as [`Ui::button`] draws it.
-const BUTTON_LABEL: f32 = faraday_draw::tokens::LABEL;
 
 /// A side sheet's body ([`side_sheet`]) in the box (x, y, w, h): what
 /// `body` draws, scrolled where it is taller than the box, and its
@@ -256,7 +253,7 @@ pub fn dialog_in<A: Copy + PartialEq>(
     body: &mut Body<'_, A>,
     actions: &[(&str, Style, A)],
 ) {
-    use faraday_draw::tokens::{DIALOG_MAX, DIALOG_MIN, DIALOG_PAD, GAP, PAD};
+    use faraday_draw::tokens::{DIALOG_MAX, DIALOG_MIN, DIALOG_PAD};
     let (place, frame, end) = if ui.compact {
         ((x0 + GAP, w - 2.0 * GAP), (h, GAP, PAD), false)
     } else {
@@ -293,10 +290,10 @@ fn end_buttons<A: Copy + PartialEq>(
     if items.is_empty() {
         return 0.0;
     }
-    let h = 46.0;
+    let h = BUTTON_H;
     let widths: Vec<f32> = items
         .iter()
-        .map(|(l, ..)| ui.measure(15.0, W::S, l) + 32.0)
+        .map(|(l, ..)| ui.measure_as(LABEL_L, l) + 2.0 * BUTTON_PAD)
         .collect();
     let total = widths.iter().sum::<f32>() + G * (items.len() - 1) as f32;
     if total > w {
@@ -310,8 +307,9 @@ fn end_buttons<A: Copy + PartialEq>(
     h
 }
 
-/// A sheet's title: its icon, and the words wrapped beside it. Returns
-/// its height.
+/// A sheet's title: its icon, and the words wrapped beside it in
+/// Material's headline small, title large on the small panel
+/// ([`faraday_draw::tokens::sheet_head`]). Returns its height.
 pub fn sheet_head<A: Copy + PartialEq>(
     ui: &mut Ui<A>,
     x: f32,
@@ -321,11 +319,15 @@ pub fn sheet_head<A: Copy + PartialEq>(
     tone: impl Into<Paint>,
     title: &str,
 ) -> f32 {
+    use faraday_draw::tokens::{ICON, ICON_GLYPH_SMALL};
     let tone: Paint = tone.into();
-    let glyph = faraday_draw::tokens::ICON_GLYPH_SMALL;
-    ui.icon(x - 4.0, y - 3.0, 28.0, icon, glyph, tone);
-    let th = ui.wrap(x + 28.0, y, w - 28.0, 17.0, W::S, Role::OnSurface, title);
-    th.max(22.0) + 10.0
+    let role = faraday_draw::tokens::sheet_head(ui.compact);
+    let line = ui.line_as(role);
+    let iy = y + (ui.line(role.size, role.face.into()) - ICON) / 2.0;
+    ui.icon(x - GAP_SMALL, iy, ICON, icon, ICON_GLYPH_SMALL, tone);
+    let at = (x + ICON, y, w - ICON);
+    let th = ui.wrap_as(at, role, Role::OnSurface, title);
+    th.max(line) + GAP
 }
 
 /// A label over its value, the value wrapped. Returns its height.
@@ -339,10 +341,11 @@ pub fn kv<A: Copy + PartialEq>(
     tone: impl Into<Paint>,
 ) -> f32 {
     let tone: Paint = tone.into();
-    ui.text(x, y, 12.0, W::R, Role::OnSurfaceVariant, key);
-    let vh = ui.wrap(x, y + 18.0, w, 14.0, W::R, tone, value);
-    ui.rule(x, y + 24.0 + vh, w, Role::OutlineVariant);
-    vh + 32.0
+    ui.text_as(x, y, BODY_S, Role::OnSurfaceVariant, key);
+    let vy = ui.line_as(BODY_S) + GAP_SMALL;
+    let vh = ui.wrap_as((x, y + vy, w), BODY_M, tone, value);
+    ui.rule(x, y + vy + vh + GAP_SMALL, w, Role::OutlineVariant);
+    vy + vh + GAP_SMALL + GAP
 }
 
 /// A row of buttons: side by side when every label fits its share, one
@@ -368,28 +371,30 @@ pub fn buttons<A: Copy + PartialEq>(
         return 0.0;
     }
     let n = items.len() as f32;
-    let share = (w - (n - 1.0) * 8.0) / n;
+    let share = (w - (n - 1.0) * GAP) / n;
     let fits = items
         .iter()
-        .all(|(l, ..)| ui.measure(15.0, W::S, l) + 24.0 <= share);
+        .all(|(l, ..)| ui.measure_as(LABEL_L, l) + BUTTON_PAD <= share);
     if fits {
         for (i, &(label, style, action)) in items.iter().enumerate() {
+            let bx = x + i as f32 * (share + GAP);
+            ui.button(bx, y, Some(share), BUTTON_H, label, style, action);
+        }
+        BUTTON_H
+    } else {
+        let step = BUTTON_H + GAP;
+        for (i, &(label, style, action)) in items.iter().enumerate() {
             ui.button(
-                x + i as f32 * (share + 8.0),
-                y,
-                Some(share),
-                46.0,
+                x,
+                y + i as f32 * step,
+                Some(w),
+                BUTTON_H,
                 label,
                 style,
                 action,
             );
         }
-        46.0
-    } else {
-        for (i, &(label, style, action)) in items.iter().enumerate() {
-            ui.button(x, y + i as f32 * 54.0, Some(w), 46.0, label, style, action);
-        }
-        n * 54.0 - 8.0
+        n * step - GAP
     }
 }
 
@@ -413,7 +418,7 @@ pub fn kv_sheet<A: Copy + PartialEq>(
         &mut |ui, x, y, iw| {
             let mut cy = y;
             if !sub.is_empty() {
-                cy += ui.wrap(x, cy, iw, 13.0, W::R, Role::OnSurfaceVariant, sub) + 12.0;
+                cy += ui.wrap_as((x, cy, iw), BODY_M, Role::OnSurfaceVariant, sub) + PAD;
             }
             for (k, v, tone) in rows {
                 cy += kv(ui, x, cy, iw, k, v, *tone);
