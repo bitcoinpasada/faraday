@@ -117,7 +117,7 @@ pub fn policy_network(policy: &WalletPolicy, current: Network) -> Option<Network
 
 /// Costs a parse of the description and its keys, and for some forms an
 /// address derivation to check the first address they state: reads a
-/// wallet from text, a descriptor, a BIP-388 policy, a threshold record,
+/// wallet from text, a descriptor, a BIP-388 policy, a silent payments record,
 /// or another wallet's file (module doc). Comment lines (`#`) and blank
 /// lines are skipped.
 ///
@@ -127,11 +127,8 @@ pub fn policy_network(policy: &WalletPolicy, current: Network) -> Option<Network
 /// same wallet, with the same descriptor and checksum, as the one made
 /// here.
 pub fn read_wallet(c: &Compute, text: &str) -> Result<WalletPolicy, Refusal> {
-    // A threshold record and a silent payments record are read whole:
-    // their lines are their fields.
-    if faraday_bip::threshold::ThresholdRecord::looks_like_record(text)
-        || faraday_bip::silent_wallet::SilentWallet::looks_like_record(text)
-    {
+    // A silent payments record is read whole: its lines are its fields.
+    if faraday_bip::silent_wallet::SilentWallet::looks_like_record(text) {
         return WalletPolicy::parse_any(c, text).map_err(|e| Refusal::NotAWallet(e.to_string()));
     }
     if faraday_bip::coldcard::looks_like_export(text) {

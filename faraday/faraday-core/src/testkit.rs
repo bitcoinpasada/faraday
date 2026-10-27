@@ -621,27 +621,6 @@ pub fn files() -> Result<Vec<(String, Vec<u8>)>, String> {
     for (fp, p) in partials {
         out.push((format!("musig-partial-{fp}.psbt"), p.to_bytes()));
     }
-    // FROST: the group record, the spend, and the carry file test key 1
-    // leaves for test key 2. Compiled out of the app (F109).
-    #[cfg(feature = "unreleased")]
-    {
-        out.push((
-            "threshold-wallet.txt".to_string(),
-            format!(
-                "# Threshold: FROST 2 of 3, shares 1 and 2 are test keys 1 and 2\n{}\n",
-                threshold_record()?.to_text()
-            )
-            .into_bytes(),
-        ));
-        out.push((
-            "threshold-unsigned.psbt".to_string(),
-            threshold_unsigned()?.to_bytes(),
-        ));
-        out.push((
-            "threshold-partly-signed.osk".to_string(),
-            threshold_carry()?,
-        ));
-    }
     out.push(("vault.ofv".to_string(), test_vault()?));
     out.push((
         "vault-entries.txt".to_string(),
@@ -1054,79 +1033,6 @@ pub fn musig_rounds() -> Result<(Psbt, Vec<(String, Psbt)>, Vec<(String, Psbt)>)
     Ok((unsigned, nonce_files, partial_files))
 }
 
-/// The FROST test wallet: 2 of 3, dealt here from test keys 1 and 2's
-/// words as shares 1 and 2; share 3 is
-/// computed. Its record is public and is the wallet's file.
-#[cfg(feature = "unreleased")]
-pub fn threshold_record() -> Result<faraday_bip::threshold::ThresholdRecord, String> {
-    let c = compute();
-    let words: Vec<String> = TEST_SEEDS
-        .iter()
-        .take(2)
-        .map(|(word, _)| test_words(word))
-        .collect();
-    let mut keys = faraday_keys::Keys::on(net());
-    for (i, w) in words.iter().enumerate() {
-        keys.add_words(&c, w, &format!("dealer {i}"), None)
-            .map_err(|e| format!("{e:?}"))?;
-    }
-    let dealt = keys.deal(&c, &[0, 1], 3, 2).map_err(|e| format!("{e:?}"))?;
-    faraday_bip::threshold::ThresholdRecord::parse(&c, &dealt.record).map_err(|e| format!("{e:?}"))
-}
-
-/// The FROST test wallet as a kit, for its spend.
-#[cfg(feature = "unreleased")]
-fn threshold_kit() -> Result<Kit, String> {
-    Ok(Kit {
-        id: "threshold",
-        name: "Threshold",
-        descriptor: threshold_record()?.to_text(),
-        cosigner: None,
-        fee: 1540,
-    })
-}
-
-/// The FROST wallet's unsigned spend.
-#[cfg(feature = "unreleased")]
-pub fn threshold_unsigned() -> Result<Psbt, String> {
-    unsigned(&threshold_kit()?)
-}
-
-/// The first location's pass on the FROST spend: test key 1 signs as
-/// share 1 and chooses share 2; the carry file it leaves for share 2.
-#[cfg(feature = "unreleased")]
-pub fn threshold_carry() -> Result<Vec<u8>, String> {
-    let c = compute();
-    let mut session = session();
-    session
-        .keys
-        .add_words(&c, &test_words(TEST_SEEDS[0].0), TEST_SEEDS[0].1, None)
-        .map_err(|e| e.text())?;
-    session
-        .add_wallet(
-            &c,
-            "Threshold",
-            &threshold_record()?.to_text(),
-            "Test wallet",
-            crate::wallet::Origin::Named,
-        )
-        .map_err(|e| e.text())?;
-    let mut psbt = threshold_unsigned()?;
-    let signed = session.sign_with(
-        &c,
-        &mut psbt,
-        &faraday_crypto::Zeroizing::new([5; 32]),
-        &mut None,
-        &[1],
-        None,
-        None,
-    )?;
-    let section = signed
-        .carry
-        .ok_or("the first location left no carry section")?;
-    Ok(faraday_keys::carry::bytes(&section, &psbt.to_bytes()).to_vec())
-}
-
 /// The backup test stick's vault passphrase.
 pub const BACKUP_VAULT_PASSPHRASE: &str = "a";
 
@@ -1240,8 +1146,6 @@ pub fn test_vault() -> Result<Vec<u8>, String> {
         "MuSig2".to_string(),
         musig_policy()?.to_descriptor_checksummed(),
     ));
-    #[cfg(feature = "unreleased")]
-    wallets.push(("Threshold".to_string(), threshold_record()?.to_text()));
     let mut main = Contents {
         records: vec![
             Record::new(kind::SLOT_LABEL).with(field::LABEL, b"Test vault"),

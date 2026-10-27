@@ -17,7 +17,6 @@ mod nonce;
 mod sign;
 mod silent;
 mod tapmulti;
-mod threshold;
 mod transaction;
 mod vectors;
 mod verify;

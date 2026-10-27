@@ -5,8 +5,8 @@
 //! ([`WorkSet::push`]); the rows of each initial share's checksum
 //! worksheet, the checksums, the derived shares, the secret and the seed
 //! are computed here and kept in step with the characters at every
-//! change, so drawing reads them and computes nothing. Like a FROST
-//! share or a BIP-85 child it is a new secret held inside this crate: it
+//! change, so drawing reads them and computes nothing. Like a BIP-85
+//! child it is a new secret held inside this crate: it
 //! leaves only as a paper form (`Reveal::PaperForm`), or as a key through
 //! [`Keys::add_codex32`], and everything it holds is wiped when it is
 //! dropped.

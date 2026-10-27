@@ -79,7 +79,7 @@ const MULTIPATH: &str = "<0;1>";
 /// `into_single_descriptors` splits it, each with its own checksum. The
 /// origins are kept as the wallet writes them, so a wallet read from
 /// Core's own `listdescriptors` gives back Core's own two strings.
-/// `None` for MuSig2, FROST and silent payments wallets, whose
+/// `None` for MuSig2 and silent payments wallets, whose
 /// descriptors Core before 29 does not read, and any descriptor without
 /// `<0;1>`. Costs two checksums over the descriptor.
 pub fn pair_descriptors(policy: &WalletPolicy) -> Option<[String; 2]> {
@@ -100,14 +100,9 @@ pub fn pair_descriptors(policy: &WalletPolicy) -> Option<[String; 2]> {
 }
 
 /// Whether [`import_descriptors_pair`] writes a file for the wallet: any
-/// but a MuSig2, FROST or silent payments wallet.
+/// but a MuSig2 or silent payments wallet.
 pub fn writes_pair(policy: &WalletPolicy) -> bool {
-    policy.silent().is_none()
-        && policy.record().is_none()
-        && !matches!(
-            policy.template(),
-            Template::MuSig | Template::Threshold { .. } | Template::Silent
-        )
+    policy.silent().is_none() && !matches!(policy.template(), Template::MuSig | Template::Silent)
 }
 
 /// The `importdescriptors` argument for Core before 29, as a file: two

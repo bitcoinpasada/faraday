@@ -3,8 +3,7 @@
 
 /// The struct of every string and the English static, from one list:
 /// each key's doc, then its value, so the two are read together. A key
-/// whose doc is followed by `#[cfg(…)]` is in that build only: the strings
-/// of what is compiled out of the app (the `unreleased` feature, F109).
+/// whose doc is followed by `#[cfg(…)]` is in that build only.
 macro_rules! strings {
     ($( $(#[doc = $doc:expr])* $(#[cfg($cfg:meta)])? $name:ident: $value:expr, )*) => {
         /// Every string Faraday shows, grouped by screen.
@@ -1126,12 +1125,6 @@ strings! {
     /// Text in `TILES`.
     catalog_all_keys_one: "All keys, one signature on chain",
     /// Text in `TILES`.
-    #[cfg(feature = "unreleased")]
-    catalog_frost_threshold: "FROST threshold",
-    /// Text in `TILES`.
-    #[cfg(feature = "unreleased")]
-    catalog_any_m_of_n: "Any m of n shares, one signature on chain",
-    /// Text in `TILES`.
     catalog_miniscript_inheritance: "Miniscript and inheritance",
     /// Text in `TILES`.
     catalog_miniscript_line: "Load one from its descriptor",
@@ -1520,8 +1513,6 @@ strings! {
     /// Text in `name`.
     create_multisig_taproot: "Multisig · Taproot",
     /// Text in `name`.
-    create_threshold_frost: "Threshold · FROST",
-    /// Text in `name`.
     create_all_keys_musig2: "All keys · MuSig2",
     /// Text in `line`.
     create_bc1q_addresses: "bc1q addresses; what most wallets make",
@@ -1540,11 +1531,7 @@ strings! {
     /// Text in `line`.
     create_multisig_taproot_line: "Multisig on Taproot, one script leaf; Sparrow and Nunchuk",
     /// Text in `line`.
-    create_any_m_of_n_shares: "Any m of n shares sign one Taproot key; single-key on chain",
-    /// Text in `line`.
     create_every_key_signs: "Every key signs together, one Taproot key; single-key on chain",
-    /// Error in `spec`.
-    create_a_share_has: "A share has no account xpub",
     /// Text in `path_spec`. `{}`: `path`.
     create_not_a_derivation: "Not a derivation path: {}",
     // ----- decode (faraday-core/src/decode.rs) -----
@@ -2705,15 +2692,6 @@ strings! {
     guide_musig2_signs: "Every key adds a one-time nonce before anyone signs. Add the others' copies with their nonces, or go first and share this device's. Keep this session unlocked until the signatures return: locking forgets the nonce.",
     /// Text in `spend`.
     guide_this_wallet_can: "Each path lists the keys it needs and how long it waits. The line under it says whether this transaction's sequence allows that path; only the network knows whether the coins are old enough.",
-    /// Text in `spend`. `{}`: `needed`, `if needed == 2 { EN.guide_one_other.t…`.
-    #[cfg(feature = "unreleased")]
-    guide_any_of_these: "Any {} shares sign, one after another, each at its own place. Pick {} to follow this one; after that no other share can join.",
-    /// Text in `spend`.
-    #[cfg(feature = "unreleased")]
-    guide_one_other: "one other",
-    /// Text in `spend`. `{}`: `needed - 1`.
-    #[cfg(feature = "unreleased")]
-    guide_others: "{} others",
     /// Text in `spend`.
     guide_this_wallet_has: "Each key below can sign. Which keys are enough depends on the path this transaction takes; some paths wait for a timelock.",
     /// Text in `spend`. `{}`: `needed`, `if needed == 1 { EN.guide_of_these } …`.
@@ -2726,9 +2704,6 @@ strings! {
     guide_signed_each_signature: "Signed. Each signature was checked against its key before it was kept.",
     /// Text in `spend`, Signers, with no wallet loaded.
     guide_keys_signs_here: "Keys marked Signs here are loaded on this device. The others sign the same PSBT elsewhere.",
-    /// Text in `spend`. `{}`: `m.noun()`.
-    #[cfg(feature = "unreleased")]
-    guide_spend_share_nonce: "Signing adds this share's part and writes a carry file for the next share. The carry file is secret until that share signs: keep the {} with you and sign the same day.",
     /// Text in `spend`.
     guide_spend_round_two: "Round two: this device adds its partial signature over everyone's nonces. The others do the same on their copies; when theirs come back, Faraday combines all of them into one signature.",
     /// Text in `spend`. `{}`: `needed`, `if needed == 1 { EN.guide_signature }…`.
@@ -2743,9 +2718,6 @@ strings! {
     guide_get_the_other: "Each cosigner signs the same PSBT on their own device. Hand it over as a QR code or on {}; scan or copy in each signed copy that comes back. A copy of another transaction is refused.",
     /// Text in `spend`.
     guide_there_are_two: "There are two results. The signed PSBT goes back to the wallet that made the transaction, which can broadcast it. The finished transaction can be broadcast as it is, from any node you trust. Either one is enough.",
-    /// Text in `spend`. `{}`: `m.a()`.
-    #[cfg(feature = "unreleased")]
-    guide_keep_the_carry: "Keep the carry file in the vault, or write it to {}. At the next share's place, copy it into Faraday with that share loaded, open it from Files and sign. The share that signs last gets the finished transaction.",
     /// Text in `spend`.
     guide_the_transaction: "The transaction is finished when enough keys have signed. Until then it cannot be broadcast.",
     /// Text in `backup`.
@@ -2786,12 +2758,6 @@ strings! {
     guide_message_formats: "Use the format the other side asked for. A format this address cannot use is greyed out.",
     /// Text in `message`.
     guide_signing_moves: "Signing moves no money and spends nothing. The result is three lines: the address, the signature and the message. Carry it out as a file or show it as a QR code.",
-    /// Text in `create`. `{}`: `m`, `keys`.
-    #[cfg(feature = "unreleased")]
-    guide_any_of_shares: "Any {} of {} shares sign; on the chain the wallet is one Taproot key. Keep the shares in different places, or the threshold protects nothing. Up to five shares are dealt.",
-    /// Text in `create`. `{}`: `m`, `keys - m`.
-    #[cfg(feature = "unreleased")]
-    guide_choose_loaded: "Choose {} loaded keys of 24 words as the first shares. Their words become shares as they are, so a person who already keeps one of these seeds keeps only that. The deal computes the other {} from them.",
     /// Text in `create`.
     guide_create_kinds: "Choose how the wallet locks its coins. One key is simplest; a multisig needs several keys, so one lost or stolen key does not lose the money. Pick a kind your other software supports.",
     /// Text in `create`. `{}`: `m`, `keys`, `m`.
@@ -3326,9 +3292,6 @@ strings! {
     /// Text in `stick_kind`.
     stick_kind_efi_image: "EFI image",
     /// Text in `stick_kind`.
-    #[cfg(feature = "unreleased")]
-    stick_kind_threshold: "Threshold spend, part-signed",
-    /// Text in `stick_kind`.
     stick_kind_qr_codes: "QR codes in a PNG",
     /// Text in `stick_kind`.
     stick_kind_file: "File",
@@ -3451,9 +3414,6 @@ strings! {
     visit_then_then_home: "Then: Home",
     // ----- start_spend (faraday-core/src/lib.rs) -----
     /// Toast in `start_spend`.
-    #[cfg(feature = "unreleased")]
-    start_spend_the_carry: "The carry file holds no PSBT",
-    /// Toast in `start_spend`.
     start_spend_not_a_psbt: "Not a PSBT",
     // ----- session_stage (faraday-core/src/lib.rs) -----
     /// Text in `session_stage`.
@@ -3501,12 +3461,6 @@ strings! {
     act_signed_psbt: "Signed PSBT",
     /// Text in `act`.
     act_psbt_for_the_next: "PSBT for the next signer",
-    /// Text in `act`.
-    #[cfg(feature = "unreleased")]
-    act_the_secret_nonce: "The secret nonce the next share signs this transaction with",
-    /// Text in `act`.
-    #[cfg(feature = "unreleased")]
-    act_nonce_warning: "Whoever has it and a share's signature can work out that share",
     // ----- backup_kept (faraday-core/src/lib.rs) -----
     /// Text in `backup_kept`.
     backup_kept_not_checked: "Not checked: no vault unlocked",
@@ -3528,11 +3482,7 @@ strings! {
     backup_kept_file_unprotected: "File {}, unprotected",
     /// Text in `backup_kept`.
     backup_kept_not_here: "Not here: backed up on its own device",
-    /// Text in `backup_kept`. `{}`: `id + 1`.
-    backup_kept_share: "Share {}",
     // ----- backup_seed_list_of (faraday-core/src/lib.rs) -----
-    /// Text in `backup_seed_list_of`. `{}`: `id + 1`.
-    backup_seed_list_of_share: "Share {}",
     // ----- place_name (faraday-core/src/lib.rs) -----
     /// Text in `place_name`. `{}`: `p + 1`.
     place_name_place: "Place {}",
@@ -3721,8 +3671,6 @@ strings! {
     /// Toast in `code_png`. `{}`: `v.title`.
     code_png_is_more_than: "{} is more than one code",
     // ----- code_view (faraday-core/src/lib.rs) -----
-    /// Text in `code_view`. `{}`: `w.name`.
-    code_view_threshold: "{} · threshold record",
     /// Text in `code_view`. `{}`: `sum`.
     code_view_descriptor: "Descriptor checksum {}",
     /// Text in `code_view`. `{}`: `w.name`.
@@ -3803,9 +3751,6 @@ strings! {
     /// Text in `visit_inbox`.
     visit_inbox_vault_warning: "Whoever has it reads every password and code in it",
     /// Text in `visit_inbox`.
-    #[cfg(feature = "unreleased")]
-    visit_inbox_whoever_has: "Whoever has it and a share's signature can work out that share",
-    /// Text in `visit_inbox`.
     visit_inbox_whoever: "Whoever has it reads it",
     // ----- sign_here (faraday-core/src/lib.rs) -----
     /// Text in `sign_here`. `{}`: `waiting.join(", ")`.
@@ -3814,15 +3759,6 @@ strings! {
     sign_here_no_randomness: "No randomness from the system yet. Try again",
     /// Text in `sign_here`.
     sign_here_this_transaction: "This transaction was signed here before with other amounts for its inputs. It is refused.",
-    /// Text in `sign_here`. `{}`: `want`, `if want == 1 { EN.sign_here_share } e…`.
-    #[cfg(feature = "unreleased")]
-    sign_here_choose_other: "Choose {} other {} under Signers",
-    /// Text in `sign_here`.
-    #[cfg(feature = "unreleased")]
-    sign_here_share: "share",
-    /// Text in `sign_here`.
-    #[cfg(feature = "unreleased")]
-    sign_here_shares: "shares",
     /// Toast in `sign_here`.
     sign_here_this_device: "This device's nonce is on the PSBT: carry it to the other signers",
     // ----- collect (faraday-core/src/lib.rs) -----
@@ -4715,35 +4651,14 @@ strings! {
     /// Text in `spend`.
     spend_sign_a_transaction: "Sign a transaction",
     // ----- spend_status (faraday-core/src/screens/spend.rs) -----
-    /// Text in `spend_status`. `{}`: `id + 1`.
-    #[cfg(feature = "unreleased")]
-    spend_status_share: "share {}",
-    /// Text in `spend_status`.
-    #[cfg(feature = "unreleased")]
-    spend_status_carry: "Carry file kept · the next share signs with it",
-    /// Text in `spend_status`.
-    #[cfg(feature = "unreleased")]
-    spend_status_the_next: "The next share signs with the carry file",
     /// Text in `spend_status`. `{}`: `app.medium.for_the()`.
     spend_status_both_wait: "Both wait {}",
     /// Text in `spend_status`.
     spend_status_complete: "Complete",
-    /// Text in `spend_status`. `{}`: `missing - 1`, `if missing == 2 { EN.spend_status_its…`.
-    #[cfg(feature = "unreleased")]
-    spend_status_sign_here_more: "Sign here · {} more at {} own place",
-    /// Text in `spend_status`.
-    #[cfg(feature = "unreleased")]
-    spend_status_its_one: "its",
-    /// Text in `spend_status`.
-    #[cfg(feature = "unreleased")]
-    spend_status_their: "their",
     /// Text in `spend_status`. `{}`: `missing - 1`.
     spend_status_sign_and_collect: "Sign here and collect {} more",
     /// Text in `spend_status`.
     spend_status_sign_here: "Sign here",
-    /// Text in `spend_status`.
-    #[cfg(feature = "unreleased")]
-    spend_status_keep_carry: "Keep the carry file",
     /// Text in `spend_status`. `{}`: `app.medium.a()`.
     spend_status_insert: "Insert {} to write it",
     /// Text in `spend_status`.
@@ -4831,30 +4746,6 @@ strings! {
     step_hide_the_table: "Hide the table",
     /// Text in `step_body`.
     step_show_the_table: "Show the table",
-    /// Text in `step_body`. `{}`: `k + 1`.
-    #[cfg(feature = "unreleased")]
-    step_share_n: "Share {}",
-    /// Text in `step_body`.
-    #[cfg(feature = "unreleased")]
-    step_signed: "Signed",
-    /// Text in `step_body`.
-    #[cfg(feature = "unreleased")]
-    step_signs_at_its_own: "Signs at its own place",
-    /// Text in `step_body`.
-    #[cfg(feature = "unreleased")]
-    step_not_signing: "Not signing",
-    /// Text in `step_body`.
-    #[cfg(feature = "unreleased")]
-    step_signs_next: "Signs next",
-    /// Text in `step_body`.
-    #[cfg(feature = "unreleased")]
-    step_choose: "Choose",
-    /// Text in `step_body`. `{}`: `needed`, `t.ours.len()`, `s.others.len()`.
-    #[cfg(feature = "unreleased")]
-    step_needs_here_chosen: "Needs {} · {} here · {} chosen",
-    /// Text in `step_body`. `{}`: `needed`, `t.signed.len()`.
-    #[cfg(feature = "unreleased")]
-    step_needs_signed: "Needs {} · {} signed",
     /// Text in `step_body`.
     step_load_from_vault: "Load from vault",
     /// Text in `step_body`.
@@ -4869,21 +4760,6 @@ strings! {
     step_collect_a_signature: "Collect a signature",
     /// Text in `step_body`. `{}`: `app.medium.noun()`.
     step_remove_the_first: "Remove the {} first",
-    /// Text in `step_body`.
-    #[cfg(feature = "unreleased")]
-    step_no_share_loaded: "No share of this wallet is loaded here",
-    /// Text in `step_body`. `{}`: `want`, `if want == 1 { EN.step_share_inline } else…`.
-    #[cfg(feature = "unreleased")]
-    step_choose_other_under: "Choose {} other {} under Signers",
-    /// Text in `step_body`.
-    #[cfg(feature = "unreleased")]
-    step_share_inline: "share",
-    /// Text in `step_body`.
-    #[cfg(feature = "unreleased")]
-    step_shares: "shares",
-    /// Text in `step_body`. `{}`: `names.join(", ")`.
-    #[cfg(feature = "unreleased")]
-    step_sign_as: "Sign as {}",
     /// Text in `step_body`. `{}`: `fps.join(", ")`.
     step_signed_keys: "Signed with {}",
     /// Line in `step_body`.
@@ -4909,24 +4785,6 @@ strings! {
     step_no_cosigner_s: "No cosigner's copy in Files",
     /// Text in `step_body`.
     step_scan_a_copy: "Scan a copy",
-    /// Text in `step_body`. `{}`: `id + 1`.
-    #[cfg(feature = "unreleased")]
-    step_share_n_inline: "share {}",
-    /// Line in `step_body`.
-    #[cfg(feature = "unreleased")]
-    step_carry_file: "Carry file",
-    /// Text in `step_body`. `{}`: `if next_ids.is_empty() { EN.step_the_…`.
-    #[cfg(feature = "unreleased")]
-    step_carry_holds_nonce: "For {} · holds its secret nonce until it signs",
-    /// Text in `step_body`.
-    #[cfg(feature = "unreleased")]
-    step_the_next_share: "the next share",
-    /// Text in `step_body`.
-    #[cfg(feature = "unreleased")]
-    step_kept: "Kept",
-    /// Text in `step_body`.
-    #[cfg(feature = "unreleased")]
-    step_keep_button: "Keep it",
     /// Text in `step_body`. `{}`: `missing`, `if s.signers.is_empty() { "" } else {…`, `if missing == 1 { EN.step_signature }…`.
     step_needs: "Needs {}{} {}",
     /// Text in `step_body`, after a space.
@@ -5624,9 +5482,6 @@ strings! {
     kind_name_seed_words: "Seed words",
     /// Text in `kind_name`.
     kind_name_split_share: "Share of a split backup",
-    /// Text in `kind_name`.
-    #[cfg(feature = "unreleased")]
-    kind_name_threshold: "Threshold spend, part-signed",
     /// Text in `kind_name`.
     kind_name_vault_locked: "Vault, locked",
     /// Text in `kind_name`.
@@ -6549,9 +6404,6 @@ strings! {
     secrets_a_wallet_s: "A wallet's seed",
     /// Toast in `secret_to_vault`.
     secrets_no_vault_open: "No vault is open",
-    /// Text in `secret_to_vault`. `{}`: `vault`, `r.psbt_name`, `self.medium.for_the()`.
-    #[cfg(feature = "unreleased")]
-    secrets_nonce_saved: "The nonce is in {}; {} waits {}",
     /// Toast in `secret_to_vault`. `{}`: `out.name`, `vault`.
     secrets_saved_to_vault: "{} is in {}",
     /// Text in `secret_unprotected`. `{}`: `name`, `self.medium.for_the()`.
@@ -8129,9 +7981,6 @@ strings! {
     /// Wallet row in Load samples.
     sample_musig: "MuSig2",
     /// Wallet row in Load samples.
-    #[cfg(feature = "unreleased")]
-    sample_frost: "FROST 2 of 3",
-    /// Wallet row in Load samples.
     sample_three_of_five: "3 of 5",
     /// What a Load samples row is: its kind and its script, or its form and its size. `{}`: the two parts.
     sample_type: "{} · {}",
@@ -8141,9 +7990,6 @@ strings! {
     sample_kind_multisig: "{}-of-{} multisig",
     /// Kind of a sample MuSig2 wallet. `{}`: keys.
     sample_kind_musig: "{}-key MuSig2",
-    /// Kind of a sample FROST wallet. `{}`: shares that sign, shares.
-    #[cfg(feature = "unreleased")]
-    sample_kind_frost: "{}-of-{} FROST",
     /// Kind of a sample wallet with a key and a second that spends after a delay.
     sample_kind_timelock: "timelock recovery",
     /// Script of a sample Taproot wallet with a tree of scripts.
@@ -8233,12 +8079,6 @@ strings! {
     wallet_keys_taproot: "{} keys · Taproot key and leaves",
     /// Text in `shape`. `{}`: `n`, `n`.
     wallet_of_musig2: "{} of {} · MuSig2",
-    /// Text in `shape`. `{}`: `m`, `n`.
-    #[cfg(feature = "unreleased")]
-    wallet_of_frost: "{} of {} · FROST",
-    /// Why a FROST threshold record is not read: FROST is compiled out of
-    /// the app (F109).
-    wallet_frost_not_read: "FROST threshold wallets are not in this version of Faraday",
     /// Text in `shape`.
     wallet_1_key_silent: "1 key · silent payments",
     /// Text in `shape`.

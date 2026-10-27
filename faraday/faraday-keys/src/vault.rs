@@ -1077,26 +1077,6 @@ impl OpenVaults {
         )
     }
 
-    // ---- rounds ----
-
-    /// The carry section the first unused round of any open vault bound to
-    /// transaction `tx` holds, when it reads. A round is kept across a
-    /// lock; its state is the secret nonces of a signing.
-    pub fn round_section(&self, tx: &[u8; 32]) -> Option<crate::carry::Section> {
-        for s in &self.slots {
-            for (_, r) in s.records.of(kind::ROUND) {
-                if r.field(field::ROUND_TX) == Some(&tx[..])
-                    && r.field(field::ROUND_USED).is_none()
-                    && let Some(state) = r.field(field::ROUND_STATE)
-                    && let Some(section) = crate::carry::section_of(state)
-                {
-                    return Some(section);
-                }
-            }
-        }
-        None
-    }
-
     // ---- GPG keys ----
 
     /// Costs Ed25519 signatures. The public certificate (packets) of GPG

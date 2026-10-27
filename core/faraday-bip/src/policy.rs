@@ -58,7 +58,6 @@ use crate::descriptor::descriptor_checksum;
 use crate::keys::{Fingerprint, Network, ScriptType};
 use crate::silent_wallet::SilentWallet;
 use crate::spend::SpendPath;
-use crate::threshold::ThresholdRecord;
 
 /// Why a policy or a descriptor could not be read as a wallet policy.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -77,15 +76,6 @@ pub enum Error {
     Threshold,
     /// The descriptor carries a `#checksum` that does not match.
     Checksum,
-    /// A threshold record's shares are not numbered 0, 1, … in order
-    /// with none missing.
-    Share,
-    /// A threshold record's shares are not one group: they do not lie on
-    /// one polynomial, or that polynomial does not give its group key.
-    Group,
-    /// A threshold record's descriptor is not the extended public key
-    /// its group key makes.
-    Xpub,
     /// An address index is 2³¹ or larger.
     IndexOutOfRange,
 }
@@ -99,9 +89,6 @@ impl fmt::Display for Error {
             Error::Derivation => "derivation must be /** or /<0;1>/*",
             Error::Threshold => "threshold must be between 1 and the number of keys",
             Error::Checksum => "descriptor checksum does not match",
-            Error::Share => "shares must be numbered 0, 1, \u{2026} with none missing",
-            Error::Group => "the shares do not give this group key",
-            Error::Xpub => "the extended public key is not the group key's",
             Error::IndexOutOfRange => "index must be below 2^31",
         })
     }
@@ -148,17 +135,6 @@ pub enum Template {
     /// participant, which is how BIP-388 and BIP-390 write a wallet of
     /// one aggregate key. Every participant signs.
     MuSig,
-    /// `tr(XPUB/<0;1>/*)` over the synthetic extended public key of a
-    /// FROST group key, which the wallet's record states along with the
-    /// public share of every participant.
-    /// Any `threshold` of `participants` shares sign, and the chain sees
-    /// one key and one signature.
-    Threshold {
-        /// Shares that sign.
-        threshold: usize,
-        /// Participants the group was dealt to.
-        participants: usize,
-    },
     /// A silent payments wallet (BIP-352): one scan key and one spend
     /// key derived from one of this device's keys, which pays to
     /// taproot outputs a sender computes and no descriptor lists. Its
@@ -267,11 +243,8 @@ pub struct WalletPolicy {
     /// `sortedmulti_a`. `None` for every other wallet, including the
     /// `multi_a` a descriptor states in that order.
     sorted_a: Option<usize>,
-    /// The group record, for [`Template::Threshold`] and no other
-    /// template, which is the text such a wallet is written as.
-    record: Option<ThresholdRecord>,
     /// The silent payments record, for [`Template::Silent`] and no
-    /// other template, which is likewise the text it is written as.
+    /// other template, which is the text such a wallet is written as.
     silent: Option<SilentWallet>,
     /// The BIP-380 checksum of [`to_descriptor`](Self::to_descriptor),
     /// worked out once when the policy is made. A function of the fields
@@ -339,7 +312,6 @@ impl WalletPolicy {
             keys,
             script: None,
             sorted_a: None,
-            record: None,
             silent: None,
             checksum: [0; 8],
         }
@@ -382,7 +354,6 @@ impl WalletPolicy {
             keys,
             script: None,
             sorted_a: None,
-            record: None,
             silent: None,
             checksum: [0; 8],
         }
@@ -390,13 +361,10 @@ impl WalletPolicy {
     }
 
     /// Costs a parse of the text and its keys: reads any of the three
-    /// forms, a threshold wallet's record, the two-part policy, or a
-    /// plain descriptor.
+    /// forms, a silent payments record, the two-part policy, or a plain
+    /// descriptor.
     pub fn parse_any(c: &Compute, text: &str) -> Result<Self, Error> {
         c.count(Work::DescriptorParse);
-        if ThresholdRecord::looks_like_record(text) {
-            return ThresholdRecord::read(text).map(Self::of_record);
-        }
         if SilentWallet::looks_like_record(text) {
             return SilentWallet::parse(text)
                 .map(Self::of_silent)
@@ -422,47 +390,10 @@ impl WalletPolicy {
             keys,
             script: None,
             sorted_a: None,
-            record: None,
             silent: None,
             checksum: [0; 8],
         }
         .sealed())
-    }
-
-    /// Costs a parse of the record and its descriptor: the threshold
-    /// wallet a group record states, one key, which is the group key's
-    /// synthetic extended public key, and the record itself as the
-    /// wallet's text.
-    pub fn from_record(c: &Compute, text: &str) -> Result<Self, Error> {
-        c.count(Work::DescriptorParse);
-        let record = ThresholdRecord::read(text)?;
-        Ok(Self::of_record(record))
-    }
-
-    /// The same, for a record already read.
-    pub fn of_record(record: ThresholdRecord) -> Self {
-        let template = Template::Threshold {
-            threshold: record.t(),
-            participants: record.n(),
-        };
-        WalletPolicy {
-            template,
-            keys: alloc::vec![PolicyKey {
-                origin: None,
-                xpub: record.xpub,
-            }],
-            script: None,
-            sorted_a: None,
-            record: Some(record),
-            silent: None,
-            checksum: [0; 8],
-        }
-        .sealed()
-    }
-
-    /// The group record, for a threshold wallet and for nothing else.
-    pub fn record(&self) -> Option<&ThresholdRecord> {
-        self.record.as_ref()
     }
 
     /// The silent payments wallet a record states: no key expression at
@@ -474,7 +405,6 @@ impl WalletPolicy {
             keys: Vec::new(),
             script: None,
             sorted_a: None,
-            record: None,
             silent: Some(silent),
             checksum: [0; 8],
         }
@@ -567,13 +497,8 @@ impl WalletPolicy {
     pub fn quorum(&self) -> Option<(usize, usize)> {
         match self.template {
             Template::Multi { threshold, .. } => Some((threshold, self.keys.len())),
-            // A threshold wallet has none either, and for the same
-            // reason: the output carries one key and one signature, and
-            // the `t` of `n` the template states is a fact about the
-            // shares, not about the script.
             Template::Single { .. }
             | Template::MuSig
-            | Template::Threshold { .. }
             | Template::Silent
             | Template::Miniscript { .. }
             | Template::Tree => None,
@@ -585,7 +510,7 @@ impl WalletPolicy {
     pub fn script_type(&self) -> ScriptType {
         match self.template {
             Template::Single { script } => script,
-            Template::MuSig | Template::Threshold { .. } | Template::Silent => ScriptType::Taproot,
+            Template::MuSig | Template::Silent => ScriptType::Taproot,
             Template::Multi { wrapper, .. } => match wrapper {
                 Wrapper::Sh => ScriptType::Legacy,
                 Wrapper::Wsh => ScriptType::NativeSegwit,
@@ -629,9 +554,6 @@ impl WalletPolicy {
     /// refusal would leave the caller with nothing to write down, and
     /// inventing an origin would state a fact the device does not have.
     pub fn to_text(&self) -> String {
-        if let Some(record) = &self.record {
-            return record.to_text();
-        }
         if let Some(silent) = &self.silent {
             return silent.to_text();
         }
@@ -811,11 +733,6 @@ impl WalletPolicy {
                 return Err(Error::Template);
             }
             Template::Single { script } => single_script(secp, script, keys[0])?,
-            // The group key pays where a single taproot key pays: the
-            // synthetic xpub derived at this chain and index, tweaked by
-            // BIP 341 with no tree, which is what `tr(XPUB/<0;1>/*)`
-            // stands for.
-            Template::Threshold { .. } => single_script(secp, ScriptType::Taproot, keys[0])?,
         })
     }
 
@@ -856,14 +773,6 @@ impl WalletPolicy {
     /// The key of this policy whose origin names `fingerprint`, if any.
     /// A key with no origin names no master and so matches nothing.
     pub fn key(&self, fingerprint: Fingerprint) -> Option<&PolicyKey> {
-        // A threshold wallet's one key descends from no master, so what
-        // names it is its own BIP-32 fingerprint, which is the wallet's.
-        if matches!(self.template, Template::Threshold { .. }) {
-            return self
-                .keys
-                .iter()
-                .find(|k| k.identifier_fingerprint() == fingerprint);
-        }
         self.keys
             .iter()
             .find(|k| k.fingerprint() == Some(fingerprint))
@@ -880,27 +789,9 @@ impl WalletPolicy {
     /// for every MuSig2 policy. What names the address in a transaction
     /// is BIP-373's participant-public-keys field, which the PSBT reader
     /// does not have yet.
-    ///
-    /// A threshold wallet does have one: the chain and the index are
-    /// steps of the group key's own synthetic extended public key, which
-    /// is the only key the descriptor names.
     pub fn leaf_of(&self, fingerprint: Fingerprint, path: &DerivationPath) -> Option<(bool, u32)> {
         if self.template == Template::MuSig {
             return None;
-        }
-        // A threshold wallet's key has no origin, so the whole path is
-        // the two steps below the synthetic xpub: that is what a
-        // coordinator holding `tr(XPUB/<0;1>/*)` writes for its keys.
-        if matches!(self.template, Template::Threshold { .. }) {
-            self.key(fingerprint)?;
-            let steps: Vec<ChildNumber> = path.into_iter().copied().collect();
-            return match steps[..] {
-                [
-                    ChildNumber::Normal { index: c @ (0 | 1) },
-                    ChildNumber::Normal { index },
-                ] => Some((c == 1, index)),
-                _ => None,
-            };
         }
         let key = self.key(fingerprint)?;
         let steps: Vec<ChildNumber> = path.into_iter().copied().collect();
@@ -1019,9 +910,6 @@ fn wrap(template: Template, args: &str) -> String {
         }
         Template::Silent => unreachable!("a silent payments wallet has no key expression"),
         Template::MuSig => alloc::format!("tr(musig({args}))"),
-        // The group key stands where a single key stands, because that
-        // is what the chain sees.
-        Template::Threshold { .. } => alloc::format!("tr({args})"),
         Template::Multi {
             threshold,
             sorted,
@@ -1121,7 +1009,6 @@ fn parse_miniscript(text: &str) -> Result<WalletPolicy, Error> {
         keys,
         script: Some(script),
         sorted_a,
-        record: None,
         silent: None,
         checksum: [0; 8],
     }
@@ -1272,19 +1159,14 @@ fn check(template: &Template, keys: &[PolicyKey]) -> Result<(), Error> {
         // single-key wallet is allowed without one, because that is the
         // wallet a bare extended public key makes and its addresses need
         // nothing else.
-        // A threshold wallet's one key is the group's synthetic
-        // extended public key, which descends from no master, so it has
-        // no origin to write either.
         // So is a taproot tree's internal key where no key of the wallet
         // can take the key path: the descriptor then writes a key
         // derived from the leaves so that anyone can see the key path is
         // unspendable, and it descends from no master. `tr()` writes the
         // internal key first, so it is the key at index zero and no
         // other.
-        let originless = matches!(
-            template,
-            Template::Single { .. } | Template::Threshold { .. }
-        ) || (matches!(template, Template::Tree) && i == 0);
+        let originless = matches!(template, Template::Single { .. })
+            || (matches!(template, Template::Tree) && i == 0);
         if key.origin.is_none() && !originless {
             return Err(Error::Key);
         }
@@ -1303,13 +1185,6 @@ fn check(template: &Template, keys: &[PolicyKey]) -> Result<(), Error> {
             }
         }
         Template::Single { .. } => {
-            if keys.len() != 1 {
-                return Err(Error::Placeholder);
-            }
-        }
-        // The record states the threshold and the participants, and
-        // [`ThresholdRecord::parse`] has checked them against the shares.
-        Template::Threshold { .. } => {
             if keys.len() != 1 {
                 return Err(Error::Placeholder);
             }
@@ -1605,23 +1480,6 @@ mod tests {
                 "{template} was accepted"
             );
         }
-    }
-
-    /// A group record is neither a BIP-388 policy nor a descriptor, and
-    /// the two readers that expect one of those refuse it. What reads it
-    /// is [`WalletPolicy::parse_any`], which
-    /// `core/faraday-bip/tests/all/threshold.rs` carries with the committed
-    /// fixture.
-    #[test]
-    fn a_threshold_record_is_not_a_policy_or_a_descriptor() {
-        let c = Compute::unchecked();
-        const RECORD: &str = "osk-threshold 1\nthreshold 2\ngroup 02\ntr(tpub)#aaaaaaaa";
-        assert!(WalletPolicy::parse(&c, RECORD).is_err());
-        assert!(WalletPolicy::from_descriptor(&c, RECORD).is_err());
-        assert!(
-            WalletPolicy::parse_any(&c, RECORD).is_err(),
-            "and it is no group"
-        );
     }
 
     /// A miniscript template whose key carries one chain is refused: a

@@ -4,8 +4,6 @@
 //! `faraday-psbt`'s; this module only decides which call comes next.
 
 use crate::modes::Mode;
-#[cfg(feature = "unreleased")]
-use crate::secrets;
 use crate::strings::EN;
 use crate::strings::fill;
 use crate::{Action, Faraday, Screen, Sheet, family, result_stem, wallet};
@@ -31,22 +29,9 @@ pub use faraday_keys::{WordsId, words_id};
 
 /// Costs a parse of the description and its keys: reads a wallet
 /// description with `faraday_intake`'s reader, which counts through the
-/// token. Every wallet the app takes in is read here. A FROST threshold
-/// record is refused unless the app is built with `unreleased`: FROST is
-/// compiled out of the app (F109).
+/// token. Every wallet the app takes in is read here.
 pub fn read_wallet(c: &Compute, text: &str) -> Result<WalletPolicy, Refusal> {
-    #[cfg(not(feature = "unreleased"))]
-    let frost = || Refusal::NotAWallet(EN.wallet_frost_not_read.to_string());
-    #[cfg(not(feature = "unreleased"))]
-    if faraday_bip::threshold::ThresholdRecord::looks_like_record(text) {
-        return Err(frost());
-    }
-    let policy = faraday_intake::wallet::read_wallet(c, text)?;
-    #[cfg(not(feature = "unreleased"))]
-    if matches!(policy.template(), Template::Threshold { .. }) {
-        return Err(frost());
-    }
-    Ok(policy)
+    faraday_intake::wallet::read_wallet(c, text)
 }
 
 /// Costs a word-list search per word and a hash. Parses seed words in
@@ -112,12 +97,8 @@ impl KeyTexts for faraday_keys::Keys {
 
 /// What one signing pass did.
 pub struct Signed {
-    /// The fingerprints that signed: keys, and shares by their own
-    /// fingerprints.
+    /// The fingerprints that signed.
     pub by: Vec<Fingerprint>,
-    /// The carry section a threshold pass leaves for the shares still to
-    /// sign: the secret nonce that travels on the stick.
-    pub carry: Option<faraday_keys::carry::Section>,
 }
 
 /// A wallet described by its public keys.
@@ -353,7 +334,7 @@ pub struct Slot {
     pub held_by: Option<String>,
     /// The descriptor's key for it, which says whether a seed is this
     /// slot's where the fingerprint only finds a candidate; `None` for a
-    /// silent payments wallet's key and a threshold wallet's shares.
+    /// silent payments wallet's key.
     pub key: Option<faraday_bip::policy::PolicyKey>,
 }
 
@@ -602,21 +583,6 @@ impl Session {
                 key: None,
             }];
         }
-        // A threshold wallet's slots are its shares, each named by its
-        // own fingerprint.
-        if let Some(record) = wallet.policy.record() {
-            let here = self.shares_here(wallet);
-            return (0..record.n())
-                .map(|i| Slot {
-                    fingerprint: record.share_fingerprint(i),
-                    held_by: here
-                        .iter()
-                        .find(|(id, _)| *id as usize == i)
-                        .map(|(_, k)| k.label.clone()),
-                    key: None,
-                })
-                .collect();
-        }
         wallet
             .policy
             .keys()
@@ -636,9 +602,6 @@ impl Session {
 
     /// The quorum: (signatures needed, keys).
     pub fn quorum(wallet: &Wallet) -> (usize, usize) {
-        if let Some(r) = wallet.policy.record() {
-            return (r.t(), r.n());
-        }
         wallet
             .policy
             .quorum()
@@ -682,8 +645,6 @@ impl Session {
                 &[&wallet.policy.keys().len().to_string()],
             ),
             Kind::MuSig => fill(EN.wallet_of_musig2, &[&n.to_string(), &n.to_string()]),
-            #[cfg(feature = "unreleased")]
-            Kind::Threshold => fill(EN.wallet_of_frost, &[&m.to_string(), &n.to_string()]),
             Kind::Silent => EN.wallet_1_key_silent.to_string(),
             Kind::Other => EN.wallet_wallet.to_string(),
         }
@@ -758,42 +719,13 @@ impl Session {
         }
     }
 
-    /// Costs what `inspect_with` costs. The inspection of `psbt` against
-    /// this session's keys and wallets.
+    /// Costs what `key_refs` and `inspect` cost. The inspection of `psbt`
+    /// against this session's keys and wallets.
     pub fn inspect(&self, c: &Compute, psbt: &Psbt) -> Inspection {
-        self.inspect_with(c, psbt, None)
-    }
-
-    /// Costs what `key_refs` and `inspect` cost. The inspection, with the
-    /// carry section a threshold spend arrived with.
-    pub fn inspect_with(
-        &self,
-        c: &Compute,
-        psbt: &Psbt,
-        carry: Option<&faraday_keys::carry::Section>,
-    ) -> Inspection {
         let refs = self.key_refs(c);
         let policies = self.policies();
-        let shares = self.keys.share_refs();
-        let mut ctx = context(self.network(), &refs, &policies);
-        ctx.shares = &shares;
-        faraday_keys::carry::inspect(c, psbt, ctx, carry)
-    }
-
-    /// The loaded keys that are shares of the threshold wallet `w`, by
-    /// identifier.
-    pub fn shares_here(&self, w: &Wallet) -> Vec<(u32, &faraday_keys::KeyInfo)> {
-        let Some(record) = w.policy.record() else {
-            return Vec::new();
-        };
-        let mut out = Vec::new();
-        for (id, pubshare) in record.info.pubshares.iter().enumerate() {
-            let Some(pubshare) = pubshare else { continue };
-            if let Some(k) = self.keys.all().find(|k| k.share.as_ref() == Some(pubshare)) {
-                out.push((id as u32, k));
-            }
-        }
-        out
+        let ctx = context(self.network(), &refs, &policies);
+        faraday_psbt::inspect(c, psbt, &ctx)
     }
 
     /// Costs what `sign_with` costs. Signs `psbt` with every session key it
@@ -805,38 +737,29 @@ impl Session {
         seed: &zeroize::Zeroizing<[u8; 32]>,
         musig: &mut Option<faraday_psbt::MusigSession>,
     ) -> Result<Vec<Fingerprint>, String> {
-        self.sign_with(c, psbt, seed, musig, &[], None, None)
-            .map(|s| s.by)
+        self.sign_with(c, psbt, seed, musig, None).map(|s| s.by)
     }
 
-    /// Costs what `key_refs`, `inspect`, `with_secret_share` and the rest
-    /// it calls cost. Signs `psbt` with every session key and share it
-    /// names. `others` are the shares chosen to sign with this one, by
-    /// identifier, at a threshold spend's first location; `carry` is the
-    /// section a later location reads. `known` is the inspection of `psbt`
-    /// with this session and `carry` when the caller keeps one current (the
+    /// Costs what `key_refs`, `inspect` and the rest it calls cost. Signs
+    /// `psbt` with every session key it names. `known` is the inspection
+    /// of `psbt` with this session when the caller keeps one current (the
     /// open spend's): it chooses the keys without inspecting again.
-    #[allow(clippy::too_many_arguments)]
     pub fn sign_with(
         &self,
         c: &Compute,
         psbt: &mut Psbt,
         seed: &zeroize::Zeroizing<[u8; 32]>,
         musig: &mut Option<faraday_psbt::MusigSession>,
-        others: &[u32],
-        carry: Option<&faraday_keys::carry::Section>,
         known: Option<&Inspection>,
     ) -> Result<Signed, String> {
         let refs = self.key_refs(c);
         let policies = self.policies();
-        let share_refs = self.keys.share_refs();
-        let mut ctx = context(self.network(), &refs, &policies);
-        ctx.shares = &share_refs;
+        let ctx = context(self.network(), &refs, &policies);
         let own;
         let inspection = match known {
             Some(i) => i,
             None => {
-                own = faraday_keys::carry::inspect(c, psbt, ctx, carry);
+                own = faraday_psbt::inspect(c, psbt, &ctx);
                 &own
             }
         };
@@ -846,20 +769,16 @@ impl Session {
             .copied()
             .filter(|fp| self.keys.position(*fp).is_some())
             .collect();
-        let shares_sign = inspection
-            .inputs
-            .iter()
-            .any(|i| i.threshold.as_ref().is_some_and(|t| !t.ours.is_empty()));
-        if selection.is_empty() && !shares_sign {
+        if selection.is_empty() {
             return Err(EN.wallet_no_signing_key.to_string());
         }
-        let (result, left) = self
+        let result = self
             .keys
-            .sign(c, psbt, &selection, ctx, carry, musig, seed, others)
+            .sign(c, psbt, &selection, ctx, musig, seed)
             .map_err(|e| e.to_string())?;
         let mut by: Vec<Fingerprint> = result.signed_inputs.iter().map(|s| s.fingerprint).collect();
         by.dedup();
-        Ok(Signed { by, carry: left })
+        Ok(Signed { by })
     }
 }
 
@@ -869,8 +788,6 @@ fn context<'a>(network: Network, refs: &'a [KeyRef], policies: &'a [WalletPolicy
         keys: refs,
         wallets: policies,
         musig_session: None,
-        shares: &[],
-        carry: None,
     }
 }
 
@@ -891,10 +808,6 @@ pub enum Kind {
     Tree,
     /// MuSig2: one aggregate key, every participant signs in two rounds.
     MuSig,
-    /// FROST: a threshold of shares signs in two rounds. Compiled out of
-    /// the app (F109).
-    #[cfg(feature = "unreleased")]
-    Threshold,
     /// Silent payments (BIP-352): one key's scan and spend halves, an
     /// `sp1…` address, and nothing to spend from yet.
     Silent,
@@ -941,8 +854,6 @@ impl Kind {
             Template::Miniscript { .. } => Kind::Miniscript,
             Template::Tree => Kind::Tree,
             Template::MuSig => Kind::MuSig,
-            #[cfg(feature = "unreleased")]
-            Template::Threshold { .. } => Kind::Threshold,
             _ => Kind::Other,
         }
     }
@@ -971,13 +882,7 @@ impl Kind {
             v.push(step::NONCES);
         }
         v.push(step::SIGN);
-        // A threshold spend is not collected here: each share signs in
-        // turn, the carry file going from one to the next.
-        #[cfg(feature = "unreleased")]
-        let collected = self != Kind::Threshold;
-        #[cfg(not(feature = "unreleased"))]
-        let collected = true;
-        if self.has_cosigners() && collected {
+        if self.has_cosigners() {
             v.push(step::COLLECT);
         }
         v.push(step::FINISH);
@@ -1103,9 +1008,6 @@ pub fn needed(wallet: &Wallet) -> usize {
     if Kind::of(&wallet.policy) == Kind::MuSig {
         return wallet.policy.keys().len();
     }
-    if let Some(r) = wallet.policy.record() {
-        return r.t();
-    }
     wallet
         .policy
         .quorum()
@@ -1152,11 +1054,6 @@ pub enum FileKind {
     Entries,
     /// An EFI image to sign or check for Secure Boot.
     EfiImage,
-    /// A threshold spend part-signed at another location: the PSBT with
-    /// the secret nonce the next share signs with. FROST is compiled out
-    /// of the app (F109): without `unreleased` such a file is Other.
-    #[cfg(feature = "unreleased")]
-    Carry,
     /// A KeePass database, sealed under its passphrase.
     Kdbx,
     /// A PDF to print: a backup sheet or a blank template.
@@ -1270,10 +1167,6 @@ pub fn classify_read(c: &Compute, name: &str, bytes: &[u8]) -> Classified {
     }
     if crate::secure_boot::is_image(name) && bytes.starts_with(b"MZ") {
         return FileKind::EfiImage.into();
-    }
-    #[cfg(feature = "unreleased")]
-    if faraday_psbt::threshold::Carry::looks_like_carry(bytes) {
-        return FileKind::Carry.into();
     }
     if let Some(p) = read_psbt(c, bytes) {
         return Classified {
@@ -1718,9 +1611,9 @@ pub struct SpendState {
     /// is of changed ([`SpendState::inspected`]).
     pub inspection: faraday_psbt::Inspection,
     /// What [`SpendState::inspection`] is of: the PSBT, the session's
-    /// network, keys and wallets, and whether a carry came with it.
-    /// `refresh_spend` inspects again only when one of them changed.
-    pub(crate) inspected: Option<(faraday_psbt::Psbt, InspectInputs, bool)>,
+    /// network, keys and wallets. `refresh_spend` inspects again only when
+    /// one of them changed.
+    pub(crate) inspected: Option<(faraday_psbt::Psbt, InspectInputs)>,
     /// Fingerprints with a valid signature.
     pub signers: Vec<[u8; 4]>,
     /// Which results went to the Outbox.
@@ -1748,21 +1641,6 @@ pub struct SpendState {
     /// A MuSig2 round this device opened: its secret nonce, until round
     /// two. Gone on lock.
     pub musig: Option<faraday_psbt::MusigSession>,
-    /// A threshold spend's first location: the other shares chosen to
-    /// sign, by identifier.
-    #[cfg(feature = "unreleased")]
-    pub others: Vec<u32>,
-    /// The carry section a threshold spend arrived with: the secret nonce
-    /// of a share held here. Wiped on drop.
-    #[cfg(feature = "unreleased")]
-    pub carry: Option<faraday_keys::carry::Section>,
-    /// The carry file this device's pass leaves for the next share, until
-    /// it goes to the Outbox.
-    #[cfg(feature = "unreleased")]
-    pub carry_out: Option<zeroize::Zeroizing<Vec<u8>>>,
-    /// The carry it arrived with has signed: a vault's round for it goes.
-    #[cfg(feature = "unreleased")]
-    pub round_spent: bool,
     /// The open step has been set once, at entry (`refresh_spend`): once
     /// true, closing every card (an interactive collapse) leaves `open`
     /// at `None` rather than reopening one.
@@ -1771,7 +1649,7 @@ pub struct SpendState {
 
 impl SpendState {
     /// A spend opened on `spend`, its `inspection` made with the
-    /// session's `inputs` and the `carry` it arrived with. Its open step
+    /// session's `inputs`. Its open step
     /// is computed in `refresh_spend`, once Check's done state is known:
     /// open at Check, or past it when this wallet is already checked
     /// this power-on.
@@ -1779,11 +1657,8 @@ impl SpendState {
         spend: Spend,
         inspection: faraday_psbt::Inspection,
         inputs: InspectInputs,
-        carry: Option<faraday_keys::carry::Section>,
     ) -> Self {
-        let inspected = Some((spend.psbt.clone(), inputs, carry.is_some()));
-        #[cfg(not(feature = "unreleased"))]
-        drop(carry);
+        let inspected = Some((spend.psbt.clone(), inputs));
         SpendState {
             spend,
             open: None,
@@ -1804,52 +1679,16 @@ impl SpendState {
             needed: 1,
             complete: false,
             musig: None,
-            #[cfg(feature = "unreleased")]
-            others: Vec::new(),
-            #[cfg(feature = "unreleased")]
-            carry,
-            #[cfg(feature = "unreleased")]
-            carry_out: None,
-            #[cfg(feature = "unreleased")]
-            round_spent: false,
             opened: false,
         }
     }
 
-    /// The carry section the spend arrived with: none where FROST is
-    /// compiled out of the app (F109).
-    #[cfg(feature = "unreleased")]
-    pub(crate) fn carry(&self) -> Option<&faraday_keys::carry::Section> {
-        self.carry.as_ref()
-    }
-
-    /// The carry section the spend arrived with: none, FROST being
-    /// compiled out.
-    #[cfg(not(feature = "unreleased"))]
-    pub(crate) fn carry(&self) -> Option<&faraday_keys::carry::Section> {
-        None
-    }
-
-    /// Whether this device's pass left a carry file, or its part went
-    /// out: what a threshold spend waits on the next share with. Never,
-    /// where FROST is compiled out of the app (F109).
-    #[cfg(feature = "unreleased")]
-    pub(crate) fn carried(&self) -> bool {
-        self.carry_out.is_some() || self.out_signed
-    }
-
-    /// Whether a carry file was left: never, FROST being compiled out.
-    #[cfg(not(feature = "unreleased"))]
-    pub(crate) fn carried(&self) -> bool {
-        false
-    }
-
     /// Whether [`SpendState::inspection`] is of the PSBT as it is, with
-    /// the session's `inputs` and the carry as they are.
+    /// the session's `inputs` as they are.
     pub(crate) fn inspected_for(&self, inputs: &InspectInputs) -> bool {
-        self.inspected.as_ref().is_some_and(|(p, i, c)| {
-            *c == self.carry().is_some() && i == inputs && *p == self.spend.psbt
-        })
+        self.inspected
+            .as_ref()
+            .is_some_and(|(p, i)| i == inputs && *p == self.spend.psbt)
     }
 }
 
@@ -2009,7 +1848,7 @@ impl Faraday {
         self.wallets.spend()
     }
 
-    /// Handles the open wallet's and spend's actions (`PickWallet`, `StartSpend`, `Step*`, `Sign*`, `Collect`, `Public*`, `WalletKey*`, `TOther` and the like).
+    /// Handles the open wallet's and spend's actions (`PickWallet`, `StartSpend`, `Step*`, `Sign*`, `Collect`, `Public*`, `WalletKey*` and the like).
     #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
     pub(crate) fn wallet_act(&mut self, action: Action) {
         match action {
@@ -2133,45 +1972,6 @@ impl Faraday {
                         .get(self.wallets.wallet())
                         .map(|w| w.name.clone());
                     self.wallets.set_renaming(name);
-                }
-            }
-            #[cfg(feature = "unreleased")]
-            Action::TOther(id) => {
-                if let Some(s) = self.wallets.spend_mut() {
-                    if let Some(k) = s.others.iter().position(|o| *o == id) {
-                        s.others.remove(k);
-                    } else {
-                        s.others.push(id);
-                        s.others.sort_unstable();
-                    }
-                    s.error = None;
-                }
-            }
-            #[cfg(feature = "unreleased")]
-            Action::CarryToOutbox => {
-                // The carry holds the secret nonce the next share signs
-                // with: a vault by default, the Outbox only after a warning.
-                let out = self.wallets.spend_mut().and_then(|s| {
-                    let stem = result_stem(&s.spend.source);
-                    let bytes = s.carry_out.take()?;
-                    let psbt = s.spend.psbt.to_bytes();
-                    let round = secrets::Round {
-                        tx: secrets::tx_hash(&s.spend.psbt),
-                        key: s.signers.first().copied().unwrap_or_default(),
-                        psbt,
-                        psbt_name: format!("{stem}-part.psbt"),
-                    };
-                    let mut out = secrets::SecretOut::new(
-                        format!("{stem}-partly-signed.osk"),
-                        bytes,
-                        EN.act_the_secret_nonce,
-                        EN.act_nonce_warning,
-                    );
-                    out.keep = secrets::Keep::Round(round);
-                    Some(out)
-                });
-                if let Some(out) = out {
-                    self.offer_secret(out);
                 }
             }
             // `act_inner` passes only the actions matched above.

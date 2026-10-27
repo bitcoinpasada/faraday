@@ -124,13 +124,7 @@ impl Faraday {
             }
             _ => return None,
         };
-        let n = if kind.threshold() {
-            m.max(1)
-        } else if kind.multi() {
-            n_keys.max(1)
-        } else {
-            1
-        };
+        let n = if kind.multi() { n_keys.max(1) } else { 1 };
         let seeds = (0..n)
             .map(|i| plan::Seed {
                 name: fill(EN.backup_flow_key_n, &[&(i + 1).to_string()]),
@@ -241,7 +235,7 @@ impl Faraday {
         let mut shape = self.plan_shape_now(w);
         shape.vaults = setup;
         // The keys-to-be were numbered by slot, the seeds are numbered as
-        // the description lists them (FROST's by share): where a slot's key
+        // the description lists them: where a slot's key
         // turned out to be.
         let slots = self.wallet_owner_slots(owner);
         let list = self.backup_seed_list_now(w);
@@ -2716,12 +2710,6 @@ impl Faraday {
                 continue;
             }
             let owner = w.owner;
-            let kind_at = |k: crate::create::NewKind| {
-                crate::create::NewKind::ALL
-                    .iter()
-                    .position(|x| *x == k)
-                    .unwrap_or(0) as u8
-            };
             let again = if let Some(c) = self
                 .create
                 .state()
@@ -2729,7 +2717,7 @@ impl Faraday {
             {
                 Some(crate::backup_flow::Again {
                     restore: false,
-                    kind: kind_at(c.kind),
+                    kind: c.kind,
                     m: c.m,
                     n: c.n,
                 })
@@ -2737,7 +2725,7 @@ impl Faraday {
                 self.restore.state().filter(|r| r.owner == owner).map(|r| {
                     crate::backup_flow::Again {
                         restore: true,
-                        kind: kind_at(r.kind()),
+                        kind: r.kind(),
                         m: r.seeds.as_ref().map_or(1, |s| s.m),
                         n: r.seeds.as_ref().map_or(1, |s| s.n),
                     }
@@ -2761,10 +2749,7 @@ impl Faraday {
                 continue;
             };
             let (owner, count) = (w.owner, w.shape.vaults.max(1));
-            let kind = crate::create::NewKind::ALL
-                .get(usize::from(a.kind))
-                .copied()
-                .unwrap_or_default();
+            let kind = a.kind;
             let ask = crate::VaultAsk {
                 answer: Some(true),
                 count,
@@ -2798,11 +2783,7 @@ impl Faraday {
                     vaults: ask,
                     ..crate::CreateState::default()
                 };
-                let slots = match kind {
-                    k if k.threshold() => a.m,
-                    k if k.multi() => a.n,
-                    _ => 1,
-                };
+                let slots = if kind.multi() { a.n } else { 1 };
                 c.slots = vec![crate::create::Source::Empty; slots];
                 for k in [cstep::KIND, cstep::QUORUM, cstep::WHERE, cstep::HOW_MANY] {
                     c.done[k as usize] = true;

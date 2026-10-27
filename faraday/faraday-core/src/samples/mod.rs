@@ -131,15 +131,6 @@ pub enum SampleKind {
     },
     /// A MuSig2 aggregate of this many keys.
     MuSig(u8),
-    /// A FROST group: `need` of `total` shares sign. Compiled out of the
-    /// app (F109).
-    #[cfg(feature = "unreleased")]
-    Frost {
-        /// Shares that sign.
-        need: u8,
-        /// Shares dealt.
-        total: u8,
-    },
     /// A key, and a second that spends after a delay.
     Timelock,
 }
@@ -168,8 +159,7 @@ pub struct SampleWallet {
     pub kind: SampleKind,
     /// The script it pays to.
     pub script: SampleScript,
-    /// What `Session::add_wallet` takes: its descriptor, or for the FROST
-    /// wallet its record text.
+    /// What `Session::add_wallet` takes: its descriptor.
     pub text: &'static str,
     /// Its unsigned spend (PSBT bytes); empty where there is none.
     pub spend: &'static [u8],
@@ -307,8 +297,6 @@ impl SampleWallet {
                 fill(en.sample_kind_multisig, &[&n(need), &n(total)])
             }
             SampleKind::MuSig(keys) => fill(en.sample_kind_musig, &[&n(keys)]),
-            #[cfg(feature = "unreleased")]
-            SampleKind::Frost { need, total } => fill(en.sample_kind_frost, &[&n(need), &n(total)]),
             SampleKind::Timelock => en.sample_kind_timelock.to_string(),
         };
         let script = match self.script {
@@ -349,8 +337,6 @@ pub fn label(name: &str, word: &str, count: u8) -> Option<String> {
         "sample_inheritance" => en.sample_inheritance.to_string(),
         "sample_tree" => en.sample_tree.to_string(),
         "sample_musig" => en.sample_musig.to_string(),
-        #[cfg(feature = "unreleased")]
-        "sample_frost" => en.sample_frost.to_string(),
         "sample_three_of_five" => en.sample_three_of_five.to_string(),
         _ => return None,
     })

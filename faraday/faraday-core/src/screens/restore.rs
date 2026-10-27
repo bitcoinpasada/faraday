@@ -277,7 +277,7 @@ fn restore_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                     .wallets
                     .get(i)
                     .and_then(|wl| crate::create::NewKind::of(wl.policy()))
-                    .is_some_and(|k| !k.threshold());
+                    .is_some();
                 if from {
                     items.push((
                         EN.restore_another_wallet,
@@ -317,7 +317,7 @@ fn restore_description(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     for ((k, _), l) in files.iter().zip(&labels) {
         items.push((l.as_str(), Style::Secondary, Action::RUse(*k)));
     }
-    if r.kind().multi() && !r.kind().threshold() {
+    if r.kind().multi() {
         items.push((EN.restore_description_i, Style::Secondary, Action::RSeeds));
     }
     cy += wrap_buttons(ui, x, cy, w, BUTTON_H, &items) + 8.0;

@@ -319,7 +319,7 @@ named by its key type and sizes; nothing of its content is shown.
 | P6 | Caution | "{where}: proprietary field removed · prefix {p} bytes · subtype {s}" |
 
 A proprietary prefix is the device's own text and is not shown: its
-length is. Faraday's own `osk` records (`core/faraday-psbt/src/threshold.rs`)
+length is. Faraday's own `osk` records (blocked on input, F127)
 never leave in a PSBT, so one on a Returned PSBT is P3 like any other.
 Anti-exfil's pairs, when built (`docs/ANTI-EXFIL.md` §7), become known
 pairs with checks of their own.

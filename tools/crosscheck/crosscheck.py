@@ -39,7 +39,6 @@ DEFAULT_SEED = "faraday-crosscheck-1"
 # command answer wrongly.
 AREAS = {
     "musig": ("area_musig", "Musig", "musig.sign"),
-    "frost": ("area_frost", "Frost", "frost.sign"),
     "sp": ("area_silent", "Silent", "sp.sender"),
     "bip85": ("area_bip85", "Bip85", "bip85.wif"),
     "slip39": ("area_slip39", "Slip39", "slip39.recover"),

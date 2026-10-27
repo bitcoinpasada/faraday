@@ -27,10 +27,9 @@
 //!   in [`account`], [`slip132`] and [`descriptor`].
 //!
 //! - **Multi-party signing by hand.** [`musig`] writes BIP-327's rounds
-//!   and [`frost`] BIP 445's over the same curve primitives, because no
-//!   `bitcoin` release this tree can pin carries either module. Both
-//!   are checked against the published vectors; [`frost`] adds the
-//!   trusted dealer that makes a threshold wallet's shares.
+//!   over the curve primitives, because no `bitcoin` release this tree
+//!   can pin carries the module. It is checked against the published
+//!   vectors.
 //!
 //! - **Codex32 in house.** [`codex32`] writes BIP 93's checksum,
 //!   header and GF(32) interpolation over the same fixed-size zeroizing
@@ -38,8 +37,7 @@
 //!
 //! The crate is `no_std`; `bitcoin` needs `alloc`, so heap allocation
 //! exists but is confined to non-secret data. `tools/lint-secrets.sh`
-//! keeps `bip39.rs`, `slip39.rs`, `keys.rs` and `frost.rs` free of heap
-//! text.
+//! keeps `bip39.rs`, `slip39.rs` and `keys.rs` free of heap text.
 
 #![no_std]
 
@@ -60,7 +58,6 @@ pub mod core_import;
 pub mod descriptor;
 pub mod diceware;
 pub mod dleq;
-pub mod frost;
 pub mod hangul;
 pub mod hashes;
 pub mod json;
@@ -76,7 +73,6 @@ pub mod slip132;
 pub mod slip39;
 pub mod spend;
 pub mod tapmulti;
-pub mod threshold;
 pub mod vanity;
 pub mod wordlists;
 pub mod xkey;

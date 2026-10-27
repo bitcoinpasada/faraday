@@ -521,112 +521,6 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
         ));
     }
     println!("MuSig2 spend finished in the app");
-    // FROST 2 of 3, first location: test key 1 signs as share 1 and
-    // chooses share 2, and the carry file goes to the Outbox. FROST is
-    // compiled out of the app (docs/decisions/F109.md).
-    #[cfg(feature = "unreleased")]
-    {
-        t.sticks(true);
-        t.press(Action::Lock);
-        t.app.storage(StorageEvent::Sticks(t.sticks.clone()));
-        t.pump();
-        if let Some(i) = t
-            .stick()
-            .files
-            .iter()
-            .position(|(n, _)| n == "threshold-unsigned.psbt")
-        {
-            t.press(Action::VisitInAll);
-            t.press(Action::VisitIn(i));
-            t.press(Action::VisitCopy);
-        }
-        t.sticks(false);
-        t.load_kit()?;
-        let fu = t
-            .app
-            .inbox()
-            .iter()
-            .position(|i| i.name == "threshold-unsigned.psbt")
-            .ok_or("no threshold psbt")?;
-        t.press(Action::StartSpend(fu));
-        for n in [1u8, 2, 3] {
-            t.press(Action::StepNext(n));
-        }
-        t.shot("frost-signers")?;
-        t.press(Action::TOther(1));
-        t.shot("frost-chosen")?;
-        t.press(Action::StepNext(4));
-        t.press(Action::SignHere);
-        t.shot("frost-carry")?;
-        if t.app.spend().is_none_or(|s| s.carry_out.is_none()) {
-            return Err(format!(
-                "share 1 left no carry file: {:?}",
-                t.app.spend().and_then(|s| s.error.clone())
-            ));
-        }
-        // The carry holds a secret nonce: the sheet asks where it goes.
-        t.press(Action::CarryToOutbox);
-        t.shot("secret-out")?;
-        if t.app
-            .outbox
-            .iter()
-            .any(|i| i.name == "threshold-partly-signed.osk")
-        {
-            return Err("the carry reached the Outbox before it was allowed".into());
-        }
-        t.press(Action::SecretUnprotected);
-        if t.app
-            .outbox
-            .iter()
-            .any(|i| i.name == "threshold-partly-signed.osk")
-        {
-            return Err("the carry went out before the warning was acknowledged".into());
-        }
-        t.press(Action::SecretAck);
-        t.press(Action::SecretUnprotected);
-        t.press(Action::Nav(Screen::Files));
-        t.shot("files-unprotected")?;
-        t.press(Action::Nav(Screen::Spend));
-        let carry = t
-            .app
-            .outbox
-            .iter()
-            .find(|i| i.name == "threshold-partly-signed.osk")
-            .map(|i| (i.name.clone(), i.bytes.clone()))
-            .ok_or("the carry file is not in the Outbox")?;
-        // The second location: test key 2 alone, the record and the carry
-        // file copied in.
-        t.sticks(true);
-        t.press(Action::Lock);
-        t.pump();
-        let record =
-            std::fs::read(t.kit.join("threshold-wallet.txt")).map_err(|e| e.to_string())?;
-        t.app.storage(StorageEvent::Restored {
-            inbox: vec![("threshold-wallet.txt".to_string(), record), carry],
-            outbox: Vec::new(),
-            kept: Vec::new(),
-        });
-        t.sticks(false);
-        t.press(Action::Entry(None));
-        t.type_key(1);
-        t.press(Action::LoadWallet(0));
-        t.press(Action::Nav(Screen::Files));
-        t.shot("frost-files")?;
-        t.press(Action::StartSpend(1));
-        for n in [1u8, 2, 3, 4] {
-            t.press(Action::StepNext(n));
-        }
-        t.shot("frost-second")?;
-        t.press(Action::SignHere);
-        t.shot("frost-finished")?;
-        if t.app.spend().is_none_or(|s| !s.complete) {
-            return Err(format!(
-                "the FROST spend did not finish: {:?}",
-                t.app.spend().and_then(|s| s.error.clone())
-            ));
-        }
-        println!("FROST spend signed at two places and finished in the app");
-    }
     // Restore Savings from two of its three shares, then type test key 1.
     t.sticks(true);
     t.press(Action::Lock);
@@ -950,8 +844,6 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
     }
     println!("wallet QR decodes to the descriptor");
     t.press(Action::Cancel);
-    // FROST is not made in Make a new wallet (F109): no
-    // deal here.
     // A stick arrives while a key is held.
     t.sticks(true);
     t.shot("lock-sheet")?;

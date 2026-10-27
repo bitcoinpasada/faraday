@@ -165,7 +165,7 @@ impl Kept {
     /// ([`crate::wallet::read_wallet`]): the first time it is asked, by
     /// whoever asks, a frame included, and kept by its text, a lookup
     /// after. For a description no Inbox file or vault record keeps read:
-    /// split sheets put together, a threshold wallet's descriptor.
+    /// split sheets put together.
     pub(crate) fn read_kept(&self, c: &Compute, text: &str) -> Option<WalletPolicy> {
         if let Some((_, p)) = self.texts_read.borrow().iter().find(|(t, _)| t == text) {
             return p.clone();

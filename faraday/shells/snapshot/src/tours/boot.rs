@@ -97,9 +97,8 @@ pub(crate) fn boot_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     {
         return Err("unlocking on the import sheet did not import and land on Wallets".into());
     }
-    // The vault holds the ten kit wallets and the MuSig2 one; the
-    // threshold one is refused on read unless FROST is built in (F109).
-    let held = if cfg!(feature = "unreleased") { 12 } else { 11 };
+    // The vault holds the ten kit wallets and the MuSig2 one.
+    let held = 11;
     if t.app.session.wallets.len() < held || t.app.session.keys.is_empty() {
         return Err(format!(
             "the import gave {} wallets and {} keys",

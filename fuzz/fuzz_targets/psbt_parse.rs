@@ -42,8 +42,6 @@ fn run(psbt: &Psbt) {
         keys: &[],
         wallets: &[],
         musig_session: None,
-        shares: &[],
-        carry: None,
     };
     let _ = inspect(&c, psbt, &empty);
 
@@ -53,8 +51,6 @@ fn run(psbt: &Psbt) {
         keys,
         wallets: &[],
         musig_session: None,
-        shares: &[],
-        carry: None,
     };
     let _ = inspect(&c, psbt, &loaded);
 

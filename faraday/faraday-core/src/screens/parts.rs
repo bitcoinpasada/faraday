@@ -885,9 +885,7 @@ pub(crate) fn descriptor_row(
         .map(|k| crate::wallet_backup::fp_of(k.fingerprint()))
         .collect();
     let mut value = format!("{} · {}", Session::shape(wl), fps.join(", "));
-    if wl.policy().record().is_none() {
-        value.push_str(&format!(" · #{}", wl.checksum()));
-    }
+    value.push_str(&format!(" · #{}", wl.checksum()));
     ui.text_as(
         x,
         y,
@@ -944,8 +942,6 @@ pub(crate) fn kind_name(kind: FileKind) -> &'static str {
         FileKind::Key => EN.kind_name_account_xpub,
         FileKind::Words => EN.kind_name_seed_words,
         FileKind::Share => EN.kind_name_split_share,
-        #[cfg(feature = "unreleased")]
-        FileKind::Carry => EN.kind_name_threshold,
         FileKind::Vault => EN.kind_name_vault_locked,
         FileKind::Entries => EN.kind_name_vault_entries,
         FileKind::Kdbx => EN.kind_name_keepass_database,

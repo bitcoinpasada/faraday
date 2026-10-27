@@ -59,8 +59,6 @@ fn the_change_of_a_miniscript_wallet_is_verified_while_it_is_in_use() {
             keys: &keys,
             wallets: &wallets,
             musig_session: None,
-            shares: &[],
-            carry: None,
         },
     );
     assert_eq!(
@@ -81,8 +79,6 @@ fn the_change_of_a_miniscript_wallet_is_verified_while_it_is_in_use() {
             keys: &keys,
             wallets: &[],
             musig_session: None,
-            shares: &[],
-            carry: None,
         },
     );
     assert!(
@@ -107,8 +103,6 @@ fn the_liana_spend_completes_with_the_first_key_alone() {
         keys: &keys,
         wallets: &wallets,
         musig_session: None,
-        shares: &[],
-        carry: None,
     };
 
     let insp = inspect(&c, &psbt, &ctx);
@@ -135,8 +129,6 @@ fn the_liana_spend_completes_with_the_first_key_alone() {
         Aux::Deterministic,
         &mut None,
         &faraday_crypto::Zeroizing::new([0u8; 32]),
-        &[],
-        &[],
     )
     .expect("the input is ours to sign");
     assert_eq!(result.signed_inputs.len(), 1);
@@ -168,8 +160,6 @@ fn the_liana_recovery_spend_waits_for_the_recovery_key() {
         keys: &alone,
         wallets: &wallets,
         musig_session: None,
-        shares: &[],
-        carry: None,
     };
     let insp = inspect(&c, &psbt, &ctx);
     assert_eq!(
@@ -197,8 +187,6 @@ fn the_liana_recovery_spend_waits_for_the_recovery_key() {
         Aux::Deterministic,
         &mut None,
         &faraday_crypto::Zeroizing::new([0u8; 32]),
-        &[],
-        &[],
     )
     .expect("nothing to sign is not a failure");
     assert!(result.signed_inputs.is_empty());
@@ -213,8 +201,6 @@ fn the_liana_recovery_spend_waits_for_the_recovery_key() {
         keys: &both,
         wallets: &wallets,
         musig_session: None,
-        shares: &[],
-        carry: None,
     };
     let result = sign(
         &c,
@@ -227,8 +213,6 @@ fn the_liana_recovery_spend_waits_for_the_recovery_key() {
         Aux::Deterministic,
         &mut None,
         &faraday_crypto::Zeroizing::new([0u8; 32]),
-        &[],
-        &[],
     )
     .expect("the recovery key is ours");
     assert_eq!(result.signed_inputs.len(), 1);
@@ -262,8 +246,6 @@ fn a_recovery_spend_below_its_timelock_stays_partial() {
         keys: &keys,
         wallets: &wallets,
         musig_session: None,
-        shares: &[],
-        carry: None,
     };
     let insp = inspect(&c, &psbt, &ctx);
     assert!(
@@ -287,8 +269,6 @@ fn a_recovery_spend_below_its_timelock_stays_partial() {
         Aux::Deterministic,
         &mut None,
         &faraday_crypto::Zeroizing::new([0u8; 32]),
-        &[],
-        &[],
     )
     .expect("the recovery key is ours");
     assert_eq!(result.signed_inputs.len(), 1);
@@ -312,8 +292,6 @@ fn the_tree_key_path_spend_signs_with_the_internal_key() {
         keys: &keys,
         wallets: &wallets,
         musig_session: None,
-        shares: &[],
-        carry: None,
     };
 
     let insp = inspect(&c, &psbt, &ctx);
@@ -331,8 +309,6 @@ fn the_tree_key_path_spend_signs_with_the_internal_key() {
         Aux::Deterministic,
         &mut None,
         &faraday_crypto::Zeroizing::new([0u8; 32]),
-        &[],
-        &[],
     )
     .expect("the internal key is ours");
     assert_eq!(result.signed_inputs.len(), 1);
@@ -367,8 +343,6 @@ fn the_tree_leaf_spend_signs_under_the_leaf_hash() {
         keys: &keys,
         wallets: &wallets,
         musig_session: None,
-        shares: &[],
-        carry: None,
     };
 
     let insp = inspect(&c, &psbt, &ctx);
@@ -396,8 +370,6 @@ fn the_tree_leaf_spend_signs_under_the_leaf_hash() {
         Aux::Deterministic,
         &mut None,
         &faraday_crypto::Zeroizing::new([0u8; 32]),
-        &[],
-        &[],
     )
     .expect("the leaf key is ours");
     assert_eq!(result.signed_inputs.len(), 1);
@@ -495,8 +467,6 @@ fn a_taproot_pkh_leaf_is_signed_and_left_to_finalize() {
         keys: &keys,
         wallets: &[],
         musig_session: None,
-        shares: &[],
-        carry: None,
     };
     let result = sign(
         &c,
@@ -509,8 +479,6 @@ fn a_taproot_pkh_leaf_is_signed_and_left_to_finalize() {
         Aux::Deterministic,
         &mut None,
         &faraday_crypto::Zeroizing::new([0u8; 32]),
-        &[],
-        &[],
     )
     .expect("the leaf is signed");
     assert_eq!(result.signed_inputs.len(), 1);

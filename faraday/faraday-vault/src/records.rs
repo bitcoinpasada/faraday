@@ -43,7 +43,7 @@ pub mod kind {
     pub const GPG: u8 = 7;
     /// Secure Boot keys.
     pub const SECURE_BOOT: u8 = 8;
-    /// A MuSig2 or FROST round kept across a lock.
+    /// A signing round kept across a lock.
     pub const ROUND: u8 = 9;
     /// The amounts a transaction's inputs stated when it was signed.
     pub const AMOUNTS: u8 = 10;
@@ -108,14 +108,14 @@ pub mod field {
     /// Entry: TOTP secret, an `otpauth://` URI.
     pub const TOTP: u8 = 6;
 
-    /// Signing round: the scheme, 1 MuSig2 or 2 FROST.
+    /// Signing round: the scheme, 1 MuSig2; any other value is read by no
+    /// code in this build.
     pub const ROUND_SCHEME: u8 = 1;
     /// Signing round: SHA-256 of the unsigned transaction it is bound to.
     pub const ROUND_TX: u8 = 2;
     /// Signing round: the fingerprint of the key that signed with it.
     pub const ROUND_KEY: u8 = 3;
-    /// Signing round: the secret state, as `faraday-psbt` serialises it (for
-    /// FROST, the carry file).
+    /// Signing round: the secret state, as `faraday-psbt` serialises it.
     pub const ROUND_STATE: u8 = 4;
     /// Signing round: set when the round has been used.
     pub const ROUND_USED: u8 = 5;

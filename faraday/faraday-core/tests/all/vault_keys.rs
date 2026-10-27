@@ -463,19 +463,6 @@ fn an_open_vaults_key_fills_a_slot_and_the_vault_stays_open() {
     );
 }
 
-/// Create offers no threshold kind (F109), so no slot
-/// asks a vault for shares; the kind list is tested in
-/// `create_wallet::create_offers_no_frost_wallet`.
-#[test]
-fn create_offers_no_threshold_kind() {
-    use faraday_core::create::NewKind;
-    let at = NewKind::ALL.iter().position(|k| k.threshold()).unwrap() as u8;
-    let mut app = testkit::started();
-    app.press(Action::CreateWallet);
-    app.press(Action::CKind(at));
-    assert!(!app.create().unwrap().kind.threshold());
-}
-
 #[test]
 fn a_locked_vault_reads_unlock_and_unlocking_returns_to_keys_with_its_keys() {
     use faraday_core::create::NewKind;

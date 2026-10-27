@@ -362,7 +362,7 @@ pub(crate) fn wallet_card(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         ),
     ];
     // Create filled from this wallet (`docs/history/NEW-WALLET.md` §16.2).
-    if crate::create::NewKind::of(wlt.policy()).is_some_and(|k| !k.threshold()) {
+    if crate::create::NewKind::of(wlt.policy()).is_some() {
         buttons.push((
             EN.wallets_new_wallet_button,
             Style::Secondary,

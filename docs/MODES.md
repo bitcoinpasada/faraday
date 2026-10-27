@@ -246,11 +246,6 @@ Taproot tree (`testkit::kits`). Also, decided:
 
 - **MuSig2** (`testkit::musig_policy`): its keys are the three test
   seeds; MuSig2 is open in Practice.
-- **FROST 2 of 3** (`testkit::threshold_record`): shares 1 and 2 are
-  bacon and zebra; the record is public. Share 3, computed by the
-  testkit's deal, is not a sample and is not loaded. Only in a build
-  with `unreleased`: FROST is compiled out of the app (F109), and
-  Practice offers no FROST sample.
 - **3 of 5** (`testkit::three_of_five`): its five keys are master seeds
   01…01 to 05…05, keys with no words; they load as keys and join the
   public set. It has no spend.
@@ -258,7 +253,7 @@ Taproot tree (`testkit::kits`). Also, decided:
 A wallet's tick loads the wallet and every seed of it that is a sample
 (`Session::add_wallet`, then the keys). Each wallet sample carries its
 unsigned spend where the testkit makes one (`testkit::unsigned`,
-`musig_unsigned`, `threshold_unsigned`), for §6.
+`musig_unsigned`), for §6.
 
 ### 5.3 Other inputs
 
@@ -506,7 +501,7 @@ the file has them.
 | `samples_load` | Load ticked |
 | `samples_password` | In Practice, the sample passphrase is (the passphrase follows in its code box) |
 | `sample_type` | {} · {} (kind and script, or form and size) |
-| `sample_kind_single` / `sample_kind_multisig` / `sample_kind_musig` / `sample_kind_frost` / `sample_kind_timelock` / `sample_script_tree` | single-sig / {}-of-{} multisig / {}-key MuSig2 / {}-of-{} FROST / timelock recovery / Taproot, script tree (the other scripts are `wallet_legacy`, `wallet_nested_segwit`, `wallet_native_segwit`, `wallet_taproot`) |
+| `sample_kind_single` / `sample_kind_multisig` / `sample_kind_musig` / `sample_kind_timelock` / `sample_script_tree` | single-sig / {}-of-{} multisig / {}-key MuSig2 / timelock recovery / Taproot, script tree (the other scripts are `wallet_legacy`, `wallet_nested_segwit`, `wallet_native_segwit`, `wallet_taproot`) |
 | `sample_form_bip39` / `_slip39` / `_codex32` / `_xor` / `_seed` / `_aezeed` | BIP-39 / SLIP-39 / codex32 / Seed XOR / Master seed / LND cipher seed |
 | `sample_size_words` / `_words_japanese` / `_share` / `_shares` / `_threshold` / `_groups` / `_secret` / `_parts` / `_bytes` | {} words / {} words, Japanese / 1 share / {} shares / {} of {} shares / groups, {} shares / secret / {} parts / {} bytes |
 | `samples_loaded` | Loaded {} (`{}`: how many, as the Load sheet's toast counts) |
@@ -520,7 +515,7 @@ the file has them.
 | `sample_xor` | Seed XOR, 2 parts |
 | `sample_aezeed` | LND cipher seed |
 | `sample_savings` … `sample_tree` | Savings, Spending, Taproot, Nested SegWit, Legacy, Nested multisig, Legacy multisig, Taproot multisig, Inheritance, Taproot tree |
-| `sample_musig` / `sample_frost` / `sample_three_of_five` | MuSig2 / FROST 2 of 3 / 3 of 5 |
+| `sample_musig` / `sample_three_of_five` | MuSig2 / 3 of 5 |
 | `keygen_lock_in_adds` (changed) | Lock in adds sample {} ({}) in place of these words |
 | `keygen_added_public_seed` → `keygen_added_sample` | Added sample {} ({}) in place of the key made |
 | `wallet_is_not_a_key` (changed) | {} is not a sample: Practice takes only samples |
@@ -761,8 +756,8 @@ Owner, 2026-10-22, after M6.
   opens, never derived while drawing. Wallets: kind and script, e.g.
   "Savings" · "2-of-3 multisig · native SegWit", "Spending" ·
   "single-sig · native SegWit", "Taproot tree" · "single-sig · Taproot,
-  script tree", "MuSig2" · "2-of-2 MuSig2 · Taproot", "FROST 2 of 3" ·
-  "2-of-3 FROST · Taproot", "3 of 5" · "3-of-5 multisig · native
+  script tree", "MuSig2" · "2-of-2 MuSig2 · Taproot", "3 of 5" ·
+  "3-of-5 multisig · native
   SegWit". Keys: form and size, e.g. "bacon ×24" · "BIP-39 · 24 words",
   "twelve ×12" · "BIP-39 · 12 words", "SLIP-39 2 of 3" · "SLIP-39 · 2 of
   3 shares", "codex32" · "codex32 · secret", "Seed XOR" · "Seed XOR · 2

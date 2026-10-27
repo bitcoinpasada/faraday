@@ -1,6 +1,6 @@
 # Fuzzing
 
-Sixteen `cargo fuzz` targets, one per parser of the shared crates that
+Fifteen `cargo fuzz` targets, one per parser of the shared crates that
 reads something the device did not write: a camera frame, a scanned
 payload, a PSBT from a coordinator, a key share, a file on storage. The
 parsers in Faraday's own crates have theirs in `faraday/fuzz/`
@@ -143,7 +143,6 @@ cargo +nightly fuzz run --fuzz-dir fuzz decode_luma fuzz/artifacts/decode_luma/r
 | `seed_parts` | SLIP-39 `Share::parse` and codex32 `Codex32::parse` on every line, then `recover` over what parsed (SLIP-39 only at iteration exponent 0, so a run stays fast) |
 | `key_file` | a cosigner's key file: BSMS `SignerRecord::parse` and `verify`, `coldcard::cosigner_keys`, `slip132::key_line`, `PolicyKey::parse` |
 | `transaction` | `faraday_psbt::transaction::read_raw` and `Spending::read` |
-| `carry` | `faraday_psbt::threshold::Carry::parse`, then its PSBT read and inspected with the file's secret section as the context's carry |
 | `encodings` | `faraday_codec::encodings::read`, `from_hex` and `read_input` under each way of reading |
 | `aezeed` | `faraday_bip::aezeed::decode_at_cost` at a cost of 16 over 24 word indices and a passphrase taken from the input |
 

@@ -23,10 +23,6 @@
 # (`faraday-starter`, its pages and decisions), which takes the Demo's
 # app from the shell.
 #
-# A fourth: no shipped binary turns on the `unreleased` feature, behind
-# which FROST and signing across places are compiled out of the app
-# (docs/decisions/F109.md).
-#
 # Run from the repository root; `just lint` does.
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -48,20 +44,6 @@ core=$(cargo tree -q --color never --target all -e features,normal \
 if grep -q 'faraday-core feature "testkit"' <<< "$core"; then
     echo "lint-keys-tests: a shipped binary enables faraday-core's testkit feature"
     echo "$core"
-    exit 1
-fi
-
-# What is compiled out of the app until its standard matures (FROST and
-# signing across places, docs/decisions/F109.md) stays out of every
-# shipped binary: none turns on the `unreleased` feature of a crate that
-# has it.
-strings=$(cargo tree -q --color never --target all -e features,normal \
-    -p faraday-desktop -p faraday-stick -p faraday-disk -p faraday-grant \
-    -p faraday-boot -p faraday-starter-shell -i faraday-strings)
-
-if grep -qE 'feature "unreleased"' <<< "$tree$core$strings"; then
-    echo "lint-keys-tests: a shipped binary enables an unreleased feature"
-    grep -E 'feature "unreleased"' <<< "$tree$core$strings"
     exit 1
 fi
 

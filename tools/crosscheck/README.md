@@ -43,7 +43,6 @@ as a disagreement: a cross-check that cannot fail is worse than none.
 | Area | Faraday | Reference (`tools/reference/`) | Published vectors | Random corpus |
 |---|---|---|---|---|
 | `musig` | `faraday_bip::musig` | BIP-327's `reference.py` (`bip327/`) | all eight files of `tools/vectors/bip327/` | sessions of 1 to 3 signers: key sort and aggregation, tweaks, nonces, partial signatures, their verification (and a tampered one), aggregation checked as BIP-340, deterministic signing |
-| `frost` | `faraday_bip::frost` | BIP 445's `frost_ref` (`bip445/`) | all six files of `tools/vectors/bip445/` | the dealer against the reference's public-share interpolation, then signing sessions as for MuSig2 |
 | `sp` | `faraday_bip::silent` | BIP-352's `reference.py` (`bip352/`) | every case of `tools/vectors/bip352/`, both sides | inputs of every kind BIP-352 reads, receivers with labels, a sender's outputs and what each receiver finds among them and decoys |
 | `bip85` | `faraday_bip::bip85` | `ethankosakovsky/bip85` over python-mnemonic and a hardened-BIP-32 shim (`bip85/`, `bip39/`) | every application vector of `tools/vectors/bip85/` | random master keys, indices, languages, word counts and lengths, with refusals |
 | `slip39` | `faraday_bip::slip39` | python-shamir-mnemonic (`slip39/`) | all 45 of `tools/vectors/slip39/` | splits fed the same random bytes, which must match word for word; recovery from qualifying and short subsets and a changed word; the passphrase cipher |
@@ -92,8 +91,6 @@ corpus keeps out of it and the area says why.
   that are not one run when its equations allow; Faraday refuses both
   (`docs/CODEX32.md` §8.4). The corpus damages strings with bech32
   characters and `?` only.
-- BIP-445: the vectors' tweak lists whose flag list has another length
-  are skipped; each of Faraday's tweaks carries its own flag.
 - BIP-352: Faraday's sender arithmetic is test-only and has no K_max,
   so the vector that exceeds it is checked on the receiving side only.
 - BBQr: Faraday reads the file types `P`, `T`, `U` and `J` and frames

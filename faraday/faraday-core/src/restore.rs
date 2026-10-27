@@ -260,7 +260,7 @@ impl RestoreState {
     pub fn steps(&self) -> Vec<u8> {
         let kind = self.kind();
         let mut v = vec![rstep::KIND];
-        if kind.multi() && !kind.threshold() {
+        if kind.multi() {
             v.push(rstep::QUORUM);
         }
         v.extend([rstep::DESCRIPTION, rstep::WHERE]);
@@ -572,9 +572,7 @@ impl Faraday {
                 }
             }
             Action::RSeeds => {
-                if let Some(r) = self.restore.state.as_mut()
-                    && !r.kind().threshold()
-                {
+                if let Some(r) = self.restore.state.as_mut() {
                     // The wallet comes from the seeds now, not a file.
                     r.wallet = None;
                     r.described = false;
@@ -678,10 +676,6 @@ impl Faraday {
         let r = self.restore.state.as_ref().filter(|r| !r.keys_made())?;
         if r.described {
             let w = self.session.wallets.get(r.wallet?)?;
-            // A threshold wallet's slots are shares, matched as they load.
-            if w.policy().record().is_some() {
-                return None;
-            }
             let ours = self
                 .session
                 .slots(w)

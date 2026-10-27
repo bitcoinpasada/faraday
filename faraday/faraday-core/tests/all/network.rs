@@ -136,11 +136,6 @@ fn every_wallet_form_on_the_test_stick_loads_its_wallet() {
         "musig".into(),
         testkit::musig_policy().unwrap().to_descriptor_checksummed(),
     ));
-    #[cfg(feature = "unreleased")]
-    wallets.push((
-        "threshold".into(),
-        testkit::threshold_record().unwrap().to_text(),
-    ));
     let mut seen = 0;
     for (id, descriptor) in &wallets {
         let mut want = Session::default();

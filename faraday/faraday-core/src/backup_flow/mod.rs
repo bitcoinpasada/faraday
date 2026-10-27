@@ -939,8 +939,8 @@ pub enum ReadBack {
 pub struct Again {
     /// Restore, not Make a new wallet.
     pub restore: bool,
-    /// The kind, as its place in `NewKind::ALL`.
-    pub kind: u8,
+    /// The kind, written by its [`crate::create::NewKind::code`].
+    pub kind: crate::create::NewKind,
     /// Signatures needed.
     pub m: usize,
     /// Keys.
@@ -1586,7 +1586,7 @@ pub fn encode(flows: &[BackupFlow]) -> Vec<u8> {
                 out.push_str(&format!(
                     "wagain\t{}\t{}\t{}\t{}\n",
                     u8::from(a.restore),
-                    a.kind,
+                    a.kind.code(),
                     a.m,
                     a.n
                 ));
@@ -1894,9 +1894,9 @@ fn read_line(fl: &mut BackupFlow, f: &[&str], hex_array: fn(&str) -> Option<[u8;
             let (Ok(kind), Ok(m), Ok(n)) = (kind.parse::<u8>(), m.parse(), n.parse()) else {
                 return false;
             };
-            if usize::from(kind) >= crate::create::NewKind::ALL.len() {
+            let Some(kind) = crate::create::NewKind::from_code(kind) else {
                 return false;
-            }
+            };
             let w = fl.wallet.get_or_insert_with(WalletFlow::blank);
             w.again = Some(Again {
                 restore: restore == "1",

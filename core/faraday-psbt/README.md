@@ -9,23 +9,20 @@ finalization. `no_std` + `alloc`, no `unsafe`. Dependencies: `bitcoin` and
 Written in this crate rather than taken from another: the PSBT inspection
 and verification logic (`inspect`, `verify`, `classify`), signing
 orchestration (`sign`), finalization (`finalize`), BIP-137 and BIP-322
-message signing (`message`), the MuSig2 and threshold signing rounds over
-`faraday-bip`'s arithmetic (`musig`, `threshold`) and the carry file. PSBT
-parsing and secp256k1 are `bitcoin`'s.
+message signing (`message`), and the MuSig2 signing rounds over
+`faraday-bip`'s arithmetic (`musig`). PSBT parsing and secp256k1 are
+`bitcoin`'s.
 
 Checked against: `tools/vectors/psbt/` (BIP-174 vectors, RFC 6979,
-Bitcoin Core's regtest PSBTs for MuSig2, taproot multisig and the threshold
-wallet), read by `tests/all/vectors.rs`, `fixtures.rs`, `wallet_fixtures.rs`,
-`musig.rs`, `tapmulti.rs` and `threshold.rs`; `tools/vectors/message/`
-(`tests/all/message.rs`); `tools/scripts/threshold-reference.py` against BIP
-445's reference.
+Bitcoin Core's regtest PSBTs for MuSig2 and taproot multisig), read by
+`tests/all/vectors.rs`, `fixtures.rs`, `wallet_fixtures.rs`, `musig.rs`
+and `tapmulti.rs`; `tools/vectors/message/` (`tests/all/message.rs`).
 
 `unsafe`: none (the workspace forbids it).
 
 Secrets are wiped in `sign.rs`, `message.rs` and `verify.rs`
-(`non_secure_erase` on the `Keypair` and its tweaked copy) and in
-`threshold.rs` (`CarrySection` and `CarryEntry` implement `Zeroize`). The
-MuSig2 session's nonces wipe in `musig.rs`. Derived keys are
+(`non_secure_erase` on the `Keypair` and its tweaked copy). The MuSig2
+session's nonces wipe in `musig.rs`. Derived keys are
 `faraday_bip::keys::DerivedKey`.
 
 ## What is inspected
@@ -199,102 +196,6 @@ One block and one caution are MuSig2's own:
 A nonce or partial-signature key with a 32-byte tapleaf hash on it is a
 script-path MuSig2 spend and is refused: `tr(musig())` has no tree.
 
-## Threshold (FROST)
-
-A threshold wallet is a FROST group whose one key is a plain key: to a
-coordinator it is `tr(XPUB/<0;1>/*)` over the group key's synthetic
-extended public key, and the chain sees a single-signature taproot
-spend. `faraday_bip::frost` is BIP
-445's arithmetic and `faraday_bip::threshold` is the group record.
-
-### The `osk` records
-
-Two BIP-174 proprietary records, in each input's `proprietary` map under
-the identifier `osk`:
-
-| Record | prefix | subtype | Key data | Value |
-|---|---|---|---|---|
-| public nonce | `osk` | `0x00` | participant's public share (33) ‖ taproot output key (33) | 66-byte `PubNonce` |
-| partial signature | `osk` | `0x01` | the same | 32-byte `PartialSig` |
-
-Nothing of the group is in the PSBT. The threshold, the group key and
-the share list come from the registered record, so an input carrying
-`osk` records for a group no registered wallet has is blocked as
-**Threshold wallet not registered**; a second implementation reading
-these records needs the record too, which is the design. The secret
-nonce is never in a PSBT. `strip` runs before a finished transaction
-leaves the device, so a coordinator sees the PSBT it built and the
-transaction and never the session.
-
-### Which inputs it signs
-
-A `P2trKey` input whose internal key's `tap_key_origins` entry carries a
-registered threshold wallet's fingerprint — the synthetic xpub's — and a
-two-step unhardened `chain/index`, which is what Bitcoin Core and Sparrow
-write for `tr(XPUB/<0;1>/*)`. Then, as for MuSig2: the internal key must
-be the synthetic xpub at that chain and index; the output key must be
-`script_at`'s; the tweaks from the group key to the output key are one
-plain tweak per step and then BIP 341's x-only tap tweak with no merkle
-root, and a merkle root is refused. The signer set of an input is the
-participants with a public-nonce record, which must be exactly `t`
-distinct public shares of the record. Any mismatch blocks the input by
-name.
-
-### The rounds
-
-Per threshold input this device holds a share of, in this order:
-
-1. **Already signed** — this share's partial signature is on the input:
-   nothing is drawn or signed, and what is left is the aggregation.
-2. **A later location** — the input carries the whole signer set's public
-   nonces and a carry section was read. This share must be one of the
-   signers and the section must hold its secret nonce for this input;
-   then, refusing at the first failure by name, the stored nonce's public
-   nonce equals the record beside it, the section's sighash equals the
-   sighash computed now, the section's signer set equals the records', and
-   every partial signature on the input verifies. Then it signs with the
-   stored nonce, which is consumed.
-3. **The first location** — no nonce is on the input and no section was
-   read: the signer set is this share plus the `t - 1` others the caller
-   chose, every signer's nonce is drawn from the caller's seed, tagged per
-   input and participant, and every other signer's secret nonce goes into
-   the carry section. `extra_in` is none for every signer: this share's
-   secret already enters its own nonce through `secshare`, and mixing it
-   into a nonce that is written to a file would open a path from the
-   share to the stick for no gain.
-4. Anything else — nonces for a set this share is not in, a section for a
-   PSBT with no nonces, nonces with no section — is refused by name.
-   There is no in-memory session and nothing waits.
-
-The message is the BIP-341 key-path sighash under `SIGHASH_DEFAULT` only.
-When every signer has signed, `partial_sig_agg` gives the 64-byte
-signature, which is verified against the output key and written as
-`tap_key_sig`.
-
-### The carry file
-
-One file per PSBT, and one file whole, because the shell's file channel
-answers one request with one file and a picker shell cannot fetch a
-sibling by name. Its magic is `OSKC`, so nothing that reads PSBTs takes
-it for one, and it is saved as `partly-signed.osk`:
-
-```text
-magic "OSKC" (4)  version 0x01 (1)
-section:
-  signers u8, then that many public shares (33 each), in identifier order
-  entries u8, then per entry:
-    input index u32 BE
-    public share of the signer whose nonce this is (33)
-    sighash (32)
-    secret nonce (64)
-psbt: the rest of the file, binary PSBT bytes
-```
-
-`CarrySection` is a secret: not `Clone`, never printed, wiped on drop,
-and its module is in the secret-hygiene lint's list. There is no
-encryption in this version; §16.103 offers it as defence in depth and it
-stays open.
-
 ## What is refused
 
 - Taproot script-path inputs (`P2trScript`) and unknown scripts, when an
@@ -310,6 +211,9 @@ stays open.
   chain rejects and nothing to combine it with. Taproot commits to every
   amount it spends and needs no such transaction.
 - PSBT versions other than 0, and PSBTs `bitcoin` rejects.
+- A taproot key-path input carrying proprietary records under the
+  identifier `osk`, which this build does not read: blocked as
+  `UnreadRecords` (F127).
 
 `finalize` builds the scriptSig/witness for the supported kinds (`bitcoin`
 has no finalizer), clears the signing fields as BIP-174 requires, and
@@ -327,13 +231,6 @@ and Bitcoin Core's `key_tests.cpp`). The files are blank-line separated
 records of `key: value` lines; each file's header lists its keys. Tests:
 `tests/all/vectors.rs`, `tests/all/sign.rs`, `tests/all/inspect.rs`,
 `tests/all/multisig.rs`, `tests/all/nonce.rs`.
-
-The threshold fixtures (`wallet-threshold-*`) are the committed regtest
-group, Bitcoin Core's funded spend of it, the carry file the first
-location wrote and the transaction the second one finished;
-`tests/all/threshold.rs` runs the route in both orders and every refusal, and
-`tools/scripts/threshold-reference.py` replays one session against BIP
-445's own reference implementation.
 
 The MuSig2 fixtures (`wallet-musig-*`) are Bitcoin Core 31.1's own PSBTs
 from a regtest round trip in both orders, with the commands and the

@@ -7,7 +7,7 @@ use faraday_core::wallet::{Origin, Session};
 use faraday_samples::SAMPLES;
 
 /// What the testkit makes, in the order the samples list it: the ten
-/// wallets of `kits()`, MuSig2, FROST and the 3 of 5, each as its name,
+/// wallets of `kits()`, MuSig2 and the 3 of 5, each as its name,
 /// its text and its unsigned spend.
 fn testkit_wallets() -> Vec<(&'static str, String, Vec<u8>)> {
     let names = [
@@ -38,12 +38,6 @@ fn testkit_wallets() -> Vec<(&'static str, String, Vec<u8>)> {
             .expect("musig")
             .to_descriptor_checksummed(),
         testkit::musig_unsigned().expect("a spend").to_bytes(),
-    ));
-    #[cfg(feature = "unreleased")]
-    all.push((
-        "sample_frost",
-        testkit::threshold_record().expect("a record").to_text(),
-        testkit::threshold_unsigned().expect("a spend").to_bytes(),
     ));
     all.push(("sample_three_of_five", testkit::three_of_five(), Vec::new()));
     all
@@ -83,49 +77,24 @@ fn a_wallets_keys_are_the_sample_keys_its_text_names() {
         assert!(!w.keys.is_empty(), "{}", w.name);
         for fp in w.keys {
             assert!(sample_fps.contains(fp), "{}: {}", w.name, hex(fp));
-            // A FROST record names its shares, not the keys' fingerprints.
-            if w.name != "sample_frost" {
-                assert!(w.text.contains(&hex(fp)), "{}: {}", w.name, hex(fp));
-            }
+            assert!(w.text.contains(&hex(fp)), "{}: {}", w.name, hex(fp));
         }
         // And every sample key the text names is there.
-        if w.name != "sample_frost" {
-            for fp in &sample_fps {
-                assert_eq!(
-                    w.text.contains(&hex(fp)),
-                    w.keys.contains(fp),
-                    "{}: {}",
-                    w.name,
-                    hex(fp)
-                );
-            }
+        for fp in &sample_fps {
+            assert_eq!(
+                w.text.contains(&hex(fp)),
+                w.keys.contains(fp),
+                "{}: {}",
+                w.name,
+                hex(fp)
+            );
         }
     }
-    // The Savings wallet is the 2 of 3 over the first three test seeds;
-    // FROST's shares 1 and 2 are bacon and zebra.
+    // The Savings wallet is the 2 of 3 over the first three test seeds.
     let bacon = key("sample_words").plain.expect("bacon");
     let savings = SAMPLES.wallets[0];
     assert!(savings.keys.contains(&bacon));
     assert_eq!(savings.keys.len(), 3);
-    #[cfg(feature = "unreleased")]
-    let frost = SAMPLES
-        .wallets
-        .iter()
-        .find(|w| w.name == "sample_frost")
-        .expect("frost");
-    #[cfg(feature = "unreleased")]
-    {
-        assert_eq!(frost.keys.len(), 2);
-        assert!(frost.keys.contains(&bacon));
-    }
-}
-
-/// FROST is compiled out of the app (docs/decisions/F109.md): Practice
-/// offers no FROST sample.
-#[cfg(not(feature = "unreleased"))]
-#[test]
-fn demo_offers_no_frost_sample() {
-    assert!(SAMPLES.wallets.iter().all(|w| w.name != "sample_frost"));
 }
 
 #[test]
@@ -163,12 +132,9 @@ fn the_kind_and_script_a_wallet_sample_records_are_what_its_policy_reads_as() {
             }
             K::MuSig(keys) => assert_eq!(usize::from(keys), p.keys().len(), "{}", w.name),
             K::Single | K::Timelock => assert_eq!(quorum, None, "{}", w.name),
-            #[cfg(feature = "unreleased")]
-            K::Frost { .. } => assert_eq!(quorum, None, "{}", w.name),
         }
     }
-    // A FROST group is 2 of 3 and the inheritance wallet is the timelocked
-    // one.
+    // The inheritance wallet is the timelocked one.
     let kind = |name: &str| {
         SAMPLES
             .wallets
@@ -177,7 +143,5 @@ fn the_kind_and_script_a_wallet_sample_records_are_what_its_policy_reads_as() {
             .expect(name)
             .kind
     };
-    #[cfg(feature = "unreleased")]
-    assert_eq!(kind("sample_frost"), K::Frost { need: 2, total: 3 });
     assert_eq!(kind("sample_inheritance"), K::Timelock);
 }

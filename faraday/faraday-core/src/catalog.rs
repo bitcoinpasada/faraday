@@ -200,15 +200,6 @@ pub const TILES: &[Tile] = &[
         tags: &["BIP-327", "BIP-328", "BIP-373", "BIP-390"],
         go: Go::Create(NewKind::MuSig),
     },
-    // FROST is compiled out of the app (F109).
-    #[cfg(feature = "unreleased")]
-    Tile {
-        group: EN.catalog_wallets,
-        name: EN.catalog_frost_threshold,
-        line: EN.catalog_any_m_of_n,
-        tags: &["BIP-445", "BIP-340"],
-        go: Go::Create(NewKind::Threshold),
-    },
     Tile {
         group: EN.catalog_wallets,
         name: EN.catalog_miniscript_inheritance,

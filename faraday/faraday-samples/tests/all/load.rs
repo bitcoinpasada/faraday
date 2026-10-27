@@ -112,8 +112,6 @@ const TYPES: &[&str] = &[
     "timelock recovery \u{b7} native SegWit",
     "single-sig \u{b7} Taproot, script tree",
     "3-key MuSig2 \u{b7} Taproot",
-    #[cfg(feature = "unreleased")]
-    "2-of-3 FROST \u{b7} Taproot",
     "3-of-5 multisig \u{b7} native SegWit",
     "BIP-39 \u{b7} 24 words",
     "BIP-39 \u{b7} 12 words",

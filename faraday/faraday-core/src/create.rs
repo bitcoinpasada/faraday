@@ -37,8 +37,6 @@ pub enum NewKind {
     MultiLegacy,
     /// `tr(NUMS, sortedmulti_a)`, at m/48'/0'/0'/3' (coin type 1 on a test network).
     TapMulti,
-    /// FROST: any m of n shares sign one Taproot key, dealt here.
-    Threshold,
     /// MuSig2: every key signs one Taproot key together,
     /// `tr(musig(…)/<0;1>/*)` over the keys' Taproot accounts (BIP-327,
     /// 328, 390).
@@ -70,11 +68,11 @@ pub fn create_steps(kind: NewKind) -> Vec<u8> {
 const NUMS: &str = "50929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0";
 
 impl NewKind {
-    /// Every kind, by its number in `Action::CKind` and `Action::RKind`
-    /// (and in a backup flow kept across a lock): a new kind is added at
-    /// the end, never between. The Kind card's order is
-    /// [`NewKind::CREATE_ROWS`].
-    pub const ALL: [NewKind; 11] = [
+    /// Every kind, by its number in `Action::CKind` and `Action::RKind`:
+    /// a new kind is added at the end, never between. A backup flow kept
+    /// across a lock writes a kind by [`NewKind::code`] instead. The Kind
+    /// card's order is [`NewKind::CREATE_ROWS`].
+    pub const ALL: [NewKind; 10] = [
         NewKind::NativeSegwit,
         NewKind::Taproot,
         NewKind::NestedSegwit,
@@ -83,18 +81,35 @@ impl NewKind {
         NewKind::MultiNested,
         NewKind::MultiLegacy,
         NewKind::TapMulti,
-        NewKind::Threshold,
         NewKind::MuSig,
         NewKind::Shares,
     ];
+
+    /// The kind's number in a backup flow kept across a lock, which never
+    /// changes: 8 was a kind since removed (F127) and is read as none.
+    pub fn code(self) -> u8 {
+        match self {
+            NewKind::MuSig => 9,
+            NewKind::Shares => 10,
+            k => Self::ALL.iter().position(|x| *x == k).unwrap_or(0) as u8,
+        }
+    }
+
+    /// The kind a kept number names ([`NewKind::code`]).
+    pub fn from_code(code: u8) -> Option<NewKind> {
+        match code {
+            0..=7 => Some(Self::ALL[usize::from(code)]),
+            9 => Some(NewKind::MuSig),
+            10 => Some(NewKind::Shares),
+            _ => None,
+        }
+    }
 
     /// Make a new wallet's Kind rows, by place in [`NewKind::ALL`], in the
     /// order shown: Single key backup in shares, the default, then Single
     /// key and Multisig (`docs/CODEX32.md` §6.9, owner 2026-10-24), then
     /// the others behind **More kinds**.
-    /// FROST (8) is not among them: Create makes no threshold wallet
-    /// (F109); the kind stays in [`NewKind::ALL`] for what reads one.
-    pub const CREATE_ROWS: [usize; 10] = [10, 0, 4, 1, 2, 3, 5, 6, 7, 9];
+    pub const CREATE_ROWS: [usize; 10] = [9, 0, 4, 1, 2, 3, 5, 6, 7, 8];
 
     /// How many of [`NewKind::CREATE_ROWS`] show before **More kinds**.
     pub const CREATE_FIRST: usize = 3;
@@ -127,7 +142,6 @@ impl NewKind {
             NewKind::MultiNested => EN.create_multisig_nested,
             NewKind::MultiLegacy => EN.create_multisig_legacy,
             NewKind::TapMulti => EN.create_multisig_taproot,
-            NewKind::Threshold => EN.create_threshold_frost,
             NewKind::MuSig => EN.create_all_keys_musig2,
             NewKind::Shares => EN.create_single_key_shares,
         }
@@ -144,7 +158,6 @@ impl NewKind {
             NewKind::MultiNested => EN.create_multisig_nested_line,
             NewKind::MultiLegacy => EN.create_multisig_legacy_line,
             NewKind::TapMulti => EN.create_multisig_taproot_line,
-            NewKind::Threshold => EN.create_any_m_of_n_shares,
             NewKind::MuSig => EN.create_every_key_signs,
             NewKind::Shares => EN.create_shares_line_plain,
         }
@@ -184,7 +197,6 @@ impl NewKind {
             },
             Template::Tree if policy.tapscript_quorum().is_some() => NewKind::TapMulti,
             Template::MuSig => NewKind::MuSig,
-            Template::Threshold { .. } => NewKind::Threshold,
             _ => return None,
         })
     }
@@ -197,7 +209,6 @@ impl NewKind {
                 | NewKind::MultiNested
                 | NewKind::MultiLegacy
                 | NewKind::TapMulti
-                | NewKind::Threshold
                 | NewKind::MuSig
         )
     }
@@ -213,15 +224,10 @@ impl NewKind {
         self == NewKind::MuSig
     }
 
-    /// Whether the keys are shares dealt here rather than account keys.
-    pub fn threshold(self) -> bool {
-        self == NewKind::Threshold
-    }
-
-    /// The most keys a wallet of this kind has: five shares for FROST,
-    /// fifteen keys for a multisig.
+    /// The most keys a wallet of this kind has: fifteen keys for a
+    /// multisig.
     pub fn max_keys(self) -> usize {
-        if self.threshold() { 5 } else { 15 }
+        15
     }
 
     /// The path a key of this kind is taken at, from its master, on
@@ -237,7 +243,6 @@ impl NewKind {
             NewKind::MultiNested => format!("m/48'/{c}'/0'/1'"),
             NewKind::MultiLegacy => "m/45'".to_string(),
             NewKind::TapMulti => format!("m/48'/{c}'/0'/3'"),
-            NewKind::Threshold => String::new(),
             NewKind::MuSig => format!("m/86'/{c}'/0'"),
         }
     }
@@ -255,9 +260,9 @@ impl NewKind {
     }
 
     /// Whether the kind's path has an account to choose: every kind but
-    /// `m/45'` and the shares dealt here.
+    /// `m/45'`.
     pub fn has_account(self) -> bool {
-        !matches!(self, NewKind::MultiLegacy | NewKind::Threshold)
+        self != NewKind::MultiLegacy
     }
 
     /// The card that carries the kind's Account row (F98): Quorum, at its
@@ -275,12 +280,10 @@ impl NewKind {
     }
 
     /// Which key text this kind is at `account` on `network`: its script's
-    /// account key, or its path (`docs/history/NEW-WALLET.md` §16.2). The
-    /// shares dealt here have none.
+    /// account key, or its path (`docs/history/NEW-WALLET.md` §16.2).
     pub fn spec(self, network: Network, account: u32) -> Result<faraday_keys::Spec, String> {
         use faraday_keys::Spec;
         Ok(match self {
-            NewKind::Threshold => return Err(EN.create_a_share_has.to_string()),
             NewKind::NativeSegwit | NewKind::Shares => {
                 Spec::Single(ScriptType::NativeSegwit, account)
             }
@@ -362,9 +365,6 @@ impl NewKind {
             NewKind::MultiNested => format!("sh(wsh(sortedmulti({m},{list})))"),
             NewKind::MultiLegacy => format!("sh(sortedmulti({m},{list}))"),
             NewKind::TapMulti => format!("tr({NUMS},sortedmulti_a({m},{list}))"),
-            // The deal makes a threshold wallet's record; it has no
-            // descriptor over account keys.
-            NewKind::Threshold => String::new(),
             // BIP-390: the wallet's derivation is on the aggregate, not on
             // each participant.
             NewKind::MuSig => format!("tr(musig({})/<0;1>/*)", keys.join(",")),
@@ -664,7 +664,7 @@ fn kind_script(kind: NewKind) -> Option<ScriptType> {
         NewKind::NestedSegwit | NewKind::MultiNested => Some(ScriptType::NestedSegwit),
         NewKind::Legacy | NewKind::MultiLegacy => Some(ScriptType::Legacy),
         NewKind::Taproot | NewKind::TapMulti | NewKind::MuSig => Some(ScriptType::Taproot),
-        NewKind::Threshold | NewKind::Shares => None,
+        NewKind::Shares => None,
     }
 }
 
@@ -719,9 +719,7 @@ fn named_agrees(kind: NewKind, text: &str) -> bool {
         NewKind::Multi => Script::NativeMultisig,
         NewKind::MultiNested => Script::NestedMultisig,
         NewKind::MultiLegacy => Script::LegacyMultisig,
-        NewKind::Taproot | NewKind::TapMulti | NewKind::Threshold | NewKind::MuSig => {
-            Script::Taproot
-        }
+        NewKind::Taproot | NewKind::TapMulti | NewKind::MuSig => Script::Taproot,
     };
     text.lines()
         .filter_map(slip132::key_line)
@@ -1286,14 +1284,12 @@ impl Faraday {
             },
             // A kind moves on by itself, and so does the kind already
             // ticked, pressed again: that is how the default is taken.
-            // FROST is not made here (F109): a press for it, as the Tools
-            // tile's, chooses nothing.
-            // Nor the backup in shares while Make codex32 shares is not
-            // offered.
+            // The backup in shares is not made while Make codex32 shares
+            // is not offered.
             Action::CKind(i)
                 if create::NewKind::ALL
                     .get(usize::from(i))
-                    .is_some_and(|k| k.threshold() || (k.shares() && !MAKE_OFFERED)) => {}
+                    .is_some_and(|k| k.shares() && !MAKE_OFFERED) => {}
             Action::CKind(_) => {
                 self.create.edit(action);
                 self.create_from_refresh();

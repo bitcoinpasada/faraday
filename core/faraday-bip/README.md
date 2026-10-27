@@ -10,7 +10,7 @@ BIP-39 mnemonics and seeds (`bip39`), BIP-32 master and hardened keys
 (`keys`), accounts and addresses (`account`, `address`), SLIP-132
 (`slip132`), descriptors and policies (`descriptor`, `policy`, `compile`,
 `tapmulti`, `recovery`), BIP-85 (`bip85`), SLIP-39 (`slip39`), codex32
-(`codex32`), MuSig2 (`musig`), FROST (`frost`, `threshold`), silent payments
+(`codex32`), MuSig2 (`musig`), silent payments
 (`silent`, `silent_wallet`), LND's aezeed and the Lightning node keys
 (`aezeed`), vanity grinding (`vanity`), BSMS records (`bsms`) and the
 wordlists (`wordlists`, `diceware`).
@@ -23,7 +23,6 @@ wordlists (`wordlists`, `diceware`).
 | `slip39` | SLIP-39 Shamir backup with RS1024 |
 | `codex32` | BIP 93 |
 | `musig` | BIP-327 MuSig2, BIP-328 aggregate xpub, BIP-390 key expression |
-| `frost` | BIP 445 FROST signing and the trusted-dealer split |
 | `silent` | BIP-352 receiving side, BIP-392 key expression |
 | `bip85` | BIP-85 over `HMAC-SHA512("bip-entropy-from-k", k)` |
 | `aez`, `aezeed` | AEZ v5 (a port of the reference code) and LND's cipher seed; BLAKE2b and scrypt are in `faraday-crypto` |
@@ -46,9 +45,6 @@ Vectors under `tools/vectors/`, tests under `tests/all/`:
   python-codex32's frozen corpus (`codex32-correction/`)
   (`codex32_correct.rs`).
 - `musig`: `bip327/`, `bip328/`, `bip390/`, `bip32/`, `bip39/` (`musig.rs`).
-- `frost`: `bip445/` and RFC 9591 appendix F.5 for the dealer (`frost.rs`);
-  `tools/scripts/threshold-reference.py` replays a session against BIP 445's
-  reference.
 - `silent`: `bip352/send_and_receive_test_vectors.json` (`silent.rs`).
 - `bip85`: `bip85/vectors.json` (`bip85.rs`).
 - `aez`: the reference implementation's data in
@@ -72,7 +68,7 @@ Every module in the list below is in `tools/lint-secrets.sh`'s
   `bip85.rs` and `silent.rs` (`Receiver`'s scan key) do the same.
 - `bip39.rs`: `Mnemonic`, `Entropy`, `Typed`, `LastWordCandidates`.
 - `slip39.rs`: `Share`, `SecretBytes`, `Points`.
-- `frost.rs`: `SecShare`, `SecNonce`; `musig.rs`: `SecNonce`.
+- `musig.rs`: `SecNonce`.
 - `bip85.rs`: `Bytes`, `HexBytes`, `Password`.
 - `aez.rs`, `aezeed.rs`, `codex32/`, `xkey.rs`, `base64.rs`: `Zeroizing`
   buffers for intermediate values.

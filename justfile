@@ -10,10 +10,6 @@ default: test lint
 [group('test')]
 test:
     cargo nextest run --locked --workspace
-    # What is compiled out of the app until its standard matures (FROST
-    # and signing across places, docs/decisions/F109.md), built and
-    # tested with it turned on: the crates that have the switch.
-    cargo nextest run --locked --features unreleased -p faraday-core -p faraday-keys -p faraday-learn -p faraday-strings -p faraday-samples -p faraday-testkit -p faraday-snapshot
     cargo test --locked --workspace --doc
 
 # Clippy with warnings as errors, and failing on a warning about its own
@@ -30,8 +26,6 @@ test:
 [group('lint')]
 lint:
     python3 tools/clippy.py --locked --workspace --all-targets
-    # The same with what is compiled out of the app turned on (F109).
-    python3 tools/clippy.py --locked --workspace --all-targets --features unreleased
     # Advisories, licences, duplicates and sources, against deny.toml.
     # `cargo install --locked cargo-deny` puts it on a machine (README,
     # "Faraday Demo, for developers").
@@ -70,15 +64,6 @@ lint:
 vet-refresh:
     python3 tools/vet-refresh.py
 
-# BIP 445's reference implementation as the second share of the
-# threshold fixture spend. Not part of the
-# default `just`, because it is Python and the default recipe is Rust;
-# the reference and its curve library are vendored under
-# tools/reference/bip445/ and nothing is fetched.
-[group('dev')]
-threshold-reference:
-    python3 tools/scripts/threshold-reference.py
-
 # Regenerate the embedded BIP-39 wordlists from the BIP repository and
 # the SLIP-39 list from the SLIPs repository (needs network).
 [group('dev')]
@@ -114,7 +99,6 @@ psbt-fixtures:
     cargo run -p faraday-psbt --release --example warnings -- tools/vectors/psbt
     cargo run -p faraday-psbt --release --example wallet -- tools/vectors/psbt
     cargo run -p faraday-psbt --release --example musig -- tools/vectors/psbt
-    cargo run -p faraday-psbt --release --example threshold -- tools/vectors/psbt
     cargo run -p faraday-psbt --release --example tapmulti -- tools/vectors/psbt
 
 # --- Fuzzing (fuzz/, faraday/fuzz/) -----------------

@@ -129,17 +129,6 @@ pub(crate) struct Derived {
     pub script_pubkey: ScriptBuf,
 }
 
-/// A loaded share of a threshold wallet as the inspector sees it: its
-/// public share and nothing else.
-///
-/// A share derives nothing and has no master fingerprint, so what names
-/// it on an input is the public share the group's record lists.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct ShareRef {
-    /// `secshare · G`, which is the entry the record carries for it.
-    pub pubshare: PublicKey,
-}
-
 /// Everything [`crate::inspect`] needs besides the PSBT: the network the
 /// user expects, the loaded keys, and the wallets registered for the
 /// session.
@@ -159,13 +148,6 @@ pub struct Context<'a> {
     /// of this device's already on an input can still be signed under or
     /// has to be replaced.
     pub musig_session: Option<&'a crate::musig::MusigSessionView>,
-    /// The loaded shares of threshold wallets. A share is named on an input by its public share, so
-    /// this is all the inspector needs to know it holds one.
-    pub shares: &'a [ShareRef],
-    /// The carry file's secret section, when the transaction arrived as
-    /// one. It decides whether a threshold input this device holds a
-    /// share of is a later location or a refusal.
-    pub carry: Option<&'a crate::threshold::CarrySection>,
 }
 
 impl<'a> Context<'a> {

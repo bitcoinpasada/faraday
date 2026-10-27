@@ -120,8 +120,6 @@ pub fn signed_by(dir: &Path, holders: &[&str]) -> (Psbt, SignResult) {
         keys: &keys,
         wallets: &wallets,
         musig_session: None,
-        shares: &[],
-        carry: None,
     };
     let mut psbt = first(dir);
     let result = sign(
@@ -135,8 +133,6 @@ pub fn signed_by(dir: &Path, holders: &[&str]) -> (Psbt, SignResult) {
         Aux::Deterministic,
         &mut None,
         &faraday_crypto::Zeroizing::new([0u8; 32]),
-        &[],
-        &[],
     )
     .expect("the wallet holds these keys");
     (psbt, result)

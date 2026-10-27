@@ -1,6 +1,6 @@
 //! Every file that comes into Files: `wallet::classify_read` over any
 //! bytes under a chosen name. It runs the vault header, backup, PDF,
-//! KDBX, EFI image, APK, certificate, carry, PSBT, GPG, signed message,
+//! KDBX, EFI image, APK, certificate, PSBT, GPG, signed message,
 //! multisig share, wallet, key, words, entries, seed part and raw
 //! transaction readers in order, on every file of a visited or booted
 //! stick, with no press for the boot stick's.

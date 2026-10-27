@@ -31,9 +31,7 @@
 # core/faraday-bip/src/bip85.rs (the WIF, extended private key, raw bytes and
 #   passwords BIP-85 derives, which are as secret as the key they came
 #   from) and
-# core/faraday-bip/src/xkey.rs (private keys), core/faraday-bip/src/frost.rs (FROST
-# secret shares and secret nonces), core/faraday-psbt/src/threshold.rs (the
-# carry file's stored secret nonces), core/faraday-entropy/src/ (one file a source)
+# core/faraday-bip/src/xkey.rs (private keys), core/faraday-entropy/src/ (one file a source)
 # (rolls, flips, raw entropy), core/faraday-bip/src/aez.rs and aezeed.rs (an
 # LND seed's words and entropy), core/faraday-bip/src/vanity.rs (the
 # candidate passphrase each grind tests); in faraday/faraday-core/src/,
@@ -116,7 +114,7 @@ rule2() {
 report "Debug derived on a secret type (rule 2)" "$(rule2)"
 
 # Rule 3: no heap text in the files that hold secret material.
-SECRET_FILES="core/faraday-crypto/src/sealed.rs core/faraday-bip/src/bip39.rs core/faraday-bip/src/slip39.rs core/faraday-bip/src/frost.rs core/faraday-psbt/src/threshold.rs core/faraday-bip/src/keys.rs core/faraday-bip/src/bip85.rs core/faraday-bip/src/xkey.rs core/faraday-entropy/src/lib.rs core/faraday-entropy/src/dice.rs core/faraday-entropy/src/booklet.rs core/faraday-entropy/src/coins.rs core/faraday-entropy/src/hex.rs core/faraday-entropy/src/xor.rs core/faraday-entropy/src/cards.rs core/faraday-entropy/src/camera.rs core/faraday-entropy/src/device.rs core/faraday-entropy/src/mix.rs faraday/faraday-vault/src/layouts.rs core/faraday-backup/src/kdbx.rs core/faraday-bip/src/codex32/mod.rs core/faraday-bip/src/codex32/worksheet.rs core/faraday-bip/src/codex32/fresh.rs core/faraday-bip/src/codex32/correct.rs core/faraday-bip/src/silent.rs core/faraday-bip/src/dleq.rs core/faraday-psbt/src/silent.rs core/faraday-bip/src/aez.rs core/faraday-bip/src/aezeed.rs core/faraday-bip/src/vanity.rs faraday/faraday-core/src/word_entry.rs faraday/faraday-core/src/quiz.rs faraday/faraday-core/src/grind.rs faraday/faraday-pgp/src/paperkey.rs"
+SECRET_FILES="core/faraday-crypto/src/sealed.rs core/faraday-bip/src/bip39.rs core/faraday-bip/src/slip39.rs core/faraday-bip/src/keys.rs core/faraday-bip/src/bip85.rs core/faraday-bip/src/xkey.rs core/faraday-entropy/src/lib.rs core/faraday-entropy/src/dice.rs core/faraday-entropy/src/booklet.rs core/faraday-entropy/src/coins.rs core/faraday-entropy/src/hex.rs core/faraday-entropy/src/xor.rs core/faraday-entropy/src/cards.rs core/faraday-entropy/src/camera.rs core/faraday-entropy/src/device.rs core/faraday-entropy/src/mix.rs faraday/faraday-vault/src/layouts.rs core/faraday-backup/src/kdbx.rs core/faraday-bip/src/codex32/mod.rs core/faraday-bip/src/codex32/worksheet.rs core/faraday-bip/src/codex32/fresh.rs core/faraday-bip/src/codex32/correct.rs core/faraday-bip/src/silent.rs core/faraday-bip/src/dleq.rs core/faraday-psbt/src/silent.rs core/faraday-bip/src/aez.rs core/faraday-bip/src/aezeed.rs core/faraday-bip/src/vanity.rs faraday/faraday-core/src/word_entry.rs faraday/faraday-core/src/quiz.rs faraday/faraday-core/src/grind.rs faraday/faraday-pgp/src/paperkey.rs"
 for f in $SECRET_FILES; do
     [ -f "$f" ] || { echo "lint-secrets: missing $f (update SECRET_FILES)"; status=1; }
 done
@@ -128,7 +126,7 @@ report "heap text in secret-handling source (rule 3)" \
 # only in faraday/faraday-keys. Everywhere else under faraday/ these are
 # refused, in code (comments are skipped):
 #   4a. a key or a seed in hand: MasterKey, SecretKey, Xpriv, Keypair,
-#       PrivateKey, DerivedKey, SecShare, SecNonce, SlotKey, to_seed;
+#       PrivateKey, DerivedKey, SecNonce, SlotKey, to_seed;
 #   4b. seed words made into a Mnemonic (parse, from_indices,
 #       from_entropy), a SeedQR decoded into one, a SLIP-39 split, a
 #       vault record's words read (records::words_of): faraday_keys::words
@@ -139,9 +137,8 @@ report "heap text in secret-handling source (rule 3)" \
 #       set, faraday_keys::gpg::Restore, does these), Secure Boot keys made or used
 #       (faraday_sb make, enrolment, Keys, Pair, pe::sign), a vault
 #       opened, sealed, created or its slot key derived (faraday_vault
-#       open, open_with, create, derive, seal, Opened), a carry section's nonces (CarrySection, CarryEntry,
-#       Carry::parse), a PSBT signed (faraday_psbt::sign), BIP-352's
-#       receiver, a FROST deal or secret share, an aezeed decoded;
+#       open, open_with, create, derive, seal, Opened), a PSBT signed
+#       (faraday_psbt::sign), BIP-352's receiver, an aezeed decoded;
 #   4d. a held secret taken out of its guard (Held::release, release(),
 #       into_record()), except at the sites in RELEASES;
 #   4e. a codex32 set made, split or recovered, or a worksheet of one's
@@ -181,7 +178,7 @@ in_code() {
 mapfile -t BOUNDARY < <(boundary_files)
 mapfile -t WORDS_FILES < <(printf '%s\n' "${BOUNDARY[@]}" | grep -v '^faraday/faraday-intake/')
 mapfile -t RELEASE_FILES < <(printf '%s\n' "${BOUNDARY[@]}" | grep -vxF -f <(tr ' ' '\n' <<< "$RELEASES"))
-secret_types='\b(MasterKey|SecretKey|Xpriv|Keypair|PrivateKey|DerivedKey|SecShare|SecNonce|SlotKey)\b|\bto_seed\b'
+secret_types='\b(MasterKey|SecretKey|Xpriv|Keypair|PrivateKey|DerivedKey|SecNonce|SlotKey)\b|\bto_seed\b'
 # `Work::MasterKey` is a kind of costly work, not the type, and so is the
 # enum variant work.rs declares for it.
 report "a key or seed outside faraday-keys (rule 4a)" \
@@ -192,7 +189,7 @@ report "a key or seed outside faraday-keys (rule 4a)" \
 report "seed words made outside faraday_keys::words (rule 4b)" \
     "$(in_code 'Mnemonic::(parse|from_indices|from_entropy|from_phrase)|seedqr::from_(entropy|digits)|slip39::split|records::words_of' "${WORDS_FILES[@]}")"
 report "a primitive's secret-taking function outside faraday-keys (rule 4c)" \
-    "$(in_code 'faraday_pgp::(Key|paperkey|restore|Restored|certificate::(restore|Restored))\b|faraday_sb::(make|enrolment|Keys|Pair|x509::Pair|pe::sign)\b|faraday_vault::(open|open_with|create|derive|seal|Opened)\b|CarrySection|CarryEntry|Carry::parse|faraday_psbt::sign\(|faraday_bip::silent::Receiver|frost::(deal|SecShare)|aezeed::(decode|node_key)|use faraday_(pgp|sb|vault)::\{[^}]*\b(Key|paperkey|restore|Restored|make|enrolment|Keys|Pair|open|open_with|create|derive|seal|Opened)\b' "${BOUNDARY[@]}")"
+    "$(in_code 'faraday_pgp::(Key|paperkey|restore|Restored|certificate::(restore|Restored))\b|faraday_sb::(make|enrolment|Keys|Pair|x509::Pair|pe::sign)\b|faraday_vault::(open|open_with|create|derive|seal|Opened)\b|faraday_psbt::sign\(|faraday_bip::silent::Receiver|aezeed::(decode|node_key)|use faraday_(pgp|sb|vault)::\{[^}]*\b(Key|paperkey|restore|Restored|make|enrolment|Keys|Pair|open|open_with|create|derive|seal|Opened)\b' "${BOUNDARY[@]}")"
 report "a codex32 set made, split or recovered outside faraday-keys (rule 4e)" \
     "$(in_code 'fresh_set|FreshSet|ChecksumWorksheet|TranslationWorksheet|Codex32::(from_seed|split|recover|derive_share)\b' "${BOUNDARY[@]}")"
 report "a held secret taken out of its guard outside the named sites (rule 4d)" \

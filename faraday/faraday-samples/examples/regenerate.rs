@@ -347,10 +347,6 @@ fn describe(c: &Compute, text: &str) -> (String, &'static str) {
     } else {
         match p.template() {
             Template::MuSig => format!("MuSig({})", p.keys().len()),
-            Template::Threshold {
-                threshold,
-                participants,
-            } => format!("Frost {{ need: {threshold}, total: {participants} }}"),
             Template::Miniscript { .. } => "Timelock".to_string(),
             _ => "Single".to_string(),
         }
@@ -359,13 +355,6 @@ fn describe(c: &Compute, text: &str) -> (String, &'static str) {
 }
 
 fn wallets(c: &Compute, keys: &[Key]) -> Vec<Wallet> {
-    #[cfg(feature = "unreleased")]
-    let fp_of = |w: &str, n: u8| {
-        keys.iter()
-            .find(|k| k.word == w && k.count == n)
-            .and_then(|k| k.plain)
-            .expect("a sample")
-    };
     let used = |text: &str| -> Vec<[u8; 4]> {
         keys.iter()
             .filter_map(|k| k.plain)
@@ -419,27 +408,6 @@ fn wallets(c: &Compute, keys: &[Key]) -> Vec<Wallet> {
         text: musig_text,
         spend: Some("data/musig.psbt".to_string()),
     });
-    // The FROST sample: written only by a build with `unreleased`, which
-    // keeps it in the data (`cargo run --example regenerate --features
-    // unreleased`); FROST is compiled out of the app (docs/decisions/F109.md).
-    #[cfg(feature = "unreleased")]
-    {
-        std::fs::write(
-            root().join("data/frost.psbt"),
-            testkit::threshold_unsigned().expect("a spend").to_bytes(),
-        )
-        .expect("write");
-        let frost_text = testkit::threshold_record().expect("a record").to_text();
-        let (kind, script) = describe(c, &frost_text);
-        out.push(Wallet {
-            name: "sample_frost",
-            kind,
-            script,
-            text: frost_text,
-            spend: Some("data/frost.psbt".to_string()),
-            keys: vec![fp_of("bacon", 24), fp_of("zebra", 24)],
-        });
-    }
     let five = testkit::three_of_five();
     let (kind, script) = describe(c, &five);
     out.push(Wallet {
@@ -551,11 +519,6 @@ fn emit_wallet(out: &mut String, w: &Wallet) {
         .as_ref()
         .map_or("&[]".to_string(), |f| format!("include_bytes!(\"../{f}\")"));
     let keys: Vec<String> = w.keys.iter().map(|k| arr(k)).collect();
-    // The FROST sample is compiled out of the app with FROST
-    // (docs/decisions/F109.md).
-    if w.kind.starts_with("Frost") {
-        out.push_str("    #[cfg(feature = \"unreleased\")]\n");
-    }
     writeln!(
         out,
         "    SampleWallet {{ name: {:?}, kind: SampleKind::{}, script: SampleScript::{}, \

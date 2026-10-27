@@ -181,8 +181,7 @@ fn title_of(k: &KeyGen, s: u8) -> String {
 }
 
 /// The Start card (`docs/history/NEW-WALLET.md` §15.1): Make a new key, Type the
-/// words, Scan a SeedQR, and under Other forms the other four; a
-/// threshold wallet's slot offers the first two only.
+/// words, Scan a SeedQR, and under Other forms the other four.
 fn start(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = y;
     let offered = k.starts();

@@ -20,7 +20,6 @@ mod bip32;
 mod bip85;
 mod codex32;
 mod entropy;
-mod frost;
 mod json;
 mod kdbx;
 mod lightning;
@@ -54,7 +53,6 @@ fn dispatch(op: &str, req: &Value) -> Answer {
     let (area, name) = op.split_once('.').ok_or("an op is area.name")?;
     match area {
         "musig" => musig::handle(name, req),
-        "frost" => frost::handle(name, req),
         "bip85" => bip85::handle(name, req),
         "bip39" => bip32::handle_bip39(name, req),
         "bip32" => bip32::handle_bip32(name, req),

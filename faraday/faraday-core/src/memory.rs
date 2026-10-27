@@ -32,8 +32,6 @@ const PICTURE_KINDS: &[FileKind] = &[
     FileKind::Vault,
     FileKind::Entries,
     FileKind::EfiImage,
-    #[cfg(feature = "unreleased")]
-    FileKind::Carry,
     FileKind::Kdbx,
     FileKind::Pdf,
     FileKind::SeedPart,

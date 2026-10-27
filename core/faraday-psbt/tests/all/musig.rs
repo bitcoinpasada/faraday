@@ -56,8 +56,6 @@ fn core_context<'a>(keys: &'a [KeyRef], wallets: &'a [WalletPolicy]) -> Context<
         keys,
         wallets,
         musig_session: None,
-        shares: &[],
-        carry: None,
     }
 }
 
@@ -89,8 +87,6 @@ fn the_device_signs_last_after_bitcoin_core() {
         Aux::Deterministic,
         &mut None,
         &faraday_crypto::Zeroizing::new([0u8; 32]),
-        &[],
-        &[],
     )
     .unwrap();
     assert_eq!(out.signed_inputs.len(), 1);
@@ -215,8 +211,6 @@ fn a_psbt_with_no_nonce_on_it_shares_this_devices_nonce() {
         Aux::Deterministic,
         &mut session,
         &faraday_crypto::Zeroizing::new([3u8; 32]),
-        &[],
-        &[],
     )
     .unwrap();
     assert_eq!(out.nonces_shared, 1);
@@ -552,8 +546,6 @@ fn a_second_signer_and_the_device_finish_the_transaction() {
         Aux::Deterministic,
         &mut None,
         &faraday_crypto::Zeroizing::new([0u8; 32]),
-        &[],
-        &[],
     )
     .unwrap();
     assert_eq!(out.signed_inputs.len(), 1);
@@ -596,8 +588,6 @@ fn a_second_signer_and_the_device_finish_the_transaction() {
         Aux::Deterministic,
         &mut None,
         &faraday_crypto::Zeroizing::new([0u8; 32]),
-        &[],
-        &[],
     )
     .unwrap();
     assert_eq!(out.signed_inputs.len(), 1);
@@ -654,8 +644,6 @@ fn a_bad_partial_signature_names_its_participant() {
         Aux::Deterministic,
         &mut None,
         &faraday_crypto::Zeroizing::new([0u8; 32]),
-        &[],
-        &[],
     )
     .unwrap_err();
     match err {
@@ -731,8 +719,6 @@ fn context_with<'a>(
         keys,
         wallets,
         musig_session: session,
-        shares: &[],
-        carry: None,
     }
 }
 
@@ -757,8 +743,6 @@ fn pass(
         Aux::Deterministic,
         session,
         &faraday_crypto::Zeroizing::new([seed; 32]),
-        &[],
-        &[],
     )
     .expect("the pass runs")
 }

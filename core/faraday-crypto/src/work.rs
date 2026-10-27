@@ -21,7 +21,7 @@ pub enum Work {
     /// A PSBT inspected: every input's script, key origins, signatures
     /// and amounts read against the wallets and keys given.
     PsbtInspect,
-    /// A PSBT signed (single key, MuSig2 or threshold share), or a
+    /// A PSBT signed (single key or MuSig2), or a
     /// message signed.
     Sign,
     /// QR codes looked for in a picture's pixels.

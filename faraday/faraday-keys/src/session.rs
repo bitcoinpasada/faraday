@@ -7,8 +7,7 @@
 //!
 //! - a fact, which [`KeyInfo`] keeps beside each key, worked out once
 //!   when the key is added (its fingerprint, its id, its label, its
-//!   language, how many words it has, whether it has a passphrase, its
-//!   FROST share);
+//!   language, how many words it has, whether it has a passphrase);
 //! - an operation, a method of [`Keys`] that computes with the secret and
 //!   returns a public result (a comparison, a signature, a derived key
 //!   text, a fingerprint, a record);
@@ -22,7 +21,6 @@
 
 use faraday_bip::bip39::{Language, Mnemonic};
 use faraday_bip::bitcoin::bip32::DerivationPath;
-use faraday_bip::bitcoin::secp256k1::PublicKey;
 use faraday_bip::keys::{Fingerprint, MasterKey, Network, WifAscii, XprivAscii};
 use faraday_crypto::work::Compute;
 use faraday_intake::wallet::Refusal;
@@ -68,12 +66,6 @@ pub struct KeyInfo {
     pub word_count: Option<u8>,
     /// Whether it was loaded with a BIP-39 passphrase.
     pub has_passphrase: bool,
-    /// The public share these words are as a FROST share: 24 words'
-    /// 32 bytes read as the share's scalar. Every 24-word key has one; it
-    /// signs as a share only for a loaded threshold record that lists it.
-    /// `None` in a build without `unreleased`, where FROST is compiled
-    /// out of the app (F109).
-    pub share: Option<PublicKey>,
     /// The codex32 set the key's seed is split into, as its plain facts
     /// (`docs/CODEX32.md` §9.4): set when Make codex32 shares loads it,
     /// when it is loaded from strings, or read from its vault record.
@@ -591,11 +583,6 @@ impl Keys {
             }
             words.push_str(lang.word(i));
         }
-        // A key is a FROST share only where FROST is built (F109).
-        #[cfg(feature = "unreleased")]
-        let share = crate::frost::public_share(mnemonic);
-        #[cfg(not(feature = "unreleased"))]
-        let share = None;
         let word_count = u8::try_from(mnemonic.word_count()).ok();
         self.entries.push(Entry::new(
             c,
@@ -604,7 +591,6 @@ impl Keys {
             Some(words),
             lang,
             word_count,
-            share,
             (!passphrase.is_empty()).then(|| Zeroizing::new(passphrase.to_string())),
             None,
         ));
@@ -642,7 +628,6 @@ impl Keys {
             label,
             None,
             Language::English,
-            None,
             None,
             None,
             Some(Zeroizing::new(seed.to_vec())),
@@ -1280,18 +1265,6 @@ impl Keys {
         crate::psbt::key_refs(c, &masters)
     }
 
-    /// The loaded keys that are FROST shares, by their public share.
-    pub fn share_refs(&self) -> Vec<faraday_psbt::ShareRef> {
-        self.entries
-            .iter()
-            .filter_map(|e| {
-                e.info
-                    .share
-                    .map(|pubshare| faraday_psbt::ShareRef { pubshare })
-            })
-            .collect()
-    }
-
     /// Costs what `deterministic` costs. The signatures `psbt` carries that
     /// a key held here recomputes, and by which nonce rule.
     pub fn recompute_signatures(
@@ -1304,48 +1277,18 @@ impl Keys {
     }
 
     /// Costs what `faraday_psbt::sign` costs. Signs `psbt` with the keys in
-    /// `selection` and every share that signs; `others` are the shares
-    /// chosen to sign with this one, and `carry` the section the spend
-    /// arrived with. A share's scalar is rebuilt from its words only inside
-    /// the call the signer makes through its door. The result, and the
-    /// carry section the pass leaves for the shares still to sign, taken
-    /// out of it.
-    #[allow(clippy::too_many_arguments)]
+    /// `selection`.
     pub fn sign(
         &self,
         c: &Compute,
         psbt: &mut faraday_psbt::Psbt,
         selection: &[Fingerprint],
         ctx: faraday_psbt::Context<'_>,
-        carry: Option<&crate::carry::Section>,
         musig: &mut Option<faraday_psbt::MusigSession>,
         seed: &Zeroizing<[u8; 32]>,
-        others: &[u32],
-    ) -> Result<(faraday_psbt::SignResult, Option<crate::carry::Section>), faraday_psbt::Error>
-    {
-        let mut ctx = ctx;
-        ctx.carry = carry.map(|s| &s.0);
+    ) -> Result<faraday_psbt::SignResult, faraday_psbt::Error> {
         let masters: Vec<&MasterKey> = self.entries.iter().map(|e| &e.key.master).collect();
-        let holders: Vec<crate::psbt::ShareHolder<'_>> = self
-            .entries
-            .iter()
-            .filter_map(|e| {
-                Some(crate::psbt::ShareHolder {
-                    pubshare: e.info.share?,
-                    language: e.info.language,
-                    words: e.key.words.as_ref().map(|w| w.as_str()),
-                })
-            })
-            .collect();
-        let mut result = crate::psbt::sign(
-            c, psbt, &masters, selection, &ctx, musig, seed, &holders, others,
-        )?;
-        let left = result
-            .threshold
-            .as_mut()
-            .and_then(|t| t.carry.take())
-            .map(crate::carry::Section);
-        Ok((result, left))
+        crate::psbt::sign(c, psbt, &masters, selection, &ctx, musig, seed)
     }
 }
 
@@ -1360,7 +1303,6 @@ impl Entry {
         words: Option<Zeroizing<String>>,
         language: Language,
         word_count: Option<u8>,
-        share: Option<PublicKey>,
         passphrase: Option<Zeroizing<String>>,
         seed: Option<Zeroizing<Vec<u8>>>,
     ) -> Entry {
@@ -1371,7 +1313,6 @@ impl Entry {
             language,
             word_count,
             has_passphrase: passphrase.is_some(),
-            share,
             codex32: None,
         };
         Entry {

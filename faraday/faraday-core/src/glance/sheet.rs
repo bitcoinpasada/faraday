@@ -453,14 +453,12 @@ pub(crate) fn view(app: &crate::drawing::View, press: Press, target: Target) -> 
             let mut groups = Vec::new();
             if key.here {
                 let mut public = Vec::new();
-                if !g.threshold {
-                    public.push(row(EN.glance_sheet_show_xpub, "", doing(Step::KeyQr(k))));
-                    public.push(row(
-                        EN.glance_sheet_xpub_file,
-                        EN.glance_sheet_stick_detail,
-                        doing(Step::KeyFile(k)),
-                    ));
-                }
+                public.push(row(EN.glance_sheet_show_xpub, "", doing(Step::KeyQr(k))));
+                public.push(row(
+                    EN.glance_sheet_xpub_file,
+                    EN.glance_sheet_stick_detail,
+                    doing(Step::KeyFile(k)),
+                ));
                 if key.held
                     && let Some(fp) = key.fp
                 {
@@ -575,13 +573,11 @@ pub(crate) fn view(app: &crate::drawing::View, press: Press, target: Target) -> 
                 // A key not held here: public things, its holder, and the
                 // date its holder confirmed its backup (§9.3).
                 let mut rows = Vec::new();
-                if !g.threshold {
-                    rows.push(row(
-                        EN.glance_sheet_show_key_xpub,
-                        "",
-                        doing(Step::CosignerQr(k)),
-                    ));
-                }
+                rows.push(row(
+                    EN.glance_sheet_show_key_xpub,
+                    "",
+                    doing(Step::CosignerQr(k)),
+                ));
                 rows.push(keeping(
                     EN.glance_sheet_name_holder,
                     open(Target::Holder(k)),

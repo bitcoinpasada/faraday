@@ -480,7 +480,7 @@ impl Answers {
     /// Moves the seeds of the answers to where they turned out to be:
     /// `map[old]` is the new place of old seed `old` among `new_n` seeds.
     /// A wallet's keys-to-be are numbered by slot; its seeds are numbered
-    /// as its description lists them (FROST's by share).
+    /// as its description lists them.
     pub fn remap_seeds(&mut self, map: &[usize], new_n: usize) {
         let to = |old: usize| map.get(old).copied().filter(|&n| n < new_n);
         for row in &mut self.vaults {

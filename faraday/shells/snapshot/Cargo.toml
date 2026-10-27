@@ -24,9 +24,5 @@ png.workspace = true
 faraday-codec = { path = "../../../core/faraday-codec" }
 faraday-selftest = { path = "../../../core/faraday-selftest" }
 
-[features]
-# The tour's FROST stops, compiled out with FROST (docs/decisions/F109.md).
-unreleased = ["faraday-core/unreleased"]
-
 [lints]
 workspace = true

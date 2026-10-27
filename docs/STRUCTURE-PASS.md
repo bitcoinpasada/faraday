@@ -32,17 +32,14 @@ from an exact list of tokens. It never edits a pattern such as `osk-`,
 because these byte strings contain one and are part of a format, a
 derivation or a file a person already holds:
 
-- **Magics:** `OSKC` (threshold carry), `OSKO`
-  (baked font outlines).
-- **Extensions:** `.osk` (`partly-signed.osk`).
+- **Magics:** `OSKO` (baked font outlines).
 - **Domain-separation and nonce tags:**
   - `osk-sealed-v1`, `osk-sealed-nonce`, `osk-session-key-weak`,
     `osk-secp-blind`;
   - `osk-schnorr-aux`;
   - `OpenSigner/musig-rand`, `OpenSigner/musig-next-seed`;
-  - `OpenSigner/threshold-rand`, `OpenSigner/threshold-blind`;
   - `osk-kdbx-uuid`.
-- **Text formats:** the `osk-threshold` and `osk-silent` headers.
+- **Text formats:** the `osk-silent` header.
 
 What the rename was expected to change, and its check: moved to `docs/history/STRUCTURE-PASS-LOG.md`.
 

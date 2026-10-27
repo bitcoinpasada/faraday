@@ -87,8 +87,6 @@ pub fn core_first_signed(dir: &Path) -> Psbt {
         keys: &keys,
         wallets: &wallets,
         musig_session: None,
-        shares: &[],
-        carry: None,
     };
     let selection = [master.fingerprint()];
     let out = sign(
@@ -102,8 +100,6 @@ pub fn core_first_signed(dir: &Path) -> Psbt {
         Aux::Deterministic,
         &mut None,
         &faraday_crypto::Zeroizing::new([0u8; 32]),
-        &[],
-        &[],
     )
     .expect("the device signs last");
     assert!(!out.signed_inputs.is_empty(), "nothing was signed");
@@ -130,8 +126,6 @@ pub fn device_first_nonce(dir: &Path) -> (Psbt, Option<MusigSession>) {
         keys: &keys,
         wallets: &wallets,
         musig_session: None,
-        shares: &[],
-        carry: None,
     };
     let mut session = None;
     let out = sign(
@@ -145,8 +139,6 @@ pub fn device_first_nonce(dir: &Path) -> (Psbt, Option<MusigSession>) {
         Aux::Deterministic,
         &mut session,
         &faraday_crypto::Zeroizing::new(SESSION_SEED),
-        &[],
-        &[],
     )
     .expect("the device goes first");
     assert_eq!(out.nonces_shared, 1, "one nonce, for the one input");
@@ -172,8 +164,6 @@ pub fn device_first_signed(dir: &Path) -> Psbt {
         keys: &keys,
         wallets: &wallets,
         musig_session: view.as_ref(),
-        shares: &[],
-        carry: None,
     };
     let out = sign(
         &c,
@@ -186,8 +176,6 @@ pub fn device_first_signed(dir: &Path) -> Psbt {
         Aux::Deterministic,
         &mut session,
         &faraday_crypto::Zeroizing::new(SESSION_SEED),
-        &[],
-        &[],
     )
     .expect("the session signs");
     assert!(out.complete, "every partial signature was there");

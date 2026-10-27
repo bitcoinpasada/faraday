@@ -3,7 +3,7 @@
 //! answer seeds the session, and the next few wait in a small pool. A key
 //! made here (a vault's keys, a GPG key, Secure Boot keys) takes one
 //! answer of its own, hashed with what it is for, and the pool is topped
-//! up. A signing pass that opens a MuSig2 or FROST round takes
+//! up. A signing pass that opens a MuSig2 round takes
 //! [`Faraday::sign_seed`]: the session's seed with a count of the passes,
 //! so that no two passes of a
 //! process draw the same nonce. A vault's seal nonce and a new keyboard's
@@ -273,7 +273,7 @@ impl Fresh {
         }
     }
 
-    /// The seed a signing pass draws a MuSig2 or FROST round's secret
+    /// The seed a signing pass draws a MuSig2 round's secret
     /// nonces from: the session's seed hashed with a count of the
     /// passes, so a nonce shared again is never the one shared before.
     /// `None` until the session is seeded, and the shell is asked: a
@@ -591,7 +591,7 @@ impl Faraday {
         }
     }
 
-    /// The seed a signing pass draws a MuSig2 or FROST round's secret
+    /// The seed a signing pass draws a MuSig2 round's secret
     /// nonces from (see [`Fresh::sign_seed`]).
     pub(crate) fn sign_seed(&mut self) -> Option<Zeroizing<[u8; 32]>> {
         self.fresh.sign_seed(&mut self.out)

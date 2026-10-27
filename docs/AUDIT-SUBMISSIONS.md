@@ -94,11 +94,11 @@ The page offers them as a starting point for the audit's scope:
 >
 > - **Key material:** whether a key, seed or passphrase can leave the
 >   device; the randomness and entropy behind key generation; nonces in
->   ECDSA, Schnorr, MuSig2 and FROST signing.
+>   ECDSA, Schnorr and MuSig2 signing.
 > - **Signing:** whether what the screen shows (amounts, fee,
 >   destinations, change) is what gets signed.
 > - **Correct results:** derivations, addresses, mnemonics, SLIP-39 and
->   codex32 shares, backup files (KDBX), MuSig2 and FROST,
+>   codex32 shares, backup files (KDBX), MuSig2,
 >   against published vectors and other implementations.
 > - **The vault:** each slot's passphrase opens only that slot, the
 >   key-stretching cost is the one stated, the file does not reveal how

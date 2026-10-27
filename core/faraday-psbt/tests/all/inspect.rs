@@ -49,8 +49,6 @@ fn inspect_with_abandon(psbt: &Psbt) -> Inspection {
             keys: &keys,
             wallets: &[],
             musig_session: None,
-            shares: &[],
-            carry: None,
         },
     )
 }
@@ -135,8 +133,6 @@ fn spoofed_change_blocks_signing() {
             keys: &keys,
             wallets: &[],
             musig_session: None,
-            shares: &[],
-            carry: None,
         };
         for force in [false, true] {
             let err = sign(
@@ -150,8 +146,6 @@ fn spoofed_change_blocks_signing() {
                 Aux::Deterministic,
                 &mut None,
                 &faraday_crypto::Zeroizing::new([0u8; 32]),
-                &[],
-                &[],
             )
             .unwrap_err();
             assert!(
@@ -205,8 +199,6 @@ fn change_under_an_unloaded_account_is_unverified() {
             keys: &keys,
             wallets: &[],
             musig_session: None,
-            shares: &[],
-            carry: None,
         },
     );
     assert!(has(&insp, Level::Caution, &WarningKind::UnverifiedChange));
@@ -224,8 +216,6 @@ fn change_under_an_unloaded_account_is_unverified() {
         Aux::Deterministic,
         &mut None,
         &faraday_crypto::Zeroizing::new([0u8; 32]),
-        &[],
-        &[],
     )
     .unwrap();
     assert_eq!(r.signed_inputs.len(), 1);
@@ -237,8 +227,6 @@ fn insp_ctx(keys: &[KeyRef]) -> Context<'_> {
         keys,
         wallets: &[],
         musig_session: None,
-        shares: &[],
-        carry: None,
     }
 }
 
@@ -390,8 +378,6 @@ fn network_mismatch() {
             keys: &keys,
             wallets: &[],
             musig_session: None,
-            shares: &[],
-            carry: None,
         },
     );
     assert!(has(&insp, Level::Danger, &WarningKind::NetworkMismatch));
@@ -404,8 +390,6 @@ fn network_mismatch() {
             keys: &keys,
             wallets: &[],
             musig_session: None,
-            shares: &[],
-            carry: None,
         },
     );
     assert!(find(&insp, &WarningKind::NetworkMismatch).is_none());
@@ -421,8 +405,6 @@ fn network_mismatch() {
             keys: &keys,
             wallets: &[],
             musig_session: None,
-            shares: &[],
-            carry: None,
         },
     );
     assert!(has(&insp, Level::Danger, &WarningKind::NetworkMismatch));
@@ -466,8 +448,6 @@ fn no_participating_key() {
         keys: &keys,
         wallets: &[],
         musig_session: None,
-        shares: &[],
-        carry: None,
     };
     let mut psbt = basic(ScriptType::NativeSegwit);
     let insp = inspect(&c, &psbt, &ctx);
@@ -486,8 +466,6 @@ fn no_participating_key() {
             Aux::Deterministic,
             &mut None,
             &faraday_crypto::Zeroizing::new([0u8; 32]),
-            &[],
-            &[],
         ),
         Err(Error::Danger(vec![WarningKind::NoParticipatingKey]))
     );
@@ -502,8 +480,6 @@ fn no_participating_key() {
         Aux::Deterministic,
         &mut None,
         &faraday_crypto::Zeroizing::new([0u8; 32]),
-        &[],
-        &[],
     )
     .unwrap();
     assert!(r.signed_inputs.is_empty() && !r.complete);
@@ -516,8 +492,6 @@ fn no_participating_key() {
             keys: &[],
             wallets: &[],
             musig_session: None,
-            shares: &[],
-            carry: None,
         },
     );
     assert!(has(&insp, Level::Danger, &WarningKind::NoParticipatingKey));
@@ -579,8 +553,6 @@ fn missing_and_lying_utxo() {
         keys: &keys,
         wallets: &[],
         musig_session: None,
-        shares: &[],
-        carry: None,
     };
     assert!(matches!(
         sign(
@@ -594,8 +566,6 @@ fn missing_and_lying_utxo() {
             Aux::Deterministic,
             &mut None,
             &faraday_crypto::Zeroizing::new([0u8; 32]),
-            &[],
-            &[],
         ),
         Err(Error::Blocked(_))
     ));
@@ -642,8 +612,6 @@ fn segwit_v0_inputs_without_their_previous_transaction_block_a_transaction_of_tw
                     Aux::Deterministic,
                     &mut None,
                     &faraday_crypto::Zeroizing::new([0u8; 32]),
-                    &[],
-                    &[],
                 )
                 .unwrap_err();
                 assert!(
@@ -699,8 +667,6 @@ fn a_single_input_transaction_is_signed_without_its_previous_transaction() {
             Aux::Deterministic,
             &mut None,
             &faraday_crypto::Zeroizing::new([0u8; 32]),
-            &[],
-            &[],
         )
         .unwrap();
         assert_eq!(r.signed_inputs.len(), 1, "{script_type}");
@@ -778,8 +744,6 @@ fn a_p2wsh_input_without_its_previous_transaction_is_blocked() {
             Aux::Deterministic,
             &mut None,
             &faraday_crypto::Zeroizing::new([0u8; 32]),
-            &[],
-            &[],
         ),
         Err(Error::Blocked(vec![WarningKind::AmountUnverified]))
     );
@@ -810,8 +774,6 @@ fn mixed_script_types_is_info() {
         keys: &keys,
         wallets: &[],
         musig_session: None,
-        shares: &[],
-        carry: None,
     };
     let r = sign(
         &c,
@@ -824,8 +786,6 @@ fn mixed_script_types_is_info() {
         Aux::Deterministic,
         &mut None,
         &faraday_crypto::Zeroizing::new([0u8; 32]),
-        &[],
-        &[],
     )
     .unwrap();
     assert_eq!(r.signed_inputs.len(), 2);

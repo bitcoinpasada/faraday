@@ -11,10 +11,5 @@ publish = false
 [dependencies]
 faraday-strings = { path = "../faraday-strings" }
 
-[features]
-# FROST and signing across places, compiled out of the app
-# (docs/decisions/F109.md); faraday-core's `unreleased` turns it on.
-unreleased = []
-
 [lints]
 workspace = true

@@ -17,7 +17,7 @@ Moved to `docs/history/KEYS-LOG.md`.
 - **Key material** lives in `faraday-keys` and nowhere else:
   - a key's words, passphrase, seed and master key;
   - anything derived from them that is secret;
-  - FROST and MuSig secret nonces;
+  - MuSig secret nonces;
   - the master seed bytes of a key loaded from a seed (`Keys::add_seed`:
     codex32, SLIP-39), kept with the key so that
     its paper forms can be written again;
@@ -140,7 +140,7 @@ impl Keys {
   A key with words is refused (`Paper::Words`): its 64-byte BIP-39 seed
   has the passphrase merged in and would give back neither the words nor
   the passphrase.
-- A BIP-85 child, a vanity find or a FROST share is a new secret. It comes
+- A BIP-85 child or a vanity find is a new secret. It comes
   back as a `Child` held inside the crate, which leaves only by `add_*` or
   `reveal`.
 - **Explore's eyes** (F125; `faraday/faraday-core/src/explore/shown.rs`).
@@ -263,7 +263,7 @@ faraday-core sees an open vault's public fields and nothing else.
   `load_key_with_passphrase`, `same_words`, `stores_passphrase_of`,
   `passphrase_record_is`, `holds_session_words`, `word_count` and
   `words_id` (worked out once per change, inside the store),
-  `round_section`, `sb_enrolment`, `sb_sign_image`, the GPG
+  `sb_enrolment`, `sb_sign_image`, the GPG
   certificate, kept revocation, revocation files and signature, and the
   free functions `key_record_id`, `key_identity`, `key_account`,
   `gpg_facts` and `gpg_revocation_kept_at`. faraday-core keeps the caches of those it already kept
@@ -308,12 +308,6 @@ now opaque: its secret is in a private field, it is neither `Clone` nor
   private key leaves as hex through `private_hex(why)`, for
   `LightningKey` (on screen), or `VaultEntry` or `OutboxFile` of
   `Part::NodeKey`. `Keys::lightning_node` returns the node itself.
-- **FROST.** `Keys::deal` returns a `Dealt` whose `record` is public and
-  whose new shares' words are private; `Keys::add_dealt` loads them as
-  keys, labelled by the caller. `make_group` and `Dealer` are the
-  crate's own. All of it exists only with the `unreleased` feature:
-  FROST is compiled out of the app (F109), and without it no key is
-  a share.
 - **Keys made from fresh entropy.** `gpg::create` and
   `secure_boot::create` make the key and the record every vault of the
   plan takes, as a `vault::MadeKey`: its public fields through `view()`,
@@ -322,13 +316,6 @@ now opaque: its secret is in a private field, it is neither `Clone` nor
   certificate, the owner GUID and the enrolment
   files. `gpg::Key`, `secure_boot::Keys` and `Pair` are the crate's own,
   with every function that takes them.
-- **The carry section.** `carry::Section` wraps a FROST spend's
-  `CarrySection` and tells only `is_empty`. `carry::parse` reads a carry
-  file into one, `round_section` returns one, and `carry::inspect` and
-  `Keys::sign` (which now takes it, and returns the one the pass leaves
-  beside the result) read its nonces inside the crate. faraday-psbt's
-  `CarrySection` keeps its public fields: its own tests forge sections
-  to check that a forged one is refused.
 - **`wallet_seed_bases`.** `Keys::words_record_id` (a hash) and
   `Keys::words_identity` (a PBKDF2) give the id and identity a vault
   record of a key's words alone would have, and faraday-core keeps the
@@ -360,14 +347,14 @@ now opaque: its secret is in a private field, it is neither `Clone` nor
 - **The lint.** `tools/lint-secrets.sh` rule 4 refuses, under faraday/
   outside faraday-keys:
   - (a) a key or seed in hand: `MasterKey`, `SecretKey`, `Xpriv`,
-    `Keypair`, `PrivateKey`, `DerivedKey`, `SecShare`, `SecNonce`,
+    `Keypair`, `PrivateKey`, `DerivedKey`, `SecNonce`,
     `SlotKey`, `to_seed`;
   - (b) seed words made into a `Mnemonic`, a SeedQR decoded, a SLIP-39
     split, a vault record's words read;
   - (c) the primitive crates' secret-taking functions and types: a GPG
     key, Secure Boot keys made or used, a vault opened, sealed,
-    created or its slot key derived, a carry section's nonces, a PSBT
-    signed, BIP-352's receiver, a FROST deal or secret share, an aezeed
+    created or its slot key derived, a PSBT signed, BIP-352's receiver,
+    an aezeed
     decoded, by path or in a `use` list;
   - (d) `Held::release` and `into_record` outside the one named site, a
     GPG paperkey drawn while it is held.
@@ -390,9 +377,6 @@ where the secret goes into a vault record.
 What was open after step 3:
 - Public types holding a secret, and `wallet_seed_bases`: closed by step 4a;
   moved to `docs/history/KEYS-LOG.md`.
-- **FROST shares** leave as `PaperForm`, the reason that fits them: words
-  the person writes down. They are keys once dealt (step 4a), and leave
-  as any key's words do.
 - **`Keys::master_for_tests`**, behind the `master-for-tests` feature,
   stays for tests. `tools/lint-keys-tests.sh` keeps that feature out of
   every binary Faraday ships.

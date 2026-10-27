@@ -155,13 +155,6 @@ pub enum Action {
     /// Scan one part of a key into Add a key's other forms: a SLIP-39
     /// share, a codex32 string, or a Seed XOR part's SeedQR or words.
     ScanPart,
-    /// Choose or drop one of the other shares that sign a threshold
-    /// spend with this one.
-    #[cfg(feature = "unreleased")]
-    TOther(u32),
-    /// The carry file to the Outbox, for the share that signs next.
-    #[cfg(feature = "unreleased")]
-    CarryToOutbox,
     /// Type the BIP-39 passphrase in Add a key, or go back to the words.
     EntryPassphrase,
     /// A press in Add a key's empty field: focuses it, and the Use a

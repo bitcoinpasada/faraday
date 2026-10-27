@@ -1774,7 +1774,6 @@ impl Faraday {
     /// kept, as the small panel's copy page lists them: in which open
     /// vault, whether the copy by hand was checked, whether a file of it is
     /// in the Outbox unprotected, or not here at all.
-    #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
     pub fn backup_kept(&self, c: &Compute) -> Option<Kept> {
         use crate::vault::screen::{vault_has_wallet, vault_key};
         let b = self.backup.state()?;
@@ -1844,46 +1843,26 @@ impl Faraday {
         };
         let away = || vec![(EN.backup_kept_not_here.to_string(), Tone::Dim)];
         let mut seeds = Vec::new();
-        if let Some(record) = wallet.policy().record() {
-            // A threshold wallet's keys are its shares, by number.
-            for (id, pubshare) in record.info.pubshares.iter().enumerate() {
-                let key = here
-                    .iter()
-                    .map(|&k| &self.session.keys[k])
-                    .find(|k| pubshare.is_some() && k.share.as_ref() == pubshare.as_ref());
-                seeds.push(match key {
-                    Some(key) => KeptSeed {
-                        name: fp_text(key.fingerprint),
-                        lines: seed_lines(key),
-                    },
-                    None => KeptSeed {
-                        name: fill(EN.backup_kept_share, &[&(id + 1).to_string()]),
-                        lines: away(),
-                    },
-                });
+        let mut fps: Vec<faraday_bip::keys::Fingerprint> = Vec::new();
+        for f in wallet
+            .policy()
+            .keys()
+            .iter()
+            .filter_map(|k| k.fingerprint())
+        {
+            if !fps.contains(&f) {
+                fps.push(f);
             }
-        } else {
-            let mut fps: Vec<faraday_bip::keys::Fingerprint> = Vec::new();
-            for f in wallet
-                .policy()
-                .keys()
+        }
+        for fp in fps {
+            let key = here
                 .iter()
-                .filter_map(|k| k.fingerprint())
-            {
-                if !fps.contains(&f) {
-                    fps.push(f);
-                }
-            }
-            for fp in fps {
-                let key = here
-                    .iter()
-                    .map(|&k| &self.session.keys[k])
-                    .find(|k| k.fingerprint == fp);
-                seeds.push(KeptSeed {
-                    name: fp_text(fp),
-                    lines: key.map_or_else(away, seed_lines),
-                });
-            }
+                .map(|&k| &self.session.keys[k])
+                .find(|k| k.fingerprint == fp);
+            seeds.push(KeptSeed {
+                name: fp_text(fp),
+                lines: key.map_or_else(away, seed_lines),
+            });
         }
         Some(Kept {
             wallet: wallet_line,

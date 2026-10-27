@@ -40,7 +40,7 @@ the files and codes they write.
 | From or to | Format | Faraday reads | Faraday writes | Tested |
 |---|---|---|---|---|
 | Bitcoin Core ≥ 29 | `importdescriptors` file, multipath | — | yes | Core, end to end |
-| Bitcoin Core before 29 | `importdescriptors` file, a receive and a change request (§5 I4) | — | `{stem}-bitcoin-core-before-29.json`, under More options; not MuSig2, FROST or silent payments | Core's own `listdescriptors` strings come back, checksums and all; not yet run against Core 28 |
+| Bitcoin Core before 29 | `importdescriptors` file, a receive and a change request (§5 I4) | — | `{stem}-bitcoin-core-before-29.json`, under More options; not MuSig2 or silent payments | Core's own `listdescriptors` strings come back, checksums and all; not yet run against Core 28 |
 | Bitcoin Core | PSBT in, finished transaction or signed PSBT out | yes | yes | Core, end to end |
 | Sparrow, Liana, Nunchuk, BlueWallet, Keeper | Descriptor with `<0;1>` | yes | yes | Sparrow's and Coldcard Mk4's files |
 | Coldcard, Sparrow, Electrum, Nunchuk, BlueWallet, Keystone, Jade, Keeper | Coldcard multisig setup `.txt` (one derivation, or one per key) | yes | yes | Coldcard's, Sparrow's and Electrum's files |
@@ -210,7 +210,7 @@ onward in `backup_public_for`/`public_out`).
 Writes `{stem}-bitcoin-core-before-29.json`: two `importdescriptors`
 requests, receive (`"internal":false`) and change (`"internal":true`),
 each from `Descriptor::into_single_descriptors()` with its own checksum,
-`"active":true`, `"range":[0,999]`, `"timestamp":0`. Not for MuSig2, FROST
+`"active":true`, `"range":[0,999]`, `"timestamp":0`. Not for MuSig2
 or silent payments. Written by `faraday_bip::core_import::import_descriptors_pair`
 (moved from `faraday-intake/src/core_before_29.rs` 2026-10-20). Tests: a fresh Public files list shows no row under
 More options until it is pressed; the file's two descriptors read back as
@@ -262,7 +262,7 @@ Electrum (`"seed_version": 17`, `"use_encryption": false`, keystores
 `{"type":"bip32","xpub":<SLIP-132 for the type>,"xprv":null,"derivation","root_fingerprint","label":""}`),
 for `pkh`, `sh(wpkh)`, `wpkh` single keys with an origin and `sortedmulti`
 `sh`/`sh(wsh)`/`wsh`; not for Taproot, miniscript, unsorted `multi`,
-MuSig2, FROST or silent payments. A PSBT Electrum builds from a bare zpub
+MuSig2 or silent payments. A PSBT Electrum builds from a bare zpub
 carries the account key's own fingerprint; Faraday's matching is
 unchanged and a test states the refusal (Faraday's own Electrum file
 carries `root_fingerprint`, so Electrum's PSBTs from it are complete).
@@ -296,7 +296,7 @@ standard `m/` (`sh`). After Lock in, the Key card offers **Load its
 Electrum wallet**. The key is never treated as BIP-39 words: `Key` gains
 `electrum: Option<ElectrumType>`; its Backup menu offers the words by hand
 and the vault or encrypted backup of the master seed, never SeedQR,
-CompactSeedQR, Seed XOR, SLIP-39 or a FROST share; in a vault it is a
+CompactSeedQR, Seed XOR or SLIP-39; in a vault it is a
 master-seed record. Tests: Electrum's `test_mnemonic.py` English seed
 cases (seed version and seed bytes, with and without an extension);
 `test_wallet_vertical.py` standard and segwit (xpub/zpub, first receive
@@ -309,7 +309,7 @@ capitals gives the same key.
 Reads `addwallet {name}&{descriptor}` from a scan or a file (keys without
 `/<0;1>/*`, which `with_chains` reads). Writes the same text as Show as
 QR, PNG (Specter's numbered parts) and `{stem}-specter-diy.txt`, under
-More options, for every wallet with a descriptor but MuSig2, FROST and
+More options, for every wallet with a descriptor but MuSig2 and
 silent payments. Tests: Sparrow's `specter-diy-export.txt` loads, named
 "Sparrow Multisig"; Faraday's code for it is that text; scanned parts
 reassemble to it.
@@ -383,7 +383,7 @@ code as given and Bitcoin Core's removes every `OP_CODESEPARATOR` first
 one whose hash cannot be checked against Core. A P2PKH or P2SH multisig
 script code holds none, so no spend Faraday makes today is refused.
 
-The key is never offered as words, SeedQR, shares or a FROST share; it
+The key is never offered as words, SeedQR or shares; it
 may be kept in a vault as a single-key record, and is wiped at a lock
 otherwise. Strings: `keygen_type_private_key` "Type a private key",
 `catalog_sweep_key` "Sweep a private key", `key_single` "A single key",

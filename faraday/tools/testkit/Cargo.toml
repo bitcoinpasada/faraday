@@ -12,14 +12,8 @@ publish = false
 faraday-core = { path = "../../faraday-core", features = ["testkit"] }
 faraday-psbt = { path = "../../../core/faraday-psbt" }
 faraday-bip = { path = "../../../core/faraday-bip" }
-# Reads the carry file a threshold spend leaves (its section stays opaque).
-faraday-keys = { path = "../../faraday-keys" }
 # The token key work takes (docs/COMPUTE.md §2).
 faraday-crypto = { path = "../../../core/faraday-crypto" }
-
-[features]
-# The FROST spend's proof, compiled out with FROST (docs/decisions/F109.md).
-unreleased = ["faraday-core/unreleased"]
 
 [lints]
 workspace = true

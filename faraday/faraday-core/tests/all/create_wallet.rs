@@ -12,13 +12,6 @@ use faraday_core::plan::{Answers, Preset};
 use faraday_core::{Action, Faraday, Screen, cstep, testkit};
 use faraday_shell_api::{App, Event, Key};
 
-fn frost_index() -> u8 {
-    NewKind::ALL
-        .iter()
-        .position(|k| *k == NewKind::Threshold)
-        .expect("FROST is still a kind of NewKind") as u8
-}
-
 fn multi_index() -> u8 {
     NewKind::ALL
         .iter()
@@ -112,28 +105,6 @@ fn use_vaults_closed_before_it_is_answered_says_so() {
     assert!(
         texts.iter().any(|t| t == "Not answered"),
         "the closed card names its state: {texts:?}"
-    );
-}
-
-#[test]
-fn create_offers_no_frost_wallet() {
-    let mut app = opened();
-    app.press(Action::CStep(cstep::KIND));
-    app.press(Action::CMoreKinds);
-    let _ = app.frame();
-    assert!(
-        app.offers(Action::CKind(kind_index(NewKind::MuSig))),
-        "More kinds is open"
-    );
-    assert!(
-        !app.offers(Action::CKind(frost_index())),
-        "no FROST among the kinds"
-    );
-    app.press(Action::CKind(frost_index()));
-    assert_eq!(
-        app.create().map(|c| c.kind),
-        Some(NewKind::NativeSegwit),
-        "a FROST press chooses nothing"
     );
 }
 

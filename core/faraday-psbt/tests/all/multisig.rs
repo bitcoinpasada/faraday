@@ -57,8 +57,6 @@ fn two_of_three_sortedmulti() {
         keys: &keys,
         wallets: &[],
         musig_session: None,
-        shares: &[],
-        carry: None,
     };
     let insp = inspect(&c, &psbt, &ctx);
     assert!(!insp.has_danger(), "{:?}", insp.warnings);
@@ -108,8 +106,6 @@ fn two_of_three_sortedmulti() {
         Aux::Deterministic,
         &mut None,
         &faraday_crypto::Zeroizing::new([0u8; 32]),
-        &[],
-        &[],
     )
     .unwrap();
     assert_eq!(r.signed_inputs.len(), 1);
@@ -142,8 +138,6 @@ fn two_of_three_sortedmulti() {
         Aux::Deterministic,
         &mut None,
         &faraday_crypto::Zeroizing::new([0u8; 32]),
-        &[],
-        &[],
     )
     .unwrap();
     assert_eq!(r.signed_inputs.len(), 1);
@@ -187,8 +181,6 @@ fn two_of_three_sortedmulti() {
         keys: &keys,
         wallets: &[],
         musig_session: None,
-        shares: &[],
-        carry: None,
     };
     let mut fresh = unsigned.clone();
     let r = sign(
@@ -202,8 +194,6 @@ fn two_of_three_sortedmulti() {
         Aux::Deterministic,
         &mut None,
         &faraday_crypto::Zeroizing::new([0u8; 32]),
-        &[],
-        &[],
     )
     .unwrap();
     assert_eq!(r.signed_inputs.len(), 1);
@@ -238,8 +228,6 @@ fn multisig_participation_by_fingerprint_only() {
             keys: &keys,
             wallets: &[],
             musig_session: None,
-            shares: &[],
-            carry: None,
         },
     );
     let ms = insp.multisig.as_ref().unwrap();
@@ -286,8 +274,6 @@ fn bip174_signer_finalizer_extractor() {
         keys: &keys,
         wallets: &[],
         musig_session: None,
-        shares: &[],
-        carry: None,
     };
     let insp = inspect(&c, &psbt, &ctx);
     assert!(!insp.has_danger(), "{:?}", insp.warnings);
@@ -338,8 +324,6 @@ fn bip174_signer_finalizer_extractor() {
                 Aux::Deterministic,
                 &mut None,
                 &faraday_crypto::Zeroizing::new([0u8; 32]),
-                &[],
-                &[],
             ),
             Err(Error::Blocked(vec![WarningKind::AmountUnverified])),
             "forced {force}"
@@ -370,8 +354,6 @@ fn bip174_signer_finalizer_extractor() {
         Aux::Deterministic,
         &mut None,
         &faraday_crypto::Zeroizing::new([0u8; 32]),
-        &[],
-        &[],
     )
     .unwrap();
     assert_eq!(r.signed_inputs.len(), 2, "both keys of the one open input");
@@ -421,8 +403,6 @@ fn bip174_under_low_r() {
         keys: &keys,
         wallets: &[],
         musig_session: None,
-        shares: &[],
-        carry: None,
     };
 
     let finalizer = Psbt::parse_bytes(&c, &unhex(get("finalizer").get("hex"))).unwrap();
@@ -440,8 +420,6 @@ fn bip174_under_low_r() {
         Aux::Deterministic,
         &mut None,
         &faraday_crypto::Zeroizing::new([0u8; 32]),
-        &[],
-        &[],
     )
     .unwrap();
     let combiner = Psbt::parse_bytes(&c, &unhex(get("combiner").get("hex"))).unwrap();
@@ -526,8 +504,6 @@ fn change_of_a_registered_wallet() {
             keys: &keys,
             wallets: &[],
             musig_session: None,
-            shares: &[],
-            carry: None,
         },
     );
     assert!(matches!(
@@ -545,8 +521,6 @@ fn change_of_a_registered_wallet() {
         keys: &keys,
         wallets: &wallets,
         musig_session: None,
-        shares: &[],
-        carry: None,
     };
     let insp = inspect(&c, &psbt, &ctx);
     assert!(!insp.has_danger(), "{:?}", insp.warnings);
@@ -579,8 +553,6 @@ fn change_of_a_registered_wallet() {
             keys: &keys,
             wallets: &wallets,
             musig_session: None,
-            shares: &[],
-            carry: None,
         },
     );
     assert!(matches!(
@@ -630,8 +602,6 @@ fn bip48_change_is_ours_before_a_wallet_is_registered() {
             keys: &keys,
             wallets: &[],
             musig_session: None,
-            shares: &[],
-            carry: None,
         },
     );
     assert!(!insp.has_danger(), "{:?}", insp.warnings);
@@ -675,8 +645,6 @@ fn bip48_change_is_ours_before_a_wallet_is_registered() {
             keys: &keys,
             wallets: &[],
             musig_session: None,
-            shares: &[],
-            carry: None,
         },
     );
     assert!(matches!(

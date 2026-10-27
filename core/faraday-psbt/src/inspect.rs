@@ -131,11 +131,10 @@ pub enum WarningKind {
     /// open session holds the secret for, so this pass draws a new one
     /// and drops the partial signatures made against the old one.
     MusigNonceReplaced,
-    /// A threshold input names a group no registered wallet has, so the
-    /// device has no record to read the signers from.
-    ThresholdWalletNotRegistered,
-    /// A threshold input was refused at one of §16.103's checks.
-    ThresholdRefused(crate::threshold::Refusal),
+    /// A taproot key-path input carries proprietary records under the
+    /// identifier `osk`, which this build does not read: it is not signed
+    /// for what those records would have it be.
+    UnreadRecords,
     /// A signature already on the transaction does not verify against
     /// the key it is under: the transaction was altered after it was
     /// signed, or the signer that made it is broken.
@@ -332,8 +331,6 @@ pub struct InputInfo {
     pub spend_route: Option<SpendRoute>,
     /// What a MuSig2 input was established to be, when it is one.
     pub musig: Option<MusigInput>,
-    /// What a threshold input was established to be, when it is one.
-    pub threshold: Option<ThresholdInput>,
 }
 
 /// Who an output pays.
@@ -480,8 +477,6 @@ pub struct Inspection {
     pub multisig: Option<MultisigSummary>,
     /// The MuSig2 wallet, when an input spends one.
     pub musig: Option<MusigSummary>,
-    /// The threshold wallet, when an input spends one.
-    pub threshold: Option<ThresholdSummary>,
     /// Ranked warnings, blocks first, then dangers.
     pub warnings: Vec<Warning>,
     /// Every signature the transaction already carries, checked against
@@ -552,14 +547,6 @@ pub fn inspect(c: &Compute, psbt: &Psbt, ctx: &Context) -> Inspection {
     let mut participating: Vec<Fingerprint> = Vec::new();
     let mut multisig: Option<MultisigSummary> = None;
     let mut musig: Option<MusigSummary> = None;
-    let mut threshold: Option<ThresholdSummary> = None;
-    // Every input's previous output, when the PSBT carries them all:
-    // what a threshold input's key-path sighash is computed over, which
-    // the carry file's checks are against.
-    let prevouts: Option<Vec<TxOut>> = (0..inner.inputs.len())
-        .map(|i| classify(inner, i).utxo)
-        .collect();
-    let mut sighash_cache = bitcoin::sighash::SighashCache::new(tx);
     let mut kinds: Vec<ScriptKind> = Vec::new();
     let mut input_scripts: Vec<ScriptBuf> = Vec::new();
     let mut total_in = Amount::ZERO;
@@ -645,7 +632,6 @@ pub fn inspect(c: &Compute, psbt: &Psbt, ctx: &Context) -> Inspection {
         let mut is_ours = false;
         let mut origin: Option<KeyOrigin> = None;
         let mut musig_established: Option<MusigInput> = None;
-        let mut threshold_established: Option<ThresholdInput> = None;
         match cl.kind {
             ScriptKind::P2pkh | ScriptKind::P2shP2wpkh | ScriptKind::P2wpkh => {
                 for (pk, (fp, path)) in &input.bip32_derivation {
@@ -789,50 +775,15 @@ pub fn inspect(c: &Compute, psbt: &Psbt, ctx: &Context) -> Inspection {
                     }
                 }
             }
-            ScriptKind::P2trKey if is_threshold_input(ctx, input) => {
-                let msg = prevouts.as_ref().and_then(|p| {
-                    sighash_cache
-                        .taproot_key_spend_signature_hash(
-                            i,
-                            &bitcoin::sighash::Prevouts::All(p),
-                            TapSighashType::Default,
-                        )
-                        .ok()
-                        .map(|h| h.to_byte_array())
-                });
-                match threshold_input(c, &secp, ctx, input, spk.as_deref(), i, msg) {
-                    Err(block) => warn(
-                        &mut warnings,
-                        Level::Blocked,
-                        block.kind,
-                        format!("input {i}: {}", block.reason),
-                    ),
-                    Ok(None) => {}
-                    Ok(Some(established)) => {
-                        is_ours = !established.ours.is_empty();
-                        for round in &established.rounds {
-                            if let ThresholdRound::Refused(refusal) = round {
-                                warn(
-                                    &mut warnings,
-                                    Level::Blocked,
-                                    WarningKind::ThresholdRefused(*refusal),
-                                    format!("input {i}: {}", refusal.reason()),
-                                );
-                            }
-                        }
-                        if threshold.is_none() {
-                            threshold = Some(ThresholdSummary {
-                                wallet: established.wallet,
-                                t: established.info.t,
-                                n: established.info.n(),
-                                signed: established.signed.len(),
-                                ours: established.ours.clone(),
-                            });
-                        }
-                        threshold_established = Some(established);
-                    }
-                }
-            }
+            // Faraday's own `osk` records are read by no code in this
+            // build, so an input carrying them is blocked, not signed as a
+            // plain key-path input.
+            ScriptKind::P2trKey if has_osk_records(input) => warn(
+                &mut warnings,
+                Level::Blocked,
+                WarningKind::UnreadRecords,
+                format!("input {i}: it carries `osk` records this version does not read"),
+            ),
             ScriptKind::P2trKey => {
                 for (xonly, (_, (fp, path))) in &input.tap_key_origins {
                     let fp = Fingerprint::from(*fp);
@@ -998,7 +949,6 @@ pub fn inspect(c: &Compute, psbt: &Psbt, ctx: &Context) -> Inspection {
             sequence: txin.sequence,
             spend_route,
             musig: musig_established,
-            threshold: threshold_established,
         });
     }
     if has_witness {
@@ -1180,11 +1130,7 @@ pub fn inspect(c: &Compute, psbt: &Psbt, ctx: &Context) -> Inspection {
     }
     let rbf = tx.input.iter().any(|i| i.sequence.is_rbf());
 
-    // A share of a threshold wallet signs what no loaded key can: the
-    // group's one key descends from no master, so the share is what
-    // participates (§16.103).
-    let threshold_ours = threshold.as_ref().is_some_and(|t| !t.ours.is_empty());
-    if participating.is_empty() && !threshold_ours {
+    if participating.is_empty() {
         warn(
             &mut warnings,
             Level::Danger,
@@ -1246,7 +1192,6 @@ pub fn inspect(c: &Compute, psbt: &Psbt, ctx: &Context) -> Inspection {
         participating_keys: participating,
         multisig,
         musig,
-        threshold,
         warnings,
         signatures,
         nonce_reuse,
@@ -2264,410 +2209,10 @@ fn musig_output<C: Verification>(
     }
 }
 
-// ---------------------------------------------------------------------
-// Threshold inputs
-// ---------------------------------------------------------------------
-
-/// Which of §16.103's ways one share this device holds is handled in
-/// this pass, decided from the input and the carry section as they
-/// arrived.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ThresholdRound {
-    /// This share's partial signature is already on the input. Nothing
-    /// is drawn and nothing is signed; what is left is the aggregation.
-    Done,
-    /// A later location: the input carries the whole signer set's public
-    /// nonces and the carry section holds this share's secret one.
-    Later,
-    /// The first location: no nonce is on the input and no section was
-    /// read, so the signer set is chosen here and every nonce drawn.
-    First,
-    /// Refused at one of §16.103's checks.
-    Refused(crate::threshold::Refusal),
-}
-
-/// Everything establishing a threshold input settled, so that signing
-/// reads it rather than working it out again.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ThresholdInput {
-    /// Position in [`Context::wallets`].
-    pub wallet: usize,
-    /// The group's public record: the threshold, the group key and every
-    /// public share.
-    pub info: faraday_bip::frost::ThresholdInfo,
-    /// The change chain rather than the receive chain.
-    pub change: bool,
-    /// Address index.
-    pub index: u32,
-    /// The tweaks from the group key to the output key: one plain tweak
-    /// per step of the synthetic xpub, then BIP-341's x-only tap tweak.
-    pub tweaks: Vec<faraday_bip::frost::Tweak>,
-    /// The taproot internal key, which is the synthetic xpub at the
-    /// stated chain and index.
-    pub internal_key: bitcoin::secp256k1::XOnlyPublicKey,
-    /// The taproot output key with its parity byte, which is what every
-    /// `osk` record on the input is keyed by.
-    pub output_key: PublicKey,
-    /// The identifiers of the loaded shares that are participants of
-    /// this group.
-    pub ours: Vec<u32>,
-    /// What this pass will do for each of them, in the same order.
-    pub rounds: Vec<ThresholdRound>,
-    /// The identifiers the public-nonce records name, in identifier
-    /// order. Empty at the first location.
-    pub signers: Vec<u32>,
-    /// The identifiers whose partial signature is on the input.
-    pub signed: Vec<u32>,
-}
-
-impl ThresholdInput {
-    /// The public share of participant `id`, which the record always
-    /// carries.
-    pub fn pubshare(&self, id: u32) -> Option<PublicKey> {
-        *self.info.pubshares.get(id as usize)?
-    }
-
-    /// The signers' public shares, in identifier order.
-    pub fn signer_pubshares(&self) -> Vec<PublicKey> {
-        self.signers
-            .iter()
-            .filter_map(|id| self.pubshare(*id))
-            .collect()
-    }
-
-    /// The session every partial signature of this input is made and
-    /// verified in: the signer set, their public shares, the aggregate
-    /// of `nonces` in identifier order, the tweaks and the sighash.
-    pub(crate) fn session_ctx<C: Verification>(
-        &self,
-        secp: &Secp256k1<C>,
-        nonces: &[faraday_bip::frost::PubNonce],
-        msg: &[u8],
-    ) -> Option<faraday_bip::frost::SessionContext> {
-        let pubshares = self.signer_pubshares();
-        if pubshares.len() != self.signers.len() || nonces.len() != self.signers.len() {
-            return None;
-        }
-        Some(faraday_bip::frost::SessionContext {
-            n: self.info.n(),
-            t: self.info.t,
-            ids: self.signers.clone(),
-            pubshares: Some(pubshares),
-            thresh_pk: self.info.thresh_pk,
-            aggnonce: faraday_bip::frost::nonce_agg_with(secp, nonces).ok()?,
-            tweaks: self.tweaks.clone(),
-            msg: msg.to_vec(),
-        })
-    }
-
-    /// The same session, evaluated.
-    pub(crate) fn session<C: Verification>(
-        &self,
-        secp: &Secp256k1<C>,
-        nonces: &[faraday_bip::frost::PubNonce],
-        msg: &[u8],
-    ) -> Option<faraday_bip::frost::SessionValues> {
-        faraday_bip::frost::session_values(secp, &self.session_ctx(secp, nonces, msg)?).ok()
-    }
-}
-
-/// The threshold wallet the inputs spend, when they spend one.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ThresholdSummary {
-    /// Position in [`Context::wallets`].
-    pub wallet: usize,
-    /// How many shares must sign.
-    pub t: usize,
-    /// How many shares the group has.
-    pub n: usize,
-    /// Partial signatures on the first threshold input.
-    pub signed: usize,
-    /// The identifiers of the loaded shares that are participants.
-    pub ours: Vec<u32>,
-}
+/// The proprietary identifier of Faraday's own `osk` records.
+const OSK: &[u8] = b"osk";
 
 /// Whether an input carries any `osk` record at all.
-fn has_threshold_records(input: &Input) -> bool {
-    input
-        .proprietary
-        .keys()
-        .any(|k| k.prefix == crate::threshold::PREFIX)
-}
-
-/// The registered threshold wallet an input's internal key names, with
-/// the chain and index its origin states.
-fn threshold_claim(ctx: &Context, input: &Input) -> Option<(usize, bool, u32)> {
-    let internal = input.tap_internal_key?;
-    for (i, policy) in ctx.wallets.iter().enumerate() {
-        let Some(record) = policy.record() else {
-            continue;
-        };
-        let fingerprint = record.fingerprint();
-        let claim = input
-            .tap_key_origins
-            .get(&internal)
-            .filter(|(leaves, (fp, _))| leaves.is_empty() && Fingerprint::from(*fp) == fingerprint)
-            .and_then(|(_, (_, path))| musig_sub_path(path));
-        if let Some((change, index)) = claim {
-            return Some((i, change, index));
-        }
-    }
-    None
-}
-
-/// Whether this `P2trKey` input is a threshold input: it carries `osk`
-/// records, or its internal key names a registered threshold wallet.
-fn is_threshold_input(ctx: &Context, input: &Input) -> bool {
-    has_threshold_records(input) || threshold_claim(ctx, input).is_some()
-}
-
-/// Costs an address derivation (through `script_at_with`). Establishes
-/// what a `P2trKey` threshold input is, in §16.103's order: the
-/// registered wallet, the internal and output keys, the script, the
-/// signer set the records name, the shares this device holds, and what
-/// this pass will do with each.
-#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
-fn threshold_input<C: Verification>(
-    c: &Compute,
-    secp: &Secp256k1<C>,
-    ctx: &Context,
-    input: &Input,
-    spk: Option<&bitcoin::Script>,
-    index: usize,
-    msg: Option<[u8; 32]>,
-) -> Result<Option<ThresholdInput>, MusigBlock> {
-    use crate::threshold::Refusal;
-
-    let nonce_records = crate::threshold::pub_nonces(input).map_err(|e| MusigBlock {
-        kind: WarningKind::UtxoMismatch,
-        reason: e.reason(),
-    })?;
-    let sig_records = crate::threshold::partial_sigs(input).map_err(|e| MusigBlock {
-        kind: WarningKind::UtxoMismatch,
-        reason: e.reason(),
-    })?;
-
-    // 1. The registered wallet. Nothing of the group is in the PSBT, so
-    //    an input carrying `osk` records for a group no registered
-    //    wallet has is blocked rather than signed for a set the
-    //    coordinator chose.
-    let Some((wallet, change, index_at)) = threshold_claim(ctx, input) else {
-        return Err(MusigBlock {
-            kind: WarningKind::ThresholdWalletNotRegistered,
-            reason: "no registered threshold wallet has this group",
-        });
-    };
-    let policy = ctx.wallets.get(wallet).expect("wallet found above");
-    let record = policy.record().expect("the claim read its record");
-    let info = record.info.clone();
-
-    // 2. `tr(XPUB/<0;1>/*)` has no tree.
-    if input.tap_merkle_root.is_some() {
-        return Err(MusigBlock {
-            kind: WarningKind::UtxoMismatch,
-            reason: "a threshold input states a merkle root",
-        });
-    }
-
-    // 3. The internal key, the tweaks and the output key.
-    let steps = [
-        ChildNumber::from_normal_idx(u32::from(change)).expect("0 or 1"),
-        ChildNumber::from_normal_idx(index_at).expect("an unhardened index"),
-    ];
-    let Some((tweaks, derived)) = musig_tweaks(secp, record.xpub, &steps) else {
-        return Err(MusigBlock {
-            kind: WarningKind::UtxoMismatch,
-            reason: "the group key does not derive at the stated chain and index",
-        });
-    };
-    let internal_key = input.tap_internal_key.expect("the claim read it");
-    if derived.x_only_public_key().0 != internal_key {
-        return Err(MusigBlock {
-            kind: WarningKind::UtxoMismatch,
-            reason: "the threshold internal key is not the group key at the stated chain and index",
-        });
-    }
-    let Ok(output) = faraday_bip::frost::thresh_pubkey_and_tweak(secp, &info.thresh_pk, &tweaks)
-    else {
-        return Err(MusigBlock {
-            kind: WarningKind::UtxoMismatch,
-            reason: "the group key does not tweak to the output key",
-        });
-    };
-    let output_key = output.public_key();
-    if policy
-        .script_at_with(c, secp, change, index_at)
-        .ok()
-        .as_deref()
-        != spk
-    {
-        return Err(MusigBlock {
-            kind: WarningKind::UtxoMismatch,
-            reason: "the threshold input does not pay to the registered wallet's address",
-        });
-    }
-
-    // 4. The signer set the records name: exactly `t` distinct public
-    //    shares of this record, each keyed by this output key.
-    let pubshares = info.pubshares.clone();
-    let id_of = |key: &PublicKey| {
-        pubshares
-            .iter()
-            .position(|p| p.as_ref() == Some(key))
-            .map(|i| i as u32)
-    };
-    let mut signers: Vec<u32> = Vec::new();
-    for entry in &nonce_records {
-        if entry.output_key != output_key {
-            return Err(MusigBlock {
-                kind: WarningKind::UtxoMismatch,
-                reason: "a threshold nonce names another output key",
-            });
-        }
-        match id_of(&entry.pubshare) {
-            Some(id) if !signers.contains(&id) => signers.push(id),
-            _ => {
-                return Err(MusigBlock {
-                    kind: WarningKind::ThresholdWalletNotRegistered,
-                    reason: "a threshold nonce names a share this group has not",
-                });
-            }
-        }
-    }
-    signers.sort_unstable();
-    if !signers.is_empty() && signers.len() != info.t {
-        return Err(MusigBlock {
-            kind: WarningKind::UtxoMismatch,
-            reason: "the threshold nonces are not the number of shares that must sign",
-        });
-    }
-    let mut signed: Vec<u32> = Vec::new();
-    for entry in &sig_records {
-        if entry.output_key != output_key {
-            return Err(MusigBlock {
-                kind: WarningKind::UtxoMismatch,
-                reason: "a threshold partial signature names another output key",
-            });
-        }
-        match id_of(&entry.pubshare) {
-            Some(id) if signers.contains(&id) && !signed.contains(&id) => signed.push(id),
-            _ => {
-                return Err(MusigBlock {
-                    kind: WarningKind::UtxoMismatch,
-                    reason: "a threshold partial signature names no signer of this input",
-                });
-            }
-        }
-    }
-    signed.sort_unstable();
-
-    // 5. The shares this device holds that are participants.
-    let ours: Vec<u32> = ctx
-        .shares
-        .iter()
-        .filter_map(|s| id_of(&s.pubshare))
-        .collect();
-
-    let mut established = ThresholdInput {
-        wallet,
-        info,
-        change,
-        index: index_at,
-        tweaks,
-        internal_key,
-        output_key,
-        ours: ours.clone(),
-        rounds: Vec::new(),
-        signers,
-        signed,
-    };
-
-    // 6. What this pass does with each share, in §16.103's order.
-    let nonce_of = |id: u32| {
-        let key = established.pubshare(id)?;
-        nonce_records
-            .iter()
-            .find(|e| e.pubshare == key)
-            .map(|e| e.value)
-    };
-    let ordered: Option<Vec<faraday_bip::frost::PubNonce>> =
-        established.signers.iter().map(|id| nonce_of(*id)).collect();
-    let session = match (&ordered, msg) {
-        (Some(nonces), Some(msg)) => established.session(secp, nonces, &msg),
-        _ => None,
-    };
-    let sigs_verify = || {
-        let Some(values) = session.as_ref() else {
-            return true;
-        };
-        for id in &established.signed {
-            let (Some(key), Some(nonce)) = (established.pubshare(*id), nonce_of(*id)) else {
-                return false;
-            };
-            let Some(entry) = sig_records.iter().find(|e| e.pubshare == key) else {
-                return false;
-            };
-            if faraday_bip::frost::partial_sig_verify_internal(
-                secp,
-                &entry.value,
-                *id,
-                &nonce,
-                &key,
-                values,
-            )
-            .is_err()
-            {
-                return false;
-            }
-        }
-        true
-    };
-    let rounds: Vec<ThresholdRound> = ours
-        .iter()
-        .map(|id| {
-            let key = established
-                .pubshare(*id)
-                .expect("a participant of this record");
-            if established.signed.contains(id) {
-                return ThresholdRound::Done;
-            }
-            if established.signers.is_empty() {
-                return match ctx.carry {
-                    Some(_) => ThresholdRound::Refused(Refusal::NoNonces),
-                    None => ThresholdRound::First,
-                };
-            }
-            let Some(section) = ctx.carry else {
-                return ThresholdRound::Refused(Refusal::NoSection);
-            };
-            if !established.signers.contains(id) {
-                return ThresholdRound::Refused(Refusal::NotASigner);
-            }
-            let Some(entry) = section.entry(index, &key) else {
-                return ThresholdRound::Refused(Refusal::AnotherShare);
-            };
-            // The nonce is secret: its point is made in a signing
-            // context, which takes the same time for every nonce.
-            let public = entry.secnonce.public_nonce(&Secp256k1::signing_only()).ok();
-            if public != nonce_of(*id) {
-                return ThresholdRound::Refused(Refusal::NonceMismatch);
-            }
-            if let Some(msg) = msg
-                && entry.sighash != msg
-            {
-                return ThresholdRound::Refused(Refusal::AnotherTransaction);
-            }
-            let mut file_set: Vec<u32> = section.signers.iter().filter_map(id_of).collect();
-            file_set.sort_unstable();
-            if file_set.len() != section.signers.len() || file_set != established.signers {
-                return ThresholdRound::Refused(Refusal::SignerSet);
-            }
-            if !sigs_verify() {
-                return ThresholdRound::Refused(Refusal::PartialSig);
-            }
-            ThresholdRound::Later
-        })
-        .collect();
-    established.rounds = rounds;
-    Ok(Some(established))
+fn has_osk_records(input: &Input) -> bool {
+    input.proprietary.keys().any(|k| k.prefix == OSK)
 }

@@ -736,7 +736,7 @@ fn body(app: &View, ui: &mut Ui, id: CardId, x: f32, y: f32, w: f32) -> f32 {
         }
         CardId::Page(page::BRING) => bring(app, ui, x, cy, w),
         CardId::Page(_) => away(app, ui, x, cy, w),
-        CardId::Step(step::SIGNERS) if !threshold(app) => signers(app, ui, x, cy, w),
+        CardId::Step(step::SIGNERS) => signers(app, ui, x, cy, w),
         CardId::Step(n) => {
             let Some(s) = app.wallets.spend() else {
                 return 0.0;
@@ -761,24 +761,6 @@ fn body(app: &View, ui: &mut Ui, id: CardId, x: f32, y: f32, w: f32) -> f32 {
         cy += more(app, ui, id, &paras, x, cy, w);
     }
     cy - y
-}
-
-/// Whether the spend is from a threshold wallet, whose shares the spend's
-/// own Signers card chooses.
-#[cfg(feature = "unreleased")]
-fn threshold(app: &View) -> bool {
-    app.wallets
-        .spend()
-        .and_then(|s| s.wallet)
-        .and_then(|w| app.session.wallets.get(w))
-        .is_some_and(|w| Kind::of(w.policy()) == Kind::Threshold)
-}
-
-/// Whether the spend is from a threshold wallet: never, FROST being
-/// compiled out of the app (F109).
-#[cfg(not(feature = "unreleased"))]
-fn threshold(_app: &View) -> bool {
-    false
 }
 
 /// More about this: a quiet button, and the paragraphs while it is open.

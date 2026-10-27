@@ -54,8 +54,6 @@ pub fn handle(name: &str, req: &Value) -> Answer {
                 keys: &refs,
                 wallets: &wallets,
                 musig_session: None,
-                shares: &[],
-                carry: None,
             };
             let nonce = match text(req, "nonce") {
                 "low_r" => Nonce::LowR,
@@ -76,8 +74,6 @@ pub fn handle(name: &str, req: &Value) -> Answer {
                 Aux::Deterministic,
                 &mut None,
                 &faraday_crypto::Zeroizing::new([0u8; 32]),
-                &[],
-                &[],
             )
             .map_err(err)?;
             Ok(json!({

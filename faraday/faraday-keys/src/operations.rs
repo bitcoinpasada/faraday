@@ -14,8 +14,6 @@ use faraday_entropy::SeedXor;
 use zeroize::Zeroizing;
 
 use crate::bip85;
-#[cfg(feature = "unreleased")]
-use crate::frost;
 use crate::lightning;
 use crate::vanity;
 use crate::{Held, Keys, Reveal};
@@ -101,46 +99,6 @@ impl Keys {
             },
         };
         vanity::grind(c, dial, script, prefix, self.network(), cursor, budget)
-    }
-
-    /// Costs what `make_group` costs. Deals a threshold wallet from the
-    /// keys at `places`, in slot order: the other shares and the group key
-    /// (`n` shares, `m` needed), each key's words read as a share. The new
-    /// shares stay in the [`frost::Dealt`] until [`Keys::add_dealt`].
-    /// Compiled out of the app with FROST (F109).
-    #[cfg(feature = "unreleased")]
-    pub fn deal(
-        &self,
-        c: &Compute,
-        places: &[usize],
-        n: usize,
-        m: usize,
-    ) -> Result<frost::Dealt, frost::DealError> {
-        let dealers: Vec<frost::Dealer<'_>> = places
-            .iter()
-            .map(|&i| match self.secrets(i) {
-                Some(s) => frost::Dealer {
-                    language: s.language,
-                    words: s.words,
-                },
-                None => frost::Dealer {
-                    language: faraday_bip::bip39::Language::English,
-                    words: None,
-                },
-            })
-            .collect();
-        frost::make_group(c, &dealers, n, m, self.network())
-    }
-
-    /// Costs what `add_words` costs per share. Loads the new shares of
-    /// `dealt` as keys, each labelled `label(id)` by its identifier
-    /// (counting from 0), so that their words can be written down in the
-    /// backup like any key's.
-    #[cfg(feature = "unreleased")]
-    pub fn add_dealt(&mut self, c: &Compute, dealt: frost::Dealt, label: impl Fn(usize) -> String) {
-        for (id, words) in &dealt.words {
-            let _ = self.add_words(c, words, &label(*id), None);
-        }
     }
 
     /// Costs what `bip85::child` costs. The BIP-85 child of `app` at

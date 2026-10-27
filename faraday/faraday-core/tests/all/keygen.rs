@@ -1387,22 +1387,6 @@ fn a_key_wanted_by_its_fingerprint_still_opens_add_a_key() {
     assert!(app.keygen().is_none());
 }
 
-/// Create offers no threshold kind (F109), so no slot
-/// of one opens New key; the kind list is tested in
-/// `create_wallet::create_offers_no_frost_wallet`.
-#[test]
-fn create_offers_no_threshold_kind() {
-    use faraday_core::create::NewKind;
-    let at = NewKind::ALL.iter().position(|k| k.threshold()).unwrap() as u8;
-    let mut app = faraday_core::testkit::started();
-    app.press(Action::CreateWallet);
-    app.press(Action::CKind(at));
-    assert!(!app.create().unwrap().kind.threshold());
-}
-
-/// A card's Guided text carries a link to its Learn page, one press
-/// away: Length links Words and opens the Learn sheet on it; Steps only
-/// shows no link.
 #[test]
 fn a_guided_card_links_its_learn_page_and_steps_only_does_not() {
     use faraday_core::keygen::kstep;

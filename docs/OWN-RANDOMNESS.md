@@ -29,7 +29,7 @@ configuration, and a plan for the boot measurement (QEMU, then one real PC in pa
   fresh" ‖ what ‖ bytes): vault creation, GPG and Secure Boot keys,
   Seed XOR, codex32, KeePass, SLIP-39's split. `Seed::draw` is SHA-256
   (what ‖ seed ‖ count): a vault's seal nonces, a new keyboard's code.
-  `sign_seed` draws a MuSig2 or FROST round's nonces from the seed with a
+  `sign_seed` draws a MuSig2 round's nonces from the seed with a
   count. Nothing is made before the first answer: `seeded()` is false,
   `fresh` and `sign_seed` return `None`, and after two seconds Home says
   the system gave no randomness (changed by F102, §3.5: nothing is said

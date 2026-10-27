@@ -23,9 +23,6 @@ faraday-strings = { path = "../faraday-strings" }
 zeroize = { workspace = true, features = ["alloc"] }
 
 [features]
-# FROST and signing across places, compiled out of the app
-# (docs/decisions/F109.md); faraday-core's `unreleased` turns it on.
-unreleased = []
 # `Keys::master_for_tests`: a key's master key, for the tests that check a
 # public result against the one they derive themselves. Turned on by
 # faraday-core's dev-dependency only; `tools/lint-keys-tests.sh` fails if a

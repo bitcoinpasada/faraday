@@ -26,19 +26,6 @@ pub(crate) fn spend(n: u8, kind: Option<Kind>, needed: usize, s: &SpendState, m:
         step::NONCES => EN.guide_musig2_signs.to_string(),
         step::PATH => EN.guide_this_wallet_can.to_string(),
         step::SIGNERS => match kind {
-            #[cfg(feature = "unreleased")]
-            Some(Kind::Threshold) => fill(
-                EN.guide_any_of_these,
-                &[
-                    &needed.to_string(),
-                    &(if needed == 2 {
-                        EN.guide_one_other.to_string()
-                    } else {
-                        fill(EN.guide_others, &[&(needed - 1).to_string()])
-                    })
-                    .to_string(),
-                ],
-            ),
             Some(Kind::Miniscript) | Some(Kind::Tree) => EN.guide_this_wallet_has.to_string(),
             None => EN.guide_keys_signs_here.to_string(),
             _ => fill(
@@ -53,10 +40,6 @@ pub(crate) fn spend(n: u8, kind: Option<Kind>, needed: usize, s: &SpendState, m:
                 ],
             ),
         },
-        #[cfg(feature = "unreleased")]
-        step::SIGN if s.spend.signed_here.is_empty() && kind == Some(Kind::Threshold) => {
-            fill(EN.guide_spend_share_nonce, &[m.noun()])
-        }
         step::SIGN => {
             if !s.spend.signed_here.is_empty() {
                 EN.guide_signed_each_signature.to_string()
@@ -79,12 +62,6 @@ pub(crate) fn spend(n: u8, kind: Option<Kind>, needed: usize, s: &SpendState, m:
             }
         }
         step::COLLECT => fill(EN.guide_get_the_other, &[m.a()]),
-        #[cfg(feature = "unreleased")]
-        step::FINISH
-            if s.spend.finished.is_none() && kind == Some(Kind::Threshold) && s.carried() =>
-        {
-            fill(EN.guide_keep_the_carry, &[m.a()])
-        }
         step::FINISH => {
             if s.spend.finished.is_some() {
                 EN.guide_there_are_two.to_string()
@@ -105,24 +82,18 @@ pub(crate) fn spend_topic(n: u8, kind: Option<Kind>, s: &SpendState) -> Option<T
         step::NONCES => Some(Topic::Nonces),
         step::PATH => Some(Topic::SpendPaths),
         step::SIGNERS => match kind {
-            #[cfg(feature = "unreleased")]
-            Some(Kind::Threshold) => Some(Topic::Frost),
             Some(Kind::Miniscript | Kind::Tree) => Some(Topic::SpendPaths),
             Some(_) => Some(Topic::Multisig),
             None => None,
         },
         step::SIGN if !s.spend.signed_here.is_empty() => None,
         step::SIGN => match kind {
-            #[cfg(feature = "unreleased")]
-            Some(Kind::Threshold) => Some(Topic::Frost),
             Some(Kind::MuSig) => Some(Topic::Nonces),
             Some(k) if k.has_cosigners() => Some(Topic::Multisig),
             _ => Some(Topic::AirGap),
         },
         step::COLLECT => Some(Topic::Multisig),
         step::FINISH if s.spend.finished.is_some() => Some(Topic::Verifying),
-        #[cfg(feature = "unreleased")]
-        step::FINISH if kind == Some(Kind::Threshold) => Some(Topic::Frost),
         _ => None,
     }
 }
@@ -215,21 +186,6 @@ pub(crate) fn create(
 ) -> String {
     use crate::cstep;
     let multi = kind.multi();
-    #[cfg(feature = "unreleased")]
-    if kind.threshold() {
-        match n {
-            cstep::QUORUM => {
-                return fill(EN.guide_any_of_shares, &[&m.to_string(), &keys.to_string()]);
-            }
-            cstep::KEYS => {
-                return fill(
-                    EN.guide_choose_loaded,
-                    &[&m.to_string(), &(keys - m).to_string()],
-                );
-            }
-            _ => {}
-        }
-    }
     match n {
         cstep::KIND => EN.guide_create_kinds.to_string(),
         cstep::QUORUM => fill(
@@ -258,11 +214,7 @@ pub(crate) fn create_topic(n: u8, kind: crate::create::NewKind) -> Option<Topic>
     use crate::cstep;
     match n {
         cstep::KIND => Some(Topic::WalletKinds),
-        #[cfg(feature = "unreleased")]
-        cstep::QUORUM if kind.threshold() => Some(Topic::Frost),
         cstep::QUORUM => Some(Topic::Multisig),
-        #[cfg(feature = "unreleased")]
-        cstep::KEYS if kind.threshold() => Some(Topic::Frost),
         cstep::KEYS if kind.multi() => Some(Topic::Xpubs),
         cstep::CHECK => Some(Topic::Verifying),
         cstep::WHERE | cstep::VAULTS => Some(Topic::Vaults),

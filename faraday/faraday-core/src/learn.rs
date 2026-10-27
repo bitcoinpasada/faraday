@@ -51,9 +51,6 @@ pub enum Topic {
     Tools,
     /// Kinds of wallets.
     WalletKinds,
-    /// FROST. Compiled out of the app (F109).
-    #[cfg(feature = "unreleased")]
-    Frost,
     /// Coordinator files.
     Coordinators,
     /// Silent payments.
@@ -86,8 +83,6 @@ impl Topic {
         Topic::Message,
         Topic::Tools,
         Topic::WalletKinds,
-        #[cfg(feature = "unreleased")]
-        Topic::Frost,
         Topic::Coordinators,
         Topic::SilentPayments,
         Topic::Shares,
@@ -134,8 +129,6 @@ impl Topic {
             Topic::Message => &EN.message,
             Topic::Tools => &EN.tools,
             Topic::WalletKinds => &EN.wallet_kinds,
-            #[cfg(feature = "unreleased")]
-            Topic::Frost => &EN.frost,
             Topic::Coordinators => &EN.coordinators,
             Topic::SilentPayments => &EN.silent_payments,
             Topic::Shares => shares_page(),
@@ -169,8 +162,6 @@ fn for_kind(kind: Kind) -> Vec<&'static LearnPage> {
             vec![&EN.spend_paths, &EN.inheritance, &EN.wallet_kinds]
         }
         Kind::MuSig => vec![&EN.nonces, &EN.multisig],
-        #[cfg(feature = "unreleased")]
-        Kind::Threshold => vec![&EN.frost, &EN.nonces],
         Kind::Silent => vec![&EN.silent_payments, &EN.wallet_kinds],
         Kind::Other => vec![&EN.wallet_kinds],
     }
@@ -185,12 +176,6 @@ fn for_new(kind: NewKind) -> Vec<&'static LearnPage> {
             vec![&EN.multisig, &EN.xpubs, &EN.coordinators]
         }
         NewKind::TapMulti => vec![&EN.multisig, &EN.spend_paths],
-        #[cfg(feature = "unreleased")]
-        NewKind::Threshold => vec![&EN.frost, &EN.nonces],
-        // Make a new wallet still lists the kind until it leaves Create;
-        // its page is compiled out of the app (F109).
-        #[cfg(not(feature = "unreleased"))]
-        NewKind::Threshold => vec![&EN.wallet_kinds],
         NewKind::MuSig => vec![&EN.nonces, &EN.wallet_kinds],
         NewKind::Shares => vec![&EN.other_backups, &EN.wallet_kinds, &EN.backups],
     }
@@ -242,13 +227,7 @@ impl Faraday {
             Screen::Wallets => wallet().map_or_else(|| vec![&EN.wallet_kinds], for_kind),
             Screen::Spend => {
                 let mut p = vec![&EN.verifying];
-                #[cfg(feature = "unreleased")]
-                let rounds = |k: Kind| matches!(k, Kind::MuSig | Kind::Threshold);
-                #[cfg(not(feature = "unreleased"))]
-                let rounds = |k: Kind| k == Kind::MuSig;
-                if let Some(k) = wallet()
-                    && rounds(k)
-                {
+                if wallet() == Some(Kind::MuSig) {
                     p.push(&EN.nonces);
                 }
                 p.push(&EN.scams);

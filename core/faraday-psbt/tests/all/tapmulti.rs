@@ -225,8 +225,6 @@ fn two_of_the_three_keys_sign_and_the_input_finalizes() {
         keys: &keys,
         wallets: &wallets,
         musig_session: None,
-        shares: &[],
-        carry: None,
     };
 
     let insp = inspect(&c, &psbt, &ctx);
@@ -250,8 +248,6 @@ fn two_of_the_three_keys_sign_and_the_input_finalizes() {
         Aux::Deterministic,
         &mut None,
         &faraday_crypto::Zeroizing::new([0u8; 32]),
-        &[],
-        &[],
     )
     .expect("two of the wallet's keys are ours");
     assert_eq!(result.signed_inputs.len(), 2, "one signature per key");

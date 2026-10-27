@@ -513,8 +513,6 @@ fn a_silent_payment_is_signed_through_its_version_0_form() {
         keys: &keys,
         wallets: &[],
         musig_session: None,
-        shares: &[],
-        carry: None,
     };
     let signed = sign(
         &c,
@@ -527,8 +525,6 @@ fn a_silent_payment_is_signed_through_its_version_0_form() {
         Aux::Deterministic,
         &mut None,
         &faraday_crypto::Zeroizing::new([0u8; 32]),
-        &[],
-        &[],
     )
     .expect("signed");
     assert_eq!(signed.signed_inputs.len(), 1);

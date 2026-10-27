@@ -37,8 +37,6 @@ fn signing_twice_is_byte_identical() {
         keys: &keys,
         wallets: &[],
         musig_session: None,
-        shares: &[],
-        carry: None,
     };
     for nonce in [Nonce::LowR, Nonce::First] {
         for script_type in ScriptType::ALL {
@@ -60,8 +58,6 @@ fn signing_twice_is_byte_identical() {
                     Aux::Deterministic,
                     &mut None,
                     &faraday_crypto::Zeroizing::new([0u8; 32]),
-                    &[],
-                    &[],
                 )
                 .unwrap();
                 assert!(
@@ -86,8 +82,6 @@ fn signing_twice_is_byte_identical() {
                 Aux::Deterministic,
                 &mut None,
                 &faraday_crypto::Zeroizing::new([0u8; 32]),
-                &[],
-                &[],
             )
             .unwrap();
             assert_eq!(
@@ -112,8 +106,6 @@ fn low_r_gives_the_shortest_signature() {
         keys: &keys,
         wallets: &[],
         musig_session: None,
-        shares: &[],
-        carry: None,
     };
     // Enough different transactions that a first attempt with a high R
     // comes up and has to be ground away.
@@ -135,8 +127,6 @@ fn low_r_gives_the_shortest_signature() {
                 Aux::Deterministic,
                 &mut None,
                 &faraday_crypto::Zeroizing::new([0u8; 32]),
-                &[],
-                &[],
             )
             .unwrap();
             for s in &r.signed_inputs {
@@ -221,8 +211,6 @@ fn fresh_auxiliary_randomness_changes_a_taproot_signature() {
         keys: &keys,
         wallets: &[],
         musig_session: None,
-        shares: &[],
-        carry: None,
     };
     let mut b = Build::new(ScriptType::Taproot, NET);
     b.recipients.push((foreign_script(), 70_000));
@@ -242,8 +230,6 @@ fn fresh_auxiliary_randomness_changes_a_taproot_signature() {
             aux,
             &mut None,
             &faraday_crypto::Zeroizing::new([0u8; 32]),
-            &[],
-            &[],
         )
         .unwrap();
         assert!(r.signed_inputs.iter().all(|s| s.verified));

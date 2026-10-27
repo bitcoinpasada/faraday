@@ -280,15 +280,19 @@ fn forward_in_view(mut app: Faraday, h: u16) {
     tap(&mut app, Action::Nav(Screen::WalletsStart));
     tap(&mut app, Action::CreateWallet);
     // Create opens on Kind. A row is Kind's forward action: Single key,
-    // backup in shares (10), Single key (0) and Multisig (4), shown
+    // backup in shares, Single key (0) and Multisig (4), shown
     // before More kinds.
-    for kind in [10u8, 0, 4] {
+    let shares = faraday_core::create::NewKind::ALL
+        .iter()
+        .position(|k| k.shares())
+        .expect("the backup in shares") as u8;
+    for kind in [shares, 0, 4] {
         assert!(
             in_view(&mut app, h, Action::CKind(kind)),
             "Make a new wallet, Kind, row {kind}"
         );
     }
-    tap(&mut app, Action::CKind(10));
+    tap(&mut app, Action::CKind(shares));
     assert!(
         in_view(&mut app, h, Action::CNext(faraday_core::cstep::QUORUM)),
         "Make a new wallet, the backup in shares' Quorum"

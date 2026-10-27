@@ -6,18 +6,16 @@
 //!   place and a record by its vault and index, and read public values.
 //! - **Used.** Every operation on a secret is here: signing
 //!   ([`psbt`], [`message`]), derivation and key texts ([`texts`],
-//!   [`identity`]), [`bip85`], [`lightning`], [`silent`], [`frost`],
+//!   [`identity`]), [`bip85`], [`lightning`], [`silent`],
 //!   [`vanity`], paper forms ([`operations`], and [`codex32`], the work
 //!   set of a codex32 set being made), [`gpg`],
-//!   [`secure_boot`], [`totp`], the [`carry`] section of a FROST spend, and
-//!   seed words made into a `Mnemonic` ([`words`]). Each gives back a
+//!   [`secure_boot`], [`totp`], and seed words made into a `Mnemonic` ([`words`]). Each gives back a
 //!   public result. The flow around each (state, sheets, toasts, the
 //!   Outbox, strings) stays in faraday-core.
 //! - **Leaving.** A secret leaves only for a [`Reveal`] reason, lent as
 //!   [`Revealed`] or held as [`Held`], neither `Clone` nor `Debug`, wiped
 //!   when dropped. Types that hold a secret ([`silent::Receiver`],
-//!   [`lightning::Node`], [`frost::Dealt`], [`carry::Section`],
-//!   [`vault::MadeKey`]) give public values, and their secret only for a
+//!   [`lightning::Node`], [`vault::MadeKey`]) give public values, and their secret only for a
 //!   reason.
 //! - **Held to.** `tools/lint-secrets.sh` rule 4 refuses key material and
 //!   the primitive crates' secret-taking functions anywhere else under
@@ -26,9 +24,7 @@
 //! This crate does not depend on faraday-core.
 
 pub mod bip85;
-pub mod carry;
 pub mod codex32;
-pub mod frost;
 pub mod gpg;
 pub mod identity;
 pub mod lightning;

@@ -505,8 +505,7 @@ impl KeyGen {
         }
     }
 
-    /// The Start card's choices this flow offers: a threshold wallet's
-    /// slot only Make a new key and Type the words (§15.3).
+    /// The Start card's choices this flow offers.
     pub fn starts(&self) -> Vec<Start> {
         self.starts_with(crate::codex32::MAKE_OFFERED)
     }

@@ -81,7 +81,7 @@ SeedSigner and a Coldcard. The Wallets tab's central object is therefore a
   while this wallet's spend is under way, which resumes it where it
   was;
 - its other buttons: **Rename** and **New wallet from this one** beside
-  its name (any kind Create makes but a threshold wallet;
+  its name (any kind Create makes;
   `docs/history/NEW-WALLET.md` §16.2, 2026-10-19; in the foot when a long name
   leaves no room, and in the button list on a small panel), then along
   the foot **Show wallet QR**, **Back up**, **Sign a message** where
@@ -121,7 +121,7 @@ is a list of them.
 
 | Step | What it does |
 |---|---|
-| **Kind** | Choose the wallet kind, from the capability table: single-sig (four script types), multisig, Taproot multisig, MuSig2, FROST, recovery (timelocked paths). Imported-only kinds (miniscript, Taproot tree, watch-only) appear only on the load path. |
+| **Kind** | Choose the wallet kind, from the capability table: single-sig (four script types), multisig, Taproot multisig, MuSig2, recovery (timelocked paths). Imported-only kinds (miniscript, Taproot tree, watch-only) appear only on the load path. |
 | **Quorum** | M and N, with a plain sentence of what that quorum means. Fixed at N of N for MuSig2. |
 | **Slots** | One positional row per signer. Removing signer 2 leaves slot 2 empty rather than renumbering. Sources: a key in a vault, a new key (dice or entropy), typed words, a scanned SeedQR, an account key (watch only), or **someone else will add this later**. Each filled slot has **Show key QR**, as a `ur:crypto-account` byte-identical to SeedSigner's, or as the plain key expression. |
 | **Load** | A wallet in any form (§3.2). Builds the wallet card, routing itself to the right kind. |
@@ -205,29 +205,16 @@ own.
 | Miniscript, Taproot tree (imported) | Load → **Path** → Transaction → Check → Signers → Sign → Collect → Finish | Signs every signature its keys can give; Finish completes only when the script is satisfied, and says which condition is unmet (a cosigner, or a timelock not yet reached). |
 | Recovery (Liana shapes) | Load → **Path** → Transaction → Check → Signers → Sign → Collect → Finish | **Path**: the primary path, or a recovery path, with its timelock in blocks and whether the transaction's inputs have aged enough (from the PSBT's sequence values). |
 | MuSig2, `tr(musig(…))` | Load → Transaction → Check → **Round 1: nonces** → Collect nonces → **Round 2: sign** → Collect partial signatures → Finish | Two rounds; every signer must take part. See §4.2. |
-| FROST, m of n | Load (group record) → Transaction → Check → **Round 1** → Collect commitments → **Round 2** → Collect shares → Finish | Two rounds among the m chosen signers. See §4.2. Compiled out of the app (F109). |
 | Message (any wallet with addresses) | Choose wallet and address → Message → Sign (BIP-137 or BIP-322) → Result as text and QR | Also **Check a signed message**. |
 
 ### 4.2 Rounds that hold a secret between them
 
-MuSig2 and FROST make a secret nonce in round 1 and need it in round 2.
+MuSig2 makes a secret nonce in round 1 and needs it in round 2.
 Locking restarts the app, so a nonce held in memory dies with any stick
-visit. The app offers the first way only: rounds across a lock, and
-FROST, are compiled out of the app until their standards mature
-(F109), and what follows of them describes the code kept for then.
-The two ways:
-
-- **Both rounds by QR.** Round 1's nonce leaves as a code, the others'
-  arrive by camera, and round 2 follows without a lock. This is the default.
-- **Rounds across a lock.** The pending round is sealed into the vault
-  that holds the key, bound to the unsigned transaction's hash, and marked
-  used the moment round 2 signs. A nonce is never written anywhere else.
-  The binding means an old copy of the vault restored later cannot sign a
-  *different* transaction with a nonce already spent. It can still sign
-  the same transaction again, and if the other signers' nonces changed in
-  between that is a second signature under one secret nonce, which leaks
-  the key (2026-10-10 audit): a restored round is for one answer from the
-  cosigners, never a replay. The flow says this before it seals.
+visit. The app runs both rounds within one session: round 1's nonce
+leaves as a code, the others' arrive by camera, and round 2 follows
+before any lock, so no MuSig2 secret nonce outlives the session it was
+drawn in (F109).
 
 Every pass that may open a round draws its nonces from a seed of its own
 (`Faraday::sign_seed`, the session's seed with a count of the passes), a session whose nonces have all
@@ -236,8 +223,6 @@ the first request for randomness (2026-10-10, after the audit found the
 process's one seed reused: a nonce shared again was the nonce shared
 before).
 
-The vault's encryption holds the bound secret nonce.
-
 ## 5. Creating and backing up
 
 | Kind | Flow |
@@ -245,7 +230,6 @@ The vault's encryption holds the bound secret nonce.
 | Single-sig | Kind (script type) → Keys (from a vault, new, typed, scanned) → Check → Back up |
 | Multisig, Taproot multisig | Kind → Quorum → Keys → Check → Back up |
 | MuSig2 | Kind → Keys (N of N; every key's account key) → Check → Back up |
-| FROST | Kind → Quorum → Keys, whose Continue **deals** (on this device) → Check → Back up |
 | Recovery | Kind → Primary keys → **Recovery paths** (up to three, each with keys and a timelock) → Check → Back up |
 
 Create's cards are Kind · Quorum · Keys · Check · Back up (2026-10-10,
@@ -261,7 +245,7 @@ key flow's Cancel returns to the card before Keys (`docs/FLOWS.md`,
 Cancel). On the Keys card, a key chosen for one
 slot — loaded here, or a cosigner's file — is not offered for any other
 slot, until the slot is cleared (`docs/history/NEW-WALLET.md` §2.2); its foot
-button reads **New key for Key N** (**Share N** on a threshold wallet)
+button reads **New key for Key N**
 while a slot is still empty, N the first one, and opens New key for it,
 else **Continue** (`docs/history/NEW-WALLET.md` §2.3). Check shows the
 descriptor as a summary row ("2 of 3 · native SegWit multisig ·
@@ -291,8 +275,8 @@ those words and a passphrase make in its place.
 
 Keys from a vault and a wallet from another (2026-10-19,
 `docs/history/NEW-WALLET.md` §16, F45). Under each slot's session keys the Keys
-card lists every open vault's keys not loaded, under the vault's name
-(only 24-word shares for a threshold kind); a press loads that key and
+card lists every open vault's keys not loaded, under the vault's name;
+a press loads that key and
 fills the slot. A locked vault whose file is read is one **Unlock
 {vault}** button, returning to the Keys card. A wallet card's **New
 wallet from this one** opens Create filled from that wallet: Kind and
@@ -611,7 +595,7 @@ first"). The groups and their tiles:
 | Group | Tiles |
 |---|---|
 | Keys and seeds | Add a key · Scan a SeedQR · SLIP-39 shares · Restore from SLIP-39 · codex32 · Seed XOR · Explore a key · Child seeds and passwords (BIP-85) · Vanity address · Silent payments · Lightning node key |
-| Wallets | Single-key wallet · Multisig · Taproot multisig · MuSig2 · FROST threshold · Miniscript and inheritance · Restore an existing wallet · Back up a wallet |
+| Wallets | Single-key wallet · Multisig · Taproot multisig · MuSig2 · Miniscript and inheritance · Restore an existing wallet · Back up a wallet |
 | Transactions | Sign a transaction · Nonce check · Decode a transaction · Check an address |
 | Messages | Sign a message · Check a signed message |
 | Vaults and other keys | Vaults · TOTP codes · Diceware passphrase · GPG key · Secure Boot keys · KeePass export |

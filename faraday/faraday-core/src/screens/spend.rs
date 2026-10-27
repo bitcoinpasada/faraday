@@ -234,12 +234,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 fn spend_status(app: &View, needed: usize) -> (usize, usize, String, String) {
     let s = app.wallets.spend().expect("spend");
     let i = &s.inspection;
-    // A threshold spend counts partial signatures and signs as shares.
-    let threshold = threshold_of(s);
-    let signed_count = match threshold {
-        Some(t) if !s.complete => t.signed.len(),
-        _ => s.signers.len(),
-    };
+    let signed_count = s.signers.len();
     let count = if s.complete {
         needed
     } else {
@@ -250,23 +245,16 @@ fn spend_status(app: &View, needed: usize) -> (usize, usize, String, String) {
     } else {
         needed.saturating_sub(signed_count).max(1)
     };
-    let can_sign_here = shares_here(threshold).unwrap_or_else(|| {
-        i.participating_keys
-            .iter()
-            .filter(|fp| app.session.keys.key_label(**fp).is_some() && !s.signers.contains(&fp.0))
-            .map(|fp| fp_text(*fp))
-            .collect::<Vec<_>>()
-    });
-    let (carry_line, carry_label, shares_line) =
-        threshold_lines(s, threshold.is_some(), !can_sign_here.is_empty(), missing);
-    let need_line = if let Some(line) = carry_line {
-        line
-    } else if s.spend.finished.is_some() && s.out_signed && s.out_tx {
+    let can_sign_here = i
+        .participating_keys
+        .iter()
+        .filter(|fp| app.session.keys.key_label(**fp).is_some() && !s.signers.contains(&fp.0))
+        .map(|fp| fp_text(*fp))
+        .collect::<Vec<_>>();
+    let need_line = if s.spend.finished.is_some() && s.out_signed && s.out_tx {
         fill(EN.spend_status_both_wait, &[app.medium.for_the()])
     } else if missing == 0 {
         EN.spend_status_complete.to_string()
-    } else if let Some(line) = shares_line {
-        line
     } else if !can_sign_here.is_empty() && missing > 1 {
         fill(
             EN.spend_status_sign_and_collect,
@@ -277,9 +265,7 @@ fn spend_status(app: &View, needed: usize) -> (usize, usize, String, String) {
     } else {
         crate::wallet::collect_line(missing, count)
     };
-    let label = if let Some(label) = carry_label {
-        label
-    } else if s.spend.finished.is_some() {
+    let label = if s.spend.finished.is_some() {
         // Both went For the stick at Finish: the next step is writing.
         if app.stick.is_empty() {
             fill(EN.spend_status_insert, &[app.medium.a()])
@@ -297,71 +283,6 @@ fn spend_status(app: &View, needed: usize) -> (usize, usize, String, String) {
         crate::wallet::collect_line(missing, count)
     };
     (count, missing, need_line, label)
-}
-
-/// The shares held here that have not signed a threshold spend, by name.
-#[cfg(feature = "unreleased")]
-fn shares_here(threshold: Option<&faraday_psbt::ThresholdInput>) -> Option<Vec<String>> {
-    threshold.map(|t| {
-        t.ours
-            .iter()
-            .filter(|id| !t.signed.contains(id))
-            .map(|id| fill(EN.spend_status_share, &[&(id + 1).to_string()]))
-            .collect()
-    })
-}
-
-/// The shares held here that have not signed: none, FROST being
-/// compiled out of the app (F109).
-#[cfg(not(feature = "unreleased"))]
-fn shares_here(_threshold: Option<&faraday_psbt::ThresholdInput>) -> Option<Vec<String>> {
-    None
-}
-
-/// What a threshold spend's status says instead: the line and the button
-/// while a carry file waits, and the line while more shares sign after
-/// this one.
-#[cfg(feature = "unreleased")]
-fn threshold_lines(
-    s: &crate::SpendState,
-    threshold: bool,
-    can_sign_here: bool,
-    missing: usize,
-) -> (Option<String>, Option<String>, Option<String>) {
-    let carry = threshold && s.carried() && !s.complete;
-    let pick = |carried: &str, next: &str| {
-        carry.then(|| (if s.out_signed { carried } else { next }).to_string())
-    };
-    let more = (threshold && can_sign_here && missing > 1).then(|| {
-        fill(
-            EN.spend_status_sign_here_more,
-            &[
-                &(missing - 1).to_string(),
-                (if missing == 2 {
-                    EN.spend_status_its_one
-                } else {
-                    EN.spend_status_their
-                }),
-            ],
-        )
-    });
-    (
-        pick(EN.spend_status_carry, EN.spend_status_the_next),
-        pick(EN.spend_status_open_files, EN.spend_status_keep_carry),
-        more,
-    )
-}
-
-/// What a threshold spend's status says instead: nothing, FROST being
-/// compiled out of the app (F109).
-#[cfg(not(feature = "unreleased"))]
-fn threshold_lines(
-    _s: &crate::SpendState,
-    _threshold: bool,
-    _can_sign_here: bool,
-    _missing: usize,
-) -> (Option<String>, Option<String>, Option<String>) {
-    (None, None, None)
 }
 
 /// The foot of Sign a transaction on a small panel: the signatures, what
@@ -409,15 +330,6 @@ fn spend_bar(
 /// The height of that foot.
 const SPEND_BAR: f32 = 104.0;
 
-/// The first input's threshold view, when the spend is from a threshold
-/// wallet.
-fn threshold_of(s: &crate::SpendState) -> Option<&faraday_psbt::ThresholdInput> {
-    s.inspection
-        .inputs
-        .first()
-        .and_then(|i| i.threshold.as_ref())
-}
-
 fn recipients(inspection: &faraday_psbt::Inspection) -> Vec<&faraday_psbt::OutputInfo> {
     inspection
         .outputs
@@ -446,14 +358,6 @@ pub(crate) fn step_summary(app: &View, n: u8, wallet: Option<usize>, needed: usi
                 .to_string(),
             ],
         ),
-        #[cfg(feature = "unreleased")]
-        4 if reached && threshold_of(s).is_some() => {
-            let t = threshold_of(s).expect("threshold");
-            fill(
-                EN.step_summary_here_needed,
-                &[&t.ours.len().to_string(), &needed.to_string()],
-            )
-        }
         4 if reached => {
             let here = i
                 .participating_keys
@@ -901,108 +805,6 @@ pub(crate) fn step_body(
             next(ui, cy, EN.step_continue);
             cy += 44.0;
         }
-        #[cfg(feature = "unreleased")]
-        4 if threshold_of(s).is_some() => {
-            let t = threshold_of(s).expect("threshold");
-            // The first location chooses who signs; after it the PSBT
-            // names them.
-            let first = t.signers.is_empty();
-            if let Some(wl) = wallet.and_then(|wi| app.session.wallets.get(wi)) {
-                // On a small panel a share is two lines: the share, then
-                // who holds it with what it does.
-                let compact = ui.compact;
-                for (k, slot) in app.session.slots(wl).iter().enumerate() {
-                    let id = k as u32;
-                    ui.text_mid_as(
-                        (x, cy, 42.0),
-                        BODY_S,
-                        Role::OnSurfaceVariant,
-                        &fill(EN.step_share_n, &[&(k + 1).to_string()]),
-                    );
-                    let fp = slot.fingerprint.map(fp_text).unwrap_or_default();
-                    ui.text_mid_as((x + 64.0, cy, 42.0), BODY_M.mono(), Role::OnSurface, &fp);
-                    let (lx, ly) = if compact {
-                        (x + 64.0, cy + 36.0)
-                    } else {
-                        (x + 166.0, cy)
-                    };
-                    let here = t.ours.contains(&id);
-                    let (tag, fg, bg) = if t.signed.contains(&id) {
-                        (EN.step_signed, Role::OnOkContainer, Role::OkContainer)
-                    } else if here {
-                        (EN.step_signs_here, Role::OnOkContainer, Role::OkContainer)
-                    } else if t.signers.contains(&id) {
-                        (
-                            EN.step_signs_at_its_own,
-                            Role::OnSecondaryContainer,
-                            Role::SecondaryContainer,
-                        )
-                    } else if first {
-                        ("", Role::OnSurfaceVariant, Role::SurfaceContainerHighest)
-                    } else {
-                        (
-                            EN.step_not_signing,
-                            Role::OnSurfaceVariant,
-                            Role::SurfaceContainerHighest,
-                        )
-                    };
-                    let right = if first && !here {
-                        let on = s.others.contains(&id);
-                        let label = if on {
-                            EN.step_signs_next
-                        } else {
-                            EN.step_choose
-                        };
-                        let bw = ui.measure_as(LABEL_L, label) + 28.0;
-                        ui.button(
-                            x + w - bw,
-                            ly + 5.0,
-                            Some(bw),
-                            BUTTON_H,
-                            label,
-                            if on { Style::Primary } else { Style::Secondary },
-                            Action::TOther(id),
-                        );
-                        bw
-                    } else if !tag.is_empty() {
-                        let cw2 = ui.measure_as(BODY_S, tag) + 34.0;
-                        ui.chip(x + w - cw2, ly + 8.0, tag, fg, bg);
-                        cw2
-                    } else {
-                        0.0
-                    };
-                    let label = slot.held_by.clone().unwrap_or_default();
-                    let label = ui.fit_as(BODY_M, &label, x + w - lx - right - 8.0);
-                    ui.text_mid_as((lx, ly, 42.0), BODY_S, Role::OnSurfaceVariant, &label);
-                    ui.rule(x, ly + 42.0, w, Role::OutlineVariant);
-                    cy = ly + 44.0;
-                }
-            }
-            cy += 8.0;
-            let line = if first {
-                fill(
-                    EN.step_needs_here_chosen,
-                    &[
-                        &needed.to_string(),
-                        &t.ours.len().to_string(),
-                        &s.others.len().to_string(),
-                    ],
-                )
-            } else {
-                fill(
-                    EN.step_needs_signed,
-                    &[&needed.to_string(), &t.signed.len().to_string()],
-                )
-            };
-            ui.text_mid_as((x, cy, 40.0), BODY_S, Role::OnSurfaceVariant, &line);
-            // Under the line when both do not fit on one row.
-            let nw = ui.measure_as(TITLE_S, EN.step_continue) + 36.0;
-            if ui.measure_as(BODY_M, &line) + nw + 12.0 > w {
-                cy += 40.0;
-            }
-            next(ui, cy, EN.step_continue);
-            cy += 44.0;
-        }
         4 => {
             let wl = wallet.and_then(|wi| app.session.wallets.get(wi).map(|wl| (wi, wl)));
             let may = app.may_load_keys();
@@ -1177,56 +979,6 @@ pub(crate) fn step_body(
             next(ui, cy, EN.step_continue);
             cy += 44.0;
         }
-        #[cfg(feature = "unreleased")]
-        5 if threshold_of(s).is_some() && s.spend.signed_here.is_empty() => {
-            let t = threshold_of(s).expect("threshold");
-            let mine: Vec<u32> = t
-                .ours
-                .iter()
-                .copied()
-                .filter(|id| !t.signed.contains(id))
-                .collect();
-            let want = needed.saturating_sub(1);
-            let (label, style, reason) = if mine.is_empty() {
-                (
-                    String::new(),
-                    Style::Disabled,
-                    Some(EN.step_no_share_loaded.to_string()),
-                )
-            } else if t.signers.is_empty() && s.others.len() != want {
-                (
-                    String::new(),
-                    Style::Disabled,
-                    Some(fill(
-                        EN.step_choose_other_under,
-                        &[
-                            &want.to_string(),
-                            (if want == 1 {
-                                EN.step_share_inline
-                            } else {
-                                EN.step_shares
-                            }),
-                        ],
-                    )),
-                )
-            } else {
-                let names: Vec<String> = mine
-                    .iter()
-                    .map(|id| fill(EN.step_share_n_inline, &[&(id + 1).to_string()]))
-                    .collect();
-                (
-                    fill(EN.step_sign_as, &[&names.join(", ").to_string()]),
-                    Style::Primary,
-                    None,
-                )
-            };
-            if let Some(r) = reason {
-                ui.text_mid_as((x, cy, 40.0), BODY_S, Role::OnSurfaceVariant, &r);
-                cy += 44.0;
-            } else {
-                cy += sign_row(ui, (x, cy, w), "", &label, style);
-            }
-        }
         5 => {
             let mine: Vec<String> = i
                 .participating_keys
@@ -1388,56 +1140,6 @@ pub(crate) fn step_body(
                 next(ui, cy, EN.step_continue);
                 cy += 44.0;
             }
-        }
-        #[cfg(feature = "unreleased")]
-        7 if s.spend.finished.is_none() && s.carried() && threshold_of(s).is_some() => {
-            let t = threshold_of(s).expect("threshold");
-            let next_ids: Vec<String> = t
-                .signers
-                .iter()
-                .filter(|id| !t.signed.contains(id))
-                .map(|id| fill(EN.step_share_n_inline, &[&(id + 1).to_string()]))
-                .collect();
-            ui.fill(x, cy, w, 150.0, 10.0, Role::SurfaceContainerHighest);
-            ui.stroke(x, cy, w, 150.0, 10.0, Role::OutlineVariant);
-            ui.text_as(
-                x + 14.0,
-                cy + 14.0,
-                TITLE_S,
-                Role::OnSurface,
-                EN.step_carry_file,
-            );
-            let sub = fill(
-                EN.step_carry_holds_nonce,
-                &[&(if next_ids.is_empty() {
-                    EN.step_the_next_share.to_string()
-                } else {
-                    next_ids.join(", ")
-                })
-                .to_string()],
-            );
-            let sub = ui.fit_as(BODY_S, &sub, w - 28.0);
-            ui.text_as(x + 14.0, cy + 38.0, BODY_S, Role::OnSurfaceVariant, &sub);
-            let name = format!("{}-partly-signed.osk", crate::result_stem(&s.spend.source));
-            ui.text_as(x + 14.0, cy + 62.0, BODY_S.mono(), Role::OnSurface, &name);
-            let (label, style) = if s.out_signed {
-                (EN.step_kept, Style::Disabled)
-            } else {
-                (EN.step_keep_button, Style::Secondary)
-            };
-            ui.button(
-                x + 14.0,
-                cy + 98.0,
-                None,
-                BUTTON_H,
-                label,
-                style,
-                Action::CarryToOutbox,
-            );
-            if s.out_signed {
-                ui.icon(x + w - 34.0, cy + 106.0, 20.0, Icon::Done, 12.0, Role::Ok);
-            }
-            cy += 162.0;
         }
         7 => {
             if s.spend.finished.is_none() {

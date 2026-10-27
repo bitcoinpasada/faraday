@@ -41,7 +41,6 @@ const MUSIG: &str =
     include_str!("../../../../tools/vectors/psbt/wallet-musig-core-first-signed.psbt");
 const MUSIG_POLICY: &str =
     include_str!("../../../../tools/vectors/psbt/wallet-musig-regtest.policy");
-const THRESHOLD: &str = include_str!("../../../../tools/vectors/psbt/wallet-threshold-signed.psbt");
 
 fn read(text: &str) -> Psbt {
     let c = Compute::unchecked();
@@ -54,8 +53,6 @@ fn ctx<'a>(keys: &'a [KeyRef], wallets: &'a [WalletPolicy]) -> Context<'a> {
         keys,
         wallets,
         musig_session: None,
-        shares: &[],
-        carry: None,
     }
 }
 
@@ -111,8 +108,6 @@ fn signed_single(script_type: ScriptType, nonce: Nonce, aux: Aux, change: u64) -
         aux,
         &mut None,
         &faraday_crypto::Zeroizing::new([0u8; 32]),
-        &[],
-        &[],
     )
     .expect("the device signs its own transaction");
     psbt
@@ -124,7 +119,6 @@ fn signed_single(script_type: ScriptType, nonce: Nonce, aux: Aux, change: u64) -
 fn every_signature_the_committed_fixtures_carry_verifies() {
     let c = Compute::unchecked();
     valid(&read(TAPMULTI), "wallet-tapmulti-signed");
-    valid(&read(THRESHOLD), "wallet-threshold-signed");
     // What the MuSig2 fixture carries is one participant's partial
     // signature, a BIP-373 field the aggregation checks and this reader
     // does not: there is no signature of the transaction on it yet, and
@@ -172,8 +166,6 @@ fn the_signatures_this_device_writes_verify_when_they_are_read_back() {
             Aux::Deterministic,
             &mut None,
             &faraday_crypto::Zeroizing::new([0u8; 32]),
-            &[],
-            &[],
         )
         .expect("the key the wallet names signs");
         valid(&psbt, "a recovery wallet's spend");
@@ -225,8 +217,6 @@ fn the_signatures_inside_a_finalized_witness_are_read_back_and_verify() {
         Aux::Deterministic,
         &mut None,
         &faraday_crypto::Zeroizing::new([0u8; 32]),
-        &[],
-        &[],
     )
     .expect("both keys sign");
     valid(&psbt, "a 2-of-2 p2wsh, partly signed");
@@ -521,8 +511,6 @@ fn two_transactions_are_compared_on_what_they_decode_to() {
         Aux::Deterministic,
         &mut None,
         &faraday_crypto::Zeroizing::new([0u8; 32]),
-        &[],
-        &[],
     )
     .expect("signed");
     let diff = compare(&unsigned, &signed);

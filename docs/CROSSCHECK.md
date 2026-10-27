@@ -21,7 +21,7 @@ result comes from decides what a second implementation has to differ from.
 
 | Part | Where it comes from |
 |---|---|
-| BIP-39 words to seed, BIP-85, SLIP-39, codex32 (BIP-93), Seed XOR, aezeed, MuSig2 (BIP-327, 328, 390), FROST (BIP-445), silent payments (BIP-352), the descriptor and wallet-policy layer | Faraday's own Rust, in `faraday-bip` |
+| BIP-39 words to seed, BIP-85, SLIP-39, codex32 (BIP-93), Seed XOR, aezeed, MuSig2 (BIP-327, 328, 390), silent payments (BIP-352), the descriptor and wallet-policy layer | Faraday's own Rust, in `faraday-bip` |
 | Transactions, PSBT (BIP-174, 370), BIP-32 derivation, sighash (BIP-143, 341), addresses, script | `rust-bitcoin` 0.32 |
 | Descriptors and miniscript parsing and satisfaction | `rust-miniscript` 12 |
 | ECDSA and Schnorr signing and verifying, all curve arithmetic | `rust-secp256k1`, which wraps Bitcoin Core's C library `libsecp256k1` |
@@ -38,7 +38,7 @@ at the curve needs one of the implementations that do their own arithmetic.
 | Candidate | Language | Curve arithmetic | Covers | Notes |
 |---|---|---|---|---|
 | Bitcoin Core's functional-test framework (`test_framework/key.py`, `script.py`, `messages.py`, `descriptors.py`) | Python | its own, pure Python | ECDSA with RFC 6979, BIP-340 Schnorr, every sighash, transaction serialisation, descriptor checksums | Written by Core's developers; no dependencies; slow |
-| The BIPs' own reference code (BIP-340, 327 MuSig2, 445 FROST, 352 silent payments, 93 codex32) | Python | pure Python | exactly the BIP each comes with | Written by the BIPs' authors: the strongest second opinion for those BIPs |
+| The BIPs' own reference code (BIP-340, 327 MuSig2, 352 silent payments, 93 codex32) | Python | pure Python | exactly the BIP each comes with | Written by the BIPs' authors: the strongest second opinion for those BIPs |
 | `python-mnemonic` (Trezor) | Python | none needed | BIP-39 | The BIP's reference implementation |
 | `python-shamir-mnemonic` (Trezor) | Python | none needed | SLIP-39 | The SLIP's reference implementation |
 | embit | Python | pure Python fallback, or `libsecp256k1` | BIP-32, 39, PSBT, descriptors, miniscript, addresses | Used by SeedSigner and Specter; runs on MicroPython (not yet checked whether its pure fallback does) |
@@ -59,7 +59,6 @@ at the curve needs one of the implementations that do their own arithmetic.
 | Signature recomputation (the nonce check, done twice) | RFC 6979, BIP-340 | yes | Core's `key.py`: Faraday signs deterministically, so the signatures must match byte for byte |
 | Transaction id, finished transaction | BIP-141, 144 | no | Core's `messages.py` |
 | MuSig2 aggregate key, partial signature verification | BIP-327, 328, 390 | no | the BIP's reference code |
-| FROST group key, partial signature verification | BIP-445 | no | the BIP's reference code |
 | Silent payment address, output detection | BIP-352 | scan key: yes | the BIP's reference code |
 | Child seeds and passwords | BIP-85 | yes | its reference implementation |
 | SLIP-39, codex32, Seed XOR combine | SLIP-39, BIP-93 | yes | the references above |
@@ -84,8 +83,8 @@ after the build, or a fault on the machine at hand.
 started by the app, with its own user, no files and no network: it
 receives public inputs over a pipe and returns its results. Every check in
 §4 that needs no secret runs here, which covers addresses, checksums,
-sighashes, signature verification, transaction ids and the MuSig2 and
-FROST public steps.
+sighashes, signature verification, transaction ids and the MuSig2
+public steps.
 
 **C. At run time, secrets too.** The same process also receives seeds and
 private keys, for seed to fingerprint, signature recomputation, BIP-85 and
@@ -187,7 +186,7 @@ parallel. Secrets in the cross-check are test data only.
 Each run has a time budget, and each area's corpus is sized to fit it,
 so adding an area does not lengthen the run much.
 
-- The stamp run, all twenty-seven areas in parallel on the build
+- The stamp run, all twenty-six areas in parallel on the build
   machine (2026-10-26, shared with other work): 147 s, the slowest area
   MuSig2 at 145 s; signed messages 128 s, BIP-39 111 s, vault 56 s;
   PSBT signing and finalizing 82 s (205 PSBTs signed, 342 inputs
@@ -230,7 +229,7 @@ The cross-check fetches nothing, ever.
 ### 10.5 Order of work
 
 1. Faraday's own Rust, which no other library checks: MuSig2 (BIP-327,
-   328, 390), FROST (BIP-445), silent payments (BIP-352), BIP-85,
+   328, 390), silent payments (BIP-352), BIP-85,
    SLIP-39, codex32 (BIP-93) and Seed XOR. Built.
 2. The vault: Argon2id, HKDF, XChaCha20-Poly1305 and the vault's own
    construction (`docs/VAULT.md`). Built (area `vault`).

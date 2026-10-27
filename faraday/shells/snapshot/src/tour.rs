@@ -290,8 +290,6 @@ impl Tour {
         self.copy_wallets();
         let mut ids: Vec<String> = testkit::kits().iter().map(|k| k.id.to_string()).collect();
         ids.push("musig".into());
-        #[cfg(feature = "unreleased")]
-        ids.push("threshold".into());
         for id in ids {
             let name = format!("{id}-wallet.txt");
             let i = self

@@ -133,7 +133,7 @@ Sources read for it, each as data and none vendored:
     paper only: one string per place, with Customize backup for vaults,
     files and Codex32QR (§9.5).
 19. **Codex32 is made for single-key wallets only**: Make codex32
-    shares is not offered in a multisig, Taproot multisig, MuSig2, FROST
+    shares is not offered in a multisig, Taproot multisig, MuSig2
     or recovery wallet's slot; a codex32 key already loaded is accepted
     in any slot (§6.9).
 20. **A wallet kind, "Single key, backup in shares"**, on Make a new
@@ -1080,8 +1080,7 @@ the check once; a step into and through the tour works out nothing).
 
 BIP-39 words stays the default while few wallets other than Faraday
 restore a codex32 seed; the default is to be looked at again when more
-do. A threshold wallet's slot (FROST) still offers Make a new key's
-BIP-39 words and Type the words only. Also reached from the codex32 tile
+do. Also reached from the codex32 tile
 of Tools. The flow is its own area (§13.1). Its cards, each a card of
 New key's column (`docs/history/NEW-WALLET.md` §15), are below. Back
 returns a card at a time; Cancel is F51's.
@@ -1463,7 +1462,7 @@ Other forms.
 - Make codex32 shares is offered where a single-key wallet is made: this
   kind's slot; Single key's slot and Add a key on its own, through New
   key's Start card (§6), BIP-39 words ticked there.
-- A slot of a multisig, Taproot multisig, MuSig2, FROST or recovery
+- A slot of a multisig, Taproot multisig, MuSig2 or recovery
   wallet offers BIP-39 words only under Make a new key: two thresholds
   stacked add work and ways to go wrong for little more safety.
 - A codex32 key already loaded (typed, scanned, from a vault) is refused
@@ -2257,7 +2256,7 @@ person chose is kept for the process; the sample's own scheme (2 of 3,
   core/faraday-entropy/src/booklet.rs (new), one file a source like the
   others. In the secret files.
 - `faraday-keys`: a codex32 work set held as a new secret, as a BIP-85
-  child or a FROST share is (KEYS §3: it "leaves only by `add_*` or
+  child is (KEYS §3: it "leaves only by `add_*` or
   `reveal`"): the characters handed in one by one as each is complete
   (the rolls of the character in progress stay on the pad, transient
   input under lint-secrets' rules, as keygen's do), the rows and strings

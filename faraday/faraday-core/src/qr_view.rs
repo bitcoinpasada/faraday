@@ -291,7 +291,7 @@ pub use faraday_qr::send::Source as QrSource;
 /// labelled picture of it, beside the file itself (`docs/QR.md`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Code {
-    /// A wallet's descriptor, or a threshold wallet's record.
+    /// A wallet's descriptor.
     Descriptor(usize),
     /// A wallet's multisig config, as Coldcard, Keystone and Passport
     /// scan it.

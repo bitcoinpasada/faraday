@@ -31,10 +31,6 @@ pub enum PayloadKind {
     },
     /// A PSBT, binary (`psbt\xff`) or base64.
     Psbt,
-    /// A partly signed threshold transaction: the `OSKC` carry file, which is a PSBT with the secret nonce
-    /// of every signer still to sign bound to it. Routed into Sign as a
-    /// PSBT is.
-    ThresholdCarry,
     /// A uniform resource, `ur:<type>/…`.
     Ur {
         /// The type after `ur:`, lower-cased: `crypto-psbt`, `bytes`, …
@@ -85,19 +81,8 @@ pub enum PayloadKind {
     Unknown,
 }
 
-/// The first four bytes of a threshold carry file
-/// (`faraday_psbt::threshold`). The magic is read and
-/// nothing else: the app holds the format.
-pub const CARRY_MAGIC: &[u8; 4] = b"OSKC";
-
 /// Classifies `bytes`.
 pub fn classify(bytes: &[u8]) -> PayloadKind {
-    // The magic comes first and is not trimmed: a carry file is binary, and
-    // a header the app cannot read is still a carry file, refused with a
-    // reason rather than routed as something else.
-    if bytes.starts_with(CARRY_MAGIC) {
-        return PayloadKind::ThresholdCarry;
-    }
     let trimmed = bytes.trim_ascii();
     if matches!(trimmed.len(), 48 | 96) && trimmed.iter().all(u8::is_ascii_digit) {
         return PayloadKind::SeedQr {
@@ -139,12 +124,6 @@ pub fn classify(bytes: &[u8]) -> PayloadKind {
             } else {
                 PayloadKind::BsmsDescriptor
             };
-        }
-        // A threshold wallet's group record is a wallet arriving, and
-        // is routed as one: its own last line is the descriptor, and
-        // `WalletPolicy::parse_any` reads the whole file.
-        if faraday_bip::threshold::ThresholdRecord::looks_like_record(text) {
-            return PayloadKind::Descriptor { checksum: None };
         }
         if let Some(d) = descriptor_kind(text) {
             return d;
@@ -408,12 +387,6 @@ mod tests {
                 )
                 .as_bytes()
             ),
-            PayloadKind::Descriptor { checksum: None }
-        );
-        // The group record of a threshold wallet, which is a wallet
-        // this device reads and reviews like any other.
-        assert_eq!(
-            classify(b"osk-threshold 1\nthreshold 2\ngroup 02\ntr(tpub)#aaaaaaaa"),
             PayloadKind::Descriptor { checksum: None }
         );
         assert_eq!(

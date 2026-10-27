@@ -454,7 +454,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let mut cy = y + 22.0;
     // New wallet from this one, while it is still to be drawn: beside
     // Rename, or in the foot.
-    let mut new_from = crate::create::NewKind::of(wlt.policy()).is_some_and(|k| !k.threshold());
+    let mut new_from = crate::create::NewKind::of(wlt.policy()).is_some();
     match app.wallets.renaming() {
         Some(name) => {
             ui.fill(

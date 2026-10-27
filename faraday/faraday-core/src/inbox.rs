@@ -127,8 +127,8 @@ pub struct Waiting {
 ///    marked); an [`Item`]'s own bytes, kind, wallet and sha never change
 ///    after it is made;
 /// 2. the session's keys: each key's fingerprint (what a seed here is
-///    loaded by, which wallet slots a key fills), label (a key's seed
-///    is named by it) and share (a threshold wallet's slots);
+///    loaded by, which wallet slots a key fills) and label (a key's seed
+///    is named by it);
 /// 3. the session's wallets: each one's name and policy (which wallets
 ///    here are loaded already, the wallets listed from the session);
 /// 4. nothing else: the words' fingerprints and the texts read are
@@ -148,11 +148,7 @@ pub struct InboxFiles {
 
 /// The session as [`InboxFiles`]' kept copy was worked out from it.
 struct SessionSeen {
-    keys: Vec<(
-        Fingerprint,
-        String,
-        Option<faraday_bip::bitcoin::secp256k1::PublicKey>,
-    )>,
+    keys: Vec<(Fingerprint, String)>,
     wallets: Vec<(String, faraday_bip::policy::WalletPolicy)>,
 }
 
@@ -162,7 +158,7 @@ impl SessionSeen {
             keys: s
                 .keys
                 .all()
-                .map(|k| (k.fingerprint, k.label.clone(), k.share))
+                .map(|k| (k.fingerprint, k.label.clone()))
                 .collect(),
             wallets: s
                 .wallets
@@ -181,7 +177,7 @@ impl SessionSeen {
                 .keys
                 .iter()
                 .zip(s.keys.all())
-                .all(|(a, k)| a.0 == k.fingerprint && a.1 == k.label && a.2 == k.share)
+                .all(|(a, k)| a.0 == k.fingerprint && a.1 == k.label)
             && self
                 .wallets
                 .iter()
@@ -907,19 +903,12 @@ impl Faraday {
         }
         for w in &self.session.wallets {
             // As its descriptor reads: a silent payments wallet has none
-            // (its "descriptor" is its address), and a threshold wallet's
-            // reads as the plain wallet it signs as, which only a parse
-            // gives; any other is its own policy, with nothing to read.
-            let policy = if w.policy().silent().is_some() {
+            // (its "descriptor" is its address); any other is its own
+            // policy, with nothing to read.
+            if w.policy().silent().is_some() {
                 continue;
-            } else if w.policy().record().is_some() {
-                match self.kept.read_kept(c, &w.policy().to_descriptor()) {
-                    Some(p) => p,
-                    None => continue,
-                }
-            } else {
-                w.policy().clone()
-            };
+            }
+            let policy = w.policy().clone();
             push_wallet(&mut found, w.name.clone(), policy, None, false, true);
         }
         let seeds: Vec<Fingerprint> = found.seeds.iter().map(|s| s.fingerprint).collect();

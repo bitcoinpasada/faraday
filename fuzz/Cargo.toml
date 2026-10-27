@@ -130,13 +130,6 @@ doc = false
 bench = false
 
 [[bin]]
-name = "carry"
-path = "fuzz_targets/carry.rs"
-test = false
-doc = false
-bench = false
-
-[[bin]]
 name = "encodings"
 path = "fuzz_targets/encodings.rs"
 test = false

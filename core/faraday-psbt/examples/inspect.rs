@@ -303,8 +303,6 @@ fn run(a: Args) -> Result<(), String> {
         keys: &keys,
         wallets: &[],
         musig_session: None,
-        shares: &[],
-        carry: None,
     };
     let insp = inspect(&c, &psbt, &ctx);
     print_inspection(&insp, &ctx);
@@ -328,8 +326,6 @@ fn run(a: Args) -> Result<(), String> {
         Aux::Deterministic,
         &mut None,
         &faraday_crypto::Zeroizing::new([0u8; 32]),
-        &[],
-        &[],
     )
     .map_err(|e| {
         if insp.has_danger() && !a.force {

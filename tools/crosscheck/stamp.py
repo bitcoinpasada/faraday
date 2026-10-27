@@ -46,7 +46,7 @@ CRATES = [
 FILES = ["faraday/faraday-core/src/fresh.rs", "faraday/faraday-core/src/fresh/roller/mod.rs",
          "faraday/faraday-core/src/fresh/roller/five.rs", "faraday/faraday-core/src/picture.rs"]
 # The published vectors the cross-check reads (tools/vectors/<name>/).
-VECTORS = ["addresses", "aezeed", "bip32", "bip327", "bip352", "bip39", "bip445", "bip85", "bip93",
+VECTORS = ["addresses", "aezeed", "bip32", "bip327", "bip352", "bip39", "bip85", "bip93",
            "codex32-booklet", "codex32-correction", "codex32-volvelle", "codex32qr", "entropy",
            "kdf", "message", "miniscript", "psbt", "psbt-bips", "seedqr", "sighash", "slip39", "ur", "vault",
            "vault-primitives", "xor"]

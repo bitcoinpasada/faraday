@@ -202,8 +202,6 @@ pub struct Glance {
     pub backup: Backup,
     /// Where the chart is drawn, which says what its presses do.
     pub press: Press,
-    /// A threshold wallet, whose keys are shares and not account keys.
-    pub threshold: bool,
     /// The key whose lines are drawn bold, the rest dimmed: **Where it
     /// is** on its sheet (`docs/history/NEW-WALLET.md` §9.3).
     pub focus: Option<usize>,
@@ -536,20 +534,14 @@ pub(crate) fn of_vault_on(reads: &impl Reads, v: usize, r: usize) -> Option<Glan
     let in_vault: Vec<String> = kept.iter().map(|(f, _)| f.clone()).collect();
     let mut shape = app.plan_shape_of(&wallet);
     let slots = app.session.slots(&wallet);
-    let threshold = wallet.policy().record().is_some();
-    for (n, slot) in slots.iter().enumerate() {
+    for slot in &slots {
         let Some(fp) = slot.fingerprint.map(fp_text) else {
             continue;
         };
         let Some((_, pass)) = kept.iter().find(|(f, _)| *f == fp) else {
             continue;
         };
-        let i = if threshold {
-            (n < shape.seeds.len()).then_some(n)
-        } else {
-            shape.seeds.iter().position(|s| s.name == fp)
-        };
-        if let Some(i) = i {
+        if let Some(i) = shape.seeds.iter().position(|s| s.name == fp) {
             shape.seeds[i].here = true;
             shape.seeds[i].passphrase |= *pass;
         }
@@ -606,13 +598,8 @@ fn build(
         .iter()
         .any(|s| s.held_by.is_none() && s.fingerprint.is_some())
         && r.passphrase_seeds();
-    let threshold = wallet.policy().record().is_some();
-    // Each slot's seed in the plan: a share by its number, else by
-    // fingerprint.
-    let seed_of = |n: usize, slot: &crate::wallet::Slot| -> Option<usize> {
-        if threshold {
-            return (n < shape.seeds.len()).then_some(n);
-        }
+    // Each slot's seed in the plan, by fingerprint.
+    let seed_of = |_n: usize, slot: &crate::wallet::Slot| -> Option<usize> {
         let fp = fp_text(slot.fingerprint?);
         shape.seeds.iter().position(|s| s.name == fp)
     };
@@ -723,7 +710,6 @@ fn build(
         keys,
         backup,
         press,
-        threshold,
         focus,
         held,
         keep: matches!(press, Press::Vault(..))

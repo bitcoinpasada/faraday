@@ -2045,12 +2045,11 @@ impl Faraday {
         let Some(w) = self.session.wallets.get(k) else {
             return;
         };
-        // A threshold wallet and a silent payments wallet are their
-        // records: neither has a descriptor that reads back as it.
-        let text = match (w.policy().record(), w.policy().silent()) {
-            (Some(r), _) => r.to_text(),
-            (None, Some(s)) => s.to_text(),
-            (None, None) => w.policy().to_descriptor_checksummed(),
+        // A silent payments wallet is its record: it has no descriptor
+        // that reads back as it.
+        let text = match w.policy().silent() {
+            Some(s) => s.to_text(),
+            None => w.policy().to_descriptor_checksummed(),
         };
         let record = Record::new(kind::WALLET)
             .with(field::WALLET, text.as_bytes())

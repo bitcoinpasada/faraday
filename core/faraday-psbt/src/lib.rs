@@ -82,27 +82,22 @@ pub mod musig;
 mod psbt;
 mod sign;
 pub mod silent;
-pub mod threshold;
 pub mod transaction;
 pub mod v2;
 pub mod verify;
 
 pub use classify::{Multisig, ScriptKind, Wrapper};
-pub use context::{Context, KeyRef, ShareRef};
+pub use context::{Context, KeyRef};
 pub use finalize::{finalize, is_complete};
 pub use inspect::{
     ABSURD_FEE_RATE_SAT_VB, Cosigner, HIGH_FEE_CAUTION_PCT, HIGH_FEE_DANGER_ABS,
     HIGH_FEE_DANGER_PCT, InputInfo, Inspection, KeyOrigin, Level, Locktime, LocktimeKind,
     MultisigSummary, MusigInput, MusigParticipation, MusigRound, MusigSummary, OutputInfo,
-    OutputKind, SighashKind, SpendRoute, ThresholdInput, ThresholdRound, ThresholdSummary, Warning,
-    WarningKind, inspect,
+    OutputKind, SighashKind, SpendRoute, Warning, WarningKind, inspect,
 };
 pub use musig::{MusigSession, MusigSessionView};
 pub use psbt::{Error, Psbt};
-pub use sign::{
-    Aux, InputSignature, MusigRole, Nonce, Schnorr, ShareDoor, ShareKey, SigKind, SignResult,
-    ThresholdOutcome, sign,
-};
+pub use sign::{Aux, InputSignature, MusigRole, Nonce, Schnorr, SigKind, SignResult, sign};
 
 /// The rust-bitcoin version this crate is built against, re-exported so
 /// callers use the same types without a second dependency.

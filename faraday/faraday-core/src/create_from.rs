@@ -199,7 +199,7 @@ impl Faraday {
         let Some(w) = self.session.wallets.get(i) else {
             return;
         };
-        let Some(kind) = NewKind::of(w.policy()).filter(|k| !k.threshold()) else {
+        let Some(kind) = NewKind::of(w.policy()) else {
             return;
         };
         let name = w.name.clone();
@@ -343,7 +343,7 @@ impl Faraday {
         let Some(w) = c.built else {
             return false;
         };
-        if !c.kind.has_account() || c.kind.threshold() {
+        if !c.kind.has_account() {
             return false;
         }
         if self.backup.state().is_some_and(|b| b.wallet == w) {

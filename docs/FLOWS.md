@@ -78,8 +78,8 @@ it was on, with the vault's button live. The places: Tools' **GPG key**,
 ("Make a vault first" / "Unlock a vault first" on the tile, pressable;
 back to that category of the vault unlocked, or to Tools when the way
 back is taken); BIP-85, the Lightning node key and the Silent payments
-scan key (**Save into {vault}**); the secret sheet (the FROST carry, a
-seed from the backup's files item), which closes on the way, keeps its
+scan key (**Save into {vault}**); the secret sheet (a seed from the
+backup's files item), which closes on the way, keeps its
 secret, and opens again on return; the backup's vault items; Files (an
 entries file, a file added to a vault); Vault contents with
 none open; and Restore's seeds route, which offers Unlock only, as a new
@@ -287,13 +287,6 @@ seed's words), and the mark is kept across a lock. A seed's words file
 is a secret by its kind. The code refuses a secret on the plain path For
 the stick, so a new flow cannot skip the sheet.
 
-The FROST carry (the next share's secret nonce) goes into the vault as a
-signing-round record (`docs/VAULT.md` §7, type 9), its public PSBT goes
-For the stick, the next device finds the round by the transaction when
-it opens that PSBT with the vault unlocked, and the round leaves the
-vault once it has signed. FROST, the carry with it, is compiled out of
-the app (F109): a shipped app writes no such record.
-
 A wallet's seed goes into a vault as a key record (`kind::KEY`, as
 Vaults saves it), never a note; as a file it is the words or the SeedQR
 picture, one picked on the sheet, behind its own acknowledgement
@@ -354,8 +347,7 @@ Tools tile (one tile for making and for typing a key, owner,
 2026-10-24) open with Start closed on Make a new key, and so does New
 key from a Create slot (F103): Length is open, and
 **Change** on Start reopens it, where a press on a choice, the ticked
-one included, moves on by itself; a threshold wallet's slot offers Make a new key and Type the
-words only. The SLIP-39, codex32 and Seed XOR tiles open with their
+one included, moves on by itself. The SLIP-39, codex32 and Seed XOR tiles open with their
 choice made and Start closed. The page is titled **Add a key**, and
 **New key** for a Create slot and from the Add a key screen's Make a new
 key, which opens with Start closed on it. The Add a key screen (Home,
@@ -624,7 +616,7 @@ visit** directly.
   it. A public or sealed file (a GPG public key or signature
   included, F22; a revocation `.rev` file is not one, F32) is ticked like a file For the stick, and
   Select all ticks it. A secret kind (words, seed
-  parts, entries, a carry file), text and a file Faraday does not read
+  parts, entries), text and a file Faraday does not read
   open the secret sheet instead, never ticked by Select all: text, words,
   seed parts and entries may go into the open vault as a note; past the
   line ("Faraday cannot tell whether this is a secret" for text and
@@ -982,7 +974,7 @@ guarantees for this file's rule:
   shares, any 2 rebuild it", the counts the scheme's), the default,
   then Single key ("One key, its words on paper") and Multisig ("3 keys,
   any 2 sign", the quorum's), all three native SegWit; the other seven
-  are behind **More kinds** (FROST is not made here, F109). An info
+  are behind **More kinds**. An info
   button follows "(codex32)" in the first row's name; it and the word
   carry a tooltip (DESIGN §4.12, Tooltip; F112): "codex32 is the only
   method that makes a seed and its shares fully by hand, the checksum
@@ -1142,15 +1134,14 @@ guarantees for this file's rule:
 - **Create's Keys card offers the open vaults' keys** (owner,
   2026-10-19; F45; `docs/history/NEW-WALLET.md` §16.1). Under each slot's
   session keys, each open vault's keys not loaded, under the vault's
-  name (a threshold kind: only its 24-word shares; a key in another slot
-  is not offered); a press loads that one key as Load into session does
+  name (a key in another slot is not offered); a press loads that one key as Load into session does
   and fills the slot, the vault staying open. A locked vault whose file
   is read is one **Unlock {vault}** button, coming back to the Keys card
   with the vault open and nothing loaded.
 - **New wallet from this one** (owner, 2026-10-19; F45;
   `docs/history/NEW-WALLET.md` §16.2). A wallet's card offers it beside
   Rename (on a small panel, in its list of buttons) for every kind
-  Create makes but a threshold wallet. It
+  Create makes. It
   opens Create filled from the wallet: Kind and Quorum closed with their
   values, the **Account** row (on Quorum, or at the head of Keys, as for
   any new wallet) starting at the lowest account no loaded wallet of the
@@ -1606,7 +1597,7 @@ anything else in the file envelope) → format, frame rate and part size →
 file saved into `~/Downloads` under its own name (envelope) or
 `received-N.psbt` / `.txt`, never over a file ("name (2).ext") → "Saved
 {path}", or "Saved {path}: this file holds a secret" for words, a
-SeedQR, seed parts, entries or a carry file → the camera stays on for
+SeedQR, seed parts or entries → the camera stays on for
 the next → **Cancel**. Nothing goes into the desktop app's Files; a file
 to use in the desktop Faraday is copied in from a stick folder.
 

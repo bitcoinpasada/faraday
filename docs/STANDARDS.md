@@ -17,7 +17,7 @@ Taken from the working tree on 2026-10-24.
 ## 0. What goes into Faraday
 
 The rule for what the app offers (owner, 2026-10-23; written in the
-decision that took FROST out of the app, F109):
+decision F109):
 
 - **A published standard, followed and checked.** A wallet kind, key
   method, format or signing procedure is in the app when it follows a
@@ -65,7 +65,7 @@ decision that took FROST out of the app, F109):
 
 | Left out | Why | Where it stands |
 |---|---|---|
-| FROST threshold wallets | BIP 445 is not published, and signing across places is Faraday's own construction, not yet reviewed | Compiled out of the app (F109): the core code (`core/faraday-bip`, `core/faraday-psbt`) is built and tested as before, and the app's FROST code is behind the `unreleased` feature, which no shipped binary turns on; back when the BIP is published and signing across places is reviewed |
+| FROST threshold wallets | BIP 445 and a key-generation standard (ChillDKG) are drafts, and the dealer and the signing across places were Faraday's own constructions, not reviewed | Removed from the repository (F127); back only as a new implementation of the published standards |
 | MuSig2 signing across places | Secret nonces drawn at one place and carried or kept in the vault between visits; BIP 327 advises against storing a secret nonce | Compiled out of the app (F109): no MuSig2 secret nonce outlives the session it was drawn in; MuSig2 with the session open between rounds, and signing last, stay |
 | Sending to silent payments | BIP 374 and BIP 375 are drafts; receiving (BIP 352) is in the app | Built in `core/`, not reached from the app |
 | SSH signatures and an SSH CA, minisign and signify, an X.509 certificate authority | Outside a Bitcoin signer's scope | Not planned |
@@ -81,8 +81,7 @@ in the BIPs repository's master branch on 2026-10-23, or from the text
 vendored in `tools/vectors` (marked "vendored" where the vendored copy
 was the source). "Status not checked" marks a standard whose status was
 not looked up: SLIP-0039, SLIP-0132 and the other non-BIP documents.
-BIP 445 is not published; `tools/vectors/bip445/README.md` pins the
-draft its vectors come from. Links follow the pattern
+Links follow the pattern
 `https://github.com/bitcoin/bips/blob/master/bip-NNNN.mediawiki`.
 
 | BIP | Status | BIP | Status |
@@ -123,7 +122,6 @@ or "no decision". Kinds:
 | Taproot multisig `tr(H, sortedmulti_a)` (`core/faraday-bip/src/tapmulti.rs`) | BIP 386 (Deployed), BIP 387 (Deployed, vendored). The path `m/48'/c'/0'/3'` has no standard: BIP 48 defines script types 1' and 2' | `sortedmulti_a` is parsed here because miniscript lacks it; a hardened wildcard is parsed but not derived | BIP 387 vectors (`core/faraday-bip/tests/all/bip387.rs`); Core 31.1 PSBT round trip (`tools/vectors/psbt`, `wallet-tapmulti-*`); F79 areas `miniscript`, `taproot` and `sign` | The `3'` path is Faraday's choice. Only BIP 341's bare `H` counts as unspendable. Neutral and Conservative; no decision |
 | Miniscript and timelocked recovery, Liana shapes (`core/faraday-bip/src/recovery.rs`, `core/faraday-bip/src/policy.rs`) | BIP 379 (Draft), BIP 382 and 386 (Deployed), BIP 388 (Complete), BIP 389 (Draft) | Reads any sane `wsh`, `sh(wsh)` or `tr` miniscript, as Core does; Create does not make one; the compiler is in Tools; a taproot leaf with a `pkh` is signed but left for the coordinator to finalize | Core end to end for the `wsh` timelock and Taproot tree wallets (INTEROP §1); Liana fixtures (`tools/vectors/psbt/README.md`); F79 area `miniscript` against python-bip380 and Core's miniscript vectors, and area `sign` for satisfactions | Script shape left to rust-miniscript's compiler. Neutral; no decision |
 | MuSig2 `tr(musig(...)/<0;1>/*)` | BIP 327 (Deployed), BIP 328 (Complete), BIP 373 (Complete), BIP 390 (Draft, vendored) | Key path only; script-path spends refused; no WIF participant or tap tree (`tools/vectors/bip390/README.md`) | All eight BIP 327 vector files; BIP 328 and 390 vectors; F79 area `musig` against BIP 327's `reference.py`; Core 31.1 round trip in both orders (`tools/vectors/psbt`, `wallet-musig-*`) | `rand'` taken from the session seed chain (`core/faraday-psbt/src/musig.rs`); the secret nonce is held in memory for its one session; rounds across a lock are compiled out of the app (F109). Neutral |
-| FROST threshold (`core/faraday-bip/src/frost.rs`, `core/faraday-psbt/src/threshold.rs`) | BIP 445 (not published); key generation has no standard (a trusted dealer is written here) | Signing per BIP 445; dealer only, no DKG; at most 15 participants against BIP 445's 128; SIGHASH_DEFAULT only; no merkle root | All six BIP 445 vector files; F79 area `frost` against `frost_ref`; regtest fixtures and `tools/scripts/threshold-reference.py` | Dealer design; shares held as 24 BIP-39 words of a raw scalar; the `osk-threshold 1` record; BIP 328's synthetic xpub over a FROST key; the `osk` PSBT proprietary fields; signing across places (§7). Novel; compiled out of the app (F109) |
 | Silent payments, receive (`core/faraday-bip/src/silent.rs`, `core/faraday-bip/src/silent_wallet.rs`) | BIP 352 (Complete, vendored); BIP 392 (Draft, vendored); BIP 321 and 353 (Complete, vendored) | Receive, labels, scan-key export; reading `sp()` open (INTEROP §5 I9); sender arithmetic is test-only, no K_max | All BIP 352 vectors, both sides; F79 area `sp` against `reference.py` | The `osk-silent 1` record. Neutral; no decision |
 | Silent payments, send and PSBT (`core/faraday-psbt/src/silent.rs`, `core/faraday-bip/src/dleq.rs`) | BIP 374 and 375 (Draft) | Built in core, not reachable from the app: the device does not send | BIP 374 and 375 vectors (`tools/vectors/bip374`, `tools/vectors/bip375`); not in F79 | A stated key counts only where the input's script commits to it (F89). Conservative |
 | Watch-only wallets | Descriptors | Full | Core and file interop | None |
@@ -212,7 +210,7 @@ Not recorded in a decision, each refusing what a standard allows:
   restored here.
 - SLIP-39 secrets above 256 bits.
 - Any PSBT sighash other than SIGHASH_ALL is refused for signing
-  (`docs/WALLETS.md` §3.3); FROST signs DEFAULT only.
+  (`docs/WALLETS.md` §3.3).
 - A SegWit v0 input with only `witness_utxo` in a transaction of several
   inputs is refused, which BIP 174 allows (`core/faraday-psbt/README.md`,
   "What is refused").
@@ -245,44 +243,35 @@ Not recorded in a decision, each refusing what a standard allows:
 
 Ranked by how much a mistake would cost.
 
-1. **Signing across places, and secret nonces kept between them** (MuSig2 and FROST; Faraday's own carry construction, `core/faraday-psbt/README.md` "The rounds"; vault record
+1. **Signing across places, and secret nonces kept between them** (MuSig2; `core/faraday-psbt/README.md` "MuSig2"; vault record
    type 9; `docs/WALLETS.md` §4.2, `docs/VAULT.md` §7). Compiled out of
    the app until it is reviewed (F109). BIP 327 warns
    against storing a secret nonce. Faraday binds the record to the
    transaction hash and states that a restored older vault copy can sign
    twice under one nonce.
-2. **The FROST trusted dealer and the wallet around it**, compiled out
-   of the app (F109). `t` shares
-   chosen freely fix the polynomial and the rest are interpolated
-   (`core/faraday-bip/src/frost.rs`). A share is a raw 32-byte scalar
-   written as 24 BIP-39 words (`tools/vectors/psbt/README.md`); loaded
-   into any BIP-39 wallet, those words open an unrelated wallet. The
-   group's record format (`core/faraday-psbt/src/threshold.rs`), the
-   `osk` PSBT records and BIP 328's synthetic xpub over a FROST group key
-   with BIP 32 tweaks are Faraday's; no BIP combines them.
-3. **The vault** (`docs/VAULT.md`): the four-equal-slot container and its
+2. **The vault** (`docs/VAULT.md`): the four-equal-slot container and its
    deniability promise (§9); an HKDF assembled by hand
    (`docs/AUDIT.md` §1); seal nonces derived as SHA-256(label, session
    seed, count) rather than drawn (§5); unused slots filled from a
    ChaCha20 keystream (§8). It is checked against Faraday's own vectors
    and its own Python reader, and in F79's `vault` area.
-4. **The session's random generator** (`faraday/faraday-core/src/fresh.rs`;
+3. **The session's random generator** (`faraday/faraday-core/src/fresh.rs`;
    `docs/OWN-RANDOMNESS.md` §2.3, F86): "fresh", the seed's draws and the
    mixing of a person's own randomness, all SHA-256 over concatenations;
-   signing seeds and the MuSig2 and FROST `rand'` chain
+   signing seeds and the MuSig2 `rand'` chain
    (`core/faraday-psbt/src/musig.rs`). Every nonce and key Faraday draws
    passes through it; F79's `own-randomness` area checks it against
    §2.3.
-5. **Entropy conversions with no published procedure:** cards (SHA-256 of
+4. **Entropy conversions with no published procedure:** cards (SHA-256 of
    one-byte indices), camera (SHA-256 of the frames' digests, 3 frames
    per 128 bits) and the mix (SHA-256 over the sources' commitments)
    (`core/faraday-entropy/src/lib.rs`, `core/faraday-entropy/src/mix.rs`).
    All hash-based; the risk is low. F79's `entropy` area checks them
    against `tools/reference/entropy/README.md`.
-6. **Secure Boot RSA keys** from an RNG adapter written here
+5. **Secure Boot RSA keys** from an RNG adapter written here
    (`faraday/faraday-sb/src/rng.rs`), feeding a pre-1.0 release candidate
    of `rsa` (`docs/AUDIT.md` §1).
-7. **Format extensions with interoperability risk, not cryptography:**
+6. **Format extensions with interoperability risk, not cryptography:**
    partial descriptions (F52); a Coldcard-config file carrying
    `Format: P2TR`, which Coldcard cannot read
    (`faraday/faraday-core/src/wallet_backup.rs`); the codex32 and SLIP-39
@@ -292,14 +281,11 @@ Ranked by how much a mistake would cost.
 ## 8. Documentation that disagrees with the code
 
 - `docs/AUDIT.md` §3 says "None is cryptography invented for this
-  project". The vault container, the multi-place FROST nonce handling
-  and the session's generator are Faraday's own constructions.
+  project". The vault container and the session's generator are
+  Faraday's own constructions.
 - `core/faraday-psbt/README.md`, "What is refused", still lists Taproot
   script-path inputs; `core/faraday-psbt/src/sign.rs` signs `P2trScript`
   and the tapmulti fixtures show it working.
-- The carry file: `core/faraday-psbt/README.md` describes a file, and
-  `docs/FLOWS.md` says the carry goes into the vault as record type 9.
-  Which path the app takes should be stated once.
 - The Taproot multisig path is `3'` in `faraday/faraday-core/src/create.rs`;
   the fixture is at BIP 48's `2'` (`tools/vectors/psbt/README.md`).
 - The Sign tile's BIP 370 tag (`faraday/faraday-core/src/catalog.rs`)

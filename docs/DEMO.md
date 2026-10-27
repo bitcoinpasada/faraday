@@ -146,8 +146,7 @@ public values work; only the actions in the table are disabled.
   address, addresses (real testnet addresses, F81), the wallet card and
   its chart.
 - **Spending**: Sign a transaction, the Spend tab, the nonce check,
-  Decode, MuSig2 signing rounds (FROST is compiled out of the app,
-  F109).
+  Decode, MuSig2 signing rounds.
 - **Messages**: Sign a message, Check a signed message (its Tools tile
   takes the sample message where the Inbox has none), Find an address
   (the sample address in its field).

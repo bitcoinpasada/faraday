@@ -232,8 +232,6 @@ fn run(c: &Compute, out: &Path) -> Result<(), String> {
     println!(
         "musig2 3 of 3: nonces collected, signed last, partials collected, aggregated, finished"
     );
-    #[cfg(feature = "unreleased")]
-    frost(c)?;
     std::fs::create_dir_all(out).map_err(|e| e.to_string())?;
     let files = testkit::files()?;
     // A directory an earlier kit wrote loses the files this kit no longer
@@ -250,54 +248,6 @@ fn run(c: &Compute, out: &Path) -> Result<(), String> {
         std::fs::write(out.join(&name), bytes).map_err(|e| format!("{name}: {e}"))?;
     }
     println!("wrote {}", out.display());
-    Ok(())
-}
-
-/// Costs what `add_words`, `add_wallet`, `sign_with` and the rest it
-/// calls cost. FROST 2 of 3: test key 1 signed as share 1 and chose
-/// share 2; test key 2, at the second location, reads the carry file
-/// and finishes.
-/// FROST is compiled out of the app (docs/decisions/F109.md); this
-/// runs only in a build with `unreleased`.
-#[cfg(feature = "unreleased")]
-fn frost(c: &Compute) -> Result<(), String> {
-    let file = testkit::threshold_carry()?;
-    let (section, bytes) = faraday_keys::carry::parse(&file).map_err(|e| e.reason().to_string())?;
-    let psbt = faraday_psbt::Psbt::parse_bytes(c, &bytes).map_err(|e| e.to_string())?;
-    let mut second = testkit::session();
-    let (word, label) = testkit::TEST_SEEDS[1];
-    second
-        .keys
-        .add_words(c, &testkit::test_words(word), label, None)
-        .map_err(|e| e.text())?;
-    second
-        .add_wallet(
-            c,
-            "Threshold",
-            &testkit::threshold_record()?.to_text(),
-            "Test wallet",
-            faraday_core::wallet::Origin::Named,
-        )
-        .map_err(|e| e.text())?;
-    let seen = second.inspect_with(c, &psbt, Some(&section));
-    if !seen.outputs.iter().any(|o| o.is_ours()) || seen.threshold.is_none() {
-        return Err("the threshold spend's change or wallet was not recognised".into());
-    }
-    let mut flow = Spend::new(psbt, "threshold-partly-signed.osk");
-    second.sign_with(
-        c,
-        &mut flow.psbt,
-        &faraday_crypto::Zeroizing::new([6; 32]),
-        &mut None,
-        &[],
-        Some(&section),
-        None,
-    )?;
-    flow.finish()
-        .map_err(|e| format!("threshold did not finish: {e}"))?;
-    println!(
-        "frost 2 of 3: share 1 signed and chose share 2, carry file read, share 2 signed, aggregated, finished"
-    );
     Ok(())
 }
 

@@ -250,40 +250,6 @@ fn a_silent_wallet_comes_from_the_paths_the_bip_names() {
     );
 }
 
-#[cfg(feature = "unreleased")]
-#[test]
-fn a_deal_gives_a_record_and_the_words_of_the_shares_left_to_write_down() {
-    let c = compute();
-    let share_words = |byte: u8| {
-        let m = Mnemonic::from_entropy(Language::English, &[byte; 32]).unwrap();
-        m.indices()
-            .iter()
-            .map(|&i| Language::English.word(i))
-            .collect::<Vec<_>>()
-            .join(" ")
-    };
-    let (a, b) = (share_words(7), share_words(9));
-    let mut keys = Keys::on(Network::Testnet);
-    keys.add_words(&c, &a, "a", None).expect("share a");
-    keys.add_words(&c, &b, "b", None).expect("share b");
-    keys.add_seed(&c, &[3; 64], "seed only").expect("a seed");
-    let dealt = keys.deal(&c, &[0, 1], 3, 2).expect("a deal");
-    assert!(faraday_bip::threshold::ThresholdRecord::parse(&c, &dealt.record).is_ok());
-    assert_eq!(dealt.new_shares(), vec![2]);
-    // The new share is loaded as a key, whose 24 words are written down
-    // like any key's.
-    keys.add_dealt(&c, dealt, |id| format!("share {}", id + 1));
-    assert_eq!(keys.len(), 4);
-    let share = keys.info(3).expect("the new share");
-    assert_eq!(share.label, "share 3");
-    assert_eq!(share.word_count, Some(24));
-    // A key with no words has no share to deal from.
-    assert!(matches!(
-        keys.deal(&c, &[2, 0], 3, 2),
-        Err(faraday_keys::frost::DealError::NoShare)
-    ));
-}
-
 /// RFC 6238's SHA-1 vectors (secret "12345678901234567890"), six digits.
 #[test]
 fn totp_codes_are_the_ones_rfc_6238_publishes() {

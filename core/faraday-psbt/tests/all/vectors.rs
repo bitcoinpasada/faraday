@@ -42,8 +42,6 @@ fn bip174_round_trips_and_rejections() {
                         keys: &[],
                         wallets: &[],
                         musig_session: None,
-                        shares: &[],
-                        carry: None,
                     };
                     let insp = inspect(&c, &psbt, &ctx);
                     assert!(

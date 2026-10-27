@@ -26,14 +26,6 @@
 | `wallet-musig-device-first-nonce.psbt` | The other order, round 1: the funded spend with this device's public nonce on it and nothing signed |
 | `wallet-musig-device-first-core.psbt` | Core's answer to it, after two `walletprocesspsbt` calls: Core's public nonce and Core's partial signature |
 | `wallet-musig-device-first-signed.psbt` | The device's round 2 over that: its partial signature, the aggregate as the key-path signature, and the input final |
-| `wallet-threshold-regtest.record` | A threshold wallet's group record on regtest (§16.103): a 2-of-3 FROST group, its three public shares and the `tr(tpub…/<0;1>/*)` its addresses come from |
-| `wallet-threshold-regtest-share-0.txt` | **Secret material.** Participant 0's share of that group, its 32 bytes as 24 English BIP-39 words on one line |
-| `wallet-threshold-regtest-share-1.txt` | **Secret material.** Participant 1's share, the same way |
-| `wallet-threshold-regtest-share-2.txt` | **Secret material.** Participant 2's share, the one the dealer computed |
-| `wallet-threshold-first.psbt` | That wallet's funded spend, as Bitcoin Core built it: 0.5 BTC out, the rest back to its own change address, and no `osk` record on it |
-| `wallet-threshold-carry.osk` | **Secret material.** What the device wrote at the first location holding share 0 and choosing share 1: both public nonces and share 0's partial signature on the PSBT, and share 1's secret nonce bound to the transaction |
-| `wallet-threshold-signed.psbt` | What it wrote at the second location holding share 1: the aggregate as the key-path signature, the input final, and every `osk` record stripped |
-| `wallet-threshold-transcript.json` | One signing session as BIP 445 names its values, which `tools/scripts/threshold-reference.py` replays against the reference implementation |
 
 ## The miniscript wallets' addresses
 
@@ -194,55 +186,6 @@ as they came out of the run:
 | `wallet-musig-device-first-core.psbt` | `006e461174540c925a8a37fb1f3a988118c6d5fef5c64db417db55373b76cc26` |
 | `wallet-musig-device-first-signed.psbt` | `6d11780f193583b637244aff4f800b44aa3d9dea89e07d7980705ad8d2556d65` |
 
-## The threshold wallet, and what Bitcoin Core checked
-
-A threshold wallet needs nothing of FROST from a coordinator: its
-descriptor is `tr(tpub…/<0;1>/*)` over the group key's synthetic extended
-public key, so Core imports it watch-only, funds it and judges the
-finished transaction as it would any single-signature taproot wallet.
-The run used Bitcoin Core **31.1** on regtest, from
-`~/.local/opt/bitcoin-31.1/bin`; 29.4 on the `PATH` builds and judges the
-same way, since Core signs nothing here.
-
-```text
-tools/scripts/threshold-regtest.sh setup <datadir>
-cp <datadir>/wallet-threshold-first.psbt tools/vectors/psbt/
-cargo run -p faraday-psbt --example threshold -- tools/vectors/psbt
-tools/scripts/threshold-regtest.sh accept <datadir> \
-    tools/vectors/psbt/wallet-threshold-signed.psbt
-tools/scripts/threshold-regtest.sh stop <datadir>
-```
-
-What Core wrote for the internal key is the design's own prediction: one
-`taproot_bip32_derivs` entry with the synthetic xpub's own fingerprint
-and the relative path, `{"master_fingerprint": "c027851f", "path":
-"m/0/0"}`, and no origin above it, because the descriptor key has none.
-That is what `WalletPolicy::leaf_of` already reads, so the reader needed
-no change.
-
-| Step | Who | Result |
-|---|---|---|
-| `importdescriptors` | Core | the record's own descriptor line, watch-only, `success: true` |
-| `walletcreatefundedpsbt` | Core | `wallet-threshold-first.psbt`, one input, two outputs, 1 550 sat fee |
-| first location | this crate | `wallet-threshold-carry.osk`: both public nonces, share 0's partial signature, share 1's secret nonce |
-| second location | this crate | `wallet-threshold-signed.psbt`: aggregated, final, no `osk` record left |
-| `finalizepsbt` | Core | `complete: true` |
-| `testmempoolaccept` | Core | `allowed: true`, txid `ce596db4c3cad846649f13d1cf3390a97a50f05d5a0521fab6f6ab214a74a771`, 154 vB, 616 WU, 1 550 sat, effective fee rate 0.000 100 64 BTC/kvB |
-
-BIP 445's own reference implementation was then given share 1's secret
-share and the secret nonce out of the carry file and asked to sign the
-same session: `just threshold-reference` prints the partial signature
-`ed48f497…`, which is the one this crate wrote, verifies both partial
-signatures, and aggregates to `45714a1c…63f2e81a`, which is the signature
-in the finished transaction.
-
-| File | SHA-256 |
-|---|---|
-| `wallet-threshold-first.psbt` | `0f10f48b934d8cd08e000934d02891e49a04ee65c58cef0240c3eea541a40d7a` |
-| `wallet-threshold-carry.osk` | `0976d38411d204047af3115c3a86beee7718da5a146a5dba740b18e6fa382f70` |
-| `wallet-threshold-signed.psbt` | `ae962b9f4cf2ff99663769ced8fb442fc2e2f7db1f336aef533a9a23a4b3bd3d` |
-| `wallet-threshold-transcript.json` | `67a767f642c0946014e75f0076e9c5165fe86fd6d594f5235ff531aa044d870c` |
-
 ## The taproot multisig, and what Bitcoin Core 31.1 checked
 
 The wallet is `tr(H,sortedmulti_a(2,@0/**,@1/**,@2/**))` over the three
@@ -339,33 +282,3 @@ regtest.
 | `warn-missing-utxo.psbt` | `MissingUtxo` | danger | no UTXO data, so `NoParticipatingKey` comes with it |
 | `warn-unsupported-input.psbt` | `UnsupportedInput` | caution | a taproot input claiming a tree the PSBT gives no leaf of and no internal key for, beside an ordinary one |
 | `warn-amount-unverified.psbt` | `AmountUnverified` | blocked | two p2wpkh inputs, neither with its previous transaction, so their stated amounts are committed to by nothing; one input alone would not be blocked |
-
-## The threshold wallet
-
-The 2-of-3 regtest group. Shares 0 and 1
-are the SHA-256 digests of `osk threshold fixture share 0` and
-`osk threshold fixture share 1` read as scalars; `faraday_bip::frost::deal`
-computes share 2 and the group key from them, so every byte follows from
-those two strings. The record is the group's public half and the three
-`.txt` files are its shares, each share's own 32 bytes carried as a
-24-word English phrase.
-
-The three share files are secret material of a fixture wallet. They are
-committed because the passes that load a share and sign with one need a
-share to load; no coin this group can spend exists, and nothing outside
-these vectors may use them.
-
-Written by `cargo run -p faraday-psbt --example threshold`, that is
-`just psbt-fixtures`, and checked byte for byte by
-`core/faraday-psbt/tests/all/fixtures.rs`. What the record states is checked by
-`core/faraday-bip/tests/all/threshold.rs`: it round-trips, its shares lie on one
-polynomial that gives its group key, any two of the share files rebuild
-it, and its first receive and change addresses are what `miniscript`
-derives from the record's own descriptor line.
-
-| File | SHA-256 |
-|---|---|
-| `wallet-threshold-regtest.record` | `1acb66e691eb22b6feb3630e3c3dcecd2daf71b34b30bcc43ed9eaea448b5c23` |
-| `wallet-threshold-regtest-share-0.txt` | `194ab1cbf5004ca548f41b1596ab135c455044a1eb5bd3b14bee3075e79a3f13` |
-| `wallet-threshold-regtest-share-1.txt` | `c13c5efbba3471dcfa803e7b45e3a90c13c2f76aaee8865375e8fe2a9877c797` |
-| `wallet-threshold-regtest-share-2.txt` | `d3c180bdf7ae2929f656d2212dd301dbcf35dfadc5144cfe93c0845767ad14a9` |

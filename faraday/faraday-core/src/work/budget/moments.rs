@@ -15,11 +15,6 @@ use crate::{Action, Faraday, Screen, Sheet, StorageEvent, testkit};
 /// listed is none.
 type Table = &'static [(Work, u64, &'static str)];
 
-/// The FROST wallet's record and its spend on the test stick, and its
-/// record in the test vault: there only in a build with `unreleased`,
-/// FROST being compiled out of the app (docs/decisions/F109.md).
-const FROST: u64 = if cfg!(feature = "unreleased") { 1 } else { 0 };
-
 /// Checks `work` against `table`.
 fn check(moment: &str, work: &Counts, table: Table) {
     let mut wrong = Vec::new();
@@ -49,8 +44,8 @@ fn press_and_draw(app: &mut Faraday, a: Action) {
 const STARTUP: Table = &[
     (
         Work::DescriptorParse,
-        56 + FROST,
-        "the classifier tries each text file of the test stick that is no other kind as a wallet description, once as it comes in (40 of its 79 files; 41 of 82 with FROST's three): the 24 wallet files (25 with FROST's) read once each; the 16 that are none (three seeds' words, twelve xpubs, the vault's entries) refused whole and then read line by line as descriptors (faraday-intake's multipath reader), two parses each; what a wallet file says is kept on it (Item::wallet)",
+        56,
+        "the classifier tries each text file of the test stick that is no other kind as a wallet description, once as it comes in (40 of its 79 files): the 24 wallet files read once each; the 16 that are none (three seeds' words, twelve xpubs, the vault's entries) refused whole and then read line by line as descriptors (faraday-intake's multipath reader), two parses each; what a wallet file says is kept on it (Item::wallet)",
     ),
     (
         Work::FileHash,
@@ -59,8 +54,8 @@ const STARTUP: Table = &[
     ),
     (
         Work::PsbtParse,
-        20 + FROST,
-        "each of the test stick's 20 PSBTs (21 with FROST's) parsed once as it comes in, its summary kept (Item::psbt)",
+        20,
+        "each of the test stick's 20 PSBTs parsed once as it comes in, its summary kept (Item::psbt)",
     ),
 ];
 
@@ -149,8 +144,8 @@ const UNLOCK: Table = &[
     ),
     (
         Work::DescriptorParse,
-        13 + FROST,
-        "each of the vault's 11 wallet records (12 with FROST's) read once and kept (VaultRecords); Savings' share sheets in Files put together, the config they make read once for its name (config_name_kept) and once for its wallet (read_kept), each kept",
+        13,
+        "each of the vault's 11 wallet records read once and kept (VaultRecords); Savings' share sheets in Files put together, the config they make read once for its name (config_name_kept) and once for its wallet (read_kept), each kept",
     ),
     (
         Work::Blur,
@@ -187,13 +182,13 @@ const LOAD: Table = &[
     ),
     (
         Work::Address,
-        12 + FROST,
-        "Wallets opens on a wallet's card, which shows its first receive address: derived once, then kept (1); each script a wallet derives for the PSBTs in Files (WalletMatch below) is a script derivation, counted at its source (11, 12 with FROST's wallet)",
+        12,
+        "Wallets opens on a wallet's card, which shows its first receive address: derived once, then kept (1); each script a wallet derives for the PSBTs in Files (WalletMatch below) is a script derivation, counted at its source (11)",
     ),
     (
         Work::WalletMatch,
-        11 + FROST,
-        "each card's first button asks which wallet each PSBT in Files spends from: each wallet derives its script at a PSBT's places the first time it is asked, then keeps it (one more with FROST's wallet)",
+        11,
+        "each card's first button asks which wallet each PSBT in Files spends from: each wallet derives its script at a PSBT's places the first time it is asked, then keeps it",
     ),
     (
         Work::FullCanvas,

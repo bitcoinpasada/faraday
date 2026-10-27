@@ -8,7 +8,6 @@
 use faraday_bip::keys::Network;
 use faraday_core::backup_flow::Kind;
 use faraday_core::backup_flow::steps::FlowAction as F;
-use faraday_core::create::NewKind;
 use faraday_core::grind::Dial;
 use faraday_core::keygen::{MIX_SOURCES, Source, Way, kstep};
 use faraday_core::plan::{Item, Preset};
@@ -16,7 +15,7 @@ use faraday_core::seeds::SeedsAction as S;
 use faraday_core::testkit::{self, Kit};
 use faraday_core::vanity::VanityAction as VA;
 use faraday_core::vault::VaultAction as V;
-use faraday_core::{Action, Faraday, Screen, Sheet, bstep, cstep, demo, qstep};
+use faraday_core::{Action, Faraday, Screen, Sheet, bstep, demo, qstep};
 use faraday_shell_api::{App, BootState, DisplayInfo, EntropyBytes, Event, Key, SecureHardware};
 use faraday_vault::records::kind;
 
@@ -440,39 +439,8 @@ fn in_the_demo_derive_with_bip85_shows_no_value_for_any_application() {
 }
 
 // ---------------------------------------------------------------------
-// FROST, vanity, Lightning, silent payments.
+// Vanity, Lightning, silent payments.
 // ---------------------------------------------------------------------
-
-/// Create with its kinds open, FROST pressed: the kind it ends on.
-/// FROST is not offered, and the press chooses nothing (F109).
-fn frost(app: &mut Faraday) -> NewKind {
-    let _ = add_public(app, "bacon");
-    let _ = add_public(app, "flag");
-    app.press(Action::CreateWallet);
-    app.press(Action::CStep(cstep::KIND));
-    app.press(Action::CMoreKinds);
-    let at = NewKind::ALL
-        .iter()
-        .position(|k| *k == NewKind::Threshold)
-        .unwrap() as u8;
-    assert!(!offered(app, Action::CKind(at)), "FROST is offered");
-    app.press(Action::CKind(at));
-    app.create().unwrap().kind
-}
-
-#[test]
-fn create_offers_no_frost_deal_in_the_demo_too() {
-    for demo in [true, false] {
-        let mut app = app_on(demo);
-        assert_eq!(
-            frost(&mut app),
-            NewKind::Shares,
-            "the default kept, demo {demo}"
-        );
-        assert!(app.session.wallets.is_empty(), "nothing dealt");
-        assert_eq!(app.session.keys.len(), 2, "no share loaded");
-    }
-}
 
 fn passphrase_dial() -> u8 {
     Dial::ALL

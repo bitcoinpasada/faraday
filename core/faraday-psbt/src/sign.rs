@@ -33,8 +33,8 @@ use bitcoin::sighash::{Prevouts, SighashCache, TapSighashType};
 use bitcoin::taproot::{TapLeafHash, TapNodeHash};
 use bitcoin::{PublicKey, ScriptBuf, TxOut, ecdsa, taproot};
 use faraday_bip::keys::{Fingerprint, MasterKey};
+use faraday_crypto::Zeroizing;
 use faraday_crypto::work::{Compute, Work};
-use faraday_crypto::{Zeroize, Zeroizing};
 use miniscript::{ExtParams, Miniscript, SigType, Tap, ToPublicKey};
 
 use crate::classify::{Classified, ScriptKind, classify, spent_output};
@@ -189,9 +189,6 @@ pub struct SignResult {
     pub nonces_shared: usize,
     /// Every input now has enough signatures to finalize.
     pub complete: bool,
-    /// What the pass did for the threshold wallet it spent, when it
-    /// spent one.
-    pub threshold: Option<ThresholdOutcome>,
 }
 
 /// Costs what `inspect`, `sign_ecdsa`, `sign_musig` and the rest it
@@ -213,7 +210,7 @@ pub struct SignResult {
 /// [`Error::KeyMismatch`]. Inputs that are already final, or name none of
 /// the selected keys, are left alone.
 ///
-/// `seed` is where every MuSig2 and threshold nonce this pass draws
+/// `seed` is where every MuSig2 nonce this pass draws
 /// comes from, and it must be fresh, uniformly random bytes for every
 /// call: a seed used twice on one transaction can draw one secret nonce
 /// for two different signatures, which gives away the key. A MuSig2
@@ -235,8 +232,6 @@ pub fn sign(
     aux: Aux,
     session: &mut Option<MusigSession>,
     seed: &Zeroizing<[u8; 32]>,
-    shares: &[ShareKey],
-    others: &[u32],
 ) -> Result<SignResult, Error> {
     c.count(Work::Sign);
     let inspection = inspect(c, psbt, ctx);
@@ -260,9 +255,6 @@ pub fn sign(
     let mut cache = SighashCache::new(&tx);
     let mut signed_inputs = Vec::new();
     let mut nonces_shared = 0usize;
-    let mut threshold_entries: Vec<crate::threshold::CarryEntry> = Vec::new();
-    let mut threshold_signers: Vec<secp256k1::PublicKey> = Vec::new();
-    let mut threshold: Option<(usize, usize)> = None;
 
     for i in 0..psbt.inner().inputs.len() {
         let input = &psbt.inner().inputs[i];
@@ -270,35 +262,6 @@ pub fn sign(
             continue;
         }
         let cl = classify(psbt.inner(), i);
-        // A threshold input names no loaded key in its origins — its one
-        // key is the group's, which no master derives — so it is handled
-        // before the key claims are read (§16.103).
-        if let Some(ti) = inspection.inputs[i].threshold.as_ref() {
-            if ti.ours.is_empty() {
-                continue;
-            }
-            if let Some(problem) = cl.problems.first() {
-                return Err(Error::Unsupported {
-                    input: i,
-                    reason: problem,
-                });
-            }
-            if cl.utxo.is_none() {
-                return Err(Error::MissingUtxo { input: i });
-            }
-            let pass = sign_threshold(
-                psbt, &mut cache, i, &cl, ti, shares, others, ctx.carry, seed,
-            )?;
-            signed_inputs.extend(pass.signatures);
-            threshold_entries.extend(pass.entries);
-            if threshold_signers.is_empty() {
-                threshold_signers = pass.signers;
-            }
-            if threshold.is_none() {
-                threshold = Some((ti.info.t, pass.partial_sigs));
-            }
-            continue;
-        }
         let ecdsa_claims: Vec<(
             secp256k1::PublicKey,
             Fingerprint,
@@ -498,30 +461,10 @@ pub fn sign(
         }
     }
 
-    // A finished transaction carries no `osk` record: Sparrow reads the
-    // PSBT it built and the transaction, never the session.
-    let finished: Vec<usize> = (0..psbt.inner().inputs.len())
-        .filter(|i| psbt.inner().inputs[*i].tap_key_sig.is_some())
-        .collect();
-    for i in finished {
-        psbt.inner_mut().inputs[i]
-            .proprietary
-            .retain(|k, _| k.prefix != crate::threshold::PREFIX);
-    }
-
-    let threshold = threshold.map(|(t, partial_sigs)| ThresholdOutcome {
-        t,
-        partial_sigs,
-        carry: (!threshold_entries.is_empty()).then(|| crate::threshold::CarrySection {
-            signers: threshold_signers,
-            entries: threshold_entries,
-        }),
-    });
     Ok(SignResult {
         complete: is_complete(psbt),
         signed_inputs,
         nonces_shared,
-        threshold,
     })
 }
 
@@ -1158,432 +1101,4 @@ fn hex33(key: &secp256k1::PublicKey) -> alloc::string::String {
         out.push(char::from(DIGITS[usize::from(b & 15)]));
     }
     out
-}
-
-// ---------------------------------------------------------------------
-// Threshold signing
-// ---------------------------------------------------------------------
-
-/// The tag one `NonceGen` call's `rand` is hashed under, so that one
-/// seed gives a different value for every input, signer and signer set.
-const THRESHOLD_RAND_TAG: &[u8] = b"OpenSigner/threshold-rand";
-
-/// The tag the seed is hashed under for the 32 bytes a threshold pass's
-/// curve context is randomized with.
-const THRESHOLD_BLIND_TAG: &[u8] = b"OpenSigner/threshold-blind";
-
-/// One loaded share as the signer sees it: its public share, and the one
-/// door its scalar comes through.
-///
-/// The secret exists only for the length of the call `open` makes, which
-/// is how [`crate::ShareRef`]'s owner holds it (`LoadedShare::secret`).
-pub struct ShareKey<'a> {
-    /// `secshare · G`, which is what the group's record lists.
-    pub pubshare: secp256k1::PublicKey,
-    /// Runs the closure it is given on the secret share.
-    pub open: &'a ShareDoor<'a>,
-}
-
-/// The door a [`ShareKey`]'s scalar comes through: a call that runs the
-/// closure it is given on the secret share and nothing else.
-pub type ShareDoor<'a> = dyn Fn(&mut dyn FnMut(&faraday_bip::frost::SecShare)) + 'a;
-
-impl fmt::Debug for ShareKey<'_> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str("ShareKey(..)")
-    }
-}
-
-/// What a pass did for the threshold wallet it spent.
-pub struct ThresholdOutcome {
-    /// How many shares must sign.
-    pub t: usize,
-    /// Partial signatures on the first threshold input after the pass.
-    pub partial_sigs: usize,
-    /// The carry section to write, when signers are still to sign. It is
-    /// the secret this pass leaves behind, and nothing else holds it.
-    pub carry: Option<crate::threshold::CarrySection>,
-}
-
-impl fmt::Debug for ThresholdOutcome {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str("ThresholdOutcome(..)")
-    }
-}
-
-/// Two outcomes are the same pass when they are for the same group, have
-/// the same partial signatures, and either both leave a carry section or
-/// neither does. The section's nonces are secret and are never compared.
-impl PartialEq for ThresholdOutcome {
-    fn eq(&self, other: &Self) -> bool {
-        self.t == other.t
-            && self.partial_sigs == other.partial_sigs
-            && self.carry.is_some() == other.carry.is_some()
-    }
-}
-
-impl Eq for ThresholdOutcome {}
-
-/// What one threshold input's pass produced.
-struct ThresholdPass {
-    signatures: Vec<InputSignature>,
-    entries: Vec<crate::threshold::CarryEntry>,
-    signers: Vec<secp256k1::PublicKey>,
-    partial_sigs: usize,
-}
-
-/// Signing a threshold input.
-///
-/// Either the input carries no nonce and this is the first location, in
-/// which case the signer set is this share plus the `others` the caller
-/// chose and every signer's nonce is drawn here; or it carries the whole
-/// signer set's nonces and the carry section holds this share's secret
-/// one, which is a later location. Every check the inspection made is
-/// made again here against the input as it stands.
-#[allow(clippy::too_many_arguments)]
-#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
-fn sign_threshold(
-    psbt: &mut Psbt,
-    cache: &mut SighashCache<&bitcoin::Transaction>,
-    index: usize,
-    cl: &Classified,
-    ti: &crate::inspect::ThresholdInput,
-    shares: &[ShareKey],
-    others: &[u32],
-    carry: Option<&crate::threshold::CarrySection>,
-    seed: &[u8; 32],
-) -> Result<ThresholdPass, Error> {
-    use faraday_bip::frost;
-
-    // A share is not a `MasterKey`, which carries a blinded context of
-    // its own, so the pass blinds one from the seed (security review M1).
-    let mut secp = secp256k1::Secp256k1::new();
-    let mut blind = crate::musig::tagged(THRESHOLD_BLIND_TAG, &[seed]);
-    secp.seeded_randomize(&blind);
-    blind.zeroize();
-    let (sighash_type, prevouts) = tap_sighash_inputs(psbt, cl, index)?;
-    if sighash_type != TapSighashType::Default {
-        return Err(Error::Unsupported {
-            input: index,
-            reason: "a threshold input signs under SIGHASH_DEFAULT only",
-        });
-    }
-    let sighash = cache
-        .taproot_key_spend_signature_hash(index, &prevouts.as_ref(), sighash_type)
-        .map_err(|_| Error::Sighash { input: index })?;
-    let msg: [u8; 32] = sighash.to_byte_array();
-
-    let refuse = |r: crate::threshold::Refusal| Error::Unsupported {
-        input: index,
-        reason: r.reason(),
-    };
-    let pubshare = |id: u32| {
-        ti.pubshare(id).ok_or(Error::Unsupported {
-            input: index,
-            reason: "a threshold signer is not a share of this group",
-        })
-    };
-
-    // The input as it arrived.
-    let input = &psbt.inner().inputs[index];
-    let records = crate::threshold::pub_nonces(input).map_err(|e| Error::Unsupported {
-        input: index,
-        reason: e.reason(),
-    })?;
-    let sig_records = crate::threshold::partial_sigs(input).map_err(|e| Error::Unsupported {
-        input: index,
-        reason: e.reason(),
-    })?;
-    let mut signers: Vec<u32> = ti.signers.clone();
-    let mut nonces: Vec<(u32, frost::PubNonce)> = Vec::new();
-    for id in &signers {
-        let key = pubshare(*id)?;
-        let entry = records
-            .iter()
-            .find(|e| e.pubshare == key)
-            .ok_or_else(|| refuse(crate::threshold::Refusal::SignerSet))?;
-        nonces.push((*id, entry.value));
-    }
-    let mut psigs: Vec<(u32, frost::PartialSig)> = Vec::new();
-    for id in &ti.signed {
-        let key = pubshare(*id)?;
-        if let Some(entry) = sig_records.iter().find(|e| e.pubshare == key) {
-            psigs.push((*id, entry.value));
-        }
-    }
-
-    // The secret nonces this pass can sign with: the ones the carry file
-    // brought, copied out of it so the section the caller holds is not
-    // disturbed, plus the ones drawn here.
-    let mut secrets: Vec<(u32, frost::SecNonce)> = Vec::new();
-    if let Some(section) = carry {
-        for id in &signers {
-            let key = pubshare(*id)?;
-            let Some(entry) = section.entry(index, &key) else {
-                continue;
-            };
-            if entry.sighash != msg {
-                return Err(refuse(crate::threshold::Refusal::AnotherTransaction));
-            }
-            let mut bytes = entry.secnonce.serialize();
-            let nonce = frost::SecNonce::from_bytes(&bytes);
-            bytes.zeroize();
-            let nonce = nonce.map_err(|_| Error::Unsupported {
-                input: index,
-                reason: "the file holds a secret nonce that is out of range",
-            })?;
-            if nonce
-                .public_nonce(&secp)
-                .ok()
-                .zip(nonces.iter().find(|(i, _)| i == id).map(|(_, n)| *n))
-                .is_none_or(|(a, b)| a != b)
-            {
-                return Err(refuse(crate::threshold::Refusal::NonceMismatch));
-            }
-            secrets.push((*id, nonce));
-        }
-    }
-
-    let mine: Vec<u32> = ti.ours.clone();
-    let mut entries: Vec<crate::threshold::CarryEntry> = Vec::new();
-
-    // The first location: the signer set is chosen here and every
-    // signer's nonce drawn from this device's seed.
-    if signers.is_empty() {
-        let Some(me) = mine.first().copied() else {
-            return Ok(ThresholdPass {
-                signatures: Vec::new(),
-                entries,
-                signers: Vec::new(),
-                partial_sigs: 0,
-            });
-        };
-        if carry.is_some() {
-            return Err(refuse(crate::threshold::Refusal::NoNonces));
-        }
-        let mut chosen: Vec<u32> = alloc::vec![me];
-        for id in others {
-            if *id == me
-                || chosen.contains(id)
-                || *id as usize >= ti.info.n()
-                || ti.pubshare(*id).is_none()
-            {
-                return Err(refuse(crate::threshold::Refusal::ChosenCount));
-            }
-            chosen.push(*id);
-        }
-        if chosen.len() != ti.info.t {
-            return Err(refuse(crate::threshold::Refusal::ChosenCount));
-        }
-        chosen.sort_unstable();
-        let thresh_pk_xonly = ti.output_key.x_only_public_key().0.serialize();
-        // The signer set is in every `rand`: a seed reused on this
-        // transaction with another cosigner chosen would otherwise draw
-        // our nonce again for a different signature.
-        let set: Vec<u8> = chosen.iter().flat_map(|id| id.to_le_bytes()).collect();
-        for id in &chosen {
-            let key = pubshare(*id)?;
-            let rand = crate::musig::tagged(
-                THRESHOLD_RAND_TAG,
-                &[seed, &(index as u32).to_le_bytes(), &key.serialize(), &set],
-            );
-            // Our own nonce takes this share's secret; every other
-            // signer's takes none, and `extra_in` is none for all of
-            // them: the other nonces travel in a file, and mixing this
-            // share's secret into one would open a path from the share
-            // to the stick for no gain (§16.103).
-            let drawn = match mine.contains(id) {
-                true => with_share(shares, &key, index, |secshare| {
-                    frost::nonce_gen(
-                        &secp,
-                        &rand,
-                        Some(secshare),
-                        Some(&key),
-                        Some(&thresh_pk_xonly),
-                        Some(&msg),
-                        None,
-                    )
-                })?,
-                false => frost::nonce_gen(
-                    &secp,
-                    &rand,
-                    None,
-                    Some(&key),
-                    Some(&thresh_pk_xonly),
-                    Some(&msg),
-                    None,
-                ),
-            };
-            let (secnonce, pubnonce) = drawn.map_err(|_| Error::Unsupported {
-                input: index,
-                reason: "a threshold nonce could not be drawn for this input",
-            })?;
-            let here = &mut psbt.inner_mut().inputs[index];
-            crate::threshold::write_pub_nonce(here, &key, &ti.output_key, &pubnonce);
-            nonces.push((*id, pubnonce));
-            secrets.push((*id, secnonce));
-        }
-        signers = chosen;
-    }
-
-    // Every location: sign for each share this device holds that is a
-    // signer and has not signed yet.
-    let mut written = Vec::new();
-    let ordered =
-        |nonces: &[(u32, frost::PubNonce)], signers: &[u32]| -> Option<Vec<frost::PubNonce>> {
-            signers
-                .iter()
-                .map(|id| nonces.iter().find(|(i, _)| i == id).map(|(_, n)| *n))
-                .collect()
-        };
-    let mut established = ti.clone();
-    established.signers = signers.clone();
-    for id in &mine {
-        if !signers.contains(id) || psigs.iter().any(|(i, _)| i == id) {
-            continue;
-        }
-        let key = pubshare(*id)?;
-        let at = secrets
-            .iter()
-            .position(|(i, _)| i == id)
-            .ok_or_else(|| refuse(crate::threshold::Refusal::AnotherShare))?;
-        let (_, secnonce) = secrets.remove(at);
-        let all = ordered(&nonces, &signers)
-            .ok_or_else(|| refuse(crate::threshold::Refusal::SignerSet))?;
-        let session_ctx = established
-            .session_ctx(&secp, &all, &msg)
-            .ok_or(Error::Sighash { input: index })?;
-        let values = faraday_bip::frost::session_values(&secp, &session_ctx)
-            .map_err(|_| Error::Sighash { input: index })?;
-        // Every partial signature already on the input, verified before
-        // this share adds its own: a substituted nonce shows up here,
-        // and cannot be recomputed without the share that made it.
-        for (other, psig) in &psigs {
-            let other_key = pubshare(*other)?;
-            let nonce = nonces
-                .iter()
-                .find(|(i, _)| i == other)
-                .map(|(_, n)| *n)
-                .ok_or_else(|| refuse(crate::threshold::Refusal::SignerSet))?;
-            frost::partial_sig_verify_internal(&secp, psig, *other, &nonce, &other_key, &values)
-                .map_err(|_| refuse(crate::threshold::Refusal::PartialSig))?;
-        }
-        let psig = with_share(shares, &key, index, |secshare| {
-            frost::sign(&secp, secnonce, secshare, *id, &session_ctx)
-        })?
-        .map_err(|_| Error::VerifyFailed { input: index })?;
-        let here = &mut psbt.inner_mut().inputs[index];
-        crate::threshold::write_partial_sig(here, &key, &ti.output_key, &psig);
-        psigs.push((*id, psig));
-        written.push(InputSignature {
-            index,
-            fingerprint: faraday_bip::threshold::share_fingerprint(&key),
-            kind: SigKind::Schnorr,
-            sig_bytes: psig.serialize().to_vec(),
-            verified: true,
-            deterministic_ok: true,
-            musig: Some(MusigRole::Partial),
-        });
-    }
-
-    // Whatever is still to sign travels on: one secret nonce per signer
-    // that has not signed, bound to this input and this sighash.
-    for (id, secnonce) in secrets.drain(..) {
-        if psigs.iter().any(|(i, _)| *i == id) {
-            continue;
-        }
-        entries.push(crate::threshold::CarryEntry {
-            input: index as u32,
-            pubshare: pubshare(id)?,
-            sighash: msg,
-            secnonce,
-        });
-    }
-
-    // The last signer aggregates: the BIP-340 signature is checked
-    // against the output key before it is written, and finalizing is
-    // then any key-path spend's.
-    if psigs.len() == signers.len() && !signers.is_empty() {
-        let all = ordered(&nonces, &signers)
-            .ok_or_else(|| refuse(crate::threshold::Refusal::SignerSet))?;
-        let values = established
-            .session(&secp, &all, &msg)
-            .ok_or(Error::Sighash { input: index })?;
-        let mut sigs = Vec::with_capacity(signers.len());
-        for id in &signers {
-            let key = pubshare(*id)?;
-            let nonce = nonces
-                .iter()
-                .find(|(i, _)| i == id)
-                .map(|(_, n)| *n)
-                .ok_or_else(|| refuse(crate::threshold::Refusal::SignerSet))?;
-            let psig = psigs
-                .iter()
-                .find(|(i, _)| i == id)
-                .map(|(_, s)| *s)
-                .ok_or_else(|| refuse(crate::threshold::Refusal::PartialSig))?;
-            frost::partial_sig_verify_internal(&secp, &psig, *id, &nonce, &key, &values)
-                .map_err(|_| refuse(crate::threshold::Refusal::PartialSig))?;
-            sigs.push(psig);
-        }
-        let sig =
-            frost::partial_sig_agg(&sigs, &values).map_err(|_| Error::Sighash { input: index })?;
-        let signature = secp256k1::schnorr::Signature::from_slice(&sig)
-            .map_err(|_| Error::VerifyFailed { input: index })?;
-        let output_key = ti.output_key.x_only_public_key().0;
-        secp.verify_schnorr(&signature, &Message::from(sighash), &output_key)
-            .map_err(|_| Error::VerifyFailed { input: index })?;
-        psbt.inner_mut().inputs[index].tap_key_sig = Some(taproot::Signature {
-            signature,
-            sighash_type,
-        });
-        written.push(InputSignature {
-            index,
-            fingerprint: faraday_bip::threshold::share_fingerprint(&pubshare(signers[0])?),
-            kind: SigKind::Schnorr,
-            sig_bytes: sig.to_vec(),
-            verified: true,
-            deterministic_ok: true,
-            musig: Some(MusigRole::Aggregated),
-        });
-    }
-
-    let mut signer_keys = Vec::with_capacity(signers.len());
-    for id in &signers {
-        signer_keys.push(pubshare(*id)?);
-    }
-    Ok(ThresholdPass {
-        signatures: written,
-        entries,
-        signers: signer_keys,
-        partial_sigs: psigs.len(),
-    })
-}
-
-/// Runs `f` on the secret share behind `key`, which is the only way a
-/// share's scalar is reachable.
-fn with_share<R>(
-    shares: &[ShareKey],
-    key: &secp256k1::PublicKey,
-    index: usize,
-    f: impl FnOnce(&faraday_bip::frost::SecShare) -> R,
-) -> Result<R, Error> {
-    let share = shares
-        .iter()
-        .find(|s| s.pubshare == *key)
-        .ok_or(Error::Unsupported {
-            input: index,
-            reason: "this device holds no share for a signer of this input",
-        })?;
-    let mut out = None;
-    let mut once = Some(f);
-    (share.open)(&mut |secshare| {
-        if let Some(f) = once.take() {
-            out = Some(f(secshare));
-        }
-    });
-    out.ok_or(Error::Unsupported {
-        input: index,
-        reason: "this device's share could not be opened",
-    })
 }

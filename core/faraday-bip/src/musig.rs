@@ -243,7 +243,7 @@ pub struct AggregateKey {
 impl AggregateKey {
     /// The tweak state of a key no aggregation stands behind: `gacc` 1
     /// and `tacc` 0, so that [`AggregateKey::apply_tweak`] tweaks the key
-    /// itself. BIP 445's `TweakCtxInit` over a FROST group key is this.
+    /// itself.
     pub fn untweaked(point: PublicKey) -> AggregateKey {
         AggregateKey {
             point,
@@ -410,8 +410,7 @@ pub fn aggregate_xpub(pubkeys: &[PublicKey], network: Network) -> Result<Xpub, E
 /// depth 0, no parent, index 0, and BIP-328's fixed chain code.
 ///
 /// BIP-328 gives a MuSig2 aggregate key this form so that a wallet can
-/// derive addresses from it; a FROST group key is a plain key in the
-/// same position and takes the same construction.
+/// derive addresses from it.
 pub fn synthetic_xpub(public_key: PublicKey, network: NetworkKind) -> Xpub {
     Xpub {
         network,
