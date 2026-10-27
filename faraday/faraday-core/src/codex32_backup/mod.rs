@@ -464,7 +464,14 @@ pub fn check(form: &C32, j: usize, typed: &str, made: Option<&str>) -> Found {
     let id = form.id_text();
     let index = index_char(j).to_ascii_uppercase().to_string();
     if let Some(want) = made {
-        return match want.bytes().zip(typed.bytes()).position(|(a, b)| a != b) {
+        // The whole string, box for box: one that stops short or runs on
+        // differs at the box past the shorter one's end.
+        let differs = want
+            .bytes()
+            .zip(typed.bytes())
+            .position(|(a, b)| a != b)
+            .or_else(|| (want.len() != typed.len()).then(|| want.len().min(typed.len())));
+        return match differs {
             Some(p) => Found::Differs(fill(EN.codex32_box_differs, &[&(p + 1).to_string()])),
             None => Found::Holds(fill(EN.c32_holds, &[&index, &id])),
         };

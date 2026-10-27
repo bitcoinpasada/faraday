@@ -4202,6 +4202,8 @@ strings! {
     restore_not_a_multisig: "not a multisig config",
     /// Error in `merge`.
     restore_these_shares: "these shares are of different wallets",
+    /// A split sheet that names one key twice. `{}`: its fingerprint.
+    restore_key_twice: "a share names key {} twice",
     /// Error in `merge`.
     restore_no_shares: "no shares",
     // ----- scan_key (faraday-core/src/scan_key.rs) -----
@@ -8471,6 +8473,10 @@ strings! {
     backup_flow_other_wallet_key: "Another wallet in Vault {} uses this key; take it out from the vault's contents",
     /// An edit after the lock refused: it changes files or paper.
     backup_flow_files_after_lock: "Files and paper stay as made after the lock; finish the writes, then Back up again to change them",
+    /// In place of Make the checklist: a seed here past the checklist's
+    /// numbers. `{}`: the seed's place in the wallet, then how many seeds
+    /// the checklist takes.
+    backup_seed_past_checklist: "Seed {} is past the checklist's {} seeds",
     /// The checklist or Lock and write of a backup past its lock and not
     /// done: refused.
     backup_flow_past_lock: "This backup is past its lock; finish the writes, then Back up again",

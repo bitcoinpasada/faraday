@@ -391,3 +391,33 @@ fn with_two_vault_files_waiting_a_visit_ticks_one() {
     app.press(Action::Nav(Screen::Visit));
     assert_eq!(ticked(&app), vec!["vault-2.ofv".to_string()]);
 }
+
+/// A split sheet that names one key twice, or two sheets that give one
+/// fingerprint two different keys, are refused: neither says which key
+/// is the wallet's.
+#[test]
+fn a_share_naming_a_key_twice_or_two_keys_for_one_fingerprint_is_refused() {
+    let line = |n: usize, account: u32| {
+        let k = testkit::key(n, &format!("m/48'/1'/{account}'/2'"));
+        let (origin, xpub) = k.trim_start_matches('[').split_once(']').unwrap();
+        let (fp, path) = origin.split_once('/').unwrap();
+        format!("Derivation: m/{path}\n{}: {xpub}\n", fp.to_uppercase())
+    };
+    let sheet = |lines: &[String]| {
+        format!(
+            "Name: Split\nPolicy: 2 of 3\nFormat: P2WSH\n\n{}",
+            lines.join("\n")
+        )
+    };
+    // One sheet, the same key line twice.
+    let twice = sheet(&[line(0, 0), line(0, 0)]);
+    assert!(faraday_core::restore::merge(&[twice]).is_err());
+    // Two sheets: the same fingerprint with another key on each.
+    let one = sheet(&[line(0, 0)]);
+    let other = sheet(&[line(0, 1), line(1, 0)]);
+    assert!(faraday_core::restore::merge(&[one.clone(), other]).is_err());
+    // The same key on both is the one key.
+    let again = sheet(&[line(0, 0), line(1, 0)]);
+    let m = faraday_core::restore::merge(&[one, again]).unwrap();
+    assert_eq!(m.have.len(), 2);
+}

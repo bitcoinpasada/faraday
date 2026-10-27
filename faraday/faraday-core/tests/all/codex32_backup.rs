@@ -570,3 +570,28 @@ fn how_many_strings_is_clear_of_its_minus_and_plus_buttons() {
         }
     }
 }
+
+/// A string typed back is the string made here only when it is the
+/// whole of it: one that stops short, or runs on past its end, differs.
+#[test]
+fn a_string_typed_back_short_or_long_is_not_the_one_made() {
+    let form = plan::codex32::C32 {
+        seed: 0,
+        k: 2,
+        length: 48,
+        indices: vec![ix('a'), ix('c'), ix('d')],
+        identifier: *b"name",
+        unknown: 0,
+    };
+    let check = faraday_core::codex32_backup::check;
+    assert!(matches!(check(&form, ix('a'), A, Some(A)), Found::Holds(_)));
+    assert!(matches!(
+        check(&form, ix('a'), &A[..40], Some(A)),
+        Found::Differs(_)
+    ));
+    let longer = format!("{A}q");
+    assert!(matches!(
+        check(&form, ix('a'), &longer, Some(A)),
+        Found::Differs(_)
+    ));
+}

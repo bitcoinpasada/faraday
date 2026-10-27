@@ -560,3 +560,47 @@ fn a_two_of_three_with_one_seed_here_lists_the_other_two_as_not_here() {
     assert_eq!(seeds[1].name, faraday_core::wallet::fp_text(fp));
     assert_ne!(seeds[1].lines, away);
 }
+
+/// The checklist numbers each seed's copy by hand within its range: a
+/// wallet whose seed here is past the 28th says so in place of Make the
+/// checklist, and no checklist is made that would open another seed's
+/// copy.
+#[test]
+fn a_seed_past_the_checklists_numbers_is_said_in_place_of_the_checklist() {
+    let c = faraday_core::testkit::compute();
+    let nums = "50929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0";
+    let mut app = device(Vec::new());
+    add_key(&mut app, SEED);
+    // 28 cosigners' keys, then test key 2's, the 29th.
+    let mut keys: Vec<String> = (0..28)
+        .map(|i| {
+            let k = testkit::key(0, &format!("m/48'/1'/{i}'/2'"));
+            let (_, rest) = k.split_once('/').unwrap();
+            format!("[{:08x}/{rest}/<0;1>/*", 0x1000_0000u32 + i)
+        })
+        .collect();
+    keys.push(format!("{}/<0;1>/*", testkit::key(SEED, "m/48'/1'/0'/2'")));
+    let descriptor = format!("tr({nums},multi_a(2,{}))", keys.join(","));
+    app.session
+        .add_wallet(
+            &c,
+            "Many",
+            &descriptor,
+            "test",
+            faraday_core::wallet::Origin::Named,
+        )
+        .unwrap();
+    app.press(Action::Backup(app.session.wallets.len() - 1));
+    faraday_core::testkit::backup_as(&mut app, faraday_core::plan::Preset::Paper);
+    let line = app.backup_kept_nowhere(&c);
+    assert!(
+        line.as_deref().is_some_and(|l| l.contains("28")),
+        "{line:?}"
+    );
+    app.press(Action::BChecklist);
+    assert_ne!(
+        app.backup().unwrap().stage,
+        faraday_core::BStage::Checklist,
+        "a checklist was made"
+    );
+}

@@ -22,6 +22,30 @@ fn seed(name: &str, here: bool) -> Seed {
     }
 }
 
+/// What a plan keeps nowhere, which Make the checklist and a changed plan
+/// in Lock and write both ask, says a seed here past the checklist's 28
+/// numbers: no checklist or flow is made that would mix two seeds' items.
+#[test]
+fn a_seed_past_the_checklists_numbers_is_kept_nowhere() {
+    let c = faraday_core::testkit::compute();
+    let seeds: Vec<Seed> = (0..29)
+        .map(|i| seed(&format!("{:08x}", 0x1000_0000u32 + i), i == 28))
+        .collect();
+    let shape = Shape {
+        m: 2,
+        keys: 29,
+        seeds,
+        splits: true,
+        vaults: 0,
+    };
+    let a = Answers::default();
+    let line = faraday_core::plan::kept_nowhere(&c, &shape, &a, &[28]);
+    assert!(
+        line.as_deref().is_some_and(|l| l.contains("28")),
+        "{line:?}"
+    );
+}
+
 fn one_key() -> Shape {
     Shape {
         m: 1,

@@ -116,10 +116,17 @@ fn same_derivation(a: &str, b: &str) -> bool {
 /// format or the name (where both carry one), that hold more keys than
 /// the policy names, or that give one fingerprint two xpubs or two
 /// derivations, are refused: sheets of two wallets are never combined.
+/// So is a share that names one fingerprint twice: it does not say which
+/// is the wallet's.
 pub fn merge(texts: &[String]) -> Result<Merged, String> {
     let mut all: Option<ConfigParts> = None;
     for t in texts {
         let p = parts(t).ok_or(EN.restore_not_a_multisig)?;
+        for (i, k) in p.keys.iter().enumerate() {
+            if p.keys[..i].iter().any(|x| x.0.eq_ignore_ascii_case(&k.0)) {
+                return Err(fill(EN.restore_key_twice, &[&k.0.to_lowercase()]));
+            }
+        }
         match all.as_mut() {
             None => all = Some(p),
             Some(a) => {

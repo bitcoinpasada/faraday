@@ -28,6 +28,9 @@ pub const CODEX32: u8 = 44;
 pub const PASSPHRASE: u8 = 72;
 /// Vault v made and filled: `VAULT + v`, the first vault `VAULT`.
 pub const VAULT: u8 = 128;
+/// How many seeds the numbers above give an item each: the narrowest of
+/// the copy, codex32 and passphrase ranges. A seed past them has none.
+pub const SEEDS: usize = (CODEX32 - COPY) as usize;
 
 /// Whether `n` is a seed's copy by hand.
 pub fn is_copy(n: u8) -> bool {

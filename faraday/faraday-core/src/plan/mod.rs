@@ -14,6 +14,7 @@ pub(crate) mod cards;
 pub mod codex32;
 mod groups;
 mod text;
+use text::fp_code;
 
 pub use text::{at_code, at_read, held_in, tag_of, what_code, what_read};
 
@@ -2502,8 +2503,11 @@ pub fn kept_nowhere(c: &Compute, shape: &Shape, a: &Answers, seeds: &[usize]) ->
     kept_nowhere_on(shape, &Mapped::of(c, shape, a), seeds)
 }
 
-/// [`kept_nowhere`] on the map `m`.
+/// [`kept_nowhere`] on the map `m`, a seed past the checklist's numbers first.
 pub fn kept_nowhere_on(shape: &Shape, m: &Mapped, seeds: &[usize]) -> Option<String> {
+    if let Some(past) = text::past_checklist(shape) {
+        return Some(past);
+    }
     let boxes: &[Spot] = &m.places;
     for &i in seeds {
         let Some(seed) = shape.seeds.get(i).filter(|s| s.here) else {
@@ -3536,21 +3540,6 @@ pub enum Note {
     Holder([u8; 4], String),
     /// What the plan's vault `v` is called.
     VaultName(usize, String),
-}
-
-fn fp_code(fp: [u8; 4]) -> String {
-    fp.iter().map(|b| format!("{b:02x}")).collect()
-}
-
-fn fp_read(s: &str) -> Option<[u8; 4]> {
-    if s.len() != 8 {
-        return None;
-    }
-    let mut out = [0u8; 4];
-    for (i, b) in out.iter_mut().enumerate() {
-        *b = u8::from_str_radix(s.get(2 * i..2 * i + 2)?, 16).ok()?;
-    }
-    Some(out)
 }
 
 impl Note {
