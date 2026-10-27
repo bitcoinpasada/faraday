@@ -137,6 +137,7 @@ mod totp;
 mod transitions;
 mod vanity;
 mod vault_keys;
+mod vault_full_slot;
 mod vault_load;
 mod vault_name;
 mod vault_passphrase;

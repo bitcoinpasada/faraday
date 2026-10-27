@@ -10,7 +10,7 @@ use crate::strings::fill;
 use faraday_crypto::work::Compute;
 use faraday_keys::vault::{OpenVaults, RecordView, Records, VaultId};
 use faraday_vault::records::{field, kind};
-use faraday_vault::{self as fv, Cost, Header};
+use faraday_vault::{self as fv, Cost, Header, Record};
 
 use crate::{Action, Screen, flow};
 
@@ -741,6 +741,67 @@ impl Vaults {
             .and(self.seedqr.as_ref())
             .filter(|(at, _)| *at == here.record)
             .map(|(_, m)| m)
+    }
+
+    /// Why `records` do not fit open vault `id`'s slot: the bytes they
+    /// take and the room left; None when they fit.
+    pub(crate) fn no_room(&self, id: VaultId, records: &[Record]) -> Option<String> {
+        let sizes: Vec<usize> = records.iter().map(|r| r.size()).collect();
+        if self.store.fits(id, &[], &sizes) {
+            return None;
+        }
+        let slot = self
+            .open
+            .iter()
+            .find(|o| o.id == id)
+            .map_or(0, |o| o.header().slot_len);
+        let room = (slot as usize).saturating_sub(self.records(id).used());
+        let need = sizes.iter().sum::<usize>().to_string();
+        Some(fill(EN.vaults_those_entries, &[&need, &room.to_string()]))
+    }
+
+    /// Why open vault `i` cannot be sealed: its changes are more than its
+    /// slot holds, so a lock would lose them. None when it can be.
+    pub(crate) fn cannot_seal(&self, i: usize) -> Option<String> {
+        let v = self.open.get(i)?;
+        let slot = v.header().slot_len as usize;
+        let used = self.records(v.id).used();
+        let over = (used - slot.min(used)).to_string();
+        (v.changes > 0 && used > slot).then(|| fill(EN.vault_cannot_seal, &[&v.name, &over]))
+    }
+
+    /// Why the first open vault that cannot be sealed cannot be
+    /// ([`Vaults::cannot_seal`]). Reads only.
+    pub fn seal_blocked(&self) -> Option<String> {
+        (0..self.open.len()).find_map(|i| self.cannot_seal(i))
+    }
+
+    /// The signed-amount memory's records `new` into open vault `i`, the
+    /// oldest of them leaving first while the slot is over full
+    /// (`docs/VAULT.md` §7, type 10).
+    pub(crate) fn add_amounts(&mut self, i: usize, new: Vec<Record>) {
+        let Some(v) = self.open.get(i).filter(|_| !new.is_empty()) else {
+            return;
+        };
+        let (id, slot_len) = (v.id, v.header().slot_len as usize);
+        self.edit(id, |s| {
+            for r in new {
+                s.insert(id, r);
+            }
+            while s.records(id).used() > slot_len {
+                let oldest = s
+                    .records(id)
+                    .iter()
+                    .find(|(_, r)| r.kind() == kind::AMOUNTS);
+                match oldest.map(|(k, _)| k) {
+                    Some(k) => {
+                        s.remove(id, k);
+                    }
+                    None => break,
+                }
+            }
+        });
+        self.changed(id);
     }
 
     /// The open vaults' records, for reading. Every change goes through

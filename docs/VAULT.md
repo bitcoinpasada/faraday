@@ -252,6 +252,16 @@ Sealing writes the vault back to memory as a file:
   changed vault open then seals nothing and says so, and the vault stays
   open with its changes. A 24-byte nonce is the reason the cipher is
   XChaCha20 and not ChaCha20.
+- **A vault whose changes do not fit its slot is never closed at a
+  lock.** Entries read from the camera or from files are added only if
+  they fit the room left; if not, none is added and the toast (and the
+  camera's note) says how many bytes they take and how many are left.
+  Should a changed vault's records still exceed its slot, it cannot be
+  sealed: the lock does not go ahead, nothing is wiped, the vault stays
+  open with its changes and the Lock sheet names the vault and by how
+  many bytes it is over. "Lock without sealing" is the person's own
+  choice to lose those changes. Locking one vault alone (a backup's
+  "Lock it and make a new vault") refuses the same way with a toast.
 - **Every other slot is copied byte for byte.** A session cannot tell an
   unused slot from one that another passphrase opens, so it never
   rewrites, re-randomises or clears one.

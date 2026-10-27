@@ -7506,8 +7506,11 @@ strings! {
     /// Text in `idle_warn_sheet`, in place of Sealed while the system has
     /// given no randomness.
     vault_not_sealed: "Not sealed",
+    /// Toast in `vault_lock_one` and the Lock sheet's line. `{}`: the
+    /// vault's name, the bytes its changes are over its slot.
+    vault_cannot_seal: "{} cannot be sealed: its changes are {} bytes over its slot",
     /// Button in `lock_ask_sheet`, in place of Lock while the system has given
-    /// no randomness: the changes are lost.
+    /// no randomness or a vault cannot be sealed: the changes are lost.
     vault_lock_without_sealing: "Lock without sealing",
     /// Button in `lock_ask_sheet`.
     vault_back_to_the_vault: "Back to the vault",
@@ -7650,8 +7653,9 @@ strings! {
     vaults_wallet_inline: "wallet",
     /// Text in `vault_act`.
     vaults_wallets_inline: "wallets",
-    /// Toast in `vault_import_entries`.
-    vaults_those_entries: "Those entries do not fit in this vault's slot size",
+    /// Toast in `vault_import_entries`, text in `vault_scanned_entry`.
+    /// `{}`: the bytes the entries take, the bytes left in the slot.
+    vaults_those_entries: "Those entries take {} bytes; this vault has {} left",
     /// Text in `vault_scanned_entry`. `{}`: `n`, `if n == 1 { EN.vaults_entry_inline } else …`.
     vaults_added: "{} {} added",
     /// Text in `vault_scanned_entry`.

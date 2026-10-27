@@ -960,9 +960,8 @@ impl Faraday {
         let Some(id) = self.vaults.current_id() else {
             return;
         };
-        let sizes: Vec<usize> = records.iter().map(|r| r.size()).collect();
-        if !self.vaults.store().fits(id, &[], &sizes) {
-            self.toast(EN.vaults_those_entries);
+        if let Some(why) = self.vaults.no_room(id, &records) {
+            self.toast(&why);
             return;
         }
         self.vaults.edit(id, |s| {
@@ -1023,6 +1022,10 @@ impl Faraday {
             let records = fv::entries::parse(t);
             if let Some(id) = self.vaults.current_id() {
                 let n = records.len();
+                if let Some(why) = self.vaults.no_room(id, &records) {
+                    self.toast(&why);
+                    return Err(why);
+                }
                 self.vaults.edit(id, |s| {
                     for r in records {
                         s.insert(id, r);
@@ -2227,6 +2230,18 @@ impl Faraday {
             .unwrap_or_else(|| format!("{stem}-100.ofv"))
     }
 
+    /// Whether a lock would lose an open vault's changes: the session's
+    /// seed, which every seal's nonce is drawn from, has not arrived.
+    pub fn seal_waits(&self) -> bool {
+        !self.seeded() && self.vaults.open.iter().any(|v| v.changes > 0)
+    }
+
+    /// Whether a lock would lose a changed vault's changes: the seed
+    /// has not arrived, or a vault's records no longer fit its slot.
+    pub fn lock_would_lose(&self) -> bool {
+        self.seal_waits() || self.vaults.seal_blocked().is_some()
+    }
+
     /// Seals every open vault with changes into the Outbox (`docs/history/PLAN.md`
     /// §5.3). A vault nobody changed is not rewritten: a slot's bytes
     /// change only when there is something to keep, which is all a second
@@ -2268,28 +2283,7 @@ impl Faraday {
                 .filter_map(|(_, r)| crate::memory::from_record(r).map(|e| e.0))
                 .collect();
             let new: Vec<Record> = self.memory.records_lacking(&have);
-            if !new.is_empty() {
-                let slot_len = self.vaults.open[i].header().slot_len as usize;
-                self.vaults.edit(id, |s| {
-                    for r in new {
-                        s.insert(id, r);
-                    }
-                    while s.records(id).used() > slot_len {
-                        let oldest = s
-                            .records(id)
-                            .iter()
-                            .find(|(_, r)| r.kind() == kind::AMOUNTS)
-                            .map(|(k, _)| k);
-                        match oldest {
-                            Some(k) => {
-                                s.remove(id, k);
-                            }
-                            None => break,
-                        }
-                    }
-                });
-                self.vaults.changed(id);
-            }
+            self.vaults.state.add_amounts(i, new);
         }
         if self.vaults.open.get(i)?.changes == 0 {
             return None;
@@ -2316,6 +2310,10 @@ impl Faraday {
         if !self.seeded() && self.vaults.open[i].changes > 0 {
             self.out.command(faraday_shell_api::Command::RequestEntropy);
             self.toast(EN.seed_missing);
+            return false;
+        }
+        if let Some(why) = self.vaults.cannot_seal(i) {
+            self.toast(&why);
             return false;
         }
         self.vault_summaries_refresh();

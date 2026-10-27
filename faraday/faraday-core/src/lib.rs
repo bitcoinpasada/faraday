@@ -2406,12 +2406,6 @@ impl Faraday {
         out
     }
 
-    /// Whether a lock would lose an open vault's changes: the session's
-    /// seed, which every seal's nonce is drawn from, has not arrived.
-    pub fn seal_waits(&self) -> bool {
-        !self.seeded() && self.vaults.open.iter().any(|v| v.changes > 0)
-    }
-
     /// Lock asked for: by the person (`for_flow` false), or by a step of
     /// a backup flow. Asks first when a vault is open with something
     /// not in it, a seal waits, or the lock would end Make a new wallet
@@ -2422,7 +2416,7 @@ impl Faraday {
         let (keys, wallets) = self.unsaved_now(&c);
         let sealed = self.vaults.open.iter().any(|v| v.changes > 0);
         if self.lock_ends_create(&c)
-            || self.seal_waits()
+            || self.lock_would_lose()
             || !self.vaults.open.is_empty() && (sealed || !keys.is_empty() || !wallets.is_empty())
         {
             self.sheet = Some(Sheet::LockAsk);
@@ -2442,8 +2436,10 @@ impl Faraday {
     /// is sealed or wiped, the vaults stay open with their changes, and
     /// the Lock sheet says what a lock without sealing loses.
     fn lock(&mut self) {
-        if self.seal_waits() {
-            self.out.commands.push_back(Command::RequestEntropy);
+        if self.lock_would_lose() {
+            if self.seal_waits() {
+                self.out.commands.push_back(Command::RequestEntropy);
+            }
             self.sheet = Some(Sheet::LockAsk);
             return;
         }

@@ -579,10 +579,17 @@ pub(super) fn lock_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
 /// then (decision 28). With no randomness to seal with, the line says so
 /// and the lock is one without sealing.
 pub(super) fn lock_ask_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
+    let blocked = app.vaults().seal_blocked();
     let (head, line, lock) = if app.seal_waits() {
         (
             (Icon::Error.into(), Role::Error.paint(), EN.vault_lock),
             (EN.seed_missing, Role::Error.paint()),
+            (EN.vault_lock_without_sealing, Action::LockUnsealed),
+        )
+    } else if let Some(why) = blocked.as_deref() {
+        (
+            (Icon::Error.into(), Role::Error.paint(), EN.vault_lock),
+            (why, Role::Error.paint()),
             (EN.vault_lock_without_sealing, Action::LockUnsealed),
         )
     } else {
