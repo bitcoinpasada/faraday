@@ -937,9 +937,9 @@ impl Faraday {
                 self.vaults.state.sb_sign = None;
                 self.vaults.state.sb_checked = None;
             }
-            V::SbPick(k) => self.vaults.state.sb_sign = Some(k),
+            V::SbPick(k) => self.vaults.state.sb_sign = self.sb_release_now(k).map(|r| (k, r)),
             V::SbHoldSign => {
-                if let Some(k) = self.vaults.sb_sign {
+                if let Some((k, _)) = self.vaults.sb_sign {
                     self.sb_sign(k);
                 }
             }

@@ -23,6 +23,9 @@
 # (`faraday-starter`, its pages and decisions), which takes the Demo's
 # app from the shell.
 #
+# A fourth: no shipped binary turns on faraday-sb's `sign-any` feature,
+# which signs a boot program with no checked release behind it (F134).
+#
 # Run from the repository root; `just lint` does.
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -57,6 +60,18 @@ samples=$(cargo tree -q --color never --target all -e normal \
 if grep -qE '(faraday-stick|faraday-disk|faraday-grant|faraday-boot|faraday-starter) v' <<< "$samples"; then
     echo "lint-keys-tests: a binary other than Faraday Demo's (the desktop app, the Starter) depends on faraday-samples"
     echo "$samples"
+    exit 1
+fi
+
+# Faraday signs a boot program only through a checked release (F134):
+# faraday-sb's `sign-any` feature, which signs any image, is on in no
+# shipped binary.
+sb=$(cargo tree -q --color never --target all -e features,normal \
+    -p faraday-desktop -p faraday-stick -p faraday-disk -p faraday-grant \
+    -p faraday-boot -p faraday-starter-shell -i faraday-sb 2>/dev/null || true)
+if grep -q 'faraday-sb feature "sign-any"' <<< "$sb"; then
+    echo "lint-keys-tests: a shipped binary enables faraday-sb's sign-any feature"
+    echo "$sb"
     exit 1
 fi
 

@@ -28,6 +28,12 @@
 # Takes what the builds left (under out/, or the folder --builds names):
 #   out/stick/faraday-x86_64-uefi.img       -> faraday-stick-VERSION-x86_64-uefi.img.xz
 #   out/pi/faraday-pi3-waveshare-28dpi.img  -> faraday-pi-VERSION-pi3-waveshare-28dpi.img.xz
+# and, from the stick image's boot partition (FARADAYBOOT, the first GPT
+# partition), its EFI/BOOT/BOOTX64.EFI -> faraday-VERSION-BOOTX64.EFI: the
+# boot program as it is, unsigned, published so that a person with Secure
+# Boot keys downloads it with SHA256SUMS and SHA256SUMS.asc and signs it
+# on Faraday, which signs only a boot program those sums list
+# (docs/decisions/F134.md). It must carry the images' build ID.
 # Faraday Demo is neither a release file nor a payload file: it runs inside
 # the Starter's window, compiled into the Starter (docs/decisions/F126.md),
 # so no faraday-demo build is taken or staged.
@@ -107,7 +113,7 @@ if [ -z "$second" ]; then
     for f in "$stick" "$pi"; do
         [ -f "$f" ] || die "$f: not built"
     done
-    for tool in xz strings mtype; do
+    for tool in xz strings mtype mcopy; do
         command -v "$tool" >/dev/null || die "$tool is not installed"
     done
 
@@ -146,6 +152,23 @@ if [ -z "$second" ]; then
     mkdir -p "$out" "$payload/linux" "$payload/windows"
 
     stick_name="faraday-stick-$version-x86_64-uefi.img"
+    boot_name="faraday-$version-BOOTX64.EFI"
+
+    # The boot program off the stick image's first GPT partition: the
+    # header at LBA 1 names where the partition entries start, and the
+    # first entry's starting LBA is 32 bytes into it. A refusal here takes
+    # back the folders just made.
+    unstage() { rm -rf "$out" "$payload"; die "$1 (nothing staged)"; }
+    [ "$(dd if="$stick" bs=1 skip=512 count=8 2>/dev/null)" = "EFI PART" ] \
+        || unstage "$stick has no GPT"
+    entries="$(od -An -t u8 --endian=little -j 584 -N 8 "$stick" | tr -d ' ')"
+    lba="$(od -An -t u8 --endian=little -j $((entries * 512 + 32)) -N 8 "$stick" | tr -d ' ')"
+    [ -n "$lba" ] && [ "$lba" -gt 0 ] || unstage "$stick has no boot partition"
+    mcopy -i "$stick@@$((lba * 512))" ::EFI/BOOT/BOOTX64.EFI "$out/$boot_name" 2>/dev/null \
+        || unstage "$stick has no EFI/BOOT/BOOTX64.EFI on its boot partition"
+    [ "$(build_id "$out/$boot_name")" = "$build" ] \
+        || unstage "$boot_name does not carry the build ID $build"
+
     pi_name="faraday-pi-$version-pi3-waveshare-28dpi.img"
 
     for pair in "$stick:$stick_name" "$pi:$pi_name"; do
@@ -159,7 +182,7 @@ if [ -z "$second" ]; then
     commit="$(git rev-parse HEAD)"
     {
         echo "# Faraday $version, commit $commit"
-        (cd "$out" && sha256sum "$stick_name.xz" "$pi_name.xz")
+        (cd "$out" && sha256sum "$stick_name.xz" "$pi_name.xz" "$boot_name")
         printf '%s  %s\n' "$(sha256sum < "$stick" | cut -d' ' -f1)" "$stick_name"
         printf '%s  %s\n' "$(sha256sum < "$pi" | cut -d' ' -f1)" "$pi_name"
     } > "$out/SHA256SUMS"

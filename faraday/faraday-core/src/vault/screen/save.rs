@@ -372,14 +372,15 @@ pub(super) fn reasons_row(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f3
 }
 
 /// The Inbox's EFI images, each to sign or check with the selected db key;
-/// or, once one is chosen to sign, its SHA-256 to compare with the build
-/// record before the hold that signs it (`docs/history/PLAN.md` §8).
+/// or, once one is chosen to sign, its SHA-256 and whether it is a
+/// release's boot program (F134) before the hold that signs it, which a
+/// refusal leaves out (`docs/history/PLAN.md` §8).
 #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub(super) fn images_panel(app: &View, ui: &mut Ui, dx: f32, mut dy: f32, dw: f32) -> f32 {
     let primary = Role::Primary;
     let (muted, ink) = (Role::OnSurfaceVariant, Role::OnSurface);
-    if let Some(k) = app.vaults.sb_sign
-        && let Some(item) = app.inbox.get(k)
+    if let Some((k, checked)) = &app.vaults.sb_sign
+        && let Some(item) = app.inbox.get(*k)
     {
         ui.text(
             dx,
@@ -398,18 +399,29 @@ pub(super) fn images_panel(app: &View, ui: &mut Ui, dx: f32, mut dy: f32, dw: f3
             .map(|s| crate::secure_boot::image_sha256(&s))
             .unwrap_or_default();
         dy += ui.wrap(dx, dy, dw, 15.0, W::M, ink, &hash) + 14.0;
-        dy += ui.wrap(dx, dy, dw, 13.0, W::R, muted, EN.vault_compare_build_record) + 16.0;
-        let hw = hold_button(
-            app,
-            ui,
-            dx,
-            dy,
-            EN.vault_hold_to_sign,
-            va(V::SbHoldSign),
-            primary.paint(),
-        );
+        // What the release check found when the image was picked (F134),
+        // kept on the state: a refusal is named and leaves only Back.
+        let (line, role) = match checked {
+            Ok(r) => (fill(EN.secureboot_release_boot, &[r.version()]), muted),
+            Err(r) => (crate::secure_boot::refusal_text(r), Role::Error),
+        };
+        dy += ui.wrap(dx, dy, dw, 13.0, W::R, role, &line) + 16.0;
+        let back_x = if checked.is_ok() {
+            dx + 10.0
+                + hold_button(
+                    app,
+                    ui,
+                    dx,
+                    dy,
+                    EN.vault_hold_to_sign,
+                    va(V::SbHoldSign),
+                    primary.paint(),
+                )
+        } else {
+            dx
+        };
         ui.button(
-            dx + hw + 10.0,
+            back_x,
             dy,
             None,
             36.0,

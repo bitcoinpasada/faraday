@@ -142,3 +142,10 @@ path = "fuzz_targets/aezeed.rs"
 test = false
 doc = false
 bench = false
+
+[[bin]]
+name = "pgp_verify"
+path = "fuzz_targets/pgp_verify.rs"
+test = false
+doc = false
+bench = false

@@ -227,14 +227,28 @@ written whole, which empties its data partition: copy its files to
 another stick first. A Pi card is written whole.
 
 **With Secure Boot.** The release's own `BOOTX64.EFI` does not carry
-your db signature. Sign the new release's `BOOTX64.EFI` on Faraday
-(Files → **Sign in Secure Boot**) and put the signed file in the computer's
-Downloads folder; then, on What to write, choose Boot file → **One I
-signed** and the file. The Starter takes it only when it is this
-release's own program with one signature that holds, shows the
+your db signature. Sign the new release's on Faraday: download the
+release's `faraday-X.Y.Z-BOOTX64.EFI`, `SHA256SUMS` and `SHA256SUMS.asc`
+onto a stick's data partition, copy the three in, sign
+`faraday-X.Y.Z-BOOTX64.EFI` (Files → **Sign in Secure Boot**) and write
+the signed file back. Faraday signs a boot program only when it is a
+release's own, at least as new as the Faraday signing it: the signature
+must verify with the release key built into Faraday, and `SHA256SUMS`
+must list the file (`docs/DECISIONS.md` F134). Put the signed file in
+the computer's Downloads folder; then, on What to write, choose Boot
+file → **One I signed** and the file. The Starter takes it only when it
+is this release's own program with one signature that holds, shows the
 signing certificate's name and SHA-256 (compare the SHA-256 with your db
 key's), and writes the release's own bytes with that signature in place
 of the release's file (`docs/DECISIONS.md` F133).
+
+Without the Starter, once the stick holds the new release, copy the
+signed file over `EFI/BOOT/BOOTX64.EFI` on its boot partition,
+`FARADAYBOOT`. On Linux and macOS it mounts as any FAT partition. On
+Windows it is an EFI system partition, which gets no drive letter: in
+`diskpart`, run as administrator, `select volume` the one labelled
+FARADAYBOOT and `assign letter=S`, copy the file to
+`S:\EFI\BOOT\BOOTX64.EFI`, then `remove letter=S`.
 
 ## Choosing a computer
 
@@ -537,7 +551,16 @@ each `.xz` and, under the `.img` name, the image inside it, so the same
 command checks a download and, after `xz -d`, the image. It lists the
 Linux Starter's `.tar.gz` and, under its own name, the file inside it, so
 either can be checked. Faraday Demo has no file of its own; it is
-inside each Starter (the Starter's own sum covers it).
+inside each Starter (the Starter's own sum covers it). From the release
+after 0.1.7 it lists `faraday-X.Y.Z-BOOTX64.EFI`, the stick's boot
+program as it is, unsigned, published for a person with their own Secure
+Boot keys to sign on Faraday ("With Secure Boot" above). Faraday checks
+`SHA256SUMS.asc` more strictly than `gpg --verify` before it signs that
+file (DECISIONS F134), so the release is signed as GnuPG's `gpg --armor
+--detach-sign` or Faraday's own GPG signing does it: one armoured block
+with its checksum line, a binary signature (not `--textmode`) by the
+release key's one signing subkey, whose binding carries its back
+signature.
 
 On Windows, Gpg4win's `gpg` takes the same first three commands, and
 PowerShell prints a file's sum to compare with its line in

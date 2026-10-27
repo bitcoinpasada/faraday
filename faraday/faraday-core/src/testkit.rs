@@ -627,6 +627,13 @@ pub fn files() -> Result<Vec<(String, Vec<u8>)>, String> {
         ENTRIES_FILE.as_bytes().to_vec(),
     ));
     out.push(("BOOTX64.EFI".to_string(), test_efi()));
+    // Its release's signed sums, beside it as a release's download is
+    // (F134).
+    out.push(("SHA256SUMS".to_string(), TEST_RELEASE_SUMS.to_vec()));
+    out.push((
+        "SHA256SUMS.asc".to_string(),
+        TEST_RELEASE_SIGNATURE.to_vec(),
+    ));
     // Savings split between its signers, one key left off each share.
     let mut one = session();
     one.add_wallet(
@@ -1207,8 +1214,31 @@ username: admin\n\
 password: router-password\n\
 url: http://192.168.1.1\n";
 
+/// The test release key, made by GnuPG (`tools/vectors/release-sums/`),
+/// which Faraday's tests and the snapshot tool's sessions take as a
+/// release key beside the ones built in (F134). The `testkit` feature is
+/// never on in a shipped binary (`tools/lint-keys-tests.sh`).
+pub const TEST_RELEASE_KEY: faraday_sb::release::ReleaseKey<'static> =
+    faraday_sb::release::ReleaseKey {
+        certificate: include_bytes!("../../../tools/vectors/release-sums/release-key.asc"),
+        fingerprint: [
+            0xBA, 0xFE, 0x0C, 0xDD, 0x02, 0x1B, 0x72, 0xA8, 0x43, 0x66, 0x81, 0x83, 0x66, 0x28,
+            0x46, 0xB9, 0x76, 0x71, 0x65, 0x84,
+        ],
+    };
+
+/// Test release 0.9.0's `SHA256SUMS`, which lists [`test_efi`] as its
+/// boot program, signed by [`TEST_RELEASE_KEY`] in `SHA256SUMS.asc`.
+pub const TEST_RELEASE_SUMS: &[u8] =
+    include_bytes!("../../../tools/vectors/release-sums/SHA256SUMS");
+
+/// The detached signature over [`TEST_RELEASE_SUMS`].
+pub const TEST_RELEASE_SIGNATURE: &[u8] =
+    include_bytes!("../../../tools/vectors/release-sums/SHA256SUMS.asc");
+
 /// A minimal PE32+ EFI application, for Secure Boot signing: headers and
-/// one section holding a return. It does nothing if started.
+/// one section holding a return. It does nothing if started. Test release
+/// 0.9.0's boot program (`tools/vectors/release-sums/BOOTX64.EFI`).
 pub fn test_efi() -> Vec<u8> {
     let mut pe = vec![0u8; 0x400];
     let put16 =

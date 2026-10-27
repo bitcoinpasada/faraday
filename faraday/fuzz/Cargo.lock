@@ -496,6 +496,7 @@ dependencies = [
  "faraday-files",
  "faraday-intake",
  "faraday-payload",
+ "faraday-pgp",
  "faraday-qr",
  "faraday-sb",
  "faraday-shell-api",
@@ -592,6 +593,7 @@ name = "faraday-sb"
 version = "0.1.7"
 dependencies = [
  "chacha20",
+ "faraday-pgp",
  "rand_core",
  "rsa",
  "sha2",

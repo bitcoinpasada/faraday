@@ -1542,9 +1542,11 @@ a stick sign at once.
 files For the stick → Learn page: enrolling in the firmware's setup screen.
 
 **Sign `BOOTX64.EFI`** → needs the file copied in (none: "Copy
-BOOTX64.EFI in from a stick first", with what a stick visit is) → build
-record match → fingerprint compared through another channel → **Sign with
-db** → signed file For the stick → Learn page: copying it onto the boot
+BOOTX64.EFI in from a stick first", with what a stick visit is) → the
+release check (F134): the release's `SHA256SUMS` and `SHA256SUMS.asc`
+copied in beside it, the signature verified with the release key built
+in, the file listed; a refusal named in place of the hold → **Hold to
+sign** → signed file For the stick → Learn page: copying it onto the boot
 partition on another computer.
 
 **Check a signature** → result against the vault's db certificate.

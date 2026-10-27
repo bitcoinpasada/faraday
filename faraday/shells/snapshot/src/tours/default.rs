@@ -866,7 +866,13 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
         .ok_or("the kit has no vault.ofv")?;
     t.press(Action::VisitInAll);
     t.press(Action::VisitIn(vi));
-    for name in ["vault-entries.txt", "BOOTX64.EFI"] {
+    // The boot program comes in with its release's signed sums (F134).
+    for name in [
+        "vault-entries.txt",
+        "BOOTX64.EFI",
+        "SHA256SUMS",
+        "SHA256SUMS.asc",
+    ] {
         let k = t
             .stick()
             .files

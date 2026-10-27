@@ -6515,6 +6515,18 @@ strings! {
     secureboot_not_signed: "Not signed",
     /// Text in `sb_check`.
     secureboot_its_signature: "Its signature could not be read",
+    /// Line in `images_panel` and toast in `sb_sign`: the release's `SHA256SUMS` or `SHA256SUMS.asc` is not in the Inbox (F134).
+    secureboot_no_release_sums: "No signed sums from a Faraday release are beside this file",
+    /// Line in `images_panel` and toast in `sb_sign`: the sums' signature does not verify with a release key (F134).
+    secureboot_sums_not_signed: "The release's sums are not signed by Faraday's release key",
+    /// Line in `images_panel` and toast in `sb_sign` (F134). `{}`: the release's version.
+    secureboot_not_release_boot: "This file is not the boot program of release {}",
+    /// Line in `images_panel`: the file is the release's own (F134). `{}`: the release's version.
+    secureboot_release_boot: "The boot program of release {}, checked against its signed sums",
+    /// Line in `images_panel` and toast in `sb_sign`: the file does not read as an EFI image (F134).
+    secureboot_not_an_image: "This file is not an EFI image",
+    /// Line in `images_panel` and toast in `sb_sign`: a genuine release older than the Faraday running (F134). `{}`: the release's version, then this Faraday's.
+    secureboot_older_release: "Release {} is older than this Faraday ({}); sign a release at least as new",
     // ----- seed_read (faraday-core/src/seeds/read.rs) -----
     /// Error in `seed_read_act`.
     seed_read_type_passphrase: "Type the passphrase",
@@ -7638,8 +7650,6 @@ strings! {
     vault_never: "Never",
     /// Text in `images_panel`. `{}`: `item.name`.
     vault_sign_n: "Sign {}",
-    /// Line in `images_panel`.
-    vault_compare_build_record: "Compare it with the build record whose fingerprint you checked yourself",
     /// Button in `images_panel`.
     vault_hold_to_sign: "Hold to sign",
     /// Button in `images_panel`.

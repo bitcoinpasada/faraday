@@ -1,6 +1,8 @@
 //! Secure Boot keys in a vault (`docs/history/PLAN.md` §8): making an owner's PK, KEK
-//! and db, the enrolment files, signing `BOOTX64.EFI` from the Inbox, and
-//! checking an image's signature. The cryptography is `faraday-sb`'s; the
+//! and db, the enrolment files, signing `BOOTX64.EFI` from the Inbox (only
+//! a Faraday release's own boot program, checked against the release's
+//! signed sums copied in beside it, F134), and checking an image's
+//! signature. The cryptography is `faraday-sb`'s; the
 //! keys live in an open vault as a type-8 record (`docs/VAULT.md` §7) and
 //! only certificates, signed updates and signed images reach the Outbox.
 
@@ -9,6 +11,7 @@ pub mod state;
 use crate::strings::EN;
 use crate::strings::fill;
 use faraday_keys::vault::{RecordView, VaultId};
+use faraday_sb::release::{self, Refusal, Release, ReleaseKey};
 use faraday_sb::{Check, Policy};
 use faraday_vault::records::kind;
 
@@ -73,7 +76,61 @@ pub fn image_sha256(h: &[u8; 32]) -> String {
         .join(" ")
 }
 
+/// The release keys a boot program's sums are checked with: those built
+/// into Faraday, and in Faraday's tests and the snapshot tool's sessions
+/// (the `testkit` feature, never on in a shipped binary) the test release
+/// key as well.
+fn release_keys() -> Vec<ReleaseKey<'static>> {
+    let keys = release::KEYS.iter().copied();
+    #[cfg(feature = "testkit")]
+    let keys = keys.chain([crate::testkit::TEST_RELEASE_KEY]);
+    keys.collect()
+}
+
+/// What a release check found of an Inbox image (F134).
+pub type Checked = Result<Release, Refusal>;
+
+/// What the signing page and the hold say of a refusal (F134).
+pub fn refusal_text(r: &Refusal) -> String {
+    match r {
+        Refusal::NotImage => EN.secureboot_not_an_image.to_string(),
+        Refusal::NoSums => EN.secureboot_no_release_sums.to_string(),
+        Refusal::NotSigned => EN.secureboot_sums_not_signed.to_string(),
+        Refusal::Older { version, running } => {
+            fill(EN.secureboot_older_release, &[version, running])
+        }
+        Refusal::NotListed { version } => fill(EN.secureboot_not_release_boot, &[version]),
+    }
+}
+
 impl Faraday {
+    /// Costs a hash of the sums and three Ed25519 verifications for each
+    /// release key. Inbox image `k` checked as a release's boot program,
+    /// at least as new as this Faraday, against the `SHA256SUMS` and
+    /// `SHA256SUMS.asc` in the Inbox now (F134); its SHA-256 is the one
+    /// taken when it came in. `None` when there is no image `k`.
+    pub(crate) fn sb_release_now(&self, k: usize) -> Option<Result<Release, Refusal>> {
+        let item = self.inbox.get(k)?;
+        let Some(sha) = item.sha else {
+            // Taken only for a file that reads as a PE image (`classify`):
+            // anything else is not a boot program.
+            return Some(Err(Refusal::NotImage));
+        };
+        let named = |name: &str| {
+            self.inbox
+                .iter()
+                .find(|i| i.name.eq_ignore_ascii_case(name))
+                .map(|i| i.bytes.as_slice())
+        };
+        Some(release::check(
+            &sha,
+            named(release::SUMS),
+            named(release::SUMS_SIGNATURE),
+            &release_keys(),
+            env!("CARGO_PKG_VERSION"),
+        ))
+    }
+
     /// The Secure Boot keys selected in the open vault: the vault and the
     /// record's place.
     fn sb_selected(&self) -> Option<(VaultId, usize)> {
@@ -150,8 +207,10 @@ impl Faraday {
         }
     }
 
-    /// Signs Inbox image `k` with the selected db key; the signed image
-    /// goes to the Outbox under the same name.
+    /// Signs Inbox image `k` with the selected db key, only when it is a
+    /// release's boot program as the Inbox now shows (F134); the signed
+    /// image goes to the Outbox under the same name. A refusal is said
+    /// and nothing is signed.
     pub(crate) fn sb_sign(&mut self, k: usize) {
         if self.selected_waits().is_some() {
             return;
@@ -159,9 +218,11 @@ impl Faraday {
         let Some((id, at)) = self.sb_selected() else {
             return;
         };
-        if self.inbox.get(k).is_none() {
-            return;
-        }
+        let release = match self.sb_release_now(k) {
+            None => return,
+            Some(Err(r)) => return self.toast(&refusal_text(&r)),
+            Some(Ok(release)) => release,
+        };
         // The signing is blinded with fresh bytes of the system's.
         let Some(seed) = self.fresh(b"secure boot signing") else {
             return self.toast(EN.secureboot_no_randomness);
@@ -173,7 +234,7 @@ impl Faraday {
         match self
             .vaults
             .store()
-            .sb_sign_image(id, at, &seed, &item.bytes)
+            .sb_sign_image(id, at, &seed, &release, &item.bytes)
         {
             Some(Ok(signed)) => {
                 self.put_outbox(&name, signed);

@@ -107,21 +107,29 @@ pub struct Certificate {
     set_aside: usize,
 }
 
-/// A signature's fields, as far as a restore reads them.
-struct SigFields {
-    kind: u8,
-    created: Option<u32>,
+/// A signature's fields, as far as a restore or a verification reads
+/// them.
+pub(crate) struct SigFields {
+    pub(crate) kind: u8,
+    pub(crate) created: Option<u32>,
     expires: Option<u32>,
     flags: Option<u8>,
     reason: Option<(u8, Vec<u8>)>,
-    issuer_fp: Option<[u8; 20]>,
-    issuer_id: Option<[u8; 8]>,
+    pub(crate) issuer_fp: Option<[u8; 20]>,
+    pub(crate) issuer_id: Option<[u8; 8]>,
+    /// The hashed area holds what a verification does not honour: a
+    /// signature expiry, or a subpacket marked critical other than the
+    /// creation time and the issuer's fingerprint or key ID (RFC 9580
+    /// §5.2.3.7: a critical subpacket not understood makes the signature
+    /// invalid; an issuer only names the key to try, so marking it
+    /// critical changes nothing).
+    pub(crate) unhonoured: bool,
 }
 
 /// The fields of a version-4 signature body that [`read_block_packets`]
 /// has read to its end: the hashed area gives the time, the expiry, the
 /// flags and the reason; either area the issuer.
-fn sig_fields(body: &[u8]) -> Option<SigFields> {
+pub(crate) fn sig_fields(body: &[u8]) -> Option<SigFields> {
     let mut f = SigFields {
         kind: *body.get(1)?,
         created: None,
@@ -130,6 +138,7 @@ fn sig_fields(body: &[u8]) -> Option<SigFields> {
         reason: None,
         issuer_fp: None,
         issuer_id: None,
+        unhonoured: false,
     };
     let hashed_len = usize::from(u16::from_be_bytes([*body.get(4)?, *body.get(5)?]));
     let hashed = body.get(6..6 + hashed_len)?;
@@ -153,6 +162,16 @@ fn sig_fields(body: &[u8]) -> Option<SigFields> {
             };
             let sp = area.get(r + head..r + head + n)?;
             let (&kind, data) = sp.split_first()?;
+            if is_hashed
+                && (kind & 0x7f == SIG_EXPIRES
+                    || (kind & 0x80 != 0
+                        && !matches!(
+                            kind & 0x7f,
+                            sub::CREATED | sub::ISSUER | sub::ISSUER_FINGERPRINT
+                        )))
+            {
+                f.unhonoured = true;
+            }
             match (kind & 0x7f, is_hashed) {
                 (sub::CREATED, true) => f.created = Some(u32::from_be_bytes(data.try_into().ok()?)),
                 (sub::KEY_EXPIRES, true) => {
@@ -174,6 +193,9 @@ fn sig_fields(body: &[u8]) -> Option<SigFields> {
     }
     Some(f)
 }
+
+/// The signature expiry subpacket (RFC 9580 §5.2.3.18).
+const SIG_EXPIRES: u8 = 3;
 
 /// The dotted form of an OID's bytes, as GnuPG prints a curve it does not
 /// name.
@@ -421,6 +443,34 @@ impl Certificate {
             .max_by_key(|s| s.created)
             .and_then(|s| s.expires)
             .unwrap_or(0)
+    }
+
+    /// The primary key's public key body.
+    pub(crate) fn primary_body(&self) -> &[u8] {
+        &self.primary
+    }
+
+    /// The signing subkey's public key body.
+    pub(crate) fn subkey_body(&self) -> &[u8] {
+        &self.subkey
+    }
+
+    /// The subkey's newest binding by the primary key: its signature body
+    /// and the expiry it states, seconds after the subkey was made (0 or
+    /// none for none).
+    pub(crate) fn subkey_binding(&self) -> Option<(&[u8], Option<u32>)> {
+        self.self_signatures()
+            .filter(|s| s.place == Place::Subkey && s.kind == sig::SUBKEY_BINDING)
+            .max_by_key(|s| s.created)
+            .map(|s| (s.body.as_slice(), s.expires))
+    }
+
+    /// Whether the certificate carries a revocation by the key of either
+    /// key: a key revocation, or a subkey revocation.
+    pub(crate) fn carries_revocation(&self) -> bool {
+        self.own
+            .iter()
+            .any(|s| s.kind == sig::KEY_REVOCATION || s.kind == sig::SUBKEY_REVOCATION)
     }
 
     /// When the earliest revocation by the key says it was made.

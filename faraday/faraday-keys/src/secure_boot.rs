@@ -1,6 +1,7 @@
 //! Secure Boot keys, their enrolment files and signed images (faraday-sb).
 
 use faraday_sb::Policy;
+use faraday_sb::release::Release;
 use faraday_sb::rng::Stream;
 use faraday_vault::Record;
 use faraday_vault::records::kind;
@@ -74,9 +75,15 @@ pub(crate) fn enrolment(
     faraday_sb::enrolment(&mut blind, keys, policy, now)
 }
 
-/// The image `pe` signed by the db key, the signing blinded from
-/// `blind_seed`. Costs an RSA signature.
-pub(crate) fn sign_image(blind_seed: &[u8; 32], pe: &[u8], keys: &Keys) -> Result<Vec<u8>, Error> {
+/// The boot program `pe` signed by the db key, the signing blinded from
+/// `blind_seed`, only when it is the file `release` names (F134). Costs a
+/// SHA-256 of `pe` and an RSA signature.
+pub(crate) fn sign_image(
+    blind_seed: &[u8; 32],
+    pe: &[u8],
+    keys: &Keys,
+    release: &Release,
+) -> Result<Vec<u8>, Error> {
     let mut blind = Stream::new(blind_seed, 0);
-    faraday_sb::pe::sign(&mut blind, pe, &keys.db)
+    faraday_sb::release::sign(&mut blind, pe, &keys.db, release)
 }

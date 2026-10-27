@@ -1207,19 +1207,23 @@ impl OpenVaults {
         ))
     }
 
-    /// Costs an RSA signature. The image `pe` signed by the db key of
-    /// Secure Boot record `i` of open vault `id`, the signing blinded from
-    /// `blind_seed`. `None` for a record that is no readable set of owner
-    /// keys.
+    /// Costs a SHA-256 of `pe` and an RSA signature. The boot program `pe`
+    /// signed by the db key of Secure Boot record `i` of open vault `id`,
+    /// the signing blinded from `blind_seed`, only when it is the file the
+    /// checked `release` names (F134). `None` for a record that is no
+    /// readable set of owner keys.
     pub fn sb_sign_image(
         &self,
         id: VaultId,
         i: usize,
         blind_seed: &[u8; 32],
+        release: &faraday_sb::release::Release,
         pe: &[u8],
     ) -> Option<Result<Vec<u8>, faraday_sb::Error>> {
         let keys = sb_keys(self.slot(id)?.records.records.get(i)?)?;
-        Some(crate::secure_boot::sign_image(blind_seed, pe, &keys))
+        Some(crate::secure_boot::sign_image(
+            blind_seed, pe, &keys, release,
+        ))
     }
 
     // ---- loading keys into the session ----

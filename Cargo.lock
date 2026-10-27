@@ -1020,6 +1020,8 @@ name = "faraday-sb"
 version = "0.1.7"
 dependencies = [
  "chacha20",
+ "faraday-pgp",
+ "faraday-sb",
  "rand_core",
  "rsa",
  "sha2",

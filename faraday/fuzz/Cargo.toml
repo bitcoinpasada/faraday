@@ -27,7 +27,10 @@ faraday-qr = { path = "../faraday-qr" }
 faraday-files = { path = "../faraday-files" }
 faraday-vault = { path = "../faraday-vault" }
 faraday-boot = { path = "../faraday-boot" }
-faraday-sb = { path = "../faraday-sb" }
+# `pe_image` signs any image (`sign-any`); `release_sums` checks a
+# release's sums with faraday-pgp (F134).
+faraday-sb = { path = "../faraday-sb", features = ["sign-any"] }
+faraday-pgp = { path = "../faraday-pgp" }
 faraday-payload = { path = "../faraday-payload" }
 # `gpt.rs` of the Starter shell is included by path and uses its api.
 faraday-starter = { path = "../faraday-starter" }
@@ -181,6 +184,13 @@ bench = false
 [[bin]]
 name = "pe_transplant"
 path = "fuzz_targets/pe_transplant.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "release_sums"
+path = "fuzz_targets/release_sums.rs"
 test = false
 doc = false
 bench = false

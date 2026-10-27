@@ -87,6 +87,12 @@ features = [
 [build-dependencies]
 faraday-payload = { path = "../../faraday-payload" }
 
+# The tests sign boot files to hand the Starter (`pe::sign`, faraday-sb's
+# `sign-any`); the Starter itself never signs (F134,
+# tools/lint-keys-tests.sh).
+[dev-dependencies]
+faraday-sb = { path = "../../faraday-sb", features = ["sign-any"] }
+
 [lints.rust]
 # Not `workspace = true`: on Linux one function needs `unsafe`, taking
 # ownership of the file descriptor udisks2 passes back from

@@ -9,6 +9,8 @@ repository.workspace = true
 publish = false
 
 [dependencies]
+# A release's signed sums, checked before a boot program is signed (F134).
+faraday-pgp = { path = "../faraday-pgp" }
 zeroize = { workspace = true, features = ["alloc"] }
 sha2 = { workspace = true }
 # RSA-2048: key generation and PKCS #1 v1.5 signatures, which UEFI
@@ -19,6 +21,16 @@ rsa = { version = "=0.10.0-rc.18", default-features = false, features = ["sha2",
 # ChaCha20 keystream from the caller's seed (`rng.rs`).
 rand_core = { version = "0.10", default-features = false }
 chacha20 = { workspace = true }
+
+[features]
+# `pe::sign`: signs any PE image, with no release behind it. For this
+# crate's own tests and examples, the Starter's tests and the fuzz targets
+# only; no shipped binary turns it on (tools/lint-keys-tests.sh), so the
+# app signs only through `release::sign` (F134).
+sign-any = []
+
+[dev-dependencies]
+faraday-sb = { path = ".", features = ["sign-any"] }
 
 [lints]
 workspace = true

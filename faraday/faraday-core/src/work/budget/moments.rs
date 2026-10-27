@@ -44,8 +44,8 @@ fn press_and_draw(app: &mut Faraday, a: Action) {
 const STARTUP: Table = &[
     (
         Work::DescriptorParse,
-        56,
-        "the classifier tries each text file of the test stick that is no other kind as a wallet description, once as it comes in (40 of its 79 files): the 24 wallet files read once each; the 16 that are none (three seeds' words, twelve xpubs, the vault's entries) refused whole and then read line by line as descriptors (faraday-intake's multipath reader), two parses each; what a wallet file says is kept on it (Item::wallet)",
+        58,
+        "the classifier tries each text file of the test stick that is no other kind as a wallet description, once as it comes in (41 of its 81 files): the 24 wallet files read once each; the 17 that are none (three seeds' words, twelve xpubs, the vault's entries, the test release's SHA256SUMS) refused whole and then read line by line as descriptors (faraday-intake's multipath reader), two parses each; what a wallet file says is kept on it (Item::wallet)",
     ),
     (
         Work::FileHash,

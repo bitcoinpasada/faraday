@@ -152,17 +152,32 @@ fn unsigned(pe: &[u8]) -> Result<(Layout, Vec<u8>), Error> {
 }
 
 /// Costs a SHA-256 of the image: the image hash it has once signed, by
-/// [`sign`] or any signer that pads it to eight bytes as Authenticode
+/// Faraday's signing or any signer that pads it to eight bytes as Authenticode
 /// does. Equal to [`image_hash`] of every signed copy of the same program,
 /// whoever signed it; a byte changed anywhere it covers gives another.
 pub fn hash_as_signed(pe: &[u8]) -> Result<[u8; 32], Error> {
     image_hash(&unsigned(pe)?.1)
 }
 
-/// The image signed by `signer` (the db key): any certificate table it
-/// had is dropped, the image is padded to eight bytes, and the signature
-/// goes after it as the new table. `rng` blinds the signing.
+/// Costs an RSA signature. Any image signed by `signer`, with no release
+/// behind it: for this crate's tests and examples, the Starter's tests and
+/// the fuzz targets, under the `sign-any` feature, which no shipped binary
+/// turns on. The app signs through [`crate::release::sign`] (F134).
+#[cfg(feature = "sign-any")]
 pub fn sign(
+    rng: &mut crate::rng::Stream,
+    pe: &[u8],
+    signer: &x509::Pair,
+) -> Result<Vec<u8>, Error> {
+    sign_image(rng, pe, signer)
+}
+
+/// Costs an RSA signature. The image signed by `signer` (the db key):
+/// any certificate table it had is dropped, the image is padded to eight
+/// bytes, and the signature goes after it as the new table. `rng` blinds
+/// the signing. Reached only through [`crate::release::sign`], or
+/// `sign` under `sign-any`.
+pub(crate) fn sign_image(
     rng: &mut crate::rng::Stream,
     pe: &[u8],
     signer: &x509::Pair,

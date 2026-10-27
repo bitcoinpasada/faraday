@@ -17,5 +17,11 @@ sha1 = { version = "0.11", default-features = false }
 # The signature hashes: SHA-256 and SHA-512.
 sha2 = { workspace = true }
 
+[dev-dependencies]
+# Signatures of shapes Faraday never writes, made in the tests to be
+# refused (tests/verify_refusals.rs): the same crates as above.
+ed25519-dalek = { version = "3", default-features = false, features = ["zeroize"] }
+sha2 = { workspace = true }
+
 [lints]
 workspace = true

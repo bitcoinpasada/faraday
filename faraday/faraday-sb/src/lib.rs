@@ -1,7 +1,8 @@
 //! Secure Boot keys Faraday makes (`docs/history/PLAN.md` §8): an owner's PK, KEK and db
 //! as RSA-2048 keys with self-signed certificates, the files a computer's
 //! firmware setup enrols them from, Authenticode signatures over
-//! `BOOTX64.EFI`, and checking one against the db certificate.
+//! `BOOTX64.EFI` (only a release's own, F134, `release`), and checking
+//! one against the db certificate.
 //!
 //! The private keys live in a vault (`docs/VAULT.md` §7, type 8); only
 //! certificates, signature lists, signed updates and signed images reach
@@ -17,6 +18,7 @@ extern crate alloc;
 pub mod der;
 pub mod efi;
 pub mod pe;
+pub mod release;
 pub mod rng;
 pub mod x509;
 
@@ -33,6 +35,8 @@ pub enum Error {
     Key,
     /// Not a PE/COFF image this crate reads.
     Image,
+    /// Not the boot program a release's checked sums name (F134).
+    NotRelease,
 }
 
 impl Error {
@@ -41,6 +45,7 @@ impl Error {
         match self {
             Error::Key => "The key could not be made or read",
             Error::Image => "Not an EFI image this build reads",
+            Error::NotRelease => "Not the boot program the release's sums list",
         }
     }
 }

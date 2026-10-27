@@ -1,6 +1,6 @@
 # Fuzzing
 
-Fifteen `cargo fuzz` targets, one per parser of the shared crates that
+Eighteen `cargo fuzz` targets, one per parser of the shared crates that
 reads something the device did not write: a camera frame, a scanned
 payload, a PSBT from a coordinator, a key share, a file on storage. The
 parsers in Faraday's own crates have theirs in `faraday/fuzz/`
@@ -136,6 +136,7 @@ cargo +nightly fuzz run --fuzz-dir fuzz decode_luma fuzz/artifacts/decode_luma/r
 | `message_verify` | `faraday_psbt::message::verify` over the test vector key's four addresses; `parse_signed` on the whole input, its result verified |
 | `xkey` | `faraday_bip::xkey::decode_xpriv` / `decode_xpub`, `slip132::decode_xpub` |
 | `pgp_armor` | `faraday_pgp::read_public` |
+| `pgp_verify` | `faraday_pgp::verify_detached` with the input as the signature, the signed data and the certificate, against the GnuPG-made release-sums fixture (F134): what it takes is the fixture's own signature over the fixture's sums |
 | `pgp_paperkey` | `faraday_pgp::paperkey::read_text`, `read_raw`, `line` and `check` on what reads, then `entries` |
 | `pgp_restore` | `faraday_pgp::Certificate::read` on the whole input, then `restore` with the input as a paperkey's data against what read and against a Faraday key's certificate, and that key's own data with the input laid over it |
 | `json` | `faraday_bip::json::parse`, written back with `quote` and read again; `faraday_bip::coldcard::parse` |

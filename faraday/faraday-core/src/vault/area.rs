@@ -1279,8 +1279,9 @@ pub struct Vaults {
     pub sb_own_only: bool,
     /// The Inbox's EFI images are shown, to sign or check.
     pub sb_images: bool,
-    /// The image being looked at before signing, by Inbox position.
-    pub sb_sign: Option<usize>,
+    /// The image picked to sign, by Inbox position, with its release check
+    /// then (F134), for the page; the hold checks the Inbox again.
+    pub sb_sign: Option<(usize, crate::secure_boot::Checked)>,
     /// What the last check said.
     pub sb_checked: Option<String>,
     /// Key fingerprints worked out for the contents screen, by the

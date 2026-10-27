@@ -29,8 +29,10 @@ extern crate alloc;
 
 pub mod certificate;
 pub mod paperkey;
+pub mod verify;
 
 pub use certificate::{Certificate, Refusal, Restored, restore};
+pub use verify::{Unverified, verify_detached};
 
 use alloc::string::String;
 use alloc::vec::Vec;
@@ -63,6 +65,7 @@ pub(crate) mod sig {
     pub const SUBKEY_BINDING: u8 = 0x18;
     pub const PRIMARY_BINDING: u8 = 0x19;
     pub const KEY_REVOCATION: u8 = 0x20;
+    pub const SUBKEY_REVOCATION: u8 = 0x28;
 }
 
 /// Signature subpacket types.
