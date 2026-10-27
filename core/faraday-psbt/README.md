@@ -87,8 +87,9 @@ bytes, and BIP-44/49/84/86/48 paths whose coin type is not the context's.
 | `HighFee` | Danger | fee ≥ `HIGH_FEE_DANGER_PCT` (20 %), or fee > `HIGH_FEE_DANGER_ABS` (0.01 BTC) |
 | `AbsurdFeeRate` | Danger | ≥ `ABSURD_FEE_RATE_SAT_VB` (1000 sat/vB) |
 | `DustOutput` | Caution | below `bitcoin`'s `minimal_non_dust` for the script |
-| `UnusualSighash` | Caution | `SINGLE` or any `ANYONECANPAY` |
-| `UnusualSighash` | Danger | `NONE` (outputs not committed to) or a non-standard value |
+| `UnusualSighash` | Caution | `ALL\|ANYONECANPAY` |
+| `UnusualSighash` | Danger | `NONE` (outputs not committed to), `SINGLE` on an input that has an output of its index (only that output is committed to), or a non-standard value |
+| `UnusualSighash` | Blocked | `SINGLE` on an input with no output of its index: the signature would commit to nothing; `sign` refuses with or without `force` |
 | `ChangeSpoof`, `UtxoMismatch`, `AmountUnverified` | Blocked | the coordinator is lying or hiding what it spends; `sign` refuses with or without `force`. `UtxoMismatch` covers the BIP-174 signer checks (wrong `non_witness_utxo`, redeem/witness script not matching the program, outputs above inputs); `AmountUnverified` is a SegWit v0 input with no `non_witness_utxo` in a transaction with more than one input |
 | `MissingUtxo`, `NoParticipatingKey`, `NetworkMismatch` | Danger | see above |
 | `UnverifiedChange`, `UnknownDerivation`, `AddressReuse`, `NonStandardScript`, `UnsupportedInput` | Caution | `NonStandardScript` is `Info` for a zero-value OP_RETURN |

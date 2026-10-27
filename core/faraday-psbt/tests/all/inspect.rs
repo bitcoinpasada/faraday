@@ -342,7 +342,7 @@ fn unusual_sighash() {
     ));
     assert!(has(
         &set(EcdsaSighashType::Single),
-        Level::Caution,
+        Level::Danger,
         &WarningKind::UnusualSighash
     ));
     assert!(has(
@@ -357,6 +357,158 @@ fn unusual_sighash() {
         Level::Danger,
         &WarningKind::UnusualSighash
     ));
+}
+
+/// [`two_inputs`] with the change paid to the recipient instead, so the
+/// transaction has two inputs and one output: input 1 has no output of
+/// its own index.
+fn two_inputs_one_output(script_type: ScriptType) -> Psbt {
+    let mut psbt = two_inputs(script_type);
+    let inner = psbt.inner_mut();
+    let change = inner.unsigned_tx.output.pop().unwrap();
+    inner.outputs.pop();
+    inner.unsigned_tx.output[0].value += change.value;
+    psbt
+}
+
+/// Signs every input naming the abandon key, with or without `force`.
+fn sign_abandon(psbt: &mut Psbt, force: bool) -> Result<faraday_psbt::SignResult, Error> {
+    let c = Compute::unchecked();
+    let abandon = master(ABANDON, NET);
+    let keys = [KeyRef::from_master(&c, &abandon, 0).unwrap()];
+    let ctx = Context {
+        network: NET,
+        keys: &keys,
+        wallets: &[],
+        musig_session: None,
+    };
+    sign(
+        &c,
+        psbt,
+        &[&abandon],
+        &[abandon.fingerprint()],
+        &ctx,
+        force,
+        Nonce::LowR,
+        Aux::Deterministic,
+        &mut None,
+        &faraday_crypto::Zeroizing::new([0u8; 32]),
+    )
+}
+
+fn nothing_signed(psbt: &Psbt) -> bool {
+    psbt.inner()
+        .inputs
+        .iter()
+        .all(|i| i.partial_sigs.is_empty() && i.tap_key_sig.is_none())
+}
+
+fn single_types(script_type: ScriptType) -> [PsbtSighashType; 2] {
+    if script_type == ScriptType::Taproot {
+        [
+            PsbtSighashType::from(TapSighashType::Single),
+            PsbtSighashType::from(TapSighashType::SinglePlusAnyoneCanPay),
+        ]
+    } else {
+        [
+            PsbtSighashType::from(EcdsaSighashType::Single),
+            PsbtSighashType::from(EcdsaSighashType::SinglePlusAnyoneCanPay),
+        ]
+    }
+}
+
+#[test]
+fn single_on_an_input_with_no_output_of_its_index_is_refused_even_forced() {
+    for script_type in ScriptType::ALL {
+        for sighash in single_types(script_type) {
+            let mut psbt = two_inputs_one_output(script_type);
+            psbt.inner_mut().inputs[1].sighash_type = Some(sighash);
+            let insp = inspect_with_abandon(&psbt);
+            let w = insp
+                .warnings
+                .iter()
+                .find(|w| w.kind == WarningKind::UnusualSighash)
+                .unwrap_or_else(|| panic!("{script_type} {sighash}: {:?}", insp.warnings));
+            assert_eq!(w.level, Level::Blocked, "{script_type} {sighash}");
+            assert_eq!(
+                w.text,
+                "input 1 asks to sign with SIGHASH_SINGLE but the transaction has no output 1; \
+                 such a signature would commit to nothing"
+            );
+            for force in [false, true] {
+                let err = sign_abandon(&mut psbt, force).unwrap_err();
+                assert!(
+                    matches!(&err, Error::Blocked(k) if k.contains(&WarningKind::UnusualSighash)),
+                    "{script_type} {sighash} forced {force}: {err}"
+                );
+                assert!(nothing_signed(&psbt), "{script_type} {sighash}");
+            }
+        }
+    }
+}
+
+#[test]
+fn single_on_an_input_with_its_output_signs_only_when_forced() {
+    for script_type in ScriptType::ALL {
+        for sighash in single_types(script_type) {
+            let mut psbt = basic(script_type);
+            psbt.inner_mut().inputs[0].sighash_type = Some(sighash);
+            let insp = inspect_with_abandon(&psbt);
+            let w = insp
+                .warnings
+                .iter()
+                .find(|w| w.kind == WarningKind::UnusualSighash)
+                .unwrap_or_else(|| panic!("{script_type} {sighash}: {:?}", insp.warnings));
+            assert_eq!(w.level, Level::Danger, "{script_type} {sighash}");
+            assert!(
+                w.text.starts_with(
+                    "input 0 signs with SINGLE: only output 0 is committed to; \
+                     the others, change included, can be changed after you sign"
+                ),
+                "{}",
+                w.text
+            );
+            let err = sign_abandon(&mut psbt, false).unwrap_err();
+            assert!(
+                matches!(&err, Error::Danger(k) if k.contains(&WarningKind::UnusualSighash)),
+                "{script_type} {sighash}: {err}"
+            );
+            assert!(nothing_signed(&psbt));
+            let signed = sign_abandon(&mut psbt, true).unwrap();
+            assert_eq!(signed.signed_inputs.len(), 1, "{script_type} {sighash}");
+            assert_eq!(
+                u32::from(*signed.signed_inputs[0].sig_bytes.last().unwrap()),
+                sighash.to_u32(),
+                "{script_type} {sighash}: the signature states the type asked"
+            );
+        }
+    }
+}
+
+#[test]
+fn all_and_default_still_sign_unforced() {
+    for script_type in ScriptType::ALL {
+        let asked: Vec<Option<PsbtSighashType>> = if script_type == ScriptType::Taproot {
+            vec![
+                None,
+                Some(PsbtSighashType::from(TapSighashType::Default)),
+                Some(PsbtSighashType::from(TapSighashType::All)),
+            ]
+        } else {
+            vec![None, Some(PsbtSighashType::from(EcdsaSighashType::All))]
+        };
+        for sighash in asked {
+            let mut psbt = basic(script_type);
+            psbt.inner_mut().inputs[0].sighash_type = sighash;
+            let insp = inspect_with_abandon(&psbt);
+            assert!(
+                find(&insp, &WarningKind::UnusualSighash).is_none(),
+                "{script_type} {sighash:?}"
+            );
+            let signed = sign_abandon(&mut psbt, false).unwrap();
+            assert_eq!(signed.signed_inputs.len(), 1, "{script_type} {sighash:?}");
+        }
+    }
 }
 
 #[test]

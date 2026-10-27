@@ -5,7 +5,76 @@
 use alloc::format;
 use alloc::vec::Vec;
 
+use bitcoin::sighash::{EcdsaSighashType, TapSighashType};
+
 use super::{InputInfo, Level, SighashKind, Warning, WarningKind, warn};
+
+impl SighashKind {
+    /// Whether only the output of the input's own index is committed to
+    /// (`SINGLE` variants).
+    pub fn is_single(self) -> bool {
+        matches!(
+            self,
+            SighashKind::Ecdsa(EcdsaSighashType::Single | EcdsaSighashType::SinglePlusAnyoneCanPay)
+                | SighashKind::Taproot(
+                    TapSighashType::Single | TapSighashType::SinglePlusAnyoneCanPay
+                )
+        )
+    }
+}
+
+/// The card for the sighash input `i` asks to be signed with, in a
+/// transaction of `outputs` outputs: none for `ALL`/`DEFAULT`; Danger for
+/// `NONE`, which commits to no output, for a non-standard value, and for
+/// `SINGLE`, which commits to output `i` alone; Blocked for `SINGLE` where
+/// there is no output `i`: legacy then signs the constant hash 1, valid
+/// for any spend of the coin, SegWit v0 commits to no output, and taproot
+/// cannot sign at all; Caution for any other (`ALL|ANYONECANPAY`). A
+/// lookup.
+pub(super) fn sighash_card(
+    warnings: &mut Vec<Warning>,
+    i: usize,
+    sighash: SighashKind,
+    outputs: usize,
+) {
+    let (level, text) = if sighash.is_none() {
+        (
+            Level::Danger,
+            format!(
+                "input {i} signs with {sighash}: outputs are not committed to, anyone can redirect the funds"
+            ),
+        )
+    } else if let SighashKind::NonStandard(_) = sighash {
+        (
+            Level::Danger,
+            format!("input {i} requests a {sighash} sighash type"),
+        )
+    } else if sighash.is_single() && i >= outputs {
+        (
+            Level::Blocked,
+            format!(
+                "input {i} asks to sign with SIGHASH_SINGLE but the transaction has no output {i}; \
+                 such a signature would commit to nothing"
+            ),
+        )
+    } else if sighash.is_single() {
+        (
+            Level::Danger,
+            format!(
+                "input {i} signs with SINGLE: only output {i} is committed to; \
+                 the others, change included, can be changed after you sign"
+            ),
+        )
+    } else if !sighash.is_default() {
+        (
+            Level::Caution,
+            format!("input {i} signs with {sighash}: not the whole transaction is committed to"),
+        )
+    } else {
+        return;
+    };
+    warn(warnings, level, WarningKind::UnusualSighash, text);
+}
 
 /// The cards for the signatures already on the transaction: one that is
 /// not this transaction's (Danger), one that could not be checked

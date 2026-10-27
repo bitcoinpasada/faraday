@@ -871,32 +871,7 @@ pub fn inspect(c: &Compute, psbt: &Psbt, ctx: &Context) -> Inspection {
         }
 
         let sighash = sighash_kind(input, cl.kind, spk.as_deref());
-        if sighash.is_none() {
-            warn(
-                &mut warnings,
-                Level::Danger,
-                WarningKind::UnusualSighash,
-                format!(
-                    "input {i} signs with {sighash}: outputs are not committed to, anyone can redirect the funds"
-                ),
-            );
-        } else if let SighashKind::NonStandard(_) = sighash {
-            warn(
-                &mut warnings,
-                Level::Danger,
-                WarningKind::UnusualSighash,
-                format!("input {i} requests a {sighash} sighash type"),
-            );
-        } else if !sighash.is_default() {
-            warn(
-                &mut warnings,
-                Level::Caution,
-                WarningKind::UnusualSighash,
-                format!(
-                    "input {i} signs with {sighash}: not the whole transaction is committed to"
-                ),
-            );
-        }
+        sighash::sighash_card(&mut warnings, i, sighash, inner.unsigned_tx.output.len());
 
         let mut already_signed_by = Vec::new();
         for pk in input.partial_sigs.keys() {
