@@ -496,6 +496,20 @@ replaced (2026-10-15, F35).
    rebuild group; each share as its PDF, its text and
    `{name}-share-k-of-n.png`. Made For the stick with the checklist,
    with **Remove**; done while it is For the stick or on the receipt.
+   Shares, like the Coldcard multisig config, are written in a form that
+   rebuilds the keys sorted (`sortedmulti`) and a Taproot multisig under
+   the NUMS point (`tr(NUMS, sortedmulti_a)`), so they are offered only
+   for those wallets: a `sortedmulti` in `wsh`, `sh` or `sh(wsh)`, and a
+   `tr(NUMS, sortedmulti_a)` with its keys at `/<0;1>/*`. Any other
+   wallet of several keys (`multi`, `multi_a`, another internal key,
+   two keys of one seed, a miniscript, MuSig2) has the whole-wallet
+   sheet with its full descriptor; for a multisig among them the board
+   says why partial descriptions are not offered. Before shares or a
+   config are written, Faraday rebuilds the wallet from them as Restore
+   does (every quorum of sheets where there
+   are at most ten, else the first and the last m) and compares the
+   first receive and change addresses with the wallet's; on a
+   difference nothing is written and a toast says so.
 6. **The public files** for the software and form chosen, drawn from
    the wallet (descriptor, wallet file, multisig config, BSMS record,
    Bitcoin Core's import), with each key whose seed is here

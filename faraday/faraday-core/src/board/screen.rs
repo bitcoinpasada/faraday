@@ -1564,7 +1564,7 @@ fn list(ui: &mut Ui, fr: &mut Frame, v: &BoardView, x: f32, y: f32, w: f32) -> f
     if let Some(whole) = v.description.first() {
         cy += entry(ui, fr, whole, x, cy, w, None) + gap;
     }
-    if v.splits {
+    if v.splits == Some(None) {
         // One button hands a share to every place, or takes them all off
         // (`docs/BACKUP-FLOW.md` §17.19 item 1).
         let label = if v.partials {
@@ -1594,6 +1594,18 @@ fn list(ui: &mut Ui, fr: &mut Frame, v: &BoardView, x: f32, y: f32, w: f32) -> f
             Action::LearnShares,
         );
         cy += tokens::BOARD_CHIP + gap;
+    } else if let Some(Some(line)) = v.splits {
+        // A multisig whose description does not split, and why.
+        cy += gap;
+        cy += ui.wrap(
+            x,
+            cy,
+            w,
+            tokens::CAPTION,
+            W::R,
+            Role::OnSurfaceVariant,
+            line,
+        ) + gap;
     }
     cy += gap;
     cy += group(ui, EN.board_vaults, x, cy);

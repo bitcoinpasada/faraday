@@ -727,13 +727,13 @@ pub(crate) struct BoardView {
     pub passes: Vec<Entry>,
     /// The whole description.
     pub description: Vec<Entry>,
-    /// The description splits into shares: **Add partial descriptions**
-    /// (or **Remove partial descriptions**) under it (§19.19 item 1).
-    pub splits: bool,
+    /// `Some(None)`: the description splits into shares, **Add partial
+    /// descriptions** (or **Remove…**) under it (§19.19 item 1); `Some(Some(line))`:
+    /// a multisig whose description does not split, the line saying why.
+    pub splits: Option<Option<&'static str>>,
     /// Partial descriptions are on.
     pub partials: bool,
-    /// Another place may be added: fewer than one per key
-    /// (`docs/BACKUP-FLOW.md` §17.19).
+    /// Another place may be added: fewer than one per key (`docs/BACKUP-FLOW.md` §17.19).
     pub room: bool,
     /// The vaults.
     pub vaults: Vec<Entry>,
@@ -1381,7 +1381,7 @@ impl Faraday {
             seeds,
             passes,
             description,
-            splits: shape.splits && !locked,
+            splits: lines::partials(self, of, shape.splits, locked),
             partials: a.partials_on(),
             room: places < plan::codex32::max_places_of(&shape, &a),
             c32: codex32::groups(&shape, &a, &entry),

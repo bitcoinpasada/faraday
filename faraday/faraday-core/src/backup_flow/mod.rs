@@ -18,6 +18,7 @@ pub(crate) mod screen;
 pub mod steps;
 pub(crate) mod wallet;
 pub(crate) mod wallet_files;
+pub(crate) use wallet_files::wallet_share_record;
 pub(crate) mod wallet_screen;
 
 pub(crate) use area::BackupFlowArea;
@@ -2147,7 +2148,7 @@ fn read_line(fl: &mut BackupFlow, f: &[&str], hex_array: fn(&str) -> Option<[u8;
 
 impl WalletFlow {
     /// An empty wallet part, filled by the lines that follow.
-    fn blank() -> WalletFlow {
+    pub(crate) fn blank() -> WalletFlow {
         WalletFlow {
             shape: crate::plan::Shape {
                 m: 1,

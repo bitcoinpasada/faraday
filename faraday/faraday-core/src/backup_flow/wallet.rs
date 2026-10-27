@@ -1126,82 +1126,6 @@ impl Faraday {
             .collect()
     }
 
-    /// Costs what `read_wallet` and `add_wallet` cost. Share `j` of the
-    /// wallet with checksum `cs` as a type 13 record (`docs/BACKUP-FLOW.md`
-    /// §15.6), made from its description: the wallet loaded, or its
-    /// description in an open vault or Files.
-    fn wallet_share_record(
-        &self,
-        c: &Compute,
-        wf: &crate::backup_flow::WalletFlow,
-        cs: &str,
-        j: usize,
-    ) -> Option<faraday_vault::Record> {
-        use faraday_vault::records::{field, kind as rkind};
-        let of_wallet = |t: &str| {
-            crate::wallet::read_wallet(c, t)
-                .ok()
-                .is_some_and(|p| p.checksum() == cs)
-        };
-        let text = |wl: &crate::wallet::Wallet| -> Option<(String, usize, String)> {
-            let (m, n) = crate::wallet::Session::quorum(wl);
-            let plan = crate::wallet_backup::split_plan(n, m, wf.answers.omit);
-            Some((
-                crate::wallet_backup::split_share(wl, plan.get(j)?)?,
-                plan.len(),
-                Faraday::wallet_text(wl),
-            ))
-        };
-        let made = match self.session.wallets.iter().find(|wl| wl.checksum() == cs) {
-            Some(wl) => text(wl),
-            None => {
-                // A wallet record, or a plan record's wallet (its field
-                // 1), in any open vault; or the description file.
-                let desc = self
-                    .vaults
-                    .open
-                    .iter()
-                    .flat_map(|o| {
-                        self.vaults
-                            .records(o.id)
-                            .iter()
-                            .filter_map(|(_, r)| match r.kind() {
-                                rkind::WALLET => r.public_text(field::WALLET),
-                                rkind::PLAN => r.public_text(field::PLAN_WALLET),
-                                _ => None,
-                            })
-                            .map(str::to_string)
-                            .collect::<Vec<_>>()
-                    })
-                    .chain(
-                        self.inbox
-                            .iter()
-                            .chain(self.outbox.iter())
-                            .filter(|it| it.kind == crate::wallet::FileKind::Wallet)
-                            .filter_map(|it| String::from_utf8(it.bytes.clone()).ok()),
-                    )
-                    .find(|t| of_wallet(t))?;
-                let mut s = crate::wallet::Session::on(self.session.network());
-                let k = s
-                    .add_wallet(c, &wf.name, desc.trim(), "", crate::wallet::Origin::Named)
-                    .ok()?;
-                text(&s.wallets[k])
-            }
-        };
-        let (share, of, desc) = made?;
-        Some(
-            faraday_vault::Record::new(rkind::WALLET_SHARE)
-                .with(field::SHARE, share.as_bytes())
-                .with(field::SHARE_WALLET, desc.as_bytes())
-                .with(field::SHARE_WALLET_NAME, wf.name.as_bytes())
-                .with(
-                    field::SHARE_NUMBER,
-                    &[u8::try_from(j + 1).unwrap_or(u8::MAX)],
-                )
-                .with(field::SHARE_OF, &[u8::try_from(of).unwrap_or(u8::MAX)]),
-        )
-    }
-
     /// The copy of the keys a vault added after the keys were made takes
     /// from one that holds them (§4.8): each seed the plan puts in it, and
     /// the wallet description where the plan puts it.
@@ -1450,8 +1374,11 @@ impl Faraday {
                 }
             }
             for j in kept {
-                let want = self
-                    .wallet_share_record(&c, &wf, &cs, j)
+                let made = match super::wallet_share_record(self, &c, &wf, &cs, j) {
+                    Some(Err(why)) => return self.toast(why),
+                    made => made.and_then(Result::ok),
+                };
+                let want = made
                     .or_else(|| {
                         holders.iter().find_map(|&h| {
                             self.vaults

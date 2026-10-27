@@ -148,3 +148,60 @@ pub(crate) fn open_a_vault(t: &mut Tour, phrase: &str) -> Result<(), String> {
     }
     Ok(())
 }
+
+/// Costs a wallet read. The backup board for a multisig whose keys keep
+/// the order written (`wsh(multi(…))`) over the three test keys: no
+/// partial descriptions, the line saying so; then the MuSig2 kit's board,
+/// with neither.
+pub(crate) fn board_unsorted_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
+    t.load_kit()?;
+    for n in 1..3 {
+        t.press(Action::Entry(None));
+        t.type_key(n);
+    }
+    let savings = faraday_core::testkit::savings();
+    let unsorted = savings
+        .split('#')
+        .next()
+        .unwrap_or_default()
+        .replace("sortedmulti(", "multi(");
+    let w = t
+        .app
+        .session
+        .add_wallet(
+            c,
+            "Unsorted",
+            &unsorted,
+            "Tour",
+            faraday_core::wallet::Origin::Named,
+        )
+        .map_err(|e| e.text())?;
+    for (name, i) in [("board-unsorted", Some(w)), ("board-musig", None)] {
+        let i = match i {
+            Some(i) => i,
+            None => t
+                .app
+                .session
+                .wallets
+                .iter()
+                .position(|w| w.policy().template() == faraday_bip::policy::Template::MuSig)
+                .ok_or("no MuSig2 wallet")?,
+        };
+        t.press(Action::Backup(i));
+        t.backup_as(faraday_core::plan::Preset::PaperVault);
+        t.shot(name)?;
+        // The list's whole description, with what is under it: in the
+        // narrow column, the list as a sheet.
+        use faraday_core::board::{BoardPress as B, Chip, Thing};
+        if t.app.is_compact() {
+            t.press(Action::Board(B::OpenList));
+        }
+        scroll_to(t, Action::Board(B::Chip(Chip::List(Thing::Whole))));
+        t.shot(&format!("{name}-list"))?;
+        if t.app.is_compact() {
+            t.press(Action::Cancel);
+        }
+        t.press(Action::Nav(Screen::WalletsStart));
+    }
+    Ok(())
+}

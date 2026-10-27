@@ -8,11 +8,13 @@ use crate::strings::fill;
 use faraday_bip::multisig_config;
 use faraday_crypto::work::Compute;
 
-use crate::wallet::{Session, fp_text};
+use crate::wallet::{Session, Wallet, fp_text};
+use crate::wallet_backup::split_share;
 use crate::{
     Action, Faraday, FileKind, MAX_VAULTS, NOT_A_KEY, Screen, VaultAsk, create, flow, restore,
     rstep, seeds, stem, vault, wallet,
 };
+use faraday_bip::keys::Network;
 use std::collections::BTreeSet;
 
 /// What one multisig config file, whole or a share, says.
@@ -181,6 +183,83 @@ pub fn merge(texts: &[String]) -> Result<Merged, String> {
 /// reads as a wallet.
 pub fn readable(c: &Compute, whole: &str) -> bool {
     multisig_config::parse(c, whole).is_ok() || crate::wallet::read_wallet(c, whole).is_ok()
+}
+
+/// Costs a parse of the wallet and four address derivations. Whether
+/// `texts`, a whole config or some sheets of a split backup, rebuild
+/// `wallet` as Restore rebuilds it ([`merge`], then
+/// [`crate::wallet::read_wallet`]): the rebuilt wallet's first receive
+/// and change addresses on `network` are the wallet's own.
+pub fn rebuilds(c: &Compute, network: Network, wallet: &Wallet, texts: &[String]) -> bool {
+    let Some(whole) = merge(texts).ok().and_then(|m| m.whole) else {
+        return false;
+    };
+    let Ok(back) = crate::wallet::read_wallet(c, &whole) else {
+        return false;
+    };
+    [false, true].into_iter().all(|change| {
+        match (
+            wallet.policy().address_at(c, network, change, 0),
+            back.address_at(c, network, change, 0),
+        ) {
+            (Ok(a), Ok(b)) => a == b,
+            _ => false,
+        }
+    })
+}
+
+/// Costs [`rebuilds`] for each set of sheets tried. Whether the split
+/// sheets of `plan` rebuild `wallet`: every set of `m` of them where
+/// there are at most ten such sets, else the first `m` and the last `m`.
+pub fn sheets_rebuild(c: &Compute, network: Network, wallet: &Wallet, plan: &[Vec<usize>]) -> bool {
+    let Some(sheets) = plan
+        .iter()
+        .map(|row| split_share(wallet, row))
+        .collect::<Option<Vec<String>>>()
+    else {
+        return false;
+    };
+    let (m, _) = Session::quorum(wallet);
+    let n = sheets.len();
+    if m == 0 || m > n {
+        return false;
+    }
+    let sets: Vec<Vec<usize>> = if choose(n, m) <= 10 {
+        (0u32..1 << n)
+            .filter(|mask| mask.count_ones() as usize == m)
+            .map(|mask| (0..n).filter(|i| mask & (1 << i) != 0).collect())
+            .collect()
+    } else {
+        vec![(0..m).collect(), (n - m..n).collect()]
+    };
+    sets.iter().all(|set| {
+        let some: Vec<String> = set.iter().map(|&j| sheets[j].clone()).collect();
+        rebuilds(c, network, wallet, &some)
+    })
+}
+
+/// Whether two of a policy's keys name one fingerprint: one seed at two
+/// of its keys, whose sheets [`merge`] cannot tell apart from sheets of
+/// two wallets. A lookup.
+pub fn repeats_a_seed(policy: &faraday_bip::policy::WalletPolicy) -> bool {
+    let fps: Vec<_> = policy
+        .keys()
+        .iter()
+        .filter_map(|k| k.fingerprint())
+        .collect();
+    fps.iter().enumerate().any(|(i, f)| fps[..i].contains(f))
+}
+
+/// Costs [`rebuilds`]. `wallet`'s whole Coldcard config, where it has one
+/// and it rebuilds the wallet.
+pub fn checked_config(c: &Compute, network: Network, wallet: &Wallet) -> Option<String> {
+    let text = crate::wallet_backup::multisig_config(wallet, None)?;
+    rebuilds(c, network, wallet, core::slice::from_ref(&text)).then_some(text)
+}
+
+/// `n` choose `k`, saturating.
+fn choose(n: usize, k: usize) -> usize {
+    (0..k).fold(1usize, |acc, i| acc.saturating_mul(n - i) / (i + 1))
 }
 
 /// BIP-341's unspendable internal key, a Taproot multisig's.
@@ -980,6 +1059,44 @@ impl Faraday {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A vault's share record for the backup flow: a wallet with two keys
+    /// of one seed is not split, and gets none; Savings, whose sheets
+    /// rebuild it, gets its record.
+    #[test]
+    fn a_share_record_is_made_only_for_a_wallet_its_sheets_rebuild() {
+        use crate::testkit::key;
+        let c = crate::testkit::compute();
+        let mut app = crate::Faraday::new();
+        app.session = crate::testkit::session();
+        let (a, b) = ("m/48'/1'/0'/2'", "m/48'/1'/1'/2'");
+        let twice = format!(
+            "wsh(sortedmulti(2,{}/<0;1>/*,{}/<0;1>/*,{}/<0;1>/*))",
+            key(0, a),
+            key(0, b),
+            key(1, a)
+        );
+        let mut wf = crate::backup_flow::WalletFlow::blank();
+        wf.answers.omit = 1;
+        wf.name = "Test".into();
+        for (d, splits) in [(twice, false), (crate::testkit::savings(), true)] {
+            let i = app
+                .session
+                .add_wallet(&c, "Test", &d, "Test", wallet::Origin::Named)
+                .expect("reads");
+            let w = &app.session.wallets[i];
+            assert_eq!(crate::wallet_backup::splits(w), splits, "{d}");
+            let cs = w.checksum().to_string();
+            for j in 0..3 {
+                let got = crate::backup_flow::wallet_share_record(&app, &c, &wf, &cs, j);
+                if splits {
+                    assert!(matches!(got, Some(Ok(_))), "{d}: sheet {j}");
+                } else {
+                    assert!(got.is_none(), "{d}: sheet {j}");
+                }
+            }
+        }
+    }
 
     /// The shares of a split backup rebuild the same wallet as the whole
     /// config, from any quorum of them.

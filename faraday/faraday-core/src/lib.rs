@@ -4002,11 +4002,6 @@ impl Faraday {
         }
     }
 
-    /// The files [`Faraday::public_out`] makes, with their bytes.
-    fn public_made(&mut self, wallet: usize, what: u8) -> Vec<(String, Vec<u8>)> {
-        self.public_files(wallet, what, true)
-    }
-
     /// The names of the files [`Faraday::public_made`] makes, with no
     /// picture or PDF made: a PDF that cannot be made is named anyway.
     fn public_names(&mut self, wallet: usize, what: u8) -> Vec<String> {
@@ -4995,13 +4990,13 @@ impl Faraday {
         lines
     }
 
-    /// Costs an address derivation (through `address_at`). A wallet's
-    /// public text file `what` (as [`Faraday::public_out`] numbers them): 2
-    /// the multisig config, 6 the BIP 129 record.
+    /// Costs an address derivation (through `address_at`), or `checked_config`.
+    /// A wallet's public text file `what` (as [`Faraday::public_out`] numbers
+    /// them): 2 the multisig config where it rebuilds the wallet, 6 BIP 129's.
     fn wallet_file_text(&self, c: &Compute, wallet: usize, what: u8) -> Option<String> {
         let w = self.session.wallets.get(wallet)?;
         match what {
-            2 => wallet_backup::multisig_config(w, None),
+            2 => restore::checked_config(c, self.session.network(), w),
             6 => {
                 let net = self.session.network();
                 let first = w.policy().address_at(c, net, false, 0).ok()?;

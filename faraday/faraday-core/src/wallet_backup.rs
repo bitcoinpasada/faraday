@@ -125,15 +125,54 @@ pub fn audit(plan: &[Vec<usize>], m: usize) -> Audit {
     }
 }
 
+/// The shape of a wallet that Faraday's split sheets and Coldcard config
+/// rebuild: what [`crate::restore::merge`] and
+/// [`faraday_bip::multisig_config::parse`] write back out.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Rebuilt {
+    /// `sortedmulti` in a wrapper, as the config's `Format:` names it.
+    Config(&'static str),
+    /// `tr(NUMS, sortedmulti_a(…))`.
+    Taproot,
+}
+
+/// What a wallet's split sheets and config rebuild it as, where they
+/// rebuild it at all: a `sortedmulti` in `sh`, `wsh` or `sh(wsh)`, or a
+/// `tr` whose internal key is the NUMS point over one `sortedmulti_a`
+/// leaf, its keys at `/<0;1>/*` as every wallet policy's are. The
+/// rebuild always sorts the keys and always writes the NUMS point, so a
+/// `multi`, a `multi_a` or another internal key would come back as
+/// another wallet, and Restore refuses two keys of one seed
+/// ([`crate::restore::repeats_a_seed`]): those have none.
+fn rebuilt_as(wallet: &Wallet) -> Option<Rebuilt> {
+    use faraday_bip::policy::{Template, Wrapper};
+    let p = wallet.policy();
+    if crate::restore::repeats_a_seed(p) {
+        return None;
+    }
+    match Kind::of(p) {
+        Kind::Multi(wrapper) if matches!(p.template(), Template::Multi { sorted: true, .. }) => {
+            Some(Rebuilt::Config(match wrapper {
+                Wrapper::Sh => "P2SH",
+                Wrapper::ShWsh => "P2SH-P2WSH",
+                Wrapper::Wsh => "P2WSH",
+            }))
+        }
+        Kind::TapMulti if p.tapscript_sorted() && p.key_path_unspendable() => {
+            Some(Rebuilt::Taproot)
+        }
+        _ => None,
+    }
+}
+
 /// The multisig config Coldcard writes and Sparrow imports as "Coldcard
 /// Multisig"; SeedSigner recognises it by "multisig setup file" in its
 /// first line. `only` keeps those key lines alone, for a split sheet.
+/// `None` for a wallet the config does not rebuild: every coordinator
+/// that reads it sorts the keys, so only a `sortedmulti` wallet has one.
 pub fn multisig_config(wallet: &Wallet, only: Option<&[usize]>) -> Option<String> {
-    let format = match Kind::of(wallet.policy()) {
-        Kind::Multi(faraday_bip::policy::Wrapper::Sh) => "P2SH",
-        Kind::Multi(faraday_bip::policy::Wrapper::ShWsh) => "P2SH-P2WSH",
-        Kind::Multi(_) => "P2WSH",
-        _ => return None,
+    let Some(Rebuilt::Config(format)) = rebuilt_as(wallet) else {
+        return None;
     };
     Some(config(
         wallet,
@@ -144,9 +183,10 @@ pub fn multisig_config(wallet: &Wallet, only: Option<&[usize]>) -> Option<String
 }
 
 /// Whether a wallet's backup can be split between its signers: a
-/// multisig, `wsh`, `sh` or Taproot's `sortedmulti_a`.
+/// `sortedmulti` in `wsh`, `sh` or `sh(wsh)`, or Taproot's
+/// `tr(NUMS, sortedmulti_a)`, the wallets the sheets rebuild.
 pub fn splits(wallet: &Wallet) -> bool {
-    matches!(Kind::of(wallet.policy()), Kind::Multi(_) | Kind::TapMulti)
+    rebuilt_as(wallet).is_some()
 }
 
 /// One sheet of a split backup, holding the keys `keep` names: the
@@ -155,15 +195,14 @@ pub fn splits(wallet: &Wallet) -> bool {
 /// as `tr(NUMS, sortedmulti_a(…))` (`restore::merge`). Coldcard's own
 /// config has no Taproot format, so a Taproot wallet has no whole config.
 pub fn split_share(wallet: &Wallet, keep: &[usize]) -> Option<String> {
-    match Kind::of(wallet.policy()) {
-        Kind::Multi(_) => multisig_config(wallet, Some(keep)),
-        Kind::TapMulti => Some(config(
+    match rebuilt_as(wallet)? {
+        Rebuilt::Config(_) => multisig_config(wallet, Some(keep)),
+        Rebuilt::Taproot => Some(config(
             wallet,
             Some(keep),
             "P2TR",
             "# Faraday split backup sheet: Taproot multisig, tr(NUMS, sortedmulti_a)\n",
         )),
-        _ => None,
     }
 }
 
@@ -2280,6 +2319,36 @@ impl Faraday {
         }
         self.public_remove(w, what);
         Some(w)
+    }
+
+    /// Costs what `public_files` costs, and for the multisig config (2)
+    /// or the split sheets (4) what `restore::rebuilds` costs per set
+    /// tried. The files [`Faraday::public_out`] makes, with their bytes;
+    /// the config or the sheets only where they rebuild the wallet, and
+    /// otherwise none, which a toast says.
+    pub(crate) fn public_made(&mut self, wallet: usize, what: u8) -> Vec<(String, Vec<u8>)> {
+        let c = self.compute();
+        let net = self.session.network();
+        let omit = self.backup.state().map(|b| b.answers.omit);
+        let refused = self.session.wallets.get(wallet).and_then(|w| match what {
+            2 if multisig_config(w, None).is_some()
+                && crate::restore::checked_config(&c, net, w).is_none() =>
+            {
+                Some(EN.backup_config_rebuilds_another)
+            }
+            4 if splits(w) => {
+                let (m, n) = Session::quorum(w);
+                let plan = split_plan(n, m, omit.unwrap_or(m.saturating_sub(1)));
+                (!crate::restore::sheets_rebuild(&c, net, w, &plan))
+                    .then_some(EN.backup_sheets_rebuild_another)
+            }
+            _ => None,
+        });
+        if let Some(why) = refused {
+            self.toast(why);
+            return Vec::new();
+        }
+        self.public_files(wallet, what, true)
     }
 
     /// Making the checklist makes every public file it calls for, For

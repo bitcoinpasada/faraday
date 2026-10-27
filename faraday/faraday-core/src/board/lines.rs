@@ -166,3 +166,38 @@ pub(super) fn software_name(a: &Answers) -> String {
         .and_then(|k| crate::screens::SOFTWARE_ROWS.get(k))
         .map_or_else(|| EN.board_watch_only.to_string(), |s| (*s).to_string())
 }
+
+/// Whether the board offers partial descriptions: `Some(None)` where the
+/// description splits; for a multisig whose description does not
+/// (`multi`, `multi_a`, another internal key, two keys of one seed), the
+/// line saying why; none after the lock or for any other wallet. A
+/// lookup.
+pub(super) fn partials(
+    app: &Faraday,
+    of: BoardOf,
+    splits: bool,
+    locked: bool,
+) -> Option<Option<&'static str>> {
+    if locked {
+        return None;
+    }
+    if splits {
+        return Some(None);
+    }
+    let w = match of {
+        BoardOf::Backup => app.session.wallets.get(app.backup.state()?.wallet)?,
+        BoardOf::Flow(i) => {
+            let sum = app.flows[i].wallet.as_ref()?.checksum.as_deref()?;
+            app.session.wallets.iter().find(|w| w.checksum() == sum)?
+        }
+    };
+    let multisig = matches!(
+        crate::wallet::Kind::of(w.policy()),
+        crate::wallet::Kind::Multi(_) | crate::wallet::Kind::TapMulti
+    );
+    multisig.then_some(Some(if crate::restore::repeats_a_seed(w.policy()) {
+        EN.board_partials_one_seed
+    } else {
+        EN.board_partials_not_offered
+    }))
+}

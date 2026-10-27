@@ -3545,6 +3545,12 @@ strings! {
     // ----- public_out (faraday-core/src/lib.rs) -----
     /// Toast in `public_out`. `{}`: `k`.
     public_out_files: "{} files",
+    /// Toast in `public_made` and a vault's save: the split sheets,
+    /// rebuilt as Restore rebuilds them, give other addresses than the
+    /// wallet's; none is written.
+    backup_sheets_rebuild_another: "These split sheets rebuild another wallet: none written",
+    /// Toast in `public_made`: the same for the multisig config.
+    backup_config_rebuilds_another: "This multisig config rebuilds another wallet: not written",
     // ----- backup_files_make (faraday-core/src/lib.rs) -----
     /// Toast in `backup_files_make`. `{}`: `k`.
     backup_files_make_files: "{} files",
@@ -8822,6 +8828,11 @@ strings! {
     board_partials_add: "Add partial descriptions to this backup",
     /// The same button while they are on: takes every share off.
     board_partials_remove: "Remove partial descriptions",
+    /// In the button's place, for a wallet of more than one key whose
+    /// split sheets would not rebuild it (`docs/WALLETS.md` §5).
+    board_partials_not_offered: "Partial descriptions: only for a sortedmulti or tr(NUMS, sortedmulti_a) wallet",
+    /// The same, for a multisig two of whose keys come from one seed.
+    board_partials_one_seed: "Partial descriptions: not for a wallet with two keys of one seed",
     /// The sheet after adding them: its title.
     board_partials_each: "Each place now holds a part of the description.",
     /// Its line where the whole description is still kept. `{}`: the

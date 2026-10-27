@@ -638,7 +638,21 @@ impl Faraday {
         }) else {
             return;
         };
-        for (j, text, of) in self.backup_vault_shares(&c, v) {
+        // The plan's split sheets go in only where they rebuild the wallet.
+        let mut shares = self.backup_vault_shares(&c, v);
+        if !shares.is_empty() {
+            let omit = self.backup.state().map_or(0, |b| b.answers.omit);
+            let rebuilds = self.session.wallets.get(w).is_some_and(|wl| {
+                let (m, n) = crate::wallet::Session::quorum(wl);
+                let plan = crate::wallet_backup::split_plan(n, m, omit);
+                crate::restore::sheets_rebuild(&c, self.session.network(), wl, &plan)
+            });
+            if !rebuilds {
+                self.toast(EN.backup_sheets_rebuild_another);
+                shares.clear();
+            }
+        }
+        for (j, text, of) in shares {
             if self.vault_holds_share(&c, cur, &cs, j, &text) {
                 continue;
             }

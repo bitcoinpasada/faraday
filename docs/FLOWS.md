@@ -936,6 +936,15 @@ wallet and Restore → step cards (pages on a small panel, "Step 2 of
 7. **Done**: a row per stick → **Unlock {vault}** → the key's page, or
    the checklist's done card, with nothing For the stick.
 
+A wallet's description goes in shares, and its Coldcard multisig
+config is offered, only for a `sortedmulti` (in `wsh`, `sh` or
+`sh(wsh)`) or a `tr(NUMS, sortedmulti_a)` wallet, the shapes the shares
+rebuild; any other wallet of several keys keeps the whole description
+(`docs/WALLETS.md` §5). Shares and the config are rebuilt as Restore
+rebuilds them and their first receive and change addresses compared
+with the wallet's before any is written, to a stick, the Outbox or a
+vault; on a difference none is written.
+
 **Change the plan** under every card: a new vault on an empty stick, or
 another copy of a planned vault, adds a stick to step 6; a stick
 holding an existing vault takes **Add {vault}** (lock, the stick read,

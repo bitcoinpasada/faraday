@@ -3,11 +3,14 @@
 //! seed's files a stick takes, the stick that carries the public files,
 //! and a plan changed after the keys were made.
 
+use crate::backup_flow::WalletFlow;
 use crate::backup_flow::wallet::sealed_marks;
 use crate::backup_flow::{BackupFlow, Step, Target, seed_stick_file_of, seed_stick_name};
 use crate::file_stem;
 use crate::plan;
+use crate::strings::EN as FEN;
 use faraday_crypto::work::Compute;
+use faraday_vault::records::kind as rkind;
 
 /// The stick at a place on the map `boxes` that the flow's stick for
 /// `target` is, as a list of none or one ([`crate::backup_flow::target_stick`],
@@ -265,4 +268,82 @@ impl BackupFlow {
             .find(|w| is_secret_file(*w))?;
         Some((t, what))
     }
+}
+
+/// Costs what `read_wallet`, `add_wallet` and `sheets_rebuild` cost. Share
+/// `j` of the wallet with checksum `cs` as a type 13 record
+/// (`docs/BACKUP-FLOW.md` §15.6), made from its description: the wallet
+/// loaded, or its description in an open vault or Files. `None` where no
+/// description is found; a refusal, the toast to show, where the plan's
+/// sheets do not rebuild the wallet.
+pub(crate) fn wallet_share_record(
+    app: &crate::Faraday,
+    c: &Compute,
+    wf: &WalletFlow,
+    cs: &str,
+    j: usize,
+) -> Option<Result<faraday_vault::Record, &'static str>> {
+    use faraday_vault::records::field;
+    type Made = Result<(String, usize, String), &'static str>;
+    let of_wallet = |t: &str| {
+        crate::wallet::read_wallet(c, t)
+            .ok()
+            .is_some_and(|p| p.checksum() == cs)
+    };
+    let text = |wl: &crate::wallet::Wallet| -> Option<Made> {
+        let (m, n) = crate::wallet::Session::quorum(wl);
+        let plan = crate::wallet_backup::split_plan(n, m, wf.answers.omit);
+        let share = crate::wallet_backup::split_share(wl, plan.get(j)?)?;
+        if !crate::restore::sheets_rebuild(c, app.session.network(), wl, &plan) {
+            return Some(Err(FEN.backup_sheets_rebuild_another));
+        }
+        Some(Ok((share, plan.len(), crate::Faraday::wallet_text(wl))))
+    };
+    let made = match app.session.wallets.iter().find(|wl| wl.checksum() == cs) {
+        Some(wl) => text(wl),
+        None => {
+            // A wallet record, or a plan record's wallet (its field 1), in
+            // any open vault; or the description file.
+            let desc = app
+                .vaults
+                .open
+                .iter()
+                .flat_map(|o| {
+                    app.vaults
+                        .records(o.id)
+                        .iter()
+                        .filter_map(|(_, r)| match r.kind() {
+                            rkind::WALLET => r.public_text(field::WALLET),
+                            rkind::PLAN => r.public_text(field::PLAN_WALLET),
+                            _ => None,
+                        })
+                        .map(str::to_string)
+                        .collect::<Vec<_>>()
+                })
+                .chain(
+                    app.inbox
+                        .iter()
+                        .chain(app.outbox.iter())
+                        .filter(|it| it.kind == crate::wallet::FileKind::Wallet)
+                        .filter_map(|it| String::from_utf8(it.bytes.clone()).ok()),
+                )
+                .find(|t| of_wallet(t))?;
+            let mut s = crate::wallet::Session::on(app.session.network());
+            let k = s
+                .add_wallet(c, &wf.name, desc.trim(), "", crate::wallet::Origin::Named)
+                .ok()?;
+            text(&s.wallets[k])
+        }
+    };
+    Some(made?.map(|(share, of, desc)| {
+        faraday_vault::Record::new(rkind::WALLET_SHARE)
+            .with(field::SHARE, share.as_bytes())
+            .with(field::SHARE_WALLET, desc.as_bytes())
+            .with(field::SHARE_WALLET_NAME, wf.name.as_bytes())
+            .with(
+                field::SHARE_NUMBER,
+                &[u8::try_from(j + 1).unwrap_or(u8::MAX)],
+            )
+            .with(field::SHARE_OF, &[u8::try_from(of).unwrap_or(u8::MAX)])
+    }))
 }
