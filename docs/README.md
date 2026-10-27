@@ -34,6 +34,7 @@ need. Each document's header says what kind it is:
 | Did a signing device do only what it was asked? | `docs/SIGNER-CHECK.md` |
 | How does text get larger for people who need it? | `docs/TEXT-SIZE.md` |
 | How is a screen laid out at each window size, from the Pi to a monitor? | `docs/LAYOUT.md` |
+| Which way up is a 7-inch or 10-inch panel, and how are its screen and touch turned? | `docs/ORIENTATION.md` |
 | How does Faraday Demo show its screens at another screen's size? | `docs/PREVIEW-SIZE.md` |
 | What stands outside the app on Faraday Demo: the sticks, the size, Practice's aids? | `docs/DESKTOP-HOST.md` |
 | How are the themes' colours made, and which colour role does each component take? | `docs/THEMES.md`; `docs/DESIGN.md` §3 |
@@ -94,6 +95,7 @@ need. Each document's header says what kind it is:
 - `docs/MOTION.md`: Scrolling, motion and appearance. Built; not yet checked by the owner on hardware.
 - `docs/CROSSCHECK.md`: Two implementations of every cryptographic step. Option A decided (F79) and built, its four batches (§10.5); options B and C deferred.
 - `docs/NOSTR.md`: The Nostr key. Not built, not scheduled (F27, amended by F34).
+- `docs/ORIENTATION.md`: Panel orientation. Specified (F100), not built.
 - `docs/OWN-RANDOMNESS.md`: Your own randomness, and the kernel's at boot. Specified (F86), not built.
 - `docs/QR.md`: QR transfer and scanning. Built, except §7.
 - `docs/SEED-CONVERSION.md`: Convert a seed. Specified (F88), not built.
