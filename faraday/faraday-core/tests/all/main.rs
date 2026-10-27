@@ -19,6 +19,7 @@ mod backup_stick;
 mod backups;
 mod bip85;
 mod blank_sheet;
+mod blinding;
 mod boot;
 mod boot_import;
 mod bsms;

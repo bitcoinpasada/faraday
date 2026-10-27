@@ -38,7 +38,12 @@ Moved to `docs/history/KEYS-LOG.md`.
   - the slot key that seals them again.
 - **Operations** on key material are functions of `faraday-keys`. They
   return public results: signatures, xpubs, addresses, fingerprints,
-  signed files and codes.
+  signed files and codes. Each master key's curve operations run in a
+  context of its own, randomized once from the key when it is made and
+  again from the session's randomness: as the key joins the store, or
+  when the session's seed arrives if it joined before, and for every
+  key whenever randomness the person adds changes the seed
+  (`Keys::reblind`). Blinding changes no result.
 - **No key joins while a stick is attached.** Every way of adding a key
   refuses, before anything is derived, while faraday-core says a stick
   is attached (`Keys::set_stick_attached`, set where the sticks the

@@ -489,12 +489,15 @@ pub struct MasterKey {
     network: Network,
     /// The context every signature and derivation of this key runs in,
     /// blinded when the key was made and again whenever the session
-    /// hands down fresh entropy ([`reblind`](Self::reblind)). One per
+    /// hands down fresh randomness ([`reblind`](Self::reblind)). One per
     /// key, so that a context is only ever blinded for the key it
     /// operates on.
     secp: Secp256k1<All>,
     /// The master fingerprint, worked out once when the key was made.
     fingerprint: Fingerprint,
+    /// How many times `secp` was randomized: once when the key was made,
+    /// and once more at each [`reblind`](Self::reblind). Public: a count.
+    blindings: u32,
 }
 
 impl MasterKey {
@@ -514,6 +517,7 @@ impl MasterKey {
             network,
             secp,
             fingerprint,
+            blindings: 1,
         };
         erase(xpriv);
         held
@@ -528,21 +532,33 @@ impl MasterKey {
         &self.secp
     }
 
-    /// Randomizes the signing context from `blind`.
+    /// Costs an elliptic-curve multiplication: randomizes the signing
+    /// context from `blind`.
     ///
-    /// The session derives `blind` from the session key, so it is
-    /// unpredictable and new after every entropy rotation. Blinding
-    /// changes no result: the same key and message give the same
-    /// signature whatever the context was randomized with.
-    pub fn reblind(&mut self, blind: &[u8; 32]) {
+    /// The session's key store derives `blind` from the session's
+    /// randomness, a new one as the key joins it and whenever that
+    /// randomness changes (`docs/KEYS.md` §2), so it is unpredictable.
+    /// Blinding changes no result: the same key and message give the
+    /// same signature whatever the context was randomized with.
+    pub fn reblind(&mut self, c: &Compute, blind: &[u8; 32]) {
+        c.count(Work::Blind);
         self.secp.seeded_randomize(blind);
+        self.blindings = self.blindings.saturating_add(1);
     }
 
-    /// The same key with its context randomized from `blind`, for
-    /// callers that build and hand on a key in one expression.
+    /// How many times this key's signing context has been randomized: one
+    /// when it was made, and one more for each [`reblind`](Self::reblind).
+    /// A count, not the blind.
+    pub fn blindings(&self) -> u32 {
+        self.blindings
+    }
+
+    /// Costs what [`reblind`](Self::reblind) costs. The same key with its
+    /// context randomized from `blind`, for callers that build and hand on
+    /// a key in one expression.
     #[must_use]
-    pub fn blinded(mut self, blind: &[u8; 32]) -> Self {
-        self.reblind(blind);
+    pub fn blinded(mut self, c: &Compute, blind: &[u8; 32]) -> Self {
+        self.reblind(c, blind);
         self
     }
 
@@ -665,6 +681,7 @@ impl MasterKey {
             network,
             secp: self.secp.clone(),
             fingerprint: self.fingerprint,
+            blindings: self.blindings,
         };
         // `Xpriv` is `Copy`: this frame's copy goes no further.
         erase(&mut xpriv);

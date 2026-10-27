@@ -270,8 +270,10 @@ fn blinding_a_key_changes_nothing_it_produces() {
     let c = Compute::unchecked();
     let seed = unhex(VECTORS[0].seed);
     let bytes: [u8; 64] = std::array::from_fn(|i| seed[i % seed.len()]);
-    let a = MasterKey::from_seed(&c, &Secret::new(bytes), Network::Mainnet).blinded(&[0x11; 32]);
-    let b = MasterKey::from_seed(&c, &Secret::new(bytes), Network::Mainnet).blinded(&[0xee; 32]);
+    let a =
+        MasterKey::from_seed(&c, &Secret::new(bytes), Network::Mainnet).blinded(&c, &[0x11; 32]);
+    let b =
+        MasterKey::from_seed(&c, &Secret::new(bytes), Network::Mainnet).blinded(&c, &[0xee; 32]);
 
     assert_eq!(a.fingerprint(), b.fingerprint());
     assert_eq!(a.xpub(&c).to_string(), b.xpub(&c).to_string());
@@ -288,7 +290,7 @@ fn blinding_a_key_changes_nothing_it_produces() {
 
     // And again after the session hands down a new blind mid-life.
     let mut k = MasterKey::from_seed(&c, &Secret::new(bytes), Network::Mainnet);
-    k.reblind(&[0x5a; 32]);
+    k.reblind(&c, &[0x5a; 32]);
     assert_eq!(k.fingerprint(), a.fingerprint());
     let dc = k.derive(&c, &path);
     assert_eq!(

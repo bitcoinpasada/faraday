@@ -73,10 +73,13 @@ pub enum Work {
     /// A codex32 checksum, worksheet column or interpolation of strings
     /// (`faraday-bip`'s `codex32`).
     Codex32,
+    /// A key's signing context randomized from the session's randomness
+    /// (`docs/KEYS.md` §2): an elliptic-curve multiplication.
+    Blind,
 }
 
 /// Every kind, in the order the counts keep them.
-pub const KINDS: [Work; 19] = [
+pub const KINDS: [Work; 20] = [
     Work::MasterKey,
     Work::KeyDerive,
     Work::Address,
@@ -96,6 +99,7 @@ pub const KINDS: [Work; 19] = [
     Work::Blur,
     Work::FullCanvas,
     Work::Codex32,
+    Work::Blind,
 ];
 
 /// The kinds that are drawing's own pixel work: a frame does them (a
@@ -123,6 +127,7 @@ fn of_core(w: faraday_crypto::work::Work) -> Work {
         C::Blur => Work::Blur,
         C::FullCanvas => Work::FullCanvas,
         C::Codex32 => Work::Codex32,
+        C::Blind => Work::Blind,
     }
 }
 

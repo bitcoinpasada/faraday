@@ -7,7 +7,8 @@
 //! [`Faraday::sign_seed`]: the session's seed with a count of the passes,
 //! so that no two passes of a
 //! process draw the same nonce. A vault's seal nonce and a new keyboard's
-//! code are drawn from the seed too (`vault/mod.rs`, `inputs.rs`). The seed
+//! code are drawn from the seed too (`vault/mod.rs`, `inputs.rs`), and so
+//! is what the session's keys are blinded from (`keys_reblind`). The seed
 //! is a [`Seed`] held as an `Option`: until the shell's first answer there
 //! is none, and nothing drawn from it is made.
 //!
@@ -341,6 +342,19 @@ impl Faraday {
         if self.fresh.arrived(bytes) {
             // A keyboard that arrived first gets its code now.
             self.inputs_coded();
+            self.keys_reblind();
+        }
+    }
+
+    /// Costs an elliptic-curve multiplication per key held. The session's
+    /// keys blinded again from its seed (`docs/KEYS.md` §2), when the seed
+    /// arrives and whenever the person's randomness changes it; a key added
+    /// later is blinded from it as it is added.
+    fn keys_reblind(&mut self) {
+        if let Some(blind) = self.fresh.draw(b"faraday key blinding", b"") {
+            let blind = Zeroizing::new(blind);
+            let c = self.compute();
+            self.session.keys.reblind(&c, &blind);
         }
     }
 
@@ -386,6 +400,9 @@ impl Faraday {
     pub fn own_add(&mut self, source: OwnSource, commitment: &[u8; 32], n: u32) -> bool {
         let taken = self.fresh.own_add(source, commitment, n);
         self.keygen.own_changed(self.fresh.own_acc().is_some());
+        if taken {
+            self.keys_reblind();
+        }
         taken
     }
 

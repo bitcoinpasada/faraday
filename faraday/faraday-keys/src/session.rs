@@ -336,6 +336,11 @@ pub struct Keys {
     /// step with the sticks the shell reports by the one place they
     /// change ([`Keys::set_stick_attached`]).
     stick: Option<&'static str>,
+    /// What every key's signing context is blinded from: the session's
+    /// randomness as the app last handed it down ([`Keys::reblind`]), and
+    /// how many blinds have been drawn from it, so that no two are the
+    /// same. `None` until the app has randomness. Wiped when dropped.
+    blind: Option<(Zeroizing<[u8; 32]>, u64)>,
 }
 
 impl Default for Keys {
@@ -353,7 +358,47 @@ impl Keys {
             demo: None,
             network_fixed: false,
             stick: None,
+            blind: None,
         }
+    }
+
+    /// Costs an elliptic-curve multiplication per key held (a context
+    /// randomized). The session's randomness changed (it arrived, or the
+    /// person added their own): every key's signing context is randomized
+    /// again from `seed`, and each key added after is randomized from it
+    /// when it is added (`docs/KEYS.md` §2). Blinding changes no result.
+    pub fn reblind(&mut self, c: &Compute, seed: &[u8; 32]) {
+        self.blind = Some((Zeroizing::new(*seed), 0));
+        for k in 0..self.entries.len() {
+            self.blind_key(c, k);
+        }
+    }
+
+    /// Costs an elliptic-curve multiplication once the app has handed
+    /// randomness down. Key `k`'s context randomized from the next blind
+    /// drawn from the session's randomness: SHA-256("faraday key blind" ‖
+    /// seed ‖ count).
+    fn blind_key(&mut self, c: &Compute, k: usize) {
+        use faraday_bip::bitcoin::hashes::{Hash, HashEngine, sha256};
+        let Some((seed, count)) = self.blind.as_mut() else {
+            return;
+        };
+        *count += 1;
+        let mut e = sha256::Hash::engine();
+        e.input(b"faraday key blind");
+        e.input(&seed[..]);
+        e.input(&count.to_le_bytes());
+        let blind = Zeroizing::new(sha256::Hash::from_engine(e).to_byte_array());
+        if let Some(entry) = self.entries.get_mut(k) {
+            entry.key.master.reblind(c, &blind);
+        }
+    }
+
+    /// Costs what `blind_key` costs. A key joins the store, blinded from
+    /// the session's randomness.
+    fn push(&mut self, c: &Compute, entry: Entry) {
+        self.entries.push(entry);
+        self.blind_key(c, self.entries.len() - 1);
     }
 
     /// A stick is attached, called `noun`, or none is (`None`): while one
@@ -563,7 +608,7 @@ impl Keys {
         ))
     }
 
-    /// Costs what `to_seed`, `from_seed` and `info_of` cost. Adds the key a
+    /// Costs what `to_seed`, `from_seed`, `info_of` and `push` cost. Adds the key a
     /// mnemonic and a BIP-39 passphrase give, keeping its words in its own
     /// list.
     pub fn add_mnemonic(
@@ -606,20 +651,23 @@ impl Keys {
             words.push_str(lang.word(i));
         }
         let word_count = u8::try_from(mnemonic.word_count()).ok();
-        self.entries.push(Entry::new(
+        self.push(
             c,
-            master,
-            label,
-            Some(words),
-            lang,
-            word_count,
-            (!passphrase.is_empty()).then(|| Zeroizing::new(passphrase.to_string())),
-            None,
-        ));
+            Entry::new(
+                c,
+                master,
+                label,
+                Some(words),
+                lang,
+                word_count,
+                (!passphrase.is_empty()).then(|| Zeroizing::new(passphrase.to_string())),
+                None,
+            ),
+        );
         Ok(fp)
     }
 
-    /// Costs what `from_seed_bytes` and `info_of` cost. Adds the key a
+    /// Costs what `from_seed_bytes`, `info_of` and `push` cost. Adds the key a
     /// master seed gives, as a SLIP-39 or codex32 key does: there
     /// are no words to copy by hand. The seed bytes are kept with the key,
     /// wiped when it is dropped, so a paper form of it
@@ -645,16 +693,19 @@ impl Keys {
         } else {
             label.trim().to_string()
         };
-        self.entries.push(Entry::new(
+        self.push(
             c,
-            master,
-            label,
-            None,
-            Language::English,
-            None,
-            None,
-            Some(Zeroizing::new(seed.to_vec())),
-        ));
+            Entry::new(
+                c,
+                master,
+                label,
+                None,
+                Language::English,
+                None,
+                None,
+                Some(Zeroizing::new(seed.to_vec())),
+            ),
+        );
         Ok(fp)
     }
 

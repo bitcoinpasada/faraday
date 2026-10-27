@@ -56,6 +56,9 @@ pub enum Work {
     /// A codex32 piece of work: a checksum, a worksheet column or an
     /// interpolation of strings (`faraday-bip`'s `codex32`).
     Codex32,
+    /// A key's signing context randomized from a blind: an
+    /// elliptic-curve multiplication.
+    Blind,
 }
 
 /// The token a costly function takes: proof that its caller may do
