@@ -26,3 +26,36 @@ fn a_raw_transaction_is_wrapped_and_keeps_its_id() {
     assert_eq!(tx.output[0].value.to_sat(), 5_000_000_000);
     assert_eq!(wrap_raw(b"not a transaction"), None);
 }
+
+/// A PSBT input's previous transaction stands for the output it spends
+/// only when it is that transaction: one with another id is not taken,
+/// the output stays unknown, and the transaction it spends is asked for.
+#[test]
+fn a_previous_transaction_with_another_id_does_not_state_the_spent_output() {
+    use bitcoin::{OutPoint, ScriptBuf, TxIn, TxOut, consensus};
+    use faraday_psbt::transaction::Spending;
+
+    let paid = ScriptBuf::from_bytes(vec![0x51]);
+    let spent = crate::common::builder::funding_tx(paid.clone(), 1_000);
+    let other = crate::common::builder::funding_tx(ScriptBuf::from_bytes(vec![0x52]), 2_000);
+    let tx = bitcoin::Transaction {
+        version: bitcoin::transaction::Version::TWO,
+        lock_time: bitcoin::absolute::LockTime::ZERO,
+        input: vec![TxIn {
+            previous_output: OutPoint::new(spent.compute_txid(), 0),
+            ..Default::default()
+        }],
+        output: vec![TxOut {
+            value: bitcoin::Amount::from_sat(900),
+            script_pubkey: ScriptBuf::new_op_return(b"x"),
+        }],
+    };
+    let mut psbt = bitcoin::Psbt::from_unsigned_tx(tx).unwrap();
+    psbt.inputs[0].non_witness_utxo = Some(other);
+    let mut spending = Spending::read(&psbt.serialize()).expect("a PSBT");
+    assert_eq!(spending.prevouts(), None);
+    assert_eq!(spending.waiting_for(), Some(spent.compute_txid()));
+
+    assert!(spending.add_previous(&consensus::serialize(&spent)));
+    assert_eq!(spending.prevouts(), Some(vec![&paid]));
+}

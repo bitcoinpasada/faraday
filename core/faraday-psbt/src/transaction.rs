@@ -142,13 +142,23 @@ impl Spending {
     }
 }
 
-/// The output a PSBT input spends, where the PSBT states it.
+/// The output a PSBT input spends, where the PSBT states it, checked as
+/// the signer checks it: a `non_witness_utxo` is the transaction the
+/// input spends only when its id is that transaction's, and a
+/// `witness_utxo` beside it must be the same output. Where they do not
+/// hold, the output is not known.
 fn prevout_of(psbt: &Psbt, i: usize) -> Option<ScriptBuf> {
     let input = psbt.inputs.get(i)?;
-    if let Some(utxo) = &input.witness_utxo {
-        return Some(utxo.script_pubkey.clone());
+    let previous = psbt.unsigned_tx.input.get(i)?.previous_output;
+    let Some(tx) = &input.non_witness_utxo else {
+        return Some(input.witness_utxo.as_ref()?.script_pubkey.clone());
+    };
+    if tx.compute_txid() != previous.txid {
+        return None;
     }
-    let tx = input.non_witness_utxo.as_ref()?;
-    let vout = psbt.unsigned_tx.input.get(i)?.previous_output.vout;
-    Some(tx.output.get(vout as usize)?.script_pubkey.clone())
+    let out = tx.output.get(previous.vout as usize)?;
+    if input.witness_utxo.as_ref().is_some_and(|w| w != out) {
+        return None;
+    }
+    Some(out.script_pubkey.clone())
 }
