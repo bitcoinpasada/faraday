@@ -2151,3 +2151,31 @@ fn a_whole_wipe_that_fails_or_is_cut_off_before_its_first_answer_reopens_the_cop
         );
     }
 }
+
+/// A lock without sealing, past a vault of the plan that cannot be
+/// sealed, leaves that vault with no sealed copy: the flow does not go on
+/// to its writes but back to the round that makes one.
+#[test]
+fn a_flow_whose_vault_was_not_sealed_at_the_lock_goes_back_to_its_vaults() {
+    use faraday_vault::records::{Record, field, kind};
+    let mut shell = Shell::new();
+    let mut app = to_make(&mut shell, Kind::Gpg);
+    make_key(&mut shell, &mut app, &GPG_FIELDS);
+    shell.flow(&mut app, F::MadeContinue);
+    assert_eq!(step(&app), Step::Lock);
+    // The plan's vault filled past its slot: it cannot be sealed.
+    let id = app.vaults().open[0].id;
+    let slot = app.vaults().open[0].header().slot_len as usize;
+    let filler = Record::new(kind::ENTRY)
+        .with(field::TITLE, b"filler")
+        .with(field::NOTES, "x".repeat(slot).as_bytes());
+    faraday_core::testkit::vault_edit(&mut app, id, |s| s.insert(id, filler));
+    faraday_core::testkit::vault_changed(&mut app, id);
+    app.press(Action::Lock);
+    assert_eq!(app.sheet, Some(faraday_core::Sheet::LockAsk));
+    app.press(Action::LockUnsealed);
+    shell.pump(&mut app);
+    assert!(app.restart_requested(), "locked");
+    let app = shell.restart();
+    assert_eq!(step(&app), Step::Vaults, "on to the writes unsealed");
+}

@@ -472,3 +472,36 @@ impl BackupFlow {
         }
     }
 }
+
+/// Whether `n`, a file on a stick, is one of `files` the flow writes
+/// there, or a numbered copy of one: its stem, `-` and more, then the same
+/// extension. A lookup per file.
+pub(super) fn own_name(files: &[String], n: &str) -> bool {
+    let numbered = |stem: &str, of: &str| of.strip_prefix(stem).is_some_and(|t| t.starts_with('-'));
+    files.iter().any(|x| {
+        x == n
+            || match (x.rsplit_once('.'), n.rsplit_once('.')) {
+                (Some((xs, xe)), Some((ns, ne))) => xe == ne && numbered(xs, ns),
+                (None, None) => numbered(x, n),
+                _ => false,
+            }
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::own_name;
+
+    /// A stick must read as it did, but for the flow's own files: a file
+    /// named with one of their stems but of another type is somebody
+    /// else's, and the stick reads as changed.
+    #[test]
+    fn a_file_under_an_own_stem_of_another_type_is_not_the_flows_own() {
+        let files = vec!["release-descriptor.txt".to_string()];
+        assert!(own_name(&files, "release-descriptor.txt"));
+        assert!(own_name(&files, "release-descriptor-2.txt"));
+        assert!(!own_name(&files, "release-descriptor-2.pdf"));
+        assert!(!own_name(&files, "release-descriptor-notes.exe"));
+        assert!(!own_name(&files, "release-descriptor.txt.exe"));
+    }
+}

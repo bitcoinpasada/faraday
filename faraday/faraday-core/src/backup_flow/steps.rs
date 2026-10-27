@@ -2081,13 +2081,7 @@ impl Faraday {
                 }
             });
         let part = |n: &str| n.starts_with('.') && n.ends_with(".part");
-        let own_name = |n: &str| {
-            slot.files.iter().any(|x| {
-                x == n
-                    || n.strip_prefix(x.rsplit_once('.').map_or(x.as_str(), |(s, _)| s))
-                        .is_some_and(|t| t.starts_with('-'))
-            })
-        };
+        let own_name = |n: &str| super::area::own_name(&slot.files, n);
         let skip = |n: &str| over.contains(&n) || part(n);
         let own_files: Vec<&str> = r
             .files
