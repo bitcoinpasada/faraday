@@ -30,8 +30,9 @@ pub fn network_name(n: Network) -> &'static str {
 pub enum Refusal {
     /// The words are not a valid BIP-39 mnemonic.
     Words(String),
-    /// The key is already in the session.
-    Duplicate(String),
+    /// The key is already in the session: its fingerprint, which is
+    /// public.
+    Duplicate(faraday_bip::keys::Fingerprint),
     /// A key for a slot was asked for and this is another key.
     WrongKey {
         /// The fingerprint that was expected.
@@ -68,7 +69,10 @@ impl Refusal {
     pub fn text(&self) -> String {
         match self {
             Refusal::Words(e) => fill(EN.wallet_not_a_valid, &[&e.to_string()]),
-            Refusal::Duplicate(fp) => fill(EN.wallet_is_already_loaded, &[&fp.to_string()]),
+            Refusal::Duplicate(fp) => fill(
+                EN.wallet_is_already_loaded,
+                &[&String::from_utf8_lossy(&fp.to_hex())],
+            ),
             Refusal::WrongKey { wanted, got } => fill(
                 EN.wallet_these_words_give,
                 &[&got.to_string(), &wanted.to_string()],

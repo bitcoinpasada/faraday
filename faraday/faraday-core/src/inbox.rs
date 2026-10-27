@@ -987,7 +987,7 @@ impl Faraday {
     /// the wallets load either way. Returns (wallets, seeds) loaded.
     pub(crate) fn inbox_load(&mut self) -> (usize, usize) {
         let inbox = std::mem::take(&mut self.inbox);
-        let skip = self.inbox.skip().clone();
+        let skip = inbox.skip().clone();
         let loaded = self.load_found_in(&inbox, &skip, &|_| false);
         self.inbox = inbox;
         self.refresh_spend();
@@ -1071,7 +1071,9 @@ impl Faraday {
         let loaded: Vec<Fingerprint> = self.session.keys.all().map(|k| k.fingerprint).collect();
         let mut n = 0;
         for w in found.to_load() {
-            if !w.keys.iter().any(|k| loaded.contains(k)) {
+            if !w.keys.iter().any(|k| loaded.contains(k))
+                || self.inbox.skip().contains(&w.descriptor)
+            {
                 continue;
             }
             let (name, text, source) = match w.files.first() {
@@ -1371,12 +1373,9 @@ impl Faraday {
         let fp = match added {
             Ok(fp) => fp,
             // Loaded already with this passphrase: the wallet is what is
-            // left to make.
-            Err(Refusal::Duplicate(_)) => self
-                .inbox
-                .potential()
-                .and_then(|p| p.with)
-                .unwrap_or(seed.fingerprint),
+            // left to make, for the key the refusal names, the one the
+            // passphrase made.
+            Err(Refusal::Duplicate(fp)) => fp,
             Err(e) => {
                 if let Some(p) = self.inbox.potential_mut() {
                     p.error = Some(e.text());

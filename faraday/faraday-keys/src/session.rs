@@ -569,7 +569,7 @@ impl Keys {
         }
         self.allowed(fp)?;
         if self.position(fp).is_some() {
-            return Err(Refusal::Duplicate(fp_text(fp)));
+            return Err(Refusal::Duplicate(fp));
         }
         let label = if label.trim().is_empty() {
             fp_text(fp)
@@ -615,7 +615,7 @@ impl Keys {
         let fp = master.fingerprint();
         self.allowed(fp)?;
         if self.position(fp).is_some() {
-            return Err(Refusal::Duplicate(fp_text(fp)));
+            return Err(Refusal::Duplicate(fp));
         }
         let label = if label.trim().is_empty() {
             fp_text(fp)
