@@ -857,7 +857,7 @@ fn main() -> ExitCode {
     };
     // A sheet with the recovery key an earlier run could not remove (a
     // crash, a power cut) goes now (F49).
-    faraday_starter_shell::pdf::sweep_key_sheets(&std::env::temp_dir());
+    faraday_starter_shell::pdf::sweep_key_sheets(&faraday_starter_shell::pdf::key_base());
     let computer = system.computer();
     let payload = Payload::built_in();
     let mut starter = Starter::new();

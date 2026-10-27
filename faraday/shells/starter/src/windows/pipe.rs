@@ -133,6 +133,7 @@ pub(crate) fn reason_fields(r: &Reason) -> (&'static str, Vec<String>) {
         Reason::NotEncrypted => ("NotEncrypted", vec![]),
         Reason::NotRead => ("NotRead", vec![]),
         Reason::NoRecoveryKey => ("NoRecoveryKey", vec![]),
+        Reason::KeyFolder => ("KeyFolder", vec![]),
     }
 }
 
@@ -312,6 +313,7 @@ pub(crate) fn reason(name: &str, f: &mut Fields<'_>) -> Result<Reason, String> {
         "NotEncrypted" => Reason::NotEncrypted,
         "NotRead" => Reason::NotRead,
         "NoRecoveryKey" => Reason::NoRecoveryKey,
+        "KeyFolder" => Reason::KeyFolder,
         other => return Err(format!("{other}: not a reason")),
     })
 }

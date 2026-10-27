@@ -585,6 +585,8 @@ pub enum Reason {
     NotRead,
     /// The system drive has no recovery key (no numerical password).
     NoRecoveryKey,
+    /// No folder of this user's alone could be made for a key sheet.
+    KeyFolder,
     /// Not on this computer.
     Unsupported,
 }

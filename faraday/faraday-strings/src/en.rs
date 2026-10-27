@@ -676,6 +676,9 @@ strings! {
     /// Reason: the system drive has no recovery key (no numerical
     /// password protector).
     starter_why_no_recovery_key: "The drive has no BitLocker recovery key.",
+    /// Reason: no folder that only this user can open could be made for
+    /// the sheet with the recovery key. Nothing was written.
+    starter_why_key_folder: "No folder that only you can open could be made for the sheet. Nothing was written.",
     /// Reason.
     starter_why_unsupported: "Not on this computer",
     /// The app menu entry's name, in the desktop entry file install writes.

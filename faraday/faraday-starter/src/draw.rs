@@ -690,6 +690,7 @@ pub(crate) fn reason_text(r: &Reason) -> String {
         Reason::NotEncrypted => S.starter_why_not_encrypted.to_string(),
         Reason::NotRead => S.starter_why_not_read.to_string(),
         Reason::NoRecoveryKey => S.starter_why_no_recovery_key.to_string(),
+        Reason::KeyFolder => S.starter_why_key_folder.to_string(),
     }
 }
 
