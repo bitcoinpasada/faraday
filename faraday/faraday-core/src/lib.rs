@@ -2175,7 +2175,7 @@ impl Faraday {
             Action::Vault(vault::VaultAction::ListFrom(_)) => EN.pull_what_unlock,
             Action::Flow(F::UnlockVault(_) | F::UnlockDone(_)) => EN.pull_what_unlock,
             Action::Flow(F::CreateVault(_)) => EN.pull_what_create_vault,
-            Action::Flow(F::Make | F::CopyKey) => EN.pull_what_make_a_key,
+            Action::Flow(F::Make | F::CopyKey | F::TypeString) => EN.pull_what_make_a_key,
             Action::Catalog(i) => match catalog::TILES.get(usize::from(i))?.go {
                 Go::VaultCategory(c)
                     if self.vaults.open.is_empty()
@@ -5019,7 +5019,7 @@ impl Faraday {
     /// there, else Wallets.
     pub(crate) fn entry_leave(&self) -> Screen {
         match self.entry.state().back {
-            Some(s @ (Screen::Family | Screen::Spend)) => s,
+            Some(s @ (Screen::Family | Screen::Spend | Screen::BackupFlow)) => s,
             Some(Screen::Restore) if self.restore.state().is_some_and(|r| r.seeds.is_some()) => {
                 Screen::Restore
             }

@@ -210,6 +210,17 @@ pub(crate) fn make_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32,
                 );
                 cy += 52.0;
             }
+            // A codex32 string the copy stopped on, not held since the
+            // power-on: typed here from its copy (`docs/CODEX32.md` §9.5).
+            if let Some(want) = f.live.c32_wanted.as_ref() {
+                use faraday_draw::tokens::{BUTTON_H, GAP, GAP_SMALL, LABEL_L};
+                let line = fill(FEN.c32_round_not_here, &[&want.share(), &want.id_text()]);
+                cy += ui.wrap_as((x, cy, w), LABEL_L, Role::Warning, &line) + GAP;
+                let label = fill(FEN.c32_round_type, &[&want.share()]);
+                let style = Style::Secondary;
+                ui.button(x, cy, None, BUTTON_H, &label, style, fa(F::TypeString));
+                cy += BUTTON_H + GAP + GAP_SMALL;
+            }
             ui.button(
                 x,
                 cy,

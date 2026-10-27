@@ -23,6 +23,10 @@ pub struct EntryState {
     pub typed: secret_text::SecretText,
     /// The slot fingerprint the key is meant for.
     pub wanted: Option<[u8; 4]>,
+    /// The codex32 string the round after a lock takes, typed here in
+    /// place of a key (`docs/CODEX32.md` §9.5): the codex32 form checks
+    /// each string against it and keeps the one that is it.
+    pub c32_round: Option<crate::plan::codex32::Wanted>,
     /// The loaded wallet any of whose missing keys the words may give.
     pub wallet: Option<usize>,
     /// The label for the key.
@@ -852,6 +856,9 @@ impl Faraday {
     /// The strings or shares in make the key: Add a key adds it, New key
     /// opens its Key card.
     fn form_complete(&mut self) {
+        if self.entry.state().c32_round.is_some() {
+            return self.c32_round_take();
+        }
         // Make the rest or Add a share: the strings go on into the make
         // flow, not into a key (`docs/CODEX32.md` §8.1, §8.2).
         if let Some(kind) = self.form_makes_more() {
@@ -923,6 +930,9 @@ impl Faraday {
         let e = self.entry.state();
         if e.form != Form::Codex32 {
             return;
+        }
+        if e.c32_round.is_some() {
+            return self.c32_round_take();
         }
         let n = self.vaults.store().codex32_count(&e.parts.codex32);
         let checked = e

@@ -9763,6 +9763,21 @@ strings! {
     c32_vault_saved: "Share {} of {} saved",
     /// A string the plan keeps in a vault or a file that this session does not hold. `{}`: the index, the identifier.
     c32_vault_missing: "Share {} of {} is not here: type it in its Codex32 strings item first",
+    // ----- A codex32 string typed in the round after a lock (docs/CODEX32.md §9.5), faraday-core -----
+    /// Make card of the round: a string a vault takes that is not here. `{}`: the index, the identifier.
+    c32_round_not_here: "Share {} of {} is not here",
+    /// Button under it: type that string on Add a key's codex32 form. `{}`: the index.
+    c32_round_type: "Type share {} from its copy",
+    /// Add a key's heading while it takes that string. `{}`: the index, the identifier.
+    c32_round_heading: "Type share {} of {}",
+    /// A string typed of another set. `{}`: what it is (`codex32_form_checked_share`), the identifier wanted.
+    c32_round_other_set: "{} is not of set {}",
+    /// A string typed of the set at another index. `{}`: what it is, the index and identifier wanted.
+    c32_round_other_share: "{} is not share {} of {}",
+    /// A string typed of the set's header whose seed is another. `{}`: the index, the identifier, the key's fingerprint.
+    c32_round_other_seed: "Share {} of {} is of another seed than {}",
+    /// The key the string is of is not loaded. `{}`: its fingerprint.
+    c32_round_no_key: "Key {} is not here: add it from its copy first",
     /// A vault's share record, its row. `{}`: the index, the key's fingerprint.
     c32_vault_row: "Share {} of {}",
     /// The share record's line. `{}`: the identifier, the threshold.

@@ -834,6 +834,11 @@ pub struct Live {
     /// The board of the plan card: the chip held and how
     /// (`docs/BACKUP-FLOW.md` §17.12 item 1).
     pub board: crate::board::BoardState,
+    /// The codex32 string the round's last **Copy the key** stopped on,
+    /// not held since the power-on (`docs/CODEX32.md` §9.5): offered to
+    /// be typed in place. Set by that press alone and cleared at the next,
+    /// and once the string is typed.
+    pub c32_wanted: Option<crate::plan::codex32::Wanted>,
 }
 
 /// One flow (§7).

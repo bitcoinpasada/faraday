@@ -27,13 +27,13 @@ use faraday_shell_api::{App, EntropyBytes, Event};
 use faraday_ui::keyboard::OskPress;
 use faraday_vault::records::{field, kind};
 
-const BIP93: &str = include_str!("../../../../tools/vectors/bip93/vectors.json");
+pub(crate) const BIP93: &str = include_str!("../../../../tools/vectors/bip93/vectors.json");
 /// Vector 2's secret, the seed the set splits.
-const SECRET: &str = "MS12NAMES6XQGUZTTXKEQNJSJZV4JV3NZ5K3KWGSPHUH6EVW";
+pub(crate) const SECRET: &str = "MS12NAMES6XQGUZTTXKEQNJSJZV4JV3NZ5K3KWGSPHUH6EVW";
 
 /// The codex32 strings `bytes`, a vault file, holds once opened with
 /// `phrase`.
-fn sealed_strings(bytes: &[u8], phrase: &str) -> Vec<Vec<u8>> {
+pub(crate) fn sealed_strings(bytes: &[u8], phrase: &str) -> Vec<Vec<u8>> {
     let c = testkit::compute();
     let (_, contents) = faraday_vault::open(&c, bytes, phrase.as_bytes()).unwrap();
     contents
@@ -47,7 +47,7 @@ fn sealed_strings(bytes: &[u8], phrase: &str) -> Vec<Vec<u8>> {
 /// opens (the seed and the description in that vault, a string on paper
 /// at each place): the checklist done with `in_vault`'s
 /// strings in the vault, locked, and stopped on the writes.
-fn locked_with(shell: &mut Shell, in_vault: &[char]) -> Faraday {
+pub(crate) fn locked_with(shell: &mut Shell, in_vault: &[char]) -> Faraday {
     sticks(shell, 1);
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
     keep_time(&mut app);

@@ -73,6 +73,8 @@ pub enum FlowAction {
     MadeContinue,
     /// Save the key into the vault added after it was made.
     CopyKey,
+    /// Type the codex32 string Copy the key stopped on, from its copy.
+    TypeString,
     /// Lock, then write.
     LockWrite,
     /// Unlock a vault of the plan once the sticks are written.
@@ -430,11 +432,7 @@ impl Faraday {
             F::UseAnother => self.flows.all[i].use_another(),
             F::NoPass(v) => {
                 let f = &mut self.flows.all[i];
-                f.live.no_pass = if f.live.no_pass == Some(v) {
-                    None
-                } else {
-                    Some(v)
-                };
+                f.live.no_pass = (f.live.no_pass != Some(v)).then_some(v);
             }
             F::BesideIt(v) => self.flows.all[i].beside_it(v),
             F::AnotherStick(v) => self.flow_another_stick(i, v),
@@ -450,7 +448,8 @@ impl Faraday {
                 };
                 self.flow_goto(i, next);
             }
-            F::CopyKey => self.flow_copy_key(i),
+            F::CopyKey => self.c32_round_copy(i),
+            F::TypeString => self.c32_round_type(i),
             F::LockWrite => self.flow_lock_write(i),
             F::UnlockDone(v) => self.flow_unlock_done(i, v),
             F::BackUpFirst(_) | F::Resume | F::Show(_) | F::WalletLock => {}
@@ -1892,7 +1891,7 @@ impl Faraday {
 
     /// The extra round: the key is copied from a vault that holds it into
     /// the vault added after it (§4.8).
-    fn flow_copy_key(&mut self, i: usize) {
+    pub(crate) fn flow_copy_key(&mut self, i: usize) {
         if self.flows[i].kind.is_wallet() {
             return self.flow_wallet_copy(i);
         }

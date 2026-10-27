@@ -577,7 +577,20 @@ working, and every computed cell opens to what made it (§6.4, §7.4).
   vault, once. A string the session does not hold stops both, named:
   "Share C of name is not here: type it in its Codex32 strings item
   first" (`faraday/faraday-core/src/backup_flow/wallet.rs`,
-  `faraday/faraday-core/src/held.rs`). At every unlock the share records
+  `faraday/faraday-core/src/held.rs`). In the flow's round after a lock,
+  where a power-on holds no string, **Copy the key** stops on the first
+  string a vault takes that is not here, and its Make card says "Share D
+  of name is not here" with **Type share D from its copy**: Add a key
+  opens on its codex32 form ("Type share D of name"), with its checks and
+  correction, and takes that string only. A string of another set ("…
+  is not of set name"), another share of the set ("Share C · id name · 2
+  needed is not share D of name"), or, where `k` strings of the set are
+  here to rebuild it (the key's and the open vaults'), of another seed
+  ("Share D of name is of another seed than fab6868a"), is refused and
+  nothing is kept or written (`OpenVaults::codex32_of_seed`). Once kept,
+  the copy goes on (`Faraday::c32_round_take`,
+  `faraday/faraday-core/src/backups/mod.rs`; tested in
+  `faraday/faraday-core/tests/all/codex32_round.rs`). At every unlock the share records
   of all open vaults are gathered (`OpenVaults::gather_codex32`,
   `faraday/faraday-keys/src/vault.rs`): a key held keeps its strings; a key
   not held loads once `k` strings of one set are in and the seed they

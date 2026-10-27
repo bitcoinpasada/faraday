@@ -986,6 +986,59 @@ impl Keys {
         kept
     }
 
+    /// Costs a parse of each string and, where `k` are here, an
+    /// interpolation, an HMAC-SHA512 and an elliptic-curve multiplication.
+    /// Whether `string`, a share whose header is that of key `i`'s codex32
+    /// set, is of key `i`'s seed (`docs/CODEX32.md` §9.5): with the strings
+    /// of its set at other indices this session holds for the key, then
+    /// those of `more` (an open vault's), `k` strings rebuild a seed whose
+    /// fingerprint is key `i`'s. `None` where fewer than `k` are here, or
+    /// for no such key.
+    pub(crate) fn codex32_of_seed(
+        &self,
+        c: &Compute,
+        i: usize,
+        string: &faraday_bip::codex32::Codex32,
+        more: &[Zeroizing<String>],
+    ) -> Option<bool> {
+        use faraday_bip::codex32::Codex32;
+        let e = self.entries.get(i)?;
+        let need = usize::from(string.threshold());
+        if need < 2 || string.is_secret() {
+            return None;
+        }
+        let mut parts = vec![Codex32::parse(string.encode().as_str()).ok()?];
+        let others = e.key.codex32.iter().chain(more.iter());
+        for t in others {
+            if parts.len() >= need {
+                break;
+            }
+            let Ok(p) = Codex32::parse(t) else {
+                continue;
+            };
+            let same = p.identifier() == string.identifier()
+                && p.threshold() == string.threshold()
+                && p.payload().len() == string.payload().len()
+                && !p.is_secret();
+            if same && !parts.iter().any(|q| q.share_index() == p.share_index()) {
+                parts.push(p);
+            }
+        }
+        if parts.len() < need {
+            return None;
+        }
+        let Ok(seed) = crate::operations::codex32_seed(&parts) else {
+            return Some(false);
+        };
+        let fp = crate::identity::fingerprint(
+            c,
+            crate::identity::Material::Seed(&seed),
+            "",
+            self.network,
+        );
+        Some(fp == Some(e.info.fingerprint))
+    }
+
     /// Whether this session holds the string at share index `index` (a
     /// bech32 character, lower case) of key `i`'s codex32 set. A lookup.
     pub fn holds_codex32(&self, i: usize, index: u8) -> bool {

@@ -569,16 +569,11 @@ fn pass_field(
     lh + FIELD_H + 12.0
 }
 
-/// Add a key on a small panel. Words: what is being typed, the words it
-/// can be, and the word keyboard on the first screenful; the
-/// words taken, the passphrase and the buttons under them. The other
-/// forms type on the docked keyboard.
-pub(crate) fn entry(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
+/// What Add a key on a small panel is for, over its form: the round's
+/// codex32 string typed in place (`docs/CODEX32.md` §9.5), the key a slot
+/// wants, or the wallet whose keys it may give.
+fn entry_for(app: &View) -> Option<String> {
     let es = app.entry.state();
-    use crate::forms::Form;
-    let (x, iw) = (x0 + M, cw - 2.0 * M);
-    let top = -app.list_offset;
-    let mut y = top + 10.0;
     let for_wallet = es
         .wallet
         .and_then(|w| app.session.wallets.get(w))
@@ -589,7 +584,22 @@ pub(crate) fn entry(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             &[&fp_text(faraday_bip::keys::Fingerprint(fp)).to_string()],
         )
     });
-    if let Some(line) = wanted.or(for_wallet) {
+    let round = es.c32_round.as_ref();
+    let round = round.map(|w| fill(EN.c32_round_heading, &[&w.share(), &w.id_text()]));
+    round.or(wanted).or(for_wallet)
+}
+
+/// Add a key on a small panel. Words: what is being typed, the words it
+/// can be, and the word keyboard on the first screenful; the
+/// words taken, the passphrase and the buttons under them. The other
+/// forms type on the docked keyboard.
+pub(crate) fn entry(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
+    let es = app.entry.state();
+    use crate::forms::Form;
+    let (x, iw) = (x0 + M, cw - 2.0 * M);
+    let top = -app.list_offset;
+    let mut y = top + 10.0;
+    if let Some(line) = entry_for(app) {
         let line = ui.fit_as(LABEL_L, &line, iw);
         ui.text_as(x, y, LABEL_L, Role::Primary, &line);
         y += 22.0;

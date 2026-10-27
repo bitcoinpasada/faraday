@@ -1027,3 +1027,48 @@ fn nothing_is_cut_off_on_save_without_encryption() {
     }
     assert_none(&found);
 }
+
+/// The round after a lock stopped on a codex32 string this power-on does
+/// not hold (`docs/CODEX32.md` §9.5): its Make card names the string and
+/// offers typing it, and Add a key opens on the codex32 form for it, on
+/// the stick and in the demo preview.
+#[test]
+fn nothing_is_cut_off_where_the_round_types_a_codex32_string() {
+    let mut found = Vec::new();
+    for on in [On::Stick, On::Preview] {
+        let mut rig = rig(on, Mode::Testnet, Vec::new());
+        let c = testkit::compute();
+        let mut f = BackupFlow::with_plan(&c, FlowKind::Wallet, Plan::key_default());
+        f.step = FlowStep::Make;
+        f.made = true;
+        f.adding = true;
+        f.live.c32_wanted = Some(faraday_core::plan::codex32::Wanted {
+            key: [0xfa, 0xb6, 0x86, 0x8a],
+            k: 2,
+            identifier: *b"name",
+            length: 48,
+            index: b'd',
+        });
+        let i = testkit::flow_push(&mut rig, f);
+        rig.press(Action::Flow(FlowAction::Show(i)));
+        rig.settle();
+        let (_, texts) = rig.drawn_past_sides_and_text();
+        assert!(
+            texts
+                .iter()
+                .any(|(t, _)| t == "Share D of name is not here"),
+            "{}: the string is named",
+            rig.label
+        );
+        assert!(
+            rig.drawn_actions()
+                .contains(&Action::Flow(FlowAction::TypeString))
+        );
+        found.extend(check(&mut rig, "the round's codex32 string").0);
+        rig.press(Action::Flow(FlowAction::TypeString));
+        rig.settle();
+        assert_eq!(rig.screen, Screen::Entry, "{}", rig.label);
+        found.extend(walk(&mut rig, "typing the round's codex32 string"));
+    }
+    assert_none(&found);
+}

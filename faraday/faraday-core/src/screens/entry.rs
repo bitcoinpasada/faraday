@@ -61,7 +61,11 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         .wallet
         .and_then(|w| app.session.wallets.get(w))
         .map(|wl| wl.name.as_str());
+    // The round's codex32 string, typed in place (`docs/CODEX32.md` §9.5).
+    let round = app.entry.state().c32_round.as_ref();
+    let round = round.map(|w| fill(EN.c32_round_heading, &[&w.share(), &w.id_text()]));
     let heading = match (app.entry.state().wanted, for_wallet) {
+        _ if round.is_some() => round.unwrap_or_default(),
         (Some(fp), _) => fill(
             EN.entry_add_key,
             &[&fp_text(faraday_bip::keys::Fingerprint(fp)).to_string()],

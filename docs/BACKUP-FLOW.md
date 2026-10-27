@@ -1168,7 +1168,11 @@ filled, sealed and written (§10.2), in a round of the flow
   the round takes its
   part, or none does. A seed no open vault holds (kept only on paper,
   wiped at the lock) is named, "{seed} is kept only on paper", with
-  **Add the key from its copy** to type it back in.
+  **Add the key from its copy** to type it back in. A codex32 string a
+  vault takes that this power-on does not hold is named, "Share D of
+  name is not here", with **Type share D from its copy**: the codex32
+  form of Add a key takes that string, checked against the share the
+  plan keeps there, and the copy goes on (`docs/CODEX32.md` §9.5).
 - Then the flow goes on to its lock and writes those vaults' sticks
   again. A lock during the round resumes on its Vaults card (§9).
 

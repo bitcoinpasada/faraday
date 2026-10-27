@@ -115,5 +115,34 @@ pub(crate) fn codex32_backup_tour(t: &mut Tour) -> Result<(), String> {
     c32(t, Press::Set(SetPress::Counted));
     t.shot("c32b-5-rotate-destroy")?;
     c32(t, Press::Set(SetPress::Leave));
-    Ok(())
+    round_string(t)
+}
+
+/// The round after a lock stopped on share D, not held since the
+/// power-on (`docs/CODEX32.md` §9.5): its Make card names it and offers
+/// typing it; Add a key opens on the codex32 form for it, and refuses
+/// share C by name.
+fn round_string(t: &mut Tour) -> Result<(), String> {
+    use faraday_core::backup_flow::steps::FlowAction as F;
+    use faraday_core::backup_flow::{BackupFlow, Kind, Plan, Step};
+    let c = faraday_core::testkit::compute();
+    let mut f = BackupFlow::with_plan(&c, Kind::Wallet, Plan::key_default());
+    f.step = Step::Make;
+    f.made = true;
+    f.adding = true;
+    f.live.c32_wanted = Some(faraday_core::plan::codex32::Wanted {
+        key: [0xfa, 0xb6, 0x86, 0x8a],
+        k: 2,
+        identifier: *b"name",
+        length: 48,
+        index: b'd',
+    });
+    let i = faraday_core::testkit::flow_push(&mut t.app, f);
+    t.press(Action::Flow(F::Show(i)));
+    t.shot("c32b-6-round-not-here")?;
+    t.press(Action::Flow(F::TypeString));
+    t.shot("c32b-7-round-type")?;
+    type_text(t, C);
+    t.app.event(Event::Key(Key::Enter));
+    t.shot("c32b-8-round-refused")
 }

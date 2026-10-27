@@ -144,6 +144,36 @@ impl C32 {
     }
 }
 
+/// A codex32 string a vault of the round after a lock takes and this
+/// session does not hold (`docs/CODEX32.md` §9.5): the share the plan
+/// keeps there, by its set, its index and its seed's key. Public: no
+/// string, only its header.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Wanted {
+    /// The seed's key's fingerprint.
+    pub key: [u8; 4],
+    /// The set's threshold.
+    pub k: u8,
+    /// The set's identifier.
+    pub identifier: [u8; 4],
+    /// Each string's length in characters.
+    pub length: u8,
+    /// The share index, as its character in lower case.
+    pub index: u8,
+}
+
+impl Wanted {
+    /// The share as named on screen: its index in upper case.
+    pub fn share(&self) -> String {
+        char::from(self.index.to_ascii_uppercase()).to_string()
+    }
+
+    /// The identifier as text.
+    pub fn id_text(&self) -> String {
+        self.identifier.iter().map(|&b| char::from(b)).collect()
+    }
+}
+
 /// Whether `w` is a codex32 string of a seed, in any form: on paper, its
 /// Codex32QR drawn, a file of either, a share record in a vault.
 pub fn string_of(w: What) -> Option<(usize, usize)> {

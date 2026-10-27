@@ -1548,8 +1548,8 @@ impl Faraday {
             }
             // Exactly the plan's codex32 strings, of its set (`docs/CODEX32.md` §9.5).
             let both = (&mut w.add, &mut w.out);
-            if let Err(line) = self.c32_round_records(&c, (&wf.shape, &wf.answers), v, o, both) {
-                return self.toast(&line);
+            if let Err(want) = self.c32_round_records(&c, (&wf.shape, &wf.answers), v, o, both) {
+                return self.c32_round_wanted(i, want);
             }
             // The plan record goes with them, so the next backup finds it:
             // this wallet's, and nothing else of the holder's.

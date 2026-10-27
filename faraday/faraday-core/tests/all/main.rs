@@ -41,6 +41,7 @@ mod codex32_learn;
 mod codex32_make;
 mod codex32_rest;
 mod codex32_roller;
+mod codex32_round;
 mod codex32_tabs;
 mod codex32_tour;
 mod codex32_tracker;

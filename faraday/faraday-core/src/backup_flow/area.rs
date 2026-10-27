@@ -170,6 +170,14 @@ impl BackupFlowArea {
         }
     }
 
+    /// Sets the codex32 string flow `i`'s round stopped on, or clears it
+    /// (`Live::c32_wanted`).
+    pub(crate) fn set_c32_wanted(&mut self, i: usize, want: Option<crate::plan::codex32::Wanted>) {
+        if let Some(f) = self.all.get_mut(i) {
+            f.live.c32_wanted = want;
+        }
+    }
+
     /// The flows, for the tests' kit to set what they hold.
     #[cfg(any(test, feature = "testkit"))]
     pub(crate) fn all_mut(&mut self) -> &mut Vec<BackupFlow> {

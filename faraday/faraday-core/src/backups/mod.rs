@@ -1878,8 +1878,8 @@ impl Faraday {
     /// open vault's record of it or the string this session holds; into
     /// `out`, the places in `o` of the share records of the plan's codex32
     /// seeds the plan does not keep there, of another set (its threshold or
-    /// identifier) or at another index. `Err`: the line naming a string
-    /// that is not here, to be typed in its checklist item first.
+    /// identifier) or at another index. `Err`: the first string that is
+    /// not here, to be typed in place (`Faraday::c32_round_type`).
     pub(crate) fn c32_round_records(
         &self,
         c: &Compute,
@@ -1887,7 +1887,7 @@ impl Faraday {
         v: usize,
         o: usize,
         (add, out): (&mut Vec<faraday_keys::vault::Staged>, &mut Vec<usize>),
-    ) -> Result<(), String> {
+    ) -> Result<(), plan::codex32::Wanted> {
         use faraday_keys::vault::{RecordView, Staged, codex32_share_is};
         let fp_of = |s: usize| {
             shape
@@ -1940,12 +1940,129 @@ impl Faraday {
             match found {
                 Some(r) => add.push(r),
                 None => {
-                    let share = char::from(index).to_ascii_uppercase().to_string();
-                    return Err(fill(EN.c32_vault_missing, &[&share, &form.id_text()]));
+                    return Err(plan::codex32::Wanted {
+                        key: f,
+                        k: form.k,
+                        identifier: form.identifier,
+                        length: form.length,
+                        index,
+                    });
                 }
             }
         }
         Ok(())
+    }
+
+    /// Costs what `flow_copy_key` costs. The round's **Copy the key**:
+    /// the string it stopped on last is forgotten, and the copy runs
+    /// again, naming the first string it lacks (`c32_round_wanted`).
+    pub(crate) fn c32_round_copy(&mut self, i: usize) {
+        self.flows.set_c32_wanted(i, None);
+        self.flow_copy_key(i);
+    }
+
+    /// The round of flow `i` stopped on `want`, a codex32 string this
+    /// session does not hold (`docs/CODEX32.md` §9.5): its Make card names
+    /// it and offers typing it in place.
+    pub(crate) fn c32_round_wanted(&mut self, i: usize, want: plan::codex32::Wanted) {
+        let line = fill(EN.c32_round_not_here, &[&want.share(), &want.id_text()]);
+        self.flows.set_c32_wanted(i, Some(want));
+        self.toast(&line);
+    }
+
+    /// **Type share D from its copy**: Add a key opens on its codex32 form
+    /// for the string flow `i`'s round stopped on, and goes back to the
+    /// flow (`docs/CODEX32.md` §9.5).
+    pub(crate) fn c32_round_type(&mut self, i: usize) {
+        let Some(want) = self.flows[i].live.c32_wanted.clone() else {
+            return;
+        };
+        self.act(Action::Entry(None));
+        if self.screen != Screen::Entry {
+            return;
+        }
+        let codex32 = crate::forms::Form::ALL
+            .iter()
+            .position(|f| *f == crate::forms::Form::Codex32)
+            .unwrap_or(0);
+        self.act(Action::EntryForm(codex32 as u8));
+        let e = self.entry.state_mut();
+        e.other_forms = false;
+        e.back = Some(Screen::BackupFlow);
+        e.c32_round = Some(want);
+    }
+
+    /// Costs a parse of the string and what `codex32_of_seed` costs. The
+    /// string typed on Add a key for the round (`EntryState::c32_round`):
+    /// kept with its key where it is the share the plan keeps there, by
+    /// its set (identifier, threshold, length), its index and, once `k`
+    /// strings of the set are here to rebuild it, its seed's fingerprint;
+    /// refused by name and dropped otherwise, nothing written. Once kept
+    /// the round's **Copy the key** goes on.
+    pub(crate) fn c32_round_take(&mut self) {
+        let c = self.compute();
+        let e = self.entry.state();
+        let (Some(want), Some(s)) = (e.c32_round.clone(), e.parts.codex32.last()) else {
+            return;
+        };
+        let (share, id) = (want.share(), want.id_text());
+        let k = self.session.keys.position_of(want.key);
+        let same_set = s.identifier() == want.identifier
+            && s.threshold() == want.k
+            && s.encode().as_str().len() == usize::from(want.length);
+        let refusal = if !same_set {
+            Some(fill(
+                EN.c32_round_other_set,
+                &[&crate::forms::codex32_what(s), &id],
+            ))
+        } else if s.share_index() != want.index {
+            Some(fill(
+                EN.c32_round_other_share,
+                &[&crate::forms::codex32_what(s), &share, &id],
+            ))
+        } else {
+            match k {
+                None => Some(fill(
+                    EN.c32_round_no_key,
+                    &[&fp_text(faraday_bip::keys::Fingerprint(want.key))],
+                )),
+                Some(k) => (self
+                    .vaults
+                    .store()
+                    .codex32_of_seed(&c, &self.session.keys, k, s)
+                    == Some(false))
+                .then(|| {
+                    fill(
+                        EN.c32_round_other_seed,
+                        &[
+                            &share,
+                            &id,
+                            &fp_text(faraday_bip::keys::Fingerprint(want.key)),
+                        ],
+                    )
+                }),
+            }
+        };
+        let what = crate::forms::codex32_what(s);
+        let text = zeroize::Zeroizing::new(s.encode().as_str().to_string());
+        let kept = match (refusal.is_none(), k) {
+            (true, Some(k)) => self.session.keys.keep_codex32(k, &[text.as_str()]) > 0,
+            _ => false,
+        };
+        if !kept {
+            // A string the key's own facts of its set refuse (an index
+            // destroyed) is not of the set either.
+            let line = refusal.unwrap_or_else(|| fill(EN.c32_round_other_set, &[&what, &id]));
+            let e = self.entry.state_mut();
+            e.parts.codex32.clear();
+            e.error = Some(line);
+            return;
+        }
+        self.entry.reset();
+        self.screen = Screen::BackupFlow;
+        if let Some(i) = self.flows.on() {
+            self.c32_round_copy(i);
+        }
     }
 
     /// A lookup per record. The places in open vault `o` of the codex32

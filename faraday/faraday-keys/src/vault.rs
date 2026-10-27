@@ -1451,6 +1451,23 @@ impl OpenVaults {
         out.into_iter().map(|(_, t)| t).collect()
     }
 
+    /// Costs what `Keys::codex32_of_seed` costs, and a parse of each
+    /// codex32 share record's string. Whether `string`, a share whose
+    /// header is that of key `i`'s codex32 set, is of key `i`'s seed
+    /// (`docs/CODEX32.md` §9.5), with the strings of its set this session
+    /// holds for the key and the open vaults keep: `None` where fewer than
+    /// `k` are here to rebuild it.
+    pub fn codex32_of_seed(
+        &self,
+        c: &Compute,
+        keys: &Keys,
+        i: usize,
+        string: &faraday_bip::codex32::Codex32,
+    ) -> Option<bool> {
+        let more = self.codex32_more_of(std::slice::from_ref(string));
+        keys.codex32_of_seed(c, i, string, &more)
+    }
+
     /// A parse of each codex32 share record's string. How many strings
     /// of the set `typed` is of the open vaults add to it: at indices
     /// none of `typed` has, one per index (`docs/CODEX32.md` §9.5).
