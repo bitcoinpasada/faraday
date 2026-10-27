@@ -35,6 +35,7 @@ import json
 from common import ROOT, Area, Mismatch, use_reference
 
 use_reference("core")
+import test_framework.messages as M  # noqa: E402
 import test_framework.script as S  # noqa: E402
 from test_framework.messages import (  # noqa: E402
     COutPoint, CTransaction, CTxIn, CTxInWitness, CTxOut)
@@ -48,12 +49,39 @@ class Refused(Exception):
     pass
 
 
+NOT_EXACT = "not exactly a transaction"
+
+
 def read(raw):
+    """Core's reading, refused unless `raw` is exactly the serialisation
+    of what was read.
+
+    The framework reads past the end of its input as if zeros followed,
+    so a witness stack's count read from the last bytes can be in the
+    millions, and its `ser_string_vector` writes such a stack back in
+    time quadratic in its length (hours for one case). Every item of a
+    stack is written back as at least one byte, and a stack of items is
+    never left out of the serialisation, so a count larger than `raw`
+    itself means the serialisation is longer than `raw`: the refusal
+    below is the answer the full reading would reach, given at once.
+    """
     tx = CTransaction()
     f = io.BytesIO(raw)
-    tx.deserialize(f)
+    whole = M.deser_string_vector
+
+    def counted(stream):
+        at = stream.tell()
+        if M.deser_compact_size(stream) > len(raw):
+            raise Refused(NOT_EXACT)
+        stream.seek(at)
+        return whole(stream)
+    M.deser_string_vector = counted
+    try:
+        tx.deserialize(f)
+    finally:
+        M.deser_string_vector = whole
     if f.read() or tx.serialize() != raw:
-        raise Refused("not exactly a transaction")
+        raise Refused(NOT_EXACT)
     return tx
 
 

@@ -69,6 +69,14 @@ as a disagreement: a cross-check that cannot fail is worse than none.
 | `kdbx` | `faraday_backup::kdbx` (the KDBX 4 export and its own check) | pykeepass, the distribution's package (`python3-pykeepass`) | the repository's export (`tools/vectors/backup/`), written again byte for byte and opened | databases of one to eight items with markup characters, control characters, line ends and several scripts, at small Argon2id costs, every entry read back; the writer's check against pykeepass under the right passphrase, a wrong one and a changed byte |
 | `lightning` | `faraday_bip::aezeed` (ldk-node's and LND's node keys, the aezeed read) | ldk-node's and LND's derivations as `tools/reference/aezeed/README.md` quotes them, and the aezeed's outer layer (CRC-32C, version), written out in `area_lightning.py` over `btc.py`; AEZ itself has no second implementation here | LND's five cipher seeds, LND's two node keys, ldk's five node ids (`tools/vectors/aezeed/`) | random BIP-39 seeds and entropies on every network; random words, a wrong version with a right checksum, published seeds under a changed passphrase, a changed enciphered byte or salt with the checksum put right, a changed word |
 
+Where a reference would take hours over one malformed case, the area
+gives the answer the reference reaches at once, and says why:
+`area_tx.py` refuses a raw transaction whose witness stack counts more
+items than the transaction has bytes (Core's framework reads past the
+end as zeros, and writes such a stack back in time quadratic in its
+length), which the full reading refuses too, since every item is
+written back as at least one byte. `test_harness.py` checks it.
+
 Where a reference leaves a rule to its caller, the area writes the
 BIP's own sentence and says so in its docstring: the codex32 threshold
 and seed sizes, the BIP-85 length ranges and its two password
@@ -212,3 +220,4 @@ run fails. A passing run writes their versions into the stamp.
 | `miniscript_ref.py` | python-bip380 set up for `sign` and `miniscript`: its shims, RIPEMD-160 from the BIPs repository, and the scripts kept beside their miniscript text |
 | `references.sha256` | every vendored file the areas import or read, with its SHA-256 |
 | `stamp.py`, `stamp` | the stamp and its check |
+| `test_harness.py` | the harness's own tests (`just crosscheck-test`): where it reads a case more quickly than its reference, it reaches the reference's answer |

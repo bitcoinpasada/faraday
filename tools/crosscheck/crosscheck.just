@@ -7,3 +7,9 @@
 [group('test')]
 crosscheck *args:
     tools/crosscheck/run.sh {{args}}
+
+# The harness's own tests (tools/crosscheck/test_harness.py): its
+# shortcuts give the references' answers. No Rust, no network, a second.
+[group('test')]
+crosscheck-test:
+    python3 -I -B tools/crosscheck/test_harness.py
