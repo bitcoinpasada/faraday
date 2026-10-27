@@ -1498,8 +1498,11 @@ impl Spend {
 
     /// Costs what `read_psbt`, `signers` and `inspect` cost. Adds the
     /// signatures another device put on a copy of this transaction. A PSBT
-    /// for any other transaction is refused, never merged. Returns the
-    /// fingerprints it added.
+    /// for any other transaction is refused, never merged, and so is one
+    /// that asks another sighash of an input, or carries a signature made
+    /// under a sighash other than the one the input asks for: a good
+    /// signature that answers another question. Returns the fingerprints
+    /// it added.
     pub fn collect(
         &mut self,
         c: &Compute,
@@ -1511,6 +1514,20 @@ impl Spend {
         if other.unsigned_tx().compute_txid() != self.txid {
             return Err(fill(EN.wallet_psbt_other_transaction, &[source]));
         }
+        // An input's sighash field: none written, SIGHASH_ALL and taproot's
+        // DEFAULT ask the same.
+        let asked = |t: Option<faraday_bip::bitcoin::psbt::PsbtSighashType>| {
+            t.map(|t| t.to_u32()).filter(|&n| n > 1)
+        };
+        let asks_other = other
+            .inner()
+            .inputs
+            .iter()
+            .zip(&self.psbt.inner().inputs)
+            .any(|(o, s)| asked(o.sighash_type) != asked(s.sighash_type));
+        if asks_other {
+            return Err(fill(EN.wallet_sighash_field_other, &[source]));
+        }
         let before = self.signers(c, session);
         let mut merged = self.psbt.inner().clone();
         merged
@@ -1518,12 +1535,19 @@ impl Spend {
             .map_err(|e| fill(EN.wallet_cannot_combine, &[&e.to_string()]))?;
         // `combine` keeps the fields it has no type for, MuSig2's among them.
         let merged = Psbt::from(merged);
-        if session
-            .inspect(c, &merged)
+        let inspection = session.inspect(c, &merged);
+        if inspection
             .present_signatures()
             .any(|s| s.verdict.is_invalid())
         {
             return Err(fill(EN.wallet_a_signature, &[source]));
+        }
+        if inspection
+            .warnings
+            .iter()
+            .any(|w| matches!(w.kind, faraday_psbt::WarningKind::SighashMismatch { .. }))
+        {
+            return Err(fill(EN.wallet_sighash_other, &[source]));
         }
         self.psbt = merged;
         let added: Vec<Fingerprint> = self

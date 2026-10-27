@@ -4515,6 +4515,14 @@ strings! {
     decode_sat_sat_vb: "{} sat · {} sat/vB",
     /// Text in `decode_screen`.
     decode_fee_not_stated: "Not stated: the amounts going in are not here",
+    /// Row label in `decode_screen`: where the amounts going in came from.
+    decode_amounts_in: "Amounts in",
+    /// Its value. `{}`: the PSBT's file name, or the spend's.
+    decode_amounts_from: "From {}",
+    /// Its value when no PSBT of this transaction is here.
+    decode_amounts_none: "Not here",
+    /// Its value when PSBTs of this transaction state different amounts.
+    decode_amounts_disagree: "PSBTs of it state different amounts",
     /// Text in `decode_screen`.
     decode_transaction: "Transaction id",
     /// Text in `decode_screen`.
@@ -8281,6 +8289,12 @@ strings! {
     wallet_cannot_combine: "Cannot combine: {}",
     /// Error in `collect`. `{}`: `source`.
     wallet_a_signature: "A signature in {} does not verify",
+    /// Collect's refusal of a cosigner's PSBT that asks, or signs with, a
+    /// sighash other than the transaction's. `{}`: the file's name.
+    wallet_sighash_other: "A signature in {} signs with another sighash than this transaction's",
+    /// Collect's refusal of a PSBT whose inputs ask another sighash than
+    /// this transaction's, signed or not. `{}`: the file's name.
+    wallet_sighash_field_other: "{} asks another sighash of an input than this transaction",
     /// Error in `finish`.
     wallet_not_enough_signatures: "Not enough signatures yet",
     /// Text in `finish_reason`.

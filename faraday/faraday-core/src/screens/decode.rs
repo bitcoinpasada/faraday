@@ -73,7 +73,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         ),
         None => EN.decode_fee_not_stated.to_string(),
     };
-    let facts: [(&str, String, bool); 6] = [
+    let facts: [(&str, String, bool); 7] = [
         (EN.decode_transaction, t.txid.clone(), true),
         (EN.decode_witness_id, t.wtxid.clone(), true),
         (EN.decode_version, t.version.to_string(), false),
@@ -91,6 +91,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             false,
         ),
         (EN.decode_fee, fee, false),
+        (EN.decode_amounts_in, t.amounts_from.text(), false),
     ];
     for (k, v, mono) in facts.iter() {
         let face = if *mono { BODY_M.mono() } else { BODY_M };

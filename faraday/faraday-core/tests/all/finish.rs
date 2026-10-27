@@ -300,3 +300,198 @@ fn finishing_a_spend_puts_both_files_for_the_stick() {
     app.press(Action::Primary);
     assert_eq!(app.screen, Screen::Files);
 }
+
+/// The amounts going in come from a PSBT of exactly this transaction,
+/// and Decode names it; two PSBTs of it that state other amounts give
+/// none.
+#[test]
+fn decode_names_the_psbt_the_amounts_going_in_came_from() {
+    let app = spending_finished();
+    let hex = app.spend().unwrap().spend.finished_hex().unwrap();
+    let psbt = testkit::unsigned(&kit("spending")).unwrap();
+    let mut beside = with_inbox(vec![
+        ("broadcast-me.txt".to_string(), hex.clone().into_bytes()),
+        ("spend.psbt".to_string(), psbt.to_bytes()),
+    ]);
+    beside.press(Action::DecodeInbox(0));
+    let d = &beside.decode().unwrap().decoded;
+    assert!(d.fee.is_some());
+    let _ = beside.frame();
+    let text = beside.drawn_texts().join("\n");
+    assert!(text.contains("From spend.psbt"), "{text}");
+
+    // Another PSBT of the same transaction that states another amount.
+    let mut other = psbt.clone();
+    let utxo = other.inner_mut().inputs[0].witness_utxo.as_mut().unwrap();
+    utxo.value += faraday_bip::bitcoin::Amount::from_sat(1000);
+    let mut both = with_inbox(vec![
+        ("broadcast-me.txt".to_string(), hex.into_bytes()),
+        ("spend.psbt".to_string(), psbt.to_bytes()),
+        ("other.psbt".to_string(), other.to_bytes()),
+    ]);
+    both.press(Action::DecodeInbox(0));
+    let d = &both.decode().unwrap().decoded;
+    assert_eq!(d.fee, None, "amounts that disagree give no fee");
+    let _ = both.frame();
+    let text = both.drawn_texts().join("\n");
+    assert!(!text.contains("From spend.psbt"), "{text}");
+}
+
+/// Savings' unsigned spend with test key 2's good signature on every
+/// input, made under `ty` where the PSBT asks for nothing: a cosigner
+/// that answered another question than the one asked.
+fn signed_by_zebra_under(ty: faraday_bip::bitcoin::sighash::EcdsaSighashType) -> Vec<u8> {
+    use faraday_bip::bitcoin::secp256k1::{Message, Secp256k1};
+    use faraday_bip::bitcoin::sighash::SighashCache;
+    use faraday_bip::bitcoin::{PublicKey, ecdsa, hashes::Hash};
+    let c = testkit::compute();
+    let (mut psbt, _) = testkit::spend_of(&kit("savings")).unwrap();
+    let words = testkit::test_words("zebra");
+    let m = faraday_bip::bip39::Mnemonic::parse(&c, faraday_bip::bip39::Language::English, &words)
+        .unwrap();
+    let zebra =
+        faraday_bip::keys::MasterKey::from_seed(&c, &m.to_seed(&c, b"").unwrap(), testkit::net());
+    let tx = psbt.unsigned_tx().clone();
+    let secp = Secp256k1::new();
+    for i in 0..tx.input.len() {
+        let input = psbt.inner().inputs[i].clone();
+        let (pk, (_, path)) = input
+            .bip32_derivation
+            .iter()
+            .find(|(_, (fp, _))| fp.to_bytes() == zebra.fingerprint().0)
+            .expect("test key 2 is a key of Savings");
+        let derived = zebra.derive(&c, path);
+        let ws = input.witness_script.clone().expect("a P2WSH input");
+        let value = input.witness_utxo.as_ref().expect("its output").value;
+        let hash = SighashCache::new(&tx)
+            .p2wsh_signature_hash(i, &ws, value, ty)
+            .unwrap();
+        let msg = Message::from_digest(hash.to_byte_array());
+        psbt.inner_mut().inputs[i].partial_sigs.insert(
+            PublicKey::new(*pk),
+            ecdsa::Signature {
+                signature: secp.sign_ecdsa(&msg, derived.secret_key()),
+                sighash_type: ty,
+            },
+        );
+    }
+    psbt.to_bytes()
+}
+
+/// A cosigner's signature made under a sighash other than the one the
+/// transaction asks for is refused when it is collected, though it is a
+/// good signature: SIGHASH_NONE signs no output, and anyone could send
+/// the money elsewhere.
+#[test]
+fn a_cosigners_signature_under_another_sighash_is_refused() {
+    use faraday_bip::bitcoin::sighash::EcdsaSighashType;
+    let k = kit("savings");
+    let (unsigned, _) = testkit::spend_of(&k).unwrap();
+    let mut b = with_inbox(vec![
+        ("spend.psbt".to_string(), unsigned.to_bytes()),
+        (
+            "savings-wallet.txt".to_string(),
+            k.descriptor.clone().into_bytes(),
+        ),
+        (
+            "from-a.psbt".to_string(),
+            signed_by_zebra_under(EcdsaSighashType::None),
+        ),
+        (
+            "from-a-all.psbt".to_string(),
+            signed_by_zebra_under(EcdsaSighashType::All),
+        ),
+    ]);
+    b.press(Action::LoadWallet(at(&b, "savings-wallet.txt")));
+    add_key(&mut b, "bacon");
+    b.press(Action::StartSpend(at(&b, "spend.psbt")));
+    b.press(Action::SignHere);
+    let before = b.spend().unwrap().spend.psbt.to_bytes();
+    b.press(Action::Collect(at(&b, "from-a.psbt")));
+    let s = b.spend().unwrap();
+    assert_eq!(s.spend.psbt.to_bytes(), before, "the signature was taken");
+    assert!(s.spend.finished.is_none());
+    assert!(
+        s.error
+            .as_deref()
+            .is_some_and(|e| e.contains("from-a.psbt")),
+        "{:?}",
+        s.error
+    );
+    // The same cosigner under SIGHASH_ALL is taken, and finishes it.
+    b.press(Action::Collect(at(&b, "from-a-all.psbt")));
+    assert!(b.spend().unwrap().spend.finished.is_some());
+}
+
+/// A cosigner's PSBT that writes SIGHASH_ALL where this one writes no
+/// sighash asks the same of every input: its good signature is taken.
+#[test]
+fn a_cosigner_writing_sighash_all_where_none_is_written_is_taken() {
+    use faraday_bip::bitcoin::psbt::PsbtSighashType;
+    use faraday_bip::bitcoin::sighash::EcdsaSighashType;
+    let c = testkit::compute();
+    let k = kit("savings");
+    let (unsigned, _) = testkit::spend_of(&k).unwrap();
+    let signed = signed_by_zebra_under(EcdsaSighashType::All);
+    let mut written = faraday_psbt::Psbt::parse_bytes(&c, &signed).unwrap();
+    for i in &mut written.inner_mut().inputs {
+        i.sighash_type = Some(PsbtSighashType::from(EcdsaSighashType::All));
+    }
+    let mut b = with_inbox(vec![
+        ("spend.psbt".to_string(), unsigned.to_bytes()),
+        (
+            "savings-wallet.txt".to_string(),
+            k.descriptor.clone().into_bytes(),
+        ),
+        ("from-a.psbt".to_string(), written.to_bytes()),
+    ]);
+    b.press(Action::LoadWallet(at(&b, "savings-wallet.txt")));
+    add_key(&mut b, "bacon");
+    b.press(Action::StartSpend(at(&b, "spend.psbt")));
+    b.press(Action::SignHere);
+    b.press(Action::Collect(at(&b, "from-a.psbt")));
+    let s = b.spend().unwrap();
+    assert_eq!(s.error, None);
+    assert!(s.spend.finished.is_some(), "the signature was not taken");
+}
+
+/// A PSBT of the transaction that leaves an input's amount out does not
+/// disagree with one that states it: the fee is still worked out. Two
+/// that state different amounts are said to.
+#[test]
+fn a_psbt_without_the_amounts_does_not_disagree_with_one_that_has_them() {
+    let app = spending_finished();
+    let hex = app.spend().unwrap().spend.finished_hex().unwrap();
+    let psbt = testkit::unsigned(&kit("spending")).unwrap();
+    let mut bare = psbt.clone();
+    for i in &mut bare.inner_mut().inputs {
+        i.witness_utxo = None;
+        i.non_witness_utxo = None;
+    }
+    let mut both = with_inbox(vec![
+        ("broadcast-me.txt".to_string(), hex.clone().into_bytes()),
+        ("bare.psbt".to_string(), bare.to_bytes()),
+        ("spend.psbt".to_string(), psbt.to_bytes()),
+    ]);
+    both.press(Action::DecodeInbox(0));
+    assert!(both.decode().unwrap().decoded.fee.is_some());
+    let _ = both.frame();
+    let text = both.drawn_texts().join("\n");
+    assert!(text.contains("From spend.psbt"), "{text}");
+
+    let mut other = psbt.clone();
+    let utxo = other.inner_mut().inputs[0].witness_utxo.as_mut().unwrap();
+    utxo.value += faraday_bip::bitcoin::Amount::from_sat(1000);
+    let mut differ = with_inbox(vec![
+        ("broadcast-me.txt".to_string(), hex.into_bytes()),
+        ("spend.psbt".to_string(), psbt.to_bytes()),
+        ("other.psbt".to_string(), other.to_bytes()),
+    ]);
+    differ.press(Action::DecodeInbox(0));
+    let _ = differ.frame();
+    let text = differ.drawn_texts().join("\n");
+    assert!(
+        text.contains("PSBTs of it state different amounts"),
+        "{text}"
+    );
+}

@@ -67,8 +67,48 @@ pub struct Decoded {
     pub outputs: Vec<DecodedOutput>,
     /// The fee, when every input's amount is known.
     pub fee: Option<u64>,
+    /// Where the amounts going in came from.
+    pub amounts_from: AmountsFrom,
     /// The whole transaction in hex.
     pub hex: String,
+}
+
+/// Where a decoded transaction's amounts going in came from: a PSBT
+/// whose unsigned transaction is exactly this one.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum AmountsFrom {
+    /// This PSBT, by its file's name or the spend's.
+    Psbt(String),
+    /// No PSBT of this transaction is here.
+    None,
+    /// PSBTs of this transaction state different amounts: none is used.
+    Disagree,
+}
+
+impl AmountsFrom {
+    /// The row's value.
+    pub fn text(&self) -> String {
+        match self {
+            AmountsFrom::Psbt(name) => fill(EN.decode_amounts_from, &[name]),
+            AmountsFrom::None => EN.decode_amounts_none.to_string(),
+            AmountsFrom::Disagree => EN.decode_amounts_disagree.to_string(),
+        }
+    }
+}
+
+/// Whether `unsigned`, a PSBT's unsigned transaction, is exactly `tx`
+/// with its signatures taken off: the same version, locktime, inputs (each
+/// the output it spends and its sequence) and outputs. A lookup.
+pub fn same_unsigned(unsigned: &Transaction, tx: &Transaction) -> bool {
+    unsigned.version == tx.version
+        && unsigned.lock_time == tx.lock_time
+        && unsigned.output == tx.output
+        && unsigned.input.len() == tx.input.len()
+        && unsigned
+            .input
+            .iter()
+            .zip(&tx.input)
+            .all(|(a, b)| a.previous_output == b.previous_output && a.sequence == b.sequence)
 }
 
 /// What kind of script an output pays to.
@@ -182,6 +222,7 @@ pub fn decode(
         inputs,
         outputs,
         fee: paid_in.and_then(|i| i.checked_sub(paid_out)),
+        amounts_from: AmountsFrom::None,
         hex: serialize_hex(tx),
     }
 }
@@ -264,6 +305,65 @@ impl DecodeArea {
 }
 
 impl Faraday {
+    /// Costs a txid, and a PSBT read for each Inbox PSBT of the same txid.
+    /// The amounts `tx`'s inputs spend, from every PSBT here whose
+    /// unsigned transaction is exactly `tx` ([`same_unsigned`]): the
+    /// spend's, then the Inbox's. An input's amount is used when no two of
+    /// them state different ones for it (one that states none does not
+    /// count), and the first that states one is named.
+    fn amounts_in(&self, c: &Compute, tx: &Transaction) -> (Vec<Option<TxOut>>, AmountsFrom) {
+        // The unsigned transaction's id: `tx` with its scriptSigs and
+        // witnesses taken off, as a PSBT holds it.
+        let mut bare = tx.clone();
+        for i in &mut bare.input {
+            i.script_sig = faraday_bip::bitcoin::ScriptBuf::new();
+            i.witness = faraday_bip::bitcoin::Witness::new();
+        }
+        let txid = bare.compute_txid();
+        let mut found: Vec<(String, Vec<Option<TxOut>>)> = Vec::new();
+        if let Some(s) = self.wallets.spend()
+            && same_unsigned(s.spend.psbt.unsigned_tx(), tx)
+        {
+            found.push((
+                s.spend.source.to_string(),
+                decode::prevouts_of(&s.spend.psbt),
+            ));
+        }
+        for i in self
+            .inbox
+            .iter()
+            .filter(|i| i.psbt().is_some_and(|p| p.txid == txid))
+        {
+            if let Some(p) = wallet::read_psbt(c, &i.bytes)
+                && same_unsigned(p.unsigned_tx(), tx)
+            {
+                found.push((i.name.clone(), decode::prevouts_of(&p)));
+            }
+        }
+        // Input by input, the amount any of them states: one that leaves
+        // it out does not disagree, two that state different ones do.
+        let mut amounts: Vec<Option<TxOut>> = vec![None; tx.input.len()];
+        let mut name: Option<String> = None;
+        for (from, prevouts) in &found {
+            for (have, got) in amounts.iter_mut().zip(prevouts) {
+                match (have.as_ref(), got) {
+                    (Some(a), Some(b)) if a != b => {
+                        return (Vec::new(), AmountsFrom::Disagree);
+                    }
+                    (None, Some(b)) => {
+                        *have = Some(b.clone());
+                        name.get_or_insert_with(|| from.clone());
+                    }
+                    _ => {}
+                }
+            }
+        }
+        match name {
+            Some(name) => (amounts, AmountsFrom::Psbt(name)),
+            None => (Vec::new(), AmountsFrom::None),
+        }
+    }
+
     /// The transaction on the Decode screen, while it is open.
     pub fn decode(&self) -> Option<&DecodeState> {
         self.decode.state()
@@ -279,7 +379,8 @@ impl Faraday {
                 {
                     let prevouts = decode::prevouts_of(&s.spend.psbt);
                     let source = fill(EN.act_finished_from_source, &[&s.spend.source.to_string()]);
-                    let decoded = decode::decode(c, tx, &prevouts, &self.session, &source);
+                    let mut decoded = decode::decode(c, tx, &prevouts, &self.session, &source);
+                    decoded.amounts_from = AmountsFrom::Psbt(s.spend.source.to_string());
                     self.decode.show(decoded, &mut self.screen);
                 }
             }
@@ -287,22 +388,9 @@ impl Faraday {
                 if let Some(item) = self.inbox.get(k)
                     && let Some(tx) = faraday_psbt::transaction::read_raw(&item.bytes)
                 {
-                    // The amounts going in, from a PSBT of the same
-                    // transaction when one is here.
-                    let txid = tx.compute_txid();
-                    let psbt = self
-                        .wallets
-                        .spend()
-                        .map(|s| s.spend.psbt.clone())
-                        .filter(|p| p.unsigned_tx().compute_txid() == txid)
-                        .or_else(|| {
-                            self.inbox
-                                .iter()
-                                .find(|i| i.psbt().is_some_and(|p| p.txid == txid))
-                                .and_then(|i| wallet::read_psbt(c, &i.bytes))
-                        });
-                    let prevouts = psbt.map(|p| decode::prevouts_of(&p)).unwrap_or_default();
-                    let decoded = decode::decode(c, &tx, &prevouts, &self.session, &item.name);
+                    let (prevouts, from) = self.amounts_in(c, &tx);
+                    let mut decoded = decode::decode(c, &tx, &prevouts, &self.session, &item.name);
+                    decoded.amounts_from = from;
                     self.decode.show(decoded, &mut self.screen);
                     self.list_offset = 0.0;
                 }
