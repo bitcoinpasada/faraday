@@ -1030,6 +1030,29 @@ fn the_signature_code_follows_the_file_not_its_place() {
     );
 }
 
+/// The signature's code signs the bytes its hash names, hashed again when
+/// it signs: a file changed in place since the code was made, keeping its
+/// name, size and ends, gets no signature.
+#[test]
+fn the_signature_code_signs_nothing_over_a_file_changed_since() {
+    let c = faraday_core::testkit::compute();
+    let mut app = signing();
+    let code = app.signature_code(&c, "SHA256SUMS").unwrap();
+    let k = app
+        .inbox()
+        .iter()
+        .position(|i| i.name == "SHA256SUMS")
+        .unwrap();
+    let item = testkit::inbox_item_mut(&mut app, k);
+    assert!(item.bytes.len() > 64);
+    item.bytes[32] ^= 0x01;
+    app.press(Action::ShowCode(code));
+    assert!(
+        app.qr().is_none(),
+        "a signature over bytes the code does not name"
+    );
+}
+
 /// Renew asks for the term: nothing is renewed until one is chosen, and
 /// the term is counted from the clock, in GnuPG's years of 365 days. The
 /// record's certificate and the Export file change together.

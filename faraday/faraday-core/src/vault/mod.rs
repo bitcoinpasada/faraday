@@ -2867,9 +2867,8 @@ impl Faraday {
         }
     }
 
-    /// Costs what `gpg_files` and `text` cost. The QR view of the selected
-    /// key's certificate or its signature over an Inbox file, with the name
-    /// and label of its picture.
+    /// Costs what `gpg_files` and `text` cost and a file's hash: the QR view of the selected
+    /// key's certificate or its signature over an Inbox file, with its picture's name and label.
     pub(crate) fn gpg_code(&self, c: &Compute, code: crate::Code) -> Result<crate::QrView, String> {
         use crate::Code;
         let (id, at, key) = self.gpg_selected().ok_or(EN.gpg_no_gpg_key_is_selected)?;
@@ -2904,6 +2903,7 @@ impl Faraday {
                     .into_iter()
                     .find(|f| f.hash[..8] == prefix)
                     .and_then(|f| self.inbox.get(f.index))
+                    .filter(|i| crate::sha256_of(c, &i.bytes)[..8] == prefix) // hashed again
                     .ok_or(EN.gpg_file_gone)?;
                 (
                     fill(EN.gpg_gpg_signature, &[&item.name.to_string()]),
