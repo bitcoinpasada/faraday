@@ -27,7 +27,7 @@ fn what_is_typed_reaches_the_calculator() {
     tool(&mut app, Tool::Hashes);
     typed(&mut app, "abc");
     let t = testkit::tools(&app).unwrap();
-    let h = hashes(&read_input(&t.typed, t.read_as));
+    let h = hashes(&read_input(&t.typed, t.read_as).unwrap());
     let hex: String = h.sha256.iter().map(|b| format!("{b:02x}")).collect();
     assert_eq!(
         hex,

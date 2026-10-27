@@ -179,7 +179,8 @@ fn body(app: &View, ui: &mut Ui, x: f32, mut y: f32, width: f32) -> f32 {
     let mut rows: Vec<(String, String)> = Vec::new();
     let mut note: Option<String> = None;
     match &*reading {
-        Reading::Hashes(h) => {
+        Reading::Hashes(None) => note = Some(EN.tools_not_hex.into()),
+        Reading::Hashes(Some(h)) => {
             rows.push((EN.tools_bytes.into(), h.len.to_string()));
             rows.push(("SHA-256".into(), hex(&h.sha256)));
             rows.push(("SHA-256d".into(), hex(&h.sha256d)));

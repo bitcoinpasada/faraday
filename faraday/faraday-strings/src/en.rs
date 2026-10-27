@@ -6882,6 +6882,8 @@ strings! {
     tools_that_is_an_extended: "That is an extended private key: this tool takes public keys only",
     /// Note in `body`.
     tools_not_an_extended: "Not an extended key",
+    /// Note in `body`.
+    tools_not_hex: "Not hex",
     /// Text in `body`.
     tools_descriptor: "Descriptor",
     /// Text in `body`.

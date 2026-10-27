@@ -74,8 +74,9 @@ pub struct ToolsState {
 pub enum Reading {
     /// Nothing to work out: the amount is converted as it is drawn.
     Nothing,
-    /// The three hashes of the bytes typed.
-    Hashes(faraday_bip::hashes::Hashes),
+    /// The three hashes of the bytes typed; `None` when the text is not
+    /// the hex it is read as.
+    Hashes(Option<faraday_bip::hashes::Hashes>),
     /// What the string is encoded in, when it is.
     Encodings(Option<faraday_codec::encodings::Reading>),
     /// The descriptor's checksum and whether it is a wallet here.
@@ -207,10 +208,10 @@ impl ToolsArea {
             return Some(k.reading.clone());
         }
         let reading = std::rc::Rc::new(match t.tool {
-            Tool::Hashes => Reading::Hashes(faraday_bip::hashes::hashes(&read_input(
-                t.typed.trim(),
-                t.read_as,
-            ))),
+            Tool::Hashes => Reading::Hashes(
+                read_input(t.typed.trim(), t.read_as)
+                    .map(|bytes| faraday_bip::hashes::hashes(&bytes)),
+            ),
             Tool::Encodings => Reading::Encodings(encoding_of(t.typed.trim())),
             Tool::Descriptor => {
                 Reading::Descriptor(faraday_bip::descriptor::checksum_facts(c, &t.typed))

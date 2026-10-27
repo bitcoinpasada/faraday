@@ -51,7 +51,8 @@ pub struct Reading {
 /// else: a bech32 string carries its separator and its own charset, a
 /// Base58Check string decodes with its checksum, and hex is only hex
 /// when every character is a hex digit and there is an even number of
-/// them.
+/// them. Hex comes before plain Base58, whose alphabet holds most hex
+/// strings: a string that is hex is hex.
 pub fn read(text: &str) -> Option<Reading> {
     let text = text.trim();
     if text.is_empty() {
@@ -69,18 +70,18 @@ pub fn read(text: &str) -> Option<Reading> {
             checksum: Some(true),
         });
     }
-    if let Ok(bytes) = base58::decode(text) {
+    if let Some(bytes) = from_hex(text) {
         return Some(Reading {
-            encoding: Encoding::Base58,
+            encoding: Encoding::Hex,
             bytes,
             version: None,
             hrp: None,
             checksum: None,
         });
     }
-    if let Some(bytes) = from_hex(text) {
+    if let Ok(bytes) = base58::decode(text) {
         return Some(Reading {
-            encoding: Encoding::Hex,
+            encoding: Encoding::Base58,
             bytes,
             version: None,
             hrp: None,
@@ -181,12 +182,12 @@ impl ReadAs {
 
 /// The bytes `text` names under `read_as`: its hex when that says hex
 /// (or says nothing and the text is hex), its own UTF-8 bytes otherwise.
-/// Text that is not hex, read as hex, is no bytes.
-pub fn read_input(text: &str, read_as: ReadAs) -> Vec<u8> {
+/// Text that is not hex, read as hex, is `None`: not empty bytes.
+pub fn read_input(text: &str, read_as: ReadAs) -> Option<Vec<u8>> {
     match read_as {
-        ReadAs::Text => text.as_bytes().to_vec(),
-        ReadAs::Hex => from_hex(text).unwrap_or_default(),
-        ReadAs::Auto => from_hex(text).unwrap_or_else(|| text.as_bytes().to_vec()),
+        ReadAs::Text => Some(text.as_bytes().to_vec()),
+        ReadAs::Hex => from_hex(text),
+        ReadAs::Auto => Some(from_hex(text).unwrap_or_else(|| text.as_bytes().to_vec())),
     }
 }
 
@@ -216,6 +217,30 @@ mod tests {
         assert_eq!(read(&b).expect("read").encoding, Encoding::Bech32);
         assert_eq!(read(&m).expect("read").encoding, Encoding::Bech32m);
         assert_eq!(read(&b).expect("read").bytes, data);
+    }
+
+    #[test]
+    fn a_string_of_hex_digits_that_is_also_base58_is_read_as_hex() {
+        // Every character of these is in the Base58 alphabet, and the
+        // length is even: it is hex.
+        for text in ["deadbeef", "abcdef12", "12ab"] {
+            let r = read(text).expect("an encoding");
+            assert_eq!(r.encoding, Encoding::Hex, "{text}");
+            assert_eq!(Some(r.bytes), from_hex(text));
+        }
+        // Not hex (an odd length, `g` is not a hex digit): still Base58.
+        assert_eq!(read("Hgjkm").map(|r| r.encoding), Some(Encoding::Base58));
+    }
+
+    #[test]
+    fn text_that_is_not_hex_read_as_hex_is_no_reading() {
+        assert_eq!(
+            read_input("dead", ReadAs::Hex),
+            Some(alloc::vec![0xde, 0xad])
+        );
+        assert_eq!(read_input("dea", ReadAs::Hex), None);
+        assert_eq!(read_input("zz", ReadAs::Hex), None);
+        assert_eq!(read_input("", ReadAs::Hex), None);
     }
 
     #[test]

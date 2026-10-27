@@ -53,11 +53,11 @@ fn the_bech32_vectors_are_read_the_way_the_standards_say() {
 /// text or two bytes of hex.
 #[test]
 fn the_mode_row_decides_whether_the_field_is_text_or_hex() {
-    let text = read_input("dead", ReadAs::Text);
-    let bytes = read_input("dead", ReadAs::Hex);
+    let text = read_input("dead", ReadAs::Text).unwrap();
+    let bytes = read_input("dead", ReadAs::Hex).unwrap();
     assert_eq!(text.len(), 4);
     assert_eq!(bytes, [0xde, 0xad]);
     // With no mode forced, a string that spells hex is read as hex.
-    assert_eq!(read_input("dead", ReadAs::Auto), bytes);
-    assert_eq!(read_input("dea", ReadAs::Auto).len(), 3);
+    assert_eq!(read_input("dead", ReadAs::Auto).unwrap(), bytes);
+    assert_eq!(read_input("dea", ReadAs::Auto).unwrap().len(), 3);
 }
