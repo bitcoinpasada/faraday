@@ -43,6 +43,9 @@ struct FileDisk {
     /// then it is written straight to the disk too (`O_DIRECT`), which
     /// refuses an unaligned offset or length.
     raw: Option<u64>,
+    /// What the disk is once it is open, when it is not what it was:
+    /// another stick swapped in between the check and the open.
+    after_open: Option<Identity>,
 }
 
 impl FileDisk {
@@ -57,6 +60,7 @@ impl FileDisk {
             },
             calls: Vec::new(),
             raw: None,
+            after_open: None,
         }
     }
 
@@ -84,6 +88,9 @@ impl Device for FileDisk {
     }
     fn open_write(&mut self) -> Result<File, Reason> {
         self.calls.push("open_write");
+        if let Some(now) = self.after_open.take() {
+            self.now = now;
+        }
         use std::os::unix::fs::OpenOptionsExt;
         const O_DIRECT: i32 = 0o40_000;
         OpenOptions::new()
@@ -163,7 +170,14 @@ fn a_whole_write_from_the_payload_reads_back_equal() {
     assert!(after[IMG_SIZE..].iter().all(|&b| b == 0xEE));
     assert_eq!(
         disk.calls,
-        ["identity", "unmount", "open_write", "open_read", "rescan"]
+        [
+            "identity",
+            "unmount",
+            "open_write",
+            "identity",
+            "open_read",
+            "rescan"
+        ]
     );
 }
 
@@ -209,6 +223,54 @@ fn a_disk_whose_serial_or_size_changed_since_confirm_is_refused_before_any_byte(
                 .all(|&b| b == 0xEE)
         );
     }
+}
+
+#[test]
+fn a_disk_that_is_another_once_opened_gets_no_byte() {
+    let path = tmp("swapped");
+    std::fs::write(&path, vec![0xEE; 64 << 10]).expect("a disk");
+    let job = payload(XZ).job(NAME, IMG_SHA).expect("carried");
+    for change in ["serial", "size", "device"] {
+        let mut disk = FileDisk::new(&path);
+        let order = disk.order(payload_source(), Mode::Whole);
+        let mut other = disk.now.clone();
+        match change {
+            "serial" => other.serial = String::from("SERIAL2"),
+            "size" => other.size += 512,
+            _ => other.device.push('2'),
+        }
+        disk.after_open = Some(other);
+        let (r, _) = run(&order, &job, &mut disk);
+        assert!(matches!(r, Err(Reason::Changed { .. })), "{change}: {r:?}");
+        assert_eq!(
+            disk.calls,
+            ["identity", "unmount", "open_write", "identity"],
+            "{change}"
+        );
+        assert!(
+            std::fs::read(&path)
+                .expect("read")
+                .iter()
+                .all(|&b| b == 0xEE),
+            "{change}"
+        );
+    }
+}
+
+#[test]
+fn a_disk_that_reports_no_serial_is_written_as_any_other() {
+    let path = tmp("no-serial");
+    std::fs::write(&path, vec![0xEE; 64 << 10]).expect("a disk");
+    let job = payload(XZ).job(NAME, IMG_SHA).expect("carried");
+    let mut disk = FileDisk::new(&path);
+    disk.now.serial = String::new();
+    let order = disk.order(payload_source(), Mode::Whole);
+    let (r, _) = run(&order, &job, &mut disk);
+    assert_eq!(r, Ok(()));
+    assert_eq!(
+        &std::fs::read(&path).expect("read")[..IMG_SIZE],
+        fixture_img().as_slice()
+    );
 }
 
 // ---- keep data ------------------------------------------------------------

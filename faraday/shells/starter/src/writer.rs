@@ -10,7 +10,8 @@
 //! 2. What is written fits it; a payload file matches its manifest, and
 //!    a developer's image still has the SHA-256 Confirm showed.
 //! 3. What the desktop mounted from it is unmounted, and it is opened
-//!    to write, exclusively and synchronously.
+//!    to write, exclusively and synchronously; its identity is read
+//!    again after the open and must be what it was.
 //! 4. *Keep data*: its partition table is a Faraday stick's, as
 //!    `faraday/image/stick-boot.sh` checks it, and only the boot
 //!    partition's range is written; a whole image's own boot partition
@@ -292,13 +293,7 @@ pub fn write(
 ) -> Result<(), Reason> {
     // 1. Still the disk that was confirmed.
     let now = device.identity()?;
-    if now.device != order.device || now.serial != order.serial || now.size != order.size {
-        return Err(Reason::Changed {
-            device: order.device.clone(),
-            serial: now.serial,
-            size: now.size,
-        });
-    }
+    check_identity(order, &now)?;
     if let Some(why) = &now.in_use {
         return Err(in_use_reason(why));
     }
@@ -326,6 +321,11 @@ pub fn write(
     // 3. Unmounted, and opened.
     device.unmount()?;
     let mut disk = device.open_write()?;
+    // The name may reach another disk by now: the identity read again
+    // after the open narrows that window, though it does not prove that
+    // the handle is the disk it names.
+    let opened = device.identity()?;
+    check_opened(order, &now, &opened)?;
     let len = device.length(&mut disk).map_err(|e| Reason::Device {
         device: order.device.clone(),
         detail: e.to_string(),
@@ -390,6 +390,34 @@ pub fn write(
     // and matched whatever this says.
     if let Err(e) = device.rescan() {
         eprintln!("faraday-starter: {}: {e:?}", order.device);
+    }
+    Ok(())
+}
+
+/// Whether `seen` is the disk `order` confirmed: the same device,
+/// serial and size.
+fn check_identity(order: &WriteOrder, seen: &Identity) -> Result<(), Reason> {
+    if seen.device != order.device || seen.serial != order.serial || seen.size != order.size {
+        return Err(Reason::Changed {
+            device: order.device.clone(),
+            serial: seen.serial.clone(),
+            size: seen.size,
+        });
+    }
+    Ok(())
+}
+
+/// Whether `opened`, read after the disk was opened, is the disk `now`
+/// was: the same device and size, and the same serial when both have
+/// one (some disks report none).
+fn check_opened(order: &WriteOrder, now: &Identity, opened: &Identity) -> Result<(), Reason> {
+    let serials = now.serial.is_empty() || opened.serial.is_empty() || now.serial == opened.serial;
+    if opened.device != now.device || opened.size != now.size || !serials {
+        return Err(Reason::Changed {
+            device: order.device.clone(),
+            serial: opened.serial.clone(),
+            size: opened.size,
+        });
     }
     Ok(())
 }

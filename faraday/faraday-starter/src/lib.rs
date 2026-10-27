@@ -1371,11 +1371,17 @@ impl Starter {
             StarterEvent::DevImage(d) => self.dev = Some(d),
             StarterEvent::Installed(i) => self.installed = i,
             StarterEvent::NoWriter => self.no_writer = true,
-            StarterEvent::WriteProgress { stage, done, total } => {
+            // Progress and the result belong to the write this Starter
+            // asked for, which is under way while its page is shown: one
+            // that arrives with no write asked, or after its result, is
+            // not that write's.
+            StarterEvent::WriteProgress { stage, done, total } if self.page == Page::Writing => {
                 if let Some(m) = self.making.as_mut() {
                     m.progress = Some((stage, done, total));
                 }
             }
+            StarterEvent::WriteProgress { .. } => {}
+            StarterEvent::Written(_) if self.page != Page::Writing => {}
             StarterEvent::Written(r) => {
                 // What the elevated copy read is no longer on the stick.
                 if let Some((id, ..)) = self.making.as_ref().and_then(|m| m.confirmed.as_ref()) {

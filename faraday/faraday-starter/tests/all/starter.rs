@@ -488,6 +488,35 @@ fn writing_shows_progress_then_done_or_the_writers_reason() {
 }
 
 #[test]
+fn a_write_result_or_progress_with_no_write_asked_changes_nothing() {
+    let mut starter = starter_with(vec![disk("sdb", "Stick", 16 * GB)]);
+    to_confirm(&mut starter, "sdb", Mode::Whole);
+    // Confirm is shown and no write has been asked.
+    starter.starter_event(StarterEvent::Written(Ok(())));
+    starter.starter_event(StarterEvent::WriteProgress {
+        stage: faraday_starter::api::WriteStage::Writing,
+        done: GB,
+        total: 4 * GB,
+    });
+    assert_eq!(starter.page, Page::Confirm);
+    assert!(starter.drawn_progress().is_empty());
+    // The write asked ends; a late progress does not bring it back.
+    starter.press(StarterAction::Write);
+    starter.starter_event(StarterEvent::Written(Ok(())));
+    assert_eq!(starter.page, Page::Done);
+    starter.starter_event(StarterEvent::WriteProgress {
+        stage: faraday_starter::api::WriteStage::ReadingBack,
+        done: GB,
+        total: 4 * GB,
+    });
+    assert!(starter.drawn_progress().is_empty());
+    assert!(shows(
+        &mut starter,
+        "Keep the stick in to start this computer from it."
+    ));
+}
+
+#[test]
 fn done_shows_the_expected_boot_menu_entry_by_maker() {
     // Dell: the default pattern.
     let mut starter = starter_with(vec![padded_disk(
