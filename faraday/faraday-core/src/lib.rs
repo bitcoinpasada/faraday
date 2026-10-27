@@ -64,7 +64,7 @@
 //!   `secure_boot/state.rs`.
 //! - Faraday Demo's host: `host` (the strip at the window's foot, the
 //!   preview frame and the pointer carried into the app, with
-//!   `host/screen.rs`; `docs/DESKTOP-HOST.md`).
+//!   `host/screen.rs` and its lists under a finger in `host/scroll.rs`; `docs/DESKTOP-HOST.md`).
 //! - Support: `wordlist`, `learn`, `modes` (F81, with `modes/screen.rs`), `samples` (with `samples/screen.rs`, and `samples/card.rs`, the "Demo only" card every page and sheet hands its demo-only items to), `tools`, `testkit`.
 //!
 //! `Faraday::act_inner` is the dispatch for presses: it runs the checks that
@@ -138,7 +138,7 @@ pub mod inputs;
 pub mod medium;
 pub mod memory;
 mod menu;
-mod motion;
+pub mod motion;
 pub mod nav;
 mod out;
 mod panes;

@@ -156,6 +156,8 @@ fn held_chrome(starter: &Starter, ui: &mut Ui) {
 fn sheet_over(starter: &Starter, ui: &mut Ui, w: f32, h: f32, sheet: Sheet) {
     ui.clear_hits();
     ui.in_sheet = true;
+    // The sheet scrolls by its own offset; the page under it keeps its.
+    ui.offset = starter.sheet_offset();
     ui.backdrop();
     match sheet {
         Sheet::Restart(to) => restart_sheet(starter, ui, w, h, to),

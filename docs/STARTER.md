@@ -591,6 +591,31 @@ running copy is newer (§3.5), a secondary button, and the ⋮ menu
 
 The page scrolls under the top app bar, which stays.
 
+**Input** (owner, 2026-10-25: the Starter and Faraday Demo fully touch
+compatible). The page, and a sheet taller than the window, scroll under
+the wheel, two fingers on a trackpad and a finger on a touchscreen. A
+finger, or the mouse, pressed on the page or the sheet is a press until
+it moves past the slop (8 dp, `faraday_core::motion::SLOP`); then what
+scrolls follows it and nothing under it is pressed, coasts and slows
+when it lifts while moving, and stretches past an end and springs back,
+as Faraday's own pages do (`Motion`, `docs/MOTION.md` §3.3,
+`faraday-starter` `scroll.rs`); a touch while it coasts only stops it.
+It asks for frames only while it moves (`docs/SPEED.md` §12). A sheet
+scrolls by its own offset, from its top each time it opens, so the
+page under it keeps its place and its frosted copy. Transfer and Learn
+are Faraday's own screens and scroll as they do. The window
+(`faraday-window` `input.rs`, Faraday Demo's too) gives a
+touchscreen's first finger as the press on Wayland, X11 and Windows,
+and drops the pointer moves and the left press a system makes of a
+touch while a finger is down and for 500 ms after, so a tap presses
+once and does not move the window from the top bar's room. Tests are
+`tests/all/touch.rs`: a drag that starts on Home's checklist row
+scrolls the page with it and opens nothing, a tap after opening it; a
+flick coasts on after the lift, settles, and then the Starter asks for
+no frame; a touch while it coasts stops it and opens nothing; in a
+window too short for the restart sheet a drag scrolls the sheet, its
+buttons staying at its foot, and the page under it keeps its place.
+
 **Pages inside a task** (§3.2's steps, §3.4, §3.5, §3.7, §3.8's pages,
 and Transfer and Learn's own screens) are not destinations: they keep
 the top app bar with a back arrow and the page's name in place of the
@@ -643,8 +668,8 @@ the scroll it was opened at (F77). Tests are `tests/all/navigation.rs`.
 **Transfer and Learn** are the held desktop app's frame drawn in the
 space under the Starter's top app bar (`Starter::compose`, which copies
 the held app's pixels in with `Canvas::place`): the held `Faraday` is
-told the size of that space, and a press, a hover or a turn of the wheel
-over it reaches it at its own corner. Held, it draws no way back of its
+told the size of that space, and a press, a finger's drag, a hover or a
+turn of the wheel over it reaches it at its own corner. Held, it draws no way back of its
 own and its Learn sheet is the page, with no box and no Done
 (`Faraday::held`); Back and Escape still take its way back. The Learn
 destination keeps the rail or the bar, lit on Learn, and a press on

@@ -1,7 +1,7 @@
 # Faraday Demo as a simulator: the host
 
 **Kind:** Spec
-**Status:** Built (F118, `faraday/faraday-core/src/host/`): the host holds the app, the strip at the window's foot with the sticks, Samples, Size and every practice aid of the screen on show, the preview frame centred above it, the pointer carried in; the host's colours the app's theme turned inside out, the screen's aids in a section of their own colour, the strip's row centred and scrolling sideways where it is wider than the window, its controls 48 dp tall whatever the window and the preview (§2, §3); Samples' sheet is the host's (§6); at the window's own size the shell copies the app's pixels into the window once (§9); the menus fade in and out (§5); a stick the app asks for has its pill marked, pulsing (§3); the app's frame carries a focus border (§4); the die's values are in the entry at the click (§3.2); the app draws no stick pill, Load samples, Preview size or "Demo only" card.
+**Status:** Built (F118, `faraday/faraday-core/src/host/`): the host holds the app, the strip at the window's foot with the sticks, Samples, Size and every practice aid of the screen on show, the preview frame centred above it, the pointer carried in; the host's colours the app's theme turned inside out, the screen's aids in a section of their own colour, the strip's row centred and scrolling sideways where it is wider than the window, its controls 48 dp tall whatever the window and the preview (§2, §3); Samples' sheet is the host's (§6); at the window's own size the shell copies the app's pixels into the window once (§9); the menus fade in and out (§5); the menus, Samples' sheet and the strip's row scroll under a finger and coast after it, a tap pressing once (§5); a stick the app asks for has its pill marked, pulsing (§3); the app's frame carries a focus border (§4); the die's values are in the entry at the click (§3.2); the app draws no stick pill, Load samples, Preview size or "Demo only" card.
 **Open:** the website demo's shell holding the app in the host (in the website's own repository); planned.
 
 The owner asked (2026-10-25) that Faraday Demo read as a simulator of
@@ -111,7 +111,8 @@ sticks' pill reads **Sticks** and More reads the mode's name. The controls never
 48 dp: where even then the row is wider than the window less its 16 dp
 margins (a phone held upright, the Pi panel as a window), it starts at
 the margin and scrolls sideways, under the wheel or a finger dragged
-along it (a drag past the slop presses nothing), with a scroll
+along it (a drag past the slop presses nothing, and coasts on when the
+finger lifts while it moves, §5), with a scroll
 indicator along the strip's foot, so its end is always reached.
 
 Off Practice (Testnet, Signet, Regtest) the strip holds the sticks and Size
@@ -208,7 +209,9 @@ fading in over Material's medium 1 on the standard decelerate and out
 over its short 3 on the standard accelerate (owner, 2026-10-25), at
 once under Reduce motion and with fades off (`docs/MOTION.md` §3.5).
 A row takes a press while the menu fades in, none while it fades out. A press outside closes it and does nothing
-else; a choice acts and closes it. Sticks: every stick with its dot.
+else, a press on the menu between its rows does nothing; a choice acts and closes it. A menu taller than the room
+above the strip stands as tall as that room, less the 16 dp margin, its
+rows scrolling inside it under the wheel and a finger. Sticks: every stick with its dot.
 Size: the sizes with their dp, the one shown checked. Play options: "Play
 runs" and "Speed" as headings over their choices, the chosen checked.
 More: the aids with no room (and Samples, narrowest). Rolls per click:
@@ -221,8 +224,8 @@ all (Unselect all while any is ticked), the sample wallets and keys as
 48 dp rows with a tick box, a loaded one ticked and dimmed, taking no
 press, and what each is at the row's end; Not now and Load ticked (the
 filled press, dimmed until one is ticked) pinned at its foot, the lists
-scrolling between under the wheel where the room above the strip is
-short. A tick and Select all keep it open; Not now, Load ticked, Back
+scrolling between under the wheel and a finger where the room above
+the strip is short. A tick and Select all keep it open; Not now, Load ticked, Back
 and a press beside it close it, a press beside it doing nothing else.
 It stands in the host's own space where there is room: beside a
 preview's frame where the host's space there holds a menu's width
@@ -231,6 +234,28 @@ first; else under the frame's foot where it fits there; else, as in
 This window, which leaves no host space above the strip, up from
 Samples over the app's foot. Load ticked runs the app's own load: with
 a stick in, the app's Pull sheet asks for it out, as on the device.
+
+**Under a finger** (owner, 2026-10-25: a touch laptop's finger could not
+scroll Samples). A finger, or the mouse, pressed on a menu's rows,
+Samples' sheet's lists or the strip's row where they scroll, and moved
+past the slop (8 dp, `motion::SLOP`, the app's), scrolls them and
+presses nothing; lifted while it moves, they coast and slow; pulled
+past an end, they stretch and spring back; a touch while they coast
+only stops them; under Reduce motion they follow the finger and stop at
+its lift. It is the app's own scrolling (`Motion`, `docs/MOTION.md`
+§3.3), one for the menu or sheet open and one for the strip
+(`host/scroll.rs`), and it asks for frames only while it moves (§9). A
+press that does not move is a tap. In the app's frame a finger is the
+app's, as on the device's panel: its pages scroll and coast, and the
+backup board's chips are dragged into places by a finger as by the
+mouse. The window (`faraday-window` `input.rs`, the Starter's too)
+gives a touchscreen's first finger to the app as its press, on Wayland,
+X11 and Windows alike, and drops the pointer moves and the left press
+and release a system makes of a touch (Windows' mouse messages of a
+touch, X11's pointer moved to the first finger) while a finger is down
+and for 500 ms after it lifts (`FINGER_ECHO`), so a tap presses once
+and a tap on the top strip's room does not move the window. Every host
+control and menu row is 48 dp tall (§2).
 
 ## 6. Design calls taken
 
@@ -333,6 +358,17 @@ a few frames after the pointer leaves, then at rest. A Roll from the
 strip, one value or five, in the entry with no tick between the press
 and the frame, the die tumbling a moment after. The idle window asks
 for no frame after a hover onto the strip and back (`an_idle_demo_asks_for_no_frame_at_any_size`).
+Under a finger: a drag that starts on a sample's tick box scrolls
+Samples' sheet with the row and ticks nothing, a tap after ticking it;
+in a window too short for the Size menu a drag brings its last row into
+view, choosing nothing, and a tap there chooses it; a flick on the
+sheet coasts on after the lift, a frame each tick, settles, and the
+window then asks for no frame; a touch while it coasts stops it and
+ticks nothing; under Reduce motion it stops at the lift; a flick along
+the narrowest strip coasts, opens nothing, and the window rests. In
+`faraday-window`: a finger presses once and a second finger makes
+nothing; the press a system makes of a touch is dropped until 500 ms
+after the lift.
 
 ## 9. Speed
 

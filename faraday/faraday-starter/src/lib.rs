@@ -21,6 +21,7 @@ pub mod decide;
 mod draw;
 pub mod macs;
 pub mod notes;
+mod scroll;
 pub mod sheets;
 pub mod template;
 
@@ -751,6 +752,8 @@ pub struct Starter {
     offset: f32,
     /// How far it can scroll, as last drawn.
     max: f32,
+    /// The page or its sheet under a finger and coasting after it.
+    scroller: scroll::Scroller,
     /// Every disk id seen, so a row keeps its number as the list changes.
     seen: Vec<String>,
 
@@ -779,7 +782,7 @@ pub struct Starter {
     /// again. Invariant: it is the page as the state draws it now. It is
     /// dropped by everything that can change that page: a display, a
     /// report from the shell ([`Starter::starter_event`]), an action
-    /// (`act`), a scroll; and by a frame with no sheet. A hover or a
+    /// (`act`), a scroll of the page; and by a frame with no sheet. A hover or a
     /// press does not change it: under a sheet only the sheet's own
     /// buttons are pressable, and none of them is on a page.
     frost: Option<Vec<u8>>,
@@ -854,6 +857,7 @@ impl Starter {
             entry_removing: false,
             entry_remove_failed: None,
             offset: 0.0,
+            scroller: scroll::Scroller::default(),
             max: 0.0,
             seen: Vec::new(),
             held,
@@ -2309,7 +2313,7 @@ impl Starter {
             ui.primaries = 0;
             ui.offset = self.offset;
             ui.frost = self.sheet.and(self.frost.take());
-            let max = draw::frame(self, &mut ui);
+            let max = self.frame_scrolled(&mut ui);
             self.frost = ui.frost.take();
             self.primaries = ui.primaries;
             max
@@ -2339,31 +2343,6 @@ impl Starter {
             .rev()
             .find(|(r, _)| x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h)
             .map(|(_, a)| *a)
-    }
-
-    /// A contact at (x, y): whether the frame changes.
-    fn touch(&mut self, x: i32, y: i32, phase: TouchPhase) -> bool {
-        match phase {
-            TouchPhase::Down => self.pressed = self.hit_at(x, y),
-            TouchPhase::Move => {
-                // A move that keeps the press as it was changes nothing.
-                if self.pressed.is_none() || self.hit_at(x, y) == self.pressed {
-                    return false;
-                }
-                self.pressed = None;
-            }
-            TouchPhase::Up => {
-                let pressed = self.pressed.take();
-                if let Some(a) = pressed
-                    && self.hit_at(x, y) == Some(a)
-                    && let Action::Host(code) = a
-                    && let Some(action) = StarterAction::from_code(code)
-                {
-                    self.act(action);
-                }
-            }
-        }
-        true
     }
 
     /// After an event the held app took: once it leaves Transfer and its
@@ -2416,10 +2395,12 @@ impl App for Starter {
         };
         match event {
             Event::Display(d) => self.display(d),
-            Event::Tick { .. } => {
+            Event::Tick { now_ms } => {
                 self.held.event(event);
                 self.held_after();
-                return;
+                if !self.scroll_tick(now_ms) {
+                    return;
+                }
             }
             Event::Touch { x, y, phase } => {
                 if !self.touch(i32::from(x), i32::from(y), phase) {
@@ -2441,14 +2422,9 @@ impl App for Starter {
                 }
             }
             Event::Wheel { dy, .. } | Event::Scroll { dy, .. } => {
-                let offset =
-                    (self.offset + f32::from(dy) / self.f.max(0.1)).clamp(0.0, self.max.max(0.0));
-                // At an end, a turn further moves nothing.
-                if offset == self.offset {
+                if !self.wheel(dy) {
                     return;
                 }
-                self.offset = offset;
-                self.frost = None;
             }
             Event::Back => self.act(StarterAction::Back),
             Event::Key(Key::Escape) => self.act(StarterAction::Back),

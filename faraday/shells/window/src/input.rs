@@ -1,6 +1,15 @@
 //! The window's input as the shell API's events: the mouse as a finger,
 //! a touchscreen's first finger, the wheel and two-finger scrolling, the
 //! keyboard, and the mouse's back and forward buttons.
+//!
+//! A finger on a touchscreen is one press, as on the device's panel.
+//! Some systems also move the pointer with it and make mouse presses of
+//! it (Windows makes a left press and release of a touch, X11 moves the
+//! pointer to the first finger), which would press a second time: while
+//! a finger is down, and for [`FINGER_ECHO`] after it lifts, the left
+//! button and the pointer's moves are the finger's echo and make nothing.
+
+use std::time::{Duration, Instant};
 
 use faraday_shell_api::{Event, Key, TouchPhase};
 use winit::event::{ElementState, MouseButton, MouseScrollDelta, WindowEvent};
@@ -15,6 +24,9 @@ pub struct Pointer {
     pub pressed: bool,
     /// The finger pressing, on a touchscreen.
     finger: Option<u64>,
+    /// When the last finger lifted: the mouse presses the system makes
+    /// of it come up to [`FINGER_ECHO`] later.
+    finger_up: Option<Instant>,
     /// Scrolling not yet sent: less than a pixel.
     wheel: f32,
     /// Shift is held.
@@ -26,10 +38,67 @@ pub struct Pointer {
     command: bool,
 }
 
+/// How long after a finger lifts a left press is the system's copy of
+/// the touch rather than the mouse's.
+pub const FINGER_ECHO: Duration = Duration::from_millis(500);
+
 impl Pointer {
     /// A pointer at the window's corner, nothing pressed.
     pub fn new() -> Pointer {
         Pointer::default()
+    }
+
+    /// Whether the left button and the pointer's moves at `now` are a
+    /// finger's echo: a finger is down, or lifted less than
+    /// [`FINGER_ECHO`] ago. A lookup.
+    pub fn finger_echo(&self, now: Instant) -> bool {
+        self.finger.is_some()
+            || self
+                .finger_up
+                .is_some_and(|t| now.saturating_duration_since(t) < FINGER_ECHO)
+    }
+
+    /// Whether `event` is a mouse event the system made of a finger
+    /// ([`Pointer::finger_echo`]), which the window does not act on
+    /// either (a press on the top strip's room). A lookup.
+    pub fn is_echo(&self, event: &WindowEvent) -> bool {
+        matches!(
+            event,
+            WindowEvent::CursorMoved { .. }
+                | WindowEvent::MouseInput {
+                    button: MouseButton::Left,
+                    ..
+                }
+        ) && self.finger_echo(Instant::now())
+    }
+
+    /// Finger `id` on a touchscreen at `p`, in the window's pixels, at
+    /// `now`: the first finger down is the press and its moves and lift
+    /// follow; other fingers make nothing, as on the device's panel.
+    pub fn finger(
+        &mut self,
+        id: u64,
+        phase: TouchPhase,
+        p: (u16, u16),
+        now: Instant,
+    ) -> Vec<Event> {
+        let (x, y) = p;
+        let ours = self.finger == Some(id);
+        match phase {
+            TouchPhase::Down if self.finger.is_none() => {
+                self.finger = Some(id);
+                self.pressed = true;
+            }
+            TouchPhase::Move if ours && p != self.cursor => {}
+            TouchPhase::Up if ours => {
+                self.finger = None;
+                self.finger_up = Some(now);
+                self.pressed = false;
+            }
+            _ => return Vec::new(),
+        }
+        self.cursor = p;
+        vec![Event::Touch { x, y, phase }]
     }
 
     /// The events `event` makes, in the order they are sent. Events the
@@ -43,6 +112,13 @@ impl Pointer {
             out.push(Event::Touch { x, y, phase });
         };
         match event {
+            // The pointer and the left button the system works with a
+            // finger: the finger's own events say what it does.
+            WindowEvent::CursorMoved { .. }
+            | WindowEvent::MouseInput {
+                button: MouseButton::Left,
+                ..
+            } if self.finger_echo(Instant::now()) => {}
             WindowEvent::CursorMoved { position, .. } => {
                 let p = (
                     position.x.clamp(0.0, 65535.0) as u16,
@@ -82,36 +158,27 @@ impl Pointer {
                     self.pressed = false;
                     touch(&mut out, self.cursor, TouchPhase::Up);
                 }
+                // A finger down is lifted with it: its own lift, later,
+                // makes nothing more.
+                if self.finger.take().is_some() {
+                    self.finger_up = Some(Instant::now());
+                }
                 out.push(Event::Focus(false));
             }
             WindowEvent::Focused(true) => out.push(Event::Focus(true)),
-            // A finger on a touchscreen presses as on the device's panel:
-            // the first finger down is the press, others are ignored.
+            // A finger on a touchscreen presses as on the device's panel.
             WindowEvent::Touch(t) => {
                 use winit::event::TouchPhase as T;
                 let p = (
                     t.location.x.clamp(0.0, 65535.0) as u16,
                     t.location.y.clamp(0.0, 65535.0) as u16,
                 );
-                match t.phase {
-                    T::Started if self.finger.is_none() => {
-                        self.finger = Some(t.id);
-                        self.cursor = p;
-                        self.pressed = true;
-                        touch(&mut out, p, TouchPhase::Down);
-                    }
-                    T::Moved if self.finger == Some(t.id) => {
-                        self.cursor = p;
-                        touch(&mut out, p, TouchPhase::Move);
-                    }
-                    T::Ended | T::Cancelled if self.finger == Some(t.id) => {
-                        self.cursor = p;
-                        self.finger = None;
-                        self.pressed = false;
-                        touch(&mut out, p, TouchPhase::Up);
-                    }
-                    _ => {}
-                }
+                let phase = match t.phase {
+                    T::Started => TouchPhase::Down,
+                    T::Moved => TouchPhase::Move,
+                    T::Ended | T::Cancelled => TouchPhase::Up,
+                };
+                return self.finger(t.id, phase, p, Instant::now());
             }
             WindowEvent::MouseWheel { delta, phase, .. } => {
                 // The shell API's scroll is pixels the content moves up;
@@ -207,5 +274,52 @@ pub fn map_key(key: &WinitKey) -> Option<Key> {
             }
         }
         _ => None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn at(x: u16, y: u16, phase: TouchPhase) -> Vec<Event> {
+        vec![Event::Touch { x, y, phase }]
+    }
+
+    #[test]
+    fn a_finger_presses_once_and_a_second_finger_makes_nothing() {
+        let mut p = Pointer::new();
+        let t0 = Instant::now();
+        assert_eq!(
+            p.finger(7, TouchPhase::Down, (10, 20), t0),
+            at(10, 20, TouchPhase::Down)
+        );
+        assert!(p.finger(8, TouchPhase::Down, (90, 90), t0).is_empty());
+        assert!(p.finger(8, TouchPhase::Move, (95, 90), t0).is_empty());
+        assert_eq!(
+            p.finger(7, TouchPhase::Move, (10, 40), t0),
+            at(10, 40, TouchPhase::Move)
+        );
+        // The same place again is no move.
+        assert!(p.finger(7, TouchPhase::Move, (10, 40), t0).is_empty());
+        assert!(p.finger(8, TouchPhase::Up, (95, 90), t0).is_empty());
+        assert_eq!(
+            p.finger(7, TouchPhase::Up, (10, 40), t0),
+            at(10, 40, TouchPhase::Up)
+        );
+        assert!(!p.pressed);
+    }
+
+    #[test]
+    fn the_mouse_press_the_system_makes_of_a_touch_presses_nothing_more() {
+        let mut p = Pointer::new();
+        let t0 = Instant::now();
+        assert!(!p.finger_echo(t0));
+        p.finger(1, TouchPhase::Down, (5, 5), t0);
+        assert!(p.finger_echo(t0));
+        p.finger(1, TouchPhase::Up, (5, 5), t0);
+        // Windows' left press and release of the tap come just after it.
+        assert!(p.finger_echo(t0 + Duration::from_millis(100)));
+        // The mouse, a while later, is the mouse again.
+        assert!(!p.finger_echo(t0 + FINGER_ECHO));
     }
 }

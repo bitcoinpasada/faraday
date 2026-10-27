@@ -550,8 +550,8 @@ pub(crate) struct Drawn {
     /// What the strip's controls say, left to right, then the open menu's
     /// rows or Samples' sheet's texts.
     pub labels: Vec<String>,
-    /// Samples' sheet: where it stands in the window's pixels and the
-    /// furthest its lists scroll, dp.
+    /// The open menu or Samples' sheet: where it stands in the window's
+    /// pixels and the furthest its rows scroll, dp.
     pub sheet: Option<(Rect, f32)>,
     /// The furthest the strip's row scrolls sideways, dp: 0 where it fits.
     pub strip_max: f32,
@@ -687,7 +687,8 @@ pub(crate) fn draw(host: &Host, ui: &mut HostUi, area: Option<Area>, scroll: f32
     // Centred where the row fits; else from the left edge, scrolled.
     let strip_max = (row_w - room).max(0.0);
     let mut x = if strip_max > 0.0 {
-        t::PAD - scroll.clamp(0.0, strip_max)
+        // Pulled past an end by a finger, it stretches.
+        t::PAD - scroll.clamp(0.0, strip_max) - host.strip_stretch()
     } else {
         (w - row_w) / 2.0
     };
@@ -821,7 +822,8 @@ fn edge(ui: &mut HostUi, a: Area, color: Color) {
 /// The menu or sheet closing and the one open, each over its control at
 /// `anchors`, the app's frame at `area`, the strip's top at `top` in a
 /// window `w` wide. Returns the open menu's rows or the sheet's texts,
-/// and the sheet where it is open.
+/// and where the menu or the sheet stands with the furthest its rows
+/// scroll.
 fn menus(
     host: &Host,
     ui: &mut HostUi,
@@ -855,9 +857,9 @@ fn menus(
         if m == Menu::Samples {
             return samples_sheet(host, ui, (area, anchor(m), top, w), shown);
         }
-        menu(host, ui, fitted, m, (anchor(m), top, w), shown);
+        let place = menu(host, ui, fitted, m, (anchor(m), top, w), shown);
         let rows = rows(host, fitted, m).into_iter().map(|r| r.label).collect();
-        return (rows, None);
+        return (rows, place);
     }
     (Vec::new(), None)
 }
@@ -1067,7 +1069,9 @@ fn rows(host: &Host, fitted: &Fitted, m: Menu) -> Vec<MenuRow> {
 /// control at `x`, over the strip's top `top`, in a window `w` wide,
 /// `shown` of the way faded in: Material's menu, fading in on the
 /// standard decelerate and out on the standard accelerate, in the host's
-/// look.
+/// look; at most as tall as the room above the strip, its rows scrolling
+/// inside it where they are taller. Returns where it stands and the
+/// furthest its rows scroll, dp.
 fn menu(
     host: &Host,
     ui: &mut HostUi,
@@ -1075,11 +1079,11 @@ fn menu(
     m: Menu,
     (x, top, w): (Option<f32>, f32, f32),
     shown: f32,
-) {
+) -> Option<(Rect, f32)> {
     let look = Look::now(host);
     let rows = rows(host, fitted, m);
     if rows.is_empty() {
-        return;
+        return None;
     }
     let row_h = |r: &MenuRow| {
         if r.press.is_none() {
@@ -1088,15 +1092,22 @@ fn menu(
             t::HOST_MENU_ROW
         }
     };
-    let mh = rows.iter().map(row_h).sum::<f32>() + 2.0 * t::GAP;
+    let whole = rows.iter().map(row_h).sum::<f32>() + 2.0 * t::GAP;
     let mw = t::HOST_MENU_W.min(w - 2.0 * t::PAD);
     let mx = x.unwrap_or(t::PAD).min(w - t::PAD - mw).max(t::PAD);
     let bottom = top - t::GAP_SMALL;
+    let mh = whole.min(bottom - t::PAD).max(t::HOST_MENU_ROW);
+    let max = (whole - mh).max(0.0);
     let my = bottom - mh;
     let fading = Fading::begin(ui, (mx, my, mw, mh), shown);
     ui.fill(mx, my, mw, mh, t::GAP_SMALL, look.raised);
     ui.stroke(mx, my, mw, mh, t::GAP_SMALL, look.rule);
-    let mut ry = my + t::GAP;
+    // A press on the menu itself is the menu's: it closes nothing, and
+    // shows no state of its own.
+    ui.hit_quiet(mx, my, mw, mh, HostPress::Sheet);
+    let place = ui.rect(mx, my, mw, mh);
+    ui.c.push_clip(place);
+    let mut ry = my + t::GAP - host.list_shown(max);
     for r in &rows {
         let rh = row_h(r);
         match r.press {
@@ -1139,7 +1150,9 @@ fn menu(
         }
         ry += rh;
     }
+    ui.c.pop_clip();
     fading.end(ui);
+    Some((place, max))
 }
 
 /// A menu or Samples' sheet fading in or out: what it stands on, kept to
@@ -1270,7 +1283,7 @@ fn samples_sheet(
     let my = bottom - mh;
     let view = (mh - head - foot).max(0.0);
     let max = (body - view).max(0.0);
-    let scroll = host.sheet_scroll.min(max);
+    let scroll = host.list_shown(max);
     let fading = Fading::begin(ui, (mx, my, mw, mh), shown);
     ui.fill(mx, my, mw, mh, t::GAP_SMALL, look.raised);
     ui.stroke(mx, my, mw, mh, t::GAP_SMALL, look.rule);

@@ -666,8 +666,10 @@ impl ApplicationHandler for Shell {
             other => {
                 // A press on the top strip's empty room and a drag move
                 // the window, a double-click maximises it; not in a
-                // preview, whose window is a frame for another size.
+                // preview, whose window is a frame for another size; nor
+                // the press the system makes of a finger's.
                 if self.preview.is_none()
+                    && !self.pointer.is_echo(&other)
                     && let (Some(view), Some(app)) = (self.view.as_ref(), self.app.as_ref())
                     && self
                         .title

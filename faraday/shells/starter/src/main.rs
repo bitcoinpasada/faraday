@@ -479,8 +479,10 @@ impl ApplicationHandler for Shell {
             }
             other => {
                 // A press on the top bar's empty room and a drag move
-                // the window, a double-click maximises it.
+                // the window, a double-click maximises it; not the press
+                // the system makes of a finger's.
                 if let Some(view) = self.view.as_ref()
+                    && !self.pointer.is_echo(&other)
                     && self
                         .title
                         .takes(&other, self.pointer.cursor, &view.window, |x, y| {

@@ -16,6 +16,7 @@
 //! event are the app's.
 
 pub(crate) mod screen;
+mod scroll;
 
 use std::collections::VecDeque;
 
@@ -24,6 +25,7 @@ use faraday_draw::geom::Rect;
 use faraday_draw::tokens as t;
 use faraday_shell_api::{App, Command, DisplayInfo, Event, Frame, Parts, TouchPhase};
 
+use crate::motion::{Motion, Region, SLOP};
 use crate::{Action, Faraday};
 
 /// A press on the host's own controls.
@@ -133,19 +135,30 @@ pub struct Host {
     /// Holding the app with no strip and no preview: a window that
     /// stands for a device's screen (`--panel`).
     bare: bool,
-    /// How far Samples' sheet's lists are scrolled, dp.
+    /// How far the open menu's rows or Samples' sheet's lists are
+    /// scrolled, dp.
     sheet_scroll: f32,
-    /// Samples' sheet as last drawn: where it stands in the window's
-    /// pixels and the furthest its lists scroll, dp.
+    /// The open menu or Samples' sheet as last drawn: where it stands in
+    /// the window's pixels and the furthest its rows scroll, dp.
     sheet_view: Option<(Rect, f32)>,
+    /// How the menu's or sheet's rows move under a finger and after it
+    /// (`docs/MOTION.md` §3.3), as the app's own pages do.
+    list_motion: Motion,
+    /// A press begun on the open menu or sheet where its rows scroll:
+    /// where it went down and was last, in the window's pixels, and
+    /// whether it has moved past the slop, so that it scrolls the rows
+    /// and presses nothing.
+    list_drag: Option<(i32, i32, bool)>,
     /// How far the strip's row is scrolled sideways, dp, where it is wider
     /// than the window; the furthest it scrolls in the frame last drawn.
     strip_scroll: f32,
     strip_max: f32,
-    /// A press begun on the strip: where, in the window's pixels, the
-    /// strip's scroll then, and whether it has moved past the slop, so
+    /// How the strip's row moves under a finger and after it.
+    strip_motion: Motion,
+    /// A press begun on the strip: where, in the window's pixels, it went
+    /// down and was last, and whether it has moved past the slop, so
     /// that it drags the row and presses nothing.
-    drag: Option<(i32, f32, bool)>,
+    drag: Option<(i32, i32, bool)>,
     /// Recording where the host's text and icons leave their ink
     /// ([`Host::record_ink`]).
     ink_on: bool,
@@ -200,8 +213,11 @@ impl Host {
             bare: false,
             sheet_scroll: 0.0,
             sheet_view: None,
+            list_motion: Motion::default(),
+            list_drag: None,
             strip_scroll: 0.0,
             strip_max: 0.0,
+            strip_motion: Motion::default(),
             drag: None,
             ink_on: false,
             pointer_in: false,
@@ -246,8 +262,8 @@ impl Host {
     /// Opens `menu` at once, as a script does: for drivers that take
     /// pictures of the screens.
     pub fn open_menu_at_rest(&mut self, menu: HostMenu) {
+        self.list_top();
         if menu == HostMenu::Samples {
-            self.sheet_scroll = 0.0;
             self.app.press(Action::Samples);
         }
         self.menu = Some((menu, None));
@@ -348,6 +364,7 @@ impl Host {
     /// Scrolls the strip's row `dy` dp sideways, where it is wider than
     /// the window.
     fn scroll_strip(&mut self, dy: f32) {
+        self.strip_motion.stop();
         self.strip_scroll = (self.strip_scroll + dy).clamp(0.0, self.strip_max);
         self.out.push_back(Command::Draw);
     }
@@ -526,10 +543,10 @@ impl Host {
             }
             HostPress::Menu(m) if self.menu.map(|o| o.0) == Some(m) => self.close_menu(),
             HostPress::Menu(m) => {
+                self.list_top();
                 if m == HostMenu::Samples {
                     // The app lists the samples as its own sheet would,
                     // and opens none while held.
-                    self.sheet_scroll = 0.0;
                     self.app.press(Action::Samples);
                 }
                 self.leaving = None;
@@ -548,29 +565,10 @@ impl Host {
     fn touch(&mut self, x: u16, y: u16, phase: TouchPhase) {
         let (px, py) = (i32::from(x), i32::from(y));
         let area = self.area();
-        // A press on the strip may drag its row sideways where it scrolls.
-        if phase == TouchPhase::Down {
-            self.drag = (self.menu.is_none() && self.on_strip(py) && self.strip_max > 0.0)
-                .then_some((px, self.strip_scroll, false));
-        }
-        if let Some((x0, s0, moved)) = self.drag {
-            let dx = px - x0;
-            let past = moved || (dx.abs() as f32) > crate::motion::SLOP * self.f();
-            if past && phase != TouchPhase::Down {
-                self.drag = Some((x0, s0, true));
-                self.pressed = None;
-                self.held = Held::Nowhere;
-                self.strip_scroll = (s0 - dx as f32 / self.f()).clamp(0.0, self.strip_max);
-                self.out.push_back(Command::Draw);
-                if phase == TouchPhase::Up {
-                    self.drag = None;
-                    self.held = Held::None;
-                }
-                return;
-            }
-            if phase == TouchPhase::Up {
-                self.drag = None;
-            }
+        // A press on the open menu or sheet may scroll its rows, one on
+        // the strip drag its row sideways, where they scroll.
+        if self.list_touch(px, py, phase) || self.strip_touch(px, py, phase) {
+            return;
         }
         match phase {
             TouchPhase::Down => {
@@ -774,10 +772,12 @@ impl Host {
     }
 
     /// Whether the host's own motion runs: a menu fading in or out, the
-    /// focus border changing colour, a stick pill pulsing. None under
-    /// Reduce motion or with fades off (`docs/MOTION.md` §3.5).
+    /// focus border changing colour, a stick pill pulsing, none of them
+    /// under Reduce motion or with fades off (`docs/MOTION.md` §3.5); a
+    /// list coasting or springing back, which Reduce motion stops at the
+    /// finger's lift.
     fn moving(&self) -> bool {
-        self.whole_moving() || self.pulsing()
+        self.whole_moving() || self.pulsing() || self.lists_moving()
     }
 
     /// Whether a menu fades in or out or the focus border changes colour:
@@ -921,8 +921,12 @@ impl Host {
         self.app.event(Event::Tick { now_ms });
         self.relayout();
         self.sync_asked();
+        // A list coasting moves on; the frame showing it is asked for
+        // below, while it moves and once after.
+        self.lists_tick(now_ms);
         // A tick asks for a frame only while the host's own motion
-        // runs (a menu fading, the focus border, a pill pulsing),
+        // runs (a menu fading, the focus border, a pill pulsing, a list
+        // coasting),
         // and for the one after that shows it at rest; the app
         // asks for its own through `poll_command`. An idle window
         // draws nothing (`docs/DESKTOP-HOST.md` §9).
@@ -1036,11 +1040,12 @@ impl App for Host {
                     _ => f32::from(dy) / crate::motion::SHELL_NOTCH_PX * crate::motion::WHEEL_NOTCH,
                 };
                 if self.menu.is_some() {
-                    // Samples' sheet scrolls its lists under the pointer.
-                    if self.menu_open() == Some(HostMenu::Samples)
-                        && let Some((r, max)) = self.sheet_view
+                    // The open menu or Samples' sheet scrolls its rows
+                    // under the pointer.
+                    if let Some((r, max)) = self.sheet_view
                         && r.contains(px, py)
                     {
+                        self.list_motion.stop();
                         self.sheet_scroll = (self.sheet_scroll + step).clamp(0.0, max);
                         self.out.push_back(Command::Draw);
                     }

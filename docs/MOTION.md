@@ -223,7 +223,11 @@ extent; a motion left from another screen or sheet is stopped.
     sheets are drawn after, so they stay put.
 - **Touchscreen drag**: a press that moves past the slop on a scrolled
   region becomes a pan (the press is cancelled, as now), and the lift is
-  a `ScrollEnd`.
+  a `ScrollEnd`. Faraday Demo's host (its menus, Samples' sheet and the
+  strip's row, `host/scroll.rs`, `docs/DESKTOP-HOST.md` §5) and the
+  Starter (its page and its sheet, `faraday-starter` `scroll.rs`,
+  `docs/STARTER.md` §3.1d) move by the same `Motion`, a `Motion` of
+  their own each, past the same slop (`motion::SLOP`).
 - **Overlay scrollbar**: a 3-unit thumb at the viewport's right edge,
   shown while the region moves and fading out over 300 ms after 800 ms
   of rest. Regions that do not overflow show none.

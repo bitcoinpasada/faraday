@@ -1301,3 +1301,192 @@ fn a_roll_from_the_strip_is_in_the_entry_in_the_frame_that_shows_the_press() {
     assert!(!host.app.keygen().unwrap().roller.active(), "and rests");
     assert_eq!(host.app.keygen().unwrap().dice.len(), before + 6);
 }
+
+/// A finger down at `at`, moved `dy` pixels in `steps` moves a tick of
+/// `ms` apart, and lifted there; returns the time of the last tick.
+fn finger_drag(host: &mut Host, at: (u16, u16), dy: i32, (steps, ms): (i32, u64), now: u64) -> u64 {
+    let (x, y) = at;
+    let mut now = now;
+    host.event(Event::Touch {
+        x,
+        y,
+        phase: TouchPhase::Down,
+    });
+    let mut to = y;
+    for i in 1..=steps {
+        to = (i32::from(y) + dy * i / steps) as u16;
+        now += ms;
+        host.event(Event::Tick { now_ms: now });
+        host.event(Event::Touch {
+            x,
+            y: to,
+            phase: TouchPhase::Move,
+        });
+        let _ = host.frame();
+    }
+    host.event(Event::Touch {
+        x,
+        y: to,
+        phase: TouchPhase::Up,
+    });
+    let _ = host.frame();
+    now
+}
+
+/// Where the host's control for `p` stands in the last frame: its centre.
+fn centre(host: &mut Host, p: HostPress) -> (u16, u16) {
+    let _ = host.frame();
+    host.where_offered(p)
+        .unwrap_or_else(|| panic!("{p:?} is not offered: {:?}", host.strip_texts()))
+}
+
+/// Samples' sheet open in a window too short for its lists, motion on or
+/// off, the window at rest; a sample key to tick and where it stands.
+fn samples_open(shell: &mut Shell, motion: bool) -> (Host, HostPress, (u16, u16), u64) {
+    let mut host = desktop(shell, 0, true, (1280, 600));
+    host.app.press(Action::ReduceMotion(!motion));
+    let start = host.app.now_ms();
+    let (_, now) = ticks(&mut host, start, 16, 60);
+    click(&mut host, HostPress::Menu(HostMenu::Samples));
+    let (_, now) = ticks(&mut host, now, 16, 60);
+    let key = tick_key(first_offered(&mut host));
+    let at = centre(&mut host, key);
+    (host, key, at, now)
+}
+
+/// Nothing on Samples' sheet is ticked.
+fn none_ticked(host: &mut Host) -> bool {
+    strip(host).iter().any(|t| t == "Select all")
+}
+
+#[test]
+fn a_finger_drag_scrolls_samples_sheet_and_presses_nothing() {
+    let mut shell = Shell::default();
+    let (mut host, key, (x, y0), now) = samples_open(&mut shell, false);
+    // Up by 120 pixels, the finger starting on a sample's tick box.
+    finger_drag(&mut host, (x, y0), -120, (6, 16), now);
+    assert!(host.list_scrolled() > 0.0, "the sheet's lists scrolled");
+    let (_, y1) = centre(&mut host, key);
+    assert!(y1 < y0, "the row moved up with the finger: {y0} to {y1}");
+    // The drag ticked nothing and closed nothing; a tap still ticks.
+    assert_eq!(host.menu_open(), Some(HostMenu::Samples));
+    assert!(none_ticked(&mut host));
+    click(&mut host, key);
+    assert!(!none_ticked(&mut host), "the tap ticked it");
+}
+
+#[test]
+fn a_finger_drag_scrolls_the_size_menu_to_its_last_row_which_a_tap_chooses() {
+    let last = faraday_draw::tokens::PREVIEW_SIZES[6];
+    let monitor = HostPress::Size(Some(last));
+    let mut shell = Shell::default();
+    // A window too short for the menu: it stands above the strip, its
+    // rows scrolling inside it.
+    let mut host = desktop(&mut shell, 0, true, (1280, 400));
+    click(&mut host, HostPress::Menu(HostMenu::Size));
+    let (_, my, _, mh) = host.menu_area().expect("the Size menu");
+    assert!(
+        my >= 0 && my + mh <= 400 - STRIP,
+        "inside the window: {my}, {mh}"
+    );
+    let foot = host.offered_area(monitor).map(|(_, y, _, h)| y + h);
+    assert!(foot.is_none_or(|b| b > my + mh), "the last row out of view");
+    let at = centre(&mut host, HostPress::Size(None));
+    let start = host.app.now_ms();
+    finger_drag(&mut host, at, -200, (8, 16), start);
+    assert_eq!(
+        host.menu_open(),
+        Some(HostMenu::Size),
+        "the drag chose nothing"
+    );
+    assert_eq!(host.preview(), None);
+    let (_, y) = centre(&mut host, monitor);
+    assert!(
+        (my..my + mh).contains(&i32::from(y)),
+        "the last row in view"
+    );
+    click(&mut host, monitor);
+    assert_eq!(host.preview(), Some(last));
+    assert_eq!(host.menu_open(), None);
+}
+
+#[test]
+fn a_fling_on_samples_sheet_coasts_then_settles_and_the_window_rests() {
+    let mut shell = Shell::default();
+    let (mut host, _, at, now) = samples_open(&mut shell, true);
+    // A flick: 30 pixels a frame, lifted while moving.
+    let now = finger_drag(&mut host, at, -150, (5, 16), now);
+    let lifted = host.list_scrolled();
+    let (coasting, now) = ticks(&mut host, now, 16, 10);
+    assert_eq!(coasting, 10, "each tick of the coast draws");
+    assert!(host.list_scrolled() > lifted, "it coasts on after the lift");
+    // It slows to a stop, and then the window asks for nothing.
+    let (_, now) = ticks(&mut host, now, 16, 200);
+    let settled = host.list_scrolled();
+    let (asked, _) = ticks(&mut host, now, 16, 200);
+    assert_eq!(asked, 0, "at rest after the fling");
+    assert_eq!(host.list_scrolled(), settled);
+    assert!(none_ticked(&mut host));
+}
+
+#[test]
+fn a_touch_on_samples_sheet_while_it_coasts_stops_it_and_presses_nothing() {
+    let mut shell = Shell::default();
+    let (mut host, _, at, now) = samples_open(&mut shell, true);
+    let now = finger_drag(&mut host, at, -150, (5, 16), now);
+    let (_, now) = ticks(&mut host, now, 16, 2);
+    // A tap on whatever row is under the finger now.
+    tap_at(&mut host, at.0, at.1);
+    let stopped = host.list_scrolled();
+    let (asked, _) = ticks(&mut host, now, 16, 60);
+    assert!(asked <= 1, "it stopped: {asked} frames after");
+    assert_eq!(host.list_scrolled(), stopped);
+    assert!(none_ticked(&mut host), "the tap ticked nothing");
+    assert_eq!(host.menu_open(), Some(HostMenu::Samples));
+}
+
+#[test]
+fn under_reduce_motion_a_drag_on_samples_sheet_stops_at_the_lift() {
+    let mut shell = Shell::default();
+    let (mut host, _, at, now) = samples_open(&mut shell, false);
+    let now = finger_drag(&mut host, at, -150, (5, 16), now);
+    let lifted = host.list_scrolled();
+    assert!(lifted > 0.0, "it followed the finger");
+    let (asked, _) = ticks(&mut host, now, 16, 60);
+    assert!(asked <= 1, "no coast: {asked} frames");
+    assert_eq!(host.list_scrolled(), lifted);
+}
+
+#[test]
+fn a_fling_along_the_narrow_strip_coasts_and_then_the_window_rests() {
+    let more = HostPress::Menu(HostMenu::More);
+    let mut shell = Shell::default();
+    let mut host = add_a_key_at(&mut shell, (268, 600));
+    host.app.press(Action::ReduceMotion(false));
+    let start = host.app.now_ms();
+    let (_, mut now) = ticks(&mut host, start, 16, 60);
+    let (m0, my, ..) = host.offered_area(more).expect("More");
+    let (mut x, y) = ((m0 + 4) as u16, (my + 4) as u16);
+    let phase = TouchPhase::Down;
+    host.event(Event::Touch { x, y, phase });
+    for _ in 0..3 {
+        now += 16;
+        host.event(Event::Tick { now_ms: now });
+        x -= 12;
+        let phase = TouchPhase::Move;
+        host.event(Event::Touch { x, y, phase });
+        let _ = host.parts();
+    }
+    let phase = TouchPhase::Up;
+    host.event(Event::Touch { x, y, phase });
+    let _ = host.parts();
+    let (lifted, ..) = host.offered_area(more).expect("More");
+    let (coast, now) = ticks(&mut host, now, 16, 5);
+    assert!(coast > 0, "the row coasts");
+    let (_, now) = ticks(&mut host, now, 16, 200);
+    let (moved, ..) = host.offered_area(more).expect("More");
+    assert!(moved < lifted, "More went on from {lifted} to {moved}");
+    let (asked, _) = ticks(&mut host, now, 16, 200);
+    assert_eq!(asked, 0, "and then the window rests");
+    assert_eq!(host.menu_open(), None, "the fling opened nothing");
+}
