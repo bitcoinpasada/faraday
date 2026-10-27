@@ -35,7 +35,7 @@ use core::marker::PhantomData;
 
 use chacha20poly1305::aead::inout::InOutBuf;
 use chacha20poly1305::{AeadInOut, ChaCha20Poly1305, KeyInit, Nonce, Tag};
-use zeroize::{Zeroize, ZeroizeOnDrop};
+use zeroize::{Zeroize, ZeroizeOnDrop, Zeroizing};
 
 use crate::hash::hmac_sha512;
 use crate::pinned::Pinned;
@@ -409,8 +409,10 @@ impl<T: SealedBytes> Sealed<T> {
     /// Decrypts into a stack buffer, runs `f` on the value, and zeroizes
     /// both before returning `f`'s result. A wrong key or a modified
     /// ciphertext is [`SealError::Authentication`] and `f` never runs.
+    /// Both are held by guards that zeroize them when dropped, so a
+    /// closure that panics and unwinds leaves neither behind.
     pub fn with<R>(&self, key: &SessionKey, f: impl FnOnce(&T) -> R) -> Result<R, SealError> {
-        let mut buf = T::ZEROED;
+        let mut buf = Zeroizing::new(T::ZEROED);
         buf.as_mut().copy_from_slice(self.ciphertext.as_ref());
         let opened = key.cipher().decrypt_inout_detached(
             &Nonce::from(self.nonce),
@@ -419,21 +421,18 @@ impl<T: SealedBytes> Sealed<T> {
             &Tag::from(self.tag),
         );
         if opened.is_err() {
-            buf.zeroize();
             return Err(SealError::Authentication);
         }
-        let mut value = T::from_bytes(&buf);
-        buf.zeroize();
-        let result = f(&value);
-        value.zeroize();
-        Ok(result)
+        let value = Zeroizing::new(T::from_bytes(&buf));
+        drop(buf);
+        Ok(f(&value))
     }
 
     /// The same value sealed under `new` instead of `old`, for key
     /// rotation. The plaintext lives in one stack buffer between the two
     /// operations and is zeroized after.
     pub fn reseal(&self, old: &SessionKey, new: &mut SessionKey) -> Result<Self, SealError> {
-        let mut buf = T::ZEROED;
+        let mut buf = Zeroizing::new(T::ZEROED);
         buf.as_mut().copy_from_slice(self.ciphertext.as_ref());
         let opened = old.cipher().decrypt_inout_detached(
             &Nonce::from(self.nonce),
@@ -442,12 +441,9 @@ impl<T: SealedBytes> Sealed<T> {
             &Tag::from(self.tag),
         );
         if opened.is_err() {
-            buf.zeroize();
             return Err(SealError::Authentication);
         }
-        let sealed = Self::seal_bytes(new, &mut buf);
-        buf.zeroize();
-        sealed
+        Self::seal_bytes(new, &mut buf)
     }
 
     /// The nonce this value was sealed with. Public data, for tests of
