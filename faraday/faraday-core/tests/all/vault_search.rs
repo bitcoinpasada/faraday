@@ -254,8 +254,10 @@ fn whole_page(app: &mut Faraday) -> (Vec<String>, Vec<String>) {
     for _ in 0..60 {
         let _ = app.frame();
         cut.extend(app.drawn_past_sides());
-        let shown = app.drawn_texts();
-        texts.extend(shown.iter().cloned());
+        texts.extend(app.drawn_texts());
+        // At the foot when nothing moved: the same texts in the same
+        // places.
+        let shown = app.drawn_past_sides_and_text().1;
         if last.as_ref() == Some(&shown) {
             break;
         }
@@ -311,6 +313,50 @@ fn on_the_pi_panel_the_search_takes_the_keyboard_and_nothing_is_cut_off() {
     assert!(texts.iter().any(|t| t == "Mail 2"), "Mail 2 is listed");
     assert!(!texts.iter().any(|t| t == "Bank 0"));
     assert!(cut.is_empty(), "codes cut off: {cut:?}");
+}
+
+#[test]
+fn on_the_pi_panel_back_closes_the_search_view_and_keeps_the_list_filtered() {
+    let mut app = unlocked(PI_W, PI_H, 286);
+    for (screen, bar, typed, kept, gone) in [
+        (
+            Screen::VaultContents,
+            SearchIn::Items,
+            "bank",
+            "Bank 0",
+            "Mail 0",
+        ),
+        (Screen::Codes, SearchIn::Codes, "mail", "Mail 2", "Bank 0"),
+    ] {
+        if screen == Screen::Codes {
+            app.press(Action::OpenCodes);
+        }
+        tap_on_the_panel(&mut app, search(bar));
+        for c in typed.chars() {
+            app.press(Action::Osk(OskPress::Char(c)));
+        }
+        assert!(app.hit_box(Action::Osk(OskPress::Char('q'))).is_some());
+        // The bar's way back closes the search view, as Done does.
+        assert_eq!(
+            app.back_link(),
+            Some(Action::Vault(V::Search(SearchAct::Leave(bar))))
+        );
+        app.press(Action::Back);
+        let _ = app.frame();
+        assert_eq!(app.screen, screen, "Back stays on the page");
+        assert!(
+            app.hit_box(Action::Osk(OskPress::Char('q'))).is_none(),
+            "the keyboard is down"
+        );
+        assert_ne!(
+            app.back_link(),
+            Some(Action::Vault(V::Search(SearchAct::Leave(bar))))
+        );
+        let (texts, _) = whole_page(&mut app);
+        assert!(texts.iter().any(|t| t == kept), "{kept} is still listed");
+        assert!(!texts.iter().any(|t| t == gone), "{gone} stays filtered");
+        assert!(texts.iter().any(|t| t == typed), "the query is kept");
+    }
 }
 
 #[test]

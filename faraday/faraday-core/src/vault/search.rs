@@ -31,6 +31,9 @@ pub enum SearchAct {
     Focus(SearchIn),
     /// The bar's × empties it; typing still goes to it.
     Clear(SearchIn),
+    /// Material's search view closed by Back: the bar is left with what
+    /// it holds, as Done and Escape leave it.
+    Leave(SearchIn),
 }
 
 /// What each search bar holds. Changed only through
@@ -206,6 +209,7 @@ impl VaultArea {
                 self.state.set_query(s, String::new());
                 self.state.focus = Some(Focus::Search(s));
             }
+            SearchAct::Leave(_) => self.state.focus = None,
         }
     }
 

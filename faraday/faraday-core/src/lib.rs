@@ -670,8 +670,8 @@ pub enum Sheet {
     Mode,
     /// **Load samples**, from the Practice pill's neighbour (`samples/screen.rs`).
     Samples,
-    /// The top app bar's ⋮ menu on a compact window (`nav`).
-    NavMenu,
+    /// A top app bar's ⋮ menu: the compact window's, or a bar's overflow.
+    NavMenu(Option<nav::Overflow>),
     /// New key's Length card's Other: the menu of 15, 18 and 21 words (`keygen/screen.rs`).
     KeyLengths,
 }

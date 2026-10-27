@@ -7,7 +7,7 @@
 //! destination; a stick being written hides the navigation.
 
 use faraday_core::in_progress::Going;
-use faraday_core::nav::Nav;
+use faraday_core::nav::{MenuPress, Nav};
 use faraday_core::testkit;
 use faraday_core::{Action, Faraday, Screen, Sheet, StickInfo, StorageEvent, cstep};
 use faraday_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware, TouchPhase};
@@ -84,7 +84,10 @@ fn the_pi_panel_shows_homes_menu_and_no_bar() {
     // Wallets and Learn are buttons on the menu itself.
     assert!(at(&mut app, Action::Nav(Screen::WalletsStart)).is_some());
     assert!(at(&mut app, Action::Learn).is_some());
-    assert!(!app.offers(Action::NavMenu(None)), "no top app bar");
+    assert!(
+        !app.offers(Action::NavMenu(MenuPress::Open(None))),
+        "no top app bar"
+    );
     // Another page has the bar back to Home, and no rail or bar.
     app.press(Action::Nav(Screen::Settings));
     let (_, y) = at(&mut app, Action::Nav(Screen::Home)).expect("the way back");
@@ -110,11 +113,12 @@ fn a_compact_window_shows_the_bars_five_destinations_and_each_opens() {
         assert!(y >= 800 - 80);
     }
     // Settings is in the top app bar's ⋮ menu.
-    let more = at(&mut app, Action::NavMenu(None)).expect("the ⋮ menu");
+    let more = at(&mut app, Action::NavMenu(MenuPress::Open(None))).expect("the ⋮ menu");
     assert!(more.1 < 64);
     tap(&mut app, more);
-    assert_eq!(app.sheet, Some(Sheet::NavMenu));
-    let settings = at(&mut app, Action::NavMenu(Some(Screen::Settings))).expect("Settings");
+    assert_eq!(app.sheet, Some(Sheet::NavMenu(None)));
+    let settings =
+        at(&mut app, Action::NavMenu(MenuPress::Go(Screen::Settings))).expect("Settings");
     tap(&mut app, settings);
     assert_eq!(app.sheet, None);
     assert_eq!(app.screen, Screen::Settings);

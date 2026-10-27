@@ -23,10 +23,13 @@ use faraday_core::codex32::{C32, Card, SPLITS, Split, WAYS, Way as C32Way};
 use faraday_core::family::FamilyAction as F;
 use faraday_core::in_progress::Going;
 use faraday_core::keygen::{Start, Way, kstep};
+use faraday_core::nav::{BarTool, MenuPress, Overflow};
 use faraday_core::vault::VaultAction as V;
 use faraday_core::wallet::step;
 use faraday_core::{Action, Faraday, Host, ScanPurpose, Screen, Sheet, StorageEvent, testkit};
-use faraday_shell_api::{App, BootState, DisplayInfo, EntropyBytes, Event, SecureHardware};
+use faraday_shell_api::{
+    App, BootState, DisplayInfo, EntropyBytes, Event, SecureHardware, TouchPhase,
+};
 use faraday_ui::keyboard::OskPress;
 
 /// A string drawn and the box of its ink, pixels (x, y, w, h).
@@ -171,11 +174,19 @@ fn screens() -> Vec<Screen> {
 }
 
 fn sheets() -> Vec<Sheet> {
-    every!(Sheet: Lock, LockAsk, Power, Qr, Scan, Locked, NewInput, Learn, WordList,
+    let mut all = every!(Sheet: Lock, LockAsk, Power, Qr, Scan, Locked, NewInput, Learn, WordList,
         SecretOut, WriteOut, IdleWarn, Potential, Import, Pull, Chart, BoardList, BoardSees,
         BoardPartials, BoardMenu, SeedRead, Delete, Zeroing, Taken, Devices, VaultSave,
         CancelFlow(Going::Create), CancelKey, FileMenu, Rename, Details, UnlockLoad,
-        PassphraseSeeds, GpgSign, Mode, Samples, NavMenu, KeyLengths, KeyPath, Register)
+        PassphraseSeeds, GpgSign, Mode, Samples, NavMenu(None), KeyLengths, KeyPath, Register);
+    // A compact bar's overflow menu, holding every tool it can.
+    all.push(Sheet::NavMenu(Some(Overflow {
+        help: true,
+        keyboard: true,
+        keyboard_up: true,
+        eye: true,
+    })));
+    all
 }
 
 fn flow_steps() -> Vec<FlowStep> {
@@ -266,11 +277,11 @@ fn drawn_over(texts: &[DrawnText], toast: Option<&str>) -> Vec<String> {
     out
 }
 
-/// The controls of the bar across the page's top (44 dp) whose touch
+/// The controls of the bar across the page's top (64 dp) whose touch
 /// targets overlap: a press there could reach either.
 fn head_row_overlaps(rig: &Rig) -> Vec<String> {
     let f = f32::from(rig.w) / rig.size().0;
-    let bar = (44.0 * f).round() as i32 + 1;
+    let bar = (64.0 * f).round() as i32 + 1;
     let boxes: Vec<(Action, (i32, i32, i32, i32))> = rig
         .drawn_actions()
         .into_iter()
@@ -1178,4 +1189,169 @@ fn nothing_is_cut_off_where_a_wallet_is_registered_from_its_spend() {
     assert_eq!(rig.session.wallets.len(), 1);
     found.extend(check(&mut rig, "the spend, registered").0);
     assert_none(&found);
+}
+
+/// A tap, as a finger gives it, at the middle of what `a` is pressed on.
+fn tap(rig: &mut Rig, a: Action) {
+    let (x, y) = rig
+        .where_offered(a)
+        .unwrap_or_else(|| panic!("{a:?} is not on the panel"));
+    for phase in [TouchPhase::Down, TouchPhase::Up] {
+        rig.event(Event::Touch { x, y, phase });
+    }
+    rig.settle();
+    let _ = rig.frame();
+}
+
+/// New key from Make a new wallet's single key, its dice rolled: Key is
+/// next.
+fn new_key_from_create(rig: &mut Rig) {
+    rig.press(Action::CreateWallet);
+    rig.press(Action::CKind(0));
+    rig.press(Action::KeyGen(Some(0)));
+    rig.press(Action::KWords(12));
+    rig.press(Action::KNext);
+    let mut x: u32 = 0x2545_f491;
+    for _ in 0..128 {
+        x ^= x << 13;
+        x ^= x >> 17;
+        x ^= x << 5;
+        rig.press(Action::KRoll((x % 6) as u8 + 1));
+    }
+    rig.settle();
+}
+
+/// The ⋮ on the bar now, and what its menu holds.
+fn overflow_on_the_bar(rig: &Rig) -> Option<Overflow> {
+    rig.drawn_actions().into_iter().find_map(|a| match a {
+        Action::NavMenu(MenuPress::Open(Some(o))) => Some(o),
+        _ => None,
+    })
+}
+
+#[test]
+fn on_the_pi_a_flows_bar_too_full_for_its_question_mark_offers_learn_in_its_overflow_menu() {
+    for mode in [Mode::Testnet, Mode::Practice] {
+        let mut rig = rig(On::Stick, mode, Vec::new());
+        // New key's passphrase, from Make a new wallet, typed on the
+        // panel's keyboard: Cancel, the keyboard button and the mode pill
+        // leave no room for the ?.
+        new_key_from_create(&mut rig);
+        rig.press(Action::KNext);
+        rig.settle();
+        rig.press(Action::KPassField(0));
+        rig.settle();
+        let _ = rig.frame();
+        let label = format!("{mode:?}, New key's passphrase");
+        assert!(
+            rig.offers(Action::Osk(OskPress::Char('q'))),
+            "{label}: the keyboard is up"
+        );
+        let found = check(&mut rig, &label).0;
+        assert_none(&found);
+        assert!(!rig.offers(Action::Learn), "{label}: no ? on the bar");
+        for kept in [Action::CancelFlow, Action::ModeSheet] {
+            assert!(rig.offers(kept), "{label}: {kept:?} stays on the bar");
+        }
+        let held = overflow_on_the_bar(&rig).unwrap_or_else(|| panic!("{label}: a ⋮"));
+        assert!(held.help, "{label}: the ⋮ holds Learn");
+        // The ⋮ opens the menu; its Learn opens the page's Learn.
+        tap(&mut rig, Action::NavMenu(MenuPress::Open(Some(held))));
+        assert_eq!(rig.sheet, Some(Sheet::NavMenu(Some(held))), "{label}");
+        assert!(rig.drawn_texts().iter().any(|t| t == "Learn"), "{label}");
+        assert_none(&check(&mut rig, &format!("{label}, its overflow menu")).0);
+        tap(&mut rig, Action::NavMenu(MenuPress::Tool(BarTool::Help)));
+        assert_eq!(
+            rig.sheet,
+            Some(Sheet::Learn),
+            "{label}: Learn opens the Learn sheet"
+        );
+        assert_eq!(rig.screen, Screen::KeyGen, "{label}: on the same page");
+        // The keyboard button went in with it: the menu's row brings the
+        // keyboard up or puts it away, as the button does, and says which.
+        assert!(held.keyboard, "{label}: the ⋮ holds the keyboard");
+        rig.sheet = None;
+        rig.settle();
+        let _ = rig.frame();
+        for _ in 0..2 {
+            let up = rig.offers(Action::Osk(OskPress::Char('q')));
+            let held = overflow_on_the_bar(&rig).unwrap_or_else(|| panic!("{label}: a ⋮"));
+            tap(&mut rig, Action::NavMenu(MenuPress::Open(Some(held))));
+            let row = if up { "Hide keyboard" } else { "Show keyboard" };
+            assert!(rig.drawn_texts().iter().any(|t| t == row), "{label}: {row}");
+            tap(
+                &mut rig,
+                Action::NavMenu(MenuPress::Tool(BarTool::Keyboard)),
+            );
+            assert_eq!(rig.sheet, None, "{label}");
+            assert_eq!(
+                rig.offers(Action::Osk(OskPress::Char('q'))),
+                !up,
+                "{label}: {row}"
+            );
+        }
+        leave(&mut rig);
+    }
+}
+
+#[test]
+fn where_the_bar_has_room_the_question_mark_stays_and_there_is_no_overflow_menu() {
+    let mut rig = rig(On::Stick, Mode::Testnet, Vec::new());
+    new_key_from_create(&mut rig);
+    let _ = rig.frame();
+    assert!(rig.offers(Action::CancelFlow));
+    assert!(
+        rig.offers(Action::Learn),
+        "the ? beside Cancel and the pill"
+    );
+    assert_eq!(overflow_on_the_bar(&rig), None);
+}
+
+/// The name in the bar of the step flow on show, as drawn: its text and
+/// its height in dp. The bar's other texts (the ?, Cancel, the mode pill,
+/// where Back goes) are not it.
+fn flow_bar_name(rig: &mut Rig) -> Option<(String, f32)> {
+    let _ = rig.frame();
+    let f = f32::from(rig.w) / rig.size().0;
+    let others = ["?", "Cancel", "Testnet", "Practice", "Start", "Home"];
+    rig.drawn_past_sides_and_text()
+        .1
+        .into_iter()
+        .filter(|(t, r)| (r.1 as f32) < 32.0 * f && !others.contains(&t.as_str()))
+        .map(|(t, r)| (t, r.3 as f32 / f))
+        .next()
+}
+
+#[test]
+fn on_the_pi_a_step_flows_bar_names_it_whole_smaller_where_its_tools_leave_less_room() {
+    let name = |mode: Mode| {
+        let mut rig = rig(On::Stick, mode, Vec::new());
+        rig.press(Action::KeyGen(None));
+        rig.settle();
+        flow_bar_name(&mut rig).expect("New key's bar names it")
+    };
+    // On Mainnet the ? alone stands beside it: the bar's own size.
+    let (text, roomy) = name(Mode::Mainnet);
+    assert_eq!(text, "Add a key");
+    // On Testnet the mode pill leaves less room: whole, smaller.
+    let (text, pi) = name(Mode::Testnet);
+    assert_eq!(text, "Add a key", "whole beside the pill");
+    assert!(pi < roomy, "{pi} dp beside the pill, {roomy} dp with room");
+    // Create vault's name beside Cancel and the ?: whole words or none,
+    // never a piece of a word.
+    let mut rig = rig(On::Stick, Mode::Mainnet, Vec::new());
+    rig.press(Action::Vault(V::Create));
+    rig.settle();
+    let shown = flow_bar_name(&mut rig).filter(|(t, _)| t != "Size");
+    if let Some((text, _)) = shown {
+        let words = text.trim_end_matches('…');
+        assert!(
+            "Create a vault".starts_with(words) && !words.is_empty(),
+            "{text:?}"
+        );
+        assert!(
+            text == "Create a vault" || "Create a vault"[words.len()..].starts_with(' '),
+            "{text:?} cuts a word"
+        );
+    }
 }

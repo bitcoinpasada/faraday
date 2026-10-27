@@ -153,3 +153,4 @@ Read this table, then only the decision you need.
 | [F136](decisions/F136.md) | No way past a check without a legitimate reason | 2026-10-27 | Active | security |
 | [F137](decisions/F137.md) | The keyhole sits lower in the shield | 2026-10-26 | Active | design |
 | [F138](decisions/F138.md) | The floating action takes Material's primary colour style | 2026-10-27 | Active | design |
+| [F139](decisions/F139.md) | A compact top app bar's title steps down to Title M where Title L would be cut | 2026-10-27 | Active | design |

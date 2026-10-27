@@ -4241,6 +4241,19 @@ strings! {
     nav_more: "More",
     /// The ⋮ menu's way out.
     nav_close: "Close",
+    /// The overflow menu of a compact top app bar too full for its ?:
+    /// what the ? opens, named as the ?'s tooltip names it.
+    bar_menu_learn: "Learn",
+    /// The overflow menu's keyboard, while the keyboard is put away.
+    bar_menu_show_keyboard: "Show keyboard",
+    /// The overflow menu's keyboard, while the keyboard is up.
+    bar_menu_hide_keyboard: "Hide keyboard",
+    /// The overflow menu's eye on Make codex32 shares, while the sheets
+    /// are masked.
+    bar_menu_show_sheets: "Show sheets",
+    /// The overflow menu's eye on Make codex32 shares, while the sheets
+    /// are shown.
+    bar_menu_hide_sheets: "Hide sheets",
     /// A destination's badge past 999 things waiting (Material's most).
     nav_badge_many: "999+",
     // ----- sidebar (faraday-core/src/screens/sidebar.rs) -----

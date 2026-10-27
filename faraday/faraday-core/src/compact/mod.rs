@@ -13,18 +13,24 @@ use faraday_draw::tokens::{
 use faraday_draw::widgets::Icon;
 
 use crate::drawing::View;
+use crate::nav::{BarTool, MenuPress, Overflow};
 use crate::ui::pal::*;
 use crate::ui::{Glyph, Style, Ui};
 use crate::{Action, Faraday, Screen};
-use faraday_draw::tokens::{BODY_S, BUTTON_H, LABEL_L, LABEL_S, TITLE_M};
+use faraday_draw::tokens::{
+    APP_BAR_H, BODY_S, BUTTON_H, GAP, GAP_SMALL, ICON_BUTTON, LABEL_L, LABEL_S, MARGIN_COMPACT,
+    MODE_PILL_HEIGHT, TOUCH,
+};
+use faraday_ui::nav::AppBar;
 pub(crate) use faraday_ui::sheet::{
     buttons, dialog, kv, kv_sheet, scroll_sheet, sheet, sheet_head,
 };
 
 /// The side margin, design units.
 pub(crate) const M: f32 = 12.0;
-/// The bar across the top of every page but Home.
-pub(crate) const BAR_H: f32 = 44.0;
+/// The bar across the top of every page but Home: Material's small top
+/// app bar, the same height on every window and on the Pi's panel.
+pub(crate) const BAR_H: f32 = APP_BAR_H;
 
 /// The screens that draw their own top, as a step flow does.
 pub(crate) fn draws_own_bar(s: Screen) -> bool {
@@ -80,189 +86,201 @@ pub(crate) fn screen_name(s: Screen, medium: crate::Medium) -> &'static str {
     }
 }
 
-/// The bar: a way back on the left, the page's name, and the ? when the
-/// page has something in Learn. Returns its height.
+/// The bar: Material 3's small top app bar (`faraday_ui::nav::app_bar`),
+/// the way back on the left, the page's name with where Back goes under
+/// it, and at the right end the tools (`tools`). Returns its height.
 pub(crate) fn bar(app: &View, ui: &mut Ui, w: f32, back: (&str, Action), name: &str) -> f32 {
-    ui.fill(0.0, 0.0, w, BAR_H, 0.0, Role::SurfaceContainerLow);
-    ui.fill(0.0, BAR_H - 1.0, w, 1.0, 0.0, Role::OutlineVariant);
-    let (label, action) = app.named_back(back);
-    if ui.is_pressed(action) {
-        ui.wash(
-            4.0,
-            4.0,
-            BAR_H - 8.0,
-            BAR_H - 8.0,
-            8.0,
-            Role::OnSurface.at(faraday_draw::tokens::STATE_PRESS),
-        );
-    }
-    ui.icon(
-        4.0,
-        4.0,
-        BAR_H - 8.0,
-        Icon::ChevronLeft,
-        13.0,
-        Role::OnSurface,
-    );
-    ui.hit_tip((0.0, 0.0, BAR_H + 8.0, BAR_H), action, EN.tip_back);
-    ui.back(action);
-    let right = tools(app, ui, w);
-    // The page's own name, and above it, small, where Back goes.
-    let x = BAR_H;
-    let room = right - x;
-    let label = ui.fit_as(BODY_S, label, room);
-    ui.text_as(x, 5.0, BODY_S, Role::OnSurfaceVariant, &label);
-    let name = ui.fit_as(TITLE_M, name, room);
-    ui.text_as(x, 19.0, TITLE_M, Role::OnSurface, &name);
+    let back = app.named_back(back);
+    let right = screen::measured(ui, |ui| tools(app, ui, w));
+    let head = AppBar {
+        back: Some(back),
+        title: name,
+        back_tip: EN.tip_back,
+    };
+    faraday_ui::nav::app_bar(ui, w, &head, title_end(right, w));
+    tools(app, ui, w);
     BAR_H
+}
+
+/// Where the page's name ends before the tools that begin at `right`
+/// (each already keeps its own room: an icon's target round it, the
+/// pill's gap, Cancel's padding), or the margin where there are none.
+/// A lookup.
+fn title_end(right: f32, w: f32) -> f32 {
+    if right < w - GAP_SMALL {
+        right
+    } else {
+        w - MARGIN_COMPACT
+    }
 }
 
 /// Where the tools of a step flow's bar begin, measured once and kept on
 /// the `Ui` (`bar_tools_x`) for the flow's title to end before; the same
 /// measure `flow_bar_tools` draws from. Cheap: widths of the tools' labels.
 pub(crate) fn flow_bar_tools_x(app: &View, ui: &mut Ui, w: f32) -> f32 {
-    let right = tools(app, ui, -w);
-    if right < w - M {
-        right - faraday_draw::tokens::GAP
-    } else {
-        right
-    }
+    let right = screen::measured(ui, |ui| tools(app, ui, w));
+    title_end(right, w)
 }
 
 /// A step flow's bar, which the flow draws: the ? and the keyboard at its
 /// right end, over whatever of its name runs that far.
 pub(crate) fn flow_bar_tools(app: &View, ui: &mut Ui, w: f32) {
-    let right = tools(app, ui, -w);
-    if right < w - M {
-        ui.fill(
-            right,
-            0.0,
-            w - right,
-            BAR_H - 1.0,
-            0.0,
-            Role::SurfaceContainerLow,
-        );
+    let right = screen::measured(ui, |ui| tools(app, ui, w));
+    if right < w - GAP_SMALL {
+        ui.fill(right, 0.0, w - right, BAR_H - 1.0, 0.0, Role::Surface);
         tools(app, ui, w);
     }
 }
 
-/// The bar's keyboard toggle, where the page types, and to bring it back
-/// once put away from a field. Draws it when `draw`; returns `right` moved
-/// left past it.
-fn osk_toggle(app: &View, ui: &mut Ui, draw: bool, right: f32) -> f32 {
-    if !(app.osk_offered() || app.osk_shown() || app.osk_auto()) {
-        return right;
-    }
-    let shown = app.osk_shown();
-    let action = Action::Osk(if shown {
-        OskPress::Hide
-    } else {
-        OskPress::Show
-    });
-    // Its target reaches 4 past the key on each side and ends at `right`:
-    // clear of the ? beside it.
-    let kx = right - 38.0;
-    let ky = (BAR_H - 34.0) / 2.0;
-    if draw {
-        if shown || ui.is_pressed(action) {
-            let fill = crate::ui::pal::selected_or(shown, Role::SurfaceContainerHighest);
-            ui.fill(kx, ky, 34.0, 34.0, 8.0, fill);
-        }
-        let ink = crate::ui::pal::on_selected(shown, Role::OnSurfaceVariant);
-        ui.icon(kx, ky, 34.0, Icon::Keyboard, 14.0, ink);
-        ui.hit_tip((kx - 4.0, 0.0, 42.0, BAR_H), action, EN.tip_keyboard);
-    }
-    kx - 6.0
-}
-
 /// Where the Back button's target ends: nothing else on the bar reaches
 /// left of it.
-const BACK_END: f32 = BAR_H + faraday_draw::tokens::GAP;
+const BACK_END: f32 = GAP_SMALL + TOUCH;
 
-/// The ? when the page has something in Learn, the mode, the keyboard
-/// where the page types, the eye and Cancel, at the bar's right end.
-/// Returns where they begin. A negative `w` measures without drawing.
-/// Where they would reach the Back button, the ? is left off: the bar
-/// keeps Cancel, the eye and the mode; the page's Learn stays on Home,
-/// and on a step's About row where the step names one
-/// (`docs/DESIGN.md` §4.1).
+/// The tools at the bar's right end, each Material's icon button in a
+/// 48 dp target or, for Cancel, its text button: the ? when the page has
+/// something in Learn, the mode pill off mainnet, the keyboard where the
+/// page types, the codex32 eye and Cancel. Returns where they begin.
+/// Where they would reach the Back button, the ?, then the keyboard, then
+/// the eye go into Material's overflow menu, a ⋮ where the ? stood;
+/// Cancel and the mode pill stay on the bar (`docs/DESIGN.md` §4.1).
 fn tools(app: &View, ui: &mut Ui, w: f32) -> f32 {
-    let help = !app.learn_pages().is_empty();
-    let help = help && tools_from(app, ui, -w.abs(), true) >= BACK_END;
-    tools_from(app, ui, w, help)
+    let full = Overflow::default();
+    let steps = [
+        full,
+        Overflow { help: true, ..full },
+        Overflow {
+            help: true,
+            keyboard: true,
+            ..full
+        },
+        Overflow {
+            help: true,
+            keyboard: true,
+            eye: true,
+            ..full
+        },
+    ];
+    let mut out = full;
+    for o in steps {
+        out = o;
+        if screen::measured(ui, |ui| tools_from(app, ui, w, o)) >= BACK_END {
+            break;
+        }
+    }
+    tools_from(app, ui, w, out)
 }
 
-/// [`tools`], the ? on the bar when `help_on`.
-fn tools_from(app: &View, ui: &mut Ui, w: f32, help_on: bool) -> f32 {
-    let draw = w > 0.0;
-    let w = w.abs();
-    let mut right = if !help_on {
-        w - M
-    } else {
-        if draw {
-            help(ui, w - M - 30.0, (BAR_H - 30.0) / 2.0);
-        }
-        w - M - 38.0
+/// [`tools`], those `over` names in the overflow menu: a ⋮ at the bar's
+/// end, where the page offers any of them, in place of their buttons.
+fn tools_from(app: &View, ui: &mut Ui, w: f32, over: Overflow) -> f32 {
+    let mut right = w - GAP_SMALL;
+    let help = !app.learn_pages().is_empty();
+    let keyboard = keyboard_action(app);
+    let eye = eye_state(app);
+    let held = Overflow {
+        help: over.help && help,
+        keyboard: over.keyboard && keyboard.is_some(),
+        keyboard_up: over.keyboard && keyboard.is_some_and(|(_, shown)| shown),
+        eye: over.eye && eye.is_some(),
     };
+    if held.any() {
+        let open = Action::NavMenu(MenuPress::Open(Some(held)));
+        right = faraday_ui::nav::more(ui, right, open, EN.tip_more);
+    } else if help {
+        right = faraday_ui::nav::help(ui, right, Action::Learn, EN.tip_learn);
+    }
     // The mode, off mainnet, beside the ?: centred on the bar, a gap
-    // to the ?'s left (the gap `right` already holds). Pressed, it opens
-    // the mode sheet.
+    // either side. Pressed, it opens the mode sheet.
     if crate::modes::screen::shows_pill(app) {
         let pw = crate::modes::screen::pill_width(app, ui);
-        let (px, py) = (
-            right - pw,
-            (BAR_H - faraday_draw::tokens::MODE_PILL_HEIGHT) / 2.0,
-        );
-        if draw {
-            crate::modes::screen::pill(app, ui, px, py);
-        }
-        right = px - faraday_draw::tokens::GAP;
+        let px = right - GAP - pw;
+        crate::modes::screen::pill(app, ui, px, (BAR_H - MODE_PILL_HEIGHT) / 2.0);
+        right = px - GAP;
     }
     // The keyboard, where the page types, and to bring it back once put
     // away from a field.
-    right = osk_toggle(app, ui, draw, right);
+    if let Some((action, shown)) = keyboard.filter(|_| !held.keyboard) {
+        right =
+            faraday_ui::nav::icon_action(ui, right, Icon::Keyboard, action, shown, EN.tip_keyboard);
+    }
     // The eye, while Make codex32 shares has sheets to mask
     // (`docs/CODEX32.md` §6.4.6).
-    if let Some(masked) = eye_state(app) {
-        use faraday_draw::tokens::{ICON_BUTTON, TOUCH};
+    if let Some(masked) = eye.filter(|_| !held.eye) {
         // Material's icon button: 40 dp round in a 48 dp target.
         let edge = (TOUCH - ICON_BUTTON) / 2.0;
         let (kx, ky) = (right - edge - ICON_BUTTON, (BAR_H - ICON_BUTTON) / 2.0);
+        eye_icon(ui, kx, ky, masked);
+        let eye = Action::Codex32(crate::codex32::C32::Eye);
+        eye_hit(ui, (kx - edge, ky - edge, TOUCH, TOUCH), eye, !masked);
         right = kx - edge;
-        if draw {
-            eye_icon(ui, kx, ky, masked);
-            let eye = Action::Codex32(crate::codex32::C32::Eye);
-            eye_hit(ui, (kx - edge, 0.0, TOUCH, BAR_H), eye, !masked);
-        }
     }
     // Cancel, on a flow that can be in progress: it leaves the flow
-    // (`docs/FLOWS.md`, Cancel; F51).
+    // (`docs/FLOWS.md`, Cancel; F51). Material's text button, in a 48 dp
+    // target.
     if app.cancel_shown() {
         let a = Action::CancelFlow;
-        let cw = ui.measure_as(LABEL_L, EN.flow_cancel) + 20.0;
+        let label = EN.flow_cancel;
+        let cw = screen::measured(ui, |ui| {
+            ui.button(0.0, 0.0, None, BUTTON_H, label, Style::Ghost, a)
+        });
         let cx = right - cw;
-        if draw {
-            if ui.is_pressed(a) {
-                ui.wash(
-                    cx,
-                    8.0,
-                    cw,
-                    BAR_H - 16.0,
-                    8.0,
-                    Role::OnSurface.at(faraday_draw::tokens::STATE_PRESS),
-                );
-            }
-            ui.text_mid_as(
-                (cx + 10.0, 0.0, BAR_H),
-                LABEL_L,
-                Role::OnSurfaceVariant,
-                EN.flow_cancel,
-            );
-            ui.hit(cx, 0.0, cw, BAR_H, a);
-        }
-        right = cx - 2.0;
+        ui.button(
+            cx,
+            (BAR_H - BUTTON_H) / 2.0,
+            None,
+            BUTTON_H,
+            label,
+            Style::Ghost,
+            a,
+        );
+        ui.hit(cx, (BAR_H - TOUCH) / 2.0, cw, TOUCH, a);
+        right = cx - GAP_SMALL;
     }
     right
+}
+
+/// A compact bar's overflow menu (Material's menu from its ⋮; on the
+/// small panel a sheet, as every menu there): a row for each tool `held`
+/// names, reading what its button does now.
+pub(crate) fn overflow_sheet(app: &View, ui: &mut Ui, w: f32, h: f32, held: Overflow) {
+    let item = |label: &str, t: BarTool| {
+        crate::menu::Line::Item(label.to_string(), Action::NavMenu(MenuPress::Tool(t)))
+    };
+    let mut lines = Vec::new();
+    if held.help {
+        lines.push(item(EN.bar_menu_learn, BarTool::Help));
+    }
+    if held.keyboard {
+        let label = if held.keyboard_up {
+            EN.bar_menu_hide_keyboard
+        } else {
+            EN.bar_menu_show_keyboard
+        };
+        lines.push(item(label, BarTool::Keyboard));
+    }
+    if held.eye {
+        let label = if eye_state(app) == Some(true) {
+            EN.bar_menu_show_sheets
+        } else {
+            EN.bar_menu_hide_sheets
+        };
+        lines.push(item(label, BarTool::Eye));
+    }
+    crate::menu::draw(
+        ui,
+        w,
+        h,
+        &crate::menu::View {
+            title: EN.nav_more,
+            icon: Icon::Ellipsis,
+            lines: &lines,
+            at: 0,
+            keys: false,
+            anchor: None,
+            cancel: (EN.nav_close, Action::Cancel),
+            shown: 1.0,
+        },
+    );
 }
 
 /// Whether the eye is offered on this page, and whether the sheets are
@@ -371,21 +389,6 @@ pub(crate) fn wide_keyboard_button(app: &View, ui: &mut Ui, right: f32) {
     );
 }
 
-/// The ? that opens what explains the page.
-fn help(ui: &mut Ui, x: f32, y: f32) {
-    let pressed = ui.is_pressed(Action::Learn);
-    crate::ui::fill_pressed(ui, (x, y, 30.0, 30.0, 15.0), Role::Surface, pressed);
-    ui.stroke(x, y, 30.0, 30.0, 15.0, Role::OutlineVariant);
-    let tw = ui.measure_as(LABEL_L, "?");
-    ui.text_mid_as(
-        (x + 15.0 - tw / 2.0, y, 30.0),
-        LABEL_L,
-        Role::OnSurfaceVariant,
-        "?",
-    );
-    ui.hit_tip((x - 6.0, y - 6.0, 42.0, 42.0), Action::Learn, EN.tip_learn);
-}
-
 /// A page that is not one of the step flows: its bar, then the page
 /// under it as the desktop draws it, in the panel's width.
 pub(crate) fn page(app: &View, ui: &mut Ui, w: f32, h: f32) -> (f32, f32) {
@@ -437,6 +440,22 @@ pub(crate) fn page_head<'a>(app: &'a View) -> ((&'a str, Action), &'a str) {
             Action::Vault(crate::vault::VaultAction::ItemBack),
         ),
         Screen::Unlock => crate::vault::screen::unlock_back(app),
+        // Material's search view closes to the list it filters.
+        Screen::VaultContents | Screen::Codes
+            if let Some(crate::vault::Focus::Search(s)) = app.vaults.focus =>
+        {
+            let list = if app.screen == Screen::Codes {
+                EN.compact_totp_codes
+            } else {
+                EN.compact_vault_contents
+            };
+            (
+                list,
+                Action::Vault(crate::vault::VaultAction::Search(
+                    crate::vault::SearchAct::Leave(s),
+                )),
+            )
+        }
         Screen::VaultContents => (EN.compact_vaults, Action::Nav(Screen::Vaults)),
         // Made from another flow: the way back to it.
         Screen::Vaults if let Some(s) = app.vaults.back_to => (
@@ -1294,6 +1313,11 @@ impl Faraday {
     /// A field newly focused, or another field than before, brings the
     /// keyboard up again. Returns whether it came up on this frame.
     pub(crate) fn osk_track(&mut self) -> bool {
+        // A bar's overflow menu over the page leaves its field as it was:
+        // the field is not focused anew when the menu closes.
+        if matches!(self.sheet, Some(crate::Sheet::NavMenu(Some(_)))) {
+            return false;
+        }
         let field = self.osk_field();
         let wanted = self.osk_wanted();
         self.panel
@@ -1383,14 +1407,24 @@ pub(crate) fn keyboard(app: &View, ui: &mut Ui, x: f32, w: f32, y: f32) {
 }
 
 impl Faraday {
-    /// The top app bar's ⋮ menu on the bar's windows (`docs/LAYOUT.md`
-    /// §3): `None` opens it; a screen closes it and goes there.
-    pub(crate) fn nav_menu(&mut self, to: Option<Screen>) {
-        match to {
-            None => self.sheet = Some(crate::Sheet::NavMenu),
-            Some(s) => {
+    /// A top app bar's ⋮ menu (`docs/LAYOUT.md` §3): the bar's windows'
+    /// menu or a compact bar's overflow opens; a screen or a tool chosen
+    /// in it closes it and goes there or does what the tool does.
+    pub(crate) fn nav_menu(&mut self, press: MenuPress) {
+        match press {
+            MenuPress::Open(o) => self.sheet = Some(crate::Sheet::NavMenu(o)),
+            MenuPress::Go(s) => {
                 self.sheet = None;
                 self.act_inner(Action::Nav(s));
+            }
+            MenuPress::Tool(t) => {
+                self.sheet = None;
+                self.act_inner(match t {
+                    BarTool::Help => Action::Learn,
+                    BarTool::Keyboard if self.osk_shown() => Action::Osk(OskPress::Hide),
+                    BarTool::Keyboard => Action::Osk(OskPress::Show),
+                    BarTool::Eye => Action::Codex32(crate::codex32::C32::Eye),
+                });
             }
         }
     }

@@ -262,9 +262,15 @@ each at the text size the person's system asks for.
   their text by role and their buttons at `BUTTON_H`; the segmented
   buttons are `SEGMENTED_H` with `LABEL_L`. A step flow's heading is
   `HEADLINE_S` in its medium face on every flow; a sheet's head is
-  `sheet_head`. The compact bar's two lines are the place Back goes in
-  `BODY_S` over the page's name in `TITLE_M` (the bar is 44 dp, too low
-  for `TITLE_L`). The text fields that were boxes filled and edged in
+  `sheet_head`. The compact bar is Material's small top app bar, `APP_BAR_H`
+  (64 dp) on every compact window and on the Pi's panel: the page's name
+  in `TITLE_L` (or `TITLE_M`, below) over the place Back goes in `LABEL_M`, its actions each in
+  a 48 dp target and Cancel Material's text button; where Title L would be
+  cut beside the actions the name is Title M, shortened with an ellipsis
+  only where that is cut too (DESIGN §4.1), and
+  the actions that would reach the back arrow's target go into
+  Material's overflow menu, a ⋮ at the bar's end: the ?, then the
+  keyboard button, then the codex32 eye (DESIGN §4.1). The text fields that were boxes filled and edged in
   place (Explore's path, index and address, the word list's search, the
   rename fields, the passphrase field of the small panel, Glance's
   field) are `Ui::field_box`, 56 dp, their text in `BODY_L`; the list
@@ -771,6 +777,7 @@ is measured to place them.
 | Home | the feed (§4) across the work width: as many `TILE_MIN` columns as fit, tiles at their size, the rest of a short row empty; Scan at the right edge (§15) |
 | Wallets, Files, Vaults, Backups | list and detail (§5, L4) in the whole page area: the list `LIST_PANE` at the start, the detail beside it to the right margin; the detail's reading parts at `COLUMN_MAX`, its chart and tables in the detail's width. Files' two lists ("From the stick", "For the stick") are two list panes side by side; its stick status chip moves to the top strip's row |
 | The structure chart (a wallet's detail, the chart sheet) | wide content in the detail's width; its nodes keep their size (§8); the wallet's buttons under the chart, not at the card's foot. A node's sheet is Material's standard side sheet at the window's right edge, `SIDE_SHEET_W` wide, the page's room narrowed by it so the chart and its highlighted lines stand beside it (DESIGN §4.16); on the rail's and the bar's windows the centred sheet or the panel's page, as before |
+| Back on a compact window | closes what is open on the page before it leaves it: the search view of a vault's items or of the codes (the bar's back arrow, naming the list, and the system Back close it as Done and Escape do, the query kept and the list filtered), then a Settings section to the list |
 | Tools | reading content in its own area (`READING_TOOLS_W`), centred: its `TOOLS_COLUMN_W` column after its inset |
 | The tools' catalogue | a grid of tiles, wide content: as many columns as `CATALOG_TILE_MIN` leaves room for in the work width, never fewer than `CATALOG_COLUMNS_MIN`, each at the row's share |
 | Transfer, a stick visit | reading content, each in its own area centred in the room: Transfer's Send and Receive side by side, `TRANSFER_W` at most (`READING_TRANSFER_W`); a stick visit's two lists, each at most `COLUMN_MAX`, `VISIT_GAP` apart (`READING_VISIT_W`); each between two `PAGE_INSET`s |

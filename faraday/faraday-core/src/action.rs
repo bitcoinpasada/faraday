@@ -2,7 +2,7 @@
 
 use crate::{
     Code, Column, Screen, backup_flow, board, boot_import, compact, explore, family, file_menu,
-    glance, in_progress, seeds, set_time, ui, vanity, vault, wordlist,
+    glance, in_progress, nav, seeds, set_time, ui, vanity, vault, wordlist,
 };
 
 /// Everything a press can do.
@@ -38,9 +38,9 @@ pub enum Action {
     /// A press on a stick's pill across the top of the window: 0 the boot
     /// stick, `n` Stick `n`. The shell inserts the stick or pulls it.
     StickPill(u8),
-    /// The top app bar's ⋮ menu (`docs/LAYOUT.md` §3): `None` opens it,
-    /// a screen chosen in it closes it and goes there.
-    NavMenu(Option<Screen>),
+    /// A top app bar's ⋮ menu (`docs/LAYOUT.md` §3): the bar's windows'
+    /// menu, or a compact bar's overflow.
+    NavMenu(nav::MenuPress),
     /// A press on the wallet's chart or one of its sheets
     /// (`docs/history/NEW-WALLET.md` §9).
     Chart(glance::sheet::ChartAction),

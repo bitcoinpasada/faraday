@@ -19,7 +19,7 @@ use crate::ui::pal::*;
 use crate::ui::{Style, Ui};
 use faraday_draw::tokens;
 use faraday_draw::tokens::{
-    BODY_M, BODY_S, BUTTON_H, HEADLINE_S, LABEL_L, LABEL_M, SEGMENTED_H, TITLE_M,
+    BODY_M, BODY_S, BUTTON_H, HEADLINE_S, LABEL_L, LABEL_M, MARGIN_COMPACT, SEGMENTED_H, TITLE_M,
 };
 
 /// How far in from a step's left edge its body is drawn, under its title.
@@ -568,35 +568,16 @@ fn paged(
     let back = col
         .back
         .unwrap_or((EN.flow_home, Action::Nav(crate::Screen::Home)));
-    ui.fill(0.0, 0.0, w, BAR_H, 0.0, Role::SurfaceContainerLow);
-    ui.fill(0.0, BAR_H - 1.0, w, 1.0, 0.0, Role::OutlineVariant);
-    if ui.is_pressed(back.1) {
-        ui.wash(
-            4.0,
-            4.0,
-            BAR_H - 8.0,
-            BAR_H - 8.0,
-            8.0,
-            Role::OnSurface.at(faraday_draw::tokens::STATE_PRESS),
-        );
-    }
-    ui.icon(
-        4.0,
-        4.0,
-        BAR_H - 8.0,
-        Icon::ChevronLeft,
-        13.0,
-        Role::OnSurface,
-    );
-    ui.hit_tip((0.0, 0.0, BAR_H + 8.0, BAR_H), back.1, EN.tip_back);
-    ui.back(back.1);
-    // The ?, the keyboard and Cancel go over its right end
+    // Material's small top app bar, as every page's (`compact::bar`):
+    // the ?, the keyboard and Cancel go over its right end
     // (`compact::flow_bar_tools`).
-    let room = ui.bar_tools_x.unwrap_or(w - M) - BAR_H;
-    let label = ui.fit_as(BODY_S, back.0, room);
-    ui.text_as(BAR_H, 5.0, BODY_S, Role::OnSurfaceVariant, &label);
-    let heading = ui.fit_as(TITLE_M, col.heading, room);
-    ui.text_as(BAR_H, 19.0, TITLE_M, Role::OnSurface, &heading);
+    let head = faraday_ui::nav::AppBar {
+        back: Some(back),
+        title: col.heading,
+        back_tip: EN.tip_back,
+    };
+    let right = ui.bar_tools_x.unwrap_or(w - MARGIN_COMPACT);
+    faraday_ui::nav::app_bar(ui, w, &head, right);
 
     let max = (content_h - (col.h - BAR_H)).max(0.0);
     ui.report_scroll(clip, max);

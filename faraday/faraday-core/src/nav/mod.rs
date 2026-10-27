@@ -9,11 +9,57 @@ pub(crate) mod screen;
 use crate::Screen;
 use faraday_draw::geom::{Window, WindowClass};
 
+/// A press on a top app bar's ⋮ menu (`docs/LAYOUT.md` §3, DESIGN §4.1).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MenuPress {
+    /// Opens it: with `None` the bar's windows' menu (Settings, Power
+    /// off); with what a compact bar had no room for, that bar's overflow.
+    Open(Option<Overflow>),
+    /// A screen chosen in it: it closes and goes there.
+    Go(Screen),
+    /// A tool of the bar chosen in its overflow: it closes and the tool
+    /// does what its button on the bar does.
+    Tool(BarTool),
+}
+
+/// The tools a compact top app bar puts in its overflow menu when they
+/// leave no room on it, in the order they go there.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BarTool {
+    /// The ?: the page's Learn.
+    Help,
+    /// The keyboard button.
+    Keyboard,
+    /// Make codex32 shares' eye.
+    Eye,
+}
+
+/// Which of a compact bar's tools are in its overflow menu.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct Overflow {
+    /// The ?.
+    pub help: bool,
+    /// The keyboard button.
+    pub keyboard: bool,
+    /// The keyboard was up when the menu opened (the menu, a sheet,
+    /// takes typing from the page while open): its row puts it away.
+    pub keyboard_up: bool,
+    /// The eye.
+    pub eye: bool,
+}
+
+impl Overflow {
+    /// Whether it holds anything: the bar then shows its ⋮.
+    pub fn any(self) -> bool {
+        self.help || self.keyboard || self.eye
+    }
+}
+
 /// The navigation a window gets (`docs/LAYOUT.md` §3).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Nav {
     /// Compact and short (the Pi's panel): Home is the menu, and every
-    /// other page has the 44-unit bar with its way back.
+    /// other page has the 64 dp top app bar with its way back.
     Menu,
     /// Compact, not short: the navigation bar at the foot and the top
     /// app bar over one-column pages.

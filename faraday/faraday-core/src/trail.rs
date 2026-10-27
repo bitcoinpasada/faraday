@@ -353,6 +353,7 @@ pub(crate) fn stays(a: Action) -> bool {
         Action::Glance(false)
             | Action::Vault(VaultAction::ItemBack)
             | Action::SettingsSection(None)
+            | Action::Vault(VaultAction::Search(crate::vault::SearchAct::Leave(_)))
     )
 }
 

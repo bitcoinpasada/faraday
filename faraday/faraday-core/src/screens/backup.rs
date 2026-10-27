@@ -230,7 +230,19 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         None => cw - panel_w - 72.0,
     };
     let Some(b) = app.backup() else {
-        title(ui, col_x, 28.0, EN.backup_back_up_a_wallet);
+        if ui.compact {
+            // The small panel's top app bar, its tools drawn over its
+            // right end (`compact::flow_bar_tools`).
+            let head = faraday_ui::nav::AppBar {
+                back: Some(app.named_back((EN.flow_home, Action::Nav(Screen::Home)))),
+                title: EN.backup_back_up_a_wallet,
+                back_tip: EN.tip_back,
+            };
+            let right = ui.bar_tools_x.unwrap_or(cw);
+            faraday_ui::nav::app_bar(ui, cw, &head, right);
+        } else {
+            title(ui, col_x, 28.0, EN.backup_back_up_a_wallet);
+        }
         return;
     };
     let Some(wallet) = app.session.wallets.get(b.wallet) else {

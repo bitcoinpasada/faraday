@@ -1,18 +1,21 @@
-//! The top app bar (`docs/LAYOUT.md` §3, DESIGN §4.1): `APP_BAR_H`
-//! across the page, the way back where the page has one, the page's
-//! name, and its actions at the right end, each a touch target.
+//! The top app bar (`docs/LAYOUT.md` §3, DESIGN §4.1): Material 3's
+//! small top app bar, `APP_BAR_H` across the page, the way back where
+//! the page has one, the page's name in title large with where Back goes
+//! as its subtitle under it in label medium (Material's `AppBarSmallTokens`),
+//! and its actions at the right end, each a touch target.
 
 use crate::pal::*;
 use crate::{Glyph, Ui, W};
 use faraday_draw::tokens::{
-    APP_BAR_H, BODY_S, GAP_SMALL, ICON_SMALL, LABEL, MARGIN_COMPACT, NAV_ICON, TITLE_L, TOUCH,
+    APP_BAR_H, GAP_SMALL, ICON_SMALL, LABEL, LABEL_M, MARGIN_COMPACT, NAV_ICON, TITLE_L, TITLE_M,
+    TOUCH, TypeRole,
 };
 use faraday_draw::widgets::Icon;
 
 /// What the bar shows at its left.
 pub struct AppBar<'s, A> {
-    /// The way back, and the name of where it lands, small over the
-    /// page's name (F77).
+    /// The way back, and the name of where it lands, the subtitle under
+    /// the page's name (F77).
     pub back: Option<(&'s str, A)>,
     /// The page's name.
     pub title: &'s str,
@@ -46,18 +49,37 @@ pub fn app_bar<A: Copy + PartialEq>(ui: &mut Ui<A>, w: f32, bar: &AppBar<A>, rig
         ui.tip_plain((bx, by, TOUCH, TOUCH), action, bar.back_tip);
         ui.back(action);
         x = bx + TOUCH;
-        // The bar's two lines are one-line slots: larger text fits down
-        // to Standard (`docs/TEXT-SIZE.md` §3).
-        let (lh, th) = (ui.line_as(BODY_S), ui.line_as(TITLE_L));
-        let top = (APP_BAR_H - lh - th) / 2.0;
-        let back = (x, top, lh, room(x));
-        ui.text_fit_as(back, BODY_S, Role::OnSurfaceVariant, label);
-        let name = (x, top + lh, th, room(x));
-        ui.text_fit_as(name, TITLE_L, Role::OnSurface, bar.title);
+        let (role, name) = bar_title(ui, bar.title, room(x));
+        let label = ui.fit_as(LABEL_M, label, room(x));
+        let (th, lh) = (ui.line_as(role), ui.line_as(LABEL_M));
+        let top = (APP_BAR_H - th - lh) / 2.0;
+        ui.text_mid_as((x, top, th), role, Role::OnSurface, &name);
+        ui.text_mid_as((x, top + th, lh), LABEL_M, Role::OnSurfaceVariant, &label);
     } else {
-        let name = (x, 0.0, APP_BAR_H, room(x));
-        ui.text_fit_as(name, TITLE_L, Role::OnSurface, bar.title);
+        let (role, name) = bar_title(ui, bar.title, room(x));
+        ui.text_mid_as((x, 0.0, APP_BAR_H), role, Role::OnSurface, &name);
     }
+}
+
+/// The page's name as the bar shows it in `room` beside its actions
+/// (`docs/DESIGN.md` §4.1): whole in title large, Material's role for
+/// the bar; else whole in title medium; else in title medium shortened
+/// at a word, its first word at least, with an ellipsis; else left off
+/// (empty), where no whole word would show. Cheap: a few widths measured.
+fn bar_title<A: Copy + PartialEq>(ui: &Ui<A>, title: &str, room: f32) -> (TypeRole, String) {
+    for role in [TITLE_L, TITLE_M] {
+        if ui.measure_as(role, title) <= room {
+            return (role, title.to_string());
+        }
+    }
+    let words: Vec<&str> = title.split_whitespace().collect();
+    for k in (1..words.len()).rev() {
+        let short = format!("{}…", words[..k].join(" "));
+        if ui.measure_as(TITLE_M, &short) <= room {
+            return (TITLE_M, short);
+        }
+    }
+    (TITLE_M, String::new())
 }
 
 /// An action at the bar's right end, its right edge at `right`: an icon

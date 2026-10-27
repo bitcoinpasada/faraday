@@ -2,7 +2,7 @@
 //! as Faraday draws them (`docs/LAYOUT.md` §3, DESIGN §4.1), from
 //! `faraday_ui::nav`. Each reads the state; none works anything out.
 
-use super::{Nav, destination_of};
+use super::{MenuPress, Nav, destination_of};
 use crate::drawing::View;
 use crate::strings::{EN, fill};
 use crate::ui::pal::*;
@@ -158,7 +158,12 @@ pub(crate) fn app_bar(app: &View, ui: &mut Ui, w: f32, nav: Nav) -> f32 {
     // Drawn after the bar itself, which fills under them: measured first.
     let actions = |ui: &mut Ui, right: &mut f32| {
         if nav == Nav::Bar && !hidden {
-            *right = faraday_ui::nav::more(ui, *right, Action::NavMenu(None), EN.tip_more);
+            *right = faraday_ui::nav::more(
+                ui,
+                *right,
+                Action::NavMenu(MenuPress::Open(None)),
+                EN.tip_more,
+            );
             if app.holds_secret() {
                 *right = faraday_ui::nav::icon_action(
                     ui,
@@ -411,7 +416,7 @@ pub(crate) fn menu_sheet(ui: &mut Ui, w: f32, h: f32) {
     let lines = [
         crate::menu::Line::Item(
             EN.sidebar_settings.to_string(),
-            Action::NavMenu(Some(Screen::Settings)),
+            Action::NavMenu(MenuPress::Go(Screen::Settings)),
         ),
         crate::menu::Line::Item(EN.nav_power_off.to_string(), Action::PowerAsk),
     ];

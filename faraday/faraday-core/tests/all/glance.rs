@@ -368,6 +368,52 @@ fn a_cosigners_key_offers_nothing_secret() {
     }
 }
 
+/// The chart's own page on a `width` × 640 window at `dpi`: how tall its
+/// name stands in the bar, in dp, and whether it reads whole.
+fn glance_title_height(width: u16, dpi: u16) -> (f32, bool) {
+    let mut app = device(width, 640, dpi);
+    let w = two_of_three(&mut app);
+    planned(&mut app, w, 2);
+    app.press(Action::Glance(true));
+    let _ = app.frame();
+    let texts = app.drawn_past_sides_and_text().1;
+    let per_dp = f32::from(width) / app.size().0;
+    let whole = texts.iter().find(|(t, _)| t == "At a glance");
+    let any = texts.iter().find(|(t, _)| t.starts_with("At a"));
+    let (_, r) = any.expect("the page's name in its bar");
+    (r.3 as f32 / per_dp, whole.is_some())
+}
+
+#[test]
+fn a_bar_title_too_long_for_title_large_beside_its_tools_steps_down_and_reads_whole() {
+    // A window with room: the name at the bar's own size.
+    let (roomy, whole) = glance_title_height(480, 160);
+    assert!(whole, "At a glance reads whole with room");
+    // The Pi, the ? and the mode pill beside it: smaller, and whole.
+    let (pi, whole) = glance_title_height(480, 286);
+    assert!(whole, "At a glance reads whole on the Pi");
+    assert!(pi < roomy, "the Pi's {pi} dp under the room's {roomy} dp");
+    // A name that fits beside them keeps the bar's own size on the Pi.
+    let wallets = |dpi: u16| {
+        let mut app = device(480, 640, dpi);
+        app.press(Action::Nav(Screen::WalletsStart));
+        let _ = app.frame();
+        let per_dp = 480.0 / app.size().0;
+        let texts = app.drawn_past_sides_and_text().1;
+        let top = texts
+            .iter()
+            .filter(|(t, _)| t == "Wallets")
+            .min_by_key(|(_, r)| r.1)
+            .map(|(_, r)| r.3 as f32 / per_dp);
+        top.expect("Wallets in its bar")
+    };
+    let (roomy, pi) = (wallets(160), wallets(286));
+    assert!(
+        (pi - roomy).abs() < 1.5,
+        "Wallets {pi} dp on the Pi, {roomy} dp with room"
+    );
+}
+
 #[test]
 fn on_a_small_panel_the_chart_is_its_own_page() {
     let mut app = device(480, 640, 286);
@@ -390,8 +436,12 @@ fn on_a_small_panel_the_chart_is_its_own_page() {
     }
     assert!(offered, "the card has no At a glance row");
     app.press(open);
+    // Its own page, named whole in its bar, whose way back names the
+    // wallet's card and goes there.
     let texts = app.drawn_texts();
     assert!(texts.iter().any(|t| t == "At a glance"), "{texts:?}");
+    assert!(texts.iter().any(|t| t == "Savings"), "{texts:?}");
+    assert_eq!(app.back_link(), Some(Action::Glance(false)));
     // A place names the keys a vault's stick opens.
     let nodes = nodes(&chart(&app, w));
     assert_eq!(
