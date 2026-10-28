@@ -145,26 +145,31 @@ fn title(m: &Codex32Make, card: Card) -> String {
         Card::Scheme => EN.codex32_scheme.to_string(),
         Card::Identifier => EN.codex32_identifier.to_string(),
         Card::Entropy => EN.codex32_entropy.to_string(),
-        Card::Enter => enter_title(m),
+        Card::Enter => EN.codex32_enter.to_string(),
         Card::Sheets => EN.codex32_worksheets.to_string(),
         Card::Strings => strings_title(m),
         Card::Made => EN.codex32_strings_made.to_string(),
     }
 }
 
-/// "Share A · character 7 of 26", or "Secret · …" with no threshold.
-fn enter_title(m: &Codex32Make) -> String {
-    let Some(w) = m.work() else {
-        return EN.codex32_enter.to_string();
-    };
+/// Where the entry stands while its card is open and a character is
+/// still to come: "Share A · character 7 of 26", or "Secret · …" with no
+/// threshold. The top app bar's title then, so it stays in view as the
+/// page scrolls under the bar (F146); the card itself reads Characters.
+/// `short`: "Share A · 7 of 26", for a bar with no room for the whole.
+pub(crate) fn entering(m: &Codex32Make, short: bool) -> Option<String> {
+    let w = m.work().filter(|_| m.open() == Some(Card::Enter))?;
     let data = w.scheme().length().data_len();
-    match m.front() {
-        Some((s, n)) => fill(
-            EN.codex32_share_character,
-            &[&share_name(w, s), &(n + 1).to_string(), &data.to_string()],
-        ),
-        None => EN.codex32_enter.to_string(),
-    }
+    let (s, n) = m.front()?;
+    let form = if short {
+        EN.codex32_share_character_short
+    } else {
+        EN.codex32_share_character
+    };
+    Some(fill(
+        form,
+        &[&share_name(w, s), &(n + 1).to_string(), &data.to_string()],
+    ))
 }
 
 /// "Share 2 of 5", or "Codex32" for the secret alone.

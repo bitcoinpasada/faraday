@@ -1,7 +1,8 @@
 //! The top app bar (`docs/LAYOUT.md` §3, DESIGN §4.1): Material 3's
 //! small top app bar, `APP_BAR_H` across the page, the way back where
 //! the page has one, the page's name in title large with where Back goes
-//! as its subtitle under it in label medium (Material's `AppBarSmallTokens`),
+//! under it in label medium, "Back to Size", or "Size" alone where that
+//! would be cut (Material's `AppBarSmallTokens`),
 //! and its actions at the right end, each a touch target.
 
 use crate::pal::*;
@@ -11,11 +12,12 @@ use faraday_draw::tokens::{
     TOUCH, TypeRole,
 };
 use faraday_draw::widgets::Icon;
+use faraday_strings::EN;
 
 /// What the bar shows at its left.
 pub struct AppBar<'s, A> {
-    /// The way back, and the name of where it lands, the subtitle under
-    /// the page's name (F77).
+    /// The way back, and the name of where it lands, drawn under the
+    /// page's name as "Back to" it (F77, F104).
     pub back: Option<(&'s str, A)>,
     /// The page's name.
     pub title: &'s str,
@@ -49,7 +51,13 @@ pub fn app_bar<A: Copy + PartialEq>(ui: &mut Ui<A>, w: f32, bar: &AppBar<A>, rig
         ui.back(action);
         x = bx + TOUCH;
         let (role, name) = bar_title(ui, bar.title, room(x));
-        let label = ui.fit_as(LABEL_M, label, room(x));
+        // "Back to Kind"; the name alone where that would be cut.
+        let back_to = faraday_strings::fill(EN.bar_back_to, &[label]);
+        let label = if ui.measure_as(LABEL_M, &back_to) <= room(x) {
+            back_to
+        } else {
+            ui.fit_as(LABEL_M, label, room(x))
+        };
         let (th, lh) = (ui.line_as(role), ui.line_as(LABEL_M));
         let top = (APP_BAR_H - th - lh) / 2.0;
         ui.text_mid_as((x, top, th), role, Role::OnSurface, &name);
@@ -68,6 +76,14 @@ pub fn app_bar_fill(scrolled: bool) -> Role {
     } else {
         Role::Surface
     }
+}
+
+/// Whether the bar of a page with a way back shows `title` whole before
+/// its actions, which begin at `right`, as [`app_bar`] draws it. Cheap: a
+/// width or two measured.
+pub fn bar_title_whole<A: Copy + PartialEq>(ui: &Ui<A>, title: &str, right: f32) -> bool {
+    let room = (right - GAP_SMALL - TOUCH).max(0.0);
+    bar_title(ui, title, room).1 == title
 }
 
 /// The page's name as the bar shows it in `room` beside its actions

@@ -186,7 +186,7 @@ open the same cards on strings typed in.
 | **Index** | in place of **Scheme** for **Add a share**: **From** the strings typed, the index offered, typed over on the codex32 keyboard |
 | **Identifier** | four characters on the codex32 keyboard, and **Suggest**, which fills four |
 | **Entropy** | **Roll dice**, **Type the characters** or **Type shares made by hand**; for dice, how many faces and each die's colour |
-| **Characters** | "Share A · character 7 of 26": each roll or character entered on the pad beside the sheets, the dice and checksum worksheets filling as on paper; **Continue** once every character is in |
+| **Characters** | each roll or character entered on the pad beside the sheets, the dice and checksum worksheets filling as on paper; **Continue** once every character is in. While it is open the top app bar's title is where the entry stands, "Share A · character 7 of 26" ("Share A · 7 of 26" on the Pi's panel), in view as the sheets scroll |
 | **Worksheets** | each sheet whole, a tab each, to read against the paper |
 | "Share 1 of 3" | each string to write down, as **String** or **Codex32QR**, then typed back: **Typed back the same**, or the box that differs; **Skip** asks once more |
 | **Strings made** | **Split**, **Length**, **Identifier**, **Fingerprint**, **Entropy**; **Check on another device** lists **Sets to try** (**Previous**, **Next**, **Done**); **Lock in** loads the key |

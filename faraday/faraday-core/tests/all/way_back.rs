@@ -2,7 +2,7 @@
 //! (F77): the same screen, the same wallet's card, the list scrolled as
 //! far, the Learn sheet open on the same page. A press on the way back,
 //! the mouse's back button and a flow's Cancel all land there, and the
-//! way back is named after where it lands.
+//! way back is named after where it lands, "Back to Tools" (F146).
 
 use faraday_bip::bip39::{Language, Mnemonic};
 use faraday_core::catalog::{Go, TILES};
@@ -101,8 +101,8 @@ fn back_from_a_flow_opened_in_tools_lands_on_tools_scrolled_as_it_was() {
     assert_eq!(app.screen, Screen::Create);
     let _ = app.frame();
     assert!(
-        app.drawn_texts().iter().any(|t| t == "Tools"),
-        "the way back is named after Tools"
+        app.drawn_texts().iter().any(|t| t == "Back to Tools"),
+        "the way back reads Back to Tools"
     );
     tap_back(&mut app);
     assert_eq!(app.screen, Screen::Catalog);
@@ -134,8 +134,8 @@ fn back_from_a_flow_opened_on_a_wallets_card_lands_on_that_card() {
     assert_eq!(app.screen, Screen::Message);
     let _ = app.frame();
     assert!(
-        app.drawn_texts().iter().any(|t| t == "Wallet 2"),
-        "the way back is named after the wallet"
+        app.drawn_texts().iter().any(|t| t == "Back to Wallet 2"),
+        "the way back reads Back to the wallet"
     );
     tap_back(&mut app);
     assert_eq!((app.screen, app.wallet_index()), (Screen::Wallets, 2));

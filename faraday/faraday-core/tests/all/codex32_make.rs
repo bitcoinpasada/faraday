@@ -407,7 +407,7 @@ fn bar_title_and_first_tool(app: &mut Faraday, bar_px: i32) -> ((i32, i32, i32, 
         .iter()
         .filter(|i| in_bar(i))
         .find_map(|i| match &i.kind {
-            InkKind::Text { text, .. } if text.starts_with("Add") => {
+            InkKind::Text { text, .. } if text.starts_with("Share A") => {
                 Some((i.rect.x, i.rect.y, i.rect.w, i.rect.h))
             }
             _ => None,

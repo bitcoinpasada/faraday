@@ -87,10 +87,11 @@ fn restore_back_opens_the_kind_as_chosen_and_forward_the_quorum_again() {
     app.press(Action::RKind(MULTI));
     assert_eq!(restore_open(&app), Some(QUORUM));
     assert_eq!(
-        drawn_count(&mut app, "Kind"),
-        2,
-        "the way back is named after Kind, beside Kind's own card"
+        drawn_count(&mut app, "Back to Kind"),
+        1,
+        "the way back reads Back to Kind (F146)"
     );
+    assert_eq!(drawn_count(&mut app, "Kind"), 1, "Kind's own card");
     back(&mut app);
     assert_eq!(restore_open(&app), Some(KIND));
     assert!(app.restore().unwrap().kind().multi(), "the kind as chosen");

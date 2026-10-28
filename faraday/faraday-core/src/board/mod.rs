@@ -20,6 +20,7 @@ mod lines;
 pub(crate) mod screen;
 
 use lines::{count_text, description_line, form_label, sees_line, software_name};
+use lines::{stick_numbers, stick_word};
 
 use std::rc::Rc;
 
@@ -842,16 +843,21 @@ impl Faraday {
     /// the plan the board on screen edits, as it is now. Back up's after
     /// its wallet's flow is past the lock is that flow's (§17.8).
     pub fn board_plan(&self) -> Option<(Shape, Answers)> {
-        let flow = match self.board_of()? {
-            BoardOf::Flow(i) => Some(i),
-            BoardOf::Backup => self.backup_locked_flow(),
-        };
-        if let Some(i) = flow {
+        if let Some(i) = self.board_flow() {
             let wf = self.flows.get(i)?.wallet.as_ref()?;
             return Some((wf.shape.clone(), wf.answers.clone()));
         }
         let b = self.backup.state()?;
         Some((self.plan_shape_now(b.wallet), b.answers.clone()))
+    }
+
+    /// The flow whose plan the board on screen is: a wallet flow's, or
+    /// Back up's wallet's flow past its lock.
+    fn board_flow(&self) -> Option<usize> {
+        match self.board_of()? {
+            BoardOf::Flow(i) => Some(i),
+            BoardOf::Backup => self.backup_locked_flow(),
+        }
     }
 
     /// The flow whose plan the board on screen edits past its lock, where
@@ -922,15 +928,6 @@ impl Faraday {
         match self.board_of() {
             Some(BoardOf::Flow(_)) => v < shape.vaults,
             _ => self.backup_vault_target(v).is_some(),
-        }
-    }
-
-    /// "Stick {}", or "SD card {}" where the medium is an SD card
-    /// (§19.17 item 4).
-    fn board_stick_word(&self) -> &'static str {
-        match self.medium {
-            crate::Medium::Stick => EN.board_stick,
-            crate::Medium::SdCard => EN.board_sd_card,
         }
     }
 
@@ -1207,7 +1204,8 @@ impl Faraday {
             .state()
             .and_then(|b| b.naming)
             .filter(|_| names_typed);
-        let stick_word = self.board_stick_word();
+        let stick_word = stick_word(self.medium);
+        let nums = stick_numbers(&m, self.board_flow().and_then(|i| self.flows.get(i)));
         let cards: Vec<CardView> = (0..places)
             .map(|p| {
                 let sticks = (0..plan::sticks_at(&m, p))
@@ -1234,7 +1232,7 @@ impl Faraday {
                             _ => (String::new(), String::new()),
                         };
                         StickView {
-                            label: fill(stick_word, &[&(s + 1).to_string()]),
+                            label: fill(stick_word, &[&nums.of(p, s).to_string()]),
                             remove: BoardPress::RemoveStick(p, s),
                             vault,
                             sealed,
@@ -1245,11 +1243,10 @@ impl Faraday {
                     .collect::<Vec<StickView>>();
                 // The board's empty sticks after the plan's, their numbers
                 // following on (§19.16 item 1).
-                let n = sticks.len();
                 let mut sticks = sticks;
                 for k in 0..state.empty.get(p).copied().unwrap_or(0) {
                     sticks.push(StickView {
-                        label: fill(stick_word, &[&(n + k + 1).to_string()]),
+                        label: fill(stick_word, &[&nums.empty(&state.empty, p, k).to_string()]),
                         remove: BoardPress::RemoveEmpty(p),
                         vault: None,
                         sealed: String::new(),
@@ -1281,7 +1278,7 @@ impl Faraday {
         let software = (has_software || has_files).then(|| SoftView {
             title: software_name.clone(),
             scanned: zone(Zone::Scanned, At::Software, None, false),
-            stick_label: fill(stick_word, &["1"]),
+            stick_label: fill(stick_word, &[&nums.files.to_string()]),
             stick: has_files.then(|| zone(Zone::SoftStick, At::Files, None, false)),
         });
         // How many places keep each thing: the numbered places, and the
@@ -2064,7 +2061,8 @@ impl Faraday {
         let empty = self
             .board_state()
             .map_or_else(Vec::new, |st| st.empty.clone());
-        let word = self.board_stick_word();
+        let word = stick_word(self.medium);
+        let nums = stick_numbers(&m, self.board_flow().and_then(|i| self.flows.get(i)));
         let stick = |n: usize| fill(word, &[&n.to_string()]);
         let mut rows = Vec::new();
         for p in 0..plan::places_of(&m).max(1) {
@@ -2075,15 +2073,15 @@ impl Faraday {
                 // A vault's stick goes on the place's first stick with no
                 // vault, or a new one.
                 if let Some(s) = (0..n).find(|&s| plan::stick_vault(&m, p, s).is_none()) {
-                    boxes.push((stick(s + 1), Zone::Card(p)));
+                    boxes.push((stick(nums.of(p, s)), Zone::Card(p)));
                 }
                 for e in 0..k {
-                    boxes.push((stick(n + e + 1), Zone::Empty(p, e)));
+                    boxes.push((stick(nums.empty(&empty, p, e)), Zone::Empty(p, e)));
                 }
             } else {
                 boxes.push((EN.board_paper.to_string(), Zone::Paper(p)));
                 for s in 0..n {
-                    let label = stick(s + 1);
+                    let label = stick(nums.of(p, s));
                     boxes.push((fill(EN.board_menu_files, &[&label]), Zone::Files(p, s)));
                     if let Some(v) = plan::stick_vault(&m, p, s) {
                         boxes.push((
@@ -2094,7 +2092,7 @@ impl Faraday {
                 }
                 for e in 0..k {
                     boxes.push((
-                        fill(EN.board_menu_files, &[&stick(n + e + 1)]),
+                        fill(EN.board_menu_files, &[&stick(nums.empty(&empty, p, e))]),
                         Zone::Empty(p, e),
                     ));
                 }

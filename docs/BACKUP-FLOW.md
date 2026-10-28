@@ -1225,7 +1225,8 @@ back can see it is the one the flow wants.
   still called **Boot stick**; the backup's sticks are numbered from 2,
   "Stick 2", "Stick 3" … ("Card" on the Pi, by `app.medium`, the boot
   card being Card 1). Everywhere: Faraday Demo, Practice, the device,
-  the flow's lines and its "Mark it as" line. Where only numbers fit,
+  the flow's lines and its "Mark it as" line, and the backup board
+  (§17.4, F146). Where only numbers fit,
   the boot stick's pill reads "1". Faraday Demo's backup stick folders follow
   the numbers (`STICK-2` for Stick 2); `BOOTSTICK` stays. A Faraday Demo
   install with a `STICK-1` folder from before renumbers its folders once
@@ -1299,7 +1300,8 @@ place's name at the top (typed while a vault is open, as §15.7 says;
 it holds, `Edit::RemovePlace` with no destination), and under the name
 its zones, top to bottom:
 
-- **Stick 1, Stick 2 …**: one zone per stick the place keeps (drawn as a
+- **Stick 2, Stick 3 …**: one zone per stick the place keeps, named by
+  its pill's number (§17.4, F146; drawn as a
   box in the place box, with the vault box inside it: see §17.14). A stick
   zone has two parts: the vault on it, when one is ("Vault 1", and what
   the vault holds, §17.3), and its files. A stick with no vault is a
@@ -1430,7 +1432,15 @@ A codex32 string's forms per zone are §17.23's.
   SHA-256) is taken after both are written, so the listing includes the
   files. Survey §4.6's binding before building: it must accept files
   beside a vault on one stick.
-- The stick pills (§16) number every stick of every place.
+- The stick pills (§16) number every stick of every place, and the
+  board, its ⋮ menu and its add sheets name each stick by its pill's
+  number (F146): the number the backup flow gives its stick where the
+  flow has one for every stick of the board, else from 2 in the order
+  the flow asks for them (each place's vaults' sticks in vault order,
+  then its sticks of files, place by place, then the software's stick
+  of files), one numbering across every place. The board's empty sticks
+  (§17.16) take the numbers after them. No stick on the board reads
+  Stick 1, the boot stick's number.
 
 ### 17.5 Checks are warnings
 
@@ -1552,7 +1562,7 @@ with three keys made here unless said:
   Seed A dropped into Vault 1 at Place 1 is drawn in Vault 1 at Place 3
   too, and the map holds it once, in the vault.
 - A second vault dropped on Place 1 goes on a second stick there.
-- Seed B's words `.txt` dropped on Place 1's Stick 1 beside Vault 1:
+- Seed B's words `.txt` dropped on Place 1's Stick 2 beside Vault 1:
   the write step writes the vault and the file on that one stick, and
   the stick is recognised afterwards.
 - A passphrase dropped on paper that keeps its words is kept, with the
@@ -1717,8 +1727,9 @@ Decided after seeing F2a's board; built in F2b. Where this differs from
    a stick and what is sealed in a vault are told apart at a glance:
    - the **place box**, the place card: its name, its stick boxes,
      **Paper** under them (outside every stick box), the line of fact;
-   - a **stick box** per stick, inside the place box, headed "Stick 1",
-     "Stick 2" … with its ×; everything on that stick is inside it. A
+   - a **stick box** per stick, inside the place box, headed by its
+     pill's number, "Stick 2", "Stick 3" … (§17.4, F146), with its ×;
+     everything on that stick is inside it. A
      file kept on the stick (a seed's words file or SeedQR picture, the
      description's files, a passphrase file) sits directly in the stick
      box, outside any vault box;
@@ -1794,7 +1805,8 @@ F40. Built in F2d.
 
 1. **A press on + stick adds a stick.** With nothing held, a press on a
    place's **+ stick** adds an empty stick box there, after its sticks:
-   "Stick n" with its ×, and **+ stick** after it again, so a place can
+   "Stick n", numbered after the plan's sticks (§17.4), with its ×, and
+   **+ stick** after it again, so a place can
    be given several empty sticks in a row. A drop on **+ stick** is as
    before (a new stick for what is dropped).
    - An empty stick is the board's, not the plan's: it is kept in the
@@ -2046,8 +2058,8 @@ the visible way to place, move, copy and take off without dragging.
    Not shown on the read-only board (before Customize backup).
 2. **A list chip's ⋮: Add to…**, one menu listing every box that can
    take the item, grouped under each place's name (as the place is
-   named): Paper, each stick's files ("Stick 1 · files"), each stick's
-   vault ("Stick 1 · Vault 1"), and **New stick** where + stick would
+   named): Paper, each stick's files ("Stick 2 · files"), each stick's
+   vault ("Stick 2 · Vault 1"), and **New stick** where + stick would
    take it. Only boxes that take the item in some form are listed
    (§17.3). One press places it there with its usual forms, as a drop
    does, and closes the menu; everything a drop does follows (the

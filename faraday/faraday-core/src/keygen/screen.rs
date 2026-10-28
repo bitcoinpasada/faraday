@@ -37,6 +37,58 @@ pub(super) const TITLES: [&str; kstep::COUNT] = [
     EN.codex32_codex32,
 ];
 
+/// The flow's name in the top app bar, its actions beginning at `right`:
+/// Add a key wherever the flow opens on Start; New key for a Create slot,
+/// and from Add a key's own Make a new key
+/// (`docs/history/NEW-WALLET.md` §15.3). While a share's codex32
+/// characters are entered, where the entry stands, in its short form
+/// where the whole does not fit (the Pi's panel; F146); where neither
+/// fits beside the bar's tools, the step is returned second, for the
+/// Characters card to read in place of its name. Cheap: a string filled
+/// and a width or two measured.
+fn heading(k: &KeyGen, ui: &Ui, right: f32) -> (String, Option<String>) {
+    let name = if k.slot.is_some() || k.back == crate::Screen::Entry {
+        EN.keygen_new_key
+    } else {
+        EN.keygen_add_a_key
+    };
+    let Some(m) = k
+        .codex32
+        .as_ref()
+        .filter(|_| k.open == Some(kstep::CODEX32))
+    else {
+        return (name.to_string(), None);
+    };
+    let Some(whole) = crate::codex32::screen::entering(m, false) else {
+        return (name.to_string(), None);
+    };
+    let right = ui.bar_tools_x.unwrap_or(right);
+    if faraday_ui::nav::bar_title_whole(ui, &whole, right) {
+        return (whole, None);
+    }
+    match crate::codex32::screen::entering(m, true) {
+        Some(short) if faraday_ui::nav::bar_title_whole(ui, &short, right) => (short, None),
+        _ => (name.to_string(), Some(whole)),
+    }
+}
+
+/// Where the bar has no room for the codex32 entry's `step`, the
+/// Characters card reads it in place of its name (F146). A lookup.
+fn step_on_card(
+    cards: &mut [flow::Card],
+    at: &[Option<crate::codex32::Card>],
+    step: Option<String>,
+) {
+    if let Some(step) = step
+        && let Some(i) = at
+            .iter()
+            .position(|c| *c == Some(crate::codex32::Card::Enter))
+        && let Some(card) = cards.get_mut(i)
+    {
+        card.title = step;
+    }
+}
+
 pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let Some(k) = app.keygen.state() else {
         return;
@@ -87,6 +139,8 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     );
     // Beside the panel the wide content starts where the column does.
     let wide = codex32_work_w(cw, side) - (lead - inset);
+    let (heading, step) = heading(k, ui, x0 + cw);
+    step_on_card(&mut cards, &at, step);
     let col = flow::Column {
         area_x: x0 + start,
         area_w: cw - side - start,
@@ -94,14 +148,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         w: cw_max,
         h: h - dice_foot.unwrap_or(0.0),
         back: Some(app.named_back((back_label, Action::Nav(k.back)))),
-        // Add a key wherever the flow opens on Start; New key for a Create
-        // slot, and from Add a key's own Make a new key
-        // (`docs/history/NEW-WALLET.md` §15.3).
-        heading: if k.slot.is_some() || k.back == crate::Screen::Entry {
-            EN.keygen_new_key
-        } else {
-            EN.keygen_add_a_key
-        },
+        heading: &heading,
         guided: app.guided(),
         switch: true,
         note: None,

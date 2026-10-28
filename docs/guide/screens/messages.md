@@ -94,7 +94,7 @@ checks the sample `sample-message.txt`.
 
 ![Check a signed message: The signature is valid (BIP-322), its file, address, wallet and message](../pictures/messages-check.png)
 
-*message-rtc6am.txt, signed on Sign a message and brought back into Files, opened with **Check the signature**: "The signature is valid (BIP-322)", the address bc1q cfk6 qv40 … rtc6 am, "New wallet 1 · receive 0/0" and the text "Faraday guide example, 27 October 2026". The way back reads **Files**.*
+*message-rtc6am.txt, signed on Sign a message and brought back into Files, opened with **Check the signature**: "The signature is valid (BIP-322)", the address bc1q cfk6 qv40 … rtc6 am, "New wallet 1 · receive 0/0" and the text "Faraday guide example, 27 October 2026". The way back reads **Back to Files**.*
 
 | Control | What it does |
 |---|---|

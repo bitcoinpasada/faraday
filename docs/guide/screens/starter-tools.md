@@ -30,7 +30,7 @@ refused**.
 
 ![Blank templates with BIP-39 words: the Form, Words, Copy and Places rows, then Print and Save the PDF](../pictures/starter-tools-templates.png)
 
-*Blank templates as it opens: **Form** **BIP-39 words**, **Words** **24**, **Copy** **Words**, **Places** 2, then **Print** and **Save the PDF**. Its way back reads **Tools**.*
+*Blank templates as it opens: **Form** **BIP-39 words**, **Words** **24**, **Copy** **Words**, **Places** 2, then **Print** and **Save the PDF**. Its way back reads **Back to Tools**.*
 
 Printable sheets to copy a seed onto by hand. A blank template holds
 nothing of any wallet: no wallet, key or seed is asked for or shown.

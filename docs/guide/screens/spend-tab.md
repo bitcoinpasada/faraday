@@ -20,7 +20,7 @@ same spend as on Wallets.
 
 ![Spend with New wallet 1 loaded: Walk through from the start, and Wallets loaded with its row and Spend from it](../pictures/spend-tab-loaded.png)
 
-*Spend opened from Home with New wallet 1 loaded: the way back reads **Home**, and the wallet's row under **Wallets loaded** reads "Can spend · 1 of 1", with **Spend from it**.*
+*Spend opened from Home with New wallet 1 loaded: the way back reads **Back to Home**, and the wallet's row under **Wallets loaded** reads "Can spend · 1 of 1", with **Spend from it**.*
 
 | Control | What it does |
 |---|---|

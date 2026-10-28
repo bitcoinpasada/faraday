@@ -397,7 +397,7 @@ working, and every computed cell opens to what made it (§6.4, §7.4).
   more); the Identifier typed on the codex32 keyboard or suggested from
   this device's randomness, refused where the strings typed in Add a key
   carry it; Entropy (dice by the booklet's de-biasing sheet, or
-  characters typed); the entry, its title "Share A · character 7 of 26",
+  characters typed); the entry, the top app bar's title "Share A · character 7 of 26" (F146),
   with the dice sheet (tracks, pairs, an equal pair struck and rolled
   again, the bits, the tree's path), the share's string in numbered
   boxes, and the checksum worksheet's rows round the front column or a
@@ -1138,9 +1138,13 @@ A Choice: **Roll dice** (ticked; §5.1) · **Type the characters**
 #### 6.4.1 The screen
 
 The Pad screen (DESIGN §5, Enter intent; or the Entry screen with the
-codex32 keyboard for typed characters), titled by where the entry
-stands: "Share A · character 7 of 26" (k of 2 or more) or "Secret ·
-character 7 of 26" (k = 0). Its context, above the pad, is the
+codex32 keyboard for typed characters), its card **Characters**, the top
+app bar's title where the entry stands while a character is still to
+come: "Share A · character 7 of 26" (k of 2 or more) or "Secret ·
+character 7 of 26" (k = 0), "Share A · 7 of 26" where the bar has no
+room for the whole (the Pi's panel), so it stays in view as the sheets
+scroll under the bar (F146); where the bar has room for neither (the
+Pi's panel off mainnet), the card reads it in place of **Characters**. Its context, above the pad, is the
 worksheets themselves, not a summary of them: the dice de-biasing sheet
 (§6.4.2) for the character being rolled, and the checksum worksheet of
 the share being entered (§6.4.3), with the translation worksheets

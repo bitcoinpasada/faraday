@@ -137,6 +137,32 @@ fn a_flow_is_named_by_the_bar(width: u16, height: u16) {
     );
 }
 
+/// Under a step flow's name, the bar says where its back arrow goes as
+/// "Back to" the step before, not the step's name alone, which read as a
+/// subtitle (DESIGN §4.1, F104, F146): on a phone-sized window, wide,
+/// and the Pi's 2.8-inch panel (480 × 640 pixels at 286 dpi).
+#[test]
+fn the_bars_way_back_reads_back_to_the_step_before() {
+    for (width, height, dpi) in [(480, 640, 160), (1280, 800, 160), (480, 640, 286)] {
+        let mut app = on(width, height, dpi);
+        app.press(Action::Nav(Screen::WalletsStart));
+        app.press(Action::RestoreWallet);
+        // Multisig · native SegWit: Kind moves on to Quorum (F103).
+        app.press(Action::RKind(4));
+        tick(&mut app);
+        let boxes = app.drawn_text_boxes();
+        let line = boxes
+            .iter()
+            .find(|(t, _)| t == "Back to Kind")
+            .unwrap_or_else(|| panic!("no Back to Kind at {width} × {height}"));
+        assert!(
+            line.1.1 + line.1.3 <= bar_px(dpi),
+            "Back to Kind at {:?} is not in the bar at {width} × {height}",
+            line.1
+        );
+    }
+}
+
 #[test]
 fn a_wide_step_flow_is_named_by_its_top_app_bar_whose_back_arrow_leaves_it() {
     a_flow_is_named_by_the_bar(1280, 800);

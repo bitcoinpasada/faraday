@@ -408,8 +408,8 @@ the booklet publishes no translation sheet for it), **Identifier** (four
 characters typed on the codex32 keyboard, or **Suggest**; one used by
 the strings typed in Add a key is refused), **Entropy** (Roll dice ·
 Type the characters, the latter with the line "Characters from dice or
-a worksheet, not chosen"), the entry, titled "Share A · character 7 of
-26", **Worksheets**, **Strings** and **Strings made**. The entry shows
+a worksheet, not chosen"), the entry, **Characters**, the top app bar
+titled "Share A · character 7 of 26" while it is open (F146), **Worksheets**, **Strings** and **Strings made**. The entry shows
 the booklet's sheets filling as each value is pressed: the share's
 string in numbered boxes, the dice de-biasing sheet (five tracks, the
 pairs, an equal pair struck and rolled again, the bits and the tree's

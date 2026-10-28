@@ -948,7 +948,7 @@ fn drag(app: &mut Faraday, from: BP, to: BP) {
     app.settle();
 }
 
-fn list(t: Thing) -> BP {
+pub(crate) fn list(t: Thing) -> BP {
     BP::Chip(Chip::List(t))
 }
 
@@ -1692,7 +1692,7 @@ fn a_narrow_window_places_from_the_add_sheets_menu_as_a_drag_does_on_wide() {
 
 /// What is sealed in a vault and what is only a file on its stick are
 /// told apart as a person reads them (`docs/BACKUP-FLOW.md` §17.14,
-/// §19.15, §19.17): under the stick's head "Stick 1", the files box
+/// §19.15, §19.17): under the stick's head "Stick 2", the files box
 /// headed "Files · not sealed" with Seed B's words file and SeedQR
 /// picture in it, and under it, apart from it, the vault box headed
 /// "Vault 1 · sealed · made in the checklist" (a vault not made yet)
@@ -1737,7 +1737,7 @@ fn a_seed_in_a_vault_and_a_seed_file_on_its_stick_are_drawn_in_their_own_boxes()
         paper.0 >= files.0 + files.2 && paper.0 >= vault.0 + vault.2,
         "Paper is beside the stick box, outside it"
     );
-    // Each box has its head row: "Stick 1" above the files box, its
+    // Each box has its head row: "Stick 2" above the files box, its
     // header at the top of it, "Vault 1" at the top of the vault box;
     // Seed B's chip reads its two file forms.
     let texts = app.drawn_text_boxes();
@@ -1748,7 +1748,7 @@ fn a_seed_in_a_vault_and_a_seed_file_on_its_stick_are_drawn_in_their_own_boxes()
             .map(|(_, b)| *b)
             .unwrap_or_else(|| panic!("{t:?} not drawn"))
     };
-    let stick_head = at("Stick 1");
+    let stick_head = at("Stick 2");
     let files_head = at("Files · not sealed");
     // A vault added on the board, not made yet (§19.21 item 6).
     let vault_head = texts
@@ -1758,7 +1758,7 @@ fn a_seed_in_a_vault_and_a_seed_file_on_its_stick_are_drawn_in_their_own_boxes()
         .expect("Vault 1's band");
     assert!(
         stick_head.1 < i32::from(files.1),
-        "Stick 1 heads the stick box"
+        "Stick 2 heads the stick box"
     );
     assert!(
         files_head.1 >= i32::from(files.1) && files_head.1 < i32::from(file.1),
@@ -1825,8 +1825,8 @@ fn on_wide_a_places_sticks_and_paper_stand_on_one_row_and_the_places_one_under_a
         "the row is under Place 1's header"
     );
     assert!(
-        at("Stick 1").0 < at("Stick 2").0 && at("Stick 2").0 < at("Paper").0,
-        "Stick 1, Stick 2 and Paper read left to right"
+        at("Stick 2").0 < at("Stick 3").0 && at("Stick 3").0 < at("Paper").0,
+        "Stick 2, Stick 3 and Paper read left to right"
     );
     // Place 2 under Place 1's row, at the same left edge.
     assert!(
@@ -1867,7 +1867,7 @@ fn ink_light(app: &mut Faraday, text: &str) -> u32 {
 }
 
 /// A press on **+ stick** with nothing held adds an empty stick there,
-/// "Stick 1" with its files box and its ×, and a further **+ stick**;
+/// "Stick 2" with its files box and its ×, and a further **+ stick**;
 /// The plan and the checklist do not change. A file dropped on it is kept
 /// on a stick of the plan there; its × takes an empty stick away; a
 /// place removed takes its empty sticks with it (`docs/BACKUP-FLOW.md`
@@ -1879,7 +1879,7 @@ fn a_press_on_plus_stick_adds_an_empty_stick_that_the_plan_does_not_see() {
     let shape = backup_shape(&app);
     let before = app.backup().unwrap().answers.clone();
     tap(&mut app, BP::Zone(Zone::NewStick(0)));
-    expect(&mut app, "Stick 1");
+    expect(&mut app, "Stick 2");
     expect(&mut app, "Files · not sealed");
     assert!(offered_on_page(
         &mut app,
@@ -1902,7 +1902,7 @@ fn a_press_on_plus_stick_adds_an_empty_stick_that_the_plan_does_not_see() {
     );
     // Another: two empty sticks in a row.
     tap(&mut app, BP::Zone(Zone::NewStick(0)));
-    expect(&mut app, "Stick 2");
+    expect(&mut app, "Stick 3");
     // Seed A dropped on the first is a file on Place 1's stick of the plan;
     // one empty stick is left after it.
     drag(&mut app, list(Thing::Seed(0)), BP::Zone(Zone::Empty(0, 0)));
@@ -2385,7 +2385,7 @@ fn a_share_on_a_place_that_still_cannot_see_asks_nothing() {
 // ---- §19.20: the ⋮ menu ----
 
 /// The ⋮ menu of the chip `c`.
-fn dots(c: Chip) -> BP {
+pub(crate) fn dots(c: Chip) -> BP {
     BP::Menu(c)
 }
 
@@ -2450,7 +2450,7 @@ fn add_to_on_a_seed_lists_the_boxes_that_take_it_by_place_and_places_it_as_a_dro
     };
     assert!(between("Place 2", ys[3], ys[4]), "Place 2 over its boxes");
     assert!(
-        between("Stick 1 · Vault 1", ys[1], ys[3]),
+        between("Stick 2 · Vault 1", ys[1], ys[3]),
         "the vault named by its stick"
     );
     tap(&mut app, BP::MenuTo(Zone::Paper(1)));

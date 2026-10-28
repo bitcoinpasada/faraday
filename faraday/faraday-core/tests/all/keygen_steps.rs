@@ -140,9 +140,11 @@ fn the_arrow_names_the_entries_card_by_its_source() {
     assert_eq!(open(&app), Some(kstep::KEY));
     assert_eq!(
         drawn_count(&mut app, EN.keygen_generator),
-        2,
-        "the card's title and the arrow back to it"
+        1,
+        "the card's title"
     );
+    let back_to = format!("Back to {}", EN.keygen_generator);
+    assert_eq!(drawn_count(&mut app, &back_to), 1, "the arrow back to it");
     assert_eq!(drawn_count(&mut app, EN.keygen_entries), 0);
 }
 
@@ -170,6 +172,8 @@ fn the_arrow_names_a_typed_form_by_the_form() {
         app.press(Action::KNext);
     }
     assert_eq!(open(&app), Some(kstep::KEY));
-    assert_eq!(drawn_count(&mut app, Form::Codex32.name()), 2);
+    assert_eq!(drawn_count(&mut app, Form::Codex32.name()), 1);
+    let back_to = format!("Back to {}", Form::Codex32.name());
+    assert_eq!(drawn_count(&mut app, &back_to), 1);
     assert_eq!(drawn_count(&mut app, EN.keygen_words), 0);
 }

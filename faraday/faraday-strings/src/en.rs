@@ -9415,10 +9415,11 @@ strings! {
     board_one_place: "1 place",
     /// A place's box that makes a stick of what is dropped on it.
     board_add_stick: "+ stick",
-    /// A stick zone's label. `{}`: its number at the place, from 1.
+    /// A stick zone's label. `{}`: its pill's number, one numbering
+    /// across the places, from 2 (the boot stick is 1).
     board_stick: "Stick {}",
     /// A stick zone's label where the medium is an SD card (the Pi).
-    /// `{}`: its number at the place, from 1.
+    /// `{}`: its pill's number, as `board_stick`.
     board_sd_card: "SD card {}",
     /// The files box's header inside a stick box: the files kept on the
     /// stick outside any vault (`docs/BACKUP-FLOW.md` §17.17).
@@ -9494,7 +9495,7 @@ strings! {
     board_menu_move: "Move to…",
     /// A placed chip's ⋮ menu: the item also kept in another box.
     board_menu_copy: "Copy to…",
-    /// A box in the ⋮ menu: a stick's files. `{}`: the stick, "Stick 1".
+    /// A box in the ⋮ menu: a stick's files. `{}`: the stick, "Stick 2".
     board_menu_files: "{} · files",
     /// A box in the ⋮ menu: a vault on a stick. `{}`: the stick, the vault.
     board_menu_vault: "{} · {}",
@@ -9982,6 +9983,10 @@ strings! {
     codex32_strings_made: "Strings made",
     /// The entry's title. `{}`: the share ("Share A"), the character, the characters in all.
     codex32_share_character: "{} · character {} of {}",
+    /// The entry's title where the bar has no room for the whole one
+    /// (the Pi's panel). `{}`: the share, the character, the characters
+    /// in all.
+    codex32_share_character_short: "{} · {} of {}",
     /// The Strings card's title. `{}`: which string, how many.
     codex32_share_n_of: "Share {} of {}",
     /// A share named by its index. `{}`: the index, upper case.
@@ -10689,6 +10694,10 @@ strings! {
     // ----- Plain tooltips on icon-only controls (docs/DESIGN.md §4.12), faraday-ui and faraday-core -----
     /// Tooltip on the way back, an icon alone.
     tip_back: "Back",
+    /// The top app bar's line under the page's name: where its way back
+    /// lands (DESIGN §4.1, F104, F146). `{}`: that page's or step's
+    /// name, shown alone where this would be cut.
+    bar_back_to: "Back to {}",
     /// Tooltip on the top app bar's ?.
     tip_learn: "Learn",
     /// Tooltip on the ⋮ that opens a menu.

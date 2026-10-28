@@ -618,3 +618,117 @@ fn on_a_wide_device_the_page_stays_where_it_is_as_the_pills_come_and_go() {
         "the pills move nothing"
     );
 }
+
+/// One stick has one name (`docs/BACKUP-FLOW.md` §16, §17.4, F146): the
+/// backup board numbers its sticks as their pills do, across every place
+/// and from 2, the boot stick being 1. Place 1's Vault 1 stick is Stick 2
+/// and its stick of files Stick 3, Place 2's Vault 1 stick Stick 4; no
+/// stick reads Stick 1, and the ⋮ menu names each stick as the board does.
+#[test]
+fn the_boards_sticks_are_numbered_as_their_pills_across_the_places() {
+    use crate::backup_board::{dots, list, on_board, three_on_an_empty_board};
+    use faraday_core::board::{BoardPress as BP, Chip, Thing, Zone};
+    let mut app = three_on_an_empty_board();
+    let place = |app: &mut Faraday, t: Thing, z: Zone| {
+        app.press(Action::Board(list(t)));
+        app.press(Action::Board(BP::Zone(z)));
+        app.settle();
+    };
+    app.press(Action::Board(BP::AddPlace));
+    app.press(Action::Board(BP::AddVault));
+    place(&mut app, Thing::Vault(0), Zone::Card(0));
+    place(&mut app, Thing::Vault(0), Zone::Card(1));
+    place(&mut app, Thing::Whole, Zone::NewStick(0));
+    let _ = on_board(&mut app, BP::Zone(Zone::Paper(1)));
+    let texts = app.drawn_text_boxes();
+    let y = |t: &str| {
+        texts
+            .iter()
+            .find(|(s, _)| s == t)
+            .map(|(_, b)| b.1)
+            .unwrap_or_else(|| panic!("{t:?} is not on the board"))
+    };
+    assert!(
+        !texts.iter().any(|(s, _)| s == "Stick 1"),
+        "no stick on the board reads Stick 1"
+    );
+    // Each place's sticks under its own name: Place 2's is Stick 4.
+    assert!(y("Place 1") < y("Stick 2") && y("Place 1") < y("Stick 3"));
+    assert!(y("Stick 3") < y("Place 2") && y("Place 2") < y("Stick 4"));
+    // The menu names them alike.
+    app.press(Action::Board(dots(Chip::List(Thing::Seed(0)))));
+    let _ = app.frame();
+    let menu = app.drawn_texts();
+    for name in ["Stick 2 · Vault 1", "Stick 3 · files", "Stick 4 · Vault 1"] {
+        assert!(menu.iter().any(|s| s == name), "{name} in {menu:?}");
+    }
+    assert!(
+        !menu.iter().any(|s| s.starts_with("Stick 1")),
+        "no box in the menu reads Stick 1: {menu:?}"
+    );
+}
+
+/// On the Pi's 2.8-inch panel (480 × 640 pixels at 286 dpi) the board
+/// numbers its sticks as their pills do too: read down the whole page,
+/// Place 1's sticks are Stick 2 and Stick 3 and Place 2's Stick 4, and no
+/// stick reads Stick 1 (`docs/BACKUP-FLOW.md` §16, §17.4, F146).
+#[test]
+fn on_the_pi_panel_the_boards_sticks_are_numbered_as_their_pills() {
+    use crate::backup_board::{list, three_on_an_empty_board};
+    use faraday_core::board::{BoardPress as BP, Thing, Zone};
+    let mut app = three_on_an_empty_board();
+    let place = |app: &mut Faraday, t: Thing, z: Zone| {
+        app.press(Action::Board(list(t)));
+        app.press(Action::Board(BP::Zone(z)));
+        app.settle();
+    };
+    app.press(Action::Board(BP::AddPlace));
+    app.press(Action::Board(BP::AddVault));
+    place(&mut app, Thing::Vault(0), Zone::Card(0));
+    place(&mut app, Thing::Vault(0), Zone::Card(1));
+    place(&mut app, Thing::Whole, Zone::NewStick(0));
+    // Place 1 then sees the wallet's balance, and keeps the description.
+    app.press(Action::Board(BP::SeesKeep));
+    // The plan made, the app on the panel.
+    app.event(Event::Display(DisplayInfo {
+        width: 480,
+        height: 640,
+        dpi: 286,
+        inset_bottom: 0,
+        inset_top: 0,
+        buttons: 0,
+        camera_fixed: false,
+        secure: SecureHardware::None,
+        boot: BootState::Unknown,
+        memory_mib: None,
+    }));
+    // The page from its top to its foot, a scroll at a time.
+    let scroll = |app: &mut Faraday, dy: i16| {
+        app.event(Event::Scroll { x: 240, y: 320, dy });
+        app.settle();
+        let _ = app.frame();
+    };
+    for _ in 0..4 {
+        scroll(&mut app, -30_000);
+    }
+    let mut read: Vec<String> = Vec::new();
+    for _ in 0..40 {
+        for t in app.drawn_texts() {
+            if !read.contains(&t) {
+                read.push(t);
+            }
+        }
+        scroll(&mut app, 200);
+    }
+    let first = |t: &str| {
+        read.iter()
+            .position(|s| s == t)
+            .unwrap_or_else(|| panic!("{t:?} is not on the board: {read:?}"))
+    };
+    assert!(
+        !read.iter().any(|s| s == "Stick 1"),
+        "no stick on the board reads Stick 1: {read:?}"
+    );
+    assert!(first("Place 1") < first("Stick 2") && first("Stick 2") < first("Stick 3"));
+    assert!(first("Stick 3") < first("Place 2") && first("Place 2") < first("Stick 4"));
+}

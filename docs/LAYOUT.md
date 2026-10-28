@@ -67,7 +67,8 @@ waits, so it is never more than one press away.
 
 **The top app bar** (every class but compact short), 64 dp across the
 page: the back arrow where the page has a way back (F77), the page's
-title, and at the right end its actions: the mode pill off mainnet, the
+title with where the arrow goes under it, "Back to Tools" (F146), and
+at the right end its actions: the mode pill off mainnet, the
 keyboard button where typing goes, the ? where the page has a Learn
 page, and the ⋮ menu where the page has more. It replaces the wide
 layout's back link, title row and top-right row (DESIGN §4.1). It stays

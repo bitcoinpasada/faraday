@@ -1196,7 +1196,7 @@ fn back_does_not_leave_while_a_write_is_under_way() {
 }
 
 /// After the lock that writes its sticks, a GPG key's flow is still
-/// Tools': its way back reads Tools, as it did before the lock, and
+/// Tools': its way back reads Back to Tools, as it did before the lock, and
 /// leads there.
 #[test]
 fn after_the_lock_a_tools_flows_way_back_reads_tools() {
@@ -1204,9 +1204,9 @@ fn after_the_lock_a_tools_flows_way_back_reads_tools() {
     let mut app = gpg_locked(&mut shell);
     let _ = app.frame();
     let texts = app.drawn_texts();
-    // The rail names both once; the way back names Tools.
+    // The way back names Tools.
     let count = |s: &str| texts.iter().filter(|t| *t == s).count();
-    assert_eq!(count("Tools"), count("Home") + 1, "{texts:?}");
+    assert_eq!(count("Back to Tools"), 1, "{texts:?}");
     app.press(Action::Flow(F::Back));
     assert_eq!(app.screen, Screen::Catalog);
 }

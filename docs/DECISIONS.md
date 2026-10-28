@@ -160,3 +160,4 @@ Read this table, then only the decision you need.
 | [F143](decisions/F143.md) | The user guide's key is a Practice sample, and New key keeps a sample's own words | 2026-10-27 | Active | design |
 | [F144](decisions/F144.md) | With no one holding an earlier build's files, the formats drop the names before Faraday's, and another program's PSBT records are signed past | 2026-10-28 | Active | wallets |
 | [F145](decisions/F145.md) | One signed image for each piece of hardware, Strict and Open, and a Starter that carries none | 2026-10-28 | Active | release |
+| [F146](decisions/F146.md) | One stick numbering, "Back to" under a page's name, and the codex32 entry's step in the top app bar | 2026-10-28 | Active | design |

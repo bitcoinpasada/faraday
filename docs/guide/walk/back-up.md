@@ -105,9 +105,9 @@ card. The place under it is edged while it takes the vault:
 
 | Dragging | Dropped |
 |---|---|
-| ![Vault 1 dragged over Place 1, the place edged](../pictures/4-4-drag.png) | ![Place 1 with Stick 1 holding Files and Vault 1](../pictures/4-4-dropped.png) |
+| ![Vault 1 dragged over Place 1, the place edged](../pictures/4-4-drag.png) | ![Place 1 with Stick 2 holding Files and Vault 1](../pictures/4-4-dropped.png) |
 
-Place 1 now has **Stick 1**, with two boxes: **Vault 1 · new** (made in
+Place 1 now has **Stick 2**, with two boxes: **Vault 1 · new** (made in
 the checklist) and **Files · not sealed** (files kept on the same stick
 outside the vault). The line **Vault 1 holds nothing** shows until
 something is put in it.
@@ -126,9 +126,9 @@ anywhere else lets it go.
 Press [**⋮**](../screens/back-up-wallet.md#the-menu-of-a-chip) on the seed chip in the list. **Add to…** lists every box
 that takes the seed, under its place, and **New stick**:
 
-![The seed's Add to… menu, Stick 1 · Vault 1 outlined](../pictures/4-5-menu.png)
+![The seed's Add to… menu, Stick 2 · Vault 1 outlined](../pictures/4-5-menu.png)
 
-Press **Stick 1 · Vault 1**. Put **Whole** into Vault 1 the same way.
+Press **Stick 2 · Vault 1**. Put **Whole** into Vault 1 the same way.
 On a chip already placed, ⋮ offers **Move to…**, **Copy to…** and
 **Take off**.
 
@@ -249,7 +249,7 @@ sticks**:
 | Insert | Stick read | Written |
 |---|---|---|
 | ![Write the sticks asking Insert Stick 2: Vault 1 (Place 1), vault.ofv 1.0 MB](../pictures/4-10-insert.png) | ![A stick read, This is the stick for Vault 1 (Place 1) outlined](../pictures/4-10-this-is-the-stick.png) | ![Written and checked on KEYSTICK, Mark it as Stick 2 and Pull the stick](../pictures/4-10-written.png) |
-| **Insert Stick 2: Vault 1 (Place 1)**, with the file to write under it (`vault.ofv`). The pills at the top of the window name every stick: the Faraday stick is **Boot stick**, the board's Stick 1 is **Stick 2** here, and the public files go on **Stick 3**. Plug in a stick. | Press **This is the stick for Vault 1 (Place 1)**, or **Use another stick**. | **Written and checked on** and the stick's name, here `KEYSTICK`. Write "Stick 2" on the stick (**Mark it as Stick 2**), then pull it (**Pull the stick**). |
+| **Insert Stick 2: Vault 1 (Place 1)**, with the file to write under it (`vault.ofv`). The pills at the top of the window name every stick: the Faraday stick is **Boot stick**, the board's Stick 2 is **Stick 2**, and the public files go on **Stick 3**. Plug in a stick. | Press **This is the stick for Vault 1 (Place 1)**, or **Use another stick**. | **Written and checked on** and the stick's name, here `KEYSTICK`. Write "Stick 2" on the stick (**Mark it as Stick 2**), then pull it (**Pull the stick**). |
 
 Then **Insert Stick 3: Public files** the same way.
 

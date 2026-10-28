@@ -201,3 +201,90 @@ pub(super) fn partials(
         EN.board_partials_not_offered
     }))
 }
+
+/// What the board calls each of its sticks (`docs/BACKUP-FLOW.md` §16,
+/// §17.4): its pill's number, one numbering across every place, so a
+/// stick has one name on the board, its menus, the checklist and its pill.
+pub(super) struct StickNumbers {
+    /// Stick `s` of place `p`'s number: `at[p][s]`.
+    at: Vec<Vec<usize>>,
+    /// The software place's stick of files.
+    pub files: usize,
+    /// The first number after every stick of the plan: the board's empty
+    /// sticks take the numbers from here, place by place.
+    next: usize,
+}
+
+impl StickNumbers {
+    /// Stick `s` of place `p`.
+    pub(super) fn of(&self, p: usize, s: usize) -> usize {
+        self.at.get(p).and_then(|x| x.get(s)).copied().unwrap_or(0)
+    }
+
+    /// Place `p`'s empty stick `k`, the board's empty sticks `empty` by
+    /// place numbered after the plan's.
+    pub(super) fn empty(&self, empty: &[usize], p: usize, k: usize) -> usize {
+        self.next + empty.iter().take(p).sum::<usize>() + k
+    }
+}
+
+/// The pill's number of every stick of the map `m` (`docs/BACKUP-FLOW.md`
+/// §16): the number the flow `f` gives its stick where the flow has a
+/// stick for every one of the board's (the boot stick is 1); else from 2
+/// in the order the flow asks for them, each place's vaults' sticks in
+/// vault order then its sticks of files, place by place, then the stick
+/// of files. A lookup per stick.
+pub(super) fn stick_numbers(
+    m: &[Spot],
+    f: Option<&crate::backup_flow::BackupFlow>,
+) -> StickNumbers {
+    use crate::backup_flow::{Target, stick_target};
+    let places = plan::places_of(m).max(1);
+    let targets: Vec<Vec<Option<Target>>> = (0..places)
+        .map(|p| {
+            (0..plan::sticks_at(m, p))
+                .map(|s| stick_target(m, p, s))
+                .collect()
+        })
+        .collect();
+    let mut order: Vec<Target> = targets.iter().flatten().flatten().copied().collect();
+    order.sort_by_key(|t| t.key());
+    let has_files = m.iter().any(|s| s.at == At::Files);
+    if has_files {
+        order.push(Target::Files);
+    }
+    let slot = |f: &crate::backup_flow::BackupFlow, t: Target| {
+        f.slots
+            .iter()
+            .position(|x| x.target == t)
+            .map(|k| f.stick_number(k))
+    };
+    let f = f.filter(|f| order.iter().all(|&t| slot(f, t).is_some()));
+    let number = |t: Target| match f {
+        Some(f) => slot(f, t).unwrap_or(0),
+        None => 2 + order.iter().position(|&x| x == t).unwrap_or(order.len()),
+    };
+    let at: Vec<Vec<usize>> = targets
+        .iter()
+        .map(|ts| ts.iter().map(|t| t.map_or(0, number)).collect())
+        .collect();
+    let files = number(Target::Files);
+    let last = match f {
+        Some(f) => 1 + f.own_sticks(),
+        None => 1 + order.len(),
+    };
+    StickNumbers {
+        at,
+        files,
+        next: last + 1,
+    }
+}
+
+/// "Stick {}", or "SD card {}" where the medium is an SD card
+/// (`docs/BACKUP-FLOW.md` §19.17 item 4).
+pub(super) fn stick_word(medium: crate::Medium) -> &'static str {
+    match medium {
+        crate::Medium::Stick => EN.board_stick,
+        crate::Medium::SdCard => EN.board_sd_card,
+    }
+}

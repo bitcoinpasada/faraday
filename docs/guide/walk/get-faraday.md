@@ -44,8 +44,8 @@ The rail at the left holds **Home**, **Make**, **Tools** and **Learn**;
 in a narrow window they are a bar at the foot. The bar at the top holds
 **Install** and the **⋮** menu (**About**). A step such as **Which
 stick?** opens as a page of its own, with no rail: a back arrow at the
-top left, the page's title, and under it the name of the page the arrow
-goes back to (here **Home**).
+top left, the page's title, and under it where the arrow goes back to
+(here **Back to Home**).
 
 | On screen | Meaning |
 |---|---|

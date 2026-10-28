@@ -60,7 +60,7 @@ before that, and the PSBT stays as it came.
 
 ![Decode a transaction finished from payment.psbt: Transaction id, Witness id, Version, Locktime, Size, Fee and Amounts in, one input and two outputs](../pictures/check-and-decode-decode.png)
 
-*The 2-of-3's payment.psbt, signed with a second key and finished, opened with **Decode it**: "Finished from payment.psbt", **Fee** "1850 sat · 9.8 sat/vB", "Inputs · 1", and "Outputs · 2", the payment (**Pays out of the loaded wallets**) and the change ("Change · back to new-wallet-1-descriptor · 1/0"). The way back reads **Spend**.*
+*The 2-of-3's payment.psbt, signed with a second key and finished, opened with **Decode it**: "Finished from payment.psbt", **Fee** "1850 sat · 9.8 sat/vB", "Inputs · 1", and "Outputs · 2", the payment (**Pays out of the loaded wallets**) and the change ("Change · back to new-wallet-1-descriptor · 1/0"). The way back reads **Back to Spend**.*
 
 [Decode a transaction](../screens/decode.md) takes apart a transaction that is signed and
 finished, the one a wallet broadcasts. Open it one of three ways:

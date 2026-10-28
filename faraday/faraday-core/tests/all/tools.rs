@@ -153,7 +153,12 @@ fn a_calculator_opened_from_tools_names_tools_as_its_way_back() {
         .filter(|(_, (x, y, _, h))| *x > 240 && y + h <= 64)
         .map(|(t, _)| t)
         .collect();
-    assert_eq!(bar.iter().filter(|t| *t == "Tools").count(), 2, "{bar:?}");
+    assert_eq!(bar.iter().filter(|t| *t == "Tools").count(), 1, "{bar:?}");
+    assert_eq!(
+        bar.iter().filter(|t| *t == "Back to Tools").count(),
+        1,
+        "{bar:?}"
+    );
     assert!(!bar.iter().any(|t| t == "Wallets"), "{bar:?}");
     assert!(app.back_link() == Some(Action::Nav(Screen::Catalog)));
 }

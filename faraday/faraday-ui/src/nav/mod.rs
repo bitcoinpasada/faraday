@@ -17,7 +17,7 @@ mod bar;
 mod chip;
 mod rail;
 
-pub use app_bar::{AppBar, app_bar, app_bar_fill, help, icon_action, more};
+pub use app_bar::{AppBar, app_bar, app_bar_fill, bar_title_whole, help, icon_action, more};
 pub use bar::bar;
 pub use chip::{Chip, status_chip};
 pub use rail::{Rail, destination_row, rail};

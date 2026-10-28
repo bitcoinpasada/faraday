@@ -23,11 +23,16 @@ const VECTOR2: [&str; 3] = [
 ];
 
 fn on(width: u16, height: u16) -> Faraday {
+    on_at(width, height, 160)
+}
+
+/// The app on a display of `width` × `height` pixels at `dpi`.
+fn on_at(width: u16, height: u16, dpi: u16) -> Faraday {
     let mut app = Faraday::new();
     app.event(Event::Display(DisplayInfo {
         width,
         height,
-        dpi: 160,
+        dpi,
         inset_bottom: 0,
         inset_top: 0,
         buttons: 0,
@@ -533,4 +538,94 @@ fn the_leaf_the_step_through_reaches_is_filled_in_the_paths_colour() {
     }
     assert_eq!(shown(&app), Some(faraday_core::codex32::Step::Char));
     assert_eq!(filled_leaves(&mut app).len(), 1, "the one leaf reached");
+}
+
+/// While a share's characters are rolled, the top app bar's title is the
+/// step, "Share A · character 2 of 26", and it stays in view as the page
+/// scrolls under the bar; the open card reads Characters, so the step is
+/// drawn once (F146). On a phone-sized window, a wide one and the Pi's
+/// 2.8-inch panel (480 × 640 pixels at 286 dpi), where the bar has room
+/// for its short form, "Share A · 2 of 26", and shows it whole.
+#[test]
+fn the_step_being_rolled_is_the_top_app_bars_title_while_the_page_scrolls() {
+    for (w, h, dpi) in [(480, 640, 160), (1366, 768, 160), (480, 640, 286)] {
+        let mut app = on_at(w, h, dpi);
+        to_entry(&mut app, 6);
+        for f in faces(b'q', 1, 2) {
+            c32(&mut app, C32::Face(f));
+        }
+        let step = if dpi == 160 {
+            "Share A · character 2 of 26"
+        } else {
+            "Share A · 2 of 26"
+        };
+        for dy in [0, 300, 300] {
+            app.event(Event::Scroll {
+                x: w / 2,
+                y: h / 2,
+                dy,
+            });
+            app.settle();
+            let _ = app.frame();
+            let texts = app.drawn_text_boxes();
+            let at: Vec<_> = texts.iter().filter(|(t, _)| t == step).collect();
+            assert_eq!(at.len(), 1, "{step} drawn once at {w} × {h}: {at:?}");
+            // In the bar: above its foot, 64 dp.
+            let (_, (_, y, _, bh)) = at[0];
+            assert!(
+                y + bh <= 64 * i32::from(dpi) / 160,
+                "{step} in the bar at {w} × {h}: {:?}",
+                at[0]
+            );
+            // On the panel the page opens scrolled to the dice, the card's
+            // head under the bar.
+            if dy == 0 && dpi == 160 {
+                assert!(
+                    texts.iter().any(|(t, _)| t == "Characters"),
+                    "the open card reads Characters at {w} × {h}"
+                );
+            }
+        }
+    }
+}
+
+/// On the Pi's panel off mainnet, where the mode pill leaves the bar no
+/// room for the step even in its short form, the open card reads it in
+/// place of Characters, so where the entry stands is still on screen;
+/// the way back, with no room for "Back to Entropy", reads the step's
+/// name as far as it fits (F146).
+#[test]
+fn on_the_pi_panel_off_mainnet_the_card_reads_the_step_the_bar_has_no_room_for() {
+    let mut app = on_at(480, 640, 286);
+    faraday_core::testkit::move_to(&mut app.session, faraday_core::testkit::NET).unwrap();
+    to_entry(&mut app, 6);
+    for f in faces(b'q', 1, 2) {
+        c32(&mut app, C32::Face(f));
+    }
+    for _ in 0..4 {
+        app.event(Event::Scroll {
+            x: 240,
+            y: 320,
+            dy: -30_000,
+        });
+    }
+    app.settle();
+    let _ = app.frame();
+    let texts = app.drawn_texts();
+    // The card's title wraps where the panel is narrow: its lines joined.
+    let read = texts.join(" ");
+    let step = "Share A · character 2 of 26";
+    assert_eq!(
+        read.matches(step).count(),
+        1,
+        "{step} drawn once: {texts:?}"
+    );
+    assert!(
+        !texts.iter().any(|t| t == "Share A · 2 of 26"),
+        "the bar has no short form beside it: {texts:?}"
+    );
+    assert!(
+        texts.iter().any(|t| t.starts_with("Entr")) && !texts.iter().any(|t| t.starts_with("Back")),
+        "the way back is named after Entropy: {texts:?}"
+    );
 }
