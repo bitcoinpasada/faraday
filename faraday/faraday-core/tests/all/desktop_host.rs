@@ -761,6 +761,36 @@ fn the_hosts_colours_follow_the_apps_theme_in_stark_contrast_to_it() {
 }
 
 #[test]
+fn a_host_menu_is_outlined_in_the_hosts_own_scheme_at_high_contrast_alone() {
+    use faraday_ui::pal::Role;
+    use faraday_ui::{Contrast, Mode, Theme};
+    let mut shell = Shell::default();
+    let mut host = desktop(&mut shell, 1, true, (1280, 800));
+    for contrast in [Contrast::Standard, Contrast::High] {
+        let app = Theme {
+            contrast,
+            ..host.app.theme()
+        };
+        host.app.press(Action::Theme(app));
+        host.open_menu_at_rest(HostMenu::Size);
+        let _ = host.frame();
+        let (x, y, _, h) = host.offered_area(HostPress::Sheet).expect("the menu");
+        // The host's scheme is the app's turned inside out.
+        let mode = match app.mode {
+            Mode::Light => Mode::Dark,
+            Mode::Dark => Mode::Light,
+        };
+        let outline = Theme::new(app.name, mode, contrast).role(Role::Outline);
+        let edge = pixel(&mut host, x, y + h / 2);
+        assert_eq!(
+            edge == outline,
+            contrast == Contrast::High,
+            "{contrast:?}: {edge:?}"
+        );
+    }
+}
+
+#[test]
 fn what_the_host_writes_reads_on_its_fill_in_every_scheme() {
     use faraday_ui::Theme;
     let mut short = Vec::new();

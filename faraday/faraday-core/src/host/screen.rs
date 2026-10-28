@@ -658,6 +658,9 @@ fn lay_out<'a>(ui: &HostUi, fitted: &'a Fitted, shown: Option<Roller>, room: f32
 /// or closing.
 pub(crate) fn draw(host: &Host, ui: &mut HostUi, area: Option<Area>, scroll: f32) -> Drawn {
     let look = Look::now(host);
+    // What the strip draws by role (a focus ring, a state layer, the
+    // High contrast outline) is in the host's scheme, not the app's.
+    ui.theme = look.theme;
     let f = ui.f;
     let (w, h) = (ui.c.width() as f32 / f, ui.c.height() as f32 / f);
     if host.preview.is_some()
