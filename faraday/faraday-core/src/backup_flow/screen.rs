@@ -64,6 +64,8 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         0.0
     };
     let col_x = x0 + 40.0;
+    // Named as its row on the rail names it.
+    let title = f.title();
     let col = flow::Column {
         area_x: x0,
         area_w: work.map_or(cw - panel_w, |end| end - x0 + faraday_draw::tokens::SPACER),
@@ -75,7 +77,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         },
         h,
         back: Some(app.named_back((leave_name(f.kind), fa(F::Back)))),
-        heading: f.kind.name(),
+        heading: &title,
         // The setup of a wallet's vaults is Make a new wallet's, with its
         // Guided switch (owner, 2026-10-25).
         guided: f.is_setup() && app.guided(),

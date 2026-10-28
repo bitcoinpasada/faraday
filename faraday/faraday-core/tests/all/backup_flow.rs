@@ -817,6 +817,24 @@ fn a_stick_pulled_while_writing_counts_nothing() {
     assert!(shell.writes.is_empty());
 }
 
+/// A wallet's backup is named on its page as its row on the rail names
+/// it, "Backup of" the wallet's name, where its page read "Bitcoin
+/// wallet" beside a rail that named the wallet.
+#[test]
+fn a_wallets_backup_is_named_alike_on_its_page_and_on_the_rail() {
+    use crate::backup_flow_wallet::{restart, single_key_ready};
+    let mut shell = Shell::new();
+    let (mut app, _, _) = single_key_ready(&mut shell);
+    shell.flow(&mut app, F::WalletLock);
+    let mut app = restart(&mut shell, &mut app);
+    assert_eq!(app.screen, Screen::BackupFlow);
+    let name = app.flow().unwrap().wallet.as_ref().unwrap().name.clone();
+    assert!(!name.is_empty());
+    expect(&mut app, &format!("Backup of {name}"));
+    let t = app.drawn_texts();
+    assert!(!t.iter().any(|s| s == "Bitcoin wallet"), "{t:?}");
+}
+
 /// A stick being written says so in the text's colour, not in the
 /// colour a link is drawn in: it is a state, not something to press.
 #[test]

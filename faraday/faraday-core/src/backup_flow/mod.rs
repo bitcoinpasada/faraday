@@ -1170,6 +1170,18 @@ impl BackupFlow {
         self.wallet.as_ref().is_some_and(|w| w.setup)
     }
 
+    /// Its name, as its page's title and its row on the rail both say
+    /// it: a named wallet's backup by the wallet's name ("Backup of New
+    /// wallet 1"), any other by its kind's.
+    pub fn title(&self) -> String {
+        match self.wallet.as_ref() {
+            Some(w) if self.kind == Kind::Wallet && !w.name.is_empty() => {
+                crate::strings::fill(crate::strings::EN.sidebar_flow_backup_wallet, &[&w.name])
+            }
+            _ => self.kind.name().to_string(),
+        }
+    }
+
     /// The vaults a wallet's setup made before its keys: the plan's while
     /// the flow is the setup, its first vaults once the wallet is made
     /// (the plan keeps them first, [`crate::plan::Shape::vaults`]).
