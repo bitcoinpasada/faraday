@@ -24,15 +24,19 @@ transcript, and its fingerprint, `3dca6805`, is given to compare with
 the one Faraday shows. A key from your own dice has another fingerprint;
 the "With your own key" box at the end of a walkthrough says what
 changes. Every walkthrough of the app, from First start on, can be
-followed in Faraday Demo, the app in a window on testnet
-([The Starter and Faraday Demo](guide/walk/starter-tour.md)).
+followed in Faraday Demo, the app in a window on testnet, in its
+Practice mode, which takes the guide's key
+([Faraday Demo](guide/walk/faraday-demo.md)).
+Faraday Starter, which holds the Demo and writes the stick, is
+[Faraday Starter](guide/walk/starter-tour.md).
 
 Read these in order. Each walkthrough is one file under
 `docs/guide/walk/`.
 
 | Walkthrough | File |
 |---|---|
-| The Starter and Faraday Demo | `docs/guide/walk/starter-tour.md` |
+| Faraday Starter | `docs/guide/walk/starter-tour.md` |
+| Faraday Demo | `docs/guide/walk/faraday-demo.md` |
 | Get Faraday on a stick | `docs/guide/walk/get-faraday.md` |
 | Start a PC from the stick | `docs/guide/walk/start-from-the-stick.md` |
 | First start, Home and the session | `docs/guide/walk/first-start.md` |
@@ -114,7 +118,7 @@ Moved to `docs/guide/walk/start-from-the-stick.md`.
 
 ### 1.11 Faraday Demo, the alternative
 
-Moved to `docs/guide/walk/starter-tour.md`.
+Moved to `docs/guide/walk/faraday-demo.md`.
 
 ## 2. First boot and Home
 

@@ -318,6 +318,9 @@ pub struct KeyGen {
     /// The sample the demo added in place of the key made, as its word
     /// and its word count ([`faraday_keys::Keys::next_handout`]).
     pub handed: Option<(&'static str, u8)>,
+    /// The name of the sample the words made are, when Practice kept them
+    /// as made: they are a sample's own words (`docs/MODES.md` §7).
+    pub kept: Option<String>,
     /// The key as `[fingerprint/path]xpub` at the kind's path, once
     /// locked in: the Create kind's for a slot, native SegWit on its own.
     pub key_text: Option<String>,
@@ -420,6 +423,7 @@ impl KeyGen {
             locked: false,
             with_passphrase: false,
             handed: None,
+            kept: None,
             key_text: None,
             start: Start::Make,
             started: None,
@@ -999,6 +1003,18 @@ impl KeyGen {
         u8::try_from(n).unwrap_or(24)
     }
 
+    /// Whether the words made are `phrase`, word for word. A lookup.
+    pub fn words_are(&self, phrase: &str) -> bool {
+        let Some(m) = self.mnemonic.as_ref() else {
+            return false;
+        };
+        let mut typed = phrase.split_whitespace();
+        m.indices()
+            .iter()
+            .all(|&i| typed.next() == Some(m.language().word(i)))
+            && typed.next().is_none()
+    }
+
     /// The words, space-separated, for the session to load.
     pub fn phrase(&self) -> Option<zeroize::Zeroizing<String>> {
         let m = self.mnemonic.as_ref()?;
@@ -1530,6 +1546,8 @@ impl crate::Faraday {
             self.keygen_lock_typed();
             return;
         }
+        // Words that are a sample's own are kept as made (`docs/MODES.md` §7).
+        let kept = self.made_sample_now().map(crate::samples::SampleKey::label);
         let Some(k) = self.keygen.state.as_mut() else {
             return;
         };
@@ -1542,11 +1560,12 @@ impl crate::Faraday {
         // The demo adds its next sample of this length in place of the key
         // just made, which goes unused, with the passphrase chosen on the
         // Key card, which is `faraday` (`Keys::next_handout`, F20,
-        // `docs/MODES.md` §7).
+        // `docs/MODES.md` §7); words that are a sample's own stay.
         let handed = self
             .session
             .keys
             .next_handout(k.handout_words())
+            .filter(|_| kept.is_none())
             .map(|(w, _)| (w, k.handout_words()));
         if k.slot.is_some() && k.passphrase.as_str() != k.passphrase2.as_str() {
             k.note = Some(EN.keygen_the_two_passphrases.to_string());
@@ -1607,6 +1626,7 @@ impl crate::Faraday {
             k.locked = true;
             k.with_passphrase = !pass.is_empty();
             k.handed = handed;
+            k.kept = kept;
             k.fingerprint = Some(fp.0);
             k.key_text = key_text;
             k.passphrase.clear();

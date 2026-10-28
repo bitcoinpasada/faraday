@@ -7,6 +7,19 @@ use faraday_core::samples::{
 
 pub(crate) static KEYS: &[SampleKey] = &[
     SampleKey {
+        name: "sample_guide",
+        word: "",
+        count: 0,
+        form: SampleForm::Words,
+        size: SampleSize::Words(12),
+        listed: true,
+        parts: &["brand hobby ranch shoulder brass hockey ranch short brand hockey random torch"],
+        combined: "",
+        plain: Some([0x3d, 0xca, 0x68, 0x05]),
+        with_passphrase: Some([0xab, 0xc8, 0xd7, 0x3b]),
+        node: None,
+    },
+    SampleKey {
         name: "sample_words",
         word: "bacon",
         count: 24,

@@ -250,11 +250,41 @@ fn aezeed_key() -> Key {
     }
 }
 
-fn keys(c: &Compute) -> Vec<Key> {
-    let mut all: Vec<Key> = testkit::SAMPLE_WORDS
+/// The key the user guide makes (`docs/guide/walk/new-key.md`): the
+/// words EntropyLab's published BitBox dice transcript names, as
+/// `entropy/dice.json`'s first words vector gives their entropy.
+fn guide_key(c: &Compute) -> Key {
+    let v = json("entropy/dice.json");
+    let entropy = v["vectors"]
+        .as_array()
+        .expect("vectors")
         .iter()
-        .map(|&(w, n)| words_key(c, "sample_words", w, n))
+        .find(|x| x["procedure"] == "words")
+        .and_then(|x| x["entropy"].as_str())
+        .expect("a words vector");
+    let m = Mnemonic::from_entropy(Language::English, &unhex(entropy)).expect("words");
+    let phrase: Vec<&str> = m
+        .indices()
+        .iter()
+        .map(|&i| Language::English.word(i))
         .collect();
+    plain_words(
+        c,
+        "sample_guide",
+        &phrase.join(" "),
+        "Words",
+        "Words(12)".to_string(),
+    )
+}
+
+fn keys(c: &Compute) -> Vec<Key> {
+    // The guide's key first: the sheet lists it at the top.
+    let mut all = vec![guide_key(c)];
+    all.extend(
+        testkit::SAMPLE_WORDS
+            .iter()
+            .map(|&(w, n)| words_key(c, "sample_words", w, n)),
+    );
     let (abandon, japanese) = bip39_vectors(c);
     all.push(abandon);
     all.push(japanese);

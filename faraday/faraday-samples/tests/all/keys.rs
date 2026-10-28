@@ -85,9 +85,9 @@ fn demo_takes_the_keys_that_take_a_passphrase_with_it_too() {
         assert_eq!(Some(fp.0), sample.with_passphrase, "{}", sample.name);
         with += 1;
     }
-    // The 21 repeated words, the 12-word vector, the Japanese one, the
-    // three SLIP-39 samples and Seed XOR.
-    assert_eq!(with, 21 + 2 + 3 + 1);
+    // The guide's key, the 21 repeated words, the 12-word vector, the
+    // Japanese one, the three SLIP-39 samples and Seed XOR.
+    assert_eq!(with, 1 + 21 + 2 + 3 + 1);
     // And the forms that take none have none.
     for sample in SAMPLES.keys.iter() {
         let takes = sample.form.takes_passphrase();
@@ -189,9 +189,9 @@ fn a_sample_carries_what_a_flow_needs_to_load_it() {
         assert!(k.name.starts_with("sample_"));
     }
     let listed = SAMPLES.keys.iter().filter(|k| k.listed).count();
-    // 21 repeated words, abandon, Japanese, three SLIP-39, two codex32,
-    // Seed XOR and the cipher seed.
-    assert_eq!(listed, 21 + 2 + 3 + 2 + 1 + 1);
+    // The guide's key, 21 repeated words, abandon, Japanese, three
+    // SLIP-39, two codex32, Seed XOR and the cipher seed.
+    assert_eq!(listed, 1 + 21 + 2 + 3 + 2 + 1 + 1);
     let _: &Samples = &SAMPLES;
 }
 

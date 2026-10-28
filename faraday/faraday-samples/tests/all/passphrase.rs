@@ -91,7 +91,7 @@ fn in_demo_add_a_keys_passphrase_offers_faraday_and_can_be_typed_over() {
         "chip gone"
     );
     app.press(Action::EntryAdd);
-    let sample = words_of("twelve");
+    let sample = crate::common::key("sample_guide");
     assert!(
         held(&app, sample.with_passphrase.unwrap()),
         "the sample with faraday is in: {:?}",

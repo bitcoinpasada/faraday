@@ -178,9 +178,12 @@ A fingerprint of `3dca6805` proves that the words on screen are the
 test words and the key loaded is the one they make. It does not prove
 that the paper copy is right: the quiz (step 3.9) checks that.
 
-In Faraday Demo's Practice, Lock in adds a public sample in place of the
-words made, and the card names the sample; the fingerprint is the
-sample's, not `3dca6805`.
+In Faraday Demo's Practice the guide's rolls make the words of a
+sample, **Guide key · 3dca6805**: the strip at the window's foot reads
+**These words are sample Guide key · 3dca6805**, and Lock in keeps
+them, so the fingerprint is `3dca6805` there too. Words from other
+rolls are replaced at Lock in by a public sample, which the card
+names.
 
 ### 3.8 Words: write them down
 

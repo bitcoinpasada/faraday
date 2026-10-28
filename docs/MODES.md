@@ -192,6 +192,7 @@ sample. "Public set" means its fingerprint (or node id) is in
 
 | Sample | Form | Source | Checked against |
 |---|---|---|---|
+| Guide key · 3dca6805, listed first | BIP-39, 12 words | the user guide's key (`docs/guide/walk/new-key.md`): EntropyLab's dice transcript, `tools/vectors/entropy/dice.json`'s first words vector (F143); not a handout | the vector's entropy, and another implementation's fingerprints |
 | bacon, flag, gas, great, slice, solution, summer, they, trade, trap, zebra ×24 | BIP-39 English, 24 words | `demo::SEEDS`; the only words valid 24 times (computed: 11 of 2048) | `Keys::add_words_with` |
 | twelve, ocean, piano, silver ×12 | BIP-39, 12 words | new; 130 of the 2048 words are valid 12 times | the same |
 | lucky, olive ×15; glad, school ×18; brave, sunset ×21 | BIP-39, 15, 18, 21 words | new; 57, 26 and 17 words are valid at those lengths | the same |
@@ -479,6 +480,15 @@ whatever loaded it; a handout counts as loaded with or without
 and the handout is added with it. A typed key (`KeyGen::typed`) is not
 replaced.
 
+Words made that are a sample's own, word for word (the guide's dice
+rolls make Guide key · 3dca6805), are kept as made (F143): the Key
+card's line reads "These words are sample Guide key · 3dca6805", Lock in
+is not dimmed for them, and it adds them as made, with the passphrase
+chosen; after Lock in the same line stands under the fingerprint.
+`Faraday::made_sample_now` compares the words made with the samples'
+words (a lookup); the store still takes only the public set's
+fingerprints, so nothing else is let through.
+
 ## 8. Strings
 
 All in `faraday/faraday-strings/src/en.rs`, each with its doc line as
@@ -508,6 +518,7 @@ the file has them.
 | `use_a_sample` | Use a sample |
 | `scan_sample` | Sample |
 | `sample_words` | {} ×{} (a word, a count) |
+| `sample_guide` | Guide key · 3dca6805 |
 | `sample_abandon` | abandon … about |
 | `sample_japanese` | Japanese words |
 | `sample_slip39_one` / `sample_slip39_two_of_three` / `sample_slip39_groups` | SLIP-39, one share / SLIP-39, 2 of 3 / SLIP-39, groups |
@@ -518,6 +529,7 @@ the file has them.
 | `sample_musig` / `sample_three_of_five` | MuSig2 / 3 of 5 |
 | `keygen_lock_in_adds` (changed) | Lock in adds sample {} ({}) in place of these words |
 | `keygen_added_public_seed` → `keygen_added_sample` | Added sample {} ({}) in place of the key made |
+| `keygen_words_are_sample` | These words are sample {} (F143) |
 | `wallet_is_not_a_key` (changed) | {} is not a sample: Practice takes only samples |
 | `vault_demo_uses_public` (changed) | Practice puts faraday in place of these words |
 | `wallet_public_seeds_only`, `network_row_note_wallets` | removed |

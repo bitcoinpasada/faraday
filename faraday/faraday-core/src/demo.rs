@@ -42,9 +42,12 @@ impl Faraday {
                     )
             }),
             // With every sample of the length chosen loaded none is left to stand in.
-            // A key typed is loaded as Add a key loads it.
+            // A key typed is loaded as Add a key loads it, and words made
+            // that are a sample's own are kept as made.
             Action::KLock => self.keygen.state().is_some_and(|k| {
-                !k.typed() && self.session.keys.next_handout(k.handout_words()).is_none()
+                !k.typed()
+                    && self.made_sample_now().is_none()
+                    && self.session.keys.next_handout(k.handout_words()).is_none()
             }),
             // Make the key, for a GPG key, or Secure Boot keys.
             Action::Flow(F::Make) => self

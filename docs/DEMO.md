@@ -176,7 +176,10 @@ chosen that is not loaded, in place of the key made (F81,
 21, eleven of 24 (`faraday-samples`). The Key card says which ("Lock in
 adds sample {} ({}) in place of these words", with the sample named as
 "ocean ×12"). A sample loaded with the passphrase `faraday` counts as
-loaded. The key made is never added or kept. SLIP-39 shares are not New
+loaded. The key made is never added or kept, unless its words are a
+sample's own, word for word, as the guide's dice rolls make the sample
+Guide key · 3dca6805 (F143): then Lock in keeps them, and the Key card
+says "These words are sample Guide key · 3dca6805". SLIP-39 shares are not New
 key: they stay disabled (§4), since no sample stands in for a dealt set
 of shares. With every sample of the length loaded, Lock in is disabled
 for that length only.
@@ -325,7 +328,7 @@ Practice's alone (`Faraday::roller_offered`).
 | Add a key | **Use faraday** for the BIP-39 passphrase | Practice's public passphrase (§5.4) |
 | Add a key's words, a Restore slot's, New key's typed key | **Paste words**, in Practice and on the test networks (Ctrl+V too) | A whole key's words from the clipboard, checked as typed (F75) |
 | New key, a typed key | **Use a sample** | As Add a key |
-| New key, the Key card | **Use faraday** for the passphrase and its repeat; the line "Lock in adds sample … in place of these words" | The public passphrase; the line says Practice replaces the key made (§5.1) |
+| New key, the Key card | **Use faraday** for the passphrase and its repeat; the line "Lock in adds sample … in place of these words", or "These words are sample …" for words that are a sample's own | The public passphrase; the line says Practice replaces the key made, or keeps a sample's words (§5.1) |
 | New key, the dice entry | The dice roller, "Rolled by this computer" | The computer's dice stand in for the person's own (F96) |
 | Make codex32 shares, the entry | Its own card: **Use a sample**, the five-dice roller and its step-through | `docs/CODEX32.md` §5.5 |
 | Make codex32 shares, the cards after the entry | "Practice puts sample NAME in place of these strings" | Practice replaces the strings made (`docs/CODEX32.md` §12) |

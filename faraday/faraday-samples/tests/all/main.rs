@@ -6,6 +6,7 @@ mod chip_caret;
 mod common;
 mod demo_strip;
 mod files;
+mod guide_key;
 mod handouts;
 mod keys;
 mod load;

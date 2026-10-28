@@ -65,20 +65,20 @@ fn add_a_key_with_twelve_words_takes_the_first_sample_and_a_second_press_the_nex
         "the chip is in the field"
     );
     app.press(Action::UseSample);
-    assert_eq!(words_typed(&app), words_of("twelve").parts[0]);
+    assert_eq!(words_typed(&app), named("sample_guide").parts[0]);
     // Filled: the chip is gone, and a press again puts the next one in its
     // place.
     let _ = app.frame();
     assert!(!strip_offers(&mut app, Action::UseSample));
     app.press(Action::UseSample);
-    assert_eq!(words_typed(&app), words_of("ocean").parts[0]);
+    assert_eq!(words_typed(&app), words_of("twelve").parts[0]);
     app.press(Action::EntryAdd);
     assert!(
-        held(&app, words_of("ocean")),
+        held(&app, words_of("twelve")),
         "{:?}",
         testkit::entry(&app).error
     );
-    assert!(!held(&app, words_of("twelve")));
+    assert!(!held(&app, named("sample_guide")));
 }
 
 #[test]
@@ -105,13 +105,13 @@ fn a_sample_is_not_offered_again_once_it_is_loaded() {
     add_a_key(&mut app);
     app.press(Action::UseSample);
     app.press(Action::EntryAdd);
-    assert!(held(&app, words_of("twelve")));
+    assert!(held(&app, named("sample_guide")));
     add_a_key(&mut app);
     app.press(Action::UseSample);
     assert_eq!(
         words_typed(&app),
-        words_of("ocean").parts[0],
-        "twelve is loaded"
+        words_of("twelve").parts[0],
+        "the guide's key is loaded"
     );
 }
 
@@ -129,7 +129,7 @@ fn a_small_panel_fills_its_word_entry_from_the_chip() {
     assert_eq!(w.committed(), 12);
     app.press(Action::EntryAdd);
     assert!(
-        held(&app, words_of("twelve")),
+        held(&app, named("sample_guide")),
         "{:?}",
         testkit::entry(&app).error
     );
@@ -283,7 +283,7 @@ fn new_key_typed_and_the_spend_tab_s_words_offer_the_chip_too() {
     app.press(Action::UseSample);
     app.press(Action::EntryAdd);
     assert!(
-        held(&app, words_of("twelve")),
+        held(&app, named("sample_guide")),
         "{:?}",
         testkit::entry(&app).error
     );
@@ -307,7 +307,7 @@ fn the_seed_scanner_reads_a_sample_through_its_seedqr() {
     );
     app.press(Action::SeedRead(Choice::Plain));
     assert!(
-        held(&app, words_of("bacon")),
+        held(&app, named("sample_guide")),
         "{:?}",
         testkit::entry(&app).error
     );
@@ -427,11 +427,11 @@ fn a_cosigner_s_box_takes_the_account_key_of_the_next_sample_seed_at_the_path() 
     );
     app.press(Action::Seeds(S::Sample(0)));
     let s = app.seeds().expect("the seeds");
-    // The first sample seed not among the wallet's: flag, at BIP-48's
-    // multisig account.
+    // The first sample seed not among the wallet's: the guide's key, at
+    // BIP-48's multisig account.
     assert_eq!(
         s.cosigners[0],
-        reference_key_text(words_of("flag").parts[0], "48h/1h/0h/2h")
+        reference_key_text(named("sample_guide").parts[0], "48h/1h/0h/2h")
     );
     let _ = app.frame();
     assert!(
@@ -519,7 +519,7 @@ fn the_copy_check_s_scanner_reads_the_seedqr_of_a_sample_key() {
     add_a_key(&mut app);
     app.press(Action::UseSample);
     app.press(Action::EntryAdd);
-    let key = words_of("twelve");
+    let key = named("sample_guide");
     assert!(held(&app, key), "{:?}", testkit::entry(&app).error);
     app.press(Action::KeyWallet(key.plain.unwrap(), 1));
     app.press(Action::Seeds(S::Make));
@@ -582,7 +582,7 @@ fn no_button_is_offered_on_testnet_or_where_no_samples_are_set() {
     );
 }
 
-/// A twelve-word sample key loaded, its backup open on the copy item,
+/// The first twelve-word sample key (the guide's) loaded, its backup open on the copy item,
 /// with the typed words check open.
 pub(crate) fn open_words_check(app: &mut Faraday) {
     use faraday_core::bstep;
@@ -590,7 +590,7 @@ pub(crate) fn open_words_check(app: &mut Faraday) {
     add_a_key(app);
     app.press(Action::UseSample);
     app.press(Action::EntryAdd);
-    let key = words_of("twelve");
+    let key = named("sample_guide");
     assert!(held(app, key), "{:?}", testkit::entry(app).error);
     app.press(Action::KeyWallet(key.plain.unwrap(), 1));
     app.press(Action::Seeds(faraday_core::seeds::SeedsAction::Make));
@@ -609,7 +609,7 @@ pub(crate) fn open_words_check(app: &mut Faraday) {
 }
 
 fn copy_checked(app: &Faraday) -> bool {
-    let fp = words_of("twelve").plain.unwrap();
+    let fp = named("sample_guide").plain.unwrap();
     app.backup()
         .is_some_and(|b| b.checked.iter().any(|(f, _)| *f == fp))
 }

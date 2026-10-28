@@ -3111,6 +3111,9 @@ strings! {
     /// Line in `handed_line`. `{}`: the sample's name (`sample_words`), its
     /// fingerprint.
     keygen_added_sample: "Added sample {} ({}) in place of the key made",
+    /// Line in `demo_lines_now` and `handed_line`. `{}`: the sample's name
+    /// (`sample_guide`, ...).
+    keygen_words_are_sample: "These words are sample {}",
     /// Text in `key_card` and `handed_line`. `{}`: the word, how many times
     /// it is repeated.
     sample_words: "{} ×{}",
@@ -8086,6 +8089,9 @@ strings! {
     samples_loaded_pair: "{} and {}",
     /// Where a sample wallet says it came from.
     samples_source: "Sample",
+    /// Key row in Load samples: the key the user guide makes from its
+    /// published dice rolls, and its fingerprint.
+    sample_guide: "Guide key · 3dca6805",
     /// Key row in Load samples.
     sample_abandon: "abandon … about",
     /// Key row in Load samples.

@@ -7,7 +7,7 @@
 Faraday runs from a USB stick on a PC. Faraday Starter, an app for
 Windows and Linux, writes the stick and helps start the PC from it.
 Faraday Demo runs Faraday in a window on testnet, for trying it out
-([The Starter and Faraday Demo](starter-tour.md)).
+([Faraday Demo](faraday-demo.md)).
 
 What is needed: a PC with a USB port, and a USB stick of 256 MB or
 larger whose contents can be lost.

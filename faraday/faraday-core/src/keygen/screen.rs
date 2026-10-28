@@ -2070,17 +2070,19 @@ fn check_rows(k: &KeyGen, src: Option<Source>, ui: &mut Ui, x: f32, y: f32, w: f
 /// One SLIP-39 share at a time, its words numbered, with the way to the
 /// next.
 /// The sample the demo added in place of the key made, when it did
-/// (F20): a line under the fingerprint, which is the sample's.
+/// (F20): a line under the fingerprint, which is the sample's; or the
+/// sample the words made are, when it kept them.
 fn handed_line(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
-    match (k.handed, k.fingerprint) {
-        (Some((word, n)), Some(fp)) => {
+    let line = match (k.kept.as_deref(), k.handed, k.fingerprint) {
+        (Some(name), _, _) => fill(EN.keygen_words_are_sample, &[name]),
+        (None, Some((word, n)), Some(fp)) => {
             let fp = fp_text(faraday_bip::keys::Fingerprint(fp));
             let name = fill(EN.sample_words, &[word, &n.to_string()]);
-            let line = fill(EN.keygen_added_sample, &[&name, &fp]);
-            ui.wrap_as((x, y, w), LABEL_L, Role::Warning, &line) + 6.0
+            fill(EN.keygen_added_sample, &[&name, &fp])
         }
-        _ => 0.0,
-    }
+        _ => return 0.0,
+    };
+    ui.wrap_as((x, y, w), LABEL_L, Role::Warning, &line) + 6.0
 }
 
 fn share_words(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {

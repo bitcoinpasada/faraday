@@ -401,7 +401,8 @@ publish it on its own: it runs inside the Linux and Windows Faraday
 Starters (`docs/DECISIONS.md` F83, F126), and its theme there is the
 Starter's. It has none of the stick's protections and is
 never for a seed that holds funds. It starts in Practice, a mode on
-testnet that takes only the public seeds (each of `bacon`, `flag`,
+testnet that takes only the public seeds (the user guide's key,
+`3dca6805`, and each of `bacon`, `flag`,
 `gas`, `great`, `slice`, `solution`, `summer`, `they`, `trade`, `trap`
 and `zebra`, twenty-four times) and makes no secret a person could keep
 (`docs/DEMO.md`). Testnet, Signet and Regtest, chosen from the mode pill

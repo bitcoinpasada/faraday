@@ -317,6 +317,7 @@ pub fn label(name: &str, word: &str, count: u8) -> Option<String> {
     let en = &EN;
     Some(match name {
         "sample_words" => fill(en.sample_words, &[word, &count.to_string()]),
+        "sample_guide" => en.sample_guide.to_string(),
         "sample_abandon" => en.sample_abandon.to_string(),
         "sample_japanese" => en.sample_japanese.to_string(),
         "sample_slip39_one" => en.sample_slip39_one.to_string(),
@@ -523,6 +524,24 @@ impl Faraday {
         self.samples.is_some() && self.mode() == Mode::Demo
     }
 
+    /// The sample whose words New key has made, in Practice: Lock in keeps
+    /// them as made rather than adding a handout in their place
+    /// (`docs/MODES.md` §7). `None` for a key typed or scanned, which is
+    /// loaded as Add a key loads it. A lookup: the words made against the
+    /// samples' words.
+    pub(crate) fn made_sample_now(&self) -> Option<&'static SampleKey> {
+        let set = self.samples.filter(|_| self.samples_on())?;
+        let k = self.keygen.state()?;
+        if k.typed() || k.slip39 || k.mnemonic.is_none() {
+            return None;
+        }
+        set.keys.iter().find(|s| {
+            s.form == SampleForm::Words
+                && s.plain.is_some()
+                && s.parts.first().is_some_and(|p| k.words_are(p))
+        })
+    }
+
     /// Costs a wallet read for each sample wallet, once a wallet is loaded.
     /// The sheet's rows as the session stands now, nothing ticked.
     fn samples_rows(&self, c: &Compute, set: &Samples) -> SheetState {
@@ -716,10 +735,14 @@ impl Faraday {
         if self.screen == Screen::KeyGen
             && let Some(k) = self.keygen.state()
         {
-            if k.open == Some(crate::keygen::kstep::KEY)
+            let key_open = k.open == Some(crate::keygen::kstep::KEY)
                 && !k.locked
                 && !k.typed()
-                && k.mnemonic.is_some()
+                && k.mnemonic.is_some();
+            let made = self.made_sample_now().filter(|_| key_open);
+            if let Some(s) = made {
+                lines.push(fill(EN.keygen_words_are_sample, &[&s.label()]));
+            } else if key_open
                 && let Some((word, fp)) = self.session.keys.next_handout(k.handout_words())
             {
                 let name = fill(EN.sample_words, &[word, &k.handout_words().to_string()]);

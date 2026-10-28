@@ -95,7 +95,7 @@ Read this table, then only the decision you need.
 | [F78](history/decisions/F78.md) | A window's layout does not follow the compositor's scale above 1.5 | 2026-10-22 | Replaced by F101 | design |
 | [F79](decisions/F79.md) | Faraday's crypto is cross-checked against Python references, offline, at build time | 2026-10-22 | Active | crypto |
 | [F80](decisions/F80.md) | A stick or Pi card has a 64 MiB boot and a 128 MiB FAT32 data partition | 2026-10-22 | Amended by F128 | stick |
-| [F81](decisions/F81.md) | Modes: a pressable pill, Practice on testnet, samples at every step | 2026-10-22 | Amended by F119 | design |
+| [F81](decisions/F81.md) | Modes: a pressable pill, Practice on testnet, samples at every step | 2026-10-22 | Amended by F119, F143 | design |
 | [F82](decisions/F82.md) | A first start opens Steps only; Guided is a choice | 2026-10-22 | Active | design |
 | [F83](decisions/F83.md) | Faraday Demo is inside the Starter, and not published on its own | 2026-10-23 | Amended by F126 | release |
 | [F84](decisions/F84.md) | Check a signer fails closed; unknown fields are findings there and Info in a review | 2026-10-23 | Active | crypto |
@@ -157,3 +157,4 @@ Read this table, then only the decision you need.
 | [F140](decisions/F140.md) | The mark in golden proportions | 2026-10-27 | Active | design |
 | [F141](decisions/F141.md) | A miniscript or a taproot tree of one key is signed only through its registered wallet | 2026-10-27 | Active | wallets |
 | [F142](decisions/F142.md) | A stick's pill is filled in its tone while the stick is in, its tones set by mode and contrast | 2026-10-27 | Active | design |
+| [F143](decisions/F143.md) | The user guide's key is a Practice sample, and New key keeps a sample's own words | 2026-10-27 | Active | design |
