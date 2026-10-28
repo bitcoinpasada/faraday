@@ -1,8 +1,7 @@
 # Check and decode
 
-**Kind:** Spec
-**Status:** Written and checked against the app's code and strings; two of its four pictures drawn by `just guide-pictures` (`docs/guide/pictures/`)
-**Open:** the pictures of Decode a transaction and the calculators, which the tour draws empty (no transaction chosen, no calculator chosen)
+**Kind:** Reference
+**Status:** Written, checked against the app's screens and strings, and pictured from `just guide-pictures` (`docs/guide/pictures/`)
 
 **You end with:** the transaction of [Spend](spend.md) taken apart
 field by field, its signatures' nonces checked, an address checked
@@ -59,7 +58,9 @@ before that, and the PSBT stays as it came.
 
 ## 3. Decode a finished transaction
 
-*Picture to come: `check-and-decode-decode.png`, Decode a transaction with payment-final.txn, its facts, inputs and outputs.*
+![Decode a transaction finished from payment.psbt: Transaction id, Witness id, Version, Locktime, Size, Fee and Amounts in, one input and two outputs](../pictures/check-and-decode-decode.png)
+
+*The 2-of-3's payment.psbt, signed with a second key and finished, opened with **Decode it**: "Finished from payment.psbt", **Fee** "1850 sat · 9.8 sat/vB", "Inputs · 1", and "Outputs · 2", the payment (**Pays out of the loaded wallets**) and the change ("Change · back to new-wallet-1-descriptor · 1/0"). The way back reads **Spend**.*
 
 [Decode a transaction](../screens/decode.md) takes apart a transaction that is signed and
 finished, the one a wallet broadcasts. Open it one of three ways:
@@ -161,7 +162,9 @@ The two must match in every character.
 
 ## 7. The calculators
 
-*Picture to come: `check-and-decode-calculators.png`, Tools on Hashes, abc typed, its three hashes.*
+![Tools on Hashes with abc typed: Bytes 3, SHA-256, SHA-256d and HASH160](../pictures/check-and-decode-calculators.png)
+
+*Tools on **Hashes**, opened from **Tools**, with `abc` typed and **Read as: automatic**.*
 
 Press **Tools**, then any tile under **Calculators**. The calculator
 page, [Tools](../screens/calculators.md), has a button per calculator at the top, **Hashes**,

@@ -1,8 +1,7 @@
 # Tools: the calculators
 
-**Kind:** Spec
-**Status:** Written from the app's code and strings (`faraday/faraday-core/src/tools/screen.rs`, `faraday/faraday-core/src/tools/mod.rs`, `faraday/faraday-core/src/catalog.rs`); not yet read beside the running app
-**Open:** the picture: `calculators.png` is drawn as an empty page, the screens tour opening Tools with no calculator chosen
+**Kind:** Reference
+**Status:** Checked against the app's pictures in docs/guide/pictures/ (drawn by just guide-pictures) and its code and strings (`faraday/faraday-core/src/tools/screen.rs`, `faraday/faraday-core/src/tools/mod.rs`, `faraday/faraday-core/src/catalog.rs`)
 **Screen:** `Tools`
 **Group:** Tools
 
@@ -15,7 +14,9 @@ The page's title is **Tools**, like the page of tiles it is opened
 from. Each calculator takes what is typed, works one thing out and
 keeps nothing; none of them touches a key.
 
-*Picture to come: `calculators.png`, Tools on Hashes, abc typed, its three hashes.*
+![Tools on Hashes with Read as: automatic, abc typed, and its Bytes, SHA-256, SHA-256d and HASH160](../pictures/calculators.png)
+
+*Tools on **Hashes**, opened from **Tools**, **Read as: automatic**, `abc` typed: **Bytes** 3, SHA-256 `ba7816bf…f20015ad`, SHA-256d `4f8b42c2…3e6c6358` and HASH160 `bb1be98c…78e4dc33`.*
 
 ## On this screen
 

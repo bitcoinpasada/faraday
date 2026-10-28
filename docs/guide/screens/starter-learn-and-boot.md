@@ -18,9 +18,9 @@ the stick** on [Written](starter-make.md#written-or-not-written). Its
 way back is the destination it was opened from. On an Intel Mac it is
 **Start this Mac from the stick** ([below](#on-an-intel-mac)).
 
-![Start this computer from the stick on a Dell with Secure Boot on: the maker's guide row, Write down, Print and the four steps](../pictures/starter-start.png)
+![Start this computer from the stick on an HP with Secure Boot on: the maker's guide row, Write down, Print and the four steps](../pictures/starter-start.png)
 
-*Start this computer from the stick on a Dell running Windows, Secure Boot on: the row **Starting a Dell computer from the stick**, **What Secure Boot and BitLocker are**, **Write down** (F12, F2, Boot Configuration → Secure Boot), **Print**, and the four steps, then **On a phone**.*
+*Start this computer from the stick on an HP running Windows, Secure Boot on: the row **Starting an HP computer from the stick**, **What Secure Boot and BitLocker are**, **Write down** (Esc, then F9; Esc, then F10; Boot Options → Secure Boot, business: Security → Secure Boot Configuration), **Print**, and the four steps, then **On a phone**.*
 
 The steps shown follow this computer's state, from the top:
 
@@ -30,7 +30,7 @@ The steps shown follow this computer's state, from the top:
 | **This computer cannot start a Faraday stick** | on an ARM computer: the only line on the page |
 | **Started in legacy BIOS mode: UEFI has to be on** | in the warning band, on a computer started in legacy BIOS mode |
 | the lines of what can record | as on [Home](starter-home.md#what-can-record-the-screen-or-the-keys), with **Continue anyway**, **Check again** and **Screens and devices that can record** |
-| this computer's guide | a row titled by its Learn page: its maker's, when its maker has a page ("Starting a Dell computer from the stick"); for any other maker, **Starting a Windows computer from the stick** or **Starting a Linux computer from the stick**, as the system running. A press opens it |
+| this computer's guide | a row titled by its Learn page: its maker's, when its maker has a page ("Starting an HP computer from the stick"); for any other maker, **Starting a Windows computer from the stick** or **Starting a Linux computer from the stick**, as the system running. A press opens it |
 | **What Secure Boot and BitLocker are** | opens that Learn page |
 | "An encrypted drive Faraday does not manage: …" and **I have its rescue disk or password** | on Windows, while another encryption product is not yet confirmed; the restart buttons are grey until it is pressed |
 
@@ -41,9 +41,9 @@ screen, a label and its value each:
 
 | Row | Value |
 |---|---|
-| **Boot menu key** | the maker's key that opens the boot menu ("F12") |
-| **Usual BIOS key** | the maker's key that opens the BIOS ("F2") |
-| **Secure Boot setting** | where the setting is in this maker's BIOS ("Boot Configuration → Secure Boot") |
+| **Boot menu key** | the maker's key that opens the boot menu ("Esc, then F9") |
+| **Usual BIOS key** | the maker's key that opens the BIOS ("Esc, then F10") |
+| **Secure Boot setting** | where the setting is in this maker's BIOS ("Boot Options → Secure Boot; business: Security → Secure Boot Configuration") |
 
 For a maker the Starter does not know, the key rows read "Not known:
 try Esc · F2 · …" with the keys to try, and the setting row **Not

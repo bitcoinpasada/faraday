@@ -101,9 +101,9 @@ The title is its name; its line its shape ("2 of 3 · …").
 The title is its title; its line **Password**, **TOTP**, both
 ("Password · TOTP"), or **Entry**.
 
-![Passwords on Entries with Mail chosen: username, password hidden, URL, its TOTP code with 21 s left, Edit and Export for KeePass](../pictures/vaults-and-passwords-entry.png)
+![Passwords on Entries with Mail chosen: username, password hidden, URL, its TOTP code with 17 s left, Edit and Export for KeePass](../pictures/vaults-and-passwords-entry.png)
 
-*The Passwords vault on **Entries**, with **Add an entry**, **Scan a code**, **TOTP codes** and **Search entries**; the entry Mail chosen, its code 838 140 with 21 s left.*
+*The Passwords vault on **Entries**, with **Add an entry**, **Scan a code**, **TOTP codes** and **Search entries**; the entry Mail chosen, its code 838 140 with 17 s left.*
 
 | Field or control | What it is |
 |---|---|

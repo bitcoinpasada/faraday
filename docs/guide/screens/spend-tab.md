@@ -18,9 +18,9 @@ same spend as on Wallets.
 
 **Spend** first shows what is loaded, when a wallet or a seed is.
 
-![Spend with New wallet 1 loaded: Walk through from the start, and Wallets loaded with its row and Spend from it](../pictures/spend-tab-map.png)
+![Spend with New wallet 1 loaded: Walk through from the start, and Wallets loaded with its row and Spend from it](../pictures/spend-tab-loaded.png)
 
-*Spend opened from Backups with New wallet 1 loaded: its row under **Wallets loaded** reads "Can spend · 1 of 1", with **Spend from it**.*
+*Spend opened from Home with New wallet 1 loaded: the way back reads **Home**, and the wallet's row under **Wallets loaded** reads "Can spend · 1 of 1", with **Spend from it**.*
 
 | Control | What it does |
 |---|---|
@@ -48,6 +48,10 @@ same spend as on Wallets.
 
 Closed, **Six stops**. The six stops, from **What you have** to **Send
 it**, each marked **Paper**, **Offline** or **Online**, and **Start**.
+
+![Spend's column on How to spend bitcoin: the note, the six stops marked Paper, Offline or Online, the warning about the words, and Start](../pictures/spend-tab-map.png)
+
+***Walk through from the start** pressed with New wallet 1 loaded: **How to spend bitcoin** open, its six stops from **What you have** to **Send it**, the warning "The words are the money. …", **Start** and **More about this**; **What do you have?** below reads **Nothing in yet**.*
 
 ### What do you have?
 
@@ -150,9 +154,9 @@ first two cards are the wallet's own:
 Then the spend's cards and **Put everything away**. A PSBT for the
 wallet already in Files opens the column at its review.
 
-![Spend from New wallet 1 with Read the transaction open: Sends, Change, Fee, Spends and Txid, No warnings and Mainnet, Show the table and Continue](../pictures/sign-transaction.png)
+![Spend from New wallet 1 with Read the transaction open: Sends, Change, Fee, Spends and Txid, No warnings and Mainnet, Show the table outlined and Continue](../pictures/6-4-transaction.png)
 
-*A PSBT scanned on **Write the payment in Sparrow** ("Signing scanned-1.psbt"): **Read the transaction** open, the cards **Add the seeds that can sign**, **Sign it** and **The other signatures** after it.*
+*A PSBT scanned on **Write the payment in Sparrow** ("Signing scanned-1.psbt"): **Read the transaction** open, **Show the table** outlined, the cards **Add the seeds that can sign**, **Sign it** and **The other signatures** after it.*
 
 ## On a narrow window
 

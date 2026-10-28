@@ -129,7 +129,7 @@ signature: sign again in BIP-137 where the address can carry it.
 
 ## 8. Check a signed message
 
-![Check a signed message opened with no signed message chosen](../pictures/messages-check.png)
+![Check a signed message on message-rtc6am.txt: The signature is valid (BIP-322), its address, New wallet 1 · receive 0/0 and the message](../pictures/messages-check.png)
 
 A signed message to check comes in as a file: from a stick visit
 ([Files, sticks and QR codes](files-and-sticks.md#2-a-stick-visit-bring-files-in)),
@@ -143,8 +143,9 @@ its address**), which opens the first signed message in Files. With
 none, the tile reads **Copy a signed message in first**.
 
 **Check a signed message** opens ([Check a signed message](../screens/messages.md#check-a-signed-message)).
-Opened with no signed message chosen, as in the picture, it reads
-**No signed message chosen**. With one chosen, it shows:
+Opened with no signed message chosen, it reads **No signed message
+chosen**. With one chosen, as in the picture (`message-rtc6am.txt`,
+the message signed above), it shows:
 
 | Row | What it is |
 |---|---|

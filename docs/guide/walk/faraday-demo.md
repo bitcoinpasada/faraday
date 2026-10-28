@@ -150,7 +150,7 @@ such as "Practice puts sample … in place of these strings". On Testnet,
 Signet and Regtest the strip holds the sticks and Size, and **Paste
 words** where a key's words are typed.
 
-![Add a key in Practice; the strip's Practice section holds Use a sample, Paste words and Use faraday, Use a sample outlined](../pictures/starter-tour-aids.png)
+![Add a key in Practice; the strip holds Boot stick · out, Stick 2 · out, Samples, Size, and the Practice section with Use a sample, Paste words and Use faraday, Use a sample outlined](../pictures/starter-tour-aids.png)
 
 ## 4. Back and Power off
 

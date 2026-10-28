@@ -1,8 +1,7 @@
 # Settings
 
-**Kind:** Spec
-**Status:** Checked against the app's pictures in docs/guide/pictures/ (drawn by just guide-pictures) and its code and strings (`faraday/faraday-core/src/screens/settings.rs`, `faraday/faraday-core/src/screens/set_time.rs`, `faraday/faraday-core/src/set_time.rs`, `faraday/faraday-core/src/screens/randomness.rs`, `faraday/faraday-core/src/fresh.rs`, `faraday/faraday-ui/src/appearance.rs`), but for Add randomness's picture
-**Open:** Add randomness's picture, `settings-add-randomness.png`, is drawn as an empty page and is to be drawn again
+**Kind:** Reference
+**Status:** Checked against the app's pictures in docs/guide/pictures/ (drawn by just guide-pictures) and its code and strings (`faraday/faraday-core/src/screens/settings.rs`, `faraday/faraday-core/src/screens/set_time.rs`, `faraday/faraday-core/src/set_time.rs`, `faraday/faraday-core/src/screens/randomness.rs`, `faraday/faraday-core/src/fresh.rs`, `faraday/faraday-ui/src/appearance.rs`)
 **Screen:** `Settings`, `SetTime`, `Randomness`
 **Group:** Settings
 
@@ -143,7 +142,9 @@ empty, and **Set** is greyed beside **Back**.*
 Randomness of your own, hashed with the system's into the session's
 randomness. Nothing is chosen until a source is pressed.
 
-*Picture to come: `settings-add-randomness.png`, Add randomness on Dice, ten rolls in the batch.*
+![Add randomness on Dice: the six faces, In this batch: 10 dice rolls, Undo, Clear and Add](../pictures/settings-add-randomness.png)
+
+*Add randomness opened from **Settings**, on **Dice** with ten rolls typed: "System: getrandom(2) · your own: none", "In this batch: 10 dice rolls", **Undo**, **Clear** and **Add**.*
 
 | Control | What it does |
 |---|---|

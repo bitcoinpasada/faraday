@@ -1,8 +1,7 @@
 # Decode a transaction
 
-**Kind:** Spec
-**Status:** Written from the app's code and strings (`faraday/faraday-core/src/screens/decode.rs`, `faraday/faraday-core/src/decode.rs`, `faraday/faraday-core/src/catalog.rs`); not yet read beside the running app
-**Open:** the picture: `decode.png` is drawn as an empty page, the screens tour opening Decode with no transaction chosen
+**Kind:** Reference
+**Status:** Checked against the app's pictures in docs/guide/pictures/ (drawn by just guide-pictures) and its code and strings (`faraday/faraday-core/src/screens/decode.rs`, `faraday/faraday-core/src/decode.rs`, `faraday/faraday-core/src/catalog.rs`)
 **Screen:** `Decode`
 **Group:** Tools
 
@@ -16,7 +15,9 @@ A signed, finished transaction taken apart: what it is, what goes in,
 what comes out and to whom, and its bytes. Nothing on it changes the
 transaction.
 
-*Picture to come: `decode.png`, Decode a transaction with payment-final.txn, its facts, inputs and outputs.*
+![Decode a transaction finished from payment.psbt: its facts, one input, two outputs, Show the hex and Show as QR](../pictures/decode.png)
+
+*The 2-of-3 wallet's payment.psbt, signed and finished, opened with **Decode it** on Spend's last card: "Finished from payment.psbt", **Fee** "1850 sat · 9.8 sat/vB", **Amounts in** "From payment.psbt", "Inputs · 1" of 0.1 BTC, and "Outputs · 2": 0.015 BTC to bc1q cr8t … 306f yu, **Pays out of the loaded wallets**, and the change, "Change · back to new-wallet-1-descriptor · 1/0".*
 
 ## On this screen
 
@@ -34,7 +35,7 @@ transaction.
 | **Version** | the transaction's version |
 | **Locktime** | **0 · none**, "… · block height" or "… · Unix time" |
 | **Size** | "… bytes · … vB · … WU" |
-| **Fee** | "2140 sat · 11.3 sat/vB"; **Not stated: the amounts going in are not here** |
+| **Fee** | "1850 sat · 9.8 sat/vB"; **Not stated: the amounts going in are not here** |
 | **Amounts in** | where the amounts going in were read: "From payment.psbt", a PSBT of this transaction here; **Not here**; or **PSBTs of it state different amounts**, and none is used |
 
 ### Inputs and outputs

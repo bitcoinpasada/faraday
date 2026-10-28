@@ -92,9 +92,9 @@ message in Files and reads **Copy a signed message in first** while
 there is none. In Faraday Demo's Practice, with none in Files, the tile
 checks the sample `sample-message.txt`.
 
-![Check a signed message with no file chosen](../pictures/messages-check.png)
+![Check a signed message: The signature is valid (BIP-322), its file, address, wallet and message](../pictures/messages-check.png)
 
-*Check a signed message opened with no file chosen: **No signed message chosen**.*
+*message-rtc6am.txt, signed on Sign a message and brought back into Files, opened with **Check the signature**: "The signature is valid (BIP-322)", the address bc1q cfk6 qv40 … rtc6 am, "New wallet 1 · receive 0/0" and the text "Faraday guide example, 27 October 2026". The way back reads **Files**.*
 
 | Control | What it does |
 |---|---|

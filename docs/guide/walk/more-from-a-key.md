@@ -1,8 +1,7 @@
 # More from a key
 
-**Kind:** Spec
-**Status:** Written and checked against the app's code and strings; pictured from `just guide-pictures` (`docs/guide/pictures/`) but for two steps
-**Open:** the pictures of Vanity address (step 6) and Add randomness (step 9), which the tour draws as an empty page
+**Kind:** Reference
+**Status:** Written, checked against the app's screens and strings, and pictured from `just guide-pictures` (`docs/guide/pictures/`)
 
 **You end with:** key `3dca6805`'s addresses read at any path; a child
 seed and a password made from it with BIP-85 and kept in a vault; its
@@ -214,7 +213,7 @@ name; with none, **No transaction in Files**.
 
 ## 6. A vanity address
 
-*Picture to come: `more-from-a-key-vanity.png`, Vanity address found: account 1017 of key 3dca6805, bc1qfa….*
+![Vanity address found for key 3dca6805: bc1q faaq 7qxh … x2nz lm, Account 1017 of this key after 1,018 tries, Open this wallet and Search again](../pictures/more-from-a-key-vanity.png)
 
 Press **Vanity address**. The search finds an account of the key, or a
 passphrase for it, whose first receive address begins with the
@@ -313,7 +312,7 @@ are [codex32 shares](codex32.md).
 
 ## 9. Add randomness
 
-*Picture to come: `more-from-a-key-randomness.png`, Add randomness on Dice, ten rolls in the batch.*
+![Add randomness on Dice: the six faces, In this batch: 10 dice rolls, Undo, Clear and Add](../pictures/more-from-a-key-randomness.png)
 
 What Faraday makes from randomness (a new key from this device, Seed
 XOR parts, codex32 shares) takes the system's randomness. Randomness of your own can be mixed in, never in

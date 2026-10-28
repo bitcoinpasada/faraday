@@ -239,7 +239,7 @@ minute, and press **Set** when the phone's minute changes to it. The codes open:
 | an entry whose secret is a counter's (HOTP) | a badge, no code |
 | an entry whose secret does not read | **Unreadable** |
 
-![TOTP codes: the time now, Search codes, the Mail entry's code with its bar and 17 s left, Scan a setup code and Add an entry](../pictures/vaults-and-passwords-codes.png)
+![TOTP codes: the time now, Search codes, the Mail entry's code with its bar and 13 s left, Scan a setup code and Add an entry](../pictures/vaults-and-passwords-codes.png)
 
 A row opens its entry. **Search codes** finds an entry by its title.
 Under the list, **Scan a setup code** and **Add an entry** add to the

@@ -13,9 +13,9 @@ has not been set this power-on, Set the time opens first.
 One row for each entry that holds a TOTP secret, across every open
 vault, vault by vault in the order they were opened.
 
-![TOTP codes with Mail and Bank counting down, 13 s left, under the time and Search codes](../pictures/codes-rows.png)
+![TOTP codes with Mail and Bank counting down, 9 s left, under the time and Search codes](../pictures/codes-rows.png)
 
-*Two rows, Mail and Bank, each with its account, its code and 13 s left; above them "Now · UTC+00:00", **Set the time** and **Search codes**; under them **Scan a setup code** and **Add an entry**.*
+*Two rows, Mail and Bank, each with its account, its code and 9 s left; above them "Now · UTC+00:00", **Set the time** and **Search codes**; under them **Scan a setup code** and **Add an entry**.*
 
 ## On this screen
 

@@ -1,8 +1,7 @@
 # Vanity address
 
-**Kind:** Spec
-**Status:** Written from the app's code and strings (`faraday/faraday-core/src/vanity/screen.rs`, `faraday/faraday-core/src/vanity/mod.rs`); not yet read beside the running app
-**Open:** the picture: `vanity.png` is drawn as an empty page, the tour opening the screen without opening the search on a key; the example values ("bc1qfa", account 1017 after 1,018 tries) are not yet confirmed on screen
+**Kind:** Reference
+**Status:** Checked against the app's pictures in docs/guide/pictures/ (drawn by just guide-pictures) and its code and strings (`faraday/faraday-core/src/vanity/screen.rs`, `faraday/faraday-core/src/vanity/mod.rs`)
 **Screen:** `Vanity`
 **Group:** Tools
 
@@ -15,7 +14,9 @@ passphrase. A column of five cards; with one key loaded it opens on
 **What turns**, that key chosen, with **Account number** and Native
 SegWit.
 
-*Picture to come: `vanity.png`, Vanity address with the Search card open, an address found at an account of key 3dca6805.*
+![Vanity address with Search open: Found, an address beginning bc1qfa, Account 1017 of this key after 1,018 tries, Open this wallet and Search again](../pictures/vanity.png)
+
+*Key 3dca6805, **Account number**, "Native SegWit · bc1q…" and `bc1qfa`: **Search** reads **Found**, bc1q faaq 7qxh … x2nz lm, "Account 1017 of this key, after 1,018 tries", with **Open this wallet** and **Search again**. The way back is named after the card before the one open, **Characters**.*
 
 ## On this screen
 

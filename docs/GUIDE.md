@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Index; the text is split into walkthroughs under `docs/guide/walk/`, each checked against the app's screens and strings and showing its pictures from `docs/guide/pictures/`
-**Open:** a test by a reader new to Faraday; four pictures the tours draw empty: Decode a transaction and the calculators in [Check and decode](guide/walk/check-and-decode.md), Vanity address and Add randomness in [More from a key](guide/walk/more-from-a-key.md)
+**Open:** a test by a reader new to Faraday
 
 Each step is one thing to do, in the order it is done. A path in bold is
 what the screen shows: **Wallets → Add a key** is the Wallets row in the

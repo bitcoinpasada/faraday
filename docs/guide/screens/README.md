@@ -1,8 +1,7 @@
 # Screen reference
 
-**Kind:** Spec
-**Status:** The index of the guide's screen reference; every screen and sheet of Faraday has its page below. Every page shows its pictures from `docs/guide/pictures/` and is checked against them, but for the four named on the Open line
-**Open:** four pictures drawn as empty pages, to be drawn again before their pages become References: `calculators.png` ([Tools: the calculators](calculators.md)), `decode.png` ([Decode a transaction](decode.md)), `vanity.png` ([Vanity address](vanity.md)) and `settings-add-randomness.png` ([Settings](settings.md))
+**Kind:** Reference
+**Status:** The index of the guide's screen reference; every screen and sheet of Faraday has its page below. Every page shows its pictures from `docs/guide/pictures/` and is checked against them
 
 One page per screen, grouped as the sidebar groups them. A page's
 `**Screen:**` line names the `Screen` and `Sheet` variants of

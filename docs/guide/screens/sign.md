@@ -23,6 +23,10 @@ under its own titles.
 
 ## The cards
 
+![Sign a transaction on Transaction: Sends, Change, Fee, Spends and Txid, No warnings and Mainnet, Show the table and Continue, This transaction beside it](../pictures/sign-transaction.png)
+
+*A PSBT of the 2-of-3 New wallet 1 started from Files with **Sign**: **Wallet** done, **Transaction** open with "2,000 sat · 10.6 sat/vB", **No warnings** and **Mainnet**, **Show the table** and **Continue**; **Check**, **Signers**, **Sign** and **Signatures for this transaction** after it. The way back is named after the card before the one open, **Wallet**.*
+
 **Steps only** and **Guided**, over the cards, turn the short text on
 the open card off or on. Which cards a spend has depends on the wallet
 it spends from:

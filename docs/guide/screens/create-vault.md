@@ -27,6 +27,10 @@ passphrase**.
 
 ### Size
 
+![Create a vault on Size: PCs only and PCs and a Raspberry Pi, the second chosen, Customise, and Your choices at the right](../pictures/create-vault-size.png)
+
+*Create a vault opened from **Vaults**, on **Size**: **PCs only** "512 MiB · 3 passes", **PCs and a Raspberry Pi** "64 MiB · 3 passes" chosen, each "Unlock time not measured yet", and **Customise**; **Name and passphrases** below reads "Not chosen yet". **Your choices** at the right, and **Create vault**.*
+
 | Control | What it does |
 |---|---|
 | **PCs only** | 512 MiB and 3 passes: opens on PCs. A press chooses it and moves on |
