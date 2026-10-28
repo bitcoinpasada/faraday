@@ -166,20 +166,7 @@ pub enum Error {
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Error::Base64 => f.write_str("invalid base64"),
-            Error::NotPsbt => f.write_str("not a PSBT (missing magic bytes)"),
-            Error::Truncated => f.write_str("the PSBT ends inside a map"),
-            Error::DuplicateKey => f.write_str("a key appears twice in one map"),
-            Error::TrailingBytes => f.write_str("bytes follow the last map"),
-            Error::Version => f.write_str("not a version 2 PSBT"),
-            Error::Field(name) => write!(f, "{name} is missing or malformed"),
-            Error::UnsignedTx => f.write_str("a version 2 PSBT carries an unsigned transaction"),
-            Error::NoScript { output } => write!(f, "output {output} has no script yet"),
-            Error::Locktime => f.write_str("the inputs' required locktimes conflict"),
-            Error::Bridge => f.write_str("the version 0 form did not read back"),
-            Error::Mismatch => f.write_str("the signed PSBT is not of this transaction"),
-        }
+        write!(f, "{self:?}") // not shown: a developer's text; the app shows no PSBT's parse error
     }
 }
 
@@ -419,6 +406,7 @@ fn check_input(map: &Map) -> Result<(), Error> {
     }
     if map.pairs().any(|(k, v)| is_zero_sighash_tap_sig(k, v)) {
         return Err(Error::Field(
+            // not wording: the fields BIP-370 names
             "PSBT_IN_TAP_KEY_SIG or PSBT_IN_TAP_SCRIPT_SIG",
         ));
     }

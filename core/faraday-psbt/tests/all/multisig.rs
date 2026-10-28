@@ -629,7 +629,7 @@ fn bip48_change_is_unverified_before_a_wallet_is_registered() {
     assert!(
         insp.warnings.iter().any(|w| w.level == Level::Caution
             && w.kind == WarningKind::UnverifiedChange
-            && w.text.contains("Register the wallet to check its change")),
+            && matches!(w.detail, faraday_psbt::Detail::ChangeNotRegistered { .. })),
         "{:?}",
         insp.warnings
     );
@@ -868,7 +868,7 @@ fn a_cosigner_key_under_a_loaded_fingerprint_is_not_ours() {
     assert!(
         insp.warnings.iter().any(|w| w.level == Level::Blocked
             && w.kind == WarningKind::UnknownDerivation
-            && w.text.contains("the derived key does not match the input")),
+            && matches!(w.detail, faraday_psbt::Detail::KeyNotInput { .. })),
         "{:?}",
         insp.warnings
     );

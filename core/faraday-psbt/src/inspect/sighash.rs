@@ -2,12 +2,11 @@
 //! the inspection that gathers them: invalid, unchecked, and made under a
 //! sighash other than the one the input asks for.
 
-use alloc::format;
 use alloc::vec::Vec;
 
 use bitcoin::sighash::{EcdsaSighashType, TapSighashType};
 
-use super::{InputInfo, Level, SighashKind, Warning, WarningKind, warn};
+use super::{Detail, InputInfo, Level, SighashKind, Warning, WarningKind, warn};
 
 impl SighashKind {
     /// Whether only the output of the input's own index is committed to
@@ -37,43 +36,21 @@ pub(super) fn sighash_card(
     sighash: SighashKind,
     outputs: usize,
 ) {
-    let (level, text) = if sighash.is_none() {
-        (
-            Level::Danger,
-            format!(
-                "input {i} signs with {sighash}: outputs are not committed to, anyone can redirect the funds"
-            ),
-        )
+    let input = i;
+    let (level, detail) = if sighash.is_none() {
+        (Level::Danger, Detail::SighashNone { input, sighash })
     } else if let SighashKind::NonStandard(_) = sighash {
-        (
-            Level::Danger,
-            format!("input {i} requests a {sighash} sighash type"),
-        )
+        (Level::Danger, Detail::SighashNonStandard { input, sighash })
     } else if sighash.is_single() && i >= outputs {
-        (
-            Level::Blocked,
-            format!(
-                "input {i} asks to sign with SIGHASH_SINGLE but the transaction has no output {i}; \
-                 such a signature would commit to nothing"
-            ),
-        )
+        (Level::Blocked, Detail::SingleNoOutput { input })
     } else if sighash.is_single() {
-        (
-            Level::Danger,
-            format!(
-                "input {i} signs with SINGLE: only output {i} is committed to; \
-                 the others, change included, can be changed after you sign"
-            ),
-        )
+        (Level::Danger, Detail::Single { input })
     } else if !sighash.is_default() {
-        (
-            Level::Caution,
-            format!("input {i} signs with {sighash}: not the whole transaction is committed to"),
-        )
+        (Level::Caution, Detail::SighashPartial { input, sighash })
     } else {
         return;
     };
-    warn(warnings, level, WarningKind::UnusualSighash, text);
+    warn(warnings, level, WarningKind::UnusualSighash, detail);
 }
 
 /// The cards for the signatures already on the transaction: one that is
@@ -100,11 +77,10 @@ pub(super) fn signature_cards(
                     input: sig.input,
                     key: sig.name(),
                 },
-                format!(
-                    "input {}: the signature under {} is not a signature of this transaction",
-                    sig.input,
-                    sig.name()
-                ),
+                Detail::SignatureInvalid {
+                    input: sig.input,
+                    key: sig.name(),
+                },
             ),
             crate::verify::Verdict::Unchecked(reason) => warn(
                 warnings,
@@ -113,7 +89,10 @@ pub(super) fn signature_cards(
                     input: sig.input,
                     reason,
                 },
-                format!("input {}: a signature was not checked: {reason}", sig.input),
+                Detail::SignatureUnchecked {
+                    input: sig.input,
+                    reason,
+                },
             ),
         }
         let Some(asked) = inputs
@@ -126,35 +105,36 @@ pub(super) fn signature_cards(
         if sighash_answers(asked, sig.sighash) {
             continue;
         }
-        let (level, text) = if sig.sighash.is_none() {
+        let (input, key, signed) = (sig.input, sig.name(), sig.sighash);
+        let (level, detail) = if sig.sighash.is_none() {
             (
                 Level::Blocked,
-                format!(
-                    "input {}: the signature under {} signs with {}, not the {asked} asked for: outputs are not committed to, anyone can redirect the funds",
-                    sig.input,
-                    sig.name(),
-                    sig.sighash
-                ),
+                Detail::SignedNone {
+                    input,
+                    key,
+                    signed,
+                    asked,
+                },
             )
         } else if sighash_stricter(asked, sig.sighash) {
             (
                 Level::Caution,
-                format!(
-                    "input {}: the signature under {} signs with {}, stricter than the {asked} asked for: the transaction cannot be changed as the request allows",
-                    sig.input,
-                    sig.name(),
-                    sig.sighash
-                ),
+                Detail::SignedStricter {
+                    input,
+                    key,
+                    signed,
+                    asked,
+                },
             )
         } else {
             (
                 Level::Danger,
-                format!(
-                    "input {}: the signature under {} signs with {}, not the {asked} asked for",
-                    sig.input,
-                    sig.name(),
-                    sig.sighash
-                ),
+                Detail::SignedOther {
+                    input,
+                    key,
+                    signed,
+                    asked,
+                },
             )
         };
         warn(
@@ -164,7 +144,7 @@ pub(super) fn signature_cards(
                 input: sig.input,
                 key: sig.name(),
             },
-            text,
+            detail,
         );
     }
 }

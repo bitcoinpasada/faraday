@@ -37,6 +37,7 @@ use miniscript::{ExtParams, Interpreter, Miniscript, Segwitv0, Tap, Terminal};
 
 use crate::classify::{Classified, ScriptKind, Wrapper, classify, spent_output};
 use crate::psbt::{Error, Psbt};
+use crate::reason::Reason;
 
 /// Whether every input is final or has enough signatures to be finalized.
 pub fn is_complete(psbt: &Psbt) -> bool {
@@ -64,7 +65,7 @@ pub fn finalize(psbt: &mut Psbt) -> Result<Option<Transaction>, Error> {
         if let Some(problem) = c.problems.first() {
             return Err(Error::Finalize {
                 input: i,
-                reason: problem,
+                reason: *problem,
             });
         }
         if c.utxo.is_none() {
@@ -106,7 +107,7 @@ pub fn finalize(psbt: &mut Psbt) -> Result<Option<Transaction>, Error> {
     {
         return Err(Error::Finalize {
             input,
-            reason: "non_witness_utxo has no output at the spent index",
+            reason: Reason::PrevTxNoOutput,
         });
     }
     psbt.inner()
@@ -175,7 +176,7 @@ fn build_final(
                     .as_ref()
                     .expect("classified as p2sh-p2wpkh");
                 Some((
-                    Some(push_script(redeem).ok_or(index_err("redeem script too long"))?),
+                    Some(push_script(redeem).ok_or(index_err(Reason::RedeemScriptTooLong))?),
                     Some(Witness::p2wpkh(&sig, &pk.inner)),
                 ))
             }
@@ -208,7 +209,7 @@ fn build_final(
                     let script = b
                         .push_slice(
                             PushBytesBuf::try_from(redeem.to_bytes())
-                                .map_err(|_| index_err("redeem script too long"))?,
+                                .map_err(|_| index_err(Reason::RedeemScriptTooLong))?,
                         )
                         .into_script();
                     Some((Some(script), None))
@@ -226,7 +227,10 @@ fn build_final(
                                 .redeem_script
                                 .as_ref()
                                 .expect("classified as p2sh-p2wsh");
-                            Some(push_script(redeem).ok_or(index_err("redeem script too long"))?)
+                            Some(
+                                push_script(redeem)
+                                    .ok_or(index_err(Reason::RedeemScriptTooLong))?,
+                            )
                         }
                         _ => None,
                     };
@@ -238,7 +242,7 @@ fn build_final(
             satisfy(psbt, index).map(|chosen| by_size(psbt, index, c, chosen))
         }
         ScriptKind::P2trScript => satisfy(psbt, index),
-        ScriptKind::Unknown => return Err(index_err("unknown script type")),
+        ScriptKind::Unknown => return Err(index_err(Reason::UnknownScript)),
     })
 }
 

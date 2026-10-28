@@ -10,6 +10,7 @@ use faraday_crypto::work::{Compute, Work};
 
 use crate::base64;
 use crate::inspect::WarningKind;
+use crate::reason::Reason;
 use crate::v2::{self, Map};
 
 /// The magic bytes every binary PSBT starts with.
@@ -74,6 +75,7 @@ fn maps_of(bytes: &[u8], inputs: usize, outputs: usize) -> Result<Vec<Map>, Erro
         maps.push(v2::read_map(bytes, &mut at).map_err(|e| Error::Parse(e.to_string()))?);
     }
     if at != bytes.len() {
+        // not shown: Parse is a developer's text
         return Err(Error::Parse("bytes follow the last map".into()));
     }
     Ok(maps)
@@ -96,11 +98,13 @@ fn refuse_in_v0(maps: &[Map], inputs: usize) -> Result<(), Error> {
             let ty = key.first().copied().unwrap_or(0);
             if v2_only.contains(&ty) {
                 return Err(Error::Parse(alloc::format!(
+                    // not shown: Parse is a developer's text
                     "{what} field {ty:#04x} is for version 2 PSBTs only"
                 )));
             }
             if what == "input" && v2::is_zero_sighash_tap_sig(key, value) {
                 return Err(Error::Parse(
+                    // not shown: Parse is a developer's text
                     "a taproot signature with a sighash byte of 0".into(),
                 ));
             }
@@ -125,6 +129,7 @@ fn refuse_long_paths(inner: &bitcoin::Psbt) -> Result<(), Error> {
         });
     if any {
         return Err(Error::Parse(alloc::format!(
+            // not shown: Parse is a developer's text
             "a key origin of more than {} steps",
             faraday_bip::keys::MAX_PATH_STEPS
         )));
@@ -272,7 +277,7 @@ pub enum Error {
         /// Input index.
         input: usize,
         /// What was found.
-        reason: &'static str,
+        reason: Reason,
     },
     /// The key derived at the PSBT's stated origin is not the key the PSBT
     /// names, or is not part of the script being spent.
@@ -322,7 +327,7 @@ pub enum Error {
         /// Input index.
         input: usize,
         /// What was wrong.
-        reason: &'static str,
+        reason: Reason,
     },
     /// Every input is final but the transaction could not be extracted;
     /// the text is `bitcoin`'s reason.
@@ -331,43 +336,7 @@ pub enum Error {
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Error::Base64 => f.write_str("invalid base64"),
-            Error::NotPsbt => f.write_str("not a PSBT (missing magic bytes)"),
-            Error::Parse(reason) => write!(f, "invalid PSBT: {reason}"),
-            Error::UnsupportedVersion(v) => write!(f, "unsupported PSBT version {v}"),
-            Error::MissingUtxo { input } => write!(f, "input {input}: no UTXO information"),
-            Error::Unsupported { input, reason } => write!(f, "input {input}: {reason}"),
-            Error::KeyMismatch { input } => {
-                write!(
-                    f,
-                    "input {input}: derived key does not match the PSBT's key origin"
-                )
-            }
-            Error::NoSuchKey(fp) => write!(f, "no loaded key with fingerprint {fp}"),
-            Error::Danger(kinds) => {
-                write!(f, "refused: {} danger warning(s)", kinds.len())
-            }
-            Error::NotHoldable(kind) => {
-                write!(f, "refused: {kind:?} is not a warning a hold accepts")
-            }
-            Error::Blocked(kinds) => {
-                write!(f, "refused: {} blocking warning(s)", kinds.len())
-            }
-            Error::Sighash { input } => write!(f, "input {input}: cannot compute signature hash"),
-            Error::VerifyFailed { input } => {
-                write!(f, "input {input}: produced signature failed verification")
-            }
-            Error::Nondeterministic { input } => {
-                write!(f, "input {input}: signing twice gave different signatures")
-            }
-            Error::MusigPartialSig { input, participant } => write!(
-                f,
-                "input {input}: the MuSig2 partial signature of {participant} does not verify"
-            ),
-            Error::Finalize { input, reason } => write!(f, "input {input}: {reason}"),
-            Error::Extract(reason) => write!(f, "cannot extract transaction: {reason}"),
-        }
+        write!(f, "{self:?}") // not shown: a developer's text; the app words each kind
     }
 }
 

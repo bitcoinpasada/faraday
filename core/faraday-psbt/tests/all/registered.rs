@@ -114,8 +114,8 @@ fn an_unregistered_two_of_three_input_is_blocked_held_or_not() {
     assert_eq!(blocked.len(), 1, "{:?}", insp.warnings);
     assert_eq!(blocked[0].kind, WarningKind::WalletNotRegistered);
     assert_eq!(
-        blocked[0].text,
-        "input 0 spends from a wallet of several keys that is not registered here; register the wallet to sign"
+        blocked[0].detail,
+        faraday_psbt::Detail::WalletNotRegistered { input: 0 }
     );
     for accepted in [Vec::new(), vec![WarningKind::AbsurdFeeRate]] {
         let mut attempt = psbt.clone();

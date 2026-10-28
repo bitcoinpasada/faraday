@@ -10,6 +10,8 @@ use bitcoin::opcodes::all::{OP_CHECKMULTISIG, OP_PUSHNUM_1, OP_PUSHNUM_16};
 use bitcoin::psbt::Input;
 use bitcoin::script::{Builder, Instruction};
 use bitcoin::{PublicKey, Script, ScriptBuf, TxOut};
+
+use crate::reason::Reason;
 use miniscript::{
     ExtParams, Miniscript, MiniscriptKey, ScriptContext, Segwitv0, SigType, Terminal, ToPublicKey,
 };
@@ -104,9 +106,13 @@ impl fmt::Display for ScriptKind {
             ScriptKind::P2shP2wpkh => f.write_str("p2sh-p2wpkh"),
             ScriptKind::P2wpkh => f.write_str("p2wpkh"),
             ScriptKind::P2trKey => f.write_str("p2tr"),
+            // not shown: a developer's text; the app words these kinds
             ScriptKind::P2trScript => f.write_str("p2tr script path"),
+            // not shown: a developer's text; the app words these kinds
             ScriptKind::Miniscript { wrapper } => write!(f, "{wrapper} miniscript"),
+            // not shown: a developer's text; the app words these kinds
             ScriptKind::Multisig { wrapper, m, n } => write!(f, "{wrapper} {m}-of-{n}"),
+            // not shown: a developer's text; the app words these kinds
             ScriptKind::Unknown => f.write_str("unknown script"),
         }
     }
@@ -219,7 +225,7 @@ pub(crate) struct Classified {
     pub satisfaction_weight: Option<usize>,
     /// BIP-174 signer checks that failed. Any entry makes the input
     /// untrustworthy: amounts or scripts may be lies.
-    pub problems: Vec<&'static str>,
+    pub problems: Vec<Reason>,
     /// The input spends SegWit v0 and carries no `non_witness_utxo`, so
     /// its amount is stated by the coordinator and committed to by
     /// nothing, and the transaction has more than one input. The data is
@@ -277,19 +283,19 @@ pub(crate) fn classify(psbt: &bitcoin::Psbt, index: usize) -> Classified {
 
     let non_witness = input.non_witness_utxo.as_ref().and_then(|tx| {
         if tx.compute_txid() != prevout.txid {
-            problems.push("non_witness_utxo is not the transaction the input spends");
+            problems.push(Reason::PrevTxNotSpent);
             return None;
         }
         let out = tx.output.get(prevout.vout as usize);
         if out.is_none() {
-            problems.push("non_witness_utxo has no output at the spent index");
+            problems.push(Reason::PrevTxNoOutput);
         }
         out
     });
     let utxo = match (input.witness_utxo.as_ref(), non_witness) {
         (Some(w), Some(nw)) => {
             if w != nw {
-                problems.push("witness_utxo and non_witness_utxo disagree");
+                problems.push(Reason::UtxosDisagree);
             }
             Some(nw.clone())
         }
@@ -340,7 +346,7 @@ pub(crate) fn classify(psbt: &bitcoin::Psbt, index: usize) -> Classified {
     let mut multisig = None;
     let kind = if spk.is_p2pkh() {
         if input.non_witness_utxo.is_none() {
-            problems.push("witness_utxo given for a non-witness input");
+            problems.push(Reason::WitnessUtxoForLegacy);
         }
         ScriptKind::P2pkh
     } else if spk.is_p2wpkh() {
@@ -364,12 +370,12 @@ pub(crate) fn classify(psbt: &bitcoin::Psbt, index: usize) -> Classified {
     } else if spk.is_p2sh() {
         match &input.redeem_script {
             None => {
-                problems.push("p2sh input without redeem_script");
+                problems.push(Reason::NoRedeemScript);
                 ScriptKind::Unknown
             }
             Some(redeem) => {
                 if redeem.to_p2sh() != utxo.script_pubkey {
-                    problems.push("redeem_script does not match the scriptPubKey");
+                    problems.push(Reason::RedeemScriptMismatch);
                     ScriptKind::Unknown
                 } else if redeem.is_p2wpkh() {
                     ScriptKind::P2shP2wpkh
@@ -391,7 +397,7 @@ pub(crate) fn classify(psbt: &bitcoin::Psbt, index: usize) -> Classified {
                     }
                 } else if let Some(ms) = Multisig::parse(redeem) {
                     if input.non_witness_utxo.is_none() {
-                        problems.push("witness_utxo given for a non-witness input");
+                        problems.push(Reason::WitnessUtxoForLegacy);
                     }
                     let kind = ScriptKind::Multisig {
                         wrapper: Wrapper::P2sh,
@@ -485,14 +491,14 @@ enum WitnessScript {
 fn witness_script(
     input: &Input,
     program_holder: &Script,
-    problems: &mut Vec<&'static str>,
+    problems: &mut Vec<Reason>,
 ) -> WitnessScript {
     let Some(ws) = &input.witness_script else {
-        problems.push("p2wsh input without witness_script");
+        problems.push(Reason::NoWitnessScript);
         return WitnessScript::Neither;
     };
     if ws.to_p2wsh().as_script() != program_holder {
-        problems.push("witness_script does not match the witness program");
+        problems.push(Reason::WitnessScriptMismatch);
         return WitnessScript::Neither;
     }
     match Multisig::parse(ws) {

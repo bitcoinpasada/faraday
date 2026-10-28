@@ -4979,6 +4979,218 @@ strings! {
     /// Review's warning of a fee rate far above any network's. `{}`: the
     /// rate in sat/vB, whole.
     step_review_fee_rate: "fee rate is about {} sat/vB",
+    // ----- A PSBT refused or warned of (faraday-psbt's kinds, worded in `review.rs`) -----
+    /// Why an input is not signed or finished: the previous transaction is not the one the input spends.
+    psbt_reason_prev_tx_not_spent: "non_witness_utxo is not the transaction the input spends",
+    /// Why an input is not signed or finished: the previous transaction has no output at the index spent.
+    psbt_reason_prev_tx_no_output: "non_witness_utxo has no output at the spent index",
+    /// Why an input is not signed or finished: the stated output and the previous transaction's disagree.
+    psbt_reason_utxos_disagree: "witness_utxo and non_witness_utxo disagree",
+    /// Why an input is not signed or finished: a stated output alone for an input that is not SegWit.
+    psbt_reason_witness_utxo_legacy: "witness_utxo given for a non-witness input",
+    /// Why an input is not signed or finished: a P2SH input with no redeem script.
+    psbt_reason_no_redeem_script: "p2sh input without redeem_script",
+    /// Why an input is not signed or finished: the redeem script is not the one paid to.
+    psbt_reason_redeem_mismatch: "redeem_script does not match the scriptPubKey",
+    /// Why an input is not signed or finished: a P2WSH input with no witness script.
+    psbt_reason_no_witness_script: "p2wsh input without witness_script",
+    /// Why an input is not signed or finished: the witness script is not the one committed to.
+    psbt_reason_witness_mismatch: "witness_script does not match the witness program",
+    /// Why an input is not signed or finished: a SegWit v0 input with no previous transaction.
+    psbt_reason_no_prev_tx: "no previous transaction for a SegWit input",
+    /// Why an input is not signed or finished: no path of a taproot input is this device's.
+    psbt_reason_no_taproot_path_ours: "no leaf or key path of this taproot input is one of ours",
+    /// Why an input is not signed or finished: a taproot input names nothing of its tree.
+    psbt_reason_no_taproot_leaf_or_key: "the taproot input names no leaf script and no internal key of this tree",
+    /// Why an input is not signed or finished: a script Faraday does not sign or finish.
+    psbt_reason_unknown_script: "unknown script type",
+    /// Why an input is not signed or finished: a taproot input states no internal key.
+    psbt_reason_no_internal_key: "taproot input without tap_internal_key",
+    /// Why an input is not signed or finished: a redeem script too long to push.
+    psbt_reason_redeem_too_long: "redeem script too long",
+    /// Why an input is not signed or finished: a MuSig2 participants field that does not read.
+    psbt_reason_musig_participants: "the MuSig2 participants field is malformed",
+    /// Why an input is not signed or finished: a MuSig2 nonce or partial signature keyed to no participant.
+    psbt_reason_musig_entry_key: "a MuSig2 nonce or partial signature names no participant",
+    /// Why an input is not signed or finished: a MuSig2 public nonce that does not read.
+    psbt_reason_musig_nonce: "a MuSig2 public nonce is malformed",
+    /// Why an input is not signed or finished: a MuSig2 partial signature that does not read.
+    psbt_reason_musig_signature: "a MuSig2 partial signature is malformed",
+    /// Why an input is not signed or finished: a MuSig2 field of a script path.
+    psbt_reason_musig_script_path: "the MuSig2 field names a script path",
+    /// Why an input is not signed or finished: a MuSig2 field that does not read.
+    psbt_reason_musig_malformed: "a MuSig2 field is malformed",
+    /// Why an input is not signed or finished: a MuSig2 input asks for another sighash.
+    psbt_reason_musig_sighash: "a MuSig2 input signs under SIGHASH_DEFAULT only",
+    /// Why an input is not signed or finished: no MuSig2 nonce could be drawn.
+    psbt_reason_musig_nonce_not_drawn: "a MuSig2 nonce could not be drawn for this input",
+    /// Why an input is not signed or finished: another participant's MuSig2 nonce is missing.
+    psbt_reason_musig_nonce_missing: "another participant's MuSig2 nonce is missing",
+    /// Why an input is not signed or finished: the other participants' MuSig2 nonces do not aggregate.
+    psbt_reason_musig_other_nonces: "the other participants' MuSig2 nonces do not aggregate",
+    /// Why an input is not signed or finished: the input's MuSig2 nonces do not aggregate.
+    psbt_reason_musig_nonces: "the MuSig2 nonces on this input do not aggregate",
+    /// Why an input is not signed or finished: no registered MuSig2 wallet has the participants.
+    psbt_reason_musig_no_wallet: "no registered MuSig2 wallet has these participants",
+    /// Why an input is not signed or finished: the MuSig2 participants do not aggregate.
+    psbt_reason_musig_no_aggregate: "the MuSig2 participants do not aggregate",
+    /// Why an input is not signed or finished: the MuSig2 participants are not their field's key.
+    psbt_reason_musig_not_field_key: "the MuSig2 participants are not the key the field names",
+    /// Why an input is not signed or finished: a MuSig2 input states no internal key.
+    psbt_reason_musig_no_internal_key: "the MuSig2 input states no internal key",
+    /// Why an input is not signed or finished: a MuSig2 input states no chain and index.
+    psbt_reason_musig_no_chain_index: "the MuSig2 input states no chain and index below the aggregate key",
+    /// Why an input is not signed or finished: the aggregate does not derive at the chain and index.
+    psbt_reason_musig_not_derived: "the MuSig2 aggregate key does not derive at the stated chain and index",
+    /// Why an input is not signed or finished: the internal key is not the aggregate there.
+    psbt_reason_musig_internal: "the MuSig2 internal key is not the aggregate at the stated chain and index",
+    /// Why an input is not signed or finished: the aggregate does not tweak to the output key.
+    psbt_reason_musig_no_tweak: "the MuSig2 aggregate key does not tweak to the output key",
+    /// Why an input is not signed or finished: the input does not pay to the registered wallet.
+    psbt_reason_musig_not_wallet: "the MuSig2 input does not pay to the registered wallet's address",
+    /// Why signing or finishing refused: the text is not base64.
+    psbt_error_base64: "invalid base64",
+    /// The same: the bytes are not a PSBT.
+    psbt_error_not_psbt: "not a PSBT (missing magic bytes)",
+    /// The same: the PSBT does not read.
+    psbt_error_parse: "invalid PSBT",
+    /// The same. `{}`: the version.
+    psbt_error_version: "unsupported PSBT version {}",
+    /// The same, an input's. `{}`: the input, why (a `psbt_reason_*`).
+    psbt_error_input: "input {}: {}",
+    /// The same. `{}`: the input.
+    psbt_error_no_utxo: "input {}: no UTXO information",
+    /// The same. `{}`: the input.
+    psbt_error_key_mismatch: "input {}: derived key does not match the PSBT's key origin",
+    /// The same. `{}`: the key's fingerprint.
+    psbt_error_no_such_key: "no loaded key with fingerprint {}",
+    /// The same. `{}`: how many danger warnings.
+    psbt_error_danger: "refused: {} danger warning(s)",
+    /// The same: a warning passed as held that no hold takes.
+    psbt_error_not_holdable: "refused: a warning no hold accepts",
+    /// The same. `{}`: how many blocking warnings.
+    psbt_error_blocked: "refused: {} blocking warning(s)",
+    /// The same. `{}`: the input.
+    psbt_error_sighash: "input {}: cannot compute signature hash",
+    /// The same. `{}`: the input.
+    psbt_error_verify: "input {}: produced signature failed verification",
+    /// The same. `{}`: the input.
+    psbt_error_nondeterministic: "input {}: signing twice gave different signatures",
+    /// The same. `{}`: the input, the participant's key.
+    psbt_error_musig_partial: "input {}: the MuSig2 partial signature of {} does not verify",
+    /// The same. `{}`: the bitcoin library's own message.
+    psbt_error_extract: "cannot extract transaction: {}",
+    /// A warning on Review. `{}`: the input.
+    psbt_warn_amount_unverified: "input {} carries no previous transaction; its amount cannot be checked",
+    /// A warning on Review. `{}`: the input.
+    psbt_warn_missing_utxo: "input {} has no UTXO data; its value and the fee cannot be verified",
+    /// A warning on Review. `{}`: the input, why (a `psbt_reason_*`).
+    psbt_warn_cannot_sign: "input {} cannot be signed here: {}",
+    /// A warning on Review. `{}`: the input, the key, the path.
+    psbt_warn_key_not_under_account: "input {} names your key {} at {}, which is not under a loaded account; ownership is checked only when signing",
+    /// A warning on Review. `{}`: the input, the key, the path.
+    psbt_warn_key_other_script: "input {} names your key {} at {}, in a script other than that account's",
+    /// A warning on Review. `{}`: the input, the key, the path.
+    psbt_warn_key_not_input: "input {} names your key {} at {}, but the derived key does not match the input",
+    /// A warning on Review. `{}`: the input, its m and n, the first inputs' m and n.
+    psbt_warn_multisig_shapes: "input {} is {}-of-{} multisig; earlier inputs are {}-of-{}",
+    /// A warning on Review. `{}`: the input.
+    psbt_warn_musig_nonce_replaced: "input {} carries a nonce of this device's that no open session holds; it is replaced and the partial signatures made against it are dropped",
+    /// A warning on Review. `{}`: the input.
+    psbt_warn_unread_records: "input {}: it carries `osk` records this version does not read",
+    /// A warning on Review. `{}`: the input.
+    psbt_warn_wallet_not_registered: "input {} spends from a wallet of several keys that is not registered here; register the wallet to sign",
+    /// A warning on Review. `{}`: the input, the wait (a `psbt_wait_*`).
+    psbt_warn_timelock: "input {} spends a path that waits {}, which this transaction's sequence and locktime do not meet; it can never be valid",
+    /// A warning on Review. A wait. `{}`: blocks.
+    psbt_wait_blocks: "{} blocks",
+    /// A warning on Review. A wait. `{}`: intervals.
+    psbt_wait_intervals: "{} intervals of 512 seconds",
+    /// A warning on Review. A wait. `{}`: the block height.
+    psbt_wait_height: "for block {}",
+    /// A warning on Review. A wait. `{}`: the Unix time.
+    psbt_wait_time: "until Unix time {}",
+    /// A warning on Review. A wait for a secret.
+    psbt_wait_preimage: "for a preimage",
+    /// A warning on Review. `{}`: the output.
+    psbt_warn_data_output: "output {} is a data (OP_RETURN) output",
+    /// A warning on Review. `{}`: the output.
+    psbt_warn_nonstandard_output: "output {} pays a non-standard script",
+    /// A warning on Review. `{}`: the output, its amount in sat.
+    psbt_warn_dust: "output {} ({} sat) is below the dust limit",
+    /// A warning on Review. `{}`: the two outputs.
+    psbt_warn_same_address: "outputs {} and {} pay the same address",
+    /// A warning on Review. `{}`: the output, the input.
+    psbt_warn_pays_to_input: "output {} pays back to the address of input {}",
+    /// A warning on Review. The outputs are more than the inputs.
+    psbt_warn_outputs_exceed: "outputs exceed inputs; the UTXO data is wrong",
+    /// A warning on Review. `{}`: the kinds, joined by commas.
+    psbt_warn_mixed_scripts: "inputs mix script types: {}",
+    /// A warning on Review. A taproot script-path input.
+    psbt_kind_tr_script: "p2tr script path",
+    /// A warning on Review. A miniscript input. `{}`: its wrapper.
+    psbt_kind_miniscript: "{} miniscript",
+    /// A warning on Review. A multisig input. `{}`: its wrapper, m, n.
+    psbt_kind_multisig: "{} {}-of-{}",
+    /// A warning on Review. An input of a script Faraday does not take apart.
+    psbt_kind_unknown: "unknown script",
+    /// A warning on Review. `{}`: the locktime (a `psbt_locktime_*`).
+    psbt_warn_locktime: "cannot be mined before {}; this signer has no clock to check it",
+    /// A warning on Review. A locktime. `{}`: the block height.
+    psbt_locktime_block: "block {}",
+    /// A warning on Review. A locktime. `{}`: the Unix time.
+    psbt_locktime_time: "unix time {}",
+    /// A warning on Review. None of the loaded keys can sign.
+    psbt_warn_no_key: "none of your keys can sign this transaction",
+    /// A warning on Review. `{}`: the key.
+    psbt_warn_nonce_reuse: "two signatures under {} share one nonce; the private key follows from them",
+    /// A warning on Review. `{}`: the input.
+    psbt_warn_inscription: "input {} carries an inscription envelope",
+    /// A warning on Review. `{}`: the output.
+    psbt_warn_musig_change_spoof: "output {} claims to be change of a MuSig2 wallet you are using, but the script is not that address",
+    /// A warning on Review. `{}`: the output.
+    psbt_warn_wallet_change_spoof: "output {} claims to be change of a wallet you are using, but the script is not that address",
+    /// A warning on Review. `{}`: the output, the key.
+    psbt_warn_change_not_loaded: "output {} claims to belong to key {}, which is not loaded; treat it as a payment to others",
+    /// A warning on Review. `{}`: the output, the key, the path.
+    psbt_warn_change_spoof: "output {} claims to be change of your key {} at {}, but the script is not that address",
+    /// A warning on Review. `{}`: the output, the key, the path.
+    psbt_warn_change_not_registered: "output {} claims to be change of your key {} at {}; no wallet registered on this device holds that script, so it is counted as a payment to others. Register the wallet to check its change.",
+    /// A warning on Review. `{}`: the output, the key, the path.
+    psbt_warn_change_not_under_account: "output {} claims to be change of your key {} at {}, which is not under a loaded account; treat it as a payment to others",
+    /// A warning on Review. `{}`: the key, the network it is loaded for, the one checked for.
+    psbt_warn_key_network: "key {} is loaded for {} but the transaction is being checked for {}",
+    /// A warning on Review. `{}`: the network checked for.
+    psbt_warn_xpub_network: "a global xpub is for a different network than {}",
+    /// A warning on Review. `{}`: the input, the path, its coin type, the network, its coin type.
+    psbt_warn_coin_input: "input {} key path {} is for coin type {}; {} uses {}",
+    /// A warning on Review. `{}`: the output, the path, its coin type, the network, its coin type.
+    psbt_warn_coin_output: "output {} key path {} is for coin type {}; {} uses {}",
+    /// A warning on Review. A sighash no algorithm accepts. `{}`: its value in hex.
+    psbt_sighash_nonstandard: "non-standard {}",
+    /// An output's script that has no address form, where Review names
+    /// its address. `{}`: the script in hex.
+    psbt_nonstandard_script: "non-standard script {}",
+    /// A warning on Review. `{}`: the input, the sighash.
+    psbt_warn_sighash_none: "input {} signs with {}: outputs are not committed to, anyone can redirect the funds",
+    /// A warning on Review. `{}`: the input, the sighash.
+    psbt_warn_sighash_nonstandard: "input {} requests a {} sighash type",
+    /// A warning on Review. `{}`: the input, twice.
+    psbt_warn_single_no_output: "input {} asks to sign with SIGHASH_SINGLE but the transaction has no output {}; such a signature would commit to nothing",
+    /// A warning on Review. `{}`: the input, twice.
+    psbt_warn_single: "input {} signs with SINGLE: only output {} is committed to; the others, change included, can be changed after you sign",
+    /// A warning on Review. `{}`: the input, the sighash.
+    psbt_warn_sighash_partial: "input {} signs with {}: not the whole transaction is committed to",
+    /// A warning on Review. `{}`: the input, the key.
+    psbt_warn_signature_invalid: "input {}: the signature under {} is not a signature of this transaction",
+    /// A warning on Review. `{}`: the input, why (a `nonce_unchecked_*`).
+    psbt_warn_signature_unchecked: "input {}: a signature was not checked: {}",
+    /// A warning on Review. `{}`: the input, the key, the sighash signed with, the one asked for.
+    psbt_warn_signed_none: "input {}: the signature under {} signs with {}, not the {} asked for: outputs are not committed to, anyone can redirect the funds",
+    /// A warning on Review. `{}`: the input, the key, the sighash signed with, the one asked for.
+    psbt_warn_signed_stricter: "input {}: the signature under {} signs with {}, stricter than the {} asked for: the transaction cannot be changed as the request allows",
+    /// A warning on Review. `{}`: the input, the key, the sighash signed with, the one asked for.
+    psbt_warn_signed_other: "input {}: the signature under {} signs with {}, not the {} asked for",
     /// Review's line for an input of the person's key in a miniscript
     /// that no registered wallet gives: it is left unsigned and the rest
     /// is signed (F141). `{}`: the input's index.

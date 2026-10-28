@@ -61,22 +61,9 @@ pub enum Error {
     ScriptPath,
 }
 
-impl Error {
-    /// The reason as the blocked-input warning states it.
-    pub fn reason(self) -> &'static str {
-        match self {
-            Error::Participants => "the MuSig2 participants field is malformed",
-            Error::EntryKey => "a MuSig2 nonce or partial signature names no participant",
-            Error::Nonce => "a MuSig2 public nonce is malformed",
-            Error::Signature => "a MuSig2 partial signature is malformed",
-            Error::ScriptPath => "the MuSig2 field names a script path",
-        }
-    }
-}
-
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(self.reason())
+        write!(f, "{self:?}") // not shown: a developer's text; the app words each kind
     }
 }
 

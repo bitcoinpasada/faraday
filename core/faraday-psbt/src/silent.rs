@@ -174,51 +174,7 @@ pub enum Error {
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Error::NoDestination { output } => {
-                write!(
-                    f,
-                    "output {output} has no script and no silent payment address"
-                )
-            }
-            Error::LabelWithoutAddress { output } => {
-                write!(
-                    f,
-                    "output {output} has a label and no silent payment address"
-                )
-            }
-            Error::Field(name) => write!(f, "{name} is malformed"),
-            Error::Modifiable => f.write_str(
-                "silent payment scripts are set and the transaction is still modifiable",
-            ),
-            Error::FutureSegwit { input } => {
-                write!(f, "input {input} spends a SegWit version above 1")
-            }
-            Error::Sighash { input } => write!(f, "input {input} uses a sighash other than ALL"),
-            Error::Unverifiable { input, reason } => write!(f, "input {input}: {reason}"),
-            Error::MissingProof { input: Some(i) } => write!(f, "input {i}: a share has no proof"),
-            Error::MissingProof { input: None } => f.write_str("the global share has no proof"),
-            Error::BadProof { input: Some(i) } => {
-                write!(f, "input {i}: a share's proof does not verify")
-            }
-            Error::BadProof { input: None } => {
-                f.write_str("the global share's proof does not verify")
-            }
-            Error::NoShare { output } => {
-                write!(f, "output {output} has a script the shares cannot check")
-            }
-            Error::ScriptMismatch { output } => {
-                write!(f, "output {output}'s script is not the silent payment's")
-            }
-            Error::InputHash => f.write_str("the inputs give no usable input hash"),
-            Error::NotEligible { input } => write!(f, "input {input} contributes no key"),
-            Error::KeyMismatch { input } => write!(f, "input {input}: the key is not the input's"),
-            Error::ShareConflict { input } => {
-                write!(f, "input {input} already carries a different share")
-            }
-            Error::NotComplete { output } => write!(f, "output {output} has no script yet"),
-            Error::V2(e) => write!(f, "{e}"),
-        }
+        write!(f, "{self:?}") // not shown: a developer's text; the app takes no such PSBT
     }
 }
 
@@ -312,18 +268,21 @@ fn prevout(psbt: &PsbtV2, i: usize) -> Result<TxOut, Error> {
     if let Some(bytes) = map.get_type(v2::IN_WITNESS_UTXO) {
         return consensus::deserialize::<TxOut>(bytes).map_err(|_| Error::Unverifiable {
             input: i,
+            // not shown: a developer's text; the app takes no silent-payment PSBT
             reason: "the witness UTXO does not read",
         });
     }
     if let Some(bytes) = map.get_type(v2::IN_NON_WITNESS_UTXO) {
         let tx: Transaction = consensus::deserialize(bytes).map_err(|_| Error::Unverifiable {
             input: i,
+            // not shown: a developer's text; the app takes no silent-payment PSBT
             reason: "the previous transaction does not read",
         })?;
         let point = psbt.outpoint_bytes(i);
         if tx.compute_txid().to_byte_array()[..] != point[..32] {
             return Err(Error::Unverifiable {
                 input: i,
+                // not shown: a developer's text; the app takes no silent-payment PSBT
                 reason: "the previous transaction is not the one spent",
             });
         }
@@ -334,11 +293,13 @@ fn prevout(psbt: &PsbtV2, i: usize) -> Result<TxOut, Error> {
             .cloned()
             .ok_or(Error::Unverifiable {
                 input: i,
+                // not shown: a developer's text; the app takes no silent-payment PSBT
                 reason: "the previous transaction has no such output",
             });
     }
     Err(Error::Unverifiable {
         input: i,
+        // not shown: a developer's text; the app takes no silent-payment PSBT
         reason: "no previous output",
     })
 }
@@ -380,9 +341,11 @@ fn key_for_hash(psbt: &PsbtV2, i: usize, hash: &[u8]) -> Contribution {
         Contribution::Nothing
     } else if stated {
         Contribution::Unknown(
+            // not shown: a developer's text; the app takes no silent-payment PSBT
             "no public key the PSBT states is the one the input's script commits to",
         )
     } else {
+        // not shown: a developer's text; the app takes no silent-payment PSBT
         Contribution::Unknown("the PSBT states no public key for the input")
     }
 }
@@ -397,6 +360,7 @@ fn contribution(psbt: &PsbtV2, i: usize, spk: &[u8]) -> Result<Contribution, Err
         let witness: Witness = match final_witness {
             Some(bytes) => consensus::deserialize(bytes).map_err(|_| Error::Unverifiable {
                 input: i,
+                // not shown: a developer's text; the app takes no silent-payment PSBT
                 reason: "the final witness does not read",
             })?,
             None => Witness::new(),
@@ -430,11 +394,13 @@ fn contribution(psbt: &PsbtV2, i: usize, spk: &[u8]) -> Result<Contribution, Err
     }
     if is_p2sh(spk) {
         let Some(redeem) = map.get_type(v2::IN_REDEEM_SCRIPT) else {
+            // not shown: a developer's text; the app takes no silent-payment PSBT
             return Ok(Contribution::Unknown("a P2SH input with no redeem script"));
         };
         if hash160::Hash::hash(redeem).to_byte_array()[..] != spk[2..22] {
             return Err(Error::Unverifiable {
                 input: i,
+                // not shown: a developer's text; the app takes no silent-payment PSBT
                 reason: "the redeem script is not the one the input spends",
             });
         }

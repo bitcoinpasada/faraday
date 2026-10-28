@@ -7,7 +7,6 @@
 //! names one of our fingerprints but does not reproduce the script blocks
 //! signing, never a silent skip.
 
-use alloc::format;
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 use core::fmt;
@@ -29,8 +28,12 @@ use miniscript::{ExtParams, Miniscript, SigType, Tap, ToPublicKey};
 use crate::Psbt;
 use crate::classify::{Classified, Multisig, ScriptKind, classify};
 use crate::context::Context;
+use crate::reason::Reason;
 
+mod detail;
 mod sighash;
+
+pub use detail::Detail;
 
 /// Fee at or above this share of the amount sent is a caution.
 pub const HIGH_FEE_CAUTION_PCT: u64 = 5;
@@ -225,15 +228,15 @@ impl WarningKind {
     }
 }
 
-/// A ranked warning with display text.
+/// A ranked warning and what it states, which the app words.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Warning {
     /// Severity.
     pub level: Level,
     /// Category.
     pub kind: WarningKind,
-    /// One sentence for the screen.
-    pub text: String,
+    /// What it states, with the data it states it of.
+    pub detail: Detail,
 }
 
 /// The transaction's absolute locktime in human terms.
@@ -261,6 +264,7 @@ impl fmt::Display for Locktime {
         match self.kind {
             LocktimeKind::None => f.write_str("none"),
             LocktimeKind::Height(h) => write!(f, "block {h}"),
+            // not shown: a developer's text; the app words a locktime and a sighash
             LocktimeKind::Time(t) => write!(f, "unix time {t}"),
         }
     }
@@ -302,6 +306,7 @@ impl fmt::Display for SighashKind {
         match self {
             SighashKind::Ecdsa(t) => write!(f, "{t}"),
             SighashKind::Taproot(t) => write!(f, "{t}"),
+            // not shown: a developer's text; the app words a locktime and a sighash
             SighashKind::NonStandard(v) => write!(f, "non-standard 0x{v:02x}"),
         }
     }
@@ -405,8 +410,8 @@ pub enum OutputKind {
 pub struct OutputInfo {
     /// Position in the transaction.
     pub index: usize,
-    /// The address for the context's network, or `non-standard script`
-    /// followed by the script hex.
+    /// The address for the context's network, empty where the script has
+    /// no address form (the app names it by its script).
     pub address: String,
     /// The script itself.
     pub script_pubkey: ScriptBuf,
@@ -608,8 +613,12 @@ impl Inspection {
     }
 }
 
-fn warn(warnings: &mut Vec<Warning>, level: Level, kind: WarningKind, text: String) {
-    warnings.push(Warning { level, kind, text });
+fn warn(warnings: &mut Vec<Warning>, level: Level, kind: WarningKind, detail: Detail) {
+    warnings.push(Warning {
+        level,
+        kind,
+        detail,
+    });
 }
 
 /// Costs a script derivation for each wallet an input or output claims,
@@ -649,7 +658,10 @@ pub fn inspect(c: &Compute, psbt: &Psbt, ctx: &Context) -> Inspection {
                 &mut warnings,
                 Level::Blocked,
                 WarningKind::UtxoMismatch,
-                format!("input {i}: {p}"),
+                Detail::InputFault {
+                    input: i,
+                    reason: *p,
+                },
             );
         }
         if cl.amount_unverified {
@@ -657,7 +669,7 @@ pub fn inspect(c: &Compute, psbt: &Psbt, ctx: &Context) -> Inspection {
                 &mut warnings,
                 Level::Blocked,
                 WarningKind::AmountUnverified,
-                format!("input {i} carries no previous transaction; its amount cannot be checked"),
+                Detail::AmountUnverified { input: i },
             );
         }
         let amount = match &cl.utxo {
@@ -672,7 +684,7 @@ pub fn inspect(c: &Compute, psbt: &Psbt, ctx: &Context) -> Inspection {
                     &mut warnings,
                     Level::Danger,
                     WarningKind::MissingUtxo,
-                    format!("input {i} has no UTXO data; its value and the fee cannot be verified"),
+                    Detail::MissingUtxo { input: i },
                 );
                 None
             }
@@ -699,18 +711,16 @@ pub fn inspect(c: &Compute, psbt: &Psbt, ctx: &Context) -> Inspection {
                 kinds.push(cl.kind);
             }
         } else {
-            let what = match cl.kind {
-                ScriptKind::P2trScript => {
-                    "the taproot input names no leaf script and no internal key of this tree"
-                }
-                _ => "unknown script type",
+            let reason = match cl.kind {
+                ScriptKind::P2trScript => Reason::NoTaprootLeafOrKey,
+                _ => Reason::UnknownScript,
             };
             if cl.utxo.is_some() && !finalized {
                 warn(
                     &mut warnings,
                     Level::Caution,
                     WarningKind::UnsupportedInput,
-                    format!("input {i} cannot be signed here: {what}"),
+                    Detail::CannotSign { input: i, reason },
                 );
             }
         }
@@ -752,9 +762,11 @@ pub fn inspect(c: &Compute, psbt: &Psbt, ctx: &Context) -> Inspection {
                                 &mut warnings,
                                 Level::Caution,
                                 WarningKind::UnknownDerivation,
-                                format!(
-                                    "input {i} names your key {fp} at {path}, which is not under a loaded account; ownership is checked only when signing"
-                                ),
+                                Detail::KeyNotUnderAccount {
+                                    input: i,
+                                    key: fp,
+                                    path: path.clone(),
+                                },
                             );
                         }
                     }
@@ -790,9 +802,11 @@ pub fn inspect(c: &Compute, psbt: &Psbt, ctx: &Context) -> Inspection {
                                         &mut warnings,
                                         Level::Caution,
                                         WarningKind::UnknownDerivation,
-                                        format!(
-                                            "input {i} names your key {fp} at {path}, which is not under a loaded account; ownership is checked only when signing"
-                                        ),
+                                        Detail::KeyNotUnderAccount {
+                                            input: i,
+                                            key: fp,
+                                            path: path.clone(),
+                                        },
                                     );
                                 }
                             }
@@ -815,10 +829,13 @@ pub fn inspect(c: &Compute, psbt: &Psbt, ctx: &Context) -> Inspection {
                         &mut warnings,
                         Level::Info,
                         WarningKind::MixedScriptTypes,
-                        format!(
-                            "input {i} is {m}-of-{n} multisig; earlier inputs are {}-of-{}",
-                            first.m, first.n
-                        ),
+                        Detail::MultisigShapes {
+                            input: i,
+                            m: usize::from(m),
+                            n: usize::from(n),
+                            first_m: first.m,
+                            first_n: first.n,
+                        },
                     ),
                     Some(_) => {}
                 }
@@ -829,7 +846,10 @@ pub fn inspect(c: &Compute, psbt: &Psbt, ctx: &Context) -> Inspection {
                         &mut warnings,
                         Level::Blocked,
                         block.kind,
-                        format!("input {i}: {}", block.reason),
+                        Detail::InputFault {
+                            input: i,
+                            reason: block.reason,
+                        },
                     ),
                     Ok(None) => {}
                     Ok(Some(mut established)) => {
@@ -863,9 +883,7 @@ pub fn inspect(c: &Compute, psbt: &Psbt, ctx: &Context) -> Inspection {
                                 &mut warnings,
                                 Level::Caution,
                                 WarningKind::MusigNonceReplaced,
-                                format!(
-                                    "input {i} carries a nonce of this device's that no open session holds; it is replaced and the partial signatures made against it are dropped"
-                                ),
+                                Detail::MusigNonceReplaced { input: i },
                             );
                         }
                         if musig.is_none() {
@@ -888,7 +906,7 @@ pub fn inspect(c: &Compute, psbt: &Psbt, ctx: &Context) -> Inspection {
                 &mut warnings,
                 Level::Blocked,
                 WarningKind::UnreadRecords,
-                format!("input {i}: it carries `osk` records this version does not read"),
+                Detail::UnreadRecords { input: i },
             ),
             ScriptKind::P2trKey => {
                 for (xonly, (_, (fp, path))) in &input.tap_key_origins {
@@ -924,9 +942,11 @@ pub fn inspect(c: &Compute, psbt: &Psbt, ctx: &Context) -> Inspection {
                                 &mut warnings,
                                 Level::Caution,
                                 WarningKind::UnknownDerivation,
-                                format!(
-                                    "input {i} names your key {fp} at {path}, which is not under a loaded account; ownership is checked only when signing"
-                                ),
+                                Detail::KeyNotUnderAccount {
+                                    input: i,
+                                    key: fp,
+                                    path: path.clone(),
+                                },
                             );
                         }
                     }
@@ -990,21 +1010,16 @@ pub fn inspect(c: &Compute, psbt: &Psbt, ctx: &Context) -> Inspection {
                     &mut warnings,
                     Level::Blocked,
                     WarningKind::WalletNotRegistered,
-                    format!(
-                        "input {i} spends from a wallet of several keys that is not registered here; register the wallet to sign"
-                    ),
+                    Detail::WalletNotRegistered { input: i },
                 );
                 unregistered.push(i);
             } else if names_ours && signed_through_wallet(cl.kind) {
                 let taproot = cl.kind == ScriptKind::P2trScript;
-                let what = if taproot { "taproot tree" } else { "script" };
                 warn(
                     &mut warnings,
                     Level::Caution,
                     WarningKind::NoWalletForScript { input: i, taproot },
-                    format!(
-                        "input {i} is left unsigned: no registered wallet covers this {what}; register the wallet to sign it"
-                    ),
+                    Detail::NoWalletForScript { input: i, taproot },
                 );
             }
         }
@@ -1045,10 +1060,10 @@ pub fn inspect(c: &Compute, psbt: &Psbt, ctx: &Context) -> Inspection {
                             path: path.clone(),
                             lock: *lock,
                         },
-                        format!(
-                            "input {i} spends a path that waits {}, which this transaction's sequence and locktime do not meet; it can never be valid",
-                            wait(*lock)
-                        ),
+                        Detail::TimelockNotMet {
+                            input: i,
+                            lock: *lock,
+                        },
                     );
                 }
             }
@@ -1093,18 +1108,13 @@ pub fn inspect(c: &Compute, psbt: &Psbt, ctx: &Context) -> Inspection {
         let address = match Address::from_script(spk, network) {
             Ok(a) => a.to_string(),
             Err(_) => {
-                let (level, what) = if spk.is_op_return() {
-                    (Level::Info, "is a data (OP_RETURN) output")
+                let (level, detail) = if spk.is_op_return() {
+                    (Level::Info, Detail::DataOutput { output: i })
                 } else {
-                    (Level::Caution, "pays a non-standard script")
+                    (Level::Caution, Detail::NonStandardOutput { output: i })
                 };
-                warn(
-                    &mut warnings,
-                    level,
-                    WarningKind::NonStandardScript,
-                    format!("output {i} {what}"),
-                );
-                format!("non-standard script {}", hex(spk.as_bytes()))
+                warn(&mut warnings, level, WarningKind::NonStandardScript, detail);
+                String::new()
             }
         };
 
@@ -1128,10 +1138,10 @@ pub fn inspect(c: &Compute, psbt: &Psbt, ctx: &Context) -> Inspection {
                 &mut warnings,
                 Level::Caution,
                 WarningKind::DustOutput,
-                format!(
-                    "output {i} ({} sat) is below the dust limit",
-                    txout.value.to_sat()
-                ),
+                Detail::Dust {
+                    output: i,
+                    sat: txout.value.to_sat(),
+                },
             );
         }
 
@@ -1155,14 +1165,20 @@ pub fn inspect(c: &Compute, psbt: &Psbt, ctx: &Context) -> Inspection {
                 &mut warnings,
                 Level::Caution,
                 WarningKind::AddressReuse,
-                format!("outputs {} and {j} pay the same address", a.index),
+                Detail::SameAddress {
+                    first: a.index,
+                    second: j,
+                },
             );
         } else if let Some(k) = input_scripts.iter().position(|s| *s == b.script_pubkey) {
             warn(
                 &mut warnings,
                 Level::Caution,
                 WarningKind::AddressReuse,
-                format!("output {j} pays back to the address of input {k}"),
+                Detail::PaysToInput {
+                    output: j,
+                    input: k,
+                },
             );
         }
     }
@@ -1180,7 +1196,7 @@ pub fn inspect(c: &Compute, psbt: &Psbt, ctx: &Context) -> Inspection {
                     &mut warnings,
                     Level::Blocked,
                     WarningKind::UtxoMismatch,
-                    "outputs exceed inputs; the UTXO data is wrong".to_string(),
+                    Detail::OutputsExceedInputs,
                 );
             }
         }
@@ -1203,14 +1219,20 @@ pub fn inspect(c: &Compute, psbt: &Psbt, ctx: &Context) -> Inspection {
                     &mut warnings,
                     Level::Danger,
                     kind,
-                    format!("fee {} is {pct}% of the amount sent", fee.to_sat()),
+                    Detail::FeeShare {
+                        fee: fee.to_sat(),
+                        pct,
+                    },
                 );
             } else if pct >= HIGH_FEE_CAUTION_PCT {
                 warn(
                     &mut warnings,
                     Level::Caution,
                     kind,
-                    format!("fee {} is {pct}% of the amount sent", fee.to_sat()),
+                    Detail::FeeShare {
+                        fee: fee.to_sat(),
+                        pct,
+                    },
                 );
             }
         }
@@ -1219,7 +1241,9 @@ pub fn inspect(c: &Compute, psbt: &Psbt, ctx: &Context) -> Inspection {
                 &mut warnings,
                 Level::Danger,
                 WarningKind::AbsurdFeeRate,
-                format!("fee rate is about {} sat/vB", rate as u64),
+                Detail::FeeRate {
+                    sat_vb: rate as u64,
+                },
             );
         }
     }
@@ -1229,12 +1253,13 @@ pub fn inspect(c: &Compute, psbt: &Psbt, ctx: &Context) -> Inspection {
 
     // Script mix.
     if kinds.len() > 1 {
-        let list: Vec<String> = kinds.iter().map(|k| k.to_string()).collect();
         warn(
             &mut warnings,
             Level::Info,
             WarningKind::MixedScriptTypes,
-            format!("inputs mix script types: {}", list.join(", ")),
+            Detail::MixedScripts {
+                kinds: kinds.clone(),
+            },
         );
     }
 
@@ -1245,7 +1270,7 @@ pub fn inspect(c: &Compute, psbt: &Psbt, ctx: &Context) -> Inspection {
             &mut warnings,
             Level::Info,
             WarningKind::LocktimeInFuture,
-            format!("cannot be mined before {locktime}; this signer has no clock to check it"),
+            Detail::Locktime(locktime),
         );
     }
     let rbf = tx.input.iter().any(|i| i.sequence.is_rbf());
@@ -1255,7 +1280,7 @@ pub fn inspect(c: &Compute, psbt: &Psbt, ctx: &Context) -> Inspection {
             &mut warnings,
             Level::Danger,
             WarningKind::NoParticipatingKey,
-            "none of your keys can sign this transaction".to_string(),
+            Detail::NoParticipatingKey,
         );
     }
 
@@ -1272,10 +1297,7 @@ pub fn inspect(c: &Compute, psbt: &Psbt, ctx: &Context) -> Inspection {
             &mut warnings,
             Level::Danger,
             WarningKind::NonceReuse { key: reuse.name() },
-            format!(
-                "two signatures under {} share one nonce; the private key follows from them",
-                reuse.name()
-            ),
+            Detail::NonceReuse { key: reuse.name() },
         );
     }
     let inscriptions = crate::verify::inscriptions(psbt);
@@ -1287,10 +1309,9 @@ pub fn inspect(c: &Compute, psbt: &Psbt, ctx: &Context) -> Inspection {
                 input: inscription.input,
                 content_type: inscription.content_type.clone().unwrap_or_default(),
             },
-            format!(
-                "input {} carries an inscription envelope",
-                inscription.input
-            ),
+            Detail::Inscription {
+                input: inscription.input,
+            },
         );
     }
 
@@ -1350,22 +1371,27 @@ fn mismatch(
     path: &DerivationPath,
     same_key: bool,
 ) {
-    let (level, text) = if same_key {
+    let path = path.clone();
+    let (level, detail) = if same_key {
         (
             Level::Caution,
-            format!(
-                "input {i} names your key {fp} at {path}, in a script other than that account's"
-            ),
+            Detail::KeyInOtherScript {
+                input: i,
+                key: fp,
+                path,
+            },
         )
     } else {
         (
             Level::Blocked,
-            format!(
-                "input {i} names your key {fp} at {path}, but the derived key does not match the input"
-            ),
+            Detail::KeyNotInput {
+                input: i,
+                key: fp,
+                path,
+            },
         )
     };
-    warn(warnings, level, WarningKind::UnknownDerivation, text);
+    warn(warnings, level, WarningKind::UnknownDerivation, detail);
 }
 
 /// Whether an input of `kind` is signed only through a registered
@@ -1393,18 +1419,6 @@ fn tap_signable<C: Verification>(
             ScriptBuf::new_p2tr(secp, internal, input.tap_merkle_root).as_script() == spk
         }
         _ => false,
-    }
-}
-
-/// A wait in the plainest words this crate has; the screen's own
-/// wording is `faraday-strings`'.
-fn wait(lock: Lock) -> String {
-    match lock {
-        Lock::Blocks(n) => format!("{n} blocks"),
-        Lock::Intervals(n) => format!("{n} intervals of 512 seconds"),
-        Lock::Height(n) => format!("for block {n}"),
-        Lock::Time(n) => format!("until Unix time {n}"),
-        Lock::Preimage => "for a preimage".to_string(),
     }
 }
 
@@ -1617,16 +1631,6 @@ fn push_unique(list: &mut Vec<Fingerprint>, fp: Fingerprint) {
     }
 }
 
-fn hex(bytes: &[u8]) -> String {
-    const DIGITS: &[u8; 16] = b"0123456789abcdef";
-    let mut s = String::with_capacity(bytes.len() * 2);
-    for b in bytes {
-        s.push(char::from(DIGITS[usize::from(b >> 4)]));
-        s.push(char::from(DIGITS[usize::from(b & 15)]));
-    }
-    s
-}
-
 /// Costs what `wallet_claim` costs. The registered wallet an input
 /// spends: the one its key origins name, when the wallet's own script
 /// at that index is the input's. Taproot states its origins in their
@@ -1782,9 +1786,7 @@ fn output_claims<C: Verification>(
                 warnings,
                 Level::Blocked,
                 WarningKind::ChangeSpoof,
-                format!(
-                    "output {i} claims to be change of a MuSig2 wallet you are using, but the script is not that address"
-                ),
+                Detail::MusigChangeSpoof { output: i },
             );
             let claimed = out
                 .tap_key_origins
@@ -1819,9 +1821,7 @@ fn output_claims<C: Verification>(
             warnings,
             Level::Blocked,
             WarningKind::ChangeSpoof,
-            format!(
-                "output {i} claims to be change of a wallet you are using, but the script is not that address"
-            ),
+            Detail::WalletChangeSpoof { output: i },
         );
         return OutputKind::UnverifiedChange {
             key: claim.fingerprint,
@@ -1855,9 +1855,7 @@ fn output_claims<C: Verification>(
                 warnings,
                 Level::Caution,
                 WarningKind::UnverifiedChange,
-                format!(
-                    "output {i} claims to belong to key {fp}, which is not loaded; treat it as a payment to others"
-                ),
+                Detail::ChangeKeyNotLoaded { output: i, key: fp },
             );
             continue;
         };
@@ -1880,31 +1878,37 @@ fn output_claims<C: Verification>(
                     warnings,
                     Level::Blocked,
                     WarningKind::ChangeSpoof,
-                    format!(
-                        "output {i} claims to be change of your key {fp} at {path}, but the script is not that address"
-                    ),
+                    Detail::ChangeSpoof {
+                        output: i,
+                        key: fp,
+                        path: path.clone(),
+                    },
                 );
             }
             None => {
                 kind = OutputKind::UnverifiedChange { key: fp };
-                let text = if path
+                let detail = if path
                     .into_iter()
                     .next()
                     .is_some_and(|c| *c == ChildNumber::Hardened { index: 48 })
                 {
-                    format!(
-                        "output {i} claims to be change of your key {fp} at {path}; no wallet registered on this device holds that script, so it is counted as a payment to others. Register the wallet to check its change."
-                    )
+                    Detail::ChangeNotRegistered {
+                        output: i,
+                        key: fp,
+                        path: path.clone(),
+                    }
                 } else {
-                    format!(
-                        "output {i} claims to be change of your key {fp} at {path}, which is not under a loaded account; treat it as a payment to others"
-                    )
+                    Detail::ChangeNotUnderAccount {
+                        output: i,
+                        key: fp,
+                        path: path.clone(),
+                    }
                 };
                 warn(
                     warnings,
                     Level::Caution,
                     WarningKind::UnverifiedChange,
-                    text,
+                    detail,
                 );
             }
         }
@@ -1932,12 +1936,11 @@ fn network_checks(inner: &bitcoin::Psbt, ctx: &Context, warnings: &mut Vec<Warni
                 warnings,
                 Level::Danger,
                 WarningKind::NetworkMismatch,
-                format!(
-                    "key {} is loaded for {} but the transaction is being checked for {}",
-                    key.fingerprint,
-                    acct.network(),
-                    ctx.network
-                ),
+                Detail::KeyNetwork {
+                    key: key.fingerprint,
+                    loaded: acct.network(),
+                    checked: ctx.network,
+                },
             );
             break;
         }
@@ -1951,10 +1954,9 @@ fn network_checks(inner: &bitcoin::Psbt, ctx: &Context, warnings: &mut Vec<Warni
             warnings,
             Level::Danger,
             WarningKind::NetworkMismatch,
-            format!(
-                "a global xpub is for a different network than {}",
-                ctx.network
-            ),
+            Detail::XpubNetwork {
+                checked: ctx.network,
+            },
         );
     }
     let coin = ctx.network.coin_type();
@@ -1966,25 +1968,25 @@ fn network_checks(inner: &bitcoin::Psbt, ctx: &Context, warnings: &mut Vec<Warni
             input
                 .bip32_derivation
                 .values()
-                .map(move |(_, p)| ("input", i, p))
+                .map(move |(_, p)| (false, i, p))
                 .chain(
                     input
                         .tap_key_origins
                         .values()
-                        .map(move |(_, (_, p))| ("input", i, p)),
+                        .map(move |(_, (_, p))| (false, i, p)),
                 )
         })
         .chain(inner.outputs.iter().enumerate().flat_map(|(i, out)| {
             out.bip32_derivation
                 .values()
-                .map(move |(_, p)| ("output", i, p))
+                .map(move |(_, p)| (true, i, p))
                 .chain(
                     out.tap_key_origins
                         .values()
-                        .map(move |(_, (_, p))| ("output", i, p)),
+                        .map(move |(_, (_, p))| (true, i, p)),
                 )
         }));
-    for (what, i, path) in paths {
+    for (output, i, path) in paths {
         let v: Vec<ChildNumber> = path.into_iter().copied().collect();
         if let [
             ChildNumber::Hardened {
@@ -1999,10 +2001,14 @@ fn network_checks(inner: &bitcoin::Psbt, ctx: &Context, warnings: &mut Vec<Warni
                 warnings,
                 Level::Danger,
                 WarningKind::NetworkMismatch,
-                format!(
-                    "{what} {i} key path {path} is for coin type {c}; {} uses {coin}",
-                    ctx.network
-                ),
+                Detail::CoinType {
+                    output,
+                    index: i,
+                    path: path.clone(),
+                    coin: c,
+                    checked: ctx.network,
+                    expected: coin,
+                },
             );
             return;
         }
@@ -2151,10 +2157,10 @@ fn has_musig_field(input: &Input) -> bool {
 /// blocks it.
 struct MusigBlock {
     kind: WarningKind,
-    reason: &'static str,
+    reason: Reason,
 }
 
-fn musig_block(kind: WarningKind, reason: &'static str) -> Result<Option<MusigInput>, MusigBlock> {
+fn musig_block(kind: WarningKind, reason: Reason) -> Result<Option<MusigInput>, MusigBlock> {
     Err(MusigBlock { kind, reason })
 }
 
@@ -2240,7 +2246,7 @@ fn musig_input<C: Verification>(
 ) -> Result<Option<MusigInput>, MusigBlock> {
     let fields = match crate::musig::input_participants(input) {
         Ok(fields) => fields,
-        Err(e) => return musig_block(WarningKind::UtxoMismatch, e.reason()),
+        Err(e) => return musig_block(WarningKind::UtxoMismatch, Reason::Musig(e)),
     };
     if fields.is_empty() {
         return Ok(None);
@@ -2249,7 +2255,7 @@ fn musig_input<C: Verification>(
         let reason = crate::musig::pub_nonces(input)
             .err()
             .or_else(|| crate::musig::partial_sigs(input).err())
-            .map_or("a MuSig2 field is malformed", |e| e.reason());
+            .map_or(Reason::MusigMalformed, Reason::Musig);
         return musig_block(WarningKind::UtxoMismatch, reason);
     }
 
@@ -2260,24 +2266,15 @@ fn musig_input<C: Verification>(
         .iter()
         .find_map(|f| musig_wallet(ctx, &f.keys).map(|w| (f, w)))
     else {
-        return musig_block(
-            WarningKind::MusigWalletNotRegistered,
-            "no registered MuSig2 wallet has these participants",
-        );
+        return musig_block(WarningKind::MusigWalletNotRegistered, Reason::MusigNoWallet);
     };
 
     // 2. The aggregate the field is keyed by.
     let Ok(root) = faraday_bip::musig::key_agg_with(secp, &participants) else {
-        return musig_block(
-            WarningKind::UtxoMismatch,
-            "the MuSig2 participants do not aggregate",
-        );
+        return musig_block(WarningKind::UtxoMismatch, Reason::MusigNoAggregate);
     };
     if root.public_key() != field.aggregate {
-        return musig_block(
-            WarningKind::UtxoMismatch,
-            "the MuSig2 participants are not the key the field names",
-        );
+        return musig_block(WarningKind::UtxoMismatch, Reason::MusigNotFieldKey);
     }
 
     // 3. Which loaded keys are participants. The registered wallet is
@@ -2316,10 +2313,7 @@ fn musig_input<C: Verification>(
     // 4. The sub-path, off the entry the BIP-328 aggregate xpub's own
     //    fingerprint names for the internal key.
     let Some(internal_key) = input.tap_internal_key else {
-        return musig_block(
-            WarningKind::UtxoMismatch,
-            "the MuSig2 input states no internal key",
-        );
+        return musig_block(WarningKind::UtxoMismatch, Reason::MusigNoInternalKey);
     };
     let aggregate_xpub = faraday_bip::musig::aggregate_xpub(&participants, ctx.network)
         .expect("the participants aggregate");
@@ -2332,10 +2326,7 @@ fn musig_input<C: Verification>(
         })
         .and_then(|(_, (_, path))| musig_sub_path(path));
     let Some((change, index)) = sub_path else {
-        return musig_block(
-            WarningKind::UtxoMismatch,
-            "the MuSig2 input states no chain and index below the aggregate key",
-        );
+        return musig_block(WarningKind::UtxoMismatch, Reason::MusigNoChainIndex);
     };
 
     // 5. The internal key and the script the wallet pays to at that
@@ -2345,35 +2336,23 @@ fn musig_input<C: Verification>(
         ChildNumber::from_normal_idx(index).expect("an unhardened index"),
     ];
     let Some((tweaks, derived)) = musig_tweaks(secp, aggregate_xpub, &steps) else {
-        return musig_block(
-            WarningKind::UtxoMismatch,
-            "the MuSig2 aggregate key does not derive at the stated chain and index",
-        );
+        return musig_block(WarningKind::UtxoMismatch, Reason::MusigNotDerived);
     };
     if derived.x_only_public_key().0 != internal_key {
-        return musig_block(
-            WarningKind::UtxoMismatch,
-            "the MuSig2 internal key is not the aggregate at the stated chain and index",
-        );
+        return musig_block(WarningKind::UtxoMismatch, Reason::MusigInternalNotAggregate);
     }
     let mut output = root;
     for tweak in &tweaks {
         match output.apply_tweak(secp, &tweak.bytes, tweak.x_only) {
             Ok(next) => output = next,
             Err(_) => {
-                return musig_block(
-                    WarningKind::UtxoMismatch,
-                    "the MuSig2 aggregate key does not tweak to the output key",
-                );
+                return musig_block(WarningKind::UtxoMismatch, Reason::MusigNoTweak);
             }
         }
     }
     let wallet_script = policy.script_at_with(c, secp, change, index).ok();
     if wallet_script.as_deref() != spk {
-        return musig_block(
-            WarningKind::UtxoMismatch,
-            "the MuSig2 input does not pay to the registered wallet's address",
-        );
+        return musig_block(WarningKind::UtxoMismatch, Reason::MusigNotWalletAddress);
     }
 
     Ok(Some(MusigInput {

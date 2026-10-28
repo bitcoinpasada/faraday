@@ -255,7 +255,7 @@ fn print_inspection(insp: &Inspection, ctx: &Context) {
         println!("none");
     }
     for w in &insp.warnings {
-        println!("[{}] {}", w.level.to_string().to_uppercase(), w.text);
+        println!("[{}] {:?}", w.level.to_string().to_uppercase(), w.detail);
     }
 }
 

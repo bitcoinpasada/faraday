@@ -433,11 +433,7 @@ fn single_on_an_input_with_no_output_of_its_index_is_refused_even_held() {
                 .find(|w| w.kind == WarningKind::UnusualSighash)
                 .unwrap_or_else(|| panic!("{script_type} {sighash}: {:?}", insp.warnings));
             assert_eq!(w.level, Level::Blocked, "{script_type} {sighash}");
-            assert_eq!(
-                w.text,
-                "input 1 asks to sign with SIGHASH_SINGLE but the transaction has no output 1; \
-                 such a signature would commit to nothing"
-            );
+            assert_eq!(w.detail, faraday_psbt::Detail::SingleNoOutput { input: 1 });
             for accepted in [Vec::new(), vec![WarningKind::AbsurdFeeRate]] {
                 let err = sign_abandon(&mut psbt, &accepted).unwrap_err();
                 assert!(
@@ -465,14 +461,7 @@ fn single_on_an_input_with_its_output_is_refused_even_held() {
                 .find(|w| w.kind == WarningKind::UnusualSighash)
                 .unwrap_or_else(|| panic!("{script_type} {sighash}: {:?}", insp.warnings));
             assert_eq!(w.level, Level::Danger, "{script_type} {sighash}");
-            assert!(
-                w.text.starts_with(
-                    "input 0 signs with SINGLE: only output 0 is committed to; \
-                     the others, change included, can be changed after you sign"
-                ),
-                "{}",
-                w.text
-            );
+            assert_eq!(w.detail, faraday_psbt::Detail::Single { input: 0 });
             let err = sign_abandon(&mut psbt, &[]).unwrap_err();
             assert!(
                 matches!(&err, Error::Danger(k) if k.contains(&WarningKind::UnusualSighash)),
@@ -572,7 +561,13 @@ fn address_reuse() {
     let insp = inspect_with_abandon(&single_sig(&master(ABANDON, NET), &b));
     let w = find(&insp, &WarningKind::AddressReuse).unwrap();
     assert_eq!(w.level, Level::Caution);
-    assert!(w.text.contains("outputs 0 and 1"));
+    assert_eq!(
+        w.detail,
+        faraday_psbt::Detail::SameAddress {
+            first: 0,
+            second: 1
+        }
+    );
 
     // Paying back to the input's own address.
     let abandon = master(ABANDON, NET);
@@ -586,7 +581,10 @@ fn address_reuse() {
     b.recipients.push((receive, 99_000));
     let insp = inspect_with_abandon(&single_sig(&abandon, &b));
     let w = find(&insp, &WarningKind::AddressReuse).unwrap();
-    assert!(w.text.contains("input 0"));
+    assert!(matches!(
+        w.detail,
+        faraday_psbt::Detail::PaysToInput { input: 0, .. }
+    ));
     // Without origin data the output is a recipient, not change.
     assert_eq!(insp.outputs[0].kind, OutputKind::Recipient);
 }
@@ -666,11 +664,7 @@ fn locktime_rbf_and_non_standard_output() {
     assert!(!insp.rbf);
     assert!(has(&insp, Level::Info, &WarningKind::LocktimeInFuture));
     assert!(has(&insp, Level::Info, &WarningKind::NonStandardScript));
-    assert!(
-        insp.outputs[1]
-            .address
-            .starts_with("non-standard script 6a")
-    );
+    assert!(insp.outputs[1].address.is_empty());
     assert!(!insp.outputs[1].is_dust);
     assert!(!insp.has_danger(), "{:?}", insp.warnings);
     assert_eq!(insp.version, 2);
@@ -998,7 +992,7 @@ fn a_finalized_input_without_its_previous_transaction_is_blocked() {
         assert!(
             insp.warnings.iter().any(|w| w.level == Level::Blocked
                 && w.kind == WarningKind::AmountUnverified
-                && w.text.contains(&format!("input {finalized} "))),
+                && w.detail == faraday_psbt::Detail::AmountUnverified { input: finalized }),
             "finalized {finalized}: {:?}",
             insp.warnings
         );

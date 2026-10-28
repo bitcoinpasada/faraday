@@ -389,7 +389,7 @@ fn a_final_input_whose_funding_transaction_lacks_the_spent_output_is_refused() {
         finalize(&mut psbt),
         Err(Error::Finalize {
             input: 0,
-            reason: "non_witness_utxo has no output at the spent index"
+            reason: faraday_psbt::Reason::PrevTxNoOutput
         })
     );
 }
@@ -414,7 +414,7 @@ fn a_refused_second_input_is_named_when_the_psbt_is_finalized() {
         finalize(&mut psbt),
         Err(Error::Finalize {
             input: 1,
-            reason: "unknown script type"
+            reason: faraday_psbt::Reason::UnknownScript
         })
     );
 }

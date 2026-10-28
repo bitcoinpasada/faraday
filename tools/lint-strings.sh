@@ -70,10 +70,12 @@ status=0
 # and Secure Boot's (`secure_boot::error_text`); their sources are read
 # here so that no wording comes back into them. faraday-files and the
 # disk process word what they refuse from the strings file themselves,
-# and are read here too. A literal in them that
-# is data, not wording (a certificate's common name, a format's fixed
-# field), is marked `// not wording: <why>`, on its line or the comment
-# line above it.
+# and are read here too. faraday-psbt's refusals and warnings are kinds
+# with their data, worded by the app (`review.rs`). A literal in them
+# that is data, not wording (a certificate's common name, a format's fixed field), is marked
+# `// not wording: <why>`, and one that is a developer's text no screen
+# shows (a Display kept for developers, a console line) is marked
+# `// not shown: <why>`, on its line or the comment line above it.
 # The Learn pages (docs/learn, faraday-learn's pages) and the self-test's check names
 # are outside this lint, as CLAUDE.md says.
 FARADAY_SCREENS="$(find faraday/faraday-core/src -name '*.rs' -not -path '*/drawing/*' -not -path '*/work/*' | sort | grep -v '/testkit\.rs$\|/names\.rs$')
@@ -89,6 +91,7 @@ faraday/faraday-sb/src/*.rs
 faraday/faraday-qr/src/*.rs
 faraday/faraday-files/src/*.rs
 faraday/faraday-disk/src/*.rs
+$(find core/faraday-psbt/src -name '*.rs' | sort)
 faraday/shells/desktop/src/main.rs
 faraday/shells/desktop/src/lib.rs
 faraday/shells/starter/src/main.rs"
@@ -98,7 +101,7 @@ hits=$(awk '
 FNR == 1 { intest = 0; dev = 0; mark = 0 }
 /^#\[cfg\(test\)\]/ { intest = 1 }
 intest { next }
-/^[[:space:]]*\/\// { mark = ($0 ~ /\/\/ not wording: /); next }
+/^[[:space:]]*\/\// { mark = ($0 ~ /\/\/ not (wording|shown): /); next }
 /^[[:space:]]*#!?\[|^[[:space:]]*reason = "/ { next }
 dev > 0 { dev += gsub(/\(/, "(") - gsub(/\)/, ")"); next }
 /\.expect\(|panic!\(|unreachable!\(|assert(_eq|_ne)?!\(|todo!\(|eprintln!\(|eprint!\(|println!\(|print!\(|debug_assert/ {
@@ -111,8 +114,9 @@ dev > 0 { dev += gsub(/\(/, "(") - gsub(/\)/, ")"); next }
 /bsms_record\(/ { next }
 # A line marked `// not wording: <why>`, on it or on the comment line
 # just above, holds data, not wording: a name a certificate carries, a
-# fixed field of a format.
-mark || /\/\/ not wording: / { mark = 0; next }
+# fixed field of a format; one marked `// not shown: <why>` a text
+# for developers that no screen shows.
+mark || /\/\/ not (wording|shown): / { mark = 0; next }
 {
     line = $0
     sub(/[[:space:]]\/\/ .*$/, "", line)

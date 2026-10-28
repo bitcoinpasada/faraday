@@ -89,7 +89,7 @@ fn a_psbt_with_osk_records_is_not_signed_and_says_why() {
             assert!(s.inspection.warnings.iter().any(|w| {
                 w.kind == WarningKind::UnreadRecords
                     && w.level == faraday_psbt::Level::Blocked
-                    && w.text.contains("osk")
+                    && matches!(w.detail, faraday_psbt::Detail::UnreadRecords { .. })
             }));
             assert!(!s.complete, "signed");
             assert!(s.spend.signed_here.is_empty(), "signed here");

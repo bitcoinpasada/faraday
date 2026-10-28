@@ -911,7 +911,7 @@ impl Session {
         let refs = self.key_refs(c);
         let policies = self.policies();
         let ctx = context(self.network(), &refs, &policies);
-        faraday_psbt::inspect(c, psbt, &ctx)
+        crate::review::name_scripts(faraday_psbt::inspect(c, psbt, &ctx))
     }
 
     /// Costs what `sign_with` costs. Signs `psbt` with every session key it
@@ -963,7 +963,7 @@ impl Session {
         let result = self
             .keys
             .sign(c, psbt, &selection, (ctx, accepted), musig, seed)
-            .map_err(|e| e.to_string())?;
+            .map_err(|e| crate::review::sign_error_text(&e))?;
         let mut by: Vec<Fingerprint> = result.signed_inputs.iter().map(|s| s.fingerprint).collect();
         by.dedup();
         Ok(Signed { by })
@@ -1589,7 +1589,7 @@ impl Spend {
                 Ok(())
             }
             Ok(None) => Err(EN.wallet_not_enough_signatures.to_string()),
-            Err(e) => Err(e.to_string()),
+            Err(e) => Err(crate::review::sign_error_text(&e)),
         }
     }
 
@@ -1599,7 +1599,7 @@ impl Spend {
         match faraday_psbt::finalize(&mut copy) {
             Ok(Some(_)) => None,
             Ok(None) => Some(EN.wallet_script_unsatisfied.to_string()),
-            Err(e) => Some(e.to_string()),
+            Err(e) => Some(crate::review::sign_error_text(&e)),
         }
     }
 

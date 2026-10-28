@@ -87,11 +87,7 @@ pub enum Unchecked {
 
 impl fmt::Display for Unchecked {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(match self {
-            Unchecked::NoPrevout => "no previous output",
-            Unchecked::UnsupportedScript => "unsupported script",
-            Unchecked::UnknownKey => "the script names no key",
-        })
+        write!(f, "{self:?}") // not shown: a developer's text; the app words each kind
     }
 }
 
@@ -215,6 +211,7 @@ pub enum NonceMode {
 impl fmt::Display for NonceMode {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
+            // not wording: the rule's name, as signers call it
             NonceMode::LowR => "low R",
             NonceMode::First => "first",
             NonceMode::Bip340 => "BIP-340",
@@ -295,29 +292,7 @@ pub enum Field {
 
 impl fmt::Display for Field {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(match self {
-            Field::Version => "version",
-            Field::Locktime => "locktime",
-            Field::InputCount => "inputs",
-            Field::OutputCount => "outputs",
-            Field::Spends => "spends",
-            Field::Sequence => "sequence",
-            Field::Amount => "amount",
-            Field::Script => "script",
-            Field::PreviousTransaction => "previous transaction",
-            Field::SpentOutput => "spent output",
-            Field::RedeemScript => "redeem script",
-            Field::WitnessScript => "witness script",
-            Field::Sighash => "sighash",
-            Field::KeyOrigins => "key origins",
-            Field::TaprootKeyOrigins => "taproot key origins",
-            Field::InternalKey => "internal key",
-            Field::MerkleRoot => "merkle root",
-            Field::LeafScripts => "leaf scripts",
-            Field::Unknown => "unknown fields",
-            Field::Proprietary => "proprietary fields",
-            Field::Xpubs => "extended public keys",
-        })
+        write!(f, "{self:?}") // not shown: a developer's text; the comparison is a developer's
     }
 }
 
@@ -1331,11 +1306,11 @@ fn metadata_diff(x: &bitcoin::Psbt, y: &bitcoin::Psbt) -> Vec<FieldDiff> {
             map(a
                 .tap_key_origins
                 .iter()
-                .map(|(k, v)| (hex(&k.serialize()), format!("{v:?}")))),
+                .map(|(k, v)| (hex(&k.serialize()), format!("{v:?}")))), // not shown: a comparison value, a developer's
             map(b
                 .tap_key_origins
                 .iter()
-                .map(|(k, v)| (hex(&k.serialize()), format!("{v:?}")))),
+                .map(|(k, v)| (hex(&k.serialize()), format!("{v:?}")))), // not shown: as above
         );
         field(
             &mut out,
@@ -1358,11 +1333,11 @@ fn metadata_diff(x: &bitcoin::Psbt, y: &bitcoin::Psbt) -> Vec<FieldDiff> {
             map(a
                 .tap_scripts
                 .iter()
-                .map(|(k, v)| (hex(&k.serialize()), format!("{:?}", v)))),
+                .map(|(k, v)| (hex(&k.serialize()), format!("{:?}", v)))), // not shown: as above
             map(b
                 .tap_scripts
                 .iter()
-                .map(|(k, v)| (hex(&k.serialize()), format!("{:?}", v)))),
+                .map(|(k, v)| (hex(&k.serialize()), format!("{:?}", v)))), // not shown: as above
         );
         field(
             &mut out,
@@ -1378,11 +1353,11 @@ fn metadata_diff(x: &bitcoin::Psbt, y: &bitcoin::Psbt) -> Vec<FieldDiff> {
             map(a
                 .proprietary
                 .iter()
-                .map(|(k, v)| (format!("{k:?}"), hex(v)))),
+                .map(|(k, v)| (format!("{k:?}"), hex(v)))), // not shown: as above
             map(b
                 .proprietary
                 .iter()
-                .map(|(k, v)| (format!("{k:?}"), hex(v)))),
+                .map(|(k, v)| (format!("{k:?}"), hex(v)))), // not shown: as above
         );
     }
     for i in 0..x.outputs.len().min(y.outputs.len()) {
@@ -1442,12 +1417,12 @@ fn map(pairs: impl Iterator<Item = (String, String)>) -> String {
 }
 
 fn unknown_text(unknown: &BTreeMap<bitcoin::psbt::raw::Key, Vec<u8>>) -> String {
-    map(unknown.iter().map(|(k, v)| (format!("{k:?}"), hex(v))))
+    map(unknown.iter().map(|(k, v)| (format!("{k:?}"), hex(v)))) // not shown: as above
 }
 
 fn txt<T: fmt::Debug>(value: &Option<T>) -> String {
     match value {
-        Some(v) => format!("{v:?}"),
+        Some(v) => format!("{v:?}"), // not shown: as above
         None => String::new(),
     }
 }

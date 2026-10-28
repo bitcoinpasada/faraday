@@ -45,6 +45,7 @@ use crate::inspect::{
 };
 use crate::musig::MusigSession;
 use crate::psbt::{Error, Psbt};
+use crate::reason::Reason;
 
 /// Which of the two standard RFC 6979 nonces an ECDSA signature uses.
 ///
@@ -109,7 +110,9 @@ impl fmt::Debug for Aux {
     /// signature is easier to reason about when they cannot be.
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            // not shown: Debug's text, never printed for people
             Aux::Deterministic => f.write_str("Aux::Deterministic"),
+            // not shown: Debug's text, never printed for people
             Aux::Fresh(_) => f.write_str("Aux::Fresh(..)"),
         }
     }
@@ -323,7 +326,7 @@ pub fn sign(
         if let Some(problem) = cl.problems.first() {
             return Err(Error::Unsupported {
                 input: i,
-                reason: problem,
+                reason: *problem,
             });
         }
         if cl.utxo.is_none() {
@@ -332,7 +335,7 @@ pub fn sign(
         if cl.amount_unverified {
             return Err(Error::Unsupported {
                 input: i,
-                reason: "no previous transaction for a SegWit input",
+                reason: Reason::NoPrevTx,
             });
         }
         // A miniscript or a taproot tree is signed only through a
@@ -465,14 +468,14 @@ pub fn sign(
                 if signed_inputs.len() == before {
                     return Err(Error::Unsupported {
                         input: i,
-                        reason: "no leaf or key path of this taproot input is one of ours",
+                        reason: Reason::NoTaprootPathOurs,
                     });
                 }
             }
             ScriptKind::Unknown => {
                 return Err(Error::Unsupported {
                     input: i,
-                    reason: "unknown script type",
+                    reason: Reason::UnknownScript,
                 });
             }
         }
@@ -695,7 +698,7 @@ fn sign_taproot(
     let input = &psbt.inner().inputs[index];
     let internal = input.tap_internal_key.ok_or(Error::Unsupported {
         input: index,
-        reason: "taproot input without tap_internal_key",
+        reason: Reason::NoInternalKey,
     })?;
     let utxo = cl.utxo.as_ref().expect("checked by caller");
     if internal != xonly || ScriptBuf::new_p2tr(secp, internal, merkle_root) != utxo.script_pubkey {
@@ -789,7 +792,7 @@ fn sign_musig(
     if sighash_type != TapSighashType::Default {
         return Err(Error::Unsupported {
             input: index,
-            reason: "a MuSig2 input signs under SIGHASH_DEFAULT only",
+            reason: Reason::MusigSighashDefault,
         });
     }
     let sighash = cache
@@ -804,7 +807,7 @@ fn sign_musig(
         crate::musig::pub_nonces(input)
             .map_err(|e| Error::Unsupported {
                 input: index,
-                reason: e.reason(),
+                reason: Reason::Musig(e),
             })?
             .into_iter()
             .filter(|e| musig_keyed_here(musig, &e.aggregate))
@@ -814,7 +817,7 @@ fn sign_musig(
         crate::musig::partial_sigs(input)
             .map_err(|e| Error::Unsupported {
                 input: index,
-                reason: e.reason(),
+                reason: Reason::Musig(e),
             })?
             .into_iter()
             .filter(|e| musig_keyed_here(musig, &e.aggregate))
@@ -881,7 +884,7 @@ fn sign_musig(
                 )
                 .map_err(|_| Error::Unsupported {
                     input: index,
-                    reason: "a MuSig2 nonce could not be drawn for this input",
+                    reason: Reason::MusigNonceNotDrawn,
                 })?;
                 open.keep(index, participation.key, pubnonce, secnonce);
                 let here = &mut psbt.inner_mut().inputs[index];
@@ -950,7 +953,7 @@ fn sign_musig(
                             .map(|(_, n)| *n)
                             .ok_or(Error::Unsupported {
                                 input: index,
-                                reason: "another participant's MuSig2 nonce is missing",
+                                reason: Reason::MusigNonceMissing,
                             })
                     })
                     .collect::<Result<_, _>>()?;
@@ -958,7 +961,7 @@ fn sign_musig(
                     faraday_bip::musig::nonce_agg_with(&secp, &others).map_err(|_| {
                         Error::Unsupported {
                             input: index,
-                            reason: "the other participants' MuSig2 nonces do not aggregate",
+                            reason: Reason::MusigOtherNonces,
                         }
                     })?;
                 // The same switch every Schnorr signature here follows:
@@ -1035,7 +1038,7 @@ fn sign_musig(
     let aggnonce =
         faraday_bip::musig::nonce_agg_with(&secp, &all).map_err(|_| Error::Unsupported {
             input: index,
-            reason: "the MuSig2 nonces on this input do not aggregate",
+            reason: Reason::MusigNonces,
         })?;
     let values = faraday_bip::musig::session_values(
         &secp,
