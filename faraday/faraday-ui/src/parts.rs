@@ -18,6 +18,16 @@ pub fn section_label<A: Copy + PartialEq>(ui: &mut Ui<A>, x: f32, y: f32, s: &st
     ui.text_as(x, y, TITLE_S, Role::OnSurfaceVariant, s);
 }
 
+/// The room a button of `style` takes past its label and padding: the
+/// chosen one of a set has its tick.
+fn tick_room(style: Style) -> f32 {
+    if style == Style::Selected {
+        faraday_draw::tokens::ICON_GLYPH_BUTTON + faraday_draw::tokens::ICON_GAP
+    } else {
+        0.0
+    }
+}
+
 /// Buttons [`BUTTON_H`] tall laid left to right, wrapping to a new row
 /// at the width. Returns the height they took, a row being a button and
 /// the gap under it.
@@ -33,12 +43,13 @@ pub fn button_rows<A: Copy + PartialEq>(
     let (mut bx, mut by) = (x, y);
     for (label, style, action) in items {
         // No wider than the row; a long label is cut.
-        let bw = (ui.measure_as(LABEL_L, label) + 2.0 * BUTTON_PAD).min(w);
+        let tick = tick_room(*style);
+        let bw = (ui.measure_as(LABEL_L, label) + 2.0 * BUTTON_PAD + tick).min(w);
         if bx > x && bx + bw > x + w {
             bx = x;
             by += bh + GAP;
         }
-        let label = ui.fit_as(LABEL_L, label, bw - BUTTON_PAD);
+        let label = ui.fit_as(LABEL_L, label, bw - BUTTON_PAD - tick);
         bx += ui.button(bx, by, Some(bw), bh, &label, *style, *action) + GAP;
     }
     by - y + bh + GAP
@@ -59,12 +70,13 @@ pub fn wrap_buttons<A: Copy + PartialEq>(
     let h = ui.button_height(h);
     let (mut bx, mut by) = (x, y);
     for &(label, style, action) in items {
-        let bw = (ui.measure_as(LABEL_L, label) + 2.0 * BUTTON_PAD).min(w);
+        let tick = tick_room(style);
+        let bw = (ui.measure_as(LABEL_L, label) + 2.0 * BUTTON_PAD + tick).min(w);
         if bx > x && bx + bw > x + w {
             bx = x;
             by += h + GAP;
         }
-        let label = ui.fit_as(LABEL_L, label, bw - BUTTON_PAD);
+        let label = ui.fit_as(LABEL_L, label, bw - BUTTON_PAD - tick);
         bx += ui.button(bx, by, Some(bw), h, &label, style, action) + GAP;
     }
     by - y + h + GAP

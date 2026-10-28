@@ -994,15 +994,9 @@ pub(crate) fn codex32_check_button(app: &View, ui: &mut Ui, x: f32, y: f32, widt
     let mut items = Vec::new();
     if !checking && crate::forms::offers_more(&e.parts) {
         use crate::codex32::Given;
-        // The one pressed is filled: its label fits as measured, where a
-        // selected button's check would not.
-        let on = |pressed: bool| {
-            if pressed {
-                Style::Primary
-            } else {
-                Style::Secondary
-            }
-        };
+        // The one pressed is the chosen one of the two: selected, with
+        // its tick (F108), its row making room for it.
+        let on = Style::chosen;
         items.push((
             EN.c32r_make_the_rest,
             on(making == Some(Given::Rest)),
