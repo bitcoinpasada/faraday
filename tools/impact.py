@@ -815,6 +815,54 @@ def paths_changes(git, paths):
     return changes
 
 
+def collect(args, git):
+    """(code, changes, commits): code is None to go on, or the exit code
+    to return after the message `collect` printed."""
+    commits = []
+    if args.paths:
+        return None, paths_changes(git, args.paths), commits
+    head = git.ok("rev-parse", "--verify", "HEAD")
+    if head is None:
+        print("impact: not a git checkout with commits; nothing to compare, not checked")
+        return 0, [], []
+    with_tree = False
+    if args.range:
+        if "..." in args.range:
+            x, y = args.range.split("...", 1)
+            y = y or "HEAD"
+            a = git.ok("merge-base", x or "HEAD", y)
+        elif ".." in args.range:
+            x, y = args.range.split("..", 1)
+            a, y = x or "HEAD", y or "HEAD"
+        else:
+            a, y = args.range, "HEAD"
+        if a is None or git.ok("rev-parse", "--verify", y) is None:
+            print(f"impact: cannot read the range {args.range}")
+            return 2, [], []
+        b = y
+        with_tree = git.ok("rev-parse", y) == head and "..." not in args.range and ".." not in args.range
+    else:
+        a = git.ok("merge-base", "main", "HEAD")
+        if a is None:
+            print("impact: no main to compare with; not checked (whoever lands it checks the range)")
+            return 0, [], []
+        b, with_tree = "HEAD", True
+    commits = log_commits(git, a, b)
+    changes = range_changes(git, a, b)
+    if with_tree:
+        tree = working_changes(git, "HEAD")
+        merged = {c.path: c for c in changes}
+        for c in tree:
+            if c.path in merged:
+                old = merged[c.path]
+                merged[c.path] = Change(old.status if old.status == "A" else c.status,
+                                        c.path, old.lines + c.lines)
+            else:
+                merged[c.path] = c
+        changes = list(merged.values())
+    return None, changes, commits
+
+
 def cmd_check(args):
     reg = load_or_die()
     errs = run_lint(reg)
@@ -822,50 +870,22 @@ def cmd_check(args):
         for e in errs:
             print(f"impact: lint: {e}")
         return 2
+    if (args.site or args.site_since) and not args.consumer:
+        print("impact: --site and --site-since go with --consumer")
+        return 2
+    sel = None
+    if args.consumer:
+        sel = select_consumers(reg, args.consumer)
+        if not sel:
+            print(f"impact: no consumer {args.consumer}")
+            return 2
+        if args.site and not Path(args.site).is_dir():
+            print(f"impact: --site {args.site} is not a directory")
+            return 2
     git = Git(ROOT)
-    commits = []
-    if args.paths:
-        changes = paths_changes(git, args.paths)
-    else:
-        head = git.ok("rev-parse", "--verify", "HEAD")
-        if head is None:
-            print("impact: not a git checkout with commits; nothing to compare, not checked")
-            return 0
-        with_tree = False
-        if args.range:
-            if "..." in args.range:
-                x, y = args.range.split("...", 1)
-                y = y or "HEAD"
-                a = git.ok("merge-base", x or "HEAD", y)
-            elif ".." in args.range:
-                x, y = args.range.split("..", 1)
-                a, y = x or "HEAD", y or "HEAD"
-            else:
-                a, y = args.range, "HEAD"
-            if a is None or git.ok("rev-parse", "--verify", y) is None:
-                print(f"impact: cannot read the range {args.range}")
-                return 2
-            b = y
-            with_tree = git.ok("rev-parse", y) == head and "..." not in args.range and ".." not in args.range
-        else:
-            a = git.ok("merge-base", "main", "HEAD")
-            if a is None:
-                print("impact: no main to compare with; not checked (whoever lands it checks the range)")
-                return 0
-            b, with_tree = "HEAD", True
-        commits = log_commits(git, a, b)
-        changes = range_changes(git, a, b)
-        if with_tree:
-            tree = working_changes(git, "HEAD")
-            merged = {c.path: c for c in changes}
-            for c in tree:
-                if c.path in merged:
-                    old = merged[c.path]
-                    merged[c.path] = Change(old.status if old.status == "A" else c.status,
-                                            c.path, old.lines + c.lines)
-                else:
-                    merged[c.path] = c
-            changes = list(merged.values())
+    code, changes, commits = collect(args, git)
+    if code is not None:
+        return code
     if args.message:
         try:
             msg = Path(args.message).read_text(encoding="utf-8")
@@ -874,11 +894,121 @@ def cmd_check(args):
             return 2
         commits.append(("message", msg))
     results, notes = evaluate(reg, changes, commits)
+    if sel is not None:
+        site = None
+        if args.site:
+            site = (args.site, site_commits(args.site, args.site_since))
+        lines, pending = render_consumers(sel, changes, commits, results, site, args.quiet)
+        print("\n".join(lines))
+        return 1 if pending else 0
     lines, unmet = render(results, args.quiet)
     if not args.quiet:
         lines = [f"impact: {n}" for n in notes] + lines
     print("\n".join(lines))
     return 1 if unmet else 0
+
+
+# ---------------------------------------------------------------- consumers
+
+
+def select_consumers(reg, name):
+    """The consumers named `name`: the id itself, or every id under it
+    (`website` is `website.guide`, `website.tour`, ...)."""
+    return [c for c in reg.consumers if c["id"] == name or c["id"].startswith(name + ".")]
+
+
+def site_commits(tree, since):
+    """[(label, message, paths)] of the website's commits after `since`, or
+    [] where there is no commit to compare from. Reads the website's git."""
+    if not since:
+        return []
+    out = Git(tree).ok("log", "--name-only", "--format=%x1e%H%x1f%B%x1f", f"{since}..HEAD")
+    commits = []
+    for rec in (out or "").split("\x1e"):
+        if rec.count("\x1f") < 2:
+            continue
+        h, msg, names = rec.split("\x1f", 2)
+        commits.append((h[:8], msg, [n for n in names.split("\n") if n.strip()]))
+    return commits
+
+
+def run_site_check(cmd, tree):
+    """Runs the consumer's `site_check` in the website's tree: True when it
+    exits 0. Costs what the command costs."""
+    try:
+        return subprocess.run(cmd, shell=True, cwd=tree, capture_output=True,
+                              timeout=600).returncode == 0
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+
+
+def consumer_trigger(c, changes, results):
+    """Why the consumer is affected: the first changed path it reads, or the
+    triggered rule that names it. None when it is not affected."""
+    for ch in changes:
+        if c["reads"] and match_list(c["reads"], ch.path) is not None:
+            return f"{ch.path} {VERB[ch.status]}"
+    for _, r, _ in results:
+        if c["id"] in r["consumers"]:
+            return f"rule {r['id']} triggered"
+    return None
+
+
+def consumer_states(sel, changes, commits, results, site):
+    """[(state, consumer, text)]: pending (blocking, not yet done), waived,
+    met, or listed (never blocks). Without `site` a blocking consumer is
+    pending: nothing here can tell it is done."""
+    wv = waivers(commits)
+    out = []
+    for c in sel:
+        why = consumer_trigger(c, changes, results)
+        if why is None:
+            continue
+        text = f"{why}; {c['act']}" if c["act"] else why
+        if c["_extra"]:
+            text = f"(a consumer of {c['_file']})"
+        if not c["blocking"]:
+            out.append(("listed", c, text))
+            continue
+        if site is not None:
+            tree, scommits = site
+            if c["site_check"] and run_site_check(c["site_check"], tree):
+                out.append(("met", c, "site_check passed"))
+                continue
+            done = [h for h, _, names in scommits if c["site_with"]
+                    and any(match_list(c["site_with"], n) is not None for n in names)]
+            if done:
+                out.append(("met", c, f"site changed ({done[0]})"))
+                continue
+            skip = [w for w in wv + waivers([(h, m) for h, m, _ in scommits]) if w[0] == c["id"]]
+            if skip:
+                out.append(("waived", c, f'"{skip[0][1]}" ({skip[0][2]})'))
+                continue
+        out.append(("pending", c, text))
+    return out
+
+
+def render_consumers(sel, changes, commits, results, site, quiet):
+    """(lines, pending count) of `check --consumer`: the consumers affected,
+    then the triggered rules that name them."""
+    ids = {c["id"] for c in sel}
+    bearing = [t for t in results if ids & set(t[1]["consumers"])]
+    states = consumer_states(sel, changes, commits, results, site)
+    lines = []
+    for want in ("pending", "waived", "met", "listed"):
+        if quiet and want != "pending":
+            continue
+        for st, c, text in states:
+            if st == want:
+                tag = " (blocking)" if c["blocking"] else ""
+                lines.append(f"impact: consumer {st} {c['id']}{tag}: {text}")
+    lines += render(bearing, quiet)[0][:-1]
+    counts = {}
+    for st, _, _ in states:
+        counts[st] = counts.get(st, 0) + 1
+    parts = [f"{counts[k]} {k}" for k in ("pending", "waived", "met", "listed") if counts.get(k)]
+    lines.append(f"impact: {len(states)} consumers affected" + (": " + ", ".join(parts) if parts else ""))
+    return lines, counts.get("pending", 0)
 
 
 def cmd_plan(args):
@@ -943,21 +1073,36 @@ def change_with(r):
     return "<br>".join(items) or "-"
 
 
-def render_checks_md(reg):
-    """docs/CHECKS.md as text, from the public registry (docs/IMPACT.md §7)."""
-    out = [
-        "# Checks: what holds each rule",
-        "",
-        "**Kind:** Reference",
-        "**Status:** Built (F149); generated by `tools/impact.py docs` from `tools/impact.toml`, never edited by hand",
-        "",
-        "Every check the repository has, when it runs and what it catches and",
-        "misses; every rule of the registry by area, with what holds it; and",
-        "the parts of the suite that read the repository's paths. `just lint`",
-        "fails while this file differs from the registry. The reasons are",
-        "`docs/IMPACT.md`'s and `docs/decisions/F149.md`'s; which tool or lint",
-        "does what is `tools/README.md`'s.",
-        "",
+def render_checks_md(reg, report=False):
+    """docs/CHECKS.md as text, from the public registry (docs/IMPACT.md §7);
+    with `report`, the map of §2.4 instead: the extra files' rules and
+    consumers too, each marked with its file, and the rules of each moment."""
+    mark = (lambda t: f" (of {t['_file']})" if t["_extra"] else "") if report else (lambda t: "")
+    if report:
+        head = [
+            "# Impact map: every check, rule and consumer",
+            "",
+            "Written by `tools/impact.py report` from `tools/impact.toml`"
+            + (" and " + ", ".join(f"`{f}`" for f in reg.extra_files) if reg.extra_files else "")
+            + "; for reading, never committed.",
+            "",
+        ]
+    else:
+        head = [
+            "# Checks: what holds each rule",
+            "",
+            "**Kind:** Reference",
+            "**Status:** Built (F149); generated by `tools/impact.py docs` from `tools/impact.toml`, never edited by hand",
+            "",
+            "Every check the repository has, when it runs and what it catches and",
+            "misses; every rule of the registry by area, with what holds it; and",
+            "the parts of the suite that read the repository's paths. `just lint`",
+            "fails while this file differs from the registry. The reasons are",
+            "`docs/IMPACT.md`'s and `docs/decisions/F149.md`'s; which tool or lint",
+            "does what is `tools/README.md`'s.",
+            "",
+        ]
+    out = head + [
         "## 1. Checks",
         "",
         "| Id | Stage | Run | Catches | Misses | Status |",
@@ -968,7 +1113,8 @@ def render_checks_md(reg):
                    f"| {cell(c['misses'])} | {c['status']} |")
     out += ["", "## 2. Rules by area", ""]
     n = 0
-    for area in AREAS:
+    areas = AREAS + sorted({r["id"].split(".")[0] for r in reg.rules} - set(AREAS))
+    for area in areas:
         rules = [r for r in reg.rules if r["id"].split(".")[0] == area]
         if not rules:
             continue
@@ -977,7 +1123,7 @@ def render_checks_md(reg):
                 "| Rule | Triggered by | Kind | Must change with it | Held by | Misses | Source |",
                 "|---|---|---|---|---|---|---|"]
         for r in rules:
-            name = f"`{r['id']}`" + (" (planned)" if r["status"] == "planned" else "")
+            name = f"`{r['id']}`" + (" (planned)" if r["status"] == "planned" else "") + mark(r)
             held = ", ".join(f"`{h}`" for h in r["held_by"]) or "-"
             out.append(f"| {name}: {cell(r['title'])} | {trigger_text(r)} | {r['kind']} "
                        f"| {change_with(r)} | {held} | {cell(r['misses'])} | {source_text(r['source'])} |")
@@ -987,7 +1133,18 @@ def render_checks_md(reg):
             "| Rule | Source |", "|---|---|"]
     for r in reg.rules:
         if r["kind"] == "review":
-            out.append(f"| `{r['id']}`: {cell(r['title'])} | {source_text(r['source'])} |")
+            out.append(f"| `{r['id']}`{mark(r)}: {cell(r['title'])} | {source_text(r['source'])} |")
+    if report:
+        out += ["", "## 4. Read by", "",
+                "| Part | Reads | What to do when it changes | Blocking |", "|---|---|---|---|"]
+        for c in reg.consumers:
+            out.append(f"| `{c['id']}`{mark(c)}: {cell(c['name'])} | {code_list(c['reads'])} "
+                       f"| {cell(c['act'])} | {'yes' if c['blocking'] else 'no'} |")
+        out += ["", "## 5. Rules of each moment", ""]
+        for at in sorted({r["at"] for r in reg.rules}, key=lambda x: (x != "change", x)):
+            ids = ", ".join(f"`{r['id']}`" for r in reg.rules if r["at"] == at)
+            out.append(f"- **{at}:** {ids}")
+        return "\n".join(out) + "\n"
     out += ["", "## 4. Read by", "",
             "| Part | Reads | What to do when it changes |", "|---|---|---|"]
     for c in reg.consumers:
@@ -1013,6 +1170,22 @@ def cmd_docs(args):
         return 0
     path.write_text(text, encoding="utf-8")
     print(f"impact: wrote {CHECKS_MD}")
+    return 0
+
+
+def cmd_report(args):
+    reg = load_or_die()
+    errs = run_lint(reg)
+    if errs:
+        for e in errs:
+            print(f"impact: lint: {e}")
+        return 2
+    text = render_checks_md(reg, report=True)
+    if args.out:
+        Path(args.out).write_text(text, encoding="utf-8")
+        print(f"impact: wrote {args.out}")
+    else:
+        sys.stdout.write(text)
     return 0
 
 
@@ -1253,6 +1426,74 @@ status = "active"
     ok("**Kind:** Reference" in md1 and "### 2.1 docs" in md1 and "(planned)" in md1, "docs shape")
     ok(md1.count("`impact.z`") == 2, "a review rule is in its area and in the review list")
     ok("`app.q`" in md1 and "| redo |" in md1, "consumers listed")
+    # report: the extra file's rules marked, the public docs never.
+    rx2 = mkrule(id="docs.extra", kind="review", _extra=True)
+    rx2["_file"] = "mine.toml"
+    reg2 = _reg(mkrule(id="docs.a", kind="review"), rx2)
+    reg2.extra_files = ["mine.toml"]
+    rep = render_checks_md(reg2, report=True)
+    ok("`docs.extra` (of mine.toml)" in rep and "`mine.toml`" in rep, "report marks an extra rule with its file")
+    ok("**Kind:**" not in rep and "## 5. Rules of each moment" in rep, "report shape")
+    ok("(of mine.toml)" not in render_checks_md(reg2), "docs marks nothing")
+    # check --consumer: selection, states, blocking, the site's side.
+    mkc = lambda cid, **kw: {"id": cid, "name": "", "reads": [], "act": "redo", "site_check": "",
+                             "site_with": [], "blocking": False, "_file": "impact.toml",
+                             "_extra": False, **kw}
+    cg = mkc("website.guide", reads=["docs/guide/**"], blocking=True, site_with=["site/guide/**"])
+    ct = mkc("website.tour", reads=["a/screen.rs"])
+    ca = mkc("app.x", reads=["a/**"], blocking=True)
+    reg3 = _reg(mkrule(id="guide.pictures", kind="review", when=["a/screen.rs"],
+                       consumers=["website.guide"]))
+    reg3.consumers = [cg, ct, ca]
+    ok([c["id"] for c in select_consumers(reg3, "website")] == ["website.guide", "website.tour"], "prefix selects")
+    ok([c["id"] for c in select_consumers(reg3, "website.tour")] == ["website.tour"], "exact id selects")
+    ok(not select_consumers(reg3, "webs"), "a part of a name selects nothing")
+    sel = select_consumers(reg3, "website")
+    chs = [ch("M", "docs/guide/a.md"), ch("M", "a/screen.rs")]
+    res3, _ = evaluate(reg3, chs, [])
+    st = {c["id"]: s for s, c, _ in consumer_states(sel, chs, [], res3, None)}
+    ok(st == {"website.guide": "pending", "website.tour": "listed"}, "blocking pending, picture listed", st)
+    lines, pending = render_consumers(sel, chs, [], res3, None, False)
+    ok(pending == 1 and lines[0].startswith("impact: consumer pending website.guide (blocking): docs/guide/a.md changed"),
+       "pending line", lines)
+    ok(any("consumer listed website.tour" in l for l in lines) and "guide.pictures" in "".join(lines),
+       "listed consumer and the rule bearing on it", lines)
+    ok(lines[-1].startswith("impact: 2 consumers affected: 1 pending, 1 listed"), "count line", lines)
+    lines, pending = render_consumers(sel, [ch("M", "a/screen.rs")], [], evaluate(reg3, [ch("M", "a/screen.rs")], [])[0], None, True)
+    ok(pending == 1 and not any("consumer listed" in l for l in lines), "quiet drops the listed", lines)
+    lines, pending = render_consumers(select_consumers(reg3, "website.tour"), [ch("M", "a/screen.rs")], [],
+                                      evaluate(reg3, [ch("M", "a/screen.rs")], [])[0], None, False)
+    ok(pending == 0, "a picture never blocks")
+    ok(not consumer_states(sel, [ch("M", "README.md")], [], [], None), "an unrelated change affects none")
+    ok(consumer_states(sel, [ch("M", "x")], [("h", "S\n\nImpact-skip: website.guide: no page changed")], [], None) == [],
+       "no change, no consumer")
+    sk = consumer_states(sel, chs[:1], [("h1", "S\n\nImpact-skip: website.guide: only a typo")], [], None)
+    ok(sk[0][0] == "pending", "without the site, a waiver in the Faraday range is not enough to know it is done")
+    with tempfile.TemporaryDirectory() as td:
+        git = lambda *a: subprocess.run(["git", "-c", "user.name=t", "-c", "user.email=t@t", "-C", td, *a],
+                                        capture_output=True, check=True)
+        git("init", "-q")
+        (Path(td) / "a").write_text("1")
+        git("add", "."), git("commit", "-q", "-m", "first")
+        since = git("rev-parse", "HEAD").stdout.decode().strip()
+        ok(site_commits(td, since) == [] and site_commits(td, "") == [], "no commits after the pin")
+        site = (td, site_commits(td, since))
+        ok(consumer_states(sel, chs[:1], [], [], site)[0][0] == "pending", "site untouched: pending")
+        (Path(td) / "site" / "guide").mkdir(parents=True)
+        (Path(td) / "site" / "guide" / "p.html").write_text("x")
+        git("add", "."), git("commit", "-q", "-m", "guide made again")
+        site = (td, site_commits(td, since))
+        r1 = consumer_states(sel, chs[:1], [], [], site)
+        ok(r1[0][0] == "met" and "site changed" in r1[0][2], "a site_with path changed: met", r1)
+        (Path(td) / "b").write_text("2")
+        git("add", "."), git("commit", "-q", "-m", "other\n\nImpact-skip: website.guide: no page differs")
+        site = (td, site_commits(td, site_commits(td, since)[-1][0]))
+        r2 = consumer_states(sel, chs[:1], [], [], site)
+        ok(r2[0][0] == "waived" and "no page differs" in r2[0][2], "a website commit's waiver", r2)
+        cg2 = dict(cg, site_check="true", site_with=[])
+        ok(consumer_states([cg2], chs[:1], [], [], (td, []))[0][0] == "met", "site_check passing: met")
+        cg3 = dict(cg, site_check="false", site_with=[])
+        ok(consumer_states([cg3], chs[:1], [], [], (td, []))[0][0] == "pending", "site_check failing: pending")
     print("impact self-test: ok")
 
 
@@ -1276,7 +1517,12 @@ def main(argv):
     p.add_argument("--quiet", action="store_true")
     p.add_argument("--message")
     p.add_argument("--paths", nargs="+")
+    p.add_argument("--consumer")
+    p.add_argument("--site")
+    p.add_argument("--site-since")
     sub.add_parser("lint")
+    p = sub.add_parser("report")
+    p.add_argument("--out")
     p = sub.add_parser("docs")
     p.add_argument("--check", action="store_true")
     args = ap.parse_args(argv)
@@ -1291,6 +1537,8 @@ def main(argv):
         return cmd_lint(args)
     if args.cmd == "docs":
         return cmd_docs(args)
+    if args.cmd == "report":
+        return cmd_report(args)
     ap.print_usage()
     return 2
 

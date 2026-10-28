@@ -1,8 +1,8 @@
 # Impact: what a change brings with it
 
 **Kind:** Spec
-**Status:** Specified (F149); the registry, `plan`, `check`, `lint`, `docs` and docs/CHECKS.md and their lines in `just lint` built (batches 1 to 3)
-**Open:** batches 4 to 6 of §10: `impact.py report` and `check --consumer`, the decisions' `**Held by:**` line and its lint (`lint-docs` rule 6), the website's step before it publishes
+**Status:** Specified (F149); the registry, `plan`, `check`, `lint`, `docs`, docs/CHECKS.md and their lines in `just lint`, `report` and `check --consumer` built (batches 1 to 4)
+**Open:** batches 5 and 6 of §10: the decisions' `**Held by:**` line and its lint (`lint-docs` rule 6), the website's step before it publishes
 
 A change to Faraday often needs a second change somewhere else: a string
 renamed needs the guide's bold name, a new board needs its line in
@@ -165,6 +165,16 @@ impact: 12 rules triggered: 1 unmet, 1 waived, 6 held, 1 met, 3 review
 Exit 0 when nothing is unmet, 1 when something is, 2 when the registry
 does not read (§2.5). `--quiet` prints only unmet rules and the count.
 
+`--consumer <id>` narrows the answer to one part of the suite: `website`
+means every `website.` consumer, `website.guide` one. It prints the
+consumers the range affects (a changed path they read, or a triggered
+rule that names them), then the triggered rules that name them (§5
+shows the output). It needs `--site <tree>` and `--site-since <commit>`
+only for the website's side; without them a blocking consumer is
+pending, since nothing here can tell it is done. Exit 1 while a
+blocking consumer is pending, 0 otherwise: a consumer without
+`blocking` is listed and never fails the check.
+
 ### 2.3 `impact.py docs [--check]`
 
 Writes docs/CHECKS.md from the public registry alone (§7); `--check`
@@ -177,7 +187,9 @@ The whole map, from the public registry and every extra rule file:
 every check with what it catches and misses, every rule by area with
 its trigger, kind, checks and misses, the review-only rules on their
 own, the consumers and what each reads, and the rules of each moment.
-Markdown, to the file or standard output. It is for reading, never
+Markdown, in the style of docs/CHECKS.md, to the file or standard
+output; a rule or consumer of an extra file is marked `(of <file name>)`,
+and the file's other text is never printed. It is for reading, never
 committed: a private map is written by whoever sets the extra files.
 
 ### 2.5 `impact.py lint`
@@ -255,6 +267,18 @@ The website's side, built in its own repository:
   the pin: `impact.py check <published>..<pin> --consumer website --site
   <its tree> --site-since <its commit at that publish>`. The registry
   read is the pin's, not the checkout's `HEAD`'s.
+- Its output, one line each, pending first, then the triggered rules
+  that name the consumers, then the count:
+
+  ```
+  impact: consumer pending website.guide (blocking): docs/guide/x.png changed; the guide's pages and pictures are made again
+  impact: consumer met website.roles (blocking): site_check passed
+  impact: consumer waived website.standards (blocking): "no change to the list" (a1b2c3d4)
+  impact: consumer listed website.tour: faraday/faraday-core/src/codex32/screen.rs changed; the tour's pictures are made again
+  impact: review guide.pictures: the guide's pictures are drawn again when a screen changes
+  impact: 4 consumers affected: 1 pending, 1 waived, 1 met, 1 listed
+  ```
+
 - For each `website.` consumer of a triggered rule, the consumer is met
   when its `site_check` passes, or a website commit since that publish
   changes a `site_with` path, or such a commit carries `Impact-skip:
