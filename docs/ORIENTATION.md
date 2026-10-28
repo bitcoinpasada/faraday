@@ -1,8 +1,8 @@
 # Panel orientation
 
 **Kind:** Spec
-**Status:** Specified (F100), not built
-**Open:** all of it: native orientation and the panel's density read at start (O1), the shell turning its frame, touch and arrow (O2), the setting, its line and the turn without a restart (O3), the snapshot sizes, the guide and the docs that follow (O4); planned, not scheduled.
+**Status:** Specified (F100), partly built: native orientation, the panel's density and the known list (O1)
+**Open:** the shell turning its frame, touch and arrow (O2), the setting, its line and the turn without a restart (O3), the snapshot sizes, the guide and the docs that follow (O4).
 
 A 7-inch or 10-inch panel starts in landscape. Settings › Display gains
 **Rotation**: Landscape, Portrait. A panel that is portrait natively is
@@ -88,7 +88,10 @@ Three things are read once at start, in this order:
    machine: vendor, product, and the quarter turn (90 or 270) that
    shows the frame upright in the orientation that is not the panel's
    native one. A machine not on the list takes 90. The native
-   orientation is always shown at 0.
+   orientation is always shown at 0. The list is `MACHINES` in
+   `faraday/shells/stick/src/orient.rs`: the table's machines of 6 to
+   10 inches that it matches by `sys_vendor` and `product_name` alone,
+   its "right side up" a turn of 90 and its "left side up" 270.
 
 The touch device's axes are not used to decide. A HID touchscreen
 reports in the panel's native axes; the shell compares the aspect of its
@@ -111,6 +114,13 @@ whose EDID diagonal is 11 inches or less, the density is the EDID's
 (pixels over inches across the diagonal), as `docs/LAYOUT.md` §7 says;
 a larger screen and a screen with no EDID keep `faraday.dpi`. The
 person's Display scale multiplies either.
+
+The edges (`orient::edid_dpi`, `faraday_core::edid::size`): the
+detailed timing's image size is read only where it is the shape of its
+pixels, within a tenth (some panels report a placeholder, 60 × 60 mm
+for an 800 × 1280 panel), and the screen's size in cm takes its place
+where it is; a density outside 96 to 480 dpi is not believed; a
+diagonal of exactly 11 inches (279.4 mm) is still small.
 
 ## 3. Where the frame is turned
 

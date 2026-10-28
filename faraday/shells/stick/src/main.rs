@@ -17,6 +17,8 @@
 //! faraday [--fb PATH] [--input [KIND:]PATH]... [--camera PATH] [--no-camera]
 //!               [--files DIR] [--size WxH] [--depth 16|24|32] [--dpi N]
 //!               [--pointer-speed F] [--touch-name NAME] [--touch-grid WxH]
+//!               [--touch-swap] [--touch-invert-x] [--touch-invert-y]
+//!               [--native portrait|landscape] [--mount 90|270]
 //!               [--boot-report] [--frames N] [--verbose] [--timings]
 //! ```
 //!
@@ -113,6 +115,7 @@ mod fb;
 mod files;
 mod hid;
 mod keyboard;
+mod orient;
 mod pace;
 mod panel;
 mod pointer;
@@ -411,6 +414,14 @@ struct Args {
     touch_name: String,
     /// The grid the touch controller reports in.
     touch_grid: (u16, u16),
+    /// How the controller's axes lie against the panel's.
+    calibration: touch::Calibration,
+    /// The panel is portrait natively, as `panel.conf`'s `NATIVE` says;
+    /// `None` reads it from the framebuffer.
+    native_portrait: Option<bool>,
+    /// The quarter turn for the orientation that is not the native one,
+    /// as `panel.conf`'s `MOUNT` says.
+    mount: Option<orient::Turn>,
     /// Whether to keep the boot report on the boot stick, which the dev
     /// image asks for.
     boot_report: bool,
@@ -439,6 +450,9 @@ impl Default for Args {
             pointer_speed: 1.0,
             touch_name: String::from(touch::DEFAULT_TOUCH_NAME),
             touch_grid: touch::DEFAULT_TOUCH_GRID,
+            calibration: touch::Calibration::default(),
+            native_portrait: None,
+            mount: None,
             boot_report: false,
             frames: None,
             verbose: false,
@@ -494,6 +508,25 @@ fn parse_args() -> Result<Args, String> {
                     return Err(String::from("--touch-grid has no pixels"));
                 }
                 args.touch_grid = (w, h);
+            }
+            "--touch-swap" => args.calibration.swap = true,
+            "--touch-invert-x" => args.calibration.invert_x = true,
+            "--touch-invert-y" => args.calibration.invert_y = true,
+            "--native" => {
+                args.native_portrait = Some(match value()?.as_str() {
+                    "portrait" => true,
+                    "landscape" => false,
+                    _ => return Err(String::from("--native wants portrait or landscape")),
+                });
+            }
+            "--mount" => {
+                let turn = value()?
+                    .parse()
+                    .ok()
+                    .and_then(orient::Turn::from_degrees)
+                    .filter(|t| matches!(t, orient::Turn::R90 | orient::Turn::R270))
+                    .ok_or("--mount wants 90 or 270")?;
+                args.mount = Some(turn);
             }
             "--boot-report" => args.boot_report = true,
             "--frames" => args.frames = Some(value()?.parse().map_err(|_| "bad frame count")?),
@@ -583,23 +616,36 @@ fn input_device(value: &str) -> Result<evdev::Device, String> {
     })
 }
 
-/// The density to report to the core: `--dpi` first, then whatever the
-/// kernel command line says, then 160.
+/// The density to report to the core (`docs/ORIENTATION.md` §2.1):
+/// `--dpi` first; then, on a screen of 11 inches or less whose EDID
+/// gives its size, the EDID's ([`orient::edid_dpi`]); then whatever the
+/// kernel command line says, then 160, doubled on a framebuffer 2,800
+/// pixels wide or more (F101).
 ///
 /// The stick image puts `faraday.dpi=N` on the command line, since
 /// a firmware framebuffer says how many pixels it has and never how large
-/// they are. Nothing on a laptop can be asked, so a person who finds the
-/// text small edits one boot entry.
-fn dpi(args: &Args, cmdline: &str) -> u16 {
+/// they are. A laptop's screen or a monitor cannot be asked, so a person
+/// who finds the text small edits one boot entry.
+fn dpi(args: &Args, cmdline: &str, edid: Option<faraday_core::edid::Size>, fb: (u16, u16)) -> u16 {
     if let Some(dpi) = args.dpi {
         return dpi;
     }
-    cmdline
+    if let Some(dpi) = orient::edid_dpi(edid, fb) {
+        return dpi;
+    }
+    let dpi = cmdline
         .split_whitespace()
         .find_map(|word| word.strip_prefix(CMDLINE_DPI))
         .and_then(|n| n.parse().ok())
         .filter(|n| *n > 0)
-        .unwrap_or(DEFAULT_DPI)
+        .unwrap_or(DEFAULT_DPI);
+    // The kernel command line gives one density for every laptop; a panel
+    // this wide is a high-density one, and Settings can still change it.
+    if fb.0 >= 2800 {
+        dpi.saturating_mul(2)
+    } else {
+        dpi
+    }
 }
 
 /// `/dev/fb0` → `/sys/class/graphics/fb0`.
@@ -668,7 +714,12 @@ const ENTROPY_SOURCE: &str = "/dev/random";
 /// What the shell found, for the boot report (`bootreport.rs`): the panel
 /// it chose, every input device with what it was classified as, and every
 /// capture device.
-fn inventory(geometry: Geometry, dpi: u16, devices: &[evdev::Device]) -> String {
+fn inventory(
+    geometry: Geometry,
+    dpi: u16,
+    setup: orient::Setup,
+    devices: &[evdev::Device],
+) -> String {
     let mut out = String::new();
     out.push_str(&format!(
         "panel {}x{} {}bpp stride {} dpi {}\n",
@@ -677,6 +728,20 @@ fn inventory(geometry: Geometry, dpi: u16, devices: &[evdev::Device]) -> String 
         geometry.depth.bits(),
         geometry.stride,
         dpi,
+    ));
+    out.push_str(&format!(
+        "native {}; rotation {}; other orientation turned {}\n",
+        if setup.native_portrait {
+            "portrait"
+        } else {
+            "landscape"
+        },
+        if setup.offered {
+            "offered"
+        } else {
+            "not offered"
+        },
+        setup.mount.degrees(),
     ));
     if devices.is_empty() {
         out.push_str("input: none\n");
@@ -780,8 +845,9 @@ struct Shell {
     /// The sender a newly found device's reader thread is given. Held for
     /// as long as the watch is.
     tx: Option<SyncSender<Wake>>,
-    /// The grid a touchscreen reports in, which a new one needs.
-    grid: (u16, u16),
+    /// The panel as a touchscreen's reader needs it, which a new one
+    /// needs too.
+    touch_panel: evdev::TouchPanel,
     /// `--pointer-speed`, which a mouse plugged in later needs.
     pointer_speed: f32,
     /// When the directory was last listed.
@@ -841,9 +907,7 @@ impl Shell {
             evdev::spawn(
                 id,
                 device,
-                self.geometry.width,
-                self.geometry.height,
-                self.grid,
+                &self.touch_panel,
                 tx.clone(),
                 evdev::Direct {
                     arrow: self.arrow(),
@@ -1437,12 +1501,29 @@ impl Shell {
 #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn run(args: Args) -> Result<Exit, String> {
     let geometry = geometry(&args, probe(&args))?;
-    let mut dpi = dpi(&args, &std::fs::read_to_string(CMDLINE).unwrap_or_default());
-    // The kernel command line gives one density for every laptop; a panel
-    // this wide is a high-density one, and Settings can still change it.
-    if args.dpi.is_none() && geometry.width >= 2800 {
-        dpi = dpi.saturating_mul(2);
-    }
+    // The firmware's EDID and the machine's names: on the device only.
+    let boot_params = if args.off_device {
+        Vec::new()
+    } else {
+        std::fs::read(BOOT_PARAMS).unwrap_or_default()
+    };
+    let edid_size =
+        faraday_core::edid::from_boot_params(&boot_params).and_then(faraday_core::edid::size);
+    let fb_size = (geometry.width, geometry.height);
+    let dpi = dpi(
+        &args,
+        &std::fs::read_to_string(CMDLINE).unwrap_or_default(),
+        edid_size,
+        fb_size,
+    );
+    let setup = match args.native_portrait {
+        Some(portrait) => orient::Setup::stated(portrait, args.mount),
+        None if args.off_device => orient::Setup::stated(fb_size.1 > fb_size.0, args.mount),
+        None => {
+            let read = |p: &str| std::fs::read_to_string(p).unwrap_or_default();
+            orient::Setup::detected(fb_size, edid_size, &read(SYS_VENDOR), &read(PRODUCT_NAME))
+        }
+    };
     let fb = OpenOptions::new()
         .write(true)
         .create(true)
@@ -1500,6 +1581,12 @@ fn run(args: Args) -> Result<Exit, String> {
         cursor,
         panel: panel.clone(),
     });
+    let touch_panel = evdev::TouchPanel {
+        width: geometry.width,
+        height: geometry.height,
+        grid: args.touch_grid,
+        calibration: args.calibration,
+    };
     let mut believed = std::collections::BTreeMap::new();
     for (id, device) in found {
         let flag = Arc::new(AtomicBool::new(device.trusted));
@@ -1509,9 +1596,7 @@ fn run(args: Args) -> Result<Exit, String> {
         evdev::spawn(
             id,
             device,
-            geometry.width,
-            geometry.height,
-            args.touch_grid,
+            &touch_panel,
             tx.clone(),
             evdev::Direct {
                 arrow: arrow.clone(),
@@ -1531,7 +1616,6 @@ fn run(args: Args) -> Result<Exit, String> {
             app.session =
                 faraday_core::wallet::Session::on(mode_at_start(Path::new(BOXES)).network());
             if app.medium == Medium::Stick {
-                let boot_params = std::fs::read(BOOT_PARAMS).unwrap_or_default();
                 app.secure_boot = SecureBootAtStart::from_boot_params(&boot_params);
                 app.maker = std::fs::read_to_string(SYS_VENDOR)
                     .map(|m| m.trim().to_string())
@@ -1592,13 +1676,13 @@ fn run(args: Args) -> Result<Exit, String> {
         files: Files::new(args.files.clone(), !args.files_given),
         boot_report: args
             .boot_report
-            .then(|| bootreport::Report::new(inventory(geometry, dpi, &devices))),
+            .then(|| bootreport::Report::new(inventory(geometry, dpi, setup, &devices))),
         timings: args
             .timings
             .then(|| Timings::new(env!("CARGO_PKG_VERSION"), geometry.width, geometry.height)),
         watch,
         tx,
-        grid: args.touch_grid,
+        touch_panel,
         pointer_speed: args.pointer_speed,
         scanned: Instant::now(),
         panic_timer: keyboard::PanicTimer::default(),

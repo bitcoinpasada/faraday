@@ -91,7 +91,8 @@ unset RUST_TARGET CC CFLAGS
 
 # The panel's values, cleared first so a board.conf that happens to set one
 # of the same names cannot be read as the panel's answer.
-unset NAME WIDTH HEIGHT DPI TOUCH_NAME TOUCH_GRID FB LOGO_WIDTH LOGO_HEIGHT
+unset NAME WIDTH HEIGHT DPI TOUCH_NAME TOUCH_GRID FB LOGO_WIDTH LOGO_HEIGHT \
+    NATIVE MOUNT TOUCH_SWAP TOUCH_INVERT_X TOUCH_INVERT_Y
 # shellcheck source=/dev/null
 . "$panel_dir/panel.conf"
 [ -n "${NAME:-}" ] || { echo "$panel_dir/panel.conf has no NAME" >&2; exit 1; }
@@ -109,6 +110,18 @@ if [ -n "${TOUCH_NAME:-}" ] || [ -n "${TOUCH_GRID:-}" ]; then
     for v in TOUCH_NAME TOUCH_GRID; do
         [ -n "${!v:-}" ] || { echo "$panel_dir/panel.conf has TOUCH_NAME or TOUCH_GRID but not both" >&2; exit 1; }
     done
+fi
+
+case "${NATIVE:-}" in
+    ""|portrait|landscape) ;;
+    *) echo "$panel_dir/panel.conf: NATIVE is portrait or landscape" >&2; exit 1 ;;
+esac
+case "${MOUNT:-}" in
+    ""|90|270) ;;
+    *) echo "$panel_dir/panel.conf: MOUNT is 90 or 270" >&2; exit 1 ;;
+esac
+if [ -n "${MOUNT:-}" ] && [ -z "${NATIVE:-}" ]; then
+    echo "$panel_dir/panel.conf has MOUNT but no NATIVE" >&2; exit 1
 fi
 
 variant="$BOARD-$PANEL"
@@ -238,6 +251,18 @@ if [ -n "${DPI:-}" ]; then
 fi
 if [ -n "${TOUCH_NAME:-}" ]; then
     args="$args --touch-name ${TOUCH_NAME} --touch-grid ${TOUCH_GRID}"
+fi
+for v in TOUCH_SWAP TOUCH_INVERT_X TOUCH_INVERT_Y; do
+    if [ "${!v:-0}" = 1 ]; then
+        flag=$(echo "$v" | tr 'A-Z_' 'a-z-')
+        args="$args --$flag"
+    fi
+done
+if [ -n "${NATIVE:-}" ]; then
+    args="$args --native ${NATIVE}"
+fi
+if [ -n "${MOUNT:-}" ]; then
+    args="$args --mount ${MOUNT}"
 fi
 if [ "$DEV" = 1 ]; then
     args="$args --verbose --timings --boot-report"

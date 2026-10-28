@@ -151,7 +151,22 @@ A directory under `panels/` with four files:
 
 - `panel.conf` — `NAME`, and then only what is true of this display:
   `WIDTH` and `HEIGHT`, `DPI`, `TOUCH_NAME` and `TOUCH_GRID`, `FB`,
-  `LOGO_WIDTH` and `LOGO_HEIGHT`. Each becomes a flag in
+  `LOGO_WIDTH` and `LOGO_HEIGHT`, and the panel's orientation
+  (`docs/ORIENTATION.md` §2, §4.2):
+
+  - `NATIVE` — `portrait` or `landscape`, the way the panel is handed
+    over (`--native`).
+  - `MOUNT` — `90` or `270`, the quarter turn that shows the frame
+    upright in the orientation that is not the native one (`--mount`).
+    A panel that states it is offered Rotation in Settings; one that
+    does not (the 2.8-inch panel) is not.
+  - `TOUCH_SWAP=1`, `TOUCH_INVERT_X=1`, `TOUCH_INVERT_Y=1` — a touch
+    controller whose x runs along the panel's height, or whose x or y
+    runs the other way (`--touch-swap`, `--touch-invert-x`,
+    `--touch-invert-y`). They describe the hardware and do not change
+    with Rotation.
+
+  Each becomes a flag in
   `/etc/faraday/args`, which the inittab passes to the shell, and the
   size pair also sets the size of the boot logo. No value may contain a
   space: the args file is word-split by the shell that starts the app.

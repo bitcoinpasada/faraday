@@ -61,6 +61,7 @@ mod desktop_host;
 mod devices;
 mod dialogs;
 mod drop_target;
+mod edid_size;
 mod explore;
 mod explore_addresses;
 mod family;

@@ -4,7 +4,10 @@
 //! from its system; the stick reads the base block the EFI stub puts in
 //! the kernel's boot parameters ([`from_boot_params`],
 //! `docs/DECISIONS.md` F23), which holds a name and a maker but none of
-//! the CEA-861 extension.
+//! the CEA-861 extension. The stick also reads the base block's size
+//! ([`size`]): how many pixels the panel has and how large it is, which
+//! say how dense it is and whether it is a small panel
+//! (`docs/ORIENTATION.md` §2).
 
 /// What a screen is, when its EDID says it is of concern.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -183,4 +186,83 @@ pub fn display(edid: &[u8]) -> Option<Display> {
 /// screen whose base block alone names no TV may still be one.
 pub fn tv_maker(edid: &[u8]) -> bool {
     edid_maker(edid).is_some_and(|m| TV_MAKERS.contains(&m.as_str()))
+}
+
+/// What an EDID base block says of a screen's size: the first detailed
+/// timing's active pixels, and how large the picture is.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Size {
+    /// The first detailed timing's active pixels, across and down: the
+    /// native mode. `None` when the block has no detailed timing first.
+    pub pixels: Option<(u16, u16)>,
+    /// The picture's size in millimetres, across and down: the detailed
+    /// timing's image size where it is the shape of its pixels, otherwise
+    /// the screen's size in centimetres where that is. `None` when
+    /// neither says.
+    pub mm: Option<(u16, u16)>,
+}
+
+impl Size {
+    /// The diagonal in tenths of a millimetre, from [`Size::mm`].
+    pub fn diagonal_tenth_mm(&self) -> Option<u32> {
+        let (w, h) = self.mm?;
+        let (w, h) = (u64::from(w) * 10, u64::from(h) * 10);
+        Some((w * w + h * h).isqrt() as u32)
+    }
+
+    /// Pixels per inch along the diagonal, rounded: the pixels over the
+    /// inches. `None` without both a size and pixels.
+    pub fn dpi(&self) -> Option<u16> {
+        let (pw, ph) = self.pixels?;
+        let diag_px = (u64::from(pw).pow(2) + u64::from(ph).pow(2)).isqrt();
+        let tenth_mm = u64::from(self.diagonal_tenth_mm()?).max(1);
+        // 254 tenths of a millimetre to the inch.
+        u16::try_from((diag_px * 254 + tenth_mm / 2) / tenth_mm).ok()
+    }
+}
+
+/// Whether a picture `mm` across and down is the shape of `pixels`
+/// (square pixels, within a tenth): a size that is not is a placeholder
+/// some panels report (60 × 60 mm for an 800 × 1280 panel) and is not
+/// read.
+fn same_shape(mm: (u16, u16), pixels: (u16, u16)) -> bool {
+    let (mw, mh) = (u64::from(mm.0), u64::from(mm.1));
+    let (pw, ph) = (u64::from(pixels.0), u64::from(pixels.1));
+    if mw == 0 || mh == 0 || pw == 0 || ph == 0 {
+        return false;
+    }
+    // mw / mh against pw / ph, cross-multiplied: within 10 %.
+    let (a, b) = (mw * ph, mh * pw);
+    a * 10 <= b * 11 && b * 10 <= a * 11
+}
+
+/// The screen's size from its EDID base block (`docs/ORIENTATION.md`
+/// §2): the first detailed timing descriptor's active pixels (bytes 56
+/// to 61) and image size in mm (bytes 66 to 68), or the screen's size in
+/// cm (bytes 21 and 22) where the descriptor's is missing or not the
+/// shape of its pixels. `None` for bytes that are not an EDID.
+pub fn size(edid: &[u8]) -> Option<Size> {
+    if edid.get(..8)? != HEADER || edid.len() < BASE_BLOCK {
+        return None;
+    }
+    let d = &edid[54..72];
+    // A pixel clock of zero is a display descriptor, not a timing.
+    let timing = d[0] != 0 || d[1] != 0;
+    let pixels = timing
+        .then(|| {
+            let w = u16::from(d[2]) | (u16::from(d[4] >> 4) << 8);
+            let h = u16::from(d[5]) | (u16::from(d[7] >> 4) << 8);
+            (w, h)
+        })
+        .filter(|(w, h)| *w > 0 && *h > 0);
+    let image = timing.then(|| {
+        let w = u16::from(d[12]) | (u16::from(d[14] >> 4) << 8);
+        let h = u16::from(d[13]) | (u16::from(d[14] & 0x0f) << 8);
+        (w, h)
+    });
+    let cm = (edid[21] > 0 && edid[22] > 0)
+        .then(|| (u16::from(edid[21]) * 10, u16::from(edid[22]) * 10));
+    let fits = |mm: (u16, u16)| pixels.is_none_or(|p| same_shape(mm, p));
+    let mm = image.filter(|&m| fits(m)).or(cm.filter(|&m| fits(m)));
+    Some(Size { pixels, mm })
 }

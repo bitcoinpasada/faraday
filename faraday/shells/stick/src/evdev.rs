@@ -456,6 +456,21 @@ pub fn trusted_by_bus(dir: &Path) -> bool {
     }
 }
 
+/// The panel as a touchscreen's reader needs it: its size in pixels,
+/// the grid its controller reports in when no HID descriptor says, and
+/// how the controller's axes lie against it.
+#[derive(Debug, Clone)]
+pub struct TouchPanel {
+    /// The panel's width in pixels, natively.
+    pub width: u16,
+    /// The panel's height in pixels, natively.
+    pub height: u16,
+    /// The grid a touchscreen with no HID ranges reports in.
+    pub grid: (u16, u16),
+    /// How the controller's axes lie against the panel's.
+    pub calibration: touch::Calibration,
+}
+
 /// The parsers one device needs, and the thread body that feeds them.
 ///
 /// A device that is two things gets two parsers and both are fed every
@@ -468,13 +483,16 @@ pub struct Readers {
 }
 
 impl Readers {
-    /// The readers for one device on a `width × height` panel whose touch
-    /// controller reports in `grid`.
-    pub fn new(device: &Device, width: u16, height: u16, grid: (u16, u16)) -> Readers {
+    /// The readers for one device on `panel`.
+    pub fn new(device: &Device, panel: &TouchPanel) -> Readers {
+        let (width, height) = (panel.width, panel.height);
         Readers {
-            touch: device.touchscreen.then(|| match device.range {
-                Some(r) => touch::Parser::with_range(width, height, r),
-                None => touch::Parser::new(width, height, grid),
+            touch: device.touchscreen.then(|| {
+                match device.range {
+                    Some(r) => touch::Parser::with_range(width, height, r),
+                    None => touch::Parser::new(width, height, panel.grid),
+                }
+                .calibrated(panel.calibration)
             }),
             pointer: (device.mouse || device.touchpad).then(|| {
                 Pointer::new(
@@ -583,16 +601,8 @@ pub fn read_loop(
 /// Starts one reader thread. The thread owns the device; the main loop
 /// only ever sees [`Wake`] values, and one last word naming the device
 /// when it is gone.
-pub fn spawn(
-    id: u32,
-    device: Device,
-    width: u16,
-    height: u16,
-    grid: (u16, u16),
-    tx: SyncSender<Wake>,
-    direct: Direct,
-) {
-    let mut readers = Readers::new(&device, width, height, grid);
+pub fn spawn(id: u32, device: Device, panel: &TouchPanel, tx: SyncSender<Wake>, direct: Direct) {
+    let mut readers = Readers::new(&device, panel);
     let hold = (!device.trusted).then_some(id);
     thread::Builder::new()
         .name(String::from("input"))
@@ -826,7 +836,15 @@ mod tests {
             trusted: true,
             range: None,
         };
-        let mut readers = Readers::new(&device, 1920, 1080, (0, 0));
+        let mut readers = Readers::new(
+            &device,
+            &TouchPanel {
+                width: 1920,
+                height: 1080,
+                grid: (0, 0),
+                calibration: touch::Calibration::default(),
+            },
+        );
         let mut out = Vec::new();
         for ev in [
             RawEvent {

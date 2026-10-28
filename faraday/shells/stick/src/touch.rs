@@ -44,6 +44,20 @@ pub const DEFAULT_TOUCH_NAME: &str = "Goodix";
 /// that controller reports for the 480×640 panel.
 pub const DEFAULT_TOUCH_GRID: (u16, u16) = (640, 480);
 
+/// How a controller's axes lie against the panel's (`docs/ORIENTATION.md`
+/// §4.2): `panel.conf`'s `TOUCH_SWAP`, `TOUCH_INVERT_X` and
+/// `TOUCH_INVERT_Y`. They describe the hardware and do not change with
+/// Rotation.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct Calibration {
+    /// The controller's x runs along the panel's height.
+    pub swap: bool,
+    /// The controller's x runs the other way: right to left.
+    pub invert_x: bool,
+    /// The controller's y runs the other way: bottom to top.
+    pub invert_y: bool,
+}
+
 /// A contact to hand to the core, already in panel pixels.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Touch {
@@ -66,6 +80,8 @@ pub struct Parser {
     grid_width: i64,
     /// The reporting grid's other axis.
     grid_height: i64,
+    /// How the controller's axes lie against the panel's.
+    calibration: Calibration,
     /// The slot the multitouch events that follow belong to.
     slot: i32,
     /// The device has reported a multitouch position: its single-touch
@@ -98,6 +114,7 @@ impl Parser {
             origin: (0, 0),
             grid_width: i64::from(grid.0.max(1)),
             grid_height: i64::from(grid.1.max(1)),
+            calibration: Calibration::default(),
             slot: 0,
             multitouch: false,
             x: 0,
@@ -123,10 +140,32 @@ impl Parser {
         }
     }
 
-    /// Raw grid position → panel pixel, scaled and clamped.
+    /// The same parser with the controller's axes put to the panel's.
+    pub fn calibrated(self, calibration: Calibration) -> Parser {
+        Parser {
+            calibration,
+            ..self
+        }
+    }
+
+    /// Raw grid position → panel pixel: reversed and swapped as the
+    /// calibration says, scaled and clamped.
     fn transform(&self) -> (u16, u16) {
-        let x = (self.x - self.origin.0) * i64::from(self.width) / self.grid_width;
-        let y = (self.y - self.origin.1) * i64::from(self.height) / self.grid_height;
+        let c = self.calibration;
+        let mut a = self.x - self.origin.0;
+        let mut b = self.y - self.origin.1;
+        if c.invert_x {
+            a = self.grid_width - 1 - a;
+        }
+        if c.invert_y {
+            b = self.grid_height - 1 - b;
+        }
+        let (w, h) = (i64::from(self.width), i64::from(self.height));
+        let (x, y) = if c.swap {
+            (b * w / self.grid_height, a * h / self.grid_width)
+        } else {
+            (a * w / self.grid_width, b * h / self.grid_height)
+        };
         (
             x.clamp(0, i64::from(self.width) - 1) as u16,
             y.clamp(0, i64::from(self.height) - 1) as u16,
@@ -445,6 +484,56 @@ mod tests {
                 },
             ]
         );
+    }
+
+    #[test]
+    fn a_controller_turned_against_its_panel_is_put_to_it() {
+        // A 800 × 1280 panel whose controller reports 1280 × 800 with its
+        // x along the panel's height, running bottom to top.
+        let touch = |x: i32, y: i32, c: Calibration| {
+            let mut parser = Parser::new(800, 1280, (1280, 800)).calibrated(c);
+            let size = EVENT_SIZE_64;
+            let bytes = packets(
+                size,
+                &[
+                    (EV_KEY, BTN_TOUCH, 1),
+                    (EV_ABS, ABS_X, x),
+                    (EV_ABS, ABS_Y, y),
+                    (EV_SYN, SYN_REPORT, 0),
+                ],
+            );
+            let t = run_with(&mut parser, &bytes, size)[0];
+            (t.x, t.y)
+        };
+        let c = Calibration {
+            swap: true,
+            invert_x: true,
+            invert_y: false,
+        };
+        // The controller's origin is the panel's bottom-left corner.
+        assert_eq!(touch(0, 0, c), (0, 1279));
+        // Its far x is the panel's top; its far y the panel's right.
+        assert_eq!(touch(1279, 799, c), (799, 0));
+        assert_eq!(touch(640, 400, c), (400, 639));
+        // Reversed alone, the same grid on a landscape panel.
+        let c = Calibration {
+            swap: false,
+            invert_x: true,
+            invert_y: true,
+        };
+        let mut parser = Parser::new(1280, 800, (1280, 800)).calibrated(c);
+        let size = EVENT_SIZE_64;
+        let bytes = packets(
+            size,
+            &[
+                (EV_KEY, BTN_TOUCH, 1),
+                (EV_ABS, ABS_X, 0),
+                (EV_ABS, ABS_Y, 0),
+                (EV_SYN, SYN_REPORT, 0),
+            ],
+        );
+        let t = run_with(&mut parser, &bytes, size)[0];
+        assert_eq!((t.x, t.y), (1279, 799));
     }
 
     #[test]
