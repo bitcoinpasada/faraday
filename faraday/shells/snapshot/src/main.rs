@@ -1,7 +1,7 @@
 //! Renders Faraday's screens to PNG along one scripted tour.
 //!
 //! ```text
-//! faraday-snapshot [--sd-card] [--network mainnet] WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy|scan|public|seedfile|vaultway|kept|again|plan|board|inbox|transfer|glance|chartedit|fromvault|first|restore|osk|flow|bootplace|passseeds|power|pills|components|guide|tour|codex32]
+//! faraday-snapshot [--sd-card] [--network mainnet] WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy|scan|public|seedfile|vaultway|kept|again|plan|board|inbox|transfer|glance|chartedit|fromvault|first|restore|osk|flow|bootplace|passseeds|power|pills|components|guide|screens|tour|codex32]
 //! ```
 //!
 //! `--sd-card` runs the tour as the Pi's stick shell starts the app:
@@ -80,9 +80,13 @@
 //! read alike and the hold, Vaults, Make, the Lock card, each stick
 //! written and Done; with `vaultshow`, the test vault's key with its
 //! SeedQR held (`docs/BACKUP-FLOW.md` §17.7), its Save to a stick, and a
-//! wallet's Save to a stick; with `guide`, the pictures in
-//! `docs/GUIDE.md` §2 and §3: a fresh stick session's Home, the power
-//! sheet, and New key from Wallets, from the dice transcript; with
+//! wallet's Save to a stick; with `guide`, the pictures of the guide's
+//! walkthroughs (`docs/guide/walk/`), one module for each, from a fresh
+//! stick session and the dice transcript's key; with `screens`, the
+//! pictures of its screen reference (`docs/guide/screens/`). These two
+//! name each picture as its file, with no number, and write
+//! `<name>.mark.json` beside a picture whose next control is marked
+//! (`just guide-pictures`); with
 //! `tour`, the user guide's and the website tour's pictures (run it with
 //! `--network mainnet`): Home with nothing loaded, the vault read from
 //! the boot stick at power-on, New key from dice, a SeedQR scanned and a
@@ -185,74 +189,82 @@ fn run(
         host: None,
         boxes: None,
         go_on: true,
+        named: matches!(only, Some("guide" | "screens")),
     };
-    match only {
-        Some("spend") => return tours::spend::spend_tour(&mut t),
-        Some("devices") => return tours::devices::devices_tour(&mut t),
-        Some("themes") => return tours::themes::themes_tour(&mut t),
-        Some("tooltips") => return tours::tooltips::tooltips_tour(&mut t),
-        Some("compact") => return tours::compact::compact_tour(&mut t),
-        Some("seeds") => return tours::seeds::seeds_tour(&mut t),
-        Some("keys") => return tours::keys::keys_tour(&mut t),
-        Some("visit") => return tours::visit::visit_tour(c, &mut t),
-        Some("copy") => return tours::copy::copy_tour(c, &mut t),
-        Some("scan") => return tours::devices::scan_tour(&mut t),
-        Some("public") => return tours::public::public_tour(c, &mut t),
-        Some("seedfile") => return tours::seedfile::seedfile_tour(c, &mut t),
-        Some("vaultway") => return tours::vaultway::vaultway_tour(&mut t),
-        Some("kept") => return tours::kept::kept_tour(c, &mut t),
-        Some("again") => return tours::again::again_tour(&mut t),
-        Some("plan") => return tours::plan::plan_tour(c, &mut t),
-        Some("board") => return tours::board::board_tour(c, &mut t),
-        Some("boardunsorted") => return tours::board::board_unsorted_tour(c, &mut t),
-        Some("menu") => return tours::menu::menu_tour(&mut t),
-        Some("m3") => return tours::m3::m3_tour(&mut t),
-        Some("inbox") => return tours::inbox::inbox_tour(&mut t),
-        Some("silent") => return tours::silent::silent_tour(c, &mut t),
-        Some("keypath") => return tours::key_path::key_path_tour(&mut t),
-        Some("register") => return tours::register::register_tour(&mut t),
-        Some("transfer") => return tours::transfer::transfer_tour(&mut t),
-        Some("glance") => return tours::glance::glance_tour(c, &mut t),
-        Some("chartedit") => return tours::chart_edit::chart_edit_tour(c, &mut t),
-        Some("fromvault") => return tours::from_vault::from_vault_tour(c, &mut t),
-        Some("first") => return tours::first::first_tour(c, &mut t),
-        Some("roller") => return tours::roller::roller_tour(&mut t),
-        Some("randomness") => return tours::randomness::randomness_tour(&mut t),
-        Some("dice5") => return tours::dice_five::dice_five_tour(&mut t),
-        Some("restore") => return tours::restore::restore_tour(&mut t),
-        Some("osk") => return tours::devices::osk_tour(&mut t),
-        Some("flow") => return tours::flow::flow_tour(&mut t),
-        Some("bootplace") => return tours::boot_place::boot_place_tour(&mut t),
-        Some("passseeds") => return tours::pass_seeds::pass_seeds_tour(c, &mut t),
-        Some("power") => return tours::devices::power_tour(&mut t),
-        Some("pills") => return tours::desktop::pills_tour(&mut t),
-        Some("components") => return tours::components::components_tour(&mut t),
-        Some("host") => return tours::host::host_tour(&mut t),
-        Some("walletflow") => return tours::wallet_flow::wallet_flow_tour(c, &mut t),
-        Some("demo") => return tours::desktop::demo_tour(&mut t),
-        Some("modes") => return tours::desktop::modes_tour(&mut t),
-        Some("vaultshow") => return tours::vault_show::vault_show_tour(&mut t),
-        Some("addkey") => return tours::add_key::add_key_tour(&mut t),
-        Some("keygen") => return tours::keygen::keygen_tour(&mut t),
-        Some("codex32correct") => {
-            return tours::codex32_correct::codex32_correct_tour(c, &mut t);
-        }
-        Some("createfrom") => return tours::create_from::create_from_tour(c, &mut t),
-        Some("inprogress") => return tours::in_progress::in_progress_tour(&mut t),
-        Some("cancel") => return tours::cancel::cancel_tour(&mut t),
-        Some("std") => return tours::standard::standard_tour(&mut t),
-        Some("parts") => return tours::partials::partials_tour(&mut t),
-        Some("panes") => return tours::panes::panes_tour(&mut t),
-        Some("guide") => return tours::guide::guide_tour(c, &mut t),
-        Some("tour") => return tours::site_tour::site_tour(c, &mut t),
-        Some("codex32") => return tours::codex32::codex32_tour(&mut t),
-        Some("codex32tour") => return tours::codex32::codex32_shares_tour(&mut t),
-        Some("codex32form") => return tours::codex32_form::codex32_form_tour(&mut t),
-        Some("createshares") => return tours::create_shares::create_shares_tour(&mut t),
-        Some("codex32backup") => return tours::codex32_backup::codex32_backup_tour(&mut t),
-        _ => {}
+    match only.and_then(|name| named_tour(c, &mut t, name)) {
+        Some(done) => done,
+        None => tours::default::default_tour(c, &mut t, medium),
     }
-    tours::default::default_tour(c, &mut t, medium)
+}
+
+/// Costs what the tour it runs costs. The tour named `name`, run;
+/// `None` for a name no tour has, which runs the default tour.
+fn named_tour(c: &Compute, t: &mut Tour, name: &str) -> Option<Result<(), String>> {
+    Some(match name {
+        "spend" => tours::spend::spend_tour(t),
+        "devices" => tours::devices::devices_tour(t),
+        "themes" => tours::themes::themes_tour(t),
+        "tooltips" => tours::tooltips::tooltips_tour(t),
+        "compact" => tours::compact::compact_tour(t),
+        "seeds" => tours::seeds::seeds_tour(t),
+        "keys" => tours::keys::keys_tour(t),
+        "visit" => tours::visit::visit_tour(c, t),
+        "copy" => tours::copy::copy_tour(c, t),
+        "scan" => tours::devices::scan_tour(t),
+        "public" => tours::public::public_tour(c, t),
+        "seedfile" => tours::seedfile::seedfile_tour(c, t),
+        "vaultway" => tours::vaultway::vaultway_tour(t),
+        "kept" => tours::kept::kept_tour(c, t),
+        "again" => tours::again::again_tour(t),
+        "plan" => tours::plan::plan_tour(c, t),
+        "board" => tours::board::board_tour(c, t),
+        "boardunsorted" => tours::board::board_unsorted_tour(c, t),
+        "menu" => tours::menu::menu_tour(t),
+        "m3" => tours::m3::m3_tour(t),
+        "inbox" => tours::inbox::inbox_tour(t),
+        "silent" => tours::silent::silent_tour(c, t),
+        "keypath" => tours::key_path::key_path_tour(t),
+        "register" => tours::register::register_tour(t),
+        "transfer" => tours::transfer::transfer_tour(t),
+        "glance" => tours::glance::glance_tour(c, t),
+        "chartedit" => tours::chart_edit::chart_edit_tour(c, t),
+        "fromvault" => tours::from_vault::from_vault_tour(c, t),
+        "first" => tours::first::first_tour(c, t),
+        "roller" => tours::roller::roller_tour(t),
+        "randomness" => tours::randomness::randomness_tour(t),
+        "dice5" => tours::dice_five::dice_five_tour(t),
+        "restore" => tours::restore::restore_tour(t),
+        "osk" => tours::devices::osk_tour(t),
+        "flow" => tours::flow::flow_tour(t),
+        "bootplace" => tours::boot_place::boot_place_tour(t),
+        "passseeds" => tours::pass_seeds::pass_seeds_tour(c, t),
+        "power" => tours::devices::power_tour(t),
+        "pills" => tours::desktop::pills_tour(t),
+        "components" => tours::components::components_tour(t),
+        "host" => tours::host::host_tour(t),
+        "walletflow" => tours::wallet_flow::wallet_flow_tour(c, t),
+        "demo" => tours::desktop::demo_tour(t),
+        "modes" => tours::desktop::modes_tour(t),
+        "vaultshow" => tours::vault_show::vault_show_tour(t),
+        "addkey" => tours::add_key::add_key_tour(t),
+        "keygen" => tours::keygen::keygen_tour(t),
+        "codex32correct" => tours::codex32_correct::codex32_correct_tour(c, t),
+        "createfrom" => tours::create_from::create_from_tour(c, t),
+        "inprogress" => tours::in_progress::in_progress_tour(t),
+        "cancel" => tours::cancel::cancel_tour(t),
+        "std" => tours::standard::standard_tour(t),
+        "parts" => tours::partials::partials_tour(t),
+        "panes" => tours::panes::panes_tour(t),
+        "guide" => tours::guide::guide_tour(c, t),
+        "screens" => tours::screens::screens_tour(c, t),
+        "tour" => tours::site_tour::site_tour(c, t),
+        "codex32" => tours::codex32::codex32_tour(t),
+        "codex32tour" => tours::codex32::codex32_shares_tour(t),
+        "codex32form" => tours::codex32_form::codex32_form_tour(t),
+        "createshares" => tours::create_shares::create_shares_tour(t),
+        "codex32backup" => tours::codex32_backup::codex32_backup_tour(t),
+        _ => return None,
+    })
 }
 
 #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
@@ -280,7 +292,7 @@ fn main() -> ExitCode {
     }
     if !(4..=5).contains(&args.len()) {
         eprintln!(
-            "usage: faraday-snapshot [--sd-card] [--network NAME] WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy|scan|public|seedfile|vaultway|kept|again|plan|inbox|transfer|glance|chartedit|fromvault|first|restore|osk|flow|walletflow|demo|modes|vaultshow|addkey|cancel|guide|tour|codex32]"
+            "usage: faraday-snapshot [--sd-card] [--network NAME] WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy|scan|public|seedfile|vaultway|kept|again|plan|inbox|transfer|glance|chartedit|fromvault|first|restore|osk|flow|walletflow|demo|modes|vaultshow|addkey|cancel|guide|screens|tour|codex32]"
         );
         return ExitCode::from(2);
     }
@@ -370,6 +382,7 @@ fn main() -> ExitCode {
             "parts",
             "panes",
             "guide",
+            "screens",
             "roller",
             "randomness",
             "dice5",
@@ -383,7 +396,7 @@ fn main() -> ExitCode {
         .contains(&m)
     }) {
         eprintln!(
-            "the tour is spend, devices, themes, tooltips, compact, seeds, keys, visit, copy, scan, public, seedfile, vaultway, kept, again, plan, board, menu, m3, inbox, transfer, glance, chartedit, fromvault, first, restore, osk, flow, bootplace, passseeds, power, pills, components, walletflow, demo, modes, vaultshow, addkey, keygen, codex32correct, createfrom, inprogress, cancel, std, parts, panes, guide, roller, randomness, dice5, codex32, codex32tour, codex32form, createshares, codex32backup or tour"
+            "the tour is spend, devices, themes, tooltips, compact, seeds, keys, visit, copy, scan, public, seedfile, vaultway, kept, again, plan, board, menu, m3, inbox, transfer, glance, chartedit, fromvault, first, restore, osk, flow, bootplace, passseeds, power, pills, components, walletflow, demo, modes, vaultshow, addkey, keygen, codex32correct, createfrom, inprogress, cancel, std, parts, panes, guide, roller, randomness, dice5, codex32, codex32tour, codex32form, createshares, codex32backup, screens or tour"
         );
         return ExitCode::from(2);
     }

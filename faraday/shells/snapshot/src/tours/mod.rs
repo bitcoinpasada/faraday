@@ -43,6 +43,7 @@ pub(crate) mod randomness;
 pub(crate) mod register;
 pub(crate) mod restore;
 pub(crate) mod roller;
+pub(crate) mod screens;
 pub(crate) mod seedfile;
 pub(crate) mod seeds;
 pub(crate) mod silent;

@@ -234,6 +234,30 @@ faraday-snap size tour="": (faraday-testkit snap_kit snap_net)
     cargo run -q -p faraday-snapshot -- --network "{{snap_net}}" "$arg" "{{snap_kit}}" "$out" ${tour[@]+"${tour[@]}"}
     echo "$out"
 
+# The user guide's pictures (docs/guide/): the snapshot's guide and
+# screens tours and the Starter's guide pictures, at 1280x800 and 160 dpi,
+# Cobalt, Light, Standard, on Mainnet, each shot named as its picture's
+# file, with `<name>.mark.json` beside a picture whose next control is
+# marked. tools/guide-pictures.py copies into `out` every picture the
+# guide's pages show or name as to come, removes the ones none shows,
+# lists those no tour drew, and fails on a picture that carries text,
+# EXIF, ICC or time chunks. The renders are left in a fresh temporary
+# folder, whose path it prints. A tour that fails is named and fails the
+# recipe once the pictures it drew are collected.
+[group('dev')]
+guide-pictures out="docs/guide/pictures": (faraday-testkit "out/testkit-mainnet" "mainnet")
+    #!/usr/bin/env bash
+    set -euo pipefail
+    renders="$(mktemp -d -t faraday-guide-renders.XXXXXX)"
+    failed=0
+    for tour in guide screens; do
+        cargo run -q --locked -p faraday-snapshot -- --network mainnet 1280x800@160 out/testkit-mainnet "$renders/$tour" "$tour" > /dev/null || failed=1
+    done
+    cargo run -q --locked -p faraday-starter --example snap -- --guide 1280x800@160 "$renders/starter" cobalt,light,standard > /dev/null || failed=1
+    python3 -B tools/guide-pictures.py "{{out}}" "$renders/guide" "$renders/screens" "$renders/starter"
+    echo "$renders"
+    exit "$failed"
+
 # The Starter (docs/STARTER.md), built and run here: `just faraday-starter`, or
 # `just faraday-starter --image out/stick/faraday-x86_64-uefi-dev.img` to write
 # a dev image, through the same screens and writer as a release's.

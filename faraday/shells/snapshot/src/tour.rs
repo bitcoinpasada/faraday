@@ -29,6 +29,10 @@ pub(crate) struct Tour {
     /// secret opens it, as every new process owes them again. Off while
     /// the tour shows that sheet itself.
     pub(crate) go_on: bool,
+    /// Each picture saved as `<name>.png`, with no number before it: the
+    /// guide's tours, whose shot names are their pictures' file names
+    /// (`just guide-pictures`).
+    pub(crate) named: bool,
 }
 
 pub(crate) type Files = Vec<(String, Vec<u8>)>;
@@ -368,10 +372,48 @@ impl Tour {
         self.save(name)
     }
 
+    /// [`Tour::shot`], with the control pressed next marked: where the
+    /// frame takes a press on `next`, as `<name>.mark.json` beside the
+    /// picture, `{"x", "y", "w", "h"}` in the picture's pixels. A control
+    /// the frame does not offer is named in `unmarked.txt` instead.
+    pub(crate) fn shot_marking(&mut self, name: &str, next: Action) -> Result<(), String> {
+        self.shot(name)?;
+        self.mark(name, next)
+    }
+
+    /// Writes the mark of `next` in the frame last saved, picture `name`.
+    pub(crate) fn mark(&mut self, name: &str, next: Action) -> Result<(), String> {
+        let file = self.file_of(name);
+        if let Some((x, y, w, h)) = self.app.hit_box(next) {
+            let path = self.out.join(format!("{file}.mark.json"));
+            let json = format!("{{\"x\": {x}, \"y\": {y}, \"w\": {w}, \"h\": {h}}}\n");
+            return std::fs::write(&path, json).map_err(|e| format!("{}: {e}", path.display()));
+        }
+        use std::io::Write;
+        let path = self.out.join("unmarked.txt");
+        let mut f = std::fs::OpenOptions::new()
+            .append(true)
+            .create(true)
+            .open(&path)
+            .map_err(|e| format!("{}: {e}", path.display()))?;
+        writeln!(f, "{name}: {next:?} is not on screen").map_err(|e| e.to_string())
+    }
+
+    /// The file name, without its extension, of picture `name` once
+    /// saved: numbered in the order taken, or the name alone in a guide
+    /// tour.
+    fn file_of(&self, name: &str) -> String {
+        if self.named {
+            name.to_string()
+        } else {
+            format!("{:02}-{name}", self.n)
+        }
+    }
+
     /// The frame on screen, saved as the next picture, `name`.
     fn save(&mut self, name: &str) -> Result<(), String> {
         self.n += 1;
-        let path = self.out.join(format!("{:02}-{name}.png", self.n));
+        let path = self.out.join(format!("{}.png", self.file_of(name)));
         let frame = self.app.frame();
         write_png(&path, frame.width, frame.height, frame.rgba)?;
         if std::env::var_os("FARADAY_SNAP_TEXT").is_some() {

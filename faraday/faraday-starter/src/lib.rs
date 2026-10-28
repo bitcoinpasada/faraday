@@ -1289,6 +1289,14 @@ impl Starter {
         Some(((r.x + r.w / 2) as u16, (r.y + r.h / 2) as u16))
     }
 
+    /// The box the last frame drawn offers `action` in, in pixels
+    /// (x, y, w, h): what the guide's pictures mark as pressed next.
+    pub fn hit_box(&self, action: StarterAction) -> Option<(u16, u16, u16, u16)> {
+        let a = action.host();
+        let (r, _) = self.hits.iter().rev().find(|(_, h)| *h == a)?;
+        Some((r.x as u16, r.y as u16, r.w as u16, r.h as u16))
+    }
+
     /// Where the held app's last frame offers `action`, in the window's
     /// pixels: its frame lies under the Starter's top app bar, for tests
     /// that touch it. A lookup.
