@@ -237,7 +237,7 @@ The session locks. The page becomes the backup's own steps, open on
 | Insert | Stick read | Written |
 |---|---|---|
 | ![Insert Stick 2](../4-10-insert.png) | ![This is the stick for Vault 1](../4-10-this-is-the-stick.png) | ![Written and checked](../4-10-written.png) |
-| **Insert Stick 2: Vault 1 (Place 1)**. The pills at the top name every stick: the Faraday stick is **Boot stick**, the board's Stick 1 is **Stick 2** here, and the public files go on **Stick 3**. Plug in a stick. | Press **This is the stick for Vault 1 (Place 1)**, or **Use another stick**. | **Written and checked on** and the stick's name. Write "Stick 2" on the stick (**Mark it as Stick 2**), then pull it (**Pull the stick**). |
+| **Insert Stick 2: Vault 1 (Place 1)**. The pills in the strip at the window's foot name every stick: the Faraday stick is **Boot stick**, the board's Stick 1 is **Stick 2** here, and the public files go on **Stick 3**. Plug in a stick. | Press **This is the stick for Vault 1 (Place 1)**, or **Use another stick**. | **Written and checked on** and the stick's name. Write "Stick 2" on the stick (**Mark it as Stick 2**), then pull it (**Pull the stick**). |
 
 Then **Insert Stick 3: Public files** the same way.
 

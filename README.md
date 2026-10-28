@@ -432,7 +432,7 @@ Sticks are folders in `faraday-sticks` in the home folder
 (`~/faraday-sticks` on Linux, `%USERPROFILE%\faraday-sticks` on Windows;
 `--sticks DIR` moves them): `BOOTSTICK` is the boot stick, empty at
 first: put there the files to boot with. `STICK-2` and on are backup
-sticks. The pills across the top of the window plug each one in or pull it out.
+sticks. The pills in the strip at the window's foot plug each one in or pull it out.
 
 Build the test kit on its own with:
 
