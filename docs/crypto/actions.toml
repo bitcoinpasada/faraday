@@ -172,3 +172,15 @@ name = "Deterministic Usage of the Digital Signature Algorithm (DSA) and Ellipti
 status = "Informational"
 checked = "2026-10-28"
 source = "rfc-editor.org"
+
+# The actions, by §12's groups. Each group keeps its own standards,
+# rows, actions and not-cryptographic entries between its two lines.
+
+# --- group: keys, wallets, randomness, derived keys and tools ---
+# --- end: keys, wallets, randomness, derived keys and tools ---
+
+# --- group: signing, transfer, backups ---
+# --- end: signing, transfer, backups ---
+
+# --- group: vaults, gpg and secure boot, the device and the starter ---
+# --- end: vaults, gpg and secure boot, the device and the starter ---
