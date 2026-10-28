@@ -7,7 +7,7 @@
 //! no registered wallet gives is named and left unsigned (F141).
 
 use crate::common::{add_key, hold, offered, texts};
-use faraday_core::strings::EN;
+use faraday_core::strings::{EN, fill};
 use faraday_core::testkit::{self, Kit};
 use faraday_core::wallet::step;
 use faraday_core::{Action, Faraday, StorageEvent};
@@ -67,6 +67,16 @@ fn a_high_fee_is_paid_only_after_its_hold() {
     let shown = screen(&mut app);
     assert!(shown.contains(EN.step_fee_hold), "{shown}");
     assert!(shown.contains(EN.step_fee_hold_cases), "{shown}");
+    // The warning says the fee and its share of what is sent.
+    let i = &app.spend().unwrap().inspection;
+    let share = fill(
+        EN.step_review_fee_share,
+        &[
+            &i.fee.to_sat().to_string(),
+            &i.fee_share_pct().unwrap().to_string(),
+        ],
+    );
+    assert!(shown.contains(&share), "{shown}");
     assert!(!offered(&mut app, Action::StepNext(step::TRANSACTION)));
     // Continue and Sign before the hold: nothing goes on, nothing signs.
     app.press(Action::StepNext(step::TRANSACTION));

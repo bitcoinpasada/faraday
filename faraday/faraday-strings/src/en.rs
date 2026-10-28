@@ -4966,6 +4966,12 @@ strings! {
     /// that no registered wallet gives: it is left unsigned and the rest
     /// is signed (F141). `{}`: the input's index.
     step_input_no_wallet_tree: "Input {} is left unsigned: no registered wallet covers this taproot tree. Register its wallet to sign it.",
+    /// Review's warning of a fee that is a large share of what is sent.
+    /// `{}`: the fee in sat, the share in percent.
+    step_review_fee_share: "fee {} is {}% of the amount sent",
+    /// Review's warning of a fee rate far above any network's. `{}`: the
+    /// rate in sat/vB, whole.
+    step_review_fee_rate: "fee rate is about {} sat/vB",
     /// Review's line for an input of the person's key in a miniscript
     /// that no registered wallet gives: it is left unsigned and the rest
     /// is signed (F141). `{}`: the input's index.

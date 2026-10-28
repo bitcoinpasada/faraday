@@ -41,11 +41,20 @@ pub(crate) fn review_stop(inspection: &Inspection, held: &[K]) -> Option<&'stati
     }
 }
 
-/// The words Review gives warning `w`: the inspector's, but for an input
+/// The words Review gives warning `w` of inspection `i`: the
+/// inspector's, but for the fee's (from `i`'s fee and rate) and an input
 /// left unsigned for want of its wallet (F141), which Review names in its
 /// own words.
-pub(crate) fn warning_text(w: &faraday_psbt::Warning) -> Cow<'_, str> {
+pub(crate) fn warning_text<'a>(i: &Inspection, w: &'a faraday_psbt::Warning) -> Cow<'a, str> {
     match w.kind {
+        K::HighFee { pct_of_amount } => Cow::Owned(fill(
+            EN.step_review_fee_share,
+            &[&i.fee.to_sat().to_string(), &pct_of_amount.to_string()],
+        )),
+        K::AbsurdFeeRate => match i.fee_rate_sat_vb {
+            Some(rate) => Cow::Owned(fill(EN.step_review_fee_rate, &[&(rate as u64).to_string()])),
+            None => Cow::Borrowed(w.text.as_str()),
+        },
         K::NoWalletForScript { input, taproot } => Cow::Owned(fill(
             if taproot {
                 EN.step_input_no_wallet_tree

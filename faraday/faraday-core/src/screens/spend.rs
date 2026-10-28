@@ -745,7 +745,7 @@ pub(crate) fn step_body(
                         Level::Caution => Role::Warning,
                         Level::Danger | Level::Blocked => Role::Error,
                     };
-                    (c, crate::review::warning_text(wn))
+                    (c, crate::review::warning_text(i, wn))
                 }));
             for (c, text) in lines {
                 let used = ui.wrap_as((x + 22.0, cy, w - 22.0), BODY_M, c, &text);
