@@ -163,4 +163,3 @@ Read this table, then only the decision you need.
 | [F146](decisions/F146.md) | One stick numbering, "Back to" under a page's name, and the codex32 entry's step in the top app bar | 2026-10-28 | Active | design |
 | [F147](decisions/F147.md) | One Pi image per screen for every Pi, the Pi 4 among them, one build per visit to the download page, and images published for testers | 2026-10-28 | Active | release |
 | [F148](decisions/F148.md) | One manifest for every cryptographic action, its Learn block generated from it, and `just lint` failing on a function it does not cover or whose code changed since review | 2026-10-28 | Active | security |
-| [F149](decisions/F149.md) | One registry of what a change brings with it, checked at landing and before the website publishes | 2026-10-28 | Active | repository |

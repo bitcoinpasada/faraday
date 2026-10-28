@@ -7,13 +7,17 @@
 # compiler cache and build trees are under out/pi/, so only what changed
 # is rebuilt.
 #
-#   run-build.sh <board> <panel> <dev> <buildroot tag> <buildroot commit>
+#   run-build.sh <board> <panel> <dev> <buildroot tag> <buildroot commit> [<build>]
+#
+# <build> is strict or compatible, a directory under the board's builds/; the
+# build tree is out/pi/<board>-<panel>-<build>[-dev].
 set -euo pipefail
 board="${1:?}"
 panel="${2:?}"
 dev="${3:?}"
 tag="${4:?}"
 commit="${5:?}"
+build="${6:-}"
 root="$(pwd)"
 image="$root/faraday/image"
 binaries="$root/out/faraday/$board"
@@ -32,6 +36,9 @@ serial_data="$("$image/fat-serial.sh" data "$epoch")"
 echo "FAT serials: boot $serial_boot, data $serial_data (SOURCE_DATE_EPOCH $epoch)"
 
 variant="$board-$panel"
+if [ -n "$build" ]; then
+    variant="$variant-$build"
+fi
 if [ "$dev" != "0" ]; then
     variant="$variant-dev"
 fi
@@ -71,7 +78,7 @@ fi
 # helper (docs/history/PLAN.md §4.3) beside it.
 in_container() {
     "${DOCKER:-docker}" run --rm \
-        -e BOARD="$board" -e PANEL="$panel" -e DEV="$dev" \
+        -e BOARD="$board" -e PANEL="$panel" -e DEV="$dev" -e BUILD="$build" \
         -e FAT_SERIAL_BOOT="$serial_boot" -e FAT_SERIAL_DATA="$serial_data" \
         -e FARADAY_LOCALVERSION="$localversion" \
         -v "$root/out/pi/buildroot":/buildroot \

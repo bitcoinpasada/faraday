@@ -22,7 +22,7 @@
 #             "-dev" for a dev build and "" otherwise
 #   release   the files a release publishes from it ({version}), if any
 #   hardware  for an image: the [[hardware]] entry it is offered under
-#   build     for an image: "strict" or "open" (docs/IMAGES.md §1)
+#   build     for an image: "strict" or "compatible" (docs/IMAGES.md §1)
 #   option    for an image: what tells it from another image of the same
 #             hardware and build, as a person reads it ("Ribbon cable (DSI)")
 #
@@ -104,18 +104,34 @@ outputs = ["out/windows/faraday.exe"]
 # ---------------------------------------------------------------- images
 
 [[build]]
-id = "stick"
-label = "PC stick (x86-64, UEFI)"
+id = "stick-strict"
+label = "PC stick (x86-64, UEFI), Strict build"
 group = "image"
 status = "built"
 board = "x86_64-uefi"
 panel = "efi-framebuffer"
 recipe = "faraday-stick-image"
+vars = { build = "strict" }
 hardware = "pc"
-build = "open"
+build = "strict"
 dev = true
-outputs = ["out/stick/faraday-x86_64-uefi{dev}.img"]
-release = ["faraday-stick-{version}-x86_64-uefi.img.xz", "faraday-{version}-BOOTX64.EFI"]
+outputs = ["out/stick/faraday-x86_64-uefi-strict{dev}.img"]
+release = ["faraday-stick-{version}-x86_64-uefi-strict.img.xz", "faraday-{version}-BOOTX64-strict.EFI"]
+
+[[build]]
+id = "stick-compatible"
+label = "PC stick (x86-64, UEFI), Compatible build"
+group = "image"
+status = "built"
+board = "x86_64-uefi"
+panel = "efi-framebuffer"
+recipe = "faraday-stick-image"
+vars = { build = "compatible" }
+hardware = "pc"
+build = "compatible"
+dev = true
+outputs = ["out/stick/faraday-x86_64-uefi-compatible{dev}.img"]
+release = ["faraday-stick-{version}-x86_64-uefi-compatible.img.xz", "faraday-{version}-BOOTX64-compatible.EFI"]
 
 [[build]]
 id = "pi3-waveshare-28dpi"
@@ -162,66 +178,57 @@ release = ["Faraday-Starter-{version}-Windows.exe"]
 # built (F147); the DSI screens fit the 3B, 3B+ and Pi 4.
 
 [[build]]
-id = "stick-strict"
-label = "PC stick, Strict build"
-group = "image"
-status = "planned"
-hardware = "pc"
-build = "strict"
-spec = "docs/IMAGES.md"
-
-[[build]]
-id = "pi3-waveshare-28dpi-open"
-label = "Raspberry Pi, 2.8-inch screen, Open build"
+id = "pi3-waveshare-28dpi-compatible"
+label = "Raspberry Pi, 2.8-inch screen, Compatible build"
 group = "image"
 status = "planned"
 spec = "docs/IMAGES.md"
 hardware = "pi-2-8-inch"
-build = "open"
+build = "compatible"
 
 [[build]]
-id = "pi3-5inch-open"
+id = "pi3-5inch-compatible"
 label = "Raspberry Pi, 5-inch screen (Touch Display 2)"
 group = "image"
 status = "planned"
 spec = "docs/IMAGES.md"
 hardware = "pi-5-inch"
-build = "open"
+build = "compatible"
 
 [[build]]
-id = "pi3-7inch-open"
+id = "pi3-7inch-compatible"
 label = "Raspberry Pi, 7-inch DSI screen"
 group = "image"
 status = "planned"
 spec = "docs/IMAGES.md"
 hardware = "pi-7-inch"
-build = "open"
+build = "compatible"
 
 [[build]]
-id = "pi3-10inch-dsi-open"
+id = "pi3-10inch-dsi-compatible"
 label = "Raspberry Pi, 10-inch DSI screen"
 group = "image"
 status = "planned"
 spec = "docs/IMAGES.md"
 hardware = "pi-10-inch"
-build = "open"
+build = "compatible"
 option = "Ribbon cable (DSI)"
 
 [[build]]
-id = "pi3-10inch-hdmi-open"
+id = "pi3-10inch-hdmi-compatible"
 label = "Raspberry Pi, 10-inch HDMI screen"
 group = "image"
 status = "planned"
 spec = "docs/IMAGES.md"
 hardware = "pi-10-inch"
-build = "open"
+build = "compatible"
 option = "HDMI cable"
 
 [[build]]
-id = "pi3-monitor-open"
+id = "pi3-monitor-compatible"
 label = "Raspberry Pi, HDMI monitor with keyboard and mouse"
 group = "image"
 status = "planned"
 spec = "docs/IMAGES.md"
 hardware = "pi-monitor"
-build = "open"
+build = "compatible"

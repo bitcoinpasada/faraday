@@ -1,0 +1,5 @@
+# Faraday: the Strict build (docs/IMAGES.md §1). efi=disable_early_pci_dma
+# keeps the firmware from leaving PCI devices able to write to memory
+# before the kernel's IOMMU is set up. Some older PCs do not start with
+# it; they take the Compatible build.
+efi=disable_early_pci_dma

@@ -19,7 +19,7 @@ with different boards:
 | The display | the panel the firmware sets up, 480×640 at 286 dpi | whatever the firmware left running, read from sysfs |
 | Input | the Goodix touch controller | the built-in keyboard and touchpad, USB keyboards and mice, a HID touchscreen |
 | Files | the card's `FARADAYDATA` partition, at `/mnt/microsd` | the stick's `FARADAYDATA` partition at `/mnt/microsd`, and every FAT partition on every other USB disk, at `/mnt/usb/<label>` |
-| The image | `out/pi/faraday-pi3-waveshare-28dpi.img` | `out/stick/faraday-x86_64-uefi.img` |
+| The image | `out/pi/faraday-pi3-waveshare-28dpi.img` | `out/stick/faraday-x86_64-uefi-strict.img` |
 
 Nothing here is shared with any other project.
 
@@ -49,12 +49,22 @@ The owner's Pi is `pi3` and `waveshare-28dpi`, which are the defaults:
 just faraday-pi-image                                       # a test release
 just dev=1 faraday-pi-image                                 # the same, with a login
 just board=pi3 panel=waveshare-28dpi dev=0 faraday-pi-image # written out in full
-just faraday-stick-image                                    # the USB stick
+just faraday-stick-image                                    # the USB stick, Strict build
+just build=compatible faraday-stick-image                   # the USB stick, Compatible build
 just dev=1 faraday-stick-image                              # the same, with a login
 ```
 
+The stick has two builds (`docs/IMAGES.md` §1): Strict, the default, has
+`efi=disable_early_pci_dma` on its built-in command line, and Compatible
+has not, for the PCs that do not start with it. They are directories under
+`boards/x86_64-uefi/builds/`, each a part of the image after the panel,
+with its own `kernel.cmdline` checked against the built kernel's
+`CONFIG_CMDLINE`. The root filesystem and the app are the same; each build has
+its own build tree, `out/pi/x86_64-uefi-efi-framebuffer-<build>[-dev]/output`,
+and its own image, `out/stick/faraday-x86_64-uefi-<build>[-dev].img`.
+
 Each combination has its own build tree at
-`out/pi/<board>-<panel>[-dev]/output` and its own image. The Buildroot
+`out/pi/<board>-<panel>[-<build>][-dev]/output` and its own image. The Buildroot
 checkout, the download cache and the compiler cache are shared, so the
 second combination costs what differs and not the toolchain — and the
 stick shares all three with the Pi, even though it is a different
@@ -599,8 +609,8 @@ refuses a release image whose arguments or inittab say otherwise.
 ### Try it in QEMU first
 
 ```
-just faraday-stick-image  # or: just dev=1 faraday-stick-image
-faraday/tools/stick-qemu.py --image out/stick/faraday-x86_64-uefi.img --vnc 9 --serial stdio
+just faraday-stick-image  # or: just dev=1 faraday-stick-image, or build=compatible
+faraday/tools/stick-qemu.py --image out/stick/faraday-x86_64-uefi-strict.img --vnc 9 --serial stdio
 ```
 
 `stick-qemu.py` gives the machine no display of its own and puts it on VNC,
@@ -613,7 +623,7 @@ ssh -N -L 5909:127.0.0.1:5909 <the machine running QEMU>
 
 Nothing is opened on the network to do that, and no port is exposed
 beyond loopback on either end. With the dev image
-(`out/stick/faraday-x86_64-uefi-dev.img`) the kernel console and the
+(`out/stick/faraday-x86_64-uefi-strict-dev.img`) the kernel console and the
 shell's `--verbose` output are on the terminal.
 
 `faraday/tools/qemu-check.py IMAGE OUT_DIR TESTKIT_DIR` boots the same
@@ -687,7 +697,7 @@ lsblk                                   # which one is it? check the size
 sudo dd if=out/pi/faraday-pi3-waveshare-28dpi.img of=/dev/sdX \
     bs=4M conv=fsync status=progress    # the Pi's card
 
-sudo dd if=out/stick/faraday-x86_64-uefi.img of=/dev/sdX \
+sudo dd if=out/stick/faraday-x86_64-uefi-strict.img of=/dev/sdX \
     bs=4M conv=fsync status=progress    # the stick
 ```
 

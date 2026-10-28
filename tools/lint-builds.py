@@ -20,7 +20,7 @@ FIELDS = {"id", "label", "group", "status", "board", "panel", "recipe", "vars", 
           "needs", "dev", "outputs", "release", "spec", "hardware", "build", "option"}
 GROUPS = {"app", "image", "starter"}
 HW_FIELDS = {"id", "label", "fits", "soon", "tested"}
-KINDS = {"strict", "open"}
+KINDS = {"strict", "compatible"}
 
 
 def main():

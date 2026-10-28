@@ -1,8 +1,8 @@
 # Images for each piece of hardware
 
 **Kind:** Spec
-**Status:** Specified (F145), not built
-**Open:** everything: the Open kernels, the four new Pi screens, an image per screen and build, the release's image list, the Starter finding images, the website's choice
+**Status:** Specified (F145), the PC's two builds built
+**Open:** the Pi's Compatible kernel, the four new Pi screens, an image per screen and build, the release's image list, the Starter finding images, the website's choice
 
 A person picks their hardware, and gets the one signed image built for
 it. Each Pi screen and each PC build is its own image and its own
@@ -15,18 +15,18 @@ images (§1.3).
 
 ## 1. Two builds on each platform
 
-| | Strict | Open |
+| | Strict | Compatible |
 |---|---|---|
 | The Pi | today's kernel: no DRM, no HID, no USB storage (`faraday/image/boards/pi3/kernel.forbidden`); the DPI panel's touch is the only input | DRM for the DSI panels; HDMI; USB keyboards, mice and touchscreens; USB storage |
-| The PC stick | today's kernel with `efi=disable_early_pci_dma` on its built-in command line (`faraday/image/boards/x86_64-uefi/kernel.cmdline`) | today's kernel as it is |
+| The PC stick | today's kernel with `efi=disable_early_pci_dma` on its built-in command line (`faraday/image/boards/x86_64-uefi/builds/strict/kernel.cmdline`) | today's kernel as it is |
 
-Strict is the most locked-down build a piece of hardware allows. Open
+Strict is the most locked-down build a piece of hardware allows. Compatible
 works with more hardware. Some older PCs do not start with
-`efi=disable_early_pci_dma`. They take Open.
+`efi=disable_early_pci_dma`. They take Compatible.
 
 Each build has its own `kernel.forbidden` and `kernel.required`. The
 Strict Pi list keeps DRM, HID and USB storage forbidden, so a Strict
-build proves it carries none of what Open adds. The root filesystem,
+build proves it carries none of what Compatible adds. The root filesystem,
 the app and its checks are the same in both builds of a platform. The
 kernel and its command line differ, and on the Pi the screen's lines.
 
@@ -97,11 +97,11 @@ at the panel's own density; classes are `docs/LAYOUT.md` §2.
 ## 4. Release files and checking them
 
 - **One image per platform, screen and build:**
-  - `faraday-pi-X.Y.Z-<screen>-strict.img.xz` and `…-open.img.xz`, each
+  - `faraday-pi-X.Y.Z-<screen>-strict.img.xz` and `…-compatible.img.xz`, each
     for every supported Pi (§3);
-  - `faraday-stick-X.Y.Z-x86_64-uefi-strict.img.xz` and `…-open.img.xz`;
+  - `faraday-stick-X.Y.Z-x86_64-uefi-strict.img.xz` and `…-compatible.img.xz`;
   - each PC build's boot program, `faraday-X.Y.Z-BOOTX64-strict.EFI`
-    and `…-open.EFI`.
+    and `…-compatible.EFI`.
 
   `<screen>` is the panel directory's name.
 - **`SHA256SUMS`** lists each `.xz`, the `.img` inside it, and each

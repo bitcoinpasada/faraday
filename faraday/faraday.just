@@ -38,6 +38,10 @@ dev := "0"
 # The stick's board and panel.
 stick_board := "x86_64-uefi"
 stick_panel := "efi-framebuffer"
+# The stick's build (docs/IMAGES.md §1): strict, with
+# efi=disable_early_pci_dma on its command line, or compatible, without it. A
+# directory under faraday/image/boards/<board>/builds.
+build := "strict"
 
 # The desktop app at out/linux/faraday, built in a Debian 11 container
 # (faraday/build/linux) against glibc 2.31, so one file runs on Ubuntu
@@ -259,7 +263,7 @@ guide-pictures out="docs/guide/pictures": (faraday-testkit "out/testkit-mainnet"
     exit "$failed"
 
 # The Starter (docs/STARTER.md), built and run here: `just faraday-starter`, or
-# `just faraday-starter --image out/stick/faraday-x86_64-uefi-dev.img` to write
+# `just faraday-starter --image out/stick/faraday-x86_64-uefi-strict-dev.img` to write
 # a dev image, through the same screens and writer as a release's.
 # FARADAY_STARTER_PAYLOAD=out/payload/VERSION builds that payload in; without
 # it the Starter offers only --image. release=1 makes a release
@@ -350,20 +354,23 @@ faraday-stick-bin:
     file out/faraday/{{stick_board}}/faraday out/faraday/{{stick_board}}/faraday-disk \
         out/faraday/{{stick_board}}/faraday-grant
 
-# The Faraday USB stick image, at out/stick/faraday-x86_64-uefi.img
-# (dev=1: -dev.img, with a console and a login on ttyS0), and beside it
-# -boot.vfat, its boot partition's exact bytes, for faraday-stick-boot.
-# Flash it to a stick and boot the laptop from it. A test release unless
-# release=1 (docs/DECISIONS.md F5):
+# The Faraday USB stick image, at out/stick/faraday-x86_64-uefi-strict.img
+# (build=compatible: -compatible.img; dev=1: -dev.img after the build's name, with a
+# console and a login on ttyS0), and beside it -boot.vfat, its boot
+# partition's exact bytes, for faraday-stick-boot. Flash it to a stick and
+# boot the laptop from it. The two builds share the root filesystem and
+# the app and differ in the kernel's command line (docs/IMAGES.md §1). A
+# test release unless release=1 (docs/DECISIONS.md F5):
 #
-#   just faraday-stick-image              a test release
-#   just release=1 faraday-stick-image    a published release
+#   just faraday-stick-image                  a test release, Strict
+#   just build=compatible faraday-stick-image       a test release, Compatible
+#   just release=1 faraday-stick-image        a published release
 [group('build')]
 faraday-stick-image: faraday-stick-bin
     #!/usr/bin/env bash
     set -euo pipefail
-    variant="{{stick_board}}-{{stick_panel}}"
-    name="faraday-x86_64-uefi"
+    variant="{{stick_board}}-{{stick_panel}}-{{build}}"
+    name="faraday-x86_64-uefi-{{build}}"
     if [ "{{dev}}" != "0" ]; then
         variant="$variant-dev"
         name="$name-dev"
@@ -371,7 +378,7 @@ faraday-stick-image: faraday-stick-bin
     DOCKER="{{docker}}" FARADAY_RELEASE="{{release}}" FARADAY_VERSION="{{version}}" \
         faraday/image/run-build.sh \
         "{{stick_board}}" "{{stick_panel}}" "{{dev}}" "{{buildroot_tag}}" \
-        "{{buildroot_commit}}"
+        "{{buildroot_commit}}" "{{build}}"
     mkdir -p out/stick
     cp "out/pi/$variant/output/images/faraday-x86_64-uefi.img" "out/stick/$name.img"
     cp "out/pi/$variant/output/images/esp.vfat" "out/stick/$name-boot.vfat"
@@ -386,6 +393,7 @@ faraday-stick-image: faraday-stick-bin
 #
 #   just faraday-stick-boot /dev/sdX
 #   just dev=1 faraday-stick-boot /dev/sdX
+#   just build=compatible faraday-stick-boot /dev/sdX
 #   just faraday-stick-boot --dry-run /dev/sdX    checks, writes nothing
 #
 # The target may be a regular file holding a stick image, for testing.
@@ -394,7 +402,7 @@ faraday-stick-image: faraday-stick-bin
 faraday-stick-boot +args:
     #!/usr/bin/env bash
     set -euo pipefail
-    name="faraday-x86_64-uefi"
+    name="faraday-x86_64-uefi-{{build}}"
     if [ "{{dev}}" != "0" ]; then
         name="$name-dev"
     fi
@@ -506,4 +514,4 @@ faraday-release-stage-starter VERSION *args:
 # QEMU, OVMF and mtools; screenshots go to out/stick/disk-test/.
 [group('test')]
 faraday-disk-test out="out/stick/disk-test": faraday-testkit
-    python3 -B faraday/tools/disk-test.py out/stick/faraday-x86_64-uefi-dev.img "{{out}}" out/testkit
+    python3 -B faraday/tools/disk-test.py out/stick/faraday-x86_64-uefi-strict-dev.img "{{out}}" out/testkit

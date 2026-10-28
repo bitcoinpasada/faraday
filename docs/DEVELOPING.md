@@ -56,9 +56,10 @@ Demo", and `docs/DEMO.md`.
 ## 4. The images
 
 ```
-just faraday-stick-image                  out/stick/faraday-x86_64-uefi.img
+just faraday-stick-image                  out/stick/faraday-x86_64-uefi-strict.img
+just build=compatible faraday-stick-image out/stick/faraday-x86_64-uefi-compatible.img
 just faraday-pi-image                     out/pi/faraday-pi3-waveshare-28dpi.img
-just dev=1 faraday-stick-image            out/stick/faraday-x86_64-uefi-dev.img
+just dev=1 faraday-stick-image            out/stick/faraday-x86_64-uefi-strict-dev.img
 just dev=1 faraday-pi-image               out/pi/faraday-pi3-waveshare-28dpi-dev.img
 just faraday-starter                      the Starter, built and run here
 just faraday-linux-bin                    one Linux file, out/linux/faraday (glibc 2.31 container)
@@ -91,8 +92,9 @@ output, and the FAT serials derived from that date (README.md,
 git tag -v v0.1.8                         the tag is signed by the release key
 git checkout v0.1.8
 just release=1 faraday-stick-image
+just release=1 build=compatible faraday-stick-image
 just release=1 faraday-pi-image
-sha256sum out/stick/faraday-x86_64-uefi.img out/pi/faraday-pi3-waveshare-28dpi.img
+sha256sum out/stick/faraday-x86_64-uefi-strict.img out/stick/faraday-x86_64-uefi-compatible.img out/pi/faraday-pi3-waveshare-28dpi.img
 ```
 
 Compare each sum with the line for the `.img` (not the `.img.xz`) in the
@@ -110,7 +112,7 @@ Faraday Starter writes a stick or a card and checks it by reading it
 back. To write an image you built:
 
 ```
-just faraday-starter --image out/stick/faraday-x86_64-uefi-dev.img
+just faraday-starter --image out/stick/faraday-x86_64-uefi-strict-dev.img
 ```
 
 `--image` takes an `.img`, an `.img.xz`, or a `-boot.vfat`. **Write the
@@ -166,7 +168,7 @@ send with a report of a machine that does not work.
 ### 6.3. Without a stick: QEMU
 
 ```
-faraday/tools/stick-qemu.py --image out/stick/faraday-x86_64-uefi-dev.img --vnc 9 --serial stdio
+faraday/tools/stick-qemu.py --image out/stick/faraday-x86_64-uefi-strict-dev.img --vnc 9 --serial stdio
 just faraday-disk-test                    the stick's disk handling, end to end, under QEMU
 ```
 

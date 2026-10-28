@@ -17,8 +17,9 @@ use faraday_payload::Manifest;
 const VERSION: &str = "0.9.0";
 /// The kernel release string a build carries, as the script reads it.
 const RELEASE: &str = "6.6.84-faraday-0.9.0-test";
-/// The boot program as the release publishes it (F134).
-const BOOT: &str = "faraday-0.9.0-BOOTX64.EFI";
+/// The boot programs as the release publishes them (F134, IMAGES §4).
+const BOOT: &str = "faraday-0.9.0-BOOTX64-strict.EFI";
+const BOOT_COMPATIBLE: &str = "faraday-0.9.0-BOOTX64-compatible.EFI";
 
 fn fresh(name: &str) -> PathBuf {
     let root = Path::new(env!("CARGO_TARGET_TMPDIR")).join(format!("stage-release-{name}"));
@@ -74,12 +75,32 @@ fn builds(root: &Path) -> PathBuf {
     builds_with(root, &kernel())
 }
 
-/// The builds with `boot` as the stick's boot program.
+/// The builds with `boot` as the Strict stick's boot program. The Compatible
+/// stick's differs from it in its last byte.
 fn builds_with(root: &Path, boot: &[u8]) -> PathBuf {
     let builds = root.join("builds");
     fs::create_dir_all(builds.join("stick")).expect("folder");
     fs::create_dir_all(builds.join("pi")).expect("folder");
+    fs::write(
+        builds.join("stick/faraday-x86_64-uefi-strict.img"),
+        stick_image(root, boot),
+    )
+    .expect("stick");
+    let mut compatible = boot.to_vec();
+    *compatible.last_mut().expect("a kernel") = 0x5b;
+    fs::write(
+        builds.join("stick/faraday-x86_64-uefi-compatible.img"),
+        stick_image(root, &compatible),
+    )
+    .expect("stick");
+    pi_image(root, &builds);
+    builds
+}
+
+/// A stick image whose boot program is `boot`.
+fn stick_image(root: &Path, boot: &[u8]) -> Vec<u8> {
     let esp = root.join("esp.vfat");
+    let _ = fs::remove_file(&esp);
     let esp_s = esp.to_str().expect("a path");
     run("mformat", &["-C", "-f", "1440", "-i", esp_s, "::"]);
     run("mmd", &["-i", esp_s, "::EFI", "::EFI/BOOT"]);
@@ -110,8 +131,11 @@ fn builds_with(root: &Path, boot: &[u8]) -> PathBuf {
     let text = format!("Linux version {RELEASE} (gcc) #1 SMP");
     stick[4096..4096 + text.len()].copy_from_slice(text.as_bytes());
     stick.extend(fs::read(&esp).expect("partition"));
-    fs::write(builds.join("stick/faraday-x86_64-uefi.img"), &stick).expect("stick");
+    stick
+}
 
+/// The Pi image under `builds/pi/`.
+fn pi_image(root: &Path, builds: &Path) {
     let part = root.join("boot.vfat");
     let part_s = part.to_str().expect("a path");
     run("mformat", &["-C", "-f", "1440", "-i", part_s, "::"]);
@@ -134,7 +158,6 @@ fn builds_with(root: &Path, boot: &[u8]) -> PathBuf {
     pi[511] = 0xaa;
     pi.extend(fs::read(&part).expect("partition"));
     fs::write(builds.join("pi/faraday-pi3-waveshare-28dpi.img"), &pi).expect("pi");
-    builds
 }
 
 fn script() -> PathBuf {
@@ -181,13 +204,15 @@ fn names(dir: &Path) -> Vec<String> {
     v
 }
 
-/// With no Faraday Demo built at all, each payload holds the two images
-/// and its MANIFEST, and the release holds the images and SHA256SUMS.
+/// With no Faraday Demo built at all, each payload holds the Strict stick
+/// image, the Pi image and its MANIFEST, and the release holds all three
+/// images and SHA256SUMS.
 #[test]
 fn each_payload_holds_the_images_alone_and_staging_needs_no_faraday_demo() {
     let root = fresh("staged");
     let (out, payload) = first_pass(&root);
-    let stick = format!("faraday-stick-{VERSION}-x86_64-uefi.img");
+    let stick = format!("faraday-stick-{VERSION}-x86_64-uefi-strict.img");
+    let compatible = format!("faraday-stick-{VERSION}-x86_64-uefi-compatible.img");
     let pi = format!("faraday-pi-{VERSION}-pi3-waveshare-28dpi.img");
 
     let sums = fs::read_to_string(out.join("SHA256SUMS")).expect("SHA256SUMS");
@@ -200,9 +225,12 @@ fn each_payload_holds_the_images_alone_and_staging_needs_no_faraday_demo() {
         listed,
         [
             format!("{stick}.xz"),
+            format!("{compatible}.xz"),
             format!("{pi}.xz"),
             BOOT.to_string(),
+            BOOT_COMPATIBLE.to_string(),
             stick.clone(),
+            compatible.clone(),
             pi.clone(),
         ]
     );
@@ -211,8 +239,10 @@ fn each_payload_holds_the_images_alone_and_staging_needs_no_faraday_demo() {
         names(&out),
         [
             "SHA256SUMS",
+            BOOT_COMPATIBLE,
             BOOT,
             &format!("{pi}.xz"),
+            &format!("{compatible}.xz"),
             &format!("{stick}.xz")
         ]
     );
@@ -242,7 +272,7 @@ fn each_payload_holds_the_images_alone_and_staging_needs_no_faraday_demo() {
     }
 }
 
-/// The boot program a release publishes (F134): the stick image's
+/// The boot programs a release publishes (F134): each stick image's
 /// `EFI/BOOT/BOOTX64.EFI` byte for byte, beside the images and listed in
 /// `SHA256SUMS` with its SHA-256, so the sums Faraday checks before
 /// signing it name it; and not in the Starter's payload.
@@ -252,6 +282,10 @@ fn staging_publishes_the_boot_program_and_lists_it_in_the_sums() {
     let (out, payload) = first_pass(&root);
     let published = fs::read(out.join(BOOT)).expect("the boot program is published");
     assert_eq!(published, kernel());
+    let compatible =
+        fs::read(out.join(BOOT_COMPATIBLE)).expect("the Compatible boot program is published");
+    assert_ne!(compatible, published);
+    assert_eq!(compatible.len(), published.len());
     let sha = Command::new("sha256sum")
         .arg(out.join(BOOT))
         .output()
@@ -301,7 +335,7 @@ fn staging_refuses_a_stick_image_without_a_boot_program() {
     let root = fresh("no-boot");
     let builds = builds(&root);
     // The stick image's partition table wiped: no GPT, no boot program.
-    let stick = builds.join("stick/faraday-x86_64-uefi.img");
+    let stick = builds.join("stick/faraday-x86_64-uefi-compatible.img");
     let mut bytes = fs::read(&stick).expect("stick");
     bytes[512..520].fill(0);
     fs::write(&stick, bytes).expect("stick");

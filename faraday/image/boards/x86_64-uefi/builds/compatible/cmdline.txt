@@ -1,0 +1,3 @@
+# Faraday: the Compatible build (docs/IMAGES.md §1) adds nothing to the board's
+# command line: it is the Strict build without efi=disable_early_pci_dma,
+# for the PCs that do not start with it.

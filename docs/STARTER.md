@@ -75,7 +75,7 @@ inner name, so a person can check either.
 - No dev image is published, as a file or inside the Starter.
   Developers build dev images (`just dev=1 faraday-stick-image`) and
   write them with the Starter itself: `faraday-starter --image
-  out/stick/faraday-x86_64-uefi-dev.img` (or a `.img.xz`, or a
+  out/stick/faraday-x86_64-uefi-strict-dev.img` (or a `.img.xz`, or a
   `-boot.vfat` for keep data) puts that file in place of the payload's
   stick image, through the same screens and the same writer, with the
   Confirm page saying the image is not the Starter's own and showing

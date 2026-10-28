@@ -449,7 +449,7 @@ cargo run -q -p faraday-testkit -- out/testkit
 just                                         the check: every test and lint
 cargo run -p faraday-desktop --release       Faraday in a window, on testnet
 just dev=1 faraday-stick-image               a stick image for trying a machine
-just faraday-starter --image out/stick/faraday-x86_64-uefi-dev.img   write it to a stick
+just faraday-starter --image out/stick/faraday-x86_64-uefi-strict-dev.img   write it to a stick
 just crosscheck                              the crypto against independent references
 just crosscheck-status --follow              a running cross-check, from another terminal
 ```
@@ -466,10 +466,10 @@ The image is built with Buildroot in a container (`DOCKER=podman` or
 
 ```
 just faraday-stick-bin                    # the stick binary, static musl
-just faraday-stick-image                  # out/stick/faraday-x86_64-uefi.img
+just faraday-stick-image                  # out/stick/faraday-x86_64-uefi-strict.img
 just dev=1 faraday-stick-image            # + a serial console and root login, for development
 just dev=1 faraday-stick-boot /dev/sdX    # development: rewrite a stick's boot partition alone
-just faraday-starter --image out/stick/faraday-x86_64-uefi-dev.img   # write a dev image (below)
+just faraday-starter --image out/stick/faraday-x86_64-uefi-strict-dev.img   # write a dev image (below)
 ```
 
 A build this way is a test release unless built with `release=1`, which
@@ -477,11 +477,11 @@ refuses a dev image, a version override and a tree that differs from its
 commit (`docs/DECISIONS.md` F5):
 
 ```
-just release=1 faraday-stick-image        # a published release
+just release=1 faraday-stick-image        # a published release (Strict; build=compatible for the other)
 ```
 
 `faraday-stick-boot` writes the image's boot partition
-(`out/stick/faraday-x86_64-uefi[-dev]-boot.vfat`) over a Faraday
+(`out/stick/faraday-x86_64-uefi-strict[-dev]-boot.vfat`) over a Faraday
 stick's `FARADAYBOOT` partition and leaves its data partition as it is. It
 refuses a disk that is not a Faraday stick on USB or has anything
 mounted, and asks for the device to be typed back; `--dry-run` only
@@ -497,7 +497,7 @@ Faraday Starter writes an image built here in place of its own:
 
 ```
 just dev=1 faraday-stick-image
-just faraday-starter --image out/stick/faraday-x86_64-uefi-dev.img
+just faraday-starter --image out/stick/faraday-x86_64-uefi-strict-dev.img
 ```
 
 `--image` takes an `.img`, an `.img.xz`, or a `-boot.vfat`, which only

@@ -1,0 +1,3 @@
+# Words CONFIG_CMDLINE must carry in the Strict build (check-kernel-config.sh).
+
+efi=disable_early_pci_dma  no PCI device the firmware left running can write to memory before the kernel has set up the IOMMU (docs/IMAGES.md §1)
