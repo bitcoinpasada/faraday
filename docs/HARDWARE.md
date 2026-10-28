@@ -46,7 +46,7 @@ Rotation turns it and its touch (`docs/ORIENTATION.md`). A screen of
 The app lays out every one of these sizes. The Pi image is built for
 the 2.8-inch panel only: `faraday/image/panels/` holds that panel and
 the PC's firmware framebuffer. A Pi screen needs its profile in the
-image, chosen when the card is made, as `docs/STARTER.md` §9.3 designs;
+image: one image per screen and build, as `docs/IMAGES.md` specifies (F145);
 until then a 7-inch screen is the stick's, on a small PC or tablet.
 
 ## 3. Motion

@@ -1,0 +1,188 @@
+# Images for each piece of hardware
+
+**Kind:** Spec
+**Status:** Specified (F145), not built
+**Open:** everything: the Open kernels, the four new Pi screens, an image per screen and build, the release's image list, the Starter finding images, the website's choice
+
+A person picks their hardware, and gets the one signed image built for
+it. Each Pi screen and each PC build is its own image and its own
+release file. Nothing is edited after the build. The Starter carries no
+images: the person downloads the Starter and the images they chose, and
+the Starter offers what it finds. The owner's choices are F145, which
+replaces this plan's earlier form in `docs/STARTER.md` §9.3 (one image,
+edited for its screen by the Starter) and the Starter's payload of
+images (§1.3).
+
+## 1. Two builds on each platform
+
+| | Strict | Open |
+|---|---|---|
+| The Pi | today's kernel: no DRM, no HID, no USB storage (`faraday/image/boards/pi3/kernel.forbidden`); the DPI panel's touch is the only input | DRM for the DSI panels; HDMI; USB keyboards, mice and touchscreens; USB storage |
+| The PC stick | today's kernel with `efi=disable_early_pci_dma` on its built-in command line (`faraday/image/boards/x86_64-uefi/kernel.cmdline`) | today's kernel as it is |
+
+Strict is the most locked-down build a piece of hardware allows. Open
+works with more hardware. Some older PCs do not start with
+`efi=disable_early_pci_dma`. They take Open.
+
+Each build has its own `kernel.forbidden` and `kernel.required`. The
+Strict Pi list keeps DRM, HID and USB storage forbidden, so a Strict
+build proves it carries none of what Open adds. The root filesystem,
+the app and its checks are the same in both builds of a platform. The
+kernel and its command line differ, and on the Pi the screen's lines.
+
+## 2. The Pi's Open kernel
+
+What Open adds to the kernel's reach, against `docs/SECURITY-MODEL.md`:
+
+- **DRM, for the display only.** vc4's display side, the DSI host and
+  the panels' drivers, with their I²C touch controllers. There is no
+  V3D: no GPU render node. The shell keeps writing `/dev/fb0` through
+  DRM's framebuffer emulation, and only the app's user may open the DRM
+  device. HDMI-CEC and HDMI audio are not built. `BCM_VCIO` stays
+  forbidden in both builds.
+- **HDMI.** A monitor's EDID is read by the kernel. A monitor is a
+  small new input; the owner accepts it (F145).
+- **USB HID.** The generic HID and multitouch drivers, the USB keyboard
+  and mouse. No vendor-specific HID drivers, as on the PC. The stick's
+  rules for new devices come across unchanged (SECURITY-MODEL, "USB
+  devices"):
+  - interfaces are authorised one at a time;
+  - a new keyboard counts once it types the code on the screen;
+  - a new pointer counts once trusted input approves it.
+- **A USB touchscreen named by the screen's profile is trusted input**
+  (owner, F145). An HDMI panel's touch reaches the Pi over USB, and on
+  such a panel it is the only input there is. The panel's profile
+  names its touch controller as the 2.8-inch's names the Goodix
+  (`TOUCH_NAME` in `faraday/image/panels/waveshare-28dpi/panel.conf`).
+  The first USB touchscreen matching that name is the panel's own and
+  needs no approval. Any other touchscreen, pointer or keyboard follows
+  the rules above.
+- **USB storage and SCSI.** These sit behind `faraday-grant` and
+  `faraday-disk`, as on the PC: one partition at a time, never the boot
+  partition, read only while no secret is open.
+
+## 3. Screens
+
+Each screen is a panel directory under `faraday/image/panels/`, as the
+2.8-inch's is. Its `panel.conf` gives the size, density, touch, `NATIVE`
+and `MOUNT`, and its firmware lines go to `config.txt`. Sizes in dp are
+at the panel's own density; classes are `docs/LAYOUT.md` §2.
+
+| Screen | Panel | Pixels | dpi | Layout | Build |
+|---|---|---|---|---|---|
+| 2.8-inch | Waveshare 2.8inch DPI LCD, Goodix (today's) | 480 × 640, portrait | 286 | 268 × 358 dp: compact and short | Strict or Open |
+| 5-inch | Raspberry Pi Touch Display 2, 5-inch, Goodix GT911 (to confirm) | 720 × 1280, portrait | 294 | 392 × 697 dp: compact; landscape 697 × 392: medium and short | Open |
+| 7-inch | Waveshare 7inch DSI LCD (C), Goodix | 1024 × 600, landscape | 170 | 964 × 565 dp: expanded and low; portrait: compact | Open |
+| 10-inch, DSI | Waveshare 10.1inch DSI LCD (C), Goodix | 1280 × 800, landscape | 149 | 1372 × 857 dp: large; portrait 857 × 1372: expanded | Open |
+| 10-inch, HDMI | Waveshare 10.1inch HDMI LCD (B), USB touch | 1280 × 800, landscape | 149 | as the 10-inch DSI | Open |
+| A monitor | any HDMI monitor, with a USB keyboard and mouse | the monitor's mode | `faraday.dpi=160` | by its width | Open |
+
+- **No 7-inch Strict image.** The original Raspberry Pi Touch Display
+  (800 × 480) may still run on the firmware's display path without DRM,
+  but nothing current confirms it, so it is not offered (owner, F145).
+- **DSI screens are for the Pi 3B and 3B+ only.** The Zero 2 W has no
+  DSI connector. Its images are the 2.8-inch and the monitor.
+- **Before an image of a panel is published, it is tried on the panel.**
+  Then that panel's `panel.conf` becomes fact, not data from its
+  documentation. Its tour is rendered at its size and in both
+  orientations (`docs/ORIENTATION.md` §6). The documents cite each
+  panel's documentation and never say whose hardware it was tried on.
+
+## 4. Release files and checking them
+
+- **One image per platform, screen and build:**
+  - `faraday-pi-X.Y.Z-pi3-<screen>-strict.img.xz` and `…-open.img.xz`;
+  - `faraday-stick-X.Y.Z-x86_64-uefi-strict.img.xz` and `…-open.img.xz`;
+  - each PC build's boot program, `faraday-X.Y.Z-BOOTX64-strict.EFI`
+    and `…-open.EFI`.
+
+  `<screen>` is the panel directory's name.
+- **`SHA256SUMS`** lists each `.xz`, the `.img` inside it, and each
+  image's boot partition (`-boot.vfat`). Nothing writes to a boot
+  partition, so a card or stick already in use can still be checked
+  against the release's signature. The README's "Verifying a release"
+  shows both checks: the downloaded file, and a card or stick.
+- **The release's image list** (`IMAGES`, a plain-text file in the
+  release and built into the Starter) has one line per image: file
+  name, the two SHA-256 sums, platform, screen, build, and the boards
+  it starts. It is staged with the manifest (`docs/STARTER.md` §1.3)
+  and covered by `SHA256SUMS`.
+- **Each image is reproducible** from the release's commit, as
+  `docs/DEVELOPING.md` §5 says. A recipe builds one image by its
+  platform, screen and build, and the release recipe builds them all.
+
+## 5. The Starter
+
+- **It carries no images.** It holds its own code, Faraday Demo (F126),
+  and the release's image list. That is about 17 MB in place of about
+  43 MB.
+- **It finds images.** It looks in the Downloads folder Transfer uses
+  (`--downloads`, as F133's signed boot file is found), and in files
+  dropped on its window. Each file whose name is on the image list is
+  hashed and checked against its line; a file that does not match is
+  named and not offered. A file of another release is named with the
+  version this Starter needs.
+- **Make a Faraday stick and Make a Pi card offer what was found**, by
+  its hardware: "Pi 3, Waveshare 7-inch DSI, Open". For the PC stick,
+  Strict is offered first, saying that some older PCs do not start with
+  it, and that Open is what to write then. Hardware without its image is
+  listed with the exact file to download and where.
+- **What it writes** is the image unchanged, decompressed while written
+  and read back as `docs/STARTER.md` §4.1 says.
+- **Keep data and a boot file the person signed (F133)** take the
+  chosen build's boot partition and `BOOTX64.EFI`. The signed file is
+  checked against that build's.
+- **No network.** The Starter downloads nothing (`docs/STARTER.md`
+  §10.1).
+- **A developer's own image** (`--image`) is written as today, and
+  Confirm says it is not a release image.
+
+## 6. Without the Starter
+
+The image for the hardware is downloaded and checked against
+`SHA256SUMS` and its signature, then written with Raspberry Pi Imager,
+balenaEtcher or `dd`. The README says so in a few lines per system.
+
+## 7. The website
+
+The download page, and the hardware page it links, ask:
+
+1. a PC or a Pi;
+2. for a Pi, the screen, each with its picture and the layout it gets;
+3. Strict or Open, where both exist.
+
+Several images can be ticked. The page offers the Starter for the
+person's system and each ticked image, each as its own release file;
+there is no zip, so every file is one line of `SHA256SUMS`. It says what
+each build carries and that every one is safe in practice, Strict being
+the most the hardware allows, and links Faraday's posts on hardware
+risk. Boards and screens under study are marked so (`docs/HARDWARE.md`
+§6).
+
+## 8. What else changes
+
+| Document | Change |
+|---|---|
+| `docs/HARDWARE.md` | §1 and §2: a row per image and screen |
+| `docs/STARTER.md` | §1.1 release files; §1.3 no payload of images, the image list; §3.2 and §3.3 what is offered; §9 points here |
+| `docs/SECURITY-MODEL.md` | the Pi's table and "What the kernel can reach" for Strict and Open; the PC's command line |
+| `docs/ORIENTATION.md` | §1: the Pi's panel directories; §5 Rotation on them |
+| `docs/DEVELOPING.md` | the recipes for one image and for all |
+| `faraday/image/README.md` | the boards and panels, Strict and Open |
+| `README.md` | "Verifying a release": a card or stick checked by its boot partition |
+
+## 9. Order of work
+
+1. The Pi's Open kernel: its fragment, its forbidden and required
+   lists, and the image that boots with it, starting with the monitor
+   (HDMI with a USB keyboard), which needs no new panel.
+2. The PC's Strict and Open: the command line in each, two images, two
+   boot programs.
+3. The release recipes, `SHA256SUMS` lines and the image list; the
+   size and build time measured.
+4. The Starter: no payload of images, finding and checking them, the
+   offers.
+5. Each panel's directory, tried on the panel: the 7-inch, the 10-inch
+   HDMI (with the USB touchscreen rule, §2), the 10-inch DSI, the
+   5-inch.
+6. The website's choice, with the release that carries it.

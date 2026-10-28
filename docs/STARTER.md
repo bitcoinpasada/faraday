@@ -1867,8 +1867,11 @@ Windows desktop app use it alike (§2), through `faraday-window`.
 
 ## 9. Pi compatibility
 
-**For now, one screen** (owner, D1: the Waveshare 2.8 inch DPI panel
-only). §9.1's checks at other sizes and §9.3's profile mechanism are
+**Replaced by F145** (owner, 2026-10-28): one signed image per screen
+and build, chosen on the website and offered by the Starter from what
+it finds, is `docs/IMAGES.md`; the rest of this section is the design
+as it stood. **Before F145, one screen** (owner, D1: the Waveshare 2.8
+inch DPI panel only). §9.1's checks at other sizes and §9.3's profile mechanism are
 deferred until a second screen has been tried on a Pi (owner, D5):
 with one panel the card is the image as it is built today, written
 whole. §9.2 to §9.3 stay as the design for that day; nothing in them
