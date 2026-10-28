@@ -7,6 +7,7 @@ mod back_up;
 mod check_and_decode;
 mod codex32;
 mod faraday_demo;
+mod files_and_sticks;
 mod first_start;
 mod gpg;
 mod make_a_wallet;
@@ -16,6 +17,7 @@ mod multisig_with_others;
 mod new_key;
 mod receive;
 mod restore;
+mod screen_states;
 mod secure_boot_keys;
 mod spend;
 mod spend_from_a_backup;
@@ -41,7 +43,9 @@ use faraday_shell_api::App;
 /// a vault made, filled, written and unlocked again; a spend from what a
 /// backup's vault holds; a GPG key and Secure Boot keys made in the
 /// backup flow, a file signed and a boot program looked at before
-/// signing; last, Faraday Demo's Home and Practice's codex32 sample.
+/// signing; the guide's key in a 2-of-3 with two cosigners' xpubs; stick
+/// visits and Files; the screen reference's states no walkthrough passes
+/// through; last, Faraday Demo's Home and Practice's codex32 sample.
 pub(crate) fn guide_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     first_start::run(t)?;
     new_key::run(t)?;
@@ -50,7 +54,7 @@ pub(crate) fn guide_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     make_a_wallet::multisig_board(t)?;
     multisig_with_others::scan_key(c, t)?;
     // Each part from here is tried, and every one that fails is named.
-    let parts: [(&str, Part); 16] = [
+    let parts: [(&str, Part); 19] = [
         ("receive", receive::receive),
         ("spend by QR", spend::spend_by_qr),
         ("warnings", spend::spend_warnings),
@@ -67,11 +71,15 @@ pub(crate) fn guide_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
         ("spend from a backup", |_, t| spend_from_a_backup::run(t)),
         ("gpg key", |_, t| gpg::run(t)),
         ("secure boot keys", |_, t| secure_boot_keys::run(t)),
+        ("multisig with others", multisig_with_others::with_others),
+        ("files and sticks", files_and_sticks::run),
+        ("screen states", screen_states::run),
     ];
     let failed: Vec<String> = parts
         .into_iter()
         .filter_map(|(name, part)| part(c, t).err().map(|e| format!("{name}: {e}")))
         .collect();
+    let _ = std::fs::remove_dir_all(sticks_dir());
     if !failed.is_empty() {
         return Err(failed.join("; "));
     }
@@ -95,6 +103,73 @@ fn key_session(t: &mut Tour) {
     let _ = t.app.frame();
     type_text(t, DICE_WORDS);
     t.press(Action::EntryAdd);
+}
+
+/// The guide's key's fingerprint (`3dca6805`).
+const DICE_FP: [u8; 4] = [0x3d, 0xca, 0x68, 0x05];
+
+/// Where the guide's folders standing for sticks are made, all removed
+/// once the tour ends.
+fn sticks_dir() -> std::path::PathBuf {
+    std::env::temp_dir().join("faraday-guide-sticks")
+}
+
+/// A folder standing for a stick named `label`, holding `files` and
+/// nothing else: `name` keeps it apart from the guide's other sticks.
+fn folder_stick(name: &str, label: &str, files: &[(&str, Vec<u8>)]) -> Result<StickInfo, String> {
+    let dir = sticks_dir().join(name);
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).map_err(|e| format!("{}: {e}", dir.display()))?;
+    for (file, bytes) in files {
+        std::fs::write(dir.join(file), bytes).map_err(|e| format!("{file}: {e}"))?;
+    }
+    Ok(StickInfo {
+        serial: Some(0x5000 + files.len() as u32),
+        id: dir.display().to_string(),
+        label: label.into(),
+        boot: false,
+        files: files
+            .iter()
+            .map(|(n, b)| ((*n).to_string(), b.len() as u64))
+            .collect(),
+    })
+}
+
+/// Costs a key's account derived. The guide's single-key wallet over its
+/// key (loaded first in this session) as a test kit's wallet, its spend
+/// paying `fee`: the wallet a coordinator such as Sparrow holds.
+fn single_kit(c: &Compute, t: &Tour, fee: u64) -> Result<faraday_core::testkit::Kit, String> {
+    let key = crate::tour::key_text_of(c, &t.app.session.keys, 0, NewKind::NativeSegwit)?;
+    Ok(faraday_core::testkit::Kit {
+        id: "guide",
+        name: "New wallet 1",
+        descriptor: format!("wpkh({key}/<0;1>/*)"),
+        cosigner: None,
+        fee,
+    })
+}
+
+/// The Inbox as it is, `files` added after it, and `outbox` For the
+/// stick, as a stick visit or a lock leaves them.
+fn files_in(t: &mut Tour, files: &[(&str, Vec<u8>)], outbox: &[(&str, Vec<u8>)]) {
+    let own = |f: &[(&str, Vec<u8>)]| -> Vec<(String, Vec<u8>)> {
+        f.iter()
+            .map(|(n, b)| ((*n).to_string(), b.clone()))
+            .collect()
+    };
+    let inbox = t
+        .app
+        .inbox()
+        .iter()
+        .map(|i| (i.name.clone(), i.bytes.clone()))
+        .chain(own(files))
+        .collect();
+    t.app.storage(StorageEvent::Restored {
+        inbox,
+        outbox: own(outbox),
+        kept: Vec::new(),
+    });
+    t.pump();
 }
 
 /// A fresh session with no stick in, on Wallets.

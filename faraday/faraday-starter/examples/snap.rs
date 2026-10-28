@@ -926,7 +926,31 @@ fn run_guide(s: &Snap) -> Result<(), String> {
     guide_shots(s)?;
     guide_start_shots(s)?;
     guide_tour_shots(s)?;
-    guide_tools_shots(s)
+    guide_tools_shots(s)?;
+    guide_transfer_shots(s)
+}
+
+/// Transfer from Tools (`docs/guide/walk/starter-tools.md` §2, §3): the
+/// Downloads folder with `payment.psbt` in it, and after a file Faraday
+/// sent was saved there.
+fn guide_transfer_shots(s: &Snap) -> Result<(), String> {
+    use faraday_core::StorageEvent;
+    let mut h = s.starter();
+    h.held().storage(StorageEvent::HostFiles {
+        dir: "~/Downloads".into(),
+        files: vec![
+            ("payment.psbt".into(), 2_342),
+            ("IMG_0412.jpg".into(), 2_300_000),
+        ],
+        opens: true,
+    });
+    h.press(StarterAction::ToolsPage);
+    h.press(StarterAction::Transfer);
+    s.shot(&mut h, "starter-tools-send")?;
+    h.held().storage(StorageEvent::Saved {
+        path: "~/Downloads/payment-signed.psbt".into(),
+    });
+    s.shot(&mut h, "starter-tools-receive")
 }
 
 /// The destinations (`docs/STARTER.md` §3.1d): Make and Tools, the ⋮

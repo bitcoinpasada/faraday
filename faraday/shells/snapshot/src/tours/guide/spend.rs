@@ -92,6 +92,8 @@ pub(super) fn spend_by_qr(_c: &Compute, t: &mut Tour) -> Result<(), String> {
     t.press(Action::Family(F::QrTx));
     t.shot_marking("6-7-qr-tx", Action::Cancel)?;
     t.press(Action::Cancel);
+    crate::tour::scroll_to(t, Action::DecodeFinished);
+    t.shot("check-and-decode-nonce")?;
     t.press(Action::StepNext(step::FINISH));
     t.shot("6-7-away")
 }
@@ -228,7 +230,8 @@ pub(super) fn spend_from_stick(c: &Compute, t: &mut Tour) -> Result<(), String> 
             t.press(Action::StepNext(k));
         }
     }
-    t.shot_marking("6-7-stick-send", Action::Primary)?;
+    // Primary, the summary panel's action, is not drawn on this page.
+    t.shot("6-7-stick-send")?;
     t.press(Action::Primary);
     t.shot("6-7-write-out")?;
     // The stick's files, gone with the tour.

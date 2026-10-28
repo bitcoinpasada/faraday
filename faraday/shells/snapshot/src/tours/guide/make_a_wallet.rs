@@ -79,7 +79,8 @@ pub(super) fn codex32_form(_c: &Compute, t: &mut Tour) -> Result<(), String> {
     string_in(t, &String::from_utf8_lossy(&bad));
     t.shot_marking("5-1-check-a-string", Action::Codex32Form(C32Press::Sheet))?;
     t.press(Action::Codex32Form(C32Press::Sheet));
-    t.shot_marking("5-1-worksheet", Action::Codex32Form(C32Press::Check))?;
+    t.shot_marking("5-1-worksheet", Action::Codex32Form(C32Press::Sheet))?;
+    t.press(Action::Codex32Form(C32Press::Sheet));
     t.press(Action::Codex32Form(C32Press::Check));
     string_in(t, NAME[0]);
     t.shot_marking("5-1-codex32", Action::Codex32Form(C32Press::Rest))?;

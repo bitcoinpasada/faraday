@@ -495,7 +495,7 @@ pub(crate) fn laptop() -> faraday_core::devices::DeviceCheck {
 
 /// Writes `rgba`, `width` by `height`, as a PNG at `path`, and prints
 /// the path.
-fn write_png(path: &Path, width: u16, height: u16, rgba: &[u8]) -> Result<(), String> {
+pub(crate) fn write_png(path: &Path, width: u16, height: u16, rgba: &[u8]) -> Result<(), String> {
     let file = std::fs::File::create(path).map_err(|e| format!("{}: {e}", path.display()))?;
     let mut enc = png::Encoder::new(
         std::io::BufWriter::new(file),

@@ -50,10 +50,11 @@ pub(super) fn shares_backup(_c: &Compute, t: &mut Tour) -> Result<(), String> {
     if t.app.create().and_then(|c| c.open) != Some(cstep::CHECK) {
         t.press(Action::CStep(cstep::CHECK));
     }
-    t.shot_marking("4-11-check", Action::CNext(cstep::CHECK))?;
+    t.shot_marking("4-11-check", Action::CBackup)?;
     t.press(Action::CNext(cstep::CHECK));
     t.press(Action::CBackup);
-    t.shot_marking("4-11-board", Action::BChecklist)?;
+    // Its Continue is under the fold, past the board.
+    t.shot("4-11-board")?;
     t.press(Action::BChecklist);
     t.press(Action::BNext(bstep::BLANK));
     let item = bstep::of(plan::Item::Codex32(0));
@@ -92,7 +93,12 @@ fn shares_kept(t: &mut Tour) -> Result<(), String> {
     ))));
     t.press(Action::Board(BP::Form(Zone::Files(1, 0), file, 1)));
     t.press(Action::Board(BP::LetGo));
-    t.shot_marking("4-11-board-kept", Action::BChecklist)?;
+    // String C as a plain file on its stick, past Save without
+    // encryption?.
+    if t.app.sheet.is_some() {
+        t.press(Action::SecretHold);
+    }
+    t.shot("4-11-board-kept")?;
     t.press(Action::BChecklist);
     if open_item(t) == Some(bstep::BLANK) {
         t.press(Action::BNext(bstep::BLANK));

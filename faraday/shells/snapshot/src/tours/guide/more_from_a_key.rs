@@ -1,7 +1,7 @@
 //! The pictures of `docs/guide/walk/more-from-a-key.md`.
 
-use super::key_session;
-use crate::tour::Tour;
+use super::{DICE_WORDS, key_session};
+use crate::tour::{Tour, type_text};
 use faraday_core::fresh::OwnSource;
 use faraday_core::fresh::page::Act;
 use faraday_core::{Action, Screen};
@@ -9,7 +9,8 @@ use faraday_core::{Action, Screen};
 /// Costs what the tool screens cost: an address, a child seed and a node
 /// key derived. A fresh stick session with the guide's key typed in:
 /// Tools, then each tool that works from a key opened on it, and Add
-/// randomness with ten dice rolls.
+/// randomness with ten dice rolls; Explore's Addresses on the key's first
+/// account; Add a key's Seed XOR parts with two parts typed.
 pub(super) fn run(t: &mut Tour) -> Result<(), String> {
     key_session(t);
     t.press(Action::Nav(Screen::Catalog));
@@ -20,7 +21,55 @@ pub(super) fn run(t: &mut Tour) -> Result<(), String> {
     for f in [3, 1, 4, 1, 5, 2, 6, 5, 3, 5] {
         t.press(Action::Own(Act::Roll(f)));
     }
-    t.shot("more-from-a-key-randomness")
+    t.shot("more-from-a-key-randomness")?;
+    addresses(t)?;
+    seed_xor(t)
+}
+
+/// Explore on the guide's key, at its native SegWit account: Addresses.
+fn addresses(t: &mut Tour) -> Result<(), String> {
+    use faraday_core::explore::{Page, XAction};
+    t.press(Action::Explore);
+    t.press(Action::XKey(super::DICE_FP));
+    t.press(Action::X(XAction::Page(Page::Addresses)));
+    t.shot("more-from-a-key-addresses")
+}
+
+/// Costs a mnemonic's checksum. Add a key on Seed XOR parts: two parts
+/// of the guide's key typed and added, the first BIP-39's
+/// `legal winner …` vector, the second what it leaves of the key.
+fn seed_xor(t: &mut Tour) -> Result<(), String> {
+    use faraday_bip::bip39::{Language, Mnemonic};
+    use faraday_core::forms::Form;
+    let c = faraday_core::testkit::compute();
+    let first = "legal winner thank year wave sausage worth useful legal winner thank yellow";
+    let key = Mnemonic::parse(&c, Language::English, DICE_WORDS).map_err(|e| format!("{e:?}"))?;
+    let part = Mnemonic::parse(&c, Language::English, first).map_err(|e| format!("{e:?}"))?;
+    let rest: Vec<u8> = key
+        .entropy()
+        .expose()
+        .as_bytes()
+        .iter()
+        .zip(part.entropy().expose().as_bytes())
+        .map(|(a, b)| a ^ b)
+        .collect();
+    let second = Mnemonic::from_entropy(Language::English, &rest).map_err(|e| format!("{e:?}"))?;
+    let second: Vec<&str> = second
+        .indices()
+        .iter()
+        .map(|&i| Language::English.word(i))
+        .collect();
+    let at = Form::ALL
+        .iter()
+        .position(|f| *f == Form::Xor)
+        .ok_or("no Seed XOR form")?;
+    t.press(Action::Entry(None));
+    t.press(Action::EntryForm(at as u8));
+    for words in [first.to_string(), second.join(" ")] {
+        type_text(t, &words);
+        t.press(Action::EntryPart);
+    }
+    t.shot("more-from-a-key-seed-xor")
 }
 
 /// Costs what the tool screens cost. Explore, BIP-85, Silent payments,

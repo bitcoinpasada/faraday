@@ -4,8 +4,8 @@ use super::{c32, c32_type};
 use crate::tour::{Tour, display};
 use faraday_core::codex32::{C32, SPLITS, Split, WAYS, Way as C32Way};
 use faraday_core::keygen::{Start, kstep};
-use faraday_core::{Action, Faraday, Screen};
-use faraday_shell_api::App;
+use faraday_core::{Action, Faraday, Host, HostPress, Screen};
+use faraday_shell_api::{App, Event};
 
 /// Faraday Demo as it opens: Practice on testnet, online, no stick in.
 pub(crate) fn demo_session(t: &mut Tour) {
@@ -36,8 +36,9 @@ pub(super) fn desktop_home(t: &mut Tour) -> Result<(), String> {
     t.press(Action::Samples);
     t.shot("starter-tour-samples")?;
     t.press(Action::Cancel);
+    t.app.clipboard = true;
     t.press(Action::Entry(None));
-    t.shot_marking("starter-tour-aids", Action::UseSample)?;
+    host_shot_marking(t, "starter-tour-aids", Action::UseSample)?;
     t.press(Action::Nav(Screen::WalletsStart));
     t.press(Action::KeyGen(None));
     t.press(Action::KStep(kstep::START));
@@ -60,4 +61,40 @@ pub(super) fn desktop_home(t: &mut Tour) -> Result<(), String> {
     c32(t, C32::Sample);
     c32(t, C32::Next);
     t.shot("1-11-demo-codex32-sample")
+}
+
+/// The window as Faraday Demo's host shows it, its strip with the
+/// screen's aids at the foot, saved as picture `name`, with the strip's
+/// `next` marked beside it as [`Tour::shot_marking`] marks the app's.
+fn host_shot_marking(t: &mut Tour, name: &str, next: Action) -> Result<(), String> {
+    let win = t.size();
+    t.pump();
+    let app = std::mem::replace(&mut t.app, Faraday::new());
+    let mut host = Host::new(app);
+    host.event(display(win, t.dpi));
+    t.now += 4000;
+    host.event(Event::Tick { now_ms: t.now });
+    let _ = host.frame();
+    host.event(Event::Tick { now_ms: t.now });
+    host.app.settle();
+    let frame = host.frame();
+    let path = t.out.join(format!("{name}.png"));
+    crate::tour::write_png(&path, frame.width, frame.height, frame.rgba)?;
+    let mark = host.offered_area(HostPress::App(next));
+    t.app = host.app;
+    t.app.event(display(win, t.dpi));
+    t.pump();
+    let Some((x, y, w, h)) = mark else {
+        use std::io::Write;
+        let notes = t.out.join("unmarked.txt");
+        let mut f = std::fs::OpenOptions::new()
+            .append(true)
+            .create(true)
+            .open(&notes)
+            .map_err(|e| format!("{}: {e}", notes.display()))?;
+        return writeln!(f, "{name}: {next:?} is not on screen").map_err(|e| e.to_string());
+    };
+    let json = t.out.join(format!("{name}.mark.json"));
+    let text = format!("{{\"x\": {x}, \"y\": {y}, \"w\": {w}, \"h\": {h}}}\n");
+    std::fs::write(&json, text).map_err(|e| format!("{}: {e}", json.display()))
 }
