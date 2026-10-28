@@ -47,7 +47,7 @@ wallet**.
 
 ### 4.2 The board, the standard way
 
-Back up opens on the board with the standard way placed: the seed's
+[Back up](../screens/back-up-wallet.md) opens on the board with the standard way placed: the seed's
 words and the wallet description on paper at Place 1. Nothing can be
 moved yet.
 
@@ -81,7 +81,7 @@ Press **Customize backup**.
 
 | On screen | Meaning |
 |---|---|
-| the list on the right | everything the backup can keep: **Seeds**, **Wallet description** (**Whole**), **Vaults** with **+ new vault**, **Watch-only software**; "1 place" beside each says how many places keep it |
+| [the list](../screens/back-up-wallet.md#the-list) on the right | everything the backup can keep: **Seeds**, **Wallet description** (**Whole**), **Vaults** with **+ new vault**, **Watch-only software**; "1 place" beside each says how many places keep it |
 | **3dca6805 · codex32 w0za · 2 of 3** | a key made as codex32 shares or loaded from strings keeps those strings instead of its words, each placed on its own; a key of words is not offered codex32 strings. Making a key as codex32 shares is step 4.11 |
 | on a placed chip, **Words** and **SeedQR** | the forms it is kept in; a press turns one on or off, and the last one on stays on |
 | **×** | takes the chip off that place |
@@ -117,7 +117,7 @@ anywhere else lets it go.
 
 ### 4.5 The ⋮ menu, and the SeedQR
 
-Press **⋮** on the seed chip in the list. **Add to…** lists every box
+Press [**⋮**](../screens/back-up-wallet.md#the-menu-of-a-chip) on the seed chip in the list. **Add to…** lists every box
 that takes the seed, under its place:
 
 ![Add to… on the seed](../4-5-menu.png)
@@ -140,7 +140,7 @@ Press **Continue**, then **Make the checklist** on **The plan**.
 
 ### 4.6 The checklist
 
-The checklist has an item for each thing the plan needs, in the order
+The [checklist](../screens/back-up-wallet.md#the-checklist) has an item for each thing the plan needs, in the order
 they are done. An item opens once the one before it is done ("After:
 …"). The **Map** on the right shows each place and the vault, and what
 each keeps; a dot turns green when that copy is made. **Change the
@@ -165,7 +165,7 @@ written in step 4.10 and printed from the stick on another computer.
 **Keep the words only** takes the SeedQR off the plan; the item then
 asks for the words alone.
 
-Press **Check my copy** and type your copy's words back, from the
+Press [**Check my copy**](../screens/back-up-wallet.md#check-my-copy) and type your copy's words back, from the
 paper:
 
 ![Check my copy, five words in](../4-7-check-copy.png)
@@ -231,7 +231,7 @@ for the stick) and what it wipes (**Wiped from memory**: the key and
 the wallet, which are in the vault; **Make a new wallet · ends**), then
 the sticks to write. Press **Lock and write**.
 
-The session locks. The page becomes the backup's own steps, open on
+The session locks. The page becomes [the backup's own steps](../screens/backup-flow.md#write-the-sticks), open on
 **Write the sticks**:
 
 | Insert | Stick read | Written |

@@ -55,7 +55,7 @@ can go into a vault or a stick's files as well. Press **Continue**, then
 ![The codex32 strings item](../4-11-strings-item.png)
 
 **Print 3 blank templates** asks for **Codex32, 48 characters** from the
-Starter. **Codex32 strings of seed fab6868a** lists each string and its
+Starter. [**Codex32 strings of seed fab6868a**](../screens/back-up-wallet.md#the-checklist) lists each string and its
 place, **Not checked** until it is typed back. **How many strings of
 name are there?** counts the strings that exist, if more were made.
 Under **The set**, **Add a share** makes one more string of the same

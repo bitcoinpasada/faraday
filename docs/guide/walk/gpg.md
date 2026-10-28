@@ -50,7 +50,7 @@ the plan** is under each card after the first.
 
 *Picture to come: `gpg-where.png`, Where it will be kept with Place 1 and Place 2 each keeping a stick with Vault 1.*
 
-The plan starts with one new vault, Vault 1, on a stick at **Place 1**
+[Where it will be kept](../screens/backup-flow.md#where-it-will-be-kept) starts with one new vault, Vault 1, on a stick at **Place 1**
 and another at **Place 2**: two copies of the same vault. Each place's
 row reads "A stick with Vault 1", with buttons under it:
 
@@ -75,7 +75,7 @@ shows and **Continue** is grey. Keep the plan as it is and press
 With a key loaded or a vault open, the card shows only **Lock and
 bring in the sticks**: it locks, then the flow goes on.
 
-Each stick is read before the key exists, so that the vault on it is
+Each stick is read ([Bring in the sticks](../screens/backup-flow.md#bring-in-the-sticks)) before the key exists, so that the vault on it is
 known and nothing secret is open while a stick is in.
 
 1. **Insert the stick for Vault 1 (Place 1)**. Plug in the first stick.
@@ -156,7 +156,7 @@ sealed with the key in it, and every key is wiped.
 
 *Picture to come: `gpg-write.png`, Write the sticks with Place 1 written and Place 2 asked for.*
 
-**Write the sticks** asks for each stick in turn:
+[**Write the sticks**](../screens/backup-flow.md#write-the-sticks) asks for each stick in turn:
 
 1. **Insert the stick for Vault 1 (Place 1)**. Plug it in. The vault
    and the public key are written, read back and compared ("Writing"

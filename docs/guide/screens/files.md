@@ -37,7 +37,7 @@ Each row has one button for what its kind is for, and **⋮** for the rest.
 
 | Kind | Button | What it does |
 |---|---|---|
-| a PSBT | **Sign** | starts its spend |
+| a PSBT | **Sign** | starts its spend: [Sign a transaction](sign.md) |
 | a PSBT of the spend under way, from another file | **Add to signatures** | adds its signatures to the spend |
 | a wallet | **Load the wallet** | loads it and opens its card |
 | seed words | **Load this key** | loads the key |

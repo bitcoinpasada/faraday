@@ -134,7 +134,7 @@ the other two rebuild the wallet; no place alone can spend; any place
 alone sees the balance.
 
 After **Customize backup**, a drop that changes what a place alone can
-do asks first:
+do [asks first](../screens/back-up-wallet.md#keep-it-or-take-it-off):
 
 | Seeing the balance | Spending |
 |---|---|

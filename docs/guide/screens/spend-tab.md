@@ -106,7 +106,7 @@ online computer, then **I have the PSBT**.
 ### The spend's cards
 
 Once the PSBT is in, its cards follow in the column, as on
-[Spend](../walk/spend.md), each where the spend needs it: **Read the
+[Spend](../walk/spend.md) and in [Sign a transaction](sign.md), each where the spend needs it: **Read the
 transaction**, **The transaction id**, **Which way it spends**,
 **Nonces**, **Who signs** (**Add the seeds that can sign** for a wallet
 from its description), **Sign it**, **The other signatures**, **Send

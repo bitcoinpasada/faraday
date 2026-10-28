@@ -73,7 +73,7 @@ card on the right.
 | the source | at the top right: where the wallet came from, "From Vault 1", or a statement such as "Made here" |
 | the kind | "2 of 3 · native SegWit multisig" |
 | the key path | a Taproot wallet's: **Key path: none (unspendable)**, "Key path: 3dca6805 alone", or, in the error tone, "A key that is not one of this wallet's keys can spend everything alone, without the other signatures: …" |
-| the backup line | **Not backed up**, or where its backup is ("Backup: paper ×2 checked · vault.ofv"); a press opens Backups on the wallet |
+| the backup line | **Not backed up**, or where its backup is ("Backup: paper ×2 checked · vault.ofv"); a press opens [Backups](backups.md) on the wallet |
 | the signatures | "1 of 2 signatures possible here", a dot per signature; then **Can spend** (**Another key can spend** in the error tone), or **Scan a key**, which opens the camera for a missing key |
 | **At a glance** | the wallet, each key and the backup: where each is, **Can sign here**, **Cosigner · xpub only**, **Not here**, **In this vault**, with **Load from vault** or **Load with a passphrase** where an open vault holds the key |
 | the codex32 mark | under a key loaded from codex32 strings that went in by a correction: "fab6868a · Share entry corrected", or "… · Share repairs unchecked" |
@@ -86,7 +86,7 @@ The actions, along the card's foot:
 |---|---|
 | **Spend from this wallet** | opens [Spend from New wallet 1](spend-tab.md#spend-from-a-wallet). It reads "Sign the PSBT from the stick" while a PSBT for the wallet is in Files, "Carry on the spend · Signatures 1 of 2" while its spend is under way, and **Finish the backup first** while a key made here waits for its backup, which opens the backup |
 | **Show wallet QR** | the wallet's description as a [QR code](qr-and-scan.md#a-qr-code) |
-| **Back up** | opens the wallet's backup; **Continue the backup** while one is left part way |
+| **Back up** | opens the wallet's [backup](back-up-wallet.md); **Continue the backup** while one is left part way |
 | **Sign a message** | for a wallet whose key signs messages: opens Sign a message |
 | **Remove from session** | at the right: takes the wallet out of memory |
 

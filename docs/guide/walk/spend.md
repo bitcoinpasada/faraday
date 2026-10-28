@@ -190,7 +190,7 @@ a stick in and the stick visit writes them (**Write 2 files**). Then
 
 The card of step 6.4 says so in its rows and under them, each warning
 in its own words, in red for danger. A PSBT opened from Files (its
-**Sign**) opens **Sign a transaction**, the same review:
+**Sign**) opens [**Sign a transaction**](../screens/sign.md), the same review:
 
 | A fee of 0.012 BTC | Another wallet's PSBT |
 |---|---|

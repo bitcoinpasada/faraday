@@ -23,7 +23,7 @@ self-test, and again after every lock.
 | **Create a vault** (**None yet**) | opens Create a vault. Shown while Files holds no vault and none is open |
 | **Vaults** ("2 locked", "1 open") | opens Vaults. Shown in place of **Create a vault** once Files holds a vault or one is open |
 | **Stick visit** (**A stick attached**) | opens the stick's files. Shown while a stick is attached and no key is loaded |
-| **Backups** ("3 with a plan", "1 not backed up") | opens Backups. Shown once a wallet is known |
+| **Backups** ("3 with a plan", "1 not backed up") | opens [Backups](backups.md). Shown once a wallet is known |
 | **Scan** | the button at the bottom right: opens the camera. With a stick attached, **Pull the stick to scan** opens first ([Pull the stick](prompts.md#pull-the-stick)) |
 | **Practice · Testnet** | the mode pill at the top right, shown in every mode but Mainnet: opens [Mode](mode.md#mode) |
 | **?** | at the top right: opens Learn's pages for Home |

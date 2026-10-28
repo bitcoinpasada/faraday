@@ -31,6 +31,10 @@ say what to do; these pages say what each control on a screen does.
 | Wallets | [Make a new wallet](make-a-wallet.md) | Kind, Quorum, Use vaults, Keys, Check |
 | Wallets | [Restore an existing wallet](restore.md) | Kind, Quorum, Description, Use vaults, Keys, Check, Done |
 | Wallets | [Spend](spend-tab.md) | The Spend tab: what is loaded, the column from the map to Put everything away, Spend from a wallet |
+| Wallets | [Sign a transaction](sign.md) | Wallet, Path, Transaction, Check, Signers, Nonces, Sign, Signatures for this transaction, Finish, the panel |
+| Wallets | [Back up a wallet](back-up-wallet.md) | The plan: Places (the board and its list), Software, The plan; the checklist; Add, Keep it or Take it off, partial descriptions, a chip's menu |
+| Wallets | [The backup flow](backup-flow.md) | Where it will be kept, the sticks, the vaults, the key, Lock, Write the sticks, Done |
+| Wallets | [Backups and the chart](backups.md) | Backups, and the chart's sheets: the wallet, a key, a place, a line, a change asked first |
 | Tools | [Tools](tools.md) | Every tool by group and its search, the word list |
 
 ## To write
@@ -40,5 +44,5 @@ variant is named by no page and is not listed here, when one is named
 by two pages, and when one listed here has a page: a page written takes
 its variants off this list.
 
-- `Screen`: `Spend`, `Backup`, `Message`, `CheckMessage`, `Settings`, `SetTime`, `Randomness`, `Backups`, `Bip85`, `Silent`, `Explore`, `Lightning`, `Tools`, `Vanity`, `Decode`, `BackupFlow`
-- `Sheet`: `Learn`, `Chart`, `BoardList`, `BoardSees`, `BoardPartials`, `BoardMenu`
+- `Screen`: `Message`, `CheckMessage`, `Settings`, `SetTime`, `Randomness`, `Bip85`, `Silent`, `Explore`, `Lightning`, `Tools`, `Vanity`, `Decode`
+- `Sheet`: `Learn`

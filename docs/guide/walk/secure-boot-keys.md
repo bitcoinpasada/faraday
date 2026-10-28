@@ -57,7 +57,7 @@ will be kept**, **Bring in the sticks**, **Vaults**, **Make the key**,
 
 *Picture to come: `secure-boot-keys-where.png`, Where it will be kept with Place 1 and Place 2 each keeping a stick with Vault 1.*
 
-These steps are the same as a GPG key's:
+These steps are the same as a GPG key's ([the backup flow](../screens/backup-flow.md)):
 
 1. **Where it will be kept**: Vault 1, new, on a stick at **Place 1**
    and another at **Place 2**. Two places or more; **Add a place** for a
