@@ -678,7 +678,9 @@ def takes_part(inp, masters, wallets):
     """Whether a held master takes part in `inp` as Faraday's inspection
     counts it: a single-key or multisig input whose origins name one, a
     key-path input whose key origin does, and a miniscript or a taproot
-    tree only through a wallet in use (F136's `NoParticipatingKey`)."""
+    tree only through a wallet in use whose script it is, holding a held
+    key (F135, F136's `NoParticipatingKey`): another wallet registered
+    beside it does not make it the person's."""
     if inp.kind is None:
         return False
     ecdsa = any(origin(v)[0] in masters for _, v in of_type(inp.m, 0x06))
@@ -688,7 +690,8 @@ def takes_part(inp, masters, wallets):
         return ecdsa
     if inp.kind == "tr-key":
         return any(fp in masters for ls, fp, _ in tap if not ls)
-    return bool(wallets) and (ecdsa or any(fp in masters for _, fp, _ in tap))
+    return ((ecdsa or any(fp in masters for _, fp, _ in tap))
+            and any(wallet_gives(w, inp, masters) for w in wallets))
 
 
 def ref_sign(raw, masters, nonce, wallets=()):
