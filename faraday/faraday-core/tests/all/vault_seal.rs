@@ -219,9 +219,30 @@ fn a_lock_with_a_vault_open_lists_kept_wiped_and_then() {
     let nowhere = texts.iter().position(|t| t.contains("nowhere else"));
     assert!(wiped < nowhere && nowhere < then, "the key: {texts:?}");
     assert!(app.offers(Action::Cancel));
+    assert!(texts.iter().any(|t| t == "Back to the vault"), "{texts:?}");
     assert!(app.offers(Action::Lock));
     app.press(Action::Lock);
     assert!(app.restart_requested());
+}
+
+/// With no vault open, a wallet being made, the sheet's way out is
+/// Cancel: there is no vault to go back to.
+#[test]
+fn a_lock_with_no_vault_open_is_cancelled_not_back_to_a_vault() {
+    let mut app = testkit::started();
+    app.press(Action::Entry(None));
+    type_text(&mut app, &testkit::test_words(testkit::TEST_SEEDS[1].0));
+    app.press(Action::EntryAdd);
+    app.press(Action::CreateWallet);
+    app.press(Action::CNext(faraday_core::cstep::KIND));
+    app.press(Action::LockAsk);
+    assert_eq!(app.sheet, Some(Sheet::LockAsk));
+    let texts = app.drawn_texts();
+    assert!(texts.iter().any(|t| t == "Cancel"), "{texts:?}");
+    assert!(!texts.iter().any(|t| t == "Back to the vault"), "{texts:?}");
+    app.press(Action::Cancel);
+    assert_eq!(app.sheet, None);
+    assert!(app.holds_secret(), "nothing wiped");
 }
 
 /// On that sheet, a key in no vault has its Save: pressed, the key is in

@@ -567,6 +567,12 @@ pub(super) fn lock_ask_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
             (EN.vault_lock, Action::Lock),
         )
     };
+    // Back to the vault only while one is open to go back to.
+    let back = if app.vaults().current_id().is_some() {
+        EN.vault_back_to_the_vault
+    } else {
+        EN.lock_ask_cancel
+    };
     kept_sheet(
         app,
         ui,
@@ -575,7 +581,7 @@ pub(super) fn lock_ask_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         (line.0, line.1, None, None),
         &kept_sections(app, false, true, EN.lock_ask_then.to_string()),
         &[
-            (EN.vault_back_to_the_vault, Style::Secondary, Action::Cancel),
+            (back, Style::Secondary, Action::Cancel),
             (lock.0, Style::Primary, lock.1),
         ],
     );

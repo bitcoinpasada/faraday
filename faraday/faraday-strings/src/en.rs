@@ -7873,8 +7873,10 @@ strings! {
     /// Button in `lock_ask_sheet`, in place of Lock while the system has given
     /// no randomness or a vault cannot be sealed: the changes are lost.
     vault_lock_without_sealing: "Lock without sealing",
-    /// Button in `lock_ask_sheet`.
+    /// Button in `lock_ask_sheet`, with a vault open.
     vault_back_to_the_vault: "Back to the vault",
+    /// Button in `lock_ask_sheet` with no vault open: closes the sheet.
+    lock_ask_cancel: "Cancel",
     /// Title and button in `lock_ask_sheet`.
     vault_lock: "Lock",
     /// The Then line in `lock_ask_sheet`.

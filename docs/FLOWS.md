@@ -545,7 +545,8 @@ step (`docs/STARTER.md` §7.5, F33).
 **The lock, write-out and power-off sheets lead with what is kept**
 (decision 28): the stick's Lock sheet, the Lock button's sheet with a
 vault open (owner, 2026-10-24; its Then reads "Faraday restarts on
-Unlock", its buttons **Back to the vault** and **Lock**, or **Lock
+Unlock", its buttons **Back to the vault** (**Cancel** with no vault
+open) and **Lock**, or **Lock
 without sealing** under the line saying the system has given no
 randomness, and a **Save** beside each key or wallet in no vault, which
 puts it in the vault open now), the write-out sheet and the power sheet. Each lists **Kept** first: one line per vault with its

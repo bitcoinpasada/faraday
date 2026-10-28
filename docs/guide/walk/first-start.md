@@ -94,7 +94,7 @@ or on paper, is gone after a lock or a power-off.
 (a wallet being made, a vault with changes). The [sheet](../screens/lock-and-power.md#lock) reads like the
 power sheet:
 
-![The Lock sheet while a wallet is being made, Back to the vault outlined](../pictures/2-3-lock.png)
+![The Lock sheet while a wallet is being made, Cancel outlined](../pictures/2-3-lock.png)
 
 | Section | Lists |
 |---|---|
@@ -104,7 +104,8 @@ power sheet:
 
 With a vault open, each key or wallet in no vault has a **Save** beside
 it, which saves it into the open vault. **Lock** wipes them and locks;
-**Back to the vault** closes the sheet and keeps working. With
+**Cancel** (**Back to the vault** with a vault open) closes the sheet
+and keeps working. With
 nothing under way, Lock wipes at once, without a sheet: a key made in
 section 3 and not yet backed up is lost.
 

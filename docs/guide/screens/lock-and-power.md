@@ -28,7 +28,7 @@ new wallet under way, or a vault open with changes, or with a key or
 wallet loaded that is in no vault. Otherwise Lock locks at once,
 without the sheet.
 
-![The Lock sheet over Make a new wallet: Kept, Wiped from memory in red, Then, Back to the vault and Lock](../pictures/lock-and-power-lock.png)
+![The Lock sheet over Make a new wallet: Kept, Wiped from memory in red, Then, Cancel and Lock](../pictures/lock-and-power-lock.png)
 
 *The Lock sheet while a wallet is being made: **Kept** "0 files for the stick"; **Wiped from memory** **Make a new wallet · ends**, "Seed 3dca6805 · nowhere else" and "New wallet 1 · nowhere else"; **Then** **Faraday restarts on Unlock**.*
 
@@ -36,7 +36,8 @@ without the sheet.
 |---|---|
 | **Save** | beside a key or wallet in no vault, while a vault is open: saves it into the open vault |
 | **Then** | "Faraday restarts on Unlock"; for a change of mode, "A mode change keeps nothing but the mode: Files, For the stick, keys and wallets are emptied." |
-| **Back to the vault** | closes the sheet; it reads so with no vault open too |
+| **Back to the vault** | with a vault open: closes the sheet |
+| **Cancel** | with no vault open: closes the sheet |
 | **Lock** | locks: seals the open vaults, wipes what is listed, and starts again |
 | **Lock without sealing** | in place of **Lock** while a vault cannot be sealed: the line under the title says why ("No randomness from the system. Faraday has to restart", or that a vault's changes are over its slot), and its changes are lost |
 
