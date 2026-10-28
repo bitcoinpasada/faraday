@@ -59,7 +59,7 @@ use faraday_avfoundation::convert;
 /// the type `faraday-avfoundation` has, shared by both crates.
 pub use faraday_avfoundation::Failure;
 
-/// `osk_mf_capture`'s `OSK_MF_NO_CAMERA`.
+/// `faraday_mf_capture`'s `FARADAY_MF_NO_CAMERA`.
 const STATUS_NO_CAMERA: i32 = 1;
 
 /// Windows' camera privacy setting refused the program
@@ -89,7 +89,7 @@ pub fn failure_of_hresult(hr: u32) -> Option<Failure> {
     }
 }
 
-/// The reason `osk_mf_capture`'s status gives: 1 is no camera, a
+/// The reason `faraday_mf_capture`'s status gives: 1 is no camera, a
 /// negative status is an HRESULT, and any other (a failure with no
 /// HRESULT) has none.
 #[must_use]
@@ -203,14 +203,14 @@ mod windows {
     /// its header comment.
     ///
     /// ```c
-    /// typedef void (*osk_mf_device_fn)(void *ctx,
+    /// typedef void (*faraday_mf_device_fn)(void *ctx,
     ///                                  const uint16_t *name, uint32_t name_len,
     ///                                  const uint16_t *link, uint32_t link_len);
     /// ```
     type DeviceFn = unsafe extern "C" fn(*mut c_void, *const u16, u32, *const u16, u32);
 
     /// ```c
-    /// typedef int32_t (*osk_mf_frame_fn)(void *ctx, const uint8_t *y,
+    /// typedef int32_t (*faraday_mf_frame_fn)(void *ctx, const uint8_t *y,
     ///                                    uint32_t width, uint32_t height,
     ///                                    uint32_t stride, const uint8_t *uv,
     ///                                    uint32_t uv_stride);
@@ -220,20 +220,20 @@ mod windows {
 
     unsafe extern "C" {
         /// ```c
-        /// int32_t osk_mf_list(void *ctx, osk_mf_device_fn on_device);
+        /// int32_t faraday_mf_list(void *ctx, faraday_mf_device_fn on_device);
         /// ```
-        fn osk_mf_list(ctx: *mut c_void, on_device: DeviceFn) -> i32;
+        fn faraday_mf_list(ctx: *mut c_void, on_device: DeviceFn) -> i32;
         /// ```c
-        /// int32_t osk_mf_capture(void *ctx, const uint16_t *link,
-        ///                        osk_mf_frame_fn on_frame);
+        /// int32_t faraday_mf_capture(void *ctx, const uint16_t *link,
+        ///                        faraday_mf_frame_fn on_frame);
         /// ```
-        fn osk_mf_capture(ctx: *mut c_void, link: *const u16, on_frame: FrameFn) -> i32;
+        fn faraday_mf_capture(ctx: *mut c_void, link: *const u16, on_frame: FrameFn) -> i32;
     }
 
-    /// `OSK_MF_OK`: the list is complete, or `on_frame` asked to stop.
+    /// `FARADAY_MF_OK`: the list is complete, or `on_frame` asked to stop.
     /// Every other status is a [`Message::Unavailable`], with the
     /// reason `failure_of_status` finds in it.
-    const OSK_MF_OK: i32 = 0;
+    const FARADAY_MF_OK: i32 = 0;
 
     /// The cameras this machine has, in Media Foundation's order (the
     /// first is the one `Camera::start(None, …)` opens). Empty when there
@@ -242,18 +242,18 @@ mod windows {
     pub fn devices() -> Vec<Device> {
         let mut out: Vec<Device> = Vec::new();
         // SAFETY: `ctx` points at `out`, which lives across the call, and
-        // `osk_mf_list` makes every `on_device` call on this thread
+        // `faraday_mf_list` makes every `on_device` call on this thread
         // before it returns. `on_device` has the signature
         // `src/camera.c` declares.
-        unsafe { osk_mf_list((&raw mut out).cast::<c_void>(), on_device) };
+        unsafe { faraday_mf_list((&raw mut out).cast::<c_void>(), on_device) };
         out
     }
 
-    /// Called by `osk_mf_list` once for each device.
+    /// Called by `faraday_mf_list` once for each device.
     ///
     /// # Safety
     ///
-    /// `ctx` is the `Vec<Device>` given to `osk_mf_list`, and `name` and
+    /// `ctx` is the `Vec<Device>` given to `faraday_mf_list`, and `name` and
     /// `link` point at `name_len` and `link_len` UTF-16 units, readable
     /// for the duration of the call. `src/camera.c` guarantees all three.
     unsafe extern "C" fn on_device(
@@ -267,7 +267,7 @@ mod windows {
             return;
         }
         // SAFETY: `ctx` is `devices`' `out`, borrowed by nothing else
-        // while `osk_mf_list` runs, and this is called on that thread.
+        // while `faraday_mf_list` runs, and this is called on that thread.
         let out = unsafe { &mut *ctx.cast::<Vec<Device>>() };
         // SAFETY: `src/camera.c` hands over the device's own strings with
         // their lengths in UTF-16 units; they are freed only after this
@@ -285,7 +285,7 @@ mod windows {
     }
 
     /// What `on_frame` is handed as `ctx`. It lives on the capture
-    /// thread's stack for the whole of `osk_mf_capture`, which makes
+    /// thread's stack for the whole of `faraday_mf_capture`, which makes
     /// every callback on that thread, so a `Cell` is enough.
     struct Shared {
         /// Where frames go. A full channel drops the frame.
@@ -305,7 +305,7 @@ mod windows {
     ///
     /// # Safety
     ///
-    /// `ctx` is the `Shared` given to `osk_mf_capture`. When `y` is not
+    /// `ctx` is the `Shared` given to `faraday_mf_capture`. When `y` is not
     /// null, `width` and `height` are even, `y` points at
     /// `stride * (height - 1) + width` readable bytes, and `uv` is null
     /// or points at `uv_stride * (height / 2 - 1) + width` readable
@@ -324,7 +324,7 @@ mod windows {
             return 1;
         }
         // SAFETY: `ctx` is the `Shared` on `capture`'s stack, which
-        // outlives `osk_mf_capture` and so every callback; the callbacks
+        // outlives `faraday_mf_capture` and so every callback; the callbacks
         // run on that same thread, so nothing else touches it meanwhile.
         let shared = unsafe { &*ctx.cast::<Shared>() };
         let stop = i32::from(shared.stop.load(Ordering::Relaxed));
@@ -386,17 +386,17 @@ mod windows {
         let link = link.as_ref().map_or(std::ptr::null(), |l| l.as_ptr());
         // SAFETY: `ctx` points at `shared` and `link` is null or a
         // NUL-terminated UTF-16 string, both live across the call;
-        // `osk_mf_capture` makes every callback on this thread before it
+        // `faraday_mf_capture` makes every callback on this thread before it
         // returns and keeps neither pointer. `on_frame` has the signature
         // `src/camera.c` declares.
         let status = unsafe {
-            osk_mf_capture(
+            faraday_mf_capture(
                 (&raw const shared).cast_mut().cast::<c_void>(),
                 link,
                 on_frame,
             )
         };
-        if status != OSK_MF_OK && !shared.stop.load(Ordering::Relaxed) {
+        if status != FARADAY_MF_OK && !shared.stop.load(Ordering::Relaxed) {
             let _ = shared
                 .tx
                 .try_send(Message::Unavailable(failure_of_status(status)));

@@ -219,7 +219,7 @@ fn a_finished_transaction_in_hex_is_known_as_one() {
 }
 
 #[test]
-fn a_key_as_ur_crypto_account_is_read_by_osk_codec_and_back_here() {
+fn a_key_as_ur_crypto_account_is_read_by_faraday_codec_and_back_here() {
     let c = compute();
     let (master, path) = bacon();
     let xpub = master.derive(&c, &path).to_xpub(&c);

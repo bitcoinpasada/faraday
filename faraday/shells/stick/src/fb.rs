@@ -414,7 +414,7 @@ mod tests {
     /// A sysfs framebuffer directory of this test's own. The last path
     /// element is `fb0`, because that is the name the reasons carry.
     fn dir(tag: &str) -> std::path::PathBuf {
-        let root = std::env::temp_dir().join(format!("osk-pi-fb-{}-{tag}", std::process::id()));
+        let root = std::env::temp_dir().join(format!("faraday-pi-fb-{}-{tag}", std::process::id()));
         let _ = std::fs::remove_dir_all(&root);
         let dir = root.join("fb0");
         std::fs::create_dir_all(&dir).expect("temp dir");

@@ -6,19 +6,19 @@
 //
 // The C ABI, mirrored byte for byte in src/lib.rs:
 //
-//     typedef void (*osk_avf_frame_fn)(void *ctx, const uint8_t *y,
+//     typedef void (*faraday_avf_frame_fn)(void *ctx, const uint8_t *y,
 //                                      uint32_t width, uint32_t height,
 //                                      uint32_t stride, const uint8_t *uv,
 //                                      uint32_t uv_stride);
-//     typedef void (*osk_avf_state_fn)(void *ctx, int32_t state);
-//     typedef void (*osk_avf_device_fn)(void *ctx, const char *id,
+//     typedef void (*faraday_avf_state_fn)(void *ctx, int32_t state);
+//     typedef void (*faraday_avf_device_fn)(void *ctx, const char *id,
 //                                       const char *name);
-//     void  osk_avf_list(void *ctx, osk_avf_device_fn on_device);
-//     void *osk_avf_start(void *ctx, osk_avf_frame_fn on_frame,
-//                         osk_avf_state_fn on_state, const char *device);
-//     void  osk_avf_stop(void *handle);
+//     void  faraday_avf_list(void *ctx, faraday_avf_device_fn on_device);
+//     void *faraday_avf_start(void *ctx, faraday_avf_frame_fn on_frame,
+//                         faraday_avf_state_fn on_state, const char *device);
+//     void  faraday_avf_stop(void *handle);
 //
-// `device` is a unique ID `osk_avf_list` gave, or NULL for the system's
+// `device` is a unique ID `faraday_avf_list` gave, or NULL for the system's
 // default camera. An ID that no camera has any more is one
 // on_state(ctx, 3). The session asks for 1280 x 720 and takes 640 x 480,
 // or the camera's own default, when the camera has no such mode.
@@ -27,7 +27,7 @@
 // access denied or restricted; 3 no such device; 4 the device is in use
 // by another app.
 //
-// Threads. `osk_avf_start` returns at once. When the permission is
+// Threads. `faraday_avf_start` returns at once. When the permission is
 // already decided it calls `on_state` on the calling thread before it
 // returns; when the prompt has to be shown, `on_state` runs on whatever
 // queue answers the prompt. Frames arrive on this file's private serial
@@ -35,10 +35,10 @@
 // another thread.
 //
 // Lifetime. Every callback is invoked while this object's lock is held,
-// and `osk_avf_stop` takes the same lock before it clears the callbacks,
-// so no callback is running when `osk_avf_stop` returns and none starts
+// and `faraday_avf_stop` takes the same lock before it clears the callbacks,
+// so no callback is running when `faraday_avf_stop` returns and none starts
 // afterwards. The caller may free `ctx` as soon as that call returns.
-// `osk_avf_stop` is safe on a handle whose start failed, and on a handle
+// `faraday_avf_stop` is safe on a handle whose start failed, and on a handle
 // only once: it consumes it.
 
 #import <AVFoundation/AVFoundation.h>
@@ -48,41 +48,41 @@
 
 #include <stdint.h>
 
-typedef void (*osk_avf_frame_fn)(void *ctx, const uint8_t *y, uint32_t width,
+typedef void (*faraday_avf_frame_fn)(void *ctx, const uint8_t *y, uint32_t width,
                                  uint32_t height, uint32_t stride,
                                  const uint8_t *uv, uint32_t uv_stride);
-typedef void (*osk_avf_state_fn)(void *ctx, int32_t state);
-typedef void (*osk_avf_device_fn)(void *ctx, const char *id, const char *name);
+typedef void (*faraday_avf_state_fn)(void *ctx, int32_t state);
+typedef void (*faraday_avf_device_fn)(void *ctx, const char *id, const char *name);
 
-void osk_avf_list(void *ctx, osk_avf_device_fn on_device);
-void *osk_avf_start(void *ctx, osk_avf_frame_fn on_frame,
-                    osk_avf_state_fn on_state, const char *device);
-void osk_avf_stop(void *handle);
+void faraday_avf_list(void *ctx, faraday_avf_device_fn on_device);
+void *faraday_avf_start(void *ctx, faraday_avf_frame_fn on_frame,
+                    faraday_avf_state_fn on_state, const char *device);
+void faraday_avf_stop(void *handle);
 
-@interface OskAvfCapture : NSObject <AVCaptureVideoDataOutputSampleBufferDelegate>
+@interface FaradayAvfCapture : NSObject <AVCaptureVideoDataOutputSampleBufferDelegate>
 - (instancetype)initWithCtx:(void *)ctx
-                      frame:(osk_avf_frame_fn)onFrame
-                      state:(osk_avf_state_fn)onState
+                      frame:(faraday_avf_frame_fn)onFrame
+                      state:(faraday_avf_state_fn)onState
                      device:(NSString *)device;
 - (void)configureAndStart;
 - (void)reportUnavailable:(int32_t)state;
 - (void)shutdown;
 @end
 
-@implementation OskAvfCapture {
+@implementation FaradayAvfCapture {
     NSLock *_lock;
     BOOL _stopped;
     void *_ctx;
-    osk_avf_frame_fn _onFrame;
-    osk_avf_state_fn _onState;
+    faraday_avf_frame_fn _onFrame;
+    faraday_avf_state_fn _onState;
     NSString *_deviceID;
     AVCaptureSession *_session;
     dispatch_queue_t _queue;
 }
 
 - (instancetype)initWithCtx:(void *)ctx
-                      frame:(osk_avf_frame_fn)onFrame
-                      state:(osk_avf_state_fn)onState
+                      frame:(faraday_avf_frame_fn)onFrame
+                      state:(faraday_avf_state_fn)onState
                      device:(NSString *)device {
     self = [super init];
     if (self != nil) {
@@ -225,7 +225,7 @@ void osk_avf_stop(void *handle);
 // are UTF-8. `devicesWithMediaType:` is deprecated for the discovery
 // session, which names the device types one by one; the cameras of a
 // Mac and its external ones are all it is wanted for.
-void osk_avf_list(void *ctx, osk_avf_device_fn on_device) {
+void faraday_avf_list(void *ctx, faraday_avf_device_fn on_device) {
     if (on_device == NULL) {
         return;
     }
@@ -242,12 +242,12 @@ void osk_avf_list(void *ctx, osk_avf_device_fn on_device) {
 
 // Asks for permission if it has not been asked for, then starts. Denied or
 // restricted is on_state(ctx, 2), no device on_state(ctx, 3). The handle is always
-// valid and must always be passed to osk_avf_stop.
-void *osk_avf_start(void *ctx, osk_avf_frame_fn on_frame,
-                    osk_avf_state_fn on_state, const char *device) {
+// valid and must always be passed to faraday_avf_stop.
+void *faraday_avf_start(void *ctx, faraday_avf_frame_fn on_frame,
+                    faraday_avf_state_fn on_state, const char *device) {
     NSString *deviceID =
         device != NULL ? [NSString stringWithUTF8String:device] : nil;
-    OskAvfCapture *capture = [[OskAvfCapture alloc] initWithCtx:ctx
+    FaradayAvfCapture *capture = [[FaradayAvfCapture alloc] initWithCtx:ctx
                                                           frame:on_frame
                                                           state:on_state
                                                          device:deviceID];
@@ -273,10 +273,10 @@ void *osk_avf_start(void *ctx, osk_avf_frame_fn on_frame,
     return (__bridge_retained void *)capture;
 }
 
-void osk_avf_stop(void *handle) {
+void faraday_avf_stop(void *handle) {
     if (handle == NULL) {
         return;
     }
-    OskAvfCapture *capture = (__bridge_transfer OskAvfCapture *)handle;
+    FaradayAvfCapture *capture = (__bridge_transfer FaradayAvfCapture *)handle;
     [capture shutdown];
 }

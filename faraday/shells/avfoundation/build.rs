@@ -12,7 +12,7 @@ fn main() {
         .file("src/camera.m")
         // ARC, as the file is written for.
         .flag("-fobjc-arc")
-        .compile("osk_avf");
+        .compile("faraday_avf");
     for framework in ["AVFoundation", "CoreMedia", "CoreVideo", "Foundation"] {
         println!("cargo:rustc-link-lib=framework={framework}");
     }

@@ -949,7 +949,7 @@ mod tests {
 
     #[test]
     fn a_keyboard_plugged_in_after_start_is_read() {
-        let root = std::env::temp_dir().join(format!("osk-pi-watch-{}", std::process::id()));
+        let root = std::env::temp_dir().join(format!("faraday-pi-watch-{}", std::process::id()));
         let _ = fs::remove_dir_all(&root);
         let (sys, dev) = (root.join("sys"), root.join("dev"));
         plug(&sys, &dev, 0, "Logitech Mouse", &mouse_caps());

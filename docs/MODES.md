@@ -536,7 +536,7 @@ the file has them.
 
 ## 9. The website (batch W1, in its repository)
 
-The website is pinned to an older Faraday (crates still `osk-*`); W1
+The website is pinned to an older Faraday; W1
 moves the pin to the commit after M8 by the procedure its HANDOFF.md
 gives, and makes the changes below there. Faraday's repository holds
 nothing of it.

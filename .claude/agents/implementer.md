@@ -1,5 +1,5 @@
 ---
-name: osk-implementer
+name: implementer
 description: Implementation pass at medium reasoning effort; the brief says what, CLAUDE.md says the rules.
 model: opus
 effort: medium
@@ -14,8 +14,8 @@ the one crate (`cargo nextest run -p faraday-draw`), and `cargo clippy -p
 <crate> --all-targets -- -D warnings` for that crate. Run `just` exactly
 once, when you believe you are done, and fix what it finds. To look at a
 screen, render the one script at the one size the change is about
-(`just snap load-key 480x640`) and read that PNG; never run `just
-snapshots` unless the brief says the change is to the layout engine.
+(`just faraday-snap 480x640 spend`) and read that PNG; never run `just
+faraday-snapshots` unless the brief says the change is to the layout engine.
 
 Reply with what you did, what you could not do and why, and the test
 results.

@@ -63,8 +63,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 
 _spec = importlib.util.spec_from_file_location("vault_primitives", ROOT / "tools" / "vault" / "primitives.py")
-osk = importlib.util.module_from_spec(_spec)
-_spec.loader.exec_module(osk)
+prim = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(prim)
 
 MAGIC = b"OFVT"
 HEADER_LEN = 53
@@ -114,13 +114,13 @@ def open_vault(blob: bytes, passphrase: bytes) -> bytes:
         raise SystemExit("the stated Argon2id cost is outside the format's limits")
     header = blob[:HEADER_LEN]
     salt = blob[21:53]
-    key = hkdf_sha256(osk.argon2id(passphrase, salt, memory, passes, lanes), SLOT_INFO)
+    key = hkdf_sha256(prim.argon2id(passphrase, salt, memory, passes, lanes), SLOT_INFO)
     opened = []
     for i in range(4):
         at = HEADER_LEN + i * (slot_len + NONCE_LEN + TAG_LEN)
         nonce = blob[at : at + NONCE_LEN]
         sealed = blob[at + NONCE_LEN : at + NONCE_LEN + slot_len + TAG_LEN]
-        plain = osk.xchacha20poly1305_open(key, nonce, header + bytes([i]), sealed)
+        plain = prim.xchacha20poly1305_open(key, nonce, header + bytes([i]), sealed)
         if plain is not None:
             opened.append(plain)
     if not opened:
@@ -161,7 +161,7 @@ def show(kind: int, number: int, value: bytes) -> str:
     """One field as text."""
     if kind == 2 and number == 1:
         if len(value) == 34:
-            language, words = osk.words_of_payload(value)
+            language, words = prim.words_of_payload(value)
             return f"{len(words)} words ({language}): " + " ".join(words)
         return "master seed " + value[1 : 1 + value[0]].hex()
     if kind == 5 and number == 1:

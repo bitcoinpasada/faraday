@@ -175,7 +175,7 @@ mod macos {
     /// signatures in its header comment.
     ///
     /// ```c
-    /// typedef void (*osk_avf_frame_fn)(void *ctx, const uint8_t *y,
+    /// typedef void (*faraday_avf_frame_fn)(void *ctx, const uint8_t *y,
     ///                                  uint32_t width, uint32_t height,
     ///                                  uint32_t stride, const uint8_t *uv,
     ///                                  uint32_t uv_stride);
@@ -183,35 +183,35 @@ mod macos {
     type FrameFn = unsafe extern "C" fn(*mut c_void, *const u8, u32, u32, u32, *const u8, u32);
 
     /// ```c
-    /// typedef void (*osk_avf_state_fn)(void *ctx, int32_t state);
+    /// typedef void (*faraday_avf_state_fn)(void *ctx, int32_t state);
     /// ```
     type StateFn = unsafe extern "C" fn(*mut c_void, i32);
 
     /// ```c
-    /// typedef void (*osk_avf_device_fn)(void *ctx, const char *id,
+    /// typedef void (*faraday_avf_device_fn)(void *ctx, const char *id,
     ///                                   const char *name);
     /// ```
     type DeviceFn = unsafe extern "C" fn(*mut c_void, *const c_char, *const c_char);
 
     unsafe extern "C" {
         /// ```c
-        /// void osk_avf_list(void *ctx, osk_avf_device_fn on_device);
+        /// void faraday_avf_list(void *ctx, faraday_avf_device_fn on_device);
         /// ```
-        fn osk_avf_list(ctx: *mut c_void, on_device: DeviceFn);
+        fn faraday_avf_list(ctx: *mut c_void, on_device: DeviceFn);
         /// ```c
-        /// void *osk_avf_start(void *ctx, osk_avf_frame_fn on_frame,
-        ///                     osk_avf_state_fn on_state, const char *device);
+        /// void *faraday_avf_start(void *ctx, faraday_avf_frame_fn on_frame,
+        ///                     faraday_avf_state_fn on_state, const char *device);
         /// ```
-        fn osk_avf_start(
+        fn faraday_avf_start(
             ctx: *mut c_void,
             on_frame: FrameFn,
             on_state: StateFn,
             device: *const c_char,
         ) -> *mut c_void;
         /// ```c
-        /// void osk_avf_stop(void *handle);
+        /// void faraday_avf_stop(void *handle);
         /// ```
-        fn osk_avf_stop(handle: *mut c_void);
+        fn faraday_avf_stop(handle: *mut c_void);
     }
 
     /// The cameras this machine has, in the system's order. Asks the
@@ -220,18 +220,18 @@ mod macos {
     pub fn devices() -> Vec<Device> {
         let mut out: Vec<Device> = Vec::new();
         // SAFETY: `ctx` points at `out`, which lives across the call, and
-        // `osk_avf_list` makes every `on_device` call on this thread
+        // `faraday_avf_list` makes every `on_device` call on this thread
         // before it returns. `on_device` has the signature
         // `src/camera.m` declares.
-        unsafe { osk_avf_list((&raw mut out).cast::<c_void>(), on_device) };
+        unsafe { faraday_avf_list((&raw mut out).cast::<c_void>(), on_device) };
         out
     }
 
-    /// Called by `osk_avf_list` once for each device.
+    /// Called by `faraday_avf_list` once for each device.
     ///
     /// # Safety
     ///
-    /// `ctx` is the `Vec<Device>` given to `osk_avf_list`, and `id` and
+    /// `ctx` is the `Vec<Device>` given to `faraday_avf_list`, and `id` and
     /// `name` are null or NUL-terminated strings, readable for the
     /// duration of the call. `src/camera.m` guarantees all three.
     unsafe extern "C" fn on_device(ctx: *mut c_void, id: *const c_char, name: *const c_char) {
@@ -239,7 +239,7 @@ mod macos {
             return;
         }
         // SAFETY: `ctx` is `devices`' `out`, borrowed by nothing else
-        // while `osk_avf_list` runs, and this is called on that thread.
+        // while `faraday_avf_list` runs, and this is called on that thread.
         let out = unsafe { &mut *ctx.cast::<Vec<Device>>() };
         // SAFETY: both strings are NUL-terminated and live until this
         // returns; they are copied before it does.
@@ -251,7 +251,7 @@ mod macos {
     }
 
     /// What the callbacks are handed as `ctx`. It lives in a `Box` the
-    /// [`Camera`] owns and frees after `osk_avf_stop` has returned,
+    /// [`Camera`] owns and frees after `faraday_avf_stop` has returned,
     /// which is the point after which no callback can run.
     struct Shared {
         /// Where frames go. A full channel drops the frame.
@@ -260,7 +260,7 @@ mod macos {
         /// cap. The callbacks run on AVFoundation's queues, so it is
         /// behind a lock rather than a plain field.
         next: Mutex<Instant>,
-        /// Set before `osk_avf_stop`, so that a callback already inside
+        /// Set before `faraday_avf_stop`, so that a callback already inside
         /// the Objective-C lock does nothing.
         stopped: AtomicBool,
     }
@@ -280,7 +280,7 @@ mod macos {
     ///
     /// # Safety
     ///
-    /// `ctx` is the pointer given to `osk_avf_start`, and `y` points at
+    /// `ctx` is the pointer given to `faraday_avf_start`, and `y` points at
     /// `stride * (height - 1) + width` readable bytes for the duration
     /// of the call. `uv` is null, or points at
     /// `uv_stride * (⌈height / 2⌉ - 1) + ⌈width / 2⌉ * 2` readable bytes
@@ -298,7 +298,7 @@ mod macos {
             return;
         }
         // SAFETY: `ctx` is the `Shared` this crate leaked in
-        // `Camera::start`. It is freed only after `osk_avf_stop` has
+        // `Camera::start`. It is freed only after `faraday_avf_stop` has
         // returned, and `src/camera.m` runs no callback after that, so
         // the reference is live for this call. `Shared` is `Sync` by its
         // fields, which is what lets an AVFoundation queue hold it.
@@ -351,7 +351,7 @@ mod macos {
     ///
     /// # Safety
     ///
-    /// `ctx` is the pointer given to `osk_avf_start`.
+    /// `ctx` is the pointer given to `faraday_avf_start`.
     unsafe extern "C" fn on_state(ctx: *mut c_void, state: i32) {
         if ctx.is_null() {
             return;
@@ -401,7 +401,7 @@ mod macos {
             // The two callbacks are `extern "C"` with the signatures
             // `src/camera.m` declares.
             let handle = unsafe {
-                osk_avf_start(
+                faraday_avf_start(
                     ctx.cast::<c_void>(),
                     on_frame,
                     on_state,
@@ -416,10 +416,10 @@ mod macos {
         fn drop(&mut self) {
             // SAFETY: `self.ctx` is the box from `start`, not yet freed.
             unsafe { (*self.ctx).stopped.store(true, Ordering::Relaxed) };
-            // SAFETY: `self.handle` came from `osk_avf_start` and is
+            // SAFETY: `self.handle` came from `faraday_avf_start` and is
             // stopped exactly once, here. The call returns only when no
             // callback is running and none can start.
-            unsafe { osk_avf_stop(self.handle) };
+            unsafe { faraday_avf_stop(self.handle) };
             // SAFETY: no callback can dereference `ctx` after the stop
             // above, so this is the last owner.
             drop(unsafe { Box::from_raw(self.ctx) });

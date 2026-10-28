@@ -6,25 +6,25 @@
 //
 // The C ABI, mirrored in src/lib.rs:
 //
-//     typedef void (*osk_mf_device_fn)(void *ctx,
+//     typedef void (*faraday_mf_device_fn)(void *ctx,
 //                                      const uint16_t *name, uint32_t name_len,
 //                                      const uint16_t *link, uint32_t link_len);
-//     typedef int32_t (*osk_mf_frame_fn)(void *ctx, const uint8_t *y,
+//     typedef int32_t (*faraday_mf_frame_fn)(void *ctx, const uint8_t *y,
 //                                        uint32_t width, uint32_t height,
 //                                        uint32_t stride, const uint8_t *uv,
 //                                        uint32_t uv_stride);
-//     int32_t osk_mf_list(void *ctx, osk_mf_device_fn on_device);
-//     int32_t osk_mf_capture(void *ctx, const uint16_t *link,
-//                            osk_mf_frame_fn on_frame);
+//     int32_t faraday_mf_list(void *ctx, faraday_mf_device_fn on_device);
+//     int32_t faraday_mf_capture(void *ctx, const uint16_t *link,
+//                            faraday_mf_frame_fn on_frame);
 //
-// Both functions return 0, 1, 3 or an HRESULT, as the OSK_MF_* codes
+// Both functions return 0, 1, 3 or an HRESULT, as the FARADAY_MF_* codes
 // below say.
 //
-// osk_mf_list calls on_device once for each video capture device, with
+// faraday_mf_list calls on_device once for each video capture device, with
 // its friendly name and its symbolic link as UTF-16 (not terminated),
 // valid for that call only, and returns when the list is done.
 //
-// osk_mf_capture opens the device whose symbolic link is `link` (a
+// faraday_mf_capture opens the device whose symbolic link is `link` (a
 // NUL-terminated UTF-16 string, compared without case), or the first
 // device when `link` is NULL, and reads frames until on_frame returns
 // non-zero or the device fails. It runs on the caller's thread, which it
@@ -39,7 +39,7 @@
 // Media Foundation's DLLs are loaded here when needed, from the system
 // folder only, and never imported: Windows' N editions come without them,
 // and an import would stop the whole program from starting there. Without
-// them there is no camera (OSK_MF_NO_CAMERA). They stay loaded for the
+// them there is no camera (FARADAY_MF_NO_CAMERA). They stay loaded for the
 // life of the process: Media Foundation's threads may outlive MFShutdown
 // by a moment.
 //
@@ -58,13 +58,13 @@
 #include <stdint.h>
 
 // Finished: the list is complete, or on_frame asked to stop.
-#define OSK_MF_OK 0
+#define FARADAY_MF_OK 0
 // No video capture device, the chosen one is gone, or no Media
 // Foundation on this Windows.
-#define OSK_MF_NO_CAMERA 1
+#define FARADAY_MF_NO_CAMERA 1
 // A failure with no HRESULT behind it (a stream that ended, a mode that
 // cannot be read), before the first frame or after it.
-#define OSK_MF_FAILED 3
+#define FARADAY_MF_FAILED 3
 // Any failure that has an HRESULT is returned as that HRESULT, which is
 // negative: the Rust side tells E_ACCESSDENIED (the camera privacy
 // setting) and the "in use" codes from the rest (src/lib.rs,
@@ -75,16 +75,16 @@
 #define WANT_WIDTH 1280
 #define WANT_HEIGHT 720
 
-typedef void (*osk_mf_device_fn)(void *ctx, const uint16_t *name,
+typedef void (*faraday_mf_device_fn)(void *ctx, const uint16_t *name,
                                  uint32_t name_len, const uint16_t *link,
                                  uint32_t link_len);
-typedef int32_t (*osk_mf_frame_fn)(void *ctx, const uint8_t *y, uint32_t width,
+typedef int32_t (*faraday_mf_frame_fn)(void *ctx, const uint8_t *y, uint32_t width,
                                    uint32_t height, uint32_t stride,
                                    const uint8_t *uv, uint32_t uv_stride);
 
-int32_t osk_mf_list(void *ctx, osk_mf_device_fn on_device);
-int32_t osk_mf_capture(void *ctx, const uint16_t *link,
-                       osk_mf_frame_fn on_frame);
+int32_t faraday_mf_list(void *ctx, faraday_mf_device_fn on_device);
+int32_t faraday_mf_capture(void *ctx, const uint16_t *link,
+                       faraday_mf_frame_fn on_frame);
 
 static const DWORD STREAM = (DWORD)MF_SOURCE_READER_FIRST_VIDEO_STREAM;
 
@@ -181,12 +181,12 @@ static void free_devices(IMFActivate **devices, UINT32 count) {
     CoTaskMemFree(devices);
 }
 
-int32_t osk_mf_list(void *ctx, osk_mf_device_fn on_device) {
+int32_t faraday_mf_list(void *ctx, faraday_mf_device_fn on_device) {
     int com = com_enter();
     if (com < 0) {
-        return OSK_MF_FAILED;
+        return FARADAY_MF_FAILED;
     }
-    int32_t status = OSK_MF_NO_CAMERA;
+    int32_t status = FARADAY_MF_NO_CAMERA;
     struct mf m;
     if (mf_open(&m)) {
         IMFActivate **devices = NULL;
@@ -214,7 +214,7 @@ int32_t osk_mf_list(void *ctx, osk_mf_device_fn on_device) {
                 CoTaskMemFree(link);
             }
             free_devices(devices, count);
-            status = OSK_MF_OK;
+            status = FARADAY_MF_OK;
         }
         mf_close(&m);
     }
@@ -352,7 +352,7 @@ static HRESULT read_shape(IMFSourceReader *reader, struct shape *s) {
 // some decoders pad it to a multiple of 16), then plane UV, half as many
 // rows of the same stride. `rows` is worked out from the length.
 static int32_t hand_over(IMFSample *sample, const struct shape *s, void *ctx,
-                         osk_mf_frame_fn on_frame) {
+                         faraday_mf_frame_fn on_frame) {
     int32_t stop;
     IMFMediaBuffer *buffer = NULL;
     BYTE *data = NULL;
@@ -384,7 +384,7 @@ static int32_t hand_over(IMFSample *sample, const struct shape *s, void *ctx,
 
 // Reads until on_frame asks to stop or the device fails.
 static int32_t read_frames(IMFSourceReader *reader, void *ctx,
-                           osk_mf_frame_fn on_frame) {
+                           faraday_mf_frame_fn on_frame) {
     struct shape s;
     HRESULT hr = read_shape(reader, &s);
     if (FAILED(hr)) {
@@ -402,7 +402,7 @@ static int32_t read_frames(IMFSourceReader *reader, void *ctx,
             if (sample != NULL) {
                 IMFSample_Release(sample);
             }
-            return OSK_MF_FAILED;
+            return FARADAY_MF_FAILED;
         }
         if (flags & MF_SOURCE_READERF_CURRENTMEDIATYPECHANGED) {
             hr = read_shape(reader, &s);
@@ -422,14 +422,14 @@ static int32_t read_frames(IMFSourceReader *reader, void *ctx,
             stop = on_frame(ctx, NULL, 0, 0, 0, NULL, 0);
         }
         if (stop != 0) {
-            return OSK_MF_OK;
+            return FARADAY_MF_OK;
         }
     }
 }
 
 // Opens the device and reads from it. Media Foundation is started.
 static int32_t capture(const struct mf *m, const WCHAR *link, void *ctx,
-                       osk_mf_frame_fn on_frame) {
+                       faraday_mf_frame_fn on_frame) {
     IMFActivate **devices = NULL;
     UINT32 count = 0;
     HRESULT hr = enum_devices(m, &devices, &count);
@@ -439,7 +439,7 @@ static int32_t capture(const struct mf *m, const WCHAR *link, void *ctx,
     IMFActivate *device = pick(devices, count, link);
     if (device == NULL) {
         free_devices(devices, count);
-        return OSK_MF_NO_CAMERA;
+        return FARADAY_MF_NO_CAMERA;
     }
     // Opens the camera. A refusal by the privacy setting is
     // E_ACCESSDENIED here.
@@ -479,12 +479,12 @@ static int32_t capture(const struct mf *m, const WCHAR *link, void *ctx,
     return status;
 }
 
-int32_t osk_mf_capture(void *ctx, const uint16_t *link, osk_mf_frame_fn on_frame) {
+int32_t faraday_mf_capture(void *ctx, const uint16_t *link, faraday_mf_frame_fn on_frame) {
     int com = com_enter();
     if (com < 0) {
-        return OSK_MF_FAILED;
+        return FARADAY_MF_FAILED;
     }
-    int32_t status = OSK_MF_NO_CAMERA;
+    int32_t status = FARADAY_MF_NO_CAMERA;
     struct mf m;
     if (mf_open(&m)) {
         status = capture(&m, (const WCHAR *)link, ctx, on_frame);
