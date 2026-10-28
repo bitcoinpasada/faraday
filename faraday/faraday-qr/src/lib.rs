@@ -40,8 +40,8 @@ pub enum Arrived {
 pub enum Step {
     /// A part of a transfer: `have` of `total`, `missing` numbered from 1.
     Part {
-        /// `BBQr` or `numbered parts`.
-        what: &'static str,
+        /// BBQr or numbered parts.
+        what: Transfer,
         /// Parts read.
         have: usize,
         /// Parts in all.
@@ -51,10 +51,36 @@ pub enum Step {
     },
     /// A whole thing.
     Done(Arrived),
-    /// Refused, with the sentence a screen shows.
-    Refused(String),
+    /// Refused, and why: a kind, which the app words.
+    Refused(Refusal),
     /// Not a BBQr part or a numbered part.
     NotMine,
+}
+
+/// Which kind of transfer a part is of.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Transfer {
+    /// BBQr.
+    Bbqr,
+    /// Specter's numbered text parts.
+    Numbered,
+}
+
+/// Why a scanned text was refused.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Refusal {
+    /// A code over [`bbqr::MAX_FRAME`] characters.
+    TooLong,
+    /// A BBQr part or transfer.
+    Bbqr(bbqr::Error),
+    /// Numbered parts.
+    Numbered(specter::Fault),
+    /// A BBQr text (`U`) that is not UTF-8.
+    BbqrText,
+    /// BBQr JSON (`J`) that is neither an envelope nor UTF-8.
+    BbqrJson,
+    /// A Faraday file envelope.
+    Envelope(envelope::Error),
 }
 
 /// Transfers being put together, across scans.
@@ -69,7 +95,7 @@ impl Assembler {
     pub fn feed(&mut self, text: &str) -> Step {
         let text = text.trim();
         if text.len() > bbqr::MAX_FRAME {
-            return Step::Refused("A code over 4,096 characters".to_string());
+            return Step::Refused(Refusal::TooLong);
         }
         if bbqr::is_part(text) {
             let c = self.bbqr.get_or_insert_with(bbqr::Collector::default);
@@ -79,7 +105,7 @@ impl Assembler {
                     total,
                     missing,
                 }) => Step::Part {
-                    what: "BBQr",
+                    what: Transfer::Bbqr,
                     have,
                     total,
                     missing,
@@ -97,7 +123,7 @@ impl Assembler {
                     if e == bbqr::Error::OtherTransfer {
                         self.bbqr = None;
                     }
-                    Step::Refused(e.reason())
+                    Step::Refused(Refusal::Bbqr(e))
                 }
             };
         }
@@ -105,7 +131,7 @@ impl Assembler {
             let c = self.specter.get_or_insert_with(specter::Collector::default);
             return match c.add(n, m, body) {
                 specter::Got::Part(have, total, missing) => Step::Part {
-                    what: "numbered parts",
+                    what: Transfer::Numbered,
                     have,
                     total,
                     missing,
@@ -116,7 +142,7 @@ impl Assembler {
                 }
                 specter::Got::Refused(why) => {
                     self.specter = None;
-                    Step::Refused(why.to_string())
+                    Step::Refused(Refusal::Numbered(why))
                 }
             };
         }
@@ -137,17 +163,17 @@ impl Assembler {
     }
 }
 
-fn bbqr_arrived(file_type: char, data: Vec<u8>) -> Result<Arrived, String> {
+fn bbqr_arrived(file_type: char, data: Vec<u8>) -> Result<Arrived, Refusal> {
     Ok(match file_type {
         'P' => Arrived::Psbt(data),
         'T' => Arrived::Transaction(data),
-        'U' => Arrived::Text(String::from_utf8(data).map_err(|_| "A BBQr text that is not UTF-8")?),
+        'U' => Arrived::Text(String::from_utf8(data).map_err(|_| Refusal::BbqrText)?),
         _ => {
             if envelope::looks_like(&data) {
-                let (name, file, kind) = envelope::unpack(&data)?;
+                let (name, file, kind) = envelope::unpack(&data).map_err(Refusal::Envelope)?;
                 Arrived::File(name, file, kind)
             } else {
-                Arrived::Text(String::from_utf8(data).map_err(|_| "BBQr JSON that is not UTF-8")?)
+                Arrived::Text(String::from_utf8(data).map_err(|_| Refusal::BbqrJson)?)
             }
         }
     })

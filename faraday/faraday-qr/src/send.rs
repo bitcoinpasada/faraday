@@ -101,14 +101,14 @@ pub enum Made {
 pub enum Error {
     /// More than BBQr carries.
     TooLargeForBbqr,
-    /// The file envelope refused the file, with its reason.
-    Envelope(&'static str),
-    /// The codec could not make a code, as it said.
-    Code(String),
+    /// The file envelope refused the file.
+    Envelope(crate::envelope::Error),
+    /// The codec could not make a code.
+    Code,
 }
 
-fn code_error<E: core::fmt::Debug>(e: E) -> Error {
-    Error::Code(format!("{e:?}"))
+fn code_error<E>(_: E) -> Error {
+    Error::Code
 }
 
 /// The text of parts that may spell a secret, wiped.

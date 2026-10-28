@@ -47,8 +47,20 @@ pub enum Got {
     Part(usize, usize, Vec<usize>),
     /// The whole text.
     Done(String),
-    /// A part of another set, or the same part with other text.
-    Refused(&'static str),
+    /// A part of another set, the same part with other text, or too
+    /// much.
+    Refused(Fault),
+}
+
+/// Why a numbered part was refused: a kind, which the app words.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Fault {
+    /// A part of another set.
+    OtherSet,
+    /// The same part arrived twice with different text.
+    Conflict,
+    /// The parts come to more than [`crate::bbqr::MAX_DATA`].
+    TooLarge,
 }
 
 impl Collector {
@@ -60,16 +72,16 @@ impl Collector {
     /// Takes one part.
     pub fn add(&mut self, n: usize, m: usize, body: &str) -> Got {
         if self.total != 0 && self.total != m {
-            return Got::Refused("A numbered part of another set. Start again to read that one");
+            return Got::Refused(Fault::OtherSet);
         }
         if let Some(seen) = self.parts.get(&n)
             && seen != body
         {
-            return Got::Refused("A numbered part arrived twice with different text");
+            return Got::Refused(Fault::Conflict);
         }
         if self.parts.values().map(String::len).sum::<usize>() + body.len() > crate::bbqr::MAX_DATA
         {
-            return Got::Refused("The numbered parts come to more than 360 KiB");
+            return Got::Refused(Fault::TooLarge);
         }
         self.total = m;
         self.parts.insert(n, body.to_string());

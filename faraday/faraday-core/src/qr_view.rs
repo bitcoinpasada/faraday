@@ -382,8 +382,87 @@ pub(crate) fn send_error(e: faraday_qr::send::Error) -> String {
     use faraday_qr::send::Error;
     match e {
         Error::TooLargeForBbqr => EN.bbqr_frames_too_large.to_string(),
-        Error::Envelope(why) => why.to_string(),
-        Error::Code(why) => why,
+        Error::Envelope(why) => envelope_text(why).to_string(),
+        Error::Code => EN.qr_send_code_failed.to_string(),
+    }
+}
+
+/// Why a UR registry type was refused, as the line under the scanner
+/// says it.
+pub(crate) fn registry_text(e: &faraday_qr::registry::Error) -> String {
+    use faraday_qr::registry::Error;
+    match e {
+        Error::Shape(ur_type) => fill(EN.ur_registry_shape, &[ur_type]),
+        Error::Psbt => fill(EN.ur_registry_shape, &["PSBT"]),
+        Error::Seed => EN.ur_registry_seed.to_string(),
+        Error::Path => EN.ur_registry_path.to_string(),
+        Error::Key => EN.ur_registry_key.to_string(),
+        Error::Private => EN.ur_registry_private_key.to_string(),
+        Error::NoChainCode => EN.ur_registry_no_chain_code.to_string(),
+        Error::Wallet => EN.ur_registry_wallet.to_string(),
+        Error::NotExtended => EN.ur_registry_not_extended.to_string(),
+        Error::NoThreshold => EN.ur_registry_no_threshold.to_string(),
+        Error::NoMultisigKeys => EN.ur_registry_no_multisig_keys.to_string(),
+        Error::Script(t) => fill(EN.ur_registry_script, &[&t.to_string()]),
+        Error::NoFingerprint => EN.ur_registry_no_fingerprint.to_string(),
+        Error::NoAccountKeys => EN.ur_registry_no_account_keys.to_string(),
+        Error::NoKeyRead => EN.ur_registry_no_key_read.to_string(),
+    }
+}
+
+/// Why a Faraday file envelope was refused, in a few words.
+fn envelope_text(e: faraday_qr::envelope::Error) -> &'static str {
+    use faraday_qr::envelope::Error;
+    match e {
+        Error::Size => EN.envelope_size,
+        Error::Kind => EN.envelope_kind,
+        Error::Name => EN.envelope_name,
+        Error::TooLarge => EN.envelope_too_large,
+        Error::NotEnvelope => EN.envelope_not,
+        Error::NoName => EN.envelope_no_name,
+        Error::NoKind => EN.envelope_no_kind,
+        Error::NoData => EN.envelope_no_data,
+        Error::NotBase64 => EN.envelope_not_base64,
+        Error::Mismatch => EN.envelope_mismatch,
+    }
+}
+
+/// What a part's line calls a transfer of numbered parts or BBQr.
+pub(crate) fn transfer_name(what: faraday_qr::Transfer) -> &'static str {
+    match what {
+        faraday_qr::Transfer::Bbqr => "BBQr",
+        faraday_qr::Transfer::Numbered => EN.part_note_numbered,
+    }
+}
+
+/// Why the scanner refused a code (`faraday_qr::Assembler`), as the
+/// line under it says it.
+pub(crate) fn scan_refusal(r: faraday_qr::Refusal) -> String {
+    use faraday_qr::Refusal;
+    use faraday_qr::bbqr::{Error as Bbqr, Malformed};
+    use faraday_qr::specter::Fault;
+    let malformed = |m: Malformed| match m {
+        Malformed::Short => EN.scan_bbqr_malformed_short,
+        Malformed::Encoding => EN.scan_bbqr_malformed_encoding,
+        Malformed::Count => EN.scan_bbqr_malformed_count,
+        Malformed::Number => EN.scan_bbqr_malformed_number,
+        Malformed::Data => EN.scan_bbqr_malformed_data,
+        Malformed::Uneven => EN.scan_bbqr_malformed_uneven,
+        Malformed::Inflate => EN.scan_bbqr_malformed_inflate,
+    };
+    match r {
+        Refusal::TooLong => EN.scan_refused_too_long.to_string(),
+        Refusal::Bbqr(Bbqr::Malformed(m)) => fill(EN.scan_refused_bbqr_malformed, &[malformed(m)]),
+        Refusal::Bbqr(Bbqr::Type(t)) => fill(EN.scan_refused_bbqr_type, &[&t.to_string()]),
+        Refusal::Bbqr(Bbqr::OtherTransfer) => EN.scan_refused_bbqr_other.to_string(),
+        Refusal::Bbqr(Bbqr::Conflict) => EN.scan_refused_bbqr_conflict.to_string(),
+        Refusal::Bbqr(Bbqr::TooLarge) => EN.scan_refused_bbqr_large.to_string(),
+        Refusal::Numbered(Fault::OtherSet) => EN.scan_refused_numbered_other.to_string(),
+        Refusal::Numbered(Fault::Conflict) => EN.scan_refused_numbered_conflict.to_string(),
+        Refusal::Numbered(Fault::TooLarge) => EN.scan_refused_numbered_large.to_string(),
+        Refusal::BbqrText => EN.scan_refused_bbqr_text.to_string(),
+        Refusal::BbqrJson => EN.scan_refused_bbqr_json.to_string(),
+        Refusal::Envelope(e) => envelope_text(e).to_string(),
     }
 }
 

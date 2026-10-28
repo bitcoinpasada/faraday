@@ -52,7 +52,7 @@ fn ten_bbqr_parts_are_the_psbt_in_any_order() {
             assert_eq!(
                 last,
                 Step::Part {
-                    what: "BBQr",
+                    what: faraday_qr::Transfer::Bbqr,
                     have: 3,
                     total: 10,
                     missing: vec![2, 3, 5, 6, 7, 9, 10],

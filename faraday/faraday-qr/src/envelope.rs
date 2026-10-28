@@ -12,6 +12,33 @@ pub const MAX_FILE: usize = 256 * 1024;
 /// The kinds Faraday OS writes.
 pub const KINDS: [&str; 3] = ["file", "public-key", "signing-subkey"];
 
+/// Why a file was not put in an envelope, or an envelope not read: a
+/// kind, which the app words.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Error {
+    /// The file is empty or over [`MAX_FILE`].
+    Size,
+    /// A kind Faraday OS does not write.
+    Kind,
+    /// A name that is not 1 to 128 letters, digits, dots, hyphens or
+    /// underscores.
+    Name,
+    /// The envelope is over BBQr's [`crate::bbqr::MAX_DATA`].
+    TooLarge,
+    /// Not a Faraday file envelope.
+    NotEnvelope,
+    /// The envelope has no name.
+    NoName,
+    /// The envelope has no kind.
+    NoKind,
+    /// The envelope has no data.
+    NoData,
+    /// The envelope's data is not base64.
+    NotBase64,
+    /// The envelope's size, hash or fields do not match its file.
+    Mismatch,
+}
+
 fn name_ok(name: &str) -> bool {
     let b = name.as_bytes();
     !b.is_empty()
@@ -26,15 +53,15 @@ fn hex(b: &[u8]) -> String {
 }
 
 /// A file in an envelope, as Faraday OS writes one.
-pub fn pack(name: &str, data: &[u8], kind: &str) -> Result<Vec<u8>, &'static str> {
+pub fn pack(name: &str, data: &[u8], kind: &str) -> Result<Vec<u8>, Error> {
     if data.is_empty() || data.len() > MAX_FILE {
-        return Err("A file from 1 byte to 256 KiB");
+        return Err(Error::Size);
     }
     if !KINDS.contains(&kind) {
-        return Err("An envelope kind Faraday OS does not write");
+        return Err(Error::Kind);
     }
     if !name_ok(name) {
-        return Err("A name of 1 to 128 letters, digits, dots, hyphens or underscores");
+        return Err(Error::Name);
     }
     let digest = sha256::Hash::hash(data).to_byte_array();
     Ok(format!(
@@ -66,21 +93,21 @@ fn field<'a>(text: &'a str, key: &str) -> Option<&'a str> {
 /// The name, data and kind of an envelope. Its fields are read, the file
 /// is put back in an envelope, and the two must be the same bytes: any
 /// other field, any other order, a wrong size or hash is refused.
-pub fn unpack(raw: &[u8]) -> Result<(String, Vec<u8>, String), &'static str> {
+pub fn unpack(raw: &[u8]) -> Result<(String, Vec<u8>, String), Error> {
     if raw.len() > crate::bbqr::MAX_DATA {
-        return Err("The envelope is over 360 KiB");
+        return Err(Error::TooLarge);
     }
-    let text = std::str::from_utf8(raw).map_err(|_| "Not a Faraday file envelope")?;
+    let text = std::str::from_utf8(raw).map_err(|_| Error::NotEnvelope)?;
     if field(text, "format") != Some("faraday-file-v1") {
-        return Err("Not a Faraday file envelope");
+        return Err(Error::NotEnvelope);
     }
-    let name = field(text, "name").ok_or("The envelope has no name")?;
-    let kind = field(text, "kind").ok_or("The envelope has no kind")?;
-    let data = faraday_bip::base64::decode(field(text, "data").ok_or("The envelope has no data")?)
-        .map_err(|_| "The envelope's data is not base64")?;
+    let name = field(text, "name").ok_or(Error::NoName)?;
+    let kind = field(text, "kind").ok_or(Error::NoKind)?;
+    let data = faraday_bip::base64::decode(field(text, "data").ok_or(Error::NoData)?)
+        .map_err(|_| Error::NotBase64)?;
     let again = pack(name, &data, kind)?;
     if again != raw {
-        return Err("The envelope's size, hash or fields do not match its file");
+        return Err(Error::Mismatch);
     }
     Ok((name.to_string(), data, kind.to_string()))
 }

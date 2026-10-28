@@ -36,21 +36,51 @@ pub enum Read {
     Descriptor(String),
 }
 
+/// Why a registry type was refused: a kind, which the app words.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Error {
+    /// The code's CBOR, of this UR type, is not in the registry's shape.
+    Shape(String),
+    /// A `ur:psbt` that holds no bytes.
+    Psbt,
+    /// A seed (`ur:crypto-seed`).
+    Seed,
+    /// A key path not in the registry's shape.
+    Path,
+    /// A key not in the registry's shape.
+    Key,
+    /// A private key.
+    Private,
+    /// A key with no chain code.
+    NoChainCode,
+    /// A wallet not in the registry's shape.
+    Wallet,
+    /// A key in a wallet that is not an extended key.
+    NotExtended,
+    /// A multisig with no threshold.
+    NoThreshold,
+    /// A multisig with no keys.
+    NoMultisigKeys,
+    /// A wallet script of this tag, which Faraday does not read.
+    Script(u64),
+    /// An account with no master fingerprint.
+    NoFingerprint,
+    /// An account with no keys.
+    NoAccountKeys,
+    /// An account with no key Faraday reads.
+    NoKeyRead,
+}
+
 /// Reads a UR of `ur_type` whose CBOR is `cbor`. `Ok(None)` for a type
-/// this does not know; `Err` with the sentence a screen shows for one it
-/// refuses.
-pub fn read(ur_type: &str, cbor: &[u8]) -> Result<Option<Read>, String> {
-    let bad = |what: &str| format!("The {what} in that code is not in the registry's shape");
-    let v = || Value::decode(cbor).map_err(|_| bad(ur_type));
+/// this does not know; `Err` with why for one it refuses.
+pub fn read(ur_type: &str, cbor: &[u8]) -> Result<Option<Read>, Error> {
+    let v = || Value::decode(cbor).map_err(|_| Error::Shape(ur_type.to_string()));
     match ur_type {
         "psbt" => match v()? {
             Value::Bytes(b) => Ok(Some(Read::Psbt(b))),
-            _ => Err(bad("PSBT")),
+            _ => Err(Error::Psbt),
         },
-        "crypto-seed" | "seed" => Err(
-            "That is a seed (ur:crypto-seed). Faraday takes a seed as its words or a SeedQR, in Add a key"
-                .to_string(),
-        ),
+        "crypto-seed" | "seed" => Err(Error::Seed),
         "crypto-hdkey" | "hdkey" => {
             let k = hdkey(&v()?)?;
             Ok(Some(Read::Keys(format!(
@@ -96,8 +126,8 @@ impl Key {
 }
 
 /// `[index, hardened, …]` as `/48h/0h` text, a wildcard as `*`.
-fn path(v: &Value) -> Result<String, String> {
-    let bad = || "A key path in that code is not in the registry's shape".to_string();
+fn path(v: &Value) -> Result<String, Error> {
+    let bad = || Error::Path;
     let Some(Value::Array(c)) = v.untag().1.get(1) else {
         return Ok(String::new());
     };
@@ -119,22 +149,17 @@ fn path(v: &Value) -> Result<String, String> {
     Ok(out)
 }
 
-fn hdkey(v: &Value) -> Result<Key, String> {
-    let bad = || "The key in that code is not in the registry's shape".to_string();
+fn hdkey(v: &Value) -> Result<Key, Error> {
+    let bad = || Error::Key;
     let v = v.untag().1;
     if matches!(v.get(2), Some(Value::Bool(true))) {
-        return Err(
-            "That is a private key. Faraday takes keys as their words or a SeedQR, in Add a key"
-                .to_string(),
-        );
+        return Err(Error::Private);
     }
     let Some(Value::Bytes(key)) = v.get(3) else {
         return Err(bad());
     };
     let Some(Value::Bytes(chain)) = v.get(4) else {
-        return Err(
-            "The key in that code has no chain code, so no addresses come from it".to_string(),
-        );
+        return Err(Error::NoChainCode);
     };
     let public_key = PublicKey::from_slice(key).map_err(|_| bad())?;
     let chain: [u8; 32] = chain.as_slice().try_into().map_err(|_| bad())?;
@@ -195,29 +220,27 @@ fn hdkey(v: &Value) -> Result<Key, String> {
 }
 
 /// A script expression's descriptor.
-fn output(v: &Value) -> Result<String, String> {
+fn output(v: &Value) -> Result<String, Error> {
     let (tag, inner) = match v {
         Value::Tag(OUTPUT, inner) => match &**inner {
             Value::Tag(t, i) => (*t, &**i),
-            _ => return Err("A wallet in that code is not in the registry's shape".to_string()),
+            _ => return Err(Error::Wallet),
         },
         Value::Tag(t, i) => (*t, &**i),
-        _ => return Err("A wallet in that code is not in the registry's shape".to_string()),
+        _ => return Err(Error::Wallet),
     };
-    let key = |v: &Value| -> Result<String, String> {
+    let key = |v: &Value| -> Result<String, Error> {
         match v {
             Value::Tag(HDKEY, _) | Value::Map(_) => hdkey(v).map(|k| k.in_wallet()),
-            _ => {
-                Err("A key in that wallet is not an extended key, which Faraday reads".to_string())
-            }
+            _ => Err(Error::NotExtended),
         }
     };
-    let multi = |name: &str, v: &Value| -> Result<String, String> {
+    let multi = |name: &str, v: &Value| -> Result<String, Error> {
         let Some(Value::Uint(m)) = v.get(1) else {
-            return Err("A multisig in that code has no threshold".to_string());
+            return Err(Error::NoThreshold);
         };
         let Some(Value::Array(keys)) = v.get(2) else {
-            return Err("A multisig in that code has no keys".to_string());
+            return Err(Error::NoMultisigKeys);
         };
         let keys: Vec<String> = keys.iter().map(key).collect::<Result<_, _>>()?;
         Ok(format!("{name}({m},{})", keys.join(",")))
@@ -231,19 +254,19 @@ fn output(v: &Value) -> Result<String, String> {
         406 => multi("multi", inner)?,
         407 => multi("sortedmulti", inner)?,
         HDKEY => key(v)?,
-        t => return Err(format!("A wallet script (tag {t}) Faraday does not read")),
+        t => return Err(Error::Script(t)),
     })
 }
 
 /// A crypto-account's keys, one line each with its script above it, the
 /// native SegWit multisig key first: a cosigner file.
-fn account(v: &Value) -> Result<String, String> {
+fn account(v: &Value) -> Result<String, Error> {
     let v = v.untag().1;
     let Some(Value::Uint(fp)) = v.get(1) else {
-        return Err("The account in that code has no master fingerprint".to_string());
+        return Err(Error::NoFingerprint);
     };
     let Some(Value::Array(outputs)) = v.get(2) else {
-        return Err("The account in that code has no keys".to_string());
+        return Err(Error::NoAccountKeys);
     };
     let mut lines: Vec<(u8, String, String)> = Vec::new();
     for o in outputs {
@@ -276,7 +299,7 @@ fn account(v: &Value) -> Result<String, String> {
         lines.push((rank, name.to_string(), k.origin_text()));
     }
     if lines.is_empty() {
-        return Err("The account in that code holds no key Faraday reads".to_string());
+        return Err(Error::NoKeyRead);
     }
     lines.sort_by_key(|l| l.0);
     let mut out = format!("# Account keys of {fp:08x} (ur:crypto-account)\n");

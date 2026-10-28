@@ -242,7 +242,7 @@ pub use qr_view::{
     Code, NoPicture, QR_PARTS, QR_SPEEDS, QrFormat, QrSource, QrView, SEEN_FRAMES, ScanPurpose,
     ScanState, Seen, TOO_FINE_TENTHS,
 };
-pub(crate) use qr_view::{TOO_FINE_PASSES, UrFed, send_error, ur_feed, ur_note};
+pub(crate) use qr_view::{TOO_FINE_PASSES, UrFed, send_error, transfer_name, ur_feed, ur_note};
 pub(crate) use receipt::sha256_of;
 pub use receipt::{Receipt, ReceiptFile};
 pub use restore::RestoreState;
@@ -4512,11 +4512,11 @@ impl Faraday {
                 total,
                 missing,
             } => {
-                scan.note = Some(part_note(what, have, total, &missing));
+                scan.note = Some(part_note(transfer_name(what), have, total, &missing));
                 return None;
             }
             faraday_qr::Step::Refused(why) => {
-                scan.note = Some(why);
+                scan.note = Some(qr_view::scan_refusal(why));
                 return None;
             }
             faraday_qr::Step::Done(arrived) => item = Some(arrival(arrived)),
@@ -4555,7 +4555,7 @@ impl Faraday {
                             return None;
                         }
                         Err(why) => {
-                            scan.note = Some(why);
+                            scan.note = Some(qr_view::registry_text(&why));
                             return None;
                         }
                     }

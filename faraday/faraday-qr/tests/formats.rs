@@ -75,7 +75,7 @@ fn numbered_parts_read_back_and_say_what_is_missing() {
     assert_eq!(
         a.feed(&parts[2]),
         Step::Part {
-            what: "numbered parts",
+            what: faraday_qr::Transfer::Numbered,
             have: 1,
             total: 4,
             missing: vec![1, 2, 4],
@@ -194,13 +194,13 @@ fn a_wallet_as_crypto_output_reads_as_its_descriptor() {
 #[test]
 fn a_seed_or_a_private_key_by_ur_is_refused_saying_what_it_is() {
     let seed = registry::read("crypto-seed", &[0xa0]).unwrap_err();
-    assert!(seed.contains("seed"), "{seed}");
+    assert_eq!(seed, registry::Error::Seed);
     // An hdkey that says it is private.
     let mut cbor = faraday_qr::cbor::head(5, 1);
     cbor.extend(faraday_qr::cbor::head(0, 2));
     cbor.push(0xf5);
     let private = registry::read("crypto-hdkey", &cbor).unwrap_err();
-    assert!(private.contains("private key"), "{private}");
+    assert_eq!(private, registry::Error::Private);
     assert_eq!(registry::read("crypto-unknown", &[0xa0]), Ok(None));
 }
 

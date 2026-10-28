@@ -84,6 +84,7 @@ faraday/faraday-vault/src/lib.rs
 faraday/faraday-vault/src/records.rs
 faraday/faraday-fat/src/*.rs
 faraday/faraday-sb/src/*.rs
+faraday/faraday-qr/src/*.rs
 faraday/shells/desktop/src/main.rs
 faraday/shells/desktop/src/lib.rs
 faraday/shells/starter/src/main.rs"

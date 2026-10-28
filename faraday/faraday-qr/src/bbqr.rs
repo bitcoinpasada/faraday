@@ -97,11 +97,11 @@ fn unhex(text: &str) -> Option<Vec<u8>> {
         .collect()
 }
 
-/// Why a part or a transfer was refused.
-#[derive(Debug, Clone, PartialEq, Eq)]
+/// Why a part or a transfer was refused: a kind, which the app words.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Error {
     /// Not a BBQr part this reads.
-    Malformed(&'static str),
+    Malformed(Malformed),
     /// A file type Faraday does not read.
     Type(char),
     /// A part of another transfer than the one being put together.
@@ -112,19 +112,23 @@ pub enum Error {
     TooLarge,
 }
 
-impl Error {
-    /// The sentence a screen shows.
-    pub fn reason(&self) -> String {
-        match self {
-            Error::Malformed(why) => format!("Not a BBQr part: {why}"),
-            Error::Type(t) => format!("A BBQr file of type {t}, which Faraday does not read"),
-            Error::OtherTransfer => {
-                "A part of another BBQr transfer. Start again to read that one".to_string()
-            }
-            Error::Conflict => "A BBQr part arrived twice with different contents".to_string(),
-            Error::TooLarge => "The BBQr transfer is over 360 KiB".to_string(),
-        }
-    }
+/// What is wrong with a text that starts as a BBQr part.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Malformed {
+    /// Shorter than a header.
+    Short,
+    /// An encoding BBQr does not have.
+    Encoding,
+    /// A part count that is not base36.
+    Count,
+    /// A part number past the count.
+    Number,
+    /// Its data is not in its encoding.
+    Data,
+    /// Its parts are of uneven length.
+    Uneven,
+    /// Its compressed data does not inflate within [`MAX_DATA`].
+    Inflate,
 }
 
 /// Where a transfer stands after a part.
@@ -180,22 +184,22 @@ impl Collector {
         }
         let b = text.as_bytes();
         if b.len() < 9 || !text.starts_with("B$") {
-            return Err(Error::Malformed("too short"));
+            return Err(Error::Malformed(Malformed::Short));
         }
         let (encoding, file_type) = (b[2], b[3]);
         if !matches!(encoding, b'2' | b'H' | b'Z') {
-            return Err(Error::Malformed("an encoding BBQr does not have"));
+            return Err(Error::Malformed(Malformed::Encoding));
         }
         if !matches!(file_type, b'P' | b'T' | b'U' | b'J') {
             return Err(Error::Type(char::from(file_type)));
         }
         let (Some(t1), Some(t0), Some(i1), Some(i0)) = (b36(b[4]), b36(b[5]), b36(b[6]), b36(b[7]))
         else {
-            return Err(Error::Malformed("a part count that is not base36"));
+            return Err(Error::Malformed(Malformed::Count));
         };
         let (total, index) = (t1 * 36 + t0, i1 * 36 + i0);
         if total == 0 || index >= total {
-            return Err(Error::Malformed("a part number past the count"));
+            return Err(Error::Malformed(Malformed::Number));
         }
         if let Some(h) = self.header
             && h != (encoding, file_type, total)
@@ -208,7 +212,7 @@ impl Collector {
             _ => unbase32(payload),
         }
         .filter(|p| !p.is_empty())
-        .ok_or(Error::Malformed("its data is not in its encoding"))?;
+        .ok_or(Error::Malformed(Malformed::Data))?;
         if let Some(seen) = self.parts.get(&index) {
             if *seen != part {
                 return Err(Error::Conflict);
@@ -238,15 +242,14 @@ impl Collector {
             && (lens[..lens.len() - 1].iter().any(|&l| l != lens[0])
                 || lens[lens.len() - 1] > lens[0])
         {
-            return Err(Error::Malformed("its parts are of uneven length"));
+            return Err(Error::Malformed(Malformed::Uneven));
         }
         // Wiped when dropped: what is handed on is moved out, not copied.
         let mut joined =
             zeroize::Zeroizing::new(self.parts.values().flatten().copied().collect::<Vec<u8>>());
         let data = if encoding == b'Z' {
-            miniz_oxide::inflate::decompress_to_vec_with_limit(&joined, MAX_DATA).map_err(|_| {
-                Error::Malformed("its compressed data does not inflate within 360 KiB")
-            })?
+            miniz_oxide::inflate::decompress_to_vec_with_limit(&joined, MAX_DATA)
+                .map_err(|_| Error::Malformed(Malformed::Inflate))?
         } else {
             std::mem::take(&mut *joined)
         };
@@ -273,6 +276,7 @@ pub fn encode(file_type: char, data: &[u8], part_bytes: usize) -> Option<Vec<Str
                 let chunk = &data[i * part_bytes..data.len().min((i + 1) * part_bytes)];
                 let n = b36_pair(i);
                 format!(
+                    // not wording: BBQr's header
                     "B$2{file_type}{}{}{}{}{}",
                     char::from(t[0]),
                     char::from(t[1]),

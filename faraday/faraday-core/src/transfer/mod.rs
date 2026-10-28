@@ -119,11 +119,16 @@ fn read_any(
             total,
             missing,
         } => {
-            scan.note = Some(crate::part_note(what, have, total, &missing));
+            scan.note = Some(crate::part_note(
+                crate::qr_view::transfer_name(what),
+                have,
+                total,
+                &missing,
+            ));
             return None;
         }
         faraday_qr::Step::Refused(why) => {
-            scan.note = Some(why);
+            scan.note = Some(crate::qr_view::scan_refusal(why));
             return None;
         }
         faraday_qr::Step::Done(arrived) => return Some(received(arrived)),

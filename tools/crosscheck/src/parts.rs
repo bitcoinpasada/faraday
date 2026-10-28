@@ -24,7 +24,7 @@ pub fn handle_bbqr(name: &str, req: &Value) -> Answer {
             let mut c = bbqr::Collector::default();
             let mut last = Value::Null;
             for p in texts(req, "parts") {
-                last = match c.add(p).map_err(|e| e.reason())? {
+                last = match c.add(p).map_err(|e| format!("{e:?}"))? {
                     bbqr::Got::Part {
                         have,
                         total,
@@ -60,7 +60,7 @@ pub fn handle_specter(name: &str, req: &Value) -> Answer {
                         json!({"part": {"have": have, "total": total, "missing": missing}})
                     }
                     specter::Got::Done(text) => json!({"done": text}),
-                    specter::Got::Refused(why) => return Err(why.to_string()),
+                    specter::Got::Refused(why) => return Err(format!("{why:?}")),
                 };
             }
             Ok(last)

@@ -3401,6 +3401,8 @@ strings! {
     // ----- bbqr_frames (faraday-core/src/lib.rs) -----
     /// Error in `bbqr_frames`.
     bbqr_frames_too_large: "Too large for BBQr",
+    /// Error in `send_error`: the codec made no code of it.
+    qr_send_code_failed: "No QR code could be made of it",
     /// Text in `bbqr_frames`. `{}`: `t`.
     bbqr_frames_bbqr_one: "BBQr {} · one code",
     /// Text in `bbqr_frames`. `{}`: `t`, `frames.len()`.
@@ -3418,6 +3420,93 @@ strings! {
     // ----- part_note (faraday-core/src/lib.rs) -----
     /// Text in `part_note`. `{}`: `what`, `have`, `total`, `list.join(", ")`, `more`.
     part_note_of_missing: "{}: {} of {} · missing {}{}",
+    /// `what` in `part_note` for Specter's numbered text parts.
+    part_note_numbered: "numbered parts",
+    // ----- A scanned code refused (faraday-core/src/qr_view.rs, faraday-qr's kinds) -----
+    /// Under the scanner: a code too long to read.
+    scan_refused_too_long: "A code over 4,096 characters",
+    /// Under the scanner. `{}`: what is wrong, one of the `scan_bbqr_malformed_` strings.
+    scan_refused_bbqr_malformed: "Not a BBQr part: {}",
+    /// What is wrong with a BBQr part.
+    scan_bbqr_malformed_short: "too short",
+    /// What is wrong with a BBQr part.
+    scan_bbqr_malformed_encoding: "an encoding BBQr does not have",
+    /// What is wrong with a BBQr part.
+    scan_bbqr_malformed_count: "a part count that is not base36",
+    /// What is wrong with a BBQr part.
+    scan_bbqr_malformed_number: "a part number past the count",
+    /// What is wrong with a BBQr part.
+    scan_bbqr_malformed_data: "its data is not in its encoding",
+    /// What is wrong with a BBQr part.
+    scan_bbqr_malformed_uneven: "its parts are of uneven length",
+    /// What is wrong with a BBQr part.
+    scan_bbqr_malformed_inflate: "its compressed data does not inflate within 360 KiB",
+    /// Under the scanner. `{}`: the BBQr file type, a letter.
+    scan_refused_bbqr_type: "A BBQr file of type {}, which Faraday does not read",
+    /// Under the scanner.
+    scan_refused_bbqr_other: "A part of another BBQr transfer. Start again to read that one",
+    /// Under the scanner.
+    scan_refused_bbqr_conflict: "A BBQr part arrived twice with different contents",
+    /// Under the scanner.
+    scan_refused_bbqr_large: "The BBQr transfer is over 360 KiB",
+    /// Under the scanner.
+    scan_refused_numbered_other: "A numbered part of another set. Start again to read that one",
+    /// Under the scanner.
+    scan_refused_numbered_conflict: "A numbered part arrived twice with different text",
+    /// Under the scanner.
+    scan_refused_numbered_large: "The numbered parts come to more than 360 KiB",
+    /// Under the scanner.
+    scan_refused_bbqr_text: "A BBQr text that is not UTF-8",
+    /// Under the scanner.
+    scan_refused_bbqr_json: "BBQr JSON that is not UTF-8",
+    /// Under the scanner: a UR registry type refused. `{}`: the UR type, or PSBT.
+    ur_registry_shape: "The {} in that code is not in the registry's shape",
+    /// Under the scanner: a UR registry type refused.
+    ur_registry_seed: "That is a seed (ur:crypto-seed). Faraday takes a seed as its words or a SeedQR, in Add a key",
+    /// Under the scanner: a UR registry type refused.
+    ur_registry_path: "A key path in that code is not in the registry's shape",
+    /// Under the scanner: a UR registry type refused.
+    ur_registry_key: "The key in that code is not in the registry's shape",
+    /// Under the scanner: a UR registry type refused.
+    ur_registry_private_key: "That is a private key. Faraday takes keys as their words or a SeedQR, in Add a key",
+    /// Under the scanner: a UR registry type refused.
+    ur_registry_no_chain_code: "The key in that code has no chain code, so no addresses come from it",
+    /// Under the scanner: a UR registry type refused.
+    ur_registry_wallet: "A wallet in that code is not in the registry's shape",
+    /// Under the scanner: a UR registry type refused.
+    ur_registry_not_extended: "A key in that wallet is not an extended key, which Faraday reads",
+    /// Under the scanner: a UR registry type refused.
+    ur_registry_no_threshold: "A multisig in that code has no threshold",
+    /// Under the scanner: a UR registry type refused.
+    ur_registry_no_multisig_keys: "A multisig in that code has no keys",
+    /// Under the scanner: a UR registry type refused. `{}`: the script's tag number.
+    ur_registry_script: "A wallet script (tag {}) Faraday does not read",
+    /// Under the scanner: a UR registry type refused.
+    ur_registry_no_fingerprint: "The account in that code has no master fingerprint",
+    /// Under the scanner: a UR registry type refused.
+    ur_registry_no_account_keys: "The account in that code has no keys",
+    /// Under the scanner: a UR registry type refused.
+    ur_registry_no_key_read: "The account in that code holds no key Faraday reads",
+    /// A Faraday file envelope refused, scanned or to be sent.
+    envelope_size: "A file from 1 byte to 256 KiB",
+    /// A Faraday file envelope refused.
+    envelope_kind: "An envelope kind Faraday OS does not write",
+    /// A Faraday file envelope refused.
+    envelope_name: "A name of 1 to 128 letters, digits, dots, hyphens or underscores",
+    /// A Faraday file envelope refused.
+    envelope_too_large: "The envelope is over 360 KiB",
+    /// A Faraday file envelope refused.
+    envelope_not: "Not a Faraday file envelope",
+    /// A Faraday file envelope refused.
+    envelope_no_name: "The envelope has no name",
+    /// A Faraday file envelope refused.
+    envelope_no_kind: "The envelope has no kind",
+    /// A Faraday file envelope refused.
+    envelope_no_data: "The envelope has no data",
+    /// A Faraday file envelope refused.
+    envelope_not_base64: "The envelope's data is not base64",
+    /// A Faraday file envelope refused.
+    envelope_mismatch: "The envelope's size, hash or fields do not match its file",
     // ----- secret_text (faraday-core/src/lib.rs) -----
     /// Text in `secret_text`.
     secret_text_those_are: "Those are a seed's words. Seeds go in through Add a key, not Files",
