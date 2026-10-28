@@ -8,6 +8,7 @@ mod check_and_decode;
 mod codex32;
 mod faraday_demo;
 mod first_start;
+mod gpg;
 mod make_a_wallet;
 mod messages;
 mod more_from_a_key;
@@ -15,6 +16,7 @@ mod multisig_with_others;
 mod new_key;
 mod receive;
 mod restore;
+mod secure_boot_keys;
 mod spend;
 mod spend_from_a_backup;
 mod vaults_and_passwords;
@@ -36,7 +38,10 @@ use faraday_shell_api::App;
 /// wallet restored from the description on it, and the PSBT on it signed
 /// after the second key is scanned in; a single key backed up in codex32
 /// shares and Add a key's codex32 form, each in a session of its own;
-/// last, Faraday Demo's Home and Practice's codex32 sample.
+/// a vault made, filled, written and unlocked again; a spend from what a
+/// backup's vault holds; a GPG key and Secure Boot keys made in the
+/// backup flow, a file signed and a boot program looked at before
+/// signing; last, Faraday Demo's Home and Practice's codex32 sample.
 pub(crate) fn guide_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     first_start::run(t)?;
     new_key::run(t)?;
@@ -45,7 +50,7 @@ pub(crate) fn guide_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     make_a_wallet::multisig_board(t)?;
     multisig_with_others::scan_key(c, t)?;
     // Each part from here is tried, and every one that fails is named.
-    let parts: [(&str, Part); 14] = [
+    let parts: [(&str, Part); 16] = [
         ("receive", receive::receive),
         ("spend by QR", spend::spend_by_qr),
         ("warnings", spend::spend_warnings),
@@ -60,6 +65,8 @@ pub(crate) fn guide_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
         ("messages", |_, t| messages::run(t)),
         ("vaults and passwords", |_, t| vaults_and_passwords::run(t)),
         ("spend from a backup", |_, t| spend_from_a_backup::run(t)),
+        ("gpg key", |_, t| gpg::run(t)),
+        ("secure boot keys", |_, t| secure_boot_keys::run(t)),
     ];
     let failed: Vec<String> = parts
         .into_iter()

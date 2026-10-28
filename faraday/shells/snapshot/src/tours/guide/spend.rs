@@ -8,7 +8,7 @@ use faraday_shell_api::{App, Event};
 
 /// `bytes`, a PSBT, held up to the camera now open as animated UR
 /// parts until the camera closes; a shot named `mid` at the second part.
-fn show_psbt(t: &mut Tour, bytes: &[u8], mid: Option<&str>) -> Result<(), String> {
+pub(super) fn show_psbt(t: &mut Tour, bytes: &[u8], mid: Option<&str>) -> Result<(), String> {
     crate::tours::site_tour::camera(t);
     let mut enc = faraday_codec::ur::Encoder::psbt(bytes, 120).map_err(|e| format!("{e:?}"))?;
     let mut parts = 0;
