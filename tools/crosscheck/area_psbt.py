@@ -763,11 +763,13 @@ class Psbt(Area):
         if rng.random() < 0.1:
             self.read(raw, 2 - version)
 
-    def run(self):
-        self.known = 0
+    LOOPS = (("corpus", 1500),)
+
+    def prelude(self):
         self.published()
-        for _ in range(self.cases(1500)):
-            self.corpus_case()
+
+    def case_corpus(self):
+        self.corpus_case()
 
 
 def _says_v2(raw):

@@ -376,15 +376,18 @@ class Miniscript(Area):
             return nodes[shape]
         return ms.TreeNode(self.bip380_tree(shape[0], nodes), self.bip380_tree(shape[1], nodes))
 
-    def run(self):
+    LOOPS = (("corpus", 250),)
+
+    def prelude(self):
         self.core_vectors()
         self.core_insane_scripts()
-        for _ in range(self.cases(250)):
-            test = self.rng.random() < 0.6
-            if self.rng.random() < 0.55:
-                self.segwit_case(test)
-            else:
-                self.taproot_case(test)
+
+    def case_corpus(self):
+        test = self.rng.random() < 0.6
+        if self.rng.random() < 0.55:
+            self.segwit_case(test)
+        else:
+            self.taproot_case(test)
 
 
 def descriptor_sum(desc, rng):

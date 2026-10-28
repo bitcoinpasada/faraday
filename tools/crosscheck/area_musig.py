@@ -6,10 +6,32 @@ sessions: keys, tweaks, nonces, partial signatures, their verification
 be a valid BIP-340 signature under the tweaked aggregate key.
 """
 
+import functools
+
 from common import Area, as_verify, use_reference, vectors
 
 use_reference("bip327")
 import reference as R  # noqa: E402
+
+# The reference multiplies the same point by the same number many times
+# over in a session (each signer's key, the aggregate key again for every
+# partial signature and its check), and spends nearly all its time there.
+# `point_mul` is a pure function of a point, a tuple of two integers or
+# None, and an integer, and its answer a tuple or None, nothing the
+# caller can change: kept answers are the answers it would compute again.
+# The reference's own functions call it by its module name, so they see
+# this one; its file is unchanged. About three times faster.
+_point_mul = R.point_mul
+_kept_point_mul = functools.lru_cache(maxsize=1 << 14)(_point_mul)
+
+
+def point_mul(P, n):
+    if (P is None or type(P) is tuple) and type(n) is int:
+        return _kept_point_mul(P, n)
+    return _point_mul(P, n)
+
+
+R.point_mul = point_mul
 
 
 def h(b):
@@ -225,7 +247,10 @@ class Musig(Area):
             rand = self.randbytes(32) if rng.random() < 0.5 else None
             self.det_sign(sks[0], others, pks, tweaks, xonly, msg, rand)
 
-    def run(self):
+    LOOPS = (("session", 20),)
+
+    def prelude(self):
         self.published()
-        for _ in range(self.cases(20)):
-            self.session()
+
+    def case_session(self):
+        self.session()

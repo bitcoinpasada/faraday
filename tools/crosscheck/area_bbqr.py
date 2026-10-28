@@ -247,10 +247,13 @@ class Bbqr(Area):
                 raise AssertionError(f"Faraday now reads {frame!r}, which it refused")
             self.known += 1
 
-    def run(self):
+    LOOPS = (("corpus", 1500),)
+
+    def prelude(self):
         check_capacities()
         frame = "B$2P0100" + "A" * (4296 - 8)
         self.known_difference([frame], "a 4,296-character frame")
         self.specter_known()
-        for _ in range(self.cases(1500)):
-            self.corpus_case()
+
+    def case_corpus(self):
+        self.corpus_case()

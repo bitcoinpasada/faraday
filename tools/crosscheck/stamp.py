@@ -123,8 +123,19 @@ def digest():
     return h.hexdigest()
 
 
-def write(seed, scale, seconds):
+def interpreter(path):
+    """`implementation version` of a Python, asked."""
+    import subprocess
+    out = subprocess.run([path, "-I", "-c", "import platform; print("
+                          "platform.python_implementation(), platform.python_version())"],
+                         capture_output=True, text=True)
+    return out.stdout.strip() or "unknown"
+
+
+def write(seed, scale, seconds, jobs=1, interpreters=()):
     refs = hashlib.sha256((ROOT / "tools/crosscheck/references.sha256").read_bytes()).hexdigest()
+    workers = ", ".join(interpreter(p) for p in interpreters[1:])
+    workers = f"workers {jobs}" + (f"; {workers} for the areas it speeds" if workers else "") + "\n"
     STAMP.write_text(
         "# The last passing crypto cross-check (`just crosscheck`, F79).\n"
         "# `just lint` fails when `inputs` no longer matches the crypto sources,\n"
@@ -135,6 +146,7 @@ def write(seed, scale, seconds):
         f"{distribution_versions()}"
         f"seed {seed}\n"
         f"scale {scale}\n"
+        f"{workers}"
         f"seconds {seconds}\n"
     )
 

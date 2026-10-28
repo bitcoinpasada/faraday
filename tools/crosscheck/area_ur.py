@@ -98,10 +98,6 @@ def decode(parts):
 class Ur(Area):
     name = "ur"
 
-    def __init__(self, *a):
-        super().__init__(*a)
-        self.further = 0
-
     def encode(self, kind, data, fragment_len, count, expected=None):
         return self.compare("ur.encode", {"kind": kind, "data": bytes(data).hex(),
                                           "fragment_len": fragment_len, "count": count},
@@ -123,7 +119,8 @@ class Ur(Area):
         sent = {"type": TYPES[kind], "data": bytes(data).hex()} if kind else None
         if (got[0] == "ok" and got[1]["complete"] and not ref[1]["complete"]
                 and sent is not None and got[1]["message"] == sent):
-            self.further += 1
+            # Counted in the run's output as a known difference.
+            self.known += 1
             return got
         raise Mismatch(self.name, "ur.decode", req, got, ref)
 
@@ -193,9 +190,10 @@ class Ur(Area):
         elif r < 0.8:
             self.single(text[:rng.randrange(len(text))])
 
-    def run(self):
+    LOOPS = (("corpus", 600),)
+
+    def prelude(self):
         self.published()
-        for _ in range(self.cases(600)):
-            self.corpus_case()
-        # Counted in the run's output as known differences.
-        self.known = self.further
+
+    def case_corpus(self):
+        self.corpus_case()

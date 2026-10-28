@@ -892,48 +892,59 @@ class Vault(Area):
                 raise Mismatch(self.name, "vault.decode", {"case": case["case"]}, got, want,
                                "both differ from tools/vectors/vault/slots.json")
 
-    def run(self):
+    LOOPS = (("argon", 40), ("aead", 500), ("payload", 1500), ("records", 1500), ("vault", 25))
+
+    def prelude(self):
         self.published()
         self.settled()
+
+    def case_argon(self):
         rng = self.rng
-        for _ in range(self.cases(40)):
-            lanes = rng.choice([1, 1, 2, 4])
-            self.argon(self.randbytes(rng.randint(0, 64)),
-                       self.randbytes(rng.choice([16, 32, rng.randint(0, 40)])),
-                       rng.choice([8 * lanes, rng.randint(8 * lanes - 2, 300)]),
-                       rng.choice([1, 2, 3, rng.randint(0, 4)]), lanes if rng.random() < 0.9 else 0)
-        for _ in range(self.cases(500)):
-            key, nonce = self.randbytes(32), self.randbytes(24)
-            aad = self.randbytes(rng.choice([0, 13, 54, rng.randint(0, 200)]))
-            plain = self.randbytes(rng.choice([0, 1, 63, 64, 65, rng.randint(0, 1000),
-                                               rng.randint(0, 70000) if rng.random() < 0.02 else 7]))
-            sealed = self.need(self.seal(key, nonce, aad, plain), "seal")
-            ct, tag = bytes.fromhex(sealed["ciphertext"]), bytes.fromhex(sealed["tag"])
-            self.unseal(key, nonce, aad, ct, tag)
-            which = rng.randrange(4)
-            ct, tag, nonce, aad = [bytearray(x) for x in (ct, tag, nonce, aad)]
-            target = [ct, tag, nonce, aad][which]
-            if target:
-                target[rng.randrange(len(target))] ^= 1 << rng.randrange(8)
-            else:
-                aad.append(0)
-            self.unseal(key, bytes(nonce), bytes(aad), bytes(ct), bytes(tag))
-        for _ in range(self.cases(1500)):
-            self.payload_case()
-        for _ in range(self.cases(1500)):
-            records = self.records()
-            used = _used(records)
-            slot_len = used + rng.choice([0, 0, 1, 50]) - (1 if rng.random() < 0.1 else 0)
-            got = self.encode(records, slot_len)
-            if got[0] == "ok" and "plain" in got[1]:
-                self.decode(bytes.fromhex(got[1]["plain"]))
-            plain, _ = self.malformed(records)
-            self.decode(plain)
+        lanes = rng.choice([1, 1, 2, 4])
+        self.argon(self.randbytes(rng.randint(0, 64)),
+                   self.randbytes(rng.choice([16, 32, rng.randint(0, 40)])),
+                   rng.choice([8 * lanes, rng.randint(8 * lanes - 2, 300)]),
+                   rng.choice([1, 2, 3, rng.randint(0, 4)]), lanes if rng.random() < 0.9 else 0)
+
+    def case_aead(self):
+        rng = self.rng
+        key, nonce = self.randbytes(32), self.randbytes(24)
+        aad = self.randbytes(rng.choice([0, 13, 54, rng.randint(0, 200)]))
+        plain = self.randbytes(rng.choice([0, 1, 63, 64, 65, rng.randint(0, 1000),
+                                           rng.randint(0, 70000) if rng.random() < 0.02 else 7]))
+        sealed = self.need(self.seal(key, nonce, aad, plain), "seal")
+        ct, tag = bytes.fromhex(sealed["ciphertext"]), bytes.fromhex(sealed["tag"])
+        self.unseal(key, nonce, aad, ct, tag)
+        which = rng.randrange(4)
+        ct, tag, nonce, aad = [bytearray(x) for x in (ct, tag, nonce, aad)]
+        target = [ct, tag, nonce, aad][which]
+        if target:
+            target[rng.randrange(len(target))] ^= 1 << rng.randrange(8)
+        else:
+            aad.append(0)
+        self.unseal(key, bytes(nonce), bytes(aad), bytes(ct), bytes(tag))
+
+    def case_payload(self):
+        self.payload_case()
+
+    def case_records(self):
+        rng = self.rng
+        records = self.records()
+        used = _used(records)
+        slot_len = used + rng.choice([0, 0, 1, 50]) - (1 if rng.random() < 0.1 else 0)
+        got = self.encode(records, slot_len)
+        if got[0] == "ok" and "plain" in got[1]:
+            self.decode(bytes.fromhex(got[1]["plain"]))
+        plain, _ = self.malformed(records)
+        self.decode(plain)
+
+    def case_vault(self):
+        self.vault_case()
+
+    def coda(self):
         self.two_slots()
         for size in SLOT_SIZES[1:3]:
             self.vault_case(size)
-        for _ in range(self.cases(25)):
-            self.vault_case()
 
 
 def _used(records):

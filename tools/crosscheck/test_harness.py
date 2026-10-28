@@ -1,20 +1,32 @@
 #!/usr/bin/env python3
 """Tests of the cross-check harness itself, not of Faraday: the
-shortcuts it takes must give the answers the references give.
+shortcuts it takes must give the answers the references give, and the
+number of workers, the Python they run under and the progress it writes
+must not change a case, an answer or the report.
 
     python3 -I -B tools/crosscheck/test_harness.py      (`just crosscheck-test`)
 
-Standard library and the vendored references only; no Rust, no network.
+Standard library and the vendored references only; no Rust, no network:
+the pool's tests run areas of their own against a stand-in command
+written in Python. `crosscheck-identity.sh` runs the real areas with the
+Rust command under one and several workers and compares their reports.
 """
 
 import io
+import json
+import os
 import random
+import re
+import shutil
+import subprocess
 import sys
+import tempfile
 import time
 import unittest
 import pathlib
 
-sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+HERE = pathlib.Path(__file__).resolve().parent
+sys.path.insert(0, str(HERE))
 
 import area_tx  # noqa: E402
 from area_tx import M, CTransaction  # noqa: E402
@@ -165,6 +177,245 @@ class SignParticipation(unittest.TestCase):
             with self.assertRaises(A.Known) as refused:
                 A.ref_sign(raw, masters, "low_r", wallets)
             self.assertEqual(refused.exception.kind, "NoParticipatingKey")
+class MusigKept(unittest.TestCase):
+    """`area_musig` keeps the reference's point multiplications: a kept
+    answer is the one the reference computes again."""
+
+    def test_kept_answers_are_the_references(self):
+        import area_musig
+        R = area_musig.R
+        rng = random.Random("test-harness-musig")
+        points = [None, R.G] + [area_musig._point_mul(R.G, rng.randrange(1, R.n)) for _ in range(3)]
+        for _ in range(12):
+            P, k = rng.choice(points), rng.choice([0, 1, R.n - 1, R.n, rng.randrange(2**256)])
+            first = R.point_mul(P, k)
+            self.assertEqual(first, area_musig._point_mul(P, k))
+            self.assertEqual(R.point_mul(P, k), first)
+        self.assertIs(R.point_mul, area_musig.point_mul)
+
+
+class TaprootKept(unittest.TestCase):
+    """`area_taproot` keeps the reference's key tweaks: a kept answer is
+    the one the reference computes again, refusals included."""
+
+    def test_kept_answers_are_the_references(self):
+        import area_taproot as T
+        rng = random.Random("test-harness-taproot")
+        keys = [T.K.compute_xonly_pubkey(rng.randbytes(32))[0] for _ in range(3)]
+        keys.append(bytes(32))  # no point
+        tweaks = [rng.randbytes(32) for _ in range(3)] + [b"\xff" * 32]  # past the order
+        for _ in range(3):
+            for k in keys:
+                for t in tweaks:
+                    self.assertEqual(T.tweak_add_pubkey(k, t), T._tweak_add_pubkey(k, t))
+        self.assertIs(T.S.tweak_add_pubkey, T.tweak_add_pubkey)
+        with self.assertRaises(AssertionError):
+            T.tweak_add_pubkey(b"short", tweaks[0])
+
+
+STAND_IN = r'''#!/usr/bin/env python3
+"""The stand-in for the Rust command: sha256 and length, one request a
+line; told to sabotage an operation, it answers that one wrongly."""
+import hashlib, json, os, sys
+bad = os.environ.get("FARADAY_CROSSCHECK_SABOTAGE")
+for line in sys.stdin:
+    req = json.loads(line)
+    data = bytes.fromhex(req.get("data", ""))
+    if req["op"] == "fake.hash":
+        out = {"ok": {"h": hashlib.sha256(data).hexdigest()}}
+    elif req["op"] == "fake.len":
+        out = {"ok": {"n": len(data)}} if data[:1] != b"\xff" else {"err": "refused"}
+    else:
+        out = {"fatal": "unknown op"}
+    if bad == req["op"] and "ok" in out:
+        out = {"ok": {"wrong": True}}
+    out["id"] = req["id"]
+    print(json.dumps(out), flush=True)
+'''
+
+AREA_MODULE = r'''
+"""Areas of the harness's own tests: one that agrees, one whose answers
+lead to its next draws, one that disagrees at a case of its corpus."""
+import hashlib
+import pathlib
+import sys
+sys.path.insert(0, str(pathlib.Path(__file__).parent / "a"))
+import clash
+from common import Area
+
+assert clash.WHO == "a", "another area's clash"
+
+
+def h(data):
+    return {"h": hashlib.sha256(data).hexdigest()}
+
+
+def n(data):
+    if data[:1] == b"\xff":
+        raise ValueError("refused")
+    return {"n": len(data)}
+
+
+class Alpha(Area):
+    name = "alpha"
+    LOOPS = (("corpus", 300), ("chain", 40))
+
+    def prelude(self):
+        for d in (b"", b"abc", bytes(64)):
+            self.compare("fake.hash", {"data": d.hex()}, lambda: h(d))
+        self.compare("fake.len", {"data": "ff"}, lambda: n(b"\xff"))
+
+    def case_corpus(self):
+        d = self.randbytes(self.rng.randint(0, 40))
+        self.compare("fake.hash", {"data": d.hex()}, lambda: h(d))
+        if self.rng.random() < 0.3:
+            self.compare("fake.len", {"data": d.hex()}, lambda: n(d))
+            self.known += d[:1] == b"\xff"
+
+    def case_chain(self):
+        d = self.randbytes(8)
+        for _ in range(self.rng.randint(1, 5)):
+            got = self.need(self.compare("fake.hash", {"data": d.hex()}, lambda: h(d)), "hash")
+            d = bytes.fromhex(got["h"])[: 1 + self.rng.randrange(32)]
+
+    def coda(self):
+        self.compare("fake.len", {"data": self.randbytes(5).hex()}, lambda: {"n": 5})
+
+
+class Beta(Area):
+    name = "beta"
+    LOOPS = (("corpus", 400),)
+
+    def prelude(self):
+        self.compare("fake.len", {"data": "00"}, lambda: n(b"\x00"))
+
+    def case_corpus(self):
+        d = self.randbytes(self.rng.randint(1, 20))
+        wrong = self.rng.randrange(150) == 0
+        self.compare("fake.len", {"data": d.hex()},
+                     lambda: {"n": len(d) + 1} if wrong else n(d))
+'''
+
+GAMMA_MODULE = r'''
+"""An area whose reference is a module named like another area's, as
+two areas' references are (`reference`, `bip32`): it must run in a
+process of its own."""
+import pathlib
+import sys
+sys.path.insert(0, str(pathlib.Path(__file__).parent / "g"))
+import clash
+from common import Area
+
+assert clash.WHO == "g", "another area's clash"
+
+
+class Gamma(Area):
+    name = "gamma"
+    LOOPS = (("corpus", 30),)
+
+    def prelude(self):
+        self.compare("fake.len", {"data": "00"}, lambda: {"n": 1})
+
+    def case_corpus(self):
+        d = self.randbytes(3)
+        self.compare("fake.len", {"data": d.hex()}, lambda: {"n": len(d)})
+'''
+
+AREAS_JSON = {
+    "alpha": ["fake_areas", "Alpha", "fake.hash", 2],
+    "beta": ["fake_areas", "Beta", "fake.len", 1],
+    "gamma": ["fake_gamma", "Gamma", "fake.len", 1],
+}
+
+TIMES = [(re.compile(r"\(\d+(\.\d+)? s\)"), "(T s)"), (re.compile(r"after \d+(\.\d+)? s"), "after T s")]
+
+
+def untimed(text):
+    for pattern, repl in TIMES:
+        text = pattern.sub(repl, text)
+    return text
+
+
+class Pool(unittest.TestCase):
+    """The pool against areas of its own: the report reads the same for
+    any number of workers and under PyPy, and the progress follows it."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.tmp = pathlib.Path(tempfile.mkdtemp(prefix="crosscheck-test-"))
+        (cls.tmp / "fake_areas.py").write_text(AREA_MODULE)
+        (cls.tmp / "areas.json").write_text(json.dumps(AREAS_JSON))
+        cls.rust = cls.tmp / "stand-in"
+        cls.rust.write_text(STAND_IN)
+        cls.rust.chmod(0o755)
+        (cls.tmp / "fake_gamma.py").write_text(GAMMA_MODULE)
+        for who in ("a", "g"):
+            (cls.tmp / who).mkdir()
+            (cls.tmp / who / "clash.py").write_text(f"WHO = {who!r}\n")
+
+    @classmethod
+    def tearDownClass(cls):
+        shutil.rmtree(cls.tmp)
+
+    def run_crosscheck(self, *args, progress=None, python=sys.executable):
+        cmd = [python, "-I", "-B", str(HERE / "crosscheck.py"), "--rust", str(self.rust),
+               "--test-areas", str(self.tmp), "--allow-network", "--seed", "test-seed",
+               "--progress", str(progress or ""), *args]
+        return subprocess.run(cmd, capture_output=True, text=True, timeout=600)
+
+    def test_the_report_is_the_same_for_any_number_of_workers(self):
+        runs = {j: self.run_crosscheck("--jobs", str(j), "--python", "cpython") for j in (1, 4, 7)}
+        one = untimed(runs[1].stdout)
+        self.assertIn("self-test alpha: caught a wrong fake.hash", one)
+        self.assertIn("self-test beta: caught a wrong fake.len", one)
+        self.assertIn("alpha: ", one)
+        self.assertIn("BETA" if False else "beta: MISMATCH", one)
+        self.assertRegex(one, r"at case corpus:\d+ ")
+        for j, r in runs.items():
+            self.assertEqual(r.returncode, 1, r.stderr)
+            self.assertEqual(untimed(r.stdout), one, f"--jobs {j}")
+
+    def test_a_case_alone_gives_its_disagreement(self):
+        r = self.run_crosscheck("--jobs", "3", "--python", "cpython")
+        case = re.search(r"at case (corpus:\d+) ", r.stdout).group(1)
+        report = re.search(r"DISAGREEMENT in beta.*?reference: [^\n]*", r.stdout, re.S).group(0)
+        alone = self.run_crosscheck("--area", "beta", "--case", case, "--no-self-test",
+                                    "--python", "cpython")
+        self.assertEqual(alone.returncode, 1)
+        self.assertIn(report, alone.stdout)
+
+    def test_the_progress_follows_the_run(self):
+        folder = self.tmp / "progress"
+        r = self.run_crosscheck("--jobs", "2", "--python", "cpython", "--log-every", "0.05",
+                                progress=folder)
+        log = (folder / "progress.log").read_text()
+        # Between events, a line on the whole run at the interval asked.
+        self.assertRegex(log, r"run: \d+ of 770 cases, [\d.]+ a second, \d of 2 workers busy")
+        for line in ("crosscheck: seed test-seed", "self-test: 3 areas",
+                     "self-test alpha: caught a wrong fake.hash", "self-test: every area caught",
+                     "run: 3 areas", "gamma: done, 30 of 30 cases", "alpha: started, 340 cases", "beta: started, 400 cases",
+                     "alpha: done, 340 of 340 cases", "beta: DISAGREEMENT at case corpus:",
+                     "beta: MISMATCH at case corpus:", "crosscheck: FAILED"):
+            self.assertIn(line, log)
+        p = json.loads((folder / "progress.json").read_text())
+        self.assertEqual(p["phase"], "failed")
+        self.assertEqual(p["areas"]["alpha"]["state"], "done")
+        self.assertEqual(p["areas"]["alpha"]["cases_done"], 340)
+        self.assertEqual(p["areas"]["beta"]["state"], "failed")
+        self.assertEqual((folder / "report.txt").read_text(), r.stdout)
+        status = subprocess.run([sys.executable, "-I", str(HERE / "status.py"), "--dir",
+                                 str(folder)], capture_output=True, text=True)
+        self.assertIn("crosscheck: failed; seed test-seed", status.stdout)
+        self.assertIn("DISAGREEMENT", status.stdout)
+        # Writing the progress changes nothing in the report.
+        quiet = self.run_crosscheck("--jobs", "2", "--python", "cpython")
+        self.assertEqual(untimed(quiet.stdout), untimed(r.stdout))
+
+    @unittest.skipUnless(shutil.which("pypy3"), "no pypy3 on the PATH")
+    def test_pypy_gives_the_same_report(self):
+        cpython = self.run_crosscheck("--jobs", "3", "--python", "cpython")
+        pypy = self.run_crosscheck("--jobs", "3", "--python", "pypy")
+        self.assertEqual(untimed(pypy.stdout), untimed(cpython.stdout))
 
 
 if __name__ == "__main__":

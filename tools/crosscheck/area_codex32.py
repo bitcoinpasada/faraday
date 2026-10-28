@@ -406,9 +406,12 @@ class Codex32(Area):
         self.compare("codex32.identifier_for", {"fingerprint": fp.hex()},
                      lambda: {"identifier": u5_to_chars(convertbits(fp, 8, 5)[:4])})
 
-    def run(self):
+    LOOPS = (("corpus", 1000),)
+
+    def prelude(self):
         self.published()
-        for _ in range(self.cases(1000)):
-            self.corpus_case()
-            self.sheets_case()
-            self.identifier()
+
+    def case_corpus(self):
+        self.corpus_case()
+        self.sheets_case()
+        self.identifier()

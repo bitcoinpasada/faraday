@@ -180,9 +180,11 @@ class Bip39(Area):
     def entropy_length_case(self, lang):
         self.from_entropy(lang, self.randbytes(self.rng.choice([0, 12, 15, 17, 33, 64])))
 
-    def run(self):
-        self.known = 0
+    LOOPS = (("corpus", 3000),)
+
+    def prelude(self):
         self.published()
         self.known_differences()
-        for _ in range(self.cases(3000)):
-            self.corpus_case()
+
+    def case_corpus(self):
+        self.corpus_case()

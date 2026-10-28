@@ -185,7 +185,10 @@ class Bip32(Area):
         if rng.random() < 0.2:
             self.derive_pub(got["xpub"], suffix + [HARDENED + rng.randrange(HARDENED)])
 
-    def run(self):
+    LOOPS = (("corpus", 400),)
+
+    def prelude(self):
         self.published()
-        for _ in range(self.cases(400)):
-            self.corpus_case()
+
+    def case_corpus(self):
+        self.corpus_case()

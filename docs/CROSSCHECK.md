@@ -156,8 +156,24 @@ disagreement, naming the operation, the inputs and both results.
 
 The inputs are every published vector under `tools/vectors/` and a
 corpus of random inputs drawn from a fixed seed, so that a failure is
-reproduced by running again. Each area runs in its own process, in
-parallel. Secrets in the cross-check are test data only.
+reproduced by running again. Secrets in the cross-check are test data
+only.
+
+Every corpus case draws from a random stream of its own, seeded with the
+run's seed, its area, its loop and its number (owner, 2026-10-27: until
+then each area drew all its cases from one stream, and seeds from before
+reproduce on their own release tags). Each area is cut into batches, its
+published vectors and its corpus loops by case number, and a pool of
+workers, one a core unless told otherwise, takes them from one queue,
+the heaviest areas' first, so every core is busy until the end. The
+answers are put back in case order: an area's result is its first
+batch in case order that did not pass, as one worker running every case
+in turn would give it, so the report, the counts and the verdict are the
+same for any number of workers and under CPython or PyPy, and a run
+anyone makes with a release's seed and scale gives that release's
+report. The run writes its progress as it goes (`out/crosscheck/`,
+`just crosscheck-status`); the README says how to watch it, how much
+memory a worker takes and how to run it under PyPy.
 
 ### 10.2 When it runs
 
@@ -186,15 +202,15 @@ parallel. Secrets in the cross-check are test data only.
 Each run has a time budget, and each area's corpus is sized to fit it,
 so adding an area does not lengthen the run much.
 
-- The stamp run, all twenty-six areas in parallel on the build
-  machine (2026-10-26, shared with other work): 147 s, the slowest area
-  MuSig2 at 145 s; signed messages 128 s, BIP-39 111 s, vault 56 s;
-  PSBT signing and finalizing 82 s (205 PSBTs signed, 342 inputs
-  finalized, 135 transactions extracted), taproot trees 115 s,
-  miniscript 67 s; own randomness 11 s. Pure-Python curve arithmetic takes about 5 to 30 ms
-  an operation, so an area gets a few thousand random cases.
-- The run before a release: about ten times the cases, estimated at 30
-  to 60 minutes.
+- The stamp run, on twelve workers on the build machine (2026-10-27):
+  89 s, about 1,000 s of work; signed messages 116 s of it, BIP-39 77 s,
+  taproot trees 82 s, codex32 45 s, MuSig2 35 s (it keeps the
+  reference's point multiplications, four times faster with the same
+  answers). Pure-Python curve arithmetic takes about 5 to 30 ms an
+  operation, so an area gets a few thousand random cases.
+- The run before a release: ten times the cases, 465,000 corpus cases,
+  about 10 minutes on twelve workers (7,400 s of work), the slowest area
+  no longer setting the length of the run.
 
 ### 10.4 Offline, and pinned
 

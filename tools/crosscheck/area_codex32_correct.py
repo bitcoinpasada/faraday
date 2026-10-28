@@ -116,7 +116,7 @@ class Codex32Correct(Area):
             b[i] = "?"
         return "".join(b)
 
-    def case(self):
+    def corpus_case(self):
         rng = self.rng
         chars = rng.choice(list(LENGTHS) + [48, 48, 74, 127])
         s = self.string(chars)
@@ -155,7 +155,10 @@ class Codex32Correct(Area):
             text = text.upper()
         self.correct(text, held)
 
-    def run(self):
+    LOOPS = (("corpus", 10000),)
+
+    def prelude(self):
         self.published()
-        for _ in range(self.cases(10000)):
-            self.case()
+
+    def case_corpus(self):
+        self.corpus_case()

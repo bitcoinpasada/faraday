@@ -364,10 +364,13 @@ class SeedQR(Area):
             data = data[:j] + rng.choice([b"a", b"#", b"\x00"]) + data[j + 1:]
         self.qr(mode, data, rng.randrange(4), rng.choice([40, 40, rng.randint(1, 40)]))
 
-    def run(self):
+    LOOPS = (("corpus", 800),)
+
+    def prelude(self):
         self.published()
         self.codex32qr_profile()
-        for _ in range(self.cases(800)):
-            self.corpus_case()
-            if self.rng.random() < 0.25:
-                self.codex32qr_case()
+
+    def case_corpus(self):
+        self.corpus_case()
+        if self.rng.random() < 0.25:
+            self.codex32qr_case()

@@ -278,8 +278,10 @@ class Tx(Area):
                     kw["leaf"] = self.random_script()
                 self.sighash(mode, tx, index, ht, **kw)
 
-    def run(self):
-        self.known = 0
+    LOOPS = (("corpus", 3000),)
+
+    def prelude(self):
         self.published()
-        for _ in range(self.cases(3000)):
-            self.corpus_case()
+
+    def case_corpus(self):
+        self.corpus_case()

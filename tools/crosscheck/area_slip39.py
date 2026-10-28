@@ -155,9 +155,12 @@ class Slip39(Area):
             op = rng.choice(["encrypt", "decrypt"])
             self.cipher(op, secret, passphrase, identifier, extendable, e)
 
-    def run(self):
+    LOOPS = (("corpus", 1500),)
+
+    def prelude(self):
         self.published()
         self.known_differences()
         self.limits()
-        for _ in range(self.cases(1500)):
-            self.corpus_case()
+
+    def case_corpus(self):
+        self.corpus_case()

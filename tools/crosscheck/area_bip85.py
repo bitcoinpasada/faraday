@@ -115,8 +115,11 @@ class Bip85(Area):
         if rng.random() < 0.1:
             self.check("wif", xprv, 2**31 + rng.randrange(2**31))
 
-    def run(self):
+    LOOPS = (("corpus", 3000),)
+
+    def prelude(self):
         self.published()
-        for _ in range(self.cases(3000)):
-            self.corpus_case()
+
+    def case_corpus(self):
+        self.corpus_case()
 

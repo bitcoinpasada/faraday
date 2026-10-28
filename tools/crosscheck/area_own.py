@@ -282,7 +282,10 @@ class Own(Area):
             return fresh(self.randbytes(rng.randint(0, 40)))
         return COUNTS
 
-    def run(self):
+    LOOPS = (("session", 400),)
+
+    def prelude(self):
         self.fixed()
-        for _ in range(self.cases(400)):
-            self.session([self.random_step() for _ in range(self.rng.randint(1, 24))])
+
+    def case_session(self):
+        self.session([self.random_step() for _ in range(self.rng.randint(1, 24))])

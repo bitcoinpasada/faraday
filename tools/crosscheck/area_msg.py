@@ -566,12 +566,14 @@ class Msg(Area):
         ]:
             self.verify(address, "Hello World", sig, ("ok", {"refused": want}))
 
-    def run(self):
-        self.known = 0
+    LOOPS = (("corpus", 600),)
+
+    def prelude(self):
         self.published()
         self.found()
-        for _ in range(self.cases(600)):
-            self.corpus_case()
+
+    def case_corpus(self):
+        self.corpus_case()
 
 
 def _try(fn):

@@ -348,8 +348,11 @@ class Entropy(Area):
         self.device(self.randbytes(32), n)
         self.mix([self.a_source() for _ in range(rng.choice([1, 2, 2, 3, 4, 5, 6]))], n)
 
-    def run(self):
+    LOOPS = (("corpus", 3000),)
+
+    def prelude(self):
         self.published()
         self.counts()
-        for _ in range(self.cases(3000)):
-            self.corpus_case()
+
+    def case_corpus(self):
+        self.corpus_case()

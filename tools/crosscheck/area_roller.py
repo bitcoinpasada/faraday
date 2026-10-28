@@ -306,8 +306,11 @@ class Roller(Area):
                 rolls.append(rng.randint(1, faces))
         self.sheet(faces, rolls)
 
-    def run(self):
+    LOOPS = (("corpus", 3000),)
+
+    def prelude(self):
         self.known_answers()
         self.dice_sizes()
-        for _ in range(self.cases(3000)):
-            self.corpus_case()
+
+    def case_corpus(self):
+        self.corpus_case()

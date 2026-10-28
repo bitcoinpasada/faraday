@@ -90,6 +90,8 @@ def lnd(entropy, network):
 
 
 class Lightning(Area):
+    # The published vectors, which corpus cases also draw from.
+    vectors = json.loads((ROOT / "tools/vectors/aezeed/vectors.json").read_text())
     name = "lightning"
 
     def ldk(self, seed, network, expected=None):
@@ -114,8 +116,7 @@ class Lightning(Area):
                                                  "cost": cost}, ref)
 
     def published(self):
-        v = json.loads((ROOT / "tools/vectors/aezeed/vectors.json").read_text())
-        self.vectors = v
+        v = self.vectors
         entropy = bytes.fromhex(v["entropy"])
         for a in v["aezeed"]:
             words = [ENGLISH.wordlist.index(w) for w in a["words"].split()]
@@ -162,7 +163,10 @@ class Lightning(Area):
             bad[i] = (bad[i] + rng.randint(1, 2047)) % 2048
             self.aezeed(bad, a["passphrase"].encode(), 16, ("err", None))
 
-    def run(self):
+    LOOPS = (("corpus", 400),)
+
+    def prelude(self):
         self.published()
-        for _ in range(self.cases(400)):
-            self.corpus_case()
+
+    def case_corpus(self):
+        self.corpus_case()

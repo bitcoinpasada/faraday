@@ -265,8 +265,11 @@ class Vanity(Area):
             start = rng.choice([0, rng.randrange(1000), H - rng.randint(1, 3)])
         self.grind(dial, key, base, script, prefix, network, start, budget)
 
-    def run(self):
+    LOOPS = (("corpus", 200),)
+
+    def prelude(self):
         self.published()
         self.edges()
-        for _ in range(self.cases(200)):
-            self.corpus_case()
+
+    def case_corpus(self):
+        self.corpus_case()

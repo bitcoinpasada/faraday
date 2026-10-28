@@ -269,10 +269,13 @@ class Silent(Area):
         if found != paid:
             raise AssertionError(f"{paid} outputs paid, {found} found")
 
-    def run(self):
+    LOOPS = (("corpus", 100),)
+
+    def prelude(self):
         self.published()
-        for _ in range(self.cases(100)):
-            self.corpus_case()
+
+    def case_corpus(self):
+        self.corpus_case()
 
 
 def _on_curve(x):

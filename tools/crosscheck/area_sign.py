@@ -1491,13 +1491,17 @@ class Sign(Area):
         raw = write([(b"\x00", tx.serialize_without_witness())], ins, [[]])
         self.sign(raw, [seed], [], "testnet", "low_r", {fp: master})
 
-    def run(self):
+    LOOPS = (("mismatched", 8), ("corpus", 120))
+
+    def prelude(self):
         self.bip174()
         self.fixtures()
-        for _ in range(self.cases(8)):
-            self.mismatched()
-        for _ in range(self.cases(120)):
-            self.corpus_case()
+
+    def case_mismatched(self):
+        self.mismatched()
+
+    def case_corpus(self):
+        self.corpus_case()
 
 
 def taproot_construct_safe(internal, items):

@@ -197,7 +197,10 @@ class Kdbx(Area):
         self.verify(data[:i] + bytes([data[i] ^ (1 << rng.randrange(8))]) + data[i + 1:],
                     passphrase)
 
-    def run(self):
+    LOOPS = (("corpus", 120),)
+
+    def prelude(self):
         self.published()
-        for _ in range(self.cases(120)):
-            self.corpus_case()
+
+    def case_corpus(self):
+        self.corpus_case()

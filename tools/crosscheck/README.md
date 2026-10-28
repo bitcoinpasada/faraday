@@ -8,10 +8,16 @@ and both answers.
 
 ## Running it
 
-    just crosscheck              the stamp run: fixed seed, about 3 to 4 minutes
+    just crosscheck              the stamp run: fixed seed, about 90 s on 12 threads
     just crosscheck --fresh      before a release: a new seed, ten times the cases
     just crosscheck --area musig one area (no stamp is written)
-    just crosscheck --seed S     reproduce a run
+    just crosscheck --seed S     reproduce a run (with its --scale: 10 for --fresh)
+    just crosscheck --jobs 4     four workers (default: one a core)
+    just crosscheck --area tx --seed S --scale 10 --case corpus:1234
+                                 one corpus case alone, as a report names it
+    just crosscheck-status       how far a running cross-check has got
+    just crosscheck-test         the harness's own tests (no Rust)
+    just crosscheck-identity     the same report under 1 and 4 workers (and PyPy)
 
 `run.sh` builds the Rust command with `cargo build --frozen` and runs
 `crosscheck.py` in a network namespace of its own (`unshare --user
@@ -28,8 +34,82 @@ entries, and fails with "crypto changed since the last cross-check: run
 with the change that made it pass. `python3 stamp.py show` lists what is
 hashed.
 
-Under `--fresh`, a disagreement is kept in `found/` with its seed and
-inputs, to become a vector.
+Under `--fresh`, a disagreement is kept in `found/` with its seed,
+case and inputs, to become a vector.
+
+## Workers, and why the report does not depend on them
+
+Each area is three parts: its prelude (the published vectors and fixed
+cases), its corpus loops (`LOOPS` in the area), and a coda. Every corpus
+case draws from a random stream of its own, seeded with
+`<seed>:<area>:<loop>:<case number>`, so a case is the same whichever
+process runs it and whatever ran before it. The run cuts each loop into
+at most 50 batches by case number and starts a pool of workers, one a
+core unless `--jobs` says otherwise. A worker process serves one area
+(two areas' references import modules of one name, two `reference`s and
+two `bip32`s, which one process cannot hold); a freed worker keeps to
+its area while that area has about the most work left for each worker
+on it, and otherwise moves to the one that has, so the heaviest areas
+are spread over the most workers and every core stays busy to the end.
+The answers are put back together in case order: an area's result is
+its first batch, in case order, that did not pass, as if one worker had
+run its cases in turn and stopped at the first disagreement; an area
+whose loops cannot be read, or that ran fewer cases than planned, fails.
+The report, the counts and the verdict are therefore the same for any
+number of workers, on any machine, and a reviewer's run with a release's
+seed and scale gives the release's report. Only the seconds differ (an
+area's seconds are its batches' added together). `just
+crosscheck-identity` runs the real areas at a small scale under one and
+four workers, and under PyPy when it is found, and compares the reports
+byte for byte; `just crosscheck-test` does the same with areas of its
+own, without the Rust command.
+
+Seeds from before this (2026-10-27), when each area drew every case from
+one stream, reproduce their runs only on their own release tags.
+
+On the build machine (12 threads), the stamp run takes about 90 s and a
+`--fresh` run about 10 minutes, every worker busy until the last
+minute; the same work run an area a process took 15 minutes.
+
+Each worker is one Python process, with one Rust process beside it while
+it runs a batch, and keeps the processes of the last two areas it ran: a
+worker's Python took at most about 125 MB in a `--fresh` run, so the
+run needs about 250 MB a worker at most, 3 GB on twelve. On a machine
+short of memory, or shared with other work, give fewer: `--jobs 4`.
+
+### PyPy
+
+The references are pure Python. Under PyPy, `codex32` and `seedqr` run
+about twice as fast, and the areas whose time goes to big-integer `pow`
+(the curve arithmetic of `musig`, `sp`, `bip32` and the rest) run slower
+than under CPython. So when `pypy3` (3.11 or later) is on the `PATH`,
+the run gives PyPy those two areas (`--python auto`, the default), which
+takes a `--fresh` run from about 11 minutes to 10 on the build machine;
+`--python cpython` uses CPython alone, `--python pypy` (or a path to
+one) gives PyPy every area it can import (the `vault` and `kdbx` areas,
+which need the distribution's packages for CPython, stay on CPython).
+The answers and the report are the same either way, and the stamp
+records which Python ran what. PyPy is not needed: get it from the
+distribution (Debian and Ubuntu: `pypy3`; Fedora: `pypy3.11`; Arch:
+`pypy3`) or from pypy.org's downloads, checked against the SHA-256 on
+pypy.org/checksums.html, and put its `bin/` on the `PATH`.
+
+## Watching a run
+
+A run writes `out/crosscheck/`: `progress.log`, one line at each event
+(the build, each area's self-test, each area's start and end with its
+counts, each disagreement as it is found with its case number, the
+verdict) and a line on the whole run at least every ten seconds (cases
+done, cases a second, workers busy, an estimate of the time left);
+`progress.json`, the same state rewritten at most once a second; and
+`report.txt`, the report. From another terminal, or over ssh:
+
+    just crosscheck-status             the state now
+    just crosscheck-status --follow    again every five seconds until the run ends
+    just crosscheck-status --log       the log so far (or: tail -f out/crosscheck/progress.log)
+
+Writing them is a few small writes a second at most; it changes no case
+and no answer.
 
 ## The self-test
 
@@ -200,7 +280,8 @@ refused on reading.
 
 `python3` 3.11 or later (the standard library only: `tomllib`,
 `hashlib`), `unshare` from util-linux with unprivileged user namespaces
-allowed, and the Rust toolchain. Nothing is installed with pip. The
+allowed, and the Rust toolchain; PyPy 3.11 or later if it is to go
+faster (above). Nothing is installed with pip. The
 `vault` area needs the distribution's Argon2 and libsodium bindings,
 argon2-cffi and PyNaCl (Debian and Ubuntu: `python3-argon2`
 `python3-nacl`), and the `kdbx` area the distribution's pykeepass
@@ -213,11 +294,13 @@ run fails. A passing run writes their versions into the stamp.
 |---|---|
 | `Cargo.toml`, `src/` | `faraday-crosscheck`, the Rust command: one JSON request a line in, one answer out; never shipped |
 | `run.sh` | builds the command offline and runs `crosscheck.py` with no network |
-| `crosscheck.py` | the self-test, the areas in parallel, the stamp |
+| `crosscheck.py` | the self-test, the batches on the pool of workers, the progress, the report, the stamp |
+| `status.py` | reads a run's progress (`just crosscheck-status`) |
+| `identity.py` | the real areas under several worker counts and Pythons, reports compared (`just crosscheck-identity`) |
 | `common.py` | the Rust process, the comparison, the reference check |
 | `area_*.py` | one area each |
 | `btc.py` | Base58Check and BIP-32 written from the BIPs, which `bip32`, `addr`, `psbt`, `msg`, `sign` and `miniscript` share |
 | `miniscript_ref.py` | python-bip380 set up for `sign` and `miniscript`: its shims, RIPEMD-160 from the BIPs repository, and the scripts kept beside their miniscript text |
 | `references.sha256` | every vendored file the areas import or read, with its SHA-256 |
 | `stamp.py`, `stamp` | the stamp and its check |
-| `test_harness.py` | the harness's own tests (`just crosscheck-test`): where it reads a case more quickly than its reference, it reaches the reference's answer |
+| `test_harness.py` | the harness's own tests (`just crosscheck-test`): where it reads a case more quickly than its reference, it reaches the reference's answer; the report, the progress and a case run alone are the same for any number of workers and under PyPy |

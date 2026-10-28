@@ -26,16 +26,38 @@ with a leaf version"); `taproot_construct` asserts the first and does not
 check the second. A control block is 33 + 32m bytes with m at most 128.
 """
 
+import functools
 import json
 
 import btc
 from common import ROOT, Area, as_verify, use_reference
 
 use_reference("core")
+import test_framework.key as K  # noqa: E402
+import test_framework.script as S  # noqa: E402
 from test_framework import segwit_addr  # noqa: E402
-from test_framework.key import TaggedHash, tweak_add_pubkey  # noqa: E402
+from test_framework.key import TaggedHash  # noqa: E402
 from test_framework.messages import ser_string  # noqa: E402
 from test_framework.script import CScript, taproot_construct  # noqa: E402
+
+# A tree's output key is worked out again for each of its control blocks
+# and each one changed: the same key tweaked by the same tweak, a point
+# multiplication each time. `tweak_add_pubkey` is a pure function of two
+# byte strings, and its answer a pair of bytes and a bool, or None:
+# kept answers are the answers it would compute again. `script.py`
+# calls it by the name it imported, so that name is pointed here too;
+# the reference's files are unchanged. About 1.6 times faster.
+_tweak_add_pubkey = K.tweak_add_pubkey
+_kept_tweak = functools.lru_cache(maxsize=1 << 14)(_tweak_add_pubkey)
+
+
+def tweak_add_pubkey(key, tweak):
+    if type(key) is bytes and type(tweak) is bytes:
+        return _kept_tweak(key, tweak)
+    return _tweak_add_pubkey(key, tweak)
+
+
+K.tweak_add_pubkey = S.tweak_add_pubkey = tweak_add_pubkey
 
 TAPSCRIPT = 0xC0
 
@@ -205,36 +227,36 @@ class Taproot(Area):
             return [build(1, 0)], leaves
         return build(n, 0), leaves
 
-    def corpus(self):
-        for _ in range(self.cases(400)):
-            internal = self.random_key()
-            n = self.rng.randrange(0, 13)
-            items, leaves = ([], []) if n == 0 else self.random_tree(n)
-            raw = self.tree(internal, items, leaves)
-            if raw[0] != "ok":
-                raise AssertionError("both refused a valid tree")
-            out = raw[1]
-            output_key = bytes.fromhex(out["output_key"])
-            for (_, script, _), control in zip(leaves, out["control_blocks"]):
-                script, control = bytes.fromhex(script), bytes.fromhex(control)
-                self.verify(output_key, control, script)
-                self.broken_controls(output_key, control, script)
-        # Refusals: a key that is no point, an odd leaf version, 0x50.
-        for _ in range(self.cases(40)):
-            while True:
-                bad = self.randbytes(32)
-                try:
-                    btc.GE.from_bytes_xonly(bad)
-                except (ValueError, AssertionError):
-                    break
-            items, leaves = self.random_tree(self.rng.randrange(1, 4))
-            self.tree(bad, items, leaves)
-            items, leaves = self.random_tree(self.rng.randrange(1, 4))
-            j = self.rng.randrange(len(leaves))
-            version = self.rng.choice([0x50, self.rng.randrange(0, 256) | 1])
-            leaves[j][2] = version
-            items = self.renamed(items, j, version)
-            self.tree(self.random_key(), items, leaves)
+    def case_tree(self):
+        internal = self.random_key()
+        n = self.rng.randrange(0, 13)
+        items, leaves = ([], []) if n == 0 else self.random_tree(n)
+        raw = self.tree(internal, items, leaves)
+        if raw[0] != "ok":
+            raise AssertionError("both refused a valid tree")
+        out = raw[1]
+        output_key = bytes.fromhex(out["output_key"])
+        for (_, script, _), control in zip(leaves, out["control_blocks"]):
+            script, control = bytes.fromhex(script), bytes.fromhex(control)
+            self.verify(output_key, control, script)
+            self.broken_controls(output_key, control, script)
+
+    def case_refused(self):
+        """Refusals: a key that is no point, an odd leaf version, 0x50."""
+        while True:
+            bad = self.randbytes(32)
+            try:
+                btc.GE.from_bytes_xonly(bad)
+            except (ValueError, AssertionError):
+                break
+        items, leaves = self.random_tree(self.rng.randrange(1, 4))
+        self.tree(bad, items, leaves)
+        items, leaves = self.random_tree(self.rng.randrange(1, 4))
+        j = self.rng.randrange(len(leaves))
+        version = self.rng.choice([0x50, self.rng.randrange(0, 256) | 1])
+        leaves[j][2] = version
+        items = self.renamed(items, j, version)
+        self.tree(self.random_key(), items, leaves)
 
     def renamed(self, items, j, version):
         if isinstance(items, tuple):
@@ -261,6 +283,7 @@ class Taproot(Area):
         self.verify(output_key, control, script + b"\x51")
         self.verify(self.random_key(), control, script)
 
-    def run(self):
+    LOOPS = (("tree", 400), ("refused", 40))
+
+    def prelude(self):
         self.published()
-        self.corpus()

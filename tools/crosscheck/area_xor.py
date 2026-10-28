@@ -103,7 +103,10 @@ class Xor(Area):
         self.combine(lang, sentences[:1])
         self.split(lang, [self.randbytes(n) for _ in range(4)], self.randbytes(n))
 
-    def run(self):
+    LOOPS = (("corpus", 4000),)
+
+    def prelude(self):
         self.published()
-        for _ in range(self.cases(4000)):
-            self.corpus_case()
+
+    def case_corpus(self):
+        self.corpus_case()
