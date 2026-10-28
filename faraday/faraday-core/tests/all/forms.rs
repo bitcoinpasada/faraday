@@ -120,14 +120,14 @@ fn seed_xor_parts_combine_into_the_seeds_words() {
     let mut app = adding(3);
     typed(
         &mut app,
-        "float vendor rabbit upgrade alter globe right toddler window roof black rule",
+        "accident stock globe super snake hero sample law fit blade scale silly",
     );
     enter(&mut app);
     enter(&mut app);
     assert!(app.session.keys.is_empty(), "one part is not a split");
     typed(
         &mut app,
-        "icon weasel expose grace stand spike plastic high runway betray prevent axis",
+        "insect shoe rescue viable grab then adult rigid funny forget peace napkin",
     );
     enter(&mut app);
     enter(&mut app);
@@ -136,7 +136,7 @@ fn seed_xor_parts_combine_into_the_seeds_words() {
         .keys
         .add_words_with(
             &c,
-            "city apple they mesh stadium raw cabin material ecology put royal public",
+            "inner away stamp cliff position merge rubber series antique era gift force",
             "",
             "",
             None,

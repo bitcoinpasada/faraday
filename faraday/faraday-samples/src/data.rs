@@ -445,12 +445,12 @@ pub(crate) static KEYS: &[SampleKey] = &[
         size: SampleSize::Parts(2),
         listed: true,
         parts: &[
-            "float vendor rabbit upgrade alter globe right toddler window roof black rule",
-            "icon weasel expose grace stand spike plastic high runway betray prevent axis",
+            "accident stock globe super snake hero sample law fit blade scale silly",
+            "insect shoe rescue viable grab then adult rigid funny forget peace napkin",
         ],
-        combined: "city apple they mesh stadium raw cabin material ecology put royal public",
-        plain: Some([0xc9, 0xd6, 0x09, 0x4c]),
-        with_passphrase: Some([0x8b, 0x82, 0x02, 0x3c]),
+        combined: "inner away stamp cliff position merge rubber series antique era gift force",
+        plain: Some([0x1c, 0xc7, 0x8c, 0xa4]),
+        with_passphrase: Some([0x89, 0x3d, 0xf4, 0x82]),
         node: None,
     },
     SampleKey {
