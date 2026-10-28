@@ -31,6 +31,9 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
+use costs_lint::walk::{
+    crate_sources, flatten, is_test, last_ident, manifests, module_files, parse, rel, rust_files,
+};
 use syn::spanned::Spanned;
 use syn::visit::{self, Visit};
 
@@ -226,212 +229,6 @@ impl Findings {
     }
 }
 
-/// `path` relative to the repository root, with `/`.
-fn rel(root: &Path, path: &Path) -> String {
-    let p = path.strip_prefix(root).unwrap_or(path);
-    p.components()
-        .filter_map(|c| match c {
-            std::path::Component::Normal(s) => Some(s.to_string_lossy().into_owned()),
-            _ => None,
-        })
-        .collect::<Vec<_>>()
-        .join("/")
-}
-
-/// Every `src` directory of a crate in core and under `faraday/`.
-fn crate_sources(root: &Path) -> Vec<PathBuf> {
-    let mut out = Vec::new();
-    if let Ok(rd) = fs::read_dir(root.join("core")) {
-        for e in rd.flatten() {
-            let src = e.path().join("src");
-            if e.path().join("Cargo.toml").is_file() && src.is_dir() {
-                out.push(src);
-            }
-        }
-    }
-    for m in manifests(&root.join("faraday")) {
-        let src = m.parent().map(|d| d.join("src"));
-        if let Some(src) = src
-            && src.is_dir()
-        {
-            out.push(src);
-        }
-    }
-    out.sort();
-    out
-}
-
-/// Every `Cargo.toml` under `dir`, build output left out.
-fn manifests(dir: &Path) -> Vec<PathBuf> {
-    let mut out = Vec::new();
-    walk(dir, &mut |p| {
-        if p.file_name().is_some_and(|n| n == "Cargo.toml") {
-            out.push(p.to_path_buf());
-        }
-    });
-    out.sort();
-    out
-}
-
-/// Every `.rs` file under `dir`, build output left out.
-fn rust_files(dir: &Path) -> Vec<PathBuf> {
-    let mut out = Vec::new();
-    walk(dir, &mut |p| {
-        if p.extension().is_some_and(|e| e == "rs") {
-            out.push(p.to_path_buf());
-        }
-    });
-    out.sort();
-    out
-}
-
-fn walk(dir: &Path, f: &mut dyn FnMut(&Path)) {
-    let Ok(rd) = fs::read_dir(dir) else {
-        return;
-    };
-    for e in rd.flatten() {
-        let p = e.path();
-        let name = e.file_name();
-        if name == "target" || name.to_string_lossy().starts_with('.') {
-            continue;
-        }
-        if p.is_dir() {
-            walk(&p, f);
-        } else {
-            f(&p);
-        }
-    }
-}
-
-fn parse(path: &Path) -> Option<syn::File> {
-    let text = fs::read_to_string(path).ok()?;
-    match syn::parse_file(&text) {
-        Ok(f) => Some(f),
-        Err(e) => {
-            eprintln!("costs-lint: {} does not parse: {e}", path.display());
-            None
-        }
-    }
-}
-
-/// The files a crate's roots reach through `mod` declarations, each with
-/// whether it is compiled for tests only.
-fn module_files(root: &Path, src: &Path) -> Vec<(PathBuf, bool)> {
-    let mut roots = Vec::new();
-    for r in ["lib.rs", "main.rs"] {
-        if src.join(r).is_file() {
-            roots.push(src.join(r));
-        }
-    }
-    if let Ok(rd) = fs::read_dir(src.join("bin")) {
-        for e in rd.flatten() {
-            if e.path().extension().is_some_and(|x| x == "rs") {
-                roots.push(e.path());
-            }
-        }
-    }
-    let mut out = Vec::new();
-    let mut seen = BTreeSet::new();
-    for r in roots {
-        let dir = r.parent().map(Path::to_path_buf).unwrap_or_default();
-        reach(root, &r, dir, false, &mut out, &mut seen);
-    }
-    out
-}
-
-/// `file`, whose child modules live in `dir`, and the files it reaches.
-fn reach(
-    root: &Path,
-    file: &Path,
-    dir: PathBuf,
-    test: bool,
-    out: &mut Vec<(PathBuf, bool)>,
-    seen: &mut BTreeSet<PathBuf>,
-) {
-    if !seen.insert(file.to_path_buf()) {
-        return;
-    }
-    out.push((file.to_path_buf(), test));
-    let Some(ast) = parse(file) else {
-        return;
-    };
-    let base = file.parent().map(Path::to_path_buf).unwrap_or_default();
-    reach_items(root, &ast.items, &dir, &base, test, out, seen);
-}
-
-fn reach_items(
-    root: &Path,
-    items: &[syn::Item],
-    dir: &Path,
-    base: &Path,
-    test: bool,
-    out: &mut Vec<(PathBuf, bool)>,
-    seen: &mut BTreeSet<PathBuf>,
-) {
-    for item in items {
-        let syn::Item::Mod(m) = item else { continue };
-        let t = test || is_test(&m.attrs);
-        let name = m.ident.to_string();
-        if let Some((_, inner)) = &m.content {
-            reach_items(root, inner, &dir.join(&name), base, t, out, seen);
-            continue;
-        }
-        let file = if let Some(p) = path_attr(&m.attrs) {
-            base.join(p)
-        } else if dir.join(format!("{name}.rs")).is_file() {
-            dir.join(format!("{name}.rs"))
-        } else {
-            dir.join(&name).join("mod.rs")
-        };
-        if !file.is_file() {
-            continue;
-        }
-        let child_dir = if file.file_name().is_some_and(|n| n == "mod.rs") {
-            file.parent().map(Path::to_path_buf).unwrap_or_default()
-        } else {
-            file.with_extension("")
-        };
-        reach(root, &file, child_dir, t, out, seen);
-    }
-}
-
-fn path_attr(attrs: &[syn::Attribute]) -> Option<String> {
-    for a in attrs {
-        if a.path().is_ident("path")
-            && let syn::Meta::NameValue(nv) = &a.meta
-            && let syn::Expr::Lit(l) = &nv.value
-            && let syn::Lit::Str(s) = &l.lit
-        {
-            return Some(s.value());
-        }
-    }
-    None
-}
-
-/// Whether `attrs` compile the item for tests only: a `cfg` naming
-/// `test` (alone, or in `all`/`any` with the test kit's feature) and no
-/// `not`.
-fn is_test(attrs: &[syn::Attribute]) -> bool {
-    attrs.iter().any(|a| {
-        if !a.path().is_ident("cfg") {
-            return false;
-        }
-        let syn::Meta::List(l) = &a.meta else {
-            return false;
-        };
-        let words: Vec<String> = l.tokens.clone().into_iter().flat_map(flatten).collect();
-        words.iter().any(|w| w == "test") && !words.iter().any(|w| w == "not")
-    })
-}
-
-fn flatten(t: proc_macro2::TokenTree) -> Vec<String> {
-    match t {
-        proc_macro2::TokenTree::Group(g) => g.stream().into_iter().flat_map(flatten).collect(),
-        proc_macro2::TokenTree::Ident(i) => vec![i.to_string()],
-        _ => Vec::new(),
-    }
-}
-
 /// The first line of an item's doc, trimmed.
 fn doc_first_line(attrs: &[syn::Attribute]) -> Option<String> {
     for a in attrs {
@@ -457,14 +254,6 @@ fn is_compute_ref(ty: &syn::Type) -> bool {
         syn::Type::Reference(r) => last_ident(&r.elem).is_some_and(|i| i == "Compute"),
         syn::Type::Paren(p) => is_compute_ref(&p.elem),
         _ => false,
-    }
-}
-
-fn last_ident(ty: &syn::Type) -> Option<String> {
-    match ty {
-        syn::Type::Path(p) => p.path.segments.last().map(|s| s.ident.to_string()),
-        syn::Type::Paren(p) => last_ident(&p.elem),
-        _ => None,
     }
 }
 

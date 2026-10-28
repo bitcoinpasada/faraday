@@ -237,11 +237,24 @@ In every cryptographic crate, outside tests, a function is
    primitive crate, after the file's `use` lines are applied
    (`use sha2::{Digest, Sha256}` makes `Sha256::new` a primitive path).
    This finds `faraday-core`'s file hashes, the Starter's image hash in
-   `faraday/faraday-payload/src/decode.rs`, and every direct call.
+   `faraday/faraday-payload/src/decode.rs`, and every direct call. A
+   path into `bitcoin` or `secp256k1` counts whatever it names, a type
+   or a script builder as much as a signature check; closures and
+   `[[not_crypto]]` absorb what is not cryptographic. A path into
+   `faraday-crypto` counts unless its first name is one of the inventory's
+   `NOT_COMPUTING`: `work` (the compute token), `Secret`, `Zeroize`,
+   `ZeroizeOnDrop`, `Zeroizing`, `WipeOnFree`, `Pinned` and
+   `pin_failure_to_report`, which compute nothing. Without that, every
+   function that names `Compute` would meet rule 3.
 4. **Public reach** (the crates of rule 1): it is `pub` and, through
    calls in its own crate, reaches a function of rules 1 to 3. A new
    public function that wraps a hash is found even when it takes no
-   token.
+   token. `pub` is taken literally: a method of a trait impl is not
+   public here, and a function that already meets rule 1, 2 or 3 is not
+   also listed under rule 4.
+
+A function defined inside a function body, or inside a `macro_rules!`
+body, is not a function of its own to the inventory (§17).
 
 ### 4.3 What the inventory prints
 
@@ -253,6 +266,14 @@ function: its file, name, whether it is `#[ignore]`d, and the cfg it
 sits under. The Python checker, docs/crypto/check.py (new), reads these
 and the manifest.
 
+A function that meets no rule is printed too, with `"rules":[]`, when a
+cryptographic function of its crate calls it, directly or through others:
+the closure of §4.4 passes through such helpers, and their body hashes
+and callees are needed to fingerprint it. `--all` prints every function
+of every cryptographic crate. The summary by rule and crate goes to
+standard error, and the exit status is 1 when a source file did not
+parse, since the inventory is then incomplete.
+
 ### 4.4 Coverage
 
 An action covers its `functions` (the roots) and their **closure**: the
@@ -262,7 +283,10 @@ within the crate: a path call by its last two segments, a method call by
 its name, every function of that name in the crate taken. That
 over-approximates: a helper with a common name may fall into a closure it
 is not in, which only makes the fingerprint change more often; nothing
-is missed.
+is missed. A name passed as a value without a call (`.map(helper)`) is
+taken as a call; a local variable of the same name as a function is not.
+A call through a `use`d name is resolved through the file's `use` lines
+only: a glob import is not applied.
 
 Every cryptographic function (§4.2) must be covered by exactly one
 action, or listed as not cryptographic (§7). A function covered by none
@@ -286,11 +310,12 @@ computes may have changed (§5.2).
 A function's **body hash** is SHA-256 over its tokens as `syn` reads
 them, printed back with one space between tokens: its signature without
 its name, its generic bounds, its body, and the attributes other than
-`#[doc]`. So:
+`#[doc]`. A `,` that ends a group is left out. So:
 
 | Change | Body hash |
 |---|---|
 | `cargo fmt`, a line wrapped, blank lines | Same: tokens only. |
+| A trailing comma added or dropped (rustfmt does either) | Same: a `,` directly before a closing `)`, `]` or `}` is left out before hashing. |
 | A `//` comment, a doc comment | Same: comments are not tokens; `#[doc]` is left out. |
 | The function moved within its file, or to another file | Same; the entry's path no longer resolves, so the lint fails as untrue (§6), and the recipe re-points it with no review: "moved, body unchanged". |
 | The function renamed | Same, with the same failure and the same re-pointing. |
@@ -472,7 +497,12 @@ action's roots in `faraday-keys` and `core/` (app code reaches
 cryptography only there, KEYS §2), with the module it is in. The code
 map in `faraday/faraday-core/src/lib.rs` gives each module's screen; the
 checker fails when a screen whose code calls an action's root is not in
-that action's `screens`. A module that serves several screens (an area's
+that action's `screens`. A path call is resolved through the file's `use`
+lines. A method call is taken by its name, for a method of a type the
+calling file names in a `use` line or a path; without types, the name alone
+would take every `push` and `get` of a root of that name. A method
+called on a field whose type the file never names is therefore not listed.
+Each line says `path` or `method`. A module that serves several screens (an area's
 `mod.rs`) gives all of its area's screens; an action may narrow them
 with `screens_not = [{ screen, reason }]`, each counted with the
 not-crypto ratchet.
@@ -819,6 +849,14 @@ Reference.
 
 ## 17. What this does not catch
 
+- A function defined inside a `macro_rules!` body is not read: none is
+  defined there in a crate with a cryptographic function as of
+  2026-10-28. A function nested in another function's body is hashed as part of the outer one and
+  not listed on its own.
+- Trailing commas are normalised; other token changes rustfmt makes
+  (parentheses it adds or removes) change the hash.
+- A method call in `faraday-core` on a value whose type the file never
+  names is not a call site (§9.2).
 - A function generated by a macro, or reached only through a trait
   object or a function pointer, is invisible to the walker; the
   primitive it calls is still found where the macro's expansion is

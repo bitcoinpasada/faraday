@@ -7,10 +7,20 @@ license.workspace = true
 rust-version.workspace = true
 repository.workspace = true
 publish = false
+default-run = "costs-lint"
+
+[lib]
+path = "src/lib.rs"
 
 [[bin]]
 name = "costs-lint"
 path = "src/main.rs"
+
+# The crypto inventory (docs/CRYPTO-LEARN.md §4): the cryptographic
+# functions, their body hashes, closures and call sites, as JSON lines.
+[[bin]]
+name = "crypto-inventory"
+path = "src/crypto_inventory.rs"
 
 [dependencies]
 # Rust's own syntax, read as the compiler reads it. Already in the lock
