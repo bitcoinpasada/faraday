@@ -6,7 +6,9 @@ use crate::strings::{EN, fill};
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui, grouped};
 use crate::{Action, Screen};
-use faraday_draw::tokens::{BODY_M, BODY_S, BUTTON_H, LABEL_L, LABEL_M};
+use faraday_draw::tokens::{
+    BODY_M, BODY_S, BUTTON_H, DECODE_INDEX_W, DECODE_KIND_GAP, DECODE_VALUE_ROOM, LABEL_L, LABEL_M,
+};
 use faraday_draw::widgets::Icon;
 use faraday_ui::parts::{section_label, title, wrap_buttons};
 
@@ -110,6 +112,11 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         y += 36.0;
     }
     y += 18.0;
+    // Beside the navigation, the inputs and outputs are a table as wide as
+    // its columns (`docs/LAYOUT.md` §17): the number, the longest
+    // outpoint, address or line under one, the amount; no wider than the
+    // page's column.
+    let tw = if compact { w } else { table_w(ui, t, w) };
 
     section_label(
         ui,
@@ -121,7 +128,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     for (i, input) in t.inputs.iter().enumerate() {
         ui.text_mid_as((x, y, 26.0), BODY_S, Role::OnSurfaceVariant, &i.to_string());
         if let Some(a) = input.amount {
-            ui.text_right_as((x + w, y, 26.0), LABEL_L, Role::OnSurface, &btc(a));
+            ui.text_right_as((x + tw, y, 26.0), LABEL_L, Role::OnSurface, &btc(a));
         }
         if compact {
             // The outpoint whole, under its number and amount.
@@ -133,47 +140,11 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 &input.outpoint,
             ) + 4.0;
         } else {
-            let op = ui.fit_as(BODY_M.mono(), &input.outpoint, w - 220.0);
+            let op = ui.fit_as(BODY_M.mono(), &input.outpoint, tw - DECODE_VALUE_ROOM);
             ui.text_mid_as((x + 26.0, y, 26.0), BODY_M.mono(), Role::OnSurface, &op);
             y += 26.0;
         }
-        let wit = if input.witness.is_empty() {
-            EN.decode_no_witness.to_string()
-        } else {
-            let sizes: Vec<String> = input
-                .witness
-                .iter()
-                .map(|h| (h.len() / 2).to_string())
-                .collect();
-            fill(
-                EN.decode_witness_bytes,
-                &[
-                    &input.witness.len().to_string(),
-                    (if input.witness.len() == 1 {
-                        EN.decode_item
-                    } else {
-                        EN.decode_items
-                    }),
-                    &sizes.join(", ").to_string(),
-                ],
-            )
-        };
-        let line = fill(
-            EN.decode_sequence,
-            &[
-                &input.sequence.to_string(),
-                &wit.to_string(),
-                &(if input.script_sig > 0 {
-                    format!(
-                        " {}",
-                        fill(EN.decode_script_sig_bytes, &[&input.script_sig.to_string()])
-                    )
-                } else {
-                    String::new()
-                })
-                .to_string(),
-            ],
-        );
+        let line = input_line(input);
         if compact {
             let lh = ui.wrap_as(
                 (x + 26.0, y + 2.0, w - 26.0),
@@ -185,9 +156,9 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             y += lh + 12.0;
             continue;
         }
-        let line = ui.fit_as(BODY_S, &line, w - 26.0);
+        let line = ui.fit_as(BODY_S, &line, tw - DECODE_INDEX_W);
         ui.text_mid_as((x + 26.0, y, 22.0), BODY_S, Role::OnSurfaceVariant, &line);
-        ui.rule(x, y + 26.0, w, Role::OutlineVariant);
+        ui.rule(x, y + 26.0, tw, Role::OutlineVariant);
         y += 30.0;
     }
     y += 18.0;
@@ -201,21 +172,13 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     y += 28.0;
     for (i, out) in t.outputs.iter().enumerate() {
         ui.text_mid_as((x, y, 26.0), BODY_S, Role::OnSurfaceVariant, &i.to_string());
-        ui.text_right_as((x + w, y, 26.0), LABEL_L, Role::OnSurface, &btc(out.amount));
-        let (whose, tone) = match &out.ours {
-            Some((name, true, n)) => (
-                fill(EN.decode_change_back, &[&name.to_string(), &n.to_string()]),
-                Role::Ok,
-            ),
-            Some((name, false, n)) => (
-                fill(
-                    EN.decode_back_to_receive,
-                    &[&name.to_string(), &n.to_string()],
-                ),
-                Role::Ok,
-            ),
-            None => (EN.decode_pays_from_loaded.to_string(), Role::Warning),
-        };
+        ui.text_right_as(
+            (x + tw, y, 26.0),
+            LABEL_L,
+            Role::OnSurface,
+            &btc(out.amount),
+        );
+        let (whose, tone) = whose(out);
         if compact {
             // The address whole, then its kind, then whose it is.
             y += 26.0;
@@ -238,7 +201,11 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             y += wh + 12.0;
             continue;
         }
-        let addr = ui.fit_as(BODY_M.mono(), &grouped(&out.address), w - 220.0);
+        let addr = ui.fit_as(
+            BODY_M.mono(),
+            &grouped(&out.address),
+            tw - DECODE_VALUE_ROOM,
+        );
         ui.text_mid_as((x + 26.0, y, 26.0), BODY_M.mono(), Role::OnSurface, &addr);
         y += 26.0;
         let kw = ui.text_mid_as(
@@ -248,7 +215,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             out.kind,
         );
         ui.text_mid_as((x + 40.0 + kw, y, 22.0), LABEL_M, tone, &whose);
-        ui.rule(x, y + 26.0, w, Role::OutlineVariant);
+        ui.rule(x, y + 26.0, tw, Role::OutlineVariant);
         y += 30.0;
     }
     y += 18.0;
@@ -285,4 +252,93 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     ui.c.pop_clip();
     app.scroll.content_h().set(y - top + 40.0);
     ui.report_scroll(clip, app.scroll.content_h().get() - h);
+}
+
+/// An input's line under its outpoint: its sequence, its witness and its
+/// script sig's size.
+fn input_line(input: &crate::decode::DecodedInput) -> String {
+    let wit = if input.witness.is_empty() {
+        EN.decode_no_witness.to_string()
+    } else {
+        let sizes: Vec<String> = input
+            .witness
+            .iter()
+            .map(|h| (h.len() / 2).to_string())
+            .collect();
+        fill(
+            EN.decode_witness_bytes,
+            &[
+                &input.witness.len().to_string(),
+                (if input.witness.len() == 1 {
+                    EN.decode_item
+                } else {
+                    EN.decode_items
+                }),
+                &sizes.join(", ").to_string(),
+            ],
+        )
+    };
+    fill(
+        EN.decode_sequence,
+        &[
+            &input.sequence.to_string(),
+            &wit.to_string(),
+            &(if input.script_sig > 0 {
+                format!(
+                    " {}",
+                    fill(EN.decode_script_sig_bytes, &[&input.script_sig.to_string()])
+                )
+            } else {
+                String::new()
+            })
+            .to_string(),
+        ],
+    )
+}
+
+/// Whose an output is, and its colour: change or a receive address of a
+/// wallet loaded here, or a payment away from them.
+fn whose(out: &crate::decode::DecodedOutput) -> (String, Role) {
+    match &out.ours {
+        Some((name, true, n)) => (
+            fill(EN.decode_change_back, &[&name.to_string(), &n.to_string()]),
+            Role::Ok,
+        ),
+        Some((name, false, n)) => (
+            fill(
+                EN.decode_back_to_receive,
+                &[&name.to_string(), &n.to_string()],
+            ),
+            Role::Ok,
+        ),
+        None => (EN.decode_pays_from_loaded.to_string(), Role::Warning),
+    }
+}
+
+/// The inputs' and outputs' table on the wide layout: as wide as its
+/// columns, the number, the longest outpoint or address with the room
+/// for the amount after it, or the longest line under one, at most `w`.
+fn table_w(ui: &mut Ui, t: &crate::decode::Decoded, w: f32) -> f32 {
+    let mono = BODY_M.mono();
+    let values = t
+        .inputs
+        .iter()
+        .map(|i| ui.measure_as(mono, &i.outpoint))
+        .chain(
+            t.outputs
+                .iter()
+                .map(|o| ui.measure_as(mono, &grouped(&o.address))),
+        )
+        .fold(0.0, f32::max)
+        + DECODE_VALUE_ROOM;
+    let lines = t
+        .inputs
+        .iter()
+        .map(|i| ui.measure_as(BODY_S, &input_line(i)))
+        .chain(t.outputs.iter().map(|o| {
+            ui.measure_as(BODY_S, o.kind) + DECODE_KIND_GAP + ui.measure_as(LABEL_M, &whose(o).0)
+        }))
+        .fold(0.0, f32::max)
+        + DECODE_INDEX_W;
+    values.max(lines).min(w)
 }

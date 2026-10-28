@@ -495,3 +495,78 @@ fn a_psbt_without_the_amounts_does_not_disagree_with_one_that_has_them() {
         "{text}"
     );
 }
+
+/// Decode a transaction on a 1920 × 1080 window lays its outputs out as
+/// a table as wide as its columns (`docs/LAYOUT.md` §17): each output's
+/// amount stands just past the longest address or outpoint, not at the
+/// far end of the page's column.
+#[test]
+fn decodes_outputs_stand_at_their_columns_width_on_a_wide_window() {
+    use faraday_shell_api::{BootState, DisplayInfo, Event, SecureHardware};
+    let app = spending_finished();
+    let hex = app.spend().unwrap().spend.finished_hex().unwrap();
+    let mut app = with_inbox(vec![("broadcast-me.txt".to_string(), hex.into_bytes())]);
+    app.event(Event::Display(DisplayInfo {
+        width: 1920,
+        height: 1080,
+        dpi: 160,
+        inset_bottom: 0,
+        inset_top: 0,
+        buttons: 0,
+        camera_fixed: false,
+        secure: SecureHardware::None,
+        boot: BootState::Unknown,
+        memory_mib: None,
+    }));
+    app.press(Action::DecodeInbox(0));
+    let _ = app.frame();
+    let amounts: Vec<String> = app
+        .decode()
+        .unwrap()
+        .decoded
+        .outputs
+        .iter()
+        .map(|o| faraday_core::decode::btc(o.amount))
+        .collect();
+    let texts = app.drawn_text_boxes();
+    // Each amount's end and the end of the address on its row.
+    let rows: Vec<(i32, i32)> = amounts
+        .iter()
+        .map(|a| {
+            let (_, (ax, ay, aw, _)) = texts
+                .iter()
+                .find(|(t, _)| t == a)
+                .unwrap_or_else(|| panic!("the amount {a} drawn"));
+            let row_end = texts
+                .iter()
+                .filter(|(t, b)| t != a && (b.1 - ay).abs() < 6 && b.0 < *ax)
+                .map(|(_, b)| b.0 + b.2)
+                .max()
+                .expect("the address beside the amount");
+            (ax + aw, row_end)
+        })
+        .collect();
+    // The longest value of the table: an address, or an input's outpoint.
+    let outpoints: Vec<String> = app
+        .decode()
+        .unwrap()
+        .decoded
+        .inputs
+        .iter()
+        .map(|i| i.outpoint.clone())
+        .collect();
+    let longest = texts
+        .iter()
+        .filter(|(t, _)| outpoints.contains(t))
+        .map(|(_, b)| b.0 + b.2)
+        .chain(rows.iter().map(|r| r.1))
+        .max()
+        .expect("an output");
+    for (end, _) in rows {
+        let gap = end - longest;
+        assert!(
+            gap <= 220,
+            "an amount stands {gap} px past the longest address, not at the column's width"
+        );
+    }
+}

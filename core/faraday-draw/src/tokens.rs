@@ -2021,3 +2021,11 @@ pub const REFUSED_FILE_GAP: f32 = 10.0;
 pub const FILES_BESIDE_TOP: f32 = 12.0;
 /// Files beside the rail: the room under the last row of each list.
 pub const FILES_BESIDE_FOOT: f32 = 16.0;
+/// Decode a transaction's table (`docs/LAYOUT.md` §17): the number's
+/// column before an outpoint, an address or the line under one.
+pub const DECODE_INDEX_W: f32 = 26.0;
+/// Decode a transaction's table: the room a row's value leaves for its
+/// number before it and its amount after it.
+pub const DECODE_VALUE_ROOM: f32 = 220.0;
+/// Decode a transaction's table: from an output's kind to whose it is.
+pub const DECODE_KIND_GAP: f32 = 14.0;
