@@ -157,11 +157,7 @@ fn codex32_places(app: &View, k: &KeyGen, (cw, h): (f32, f32)) -> (bool, PanelAt
     let Some(m) = k.codex32.as_ref() else {
         return (false, PanelAt::Page);
     };
-    let shell = (
-        app.window().class(),
-        app.is_compact(),
-        app.text_size().factor(),
-    );
+    let shell = (app.window(), app.is_compact(), app.text_size().factor());
     let column = crate::codex32::pane_screen::column_now(m, cw, h, shell);
     let panel = crate::codex32::input_panel::place(app, m, cw, h);
     (column, panel)

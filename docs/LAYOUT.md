@@ -1,8 +1,8 @@
 # Layout at every window size
 
 **Kind:** Spec
-**Status:** Partly built: size classes and density (L1, F101; the stick's from its EDID on a small screen, `docs/ORIENTATION.md` §2.1), navigation (L2), Home's lead tile and tile grid (L3), the supporting pane's place and its narrow strip, for codex32's Demo only card (§6); the page area to the window's edge (W1, §15, §19); list and detail for Wallets, Files, Vaults and Backups (L4, §5, §17); Settings' list of sections on compact windows and every section on one page from medium up (§17); Files' two lists each scrolling on its own beside the rail (§17); the codex32 entry's input panel (W3, §16.3); Learn in the supporting pane on extra-large windows (L6, §6); the tours at every class's size, §11's tests and DESIGN §3 written to this spec (L7); the rest specified, not built (F92); the rest of wide windows (§13 to §19) specified, not built
-**Open:** the top app bar over the wide pages and the step flows (§3; they keep their own heads), components that keep their size (L5: the size set and the type roles are built in `faraday-ui`, part 1; the screens of `faraday-core` still write their own sizes, part 2), wide windows: wide content, the codex32 worksheet's fit, the string's boxes, the input panel on compact windows that are not short (§16.3; they keep the small panel's context over the pad), the panel beside the sheets scrolling within itself (it stands at the foot where it is taller than the window), New key's dice and Create a vault's Generate with dice in the panel (their pad, progress line and entries already stand together in one card), the page following a whole sheet and fixed step buttons (§14 to §17, W2, W4, W5); planned.
+**Status:** Partly built: size classes and density (L1, F101; the stick's from its EDID on a small screen, `docs/ORIENTATION.md` §2.1), navigation (L2), Home's lead tile and tile grid (L3), the supporting pane's place and its narrow strip, for codex32's Demo only card (§6); the page area to the window's edge (W1, §15, §19); list and detail for Wallets, Files, Vaults and Backups (L4, §5, §17); Settings' list of sections on compact windows and every section on one page from medium up (§17); Files' two lists each scrolling on its own beside the rail (§17); the codex32 entry's input panel (W3, §16.3), at the foot of a compact window that is not short too, above the navigation bar; Learn in the supporting pane on extra-large windows (L6, §6); the tours at every class's size, §11's tests and DESIGN §3 written to this spec (L7); the rest specified, not built (F92); the rest of wide windows (§13 to §19) specified, not built
+**Open:** the top app bar over the wide pages and the step flows (§3; they keep their own heads), components that keep their size (L5: the size set and the type roles are built in `faraday-ui`, part 1; the screens of `faraday-core` still write their own sizes, part 2), wide windows: wide content, the codex32 worksheet's fit, the string's boxes, the panel beside the sheets scrolling within itself (it stands at the foot where it is taller than the window), New key's dice and Create a vault's Generate with dice in the panel (their pad, progress line and entries already stand together in one card), the page following a whole sheet and fixed step buttons (§14 to §17, W2, W4, W5); planned.
 
 Faraday lays its screens out by Material 3's layout and navigation
 rules at every size, from the Pi's 2.8-inch panel to a full monitor.
@@ -707,7 +707,8 @@ so the walk reads as a person pressing. It stands:
   the Demo only strip where the card does not fit beside (§6).
 - **In the page**, as today, where the panel would take more than
   `INPUT_PANEL_MAX` (40 %) of the window's height (a d20's pad on a low
-  window).
+  window, a phone-wide compact one), with the small panel's tiles and
+  context over the pad on a compact window.
 - **On the Pi panel** (compact, short) as today: the tiles, one context
   panel and the pad under it, all on screen (`docs/CODEX32.md` §6.4.7).
 

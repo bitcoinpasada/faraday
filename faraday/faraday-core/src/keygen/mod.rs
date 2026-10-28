@@ -1899,8 +1899,9 @@ impl crate::Faraday {
             .flatten();
         // The small panel keeps its pad in the page (`docs/CODEX32.md`
         // §6.4.7); every other window pins it at the foot or beside.
-        let small =
-            self.compact && self.window().class() == faraday_draw::geom::WindowClass::Compact;
+        let small = self.compact
+            && self.window().class() == faraday_draw::geom::WindowClass::Compact
+            && self.codex32_panel_foot_now() == 0.0;
         let practice = self.roller_offered();
         let mut follow = crate::codex32::Follow::Work;
         let Some(k) = self.keygen.state.as_mut() else {
@@ -2165,11 +2166,7 @@ impl crate::Faraday {
     /// right now (`docs/LAYOUT.md` §16.1). Arithmetic.
     pub(crate) fn codex32_column_now(&self) -> bool {
         let page_w = crate::screens::keygen_page_w(self);
-        let shell = (
-            self.window().class(),
-            self.compact,
-            self.text_size().factor(),
-        );
+        let shell = (self.window(), self.compact, self.text_size().factor());
         let h = self.window().height;
         self.keygen
             .state
@@ -2183,11 +2180,7 @@ impl crate::Faraday {
     /// there, else none. Arithmetic.
     pub(crate) fn codex32_panel_foot_now(&self) -> f32 {
         let page_w = crate::screens::keygen_page_w(self);
-        let shell = (
-            self.window().class(),
-            self.compact,
-            self.text_size().factor(),
-        );
+        let shell = (self.window(), self.compact, self.text_size().factor());
         self.keygen
             .state
             .as_ref()
@@ -2205,7 +2198,7 @@ impl crate::Faraday {
     /// and below. One-column pages fit no sheet. Arithmetic.
     pub(crate) fn codex32_refit(&mut self) {
         let compact = self.compact;
-        let class = self.window().class();
+        let win = self.window();
         let k = self.text_size().factor();
         let page_w = crate::screens::keygen_page_w(self);
         let h = self.window().height;
@@ -2214,7 +2207,7 @@ impl crate::Faraday {
         };
         m.note_sheet();
         let room = (!compact).then(|| {
-            let shell = (class, compact, k);
+            let shell = (win, compact, k);
             let column = crate::codex32::pane_screen::column_now(m, page_w, h, shell);
             let side = crate::codex32::pane_screen::side_room(column);
             let tall = h - 2.0 * faraday_draw::tokens::MARGIN_WIDE;

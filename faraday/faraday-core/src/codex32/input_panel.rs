@@ -14,7 +14,8 @@
 //! window's foot elsewhere, the page scrolling clear of it, its parts
 //! laid out the shortest way the width allows; in the page where it
 //! would take more than `INPUT_PANEL_MAX` of the window's height, and on
-//! compact windows, as before (`docs/CODEX32.md` §6.4.7).
+//! the small panel (compact and short), as before (`docs/CODEX32.md`
+//! §6.4.7).
 //!
 //! Where it stands, how tall it is and where each part goes are
 //! arithmetic on the window's size in dp, the dice chosen and the way of
@@ -23,7 +24,7 @@
 //! [`PanelAt::start_room`]) take the same one. Drawing reads the flow's
 //! state.
 
-use faraday_draw::geom::WindowClass;
+use faraday_draw::geom::{Window, WindowClass};
 use faraday_draw::tokens as t;
 use faraday_draw::tokens::{BODY_M, TITLE_S};
 use faraday_draw::widgets::Icon;
@@ -87,28 +88,23 @@ impl PanelAt {
 /// in a window `h` tall (`docs/LAYOUT.md` §16.3). Arithmetic.
 pub(crate) fn place(app: &View, m: &Codex32Make, cw: f32, h: f32) -> PanelAt {
     let k = app.text_size().factor();
-    place_now(m, cw, h, (app.window().class(), app.is_compact(), k))
+    place_now(m, cw, h, (app.window(), app.is_compact(), k))
 }
 
-/// [`place`] from the state as it is: the window's class, one-column
-/// pages or not, and the text factor. Arithmetic.
-pub(crate) fn place_now(
-    m: &Codex32Make,
-    cw: f32,
-    h: f32,
-    shell: (WindowClass, bool, f32),
-) -> PanelAt {
+/// [`place`] from the state as it is: the window (its class and whether
+/// it is short), one-column pages or not, and the text factor.
+/// Arithmetic.
+pub(crate) fn place_now(m: &Codex32Make, cw: f32, h: f32, shell: (Window, bool, f32)) -> PanelAt {
     let column = super::pane_screen::column_now(m, cw, h, shell);
     place_in(m, (cw, h), (shell.0, shell.2), side_room(column))
 }
 
 /// [`place_now`] beside a supporting pane that takes `side` of the page
-/// area's width, on a window of `class` at the text factor `k`.
-/// Arithmetic.
+/// area's width, on window `win` at the text factor `k`. Arithmetic.
 pub(crate) fn place_in(
     m: &Codex32Make,
     (cw, h): (f32, f32),
-    (class, k): (WindowClass, f32),
+    (win, k): (Window, f32),
     side: f32,
 ) -> PanelAt {
     // While a character is left, the pad; once all are in, Continue.
@@ -116,9 +112,10 @@ pub(crate) fn place_in(
     if m.open() != Some(Card::Enter) || m.work().is_none() || !shown {
         return PanelAt::Page;
     }
-    // The small panel and narrow windows keep the context panel over the
-    // pad, all on the page (`docs/CODEX32.md` §6.4.7).
-    if class == WindowClass::Compact {
+    // The small panel keeps the context panel over the pad, all on the
+    // page (`docs/CODEX32.md` §6.4.7); a compact window that is not short
+    // pins the panel at its foot, above the navigation bar.
+    if win.class() == WindowClass::Compact && win.short() {
         return PanelAt::Page;
     }
     let work = crate::keygen::screen::codex32_work_w(cw, side);

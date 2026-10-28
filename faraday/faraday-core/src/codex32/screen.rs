@@ -713,7 +713,9 @@ fn enter(m: &Codex32Make, ui: &mut Ui, at: At) -> f32 {
         .entry_share()
         .unwrap_or((work.inputs().len().saturating_sub(1), None));
     match cls {
-        WindowClass::Compact => {
+        // The input panel at the foot of a compact window that is not
+        // short holds the pad; the page is laid out as on wider ones.
+        WindowClass::Compact if !at.panel.out_of_page() => {
             // The tabs, the context panel one at a time, and the pad
             // under it, all on the page at once: the panel is what the
             // person reads while pressing, so it sits above the pad and

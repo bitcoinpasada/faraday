@@ -8,7 +8,6 @@
 //! Desktop's host strip, outside the app (`docs/DESKTOP-HOST.md` §3.1).
 //! Drawing reads the flow's state and works nothing out.
 
-use faraday_draw::geom::WindowClass;
 use faraday_draw::tokens as t;
 
 use super::{Card, Codex32Make};
@@ -35,7 +34,7 @@ pub(crate) fn column_now(
     m: &Codex32Make,
     cw: f32,
     h: f32,
-    (class, compact, k): (WindowClass, bool, f32),
+    (win, compact, k): (faraday_draw::geom::Window, bool, f32),
 ) -> bool {
     let entering = m.open() == Some(Card::Enter)
         && m.dice_sheet_shown()
@@ -48,7 +47,7 @@ pub(crate) fn column_now(
     let Some((sheet_w, sheet_h)) = m.sheet_least() else {
         return false;
     };
-    let panel = super::input_panel::place_in(m, (cw, h), (class, k), side);
+    let panel = super::input_panel::place_in(m, (cw, h), (win, k), side);
     let start = panel.start_room();
     let lead = if start > 0.0 {
         start - t::KEYGEN_COLUMN_IN

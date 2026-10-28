@@ -825,3 +825,42 @@ fn the_working_areas_next_moves_nothing_while_its_cells_are_on_screen() {
         assert_eq!(where_things_are(&mut app), at);
     }
 }
+
+/// A compact window that is not short (the 7-inch panel in portrait)
+/// pins the panel at its foot, above the navigation bar: the pad and the
+/// rolls are on screen together, a face pressed lands in the rolls, and
+/// the pad stays as the page scrolls. A phone-wide window, where the
+/// panel would take more than `INPUT_PANEL_MAX` of the page, keeps the
+/// small panel's context over the pad in the page.
+#[test]
+fn a_compact_window_that_is_not_short_pins_the_panel_above_the_bar() {
+    let narrow = on_entry(400, 800, 160);
+    assert!(!narrow.offers(face(3)), "400x800: no panel's pad");
+    assert!(
+        narrow.offers(Action::Codex32(C32::Key(OskPress::Char('3')))),
+        "400x800: the small panel's pad in the page"
+    );
+    for (w, h, dpi) in [(600u16, 1024u16, 170u16)] {
+        let mut app = on_entry(w, h, dpi);
+        assert_eq!(app.nav(), faraday_core::nav::Nav::Bar, "{w}x{h}");
+        pad_and_rolls_in_view(&mut app, w, h);
+        let key = app.hit_box(face(3)).expect("the panel's pad");
+        let home = app
+            .hit_box(Action::Nav(Screen::Home))
+            .expect("the navigation bar's Home");
+        assert!(
+            key.1 + key.3 <= home.1,
+            "{w}x{h}: the pad above the bar: {key:?} {home:?}"
+        );
+        let page = |app: &Faraday| app.keygen().unwrap().scroll.y;
+        let before = page(&app);
+        scroll_page(&mut app, w / 2, h / 3, 400);
+        assert!(page(&app) > before, "{w}x{h}: the page scrolled");
+        assert_eq!(app.hit_box(face(3)), Some(key), "{w}x{h}: the pad stayed");
+        for f in [3, 1, 1, 1, 1, 5] {
+            tap(&mut app, face(f));
+        }
+        let d = make(&app).dice();
+        assert_eq!((d.first(0), d.second(0)), (Some(3), Some(5)), "{w}x{h}");
+    }
+}
