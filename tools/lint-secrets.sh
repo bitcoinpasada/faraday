@@ -54,7 +54,8 @@
 #      secrets must be added to SECRET_FILES below; paths are relative to
 #      the repository root and need not be under core/.
 #
-# Rule 4, the key boundary, is described where it is checked, below.
+# Rule 4, the key boundary, and rule 5, the dev card's reports, are
+# described where they are checked, below.
 #
 # Exits non-zero on any hit and prints each offending line. Run from the
 # repository root; `just lint` does.
@@ -194,6 +195,28 @@ report "a codex32 set made, split or recovered outside faraday-keys (rule 4e)" \
     "$(in_code 'fresh_set|FreshSet|ChecksumWorksheet|TranslationWorksheet|Codex32::(from_seed|split|recover|derive_share)\b' "${BOUNDARY[@]}")"
 report "a held secret taken out of its guard outside the named sites (rule 4d)" \
     "$(in_code 'Held::release|\.release\(\)|\.into_record\(\)' "${RELEASE_FILES[@]}")"
+
+# Rule 5: the dev card's reports. faraday-boot-report.txt and
+# faraday-timings.txt are written by the files below, and hold the kernel's
+# log and files, the shell's own clock and the core's counts of costly
+# work, never what a person typed or chose. In code (comments are
+# skipped), these files
+#   5a. do not name the app, its storage requests or its events, a key or
+#       a vault (Faraday, StorageCommand, StorageEvent, faraday_shell_api,
+#       faraday_keys, faraday_vault): they never hold the app's state;
+#   5b. reach faraday-core only through its counts of costly work
+#       (faraday_core::work, whose vault notes carry a cost and an
+#       outcome and nothing else) and its fade counts (FadeCounts).
+REPORT_FILES="faraday/shells/stick/src/bootreport.rs faraday/shells/stick/src/timings.rs faraday/shells/stick/src/costly.rs faraday/shells/stick/src/system.rs faraday/shells/stick/src/radios.rs"
+for f in $REPORT_FILES; do
+    [ -f "$f" ] || { echo "lint-secrets: missing $f (update REPORT_FILES)"; status=1; }
+done
+# shellcheck disable=SC2086 # the list is split on purpose
+report "the app's state in a dev report's writer (rule 5a)" \
+    "$(in_code '\bFaraday\b|\bStorage(Command|Event)\b|\bfaraday_(shell_api|keys|vault)\b' $REPORT_FILES)"
+# shellcheck disable=SC2086
+report "faraday-core reached past its work counts in a dev report's writer (rule 5b)" \
+    "$(in_code '\bfaraday_core::' $REPORT_FILES | grep -vE '\bfaraday_core::(work|FadeCounts)\b')"
 
 if [ "$status" -eq 0 ]; then
     echo "lint-secrets: ok"

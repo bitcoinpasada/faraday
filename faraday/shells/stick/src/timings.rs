@@ -7,7 +7,9 @@
 //! using the device for a minute.
 //!
 //! Eight buckets, all timed with `Instant` around calls the loop already
-//! makes, and a count of passes and touches; how often the frame grid
+//! makes, and a count of passes and touches; a `work` row for each kind
+//! of costly work the core did (a vault made or unlocked, a key made, a
+//! transaction signed, a code decoded, a file written: `costly.rs`); how often the frame grid
 //! stood at each step, and what the fades did (`docs/MOTION.md` §3.5). Every five seconds of the
 //! shell's clock the totals become one block of plain text and reset, so
 //! a long session is a short file: the card is slow to write and nothing
@@ -62,6 +64,13 @@ const NAMES: [&str; 8] = [
     "touch", "tick", "camera", "scanned", "convert", "write", "frame", "blend",
 ];
 
+/// The most rows of costly work one block keeps; an interval that did
+/// more kinds than this puts the rest on the last row's name.
+const WORK_ROWS: usize = 24;
+
+/// The row an interval's costly work goes on past [`WORK_ROWS`].
+const OTHER_WORK: &str = "other work";
+
 /// How many fade steps one block lists.
 const FADE_STEPS_KEPT: usize = 40;
 
@@ -80,6 +89,9 @@ struct Tally {
 /// The buckets, the counters, and when the next block is due.
 pub struct Timings {
     tallies: [Tally; NAMES.len()],
+    /// The costly work since the last block, a row for each kind of it
+    /// that came, in the order they first came (`costly.rs`).
+    work: Vec<(String, Tally)>,
     passes: u64,
     touches: u64,
     /// Passes that drew, by the frame grid's step after them: one frame
@@ -114,6 +126,7 @@ impl Timings {
     pub fn new(version: &str, width: u16, height: u16) -> Timings {
         Timings {
             tallies: [Tally::default(); NAMES.len()],
+            work: Vec::new(),
             passes: 0,
             touches: 0,
             steps: [0; STEPS],
@@ -125,6 +138,7 @@ impl Timings {
             header: format!(
                 "faraday {version} panel {width}x{height} \
                  columns: bucket count mean_ms worst_ms\n\
+                 costly work columns: work count mean_ms worst_ms kind (the costliest an event did)\n\
                  cpu0 driver {} governor {} min_khz {} max_khz {}",
                 cpufreq("scaling_driver"),
                 cpufreq("scaling_governor"),
@@ -158,6 +172,29 @@ impl Timings {
         if took > tally.worst {
             tally.worst = took;
         }
+    }
+
+    /// Records one piece of costly work on the row called `row`.
+    pub fn work(&mut self, row: &str, took: Duration) {
+        let i = match self.work.iter().position(|(name, _)| name == row) {
+            Some(i) => i,
+            None if self.work.len() < WORK_ROWS => {
+                self.work.push((row.to_owned(), Tally::default()));
+                self.work.len() - 1
+            }
+            None => match self.work.iter().position(|(name, _)| name == OTHER_WORK) {
+                Some(i) => i,
+                None => {
+                    let last = self.work.len() - 1;
+                    self.work[last] = (OTHER_WORK.to_owned(), self.work[last].1);
+                    last
+                }
+            },
+        };
+        let tally = &mut self.work[i].1;
+        tally.count += 1;
+        tally.total += took;
+        tally.worst = tally.worst.max(took);
     }
 
     /// Records one pass of the main loop.
@@ -243,6 +280,14 @@ impl Timings {
                 ms(tally.worst),
             ));
         }
+        for (name, tally) in &self.work {
+            out.push_str(&format!(
+                "work     {:>7} {:>9.2} {:>9.2}  {name}\n",
+                tally.count,
+                mean_ms(*tally),
+                ms(tally.worst),
+            ));
+        }
         let [s1, s2, s3, s4] = self.steps;
         out.push_str(&format!(
             "grid     16.7ms {s1} 33.3ms {s2} 50.0ms {s3} 66.7ms {s4} cost {:.2}\n",
@@ -278,6 +323,7 @@ impl Timings {
         }
         out.push('\n');
         self.tallies = [Tally::default(); NAMES.len()];
+        self.work.clear();
         self.passes = 0;
         self.touches = 0;
         self.steps = [0; STEPS];
@@ -300,5 +346,50 @@ fn mean_ms(tally: Tally) -> f64 {
         0.0
     } else {
         ms(tally.total) / tally.count as f64
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn work_rows(block: &str) -> Vec<&str> {
+        block.lines().filter(|l| l.starts_with("work ")).collect()
+    }
+
+    #[test]
+    fn a_block_has_a_row_for_each_kind_of_costly_work_and_the_next_starts_empty() {
+        let mut t = Timings::new("0.0.0", 480, 640);
+        t.work(
+            "vault unlocked Light 64 MiB 3 passes",
+            Duration::from_millis(2500),
+        );
+        t.work("file written", Duration::from_millis(40));
+        t.work("file written", Duration::from_millis(80));
+        let block = t.last(Duration::from_secs(5), None);
+        assert_eq!(
+            work_rows(&block),
+            [
+                "work           1   2500.00   2500.00  vault unlocked Light 64 MiB 3 passes",
+                "work           2     60.00     80.00  file written",
+            ]
+        );
+        let next = t.last(Duration::from_secs(10), None);
+        assert!(work_rows(&next).is_empty());
+    }
+
+    #[test]
+    fn work_past_the_rows_a_block_keeps_is_counted_on_one_more() {
+        let mut t = Timings::new("0.0.0", 480, 640);
+        for i in 0..WORK_ROWS + 3 {
+            t.work(&format!("kind {i}"), Duration::from_millis(1));
+        }
+        let block = t.last(Duration::from_secs(5), None);
+        let rows = work_rows(&block);
+        assert_eq!(rows.len(), WORK_ROWS);
+        assert_eq!(
+            rows[WORK_ROWS - 1],
+            "work           4      1.00      1.00  other work"
+        );
     }
 }

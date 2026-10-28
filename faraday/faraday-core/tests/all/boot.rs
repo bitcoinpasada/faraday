@@ -3,11 +3,13 @@
 //! not the passphrase prompt, and a vault unlocked on its own
 //! (`docs/history/NEW-WALLET.md` §11.1a) asks what to load (F62), loads what is
 //! ticked and lands on Wallets. Opened from inside a flow, it still shows
-//! what it holds without loading it until asked.
+//! what it holds without loading it until asked. An unlock is noted for
+//! the dev card's timings by its strength and memory, and by how it ended.
 
 use faraday_core::boot_import::ImportAction as I;
 use faraday_core::testkit;
 use faraday_core::vault::VaultAction as V;
+use faraday_core::work;
 use faraday_core::{Action, Faraday, Screen, Sheet, StickInfo, StorageCommand, StorageEvent};
 use faraday_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware};
 
@@ -190,4 +192,48 @@ fn a_vault_passphrase_is_typed_only_once_the_stick_is_pulled() {
         1,
         "pulling the stick lets it unlock"
     );
+}
+
+/// The vault stretches noted for the dev card's timings, unlocks only.
+fn unlocks_noted() -> Vec<work::VaultWork> {
+    work::take_vault_work()
+        .into_iter()
+        .filter(|v| v.act == work::VaultAct::Unlocked)
+        .collect()
+}
+
+#[test]
+fn an_unlock_is_noted_for_the_dev_card_by_its_strength_and_memory() {
+    let (mut app, _) = later();
+    app.storage(StorageEvent::Sticks(Vec::new()));
+    app.press(Action::Vault(V::Open(0)));
+    let _ = work::take_vault_work();
+    unlock(&mut app);
+    assert_eq!(app.vaults().open.len(), 1);
+    let noted = unlocks_noted();
+    assert_eq!(
+        noted,
+        [work::VaultWork {
+            act: work::VaultAct::Unlocked,
+            memory_mib: 64,
+            passes: 3,
+            ended: work::VaultEnded::Ran,
+        }]
+    );
+    assert_eq!(noted[0].strength(), "Light");
+}
+
+#[test]
+fn an_unlock_with_too_little_memory_free_is_noted_as_not_tried() {
+    let (mut app, _) = later();
+    app.storage(StorageEvent::Sticks(Vec::new()));
+    app.storage(StorageEvent::Memory { available_mib: 100 });
+    app.press(Action::Vault(V::Open(0)));
+    let _ = work::take_vault_work();
+    unlock(&mut app);
+    assert!(app.vaults().open.is_empty());
+    let noted = unlocks_noted();
+    assert_eq!(noted.len(), 1);
+    assert_eq!(noted[0].ended, work::VaultEnded::NotFree);
+    assert_eq!(noted[0].memory_mib, 64);
 }

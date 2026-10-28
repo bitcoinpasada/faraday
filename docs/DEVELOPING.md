@@ -148,7 +148,26 @@ Never use it for keys that matter.
   soon as the stick is listed at boot, again whole every 30 seconds
   while it runs, and once more when it ends. It holds the kernel log
   (the app's own errors included), then the panel and devices found,
-  headed with the seconds since the app started. Each write goes to a
+  headed with the seconds since the app started, then two blocks
+  refreshed at each write. **System**: the seconds from the kernel's
+  start to the app's first frame, when the kernel's random generator was
+  ready (its `crng init done` line), the temperature of each
+  `/sys/class/thermal` zone now and its highest, the first CPU's clock
+  now, lowest and highest, the Raspberry Pi's undervoltage alarm now and
+  since start where the kernel has its `rpi_volt` sensor, with the kernel
+  log's undervoltage warnings counted, `MemAvailable` now and lowest, and
+  the app's peak and current memory, all read once a second; the
+  firmware's throttling flags are "not available", since they are read
+  only through `/dev/vcio`, which no Faraday kernel builds, and anything
+  else the kernel does not expose says so too. The Pi's dev card builds
+  the temperature sensor and the undervoltage alarm for this
+  (`faraday/image/boards/pi3/dev/linux.fragment`); the release card has
+  neither. **Radios**: what
+  `/sys/class/bluetooth` and `/sys/class/net` hold, every device-tree
+  node whose `compatible` names a Bluetooth or a Wi-Fi chip, with its
+  path, its status and its parent's (the serial port or SDIO controller
+  it sits on), and every serial port with its driver, the devices bound
+  on one, and whether it is a console or has a getty. Each write goes to a
   new file that is read back and renamed over the old one, so a stick
   pulled mid-write keeps the last whole report. Wait half a minute
   after the thing you want recorded, pull the stick, and read the file
@@ -156,13 +175,22 @@ Never use it for keys that matter.
 - **The timings, every 30 seconds.** `faraday-timings.txt` beside it:
   per five seconds of the app's clock, each kind of work (a touch, a
   frame, a camera frame, a fade) counted with its mean and worst in
-  milliseconds (`faraday/image/README.md`, "The dev variant").
+  milliseconds, and a `work` row for each kind of costly work done in
+  that time: a vault made, unlocked or its cost measured, named by its
+  strength, Argon2id memory and passes (and "failed: no memory" or "not
+  tried: too little memory free" where it did not fit), a key made, a
+  transaction signed, a camera frame read for a QR code, a file written
+  to a stick or the card, and the rest of what the core counts
+  (`faraday/image/README.md`, "The dev variant").
 
 The release image writes neither file: its app is started without
 those flags, its kernel log stays closed to the app, and
 `faraday/image/build.sh` refuses a release image that says otherwise.
-The report holds the kernel log and the device list and nothing else:
-the core prints nothing (`tools/lint-secrets.sh`). It is the file to
+Neither file holds a secret or anything derived from one: no key,
+words, passphrase, address, or name a person chose for a vault or a
+file. The core prints nothing, and the writers read only the kernel's
+files, the shell's clock and the core's counts of costly work
+(`tools/lint-secrets.sh`, rules 1 and 5). The report is the file to
 send with a report of a machine that does not work.
 
 ### 6.3. Without a stick: QEMU

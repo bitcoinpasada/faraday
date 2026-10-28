@@ -38,6 +38,7 @@ use zeroize::Zeroizing;
 
 use crate::backup_flow::steps::Built;
 use crate::wallet::fp_text;
+use crate::work::{self, VaultAct, VaultEnded};
 use crate::{Action, Faraday, FileKind, Item, Screen, gpg};
 use crate::{Code, Sheet};
 use faraday_bip::keys::Fingerprint;
@@ -1129,6 +1130,7 @@ impl Faraday {
                     };
                     self.vaults.state.measure_from = Some(now_ms);
                     faraday_keys::vault::measure(&c, &header);
+                    work::note_vault(VaultAct::Measured, header.cost, VaultEnded::Ran);
                 }
                 Work::Unlock => self.vault_unlock(),
                 Work::FlowMake => self.flow_make_work(),
@@ -1165,7 +1167,7 @@ impl Faraday {
             Some(EN.vaults_type_the_passphrase.to_string())
         } else {
             self.vaults
-                .unlock_memory_refusal(f.header.cost.memory_kib / 1024, f.header.slot_len)
+                .unlock_memory_refusal(f.header.cost, f.header.slot_len)
         };
         self.vaults.state.unlock_error = error;
         if self.vaults.unlock_error.is_none() {
@@ -1203,11 +1205,7 @@ impl Faraday {
         let name = f.name.clone();
         // Unlocked on the boot import's sheet: the unlock imports.
         let for_import = self.sheet == Some(crate::Sheet::Import) && self.import.state().is_some();
-        let result =
-            self.vaults
-                .state
-                .store
-                .unlock(&c, bytes, self.vaults.state.passphrase.text.as_bytes());
+        let result = self.vaults.state.unlock_noted(&c, bytes, f.header.cost);
         match result {
             Ok((id, header)) => {
                 self.vaults.state.passphrase.clear();
@@ -2160,6 +2158,7 @@ impl Faraday {
             })
             .collect();
         let made = faraday_keys::vault::create(&c, form.slot, cost, &phrases, &contents, &seed);
+        work::note_vault(VaultAct::Made, cost, VaultEnded::of(&made));
         match made {
             Ok(file) => {
                 let name = self.free_vault_name(&vault_stem(&form.name.text));

@@ -6,13 +6,16 @@
 //! A laptop has no serial port, so a dev stick that will not come up, or
 //! one that came up and did something odd, has nowhere to say so. The
 //! person boots it, uses it, pulls it and reads this file on another
-//! computer. It holds two things and nothing else: the kernel log as
+//! computer. It holds four things and nothing else: the kernel log as
 //! `dmesg` prints it, which in the dev image includes the app's own
-//! error output (the dev inittab sends it to `/dev/kmsg`), and the
+//! error output (the dev inittab sends it to `/dev/kmsg`); the
 //! inventory: the panel, every input device with what it was taken for,
-//! every capture device. The app prints no key material: the core crates
-//! may not print at all (`tools/lint-secrets.sh`, rule 1), and the shell
-//! prints sizes, names, counts and reasons.
+//! every capture device; the system block, the board's own figures
+//! (`system.rs`); and the radios block (`radios.rs`). The app prints no
+//! key material: the core crates may not print at all
+//! (`tools/lint-secrets.sh`, rule 1), the shell prints sizes, names,
+//! counts and reasons, and the two blocks read nothing but the kernel's
+//! files (rule 5).
 //!
 //! The release image passes no `--boot-report`, so none of this runs.
 //! The dev inittab also lets the app read the kernel log
@@ -21,6 +24,9 @@
 use std::path::Path;
 use std::process::Command;
 use std::time::Duration;
+
+use crate::fb::Geometry;
+use crate::system::System;
 
 /// How often the whole file is written again while the app runs.
 pub const WRITE_EVERY: Duration = Duration::from_secs(30);
@@ -37,10 +43,12 @@ const MAX_LOG: usize = 1024 * 1024;
 pub const DMESG: &str = "/bin/dmesg";
 
 /// The report this run keeps: its file's name, what the shell found
-/// (which does not change while it runs), and when it is written next.
+/// (which does not change while it runs), what it has seen of the board
+/// since, and when it is written next.
 pub struct Report {
     pub name: String,
     pub inventory: String,
+    pub system: System,
     pub schedule: Schedule,
     /// A failure has been said already, so it is not said every time.
     pub said: bool,
@@ -51,6 +59,7 @@ impl Report {
         Report {
             name: String::from(crate::files::BOOT_REPORT),
             inventory,
+            system: System::new(Path::new("/")),
             schedule: Schedule::new(),
             said: false,
         }
@@ -124,10 +133,16 @@ pub fn kernel_log(program: &Path) -> Result<String, String> {
     Ok(String::from_utf8_lossy(bytes).into_owned())
 }
 
-/// The file: the kernel log (or why there is none), then the inventory.
-/// `elapsed` is the shell's clock, so a reader can tell how recent the
-/// write is against the log's own stamps.
-pub fn compose(kernel: &Result<String, String>, inventory: &str, elapsed: Duration) -> String {
+/// The file: the kernel log (or why there is none), then the inventory
+/// and the `blocks` after it (the system and the radios). `elapsed` is
+/// the shell's clock, so a reader can tell how recent the write is
+/// against the log's own stamps.
+pub fn compose(
+    kernel: &Result<String, String>,
+    inventory: &str,
+    blocks: &str,
+    elapsed: Duration,
+) -> String {
     let mut out = String::from("== kernel log ==\n");
     match kernel {
         Ok(log) => {
@@ -143,6 +158,66 @@ pub fn compose(kernel: &Result<String, String>, inventory: &str, elapsed: Durati
         elapsed.as_secs()
     ));
     out.push_str(inventory);
+    out.push_str(blocks);
+    out
+}
+
+/// What the shell found, for the report: the panel it chose, every input
+/// device with what it was classified as, and every capture device.
+pub fn inventory(
+    geometry: Geometry,
+    dpi: u16,
+    setup: crate::orient::Setup,
+    devices: &[crate::evdev::Device],
+) -> String {
+    let mut out = String::new();
+    out.push_str(&format!(
+        "panel {}x{} {}bpp stride {} dpi {}\n",
+        geometry.width,
+        geometry.height,
+        geometry.depth.bits(),
+        geometry.stride,
+        dpi,
+    ));
+    out.push_str(&format!(
+        "native {}; rotation {}; other orientation turned {}\n",
+        if setup.native_portrait {
+            "portrait"
+        } else {
+            "landscape"
+        },
+        if setup.offered {
+            "offered"
+        } else {
+            "not offered"
+        },
+        setup.mount.degrees(),
+    ));
+    if devices.is_empty() {
+        out.push_str("input: none\n");
+    }
+    for device in devices {
+        out.push_str(&format!(
+            "input {} {:?}: {}\n",
+            device.node.display(),
+            device.name,
+            device.kinds()
+        ));
+    }
+    let mut cameras: Vec<String> = std::fs::read_dir("/dev")
+        .into_iter()
+        .flatten()
+        .filter_map(|e| e.ok())
+        .filter_map(|e| e.file_name().into_string().ok())
+        .filter(|n| n.starts_with("video"))
+        .collect();
+    cameras.sort();
+    if cameras.is_empty() {
+        out.push_str("camera: none\n");
+    }
+    for camera in cameras {
+        out.push_str(&format!("camera /dev/{camera}\n"));
+    }
     out
 }
 
@@ -171,16 +246,18 @@ mod tests {
     }
 
     #[test]
-    fn the_report_is_the_kernel_log_then_the_inventory_and_nothing_else() {
+    fn the_report_is_the_kernel_log_then_the_inventory_and_its_blocks() {
         let text = compose(
             &Ok(String::from("[    0.1] boot\n[    1.0] faraday: up")),
             "panel 800x600\n",
+            "\n== system ==\nfirst frame 6.8 s\n",
             Duration::from_secs(42),
         );
         assert_eq!(
             text,
             "== kernel log ==\n[    0.1] boot\n[    1.0] faraday: up\n\n\
-             == faraday (written 42 s after the shell started) ==\npanel 800x600\n"
+             == faraday (written 42 s after the shell started) ==\npanel 800x600\n\
+             \n== system ==\nfirst frame 6.8 s\n"
         );
     }
 
@@ -189,6 +266,7 @@ mod tests {
         let text = compose(
             &Err(String::from("no dmesg")),
             "input: none\n",
+            "",
             Duration::ZERO,
         );
         assert!(text.contains("no kernel log: no dmesg"));

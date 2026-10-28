@@ -12,6 +12,7 @@ use faraday_keys::vault::{OpenVaults, RecordView, Records, VaultId};
 use faraday_vault::records::{field, kind};
 use faraday_vault::{self as fv, Cost, Header, Record};
 
+use crate::work::{self, VaultAct, VaultEnded};
 use crate::{Action, Screen, flow};
 
 pub use crate::action::is_hold;
@@ -1436,10 +1437,11 @@ impl Vaults {
     /// Why this computer does not unlock a vault of `memory_mib` unlock
     /// memory and `slot_len` slots, by what it has free; `None` when it
     /// does. Not knowing what it has free, it unlocks only Light's, which
-    /// opens anywhere (`docs/VAULT.md` §3.1).
-    pub(crate) fn unlock_memory_refusal(&self, memory_mib: u32, slot_len: u32) -> Option<String> {
+    /// opens anywhere (`docs/VAULT.md` §3.1). Noted ([`work::refused`]).
+    pub(crate) fn unlock_memory_refusal(&self, cost: Cost, slot_len: u32) -> Option<String> {
+        let memory_mib = cost.memory_kib / 1024;
         let need = vault_need_mib(memory_mib, slot_len);
-        match self.memory_free_mib {
+        let refusal = match self.memory_free_mib {
             Some(free) if need > free => Some(fill(
                 EN.vaults_needs_this_computer,
                 &[&mib_text(need), &mib_text(free)],
@@ -1449,16 +1451,17 @@ impl Vaults {
                 &[&mib_text(LIGHT_MIB), &mib_text(memory_mib)],
             )),
             _ => None,
-        }
+        };
+        work::refused(VaultAct::Unlocked, memory_mib, cost.passes, refusal)
     }
 
     /// Why the Create form's cost is not made here, by what this computer
     /// has free; `None` when it is. Not knowing what it has free, it makes
-    /// only Light's (`docs/VAULT.md` §3.1).
+    /// only Light's (`docs/VAULT.md` §3.1). Noted ([`work::refused`]).
     pub(crate) fn create_memory_refusal(&self) -> Option<String> {
-        let (_, mem, _) = self.form_cost()?;
+        let (_, mem, passes) = self.form_cost()?;
         let slot = self.create.as_ref()?.slot;
-        match self.memory_free_mib {
+        let refusal = match self.memory_free_mib {
             Some(free) if vault_need_mib(mem, slot) > free => {
                 Some(EN.vaults_choose_a_cost.to_string())
             }
@@ -1467,7 +1470,21 @@ impl Vaults {
                 &[&mib_text(LIGHT_MIB)],
             )),
             _ => None,
-        }
+        };
+        work::refused(VaultAct::Made, mem, passes, refusal)
+    }
+
+    /// Costs an Argon2id run at `cost`: vault file `bytes` unlocked with
+    /// the typed passphrase, the stretch noted ([`work::note_vault`]).
+    pub(super) fn unlock_noted(
+        &mut self,
+        c: &Compute,
+        bytes: Vec<u8>,
+        cost: Cost,
+    ) -> Result<(VaultId, Header), fv::Error> {
+        let result = self.store.unlock(c, bytes, self.passphrase.text.as_bytes());
+        work::note_vault(VaultAct::Unlocked, cost, VaultEnded::of(&result));
+        result
     }
 
     /// The most unlock memory this computer gives a vault, MiB: the

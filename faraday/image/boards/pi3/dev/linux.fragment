@@ -1,0 +1,10 @@
+# The Pi's dev card only: the SoC's temperature sensor and the firmware's
+# undervoltage alarm, so the dev card's boot report can say how hot the Pi
+# ran and whether its supply sagged (docs/DEVELOPING.md §6.2). Both are read
+# only: bcm2835-thermal reads the SoC's own sensor, and raspberrypi-hwmon
+# asks the firmware through the mailbox driver the CPU clock already uses,
+# not /dev/vcio (BCM_VCIO stays forbidden). The release card has neither.
+CONFIG_THERMAL=y
+CONFIG_BCM2835_THERMAL=y
+CONFIG_HWMON=y
+CONFIG_SENSORS_RASPBERRYPI_HWMON=y

@@ -207,8 +207,8 @@ without a serial
 adapter: the kernel console goes to `tty1` as well as the serial port and
 `quiet` is dropped, so the probe lines scroll on the panel; a getty runs on
 the serial port and the root password is empty; and the app is started with
-`--verbose --timings`, so it says what it found and records what its loop
-costs.
+`--verbose --timings --boot-report`, so it says what it found and records
+what its loop and its costly work cost and what the board reports.
 
 `--timings` writes `faraday-timings.txt` onto the `FARADAYDATA` partition,
 through the disk process since the image mounts nothing: the whole file
@@ -233,8 +233,33 @@ since it, what its pass cost and the step chosen after it, in ms, and a
 were drawn at once because the last fades' steps came too far apart
 (`skipped`) or because reduce motion is on (`reduced`), how many fade
 steps were blended, how many recent step gaps are known and their median,
-and whether the next change would fade (`docs/MOTION.md` §3.5). The
-shell's README describes the format.
+and whether the next change would fade (`docs/MOTION.md` §3.5). Then a
+`work` row for each kind of costly work the interval did, with its
+count, mean and worst in ms and its kind last: the shell reads the
+core's counts of costly work (`faraday_core::work`) around each event it
+hands the core and times the call, so an event goes on the row of the
+costliest kind it did (`vault unlocked Light 64 MiB 3 passes`,
+`vault made Standard 256 MiB 3 passes, failed: no memory`,
+`vault cost measured`, `key made`, `transaction signed`, `qr made`, and
+so on, with `(in a frame)` after work a frame did and `(stick files
+served)` after work done answering the disk process); `qr decoded
+(camera pass)` is one of the scanner worker's passes over a camera
+frame, `file written` a file the app wrote to a stick or the card, and
+`boot report written` the report's own write. A row's name is a kind
+and a cost, never a name or anything a person typed. The shell's
+README describes the format.
+
+`--boot-report` writes `faraday-boot-report.txt` beside it, whole at
+the same rate (`docs/DEVELOPING.md` §6.2): the kernel log, the panel and
+devices found, a system block (the seconds to the first frame, when the
+random generator was ready, the temperature, the first CPU's clock, the
+undervoltage alarm where the kernel has the `rpi_volt` sensor (the Pi's
+dev kernel builds both it and the temperature sensor:
+`boards/pi3/dev/linux.fragment`), the
+memory free and the app's peak, each now and at its worst) and a radios
+block (`/sys/class/bluetooth` and `/sys/class/net`, the device tree's
+Bluetooth and Wi-Fi nodes with their status and their parent's, the
+serial ports and what is bound to them).
 
 To collect a run: boot the card, scroll the Settings list for ten seconds,
 open the scanner and point the camera at anything that is not a QR code for ten seconds (a code is decoded at once and the scanner stops),
@@ -600,9 +625,10 @@ was written. Each write goes to a new file that is read back and renamed
 over the old one, so a stick pulled mid-write holds the last whole report.
 Pull the stick, plug it into any computer and read that file. It is what to
 send with a report of a machine that does not work. The file holds the
-kernel log and that inventory and nothing else: the core prints nothing
-(`tools/lint-secrets.sh`) and the shell prints sizes, names, counts and
-reasons. The release image writes nothing: its app is started without
+kernel log, that inventory and the system and radios blocks (above, "The
+dev variant") and nothing else: the core prints nothing, the shell prints
+sizes, names, counts and reasons, and the blocks read only the kernel's
+files (`tools/lint-secrets.sh`, rules 1 and 5). The release image writes nothing: its app is started without
 `--boot-report`, its kernel log stays closed to the app, and `build.sh`
 refuses a release image whose arguments or inittab say otherwise.
 

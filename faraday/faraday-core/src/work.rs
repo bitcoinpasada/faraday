@@ -12,7 +12,10 @@
 //! a cargo feature and not `cfg(test)`, so faraday-core is built once. The counts
 //! are per thread so that tests running side by side in one process do
 //! not see each other's work; drawing and events run on the thread that
-//! calls the app. Nothing reads them outside a test.
+//! calls the app. Nothing reads them outside a test but the dev card's
+//! shell, which times the events that did each kind
+//! (`docs/DEVELOPING.md` §6.2), and takes the vault stretches noted with
+//! [`note_vault`] for it.
 //!
 //! Costly work drawing may reach goes through `drawing::View`'s token
 //! (`docs/COMPUTE.md` §3 and §4); the type, the costs lint and the
@@ -185,6 +188,115 @@ pub fn snapshot() -> Counts {
 /// The work done on this thread since `before` was taken.
 pub fn since(before: &Counts) -> Counts {
     snapshot().since(before)
+}
+
+/// What a vault's key stretch was for, for the dev card's timings
+/// (`docs/DEVELOPING.md` §6.2): the act, the cost, which is the vault's
+/// header and not secret, and how it ended. Nothing in it comes from a
+/// passphrase, a name or the vault's contents.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct VaultWork {
+    /// What the stretch was for.
+    pub act: VaultAct,
+    /// The Argon2id memory, MiB.
+    pub memory_mib: u32,
+    /// The Argon2id passes.
+    pub passes: u32,
+    /// How it ended.
+    pub ended: VaultEnded,
+}
+
+/// What a vault's key stretch was for.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum VaultAct {
+    /// A vault made: one stretch for each passphrase.
+    Made,
+    /// A vault unlocked.
+    Unlocked,
+    /// The one 64 MiB pass at boot that times this computer.
+    Measured,
+}
+
+/// How a vault's key stretch ended. A wrong passphrase is not told
+/// apart from a right one: both stretched in full.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum VaultEnded {
+    /// The stretch ran.
+    Ran,
+    /// Its memory could not be allocated (`faraday_vault::Error::Memory`).
+    NoMemory,
+    /// Not started: the memory free here is less than it needs
+    /// (`docs/VAULT.md` §3.1).
+    NotFree,
+    /// The file's header was refused before anything ran.
+    Refused,
+}
+
+impl VaultEnded {
+    /// How a vault's open or make ended, by its error's kind. Cheap.
+    pub fn of<T>(result: &Result<T, faraday_vault::Error>) -> VaultEnded {
+        use faraday_vault::Error as E;
+        match result {
+            Err(E::Memory(_)) => VaultEnded::NoMemory,
+            Err(E::Magic | E::Version | E::SlotSize | E::Length | E::Cost) => VaultEnded::Refused,
+            _ => VaultEnded::Ran,
+        }
+    }
+}
+
+impl VaultWork {
+    /// The preset this cost is (`docs/VAULT.md` §3.1), or Custom. Cheap.
+    pub fn strength(&self) -> &'static str {
+        crate::vault::PRESETS
+            .iter()
+            .find(|p| p.1 == self.memory_mib && p.2 == self.passes)
+            .map_or(faraday_strings::EN.vault_custom, |p| p.0)
+    }
+}
+
+/// The most vault notes kept for the shell to take: a shell that takes
+/// none (every shell but the dev card's) keeps this many and no more.
+const VAULT_NOTES: usize = 8;
+
+thread_local! {
+    static VAULTS: std::cell::RefCell<Vec<VaultWork>> = const { std::cell::RefCell::new(Vec::new()) };
+}
+
+/// Notes a vault's key stretch, `act` at `cost`, ended `ended`, for the
+/// dev card's timings ([`take_vault_work`]). Costs a push.
+pub fn note_vault(act: VaultAct, cost: faraday_vault::Cost, ended: VaultEnded) {
+    VAULTS.with(|v| {
+        let mut v = v.borrow_mut();
+        if v.len() < VAULT_NOTES {
+            v.push(VaultWork {
+                act,
+                memory_mib: cost.memory_kib / 1024,
+                passes: cost.passes,
+                ended,
+            });
+        }
+    });
+}
+
+/// `refusal`, noted as a stretch of `memory_mib` and `passes` not tried
+/// for want of memory free ([`VaultEnded::NotFree`]) when there is one.
+/// Costs a push.
+pub fn refused<T>(act: VaultAct, memory_mib: u32, passes: u32, refusal: Option<T>) -> Option<T> {
+    if refusal.is_some() {
+        let cost = faraday_vault::Cost {
+            memory_kib: memory_mib * 1024,
+            passes,
+            lanes: 1,
+        };
+        note_vault(act, cost, VaultEnded::NotFree);
+    }
+    refusal
+}
+
+/// The vault stretches noted on this thread since the last call, oldest
+/// first. The dev card's shell takes them after each event it times.
+pub fn take_vault_work() -> Vec<VaultWork> {
+    VAULTS.with(|v| std::mem::take(&mut *v.borrow_mut()))
 }
 
 #[cfg(test)]

@@ -206,7 +206,12 @@ and published with each release:
 
 The laptop row was measured by `cargo run --release -p
 faraday-argon2-bench`, three runs a preset, the middle kept.
-The Raspberry Pi rows wait for the boards.
+The Raspberry Pi rows come from the dev card's timings: a Pi booted from a
+`dev=1` image writes each vault made and unlocked into
+`faraday-timings.txt` as a `work` row naming its strength, its Argon2id
+memory and passes and how long it took (`docs/DEVELOPING.md` §6.2), and a
+strength the board could not allocate as "failed: no memory". They wait
+for those runs.
 
 Lanes are 1 everywhere, so a multi-core machine opens no faster than a
 single core; the Pi's cores are much slower than a laptop's, and the Pi

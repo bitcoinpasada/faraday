@@ -13,7 +13,7 @@ use std::path::{Path, PathBuf};
 use faraday_core::{Faraday, StickInfo, StorageCommand, StorageEvent};
 use faraday_files::{Dir, checked};
 
-pub use faraday_files::{MAX_PIXELS, MAX_READ, foreign};
+pub use faraday_files::{MAX_PIXELS, MAX_READ, Unrenamed, foreign};
 
 /// What a stick directory holds at its top level, as the app sees it.
 pub fn stick_info(dir: &Path, label: &str, boot: bool) -> StickInfo {

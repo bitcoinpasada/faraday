@@ -27,6 +27,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{Receiver, Sender, channel};
 use std::sync::{Arc, Condvar, Mutex};
 use std::thread::JoinHandle;
+use std::time::{Duration, Instant};
 
 use zeroize::{Zeroize, Zeroizing};
 
@@ -77,11 +78,17 @@ impl Seen {
     }
 }
 
-/// What a pass found: a code's payload, and what it saw.
+/// What a pass found: a code's payload, what it saw, and how long it
+/// took.
 enum Found {
     Code(Vec<u8>),
     Seen(Seen),
+    Took(Duration),
 }
+
+/// The most pass times kept for a shell that does not take them
+/// ([`Scanner::take_pass_times`]).
+const PASS_TIMES: usize = 64;
 
 /// One camera frame waiting to be read.
 struct Job {
@@ -104,6 +111,7 @@ pub struct Scanner {
     found: Receiver<Found>,
     codes: std::cell::RefCell<Vec<Vec<u8>>>,
     seen: std::cell::Cell<Option<Seen>>,
+    times: std::cell::RefCell<Vec<Duration>>,
     thread: Option<JoinHandle<()>>,
 }
 
@@ -128,6 +136,7 @@ impl Scanner {
             found,
             codes: std::cell::RefCell::new(Vec::new()),
             seen: std::cell::Cell::new(None),
+            times: std::cell::RefCell::new(Vec::new()),
             thread: Some(thread),
         }
     }
@@ -155,6 +164,12 @@ impl Scanner {
             match f {
                 Found::Code(b) => self.codes.borrow_mut().push(b),
                 Found::Seen(s) => self.seen.set(Some(s)),
+                Found::Took(d) => {
+                    let mut times = self.times.borrow_mut();
+                    if times.len() < PASS_TIMES {
+                        times.push(d);
+                    }
+                }
             }
         }
     }
@@ -172,6 +187,15 @@ impl Scanner {
     pub fn poll_seen(&self) -> Option<Seen> {
         self.drain();
         self.seen.take()
+    }
+
+    /// How long each of the worker's passes over a frame took since the
+    /// last call, for the dev card's timings: the decode, nothing of
+    /// what it read.
+    #[must_use]
+    pub fn take_pass_times(&self) -> Vec<Duration> {
+        self.drain();
+        std::mem::take(&mut *self.times.borrow_mut())
     }
 
     /// Ends the worker and wipes what it still held.
@@ -241,7 +265,11 @@ fn work(pending: &(Mutex<Pending>, Condvar), tx: &Sender<Found>, mode: ReadMode)
             job.luma.iter_mut().for_each(|b| *b = 255 - *b);
         }
         inverted = !inverted;
+        let began = Instant::now();
         let (code, seen) = read(&job, mode, &mut misses);
+        if tx.send(Found::Took(began.elapsed())).is_err() {
+            return;
+        }
         if let Some(s) = seen
             && tx.send(Found::Seen(s)).is_err()
         {
@@ -434,5 +462,8 @@ mod tests {
         }
         assert_eq!(code.as_deref(), Some(&b"faraday scanner"[..]));
         assert!(scanner.poll_seen().is_some_and(|s| s.read));
+        // The pass that read it was timed, once.
+        assert!(!scanner.take_pass_times().is_empty());
+        assert!(scanner.take_pass_times().is_empty());
     }
 }

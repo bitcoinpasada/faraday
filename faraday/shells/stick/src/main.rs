@@ -109,6 +109,7 @@
 mod bootreport;
 mod camera;
 mod clock;
+mod costly;
 mod cursor;
 mod evdev;
 mod fb;
@@ -120,6 +121,8 @@ mod pace;
 mod panel;
 mod pointer;
 mod present;
+mod radios;
+mod system;
 mod timings;
 mod touch;
 #[cfg(test)]
@@ -714,66 +717,6 @@ fn ms_text(ms: Option<u64>) -> String {
 /// What `entropy` reads, named to the core as it is opened.
 const ENTROPY_SOURCE: &str = "/dev/random";
 
-/// What the shell found, for the boot report (`bootreport.rs`): the panel
-/// it chose, every input device with what it was classified as, and every
-/// capture device.
-fn inventory(
-    geometry: Geometry,
-    dpi: u16,
-    setup: orient::Setup,
-    devices: &[evdev::Device],
-) -> String {
-    let mut out = String::new();
-    out.push_str(&format!(
-        "panel {}x{} {}bpp stride {} dpi {}\n",
-        geometry.width,
-        geometry.height,
-        geometry.depth.bits(),
-        geometry.stride,
-        dpi,
-    ));
-    out.push_str(&format!(
-        "native {}; rotation {}; other orientation turned {}\n",
-        if setup.native_portrait {
-            "portrait"
-        } else {
-            "landscape"
-        },
-        if setup.offered {
-            "offered"
-        } else {
-            "not offered"
-        },
-        setup.mount.degrees(),
-    ));
-    if devices.is_empty() {
-        out.push_str("input: none\n");
-    }
-    for device in devices {
-        out.push_str(&format!(
-            "input {} {:?}: {}\n",
-            device.node.display(),
-            device.name,
-            device.kinds()
-        ));
-    }
-    let mut cameras: Vec<String> = std::fs::read_dir("/dev")
-        .into_iter()
-        .flatten()
-        .filter_map(|e| e.ok())
-        .filter_map(|e| e.file_name().into_string().ok())
-        .filter(|n| n.starts_with("video"))
-        .collect();
-    cameras.sort();
-    if cameras.is_empty() {
-        out.push_str("camera: none\n");
-    }
-    for camera in cameras {
-        out.push_str(&format!("camera /dev/{camera}\n"));
-    }
-    out
-}
-
 /// The shell: the app, the panel, the clock, and the two counters that
 /// decide when to stop.
 struct Shell {
@@ -1066,11 +1009,15 @@ impl Shell {
         let mut result = None;
         let blends = self.app.as_ref().is_some_and(Faraday::next_frame_blends);
         self.last_blend = blends;
+        let watch = costly::Watch::start(self.timings.as_ref());
         let start = self.timings.is_some().then(Instant::now);
         let frame = self.app.as_mut().map(App::frame);
         if let (Some(start), Some(t)) = (start, self.timings.as_mut()) {
             let bucket = if blends { Bucket::Blend } else { Bucket::Frame };
             t.add(bucket, start.elapsed());
+            if let Some(w) = watch {
+                w.end(t, " (in a frame)");
+            }
         }
         match frame {
             Some(frame) if (frame.width, frame.height) != (fw, fh) => {
@@ -1097,7 +1044,14 @@ impl Shell {
             // A frame the core drew counts whether or not a pixel
             // changed: `--frames` and the frame grid follow the core's
             // draws, not the panel's bytes.
-            Some(Ok(())) => self.drawn += 1,
+            Some(Ok(())) => {
+                self.drawn += 1;
+                // The first frame on the panel, by the kernel's clock,
+                // for the boot report.
+                if let Some(report) = self.boot_report.as_mut() {
+                    report.system.first_frame();
+                }
+            }
             Some(Err(e)) => self.say(&format!("framebuffer write failed: {e}")),
             None => {}
         }
@@ -1176,17 +1130,19 @@ impl Shell {
     }
 
     /// Writes the boot report whole if it is due, or at exit: the kernel
-    /// log, then the inventory, onto the boot stick over the copy before
-    /// it (the disk process writes a new file, reads it back and renames
-    /// it over the old one, so a stick pulled mid-write keeps the last
-    /// good report). A stick that cannot be written to is one line for
-    /// `--verbose`, said once: the report is a diagnostic and never worth
-    /// stopping for.
+    /// log, then the inventory, the system and the radios, onto the boot
+    /// stick over the copy before it (the disk process writes a new file,
+    /// reads it back and renames it over the old one, so a stick pulled
+    /// mid-write keeps the last good report). A stick that cannot be
+    /// written to is one line for `--verbose`, said once: the report is a
+    /// diagnostic and never worth stopping for. The system's figures are
+    /// read once a second whether or not the report is due.
     fn write_boot_report(&mut self, last: bool) {
         let elapsed = self.epoch.elapsed();
-        let Some(report) = self.boot_report.as_ref() else {
+        let Some(report) = self.boot_report.as_mut() else {
             return;
         };
+        report.system.sample(elapsed);
         if !report.schedule.due(elapsed, last) {
             return;
         }
@@ -1202,18 +1158,19 @@ impl Shell {
             }
             return;
         }
-        let text = bootreport::compose(
-            &bootreport::kernel_log(Path::new(bootreport::DMESG)),
-            &report.inventory,
-            elapsed,
-        );
+        let kernel = bootreport::kernel_log(Path::new(bootreport::DMESG));
+        let mut blocks = report.system.block(kernel.as_deref().ok());
+        blocks.push_str(&radios::block(Path::new("/")));
+        let text = bootreport::compose(&kernel, &report.inventory, &blocks, elapsed);
         let name = report.name.clone();
-        let wrote = match (self.disk.as_mut(), boot) {
-            (Some(disk), Some(id)) => disk
-                .write(&id, &name, text.as_bytes(), true, false)
-                .map(drop),
-            _ => self.files.write_named(&name, text.as_bytes()).map(drop),
-        };
+        let wrote = costly::timed(&mut self.timings, costly::DEV_FILE_WRITTEN, || {
+            match (self.disk.as_mut(), boot) {
+                (Some(disk), Some(id)) => disk
+                    .write(&id, &name, text.as_bytes(), true, false)
+                    .map(drop),
+                _ => self.files.write_named(&name, text.as_bytes()).map(drop),
+            }
+        });
         let Some(report) = self.boot_report.as_mut() else {
             return;
         };
@@ -1237,7 +1194,13 @@ impl Shell {
             let Some(app) = self.app.as_mut() else {
                 return;
             };
+            // The costly work the event did, timed under its kind
+            // (`costly.rs`), when `--timings` asked.
+            let watch = costly::Watch::start(self.timings.as_ref());
             app.event(e);
+            if let (Some(w), Some(t)) = (watch, self.timings.as_mut()) {
+                w.end(t, "");
+            }
             while let Some(c) = self.app.as_mut().and_then(|a| a.poll_command()) {
                 match c {
                     // Drawn once per loop pass by `flush`, however many
@@ -1294,7 +1257,10 @@ impl Shell {
                         name_hint,
                         bytes,
                     } => {
-                        let event = match self.files.write(&name_hint, &bytes) {
+                        let wrote = costly::timed(&mut self.timings, costly::FILE_WRITTEN, || {
+                            self.files.write(&name_hint, &bytes)
+                        });
+                        let event = match wrote {
                             Ok(path) => {
                                 self.say(&format!("wrote {}", path.display()));
                                 Event::FileWritten { kind }
@@ -1364,10 +1330,18 @@ impl Shell {
             }
             if let Some(app) = self.app.as_mut() {
                 let locking = app.restart_requested();
-                let said = match self.disk.as_mut() {
-                    Some(disk) => serve_with(app, &mut self.boxes, None, disk),
-                    None => serve_with(app, &mut self.boxes, None, &mut self.dirs),
+                let watch = costly::Watch::start(self.timings.as_ref());
+                let mut sticks = costly::Timed {
+                    sticks: match self.disk.as_mut() {
+                        Some(disk) => disk as &mut dyn Sticks,
+                        None => &mut self.dirs,
+                    },
+                    timings: self.timings.as_mut(),
                 };
+                let said = serve_with(app, &mut self.boxes, None, &mut sticks);
+                if let (Some(w), Some(t)) = (watch, sticks.timings) {
+                    w.end(t, " (stick files served)");
+                }
                 for line in said {
                     if self.verbose {
                         eprintln!("{line}");
@@ -1752,9 +1726,9 @@ fn run(args: Args) -> Result<Exit, String> {
         camera,
         scanner: None,
         files: Files::new(args.files.clone(), !args.files_given),
-        boot_report: args
-            .boot_report
-            .then(|| bootreport::Report::new(inventory(geometry, dpi, setup, &devices))),
+        boot_report: args.boot_report.then(|| {
+            bootreport::Report::new(bootreport::inventory(geometry, dpi, setup, &devices))
+        }),
         timings: args
             .timings
             .then(|| Timings::new(env!("CARGO_PKG_VERSION"), geometry.width, geometry.height)),
@@ -2180,6 +2154,10 @@ fn main_loop(shell: &mut Shell, rx: &Receiver<Wake>) {
         // each code as it routes one from a file.
         while let Some(bytes) = shell.scanner.as_ref().and_then(Scanner::poll) {
             shell.send_timed(Bucket::Scanned, Event::Scanned { bytes });
+        }
+        // How long the worker's passes over the frames took.
+        if let (Some(s), Some(t)) = (shell.scanner.as_ref(), shell.timings.as_mut()) {
+            costly::camera_passes(t, s.take_pass_times());
         }
         // What the scanner saw of a code, for the outline and for "too
         // fine for this camera".
