@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """faraday/builds.toml, the list of what this repository builds, against
 the tree: every id unique, every field one the file's header names, a
-built entry's recipe a `just` recipe and its board and panel directories
-that exist, a planned entry's document one that exists, and every
-directory under faraday/image/boards and faraday/image/panels named by a
-built entry. Run by `just lint`; standard library only."""
+built or untried entry's recipe a `just` recipe and its board and panel
+directories that exist, a planned entry's document one that exists, and every directory under
+faraday/image/boards and faraday/image/panels named by a built or untried
+entry. Run by `just lint`; standard library only."""
 import subprocess
 import sys
 import tomllib
@@ -42,7 +42,7 @@ def main():
                 say(f"no {k}")
         if b.get("group") not in GROUPS:
             say(f"group is {b.get('group')!r}, not one of {sorted(GROUPS)}")
-        if b.get("status") == "built":
+        if b.get("status") in ("built", "untried"):
             if b.get("recipe") not in recipes:
                 say(f"recipe {b.get('recipe')!r} is not a just recipe")
             if not b.get("outputs"):
@@ -58,11 +58,11 @@ def main():
             if not b.get("spec") or not (ROOT / b["spec"]).is_file():
                 say(f"a planned entry names the document that plans it (spec), got {b.get('spec')!r}")
         else:
-            say(f"status is {b.get('status')!r}, not built or planned")
+            say(f"status is {b.get('status')!r}, not built, untried or planned")
     for d in sorted(boards - named_boards):
-        errors.append(f"faraday/image/boards/{d}: no built entry in faraday/builds.toml builds it")
+        errors.append(f"faraday/image/boards/{d}: no built or untried entry in faraday/builds.toml builds it")
     for d in sorted(panels - named_panels):
-        errors.append(f"faraday/image/panels/{d}: no built entry in faraday/builds.toml builds it")
+        errors.append(f"faraday/image/panels/{d}: no built or untried entry in faraday/builds.toml builds it")
     for e in errors:
         print(f"lint-builds: {e}", file=sys.stderr)
     return 1 if errors else 0

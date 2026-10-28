@@ -15,7 +15,7 @@ it.
 |---|---|---|---|
 | The stick | `faraday-stick-X.Y.Z-x86_64-uefi.img.xz` | a 64-bit PC with UEFI firmware; an Intel Mac (`docs/MAC.md` §1, §3) | released; booted in QEMU with OVMF (`faraday/image/README.md`, "The boards") |
 | The Pi | `faraday-pi-X.Y.Z-pi3-waveshare-28dpi.img.xz` | a Raspberry Pi 3B or 3B+ with the Waveshare 2.8-inch DPI panel | released, tested |
-| The Pi Zero 2 W | `faraday/image/boards/pi02w` | a Raspberry Pi Zero 2 W with the same panel | built, not released, not tried: nobody has booted it |
+| The Pi Zero 2 W | `faraday/image/boards/pi02w` | a Raspberry Pi Zero 2 W with the same panel | not built, not released, not tried: its recipe exists (`just board=pi02w faraday-pi-image`), nobody has built or booted it |
 | The Apple Silicon stick | `docs/MAC.md` §4 | Macs with M1 or M2 | planned: its Spec is `docs/MAC.md` |
 | Faraday Demo | inside the Linux and Windows Starters (`docs/DEMO.md` §1) | Linux and Windows, x86_64 | released, for trying Faraday: not air-gapped |
 | The Starter | `Faraday-Starter-X.Y.Z-Linux.tar.gz`, `-Windows.exe` (`docs/STARTER.md` §1.1) | Linux and Windows, x86_64; macOS specified (`docs/MAC.md` §6) | released on Linux and Windows |

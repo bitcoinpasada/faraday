@@ -8,6 +8,7 @@
 #   label     what a person reads
 #   group     "app", "image" or "starter"
 #   status    "built": the recipe below builds it today
+#             "untried": it has a recipe, but nobody has built or booted it
 #             "planned": a document plans it (spec); it has no recipe yet
 #   board, panel  for an image: the directories under faraday/image/boards
 #             and faraday/image/panels it is built from
@@ -71,7 +72,7 @@ release = ["faraday-pi-{version}-pi3-waveshare-28dpi.img.xz"]
 id = "pi02w-waveshare-28dpi"
 label = "Raspberry Pi Zero 2 W, 2.8-inch screen"
 group = "image"
-status = "built"
+status = "untried"
 board = "pi02w"
 panel = "waveshare-28dpi"
 recipe = "faraday-pi-image"
