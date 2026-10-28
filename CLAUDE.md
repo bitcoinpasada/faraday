@@ -45,6 +45,14 @@ changes and nothing else has to be kept in step.
   names) or one of its sheets (`Sheet`), built from the §4 components.
   The Starter's screens are `docs/STARTER.md` §3, built from the same
   components, drawn with Faraday's own look (`faraday-ui`).
+- What a change brings with it is `tools/impact.toml` (F149): a rule
+  for each "a change to these paths needs this too", what holds it, and
+  what reads the paths outside the repository. `python3 -I -B
+  tools/impact.py plan <paths>` says it for a task; `just lint` fails on
+  a pair left unmet, unless a commit says why (`Impact-skip: <rule>:
+  <reason>`). A new rule line here, or a decision that binds later
+  changes, is a rule in the registry in the same commit.
+  `docs/CHECKS.md` is generated from it.
 - A new dimension is a name in `core/faraday-draw/src/tokens.rs`. The
   screens (Faraday's and the Starter's) still hold numbers, and a few
   colours, written in place from before the rule was checked there;

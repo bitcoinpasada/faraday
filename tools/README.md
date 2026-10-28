@@ -23,6 +23,7 @@ in `justfile` and `faraday/faraday.just`.
 | `tools/lint-docs.sh` | lint | `just lint` | documentation lint (below) |
 | `tools/lint-layout.sh` | lint | `just lint` | layout lint: the code map, file sizes, long functions (below) |
 | `tools/lint-builds.py` | lint | `just lint` | `faraday/builds.toml`, the list of builds, against the recipes and the image directories (below) |
+| `tools/impact.py` | lint | `just lint` (`lint`, `check --quiet`, `docs --check`); `plan <paths>` for a task's brief; `docs` writes `docs/CHECKS.md` | the registry `tools/impact.toml`: what a change brings with it, which check holds each rule, a pair left unmet in the range from main (below, `docs/IMPACT.md`) |
 | `tools/lint-tree.sh` | lint | `just lint` | tree lint: the top level's entries, no leftovers, no file over 2 MiB (below) |
 | `tools/lint-keys-tests.sh` | lint | `just lint` | no shipped binary carries the test helpers that reach a key (below) |
 | `tools/lint-unchecked.sh` | lint | `just lint` | no shipped binary compiles `Compute::unchecked` (below) |
@@ -124,6 +125,7 @@ feeds.
 - `lint-themes.sh`: the vendored material-color-utilities matches `tools/themes/reference.sha256`, with no file beside them but its README, and `tools/themes/gen.mjs` run on it writes `faraday/faraday-ui/src/pal/schemes.rs` byte for byte; otherwise "run `just themes`". Needs Node 22 or later (`docs/THEMES.md` §11.3).
 - `check-macos.sh`: clippy for `aarch64-apple-darwin` and `x86_64-apple-darwin` over the Starter's shell.
 - `python3 tools/learn/sync.py check`: fails while `docs/learn/` and `en.rs` differ.
+- `python3 -I -B tools/impact.py lint`, `check --quiet` and `docs --check` (F149, `docs/IMPACT.md`): the registry `tools/impact.toml` has unique ids, `held_by` and `consumers` that name what exists, source documents and paths that exist, a `just lint` recipe equal to its checks, and each app's reads matching `cargo metadata`; no rule of kind pair, forbid or trailer is unmet by the commits from `main` to the working tree (waived only by an `Impact-skip: <rule>: <reason>` trailer); and `docs/CHECKS.md` is what `python3 -I -B tools/impact.py docs` writes. `plan <paths>` says what a change to some paths brings with it. Python 3.11 or later and git; no build.
 
 ## Vectors
 

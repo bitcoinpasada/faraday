@@ -192,16 +192,21 @@ status = "planned"
 id = "impact-check"
 run = "python3 -I -B tools/impact.py check --quiet"
 stage = "just lint"
-catches = "a pair left unmet in the range from main, a refused change, a missing Material trailer (the justfile line comes with batch 3)"
+catches = "a pair left unmet in the range from main, a refused change, a missing Material trailer"
 misses = "a rule a reviewer must judge"
-status = "planned"
 
 [[check]]
 id = "impact-docs"
 run = "python3 -I -B tools/impact.py docs --check"
 stage = "just lint"
-catches = "docs/CHECKS.md differing from the registry (the justfile line comes with batch 3)"
-status = "planned"
+catches = "docs/CHECKS.md differing from the registry"
+
+[[check]]
+id = "impact-lint"
+run = "python3 -I -B tools/impact.py lint"
+stage = "just lint"
+catches = "the registry against itself and the tree: ids, held_by, sources, paths, the lint recipe against the checks, each app's reads against cargo metadata"
+misses = "whether a rule is right"
 
 [[check]]
 id = "crypto-inventory"
@@ -712,8 +717,8 @@ when = ["justfile"]
 lines = '^\+ {4}(tools/(lint|check)-|python3 (-[IB] )*tools/lint|cargo (run -q -p costs-lint|deny|vet))'
 kind = "pair"
 with_each = ["tools/README.md", "tools/impact.toml"]
-held_by = ["impact-check"]
-misses = "impact.py lint compares the recipe with the registry's checks once it is in just lint"
+held_by = ["impact-check", "impact-lint"]
+misses = "whether the lint's description in tools/README.md says what it holds"
 
 # --------------------------------------------------------------- strings
 
@@ -929,8 +934,7 @@ title = "the registry reads, matches the tree and the lint recipe, and docs/CHEC
 source = ["docs/decisions/F149.md"]
 when = ["tools/impact.toml"]
 kind = "held"
-held_by = ["impact-check", "impact-docs"]
-status = "planned"
+held_by = ["impact-lint", "impact-check", "impact-docs"]
 
 [[rule]]
 id = "impact.rules-indexed"

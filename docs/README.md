@@ -51,7 +51,7 @@ need. Each document's header says what kind it is:
 | How do scrolling and motion work? | `docs/MOTION.md` |
 | Why is a dependency there? | `docs/deps/<crate>.md`; the policy is DECISIONS F71 |
 | Which tool or lint does what? | `tools/README.md` |
-| What must change with what, and which check holds each rule? | `docs/IMPACT.md` |
+| What must change with what, and which check holds each rule? | `docs/CHECKS.md`; why and how, `docs/IMPACT.md` |
 | What is run before a release, and which parsers are fuzzed? | `tools/README.md`, "Before a release"; `fuzz/README.md`, `faraday/fuzz/README.md` |
 | For each cryptographic action, which standard, code and checks, and how does a screen show it; what fails `just lint` when one is added or changed? | `docs/CRYPTO-LEARN.md` |
 | Where are keys held, and how do they leave? | `docs/KEYS.md`, then `docs/AUDIT.md` §2 |
@@ -69,6 +69,7 @@ need. Each document's header says what kind it is:
 - `docs/AUDIT-SUBMISSIONS.md`: Audits: the request, the submission and the record. Built (F19).
 - `docs/AUDIT.md`: What is cryptography, and where it lives. Built (the key boundary, F70).
 - `docs/CODEX32.md`: Codex32: making, checking and repairing shares. Built (F93 to F96, F107); no Codex32QR picture for 74 and 127 characters.
+- `docs/CHECKS.md`: Checks: what holds each rule, generated from `tools/impact.toml`. Built (F149).
 - `docs/COMPUTE.md`: Compute: costly work takes a token. Built (F69).
 - `docs/DEMO.md`: Practice, and Faraday Demo for developers. Built (F30, F61).
 - `docs/DESIGN.md`: Design system. Built.
@@ -99,7 +100,7 @@ need. Each document's header says what kind it is:
 - `docs/GUIDE.md`: Faraday user guide, the index. Sections 1 to 7 are stubs pointing to `docs/guide/walk/`, one file per walkthrough; all twenty-three walkthroughs hold the written text and their pictures (`docs/guide/pictures/`), checked against the app; it waits on a test by a reader new to Faraday.
 - `docs/guide/screens/README.md`: the guide's screen reference, one page per screen or group of small screens; every screen and sheet of Faraday has its page.
 - `docs/IMAGES.md`: Images for each piece of hardware. Specified (F145), not built.
-- `docs/IMPACT.md`: What a change brings with it: one registry of rules, checked at landing and before the website publishes. Specified (F149), not built.
+- `docs/IMPACT.md`: What a change brings with it: one registry of rules, checked at landing and before the website publishes. Specified (F149); batches 1 to 3 built.
 - `docs/INTEROP.md`: Interoperability with other wallets. Tested.
 - `docs/LARGE-FILES.md`: Large files on a stick visit. Not built (F26, amended by F30).
 - `docs/MAC.md`: Faraday on Macs. Partly built.

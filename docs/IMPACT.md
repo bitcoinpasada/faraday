@@ -1,8 +1,8 @@
 # Impact: what a change brings with it
 
 **Kind:** Spec
-**Status:** Specified (F149), not built
-**Open:** everything: the registry tools/impact.toml and its first rules, tools/impact.py (plan, check, docs, report, lint), the `Impact-skip` trailer, the check in `just lint`, docs/CHECKS.md generated, the decisions' `**Held by:**` line and its lint, the website's step before it publishes
+**Status:** Specified (F149); the registry, `plan`, `check`, `lint`, `docs` and docs/CHECKS.md and their lines in `just lint` built (batches 1 to 3)
+**Open:** batches 4 to 6 of §10: `impact.py report` and `check --consumer`, the decisions' `**Held by:**` line and its lint (`lint-docs` rule 6), the website's step before it publishes
 
 A change to Faraday often needs a second change somewhere else: a string
 renamed needs the guide's bold name, a new board needs its line in

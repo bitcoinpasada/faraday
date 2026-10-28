@@ -65,6 +65,13 @@ lint:
     # The guide's bold names are the app's strings, its links resolve.
     python3 -B tools/lint-guide.py --self-test
     python3 -B tools/lint-guide.py
+    # The registry of what a change brings with it reads, and matches the
+    # tree and this recipe (docs/IMPACT.md §2.5).
+    python3 -I -B tools/impact.py lint
+    # No pair of the registry left unmet in the range from main (F149).
+    python3 -I -B tools/impact.py check --quiet
+    # docs/CHECKS.md is what the registry makes (`tools/impact.py docs` writes it).
+    python3 -I -B tools/impact.py docs --check
 
 # Fetch the audit sets supply-chain/config.toml imports, write them to
 # imports.lock, and drop exemptions they now cover (F71), keeping those

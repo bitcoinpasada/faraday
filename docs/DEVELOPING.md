@@ -15,7 +15,9 @@ CI.
   libsecp256k1 from source.
 - **just** (the task runner) and, for the check, `cargo install --locked
   cargo-nextest cargo-deny cargo-vet`.
-- **Python 3** for the lints and the cross-check. The cross-check's
+- **Python 3.11 or later** and **git** for the lints (`tools/impact.py`
+  reads TOML with `tomllib` and the history with git) and the
+  cross-check. The cross-check's
   `vault` and `kdbx` areas need the distribution's argon2-cffi, PyNaCl
   and pykeepass; PyPy is optional (`tools/crosscheck/README.md`).
 - **Podman or Docker**, rootless, for the stick and Pi images and the
