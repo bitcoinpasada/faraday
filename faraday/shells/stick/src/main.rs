@@ -122,6 +122,8 @@ mod pointer;
 mod present;
 mod timings;
 mod touch;
+#[cfg(test)]
+mod turned_tests;
 mod usb;
 
 use std::fs::{File, OpenOptions};
@@ -141,7 +143,8 @@ use faraday_core::{
 };
 use faraday_scanner::{ReadMode, Scanner};
 use faraday_shell_api::{
-    App, BootState, Command, DisplayInfo, EntropyBytes, Event, Key, SecureHardware, TouchPhase,
+    App, BootState, Command, DisplayInfo, EntropyBytes, Event, Key, Orientation, SecureHardware,
+    TouchPhase,
 };
 use faraday_storage::{Boxes, Dirs, DiskProcess, Sticks, serve_with, stick_info};
 use fb::{Depth, Geometry};
@@ -802,6 +805,13 @@ struct Shell {
     /// which move the arrow on it themselves.
     panel: Arc<Mutex<Panel>>,
     geometry: Geometry,
+    /// Which way the panel is, and whether Rotation is offered on it.
+    setup: orient::Setup,
+    /// How the core's frame is turned onto the panel, shared with the
+    /// touchscreens' readers.
+    turn: orient::Shared,
+    /// The density the core is told.
+    dpi: u16,
     /// The core's last frame and its converted copy, kept between draws
     /// so a redraw allocates nothing and converts and writes only the
     /// rows that changed (`present.rs`).
@@ -894,11 +904,8 @@ impl Shell {
                 ));
             }
             if (device.mouse || device.touchpad) && self.cursor.is_none() {
-                self.cursor = Some(Arc::new(Mutex::new(Cursor::new(
-                    self.geometry.width,
-                    self.geometry.height,
-                    self.pointer_speed,
-                ))));
+                let (w, h) = self.frame_size();
+                self.cursor = Some(Arc::new(Mutex::new(Cursor::new(w, h, self.pointer_speed))));
             }
             let believed = Arc::new(AtomicBool::new(device.trusted));
             if !device.trusted {
@@ -964,6 +971,56 @@ impl Shell {
 }
 
 impl Shell {
+    /// The size of the core's frame: the panel's, turned.
+    fn frame_size(&self) -> (u16, u16) {
+        self.turn
+            .get()
+            .frame_size((self.geometry.width, self.geometry.height))
+    }
+
+    /// What the core is told of the display: the frame's size, turned.
+    fn display_info(&self) -> DisplayInfo {
+        let (width, height) = self.frame_size();
+        DisplayInfo {
+            width,
+            height,
+            dpi: self.dpi,
+            // The panel is the whole display: no gesture bar, no cutout,
+            // and the frame the core draws is every pixel a person can
+            // see.
+            inset_bottom: 0,
+            inset_top: 0,
+            buttons: 0,
+            // The camera is a module in a case someone built, mounted
+            // whichever way the case allows.
+            camera_fixed: false,
+            secure: SecureHardware::None,
+            // The board has no attestation to say how it came up.
+            boot: BootState::Unknown,
+            memory_mib: total_memory_mib(),
+        }
+    }
+
+    /// Shows the frame `chosen` way round (`docs/ORIENTATION.md` §7):
+    /// the turn set for the touchscreens, the panel written whole next,
+    /// the arrow kept inside the turned frame. Returns whether the turn
+    /// changed, and so whether the core must be told the new size.
+    fn turn_to(&mut self, chosen: Orientation) -> bool {
+        let turn = self.setup.turn_for(chosen);
+        if turn == self.turn.get() {
+            return false;
+        }
+        self.turn.set(turn);
+        lock(&self.panel).set_turn(turn);
+        let (w, h) = self.frame_size();
+        if let Some(c) = self.cursor.as_ref() {
+            lock(c).resize(w, h);
+        }
+        self.move_arrow();
+        self.say(&format!("turned {}", turn.degrees()));
+        true
+    }
+
     fn now_ms(&self) -> u64 {
         self.epoch.elapsed().as_millis() as u64
     }
@@ -999,7 +1056,9 @@ impl Shell {
     /// be caught half written; fewer bytes make that window shorter.
     fn draw(&mut self) {
         let g = self.geometry;
-        let pixels = usize::from(g.width) * usize::from(g.height);
+        let turn = self.turn.get();
+        let (fw, fh) = turn.frame_size((g.width, g.height));
+        let pixels = usize::from(fw) * usize::from(fh);
 
         // The frame is painted when it is read, so the app is borrowed
         // mutably here and anything to say waits until it is given back.
@@ -1014,7 +1073,7 @@ impl Shell {
             t.add(bucket, start.elapsed());
         }
         match frame {
-            Some(frame) if (frame.width, frame.height) != (g.width, g.height) => {
+            Some(frame) if (frame.width, frame.height) != (fw, fh) => {
                 complaint = Some("frame does not match the panel; not drawing");
             }
             Some(frame) if frame.rgba.len() < pixels * 4 => {
@@ -1024,6 +1083,7 @@ impl Shell {
                 result = Some(self.presenter.present(
                     &frame.rgba[..pixels * 4],
                     g,
+                    turn,
                     &self.panel,
                     self.timings.as_mut(),
                 ));
@@ -1292,6 +1352,14 @@ impl Shell {
                     // The stick is its screen: it sends no
                     // `PreviewOffered`, so this is never asked.
                     Command::PreviewSize { .. } => {}
+                    // Settings' Rotation, or the kept choice after
+                    // `RotationOffered`: the core lays out again at the
+                    // turned size (`docs/ORIENTATION.md` §7).
+                    Command::Orientation(chosen) => {
+                        if self.turn_to(chosen) {
+                            pending.push_back(Event::Display(self.display_info()));
+                        }
+                    }
                 }
             }
             if let Some(app) = self.app.as_mut() {
@@ -1569,11 +1637,17 @@ fn run(args: Args) -> Result<Exit, String> {
         .filter(|(_, d)| !d.trusted)
         .map(|(id, d)| (*id, d.name.clone(), d.keyboard, d.mouse || d.touchpad))
         .collect();
-    let panel = Arc::new(Mutex::new(Panel::new(fb, geometry)));
+    // Landscape first wherever Rotation is offered (F100); the kept
+    // choice turns it once the core has read it.
+    let turn = orient::Shared::new(setup.at_start());
+    let frame = turn.get().frame_size(fb_size);
+    let mut panel = Panel::new(fb, geometry);
+    panel.set_turn(turn.get());
+    let panel = Arc::new(Mutex::new(panel));
     let cursor = pointing.then(|| {
         Arc::new(Mutex::new(Cursor::new(
-            geometry.width,
-            geometry.height,
+            frame.0,
+            frame.1,
             args.pointer_speed,
         )))
     });
@@ -1586,6 +1660,7 @@ fn run(args: Args) -> Result<Exit, String> {
         height: geometry.height,
         grid: args.touch_grid,
         calibration: args.calibration,
+        turn: turn.clone(),
     };
     let mut believed = std::collections::BTreeMap::new();
     for (id, device) in found {
@@ -1661,6 +1736,9 @@ fn run(args: Args) -> Result<Exit, String> {
         restart: false,
         panel,
         geometry,
+        setup,
+        turn,
+        dpi,
         presenter: Presenter::default(),
         cursor,
         believed,
@@ -1713,23 +1791,14 @@ fn run(args: Args) -> Result<Exit, String> {
         }
     }
 
-    shell.send(Event::Display(DisplayInfo {
-        width: geometry.width,
-        height: geometry.height,
-        dpi,
-        // The panel is the whole display: no gesture bar, no cutout, and
-        // the frame the core draws is every pixel a person can see.
-        inset_bottom: 0,
-        inset_top: 0,
-        buttons: 0,
-        // The camera is a module in a case someone built, mounted
-        // whichever way the case allows.
-        camera_fixed: false,
-        secure: SecureHardware::None,
-        // The board has no attestation to say how it came up.
-        boot: BootState::Unknown,
-        memory_mib: total_memory_mib(),
-    }));
+    let display = shell.display_info();
+    shell.send(Event::Display(display));
+    // A panel Rotation is for says so, and the core answers with the
+    // kept choice (`docs/ORIENTATION.md` §6).
+    if shell.setup.offered {
+        let native = shell.setup.native();
+        shell.send(Event::RotationOffered { native });
+    }
     // What the process before a lock left in the Inbox and Outbox, then
     // the sticks present now.
     let restored = shell.boxes.restore();

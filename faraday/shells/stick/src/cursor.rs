@@ -27,6 +27,7 @@ use std::time::{Duration, Instant};
 use faraday_shell_api::{Event, TouchPhase};
 
 use crate::fb::{self, Geometry};
+use crate::orient::Turn;
 use crate::pointer::{Finger, Motion};
 use crate::touch::Touch;
 
@@ -237,7 +238,18 @@ impl Cursor {
         }
     }
 
-    /// Where the cursor is, in panel pixels.
+    /// The frame is now `width × height` (a turn of the panel,
+    /// `docs/ORIENTATION.md` §7): the cursor stays where it was, brought
+    /// inside the new frame.
+    pub fn resize(&mut self, width: u16, height: u16) {
+        self.width = width;
+        self.height = height;
+        self.x = self.x.clamp(0.0, f32::from(width).max(1.0) - 1.0);
+        self.y = self.y.clamp(0.0, f32::from(height).max(1.0) - 1.0);
+    }
+
+    /// Where the cursor is, in the frame's pixels: the panel's, as the
+    /// person sees it.
     pub fn at(&self) -> (u16, u16) {
         (self.x as u16, self.y as u16)
     }
@@ -457,28 +469,56 @@ pub fn scale(lines: u16) -> u16 {
     (lines.saturating_add(ARROW_LINES / 2) / ARROW_LINES).max(1)
 }
 
-/// The rows of the panel the arrow drawn at `at` covers: the first and
-/// the last, inclusive.
-pub fn rows(geometry: Geometry, at: (u16, u16)) -> (usize, usize) {
-    let scale = usize::from(scale(geometry.width.min(geometry.height)));
-    let top = usize::from(at.1);
-    let height = usize::from(geometry.height).max(1);
+/// The arrow's pixels within the frame, in frame pixels: the first
+/// column and row and the last, inclusive, for the arrow drawn at `at`
+/// on a frame `frame` in size, cut by its edges.
+fn reach(scale: usize, frame: (usize, usize), at: (u16, u16)) -> (usize, usize, usize, usize) {
+    let (left, top) = (usize::from(at.0), usize::from(at.1));
+    let (fw, fh) = (frame.0.max(1), frame.1.max(1));
     (
-        top.min(height - 1),
-        (top + ARROW.len() * scale - 1).min(height - 1),
+        left.min(fw - 1),
+        top.min(fh - 1),
+        (left + ARROW[0].len() * scale - 1).min(fw - 1),
+        (top + ARROW.len() * scale - 1).min(fh - 1),
     )
 }
 
+/// The panel's size, and the size of the frame on it at `turn`, in
+/// pixels.
+fn sizes(geometry: Geometry, turn: Turn) -> ((usize, usize), (usize, usize)) {
+    let (w, h) = (geometry.width, geometry.height);
+    let (fw, fh) = turn.frame_size((w, h));
+    (
+        (usize::from(w), usize::from(h)),
+        (usize::from(fw), usize::from(fh)),
+    )
+}
+
+/// The rows of the panel the arrow covers when it is drawn at `at` in
+/// the frame, which `turn` turns onto the panel: the first and the
+/// last, inclusive.
+pub fn rows(geometry: Geometry, turn: Turn, at: (u16, u16)) -> (usize, usize) {
+    let scale = usize::from(scale(geometry.width.min(geometry.height)));
+    let (panel, frame) = sizes(geometry, turn);
+    let (u0, v0, u1, v1) = reach(scale, frame, at);
+    let (_, ya) = turn.to_panel(panel, (u0, v0));
+    let (_, yb) = turn.to_panel(panel, (u1, v1));
+    (ya.min(yb), ya.max(yb))
+}
+
 /// Draws the part of the arrow that falls in `out`, a band of the
-/// frame's packed rows starting at row `first`, in the panel's format:
+/// panel's packed rows starting at row `first`, in the panel's format:
 /// what a frame with the arrow in it holds there, so a band written over
-/// the panel shows the arrow where the whole frame would. `out` is the
-/// shell's own copy; the core's frame is untouched.
-pub fn draw_rows(out: &mut [u8], geometry: Geometry, at: (u16, u16), first: usize) {
+/// the panel shows the arrow where the whole frame would. The arrow
+/// stands at `at` in the frame, with its tip up and to the left as the
+/// person sees it, and each of its pixels goes to the panel through the
+/// same map as the frame's at `turn` (`docs/ORIENTATION.md` §4.1).
+/// `out` is the shell's own copy; the core's frame is untouched.
+pub fn draw_rows(out: &mut [u8], geometry: Geometry, turn: Turn, at: (u16, u16), first: usize) {
     let scale = usize::from(scale(geometry.width.min(geometry.height)));
     let bytes = geometry.depth.bytes_per_pixel();
     let row = geometry.row_bytes();
-    let (width, height) = (usize::from(geometry.width), usize::from(geometry.height));
+    let (panel, frame) = sizes(geometry, turn);
     let (left, top) = (usize::from(at.0), usize::from(at.1));
 
     for (r, line) in ARROW.iter().enumerate() {
@@ -491,24 +531,25 @@ pub fn draw_rows(out: &mut [u8], geometry: Geometry, at: (u16, u16), first: usiz
                 b'W' => [0xff, 0xff, 0xff, 0xff],
                 _ => continue,
             };
-            let mut pixel = vec![0u8; bytes];
-            fb::convert_into(&ink, geometry.depth, &mut pixel);
+            let mut pixel = [0u8; 4];
+            fb::convert_into(&ink, geometry.depth, &mut pixel[..bytes]);
             for sy in 0..scale {
-                let y = top + r * scale + sy;
-                if y >= height {
+                let v = top + r * scale + sy;
+                if v >= frame.1 {
                     break;
                 }
-                let Some(y) = y.checked_sub(first) else {
-                    continue;
-                };
                 for sx in 0..scale {
-                    let x = left + c * scale + sx;
-                    if x >= width {
+                    let u = left + c * scale + sx;
+                    if u >= frame.0 {
                         break;
                     }
+                    let (x, y) = turn.to_panel(panel, (u, v));
+                    let Some(y) = y.checked_sub(first) else {
+                        continue;
+                    };
                     let at = y * row + x * bytes;
                     if let Some(slice) = out.get_mut(at..at + bytes) {
-                        slice.copy_from_slice(&pixel);
+                        slice.copy_from_slice(&pixel[..bytes]);
                     }
                 }
             }
@@ -523,7 +564,7 @@ mod tests {
 
     /// The arrow drawn into a whole frame.
     fn draw(out: &mut [u8], geometry: Geometry, at: (u16, u16)) {
-        draw_rows(out, geometry, at, 0);
+        draw_rows(out, geometry, Turn::R0, at, 0);
     }
 
     fn geometry(depth: Depth) -> Geometry {
@@ -646,18 +687,18 @@ mod tests {
         let at = (20, 30);
         let mut whole = vec![0x55u8; row * usize::from(g.height)];
         draw(&mut whole, g, at);
-        let (first, last) = rows(g, at);
+        let (first, last) = rows(g, Turn::R0, at);
         assert_eq!((first, last), (30, 48), "nineteen rows at 1:1");
         // The band the arrow covers, and one that cuts it in half.
         for (from, to) in [(first, last), (first + 7, first + 12)] {
             let mut band = vec![0x55u8; row * (to - from + 1)];
-            draw_rows(&mut band, g, at, from);
+            draw_rows(&mut band, g, Turn::R0, at, from);
             assert_eq!(band, whole[from * row..(to + 1) * row]);
         }
         // At the bottom edge the arrow is cut by the panel.
         let low = (20, g.height - 5);
         assert_eq!(
-            rows(g, low),
+            rows(g, Turn::R0, low),
             (usize::from(g.height) - 5, usize::from(g.height) - 1)
         );
     }

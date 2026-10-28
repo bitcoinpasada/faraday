@@ -17,6 +17,7 @@ use std::sync::{Mutex, MutexGuard};
 
 use crate::cursor;
 use crate::fb::{self, Geometry};
+use crate::orient::Turn;
 
 /// Rows a frame is written in per hold of the lock: about half a
 /// millisecond of writing on a 1080p panel.
@@ -65,8 +66,10 @@ pub struct Panel<S: Sink = File> {
     /// frame, after a blanking, and after a write that failed. Every row
     /// of the next frame is written, and the arrow waits for it.
     stale: bool,
-    /// Where the arrow is drawn on the panel, if it is.
+    /// Where the arrow is, in the frame's pixels, if it is drawn.
     arrow: Option<(u16, u16)>,
+    /// How the frame is turned onto the panel, which the arrow follows.
+    turn: Turn,
     /// The band of rows being written, kept so a write allocates
     /// nothing.
     band: Vec<u8>,
@@ -84,6 +87,7 @@ impl<S: Sink> Panel<S> {
             shown: Vec::new(),
             stale: true,
             arrow: None,
+            turn: Turn::R0,
             band: Vec::new(),
             written: 0,
         }
@@ -94,6 +98,16 @@ impl<S: Sink> Panel<S> {
     /// failed write).
     pub fn stale(&self) -> bool {
         self.stale
+    }
+
+    /// The frame is turned `turn` from now on (`docs/ORIENTATION.md`
+    /// §7): nothing on the panel is the next frame's, so it is written
+    /// whole.
+    pub fn set_turn(&mut self, turn: Turn) {
+        if turn != self.turn {
+            self.turn = turn;
+            self.stale = true;
+        }
     }
 
     /// Rows written to the framebuffer so far.
@@ -143,6 +157,56 @@ impl<S: Sink> Panel<S> {
         result
     }
 
+    /// Costs a comparison of each row's band of columns with what the
+    /// panel shows and a write of those that differ: columns
+    /// `x0..=x1` of rows `first..=last` of `frame`, a whole converted
+    /// frame, one `pwrite` a row whose band changed, with the arrow
+    /// drawn where it falls in it. A frame turned a quarter changes a
+    /// band of the panel's columns (`docs/ORIENTATION.md` §3). A stale
+    /// panel takes whole rows instead, through [`Panel::write_rows`].
+    pub fn write_columns(
+        &mut self,
+        frame: &[u8],
+        (x0, x1): (usize, usize),
+        first: usize,
+        last: usize,
+    ) -> std::io::Result<()> {
+        if self.stale || self.shown.len() != frame.len() {
+            return self.write_rows(frame, first, last);
+        }
+        let g = self.geometry;
+        let row = g.row_bytes();
+        let bytes = g.depth.bytes_per_pixel();
+        let cols = x0 * bytes..(x1 + 1) * bytes;
+        let arrow = self.arrow.map(|at| (at, cursor::rows(g, self.turn, at)));
+        for y in first..=last {
+            let band = y * row + cols.start..y * row + cols.end;
+            if self.shown[band.clone()] == frame[band.clone()] {
+                continue;
+            }
+            self.band.clear();
+            match arrow {
+                Some((at, (a, b))) if (a..=b).contains(&y) => {
+                    self.band.extend_from_slice(&frame[y * row..(y + 1) * row]);
+                    cursor::draw_rows(&mut self.band, g, self.turn, at, y);
+                    self.band.drain(..cols.start);
+                    self.band.truncate(cols.len());
+                }
+                _ => self.band.extend_from_slice(&frame[band.clone()]),
+            }
+            self.written += 1;
+            if let Err(e) = self
+                .fb
+                .write_at(&self.band, (y * g.stride + cols.start) as u64)
+            {
+                self.stale = true;
+                return Err(e);
+            }
+            self.shown[band.clone()].copy_from_slice(&frame[band]);
+        }
+        Ok(())
+    }
+
     /// Every row of a frame has been written: the kept copy is the
     /// panel, and the arrow can move on its own again.
     pub fn complete(&mut self) {
@@ -167,7 +231,7 @@ impl<S: Sink> Panel<S> {
             [was, at]
                 .into_iter()
                 .flatten()
-                .map(|a| cursor::rows(g, a))
+                .map(|a| cursor::rows(g, self.turn, a))
                 .collect(),
         );
         let shown = std::mem::take(&mut self.shown);
@@ -204,7 +268,7 @@ impl<S: Sink> Panel<S> {
         self.band
             .extend_from_slice(&frame[first * row..(last + 1) * row]);
         if let Some(at) = self.arrow {
-            cursor::draw_rows(&mut self.band, g, at, first);
+            cursor::draw_rows(&mut self.band, g, self.turn, at, first);
         }
         self.written += (last + 1 - first) as u64;
         if g.stride == row {
@@ -268,19 +332,19 @@ mod tests {
         // The arrow lands: its rows carry it, nothing else changes.
         panel.move_arrow(Some((4, 20))).expect("moved");
         let mut want = page.clone();
-        cursor::draw_rows(&mut want, g, (4, 20), 0);
+        cursor::draw_rows(&mut want, g, Turn::R0, (4, 20), 0);
         assert_eq!(read(), want);
         // It moves on: the rows it left are the frame again.
         panel.move_arrow(Some((10, 100))).expect("moved");
         let mut want = page.clone();
-        cursor::draw_rows(&mut want, g, (10, 100), 0);
+        cursor::draw_rows(&mut want, g, Turn::R0, (10, 100), 0);
         assert_eq!(read(), want);
         // A new frame arrives in chunks while the arrow stays: the arrow
         // is drawn into the chunk it falls in, once.
         let next = frame(0x77);
         whole(&mut panel, &next);
         let mut want = next.clone();
-        cursor::draw_rows(&mut want, g, (10, 100), 0);
+        cursor::draw_rows(&mut want, g, Turn::R0, (10, 100), 0);
         assert_eq!(read(), want);
         // And goes away: the frame alone.
         panel.move_arrow(None).expect("moved");

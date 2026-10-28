@@ -235,6 +235,38 @@ pub struct DisplayInfo {
     pub memory_mib: Option<u32>,
 }
 
+/// Which way a panel shows the app (`docs/ORIENTATION.md` §6): the
+/// person's choice in Settings › Display › Rotation, on a shell that can
+/// turn its frame.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum Orientation {
+    /// Wider than tall: the default (F100).
+    #[default]
+    Landscape,
+    /// Taller than wide.
+    Portrait,
+}
+
+impl Orientation {
+    /// The name the settings file keeps it by: `landscape` or
+    /// `portrait`.
+    pub fn id(self) -> &'static str {
+        match self {
+            Orientation::Landscape => "landscape",
+            Orientation::Portrait => "portrait",
+        }
+    }
+
+    /// The orientation `id` names exactly, or `None`.
+    pub fn from_id(id: &str) -> Option<Orientation> {
+        match id {
+            "landscape" => Some(Orientation::Landscape),
+            "portrait" => Some(Orientation::Portrait),
+            _ => None,
+        }
+    }
+}
+
 /// Phase of a touch (or mouse) contact.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TouchPhase {
@@ -684,6 +716,16 @@ pub enum Event {
         /// The size shown, in dp; `None` is the window itself.
         chosen: Option<(u16, u16)>,
     },
+    /// The shell can turn its frame a quarter (`docs/ORIENTATION.md`
+    /// §6): Settings offers Rotation. Sent after [`Event::Display`] by a
+    /// shell on a panel Rotation is for; `native` is the way the panel
+    /// is handed over. The core answers with one
+    /// [`Command::Orientation`] carrying the kept choice. A shell that
+    /// cannot turn never sends it.
+    RotationOffered {
+        /// The panel's own orientation.
+        native: Orientation,
+    },
 }
 
 /// Core → shell.
@@ -832,6 +874,13 @@ pub enum Command {
         /// Width and height in dp; `None` is the window itself.
         size: Option<(u16, u16)>,
     },
+    /// Show the app this way round (`docs/ORIENTATION.md` §6, §7): sent
+    /// once after [`Event::RotationOffered`] with the kept choice, and
+    /// again whenever the person changes it, only to a shell that sent
+    /// that event. The shell turns its frame and its touch, and sends a
+    /// new [`Event::Display`] at the turned size when the turn changed.
+    /// Any other shell does nothing.
+    Orientation(Orientation),
 }
 
 /// A borrowed view of the core-owned framebuffer.

@@ -239,6 +239,85 @@ pub fn convert_into(rgba: &[u8], depth: Depth, out: &mut [u8]) {
     }
 }
 
+/// The side of the square tiles a turned frame is converted in: a
+/// column's writes stay in cache across a tile.
+const TILE: usize = 16;
+
+/// Costs a pass over every pixel of rows `a..=b` of the core's frame:
+/// converts them into `out`, the whole panel `panel` pixels across and
+/// down in its own format, where `turn` puts them (`docs/ORIENTATION.md`
+/// §3). `rgba` is the whole frame, `turn.frame_size(panel)` in size. At
+/// 0 the rows are the panel's rows, at 180 its rows reversed, and at 90
+/// and 270 a band of its columns, walked in tiles of [`TILE`] pixels.
+pub fn convert_turned(
+    rgba: &[u8],
+    (a, b): (usize, usize),
+    depth: Depth,
+    turn: crate::orient::Turn,
+    panel: (u16, u16),
+    out: &mut [u8],
+) {
+    let (fw, _) = turn.frame_size(panel);
+    let fw = usize::from(fw);
+    if turn == crate::orient::Turn::R0 {
+        let bytes = depth.bytes_per_pixel();
+        let row = fw * bytes;
+        convert_into(
+            &rgba[a * fw * 4..(b + 1) * fw * 4],
+            depth,
+            &mut out[a * row..(b + 1) * row],
+        );
+        return;
+    }
+    let walk = Walk {
+        rgba,
+        fw,
+        rows: (a, b),
+        turn,
+        panel: (usize::from(panel.0), usize::from(panel.1)),
+    };
+    match depth {
+        Depth::Rgb565 => walk.put(out, rgb565),
+        Depth::Bgr888 => walk.put(out, bgr888),
+        Depth::Rgb888 => walk.put(out, rgb888),
+        Depth::Bgra8888 => walk.put(out, bgra8888),
+    }
+}
+
+/// Rows of the core's frame on their way to a turned panel.
+struct Walk<'a> {
+    rgba: &'a [u8],
+    /// The frame's width in pixels.
+    fw: usize,
+    /// The first and last row, inclusive.
+    rows: (usize, usize),
+    turn: crate::orient::Turn,
+    /// The panel's width and height in pixels.
+    panel: (usize, usize),
+}
+
+impl Walk<'_> {
+    /// Costs a pass over every pixel of the rows: each converted by
+    /// `pixel` and put where the turn puts it, tile by tile.
+    fn put<const B: usize>(&self, out: &mut [u8], pixel: fn(u8, u8, u8) -> [u8; B]) {
+        let (a, b) = self.rows;
+        let pw = self.panel.0;
+        for tv in (a..=b).step_by(TILE) {
+            for tu in (0..self.fw).step_by(TILE) {
+                for v in tv..(tv + TILE).min(b + 1) {
+                    let src = &self.rgba[v * self.fw * 4..];
+                    for u in tu..(tu + TILE).min(self.fw) {
+                        let (x, y) = self.turn.to_panel(self.panel, (u, v));
+                        let s = &src[u * 4..u * 4 + 3];
+                        let d = (y * pw + x) * B;
+                        out[d..d + B].copy_from_slice(&pixel(s[0], s[1], s[2]));
+                    }
+                }
+            }
+        }
+    }
+}
+
 /// Costs a comparison of the two frames, up to the first and from the
 /// last row that differ: the rows of `next` that differ from `prev`, both
 /// frames of `row` bytes a row, the first and the last (inclusive), or
@@ -277,6 +356,34 @@ pub fn merge_bands(mut bands: Vec<(usize, usize)>) -> Vec<(usize, usize)> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_turned_frame_lands_where_the_map_puts_each_pixel() {
+        use crate::orient::Turn;
+        // A 5 × 3 panel, every frame pixel a colour of its own.
+        let panel = (5u16, 3u16);
+        for turn in [Turn::R0, Turn::R90, Turn::R180, Turn::R270] {
+            let (fw, fh) = turn.frame_size(panel);
+            let (fw, fh) = (usize::from(fw), usize::from(fh));
+            let rgba: Vec<u8> = (0..fw * fh)
+                .flat_map(|i| [i as u8 * 8, 255 - i as u8, i as u8, 255])
+                .collect();
+            let mut out = vec![0u8; 5 * 3 * 4];
+            convert_turned(&rgba, (0, fh - 1), Depth::Bgra8888, turn, panel, &mut out);
+            for v in 0..fh {
+                for u in 0..fw {
+                    let (x, y) = turn.to_panel((5, 3), (u, v));
+                    let s = &rgba[(v * fw + u) * 4..];
+                    let d = (y * 5 + x) * 4;
+                    assert_eq!(
+                        out[d..d + 4],
+                        bgra8888(s[0], s[1], s[2]),
+                        "{turn:?} {u},{v}"
+                    );
+                }
+            }
+        }
+    }
 
     #[test]
     fn bands_that_touch_are_written_as_one() {

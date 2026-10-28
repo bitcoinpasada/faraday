@@ -8,11 +8,17 @@
 //! rows between the first and the last that differ. Comparing is a
 //! `memcmp`; converting is a loop over every pixel, several times slower
 //! on the Pi.
+//!
+//! A frame turned onto the panel (`docs/ORIENTATION.md` §3) is compared
+//! the same way, by the core's rows; they are the panel's rows at 0 and
+//! 180, and a band of its columns at 90 and 270, written row by row
+//! where the band changed.
 
 use std::sync::Mutex;
 use std::time::Instant;
 
 use crate::fb::{self, Geometry};
+use crate::orient::Turn;
 use crate::panel::{CHUNK_ROWS, Panel, Sink, lock};
 use crate::timings::{Bucket, Timings};
 
@@ -33,9 +39,11 @@ pub struct Presenter {
     /// The core's frame as last put out (premultiplied RGBA), to compare
     /// the next with. Empty before the first.
     last: Vec<u8>,
-    /// `last` converted to the panel's format. The cursor is drawn into
-    /// the panel's band, never here.
+    /// `last` converted to the panel's format, turned onto the panel. The
+    /// cursor is drawn into the panel's band, never here.
     converted: Vec<u8>,
+    /// The turn `converted` was made at.
+    turn: Option<Turn>,
     /// Rows converted, ever.
     rows_converted: u64,
 }
@@ -45,40 +53,44 @@ impl Presenter {
     /// conversion and a write of the rows that differ (all of them when
     /// the panel is stale or the size changed).
     ///
-    /// `rgba` is the core's whole frame at `g`'s size. The rows go out in
-    /// bands of [`CHUNK_ROWS`], each under its own hold of the panel's
-    /// lock, so a mouse move from an input thread slips in between two
-    /// bands and the arrow never waits for a frame.
+    /// `rgba` is the core's whole frame, `g`'s size turned by `turn`
+    /// ([`Turn::frame_size`]). The rows go out in bands of
+    /// [`CHUNK_ROWS`], each under its own hold of the panel's lock, so a
+    /// mouse move from an input thread slips in between two bands and
+    /// the arrow never waits for a frame.
     pub fn present<S: Sink>(
         &mut self,
         rgba: &[u8],
         g: Geometry,
+        turn: Turn,
         panel: &Mutex<Panel<S>>,
         mut timings: Option<&mut Timings>,
     ) -> std::io::Result<()> {
-        let rows = usize::from(g.height);
-        if rows == 0 {
+        let panel_size = (g.width, g.height);
+        let (fw, fh) = turn.frame_size(panel_size);
+        let (rows, frame_rows) = (usize::from(g.height), usize::from(fh));
+        if rows == 0 || frame_rows == 0 {
             return Ok(());
         }
-        let src_row = usize::from(g.width) * 4;
+        let src_row = usize::from(fw) * 4;
         let out_row = g.row_bytes();
         let start = timings.is_some().then(Instant::now);
-        let changed = if self.last.len() != rgba.len() || self.converted.len() != rows * out_row {
+        let changed = if self.last.len() != rgba.len()
+            || self.converted.len() != rows * out_row
+            || self.turn != Some(turn)
+        {
             self.last.clear();
             self.last.resize(rgba.len(), 0);
             self.converted.clear();
             self.converted.resize(rows * out_row, 0);
-            Some((0, rows - 1))
+            self.turn = Some(turn);
+            Some((0, frame_rows - 1))
         } else {
             fb::changed_rows(&self.last, rgba, src_row)
         };
         if let Some((a, b)) = changed {
+            fb::convert_turned(rgba, (a, b), g.depth, turn, panel_size, &mut self.converted);
             let src = a * src_row..(b + 1) * src_row;
-            fb::convert_into(
-                &rgba[src.clone()],
-                g.depth,
-                &mut self.converted[a * out_row..(b + 1) * out_row],
-            );
             self.last[src.clone()].copy_from_slice(&rgba[src]);
             self.rows_converted += (b + 1 - a) as u64;
         }
@@ -86,14 +98,21 @@ impl Presenter {
             t.add(Bucket::Convert, start.elapsed());
         }
 
-        // A stale panel shows nothing known: the whole frame goes out,
-        // changed or not.
+        // Where the frame's changed rows are on the panel: its rows, or
+        // a band of its columns down every row. A stale panel shows
+        // nothing known: the whole frame goes out, changed or not.
+        let (w, h) = (usize::from(g.width), rows);
         let span = if lock(panel).stale() {
-            Some((0, rows - 1))
+            Some(((0, h - 1), None))
         } else {
-            changed
+            changed.map(|(a, b)| match turn {
+                Turn::R0 => ((a, b), None),
+                Turn::R180 => ((h - 1 - b, h - 1 - a), None),
+                Turn::R90 => ((0, h - 1), Some((w - 1 - b, w - 1 - a))),
+                Turn::R270 => ((0, h - 1), Some((a, b))),
+            })
         };
-        let Some((a, b)) = span else {
+        let Some(((a, b), columns)) = span else {
             return Ok(());
         };
         let start = timings.is_some().then(Instant::now);
@@ -101,7 +120,12 @@ impl Presenter {
         let mut first = a;
         while first <= b && result.is_ok() {
             let last = (first + CHUNK_ROWS - 1).min(b);
-            result = lock(panel).write_rows(&self.converted, first, last);
+            let mut p = lock(panel);
+            result = match columns {
+                None => p.write_rows(&self.converted, first, last),
+                Some(cols) => p.write_columns(&self.converted, cols, first, last),
+            };
+            drop(p);
             first = last + 1;
         }
         if result.is_ok() {
@@ -178,7 +202,8 @@ mod tests {
         }
         if draw {
             let frame = app.frame();
-            p.present(frame.rgba, G, panel, None).expect("written");
+            p.present(frame.rgba, G, Turn::R0, panel, None)
+                .expect("written");
         }
         draw
     }
@@ -227,7 +252,8 @@ mod tests {
         for _ in 0..2 {
             let _ = app.drawn_texts();
             let frame = app.frame();
-            p.present(frame.rgba, G, &panel, None).expect("written");
+            p.present(frame.rgba, G, Turn::R0, &panel, None)
+                .expect("written");
         }
         assert_eq!(
             since(p.counts(&panel), before),
@@ -266,7 +292,8 @@ mod tests {
         lock(&panel).blank();
         let before = p.counts(&panel);
         let frame = app.frame();
-        p.present(frame.rgba, G, &panel, None).expect("written");
+        p.present(frame.rgba, G, Turn::R0, &panel, None)
+            .expect("written");
         assert_eq!(
             since(p.counts(&panel), before),
             Counts {

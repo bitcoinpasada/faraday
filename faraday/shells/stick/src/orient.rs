@@ -9,7 +9,11 @@
 //! which says how the panel is mounted in its case. A soldered panel's
 //! `panel.conf` says the same with `NATIVE` and `MOUNT`.
 
+use std::sync::Arc;
+use std::sync::atomic::{AtomicU16, Ordering};
+
 use faraday_core::edid;
+use faraday_shell_api::Orientation;
 
 /// How far the core's frame is turned clockwise to sit on the panel.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -45,6 +49,70 @@ impl Turn {
             Turn::R180 => 180,
             Turn::R270 => 270,
         }
+    }
+
+    /// Whether the frame stands across the panel: a quarter turn either
+    /// way.
+    pub fn quarter(self) -> bool {
+        matches!(self, Turn::R90 | Turn::R270)
+    }
+
+    /// The size of the core's frame on a panel `w × h` natively: the
+    /// panel's at 0 and 180, the other way round at 90 and 270.
+    pub fn frame_size(self, (w, h): (u16, u16)) -> (u16, u16) {
+        if self.quarter() { (h, w) } else { (w, h) }
+    }
+
+    /// The panel pixel that shows the frame's `(u, v)`, on a panel
+    /// `w × h` natively (§4.1, left column). The one map the frame, the
+    /// arrow and the touch go through.
+    pub fn to_panel(self, (w, h): (usize, usize), (u, v): (usize, usize)) -> (usize, usize) {
+        match self {
+            Turn::R0 => (u, v),
+            Turn::R90 => (w - 1 - v, u),
+            Turn::R180 => (w - 1 - u, h - 1 - v),
+            Turn::R270 => (v, h - 1 - u),
+        }
+    }
+
+    /// The frame's `(u, v)` a touch at the panel pixel `(x, y)` lands
+    /// on (§4.1, right column): [`Turn::to_panel`] undone.
+    pub fn to_frame(self, (w, h): (u16, u16), (x, y): (u16, u16)) -> (u16, u16) {
+        match self {
+            Turn::R0 => (x, y),
+            Turn::R90 => (y, w - 1 - x),
+            Turn::R180 => (w - 1 - x, h - 1 - y),
+            Turn::R270 => (h - 1 - y, x),
+        }
+    }
+}
+
+/// The turn as the input threads read it: set by the main loop when the
+/// person chooses a rotation, read by a touchscreen's reader for every
+/// touch it maps.
+#[derive(Debug, Clone)]
+pub struct Shared(Arc<AtomicU16>);
+
+impl Shared {
+    /// A turn of `turn`, shared.
+    pub fn new(turn: Turn) -> Shared {
+        Shared(Arc::new(AtomicU16::new(turn.degrees())))
+    }
+
+    /// The turn now.
+    pub fn get(&self) -> Turn {
+        Turn::from_degrees(self.0.load(Ordering::Relaxed)).unwrap_or(Turn::R0)
+    }
+
+    /// Sets the turn.
+    pub fn set(&self, turn: Turn) {
+        self.0.store(turn.degrees(), Ordering::Relaxed);
+    }
+}
+
+impl Default for Shared {
+    fn default() -> Shared {
+        Shared::new(Turn::R0)
     }
 }
 
@@ -151,6 +219,32 @@ impl Setup {
         }
     }
 
+    /// The panel's own orientation.
+    pub fn native(&self) -> Orientation {
+        if self.native_portrait {
+            Orientation::Portrait
+        } else {
+            Orientation::Landscape
+        }
+    }
+
+    /// The turn that shows the frame `chosen` way round (§6): none for
+    /// the panel's own orientation, the mounting's quarter for the
+    /// other. A panel Rotation is not offered on is never turned.
+    pub fn turn_for(&self, chosen: Orientation) -> Turn {
+        if !self.offered || chosen == self.native() {
+            Turn::R0
+        } else {
+            self.mount
+        }
+    }
+
+    /// The turn at start (§8): landscape, the first frame F100 asks
+    /// for, wherever Rotation is offered.
+    pub fn at_start(&self) -> Turn {
+        self.turn_for(Orientation::Landscape)
+    }
+
     /// A panel whose `panel.conf` states it (`--native`, `--mount`):
     /// offered only when it names a mounting.
     pub fn stated(native_portrait: bool, mount: Option<Turn>) -> Setup {
@@ -207,6 +301,42 @@ mod tests {
         assert!(!Setup::detected((1920, 1080), None, "", "").offered);
         // A 5-inch landscape panel is below the sizes Rotation is for.
         assert!(!Setup::detected((1280, 720), size((1280, 720), (110, 62)), "", "").offered);
+    }
+
+    #[test]
+    fn the_map_and_its_inverse_meet_at_every_pixel_and_turn() {
+        for (w, h) in [(1024u16, 600u16), (800, 1280), (7, 3)] {
+            for turn in [Turn::R0, Turn::R90, Turn::R180, Turn::R270] {
+                let (fw, fh) = turn.frame_size((w, h));
+                for v in (0..fh).step_by(usize::from(fh / 3).max(1)).chain([fh - 1]) {
+                    for u in (0..fw).step_by(usize::from(fw / 3).max(1)).chain([fw - 1]) {
+                        let (x, y) = turn.to_panel(
+                            (usize::from(w), usize::from(h)),
+                            (usize::from(u), usize::from(v)),
+                        );
+                        assert!(x < usize::from(w) && y < usize::from(h));
+                        assert_eq!(turn.to_frame((w, h), (x as u16, y as u16)), (u, v));
+                    }
+                }
+            }
+        }
+        // A quarter clockwise: the frame's top-left corner is the
+        // panel's top-right.
+        assert_eq!(Turn::R90.to_panel((800, 1280), (0, 0)), (799, 0));
+        assert_eq!(Turn::R270.to_panel((800, 1280), (0, 0)), (0, 1279));
+    }
+
+    #[test]
+    fn landscape_comes_first_and_portrait_turns_by_the_mounting() {
+        let deck = Setup::detected((800, 1280), None, "ASUSTeK COMPUTER INC.", "T100HAN");
+        assert_eq!(deck.at_start(), Turn::R270, "landscape, turned");
+        assert_eq!(deck.turn_for(Orientation::Portrait), Turn::R0, "its own");
+        let seven = Setup::detected((1024, 600), size((1024, 600), (154, 90)), "", "");
+        assert_eq!(seven.at_start(), Turn::R0);
+        assert_eq!(seven.turn_for(Orientation::Portrait), Turn::R90);
+        // The 2.8-inch panel is never turned.
+        let pi = Setup::stated(true, None);
+        assert_eq!(pi.turn_for(Orientation::Landscape), Turn::R0);
     }
 
     #[test]

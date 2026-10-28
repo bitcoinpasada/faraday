@@ -469,6 +469,9 @@ pub struct TouchPanel {
     pub grid: (u16, u16),
     /// How the controller's axes lie against the panel's.
     pub calibration: touch::Calibration,
+    /// How the frame is turned onto the panel, shared with the main
+    /// loop, which sets it.
+    pub turn: crate::orient::Shared,
 }
 
 /// The parsers one device needs, and the thread body that feeds them.
@@ -493,6 +496,7 @@ impl Readers {
                     None => touch::Parser::new(width, height, panel.grid),
                 }
                 .calibrated(panel.calibration)
+                .turned(panel.turn.clone())
             }),
             pointer: (device.mouse || device.touchpad).then(|| {
                 Pointer::new(
@@ -843,6 +847,7 @@ mod tests {
                 height: 1080,
                 grid: (0, 0),
                 calibration: touch::Calibration::default(),
+                turn: crate::orient::Shared::default(),
             },
         );
         let mut out = Vec::new();

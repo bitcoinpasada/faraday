@@ -1,8 +1,8 @@
 # Panel orientation
 
 **Kind:** Spec
-**Status:** Specified (F100), partly built: native orientation, the panel's density and the known list (O1)
-**Open:** the shell turning its frame, touch and arrow (O2), the setting, its line and the turn without a restart (O3), the snapshot sizes, the guide and the docs that follow (O4).
+**Status:** Specified (F100), partly built: native orientation, the panel's density and the known list (O1); the shell turning its frame, touch and arrow (O2)
+**Open:** the setting, its line and the turn without a restart (O3), the snapshot sizes, the guide and the docs that follow (O4).
 
 A 7-inch or 10-inch panel starts in landscape. Settings › Display gains
 **Rotation**: Landscape, Portrait. A panel that is portrait natively is
@@ -151,8 +151,17 @@ every changed row:
   is about 800 short writes on a 1280 × 800 panel; the timing of §9's
   late-flow session decides whether that stands or whole rows are
   written instead.
-- The arrow is drawn at its turned place with its bitmap turned
-  (`cursor.rs`, the four bitmaps made once at start).
+- The arrow is drawn at its turned place with its bitmap turned: each
+  of its pixels goes through the frame's map (`cursor.rs`), so it
+  points up and to the left as the person sees it at every turn.
+
+Timed before O2 was committed, on the build machine (x86, release
+build), a 1280 × 800 panel at 32 bits: a whole frame converted and
+written takes 1.4 ms at 0 and 2.7 ms at 90 (3.2 ms at 180, which walks
+the same tiles), at 16 bits 0.9 ms and 2.1 ms; a caret's blink takes
+0.21 ms at 0 and 0.22 ms at 90, its two short writes included, the
+comparison of the frames being most of it. The column-band writes
+stand.
 
 The boot logo and anything the kernel draws are not turned: they are
 drawn before the app runs, at the panel's native orientation (§8).
@@ -170,15 +179,17 @@ from the controller's grid to a panel pixel `(x, y)`, as
 | Turn | Panel pixel of the core's `(u, v)` | Core's `(u, v)` of a touch at `(x, y)` |
 |---|---|---|
 | 0 | `(u, v)` | `(x, y)` |
-| 90 | `(H − 1 − v, u)` | `(y, W − 1 − x)` |
+| 90 | `(W − 1 − v, u)` | `(y, W − 1 − x)` |
 | 180 | `(W − 1 − u, H − 1 − v)` | `(W − 1 − x, H − 1 − y)` |
-| 270 | `(v, W − 1 − u)` | `(H − 1 − y, x)` |
+| 270 | `(v, H − 1 − u)` | `(H − 1 − y, x)` |
 
-The same map, one function, serves the conversion (left column) and the
-touch (right column), so a touch lands where the frame was drawn. It
-lives in a new module of the stick shell with its tests; `touch.rs`
-calls it after its scaling and clamping, and `present.rs` and
-`cursor.rs` call it for the frame and the arrow.
+The same map, one pair of functions, serves the conversion (left
+column) and the touch (right column), so a touch lands where the frame
+was drawn: `Turn::to_panel` and `Turn::to_frame` in
+`faraday/shells/stick/src/orient.rs`, with their tests. `touch.rs`
+calls it after its scaling and clamping, and `fb.rs` and `cursor.rs`
+call it for the frame and the arrow. The turn is shared with the input
+threads (`orient::Shared`), which read it for every touch.
 
 ### 4.2 Calibration
 

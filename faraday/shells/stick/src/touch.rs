@@ -82,6 +82,9 @@ pub struct Parser {
     grid_height: i64,
     /// How the controller's axes lie against the panel's.
     calibration: Calibration,
+    /// How the frame is turned onto the panel: a touch is mapped back
+    /// through it to the frame's pixels.
+    turn: crate::orient::Shared,
     /// The slot the multitouch events that follow belong to.
     slot: i32,
     /// The device has reported a multitouch position: its single-touch
@@ -115,6 +118,7 @@ impl Parser {
             grid_width: i64::from(grid.0.max(1)),
             grid_height: i64::from(grid.1.max(1)),
             calibration: Calibration::default(),
+            turn: crate::orient::Shared::default(),
             slot: 0,
             multitouch: false,
             x: 0,
@@ -148,8 +152,15 @@ impl Parser {
         }
     }
 
-    /// Raw grid position → panel pixel: reversed and swapped as the
-    /// calibration says, scaled and clamped.
+    /// The same parser with its touches mapped through `turn`, which the
+    /// main loop sets when the person chooses a rotation.
+    pub fn turned(self, turn: crate::orient::Shared) -> Parser {
+        Parser { turn, ..self }
+    }
+
+    /// Raw grid position → the frame's pixel: reversed and swapped as
+    /// the calibration says, scaled and clamped to the panel, then
+    /// mapped through the turn (`docs/ORIENTATION.md` §4).
     fn transform(&self) -> (u16, u16) {
         let c = self.calibration;
         let mut a = self.x - self.origin.0;
@@ -166,10 +177,8 @@ impl Parser {
         } else {
             (a * w / self.grid_width, b * h / self.grid_height)
         };
-        (
-            x.clamp(0, i64::from(self.width) - 1) as u16,
-            y.clamp(0, i64::from(self.height) - 1) as u16,
-        )
+        let panel = (x.clamp(0, w - 1) as u16, y.clamp(0, h - 1) as u16);
+        self.turn.get().to_frame((self.width, self.height), panel)
     }
 
     /// Feeds one raw event; returns a touch when the packet it closed
