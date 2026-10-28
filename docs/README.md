@@ -40,6 +40,7 @@ need. Each document's header says what kind it is:
 | How are the themes' colours made, and which colour role does each component take? | `docs/THEMES.md`; `docs/DESIGN.md` §3 |
 | Can a person add their own randomness, and when is the stick's kernel ready? | `docs/OWN-RANDOMNESS.md` |
 | How does a seed change form and stay the same wallet? | `docs/SEED-CONVERSION.md` |
+| Which boards, platforms and screens does Faraday run on, with which layout, and which were considered? | `docs/HARDWARE.md` |
 | What about Macs? | `docs/MAC.md` |
 | What are TOTP codes and the clock? | `docs/TOTP.md` |
 | How do I build Faraday, check it, reproduce a release, or try it on my own hardware? | `docs/DEVELOPING.md` |
@@ -69,6 +70,7 @@ need. Each document's header says what kind it is:
 - `docs/DEMO.md`: Practice, and Faraday Demo for developers. Built (F30, F61).
 - `docs/DESIGN.md`: Design system. Built.
 - `docs/DEVELOPING.md`: Developing Faraday: build, check, reproduce, try on hardware. Built.
+- `docs/HARDWARE.md`: Hardware: boards, platforms and screens. Built; the ESP32-P4 board considered, not supported.
 - `docs/KDBX.md`: KDBX 4: the encrypted file Faraday writes for others. Built.
 - `docs/KEYS.md`: The key boundary: faraday-keys. Built (steps 0 to 4).
 - `docs/LAYOUT.md`: Layout at every window size. Built (F92): Material 3's size classes, navigation and top app bar, panes; the screens' sizes written in place are held by the `lint-tokens` ratchet.
