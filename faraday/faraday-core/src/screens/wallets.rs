@@ -237,10 +237,8 @@ fn wallet_list(app: &View, ui: &mut Ui, rect: (f32, f32, f32, f32)) {
     // The card offers the loose keys' next steps, and Load or restore,
     // when no wallet is loaded.
     let card_offers = none && !loose.is_empty();
-    if !none {
-        section_label(ui, x + LIST_PAD, pane.at().2, EN.wallets_wallets);
-        pane.advance(TOUCH / 2.0 + GAP);
-    }
+    // The wallets lead the list unlabelled: the top app bar names the
+    // page Wallets.
     for (i, wlt) in app.session.wallets.iter().enumerate() {
         // Can spend at its end (`docs/history/SCAN-TO-SIGN.md` §2.4).
         let can = app.readiness(i) == 2;

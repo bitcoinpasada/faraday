@@ -226,8 +226,10 @@ fn the_list_pane_scrolls_on_its_own() {
     for _ in 0..30 {
         let _ = app.frame();
     }
-    let moved = app.hit_box(Action::PickWallet(0)).map_or(0, |b| b.1);
-    assert!(moved < item.1, "the list moved up: {} to {moved}", item.1);
+    // Its foot: the item may be cut at the pane's top as it scrolls under.
+    let moved = app.hit_box(Action::PickWallet(0)).map_or(0, |b| b.1 + b.3);
+    let foot = item.1 + item.3;
+    assert!(moved < foot, "the list moved up: {foot} to {moved}");
     assert_eq!(
         app.hit_box(Action::Rename).map(|b| b.1),
         Some(rename.1),
@@ -421,4 +423,18 @@ fn settings_on_a_medium_window_is_every_section_on_one_page() {
         !boxes(&mut app, "Lock after").is_empty(),
         "Session's timers"
     );
+}
+
+#[test]
+fn wallets_is_named_once_beside_the_navigation() {
+    // The top app bar names the page; its list pane does not again.
+    for (w, h, dpi) in [(1280, 800, 160), (1920, 1080, 160)] {
+        let mut app = with_wallets(w, h, dpi);
+        app.press(Action::Nav(Screen::Wallets));
+        let named: Vec<_> = boxes(&mut app, "Wallets")
+            .into_iter()
+            .filter(|b| b.0 > 80)
+            .collect();
+        assert_eq!(named.len(), 1, "{w} × {h}: Wallets drawn at {named:?}");
+    }
 }
