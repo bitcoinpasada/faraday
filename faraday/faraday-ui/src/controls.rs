@@ -6,8 +6,8 @@
 use crate::pal::*;
 use crate::{Ui, W};
 use faraday_draw::tokens::{
-    DISABLED_CONTAINER, DISABLED_CONTENT, FOCUS_OFFSET, FOCUS_RING, GAP, ICON_BUTTON, ICON_GAP,
-    ICON_GLYPH, ICON_GLYPH_BUTTON, PROGRESS_H, PROGRESS_SPAN, SEGMENT_PAD, STATE_FOCUS,
+    BUTTON_PAD, DISABLED_CONTAINER, DISABLED_CONTENT, FOCUS_OFFSET, FOCUS_RING, GAP, ICON_BUTTON,
+    ICON_GAP, ICON_GLYPH, ICON_GLYPH_BUTTON, PROGRESS_H, PROGRESS_SPAN, SEGMENT_PAD, STATE_FOCUS,
     STATE_HOVER, STATE_PRESS, STEPPER_COUNT_W, STEPPER_LABEL_COL, STEPPER_LABEL_TEXT,
     STEPPER_VALUE_TEXT, TOUCH, alpha_of, shape_full,
 };
@@ -456,7 +456,9 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
             self.segmented((x, y, h), size, options, chosen, None);
             return h;
         }
-        let pad = 2.0 * SEGMENT_PAD + ICON_GLYPH_BUTTON + ICON_GAP;
+        // Each is a button of its own, padded as [`Ui::button`] pads
+        // one, with room for the chosen one's tick.
+        let pad = 2.0 * BUTTON_PAD + ICON_GLYPH_BUTTON + ICON_GAP;
         let (mut bx, mut by) = (x, y);
         for (i, &(label, action)) in options.iter().enumerate() {
             let whole = self.measure(size, W::S, label) + pad;
@@ -485,7 +487,7 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
         if self.segment_width(size, labels) * labels.len() as f32 <= w {
             return h;
         }
-        let pad = 2.0 * SEGMENT_PAD + ICON_GLYPH_BUTTON + ICON_GAP;
+        let pad = 2.0 * BUTTON_PAD + ICON_GLYPH_BUTTON + ICON_GAP;
         let (mut bx, mut by) = (0.0, 0.0);
         for label in labels {
             let bw = (self.measure(size, W::S, label) + pad).min(w);

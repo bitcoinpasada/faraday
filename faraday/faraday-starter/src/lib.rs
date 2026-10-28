@@ -307,6 +307,8 @@ pub enum StarterAction {
     Appearance,
     /// Draw in this scheme, from the Appearance page.
     Theme(faraday_ui::Theme),
+    /// Draw text at this size, from About (`docs/TEXT-SIZE.md` §6).
+    TextSize(faraday_ui::TextSize),
     /// Boot file: the release's own (`false`) or one I signed (`true`).
     BootChoice(bool),
     /// A boot file of the listing, by its place in it, to be checked.
@@ -505,6 +507,7 @@ impl StarterAction {
             StarterAction::Theme(t) => (64, t.row() as u32),
             StarterAction::BootChoice(signed) => (65, u32::from(signed)),
             StarterAction::BootFile(n) => (66, u32::from(n)),
+            StarterAction::TextSize(t) => (67, u32::from(t.pct())),
         };
         (kind << 16) | arg
     }
@@ -591,6 +594,11 @@ impl StarterAction {
             64 => StarterAction::Theme(faraday_ui::Theme::from_row(arg as usize)?),
             65 => StarterAction::BootChoice(arg == 1),
             66 => StarterAction::BootFile(arg as u16),
+            67 => StarterAction::TextSize(
+                faraday_ui::TextSize::ALL
+                    .into_iter()
+                    .find(|t| u32::from(t.pct()) == arg)?,
+            ),
             _ => return None,
         })
     }
@@ -652,8 +660,14 @@ pub struct Starter {
     /// The window's size class (§3.1d), from its width and the text
     /// size factor.
     class: Class,
-    /// The text size factor (F85): 1.0 until the setting exists.
-    text_factor: f32,
+    /// How large text is drawn (F85, `docs/TEXT-SIZE.md` §6): About's
+    /// choice, the held app's and the Demo's too.
+    text: faraday_ui::TextSize,
+    /// What the installed Starter's settings file holds, Standard where
+    /// there is none. Invariant: what the shell last read or was told to
+    /// write ([`StarterCommand::KeepTextSize`]), Standard once nothing
+    /// is installed.
+    text_kept: faraday_ui::TextSize,
     /// The scheme the pages are drawn in: Cobalt, Light, Standard until
     /// the Appearance sheet exists (`docs/THEMES.md` §14).
     theme: faraday_ui::Theme,
@@ -820,7 +834,8 @@ impl Starter {
             w: 0.0,
             h: 0.0,
             class: Class::Expanded,
-            text_factor: 1.0,
+            text: faraday_ui::TextSize::Standard,
+            text_kept: faraday_ui::TextSize::Standard,
             theme: faraday_ui::Theme::default(),
             menu: false,
             origin: None,
@@ -1064,17 +1079,6 @@ impl Starter {
     /// bar: the compact class. A lookup.
     pub(crate) fn compact(&self) -> bool {
         self.class == Class::Compact
-    }
-
-    /// Sets the text size factor (F85): a larger text steps the layout
-    /// down a class, as a narrower window would.
-    pub fn set_text_factor(&mut self, factor: f32) {
-        self.text_factor = factor.max(1.0);
-        self.class = Class::of(self.w, self.h, self.text_factor);
-        self.fit_held();
-        self.frost = None;
-        self.dirty = true;
-        self.commands.push_back(Command::Draw);
     }
 
     /// How many primary (filled) buttons the last frame drew. A lookup.
@@ -1380,7 +1384,8 @@ impl Starter {
             }
             StarterEvent::Payload(p) => self.payload = p,
             StarterEvent::DevImage(d) => self.dev = Some(d),
-            StarterEvent::Installed(i) => self.installed = i,
+            StarterEvent::Installed(i) => self.installed_now(i),
+            StarterEvent::TextKept(t) => self.text_kept_read(t),
             StarterEvent::NoWriter => self.no_writer = true,
             // Progress and the result belong to the write this Starter
             // asked for, which is under way while its page is shown: one
@@ -1790,6 +1795,7 @@ impl Starter {
             StarterAction::CloseMenu => {}
             StarterAction::Appearance => self.go(Page::Appearance),
             StarterAction::Theme(theme) => self.choose_theme(theme),
+            StarterAction::TextSize(text) => self.choose_text_size(text),
             // No Pi image in this Starter: nothing to choose a card for.
             StarterAction::Make(Target::Pi) if self.image(Target::Pi).is_none() => {}
             StarterAction::Make(target) => {
@@ -2301,7 +2307,7 @@ impl Starter {
         self.f = f;
         self.w = f32::from(d.width) / f;
         self.h = f32::from(d.height) / f;
-        self.class = Class::of(self.w, self.h, self.text_factor);
+        self.class = Class::of(self.w, self.h, self.text.factor());
         let mut canvas = Canvas::new(&scaled);
         // The canvas notes its pixel work, a blur or a whole copy, with
         // the held app's counter (`docs/COMPUTE.md` §2.2), for the

@@ -11,6 +11,7 @@
 //! | the Start menu shortcut | `Faraday Starter.lnk`, in the person's Start menu Programs folder |
 //! | the uninstall entry | `HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\Faraday Starter` |
 //! | the icon | in the `.exe` |
+//! | the settings file, once a text size is chosen | `settings.txt` beside the Starter (`crate::settings`) |
 //!
 //! Earlier installs (`names::LEGACY`: folder, executable, shortcut,
 //! and uninstall key) are found and removed by install and
@@ -99,6 +100,12 @@ impl Dirs {
     /// The installed Starter.
     pub fn app(&self) -> PathBuf {
         self.folder().join(APP)
+    }
+
+    /// The installed Starter's settings file (`docs/TEXT-SIZE.md` §6),
+    /// beside it.
+    pub fn settings(&self) -> PathBuf {
+        self.folder().join(crate::settings::FILE)
     }
 
     /// The Start menu shortcut.
@@ -359,6 +366,9 @@ pub fn installed(dirs: &Dirs, ask: Ask<'_>, reg: &mut dyn Registry) -> Option<In
             format!(r"HKEY_CURRENT_USER\{}", uninstall_key()),
         ));
     }
+    if dirs.settings().is_file() {
+        items.push((InstallItem::Settings, dirs.settings().display().to_string()));
+    }
     Some(Installed { version, items })
 }
 
@@ -420,6 +430,7 @@ pub fn uninstall(
     }
     let _ = fs::remove_file(folder.join(old_name()));
     let _ = fs::remove_file(folder.join(new_name()));
+    crate::settings::remove(&dirs.settings()).map_err(|e| file_error(&dirs.settings(), &e))?;
     match fs::remove_file(dirs.shortcut()) {
         Ok(()) => {}
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}

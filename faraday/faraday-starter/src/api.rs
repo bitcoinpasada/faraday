@@ -334,6 +334,9 @@ pub enum InstallItem {
     Icon,
     /// Windows: the entry in Installed apps.
     UninstallEntry,
+    /// The settings file, once a text size is kept in it
+    /// (`docs/TEXT-SIZE.md` §6).
+    Settings,
 }
 
 /// What is installed (§5.2), as the shell finds it on disk.
@@ -662,6 +665,10 @@ pub enum StarterEvent {
     /// What is installed, or `None` when nothing is. Sent at start and
     /// after an install or uninstall.
     Installed(Option<Installed>),
+    /// The text size the installed Starter's settings file holds
+    /// (`docs/TEXT-SIZE.md` §6), read at start: the Starter opens at it.
+    /// Not sent where there is no such file.
+    TextKept(faraday_ui::TextSize),
     /// This computer cannot write a disk from here (Linux without
     /// udisks2, §2).
     NoWriter,
@@ -848,6 +855,11 @@ pub enum StarterCommand {
     OpenDemo,
     /// Faraday Demo was left: the shell lets go of what it kept for it.
     DemoClosed,
+    /// Keep this text size in the installed Starter's settings file
+    /// (`docs/TEXT-SIZE.md` §6), replacing what it held: asked only
+    /// while a Starter is installed, when the size chosen is not what
+    /// the file holds.
+    KeepTextSize(faraday_ui::TextSize),
     /// Restart into firmware settings (§7.3).
     RestartIntoFirmware,
     /// Restart from the stick (§3.1): Windows' advanced startup, whose

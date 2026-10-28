@@ -12,10 +12,12 @@ use std::sync::LazyLock;
 
 use faraday_core::names;
 use faraday_core::strings::EN;
+use faraday_core::ui::TextSize;
 use faraday_core::{Program, version_line};
 use faraday_starter::Starter;
-use faraday_starter::api::{Reason, StarterEvent};
+use faraday_starter::api::{InstallItem, Reason, StarterEvent};
 use faraday_starter_shell::linux::install::{self, Dirs, exec_quote};
+use faraday_starter_shell::settings;
 
 /// A new home with what a person already has in it, and the dirs.
 fn home(name: &str) -> (PathBuf, Dirs) {
@@ -142,10 +144,26 @@ fn uninstall_removes_exactly_what_install_put_there_and_the_cache() {
         .cache_for("0.1.7")
         .join("faraday-demo-0.1.7-linux-x86_64");
     answering(&cached, &version_line(Program::DesktopApp, "0.1.7"));
-    assert!(tree(&root).len() > before.len() + 3);
+    // And the text size the installed Starter keeps, read back as a
+    // start reads it (docs/TEXT-SIZE.md §6).
+    settings::write(&dirs.settings(), TextSize::Larger).expect("kept");
+    assert_eq!(settings::read(&dirs.settings()), Some(TextSize::Larger));
+    let listed = install::installed(&dirs).expect("installed").items;
+    assert!(
+        listed.contains(&(
+            InstallItem::Settings,
+            String::from("~/.local/share/faraday-starter/settings.txt")
+        )),
+        "{listed:?}"
+    );
+    assert!(tree(&root).len() > before.len() + 4);
 
     install::uninstall(&dirs).expect("uninstalled");
     assert_eq!(tree(&root), before);
+    assert!(
+        !dirs.settings().parent().expect("its folder").exists(),
+        "the settings file's folder goes with it"
+    );
     assert_eq!(
         fs::read_to_string(root.join("faraday-sticks/BOOTSTICK/vault.ofv")).expect("kept"),
         "a vault"

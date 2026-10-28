@@ -35,7 +35,9 @@
 //! back, the window's close button or the Demo's power off returns to
 //! Home. The Starter opens in Cobalt, Light or Dark as this computer's
 //! own setting says (`faraday_starter_shell::scheme`), and a theme chosen
-//! in the Demo is the Starter's until it closes.
+//! in the Demo is the Starter's until it closes. An installed Starter
+//! opens at the text size its settings file keeps
+//! (`faraday_starter_shell::settings`).
 
 #![deny(unsafe_code)]
 // A window program on Windows: no console opens beside it.
@@ -359,6 +361,15 @@ impl Shell {
                 });
             }
             StarterCommand::OpenDemo => self.open_demo(),
+            // Asked only while a Starter is installed; one that cannot
+            // be written leaves the size for this run.
+            StarterCommand::KeepTextSize(text) => {
+                if let Some(file) = self.system.settings_file()
+                    && let Err(e) = faraday_starter_shell::settings::write(&file, text)
+                {
+                    eprintln!("faraday-starter: {}: {e}", file.display());
+                }
+            }
             StarterCommand::DemoClosed => {
                 self.lens.off();
                 self.demo = None;
@@ -892,6 +903,13 @@ fn main() -> ExitCode {
     let mut starter = Starter::new();
     // Cobalt, Light or Dark as this computer's own setting says (F126).
     starter.set_theme(faraday_starter_shell::scheme::at_start(system.dark()));
+    // The text size an installed Starter keeps (docs/TEXT-SIZE.md §6).
+    if let Some(text) = system
+        .settings_file()
+        .and_then(|f| faraday_starter_shell::settings::read(&f))
+    {
+        starter.starter_event(StarterEvent::TextKept(text));
+    }
     starter.starter_event(StarterEvent::Computer(computer));
     starter.starter_event(StarterEvent::OtherEncryption(system.other_encryption()));
     starter.starter_event(StarterEvent::Payload(payload.as_ref().map(Payload::event)));

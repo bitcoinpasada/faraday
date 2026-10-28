@@ -8,6 +8,7 @@
 //! | | |
 //! |---|---|
 //! | the Starter | `~/Applications/Faraday Starter.app`, a copy of the running bundle |
+//! | the settings file, once a text size is chosen | `~/Library/Application Support/Faraday Starter/settings.txt` (`crate::settings`) |
 //!
 //! A bundle is the Starter's when its `Contents/Info.plist` names
 //! [`IDENTIFIER`]; a bundle of the same name that does not (or whose
@@ -58,6 +59,16 @@ impl Dirs {
     /// `~/Applications/Faraday Starter.app`.
     pub fn bundle(&self) -> PathBuf {
         self.applications().join(BUNDLE)
+    }
+
+    /// The installed Starter's settings file (`docs/TEXT-SIZE.md` §6),
+    /// in a folder of its own: never in the bundle, whose signature
+    /// covers what is in it.
+    pub fn settings(&self) -> PathBuf {
+        self.home
+            .join("Library/Application Support")
+            .join(names::WIN_NAME)
+            .join(crate::settings::FILE)
     }
 
     /// `~/Downloads`.
@@ -139,10 +150,13 @@ pub fn bundle_of(exe: &Path) -> Option<PathBuf> {
 pub fn installed(dirs: &Dirs) -> Option<Installed> {
     let bundle = dirs.bundle();
     match bundle_at(&bundle) {
-        Bundle::Ours(version) => Some(Installed {
-            version,
-            items: vec![(InstallItem::App, dirs.shown(&bundle))],
-        }),
+        Bundle::Ours(version) => {
+            let mut items = vec![(InstallItem::App, dirs.shown(&bundle))];
+            if dirs.settings().is_file() {
+                items.push((InstallItem::Settings, dirs.shown(&dirs.settings())));
+            }
+            Some(Installed { version, items })
+        }
         Bundle::Absent | Bundle::Other => None,
     }
 }
@@ -215,9 +229,12 @@ pub fn install(
     Ok(shown)
 }
 
-/// Uninstalls: the Starter's bundle, when it is the Starter's, and
-/// nothing else. What is already gone is not an error.
+/// Uninstalls: the Starter's bundle, when it is the Starter's, and its
+/// settings file with its folder, and nothing else. What is already
+/// gone is not an error.
 pub fn uninstall(dirs: &Dirs) -> Result<(), Reason> {
+    let settings = dirs.settings();
+    crate::settings::remove(&settings).map_err(|e| dirs.file_error(&settings, &e))?;
     let apps = dirs.applications();
     for path in [dirs.bundle(), apps.join(NEW), apps.join(OLD)] {
         remove_ours(dirs, &path)?;

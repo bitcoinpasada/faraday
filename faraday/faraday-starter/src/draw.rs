@@ -37,8 +37,8 @@ mod nav;
 
 use faraday_draw::tokens::{
     BODY_L, BODY_M, BODY_S, BUTTON_H, CONTENT_MAX, DISABLED_CONTAINER, DISABLED_CONTENT, GAP,
-    LABEL_L, LABEL_S, LIST_1, LIST_2, MARGIN_COMPACT, MARGIN_WIDE, NAV_BAR_H, PROGRESS_H, RAIL_W,
-    SHAPE_M, SHAPE_S, TITLE_L, TITLE_M, TITLE_S,
+    LABEL_L, LABEL_S, LIST_1, LIST_2, LIST_PAD_V, MARGIN_COMPACT, MARGIN_WIDE, NAV_BAR_H,
+    PROGRESS_H, RAIL_W, SHAPE_M, SHAPE_S, TITLE_L, TITLE_M, TITLE_S, TypeRole,
 };
 
 /// The widest a task page's column grows (a text column, not a grid).
@@ -314,10 +314,11 @@ fn line(ui: &mut Ui, x: f32, y: f32, w: f32, s: &str, tone: Role) -> f32 {
 /// its height.
 fn value_row(ui: &mut Ui, x: f32, y: f32, w: f32, key: &str, value: &str, tone: Role) -> f32 {
     if ui.compact {
-        ui.text_as(x, y, BODY_S, Role::OnSurfaceVariant, key);
+        let more = key_over(ui, x, y, w, BODY_S, key);
+        let y = y + more;
         let vh = ui.wrap_as((x, y + 18.0, w), BODY_M, tone, value);
         ui.rule(x, y + 24.0 + vh, w, Role::OutlineVariant);
-        return vh + 32.0;
+        return more + vh + 32.0;
     }
     let kw = ui.measure_as(BODY_M, key) + 24.0;
     ui.text_mid_as((x, y, 36.0), BODY_M, Role::OnSurfaceVariant, key);
@@ -325,6 +326,15 @@ fn value_row(ui: &mut Ui, x: f32, y: f32, w: f32, key: &str, value: &str, tone: 
     ui.text_right_as((x + w, y, 36.0), BODY_M, tone, &v);
     ui.rule(x, y + 36.0, w, Role::OutlineVariant);
     38.0
+}
+
+/// A row's label over its value, from (x, y), `w` wide, wrapped where
+/// it does not fit. Returns what it takes beyond one line at Standard:
+/// what larger text and a wrapped line add, which the row moves its
+/// value down by.
+fn key_over(ui: &mut Ui, x: f32, y: f32, w: f32, role: TypeRole, key: &str) -> f32 {
+    let kh = ui.wrap_as((x, y, w), role, Role::OnSurfaceVariant, key);
+    kh - (ui.line_as(role) - ui.line_grown_as(role))
 }
 
 /// [`value_row`] with the value in on-surface. Returns its height.
@@ -354,10 +364,11 @@ fn radio_mark(ui: &mut Ui, x: f32, cy: f32, on: bool, enabled: bool) {
 /// A label over a long value in the mono face, in groups of four,
 /// wrapped (a SHA-256, a fingerprint, a path). Returns its height.
 fn mono_row(ui: &mut Ui, x: f32, y: f32, w: f32, key: &str, value: &str) -> f32 {
-    ui.text_as(x, y + 8.0, BODY_S, Role::OnSurfaceVariant, key);
+    let more = key_over(ui, x, y + 8.0, w, BODY_S, key);
+    let y = y + more;
     let vh = ui.wrap_as((x, y + 28.0, w), BODY_M.mono(), Role::OnSurface, value);
     ui.rule(x, y + 36.0 + vh, w, Role::OutlineVariant);
-    vh + 40.0
+    more + vh + 40.0
 }
 
 /// A row that opens something: an icon, its label, a second line, and a
@@ -576,11 +587,16 @@ fn concern_block(
 }
 
 /// One button, or a row of them (a column on a small panel when they do
-/// not fit). Returns their height.
+/// not fit), each as tall as its label needs at the text size
+/// (`docs/TEXT-SIZE.md` §5). Returns their height.
 fn buttons(ui: &mut Ui, x: f32, y: f32, w: f32, items: &[(&str, Style, StarterAction)]) -> f32 {
     if items.is_empty() {
         return 0.0;
     }
+    // A button grows about the box it is given: given one moved down by
+    // half what it grows, its top is at y.
+    let bh = ui.button_height(BUTTON_H);
+    let y = y + (bh - BUTTON_H) / 2.0;
     if ui.compact {
         let n = items.len() as f32;
         let share = (w - (n - 1.0) * 8.0) / n;
@@ -599,13 +615,15 @@ fn buttons(ui: &mut Ui, x: f32, y: f32, w: f32, items: &[(&str, Style, StarterAc
                     a.host(),
                 );
             }
-            return BUTTON_H;
+            return bh;
         }
         for (i, &(l, s, a)) in items.iter().enumerate() {
-            let l = ui.fit_as(LABEL_L, l, w - 24.0);
+            // Shortened only where it does not fit at Standard: at a
+            // larger size the button fits its label down to Standard.
+            let l = ui.fixed_text(|ui| ui.fit_as(LABEL_L, l, w - 24.0));
             ui.button(
                 x,
-                y + i as f32 * (BUTTON_H + 8.0),
+                y + i as f32 * (bh + 8.0),
                 Some(w),
                 BUTTON_H,
                 &l,
@@ -613,13 +631,13 @@ fn buttons(ui: &mut Ui, x: f32, y: f32, w: f32, items: &[(&str, Style, StarterAc
                 a.host(),
             );
         }
-        return n * (BUTTON_H + 8.0) - 8.0;
+        return n * (bh + 8.0) - 8.0;
     }
     let mut bx = x;
     for &(l, s, a) in items {
         bx += ui.button(bx, y, None, BUTTON_H, l, s, a.host()) + 10.0;
     }
-    BUTTON_H
+    bh
 }
 
 /// A numbered step's heading, or a tick once it is done. Returns its
@@ -1605,7 +1623,7 @@ fn notes_block(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     }
     // Beside Print, on Windows with BitLocker on (F49): the tick box
     // that puts the recovery key on the sheet, unticked until ticked.
-    let tick_w = 18.0 + 12.0 + ui.measure_as(BODY_M, S.starter_notes_include_key);
+    let key = S.starter_notes_include_key;
     let (tx, ty) = if ui.compact {
         let bh = buttons(
             ui,
@@ -1628,22 +1646,24 @@ fn notes_block(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
         );
         (x + bw + 20.0, y)
     };
+    // Its label wraps where it does not fit beside the box, and the row
+    // grows to its lines (`docs/TEXT-SIZE.md` §5).
+    let room = (x + w - tx - 30.0).max(0.0);
+    let tick_w = 30.0 + ui.measure_as(BODY_M, key).min(room);
+    let lines = ui.wrap_height_as(BODY_M, key, room);
+    let rh = ui.row_height(44.0, lines, LIST_PAD_V);
     let a = StarterAction::IncludeKey.host();
-    ui.state_layer(
-        (tx - 6.0, ty, tick_w + 12.0, 44.0, SHAPE_S),
-        Role::OnSurface.paint(),
-        a,
-    );
-    ui.checkbox(tx, ty + 13.0, starter.include_key, true);
-    ui.text_mid_as(
-        (tx + 30.0, ty, 44.0),
-        BODY_M,
-        Role::OnSurface,
-        S.starter_notes_include_key,
-    );
-    let layer = (tx - 6.0, ty, tick_w + 12.0, 44.0, SHAPE_S);
-    ui.hit_ringed(layer, (tx - 6.0, ty, tick_w + 12.0, 44.0), a);
-    y = ty + 44.0;
+    let layer = (tx - 6.0, ty, tick_w + 12.0, rh, SHAPE_S);
+    ui.state_layer(layer, Role::OnSurface.paint(), a);
+    ui.checkbox(tx, ty + (rh - 18.0) / 2.0, starter.include_key, true);
+    if lines > ui.line_as(BODY_M) {
+        let top = ty + (rh - lines) / 2.0;
+        ui.wrap_as((tx + 30.0, top, room), BODY_M, Role::OnSurface, key);
+    } else {
+        ui.text_mid_as((tx + 30.0, ty, rh), BODY_M, Role::OnSurface, key);
+    }
+    ui.hit_ringed(layer, (tx - 6.0, ty, tick_w + 12.0, rh), a);
+    y = ty + rh;
     if starter.key_reading {
         y += 8.0;
         y += line(
@@ -1940,6 +1960,7 @@ fn item_name(item: InstallItem) -> &'static str {
         InstallItem::Menu => S.starter_installed_menu,
         InstallItem::Icon => S.starter_installed_icon,
         InstallItem::UninstallEntry => S.starter_installed_entry,
+        InstallItem::Settings => S.starter_installed_settings,
     }
 }
 
@@ -2012,7 +2033,7 @@ fn uninstall_sheet(_starter: &Starter, ui: &mut Ui, w: f32, h: f32) {
 const FINGERPRINT: &str = "D1AF A712 ABEF 9010 9A1B  587F F153 6BE0 7E23 4CFD";
 
 fn about(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
-    let mut y = y0;
+    let mut y = appearance::text_size(starter, ui, x, y0, w);
     y += fact_row(ui, x, y, w, S.starter_version, crate::VERSION);
     match &starter.payload {
         Some(p) => {
@@ -2237,12 +2258,21 @@ fn tick_row(
     action: StarterAction,
 ) -> f32 {
     let a = action.host();
-    let rh = LIST_1;
+    // At a larger text size a head that does not fit wraps, and the row
+    // grows to its lines (`docs/TEXT-SIZE.md` §5).
+    let tw = w - 36.0;
+    let lines = ui.wrap_height_as(BODY_L, head, tw);
+    let rh = ui.row_height(LIST_1, lines, LIST_PAD_V);
     let layer = (x - 6.0, y + 2.0, w + 12.0, rh - 4.0, SHAPE_S);
     ui.state_layer(layer, Role::OnSurface.paint(), a);
     let cy = y + rh / 2.0;
     radio_mark(ui, x, cy, on, true);
-    ui.text_mid_as((x + 36.0, y, rh), BODY_L, Role::OnSurface, head);
+    if lines > ui.line_as(BODY_L) {
+        let top = y + (rh - lines) / 2.0;
+        ui.wrap_as((x + 36.0, top, tw), BODY_L, Role::OnSurface, head);
+    } else {
+        ui.text_mid_as((x + 36.0, y, rh), BODY_L, Role::OnSurface, head);
+    }
     ui.hit_ringed(layer, (x - 6.0, y, w + 12.0, rh), a);
     ui.rule(x, y + rh, w, Role::OutlineVariant);
     rh

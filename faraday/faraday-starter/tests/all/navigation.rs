@@ -258,7 +258,7 @@ fn larger_text_at_700_takes_the_compact_layout() {
     let mut s = starter(700, 900);
     let (x, _) = at(&mut s, StarterAction::MakePage).expect("offered");
     assert!(x < 80);
-    s.set_text_factor(1.4);
+    s.set_text_size(faraday_ui::TextSize::Larger);
     assert_eq!(s.class(), Class::Compact);
     let (_, y) = at(&mut s, StarterAction::MakePage).expect("offered");
     assert!(y > 900 - 80);

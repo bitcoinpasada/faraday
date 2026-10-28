@@ -166,6 +166,10 @@ impl Platform for MacOs {
             .map(|d| d.downloads())
             .unwrap_or_else(|_| PathBuf::from("Downloads"))
     }
+
+    fn settings_file(&self) -> Option<PathBuf> {
+        Some(install::Dirs::from_env().ok()?.settings())
+    }
 }
 
 /// What was read of one whole disk: `diskutil list`'s entry for it when

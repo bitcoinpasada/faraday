@@ -332,6 +332,7 @@ impl Starter {
             hits.clear();
             let mut ui = faraday_ui::Ui::new(&mut canvas, self.f, &mut hits, self.pressed);
             ui.theme = self.theme;
+            ui.set_text_size(self.text);
             ui.hovered = self.hovered;
             ui.compact = self.compact();
             ui.primaries = 0;

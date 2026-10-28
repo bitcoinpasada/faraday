@@ -140,6 +140,13 @@ pub trait Platform: Send + Sync {
 
     /// The folder Transfer sends from and saves into.
     fn downloads(&self) -> PathBuf;
+
+    /// Where the installed Starter keeps its settings file
+    /// ([`crate::settings`], `docs/TEXT-SIZE.md` §6), which Uninstall
+    /// removes; `None` where the system has no place for it. A lookup.
+    fn settings_file(&self) -> Option<PathBuf> {
+        None
+    }
 }
 
 /// The operating system this Starter runs on.

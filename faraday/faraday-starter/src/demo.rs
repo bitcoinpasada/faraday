@@ -8,8 +8,10 @@
 //!
 //! One theme in a session: the Demo opens in the Starter's theme, and a
 //! theme chosen in the Demo is the Starter's from then on, kept when the
-//! Demo is left and in memory only, as every Starter choice is
-//! (`docs/THEMES.md` §14).
+//! Demo is left and in memory only (`docs/THEMES.md` §14). Text size is
+//! one choice in the same way: the Demo opens at the Starter's, and one
+//! chosen in the Demo is the Starter's, kept as About's choice is
+//! (`docs/TEXT-SIZE.md` §6).
 
 use faraday_core::{Action, Host};
 use faraday_shell_api::{App, Command, DisplayInfo, Event, TouchPhase};
@@ -51,6 +53,7 @@ impl Starter {
     /// the fresh one a lock in the Demo starts in place of the last.
     pub fn show_demo(&mut self, mut host: Host) {
         host.app.draw_in(self.theme);
+        host.app.draw_text_at(self.text);
         // Boxed: a `Faraday` is large, and the Starter holds one already.
         self.demo = Some(Box::new(Held {
             host,
@@ -131,13 +134,26 @@ impl Starter {
         true
     }
 
-    /// The theme the Demo is in, when it changed there (its Settings, or
-    /// the boot stick's settings file it read): the Starter's from now on.
+    /// The theme and the text size the Demo is in, when either changed
+    /// there (its Settings, or the boot stick's settings file it read):
+    /// the Starter's from now on.
     fn demo_theme(&mut self) {
         if let Some(t) = self.demo.as_ref().map(|d| d.host.app.theme())
             && t != self.theme
         {
             self.set_theme(t);
+        }
+        if let Some(t) = self.demo.as_ref().map(|d| d.host.app.text_size())
+            && t != self.text
+        {
+            self.set_text_size(t);
+        }
+    }
+
+    /// Draws the Demo, while it is open, at `text`, laid out again for it.
+    pub(crate) fn demo_text_at(&mut self, text: faraday_ui::TextSize) {
+        if let Some(d) = self.demo.as_mut() {
+            d.host.app.draw_text_at(text);
         }
     }
 

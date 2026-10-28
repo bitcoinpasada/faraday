@@ -17,5 +17,6 @@ mod starter;
 mod steps;
 mod template;
 mod template_codex32;
+mod text_size;
 mod touch;
 mod unread_version;

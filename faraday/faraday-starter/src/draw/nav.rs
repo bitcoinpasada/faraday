@@ -136,13 +136,11 @@ pub(super) fn top_bar(starter: &Starter, ui: &mut Ui, rail_w: f32, aw: f32) {
         } else {
             LABEL_M.size
         };
-        ui.wordmark_named(
-            nx,
-            (APP_BAR_H - cap) / 2.0,
-            cap,
-            Role::OnSurface,
-            NameSuffix::Starter,
-        );
+        // Where the name and Starter do not fit before the install action
+        // (a narrow window, larger text), Starter under the name, made
+        // smaller; where that does not fit either, the mark alone.
+        let at = (nx, (APP_BAR_H - cap) / 2.0, ends - nx);
+        ui.wordmark_fitted(at, cap, Role::OnSurface, NameSuffix::Starter);
     }
     if dest.is_some() {
         right = fnav::more(ui, right, StarterAction::Menu.host(), S.tip_more);

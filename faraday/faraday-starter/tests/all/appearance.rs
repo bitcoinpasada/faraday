@@ -1,7 +1,7 @@
 //! The Starter's Appearance (`docs/THEMES.md` §14): the ⋮ menu opens a
 //! page with Faraday's Theme, Mode and Contrast; each choice changes
 //! what the pages are drawn in, the held desktop app's Transfer too; a
-//! new Starter opens in Cobalt, Light, Standard, since it keeps nothing.
+//! new Starter opens in Cobalt, Light, Standard, since it keeps no theme.
 
 use faraday_shell_api::App;
 use faraday_starter::api::StarterEvent;

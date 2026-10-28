@@ -468,6 +468,22 @@ impl Faraday {
         self.out.dirty = true;
     }
 
+    /// Draws text at `text` from the next frame on, laid out again for
+    /// it, and keeps nothing: the Starter's held app and the Faraday
+    /// Demo it holds, at the size the Starter's own About chose
+    /// (`docs/TEXT-SIZE.md` §6), which no settings file or kept set of
+    /// theirs holds.
+    pub fn draw_text_at(&mut self, text: crate::ui::TextSize) {
+        if self.settings.text_size() == text {
+            return;
+        }
+        self.settings.set_text_size(text);
+        if let Some(d) = self.last_display {
+            self.display(d);
+        }
+        self.out.dirty = true;
+    }
+
     /// How large the person has text drawn (Settings › Appearance,
     /// `docs/TEXT-SIZE.md` §2).
     pub fn text_size(&self) -> crate::ui::TextSize {

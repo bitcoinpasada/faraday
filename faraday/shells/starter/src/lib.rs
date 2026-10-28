@@ -15,6 +15,8 @@
 //!   partition alone.
 //! - [`scheme`]: Light or Dark at start, from this computer's own
 //!   setting (F126).
+//! - [`settings`]: the installed Starter's settings file, its Text size
+//!   (F85).
 //!
 //! Faraday Demo runs in the same window (F126, `docs/STARTER.md` §5.3):
 //! `faraday_desktop::Demo` serves it, as in the Demo's own window.
@@ -30,6 +32,7 @@ pub mod payload;
 pub mod pdf;
 pub mod platform;
 pub mod scheme;
+pub mod settings;
 pub mod signed;
 pub mod stick;
 pub mod windows;

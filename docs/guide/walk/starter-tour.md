@@ -119,9 +119,9 @@ The **⋮** menu holds what is not a destination
 
 | Row | Opens |
 |---|---|
-| **Appearance** | **Theme**, **Mode** (**Light**, **Dark**) and **Contrast** (**Standard**, **Medium**, **High**), the same rows as Faraday's own Settings → Appearance. A choice lasts until the Starter closes; the Starter keeps no settings file |
-| **About** | the version, each image the Starter carries with its build ID and SHA-256, the release key's fingerprint, and **Checking this file**: how to check the Starter file against `SHA256SUMS` and its signature |
-| **Uninstall** | shown while a copy is installed: what is installed and where, and **Uninstall**, which asks **Uninstall Faraday Starter?** first. "Removes the files listed. Received files and settings stay." |
+| **Appearance** | **Theme**, **Mode** (**Light**, **Dark**) and **Contrast** (**Standard**, **Medium**, **High**), the same rows as Faraday's own Settings → Appearance. A choice lasts until the Starter closes: the theme is not kept |
+| **About** | **Text size** (Standard, Large, Larger; an installed Starter keeps it), the version, each image the Starter carries with its build ID and SHA-256, the release key's fingerprint, and **Checking this file**: how to check the Starter file against `SHA256SUMS` and its signature |
+| **Uninstall** | shown while a copy is installed: what is installed and where, and **Uninstall**, which asks **Uninstall Faraday Starter?** first. "Removes the files listed. Received files and Faraday Demo's sticks stay." |
 | **Remove the Faraday boot entry** | shown while the entry is in the boot list, as on Home |
 
 *Picture to come: `starter-tour-menu.png`, the ⋮ menu open over Home.*

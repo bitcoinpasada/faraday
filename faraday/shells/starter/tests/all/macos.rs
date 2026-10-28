@@ -8,12 +8,14 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use faraday_core::ui::TextSize;
 use faraday_starter::api::{Bus, InUse, InstallItem, Kind, Os, Reason};
 use faraday_starter::decide::{Refusal, Target, offers};
 use faraday_starter_shell::macos::diskutil::{Answers, Found};
 use faraday_starter_shell::macos::facts;
 use faraday_starter_shell::macos::install::{self, Dirs};
 use faraday_starter_shell::macos::plist;
+use faraday_starter_shell::settings;
 
 /// The stick image's size: 193 MiB and the backup GPT's 20 KiB (F80).
 const IMAGE: u64 = 202_395_648;
@@ -383,6 +385,9 @@ fn install_copies_exactly_the_bundle_and_uninstall_takes_back_only_it() {
         "0.2.1"
     );
     assert!(!dirs.bundle().join("Contents/Resources/icon.icns").exists());
+    // The text size it keeps, outside the bundle (docs/TEXT-SIZE.md §6).
+    settings::write(&dirs.settings(), TextSize::Larger).expect("kept");
+    assert_eq!(settings::read(&dirs.settings()), Some(TextSize::Larger));
     // Uninstall: the bundle goes; everything else stays, a cache an
     // earlier Starter left included (F30).
     assert_eq!(install::uninstall(&dirs), Ok(()));

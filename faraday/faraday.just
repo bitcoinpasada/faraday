@@ -246,7 +246,9 @@ faraday-starter *args="":
 # The Starter's pages in their states at one size, into
 # out/snapshots/starter/WxH/, one named PNG each: `just faraday-starter-snap
 # 1280x800`. 480x640 and 240x320 carry their panels' dpi; any other size
-# renders at 160 unless spelled `WxH@DPI`.
+# renders at 160 unless spelled `WxH@DPI`. FARADAY_SNAP_TEXT=larger takes
+# them with text at Larger, into out/snapshots/starter/WxH-larger/, with
+# cut.txt (docs/TEXT-SIZE.md §7).
 [group('test')]
 faraday-starter-snap size:
     #!/usr/bin/env bash
@@ -256,8 +258,13 @@ faraday-starter-snap size:
         480x640) arg="480x640@286" ;;
         240x320) arg="240x320@143" ;;
     esac
-    cargo run -q -p faraday-starter --example snap -- "$arg" "out/snapshots/starter/{{size}}" > /dev/null
-    echo "out/snapshots/starter/{{size}}"
+    out="out/snapshots/starter/{{size}}"
+    case "${FARADAY_SNAP_TEXT:-standard}" in
+        standard) ;;
+        *) out="$out-$FARADAY_SNAP_TEXT" ;;
+    esac
+    cargo run -q -p faraday-starter --example snap -- "$arg" "$out" > /dev/null
+    echo "$out"
 
 # Draws the Starter's menu icon again from the app's own mark
 # (faraday-starter's examples/icon.rs) into shells/starter/assets/. Run it when

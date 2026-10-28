@@ -670,8 +670,8 @@ shared with Faraday's own rail) and Home's card minimum width
 
 **What is built.** `faraday-starter` reads the class from the window's
 width and the text size factor (`Starter::class`, `Class::of`, over
-`faraday_draw::geom::Window`); `Starter::set_text_factor` is where F85's
-setting reaches it once that exists. The rail, the bar and the top app
+`faraday_draw::geom::Window`); the text size is About's (§3.7,
+`Starter::set_text_size`). The rail, the bar and the top app
 bar are `faraday-ui`'s `nav` components, the ones Faraday's own app
 draws (LAYOUT §3). `Page` has `Make` and `Tools` beside `Home`; the frame
 (`draw.rs`, with `draw/nav.rs` and `draw/home.rs`) draws the rail or the
@@ -926,8 +926,10 @@ is newer than the installed one, the top app bar's action reads
 **Update** and Home shows the Update the installed Faraday card
 (§3.1d).
 
-**Installed** (the ⋮ menu's Uninstall, §3.1d) opens a Record of what is installed and where, with
-**Uninstall**, which asks once. §5 says what each does.
+**Installed** (the ⋮ menu's Uninstall, §3.1d) opens a Record of what is installed and where,
+the settings file among them once it holds a text size (§5.2), with
+**Uninstall**, which asks once ("Removes the files listed. Received
+files and Faraday Demo's sticks stay."). §5 says what each does.
 
 ### 3.6 Transfer and Learn
 
@@ -936,7 +938,11 @@ Receive; Receive reads the camera through Media Foundation (§8).
 
 ### 3.7 About
 
-Version; each payload file with its build ID and SHA-256; the release
+Text size: Standard, Large, Larger, as Faraday's (`docs/TEXT-SIZE.md`
+§6, F85), a row at the top, its label beside the sizes or over them on
+a compact window: the Starter's pages, its held Transfer and Learn and
+Faraday Demo inside it drawn at once at the size chosen, the layout
+stepping down a class for it (§3.1d). Version; each payload file with its build ID and SHA-256; the release
 key's fingerprint as the README prints it; how to check the Starter
 file itself with `SHA256SUMS` and its signature; on Windows, why the
 file is unsigned (§10.2).
@@ -1220,7 +1226,10 @@ partition (F128).
 Opening the downloaded file runs the Starter. It writes nothing to the
 computer except what the person asks for (a stick, a card, a received
 file). Home's checklist
-(§3.1) reads its state live; there is no settings or state file.
+(§3.1) reads its state live; there is no settings or state file. An
+installed Starter keeps one, its Text size (§5.2, `docs/TEXT-SIZE.md`
+§6); a run with nothing installed writes none, and a size chosen in it
+lasts until it closes.
 
 ### 5.2 Installing
 
@@ -1232,11 +1241,21 @@ Per user, never needing administrator rights.
 | Menu | `~/.local/share/applications/app.faradayoffline.FaradayStarter.desktop` "Faraday Starter" | Start menu shortcut `Faraday Starter` |
 | Icon | `~/.local/share/icons/hicolor/256x256/apps/app.faradayoffline.FaradayStarter.png` | in the `.exe` |
 | Uninstall entry | — | `HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\Faraday Starter`: name "Faraday Starter", version, publisher "Faraday", icon, size, `UninstallString` = `"…\Faraday Starter.exe" --uninstall` |
+| Settings, once a text size is kept | `~/.local/share/faraday-starter/settings.txt` | `%LOCALAPPDATA%\Programs\Faraday Starter\settings.txt` |
+
+The settings file holds one line, `text=standard`, `text=large` or
+`text=larger` (`faraday/shells/starter/src/settings.rs`). It is written
+only while a Starter is installed: when a size is chosen on About, and
+at install when the size chosen in that run is not the one kept. The
+Starter reads it at start, whether or not the copy running is the
+installed one; a line it does not know leaves Standard.
 
 On macOS: the Starter at `~/Applications/Faraday Starter.app`, a copy
 of the running bundle made with `ditto` (which keeps its signature);
 per user, no administrator. The
-bundle is the menu entry and carries the icon. A bundle of that name
+bundle is the menu entry and carries the icon. The settings file is
+`~/Library/Application Support/Faraday Starter/settings.txt`, outside
+the bundle, whose signature covers what is in it. A bundle of that name
 whose identifier is not `app.faradayoffline.FaradayStarter` is in the
 way, as on Linux. Uninstall removes exactly that.
 
@@ -1280,8 +1299,10 @@ says why. The macOS Starter offers none (F83).
 **One theme in a session.** The Demo opens in the Starter's theme, and
 a theme chosen in the Demo (its Settings, or the boot stick's settings
 file it reads, which the person wrote there) is the Starter's from then
-on, kept when the Demo is left, in memory only. Nothing is stored
-across starts. At each start the Starter is in Cobalt at Standard
+on, kept when the Demo is left, in memory only. No theme is stored
+across starts. Text size is one choice in the same way: the Demo opens
+at the Starter's, and a size chosen in the Demo is the Starter's, kept
+as About's choice is (§3.7, §5.2). At each start the Starter is in Cobalt at Standard
 contrast, Light or Dark as this computer's own setting asks apps
 (`faraday/shells/starter/src/scheme.rs`): on Linux the XDG desktop
 portal's `org.freedesktop.appearance` `color-scheme`, read once over
@@ -1331,7 +1352,8 @@ needs no Faraday Demo build and puts none in a payload
 
 ### 5.4 Uninstalling
 
-Removes exactly the files and entries §5.2 lists for this computer.
+Removes exactly the files and entries §5.2 lists for this computer,
+the settings file and the folder it alone was in among them.
 It never touches anything the person made: received
 files, Faraday Demo's `~/faraday-sticks` and what is in it. It removes
 an earlier Starter's Faraday Demo and its cache as Install does (§5.3). On Windows
@@ -1973,7 +1995,10 @@ stick image, as `stick-boot.sh` allows); Home's checklist showing the
 next step for each state (no stick, stick attached, Windows with
 Secure Boot off; F33); install writing
 exactly §5.2's files into a temporary home, and uninstall removing
-exactly them; the firmware steps closed by another encryption product
+exactly them, the settings file included; Text size chosen on About
+drawing Home and the held Transfer larger, kept by an installed
+Starter and opened at again, and written by no run without an install
+(`faraday/faraday-starter/tests/all/text_size.rs`); the firmware steps closed by another encryption product
 until its rescue is confirmed; F33's and F49's tests
 (`docs/history/STARTER-LOG.md` §6.5); the
 guide chosen for a maker string; a payload file that does not match

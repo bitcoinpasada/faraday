@@ -9,6 +9,7 @@
 //! | the Starter | `~/.local/bin/faraday-starter`, a copy of the running file |
 //! | the menu entry | `~/.local/share/applications/app.faradayoffline.FaradayStarter.desktop` |
 //! | the icon | `~/.local/share/icons/hicolor/256x256/apps/app.faradayoffline.FaradayStarter.png` |
+//! | the settings file, once a text size is chosen | `~/.local/share/faraday-starter/settings.txt` (`crate::settings`) |
 //!
 //! Earlier installs (`names::LEGACY`: the Starter as `~/.local/bin/faraday`
 //! or `faraday-hub`, with the menu entry and icon of the same old name)
@@ -101,6 +102,15 @@ impl Dirs {
             .join(format!(".local/share/applications/{name}.desktop"))
     }
 
+    /// The installed Starter's settings file (`docs/TEXT-SIZE.md` §6),
+    /// in a folder of its own.
+    pub fn settings(&self) -> PathBuf {
+        self.home
+            .join(".local/share")
+            .join(names::LINUX_BIN)
+            .join(crate::settings::FILE)
+    }
+
     fn icon(&self) -> PathBuf {
         self.home.join(format!(
             ".local/share/icons/hicolor/256x256/apps/{MENU}.png"
@@ -149,6 +159,7 @@ pub fn installed(dirs: &Dirs) -> Option<Installed> {
     let items = dirs
         .files()
         .into_iter()
+        .chain([(InstallItem::Settings, dirs.settings())])
         .filter(|(item, p)| *item == InstallItem::App || p.is_file())
         .map(|(item, p)| (item, dirs.shown(&p)))
         .collect();
@@ -345,10 +356,13 @@ pub fn exec_quote(path: &Path) -> String {
     out.replace('\\', "\\\\")
 }
 
-/// Uninstalls: removes the files install wrote, and what earlier
-/// Starters left (Faraday Demo, its cache, the old names), and nothing
-/// else. A file already gone is not an error.
+/// Uninstalls: removes the files install wrote, the settings file and
+/// its folder, and what earlier Starters left (Faraday Demo, its cache,
+/// the old names), and nothing else. A file already gone is not an
+/// error.
 pub fn uninstall(dirs: &Dirs) -> Result<(), Reason> {
+    let settings = dirs.settings();
+    crate::settings::remove(&settings).map_err(|e| dirs.file_error(&settings, &e))?;
     for (item, path) in dirs.files() {
         if item == InstallItem::App && path.exists() && !ours(&path, Program::StarterApp) {
             continue;

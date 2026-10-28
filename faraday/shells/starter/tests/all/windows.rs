@@ -10,12 +10,14 @@ use std::io::Cursor;
 use std::path::{Path, PathBuf};
 
 use faraday_core::strings::EN;
+use faraday_core::ui::TextSize;
 use faraday_core::{Program, names};
 use faraday_starter::api::{
     BootFile, Bus, FaradayStick, InUse, InstallItem, Mode, Os, Reason, Source, StickFault,
     WriteOrder, WriteStage,
 };
 use faraday_starter::decide::{Refusal, Target, offers};
+use faraday_starter_shell::settings;
 use faraday_starter_shell::stick;
 use faraday_starter_shell::windows::disks::{Found, Snapshot, stick_read};
 use faraday_starter_shell::windows::elevated::{Elevated, ReadVersion, command_line, split};
@@ -778,6 +780,9 @@ fn install_puts_the_app_the_shortcut_and_the_uninstall_entry_and_uninstall_takes
     assert_eq!(text("DisplayIcon"), format!("{shown},0"));
     assert_eq!(values.get("EstimatedSize"), Some(&Data::Dword(9901)));
     assert_eq!(reg.0.len(), 1);
+    // The text size it keeps, beside it (docs/TEXT-SIZE.md §6).
+    settings::write(&dirs.settings(), TextSize::Large).expect("kept");
+    assert_eq!(settings::read(&dirs.settings()), Some(TextSize::Large));
     let installed = install::installed(&dirs, &ask, &mut reg).expect("installed");
     assert_eq!(installed.version, "0.2.0");
     let items: Vec<_> = installed.items.iter().map(|(i, _)| *i).collect();
@@ -786,10 +791,11 @@ fn install_puts_the_app_the_shortcut_and_the_uninstall_entry_and_uninstall_takes
         [
             InstallItem::App,
             InstallItem::Menu,
-            InstallItem::UninstallEntry
+            InstallItem::UninstallEntry,
+            InstallItem::Settings
         ]
     );
-    // Run from Downloads: everything goes at once.
+    // Run from Downloads: everything goes at once, the settings file too.
     assert_eq!(
         install::uninstall(&dirs, &running, &ask, &mut reg),
         Ok(Left::Nothing)

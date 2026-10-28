@@ -8,6 +8,10 @@
 //! The shell's reports are made up here: a laptop, sticks and disks, a
 //! payload. Each picture is `OUT_DIR/<name>.png`, named for the page and
 //! its state.
+//!
+//! `FARADAY_SNAP_TEXT=large|larger` draws them at that text size
+//! (`docs/TEXT-SIZE.md` §7), and lists in `OUT_DIR/cut.txt` each picture
+//! with text cut off at a side of its clip or drawn over other text.
 
 use std::path::Path;
 use std::process::ExitCode;
@@ -160,6 +164,8 @@ struct Snap<'a> {
     size: (u16, u16),
     dpi: u16,
     theme: faraday_ui::Theme,
+    /// The text size, and whether `cut.txt` is written.
+    text: Option<faraday_ui::TextSize>,
 }
 
 impl Snap<'_> {
@@ -181,7 +187,54 @@ impl Snap<'_> {
         starter.starter_event(StarterEvent::Payload(Some(payload())));
         starter.starter_event(StarterEvent::Disks(Vec::new()));
         starter.set_theme(self.theme);
+        if let Some(text) = self.text {
+            starter.set_text_size(text);
+        }
         starter
+    }
+
+    /// Adds to `cut.txt` each line of text the frame, picture `name`,
+    /// cuts off at a side of its clip or draws over other text, as
+    /// Faraday's snapshots do (`docs/TEXT-SIZE.md` §7).
+    fn note_cut(&self, starter: &mut Starter, name: &str) -> Result<(), String> {
+        use faraday_draw::canvas::InkKind;
+        use std::io::Write;
+        let mut texts = Vec::new();
+        let mut cut = Vec::new();
+        for i in starter.drawn_ink() {
+            if let InkKind::Text { text, cut: c, .. } = i.kind {
+                if c {
+                    cut.push(format!("text {text:?} cut at a side"));
+                }
+                texts.push((text, (i.rect.x, i.rect.y, i.rect.w, i.rect.h)));
+            }
+        }
+        for (i, (a, ra)) in texts.iter().enumerate() {
+            for (b, rb) in &texts[i + 1..] {
+                let marks = a.chars().count() < 3 && b.chars().count() < 3;
+                if (a == b && ra == rb) || marks {
+                    continue;
+                }
+                let w = (ra.0 + ra.2).min(rb.0 + rb.2) - ra.0.max(rb.0);
+                let h = (ra.1 + ra.3).min(rb.1 + rb.3) - ra.1.max(rb.1);
+                if w > 1 && h > 1 {
+                    cut.push(format!("text {a:?} drawn over {b:?} by {w} × {h} px"));
+                }
+            }
+        }
+        if cut.is_empty() {
+            return Ok(());
+        }
+        let path = self.out.join("cut.txt");
+        let mut f = std::fs::OpenOptions::new()
+            .append(true)
+            .create(true)
+            .open(&path)
+            .map_err(|e| format!("{}: {e}", path.display()))?;
+        for c in cut {
+            writeln!(f, "{name}: {c}").map_err(|e| e.to_string())?;
+        }
+        Ok(())
     }
 
     fn shot(&self, starter: &mut Starter, name: &str) -> Result<(), String> {
@@ -206,6 +259,9 @@ impl Snap<'_> {
         let mut w = enc.write_header().map_err(|e| e.to_string())?;
         w.write_image_data(frame.rgba).map_err(|e| e.to_string())?;
         println!("{}", path.display());
+        if self.text.is_some() {
+            self.note_cut(starter, name)?;
+        }
         Ok(())
     }
 
@@ -1057,11 +1113,28 @@ fn main() -> ExitCode {
         },
         None => faraday_ui::Theme::default(),
     };
+    let text = match std::env::var("FARADAY_SNAP_TEXT") {
+        Ok(words) => match faraday_ui::TextSize::from_id(&words) {
+            Some(t) => Some(t),
+            None => {
+                eprintln!("FARADAY_SNAP_TEXT={words}: standard, large or larger");
+                return ExitCode::from(2);
+            }
+        },
+        Err(_) => None,
+    };
+    if text.is_some()
+        && let Err(e) = std::fs::write(out.join("cut.txt"), "")
+    {
+        eprintln!("{}: {e}", out.display());
+        return ExitCode::FAILURE;
+    }
     match run(&Snap {
         out,
         size,
         dpi,
         theme,
+        text,
     }) {
         Ok(()) => ExitCode::SUCCESS,
         Err(e) => {

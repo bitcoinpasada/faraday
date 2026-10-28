@@ -50,6 +50,7 @@ installed. Titled **Install**, or **Update the installed Faraday**.
 |---|---|
 | **Installed version** | the installed copy's version |
 | **Faraday Starter**, **Menu entry**, **Icon**, **Installed apps entry** | each file the install wrote, and where it is |
+| **Settings** | the file the installed Starter keeps its text size in, once it holds one |
 | **Not installed** | when no copy is installed |
 | "The BIOS's Faraday stick entry remains: …" | in the warning tone, after an uninstall that could not remove the firmware's Faraday stick entry, and why |
 | **Uninstall** | opens [Uninstall Faraday Starter?](#uninstall-faraday-starter) |
@@ -59,9 +60,9 @@ installed. Titled **Install**, or **Update the installed Faraday**.
 
 | Control | What it does |
 |---|---|
-| **Removes the files listed. Received files and settings stay.** | what it does |
+| **Removes the files listed. Received files and Faraday Demo's sticks stay.** | what it does |
 | **Cancel** | closes the sheet |
-| **Uninstall** | removes the files listed; on Linux, the firmware's Faraday stick entry too |
+| **Uninstall** | removes the files listed, the settings file among them; on Linux, the firmware's Faraday stick entry too |
 
 ## Appearance
 
@@ -72,9 +73,10 @@ installed. Titled **Install**, or **Update the installed Faraday**.
 The same rows as Faraday's own Settings → Appearance. A choice is drawn
 at once, in the Starter's pages and in Transfer, Learn and Faraday Demo
 inside it; a theme chosen in Faraday Demo is the Starter's too. The
-Starter keeps no settings file: it opens in **Cobalt** at **Standard**
+theme is not kept: the Starter opens in **Cobalt** at **Standard**
 contrast, in **Light** or **Dark** as this computer's own setting says,
-and a choice lasts until it is closed.
+and a choice lasts until it is closed. Text size is on
+[About](#about).
 
 | Control | What it does |
 |---|---|
@@ -92,6 +94,7 @@ On a narrow window each row's label is over its control.
 
 | Control | What it does |
 |---|---|
+| **Text size** | **Standard**, **Large**, **Larger**, as Faraday's own: the Starter's pages, and Transfer, Learn and Faraday Demo inside it, drawn at once at the size chosen; a size chosen in Faraday Demo is the Starter's too. An installed Starter keeps it and opens at it; one run without installing keeps it until it is closed |
 | **Version** | this Starter's version |
 | **Release**, **Commit** | the release the carried images are from, and its commit |
 | **Carried in this app** | each image the Starter carries, by its file name, with **Build** (its build ID), **SHA-256** (the compressed file's) and "SHA-256 of …" (the image inside it) |

@@ -244,6 +244,10 @@ impl Platform for Windows {
             .unwrap_or_else(|| PathBuf::from("Downloads"))
     }
 
+    fn settings_file(&self) -> Option<PathBuf> {
+        Some(dirs().ok()?.settings())
+    }
+
     fn exiting(&self) {
         let pending = AFTER_EXIT.lock().ok().and_then(|mut p| p.take());
         if let (Some(args), Some(dir)) = (pending, sys::system_dir()) {

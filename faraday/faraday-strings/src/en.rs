@@ -587,6 +587,9 @@ strings! {
     starter_installed_icon: "Icon",
     /// Installed row.
     starter_installed_entry: "Installed apps entry",
+    /// Installed row: the file an installed Starter keeps its text size
+    /// in.
+    starter_installed_settings: "Settings",
     /// Installed with nothing installed.
     starter_not_installed: "Not installed",
     /// Button.
@@ -594,7 +597,7 @@ strings! {
     /// The uninstall's question.
     starter_uninstall_ask: "Uninstall Faraday Starter?",
     /// Under it.
-    starter_uninstall_keeps: "Removes the files listed. Received files and settings stay.",
+    starter_uninstall_keeps: "Removes the files listed. Received files and Faraday Demo's sticks stay.",
     /// Reason.
     starter_why_not_carried: "Faraday Starter does not carry what was confirmed. Nothing was written.",
     /// Reason. `{}` device, `{}` serial, `{}` size.

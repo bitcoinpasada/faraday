@@ -144,6 +144,10 @@ impl Platform for Linux {
             .map(|h| PathBuf::from(h).join("Downloads"))
             .unwrap_or_else(|| PathBuf::from("Downloads"))
     }
+
+    fn settings_file(&self) -> Option<PathBuf> {
+        Some(install::Dirs::from_env().ok()?.settings())
+    }
 }
 
 /// Lists the disks now and again whenever udisks2 says something
