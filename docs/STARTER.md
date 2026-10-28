@@ -1150,7 +1150,7 @@ it.
 ### 4.5 A boot file one signed (F133)
 
 Faraday can sign its own `BOOTX64.EFI` with the person's Secure Boot db
-key (Files → Sign in Secure Boot, the key in a vault), so that a computer with
+key (Vaults → the vault holding the key → Secure Boot → Owner keys → Sign or check an image), so that a computer with
 that key enrolled starts the stick with Secure Boot on (§7.7). Keep
 data and a new stick write the release's boot file unless the person
 brings one they signed for this release; the device writes no boot

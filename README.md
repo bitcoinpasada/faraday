@@ -233,7 +233,7 @@ another stick first. A Pi card is written whole.
 your db signature. Sign the new release's on Faraday: download the
 release's `faraday-X.Y.Z-BOOTX64.EFI`, `SHA256SUMS` and `SHA256SUMS.asc`
 onto a stick's data partition, copy the three in, sign
-`faraday-X.Y.Z-BOOTX64.EFI` (Files → **Sign in Secure Boot**) and write
+`faraday-X.Y.Z-BOOTX64.EFI` (Vaults → the vault holding the keys → **Secure Boot** → **Owner keys** → **Sign or check an image**) and write
 the signed file back. Faraday signs a boot program only when it is a
 release's own, at least as new as the Faraday signing it: the signature
 must verify with the release key built into Faraday, and `SHA256SUMS`
