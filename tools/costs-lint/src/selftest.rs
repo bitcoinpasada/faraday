@@ -6,7 +6,7 @@
 //! row of §5.1's table of what changes a body hash and what does not.
 //! Standard library only.
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::fmt::Debug;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -109,6 +109,8 @@ use faraday_crypto::work::Compute;
 use faraday_crypto::Secret;
 use sha2::{Digest, Sha256};
 
+pub use sha2;
+
 mod inner;
 
 pub fn token_only(_c: &Compute) -> u8 { 0 }
@@ -145,6 +147,11 @@ fn private_wrapper(d: &[u8]) -> usize {
 }
 pub fn plain() -> u8 { 1 }
 pub fn local_shadow(alias_hash: u8) -> u8 { alias_hash }
+pub fn param_call(alias_hash: &dyn Fn(&[u8]) -> usize) -> usize { alias_hash(&[]) }
+pub fn shadow_call(data: &[u8]) -> usize {
+    let alias_hash = alias_hash(data);
+    alias_hash.len()
+}
 pub enum Reveal { A }
 pub fn reveal_elsewhere(_w: Reveal) {}
 
@@ -205,9 +212,45 @@ pub fn screen_method(k: &Keys) { let _ = k.returns_held(); k.nothing(); }
 
 const PLAIN_LIB: &str = r"
 use faraday_crypto::work::Compute;
-pub fn takes(_c: &Compute) { let _ = sha2::Sha256::new(); }
+pub fn takes(_c: &Compute) {}
 #[test]
 fn plain_test() {}
+";
+
+/// A crate with no primitive dependency, over `fx-bip`'s re-export.
+const VIA_LIB: &str = r"
+mod far;
+mod loose;
+mod m1;
+mod m2;
+
+pub fn picks() -> u8 { m1::shared() }
+
+pub fn reexport_hash() { let _ = fx_bip::sha2::Sha256::new(); }
+pub fn plain_call() -> usize { fx_bip::alias_hash(&[]).len() }
+pub fn typed_caller(f: &far::Far) -> u8 { f.go() }
+pub fn typed_std(f: &far::Far) { f.collect() }
+pub fn plain_root() -> u8 { plain_helper() }
+fn plain_helper() -> u8 { 2 }
+";
+
+const VIA_LOOSE: &str = r"
+pub fn untyped_caller(x: u8) -> u8 { x.go() }
+pub fn untyped_flagged(x: u8) { x.dig() }
+pub fn std_named(x: u8) { x.collect() }
+";
+
+const VIA_M1: &str = "pub fn shared() -> u8 { 1 }\n";
+const VIA_M2: &str = "pub fn shared() -> u8 { 2 }\n";
+
+const VIA_FAR: &str = r"
+pub struct Far;
+impl Far {
+    pub fn go(&self) -> u8 { 1 }
+    pub fn dig(&self) { let _ = sha2::Sha256::new(); }
+    pub fn collect(&self) { let _ = sha2::Sha256::new(); }
+    pub fn own(&self) -> u8 { self.go() }
+}
 ";
 
 fn write_fixture(root: &Path) {
@@ -244,6 +287,16 @@ fn write_fixture(root: &Path) {
     );
     write(
         root,
+        "faraday/fx-via/Cargo.toml",
+        &manifest("fx-via", &["fx-bip"]),
+    );
+    write(root, "faraday/fx-via/src/lib.rs", VIA_LIB);
+    write(root, "faraday/fx-via/src/far.rs", VIA_FAR);
+    write(root, "faraday/fx-via/src/loose.rs", VIA_LOOSE);
+    write(root, "faraday/fx-via/src/m1.rs", VIA_M1);
+    write(root, "faraday/fx-via/src/m2.rs", VIA_M2);
+    write(
+        root,
         "faraday/faraday-plain/Cargo.toml",
         &manifest("faraday-plain", &[]),
     );
@@ -273,6 +326,10 @@ fn expected_rules() -> BTreeMap<String, Vec<u8>> {
         (format!("{bip}::macro_hash"), vec![3]),
         (format!("{bip}::via_crypto"), vec![3]),
         (format!("{bip}::token_and_hash"), vec![1, 3]),
+        (format!("{bip}::shadow_call"), vec![4]),
+        ("faraday/fx-via/src/lib.rs::reexport_hash".into(), vec![3]),
+        ("faraday/fx-via/src/far.rs::Far::dig".into(), vec![3]),
+        ("faraday/fx-via/src/far.rs::Far::collect".into(), vec![3]),
         (format!("{bip}::wrapper"), vec![4]),
         (format!("{bip}::method_wrapper"), vec![4]),
         (format!("{bip}::path_wrapper"), vec![4]),
@@ -290,6 +347,66 @@ fn expected_rules() -> BTreeMap<String, Vec<u8>> {
         ),
     ];
     want.into_iter().collect()
+}
+
+fn edge_checks(c: &mut Checks, inv: &Inventory) {
+    // Method edges (§4.4): own type, a type the file names, or a flagged callee.
+    let pos = |name: &str| inv.funcs.iter().position(|f| f.name == name);
+    let calls = |a: &str, b: &str| match (pos(a), pos(b)) {
+        (Some(a), Some(b)) => inv.funcs[a].callees.contains(&b),
+        _ => false,
+    };
+    c.ok(
+        "a method call on a value of no named type is not an edge",
+        !calls("untyped_caller", "Far::go"),
+    );
+    let picks = pos("picks");
+    let shared: Vec<usize> = (0..inv.funcs.len())
+        .filter(|&k| inv.funcs[k].name == "shared")
+        .collect();
+    c.ok(
+        "a path call through a module is an edge to that module's function only",
+        picks.is_some_and(|p| {
+            let hit: Vec<&str> = shared
+                .iter()
+                .filter(|k| inv.funcs[p].callees.contains(k))
+                .map(|&k| inv.funcs[k].file.as_str())
+                .collect();
+            hit == ["faraday/fx-via/src/m1.rs"]
+        }),
+    );
+    c.ok(
+        "a method call is an edge when the file names the type",
+        calls("typed_caller", "Far::go"),
+    );
+    c.ok(
+        "a method call is an edge on the caller's own type",
+        calls("Far::own", "Far::go"),
+    );
+    c.ok(
+        "a method call is an edge when the callee is cryptographic",
+        calls("untyped_flagged", "Far::dig"),
+    );
+    c.ok(
+        "a method call on an unknown receiver with a std name is not an edge to a cryptographic method of that name",
+        !calls("std_named", "Far::collect"),
+    );
+    c.ok(
+        "a std-named cryptographic method is an edge from a file that names its type",
+        calls("typed_std", "Far::collect"),
+    );
+    // Any crate: a root prints with what it reaches, and nothing else does.
+    let none = inv.lines(false, &HashSet::new()).join("\n");
+    let roots: HashSet<String> = ["faraday/fx-via/src/lib.rs::plain_root".to_string()].into();
+    let with = inv.lines(false, &roots).join("\n");
+    c.ok(
+        "a function of a plain crate is not printed without being asked",
+        !none.contains("plain_root") && !none.contains("plain_helper"),
+    );
+    c.ok(
+        "a listed root and its closure are printed in any crate",
+        with.contains("::plain_root\"") && with.contains("::plain_helper\""),
+    );
 }
 
 fn rule_checks(c: &mut Checks, root: &Path) {
@@ -316,13 +433,29 @@ fn rule_checks(c: &mut Checks, root: &Path) {
         !got.contains_key("core/fx-bip/src/lib.rs::private_wrapper"),
     );
     c.ok(
-        "a local named like a function is not a call",
+        "a local named like a function is not a call when used as a value",
         !got.contains_key("core/fx-bip/src/lib.rs::local_shadow"),
+    );
+    c.ok(
+        "a call is a call although a local has the function's name",
+        got.contains_key("core/fx-bip/src/lib.rs::shadow_call"),
+    );
+    c.ok(
+        "a call of a parameter named like a function is the parameter's",
+        !got.contains_key("core/fx-bip/src/lib.rs::param_call"),
+    );
+    c.ok(
+        "a path through a crate's re-export of a primitive is a primitive path",
+        got.contains_key("faraday/fx-via/src/lib.rs::reexport_hash"),
+    );
+    c.ok(
+        "a call to a function that wraps a primitive is not itself a primitive path",
+        !got.contains_key("faraday/fx-via/src/lib.rs::plain_call"),
     );
 
     // The closure's input: a private helper is printed with no rules, and a
     // function nothing cryptographic reaches is not.
-    let printed = inv.lines(false).join("\n");
+    let printed = inv.lines(false, &HashSet::new()).join("\n");
     let run_line = printed
         .lines()
         .find(|l| l.contains("\"id\":\"core/fx-bip/src/lib.rs::Helper::run\""));
@@ -349,6 +482,7 @@ fn rule_checks(c: &mut Checks, root: &Path) {
         "a method call is a callee by its name",
         matches!((mw, rm), (Some(a), Some(b)) if inv.funcs[a].callees.contains(&b)),
     );
+    edge_checks(c, &inv);
     let core_fn = inv.funcs.iter().find(|f| f.name == "screen_path");
     c.ok(
         "a call into another workspace crate is listed",

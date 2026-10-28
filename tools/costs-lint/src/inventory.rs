@@ -7,7 +7,8 @@
 //! costs lint does, through the same walker ([`crate::walk`]).
 //!
 //! ```text
-//! crypto-inventory [--root DIR] [--all]    JSON lines on stdout, a summary on stderr
+//! crypto-inventory [--root DIR] [--all] [--roots FILE]
+//!                                          JSON lines on stdout, a summary on stderr
 //! crypto-inventory --self-test             the fixture crate's checks
 //! ```
 //!
@@ -18,7 +19,10 @@
 //!   cryptographic one calls it, directly or through others, which is
 //!   the closure's input), its `hash` (§5.1), its same-crate `callees`
 //!   (ids) and its `cross` crate calls. `--all` prints every function of
-//!   a cryptographic crate.
+//!   every crate; `--roots FILE` prints, besides the cryptographic
+//!   functions, the functions whose ids (`file::Type::name`, one per
+//!   line) FILE lists and what they reach in their crate, in any crate
+//!   under `core/` and `faraday/`.
 //! - `{"kind":"test", …}`: a `#[test]` function of any crate.
 //! - `{"kind":"call_site", …}`: a call in `faraday-core` of a
 //!   cryptographic function of `faraday-keys` or `core/` (§9.2), `via`
@@ -26,8 +30,10 @@
 //!   name, taken only where the calling file names the callee's type).
 //!
 //! Calls are resolved by name (§4.4): a path call by its last two
-//! segments, a method call by its name, every function of that name in
-//! the crate taken. Costs one read and parse of every source file.
+//! segments; a method call by its name, for a method of the caller's own
+//! impl type, of a type the calling file names, or of a function that is
+//! itself cryptographic. Costs one read and parse of every source file,
+//! and a second parse of each file that holds a `pub use`.
 
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::fs;
@@ -75,6 +81,104 @@ const NOT_COMPUTING: &[&str] = &[
     "pin_failure_to_report",
 ];
 
+/// Method names the standard library and the hashing traits use on their
+/// own types. A call `x.collect()` whose receiver's type is not known is
+/// taken for std's, not for a function of the crate that has the name and
+/// is cryptographic or merely named by the calling file (§4.4): without
+/// this, `Faraday::collect` and `Spend::collect` would join every
+/// iterator chain of `faraday-core`. Such a method is an edge only from
+/// the caller's own type, or, when it is cryptographic, from a file that
+/// names its type.
+const STD_METHODS: &[&str] = &[
+    "add",
+    "all",
+    "and_then",
+    "any",
+    "as_bytes",
+    "as_mut",
+    "as_ref",
+    "as_str",
+    "at",
+    "borrow",
+    "borrow_mut",
+    "bytes",
+    "chain",
+    "chars",
+    "clear",
+    "clone",
+    "cloned",
+    "cmp",
+    "collect",
+    "contains",
+    "copied",
+    "count",
+    "default",
+    "digest",
+    "drain",
+    "drop",
+    "ends_with",
+    "eq",
+    "err",
+    "expect",
+    "extend",
+    "filter",
+    "finalize",
+    "find",
+    "first",
+    "flush",
+    "fmt",
+    "fold",
+    "from",
+    "get",
+    "get_mut",
+    "hash",
+    "insert",
+    "into",
+    "into_iter",
+    "is_empty",
+    "iter",
+    "join",
+    "last",
+    "len",
+    "lines",
+    "lock",
+    "map",
+    "map_err",
+    "max",
+    "min",
+    "next",
+    "ok",
+    "or_else",
+    "parse",
+    "partial_cmp",
+    "pop",
+    "position",
+    "push",
+    "read",
+    "remove",
+    "replace",
+    "rev",
+    "skip",
+    "split",
+    "starts_with",
+    "step_by",
+    "sum",
+    "take",
+    "to_owned",
+    "to_string",
+    "to_vec",
+    "trim",
+    "try_from",
+    "try_into",
+    "unwrap",
+    "unwrap_or",
+    "unwrap_or_default",
+    "unwrap_or_else",
+    "update",
+    "write",
+    "zip",
+];
+
 /// The `faraday/` crates that hold keys: with `core/`, where rules 1 and
 /// 4 apply (§4.2).
 const TOKEN_CRATES: &[&str] = &[
@@ -116,6 +220,9 @@ pub(crate) struct Func {
     pub(crate) name: String,
     ident: String,
     ty: Option<String>,
+    /// The modules it is in, below its crate's root: its file's, then the
+    /// inline `mod`s.
+    module: Vec<String>,
     line: usize,
     public: bool,
     /// The rules of §4.2 it meets.
@@ -163,6 +270,8 @@ pub(crate) struct Inventory {
     pub(crate) funcs: Vec<Func>,
     pub(crate) tests: Vec<TestFn>,
     pub(crate) sites: Vec<Site>,
+    /// Per file, every identifier it holds (the types it names, for §4.4).
+    file_names: HashMap<String, HashSet<String>>,
 }
 
 // ---------------------------------------------------------------- manifests
@@ -305,6 +414,139 @@ impl<'a> Visit<'a> for Uses {
     }
 }
 
+// ---------------------------------------------------------------- re-exports
+
+/// Per workspace crate (library name): the paths below its root that are
+/// a primitive crate's items, re-exported with `pub use`.
+type Reexports = HashMap<String, Vec<Vec<String>>>;
+
+/// One `pub use` item of a crate: the name it makes (with the module the
+/// item sits in in front) and what it names.
+struct PubUse {
+    key: Vec<String>,
+    target: Vec<String>,
+    mods: Vec<String>,
+}
+
+#[derive(Default)]
+struct PubUses {
+    mods: Vec<String>,
+    found: Vec<PubUse>,
+}
+
+impl<'a> Visit<'a> for PubUses {
+    fn visit_item_mod(&mut self, m: &'a syn::ItemMod) {
+        let Some((_, items)) = &m.content else { return };
+        self.mods.push(m.ident.to_string());
+        for i in items {
+            self.visit_item(i);
+        }
+        self.mods.pop();
+    }
+
+    fn visit_item_use(&mut self, u: &'a syn::ItemUse) {
+        if !matches!(u.vis, syn::Visibility::Public(_)) {
+            return;
+        }
+        let mut aliases = Aliases::new();
+        flat_use(&u.tree, &mut Vec::new(), &mut aliases);
+        for (alias, targets) in aliases {
+            for target in targets {
+                let mut key = self.mods.clone();
+                key.push(alias.clone());
+                self.found.push(PubUse {
+                    key,
+                    target,
+                    mods: self.mods.clone(),
+                });
+            }
+        }
+    }
+}
+
+/// The modules a file sits in, below its crate's `src`: `a/b.rs` and
+/// `a/b/mod.rs` are `a::b`; the root files are none.
+fn file_mods(file: &str) -> Vec<String> {
+    let after = file.split_once("/src/").map_or(file, |(_, rest)| rest);
+    let m = after.trim_end_matches(".rs").trim_end_matches("/mod");
+    if matches!(m, "lib" | "main") {
+        return Vec::new();
+    }
+    m.split('/').map(str::to_string).collect()
+}
+
+/// Whether a full path (after `use` lines) is into a primitive crate other
+/// than `own_lib`, or into a name a workspace crate re-exports from one.
+fn primitive_path(full: &[String], own_lib: &str, reex: &Reexports) -> bool {
+    let head = if full[0] == "crate" {
+        own_lib
+    } else {
+        &full[0]
+    };
+    if primitive_lib(head)
+        && head != own_lib
+        && !(head == "faraday_crypto"
+            && full
+                .get(1)
+                .is_some_and(|s| NOT_COMPUTING.contains(&s.as_str())))
+    {
+        return true;
+    }
+    reex.get(head)
+        .is_some_and(|keys| keys.iter().any(|k| full[1..].starts_with(k)))
+}
+
+/// The re-exports of primitive items, by crate, to a fixpoint: a crate
+/// that re-exports another's re-export (`faraday-psbt` over `faraday-bip`)
+/// counts. Costs a second parse of each file with a `pub use`; a glob
+/// (`pub use bitcoin::*`) names nothing and is not followed (§17).
+fn read_reexports(root: &Path, crates: &[Crate]) -> Reexports {
+    let mut uses: Vec<(String, Vec<PubUse>)> = Vec::new();
+    for c in crates {
+        for m in walk::module_files_cfg(root, &c.src) {
+            if m.test {
+                continue;
+            }
+            let Ok(text) = fs::read_to_string(&m.path) else {
+                continue;
+            };
+            if !text.contains("pub use") {
+                continue;
+            }
+            let Ok(ast) = syn::parse_file(&text) else {
+                continue;
+            };
+            let mut v = PubUses {
+                mods: file_mods(&walk::rel(root, &m.path)),
+                found: Vec::new(),
+            };
+            v.visit_file(&ast);
+            uses.push((lib_name(&c.name), v.found));
+        }
+    }
+    let mut reex = Reexports::new();
+    loop {
+        let mut changed = false;
+        for (lib, found) in &uses {
+            for u in found {
+                if reex.get(lib).is_some_and(|k| k.contains(&u.key)) {
+                    continue;
+                }
+                // The target as written, or relative to the file's module.
+                let mut relative = vec![lib.clone()];
+                relative.extend(u.mods.iter().chain(&u.target).cloned());
+                if primitive_path(&u.target, lib, &reex) || primitive_path(&relative, lib, &reex) {
+                    reex.entry(lib.clone()).or_default().push(u.key.clone());
+                    changed = true;
+                }
+            }
+        }
+        if !changed {
+            return reex;
+        }
+    }
+}
+
 // ----------------------------------------------------------------- scanning
 
 /// What one function's signature and body mention.
@@ -318,6 +560,9 @@ struct Scan {
     methods: Vec<(String, usize)>,
     /// Every name the function binds.
     locals: BTreeSet<String>,
+    /// The names its parameters and its closures' parameters bind: a call
+    /// `name(...)` of one is the parameter's, never a function's.
+    params: BTreeSet<String>,
 }
 
 fn segs(p: &syn::Path) -> Vec<String> {
@@ -431,6 +676,15 @@ impl<'a> Visit<'a> for Scan {
         self.tokens(m.tokens.clone());
     }
 
+    fn visit_expr_closure(&mut self, c: &'a syn::ExprClosure) {
+        let mut ps = Scan::default();
+        for i in &c.inputs {
+            ps.visit_pat(i);
+        }
+        self.params.extend(ps.locals);
+        visit::visit_expr_closure(self, c);
+    }
+
     fn visit_pat_ident(&mut self, p: &'a syn::PatIdent) {
         self.locals.insert(p.ident.to_string());
         visit::visit_pat_ident(self, p);
@@ -522,8 +776,10 @@ fn body_hash(
 // -------------------------------------------------------------------- rules
 
 /// What a file is, for the rules.
-struct FileCx {
+struct FileCx<'a> {
     krate: usize,
+    /// The names each workspace crate re-exports from a primitive crate.
+    reex: &'a Reexports,
     file: String,
     own_lib: String,
     aliases: Aliases,
@@ -531,15 +787,13 @@ struct FileCx {
     token: bool,
     /// Rule 2 applies.
     reveal: bool,
-    /// The crate is cryptographic: functions are recorded.
-    record: bool,
     /// The whole file is compiled for tests only.
     test_file: bool,
     /// The `cfg` that makes it so.
     base_cfg: String,
 }
 
-impl FileCx {
+impl FileCx<'_> {
     /// A path with its first name replaced by what a `use` line made it.
     fn resolve(&self, path: &[String]) -> Vec<Vec<String>> {
         match self.aliases.get(&path[0]) {
@@ -551,16 +805,12 @@ impl FileCx {
         }
     }
 
-    /// Whether `path` is a path into a primitive crate.
+    /// Whether `path` is a path into a primitive crate, or into a name a
+    /// workspace crate re-exports from one (§4.2 rule 3).
     fn primitive(&self, path: &[String]) -> bool {
-        self.resolve(path).iter().any(|full| {
-            primitive_lib(&full[0])
-                && full[0] != self.own_lib
-                && !(full[0] == "faraday_crypto"
-                    && full
-                        .get(1)
-                        .is_some_and(|s| NOT_COMPUTING.contains(&s.as_str())))
-        })
+        self.resolve(path)
+            .iter()
+            .any(|full| primitive_path(full, &self.own_lib, self.reex))
     }
 }
 
@@ -604,7 +854,7 @@ fn reveals(sig: &syn::Signature) -> bool {
 // ----------------------------------------------------------------- finding
 
 struct Finder<'a> {
-    cx: &'a FileCx,
+    cx: &'a FileCx<'a>,
     funcs: &'a mut Vec<Func>,
     tests: &'a mut Vec<TestFn>,
     mods: Vec<String>,
@@ -653,11 +903,18 @@ impl Finder<'_> {
             });
             return;
         }
-        if self.test_only() || walk::is_test(attrs) || !self.cx.record {
+        if self.test_only() || walk::is_test(attrs) {
             return;
         }
         let mut scan = Scan::default();
         scan.visit_signature(sig);
+        let mut ps = Scan::default();
+        for a in &sig.inputs {
+            if let syn::FnArg::Typed(t) = a {
+                ps.visit_pat(&t.pat);
+            }
+        }
+        scan.params = ps.locals;
         scan.visit_block(block);
         self.funcs
             .push(self.analyze(attrs, vis, sig, block, line, scan));
@@ -686,7 +943,9 @@ impl Finder<'_> {
         }
         let mut calls = Vec::new();
         for (path, called, line) in &scan.exprs {
-            if path.len() == 1 && scan.locals.contains(&path[0]) {
+            if path.len() == 1
+                && (scan.params.contains(&path[0]) || (!*called && scan.locals.contains(&path[0])))
+            {
                 continue;
             }
             let mut path = path.clone();
@@ -713,6 +972,10 @@ impl Finder<'_> {
             },
             ident,
             ty: self.self_ty.clone(),
+            module: file_mods(&cx.file)
+                .into_iter()
+                .chain(self.mods.iter().cloned())
+                .collect(),
             line,
             public: matches!(vis, syn::Visibility::Public(_)),
             rules,
@@ -819,12 +1082,45 @@ fn names(f: &Func, segs: &[String]) -> bool {
         return false;
     }
     match segs.len().checked_sub(2).map(|i| &segs[i]) {
-        None => true,
+        None => f.ty.is_none(),
         Some(ty) => f.ty.as_deref() == Some(ty.as_str()) || f.ty.is_none(),
     }
 }
 
-/// Same-crate callees and cross-crate calls of every function.
+/// Of the functions a path call's names fit, the ones in the module the
+/// path says: a method of the type before the name, a free function of
+/// the module before the name or, for a bare name, of the caller's own
+/// file. When none is, all of them stay (a name `use`d through a glob or
+/// re-exported from another module).
+fn narrowed(inv: &Inventory, caller: usize, segs: &[String], named: Vec<usize>) -> Vec<usize> {
+    if named.len() < 2 {
+        return named;
+    }
+    let want = segs.len().checked_sub(2).map(|k| segs[k].as_str());
+    let fits = |&j: &usize| {
+        let g = &inv.funcs[j];
+        match want {
+            None => g.ty.is_none() && g.file == inv.funcs[caller].file,
+            Some("self") => g.file == inv.funcs[caller].file,
+            Some("crate" | "super") => true,
+            Some(w) => {
+                g.ty.as_deref() == Some(w)
+                    || (g.ty.is_none() && g.module.last().map(String::as_str) == Some(w))
+            }
+        }
+    };
+    let exact: Vec<usize> = named.iter().copied().filter(fits).collect();
+    if exact.is_empty() { named } else { exact }
+}
+
+/// Same-crate callees and cross-crate calls of every function, and §4.2
+/// rule 4. A path call is resolved through `use` lines (`names`). A
+/// method call is taken only for a method of the caller's own impl type,
+/// of a type the calling file names, or of a function that is itself
+/// cryptographic (rules 1 to 4): the receiver's type is not known, and
+/// the name alone would join every `push` and `sign` of a crate. Rule 4
+/// feeds the last test, so the edges are worked out again until no
+/// function gains it.
 fn link(inv: &mut Inventory) {
     let libs: HashMap<String, usize> = inv
         .crates
@@ -839,6 +1135,8 @@ fn link(inv: &mut Inventory) {
             .or_default()
             .push(i);
     }
+    // Path calls do not depend on the rules.
+    let mut path_callees: Vec<BTreeSet<usize>> = Vec::new();
     for i in 0..inv.funcs.len() {
         let c = inv.funcs[i].krate;
         let mut callees = BTreeSet::new();
@@ -861,24 +1159,51 @@ fn link(inv: &mut Inventory) {
                 continue;
             }
             let last = &call.segs[call.segs.len() - 1];
-            for &j in by_name.get(&(c, last.clone())).into_iter().flatten() {
-                if names(&inv.funcs[j], &call.segs) {
-                    callees.insert(j);
-                }
-            }
-        }
-        for (m, _) in &inv.funcs[i].methods {
-            callees.extend(by_name.get(&(c, m.clone())).into_iter().flatten());
+            let named: Vec<usize> = by_name
+                .get(&(c, last.clone()))
+                .into_iter()
+                .flatten()
+                .copied()
+                .filter(|&j| names(&inv.funcs[j], &call.segs))
+                .collect();
+            callees.extend(narrowed(inv, i, &call.segs, named));
         }
         callees.remove(&i);
-        inv.funcs[i].callees = callees;
+        path_callees.push(callees);
         inv.funcs[i].cross = cross;
+    }
+    loop {
+        for (i, path) in path_callees.iter().enumerate() {
+            let c = inv.funcs[i].krate;
+            let mut callees = path.clone();
+            let named = inv.file_names.get(&inv.funcs[i].file);
+            for (m, _) in &inv.funcs[i].methods {
+                for &j in by_name.get(&(c, m.clone())).into_iter().flatten() {
+                    let g = &inv.funcs[j];
+                    let std = STD_METHODS.contains(&m.as_str());
+                    let typed = g.ty.as_deref().is_some_and(|t| {
+                        inv.funcs[i].ty.as_deref() == Some(t)
+                            || ((!std || !g.rules.is_empty())
+                                && named.is_some_and(|n| n.contains(t)))
+                    });
+                    if typed || (!g.rules.is_empty() && !std) {
+                        callees.insert(j);
+                    }
+                }
+            }
+            callees.remove(&i);
+            inv.funcs[i].callees = callees;
+        }
+        if !public_reach(inv) {
+            return;
+        }
     }
 }
 
 /// §4.2 rule 4: a public function of a token crate that, through calls in
-/// its crate, reaches a function of rules 1 to 3.
-fn public_reach(inv: &mut Inventory) {
+/// its crate, reaches a function of rules 1 to 3. Whether any function
+/// gained the rule.
+fn public_reach(inv: &mut Inventory) -> bool {
     let mut reaching: Vec<bool> = inv.funcs.iter().map(|f| !f.rules.is_empty()).collect();
     loop {
         let mut changed = false;
@@ -892,11 +1217,14 @@ fn public_reach(inv: &mut Inventory) {
             break;
         }
     }
+    let mut gained = false;
     for (i, f) in inv.funcs.iter_mut().enumerate() {
         if reaching[i] && f.public && f.rules.is_empty() && token_crate(&inv.crates[f.krate]) {
             f.rules.insert(4);
+            gained = true;
         }
     }
+    gained
 }
 
 fn token_crate(c: &Crate) -> bool {
@@ -996,6 +1324,20 @@ struct Found {
     tests: Vec<TestFn>,
     /// Per file: the names its `use` lines bring in.
     imports: HashMap<String, BTreeSet<String>>,
+    /// Per file: every identifier in it.
+    names: HashMap<String, HashSet<String>>,
+}
+
+fn all_idents(ts: TokenStream, out: &mut HashSet<String>) {
+    for t in ts {
+        match t {
+            TokenTree::Ident(i) => {
+                out.insert(i.to_string());
+            }
+            TokenTree::Group(g) => all_idents(g.stream(), out),
+            _ => {}
+        }
+    }
 }
 
 fn parse_file(found: &mut Found, file: &Path, mut cx: FileCx, root: &Path) {
@@ -1006,6 +1348,9 @@ fn parse_file(found: &mut Found, file: &Path, mut cx: FileCx, root: &Path) {
     found
         .imports
         .insert(cx.file.clone(), uses.aliases.keys().cloned().collect());
+    let mut idents = HashSet::new();
+    all_idents(ast.to_token_stream(), &mut idents);
+    found.names.insert(cx.file.clone(), idents);
     cx.aliases = uses.aliases;
     let mut f = Finder {
         cx: &cx,
@@ -1021,16 +1366,17 @@ fn parse_file(found: &mut Found, file: &Path, mut cx: FileCx, root: &Path) {
 /// Reads every crate under `root` (costs a parse of each source file).
 pub(crate) fn scan(root: &Path) -> Inventory {
     let crates = read_crates(root);
+    let reex = read_reexports(root, &crates);
     let mut found = Found::default();
     for (k, c) in crates.iter().enumerate() {
         let base = |test_file: bool, cfg: &str| FileCx {
             krate: k,
+            reex: &reex,
             file: String::new(),
             own_lib: lib_name(&c.name),
             aliases: Aliases::new(),
             token: token_crate(c),
             reveal: c.cryptographic && c.name == KEYS_CRATE,
-            record: c.cryptographic,
             test_file,
             base_cfg: cfg.to_string(),
         };
@@ -1047,6 +1393,7 @@ pub(crate) fn scan(root: &Path) -> Inventory {
         mut funcs,
         mut tests,
         imports,
+        names,
     } = found;
     funcs.sort_by(|a, b| {
         (a.krate, &a.file, a.line, &a.name).cmp(&(b.krate, &b.file, b.line, &b.name))
@@ -1057,9 +1404,9 @@ pub(crate) fn scan(root: &Path) -> Inventory {
         funcs,
         tests,
         sites: Vec::new(),
+        file_names: names,
     };
     link(&mut inv);
-    public_reach(&mut inv);
     call_sites(&mut inv, &imports);
     inv
 }
@@ -1092,12 +1439,13 @@ impl Inventory {
     }
 
     /// The functions to print: the cryptographic ones and everything they
-    /// reach in their crate, or all of them.
-    fn printed(&self, all: bool) -> Vec<usize> {
+    /// reach in their crate, the listed `roots` (ids) and what they reach,
+    /// or all of them.
+    fn printed(&self, all: bool, roots: &HashSet<String>) -> Vec<usize> {
         let mut keep: HashSet<usize> = HashSet::new();
         let mut stack: Vec<usize> = Vec::new();
         for (i, f) in self.funcs.iter().enumerate() {
-            if all || !f.rules.is_empty() {
+            if all || !f.rules.is_empty() || (!roots.is_empty() && roots.contains(&self.id(i))) {
                 keep.insert(i);
                 stack.push(i);
             }
@@ -1115,9 +1463,9 @@ impl Inventory {
     }
 
     /// The JSON lines.
-    pub(crate) fn lines(&self, all: bool) -> Vec<String> {
+    pub(crate) fn lines(&self, all: bool, roots: &HashSet<String>) -> Vec<String> {
         let mut out = Vec::new();
-        for i in self.printed(all) {
+        for i in self.printed(all, roots) {
             let f = &self.funcs[i];
             out.push(format!(
                 "{{\"kind\":\"fn\",\"crate\":{},\"file\":{},\"name\":{},\"id\":{},\"line\":{},\"public\":{},\"rules\":{},\"hash\":{},\"callees\":{},\"cross\":{}}}",
@@ -1216,12 +1564,25 @@ impl Inventory {
 pub fn main() -> ExitCode {
     let mut root = PathBuf::from(".");
     let mut all = false;
+    let mut roots = HashSet::new();
     let mut args = std::env::args().skip(1);
     while let Some(a) = args.next() {
         match a.as_str() {
             "--self-test" => return crate::selftest::run(),
             "--all" => all = true,
             "--root" => root = args.next().map(PathBuf::from).unwrap_or(root),
+            "--roots" => {
+                let Some(text) = args.next().and_then(|f| fs::read_to_string(f).ok()) else {
+                    eprintln!("crypto-inventory: --roots needs a readable file");
+                    return ExitCode::FAILURE;
+                };
+                roots.extend(
+                    text.lines()
+                        .map(str::trim)
+                        .filter(|l| !l.is_empty())
+                        .map(str::to_string),
+                );
+            }
             other => {
                 eprintln!("crypto-inventory: unknown argument {other}");
                 return ExitCode::FAILURE;
@@ -1229,7 +1590,7 @@ pub fn main() -> ExitCode {
         }
     }
     let inv = scan(&root);
-    for l in inv.lines(all) {
+    for l in inv.lines(all, &roots) {
         println!("{l}");
     }
     eprintln!("{}", inv.summary());

@@ -12,8 +12,10 @@
 
 The inventory is `crypto-inventory`'s JSON lines (tools/costs-lint,
 docs/CRYPTO-LEARN.md §4.3), read from FILE or, by default, made by
-`cargo run -q --locked -p costs-lint --bin crypto-inventory`, which costs
-one read and parse of every source file. Standard library only
+`cargo run -q --locked -p costs-lint --bin crypto-inventory -- --roots LIST`,
+LIST being the roots the manifest names (so a root in a crate that is not
+cryptographic is found, with its closure), which costs one read and parse
+of every source file. Standard library only
 (`tomllib`, Python 3.11).
 
 Not checked yet (batch 4): the comparisons of §3.2 with docs/AUDIT.md §1,
@@ -44,6 +46,7 @@ LOCK_HEAD = ("# Written by `just crypto-review`, never by hand (docs/CRYPTO-LEAR
              "# per action, the parts its fingerprint is the hash of.\n")
 
 STATUSES = {"Deployed", "Complete", "Draft", "Closed", "Informational", "Convention",
+            "Proposed Standard", "Internet Standard", "Best Current Practice",
             "Faraday's own", "Not published", "Status not checked"}
 KINDS = {"Conservative", "Neutral", "Novel"}
 # The cfg a test may sit under and still be built by `just test` on Linux.
@@ -119,12 +122,33 @@ class Inventory:
         return hits[0] if len(hits) == 1 else None
 
 
-def cargo_inventory(root):
+def manifest_roots(text):
+    """Every function the manifest names as a root (an action's `functions`) or as not
+    cryptographic: the inventory prints these, and what they reach, in any crate (§4.1)."""
     try:
-        p = subprocess.run(["cargo", "run", "-q", "--locked", "-p", "costs-lint", "--bin",
-                            "crypto-inventory"], cwd=root, capture_output=True, text=True)
-    except FileNotFoundError:
-        raise SystemExit("check.py: no cargo here; give --inventory FILE or run it where cargo is")
+        data = tomllib.loads(text)
+    except tomllib.TOMLDecodeError:
+        return []
+    roots = []
+    for a in data.get("action", []):
+        if isinstance(a, dict):
+            roots.extend(f for f in as_list(a.get("functions")) if isinstance(f, str))
+    for n in data.get("not_crypto", []):
+        if isinstance(n, dict) and isinstance(n.get("function"), str):
+            roots.append(n["function"])
+    return sorted(set(roots))
+
+
+def cargo_inventory(root, roots=()):
+    with tempfile.TemporaryDirectory() as d:
+        listing = pathlib.Path(d) / "roots.txt"
+        listing.write_text("".join(r + "\n" for r in roots))
+        try:
+            p = subprocess.run(["cargo", "run", "-q", "--locked", "-p", "costs-lint", "--bin",
+                                "crypto-inventory", "--", "--roots", str(listing)],
+                               cwd=root, capture_output=True, text=True)
+        except FileNotFoundError:
+            raise SystemExit("check.py: no cargo here; give --inventory FILE or run it where cargo is")
     if p.returncode != 0:
         sys.stderr.write(p.stderr)
         raise SystemExit("check.py: crypto-inventory failed (a source file did not parse?)")
@@ -135,7 +159,11 @@ def read_inventory(root, path):
     if path:
         text = sys.stdin.read() if path == "-" else pathlib.Path(path).read_text()
         return Inventory(text.splitlines())
-    return Inventory(cargo_inventory(root))
+    try:
+        manifest = (pathlib.Path(root) / MANIFEST).read_text()
+    except OSError:
+        manifest = ""
+    return Inventory(cargo_inventory(root, manifest_roots(manifest)))
 
 
 # ------------------------------------------------------------------- lock
@@ -1154,6 +1182,14 @@ def self_test():
         expect(rc == 1 and "refuses" in out, "review exits 1 and says it refuses")
         expect((root / MANIFEST).read_text() == m0 and (root / LOCK).read_text() == l0,
                "and writes nothing")
+    print("the roots the inventory is asked for:")
+    sample = ('[[action]]\nid = "a"\nfunctions = ["x/src/a.rs::f", "y/src/b.rs::T::g"]\n'
+              '[[action]]\nid = "b"\nfunctions = ["x/src/a.rs::f"]\n'
+              '[[not_crypto]]\nfunction = "z/src/c.rs::h"\nreason = "r"\n')
+    expect(manifest_roots(sample) == ["x/src/a.rs::f", "y/src/b.rs::T::g", "z/src/c.rs::h"],
+           "every root and not_crypto function, once, in any crate")
+    expect({"Proposed Standard", "Internet Standard", "Best Current Practice"} <= STATUSES,
+           "the RFC statuses are accepted")
     if failures:
         print(f"\n{len(failures)} self-test checks failed")
         return 1

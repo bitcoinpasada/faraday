@@ -209,8 +209,12 @@ and not chosen: its job is the token's discipline, its findings are
 `path:line` errors, and the inventory's output is data the manifest's
 checker reads. Both binaries are one package, one `syn`, no new crate.
 
-A **cryptographic crate** is one whose normal dependencies include a
-primitive crate: `faraday-crypto`, `bitcoin`, `secp256k1`, `sha1`,
+Every crate there is read and every function of it recorded, so that
+a manifest root in any of them resolves (§4.3). A **cryptographic crate**
+is one whose normal dependencies include a primitive crate; rules 1, 2
+and 4 apply in those, and rule 3 in all, since a crate that depends on
+none can still name a primitive through a Faraday crate's re-export. The
+primitive crates are `faraday-crypto`, `bitcoin`, `secp256k1`, `sha1`,
 `sha2`, `hmac`, `pbkdf2`, `argon2`, `chacha20`, `chacha20poly1305`,
 `ed25519-dalek`, `rsa`, `getrandom`. The list is the inventory's
 `PRIMITIVE_CRATES`. Each page under `docs/deps/` for a crate in it
@@ -221,8 +225,7 @@ the page).
 
 ### 4.2 The rules
 
-In every cryptographic crate, outside tests, a function is
-**cryptographic** when:
+Outside tests, a function is **cryptographic** when:
 
 1. **Token** (core and the `faraday/` crates that hold keys:
    `faraday-keys`, `faraday-vault`, `faraday-pgp`, `faraday-sb`,
@@ -231,10 +234,17 @@ In every cryptographic crate, outside tests, a function is
    through to glue; there rule 3 finds what computes.
 2. **Reveal** (`faraday-keys`): it takes a `Reveal` or returns
    `Revealed` or `Held`.
-3. **Primitive** (every cryptographic crate, `faraday-core` and the
-   Starter included): its signature or body names a path into a
+3. **Primitive** (every crate, `faraday-core` and the Starter
+   included): its signature or body names a path into a
    primitive crate, after the file's `use` lines are applied
-   (`use sha2::{Digest, Sha256}` makes `Sha256::new` a primitive path).
+   (`use sha2::{Digest, Sha256}` makes `Sha256::new` a primitive path),
+   or a path through a Faraday crate's re-export of one:
+   the inventory reads every `pub use` that names a primitive crate or
+   another re-export of one (`pub use bitcoin;` in `faraday-bip`, then
+   `faraday_bip::bitcoin::hashes::sha256` in `faraday-qr`; `pub use
+   x as Y`), crate by crate to a fixpoint, and a path that starts with
+   the re-exported name counts as the primitive's. A glob (`pub use
+   bitcoin::*`) names nothing and is not followed (§17).
    This finds `faraday-core`'s file hashes, the Starter's image hash in
    `faraday/faraday-payload/src/decode.rs`, and every direct call. A
    path into `bitcoin` or `secp256k1` counts whatever it names, a type
@@ -246,7 +256,9 @@ In every cryptographic crate, outside tests, a function is
    `pin_failure_to_report`, which compute nothing. Without that, every
    function that names `Compute` would meet rule 3.
 4. **Public reach** (the crates of rule 1): it is `pub` and, through
-   calls in its own crate, reaches a function of rules 1 to 3. A new
+   calls in its own crate (§4.4), reaches a function of rules 1 to 3.
+   A function that gains the rule makes the calls that reach it count in
+   turn, so the calls are worked out again until none does. A new
    public function that wraps a hash is found even when it takes no
    token. `pub` is taken literally: a method of a trait impl is not
    public here, and a function that already meets rule 1, 2 or 3 is not
@@ -269,7 +281,16 @@ A function that meets no rule is printed too, with `"rules":[]`, when a
 cryptographic function of its crate calls it, directly or through others:
 the closure of §4.4 passes through such helpers, and their body hashes
 and callees are needed to fingerprint it. `--all` prints every function
-of every cryptographic crate. The summary by rule and crate goes to
+of every crate. `--roots FILE` prints, besides, the functions whose ids
+FILE lists (one `file::Type::name` per line) and what they reach in their
+crate: `check.py` writes the manifest's roots and `not_crypto` functions
+to such a file and runs the inventory with it, so a root in a crate the
+rules do not flag (`faraday-intake`'s `psbt_v2.rs`, the Starter's
+`api.rs`, `faraday-files`) resolves and is fingerprinted with its closure.
+(Chosen over printing every crate with `"rules":[]`, which would put
+some 15,000 lines through the checker on every run.) A root the walker
+does not find is not printed and fails as "not a function the inventory
+finds". The summary by rule and crate goes to
 standard error, and the exit status is 1 when a source file did not
 parse, since the inventory is then incomplete.
 
@@ -277,15 +298,36 @@ parse, since the inventory is then incomplete.
 
 An action covers its `functions` (the roots) and their **closure**: the
 functions of the same crate they call, transitively, stopping at a
-function that is another action's root. A call is resolved by name
-within the crate: a path call by its last two segments, a method call by
-its name, every function of that name in the crate taken. That
-over-approximates: a helper with a common name may fall into a closure it
-is not in, which only makes the fingerprint change more often; nothing
-is missed. A name passed as a value without a call (`.map(helper)`) is
-taken as a call; a local variable of the same name as a function is not.
-A call through a `use`d name is resolved through the file's `use` lines
-only: a glob import is not applied.
+function that is another action's root. A call is resolved within the
+crate by the rule §9.2 uses for call sites, so that a closure does not
+swell with every function of a common name (`TransferArea::scanned` pulled
+in some 4,900 functions of `faraday-core` by name alone, and now 37):
+
+- A **path call** is resolved through the file's `use` lines and taken by
+  its last two segments: a method of the type before the name, or a free
+  function of the module before the name; a bare name is a free function
+  of the calling file. Where no function is in the module the path says
+  (a glob import, a name re-exported from another module), every function
+  of that name stays.
+- A **method call** is taken only for a method of the caller's own impl
+  type, or of a type the calling file names (any identifier of the file,
+  its field types included), or of a function that is itself
+  cryptographic (rules 1 to 4), whose receiver's type cannot be told. For
+  the names the standard library's own types use (`collect`, `push`,
+  `get`, `take`, `update`, …; the inventory's `STD_METHODS`) the edge is
+  kept only for the caller's own type, or for a cryptographic callee whose
+  type the calling file names (`Fresh::take` from any file that names
+  `Fresh`): `x.collect()` in a file that names `Faraday` is an iterator's,
+  not `Faraday::collect`'s.
+- A name passed as a value without a call (`.map(helper)`) is taken as a
+  call. A path or call expression `name(...)` is a call even when a local
+  of that name exists (`let write = write(…)`); only the bare `name` used
+  as a value is the local.
+
+That still over-approximates: a helper may fall into a closure it is not
+in, which only makes the fingerprint change more often. It must not miss
+a call to a cryptographic function, which is why a method call on a
+receiver of unknown type keeps the edge to a cryptographic callee.
 
 Every cryptographic function (§4.2) must be covered by exactly one
 action, or listed as not cryptographic (§7). A function covered by none
@@ -669,7 +711,10 @@ lines. A method call is taken by its name, for a method of a type the
 calling file names in a `use` line or a path; without types, the name alone
 would take every `push` and `get` of a root of that name. A method
 called on a field whose type the file never names is therefore not listed.
-Each line says `path` or `method`. A module that serves several screens (an area's
+The closures of §4.4 take their method edges by this same rule (the types a
+file names counting every identifier in it, and a cryptographic callee
+kept where the receiver's type is not known), so that the two agree on
+what a call names. Each line says `path` or `method`. A module that serves several screens (an area's
 `mod.rs`) gives all of its area's screens; an action may narrow them
 with `screens_not = [{ screen, reason }]`, each counted with the
 not-crypto ratchet.
@@ -1039,12 +1084,24 @@ Reference.
   (parentheses it adds or removes) change the hash.
 - A method call in `faraday-core` on a value whose type the file never
   names is not a call site (§9.2).
+- In a closure (§4.4), a method call on a value whose type the calling file
+  never names, to a function that is not cryptographic, is not an edge,
+  and a call to a method named like a standard-library one (`collect`,
+  `push`, `get`, `update`, …) on a type the file only names is not one
+  either, unless the callee is cryptographic; the function it would have
+  reached is then not in that action's fingerprint through that call.
+  Where it matters, the called function is a root of the action, or the
+  caller is changed to name the type.
+- A `pub use` glob of a primitive crate (`pub use bitcoin::*`) and a
+  `pub use` of a name a macro generates are not followed (§4.2 rule 3);
+  none is in the tree as of 2026-10-28.
 - A function generated by a macro, or reached only through a trait
   object or a function pointer, is invisible to the walker; the
   primitive it calls is still found where the macro's expansion is
   written in a file of the tree.
-- A call resolved by name may cover a function in the wrong action's
-  closure (§4.4); its code is still fingerprinted, under that action.
+- A call resolved as §4.4 says may cover a function in the wrong action's
+  closure (a free function of a module the path does not pin down, a glob
+  import); its code is still fingerprinted, under that action.
 - Constant-time claims are copied from the library or the code's own
   documentation; nothing here measures timing.
 - The places named for review (§3.3) are listed, not read: a stale
