@@ -213,9 +213,8 @@ fn a_changed_setting_is_written_to_the_boot_stick_and_reads_back_the_same() {
 /// Standard.
 #[test]
 fn the_boot_sticks_text_size_applies_before_the_passphrase() {
-    // Larger is not offered yet, so a stored one reads as Large.
     let app = booted(Some(b"faraday-settings 1\ntheme=nord\ntext=larger\n"));
-    assert_eq!(app.text_size(), TextSize::Large);
+    assert_eq!(app.text_size(), TextSize::Larger);
     let app = booted(Some(b"faraday-settings 1\ntext=large\n"));
     assert_eq!(app.text_size(), TextSize::Large);
     for file in [

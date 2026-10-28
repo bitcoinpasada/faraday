@@ -204,17 +204,8 @@ impl TextSize {
     /// Every choice, in the order Settings offers them.
     pub const ALL: [TextSize; 3] = [TextSize::Standard, TextSize::Large, TextSize::Larger];
 
-    /// The choices Settings offers now: Larger waits until the screens
-    /// are refitted for it (`docs/TEXT-SIZE.md` §2).
-    pub const OFFERED: [TextSize; 2] = [TextSize::Standard, TextSize::Large];
-
-    /// The offered choice nearest to this one: Larger reads as Large.
-    pub fn offered(self) -> TextSize {
-        match self {
-            TextSize::Larger => TextSize::Large,
-            t => t,
-        }
-    }
+    /// The choices Settings offers (`docs/TEXT-SIZE.md` §2): all three.
+    pub const OFFERED: [TextSize; 3] = TextSize::ALL;
 
     /// What Settings calls it.
     pub fn name(self) -> &'static str {

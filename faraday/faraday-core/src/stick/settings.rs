@@ -252,12 +252,11 @@ impl Settings {
                     self.theme.contrast = contrast;
                 }
             }
-            // Only the sizes Settings knows, Larger read as Large while it
-            // is not offered; anything else leaves the size as it was
-            // (`docs/TEXT-SIZE.md` §2, §6).
+            // Only the sizes Settings knows; anything else leaves the size
+            // as it was (`docs/TEXT-SIZE.md` §2, §6).
             "text" => {
                 if let Some(t) = crate::ui::TextSize::from_id(value) {
-                    self.text = t.offered();
+                    self.text = t;
                     return true;
                 }
             }

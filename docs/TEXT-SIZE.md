@@ -1,8 +1,8 @@
 # Text size
 
 **Kind:** Spec
-**Status:** Partly built (F85): the setting, its storage, the one-column decision and the desktop app's `--text` (T1); the components that grow with their text and the canvas's `cut` note (T2); the screens refitted at Larger, their line advances growing with the text where they follow their line (T3); `FARADAY_SNAP_TEXT`, `cut.txt` and the justfile's Larger renders (T5)
-**Open:** Larger offered in Settings (T3); the Starter (T4); tests 8 and 9; planned.
+**Status:** Partly built (F85): the setting, its storage, the one-column decision and the desktop app's `--text` (T1); the components that grow with their text and the canvas's `cut` note (T2); the screens refitted at Larger, their line advances growing with the text where they follow their line, and all three sizes offered in Settings (T3); `FARADAY_SNAP_TEXT`, `cut.txt` and the justfile's Larger renders (T5)
+**Open:** the Starter's setting, its storage and its pages at Larger (T4); tests 8 and 9; planned.
 
 Settings › Appearance gains **Text size**: Standard, Large, Larger. It
 makes text larger and lets the layout make room for it. It is kept as
@@ -82,13 +82,11 @@ Text size (§4): that window is 640 × 400 dp and takes one column
   is: the narrow cut on Small stays, and `Ui::font` still cancels the
   class's ramp for faraday-ui text.
 - Settings › Appearance: a **Text size** row under Contrast, its
-  options as Contrast's are, the chosen one selected. Until T3 has
-  refitted the screens it offers Standard and Large only (owner,
-  2026-10-27): Larger stays in the code and in renders
-  (`FARADAY_SNAP_TEXT=larger`), and a stored `text=larger` reads as
-  Large (`TextSize::OFFERED`, `TextSize::offered`). Pressing one lays the
-  screen out again at once (as `Action::Scale` does: `display` again
-  with the last display) and saves the kept set.
+  options as Contrast's are, the chosen one selected: Standard, Large
+  and Larger (`TextSize::OFFERED`). A stored `text=larger` reads as
+  Larger. Pressing one lays the screen out again at once (as
+  `Action::Scale` does: `display` again with the last display) and saves
+  the kept set.
 - The strings, in `faraday/faraday-strings/src/en.rs`:
   `settings_text_size` "Text size", `settings_text_standard`
   "Standard", `settings_text_large` "Large", `settings_text_larger`

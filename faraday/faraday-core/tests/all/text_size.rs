@@ -1,6 +1,6 @@
 //! Text size (Settings › Appearance, `docs/TEXT-SIZE.md`): Standard,
-//! Large and Larger draw text larger (Settings offers the first two),
-//! the choice is kept across a lock,
+//! Large and Larger draw text larger, Settings offers all three, the
+//! choice is kept across a lock,
 //! larger text takes the one-column layout where the window is too small
 //! for the wide one at that size, and at Larger the screens draw no text
 //! cut off at a side or over other text.
@@ -65,23 +65,25 @@ fn larger_text_draws_a_settings_label_taller_and_large_between() {
     );
 }
 
-/// Settings offers Standard and Large; Larger is not offered until the
-/// screens are refitted for it (`docs/TEXT-SIZE.md` §2).
+/// Settings offers Standard, Large and Larger under Appearance
+/// (`docs/TEXT-SIZE.md` §2).
 #[test]
-fn settings_offers_standard_and_large_under_appearance() {
+fn settings_offers_standard_large_and_larger_under_appearance() {
     let mut app = shown_on(1280, 800, 160);
     app.press(Action::Nav(Screen::Settings));
     let _ = app.drawn_texts();
-    for size in [TextSize::Standard, TextSize::Large] {
+    for size in [TextSize::Standard, TextSize::Large, TextSize::Larger] {
         assert!(app.offers(Action::TextSize(size)), "{size:?}");
     }
-    assert!(!app.offers(Action::TextSize(TextSize::Larger)));
     let texts = app.drawn_texts();
     assert!(texts.iter().any(|t| t == EN.settings_text_size));
-    for name in [EN.settings_text_standard, EN.settings_text_large] {
+    for name in [
+        EN.settings_text_standard,
+        EN.settings_text_large,
+        EN.settings_text_larger,
+    ] {
         assert!(texts.iter().any(|t| t == name), "{name}");
     }
-    assert!(!texts.iter().any(|t| t == EN.settings_text_larger));
 }
 
 /// What the app keeps for the next process, as a shell carries it.
@@ -114,12 +116,14 @@ fn large_is_kept_across_a_lock() {
     assert!(before > settings_label_at(TextSize::Standard));
 }
 
-/// Larger, chosen where it can be (a render) and kept, comes back as
-/// Large while Settings does not offer it.
+/// Test 2 (`docs/TEXT-SIZE.md` §7): Larger, chosen and kept, comes back
+/// as Larger after a lock and draws Settings' label as it did.
 #[test]
-fn a_kept_larger_comes_back_as_large() {
+fn larger_is_kept_across_a_lock() {
     let mut app = shown_on(480, 640, 286);
     app.press(Action::TextSize(TextSize::Larger));
+    app.press(Action::Nav(Screen::Settings));
+    let before = ink_height(&mut app, EN.settings_mode);
     let kept = kept_of(&mut app);
     let mut next = shown_on(480, 640, 286);
     next.storage(StorageEvent::Restored {
@@ -127,7 +131,10 @@ fn a_kept_larger_comes_back_as_large() {
         outbox: Vec::new(),
         kept,
     });
-    assert_eq!(next.text_size(), TextSize::Large);
+    assert_eq!(next.text_size(), TextSize::Larger);
+    next.press(Action::Nav(Screen::Settings));
+    assert_eq!(ink_height(&mut next, EN.settings_mode), before);
+    assert!(before > settings_label_at(TextSize::Large));
 }
 
 #[test]
