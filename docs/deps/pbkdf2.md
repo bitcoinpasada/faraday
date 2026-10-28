@@ -1,5 +1,7 @@
 # pbkdf2
 
+**Cryptography:** computes
+
 **Purpose.** PBKDF2-HMAC-SHA512, 2048 rounds, the BIP-39 mnemonic-to-seed
 function (`faraday_crypto::pbkdf2_hmac_sha512`).
 

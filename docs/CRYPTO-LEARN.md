@@ -120,8 +120,7 @@ decision = "F90"
 
 [action.review]              # touchpoints named for review (§3.3)
 places = ["core/faraday-psbt/README.md#What is refused", "docs/learn/13-nonces.md"]
-
-fingerprint = "…"            # written by the re-stamp recipe only (§5)
+fingerprint = "…"            # in [action.review]; written by the re-stamp recipe only (§5)
 reviewed = "2026-11-02"
 ```
 
@@ -335,8 +334,10 @@ cross-check does is reviewed against the block as a change to the code
 is), and each action of its `uses` with that action's fingerprint. A change
 therefore reaches every action above it: all of them fail together, and
 each is re-stamped after its own review, the used action first.
-The action's `fingerprint` in the manifest is SHA-256 over those lines,
-sorted. The lint recomputes it from the inventory and the tree; a
+A function's line carries its path (`fn <hash> <path>`) so the recipe
+can re-point a move; the action's `fingerprint` in the manifest is
+SHA-256 over those lines without the paths, sorted, so a move or a
+rename keeps it (§5.1). The lint recomputes it from the inventory and the tree; a
 difference fails, naming the parts that changed:
 
 ```

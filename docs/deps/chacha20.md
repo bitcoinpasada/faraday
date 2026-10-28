@@ -1,5 +1,7 @@
 # chacha20
 
+**Cryptography:** computes
+
 **Purpose.** The stream cipher the KDBX 4 writer needs
 (`core/faraday-backup/src/kdbx.rs`). KDBX encrypts its body and its inner random stream with plain
 ChaCha20 (RFC 8439), not with an AEAD: the authentication is KeePass's

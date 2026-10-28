@@ -1,5 +1,7 @@
 # bitcoin
 
+**Cryptography:** computes
+
 **Purpose.** The Bitcoin data types and algorithms Faraday does not write
 itself: BIP-32 key derivation and extended keys (`bitcoin::bip32`), PSBT
 (BIP-174/370) parsing and serialisation (`bitcoin::psbt`), scripts,

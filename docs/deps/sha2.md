@@ -1,5 +1,7 @@
 # sha2
 
+**Cryptography:** computes
+
 **Purpose.** SHA-256 for BIP-39 checksums and dice-roll hashing, SHA-512
 as the PRF behind HMAC and PBKDF2 (`faraday_crypto::{sha256, hmac_sha512,
 pbkdf2_hmac_sha512}`).

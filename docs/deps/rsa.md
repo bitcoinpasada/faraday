@@ -1,5 +1,7 @@
 # rsa
 
+**Cryptography:** computes
+
 **Purpose.** RSA-2048 for Faraday's Secure Boot keys
 (`faraday/faraday-sb`, `docs/history/PLAN.md` §8): UEFI Secure Boot verifies PK, KEK
 and db signatures and Authenticode signatures with RSA PKCS #1 v1.5 over

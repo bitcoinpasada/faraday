@@ -244,6 +244,19 @@ at least every ten seconds: cases done, cases a second, workers busy,
 time left), `progress.json` and `report.txt`. A disagreement under
 `--fresh` is kept in `found/` with its seed and inputs.
 
+**The cryptographic actions' manifest.** `docs/crypto/actions.toml` lists
+every cryptographic action with the functions it covers
+(`docs/CRYPTO-LEARN.md`). Both recipes need `cargo` and Python 3.11 or
+later:
+
+```
+just crypto-review ID           print the action's entry, what changed in its code and the
+                                places to read with it; then write its fingerprint
+just crypto-changes TAG         the actions whose fingerprint changed since a tag
+python3 -I -B docs/crypto/check.py check        coverage, truth and fingerprints
+python3 -I -B docs/crypto/check.py --self-test  the checker over a small fixture
+```
+
 ## 8. Fuzzing
 
 ```

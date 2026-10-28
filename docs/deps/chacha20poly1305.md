@@ -1,5 +1,7 @@
 # chacha20poly1305
 
+**Cryptography:** computes
+
 **Purpose.** The AEAD behind `faraday_crypto::Sealed`: a loaded key's seed and words are encrypted in memory
 under the session key and decrypted only inside a closure.
 

@@ -1,5 +1,7 @@
 # getrandom
 
+**Cryptography:** computes
+
 **Purpose.** The desktop shell's answer to `Command::RequestEntropy`: 32 bytes from the operating system's
 random number generator, consumed into the core's session key.
 

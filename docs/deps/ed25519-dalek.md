@@ -1,5 +1,7 @@
 # ed25519-dalek
 
+**Cryptography:** computes
+
 **Purpose.** Ed25519 signatures for Faraday's GPG keys
 (`faraday/faraday-pgp`, `docs/history/PLAN.md` §7): the certification primary key and
 the signing subkey are Ed25519, and every self-signature, detached

@@ -1,5 +1,7 @@
 # sha1
 
+**Cryptography:** computes
+
 **Purpose.** The fingerprint of a version-4 OpenPGP key is SHA-1 of the
 key (RFC 4880 §12.2), and GnuPG names keys by it, so Faraday's GPG keys
 (`faraday/faraday-pgp`, `docs/history/PLAN.md` §7) need SHA-1 to say which key they

@@ -189,6 +189,20 @@ learn-import:
     python3 tools/learn/sync.py import
     cargo fmt --all
 
+# The cryptographic actions' manifest (docs/CRYPTO-LEARN.md, docs/crypto/check.py).
+# `crypto-review ID` prints an action's entry, what changed in its code and
+# every place to read with it, then writes its fingerprint; it is the only
+# writer of one, and refuses while the entry is untrue.
+[group('dev')]
+crypto-review id:
+    python3 -I -B docs/crypto/check.py review {{id}}
+
+# The actions whose fingerprint changed since a tag, for the release notes
+# and the deep cross-check before a release.
+[group('dev')]
+crypto-changes tag:
+    python3 -I -B docs/crypto/check.py changes {{tag}}
+
 # Faraday's own recipes: faraday/faraday.just.
 import 'faraday/faraday.just'
 import 'tools/crosscheck/crosscheck.just'

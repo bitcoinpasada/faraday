@@ -1,5 +1,7 @@
 # hmac
 
+**Cryptography:** computes
+
 **Purpose.** HMAC-SHA512 for BIP-32 master key derivation (through
 `bitcoin`), the BIP-39 seed (through `pbkdf2`), the session PIN hash,
 the sealed-value nonce prefix and every key derived from the session key

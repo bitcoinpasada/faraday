@@ -1,0 +1,174 @@
+# Cryptographic actions (docs/CRYPTO-LEARN.md §2.2).
+# The standards table is the only place a standard's name and status are
+# written. No action is entered yet: the checker lists every function that
+# no action covers (python3 -I -B docs/crypto/check.py check).
+
+schema = 1
+
+[standard."BIP 32"]
+name = "Hierarchical Deterministic Wallets"
+status = "Deployed"
+checked = "2026-10-23"
+source = "bips master"
+
+[standard."BIP 39"]
+name = "Mnemonic code for generating deterministic keys"
+status = "Deployed"
+checked = "2026-10-23"
+source = "bips master"
+
+[standard."BIP 44"]
+name = "Multi-Account Hierarchy for Deterministic Wallets"
+status = "Deployed"
+checked = "2026-10-23"
+source = "bips master"
+
+[standard."BIP 45"]
+name = "Structure for Deterministic P2SH Multisignature Wallets"
+status = "Complete"
+checked = "2026-10-23"
+source = "bips master"
+
+[standard."BIP 48"]
+name = "Multi-Script Hierarchy for Multi-Sig Wallets"
+status = "Deployed"
+checked = "2026-10-23"
+source = "bips master"
+
+[standard."BIP 49"]
+name = "Derivation scheme for P2WPKH-nested-in-P2SH based accounts"
+status = "Deployed"
+checked = "2026-10-23"
+source = "bips master"
+
+[standard."BIP 84"]
+name = "Derivation scheme for P2WPKH based accounts"
+status = "Deployed"
+checked = "2026-10-23"
+source = "bips master"
+
+[standard."BIP 86"]
+name = "Key Derivation for Single Key P2TR Outputs"
+status = "Deployed"
+checked = "2026-10-23"
+source = "bips master"
+
+[standard."BIP 67"]
+name = "Deterministic Pay-to-script-hash multi-signature addresses through public key sorting"
+status = "Complete"
+checked = "2026-10-23"
+source = "bips master"
+
+[standard."BIP 85"]
+name = "Deterministic Entropy From BIP32 Keychains"
+status = "Deployed"
+checked = "2026-10-23"
+source = "vendored: tools/vectors/bip85"
+
+[standard."BIP 93"]
+name = "codex32: Checksummed SSS-able BIP32 Seeds"
+status = "Draft"
+checked = "2026-10-23"
+source = "vendored: tools/vectors/bip93"
+
+[standard."BIP 129"]
+name = "Bitcoin Secure Multisig Setup (BSMS)"
+status = "Complete"
+checked = "2026-10-23"
+source = "vendored: tools/vectors/bip129"
+
+[standard."BIP 137"]
+name = "Signatures of Messages using Private Keys"
+status = "Deployed"
+checked = "2026-10-23"
+source = "bips master"
+
+[standard."BIP 141"]
+name = "Segregated Witness (Consensus layer)"
+status = "Deployed"
+checked = "2026-10-23"
+source = "bips master"
+
+[standard."BIP 143"]
+name = "Transaction Signature Verification for Version 0 Witness Program"
+status = "Deployed"
+checked = "2026-10-23"
+source = "bips master"
+
+[standard."BIP 144"]
+name = "Segregated Witness (Peer Services)"
+status = "Deployed"
+checked = "2026-10-23"
+source = "bips master"
+
+[standard."BIP 173"]
+name = "Base32 address format for native v0-16 witness outputs"
+status = "Deployed"
+checked = "2026-10-23"
+source = "bips master"
+
+[standard."BIP 174"]
+name = "Partially Signed Bitcoin Transaction Format"
+status = "Deployed"
+checked = "2026-10-23"
+source = "bips master"
+
+[standard."BIP 322"]
+name = "Generic Signed Message Format"
+status = "Complete"
+checked = "2026-10-23"
+source = "bips master"
+
+[standard."BIP 327"]
+name = "MuSig2 for BIP340-compatible Multi-Signatures"
+status = "Deployed"
+checked = "2026-10-23"
+source = "bips master"
+
+[standard."BIP 328"]
+name = "Derivation Scheme for MuSig2 Aggregate Keys"
+status = "Complete"
+checked = "2026-10-23"
+source = "bips master"
+
+[standard."BIP 340"]
+name = "Schnorr Signatures for secp256k1"
+status = "Deployed"
+checked = "2026-10-23"
+source = "bips master"
+
+[standard."BIP 341"]
+name = "Taproot: SegWit version 1 spending rules"
+status = "Deployed"
+checked = "2026-10-23"
+source = "bips master"
+
+[standard."BIP 342"]
+name = "Validation of Taproot Scripts"
+status = "Deployed"
+checked = "2026-10-23"
+source = "bips master"
+
+[standard."BIP 350"]
+name = "Bech32m Format for v1+ Witness Addresses"
+status = "Deployed"
+checked = "2026-10-23"
+source = "bips master"
+
+[standard."BIP 352"]
+name = "Silent Payments"
+status = "Complete"
+checked = "2026-10-23"
+source = "bips master"
+
+[standard."BIP 370"]
+name = "PSBT Version 2"
+status = "Deployed"
+checked = "2026-10-23"
+source = "bips master"
+
+[standard."RFC 6979"]
+name = "Deterministic Usage of the Digital Signature Algorithm (DSA) and Elliptic Curve Digital Signature Algorithm (ECDSA)"
+status = "Informational"
+checked = "2026-10-28"
+source = "rfc-editor.org"

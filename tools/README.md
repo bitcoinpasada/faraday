@@ -35,6 +35,7 @@ in `justfile` and `faraday/faraday.just`.
 | `tools/lint-themes.sh` | lint | `just lint` | the colour tables are what the vendored material-color-utilities makes (below) |
 | `tools/costs-lint/` | lint | `just lint` (`cargo run -p costs-lint`) | who takes, mints and keeps the compute token (below) |
 | `tools/costs-lint/` (`crypto-inventory`) | generator | `cargo run -q -p costs-lint --bin crypto-inventory` (not in `just lint` yet) | the cryptographic functions of the tree with their body hashes, callees, tests and call sites in faraday-core, as JSON lines (`docs/CRYPTO-LEARN.md` §4, below) |
+| `docs/crypto/check.py` | lint, generator | `just crypto-review ID`, `just crypto-changes TAG`, `python3 -I -B docs/crypto/check.py check` (not in `just lint` yet) | the manifest `docs/crypto/actions.toml` against the inventory and the tree: coverage, schema, what its entries name, fingerprints; `review` is the only writer of a fingerprint (`docs/CRYPTO-LEARN.md` §5); `--self-test` runs a fixture |
 | `tools/learn/sync.py` | lint, generator | `just lint` (`check`), `just learn-export`, `just learn-import` | keeps `docs/learn/*.md` and the Learn pages' `en.rs` identical |
 | `tools/fontbake/` | generator | `just fonts` | turns `tools/fonts/` into glyph outlines for `faraday-draw` |
 | `tools/fonts/` | data | `tools/fontbake` | vendored font files and their licences |

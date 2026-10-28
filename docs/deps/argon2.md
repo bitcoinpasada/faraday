@@ -1,5 +1,7 @@
 # argon2
 
+**Cryptography:** computes
+
 **Purpose.** Argon2id, the memory-hard half of the key that decrypts a
 key kept on the device (the kept-key blob; the code is deleted, F68). The storage key is
 `HMAC-SHA256(Argon2id(pin, salt_pin), secure_element_mac)`; Argon2id is
