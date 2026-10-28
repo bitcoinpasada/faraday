@@ -321,6 +321,13 @@ fn a_plan_naming_what_the_wallet_does_not_have_is_read_as_absent() {
         Answers::from_text(&shape, &format!("{text}part 0 99\n")),
         None
     );
+    // A vault or stick row numbered as high as a count goes reads as
+    // absent, in a build that checks its sums as in one that does not.
+    let row = shape.seeds.len();
+    let last = format!("vault {} {}\n", usize::MAX, "0".repeat(row));
+    assert_eq!(Answers::from_text(&shape, &format!("{text}{last}")), None);
+    let last = format!("sticks {} {}\n", usize::MAX, "0".repeat(a.places));
+    assert_eq!(Answers::from_text(&shape, &format!("{text}{last}")), None);
     // A note on a seed the wallet has is kept, on one it does not, not.
     assert!(Note::from_text("exposed place0 seed2", 3).is_some());
     assert!(Note::from_text("exposed place0 seed99", 3).is_none());

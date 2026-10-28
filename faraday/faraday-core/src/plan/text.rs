@@ -325,15 +325,20 @@ impl Answers {
         }
         // A plan kept for more vaults than this shape has rows for (the
         // vaults set up before the keys) reads with all of them.
-        let seen_rows = |l: &[(usize, Vec<bool>)]| l.iter().map(|(v, _)| v + 1).max().unwrap_or(0);
-        if seen_rows(&vaults).max(seen_rows(&sticks)) > 1024 {
+        // A row numbered past what a count can hold is not a plan.
+        let seen_rows = |l: &[(usize, Vec<bool>)]| -> Option<usize> {
+            l.iter()
+                .try_fold(0, |most: usize, (v, _)| Some(most.max(v.checked_add(1)?)))
+        };
+        let (vault_rows, stick_rows) = (seen_rows(&vaults)?, seen_rows(&sticks)?);
+        if vault_rows.max(stick_rows) > 1024 {
             return None;
         }
-        if seen_rows(&vaults) > a.vaults.len() {
+        if vault_rows > a.vaults.len() {
             a.vaults
-                .resize_with(seen_rows(&vaults), || vec![false; shape.seeds.len()]);
+                .resize_with(vault_rows, || vec![false; shape.seeds.len()]);
         }
-        let rows = shape.vault_rows().max(seen_rows(&sticks));
+        let rows = shape.vault_rows().max(stick_rows);
         a.sticks = vec![vec![false; a.places]; rows];
         match one_stick {
             // Saved with one vault: it holds every seed here.
