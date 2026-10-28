@@ -239,7 +239,7 @@ same Transfer from **Transfer** in its sidebar:
 
 | Part | Does |
 |---|---|
-| **Send** | the Downloads folder, newest first; a file pressed is shown as codes for Faraday's camera. **Over 256 KiB**: carried on a stick instead |
+| **Send** | the Downloads folder, newest first; a file pressed is shown as codes for Faraday's camera. **Over 262.1 KB**: carried on a stick instead |
 | **Receive** | **Scan with the camera** reads Faraday's codes into Downloads ("Saved" and the path); **Open folder** opens it |
 
 A file that holds a secret is saved only past **Save without

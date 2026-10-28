@@ -650,7 +650,7 @@ impl Faraday {
             return Some(view);
         }
         for (f, file) in imp.files.iter().enumerate() {
-            let size = crate::screens::size_text(file.size as usize);
+            let size = crate::screens::size_text(file.size);
             let line = match &file.state {
                 // Once Import is pressed, the files it did not ask for
                 // are not listed.

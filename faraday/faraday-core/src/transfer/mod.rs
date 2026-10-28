@@ -198,7 +198,10 @@ impl TransferArea {
     pub(crate) fn send(&mut self, path: String, size: u64, medium: Medium, out: &mut Out) {
         self.state.refused = None;
         if size > MAX_SEND {
-            self.state.refused = Some(fill(EN.transfer_larger_than, &[medium.a()]));
+            self.state.refused = Some(fill(
+                EN.transfer_larger_than,
+                &[&crate::screens::size_text(MAX_SEND), medium.a()],
+            ));
             return;
         }
         if size == 0 {

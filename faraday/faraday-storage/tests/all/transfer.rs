@@ -1,6 +1,6 @@
 //! Transfer, the desktop app as the device's QR link: a file in Downloads
 //! sent as codes reads back on the device's scanner as the same bytes, a
-//! file over 256 KiB is refused, and what the device sends as codes is
+//! file over 262.1 KB (256 KiB) is refused, and what the device sends as codes is
 //! saved into Downloads once, under its own name or `received-N`, never
 //! over a file already there, and never into the Inbox. The device's app
 //! has no Transfer.
@@ -188,7 +188,7 @@ fn a_file_over_256_kib_is_refused_unread() {
     app.press(Action::TransferSend(0));
     assert_eq!(
         app.transfer().refused.as_deref(),
-        Some("Larger than 256 KiB: carry it on a stick")
+        Some("Larger than 262.1 KB: carry it on a stick")
     );
     assert!(app.qr().is_none());
     assert!(

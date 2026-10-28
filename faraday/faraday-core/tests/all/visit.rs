@@ -634,6 +634,28 @@ fn chosen_files_are_deleted_only_from_the_sheet() {
     assert!(text.contains("spend-01.psbt deleted"), "{text}");
 }
 
+/// A file's size reads the same on the visit and on the Delete sheet,
+/// in decimal units.
+#[test]
+fn a_files_size_reads_the_same_on_the_visit_and_the_delete_sheet() {
+    let mut app = with_stick(1);
+    asked(&mut app);
+    let size = |app: &mut Faraday| -> Vec<String> {
+        let _ = app.frame();
+        app.drawn_texts()
+            .into_iter()
+            .filter(|t| t.contains("KB") || t.contains("KiB"))
+            .collect()
+    };
+    let visit = size(&mut app);
+    assert!(visit.iter().any(|t| t.contains("9.0 KB")), "{visit:?}");
+    app.press(Action::DeleteFiles);
+    asked(&mut app);
+    let sheet = size(&mut app);
+    assert!(sheet.iter().any(|t| t == "9.0 KB"), "{sheet:?}");
+    assert!(sheet.iter().all(|t| !t.contains("8 KB")), "{sheet:?}");
+}
+
 /// The free space, chosen on the same sheet: each step is asked for on
 /// the tick after the last one's answer, so the screen draws between
 /// them, and the end is said.
@@ -650,7 +672,8 @@ fn the_free_space_is_zeroed_a_step_a_tick() {
     });
     let _ = app.frame();
     let text = app.drawn_texts().join(" ");
-    assert!(text.contains("3.0 GB to write"), "{text}");
+    // 3 GiB, in the decimal units every size is written in.
+    assert!(text.contains("3.2 GB to write"), "{text}");
     assert!(text.contains("partition table"), "{text}");
     asked(&mut app);
     hold_go(&mut app, 1_000);

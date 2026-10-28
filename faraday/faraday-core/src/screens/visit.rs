@@ -128,9 +128,9 @@ fn visit_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         let sub = match kind {
             // Asked for: a picture's codes take a moment.
             Some(_) if app.visit.reading.contains(name) => {
-                fill(EN.visit_being_read, &[&size_text(*size as usize)])
+                fill(EN.visit_being_read, &[&size_text(*size)])
             }
-            Some(k) => format!("{k} · {}", size_text(*size as usize)),
+            Some(k) => format!("{k} · {}", size_text(*size)),
             None if big => EN.visit_file_too_large.to_string(),
             // Read at boot, not copied in.
             None => EN.visit_settings.to_string(),
@@ -724,9 +724,9 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         let sub = match kind {
             // Asked for: a picture's codes take a moment.
             Some(_) if app.visit.reading.contains(name) => {
-                fill(EN.visit_being_read, &[&size_text(*size as usize)])
+                fill(EN.visit_being_read, &[&size_text(*size)])
             }
-            Some(k) => format!("{k} · {}", size_text(*size as usize)),
+            Some(k) => format!("{k} · {}", size_text(*size)),
             None if big => EN.visit_file_too_large.to_string(),
             // Read at boot, not copied in.
             None => EN.visit_settings.to_string(),
@@ -904,7 +904,7 @@ fn visit_inbox_line(item: &crate::Item) -> String {
     match item.picture {
         Some(FileKind::Other) => fill(
             EN.visit_inbox_line_png_no_qr,
-            &[&size_text(item.bytes.len())],
+            &[&size_text(item.bytes.len() as u64)],
         ),
         Some(k) => fill(
             EN.visit_inbox_line_png,

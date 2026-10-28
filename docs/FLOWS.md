@@ -1652,7 +1652,7 @@ stick or the Pi), is the other end, the computer beside the device:
 dropped on the window (X11 only) → animated code, chosen by kind as Files
 chooses it (a PSBT as itself; a wallet, key, message or share as text;
 anything else in the file envelope) → format, frame rate and part size →
-**Done**. Over 256 KiB: "Larger than 256 KiB: carry it on a stick".
+**Done**. Over 262.1 KB: "Larger than 262.1 KB: carry it on a stick".
 
 **Receive** → the webcam reads anything, routes nothing → each whole
 file saved into `~/Downloads` under its own name (envelope) or

@@ -43,7 +43,7 @@ Press **Tools** on the rail. It holds two cards
 
 ## 2. Send a file to Faraday
 
-![Transfer: Send lists payment.psbt, 2.3 KB, and IMG_0412.jpg greyed, Over 256 KiB; Receive beside it](../pictures/starter-tools-send.png)
+![Transfer: Send lists payment.psbt, 2.3 KB, and IMG_0412.jpg greyed, Over 262.1 KB; Receive beside it](../pictures/starter-tools-send.png)
 
 Press **Open Transfer**. **Transfer** opens as a page of its own; the
 way back at the top left returns to **Tools**. It has two parts side by
@@ -65,7 +65,7 @@ whole file is read: it lands in Files
 | Send shows | Meaning |
 |---|---|
 | **No files** | Downloads is empty |
-| **Over 256 KiB**, greyed | the file is too large for QR codes: carry it on a stick |
+| **Over 262.1 KB**, greyed | the file is too large for QR codes: carry it on a stick |
 | "… is empty" | the file holds nothing |
 
 ## 3. Receive a file from Faraday

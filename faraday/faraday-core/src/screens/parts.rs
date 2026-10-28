@@ -927,15 +927,18 @@ pub(crate) fn descriptor_row(
 }
 
 pub(crate) fn kind_line(kind: FileKind, bytes: usize) -> String {
-    format!("{} · {}", kind_name(kind), size_text(bytes))
+    format!("{} · {}", kind_name(kind), size_text(bytes as u64))
 }
 
-/// A file's size as [`kind_line`] gives it.
-pub(crate) fn size_text(bytes: usize) -> String {
-    if bytes >= 1_000_000 {
-        fill(EN.kind_line_mb, &[&format!("{:.1}", bytes as f32 / 1e6)])
+/// A file's or a stick's size, the one way Faraday writes one: decimal
+/// units (1 KB is 1,000 bytes), one decimal from KB up.
+pub(crate) fn size_text(bytes: u64) -> String {
+    if bytes >= 1_000_000_000 {
+        fill(EN.kind_line_gb, &[&format!("{:.1}", bytes as f64 / 1e9)])
+    } else if bytes >= 1_000_000 {
+        fill(EN.kind_line_mb, &[&format!("{:.1}", bytes as f64 / 1e6)])
     } else if bytes >= 1000 {
-        fill(EN.kind_line_kb, &[&format!("{:.1}", bytes as f32 / 1e3)])
+        fill(EN.kind_line_kb, &[&format!("{:.1}", bytes as f64 / 1e3)])
     } else {
         format!("{bytes} B")
     }

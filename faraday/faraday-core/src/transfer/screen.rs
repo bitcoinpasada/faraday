@@ -3,7 +3,7 @@
 
 use crate::Action;
 use crate::drawing::View;
-use crate::screens::{section_label, title};
+use crate::screens::{section_label, size_text, title};
 use crate::strings::EN;
 use crate::strings::fill;
 use crate::ui::pal::*;
@@ -14,17 +14,6 @@ use faraday_ui::parts::wrap_buttons;
 
 /// A row of the Downloads list.
 const ROW: f32 = 44.0;
-
-/// A size as the Downloads list gives it.
-fn size_text(bytes: u64) -> String {
-    if bytes >= 1_000_000 {
-        fill(EN.transfer_mb, &[&format!("{:.1}", bytes as f32 / 1e6)])
-    } else if bytes >= 1000 {
-        fill(EN.transfer_kb, &[&format!("{:.1}", bytes as f32 / 1e3)])
-    } else {
-        format!("{bytes} B")
-    }
-}
 
 pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let compact = ui.compact;
@@ -101,7 +90,7 @@ fn send(app: &View, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
         let action = Action::TransferSend(i);
         let over = *size > crate::transfer::MAX_SEND;
         let tail = if over {
-            EN.transfer_over_256_kib.to_string()
+            fill(EN.transfer_over, &[&size_text(crate::transfer::MAX_SEND)])
         } else {
             size_text(*size)
         };

@@ -47,17 +47,6 @@ fn back_up_first(kind_: crate::backup_flow::Kind) -> Action {
     Action::Flow(crate::backup_flow::steps::FlowAction::BackUpFirst(kind_))
 }
 
-/// A file's size, for Sign a file's rows.
-fn gpg_file_size(bytes: u64) -> String {
-    if bytes >= 1_000_000 {
-        fill(EN.vault_mb, &[&format!("{:.1}", bytes as f32 / 1e6)])
-    } else if bytes >= 1000 {
-        fill(EN.vault_kb, &[&format!("{:.1}", bytes as f32 / 1e3)])
-    } else {
-        format!("{bytes} B")
-    }
-}
-
 /// A line of typing: masked for a passphrase or a secret field, with a
 /// caret while typing goes to it.
 #[allow(clippy::too_many_arguments)]
@@ -2731,7 +2720,7 @@ fn detail(
                 (dw - 40.0 - all - signed_w - 24.0, dy + 2.0)
             };
             ui.checkbox(dx, dy + 11.0, ticked, true);
-            let line = format!("{} · {}", f.name, gpg_file_size(f.size as u64));
+            let line = format!("{} · {}", f.name, crate::screens::size_text(f.size as u64));
             let name = ui.fit_as(BODY_M.mono(), &line, name_w);
             ui.text_mid_as((dx + 30.0, dy, 40.0), BODY_M.mono(), ink, &name);
             if signed {

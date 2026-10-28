@@ -20,7 +20,7 @@
 
 ![Transfer opened from the Starter's Tools: payment.psbt in Downloads under Send, Scan with the camera and Open folder under Receive](../pictures/starter-tools-send.png)
 
-*Transfer opened from Tools, under the top app bar that reads **Transfer** over **Tools**: **Send** lists Downloads (`payment.psbt`, and a photo dimmed as **Over 256 KiB**), **Receive** holds **Scan with the camera** and **Open folder**. After a file is received, "Saved …" and its path are under the buttons ([Transfer](qr-and-scan.md#transfer)).*
+*Transfer opened from Tools, under the top app bar that reads **Transfer** over **Tools**: **Send** lists Downloads (`payment.psbt`, and a photo dimmed as **Over 262.1 KB**), **Receive** holds **Scan with the camera** and **Open folder**. After a file is received, "Saved …" and its path are under the buttons ([Transfer](qr-and-scan.md#transfer)).*
 
 On Windows, when camera access is off in Windows' privacy settings,
 **Scan with the camera** opens the camera and it reads **The camera was

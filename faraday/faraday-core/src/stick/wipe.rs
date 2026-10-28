@@ -121,20 +121,6 @@ impl Zeroing {
     }
 }
 
-/// Bytes as a person reads them: GB, MB or KB.
-fn size_text(b: u64) -> String {
-    if b >= 1 << 30 {
-        fill(
-            EN.stick_wipe_gb,
-            &[&format!("{:.1}", b as f64 / f64::from(1u32 << 30))],
-        )
-    } else if b >= 1 << 20 {
-        fill(EN.stick_wipe_mb, &[&(b >> 20).to_string()])
-    } else {
-        fill(EN.stick_wipe_kb, &[&((b >> 10).max(1)).to_string()])
-    }
-}
-
 /// Minutes, at least one, as words.
 fn minutes_text(ms: u64) -> String {
     match ms.div_ceil(60_000).max(1) {
@@ -503,7 +489,10 @@ pub(crate) fn delete_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
                 let ms = shown * passes / (TYPICAL_MBPS << 20) * 1000;
                 fill(
                     EN.stick_wipe_to_write,
-                    &[&size_text(shown).to_string(), &minutes_text(ms).to_string()],
+                    &[
+                        &crate::screens::size_text(shown).to_string(),
+                        &minutes_text(ms).to_string(),
+                    ],
                 )
             }
             None => EN.stick_wipe_reading.to_string(),
@@ -600,7 +589,7 @@ pub(crate) fn delete_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
                 for (k, (name, size)) in files.iter().enumerate() {
                     let on = d.chosen.contains(name);
                     ui.checkbox(x + 2.0, cy + 10.0, on, true);
-                    let sz = size_text(*size);
+                    let sz = crate::screens::size_text(*size);
                     let sw = ui.measure_as(BODY_S, &sz);
                     let n = ui.fit_as(BODY_M.mono(), name, iw - 44.0 - sw);
                     ui.text_mid_as((x + 32.0, cy, 38.0), BODY_M.mono(), Role::OnSurface, &n);

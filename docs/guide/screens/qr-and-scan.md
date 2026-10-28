@@ -90,21 +90,21 @@ It is in those two only, not on the stick or the Pi: it carries files
 between this computer's Downloads folder and the device, by QR code.
 What it receives goes into Downloads, never into Faraday Demo's Files.
 
-![Transfer in Faraday Demo: Send lists ~/Downloads with two files and one over 256 KiB; Receive has Scan with the camera and Open folder](../pictures/qr-and-scan-transfer.png)
+![Transfer in Faraday Demo: Send lists ~/Downloads with two files and one over 262.1 KB; Receive has Scan with the camera and Open folder](../pictures/qr-and-scan-transfer.png)
 
 *Transfer in Faraday Demo: **Send** lists ~/Downloads, payment.psbt,
-new-wallet-1-descriptor.txt and IMG_0412.jpg (**Over 256 KiB**);
+new-wallet-1-descriptor.txt and IMG_0412.jpg (**Over 262.1 KB**);
 **Receive** has **Scan with the camera** and **Open folder**.*
 
 | Control | What it does |
 |---|---|
-| **Send** | the Downloads folder, its path under the heading, then its files newest first, each with its size; a press shows the file as [a QR code](#a-qr-code). "Over 256 KiB" for a file too large; "Reading …" while one is read; **No files** while there is none |
+| **Send** | the Downloads folder, its path under the heading, then its files newest first, each with its size; a press shows the file as [a QR code](#a-qr-code). "Over 262.1 KB" for a file too large; "Reading …" while one is read; **No files** while there is none |
 | **Receive** | the camera and what it saved |
 | **Scan with the camera** | under **Receive**: opens [Scan](#scan), titled **Receive into Downloads**: each whole file read is saved into Downloads ("Saved …"). A secret waits for [Save without encryption?](files.md#save-without-encryption) first |
 | **Open folder** | beside it: opens Downloads in this computer's file manager |
 | the lines under it | what was saved this session, newest first: "Saved …", "Saved …: this file holds a secret", "Not saved: …" |
 
-A file over 256 KiB is refused: "Larger than 256 KiB: carry it on a
+A file over 262.1 KB is refused: "Larger than 262.1 KB: carry it on a
 stick".
 
 ## On a narrow window

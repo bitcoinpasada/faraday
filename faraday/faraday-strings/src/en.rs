@@ -5740,6 +5740,8 @@ strings! {
     // ----- kind_line (faraday-core/src/screens/parts.rs) -----
     /// Text in `kind_line`. `{}`: `bytes as f32 / 1e6`.
     kind_line_mb: "{} MB",
+    /// A size in gigabytes, in `size_text`. `{}`: the number.
+    kind_line_gb: "{} GB",
     /// Text in `kind_line`. `{}`: `bytes as f32 / 1e3`.
     kind_line_kb: "{} KB",
     // ----- kind_name (faraday-core/src/screens/parts.rs) -----
@@ -7007,12 +7009,6 @@ strings! {
     stick_wipe_within: "Only this stick's files partition is written. Its other partitions, its partition table and any space outside a partition are not touched.",
     /// Text in `BOUNDARY`.
     stick_wipe_boundary_why: "Why: the process that reads sticks takes in whatever a stick brings, so it is given the files partition and nothing else. It can never write a boot partition or a partition table, where a bad stick could leave code for the next computer to boot.",
-    /// Text in `size_text`. `{}`: `b as f64 / f64::from(1u32 << 30)`.
-    stick_wipe_gb: "{} GB",
-    /// Text in `size_text`. `{}`: `b >> 20`.
-    stick_wipe_mb: "{} MB",
-    /// Text in `size_text`. `{}`: `(b >> 10).max(1)`.
-    stick_wipe_kb: "{} KB",
     /// Text in `minutes_text`.
     stick_wipe_about_minute: "about a minute",
     /// Text in `minutes_text`. `{}`: `m`.
@@ -7189,8 +7185,9 @@ strings! {
     /// compiler's own message.
     tools_miniscript_no_script: "No script compiles from this policy: {}",
     // ----- transfer (faraday-core/src/transfer/mod.rs) -----
-    /// Text in `transfer_send`. `{}`: `self.medium.a()`.
-    transfer_larger_than: "Larger than 256 KiB: carry it on {}",
+    /// Text in `transfer_send`. `{}`: the most Transfer sends, as
+    /// `size_text` writes it, then `self.medium.a()`.
+    transfer_larger_than: "Larger than {}: carry it on {}",
     /// Text in `transfer_send`. `{}`: `base_name(&path)`.
     transfer_is_empty: "{} is empty",
     /// Note in `transfer_scanned`. `{}`: `name`.
@@ -7202,10 +7199,6 @@ strings! {
     /// Error in `transfer_saved`. `{}`: `reason`.
     transfer_not_saved: "Not saved: {}",
     // ----- transfer (faraday-core/src/transfer/screen.rs) -----
-    /// Text in `size_text`. `{}`: `bytes as f32 / 1e6`.
-    transfer_mb: "{} MB",
-    /// Text in `size_text`. `{}`: `bytes as f32 / 1e3`.
-    transfer_kb: "{} KB",
     /// Title in `draw`.
     transfer_transfer: "Transfer",
     /// Section label in `send`.
@@ -7214,8 +7207,9 @@ strings! {
     transfer_reading: "Reading {}",
     /// Line in `send`.
     transfer_no_files: "No files",
-    /// Text in `send`.
-    transfer_over_256_kib: "Over 256 KiB",
+    /// A Downloads row's size when the file is over what Transfer sends.
+    /// `{}`: the most it sends, as `size_text` writes it.
+    transfer_over: "Over {}",
     /// Section label in `receive`.
     transfer_receive: "Receive",
     /// Button in `receive`.
@@ -7375,10 +7369,6 @@ strings! {
     /// Text in `seconds_text`. `{}`: `s / 86_400`.
     vanity_days: "{} days",
     // ----- vault (faraday-core/src/vault/screen.rs) -----
-    /// Text in `gpg_file_size`. `{}`: `bytes as f32 / 1e6`.
-    vault_mb: "{} MB",
-    /// Text in `gpg_file_size`. `{}`: `bytes as f32 / 1e3`.
-    vault_kb: "{} KB",
     /// Text in `stick_field`. `{}`: `medium.noun()`.
     vault_remove_the_first: "Remove the {} first",
     /// Button in `hold_delete`.
@@ -7969,10 +7959,6 @@ strings! {
     vaults_mib: "{} MiB",
     /// Text in `size_text`. `{}`: `slot / 1024`.
     vaults_kib: "{} KiB",
-    /// Text in `file_text`. `{}`: `len as f64 / 1e6`.
-    vaults_mb: "{} MB",
-    /// Text in `file_text`. `{}`: `len.div_ceil(1000)`.
-    vaults_kb: "{} KB",
     /// Text in `cost_text`.
     vaults_pass: "pass",
     /// Text in `cost_text`.

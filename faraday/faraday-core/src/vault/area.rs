@@ -1364,13 +1364,9 @@ pub fn size_text(slot: u32) -> String {
     }
 }
 
-/// A file size as a person reads it.
+/// A file size as a person reads it: [`crate::screens::size_text`].
 pub fn file_text(len: usize) -> String {
-    if len >= 1_000_000 {
-        fill(EN.vaults_mb, &[&format!("{:.1}", len as f64 / 1e6)])
-    } else {
-        fill(EN.vaults_kb, &[&len.div_ceil(1000).to_string()])
-    }
+    crate::screens::size_text(len as u64)
 }
 
 /// A cost as a person reads it.
