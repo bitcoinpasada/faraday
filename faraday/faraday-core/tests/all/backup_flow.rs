@@ -817,6 +817,27 @@ fn a_stick_pulled_while_writing_counts_nothing() {
     assert!(shell.writes.is_empty());
 }
 
+/// A stick being written says so in the text's colour, not in the
+/// colour a link is drawn in: it is a state, not something to press.
+#[test]
+fn writing_a_stick_reads_as_a_state_not_a_link() {
+    use faraday_core::ui::{Role, Theme};
+    use faraday_draw::canvas::InkKind;
+    let mut shell = Shell::new();
+    let mut app = gpg_locked(&mut shell);
+    let theme = Theme::all().next().expect("a theme");
+    app.draw_in(theme);
+    shell.hold_writes = true;
+    shell.plug(&mut app, "S1");
+    assert!(!shell.stashed.is_empty(), "a write is under way");
+    let color = app.drawn_ink().iter().find_map(|i| match &i.kind {
+        InkKind::Text { text, color, .. } if text.starts_with("Writing ") => Some(*color),
+        _ => None,
+    });
+    assert_eq!(color, Some(theme.role(Role::OnSurface)));
+    assert_ne!(color, Some(theme.role(Role::Primary)));
+}
+
 #[test]
 fn with_no_flow_in_the_kept_state_none_is_offered() {
     let app = process(Vec::new(), Vec::new(), Vec::new());

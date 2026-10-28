@@ -665,14 +665,18 @@ fn stick_card(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) -
             .first()
             .map(|(n, _)| n.clone())
             .unwrap_or_default();
-        cy += line(
+        // A state, not a link: in the text's colour, the work under way
+        // shown by the indicator along its foot (`docs/DESIGN.md` §4.14).
+        let lh = line(
             ui,
             x,
             cy,
             w,
             &fill(FEN.backup_flow_writing, &[&file]),
-            Role::Primary.paint(),
+            Role::OnSurface.paint(),
         );
+        crate::screens::working_bar(ui, x, cy, w, lh);
+        cy += lh;
         return cy - y;
     }
     match r.purpose {
