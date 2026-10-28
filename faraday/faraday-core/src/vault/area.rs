@@ -2225,6 +2225,8 @@ pub enum VaultAction {
     DiceUse,
     /// Put the dice away.
     DiceClose,
+    /// A key of the dice's pad: a face, 1 to 6, or 0 for Backspace.
+    DiceKey(u8),
     /// A press on the roller beside the dice entry (Faraday Demo).
     Roller(crate::fresh::roller::Act),
     /// The selected entry out as a KeePass database, under a passphrase

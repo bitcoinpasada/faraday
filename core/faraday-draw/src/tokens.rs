@@ -1234,6 +1234,12 @@ pub const PAD_KEY_W: f32 = TOUCH;
 /// The most of the window's height the input panel takes at the foot;
 /// a taller one stands in the page (`docs/LAYOUT.md` §16.3).
 pub const INPUT_PANEL_MAX: f32 = 0.4;
+/// A dice pad's key: as tall as Material's text field, each face a
+/// large target.
+pub const DICE_PAD_KEY_H: f32 = 56.0;
+/// New key's progress line: the count over its bar, and the room under
+/// it.
+pub const ENTRY_PROGRESS_H: f32 = 50.0;
 /// A die's column of the rolls across the input panel: its marker (the
 /// first roll) beside its die (the second), and the gap to the next.
 pub const INPUT_ROLLS_COL: f32 = 76.0;

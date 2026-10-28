@@ -678,9 +678,18 @@ fn pad(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32) {
     );
 }
 
+/// Whether an input panel `fh` tall stands at the foot of a page `h`
+/// tall on window `win`: not on the small panel, whose pads stand in the
+/// page, and at most `INPUT_PANEL_MAX` of the height (`docs/LAYOUT.md`
+/// §16.3). Arithmetic.
+pub(crate) fn foot_fits(win: Window, fh: f32, h: f32) -> bool {
+    let small = win.class() == WindowClass::Compact && win.short();
+    !small && fh <= t::INPUT_PANEL_MAX * h
+}
+
 /// The panel's surface at the foot over what is under it, with a rule
 /// along its top; a press there reaches nothing under it.
-fn cover(ui: &mut Ui, (x, y, w, h): (f32, f32, f32, f32)) {
+pub(crate) fn cover(ui: &mut Ui, (x, y, w, h): (f32, f32, f32, f32)) {
     let area = ui.rect(x, y, w, h);
     let mut k = 0;
     while k < ui.hits.len() {

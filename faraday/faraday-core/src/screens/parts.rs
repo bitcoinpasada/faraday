@@ -1401,7 +1401,7 @@ pub(crate) fn dice_pad(
                 x + f32::from(f - 1) * (bw + 8.0),
                 y,
                 Some(bw),
-                56.0,
+                tokens::DICE_PAD_KEY_H,
                 &f.to_string(),
                 style(f),
                 press(f),

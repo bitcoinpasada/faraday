@@ -842,12 +842,13 @@ pub(crate) fn create(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     // A small panel has no side panel: its summary and Create vault
     // follow the last step.
     let compact = ui.compact;
+    let foot = super::dice_screen::foot(app, ui);
     let col = flow::Column {
         area_x: x0,
         area_w: if compact { cw } else { cw - panel_w },
         x: x0 + 40.0,
         w: (cw - panel_w - 72.0).min(820.0),
-        h,
+        h: h - foot.unwrap_or(0.0),
         // Made for another flow: back to it, and where it goes next.
         back: Some(app.named_back(match app.vaults.back_to {
             Some(s) => (app.back_link_name(s), va(V::Back)),
@@ -871,6 +872,7 @@ pub(crate) fn create(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         flow::column(ui, &col, &cards, scroll, &mut body)
     };
     app.scroll(Scrolled::CreateVault, next, again);
+    super::dice_screen::foot_panel(app, ui, (&col, h), foot);
     if !compact {
         create_panel(app, ui, x0 + cw - panel_w, panel_w, h, &summaries);
     }
@@ -1423,11 +1425,7 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                 // The demo's public passphrase stands in for the rolled
                 // words: the "Demo only" card says so (`docs/DEMO.md` §5.2).
                 cy += 12.0;
-                if let Some((di, rolls, list)) = app.vaults.dice.as_ref()
-                    && *di == i
-                {
-                    cy += super::dice_screen::dice_panel(app, ui, x, cy, w, rolls, *list);
-                }
+                cy += super::dice_screen::dice_panel(app, ui, (x, cy, w), i);
             }
             if c.phrases.len() < faraday_vault::SLOTS {
                 ui.button(

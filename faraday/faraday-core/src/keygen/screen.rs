@@ -5,7 +5,7 @@ use crate::strings::EN;
 use crate::strings::fill;
 use faraday_bip::bip39::Language;
 use faraday_draw::tokens::{BODY_M, BODY_S, BUTTON_H, LABEL_L, LABEL_S, TITLE_M, TITLE_S};
-use faraday_entropy::{CameraNoise, CardDraws, CoinFlips, DiceProcedure, RANKS, SUITS};
+use faraday_entropy::{CameraNoise, CardDraws, CoinFlips, DiceProcedure, SUITS};
 
 use crate::codex32::input_panel::PanelAt;
 use crate::drawing::{Scrolled, View};
@@ -76,6 +76,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         _ => EN.keygen_back,
     };
     let (column, panel) = codex32_places(app, k, (cw, h));
+    let dice_foot = super::dice_panel::place(app, k);
     let side = crate::codex32::pane_screen::side_room(column);
     let start = panel.start_room();
     let inset = faraday_draw::tokens::KEYGEN_COLUMN_IN;
@@ -91,7 +92,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         area_w: cw - side - start,
         x: cx,
         w: cw_max,
-        h,
+        h: h - dice_foot.unwrap_or(0.0),
         back: Some(app.named_back((back_label, Action::Nav(k.back)))),
         // Add a key wherever the flow opens on Start; New key for a Create
         // slot, and from Add a key's own Make a new key
@@ -144,6 +145,9 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     }
     if let Some(m) = k.codex32.as_ref() {
         crate::codex32::screen::cell_sheet(app, m, ui, x0, cw, h);
+    }
+    if let Some(fh) = dice_foot {
+        super::dice_panel::draw(k, ui, (x0, cw, h, fh), (cx, cw_max));
     }
 }
 
@@ -1198,57 +1202,12 @@ fn sources(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
 fn entries(app: &View, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let muted = Role::OnSurfaceVariant;
     let mut cy = y;
-    let (have, need) = k.progress();
     let active = k.active();
-    // How far along, as a count and a bar.
-    if active != Some(Source::Device) {
-        let unit = match active {
-            Some(Source::Dice) => EN.keygen_rolls_inline,
-            Some(Source::Coins) => EN.keygen_flips_inline,
-            Some(Source::Cards) => EN.keygen_cards_inline,
-            Some(Source::Hex) => EN.keygen_digits_inline,
-            _ => EN.keygen_pictures_inline,
-        };
-        ui.text_as(
-            x,
-            cy,
-            TITLE_M,
-            Role::OnSurface,
-            &fill(
-                EN.keygen_entry_count_unit,
-                &[&have.to_string(), &need.to_string(), unit],
-            ),
-        );
-        if let Some(last) = last_entry(k) {
-            ui.text_right_as(
-                (x + w, cy - 6.0, 30.0),
-                BODY_M.mono(),
-                muted,
-                &fill(EN.keygen_last, &[&last.to_string()]),
-            );
-        }
-        cy += 28.0;
-        ui.fill(x, cy, w, 6.0, 3.0, Role::SurfaceContainerHighest);
-        let f = if need == 0 {
-            0.0
-        } else {
-            (have as f32 / need as f32).min(1.0)
-        };
-        if f > 0.0 {
-            ui.fill(
-                x,
-                cy,
-                w * f,
-                6.0,
-                3.0,
-                if have >= need {
-                    Role::Ok
-                } else {
-                    Role::Primary
-                },
-            );
-        }
-        cy += 22.0;
+    // The input panel at the window's foot, where it stands, holds the
+    // progress line and the pad (`docs/LAYOUT.md` §16.3).
+    let foot = super::dice_panel::place(app, k);
+    if active != Some(Source::Device) && foot.is_none() {
+        cy += super::dice_panel::progress(k, ui, x, cy, w);
     }
     if matches!(active, Some(Source::Dice | Source::Coins)) {
         cy = entry_style(k, ui, x, cy, w);
@@ -1267,14 +1226,9 @@ fn entries(app: &View, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             }
         }
         Some(Source::Dice) => {
-            let style = |f| {
-                if k.procedure().direct() && !k.procedure().accepts(k.dice.len(), f) {
-                    Style::Disabled
-                } else {
-                    Style::Secondary
-                }
-            };
-            cy += dice_pad(ui, (x, cy, w), &style, Action::KRoll);
+            if foot.is_none() {
+                cy += super::dice_panel::pad(k, ui, (x, cy, w));
+            }
             if k.reveals() {
                 cy = reveal(k, ui, x, cy, w);
             }
@@ -1793,27 +1747,6 @@ fn rolled_words(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
 /// Opens the BIP-39 list at word `i`.
 fn open_word(i: u16) -> Action {
     Action::WordList(crate::wordlist::WordListAction::Open(0, Some(i)))
-}
-
-/// The entry just made, shown once so a mistyped one can be taken back.
-fn last_entry(k: &KeyGen) -> Option<String> {
-    match k.active()? {
-        Source::Dice if k.by_die => k
-            .coins
-            .last()
-            .map(|h| if h { EN.create_heads } else { EN.create_tails }.to_string()),
-        Source::Dice => k.dice.last().map(|r| r.to_string()),
-        Source::Coins => k
-            .coins
-            .last()
-            .map(|h| if h { EN.create_heads } else { EN.create_tails }.to_string()),
-        Source::Cards => k.cards.last().map(|i| {
-            let (r, s) = faraday_entropy::card_parts(i);
-            format!("{}{}", RANKS[usize::from(r)], SUITS[usize::from(s)])
-        }),
-        Source::Hex => k.hex.last().map(|c| c.to_string()),
-        _ => None,
-    }
 }
 
 /// This device's randomness as the shell named it: "operating system ·

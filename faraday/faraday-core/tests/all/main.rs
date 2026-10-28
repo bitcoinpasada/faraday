@@ -60,6 +60,7 @@ mod demo;
 mod desktop_host;
 mod devices;
 mod dialogs;
+mod dice_input_panel;
 mod drop_target;
 mod edid_size;
 mod explore;

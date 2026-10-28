@@ -32,6 +32,18 @@ pub(crate) fn room(app: &Faraday) -> usize {
 /// A press on the dice entry or the roller.
 pub(super) fn act(app: &mut Faraday, a: V) {
     match a {
+        V::DiceKey(0) => {
+            if let Some((_, rolls, _)) = app.vaults.state.dice.as_mut() {
+                rolls.text.pop();
+                let len = rolls.text.len();
+                app.vaults.state.roller.trim(len);
+            }
+        }
+        V::DiceKey(f @ 1..=6) => {
+            if let Some((_, rolls, _)) = app.vaults.state.dice.as_mut() {
+                rolls.text.push(char::from(b'0' + f));
+            }
+        }
         V::Dice(_) if !app.may_load_keys() => {}
         V::Dice(i) => {
             // Pressed again, the rolls box keeps what is rolled.

@@ -1,8 +1,8 @@
 # Layout at every window size
 
 **Kind:** Spec
-**Status:** Partly built: size classes and density (L1, F101; the stick's from its EDID on a small screen, `docs/ORIENTATION.md` §2.1), navigation (L2), Home's lead tile and tile grid (L3), the supporting pane's place and its narrow strip, for codex32's Demo only card (§6); the page area to the window's edge (W1, §15, §19); list and detail for Wallets, Files, Vaults and Backups (L4, §5, §17); Settings' list of sections on compact windows and every section on one page from medium up (§17); Files' two lists each scrolling on its own beside the rail (§17); the codex32 entry's input panel (W3, §16.3), at the foot of a compact window that is not short too, above the navigation bar; Learn in the supporting pane on extra-large windows (L6, §6); the tours at every class's size, §11's tests and DESIGN §3 written to this spec (L7); on wide windows the worksheet's fit and the string's boxes (W2, §16.1, §16.2), the view and the page following the work (W4, §16.4), the step-through's buttons fixed in Faraday Demo's host strip (W5, §16.5), Home's feed, Explore, the chart's buttons and tables at their columns' width (W6), the backup board (W7); the rest specified, not built (F92)
-**Open:** the top app bar over the wide pages and the step flows (§3; they keep their own heads); components that keep their size, part 2 (L5: the size set and the type roles are built in `faraday-ui`; the screens of `faraday-core` still write some sizes in place, a count `tools/lint-tokens.counts` holds and that only falls); on wide windows, the codex32 input panel beside the sheets scrolling within itself (it stands at the foot where it is taller than the window), and New key's dice and Create a vault's Generate with dice in the input panel (their pad, progress line and entries already stand together in one card) (§16.3); planned.
+**Status:** Partly built: size classes and density (L1, F101; the stick's from its EDID on a small screen, `docs/ORIENTATION.md` §2.1), navigation (L2), Home's lead tile and tile grid (L3), the supporting pane's place and its narrow strip, for codex32's Demo only card (§6); the page area to the window's edge (W1, §15, §19); list and detail for Wallets, Files, Vaults and Backups (L4, §5, §17); Settings' list of sections on compact windows and every section on one page from medium up (§17); Files' two lists each scrolling on its own beside the rail (§17); the codex32 entry's input panel (W3, §16.3), at the foot of a compact window that is not short too, above the navigation bar, and New key's dice and Create a vault's Generate with dice in it; Learn in the supporting pane on extra-large windows (L6, §6); the tours at every class's size, §11's tests and DESIGN §3 written to this spec (L7); on wide windows the worksheet's fit and the string's boxes (W2, §16.1, §16.2), the view and the page following the work (W4, §16.4), the step-through's buttons fixed in Faraday Demo's host strip (W5, §16.5), Home's feed, Explore, the chart's buttons and tables at their columns' width (W6), the backup board (W7); the rest specified, not built (F92)
+**Open:** the top app bar over the wide pages and the step flows (§3; they keep their own heads); components that keep their size, part 2 (L5: the size set and the type roles are built in `faraday-ui`; the screens of `faraday-core` still write some sizes in place, a count `tools/lint-tokens.counts` holds and that only falls); on wide windows, the codex32 input panel beside the sheets scrolling within itself (it stands at the foot where it is taller than the window) (§16.3); planned.
 
 Faraday lays its screens out by Material 3's layout and navigation
 rules at every size, from the Pi's 2.8-inch panel to a full monitor.
@@ -718,6 +718,20 @@ every size. New key's dice for BIP-39 words and Create a vault's
 **Generate with dice** (`docs/CODEX32.md` §5.6) take the same panel:
 their pad, their entries' latest group and the progress line in one
 view.
+
+Built for both, at the foot by the same rule (not on the Pi panel, and
+in the card where the panel would take more than `INPUT_PANEL_MAX` of
+the window's height): New key's Entries card, while dice are pressed one
+at a time, stands its count of rolls with the roll just made at its end,
+the bar under it and the pad of six faces (`DICE_PAD_KEY_H` tall) in
+the panel, the words so far, the check and the card's buttons in the
+page above it (`keygen/dice_panel.rs`); Generate with dice stands the
+rolls' field, the strength line and a pad of the six faces and
+Backspace in the panel, the list's choice, the words and Use these
+words in the card (`vault/dice_screen.rs`). While the on-screen keyboard
+is up for the rolls' field, its keys are the pad and the panel stands
+in the card. The page scrolls clear of the panel. Dice typed as one
+string keep their field in the card.
 
 ### 16.4 The view follows the work
 

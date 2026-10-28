@@ -853,9 +853,6 @@ impl Faraday {
                 self.sheet = Some(crate::Sheet::Scan);
                 self.out.command(faraday_shell_api::Command::CameraOn);
             }
-            V::Dice(_) | V::DiceList(_) | V::DiceUse | V::DiceClose | V::Roller(_) => {
-                dice::act(self, a);
-            }
             V::LoadWithPassphrase => {
                 self.vaults.state.prompt = Some(Prompt {
                     purpose: Purpose::KeyPassphrase,
@@ -940,6 +937,8 @@ impl Faraday {
                 }
             }
             V::SbCheck(k) => self.sb_check(k),
+            // The dice entry's and the roller's.
+            _ => dice::act(self, a),
         }
     }
 

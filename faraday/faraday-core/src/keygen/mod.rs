@@ -14,6 +14,7 @@
 //! The accumulators and the words are erased on drop; leaving the flow
 //! drops them all.
 
+pub(crate) mod dice_panel;
 pub(crate) mod screen;
 
 use crate::strings::EN;

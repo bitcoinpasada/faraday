@@ -4,29 +4,168 @@
 use super::screen::text_box;
 use crate::Action;
 use crate::drawing::View;
-use crate::screens::never_under;
+use crate::screens::{dice_pad, never_under};
 use crate::strings::EN;
 use crate::strings::fill;
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui};
 use crate::vault::{self, Focus, TextBox, VaultAction as V};
 use faraday_draw::tokens::{BODY_M, BODY_S, BUTTON_H, FIELD_H, LABEL_L, LABEL_S};
+use faraday_draw::widgets::Icon;
 
 fn va(a: V) -> Action {
     Action::Vault(a)
 }
 
-/// Rolling dice for a passphrase: the rolls typed, the words they make,
-/// and the strength so far. Returns its height.
-#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
-pub(super) fn dice_panel(
+/// The input panel's height where it stands at the window's foot while
+/// dice are rolled for a passphrase (`docs/LAYOUT.md` §16.3): the rolls,
+/// the strength line in up to two lines and the pad, inside its padding,
+/// on a window that is not the small panel and where it takes at most
+/// `INPUT_PANEL_MAX` of the height, while the on-screen keyboard is not
+/// up; else `None`, and all three stay in the card. Arithmetic.
+pub(super) fn foot(app: &View, ui: &Ui) -> Option<f32> {
+    use faraday_draw::tokens as t;
+    let open = app
+        .vaults
+        .create
+        .as_ref()
+        .is_some_and(|c| c.open == Some(vault::vstep::PHRASES));
+    let line = ui.line_as(BODY_S);
+    let fh = t::PAD + ui.field_h() + t::GAP + 2.0 * line + t::GAP + t::DICE_PAD_KEY_H + t::PAD;
+    let fits = crate::codex32::input_panel::foot_fits(app.window(), fh, app.size().1);
+    // With the on-screen keyboard up, its keys are the pad, at the foot.
+    let keyboard = app.osk_height() > 0.0;
+    (open && app.vaults.dice.is_some() && fits && !keyboard).then_some(fh)
+}
+
+/// The input panel at the foot of the flow's page, `fh` tall, where
+/// [`foot`] stands it: the rolls, the strength line and the pad, a key
+/// per face and Backspace, in the column `col` lays the cards in.
+pub(super) fn foot_panel(
     app: &View,
     ui: &mut Ui,
-    x: f32,
-    y: f32,
-    w: f32,
-    rolls: &TextBox,
-    list: faraday_bip::diceware::List,
+    (col, h): (&crate::flow::Column, f32),
+    fh: Option<f32>,
+) {
+    use faraday_draw::tokens as t;
+    let (Some(fh), Some((_, rolls, list))) = (fh, app.vaults.dice.as_ref()) else {
+        return;
+    };
+    let top = h - fh;
+    crate::codex32::input_panel::cover(ui, (col.area_x, top, col.area_w, fh));
+    // At the card body's start on the wide layout; at the one-column
+    // page's margins elsewhere, as its cards stand.
+    let (x, w) = if ui.compact {
+        let m = crate::compact::M;
+        (col.area_x + m, (col.area_w - 2.0 * m).min(t::COLUMN_MAX))
+    } else {
+        let i = crate::flow::BODY_INDENT;
+        (col.x + i, (col.w - 2.0 * i).min(t::COLUMN_MAX))
+    };
+    let mut cy = top + t::PAD;
+    rolls_box(app, ui, (x, cy, w), rolls);
+    cy += ui.field_h() + t::GAP;
+    let (status, tone) = strength(app, &rolls.text, *list);
+    ui.wrap_as((x, cy, w), BODY_S, tone, &status);
+    cy += 2.0 * ui.line_as(BODY_S) + t::GAP;
+    let key = t::DICE_PAD_KEY_H;
+    let pad_w = w - key - t::GAP;
+    dice_pad(ui, (x, cy, pad_w), &|_| Style::Secondary, |f| {
+        va(V::DiceKey(f))
+    });
+    let bx = x + w - key;
+    ui.button(
+        bx,
+        cy,
+        Some(key),
+        key,
+        "",
+        Style::Secondary,
+        va(V::DiceKey(0)),
+    );
+    let ic = t::ICON_SMALL;
+    let at = (bx + (key - ic) / 2.0, cy + (key - ic) / 2.0);
+    ui.icon(
+        at.0,
+        at.1,
+        ic,
+        Icon::Delete,
+        t::CODEX32_TAB_GLYPH,
+        Role::OnSurface,
+    );
+}
+
+/// The rolls typed, in their field, at (x, y), `w` wide.
+fn rolls_box(app: &View, ui: &mut Ui, (x, y, w): (f32, f32, f32), rolls: &TextBox) {
+    let focused = app.vaults.focus == Some(Focus::Dice);
+    let press = Action::Vault(V::Dice(app.vaults.dice.as_ref().map_or(0, |d| d.0)));
+    text_box(ui, x, y, w, rolls, false, focused, press);
+}
+
+/// Rolling dice for passphrase `i`, where its dice are open: the rolls
+/// typed, the words they make, and the strength so far; the rolls and
+/// the strength stand in the input panel at the foot where [`foot`]
+/// stands it. Returns its height.
+pub(super) fn dice_panel(app: &View, ui: &mut Ui, (x, y, w): (f32, f32, f32), i: usize) -> f32 {
+    match app.vaults.dice.as_ref() {
+        Some((di, rolls, list)) if *di == i => {
+            let at_foot = foot(app, ui).is_some();
+            dice_card(app, ui, (x, y, w), (rolls, *list), at_foot)
+        }
+        _ => 0.0,
+    }
+}
+
+/// The strength line for `rolls` from `list`, and its tone.
+fn strength(app: &View, rolls: &str, list: faraday_bip::diceware::List) -> (String, Role) {
+    let words = vault::dice_words(rolls, list);
+    let per = list.dice_per_word();
+    let left = rolls.len() % per;
+    let bits = list.bits(words.len());
+    let (_, mem, passes) = app.vaults.form_cost().unwrap_or((0, 64, 3));
+    let own = words.len() as f32 * list.bits_per_word();
+    let status = fill(
+        EN.vault_dice_strength,
+        &[
+            &words.len().to_string(),
+            (if words.len() == 1 {
+                EN.vault_word
+            } else {
+                EN.vault_words_inline
+            }),
+            &format!("{own:.1}"),
+            &format!("{:.1}", own + vault::cost_bits(mem, passes)),
+            &(if left > 0 {
+                format!(
+                    " {}",
+                    fill(
+                        EN.vault_dice_for_the_next_word,
+                        &[&left.to_string(), &per.to_string()]
+                    )
+                )
+            } else {
+                String::new()
+            })
+            .to_string(),
+        ],
+    );
+    let tone = if bits >= vault::STRONG_BITS {
+        Role::Ok
+    } else {
+        Role::OnSurfaceVariant
+    };
+    (status, tone)
+}
+
+/// [`dice_panel`]'s card: the rolls and the strength line left out where
+/// the input panel at the foot holds them (`at_foot`).
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
+fn dice_card(
+    app: &View,
+    ui: &mut Ui,
+    (x, y, w): (f32, f32, f32),
+    (rolls, list): (&TextBox, faraday_bip::diceware::List),
+    at_foot: bool,
 ) -> f32 {
     use faraday_bip::diceware::List;
     let mut cy = y;
@@ -75,23 +214,13 @@ pub(super) fn dice_panel(
         Role::OnSurface,
         &fill(EN.vault_dice_per_word, &[&list.dice_per_word().to_string()]),
     ) + 8.0;
-    let focused = app.vaults.focus == Some(Focus::Dice);
-    text_box(
-        ui,
-        x,
-        cy,
-        w,
-        rolls,
-        false,
-        focused,
-        Action::Vault(V::Dice(app.vaults.dice.as_ref().map_or(0, |d| d.0))),
-    );
-    cy += FIELD_H + 10.0 + never_under(app, ui, x, cy, w);
+    if !at_foot {
+        rolls_box(app, ui, (x, cy, w), rolls);
+        cy += FIELD_H + 10.0 + never_under(app, ui, x, cy, w);
+    }
     // The computer's roller, on Faraday Demo only, is in the "Practice
     // only" card (`docs/CODEX32.md` §5.6, `samples/card.rs`).
     let words = vault::dice_words(&rolls.text, list);
-    let per = list.dice_per_word();
-    let left = rolls.text.len() % per;
     // The words as the rolls make them, each a pill that opens it in its
     // list, as New key shows its words.
     if words.is_empty() {
@@ -126,44 +255,10 @@ pub(super) fn dice_panel(
         }
         cy += 38.0;
     }
-    let bits = list.bits(words.len());
-    let (_, mem, passes) = app.vaults.form_cost().unwrap_or((0, 64, 3));
-    let own = words.len() as f32 * list.bits_per_word();
-    let status = fill(
-        EN.vault_dice_strength,
-        &[
-            &words.len().to_string(),
-            (if words.len() == 1 {
-                EN.vault_word
-            } else {
-                EN.vault_words_inline
-            }),
-            &format!("{own:.1}"),
-            &format!("{:.1}", own + vault::cost_bits(mem, passes)),
-            &(if left > 0 {
-                format!(
-                    " {}",
-                    fill(
-                        EN.vault_dice_for_the_next_word,
-                        &[&left.to_string(), &per.to_string()]
-                    )
-                )
-            } else {
-                String::new()
-            })
-            .to_string(),
-        ],
-    );
-    cy += ui.wrap_as(
-        (x, cy, w),
-        BODY_S,
-        if bits >= vault::STRONG_BITS {
-            Role::Ok
-        } else {
-            Role::OnSurfaceVariant
-        },
-        &status,
-    ) + 8.0;
+    if !at_foot {
+        let (status, tone) = strength(app, &rolls.text, list);
+        cy += ui.wrap_as((x, cy, w), BODY_S, tone, &status) + 8.0;
+    }
     // How long is long enough, and where the lists come from.
     cy += ui.wrap_as(
         (x, cy, w),
