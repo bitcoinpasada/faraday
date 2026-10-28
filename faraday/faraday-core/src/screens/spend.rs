@@ -71,11 +71,11 @@ fn nonce_check(app: &View, ui: &mut Ui, psbt: &faraday_psbt::Psbt, x: f32, y: f3
         let (t, c) = match (r.verdict, r.recomputed) {
             (Verdict::Invalid, _) => (EN.nonce_check_invalid.to_string(), Role::Error),
             (Verdict::Unchecked(why), _) => (
-                fill(EN.nonce_check_not_checked, &[&why.to_string()]),
+                fill(EN.nonce_check_not_checked, &[unchecked_text(why)]),
                 Role::OnSurfaceVariant,
             ),
             (Verdict::Valid, Some(Some(mode))) => (
-                fill(EN.nonce_check_valid_nonce, &[&mode.to_string()]),
+                fill(EN.nonce_check_valid_nonce, &[nonce_mode_text(mode)]),
                 Role::Ok,
             ),
             (Verdict::Valid, Some(None)) => (EN.nonce_check_wrong_nonce.to_string(), Role::Error),
@@ -1907,4 +1907,24 @@ fn made_line(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, file: &str) -> f32
     let n = ui.fit_as(BODY_M.mono(), file, (right - sw - 10.0 - x).max(0.0));
     ui.text_mid_as((x, y, 34.0), BODY_M.mono(), Role::OnSurface, &n);
     44.0
+}
+
+/// How a nonce was recomputed, as the Nonce check says it.
+fn nonce_mode_text(m: faraday_psbt::verify::NonceMode) -> &'static str {
+    use faraday_psbt::verify::NonceMode as M;
+    match m {
+        M::LowR => EN.nonce_mode_low_r,
+        M::First => EN.nonce_mode_first,
+        M::Bip340 => EN.nonce_mode_bip340,
+    }
+}
+
+/// Why a signature was not checked, as the Nonce check says it.
+fn unchecked_text(u: faraday_psbt::verify::Unchecked) -> &'static str {
+    use faraday_psbt::verify::Unchecked as U;
+    match u {
+        U::NoPrevout => EN.nonce_unchecked_no_prevout,
+        U::UnsupportedScript => EN.nonce_unchecked_script,
+        U::UnknownKey => EN.nonce_unchecked_no_key,
+    }
 }

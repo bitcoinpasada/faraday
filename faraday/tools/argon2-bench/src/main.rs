@@ -53,7 +53,7 @@ fn main() {
                     break;
                 }
                 Err(e) => {
-                    refused = Some(e.reason());
+                    refused = Some(format!("{e:?}"));
                     break;
                 }
             }

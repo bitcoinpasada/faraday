@@ -1184,9 +1184,9 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
     }
     t.pump();
     let (_, main) = faraday_vault::open(c, &sealed, testkit::VAULT_PASSPHRASES[0].as_bytes())
-        .map_err(|e| e.reason())?;
+        .map_err(|e| format!("{e:?}"))?;
     let (_, decoy) = faraday_vault::open(c, &sealed, testkit::VAULT_PASSPHRASES[1].as_bytes())
-        .map_err(|e| e.reason())?;
+        .map_err(|e| format!("{e:?}"))?;
     let slot = 65_536 + 40;
     let changed = (0..4)
         .filter(|i| {
@@ -1304,7 +1304,7 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
             )
         })?;
     for p in [dice_phrase.as_str(), "second passphrase"] {
-        faraday_vault::open(c, &made, p.as_bytes()).map_err(|e| format!("{p}: {}", e.reason()))?;
+        faraday_vault::open(c, &made, p.as_bytes()).map_err(|e| format!("{p}: {e:?}"))?;
     }
     // Made: Unlock, the new vault picked, its passphrase asked once more.
     t.shot("create-vault-unlock")?;

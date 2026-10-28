@@ -49,7 +49,7 @@ forms**.
 | A string in | Check a string |
 |---|---|
 | ![One string in, Make the rest and Add a share](../5-1-codex32.png) | ![Check a string, the final row](../5-1-check-a-string.png) |
-| **1 in** and **Share A · id name · 2 needed**. Once 2 strings of the set are in, the key loads. **Make the rest** makes the set's other strings from the ones typed; **Add a share** makes one more string at an unused index. Where an open vault keeps strings of the same set, the line **1 more of this set in open vaults** says so, and they count. | **Check a string**, then **Check it**: **Checksum holds** or **Checksum fails**, with the checksum worksheet's **Final** row beside what it **Must read**, and where it first differs (**Final row differs at box 36**). Nothing is loaded or kept. **Back to adding strings** returns. |
+| **1 in** and **Share A · id name · 2 needed**. Once 2 strings of the set are in, the key loads. **Make the rest** makes the set's other strings from the ones typed; **Add a share** makes one more string at an unused index. Where an open vault keeps strings of the same set, the line **1 more of this set in open vaults** says so, and they count. | **Check a string**, then **Check it**: **Checksum holds** or **Checksum fails**, with the checksum worksheet's final row and, where it is not `SECRETSHARE32`, its cells marked and the first box named (**Final row differs at box 36**); **Show the worksheet** shows every row, **Final row only** the last again. Nothing is loaded or kept. **Back to adding strings** returns. |
 
 | The worksheet | Make the rest |
 |---|---|

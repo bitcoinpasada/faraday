@@ -55,8 +55,19 @@ status=0
 #     key record, which other software reads
 #   - units, which are symbols: s, h, B, sat, BTC, mBTC, bits, KB to TiB
 #   - notation: derivation paths (`m`, `m/…`), descriptors, codex32's
-#     `ms1`, hex (`0x…`, a fingerprint), PDF operators, and a type as
-#     Debug prints it
+#     `ms1`, hex (`0x…`, a fingerprint) and PDF operators
+#   - the names of standards, formats, units and keys, which a translation
+#     keeps as they are: BIP-322, BIP-137, BIP-84 and the other presets,
+#     SHA-256, HASH160, BIP-32, PNG, PDF, PK, KEK, db, codex32, MuSig2,
+#     wsh, tr, sat, BTC (the kinds above). A name that is a label of its
+#     own beside a sibling already in the strings file (HOTP beside TOTP)
+#     goes there with it
+# A value formatted as Debug prints it (`{:?}`) fails, wherever it is not
+# a record line or marked `// not shown: <why>`: an enum's or an error's
+# code name is never wording, and the screen maps the kind to a string.
+# The vault crate's errors are such kinds, mapped by the app
+# (`vault/errors.rs`); its sources are read here so that no wording
+# comes back into them.
 # The Learn pages (docs/learn, faraday-learn's pages) and the self-test's check names
 # are outside this lint, as CLAUDE.md says.
 FARADAY_SCREENS="$(find faraday/faraday-core/src -name '*.rs' -not -path '*/drawing/*' -not -path '*/work/*' | sort | grep -v '/testkit\.rs$\|/names\.rs$')
@@ -65,6 +76,8 @@ faraday/faraday-ui/src/*.rs
 faraday/faraday-learn/src/*.rs
 faraday/faraday-guides/src/*.rs
 faraday/faraday-intake/src/*.rs
+faraday/faraday-vault/src/lib.rs
+faraday/faraday-vault/src/records.rs
 faraday/shells/desktop/src/main.rs
 faraday/shells/desktop/src/lib.rs
 faraday/shells/starter/src/main.rs"
@@ -93,6 +106,14 @@ dev > 0 { dev += gsub(/\(/, "(") - gsub(/\)/, ")"); next }
         lit = substr(line, RSTART, RLENGTH)
         line = substr(line, RSTART + RLENGTH)
         sub(/^r?#*"/, "", lit); sub(/"#*$/, "", lit)
+        # A value as Debug prints it (`{:?}`, `{e:?}`) is the code name
+        # of a kind, never wording: the screen maps the kind to a string
+        # of the strings file. A record line, or a line marked
+        # `// not shown: <why>` (a log line, a key compared), passes.
+        if (lit ~ /\{[A-Za-z0-9_.]*:#?\?\}/ && lit !~ /\\[nt]/ && $0 !~ /\/\/ not shown: /) {
+            printf "%s:%d: %s (Debug text)\n", FILENAME, FNR, lit
+            continue
+        }
         bare = lit
         gsub(/\{[^{}]*\}/, "", bare)
         if (bare !~ /[A-Za-z]/ || allowed(lit, bare)) continue

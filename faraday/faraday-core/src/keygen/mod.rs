@@ -620,7 +620,7 @@ impl KeyGen {
             &mut fill,
             &mut out,
         )
-        .map_err(|e| crate::strings::fill(EN.keygen_the_shares_could, &[&format!("{e:?}")]))?;
+        .map_err(|e| crate::strings::fill(EN.keygen_the_shares_could, &[&e.to_string()]))?;
         out.truncate(n);
         self.shares = out;
         self.share_at = 0;

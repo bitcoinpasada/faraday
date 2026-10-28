@@ -62,7 +62,10 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             ),
             Role::Ok,
         ),
-        Err(e) => (fill(EN.check_the_signature, &[&e.to_string()]), Role::Error),
+        Err(e) => (
+            crate::state::message_error_text(*e).to_string(),
+            Role::Error,
+        ),
     };
     // The verdict's card grows to its wrapped line.
     let (size, lx) = if compact {

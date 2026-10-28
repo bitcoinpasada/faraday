@@ -140,7 +140,7 @@ fn code_row(ui: &mut Ui, x: f32, y: f32, w: f32, r: &CodeRow) -> f32 {
         }
         CodeKind::Hotp | CodeKind::Unreadable | CodeKind::NoClock => {
             let badge = match r.kind {
-                CodeKind::Hotp => "HOTP",
+                CodeKind::Hotp => EN.codes_hotp,
                 CodeKind::Unreadable => EN.codes_unreadable,
                 _ => EN.codes_set_the_time_first,
             };

@@ -92,6 +92,16 @@ fn write_all(shell: &mut Shell, app: &mut Faraday, order: &[(&str, bool)]) {
     }
 }
 
+/// Step 3's card, once done, counts its vault in the singular.
+#[test]
+fn one_vault_is_counted_as_one_vault() {
+    let mut shell = Shell::new();
+    let mut app = to_make(&mut shell, Kind::Gpg);
+    let texts = app.drawn_texts();
+    assert!(texts.iter().any(|t| t == "1 vault"), "{texts:?}");
+    assert!(!texts.iter().any(|t| t == "1 vaults"), "{texts:?}");
+}
+
 #[test]
 fn every_make_starts_on_where_it_will_be_kept() {
     for kind in [Kind::Gpg, Kind::SecureBoot] {

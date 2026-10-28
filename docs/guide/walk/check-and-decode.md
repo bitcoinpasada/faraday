@@ -163,8 +163,8 @@ The two must match in every character.
 
 Press **Tools**, then any tile under **Calculators**. The calculator
 page, [Tools](../screens/calculators.md), has a button per calculator at the top, **Hashes**,
-**Encodings**, **Descriptor checksum**, **Convert key**, **Units** and
-**Miniscript**, then a mode row where the calculator has one, then the
+**Encodings**, **Descriptor checksum**, **Convert an xpub**, **Units** and
+**Miniscript compiler**, then a mode row where the calculator has one, then the
 field. What is typed goes into the field; **Clear** empties it, and
 <kbd>Escape</kbd> leaves the page and keeps nothing. None of them
 touches a key.
@@ -174,9 +174,9 @@ touches a key.
 | **Hashes** | **Text or hex**; the mode row reads it as **Read as: automatic**, **Text** or **Hex** | **Bytes**, then SHA-256, SHA-256d and HASH160; **Not hex** when Hex is chosen and it is not |
 | **Encodings** | **Base58, bech32 or hex**: an address, an xpub, any such string | **Encoding**, **Prefix**, **Version**, **Checksum** (**holds** or **does not hold**) and **Bytes**; **Not Base58, bech32, bech32m or hex** |
 | **Descriptor checksum** | **A descriptor**, with its checksum after `#` or without | **Checksum**; **Given**, the one typed, and whether it **holds**; **With it**, the descriptor with its checksum; **Wallet**: **one this device loads** or **not one this device loads**. **Not a descriptor** |
-| **Convert key** | **An xpub, ypub, zpub, tpub…** | the key in BIP-32's spelling and as **Legacy**, **Nested SegWit**, **Native SegWit** and **Taproot**; **Depth**, **Fingerprint** and **Child**. An extended private key is refused: **That is an extended private key: this tool takes public keys only** |
+| **Convert an xpub** | **An xpub, ypub, zpub, tpub…** | the key in BIP-32's spelling and as **Legacy**, **Nested SegWit**, **Native SegWit** and **Taproot**; **Depth**, **Fingerprint** and **Child**. An extended private key is refused: **That is an extended private key: this tool takes public keys only** |
 | **Units** | **An amount**, whole digits, in the unit the mode row chooses: **In sat**, **In BTC**, **In mBTC**, **In bits** | the amount in sat, BTC, mBTC and bits |
-| **Miniscript** | a policy (step 8) | its descriptor (step 8) |
+| **Miniscript compiler** | a policy (step 8) | its descriptor (step 8) |
 
 Try **Hashes** with `abc`, read as text: **Bytes** 3, and SHA-256
 `ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad`,
@@ -186,7 +186,7 @@ BTC**: 1.00000000 BTC, 1000.00000 mBTC, 1000000.00 bits.
 ## 8. The Miniscript compiler
 
 **Tools → Miniscript compiler** (**A policy compiled into a
-descriptor**) opens **Miniscript** ([the calculators](../screens/calculators.md#the-calculators)). The field takes a policy:
+descriptor**) opens **Miniscript compiler** ([the calculators](../screens/calculators.md#the-calculators)). The field takes a policy:
 **A policy, e.g. or(pk(9a6a2580),and(pk(…),older(1000)))**. The mode
 row chooses the script: wsh (SegWit) or tr (Taproot). A loaded key can
 be named by its fingerprint; with `3dca6805` and `5d388376` loaded,

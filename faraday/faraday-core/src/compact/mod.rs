@@ -1334,7 +1334,7 @@ impl Faraday {
     fn osk_field(&self) -> Option<String> {
         self.osk_auto().then(|| {
             format!(
-                "{:?} {:?} {:?} {} {:?} {:?} {:?}",
+                "{:?} {:?} {:?} {} {:?} {:?} {:?}", // not shown: a key compared
                 self.screen,
                 self.sheet,
                 self.vaults.focus,

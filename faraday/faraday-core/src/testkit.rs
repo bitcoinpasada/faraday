@@ -1147,7 +1147,7 @@ fn seeds_vault() -> Result<Vec<u8>, String> {
         &[main],
         &[0x5b; 32],
     )
-    .map_err(|e| e.reason())
+    .map_err(|e| format!("{e:?}"))
 }
 
 /// The test vault's passphrase, and the decoy passphrase that opens its
@@ -1221,7 +1221,7 @@ pub fn test_vault() -> Result<Vec<u8>, String> {
         &[main, decoy],
         &[0x7a; 32],
     )
-    .map_err(|e| e.reason())
+    .map_err(|e| format!("{e:?}"))
 }
 
 /// A text file of entries for a vault: a TOTP setup URI and an entry in

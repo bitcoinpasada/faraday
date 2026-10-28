@@ -142,8 +142,8 @@ The card reads **GPG key made**, in the ok tone, with:
 | **Show as QR**, PNG | the public key as a [QR code](../screens/qr-and-scan.md#a-qr-code), or as a picture in Files |
 | **In Vault 1** | the vault the key is in |
 
-A toast says the certificate was made and the revocation certificate
-is kept with the key. The public key, `example-signer-`
+A toast says the certificate waits for the stick and the revocation
+certificate is kept with the key. The public key, `example-signer-`
 and the fingerprint's last eight characters, `.asc`, waits in Files
 for the stick of the place marked **Public files here**. Press
 **Continue**.

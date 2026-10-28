@@ -519,3 +519,32 @@ impl Faraday {
         }
     }
 }
+
+/// What a flow put For the stick, said in a toast (`toast_out_waits` and
+/// its kin in the strings file, each its own sentence).
+impl Faraday {
+    /// A file a flow made and put For the stick: "{name} waits for the
+    /// stick".
+    pub(crate) fn toast_out(&mut self, name: &str) {
+        self.toast_waits(EN.toast_out_waits, &[name]);
+    }
+
+    /// Files a flow made and put For the stick, by how many: one by its
+    /// name ([`Self::toast_out`]), more as "3 files wait for the stick".
+    pub(crate) fn toast_out_files(&mut self, names: &[String]) {
+        match names {
+            [] => {}
+            [name] => self.toast_out(name),
+            more => self.toast_waits(EN.toast_out_files_wait, &[&more.len().to_string()]),
+        }
+    }
+
+    /// A toast `template` names the medium in: its `{}` are `what`, then
+    /// "for the stick" or "for the SD card".
+    pub(crate) fn toast_waits(&mut self, template: &str, what: &[&str]) {
+        let mut args = what.to_vec();
+        args.push(self.medium.for_the());
+        let text = fill(template, &args);
+        self.toast(&text);
+    }
+}

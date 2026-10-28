@@ -1884,7 +1884,7 @@ impl Faraday {
         // The result's Show as QR and PNG point at the key just made.
         self.flow_point_at_subject(i);
         if kind_ == Kind::Gpg {
-            self.toast_out(FEN.vaults_made_the_certificate);
+            self.toast_waits(FEN.vaults_made_the_certificate, &[]);
         }
         self.out.dirty = true;
     }

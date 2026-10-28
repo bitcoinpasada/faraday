@@ -90,6 +90,15 @@ fn release_keys() -> Vec<ReleaseKey<'static>> {
 /// What a release check found of an Inbox image (F134).
 pub type Checked = Result<Release, Refusal>;
 
+/// What a key, enrolment or signing the Secure Boot crate refused says.
+pub fn error_text(e: faraday_sb::Error) -> &'static str {
+    match e {
+        faraday_sb::Error::Key => EN.secureboot_error_key,
+        faraday_sb::Error::Image => EN.secureboot_error_image,
+        faraday_sb::Error::NotRelease => EN.secureboot_error_not_release,
+    }
+}
+
 /// What the signing page and the hold say of a refusal (F134).
 pub fn refusal_text(r: &Refusal) -> String {
     match r {
@@ -161,7 +170,7 @@ impl Faraday {
             .fresh(b"secure boot enrolment")
             .ok_or_else(|| EN.secureboot_no_randomness.to_string())?;
         let made = faraday_keys::secure_boot::create(&seed, &blind_seed, owner, policy, now)
-            .map_err(|e| e.reason().to_string())?;
+            .map_err(|e| error_text(e).to_string())?;
         Ok(Built {
             record: made.key,
             subject: made.owner.to_vec(),
@@ -200,9 +209,9 @@ impl Faraday {
                 for (name, bytes) in files {
                     self.put_outbox(&name, bytes);
                 }
-                self.toast_out(&fill(EN.secureboot_enrolment, &[&n.to_string()]));
+                self.toast_waits(EN.secureboot_enrolment, &[&n.to_string()]);
             }
-            Some(Err(e)) => self.toast(e.reason()),
+            Some(Err(e)) => self.toast(error_text(e)),
             None => {}
         }
     }
@@ -239,9 +248,9 @@ impl Faraday {
             Some(Ok(signed)) => {
                 self.put_outbox(&name, signed);
                 self.vaults.sb_reset();
-                self.toast_out(&fill(EN.secureboot_signed, &[&name.to_string()]));
+                self.toast_waits(EN.secureboot_signed, &[&name]);
             }
-            Some(Err(e)) => self.toast(e.reason()),
+            Some(Err(e)) => self.toast(error_text(e)),
             None => {}
         }
     }
@@ -268,7 +277,7 @@ impl Faraday {
             Ok(Check::Altered) => EN.secureboot_changed,
             Ok(Check::Unsigned) => EN.secureboot_not_signed,
             Ok(Check::Unreadable) => EN.secureboot_its_signature,
-            Err(e) => e.reason(),
+            Err(e) => error_text(e),
         };
         let line = format!("{}: {said}", item.name);
         self.toast(&line);

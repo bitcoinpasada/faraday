@@ -155,35 +155,35 @@ first bc1qfagqa83vrv9phj0886rlx6d68zzd7gejtr0ns8xxfeckve27397q6vq47w Mainnet
 rebuilt true
 == sparrow/bsms/multisig-10.bsms
 kind Text
-refused Not a wallet: BSMS: Policy(Derivation)
+refused Not a wallet: BSMS: derivation must be /** or /<0;1>/*
 rebuilt false
 == sparrow/bsms/multisig-11.bsms
 kind Text
-refused Not a wallet: BSMS: Policy(Derivation)
+refused Not a wallet: BSMS: derivation must be /** or /<0;1>/*
 rebuilt false
 == sparrow/bsms/multisig-12.bsms
 kind Text
-refused Not a wallet: BSMS: Policy(Derivation)
+refused Not a wallet: BSMS: derivation must be /** or /<0;1>/*
 rebuilt false
 == sparrow/bsms/multisig-13.bsms
 kind Text
-refused Not a wallet: BSMS: Policy(Derivation)
+refused Not a wallet: BSMS: derivation must be /** or /<0;1>/*
 rebuilt false
 == sparrow/bsms/multisig-14.bsms
 kind Text
-refused Not a wallet: BSMS: Lines
+refused Not a wallet: BSMS: the record does not have the lines it needs
 rebuilt false
 == sparrow/bsms/multisig-15.bsms
 kind Text
-refused Not a wallet: BSMS: FirstAddress
+refused Not a wallet: BSMS: this is not the wallet's first address
 rebuilt false
 == sparrow/bsms/multisig-16.bsms
 kind Text
-refused Not a wallet: BSMS: Paths
+refused Not a wallet: BSMS: the derivation paths are not /0/*,/1/*
 rebuilt false
 == sparrow/bsms/multisig-17.bsms
 kind Text
-refused Not a wallet: BSMS: Address
+refused Not a wallet: BSMS: the fourth line is not an address
 rebuilt false
 == sparrow/bsms/multisig-2.bsms
 kind Wallet
@@ -202,7 +202,7 @@ first bc1qrgc6p3kylfztu06ysl752gwwuekhvtfh9vr7zg43jvu60mutamcsv948ej Mainnet
 rebuilt true
 == sparrow/bsms/multisig-5.bsms
 kind Text
-refused Not a wallet: BSMS: Paths
+refused Not a wallet: BSMS: the derivation paths are not /0/*,/1/*
 rebuilt false
 == sparrow/bsms/multisig-6.bsms
 kind Wallet
@@ -211,15 +211,15 @@ first bc1qrgc6p3kylfztu06ysl752gwwuekhvtfh9vr7zg43jvu60mutamcsv948ej Mainnet
 rebuilt true
 == sparrow/bsms/multisig-7.bsms
 kind Text
-refused Not a wallet: BSMS: Lines
+refused Not a wallet: BSMS: the record does not have the lines it needs
 rebuilt false
 == sparrow/bsms/multisig-8.bsms
 kind Text
-refused Not a wallet: BSMS: Policy(Derivation)
+refused Not a wallet: BSMS: derivation must be /** or /<0;1>/*
 rebuilt false
 == sparrow/bsms/multisig-9.bsms
 kind Text
-refused Not a wallet: BSMS: Policy(Derivation)
+refused Not a wallet: BSMS: derivation must be /** or /<0;1>/*
 rebuilt false
 == sparrow/caravan-multisig-export-1.json
 kind Wallet
@@ -248,7 +248,7 @@ config name CC-2-of-4
 rebuilt true
 == sparrow/cc-multisig-export-missingkey.txt
 kind Share
-refused Not a wallet: Placeholder
+refused Not a wallet: key placeholders are not @0, @1, … in order
 rebuilt false
 == sparrow/cc-multisig-export-multideriv.txt
 kind Wallet
@@ -258,7 +258,7 @@ config name el-CC-3-of-3-sb-2
 rebuilt true
 == sparrow/cc-multisig-export-nopolicy.txt
 kind Text
-refused Not a wallet: Placeholder
+refused Not a wallet: key placeholders are not @0, @1, … in order
 rebuilt false
 == sparrow/cc-multisig-keystore-1.json
 kind Key

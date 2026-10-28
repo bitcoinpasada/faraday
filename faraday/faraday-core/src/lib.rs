@@ -1401,8 +1401,8 @@ impl Faraday {
     /// slow-frame line: `Backup` or `Backup / Qr` (a small string).
     pub fn screen_name(&self) -> String {
         match self.sheet {
-            Some(sheet) => format!("{:?} / {:?}", self.screen, sheet),
-            None => format!("{:?}", self.screen),
+            Some(sheet) => format!("{:?} / {:?}", self.screen, sheet), // not shown: a log line
+            None => format!("{:?}", self.screen),                      // not shown: a log line
         }
     }
 
@@ -2105,13 +2105,6 @@ impl Faraday {
             outbox: pack(&self.outbox),
             kept,
         });
-    }
-
-    /// A file, or files, a flow made and put For the stick: "{what}
-    /// waits for the stick".
-    fn toast_out(&mut self, what: &str) {
-        let text = fill(EN.toast_out_waits, &[what, self.medium.for_the()]);
-        self.toast(&text);
     }
 
     fn toast(&mut self, text: &str) {
@@ -3914,11 +3907,7 @@ impl Faraday {
             self.put_outbox(&name, bytes);
         }
         self.backup_sent(wallet, &names);
-        match names.len() {
-            0 => {}
-            1 => self.toast_out(&names[0]),
-            k => self.toast_out(&fill(EN.public_out_files, &[&k.to_string()])),
-        }
+        self.toast_out_files(&names);
     }
 
     /// Removes from For the stick what [`Faraday::public_out`] makes for

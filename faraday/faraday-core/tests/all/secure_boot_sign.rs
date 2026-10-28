@@ -240,3 +240,26 @@ fn a_file_that_is_not_an_efi_image_signs_nothing() {
 fn the_test_kits_boot_program_is_the_fixtures() {
     assert_eq!(testkit::test_efi(), fixture("BOOTX64.EFI"));
 }
+
+#[test]
+fn the_signed_boot_program_is_said_to_wait_for_the_stick() {
+    let mut app = with_keys(&release());
+    pick_and_hold(&mut app).expect("the signed boot program in the Outbox");
+    assert_eq!(
+        app.toast_text(),
+        Some(format!("{BOOT}, signed, waits for the stick").as_str())
+    );
+}
+
+#[test]
+fn the_enrolment_files_are_counted_in_a_sentence() {
+    let mut app = with_keys(&release());
+    app.outbox.clear();
+    app.press(Action::Vault(V::SbEnrol));
+    let n = app.outbox.len();
+    assert!(n > 1, "{:?}", app.toast_text());
+    assert_eq!(
+        app.toast_text(),
+        Some(format!("{n} enrolment files wait for the stick").as_str())
+    );
+}

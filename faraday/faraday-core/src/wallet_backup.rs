@@ -2416,11 +2416,7 @@ impl Faraday {
             self.put_outbox(&name, bytes);
         }
         self.backup_sent(w, &names);
-        match names.len() {
-            0 => {}
-            1 => self.toast_out(&names[0]),
-            k => self.toast_out(&fill(EN.backup_files_make_files, &[&k.to_string()])),
-        }
+        self.toast_out_files(&names);
     }
 
     /// Files of wallet `wallet` just put in the Outbox, for the summary

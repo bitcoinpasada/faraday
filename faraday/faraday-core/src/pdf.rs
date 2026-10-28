@@ -344,7 +344,7 @@ pub fn sheet(c: &Compute, text: &str) -> Result<Vec<u8>, String> {
         Some("blank") => blank_sheet(c, &f),
         Some("share") => Ok(share_sheet(c, &f)),
         Some("envelopes") => Ok(envelopes_sheet(c, &f)),
-        other => Err(fill(EN.pdf_a_sheet_of_kind, &[&format!("{other:?}")])),
+        other => Err(fill(EN.pdf_a_sheet_of_kind, &[other.unwrap_or_default()])),
     }
 }
 
@@ -665,5 +665,5 @@ fn probe_matrix(c: &Compute, words: usize) -> Result<QrMatrix, String> {
     let m =
         faraday_keys::words::from_entropy(faraday_bip::bip39::Language::English, &entropy[..len])
             .map_err(|e| e.to_string())?;
-    faraday_codec::seedqr::encode_seedqr(c, &m).map_err(|e| format!("{e:?}"))
+    faraday_codec::seedqr::encode_seedqr(c, &m).map_err(|e| e.to_string())
 }

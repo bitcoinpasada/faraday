@@ -1615,7 +1615,7 @@ pub struct MessageCheck {
     pub signed: faraday_psbt::message::SignedText,
     /// The signature verifies against the address, and in which format;
     /// or why not.
-    pub verdict: Result<faraday_psbt::message::Format, String>,
+    pub verdict: Result<faraday_psbt::message::Format, faraday_psbt::message::Error>,
     /// The loaded wallet the address belongs to, with its chain and index.
     pub wallet: Option<(usize, bool, u32)>,
 }
@@ -1668,7 +1668,7 @@ impl Session {
         self.keys
             .sign_message(c, place, &path, script, message, format)
             .ok_or(EN.wallet_the_wallet_s_key)?
-            .map_err(|e| format!("{e:?}"))
+            .map_err(|e| crate::state::message_error_text(e).to_string())
     }
 
     /// Costs an address derivation (through `find_address`). Checks a
@@ -1683,8 +1683,7 @@ impl Session {
             .require_network(self.network().into())
             .ok()?;
         let verdict = faraday_psbt::message::verify(&address, &signed.message, &signed.signature)
-            .map(|c| c.format)
-            .map_err(|e| format!("{e:?}"));
+            .map(|c| c.format);
         let wallet = self.wallets.iter().enumerate().find_map(|(i, w)| {
             w.policy
                 .find_address(c, self.network(), &address, 100)

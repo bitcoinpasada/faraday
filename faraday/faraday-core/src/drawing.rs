@@ -543,12 +543,16 @@ impl Faraday {
         let Some(c) = self.canvas.as_ref() else {
             return Vec::new();
         };
-        let mut past: Vec<String> = c.cut().iter().map(|s| format!("text {s:?}")).collect();
+        let mut past: Vec<String> = c
+            .cut()
+            .iter()
+            .map(|s| format!("text {s:?}")) // not shown: a test line
+            .collect();
         past.extend(
             self.pointer
                 .cut()
                 .iter()
-                .map(|(r, a)| format!("{a:?} {:?}", (r.x, r.right()))),
+                .map(|(r, a)| format!("{a:?} {:?}", (r.x, r.right()))), // not shown: a test line
         );
         past
     }

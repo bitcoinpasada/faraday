@@ -228,7 +228,7 @@ pub fn read_wallet(c: &Compute, text: &str) -> Result<WalletPolicy, Refusal> {
     if faraday_bip::bsms::looks_like_record(text) && !faraday_bip::bsms::is_signer_record(text) {
         return faraday_bip::bsms::DescriptorRecord::parse(c, text)
             .map(|r| r.policy)
-            .map_err(|e| Refusal::NotAWallet(fill(EN.wallet_bsms, &[&format!("{e:?}")])));
+            .map_err(|e| Refusal::NotAWallet(fill(EN.wallet_bsms, &[&e.to_string()])));
     }
     if faraday_bip::multisig_config::looks_like_config(text) {
         // A key whose SLIP-132 version names another script than the
@@ -238,7 +238,7 @@ pub fn read_wallet(c: &Compute, text: &str) -> Result<WalletPolicy, Refusal> {
                 Some(m) if e == faraday_bip::policy::Error::Key => {
                     Refusal::NotAWallet(mismatch_text(&m))
                 }
-                _ => Refusal::NotAWallet(format!("{e:?}")),
+                _ => Refusal::NotAWallet(e.to_string()),
             }
         });
     }

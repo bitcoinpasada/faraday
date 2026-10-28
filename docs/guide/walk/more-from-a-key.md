@@ -301,8 +301,8 @@ chosen and its typing card open
    parts or more**.
 
 The key loads with its own fingerprint: `3dca6805` for parts made from
-it. In Practice, **Load samples** offers "Seed XOR, 2 parts", and the
-**Demo only** card's sample puts a part in as if typed. SLIP-39 shares
+it. In Practice, **Load samples** offers "Seed XOR, 2 parts", and
+Faraday Demo's strip's **Use a sample** puts a part in as if typed. SLIP-39 shares
 come back the same way, from **Restore from SLIP-39**; codex32 strings
 are [codex32 shares](codex32.md).
 

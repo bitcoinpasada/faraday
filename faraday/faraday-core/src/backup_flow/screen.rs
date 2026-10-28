@@ -152,10 +152,10 @@ fn card(app: &View, f: &BackupFlow, s: Step) -> flow::Card {
                 &[&bound.to_string(), &m.to_string()],
             )
         }
-        Step::Vaults if f.step > Step::Vaults => fill(
-            FEN.backup_flow_vaults_n,
-            &[&f.plan.used_vaults().len().to_string()],
-        ),
+        Step::Vaults if f.step > Step::Vaults => match f.plan.used_vaults().len() {
+            1 => FEN.backup_flow_vaults_one.to_string(),
+            n => fill(FEN.backup_flow_vaults_n, &[&n.to_string()]),
+        },
         Step::Vaults => {
             let open_n = f
                 .plan

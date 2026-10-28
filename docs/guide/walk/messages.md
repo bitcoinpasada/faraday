@@ -147,7 +147,7 @@ none, the tile reads **Copy a signed message in first**.
 
 | Row | What it is |
 |---|---|
-| the verdict | "The signature is valid (BIP-322)", in the ok tone; or "The signature does not verify:" and why, in red |
+| the verdict | "The signature is valid (BIP-322)", in the ok tone; or why it does not ("The signature does not verify for this address and this message"), in red |
 | **File** | the file's name |
 | **Address** | the address it was signed for |
 | **Wallet** | the loaded wallet whose address it is, with its chain and number: "New wallet 1 · receive 0/0"; or **Not an address of a loaded wallet** |

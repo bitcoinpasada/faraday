@@ -22,6 +22,18 @@ fn hex(b: &[u8]) -> String {
 
 const GUIDE: &str = EN.tools_calculators_each;
 
+/// What Encodings calls an encoding.
+fn encoding_name(e: faraday_codec::encodings::Encoding) -> &'static str {
+    use faraday_codec::encodings::Encoding as E;
+    match e {
+        E::Base58Check => EN.tools_encoding_base58check,
+        E::Base58 => EN.tools_encoding_base58,
+        E::Bech32 => EN.tools_encoding_bech32,
+        E::Bech32m => EN.tools_encoding_bech32m,
+        E::Hex => EN.tools_encoding_hex,
+    }
+}
+
 pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     if app.tools.state().is_none() {
         return;
@@ -57,7 +69,7 @@ fn header(app: &View, ui: &mut Ui, x: f32, width: f32) -> f32 {
     let Some(t) = app.tools.state() else {
         return 0.0;
     };
-    let back = app.named_back((EN.tools_wallets, Action::Nav(t.back)));
+    let back = app.named_back((app.back_link_name(t.back), Action::Nav(t.back)));
     let y = crate::screens::bar_head(ui, Some(back), EN.tools_tools);
     y + guide_text_learn(app, ui, x, y, width, GUIDE, crate::learn::Topic::Tools)
 }
@@ -172,7 +184,7 @@ fn body(app: &View, ui: &mut Ui, x: f32, mut y: f32, width: f32) -> f32 {
         }
         Reading::Encodings(r) => match r {
             Some(r) => {
-                rows.push((EN.tools_encoding.into(), format!("{:?}", r.encoding)));
+                rows.push((EN.tools_encoding.into(), encoding_name(r.encoding).into()));
                 if let Some(h) = &r.hrp {
                     rows.push((EN.tools_prefix.into(), h.clone()));
                 }

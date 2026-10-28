@@ -113,35 +113,6 @@ pub enum Error {
     OtherFile,
 }
 
-impl Error {
-    /// The reason in a few words, for the screen.
-    pub fn reason(self) -> alloc::string::String {
-        use alloc::string::ToString;
-        match self {
-            Error::Magic => "Not a Faraday vault".to_string(),
-            Error::Version => "A vault version this build does not read".to_string(),
-            Error::SlotSize => "A slot size this build does not read".to_string(),
-            Error::Length => "The file is cut short or has bytes added".to_string(),
-            Error::Cost => "Its unlock cost is outside what Faraday reads".to_string(),
-            Error::Memory(mib) => {
-                alloc::format!("Needs {mib} MiB, which this computer cannot spare")
-            }
-            Error::Passphrase => "That passphrase opens nothing in this vault".to_string(),
-            Error::TwoSlots => {
-                "Two slots opened under one passphrase; the file is not sound".to_string()
-            }
-            Error::Contents(f) => alloc::format!(
-                "The slot opened but its contents are faulty: {}",
-                f.reason()
-            ),
-            Error::Full => "The contents do not fit in this vault's slot size".to_string(),
-            Error::Passphrases => "One to four passphrases, none of them empty".to_string(),
-            Error::SamePassphrase => "Two passphrases are the same. Each must differ".to_string(),
-            Error::OtherFile => "That slot was opened from another file".to_string(),
-        }
-    }
-}
-
 /// What a vault's header states. None of it is secret.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Header {

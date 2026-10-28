@@ -6,7 +6,7 @@ use faraday_bip::slip132::{KeyReading, key_facts};
 use faraday_codec::encodings::read_input;
 use faraday_core::tools::Tool;
 use faraday_core::{Action, Faraday, Screen, testkit};
-use faraday_shell_api::{App, Event, Key};
+use faraday_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware};
 
 fn tool(app: &mut Faraday, t: Tool) {
     let i = Tool::ALL.iter().position(|x| *x == t).unwrap();
@@ -56,4 +56,64 @@ fn the_units_field_takes_digits_only() {
     tool(&mut app, Tool::Units);
     typed(&mut app, "12a3");
     assert_eq!(testkit::tools(&app).unwrap().typed, "123");
+}
+
+/// The app on a 1280 × 800 window.
+fn wide() -> Faraday {
+    let mut app = testkit::started();
+    app.event(Event::Display(DisplayInfo {
+        width: 1280,
+        height: 800,
+        dpi: 160,
+        inset_bottom: 0,
+        inset_top: 0,
+        buttons: 0,
+        camera_fixed: false,
+        secure: SecureHardware::None,
+        boot: BootState::Unknown,
+        memory_mib: None,
+    }));
+    app
+}
+
+/// Whether the drawn page shows `label` with `value` right after it.
+fn row(app: &mut Faraday, label: &str, value: &str) -> bool {
+    app.drawn_texts()
+        .windows(2)
+        .any(|w| w[0] == label && w[1] == value)
+}
+
+#[test]
+fn encodings_names_the_encoding() {
+    let mut app = wide();
+    app.press(Action::Tools);
+    tool(&mut app, Tool::Encodings);
+    // BIP-173's P2WPKH example.
+    typed(&mut app, "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4");
+    assert!(
+        row(&mut app, "Encoding", "bech32"),
+        "{:?}",
+        app.drawn_texts()
+    );
+}
+
+/// The top app bar's way back names the page it returns to: Tools for a
+/// calculator opened from Tools.
+#[test]
+fn a_calculator_opened_from_tools_names_tools_as_its_way_back() {
+    let mut app = wide();
+    app.press(Action::Nav(Screen::Catalog));
+    app.press(Action::Tools);
+    assert_eq!(app.screen, Screen::Tools);
+    // The bar's texts, beside the rail: the page's name and, under it,
+    // where its way back goes.
+    let bar: Vec<String> = app
+        .drawn_text_boxes()
+        .into_iter()
+        .filter(|(_, (x, y, _, h))| *x > 240 && y + h <= 64)
+        .map(|(t, _)| t)
+        .collect();
+    assert_eq!(bar.iter().filter(|t| *t == "Tools").count(), 2, "{bar:?}");
+    assert!(!bar.iter().any(|t| t == "Wallets"), "{bar:?}");
+    assert!(app.back_link() == Some(Action::Nav(Screen::Catalog)));
 }

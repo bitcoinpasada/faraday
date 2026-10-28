@@ -12,7 +12,6 @@
 //!
 //! Every field's bytes are wiped when the record is dropped.
 
-use alloc::string::String;
 use alloc::vec::Vec;
 
 use faraday_bip::bip39::Mnemonic;
@@ -203,32 +202,6 @@ pub enum Fault {
         /// transaction's SHA-256.
         of: [u8; 4],
     },
-}
-
-impl Fault {
-    /// The fault in a few words.
-    pub fn reason(self) -> String {
-        use alloc::format;
-        match self {
-            Fault::Format => "a slot format this build does not read".into(),
-            Fault::UnknownType(t) => format!("record type {t} is unknown to this build"),
-            Fault::Truncated => "a record runs past the slot".into(),
-            Fault::Trailing => "bytes after the last record".into(),
-            Fault::UnknownField(t, f) => format!("field {f} is not part of record type {t}"),
-            Fault::Missing(t, f) => format!("record type {t} lacks field {f}"),
-            Fault::Repeated(t, f) => format!("field {f} of record type {t} appears twice"),
-            Fault::Value(t, f) => format!("field {f} of record type {t} has a bad value"),
-            Fault::TwoLabels => "two slot labels".into(),
-            Fault::Duplicate { kind: ty, of } => {
-                let of = u32::from_be_bytes(of);
-                if ty == kind::PASSPHRASE {
-                    format!("two passphrase records for key {of:08x}")
-                } else {
-                    format!("two signed amounts records for transaction {of:08x}…")
-                }
-            }
-        }
-    }
 }
 
 /// The one-per-slot rules across records: at most one slot label, one

@@ -3473,8 +3473,10 @@ strings! {
     /// Text in `sticks_changed`.
     sticks_changed_keys: "keys",
     // ----- toast_out (faraday-core/src/lib.rs) -----
-    /// Text in `toast_out`. `{}`: `what`, `self.medium.for_the()`.
+    /// Text in `toast_out`: one file. `{}`: its name, `self.medium.for_the()`.
     toast_out_waits: "{} waits {}",
+    /// Text in `toast_out_files`: more than one file. `{}`: how many, `self.medium.for_the()`.
+    toast_out_files_wait: "{} files wait {}",
     // ----- pull_what (faraday-core/src/lib.rs) -----
     /// Text in `pull_what`.
     pull_what_load_wallet: "load the wallet",
@@ -3607,17 +3609,12 @@ strings! {
     /// Text in `public_pictures`.
     public_pictures_public: "Public: spends nothing",
     // ----- public_out (faraday-core/src/lib.rs) -----
-    /// Toast in `public_out`. `{}`: `k`.
-    public_out_files: "{} files",
     /// Toast in `public_made` and a vault's save: the split sheets,
     /// rebuilt as Restore rebuilds them, give other addresses than the
     /// wallet's; none is written.
     backup_sheets_rebuild_another: "These split sheets rebuild another wallet: none written",
     /// Toast in `public_made`: the same for the multisig config.
     backup_config_rebuilds_another: "This multisig config rebuilds another wallet: not written",
-    // ----- backup_files_make (faraday-core/src/lib.rs) -----
-    /// Toast in `backup_files_make`. `{}`: `k`.
-    backup_files_make_files: "{} files",
     // ----- public_made (faraday-core/src/lib.rs) -----
     /// Toast in `public_made`. `{}`: `e`.
     public_made_no_pdf: "No PDF: {}",
@@ -4445,6 +4442,18 @@ strings! {
     nonce_check_not_checked: "Not checked · {}",
     /// Text in `nonce_check`. `{}`: `mode`.
     nonce_check_valid_nonce: "Valid · nonce recomputed, {}",
+    /// How the nonce was recomputed, in `nonce_check_valid_nonce`: RFC 6979 ground to a low R.
+    nonce_mode_low_r: "low R",
+    /// The same: RFC 6979's first nonce.
+    nonce_mode_first: "first",
+    /// The same: BIP-340 with zero auxiliary randomness.
+    nonce_mode_bip340: "BIP-340",
+    /// Why a signature was not checked, in `nonce_check_not_checked`: the input has no previous output.
+    nonce_unchecked_no_prevout: "no previous output",
+    /// The same: a script Faraday does not take apart.
+    nonce_unchecked_script: "unsupported script",
+    /// The same: the script names no key.
+    nonce_unchecked_no_key: "the script names no key",
     /// Text in `nonce_check`.
     nonce_check_wrong_nonce: "Valid · not the nonce this key makes: do not broadcast",
     /// Text in `nonce_check`.
@@ -5337,7 +5346,14 @@ strings! {
     /// Text in `check_screen`. `{}`: `if *f == faraday_psbt::message::Format::B…`.
     check_signature_valid: "The signature is valid ({})",
     /// Error in `check_screen`. `{}`: `e`.
-    check_the_signature: "The signature does not verify: {}",
+    /// Check a message's verdict, or Sign a message's error: the signature does not hold.
+    message_error_invalid: "The signature does not verify for this address and this message",
+    /// The same: not base64, or not a signature of its format.
+    message_error_malformed: "The signature is not base64 or not a signature of its format",
+    /// The same: a script address (multisig, P2WSH) or a future witness version.
+    message_error_unsupported_address: "Messages for this kind of address are not signed or checked here",
+    /// The same: the format cannot express this address form.
+    message_error_unsupported_format: "This format cannot sign for this kind of address",
     /// Text in `check_screen`.
     check_file: "File",
     /// Text in `check_screen`.
@@ -6596,15 +6612,23 @@ strings! {
     secrets_saved_to_vault: "{} is in {}",
     /// Text in `secret_unprotected`. `{}`: `name`, `self.medium.for_the()`.
     secrets_waits_unprotected: "{} waits {}, unprotected",
+    /// Text in `vault_stick_save_write`: more than one file, one of them a seed. `{}`: how many, `self.medium.for_the()`.
+    secrets_wait_unprotected: "{} files wait {}, unprotected",
     // ----- secureboot (faraday-core/src/secure_boot/mod.rs) -----
     /// Toast in `sb_make`.
     secureboot_no_randomness: "No randomness from the system yet. Try again",
     /// Toast in `sb_enrol`.
     secureboot_this_computer: "This computer's clock is not known",
-    /// Toast in `sb_enrol`. `{}`: `n`.
-    secureboot_enrolment: "{} enrolment files",
-    /// Toast in `sb_sign`. `{}`: `name`.
-    secureboot_signed: "{}, signed,",
+    /// A Secure Boot key could not be made, read or used.
+    secureboot_error_key: "The key could not be made or read",
+    /// A file to sign or check is not a PE image.
+    secureboot_error_image: "Not an EFI image this build reads",
+    /// A file to sign is not the boot program a release's sums list.
+    secureboot_error_not_release: "Not the boot program the release's sums list",
+    /// Toast in `sb_enrol`. `{}`: `n`, `self.medium.for_the()`.
+    secureboot_enrolment: "{} enrolment files wait {}",
+    /// Toast in `sb_sign`. `{}`: `name`, `self.medium.for_the()`.
+    secureboot_signed: "{}, signed, waits {}",
     /// Text in `sb_check`.
     secureboot_signed_by_vault: "Signed by this vault's db key",
     /// Text in `sb_check`.
@@ -6968,8 +6992,6 @@ strings! {
     // ----- tools (faraday-core/src/tools/screen.rs) -----
     /// Text in `GUIDE`.
     tools_calculators_each: "Calculators: each takes what you type, works one thing out and keeps nothing. None of them touches a key; an extended private key is refused.",
-    /// Line in `header`.
-    tools_wallets: "Wallets",
     /// Title in `header`.
     tools_tools: "Tools",
     /// Text in `body`.
@@ -6996,6 +7018,16 @@ strings! {
     tools_clear: "Clear",
     /// Text in `body`.
     tools_encoding: "Encoding",
+    /// Encodings' Encoding value: Base58 with its check.
+    tools_encoding_base58check: "Base58Check",
+    /// Encodings' Encoding value: Base58 with nothing appended.
+    tools_encoding_base58: "Base58",
+    /// Encodings' Encoding value: BIP-173.
+    tools_encoding_bech32: "bech32",
+    /// Encodings' Encoding value: BIP-350.
+    tools_encoding_bech32m: "bech32m",
+    /// Encodings' Encoding value: hex digits.
+    tools_encoding_hex: "Hex",
     /// Text in `body`.
     tools_prefix: "Prefix",
     /// Text in `body`.
@@ -7466,6 +7498,8 @@ strings! {
     vault_not_loaded_at_unlock_inline: "not loaded at unlock",
     /// Text in `item_heading`.
     vault_totp: "TOTP",
+    /// The badge on a counter-based code in Codes.
+    codes_hotp: "HOTP",
     /// Text in `item_heading`. `{}`: `t.chars().count()`.
     vault_note_characters: "Note · {} characters",
     /// Text in `item_heading`.
@@ -7943,8 +7977,57 @@ strings! {
     vaults_email: "Email",
     /// Text in `vault_form`.
     vaults_owner_name: "Owner name",
-    /// Toast in `vault_form_save`.
-    vaults_made_the_certificate: "Made · the certificate. The revocation certificate is kept with the key",
+    // ----- A vault refused (faraday-core/src/vault/errors.rs) -----
+    /// Under Unlock: the file is not a vault.
+    vault_error_magic: "Not a Faraday vault",
+    /// Under Unlock: a newer vault format.
+    vault_error_version: "A vault version this build does not read",
+    /// Under Unlock: a slot size the format does not list.
+    vault_error_slot_size: "A slot size this build does not read",
+    /// Under Unlock: the file's length is wrong.
+    vault_error_length: "The file is cut short or has bytes added",
+    /// Under Unlock: the stated unlock cost is out of bounds.
+    vault_error_cost: "Its unlock cost is outside what Faraday reads",
+    /// Under Unlock and Create: the memory could not be had. `{}`: the MiB it needs.
+    vault_error_memory: "Needs {} MiB, which this computer cannot spare",
+    /// Under Unlock: no slot opens.
+    vault_error_passphrase: "That passphrase opens nothing in this vault",
+    /// Under Unlock: two slots opened.
+    vault_error_two_slots: "Two slots opened under one passphrase; the file is not sound",
+    /// Under Unlock. `{}`: one of the `vault_fault_*` lines.
+    vault_error_contents: "The slot opened but its contents are faulty: {}",
+    /// Saving: the contents are too big for the slot.
+    vault_error_full: "The contents do not fit in this vault's slot size",
+    /// Create: the passphrases given.
+    vault_error_passphrases: "One to four passphrases, none of them empty",
+    /// Create: two passphrases alike.
+    vault_error_same_passphrase: "Two passphrases are the same. Each must differ",
+    /// Saving into another file than the slot was opened from.
+    vault_error_other_file: "That slot was opened from another file",
+    /// What is faulty in a slot's contents.
+    vault_fault_format: "a slot format this build does not read",
+    /// What is faulty. `{}`: the record type.
+    vault_fault_unknown_type: "record type {} is unknown to this build",
+    /// What is faulty.
+    vault_fault_truncated: "a record runs past the slot",
+    /// What is faulty.
+    vault_fault_trailing: "bytes after the last record",
+    /// What is faulty. `{}`: the field, the record type.
+    vault_fault_unknown_field: "field {} is not part of record type {}",
+    /// What is faulty. `{}`: the record type, the field.
+    vault_fault_missing: "record type {} lacks field {}",
+    /// What is faulty. `{}`: the field, the record type.
+    vault_fault_repeated: "field {} of record type {} appears twice",
+    /// What is faulty. `{}`: the field, the record type.
+    vault_fault_value: "field {} of record type {} has a bad value",
+    /// What is faulty.
+    vault_fault_two_labels: "two slot labels",
+    /// What is faulty. `{}`: the key's fingerprint.
+    vault_fault_two_passphrases: "two passphrase records for key {}",
+    /// What is faulty. `{}`: the start of the transaction's SHA-256.
+    vault_fault_two_amounts: "two signed amounts records for transaction {}…",
+    /// Toast in `vault_form_save`. `{}`: `self.medium.for_the()`.
+    vaults_made_the_certificate: "The certificate waits {}. The revocation certificate is kept with the key",
     /// Text in `vault_form_save`.
     vaults_note_empty: "The note is empty",
     /// Text in `vault_form_save`.
@@ -8812,6 +8895,8 @@ strings! {
     backup_flow_written_count: "{} of {} written",
     /// Summary of a done step 3: how many vaults.
     backup_flow_vaults_n: "{} vaults",
+    /// Summary of a done step 3: one vault.
+    backup_flow_vaults_one: "1 vault",
     /// A vault of the plan, new: its name first.
     backup_flow_vault_new: "{} · new",
     /// A vault of the plan that exists already: its name first.
@@ -9251,11 +9336,11 @@ strings! {
     /// Row: the descriptor checksum.
     tools_descriptor_checksum: "Descriptor checksum",
     /// Row: xpub to SLIP-132 and back.
-    tools_convert_key: "Convert key",
+    tools_convert_key: "Convert an xpub",
     /// Row: the unit converter.
     tools_units: "Units",
     /// Tools row: the miniscript policy compiler.
-    tools_miniscript: "Miniscript",
+    tools_miniscript: "Miniscript compiler",
     /// Title of the Choice that picks the list.
     dice_list_title: "Which list?",
     /// Row: the 7776-word list.

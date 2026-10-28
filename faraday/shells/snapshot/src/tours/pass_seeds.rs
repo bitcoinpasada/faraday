@@ -67,7 +67,7 @@ pub(crate) fn pass_seeds_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
         &[Contents { records }],
         &[0x5e; 32],
     )
-    .map_err(|e| e.reason())?;
+    .map_err(|e| format!("{e:?}"))?;
     t.app.storage(StorageEvent::Restored {
         inbox: vec![("trio.ofv".into(), file)],
         outbox: Vec::new(),

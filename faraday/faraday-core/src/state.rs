@@ -542,7 +542,7 @@ pub(crate) fn ascii_refused() -> String {
 /// One SLIP-39 share more, refused when it is not one or is a repeat.
 fn add_slip39(parts: &mut forms::Parts, text: &str) -> Result<(), String> {
     let s = slip39::Share::parse(text)
-        .map_err(|e| fill(EN.forms_not_slip39_share, &[&format!("{e:?}")]))?;
+        .map_err(|e| fill(EN.forms_not_slip39_share, &[&e.to_string()]))?;
     if parts.slip39.iter().any(|t| t.indices() == s.indices()) {
         return Err(EN.forms_share_duplicate.to_string());
     }
@@ -788,6 +788,18 @@ impl VisitState {
     }
 }
 
+/// Why a message cannot be signed or its signature does not verify, as
+/// the screen says it.
+pub fn message_error_text(e: faraday_psbt::message::Error) -> &'static str {
+    use faraday_psbt::message::Error as E;
+    match e {
+        E::Invalid => EN.message_error_invalid,
+        E::Malformed => EN.message_error_malformed,
+        E::UnsupportedAddress => EN.message_error_unsupported_address,
+        E::UnsupportedFormat => EN.message_error_unsupported_format,
+    }
+}
+
 impl Faraday {
     /// Costs what the actions below cost, the keys' and wallets' work among
     /// it: handles the message-signing flow's actions (`SignMessage`, `M*`, `CheckMessage`).
@@ -863,6 +875,7 @@ impl Faraday {
             _ => unreachable!(),
         }
     }
+
 }
 
 impl Faraday {
@@ -1096,7 +1109,7 @@ impl Faraday {
                 &self.entry.state().parts.slip39,
                 self.entry.state().passphrase.as_bytes(),
             )
-            .map_err(|e| fill(EN.forms_the_shares_do, &[&format!("{e:?}")]))
+            .map_err(|e| fill(EN.forms_the_shares_do, &[&e.to_string()]))
             .and_then(|seed| {
                 self.session
                     .keys

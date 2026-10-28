@@ -519,7 +519,7 @@ impl Faraday {
                         let kind = PICTURE_KINDS
                             .iter()
                             .copied()
-                            .find(|c| format!("{c:?}") == k)
+                            .find(|c| format!("{c:?}") == k) // not shown: a key read back
                             .unwrap_or(FileKind::Other);
                         for i in self.inbox.iter_mut().filter(|i| i.name == name) {
                             i.picture = Some(kind);

@@ -13,6 +13,7 @@
 mod area;
 pub(crate) mod dice;
 mod dice_screen;
+pub(crate) mod errors;
 pub mod load;
 pub(crate) mod load_screen;
 pub mod out;
@@ -1328,7 +1329,7 @@ impl Faraday {
             }
             Err(e) => {
                 self.vaults.state.passphrase.clear();
-                self.vaults.state.unlock_error = Some(e.reason());
+                self.vaults.state.unlock_error = Some(errors::error_text(e));
             }
         }
     }
@@ -2183,7 +2184,7 @@ impl Faraday {
             }
             Err(e) => {
                 if let Some(c) = self.vaults.state.create.as_mut() {
-                    c.error = Some(e.reason());
+                    c.error = Some(errors::error_text(e));
                 }
             }
         }
@@ -3798,18 +3799,13 @@ impl Faraday {
             }
         }
         self.save_boxes();
-        let what = match out.len() {
-            0 => return,
-            1 => out[0].clone(),
-            k => fill(EN.public_out_files, &[&k.to_string()]),
-        };
-        if save.seed {
-            self.toast(&fill(
-                EN.secrets_waits_unprotected,
-                &[&what, self.medium.for_the()],
-            ));
-        } else {
-            self.toast_out(&what);
+        match (out.as_slice(), save.seed) {
+            ([], _) => {}
+            ([name], true) => self.toast_waits(EN.secrets_waits_unprotected, &[name]),
+            (more, true) => {
+                self.toast_waits(EN.secrets_wait_unprotected, &[&more.len().to_string()]);
+            }
+            (names, false) => self.toast_out_files(names),
         }
     }
 }

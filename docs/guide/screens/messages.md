@@ -92,7 +92,7 @@ checks the sample `sample-message.txt`.
 |---|---|
 | the way back | at the top left, named after where the page was opened from (**Wallets** at first) |
 | "A valid signature proves that whoever holds this address's key signed exactly this text. …" | under the title, with a link to Learn's **Signing a message** |
-| the verdict | in a card: "The signature is valid (BIP-322)" in the ok tone, or "The signature does not verify:" and why, in red |
+| the verdict | in a card: "The signature is valid (BIP-322)" in the ok tone, or why it does not ("The signature does not verify for this address and this message", "The signature is not base64 or not a signature of its format"), in red |
 | **File** | the file's name |
 | **Address** | the address it was signed for |
 | **Wallet** | the loaded wallet whose address it is: "New wallet 1 · receive 0/0" ("change 1/…" for a change address); or **Not an address of a loaded wallet** |
