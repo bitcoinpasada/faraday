@@ -43,8 +43,11 @@ steps the layout down. Navigation by class is LAYOUT §3.
 A 7-inch or 10-inch panel starts in landscape, and Settings › Display ›
 Rotation turns it and its touch (`docs/ORIENTATION.md`). A screen of
 11 inches or less takes its density from its EDID (ORIENTATION §2.1).
-There is no 7-inch or 10-inch panel for the Pi: `faraday/image/panels/`
-holds the 2.8-inch panel and the PC's firmware framebuffer.
+The app lays out every one of these sizes. The Pi image is built for
+the 2.8-inch panel only: `faraday/image/panels/` holds that panel and
+the PC's firmware framebuffer. A Pi screen needs its profile in the
+image, chosen when the card is made, as `docs/STARTER.md` §9.3 designs;
+until then a 7-inch screen is the stick's, on a small PC or tablet.
 
 ## 3. Motion
 
