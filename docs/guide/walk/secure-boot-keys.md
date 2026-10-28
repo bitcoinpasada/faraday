@@ -79,7 +79,7 @@ certificate, as `Example Org PK`, `Example Org KEK` and `Example Org
 db`; left empty, the certificates read `Faraday PK` and so on.
 
 Press **Make the key**. The first time after power-on, **Set the time**
-opens first: type the next minute and press **Set** when the phone's
+opens first ([Set the time](../screens/settings.md#set-the-time)): type the next minute and press **Set** when the phone's
 minute changes to it
 ([Vaults, passwords and codes](vaults-and-passwords.md#6-the-codes-and-the-time)).
 Then press **Make the key** again. **Making the key** shows while the

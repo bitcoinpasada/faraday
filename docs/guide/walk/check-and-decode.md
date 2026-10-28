@@ -61,7 +61,7 @@ before that, and the PSBT stays as it came.
 
 *Picture to come: `check-and-decode-decode.png`, Decode a transaction with payment-final.txn, its facts, inputs and outputs.*
 
-**Decode a transaction** takes apart a transaction that is signed and
+[Decode a transaction](../screens/decode.md) takes apart a transaction that is signed and
 finished, the one a wallet broadcasts. Open it one of three ways:
 
 | From | Press |
@@ -162,7 +162,7 @@ The two must match in every character.
 *Picture to come: `check-and-decode-calculators.png`, Tools on Hashes, abc typed, its three hashes.*
 
 Press **Tools**, then any tile under **Calculators**. The calculator
-page, **Tools**, has a button per calculator at the top, **Hashes**,
+page, [Tools](../screens/calculators.md), has a button per calculator at the top, **Hashes**,
 **Encodings**, **Descriptor checksum**, **Convert key**, **Units** and
 **Miniscript**, then a mode row where the calculator has one, then the
 field. What is typed goes into the field; **Clear** empties it, and
@@ -186,7 +186,7 @@ BTC**: 1.00000000 BTC, 1000.00000 mBTC, 1000000.00 bits.
 ## 8. The Miniscript compiler
 
 **Tools → Miniscript compiler** (**A policy compiled into a
-descriptor**) opens **Miniscript**. The field takes a policy:
+descriptor**) opens **Miniscript** ([the calculators](../screens/calculators.md#the-calculators)). The field takes a policy:
 **A policy, e.g. or(pk(9a6a2580),and(pk(…),older(1000)))**. The mode
 row chooses the script: wsh (SegWit) or tr (Taproot). A loaded key can
 be named by its fingerprint; with `3dca6805` and `5d388376` loaded,

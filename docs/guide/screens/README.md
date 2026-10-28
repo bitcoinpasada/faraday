@@ -1,8 +1,8 @@
 # Screen reference
 
 **Kind:** Spec
-**Status:** The index of the guide's screen reference; the pages below are written, the screens and sheets under To write have no page yet
-**Open:** the pages for the screens and sheets under To write; the pictures
+**Status:** The index of the guide's screen reference; every screen and sheet of Faraday has its page below
+**Open:** the pictures
 
 One page per screen, grouped as the sidebar groups them. A page's
 `**Screen:**` line names the `Screen` and `Sheet` variants of
@@ -43,6 +43,16 @@ say what to do; these pages say what each control on a screen does.
 | Starter | [Tools](starter-tools.md) | Tools, Transfer, Blank templates and each choice's page |
 | Starter | [Start from the stick, and Learn](starter-learn-and-boot.md) | Start this computer (or this Mac) from the stick, the restart sheet, Learn |
 | Starter | [Install, Appearance and About](starter-menu.md) | The ⋮ menu, Install and Update, Installed and Uninstall, Appearance, About |
+| Tools | [Tools: the calculators](calculators.md) | Hashes, Encodings, Descriptor checksum, Convert key, Units, Miniscript |
+| Tools | [Decode a transaction](decode.md) | The facts, inputs and outputs, the hex and its QR code |
+| Tools | [Sign a message and Check a signed message](messages.md) | Address, Message, Format, Signature; the verdict, File, Address, Wallet, Message |
+| Tools | [Explore](explore.md) | A key at a path, its secrets behind their eyes; Addresses, Find an address |
+| Tools | [Derive with BIP-85](child-seeds.md) | Key, Application, Index, Value |
+| Tools | [Silent payments](silent-payments.md) | Key, Address and its labels, Scan key, Check a payment |
+| Tools | [Vanity address](vanity.md) | Key, What turns, Kind of address, Characters, Search |
+| Tools | [Lightning node key](lightning.md) | ldk-node from a loaded key, LND from an aezeed, the node id and its key |
+| Learn | [Learn](learn.md) | Learn's tabs and pages, beside the page on a wide window, the pages each screen gives |
+| Settings | [Settings](settings.md) | Mode, Session, Time, Randomness, Appearance, Display scale, Signed amounts, About; Set the time; Add randomness |
 
 ## To write
 
@@ -51,5 +61,4 @@ variant is named by no page and is not listed here, when one is named
 by two pages, and when one listed here has a page: a page written takes
 its variants off this list.
 
-- `Screen`: `Message`, `CheckMessage`, `Settings`, `SetTime`, `Randomness`, `Bip85`, `Silent`, `Explore`, `Lightning`, `Tools`, `Vanity`, `Decode`
-- `Sheet`: `Learn`
+None.

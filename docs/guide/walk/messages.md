@@ -56,7 +56,7 @@ such wallet, the tile reads **Needs a single-key wallet with its key
 here** and does not open: a wallet whose key is not loaded signs
 nothing.
 
-**Sign a message** is a column of four cards, each closed to one line
+[Sign a message](../screens/messages.md#sign-a-message) is a column of four cards, each closed to one line
 once it is done: **Address**, **Message**, **Format** and **Signature**.
 
 ## 3. Address
@@ -143,7 +143,7 @@ Press it; or press **Tools**, then **Check a signed message** (**Against
 its address**), which opens the first signed message in Files. With
 none, the tile reads **Copy a signed message in first**.
 
-**Check a signed message** opens:
+**Check a signed message** opens ([Check a signed message](../screens/messages.md#check-a-signed-message)):
 
 | Row | What it is |
 |---|---|

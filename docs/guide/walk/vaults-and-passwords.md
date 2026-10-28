@@ -213,7 +213,7 @@ Press **TOTP codes** under **Entries**, or **Tools → TOTP codes**
 (**Codes from the entries in open vaults**). The first time after
 power-on, **Set the time** opens first:
 
-| On Set the time | What it is |
+| On [Set the time](../screens/settings.md#set-the-time) | What it is |
 |---|---|
 | **Now** | the clock as Faraday reads it, or **Not known** |
 | **Time zone** | the zone, with **-** and **+** |

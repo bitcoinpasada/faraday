@@ -123,7 +123,7 @@ takes the pointer's moves over its box and the keys typed while it is
 chosen, and adds them as they come. Once some is added, the card reads **Randomness
 added to the pool**, and **Source** ends **· with your own**. To go on
 without adding any, press **Skip**. Settings' **Randomness** row opens
-the same choices on a page of their own.
+the same choices on a page of their own ([Add randomness](../screens/settings.md#add-randomness)).
 
 ![Add randomness, ten dice rolls in the batch](../3-6-add-randomness.png)
 

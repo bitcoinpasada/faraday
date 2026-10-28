@@ -123,7 +123,7 @@ to quit**) in place of Power off.
 
 ### 2.4 Settings → Appearance
 
-The colours of every screen are chosen on **Settings → Appearance**
+The colours of every screen are chosen on [**Settings → Appearance**](../screens/settings.md#appearance)
 (the Starter has the same three rows on **Appearance** in its **⋮**
 menu). A first start is in Cobalt, Light, Standard.
 
@@ -132,6 +132,7 @@ menu). A first start is in Cobalt, Light, Standard.
 | **Theme** | ten chips, each with a swatch of its colours: **Cobalt** (marked **Default**), **Bitcoin Orange**, **Lamplight**, **Mars**, **Forest**, **Frost**, **Dusk**, **Lavender**, **Rose**, **Monochrome**. The chosen one is selected |
 | **Mode** | **Light** or **Dark** |
 | **Contrast** | **Standard**, **Medium** or **High**. Medium and High make text and edges stronger on every theme |
+| **Text size** | **Standard**, **Large** or **Larger**. A larger size makes the text larger on every screen, and the buttons and rows grow with it |
 | **Reduce motion** | a switch; on, nothing slides or fades and every change is there at once |
 
 Pressing a chip, a mode or a contrast changes the colours of the whole

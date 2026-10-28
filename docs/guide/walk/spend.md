@@ -88,7 +88,7 @@ the QR way, with both keys.
 ![Read the transaction](../6-4-transaction.png)
 
 The card leads with one line, **Read what leaves, what comes back and
-the fee before signing.**, and **Learn: Verifying**, which opens Learn's
+the fee before signing.**, and **Learn: Verifying**, which opens [Learn](../screens/learn.md)'s
 page on what each row proves.
 
 | Row | Here | Meaning |

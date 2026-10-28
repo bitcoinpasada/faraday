@@ -197,7 +197,7 @@ against its key and this transaction. Until enough keys have signed,
 
 A key does not have to stay loaded: its SeedQR is scanned when it is
 needed, as on a SeedSigner. **Settings → Session → Remove every key**
-takes every key out of memory and leaves the wallet.
+([Session](../screens/settings.md#session)) takes every key out of memory and leaves the wallet.
 
 ![Settings, Session](../5-6-settings.png)
 
