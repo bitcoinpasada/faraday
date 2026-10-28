@@ -194,7 +194,7 @@ Press **Make a vault**.
 
 ![Create a vault](../4-8-create-vault.png)
 
-**Create a vault** opens with **Size** chosen (**PCs and a Raspberry Pi
+[**Create a vault**](../screens/create-vault.md) opens with **Size** chosen (**PCs and a Raspberry Pi
 · 64 MiB · 3 passes**). Under **Name and passphrases**:
 
 1. **Name**: leave it empty for `vault.ofv`, or type what the vault

@@ -152,7 +152,7 @@ with both keys, and **The other signatures** reads **2 of 2**.
 
 | Card | What it is | Press |
 |---|---|---|
-| **Signed PSBT** (For the wallet that wrote it · not finalised) | the PSBT with every signature, for Sparrow | **Show as QR** |
+| **Signed PSBT** (For the wallet that wrote it · not finalised) | the PSBT with every signature, for Sparrow | [**Show as QR**](../screens/qr-and-scan.md#a-qr-code) |
 | **Finished transaction** (Ready to broadcast) | the transaction the network takes, with its txid and size | **Show the finished transaction as QR**, under the cards |
 
 Both wait **For the stick** as well (**Remove** takes one off). Under the

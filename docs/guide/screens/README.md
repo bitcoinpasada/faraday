@@ -18,6 +18,13 @@ say what to do; these pages say what each control on a screen does.
 | Home | [Prompts](prompts.md) | Attached to this computer, a new keyboard, the boot stick's import, Pull the stick, Cancel a flow |
 | Home | [Lock and Power off](lock-and-power.md) | Lock, A stick is attached, Locking soon, Locked, Power |
 | Home | [Mode and Load samples](mode.md) | Mode, Load samples |
+| Vaults | [Vaults and Unlock](vaults.md) | Vaults, Unlock, Load from, Seeds with no passphrase stored |
+| Vaults | [Create a vault](create-vault.md) | Create a vault, Generate with dice |
+| Vaults | [Vault contents](vault.md) | Vault contents: keys, wallets, entries, notes, GPG keys, Secure Boot keys; Save to a stick, Sign with |
+| Vaults | [TOTP codes](codes.md) | TOTP codes |
+| Files | [Files](files.md) | Files, a file's ⋮ menu, Rename, Details, Make it a wallet, This is a secret, Save without encryption? |
+| Files | [Stick visit](stick-visit.md) | Stick visit, Already on the stick, Write to a stick, Delete files, Zeroing |
+| Files | [QR codes and the camera](qr-and-scan.md) | A QR code, Scan, SeedQR read, Transfer |
 
 ## To write
 
@@ -26,5 +33,5 @@ variant is named by no page and is not listed here, when one is named
 by two pages, and when one listed here has a page: a page written takes
 its variants off this list.
 
-- `Screen`: `WalletsStart`, `Wallets`, `Spend`, `Files`, `Visit`, `Entry`, `Backup`, `Message`, `CheckMessage`, `Create`, `Restore`, `Settings`, `SetTime`, `Randomness`, `Vaults`, `Backups`, `CreateVault`, `KeyGen`, `Bip85`, `Silent`, `Explore`, `Lightning`, `Tools`, `Unlock`, `VaultContents`, `Codes`, `Family`, `Vanity`, `Decode`, `Catalog`, `Transfer`, `BackupFlow`
-- `Sheet`: `Qr`, `Scan`, `Learn`, `WordList`, `SecretOut`, `WriteOut`, `Potential`, `Chart`, `BoardList`, `BoardSees`, `BoardPartials`, `BoardMenu`, `SeedRead`, `Delete`, `Zeroing`, `Taken`, `KeyPath`, `Register`, `VaultSave`, `FileMenu`, `Rename`, `Details`, `UnlockLoad`, `PassphraseSeeds`, `GpgSign`, `KeyLengths`
+- `Screen`: `WalletsStart`, `Wallets`, `Spend`, `Entry`, `Backup`, `Message`, `CheckMessage`, `Create`, `Restore`, `Settings`, `SetTime`, `Randomness`, `Backups`, `KeyGen`, `Bip85`, `Silent`, `Explore`, `Lightning`, `Tools`, `Family`, `Vanity`, `Decode`, `Catalog`, `BackupFlow`
+- `Sheet`: `Learn`, `WordList`, `Chart`, `BoardList`, `BoardSees`, `BoardPartials`, `BoardMenu`, `KeyPath`, `Register`, `KeyLengths`

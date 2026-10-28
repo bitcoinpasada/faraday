@@ -41,7 +41,7 @@ nothing else at hand.
    - From paper: press **Wallets → Add a key**, **Change** on
      **Start**, then **Type the words**. Type the words from the paper
      and press **Continue**.
-   - From a vault: plug the vault's stick in. On **Stick visit**,
+   - From a vault: plug the vault's stick in. On [**Stick visit**](../screens/stick-visit.md),
      press **Import 1 file**, then pull the stick
      ([Files, sticks and QR codes, step 2](files-and-sticks.md#2-a-stick-visit-bring-files-in)).
      In **Files**, press **Unlock** on the vault's row, type the

@@ -73,7 +73,7 @@ wallet from it.
 For this walkthrough, bring the vault in:
 
 1. Plug in Vault 1's stick and press **Copy files in from a stick**.
-   The stick visit lists `vault.ofv`, ticked. Press **Import 1 file**,
+   The [stick visit](../screens/stick-visit.md) lists `vault.ofv`, ticked. Press **Import 1 file**,
    then pull the stick.
 2. Back on the card, **Unlock vault.ofv** heads the vault's row: its
    name, **Copied in from a stick** and its size, and how long it
@@ -144,7 +144,7 @@ Signing* and *Show QR*. Press **I have the PSBT**.
 
 | By QR code | On a stick |
 |---|---|
-| Press **Scan** and hold Sparrow's code up to the camera; an animated code is read as it loops. | Save the `.psbt` onto a stick. With the vault open, Faraday reads a stick only after a lock: plugging it in asks to lock (**Faraday asks to lock first when a stick goes in**). The lock seals the vault and wipes the keys; copy the PSBT in, pull the stick, and unlock with the same passphrase. The column comes back on this card. |
+| Press [**Scan**](../screens/qr-and-scan.md#scan) and hold Sparrow's code up to the camera; an animated code is read as it loops. | Save the `.psbt` onto a stick. With the vault open, Faraday reads a stick only after a lock: plugging it in asks to lock (**Faraday asks to lock first when a stick goes in**). The lock seals the vault and wipes the keys; copy the PSBT in, pull the stick, and unlock with the same passphrase. The column comes back on this card. |
 
 A PSBT already in Files is listed under **In Files**, with **Use this
 one**. Once one is in, the card reads **Spends from New wallet 1 ·
@@ -184,7 +184,7 @@ off** and **Start over**.
    and no key is left in memory.
 2. Signing with a vault open records the amounts signed inside it, so
    the lock leaves a changed copy of the vault for the stick. Plug Vault
-   1's stick in: the stick visit writes what waits. Writing the vault
+   1's stick in: the [stick visit](../screens/stick-visit.md) writes what waits. Writing the vault
    back keeps that record; leaving it out changes nothing else.
 3. Press **Power off**, take the stick out, and put it back in the
    envelope with the papers.
