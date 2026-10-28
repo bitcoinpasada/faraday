@@ -43,7 +43,10 @@ master, the key derived from the origin's path and refused when it is
 not the key the PSBT names or not in the script; a taproot leaf signed
 by every held key the leaf names and whose origin lists the leaf; the
 key path signed when the internal key is held and the output is that
-key tweaked by the stated Merkle root.
+key tweaked by the stated Merkle root. A miniscript or a taproot tree is
+signed only through a registered wallet that holds a held key and gives
+its script, whatever the number of its keys, and is otherwise left
+unsigned (F141).
 
 python-bip380 writes a `multi_a`'s satisfaction with the first key's
 signature deepest, which BIP 342's `OP_CHECKSIGADD` reads the other way;
@@ -76,9 +79,9 @@ reference refuses where no wallet the request registers gives the input
 (a `multi` or `wsh` miniscript wallet's script derived at the chain and
 index the input's origins name and compared; a fixture's taproot wallet
 taken as the spend Bitcoin Core built from it) and counts each such
-PSBT. The random corpus registers the wallet of half its `multi` and
-miniscript inputs, built from the cosigners' account keys at one chain
-and index, so their signatures are still compared.
+PSBT. The random corpus registers the wallet of half its `multi`,
+miniscript and taproot-tree inputs, built from the cosigners' account
+keys at one chain and index, so their signatures are still compared.
 """
 
 import base64
@@ -719,7 +722,7 @@ def ref_sign(raw, masters, nonce, wallets=()):
     for inp, m in zip(inputs, ins):
         added = []
         if not inp.final:
-            added = sign_input(inp, inputs, tx, masters, nonce)
+            added = sign_input(inp, inputs, tx, masters, nonce, wallets)
         count += len(added)
         out_ins.append(list(m) + added)
     # Where BIP-174's signer signs, the dangers no hold accepts (F136),
@@ -735,7 +738,17 @@ def ref_sign(raw, masters, nonce, wallets=()):
     return {"psbt": signed.hex(), "signatures": count, "complete": complete}
 
 
-def sign_input(inp, inputs, tx, masters, nonce):
+# The kinds signed only through a registered wallet whose script the input
+# is, whatever the number of their keys (F135, F141).
+THROUGH_WALLET = ("p2wsh-ms", "p2sh-p2wsh-ms", "tr-script")
+
+
+def sign_input(inp, inputs, tx, masters, nonce, wallets=None):
+    """The signatures the held masters add to `inp`. A miniscript or a
+    taproot tree is signed only through a wallet in `wallets` that holds a
+    held key and gives its script, and is otherwise left unsigned (F141);
+    with `wallets` None it is signed whatever its wallet, as the corpus's
+    cosigners sign before Faraday."""
     m, i = inp.m, inp.i
     ecdsa_claims = [(k, origin(v)) for k, v in of_type(m, 0x06) if origin(v)[0] in masters]
     tap = [(k, tap_origin(v)) for k, v in of_type(m, 0x16)]
@@ -748,6 +761,9 @@ def sign_input(inp, inputs, tx, masters, nonce):
     if inp.kind in ("p2wpkh", "p2sh-p2wpkh", "p2wsh-multi", "p2sh-p2wsh-multi", "p2wsh-ms",
                     "p2sh-p2wsh-ms") and not inp.has_prev and len(inputs) > 1:
         raise Known("a SegWit v0 input with no previous transaction beside another input")
+    if (wallets is not None and inp.kind in THROUGH_WALLET
+            and not any(wallet_gives(w, inp, masters) for w in wallets)):
+        return []
     ht_field = one(m, 0x03)
     added = []
     if not inp.kind.startswith("tr-"):
@@ -1417,31 +1433,63 @@ class Sign(Area):
 
     def tree_input(self, i, n_out, value, extra):
         count = self.rng.randrange(1, 5)
-        leaves = []
-        names = []
+        # Half the trees come with their wallet registered (F141): every
+        # key of it, the internal key too unless that is NUMS, a held or a
+        # foreign account's key at one chain and index, so the wallet
+        # gives the input.
+        registered = self.rng.random() < 0.5
+        shapes = []
         for _ in range(count):
             template, n = self.rng.choice(self.LEAVES)
             older, after = self.locks(i)
+            need = None
             if n == 0:
                 n = self.rng.randrange(1, 4)
                 need = self.rng.randrange(1, n + 1)
-                slots = [self.key(87, self.holder()) for _ in range(n)]
-                text = template.format(k=need, keys=",".join(s[0][1:].hex() for s in slots))
-            else:
-                slots = [self.key(87, self.holder()) for _ in range(n)]
-                text = template.format(*[s[0][1:].hex() for s in slots], N=older)
-            leaves.append((SCRIPTS.add(text, True), slots, older))
-        # The internal key: one of ours, a foreign key, or BIP-341's NUMS.
+            shapes.append((template, n, need, older))
         r = self.rng.random()
-        if r < 0.4:
+        keyed = registered and r < 0.7
+        total = sum(n for _, n, _, _ in shapes) + (1 if keyed else 0)
+        if registered:
+            pool, exprs = self.wallet_keys(total)
+        else:
+            pool, exprs = [self.key(87, self.holder()) for _ in range(total)], [None] * total
+        at = 1 if keyed else 0
+        leaves, bodies = [], []
+        for template, n, need, older in shapes:
+            slots, names = pool[at:at + n], exprs[at:at + n]
+            at += n
+            hexes = [s[0][1:].hex() for s in slots]
+            if need is not None:
+                text = template.format(k=need, keys=",".join(hexes))
+                body = template.format(k=need, keys=",".join(names)) if registered else None
+            else:
+                text = template.format(*hexes, N=older)
+                body = template.format(*names, N=older) if registered else None
+            leaves.append((SCRIPTS.add(text, True), slots, older))
+            bodies.append(body)
+        # The internal key: one of ours, a foreign key, or BIP-341's NUMS;
+        # a registered tree's is one of its wallet's keys, or NUMS.
+        nums = (b"\x02" + bytes.fromhex(NUMS_HEX), None, None, None)
+        if keyed:
+            ik, ik_expr = pool[0], exprs[0]
+        elif registered:
+            ik, ik_expr = nums, NUMS_HEX
+        elif r < 0.4:
             ik = self.key(86, self.rng.choice(self.ours)[1])
         elif r < 0.7:
             ik = self.key(86, None)
         else:
-            ik = (b"\x02" + bytes.fromhex(
-                "50929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0"), None, None, None)
+            ik = nums
         internal = ik[0][1:]
         items = self.items(len(leaves), [(f"l{j}", s) for j, (s, _, _) in enumerate(leaves)])
+        if registered:
+            def text_of(item):
+                if isinstance(item, list):
+                    return "{" + ",".join(text_of(x) for x in item) + "}"
+                return bodies[int(item[0][1:])]
+            tree = text_of(items[0]) if len(items) == 1 else text_of(items)
+            extra["wallet"] = f"tr({ik_expr},{tree})"
         info = taproot_construct_safe(internal, items)
         fields = [(b"\x17", internal), (b"\x18", info.merkle_root)]
         origins = {}
@@ -1459,8 +1507,14 @@ class Sign(Area):
         fields += self.ht_field(self.sighash(i, n_out, True))
         slots_all = [s for _, slots, _ in leaves for s in slots]
         extra["cosigners"] = self.cosigners(slots_all)
-        older = min(o for _, _, o in leaves)
-        seq = self.timelocked(i, older, 0)
+        if registered:
+            # Every leaf's wait met: with its wallet in use Faraday refuses
+            # a path that can never be valid (TimelockNotMet, F136), which
+            # this reference does not work out.
+            seq = max(o for _, _, o in leaves) + self.rng.randrange(0, 50)
+        else:
+            older = min(o for _, _, o in leaves)
+            seq = self.timelocked(i, older, 0)
         return fields, bytes(info.scriptPubKey), value, seq, extra
 
     def items(self, count, leaves):

@@ -9,6 +9,7 @@ mod bips;
 mod common;
 mod fixtures;
 mod inspect;
+mod leaf_wallet;
 mod message;
 mod miniscript;
 mod multisig;

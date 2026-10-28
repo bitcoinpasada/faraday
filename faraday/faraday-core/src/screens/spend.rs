@@ -678,7 +678,8 @@ pub(crate) fn step_body(
                 }
             }
             cy += box_h + 12.0;
-            // Warnings, every one as the inspector words it.
+            // Warnings, every one as the inspector words it, but an
+            // input left unsigned for want of its wallet (F141).
             let mut warned = false;
             // A key not of the wallet spends it alone (F132): the wallet's
             // danger line, repeated here as a caution, first.
@@ -687,20 +688,19 @@ pub(crate) fn step_body(
                 .and_then(|wl| app.session.key_path_line(wl.policy()))
                 .filter(|k| k.danger)
                 .map(|k| k.text);
-            let lines =
-                caution
-                    .iter()
-                    .map(|t| (Role::Warning, t.as_str()))
-                    .chain(i.warnings.iter().map(|wn| {
-                        let c = match wn.level {
-                            Level::Info => Role::OnSurfaceVariant,
-                            Level::Caution => Role::Warning,
-                            Level::Danger | Level::Blocked => Role::Error,
-                        };
-                        (c, wn.text.as_str())
-                    }));
+            let lines = caution
+                .iter()
+                .map(|t| (Role::Warning, std::borrow::Cow::Borrowed(t.as_str())))
+                .chain(i.warnings.iter().map(|wn| {
+                    let c = match wn.level {
+                        Level::Info => Role::OnSurfaceVariant,
+                        Level::Caution => Role::Warning,
+                        Level::Danger | Level::Blocked => Role::Error,
+                    };
+                    (c, crate::review::warning_text(wn))
+                }));
             for (c, text) in lines {
-                let used = ui.wrap_as((x + 22.0, cy, w - 22.0), BODY_M, c, text);
+                let used = ui.wrap_as((x + 22.0, cy, w - 22.0), BODY_M, c, &text);
                 ui.icon(x, cy, 16.0, Icon::Warning, 10.0, c);
                 cy += used.max(18.0) + 6.0;
                 warned = true;

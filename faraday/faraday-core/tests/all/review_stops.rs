@@ -3,7 +3,8 @@
 //! one (`docs/decisions/F136.md`): a fee this high is paid only after
 //! "Hold to pay this fee"; a key origin that does not give the input's
 //! key is refused at Review, as signing refuses it; an output that claims
-//! to be change and cannot be verified is drawn as a payment.
+//! to be change and cannot be verified is drawn as a payment; an input
+//! no registered wallet gives is named and left unsigned (F141).
 
 use crate::common::{add_key, hold, offered, texts};
 use faraday_core::strings::EN;
@@ -178,4 +179,89 @@ fn the_fee_hold_accepts_nothing_where_review_has_no_fee_to_hold() {
         assert!(s.held.is_empty());
         assert!(!s.done[step::TRANSACTION as usize]);
     }
+}
+
+/// An input of the person's key in a taproot tree that no registered
+/// wallet gives is left unsigned, and Review names it (F141): it stops
+/// nothing, and signing signs the wallet's own input beside it.
+#[test]
+fn a_taproot_leaf_without_its_wallet_is_named_and_left_unsigned() {
+    use faraday_psbt::bitcoin::bip32::{DerivationPath, Fingerprint, Xpub};
+    use faraday_psbt::bitcoin::hashes::Hash;
+    use faraday_psbt::bitcoin::secp256k1::{Secp256k1, XOnlyPublicKey};
+    use faraday_psbt::bitcoin::taproot::{LeafVersion, TapLeafHash, TaprootBuilder};
+    use faraday_psbt::bitcoin::{Amount, OutPoint, ScriptBuf, TxIn, TxOut, Txid, opcodes};
+    use std::str::FromStr;
+
+    // Test key 1's key at m/86'/1'/0'/0/1, alone in a leaf `<K> CHECKSIG`
+    // under BIP 341's unspendable internal key.
+    let key = testkit::key(0, "m/86'/1'/0'/0/1");
+    let (origin, xpub) = key[1..].split_once(']').unwrap();
+    let fp = Fingerprint::from_str(&origin[..8]).unwrap();
+    let secp = Secp256k1::new();
+    let x = Xpub::from_str(xpub)
+        .unwrap()
+        .public_key
+        .x_only_public_key()
+        .0;
+    let leaf = faraday_psbt::bitcoin::script::Builder::new()
+        .push_x_only_key(&x)
+        .push_opcode(opcodes::all::OP_CHECKSIG)
+        .into_script();
+    let nums = XOnlyPublicKey::from_str(
+        "50929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0",
+    )
+    .unwrap();
+    let info = TaprootBuilder::new()
+        .add_leaf(0, leaf.clone())
+        .unwrap()
+        .finalize(&secp, nums)
+        .unwrap();
+    let control = info
+        .control_block(&(leaf.clone(), LeafVersion::TapScript))
+        .unwrap();
+    let leaf_hash = TapLeafHash::from_script(&leaf, LeafVersion::TapScript);
+    let path = DerivationPath::from_str(&testkit::on_net("m/86'/1'/0'/0/1")).unwrap();
+
+    // The spending wallet's spend, with the leaf's coins as its second
+    // input and their value added to the change.
+    let mut psbt = testkit::unsigned(&kit("spending")).unwrap();
+    let inner = psbt.inner_mut();
+    inner.unsigned_tx.input.push(TxIn {
+        previous_output: OutPoint::new(Txid::from_byte_array([7; 32]), 0),
+        ..TxIn::default()
+    });
+    inner.unsigned_tx.output[1].value += Amount::from_sat(100_000);
+    let mut input = faraday_psbt::bitcoin::psbt::Input {
+        witness_utxo: Some(TxOut {
+            value: Amount::from_sat(100_000),
+            script_pubkey: ScriptBuf::new_p2tr_tweaked(info.output_key()),
+        }),
+        tap_internal_key: Some(nums),
+        tap_merkle_root: info.merkle_root(),
+        ..Default::default()
+    };
+    input
+        .tap_scripts
+        .insert(control, (leaf, LeafVersion::TapScript));
+    input
+        .tap_key_origins
+        .insert(x, (vec![leaf_hash], (fp, path)));
+    inner.inputs.push(input);
+
+    let mut app = reviewing(&psbt);
+    let line = faraday_core::strings::fill(EN.step_input_no_wallet_tree, &["1"]);
+    let shown = screen(&mut app);
+    assert!(shown.contains(&line), "{shown}");
+    assert!(!shown.contains(EN.step_review_refused), "{shown}");
+    assert!(offered(&mut app, Action::StepNext(step::TRANSACTION)));
+    app.press(Action::StepNext(step::TRANSACTION));
+    assert!(app.spend().unwrap().done[step::TRANSACTION as usize]);
+
+    app.press(Action::SignHere);
+    let spend = &app.spend().unwrap().spend;
+    assert!(!spend.signed_here.is_empty());
+    let inputs = &spend.psbt.inner().inputs;
+    assert!(!inputs[0].partial_sigs.is_empty());
+    assert!(inputs[1].tap_script_sigs.is_empty());
 }

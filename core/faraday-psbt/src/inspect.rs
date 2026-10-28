@@ -134,6 +134,16 @@ pub enum WarningKind {
     /// (`multi`, a miniscript, a taproot leaf of several) that no
     /// registered wallet gives at the chain and index it states.
     WalletNotRegistered,
+    /// An input names a loaded key in a miniscript or a taproot tree
+    /// (a single-key leaf, or the key path of a tree) that no registered
+    /// wallet gives at the chain and index it states: it is left
+    /// unsigned, and the rest of the transaction is signed (F141).
+    NoWalletForScript {
+        /// The input left unsigned.
+        input: usize,
+        /// Whether the script is a taproot tree, not a `wsh` miniscript.
+        taproot: bool,
+    },
     /// A MuSig2 input carries a public nonce of this device's that no
     /// open session holds the secret for, so this pass draws a new one
     /// and drops the partial signatures made against the old one.
@@ -332,7 +342,9 @@ pub struct InputInfo {
     /// What script is being spent.
     pub script_type: ScriptKind,
     /// Whether a loaded key is verified (single-sig) or claimed (multisig)
-    /// to control this input.
+    /// to control this input. A miniscript or a taproot tree is the
+    /// person's only where a registered wallet holding a loaded key gives
+    /// its script, and only then is it signed (F141).
     pub is_ours: bool,
     /// The key origin the PSBT states, preferring one of our keys.
     pub origin: Option<KeyOrigin>,
@@ -966,21 +978,35 @@ pub fn inspect(c: &Compute, psbt: &Psbt, ctx: &Context) -> Inspection {
         // A script of several keys is signed only for a registered
         // wallet whose script it is: the coordinator's word for who the
         // cosigners are is not taken. Only an input that names a loaded
-        // key is held to it, since no other input is signed here.
-        if !finalized
-            && registered.is_none()
-            && crate::register::several_keys(c, &secp, input, cl.kind, spk.as_deref())
-            && input_origins(input).any(|(fp, _)| ctx.is_ours(fp))
-        {
-            warn(
-                &mut warnings,
-                Level::Blocked,
-                WarningKind::WalletNotRegistered,
-                format!(
-                    "input {i} spends from a wallet of several keys that is not registered here; register the wallet to sign"
-                ),
-            );
-            unregistered.push(i);
+        // key is held to it, since no other input is signed here. A
+        // miniscript or a taproot tree of one key is not held, and not
+        // signed either: it is left unsigned, said so, while the rest
+        // of the transaction is signed (F141).
+        if !finalized && registered.is_none() {
+            let several = crate::register::several_keys(c, &secp, input, cl.kind, spk.as_deref());
+            let names_ours = input_origins(input).any(|(fp, _)| ctx.is_ours(fp));
+            if several && names_ours {
+                warn(
+                    &mut warnings,
+                    Level::Blocked,
+                    WarningKind::WalletNotRegistered,
+                    format!(
+                        "input {i} spends from a wallet of several keys that is not registered here; register the wallet to sign"
+                    ),
+                );
+                unregistered.push(i);
+            } else if names_ours && signed_through_wallet(cl.kind) {
+                let taproot = cl.kind == ScriptKind::P2trScript;
+                let what = if taproot { "taproot tree" } else { "script" };
+                warn(
+                    &mut warnings,
+                    Level::Caution,
+                    WarningKind::NoWalletForScript { input: i, taproot },
+                    format!(
+                        "input {i} is left unsigned: no registered wallet covers this {what}; register the wallet to sign it"
+                    ),
+                );
+            }
         }
 
         let sighash = sighash_kind(input, cl.kind, spk.as_deref());
@@ -1340,6 +1366,15 @@ fn mismatch(
         )
     };
     warn(warnings, level, WarningKind::UnknownDerivation, text);
+}
+
+/// Whether an input of `kind` is signed only through a registered
+/// wallet whose script it is: a miniscript or a taproot tree (F135,
+/// F141). Inspection counts a loaded key as taking part in such an
+/// input only through that wallet, and [`crate::sign`] signs it only
+/// where inspection does, so the two answer alike.
+pub(crate) fn signed_through_wallet(kind: ScriptKind) -> bool {
+    matches!(kind, ScriptKind::Miniscript { .. } | ScriptKind::P2trScript)
 }
 
 /// Whether a taproot script-path input carries something this crate can

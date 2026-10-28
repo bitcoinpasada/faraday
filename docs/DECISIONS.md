@@ -149,9 +149,10 @@ Read this table, then only the decision you need.
 | [F132](decisions/F132.md) | A tr() wallet states who can spend by the key path | 2026-10-26 | Active | wallets |
 | [F133](decisions/F133.md) | The Starter writes a boot file the person signed, once it is checked to be the release's own | 2026-10-27 | Active | Starter |
 | [F134](decisions/F134.md) | Faraday signs a boot program only when it is a release's own | 2026-10-27 | Active | security |
-| [F135](decisions/F135.md) | A script of several keys is signed only for a registered wallet | 2026-10-27 | Active | wallets |
-| [F136](decisions/F136.md) | No way past a check without a legitimate reason | 2026-10-27 | Active | security |
+| [F135](decisions/F135.md) | A script of several keys is signed only for a registered wallet | 2026-10-27 | Amended by F141 | wallets |
+| [F136](decisions/F136.md) | No way past a check without a legitimate reason | 2026-10-27 | Amended by F141 | security |
 | [F137](decisions/F137.md) | The keyhole sits lower in the shield | 2026-10-26 | Amended by F140 | design |
 | [F138](decisions/F138.md) | The floating action takes Material's primary colour style | 2026-10-27 | Active | design |
 | [F139](decisions/F139.md) | A compact top app bar's title steps down to Title M where Title L would be cut | 2026-10-27 | Active | design |
 | [F140](decisions/F140.md) | The mark in golden proportions | 2026-10-27 | Active | design |
+| [F141](decisions/F141.md) | A miniscript or a taproot tree of one key is signed only through its registered wallet | 2026-10-27 | Active | wallets |

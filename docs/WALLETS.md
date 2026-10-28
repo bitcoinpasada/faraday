@@ -231,6 +231,13 @@ non-cryptographic and live in `faraday-core`:
   first. Otherwise the line says to load the wallet's descriptor. A
   wallet that holds none of the loaded keys, however it came in,
   verifies no change and signs nothing of several keys.
+- **A miniscript or a taproot tree of one key** (a single-key leaf, or
+  the key path of an output that states a tree) is signed only through
+  a registered wallet whose script it is, too (F141). Without one the
+  input is left unsigned and the rest of the transaction is signed: the
+  warnings say "Input 1 is left unsigned: no registered wallet covers
+  this taproot tree. Register its wallet to sign it." Where no input is
+  left to sign, nothing here takes part (`NoParticipatingKey`).
 - Fee, dust, network, unknown paths and the deterministic nonce check
   are shown.
 

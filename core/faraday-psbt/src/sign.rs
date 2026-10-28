@@ -40,7 +40,9 @@ use miniscript::{ExtParams, Miniscript, SigType, Tap, ToPublicKey};
 use crate::classify::{Classified, ScriptKind, classify, spent_output};
 use crate::context::Context;
 use crate::finalize::{is_complete, key_in_script};
-use crate::inspect::{MusigRound, WarningKind, inspect, musig_keyed_here, musig_round};
+use crate::inspect::{
+    MusigRound, WarningKind, inspect, musig_keyed_here, musig_round, signed_through_wallet,
+};
 use crate::musig::MusigSession;
 use crate::psbt::{Error, Psbt};
 
@@ -210,7 +212,9 @@ pub struct SignResult {
 /// the fee attack the refusal stops needs a second signed input to
 /// combine with. A key-origin claim that the derived key does not match is
 /// [`Error::KeyMismatch`]. Inputs that are already final, or name none of
-/// the selected keys, are left alone.
+/// the selected keys, are left alone, and so is a miniscript or a taproot
+/// tree that no registered wallet gives (F141): inspection's
+/// `NoWalletForScript` names it.
 ///
 /// `seed` is where every MuSig2 nonce this pass draws
 /// comes from, and it must be fresh, uniformly random bytes for every
@@ -330,6 +334,13 @@ pub fn sign(
                 input: i,
                 reason: "no previous transaction for a SegWit input",
             });
+        }
+        // A miniscript or a taproot tree is signed only through a
+        // registered wallet whose script it is, which is inspection's
+        // answer: one it does not count as the person's is left
+        // unsigned, as its review says (F135, F141).
+        if signed_through_wallet(cl.kind) && !inspection.inputs[i].is_ours {
+            continue;
         }
 
         match cl.kind {

@@ -104,6 +104,7 @@ bytes, and BIP-44/49/84/86/48 paths whose coin type is not the context's.
 | `TimelockNotMet` | Blocked | the spend path waits longer than the transaction's sequence and locktime allow, and no way of the wallet a loaded key takes part in is open: it can never be valid |
 | `UnknownDerivation` | Blocked | a loaded key at a path under its account that derives another key than the input names |
 | `MissingUtxo`, `NoParticipatingKey`, `NetworkMismatch` | Danger | see above |
+| `NoWalletForScript` | Caution | an input that names a loaded key spends a miniscript or a taproot tree (a leaf, or the key path of an output that states a tree) of one key, and no registered wallet that holds a loaded key gives its script: it is left unsigned and the rest of the transaction is signed (F141) |
 | `UnverifiedChange`, `UnknownDerivation`, `AddressReuse`, `NonStandardScript`, `UnsupportedInput` | Caution | `UnknownDerivation` for a path under no loaded account, or the key in another script; `NonStandardScript` is `Info` for a zero-value OP_RETURN |
 | `MixedScriptTypes`, `LocktimeInFuture` | Info | the signer has no clock; a set locktime is reported, not judged |
 
@@ -167,7 +168,12 @@ steps anywhere in a PSBT is refused when it is parsed.
   person's hold on Review ("Hold to pay this fee"), and every other danger
   has no way past it;
 - refuses (`Blocked`) while the inspection has any blocked warning,
-  whatever `accepted` names.
+  whatever `accepted` names;
+- signs a miniscript or a taproot tree (a leaf, or the key path of an
+  output that states a tree) only through a registered wallet whose
+  script it is, as the inspection counts the input the person's
+  (`InputInfo::is_ours`): one no such wallet gives is left unsigned, and
+  the inspection's `NoWalletForScript` names it (F135, F141).
 
 The derived key lives in the signing function's frame and is erased on
 drop (`faraday_bip::keys::DerivedKey`). `bitcoin` forces two copies for

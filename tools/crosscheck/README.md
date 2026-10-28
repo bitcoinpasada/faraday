@@ -223,9 +223,14 @@ corpus keeps out of it and the area says why.
   its keys and whose script it is; BIP-174's signer signs any.
   `area_sign.py` refuses where no wallet the request registers holds a
   held key and gives the input, and counts it only where Faraday's
-  refusal names `WalletNotRegistered`;
-  half the corpus's `multi` and miniscript inputs come with their wallet
-  registered, so their signatures are still compared.
+  refusal names `WalletNotRegistered`. A miniscript or a taproot tree
+  of one key is signed only through such a wallet too, and is otherwise
+  left unsigned while the rest is signed (F141); `area_sign.py` leaves
+  it unsigned the same way. Half the corpus's `multi`, miniscript and
+  taproot-tree inputs come with their wallet registered, so their
+  signatures are still compared; a registered tree's every leaf has its
+  wait met, since Faraday then refuses a path that can never be valid
+  (`TimelockNotMet`), which `area_sign.py` does not work out.
 - PSBT signing: Faraday refuses a PSBT any input of which asks for a
   `NONE` or `SINGLE` sighash, and one none of the held keys can sign:
   dangers no hold accepts (F136); BIP-174's signer signs the first and

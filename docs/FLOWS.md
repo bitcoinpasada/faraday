@@ -1482,7 +1482,11 @@ cannot tell sorted keys from keys in the order listed, the dialog adds
 "Most coordinators sort the keys" over **Sorted** (chosen) and **In
 this order**. Where the PSBT does
 not carry the keys, the card says "Load this wallet's descriptor to
-sign": Files, a code or Restore load it, and the spend goes on.
+sign": Files, a code or Restore load it, and the spend goes on. An
+input of the person's key in a miniscript or a taproot tree of one key
+whose wallet is not registered stops nothing (F141): the warnings say
+"Input 1 is left unsigned: no registered wallet covers this taproot
+tree. Register its wallet to sign it.", and signing signs the rest.
 
 ## GPG
 

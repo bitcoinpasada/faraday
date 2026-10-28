@@ -2,10 +2,12 @@
 //! on, the fee hold that takes it past a holdable danger, and signing
 //! with what was held.
 
+use std::borrow::Cow;
+
 use faraday_crypto::work::Compute;
 use faraday_psbt::{Inspection, Level, Psbt, WarningKind as K};
 
-use crate::strings::EN;
+use crate::strings::{EN, fill};
 use crate::wallet::{InspectInputs, Session, Signed, SpendState};
 
 /// Why Review does not go on, from the inspection as it is: a
@@ -36,6 +38,23 @@ pub(crate) fn review_stop(inspection: &Inspection, held: &[K]) -> Option<&'stati
         Some(EN.step_review_hold_first)
     } else {
         None
+    }
+}
+
+/// The words Review gives warning `w`: the inspector's, but for an input
+/// left unsigned for want of its wallet (F141), which Review names in its
+/// own words.
+pub(crate) fn warning_text(w: &faraday_psbt::Warning) -> Cow<'_, str> {
+    match w.kind {
+        K::NoWalletForScript { input, taproot } => Cow::Owned(fill(
+            if taproot {
+                EN.step_input_no_wallet_tree
+            } else {
+                EN.step_input_no_wallet_script
+            },
+            &[&input.to_string()],
+        )),
+        _ => Cow::Borrowed(w.text.as_str()),
     }
 }
 

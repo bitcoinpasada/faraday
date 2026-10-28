@@ -4858,6 +4858,14 @@ strings! {
     /// Review's line when only a wallet not registered stops it (F135,
     /// F136): the register offer above it is the way on.
     step_review_register: "Faraday signs this transaction once its wallet is registered.",
+    /// Review's line for an input of the person's key in a taproot tree
+    /// that no registered wallet gives: it is left unsigned and the rest
+    /// is signed (F141). `{}`: the input's index.
+    step_input_no_wallet_tree: "Input {} is left unsigned: no registered wallet covers this taproot tree. Register its wallet to sign it.",
+    /// Review's line for an input of the person's key in a miniscript
+    /// that no registered wallet gives: it is left unsigned and the rest
+    /// is signed (F141). `{}`: the input's index.
+    step_input_no_wallet_script: "Input {} is left unsigned: no registered wallet covers this script. Register its wallet to sign it.",
     /// Review's line when Continue is pressed before a fee's hold (F136).
     step_review_hold_first: "Hold to pay this fee first.",
     /// Review's facts above the fee's hold (F136). `{}`: the fee in sat,

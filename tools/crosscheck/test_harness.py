@@ -152,9 +152,10 @@ WALLET_806 = (
 
 
 class SignParticipation(unittest.TestCase):
-    """A taproot tree or a miniscript takes part through a registered
-    wallet whose script it is (F135, F136), as Faraday's inspection
-    counts it; another wallet registered beside it does not."""
+    """A taproot tree or a miniscript takes part, and is signed, only
+    through a registered wallet whose script it is (F135, F136, F141), as
+    Faraday's inspection counts it; another wallet registered beside it
+    does not."""
 
     def test_a_wallet_beside_a_tree_it_does_not_give_takes_no_part(self):
         import area_sign as A
@@ -177,6 +178,65 @@ class SignParticipation(unittest.TestCase):
             with self.assertRaises(A.Known) as refused:
                 A.ref_sign(raw, masters, "low_r", wallets)
             self.assertEqual(refused.exception.kind, "NoParticipatingKey")
+
+    def leaf_spend(self, key_path):
+        """A held master's `pk(K)` leaf under BIP 341's unspendable
+        internal key, `K` at m/86'/1'/0'/0/1, spent alone or after a
+        BIP-86 key-path input of the same master at m/86'/1'/0'/0/0: the
+        master, the PSBT, and the leaf's wallet."""
+        import area_sign as A
+        import btc
+        H = btc.HARDENED
+        master = btc.master(bytes(range(32)), test=True)
+        fp = master.fingerprint()
+        account = [86 + H, 1 + H, 0 + H]
+        ins, tx = [], A.CTransaction()
+        tx.version = 2
+        if key_path:
+            x = master.derive(account + [0, 0]).pub[1:]
+            ins.append([(b"\x01", A.CTxOut(100_000, A.p2tr(x, None)[0]).serialize()),
+                        (b"\x17", x),
+                        (b"\x16" + x, A.ser_compact(0) + A.ser_origin(fp, account + [0, 0]))])
+        x = master.derive(account + [0, 1]).pub[1:]
+        nums = bytes.fromhex(A.NUMS_HEX)
+        script = A.SCRIPTS.add(f"pk({x.hex()})", True)
+        info = A.taproot_construct_safe(nums, [("l0", script)])
+        leaf = info.leaves["l0"]
+        control = bytes([A.TAPSCRIPT | info.negflag]) + nums + leaf.merklebranch
+        ins.append([(b"\x01", A.CTxOut(100_000, bytes(info.scriptPubKey)).serialize()),
+                    (b"\x17", nums), (b"\x18", info.merkle_root),
+                    (b"\x15" + control, script + bytes([A.TAPSCRIPT])),
+                    (b"\x16" + x, A.ser_compact(1) + leaf.leaf_hash
+                     + A.ser_origin(fp, account + [0, 1]))])
+        for j in range(len(ins)):
+            tx.vin.append(A.CTxIn(A.COutPoint(j + 1, 0), b"", 0xFFFFFFFF))
+        tx.vout = [A.CTxOut(100_000 * len(ins) - 2_000, A.p2wpkh(bytes(20)))]
+        raw = A.write([(b"\x00", tx.serialize_without_witness())], ins, [[]])
+        xpub = master.derive(account).neuter().serialize()
+        wallet = f"tr({A.NUMS_HEX},pk([{fp.hex()}/86h/1h/0h]{xpub}/<0;1>/*))"
+        return {fp: master}, raw, wallet
+
+    def test_a_leaf_without_its_wallet_is_left_unsigned_beside_a_signed_input(self):
+        import area_sign as A
+        masters, raw, wallet = self.leaf_spend(True)
+        signed = A.ref_sign(raw, masters, "low_r", [])
+        self.assertEqual(signed["signatures"], 1)
+        _, ins, _, _ = A.parse(bytes.fromhex(signed["psbt"]))
+        self.assertTrue(A.of_type(ins[0], 0x13))
+        self.assertFalse(A.of_type(ins[1], 0x14))
+        signed = A.ref_sign(raw, masters, "low_r", [wallet])
+        self.assertEqual(signed["signatures"], 2)
+        self.assertTrue(signed["complete"])
+
+    def test_a_leaf_without_its_wallet_alone_takes_no_part(self):
+        import area_sign as A
+        masters, raw, wallet = self.leaf_spend(False)
+        with self.assertRaises(A.Known) as refused:
+            A.ref_sign(raw, masters, "low_r", [])
+        self.assertEqual(refused.exception.kind, "NoParticipatingKey")
+        self.assertEqual(A.ref_sign(raw, masters, "low_r", [wallet])["signatures"], 1)
+
+
 class MusigKept(unittest.TestCase):
     """`area_musig` keeps the reference's point multiplications: a kept
     answer is the one the reference computes again."""
