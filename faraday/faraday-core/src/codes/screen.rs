@@ -46,8 +46,22 @@ fn pill_right(ui: &mut Ui, right: f32, y: f32, label: &str) {
     let tw = ui.measure_as(LABEL_M, label);
     let pw = tw + 24.0;
     let x = right - pw;
-    ui.fill(x, y, pw, 26.0, 13.0, Role::SurfaceContainerHighest);
-    ui.stroke(x, y, pw, 26.0, 13.0, Role::OutlineVariant);
+    ui.fill(
+        x,
+        y,
+        pw,
+        26.0,
+        faraday_draw::tokens::shape_full(26.0),
+        Role::SurfaceContainerHighest,
+    );
+    ui.stroke(
+        x,
+        y,
+        pw,
+        26.0,
+        faraday_draw::tokens::shape_full(26.0),
+        Role::OutlineVariant,
+    );
     ui.text_mid_as(
         (x + (pw - tw) / 2.0, y, 26.0),
         LABEL_M,

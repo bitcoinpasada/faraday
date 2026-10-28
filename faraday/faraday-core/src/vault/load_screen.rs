@@ -171,7 +171,14 @@ fn wallet_card(ui: &mut Ui, x: f32, y: f32, w: f32, c: &LoadCard) -> f32 {
         cy += ui.wrap_as((tx, cy, right - tx), BODY_S, Role::OnSurfaceVariant, e) + 2.0;
     }
     cy += PAD - 4.0;
-    ui.stroke(x, y, w, cy - y, 10.0, Role::OutlineVariant);
+    ui.stroke(
+        x,
+        y,
+        w,
+        cy - y,
+        faraday_draw::tokens::SHAPE_M,
+        Role::OutlineVariant,
+    );
     if !c.done {
         ui.hit(x, y, w, cy - y, va(V::LoadTick(c.record)));
     }
@@ -196,7 +203,14 @@ fn keys_card(ui: &mut Ui, x: f32, y: f32, w: f32, keys: &[LoadSeed]) -> f32 {
         }
     }
     cy += PAD - 8.0;
-    ui.stroke(x, y, w, cy - y, 10.0, Role::OutlineVariant);
+    ui.stroke(
+        x,
+        y,
+        w,
+        cy - y,
+        faraday_draw::tokens::SHAPE_M,
+        Role::OutlineVariant,
+    );
     cy - y
 }
 

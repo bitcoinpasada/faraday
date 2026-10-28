@@ -480,7 +480,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             iy + 14.0,
             36.0,
             36.0,
-            10.0,
+            faraday_draw::tokens::SHAPE_M,
             Role::SecondaryContainer,
         );
         ui.icon(

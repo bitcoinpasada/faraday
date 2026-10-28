@@ -817,7 +817,14 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 
     // What is left to do: pull the stick, and where the copied files went.
     let ay = h - 32.0 - 44.0 - 44.0;
-    ui.fill(x, ay, width, 44.0, 10.0, Role::WarningContainer);
+    ui.fill(
+        x,
+        ay,
+        width,
+        44.0,
+        faraday_draw::tokens::SHAPE_M,
+        Role::WarningContainer,
+    );
     ui.icon(
         x + 16.0,
         ay + 12.0,

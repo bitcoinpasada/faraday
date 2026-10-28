@@ -364,7 +364,7 @@ pub(super) fn sidebar(app: &View, ui: &mut Ui, h: f32) {
             fy - 4.0,
             SIDEBAR_W - 32.0,
             28.0,
-            6.0,
+            SHAPE_S,
             Role::SecondaryContainer,
         );
     }
@@ -397,7 +397,7 @@ pub(super) fn sidebar(app: &View, ui: &mut Ui, h: f32) {
             fy - 4.0,
             SIDEBAR_W - 32.0,
             28.0,
-            6.0,
+            SHAPE_S,
             Role::SecondaryContainer,
         );
     }

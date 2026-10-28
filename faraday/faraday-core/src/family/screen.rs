@@ -1231,10 +1231,17 @@ fn vault(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             cy,
             w,
             ch,
-            10.0,
+            faraday_draw::tokens::SHAPE_M,
             selected_or(on, Role::SurfaceContainerHighest),
         );
-        ui.stroke(x, cy, w, ch, 10.0, selected_or(on, Role::OutlineVariant));
+        ui.stroke(
+            x,
+            cy,
+            w,
+            ch,
+            faraday_draw::tokens::SHAPE_M,
+            selected_or(on, Role::OutlineVariant),
+        );
         ui.icon(x + 14.0, cy + 14.0, 36.0, Icon::Lock, 15.0, muted);
         let where_ = if f.in_outbox {
             fill(EN.family_sealed_here, &[app.medium.for_the()])

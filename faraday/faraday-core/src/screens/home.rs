@@ -326,7 +326,14 @@ fn tiles(app: &View, ui: &mut Ui, (x, y): (f32, f32), width: f32, gap: f32) {
         ui.stroke(tx, ty, tilew, tile_h, SHAPE_M, Role::OutlineVariant);
         let (ix, ib) = (HOME_TILE_INSET, HOME_TILE_ICON);
         let iy = (tile_h - ib) / 2.0;
-        ui.fill(tx + ix, ty + iy, ib, ib, 10.0, Role::SecondaryContainer);
+        ui.fill(
+            tx + ix,
+            ty + iy,
+            ib,
+            ib,
+            faraday_draw::tokens::SHAPE_M,
+            Role::SecondaryContainer,
+        );
         ui.icon(
             tx + ix,
             ty + iy,

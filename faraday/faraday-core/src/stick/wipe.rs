@@ -570,7 +570,14 @@ pub(crate) fn delete_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
             ui.stroke(x, cy, iw, 52.0, 8.0, selected_or(on, Role::OutlineVariant));
             // The radio button, on what it is drawn on.
             let mark = on_selected(on, Role::OutlineVariant);
-            ui.stroke(x + 14.0, cy + 17.0, 18.0, 18.0, 9.0, mark);
+            ui.stroke(
+                x + 14.0,
+                cy + 17.0,
+                18.0,
+                18.0,
+                faraday_draw::tokens::shape_full(18.0),
+                mark,
+            );
             if on {
                 ui.fill(x + 19.0, cy + 22.0, 8.0, 8.0, 4.0, mark);
             }

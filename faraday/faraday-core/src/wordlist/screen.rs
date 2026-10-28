@@ -139,7 +139,14 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, w: f32, h: f32) {
         let ry = top + 4.0 + r as f32 * ROW - scroll;
         let marked = st.mark == Some(i);
         if marked {
-            ui.fill(bx, ry, bw, ROW - 2.0, 6.0, Role::SecondaryContainer);
+            ui.fill(
+                bx,
+                ry,
+                bw,
+                ROW - 2.0,
+                faraday_draw::tokens::SHAPE_S,
+                Role::SecondaryContainer,
+            );
         }
         let number = (i + 1).to_string();
         let nw = ui.measure_as(BODY_M.mono(), &number);

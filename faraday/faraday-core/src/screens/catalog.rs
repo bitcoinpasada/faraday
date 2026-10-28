@@ -119,7 +119,14 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 if gx + gw > tx + tw3 - 12.0 {
                     break;
                 }
-                ui.fill(gx, ty + 56.0, gw, 18.0, 9.0, Role::SurfaceContainerHighest);
+                ui.fill(
+                    gx,
+                    ty + 56.0,
+                    gw,
+                    18.0,
+                    faraday_draw::tokens::shape_full(18.0),
+                    Role::SurfaceContainerHighest,
+                );
                 ui.text_mid_as(
                     (gx + 7.0, ty + 56.0, 18.0),
                     LABEL_S.mono(),

@@ -854,8 +854,22 @@ fn bind_card(
                     format!(" · {seen}")
                 }
             );
-            ui.fill(x, cy, w, 44.0, 10.0, Role::SurfaceContainerLow);
-            ui.stroke(x, cy, w, 44.0, 10.0, Role::OutlineVariant);
+            ui.fill(
+                x,
+                cy,
+                w,
+                44.0,
+                faraday_draw::tokens::SHAPE_M,
+                Role::SurfaceContainerLow,
+            );
+            ui.stroke(
+                x,
+                cy,
+                w,
+                44.0,
+                faraday_draw::tokens::SHAPE_M,
+                Role::OutlineVariant,
+            );
             let t = ui.fit_as(BODY_S.mono(), &line, w - 24.0);
             ui.text_mid_as((x + 12.0, cy, 44.0), BODY_S.mono(), Role::OnSurface, &t);
             ui.hit(x, cy, w, 44.0, fa(F::PickFile(v, k)));

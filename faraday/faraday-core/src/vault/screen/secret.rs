@@ -29,7 +29,12 @@ fn secret_eye(ui: &mut Ui, x: f32, y: f32, w: f32, (action, shown): (Action, boo
     let ex = x + w - tokens::TOUCH;
     let pressed = ui.is_pressed(action);
     let edge = (tokens::TOUCH - 32.0) / 2.0;
-    crate::ui::fill_pressed(ui, (ex + edge, y + edge, 32.0, 32.0, 6.0), inset, pressed);
+    crate::ui::fill_pressed(
+        ui,
+        (ex + edge, y + edge, 32.0, 32.0, tokens::shape_full(32.0)),
+        inset,
+        pressed,
+    );
     ui.icon(
         ex,
         y,

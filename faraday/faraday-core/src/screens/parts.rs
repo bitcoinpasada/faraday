@@ -861,7 +861,14 @@ pub(crate) fn code_field(ui: &mut Ui, x: f32, y: f32, w: f32, h: f32, text: &str
 pub(crate) fn locked_tag(ui: &mut Ui, x: f32, y: f32) -> f32 {
     let label = EN.locked_tag_text;
     let width = ui.measure_as(LABEL_M, label) + 40.0;
-    ui.fill(x, y, width, 26.0, 13.0, Role::OkContainer);
+    ui.fill(
+        x,
+        y,
+        width,
+        26.0,
+        faraday_draw::tokens::shape_full(26.0),
+        Role::OkContainer,
+    );
     ui.icon(
         x + 6.0,
         y + 3.0,

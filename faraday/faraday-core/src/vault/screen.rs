@@ -106,7 +106,7 @@ pub(crate) fn stick_banner(ui: &mut Ui, x: f32, y: f32, w: f32, text: &str) -> f
         let th = ui.wrap_as((x + 40.0, y + 12.0, w - 52.0), LABEL_L, warn, text);
         ui.c.pop_clip();
         let bh = th + 24.0;
-        ui.fill(x, y, w, bh, 10.0, Role::WarningContainer);
+        ui.fill(x, y, w, bh, tokens::SHAPE_M, Role::WarningContainer);
         ui.icon(
             x + 10.0,
             y + bh / 2.0 - 10.0,
@@ -123,7 +123,7 @@ pub(crate) fn stick_banner(ui: &mut Ui, x: f32, y: f32, w: f32, text: &str) -> f
         );
         return bh + 12.0;
     }
-    ui.fill(x, y, w, 48.0, 10.0, Role::WarningContainer);
+    ui.fill(x, y, w, 48.0, tokens::SHAPE_M, Role::WarningContainer);
     ui.icon(
         x + 14.0,
         y + 14.0,

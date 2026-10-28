@@ -933,10 +933,17 @@ fn row(ui: &mut Ui, x: f32, y: f32, w: f32, r: Row) {
         y,
         w,
         52.0,
-        10.0,
+        faraday_draw::tokens::SHAPE_S,
         selected_or(on, Role::SurfaceContainerHighest),
     );
-    ui.stroke(x, y, w, 52.0, 10.0, selected_or(on, Role::OutlineVariant));
+    ui.stroke(
+        x,
+        y,
+        w,
+        52.0,
+        faraday_draw::tokens::SHAPE_S,
+        selected_or(on, Role::OutlineVariant),
+    );
     // The radio button, on what it is drawn on.
     ui.dot(
         x + 22.0,

@@ -661,8 +661,22 @@ pub(crate) fn step_body(
             let compact = ui.compact;
             let row_h = if compact { 52.0 } else { 40.0 };
             let box_h = rows.len() as f32 * row_h;
-            ui.fill(x, rows_top, w, box_h, 10.0, Role::SurfaceContainerHighest);
-            ui.stroke(x, rows_top, w, box_h, 10.0, Role::OutlineVariant);
+            ui.fill(
+                x,
+                rows_top,
+                w,
+                box_h,
+                faraday_draw::tokens::SHAPE_M,
+                Role::SurfaceContainerHighest,
+            );
+            ui.stroke(
+                x,
+                rows_top,
+                w,
+                box_h,
+                faraday_draw::tokens::SHAPE_M,
+                Role::OutlineVariant,
+            );
             for (k, (label, amount, rest, note)) in rows.iter().enumerate() {
                 let ry = rows_top + k as f32 * row_h;
                 if compact {
@@ -1307,8 +1321,22 @@ pub(crate) fn step_body(
                     } else {
                         168.0
                     };
-                    ui.fill(bx, cy, half, card_h, 10.0, Role::SurfaceContainerHighest);
-                    ui.stroke(bx, cy, half, card_h, 10.0, Role::OutlineVariant);
+                    ui.fill(
+                        bx,
+                        cy,
+                        half,
+                        card_h,
+                        faraday_draw::tokens::SHAPE_M,
+                        Role::SurfaceContainerHighest,
+                    );
+                    ui.stroke(
+                        bx,
+                        cy,
+                        half,
+                        card_h,
+                        faraday_draw::tokens::SHAPE_M,
+                        Role::OutlineVariant,
+                    );
                     ui.text_as(bx + 14.0, cy + 14.0, TITLE_S, Role::OnSurface, head);
                     let sub = ui.fit_as(BODY_S, sub, half - 28.0);
                     ui.text_as(bx + 14.0, cy + 38.0, BODY_S, Role::OnSurfaceVariant, &sub);
@@ -1543,7 +1571,14 @@ pub(crate) fn step_body(
                         (EN.step_this_transaction, Role::OnSurfaceVariant)
                     };
                     ly += ui.wrap_as((x + 14.0, ly, w - 28.0), BODY_S, c, verdict) + 12.0;
-                    ui.stroke(x, top, w, ly - top, 10.0, Role::OutlineVariant);
+                    ui.stroke(
+                        x,
+                        top,
+                        w,
+                        ly - top,
+                        faraday_draw::tokens::SHAPE_M,
+                        Role::OutlineVariant,
+                    );
                     cy = ly + 8.0;
                 }
             }

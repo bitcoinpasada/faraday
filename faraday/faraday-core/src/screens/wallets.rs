@@ -600,8 +600,22 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     cy -= app.wallets.card_offset();
     // Where its backup is (§5.2): a press opens Backups on it.
     cy += backup_line(app, ui, ix, cy, iw, app.wallets.wallet());
-    ui.fill(ix, cy, iw, 50.0, 10.0, Role::SurfaceContainerHighest);
-    ui.stroke(ix, cy, iw, 50.0, 10.0, Role::OutlineVariant);
+    ui.fill(
+        ix,
+        cy,
+        iw,
+        50.0,
+        faraday_draw::tokens::SHAPE_M,
+        Role::SurfaceContainerHighest,
+    );
+    ui.stroke(
+        ix,
+        cy,
+        iw,
+        50.0,
+        faraday_draw::tokens::SHAPE_M,
+        Role::OutlineVariant,
+    );
     let pw = ui.pips(ix + 16.0, cy + 20.0, m, here);
     ui.text_mid_as(
         (ix + 30.0 + pw, cy, 50.0),

@@ -245,8 +245,22 @@ pub(crate) fn wallet_card(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     // (`docs/history/SCAN-TO-SIGN.md` §2.2).
     let can = app.can_spend(app.wallets.wallet());
     let box_h = if can { 76.0 } else { 90.0 };
-    ui.fill(x, cy, iw, box_h, 10.0, Role::SurfaceContainerHighest);
-    ui.stroke(x, cy, iw, box_h, 10.0, Role::OutlineVariant);
+    ui.fill(
+        x,
+        cy,
+        iw,
+        box_h,
+        faraday_draw::tokens::SHAPE_M,
+        Role::SurfaceContainerHighest,
+    );
+    ui.stroke(
+        x,
+        cy,
+        iw,
+        box_h,
+        faraday_draw::tokens::SHAPE_M,
+        Role::OutlineVariant,
+    );
     let pw = ui.pips(x + 14.0, cy + 16.0, m, here);
     let sigs = fill(
         EN.compact_of_signatures,
@@ -842,7 +856,14 @@ pub(crate) fn keyed_taken(
     for k in 0..count {
         let cx = x + (k % cols) as f32 * (cellw + 6.0);
         let cy = y + (k / cols) as f32 * 32.0;
-        ui.fill(cx, cy, cellw, 28.0, 6.0, Role::SurfaceContainerHighest);
+        ui.fill(
+            cx,
+            cy,
+            cellw,
+            28.0,
+            faraday_draw::tokens::SHAPE_S,
+            Role::SurfaceContainerHighest,
+        );
         crate::screens::word_cell_edge(ui, (cx, cy, cellw, 28.0), k == taken.len());
         ui.text_mid_as(
             (cx + 6.0, cy, 28.0),
