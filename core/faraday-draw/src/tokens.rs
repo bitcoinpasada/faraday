@@ -917,6 +917,11 @@ pub const NAV_BAR_H: f32 = 80.0;
 /// The top app bar's height, across the page.
 pub const APP_BAR_H: f32 = 64.0;
 
+/// The room a device's stick pills leave the page's name in the top app
+/// bar beside the expanded rail, back arrow included: the pills take the
+/// longest form that fits the rest (`docs/LAYOUT.md` §3).
+pub const APP_BAR_PILLS_TITLE_ROOM: f32 = 320.0;
+
 /// The pill behind the current destination's icon on the rail and the
 /// bar: its width.
 pub const NAV_PILL_W: f32 = 56.0;

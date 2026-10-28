@@ -585,3 +585,36 @@ fn a_blank_stick_put_back_while_another_is_wanted_reads_as_its_number() {
     // Not settled: no pill is lit.
     assert!(lit(&app).is_empty());
 }
+
+/// Where `text` is drawn highest on the window: its top, if it is drawn.
+fn top_of(app: &mut Faraday, text: &str) -> Option<i32> {
+    let _ = app.frame();
+    app.drawn_text_boxes()
+        .into_iter()
+        .filter(|(t, _)| t == text)
+        .map(|(_, r)| r.1)
+        .min()
+}
+
+#[test]
+fn on_a_wide_device_the_page_stays_where_it_is_as_the_pills_come_and_go() {
+    let mut shell = Shell::new();
+    let mut app = gpg_at_write(&mut shell);
+    let t = drawn(&mut app);
+    assert!(t.iter().any(|s| s == "Stick 2 · out"), "{t:?}");
+    let with = top_of(&mut app, "GPG key").expect("the flow's name");
+    shell.plug(&mut app, "S1");
+    shell.pull(&mut app, "S1");
+    shell.plug(&mut app, "S2");
+    shell.flow(&mut app, F::Hold);
+    shell.pull(&mut app, "S2");
+    assert_eq!(app.flow().unwrap().step, Step::Done);
+    settle_n(&mut app, 100, 5);
+    // Done: no pills, and the page where it was with them.
+    assert!(app.stick_pills().is_empty());
+    assert_eq!(
+        top_of(&mut app, "GPG key"),
+        Some(with),
+        "the pills move nothing"
+    );
+}

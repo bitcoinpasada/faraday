@@ -201,9 +201,10 @@ pub(crate) fn app_bar(app: &View, ui: &mut Ui, w: f32, nav: Nav) -> f32 {
             // one-column layouts' bar has them (`compact::flow_bar_tools`).
             *right = crate::compact::bar_eye(app, ui, *right);
             *right = crate::compact::bar_cancel(app, ui, *right);
-        }
-        if nav == Nav::ExpandedRail && app.screen == Screen::Files {
-            *right = crate::screens::files_stick_chip(app, ui, *right);
+            if app.screen == Screen::Files {
+                *right = crate::screens::files_stick_chip(app, ui, *right);
+            }
+            *right = crate::stick::pills::bar(app, ui, *right);
         }
     };
     let ends = crate::compact::screen::measured(ui, |ui| {

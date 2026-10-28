@@ -288,14 +288,12 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
         let h = full_h;
         ui.ox = ox;
         let x = SIDEBAR_W;
-        // The stick pills' strip lies over the room above the page's
-        // first line; a taller strip moves the page down by the rest.
-        let strip = crate::stick::pills::strip_h(app, ui, full_w);
         let page_h = if kb > 0.0 { win_h } else { h };
         // Under the top app bar, which is drawn after the page and which
         // the page scrolls under: nothing of the page is drawn or pressed
-        // above the bar's foot (`docs/LAYOUT.md` §3).
-        let top = strip + APP_BAR_H;
+        // above the bar's foot (`docs/LAYOUT.md` §3). A device's stick
+        // pills stand in the bar, so the page never moves for them.
+        let top = APP_BAR_H;
         ui.ox = 0.0;
         ui.oy = 0.0;
         let clip = ui.rect(x, top, room, (page_h - top).max(0.0));
@@ -307,14 +305,8 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
         ui.c.pop_clip();
         ui.oy = 0.0;
         ui.ox = 0.0;
-        // The stick pills' strip, over whatever scrolls under it; the
-        // pills themselves are drawn last, over any sheet.
-        if strip > 0.0 {
-            ui.fill(x, 0.0, room, strip, 0.0, Role::Surface);
-        }
         if pane {
             // Under the top app bar, as the page is.
-            let top = strip + APP_BAR_H;
             ui.oy = top;
             learn_pane::draw(app, ui, (x, full_w - x, h - top));
             ui.oy = 0.0;
@@ -331,9 +323,9 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
                 Action::Scan,
             );
         }
-        // The top app bar over the page, below the stick pills' strip.
+        // The top app bar over the page, a device's stick pills in it.
         ui.ox = x;
-        ui.oy = strip;
+        ui.oy = 0.0;
         crate::nav::screen::app_bar(app, ui, room, Nav::ExpandedRail);
         ui.ox = 0.0;
         ui.oy = 0.0;

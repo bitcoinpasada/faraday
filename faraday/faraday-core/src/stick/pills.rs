@@ -6,8 +6,9 @@
 //! the rest in the host's Sticks menu. A press on a pill, or on a stick
 //! in the menu, asks the shell to insert the stick or pull it; the
 //! shell's sticks are folders, one for each pill, so a stick keeps what
-//! was written to it. Held bare (`--panel`), the app draws them in a
-//! strip across the top, as a device does.
+//! was written to it. Held bare (`--panel`), the app draws them as a
+//! device does: beside the expanded rail in the top app bar ([`bar`]),
+//! on the one-column layouts in a strip across the top ([`draw`]).
 //!
 //! The pills are the boot stick and Stick 2 when nothing asks for more.
 //! While a backup flow is on screen there is a pill for each stick it
@@ -16,8 +17,7 @@
 //! A backup's sticks are numbered from 2 on every shell: the boot stick
 //! is Stick 1, still called Boot stick (Card 1 and Boot card on the Pi).
 //! On a device (the PC stick, the Pi) the pills are the boot stick's and
-//! the backup flow's, in a strip across the top while a flow on screen
-//! uses sticks: the boot pill,
+//! the backup flow's, while a flow on screen uses sticks: the boot pill,
 //! then a pill per stick in the flow's order, lit only while the stick in reads as that one, and
 //! no press, since a real stick is put in by hand (`docs/BACKUP-FLOW.md`
 //! §16).
@@ -553,7 +553,7 @@ fn layout(pills: &[Pill], ui: &Ui, z: &Size, avail: f32) -> Layout {
 /// design units: a device's, and Faraday Demo's on the Pi panel's
 /// size; 0 where there are none, or where they stand in the top bar.
 pub(crate) fn strip_h(app: &View, ui: &Ui, window_w: f32) -> f32 {
-    if app.hosted() {
+    if app.hosted() || in_bar(app) {
         return 0.0;
     }
     let pills = app.stick_pills();
@@ -578,14 +578,64 @@ fn state(p: &Pill) -> StickState {
     }
 }
 
+/// Whether the pills stand in the top app bar: beside the expanded rail,
+/// where the bar is there with them or without them, so the page under
+/// it stays where it is as they come and go (`docs/LAYOUT.md` §3).
+/// Faraday Demo's host has them in its strip instead.
+fn in_bar(app: &View) -> bool {
+    !app.hosted() && !app.is_compact() && !app.held
+}
+
+/// Draws the pills in the top app bar beside the expanded rail ([`in_bar`]),
+/// in one row ending at `right`, left of the bar's actions, centred on
+/// the bar's height: in the longest form that fits the bar but the room
+/// it keeps for the page's name. Returns where the page's name must end;
+/// `right` where none are drawn there.
+pub(crate) fn bar(app: &View, ui: &mut Ui, right: f32) -> f32 {
+    use faraday_draw::tokens::{APP_BAR_H, APP_BAR_PILLS_TITLE_ROOM, GAP};
+    if !in_bar(app) {
+        return right;
+    }
+    let pills = app.stick_pills();
+    if pills.is_empty() {
+        return right;
+    }
+    let z = size(app);
+    let l = layout(&pills, ui, z, right - APP_BAR_PILLS_TITLE_ROOM);
+    let total = l.widths.iter().sum::<f32>() + z.gap * (pills.len() - 1) as f32;
+    let left = right - GAP - total;
+    let (mut x, y) = (left, (APP_BAR_H - z.h) / 2.0);
+    let presses = app.shell_sticks;
+    for (k, p) in pills.iter().enumerate() {
+        let w = l.widths[k];
+        let at = PillAt {
+            x,
+            y,
+            w,
+            h: z.h,
+            pad: z.pad,
+            dot_r: z.dot_r,
+            dot_room: z.dot_room,
+            text: z.text,
+        };
+        let action = Action::StickPill(p.n as u8);
+        // The tones are counted from the boot stick's, the first.
+        let n = p.n.saturating_sub(1);
+        ui.stick_pill(at, n, state(p), &l.texts[k], presses.then_some(action));
+        x += w + z.gap;
+    }
+    left - GAP
+}
+
 /// Draws the strip of pills across the top of the window, over the page
-/// and any sheet: a device's, and Faraday Demo's on the Pi panel's
-/// size, where its 44-unit bar has no room for them; none where they
-/// stand in the top bar ([`bar`]). Each takes a press where the shell's
-/// sticks are its own; a device's are put in by hand.
+/// and any sheet: a device's on the one-column layouts, and Faraday
+/// Demo's on the Pi panel's size, where its 44-unit bar has no room for
+/// them; none where they stand in the top app bar ([`bar`]). Each takes
+/// a press where the shell's sticks are its own; a device's are put in
+/// by hand.
 pub(crate) fn draw(app: &View, ui: &mut Ui, window_w: f32) {
     // Faraday Demo's host draws them in its strip (`docs/DESKTOP-HOST.md`).
-    if app.hosted() {
+    if app.hosted() || in_bar(app) {
         return;
     }
     let pills = app.stick_pills();

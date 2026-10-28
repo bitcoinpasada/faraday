@@ -107,8 +107,12 @@ one line or not at all, as before (`Ui::wordmark_fitted`).
 at the window's foot (owner, 2026-10-25; F118, `docs/DESKTOP-HOST.md`),
 with Samples, the preview size and the screen's practice aids: the app's
 bar holds what the device's does, the mode pill and the ?. Held bare
-(`--panel`), the app draws the pills in a strip above its bar, as the
-stick and the Pi do while a backup flow uses sticks.
+(`--panel`), the app draws the pills as the stick and the Pi do while
+a backup flow uses sticks: beside the expanded rail in the top app bar,
+in one row left of its actions, in the longest form that fits beside
+the room kept for the page's name (`APP_BAR_PILLS_TITLE_ROOM`), so the page under the bar stays where it is as they come and go
+(`stick::pills::bar`); on the one-column layouts in a strip above the
+bar or beside the rail.
 
 **A flow** (Make a new wallet, the backup flow, Add a key, a spend) keeps
 the navigation beside it, so a person can leave and come back to it
