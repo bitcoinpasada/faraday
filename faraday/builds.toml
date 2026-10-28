@@ -106,6 +106,8 @@ outputs = ["out/windows/faraday-starter.exe"]
 release = ["Faraday-Starter-{version}-Windows.exe"]
 
 # ---------------------------------------------------------------- planned (F145)
+# Each Pi image starts the 3B, 3B+ and Zero 2 W, and the Pi 4 once it is
+# built (F147); the DSI screens fit the 3B, 3B+ and Pi 4.
 
 [[build]]
 id = "stick-open"
@@ -116,56 +118,42 @@ spec = "docs/IMAGES.md"
 
 [[build]]
 id = "pi3-waveshare-28dpi-open"
-label = "Raspberry Pi 3, 2.8-inch screen, Open build"
+label = "Raspberry Pi, 2.8-inch screen, Open build"
 group = "image"
 status = "planned"
 spec = "docs/IMAGES.md"
 
 [[build]]
 id = "pi3-5inch-open"
-label = "Raspberry Pi 3, 5-inch screen (Touch Display 2)"
+label = "Raspberry Pi, 5-inch screen (Touch Display 2)"
 group = "image"
 status = "planned"
 spec = "docs/IMAGES.md"
 
 [[build]]
 id = "pi3-7inch-open"
-label = "Raspberry Pi 3, 7-inch DSI screen"
+label = "Raspberry Pi, 7-inch DSI screen"
 group = "image"
 status = "planned"
 spec = "docs/IMAGES.md"
 
 [[build]]
 id = "pi3-10inch-dsi-open"
-label = "Raspberry Pi 3, 10-inch DSI screen"
+label = "Raspberry Pi, 10-inch DSI screen"
 group = "image"
 status = "planned"
 spec = "docs/IMAGES.md"
 
 [[build]]
 id = "pi3-10inch-hdmi-open"
-label = "Raspberry Pi 3, 10-inch HDMI screen"
+label = "Raspberry Pi, 10-inch HDMI screen"
 group = "image"
 status = "planned"
 spec = "docs/IMAGES.md"
 
 [[build]]
 id = "pi3-monitor-open"
-label = "Raspberry Pi 3, HDMI monitor with keyboard and mouse"
-group = "image"
-status = "planned"
-spec = "docs/IMAGES.md"
-
-[[build]]
-id = "pi02w-waveshare-28dpi-open"
-label = "Raspberry Pi Zero 2 W, 2.8-inch screen, Open build"
-group = "image"
-status = "planned"
-spec = "docs/IMAGES.md"
-
-[[build]]
-id = "pi02w-monitor-open"
-label = "Raspberry Pi Zero 2 W, HDMI monitor"
+label = "Raspberry Pi, HDMI monitor with keyboard and mouse"
 group = "image"
 status = "planned"
 spec = "docs/IMAGES.md"

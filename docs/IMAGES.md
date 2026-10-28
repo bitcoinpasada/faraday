@@ -80,18 +80,25 @@ at the panel's own density; classes are `docs/LAYOUT.md` §2.
 - **No 7-inch Strict image.** The original Raspberry Pi Touch Display
   (800 × 480) may still run on the firmware's display path without DRM,
   but nothing current confirms it, so it is not offered (owner, F145).
-- **DSI screens are for the Pi 3B and 3B+ only.** The Zero 2 W has no
-  DSI connector. Its images are the 2.8-inch and the monitor.
-- **Before an image of a panel is published, it is tried on the panel.**
-  Then that panel's `panel.conf` becomes fact, not data from its
-  documentation. Its tour is rendered at its size and in both
-  orientations (`docs/ORIENTATION.md` §6). The documents cite each
-  panel's documentation and never say whose hardware it was tried on.
+- **Every Pi image starts every Pi Faraday supports** (F147). It
+  carries the device trees of the 3B, 3B+ and Zero 2 W, and the firmware
+  loads the one for the board it starts on. The Pi 4 joins them on the
+  same images, planned (§9): its kernel, firmware and device tree beside
+  the Pi 3's, the system the same. DSI screens fit the 3B, 3B+ and Pi 4:
+  the Zero 2 W has no DSI connector.
+- **An image may be published before it is tried on its panel**
+  (F147), marked on the download page as looking for testers. Once it
+  has been tried there, its `panel.conf` becomes fact, not data from its
+  documentation, its tour is rendered at its size and in both
+  orientations (`docs/ORIENTATION.md` §6), and the page marks it tested.
+  The documents cite each panel's documentation and never say whose
+  hardware it was tried on.
 
 ## 4. Release files and checking them
 
 - **One image per platform, screen and build:**
-  - `faraday-pi-X.Y.Z-pi3-<screen>-strict.img.xz` and `…-open.img.xz`;
+  - `faraday-pi-X.Y.Z-<screen>-strict.img.xz` and `…-open.img.xz`, each
+    for every supported Pi (§3);
   - `faraday-stick-X.Y.Z-x86_64-uefi-strict.img.xz` and `…-open.img.xz`;
   - each PC build's boot program, `faraday-X.Y.Z-BOOTX64-strict.EFI`
     and `…-open.EFI`.
@@ -149,19 +156,28 @@ balenaEtcher or `dd`. The README says so in a few lines per system.
 
 ## 7. The website
 
-The download page, and the hardware page it links, ask:
+The download page asks one thing, the hardware, and leads to one build
+per visit (F147):
 
-1. a PC or a Pi;
-2. for a Pi, the screen, each with its picture and the layout it gets;
-3. Strict or Open, where both exist.
+1. **Tiles**, one per piece of hardware: the PC, then each Pi screen by
+   size, and an HDMI monitor. Each shows the hardware with Faraday's
+   screen at that size, its name, the Pis it fits, and whether it is
+   tested, looking for testers, or coming soon. The Pi model is not
+   asked (§3).
+2. **A build's page** offers the Starter for the visitor's system and
+   the build's image, each as its own release file (no zip, so every
+   file is one line of `SHA256SUMS`), and writing the image without the
+   Starter. Strict is offered where the hardware has it, and the page
+   offers the other build: Open for a PC that does not start with Strict,
+   or for a USB keyboard or stick on the 2.8-inch. What the visitor needs,
+   opening the Starter the first time and checking the files are on this
+   page, not on the tiles' page. A build looking for testers asks those
+   who try it to say so.
 
-Several images can be ticked. The page offers the Starter for the
-person's system and each ticked image, each as its own release file;
-there is no zip, so every file is one line of `SHA256SUMS`. It says what
-each build carries and that every one is safe in practice, Strict being
-the most the hardware allows, and links Faraday's posts on hardware
-risk. Boards and screens under study are marked so (`docs/HARDWARE.md`
-§6).
+The hardware page says what each build carries and that every one is
+safe in practice, Strict being the most the hardware allows, and links
+Faraday's posts on hardware risk. Boards and screens under study are
+marked so (`docs/HARDWARE.md` §6).
 
 ## 8. What else changes
 
@@ -177,16 +193,27 @@ risk. Boards and screens under study are marked so (`docs/HARDWARE.md`
 
 ## 9. Order of work
 
-1. The Pi's Open kernel: its fragment, its forbidden and required
+1. One Pi image for every supported Pi: the 3B, 3B+ and Zero 2 W
+   device trees on one card, the Zero 2 W's board directory folded into
+   the Pi 3's, tried on each board.
+2. The Pi 4 on the same images: its 32-bit kernel, firmware and device
+   tree on every Pi card, the system the same. First, for the owner:
+   what it adds to the kernel's reach (USB behind PCIe, a boot loader in
+   the board's EEPROM, against `docs/SECURITY-MODEL.md`), and whether
+   the 2.8-inch runs on its firmware display path without DRM, as Strict
+   needs, tried on the board.
+3. The Pi's Open kernel: its fragment, its forbidden and required
    lists, and the image that boots with it, starting with the monitor
    (HDMI with a USB keyboard), which needs no new panel.
-2. The PC's Strict and Open: the command line in each, two images, two
+4. The PC's Strict and Open: the command line in each, two images, two
    boot programs.
-3. The release recipes, `SHA256SUMS` lines and the image list; the
+5. The release recipes, `SHA256SUMS` lines and the image list; the
    size and build time measured.
-4. The Starter: no payload of images, finding and checking them, the
+6. The Starter: no payload of images, finding and checking them, the
    offers.
-5. Each panel's directory, tried on the panel: the 7-inch, the 10-inch
+7. Each panel's directory, from its documentation, and tried on the
+   panel to be marked tested: the 7-inch, the 10-inch
    HDMI (with the USB touchscreen rule, §2), the 10-inch DSI, the
    5-inch.
-6. The website's choice, with the release that carries it.
+8. The website's download page (§7), built around the images released
+   today, with a tile for each image as it is built.

@@ -1922,7 +1922,8 @@ building.
 
 1. Pi 3B, 3B+ and Zero 2 W: one 32-bit image; the Zero 2 W board is in
    the tree already.
-2. Pi 4: its own kernel and firmware, the same mechanism.
+2. Pi 4: its own kernel, firmware and device tree on the same cards as
+   the Pi 3's (`docs/IMAGES.md` §3, F147).
 3. Pi 5: later, if at all. It is 64-bit only, its display goes through
    KMS (`DRM` is forbidden on every Faraday image), and its cameras
    need libcamera.
