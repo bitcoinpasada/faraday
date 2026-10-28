@@ -111,7 +111,7 @@ and the height give the navigation (`Faraday::nav`, LAYOUT §3):
 | Menu | A compact window that is short (the Pi's 2.8" panel). | One column: Home is a menu with a button for each place, and every other page has the top app bar with its way back (§4.1). |
 | Navigation bar | A compact window that is not short. | One column under the top app bar, the 80 dp navigation bar at the foot with the five destinations (§4.1); Learn, Settings and Lock in the top app bar; Home leads with the status strip. |
 | Navigation rail | A medium or expanded window, and a low one that is not compact and short (the 7-inch panel). | The 80 dp rail at the left with the five destinations, Learn and Settings under a divider and Lock at its foot; one column at most `COLUMN_MAX` (720) wide, centred beside it, under the top app bar (§4.1); Home leads with the status strip. |
-| Expanded rail | A large or extra-large window that is not low. | The wide layout: the 240 dp expanded rail, its destinations Material's, listing the flows in progress, the keys, the wallets and the sticks, beside a page that runs to the window's edge (LAYOUT §15). A sheet is centred over the page. The keyboard comes up only from its button. |
+| Expanded rail | A large or extra-large window that is not low. | The wide layout: the 240 dp expanded rail, its destinations Material's, listing the flows in progress, the keys, the wallets and the sticks, beside a page that runs to the window's edge (LAYOUT §15), under the top app bar on every page, Home and the step flows included (§4.1). A sheet is centred over the page. The keyboard comes up only from its button. |
 
 `Faraday::is_compact` is every navigation but the expanded rail: there
 a step flow is a page per step, a sheet is the window's width less a
