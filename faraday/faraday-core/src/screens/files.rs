@@ -7,6 +7,7 @@ use crate::ui::pal::*;
 use crate::ui::{Style, Ui};
 use crate::wallet::{FileKind, fp_text};
 use crate::{Action, Screen};
+use faraday_draw::tokens as t;
 use faraday_draw::tokens::{
     BODY_M, BODY_S, BUTTON_H, LABEL_L, LABEL_M, SHAPE_M, SHAPE_S, TITLE_M, TITLE_S,
 };
@@ -1886,31 +1887,81 @@ fn file_card(
 /// is loaded from open vaults and the Inbox, then the Inbox, then the
 /// Outbox by who may read it, then the stick. From expanded windows up,
 /// where the area holds two list panes, the Inbox and the Outbox stand
-/// side by side under the rest (`docs/LAYOUT.md` §17).
+/// side by side under the rest, each scrolling on its own
+/// (`docs/LAYOUT.md` §17): [`files_beside`].
 fn files_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     use crate::compact::M;
     use crate::compact::screen::finish;
     use faraday_draw::tokens::{LIST_PANE, MARGIN_WIDE, SPACER};
     let lists = 2.0 * LIST_PANE + SPACER;
-    let beside = crate::panes::screen::shown(app, Screen::Files) && lists + 2.0 * MARGIN_WIDE <= cw;
-    let (x, w) = if beside {
-        (x0 + MARGIN_WIDE, lists)
-    } else {
-        (x0 + M, cw - 2.0 * M)
-    };
+    if crate::panes::screen::shown(app, Screen::Files) && lists + 2.0 * MARGIN_WIDE <= cw {
+        return files_beside(app, ui, x0, cw, h);
+    }
+    let (x, w) = (x0 + M, cw - 2.0 * M);
     let top = 12.0 - app.list_offset;
     let mut y = top;
     y += compact_head(app, ui, (x, y, w));
-    if beside {
-        let inn = compact_inbox(app, ui, (x, y, LIST_PANE));
-        let out = compact_outbox(app, ui, (x + LIST_PANE + SPACER, y, LIST_PANE));
-        y += inn.max(out);
-    } else {
-        y += compact_inbox(app, ui, (x, y, w));
-        y += compact_outbox(app, ui, (x, y, w));
-    }
+    y += compact_inbox(app, ui, (x, y, w));
+    y += 8.0;
+    y += compact_outbox(app, ui, (x, y, w));
     y += compact_tail(app, ui, (x, y, w));
     finish(app, ui, x0, cw, h, y - top + 16.0);
+}
+
+/// Files beside the rail, where the area holds both list panes: the head
+/// across both, From the stick under it scrolling with the page, and For
+/// the stick beside it in a pane of its own, its top following the head
+/// as the page scrolls it away and then standing at the page's top, the
+/// list scrolling on its own under its own scrollbar
+/// (`files_out_offset`), the foot's lines at its end. The page scrolls
+/// at least far enough to take the head away.
+fn files_beside(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
+    use faraday_draw::tokens::{LIST_PANE, MARGIN_WIDE, SPACER};
+    let x = x0 + MARGIN_WIDE;
+    let top = t::FILES_BESIDE_TOP - app.list_offset;
+    let head = compact_head(app, ui, (x, top, 2.0 * LIST_PANE + SPACER));
+    let split = x + LIST_PANE + SPACER / 2.0;
+    let page = ui.rect(x0, 0.0, split - x0, h);
+    ui.c.push_clip(page);
+    let inn = compact_inbox(app, ui, (x, top + head, LIST_PANE));
+    ui.c.pop_clip();
+    // For the stick's pane: from under the head, or the page's top once
+    // the head is scrolled away, to the page's foot.
+    let pane_top = (top + head).max(t::FILES_BESIDE_TOP);
+    let view = (h - pane_top).max(0.0);
+    let (ox, ow) = (x + LIST_PANE + SPACER, LIST_PANE);
+    let content_out = files_out_h(app, ui, ow);
+    let shift = app
+        .visit
+        .files_out_offset()
+        .min((content_out - view).max(0.0));
+    let clip = ui.rect(split, pane_top, x0 + cw - split, view);
+    ui.c.push_clip(clip);
+    let oy = pane_top - shift;
+    let out = compact_outbox(app, ui, (ox, oy, ow));
+    compact_tail(app, ui, (ox, oy + out, ow));
+    ui.c.pop_clip();
+    let content = (t::FILES_BESIDE_TOP + head + inn + t::FILES_BESIDE_FOOT).max(head + h);
+    app.scroll.content_h().set(content);
+    ui.report_scroll(page, content - h);
+    ui.report_scroll_beside(
+        crate::ui::Slot::FilesOut,
+        clip,
+        content_out - view,
+        *app.visit.files_out_offset(),
+    );
+}
+
+/// For the stick's pane beside the rail, its list and the foot's lines,
+/// `w` wide: how tall it is, measured by a pass that draws nothing.
+fn files_out_h(app: &View, ui: &mut Ui, w: f32) -> f32 {
+    // A clip with no room measures and draws nothing, presses included.
+    let clip = ui.rect(0.0, 0.0, 0.0, 0.0);
+    ui.c.push_clip(clip);
+    let out = compact_outbox(app, ui, (0.0, 0.0, w));
+    let tail = compact_tail(app, ui, (0.0, out, w));
+    ui.c.pop_clip();
+    out + tail + t::FILES_BESIDE_FOOT
 }
 
 /// Files' head on a small panel: the stick, Scan a QR code, what is kept
@@ -2020,7 +2071,6 @@ fn compact_outbox(app: &View, ui: &mut Ui, (x, y0, w): (f32, f32, f32)) -> f32 {
     use crate::secrets::Exposure;
     let mut y = y0;
     // Outbox, grouped by who may read it.
-    y += 8.0;
     let lw = ui.text_as(x, y, TITLE_M, Role::OnSurfaceVariant, app.medium.for_box());
     ui.text_as(
         x + lw + 10.0,

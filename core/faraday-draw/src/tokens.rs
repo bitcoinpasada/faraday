@@ -2014,3 +2014,10 @@ pub const REFUSED_FILE_REASON_Y: f32 = 26.0;
 pub const REFUSED_FILE_NAME_Y: f32 = 4.0;
 /// Space under the reason.
 pub const REFUSED_FILE_GAP: f32 = 10.0;
+
+/// Files beside the rail (`docs/LAYOUT.md` §17): the head's top under
+/// the top app bar, and For the stick's pane's top once the head is
+/// scrolled away.
+pub const FILES_BESIDE_TOP: f32 = 12.0;
+/// Files beside the rail: the room under the last row of each list.
+pub const FILES_BESIDE_FOOT: f32 = 16.0;
