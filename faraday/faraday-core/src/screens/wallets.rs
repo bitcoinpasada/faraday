@@ -694,9 +694,16 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     );
     cy += ui.line_as(LABEL_M) + faraday_draw::tokens::GRID;
     let (addr, held) = app.receive_line(wlt, false, 0);
+    // On one line where the smaller size fits it: an address split over
+    // two lines can be read as whole from its first.
+    let size = if ui.measure_as(BODY_L.mono(), &addr) <= iw {
+        BODY_L.mono()
+    } else {
+        BODY_M.mono()
+    };
     cy += ui.wrap_as(
         (ix, cy, iw),
-        BODY_L.mono(),
+        size,
         if held { Role::Warning } else { Role::OnSurface },
         &addr,
     ) + 8.0;

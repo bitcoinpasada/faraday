@@ -130,6 +130,30 @@ fn a_wallets_buttons_stand_under_its_chart_on_a_big_window() {
     }
 }
 
+/// On a 1280 × 800 window a wallet card's first receive address is drawn
+/// whole on one line, never split where its first line could be read as
+/// the whole address.
+#[test]
+fn a_wallet_cards_first_receive_address_is_drawn_on_one_line() {
+    let mut app = with_wallets(1280, 800);
+    app.press(Action::Nav(Screen::Wallets));
+    for i in 0..app.session.wallets.len() {
+        app.press(Action::PickWallet(i));
+        let _ = app.frame();
+        let texts: Vec<String> = app.drawn_text_boxes().into_iter().map(|(t, _)| t).collect();
+        let at = texts
+            .iter()
+            .position(|t| t == "First receive address · 0/0")
+            .expect("the first receive address's label");
+        let line: String = texts[at + 1].split_whitespace().collect();
+        assert!(line.starts_with("bc1") || line.starts_with("tb1"), "{line}");
+        assert!(
+            line.len() == 42 || line.len() == 62,
+            "wallet {i}: {line} is the whole address"
+        );
+    }
+}
+
 fn exploring(w: u16, h: u16) -> Faraday {
     let mut app = testkit::started();
     window(&mut app, w, h);
