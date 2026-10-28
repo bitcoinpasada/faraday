@@ -119,3 +119,57 @@ fn once_locked_in_back_from_words_leaves_new_key() {
     button(&mut app, Event::Back);
     assert_ne!(app.screen, Screen::KeyGen, "the key stays made: out");
 }
+
+/// How many times `text` is drawn on the screen.
+fn drawn_count(app: &mut Faraday, text: &str) -> usize {
+    let _ = app.frame();
+    app.drawn_texts().iter().filter(|t| *t == text).count()
+}
+
+#[test]
+fn the_arrow_names_the_entries_card_by_its_source() {
+    use faraday_core::strings::EN;
+    let mut app = crate::keygen::opened();
+    app.press(Action::KStep(kstep::SOURCE));
+    app.press(Action::KWay(Way::Device.index()));
+    if open(&app) != Some(kstep::ENTER) {
+        app.press(Action::KNext);
+    }
+    app.event(Event::Entropy(EntropyBytes::new([0x5a; 32])));
+    app.press(Action::KNext);
+    assert_eq!(open(&app), Some(kstep::KEY));
+    assert_eq!(
+        drawn_count(&mut app, EN.keygen_generator),
+        2,
+        "the card's title and the arrow back to it"
+    );
+    assert_eq!(drawn_count(&mut app, EN.keygen_entries), 0);
+}
+
+#[test]
+fn the_arrow_names_a_typed_form_by_the_form() {
+    use faraday_core::forms::Form;
+    use faraday_core::strings::EN;
+    use faraday_shell_api::Key;
+    let mut app = faraday_core::testkit::started();
+    app.press(Action::Nav(Screen::WalletsStart));
+    app.press(Action::KeyGen(None));
+    app.press(Action::KStep(kstep::START));
+    app.press(Action::KStart(Start::Codex32.index()));
+    assert_eq!(open(&app), Some(kstep::TYPED));
+    for share in [
+        "ms12namea320zyxwvutsrqpnmlkjhgfedcaxrpp870hkkqrm",
+        "ms12namecacdefghjklmnpqrstuvwxyz023ftr2gdzmpy6pn",
+    ] {
+        for c in share.chars() {
+            app.event(Event::Key(Key::Char(c)));
+        }
+        app.event(Event::Key(Key::Enter));
+    }
+    if open(&app) != Some(kstep::KEY) {
+        app.press(Action::KNext);
+    }
+    assert_eq!(open(&app), Some(kstep::KEY));
+    assert_eq!(drawn_count(&mut app, Form::Codex32.name()), 2);
+    assert_eq!(drawn_count(&mut app, EN.keygen_words), 0);
+}

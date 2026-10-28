@@ -68,7 +68,7 @@ impl StepFlow for KeyGenSteps {
         }
     }
 
-    fn name(&self, _: &Faraday, s: u8) -> &'static str {
+    fn name(&self, app: &Faraday, s: u8) -> &'static str {
         if s >= CODEX32_FROM {
             return match CARDS.get(usize::from(s - CODEX32_FROM)) {
                 Some(Card::Scheme) => EN.codex32_scheme,
@@ -80,9 +80,7 @@ impl StepFlow for KeyGenSteps {
                 _ => EN.codex32_strings_made,
             };
         }
-        super::screen::TITLES
-            .get(usize::from(s))
-            .copied()
-            .unwrap_or(EN.keygen_back)
+        app.keygen()
+            .map_or(EN.keygen_back, |k| super::screen::card_name(k, s))
     }
 }

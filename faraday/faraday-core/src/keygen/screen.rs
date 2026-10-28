@@ -184,12 +184,23 @@ pub(crate) fn codex32_work_w(cw: f32, side: f32) -> f32 {
 fn title_of(k: &KeyGen, s: u8) -> String {
     match s {
         kstep::ENTER => entries_title(k),
-        // A form other than words is named for itself.
+        _ => card_name(k, s).to_string(),
+    }
+}
+
+/// What card `s` is called, as Back's arrow names it: the entries by
+/// their source, a form other than words by itself. Only lookups.
+pub(super) fn card_name(k: &KeyGen, s: u8) -> &'static str {
+    match s {
+        kstep::ENTER => entries_name(k),
         kstep::TYPED => match k.start.form() {
-            Some(f) if f != crate::forms::Form::Words => f.name().to_string(),
-            _ => TITLES[usize::from(s)].to_string(),
+            Some(f) if f != crate::forms::Form::Words => f.name(),
+            _ => TITLES[usize::from(s)],
         },
-        _ => TITLES[usize::from(s)].to_string(),
+        _ => TITLES
+            .get(usize::from(s))
+            .copied()
+            .unwrap_or(EN.keygen_back),
     }
 }
 
@@ -296,15 +307,7 @@ fn typed(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
 }
 
 fn entries_title(k: &KeyGen) -> String {
-    let what = match k.active() {
-        Some(Source::Dice) => EN.keygen_rolls,
-        Some(Source::Coins) => EN.keygen_flips,
-        Some(Source::Cards) => EN.keygen_cards,
-        Some(Source::Hex) => EN.keygen_digits,
-        Some(Source::Camera) => EN.keygen_pictures,
-        Some(Source::Device) => EN.keygen_generator,
-        _ => EN.keygen_entries,
-    };
+    let what = entries_name(k);
     if k.source == Some(Source::Mix) {
         let n = k.mix_list().len();
         fill(
@@ -313,6 +316,19 @@ fn entries_title(k: &KeyGen) -> String {
         )
     } else {
         what.to_string()
+    }
+}
+
+/// The entries card named by the source being entered.
+fn entries_name(k: &KeyGen) -> &'static str {
+    match k.active() {
+        Some(Source::Dice) => EN.keygen_rolls,
+        Some(Source::Coins) => EN.keygen_flips,
+        Some(Source::Cards) => EN.keygen_cards,
+        Some(Source::Hex) => EN.keygen_digits,
+        Some(Source::Camera) => EN.keygen_pictures,
+        Some(Source::Device) => EN.keygen_generator,
+        _ => EN.keygen_entries,
     }
 }
 
