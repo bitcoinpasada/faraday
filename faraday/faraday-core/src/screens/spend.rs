@@ -245,7 +245,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 /// Where a signing stands: the signatures there, how many are missing,
 /// the line that says what is left, the main button's label and its
 /// style: off while a check on Transaction stops signing here (F136).
-fn spend_status(app: &View, needed: usize) -> (usize, usize, String, String, Style) {
+fn spend_status(app: &View, needed: usize) -> (usize, usize, String, ActionLabel, Style) {
     let s = app.wallets.spend().expect("spend");
     let i = &s.inspection;
     let signed_count = s.signers.len();
@@ -302,12 +302,41 @@ fn spend_status(app: &View, needed: usize) -> (usize, usize, String, String, Sty
     } else {
         crate::wallet::collect_line(missing, count)
     };
+    // Two keys or more and Finish not reached: counted where named they
+    // would not fit the button.
+    let short = (s.spend.finished.is_none() && missing > 0 && can_sign_here.len() > 1).then(|| {
+        fill(
+            EN.spend_status_sign_with_count,
+            &[&can_sign_here.len().to_string()],
+        )
+    });
+    let label = ActionLabel { long: label, short };
     let style = if stopped {
         Style::PrimaryOff
     } else {
         Style::Primary
     };
     (count, missing, need_line, label, style)
+}
+
+/// The main button's label: the keys that sign here named, and where
+/// two or more sign, the same counted, for a button too narrow for
+/// their names.
+struct ActionLabel {
+    long: String,
+    short: Option<String>,
+}
+
+impl ActionLabel {
+    /// The label as it fits `room` in `role`: the keys named where they
+    /// fit, else counted; whatever is left too wide, cut.
+    fn fitted(&self, ui: &Ui, role: TypeRole, room: f32) -> String {
+        let label = match &self.short {
+            Some(short) if ui.measure_as(role, &self.long) > room => short,
+            _ => &self.long,
+        };
+        ui.fit_as(role, label, room)
+    }
 }
 
 /// The foot of Sign a transaction on a small panel: the signatures, what
@@ -322,8 +351,11 @@ fn spend_bar(
     step: Option<(String, Style, Action)>,
 ) {
     let (count, missing, need_line, label, style) = spend_status(app, needed);
-    let (label, style, action) = step.unwrap_or((label, style, Action::Primary));
     let (x, w) = (x0 + crate::compact::M, cw - 2.0 * crate::compact::M);
+    // The button's room for its label.
+    let room = w - 24.0;
+    let label = label.fitted(ui, TITLE_M, room);
+    let (label, style, action) = step.unwrap_or((label, style, Action::Primary));
     ui.fill(x0, y, cw, spend_bar_h(ui), 0.0, Role::SurfaceContainerLow);
     ui.fill(x0, y, cw, 1.0, 0.0, Role::OutlineVariant);
     // Its lines and its button as tall as their text (`docs/TEXT-SIZE.md`
@@ -351,7 +383,7 @@ fn spend_bar(
         },
         &line,
     );
-    let label = ui.fit_as(TITLE_M, &label, w - 24.0);
+    let label = ui.fit_as(TITLE_M, &label, room);
     ui.button(
         x,
         y + 52.0 + g1 + g2,
@@ -1735,7 +1767,7 @@ fn spend_panel(
         &need_line,
     );
     let by = h - 26.0 - 46.0;
-    let label = ui.fit_as(TITLE_M, &action_label, w - 32.0);
+    let label = action_label.fitted(ui, TITLE_M, w - 32.0);
     ui.button(x, by, Some(w), BUTTON_H, &label, style, Action::Primary);
 }
 

@@ -570,3 +570,28 @@ fn decodes_outputs_stand_at_their_columns_width_on_a_wide_window() {
         );
     }
 }
+
+/// With the three keys of Savings here, the main button reads whole: the
+/// keys counted where their names would not fit it, never cut short.
+#[test]
+fn the_sign_button_with_three_keys_here_reads_whole() {
+    let k = kit("savings");
+    let psbt = testkit::unsigned(&k).unwrap();
+    let mut app = with_inbox(vec![
+        ("spend.psbt".to_string(), psbt.to_bytes()),
+        ("savings-wallet.txt".to_string(), k.descriptor.into_bytes()),
+    ]);
+    app.press(Action::LoadWallet(at(&app, "savings-wallet.txt")));
+    for seed in ["bacon", "zebra", "summer"] {
+        add_key(&mut app, seed);
+    }
+    app.press(Action::StartSpend(at(&app, "spend.psbt")));
+    assert_eq!(app.screen, Screen::Spend);
+    let t = app.drawn_texts();
+    assert!(
+        !t.iter()
+            .any(|s| s.starts_with("Sign with") && s.ends_with('…')),
+        "{t:?}"
+    );
+    assert!(t.iter().any(|s| s == "Sign with 3 keys"), "{t:?}");
+}

@@ -4898,6 +4898,9 @@ strings! {
     spend_status_finish: "Finish",
     /// Text in `spend_status`. `{}`: `can_sign_here.join(", ")`.
     spend_status_sign_with_keys: "Sign with {}",
+    /// Text in `spend_status` where `spend_status_sign_with_keys` with
+    /// two keys or more is too wide for the button. `{}`: how many keys.
+    spend_status_sign_with_count: "Sign with {} keys",
     /// Text in `spend_status` while a check stops signing here. `{}`: the
     /// step that says why, `EN.app_transaction`.
     spend_status_stopped: "Not signed here: see {}",
