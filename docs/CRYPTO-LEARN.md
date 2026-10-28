@@ -563,7 +563,7 @@ and on the Pi's panel; only its width changes.
   lines it takes after that, its headline at `LIST_3_TOP` from its top.
   Material's list item stops at three lines and truncates the rest;
   Faraday cuts no fact (LAYOUT §8, "Nothing is cut off"), so this
-  differs from Material and needs a decision (§16 item 9).
+  differs from Material, as F148 records (owner, 2026-10-28).
 - **No presses.** A block is read, not acted on: its items take no
   press, have no state layer and no trailing icon. The tab scrolls as
   the Learn sheet scrolls, by wheel, drag and the arrow keys.
@@ -1023,15 +1023,10 @@ Reference.
 8. **What the cross-check does.** Settled (owner, 2026-10-28): each block
    carries a Cross-check field saying what the F79 cross-check does for
    the action, read from its area (§1, §10.1).
-9. **A list item taller than three lines.** Open. Material's list item
-   has one, two or three lines and truncates its supporting text after
-   two; a block's field (the Cross-check above all, some thirty lines on
-   the Pi's panel) is drawn whole, the item growing by its lines
-   (§8.5), since Faraday cuts no fact. That differs from Material, so
-   it needs a decision before batch 7 builds it. The other way is to
-   draw a long field as several items, one per entry, each within three
-   lines; an entry longer than two lines (a Cross-check part, a limit)
-   would still need the same decision.
+9. **A list item taller than three lines.** Settled (owner, 2026-10-28;
+   F148): a block's field is drawn whole, the item growing by its lines
+   (§8.5), where Material's list item stops at three lines and truncates
+   its supporting text; Faraday cuts no fact.
 
 ## 17. What this does not catch
 
