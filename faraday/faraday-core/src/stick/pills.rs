@@ -566,16 +566,6 @@ pub(crate) fn strip_h(app: &View, ui: &Ui, window_w: f32) -> f32 {
     2.0 * z.strip_pad + rows * z.h + (rows - 1.0) * z.gap
 }
 
-/// The room a wide page leaves above its first line, which the strip may
-/// lie over, in design units.
-const PAGE_TOP_ROOM: f32 = 24.0;
-
-/// How far a wide page moves down under a strip `strip` tall: by what
-/// the strip takes beyond the room the page leaves at its top.
-pub(crate) fn page_drop(strip: f32) -> f32 {
-    (strip - PAGE_TOP_ROOM).max(0.0)
-}
-
 /// Where a pill's stick stands, as its pill shows it: in, asked for by
 /// the flow, or neither.
 fn state(p: &Pill) -> StickState {

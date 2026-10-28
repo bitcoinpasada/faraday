@@ -171,3 +171,22 @@ fn a_wide_flow_in_progress_has_cancel_on_its_top_app_bar() {
         "Cancel on the bar leaves the flow or asks first"
     );
 }
+
+#[test]
+fn wide_home_is_named_by_its_top_app_bar() {
+    for (width, height) in [(1280, 800), (1920, 1080)] {
+        let mut app = on(width, height, 160);
+        assert_eq!(app.screen, Screen::Home);
+        let boxes = app.drawn_text_boxes();
+        let names: Vec<_> = boxes
+            .iter()
+            .filter(|(t, r)| t == EN.home_home && r.0 > 240)
+            .collect();
+        assert_eq!(names.len(), 1, "Home is named once at {width} × {height}");
+        let r = names[0].1;
+        assert!(
+            r.1 + r.3 <= bar_px(160),
+            "Home's name at {r:?} is not in the bar at {width} × {height}"
+        );
+    }
+}

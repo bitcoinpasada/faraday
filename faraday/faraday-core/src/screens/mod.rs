@@ -41,7 +41,7 @@ pub(crate) use entry::{
     codex32_check_button, codex32_found, codex32_head, codex32_mark, codex32_tick, entry_form,
     entry_scan, entry_stick, entry_typed, entry_words, keyed_status, word_count_row,
 };
-use faraday_draw::tokens::{APP_BAR_H, BODY_S, BUTTON_H, LABEL_L, TITLE_M};
+use faraday_draw::tokens::{APP_BAR_H, BODY_S, BUTTON_H, TITLE_M};
 use faraday_draw::tokens::{
     COLUMN_MAX, MARGIN_WIDE, NAV_BAR_H, PAGE_AREA_UNTIL_W, RAIL_W, READING_EXPLORE_W,
     READING_PAGE_W, READING_RANDOM_W, READING_TIME_W, SPACER, SUPPORT_PANE, SUPPORT_PANE_TOP,
@@ -204,13 +204,6 @@ pub(crate) fn backup_work_end(app: &crate::Faraday) -> Option<f32> {
     (room > PAGE_AREA_UNTIL_W).then(|| nav + room - support_pane_room())
 }
 
-/// Whether the frame draws the top app bar over `screen` on the wide
-/// layout: every page but Home, which keeps its own head
-/// (`docs/LAYOUT.md` §3). A lookup.
-pub(crate) fn wide_bar(screen: Screen) -> bool {
-    screen != Screen::Home
-}
-
 /// A wide page's head: its name and its way back (the name of where it
 /// lands, and the press) handed to the top app bar the frame draws over
 /// the page (`docs/LAYOUT.md` §3, DESIGN §4.1). Returns where the page's
@@ -299,42 +292,32 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
         // first line; a taller strip moves the page down by the rest.
         let strip = crate::stick::pills::strip_h(app, ui, full_w);
         let page_h = if kb > 0.0 { win_h } else { h };
-        let bar = wide_bar(app.screen);
-        if bar {
-            // Under the top app bar, which is drawn after the page and
-            // which the page scrolls under: nothing of the page is drawn
-            // or pressed above the bar's foot (`docs/LAYOUT.md` §3).
-            let top = strip + APP_BAR_H;
-            ui.ox = 0.0;
-            ui.oy = 0.0;
-            let clip = ui.rect(x, top, room, (page_h - top).max(0.0));
-            ui.c.push_clip(clip);
-            ui.ox = ox;
-            ui.oy = top - lift;
-            ui.head = None;
-            dispatch(app, ui, x, cw, page_h - top);
-            ui.c.pop_clip();
-        } else {
-            let drop = crate::stick::pills::page_drop(strip);
-            ui.oy = drop - lift;
-            ui.top_row_left = top_row_left(app, ui, full_w) - ox;
-            dispatch(app, ui, x, cw, page_h - drop);
-            ui.oy = 0.0;
-            ui.ox = 0.0;
-            top_actions_clear(app, ui, full_w);
-        }
-        ui.oy = 0.0;
-        // The top-right row and the eye stand against the window's right
-        // edge, whatever area the page is laid out in (§15).
+        // Under the top app bar, which is drawn after the page and which
+        // the page scrolls under: nothing of the page is drawn or pressed
+        // above the bar's foot (`docs/LAYOUT.md` §3).
+        let top = strip + APP_BAR_H;
         ui.ox = 0.0;
-        ui.top_row_left = f32::INFINITY;
+        ui.oy = 0.0;
+        let clip = ui.rect(x, top, room, (page_h - top).max(0.0));
+        ui.c.push_clip(clip);
+        ui.ox = ox;
+        ui.oy = top - lift;
+        ui.head = None;
+        dispatch(app, ui, x, cw, page_h - top);
+        ui.c.pop_clip();
+        ui.oy = 0.0;
+        ui.ox = 0.0;
         // The stick pills' strip, over whatever scrolls under it; the
         // pills themselves are drawn last, over any sheet.
         if strip > 0.0 {
             ui.fill(x, 0.0, room, strip, 0.0, Role::Surface);
         }
         if pane {
-            learn_pane::draw(app, ui, (x, full_w - x, h));
+            // Under the top app bar, as the page is.
+            let top = strip + APP_BAR_H;
+            ui.oy = top;
+            learn_pane::draw(app, ui, (x, full_w - x, h - top));
+            ui.oy = 0.0;
         }
         // Home's Scan floats at the window's right edge and foot
         // (`docs/LAYOUT.md` §15), whatever area its tiles are laid out
@@ -348,14 +331,10 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
                 Action::Scan,
             );
         }
-        if bar {
-            // The top app bar over the page, below the stick pills' strip.
-            ui.ox = x;
-            ui.oy = strip;
-            crate::nav::screen::app_bar(app, ui, room, Nav::ExpandedRail);
-        } else {
-            top_right_row(app, ui, full_w);
-        }
+        // The top app bar over the page, below the stick pills' strip.
+        ui.ox = x;
+        ui.oy = strip;
+        crate::nav::screen::app_bar(app, ui, room, Nav::ExpandedRail);
         ui.ox = 0.0;
         ui.oy = 0.0;
         // Centred on the window, sidebar and all.
@@ -454,11 +433,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
     // stays within reach, over it, where the page has it.
     if !app.is_compact() && app.sheet.is_some() && app.osk_wanted() {
         ui.ox = 0.0;
-        let right = if app.held {
-            full_w - TOP_ROW_QUESTION - faraday_draw::tokens::GAP
-        } else {
-            top_row_left(app, ui, full_w)
-        };
+        let right = full_w - TOP_ROW_QUESTION - faraday_draw::tokens::GAP;
         crate::compact::wide_keyboard_button(app, ui, right);
     }
     if kb > 0.0 {
@@ -483,72 +458,6 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
     // for the demo into its strip (`docs/DESKTOP-HOST.md` §3).
     if app.hosted() {
         app.sample_area.note_aids(ui.take_demo());
-    }
-}
-
-/// Home's top-right row on the wide layout, against the window's right
-/// edge: the mode pill, the keyboard button and the ? (DESIGN §4.1).
-/// Every other wide page has these in its top app bar.
-fn top_right_row(app: &View, ui: &mut Ui, full_w: f32) {
-    let kx = header_network_pill(app, ui, full_w - TOP_ROW_QUESTION);
-    // Under a sheet the keyboard button is drawn over it, below.
-    if app.sheet.is_none() {
-        crate::compact::wide_keyboard_button(app, ui, kx);
-    }
-    // The ? at the top right opens what explains this screen.
-    if !app.learn_pages().is_empty() {
-        // In the right margin, clear of every screen's own title row.
-        let (qx, qy) = (full_w - TOP_ROW_QUESTION, 12.0);
-        ui.fill(qx, qy, 28.0, 28.0, 14.0, Role::Surface);
-        ui.stroke(qx, qy, 28.0, 28.0, 14.0, Role::OutlineVariant);
-        let tw = ui.measure_as(LABEL_L, "?");
-        ui.text_mid_as(
-            (qx + 14.0 - tw / 2.0, qy, 28.0),
-            LABEL_L,
-            Role::OnSurfaceVariant,
-            "?",
-        );
-        ui.hit_shaped((qx, qy, 28.0, 28.0, 14.0), Action::Learn);
-        ui.tip_plain(
-            (qx - 6.0, qy - 6.0, 40.0, 40.0),
-            Action::Learn,
-            EN.tip_learn,
-        );
-    }
-}
-
-/// The top strip's actions' corner at the window's top right, filled
-/// with the surface over what the page drew there, so a page scrolls
-/// under the pills, the ? and the eye as under Material's top app bar;
-/// a press there reaches nothing under it. The one rule for every wide
-/// page.
-fn top_actions_clear(app: &View, ui: &mut Ui, full_w: f32) {
-    use faraday_draw::tokens as t;
-    let corner = network_pill_left(app, ui, full_w - TOP_ROW_QUESTION) - t::GAP;
-    let pills = top_row_left(app, ui, full_w) - t::GAP;
-    // The corner of the mode, the ? and the eye under it; the stick
-    // pills' stretch of the row, down to its foot.
-    for (x, w, h) in [
-        (corner, full_w - corner, t::SUPPORT_PANE_TOP),
-        (
-            pills,
-            corner - pills,
-            t::TOP_ROW_MID + t::MODE_PILL_HEIGHT / 2.0,
-        ),
-    ] {
-        if w <= 0.0 {
-            continue;
-        }
-        let area = ui.rect(x, 0.0, w, h);
-        // What stands wholly in the corner is covered; a zone or a row
-        // that runs on past it stays.
-        ui.hits.retain(|(r, _)| {
-            !(r.x >= area.x
-                && r.y >= area.y
-                && r.right() <= area.right()
-                && r.bottom() <= area.bottom())
-        });
-        ui.fill(x, 0.0, w, h, t::SHAPE_NONE, Role::Surface);
     }
 }
 
@@ -783,36 +692,6 @@ fn notices(app: &View, ui: &mut Ui, x: f32, cw: f32, h: f32) {
         let (shown, rise) = app.toast_shown();
         ui.snackbar((x, cw, foot), &t, shown, rise);
     }
-}
-
-/// The mode the session is in, at the top right of every page beside
-/// the ? (at `qx`, where the ? is or would be), centred on it, a token
-/// gap to its left. Off Mainnet only; pressed, it opens the mode sheet.
-/// Returns where the next thing in the row ends, a gap to its left.
-fn header_network_pill(app: &View, ui: &mut Ui, qx: f32) -> f32 {
-    let left = network_pill_left(app, ui, qx);
-    if crate::modes::screen::shows_pill(app) {
-        let pw = crate::modes::screen::pill_width(app, ui);
-        crate::modes::screen::pill(app, ui, qx - faraday_draw::tokens::GAP - pw, 12.0);
-    }
-    left
-}
-
-/// Where the wide layout's top-right row (the stick pills, the mode pill and
-/// the ?) begins, in a window `full_w` wide: a flow's column that scrolls
-/// under it ends left of it.
-pub(crate) fn top_row_left(app: &View, ui: &Ui, full_w: f32) -> f32 {
-    network_pill_left(app, ui, full_w - TOP_ROW_QUESTION)
-}
-
-/// Where the top-right row's next item ends, left of the ? (at `qx`)
-/// and the mode pill when there is one, a gap between each.
-fn network_pill_left(app: &View, ui: &Ui, qx: f32) -> f32 {
-    let gap = faraday_draw::tokens::GAP;
-    if !crate::modes::screen::shows_pill(app) {
-        return qx - gap;
-    }
-    qx - gap - crate::modes::screen::pill_width(app, ui) - gap
 }
 
 /// New key's page area's width on the wide layout, as the frame gives

@@ -11,7 +11,7 @@ use faraday_draw::tokens::{
     HOME_TILE_ICON, HOME_TILE_INSET, HOME_TILE_TEXT_X, LEAD_MAX, MARGIN_WIDE, TILE_H, TILE_MIN,
 };
 use faraday_draw::widgets::Icon;
-use faraday_ui::parts::{section_label, title};
+use faraday_ui::parts::section_label;
 
 /// Home's lead when nothing is under way, §1.2's rule 7: Make a new
 /// wallet.
@@ -356,15 +356,14 @@ fn tiles(app: &View, ui: &mut Ui, (x, y): (f32, f32), width: f32, gap: f32) {
     }
 }
 
-/// Home on the wide layout: the title, the lead and the tiles, a feed
+/// Home on the wide layout, named by the top app bar: the lead and the
+/// tiles, a feed
 /// across the work width (`docs/LAYOUT.md` §4, §17): as many columns as
 /// fit, from the page's start to `MARGIN_WIDE` from its end.
 pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32) {
     let x = x0 + 56.0;
     let width = cw - (x - x0) - MARGIN_WIDE;
-    let mut y = 44.0;
-    title(ui, x, y, EN.home_home);
-    y += 64.0;
+    let mut y = super::bar_head(ui, None, EN.home_home);
     // The system gave no randomness: nothing seals until a restart.
     if app.seed_missing() {
         ui.icon(x - 4.0, y - 6.0, 28.0, Icon::Error, 14.0, Role::Error);

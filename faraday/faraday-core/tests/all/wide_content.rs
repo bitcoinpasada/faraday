@@ -55,17 +55,9 @@ fn homes_tiles_start_beside_the_navigation_and_stand_in_one_row() {
         app.press(Action::Nav(Screen::Home));
         let placed: Vec<_> = tiles.iter().map(|a| hit(&mut app, *a)).collect();
         let first = placed[0];
-        // The page's title and the first tile stand beside the rail, not
-        // in a page centred in the window.
-        let title = boxes(&mut app, "Home")
-            .into_iter()
-            .filter(|b| b.0 > RAIL)
-            .min_by_key(|b| b.0)
-            .expect("Home's title");
-        assert!(
-            first.0 - RAIL < 80 && (title.0 - first.0).abs() <= 2,
-            "{w}: the first tile at {first:?}, the title at {title:?}"
-        );
+        // The first tile stands beside the rail, not in a page centred in
+        // the window.
+        assert!(first.0 - RAIL < 80, "{w}: the first tile at {first:?}");
         // The ways in side by side, each as wide as the next, none
         // past the window's right margin.
         assert!(

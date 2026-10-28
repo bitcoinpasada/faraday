@@ -1,8 +1,8 @@
 # Layout at every window size
 
 **Kind:** Spec
-**Status:** Partly built: size classes and density (L1, F101; the stick's from its EDID on a small screen, `docs/ORIENTATION.md` §2.1), navigation (L2), Home's lead tile and tile grid (L3), the supporting pane's place and its narrow strip, for codex32's Demo only card (§6); the page area to the window's edge (W1, §15, §19); list and detail for Wallets, Files, Vaults and Backups (L4, §5, §17); Settings' list of sections on compact windows and every section on one page from medium up (§17); Files' two lists each scrolling on its own beside the rail (§17); the codex32 entry's input panel (W3, §16.3), at the foot of a compact window that is not short too, above the navigation bar, and New key's dice and Create a vault's Generate with dice in it, and beside the sheets scrolling within itself; Learn in the supporting pane on extra-large windows (L6, §6); the tours at every class's size, §11's tests and DESIGN §3 written to this spec (L7); on wide windows the worksheet's fit and the string's boxes (W2, §16.1, §16.2), the view and the page following the work (W4, §16.4), the step-through's buttons fixed in Faraday Demo's host strip (W5, §16.5), Home's feed, Explore, the chart's buttons and tables at their columns' width (W6), the backup board (W7); the top app bar over every wide page but Home, the step flows' included (§3); the rest specified, not built (F92)
-**Open:** the top app bar over wide Home (§3); components that keep their size, part 2 (L5: the size set and the type roles are built in `faraday-ui`; the screens of `faraday-core` still write some sizes in place, a count `tools/lint-tokens.counts` holds and that only falls); planned.
+**Status:** Partly built: size classes and density (L1, F101; the stick's from its EDID on a small screen, `docs/ORIENTATION.md` §2.1), navigation (L2), Home's lead tile and tile grid (L3), the supporting pane's place and its narrow strip, for codex32's Demo only card (§6); the page area to the window's edge (W1, §15, §19); list and detail for Wallets, Files, Vaults and Backups (L4, §5, §17); Settings' list of sections on compact windows and every section on one page from medium up (§17); Files' two lists each scrolling on its own beside the rail (§17); the codex32 entry's input panel (W3, §16.3), at the foot of a compact window that is not short too, above the navigation bar, and New key's dice and Create a vault's Generate with dice in it, and beside the sheets scrolling within itself; Learn in the supporting pane on extra-large windows (L6, §6); the tours at every class's size, §11's tests and DESIGN §3 written to this spec (L7); on wide windows the worksheet's fit and the string's boxes (W2, §16.1, §16.2), the view and the page following the work (W4, §16.4), the step-through's buttons fixed in Faraday Demo's host strip (W5, §16.5), Home's feed, Explore, the chart's buttons and tables at their columns' width (W6), the backup board (W7); the top app bar over every wide page, Home and the step flows included (§3); the rest specified, not built (F92)
+**Open:** components that keep their size, part 2 (L5: the size set and the type roles are built in `faraday-ui`; the screens of `faraday-core` still write some sizes in place, a count `tools/lint-tokens.counts` holds and that only falls); planned.
 
 Faraday lays its screens out by Material 3's layout and navigation
 rules at every size, from the Pi's 2.8-inch panel to a full monitor.
@@ -88,8 +88,8 @@ page, and the ⋮ menu where the page has more. It replaces the wide
 layout's back link, title row and top-right row (DESIGN §4.1). It stays
 while the page scrolls under it.
 
-**Built beside the expanded rail** (2026-10-28): every page but Home
-has the top app bar across the room from the rail to the
+**Built beside the expanded rail** (2026-10-28): every page has the
+top app bar across the room from the rail to the
 window's edge (the side sheet's room left out), drawn after the page,
 which is clipped under its foot and scrolls under it; the bar takes the
 surface-container colour while the page is scrolled. The page hands its
@@ -103,7 +103,9 @@ Find) leads the page under the bar. List and detail panes start under
 it (`PANE_TOP_BAR`), every other page `PAGE_TOP_BAR` under it. Over a
 step flow the bar carries the flow's name and way back, Cancel and the
 codex32 eye, as the one-column layouts' bar does; the flow's column keeps
-its chip and Steps only · Guided at its head.
+its chip and Steps only · Guided at its head. Home's bar reads Home; the
+wordmark stays at the head of the expanded rail. Supporting panes start
+level with the page's first line under the bar.
 
 **The name on Home's bar** (owner, 2026-10-25): the mark, then the
 wordmark where it ends before the bar's actions. Faraday Demo's name,
@@ -170,9 +172,8 @@ sheet it is today.
 
 A supporting pane holds its place (owner, 2026-10-24): it does not
 scroll with the page, which scrolls beside it, and a pane taller than
-the window scrolls within itself. Its top is the page content's, below
-the top-right strip of the network pill and the eye, never level with
-them (`SUPPORT_PANE_TOP`), against the right edge with the 24 dp margin
+the window scrolls within itself. Its top is the page content's first
+line under the top app bar (`SUPPORT_PANE_TOP`), against the right edge with the 24 dp margin
 (`MARGIN_WIDE`) and the 24 dp spacer from the page (`SPACER`). On a
 window too narrow for the page beside it, what the person acts on in
 it sits in a strip pinned at the window's foot that opens to the whole
@@ -532,15 +533,9 @@ The page area is the window less the navigation, at every size: the
 1600 dp cap goes. What stands at the right stands against the window's
 edge:
 
-- the top strip's row (the mode pill and the ?; §3) and, under it, the eye and the keyboard
-  button: their right end `MARGIN_WIDE` (24 dp) from
-  the window's right edge, as Material's top app bar puts its trailing
-  actions;
-- a page's own head controls level with that row (a flow's Cancel and
-  its Steps only and Guided where no back link stands above the
-  heading, Files' stick chip) end a gap before the row; those below its
-  foot (under a back link, the stick visit's stick chips) keep the
-  page's width;
+- the top app bar's actions (§3): the ?, the mode pill, the keyboard,
+  the codex32 eye and a flow's Cancel, each in its 48 dp target from
+  the bar's end, as Material's top app bar puts its trailing actions;
 - a supporting pane (§6): its right edge `MARGIN_WIDE` from the
   window's, its top `SUPPORT_PANE_TOP`, `SPACER` from the page;
 - Home's Scan button: `MARGIN_WIDE` from the window's right and foot

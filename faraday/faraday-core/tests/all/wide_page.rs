@@ -1,5 +1,5 @@
-//! A wide window's page area (`docs/LAYOUT.md` §14, §15): what stands at
-//! the right (the ?, Scan) stands 24 dp from the window's edge, and a
+//! A wide window's page area (`docs/LAYOUT.md` §3, §14, §15): the ? ends
+//! the top app bar, Scan stands 24 dp from the window's edge, and a
 //! reading page sits centred in the room beside the navigation.
 
 use faraday_core::{Action, Faraday, Screen};
@@ -26,16 +26,17 @@ fn shown(width: u16, height: u16) -> Faraday {
 }
 
 #[test]
-fn the_question_mark_and_scan_stand_24_dp_from_the_windows_edge() {
+fn the_question_mark_ends_the_bar_and_scan_stands_24_dp_from_the_windows_edge() {
     for (w, h) in [(1280u16, 800u16), (1920, 1080), (2560, 1440)] {
         let mut app = shown(w, h);
         app.press(Action::Nav(Screen::Home));
         let _ = app.frame();
-        // The ? is a 28 dp circle in a 40 dp target.
+        // The ? is the bar's last action, its 48 dp target 4 dp from the
+        // window's edge.
         let q = app.hit_box(Action::Learn).expect("the ? on Home");
-        let right = f32::from(q.0) + f32::from(q.2) / 2.0 + 14.0;
+        let right = f32::from(q.0 + q.2);
         assert!(
-            (right - (f32::from(w) - MARGIN)).abs() <= 1.0,
+            (right - (f32::from(w) - 4.0)).abs() <= 1.0,
             "{w}: the ? ends at {right}"
         );
         let scan = app.hit_box(Action::Scan).expect("Scan on Home");

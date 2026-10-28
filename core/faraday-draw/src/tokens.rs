@@ -1187,10 +1187,9 @@ pub const LIST_SUPPORTING_Y: f32 = 38.0;
 /// A supporting pane's width (`docs/LAYOUT.md` §6).
 pub const SUPPORT_PANE: f32 = 400.0;
 
-/// Where a supporting pane's top stands on a wide window: below the
-/// top-right strip's two 48 dp rows (the network pill and the ?, then
-/// the eye), never level with them (owner, 2026-10-24).
-pub const SUPPORT_PANE_TOP: f32 = 2.0 * TOUCH;
+/// Where a supporting pane's top stands on a wide window, under the top
+/// app bar: level with the page's first line (`docs/LAYOUT.md` §3, §6).
+pub const SUPPORT_PANE_TOP: f32 = PAGE_TOP_BAR;
 
 /// Learn's supporting pane (`docs/LAYOUT.md` §6): the margin at each
 /// side of its tabs and text, and the tabs' top inside it.
@@ -1756,10 +1755,6 @@ pub const TOP_BAND: f32 = 56.0;
 /// across and stands `MARGIN_WIDE` from the window's edge
 /// (`docs/LAYOUT.md` §15).
 pub const TOP_ROW_QUESTION: f32 = MARGIN_WIDE + 28.0;
-/// The middle of the wide layout's top-right row: the ? stands 12 dp
-/// from the top and is 28 dp tall, and what else stands in the row (Files'
-/// stick chip) is centred on it (`docs/LAYOUT.md` §17).
-pub const TOP_ROW_MID: f32 = 12.0 + 14.0;
 /// The check glyph in a seen worksheet tab.
 pub const CODEX32_TAB_GLYPH: f32 = 12.0;
 /// The icon's room at the head of the cell sheet.

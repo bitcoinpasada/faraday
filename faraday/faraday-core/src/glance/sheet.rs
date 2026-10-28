@@ -1517,7 +1517,8 @@ pub(crate) fn draw_side(
     } else {
         ui.offset = 0.0;
     }
-    let top = tokens::SUPPORT_PANE_TOP;
+    // Beside the page, level with its first line under the top app bar.
+    let top = tokens::APP_BAR_H + tokens::SUPPORT_PANE_TOP;
     faraday_ui::sheet::side_sheet(
         ui,
         (w, top, tokens::SIDE_SHEET_W, h - top),
