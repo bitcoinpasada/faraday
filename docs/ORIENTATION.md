@@ -1,8 +1,8 @@
 # Panel orientation
 
 **Kind:** Spec
-**Status:** Specified (F100), partly built: native orientation, the panel's density and the known list (O1); the shell turning its frame, touch and arrow (O2)
-**Open:** the setting, its line and the turn without a restart (O3), the snapshot sizes, the guide and the docs that follow (O4).
+**Status:** Specified (F100), partly built: native orientation, the panel's density and the known list (O1); the shell turning its frame, touch and arrow (O2); the setting, its line and the turn without a restart (O3)
+**Open:** the snapshot sizes, the Size menu's portrait rows, the guide's walkthrough and the docs that follow (O4).
 
 A 7-inch or 10-inch panel starts in landscape. Settings › Display gains
 **Rotation**: Landscape, Portrait. A panel that is portrait natively is

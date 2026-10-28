@@ -91,12 +91,9 @@ fn guided_on_the_pi_panel_shows_the_open_sections_explainer() {
     }));
     app.press(Action::Nav(Screen::Settings));
     choose(&mut app, Action::Guided(true));
-    crate::common::settings_section(&mut app, "Display scale");
+    crate::common::settings_section(&mut app, "Display");
     let scale = explainers()[5].clone();
-    assert!(
-        texts(&mut app).contains(&scale),
-        "Display scale's explainer"
-    );
+    assert!(texts(&mut app).contains(&scale), "Display's explainer");
     choose(&mut app, Action::Guided(false));
     assert!(!texts(&mut app).contains(&scale), "gone with Steps only");
 }

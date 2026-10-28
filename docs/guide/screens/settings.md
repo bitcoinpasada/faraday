@@ -18,7 +18,7 @@ menu on a tall narrow window.
 
 At 1280 × 800 the sections are cards in two columns: **Mode**,
 **Session**, **Time** and **Randomness** on the left, **Appearance**,
-**Display scale**, **Signed amounts** and **About** on the right.
+**Display**, **Signed amounts** and **About** on the right.
 
 | Control | What it does |
 |---|---|
@@ -73,11 +73,17 @@ checked read this clock.
 
 A choice changes the whole window at once.
 
-### Display scale
+### Display
 
 | Control | What it does |
 |---|---|
-| "75 %", "90 %", **Auto**, "110 %", "125 %", "150 %", "200 %" | the size of text and controls; **Auto** is the size for this screen |
+| **Scale**: "75 %", "90 %", **Auto**, "110 %", "125 %", "150 %", "200 %" | the size of text and controls; **Auto** is the size for this screen |
+| **Rotation**: **Landscape**, **Portrait** | on a 7-inch or 10-inch panel only: turns the screen, and its touch with it, at once; Faraday starts in landscape and the choice is kept on the stick |
+
+**Landscape** suits the backup board and a list beside its detail.
+**Portrait** suits typing words in: the keyboard leaves more of the
+screen above it. On a laptop's screen, a monitor, the Pi's 2.8-inch
+panel and in Faraday Demo there is no **Rotation** row.
 
 ### Signed amounts
 

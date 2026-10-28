@@ -267,6 +267,9 @@ pub enum Action {
     Cancel,
     /// Set the display scale, in percent.
     Scale(u16),
+    /// Show the app this way round on a panel that can turn
+    /// (Settings › Display › Rotation, `docs/ORIENTATION.md` §6).
+    Rotation(faraday_shell_api::Orientation),
     /// Settings' section `k` opened as its own page from the list of
     /// sections on a compact window, or none: back to the list
     /// (`docs/LAYOUT.md` §17).

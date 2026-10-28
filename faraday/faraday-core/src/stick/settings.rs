@@ -18,6 +18,7 @@
 use crate::strings::EN;
 use crate::strings::fill;
 use crate::{Faraday, StorageEvent};
+use faraday_shell_api::{Command, Orientation};
 
 /// The file's name on a stick.
 pub const FILE: &str = "faraday-settings.txt";
@@ -46,6 +47,13 @@ pub fn is_file(name: &str) -> bool {
 pub(crate) struct Settings {
     /// The person's display scale, in percent of the automatic one.
     scale_pct: u16,
+    /// Which way a panel that can turn shows the app
+    /// (`docs/ORIENTATION.md` §6); Landscape by default (F100).
+    orientation: Orientation,
+    /// The panel's own orientation, once the shell has said it can turn
+    /// its frame: Rotation is offered. Never in the file or the kept
+    /// state; the shell says it again at every start.
+    rotation_native: Option<Orientation>,
     /// The scheme the screens are drawn in: a theme, a mode and a
     /// contrast level (`docs/THEMES.md` §3).
     theme: crate::ui::Theme,
@@ -77,6 +85,8 @@ impl Default for Settings {
     fn default() -> Self {
         Self {
             scale_pct: 100,
+            orientation: Orientation::Landscape,
+            rotation_native: None,
             theme: crate::ui::Theme::default(),
             text: crate::ui::TextSize::Standard,
             reduce_motion: false,
@@ -98,6 +108,27 @@ impl Settings {
     /// The display scale, in percent.
     pub(crate) fn scale_pct(&self) -> u16 {
         self.scale_pct
+    }
+
+    /// Which way a panel that can turn shows the app.
+    pub(crate) fn orientation(&self) -> Orientation {
+        self.orientation
+    }
+
+    /// Sets which way a panel that can turn shows the app.
+    pub(crate) fn set_orientation(&mut self, o: Orientation) {
+        self.orientation = o;
+    }
+
+    /// The panel's own orientation, where Rotation is offered.
+    pub(crate) fn rotation_native(&self) -> Option<Orientation> {
+        self.rotation_native
+    }
+
+    /// Notes that the shell can turn a panel whose own orientation is
+    /// `native`.
+    pub(crate) fn set_rotation_native(&mut self, native: Orientation) {
+        self.rotation_native = Some(native);
     }
 
     /// The scheme.
@@ -200,8 +231,9 @@ impl Settings {
     /// file holds after its first line, and the start of the kept set.
     pub(crate) fn body(&self) -> String {
         format!(
-            "scale={}\ntheme={}\nmode={}\ncontrast={}\ntext={}\nmotion={}\nguided={}\nqr-ms={}\nidle-lock={}\nidle-off={}\ntz={}\n",
+            "scale={}\nrotation={}\ntheme={}\nmode={}\ncontrast={}\ntext={}\nmotion={}\nguided={}\nqr-ms={}\nidle-lock={}\nidle-off={}\ntz={}\n",
             self.scale_pct,
+            self.orientation.id(),
             self.theme.name.id(),
             self.theme.mode.id(),
             self.theme.contrast.id(),
@@ -231,6 +263,13 @@ impl Settings {
                 {
                     self.scale_pct = p;
                     return true;
+                }
+            }
+            // Only the two Rotation offers; anything else leaves
+            // Landscape (`docs/ORIENTATION.md` §6).
+            "rotation" => {
+                if let Some(o) = Orientation::from_id(value) {
+                    self.orientation = o;
                 }
             }
             // The lines are read in the order written, `theme=` first: a
@@ -316,11 +355,34 @@ impl Faraday {
     }
 
     /// Takes one setting if its value is one Settings offers; a scale or
-    /// a text size is laid out at once.
+    /// a text size is laid out at once, and a rotation asked of the
+    /// shell at once.
     pub(crate) fn apply_setting(&mut self, key: &str, value: &str, from_stick: bool) {
+        let turned = self.settings.orientation();
         if self.settings.apply(key, value, from_stick) {
             self.layout_scale();
         }
+        if self.settings.orientation() != turned {
+            self.ask_orientation();
+        }
+    }
+
+    /// Asks the shell to show the app the chosen way round, where it
+    /// offered Rotation (`docs/ORIENTATION.md` §6, §7). Any other shell
+    /// is asked nothing.
+    fn ask_orientation(&mut self) {
+        if self.settings.rotation_native().is_some() {
+            let o = self.settings.orientation();
+            self.out.commands.push_back(Command::Orientation(o));
+        }
+    }
+
+    /// The shell can turn a panel whose own orientation is `native`
+    /// (`Event::RotationOffered`): Settings offers Rotation, and the
+    /// shell is asked for the kept choice.
+    pub(crate) fn rotation_offered_by(&mut self, native: Orientation) {
+        self.settings.set_rotation_native(native);
+        self.ask_orientation();
     }
 
     /// The scale just set, from the kept set or a stick, laid out at once.
@@ -437,6 +499,22 @@ impl Faraday {
                 }
                 self.save_boxes();
             }
+            // The shell turns its frame and tells the turned size, which
+            // lays the screens out again (`docs/ORIENTATION.md` §7), with
+            // Display in view: on a compact window it opens as its own
+            // page.
+            Action::Rotation(o) => {
+                if self.settings.orientation() == o {
+                    return;
+                }
+                self.settings.set_orientation(o);
+                let display = crate::screens::settings_display_section();
+                if self.scroll.panes().settings() != Some(display) {
+                    self.settings_section(Some(display));
+                }
+                self.ask_orientation();
+                self.save_boxes();
+            }
             // Laid out again at once, as a scale is: the text size counts
             // in the one-column decision (`docs/TEXT-SIZE.md` §4).
             Action::TextSize(t) => {
@@ -493,6 +571,18 @@ impl Faraday {
     /// The person's display scale, in percent of the automatic one.
     pub fn scale_pct(&self) -> u16 {
         self.settings.scale_pct()
+    }
+
+    /// Which way the person chose a panel that can turn shows the app
+    /// (Settings › Display › Rotation). A lookup.
+    pub fn orientation(&self) -> Orientation {
+        self.settings.orientation()
+    }
+
+    /// Whether Settings offers Rotation: the shell said it can turn its
+    /// frame. A lookup.
+    pub fn rotation_offered(&self) -> bool {
+        self.settings.rotation_native().is_some()
     }
 
     /// The scheme the screens are drawn in.

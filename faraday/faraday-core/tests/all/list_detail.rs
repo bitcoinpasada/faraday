@@ -270,7 +270,7 @@ const SECTIONS: [&str; 8] = [
     "Time",
     "Randomness",
     "Appearance",
-    "Display scale",
+    "Display",
     "Signed amounts",
     "About",
 ];
@@ -310,7 +310,7 @@ fn settings_on_a_wide_window_is_every_section_on_one_page() {
             "Session's timers on the same page at {w}"
         );
     }
-    // At 1280 × 800, Display scale works from the page as it always has.
+    // At 1280 × 800, Display works from the page as it always has.
     let mut app = with_wallets(1280, 800, 160);
     app.press(Action::Nav(Screen::Settings));
     let _ = app.frame();
@@ -363,7 +363,7 @@ fn back_from_a_settings_section_keeps_where_the_list_was_scrolled() {
     }
     // The glide over.
     crate::common::settle(&mut app, 1);
-    let scale = section_of(&mut app, "Display scale").expect("in the list");
+    let scale = section_of(&mut app, "Display").expect("in the list");
     let before = app.hit_box(scale);
     assert!(
         boxes(&mut app, "Mode").is_empty(),
@@ -371,7 +371,7 @@ fn back_from_a_settings_section_keeps_where_the_list_was_scrolled() {
     );
     app.press(scale);
     let _ = app.frame();
-    assert!(app.hit_box(scale).is_none(), "Display scale's page");
+    assert!(app.hit_box(scale).is_none(), "Display's page");
     app.press(Action::Back);
     let _ = app.frame();
     assert_eq!(app.hit_box(scale), before, "the list where it was");

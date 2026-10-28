@@ -3144,6 +3144,7 @@ impl Faraday {
             | Action::QrPartSize(..)
             | Action::QrSpeed(..)) => self.qr_act(a, &c),
             a @ (Action::Scale(_)
+            | Action::Rotation(_)
             | Action::TextSize(_)
             | Action::ReduceMotion(_)
             | Action::Theme(_)) => self.appearance_act(a),
@@ -7118,9 +7119,8 @@ impl App for Faraday {
                 faraday_shell_api::CameraFailure::NotFound => NoPicture::NotFound,
             }),
             Event::Clipboard { text, .. } => self.pasted(zeroize::Zeroizing::new(text)),
-            Event::ClipboardUnavailable { .. } => {
-                self.pasted(zeroize::Zeroizing::new(String::new()))
-            }
+            Event::ClipboardUnavailable { .. } => self.pasted(String::new().into()),
+            Event::RotationOffered { native } => self.rotation_offered_by(native),
             _ => return,
         }
         if settle {

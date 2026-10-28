@@ -7,10 +7,11 @@ use crate::strings::{EN, fill};
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui};
 use faraday_draw::tokens::{
-    APPEARANCE_LABEL_W, APPEARANCE_ROW_GAP, COLUMN_MAX, GAP, GUIDE_AFTER, MARGIN_WIDE, PANE_TOP,
-    PANE_TOP_BAR, SETTINGS_CARD_MIN, SPACER, TOUCH,
+    APPEARANCE_LABEL_GAP, APPEARANCE_LABEL_W, APPEARANCE_ROW_GAP, COLUMN_MAX, GAP, GUIDE_AFTER,
+    MARGIN_WIDE, PANE_TOP, PANE_TOP_BAR, SETTINGS_CARD_MIN, SPACER, TOUCH,
 };
 use faraday_draw::tokens::{BODY_M, BODY_S, BUTTON_H, LABEL_L, SEGMENTED_H, TITLE_M};
+use faraday_shell_api::Orientation;
 use faraday_ui::parts::{title, wrap_buttons};
 use std::borrow::Cow;
 use std::sync::OnceLock;
@@ -49,7 +50,7 @@ enum Part {
     Time,
     Randomness,
     Appearance,
-    Scale,
+    Display,
     Signed,
     About,
 }
@@ -59,7 +60,7 @@ enum Part {
 fn parts() -> Vec<Part> {
     use Part::*;
     vec![
-        Mode, Session, Time, Randomness, Appearance, Scale, Signed, About,
+        Mode, Session, Time, Randomness, Appearance, Display, Signed, About,
     ]
 }
 
@@ -71,7 +72,7 @@ fn part_title(p: Part) -> &'static str {
         Part::Time => EN.settings_time,
         Part::Randomness => EN.own_randomness,
         Part::Appearance => EN.settings_appearance,
-        Part::Scale => EN.settings_display_scale,
+        Part::Display => EN.settings_display,
         Part::Signed => EN.settings_signed_amounts,
         Part::About => EN.settings_about,
     }
@@ -89,7 +90,7 @@ fn part_guide(app: &View, p: Part) -> Option<Cow<'static, str>> {
         Part::Time => EN.settings_guide_time.into(),
         Part::Randomness => EN.settings_guide_randomness.into(),
         Part::Appearance => EN.settings_guide_appearance.into(),
-        Part::Scale => EN.settings_guide_scale.into(),
+        Part::Display => EN.settings_guide_scale.into(),
         Part::Signed => EN.settings_guide_signed.into(),
         Part::About => EN.settings_guide_about.into(),
     })
@@ -122,7 +123,10 @@ fn part_body(app: &View, ui: &mut Ui, p: Part, at: (f32, f32, f32)) -> f32 {
             let label = (!ui.compact).then_some(APPEARANCE_LABEL_W);
             appearance_body(app, ui, at, label)
         }
-        Part::Scale => scale_body(app, ui, at),
+        Part::Display => {
+            let label = (!ui.compact).then_some(APPEARANCE_LABEL_W);
+            display_body(app, ui, at, label)
+        }
         Part::Signed => signed_body(app, ui, at),
         Part::About => about_body(app, ui, at),
     }
@@ -244,8 +248,69 @@ fn minutes(m: u16) -> &'static str {
 /// Display scale's choices, in percent; 100 is Auto.
 const SCALES: &[u16] = &[75, 90, 100, 110, 125, 150, 200];
 
-/// Display scale's choices. Returns their height.
-fn scale_body(app: &View, ui: &mut Ui, (x, y0, w): (f32, f32, f32)) -> f32 {
+/// The Display section's place among the sections: where a press of
+/// Rotation opens it on a compact window. A lookup.
+pub(crate) fn display_section() -> u8 {
+    parts()
+        .iter()
+        .position(|&p| p == Part::Display)
+        .unwrap_or(0) as u8
+}
+
+/// A row of choices under its label, or beside it in a column
+/// `label_w` wide, as Appearance's Text size is drawn. Returns its
+/// height.
+fn labelled_choices(
+    ui: &mut Ui,
+    (x, y, w): (f32, f32, f32),
+    label_w: Option<f32>,
+    label: &str,
+    items: &[(&str, Action)],
+    on: Option<usize>,
+) -> f32 {
+    let (cx, cw, top) = match label_w {
+        Some(lw) => {
+            let line = ui.button_height(SEGMENTED_H);
+            ui.text_mid_as((x, y, line), BODY_M, Role::OnSurfaceVariant, label);
+            (x + lw, w - lw, y)
+        }
+        None => {
+            ui.text_as(x, y, BODY_M, Role::OnSurfaceVariant, label);
+            (x, w, y + ui.line_as(BODY_M) + APPEARANCE_LABEL_GAP)
+        }
+    };
+    top + ui.choices((cx, top, cw, SEGMENTED_H), LABEL_L.size, items, on) - y
+}
+
+/// Display (`docs/ORIENTATION.md` §6): Scale, and Rotation where the
+/// shell can turn its frame, with Rotation's explainer under it while
+/// Guided is on. Returns its height.
+fn display_body(app: &View, ui: &mut Ui, (x, y0, w): (f32, f32, f32), label_w: Option<f32>) -> f32 {
+    let mut y = y0 + scale_body(app, ui, (x, y0, w), label_w);
+    if app.rotation_offered() {
+        y += APPEARANCE_ROW_GAP;
+        let items = [
+            (
+                EN.settings_landscape,
+                Action::Rotation(Orientation::Landscape),
+            ),
+            (
+                EN.settings_portrait,
+                Action::Rotation(Orientation::Portrait),
+            ),
+        ];
+        let on = Some(usize::from(app.orientation() == Orientation::Portrait));
+        y += labelled_choices(ui, (x, y, w), label_w, EN.settings_rotation, &items, on);
+        if app.guided() {
+            y += GUIDE_AFTER;
+            y += crate::flow::guide_text(ui, (x, y, w), EN.settings_guide_rotation);
+        }
+    }
+    y - y0
+}
+
+/// Display's Scale row. Returns its height.
+fn scale_body(app: &View, ui: &mut Ui, at: (f32, f32, f32), label_w: Option<f32>) -> f32 {
     // Made once and kept: drawing reads them and allocates nothing.
     static LABELS: OnceLock<Vec<String>> = OnceLock::new();
     let labels = LABELS.get_or_init(|| SCALES.iter().map(|pct| format!("{pct} %")).collect());
@@ -262,7 +327,7 @@ fn scale_body(app: &View, ui: &mut Ui, (x, y0, w): (f32, f32, f32)) -> f32 {
         })
         .collect();
     let on = SCALES.iter().position(|&pct| app.scale_pct() == pct);
-    ui.choices((x, y0, w, SEGMENTED_H), LABEL_L.size, &items, on)
+    labelled_choices(ui, at, label_w, EN.settings_scale, &items, on)
 }
 
 /// Signed amounts: how many are remembered, and whether they are sealed

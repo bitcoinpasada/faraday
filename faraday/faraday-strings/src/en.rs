@@ -6111,8 +6111,11 @@ strings! {
     settings_guide_randomness: "Randomness you add, from the camera, dice, coins or cards, is hashed together with the system's into the session's randomness: what comes out is at least as strong as the stronger of the two.",
     /// Appearance's explainer on Settings, shown with Guided on.
     settings_guide_appearance: "Theme, mode and contrast set the colours. Reduce motion shows changes at once, with no slide or fade.",
-    /// Display scale's explainer on Settings, shown with Guided on.
+    /// Display's explainer on Settings, shown with Guided on.
     settings_guide_scale: "The size of text and controls. Auto is the size for this screen.",
+    /// Rotation's explainer on Settings › Display, shown with Guided on
+    /// (`docs/ORIENTATION.md` §6).
+    settings_guide_rotation: "Landscape suits the backup board and lists beside their detail. Portrait suits typing words in.",
     /// Signed amounts' explainer on Settings, shown with Guided on.
     settings_guide_signed: "The amounts each signed input stated are remembered, and the same transaction stated with other amounts is refused. Sealed into an open vault, they last past power-off.",
     /// About's explainer on Settings, shown with Guided on.
@@ -6159,8 +6162,17 @@ strings! {
     settings_text_large: "Large",
     /// Text size's third choice: text 1.4 times its size.
     settings_text_larger: "Larger",
-    /// Line in `settings`.
-    settings_display_scale: "Display scale",
+    /// Settings' section holding Scale and, on a panel that can turn,
+    /// Rotation (`docs/ORIENTATION.md` §6).
+    settings_display: "Display",
+    /// Display's row: the size of text and controls.
+    settings_scale: "Scale",
+    /// Display's row on a panel that can turn: which way it shows the app.
+    settings_rotation: "Rotation",
+    /// Rotation's first choice: wider than tall.
+    settings_landscape: "Landscape",
+    /// Rotation's second choice: taller than wide.
+    settings_portrait: "Portrait",
     /// Text in `settings`.
     settings_auto: "Auto",
     /// Preview size's choice: the window's own size.

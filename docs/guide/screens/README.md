@@ -52,7 +52,7 @@ say what to do; these pages say what each control on a screen does.
 | Tools | [Vanity address](vanity.md) | Key, What turns, Kind of address, Characters, Search |
 | Tools | [Lightning node key](lightning.md) | ldk-node from a loaded key, LND from an aezeed, the node id and its key |
 | Learn | [Learn](learn.md) | Learn's tabs and pages, beside the page on a wide window, the pages each screen gives |
-| Settings | [Settings](settings.md) | Mode, Session, Time, Randomness, Appearance, Display scale, Signed amounts, About; Set the time; Add randomness |
+| Settings | [Settings](settings.md) | Mode, Session, Time, Randomness, Appearance, Display, Signed amounts, About; Set the time; Add randomness |
 
 ## To write
 
