@@ -35,9 +35,9 @@ fn payload() -> Payload {
         version: "0.2.0".into(),
         commit: "4d0680b1a2b34d0680b1a2b34d0680b1a2b34d06".into(),
         files: vec![PayloadFile {
-            name: "faraday-stick-0.2.0-x86_64-uefi.img.xz".into(),
+            name: "faraday-stick-0.2.0-x86_64-uefi-strict.img.xz".into(),
             sha256: "a".repeat(64),
-            inner: "faraday-stick-0.2.0-x86_64-uefi.img".into(),
+            inner: "faraday-stick-0.2.0-x86_64-uefi-strict.img".into(),
             inner_sha256: "A".repeat(64),
             inner_size: 4 * GB,
             build_id: "0.2.0".into(),

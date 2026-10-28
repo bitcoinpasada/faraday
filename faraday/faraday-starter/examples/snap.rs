@@ -60,8 +60,8 @@ fn payload() -> Payload {
         commit: "4d0680b1a2b3c4d5e6f708192a3b4c5d6e7f8091".into(),
         files: vec![
             file(
-                "faraday-stick-0.2.0-x86_64-uefi.img.xz",
-                "faraday-stick-0.2.0-x86_64-uefi.img",
+                "faraday-stick-0.2.0-x86_64-uefi-strict.img.xz",
+                "faraday-stick-0.2.0-x86_64-uefi-strict.img",
                 STICK_IMAGE,
                 "0.2.0",
                 "3f9a0c1d",
@@ -730,7 +730,7 @@ fn run(s: &Snap) -> Result<(), String> {
     let mut h = s.starter();
     h.starter_event(StarterEvent::Disks(many()));
     h.starter_event(StarterEvent::DevImage(DevImage {
-        path: "out/stick/faraday-x86_64-uefi-dev.img".into(),
+        path: "out/stick/faraday-x86_64-uefi-strict-dev.img".into(),
         sha256: "9c1e44d0".repeat(8),
         size: STICK_IMAGE,
         boot_only: false,

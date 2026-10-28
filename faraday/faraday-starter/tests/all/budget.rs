@@ -33,8 +33,8 @@ fn payload() -> Payload {
         commit: "4d0680b1a2b34d0680b1a2b34d0680b1a2b34d06".into(),
         files: vec![
             file(
-                "faraday-stick-0.2.0-x86_64-uefi.img.xz",
-                "faraday-stick-0.2.0-x86_64-uefi.img",
+                "faraday-stick-0.2.0-x86_64-uefi-strict.img.xz",
+                "faraday-stick-0.2.0-x86_64-uefi-strict.img",
                 "0.2.0",
                 'a',
             ),

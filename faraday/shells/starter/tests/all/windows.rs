@@ -307,7 +307,7 @@ fn the_elevated_writer_reads_back_the_order_it_was_started_with() {
         pipe: PIPE.into(),
         order: order(
             Source::Payload {
-                name: "faraday-stick-0.2.0-x86_64-uefi.img.xz".into(),
+                name: "faraday-stick-0.2.0-x86_64-uefi-strict.img.xz".into(),
                 inner_sha256: SUM.into(),
             },
             "AAA 111 \"x\\\"",
@@ -319,7 +319,7 @@ fn the_elevated_writer_reads_back_the_order_it_was_started_with() {
         pipe: PIPE.into(),
         order: order(
             Source::Image {
-                path: r"D:\work dir\out\stick dev\faraday-x86_64-uefi-dev.img".into(),
+                path: r"D:\work dir\out\stick dev\faraday-x86_64-uefi-strict-dev.img".into(),
                 sha256: SUM.into(),
             },
             "",
@@ -388,7 +388,7 @@ fn a_malformed_order_is_refused_before_anything_is_opened() {
         pipe: PIPE.into(),
         order: order(
             Source::Payload {
-                name: "faraday-stick-0.2.0-x86_64-uefi.img.xz".into(),
+                name: "faraday-stick-0.2.0-x86_64-uefi-strict.img.xz".into(),
                 inner_sha256: SUM.into(),
             },
             "FFF333",
@@ -473,7 +473,7 @@ fn the_elevated_writer_takes_a_signed_boot_file_by_its_full_path_and_sum() {
             }),
             ..order(
                 Source::Payload {
-                    name: "faraday-stick-0.3.0-x86_64-uefi.img.xz".into(),
+                    name: "faraday-stick-0.3.0-x86_64-uefi-strict.img.xz".into(),
                     inner_sha256: SUM.into(),
                 },
                 "GGG444",

@@ -183,7 +183,7 @@ fn scenes(w: u16, h: u16, theme: Theme) -> Vec<(&'static str, Starter)> {
 
     let mut confirm = start(w, h, theme, false);
     confirm.starter_event(StarterEvent::DevImage(DevImage {
-        path: "out/stick/faraday-x86_64-uefi-dev.img".into(),
+        path: "out/stick/faraday-x86_64-uefi-strict-dev.img".into(),
         sha256: "9c1e44d0".repeat(8),
         size: 202_395_648,
         boot_only: false,

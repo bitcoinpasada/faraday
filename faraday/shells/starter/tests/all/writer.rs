@@ -14,7 +14,7 @@ const XZ: &[u8] = include_bytes!("../../../../faraday-payload/tests/vectors/fixt
 const XZ_SHA: &str = "d7e055e6f9f0d8a3c019d1e6b272b793dd607c3929a2a8f922cee3a5eae71c4f";
 const IMG_SHA: &str = "c3a69d3c8e5599d5dc08dc6780f76b30a8e4d53082a85d40c6cd2effd28dfb0c";
 const IMG_SIZE: usize = 39_936;
-const NAME: &str = "faraday-stick-0.2.0-x86_64-uefi.img.xz";
+const NAME: &str = "faraday-stick-0.2.0-x86_64-uefi-strict.img.xz";
 const COMMIT: &str = "0123456789abcdef0123456789abcdef01234567";
 
 /// The image inside `fixture.img.xz`, made again as its README says.
@@ -125,7 +125,7 @@ impl Device for FileDisk {
 
 fn manifest() -> Vec<u8> {
     format!(
-        "# Faraday Starter payload 0.2.0, commit {COMMIT}\n{NAME}\t{XZ_SHA}\tfaraday-stick-0.2.0-x86_64-uefi.img\t{IMG_SHA}\t{IMG_SIZE}\t0.2.0+0123456789ab\n"
+        "# Faraday Starter payload 0.2.0, commit {COMMIT}\n{NAME}\t{XZ_SHA}\tfaraday-stick-0.2.0-x86_64-uefi-strict.img\t{IMG_SHA}\t{IMG_SIZE}\t0.2.0+0123456789ab\n"
     )
     .into_bytes()
 }
@@ -420,7 +420,7 @@ fn keep_data_writes_only_the_boot_partition_and_leaves_every_byte_after_it() {
     let before = stick_image(gpt::DISK_UUID, 0xDA);
     std::fs::write(&path, &before).expect("a stick");
     let image = image_file(
-        "faraday-x86_64-uefi-dev-boot.vfat",
+        "faraday-x86_64-uefi-strict-dev-boot.vfat",
         &boot_partition(1536 << 10, 0xB0),
     );
     assert!(image.boot_only);
@@ -454,7 +454,7 @@ fn keep_data_from_a_whole_image_writes_only_its_boot_partition() {
     let from = (BOOT_FIRST * SECTOR) as usize;
     let to = (DATA_FIRST * SECTOR) as usize;
     new[from..to].copy_from_slice(&boot_partition(to - from, 0xB1));
-    let image = image_file("faraday-x86_64-uefi-dev.img", &new);
+    let image = image_file("faraday-x86_64-uefi-strict-dev.img", &new);
     let mut disk = FileDisk::new(&path);
     let order = disk.order(
         Confirmed::Image {

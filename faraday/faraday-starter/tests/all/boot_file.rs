@@ -38,9 +38,9 @@ fn payload() -> Payload {
         commit: "89abcdef0123456789abcdef0123456789abcdef".into(),
         files: vec![
             PayloadFile {
-                name: "faraday-stick-0.3.0-x86_64-uefi.img.xz".into(),
+                name: "faraday-stick-0.3.0-x86_64-uefi-strict.img.xz".into(),
                 sha256: "a".repeat(64),
-                inner: "faraday-stick-0.3.0-x86_64-uefi.img".into(),
+                inner: "faraday-stick-0.3.0-x86_64-uefi-strict.img".into(),
                 inner_sha256: "b".repeat(64),
                 inner_size: 202_395_648,
                 build_id: "0.3.0+89abcdef0123".into(),
@@ -104,7 +104,7 @@ fn commands(s: &mut Starter) -> Vec<StarterCommand> {
 
 fn release_source() -> Source {
     Source::Payload {
-        name: "faraday-stick-0.3.0-x86_64-uefi.img.xz".into(),
+        name: "faraday-stick-0.3.0-x86_64-uefi-strict.img.xz".into(),
         inner_sha256: "b".repeat(64),
     }
 }

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Boot the Faraday stick image headless and photograph it.
 
-    faraday/tools/qemu-check.py IMAGE OUT_DIR TESTKIT_DIR
+    faraday/tools/qemu-check.py [--no-kvm] IMAGE OUT_DIR TESTKIT_DIR
 
 QEMU boots IMAGE the way faraday/tools/stick-qemu.py boots it (OVMF, the image
 as a USB disk on xHCI), and the screen is saved as a PNG at each stage:
@@ -9,8 +9,15 @@ the first screen, with the boot stick in; after the boot stick is pulled;
 with a test stick holding TESTKIT_DIR's files plugged in; and after that
 stick is pulled. The QMP helpers are upstream's, from faraday/tools/stick-qemu.py.
 The test stick is made with mtools: Buildroot's own, from the stick
-build's host directory, or the system's.
+build's host directory (out/pi/x86_64-uefi-efi-framebuffer-<build>[-dev]),
+or the system's.
+
+--no-kvm emulates the CPU instead of using /dev/kvm, for a machine without
+it; every wait is then four times as long.
 """
+
+import argparse
+import glob
 
 import importlib.util
 import os
@@ -35,12 +42,19 @@ qemu = load("stick_qemu", os.path.join(ROOT, "faraday/tools/stick-qemu.py"))
 st = qemu
 
 BG = (0x11, 0x16, 0x1C)
-MTOOLS = os.path.join(ROOT, "out/pi/x86_64-uefi-efi-framebuffer/output/host/bin")
+# Buildroot's host tools, from the first stick build tree that has them.
+MTOOLS = sorted(glob.glob(os.path.join(
+    ROOT, "out/pi/x86_64-uefi-efi-framebuffer-*/output/host/bin")))
+# How much longer a wait is under software emulation.
+SLOW = 1
 
 
 def tool(name):
-    local = os.path.join(MTOOLS, name)
-    return local if os.path.exists(local) else shutil.which(name)
+    for directory in MTOOLS:
+        local = os.path.join(directory, name)
+        if os.path.exists(local):
+            return local
+    return shutil.which(name)
 
 
 def test_stick(path, files, label="TESTSTICK"):
@@ -71,7 +85,7 @@ def bg_share(pixels):
 def settle(monitor, scratch, seconds):
     """The screen once it shows Faraday's background and stops changing."""
     last = None
-    deadline = time.monotonic() + seconds
+    deadline = time.monotonic() + seconds * SLOW
     while time.monotonic() < deadline:
         time.sleep(1.0)
         w, h, now = monitor.screendump(scratch)
@@ -89,7 +103,17 @@ def shot(monitor, scratch, out, name):
 
 
 def main():
-    image, out, kit = sys.argv[1:4]
+    global SLOW
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--no-kvm", action="store_true",
+                        help="emulate rather than use /dev/kvm (4 times the waits)")
+    parser.add_argument("image")
+    parser.add_argument("out")
+    parser.add_argument("kit")
+    args = parser.parse_args()
+    image, out, kit = args.image, args.out, args.kit
+    if args.no_kvm:
+        SLOW = 4
     os.makedirs(out, exist_ok=True)
     work = os.path.join(out, "work")
     os.makedirs(work, exist_ok=True)
@@ -100,7 +124,7 @@ def main():
     sock = os.path.join(work, "qmp.sock")
     serial = os.path.join(work, "serial.txt")
     argv = qemu.command(boot, vars_fd=qemu.vars_copy(work),
-                        serial=f"file:{serial}", qmp=sock, vnc=19)
+                        serial=f"file:{serial}", qmp=sock, vnc=19, kvm=not args.no_kvm)
     proc = subprocess.Popen(argv, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     scratch = os.path.join(work, "screen.ppm")
     try:
@@ -112,15 +136,15 @@ def main():
         settle(monitor, scratch, 90)
         shot(monitor, scratch, out, "01-booted.png")
         st.pull_boot_stick(monitor)
-        time.sleep(4)
+        time.sleep(4 * SLOW)
         settle(monitor, scratch, 15)
         shot(monitor, scratch, out, "02-boot-stick-pulled.png")
         st.plug_in(monitor, stick)
-        time.sleep(6)
+        time.sleep(6 * SLOW)
         settle(monitor, scratch, 15)
         shot(monitor, scratch, out, "03-test-stick-in.png")
         st.unplug(monitor)
-        time.sleep(4)
+        time.sleep(4 * SLOW)
         settle(monitor, scratch, 15)
         shot(monitor, scratch, out, "04-test-stick-pulled.png")
     finally:

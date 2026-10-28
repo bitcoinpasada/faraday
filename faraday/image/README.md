@@ -652,12 +652,13 @@ beyond loopback on either end. With the dev image
 (`out/stick/faraday-x86_64-uefi-strict-dev.img`) the kernel console and the
 shell's `--verbose` output are on the terminal.
 
-`faraday/tools/qemu-check.py IMAGE OUT_DIR TESTKIT_DIR` boots the same
+`faraday/tools/qemu-check.py [--no-kvm] IMAGE OUT_DIR TESTKIT_DIR` boots the same
 image headless and saves the screen as a PNG under `OUT_DIR` at each
 stage: the first screen, with the boot stick in; after the boot stick is
 pulled; with a test stick holding `TESTKIT_DIR`'s files plugged in; and
 after that stick is pulled. It checks nothing on its own: the frames are
-for a person to look at.
+for a person to look at. `--no-kvm` emulates the CPU for a machine
+without `/dev/kvm`, and every wait is four times as long.
 
 A webcam cannot be emulated: QEMU has no UVC device, so the scanner in a
 QEMU run finds no `/dev/video*` and offers the file path instead. To try

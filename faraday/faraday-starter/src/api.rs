@@ -273,11 +273,11 @@ impl PayloadKind {
 /// as `faraday-payload` parses them.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PayloadFile {
-    /// The payload file's name (`faraday-stick-0.2.0-x86_64-uefi.img.xz`).
+    /// The payload file's name (`faraday-stick-0.2.0-x86_64-uefi-strict.img.xz`).
     pub name: String,
     /// Its SHA-256, hex.
     pub sha256: String,
-    /// The name of what is inside it (`faraday-stick-0.2.0-x86_64-uefi.img`).
+    /// The name of what is inside it (`faraday-stick-0.2.0-x86_64-uefi-strict.img`).
     pub inner: String,
     /// That file's SHA-256, hex: what is written and checked.
     pub inner_sha256: String,

@@ -40,8 +40,8 @@ pub(super) fn payload(stick_build: &str) -> Payload {
         commit: "4d0680b1a2b34d0680b1a2b34d0680b1a2b34d06".into(),
         files: vec![
             file(
-                "faraday-stick-0.2.0-x86_64-uefi.img.xz",
-                "faraday-stick-0.2.0-x86_64-uefi.img",
+                "faraday-stick-0.2.0-x86_64-uefi-strict.img.xz",
+                "faraday-stick-0.2.0-x86_64-uefi-strict.img",
                 4 * GB,
                 stick_build,
                 'a',
@@ -457,7 +457,7 @@ fn keep_data_writes_an_older_faraday_over_a_newer_stick_only_after_the_hold() {
 fn a_developers_image_says_it_is_not_the_apps_own_and_shows_its_sum() {
     let mut starter = starter_with(vec![disk("sdb", "Stick", 16 * GB)]);
     starter.starter_event(StarterEvent::DevImage(DevImage {
-        path: "out/stick/faraday-x86_64-uefi-dev.img".into(),
+        path: "out/stick/faraday-x86_64-uefi-strict-dev.img".into(),
         sha256: "d".repeat(64),
         size: 4 * GB,
         boot_only: false,
@@ -771,11 +771,11 @@ fn about_lists_the_payload() {
     let mut starter = starter_with(Vec::new());
     starter.press(StarterAction::About);
     for s in [
-        "faraday-stick-0.2.0-x86_64-uefi.img.xz",
+        "faraday-stick-0.2.0-x86_64-uefi-strict.img.xz",
         "faraday-pi-0.2.0-pi3-waveshare-28dpi.img.xz",
         "aaaa aaaa",
         "AAAA AAAA",
-        "SHA-256 of faraday-stick-0.2.0-x86_64-uefi.img",
+        "SHA-256 of faraday-stick-0.2.0-x86_64-uefi-strict.img",
         "D1AF A712 ABEF 9010 9A1B  587F F153 6BE0 7E23 4CFD",
     ] {
         assert!(seen_scrolling(&mut starter, s), "{s}");

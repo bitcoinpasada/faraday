@@ -41,7 +41,7 @@ fn payload() -> Payload {
         version: "0.2.0".into(),
         commit: "4d0680b1a2b34d0680b1a2b34d0680b1a2b34d06".into(),
         files: vec![
-            file("faraday-stick-0.2.0-x86_64-uefi.img.xz", 'a'),
+            file("faraday-stick-0.2.0-x86_64-uefi-strict.img.xz", 'a'),
             file("faraday-pi-0.2.0-pi3-waveshare-28dpi.img.xz", 'b'),
         ],
     }

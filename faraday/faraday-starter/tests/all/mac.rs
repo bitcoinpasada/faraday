@@ -42,8 +42,8 @@ fn file(name: &str, inner: &str, n: char) -> PayloadFile {
 /// `apple` (a stand-in: no release carries it until `docs/MAC.md` A1).
 fn payload(apple: bool) -> Payload {
     let mut files = vec![file(
-        "faraday-stick-0.2.0-x86_64-uefi.img.xz",
-        "faraday-stick-0.2.0-x86_64-uefi.img",
+        "faraday-stick-0.2.0-x86_64-uefi-strict.img.xz",
+        "faraday-stick-0.2.0-x86_64-uefi-strict.img",
         'a',
     )];
     if apple {
@@ -421,7 +421,7 @@ fn the_apple_silicon_choice_writes_the_apple_silicon_image() {
         Some(PayloadKind::AppleStick)
     );
     assert_eq!(
-        PayloadKind::of("faraday-stick-0.2.0-x86_64-uefi.img.xz"),
+        PayloadKind::of("faraday-stick-0.2.0-x86_64-uefi-strict.img.xz"),
         Some(PayloadKind::Stick)
     );
     for (k, name) in [
@@ -431,7 +431,7 @@ fn the_apple_silicon_choice_writes_the_apple_silicon_image() {
         ),
         (
             faraday_starter::macs::StickFor::Pc,
-            "faraday-stick-0.2.0-x86_64-uefi.img.xz",
+            "faraday-stick-0.2.0-x86_64-uefi-strict.img.xz",
         ),
     ] {
         let mut h = starter(
