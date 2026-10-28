@@ -1,8 +1,22 @@
 # Receive
 
-**Kind:** Spec
-**Status:** Text moved from `docs/GUIDE.md` (§5.4 and §6.1), written and checked against the app's screens and strings; the pictures are in `docs/guide/` and keep their names
-**Open:** the walkthrough's form (result line, what is needed, time, "With your own key"); the pictures, drawn once after the theming has landed
+**Kind:** Reference
+**Status:** Written, checked against the app's screens and strings, and pictured from `just guide-pictures` (`docs/guide/pictures/`)
+
+**You end with:** the wallet of [Make a wallet](make-a-wallet.md) in a
+watch-only wallet on an online computer, its first address compared
+with Faraday's, and a receive address checked on Faraday before it is
+given to a payer.
+
+**Before you start:** [Make a wallet](make-a-wallet.md).
+
+**You'll need:**
+
+- Faraday with the wallet `New wallet 1` loaded.
+- A watch-only wallet on an online computer (Sparrow in this
+  walkthrough) and, for scanning, a camera on Faraday's computer.
+
+**Time:** about 10 minutes.
 
 ### 5.4 Show the wallet to a watch-only wallet
 
@@ -11,10 +25,10 @@ balance and makes the transactions Faraday signs. It needs the wallet
 description, which holds no key that can spend. Press **Show wallet
 QR**.
 
-![The wallet QR](../5-4-wallet-qr.png)
+![The wallet descriptor's QR code with UR chosen, Done outlined](../pictures/5-4-wallet-qr.png)
 
-The sheet is **New wallet 1 · wallet descriptor**, **Public · safe to
-scan**, with the descriptor written under the code. **UR**, **BBQr**
+The sheet is **New wallet 1 · wallet descriptor**, **Text · one code**,
+**Public · safe to scan**, with the descriptor written under the code. **UR**, **BBQr**
 and **Parts** (numbered codes of plain text) are the formats, the one
 chosen ticked; use the one the other wallet reads.
 **PNG for the stick** puts the code on a stick as a picture.
@@ -40,16 +54,17 @@ Sparrow, open the Receive tab: it shows the next unused address and its
 QR code. On Faraday, press **Scan** (at the foot of [Home](../screens/home.md), or **Tools →
 Check an address**) and hold Sparrow's code up to the camera.
 
-![An address of New wallet 1, found](../6-1-found.png)
+![Scan a QR code, reading "That address is New wallet 1's receive address 0"](../pictures/6-1-found.png)
 
-| Line under the picture | Meaning | Do |
+| Line at the foot of the camera's picture | Meaning | Do |
 |---|---|---|
 | "That address is New wallet 1's receive address 0" | the address derives from the wallet's keys, as Sparrow's does | give it to the payer |
 | "That address is not among the first 100 of any loaded wallet" | no loaded wallet makes this address in its first 100 receive and change addresses | do not receive to it until the wallet is found |
 | "That address is not on Mainnet" | the address is for another network | the same |
 | "That address fails its checksum: a character in it is wrong" | the code was read but the address is not valid | scan it again |
 
-The camera stays on for the next address; **Cancel** closes it.
+The sheet is **Scan a QR code**. The camera stays on for the next
+address; **Cancel** closes it.
 
 Without a camera, compare the address character by character with the
 card's **First receive address · 0/0** (receive address 0), as in step

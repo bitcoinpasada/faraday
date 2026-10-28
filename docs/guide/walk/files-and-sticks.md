@@ -1,8 +1,7 @@
 # Files, sticks and QR codes
 
-**Kind:** Spec
-**Status:** Written and checked against the app's code and strings; the pictures are named and not yet drawn
-**Open:** the pictures, drawn once after the theming has landed
+**Kind:** Reference
+**Status:** Written, checked against the app's screens and strings, and pictured from `just guide-pictures` (`docs/guide/pictures/`)
 
 **You end with:** files brought in from a stick and by QR code, files
 written to a stick and checked, a file renamed and its SHA-256 read,
@@ -32,15 +31,15 @@ key loaded, a lock comes first.
 
 Press **Files** at the foot of the sidebar.
 
-*Picture to come: `files-and-sticks-files.png`, Files with a PSBT From the stick and a vault For the stick.*
+![Files with a wallet descriptor and a PSBT From the stick, a signed PSBT and a transaction For the stick, the stick TRANSFER in](../pictures/files-and-sticks-files.png)
 
 | Part | What it shows |
 |---|---|
-| the title's chip | **Waiting for a stick**; with a stick in, "Visit" and its name, which opens the stick visit; with a key loaded, **Stick attached · lock to use it** |
-| **In memory · emptied at power-off** | both lists are in memory only |
+| the title's chip | **Waiting for a stick**; with a stick in, "Visit" and its name ("Visit TRANSFER"), which opens the stick visit; with a key loaded, **Stick attached · lock to use it** |
 | **Scan a QR code** | the camera, into Files (step 6) |
+| **In memory · emptied at power-off** | both lists are in memory only |
 | **From the stick** | what was copied in, from a stick or a QR code: each file with what it is, its size and the one action it is for |
-| **For the stick** | what waits to be written, under **Public** (**Anyone may read these**), **Written sealed** and **Unprotected secrets**; each row **Ready**, **Written after Lock** (an open vault) or **Unprotected** |
+| **For the stick** | what waits to be written, under **Public** (**Anyone may read these**), **Written sealed** and **Unprotected secrets**; each row **Ready**, **Written after Lock** (an open vault) or **Unprotected**; **Empty** when nothing waits |
 
 A file's action is its button:
 
@@ -56,16 +55,18 @@ A file's action is its button:
 | a signed message | **Check the signature** |
 | a cosigner's signed PSBT | **Add to signatures** |
 
-Over the files, **From the stick** groups what they make: **Wallets**
-(with **Load the wallet**), **Keys with no wallet** (**Make it a
+Over the two lists, a card **From the stick** groups what the files
+make: **Wallets** (a wallet's name, its kind and how many of its keys
+are here, with **Load the wallet**, and **Keys load once the stick is
+out** while a stick is in), **Keys with no wallet** (**Make it a
 wallet**) and **Xpubs with no wallet** (**Make it a watch-only
 wallet**). A file nothing reads is listed as a file, for **Sign a
 file** or to be shown as a QR code.
 
 Nothing goes **For the stick** by a button: a flow puts there what it
 makes (a signed PSBT, a backup's public files, a sealed vault at a lock,
-a KeePass export). With files there, **Power off asks first while files
-wait for the stick**.
+a KeePass export). With files there, the foot of the page reads
+**Power off asks first while files wait for the stick**.
 
 ## 2. A stick visit: bring files in
 
@@ -80,19 +81,21 @@ it is pulled. The Faraday stick's first look in a power-on is
 [Read from the boot stick](../screens/prompts.md#read-from-the-boot-stick)
 instead.
 
-*Picture to come: `files-and-sticks-visit.png`, Stick visit with two files ticked On the stick.*
+![Stick visit: Then: Home, nothing for the stick, two files ticked on the stick and one too large, Import 2 files outlined](../pictures/files-and-sticks-visit.png)
 
 | Part | What it shows |
 |---|---|
-| the title's chip | where pulling the stick goes: **Then: Home**, **Then: Unlock** when a vault was sealed for it, or the flow it came in during |
-| **In Faraday**, on the left | **Settings** (Faraday's settings file), then the files **For the stick**, each tagged **Public**, **Sealed** or **Unprotected secret**, then those **From the stick**, each tagged **Public**, **Sealed**, **Secret** or **May be a secret**, or **On this stick** where the stick holds it already |
-| **On the stick**, on the right | every file on the stick, with what it is and its size |
+| the chip under the title | where pulling the stick goes: **Then: Home**, **Then: Unlock** when a vault was sealed for it, or the flow it came in during; the stick's name is at the right |
+| **In Faraday**, on the left | Faraday's settings file, `faraday-settings.txt` (**Settings**, **Public**), then the files **For the stick**, each tagged **Public**, **Sealed** or **Unprotected secret**, then those **From the stick**, each tagged **Public**, **Sealed**, **Secret** or **May be a secret**, or **On this stick** where the stick holds it already |
+| **On the stick**, on the right | every file on the stick, with what it is and its size, and a **⋮** |
+| under each list | **Write** and the count under In Faraday; **Delete files**, "Import" and the count, and **Import and load** under On the stick |
 | the line at the foot | what is left to do, such as **Remove the stick when you are done**, and **Open Files** |
 
 On the stick, every file Faraday reads is ticked, except a seed's file
 (words, a SeedQR, a child seed), a file over 18 MB (**Larger than 18 MB:
 not read**) and a file in Faraday already (**In Faraday**).
-**Select all** and **Unselect all** are over the list.
+Over each list, **Select all** while none is ticked, **Unselect all**
+while any is.
 
 | Press | Does |
 |---|---|
@@ -113,7 +116,7 @@ Files waiting **For the stick** are ticked under **In Faraday**, except
 an unprotected secret, which is ticked by hand. A file **From the
 stick** can be ticked too, to copy it to another stick. Press **Write**
 and the count (**Write 1 file**). With nothing for the stick, the list
-reads **Nothing waits for the stick**.
+reads **Nothing waits for the stick** and **Write 0 files** is grey.
 
 Each file is written, read back and compared: "Wrote payment.psbt, read
 back and matched". A file that does not match stays **For the stick**,
@@ -132,11 +135,12 @@ A vault's own older copy is always replaced ("the same vault, updated
 here"); another vault of that name is kept, and this one written
 beside it ("another vault · kept, this one as …").
 
-*Picture to come: `files-and-sticks-receipt.png`, Files with the receipt, Written to the stick, each file verified.*
+![Files after a write: For the stick empty, Written to KEYSTICK with payment-signed.psbt and vault.ofv verified](../pictures/files-and-sticks-receipt.png)
 
 What is written leaves **For the stick**. Files shows it under
-"Written to", the stick's name and the time, each file **verified** or
-why not, until the next write. A vault written stays in Files as the
+"Written to" and the stick's name ("Written to KEYSTICK"), with "at"
+and the time once the clock is set, each file **verified** or why not,
+until the next write. A vault written stays in Files as the
 stick holds it.
 
 **Write** while a key is loaded writes nothing: **Write to a stick**
@@ -150,13 +154,14 @@ in a vault** with a vault open.
 
 ## 4. A file's ⋮ menu
 
-Each file row has its button and a **⋮**. In Files the menu holds, where
+Each file row has its button and a **⋮**. The menu opens under the
+file's name. In Files it holds, where
 the file has them: **Add to vault**, **Show as QR**, **Make PDF**,
 **Rename** (For the stick only), **Details** and **Remove**. On the
 stick visit, a file on the stick has **Rename**, **Delete from the
 stick** and **Details**.
 
-*Picture to come: `files-and-sticks-menu.png`, a file's ⋮ menu in Files, with Rename and Details.*
+![The ⋮ menu of payment-signed.psbt, For the stick, in Files: Show as QR, Rename, Details and Remove](../pictures/files-and-sticks-menu.png)
 
 **Rename** opens "Rename" and the file's name: a field for the name,
 its extension fixed after it, **Rename** and **Cancel**. The name is
@@ -187,17 +192,18 @@ name, under **Danger zone: what is deleted here cannot be undone**:
 | **The free space** | **The files stay; what earlier deletes left is zeroed** |
 | **The whole partition** | **Every file is deleted, then all of it is zeroed**, with **One pass** or **Two passes** |
 
-*Picture to come: `files-and-sticks-delete.png`, Delete files from the stick, one file chosen.*
+![Delete files from KEYSTICK: Chosen files, payment-signed.psbt ticked and vault.ofv not, Delete 1 file with zeros](../pictures/files-and-sticks-delete.png)
 
-Each says how much it writes and about how long it takes on a typical
-stick. The button names the action: "Delete 1 file with zeros", or a
+**Chosen files** lists the stick's files, each with its size, to tick.
+**The free space** and **The whole partition**, once chosen, say how much
+they write and about how long it takes on a typical stick. The button names the action: "Delete 1 file with zeros", or a
 hold where a vault is among the files (**Hold to delete 1 file with
 zeros**), and always for the space: **Hold to zero the free space**,
 **Hold to zero the whole partition**. **Cancel** closes the sheet.
 
 A deleted file's line on the visit reads "deleted, zeros over it
 first". Zeroing the space shows its share done and the time left, with
-**Stop**; keep the stick in until it is done. The sheet says what zeros
+**Stop**; keep the stick in until it is done. The sheet says, under the choices, what zeros
 do not reach: a stick's controller can keep old copies of blocks, and a
 secret ever saved to a stick unencrypted is surely gone only with the
 stick destroyed. Only the stick's files partition is written.
@@ -210,24 +216,26 @@ they come. What it holds lands in Files, **From the stick**, and a bar
 names the file ("… is in Files"). A seed's SeedQR is not taken here: it
 goes in through **Add a key**.
 
-*Picture to come: `files-and-sticks-qr.png`, a PSBT shown as an animated code, UR, frame 3 of 8.*
+![Signed PSBT as an animated UR code, 14 frames, frame 4 of 14, Public · safe to scan, 2/s and Medium chosen](../pictures/files-and-sticks-qr.png)
 
 **Show as QR** (a file's **⋮**, or a flow's button) shows a file as a
-code, or as an animated run of codes:
+code, or as an animated run of codes, its line saying which
+("ur:crypto-psbt · 14 frames, shown in turn · frame 4 of 14"):
 
 | Control | Does |
 |---|---|
 | **Public · safe to scan** or **Secret · whoever scans this can use it** | what anyone who scans it gets |
-| **UR**, **BBQr**, **Parts** | the format of a run of codes |
-| **2/s**, **5/s** and between | how fast the run goes |
-| **Small**, **Medium**, **Large** | the size of each part |
-| **PNG for the stick** | the code as a picture, for the stick (a public file only) |
+| **UR**, **BBQr**, **Parts** | the format, the one chosen ticked; a PSBT offers UR and BBQr |
+| **2/s**, 3/s, **5/s** | how fast a run of codes goes |
+| **Small**, **Medium**, **Large** | the size of each part of a run |
+| **PNG for the stick** | in their place, for one code of a public file: the code as a picture, for the stick |
 | **Done** | closes it |
 
 ## 7. Transfer, the computer's end
 
 On the online computer, Faraday Starter's **Tools → Open Transfer** is
-the other end ([The Starter's tools](starter-tour.md)):
+the other end ([The Starter's other tools](starter-tools.md#2-send-a-file-to-faraday)); Faraday Demo opens the
+same Transfer from **Transfer** in its sidebar:
 
 | Part | Does |
 |---|---|

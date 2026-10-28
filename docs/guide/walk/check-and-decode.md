@@ -1,8 +1,8 @@
 # Check and decode
 
 **Kind:** Spec
-**Status:** Written and checked against the app's code and strings; the pictures are named and not yet drawn
-**Open:** the pictures, drawn once after the theming has landed
+**Status:** Written and checked against the app's code and strings; two of its four pictures drawn by `just guide-pictures` (`docs/guide/pictures/`)
+**Open:** the pictures of Decode a transaction and the calculators, which the tour draws empty (no transaction chosen, no calculator chosen)
 
 **You end with:** the transaction of [Spend](spend.md) taken apart
 field by field, its signatures' nonces checked, an address checked
@@ -31,7 +31,7 @@ calculators keep nothing of what is typed in them.
 
 ## 1. Tools
 
-*Picture to come: `check-and-decode-tools.png`, Tools with its groups of tiles and Find a tool.*
+![Tools with Find a tool at the top and the Keys and seeds and Wallets groups of tiles](../pictures/check-and-decode-tools.png)
 
 Press **Tools** in the sidebar. **Tools** lists every flow by what it
 works on, each tile with its name, one line and the standards it
@@ -66,7 +66,7 @@ finished, the one a wallet broadcasts. Open it one of three ways:
 
 | From | Press |
 |---|---|
-| [Spend](spend.md#67-send-it)'s last card, under the nonce check | **Decode it** |
+| [Spend](spend.md#67-send-it)'s **Send it** card, under the nonce check | **Decode it** |
 | **Files**, a **Finished transaction** such as `payment-final.txn` | **Decode** |
 | **Tools** | **Decode a transaction**: the first finished transaction in Files, or the camera when there is none; a transaction scanned lands as `scanned-1.txn` |
 
@@ -102,9 +102,9 @@ explorer that broadcasts it.
 
 ## 4. Nonce check
 
-*Picture to come: `check-and-decode-nonce.png`, the Nonce check under the last card, one row per signature.*
+![Send it on Spend from New wallet 1, the nonce check reading 2 signatures valid, 2 recomputed here, under the two files](../pictures/check-and-decode-nonce.png)
 
-The nonce check is on [Spend](spend.md#67-send-it)'s last card, under
+The nonce check is on [Spend](spend.md#67-send-it)'s **Send it** card, under
 the files, once the transaction is finished. **Tools → Nonce check**
 opens that card; until a transaction is finished, the tile reads **At
 the end of signing**.
@@ -118,7 +118,9 @@ Its first line sums it up:
 | **Nonce check · a signature is wrong** | danger |
 
 Then a row per signature, **Input 0**, **Input 1** and on, with the key
-and what was found:
+and what was found; an input signed by two keys has two rows, as input
+0 of the 2-of-3 has in the picture. Under them, **Decode it**, **Show
+the raw hex** and **Show the finished transaction as QR**.
 
 | Row | Meaning |
 |---|---|

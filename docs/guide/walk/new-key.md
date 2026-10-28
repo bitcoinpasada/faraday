@@ -1,12 +1,27 @@
 # Make a key
 
-**Kind:** Spec
-**Status:** Text moved from `docs/GUIDE.md` (§3.1 to §3.10 and the opening of §3), written and checked against the app's screens and strings; the pictures are in `docs/guide/` and keep their names
-**Open:** the walkthrough's form (result line, what is needed, time, "With your own key"); the pictures, drawn once after the theming has landed
+**Kind:** Reference
+**Status:** Written, checked against the app's screens and strings, and pictured from `just guide-pictures` (`docs/guide/pictures/`)
 
-A key is a list of words (a BIP-39 seed). This section makes one on the
-device, writes it down and checks the copy. It loads the key; a wallet
-from it is section 5, and backing it up is section 4.
+**You end with:** a key of 12 words, fingerprint `3dca6805`, loaded in
+Faraday, written down on paper and checked by the quiz.
+
+**Before you start:** [First start, Home and the session](first-start.md),
+or [Faraday Demo](faraday-demo.md) to practise.
+
+**You'll need:**
+
+- Faraday started, with the Faraday stick still in (step 3.2 asks for
+  it to be pulled).
+- Paper and a pen.
+- The guide's 70 rolls below, or a die for a real key.
+
+**Time:** about 30 minutes.
+
+A key is a list of words (a BIP-39 seed). This walkthrough makes one on
+the device, writes it down and checks the copy. It loads the key; a
+wallet from it is [Make a wallet](make-a-wallet.md), and backing it up
+is [Back it up](back-up.md).
 
 The test data: EntropyLab's published BitBox dice transcript for twelve
 words (`tools/reference/dice/README.md` names the source). Its first 70
@@ -30,7 +45,7 @@ Press [**Wallets**](../screens/wallets.md) in the sidebar, then **Add a key** (K
 wallets later). **Tools → Add a key** opens the same page: one tile for
 making a key and for typing one.
 
-![Wallets with no wallet](../3-1-wallets.png)
+![Wallets with no wallet loaded, Add a key outlined](../pictures/3-1-wallets.png)
 
 ### 3.2 Pull the stick
 
@@ -38,10 +53,10 @@ A key loads only with no stick attached. The sheet
 [**Pull the stick to add a key**](../screens/prompts.md#pull-the-stick)
 opens while the boot stick is in.
 
-![Pull the stick to add a key](../3-2-pull-the-stick.png)
+![The Pull the stick to add a key sheet, Boot stick attached, with Cancel](../pictures/3-2-pull-the-stick.png)
 
-Pull the stick out. Faraday keeps running from memory, and Add a key
-opens. A reminder line can show on this sheet, such as **On a TV? Stop:
+The sheet reads **Boot stick · attached**; **Cancel** goes back. Pull
+the stick out. Faraday keeps running from memory, and Add a key opens. A reminder line can show on this sheet, such as **On a TV? Stop:
 a smart TV can record its screen.**; act on it before going on.
 
 Faraday Demo shows this sheet only while one of its sticks is
@@ -54,13 +69,13 @@ choice and **Change**. It opens with **Start** closed on **Make a new
 key · BIP-39 words** and **Length** open, so for this guide go straight
 to step 3.4. **Change** on Start opens it:
 
-![Add a key, the Start card](../3-3-start.png)
+![Add a key with the Start card open, BIP-39 words outlined](../pictures/3-3-start.png)
 
 | Group | Choices |
 |---|---|
 | **Make a new key** | **BIP-39 words** (this guide); **Codex32**, a key made by hand as codex32 shares |
 | **Add a key you have** | **Type the words**, **Scan a SeedQR**, **Type codex32 strings** |
-| **Other forms** | SLIP-39 shares, made here or typed; Seed XOR parts, typed |
+| **Other forms** (a link that opens the group) | SLIP-39 shares, made here or typed; Seed XOR parts, typed |
 
 A choice moves on to the next card by itself; **BIP-39 words**, pressed
 again, goes back to Length.
@@ -83,9 +98,10 @@ before **Key**.
 
 ### 3.4 Length
 
-![The Length card](../3-4-length.png)
+![The Length card with BIP-39 words chosen, 12 words outlined](../pictures/3-4-length.png)
 
-**BIP-39 words** is chosen; no length is chosen yet. Press **12
+**BIP-39 words** is chosen (beside it, **SLIP-39 shares**); no length is
+chosen yet. Press **12
 words**: the card closes and **Randomness** opens. (24 words takes more
 rolls; the steps are the same. [**Other**](../screens/new-key.md#other) opens a menu of 15, 18 and 21
 words.)
@@ -98,11 +114,12 @@ kept.
 
 | Dice (this guide) | This device |
 |---|---|
-| ![Randomness, dice chosen](../3-5-randomness-dice.png) | ![Randomness, this device chosen](../3-5-randomness-device.png) |
-| **Dice · Words chosen by the dice** (70 rolls) is ticked, under **Your own entropy, words verifiable by hand**. Each word can be worked out from the rolls by hand. | Open **Made by this device** and press **This device**. The words come from the operating system's generator and cannot be checked. |
+| ![The Randomness card with Dice · Words chosen by the dice chosen and outlined](../pictures/3-5-randomness-dice.png) | ![The Randomness card with This device chosen; Dice · Words chosen by the dice outlined, the guide's next press](../pictures/3-5-randomness-device.png) |
+| **Dice · Words chosen by the dice** (70 rolls) is chosen, under **Your own entropy, words verifiable by hand** (marked **Recommended**). Each word can be worked out from the rolls by hand. | Under **Made by this device**, press **This device**. The words come from the operating system's generator and cannot be checked. |
 | Press **Dice · Words chosen by the dice**: **Rolls** opens. Go to step 3.6. | **Generator** opens. Go to step 3.6, right-hand column. |
 
-The other options (flip mode, coins, hashed dice as Coldcard and
+The other options (**Dice · Flip mode**, **Coin flips**, and under
+**Your entropy, computer generates words** hashed dice as Coldcard and
 SeedSigner do it, hex, cards, camera, a mix) follow the same steps with
 their own entry card. A mix ticks its sources under its row and keeps
 **Continue**.
@@ -111,13 +128,14 @@ their own entry card. A mix ticks its sources under its row and keeps
 
 | Dice | This device |
 |---|---|
-| ![Rolls, 24 of 70 in](../3-6-rolls.png) | ![Generator](../3-6-generator.png) |
-| **Typed** is chosen: type the rolls into the box. **Buttons** shows a button for each face instead. Each word appears as its six rolls come in. | The **Generator** card shows **Source**, **Trust** (this device's software) and **Result** (Not checkable). Press **Make the words**, then go to step 3.7. Until the operating system's randomness is in, the button reads **Waiting for randomness**. |
+| ![The Rolls card, 24 of 70 rolls typed and four words so far](../pictures/3-6-rolls.png) | ![The Generator card, Source, Trust and Result, with Skip and Make the words](../pictures/3-6-generator.png) |
+| **Typed** is chosen: type the rolls into the box. **Buttons** shows a button for each face instead. Under **Words so far**, each word appears as its six rolls come in, with the bits each roll gives and the word's number in the list; pressing a word shows it in the list. | The **Generator** card shows **Source**, **Trust** (this device's software) and **Result** (Not checkable). Press **Make the words**, then go to step 3.7. Until the operating system's randomness is in, the button reads **Waiting for randomness**. |
 
 The Generator card also takes randomness of yours, mixed into the
 operating system's, never in its place. Nothing is chosen at first:
 press **Camera** (with a camera attached), **Dice**, **Coins**,
-**Cards** or **Pointer and keys**, enter some, then **Add** (**Undo**
+**Cards** or **Pointer and keys** (with a pointer and keyboard), enter
+some, then **Add** (**Undo**
 takes the last one back, **Clear** the batch). **Pointer and keys**
 takes the pointer's moves over its box and the keys typed while it is
 chosen, with no **Add**: they are added in batches: every 64 moves and keys, when the
@@ -129,15 +147,16 @@ added to the pool**, and **Source** ends **· with your own**. To go on
 without adding any, press **Skip**. Settings' **Randomness** row opens
 the same choices on a page of their own ([Add randomness](../screens/settings.md#add-randomness)).
 
-![Add randomness, ten dice rolls in the batch](../3-6-add-randomness.png)
+![The Generator card with Dice chosen and ten dice rolls in the batch, Add beside Undo and Clear](../pictures/3-6-add-randomness.png)
 
 For this guide, type the 70 rolls above. The 70th roll ends the entry;
 the word list shows **torch** as word 12 (its checksum filled in).
 
 In a word's first five rolls only 1 to 4 count. A 5 or a 6 there is not
-taken, and the card says so:
+taken, and the card says so, **A 5 or a 6 is rolled again in a word's
+first five rolls**:
 
-![A 5 refused in a word's first five rolls](../3-6-rolls-five.png)
+![The Rolls card reading A 5 or a 6 is rolled again in a word's first five rolls](../pictures/3-6-rolls-five.png)
 
 Roll again and type the new roll.
 
@@ -148,9 +167,11 @@ the closed Rolls card reads **Entropy · simulated dice** (or **Entropy ·
 simulated dice and your dice**) in place of **Complete**. Use it only to
 try the steps out.
 
-With the last roll in, the card ends with **Randomness check**:
+With the last roll in, the card ends with **Randomness check**: the
+number of **Rolls**, how often each face came up (**Faces**), the
+**Longest run**, and a verdict.
 
-![The randomness check with every roll in](../3-6-rolls-done.png)
+![The Randomness check with 70 rolls, Fair: no cautions, Continue outlined](../pictures/3-6-rolls-done.png)
 
 | Verdict | Meaning | Press |
 |---|---|---|
@@ -166,17 +187,18 @@ make; it cannot prove the rolls were random.
 
 ### 3.7 Key: lock it in
 
-![The Key card before Lock in](../3-7-key.png)
+![The Key card with the 12 words shown, Lock in outlined](../pictures/3-7-key.png)
 
-The 12 words are shown. Check them against the words above. Press **Lock
-in**.
+The 12 words are shown (**Hide words** hides them). Check them against
+the words above. Press **Lock in**.
 
-![The Words card after Lock in](../3-7-locked-in.png)
+![The Words card after Lock in, fingerprint 3dca6805, the words hidden](../pictures/3-7-locked-in.png)
 
 The Key card closes on `3dca6805 · locked in` and **Words** opens, with
 **Fingerprint** `3dca6805`, **Source** and the key's account key
 (**Key**); the words are hidden. The key is now loaded: the sidebar
-lists it under **Keys** as `3dca6805 New key 1`.
+lists it under **Keys** as `3dca6805 New key 1`, and **Lock** appears
+at its foot.
 
 A fingerprint of `3dca6805` proves that the words on screen are the
 test words and the key loaded is the one they make. It does not prove
@@ -191,7 +213,7 @@ names.
 
 ### 3.8 Words: write them down
 
-![The Words card with the words shown](../3-8-words.png)
+![The Words card with the words shown, I wrote them down outlined](../pictures/3-8-words.png)
 
 Press **Show words**. Write the 12 words on paper, numbered, in order.
 Check the copy word by word, then press **Hide words** and **I wrote
@@ -202,15 +224,15 @@ them down**.
 The quiz asks for words by number, four choices each, until all 12
 are right.
 
-![The quiz](../3-9-quiz.png)
+![The Quiz card, 0 of 12 right, asking Which is word 12? with four choices](../pictures/3-9-quiz.png)
 
 Answer from the paper copy, not from memory.
 
 | Answer | Screen | Press |
 |---|---|---|
 | right | the next question; **0 of 12 right** counts up | the next answer |
-| wrong | ![A wrong answer](../3-9-quiz-wrong.png) **Not that one. Check your copy against the words** | **Show the words** to correct the copy, then **Ask it again** |
-| all right | ![The quiz passed](../3-9-quiz-passed.png) **All 12 words right** | **Done** |
+| wrong | ![A wrong answer greyed out, Ask it again outlined](../pictures/3-9-quiz-wrong.png) **Not that one. Check your copy against the words**; the wrong choice is greyed out | **Show the words** to correct the copy, then **Ask it again** |
+| all right | ![The quiz passed, All 12 words right, Done outlined](../pictures/3-9-quiz-passed.png) **All 12 words right**, under the **Fingerprint** | **Done** |
 
 **Skip the quiz** asks once more ("Without the quiz, a word copied
 wrongly is found only when the backup is needed"); skipped, the card
@@ -219,13 +241,14 @@ key.
 
 ### 3.10 After Done
 
-![Wallets after Done](../3-10-after-done.png)
+![Wallets after Done, no wallet yet, key 3dca6805 New key 1 in the sidebar](../pictures/3-10-after-done.png)
 
 Faraday returns to [Wallets](../screens/wallets.md#wallets-the-list-and-the-card). The key is loaded and shows in the sidebar
 under **Keys**. It is in memory only: Lock or Power off wipes it, and
 the paper copy is then the only one.
 
-Next: section 4 makes a wallet from the key and backs it up.
+Next: [Back it up](back-up.md) makes a wallet from the key and backs it
+up.
 
 > **With your own key**
 >

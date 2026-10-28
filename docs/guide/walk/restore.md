@@ -1,14 +1,16 @@
 # Restore a wallet
 
-**Kind:** Spec
-**Status:** Text moved from `docs/GUIDE.md` (§7.1 to §7.4 and the opening of §7), written and checked against the app's screens and strings; the pictures are in `docs/guide/` and keep their names
-**Open:** the walkthrough's form (result line, what is needed, time, "With your own key"); the pictures, drawn once after the theming has landed
+**Kind:** Reference
+**Status:** Written, checked against the app's screens and strings, and pictured from `just guide-pictures` (`docs/guide/pictures/`)
 
-What you will do: rebuild section 5's 2-of-3 from its backups, first
-from its wallet description and its keys, then from a vault; and check
-it before trusting it.
+**You end with:** the 2-of-3 of [Make a wallet](make-a-wallet.md)
+rebuilt from its backups, first from its wallet description and one
+key, then from a vault, and checked before it is trusted.
 
-What you need:
+**Before you start:** [Make a wallet](make-a-wallet.md) and
+[Back it up](back-up.md).
+
+**You'll need:**
 
 - Faraday with no key loaded.
 - The wallet description: here `new-wallet-1-descriptor.txt`, brought
@@ -19,16 +21,20 @@ What you need:
   away: two of three keys are enough to sign, and one is enough to
   restore the wallet with its description.
 
+**Time:** about 15 minutes.
+
 ### 7.1 Restore an existing wallet
 
 Press **Home**, then [**Restore an existing wallet**](../screens/restore.md). The page is
 **Restore an existing wallet**, one card per step.
 
-![Kind](../7-1-kind.png)
+![Restore an existing wallet on Kind, From Files outlined](../pictures/7-1-kind.png)
 
 With the description at hand, Kind is not chosen by hand: press **From
 Files** beside **I have the wallet description** (or **Scan it** for its
-QR code). With more than one description in Files, the **Description**
+QR code). The kinds below it (**Single key · native SegWit**,
+**Multisig · native SegWit**, **More kinds**) are for a wallet without
+its description. With more than one description in Files, the **Description**
 card lists them; press one.
 
 The description fills **Kind** (**2 of 3 · native SegWit multisig**),
@@ -37,19 +43,20 @@ wallet loads under that name, here **new-wallet-1-descriptor** (**Rename**
 on its card changes it). Without a description, pressing a kind closes
 **Kind** and opens the next card.
 
-![Use vaults](../7-1-vaults.png)
+![Use vaults with Yes and No, after Kind, Quorum and Description filled from the file](../pictures/7-1-vaults.png)
 
-**Will you use vaults as part of this backup?** Press **No**: the card
+**Will you use vaults as part of this backup?** (**Vaults already on
+sticks are brought in here, not later.**) Press **No**: the card
 closes on **No** and **Keys** opens.
 
 ### 7.2 The keys
 
-![Keys, all empty](../7-2-keys.png)
+![Keys with three empty rows by fingerprint, Type the words outlined](../pictures/7-2-keys.png)
 
 One row per key of the description, by fingerprint, each **Empty**.
 **Use vaults** reads **No**, with **Change**; the link at the top left,
 **Use vaults**, opens that card again with **No** kept. The buttons
-stand over the row they fill:
+stand over the row they fill; each other row has its own **Not here**:
 
 | Button | Does |
 |---|---|
@@ -62,8 +69,8 @@ and press **Add key**.
 
 | Result | Screen | Meaning | Do |
 |---|---|---|---|
-| a key of the wallet | ![Key 1 of the wallet](../7-2-key-1.png) **Key 1 of the wallet**, in green | the words make the key the description names in that row | the next row |
-| any other seed | ![Refused](../7-2-refused.png) **Not a key of this wallet: check the words or the passphrase**, in red | the words, or the passphrase, make a key the description does not name; nothing is loaded | check the copy, type it again |
+| a key of the wallet | ![Row 1 reading Key 1 of the wallet, Type the words outlined for row 2](../pictures/7-2-key-1.png) **Key 1 of the wallet**, in green | the words make the key the description names in that row | the next row |
+| any other seed | ![Keys with Not a key of this wallet: check the words or the passphrase, in red](../pictures/7-2-refused.png) **Not a key of this wallet: check the words or the passphrase**, in red | the words, or the passphrase, make a key the description does not name; nothing is loaded | check the copy, type it again |
 
 The second picture is of a seed of no key of this wallet (BIP 39's
 "abandon … about"). A word copied wrongly makes another key and is
@@ -71,13 +78,14 @@ refused the same way.
 
 Press **Not here** for rows 2 and 3.
 
-![Keys 2 and 3 Not here](../7-2-not-here.png)
+![Keys 2 and 3 reading Not here, Make the wallet outlined](../pictures/7-2-not-here.png)
 
-Each row reads **Not here**, with **Change**. Press **Make the wallet**.
+Each row reads **Not here**, with **Change**. Press **Make the wallet**:
+**Keys** closes on **3 of 3 filled**, a key not here counting as filled.
 
 ### 7.3 Check, then Done
 
-![Check](../7-3-check.png)
+![Check with the descriptor and the wallet's first addresses, It matches below them](../pictures/7-3-check.png)
 
 **Descriptor** reads **2 of 3 · native SegWit multisig · 3dca6805,
 5d388376, cf2e083d · #kudx02aw**; under **The wallet's first addresses**,
@@ -96,7 +104,7 @@ If Receive 0/0 differs, do not receive to or spend from this wallet:
 the description is another wallet's, or was changed. Press **It
 matches**.
 
-![Done](../7-3-done.png)
+![Done with Sign the PSBT from the stick, Back up this wallet, Another wallet from these seeds and Wallets](../pictures/7-3-done.png)
 
 **Done** offers **Sign the PSBT from the stick** (with a PSBT for this
 wallet in Files; otherwise **Spend from this wallet**), **Back up this
@@ -127,7 +135,7 @@ stick:
    ([Files, sticks and QR codes, step 2](files-and-sticks.md#2-a-stick-visit-bring-files-in)).
    In **Files**, press **Unlock** on `vault.ofv`'s row, type the
    vault's passphrase and press **Unlock**.
-2. [**Load from vault.ofv**](../screens/vaults.md#load-from) lists what the vault holds, each seed and
+2. [**Load from Vault**](../screens/vaults.md#load-from) lists what the vault holds, each seed and
    wallet saved with **Load at unlock** (step 4.8) ticked. Press **Load
    ticked**: the wallet and its keys load, and Wallets opens
    ([Vaults, passwords and codes, step 10](vaults-and-passwords.md#10-unlock-it-again-and-load-from-it)).

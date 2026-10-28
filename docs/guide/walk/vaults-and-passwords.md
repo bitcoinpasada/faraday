@@ -1,8 +1,7 @@
 # Vaults, passwords and codes
 
-**Kind:** Spec
-**Status:** Written and checked against the app's code and strings; the pictures are named and not yet drawn
-**Open:** the pictures, drawn once after the theming has landed
+**Kind:** Reference
+**Status:** Written, checked against the app's screens and strings, and pictured from `just guide-pictures` (`docs/guide/pictures/`)
 
 **You end with:** a vault of your own on a stick, holding key
 `3dca6805`, a login with its TOTP codes and a note; the vault written,
@@ -36,7 +35,7 @@ On **Home**, press **Create a vault** (**None yet**), or press
 With a stick in, the page says **Remove the stick, then type the
 passphrases**: pull it first.
 
-*Picture to come: `vaults-and-passwords-create.png`, Create a vault with Size closed and Name and passphrases open.*
+![Create a vault with Size closed, the name Passwords and a passphrase that matches, Your choices beside it, Create vault outlined](../pictures/create-vault-passphrases.png)
 
 **Create a vault** is a column of cards. **Size** is closed on **PCs
 and a Raspberry Pi · 64 MiB · 3 passes**, with **Change**:
@@ -51,7 +50,7 @@ three cards in place of Size:
 
 | Card | Choices |
 |---|---|
-| **Where will you open it?** | **This computer**, ticked, and each other kind of machine; the cost suggested next fits the one with the least memory |
+| **Where will you open it?** | **This computer** and each other kind of machine, Other PCs and a Raspberry Pi 3 among them, all ticked as Size had them; the cost suggested next fits the one with the least memory |
 | **Unlock cost** | **Light**, **Standard**, **Medium**, **Strong**, **Maximum** and **Custom**, each with its memory, passes and the bits it adds; one reads **Suggested**, the others **Fits** or "Too large for" the weakest machine |
 | **Space per passphrase** | the room each passphrase's contents get, and the file's size |
 
@@ -60,19 +59,20 @@ as it is.
 
 Under **Name and passphrases**:
 
-1. **Name**: type `Passwords`. The line under it reads **File
-   Passwords.ofv**. The name is what anyone who sees the stick reads;
+1. **Name**: type `Passwords`. Beside it, **File Passwords.ofv**. The name is what anyone who sees the stick reads;
    leave it empty for `vault.ofv`.
 2. **Passphrase 1**: type it in the first field, then again in the
    second, until the line under them reads **Matches**. The eye at the
-   end of a field shows what is typed. Or press **Generate with dice**
-   (step 2).
+   end of a field, or **Show passphrases**, shows what is typed. Or
+   press **Generate with dice** (step 2).
 3. **Add another passphrase** adds **Passphrase 2**, up to four, each
    with **Remove**. Each passphrase opens contents of its own, and the
    file does not say how many there are. For this walkthrough, keep
    one.
 
-The panel on the right, **Your choices**, repeats each card's choice;
+**Steps only** and **Guided** at the top switch a short walk-through
+on each card off and on. The panel on the right, **Your choices**,
+repeats each card's choice;
 under **Will create** it lists the **File**, its **Size**, the **Unlock
 memory**, the time to unlock here (**Unlock here**), what the cost adds
 (**Unlock cost adds**), the passphrase's **Strength**, and where it goes
@@ -88,14 +88,15 @@ copy of the vault goes into Files, **For the stick**.
 | On the card | What it is |
 |---|---|
 | **Which list?** | **Long list** (7776 words · five dice), **Short list** (1296 words · four dice), **Short list 2** (1296 words · 3 edits apart) |
-| "Roll 5 dice for each word and type the numbers" | the rolls, typed as they land; each word appears as its dice are in |
-| the strength line | the words so far, their bits, and the bits with the unlock cost |
+| "Roll 5 dice for each word and type the numbers" | the rolls, typed as they land in the field at the foot, or pressed on its keys 1 to 6; each word appears as its dice are in, and a press on a word shows it in the list |
+| the strength line | under the field: the words so far, their bits, and the bits with the unlock cost |
 | **Use these words** | puts the words in both fields |
 | **Cancel** | leaves the field as it was |
 
-*Picture to come: `vaults-and-passwords-dice.png`, the dice card with three words of the long list rolled.*
+![The dice on Create a vault, Long list chosen, three words rolled, 38.8 bits, Use these words outlined](../pictures/vaults-and-passwords-dice.png)
 
-Six words of the long list are 77.5 bits. Once the words fill the
+The card asks for six words or more of the long list; the count turns
+green at 77 bits. Six words of the long list are 77.5 bits. Once the words fill the
 field, the strength line reads the dice's bits plus the cost's. A typed
 passphrase's own bits are not measured, and the line says so.
 
@@ -105,16 +106,18 @@ public one every Practice vault uses.
 
 ## 3. Unlock it
 
-Once made, the vault waits on **Unlock**, picked, with **Type the
-passphrase once more to open it**. Type the passphrase under
+Once made, the vault waits on **Unlock**, picked, as **New vault**,
+**Locked · not written yet**, with **Type the passphrase once more to
+open it**. Type the passphrase under
 **Passphrase** and press **Unlock**. Under the button, "This
-computer:" and how much memory it has free.
+computer:" and how much memory it has free; the unlock cost is not
+shown here.
 
-*Picture to come: `vaults-and-passwords-unlock.png`, Unlock with Passwords.ofv picked and the passphrase typed.*
+![Unlock with New vault, Locked · not written yet, picked and the passphrase typed, Unlock outlined](../pictures/vaults-and-passwords-unlock.png)
 
 "Unlocking" and its time show while it works. A wrong passphrase
-leaves the page as it is, with the reason under the field; there is no
-limit on tries.
+leaves the page as it is, with **That passphrase opens nothing in this
+vault** under the field; there is no limit on tries.
 
 The vault opens on its contents: **Nothing in it yet**, and a button
 per thing it can hold:
@@ -137,19 +140,19 @@ with a BIP-39 passphrase also has **Save with its passphrase**. Press
 **Save**. The line **Every key in this session is in the vault** shows
 once all are in.
 
-*Picture to come: `vaults-and-passwords-contents.png`, Vault contents with Bitcoin keys chosen and key 3dca6805 shown.*
+![Passwords open with 1 unsaved change, Bitcoin keys chosen and key 3dca6805's words, SeedQR and load settings](../pictures/vaults-and-passwords-contents.png)
 
 The page is now the vault's contents, in three columns:
 
 | Part | What it shows |
 |---|---|
-| the title | the vault's name, then **Open**, or "Open ·" and the unsaved changes (**Open · 1 unsaved change**); **Rename** and **Lock** on the right; under it the file's name and its cost |
+| the title | the vault's name, then **Open**, or "Open ·" and the unsaved changes (**Open · 1 unsaved change**); **Rename** and **Lock** on the right; under it the file's name and its cost (`Passwords.ofv · 64 MiB · 3 passes`) |
 | the first column | each kind the vault holds, with its count: **Bitcoin keys**, **Wallets**, **Entries**, **Notes**, **GPG keys**, **Secure Boot**; then a row per kind to add, each with **+**: **Bitcoin key**, **Wallet**, **Entry**, **Note**, **GPG key**, **Secure Boot** |
 | the second column | the items of the kind chosen, with its add button (**Save a key**, **Save a wallet**, **Add an entry**, **Add a note**) |
 | the third column | the item chosen |
 
-Key `3dca6805` shows its **Fingerprint**, its **Words** and its SeedQR
-behind their eyes, **BIP-39 passphrase** (**Stored** or **Not
+Key `3dca6805` shows its length and fingerprint, its **Fingerprint**,
+its **Words** and its SeedQR (**Show SeedQR**) behind their eyes, **BIP-39 passphrase** (**Stored** or **Not
 stored**), **Load at unlock** (**Yes** or **No**) and **In this
 session** (**Loaded** or **Not loaded**). Under them:
 
@@ -159,6 +162,7 @@ session** (**Loaded** or **Not loaded**). Under them:
 | **Load with a passphrase** | loads it with a BIP-39 passphrase typed now |
 | **Don't load at unlock**, **Load at unlock** | whether the unlock's load list ticks it (step 8) |
 | **Save to a stick** | the key's words or SeedQR as a file for the stick, outside the vault: **Anyone who finds this stick has this seed** |
+| **Hold to delete from vault** | removes the key from the vault |
 
 A key in a wallet of the same vault reads **Load at unlock** "Loads
 with" and the wallet's name. A wallet's item shows its backup's chart,
@@ -187,9 +191,10 @@ Press **Save**, or **Cancel**. An entry needs a title. A TOTP secret
 that does not read is refused with **Not a TOTP key**, and the form
 keeps what is typed.
 
-*Picture to come: `vaults-and-passwords-entry.png`, the entry Mail with its Code and TOTP secret.*
+![The entry Mail under Entries: its username, password, URL, code with its seconds left, TOTP secret and notes](../pictures/vaults-and-passwords-entry.png)
 
-Under **Entries** two more buttons fill the list:
+Under **Entries**, beside **Add an entry**, are **Scan a code** and
+**TOTP codes** (step 6); two buttons fill the list:
 
 | Button | Does |
 |---|---|
@@ -201,7 +206,7 @@ says how many bytes they take and how many are left. With entries in
 the list, **Search entries** over it keeps those whose title holds what
 is typed; usernames, URLs and notes are not searched.
 
-The entry shows **Username**, **Password**, **URL**, **Code**, **TOTP
+The entry shows its title and kinds ("Password · TOTP"), **Username**, **Password**, **URL**, **Code**, **TOTP
 secret** and **Notes**, the secrets behind their eyes, then **Edit**,
 **Export for KeePass** (step 7) and **Hold to delete from vault**.
 **Code** is the code now, with the seconds left; it reads **Set the
@@ -222,10 +227,10 @@ power-on, **Set the time** opens first:
 | **Keep this time** | keeps the clock as it is, where it is right |
 | **Back** | goes back without checking the clock |
 
-*Picture to come: `vaults-and-passwords-set-time.png`, Set the time with the date and time typed.*
+![Set the time with Now, the time zone UTC+00:00, empty Date and Time fields, Set grey, Keep this time and Back](../pictures/vaults-and-passwords-set-time.png)
 
-Type the next minute, and press **Set** when the phone's minute changes
-to it. The codes open:
+**Set** is grey until a date and a time are typed. Type the next
+minute, and press **Set** when the phone's minute changes to it. The codes open:
 
 | Row | What it shows |
 |---|---|
@@ -234,7 +239,7 @@ to it. The codes open:
 | an entry whose secret is a counter's (HOTP) | a badge, no code |
 | an entry whose secret does not read | **Unreadable** |
 
-*Picture to come: `vaults-and-passwords-codes.png`, TOTP codes with the Mail entry's code and its bar.*
+![TOTP codes: the time now, Search codes, the Mail entry's code with its bar and 17 s left, Scan a setup code and Add an entry](../pictures/vaults-and-passwords-codes.png)
 
 A row opens its entry. **Search codes** finds an entry by its title.
 Under the list, **Scan a setup code** and **Add an entry** add to the
@@ -248,8 +253,9 @@ On the entry `Mail`, press **Export for KeePass**. Type a passphrase of
 `correct horse battery staple`), then **Seal and export**; **Cancel**
 leaves it.
 
-**Sealing** shows while it works. The file `Mail.kdbx` goes into Files,
-**For the stick**, and a line says it waits for the stick, sealed. It
+**Sealing** shows while it works. The file goes into Files, **For the
+stick**, named from the entry's title in lower case, `mail.kdbx`, and a
+line says "mail.kdbx waits for the stick, sealed". It
 holds that one entry and opens in a KeePass app with that passphrase.
 **KeePass export** under **Tools** says the same: an entry leaves this
 way, one at a time.
@@ -273,15 +279,18 @@ its changes for the stick, wipes every key, and starts Faraday again on
 ## 9. Write it to a stick
 
 Plug the stick in. With nothing loaded, **Stick visit** opens: under
-**In Faraday**, `Passwords.ofv` and `Mail.kdbx` are ticked. Press
+**In Faraday**, `Passwords.ofv` and `mail.kdbx` are ticked. Press
 **Write 2 files**. Each file is written, read back and compared; the
 visit's line reads "Wrote Passwords.ofv, read back and matched". Then
 pull the stick. [Files, sticks and QR codes](files-and-sticks.md#3-write-files-to-a-stick)
 goes through the visit.
 
-*Picture to come: `vaults-and-passwords-written.png`, Vaults with Passwords locked and on its stick, current.*
+![Vaults with Passwords locked, "On KEYSTICK · current · key 3dca6805 · 2 entries" and Unlock](../pictures/vaults-and-passwords-written.png)
 
-**Vaults** lists each vault Faraday holds, with where it stands first:
+**Vaults** lists each vault Faraday holds; the one picked shows its
+file, then where it stands, what it holds and when it was seen
+("On KEYSTICK · current · key 3dca6805 · 2 entries · seen" and the
+time), and **Unlock**. Where it stands comes first:
 
 | Line | Meaning |
 |---|---|
@@ -303,18 +312,19 @@ from …** ([Read from the boot stick](../screens/prompts.md#read-from-the-boot-
 
 Then press **Unlock** on the vault's row in **Files** or in
 **Vaults**, type the passphrase and press **Unlock**. Files opens, with
-**Load from Passwords.ofv** over it:
+**Load from Passwords** over it (the vault's name; "Load from Vault"
+for one without a name), and a count of what it holds ("1 key"):
 
 | On the sheet | What it is |
 |---|---|
 | a card per wallet | the wallet and its seeds this vault holds, ticked as its **Load at unlock** says |
 | **Keys** | keys in no wallet: `3dca6805`, ticked |
-| **Loaded** | what is loaded already |
-| **Select all**, **Unselect all** | ticks or unticks every card |
+| **Loaded** | greyed at the right of a line already loaded |
+| **Unselect all**, **Select all** | unticks every card while any is ticked; ticks every card once none is |
 | **Load ticked** | loads what is ticked; Wallets opens on a wallet loaded, otherwise Files |
 | **Not now** | loads nothing; the vault stays open |
 
-*Picture to come: `vaults-and-passwords-load.png`, Load from Passwords.ofv with the Keys card ticked.*
+![Load from Passwords: 1 key, the Keys card with 3dca6805 ticked, Load ticked outlined](../pictures/vaults-and-passwords-load.png)
 
 Press **Load ticked**. A flow that asks for a vault (Spend, Restore,
 a backup) unlocks it from its own step and loads what it needs, with

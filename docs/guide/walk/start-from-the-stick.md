@@ -1,8 +1,21 @@
 # Start a PC from the stick
 
-**Kind:** Spec
-**Status:** Text moved from `docs/GUIDE.md` (§1.7 to §1.10), written and checked against the app's screens and strings; the pictures are in `docs/guide/` and keep their names
-**Open:** the walkthrough's form (result line, what is needed, time, "With your own key"); the pictures, drawn once after the theming has landed
+**Kind:** Reference
+**Status:** Written, checked against the app's screens and strings, and pictured from `just guide-pictures` (`docs/guide/pictures/`)
+
+**You end with:** the PC started from the Faraday stick, showing
+Faraday's first screen, and Secure Boot back on before Windows starts
+again.
+
+**Before you start:** [Get Faraday on a stick](get-faraday.md).
+
+**You'll need:**
+
+- The Faraday stick, still in the PC, and Faraday Starter open on Home.
+- Paper and a pen, or a printer, for the keys and setting to write down.
+- On Windows with BitLocker, where its recovery key is kept.
+
+**Time:** about 20 minutes, more for a PC whose BIOS is new to you.
 
 ### 1.7 Start this computer from the stick
 
@@ -10,28 +23,34 @@ Leave the stick in. **Start this computer from the stick** on the
 Written page, or item 2 of Home's checklist, opens this page
 ([Start this computer from the stick](../screens/starter-learn-and-boot.md#start-this-computer-from-the-stick)):
 
-![Start this computer from the stick](../1-7-start-page.png)
+![Start this computer from the stick for a PC the Starter does not know, its Write down rows and steps 1 to 4](../pictures/1-7-start-page.png)
 
-Under **Write down**, copy **Boot menu key**, **Usual BIOS key** and **Secure
+At the top, **Starting a Windows computer from the stick** opens that
+Learn page, and **What Secure Boot and BitLocker are** the page on
+both. Under **Write down**, copy **Boot menu key**, **Usual BIOS key** and **Secure
 Boot setting**, or press **Print** for a sheet with them and the steps.
 The PC restarts later and the Starter is then off the screen. For a PC
 the Starter does not know, the key rows read **Not known: try** and
-the keys most makers use; the printed sheet lists them too.
+the keys most makers use; the printed sheet lists them too. Under
+**Print** come the steps, numbered: **Restart into the BIOS**, **Turn
+Secure Boot off**, **Start from the stick** (with **In the boot menu**)
+and **Turn Secure Boot back on before starting Windows**. **On a phone**,
+at the foot, is a QR code of the same steps.
 
 The stick cannot start while Secure Boot is on. Back on Home (the back
 arrow at the top left), the card's button shows which case this PC is in:
 
 | Secure Boot on | Secure Boot off |
 |---|---|
-| ![Home with Secure Boot on](../1-7-home-stick-secure-boot-on.png) | ![Home with Secure Boot off](../1-7-home-stick-secure-boot-off.png) |
-| Button: **Restart into the BIOS**. Go to step 1.8. | Button: **Restart from the stick**. Go to step 1.9. |
+| ![Home with the stick attached and Secure Boot on, Restart into the BIOS outlined](../pictures/1-7-home-stick-secure-boot-on.png) | ![Home with the stick attached and Secure Boot off, Restart from the stick outlined](../pictures/1-7-home-stick-secure-boot-off.png) |
+| Button: **Restart into the BIOS**. Go to step 1.8. | Button: **Restart from the stick**. The checklist adds a third line, **Turn Secure Boot back on**. Go to step 1.9. |
 
 On Windows the first checklist line reads **Faraday stick attached ·
 version not read**: the Starter reads a stick's version on Windows only
 with administrator permission. Nothing here needs it.
 
 BitLocker (Windows). With BitLocker on, the Start page shows a row
-**BitLocker, drive C:** under **Print**. Nothing here is required:
+**BitLocker, drive C:** under **Print**, reading **On**. Nothing here is required:
 with Secure Boot back on before Windows starts (step 1.10), Windows
 usually starts as before. A PC whose BIOS changes its Secure Boot keys
 when the setting is turned off and on makes Windows ask for the
@@ -39,10 +58,10 @@ when the setting is turned off and on makes Windows ask for the
 
 | BitLocker on | Suspended |
 |---|---|
-| ![BitLocker on](../1-7-bitlocker-on.png) | ![BitLocker suspended](../1-7-bitlocker-suspended.png) |
+| ![BitLocker, drive C: On, Temporarily suspend BitLocker outlined](../pictures/1-7-bitlocker-on.png) | ![BitLocker, drive C: suspended, with Resume BitLocker](../pictures/1-7-bitlocker-suspended.png) |
 | **Temporarily suspend BitLocker** (For the next 3 times Windows starts; then it turns back on by itself): Windows then does not ask for the recovery key. Windows asks for administrator permission once. | The row reads **Suspended · turns back on by itself after Windows starts 3 times**. **Resume BitLocker** turns it back on now. |
 
-**Include the BitLocker recovery key**, beside **Print**, puts the
+**Include the BitLocker recovery key**, a tick box beside **Print**, puts the
 recovery key of drive C: on the printed sheet. Windows asks once for
 administrator permission; the key is never shown on the page. Keep
 that sheet as you keep the key.
@@ -68,8 +87,9 @@ by the TPM: have its passphrase ready** at the top of the Start page.
    Start page. A [sheet](../screens/starter-learn-and-boot.md#restart-into-the-bios-and-restart-from-the-stick)
    asks first:
 
-   ![Restart into the BIOS sheet](../1-8-restart-into-bios.png)
+   ![The Restart into the BIOS sheet, its QR code and Cancel and Restart](../pictures/1-8-restart-into-bios.png)
 
+   It reads **This restarts the computer now. Save your work first.**
    The QR code opens the same steps on a phone. **Keep the stick in.**
    Press **Restart**.
 2. In the BIOS, turn Secure Boot off, at the **Secure Boot setting**
@@ -88,15 +108,15 @@ Press **Restart from the stick**. The same
 [sheet](../screens/starter-learn-and-boot.md#restart-into-the-bios-and-restart-from-the-stick)
 asks first.
 
-![Restart from the stick sheet](../1-9-restart-from-stick.png)
+![The Restart from the stick sheet on Windows, its QR code and Cancel and Restart](../pictures/1-9-restart-from-stick.png)
 
 Keep the stick in and press **Restart**. On Linux the system asks for
 your password, then the PC starts from the stick by itself. On Windows
 the sheet says what follows: "Windows shows Choose an option: Use a
 device, then the stick."
 
-On Windows the Start page's step 3 offers the same restart as **Restart
-to choose a device**.
+On Windows, while Secure Boot is off, the Start page's step 3 offers
+the same restart as **Restart to choose a device**.
 
 On Linux, when the restart cannot be set up, Home's card reads
 **Restart from the stick did not happen:** and the reason, and its

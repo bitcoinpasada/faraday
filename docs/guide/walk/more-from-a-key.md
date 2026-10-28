@@ -1,8 +1,8 @@
 # More from a key
 
 **Kind:** Spec
-**Status:** Written and checked against the app's code and strings; the pictures are named and not yet drawn
-**Open:** the pictures, drawn once after the theming has landed
+**Status:** Written and checked against the app's code and strings; pictured from `just guide-pictures` (`docs/guide/pictures/`) but for two steps
+**Open:** the pictures of Vanity address (step 6) and Add randomness (step 9), which the tour draws as an empty page
 
 **You end with:** key `3dca6805`'s addresses read at any path; a child
 seed and a password made from it with BIP-85 and kept in a vault; its
@@ -20,8 +20,9 @@ and unlocked) and [Files, sticks and QR codes](files-and-sticks.md)
 
 - Faraday with key `3dca6805` loaded, as
   [Make a wallet](make-a-wallet.md#51-load-the-keys) loads it: its row
-  reads `3dca6805 · New key 1`. With more keys loaded, each tool asks
-  which first.
+  reads `3dca6805 · New key 1`. A key typed back in is named by its
+  fingerprint and reads `3dca6805` alone, as in the pictures. With more
+  keys loaded, each tool asks which first.
 - Vault 1 of [Vaults, passwords and codes](vaults-and-passwords.md),
   unlocked, to keep what is made.
 - For step 8, the paper with key `3dca6805`'s words, or Faraday Demo's
@@ -38,10 +39,11 @@ public values all work ([Faraday Demo](faraday-demo.md)).
 
 ## 1. The tools
 
-*Picture to come: `more-from-a-key-tools.png`, Tools on the Keys and seeds group.*
+![Tools, the Keys and seeds group at the top, then Wallets](../pictures/more-from-a-key-tools.png)
 
 Press **Tools** in the sidebar ([Tools](../screens/tools.md)). The
-group **Keys and seeds** holds the tools of this walkthrough:
+group **Keys and seeds** holds, beside the tiles for adding a key, the
+tools of this walkthrough:
 
 | Tile | Its line | Step |
 |---|---|---|
@@ -60,7 +62,7 @@ opens on its **Key** card. The way back at the top left, or
 
 ## 2. Explore a key
 
-*Picture to come: `more-from-a-key-explore.png`, Explore on key 3dca6805 at m/84h/0h/0h/0/0, every eye closed.*
+![Explore on key 3dca6805 at m/84h/0h/0h/0/0, Native SegWit, every eye closed](../pictures/more-from-a-key-explore.png)
 
 Press **Explore a key**, or a key's fingerprint under **Keys** in the
 sidebar. **Explore** opens on that key at the path of a native SegWit
@@ -68,7 +70,7 @@ wallet's first receive address:
 
 | Row | What it is |
 |---|---|
-| the keys | a button per loaded key, `3dca6805 · New key 1` chosen |
+| the keys | a button per loaded key, its fingerprint and name, the one in use ticked |
 | **Secret** | the key's words, behind its eye |
 | **Path** | the path, typed after `m/`; digits, `/`, `h` and `'`. <kbd>↑</kbd> and <kbd>↓</kbd> step its last number |
 | the presets | BIP-84, BIP-86, BIP-49, BIP-44 and BIP-48: each sets the path of that kind of wallet; **Index -1** and **Index +1** step its last number |
@@ -103,34 +105,34 @@ a key with no words shows its seed and its codex32 strings instead.
 
 ### Addresses and Find an address
 
-*Picture to come: `more-from-a-key-addresses.png`, Addresses of account m/84h/0h/0h, Receive, from index 0.*
+![Addresses of account m/84h/0h/0h, Native SegWit, Receive 0 to Receive 9](../pictures/more-from-a-key-addresses.png)
 
 On a path inside an account, two buttons follow:
 
 | Button | Page |
 |---|---|
-| **Addresses** | the account's addresses, ten at a time: **Receive** or **Change**, **From index**, **Previous 10** and **Next 10**. Each row is named ("Receive 0") with its address, and an eye on its private key |
+| **Addresses** | under **Account**, the account's path and kind, then its addresses ten at a time: **Receive** or **Change**, **From index**, **Previous 10** and **Next 10**. Each row is named ("Receive 0") with its address, and an eye on its private key |
 | **Find an address** | **Address**, typed or put in with **Paste**; **Look through** the **First 100**, **First 1,000** or **First 10,000** of each chain; **Search** (**Stop** while it looks). It reads "Searched … of … on each chain" as it goes, then "1 found" with the address's chain and index, or "Not in the first 100 receive and change addresses" |
 
 **Explore**, at the top left of either page, returns to the path.
 
 ## 3. A child seed (BIP-85)
 
-*Picture to come: `more-from-a-key-bip85.png`, Derive with BIP-85 on Value, Words, 12 words, index 0, the value hidden.*
+![Derive with BIP-85 on Value: 24 words at index 0, hidden, with no vault open](../pictures/more-from-a-key-bip85.png)
 
 Press **Child seeds and passwords**. **Derive with BIP-85** is a column
 of four cards: **Key**, **Application**, **Index** and **Value**. With
 one key loaded, **Key** is closed on it and **Application** is open.
 
-1. **Application**: press **Words** (the first one), then **-** four
-   times: the count goes from **24 words** to **12 words**, three at a
-   time; "12 to 24" beside it is the range. Press **Continue**.
+1. **Application**: press **Words** (the first one). It is at **24
+   words**; **-** takes three off at a time, down to **12 words**, and
+   "12 to 24" beside it is the range. Keep 24 and press **Continue**.
 2. **Index**: **0**. Type another number, or press **-** and **+**
    ("Type the digits · Enter continues"). Each index gives another
    child; a number past the range reads **An index is 0 to
    2147483647**. Press **Continue**.
-3. **Value**: **Path** reads `m/83696968'/39'/0'/12'/0'`, and under
-   **Words** the value is hidden. **Show** shows the twelve words,
+3. **Value**: **Path** reads `m/83696968'/39'/0'/24'/0'`, and under
+   **Words** the value is hidden. **Show** shows the 24 words,
    **Hide** hides them again; leaving the card hides them too.
 
 What to do with it:
@@ -141,7 +143,8 @@ What to do with it:
 | **Load as a key** | loads the child as a key of this session ("Key … added"), for a wallet of its own |
 | **Out unprotected…** | opens [This is a secret](../screens/files.md#this-is-a-secret): the file `bip85-3dca6805-words-0.txt`, the path and the words, for the stick |
 
-Press "Save into Vault 1". The child is in the vault as a
+The picture has no vault open, so **Make a vault** stands in its
+place. With Vault 1 unlocked, press "Save into Vault 1". The child is in the vault as a
 [key](../screens/vault.md#a-key), with its own fingerprint.
 
 ## 4. A password (BIP-85)
@@ -169,7 +172,7 @@ makes the same password again from the same key.
 
 ## 5. Silent payments
 
-*Picture to come: `more-from-a-key-silent.png`, Silent payments on Address, No label, the address and its buttons.*
+![Silent payments on Address: No label, the sp1q address and its buttons](../pictures/more-from-a-key-silent.png)
 
 Press **Silent payments**. Its cards are **Key**, **Address**, **Scan
 key** and **Check a payment**; **Address** is open.
@@ -189,8 +192,8 @@ tell payers apart.
 
 Give the address to whoever pays. Press **Continue**.
 
-**Scan key** carries the tag **Secret · shows every payment, cannot
-spend**. A wallet that watches for payments needs it. "Save into Vault
+**Scan key**, closed, reads **A secret: shows every payment**; open,
+it carries the tag **Secret · shows every payment, cannot spend**. A wallet that watches for payments needs it. "Save into Vault
 1" keeps it as a note, "Silent payments scan key · 3dca6805";
 **Out unprotected…** opens [This is a secret](../screens/files.md#this-is-a-secret)
 with the file `spscan-3dca6805.txt`.
@@ -254,18 +257,19 @@ another wallet.
 
 ## 7. A Lightning node key
 
-*Picture to come: `more-from-a-key-lightning.png`, Lightning node key from ldk-node and key 3dca6805, Node id shown, Private key hidden.*
+![Lightning node key from ldk-node and key 3dca6805: Node id shown, Private key hidden](../pictures/more-from-a-key-lightning.png)
 
 Press **Lightning node key**. Choose where the node's key comes from:
 
 | Button | Node key |
 |---|---|
-| "ldk-node · 3dca6805 · New key 1" | made from the loaded key, the way ldk-node makes it from a BIP-39 seed. A key with no words reads **This key has no BIP-39 seed** |
+| "ldk-node · 3dca6805 · New key 1" ("ldk-node · 3dca6805" for a key named by its fingerprint) | made from the loaded key, the way ldk-node makes it from a BIP-39 seed. A key with no words reads **This key has no BIP-39 seed** |
 | **LND · type an aezeed** | read from an LND cipher seed: type **The 24 words** ("0 of 24" counts them), its **Passphrase** if it has one (empty, it is **aezeed (LND's default)**), then **Read it** or <kbd>Enter</kbd>. **Made** shows the date the seed was made |
 
 Press the first. **Node id** is the node's public key, safe to share;
 compare it with the one the node shows. **Private key** is hidden:
-**Show** shows it. "Save into Vault 1" keeps it as a note ("The node key
+**Show** shows it. "Save into Vault 1" (**Make a vault** with none
+open, as in the picture) keeps it as a note ("The node key
 is in the vault"); **Out unprotected…** opens
 [This is a secret](../screens/files.md#this-is-a-secret) with a file
 `lightning-` and the node id's first 16 characters, `.txt`. In
@@ -273,7 +277,7 @@ Practice an aezeed other than the sample is refused.
 
 ## 8. Seed XOR parts back into a key
 
-*Picture to come: `more-from-a-key-seed-xor.png`, Add a key on Seed XOR parts, two parts in.*
+![Add a key · Seed XOR parts with Part 1 and Part 2 in, 12 words each](../pictures/more-from-a-key-seed-xor.png)
 
 Seed XOR splits a key's words into two or three sets of words, the
 parts. Every part is needed to make the key again. Each part is itself
@@ -293,7 +297,8 @@ chosen and its typing card open
 ([the other forms](../screens/add-a-key.md#the-other-forms)):
 
 1. Type the first part's words and press **Add this one**: "Part 1 · 12
-   words". **Scan a QR code** reads a part instead.
+   words", under a count of the parts in ("2 in" once there are two).
+   **Scan a QR code** reads a part instead.
 2. Do the same for every other part.
 3. Under **Passphrase**, type the key's BIP-39 passphrase, if it has
    one.

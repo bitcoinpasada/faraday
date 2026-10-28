@@ -1,8 +1,7 @@
 # Before you rely on a key
 
-**Kind:** Spec
-**Status:** Written and checked against the app's strings and the security model
-**Open:** the pictures, drawn once after the theming has landed
+**Kind:** Reference
+**Status:** Written and checked against the app's strings and the security model; it shows no pictures, its steps being on the pages it links
 
 Faraday is an offline key store and signer: it keeps a key for one
 session, and signs what it is shown. What makes a

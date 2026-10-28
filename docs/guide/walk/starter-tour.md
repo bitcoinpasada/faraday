@@ -1,8 +1,7 @@
 # Faraday Starter
 
-**Kind:** Spec
-**Status:** Written and checked against the app's code and strings; the pictures are named and not yet drawn
-**Open:** the pictures, drawn once after the theming has landed
+**Kind:** Reference
+**Status:** Written, checked against the app's screens and strings, and pictured from `just guide-pictures` (`docs/guide/pictures/`)
 
 **You end with:** knowing where everything is in Faraday Starter.
 
@@ -30,7 +29,7 @@ The Starter opens on **Home**. It opens in the **Cobalt** theme at
 **Standard** contrast, in **Light** or **Dark** as the computer's own
 setting asks.
 
-*Picture to come: `starter-tour-home.png`, the Starter's Home with the rail, This computer and its Checklist, and the Faraday Demo card.*
+![The Starter's Home: the rail, This computer with its Checklist, and the Faraday Demo card](../pictures/starter-tour-home.png)
 
 The [rail](../screens/starter-home.md#the-rail-the-bar-and-the-top-app-bar)
 at the left holds the four destinations: **Home**, **Make**,
@@ -49,8 +48,8 @@ Home is about this computer ([Home](../screens/starter-home.md)).
 
 | On screen | Meaning |
 |---|---|
-| **This computer** | the computer's maker and model, and **Secure Boot: on** or **off** |
-| **Checklist** | **Make a Faraday stick**, then **Start this computer from the stick**; the step to do now is marked. **Turn Secure Boot back on** is listed while Secure Boot is off |
+| **This computer** | the computer's maker and model, and **Secure Boot: on** or **off** (the pictures show a made-up computer, Example Computers Example 14) |
+| **Checklist** | **Make a Faraday stick**, then **Start this computer from the stick**, numbered, each with its state under it (**No Faraday stick attached**, **Secure Boot: on**); the step to do now is highlighted. **Turn Secure Boot back on** is listed while Secure Boot is off |
 | the button on the card | the next step for this computer: **Make a Faraday stick**, **Restart into the BIOS** or **Restart from the stick** |
 | **Faraday Demo** | the Demo's version and **Open Faraday Demo** ([Faraday Demo](faraday-demo.md)) |
 | **Update the installed Faraday** | shown only while this copy is newer than the one installed: **Installed … · this copy …** and **Update** |
@@ -67,7 +66,7 @@ The stick and the restart are the next two walkthroughs:
 
 ## 3. Make
 
-*Picture to come: `starter-tour-make.png`, Make with its two cards.*
+![Make with the Faraday stick and Pi card cards, Tools on the rail outlined](../pictures/starter-tour-make.png)
 
 Every control of Make and its steps: [Make](../screens/starter-make.md).
 
@@ -81,7 +80,7 @@ backup drive as a stick.
 
 ## 4. Tools
 
-*Picture to come: `starter-tour-tools.png`, Tools with its two cards.*
+![Tools with the Transfer and Blank templates cards](../pictures/starter-tour-tools.png)
 
 Every control of Tools and Blank templates: [Tools](../screens/starter-tools.md).
 
@@ -114,7 +113,8 @@ the Starter ([Faraday Demo](faraday-demo.md)).
 the one installed. It shows **Installed version** and **This version**,
 then the same **Install** button.
 
-The **⋮** menu holds what is not a destination
+The **⋮** menu holds what is not a destination, only the rows that
+apply (**Appearance** and **About** while nothing is installed)
 ([the ⋮ menu](../screens/starter-menu.md#the--menu)):
 
 | Row | Opens |
@@ -124,7 +124,7 @@ The **⋮** menu holds what is not a destination
 | **Uninstall** | shown while a copy is installed: what is installed and where, and **Uninstall**, which asks **Uninstall Faraday Starter?** first. "Removes the files listed. Received files and Faraday Demo's sticks stay." |
 | **Remove the Faraday boot entry** | shown while the entry is in the boot list, as on Home |
 
-*Picture to come: `starter-tour-menu.png`, the ⋮ menu open over Home.*
+![The ⋮ menu open over Home with Appearance and About, Install outlined](../pictures/starter-tour-menu.png)
 
 Next: [Get Faraday on a stick](get-faraday.md), or, to try Faraday in
 a window first, [Faraday Demo](faraday-demo.md).

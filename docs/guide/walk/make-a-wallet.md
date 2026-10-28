@@ -1,15 +1,15 @@
 # Make a wallet, single key or multisig
 
-**Kind:** Spec
-**Status:** Text moved from `docs/GUIDE.md` (§5.1 to §5.3, §5.5 and the opening of §5), written and checked against the app's screens and strings; the pictures are in `docs/guide/` and keep their names
-**Open:** the walkthrough's form (result line, what is needed, time, "With your own key"); the pictures, drawn once after the theming has landed
+**Kind:** Reference
+**Status:** Written, checked against the app's screens and strings, and pictured from `just guide-pictures` (`docs/guide/pictures/`)
 
-What you will do: load three keys, make a 2-of-3 multisig wallet from
-them, read its wallet card, show it to a watch-only wallet and compare
-an address, plan its backup, and add a missing key by scanning its
-SeedQR.
+**You end with:** three keys loaded and a 2-of-3 multisig wallet,
+`New wallet 1`, made from them, its card read and its backup planned.
 
-What you need:
+**Before you start:** [Make a key](new-key.md) and
+[Back it up](back-up.md).
+
+**You'll need:**
 
 - Faraday with no key loaded (press **Lock** if one is) and no stick
   attached.
@@ -17,8 +17,10 @@ What you need:
 - Two more public test keys: twenty-four times **zebra**
   (fingerprint `5d388376`) and twenty-four times **summer**
   (`cf2e083d`).
-- Sparrow, or another watch-only wallet, on an online computer
-  (step 5.4).
+- Sparrow, or another watch-only wallet, on an online computer, for
+  [Receive](receive.md) next.
+
+**Time:** about 20 minutes.
 
 The places of this section are Place 1, Place 2 and Place 3.
 
@@ -27,13 +29,14 @@ The places of this section are Place 1, Place 2 and Place 3.
 Press **Wallets**, then **Add a key**. The page of section 3 opens;
 press **Change** on **Start**, then **Type the words**.
 
-![Add a key, the Words card](../5-1-type-words.png)
+![Add a key with Start on Type the words and the Words card open, 12 chosen](../pictures/5-1-type-words.png)
 
 | On screen | Meaning |
 |---|---|
 | **Start** **Type the words** | the choice made; **Change** opens Start again |
-| **Words** **12 · 15 · 18 · 21 · 24** | how many words; typing past the boxes adds more |
+| **Words** **12 · 15 · 18 · 21 · 24** | how many words, 12 ticked; typing past the boxes adds more |
 | **Other languages** | word lists other than English |
+| **0 words** | how many words are typed |
 | **Continue** | checks the words and opens **Key** |
 
 Start's other choices load a key the same way: **Scan a SeedQR** reads
@@ -48,13 +51,13 @@ forms**.
 
 | A string in | Check a string |
 |---|---|
-| ![One string in, Make the rest and Add a share](../5-1-codex32.png) | ![Check a string, the final row](../5-1-check-a-string.png) |
+| ![Add a key · codex32 with one string in, Make the rest outlined](../pictures/5-1-codex32.png) | ![Check a string with Checksum fails and the final row, Show the worksheet outlined](../pictures/5-1-check-a-string.png) |
 | **1 in** and **Share A · id name · 2 needed**. Once 2 strings of the set are in, the key loads. **Make the rest** makes the set's other strings from the ones typed; **Add a share** makes one more string at an unused index. Where an open vault keeps strings of the same set, the line **1 more of this set in open vaults** says so, and they count. | **Check a string**, then **Check it**: **Checksum holds** or **Checksum fails**, with the checksum worksheet's final row and, where it is not `SECRETSHARE32`, its cells marked and the first box named (**Final row differs at box 36**); **Show the worksheet** shows every row, **Final row only** the last again. Nothing is loaded or kept. **Back to adding strings** returns. |
 
 | The worksheet | Make the rest |
 |---|---|
-| ![Show the worksheet](../5-1-worksheet.png) | ![Make the rest, Scheme](../5-1-make-the-rest.png) |
-| **Show the worksheet** shows every row of the string's checksum worksheet as the booklet draws it, each box of the string numbered in its corner, to compare row by row with the paper; drag it, or use the wheel or the arrow keys, to see the rest. **Final row only** goes back. | **Make the rest**, then the second string: New key opens on **Scheme**, **From A, C**, with **Strings** to choose. **Worksheets**, **Strings** and **Strings made** follow, as in step 4.11. **Add a share** opens the same way on **Index**, offering the next unused one. |
+| ![The string's checksum worksheet, Final row only outlined](../pictures/5-1-worksheet.png) | ![New key on Scheme: From A, C, Length 48, Threshold 2, Strings 3](../pictures/5-1-make-the-rest.png) |
+| **Show the worksheet** shows every row of the string's checksum worksheet as the booklet draws it, each box of the string numbered in its corner, to compare row by row with the paper; drag it, or use the wheel or the arrow keys, to see the rest. **Final row only** goes back. | **Make the rest**, then the second string: **New key** opens on **Scheme**: **From** A, C, **Length** 48, **Threshold** 2, and **Strings** to choose. **Worksheets**, **Strings** and **Strings made** follow, as in step 4.11. **Add a share** opens the same way on **Index**, offering the next unused one. |
 
 With **Suggest corrections** ticked, a string whose checksum fails
 gets a correction to compare with the paper; Learn's page covers it.
@@ -62,20 +65,20 @@ A key loaded from corrected strings keeps a line beside its
 fingerprint, **Share entry corrected** (**I mistyped**) or **Share
 repairs unchecked**:
 
-| New key's Key card | Wallets |
+| Add a key's Key card | Wallets |
 |---|---|
-| ![Key card, the strings in](../5-1-key-card.png) | ![Wallets, Share entry corrected](../5-1-wallets-mark.png) |
-| From **Type codex32 strings**, **Key** lists the strings in (**Share A · id name · 2 needed**). **Lock in** loads the key and opens Wallets. | Under **Keys without a wallet**, and on the key's card: **fab6868a · Share entry corrected**. |
+| ![Add a key's Key card listing Share A and Share C, Lock in outlined](../pictures/5-1-key-card.png) | ![Wallets with key fab6868a under Keys without a wallet, marked Share entry corrected](../pictures/5-1-wallets-mark.png) |
+| From **Type codex32 strings**, **codex32** reads **2 in** and **Key** lists the strings in (**Share A · id name · 2 needed**, **Share C · id name · 2 needed**). **Lock in** loads the key and opens Wallets. | Under **Keys without a wallet**, and on the key's card (**Key fab6868a is loaded. No wallet uses it.**): **fab6868a · Share entry corrected**. |
 
 Type key `3dca6805`'s 12 words from the paper, then press **Continue**.
 
-![The Key card, the words typed](../5-1-words-key.png)
+![The Key card with the 12 words hidden and No passphrase, Lock in outlined](../pictures/5-1-words-key.png)
 
 **Key** shows the 12 words hidden (**Show words** shows them), with
 **Passphrase** and **Passphrase again** (**No passphrase** unless one
 is typed in both). Press **Lock in**.
 
-![Key 3dca6805 loaded](../5-1-key-loaded.png)
+![Wallets with no wallet and key 3dca6805 under Keys in the sidebar](../pictures/5-1-key-loaded.png)
 
 Faraday returns to Wallets, and the sidebar lists `3dca6805` under
 **Keys**. The fingerprint proves the words typed are the test words.
@@ -90,15 +93,15 @@ Press **Home**, then [**Make a new wallet**](../screens/make-a-wallet.md).
 
 | Kind | Quorum |
 |---|---|
-| ![Kind, multisig](../5-2-kind.png) | ![Quorum](../5-2-quorum.png) |
-| Kind opens with **Single key, backup in shares (codex32)** ticked. Press **Multisig · native SegWit** (3 keys, any 2 sign): **Quorum** opens; **Change** on Kind shows it ticked. | **Signatures needed** 2 and **Keys** 3 (**-** and **+** change them). The line under them says what the quorum means: **Any 2 of the 3 keys can spend. Losing 1 key still leaves the money spendable; 2 keys together can take it.** **Account** 0. Press **Continue**. |
+| ![Kind opened again with Multisig · native SegWit chosen, that row outlined](../pictures/5-2-kind.png) | ![Quorum at 2 of 3, Account 0, Continue outlined](../pictures/5-2-quorum.png) |
+| Kind opens with **Single key, backup in shares (codex32)** ticked; **More kinds** lists the others. Press **Multisig · native SegWit** (**3 keys, any 2 sign**): **Quorum** opens. **Change** on Kind, as in the picture, shows it chosen; pressed again, it moves on. | **Signatures needed** 2 and **Keys** 3 (**-** and **+** change them). The line under them says what the quorum means: **Any 2 of the 3 keys can spend. Losing 1 key still leaves the money spendable; 2 keys together can take it.** **Account** 0. Press **Continue**. |
 
 On **Use vaults**, press **No**: **Keys** opens.
 
 | Keys | Check |
 |---|---|
-| ![Keys, all three chosen](../5-2-keys.png) | ![Check, with the first addresses](../5-2-check.png) |
-| Each **Key** row offers the keys loaded. Press `3dca6805` for Key 1, `5d388376` for Key 2, `cf2e083d` for Key 3. **Show xpub QR**, **Xpub PNG for the stick** and **Xpub file for the stick** give a key's public part to another wallet; **New key** makes one here. Press **Make the wallet**. | **Descriptor** reads **2 of 3 · native SegWit multisig · 3dca6805, 5d388376, cf2e083d** and a checksum; **Path** **m/48'/0'/0'/2'**. **The wallet's first addresses**: **Receive 0/0**, **Receive 0/1** and **Change 1/0**. With these test keys, Receive 0/0 begins `bc1q rfhg t7dv` and ends `ecxs 0246 6p`. Press **It matches**. |
+| ![Keys with all three keys chosen, Make the wallet outlined](../pictures/5-2-keys.png) | ![Check with the descriptor, the path and the wallet's first addresses](../pictures/5-2-check.png) |
+| Each **Key** row offers the keys loaded. Press `3dca6805` for Key 1, `5d388376` for Key 2, `cf2e083d` for Key 3; the row reads `3dca6805 · 3dca6805 · loaded here`, and **Clear** empties it. **Show xpub QR**, **Xpub PNG for the stick** and **Xpub file for the stick** give a key's public part to another wallet; **Add a passphrase** opens **Passphrase** for the key; **New key** makes one here. Press **Make the wallet**. | **Descriptor** reads **2 of 3 · native SegWit multisig · 3dca6805, 5d388376, cf2e083d** and a checksum; **Path** **m/48'/0'/0'/2'**. **The wallet's first addresses**: **Receive 0/0**, **Receive 0/1** and **Change 1/0**. With these test keys, Receive 0/0 begins `bc1q rfhg t7dv` and ends `ecxs 0246 6p`. Press **It matches**. |
 
 Then **Back up** (step 5.5).
 
@@ -107,17 +110,19 @@ Then **Back up** (step 5.5).
 Press **Wallets**, then the wallet in the left column
 ([the card](../screens/wallets.md#the-card)).
 
-![The wallet card](../5-3-card.png)
+![The card of New wallet 1, Not backed up, Can spend, Show wallet QR outlined](../pictures/5-3-card.png)
 
 | On screen | Meaning |
 |---|---|
-| **New wallet 1**, **2 of 3 · native SegWit multisig** | the name and the kind; **Rename** changes the name |
+| **New wallet 1**, **2 of 3 · native SegWit multisig** | the name and the kind; **Rename** changes the name; **New wallet from this one** opens Make a new wallet filled with its kind, quorum and keys |
+| **Made here** | the wallet was made on this device |
 | **Not backed up** | no backup plan yet (step 5.5) |
 | **2 of 2 signatures possible here**, **Can spend** | the quorum is 2, and 2 of the keys that sign are loaded |
-| **At a glance** | the wallet, each key (**Can sign here** while loaded), and the backup |
+| **At a glance** | the wallet, each key (**Can sign here** while loaded), and the backup (**No backup plan** and **Back up**) |
 | **First receive address · 0/0** | the address to compare (step 5.4) |
 | **Spend from this wallet** | section 6 |
-| **Show wallet QR** | the wallet description as a QR code (step 5.4) |
+| **Show wallet QR** | the wallet description as a QR code ([Receive, step 5.4](receive.md#54-show-the-wallet-to-a-watch-only-wallet)) |
+| **Back up** | the backup board (step 5.5) |
 | **Remove from session** | takes the wallet out of memory |
 
 ### 5.5 Back it up
@@ -126,20 +131,21 @@ Press **Back up** on the card. The board opens with the standard way
 for a 2-of-3: one place per key, each keeping one seed's words and the
 whole description.
 
-![The 2-of-3's board](../5-5-board.png)
+![Back up New wallet 1: three places, each keeping one seed's words and the whole description on paper, Customize backup outlined](../pictures/5-5-board.png)
 
 Each place reads **Sees the balance** and **Spends with 1 more place**.
-The three lines read **Yes**, **No** and **Yes**: any one place lost,
-the other two rebuild the wallet; no place alone can spend; any place
-alone sees the balance.
+The three lines read **Any one place lost: the rest rebuild the wallet**
+**Yes**, **One place found: can spend** **No** and **One place found:
+sees the balance** **Yes**. **Add watch-only software** adds the
+watch-only wallet as a place that keeps the description.
 
 After **Customize backup**, a drop that changes what a place alone can
 do [asks first](../screens/back-up-wallet.md#keep-it-or-take-it-off):
 
 | Seeing the balance | Spending |
 |---|---|
-| ![Place 3 can see the wallet's balance](../5-5-sees.png) | ![Anyone with access to Place 1 can spend](../5-5-spend.png) |
-| **Place 3 can see the wallet's balance**: what was dropped there completes the description at that place. | **Anyone with access to Place 1 can spend**: Place 1 now keeps as many seeds as a spend needs. |
+| ![Place 3 can see the wallet's balance, Take it off outlined](../pictures/5-5-sees.png) | ![Anyone with access to Place 1 can spend, Take it off outlined](../pictures/5-5-spend.png) |
+| **Place 3 can see the wallet's balance**: what was dropped there completes the description at that place (here **Share 1 and seed cf2e083d together make the whole description.**). | **Anyone with access to Place 1 can spend**: Place 1 now keeps as many seeds as a spend needs (**Place 1 keeps 2 of the 2 seeds a spend needs.**). |
 | **Keep it** keeps the drop; **Take it off** undoes it. | the same |
 
 The rest is section 4: the checklist, a copy checked per seed, any

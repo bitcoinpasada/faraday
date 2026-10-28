@@ -1,8 +1,7 @@
 # The Starter's other tools
 
-**Kind:** Spec
-**Status:** Written and checked against the app's code and strings; the pictures are named and not yet drawn
-**Open:** the pictures, drawn once after the theming has landed
+**Kind:** Reference
+**Status:** Written, checked against the app's screens and strings, and pictured from `just guide-pictures` (`docs/guide/pictures/`)
 
 **You end with:** a file sent from this computer to Faraday by QR code
 and one received back; a blank template printed and saved as a PDF; a
@@ -32,7 +31,7 @@ unread.
 
 ## 1. Tools
 
-*Picture to come: `starter-tools-tools.png`, the Starter's Tools with the Transfer and Blank templates cards.*
+![The Starter's Tools with the Transfer and Blank templates cards, Open blank templates outlined (step 4)](../pictures/starter-tools-tools.png)
 
 Press **Tools** on the rail. It holds two cards
 ([Faraday Starter](starter-tour.md#4-tools)):
@@ -44,11 +43,12 @@ Press **Tools** on the rail. It holds two cards
 
 ## 2. Send a file to Faraday
 
-*Picture to come: `starter-tools-send.png`, Transfer with payment.psbt in Downloads and its size.*
+![Transfer: Send lists payment.psbt, 2.3 KB, and IMG_0412.jpg greyed, Over 256 KiB; Receive beside it](../pictures/starter-tools-send.png)
 
 Press **Open Transfer**. **Transfer** opens as a page of its own; the
-way back at the top left returns to **Tools**. It has two parts,
-**Send** and **Receive**.
+way back at the top left returns to **Tools**. It has two parts side by
+side, **Send** and **Receive**. Faraday Demo opens the same page from
+**Transfer** in its sidebar.
 
 **Send** lists this computer's Downloads folder, its path at the top,
 the newest file first, each with its size. Put the file to send there,
@@ -70,11 +70,11 @@ whole file is read: it lands in Files
 
 ## 3. Receive a file from Faraday
 
-*Picture to come: `starter-tools-receive.png`, Transfer's Receive with a line "Saved …" under its buttons.*
+![Transfer's Receive with the line Saved ~/Downloads/payment-signed.psbt under its buttons](../pictures/starter-tools-receive.png)
 
 On Faraday, show the file as a code: in Files, the file's **Show as
 QR** ([Files, sticks and QR codes](files-and-sticks.md#6-qr-codes)),
-for example the signed `payment.psbt`.
+for example the signed PSBT, `payment-signed.psbt`.
 
 On the Starter, under **Receive**, press **Scan with the camera**. The
 camera opens as **Receive into Downloads**. Hold Faraday's screen to it
@@ -85,7 +85,7 @@ Under the buttons, a line per file this session, the newest first:
 
 | Line | Meaning |
 |---|---|
-| "Saved …" | the file is in Downloads, at the path named. A file of the same name already there is kept, and the new one is saved beside it, "(2)" added to its name |
+| "Saved …" | the file is in Downloads, at the path named (here `~/Downloads/payment-signed.psbt`). A file of the same name already there is kept, and the new one is saved beside it, "(2)" added to its name (`payment-signed (2).psbt`) |
 | "Saved …: this file holds a secret" | in the warning tone: saved only after [Save without encryption?](../screens/files.md#save-without-encryption)'s hold. It is on an online computer: delete it once it has served |
 | "Not saved: …" | and why |
 
@@ -95,7 +95,7 @@ between Downloads and the device.
 
 ## 4. Blank templates
 
-*Picture to come: `starter-tools-templates.png`, Blank templates with Form, Words, Copy and Places, then Print and Save the PDF.*
+![Blank templates at first: Form BIP-39 words, Words 24, Copy Words, Places 2, then Print and Save the PDF](../pictures/starter-tools-templates.png)
 
 A blank template is the sheet a seed is copied onto by hand. It is
 printed here, on the computer with the printer, and holds nothing of
@@ -136,7 +136,7 @@ A length that no longer allows a choice puts it back to **String** or
 
 ## 5. Replace Faraday, keep the data
 
-*Picture to come: `starter-tools-keep-data.png`, What to write? on a Faraday stick, Replace Faraday, keep data chosen.*
+![What to write? with Replace Faraday, keep data and The release's (unsigned) chosen, Continue outlined](../pictures/starter-tools-keep-data.png)
 
 A new release reaches a Faraday stick from the Starter: Faraday itself
 writes no boot partition. **Replace Faraday, keep data** writes the new
@@ -147,12 +147,14 @@ with its vaults and settings, unread and unwritten.
    [Get Faraday on a stick](get-faraday.md#13-which-stick).
 2. **Which stick?** lists the stick as **Faraday stick ·** and its
    version. Press it.
-3. **What to write?** offers **New Faraday stick** and **Replace
-   Faraday, keep data** (**Only the boot partition is written**). Press
-   the second. Under it: "This computer can read and change the data
+3. **What to write?** names the stick at the top, then offers **New
+   Faraday stick** (**Everything on it is lost**) and **Replace Faraday,
+   keep data** (**Only the boot partition is written**). Press the
+   second. Under it: "This computer can read and change the data
    partition while the stick is attached.", and a link to the Learn page
    **Replacing Faraday on a stick**.
-4. **Boot file**: **The release's (unsigned)**, or **One I signed**
+4. **Boot file**, on the same page: **The release's (unsigned)**,
+   chosen at first, or **One I signed**
    for a boot file signed with your own db key
    ([Your own Secure Boot keys](secure-boot-keys.md#10-the-starter-writes-the-signed-boot-file)).
    Press **Continue**.
@@ -174,15 +176,16 @@ before.
 
 ## 6. A Pi card
 
-*Picture to come: `starter-tools-pi-card.png`, Which card? with an SD card listed under the boards line.*
+![Which card? with the boards and cameras lines, and an SD card reader of 32 GB listed](../pictures/starter-tools-pi-card.png)
 
 On **Make**, the **Pi card** card shows the Pi image's **Version …**,
 or **Not in this Starter**, when **Make a Pi card** is grey.
 
 Press **Make a Pi card**. **Which card?** opens with what the card is
 for: "For a Raspberry Pi 3B, 3B+ or Zero 2 W with the Waveshare 2.8
-inch screen" and "Cameras: a USB webcam, or Camera Module v1 or v2".
-Then the steps are those of a stick: the card, **What to write?**
+inch screen" and "Cameras: a USB webcam, or Camera Module v1 or v2",
+then each card attached, with its size and the partitions on it. Press
+the card. Then the steps are those of a stick: the card, **What to write?**
 (**New Faraday card**), **Confirm** (**Card**), **Erase and write**,
 **Writing**, and **Written**: "The card can be pulled out." With no
 card attached: **No SD card or USB stick attached · 256 MB or larger**.

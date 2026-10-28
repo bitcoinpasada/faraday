@@ -1,8 +1,7 @@
 # Multisig with other people and devices
 
-**Kind:** Spec
-**Status:** Written and checked against the app's code and strings; step 6 moved from `docs/GUIDE.md` (§5.6), its pictures in `docs/guide/` under their old names; the other pictures are named and not yet drawn
-**Open:** the pictures, drawn once after the theming has landed
+**Kind:** Reference
+**Status:** Written, checked against the app's screens and strings, and pictured from `just guide-pictures` (`docs/guide/pictures/`)
 
 **You end with:** key `3dca6805` in a 2-of-3 wallet whose other two keys
 are held by other people on their own devices, the wallet loaded on
@@ -39,20 +38,21 @@ Press **Home**, then [**Make a new wallet**](../screens/make-a-wallet.md). Press
 SegWit**; on **Quorum**, **Signatures needed** 2 and **Keys** 3, then
 **Continue**; on **Use vaults**, **No**.
 
-On **Keys**, under **Key 1**, press **3dca6805 · New key 1**. The row
-reads **3dca6805 · New key 1 · loaded here**, and three buttons give its
-xpub out:
+On **Keys**, under **Key 1**, press **3dca6805**, the key typed in
+(a key typed from paper is named by its fingerprint). The row reads
+"3dca6805 · 3dca6805 · loaded here", and three buttons give its xpub
+out:
 
 | Press | Gives |
 |---|---|
-| **Show xpub QR** | the key as a QR code, its fingerprint, kind and path labelled under it, for a coordinator or a cosigner's device with a camera |
+| **Show xpub QR** | the key as a QR code, titled with its fingerprint and kind ("Xpub 3dca6805 · Multisig · native SegWit"), for a coordinator or a cosigner's device with a camera |
 | **Xpub PNG for the stick** | the same code as a picture, waiting for the stick |
 | **Xpub file for the stick** | the key as a text file, waiting for the stick |
 
-*Picture to come: `multisig-with-others-xpub-qr.png`, Key 1's xpub as a QR code, its label under it.*
+![Xpub 3dca6805 · Multisig · native SegWit, the key's QR code, Public · safe to scan](../pictures/multisig-with-others-xpub-qr.png)
 
-The path is `m/48'/0'/0'/2'`, the standard for a native SegWit
-multisig. In the coordinator, add this key as a cosigner by scanning
+The sheet names no path; the code carries it, `m/48'/0'/0'/2'`, the
+standard for a native SegWit multisig, with the fingerprint. In the coordinator, add this key as a cosigner by scanning
 the code, or open the file from the stick. The xpub cannot spend.
 
 ## 2. Take the cosigners' keys
@@ -66,7 +66,7 @@ cosigners' xpubs. Each slot offers:
 | the button named after a file in Files ("From" and its name) | an xpub file copied in on a stick visit fills the slot |
 | **Someone else adds it later** | the slot reads **A cosigner adds it later · waiting for its xpub file**; the wallet is made once that file is in |
 
-*Picture to come: `multisig-with-others-keys.png`, Keys with Key 1 loaded here and Key 2 a cosigner's xpub.*
+![Keys with Key 1 loaded here, Key 2 filled from 5d388376-xpub.txt as a cosigner's xpub, Key 3 not chosen](../pictures/multisig-with-others-keys.png)
 
 A file whose key cannot fill the slot stays in Files, and a bar says
 why: its key has no fingerprint and path, it holds several keys, or its
@@ -95,7 +95,11 @@ record.
 Then press [**Files**](../screens/files.md) at the foot of the sidebar, and **Load the wallet**
 on the file.
 
-*Picture to come: `multisig-with-others-load.png`, Files with the coordinator's wallet file and Load the wallet.*
+![Files with sparrow-new-wallet-1.txt from the stick, a wallet descriptor, Load the wallet outlined](../pictures/multisig-with-others-load.png)
+
+The panel above the file names the wallet the file holds, "Sparrow
+New Wallet 1" (its name from the file's), with its kind and how many
+of its keys are here, and **Load the wallet with its seeds**.
 
 On the wallet's card, under **At a glance**, `3dca6805` reads **Can
 sign here** and the other two **Cosigner · xpub only**. The card reads
@@ -119,7 +123,7 @@ Faraday asks before adding the wallet, whichever way it came in:
 | **Hold to add this wallet** | adds the wallet once held to the end |
 | **Cancel** | adds nothing |
 
-*Picture to come: `multisig-with-others-key-path.png`, the key path sheet over Files.*
+![Another key spends this wallet alone over Files, for a wallet named Shared, with the key and Hold to add this wallet](../pictures/multisig-with-others-key-path.png)
 
 Hold only when you know whose key it is and why the wallet has it.
 Once added, the card keeps the line naming the key, and where it would
@@ -141,12 +145,12 @@ cosigners' xpubs, **Register this wallet** is under it:
 |---|---|
 | [**Register this wallet**](../screens/wallets.md#register-this-wallet) | the sheet's title |
 | **2 of 3, P2WSH, sorted** | the quorum, the script and the key order |
-| a line per cosigner: fingerprint and path | the wallet's keys; **Yours** marks the one key `3dca6805` gives |
-| **Name** | the wallet's name, from the PSBT's file name at first |
+| **Name** | the wallet's name, from the PSBT's file name at first: "Payment" for `payment.psbt` |
+| a line per cosigner: fingerprint and path, as "5d388376 · 48h/0h/0h/2h" | the wallet's keys; **Yours** marks the one key `3dca6805` gives |
 | **Hold to register** | adds the wallet once held to the end |
 | **Cancel** | adds nothing |
 
-*Picture to come: `multisig-with-others-register.png`, Register this wallet with its shape, three cosigners and Yours.*
+![Register this wallet, 2 of 3, P2WSH, sorted, named Payment, with three keys and Yours beside 3dca6805](../pictures/multisig-with-others-register.png)
 
 Where both readings fit the transaction, the sheet adds **Most
 coordinators sort the keys** over **Sorted** (chosen) and **In this
@@ -167,31 +171,35 @@ as step 3 does.
 
 ## 6. Sign your part and send it back
 
-With the wallet loaded, press **Wallets**, the wallet, then **Spend
-from this wallet**, and bring the PSBT in as
-[Spend](spend.md#63-write-the-payment-and-bring-it-here) does. Read
-the transaction ([Spend, step 6.4](spend.md#64-read-the-transaction)).
+With the wallet loaded, bring the PSBT in as
+[Spend](spend.md#63-write-the-payment-and-bring-it-here) does and press
+**Sign** on it in **Files**: **Sign a transaction** opens on its review.
+Read the transaction ([Spend, step 6.4](spend.md#64-read-the-transaction)).
 
-**Who signs** lists every key: `3dca6805` **Signs here**, `5d388376` and
-`cf2e083d` **Not here**. A cosigner's key does not come here: they sign
-the same PSBT on their own device. Press **Continue**, then **Sign with
-3dca6805**.
+The card **Signers** (the sidebar names it Who signs) lists every key:
+`3dca6805` **Signs here**, `5d388376` and `cf2e083d` **Not here**, and
+"1 of 2 signatures here · 1 more needed". A cosigner's key does not
+come here: they sign the same PSBT on their own device. Press
+**Continue**, then **Sign with 3dca6805** at the foot of the right-hand
+column.
 
-*Picture to come: `multisig-with-others-who-signs.png`, Who signs with one key here and two cosigners Not here.*
+![Sign a transaction on Signers, 3dca6805 Signs here and the two cosigners Not here, Continue outlined](../pictures/multisig-with-others-who-signs.png)
 
-**The other signatures** lists the keys again: `3dca6805` **Signed
-here**, the others **Waiting**, and **No cosigner's copy in Files**.
-Then either:
+**Signatures for this transaction** (the sidebar names it The other
+signatures) lists the keys again: `3dca6805` **Signed here**, the
+others **Waiting**, and **No cosigner's copy in Files**; under them,
+`payment-part.psbt`, **For the stick**. Then either:
 
 | Send yours to the coordinator | Collect a cosigner's here |
 |---|---|
-| Press **Show as QR** and scan it into the coordinator, or take the file whose name ends `-part.psbt` on a stick. The coordinator joins the signatures and broadcasts. | Press **Scan a copy** and scan the cosigner's signed PSBT, or copy it into Files on a stick visit and press the button "Add from" and its name. The key's row reads **Verified**, and **Send it** has the finished transaction ([Spend, step 6.7](spend.md#67-send-it)). |
+| Press **Show as QR** and scan it into the coordinator, or take `payment-part.psbt` (the PSBT's name and `-part.psbt`) on a stick. The coordinator joins the signatures and broadcasts. | Press **Scan a copy** and scan the cosigner's signed PSBT, or copy it into Files on a stick visit and press the button "Add from" and its name. The key's row reads **Verified**, and **Finish** has the finished transaction ([Spend, step 6.7](spend.md#67-send-it)). |
 
-*Picture to come: `multisig-with-others-other-signatures.png`, The other signatures with 3dca6805 Signed here and the others Waiting.*
+![Signatures for this transaction, 3dca6805 Signed here, the others Waiting, payment-part.psbt for the stick, Show as QR and Scan a copy](../pictures/multisig-with-others-other-signatures.png)
 
 A copy of another transaction is not added: each copy is checked
 against its key and this transaction. Until enough keys have signed,
-**Send it** reads **Needs 1 more signature**.
+the button at the foot of the right-hand column reads **Collect 1 more
+signature**.
 
 ## 7. Keys kept off the device
 
@@ -199,24 +207,24 @@ A key does not have to stay loaded: its SeedQR is scanned when it is
 needed, as on a SeedSigner. **Settings → Session → Remove every key**
 ([Session](../screens/settings.md#session)) takes every key out of memory and leaves the wallet.
 
-![Settings, Session](../5-6-settings.png)
+![Settings with Session reading 3 keys loaded, Remove every key outlined](../pictures/5-6-settings.png)
 
-![The card with no key loaded](../5-6-card-short.png)
+![New wallet 1's card with no key loaded, 0 of 2 signatures possible here, Scan a key outlined](../pictures/5-6-card-short.png)
 
 The card reads **0 of 2 signatures possible here**, each key **Not
 here**, and **A vault on a stick, a paper backup or a SeedQR may hold
 them**. Press **Scan a key** (or **Scan a key for New wallet 1** in the
 left column).
 
-![Scan a key for New wallet 1](../5-6-camera.png)
+![Scan a key for New wallet 1, listing Key 1, Key 2 and Key 3 still missing](../pictures/5-6-camera.png)
 
 The sheet lists the keys still missing. Hold a SeedQR up to the camera.
 Faraday works out which key it is; no choice is made first.
 
 | After | Screen | Meaning |
 |---|---|---|
-| Key 2's SeedQR | ![Key 2 added · 1 more](../5-6-one-more.png) **Key 2 added · 1 more** | the camera stays on for the next key |
-| Key 1's SeedQR, from Place 1's paper | ![Key 1 added · Can spend](../5-6-can-spend.png) **Key 1 added · Can spend**, in a bar at the foot of the page that goes by itself | enough keys to sign; the camera closes. Key 3 reads **Cosigner · xpub only**. |
+| Key 2's SeedQR | ![Scan a key for New wallet 1 reading Key 2 added · 1 more](../pictures/5-6-one-more.png) **Key 2 added · 1 more** | the camera stays on for the next key |
+| Key 1's SeedQR, from Place 1's paper | ![New wallet 1's card with 2 of 2 signatures possible here and the bar Key 1 added · Can spend](../pictures/5-6-can-spend.png) **Key 1 added · Can spend**, in a bar at the foot of the page that goes by itself | enough keys to sign; the camera closes. Key 3 reads **Cosigner · xpub only**. |
 | a key loaded already | **Key … · already here** | scan another |
 | a seed of no key of this wallet | "… is not one of New wallet 1's keys", on the passphrase sheet | a passphrase that gives one of the missing keys loads it; otherwise **Cancel** |
 | anything else | **Not a SeedQR or a CompactSeedQR** | scan the seed's SeedQR |

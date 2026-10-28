@@ -1,8 +1,20 @@
 # First start, Home and the session
 
-**Kind:** Spec
-**Status:** Text moved from `docs/GUIDE.md` (§2.1 to §2.4), written and checked against the app's screens and strings; the pictures are in `docs/guide/` and keep their names
-**Open:** the walkthrough's form (result line, what is needed, time, "With your own key"); the pictures, drawn once after the theming has landed
+**Kind:** Reference
+**Status:** Written, checked against the app's screens and strings, and pictured from `just guide-pictures` (`docs/guide/pictures/`)
+
+**You end with:** Faraday started and checked, its Home and sidebar
+known, the session's lock and power-off understood, and its colours
+chosen.
+
+**Before you start:** [Start a PC from the stick](start-from-the-stick.md),
+or open [Faraday Demo](faraday-demo.md), where every step here works
+the same.
+
+**You'll need:** the PC started from the Faraday stick, with the stick
+still in.
+
+**Time:** about 10 minutes.
 
 ### 2.1 Home
 
@@ -12,7 +24,7 @@ what is attached to the PC:
 | Screen | Meaning | Press |
 |---|---|---|
 | **Self-test failed**, with the **Check** that failed, over the whole window | Faraday's own cryptography did not reproduce a published test vector | **Exit**. Do not use this stick: write a new one (section 1) and report the check's name. |
-| ![Attached to this computer](../2-1-attached.png) **Attached to this computer**, naming a KVM ("a KVM can show this screen and type on this computer from elsewhere") or a TV ("a TV can record what it shows") | that device can record the screen or type | unplug it and press **Check again**. **Continue anyway** asks once more, naming the case (**Only for a screen or switch that is your own, in front of you. What is listed stays possible while it is attached.**), with **Hold to continue**. |
+| ![Attached to this computer naming a KVM, Check again outlined](../pictures/2-1-attached.png) **Attached to this computer**, naming a KVM ("a KVM can show this screen and type on this computer from elsewhere") or a TV ("a TV can record what it shows") | that device can record the screen or type | unplug it and press **Check again**. **Continue anyway** asks once more, naming the case (**Only for a screen or switch that is your own, in front of you. What is listed stays possible while it is attached.**), with **Hold to continue**. |
 | the same sheet naming a virtual machine ("a virtual machine's host sees and can change everything in it") | Faraday is not running on the PC itself | **Power off**: Faraday must start on a real computer |
 
 A keyboard or mouse plugged in after Faraday starts does nothing until
@@ -20,7 +32,7 @@ it types the code Faraday shows, or clicks the target it draws.
 
 A new stick holds no files, so nothing is offered to import.
 
-![Home on a new stick](../2-1-home.png)
+![Home on a new stick, its five Start tiles and Scan, the power button outlined](../pictures/2-1-home.png)
 
 Under **Start** the tiles are in a grid, two to a row in a window this
 size:
@@ -30,7 +42,7 @@ size:
 | **Make a new wallet** | a wallet from new keys, single key or multisig (section 5) |
 | **Restore an existing wallet** | a wallet from its backups (section 7) |
 | **Spend from a backup, step by step** | spending from a stick, words or paper (section 6) |
-| **Create a vault** | an encrypted file for keys and secrets, kept on a stick (section 4) |
+| **Create a vault** | an encrypted file for keys and secrets, kept on a stick (section 4); **None yet** under it until one is made |
 | **Stick visit** | the files on the stick, while a stick is attached and no key is loaded |
 
 **Scan**, the button at the bottom right, opens the camera for a QR
@@ -82,17 +94,17 @@ or on paper, is gone after a lock or a power-off.
 (a wallet being made, a vault with changes). The [sheet](../screens/lock-and-power.md#lock) reads like the
 power sheet:
 
-![The Lock sheet while a wallet is being made](../2-3-lock.png)
+![The Lock sheet while a wallet is being made, Back to the vault outlined](../pictures/2-3-lock.png)
 
 | Section | Lists |
 |---|---|
 | **Kept** | the files for the stick (**0 files for the stick** here) |
-| **Wiped from memory** | the flow that ends (**Make a new wallet · ends**), and each key and wallet kept nowhere else (**New key 1 · nowhere else**) |
+| **Wiped from memory** | the flow that ends (**Make a new wallet · ends**), and each key and wallet kept nowhere else (**New key 1 · nowhere else**, **New wallet 1 · nowhere else**) |
 | **Then** | **Faraday restarts on Unlock** |
 
 With a vault open, each key or wallet in no vault has a **Save** beside
-it, which saves it into the open vault. **Lock** wipes them; **Back to
-the vault** closes the sheet. With
+it, which saves it into the open vault. **Lock** wipes them and locks;
+**Back to the vault** closes the sheet and keeps working. With
 nothing under way, Lock wipes at once, without a sheet: a key made in
 section 3 and not yet backed up is lost.
 
@@ -107,12 +119,13 @@ its backup is done there is no idle lock, and the sidebar reads
 
 Power off: press the power button at the foot of the sidebar.
 
-![The power sheet on a stick started with Secure Boot off](../2-3-power.png)
+![The Power sheet on a PC started with Secure Boot off, its QR code and Cancel, Restart and Power off](../pictures/2-3-power.png)
 
 On a PC started with Secure Boot off, the sheet leads with **Turn Secure
 Boot back on in the BIOS before starting Windows.** and the QR code of
-the steps. With keys loaded it also lists what is kept and what is
-wiped from memory. Press **Power off**, **Restart**, or **Cancel**.
+the steps; **Then** reads **The computer powers off, or restarts**. With
+keys loaded it also lists what is kept and what is wiped from memory.
+Press **Power off**, **Restart**, or **Cancel**.
 
 While files wait for the stick, or a vault has changes not saved, the
 buttons read **Hold to power off** and **Hold to restart**: hold one
@@ -140,7 +153,7 @@ window at once; with **Reduce motion** off, the old colours fade into the
 new over a third of a second. Any theme can be Light or Dark at any
 contrast. The choice is kept across a lock, and on a stick until power-off.
 
-Picture to be drawn: Settings → Appearance with Theme, Mode and Contrast.
+![Settings with Appearance at the right, Cobalt, Light and Standard chosen](../pictures/settings.png)
 
 ### 2.5 Settings → Display
 
@@ -152,5 +165,3 @@ the screen above it. The screen and its touch turn at once, nothing
 restarts, and the choice is kept on the stick. **Scale** makes text and
 controls larger or smaller. A laptop's screen, a monitor and the Pi's
 2.8-inch panel have **Scale** only.
-
-Picture to be drawn: Settings → Display on the 7-inch panel, landscape.

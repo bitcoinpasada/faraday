@@ -1,8 +1,7 @@
 # Spend from a backup, step by step
 
-**Kind:** Spec
-**Status:** Written and checked against the app's code and strings; the pictures are named and not yet drawn
-**Open:** the pictures, drawn once after the theming has landed
+**Kind:** Reference
+**Status:** Written, checked against the app's screens and strings, and pictured from `just guide-pictures` (`docs/guide/pictures/`)
 
 **You end with:** a spend signed from what one place's envelope holds,
 with nothing loaded beforehand, and everything sealed and put back.
@@ -44,7 +43,13 @@ below.
 
 ## 2. How to spend bitcoin
 
-*Picture to come: `spend-from-a-backup-map.png`, How to spend bitcoin with its six stops.*
+![Spend with its note at the top and nine cards, from How to spend bitcoin to Put everything away](../pictures/spend-from-a-backup-map.png)
+
+The page lists its cards closed, each with a word on where it stands:
+**How to spend bitcoin**, **What do you have?**, **Check the money is
+really there**, **Write the payment**, **Bring the transaction here**,
+**Read the transaction**, **Sign it**, **Send it** and **Put everything
+away**.
 
 The first card is the map: six stops, each marked **Paper**,
 **Offline** or **Online**, from **What you have** to **Send it**. Three
@@ -61,7 +66,7 @@ everything forgotten at power off), then: scan or type everything in
 the envelope, one thing at a time, in any order. Faraday works out the
 wallet from it.
 
-*Picture to come: `spend-from-a-backup-what-do-you-have.png`, What do you have? with nothing in yet.*
+![What do you have? with nothing in yet, Copy files in from a stick grey until a stick is in](../pictures/spend-from-a-backup-what-do-you-have.png)
 
 | On the card | Does |
 |---|---|
@@ -77,20 +82,26 @@ For this walkthrough, bring the vault in:
    then pull the stick.
 2. Back on the card, **Unlock vault.ofv** heads the vault's row: its
    name, **Copied in from a stick** and its size, and how long it
-   takes to unlock.
+   takes to unlock ("Unlocks in about 0.5 s", with its memory and
+   passes). **Or bring in what is on paper** keeps the other ways in
+   under it.
 3. Type the vault's passphrase under **Passphrase** and press
-   **Unlock**. While a stick is attached the field reads **Remove the
+   **Unlock**; beside it, the memory this computer has free. While a stick is attached the field reads **Remove the
    stick, then type the passphrase**.
 
-*Picture to come: `spend-from-a-backup-unlock.png`, Unlock vault.ofv with the passphrase field.*
+![Unlock vault.ofv with the passphrase typed, Unlock outlined](../pictures/spend-from-a-backup-unlock.png)
 
-The vault opens on its list: **Wallets with their seeds**, with **New
-wallet 1** (**1 of 1 key in this vault**) and **Ready to sign once
-loaded**. Press **Load wallet with keys**.
+The vault opens on its list, headed "vault.ofv · Vault · open":
+**Wallets with their seeds**, with **New wallet 1** (**1 of 1 key in
+this vault**) and **Ready to sign once loaded**; "Each seed and wallet"
+with a count lists what the vault holds. Press **Load wallet with
+keys**.
 
-*Picture to come: `spend-from-a-backup-vault-open.png`, the vault's list with New wallet 1 and Load wallet with keys.*
+![What do you have? with vault.ofv open, New wallet 1 Ready to sign once loaded, Load wallet with keys outlined](../pictures/spend-from-a-backup-vault-open.png)
 
-The wallet opens and the column moves on by itself. Back on this card,
+The wallet opens and the column moves on by itself to the next card;
+**What do you have?** closes on "New wallet 1 · Single key · native
+SegWit". Back on this card,
 **Spend from** lists each wallet loaded with how many of its keys are
 here; pressing one chooses it. **Start over** forgets what came in.
 
@@ -108,7 +119,7 @@ card tries each kind in turn (step 4).
 
 ## 4. Check the money is really there
 
-*Picture to come: `spend-from-a-backup-check.png`, Check the money is really there, with the wallet QR button and the first addresses.*
+![Check the money is really there with Show the wallet as a QR code and three Receive and three Change addresses, Yes, my money shows outlined](../pictures/spend-from-a-backup-check.png)
 
 | On the card | Does |
 |---|---|
@@ -140,11 +151,11 @@ Signing* and *Show QR*. Press **I have the PSBT**.
 
 ## 6. Bring the transaction here
 
-*Picture to come: `spend-from-a-backup-bring.png`, Bring the transaction here with Scan and the stick way.*
+![Bring the transaction here with Scan, and Copy it in from a stick grey until a stick is in, Scan outlined](../pictures/spend-from-a-backup-bring.png)
 
 | By QR code | On a stick |
 |---|---|
-| Press [**Scan**](../screens/qr-and-scan.md#scan) and hold Sparrow's code up to the camera; an animated code is read as it loops. | Save the `.psbt` onto a stick. With the vault open, Faraday reads a stick only after a lock: plugging it in asks to lock (**Faraday asks to lock first when a stick goes in**). The lock seals the vault and wipes the keys; copy the PSBT in, pull the stick, and unlock with the same passphrase. The column comes back on this card. |
+| Press [**Scan**](../screens/qr-and-scan.md#scan) and hold Sparrow's code up to the camera; an animated code is read as it loops. | Save the `.psbt` onto a stick and press **Copy it in from a stick**, grey until the stick is in. With the vault open, Faraday reads a stick only after a lock: plugging it in asks to lock (**Faraday asks to lock first when a stick goes in**). The lock seals the vault and wipes the keys; copy the PSBT in, pull the stick, and unlock with the same passphrase. The column comes back on this card. |
 
 A PSBT already in Files is listed under **In Files**, with **Use this
 one**. Once one is in, the card reads **Spends from New wallet 1 ·
@@ -160,7 +171,7 @@ The spend's own cards follow, as in [Spend](spend.md):
 | **Sign it** | press **Sign with 3dca6805**. Signing cannot be taken back |
 | **Send it** | **Show the finished transaction as QR**, or the signed PSBT's **Show as QR**; in Sparrow, *Scan QR*, then *Broadcast Transaction* ([Spend, step 6.7](spend.md#67-send-it)) |
 
-*Picture to come: `spend-from-a-backup-send.png`, Send it with the signed PSBT and the finished transaction.*
+![Send it with the signed PSBT and the finished transaction for the stick, and the nonce check, the PSBT's Show as QR outlined](../pictures/spend-from-a-backup-send.png)
 
 A wallet of several keys adds **Who signs** before **Sign it**: each
 key **Signs here** or **Not here**, with **Scan a key** and **Unlock**
@@ -174,18 +185,21 @@ showed. If it differs, what was sent is not what was signed here.
 
 ## 8. Put everything away
 
-*Picture to come: `spend-from-a-backup-away.png`, Put everything away with the files waiting for the stick, Lock and Power off.*
+![Put everything away listing scanned-1-signed.psbt and scanned-1-final.txn, with Lock, Power off and Start over, Lock outlined](../pictures/spend-from-a-backup-away.png)
 
 The card lists the files waiting for the stick, then **Lock**, **Power
 off** and **Start over**.
 
-1. Press **Lock**, and lock on the sheet that lists what is kept and
-   what is wiped. The vault is sealed again with the keys inside it,
+1. Press **Lock**. The sheet **Lock** lists what is **Kept** and what
+   is **Wiped from memory**; press **Lock** on it (**Back to the
+   vault** leaves everything open). The vault is sealed again with the keys inside it,
    and no key is left in memory.
 2. Signing with a vault open records the amounts signed inside it, so
    the lock leaves a changed copy of the vault for the stick. Plug Vault
-   1's stick in: the [stick visit](../screens/stick-visit.md) writes what waits. Writing the vault
-   back keeps that record; leaving it out changes nothing else.
+   1's stick in: the [stick visit](../screens/stick-visit.md) writes what waits. The stick
+   already holds `vault.ofv`, so the visit asks: **Replace** writes the
+   changed vault over it and keeps that record; **Keep both** writes it
+   beside it as `vault-2.ofv`; leaving it out changes nothing else.
 3. Press **Power off**, take the stick out, and put it back in the
    envelope with the papers.
 

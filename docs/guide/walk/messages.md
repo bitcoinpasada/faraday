@@ -1,8 +1,7 @@
 # Sign and check a message
 
-**Kind:** Spec
-**Status:** Written and checked against the app's code and strings; the pictures are named and not yet drawn
-**Open:** the pictures, drawn once after the theming has landed
+**Kind:** Reference
+**Status:** Written, checked against the app's screens and strings, and pictured from `just guide-pictures` (`docs/guide/pictures/`)
 
 **You end with:** a message signed with key `3dca6805` at receive
 address 0/0 of a single-key wallet, as a file for the stick and as a
@@ -48,7 +47,7 @@ The format a message can be signed in follows the wallet's addresses:
 
 ## 2. Start
 
-*Picture to come: `messages-start.png`, Sign a message with the Address card open on New wallet 1.*
+![Sign a message with the Address card open on New wallet 1, receive address 0/0](../pictures/messages-start.png)
 
 On the wallet card, press **Sign a message**; or press **Tools**, then
 **Sign a message** (**With a single-key wallet's key here**). With no
@@ -70,7 +69,7 @@ Choose the address the person asking named. Press **Continue**.
 
 ## 4. Message
 
-*Picture to come: `messages-text.png`, the Message card with the text typed and its count of characters.*
+![The Message card with the guide's text typed and 38 characters counted](../pictures/messages-text.png)
 
 Press **Type**, then type the text. <kbd>Enter</kbd> starts a new line,
 <kbd>Backspace</kbd> takes back a character, and **Stop typing** or
@@ -97,7 +96,7 @@ first; BIP-137 is the one older tools read.
 
 ## 6. Sign
 
-*Picture to come: `messages-signed.png`, the Signature card with the signature, the file for the stick, Show as QR and PNG.*
+![The Signature card with the signature, message-rtc6am.txt for the stick, Show as QR and PNG for the stick](../pictures/messages-signed.png)
 
 Press **Sign the message**. The card shows:
 
@@ -130,7 +129,7 @@ signature: sign again in BIP-137 where the address can carry it.
 
 ## 8. Check a signed message
 
-*Picture to come: `messages-check.png`, Check a signed message, the signature valid, the address found in New wallet 1.*
+![Check a signed message opened with no signed message chosen](../pictures/messages-check.png)
 
 A signed message to check comes in as a file: from a stick visit
 ([Files, sticks and QR codes](files-and-sticks.md#2-a-stick-visit-bring-files-in)),
@@ -143,7 +142,9 @@ Press it; or press **Tools**, then **Check a signed message** (**Against
 its address**), which opens the first signed message in Files. With
 none, the tile reads **Copy a signed message in first**.
 
-**Check a signed message** opens ([Check a signed message](../screens/messages.md#check-a-signed-message)):
+**Check a signed message** opens ([Check a signed message](../screens/messages.md#check-a-signed-message)).
+Opened with no signed message chosen, as in the picture, it reads
+**No signed message chosen**. With one chosen, it shows:
 
 | Row | What it is |
 |---|---|

@@ -1,8 +1,7 @@
 # A GPG key
 
-**Kind:** Spec
-**Status:** Written and checked against the app's code and strings; the pictures are named and not yet drawn
-**Open:** the pictures, drawn once after the theming has landed
+**Kind:** Reference
+**Status:** Written, checked against the app's screens and strings, and pictured from `just guide-pictures` (`docs/guide/pictures/`)
 
 **You end with:** a GPG key, `Example Signer <signer@example.org>`,
 made in a vault kept on two sticks at two places; its public key on a
@@ -48,21 +47,22 @@ the plan** is under each card after the first.
 
 ## 2. Where it will be kept
 
-*Picture to come: `gpg-where.png`, Where it will be kept with Place 1 and Place 2 each keeping a stick with Vault 1.*
+![GPG key's Where it will be kept: Place 1 and Place 2 each a stick with Vault 1, Continue outlined](../pictures/gpg-where.png)
 
 [Where it will be kept](../screens/backup-flow.md#where-it-will-be-kept) starts with one new vault, Vault 1, on a stick at **Place 1**
 and another at **Place 2**: two copies of the same vault. Each place's
-row reads "A stick with Vault 1", with buttons under it:
+row reads "A stick with Vault 1", with buttons under it; the one chosen
+is ticked:
 
 | Button | Does |
 |---|---|
 | **Vault 1** (filled) | the vault this place's stick holds |
 | **A new vault** | gives the place a vault of its own, Vault 2 |
-| **Public files here** | the place whose stick also carries the public key; Place 1 at first |
+| **Public files here** | the place whose stick also carries the public key; ticked on Place 1 at first |
 | **Remove** | removes the place; shown only with more than two |
 
 **Add a place** adds Place 3. Under the places, a row per vault:
-**Vault 1 · new** and its places, with **An existing vault** to use a
+**Vault 1 · new** and its places (Place 1, Place 2), with **An existing vault** to use a
 vault already on a stick instead (its button then reads **A new
 vault**).
 
@@ -78,14 +78,21 @@ bring in the sticks**: it locks, then the flow goes on.
 Each stick is read ([Bring in the sticks](../screens/backup-flow.md#bring-in-the-sticks)) before the key exists, so that the vault on it is
 known and nothing secret is open while a stick is in.
 
-1. **Insert the stick for Vault 1 (Place 1)**. Plug in the first stick.
+On the Faraday stick, the flow names each of its sticks by a pill at
+the top of the screen: **Boot stick**, then **Stick 2** for Place 1's
+and **Stick 3** for Place 2's, each "out" or "in". The cards ask for a
+stick by that name ("Insert Stick 2: Vault 1 (Place 1)"); Faraday Demo
+asks for "the stick for Vault 1 (Place 1)".
+
+1. Insert Stick 2, for Vault 1 (Place 1). Plug in the first stick.
    It is read ("Reading" and its name); an empty stick is taken for the
-   new vault. Press **This is the stick for Vault 1 (Place 1)**, then
+   new vault. Press **This is the stick for Vault 1 (Place 1)**. "Mark
+   it as Stick 2" shows under its row: write that on the stick. Then
    pull it (**Pull the stick**).
-2. **Insert the stick for Vault 1 (Place 2)**. Plug in the second
-   stick. If it reads as the first one did (same label and size), the
-   button is a hold: **Hold: this is the stick for Vault 1 (Place 2)**.
-   Pull it.
+2. Insert Stick 3, for Vault 1 (Place 2). Plug in the second stick. If
+   it reads as the first one did (same label and size), "This reads as
+   Stick 2" shows and the button is a hold: **Hold: this is the stick
+   for Vault 1 (Place 2)**. Mark it as Stick 3 and pull it.
 
 **Use another stick** under each refuses this stick and asks again.
 A stick that cannot hold the vault says why: **Not a FAT32 stick.
@@ -96,14 +103,15 @@ Vault 1?**, with **A new vault beside them**.
 
 ## 4. The vault
 
-*Picture to come: `gpg-vaults.png`, the Vaults card with Create Vault 1.*
+![The Vaults card with Where it will be kept and Bring in the sticks done, Create Vault 1 outlined](../pictures/gpg-vaults.png)
 
 The **Vaults** card offers **Create Vault 1**. It opens
 [Create a vault](../screens/create-vault.md) with **Name** set to
 `Vault 1`. Choose its passphrase as
 [Vaults, passwords and codes](vaults-and-passwords.md#1-create-a-vault)
 does, then press **Create vault**. The flow comes back with **Vault 1 ·
-Unlocked**.
+Unlocked**; the Vaults card closes to "1 vault". The vault's file is
+`Vault-1.ofv`.
 
 An existing vault reads **Open Vault 1** instead: type its passphrase
 and press **Unlock Vault 1**. **I do not have its passphrase** offers
@@ -111,7 +119,7 @@ and press **Unlock Vault 1**. **I do not have its passphrase** offers
 
 ## 5. Make the key
 
-*Picture to come: `gpg-make.png`, Make the key with Name, Email and Expires 3 years.*
+![Make the key with Name Example Signer, Email signer@example.org and 3 years ticked, Make the key outlined](../pictures/gpg-make.png)
 
 | Field | Example |
 |---|---|
@@ -130,7 +138,7 @@ minute changes to it
 ([Vaults, passwords and codes](vaults-and-passwords.md#6-the-codes-and-the-time)).
 Then press **Make the key** again.
 
-*Picture to come: `gpg-made.png`, GPG key made, its user ID, fingerprint and revocation certificate.*
+![GPG key made: its user ID, fingerprint, revocation certificate kept with the key and In Vault 1, Continue outlined](../pictures/gpg-made.png)
 
 The card reads **GPG key made**, in the ok tone, with:
 
@@ -144,8 +152,8 @@ The card reads **GPG key made**, in the ok tone, with:
 
 A toast says the certificate waits for the stick and the revocation
 certificate is kept with the key. The public key, `example-signer-`
-and the fingerprint's last eight characters, `.asc`, waits in Files
-for the stick of the place marked **Public files here**. Press
+and the fingerprint's last eight characters, `.asc` (here
+`example-signer-DBACCC57.asc`), waits in Files for the stick of the place marked **Public files here**. Press
 **Continue**.
 
 ## 6. Lock, and write the sticks
@@ -154,16 +162,19 @@ The **Lock** card lists what the lock keeps (**Kept**) and what it
 wipes (**Wiped from memory**). Press **Lock and write**: Vault 1 is
 sealed with the key in it, and every key is wiped.
 
-*Picture to come: `gpg-write.png`, Write the sticks with Place 1 written and Place 2 asked for.*
+![Write the sticks with Stick 2 for Place 1 written and "Insert Stick 3: Vault 1 (Place 2)" asked for, Vault-1.ofv · 1.0 MB](../pictures/gpg-write.png)
 
-[**Write the sticks**](../screens/backup-flow.md#write-the-sticks) asks for each stick in turn:
+[**Write the sticks**](../screens/backup-flow.md#write-the-sticks) lists the sticks, "Stick 2 · Vault 1
+(Place 1)" and "Stick 3 · Vault 1 (Place 2)", each with its label once
+written, and asks for each in turn, with the file it writes
+(`Vault-1.ofv` and its size) under it:
 
-1. **Insert the stick for Vault 1 (Place 1)**. Plug it in. The vault
-   and the public key are written, read back and compared ("Writing"
-   and the file's name); then **Written and checked on** the stick's
-   name. Pull it.
-2. **Insert the stick for Vault 1 (Place 2)**. The first stick put back
-   is refused (**This stick has the first copy**). Plug in the second:
+1. "Insert Stick 2: Vault 1 (Place 1)". Plug it in. The vault and the
+   public key are written, read back and compared ("Writing" and the
+   file's name); then **Written and checked on** the stick's name. Pull
+   it.
+2. "Insert Stick 3: Vault 1 (Place 2)". The first stick put back is
+   refused (**This stick has the first copy**). Plug in the second:
    **Hold: this is a second stick**, held until it fills, writes it.
    Pull it.
 
@@ -172,11 +183,14 @@ before the copy was checked. Nothing counted**): plug it in again.
 
 ## 7. Done, and the key's page
 
-*Picture to come: `gpg-key-page.png`, the key's page in Vault 1, Backup written to every place.*
+![Vault 1 open on GPG keys, Example Signer's page with its fingerprint, Renew for and Backup written to every place](../pictures/gpg-key-page.png)
 
-**Done** reads **Written**, with a line per stick: its place, its
-label, the time, and the files written to it. Press **Unlock Vault 1**,
-type the passphrase and press **Unlock**: the key's page opens
+**Done** reads **Written**, with a line per stick: its pill, its
+place, its label and the time ("Stick 2 · Vault 1 (Place 1) · KEYSTICK
+·" and the time), and under it the files written to it. Press **Unlock
+Vault 1**, type the passphrase and press **Unlock**: the vault opens,
+titled **Vault 1** with `Vault-1.ofv` and its cost under **Open**, on
+**GPG keys**, and the key's page shows beside the list
 ([A GPG key](../screens/vault.md#a-gpg-key)).
 
 | Row | What it is |
@@ -223,20 +237,21 @@ with a vault open, the visit locks first. Then unlock Vault 1 again
 (**Vaults**, **Unlock**) and open the key under **GPG keys**. Press
 **Sign a file**.
 
-*Picture to come: `gpg-sign-a-file.png`, Sign a file with notes.txt ticked, its SHA-256 and its text.*
+![Sign a file with notes.txt ticked among three files from the stick, each with its SHA-256, Sign outlined](../pictures/gpg-sign-a-file.png)
 
 The detail turns to **Sign a file**: the user ID, the signing subkey,
 and "Signing subkey ID … · main key ID … · created …". Under them a row
 per file from the stick: its name, its size, its SHA-256 and, for a
-short text file, its text. Press `notes.txt` to tick it. **Select
-all** ticks every file; "No file from the stick" shows while Files
-holds none.
+short text file, its text, with **Show as QR** and PNG. Press
+`notes.txt` to tick it. **Select all** ticks every file; "No file from
+the stick" shows while Files holds none. **Back to the key** returns to
+the key's page.
 
 Compare the SHA-256 with the one the other computer prints for the same
 file (`sha256sum notes.txt`) before signing: a signature cannot be
 taken back. Press **Sign**.
 
-*Picture to come: `gpg-sign-with.png`, Sign with Example Signer, one file and the signature time.*
+![Sign with Example Signer: notes.txt, its SHA-256's start and the signature time, Hold to sign 1 file outlined](../pictures/gpg-sign-with.png)
 
 **Sign with** and the user ID opens ([Sign with](../screens/vault.md#sign-with)):
 

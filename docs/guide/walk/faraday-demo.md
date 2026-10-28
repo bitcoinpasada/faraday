@@ -1,8 +1,7 @@
 # Faraday Demo
 
-**Kind:** Spec
-**Status:** Written and checked against the app's code and strings; the pictures are named and not yet drawn
-**Open:** the pictures, drawn once after the theming has landed
+**Kind:** Reference
+**Status:** Written, checked against the app's screens and strings, and pictured from `just guide-pictures` (`docs/guide/pictures/`)
 
 **You end with:** Faraday Demo open, ready to follow the rest of this
 guide in a window.
@@ -32,12 +31,15 @@ On Home, press **Open Faraday Demo** on the **Faraday Demo** card. The
 Demo fills the window under the Starter's top bar, which reads
 **Faraday Demo** and holds the back arrow.
 
-*Picture to come: `starter-tour-demo-home.png`, Faraday Demo's Home in Practice, with the strip at the window's foot.*
+![Faraday Demo's Home in Practice, the mode pill Practice · Testnet outlined](../pictures/starter-tour-demo-home.png)
 
 The Demo is in two parts:
 
 - The app: everything above the strip, exactly as the device's
-  screen shows it at this size.
+  screen shows it at this size, with one row more in the sidebar,
+  **Transfer** ([The Starter's other tools](starter-tools.md#2-send-a-file-to-faraday)).
+  The picture above shows the app alone; the strip is in step 3's
+  picture.
 - The strip, along the window's foot: what exists only because this
   is a window and a demo. Its colours are the app's turned inside out
   (a dark strip under a light app), so it is never taken for part of
@@ -76,7 +78,7 @@ The fingerprints are the guide's in every mode. Addresses and account
 keys are testnet ones (addresses begin `tb1`, not the guide's `bc1`):
 a watch-only wallet used beside the Demo is set to testnet too.
 
-*Picture to come: `starter-tour-mode.png`, the Mode sheet with Practice ticked.*
+![The Mode sheet with Practice ticked, marked Testnet](../pictures/starter-tour-mode.png)
 
 ## 3. The strip
 
@@ -120,13 +122,13 @@ them.
 ### Load samples
 
 **Samples** opens [**Load samples**](../screens/mode.md#load-samples) above the strip: "In Practice, the
-sample passphrase is faraday", then the sample **Wallets** and
-**Keys**, each with a tick box. The first of the Keys is the guide's
+sample passphrase is faraday", **Select all**, then the sample
+**Wallets** and, below them, the **Keys**, each with a tick box. The first of the Keys is the guide's
 key, **Guide key · 3dca6805**. **Select all** ticks every row. **Load
 ticked** loads them; **Not now** closes the sheet. With a stick in, the
 app first asks for it to be pulled, as on the device.
 
-*Picture to come: `starter-tour-samples.png`, Load samples open over the strip.*
+![Load samples with its sample wallets, Select all, Not now and Load ticked](../pictures/starter-tour-samples.png)
 
 ### The screen's aids
 
@@ -148,7 +150,7 @@ such as "Practice puts sample … in place of these strings". On Testnet,
 Signet and Regtest the strip holds the sticks and Size, and **Paste
 words** where a key's words are typed.
 
-*Picture to come: `starter-tour-aids.png`, Add a key in Practice, with Use a sample and Paste words in the strip.*
+![Add a key in Practice; the strip's Practice section holds Use a sample, Paste words and Use faraday, Use a sample outlined](../pictures/starter-tour-aids.png)
 
 ## 4. Back and Power off
 

@@ -1,8 +1,7 @@
 # Your own Secure Boot keys
 
-**Kind:** Spec
-**Status:** Written and checked against the app's code and strings; the pictures are named and not yet drawn
-**Open:** the pictures, drawn once after the theming has landed
+**Kind:** Reference
+**Status:** Written, checked against the app's screens and strings, and pictured from `just guide-pictures` (`docs/guide/pictures/`)
 
 **You end with:** your own Secure Boot keys, PK, KEK and db, made in a
 vault kept on two sticks at two places; their enrolment files on a
@@ -37,6 +36,10 @@ and used for nothing that signs until every place is written. In
 Faraday Demo, Practice makes no Secure Boot keys: **Make the key** does
 nothing there ([Faraday Demo](starter-tour.md)).
 
+The pictures of steps 8 and 9 sign a test release, 0.9.0, whose sums
+are signed by a test key; the steps are the same for 0.1.8. The
+Starter's picture in step 10 shows its own sample file.
+
 Faraday never writes a setting of the computer: the keys are enrolled
 in the firmware's own setup screen, from the files Faraday writes to a
 stick.
@@ -55,7 +58,7 @@ will be kept**, **Bring in the sticks**, **Vaults**, **Make the key**,
 
 ## 2. Where, the sticks and the vault
 
-*Picture to come: `secure-boot-keys-where.png`, Where it will be kept with Place 1 and Place 2 each keeping a stick with Vault 1.*
+![Secure Boot keys' Where it will be kept: Place 1 and Place 2 each a stick with Vault 1, Continue outlined](../pictures/secure-boot-keys-where.png)
 
 These steps are the same as a GPG key's ([the backup flow](../screens/backup-flow.md)):
 
@@ -63,16 +66,16 @@ These steps are the same as a GPG key's ([the backup flow](../screens/backup-flo
    and another at **Place 2**. Two places or more; **Add a place** for a
    third. Press **Continue**
    ([A GPG key, step 2](gpg.md#2-where-it-will-be-kept)).
-2. **Bring in the sticks**: **Insert the stick for Vault 1 (Place 1)**,
-   **This is the stick for Vault 1 (Place 1)**, pull it; then Place 2's
-   stick, with a hold where it reads as the first
+2. **Bring in the sticks**: Stick 2 for Place 1, **This is the stick
+   for Vault 1 (Place 1)**, mark it and pull it; then Stick 3 for Place
+   2, with a hold where it reads as the first
    ([A GPG key, step 3](gpg.md#3-bring-in-the-sticks)).
 3. **Vaults**: **Create Vault 1**, its passphrase, **Create vault**
    ([A GPG key, step 4](gpg.md#4-the-vault)).
 
 ## 3. Make the keys
 
-*Picture to come: `secure-boot-keys-make.png`, Make the key with Owner name Example Org.*
+![Make the key with Owner name Example Org, Make the key outlined](../pictures/secure-boot-keys-make.png)
 
 Under **Owner name**, type `Example Org`. The name goes into each
 certificate, as `Example Org PK`, `Example Org KEK` and `Example Org
@@ -85,7 +88,7 @@ minute changes to it
 Then press **Make the key** again. **Making the key** shows while the
 three RSA keys are made.
 
-*Picture to come: `secure-boot-keys-made.png`, Secure Boot keys made, the owner GUID and the three certificates' names.*
+![Secure Boot keys made: the owner GUID, Example Org PK, KEK and db, In Vault 1, Continue outlined](../pictures/secure-boot-keys-made.png)
 
 The card reads **Secure Boot keys made**, in the ok tone:
 
@@ -102,8 +105,8 @@ Press **Continue**.
 The **Lock** card lists what the lock keeps (**Kept**) and wipes
 (**Wiped from memory**). Press **Lock and write**.
 
-**Write the sticks** asks for **Insert the stick for Vault 1 (Place
-1)**, then for Place 2, as [A GPG key, step 6](gpg.md#6-lock-and-write-the-sticks)
+**Write the sticks** asks for "Insert Stick 2: Vault 1 (Place 1)",
+then "Insert Stick 3: Vault 1 (Place 2)", as [A GPG key, step 6](gpg.md#6-lock-and-write-the-sticks)
 does: the first stick is refused for Place 2, and the second takes
 **Hold: this is a second stick**. Each copy is written, read back and
 compared (**Written and checked on** the stick's name).
@@ -112,18 +115,20 @@ The enrolment files, made with the keys, go on the last stick written,
 once every other place is written. With the keys made in the flow, they
 are the **Windows-compatible** set (step 6).
 
-*Picture to come: `secure-boot-keys-done.png`, Done with both sticks written and the files on each.*
+![Done reads Written: Stick 2 holds Vault-1.ofv, Stick 3 Vault-1.ofv and the nine enrolment files, Unlock Vault 1 outlined](../pictures/secure-boot-keys-done.png)
 
-**Done** reads **Written**, with a line per stick and the files written
-to it. Press **Unlock Vault 1**, type the passphrase and press
+**Done** reads **Written**, with a line per stick ("Stick 2 · Vault 1
+(Place 1) · KEYSTICK ·" and the time) and the files written to it:
+`Vault-1.ofv` on Stick 2; `Vault-1.ofv` and the nine enrolment files on
+Stick 3. Press **Unlock Vault 1**, type the passphrase and press
 **Unlock**.
 
 ## 5. The keys' page
 
-*Picture to come: `secure-boot-keys-page.png`, Owner keys in Vault 1, Windows-compatible chosen.*
+![Owner keys in Vault 1 with Windows-compatible ticked and Backup written to every place, Sign or check an image outlined](../pictures/secure-boot-keys-page.png)
 
-The keys' page is **Owner keys** (**PK, KEK, db**) under **Secure
-Boot** ([Secure Boot keys](../screens/vault.md#secure-boot-keys)):
+The vault opens on **Secure Boot**, and the keys' page is **Owner
+keys** (**PK, KEK, db**) ([Secure Boot keys](../screens/vault.md#secure-boot-keys)):
 
 | Row or button | What it is |
 |---|---|
@@ -192,13 +197,13 @@ three in on a stick visit
 Unlock Vault 1, open **Secure Boot**, **Owner keys**, and press **Sign
 or check an image**.
 
-*Picture to come: `secure-boot-keys-images.png`, Sign or check an image with faraday-0.1.8-BOOTX64.EFI listed.*
+![Sign or check an image listing the test release's faraday-0.9.0-BOOTX64.EFI, Sign outlined](../pictures/secure-boot-keys-images.png)
 
 **Sign or check an image** lists each EFI image in Files with **Check**
 and **Sign**; "No EFI image from the stick" while there is none. Press
 **Sign** on `faraday-0.1.8-BOOTX64.EFI`.
 
-*Picture to come: `secure-boot-keys-sign.png`, Sign faraday-0.1.8-BOOTX64.EFI, its SHA-256 and the release line.*
+![Sign faraday-0.9.0-BOOTX64.EFI: its SHA-256 and "The boot program of release 0.9.0, checked against its signed sums", Hold to sign outlined](../pictures/secure-boot-keys-sign.png)
 
 The page reads "Sign faraday-0.1.8-BOOTX64.EFI", with the file's
 SHA-256 in groups of four and, under it, what Faraday found:
@@ -244,7 +249,7 @@ Faraday stick**; on **For which computer?**, **A PC or an Intel Mac**;
 on **Which stick?**, the stick
 ([Get Faraday on a stick](get-faraday.md)).
 
-*Picture to come: `secure-boot-keys-boot-file.png`, What to write? with One I signed chosen and the signed file taken.*
+![The Starter's What to write? with Replace Faraday, keep data and One I signed chosen, a sample signed file taken](../pictures/secure-boot-keys-boot-file.png)
 
 On **What to write?**, choose **New Faraday stick** or, for a Faraday
 stick, **Replace Faraday, keep data**. Under **Boot file**:
@@ -252,7 +257,7 @@ stick, **Replace Faraday, keep data**. Under **Boot file**:
 | Choice | What it is |
 |---|---|
 | **The release's (unsigned)** | ticked at first |
-| **One I signed** | **BOOTX64.EFI signed with your db key**: lists the `.efi` files in Downloads, the newest first ("In" and the folder; "No .efi file in" and the folder while there is none) |
+| **One I signed** | **BOOTX64.EFI signed with your db key**: lists the `.efi` files in Downloads, `.EFI` too, the newest first ("In" and the folder; "No .efi file in" and the folder while there is none) |
 
 Press **One I signed**, then the file; a file dropped on the window is
 taken too. **Checking against this release** shows while the Starter
@@ -260,7 +265,7 @@ checks it, then:
 
 | Row | What it is |
 |---|---|
-| **Certificate name** | the name on the signing certificate: `Example Org db` |
+| **Certificate name** | the name on the signing certificate: `Example Org db` (the picture's sample reads `Faraday db`) |
 | **Certificate SHA-256: compare it with your db key's** | the certificate's SHA-256 |
 | **File** | the file taken |
 
