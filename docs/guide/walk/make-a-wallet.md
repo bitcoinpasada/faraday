@@ -39,7 +39,7 @@ press **Change** on **Start**, then **Type the words**.
 Start's other choices load a key the same way: **Scan a SeedQR** reads
 one with the camera, **Type codex32 strings** opens the codex32 form,
 and **Other forms** lists SLIP-39 shares and Seed XOR parts. A key
-scanned from Home's **Scan**, or typed for Restore (section 7), opens
+scanned from [Home](../screens/home.md)'s **Scan**, or typed for Restore (section 7), opens
 **Add a key** with the forms as tabs: **BIP-39 words**, **SLIP-39
 shares**, **codex32** and **Seed XOR parts**. On **codex32** each
 string typed or scanned is checked at once. This section needs none of
@@ -86,7 +86,7 @@ in**; then the same with **summer**. The sidebar lists three keys:
 
 ### 5.2 Make a new wallet
 
-Press **Home**, then **Make a new wallet**.
+Press [**Home**](../screens/home.md), then **Make a new wallet**.
 
 | Kind | Quorum |
 |---|---|

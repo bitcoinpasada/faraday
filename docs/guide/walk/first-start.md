@@ -6,7 +6,7 @@
 
 ### 2.1 Home
 
-The stick starts Faraday into memory. Before Home it checks itself and
+The stick starts Faraday into memory. Before [Home](../screens/home.md) it checks itself and
 what is attached to the PC:
 
 | Screen | Meaning | Press |
@@ -54,7 +54,7 @@ bar at the foot instead (**Home**, **Wallets**, **Files**, **Vaults**,
 **Tools**), and **Settings** and **Power off** in the **⋮** menu at the
 top right.
 
-At the sidebar's foot:
+At the [sidebar's foot](../screens/home.md#the-sidebar):
 
 | On screen | Meaning |
 |---|---|
@@ -79,7 +79,7 @@ or on paper, is gone after a lock or a power-off.
 | What stays | the stick's files, and the Inbox and Outbox | the stick's files only |
 
 **Lock** asks first only while a lock would end something under way
-(a wallet being made, a vault with changes). The sheet reads like the
+(a wallet being made, a vault with changes). The [sheet](../screens/lock-and-power.md#lock) reads like the
 power sheet:
 
 ![The Lock sheet while a wallet is being made](../2-3-lock.png)

@@ -37,7 +37,7 @@ whoever has it: do not post it.
 
 Faraday never sends; it shows which addresses are the wallet's. In
 Sparrow, open the Receive tab: it shows the next unused address and its
-QR code. On Faraday, press **Scan** (at the foot of Home, or **Tools →
+QR code. On Faraday, press **Scan** (at the foot of [Home](../screens/home.md), or **Tools →
 Check an address**) and hold Sparrow's code up to the camera.
 
 ![An address of New wallet 1, found](../6-1-found.png)

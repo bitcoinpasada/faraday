@@ -56,7 +56,7 @@ QR*. Bring the PSBT to Faraday one of two ways:
 | By QR code | On a stick |
 |---|---|
 | ![Scanning, 2 of 8 parts](../6-3-scanning.png) | ![A stick is attached](../6-3-stick-attached.png) |
-| Press **Scan the PSBT** and hold Sparrow's animated code up to the camera. The line under the picture counts the parts (**UR: 2 of 8 · missing 3, 4, …**); the camera closes when every part is in. Go to step 6.4. | In Sparrow, *Save Transaction* to the stick. **On a stick** is grey until a stick is in (**Plug the stick in**). Plug the stick in: **A stick is attached** lists what the lock keeps and what it wipes. Press **Lock and use stick**. |
+| Press **Scan the PSBT** and hold Sparrow's animated code up to the camera. The line under the picture counts the parts (**UR: 2 of 8 · missing 3, 4, …**); the camera closes when every part is in. Go to step 6.4. | In Sparrow, *Save Transaction* to the stick. **On a stick** is grey until a stick is in (**Plug the stick in**). Plug the stick in: [**A stick is attached**](../screens/lock-and-power.md#a-stick-is-attached) lists what the lock keeps and what it wipes. Press **Lock and use stick**. |
 
 **Lock and use stick** wipes the keys and the wallet. What was not in a
 vault is listed in red, **· nowhere else**: here both keys and the

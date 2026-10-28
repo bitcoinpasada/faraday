@@ -34,8 +34,9 @@ making a key and for typing one.
 
 ### 3.2 Pull the stick
 
-A key loads only with no stick attached. The sheet **Pull the stick to
-add a key** opens while the boot stick is in.
+A key loads only with no stick attached. The sheet
+[**Pull the stick to add a key**](../screens/prompts.md#pull-the-stick)
+opens while the boot stick is in.
 
 ![Pull the stick to add a key](../3-2-pull-the-stick.png)
 

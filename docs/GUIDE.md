@@ -62,6 +62,12 @@ In any order.
 | Check and decode | `docs/guide/walk/check-and-decode.md` |
 | The Starter's other tools | `docs/guide/walk/starter-tools.md` |
 
+## Screens
+
+What each control on a screen does, one page per screen, grouped as
+the sidebar groups them: [the screen reference](guide/screens/README.md),
+under `docs/guide/screens/`.
+
 ## 1. Get Faraday on a PC
 
 Moved to `docs/guide/walk/get-faraday.md`.

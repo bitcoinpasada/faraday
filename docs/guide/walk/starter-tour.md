@@ -156,7 +156,7 @@ Settings becomes the Starter's too, until the Starter closes.
 ## 8. The mode pill
 
 The pill at the top right of the app reads **Practice · Testnet**
-(**Practice** alone in a narrow window). Press it to open **Mode**:
+(**Practice** alone in a narrow window). Press it to open [**Mode**](../screens/mode.md#mode):
 
 | Row | What it takes | Use it for |
 |---|---|---|
@@ -221,7 +221,7 @@ them.
 
 ### Load samples
 
-**Samples** opens **Load samples** above the strip: "In Practice, the
+**Samples** opens [**Load samples**](../screens/mode.md#load-samples) above the strip: "In Practice, the
 sample passphrase is faraday", then the sample **Wallets** and
 **Keys**, each with a tick box. **Select all** ticks every row. **Load
 ticked** loads them; **Not now** closes the sheet. With a stick in, the

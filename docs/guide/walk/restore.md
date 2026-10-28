@@ -20,7 +20,7 @@ What you need:
 
 ### 7.1 Restore an existing wallet
 
-Press **Home**, then **Restore an existing wallet**. The page is
+Press [**Home**](../screens/home.md), then **Restore an existing wallet**. The page is
 **Restore an existing wallet**, one card per step.
 
 ![Kind](../7-1-kind.png)

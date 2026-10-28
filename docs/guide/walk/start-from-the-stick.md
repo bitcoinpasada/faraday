@@ -116,7 +116,7 @@ first screen (section 2). If it does not (the Starter's Learn page
 
 When done with Faraday, turn Secure Boot back on in the BIOS before
 starting Windows (the Start page's step 4, **Turn Secure Boot back on
-before starting Windows**). Faraday's power sheet says the same (step
+before starting Windows**). Faraday's [power sheet](../screens/lock-and-power.md#power) says the same (step
 2.3).
 
 1. Power off from Faraday (step 2.3) and pull the stick out.

@@ -23,7 +23,7 @@ loaded.
 
 **Time:** about 40 minutes.
 
-Home's **Spend from a backup, step by step** is for someone spending
+[Home](../screens/home.md)'s **Spend from a backup, step by step** is for someone spending
 for the first time from what a backup left. It is one column of cards,
 from what is in the envelope to the envelope packed again, each with a
 line on what to do and **More about this** for the rest. It uses the

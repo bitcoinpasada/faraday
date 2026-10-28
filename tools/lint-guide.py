@@ -13,7 +13,10 @@ the app fails `just lint` until the guide follows.
 2. Links. Every image and every relative link resolves to a file, and a
    `#anchor` to a heading of that file (GitHub's anchors).
 3. Screens. When docs/guide/screens/ exists, every `Screen` and `Sheet`
-   variant is named by a `**Screen:**` line of one page there.
+   variant is named by the `**Screen:**` line of exactly one page there,
+   or listed under "## To write" in its README.md (a line
+   "- `Screen`: `A`, `B`"), never both; a name in either that is no
+   variant fails.
 
 The allow list holds one name per line (`re:<pattern>` matches a whole
 name), then `  # reason`. Standard library only; no build. `--self-test` shows a renamed string
@@ -252,23 +255,61 @@ def enum_variants(root, name):
     return []
 
 
+SCREENS = "docs/guide/screens"
+TO_WRITE = "docs/guide/screens/README.md"
+
+
+def to_write(root):
+    """{variant: (enum, line)} listed under "## To write" in the screens'
+    README.md: the variants whose page is still to be written."""
+    path = os.path.join(root, TO_WRITE)
+    out = {}
+    if not os.path.exists(path):
+        return out
+    inside = False
+    for num, line in prose_lines(path):
+        if line.startswith("#"):
+            inside = re.match(r"^##\s+To write\s*$", line) is not None
+            continue
+        m = re.match(r"^- `(Screen|Sheet)`:\s*(.*)$", line) if inside else None
+        if m:
+            for v in re.findall(r"`([^`]+)`", m.group(2)):
+                out[v] = (m.group(1), num)
+    return out
+
+
 def check_screens(root, errors):
-    folder = os.path.join(root, "docs/guide/screens")
+    folder = os.path.join(root, SCREENS)
     if not os.path.isdir(folder):
         return
     named = {}
     for n in sorted(os.listdir(folder)):
-        if n.endswith(".md"):
+        if n.endswith(".md") and n != "README.md":
             for num, line in prose_lines(os.path.join(folder, n)):
                 m = re.match(r"^\*\*Screen:\*\*\s*(.*)$", line)
                 if m:
                     for v in re.split(r"[,\s]+", m.group(1).replace("`", "")):
                         if v:
-                            named.setdefault(v, []).append(f"docs/guide/screens/{n}:{num}")
-    for enum in ("Screen", "Sheet"):
-        for v in enum_variants(root, enum):
-            if v not in named:
-                errors.append(f"docs/guide/screens: no page names the {enum} variant {v}")
+                            named.setdefault(v, []).append(f"{SCREENS}/{n}:{num}")
+    todo = to_write(root)
+    variants = {enum: enum_variants(root, enum) for enum in ("Screen", "Sheet")}
+    every = {v for vs in variants.values() for v in vs}
+    for v, places in named.items():
+        if v not in every:
+            errors.append(f"{places[0]}: `{v}` is not a Screen or Sheet variant")
+        elif len(places) > 1:
+            errors.append(f"{places[1]}: `{v}` is named by more than one page: {', '.join(places)}")
+    for v, (enum, num) in todo.items():
+        if v not in variants[enum]:
+            errors.append(f"{TO_WRITE}:{num}: `{v}` is not a {enum} variant")
+        elif v in named:
+            errors.append(f"{TO_WRITE}:{num}: `{v}` has a page ({named[v][0]}); take it off To write")
+    for enum, vs in variants.items():
+        for v in vs:
+            if v not in named and v not in todo:
+                errors.append(
+                    f"{SCREENS}: no page names the {enum} variant {v}, and To write does not list it"
+                )
 
 
 def run(root):
@@ -304,6 +345,23 @@ def self_test():
         put("docs/guide/walk/a.md", "# A\n\n![x](../gone.png)\n\n[up](../../GUIDE.md#nope)\n")
         _, errors = run(root)
         assert len(errors) == 2, errors
+        put("docs/guide/walk/a.md", "# A\n")
+        # The screens: each variant on one page, or on the To write list.
+        put(
+            "faraday/faraday-core/src/lib.rs",
+            "pub enum Screen {\n    Home,\n    Files,\n}\npub enum Sheet {\n    Power,\n}\n",
+        )
+        put(SCREENS + "/home.md", "# Home\n\n**Screen:** `Home`, `Power`\n")
+        put(TO_WRITE, "# S\n\n## To write\n\n- `Screen`: `Files`\n")
+        _, errors = run(root)
+        assert not errors, errors
+        put(TO_WRITE, "# S\n\n## To write\n\n- `Screen`: `Home`\n")
+        _, errors = run(root)
+        assert len(errors) == 2 and "take it off" in errors[0] and "Files" in errors[1], errors
+        put(TO_WRITE, "# S\n\n## To write\n\n- `Screen`: `Files`, `Gone`\n")
+        put(SCREENS + "/power.md", "# Power\n\n**Screen:** `Power`\n")
+        _, errors = run(root)
+        assert len(errors) == 2 and "more than one page" in errors[0] and "Gone" in errors[1], errors
     print("lint-guide self-test: ok")
 
 
