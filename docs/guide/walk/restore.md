@@ -102,7 +102,8 @@ wallet in Files; otherwise **Spend from this wallet**), **Back up this
 wallet**, **Another wallet from these seeds** and **Wallets**. A
 restored key is not held for a backup: it signs at once. The card reads
 **1 of 2 signatures possible here**, with **Scan a key** for the second
-(step 5.6).
+([Multisig with other people and devices](multisig-with-others.md#7-keys-kept-off-the-device),
+step 7).
 
 A match proves the description and the keys typed are the wallet's. It
 does not prove the balance: check that in Sparrow, which sees the

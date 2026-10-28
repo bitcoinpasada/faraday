@@ -133,7 +133,9 @@ signatures**, reads **2 of 2** and closes by itself.
 
 Both keys sign on this Faraday. With one here, load the second before
 signing: on **Add the seeds that can sign**, press **Scan a key** and
-hold that key's SeedQR up to the camera, as in step 5.6 (**Type the
+hold that key's SeedQR up to the camera, as in
+[Multisig with other people and devices](multisig-with-others.md#7-keys-kept-off-the-device),
+step 7 (**Type the
 words instead** for a key with no SeedQR).
 
 | Scan a key | The second key in |
