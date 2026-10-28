@@ -4,6 +4,7 @@
 use faraday_bip::hashes::hashes;
 use faraday_bip::slip132::{KeyReading, key_facts};
 use faraday_codec::encodings::read_input;
+use faraday_core::strings::EN;
 use faraday_core::tools::Tool;
 use faraday_core::{Action, Faraday, Screen, testkit};
 use faraday_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware};
@@ -109,6 +110,17 @@ fn an_amount_in_btc_or_mbtc_takes_a_point_down_to_one_satoshi() {
     // sat: no point, so the places go.
     app.press(Action::TMode(0));
     assert_eq!(testkit::tools(&app).unwrap().typed, "0");
+}
+
+#[test]
+fn the_miniscript_compiler_says_what_it_refuses_in_the_apps_words() {
+    let mut app = wide();
+    app.press(Action::Tools);
+    tool(&mut app, Tool::Miniscript);
+    typed(&mut app, "or(pk(A)");
+    let prefix = EN.tools_miniscript_not_policy.trim_end_matches("{}");
+    let shown = app.drawn_texts().join(" ");
+    assert!(shown.contains(prefix), "{shown}");
 }
 
 #[test]

@@ -42,6 +42,18 @@ pub struct PolicyFacts {
     pub wallet: Option<WalletPolicy>,
 }
 
+/// Why a policy was not compiled: a kind, which the app words, with the
+/// compiler's own message on one line.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Refusal {
+    /// Nothing typed.
+    Empty,
+    /// Not a concrete policy the compiler reads.
+    Policy(String),
+    /// A policy no script compiles from.
+    Script(String),
+}
+
 /// Costs a miniscript compilation and a parse of the descriptor:
 /// compiles a concrete policy into a descriptor.
 ///
@@ -51,29 +63,30 @@ pub struct PolicyFacts {
 /// neither a listed one nor something `miniscript` reads as a key is the
 /// compiler's to refuse.
 ///
-/// The error is the compiler's own message on one line.
+/// The refusal carries the compiler's own message on one line.
 pub fn compile(
     c: &Compute,
     text: &str,
     script: PolicyScript,
     keys: &[(String, String)],
-) -> Result<PolicyFacts, String> {
+) -> Result<PolicyFacts, Refusal> {
     let text = text.trim();
     if text.is_empty() {
-        return Err(String::new());
+        return Err(Refusal::Empty);
     }
     let filled = substitute(text, keys);
-    let policy: Concrete<String> = filled.parse().map_err(one_line)?;
+    let policy: Concrete<String> = filled.parse().map_err(|e| Refusal::Policy(one_line(e)))?;
     let descriptor = match script {
         PolicyScript::Segwit => policy
             .compile::<Segwitv0>()
             .map_err(one_line)
-            .and_then(|ms| Descriptor::new_wsh(ms).map_err(one_line))?,
+            .and_then(|ms| Descriptor::new_wsh(ms).map_err(one_line)),
         // `compile_tr` with no unspendable key takes the internal key
         // out of the policy itself, which is what a person typing
         // `or(pk(A),...)` means by the first branch.
-        PolicyScript::Taproot => policy.compile_tr(None).map_err(one_line)?,
-    };
+        PolicyScript::Taproot => policy.compile_tr(None).map_err(one_line),
+    }
+    .map_err(Refusal::Script)?;
     let text = alloc::format!("{descriptor}");
     let paths = descriptor
         .lift()
@@ -144,7 +157,7 @@ fn one_line<E: core::fmt::Display>(error: E) -> String {
 mod tests {
     use super::*;
 
-    fn keys_of(text: &str, tokens: &[(&str, &str)]) -> Result<Vec<String>, String> {
+    fn keys_of(text: &str, tokens: &[(&str, &str)]) -> Result<Vec<String>, Refusal> {
         let tokens: Vec<(String, String)> = tokens
             .iter()
             .map(|(t, e)| (String::from(*t), String::from(*e)))

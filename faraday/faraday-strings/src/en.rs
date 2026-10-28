@@ -7175,6 +7175,12 @@ strings! {
     tools_one_this_device: "one this device loads",
     /// Text in `body`.
     tools_keys_need_origins: "keys need origins and both chains to load",
+    /// The Miniscript compiler refuses what is typed. `{}`: the
+    /// compiler's own message.
+    tools_miniscript_not_policy: "Not a policy: {}",
+    /// The Miniscript compiler refuses what is typed. `{}`: the
+    /// compiler's own message.
+    tools_miniscript_no_script: "No script compiles from this policy: {}",
     // ----- transfer (faraday-core/src/transfer/mod.rs) -----
     /// Text in `transfer_send`. `{}`: `self.medium.a()`.
     transfer_larger_than: "Larger than 256 KiB: carry it on {}",

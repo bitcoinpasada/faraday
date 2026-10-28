@@ -9,7 +9,7 @@
 
 pub(crate) mod screen;
 
-use crate::strings::EN;
+use crate::strings::{EN, fill};
 use crate::wallet::KeyTexts;
 use faraday_bip::compile::PolicyScript;
 use faraday_codec::encodings::ReadAs;
@@ -261,9 +261,10 @@ impl ToolsArea {
             }
             Tool::ConvertKey => Reading::Key(faraday_bip::slip132::key_facts(&t.typed, network)),
             Tool::Units => Reading::Nothing,
-            Tool::Miniscript => {
-                Reading::Miniscript(faraday_bip::compile::compile(c, &t.typed, t.script, &keys))
-            }
+            Tool::Miniscript => Reading::Miniscript(
+                faraday_bip::compile::compile(c, &t.typed, t.script, &keys)
+                    .map_err(|r| refusal_text(&r)),
+            ),
         });
         *t.read.borrow_mut() = Some(KeptReading {
             tool: t.tool,
@@ -415,5 +416,16 @@ impl Faraday {
         }
         self.list_offset = 0.0;
         true
+    }
+}
+
+/// What the Miniscript compiler's line says when it refuses: the app's
+/// words for which kind, then the compiler's own message.
+fn refusal_text(r: &faraday_bip::compile::Refusal) -> String {
+    use faraday_bip::compile::Refusal;
+    match r {
+        Refusal::Empty => String::new(),
+        Refusal::Policy(m) => fill(EN.tools_miniscript_not_policy, &[m]),
+        Refusal::Script(m) => fill(EN.tools_miniscript_no_script, &[m]),
     }
 }
