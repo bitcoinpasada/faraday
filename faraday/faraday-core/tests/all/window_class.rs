@@ -114,3 +114,21 @@ fn the_display_scale_setting_enlarges() {
     assert_eq!(app.window().class(), WindowClass::Expanded);
     assert!((app.size().0 - 960.0).abs() < 0.5);
 }
+
+/// Larger text lays the desktop app's 1280 × 800 window out as a smaller
+/// one would be (`docs/LAYOUT.md` §2): at 1.4 times the text it counts as
+/// 914 × 571 dp, an expanded and low window, and takes the navigation
+/// rail and one-column pages in place of the expanded rail; Standard
+/// gives the expanded rail back.
+#[test]
+fn larger_text_at_1280_lays_out_a_class_down_with_the_rail() {
+    use faraday_core::nav::Nav;
+    use faraday_core::ui::TextSize;
+    let mut app = shown_on(1280, 800, 160);
+    assert_eq!(app.nav(), Nav::ExpandedRail);
+    app.press(Action::TextSize(TextSize::Larger));
+    assert_eq!(app.nav(), Nav::Rail);
+    assert!(app.is_compact());
+    app.press(Action::TextSize(TextSize::Standard));
+    assert_eq!(app.nav(), Nav::ExpandedRail);
+}

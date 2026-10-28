@@ -1,8 +1,8 @@
 # Layout at every window size
 
 **Kind:** Spec
-**Status:** Partly built: size classes and density (L1, F101; the stick's from its EDID on a small screen, `docs/ORIENTATION.md` §2.1), navigation (L2), Home's lead tile and tile grid (L3), the supporting pane's place and its narrow strip, for codex32's Demo only card (§6); the page area to the window's edge (W1, §15, §19); list and detail for Wallets, Files, Vaults and Backups (L4, §5, §17); Settings' list of sections on compact windows and every section on one page from medium up (§17); the codex32 entry's input panel (W3, §16.3); Learn in the supporting pane on extra-large windows (L6, §6); the rest specified, not built (F92); the rest of wide windows (§13 to §19) specified, not built
-**Open:** the top app bar over the wide pages and the step flows (§3; they keep their own heads), Files' two lists each scrolling on its own on the rail's windows (§17; there the page scrolls as one), components that keep their size (L5: the size set and the type roles are built in `faraday-ui`, part 1; the screens of `faraday-core` still write their own sizes, part 2), tours and tests (L7), wide windows: wide content, the codex32 worksheet's fit, the string's boxes, the input panel on compact windows that are not short (§16.3; they keep the small panel's context over the pad), the panel beside the sheets scrolling within itself (it stands at the foot where it is taller than the window), New key's dice and Create a vault's Generate with dice in the panel (their pad, progress line and entries already stand together in one card), the page following a whole sheet, fixed step buttons and Decode's outputs at their columns' width (§14 to §17, W2, W4, W5); planned.
+**Status:** Partly built: size classes and density (L1, F101; the stick's from its EDID on a small screen, `docs/ORIENTATION.md` §2.1), navigation (L2), Home's lead tile and tile grid (L3), the supporting pane's place and its narrow strip, for codex32's Demo only card (§6); the page area to the window's edge (W1, §15, §19); list and detail for Wallets, Files, Vaults and Backups (L4, §5, §17); Settings' list of sections on compact windows and every section on one page from medium up (§17); the codex32 entry's input panel (W3, §16.3); Learn in the supporting pane on extra-large windows (L6, §6); the tours at every class's size, §11's tests and DESIGN §3 written to this spec (L7); the rest specified, not built (F92); the rest of wide windows (§13 to §19) specified, not built
+**Open:** the top app bar over the wide pages and the step flows (§3; they keep their own heads), Files' two lists each scrolling on its own on the rail's windows (§17; there the page scrolls as one), components that keep their size (L5: the size set and the type roles are built in `faraday-ui`, part 1; the screens of `faraday-core` still write their own sizes, part 2), wide windows: wide content, the codex32 worksheet's fit, the string's boxes, the input panel on compact windows that are not short (§16.3; they keep the small panel's context over the pad), the panel beside the sheets scrolling within itself (it stands at the foot where it is taller than the window), New key's dice and Create a vault's Generate with dice in the panel (their pad, progress line and entries already stand together in one card), the page following a whole sheet, fixed step buttons and Decode's outputs at their columns' width (§14 to §17, W2, W4, W5); planned.
 
 Faraday lays its screens out by Material 3's layout and navigation
 rules at every size, from the Pi's 2.8-inch panel to a full monitor.
@@ -10,8 +10,8 @@ Only the rules are Material's: the look stays Faraday's own
 (`faraday-ui`, DESIGN's tokens, components and themes). The owner asked
 for Material 3 and left the design calls to this spec (2026-10-23);
 §10 records each call and why. The Starter follows the same rules
-(`docs/STARTER.md` §3.1d, F91). This spec replaces DESIGN §3's two
-layouts once built.
+(`docs/STARTER.md` §3.1d, F91). DESIGN §3 states these rules in
+short.
 
 ## 1. What changes
 
@@ -398,15 +398,25 @@ Wallets at 1280 shows the list and the chosen wallet together, and at
 760 the list alone; a flow in progress shows its chip on every
 destination; at 1920 × 1080 Learn opens beside the page; a scale-2
 window of 1440 × 900 pixels lays out as medium at 720 dp; Larger text
-at 1280 lays out as medium. On the Pi's 480 × 640 panel at 286 dpi,
+at 1280 lays out a class down, at 914 × 571 dp, with the rail. On the Pi's 480 × 640 panel at 286 dpi,
 every screen (empty, with a wallet and its keys, online and in Practice),
 the stateless sheets, the scanners, every step of a spend and the
 sample spend draw no control and no text past a side of the panel or
 of the card or sheet it is in, at every place the page scrolls to
 (`faraday-core` `pi_panel`, `faraday-samples` `pi_panel`).
 
-The snapshot tours gain the sizes 760x1000, 960x580@133, 1920x1080 and
-2560x1440 beside today's.
+Built (L7): `navigation`, `window_class`, `home` and `list_detail` in
+`faraday-core`'s tests hold each of these; a short row of Home's tiles
+at 1920 keeps its column's width (`home`), Wallets at 1280 shows the
+list and the chosen wallet together and at 760 the list alone
+(`list_detail`).
+
+The snapshot tours (`just faraday-snapshots`) take a window of every
+class: 1280x800, 1920x1080, 2000x1090, 2560x1440 and 3840x2160,
+1024x768, the half-screen 760x1000, the Pi's 480x640 at 286 dpi and
+240x320 at 143, and the stick's 7-inch and 10-inch panels at both
+orientations (1024x600 and 600x1024 at 170 dpi, which stand for
+960x580@133, 1280x800 and 800x1280 at 150), each again at Larger.
 
 ## 12. Plan
 
@@ -418,7 +428,7 @@ The snapshot tours gain the sizes 760x1000, 960x580@133, 1920x1080 and
 | L4 | List and detail (§5) for Wallets, Files, Vaults and Backups, and Settings (§17); built | Opus |
 | L5 | Components keep their size (§8): buttons, fields, the measure, across the screens; the size set (`BUTTON_H`, `FIELD_H` outlined, `LIST_1`–`LIST_3`) and the type roles in place of the fifteen sizes, by file owner, after the Material 3 components (`OUTLINE`, Tonal, the field box) are in `faraday-ui`; the `lint-tokens` counts fall | Sonnet |
 | L6 | The supporting pane (§6); built | Sonnet |
-| L7 | The tours at the new sizes, the tests (§11), DESIGN §3 rewritten to this spec, then this plan to `docs/history/` and this file a Reference | Sonnet |
+| L7 | The tours at the new sizes, the tests (§11), DESIGN §3 rewritten to this spec, then this plan to `docs/history/` and this file a Reference; built but for the move, which waits on the rest of the Open line | Sonnet |
 
 L1 before the rest; L2 before L3 and L4. Each batch is timed in a
 late-flow session (`docs/SPEED.md` §7) where it adds drawing work, and
@@ -808,7 +818,7 @@ is measured to place them.
   any supporting pane by W1; on the codex32 entry one pane stands at a
   time (§19).
 - **L7** (tours and tests) adds 2560x1440 and 2000x1090 to the tours
-  beside §11's sizes.
+  beside §11's sizes; built.
 
 ## 19. Plan for wide windows
 

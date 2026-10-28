@@ -84,30 +84,77 @@ the theme (§3), the content kinds (§4) and the screens (§5).
 
 ## 3. Sizes
 
-Faraday lays every screen out as one-column pages or as the wide
-layout (`Faraday::is_compact`), and gives the window one of four
-navigations by its size class (`Faraday::nav`, `docs/LAYOUT.md` §3).
-`docs/LAYOUT.md` (F92) goes on to Home's grid and list-and-detail panes.
+Faraday lays its screens out by Material 3's layout rules at every
+window size (F92, `docs/LAYOUT.md`), with its own look. A window is
+laid out at its screen's own density, never scaled to fit: the desktop
+app at the compositor's scale, the stick at the density its EDID gives
+on a screen of 11 inches or less and at its kernel command line's
+`faraday.dpi` on any other, the Pi panel at its 286 dpi, each times the
+person's Display scale (F101, LAYOUT §7). Its size in dp, divided by
+the text size's factor, gives its class (`Faraday::window()`,
+`Faraday::layout_window`, LAYOUT §2):
+
+| Class | Width | Typical screen |
+|---|---|---|
+| Compact | under 600 dp (`WINDOW_MEDIUM`) | the Pi panel (268 × 358), a narrow window, a 7-inch panel in portrait |
+| Medium | 600 to 839 dp | a half-screen window |
+| Expanded | 840 to 1199 dp (`WINDOW_EXPANDED`) | a 7-inch panel in landscape, a 10-inch panel in portrait, a small laptop window |
+| Large | 1200 to 1599 dp (`WINDOW_LARGE`) | the desktop app's 1280 × 800, a 10-inch panel in landscape |
+| Extra-large | 1600 dp and over (`WINDOW_EXTRA_LARGE`) | a full monitor: 1920 × 1080, 2560 × 1440 |
+
+A window under 480 dp tall is short (`WINDOW_SHORT`, the Pi panel) and
+one under 600 dp tall low (`WINDOW_LOW`, the 7-inch panel). The class
+and the height give the navigation (`Faraday::nav`, LAYOUT §3):
 
 | Navigation | When | What changes |
 |---|---|---|
-| Menu | A compact window that is short (the Pi's 2.8" panel is 268 × 358 dp). | One column: Home is a menu with a button for each of the sidebar's entries, and every other page has the bar across its top (§4.1). |
-| Navigation bar | A compact window that is not short or low (under 600 dp wide, 600 dp tall or more). | One column under the top app bar, the navigation bar at the foot (§4.1); Home leads with the status strip. |
-| Navigation rail | A medium or expanded window, and any low window but the menu's (the 7-inch panel). | One column at most `COLUMN_MAX` (720) wide, centred beside the rail, under the top app bar (§4.1); Home leads with the status strip. |
-| Expanded rail | A large or extra-large window that is not low. | The wide layout: the expanded rail, 240 units, beside the page; the two together at most 1600 units wide, centred on a wider display. A sheet is centred over the page. The keyboard comes up only from its button. |
+| Menu | A compact window that is short (the Pi's 2.8" panel). | One column: Home is a menu with a button for each place, and every other page has the top app bar with its way back (§4.1). |
+| Navigation bar | A compact window that is not short. | One column under the top app bar, the 80 dp navigation bar at the foot with the five destinations (§4.1); Learn, Settings and Lock in the top app bar; Home leads with the status strip. |
+| Navigation rail | A medium or expanded window, and a low one that is not compact and short (the 7-inch panel). | The 80 dp rail at the left with the five destinations, Learn and Settings under a divider and Lock at its foot; one column at most `COLUMN_MAX` (720) wide, centred beside it, under the top app bar (§4.1); Home leads with the status strip. |
+| Expanded rail | A large or extra-large window that is not low. | The wide layout: the 240 dp expanded rail, its destinations Material's, listing the flows in progress, the keys, the wallets and the sticks, beside a page that runs to the window's edge (LAYOUT §15). A sheet is centred over the page. The keyboard comes up only from its button. |
 
-On the one-column layouts a step flow is a page per step, a sheet is
-the window's width less a margin, and the keyboard rises by itself under
-a field that takes typing. Inside the Starter, the held screens keep its
-one-column rule (under 1280 dp, `docs/STARTER.md` §3.1d), the menu, and
-the Starter's own rail beside its wide pages (F91).
+`Faraday::is_compact` is every navigation but the expanded rail: there
+a step flow is a page per step, a sheet is the window's width less a
+margin (compact) or at most 560 dp, centred, and the keyboard
+rises by itself under a field that takes typing. The one-column layouts
+carry the same flows and steps as the wide layout and move the expanded
+rail's lists to Home: the menu's rows on the small panel, the status
+strip's chips beside the rail and above the bar, and a flow in
+progress's chip at the top of every destination. A step that must not
+be left (a stick being written) hides the navigation (F51).
 
-Every window is laid out at its screen's own density, never scaled to
-fit: the desktop app at the compositor's scale, the stick at the
-density its kernel command line gives, the Pi panel at its 286 dpi, each
-times the person's Display scale (F101). The window's size class
-(`Faraday::window()`, `docs/LAYOUT.md` §2) and its height pick the
-navigation in the table above.
+What a page holds sets its width (F114, LAYOUT §14, §17):
+
+- **Reading content** (text, fields, buttons, a flow's cards, lists of
+  rows) stands in a column of at most `COLUMN_MAX`, its text at most
+  about 70 characters a line, centred in the room beside the
+  navigation.
+- **Wide content** (the codex32 worksheets, the dice tracks and tree,
+  the backup board, the structure chart, the copy grid, a table, Home's
+  tiles and the tools' catalogue) takes the work width, from the
+  navigation's edge plus `MARGIN_WIDE` to the supporting pane's spacer
+  or the window's margin. It never stretches what it draws: it shows
+  more of itself, or its cells larger up to a token maximum.
+- **List and detail**, from expanded up: Wallets, Files, Vaults and
+  Backups show their list in a `LIST_PANE` (360) pane and the one chosen
+  beside it, each scrolling on its own (LAYOUT §5). Settings is a list
+  of its sections on compact windows and every section on one page, in
+  two columns where they fit, from medium up.
+- **The supporting pane**, `SUPPORT_PANE` (400) at the right on
+  extra-large windows: Learn beside the page, the backup board's lists,
+  the codex32 dice sheet's column (LAYOUT §6).
+- **What stands at the right** (the top strip's mode pill and ?, the
+  eye, the keyboard button, the supporting pane, Home's Scan) stands
+  `MARGIN_WIDE` (24) from the window's edge (LAYOUT §15).
+
+Components keep their size (LAYOUT §8): a button is as wide as its
+label, a field as wide as what it takes, cards and tiles sit in grids
+of columns with a minimum width, and nothing is cut off at the sides,
+down to the Pi's panel. Margins are 16 dp on compact windows and 24
+otherwise, panes 24 apart (`MARGIN_COMPACT`, `MARGIN_WIDE`, `SPACER`).
+Inside the Starter, the held screens keep its one-column rule (under
+1280 dp, `docs/STARTER.md` §3.1d), the menu, and the Starter's own rail
+beside its wide pages (F91).
 
 Text size (Settings › Appearance: Standard, Large, Larger, F85)
 multiplies every text size by 1, 1.2 or 1.4. Keyboards, QR codes and
@@ -166,10 +213,11 @@ Material 3's tokens are named there too (F108):
 - **Dialogs**: `DIALOG_MIN` 280 to `DIALOG_MAX` 560 wide, `DIALOG_PAD`
   24 inside; the scrim over a sheet's frost, `SCRIM_ALPHA`, 32 %.
 - **Progress**: `PROGRESS_H` 4.
- The size classes there, `small`, `mobile` and `wide`,
-size the keyboards and the QR side; Faraday's screens use `small` on the
-small panel and `wide` otherwise, and `mobile` only scales the PNG a QR
-code is saved as.
+
+The widgets' own size classes, `small`, `mobile` and `wide`
+(`faraday-draw`'s `SizeClass`), size the keyboards and the QR side;
+Faraday's screens use `small` on the small panel and `wide` otherwise,
+and `mobile` only scales the PNG a QR code is saved as.
 
 Colour (`docs/THEMES.md`, F113): Faraday's colours are Material 3's
 colour system. A theme is one seed colour and one Material scheme style;
@@ -283,11 +331,6 @@ Anything read character by character is set in the mono face:
 fingerprints, hex, paths, addresses, extended keys, txids, a descriptor
 row's value, and the words as typed and offered on word entry; prose,
 labels, buttons and titles that are words stay in the text faces.
-
-The one-column layouts carry the same flows and the same steps as the
-wide layout. They lay them out a page a step, and move the sidebar's
-lists to Home: the menu's rows on the small panel, the status strip's
-chips beside the rail and above the bar.
 
 ## 4. Content inventory
 

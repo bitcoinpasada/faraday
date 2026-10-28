@@ -788,3 +788,35 @@ fn the_small_home_offers_backups_once_a_wallet_is_known() {
     small(&mut app);
     assert!(app.offers(Action::Nav(Screen::Backups)));
 }
+
+/// Home at 1920 × 1080 with a wallet known: its tiles take as many
+/// columns as fit, each at its column's width, and the short row under
+/// them (Backups) keeps that width, the rest of the row left empty, not
+/// stretched across it (`docs/LAYOUT.md` §4, §11).
+#[test]
+fn homes_short_row_keeps_its_tiles_to_their_columns_at_1920() {
+    let mut app = with_a_wallet();
+    app.event(Event::Display(DisplayInfo {
+        width: 1920,
+        height: 1080,
+        dpi: 160,
+        inset_bottom: 0,
+        inset_top: 0,
+        buttons: 0,
+        camera_fixed: false,
+        secure: faraday_shell_api::SecureHardware::None,
+        boot: faraday_shell_api::BootState::Unknown,
+        memory_mib: None,
+    }));
+    let _ = app.frame();
+    let restore = app.hit_box(Action::RestoreWallet).expect("Restore's tile");
+    let backups = app
+        .hit_box(Action::Nav(Screen::Backups))
+        .expect("Backups' tile");
+    assert!(backups.1 > restore.1, "Backups in a row of its own");
+    assert_eq!(backups.2, restore.2, "a short row's tile keeps its column");
+    assert!(
+        u32::from(backups.0) + 2 * u32::from(backups.2) <= 1920,
+        "the short row leaves its other columns empty"
+    );
+}

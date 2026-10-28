@@ -134,6 +134,40 @@ fn choosing_a_wallet_at_1920_shows_its_page_beside_the_list() {
 }
 
 #[test]
+fn at_1280_the_chosen_wallet_stands_beside_the_list() {
+    let mut app = with_wallets(1280, 800, 160);
+    app.press(Action::Nav(Screen::Wallets));
+    let right = item_right(&mut app, Action::PickWallet(1));
+    app.press(Action::PickWallet(1));
+    let _ = app.frame();
+    let (rx, ..) = app.hit_box(Action::Rename).expect("the wallet's Rename");
+    assert!(i32::from(rx) > right, "the wallet's page beside the list");
+    assert!(
+        app.hit_box(Action::PickWallet(0)).is_some(),
+        "the list stays"
+    );
+}
+
+#[test]
+fn at_760_the_wallets_list_stands_alone() {
+    let mut app = with_wallets(760, 1000, 160);
+    app.press(Action::Nav(Screen::WalletsStart));
+    let _ = app.frame();
+    assert!(app.hit_box(Action::OpenWallet(1)).is_some(), "the list");
+    assert!(
+        app.hit_box(Action::Rename).is_none(),
+        "no wallet's page beside it"
+    );
+    app.press(Action::OpenWallet(1));
+    let _ = app.frame();
+    assert!(app.hit_box(Action::Rename).is_some(), "the wallet's page");
+    assert!(
+        app.hit_box(Action::PickWallet(0)).is_none(),
+        "no list beside the page"
+    );
+}
+
+#[test]
 fn at_480x640_choosing_a_wallet_opens_its_page() {
     let mut app = with_wallets(480, 640, 286);
     app.press(Action::Nav(Screen::WalletsStart));
