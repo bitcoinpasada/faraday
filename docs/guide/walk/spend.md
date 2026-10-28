@@ -29,7 +29,7 @@ Press **Wallets**, then **New wallet 1**. The card's first button is
 
 ![The card, before a spend](../6-2-card.png)
 
-The page **Spend from New wallet 1** opens, one card per step.
+The page [**Spend from New wallet 1**](../screens/spend-tab.md#spend-from-a-wallet) opens, one card per step.
 
 ![Load the wallet in Sparrow](../6-2-sparrow.png)
 

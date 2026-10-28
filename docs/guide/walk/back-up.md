@@ -25,7 +25,7 @@ plan does not track it.
 
 ### 4.1 Make the wallet
 
-Press **Wallets** in the sidebar, then **Make a new wallet**. The page
+Press **Wallets** in the sidebar, then [**Make a new wallet**](../screens/make-a-wallet.md). The page
 is **Make a new wallet**, one card per step. It opens on **Kind**,
 with **Single key, backup in shares (codex32)** ticked; a choice moves
 on to the next card by itself.

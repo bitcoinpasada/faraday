@@ -86,7 +86,7 @@ in**; then the same with **summer**. The sidebar lists three keys:
 
 ### 5.2 Make a new wallet
 
-Press [**Home**](../screens/home.md), then **Make a new wallet**.
+Press **Home**, then [**Make a new wallet**](../screens/make-a-wallet.md).
 
 | Kind | Quorum |
 |---|---|
@@ -104,7 +104,8 @@ Then **Back up** (step 5.5).
 
 ### 5.3 The wallet card
 
-Press **Wallets**, then the wallet in the left column.
+Press **Wallets**, then the wallet in the left column
+([the card](../screens/wallets.md#the-card)).
 
 ![The wallet card](../5-3-card.png)
 

@@ -23,7 +23,7 @@ in shares (codex32)** ticked; press it:
 
 ![Make codex32 shares, on the identifier](../4-11-identifier.png)
 
-The page is **New key**, open on **Identifier**: **Start** reads **Make
+The page is [**New key**](../screens/new-key.md#make-codex32-shares), open on **Identifier**: **Start** reads **Make
 a new key · Codex32** and **Scheme** **48 characters · 2 of 3**, from
 Quorum. Type four characters that name the set (**Suggest** fills four),
 then **Continue**. **Entropy** offers **Roll dice**, **Type the

@@ -21,7 +21,7 @@ What you need:
 
 ### 7.1 Restore an existing wallet
 
-Press [**Home**](../screens/home.md), then **Restore an existing wallet**. The page is
+Press **Home**, then [**Restore an existing wallet**](../screens/restore.md). The page is
 **Restore an existing wallet**, one card per step.
 
 ![Kind](../7-1-kind.png)
@@ -53,7 +53,7 @@ stand over the row they fill:
 
 | Button | Does |
 |---|---|
-| **Type the words** | opens Add a key; the words typed, **Add key** |
+| **Type the words** | opens [Add a key](../screens/add-a-key.md); the words typed, **Add key** |
 | **Scan a SeedQR** | the camera; a passphrase is asked after the scan |
 | **Not here** | the key stays away; the wallet signs with the others |
 

@@ -35,7 +35,7 @@ the transactions; each signer signs on its own device.
 
 ## 1. Give your key's xpub
 
-Press **Home**, then **Make a new wallet**. Press **Multisig · native
+Press **Home**, then [**Make a new wallet**](../screens/make-a-wallet.md). Press **Multisig · native
 SegWit**; on **Quorum**, **Signatures needed** 2 and **Keys** 3, then
 **Continue**; on **Use vaults**, **No**.
 
@@ -114,7 +114,7 @@ Faraday asks before adding the wallet, whichever way it came in:
 
 | On the sheet | Meaning |
 |---|---|
-| **Another key spends this wallet alone** | the sheet's title |
+| [**Another key spends this wallet alone**](../screens/wallets.md#another-key-spends-this-wallet-alone) | the sheet's title |
 | the wallet's name, then "this key is not one of its keys and can spend everything alone, without the other signatures", and the key | the key that can spend without the quorum |
 | **Hold to add this wallet** | adds the wallet once held to the end |
 | **Cancel** | adds nothing |
@@ -139,7 +139,7 @@ cosigners' xpubs, **Register this wallet** is under it:
 
 | On the sheet | Meaning |
 |---|---|
-| **Register this wallet** | the sheet's title |
+| [**Register this wallet**](../screens/wallets.md#register-this-wallet) | the sheet's title |
 | **2 of 3, P2WSH, sorted** | the quorum, the script and the key order |
 | a line per cosigner: fingerprint and path | the wallet's keys; **Yours** marks the one key `3dca6805` gives |
 | **Name** | the wallet's name, from the PSBT's file name at first |

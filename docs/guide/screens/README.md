@@ -25,6 +25,13 @@ say what to do; these pages say what each control on a screen does.
 | Files | [Files](files.md) | Files, a file's ⋮ menu, Rename, Details, Make it a wallet, This is a secret, Save without encryption? |
 | Files | [Stick visit](stick-visit.md) | Stick visit, Already on the stick, Write to a stick, Delete files, Zeroing |
 | Files | [QR codes and the camera](qr-and-scan.md) | A QR code, Scan, SeedQR read, Transfer |
+| Wallets | [Wallets](wallets.md) | Wallets' first page, the list and the wallet card, Another key spends this wallet alone, Register this wallet |
+| Wallets | [Add a key](new-key.md) | Add a key and New key: Start, Length (and its Other menu), Randomness, the entries, Key, Words, Quiz; Make codex32 shares |
+| Wallets | [Add a key: typing a key](add-a-key.md) | The words, the other forms, codex32 strings and their correction |
+| Wallets | [Make a new wallet](make-a-wallet.md) | Kind, Quorum, Use vaults, Keys, Check |
+| Wallets | [Restore an existing wallet](restore.md) | Kind, Quorum, Description, Use vaults, Keys, Check, Done |
+| Wallets | [Spend](spend-tab.md) | The Spend tab: what is loaded, the column from the map to Put everything away, Spend from a wallet |
+| Tools | [Tools](tools.md) | Every tool by group and its search, the word list |
 
 ## To write
 
@@ -33,5 +40,5 @@ variant is named by no page and is not listed here, when one is named
 by two pages, and when one listed here has a page: a page written takes
 its variants off this list.
 
-- `Screen`: `WalletsStart`, `Wallets`, `Spend`, `Entry`, `Backup`, `Message`, `CheckMessage`, `Create`, `Restore`, `Settings`, `SetTime`, `Randomness`, `Backups`, `KeyGen`, `Bip85`, `Silent`, `Explore`, `Lightning`, `Tools`, `Family`, `Vanity`, `Decode`, `Catalog`, `BackupFlow`
-- `Sheet`: `Learn`, `WordList`, `Chart`, `BoardList`, `BoardSees`, `BoardPartials`, `BoardMenu`, `KeyPath`, `Register`, `KeyLengths`
+- `Screen`: `Spend`, `Backup`, `Message`, `CheckMessage`, `Settings`, `SetTime`, `Randomness`, `Backups`, `Bip85`, `Silent`, `Explore`, `Lightning`, `Tools`, `Vanity`, `Decode`, `BackupFlow`
+- `Sheet`: `Learn`, `Chart`, `BoardList`, `BoardSees`, `BoardPartials`, `BoardMenu`

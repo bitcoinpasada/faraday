@@ -32,7 +32,7 @@ Wallets too, and the signatures are the same.
 
 ## 1. Open it
 
-On **Home**, press **Spend from a backup, step by step**. The page is
+On **Home**, press [**Spend from a backup, step by step**](../screens/spend-tab.md). The page is
 **Spend**, with a note at the top: this page takes someone spending
 for the first time through every step. The link at the top left goes
 back to **Home**.

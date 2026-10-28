@@ -26,7 +26,7 @@ Rolls of a real die make other words and another fingerprint.
 
 ### 3.1 Wallets → Add a key
 
-Press **Wallets** in the sidebar, then **Add a key** (Keys first,
+Press [**Wallets**](../screens/wallets.md) in the sidebar, then **Add a key** (Keys first,
 wallets later). **Tools → Add a key** opens the same page: one tile for
 making a key and for typing one.
 
@@ -49,7 +49,7 @@ plugged in.
 
 ### 3.3 Start
 
-The page is **Add a key**, one card per step. A finished card shows its
+The page is [**Add a key**](../screens/new-key.md), one card per step. A finished card shows its
 choice and **Change**. It opens with **Start** closed on **Make a new
 key · BIP-39 words** and **Length** open, so for this guide go straight
 to step 3.4. **Change** on Start opens it:
@@ -87,7 +87,7 @@ before **Key**.
 
 **BIP-39 words** is chosen; no length is chosen yet. Press **12
 words**: the card closes and **Randomness** opens. (24 words takes more
-rolls; the steps are the same. **Other** opens a menu of 15, 18 and 21
+rolls; the steps are the same. [**Other**](../screens/new-key.md#other) opens a menu of 15, 18 and 21
 words.)
 
 ### 3.5 Randomness
@@ -217,7 +217,7 @@ key.
 
 ![Wallets after Done](../3-10-after-done.png)
 
-Faraday returns to Wallets. The key is loaded and shows in the sidebar
+Faraday returns to [Wallets](../screens/wallets.md#wallets-the-list-and-the-card). The key is loaded and shows in the sidebar
 under **Keys**. It is in memory only: Lock or Power off wipes it, and
 the paper copy is then the only one.
 
