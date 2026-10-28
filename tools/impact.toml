@@ -1,0 +1,402 @@
+# The registry of what a change brings with it (docs/IMPACT.md, F149).
+# Read by tools/impact.py. So far: every check of `just lint` and the test
+# suite, and the rules of kind `held`; the other rules and the consumers
+# come with the next batch. A check or rule marked planned is not yet run.
+
+[[check]]
+id = "clippy"
+run = "python3 tools/clippy.py --locked --workspace --all-targets"
+stage = "just lint"
+catches = "clippy with warnings as errors, and a warning about clippy's own configuration"
+misses = "targets and features the workspace build does not reach"
+
+[[check]]
+id = "cargo-deny"
+run = "cargo deny check"
+stage = "just lint"
+catches = "advisories, licences, duplicates and sources against deny.toml"
+
+[[check]]
+id = "cargo-vet"
+run = "cargo vet --locked"
+stage = "just lint"
+catches = "a dependency neither trusted, audited nor exempted, offline (F71)"
+misses = "whether a trusted publisher's code is sound"
+
+[[check]]
+id = "cargo-vet-fuzz"
+run = "cargo vet --locked --manifest-path fuzz/Cargo.toml --store-path supply-chain"
+stage = "just lint"
+catches = "the same, for the core fuzz workspace"
+
+[[check]]
+id = "cargo-vet-faraday-fuzz"
+run = "cargo vet --locked --manifest-path faraday/fuzz/Cargo.toml --store-path supply-chain"
+stage = "just lint"
+catches = "the same, for faraday's fuzz workspace"
+
+[[check]]
+id = "cargo-fmt"
+run = "cargo fmt --all --check"
+stage = "just lint"
+catches = "formatting"
+
+[[check]]
+id = "lint-secrets"
+run = "tools/lint-secrets.sh"
+stage = "just lint"
+catches = "printing or Debug of secret types, heap text in the files that hold secrets, key material outside faraday-keys (rule 4)"
+misses = "a file that starts to hold secrets and is not yet in SECRET_FILES"
+
+[[check]]
+id = "lint-strings"
+run = "tools/lint-strings.sh"
+stage = "just lint"
+catches = "a wording literal in screen code; a string no code uses; an untidy string"
+misses = "Learn pages and the self-test's check names, by rule"
+
+[[check]]
+id = "lint-tokens"
+run = "tools/lint-tokens.sh"
+stage = "just lint"
+catches = "a layout number in widgets; numbers and colours written in screens beyond lint-tokens.counts"
+
+[[check]]
+id = "lint-docs"
+run = "tools/lint-docs.sh"
+stage = "just lint"
+catches = "a document without Kind and Status, a Spec without Open, a plan in a Reference, a cited path that does not exist, the decisions' index"
+misses = "whether a document says what is true"
+
+[[check]]
+id = "lint-layout"
+run = "tools/lint-layout.sh"
+stage = "just lint"
+catches = "the code map, file and function sizes, top-level field and impl Faraday counts beyond lint-layout.counts"
+misses = "structure that is legal but poor"
+
+[[check]]
+id = "lint-tree"
+run = "tools/lint-tree.sh"
+stage = "just lint"
+catches = "a top-level entry not listed, an editor or merge leftover, a file over 2 MiB"
+
+[[check]]
+id = "lint-builds"
+run = "python3 -I -B tools/lint-builds.py"
+stage = "just lint"
+catches = "faraday/builds.toml against the tree: ids, fields, recipes, board and panel directories, hardware tiles"
+misses = "whether the website's download page follows"
+
+[[check]]
+id = "costs-lint"
+run = "cargo run -q -p costs-lint"
+stage = "just lint"
+catches = "a costly function without the compute token or its Costs doc line, a stray Compute::new, a Compute stored outside View"
+misses = "work that is costly and not marked so"
+
+[[check]]
+id = "lint-unchecked"
+run = "tools/lint-unchecked.sh"
+stage = "just lint"
+catches = "the unchecked feature of faraday-crypto on in a shipped binary"
+
+[[check]]
+id = "lint-crosscheck"
+run = "tools/lint-crosscheck.sh"
+stage = "just lint"
+catches = "crypto sources changed since the last passing cross-check (F79)"
+misses = "whether the cross-check covers the change"
+
+[[check]]
+id = "lint-themes"
+run = "tools/lint-themes.sh"
+stage = "just lint"
+catches = "the colour tables differing from what the vendored material-color-utilities makes"
+misses = "the website's copy of the roles"
+
+[[check]]
+id = "lint-keys-tests"
+run = "tools/lint-keys-tests.sh"
+stage = "just lint"
+catches = "a shipped binary with faraday-keys' master-for-tests or faraday-core's testkit feature"
+
+[[check]]
+id = "check-macos"
+run = "tools/check-macos.sh"
+stage = "just lint"
+catches = "the Starter's macOS code, clippy for both Mac targets"
+misses = "behaviour on a Mac"
+
+[[check]]
+id = "learn-sync"
+run = "python3 tools/learn/sync.py check"
+stage = "just lint"
+catches = "docs/learn/ and the Learn pages' en.rs differing"
+
+[[check]]
+id = "lint-guide-self-test"
+run = "python3 -B tools/lint-guide.py --self-test"
+stage = "just lint"
+catches = "the guide lint's own fixtures"
+
+[[check]]
+id = "lint-guide"
+run = "python3 -B tools/lint-guide.py"
+stage = "just lint"
+catches = "a bold name that is not an app string, a link that does not resolve, a Screen or Sheet no guide page names"
+misses = "prose that describes old steps with the current names"
+
+[[check]]
+id = "nextest"
+run = "cargo nextest run --locked --workspace"
+stage = "just test"
+catches = "every unit and integration test in the workspace"
+
+[[check]]
+id = "doctests"
+run = "cargo test --locked --workspace --doc"
+stage = "just test"
+catches = "the doc tests, which nextest does not run"
+
+[[check]]
+id = "budget-tests"
+run = "cargo nextest run --locked -p faraday-core -E 'test(/^work::budget::/)'"
+stage = "just test"
+catches = "a frame, a pointer move, a press or a key doing costly work its budget does not name"
+misses = "work that is not counted through the compute token"
+
+[[check]]
+id = "crosscheck"
+run = "just crosscheck"
+stage = "just crosscheck"
+catches = "Faraday's Rust against the Python references over published vectors and a seeded random corpus (F79)"
+misses = "PSBT signing end to end, taproot script trees, miniscript, AEZ (docs/CROSSCHECK.md §10.5)"
+
+[[check]]
+id = "lint-docs-held-by"
+run = "tools/lint-docs.sh"
+stage = "just lint"
+catches = "a decision without a Held by line, or naming a rule the registry lacks (docs/IMPACT.md §8)"
+misses = "planned: lint-docs rule 6 comes with batch 5"
+status = "planned"
+
+[[check]]
+id = "impact-check"
+run = "python3 -I -B tools/impact.py check --quiet"
+stage = "just lint"
+catches = "a pair left unmet in the range from main, a refused change, a missing Material trailer (the justfile line comes with batch 3)"
+misses = "a rule a reviewer must judge"
+status = "planned"
+
+[[check]]
+id = "impact-docs"
+run = "python3 -I -B tools/impact.py docs --check"
+stage = "just lint"
+catches = "docs/CHECKS.md differing from the registry (the justfile line comes with batch 3)"
+status = "planned"
+
+[[check]]
+id = "crypto-inventory"
+run = "cargo run -q -p costs-lint --bin crypto-inventory"
+stage = "just lint"
+catches = "a cryptographic function not covered by a test or the inventory (F148)"
+misses = "planned: not yet in just lint"
+status = "planned"
+
+[[check]]
+id = "crypto-gen"
+run = "python3 tools/crypto/gen.py check"
+stage = "just lint"
+catches = "the generated parts of STANDARDS and AUDIT differing from the manifest (F148)"
+misses = "planned: not yet written"
+status = "planned"
+
+[[rule]]
+id = "tree.clean"
+title = "nothing an editor, a merge or a session leaves behind is tracked, no file over 2 MiB"
+source = ["CLAUDE.md"]
+when = ["**"]
+kind = "held"
+held_by = ["lint-tree"]
+
+[[rule]]
+id = "docs.headers"
+title = "every document carries Kind and Status, a Spec its Open line, a Reference no plan"
+source = ["CLAUDE.md"]
+when = ["docs/**/*.md"]
+kind = "held"
+held_by = ["lint-docs"]
+
+[[rule]]
+id = "docs.paths"
+title = "every repository path a document names exists"
+source = ["CLAUDE.md"]
+when = ["**/*.md"]
+kind = "held"
+held_by = ["lint-docs"]
+
+[[rule]]
+id = "decisions.indexed"
+title = "each decision has its row in docs/DECISIONS.md and each row its file"
+source = ["CLAUDE.md", "docs/DECISIONS.md"]
+when = ["docs/decisions/F{n}.md", "docs/history/decisions/**"]
+kind = "held"
+held_by = ["lint-docs"]
+
+[[rule]]
+id = "decisions.held-by"
+title = "each decision carries a Held by line naming rules of the registry"
+source = ["docs/decisions/F149.md"]
+when = ["docs/decisions/F{n}.md"]
+on = ["add"]
+kind = "held"
+held_by = ["lint-docs-held-by"]
+status = "planned"
+
+[[rule]]
+id = "crypto.crosscheck-stamp"
+title = "the crypto sources match the last passing cross-check"
+source = ["docs/decisions/F79.md"]
+when = ["core/*/src/**", "tools/crosscheck/**", "Cargo.lock"]
+kind = "held"
+held_by = ["lint-crosscheck"]
+
+[[rule]]
+id = "crypto.action-covered"
+title = "every cryptographic function is covered by the inventory"
+source = ["docs/decisions/F148.md"]
+when = ["core/*/src/**", "faraday/faraday-keys/src/**"]
+kind = "held"
+held_by = ["crypto-inventory"]
+status = "planned"
+
+[[rule]]
+id = "crypto.generated"
+title = "STANDARDS and AUDIT's generated sections match the manifest"
+source = ["docs/decisions/F148.md"]
+when = ["docs/STANDARDS.md", "docs/AUDIT.md"]
+kind = "held"
+held_by = ["crypto-gen"]
+status = "planned"
+
+[[rule]]
+id = "keys.boundary"
+title = "key material lives in faraday-keys and leaves only through its named reveals"
+source = ["CLAUDE.md", "docs/decisions/F70.md"]
+when = ["faraday/**"]
+kind = "held"
+held_by = ["lint-secrets", "lint-keys-tests"]
+
+[[rule]]
+id = "compute.token"
+title = "costly work takes the compute token and says so"
+source = ["CLAUDE.md", "docs/decisions/F69.md"]
+when = ["core/*/src/**", "faraday/**/src/**"]
+kind = "held"
+held_by = ["costs-lint", "budget-tests"]
+
+[[rule]]
+id = "speed.budgets"
+title = "a frame, a pointer move, a press or a key does only the costly work its budget names"
+source = ["CLAUDE.md"]
+when = ["**/screen.rs", "faraday/faraday-core/src/drawing.rs", "faraday/faraday-core/src/screens/**"]
+kind = "held"
+held_by = ["budget-tests"]
+
+[[rule]]
+id = "structure.code-map"
+title = "lib.rs's code map names every module and every screen's file"
+source = ["CLAUDE.md", "docs/decisions/F74.md"]
+when = ["faraday/faraday-core/src/**"]
+kind = "held"
+held_by = ["lint-layout"]
+
+[[rule]]
+id = "structure.size"
+title = "no new file over 2,500 lines or function over 100 lines"
+source = ["CLAUDE.md", "docs/decisions/F74.md"]
+when = ["**/*.rs"]
+kind = "held"
+held_by = ["lint-layout"]
+
+[[rule]]
+id = "structure.impl-faraday"
+title = "Faraday's field count and the files with impl Faraday only fall"
+source = ["CLAUDE.md", "docs/decisions/F74.md"]
+when = ["faraday/faraday-core/src/**"]
+kind = "held"
+held_by = ["lint-layout"]
+
+[[rule]]
+id = "strings.one-file"
+title = "every user-facing string is in faraday-strings/src/en.rs"
+source = ["CLAUDE.md", "docs/decisions/F68.md"]
+when = ["faraday/**/src/**"]
+kind = "held"
+held_by = ["lint-strings"]
+
+[[rule]]
+id = "strings.guide-names"
+title = "a string renamed is renamed in the guide's bold names"
+source = ["CLAUDE.md", "tools/README.md"]
+when = ["faraday/faraday-strings/src/en.rs"]
+kind = "held"
+held_by = ["lint-guide"]
+
+[[rule]]
+id = "tokens.named"
+title = "a new dimension is a name in tokens.rs; numbers written in screens only fall"
+source = ["CLAUDE.md"]
+when = ["core/faraday-draw/src/**", "faraday/faraday-core/src/screens/**", "**/screen.rs"]
+kind = "held"
+held_by = ["lint-tokens"]
+
+[[rule]]
+id = "themes.generated"
+title = "the colour tables are what the vendored material-color-utilities makes"
+source = ["docs/THEMES.md"]
+when = ["faraday/faraday-ui/src/pal/**", "tools/themes/**"]
+kind = "held"
+held_by = ["lint-themes"]
+
+[[rule]]
+id = "guide.screens-named"
+title = "every Screen and Sheet variant is named by one guide page or the To write list"
+source = ["tools/README.md"]
+when = ["faraday/faraday-core/src/lib.rs"]
+kind = "held"
+held_by = ["lint-guide"]
+
+[[rule]]
+id = "learn.sync"
+title = "docs/learn/ and the Learn pages' en.rs are one text"
+source = ["CLAUDE.md"]
+when = ["docs/learn/**", "faraday/faraday-learn/src/pages/en.rs"]
+kind = "held"
+held_by = ["learn-sync"]
+
+[[rule]]
+id = "deps.vetted"
+title = "every dependency passes cargo vet and cargo deny"
+source = ["CLAUDE.md", "docs/decisions/F71.md"]
+when = ["**/Cargo.toml", "Cargo.lock"]
+kind = "held"
+held_by = ["cargo-vet", "cargo-vet-fuzz", "cargo-vet-faraday-fuzz", "cargo-deny"]
+
+[[rule]]
+id = "builds.list"
+title = "faraday/builds.toml lists every build, and every board and panel directory is named by one"
+source = ["faraday/builds.toml"]
+when = ["faraday/builds.toml", "faraday/image/boards/**", "faraday/image/panels/**"]
+kind = "held"
+held_by = ["lint-builds"]
+
+[[rule]]
+id = "impact.registry"
+title = "the registry reads, matches the tree and the lint recipe, and docs/CHECKS.md follows it"
+source = ["docs/decisions/F149.md"]
+when = ["tools/impact.toml"]
+kind = "held"
+held_by = ["impact-check", "impact-docs"]
+status = "planned"

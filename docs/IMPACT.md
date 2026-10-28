@@ -63,6 +63,9 @@ when = ["faraday/faraday-strings/src/en.rs"]
 on = ["modify"]                     # add | modify | delete; default all three
 lines = '^[+-]\s+[a-z_]+:'          # optional: an added or removed line of a
                                     # triggering file matches this regex
+rises = false                       # optional: triggers only when a line's last
+                                    # number is higher than before, or the line
+                                    # is new (a ratchet count raised)
 kind = "held"                       # held | pair | forbid | trailer | review (§1.3)
 held_by = ["lint-guide"]
 with = []                           # pair: at least one changed path matches
