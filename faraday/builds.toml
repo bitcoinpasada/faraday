@@ -77,7 +77,7 @@ tested = false
 
 [[hardware]]
 id = "pi-monitor"
-label = "Pi + HDMI monitor"
+label = "Pi + HDMI screen"
 fits = "Pi 3 or Zero 2 W"
 soon = "Pi 4"
 tested = false
@@ -212,21 +212,10 @@ status = "planned"
 spec = "docs/IMAGES.md"
 hardware = "pi-10-inch"
 build = "compatible"
-option = "Ribbon cable (DSI)"
-
-[[build]]
-id = "pi3-10inch-hdmi-compatible"
-label = "Raspberry Pi, 10-inch HDMI screen"
-group = "image"
-status = "planned"
-spec = "docs/IMAGES.md"
-hardware = "pi-10-inch"
-build = "compatible"
-option = "HDMI cable"
 
 [[build]]
 id = "pi3-monitor-compatible"
-label = "Raspberry Pi, HDMI monitor with keyboard and mouse"
+label = "Raspberry Pi, an HDMI screen (a monitor, or the 10-inch HDMI panel)"
 group = "image"
 status = "planned"
 spec = "docs/IMAGES.md"

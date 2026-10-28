@@ -30,9 +30,9 @@ build proves it carries none of what Compatible adds. The root filesystem,
 the app and its checks are the same in both builds of a platform. The
 kernel and its command line differ, and on the Pi the screen's lines.
 
-## 2. The Pi's Open kernel
+## 2. The Pi's Compatible kernel
 
-What Open adds to the kernel's reach, against `docs/SECURITY-MODEL.md`:
+What Compatible adds to the kernel's reach, against `docs/SECURITY-MODEL.md`:
 
 - **DRM, for the display only.** vc4's display side, the DSI host and
   the panels' drivers, with their I²C touch controllers. There is no
@@ -74,8 +74,7 @@ at the panel's own density; classes are `docs/LAYOUT.md` §2.
 | 5-inch | Raspberry Pi Touch Display 2, 5-inch, Goodix GT911 (to confirm) | 720 × 1280, portrait | 294 | 392 × 697 dp: compact; landscape 697 × 392: medium and short | Open |
 | 7-inch | Waveshare 7inch DSI LCD (C), Goodix | 1024 × 600, landscape | 170 | 964 × 565 dp: expanded and low; portrait: compact | Open |
 | 10-inch, DSI | Waveshare 10.1inch DSI LCD (C), Goodix | 1280 × 800, landscape | 149 | 1372 × 857 dp: large; portrait 857 × 1372: expanded | Open |
-| 10-inch, HDMI | Waveshare 10.1inch HDMI LCD (B), USB touch | 1280 × 800, landscape | 149 | as the 10-inch DSI | Open |
-| A monitor | any HDMI monitor, with a USB keyboard and mouse | the monitor's mode | `faraday.dpi=160` | by its width | Open |
+| An HDMI screen | any HDMI monitor with a USB keyboard and mouse, or Waveshare 10.1inch HDMI LCD (B) with its USB touch | the screen's mode, from its EDID | the screen's, from its EDID; `faraday.dpi=160` where it gives none | by its width | Compatible |
 
 - **No 7-inch Strict image.** The original Raspberry Pi Touch Display
   (800 × 480) may still run on the firmware's display path without DRM,
@@ -134,9 +133,9 @@ at the panel's own density; classes are `docs/LAYOUT.md` §2.
   named and not offered. A file of another release is named with the
   version this Starter needs.
 - **Make a Faraday stick and Make a Pi card offer what was found**, by
-  its hardware: "Pi 3, Waveshare 7-inch DSI, Open". For the PC stick,
+  its hardware: "Pi 3, Waveshare 7-inch DSI, Compatible". For the PC stick,
   Strict is offered first, saying that some older PCs do not start with
-  it, and that Open is what to write then. Hardware without its image is
+  it, and that Compatible is what to write then. Hardware without its image is
   listed with the exact file to download and where.
 - **What it writes** is the image unchanged, decompressed while written
   and read back as `docs/STARTER.md` §4.1 says.
@@ -170,7 +169,7 @@ per visit (F147):
    the build's image, each as its own release file (no zip, so every
    file is one line of `SHA256SUMS`), and writing the image without the
    Starter. Strict is offered where the hardware has it, and the page
-   offers the other build: Open for a PC that does not start with Strict,
+   offers the other build: Compatible for a PC that does not start with Strict,
    or for a USB keyboard or stick on the 2.8-inch. What the visitor needs,
    opening the Starter the first time and checking the files are on this
    page, not on the tiles' page. A build looking for testers asks those
@@ -187,10 +186,10 @@ marked so (`docs/HARDWARE.md` §6).
 |---|---|
 | `docs/HARDWARE.md` | §1 and §2: a row per image and screen |
 | `docs/STARTER.md` | §1.1 release files; §1.3 no payload of images, the image list; §3.2 and §3.3 what is offered; §9 points here |
-| `docs/SECURITY-MODEL.md` | the Pi's table and "What the kernel can reach" for Strict and Open; the PC's command line |
+| `docs/SECURITY-MODEL.md` | the Pi's table and "What the kernel can reach" for Strict and Compatible; the PC's command line |
 | `docs/ORIENTATION.md` | §1: the Pi's panel directories; §5 Rotation on them |
 | `docs/DEVELOPING.md` | the recipes for one image and for all |
-| `faraday/image/README.md` | the boards and panels, Strict and Open |
+| `faraday/image/README.md` | the boards and panels, Strict and Compatible |
 | `README.md` | "Verifying a release": a card or stick checked by its boot partition |
 
 ## 9. Order of work
@@ -203,12 +202,18 @@ marked so (`docs/HARDWARE.md` §6).
    what it adds to the kernel's reach (USB behind PCIe, a boot loader in
    the board's EEPROM, against `docs/SECURITY-MODEL.md`), and whether
    the 2.8-inch runs on its firmware display path without DRM, as Strict
-   needs, tried on the board.
-3. The Pi's Open kernel: its fragment, its forbidden and required
+   needs, tried on the board. Approved by the owner (F150) on these
+   terms: no boot loader update is ever on a card; SPI_SPIDEV and
+   SPI_BCM2835 are forbidden in the kernel; the Pi 4 is described as close
+   to a PC, its boot code on the board, and its owner is told to restore
+   Raspberry Pi's boot loader with Raspberry Pi Imager before first use
+   (a wire to test point TP5 locks it in hardware).
+3. The Pi's Compatible kernel: its fragment, its forbidden and required
    lists, and the image that boots with it, starting with the monitor
    (HDMI with a USB keyboard), which needs no new panel.
-4. The PC's Strict and Open: the command line in each, two images, two
-   boot programs.
+4. The PC's Strict and Compatible: the command line in each, two
+   images, two boot programs (built: `just build=compatible
+   faraday-stick-image`; not yet tried on a PC).
 5. The release recipes, `SHA256SUMS` lines and the image list; the
    size and build time measured.
 6. The Starter: no payload of images, finding and checking them, the
