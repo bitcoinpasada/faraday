@@ -37,6 +37,11 @@ pub enum Slot {
     /// The codex32 entry's "Demo only" card, a supporting pane that
     /// scrolls within itself (`Codex32Make::pane_offset`, `faraday-core`).
     DemoPane,
+    /// The codex32 entry's input panel beside the sheets, which scrolls
+    /// within itself where it is taller than the window
+    /// (`docs/LAYOUT.md` §16.3; `Codex32Make::panel_offset`,
+    /// `faraday-core`).
+    InputPanel,
     /// Learn's supporting pane on an extra-large window, which scrolls
     /// within itself beside the page (`docs/LAYOUT.md` §6;
     /// `LearnState::scroll`, `faraday-core`).

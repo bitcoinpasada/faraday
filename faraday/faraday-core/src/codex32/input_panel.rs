@@ -43,7 +43,7 @@ use crate::fresh::roller::five_screen::{
 };
 use crate::strings::{EN, fill};
 use crate::ui::pal::*;
-use crate::ui::{Style, Ui};
+use crate::ui::{Slot, Style, Ui};
 
 /// Where the input panel stands on this window.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -120,9 +120,9 @@ pub(crate) fn place_in(
     }
     let work = crate::keygen::screen::codex32_work_w(cw, side);
     let sheet_w = m.length().chars() as f32 * (t::CODEX32_CELL_FIT_MIN + 1.0);
-    let beside = work >= t::CODEX32_ENTRY_W + t::SPACER + sheet_w
-        && beside_h(m, k) <= h - t::SUPPORT_PANE_TOP - t::MARGIN_WIDE;
-    if beside {
+    // Beside the sheets wherever the work width holds it; taller than
+    // the window, it scrolls within itself there.
+    if work >= t::CODEX32_ENTRY_W + t::SPACER + sheet_w {
         return PanelAt::Beside;
     }
     let fh = Foot::of(m, cw - 2.0 * t::MARGIN_WIDE, k).h;
@@ -510,35 +510,7 @@ struct Apart {
 /// screen's own.
 pub(crate) fn draw(m: &Codex32Make, ui: &mut Ui, at: PanelAt, (x0, cw, h): (f32, f32, f32)) {
     match at {
-        PanelAt::Beside => {
-            let (x, y, w) = (x0 + t::MARGIN_WIDE, t::SUPPORT_PANE_TOP, t::CODEX32_ENTRY_W);
-            let k = ui.text_factor();
-            ui.fill(
-                x,
-                y,
-                w,
-                beside_h(m, k),
-                t::SHAPE_M,
-                Role::SurfaceContainerLow,
-            );
-            let (ix, iw) = (x + t::PAD, beside_inner());
-            let mut cy = y + t::PAD;
-            let rolling = !complete(m) && m.way() == Way::Dice;
-            if rolling {
-                cy += pairs(ui, (ix, cy, iw), &super::dice_screen::pairs_of(m), None) + t::GAP;
-            }
-            cy += super::tracker_screen::draw(m, ui, (ix, cy, iw)) + t::GAP;
-            if complete(m) {
-                cy += choice(m, ui, (ix, cy, iw));
-                continue_button(ui, ix, cy, iw);
-                return;
-            }
-            if m.way() == Way::Typed {
-                keyboard(ui, ix, cy, iw);
-                return;
-            }
-            pad(m, ui, ix, cy, iw);
-        }
+        PanelAt::Beside => beside(m, ui, (x0, h)),
         PanelAt::Foot(fh) => {
             let top = h - fh;
             cover(ui, (x0, top, cw, fh));
@@ -577,6 +549,58 @@ pub(crate) fn draw(m: &Codex32Make, ui: &mut Ui, at: PanelAt, (x0, cw, h): (f32,
         }
         PanelAt::Page => {}
     }
+}
+
+/// The panel beside the sheets, at the work area's start in the page
+/// area at `x0`, in a window `h` tall: its top at `SUPPORT_PANE_TOP`, as
+/// tall as its parts up to the window's foot less the margin, scrolled
+/// within itself by its own offset where it is taller
+/// (`Slot::InputPanel`), as a supporting pane is (`docs/LAYOUT.md` §6).
+fn beside(m: &Codex32Make, ui: &mut Ui, (x0, h): (f32, f32)) {
+    let (x, y, w) = (x0 + t::MARGIN_WIDE, t::SUPPORT_PANE_TOP, t::CODEX32_ENTRY_W);
+    let all = beside_h(m, ui.text_factor());
+    let view = (h - y - t::MARGIN_WIDE).max(t::TOUCH).min(all);
+    ui.fill(x, y, w, view, t::SHAPE_M, Role::SurfaceContainerLow);
+    let clip = ui.rect(x, y, w, view);
+    let off = m.panel_offset().clamp(0.0, (all - view).max(0.0));
+    ui.c.push_clip(clip);
+    let mark = ui.hits.len();
+    beside_parts(m, ui, x, y - off);
+    // What is scrolled out of the panel takes no press.
+    let mut k = mark;
+    while k < ui.hits.len() {
+        let r = ui.hits[k].0.intersect(&clip);
+        if r.w <= 0 || r.h <= 0 {
+            ui.hits.remove(k);
+        } else {
+            ui.hits[k].0 = r;
+            k += 1;
+        }
+    }
+    ui.c.pop_clip();
+    ui.report_scroll_beside(Slot::InputPanel, clip, (all - view).max(0.0), off);
+}
+
+/// The panel's parts beside the sheets from its top-left (x, y): the
+/// rolls, the Working area and the pad, the keyboard or Continue.
+fn beside_parts(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32) {
+    let (ix, iw) = (x + t::PAD, beside_inner());
+    let mut cy = y + t::PAD;
+    let rolling = !complete(m) && m.way() == Way::Dice;
+    if rolling {
+        cy += pairs(ui, (ix, cy, iw), &super::dice_screen::pairs_of(m), None) + t::GAP;
+    }
+    cy += super::tracker_screen::draw(m, ui, (ix, cy, iw)) + t::GAP;
+    if complete(m) {
+        cy += choice(m, ui, (ix, cy, iw));
+        continue_button(ui, ix, cy, iw);
+        return;
+    }
+    if m.way() == Way::Typed {
+        keyboard(ui, ix, cy, iw);
+        return;
+    }
+    pad(m, ui, ix, cy, iw);
 }
 
 /// **Continue** at the end of the row at (x, y), `w` wide: the flow's

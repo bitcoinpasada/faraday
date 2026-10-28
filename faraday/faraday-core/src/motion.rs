@@ -685,6 +685,8 @@ impl Scroll {
             // The codex32 "Demo only" card scrolls within itself, on a
             // small panel too: it is pinned at the foot there.
             ui::Slot::DemoPane if screen == Screen::KeyGen && sheet_none => ui::Slot::DemoPane,
+            // So does the codex32 input panel beside the sheets.
+            ui::Slot::InputPanel if screen == Screen::KeyGen && sheet_none => ui::Slot::InputPanel,
             // Learn's supporting pane scrolls within itself beside the
             // page (`docs/LAYOUT.md` §6); put away, the page has it back.
             ui::Slot::LearnPane if sheet_none => ui::Slot::LearnPane,
@@ -1052,13 +1054,14 @@ impl Faraday {
     }
 
     /// What a scrolled codex32 region moves: the checksum worksheet's
-    /// pan down the sheet, or the "Demo only" card's own scroll
-    /// (`docs/CODEX32.md` §5.5, §7.5).
+    /// pan down the sheet, the dice sheet's column's own scroll, or the
+    /// input panel's beside the sheets (`docs/CODEX32.md` §5.5, §7.5;
+    /// `docs/LAYOUT.md` §16.3).
     pub(crate) fn codex32_slot(&mut self) -> Option<&mut f32> {
-        if self.slot() == ui::Slot::DemoPane {
-            self.keygen.pane_offset_mut()
-        } else {
-            self.worksheet_pan_mut().map(|p| &mut p.y)
+        match self.slot() {
+            ui::Slot::DemoPane => self.keygen.pane_offset_mut(),
+            ui::Slot::InputPanel => self.keygen.panel_offset_mut(),
+            _ => self.worksheet_pan_mut().map(|p| &mut p.y),
         }
     }
 

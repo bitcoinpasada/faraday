@@ -1,8 +1,8 @@
 # Layout at every window size
 
 **Kind:** Spec
-**Status:** Partly built: size classes and density (L1, F101; the stick's from its EDID on a small screen, `docs/ORIENTATION.md` §2.1), navigation (L2), Home's lead tile and tile grid (L3), the supporting pane's place and its narrow strip, for codex32's Demo only card (§6); the page area to the window's edge (W1, §15, §19); list and detail for Wallets, Files, Vaults and Backups (L4, §5, §17); Settings' list of sections on compact windows and every section on one page from medium up (§17); Files' two lists each scrolling on its own beside the rail (§17); the codex32 entry's input panel (W3, §16.3), at the foot of a compact window that is not short too, above the navigation bar, and New key's dice and Create a vault's Generate with dice in it; Learn in the supporting pane on extra-large windows (L6, §6); the tours at every class's size, §11's tests and DESIGN §3 written to this spec (L7); on wide windows the worksheet's fit and the string's boxes (W2, §16.1, §16.2), the view and the page following the work (W4, §16.4), the step-through's buttons fixed in Faraday Demo's host strip (W5, §16.5), Home's feed, Explore, the chart's buttons and tables at their columns' width (W6), the backup board (W7); the rest specified, not built (F92)
-**Open:** the top app bar over the wide pages and the step flows (§3; they keep their own heads); components that keep their size, part 2 (L5: the size set and the type roles are built in `faraday-ui`; the screens of `faraday-core` still write some sizes in place, a count `tools/lint-tokens.counts` holds and that only falls); on wide windows, the codex32 input panel beside the sheets scrolling within itself (it stands at the foot where it is taller than the window) (§16.3); planned.
+**Status:** Partly built: size classes and density (L1, F101; the stick's from its EDID on a small screen, `docs/ORIENTATION.md` §2.1), navigation (L2), Home's lead tile and tile grid (L3), the supporting pane's place and its narrow strip, for codex32's Demo only card (§6); the page area to the window's edge (W1, §15, §19); list and detail for Wallets, Files, Vaults and Backups (L4, §5, §17); Settings' list of sections on compact windows and every section on one page from medium up (§17); Files' two lists each scrolling on its own beside the rail (§17); the codex32 entry's input panel (W3, §16.3), at the foot of a compact window that is not short too, above the navigation bar, and New key's dice and Create a vault's Generate with dice in it, and beside the sheets scrolling within itself; Learn in the supporting pane on extra-large windows (L6, §6); the tours at every class's size, §11's tests and DESIGN §3 written to this spec (L7); on wide windows the worksheet's fit and the string's boxes (W2, §16.1, §16.2), the view and the page following the work (W4, §16.4), the step-through's buttons fixed in Faraday Demo's host strip (W5, §16.5), Home's feed, Explore, the chart's buttons and tables at their columns' width (W6), the backup board (W7); the rest specified, not built (F92)
+**Open:** the top app bar over the wide pages and the step flows (§3; they keep their own heads); components that keep their size, part 2 (L5: the size set and the type roles are built in `faraday-ui`; the screens of `faraday-core` still write some sizes in place, a count `tools/lint-tokens.counts` holds and that only falls); planned.
 
 Faraday lays its screens out by Material 3's layout and navigation
 rules at every size, from the Pi's 2.8-inch panel to a full monitor.
@@ -695,7 +695,12 @@ so the walk reads as a person pressing. It stands:
   all; 2560 × 1440): a column at the work area's start that holds its
   place as the page scrolls beside it, its top at `SUPPORT_PANE_TOP`,
   scrolling within itself where it is taller than the window, as the
-  supporting pane does (§6). The sheets stand beside it.
+  supporting pane does (§6). The sheets stand beside it. Built: it stands
+  beside wherever the work width holds it, however low the window, and
+  where it is taller than the window it is as tall as the window less
+  the margin and scrolls on its own under the pointer, the page beside
+  it keeping its place (`Slot::InputPanel`); its rolls' heads fit their
+  columns at a larger text.
 - **At the foot** everywhere else from medium up, and on compact
   windows that are not short: pinned at the window's foot across the
   page area (beside the rail or the expanded rail, above the bar),

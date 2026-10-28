@@ -204,6 +204,53 @@ fn at_2560_the_panel_stands_beside_the_sheets_and_elsewhere_at_the_foot() {
 }
 
 #[test]
+fn beside_the_sheets_a_panel_taller_than_the_window_scrolls_within_itself() {
+    // A window wide enough for the panel beside the sheets but too low
+    // for it whole with twenty-faced dice's three rows of keys: it
+    // stands beside them still, and scrolls on its own.
+    let (w, h) = (2560u16, 620u16);
+    let mut app = on_entry(w, h, 160);
+    choose_size(&mut app, 20);
+    // Beside the sidebar at the work area's start, below the top strip,
+    // not at the foot.
+    let die = text_at(&mut app, "Die 1").expect("the rolls");
+    assert!(
+        die.0 > 240 && die.1 < i32::from(h) / 2,
+        "the panel beside the sheets: {die:?}"
+    );
+    assert_eq!(make(&app).panel_offset(), 0.0);
+    let page = app.keygen().unwrap().scroll.y;
+    let (x, y) = (
+        u16::try_from(die.0 + 20).unwrap(),
+        u16::try_from(die.1).unwrap(),
+    );
+    scroll_page(&mut app, x, y, 600);
+    assert!(
+        make(&app).panel_offset() > 0.0,
+        "the panel scrolled within itself"
+    );
+    assert_eq!(
+        app.keygen().unwrap().scroll.y,
+        page,
+        "the page did not move"
+    );
+    let key = app.hit_box(face(3)).expect("the pad's 3 is drawn");
+    let key = (
+        i32::from(key.0),
+        i32::from(key.1),
+        i32::from(key.2),
+        i32::from(key.3),
+    );
+    assert!(in_window(key, w, h), "the pad scrolled into view: {key:?}");
+    tap(&mut app, face(3));
+    assert_eq!(
+        make(&app).dice().first(0),
+        Some(3),
+        "a face pressed there is a roll"
+    );
+}
+
+#[test]
 fn a_face_pressed_on_the_panel_lands_in_its_rolls() {
     for (w, h) in [(1280u16, 800u16), (1920, 1080), (2560, 1440)] {
         let mut app = on_entry(w, h, 160);

@@ -137,15 +137,14 @@ pub fn pairs(ui: &mut Ui, (x, y, w): (f32, f32, f32), p: &Pairs, r: Option<&Five
         .iter()
         .enumerate()
     {
+        // A one-line slot over its column: larger text fits down to
+        // Standard there, so the two heads never meet
+        // (`docs/TEXT-SIZE.md` §3).
         let hx = x + lw + i as f32 * col;
-        let hw = ui.measure_as(LABEL_M, head);
-        ui.text_as(
-            hx + (col - hw) / 2.0,
-            cy,
-            LABEL_M,
-            Role::OnSurfaceVariant,
-            head,
-        );
+        let room = col - faraday_draw::tokens::GAP_SMALL;
+        let hw = ui.text_fit_width(LABEL_M, head, room);
+        let at = (hx + (col - hw) / 2.0, cy, ui.line_as(LABEL_M), room);
+        ui.text_fit_as(at, LABEL_M, Role::OnSurfaceVariant, head);
     }
     cy += ui.line_as(LABEL_M) + ROLLER_GAP / 2.0;
     let progress = r.map_or(0.0, FiveRoller::progress);

@@ -609,6 +609,8 @@ pub struct Codex32Make {
     tour: Tour,
     /// How far the dice sheet's column is scrolled within itself, units.
     pane_y: f32,
+    /// The input panel's scroll beside the sheets.
+    panel_y: f32,
     /// The computer's dice are offered (Faraday Demo in Practice): the
     /// person's own faces are steps of the walk's history. Set from the
     /// shell's state before every press ([`Codex32Make::set_practice`]).
@@ -679,6 +681,7 @@ impl Codex32Make {
             track: Walk::default(),
             tour: Tour::default(),
             pane_y: 0.0,
+            panel_y: 0.0,
             practice: false,
         }
     }
@@ -1017,6 +1020,18 @@ impl Codex32Make {
     /// moves (`ui::Slot::DemoPane`).
     pub(crate) fn pane_offset_mut(&mut self) -> &mut f32 {
         &mut self.pane_y
+    }
+
+    /// How far the input panel beside the sheets is scrolled within
+    /// itself (`docs/LAYOUT.md` §16.3).
+    pub fn panel_offset(&self) -> f32 {
+        self.panel_y
+    }
+
+    /// The input panel's own scroll, which the scroll machinery moves
+    /// (`ui::Slot::InputPanel`).
+    pub(crate) fn panel_offset_mut(&mut self) -> &mut f32 {
+        &mut self.panel_y
     }
 
     /// The worksheet's pan, which the scroll machinery moves

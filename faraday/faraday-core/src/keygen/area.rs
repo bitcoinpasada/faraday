@@ -97,6 +97,12 @@ impl KeyGenArea {
         Some(self.state.as_mut()?.codex32.as_mut()?.pane_offset_mut())
     }
 
+    /// The codex32 input panel's own scroll beside the sheets, while the
+    /// flow is open (`ui::Slot::InputPanel`).
+    pub(crate) fn panel_offset_mut(&mut self) -> Option<&mut f32> {
+        Some(self.state.as_mut()?.codex32.as_mut()?.panel_offset_mut())
+    }
+
     /// Sends Make codex32 shares' worksheet view to where the work is
     /// (`Codex32Make::follow_front`), at once under `reduce`. Arithmetic.
     pub(crate) fn sheet_follow(

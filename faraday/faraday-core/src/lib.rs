@@ -5833,7 +5833,7 @@ impl Faraday {
             ui::Slot::ListPane => Some(self.scroll.list_pane_offset_mut()),
             ui::Slot::BoardList => Some(self.flows.board_list_offset_mut()),
             ui::Slot::LearnPane => Some(self.learn.scroll_mut()),
-            ui::Slot::Worksheet | ui::Slot::DemoPane => self.codex32_slot(),
+            ui::Slot::Worksheet | ui::Slot::DemoPane | ui::Slot::InputPanel => self.codex32_slot(),
             ui::Slot::Page | ui::Slot::WorksheetWhole | ui::Slot::DiceWork => self.page_slot(),
         }
     }
