@@ -12,7 +12,7 @@ A signer that picks its nonce freely could also hide your key inside it on purpo
 
 ## What Faraday checks on a signature that arrived
 
-A transaction can reach the device with signatures another device or another person already made. Faraday checks each of them against the key it is under and refuses the transaction when one is not a signature of what is in front of you, because that means the transaction was changed after it was signed. It also looks for two signatures under one key that share a nonce, anywhere in the transaction, and refuses that too: those two signatures are the key. Where a signature is under a key this device holds, it signs the same input again under each nonce rule and says which one produced it, so you can see whether another device signed the way it says it does. The Nonce check, on the review and in Tools, lists them.
+A transaction can reach the device with signatures another device or another person already made. Faraday checks each of them against the key it is under and refuses the transaction when one is not a signature of what is in front of you, because that means the transaction was changed after it was signed. It also looks for two signatures under one key that share a nonce, anywhere in the transaction, and refuses that too: those two signatures are the key. Where a signature is under a key this device holds, it signs the same input again under each nonce rule and says which one produced it, so you can see whether another device signed the way it says it does. The Nonce check, on Spend's last card once the transaction is finished (Tools' Nonce check tile opens that card), lists them.
 
 ## How Faraday picks a nonce
 

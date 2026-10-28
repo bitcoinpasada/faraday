@@ -149,7 +149,7 @@ GPG's **Paperkey backup** stays on the key's page, outside the plan.
 | Kind | Known by (public) | The flow starts at | Step 4 makes | Its page | Signing waits |
 |---|---|---|---|---|---|
 | GPG key | the primary key's fingerprint | Tools' **GPG key**, Vault contents' **Make a key** | name and email, expiry | the key's page | Sign a file, Renew |
-| Secure Boot keys | the owner GUID | Tools' **Secure Boot keys**, **Make keys** | PK, KEK, db | the Secure Boot screen | Enrolment files, Sign with db, Files' Sign in Secure Boot |
+| Secure Boot keys | the owner GUID | Tools' **Secure Boot keys**, **Make keys** | PK, KEK, db | the Secure Boot screen | Enrolment files, Sign or check an image's Sign |
 | Nostr key | the npub | the Value card's **Save into a vault** | the Entry (NOSTR §5), with the key loaded | the saved entry's page | nothing |
 | A Bitcoin wallet's keys | the descriptor checksum and the fingerprints of keys made here | Make a new wallet, Restore, Back up (§10) | New key's seeds, or the restored seed | the wallet card and the checklist | spending, NEW-WALLET §14.3 |
 
@@ -160,7 +160,7 @@ value of it, is never on a stick before step 6.
 **What does not wait**: everything that is not a new signature by the
 key: a GPG key's public key and revocation
 certificate (made For the stick with the key, decision 24), Secure
-Boot's **Check a signature**. Enrolment files carry signatures by PK and
+Boot's **Check** under **Sign or check an image**. Enrolment files carry signatures by PK and
 KEK, so they wait.
 
 ## 4. The steps
@@ -871,8 +871,8 @@ a new `faraday-core/tests/all/backup_flow.rs`; the wallet's in
   the first stick of step 6, each reopen on the right card; the last on
   the next stick not written.
 - **What waits.** A key made in the flow: GPG's Sign a file
-  and Renew, Secure Boot's Enrolment files and Sign with db read **Back
-  up first** until every place is written, then work after the unlock;
+  and Renew, Secure Boot's Enrolment files read **Back up first**, and its
+  Sign opens the flow, until every place is written, then work after the unlock;
   the same keys unlocked from a stick work at once; a Nostr entry saved
   in the flow exports at once.
 - **Every form.** Example C writes three sticks, `main-2.ofv` untouched;

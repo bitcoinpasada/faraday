@@ -175,11 +175,13 @@ mainnet.
 
 **One Files screen holds what came from the stick and what goes to it**
 (decision 1). Every file copied in carries the action that uses it: a
-PSBT **Sign in Wallets**, `BOOTX64.EFI` **Sign in Secure Boot**, an
+PSBT **Sign in Wallets**, an
 entries file **Import into a vault**, a vault file **Unlock**, a received
 file **Show as QR**. Both halves are emptied at power-off. Each half
 scrolls on its own, with its own scrollbar, under the pointer (decision
-55).
+55). A `BOOTX64.EFI` carries no action there: it is signed from its
+key's page in the vault (**Secure Boot** → **Owner keys** → **Sign or
+check an image**).
 
 **For the stick fills itself** (decision 24). A public file a flow makes
 goes For the stick the moment it is made: the signed PSBT and the
@@ -724,7 +726,7 @@ row goes by its name and Home's lead is "Unlock {name}", both with the
 line "Savings 2 of 3 · key 9a6a2580 · 12 entries · seen 14:02"; with
 nothing remembered, "Unlock to see what it holds".
 
-- open vault → **Open** → Vault contents;
+- open vault → **View contents** → Vault contents;
 - locked vault → **Unlock** → passphrase sheet → Files, with **Load
   from {vault}** over it (F62): **Load ticked** → Wallets on the first
   wallet loaded that can sign here (Files when only keys loaded); **Not
@@ -794,8 +796,9 @@ columns narrow, so the chart has room for five nodes on a line at the
 desktop window's size. A wallet with no plan in this vault: its wallet
 and key nodes, and "No backup plan in this vault". On a small panel the
 item's page stacks the same nodes in that order, with no lines.
-- **Add an entry** → form (title, username, password with **Generate with
-  dice**, URL, notes, TOTP secret typed or **Scan**) → saved → the entry
+- **Add an entry** → form (title, username, password, URL, notes, TOTP
+  secret typed or **Scan**; **Generate with dice** is Create a vault's,
+  for its passphrases, not an entry's) → saved → the entry
   selected in the list; vault marked unsaved.
 - Entries list → **TOTP codes** → the codes screen (below).
 - An entry with a TOTP secret → **Show as QR** under **TOTP
@@ -814,16 +817,16 @@ item's page stacks the same nodes in that order, with no lines.
   **PNG** on each file's row, and **Sign**, whose sheet shows the files
   and the signature time and holds to sign (F63); **Renew** with a term
   chosen; **Hold to mark the key revoked** (F32).
-- Secure Boot keys → **Open Secure Boot**.
+- Secure Boot keys → their page in the vault: **Owner keys**, the
+  policy, **Enrolment files** and **Sign or check an image** (below).
 - A recovery sheet → its descriptor, with **Show as QR** and **PNG** on
   a row under it (F28; not built, `docs/QR.md` §7).
 
-**Change passphrases, cost or space** → **Make a new vault from this one**
-→ Create vault, filled in from this vault, with this slot's contents
-carried over; the form says that slots whose passphrases are not entered
-are not carried (`docs/VAULT.md` §8) → new vault created → the old one
-offered for **Remove from this session**, and the stick visit's Delete
-files (its hold) for the stick.
+A vault's passphrases, unlock cost and space are fixed when it is made:
+the app has no action that changes them or makes a new vault from an
+open one, and none that removes a vault from the session short of
+power-off. A vault file is deleted from a stick by the stick visit's
+Delete files (its hold).
 
 **TOTP codes** (`docs/TOTP.md` §5): from a Tools tile or
 the Entries list's own button. No vault open → Make or unlock one, same
@@ -1556,23 +1559,28 @@ plan keeps them in → lock, the sticks written by place → Secure Boot
 screen, with the **Backup** row until every place is written. **Signing
 waits for the backup** (F31): keys made in the flow cannot be made again
 from seed words, so until every place is written, **Enrolment
-files** (its updates are signed by PK and KEK) and **Sign with db**,
-with Files' **Sign in Secure Boot**, read **Back up first** and open the
-flow. **Check a signature** does not wait. Keys in a vault unlocked from
-a stick sign at once.
+files** (its updates are signed by PK and KEK) reads **Back up first**,
+and picking an image to sign or holding **Hold to sign** opens the flow;
+**Check** does not wait. Keys in a vault unlocked from a stick sign at
+once.
 
 **Enrolment files** → policy (Windows-compatible or own keys only) → the
-files For the stick → Learn page: enrolling in the firmware's setup screen.
+files For the stick. Enrolling them is done in the firmware's setup
+screen; Learn has no page on it yet (per-maker guides are planned,
+`docs/STARTER.md` §7.7).
 
-**Sign `BOOTX64.EFI`** → needs the file copied in (none: "Copy
+**Sign or check an image** → the `.efi` files copied in, a row each
+with **Sign** and **Check**. **Sign** → needs the file copied in (none: "Copy
 BOOTX64.EFI in from a stick first", with what a stick visit is) → the
 release check (F134): the release's `SHA256SUMS` and `SHA256SUMS.asc`
 copied in beside it, the signature verified with the release key built
 in, the file listed; a refusal named in place of the hold → **Hold to
-sign** → signed file For the stick → Learn page: copying it onto the boot
-partition on another computer.
+sign** → signed file For the stick, under the same name. The Starter
+writes it onto a stick as **One I signed** (Learn's **Replacing Faraday
+on a stick**).
 
-**Check a signature** → result against the vault's db certificate.
+**Check** → under the list, what the image's signature is against the
+vault's db certificate.
 
 ## APK signing key
 
