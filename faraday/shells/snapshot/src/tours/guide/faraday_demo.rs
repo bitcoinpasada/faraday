@@ -69,7 +69,11 @@ pub(super) fn desktop_home(t: &mut Tour) -> Result<(), String> {
 fn host_shot_marking(t: &mut Tour, name: &str, next: Action) -> Result<(), String> {
     let win = t.size();
     t.pump();
-    let app = std::mem::replace(&mut t.app, Faraday::new());
+    let mut app = std::mem::replace(&mut t.app, Faraday::new());
+    // Faraday Demo's sticks are its shell's folders: their pills stand
+    // in the strip, the boot stick's first.
+    let bare = !app.shell_sticks;
+    app.shell_sticks = true;
     let mut host = Host::new(app);
     host.event(display(win, t.dpi));
     t.now += 4000;
@@ -82,6 +86,9 @@ fn host_shot_marking(t: &mut Tour, name: &str, next: Action) -> Result<(), Strin
     crate::tour::write_png(&path, frame.width, frame.height, frame.rgba)?;
     let mark = host.offered_area(HostPress::App(next));
     t.app = host.app;
+    if bare {
+        t.app.shell_sticks = false;
+    }
     t.app.event(display(win, t.dpi));
     t.pump();
     let Some((x, y, w, h)) = mark else {

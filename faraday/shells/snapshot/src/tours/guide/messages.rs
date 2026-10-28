@@ -8,7 +8,8 @@ use faraday_core::{Action, Screen, cstep};
 /// Costs what making a single-key wallet costs. A fresh stick session
 /// with the guide's key typed in and New wallet 1 made from it: Sign a
 /// message; its Message card with the guide's text typed, and its
-/// Signature card once signed; then Check a signed message.
+/// Signature card once signed; then Check a signed message on it,
+/// brought back into Files.
 pub(super) fn run(t: &mut Tour) -> Result<(), String> {
     key_session(t);
     t.press(Action::Nav(Screen::WalletsStart));
@@ -28,6 +29,27 @@ pub(super) fn run(t: &mut Tour) -> Result<(), String> {
     t.press(Action::MNext(2));
     t.press(Action::MSign);
     t.shot("messages-signed")?;
-    t.press(Action::Nav(Screen::CheckMessage));
+    // The signed message, waiting for the stick, brought back into Files
+    // as a stick visit brings it, and checked.
+    let signed = t
+        .app
+        .outbox
+        .iter()
+        .find(|i| i.name.starts_with("message-") && i.name.ends_with(".txt"))
+        .ok_or("no signed message for the stick")?;
+    let item = faraday_core::Item {
+        name: signed.name.clone(),
+        kind: faraday_core::wallet::FileKind::Message,
+        bytes: signed.bytes.clone(),
+        secret: false,
+        picture: None,
+        sha: None,
+        wallet: None,
+        psbt: None,
+    };
+    faraday_core::testkit::inbox_push(&mut t.app, item);
+    let at = t.app.inbox().iter().count() - 1;
+    t.press(Action::Nav(Screen::Files));
+    t.press(Action::CheckMessage(at));
     t.shot("messages-check")
 }

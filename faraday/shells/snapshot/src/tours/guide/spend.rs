@@ -62,7 +62,6 @@ pub(super) fn spend_by_qr(_c: &Compute, t: &mut Tour) -> Result<(), String> {
     t.press(Action::Scan);
     show_psbt(t, &psbt.to_bytes(), Some("6-3-scanning"))?;
     t.shot_marking("6-4-transaction", Action::ToggleTable)?;
-    t.shot("sign-transaction")?;
     t.press(Action::ToggleTable);
     t.shot_marking("6-4-table", Action::ToggleTable)?;
     t.press(Action::ToggleTable);
@@ -98,8 +97,8 @@ pub(super) fn spend_by_qr(_c: &Compute, t: &mut Tour) -> Result<(), String> {
     t.shot("6-7-away")
 }
 
-/// Costs what reading a PSBT costs. §6.8: a PSBT of the guide's wallet
-/// whose fee is 0.012 BTC, and the
+/// Costs what reading a PSBT costs. Sign a transaction on a PSBT of the
+/// guide's wallet; §6.8: one whose fee is 0.012 BTC, and the
 /// test kit's Savings PSBT, a wallet not loaded here: each scanned from
 /// Home, which files it while a spend is under way, then started from
 /// Files.
@@ -107,7 +106,13 @@ pub(super) fn spend_warnings(_c: &Compute, t: &mut Tour) -> Result<(), String> {
     let w = last_wallet(t)?;
     let fee = faraday_core::testkit::unsigned(&kit_of(t, w, 1_200_000))?.to_bytes();
     let other = std::fs::read(t.kit.join("savings-unsigned.psbt")).map_err(|e| e.to_string())?;
-    for (bytes, name) in [(fee, "6-8-fee"), (other, "6-8-other-wallet")] {
+    // Sign a transaction on a PSBT with nothing to warn of.
+    let plain = faraday_core::testkit::unsigned(&kit_of(t, w, 2_000))?.to_bytes();
+    for (bytes, name) in [
+        (plain, "sign-transaction"),
+        (fee, "6-8-fee"),
+        (other, "6-8-other-wallet"),
+    ] {
         t.press(Action::Nav(Screen::Home));
         t.press(Action::Scan);
         show_psbt(t, &bytes, None)?;
@@ -194,7 +199,7 @@ pub(super) fn stick_in(_c: &Compute, t: &mut Tour) -> Result<(), String> {
 /// Costs a mnemonic's checksum. §6.3 to §6.7 from the stick, with one
 /// key here: the card's Sign the PSBT from the stick; the review; Who
 /// signs, short a key; its Scan a key, test key 2's SeedQR; Sign it;
-/// Send it, and writing to a stick.
+/// Send it, the finished transaction decoded, and writing to a stick.
 pub(super) fn spend_from_stick(c: &Compute, t: &mut Tour) -> Result<(), String> {
     use faraday_core::family::FamilyAction as F;
     use faraday_core::wallet::step;
@@ -232,6 +237,15 @@ pub(super) fn spend_from_stick(c: &Compute, t: &mut Tour) -> Result<(), String> 
     }
     // Primary, the summary panel's action, is not drawn on this page.
     t.shot("6-7-stick-send")?;
+    // Decode it, under the nonce check: the finished transaction taken
+    // apart, then back to the spend.
+    t.press(Action::DecodeFinished);
+    if t.app.screen != Screen::Decode {
+        return Err("Decode it opened no transaction".into());
+    }
+    t.shot("decode")?;
+    t.shot("check-and-decode-decode")?;
+    t.press(Action::Back);
     t.press(Action::Primary);
     t.shot("6-7-write-out")?;
     // The stick's files, gone with the tour.

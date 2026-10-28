@@ -9,9 +9,9 @@ use faraday_core::{Action, Screen, cstep};
 use faraday_crypto::work::Compute;
 use faraday_shell_api::{App, Event};
 
-/// A cosigner's account key at `path` (written at coin type 1, as the test
-/// kit writes them): test key 2 (`5d388376`) or 3 (`cf2e083d`), public
-/// test keys standing for the cosigners' own.
+/// A cosigner's account key at `path`, a Mainnet path as the guide's
+/// pictures are of Mainnet: test key 2 (`5d388376`) or 3 (`cf2e083d`),
+/// public test keys standing for the cosigners' own.
 fn cosigner(n: usize, path: &str) -> String {
     testkit::key(n, path)
 }
@@ -19,7 +19,7 @@ fn cosigner(n: usize, path: &str) -> String {
 /// Costs a key's account derived. The 2-of-3 over the guide's key and
 /// the two cosigners', as the coordinator writes it.
 fn shared_kit(c: &Compute, t: &Tour) -> Result<Kit, String> {
-    let p = "m/48'/1'/0'/2'";
+    let p = "m/48'/0'/0'/2'";
     let keys = [
         key_text_of(c, &t.app.session.keys, 0, NewKind::Multi)?,
         cosigner(1, p),
@@ -43,7 +43,7 @@ fn shared_kit(c: &Compute, t: &Tour) -> Result<Kit, String> {
 /// spends, its sheet over Files.
 pub(super) fn with_others(c: &Compute, t: &mut Tour) -> Result<(), String> {
     key_session(t);
-    let p = "m/48'/1'/0'/2'";
+    let p = "m/48'/0'/0'/2'";
     files_in(
         t,
         &[
@@ -131,7 +131,7 @@ pub(super) fn with_others(c: &Compute, t: &mut Tour) -> Result<(), String> {
 
     // A Taproot wallet whose key path is a key not of its own.
     key_session(t);
-    let tp = "m/48'/1'/0'/3'";
+    let tp = "m/48'/0'/0'/3'";
     let tree = format!(
         "tr(79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798,multi_a(2,{}/<0;1>/*,{}/<0;1>/*,{}/<0;1>/*))",
         key_text_of(c, &t.app.session.keys, 0, NewKind::TapMulti)?,

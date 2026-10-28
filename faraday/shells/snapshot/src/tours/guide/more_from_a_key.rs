@@ -16,7 +16,8 @@ pub(super) fn run(t: &mut Tour) -> Result<(), String> {
     t.press(Action::Nav(Screen::Catalog));
     t.shot("more-from-a-key-tools")?;
     on_the_key(t, "more-from-a-key")?;
-    t.press(Action::Nav(Screen::Randomness));
+    t.press(Action::Nav(Screen::Settings));
+    t.press(Action::Own(Act::Open));
     t.press(Action::Own(Act::Source(OwnSource::Dice)));
     for f in [3, 1, 4, 1, 5, 2, 6, 5, 3, 5] {
         t.press(Action::Own(Act::Roll(f)));
@@ -114,6 +115,41 @@ pub(crate) fn on_the_key(t: &mut Tour, prefix: &str) -> Result<(), String> {
     t.press(Action::Lightning);
     t.press(Action::LKey(fp));
     t.shot(&name("lightning"))?;
-    t.press(Action::Nav(Screen::Vanity));
+    vanity(t, fp)?;
     t.shot(&name("vanity"))
+}
+
+/// Costs an address derived a try. Vanity address on key `fp`: Account
+/// number, Native SegWit, `fa` typed after `bc1q`, and the search run
+/// until it finds an address.
+fn vanity(t: &mut Tour, fp: [u8; 4]) -> Result<(), String> {
+    use faraday_core::vanity::{VanityAction as Va, vstep};
+    use faraday_shell_api::{App, Event};
+    t.press(Action::Vanity(Va::Open));
+    t.press(Action::Vanity(Va::Key(fp)));
+    t.press(Action::Vanity(Va::Next(vstep::DIAL)));
+    t.press(Action::Vanity(Va::Next(vstep::SCRIPT)));
+    type_text(t, "fa");
+    t.press(Action::Vanity(Va::Next(vstep::PREFIX)));
+    t.press(Action::Vanity(Va::Start));
+    // Ticks a tenth of a second apart, as a shell sends them; the tour's
+    // clock is set back after, so the pictures after these keep the
+    // times their pages give.
+    let start = t.now;
+    let mut found = false;
+    for _ in 0..4000 {
+        t.now += 100;
+        t.app.event(Event::Tick { now_ms: t.now });
+        t.pump();
+        if t.app.vanity().is_some_and(|v| v.grind.find.is_some()) {
+            found = true;
+            break;
+        }
+    }
+    t.now = start;
+    if found {
+        Ok(())
+    } else {
+        Err("the vanity search found nothing".into())
+    }
 }

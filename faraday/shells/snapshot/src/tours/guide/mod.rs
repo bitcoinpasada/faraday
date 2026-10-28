@@ -23,6 +23,7 @@ mod spend;
 mod spend_from_a_backup;
 mod vaults_and_passwords;
 
+pub(crate) use check_and_decode::hashes;
 pub(crate) use faraday_demo::demo_session;
 pub(crate) use more_from_a_key::on_the_key;
 

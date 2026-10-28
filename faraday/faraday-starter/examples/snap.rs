@@ -1171,21 +1171,26 @@ fn guide_tour_shots(s: &Snap) -> Result<(), String> {
         h.press(page);
         s.shot(&mut h, name)?;
     }
+    // A maker with a page of its own, the model made up.
     let mut h = s.starter();
     let mut c = laptop(Os::Windows, true);
-    c.maker = "Dell Inc.".into();
+    c.maker = "HP".into();
+    c.family = "ExampleBook".into();
+    c.model = "ExampleBook 840".into();
     h.starter_event(StarterEvent::Computer(c));
     h.press(StarterAction::Start);
     s.shot(&mut h, "starter-start")
 }
 
 /// The Starter's other tools in the guide
-/// (`docs/guide/walk/starter-tools.md`): Blank templates, a Faraday stick
-/// written again keeping its data, a Pi card's Which card?, and What to
+/// (`docs/guide/walk/starter-tools.md`): Blank templates from Tools, a
+/// Faraday stick written again keeping its data, a Pi card's Which card?
+/// from Make, and What to
 /// write?'s One I signed with the signed file taken
 /// (`docs/guide/walk/secure-boot-keys.md`).
 fn guide_tools_shots(s: &Snap) -> Result<(), String> {
     let mut h = s.starter();
+    h.press(StarterAction::ToolsPage);
     h.press(StarterAction::Templates);
     s.shot(&mut h, "starter-tools-templates")?;
     h.press(StarterAction::TemplateChoice(
@@ -1211,6 +1216,7 @@ fn guide_tools_shots(s: &Snap) -> Result<(), String> {
     );
     reader.bus = Bus::SdReader;
     h.starter_event(StarterEvent::Disks(vec![reader]));
+    h.press(StarterAction::MakePage);
     h.press(StarterAction::Make(Target::Pi));
     s.shot(&mut h, "starter-tools-pi-card")
 }

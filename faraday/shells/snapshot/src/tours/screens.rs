@@ -8,6 +8,7 @@ use crate::tours::guide::{DICE_WORDS, kind_at};
 use faraday_core::create::NewKind;
 use faraday_core::fresh::OwnSource;
 use faraday_core::fresh::page::Act;
+use faraday_core::vault::VaultAction as V;
 use faraday_core::{Action, Faraday, Medium, Screen, StickInfo, StorageEvent, cstep};
 use faraday_crypto::work::Compute;
 use faraday_shell_api::App;
@@ -16,7 +17,7 @@ use faraday_shell_api::App;
 /// Wallets with nothing loaded, the Pull sheet, New key's Start, Add a
 /// key with the guide's words typed; then, with that key, each tool
 /// screen and Settings; the wallet made from it, its card, Backups and
-/// the Spend tab; the Lock and power sheets; last, Faraday Demo's Mode
+/// the Spend tab from Home; the Lock and power sheets; last, Faraday Demo's Mode
 /// and Load samples sheets.
 pub(crate) fn screens_tour(_c: &Compute, t: &mut Tour) -> Result<(), String> {
     stick_session(t);
@@ -26,7 +27,8 @@ pub(crate) fn screens_tour(_c: &Compute, t: &mut Tour) -> Result<(), String> {
     t.shot("wallets-start-empty")?;
     t.press(Action::Nav(Screen::Vaults));
     t.shot("vaults-list")?;
-    t.press(Action::Nav(Screen::CreateVault));
+    t.press(Action::Vault(V::Create));
+    t.press(Action::Vault(V::CStep(faraday_core::vault::vstep::PRESET)));
     t.shot("create-vault-size")?;
     // With a stick in, Add a key asks for it out first.
     t.app.storage(StorageEvent::Sticks(vec![stick()]));
@@ -80,21 +82,25 @@ fn stick() -> StickInfo {
     }
 }
 
-/// Each tool screen with the guide's key loaded, Settings and its two
-/// pages of its own.
+/// Each tool screen with the guide's key loaded, opened from Tools: the
+/// calculators on Hashes, each tool that works from a key, Vanity
+/// address's search run; Settings and its two pages of its own.
 fn tools(t: &mut Tour) -> Result<(), String> {
+    t.press(Action::Nav(Screen::Catalog));
+    t.shot("tools")?;
+    crate::tours::guide::hashes(t, "calculators")?;
+    // Each tool on the key opened from Tools, its way back.
+    t.press(Action::Nav(Screen::Catalog));
+    crate::tours::guide::on_the_key(t, "")?;
     for (screen, name) in [
-        (Screen::Catalog, "tools"),
-        (Screen::Tools, "calculators"),
-        (Screen::Decode, "decode"),
         (Screen::Settings, "settings"),
         (Screen::SetTime, "settings-set-time"),
     ] {
         t.press(Action::Nav(screen));
         t.shot(name)?;
     }
-    crate::tours::guide::on_the_key(t, "")?;
-    t.press(Action::Nav(Screen::Randomness));
+    t.press(Action::Nav(Screen::Settings));
+    t.press(Action::Own(Act::Open));
     t.press(Action::Own(Act::Source(OwnSource::Dice)));
     for f in [3, 1, 4, 1, 5, 2, 6, 5, 3, 5] {
         t.press(Action::Own(Act::Roll(f)));
@@ -103,7 +109,8 @@ fn tools(t: &mut Tour) -> Result<(), String> {
 }
 
 /// Make a new wallet's Keys with the guide's key in its slot, the Lock
-/// sheet while it is made, the wallet's card, Backups and the Spend tab;
+/// sheet while it is made, the wallet's card, Backups, and the Spend tab
+/// as Home opens it, then on How to spend bitcoin;
 /// the power sheet on a stick started with Secure Boot off.
 fn wallet(t: &mut Tour) -> Result<(), String> {
     t.press(Action::Nav(Screen::WalletsStart));
@@ -135,7 +142,15 @@ fn wallet(t: &mut Tour) -> Result<(), String> {
     t.shot("messages-sign")?;
     t.press(Action::Nav(Screen::Backups));
     t.shot("backups-list")?;
+    // Spend as Home's Spend from a backup, step by step opens it: what
+    // is loaded, then Walk through from the start on How to spend
+    // bitcoin.
+    t.press(Action::Nav(Screen::Home));
     t.press(Action::Nav(Screen::Family));
+    t.shot("spend-tab-loaded")?;
+    t.press(Action::Family(
+        faraday_core::family::FamilyAction::Walkthrough,
+    ));
     t.shot("spend-tab-map")?;
     t.press(Action::PowerAsk);
     t.shot("lock-and-power-power")?;
