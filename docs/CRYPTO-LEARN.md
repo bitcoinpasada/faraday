@@ -31,7 +31,8 @@ block:
 | **Action** | One line: what is computed, from what. "Signs a transaction input with ECDSA, from the key the PSBT's origin names." | One sentence, no "we", no explanation. |
 | **Standards** | Each standard by number and name, with its status: "BIP 174, Partially Signed Bitcoin Transaction Format, Deployed"; "RFC 6979, Deterministic Usage of DSA and ECDSA, Informational". | Names and statuses come from the manifest's standards table (§2.2), the one place a status is written. A convention or Faraday's own format says so: "Coldcard's seed-xor document, a convention"; "None: Faraday's own (F86)". |
 | **Implementation** | Faraday's own crate and module in `core/` or `faraday/`, or the library by name and version ("secp256k1 0.29.1, through bitcoin 0.32.102"), and what Faraday adds over it. | A library's version is read from `Cargo.lock` when the block is generated, never typed. |
-| **Checked against** | The vector folders under `tools/vectors/`, the tests by name, the F79 cross-check area, the self-test check, the fuzz target. | A missing check is written "not checked against vectors", "not cross-checked: <reason>", "no fuzz target: <reason>"; never left out. |
+| **Checked against** | The vector folders under `tools/vectors/`, the tests by name, the self-test check, the fuzz target. | A missing check is written "not checked against vectors", "no fuzz target: <reason>"; never left out. |
+| **Cross-check** | What the F79 cross-check does for this action (owner, 2026-10-28), one line each: the area; the Faraday code it drives; the second implementation it compares against and how that one is itself checked first; the published vectors it runs; what its random cases vary; each known difference, where Faraday refuses what the second implementation accepts; when it runs (whenever the crypto changes, and with a new seed and about ten times the cases before every release); and the last passing run for this release: its seed and its case count for the area. | Read from the area (§10.1), never typed in the manifest. An action with no area reads "not cross-checked: <reason>", and an area with no second implementation for a part says which part ("AEZ itself has no second implementation here"). |
 | **Code** | Release · file · function, for the functions the entry names as its code; the repository's address as text, `github.com/bitcoinpasada/faraday`. | No line numbers. The release is the build's own release string (F5), filled when the block is drawn, so a version change does not regenerate the blocks. |
 | **Secret handling** | Which `faraday-keys` reveal the action goes through (`Reveal::…`), or "none: no secret leaves `faraday-keys`"; constant time or not, and for which part; what is wiped, and when. | "Constant time" is stated only where the code or the library documents it; otherwise "not stated by the library". |
 | **Limits** | What the action does not do, or refuses: lengths, script kinds, sighashes, cost limits. | Facts from the code and the entry's standard; one line each. |
@@ -143,7 +144,9 @@ difference, as `tools/learn/sync.py check` does for the Learn pages.
 
 | Place | What is generated |
 |---|---|
-| The Learn blocks | faraday/faraday-learn/src/how.rs (new): a `Block` per action with its eight fields, and for each Learn page the blocks it carries, in the manifest's order. Marked generated at its top; never edited by hand. Each Learn page that names an action shows its blocks after its own sections under the heading **How Faraday does it**. |
+| The Learn blocks | faraday/faraday-learn/src/how.rs (new): a `Block` per action with its nine fields, and for each Learn page the blocks it carries, in the manifest's order. Marked generated at its top; never edited by hand. Each Learn page that names an action shows its blocks after its own sections under the heading **How Faraday does it**. |
+| The Cross-check field | From the action's area (§10.1) and the stamp: the area's facts and the last passing run's seed and case count. |
+| `tools/crosscheck/README.md`'s "What runs" table and "Known differences" | From the areas' facts (§10.1), between marker lines, so the README and the blocks say the same. |
 | `docs/STANDARDS.md` §1's status table | From the standards table. |
 | `docs/STANDARDS.md` §2 to §5 | Each table between two marker lines (`<!-- crypto-manifest: begin §3 -->` and its end), one row per `[[row]]`: What, Standard (status), Completeness, Verified by (the union of its actions' checks), Faraday's own call (the union of their own calls). §0, §8 and §9 stay hand-written. |
 | `docs/STANDARDS.md` §6 | The list of Conservative own calls, with and without a decision. |
@@ -302,7 +305,9 @@ its name, its generic bounds, its body, and the attributes other than
 The lock file holds, per action, one line per part: each function of
 its coverage with its body hash, each library with its `Cargo.lock`
 version and checksum, each vector folder with the SHA-256 of its files,
-and each action of its `uses` with that action's fingerprint. A change
+its cross-check area's file with its SHA-256 (a change to what the
+cross-check does is reviewed against the block as a change to the code
+is), and each action of its `uses` with that action's fingerprint. A change
 therefore reaches every action above it: all of them fail together, and
 each is re-stamped after its own review, the used action first.
 The action's `fingerprint` in the manifest is SHA-256 over those lines,
@@ -473,6 +478,33 @@ with `screens_not = [{ screen, reason }]`, each counted with the
 not-crypto ratchet.
 
 ## 10. The cross-check and its stamp
+
+### 10.1 What each area says about itself
+
+Each area file states its facts once, as class attributes beside `name`,
+which the generator reads (§3.1) and the lint checks are present and
+non-empty:
+
+- `faraday`: the Faraday code it drives, as paths the lint resolves;
+- `reference`: the second implementation, with its pinned folder under
+  `tools/reference/` or its distribution package, and `reference_checked`:
+  how that one is checked before any case (its `check_driver`);
+- `vectors`: the published vector folders it runs, or "none published"
+  with what there is;
+- `corpus`: what its random cases vary, one line per kind;
+- `differences`: each known difference, with what the area does about
+  it (checked, counted, kept out of the corpus);
+- `not_compared`: a part of the action with no second implementation,
+  if any.
+
+The README's "What runs" table and "Known differences" are generated
+from these (§3.1), so the area, the README and the block cannot
+disagree; today's text is moved into the attributes in batch 8, word for
+word, and differences settled against the area's code. A passing run
+writes, per area, its case count beside the seed in the stamp; the
+block's last line reads it.
+
+### 10.2 The stamp and the fingerprints
 
 `tools/crosscheck/stamp.py` records that the cross-check passed on this
 code, for all of it at once: any change to a crypto crate forces
@@ -750,8 +782,12 @@ exemptions.
    §4.1, LAYOUT §8 and the guide's screen pages.
 7. **Screens built** (Sonnet). From batch 6's design; the reachability
    test (§9.1); the screens check (§9.2); one tour rendered per size.
-8. **The stamp** (Sonnet). `tools/crosscheck/stamp.py` reads `FILES` and
-   `VECTORS` from the manifest and names the changed actions (§10).
+8. **The cross-check** (Sonnet). Each area's facts as attributes
+   (§10.1), moved from the README's table word for word; the README's
+   table and differences generated; the stamp records each area's case
+   count; `tools/crosscheck/stamp.py` reads `FILES` and `VECTORS` from
+   the manifest and names the changed actions (§10.2). Before batch 4's
+   generator, so the Cross-check field has its source.
 9. **The website** (later, its own repository; §11).
 
 The last batch to build moves this spec's plan (§12's seed table, §14,
@@ -777,6 +813,9 @@ Reference.
 7. **The repository's address.** Settled (owner, 2026-10-28):
    `github.com/bitcoinpasada/faraday`, as text in every block's Code
    field; the website links it to the release's tag.
+8. **What the cross-check does.** Settled (owner, 2026-10-28): each block
+   carries a Cross-check field saying what the F79 cross-check does for
+   the action, read from its area (§1, §10.1).
 
 ## 17. What this does not catch
 
