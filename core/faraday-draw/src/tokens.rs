@@ -581,9 +581,6 @@ pub const BOARD_VAULT_HEAD: f32 = BOARD_CHIP;
 pub const BOARD_VAULT_PAD: f32 = GAP_SMALL;
 /// Stroke in dp of a vault box's edge.
 pub const BOARD_VAULT_STROKE: f32 = 2.0;
-/// Opacity (of 255) of the band's text colour laid over a vault's band
-/// while it is pressed or hovered.
-pub const BOARD_VAULT_HOT: u8 = 40;
 
 // ---------------------------------------------------------------------
 // Timings

@@ -189,15 +189,11 @@ fn dots(
     if hits {
         ui.tip_plain((x, y, mw, h), a, EN.tip_more);
     }
-    if hits && (ui.is_pressed(a) || ui.is_hovered(a)) {
-        ui.wash(
-            x + 1.0,
-            y + 1.0,
-            mw - 2.0,
-            h - 2.0,
-            (h - 2.0) / 2.0,
-            Role::OnSurface.at(faraday_draw::tokens::STATE_PRESS),
-        );
+    // Round, as its focus outline is: its state layer in its content's
+    // colour.
+    let round = (x + 1.0, y + 1.0, mw - 2.0, h - 2.0, (h - 2.0) / 2.0);
+    if hits {
+        ui.state_layer(round, color, a);
     }
     let inset = tokens::GAP_SMALL;
     ui.fill(
@@ -225,7 +221,7 @@ fn dots(
         );
     }
     if hits {
-        ui.hit(x, y, mw, h, a);
+        ui.hit_ringed(round, (x, y, mw, h), a);
     }
 }
 
@@ -317,19 +313,7 @@ fn toggles(ui: &mut Ui, cv: &ChipView, x: f32, y: f32, line_h: f32, hits: bool) 
     for (k, (label, on)) in cv.forms.iter().enumerate() {
         let tw = toggle_w(ui, label);
         let action = Action::Board(BoardPress::Form(z, t, u8::try_from(k).unwrap_or(u8::MAX)));
-        let hot = hits && (ui.is_pressed(action) || ui.is_hovered(action));
-        ui.fill(
-            tx,
-            ty,
-            tw,
-            th,
-            th / 2.0,
-            if hot {
-                Role::SurfaceContainerHighest
-            } else {
-                Role::Surface
-            },
-        );
+        ui.fill(tx, ty, tw, th, th / 2.0, Role::Surface);
         ui.stroke(
             tx,
             ty,
@@ -365,7 +349,8 @@ fn toggles(ui: &mut Ui, cv: &ChipView, x: f32, y: f32, line_h: f32, hits: bool) 
             label,
         );
         if hits {
-            ui.hit_quiet(tx, ty, tw, th, action);
+            // Material's state layer and focus ring in the pill's shape.
+            ui.hit_shaped((tx, ty, tw, th, th / 2.0), action);
         }
         tx += tw + tokens::BOARD_CHIP_GAP;
     }
@@ -381,7 +366,6 @@ fn chip(ui: &mut Ui, fr: &mut Frame, cv: &ChipView, x: f32, y: f32, fit: Fit, hi
     let held = fr.held == Some(cv.chip);
     let lifted = held && fr.drag.is_some() && hits;
     let action = Action::Board(BoardPress::Chip(cv.chip));
-    let hot = hits && !cv.fixed && (ui.is_pressed(action) || ui.is_hovered(action));
     // A chip is the surface with a stronger neutral edge and a faint
     // shadow, so it stands on every box's fill: paper, a stick box, a
     // vault box, the list (§19.15).
@@ -389,18 +373,7 @@ fn chip(ui: &mut Ui, fr: &mut Frame, cv: &ChipView, x: f32, y: f32, fit: Fit, hi
         ui.stroke(x, y, w, h, r, Role::Outline);
     } else {
         ui.shadow(x, y, w, h, r, tokens::ELEVATION_SHEET);
-        ui.fill(
-            x,
-            y,
-            w,
-            h,
-            r,
-            if hot {
-                Role::SurfaceContainerHighest
-            } else {
-                Role::Surface
-            },
-        );
+        ui.fill(x, y, w, h, r, Role::Surface);
         ui.stroke(x, y, w, h, r, Role::Outline);
     }
     let fg = if cv.fixed || cv.faint || lifted {
@@ -533,7 +506,10 @@ fn chip(ui: &mut Ui, fr: &mut Frame, cv: &ChipView, x: f32, y: f32, fit: Fit, hi
             Some(_) => (body, line_h),
             None => (body, h),
         };
-        ui.hit_quiet(x, y, body, body_h, action);
+        // Its state layer and focus ring in the chip's shape; the press
+        // on its body.
+        ui.state_layer((x, y, w, h, r), Role::OnSurface.paint(), action);
+        ui.hit_ringed((x, y, w, h, r), (x, y, body, body_h), action);
         if held {
             fr.held_at = Some(((x, y, w, h), cv.clone()));
         }
@@ -686,7 +662,12 @@ fn paper(
     let (places, _) = flow(ui, chips, x + pad, y + lh, w - 2.0 * pad);
     ui.fill(x, y, w, h, tokens::GAP, fill);
     outline(ui, r, tokens::GAP, tokens::BOARD_BOX_EDGE, edge_c);
-    ui.hit_quiet(x, y, w, h, Action::Board(BoardPress::Zone(z)));
+    let zone = (x, y, w, h);
+    ui.hit_ringed(
+        (x, y, w, h, tokens::GAP),
+        zone,
+        Action::Board(BoardPress::Zone(z)),
+    );
     let mark = tokens::BOARD_MARK;
     ui.icon(x + pad, y + (lh - mark) / 2.0, mark, Icon::File, mark, text);
     ui.text_mid_as(
@@ -769,7 +750,7 @@ fn add_stick(ui: &mut Ui, fr: &Frame, p: usize, r: Box4) {
         Role::OnSurfaceVariant,
         EN.board_add_stick,
     );
-    ui.hit_quiet(x, y, w, h, a);
+    ui.hit_shaped((x, y, w, h, tokens::GAP), a);
     let on = takes_held && fr.drag.is_none_or(|d| inside(d, r));
     if on {
         edge(ui, r, tokens::GAP, Role::Primary.paint());
@@ -1035,13 +1016,8 @@ fn place(
     let e = tokens::BOARD_BOX_EDGE;
     let (lay, h) = place_lay(ui, v, cv, (x, y, w), min_h);
     let (bx, bw) = place_box(ui, x, y, w, h);
-    ui.hit_quiet(
-        x,
-        y,
-        w,
-        h,
-        Action::Board(BoardPress::Zone(Zone::Card(cv.p))),
-    );
+    let zone = Action::Board(BoardPress::Zone(Zone::Card(cv.p)));
+    ui.hit_ringed((x, y, w, h, tokens::RADIUS), (x, y, w, h), zone);
     // A vault's chip held goes to the place as a whole.
     if let Some(c) = fr.held
         && let Thing::Vault(_) = c.thing()
@@ -1108,15 +1084,19 @@ fn vault_head(
     let action = Action::Board(BoardPress::Chip(vc.chip));
     let held = fr.held == Some(vc.chip);
     band(ui, x, y, w, hh, Role::Primary.paint());
-    if ui.is_pressed(action) || ui.is_hovered(action) {
-        band(
-            ui,
-            x,
-            y,
-            w,
-            hh,
-            Role::OnPrimary.with_alpha(tokens::BOARD_VAULT_HOT),
-        );
+    // Material's state layer in the band's own shape, in its content's
+    // colour.
+    let state = if ui.is_pressed(action) {
+        Some(tokens::STATE_PRESS)
+    } else if ui.focused == Some(action) {
+        Some(tokens::STATE_FOCUS)
+    } else if ui.is_hovered(action) {
+        Some(tokens::STATE_HOVER)
+    } else {
+        None
+    };
+    if let Some(opacity) = state {
+        band(ui, x, y, w, hh, Role::OnPrimary.at(opacity));
     }
     ui.icon(
         x + pad,
@@ -1179,7 +1159,11 @@ fn vault_head(
             Role::OnPrimary.paint(),
         );
     }
-    ui.hit_quiet(x, y, w - mw - off_w, hh, action);
+    ui.hit_ringed(
+        (x, y, w, hh, tokens::GAP),
+        (x, y, w - mw - off_w, hh),
+        action,
+    );
     if held {
         fr.held_at = Some(((x, y, w, hh), vc.clone()));
     }
@@ -1238,7 +1222,8 @@ fn stick(ui: &mut Ui, fr: &mut Frame, st: &crate::board::StickView, r: Box4, cus
     let hh = stick_box(ui, fr.stick_glyph, &st.label, r);
     // The stick box outside its files box and vault box still keeps a
     // drop as a file (§19.17 item 2).
-    ui.hit_quiet(x, y, w, h, Action::Board(BoardPress::Zone(fz)));
+    let zone = Action::Board(BoardPress::Zone(fz));
+    ui.hit_ringed((x, y, w, h, tokens::GAP), (x, y, w, h), zone);
     // Its × (after the lock, only for a stick that carries a vault alone:
     // its files stay as made, §17.8); none while the board is read-only.
     if custom && !(fr.locked && !files.is_empty()) {
@@ -1280,12 +1265,11 @@ fn stick(ui: &mut Ui, fr: &mut Frame, st: &crate::board::StickView, r: Box4, cus
             tokens::GAP,
             Role::SurfaceContainerLowest,
         );
-        ui.hit_quiet(
-            vx,
-            vy,
-            vw,
-            vault_h,
-            Action::Board(BoardPress::Zone(vz.zone)),
+        let zone = Action::Board(BoardPress::Zone(vz.zone));
+        ui.hit_ringed(
+            (vx, vy, vw, vault_h, tokens::GAP),
+            (vx, vy, vw, vault_h),
+            zone,
         );
         vault_head(ui, fr, vc, (&st.sealed, &st.sealed_short), vx, vy, vw);
         let iy = vy + tokens::BOARD_VAULT_HEAD + vp;
@@ -1344,7 +1328,8 @@ fn software(ui: &mut Ui, fr: &mut Frame, v: &BoardView, x: f32, y: f32, w: f32) 
     if let Some(&r) = lay.sticks.first() {
         let hh = stick_box(ui, fr.stick_glyph, &sv.stick_label, r);
         let z = Zone::SoftStick;
-        ui.hit_quiet(r.0, r.1, r.2, r.3, Action::Board(BoardPress::Zone(z)));
+        let zone = Action::Board(BoardPress::Zone(z));
+        ui.hit_ringed((r.0, r.1, r.2, r.3, tokens::GAP), r, zone);
         let sp = tokens::BOARD_STICK_PAD;
         let fh = paper_h(ui, chips, r.2 - 2.0 * sp);
         let files_box = (r.0 + sp, r.1 + hh, r.2 - 2.0 * sp, fh);
@@ -1376,16 +1361,6 @@ fn software(ui: &mut Ui, fr: &mut Frame, v: &BoardView, x: f32, y: f32, w: f32) 
 fn add_place(ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let a = Action::Board(BoardPress::AddPlace);
     let h = tokens::BOARD_HEAD;
-    if ui.is_pressed(a) || ui.is_hovered(a) {
-        ui.wash(
-            x,
-            y,
-            w,
-            h,
-            tokens::GAP,
-            Role::OnSurface.at(faraday_draw::tokens::STATE_PRESS),
-        );
-    }
     dashed(
         ui,
         (x, y, w, h),
@@ -1399,7 +1374,7 @@ fn add_place(ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         Role::OnSurfaceVariant,
         EN.board_add_place,
     );
-    ui.hit_quiet(x, y, w, h, a);
+    ui.hit_shaped((x, y, w, h, tokens::GAP), a);
     h
 }
 
@@ -2023,13 +1998,8 @@ fn list_in(app: &View, ui: &mut Ui, (px, top, pw, view): Box4, card: bool) {
     // The card is as tall as the list, up to the pane's height.
     let view = if card { view.min(content) } else { view };
     let clip = ui.rect(px, top, pw, view);
-    ui.hit_quiet(
-        px,
-        top,
-        pw,
-        view,
-        Action::Board(BoardPress::Zone(Zone::List)),
-    );
+    let zone = Action::Board(BoardPress::Zone(Zone::List));
+    ui.hit_ringed((px, top, pw, view, 0.0), (px, top, pw, view), zone);
     let taken = fr.held.is_some_and(|c| matches!(c, Chip::Placed(..)));
     ui.c.push_clip(clip);
     let mark = ui.hits.len();
