@@ -4,13 +4,11 @@
 
 use super::*;
 use faraday_draw::tokens::{
-    APP_BAR_H, BUTTON_H, ELEVATION_RAISED, GAP, GAP_SMALL, GRID, ICON_SMALL, LABEL_L, LABEL_M,
-    LABEL_S, MARGIN_COMPACT, NAV_BAR_H, PAD, SHAPE_S, TOUCH,
+    APP_BAR_H, BUTTON_H, GAP, GAP_SMALL, GRID, ICON_SMALL, LABEL_L, LABEL_M, LABEL_S,
+    MARGIN_COMPACT, NAV_BAR_H, PAD, TOUCH,
 };
+use faraday_ui::menu::{self as fmenu, Menu, MenuLine};
 use faraday_ui::nav::{self as fnav, AppBar, Rail};
-
-/// The ⋮ menu's width.
-const MENU_W: f32 = 280.0;
 
 /// The four destinations, the one shown lit.
 fn destinations(starter: &Starter) -> [fnav::Dest<'static, Action>; 4] {
@@ -163,21 +161,34 @@ pub(super) fn top_bar(starter: &Starter, ui: &mut Ui, rail_w: f32, aw: f32) {
     ui.ox = 0.0;
 }
 
-/// The ⋮ menu under the bar's ⋮ at the window's right: a popup with a
-/// row for each of [`menu_rows`]; a press outside it closes it.
-pub(super) fn menu(starter: &Starter, ui: &mut Ui, w: f32) {
+/// Costs measuring its rows. The ⋮ menu: Material's menu
+/// (`faraday_ui::menu`) under the bar's ⋮ at the window's right, a row
+/// for each of [`menu_rows`], in a frame `w` by `h`; a press outside it
+/// closes it. A popup at every window size: the Starter is a desktop
+/// app, with no small panel's sheet.
+pub(super) fn menu(starter: &Starter, ui: &mut Ui, w: f32, h: f32) {
     let rows = menu_rows(starter);
-    let ph = rows.len() as f32 * TOUCH + GAP;
-    let (px, py) = (w - GAP_SMALL - MENU_W, APP_BAR_H - GAP_SMALL);
-    ui.hit_around(px, py, MENU_W, ph, StarterAction::CloseMenu.host());
-    ui.shadow(px, py, MENU_W, ph, SHAPE_S, ELEVATION_RAISED);
-    ui.fill(px, py, MENU_W, ph, SHAPE_S, Role::SurfaceContainer);
-    ui.stroke(px, py, MENU_W, ph, SHAPE_S, Role::OutlineVariant);
-    for (i, (label, action)) in rows.into_iter().enumerate() {
-        let ry = py + GAP / 2.0 + i as f32 * TOUCH;
-        let a = action.host();
-        ui.state_layer((px, ry, MENU_W, TOUCH, SHAPE_S), Role::OnSurface.paint(), a);
-        ui.text_mid_as((px + PAD, ry, TOUCH), LABEL_L, Role::OnSurface, label);
-        ui.hit_quiet(px, ry, MENU_W, TOUCH, a);
-    }
+    let lines: Vec<MenuLine<'_, Action>> = rows
+        .iter()
+        .map(|&(label, action)| MenuLine::Item(label, action.host(), false))
+        .collect();
+    // The ⋮ as the top bar draws it ([`top_bar`]'s first `right`).
+    let (mx, my) = (w - GAP_SMALL - TOUCH, (APP_BAR_H - TOUCH) / 2.0);
+    let anchor = ui.rect(mx, my, TOUCH, TOUCH);
+    let m = Menu {
+        title: None,
+        icon: Glyph::Icon(Icon::List),
+        lines: &lines,
+        at: None,
+        anchor: Some((anchor.x, anchor.y, anchor.w, anchor.h)),
+        cancel: (S.starter_cancel, StarterAction::CloseMenu.host()),
+        shown: 1.0,
+    };
+    let kept = (ui.compact, ui.outside, ui.offset, ui.ox, ui.oy);
+    ui.compact = false;
+    ui.outside = Some(StarterAction::CloseMenu.host());
+    ui.offset = 0.0;
+    (ui.ox, ui.oy) = (0.0, 0.0);
+    fmenu::menu(ui, w, h, &m);
+    (ui.compact, ui.outside, ui.offset, ui.ox, ui.oy) = kept;
 }

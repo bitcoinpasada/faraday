@@ -10,6 +10,7 @@ use faraday_draw::widgets::Icon;
 use faraday_strings::fill;
 use faraday_strings::{EN, Strings};
 use faraday_ui::Role;
+use faraday_ui::hold::HoldTone;
 use faraday_ui::parts::qr_code;
 use faraday_ui::{Glyph, NameSuffix, Paint, Style};
 
@@ -36,8 +37,8 @@ mod nav;
 
 use faraday_draw::tokens::{
     BODY_L, BODY_M, BODY_S, BUTTON_H, CONTENT_MAX, DISABLED_CONTAINER, DISABLED_CONTENT, GAP,
-    LABEL_L, LABEL_S, LIST_1, LIST_2, MARGIN_COMPACT, MARGIN_WIDE, NAV_BAR_H, PAD, PROGRESS_H,
-    RAIL_W, STATE_PRESS, TITLE_L, TITLE_M, TITLE_S,
+    LABEL_L, LABEL_S, LIST_1, LIST_2, MARGIN_COMPACT, MARGIN_WIDE, NAV_BAR_H, PROGRESS_H, RAIL_W,
+    SHAPE_M, SHAPE_S, TITLE_L, TITLE_M, TITLE_S,
 };
 
 /// The widest a task page's column grows (a text column, not a grid).
@@ -121,7 +122,7 @@ pub(crate) fn frame(starter: &Starter, ui: &mut Ui) -> f32 {
         }
     }
     if starter.menu {
-        nav::menu(starter, ui, w);
+        nav::menu(starter, ui, w, h);
     }
     if let Some(sheet) = starter.sheet {
         sheet_over(starter, ui, w, h, sheet);
@@ -150,7 +151,7 @@ fn held_chrome(starter: &Starter, ui: &mut Ui) {
         }
     }
     if starter.menu {
-        nav::menu(starter, ui, w);
+        nav::menu(starter, ui, w, h);
     }
 }
 
@@ -331,19 +332,22 @@ fn fact_row(ui: &mut Ui, x: f32, y: f32, w: f32, key: &str, value: &str) -> f32 
     value_row(ui, x, y, w, key, value, Role::OnSurface)
 }
 
-/// A radio mark centred on (x + 12, cy): a ring, filled when chosen, its
-/// edge on-surface-variant, or outline-variant where it is not available.
+/// A radio button's mark centred on (x + 12, cy), Material's anatomy:
+/// a 20 dp ring 2 dp thick with, when chosen, a 10 dp dot inside it,
+/// both primary when chosen and on-surface-variant when not; on-surface
+/// at 0.38 where it is not available.
 fn radio_mark(ui: &mut Ui, x: f32, cy: f32, on: bool, enabled: bool) {
+    let tone = match (enabled, on) {
+        (false, _) => Role::OnSurface.at(DISABLED_CONTENT),
+        (true, true) => Role::Primary.paint(),
+        (true, false) => Role::OnSurfaceVariant.paint(),
+    };
+    let (cx, r) = (x + 12.0, 10.0);
+    let ring = ui.rect(cx - r, cy - r, 2.0 * r, 2.0 * r);
+    let ink = ui.col(tone);
+    ui.c.stroke_rounded_rect(ring, r * ui.f, 2.0 * ui.f, ink);
     if on {
-        ui.dot(x + 12.0, cy, 9.0, Role::Primary);
-        ui.dot(x + 12.0, cy, 4.0, Role::OnPrimary);
-    } else {
-        let edge = if enabled {
-            Role::OnSurfaceVariant
-        } else {
-            Role::OutlineVariant
-        };
-        ui.stroke(x + 3.0, cy - 9.0, 18.0, 18.0, 9.0, edge);
+        ui.dot(cx, cy, 5.0, tone);
     }
 }
 
@@ -374,11 +378,7 @@ fn nav_row(
     let compact = ui.compact;
     let h = if sub.is_empty() { LIST_1 } else { LIST_2 };
     let enabled = action.is_some();
-    let pressed = action.is_some_and(|a| ui.is_pressed(a.host()));
     ui.card(x, y, w, h, Role::OutlineVariant);
-    if pressed {
-        ui.wash(x, y, w, h, 10.0, Role::OnSurface.at(STATE_PRESS));
-    }
     let ib = if compact { 28.0 } else { 32.0 };
     let (ibg, ifg) = if enabled {
         (
@@ -448,13 +448,15 @@ fn nav_row(
             9.0,
             Role::OnSurfaceVariant,
         );
-        ui.hit(x, y, w, h, a.host());
+        // Its state layer in the card's own corners.
+        ui.hit_shaped((x, y, w, h, SHAPE_M), a.host());
     }
     h + 8.0
 }
 
 /// A warning: a band in warning-container with the line in it, in
-/// on-warning-container. Returns its height with the gap under it.
+/// on-warning-container, a card's corners and no edge: the container
+/// sets it apart. Returns its height with the gap under it.
 fn warning(ui: &mut Ui, x: f32, y: f32, w: f32, s: &str) -> f32 {
     // Measured first, where nothing shows: the band needs the text's height.
     ui.c.push_clip(faraday_draw::Rect::new(0, 0, 0, 0));
@@ -466,8 +468,7 @@ fn warning(ui: &mut Ui, x: f32, y: f32, w: f32, s: &str) -> f32 {
     );
     ui.c.pop_clip();
     let bh = th + 20.0;
-    ui.fill(x, y, w, bh, 10.0, Role::WarningContainer);
-    ui.stroke(x, y, w, bh, 10.0, Role::Warning.with_alpha(110));
+    ui.fill(x, y, w, bh, SHAPE_M, Role::WarningContainer);
     ui.wrap_as(
         (x + 14.0, y + 10.0, w - 28.0),
         TITLE_S,
@@ -488,13 +489,12 @@ pub(crate) fn link(ui: &mut Ui, x: f32, y: f32, w: f32, id: LearnId) -> f32 {
     let action = StarterAction::LearnPage(id).host();
     let label = ui.fit_as(TITLE_S, label, w);
     let tw = ui.measure_as(TITLE_S, &label);
-    let tone = if ui.is_pressed(action) || ui.is_hovered(action) {
-        Role::OnSurface
-    } else {
-        Role::Primary
-    };
-    ui.text_mid_as((x, y, 28.0), TITLE_S, tone, &label);
-    ui.hit(x - 4.0, y, tw + 8.0, 28.0, action);
+    // Material's text button: the label in primary, its state layer
+    // primary, round at its ends.
+    let at = (x - 4.0, y, tw + 8.0, 28.0, 14.0);
+    ui.state_layer(at, Role::Primary.paint(), action);
+    ui.text_mid_as((x, y, 28.0), TITLE_S, Role::Primary, &label);
+    ui.hit_ringed(at, (x - 4.0, y, tw + 8.0, 28.0), action);
     32.0
 }
 
@@ -1011,7 +1011,7 @@ fn mode(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
         let rh = LIST_2;
         if enabled {
             ui.state_layer(
-                (x - 6.0, y + 2.0, w + 12.0, rh - 4.0, 8.0),
+                (x - 6.0, y + 2.0, w + 12.0, rh - 4.0, SHAPE_S),
                 Role::OnSurface.paint(),
                 action,
             );
@@ -1036,7 +1036,8 @@ fn mode(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
         let rooms = (w - 40.0, w - 40.0);
         two_lines(ui, (tx, y, rh), rooms, (head, ink), (sub, tone.paint()));
         if enabled {
-            ui.hit(x - 6.0, y, w + 12.0, rh, action);
+            let layer = (x - 6.0, y + 2.0, w + 12.0, rh - 4.0, SHAPE_S);
+            ui.hit_ringed(layer, (x - 6.0, y, w + 12.0, rh), action);
         }
         y += rh;
         // The one fact the Learn page explains (§4.4).
@@ -1057,11 +1058,8 @@ fn mode(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     }
     y += boot_file::section(starter, ui, x, y, w);
     y += 20.0;
-    let style = if chosen.is_some() && !starter.keep_unread() && starter.boot_ready() {
-        Style::Primary
-    } else {
-        Style::Disabled
-    };
+    let style =
+        Style::Primary.when(chosen.is_some() && !starter.keep_unread() && starter.boot_ready());
     y + buttons(
         ui,
         x,
@@ -1164,11 +1162,7 @@ fn write_buttons(
         Mode::Whole => S.starter_erase_and_write,
         Mode::KeepData => S.starter_write,
     };
-    let style = if matches && !starter.no_writer {
-        Style::Primary
-    } else {
-        Style::Disabled
-    };
+    let style = Style::Primary.when(matches && !starter.no_writer);
     if !matches {
         // The disk is gone or changed: the only way on is to choose again.
         return buttons(
@@ -1194,8 +1188,8 @@ fn write_buttons(
     buttons(ui, x, y, w, &[(label, style, StarterAction::Write)])
 }
 
-/// A hold (`docs/DESIGN.md`'s hold, F136): an outlined button in the
-/// error tone that fills while it is held and acts once held to the end
+/// A hold (`docs/DESIGN.md`'s hold, F136): faraday-ui's hold in the
+/// error tone, filling while it is held and acting once held to the end
 /// ([`Starter::is_hold`]); let go before, nothing happens. Returns its
 /// height.
 fn hold(
@@ -1205,18 +1199,9 @@ fn hold(
     label: &str,
     action: StarterAction,
 ) -> f32 {
-    let h = faraday_draw::tokens::CHIP_LINE;
-    let bw = (ui.measure_as(LABEL_L, label) + 2.0 * PAD).min(w);
-    let label = ui.fit_as(LABEL_L, label, bw - 2.0 * PAD);
-    let tone = Role::Error.paint();
-    let part = starter.held_part(action);
-    if part > 0.0 {
-        ui.fill(x, y, bw * part, h, 10.0, tone.with_alpha(60));
-    }
-    ui.stroke(x, y, bw, h, 10.0, tone.with_alpha(115));
-    ui.text_mid_as((x + PAD, y, h), LABEL_L, tone, &label);
-    ui.hit(x, y, bw, h, action.host());
-    h + GAP
+    let held = starter.held_part(action);
+    ui.hold_button((x, y, w), (label, HoldTone::Error), held, action.host());
+    ui.button_height(BUTTON_H) + GAP
 }
 
 fn writing(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
@@ -1413,11 +1398,7 @@ fn start(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     if let Some(why) = &starter.restart_failed {
         y += line(ui, ix, y, iw, &reason_text(why), Role::Error);
     }
-    let style = if open || !held.is_empty() {
-        Style::Disabled
-    } else {
-        Style::Secondary
-    };
+    let style = Style::Secondary.when(!open && held.is_empty());
     y += buttons(
         ui,
         ix,
@@ -1455,11 +1436,7 @@ fn start(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     };
     y += line(ui, ix, y, iw, how, Role::OnSurfaceVariant) + 6.0;
     if facts.use_a_device() && facts.stick().is_some() {
-        let style = if open || !held.is_empty() {
-            Style::Disabled
-        } else {
-            Style::Secondary
-        };
+        let style = Style::Secondary.when(!open && held.is_empty());
         y += buttons(
             ui,
             ix,
@@ -1615,11 +1592,7 @@ fn notes_block(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     if let Some(why) = &starter.notes_open_failed {
         y += line(ui, x, y, w, &reason_text(why), Role::Error);
     }
-    let print = if starter.key_reading {
-        Style::Disabled
-    } else {
-        Style::Secondary
-    };
+    let print = Style::Secondary.when(!starter.key_reading);
     if !starter.bitlocker_offered() {
         y += buttons(
             ui,
@@ -1657,7 +1630,7 @@ fn notes_block(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     };
     let a = StarterAction::IncludeKey.host();
     ui.state_layer(
-        (tx - 6.0, ty, tick_w + 12.0, 44.0, 8.0),
+        (tx - 6.0, ty, tick_w + 12.0, 44.0, SHAPE_S),
         Role::OnSurface.paint(),
         a,
     );
@@ -1668,7 +1641,8 @@ fn notes_block(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
         Role::OnSurface,
         S.starter_notes_include_key,
     );
-    ui.hit(tx - 6.0, ty, tick_w + 12.0, 44.0, a);
+    let layer = (tx - 6.0, ty, tick_w + 12.0, 44.0, SHAPE_S);
+    ui.hit_ringed(layer, (tx - 6.0, ty, tick_w + 12.0, 44.0), a);
     y = ty + 44.0;
     if starter.key_reading {
         y += 8.0;
@@ -1722,11 +1696,7 @@ fn bitlocker_block(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f
         y += line(ui, x, y, w, &reason_text(why), Role::Error);
     }
     let busy = starter.bitlocker_step.is_some();
-    let style = if busy {
-        Style::Disabled
-    } else {
-        Style::Secondary
-    };
+    let style = Style::Secondary.when(!busy);
     let (label, action) = if on {
         (S.starter_bitlocker_suspend, StarterAction::SuspendBitLocker)
     } else {
@@ -1957,7 +1927,7 @@ fn install(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
         y += line(ui, x, y, w, &reason_text(why), Role::Error);
     }
     let (label, style) = if starter.installing {
-        (S.starter_installing, Style::Disabled)
+        (S.starter_installing, Style::PrimaryOff)
     } else {
         (S.starter_install_now, Style::Primary)
     };
@@ -2268,15 +2238,12 @@ fn tick_row(
 ) -> f32 {
     let a = action.host();
     let rh = LIST_1;
-    ui.state_layer(
-        (x - 6.0, y + 2.0, w + 12.0, rh - 4.0, 8.0),
-        Role::OnSurface.paint(),
-        a,
-    );
+    let layer = (x - 6.0, y + 2.0, w + 12.0, rh - 4.0, SHAPE_S);
+    ui.state_layer(layer, Role::OnSurface.paint(), a);
     let cy = y + rh / 2.0;
     radio_mark(ui, x, cy, on, true);
     ui.text_mid_as((x + 36.0, y, rh), BODY_L, Role::OnSurface, head);
-    ui.hit(x - 6.0, y, w + 12.0, rh, a);
+    ui.hit_ringed(layer, (x - 6.0, y, w + 12.0, rh), a);
     ui.rule(x, y + rh, w, Role::OutlineVariant);
     rh
 }

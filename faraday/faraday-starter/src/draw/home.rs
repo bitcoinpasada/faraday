@@ -216,7 +216,7 @@ fn entry_body(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
         (
             S.starter_removing_entry.to_string(),
             Role::OnSurfaceVariant,
-            Style::Disabled,
+            Style::Secondary.off(),
         )
     } else if let Some(why) = failed {
         (why, Role::Warning, Style::Secondary)
@@ -352,11 +352,7 @@ fn computer_body(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32
     y += checklist(starter, ui, x, y, w);
     y += GAP;
     let (label, offered) = computer_button(starter);
-    let style = if offered {
-        Style::Primary
-    } else {
-        Style::Disabled
-    };
+    let style = Style::Primary.when(offered);
     y += card_button(starter, ui, (x, y, w), label, style, StarterAction::Next);
     y - y0
 }
@@ -372,20 +368,17 @@ fn checklist(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     for (n, row) in facts.checklist().iter().enumerate() {
         let action = StarterAction::Item(row.item);
         let is_next = next == Some(row.item);
-        let pressed = ui.is_pressed(action.host());
-        if pressed {
-            ui.wash(
-                x - 6.0,
-                y + 2.0,
-                w + 12.0,
-                ROW_H - 4.0,
-                8.0,
-                Role::OnSurface.at(STATE_PRESS),
-            );
-        } else if is_next {
+        let layer = (x - 6.0, y + 2.0, w + 12.0, ROW_H - 4.0, SHAPE_S);
+        if is_next {
             // The next step: Material's selected state.
-            let (rx, rw) = (x - 6.0, w + 12.0);
-            ui.fill(rx, y + 2.0, rw, ROW_H - 4.0, 8.0, Role::SecondaryContainer);
+            ui.fill(
+                layer.0,
+                layer.1,
+                layer.2,
+                layer.3,
+                layer.4,
+                Role::SecondaryContainer,
+            );
         }
         ui.badge(
             x + 4.0,
@@ -395,7 +388,7 @@ fn checklist(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
             is_next,
         );
         let tx = x + 44.0;
-        let lit = is_next && !pressed;
+        let lit = is_next;
         let fg = faraday_ui::pal::on_selected(
             lit,
             if row.done {
@@ -414,7 +407,10 @@ fn checklist(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
         );
         let (cx, cy) = (x + w - 24.0, y + (ROW_H - 20.0) / 2.0);
         ui.icon(cx, cy, 20.0, Icon::ChevronRight, 9.0, muted);
-        ui.hit(x - 6.0, y, w + 12.0, ROW_H, action.host());
+        // The pressed layer in the row's content colour, over its
+        // selected fill when it is the next step.
+        ui.state_layer(layer, fg, action.host());
+        ui.hit_ringed(layer, (x - 6.0, y, w + 12.0, ROW_H), action.host());
         y += ROW_H;
         if row.item == Item::SecureBootOn {
             y += link(ui, tx, y, w - 44.0, LearnId::SecureBootBitLocker);
@@ -487,11 +483,7 @@ fn pi_body(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     let mut y = y0;
     y += card_line(ui, (x, y, w), &line, Role::OnSurfaceVariant);
     y += GAP;
-    let style = if has {
-        Style::Secondary
-    } else {
-        Style::Disabled
-    };
+    let style = Style::Secondary.when(has);
     y += card_button(
         starter,
         ui,
