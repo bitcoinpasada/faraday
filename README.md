@@ -8,12 +8,15 @@ signs with them on a machine that has no network.
 
 Every document, and which one answers which question: `docs/README.md`.
 
-> **Use at your own risk.** Faraday is not reviewed. 0.1.8 is a
-> pre-release: no one outside the project has reviewed its code, its
-> cryptography or its builds, and no second builder has reproduced it.
-> It comes with no warranty of any kind (see `LICENSE`). Check a
-> download as [Verifying a release](#verifying-a-release) says before
-> using it.
+> **Use at your own risk.** 0.1.8 is a pre-release. One outside audit,
+> AI-assisted, has read its code; no person outside the project has
+> reviewed its code, its cryptography or its builds, and no second
+> builder has reproduced it. It comes with no warranty of any kind (see
+> `LICENSE`). Check a download as [Verifying a
+> release](#verifying-a-release) says before using it.
+
+**Audits.** The outside audits and Faraday's reply to each, finding by
+finding, are on the Audits page: <https://faradayoffline.app/audits/>.
 
 **Reviews and feedback are wanted.** Read the code, boot an image, try
 the flows, and say what you find in an
