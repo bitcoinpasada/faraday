@@ -5,13 +5,18 @@ repository. They are versioned here so that when one changes, this file
 changes and nothing else has to be kept in step.
 
 - The design system is `docs/DESIGN.md`.
-- Faraday and the Starter follow Material 3 (F92, F91): a new or changed
-  screen, component or token follows Material 3's guidance (its
-  components, type scale, 4 dp spacing, 48 dp touch targets, state
-  layers, colour roles, shape, elevation, motion, and the layout rules of
-  `docs/LAYOUT.md`), checked against Material's own pages and drawn with
-  Faraday's own look (`faraday-ui`). Where Faraday differs, a decision
-  says so; a difference without one is a defect to fix.
+- Every Faraday app follows Material 3 (F92, F91): the device app,
+  Faraday Demo and the Starter, and the website, whose own repository's
+  rules carry the same list. A new or changed screen, component or
+  token follows Material 3's guidance (its components, type scale, 4 dp
+  spacing, 48 dp touch targets, state layers, colour roles, shape,
+  elevation, motion, and the layout rules of `docs/LAYOUT.md`), checked
+  against Material's own pages and drawn with Faraday's own look
+  (`faraday-ui`). A screen's colours are the colour roles from
+  faraday-ui's palette, never a colour written in place. Where Faraday
+  differs, a decision says so; a difference without one is a defect to
+  fix, and a review of a screen names the Material page it was checked
+  against.
 - What the app takes in is `docs/STANDARDS.md` §0: a published standard,
   followed and checked against an implementation Faraday did not write,
   or Faraday's own rule that fails closed; work on
@@ -41,10 +46,11 @@ changes and nothing else has to be kept in step.
   The Starter's screens are `docs/STARTER.md` §3, built from the same
   components, drawn with Faraday's own look (`faraday-ui`).
 - A new dimension is a name in `core/faraday-draw/src/tokens.rs`. The
-  screens still hold numbers written in place from before the rule was
-  checked there; `tools/lint-tokens.counts` holds how many per crate,
+  screens (Faraday's and the Starter's) still hold numbers, and a few
+  colours, written in place from before the rule was checked there;
+  `tools/lint-tokens.counts` holds how many per crate,
   `tools/lint-tokens.sh` fails if a count rises, and a change that names
-  numbers lowers the count.
+  them lowers the count.
 - Every user-facing string is in one file,
   `faraday/faraday-strings/src/en.rs`. Two exceptions: the Learn pages
   (`faraday/faraday-learn/src/pages/en.rs`, edited as `docs/learn/`) and the

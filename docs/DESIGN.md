@@ -10,8 +10,10 @@ document differs from Material 3, a decision says so. F108 records how
 the tokens, colour roles and components follow it, shape included.
 
 Every dimension in it is a name in
-`core/faraday-draw/src/tokens.rs`, and `tools/lint-tokens.sh` keeps it that
-way.
+`core/faraday-draw/src/tokens.rs`, and every colour on a screen is one of
+Material 3's colour roles from faraday-ui's palette (`docs/THEMES.md`);
+`tools/lint-tokens.sh` keeps both that way, in Faraday's screens and the
+Starter's.
 
 ## 1. Why this exists
 
