@@ -664,7 +664,20 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
     /// [`Ui::report_scroll_in`] for a region that shows the page's own
     /// overlay scrollbar at its right edge while it is the one scrolled.
     pub fn report_scroll_beside(&mut self, slot: Slot, view: Rect, max: f32, offset: f32) {
-        self.report(slot, (view, Role::Surface), max, offset, false);
+        self.report_scroll_beside_on(slot, (view, Role::Surface), max, offset);
+    }
+
+    /// [`Ui::report_scroll_beside`] for a region that sits on the
+    /// container `ground` (Learn's supporting pane): its edges fade into
+    /// that container, as [`Ui::report_scroll_on`]'s do.
+    pub fn report_scroll_beside_on(
+        &mut self,
+        slot: Slot,
+        (view, ground): (Rect, Role),
+        max: f32,
+        offset: f32,
+    ) {
+        self.report(slot, (view, ground), max, offset, false);
     }
 
     /// [`Ui::report_scroll_beside`] for a region whose content also pans

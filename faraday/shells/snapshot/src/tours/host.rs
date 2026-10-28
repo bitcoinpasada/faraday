@@ -36,6 +36,18 @@ fn desktop(t: &mut Tour, win: (u16, u16), demo: bool) {
     }
     t.app.samples = Some(&faraday_samples::SAMPLES);
     t.app.set_modes(faraday_core::DESKTOP_MODES);
+    // The scheme `FARADAY_SNAP_THEME` names, as the other tours take it:
+    // the app made again here would otherwise start in the first start's.
+    if let Ok(words) = std::env::var("FARADAY_SNAP_THEME")
+        && let Some(theme) = faraday_core::ui::Theme::from_words(&words)
+    {
+        t.app.press(Action::Theme(theme));
+    }
+    if let Ok(words) = std::env::var("FARADAY_SNAP_TEXT")
+        && let Some(size) = faraday_core::ui::TextSize::from_id(&words)
+    {
+        t.app.press(Action::TextSize(size));
+    }
     let stick = |name: &str| StickInfo {
         id: name.into(),
         label: name.into(),

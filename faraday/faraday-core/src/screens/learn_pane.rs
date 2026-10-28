@@ -49,7 +49,9 @@ pub(super) fn draw(app: &View, ui: &mut Ui, (x0, cw, h): (f32, f32, f32)) {
     let shown = learn_body(app, ui, &look, (x, y, w, view));
     close_button(ui, x + w - T::GAP - T::TOUCH, y + T::LEARN_PANE_CLOSE_TOP);
     if let Some((clip, max)) = shown {
-        ui.report_scroll_beside(Slot::LearnPane, clip, max, app.learn().scroll);
+        // Its edges fade into the pane's own container.
+        let on = (clip, Role::SurfaceContainer);
+        ui.report_scroll_beside_on(Slot::LearnPane, on, max, app.learn().scroll);
     }
 }
 
