@@ -97,6 +97,42 @@ def decode(parts):
 
 class Ur(Area):
     name = "ur"
+    faraday = (
+        "`faraday_codec::ur` (single-part URs, the animation's parts, the decoder)"
+    )
+    reference = (
+        "Foundation Devices' foundation-ur-py (`ur/`), URKit ported"
+    )
+    reference_checked = (
+        'its vendored files are hashed against `references.sha256` before any run, and '
+        "a published vector's answer is required of the reference as well as of "
+        "Faraday; foundation-ur-py is itself a port of URKit checked against URKit's "
+        'own tests, whose vectors the area also runs'
+    )
+    vectors = (
+        "URKit's single-part and multipart encoder vectors (`tools/vectors/ur/`)"
+    )
+    corpus = (
+        'messages as `crypto-psbt` and `bytes` at random fragment lengths, parts byte '
+        'for byte; sets with fragments dropped, mixes added, shuffled, repeated and '
+        'upper case, put together by both; URs of other types written, read, changed '
+        'and cut'
+    )
+    differences = [
+        (
+            'UR: Faraday has no minimum fragment length, writes a one-fragment message as a '
+            'part like any other, and refuses to animate an empty message; foundation-ur-py '
+            "checks a UR type one character's way (`'a' <= type <= 'z'`). `area_ur.py` asks "
+            'the reference with a minimum of 1, makes parts with its fountain encoder, and '
+            "keeps its types to letters, digits and `-` not starting with `z`. Faraday's "
+            'decoder reduces mixes by each other whichever arrived first and so sometimes '
+            "finishes a set URKit's does not; the area then checks the message is the one "
+            'sent and counts the set.'
+        ),
+    ]
+    not_compared = (
+        'none'
+    )
 
     def encode(self, kind, data, fragment_len, count, expected=None):
         return self.compare("ur.encode", {"kind": kind, "data": bytes(data).hex(),

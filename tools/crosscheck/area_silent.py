@@ -89,6 +89,37 @@ def sorted_outputs(answer):
 
 class Silent(Area):
     name = "sp"
+    faraday = (
+        '`faraday_bip::silent`'
+    )
+    reference = (
+        "BIP-352's `reference.py` (`bip352/`)"
+    )
+    reference_checked = (
+        'its vendored files are hashed against `references.sha256` before any run, and '
+        "a published vector's answer is required of the reference as well as of Faraday"
+    )
+    vectors = (
+        'every case of `tools/vectors/bip352/`, both sides'
+    )
+    corpus = (
+        "inputs of every kind BIP-352 reads, receivers with labels, a sender's outputs "
+        'and what each receiver finds among them and decoys'
+    )
+    differences = [
+        (
+            "BIP-352: Faraday's sender arithmetic is test-only and has no K_max, so the "
+            'vector that exceeds it is checked on the receiving side only.'
+        ),
+        (
+            "Where a reference leaves a rule to its caller, the area writes the BIP's own "
+            "sentence and says so in its docstring: BIP-352's skip of a transaction "
+            'spending SegWit version 2 or above.'
+        ),
+    ]
+    not_compared = (
+        'none'
+    )
 
     def address(self, b_scan, b_spend, mainnet, label, expected=None):
         hrp = "sp" if mainnet else "tsp"

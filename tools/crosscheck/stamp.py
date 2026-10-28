@@ -4,9 +4,9 @@
 A passing `just crosscheck` writes `tools/crosscheck/stamp`: one hash
 over the crypto sources, the cross-check itself and its references, and
 the `Cargo.lock` entries of the crypto crates, with the seed, the
-Python it ran under and how long it took. `just lint` runs
-`stamp.py check`, which hashes the same inputs and fails when they no
-longer match: a change to the crypto, or a version bump of a crypto
+Python it ran under, how long it took and each area's corpus case
+count. `just lint` runs `stamp.py check`, which hashes the same inputs
+and fails when they no longer match: a change to the crypto, or a version bump of a crypto
 crate, is not committed without a passing cross-check. It is a record,
 not a security control. Standard library only; about a tenth of a
 second.
@@ -132,7 +132,7 @@ def interpreter(path):
     return out.stdout.strip() or "unknown"
 
 
-def write(seed, scale, seconds, jobs=1, interpreters=()):
+def write(seed, scale, seconds, jobs=1, interpreters=(), cases=None):
     refs = hashlib.sha256((ROOT / "tools/crosscheck/references.sha256").read_bytes()).hexdigest()
     workers = ", ".join(interpreter(p) for p in interpreters[1:])
     workers = f"workers {jobs}" + (f"; {workers} for the areas it speeds" if workers else "") + "\n"
@@ -148,6 +148,7 @@ def write(seed, scale, seconds, jobs=1, interpreters=()):
         f"scale {scale}\n"
         f"{workers}"
         f"seconds {seconds}\n"
+        + "".join(f"cases {area} {n}\n" for area, n in (cases or {}).items())
     )
 
 

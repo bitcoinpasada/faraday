@@ -191,6 +191,39 @@ def counts(**n):
 
 class Own(Area):
     name = "own-randomness"
+    faraday = (
+        "`faraday_core`'s `fresh.rs` (`Own`, the session seed and pool) through the "
+        "testkit's `fresh` and `seed_draw`, with `faraday_entropy`'s dice, coin, camera "
+        'and pointer-and-keys commitments'
+    )
+    reference = (
+        '`docs/OWN-RANDOMNESS.md` §2.1 and §2.3 written out in `area_own.py` over '
+        '`hashlib`'
+    )
+    reference_checked = (
+        'the model is written in the area from `docs/OWN-RANDOMNESS.md` §2.3 over '
+        '`hashlib`, and the known answers of '
+        '`faraday/faraday-core/tests/all/own_randomness.rs` are required of it as well '
+        'as of Faraday'
+    )
+    vectors = (
+        'the known answers of `faraday/faraday-core/tests/all/own_randomness.rs`: '
+        "nothing added, dice before and after the system's answers, dice then coins, a "
+        'batch of pointer moves and keys, a lock'
+    )
+    corpus = (
+        'random sessions of system answers, dice, coins, camera frames (some refused, '
+        'some empty) and pointer moves and keys (none to several batches), locks, seed '
+        'draws, fresh bytes and counts, in any order'
+    )
+    differences = [
+        (
+            'none'
+        ),
+    ]
+    not_compared = (
+        'none'
+    )
 
     def session(self, steps, expected=None):
         return self.compare("own.session", {"steps": steps}, lambda: run_session(steps),

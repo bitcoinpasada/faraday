@@ -166,6 +166,39 @@ def refusal(answer):
 
 class Addr(Area):
     name = "addr"
+    faraday = (
+        "`faraday_bip::address::parse`, `bitcoin`'s `Address::from_script`, "
+        '`faraday_bip::account` (account xpub, SLIP-132, descriptor, addresses), '
+        "`faraday_bip::descriptor`'s checksum"
+    )
+    reference = (
+        "Bitcoin Core's functional-test framework (`core/`): `segwit_addr.py`, "
+        "Base58Check, `descriptors.py`; BIP 380's own checksum code as the BIP prints "
+        "it (`bip380/`); `btc.py`; BIP-86's tweak written in the area"
+    )
+    reference_checked = (
+        'its vendored files are hashed against `references.sha256` before any run, and '
+        "a published vector's answer is required of the reference as well as of "
+        "Faraday; every descriptor checksum is also asked of BIP 380's own code, as the "
+        'BIP prints it'
+    )
+    vectors = (
+        "BIP-350's and BIP-173's addresses, BIP-380's checksum cases, BIP-49's, 84's "
+        "and 86's accounts (`tools/vectors/addresses/`)"
+    )
+    corpus = (
+        'scripts of every address kind on every network, written and read back, then '
+        "changed; accounts of every type at random indices; random descriptors' "
+        'checksums'
+    )
+    differences = [
+        (
+            'none'
+        ),
+    ]
+    not_compared = (
+        'none'
+    )
 
     def parse(self, text, network, expected=None):
         return self.compare("addr.parse", {"text": text, "network": network},

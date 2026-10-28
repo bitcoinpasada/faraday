@@ -1,7 +1,7 @@
 # The last passing crypto cross-check (`just crosscheck`, F79).
 # `just lint` fails when `inputs` no longer matches the crypto sources,
 # the cross-check and the crypto crates' Cargo.lock entries.
-inputs 4f8fdfdd870655e34bc40565e8a52179deac308071b18384a242d7474963fbfc
+inputs b0208f97c6e388c2de2ac7a7f30d8f75317defd4a056b85e9147e73d665fc425
 references 5a4517c3d65a15a6a20f08326bf769b37acac7153217df58143f882779c58dc3
 python 3.14.4
 argon2-cffi 25.1.0
@@ -10,4 +10,30 @@ pykeepass 4.1.1.post1
 seed faraday-crosscheck-1
 scale 1.0
 workers 12; PyPy 3.11.13 for the areas it speeds
-seconds 83.3
+seconds 84.3
+cases musig 20
+cases sp 100
+cases bip85 3000
+cases slip39 1500
+cases codex32 1000
+cases codex32-correct 10000
+cases xor 4000
+cases vault 3565
+cases bip39 3000
+cases bip32 400
+cases addr 4000
+cases tx 3000
+cases psbt 1500
+cases sign 128
+cases taproot 440
+cases miniscript 250
+cases msg 600
+cases own-randomness 400
+cases entropy 3000
+cases roller 3000
+cases seedqr 800
+cases bbqr 1500
+cases ur 600
+cases vanity 200
+cases kdbx 120
+cases lightning 400

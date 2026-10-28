@@ -798,8 +798,10 @@ def main():
                  f"{sum(cases_total(batches, a) for a in areas)} corpus cases")
     results = run_pool(batches, queue, jobs, interpreters, progress)
     failed = False
+    cases = {}
     for area in areas:
         r = merge(batches, results, area)
+        cases[area] = r["cases"]
         if r["status"] == "pass":
             known = f", {r['known']} of them a known difference" if r.get("known") else ""
             report.append(f"  {area}: {r['compared']} answers agree{known} ({r['seconds']} s)")
@@ -823,7 +825,7 @@ def main():
         report.append("crosscheck: no stamp written for a partial or non-default run")
         return finish(progress, report, "passed", 0)
     import stamp
-    stamp.write(seed, scale, total, jobs, list(interpreters.values()))
+    stamp.write(seed, scale, total, jobs, list(interpreters.values()), cases)
     report.append(f"crosscheck: stamp written to {stamp.STAMP.relative_to(common.ROOT)}")
     return finish(progress, report, "passed", 0)
 

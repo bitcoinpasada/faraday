@@ -59,6 +59,35 @@ def ref_password(xprv, kind, length, index):
 
 class Bip85(Area):
     name = "bip85"
+    faraday = (
+        '`faraday_bip::bip85`'
+    )
+    reference = (
+        '`ethankosakovsky/bip85` over python-mnemonic and a hardened-BIP-32 shim '
+        '(`bip85/`, `bip39/`)'
+    )
+    reference_checked = (
+        'its vendored files are hashed against `references.sha256` before any run, and '
+        "a published vector's answer is required of the reference as well as of "
+        "Faraday; the BIP has no password applications, so those two are the BIP's own "
+        "sentences over the reference's derived entropy"
+    )
+    vectors = (
+        'every application vector of `tools/vectors/bip85/`'
+    )
+    corpus = (
+        'random master keys, indices, languages, word counts and lengths, with refusals'
+    )
+    differences = [
+        (
+            "Where a reference leaves a rule to its caller, the area writes the BIP's own "
+            'sentence and says so in its docstring: the BIP-85 length ranges and its two '
+            'password applications.'
+        ),
+    ]
+    not_compared = (
+        'none'
+    )
 
     def check(self, op, xprv, index, expected=None, **extra):
         refs = {

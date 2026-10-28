@@ -129,6 +129,46 @@ def taproot(tx, prevouts, ht, index, leaf=None):
 
 class Tx(Area):
     name = "tx"
+    faraday = (
+        "`faraday_psbt::transaction::read_raw`, `bitcoin`'s `SighashCache` as "
+        '`faraday_psbt::sign` calls it'
+    )
+    reference = (
+        "Core's `messages.py` and `script.py` (`core/`)"
+    )
+    reference_checked = (
+        'its vendored files are hashed against `references.sha256` before any run, and '
+        "a published vector's answer is required of the reference as well as of "
+        'Faraday; each published signature hash is checked against the reference first'
+    )
+    vectors = (
+        "Core's 500 legacy sighashes, BIP-143's thirteen, BIP-341's key-path sighashes "
+        '(`tools/vectors/sighash/`)'
+    )
+    corpus = (
+        'random transactions with and without witnesses (txid, wtxid, weight, bytes), '
+        'cut or lengthened; every input hashed as legacy, BIP-143 P2WPKH and P2WSH, '
+        'BIP-341 key and script path under every hash type'
+    )
+    differences = [
+        (
+            'Legacy sighash: `bitcoin` hashes the script code as given, Core removes every '
+            "OP_CODESEPARATOR first. Faraday's legacy spends (P2PKH, P2SH multisig) have "
+            'none.'
+        ),
+        (
+            'Where a reference would take hours over one malformed case, the area gives the '
+            'answer the reference reaches at once, and says why: `area_tx.py` refuses a raw '
+            'transaction whose witness stack counts more items than the transaction has '
+            "bytes (Core's framework reads past the end as zeros, and writes such a stack "
+            'back in time quadratic in its length), which the full reading refuses too, '
+            'since every item is written back as at least one byte. `test_harness.py` '
+            'checks it.'
+        ),
+    ]
+    not_compared = (
+        'none'
+    )
 
     def read_tx(self, raw):
         def ref():

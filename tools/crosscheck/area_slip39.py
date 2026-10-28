@@ -63,6 +63,34 @@ def ref_split(secret, passphrase, identifier, extendable, e, gt, groups, random)
 
 class Slip39(Area):
     name = "slip39"
+    faraday = (
+        '`faraday_bip::slip39`'
+    )
+    reference = (
+        'python-shamir-mnemonic (`slip39/`)'
+    )
+    reference_checked = (
+        'its vendored files are hashed against `references.sha256` before any run, and '
+        "a published vector's answer is required of the reference as well as of "
+        'Faraday; all 45 of its own vectors are run'
+    )
+    vectors = (
+        'all 45 of `tools/vectors/slip39/`'
+    )
+    corpus = (
+        'splits fed the same random bytes, which must match word for word; recovery '
+        'from qualifying and short subsets and a changed word; the passphrase cipher'
+    )
+    differences = [
+        (
+            'SLIP-39: Faraday refuses a group threshold of 1 over several groups; '
+            'python-shamir-mnemonic makes the shares. `area_slip39.py` checks that this '
+            'still holds, so a change either way is seen.'
+        ),
+    ]
+    not_compared = (
+        'none'
+    )
 
     def split(self, secret, passphrase, identifier, extendable, e, gt, groups, random):
         return self.compare("slip39.split", {

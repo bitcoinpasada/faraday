@@ -436,6 +436,40 @@ def wif_secret(wif):
 
 class Msg(Area):
     name = "msg"
+    faraday = (
+        '`faraday_psbt::message` (BIP-137, BIP-322 simple: sign, verify, virtual txids)'
+    )
+    reference = (
+        'BIP-137 and BIP-322 written out in `area_msg.py`: ECDSA with RFC 6979 as '
+        "libsecp256k1 states it, Core's `script.py` sighashes, `secp256k1lab`'s BIP-340"
+    )
+    reference_checked = (
+        'its vendored files are hashed against `references.sha256` before any run, and '
+        "a published vector's answer is required of the reference as well as of "
+        "Faraday; BIP-322's hashes, txids, simple signatures and error cases and "
+        "Trezor's and Electrum's BIP-137 signatures are required of it"
+    )
+    vectors = (
+        "BIP-322's hashes, txids, simple signatures and error cases; Trezor's and "
+        "Electrum's BIP-137 signatures (`tools/vectors/message/`), made again from "
+        "Trezor's keys"
+    )
+    corpus = (
+        'random keys, address forms, networks and messages: signatures made byte for '
+        'byte under both nonce rules and both aux choices, checked, then checked '
+        'against a changed message, another address, a changed byte and a moved header'
+    )
+    differences = [
+        (
+            'BIP-137: Faraday reads the address form from the address rather than the '
+            "header's range and tries a P2PKH address in both key encodings "
+            '(`faraday_psbt::message`), as Electrum and Sparrow do; BIP-137 read strictly '
+            'refuses Trezor\'s and Electrum\'s "no script type" signatures.'
+        ),
+    ]
+    not_compared = (
+        'none'
+    )
 
     def sign(self, d, script, network, message, fmt, nonce, fresh=None, expected=None):
         def ref():

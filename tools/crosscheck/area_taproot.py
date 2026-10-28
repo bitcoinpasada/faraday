@@ -146,6 +146,41 @@ def verify_control(output_key, control, script):
 
 class Taproot(Area):
     name = "taproot"
+    faraday = (
+        "`bitcoin`'s `TaprootBuilder` and `TaprootSpendInfo` (as "
+        "`faraday_bip::tapmulti` and `miniscript`'s `tr()` build trees), "
+        '`ScriptBuf::new_p2tr` as `faraday_psbt::sign` checks a key path, '
+        '`Address::p2tr_tweaked`, `ControlBlock` decoding and '
+        '`verify_taproot_commitment`'
+    )
+    reference = (
+        "Core's `taproot_construct`, `key.py`'s tweak and `segwit_addr.py`; BIP-341's "
+        'script-path check written out in `area_taproot.py`'
+    )
+    reference_checked = (
+        'its vendored files are hashed against `references.sha256` before any run, and '
+        "a published vector's answer is required of the reference as well as of "
+        "Faraday; each of BIP-341's wallet vectors is checked against the reference "
+        'first'
+    )
+    vectors = (
+        "BIP-341's `scriptPubKey` wallet vectors, all seven (`tools/vectors/sighash/`)"
+    )
+    corpus = (
+        'trees of 0 to 12 leaves in random shapes with random scripts and leaf versions '
+        'over random internal keys: leaf hashes, Merkle root, tweak, output key and '
+        'parity, script, address, control blocks; each control block checked, then '
+        'changed eleven ways; internal keys that are no point, odd leaf versions and '
+        '0x50 refused'
+    )
+    differences = [
+        (
+            'none'
+        ),
+    ]
+    not_compared = (
+        'none'
+    )
 
     def tree(self, internal, items, leaves, expected=None):
         inputs = {"internal": internal.hex(), "leaves": leaves}

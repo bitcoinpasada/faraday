@@ -182,6 +182,35 @@ def grind(dial, key, base, script, prefix, network, start, budget):
 
 class Vanity(Area):
     name = "vanity"
+    faraday = (
+        '`faraday_bip::vanity` (the counter, prefixes and their expected work, the '
+        'search on both dials)'
+    )
+    reference = (
+        "EntropyLab's counter as `tools/reference/vanity/README.md` quotes it, written "
+        "out in `area_vanity.py` over python-mnemonic, `btc.py` and the `addr` area's "
+        'address writing'
+    )
+    reference_checked = (
+        "the search is written in the area from the README's quotation of EntropyLab's "
+        "counter, and EntropyLab's two finds are required of it as well as of Faraday"
+    )
+    vectors = (
+        "EntropyLab's two finds"
+    )
+    corpus = (
+        "counters at every width's edges; prefixes of every kind on every network, "
+        'valid and not; searches of random keys on both dials from random starting '
+        'counters, with budgets ending before a match and after'
+    )
+    differences = [
+        (
+            'none'
+        ),
+    ]
+    not_compared = (
+        'none'
+    )
 
     def grind(self, dial, key, base, script, prefix, network, start, budget, expected=None):
         req = {"dial": dial, "base": base.hex(), "script": script, "prefix": prefix,

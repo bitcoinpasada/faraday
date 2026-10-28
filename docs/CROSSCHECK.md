@@ -141,7 +141,10 @@ Only for B and C, when they come back:
 
 Decided 2026-10-22 (owner, F79). Items 1 to 6 of §10.5 are built, in
 `tools/crosscheck/` (its README says how to run it, what each area
-checks and where Faraday reads a case otherwise than its reference),
+checks and where Faraday reads a case otherwise than its reference;
+the table and the known differences in it are written by `facts.py`
+from the facts each area states about itself, and `just lint` checks
+them),
 with the stamp check `tools/lint-crosscheck.sh`. What item 6 leaves is
 listed under it.
 
@@ -185,7 +188,8 @@ memory a worker takes and how to run it under PyPy.
   last cross-check: run `just crosscheck`". The check costs about a
   second; the cross-check itself runs only when it fails. The stamp is
   committed with the change that made it pass. It is a record, not a
-  security control.
+  security control. It also holds each area's corpus case count for
+  that run, one `cases <area> <count>` line each.
 - **What the stamp covers.** `core/faraday-crypto`, `core/faraday-bip`,
   `core/faraday-psbt`, `core/faraday-entropy`, `core/faraday-backup`,
   `faraday/faraday-vault`, the signing and derivation code in

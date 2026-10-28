@@ -31,6 +31,35 @@ def is_test(network):
 
 class Bip32(Area):
     name = "bip32"
+    faraday = (
+        '`faraday_bip::keys` (master, private derivation), `faraday_bip::xkey` (strict '
+        "decoding), `bitcoin`'s `Xpub::derive_pub`"
+    )
+    reference = (
+        '`btc.py`, BIP-32 written from the BIP over `secp256k1lab` and `ripemd160.py` '
+        '(`bip352/`)'
+    )
+    reference_checked = (
+        "`check_driver` runs `btc.py` against BIP-32's vectors 1 to 5 and the invalid "
+        'keys of vector 5 before anything else'
+    )
+    vectors = (
+        "BIP-32's vectors 1 to 5 (`tools/vectors/bip32/`), python-mnemonic's master "
+        'keys'
+    )
+    corpus = (
+        'seeds of 16 to 64 bytes on every network, random paths with every index, '
+        'public derivation against private, keys broken one rule at a time and the '
+        'master-key import'
+    )
+    differences = [
+        (
+            'none'
+        ),
+    ]
+    not_compared = (
+        'none'
+    )
 
     def check_driver(self):
         """`btc.py` against BIP-32's own vectors before anything else."""

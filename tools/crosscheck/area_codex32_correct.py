@@ -77,6 +77,39 @@ def ref_correct(text, held):
 
 class Codex32Correct(Area):
     name = "codex32-correct"
+    faraday = (
+        '`faraday_bip::codex32::correct`'
+    )
+    reference = (
+        "python-codex32's decoder, `correction.py` at a later commit "
+        "(`codex32/correction/`), asked with BIP 93's bound"
+    )
+    reference_checked = (
+        'its vendored files are hashed against `references.sha256` before any run, and '
+        "a published vector's answer is required of the reference as well as of "
+        'Faraday; it is asked with the bound BIP 93 states, written in the area from '
+        'that sentence and nothing else'
+    )
+    vectors = (
+        "python-codex32's frozen correction corpus, 57 cases "
+        '(`tools/vectors/codex32-correction/`)'
+    )
+    corpus = (
+        'random strings of every length with substitutions and unreadable boxes up to '
+        "and past the bound, runs of unreadable boxes around the checksum's length, a "
+        "held string's header fixed, upper case, `ms1` damaged"
+    )
+    differences = [
+        (
+            'Codex32 correction: python-codex32 reads a character outside the bech32 '
+            'alphabet as unreadable, and fills more than 8 unreadable boxes that are not '
+            'one run when its equations allow; Faraday refuses both (`docs/CODEX32.md` '
+            '§8.4). The corpus damages strings with bech32 characters and `?` only.'
+        ),
+    ]
+    not_compared = (
+        'none'
+    )
 
     def correct(self, text, held=None):
         inputs = {"string": text}

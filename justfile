@@ -53,6 +53,9 @@ lint:
     cargo run -q -p costs-lint
     tools/lint-unchecked.sh
     tools/lint-crosscheck.sh
+    # Each cross-check area's facts are stated, their paths resolve, and the
+    # README's table and known differences are what they say.
+    python3 -I -B tools/crosscheck/facts.py check
     # The colour tables are what the vendored material-color-utilities
     # makes (docs/THEMES.md §11.3).
     tools/lint-themes.sh

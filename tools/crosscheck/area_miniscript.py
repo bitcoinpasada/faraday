@@ -125,6 +125,44 @@ def core_keys(text, tap):
 
 class Miniscript(Area):
     name = "miniscript"
+    faraday = (
+        "`faraday_bip::policy::WalletPolicy` (a wallet's descriptor and the script it "
+        'pays at an index), `faraday_bip::policy::parse_script_descriptor`, a witness '
+        'script read back as `faraday_psbt` reads one'
+    )
+    reference = (
+        "Antoine Poinsot's python-bip380 (`miniscript/`), with keys from `btc.py` and "
+        "Core's `taproot_construct` for trees"
+    )
+    reference_checked = (
+        'its vendored files are hashed against `references.sha256` before any run, and '
+        "a published vector's answer is required of the reference as well as of "
+        'Faraday; `taproot_construct` and python-bip380 each build a tree, and the two '
+        'must agree before Faraday is compared'
+    )
+    vectors = (
+        "Bitcoin Core's miniscript unit tests, 97 miniscripts in P2WSH and Tapscript "
+        '(`tools/vectors/miniscript/`)'
+    )
+    corpus = (
+        'wallets of the Liana, Nunchuk, Sparrow and recovery shapes in `wsh()` and '
+        '`sh(wsh())`, `multi`/`sortedmulti` in `sh()`, `wsh()`, `sh(wsh())`, `tr()` '
+        'with trees of one to six leaves or a lone `sortedmulti_a`, over random '
+        'accounts on every network, at random indices of both chains; the same made not '
+        'sane, refused'
+    )
+    differences = [
+        (
+            "Miniscript: Faraday reads `sortedmulti_a` only as a `tr()`'s one leaf; BIP 387 "
+            "allows it deeper in a tree. Two of Bitcoin Core's sane miniscripts are "
+            'refused, as `miniscript` refuses them: `or_b(0,a:0)`, which has no '
+            'satisfaction, and a `d:` used as a unit under Tapscript. `area_miniscript.py` '
+            'checks and counts each.'
+        ),
+    ]
+    not_compared = (
+        'none'
+    )
 
     def __init__(self, *a):
         super().__init__(*a)

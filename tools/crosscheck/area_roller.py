@@ -209,6 +209,40 @@ def model_five(answers, shares, share_len, steps, faces=6):
 
 class Roller(Area):
     name = "roller"
+    faraday = (
+        "Faraday Demo's dice rollers (`faraday_core`'s `fresh/roller/`, through the "
+        'testkit)'
+    )
+    reference = (
+        '`docs/CODEX32.md` §5.6\'s "The values" and §5.5\'s worksheet written out in '
+        '`area_roller.py`'
+    )
+    reference_checked = (
+        'the model is written in the area from `docs/CODEX32.md` §5.5 and §5.6 and the '
+        "booklet's worksheet, and the known answers, the byte distribution and every "
+        'byte as a face of every die are required of it as well as of Faraday'
+    )
+    vectors = (
+        'every byte value as an answer: each face from 42 bytes, the four above 251 '
+        'skipped; every byte as a face of every die of 2 to 20 faces '
+        "(`faraday_entropy::uniform_face`); the booklet's 32 paths on six- and "
+        'twenty-faced dice and its order with an equal pair (`roller.sheet`)'
+    )
+    corpus = (
+        'random answers (some mostly skipped bytes) under clicks of every size into '
+        'entries of random room, with resets; the five dice of random faces (2 to 20) '
+        'under clicks of every reach into codex32 shares of random count and length, '
+        'answers running out part way; rolls of random dice entered by hand, equal '
+        'pairs among them'
+    )
+    differences = [
+        (
+            'none'
+        ),
+    ]
+    not_compared = (
+        'none'
+    )
 
     def one(self, answers, room, steps):
         return self.compare(

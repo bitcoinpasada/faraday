@@ -49,6 +49,32 @@ def keyagg_answer(ctx):
 
 class Musig(Area):
     name = "musig"
+    faraday = (
+        '`faraday_bip::musig`'
+    )
+    reference = (
+        "BIP-327's `reference.py` (`bip327/`)"
+    )
+    reference_checked = (
+        'its vendored files are hashed against `references.sha256` before any run, and '
+        "a published vector's answer is required of the reference as well as of Faraday"
+    )
+    vectors = (
+        'all eight files of `tools/vectors/bip327/`'
+    )
+    corpus = (
+        'sessions of 1 to 3 signers: key sort and aggregation, tweaks, nonces, partial '
+        'signatures, their verification (and a tampered one), aggregation checked as '
+        'BIP-340, deterministic signing'
+    )
+    differences = [
+        (
+            'none'
+        ),
+    ]
+    not_compared = (
+        'none'
+    )
 
     # -- the published vectors --------------------------------------
 

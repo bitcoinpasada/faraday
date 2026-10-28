@@ -1036,6 +1036,83 @@ def read_witness_value(v):
 
 class Sign(Area):
     name = "sign"
+    faraday = (
+        '`faraday_psbt::sign` (every held key selected, deterministic Schnorr, both RFC '
+        '6979 nonce rules) and `faraday_psbt::finalize`'
+    )
+    reference = (
+        "BIP-174's signer and finalizer and BIP-371's fields written out in "
+        "`area_sign.py`, over Core's `script.py` sighashes and `taproot_construct`, "
+        "`key.py`'s RFC 6979 ECDSA, BIP-340 signing and tweak, `area_msg.py`'s low-R "
+        "grind; python-bip380 (`miniscript/`) for a miniscript's satisfaction"
+    )
+    reference_checked = (
+        'its vendored files are hashed against `references.sha256` before any run, and '
+        "a published vector's answer is required of the reference as well as of "
+        'Faraday; the BIP-174 signer and finalizer are written in the area from the '
+        "BIPs' text, and the vectors and the Core-built spends are required of them"
+    )
+    vectors = (
+        "BIP-174's signer, finalizer and extractor vectors; the Core-built spends of "
+        '`tools/vectors/psbt/` (2-of-3 `sortedmulti`, the Liana wallet down both paths, '
+        "a taproot tree by a leaf and by the key path, BIP 387's taproot multisig), "
+        'signed by every subset of their keys'
+    )
+    corpus = (
+        'PSBTs of one to four inputs: P2PKH, P2SH-P2WPKH, P2WPKH, `multi`/`sortedmulti` '
+        'in P2SH, P2WSH and P2SH-P2WSH, P2TR key path, P2TR script path (`pk`, `pkh`, '
+        'timelocked keys, `or_d`, `multi_a`) with the key path beside it, miniscript in '
+        "P2WSH and P2SH-P2WSH; held and foreign keys, cosigners' signatures already on, "
+        'every standard sighash type, timelocks met and not; every signature made again '
+        "byte for byte and verified, the signed PSBT's pairs, each final scriptSig and "
+        'witness, the cleared fields and the extracted transaction; an origin that '
+        'derives another key refused'
+    )
+    differences = [
+        (
+            'PSBT signing: Faraday refuses to sign a SegWit v0 input with no previous '
+            'transaction in a transaction of more than one input (`faraday_psbt::sign`); '
+            "BIP-174's signer signs it, and BIP-174's own signer vector is such a PSBT. "
+            '`area_sign.py` checks the refusal and counts it. Faraday holds a finalized '
+            'input to the same rule, refusing the PSBT when such an input is final but for '
+            "a taproot one, since a final witness is the coordinator's."
+        ),
+        (
+            'PSBT signing, wallets: Faraday signs an input spent from a script of several '
+            'keys (a `multi` of two or more, a miniscript naming two or more, a taproot '
+            'script path whose carried leaves name two or more with its internal key, or '
+            'are not its whole tree) only for a registered wallet that holds one of its '
+            "keys and whose script it is; BIP-174's signer signs any. `area_sign.py` "
+            'refuses where no wallet the request registers holds a held key and gives the '
+            "input, and counts it only where Faraday's refusal names `WalletNotRegistered`. "
+            'A miniscript or a taproot tree of one key is signed only through such a wallet '
+            'too, and is otherwise left unsigned while the rest is signed (F141); '
+            "`area_sign.py` leaves it unsigned the same way. Half the corpus's `multi`, "
+            'miniscript and taproot-tree inputs come with their wallet registered, so their '
+            "signatures are still compared; a registered tree's every leaf has its wait "
+            'met, since Faraday then refuses a path that can never be valid '
+            '(`TimelockNotMet`), which `area_sign.py` does not work out.'
+        ),
+        (
+            'PSBT signing: Faraday refuses a PSBT any input of which asks for a `NONE` or '
+            '`SINGLE` sighash, and one none of the held keys can sign: dangers no hold '
+            "accepts (F136); BIP-174's signer signs the first and answers the second with "
+            'nothing signed. `area_sign.py` expects both refusals, counting a held key as '
+            "taking part as Faraday's inspection does (a miniscript or a taproot tree only "
+            "through a wallet in use), checks that Faraday's refusal names the warning, "
+            '`UnusualSighash` or `NoParticipatingKey`, and counts them.'
+        ),
+        (
+            'Taproot `pkh` leaves: Faraday signs a taproot leaf that checks its key by hash '
+            "but does not finalize it (`faraday_psbt::finalize`): `miniscript` 12's "
+            'finalizer looks the key up among the ECDSA origins and panics, and would push '
+            '33 bytes where the leaf hashed 32. `area_sign.py` leaves such a leaf '
+            'unfinalized too and counts each one it could have satisfied.'
+        ),
+    ]
+    not_compared = (
+        'none'
+    )
 
     def __init__(self, *a):
         super().__init__(*a)

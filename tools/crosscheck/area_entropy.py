@@ -179,6 +179,37 @@ def source_commitment(src):
 
 class Entropy(Area):
     name = "entropy"
+    faraday = (
+        '`faraday_entropy`: dice under the three procedures, coins, hex, cards, camera '
+        "frames, the device's answer, a mix"
+    )
+    reference = (
+        'the procedures written out in `area_entropy.py` over `hashlib`, from '
+        '`tools/reference/entropy/README.md` and the dice sources quoted in '
+        '`tools/reference/dice/README.md`'
+    )
+    reference_checked = (
+        'the procedures are written in the area over `hashlib` from the statements of '
+        '`tools/reference/entropy/README.md` and `tools/reference/dice/README.md`, and '
+        'the published dice answers are required of them as well as of Faraday'
+    )
+    vectors = (
+        "Coldcard's `rolls.py` digest, EntropyLab's six-as-zero and direct word "
+        'selection (`tools/vectors/entropy/`)'
+    )
+    corpus = (
+        'runs of every source at every strength, short of the count, at it and past it, '
+        'with faces, cards, frames and characters the pads refuse and every source past '
+        'its limit; mixes of one to six sources given by their inputs'
+    )
+    differences = [
+        (
+            'none'
+        ),
+    ]
+    not_compared = (
+        'none'
+    )
 
     # ----- the requests -----
 

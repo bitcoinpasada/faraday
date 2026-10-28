@@ -47,6 +47,33 @@ def answer(lang, entropy):
 
 class Xor(Area):
     name = "xor"
+    faraday = (
+        '`faraday_entropy::SeedXor` with `faraday_bip::bip39`'
+    )
+    reference = (
+        'python-mnemonic and a byte XOR (`bip39/`)'
+    )
+    reference_checked = (
+        'its vendored files are hashed against `references.sha256` before any run, and '
+        "a published vector's answer is required of the reference as well as of "
+        'Faraday; the byte XOR is written in the area, 2 to 4 parts of one BIP-39 '
+        'length'
+    )
+    vectors = (
+        "Coldcard's two examples (`tools/vectors/xor/coldcard.json`) and this tree's "
+        'two'
+    )
+    corpus = (
+        'splits and combines in all ten languages and five lengths, with refusals'
+    )
+    differences = [
+        (
+            'none'
+        ),
+    ]
+    not_compared = (
+        'none'
+    )
 
     def combine(self, lang, sentences, expected=None):
         def ref():

@@ -102,6 +102,49 @@ def contents(kp):
 
 class Kdbx(Area):
     name = "kdbx"
+    faraday = (
+        '`faraday_backup::kdbx` (the KDBX 4 export and its own check)'
+    )
+    reference = (
+        "pykeepass, the distribution's package (`python3-pykeepass`)"
+    )
+    reference_checked = (
+        "pykeepass is the distribution's package and the area stops and names it when "
+        'it is missing, so a run without it fails; the versions are written into the '
+        'stamp'
+    )
+    vectors = (
+        "the repository's export (`tools/vectors/backup/`), written again byte for byte "
+        'and opened'
+    )
+    corpus = (
+        'databases of one to eight items with markup characters, control characters, '
+        'line ends and several scripts, at small Argon2id costs, every entry read back; '
+        "the writer's check against pykeepass under the right passphrase, a wrong one "
+        'and a changed byte'
+    )
+    differences = [
+        (
+            'KDBX: pykeepass strips the characters XML 1.0 cannot hold from a protected '
+            "value after decrypting it; Faraday writes a Password's bytes as they are. "
+            "`area_kdbx.py` expects pykeepass's reading and counts the items it differs on. "
+            'pykeepass also returns from opening a file whose major version is neither 3 '
+            'nor 4 having read nothing past it, no key derived and no hash checked; KeePass '
+            'refuses such a file, and `area_kdbx.py` counts a file as opened only when '
+            'pykeepass read a KDBX 4 body.'
+        ),
+        (
+            'pykeepass also runs the key derivation the header states before it checks the '
+            "header's SHA-256, so a changed bit in the Argon2 iterations (2^44 passes) "
+            'holds it for good; KeePass and KeePassXC check the hash first and refuse at '
+            'once. `area_kdbx.py` asks pykeepass the same way: first with a key given and '
+            "nothing decrypted, which checks the version and the header's hash and derives "
+            'nothing, and only then with the passphrase.'
+        ),
+    ]
+    not_compared = (
+        'none'
+    )
 
     def __init__(self, *a):
         super().__init__(*a)

@@ -51,6 +51,45 @@ def nfkd(s):
 
 class Bip39(Area):
     name = "bip39"
+    faraday = (
+        '`faraday_bip::bip39`'
+    )
+    reference = (
+        'python-mnemonic (`bip39/`)'
+    )
+    reference_checked = (
+        'its vendored files are hashed against `references.sha256` before any run, and '
+        "a published vector's answer is required of the reference as well as of "
+        "Faraday; python-mnemonic's own `to_hd_master_key` is checked against the "
+        "seed's master key, as a second BIP-32 master"
+    )
+    vectors = (
+        'the ten wordlists; every vector of `tools/vectors/bip39/vectors.json` in '
+        "Faraday's languages; the Japanese vectors with non-ASCII passphrases"
+    )
+    corpus = (
+        'entropy to words and back in every language and length; seeds under random '
+        'ASCII passphrases; a changed word, an unknown word, a word too many or too '
+        'few; every valid last word'
+    )
+    differences = [
+        (
+            'Where the two once differed and now agree (owner, 2026-10-23), the area checks '
+            'the agreement like any other answer: a BIP-39 sentence read in NFKD, so '
+            'composed words and the Japanese vectors as published parse on both sides.'
+        ),
+        (
+            "Faraday's `Mnemonic::to_seed`, the path a typed passphrase takes, takes "
+            'printable ASCII only, at most 256 bytes; python-mnemonic takes any text. '
+            'Non-ASCII passphrases go through `to_seed_unchecked` (NFKD bytes), which is '
+            "what Faraday's vector tests and start-up self-test call; `area_bip39.py` "
+            'checks that the product path still refuses them, and passphrases past 256 '
+            'bytes, as a known difference.'
+        ),
+    ]
+    not_compared = (
+        'none'
+    )
 
     def wordlists(self):
         for lang in range(len(LANGUAGES)):

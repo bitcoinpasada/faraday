@@ -501,6 +501,50 @@ def file_summary(answer):
 
 class Vault(Area):
     name = "vault"
+    faraday = (
+        "`faraday_vault` (create, open, seal, the slot's records and payload layouts), "
+        "`faraday_backup::argon2id`, the `chacha20poly1305` crate's detached "
+        'XChaCha20-Poly1305 as the vault calls it'
+    )
+    reference = (
+        '`docs/VAULT.md` written out in `area_vault.py`, over argon2-cffi and PyNaCl '
+        "(the distribution's packages), with HKDF-SHA256 and the ChaCha20 block written "
+        'over the standard library'
+    )
+    reference_checked = (
+        "`check_primitives` runs before anything else: HKDF against RFC 5869's three "
+        "SHA-256 cases, ChaCha20 against RFC 8439's five block vectors, PyNaCl against "
+        "draft-irtf-cfrg-xchacha-03's AEAD vector, argon2-cffi against "
+        "`tools/vectors/kdf/`'s known answer; the versions of argon2-cffi and PyNaCl "
+        'are written into the stamp'
+    )
+    vectors = (
+        "RFC 5869's three SHA-256 cases, RFC 8439's five block vectors, "
+        "draft-irtf-cfrg-xchacha-03's AEAD vector, the Argon2id known answer "
+        '(`tools/vectors/vault-primitives/`); the two vaults and the slot vectors of '
+        '`tools/vectors/vault/`'
+    )
+    corpus = (
+        'Argon2id at small random costs and the costs it refuses; the AEAD at random '
+        'lengths with one byte changed; payloads made, read and malformed; random '
+        'records of all thirteen types (type 12 is retired and refused) encoded, '
+        'decoded and broken a rule at a time; whole vaults of every slot size made byte '
+        'for byte from a seed, opened by each passphrase, resealed, and refused for '
+        'each header fault, a wrong passphrase, a changed byte, two slots under one key '
+        'and faulty contents'
+    )
+    differences = [
+        (
+            'Where the two once differed and now agree (owner, 2026-10-23), the area checks '
+            "the agreement like any other answer: the vault's required fields of types 7 "
+            'and 9, a sheet past 16 KiB, an empty passphrase at create, and duplicate type '
+            '14 and type 10 records, all refused by both as `docs/VAULT.md` §7 and §8 now '
+            'say.'
+        ),
+    ]
+    not_compared = (
+        'none'
+    )
 
     def check_primitives(self):
         """The area's own pieces against their published answers."""

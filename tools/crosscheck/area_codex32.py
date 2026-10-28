@@ -185,6 +185,49 @@ def ref_split(secret, k, n, fresh):
 
 class Codex32(Area):
     name = "codex32"
+    faraday = (
+        '`faraday_bip::codex32`'
+    )
+    reference = (
+        "python-codex32 (`codex32/`); the worksheet's rows written in the area from its "
+        'polymod'
+    )
+    reference_checked = (
+        'its vendored files are hashed against `references.sha256` before any run, and '
+        "a published vector's answer is required of the reference as well as of "
+        'Faraday; three rules BIP 93 states that the reference does not enforce (a new '
+        "secret's threshold, the master seed's sizes, the order shares are handed out) "
+        "are written in the area from the BIP's text, and the worksheet's rows from BIP "
+        "93's polymod alone"
+    )
+    vectors = (
+        'every vector of `tools/vectors/bip93/`, the 55 invalid strings included; '
+        "volvelle-website's worksheet cells (`tools/vectors/codex32-volvelle/`); the "
+        "booklet's checksum, derivation, recovery, addition, translation and fusion "
+        "tables (`tools/vectors/codex32-booklet/`); the Codex32QR profile's sets "
+        '(`tools/vectors/codex32qr/`)'
+    )
+    corpus = (
+        'secrets, splits (the same randomness), recovery, derived shares, corrupted '
+        'strings; fresh sets of every threshold up to 31 strings at 48, 74 and 127 '
+        'characters, the checksum worksheets of their strings and of corrupted ones, '
+        'checksums made on a sheet, translation and recovery symbols, translation '
+        'worksheets'
+    )
+    differences = [
+        (
+            'Codex32: Faraday recovers only from exactly `k` shares without the secret, and '
+            'derives a share only from exactly `k` strings at an unused index; the '
+            'reference also takes more strings or a used index.'
+        ),
+        (
+            "Where a reference leaves a rule to its caller, the area writes the BIP's own "
+            'sentence and says so in its docstring: the codex32 threshold and seed sizes.'
+        ),
+    ]
+    not_compared = (
+        'none'
+    )
 
     def parse(self, s, expected=None):
         return self.compare("codex32.parse", {"string": s}, lambda: describe(Codex32String.from_string("ms", s)), expected)

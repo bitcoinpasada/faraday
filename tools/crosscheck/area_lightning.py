@@ -91,8 +91,42 @@ def lnd(entropy, network):
 
 class Lightning(Area):
     # The published vectors, which corpus cases also draw from.
-    vectors = json.loads((ROOT / "tools/vectors/aezeed/vectors.json").read_text())
+    aezeed_vectors = json.loads((ROOT / "tools/vectors/aezeed/vectors.json").read_text())
     name = "lightning"
+    faraday = (
+        "`faraday_bip::aezeed` (ldk-node's and LND's node keys, the aezeed read)"
+    )
+    reference = (
+        "ldk-node's and LND's derivations as `tools/reference/aezeed/README.md` quotes "
+        "them, and the aezeed's outer layer (CRC-32C, version), written out in "
+        '`area_lightning.py` over `btc.py`; AEZ itself has no second implementation '
+        'here'
+    )
+    reference_checked = (
+        'the derivations are written in the area from the sources '
+        "`tools/reference/aezeed/README.md` quotes, and LND's and ldk's published "
+        'answers are required of them as well as of Faraday'
+    )
+    vectors = (
+        "LND's five cipher seeds, LND's two node keys, ldk's five node ids "
+        '(`tools/vectors/aezeed/`)'
+    )
+    corpus = (
+        'random BIP-39 seeds and entropies on every network; random words, a wrong '
+        'version with a right checksum, published seeds under a changed passphrase, a '
+        'changed enciphered byte or salt with the checksum put right, a changed word'
+    )
+    differences = [
+        (
+            'none'
+        ),
+    ]
+    not_compared = (
+        'AEZ itself has no second implementation here: what comes out of the cipher is '
+        "checked against LND's five published seeds, and a seed whose checksum holds "
+        "but whose passphrase or enciphered bytes were changed must be refused (AEZ's "
+        '32-bit tag fails, but for one time in 2³²)'
+    )
 
     def ldk(self, seed, network, expected=None):
         return self.compare("lightning.ldk", {"seed": seed.hex(), "network": network},
@@ -116,7 +150,7 @@ class Lightning(Area):
                                                  "cost": cost}, ref)
 
     def published(self):
-        v = self.vectors
+        v = self.aezeed_vectors
         entropy = bytes.fromhex(v["entropy"])
         for a in v["aezeed"]:
             words = [ENGLISH.wordlist.index(w) for w in a["words"].split()]
@@ -146,7 +180,7 @@ class Lightning(Area):
         self.aezeed(to_words(with_checksum(bytes(data))), b"", 16, ("err", None))
         # A published seed (at the low cost) changed: the passphrase, an
         # enciphered or salt byte with the checksum put right, a word.
-        a = rng.choice([x for x in self.vectors["aezeed"] if x["cost"] == 16])
+        a = rng.choice([x for x in self.aezeed_vectors["aezeed"] if x["cost"] == 16])
         good = [ENGLISH.wordlist.index(w) for w in a["words"].split()]
         r = rng.random()
         if r < 0.4:

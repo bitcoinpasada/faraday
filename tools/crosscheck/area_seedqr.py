@@ -244,6 +244,44 @@ def profile_pictures():
 
 class SeedQR(Area):
     name = "seedqr"
+    faraday = (
+        '`faraday_codec::seedqr` (SeedQR, CompactSeedQR), `faraday_codec::qr`, the '
+        'encoder that draws them, and `faraday_codec::qr::codex32qr` with the picture '
+        '`faraday_core::picture` writes of it'
+    )
+    reference = (
+        "SeedSigner's specification written out in `area_seedqr.py` over "
+        "python-mnemonic (`bip39/`); Project Nayuki's `qrcodegen.py` (`qrcodegen/`), "
+        'module for module'
+    )
+    reference_checked = (
+        'its vendored files are hashed against `references.sha256` before any run, and '
+        "a published vector's answer is required of the reference as well as of "
+        'Faraday; the SeedQR specification is written in the area from its text, and '
+        "the profile's own pictures are read from their pixels and must be Faraday's "
+        'code module for module'
+    )
+    vectors = (
+        "SeedSigner's nine test SeedQRs (`tools/vectors/seedqr/`); every string and "
+        'picture of the Codex32QR profile (`tools/vectors/codex32qr/`)'
+    )
+    corpus = (
+        'keys of every length and language, both codes and the words read back; digits '
+        'and bytes malformed; payloads in each mode at each level and version limit; '
+        '48-character codex32 strings in either case as Codex32QR codes and the '
+        'pictures written of them read back, other lengths refused'
+    )
+    differences = [
+        (
+            "Codex32QR: Faraday picks the mask Nayuki's encoder picks; the profile's "
+            'encoder chose another for 6 of its 22 pictures. There `area_seedqr.py` swaps '
+            "the mask of Faraday's code for the picture's with `qrcodegen.py`'s masking, "
+            'requires the picture, and counts it.'
+        ),
+    ]
+    not_compared = (
+        'none'
+    )
 
     def __init__(self, *a):
         super().__init__(*a)

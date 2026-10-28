@@ -129,6 +129,46 @@ def specter_join(parts):
 
 class Bbqr(Area):
     name = "bbqr"
+    faraday = (
+        '`faraday_qr::bbqr`, `faraday_qr::specter` (numbered text parts)'
+    )
+    reference = (
+        "Coinkite's BBQr library (`bbqr/`, with a one-table pyqrcode shim checked "
+        "against `qrcodegen.py`); SeedSigner's numbered-part reader written out in "
+        '`area_bbqr.py` from `tools/reference/specter/README.md`'
+    )
+    reference_checked = (
+        "`check_capacities` runs first, the pyqrcode shim's table of version capacities "
+        "against `qrcodegen.py`'s; its vendored files are hashed against "
+        "`references.sha256` before any run, and a published vector's answer is "
+        'required of the reference as well as of Faraday'
+    )
+    vectors = (
+        "none published beyond the specification's examples"
+    )
+    corpus = (
+        'files of every type and size split by Coinkite in each encoding and read in '
+        "any order, with repeats, a part missing, another transfer's part, a "
+        'conflicting repeat and a part past the count; what Faraday writes read back by '
+        '`join_qrs`; numbered parts written, read in any order and refused when '
+        'malformed'
+    )
+    differences = [
+        (
+            'BBQr: Faraday reads the file types `P`, `T`, `U` and `J` and frames of at most '
+            "4,096 characters; Coinkite's library reads every type BBQr defines and a "
+            'version 40 part of 4,296 characters. `area_bbqr.py` checks both refusals and '
+            'counts them; its corpus splits at version 39 at most. Faraday also refuses a '
+            'set whose parts are not one length but the last, which Coinkite never writes.'
+        ),
+        (
+            'Numbered parts: SeedSigner matches `P` and `OF` in upper case; Faraday does '
+            'not (checked and counted).'
+        ),
+    ]
+    not_compared = (
+        'none'
+    )
 
     def __init__(self, *a):
         super().__init__(*a)
