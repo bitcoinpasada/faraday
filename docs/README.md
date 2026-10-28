@@ -52,6 +52,7 @@ need. Each document's header says what kind it is:
 | Why is a dependency there? | `docs/deps/<crate>.md`; the policy is DECISIONS F71 |
 | Which tool or lint does what? | `tools/README.md` |
 | What is run before a release, and which parsers are fuzzed? | `tools/README.md`, "Before a release"; `fuzz/README.md`, `faraday/fuzz/README.md` |
+| For each cryptographic action, which standard, code and checks, and how does a screen show it; what fails `just lint` when one is added or changed? | `docs/CRYPTO-LEARN.md` |
 | Where are keys held, and how do they leave? | `docs/KEYS.md`, then `docs/AUDIT.md` §2 |
 | What is planned and not built? | each Spec's `**Open:**` line (the Specs are listed below); the board holds the rest |
 | How would a signer be kept from hiding its key in a nonce (anti-exfil)? | `docs/ANTI-EXFIL.md` |
@@ -102,6 +103,7 @@ need. Each document's header says what kind it is:
 - `docs/MAC.md`: Faraday on Macs. Partly built.
 - `docs/MODES.md`: Modes, Practice and samples. Specified (F81), not built.
 - `docs/MOTION.md`: Scrolling, motion and appearance. Built; not yet checked by the owner on hardware.
+- `docs/CRYPTO-LEARN.md`: How Faraday does it: one manifest for every cryptographic action. Specified (F148), not built.
 - `docs/CROSSCHECK.md`: Two implementations of every cryptographic step. Option A decided (F79) and built (§10.5); options B and C deferred.
 - `docs/NOSTR.md`: The Nostr key. Not built, not scheduled (F27, amended by F34).
 - `docs/OWN-RANDOMNESS.md`: Your own randomness, and the kernel's at boot. Specified (F86), not built.
