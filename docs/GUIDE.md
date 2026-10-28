@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Index; the text is split into walkthroughs under `docs/guide/walk/`, the written ones checked against the app's screens and strings
-**Open:** the walkthroughs that are stubs; a test by a reader new to Faraday; the picture of §2.4 to draw
+**Open:** a test by a reader new to Faraday; the picture of §2.4 to draw
 
 Each step is one thing to do, in the order it is done. A path in bold is
 what the screen shows: **Wallets → Add a key** is the Wallets row in the
