@@ -135,7 +135,8 @@ fn run(
     }
     // `FARADAY_SNAP_TEXT=large|larger` takes the tour at that text size
     // (`docs/TEXT-SIZE.md` §7), and each frame with text cut off at a
-    // side is listed in `cut.txt` beside the frames.
+    // side or drawn over other text is listed in `cut.txt` beside the
+    // frames.
     let text = std::env::var("FARADAY_SNAP_TEXT").ok();
     if let Some(words) = &text {
         let size = faraday_core::ui::TextSize::from_id(words)

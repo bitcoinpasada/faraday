@@ -44,16 +44,16 @@ pub(crate) fn gpg_sign_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
                 let line = format!("{} · {}", f.name, gpg_file_size(f.size as u64));
                 let line = ui.fit_as(BODY_M.mono(), &line, iw);
                 ui.text_as(x, cy, BODY_M.mono(), ink, &line);
-                cy += 22.0;
+                cy += ui.advance_as(BODY_M.mono(), 22.0);
                 let hex: String = f.hash[..8].iter().map(|b| format!("{b:02x}")).collect();
                 ui.text_as(x, cy, BODY_S.mono(), muted, &format!("{hex}…"));
-                cy += 22.0;
+                cy += ui.advance_as(BODY_S.mono(), 22.0);
                 ui.rule(x, cy, iw, Role::OutlineVariant);
                 cy += 10.0;
             }
             // The time the signatures will carry, and the way to change it.
             ui.text_as(x, cy, BODY_S, muted, EN.vault_signature_time);
-            cy += 20.0;
+            cy += ui.line_as(BODY_S) + faraday_draw::tokens::GAP_SMALL;
             let set_w = ui.measure_as(LABEL_L, EN.vault_set_the_time) + 30.0;
             let tone = if now.is_some() { ink } else { warn };
             if ui.compact {
@@ -145,7 +145,7 @@ pub(crate) fn stick_save_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
             for n in &f.names {
                 let n = ui.fit_as(BODY_S.mono(), n, iw - 30.0);
                 ui.text_as(x + 30.0, cy, BODY_S.mono(), muted, &n);
-                cy += 18.0;
+                cy += ui.advance_as(BODY_S.mono(), 18.0);
             }
             cy += 6.0;
             ui.hit(x, top, iw, cy - top, va(V::SaveTick(k as u8)));
@@ -188,7 +188,7 @@ pub(super) fn save_panel(
             EN.vault_save_a_wallet
         },
     );
-    dy += 40.0;
+    dy += ui.line_as(TITLE_M) + faraday_draw::tokens::PAD;
     let mut any = false;
     if keys {
         let held: Vec<String> = app
@@ -263,7 +263,7 @@ pub(super) fn save_panel(
         }
         if !any {
             ui.text_as(dx, dy, BODY_S, muted, EN.vault_every_key_saved);
-            dy += 30.0;
+            dy += ui.advance_as(BODY_S, 30.0);
         }
     } else {
         let held: Vec<String> = app
@@ -312,7 +312,7 @@ pub(super) fn save_panel(
         }
         if !any {
             ui.text_as(dx, dy, BODY_S, muted, EN.vault_every_wallet);
-            dy += 30.0;
+            dy += ui.advance_as(BODY_S, 30.0);
         }
     }
     dy
@@ -389,9 +389,9 @@ pub(super) fn images_panel(app: &View, ui: &mut Ui, dx: f32, mut dy: f32, dw: f3
             ink,
             &fill(EN.vault_sign_n, &[&item.name.to_string()]),
         );
-        dy += 40.0;
+        dy += ui.line_as(TITLE_M) + faraday_draw::tokens::PAD;
         ui.text_as(dx, dy, BODY_S, muted, "SHA-256");
-        dy += 20.0;
+        dy += ui.line_as(BODY_S) + faraday_draw::tokens::GAP_SMALL;
         // Taken when the image came in (`Item::sha`): a lookup.
         let hash = item
             .sha
@@ -431,7 +431,7 @@ pub(super) fn images_panel(app: &View, ui: &mut Ui, dx: f32, mut dy: f32, dw: f3
         return dy + 48.0;
     }
     ui.text_as(dx, dy, TITLE_M, ink, EN.vault_sign_or_check);
-    dy += 40.0;
+    dy += ui.line_as(TITLE_M) + faraday_draw::tokens::PAD;
     let images: Vec<(usize, &crate::Item)> = app
         .inbox
         .iter()
@@ -446,7 +446,7 @@ pub(super) fn images_panel(app: &View, ui: &mut Ui, dx: f32, mut dy: f32, dw: f3
             muted,
             &fill(EN.vault_no_efi_image, &[app.medium.from_the()]),
         );
-        dy += 30.0;
+        dy += ui.advance_as(BODY_S, 30.0);
     }
     for (k, it) in images {
         // On a small panel the name has a line of its own.

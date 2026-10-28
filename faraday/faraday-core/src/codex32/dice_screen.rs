@@ -457,9 +457,11 @@ pub(super) fn dice_rows(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32, pa
             Role::OnSurfaceVariant
         };
         ui.text_as(tx, cy, TITLE_S, ink, &text);
-        ui.text_as(
-            x + t::CODEX32_LABEL_W,
-            cy,
+        // A one-line slot beside the die's name: larger text fits down
+        // to Standard there (`docs/TEXT-SIZE.md` §3).
+        let room = w - t::CODEX32_LABEL_W;
+        ui.text_fit_as(
+            (x + t::CODEX32_LABEL_W, cy, lh, room),
             BODY_M.mono(),
             Role::OnSurface,
             &line,

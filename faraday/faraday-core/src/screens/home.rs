@@ -376,10 +376,10 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32) {
         ui.icon(x - 4.0, y - 6.0, 28.0, Icon::Error, 14.0, Role::Error);
         let line = ui.fit_as(LABEL_L, EN.seed_missing, width - 28.0);
         ui.text_as(x + 26.0, y, LABEL_L, Role::Error, &line);
-        y += 36.0;
+        y += ui.line_as(LABEL_L) + faraday_draw::tokens::PAD;
     }
     section_label(ui, x, y, EN.home_start);
-    y += 30.0;
+    y += ui.advance_as(faraday_draw::tokens::TITLE_S, 30.0);
 
     let gap = 16.0;
     // The lead, full width: something under way or waiting (§1.2's

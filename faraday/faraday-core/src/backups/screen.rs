@@ -199,7 +199,7 @@ fn compact(app: &View, ui: &mut Ui, (x0, cw, h): (f32, f32, f32), entries: &[Ent
     match e.lines.as_ref() {
         None => {
             ui.text_as(x, y, LABEL_L, Role::Warning, EN.backups_no_backup_plan);
-            y += 28.0;
+            y += ui.line_as(LABEL_L) + faraday_draw::tokens::GRID;
         }
         Some(lines) => {
             for l in lines {
@@ -227,7 +227,7 @@ fn compact(app: &View, ui: &mut Ui, (x0, cw, h): (f32, f32, f32), entries: &[Ent
             &[&(at + 1).to_string(), &n.to_string()],
         );
         ui.text_as(x, y, BODY_S, Role::OnSurfaceVariant, &page);
-        y += 24.0;
+        y += ui.line_as(BODY_S) + faraday_draw::tokens::GRID;
         let (prev, next) = (at.checked_sub(1), (at + 1 < n).then_some(at + 1));
         ui.button(
             x,

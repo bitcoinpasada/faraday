@@ -225,7 +225,7 @@ pub(crate) fn body(app: &View, ui: &mut Ui, ctx: &PlanCtx, q: u8, x: f32, y: f32
                 cy += ui.multi_list(x, cy, w, &rows(qrow::SOFTWARE, &SOFTWARE_ROWS, &a.software))
                     + 12.0;
                 section_label(ui, x, cy, EN.plan_form);
-                cy += 28.0;
+                cy += ui.line_as(faraday_draw::tokens::TITLE_S) + faraday_draw::tokens::GRID;
                 cy += ui.multi_list(
                     x,
                     cy,
@@ -284,10 +284,10 @@ pub(crate) fn map_rows(
         }
         let name = ui.fit_as(LABEL_L, &name, iw);
         ui.text_as(ix, cy, LABEL_L, Role::OnSurface, &name);
-        cy += 22.0;
+        cy += ui.advance_as(LABEL_L, 22.0);
         if spot.holds.is_empty() {
             ui.text_as(ix, cy, BODY_S, Role::OnSurfaceVariant, EN.map_rows_nothing);
-            cy += 20.0;
+            cy += ui.line_as(BODY_S) + faraday_draw::tokens::GAP_SMALL;
         }
         for (what, tag) in &spot.holds {
             let tone = match tag {

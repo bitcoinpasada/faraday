@@ -96,16 +96,17 @@ pub fn badge<A: Copy + PartialEq>(ui: &mut Ui<A>, glyph: (f32, f32, f32), badge:
     }
 }
 
-/// The height a destination's pill and label take together.
-fn item_content() -> f32 {
-    NAV_PILL_H + NAV_LABEL_GAP + LABEL_M.line
+/// The height a destination's pill and label take together, its label's
+/// line at the text size.
+fn item_content<A: Copy + PartialEq>(ui: &Ui<A>) -> f32 {
+    NAV_PILL_H + NAV_LABEL_GAP + ui.line_as(LABEL_M)
 }
 
 /// A destination as the rail and the bar draw it: its icon on a pill
 /// over its label, centred in the box at (x, y), `w` by `h`, the whole
 /// box pressable.
 fn item<A: Copy + PartialEq>(ui: &mut Ui<A>, x: f32, y: f32, w: f32, h: f32, d: &Dest<A>) {
-    let top = y + ((h - item_content()) / 2.0).max(0.0);
+    let top = y + ((h - item_content(ui)) / 2.0).max(0.0);
     let px = x + (w - NAV_PILL_W) / 2.0;
     let pill = (px, top, NAV_PILL_W, NAV_PILL_H, NAV_PILL_H / 2.0);
     if d.current {

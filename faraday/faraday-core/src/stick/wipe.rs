@@ -589,7 +589,7 @@ pub(crate) fn delete_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
                 if files.is_empty() {
                     let none = fill(EN.stick_wipe_no_files, &[app.medium.noun()]);
                     ui.text_as(x, cy, BODY_S, Role::OnSurfaceVariant, &none);
-                    cy += 28.0;
+                    cy += ui.advance_as(BODY_S, 28.0);
                 }
                 for (k, (name, size)) in files.iter().enumerate() {
                     let on = d.chosen.contains(name);
@@ -743,10 +743,10 @@ pub(crate) fn zeroing_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         ui.progress((x, cy, iw), Some(share), None);
         cy += tokens::PROGRESS_H + 2.0 * tokens::GAP;
         ui.text_as(x, cy, LABEL_L, Role::OnSurface, &line);
-        cy += 26.0;
+        cy += ui.advance_as(LABEL_L, 26.0);
         if let Some(p) = &pass {
             ui.text_as(x, cy, BODY_S, Role::OnSurfaceVariant, p);
-            cy += 24.0;
+            cy += ui.line_as(BODY_S) + faraday_draw::tokens::GRID;
         }
         cy += ui.wrap_as((x, cy, iw), BODY_S, Role::OnSurfaceVariant, &keep) + 14.0;
         cy += buttons(ui, x, cy, iw, &[(stop_label, stop_style, Action::ZeroStop)]);

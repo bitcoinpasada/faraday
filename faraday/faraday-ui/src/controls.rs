@@ -511,7 +511,10 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
             x + (self.measure_as(role, label) + GAP).max(STEPPER_LABEL_COL)
         };
         let h = ICON_BUTTON;
-        self.text_mid_as((x, y, h), role, Role::OnSurfaceVariant, label);
+        // A one-line slot up to the buttons: larger text fits down to
+        // Standard there (`docs/TEXT-SIZE.md` §3).
+        let room = (bx - GAP - x).max(0.0);
+        self.text_fit_as((x, y, h, room), role, Role::OnSurfaceVariant, label);
         let less = (bx, y);
         self.outlined_icon_button(less, Icon::Remove, EN.tip_decrease, enabled, minus);
         let v = value.to_string();

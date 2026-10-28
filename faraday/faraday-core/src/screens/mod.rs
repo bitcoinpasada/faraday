@@ -825,7 +825,7 @@ fn selftest_failed(ui: &mut Ui, w: f32, h: f32, check: &str) {
     );
     y += 56.0;
     ui.text_as(x, y, BODY_S, Role::OnSurfaceVariant, s.selftest_check_row);
-    y += 20.0;
+    y += ui.line_as(BODY_S) + faraday_draw::tokens::GAP_SMALL;
     y += ui.wrap_as((x, y, cw), TITLE_M, Role::Error, check) + 32.0;
     ui.button(
         x,

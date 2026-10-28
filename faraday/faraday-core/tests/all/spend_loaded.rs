@@ -239,11 +239,11 @@ fn card_lines_at(size: faraday_core::ui::TextSize) -> Vec<(String, (i32, i32, i3
 
 /// On a one-column page a loaded wallet's card grows with larger text:
 /// its name, its shape and its keys' line stand one under another, none
-/// over the next, at Standard and at Large.
+/// over the next, at every text size.
 #[test]
-fn a_loaded_wallets_card_keeps_its_lines_apart_at_every_offered_size() {
+fn a_loaded_wallets_card_keeps_its_lines_apart_at_every_text_size() {
     use faraday_core::ui::TextSize;
-    for size in TextSize::OFFERED {
+    for size in TextSize::ALL {
         let lines = card_lines_at(size);
         let mut tops: Vec<_> = lines.iter().map(|(_, b)| *b).collect();
         tops.sort_by_key(|b| b.1);

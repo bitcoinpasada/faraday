@@ -790,15 +790,15 @@ pub(crate) fn details_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         cy += head(ui, x, cy, iw, EN.file_menu_details);
         for (label, value) in rows {
             ui.text_as(x, cy, LABEL_M, Role::OnSurfaceVariant, label);
-            cy += 18.0;
+            cy += ui.advance_as(LABEL_M, 18.0);
             cy += ui.wrap_as((x, cy, iw), BODY_M.mono(), Role::OnSurface, value) + tokens::GAP;
         }
         ui.text_as(x, cy, LABEL_M, Role::OnSurfaceVariant, EN.details_sha);
-        cy += 18.0;
+        cy += ui.advance_as(LABEL_M, 18.0);
         for line in &sha {
             let shown = ui.fit_as(BODY_M.mono(), line, iw);
             ui.text_as(x, cy, BODY_M.mono(), Role::OnSurface, &shown);
-            cy += 22.0;
+            cy += ui.advance_as(BODY_M.mono(), 22.0);
         }
         cy += tokens::GAP;
         cy += buttons(

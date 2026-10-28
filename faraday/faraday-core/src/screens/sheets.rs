@@ -117,7 +117,7 @@ fn potential_body(
     if let Some((key, fixed)) = xpub {
         let k = ui.fit_as(BODY_S.mono(), key, iw);
         ui.text_as(x, cy, BODY_S.mono(), Role::OnSurfaceVariant, &k);
-        cy += 24.0;
+        cy += ui.line_as(BODY_S.mono()) + faraday_draw::tokens::GRID;
         if *fixed {
             let line = fill(
                 EN.potential_as_its_path,
@@ -137,7 +137,7 @@ fn potential_body(
                 EN.potential_fingerprint,
             );
             ui.text_as(x + 90.0, cy, BODY_M.mono(), Role::OnSurface, &fp_text(with));
-            cy += 24.0;
+            cy += ui.line_as(BODY_M.mono()) + faraday_draw::tokens::GAP_SMALL;
         }
         match matched {
             Some(name) => {
@@ -152,7 +152,7 @@ fn potential_body(
                     Role::OnSurfaceVariant,
                     EN.potential_single_key,
                 );
-                cy += 22.0;
+                cy += ui.advance_as(BODY_S, 22.0);
                 cy += kinds(ui, x, cy, iw);
             }
         }
@@ -515,7 +515,7 @@ fn kept_sheet(
                 ui.rule(x, cy, iw, Role::OutlineVariant);
                 cy += 12.0;
                 ui.text_as(x, cy, BODY_S, Role::OnSurfaceVariant, name);
-                cy += 22.0;
+                cy += ui.advance_as(BODY_S, 22.0);
                 for (text, tone, act) in lines {
                     let Some(act) = *act else {
                         cy += ui.wrap_as((x, cy, iw), BODY_M, *tone, text) + 8.0;
@@ -1018,23 +1018,28 @@ pub(super) fn qr_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         qr_sheet_compact(app, q, ui, w, h);
         return;
     }
+    // The title, the subtitle and the tag over the code take what their
+    // lines grow at the text size (`docs/TEXT-SIZE.md` §5).
+    let grow = ui.line_grown_as(TITLE_M) + ui.line_grown_as(BODY_S) + ui.line_grown_as(LABEL_M);
     // A descriptor's whole text goes under the code, which gives up the
     // height it takes.
-    let mut side = (h - 272.0).clamp(240.0, 560.0);
+    let mut side = (h - 272.0 - grow).clamp(240.0, 560.0);
     let mut whole_h = 0.0;
     if let Some(t) = &q.whole {
         for _ in 0..2 {
             let tw = (side + 64.0).max(420.0) - 64.0;
             whole_h = ui.wrap_height_as(LABEL_S.mono(), t, tw) + 10.0;
-            side = (h - 272.0 - whole_h).clamp(240.0, 560.0);
+            side = (h - 272.0 - grow - whole_h).clamp(240.0, 560.0);
         }
         whole_h = ui.wrap_height_as(LABEL_S.mono(), t, (side + 64.0).max(420.0) - 64.0) + 10.0;
     }
     let sw = (side + 64.0).max(420.0);
-    let sh = side + 242.0 + whole_h;
+    let sh = side + 242.0 + grow + whole_h;
     let (x, y) = sheet_box(ui, w, h, sw, sh);
     let t = ui.fit_as(TITLE_M, &q.title, sw - 64.0);
-    ui.text_as(x + 32.0, y + 26.0, TITLE_M, Role::OnSurface, &t);
+    let mut ty = y + 26.0;
+    ui.text_as(x + 32.0, ty, TITLE_M, Role::OnSurface, &t);
+    ty += ui.line_as(TITLE_M);
     let sub = if q.frames.len() > 1 {
         fill(
             EN.qr_frame_count,
@@ -1048,20 +1053,22 @@ pub(super) fn qr_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         q.subtitle.clone()
     };
     let sub = ui.fit_as(BODY_S, &sub, sw - 64.0);
-    ui.text_as(x + 32.0, y + 50.0, BODY_S, Role::OnSurfaceVariant, &sub);
+    ui.text_as(x + 32.0, ty, BODY_S, Role::OnSurfaceVariant, &sub);
+    ty += ui.line_as(BODY_S);
     // Whether scanning it is safe, said beside the code itself.
     let (tag, tone) = if q.secret {
         (EN.qr_secret_whoever_scans, Role::Error)
     } else {
         (EN.qr_public_safe_to_scan, Role::Ok)
     };
-    ui.text_as(x + 32.0, y + 66.0, LABEL_M, tone, tag);
+    ui.text_as(x + 32.0, ty, LABEL_M, tone, tag);
+    ty += ui.line_as(LABEL_M) + T::GAP_SMALL;
     if let Some(m) = q.frames.get(q.frame) {
-        qr_code(ui, m, x + (sw - side) / 2.0, y + 86.0, side);
+        qr_code(ui, m, x + (sw - side) / 2.0, ty, side);
     }
     if let Some(t) = &q.whole {
         ui.wrap_as(
-            (x + 32.0, y + 86.0 + side + 10.0, sw - 64.0),
+            (x + 32.0, ty + side + 10.0, sw - 64.0),
             LABEL_S.mono(),
             Role::OnSurface,
             t,
@@ -1200,7 +1207,7 @@ fn qr_sheet_compact(app: &View, q: &crate::QrView, ui: &mut Ui, w: f32, h: f32) 
         };
         let t = ui.fit_as(TITLE_M, &title, iw);
         ui.text_as(x, cy, TITLE_M, Role::OnSurface, &t);
-        cy += 22.0;
+        cy += ui.advance_as(TITLE_M, 22.0);
         let (tag, tone) = if q.secret {
             (EN.qr_sheet_secret_whoever, Role::Error)
         } else {
@@ -1208,7 +1215,7 @@ fn qr_sheet_compact(app: &View, q: &crate::QrView, ui: &mut Ui, w: f32, h: f32) 
         };
         let tag = ui.fit_as(LABEL_M, tag, iw);
         ui.text_as(x, cy, LABEL_M, tone, &tag);
-        cy += 22.0;
+        cy += ui.advance_as(LABEL_M, 22.0);
         // The room down to the Done button: the margins, the padding, and
         // the button with its own. A descriptor's whole text and the
         // buttons scroll under the code rather than squeeze it: above the
@@ -1305,7 +1312,7 @@ pub(super) fn new_input_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
                     Role::OnSurfaceVariant,
                     EN.new_input_type_code,
                 );
-                cy += 24.0;
+                cy += ui.line_as(LABEL_L) + faraday_draw::tokens::GAP_SMALL;
                 let n = code.chars().count().max(1) as f32;
                 let bw = ((iw - (n - 1.0) * 6.0) / n).min(52.0);
                 let typed = d.typed.chars().count();
@@ -1489,7 +1496,7 @@ pub(super) fn locked_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
                 for item in app.outbox.iter().take(shown) {
                     let n = ui.fit_as(BODY_M.mono(), &item.name, iw);
                     ui.text_as(x, cy, BODY_M.mono(), ink, &n);
-                    cy += 24.0;
+                    cy += ui.line_as(BODY_M.mono()) + faraday_draw::tokens::GAP_SMALL;
                 }
             }
             cy - y
@@ -1837,13 +1844,13 @@ pub(super) fn secret_out_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
             cy += 4.0;
             if to_vault {
                 ui.text_as(x, cy, LABEL_L, Role::Ok, EN.secret_out_sealed);
-                cy += 24.0;
+                cy += ui.line_as(LABEL_L) + faraday_draw::tokens::GAP_SMALL;
             }
             match vault.filter(|_| to_vault) {
                 Some((name, true)) => {
                     let line = ui.fit_as(LABEL_L, &fill(EN.secret_out_in_vault, &[name]), iw);
                     ui.text_as(x, cy, LABEL_L, Role::Ok, &line);
-                    cy += 30.0;
+                    cy += ui.advance_as(LABEL_L, 30.0);
                 }
                 Some((name, false)) => {
                     // In place: the sheet's foot holds the Outbox's
@@ -1872,7 +1879,7 @@ pub(super) fn secret_out_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
                 None => {}
             }
             ui.text_as(x, cy, LABEL_L, Role::Error, &unprotected);
-            cy += 24.0;
+            cy += ui.line_as(LABEL_L) + faraday_draw::tokens::GAP_SMALL;
             if forms.len() > 1 {
                 cy += wrap_buttons(ui, x, cy, iw, BUTTON_H, &forms) + 4.0;
             }

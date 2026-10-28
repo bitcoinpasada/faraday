@@ -313,12 +313,12 @@ fn check_card(app: &View, s: &SilentState, ui: &mut Ui, x: f32, y: f32, w: f32) 
     let mut cy = y;
     if let Some((name, check)) = s.check.as_ref() {
         ui.text_as(x, cy, LABEL_L, Role::OnSurface, name);
-        cy += 24.0;
+        cy += ui.line_as(LABEL_L) + faraday_draw::tokens::GAP_SMALL;
         match check.result() {
             Some(r) => {
                 let (line, tone) = checked_text(r);
                 ui.text_as(x, cy, LABEL_L, tone, &line);
-                cy += 26.0;
+                cy += ui.advance_as(LABEL_L, 26.0);
                 if let Checked::Paid(paid) = r {
                     for p in paid {
                         let to = match p.label {
@@ -335,7 +335,7 @@ fn check_card(app: &View, s: &SilentState, ui: &mut Ui, x: f32, y: f32, w: f32) 
                             ],
                         );
                         ui.text_as(x + 12.0, cy, BODY_M.mono(), Role::OnSurface, &row);
-                        cy += 22.0;
+                        cy += ui.advance_as(BODY_M.mono(), 22.0);
                     }
                 }
             }
@@ -376,7 +376,7 @@ fn check_card(app: &View, s: &SilentState, ui: &mut Ui, x: f32, y: f32, w: f32) 
             Role::OnSurfaceVariant,
             EN.silent_no_transaction,
         );
-        cy += 28.0;
+        cy += ui.advance_as(BODY_S, 28.0);
     } else {
         cy += button_rows(ui, x, cy, w, &txs);
     }

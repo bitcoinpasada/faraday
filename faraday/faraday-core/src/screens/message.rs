@@ -303,7 +303,7 @@ fn message_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                 }
                 Some(sig) => {
                     ui.text_as(x, cy, BODY_S, Role::OnSurfaceVariant, EN.message_signature);
-                    cy += 20.0;
+                    cy += ui.line_as(BODY_S) + faraday_draw::tokens::GAP_SMALL;
                     cy += ui.wrap_as((x, cy, w), BODY_M.mono(), Role::OnSurface, &sig.signature)
                         + 14.0;
                     // Made For the stick as it was signed.

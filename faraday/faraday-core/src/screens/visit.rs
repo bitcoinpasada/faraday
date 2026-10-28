@@ -63,7 +63,7 @@ fn visit_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         y += wrap_buttons(ui, x, y, w, BUTTON_H, &items) + 4.0;
     } else {
         ui.text_as(x, y, LABEL_L, Role::OnSurfaceVariant, &stick.label);
-        y += 26.0;
+        y += ui.advance_as(LABEL_L, 26.0);
     }
     // What is left to do: pull the stick, and where the copied files went.
     y += crate::vault::screen::stick_banner(ui, x, y, w, &pull_line(app));
@@ -173,7 +173,7 @@ fn visit_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     if stick.files.is_empty() {
         let none = fill(EN.visit_no_files, &[app.medium.noun()]);
         ui.text_as(x, y, BODY_S, Role::OnSurfaceVariant, &none);
-        y += 28.0;
+        y += ui.advance_as(BODY_S, 28.0);
     }
     // Delete files: the one way into deleting from the stick.
     y += wrap_buttons(
@@ -325,7 +325,7 @@ fn visit_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             Role::OnSurfaceVariant,
             &fill(EN.visit_nothing_waits, &[app.medium.for_the()]),
         );
-        y += 28.0;
+        y += ui.advance_as(BODY_S, 28.0);
     }
     let shown = app.visit_inbox_shown();
     if !shown.is_empty() {

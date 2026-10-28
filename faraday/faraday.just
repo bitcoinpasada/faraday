@@ -165,7 +165,10 @@ snap_kit := if snap_net == "testnet" { "out/testkit" } else { "out/testkit-" + s
 snap_suffix := if snap_net == "testnet" { "" } else { "-" + snap_net }
 
 # Every screen along the snapshot tour, at each size, into
-# out/snapshots/faraday/WxH/. Desktop sizes first (160 dpi, the
+# out/snapshots/faraday/WxH/, and again with text at Larger into
+# out/snapshots/faraday/WxH-larger/, with cut.txt there listing each
+# frame with text cut off at a side or drawn over other text
+# (docs/TEXT-SIZE.md §7). Desktop sizes first (160 dpi, the
 # default), then the two small-panel references: 480x640 at 286 dpi is
 # the Pi's Waveshare panel, 240x320 at 143 is the smallest the design
 # supports -- both `small` size class, so this
@@ -174,14 +177,12 @@ snap_suffix := if snap_net == "testnet" { "" } else { "-" + snap_net }
 faraday-snapshots: faraday-testkit
     #!/usr/bin/env bash
     set -euo pipefail
-    for size in 1280x800 1920x1080 1024x768 3840x2160; do
-        cargo run -q -p faraday-snapshot -- "$size" out/testkit "out/snapshots/faraday/$size" > /dev/null
-        echo "out/snapshots/faraday/$size"
-    done
-    for spec in "480x640 286" "240x320 143"; do
+    for spec in "1280x800 160" "1920x1080 160" "1024x768 160" "3840x2160 160" "480x640 286" "240x320 143"; do
         read -r size dpi <<< "$spec"
         cargo run -q -p faraday-snapshot -- "$size@$dpi" out/testkit "out/snapshots/faraday/$size" > /dev/null
         echo "out/snapshots/faraday/$size"
+        FARADAY_SNAP_TEXT=larger cargo run -q -p faraday-snapshot -- "$size@$dpi" out/testkit "out/snapshots/faraday/$size-larger" > /dev/null
+        echo "out/snapshots/faraday/$size-larger"
     done
 
 # One tour at one size, for looking at a change: `just faraday-snap
@@ -194,7 +195,9 @@ faraday-snapshots: faraday-testkit
 # just faraday-snap 1280x800 spend` runs it as a Mainnet stick shows it
 # (no network pill, bc1 addresses, xpubs; the same test seeds at coin
 # type 0), from out/testkit-mainnet into
-# out/snapshots/faraday/WxH-mainnet[/TOUR].
+# out/snapshots/faraday/WxH-mainnet[/TOUR]. FARADAY_SNAP_TEXT=larger
+# takes it with text at Larger, into out/snapshots/faraday/WxH-larger
+# [/TOUR], with cut.txt (docs/TEXT-SIZE.md §7).
 [group('test')]
 faraday-snap size tour="": (faraday-testkit snap_kit snap_net)
     #!/usr/bin/env bash
@@ -205,6 +208,10 @@ faraday-snap size tour="": (faraday-testkit snap_kit snap_net)
         240x320) arg="240x320@143" ;;
     esac
     out="out/snapshots/faraday/{{size}}{{snap_suffix}}"
+    case "${FARADAY_SNAP_TEXT:-standard}" in
+        standard) ;;
+        *) out="$out-$FARADAY_SNAP_TEXT" ;;
+    esac
     tour=()
     if [ -n "{{tour}}" ]; then
         out="$out/{{tour}}"

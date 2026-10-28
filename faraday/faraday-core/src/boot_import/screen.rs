@@ -193,7 +193,7 @@ fn unlock(
     );
     let line = ui.fit_as(BODY_S, &line, w - 28.0);
     ui.text_as(x + 28.0, cy + 24.0, BODY_S, Role::OnSurfaceVariant, &line);
-    cy += 52.0;
+    cy += ui.advance_as(BODY_S, 52.0);
     cy += passphrase(app, ui, x, cy, w, vault.file);
     cy += buttons(ui, x, cy, w, &foot);
     cy - y
@@ -295,7 +295,7 @@ fn files(ui: &mut Ui, x: f32, y: f32, w: f32, v: &ImportView) -> f32 {
         };
         let name = ui.fit_as(BODY_M.mono(), &f.name, tw);
         ui.text_as(tx, cy + 2.0, BODY_M.mono(), fg, &name);
-        cy += 24.0;
+        cy += ui.line_as(BODY_M.mono()) + faraday_draw::tokens::GAP_SMALL;
         cy += ui.wrap_as(
             (tx, cy, tw),
             BODY_S,

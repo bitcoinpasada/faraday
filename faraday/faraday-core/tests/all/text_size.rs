@@ -220,53 +220,124 @@ fn text_cut_or_over(app: &mut Faraday, what: &str, over: bool) -> (Vec<String>, 
     (found, offered)
 }
 
-/// Home, Settings and the lock sheet over Home at Larger on a `width` ×
-/// `height` display at `dpi`: none with text cut at a side, and, with
-/// `over`, Home and Settings with no text over other text. A sheet's
-/// text stands over the page under it by design, so a sheet is checked
-/// for its sides alone.
-fn at_larger((width, height, dpi): (u16, u16, u16), over: bool) -> Vec<String> {
+/// The page drawn now, from its top to its foot, checked as
+/// [`text_cut_or_over`] checks it: its findings added to `found`, what
+/// it offers given back.
+fn check(app: &mut Faraday, found: &mut Vec<String>, what: &str, over: bool) -> Vec<Action> {
+    app.settle();
+    let (cut, offered) = text_cut_or_over(app, what, over);
+    found.extend(cut);
+    offered
+}
+
+/// Home, Settings, Add a key's word entry, New key's first steps, the
+/// lock sheet over Home and a Learn page at Larger on a `width` ×
+/// `height` display at `dpi`: none with text cut at a side, and the
+/// pages with no text over other text. A sheet's text stands over the
+/// page under it by design, so a sheet is checked for its sides alone.
+fn at_larger((width, height, dpi): (u16, u16, u16)) -> Vec<String> {
+    use faraday_core::keygen::kstep;
     let mut found = Vec::new();
     let mut app = shown_on(width, height, dpi);
     app.press(Action::TextSize(TextSize::Larger));
     let on = format!("{width}×{height} at {dpi} dpi");
     app.press(Action::Nav(Screen::Home));
-    found.extend(text_cut_or_over(&mut app, &format!("{on}, Home"), over).0);
+    check(&mut app, &mut found, &format!("{on}, Home"), true);
     app.press(Action::Nav(Screen::Settings));
-    let what = format!("{on}, Settings");
-    let (cut, mut offered) = text_cut_or_over(&mut app, &what, over);
-    found.extend(cut);
+    let mut offered = check(&mut app, &mut found, &format!("{on}, Settings"), true);
     // Appearance, where Text size is chosen, as its own page where
     // Settings lists its sections.
     let appearance = Action::SettingsSection(Some(4));
     if offered.contains(&appearance) {
         app.press(appearance);
-        app.settle();
         let what = format!("{on}, Settings › Appearance");
-        let (cut, more) = text_cut_or_over(&mut app, &what, over);
-        found.extend(cut);
-        offered.extend(more);
+        offered.extend(check(&mut app, &mut found, &what, true));
     }
-    assert!(offered.contains(&Action::TextSize(TextSize::Large)), "{on}");
+    for size in TextSize::OFFERED {
+        assert!(offered.contains(&Action::TextSize(size)), "{on}: {size:?}");
+    }
+    app.press(Action::Nav(Screen::WalletsStart));
+    app.press(Action::Entry(None));
+    assert_eq!(app.screen, Screen::Entry, "{on}");
+    check(&mut app, &mut found, &format!("{on}, Add a key"), true);
+    app.press(Action::KeyGen(None));
+    for (step, name) in [
+        (kstep::LENGTH, "Length"),
+        (kstep::START, "Start"),
+        (kstep::SOURCE, "Randomness"),
+    ] {
+        app.press(Action::KStep(step));
+        let what = format!("{on}, New key › {name}");
+        check(&mut app, &mut found, &what, true);
+    }
+    app.press(Action::Learn);
+    check(&mut app, &mut found, &format!("{on}, Learn"), false);
+    app.press(Action::Cancel);
     app.press(Action::Nav(Screen::Home));
     app.sheet = Some(Sheet::Lock);
-    app.settle();
-    let what = format!("{on}, the lock sheet");
-    found.extend(text_cut_or_over(&mut app, &what, false).0);
+    check(
+        &mut app,
+        &mut found,
+        &format!("{on}, the lock sheet"),
+        false,
+    );
     found
 }
 
-/// On the smallest panel the screens' own line advances, written in
-/// place, do not grow with the text yet (`docs/TEXT-SIZE.md` §5), so
-/// lines there can stand over one another: only the sides are checked.
 #[test]
-fn at_larger_the_smallest_panel_draws_no_text_cut_off_at_a_side() {
-    let found = at_larger((240, 320, 143), false);
+fn at_larger_the_smallest_panel_draws_no_text_cut_off_or_over_other_text() {
+    let found = at_larger((240, 320, 143));
     assert!(found.is_empty(), "{}", found.join("\n"));
 }
 
 #[test]
 fn at_larger_a_desktop_window_draws_no_text_cut_off_or_over_other_text() {
-    let found = at_larger((1280, 800, 160), true);
+    let found = at_larger((1280, 800, 160));
     assert!(found.is_empty(), "{}", found.join("\n"));
+}
+
+/// Test 6 (`docs/TEXT-SIZE.md` §7): at Larger on the smallest panel,
+/// Add a key's letter keys are all on the screen, and a touch on each
+/// one a word can start with types its letter.
+#[test]
+fn at_larger_on_the_smallest_panel_each_word_key_is_on_screen_and_types_its_letter() {
+    use faraday_shell_api::TouchPhase;
+    let mut app = shown_on(240, 320, 143);
+    app.press(Action::TextSize(TextSize::Larger));
+    app.press(Action::Nav(Screen::WalletsStart));
+    app.press(Action::Entry(None));
+    app.settle();
+    let mut typed = 0;
+    for c in 'a'..='z' {
+        let _ = app.frame();
+        // BIP-39 has no word that starts with x: its key is drawn
+        // disabled and takes no press.
+        if c == 'x' {
+            assert!(!app.offers(Action::EntryKey(c)), "x is disabled");
+            continue;
+        }
+        let Some((x, y, w, h)) = app.hit_box(Action::EntryKey(c)) else {
+            panic!("the {c} key is drawn");
+        };
+        assert!(
+            u32::from(x) + u32::from(w) <= 240 && u32::from(y) + u32::from(h) <= 320,
+            "the {c} key ({x}, {y}, {w} × {h}) is on the panel"
+        );
+        let (x, y) = app.where_offered(Action::EntryKey(c)).unwrap();
+        for phase in [TouchPhase::Down, TouchPhase::Up] {
+            app.event(Event::Touch { x, y, phase });
+        }
+        let _ = app.frame();
+        let prefix: String = faraday_core::testkit::entry(&app)
+            .keys
+            .as_ref()
+            .expect("word entry")
+            .prefix()
+            .iter()
+            .collect();
+        assert_eq!(prefix, c.to_string(), "the {c} key");
+        typed += 1;
+        app.press(Action::EntryKeyBack);
+    }
+    assert_eq!(typed, 25);
 }

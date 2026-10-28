@@ -33,7 +33,7 @@ pub(super) fn dice_panel(
     ui.fill(x, cy, w, 4.0, 2.0, Role::Primary.with_alpha(60));
     cy += 14.0;
     ui.text_as(x, cy, LABEL_L, Role::OnSurface, EN.dice_list_title);
-    cy += 22.0;
+    cy += ui.advance_as(LABEL_L, 22.0);
     let lists = [
         (List::Large, EN.dice_list_large, EN.dice_list_large_detail),
         (
@@ -96,7 +96,7 @@ pub(super) fn dice_panel(
     // list, as New key shows its words.
     if words.is_empty() {
         ui.text_as(x, cy, BODY_S, Role::OnSurfaceVariant, EN.vault_no_word_yet);
-        cy += 26.0;
+        cy += ui.advance_as(BODY_S, 26.0);
     } else {
         ui.text_as(
             x,
@@ -105,7 +105,7 @@ pub(super) fn dice_panel(
             Role::OnSurfaceVariant,
             crate::wordlist::PRESS_A_WORD,
         );
-        cy += 22.0;
+        cy += ui.advance_as(BODY_S, 22.0);
         let place = crate::wordlist::WordList::Eff(list).place();
         let mut bx = x;
         for (word, i) in words

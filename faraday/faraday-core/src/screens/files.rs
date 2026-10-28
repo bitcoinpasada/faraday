@@ -74,7 +74,7 @@ fn inbox_panel(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             Role::OnSurfaceVariant,
             EN.inbox_panel_wallets,
         );
-        ty += 26.0;
+        ty += ui.advance_as(LABEL_L, 26.0);
         let many = wallets.len() > 1;
         for (i, fw) in wallets.iter().enumerate().take(ROWS) {
             let chosen = !app.inbox.skip().contains(&fw.descriptor);
@@ -203,7 +203,7 @@ fn inbox_panel(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             Role::OnSurfaceVariant,
             EN.inbox_panel_loose_keys,
         );
-        ty += 26.0;
+        ty += ui.advance_as(LABEL_L, 26.0);
         for s in potential.iter().take(ROWS) {
             ui.icon(
                 x + 20.0,
@@ -261,7 +261,7 @@ fn inbox_panel(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             Role::OnSurfaceVariant,
             EN.inbox_panel_loose_xpubs,
         );
-        ty += 26.0;
+        ty += ui.advance_as(LABEL_L, 26.0);
         for (i, xp) in found.xpubs.iter().enumerate().take(ROWS) {
             ui.icon(
                 x + 20.0,
@@ -309,7 +309,7 @@ fn inbox_panel(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             Role::OnSurfaceVariant,
             EN.inbox_panel_not_complete,
         );
-        ty += 26.0;
+        ty += ui.advance_as(LABEL_L, 26.0);
         for q in found.waiting.iter().take(ROWS) {
             let line = ui.fit_as(BODY_M, &q.line, w - 200.0);
             ui.text_mid_as((x + 20.0, ty, 36.0), BODY_S, Role::OnSurfaceVariant, &line);
@@ -699,7 +699,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         }
         let lw = ui.text_as(ox, oy, LABEL_M, tone, label);
         ui.text_as(ox + lw + 10.0, oy, BODY_S, Role::OnSurfaceVariant, &line);
-        oy += 24.0;
+        oy += ui.line_as(BODY_S) + faraday_draw::tokens::GRID;
         for (k, item) in group {
             if !ui.shows(oy, 66.0) {
                 oy += 78.0;
@@ -737,7 +737,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             ui.text_as(ox + 66.0, oy + 14.0, BODY_M.mono(), Role::OnSurface, &name);
             let line = ui.fit_as(BODY_S, &line, (dots_x - 12.0 - (ox + 66.0)).max(0.0));
             ui.text_as(ox + 66.0, oy + 36.0, BODY_S, Role::OnSurfaceVariant, &line);
-            oy += 78.0;
+            oy += ui.advance_as(BODY_S, 78.0);
         }
         oy += 6.0;
     }
@@ -890,7 +890,7 @@ fn receipt_rows(ui: &mut Ui, r: &crate::Receipt, tz_min: i16, x: f32, y: f32, w:
         ui.text_right_as((x + w, ry - 4.0, 20.0), BODY_S, tone, &state);
         let name = ui.fit_as(BODY_M.mono(), &f.name, (w - sw - 12.0).max(0.0));
         ui.text_as(x, ry, BODY_M.mono(), Role::OnSurface, &name);
-        ry += 28.0;
+        ry += ui.line_as(BODY_M.mono()) + faraday_draw::tokens::GRID;
     }
     ry - y
 }
@@ -980,7 +980,7 @@ pub(crate) fn vault_panel(app: &View, ui: &mut Ui, v: usize, x: f32, y: f32, w: 
             Role::OnSurfaceVariant,
             EN.vault_panel_seeded_wallets,
         );
-        ty += 26.0;
+        ty += ui.advance_as(LABEL_L, 26.0);
         let many = together.len() > 1;
         for wt in together.iter().take(ROWS) {
             let action = Action::Vault(V::Choose(v, wt.record));
@@ -1220,7 +1220,7 @@ fn inbox_panel_compact(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         ty += 36.0;
         if !wallets.is_empty() {
             ui.text_as(ix, ty, LABEL_L, Role::OnSurfaceVariant, EN.inbox_wallets);
-            ty += 24.0;
+            ty += ui.line_as(LABEL_L) + faraday_draw::tokens::GAP_SMALL;
             let many = wallets.len() > 1;
             for (i, fw) in wallets.iter().enumerate().take(ROWS) {
                 let chosen = !app.inbox.skip().contains(&fw.descriptor);
@@ -1240,7 +1240,7 @@ fn inbox_panel_compact(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                 );
                 let name = ui.fit_as(TITLE_S, &fw.name, ix + iw - rx - 26.0);
                 ui.text_as(rx + 26.0, ty + 2.0, TITLE_S, Role::OnSurface, &name);
-                ty += 24.0;
+                ty += ui.line_as(TITLE_S) + faraday_draw::tokens::GAP_SMALL;
                 let n = fw.keys.len().max(1);
                 let line = fill(
                     EN.inbox_of_here,
@@ -1264,10 +1264,10 @@ fn inbox_panel_compact(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                 );
                 let line = ui.fit_as(BODY_S, &line, ix + iw - rx - 26.0);
                 ui.text_as(rx + 26.0, ty, BODY_S, Role::OnSurfaceVariant, &line);
-                ty += 20.0;
+                ty += ui.line_as(BODY_S) + faraday_draw::tokens::GAP_SMALL;
                 if fw.seeds_here >= fw.needed {
                     ui.text_as(rx + 26.0, ty, LABEL_M, Role::Ok, EN.inbox_ready_to_sign);
-                    ty += 20.0;
+                    ty += ui.line_as(LABEL_M) + faraday_draw::tokens::GAP_SMALL;
                 }
                 if many {
                     ui.hit(ix - 4.0, top, iw + 8.0, ty - top, Action::InboxChoose(i));
@@ -1314,7 +1314,7 @@ fn inbox_panel_compact(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         }
         if !potential.is_empty() {
             ui.text_as(ix, ty, LABEL_L, Role::OnSurfaceVariant, EN.inbox_loose_keys);
-            ty += 24.0;
+            ty += ui.line_as(LABEL_L) + faraday_draw::tokens::GAP_SMALL;
             for s in potential.iter().take(ROWS) {
                 ui.icon(ix, ty + 2.0, 20.0, Icon::Keys, 11.0, Role::OnSurfaceVariant);
                 ui.text_as(
@@ -1324,11 +1324,11 @@ fn inbox_panel_compact(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                     Role::OnSurface,
                     &fp_text(s.fingerprint),
                 );
-                ty += 24.0;
+                ty += ui.line_as(BODY_M.mono()) + faraday_draw::tokens::GAP_SMALL;
                 let from: Vec<String> = s.sources.iter().map(|src| src.name(app)).collect();
                 let line = ui.fit_as(BODY_S, &from.join(" · "), iw - 26.0);
                 ui.text_as(ix + 26.0, ty, BODY_S, Role::OnSurfaceVariant, &line);
-                ty += 22.0;
+                ty += ui.advance_as(BODY_S, 22.0);
                 let style = if may {
                     Style::Secondary
                 } else {
@@ -1361,7 +1361,7 @@ fn inbox_panel_compact(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                 Role::OnSurfaceVariant,
                 EN.inbox_loose_xpubs,
             );
-            ty += 24.0;
+            ty += ui.line_as(LABEL_L) + faraday_draw::tokens::GAP_SMALL;
             for (i, xp) in found.xpubs.iter().enumerate().take(ROWS) {
                 ui.icon(
                     ix,
@@ -1376,7 +1376,7 @@ fn inbox_panel_compact(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                     .map(fp_text)
                     .unwrap_or_else(|| EN.inbox_no_origin.to_string());
                 ui.text_as(ix + 26.0, ty + 2.0, BODY_M.mono(), Role::OnSurface, &fp);
-                ty += 24.0;
+                ty += ui.line_as(BODY_M.mono()) + faraday_draw::tokens::GAP_SMALL;
                 let line = format!(
                     "{} · {}",
                     xp.path.clone().unwrap_or_default(),
@@ -1387,7 +1387,7 @@ fn inbox_panel_compact(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                 );
                 let line = ui.fit_as(BODY_S, &line, iw - 26.0);
                 ui.text_as(ix + 26.0, ty, BODY_S, Role::OnSurfaceVariant, &line);
-                ty += 22.0;
+                ty += ui.advance_as(BODY_S, 22.0);
                 ty += wrap_buttons(
                     ui,
                     ix + 26.0,
@@ -1411,7 +1411,7 @@ fn inbox_panel_compact(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                 Role::OnSurfaceVariant,
                 EN.inbox_not_complete,
             );
-            ty += 24.0;
+            ty += ui.line_as(LABEL_L) + faraday_draw::tokens::GAP_SMALL;
             for q in found.waiting.iter().take(ROWS) {
                 ty += ui.wrap_as((ix, ty, iw), BODY_S, Role::OnSurfaceVariant, &q.line) + 8.0;
             }
@@ -1471,7 +1471,7 @@ fn vault_panel_compact(app: &View, ui: &mut Ui, v: usize, x: f32, y: f32, w: f32
                 Role::OnSurfaceVariant,
                 EN.vault_seeded_wallets,
             );
-            ty += 24.0;
+            ty += ui.line_as(LABEL_L) + faraday_draw::tokens::GAP_SMALL;
             let many = together.len() > 1;
             for wt in together.iter().take(ROWS) {
                 let top = ty;
@@ -1490,7 +1490,7 @@ fn vault_panel_compact(app: &View, ui: &mut Ui, v: usize, x: f32, y: f32, w: f32
                 );
                 let name = ui.fit_as(TITLE_S, &wt.name, ix + iw - rx - 26.0);
                 ui.text_as(rx + 26.0, ty + 2.0, TITLE_S, Role::OnSurface, &name);
-                ty += 24.0;
+                ty += ui.line_as(TITLE_S) + faraday_draw::tokens::GAP_SMALL;
                 let here = wt.keys.len();
                 let line = fill(
                     EN.vault_of_in_this_vault,
@@ -1505,10 +1505,10 @@ fn vault_panel_compact(app: &View, ui: &mut Ui, v: usize, x: f32, y: f32, w: f32
                     ],
                 );
                 ui.text_as(rx + 26.0, ty, BODY_S, Role::OnSurfaceVariant, &line);
-                ty += 20.0;
+                ty += ui.line_as(BODY_S) + faraday_draw::tokens::GAP_SMALL;
                 if here >= wt.needed {
                     ui.text_as(rx + 26.0, ty, LABEL_M, Role::Ok, EN.vault_ready_to_sign);
-                    ty += 20.0;
+                    ty += ui.line_as(LABEL_M) + faraday_draw::tokens::GAP_SMALL;
                 }
                 if many {
                     ui.hit(
@@ -1842,8 +1842,9 @@ fn file_card(
         ui.text_as(x + 56.0, cy, BODY_M.mono(), Role::OnSurface, &n);
         crate::file_menu::dots(app, ui, x + w - 12.0 - dw, cy, dw, row);
         let l = ui.fit_as(BODY_S, line, room);
-        ui.text_as(x + 56.0, cy + 20.0, BODY_S, Role::OnSurfaceVariant, &l);
-        cy += 46.0;
+        let line_y = cy + ui.advance_as(BODY_M, 20.0);
+        ui.text_as(x + 56.0, line_y, BODY_S, Role::OnSurfaceVariant, &l);
+        cy = line_y + ui.advance_as(BODY_S, 26.0);
         if let Some((t, c)) = note {
             cy += ui.wrap_as((x + 12.0, cy, w - 24.0), BODY_M, *c, t) + 8.0;
         }
@@ -1858,7 +1859,12 @@ fn file_card(
     // sight is passed over, not drawn.
     let labels: Vec<&str> = buttons.iter().map(|(l, ..)| l.as_str()).collect();
     let note_h = note.map_or(0.0, |(t, _)| ui.wrap_height_as(BODY_S, t, w - 24.0) + 8.0);
-    let h = 60.0 + note_h + faraday_ui::parts::wrap_buttons_height(ui, w - 24.0, BUTTON_H, &labels);
+    // Its two lines grow with the text (`docs/TEXT-SIZE.md` §5).
+    let grow = ui.line_grown_as(BODY_M) + ui.line_grown_as(BODY_S);
+    let h = 60.0
+        + grow
+        + note_h
+        + faraday_ui::parts::wrap_buttons_height(ui, w - 24.0, BUTTON_H, &labels);
     if !ui.shows(y, h) {
         return h;
     }
@@ -1934,7 +1940,7 @@ fn compact_head(app: &View, ui: &mut Ui, (x, y0, w): (f32, f32, f32)) -> f32 {
         Role::OnSurfaceVariant,
         EN.files_in_memory_emptied,
     );
-    y += 26.0;
+    y += ui.advance_as(BODY_S, 26.0);
     // Arrived from Import and load: pulling the stick is the next step.
     if !app.stick.is_empty() && !app.visit.load_after.is_empty() {
         y += crate::vault::screen::stick_banner(ui, x, y, w, &pull_line(app));
@@ -1962,7 +1968,7 @@ fn compact_inbox(app: &View, ui: &mut Ui, (x, y0, w): (f32, f32, f32)) -> f32 {
         Role::OnSurfaceVariant,
         &app.inbox.len().to_string(),
     );
-    y += 28.0;
+    y += ui.advance_as(BODY_S, 28.0);
     for (k, item) in app.inbox.iter().enumerate() {
         let line = if item.kind == FileKind::Vault
             && vault_of_row(&app.vault_files(), item).is_some_and(|f| f.open.is_some())
@@ -2016,7 +2022,7 @@ fn compact_outbox(app: &View, ui: &mut Ui, (x, y0, w): (f32, f32, f32)) -> f32 {
         Role::OnSurfaceVariant,
         &app.outbox.len().to_string(),
     );
-    y += 28.0;
+    y += ui.advance_as(BODY_S, 28.0);
     for (exposure, label, line, tone) in [
         (
             Exposure::Public,
@@ -2047,7 +2053,7 @@ fn compact_outbox(app: &View, ui: &mut Ui, (x, y0, w): (f32, f32, f32)) -> f32 {
             continue;
         }
         ui.text_as(x, y, LABEL_M, tone, label);
-        y += 18.0;
+        y += ui.advance_as(LABEL_M, 18.0);
         y += ui.wrap_as((x, y, w), BODY_S, Role::OnSurfaceVariant, &line) + 8.0;
         for (k, item) in group {
             let (edge, icon, ink) = match exposure {
@@ -2081,7 +2087,7 @@ fn compact_outbox(app: &View, ui: &mut Ui, (x, y0, w): (f32, f32, f32)) -> f32 {
     }
     if app.outbox.is_empty() {
         ui.text_as(x, y, BODY_S, Role::OnSurfaceVariant, EN.files_empty);
-        y += 26.0;
+        y += ui.advance_as(BODY_S, 26.0);
     }
     if let Some(r) = app.visit.receipt().as_ref() {
         y += receipt_rows(ui, r, app.tz_min(), x, y, w) + 8.0;

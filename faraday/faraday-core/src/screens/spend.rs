@@ -200,7 +200,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         area_w: if compact { cw } else { cw - panel_w },
         x: col_x,
         w: col_w,
-        h: if compact { h - SPEND_BAR } else { h },
+        h: if compact { h - spend_bar_h(ui) } else { h },
         back: Some(app.named_back((EN.spend_wallets, Action::Nav(Screen::WalletsStart)))),
         heading: EN.spend_sign_a_transaction,
         guided,
@@ -223,7 +223,8 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     // step's Continue while it is read.
     if compact {
         let step = ui.pin.take();
-        spend_bar(app, ui, x0, cw, h - SPEND_BAR, needed, step);
+        let bar_y = h - spend_bar_h(ui);
+        spend_bar(app, ui, x0, cw, bar_y, needed, step);
     } else {
         spend_panel(app, ui, x0 + cw - panel_w, panel_w, h, wallet_idx, needed);
     }
@@ -299,11 +300,14 @@ fn spend_bar(
     let (count, missing, need_line, label) = spend_status(app, needed);
     let (label, style, action) = step.unwrap_or((label, Style::Primary, Action::Primary));
     let (x, w) = (x0 + crate::compact::M, cw - 2.0 * crate::compact::M);
-    ui.fill(x0, y, cw, SPEND_BAR, 0.0, Role::SurfaceContainerLow);
+    ui.fill(x0, y, cw, spend_bar_h(ui), 0.0, Role::SurfaceContainerLow);
     ui.fill(x0, y, cw, 1.0, 0.0, Role::OutlineVariant);
-    let pw = ui.pips(x, y + 14.0, needed, count);
+    // Its lines and its button as tall as their text (`docs/TEXT-SIZE.md`
+    // §5).
+    let (g1, g2) = (ui.line_grown_as(LABEL_L), ui.line_grown_as(BODY_S));
+    let pw = ui.pips(x, y + 14.0 + g1 / 2.0, needed, count);
     ui.text_mid_as(
-        (x + pw + 10.0, y + 4.0, 26.0),
+        (x + pw + 10.0, y + 4.0, 26.0 + g1),
         LABEL_L,
         Role::OnSurface,
         &fill(
@@ -314,7 +318,7 @@ fn spend_bar(
     let line = ui.fit_as(BODY_S, &need_line, w);
     ui.text_as(
         x,
-        y + 30.0,
+        y + 30.0 + g1,
         BODY_S,
         if missing == 0 {
             Role::Ok
@@ -324,11 +328,25 @@ fn spend_bar(
         &line,
     );
     let label = ui.fit_as(TITLE_M, &label, w - 24.0);
-    ui.button(x, y + 52.0, Some(w), BUTTON_H, &label, style, action);
+    ui.button(
+        x,
+        y + 52.0 + g1 + g2,
+        Some(w),
+        BUTTON_H,
+        &label,
+        style,
+        action,
+    );
 }
 
-/// The height of that foot.
-const SPEND_BAR: f32 = 104.0;
+/// The height of that foot: 104 at Standard, and what its two lines and
+/// its button grow at a larger text size. Arithmetic.
+fn spend_bar_h(ui: &Ui) -> f32 {
+    104.0
+        + ui.line_grown_as(LABEL_L)
+        + ui.line_grown_as(BODY_S)
+        + (ui.button_height(BUTTON_H) - BUTTON_H)
+}
 
 /// The outputs that pay away from the wallet: every output but verified
 /// change. One that claims to be change and cannot be verified is a
@@ -489,6 +507,8 @@ pub(crate) fn step_body(
         1 => {
             match wallet.and_then(|wi| app.session.wallets.get(wi)) {
                 Some(wl) => {
+                    // Where an address starts beside its label.
+                    let beside = 96.0;
                     for (label, change, idx) in [
                         (EN.step_receive_0_0, false, 0),
                         (EN.step_receive_0_1, false, 1),
@@ -496,12 +516,14 @@ pub(crate) fn step_body(
                     ] {
                         ui.text_as(x, cy + 2.0, BODY_S, Role::OnSurfaceVariant, label);
                         let (a, held) = app.receive_line(wl, change, idx);
-                        // On a small panel the address goes under its label.
-                        let ax = if ui.compact {
-                            cy += 20.0;
+                        // On a small panel, or where the label leaves it
+                        // no room beside, the address goes under its label.
+                        let ax = if ui.compact || ui.measure_as(BODY_S, label) + GAP_SMALL > beside
+                        {
+                            cy += ui.advance_as(BODY_S, 20.0);
                             x
                         } else {
-                            x + 96.0
+                            x + beside
                         };
                         let col = if held { Role::Warning } else { Role::OnSurface };
                         let used = ui.wrap_as((ax, cy, x + w - ax), BODY_M.mono(), col, &a);
@@ -517,7 +539,7 @@ pub(crate) fn step_body(
                         Role::OnSurfaceVariant,
                         EN.step_no_wallet_to_show,
                     );
-                    cy += 24.0;
+                    cy += ui.line_as(BODY_S) + faraday_draw::tokens::GRID;
                 }
             }
             cy += 8.0;
@@ -780,7 +802,7 @@ pub(crate) fn step_body(
                         Role::OnSurface,
                         amount,
                     );
-                    cy += 18.0;
+                    cy += ui.advance_as(BODY_S, 18.0);
                     cy += ui.wrap_as((x, cy, w), BODY_S.mono(), Role::OnSurface, what) + 10.0;
                 }
                 cy += 6.0;
@@ -808,7 +830,7 @@ pub(crate) fn step_body(
                     ui.text_as(x, cy, BODY_S, Role::OnSurfaceVariant, EN.step_input);
                     ui.text_as(x + TABLE_LABEL_W, cy, BODY_S.mono(), Role::OnSurface, at);
                     ui.text_right_as((x + tw, cy - 4.0, 20.0), BODY_S.mono(), Role::OnSurface, &a);
-                    cy += 22.0;
+                    cy += ui.advance_as(BODY_S, 22.0);
                 }
                 for o in &i.outputs {
                     ui.text_as(x, cy, BODY_S, Role::OnSurfaceVariant, EN.step_output);
@@ -1018,7 +1040,7 @@ pub(crate) fn step_body(
                 if !may {
                     let pull = fill(EN.step_remove_the_first, &[app.medium.noun()]);
                     ui.text_as(x, cy, LABEL_L, Role::Warning, &pull);
-                    cy += 28.0;
+                    cy += ui.line_as(LABEL_L) + faraday_draw::tokens::GRID;
                 }
                 cy += 6.0;
             }
@@ -1483,7 +1505,7 @@ pub(crate) fn step_body(
                             Role::OnSurfaceVariant,
                             EN.step_no_wait,
                         );
-                        ly += 20.0;
+                        ly += ui.line_as(BODY_S) + faraday_draw::tokens::GAP_SMALL;
                     }
                     for l in &p.locks {
                         ui.text_as(
@@ -1493,7 +1515,7 @@ pub(crate) fn step_body(
                             Role::OnSurfaceVariant,
                             &fill(EN.step_waits, &[&l.to_string()]),
                         );
-                        ly += 20.0;
+                        ly += ui.line_as(BODY_S) + faraday_draw::tokens::GAP_SMALL;
                     }
                     let (verdict, c) = if p.sequence_ok {
                         (EN.step_this_transaction_s, Role::Ok)
@@ -1551,7 +1573,7 @@ fn spend_panel(
         Role::OnSurfaceVariant,
         EN.spend_panel_this_transaction,
     );
-    y += 30.0;
+    y += ui.advance_as(LABEL_L, 30.0);
     let to = recipients(i)
         .first()
         .map(|o| short(&o.address))

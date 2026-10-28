@@ -64,17 +64,17 @@ fn send(app: &View, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     let t = app.transfer();
     let mut y = y0;
     section_label(ui, x, y, EN.transfer_send);
-    y += 24.0;
+    y += ui.line_as(faraday_draw::tokens::TITLE_S) + faraday_draw::tokens::GAP_SMALL;
     if !t.dir.is_empty() {
         let dir = ui.fit_as(BODY_S.mono(), &t.dir, w);
         ui.text_as(x, y, BODY_S.mono(), Role::OnSurfaceVariant, &dir);
-        y += 22.0;
+        y += ui.advance_as(BODY_S.mono(), 22.0);
     }
     if let Some(path) = t.reading.as_deref() {
         let name = path.rsplit('/').next().unwrap_or(path);
         let line = ui.fit_as(BODY_M, &fill(EN.transfer_reading, &[name]), w);
         ui.text_as(x, y, BODY_S, Role::OnSurfaceVariant, &line);
-        y += 24.0;
+        y += ui.line_as(BODY_S) + faraday_draw::tokens::GRID;
     } else if let Some(why) = t.refused.as_deref() {
         y += ui.wrap_as((x, y, w), LABEL_L, Role::Error, why) + 10.0;
     }
@@ -142,7 +142,7 @@ fn receive(app: &View, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     let t = app.transfer();
     let mut y = y0;
     section_label(ui, x, y, EN.transfer_receive);
-    y += 28.0;
+    y += ui.line_as(faraday_draw::tokens::TITLE_S) + faraday_draw::tokens::GRID;
     // The second button goes under the first where the two do not fit
     // side by side.
     let mut buttons = vec![(

@@ -115,7 +115,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, w: f32, h: f32) {
         st.list.code_heading(),
     );
     ui.text_as(wx, cy, LABEL_M, Role::OnSurfaceVariant, EN.wordlist_word);
-    cy += 22.0;
+    cy += ui.advance_as(LABEL_M, 22.0);
     ui.rule(bx, cy - 4.0, bw, Role::OutlineVariant);
     let top = cy;
     let view = (y + sh - 20.0 - top).max(ROW);
@@ -155,8 +155,10 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, w: f32, h: f32) {
             &number,
         );
         ui.text_mid_as((cx, ry, ROW - 2.0), BODY_M.mono(), tone, &st.list.code(i));
-        ui.text_mid_as(
-            (wx, ry, ROW - 2.0),
+        // The word's column runs to the row's end: larger text fits down
+        // there (`docs/TEXT-SIZE.md` §3).
+        ui.text_fit_as(
+            (wx, ry, ROW - 2.0, bx + bw - wx),
             BODY_M.mono(),
             crate::ui::pal::on_selected(marked, Role::OnSurface),
             word,

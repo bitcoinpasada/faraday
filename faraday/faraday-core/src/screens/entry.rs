@@ -78,7 +78,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     };
     let heading = ui.fit_as(HEADLINE_S.medium(), &heading, width);
     ui.text_as(x, y, HEADLINE_S.medium(), Role::OnSurface, &heading);
-    y += 48.0;
+    y += ui.line_as(HEADLINE_S.medium()) + faraday_draw::tokens::PAD;
     // The words form is the one everyday way in; the other three are
     // behind Other forms, or already shown when a Tools tile opened one
     // of them (`docs/history/SIMPLIFY.md` §2.4).
@@ -422,7 +422,7 @@ fn entry_status(
         ),
     };
     ui.text_as(x, y, TITLE_S, status.1, &status.0);
-    y += 30.0;
+    y += ui.advance_as(TITLE_S, 30.0);
     if let Some(e) = &app.entry.state().error {
         ui.text_as(x, y, BODY_M, Role::Error, e);
     }
@@ -645,7 +645,7 @@ pub(crate) fn entry_form(
         ui.icon(x, y - 2.0, 18.0, Icon::Done, 10.0, Role::Ok);
         let indent = faraday_draw::tokens::PART_INDENT;
         ui.text_as(x + indent, y, BODY_M, Role::OnSurface, l);
-        y += 24.0;
+        y += ui.line_as(BODY_M) + faraday_draw::tokens::GAP_SMALL;
         y += codex32_mark(app, ui, x + indent, y, width - indent, n);
     }
     y += 8.0;

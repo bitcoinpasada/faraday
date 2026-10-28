@@ -239,7 +239,7 @@ fn create_vault_rows(
         }
         let name = ui.fit_as(LABEL_M, &group.name, w);
         ui.text_as(x, cy, LABEL_M, Role::OnSurfaceVariant, &name);
-        cy += 20.0;
+        cy += ui.line_as(LABEL_M) + faraday_draw::tokens::GAP_SMALL;
         cy += button_rows(ui, x, cy, w, &row);
     }
     if !vaults.locked.is_empty() {
@@ -675,7 +675,7 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                     Role::OnSurfaceVariant,
                     EN.create_make_the_wallet,
                 );
-                cy += 30.0;
+                cy += ui.advance_as(BODY_S, 30.0);
             }
         }
         _ => {}

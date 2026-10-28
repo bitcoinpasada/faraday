@@ -494,7 +494,7 @@ fn verdict(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let cautions = k.caution_lines();
     if cautions.is_empty() {
         ui.text_as(x, cy, LABEL_L, Role::Ok, EN.keygen_fair_no_cautions);
-        cy += 22.0;
+        cy += ui.advance_as(LABEL_L, 22.0);
     }
     caution_rows(ui, x, cy, w, &cautions)
 }
@@ -646,7 +646,7 @@ fn key_card(app: &View, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 
         );
         if !ui.compact {
             ui.text_as(x, cy, BODY_S, Role::OnSurfaceVariant, EN.keygen_enter_locks);
-            cy += 24.0;
+            cy += ui.line_as(BODY_S) + faraday_draw::tokens::GRID;
         }
         return cy - y;
     }
@@ -780,7 +780,7 @@ fn length(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             Role::OnSurfaceVariant,
             EN.keygen_what_shares,
         );
-        cy += 24.0;
+        cy += ui.line_as(LABEL_L) + faraday_draw::tokens::GAP_SMALL;
         for f in SLIP39_FACTS {
             ui.fill(x + 2.0, cy + 7.0, 4.0, 4.0, 2.0, Role::OnSurfaceVariant);
             cy += ui.wrap_as(
@@ -1355,7 +1355,7 @@ fn entries(app: &View, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     if checked {
         cy += 4.0;
         section_label(ui, x, cy, EN.keygen_randomness_check);
-        cy += 26.0;
+        cy += ui.advance_as(faraday_draw::tokens::TITLE_S, 26.0);
         cy = check_rows(k, active, ui, x, cy, w);
         cy = verdict(k, ui, x, cy, w);
     } else {
@@ -1516,9 +1516,9 @@ fn reveal(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     }
     let mut cy = y + 4.0;
     section_label(ui, x, cy, EN.keygen_words_so_far);
-    cy += 24.0;
+    cy += ui.line_as(faraday_draw::tokens::TITLE_S) + faraday_draw::tokens::GAP_SMALL;
     ui.text_as(x, cy, BODY_S, muted, crate::wordlist::PRESS_A_WORD);
-    cy += 24.0;
+    cy += ui.line_as(BODY_S) + faraday_draw::tokens::GRID;
     let live = k.live_words();
     // Flips always land in `k.coins`, whether Coins or Dice's Flip mode
     // took them.
@@ -1641,9 +1641,9 @@ fn rolled_words(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let muted = Role::OnSurfaceVariant;
     let mut cy = y + 4.0;
     section_label(ui, x, cy, EN.keygen_words_so_far);
-    cy += 24.0;
+    cy += ui.line_as(faraday_draw::tokens::TITLE_S) + faraday_draw::tokens::GAP_SMALL;
     ui.text_as(x, cy, BODY_S, muted, crate::wordlist::PRESS_A_WORD);
-    cy += 20.0;
+    cy += ui.line_as(BODY_S) + faraday_draw::tokens::GAP_SMALL;
     cy += ui.wrap_as((x, cy, w), BODY_S, muted, EN.keygen_dice_word_rule) + 12.0;
     let per = faraday_entropy::DICE_WORD_ROLLS;
     let faces = faraday_entropy::DICE_WORD_FACES;
@@ -2238,7 +2238,7 @@ fn words(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     cy += word_grid(ui, m, k.shown, x, cy, w);
     if let Some(n) = &k.note {
         ui.text_as(x, cy, BODY_M, Role::Error, n);
-        cy += 24.0;
+        cy += ui.line_as(BODY_M) + faraday_draw::tokens::GAP_SMALL;
     }
     cy += buttons_and_next(
         ui,
@@ -2299,7 +2299,7 @@ fn quiz(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         cy = stat(ui, x, cy, EN.keygen_quiz, &said, tone);
         if let Some(e) = &k.note {
             ui.text_as(x, cy, BODY_M, Role::Error, e);
-            cy += 24.0;
+            cy += ui.line_as(BODY_M) + faraday_draw::tokens::GAP_SMALL;
         }
         cy += 6.0;
         // A BIP-39 key was added at Lock in: the quiz's last button only
@@ -2328,7 +2328,7 @@ fn quiz(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         fill(EN.keygen_of_right, &[&done.to_string(), &n.to_string()])
     };
     ui.text_as(x, cy, BODY_M, muted, &progress);
-    cy += 26.0;
+    cy += ui.advance_as(BODY_M, 26.0);
     ui.text_as(
         x,
         cy,
@@ -2336,7 +2336,7 @@ fn quiz(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         Role::OnSurface,
         &fill(EN.keygen_which_is_word, &[&(q.position() + 1).to_string()]),
     );
-    cy += 40.0;
+    cy += ui.line_as(TITLE_M) + faraday_draw::tokens::PAD;
     let wrong = q.wrong_slot();
     let per = if ui.compact { 2 } else { 4 };
     let bw = ((w - (per - 1) as f32 * 8.0) / per as f32).min(170.0);

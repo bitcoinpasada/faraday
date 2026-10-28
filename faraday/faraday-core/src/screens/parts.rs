@@ -373,7 +373,7 @@ pub(crate) fn kind_list(
         };
         let (name_h, line_h) = (ui.line_as(size), ui.line_as(BODY_S));
         let top = 6.0;
-        let line_at = cy + 26.0 + (names.len().max(1) - 1) as f32 * name_h;
+        let line_at = cy + top + names.len().max(1) as f32 * name_h;
         let h = if ui.compact {
             (line_at + lines.len() as f32 * line_h + top - cy).max(tokens::TOUCH)
         } else {
@@ -528,7 +528,7 @@ pub(crate) fn first_addresses(app: &View, ui: &mut Ui, i: usize, x: f32, y: f32,
     // So that a multisig's three rows do not read as one address per
     // key (`docs/history/NEW-WALLET.md` §2.4).
     section_label(ui, x, cy, EN.first_addresses_heading);
-    cy += 24.0;
+    cy += ui.line_as(faraday_draw::tokens::TITLE_S) + faraday_draw::tokens::GAP_SMALL;
     if app.receive_held(wl) {
         cy += ui.wrap_as(
             (x, cy, w),
@@ -538,6 +538,8 @@ pub(crate) fn first_addresses(app: &View, ui: &mut Ui, i: usize, x: f32, y: f32,
         ) + 8.0;
         return cy - y;
     }
+    // Where an address starts beside its label.
+    let beside = 96.0;
     for (label, change, idx) in [
         (EN.first_addresses_receive_0_0, false, 0),
         (EN.first_addresses_receive_0_1, false, 1),
@@ -545,11 +547,13 @@ pub(crate) fn first_addresses(app: &View, ui: &mut Ui, i: usize, x: f32, y: f32,
     ] {
         ui.text_as(x, cy + 2.0, BODY_S, Role::OnSurfaceVariant, label);
         let a = app.receive_line(wl, change, idx).0;
-        let ax = if ui.compact {
-            cy += 20.0;
+        // The address beside its label where the label leaves it room,
+        // else under it.
+        let ax = if ui.compact || ui.measure_as(BODY_S, label) + tokens::GAP_SMALL > beside {
+            cy += ui.advance_as(BODY_S, 20.0);
             0.0
         } else {
-            96.0
+            beside
         };
         cy += ui
             .wrap_as((x + ax, cy, w - ax), BODY_M.mono(), Role::OnSurface, &a)
@@ -1209,7 +1213,7 @@ pub(crate) fn keyed_pills(
                 Role::OnSurfaceVariant,
                 EN.keyed_words_press_hint,
             );
-            y += 22.0;
+            y += ui.advance_as(BODY_S, 22.0);
         }
         // The candidates over the keys keep their size, as the keys do
         // (`docs/TEXT-SIZE.md` §3).
@@ -1352,7 +1356,8 @@ pub(super) fn section(
 pub(super) fn tz_row(ui: &mut Ui, x: f32, y: f32, _w: f32, tz_min: i16) -> f32 {
     let (ly, bx, h) = if ui.compact {
         ui.text_as(x, y, BODY_S, Role::OnSurfaceVariant, EN.tz_row_time_zone);
-        (y + 24.0, x, 64.0)
+        let ly = y + ui.advance_as(BODY_S, 24.0);
+        (ly, x, ly - y + ui.button_height(BUTTON_H))
     } else {
         ui.text_mid_as(
             (x, y, 40.0),
@@ -1360,7 +1365,7 @@ pub(super) fn tz_row(ui: &mut Ui, x: f32, y: f32, _w: f32, tz_min: i16) -> f32 {
             Role::OnSurfaceVariant,
             EN.tz_row_time_zone,
         );
-        (y, x + 180.0, 40.0)
+        (y, x + 180.0, ui.button_height(BUTTON_H))
     };
     ui.button(
         bx,
@@ -1372,9 +1377,12 @@ pub(super) fn tz_row(ui: &mut Ui, x: f32, y: f32, _w: f32, tz_min: i16) -> f32 {
         Action::TzStep(-15),
     );
     let v = format!("UTC{}", crate::vault::tz_offset_text(tz_min));
-    let vw = ui.measure_as(TITLE_S, &v);
-    ui.text_mid_as(
-        (bx + 48.0 + (84.0 - vw) / 2.0, ly, 40.0),
+    // A one-line slot between the buttons: larger text fits down there.
+    let slot = 84.0;
+    let vw = ui.text_fit_width(TITLE_S, &v, slot);
+    let bh = ui.button_height(BUTTON_H);
+    ui.text_fit_as(
+        (bx + 48.0 + (slot - vw) / 2.0, ly, bh, slot),
         TITLE_S,
         Role::OnSurface,
         &v,
@@ -1512,7 +1520,7 @@ pub(crate) fn card_pad(
         if ui.compact {
             cy += 52.0;
             ui.text_as(x, cy, BODY_S, Role::OnSurfaceVariant, &deck);
-            cy += 28.0;
+            cy += ui.advance_as(BODY_S, 28.0);
         } else {
             ui.text_mid_as(
                 (x + 4.0 * 72.0 + 8.0, cy, 44.0),

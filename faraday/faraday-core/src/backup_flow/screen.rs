@@ -285,7 +285,7 @@ fn where_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) -
         };
         ui.text_as(x, cy, LABEL_L, Role::OnSurface, &BackupFlow::place_name(p));
         ui.text_as(x + 90.0, cy, BODY_M, Role::OnSurfaceVariant, &keeps);
-        cy += 26.0;
+        cy += ui.advance_as(BODY_M, 26.0);
         let mut items: Vec<(String, Style, Action)> = Vec::new();
         if written {
             if sticks > min {
@@ -582,13 +582,17 @@ fn stick_card(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) -
         if matches!(f.step, Step::Sticks | Step::Write) && !boot_placed {
             for (i, st) in app.stick.iter().enumerate().filter(|(_, s)| s.boot) {
                 let at = read_time(app, app.clock_now());
+                let label = fill(FEN.backup_flow_use_read, &[&st.label, &at]);
+                // No wider than the column: a longer label fits down.
+                let natural =
+                    ui.measure_as(LABEL_L, &label) + 2.0 * faraday_draw::tokens::BUTTON_PAD;
                 cy += btn(
                     ui,
                     x,
                     cy,
-                    None,
+                    Some(natural.min(w)),
                     BUTTON_H,
-                    &fill(FEN.backup_flow_use_read, &[&st.label, &at]),
+                    &label,
                     Style::Secondary,
                     fa(F::UseBoot(i)),
                     44.0,
@@ -949,7 +953,7 @@ fn vaults_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) 
                 Role::OnSurface,
                 &format!("{name} · {}", FEN.backup_flow_unlocked),
             );
-            cy += 30.0;
+            cy += ui.advance_as(BODY_M, 30.0);
             continue;
         }
         let vp = &f.plan.vaults[v];
@@ -1145,7 +1149,7 @@ fn make_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) ->
     if let Some(form) = &app.vaults.form {
         for (k, (_, label, b, _)) in form.fields.iter().enumerate() {
             ui.text_as(x, cy, BODY_S, Role::OnSurfaceVariant, label);
-            cy += 20.0;
+            cy += ui.line_as(BODY_S) + faraday_draw::tokens::GAP_SMALL;
             let focused = app.vaults.focus == Some(Focus::Field(k));
             text_box(
                 ui,
@@ -1161,7 +1165,7 @@ fn make_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) ->
         }
         if f.kind == crate::backup_flow::Kind::Gpg {
             ui.text_as(x, cy, BODY_S, Role::OnSurfaceVariant, FEN.vault_expires);
-            cy += 22.0;
+            cy += ui.advance_as(BODY_S, 22.0);
             cy += crate::vault::screen::years_row(
                 ui,
                 x,
@@ -1301,7 +1305,7 @@ fn lock_body(app: &View, _f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) -
             continue;
         }
         ui.text_as(x, cy, BODY_S, Role::OnSurfaceVariant, title);
-        cy += 22.0;
+        cy += ui.advance_as(BODY_S, 22.0);
         for (l, tone) in lines {
             cy += ui.wrap_as((x, cy, w), BODY_M, tone, &l) + 6.0;
         }

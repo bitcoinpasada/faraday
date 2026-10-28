@@ -128,7 +128,7 @@ fn seed_line(ui: &mut Ui, tx: f32, y: f32, right: f32, s: &LoadSeed) -> f32 {
         },
         &line,
     );
-    cy += 20.0;
+    cy += ui.line_as(BODY_S.mono()) + faraday_draw::tokens::GAP_SMALL;
     if let Some(also) = &s.also_line {
         cy += ui.wrap_as((tx, cy, right - tx), BODY_S, Role::OnSurfaceVariant, also) + 2.0;
     }
@@ -162,11 +162,11 @@ fn wallet_card(ui: &mut Ui, x: f32, y: f32, w: f32, c: &LoadCard) -> f32 {
         },
         &name,
     );
-    cy += 24.0;
+    cy += ui.line_as(TITLE_M);
     if !c.kind.is_empty() {
         let kind = ui.fit_as(BODY_S, &c.kind, right - tx);
         ui.text_as(tx, cy, BODY_S, Role::OnSurfaceVariant, &kind);
-        cy += 22.0;
+        cy += ui.advance_as(BODY_S, 22.0);
     }
     for s in &c.seeds {
         cy += seed_line(ui, tx, cy, right, s);
@@ -188,7 +188,7 @@ fn keys_card(ui: &mut Ui, x: f32, y: f32, w: f32, keys: &[LoadSeed]) -> f32 {
     let (ix, right) = (x + PAD, x + w - PAD);
     let mut cy = y + PAD;
     ui.text_as(ix, cy, TITLE_M, Role::OnSurface, EN.load_sheet_keys_card);
-    cy += 26.0;
+    cy += ui.advance_as(TITLE_M, 26.0);
     for s in keys {
         let top = cy - 4.0;
         if !s.loaded {
@@ -280,7 +280,7 @@ pub(crate) fn pass_seeds(app: &View, ui: &mut Ui, w: f32, h: f32) {
                     Role::OnSurfaceVariant,
                     EN.pass_seeds_passphrase,
                 );
-                cy += 20.0;
+                cy += ui.line_as(BODY_S) + faraday_draw::tokens::GAP_SMALL;
                 let empty = app
                     .vaults
                     .prompt

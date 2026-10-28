@@ -391,14 +391,16 @@ impl Tour {
     }
 
     /// Adds to `cut.txt` each line of text the frame on screen, picture
-    /// `name`, cuts off at a side of its clip (`docs/TEXT-SIZE.md` §7).
+    /// `name`, cuts off at a side of its clip or draws over other text,
+    /// as test 5 checks (`docs/TEXT-SIZE.md` §7).
     fn note_cut(&mut self, name: &str) -> Result<(), String> {
         use std::io::Write;
-        let (past, _) = self.app.drawn_past_sides_and_text();
-        let cut: Vec<String> = past
+        let (past, texts) = self.app.drawn_past_sides_and_text();
+        let mut cut: Vec<String> = past
             .into_iter()
             .filter(|p| p.starts_with("text "))
             .collect();
+        cut.extend(drawn_over(&texts));
         if cut.is_empty() {
             return Ok(());
         }
@@ -413,6 +415,31 @@ impl Tour {
         }
         Ok(())
     }
+}
+
+/// A string drawn and the box of its ink, pixels (x, y, w, h).
+type DrawnText = (String, (i32, i32, i32, i32));
+
+/// Each two strings the frame draws over one another by more than a
+/// pixel each way, as test 5 finds them (`docs/TEXT-SIZE.md` §7). Two
+/// marks of a grid, each a character or two, sit close by design; a
+/// sheet's text stands over the page under it and is listed too.
+fn drawn_over(texts: &[DrawnText]) -> Vec<String> {
+    let mut out = Vec::new();
+    for (i, (a, ra)) in texts.iter().enumerate() {
+        for (b, rb) in &texts[i + 1..] {
+            let marks = a.chars().count() < 3 && b.chars().count() < 3;
+            if (a == b && ra == rb) || marks {
+                continue;
+            }
+            let w = (ra.0 + ra.2).min(rb.0 + rb.2) - ra.0.max(rb.0);
+            let h = (ra.1 + ra.3).min(rb.1 + rb.3) - ra.1.max(rb.1);
+            if w > 1 && h > 1 {
+                out.push(format!("text {a:?} drawn over {b:?} by {w} × {h} px"));
+            }
+        }
+    }
+    out
 }
 
 /// The stick on a laptop, as its shell reads the machine at start: no

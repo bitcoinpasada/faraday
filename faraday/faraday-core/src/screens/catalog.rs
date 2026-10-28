@@ -77,7 +77,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         }
         any = true;
         section_label(ui, x, y, group);
-        y += 28.0;
+        y += ui.line_as(faraday_draw::tokens::TITLE_S) + faraday_draw::tokens::GRID;
         for (k, (i, tile)) in tiles.iter().enumerate() {
             let tx = x + (k % per) as f32 * (tw3 + gap);
             let ty = y + (k / per) as f32 * (th + 10.0);
@@ -146,7 +146,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             Role::OnSurfaceVariant,
             EN.catalog_no_tool_matches,
         );
-        y += 30.0;
+        y += ui.advance_as(BODY_M, 30.0);
     }
     ui.c.pop_clip();
     app.scroll.content_h().set(y - top + 40.0);

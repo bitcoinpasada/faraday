@@ -31,7 +31,8 @@ pub fn rail<A: Copy + PartialEq>(ui: &mut Ui<A>, h: f32, r: &Rail<A>) {
     let n = r.top.len() + r.under.len() + r.foot.len();
     let divider = if r.under.is_empty() { 0.0 } else { 2.0 * GAP };
     let room = h - 2.0 * NAV_RAIL_TOP - divider;
-    let ih = (room / n.max(1) as f32).clamp(TOUCH, NAV_ITEM_H);
+    // Taller by what its label's line grows (`docs/TEXT-SIZE.md` §5).
+    let ih = (room / n.max(1) as f32).clamp(TOUCH, NAV_ITEM_H + ui.line_grown_as(LABEL_M));
     let mut y = NAV_RAIL_TOP;
     for d in r.top {
         item(ui, 0.0, y, RAIL_W, ih, d);

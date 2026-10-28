@@ -58,6 +58,28 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
         role.line * self.text_factor() * self.c.scale().factor() / self.f
     }
 
+    /// What a line in `role` adds at the text size now over its height at
+    /// Standard: nothing at Standard and inside [`Ui::fixed_text`].
+    /// Arithmetic.
+    pub fn line_grown_as(&self, role: TypeRole) -> f32 {
+        let line = self.line_as(role);
+        line - line / self.text_factor()
+    }
+
+    /// A line's advance laid out at Standard as `adv` after a line in
+    /// `role`, grown by what that line grows at the text size now
+    /// (`docs/TEXT-SIZE.md` §5): `adv` at Standard. Arithmetic.
+    pub fn advance_as(&self, role: TypeRole, adv: f32) -> f32 {
+        adv + self.line_grown_as(role)
+    }
+
+    /// [`Ui::advance_as`] after a line of `size` in face `w`, as
+    /// [`Ui::line`] measures it. A lookup.
+    pub fn advance(&self, size: f32, w: W, adv: f32) -> f32 {
+        let line = self.line(size, w);
+        adv + line - line / self.text_factor()
+    }
+
     /// A height that text sets (`docs/TEXT-SIZE.md` §5): at Standard,
     /// and inside [`Ui::fixed_text`], `token` as it is; at a larger text
     /// size, `token` or `lines` (the height its text takes now) with

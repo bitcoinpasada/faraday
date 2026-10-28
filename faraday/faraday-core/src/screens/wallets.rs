@@ -540,7 +540,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     ui.pill(ix + iw - sw, cy, 28.0, &src);
     cy += 34.0;
     ui.text_as(ix, cy, BODY_M, Role::OnSurfaceVariant, &Session::shape(wlt));
-    cy += 26.0;
+    cy += ui.advance_as(BODY_M, 26.0);
     cy += super::parts::key_path_line(app, ui, (ix, cy, iw), wlt.policy());
     if let Some(r) = wlt.policy().silent() {
         // Where its backup is (§5.2): a press opens Backups on it.
@@ -665,7 +665,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         Role::OnSurfaceVariant,
         EN.wallets_at_a_glance,
     );
-    cy += 24.0;
+    cy += ui.line_as(LABEL_M) + faraday_draw::tokens::GRID;
     if let Some(g) = app.glance_of(app.wallets.wallet()) {
         // Wide content in the detail's width (`docs/LAYOUT.md` §17): a
         // chart no wider than the column stands in it, over the reading
@@ -690,7 +690,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         Role::OnSurfaceVariant,
         EN.wallets_first_receive,
     );
-    cy += 24.0;
+    cy += ui.line_as(LABEL_M) + faraday_draw::tokens::GRID;
     let (addr, held) = app.receive_line(wlt, false, 0);
     cy += ui.wrap_as(
         (ix, cy, iw),
@@ -829,7 +829,7 @@ fn silent_wallet_card(
     let may = app.may_load_keys();
     let mut cy = y;
     ui.text_as(ix, cy, LABEL_M, muted, EN.silent_wallet_card_key);
-    cy += 24.0;
+    cy += ui.line_as(LABEL_M) + faraday_draw::tokens::GRID;
     let held = app.session.keys.key_label(r.fingerprint);
     ui.text_mid_as((ix, cy, 46.0), BODY_M.mono(), ink, &fp_text(r.fingerprint));
     if let Some(label) = held {
@@ -891,7 +891,7 @@ fn silent_wallet_card(
     ui.rule(ix, cy + 46.0, iw, Role::OutlineVariant);
     cy += 64.0;
     ui.text_as(ix, cy, LABEL_M, muted, EN.silent_wallet_card_address_label);
-    cy += 24.0;
+    cy += ui.line_as(LABEL_M) + faraday_draw::tokens::GRID;
     cy += silent_address_lines(app, ui, r, (ix, cy, iw)) + 18.0;
     ui.text_as(ix, cy, LABEL_M, muted, EN.silent_wallet_card_labels);
     ui.text_as(ix + 180.0, cy, BODY_M.mono(), ink, &r.labels.to_string());

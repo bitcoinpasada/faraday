@@ -577,25 +577,30 @@ pub(crate) fn home(app: &View, ui: &mut Ui, w: f32, h: f32) {
     };
     let action = Action::Nav(session);
     let pressed = ui.is_pressed(action);
+    // Its two lines, the card as tall as they need (`docs/TEXT-SIZE.md`
+    // §5).
+    let (l1, l2) = (ui.line_as(LABEL_L), ui.line_as(BODY_S));
+    let card_h = ui.row_height(52.0, l1 + l2, faraday_draw::tokens::GRID);
+    let top = y + (card_h - l1 - l2) / 2.0;
     crate::ui::fill_pressed(
         ui,
-        (M, y, inner, 52.0, 10.0),
+        (M, y, inner, card_h, 10.0),
         Role::SurfaceContainerLow,
         pressed,
     );
-    ui.stroke(M, y, inner, 52.0, 10.0, Role::OutlineVariant);
-    ui.dot(M + 16.0, y + 18.0, 4.0, dot);
+    ui.stroke(M, y, inner, card_h, 10.0, Role::OutlineVariant);
+    ui.dot(M + 16.0, top + l1 / 2.0, 4.0, dot);
     let line = ui.fit_as(LABEL_L, &line, inner - 40.0);
-    ui.text_mid_as((M + 28.0, y + 6.0, 24.0), LABEL_L, Role::OnSurface, &line);
+    ui.text_mid_as((M + 28.0, top, l1), LABEL_L, Role::OnSurface, &line);
     let sub = ui.fit_as(BODY_S, &sub, inner - 40.0);
     ui.text_mid_as(
-        (M + 28.0, y + 26.0, 20.0),
+        (M + 28.0, top + l1, l2),
         BODY_S,
         Role::OnSurfaceVariant,
         &sub,
     );
-    ui.hit(M, y, inner, 52.0, action);
-    y += 52.0 + 10.0;
+    ui.hit(M, y, inner, card_h, action);
+    y += card_h + 10.0;
 
     // The session strip: the four stages of the lock cycle, the one now
     // current in the accent, the rest dim. Tapping it opens Files.

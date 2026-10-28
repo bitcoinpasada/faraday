@@ -235,7 +235,7 @@ fn body(
             Role::OnSurface,
             &format!("{yy}-{m:02}-{d:02}"),
         );
-        y += 30.0;
+        y += ui.advance_as(BODY_M.mono(), 30.0);
     }
     ui.text_as(
         x,

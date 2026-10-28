@@ -204,7 +204,7 @@ fn card(app: &View, v: &VanityState, ui: &mut Ui, s: u8, x: f32, y: f32, w: f32)
                     Role::OnSurfaceVariant,
                     &fill(EN.vanity_about_tries, &[&thousands(expected).to_string()]),
                 );
-                cy += 26.0;
+                cy += ui.advance_as(BODY_S, 26.0);
             }
             if let Some(e) = &v.error {
                 cy += ui.wrap_as((x, cy, w), BODY_S, Role::Error, e) + 8.0;
@@ -216,7 +216,7 @@ fn card(app: &View, v: &VanityState, ui: &mut Ui, s: u8, x: f32, y: f32, w: f32)
         _ => match (&v.grind.find, v.running) {
             (Some(f), _) => {
                 ui.text_as(x, cy, BODY_S, Role::OnSurfaceVariant, EN.vanity_found);
-                cy += 22.0;
+                cy += ui.advance_as(BODY_S, 22.0);
                 cy += ui.wrap_as(
                     (x, cy, w),
                     BODY_L.mono(),
@@ -238,7 +238,7 @@ fn card(app: &View, v: &VanityState, ui: &mut Ui, s: u8, x: f32, y: f32, w: f32)
                                 ],
                             ),
                         );
-                        cy += 30.0;
+                        cy += ui.advance_as(BODY_S, 30.0);
                     }
                     Dial::Passphrase => {
                         let shown = if v.shown {
@@ -319,7 +319,7 @@ fn card(app: &View, v: &VanityState, ui: &mut Ui, s: u8, x: f32, y: f32, w: f32)
                     Role::Primary,
                     &fill(EN.vanity_searching_prefix, &[v.grind.prefix.as_str()]),
                 );
-                cy += 26.0;
+                cy += ui.advance_as(LABEL_L, 26.0);
                 ui.text_as(
                     x,
                     cy,
@@ -334,7 +334,7 @@ fn card(app: &View, v: &VanityState, ui: &mut Ui, s: u8, x: f32, y: f32, w: f32)
                         ],
                     ),
                 );
-                cy += 30.0;
+                cy += ui.advance_as(BODY_S, 30.0);
                 ui.button(
                     x,
                     cy,

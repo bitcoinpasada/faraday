@@ -176,7 +176,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     y += search(app, ui, x, y, w, rows.is_empty());
     if rows.is_empty() {
         ui.text_as(x, y, BODY_M, Role::OnSurfaceVariant, none_line(app));
-        y += 36.0;
+        y += ui.line_as(BODY_M) + faraday_draw::tokens::PAD;
     } else {
         for r in &rows {
             y += code_row(ui, x, y, w, r);
@@ -228,7 +228,7 @@ fn compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     y += search(app, ui, x, y, w, rows.is_empty());
     if rows.is_empty() {
         ui.text_as(x, y, BODY_S, Role::OnSurfaceVariant, none_line(app));
-        y += 32.0;
+        y += ui.line_as(BODY_S) + faraday_draw::tokens::PAD;
     } else {
         for r in &rows {
             y += code_row(ui, x, y, w, r);

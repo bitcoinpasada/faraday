@@ -402,7 +402,7 @@ pub(crate) fn unlock(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     y += 56.0;
     if just_made_picked(app) {
         ui.text_as(x, y - 14.0, BODY_M, muted, ONCE_MORE);
-        y += 20.0;
+        y += ui.line_as(BODY_M);
     }
     y += guide_text(app, ui, x, y, w, EN.vault_choose_the_vault);
     if !app.may_load_keys() {
@@ -465,7 +465,7 @@ pub(crate) fn unlock(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     }
     y += 14.0;
     section_label(ui, x, y, EN.vault_passphrase);
-    y += 26.0;
+    y += ui.advance_as(faraday_draw::tokens::TITLE_S, 26.0);
     if app.may_load_keys() {
         let focused = app.vaults.focus == Some(Focus::Passphrase);
         crate::demo::pass_box(
@@ -757,7 +757,7 @@ fn unlock_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     }
     y += 6.0;
     section_label(ui, x, y, EN.vault_passphrase);
-    y += 24.0;
+    y += ui.line_as(faraday_draw::tokens::TITLE_S) + faraday_draw::tokens::GAP_SMALL;
     if app.may_load_keys() {
         let focused = app.vaults.focus == Some(Focus::Passphrase);
         crate::demo::pass_box(
@@ -1083,7 +1083,7 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
             if current == CUSTOM {
                 cy += 4.0;
                 ui.text_as(x, cy, BODY_S, muted, EN.vault_memory);
-                cy += 22.0;
+                cy += ui.advance_as(BODY_S, 22.0);
                 let mut bx = x;
                 for (i, m) in CUSTOM_MEMORY.iter().enumerate() {
                     let style = if *m == c.memory {
@@ -1103,7 +1103,7 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                 }
                 cy += 44.0;
                 ui.text_as(x, cy, BODY_S, muted, EN.vault_passes_label);
-                cy += 22.0;
+                cy += ui.advance_as(BODY_S, 22.0);
                 let mut bx = x;
                 for (i, p) in CUSTOM_PASSES.iter().enumerate() {
                     let style = if *p == c.passes {
@@ -1159,7 +1159,7 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                     &[&app.vaults.time_text(mem, passes).to_string()],
                 ),
             );
-            cy += 22.0;
+            cy += ui.advance_as(BODY_S, 22.0);
             ui.text_as(
                 x,
                 cy,
@@ -1170,7 +1170,7 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                     &[&format!("{:.1}", vault::cost_bits(mem, passes))],
                 ),
             );
-            cy += 30.0;
+            cy += ui.advance_as(BODY_S, 30.0);
             // A preset pressed moves on (F103); Custom's two rows keep it.
             if current == CUSTOM
                 && crate::screens::next_button(ui, x, cy, w, EN.vault_continue, va(V::CNext(n)))
@@ -1382,7 +1382,7 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                 if ui.compact {
                     cy += 46.0;
                     ui.text_as(x, cy, BODY_S, muted, EN.vault_or_type_your);
-                    cy += 26.0;
+                    cy += ui.advance_as(BODY_S, 26.0);
                 } else {
                     ui.text_mid_as(
                         (x + dw + 14.0, cy, 40.0),
@@ -1510,7 +1510,7 @@ fn create_panel(
     let w = pw - 52.0;
     let mut y = tokens::SIDE_PANEL_TOP;
     ui.text_as(x, y, LABEL_L, muted, EN.vault_your_choices);
-    y += 28.0;
+    y += ui.line_as(LABEL_L) + faraday_draw::tokens::GRID;
     for (k, label) in [
         EN.vault_opens_on_label,
         EN.vault_unlock_cost,
@@ -1613,7 +1613,7 @@ fn create_summary(app: &View, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     }
     y += 8.0;
     ui.text_as(x, y, LABEL_L, muted, EN.vault_will_create);
-    y += 26.0;
+    y += ui.advance_as(LABEL_L, 26.0);
     let cost = vault::cost_bits(mem, passes);
     let strength = c.weakest_text(cost, app.demo_passphrase());
     let facts = [
@@ -2317,7 +2317,7 @@ fn contents_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     }
     let label = ui.fit_as(TITLE_M, &v.label(app.vaults.store()), w);
     ui.text_as(x, y, TITLE_M, ink, &label);
-    y += 28.0;
+    y += ui.line_as(TITLE_M) + faraday_draw::tokens::GAP_SMALL;
     let state = if v.changes == 0 {
         EN.vault_open_button.to_string()
     } else {
@@ -2340,11 +2340,11 @@ fn contents_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         if v.changes == 0 { good } else { warn },
         &state,
     );
-    y += 22.0;
+    y += ui.advance_as(LABEL_L, 22.0);
     let sub = format!("{} · {}", v.name, cost_text(&v.header().cost));
     let sub = ui.fit_as(BODY_S.mono(), &sub, w);
     ui.text_as(x, y, BODY_S.mono(), muted, &sub);
-    y += 26.0;
+    y += ui.advance_as(BODY_S.mono(), 26.0);
     let half = (w - 8.0) / 2.0;
     ui.button(
         x,
@@ -2415,7 +2415,7 @@ fn contents_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     y += 14.0;
     if empty {
         ui.text_as(x, y, TITLE_M, ink, NOTHING_YET);
-        y += 34.0;
+        y += ui.advance_as(TITLE_M, 34.0);
         for (label, style, action) in empty_buttons(app) {
             ui.button(x, y, Some(w), BUTTON_H, &label, style, action);
             y += 54.0;
@@ -2424,7 +2424,7 @@ fn contents_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         return;
     }
     section_label(ui, x, y, cat_label);
-    y += 28.0;
+    y += ui.line_as(faraday_draw::tokens::TITLE_S) + faraday_draw::tokens::GRID;
     // What can fill this kind.
     let add = add_label(app.vaults.category);
     let entries_files = app
@@ -2503,10 +2503,10 @@ pub(crate) fn codes_form(app: &View, ui: &mut Ui, dx: f32, dy: f32, dw: f32) -> 
         return 0.0;
     };
     ui.text_as(dx, dy, TITLE_M, ink, EN.vault_add_an_entry);
-    dy += 40.0;
+    dy += ui.line_as(TITLE_M) + faraday_draw::tokens::PAD;
     for (k, (_, label, b, masked)) in form.fields.iter().enumerate() {
         ui.text_as(dx, dy, BODY_S, muted, label);
-        dy += 20.0;
+        dy += ui.line_as(BODY_S) + faraday_draw::tokens::GAP_SMALL;
         let focused = app.vaults.focus == Some(Focus::Field(k));
         if vault::multiline(form.kind, form.fields[k].0) {
             dy += text_area(ui, dx, dy, dw, b, focused, va(V::FocusField(k))) + 12.0;
@@ -2582,10 +2582,10 @@ fn detail(
             _ => EN.vault_edit_the_entry,
         };
         ui.text_as(dx, dy, TITLE_M, ink, heading);
-        dy += 40.0;
+        dy += ui.line_as(TITLE_M) + faraday_draw::tokens::PAD;
         for (k, (_, label, b, masked)) in form.fields.iter().enumerate() {
             ui.text_as(dx, dy, BODY_S, muted, label);
-            dy += 20.0;
+            dy += ui.line_as(BODY_S) + faraday_draw::tokens::GAP_SMALL;
             let focused = app.vaults.focus == Some(Focus::Field(k));
             if vault::multiline(form.kind, form.fields[k].0) {
                 dy += text_area(ui, dx, dy, dw, b, focused, va(V::FocusField(k))) + 12.0;
@@ -2611,11 +2611,11 @@ fn detail(
         }
         if revoking {
             ui.text_as(dx, dy, BODY_S, muted, EN.vault_reason);
-            dy += 22.0;
+            dy += ui.advance_as(BODY_S, 22.0);
             dy += reasons_row(app, ui, dx, dy, dw) + 16.0;
         } else if form.kind == kind::GPG {
             ui.text_as(dx, dy, BODY_S, muted, EN.vault_expires);
-            dy += 22.0;
+            dy += ui.advance_as(BODY_S, 22.0);
             dy += years_row(ui, dx, dy, dw, Some(app.vaults.gpg_years), V::GpgYears) + 16.0;
         }
         let save = match form.kind {
@@ -2659,9 +2659,9 @@ fn detail(
         };
         let heading = ui.fit_as(TITLE_M, &heading, dw);
         ui.text_as(dx, dy, TITLE_M, ink, &heading);
-        dy += 40.0;
+        dy += ui.line_as(TITLE_M) + faraday_draw::tokens::PAD;
         ui.text_as(dx, dy, BODY_S, muted, EN.vault_passphrase);
-        dy += 20.0;
+        dy += ui.line_as(BODY_S) + faraday_draw::tokens::GAP_SMALL;
         let focused = app.vaults.focus == Some(Focus::Prompt);
         crate::demo::pass_box(
             app,
@@ -2718,7 +2718,7 @@ fn detail(
     }
     if app.vaults.signing {
         ui.text_as(dx, dy, TITLE_M, ink, EN.vault_sign_a_file);
-        dy += 40.0;
+        dy += ui.line_as(TITLE_M) + faraday_draw::tokens::PAD;
         // The key that signs, named as GnuPG's pinentry names it: user
         // ID, key IDs and creation date, and which subkey signs.
         if let Some(g) = items
@@ -2752,7 +2752,7 @@ fn detail(
                 muted,
                 &fill(EN.vault_no_file, &[app.medium.from_the()]),
             );
-            dy += 30.0;
+            dy += ui.advance_as(BODY_S, 30.0);
         } else {
             let all_ticked = files.iter().all(|f| app.gpg_ticked(f));
             ui.checkbox(dx, dy + 11.0, all_ticked, true);
@@ -2868,15 +2868,15 @@ fn detail(
     };
     let (t, line, mono) = item_heading(app, r);
     ui.text_as(dx, dy, if mono { BODY_L.mono() } else { TITLE_M }, ink, &t);
-    dy += 30.0;
+    dy += ui.advance_as(if mono { BODY_L.mono() } else { TITLE_M }, 30.0);
     ui.text_as(dx, dy, BODY_S, muted, &line);
-    dy += 34.0;
+    dy += ui.advance_as(BODY_S, 34.0);
     let mut secret_id = 0usize;
     // The secrets shown by their eyes here, read once for the page.
     let shown_fields = app.vaults.fields_shown(app.vault_on_page());
     let field_row = |ui: &mut Ui, dy: &mut f32, label: &str, value: &str, mono: bool| {
         ui.text_as(dx, *dy, BODY_S, muted, label);
-        *dy += 20.0;
+        *dy += ui.line_as(BODY_S) + faraday_draw::tokens::GAP_SMALL;
         *dy += ui.wrap_as(
             (dx, *dy, dw),
             if mono { BODY_M.mono() } else { BODY_M },
@@ -2886,7 +2886,7 @@ fn detail(
     };
     let mut secret_row = |ui: &mut Ui, dy: &mut f32, label: &str, value: &str, mono: bool| {
         ui.text_as(dx, *dy, BODY_S, muted, label);
-        *dy += 20.0;
+        *dy += ui.line_as(BODY_S) + faraday_draw::tokens::GAP_SMALL;
         let shown = shown_fields & (1u64 << secret_id.min(63)) != 0;
         let eye = (va(V::Reveal(secret_id)), shown);
         *dy += secret(ui, (dx, *dy, dw), value, mono, eye) + 14.0;
@@ -2905,7 +2905,7 @@ fn detail(
                 secret_row(ui, &mut dy, EN.vault_words, &words_text(m), true);
                 if m.language() == faraday_bip::bip39::Language::English {
                     ui.text_as(dx, dy, BODY_S, muted, EN.board_seedqr);
-                    dy += 20.0;
+                    dy += ui.line_as(BODY_S) + faraday_draw::tokens::GAP_SMALL;
                     dy += seedqr_box(app, ui, dx, dy, dw) + 14.0;
                 }
             }
@@ -3025,7 +3025,7 @@ fn detail(
                 // time while the clock is not checked (`docs/TOTP.md`
                 // §6).
                 ui.text_as(dx, dy, BODY_S, muted, EN.vault_code);
-                dy += 20.0;
+                dy += ui.line_as(BODY_S) + faraday_draw::tokens::GAP_SMALL;
                 let now = app.clock_now().filter(|_| app.clock_checked());
                 match app.entry_code(r, now) {
                     Ok(Some(code)) => {
@@ -3039,7 +3039,7 @@ fn detail(
                             muted,
                             &format!("{left} s"),
                         );
-                        dy += 34.0;
+                        dy += ui.advance_as(BODY_S, 34.0);
                     }
                     Ok(None) => {
                         ui.button(
@@ -3124,7 +3124,7 @@ fn detail(
                 field_row(ui, &mut dy, EN.vault_revocation_certificate, &kept, false);
                 // The paperkey is made only while its eye shows it.
                 ui.text_as(dx, dy, BODY_S, muted, EN.vault_paperkey);
-                dy += 20.0;
+                dy += ui.line_as(BODY_S) + faraday_draw::tokens::GAP_SMALL;
                 dy += secret_with(
                     ui,
                     (dx, dy, dw),
@@ -3144,9 +3144,9 @@ fn detail(
                     fill(EN.vault_term_until, &[&g.expires.to_string()])
                 };
                 ui.text_as(dx, dy, BODY_S, muted, &now_line);
-                dy += 22.0;
+                dy += ui.advance_as(BODY_S, 22.0);
                 ui.text_as(dx, dy, BODY_S, muted, EN.vault_renew_label);
-                dy += 22.0;
+                dy += ui.advance_as(BODY_S, 22.0);
                 // Renew at the row's end; on a small panel under it.
                 let rw = ui.measure_as(LABEL_L, EN.vault_renew) + 30.0;
                 let yh = years_row(
@@ -3220,7 +3220,7 @@ fn detail(
                 }
             }
             ui.text_as(dx, dy, BODY_S, muted, EN.vault_enrolment_adds);
-            dy += 22.0;
+            dy += ui.advance_as(BODY_S, 22.0);
             let own_items: Vec<(&str, Style, Action)> = [
                 (EN.vault_windows_compatible, false),
                 (EN.vault_own_keys_only, true),
@@ -3269,15 +3269,14 @@ fn detail(
     dy += 48.0;
     let dw_hold = hold_delete(app, ui, dx, dy);
     if r.kind() == kind::GPG {
-        hold_button(
-            app,
-            ui,
-            dx + dw_hold + 10.0,
-            dy,
-            EN.vault_hold_to_mark_revoked,
-            va(V::GpgHoldRevoke),
-            warn.paint(),
-        );
+        let label = EN.vault_hold_to_mark_revoked;
+        // Beside Delete where it fits, else under it.
+        let (mut hx, room) = (dx + dw_hold + 10.0, dx + dw);
+        if hx + ui.measure_as(LABEL_L, label) + 2.0 * faraday_draw::tokens::PAD > room {
+            (hx, dy) = (dx, dy + faraday_draw::tokens::TOUCH);
+        }
+        let hold = va(V::GpgHoldRevoke);
+        hold_button_in(app, ui, hx, dy, room - hx, label, hold, warn.paint());
     }
     dy + 48.0
 }

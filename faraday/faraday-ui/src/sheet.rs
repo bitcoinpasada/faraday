@@ -331,7 +331,7 @@ pub fn sheet_head<A: Copy + PartialEq>(
     th.max(line) + GAP
 }
 
-/// A label over its value, the value wrapped. Returns its height.
+/// A label over its value, each wrapped. Returns its height.
 pub fn kv<A: Copy + PartialEq>(
     ui: &mut Ui<A>,
     x: f32,
@@ -342,8 +342,7 @@ pub fn kv<A: Copy + PartialEq>(
     tone: impl Into<Paint>,
 ) -> f32 {
     let tone: Paint = tone.into();
-    ui.text_as(x, y, BODY_S, Role::OnSurfaceVariant, key);
-    let vy = ui.line_as(BODY_S) + GAP_SMALL;
+    let vy = ui.wrap_as((x, y, w), BODY_S, Role::OnSurfaceVariant, key) + GAP_SMALL;
     let vh = ui.wrap_as((x, y + vy, w), BODY_M, tone, value);
     ui.rule(x, y + vy + vh + GAP_SMALL, w, Role::OutlineVariant);
     vy + vh + GAP_SMALL + GAP

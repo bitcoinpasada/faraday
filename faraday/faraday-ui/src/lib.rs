@@ -1753,6 +1753,27 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
             self.state_layer((x, y, width, h, r), fg, action);
             self.focus_ring((x, y, width, h, r), action);
         }
+        // At a larger text size a label wider than its button fits down
+        // to Standard, and is shortened there only where it still does
+        // not fit (`docs/TEXT-SIZE.md` §3).
+        let room = width - tick - 2.0 * BUTTON_PAD;
+        if self.text > 1.0 && tw > room {
+            let size = size * self.fit_factor_of(tw, room);
+            return self.fixed_text(|ui| {
+                let shown = ui.fit(size, weight, label, room);
+                let tw = ui.measure(size, weight, &shown);
+                let lx = x + (width - tw - tick) / 2.0;
+                if tick > 0.0 {
+                    let iy = y + (h - ICON_GLYPH_BUTTON) / 2.0;
+                    ui.icon(lx, iy, ICON_GLYPH_BUTTON, Icon::Done, ICON_GLYPH_BUTTON, fg);
+                }
+                ui.text_mid(lx + tick, y, h, size, weight, fg, &shown);
+                if !style.is_off() {
+                    ui.hit_drawn(x, y, width, h, action);
+                }
+                width
+            });
+        }
         let lx = x + (width - tw - tick) / 2.0;
         if tick > 0.0 {
             let iy = y + (h - ICON_GLYPH_BUTTON) / 2.0;

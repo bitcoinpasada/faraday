@@ -1,8 +1,8 @@
 # Text size
 
 **Kind:** Spec
-**Status:** Partly built (F85): the setting, its storage, the one-column decision and the desktop app's `--text` (T1); the components that grow with their text and the canvas's `cut` note (T2); `FARADAY_SNAP_TEXT` and `cut.txt` (T5)
-**Open:** the screens at Larger, their line advances written in place, and Larger offered in Settings (T3); the Starter (T4); the justfile's Larger renders (T5); tests 6, 8 and 9, and test 5 beyond Home, Settings and a sheet; planned.
+**Status:** Partly built (F85): the setting, its storage, the one-column decision and the desktop app's `--text` (T1); the components that grow with their text and the canvas's `cut` note (T2); the screens refitted at Larger but for two areas, their line advances growing with the text where they follow their line (T3); `FARADAY_SNAP_TEXT`, `cut.txt` and the justfile's Larger renders (T5)
+**Open:** at Larger, codex32's worksheet panels and the dice roller's pages, which still draw lines over one another; the line advances still written in place (`tools/lint-tokens.counts`); then Larger offered in Settings (T3); the Starter (T4); tests 8 and 9; planned.
 
 Settings › Appearance gains **Text size**: Standard, Large, Larger. It
 makes text larger and lets the layout make room for it. It is kept as
@@ -193,8 +193,14 @@ text needs:
 - `wrap_buttons` and `wrap_buttons_height` take the button's height as
   a floor and grow it to the label's line plus padding.
 - A line's advance written in place (`y += 24.0` after a 13 dp line) is
-  replaced by `ui.line(size, w)` plus the gap the screen means. This is
-  most of T3's work; each replacement lowers `tools/lint-tokens.counts`.
+  replaced by the line's height and the gap the screen means:
+  `ui.line_as(role)` plus a spacing token where the advance is the
+  role's line and such a gap, else `ui.advance_as(role, 24.0)` (or
+  `ui.advance(size, w, 24.0)` for a size written in place), which is the
+  advance at Standard and grows by what the line grows. A height worked
+  out ahead of drawing (a card's, for passing over one out of sight)
+  adds `ui.line_grown_as` for each line it holds. Each replacement that
+  drops a number lowers `tools/lint-tokens.counts`.
 - `TOUCH` (48 dp) stays the floor: nothing becomes smaller than today.
 
 Drawing reads: the row heights come from `measure` and `line`, which
@@ -266,7 +272,9 @@ In `faraday/faraday-starter/tests/all/`:
 
 The snapshot shell takes `FARADAY_SNAP_TEXT=large|larger` as it takes
 `FARADAY_SNAP_THEME`, and writes `cut.txt` beside the frames listing any
-frame with text noted cut (test 5's check), for the review. The
+frame with text noted cut or drawn over other text (test 5's check), for
+the review; a snackbar, a menu or a tooltip standing over the page is
+listed too and is not a fault. The
 Starter's `snap` example takes the same variable.
 
 ## 8. Batches

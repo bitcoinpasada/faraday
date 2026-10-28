@@ -447,7 +447,7 @@ fn silent_card(
     if let Some(label) = held {
         if !label.trim().eq_ignore_ascii_case(&fp_text(r.fingerprint)) {
             ui.text_as(x, cy, BODY_S, Role::OnSurfaceVariant, label);
-            cy += 20.0;
+            cy += ui.line_as(BODY_S) + faraday_draw::tokens::GAP_SMALL;
         }
     } else {
         let slot = crate::wallet::Slot::bare(r.fingerprint);
@@ -623,7 +623,7 @@ pub(crate) fn entry(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     if let Some(line) = entry_for(app) {
         let line = ui.fit_as(LABEL_L, &line, iw);
         ui.text_as(x, y, LABEL_L, Role::Primary, &line);
-        y += 22.0;
+        y += ui.advance_as(LABEL_L, 22.0);
     }
     // The form's chips step aside while a codex32 correction or clash
     // stands in place of the field, so the panel stays above the keyboard
@@ -891,8 +891,17 @@ pub(crate) fn keyed_taken(
             } else {
                 lang.word_display(i)
             };
-            let t = ui.fit_as(BODY_S.mono(), word, cellw - 26.0);
-            ui.text_mid_as((cx + 22.0, cy, 28.0), BODY_S.mono(), Role::OnSurface, &t);
+            // The word after the cell's number, which widens with the
+            // text (`docs/TEXT-SIZE.md` §3).
+            let wide = ui.measure_as(LABEL_S, "00");
+            let grow = wide - wide / ui.text_factor();
+            let t = ui.fit_as(BODY_S.mono(), word, cellw - 26.0 - grow);
+            ui.text_mid_as(
+                (cx + 22.0 + grow, cy, 28.0),
+                BODY_S.mono(),
+                Role::OnSurface,
+                &t,
+            );
         }
     }
     let rows_h = count.div_ceil(cols) as f32 * 32.0;

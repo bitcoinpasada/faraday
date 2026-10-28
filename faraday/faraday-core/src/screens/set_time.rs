@@ -58,7 +58,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     }
     // Entry: Date and Time.
     section_label(ui, x, y, EN.set_time_date);
-    y += 26.0;
+    y += ui.advance_as(faraday_draw::tokens::TITLE_S, 26.0);
     crate::vault::screen::text_box(
         ui,
         x,
@@ -71,7 +71,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     );
     y += FIELD_H + 16.0;
     section_label(ui, x, y, EN.set_time_time);
-    y += 26.0;
+    y += ui.advance_as(faraday_draw::tokens::TITLE_S, 26.0);
     crate::vault::screen::text_box(
         ui,
         x,
@@ -135,7 +135,7 @@ fn set_time_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         y - y0
     });
     section_label(ui, x, y, EN.set_time_date);
-    y += 26.0;
+    y += ui.advance_as(faraday_draw::tokens::TITLE_S, 26.0);
     crate::vault::screen::text_box(
         ui,
         x,
@@ -148,7 +148,7 @@ fn set_time_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     );
     y += FIELD_H + 16.0;
     section_label(ui, x, y, EN.set_time_time);
-    y += 26.0;
+    y += ui.advance_as(faraday_draw::tokens::TITLE_S, 26.0);
     crate::vault::screen::text_box(
         ui,
         x,

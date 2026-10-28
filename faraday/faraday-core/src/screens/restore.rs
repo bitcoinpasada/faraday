@@ -256,7 +256,7 @@ fn restore_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                     Role::OnSurfaceVariant,
                     EN.restore_make_the_wallet,
                 );
-                cy += 30.0;
+                cy += ui.advance_as(BODY_S, 30.0);
             }
         }
         _ => {
@@ -337,7 +337,7 @@ fn restore_description(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             Role::OnSurfaceVariant,
             EN.restore_description_shares,
         );
-        cy += 22.0;
+        cy += ui.advance_as(BODY_S, 22.0);
         for (k, name) in &shares {
             let on = r.shares.iter().any(|s| s == name);
             ui.checkbox(x, cy + 8.0, on, true);
@@ -441,15 +441,10 @@ fn restore_seeds(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                 );
                 cy += 42.0;
             } else if absent {
-                row(
-                    ui,
-                    cy,
-                    k,
-                    &fp,
-                    EN.restore_seeds_not_here,
-                    Role::OnSurfaceVariant,
-                );
                 let cw = ui.measure_as(LABEL_L, EN.restore_seeds_change) + 32.0;
+                // Its line stops short of Change beside it.
+                let line = ui.fit_as(BODY_S, EN.restore_seeds_not_here, w - 124.0 - cw);
+                row(ui, cy, k, &fp, &line, Role::OnSurfaceVariant);
                 ui.button(
                     x + w - cw,
                     cy + 2.0,
@@ -729,7 +724,7 @@ fn restore_sources_compact(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f
     // A stick.
     let stick = !app.stick.is_empty() && !app.holds_secret();
     ui.text_as(x, cy, LABEL_M, Role::OnSurfaceVariant, app.medium.cap());
-    cy += 22.0;
+    cy += ui.advance_as(LABEL_M, 22.0);
     cy += wrap_buttons(
         ui,
         x,
@@ -763,7 +758,7 @@ fn restore_sources_compact(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f
         Role::OnSurfaceVariant,
         EN.restore_sources_vault,
     );
-    cy += 22.0;
+    cy += ui.advance_as(LABEL_M, 22.0);
     let files = app.vault_files();
     let mut labels: Vec<(String, Action)> = files
         .iter()

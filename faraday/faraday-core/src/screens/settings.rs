@@ -166,7 +166,7 @@ fn session_body(app: &View, ui: &mut Ui, (x, y0, w): (f32, f32, f32)) -> f32 {
     }
     for (label, now, choices, action) in idle_rows(app) {
         ui.text_as(x, y, BODY_S, Role::OnSurfaceVariant, label);
-        y += 22.0;
+        y += ui.advance_as(BODY_S, 22.0);
         let items: Vec<(&str, Action)> = choices.iter().map(|&m| (minutes(m), action(m))).collect();
         let on = choices.iter().position(|&m| now == m);
         y += ui.choices((x, y, w, SEGMENTED_H), LABEL_L.size, &items, on) + 10.0;
@@ -188,7 +188,7 @@ fn session_body(app: &View, ui: &mut Ui, (x, y0, w): (f32, f32, f32)) -> f32 {
 fn time_body(app: &View, ui: &mut Ui, (x, y0, w): (f32, f32, f32)) -> f32 {
     let mut y = y0;
     ui.text_as(x, y, BODY_S, Role::OnSurfaceVariant, EN.settings_now);
-    y += 20.0;
+    y += ui.line_as(BODY_S) + faraday_draw::tokens::GAP_SMALL;
     y += ui.wrap_as((x, y, w), TITLE_M, Role::OnSurface, &app.now_local_text()) + 10.0;
     y += tz_row(ui, x, y, w, app.tz_min()) + 10.0;
     y += ui.button(
@@ -282,7 +282,7 @@ fn signed_body(app: &View, ui: &mut Ui, (x, y0, w): (f32, f32, f32)) -> f32 {
         ],
     );
     ui.text_as(x, y, BODY_S, Role::OnSurfaceVariant, &line);
-    y += 24.0;
+    y += ui.line_as(BODY_S) + faraday_draw::tokens::GRID;
     let items = [
         (EN.settings_sealed_into, Action::SealAmounts(true)),
         (EN.settings_kept_until, Action::SealAmounts(false)),
@@ -323,7 +323,7 @@ fn about_body(app: &View, ui: &mut Ui, (x, y0, w): (f32, f32, f32)) -> f32 {
     };
     y += 4.0;
     ui.text_as(x, y, BODY_S, Role::OnSurfaceVariant, s.settings_selftest);
-    y += 20.0;
+    y += ui.line_as(BODY_S) + faraday_draw::tokens::GAP_SMALL;
     y += ui.wrap_as((x, y, w), LABEL_L, tone, &result) + 8.0;
     y += wrap_buttons(
         ui,

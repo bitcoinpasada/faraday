@@ -168,7 +168,7 @@ fn loaded(app: &View, ui: &mut Ui, x0: f32, cw: f32) -> f32 {
     }
 
     crate::screens::section_label(ui, x, y, EN.family_wallets_loaded);
-    y += 30.0;
+    y += ui.advance_as(faraday_draw::tokens::TITLE_S, 30.0);
     if app.session.wallets.is_empty() {
         ui.text_mid_as(
             (x, y, 30.0),
@@ -307,7 +307,7 @@ fn loaded(app: &View, ui: &mut Ui, x0: f32, cw: f32) -> f32 {
     if !lonely.is_empty() {
         y += 8.0;
         crate::screens::section_label(ui, x, y, EN.family_keys_without_wallet);
-        y += 30.0;
+        y += ui.advance_as(faraday_draw::tokens::TITLE_S, 30.0);
         for k in &lonely {
             ui.text_mid_as(
                 (x, y, 30.0),
@@ -421,7 +421,7 @@ fn loaded_compact(app: &View, ui: &mut Ui, cw: f32, h: f32) {
     }
 
     section_label(ui, x, y, EN.family_wallets_loaded);
-    y += 30.0;
+    y += ui.advance_as(faraday_draw::tokens::TITLE_S, 30.0);
     if app.session.wallets.is_empty() {
         ui.text_mid_as(
             (x, y, 30.0),
@@ -453,7 +453,7 @@ fn loaded_compact(app: &View, ui: &mut Ui, cw: f32, h: f32) {
     if !lonely.is_empty() {
         y += 8.0;
         section_label(ui, x, y, EN.family_keys_without_wallet);
-        y += 30.0;
+        y += ui.advance_as(faraday_draw::tokens::TITLE_S, 30.0);
         for k in &lonely {
             ui.text_mid_as(
                 (x, y, 30.0),
@@ -853,7 +853,9 @@ fn map(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         text::WORDS_ARE_MONEY,
     ) + 16.0;
     let drawn = next_button(ui, x, cy, w, EN.family_start, fa(F::Next(page::MAP)));
-    cy + (if drawn { 52.0 } else { 8.0 }) - y
+    // The count's line holds its band whether Continue stands beside
+    // it or at the foot.
+    cy + (if drawn { 52.0 } else { 48.0 }) - y
 }
 
 /// What do you have? (`docs/history/SCAN-TO-SIGN.md` §4): a vault when one is
@@ -883,7 +885,7 @@ fn holding(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             Role::OnSurfaceVariant,
             EN.family_bring_in_paper,
         );
-        cy += 28.0;
+        cy += ui.line_as(LABEL_L) + faraday_draw::tokens::GRID;
     }
     let ready = app.family_ready();
     let may = app.may_load_keys();
@@ -961,7 +963,7 @@ fn holding(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             Role::OnSurfaceVariant,
             EN.family_came_in_heading,
         );
-        cy += 26.0;
+        cy += ui.advance_as(LABEL_L, 26.0);
         for row in &rows {
             let row = ui.fit_as(BODY_M.mono(), row, w);
             ui.text_mid_as((x, cy, 34.0), BODY_M.mono(), Role::OnSurface, &row);
@@ -1286,7 +1288,7 @@ fn vault(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     }
     cy += 8.0;
     ui.text_as(x, cy, LABEL_L, Role::OnSurfaceVariant, EN.family_passphrase);
-    cy += 22.0;
+    cy += ui.advance_as(LABEL_L, 22.0);
     if app.may_load_keys() {
         let focused = app.vaults.focus == Some(crate::vault::Focus::Passphrase);
         crate::demo::pass_box(
@@ -1411,7 +1413,7 @@ fn opened(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         Role::OnSurfaceVariant,
         EN.family_spend_from_label,
     );
-    cy += 26.0;
+    cy += ui.advance_as(LABEL_L, 26.0);
     for (i, wl) in app.session.wallets.iter().enumerate() {
         let on = chosen == Some(i);
         ui.checkbox(x, cy + 11.0, on, true);
@@ -1508,7 +1510,7 @@ fn loaded_in_sparrow(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         Role::OnSurfaceVariant,
         EN.family_receive_address,
     );
-    cy += 22.0;
+    cy += ui.advance_as(LABEL_L, 22.0);
     let (addr, held) = app.receive_line(wl, false, 0);
     cy += ui.wrap_as(
         (x, cy, w),
@@ -1524,7 +1526,9 @@ fn loaded_in_sparrow(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         EN.family_it_is_loaded,
         fa(F::Next(page::CHECK)),
     );
-    cy + (if drawn { 52.0 } else { 8.0 }) - y
+    // The count's line holds its band whether Continue stands beside
+    // it or at the foot.
+    cy + (if drawn { 52.0 } else { 48.0 }) - y
 }
 
 /// Check the money: the wallet as a QR code, and its addresses. For a
@@ -1651,7 +1655,7 @@ fn check(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let n = 3 + app.family.state.addresses;
     for (head, change) in [(EN.family_receive, false), (EN.family_change, true)] {
         ui.text_as(x, cy, LABEL_L, Role::OnSurfaceVariant, head);
-        cy += 24.0;
+        cy += ui.line_as(LABEL_L) + faraday_draw::tokens::GAP_SMALL;
         for k in 0..n {
             ui.text_mid_as(
                 (x, cy, 28.0),
@@ -1759,7 +1763,7 @@ fn bring(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         .collect();
     if !psbts.is_empty() {
         ui.text_as(x, cy, LABEL_L, Role::OnSurfaceVariant, EN.family_in_files);
-        cy += 24.0;
+        cy += ui.line_as(LABEL_L) + faraday_draw::tokens::GAP_SMALL;
     }
     for (k, name) in &psbts {
         let current = app.wallets.spend().is_some_and(|s| s.spend.source == *name);
@@ -1767,7 +1771,7 @@ fn bring(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         if ui.compact {
             let n = ui.fit_as(BODY_M.mono(), name, w);
             ui.text_as(x, cy, BODY_M.mono(), Role::OnSurface, &n);
-            cy += 22.0;
+            cy += ui.advance_as(BODY_M.mono(), 22.0);
         } else {
             ui.text_mid_as((x, cy, 38.0), BODY_M.mono(), Role::OnSurface, name);
         }
@@ -2037,7 +2041,7 @@ fn signers(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         if !may {
             let pull = fill(EN.family_remove_the_first, &[app.medium.noun()]);
             ui.text_as(x, cy, LABEL_L, Role::Warning, &pull);
-            cy += 28.0;
+            cy += ui.line_as(LABEL_L) + faraday_draw::tokens::GRID;
         }
         cy += 6.0;
     }
@@ -2050,7 +2054,9 @@ fn signers(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         EN.family_continue,
         Action::StepNext(step::SIGNERS),
     );
-    cy + (if drawn { 52.0 } else { 8.0 }) - y
+    // The count's line holds its band whether Continue stands beside
+    // it or at the foot.
+    cy + (if drawn { 52.0 } else { 48.0 }) - y
 }
 
 /// Put everything away: lock, write what waits, power off.

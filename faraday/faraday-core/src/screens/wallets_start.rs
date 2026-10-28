@@ -49,7 +49,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let (loose, _) = app.loose_keys();
     if compact && !app.session.wallets.is_empty() && !loose.is_empty() {
         section_label(ui, x, y, EN.start_keys_without);
-        y += 24.0;
+        y += ui.line_as(faraday_draw::tokens::TITLE_S) + faraday_draw::tokens::GAP_SMALL;
         for fp in &loose {
             let line = key_line(*fp, app.session.keys.key_label(*fp).unwrap_or(""));
             let line = ui.fit_as(BODY_M.mono(), &line, width);

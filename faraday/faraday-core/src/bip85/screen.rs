@@ -185,7 +185,7 @@ fn card(app: &View, b: &Bip85State, ui: &mut Ui, s: u8, x: f32, y: f32, w: f32) 
                 if ui.compact {
                     cy += 46.0;
                     ui.text_as(x, cy, BODY_S, Role::OnSurfaceVariant, &range);
-                    cy += 28.0;
+                    cy += ui.advance_as(BODY_S, 28.0);
                 } else {
                     ui.text_mid_as(
                         (x + mw + 230.0, cy, 40.0),
@@ -241,7 +241,7 @@ fn card(app: &View, b: &Bip85State, ui: &mut Ui, s: u8, x: f32, y: f32, w: f32) 
             cy += 56.0;
             if b.index().is_none() {
                 ui.text_as(x, cy, BODY_S, Role::Error, EN.bip85_index_limits);
-                cy += 24.0;
+                cy += ui.line_as(BODY_S) + faraday_draw::tokens::GRID;
             }
             ui.text_as(
                 x,
@@ -250,7 +250,7 @@ fn card(app: &View, b: &Bip85State, ui: &mut Ui, s: u8, x: f32, y: f32, w: f32) 
                 Role::OnSurfaceVariant,
                 EN.bip85_type_the_digits,
             );
-            cy += 24.0;
+            cy += ui.line_as(BODY_S) + faraday_draw::tokens::GRID;
             if next_button(ui, x, cy, w, EN.bip85_continue, Action::PNext) {
                 cy += 48.0;
             }

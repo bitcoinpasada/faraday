@@ -676,7 +676,7 @@ pub(crate) fn shares_table(
         // On a small panel the slider goes under the label.
         let (sx, sw) = if ui.compact {
             ui.text_as(x, cy, LABEL_L, Role::OnSurfaceVariant, label);
-            cy += 20.0;
+            cy += ui.line_as(LABEL_L);
             (x, w)
         } else {
             ui.text_mid_as((x, cy, 40.0), BODY_S, Role::OnSurfaceVariant, label);
@@ -1098,7 +1098,7 @@ fn backup_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                     };
                     let head = ui.fit_as(LABEL_L, &app.place_name(p), w);
                     ui.text_as(x, cy, LABEL_L, Role::OnSurface, &head);
-                    cy += 22.0;
+                    cy += ui.advance_as(LABEL_L, 22.0);
                     let holds: Vec<String> = spot
                         .holds
                         .iter()
@@ -1594,7 +1594,7 @@ fn sticks_item(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                 continue;
             }
             ui.text_as(x, cy, BODY_S, Role::OnSurfaceVariant, title);
-            cy += 22.0;
+            cy += ui.advance_as(BODY_S, 22.0);
             for (l, tone) in lines {
                 cy += ui.wrap_as((x, cy, w), BODY_S, tone, &l) + 6.0;
             }
@@ -1677,7 +1677,7 @@ fn vault_item(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, v: usize) -> f32 
         let line = fill(EN.vault_item_holds_another, &[&o.name.to_string()]);
         let line = ui.fit_as(LABEL_L, &line, w);
         ui.text_as(x, cy + 4.0, LABEL_L, Role::Warning, &line);
-        cy += 32.0;
+        cy += ui.advance_as(LABEL_L, 32.0);
     }
     let head = match open {
         Some(o) => fill(EN.vault_item_into, &[&o.name.to_string()]),
@@ -1685,7 +1685,7 @@ fn vault_item(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, v: usize) -> f32 
     };
     let head = ui.fit_as(LABEL_L, &head, w);
     section_label(ui, x, cy, &head);
-    cy += 28.0;
+    cy += ui.line_as(faraday_draw::tokens::TITLE_S) + faraday_draw::tokens::GRID;
     let (own, _) = app.backup_vault_seeds(v);
     let mut rows: Vec<(String, bool)> = own
         .iter()
@@ -1814,7 +1814,7 @@ fn paper_section(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     };
     let mut cy = y + 8.0;
     section_label(ui, x, cy, EN.paper_section_other);
-    cy += 28.0;
+    cy += ui.line_as(faraday_draw::tokens::TITLE_S) + faraday_draw::tokens::GRID;
     match &b.paper {
         None => {
             let row: Vec<(String, Style, Action)> = vec![
@@ -1834,7 +1834,7 @@ fn paper_section(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         Some(PaperForm::Xor(parts)) => {
             let line = fill(EN.paper_section_parts, &[&parts.len().to_string()]);
             ui.text_as(x, cy, LABEL_L, Role::Warning, &line);
-            cy += 26.0;
+            cy += ui.advance_as(LABEL_L, 26.0);
             for (i, l) in parts.iter().enumerate() {
                 ui.text_as(x, cy, BODY_S, Role::OnSurfaceVariant, &format!("{}", i + 1));
                 cy += ui
@@ -1933,11 +1933,11 @@ fn kept_rows(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let (line, t) = &kept.wallet;
     cy += ui.wrap_as((x, cy, w), LABEL_L, tone(*t), line) + 16.0;
     ui.text_as(x, cy, LABEL_L, Role::OnSurfaceVariant, EN.kept_rows_keys);
-    cy += 26.0;
+    cy += ui.advance_as(LABEL_L, 26.0);
     for seed in &kept.seeds {
         let name = ui.fit_as(BODY_S.mono(), &seed.name, w);
         ui.text_as(x, cy, BODY_S.mono(), Role::OnSurface, &name);
-        cy += 22.0;
+        cy += ui.advance_as(BODY_S.mono(), 22.0);
         for (line, t) in &seed.lines {
             cy += ui.wrap_as((x + 12.0, cy, w - 12.0), BODY_S, tone(*t), line) + 4.0;
         }

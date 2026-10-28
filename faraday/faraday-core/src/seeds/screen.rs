@@ -106,7 +106,7 @@ pub(crate) fn quorum(ui: &mut Ui, s: &SeedsState, x: f32, y: f32, w: f32) -> f32
         };
         if ui.compact {
             ui.text_as(x, cy, LABEL_L, Role::OnSurfaceVariant, label);
-            cy += 20.0;
+            cy += ui.line_as(LABEL_L);
         } else {
             ui.text_mid_as((x, cy, 40.0), LABEL_L, Role::OnSurfaceVariant, label);
         }
@@ -245,7 +245,7 @@ pub(crate) fn shape(
     // The kind.
     cy += 8.0;
     ui.text_as(x, cy, LABEL_L, Role::OnSurfaceVariant, EN.seeds_kind);
-    cy += 24.0;
+    cy += ui.line_as(LABEL_L) + faraday_draw::tokens::GAP_SMALL;
     for (k, kind) in s.kinds().iter().enumerate() {
         let on = *kind == s.kind;
         ui.checkbox(x, cy + 11.0, on, true);
@@ -288,7 +288,7 @@ pub(crate) fn shape(
         Role::OnSurfaceVariant,
         EN.seeds_derivation_path,
     );
-    cy += 24.0;
+    cy += ui.line_as(LABEL_L) + faraday_draw::tokens::GAP_SMALL;
     let standard = s.custom.is_none();
     ui.checkbox(x, cy + 11.0, standard, true);
     let std_path = s.kind.path_at(net, s.account);
@@ -360,7 +360,7 @@ pub(crate) fn shape(
                 Role::OnSurfaceVariant,
                 EN.seeds_first_receive,
             );
-            cy += 22.0;
+            cy += ui.advance_as(BODY_S, 22.0);
             cy += ui.wrap_as((x, cy, w), BODY_L.mono(), Role::OnSurface, &grouped(&a)) + 14.0;
         }
         Err(e) => {
