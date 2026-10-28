@@ -413,7 +413,6 @@ faraday-stick-boot +args:
 # stick.
 #
 #   just faraday-pi-bin                  the owner's board (pi3)
-#   just board=pi02w faraday-pi-bin      the Zero 2 W
 [group('build')]
 faraday-pi-bin:
     #!/usr/bin/env bash

@@ -13,7 +13,7 @@
 #   board, panel  for an image: the directories under faraday/image/boards
 #             and faraday/image/panels it is built from
 #   recipe    the just recipe; vars are just variables set before its name
-#             (`just board=pi02w faraday-pi-image`), args its arguments,
+#             (`just board=pi3 faraday-pi-image`), args its arguments,
 #             env the environment it needs ({version} is the release's)
 #   needs     what must be built first: "payload" is the stick and Pi
 #             images staged by faraday/tools/stage-release.sh's first pass
@@ -131,18 +131,6 @@ build = "strict"
 dev = true
 outputs = ["out/pi/faraday-pi3-waveshare-28dpi{dev}.img"]
 release = ["faraday-pi-{version}-pi3-waveshare-28dpi.img.xz"]
-
-[[build]]
-id = "pi02w-waveshare-28dpi"
-label = "Raspberry Pi Zero 2 W, 2.8-inch screen"
-group = "image"
-status = "untried"
-board = "pi02w"
-panel = "waveshare-28dpi"
-recipe = "faraday-pi-image"
-vars = { board = "pi02w", panel = "waveshare-28dpi" }
-dev = true
-outputs = ["out/pi/faraday-pi02w-waveshare-28dpi{dev}.img"]
 
 # ---------------------------------------------------------------- the Starter
 

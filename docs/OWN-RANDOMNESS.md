@@ -425,7 +425,6 @@ Edit list:
   `faraday/image/boards/x86_64-uefi/kernel.cmdline` (new),
   `faraday/image/check-kernel-config.sh`,
   `faraday/image/boards/pi3/linux.fragment`,
-  `faraday/image/boards/pi02w/linux.fragment`,
   `faraday/shells/stick/src/main.rs`.
 
 ## 7. Docs that follow

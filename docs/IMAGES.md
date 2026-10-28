@@ -196,8 +196,8 @@ marked so (`docs/HARDWARE.md` §6).
 ## 9. Order of work
 
 1. One Pi image for every supported Pi: the 3B, 3B+ and Zero 2 W
-   device trees on one card, the Zero 2 W's board directory folded into
-   the Pi 3's, tried on each board.
+   device trees on one card (built: the Zero 2 W's board directory is
+   folded into the Pi 3's), tried on the 3B and the Zero 2 W.
 2. The Pi 4 on the same images: its 32-bit kernel, firmware and device
    tree on every Pi card, the system the same. First, for the owner:
    what it adds to the kernel's reach (USB behind PCIe, a boot loader in

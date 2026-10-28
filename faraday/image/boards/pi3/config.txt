@@ -12,7 +12,12 @@ boot_delay=0
 # is what the panel shows until the app's first frame.
 disable_splash=1
 
-# ---- Raspberry Pi 3B/3B+ ----
+# ---- Raspberry Pi 3B/3B+/Zero 2 W ----
+# One card starts all three boards. Their firmware settings are the same, so
+# nothing here sits under a board filter; if one has to differ, the
+# firmware's conditional filters split it by model (Raspberry Pi
+# documentation, config.txt, "Conditional filters": check there which filter
+# names the Zero 2 W before using one), and [all] ends them.
 # The camera variant of the firmware. start_x.elf carries the camera code
 # that publishes the sensor as a V4L2 device; start.elf does not.
 start_file=start_x.elf

@@ -1,8 +1,9 @@
-# Raspberry Pi 3B/3B+: the architecture, the kernel and the firmware.
+# Raspberry Pi 3B/3B+/Zero 2 W: the architecture, the kernel and the firmware.
 #
 # Buildroot's raspberrypi3_defconfig is the starting point: the same 32-bit
 # armv7 target `just faraday-pi-bin` builds for, the same pinned Raspberry Pi
-# kernel, the same firmware package.
+# kernel, the same firmware package. The Zero 2 W is the same BCM2710, so
+# it needs only its device trees, which come from board.conf's DTBS.
 
 # armv7 hard-float, Cortex-A53. Matches armv7-unknown-linux-gnueabihf.
 BR2_arm=y

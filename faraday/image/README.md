@@ -93,16 +93,14 @@ the tree holds a path.
 
 | Board | Directory | State |
 |---|---|---|
-| Raspberry Pi 3B / 3B+ | `boards/pi3` | tested — the owner's device |
-| Raspberry Pi Zero 2 W | `boards/pi02w` | untested — nobody has booted it |
+| Raspberry Pi 3B / 3B+ / Zero 2 W | `boards/pi3` | 3B+ tested — the owner's device; the 3B's and Zero 2 W's device trees are on the card, built, not booted |
 | x86_64 PC with UEFI firmware | `boards/x86_64-uefi` | untested on hardware — booted in QEMU with OVMF by `faraday/tools/qemu-check.py` |
 
-The Zero 2 W has the same BCM2710 as the 3B+, so it takes the same Rust
-target, the same kernel and the same drivers; only the device trees
-differ. Its `linux.fragment` is a symbolic link to the 3B+'s for that
-reason. It is here because it costs a directory, and it is marked
-untested in `board.conf` and printed as untested by the build until
-somebody boots one.
+The 3B, 3B+ and Zero 2 W have the same BCM2710, so they take the same Rust
+target, the same kernel and the same drivers; only the device trees differ.
+One card carries all of them (`DTBS` in `board.conf`) and the Pi's firmware
+loads the one for the board it starts on, so there is no separate Zero 2 W
+image (F147). Nobody has booted a Zero 2 W or a 3B on it.
 
 An ARMv6 Zero — the Zero W and the original Zero — is **not** here. It
 needs a second Rust target (`arm-unknown-linux-gnueabihf`) and C flags for
