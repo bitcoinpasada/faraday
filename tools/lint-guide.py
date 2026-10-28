@@ -16,7 +16,10 @@ the app fails `just lint` until the guide follows.
    variant is named by the `**Screen:**` line of exactly one page there,
    or listed under "## To write" in its README.md (a line
    "- `Screen`: `A`, `B`"), never both; a name in either that is no
-   variant fails.
+   variant fails. The Starter's own `Page` and `Sheet` variants
+   (faraday/faraday-starter/src/lib.rs) are named the same way, by a
+   page's `**Starter page:**` and `**Starter sheet:**` lines, each by
+   exactly one page; they have no To write list.
 
 The allow list holds one name per line (`re:<pattern>` matches a whole
 name), then `  # reason`. Standard library only; no build. `--self-test` shows a renamed string
@@ -160,7 +163,7 @@ def check_names(root, files, errors):
     for path in files:
         rel = os.path.relpath(path, root)
         for line, span in bold_spans(path):
-            if re.match(r"^(Kind|Status|Open|Screen|Group):$", span):
+            if re.match(r"^(Kind|Status|Open|Screen|Group|Starter page|Starter sheet):$", span):
                 continue
             whole = " ".join(span.split())
             parts = [whole] + SEPARATORS.split(span) if SEPARATORS.search(span) else [whole]
@@ -220,9 +223,13 @@ def check_links(root, files, errors):
                     errors.append(f"{rel}:{n}: no heading for anchor: {target}")
 
 
-def enum_variants(root, name):
-    """Variant names of `pub enum <name>` in faraday-core."""
-    base = os.path.join(root, "faraday/faraday-core/src")
+CORE = "faraday/faraday-core/src"
+STARTER = "faraday/faraday-starter/src"
+
+
+def enum_variants(root, name, src=CORE):
+    """Variant names of `pub enum <name>` in the crate at `src`."""
+    base = os.path.join(root, src)
     for d, _, names in os.walk(base):
         for n in names:
             if not n.endswith(".rs"):
@@ -278,19 +285,42 @@ def to_write(root):
     return out
 
 
-def check_screens(root, errors):
-    folder = os.path.join(root, SCREENS)
-    if not os.path.isdir(folder):
-        return
+def named_by(folder, head):
+    """{variant: [file:line, ...]} named by the pages' `**<head>:**` lines."""
     named = {}
     for n in sorted(os.listdir(folder)):
         if n.endswith(".md") and n != "README.md":
             for num, line in prose_lines(os.path.join(folder, n)):
-                m = re.match(r"^\*\*Screen:\*\*\s*(.*)$", line)
+                m = re.match(r"^\*\*%s:\*\*\s*(.*)$" % head, line)
                 if m:
                     for v in re.split(r"[,\s]+", m.group(1).replace("`", "")):
                         if v:
                             named.setdefault(v, []).append(f"{SCREENS}/{n}:{num}")
+    return named
+
+
+def check_starter(root, folder, errors):
+    """The Starter's Page and Sheet variants: each named by exactly one
+    page's `**Starter page:**` or `**Starter sheet:**` line."""
+    for enum, head in (("Page", "Starter page"), ("Sheet", "Starter sheet")):
+        named = named_by(folder, head)
+        variants = enum_variants(root, enum, STARTER)
+        for v, places in named.items():
+            if v not in variants:
+                errors.append(f"{places[0]}: `{v}` is not a Starter {enum} variant")
+            elif len(places) > 1:
+                errors.append(f"{places[1]}: `{v}` is named by more than one page: {', '.join(places)}")
+        for v in variants:
+            if v not in named:
+                errors.append(f"{SCREENS}: no page names the Starter's {enum} variant {v}")
+
+
+def check_screens(root, errors):
+    folder = os.path.join(root, SCREENS)
+    if not os.path.isdir(folder):
+        return
+    check_starter(root, folder, errors)
+    named = named_by(folder, "Screen")
     todo = to_write(root)
     variants = {enum: enum_variants(root, enum) for enum in ("Screen", "Sheet")}
     every = {v for vs in variants.values() for v in vs}
@@ -362,6 +392,19 @@ def self_test():
         put(SCREENS + "/power.md", "# Power\n\n**Screen:** `Power`\n")
         _, errors = run(root)
         assert len(errors) == 2 and "more than one page" in errors[0] and "Gone" in errors[1], errors
+        put(SCREENS + "/power.md", "# Power\n")
+        # The Starter's pages and sheets: each on exactly one page.
+        put(STARTER + "/lib.rs", "pub enum Page {\n    Home,\n    Make,\n}\npub enum Sheet {\n    Restart(RestartTo),\n}\n")
+        put(SCREENS + "/starter.md", "# S\n\n**Starter page:** `Home`, `Make`\n**Starter sheet:** `Restart`\n")
+        _, errors = run(root)
+        assert len(errors) == 1 and "Gone" in errors[0], errors
+        put(SCREENS + "/starter.md", "# S\n\n**Starter page:** `Home`, `Gone`\n**Starter sheet:** `Restart`\n")
+        put(SCREENS + "/starter-2.md", "# S\n\n**Starter sheet:** `Restart`\n")
+        _, errors = run(root)
+        assert len(errors) == 4, errors
+        assert any("`Gone` is not a Starter Page" in e for e in errors), errors
+        assert any("Page variant Make" in e for e in errors), errors
+        assert any("`Restart` is named by more than one page" in e for e in errors), errors
     print("lint-guide self-test: ok")
 
 

@@ -28,7 +28,7 @@ with one from a second place.
   PC" the first time: press *More info*, then *Run anyway*.
 - Linux: extract the `.tar.gz` and open the file inside.
 
-The Starter opens on its Home.
+The Starter opens on its [Home](../screens/starter-home.md).
 
 ![The Starter's Home with no stick attached](../1-1-starter-home.png)
 
@@ -63,7 +63,7 @@ Press **Make a Faraday stick**.
 ### 1.3 Which stick?
 
 Plug the stick in. Every USB disk attached is listed with its size and
-what is on it. Nothing is chosen for you.
+what is on it ([Which stick?](../screens/starter-make.md#which-stick-or-which-card)). Nothing is chosen for you.
 
 ![Which stick? with two sticks listed](../1-2-which-stick.png)
 
@@ -87,7 +87,7 @@ pulled out: a stick not listed is pulled out and plugged in again.
 ![What to write? for an empty stick](../1-3-what-to-write.png)
 
 **New Faraday stick** (Everything on it is lost) is ticked, the only
-choice for this stick. Press **Continue**.
+choice for this stick ([What to write?](../screens/starter-make.md#what-to-write)). Press **Continue**.
 
 A stick that already holds Faraday also offers keeping its data, for
 upgrading: [Replace Faraday, keep the data](starter-tools.md#5-replace-faraday-keep-the-data).
@@ -100,6 +100,8 @@ Check **Stick**, **Size** and **On it** against the stick in your hand,
 then press **Erase and write**. On Windows, Windows asks for
 administrator permission: answer *Yes*. On Linux the system may ask
 for your password.
+
+Every row: [Confirm](../screens/starter-make.md#confirm).
 
 | Row | What it is |
 |---|---|
@@ -116,7 +118,8 @@ button is grey. Press **Choose again** and choose the stick again.
 
 ![Writing](../1-5-writing.png)
 
-The Starter writes the image, then reads it back to check it. Leave the
+The Starter writes the image, then reads it back to check it
+([Writing](../screens/starter-make.md#writing)). Leave the
 stick in until the result shows.
 
 | Result | Meaning | Press |

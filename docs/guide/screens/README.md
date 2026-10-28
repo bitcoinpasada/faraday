@@ -7,7 +7,9 @@
 One page per screen, grouped as the sidebar groups them. A page's
 `**Screen:**` line names the `Screen` and `Sheet` variants of
 `faraday/faraday-core/src/lib.rs` it covers; small sheets share a page,
-a section each. The walkthroughs ([`docs/GUIDE.md`](../../GUIDE.md))
+a section each; the Starter's pages name the `Page` and `Sheet`
+variants of `faraday/faraday-starter/src/lib.rs` on `**Starter page:**`
+and `**Starter sheet:**` lines. The walkthroughs ([`docs/GUIDE.md`](../../GUIDE.md))
 say what to do; these pages say what each control on a screen does.
 
 ## Pages
@@ -36,6 +38,11 @@ say what to do; these pages say what each control on a screen does.
 | Wallets | [The backup flow](backup-flow.md) | Where it will be kept, the sticks, the vaults, the key, Lock, Write the sticks, Done |
 | Wallets | [Backups and the chart](backups.md) | Backups, and the chart's sheets: the wallet, a key, a place, a line, a change asked first |
 | Tools | [Tools](tools.md) | Every tool by group and its search, the word list |
+| Starter | [Home](starter-home.md) | The rail and the top app bar, This computer, the checklist, what can record, Faraday Demo, Update, the boot entry, Continue anyway |
+| Starter | [Make](starter-make.md) | Make, For which computer?, Which stick? or Which card?, What to write? and its boot file, Confirm, Writing, Written |
+| Starter | [Tools](starter-tools.md) | Tools, Transfer, Blank templates and each choice's page |
+| Starter | [Start from the stick, and Learn](starter-learn-and-boot.md) | Start this computer (or this Mac) from the stick, the restart sheet, Learn |
+| Starter | [Install, Appearance and About](starter-menu.md) | The ⋮ menu, Install and Update, Installed and Uninstall, Appearance, About |
 
 ## To write
 

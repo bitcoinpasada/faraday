@@ -32,7 +32,8 @@ setting asks.
 
 *Picture to come: `starter-tour-home.png`, the Starter's Home with the rail, This computer and its Checklist, and the Faraday Demo card.*
 
-The rail at the left holds the four destinations: **Home**, **Make**,
+The [rail](../screens/starter-home.md#the-rail-the-bar-and-the-top-app-bar)
+at the left holds the four destinations: **Home**, **Make**,
 **Tools** and **Learn**. In a narrow window they are a bar across the
 foot of the window. The bar at the top holds **Install** (or
 **Update**) and the **⋮** menu.
@@ -44,7 +45,7 @@ opened from, at the place it was left.
 
 ## 2. Home
 
-Home is about this computer.
+Home is about this computer ([Home](../screens/starter-home.md)).
 
 | On screen | Meaning |
 |---|---|
@@ -68,6 +69,8 @@ The stick and the restart are the next two walkthroughs:
 
 *Picture to come: `starter-tour-make.png`, Make with its two cards.*
 
+Every control of Make and its steps: [Make](../screens/starter-make.md).
+
 | Card | Shows | Button |
 |---|---|---|
 | **Faraday stick** | **No Faraday stick attached**, or the attached stick's Faraday version | **Make a Faraday stick**: writes a USB stick, step by step (**Which stick?**, **What to write?**, **Confirm**, **Writing**, **Written**) |
@@ -80,6 +83,8 @@ backup drive as a stick.
 
 *Picture to come: `starter-tour-tools.png`, Tools with its two cards.*
 
+Every control of Tools and Blank templates: [Tools](../screens/starter-tools.md).
+
 | Card | Shows | Button |
 |---|---|---|
 | **Transfer** | **Send and Receive** | **Open Transfer**: sends a file from this computer's Downloads folder as animated QR codes for the device's camera, and receives the device's codes through this computer's camera into Downloads |
@@ -90,7 +95,7 @@ The backup walkthrough prints its 12-word template from here
 
 ## 5. Learn
 
-**Learn** holds the Starter's Learn pages: starting a Windows or a
+**Learn** ([Learn](../screens/starter-learn-and-boot.md#learn)) holds the Starter's Learn pages: starting a Windows or a
 Linux computer from the stick, one page for each computer maker, what
 Secure Boot and BitLocker are, what to do when the stick does not
 start, and what else runs on a computer below Faraday. A page opened
@@ -109,7 +114,8 @@ the Starter ([Faraday Demo](faraday-demo.md)).
 the one installed. It shows **Installed version** and **This version**,
 then the same **Install** button.
 
-The **⋮** menu holds what is not a destination:
+The **⋮** menu holds what is not a destination
+([the ⋮ menu](../screens/starter-menu.md#the--menu)):
 
 | Row | Opens |
 |---|---|

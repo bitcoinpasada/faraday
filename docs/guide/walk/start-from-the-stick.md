@@ -7,7 +7,8 @@
 ### 1.7 Start this computer from the stick
 
 Leave the stick in. **Start this computer from the stick** on the
-Written page, or item 2 of Home's checklist, opens this page:
+Written page, or item 2 of Home's checklist, opens this page
+([Start this computer from the stick](../screens/starter-learn-and-boot.md#start-this-computer-from-the-stick)):
 
 ![Start this computer from the stick](../1-7-start-page.png)
 
@@ -64,7 +65,8 @@ by the TPM: have its passphrase ready** at the top of the Start page.
 ### 1.8 Restart into the BIOS (Secure Boot on)
 
 1. Press **Restart into the BIOS**, on Home's card or as step 1 of the
-   Start page. A sheet asks first:
+   Start page. A [sheet](../screens/starter-learn-and-boot.md#restart-into-the-bios-and-restart-from-the-stick)
+   asks first:
 
    ![Restart into the BIOS sheet](../1-8-restart-into-bios.png)
 
@@ -82,7 +84,9 @@ by the TPM: have its passphrase ready** at the top of the Start page.
 
 ### 1.9 Restart from the stick (Secure Boot already off)
 
-Press **Restart from the stick**.
+Press **Restart from the stick**. The same
+[sheet](../screens/starter-learn-and-boot.md#restart-into-the-bios-and-restart-from-the-stick)
+asks first.
 
 ![Restart from the stick sheet](../1-9-restart-from-stick.png)
 
