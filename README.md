@@ -7,6 +7,8 @@ wallets, passwords, GPG keys and Secure Boot keys in encrypted vaults and
 signs with them on a machine that has no network.
 
 Every document, and which one answers which question: `docs/README.md`.
+Building it, checking it, reproducing a release and trying it on your
+own hardware: `docs/DEVELOPING.md`.
 
 > **Use at your own risk.** 0.1.8 is a pre-release. One outside audit,
 > AI-assisted, has read its code; no person outside the project has
@@ -441,6 +443,22 @@ Build the test kit on its own with:
 cargo run -q -p faraday-testkit -- out/testkit
 ```
 
+## Building and testing
+
+```
+just                                         the check: every test and lint
+cargo run -p faraday-desktop --release       Faraday in a window, on testnet
+just dev=1 faraday-stick-image               a stick image for trying a machine
+just faraday-starter --image out/stick/faraday-x86_64-uefi-dev.img   write it to a stick
+just crosscheck                              the crypto against independent references
+just crosscheck-status --follow              a running cross-check, from another terminal
+```
+
+`docs/DEVELOPING.md` is the whole guide: what to install, the check,
+the images, reproducing a release byte for byte, the dev image's boot
+report (written to the stick every 30 seconds, for a machine that does
+not work), QEMU, the cross-check and fuzzing.
+
 ## USB stick image
 
 The image is built with Buildroot in a container (`DOCKER=podman` or
@@ -578,17 +596,41 @@ The release tags are signed with the same key: `git tag -v v0.1.8`.
 
 ## Repository layout
 
-`core/` holds the libraries with no flow and no wording in them: the
-cryptography, the codecs, the drawing base and the shell contract.
-`faraday/` is Faraday itself: `faraday-core`, the shells, the vault, GPG,
-Secure Boot and QR codes. See `docs/FLOWS.md` for every
+| Path | What it holds |
+|---|---|
+| `core/` | the libraries with no flow and no wording in them: the cryptography, the codecs, the drawing base and the shell contract |
+| `faraday/` | Faraday itself: `faraday-core`, the shells (stick, Pi, desktop, Starter), the vault, GPG, Secure Boot, QR codes, the image build |
+| `docs/` | what is true now or still to be built, indexed in `docs/README.md`; how it was built is in `docs/history/` |
+| `tools/` | the lints, the cross-check, the vendored references and vectors, and the scripts `just` runs (`tools/README.md`) |
+| `fuzz/` | the shared crates' fuzz targets (`faraday/fuzz/` holds Faraday's own) |
+| `third_party/` | vendored crates, each with its patches |
+| `supply-chain/` | cargo vet's audits and exemptions; `deny.toml` is cargo deny's policy |
+| `design/` | the mark's drafts |
+| `.github/` | the issue templates; there are no workflows |
+| `.claude/` | the agent definitions a change may use |
+
+The top level holds nothing else: `tools/lint-tree.sh` fails on a new
+entry until it is named there and here. See `docs/FLOWS.md` for every
 flow, and `docs/VAULT.md` and `docs/QR.md` for the vault and QR
 formats.
 
 ## Repository rules
 
+`CLAUDE.md` holds the rules every change follows, for people and agents
+alike, and `just` enforces most of them: a change that breaks one fails
+the check.
+
 - No GitHub Actions or hosted CI. Everything builds and tests locally.
 - Nothing private is committed.
+- Every decision is numbered and kept (`docs/DECISIONS.md`); every
+  document says whether it describes what is built or what is planned
+  (`docs/README.md`).
+- Every dependency is vetted (`cargo vet`, `docs/deps/`), and every
+  cryptographic change is checked against published vectors or another
+  implementation.
+- The screens follow Material 3 (`docs/DESIGN.md`); every user-facing
+  string is in one file; files and functions over their size limits
+  only become fewer (`tools/README.md`, "The lints `just lint` runs").
 
 ## License
 

@@ -140,6 +140,16 @@ changes and nothing else has to be kept in step.
     areas are explicit glue: short `impl Faraday` functions in the area's
     own files.
 - No hosted CI, no GitHub Actions, no metered external services.
+- `docs/DEVELOPING.md` is how anyone builds, checks, reproduces and
+  tries Faraday on their own hardware. A change to any of that (a
+  recipe, a prerequisite, a dev-image feature, an output path) changes
+  it in the same commit, and every command it shows runs as written.
+- The tree stays clean (`tools/lint-tree.sh`): the top level holds only
+  the entries the lint lists, each named in README.md's "Repository
+  layout"; nothing an editor, a merge or a session leaves behind is
+  committed (a backup, a log, a copy kept from before a change: history
+  is git's); no file over 2 MiB; build output stays in `out/` and
+  `target/`, scratch files outside the repository.
 - The remote machine that builds the images is "the build machine" in
   everything written here: docs, comments, commit messages. Never its
   hostname, its owner's name or its address.

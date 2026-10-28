@@ -21,7 +21,9 @@ test:
 # both Mac targets without a Mac (tools/check-macos.sh), the docs lint
 # (a Kind and Status header on every document, every cited path real,
 # tools/lint-docs.sh), and the layout lint (the code map, file sizes and
-# long functions, counts that only fall, tools/lint-layout.sh), and cargo
+# long functions, counts that only fall, tools/lint-layout.sh), the tree
+# lint (the top level's entries, no leftovers, no file over 2 MiB,
+# tools/lint-tree.sh), and cargo
 # vet: every dependency trusted, audited or exempted (F71), and the guide
 # lint (bold names are the app's strings, links resolve, tools/lint-guide.py).
 [group('lint')]
@@ -46,6 +48,7 @@ lint:
     tools/lint-tokens.sh
     tools/lint-docs.sh
     tools/lint-layout.sh
+    tools/lint-tree.sh
     cargo run -q -p costs-lint
     tools/lint-unchecked.sh
     tools/lint-crosscheck.sh

@@ -602,11 +602,11 @@ faraday/tools/stick-qemu.py --image out/stick/faraday-x86_64-uefi.img --vnc 9 --
 ```
 
 `stick-qemu.py` gives the machine no display of its own and puts it on VNC,
-on `127.0.0.1:5909`. From another machine on the tailnet, forward the
-port over SSH and point a VNC client at the forwarded port:
+on `127.0.0.1:5909`. To watch it from another machine, forward the port
+over SSH and point a VNC client at the forwarded port:
 
 ```
-ssh -N -L 5909:127.0.0.1:5909 <this box>
+ssh -N -L 5909:127.0.0.1:5909 <the machine running QEMU>
 ```
 
 Nothing is opened on the network to do that, and no port is exposed
@@ -635,8 +635,7 @@ Under rootless QEMU the host user needs read and write on the webcam's
 The UVC path in the image is the same `faraday-v4l2` crate the Linux
 desktop shell uses, so a webcam that works there works here.
 
-**This has not been tried.** The build box is a headless server with no
-webcam attached, so nothing here confirms the passthrough.
+**This has not been tried**: nothing here confirms the passthrough.
 
 ## Build it
 
