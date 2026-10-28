@@ -2854,7 +2854,7 @@ impl Faraday {
             | Action::KShare(_)
             | Action::KeyGenSlip39 => self.keygen_act(action),
             Action::Codex32(p) => self.keygen_codex32(p),
-            Action::Nav(Screen::Transfer) => self.transfer_open(),
+            Action::Nav(s @ (Screen::Transfer | Screen::Randomness)) => self.nav_open(s),
             Action::Back => self.back(),
             Action::Own(a) => self.own_act(a),
             Action::Resume(g) => self.flow_resume(g),

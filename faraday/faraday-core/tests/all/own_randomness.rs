@@ -910,3 +910,28 @@ fn make_the_words_with_keys_not_yet_added_puts_them_in_the_key_first() {
         .to_vec();
     assert_ne!(words, words_of(SEED), "the keys are in the key");
 }
+
+#[test]
+fn add_randomness_reached_by_navigation_opens_its_page_with_a_way_back() {
+    let mut app = testkit::started();
+    app.event(Event::Display(tall()));
+    answer(&mut app, SEED);
+    app.press(Action::Nav(Screen::Settings));
+    app.press(Action::Nav(Screen::Randomness));
+    assert_eq!(app.screen, Screen::Randomness);
+    app.press(own(Act::Source(OwnSource::Dice)));
+    for f in [3, 1, 4, 1, 5, 2] {
+        app.press(own(Act::Roll(f)));
+    }
+    assert!(
+        app.drawn_texts()
+            .iter()
+            .any(|t| t == "In this batch: 6 dice rolls"),
+        "{:?}",
+        app.drawn_texts()
+    );
+    app.press(own(Act::Add));
+    assert_eq!(app.own_counts().dice_rolls, 6);
+    app.press(Action::Back);
+    assert_eq!(app.screen, Screen::Settings);
+}

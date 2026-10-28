@@ -365,6 +365,17 @@ impl Spot {
 }
 
 impl Faraday {
+    /// Going to a screen that opens through its own action: Transfer, and
+    /// Add randomness, which opens as Settings' row opens it, never as a
+    /// blank page with no way back.
+    pub(crate) fn nav_open(&mut self, s: Screen) {
+        match s {
+            Screen::Transfer => self.transfer_open(),
+            Screen::Randomness => self.own_act(crate::fresh::page::Act::Open),
+            _ => {}
+        }
+    }
+
     /// The screen on show as it is seen now.
     pub(crate) fn spot(&self) -> Spot {
         Spot {
