@@ -8,7 +8,7 @@
 
 use faraday_draw::tokens;
 use faraday_draw::tokens::TypeRole;
-use faraday_draw::tokens::{BODY_M, BODY_S, LABEL_M, TITLE_S};
+use faraday_draw::tokens::{BODY_M, BODY_S, LABEL_L, LABEL_M, TITLE_S};
 use faraday_draw::widgets::Icon;
 
 use crate::Action;
@@ -258,7 +258,7 @@ fn chip_size(ui: &Ui, cv: &ChipView, avail: f32) -> Fit {
         tokens::BOARD_CHIP + tokens::BOARD_TAG
     };
     let has_marks = !cv.marks.is_empty() || !cv.forms.is_empty();
-    for role in [pick(BODY_M), pick(BODY_S)] {
+    for role in [pick(LABEL_L), pick(LABEL_M)] {
         let need = base + ui.measure_as(role, &cv.name);
         if need + marks <= avail {
             return Fit {
@@ -1409,7 +1409,8 @@ fn entry(
     };
     // The count beside the chip, or under it where the chip's name would
     // drop a size beside it.
-    let beside = count_w == 0.0 || chip_size(ui, &cv, w - count_w - off_w).role.size == BODY_M.size;
+    let beside =
+        count_w == 0.0 || chip_size(ui, &cv, w - count_w - off_w).role.size == LABEL_L.size;
     let avail = if beside {
         w - count_w - off_w
     } else {
