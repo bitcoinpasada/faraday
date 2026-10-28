@@ -181,7 +181,10 @@ fn loaded(app: &View, ui: &mut Ui, x0: f32, cw: f32) -> f32 {
         let here = slots.iter().filter(|s| s.held_by.is_some()).count();
         let need = crate::wallet::needed(wl);
         let ready = here >= need;
-        let ch = if ready { 64.0 } else { 108.0 };
+        // What the name's and the marker's lines grow by at a larger
+        // text size: the lines under them move down by it.
+        let (grow, mark_grow) = (ui.line_grown_as(TITLE_M), ui.line_grown_as(LABEL_M));
+        let ch = if ready { 64.0 } else { 108.0 } + grow + mark_grow;
         ui.card(x, y, w, ch, Role::OutlineVariant);
         ui.icon(
             x + 18.0,
@@ -192,13 +195,13 @@ fn loaded(app: &View, ui: &mut Ui, x0: f32, cw: f32) -> f32 {
             Role::OnSurfaceVariant,
         );
         let nw = ui.text_mid_as(
-            (x + 46.0, y + 4.0, 40.0),
+            (x + 46.0, y + 4.0, 40.0 + grow),
             TITLE_M,
             Role::OnSurface,
             &wl.name,
         );
         ui.text_mid_as(
-            (x + 60.0 + nw, y + 4.0, 40.0),
+            (x + 60.0 + nw, y + 4.0, 40.0 + grow),
             BODY_S,
             Role::OnSurfaceVariant,
             &Session::shape(wl),
@@ -230,7 +233,12 @@ fn loaded(app: &View, ui: &mut Ui, x0: f32, cw: f32) -> f32 {
         } else {
             (EN.family_no_key_here.to_string(), Role::OnSurfaceVariant)
         };
-        ui.text_mid_as((x + 46.0, y + 30.0, 28.0), LABEL_M, tone, &marker);
+        ui.text_mid_as(
+            (x + 46.0, y + 30.0 + grow, 28.0 + mark_grow),
+            LABEL_M,
+            tone,
+            &marker,
+        );
         let label = if ready {
             EN.family_spend_from_button
         } else {
@@ -262,12 +270,12 @@ fn loaded(app: &View, ui: &mut Ui, x0: f32, cw: f32) -> f32 {
                 &slots,
                 crate::Screen::Family,
                 x + 46.0,
-                y + 60.0,
+                y + 60.0 + grow + mark_grow,
                 w - 62.0,
             );
             if used == 0.0 {
                 ui.text_mid_as(
-                    (x + 46.0, y + 62.0, 40.0),
+                    (x + 46.0, y + 62.0 + grow + mark_grow, 40.0),
                     BODY_S,
                     Role::OnSurfaceVariant,
                     EN.family_an_open_vault,

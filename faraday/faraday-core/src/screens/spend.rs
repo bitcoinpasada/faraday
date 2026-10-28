@@ -1237,11 +1237,33 @@ pub(crate) fn step_body(
                 ui.wrap_as((x, cy, w), BODY_M, Role::Warning, &line);
                 cy += 44.0;
             } else {
-                // Side by side; on a small panel one under the other.
-                let compact = ui.compact;
+                // Side by side where each card's head, its place and its
+                // buttons fit its half; on a small panel, or where the
+                // text size leaves them no room, one under the other.
+                let stem = crate::result_stem(&s.spend.source);
+                use faraday_draw::tokens::{BUTTON_PAD, FINISH_CARD_GAP, FINISH_CARD_INSET, GAP};
+                let side = (w - FINISH_CARD_GAP) / 2.0 - 2.0 * FINISH_CARD_INSET;
+                let fits = |ui: &Ui, head: &str, file: String| {
+                    let tag = made_place(app, &file).map_or(0.0, |(t, _)| {
+                        ui.measure_as(LABEL_M, &t) + faraday_draw::tokens::GAP_SMALL
+                    });
+                    ui.measure_as(TITLE_S, head) + tag <= side
+                };
+                let buttons = ui.measure_as(LABEL_L, EN.step_make_again)
+                    + ui.measure_as(LABEL_L, EN.step_show_as_qr)
+                    + 2.0 * BUTTON_PAD
+                    + 2.0 * BUTTON_PAD
+                    + GAP;
+                let compact = ui.compact
+                    || buttons > side
+                    || !fits(ui, EN.step_signed_psbt, format!("{stem}-signed.psbt"))
+                    || !fits(
+                        ui,
+                        EN.step_finished_transaction,
+                        format!("{stem}-final.txn"),
+                    );
                 let half = if compact { w } else { (w - 12.0) / 2.0 };
                 let mut card_y = cy;
-                let stem = crate::result_stem(&s.spend.source);
                 for (k, (head, sub, file, action)) in [
                     (
                         EN.step_signed_psbt,

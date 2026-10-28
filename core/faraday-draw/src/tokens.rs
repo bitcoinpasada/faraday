@@ -1165,6 +1165,10 @@ pub const fn key_label(h: f32) -> f32 {
 /// Where a button's label is set off from its ends: Material 3's small
 /// (40 dp) button, 16 dp each side.
 pub const BUTTON_PAD: f32 = 16.0;
+/// The gap between Finish's two made-file cards side by side.
+pub const FINISH_CARD_GAP: f32 = 12.0;
+/// A Finish card's text in from its sides.
+pub const FINISH_CARD_INSET: f32 = 14.0;
 
 /// A list item's room at its start and end (Material 3 Lists).
 pub const LIST_PAD: f32 = 16.0;

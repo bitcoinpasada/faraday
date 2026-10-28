@@ -523,7 +523,8 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let src = crate::wallet::source_tag(&wlt.source, wlt.origin, true);
     let sw = ui.measure_as(BODY_S, &src) + 24.0;
     ui.pill(ix + iw - sw, cy, 28.0, &src);
-    cy += 34.0;
+    // Under the name's line, as tall as the text size makes it.
+    cy += ui.advance_as(TITLE_L, 34.0);
     ui.text_as(ix, cy, BODY_M, Role::OnSurfaceVariant, &Session::shape(wlt));
     cy += ui.advance_as(BODY_M, 26.0);
     cy += super::parts::key_path_line(app, ui, (ix, cy, iw), wlt.policy());
