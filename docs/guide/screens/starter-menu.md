@@ -1,8 +1,7 @@
 # Faraday Starter: Install, Appearance and About
 
-**Kind:** Spec
-**Status:** Written from the app's code and strings (`faraday/faraday-starter/src/draw/nav.rs`, `faraday/faraday-starter/src/draw.rs`, `faraday/faraday-starter/src/draw/appearance.rs`, `faraday/faraday-starter/src/appearance.rs`, `faraday/faraday-ui/src/appearance.rs`); not yet read beside the running app
-**Open:** the pictures, drawn once after the theming has landed
+**Kind:** Reference
+**Status:** Checked against the app's pictures in docs/guide/pictures/ (drawn by just guide-pictures) and its code and strings (`faraday/faraday-starter/src/draw/nav.rs`, `faraday/faraday-starter/src/draw.rs`, `faraday/faraday-starter/src/draw/appearance.rs`, `faraday/faraday-starter/src/appearance.rs`, `faraday/faraday-ui/src/appearance.rs`)
 **Starter page:** `Install`, `Installed`, `Appearance`, `About`
 **Starter sheet:** `Uninstall`
 **Group:** Starter
@@ -16,41 +15,49 @@ to the destination it was opened from.
 **Opened from:** **⋮** at the right of the top app bar on Home, Make,
 Tools and Learn. A press outside it closes it.
 
-*Picture to come: `starter-menu.png`, the ⋮ menu open over Home.*
+![The ⋮ menu open over Home, holding Appearance and About](../pictures/starter-menu.png)
+
+*The **⋮** menu open over Home with no copy installed: **Appearance** and **About**.*
 
 | Row | Shown | Opens |
 |---|---|---|
 | **Appearance** | always | [Appearance](#appearance) |
 | **About** | always | [About](#about) |
 | **Uninstall** | while a copy is installed | [Installed](#installed) |
-| **Remove the Faraday boot entry** | on Linux, while the Faraday stick's entry is in the firmware's boot list and no Faraday stick is attached | removes the entry, as Home's [Boot entry](starter-home.md#the-other-cards) card does |
+| **Remove the Faraday boot entry** | on Linux, while the Faraday stick's entry is in the firmware's boot list and no Faraday stick is attached | removes the entry, as Home's [Boot entry](starter-home.md#the-other-cards) card does: the system asks for the password first |
 
 ## Install and Update
 
 **Opened from:** **Install** at the top right while no copy is
 installed; **Update**, in its place, and **Update** on Home's Update
 the installed Faraday card, while this copy is newer than the one
-installed. Titled **Install**, or **Update the installed Faraday**.
+installed. Titled **Install**, or **Update the installed Faraday**,
+with the way back to where it was opened.
 
-*Picture to come: `starter-install.png`, Install before it is pressed.*
+![Install before it is pressed: the title, its way back to Home, and the Install button alone](../pictures/starter-install.png)
+
+*Install with no copy installed, before it is pressed: the page holds only the button **Install**.*
+
+Before it is pressed, Install holds the button alone; Update holds the
+two versions over it.
 
 | Control | What it does |
 |---|---|
 | **Installed version**, **This version** | on Update: the installed copy's version and this one's |
 | **Install** | the primary button: installs this copy of the Starter, with its menu entry. Faraday Demo is inside the Starter and is not installed apart |
 | **Installing** | in its place, grey, while it runs |
-| "Installed in …" | in the ok tone, when done: where it went; **Done** goes to Home |
+| "Installed in …" | in the ok tone, when done: where it went, in place of the button; **Done** under it goes to Home, wherever Install was opened from |
 | the reason | in the error tone, when it failed |
 
 ## Installed
 
-**Opened from:** the ⋮ menu's **Uninstall**.
+**Opened from:** the ⋮ menu's **Uninstall**. Titled **Installed**.
 
 | Control | What it does |
 |---|---|
 | **Installed version** | the installed copy's version |
-| **Faraday Starter**, **Menu entry**, **Icon**, **Installed apps entry** | each file the install wrote, and where it is |
-| **Settings** | the file the installed Starter keeps its text size in, once it holds one |
+| **Faraday Starter**, **Menu entry**, **Icon**, **Installed apps entry** | each file the install wrote, and where it is, as the system has them: on Linux **Faraday Starter**, **Icon** and **Menu entry**; on Windows **Faraday Starter**, **Menu entry** (the Start menu's shortcut) and **Installed apps entry**; on macOS **Faraday Starter** alone (the app) |
+| **Settings** | last, the file the installed Starter keeps its text size in, once it holds one |
 | **Not installed** | when no copy is installed |
 | "The BIOS's Faraday stick entry remains: …" | in the warning tone, after an uninstall that could not remove the firmware's Faraday stick entry, and why |
 | **Uninstall** | opens [Uninstall Faraday Starter?](#uninstall-faraday-starter) |
@@ -62,13 +69,15 @@ installed. Titled **Install**, or **Update the installed Faraday**.
 |---|---|
 | **Removes the files listed. Received files and Faraday Demo's sticks stay.** | what it does |
 | **Cancel** | closes the sheet |
-| **Uninstall** | removes the files listed, the settings file among them; on Linux, the firmware's Faraday stick entry too |
+| **Uninstall** | removes the files listed, the settings file among them; on Linux, the firmware's Faraday stick entry too, when there is one, and the system asks for the password for it |
 
 ## Appearance
 
 **Opened from:** the ⋮ menu's **Appearance**.
 
-*Picture to come: `starter-appearance.png`, Appearance in Cobalt, Light, Standard.*
+![Appearance: the ten theme chips with Cobalt ticked, Mode on Light, Contrast on Standard](../pictures/starter-appearance.png)
+
+*Appearance as the Starter opens on a computer set to Light: **Theme** on **Cobalt** (**Default**), **Mode** on **Light**, **Contrast** on **Standard**.*
 
 The same rows as Faraday's own Settings → Appearance. A choice is drawn
 at once, in the Starter's pages and in Transfer, Learn and Faraday Demo
@@ -90,7 +99,9 @@ On a narrow window each row's label is over its control.
 
 **Opened from:** the ⋮ menu's **About**.
 
-*Picture to come: `starter-about.png`, About with the images the Starter carries.*
+![About: Text size, Version, Release, Commit, and the images carried with their builds and sums](../pictures/starter-about.png)
+
+*About: **Text size** on **Standard**, **Version** 0.1.8, **Release** and **Commit**, then **Carried in this app** with the stick, Pi and Faraday Demo files, each with **Build** and its sums. The release, commit and sums are made up for the picture.*
 
 | Control | What it does |
 |---|---|

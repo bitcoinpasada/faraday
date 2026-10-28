@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Written from the app's code and strings (`faraday/faraday-core/src/vanity/screen.rs`, `faraday/faraday-core/src/vanity/mod.rs`); not yet read beside the running app
-**Open:** the pictures, drawn once after the theming has landed
+**Open:** the picture: `vanity.png` is drawn as an empty page, the tour opening the screen without opening the search on a key; the example values ("bc1qfa", account 1017 after 1,018 tries) are not yet confirmed on screen
 **Screen:** `Vanity`
 **Group:** Tools
 

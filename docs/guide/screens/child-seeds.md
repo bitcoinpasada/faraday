@@ -1,8 +1,7 @@
 # Derive with BIP-85
 
-**Kind:** Spec
-**Status:** Written from the app's code and strings (`faraday/faraday-core/src/bip85/screen.rs`, `faraday/faraday-core/src/bip85/mod.rs`, `faraday/faraday-core/src/vault/mod.rs`); not yet read beside the running app
-**Open:** the pictures, drawn once after the theming has landed
+**Kind:** Reference
+**Status:** Checked against the app's pictures in docs/guide/pictures/ (drawn by just guide-pictures) and its code and strings (`faraday/faraday-core/src/bip85/screen.rs`, `faraday/faraday-core/src/bip85/mod.rs`, `faraday/faraday-core/src/vault/mod.rs`)
 **Screen:** `Bip85`
 **Group:** Tools
 
@@ -14,13 +13,15 @@ specifies, so the key's backup covers them all. A column of four
 cards; with one key loaded it opens on **Application**, that key
 chosen, with **Words**, 24 words and index 0.
 
-*Picture to come: `child-seeds.png`, Derive with BIP-85 with the Value card open, the value hidden.*
+![Derive with BIP-85 on key 3dca6805, the Value card open, 24 child words hidden as dots](../pictures/child-seeds.png)
+
+*Derive with BIP-85 on key 3dca6805, **Words** · 24 words at index 0: the **Value** card open at m/83696968'/39'/0'/24'/0', the words hidden, **Show**, **Make a vault**, **Load as a key** and **Out unprotected…**.*
 
 ## On this screen
 
 | Control | What it does |
 |---|---|
-| the way back | at the top left, named after where the page was opened from |
+| the way back | at the top left, its name under the title: where the page was opened from on the first card, the card before on a later one |
 | **Steps only**, **Guided** | at the top right: the short text on each open card, off or on; on **Key** with a link to Learn's **Seed words** |
 | a card | its title and what was chosen; a press opens it again once the cards before it are done |
 
@@ -61,10 +62,10 @@ Closed, the path.
 | Control | What it does |
 |---|---|
 | **Path** | the path BIP-85 derives it at, "m/83696968'/39'/0'/24'/0'" |
-| the application's name | the value, hidden as dots until **Show** |
+| the application's name (**Words**) | the value, hidden as dots until **Show** |
 | **Show**, **Hide** | the value on screen, or hidden; it is hidden again once the card is left |
-| "Save into Vault 1" | into the open vault: a password as an entry, child words as a key, anything else as a note, each named "BIP-85 Words · 3dca6805 · index 0" |
-| **Make a vault**, "Unlock vault.ofv", **Unlock a vault** | in its place while no vault is open: makes or unlocks one, then comes back here |
+| "Save into Vault 1" | into the open vault, by its name: a password as an entry, child words as a key, anything else as a note, each named "BIP-85 Words · 3dca6805 · index 0" |
+| **Make a vault**, "Unlock Vault-1.ofv", **Unlock a vault** | in its place while no vault is open: **Make a vault** while Files holds none, "Unlock" and the file's name for one locked vault in Files, **Unlock a vault** for several; each comes back here |
 | **Load as a key** | for **Words**: loads the child words as a key of this session ("Key … added") |
 | **Out unprotected…** | the value to the stick unprotected, through [This is a secret](files.md#this-is-a-secret) |
 

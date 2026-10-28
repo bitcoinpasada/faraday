@@ -1,8 +1,7 @@
 # Back up a wallet
 
-**Kind:** Spec
-**Status:** Written from the app's code and strings (`faraday/faraday-core/src/screens/backup.rs`, `faraday/faraday-core/src/plan/cards.rs`, `faraday/faraday-core/src/board/screen.rs`, `faraday/faraday-core/src/board/mod.rs`, `faraday/faraday-core/src/board/lines.rs`, `faraday/faraday-core/src/glance/mod.rs`); not yet read beside the running app
-**Open:** the pictures, drawn once after the theming has landed
+**Kind:** Reference
+**Status:** Checked against the app's pictures in docs/guide/pictures/ (drawn by just guide-pictures) and its code and strings (`faraday/faraday-core/src/screens/backup.rs`, `faraday/faraday-core/src/plan/cards.rs`, `faraday/faraday-core/src/board/screen.rs`, `faraday/faraday-core/src/board/mod.rs`, `faraday/faraday-core/src/board/lines.rs`, `faraday/faraday-core/src/glance/mod.rs`)
 **Screen:** `Backup`, `BoardList`, `BoardSees`, `BoardPartials`, `BoardMenu`
 **Group:** Wallets
 
@@ -11,16 +10,21 @@ checklist that carries it out, and the four sheets the board opens.
 Faraday backs up a wallet, not a key on its own.
 
 **Opened from:** **Back up** (**Continue the backup** for one left part
-way) on a wallet's card and on [Backups](backups.md); **Back up this
-wallet** at the end of Make a new wallet; **Change the plan** on the
+way) on a wallet's card and on [Backups](backups.md); **Back up
+wallet** at the end of Make a new wallet; **Back up this wallet** at the
+end of Restore an existing wallet; **Change the plan** on the
 wallet's [chart](backups.md#the-chart); a wallet in [Vault
 contents](vault.md). Its title is "Back up New wallet 1", or **Back up
 a wallet** with more than one wallet loaded, where the wallet's name is
-a chip that lists the others to choose from. The way back at the top is
-**Wallets**, or **Vault contents**; from Make a new wallet a chip reads
-**Then: Wallets**.
+a chip that lists the others to choose from. The way back at the top
+left is named after the card before the one open, else the screen it
+was opened from: **Wallets**, **Vault contents**, or **Make a new
+wallet**, where a chip reads **Then: Wallets** in the wallet's chip's
+place.
 
-*Picture to come: `back-up-board.png`, Back up New wallet 1 with Places open and the board the standard way.*
+![Back up New wallet 1 with Places open: Place 1 keeps the seed's words and the whole description on paper, and the three lines under the board](../pictures/back-up-board.png)
+
+*A single-key wallet just made, its board the standard way: Place 1 tagged **Sees the balance** and **Can spend alone**, its **Paper** keeping "3dca6805 · Words" and **Whole**; under it **No: a single place**, the passphrase line, and at the right **Add watch-only software** and **Customize backup**.*
 
 ## The plan
 
@@ -46,8 +50,8 @@ Nothing on it moves until **Customize backup**.
 | **+ stick** | adds an empty stick to the place |
 | **+ place** | adds a place |
 | **Watch-only software** | the software place, while there is one: **Scanned in**, the description scanned into the software, and a stick of its files |
-| **Add watch-only software**, **Take off watch-only software** | before **Customize backup**: adds or takes off the software place |
-| **Customize backup** | makes the board editable; the list of what the backup can keep takes its place |
+| **Add watch-only software**, **Take off watch-only software** | in the right-hand column, before **Customize backup**: adds or takes off the software place |
+| **Customize backup** | under it: makes the board editable; the list of what the backup can keep takes their place |
 
 A chip on the board is one thing kept at one box:
 
@@ -73,7 +77,7 @@ Beside the board once it is customized (the right-hand column at
 
 | Group | What it holds |
 |---|---|
-| **Seeds** | each seed, with how many places keep it ("1 place"); **Not here** for one not loaded |
+| **Seeds** | each seed's chip, with how many places keep it at the row's end ("1 place"); **Not here** for one not loaded |
 | a seed's codex32 strings | "3dca6805 · codex32 w0za · 2 of 3", a chip per string, for a key made as codex32 shares or loaded from strings |
 | **Passphrases** | each seed's passphrase, where it has one |
 | **Wallet description** | **Whole**; for a multisig that splits, **Add partial descriptions to this backup** (**Remove partial descriptions** once added) and **What is a share?**; for one that does not, why: "Partial descriptions: only for a sortedmulti or tr(NUMS, sortedmulti_a) wallet" |
@@ -170,8 +174,6 @@ plan**. In Guided mode, a line on copies made outside the plan, with
 **Opened from:** **Add**, which takes the list's place on a narrow
 column. Its title is **Add**.
 
-*Picture to come: `back-up-add.png`, Add over the board on a narrow window.*
-
 The list, as above. A press on a chip closes the sheet with the chip
 chosen; then a press on a box places it. **Close** closes it.
 
@@ -180,11 +182,13 @@ chosen; then a press on a box places it. **Close** closes it.
 **Opened from:** a drop on the board that lets a place see the balance
 it could not before, or brings it nearer a spend.
 
-*Picture to come: `back-up-sees.png`, Place 3 can see the wallet's balance.*
+![The sheet Place 3 can see the wallet's balance, with Take it off and Keep it](../pictures/back-up-sees.png)
+
+*A drop at Place 3 that completes the description there: "Share 1 and seed cf2e083d together make the whole description."*
 
 | Title | Shown when |
 |---|---|
-| "Place 3 can see the wallet's balance" | what was dropped completes the description at that place ("The whole description is kept there.", "Share 1 and Share 2 together make the whole description.") |
+| "Place 3 can see the wallet's balance" | what was dropped completes the description at that place ("The whole description is kept there.", "Share 1 and Share 2 together make the whole description.", "Share 1 and seed cf2e083d together make the whole description.") |
 | "Anyone with access to Place 1 can spend" | the place keeps as many seeds as a spend needs: "Place 1 keeps 2 of the 2 seeds a spend needs." |
 | "Anyone with access to Place 1 needs only 1 more place to spend" | the place is one place from a spend; "… and the vault's passphrase …" where a vault is counted |
 
@@ -198,11 +202,13 @@ it could not before, or brings it nearer a spend.
 **Opened from:** **Add partial descriptions to this backup** in the
 list.
 
-*Picture to come: `back-up-partials.png`, Each place now holds a part of the description, with the whole still kept.*
+![The sheet Each place now holds a part of the description, with Take it off every place and Keep it](../pictures/back-up-partials.png)
+
+*Partial descriptions added to a 2-of-3 plan whose three places each still keep the whole description.*
 
 | Control | What it does |
 |---|---|
-| the line | "The whole description is still kept at Place 1, so the balance can be seen there. Take it off any place where the balance should stay hidden." where it is |
+| the line | "The whole description is still kept at Place 1, so the balance can be seen there. Take it off any place where the balance should stay hidden." where it is; "… at Place 1, Place 2 and Place 3, …" where more places keep it |
 | **Take it off every place** | takes the whole description off; shown while a place keeps it |
 | **Keep it** | keeps the parts and the whole |
 
@@ -211,7 +217,9 @@ list.
 **Opened from:** a chip's **⋮**: a menu under it at 1280 × 800, a sheet
 on a narrow window.
 
-*Picture to come: `back-up-menu.png`, Add to… on a seed, its boxes under each place.*
+![The menu Add to… on seed 3dca6805: Stick 1 · files, Stick 1 · Vault 1 and New stick under Place 1](../pictures/back-up-menu.png)
+
+*A seed's **⋮** in the list, with Place 1 holding Stick 1 and its paper: **Add to…** lists "Stick 1 · files", "Stick 1 · Vault 1" and **New stick**; its paper, which keeps the seed already, is not listed.*
 
 | Chip | Menu |
 |---|---|
@@ -222,7 +230,8 @@ on a narrow window.
 thing and does not keep it already, under each place's name: **Paper**,
 "Stick 1 · files", "Stick 1 · Vault 1", and **New stick**; under the
 software, **Scanned in** and its stick's files. A vault's chip lists the
-sticks it can go on. **Cancel** closes the menu.
+sticks it can go on. At 1280 × 800 a press outside the menu closes it;
+on a narrow window the sheet has **Cancel**.
 
 ## On a narrow window
 

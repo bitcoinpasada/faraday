@@ -1,8 +1,7 @@
 # Create a vault
 
-**Kind:** Spec
-**Status:** Written from the app's code and strings (`faraday/faraday-core/src/vault/screen.rs`, `faraday/faraday-core/src/vault/dice_screen.rs`, `faraday/faraday-core/src/vault/area.rs`, `faraday/faraday-core/src/vault/mod.rs`); not yet read beside the running app
-**Open:** the pictures, drawn once after the theming has landed
+**Kind:** Reference
+**Status:** Checked against the app's pictures in docs/guide/pictures/ (drawn by just guide-pictures) and its code and strings (`faraday/faraday-core/src/vault/screen.rs`, `faraday/faraday-core/src/vault/dice_screen.rs`, `faraday/faraday-core/src/vault/area.rs`, `faraday/faraday-core/src/vault/mod.rs`)
 **Screen:** `CreateVault`
 **Group:** Vaults
 
@@ -14,10 +13,10 @@ top goes to **Home**, **Vaults**, or the flow it was opened from; then
 a chip beside the title names the flow it goes back to ("Then: …").
 
 The page is a column of cards, one open at a time, with **Your
-choices** in a panel at the right. A card's head, once it is answered,
-shows the answer; pressing the head opens it again.
-
-*Picture to come: `create-vault-size.png`, Create a vault opened on Size, PCs and a Raspberry Pi chosen.*
+choices** in a panel at the right. Above the cards, **Steps only** and
+**Guided** choose whether each card carries its explanation. A card's
+head, once it is answered, shows the answer and **Change**; pressing
+the head opens it again.
 
 ## The cards
 
@@ -37,12 +36,18 @@ passphrase**.
 
 ### Where will you open it?
 
-*Picture to come: `create-vault-where.png`, Where will you open it? with This computer and Raspberry Pi 3 ticked.*
+![Create a vault on Where will you open it? with This computer, Other PCs and Raspberry Pi 3 ticked, and Your choices at the right](../pictures/create-vault-where.png)
+
+*After **Customise**: **Where will you open it?** with **This computer**, **Other PCs** and **Raspberry Pi 3** ticked, **Continue**, and **Your choices** with **Will create** at the right.*
 
 | Control | What it does |
 |---|---|
-| **This computer** | ticked at first; its line gives the most unlock memory it gives a vault and what is free ("3 GiB (5.2 GiB free)"), or **Memory not reported** |
+| **This computer** | its line gives the most unlock memory it gives a vault and what is free ("4 GiB (14.6 GiB free)"), or **Memory not reported** |
 | **Other PCs**, **Raspberry Pi 5**, **Raspberry Pi 4**, **Raspberry Pi 3**, **Pi Zero 2 W** | each ticks or unticks a kind of machine, with its memory at the right (4 GB, 4 GB, 2 GB, 1 GB, 512 MB) |
+
+The card opens with the machines the size was made for ticked: from
+**PCs and a Raspberry Pi**, **This computer**, **Other PCs** and
+**Raspberry Pi 3**.
 | **Continue** | closes the card and opens the next |
 
 The cost suggested on the next card fits the machine with the least
@@ -70,16 +75,18 @@ memory ticked.
 
 ### Name and passphrases
 
-*Picture to come: `create-vault-passphrases.png`, Name and passphrases with Passphrase 1 rolled from dice.*
+![Name and passphrases with the name Passwords, Passphrase 1 from dice typed twice and matching, and the panel's Will create](../pictures/create-vault-passphrases.png)
+
+*The vault named Passwords ("File Passwords.ofv"), **Passphrase 1** from dice in both fields, **Matches**, and its strength; **Size** answered above with **Change**. **Create vault** is outlined.*
 
 | Control | What it does |
 |---|---|
-| **Name** | what the vault holds, for anyone who sees the stick; the file's name follows it ("File savings.ofv"). Left empty, the file is `vault.ofv` |
+| **Name** | what the vault holds, for anyone who sees the stick; the file's name follows it ("File Passwords.ofv"). Left empty, the file is `vault.ofv` and the vault's title is "Vault" |
 | **Show passphrases**, **Hide passphrases** | shows or hides every passphrase typed |
 | **Passphrase 1** | the first passphrase: two fields, typed, then typed again |
 | **Generate with dice** | opens the dice panel under the fields; "or type your own below" beside it |
 | the line under the fields | **Matches**, **Does not match yet** in the warning tone, or **Type it, then type it again** |
-| the strength line | "… bits from dice + ≈… from the unlock cost ≈ … bits" for words from dice; "Typed: its own bits are not measured · the unlock cost adds ≈…" for a typed one |
+| the strength line | "77.5 bits from dice + ≈17.6 from the unlock cost ≈ 95.1 bits" for words from dice; "Typed: its own bits are not measured · the unlock cost adds ≈…" for a typed one |
 | **Remove** | beside a second, third or fourth passphrase: removes it |
 | **Add another passphrase** | adds one, up to four. Each passphrase opens its own contents |
 | "Remove the stick, then type the passphrases" | in place of the fields while a stick is attached |

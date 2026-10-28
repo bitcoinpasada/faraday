@@ -1,8 +1,7 @@
 # TOTP codes
 
-**Kind:** Spec
-**Status:** Written from the app's code and strings (`faraday/faraday-core/src/codes/screen.rs`, `faraday/faraday-core/src/codes/mod.rs`, `faraday/faraday-core/src/vault/mod.rs`, `faraday/faraday-core/src/catalog.rs`); not yet read beside the running app
-**Open:** the pictures, drawn once after the theming has landed
+**Kind:** Reference
+**Status:** Checked against the app's pictures in docs/guide/pictures/ (drawn by just guide-pictures) and its code and strings (`faraday/faraday-core/src/codes/screen.rs`, `faraday/faraday-core/src/codes/mod.rs`, `faraday/faraday-core/src/vault/mod.rs`, `faraday/faraday-core/src/catalog.rs`)
 **Screen:** `Codes`
 **Group:** Vaults
 
@@ -14,13 +13,15 @@ has not been set this power-on, Set the time opens first.
 One row for each entry that holds a TOTP secret, across every open
 vault, vault by vault in the order they were opened.
 
-*Picture to come: `codes-rows.png`, TOTP codes with two rows counting down.*
+![TOTP codes with Mail and Bank counting down, 13 s left, under the time and Search codes](../pictures/codes-rows.png)
+
+*Two rows, Mail and Bank, each with its account, its code and 13 s left; above them "Now · UTC+00:00", **Set the time** and **Search codes**; under them **Scan a setup code** and **Add an entry**.*
 
 ## On this screen
 
 | Control | What it does |
 |---|---|
-| "Now · UTC+01:00" | the time of day, with seconds, and its zone; **Not known** while the clock is not set |
+| "Now · UTC+00:00" | the time of day, with seconds, and its zone; **Not known** while the clock is not set |
 | **Set the time** | opens Set the time |
 | **Search codes** | the search bar, shown while there are rows or it holds something: keeps the rows whose title holds what is typed |
 | a row | the entry's title; its account, and the vault's name while more than one is open; the code, and a bar with the seconds it has left. A press opens the entry in its vault ([Vault contents](vault.md#an-entry)) |
@@ -30,7 +31,7 @@ vault, vault by vault in the order they were opened.
 | A row's badge | Shown for |
 |---|---|
 | **Set the time first** | every row, while the clock is not known |
-| HOTP | a counter-based secret, for which no code is made here |
+| **HOTP** | a counter-based secret, for which no code is made here |
 | **Unreadable** | a secret that does not read |
 
 ## States

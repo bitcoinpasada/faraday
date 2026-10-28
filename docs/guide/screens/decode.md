@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Written from the app's code and strings (`faraday/faraday-core/src/screens/decode.rs`, `faraday/faraday-core/src/decode.rs`, `faraday/faraday-core/src/catalog.rs`); not yet read beside the running app
-**Open:** the pictures, drawn once after the theming has landed
+**Open:** the picture: `decode.png` is drawn as an empty page, the screens tour opening Decode with no transaction chosen
 **Screen:** `Decode`
 **Group:** Tools
 

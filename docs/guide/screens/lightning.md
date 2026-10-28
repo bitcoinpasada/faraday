@@ -1,8 +1,7 @@
 # Lightning node key
 
-**Kind:** Spec
-**Status:** Written from the app's code and strings (`faraday/faraday-core/src/lightning/screen.rs`, `faraday/faraday-core/src/lightning/mod.rs`); not yet read beside the running app
-**Open:** the pictures, drawn once after the theming has landed
+**Kind:** Reference
+**Status:** Checked against the app's pictures in docs/guide/pictures/ (drawn by just guide-pictures) and its code and strings (`faraday/faraday-core/src/lightning/screen.rs`, `faraday/faraday-core/src/lightning/mod.rs`)
 **Screen:** `Lightning`
 **Group:** Tools
 
@@ -12,15 +11,17 @@ A Lightning node's key, made the way ldk-node makes it from a loaded
 key, or the way LND makes it from an aezeed typed in. Its public key is
 the node id; its private key is the node.
 
-*Picture to come: `lightning.png`, Lightning node key from key 3dca6805 by ldk-node, the node id shown and the private key hidden.*
+![Lightning node key by ldk-node from key 3dca6805, the node id shown and the private key hidden](../pictures/lightning.png)
+
+*Lightning node key with "ldk-node · 3dca6805" chosen: the **Node id** in hex, the **Private key** hidden, **Show**, **Make a vault** and **Out unprotected…**.*
 
 ## On this screen
 
 | Control | What it does |
 |---|---|
-| the way back | at the top left, named after where the page was opened from |
-| "A Lightning node's key, made the way ldk-node or LND makes it. …" | under the title, with a link to Learn's **Tools** |
-| "ldk-node · 3dca6805" | one per key loaded: the node key ldk-node makes from that key. **This key has no BIP-39 seed**, in red, for a key with no seed to make it from |
+| the way back | at the top left, named after where the page was opened from, under the title |
+| "A Lightning node's key, made the way ldk-node or LND makes it. …" | under the title with **Guided** on, with a link to Learn's **Tools** |
+| "ldk-node · 3dca6805" | one per key loaded, the chosen one filled: the node key ldk-node makes from that key. **This key has no BIP-39 seed**, in red, for a key with no seed to make it from |
 | **LND · type an aezeed** | the node key LND makes from its aezeed: opens the fields below |
 
 ### The aezeed
@@ -45,7 +46,7 @@ passphrase: …".
 | **Private key** | hidden as dots until **Show** |
 | **Show**, **Hide** | the private key on screen, or hidden |
 | "Save into Vault 1" | the node key into the open vault (**The node key is in the vault**) |
-| **Make a vault**, "Unlock vault.ofv", **Unlock a vault** | in its place while no vault is open: makes or unlocks one, then comes back here |
+| **Make a vault**, "Unlock Vault-1.ofv", **Unlock a vault** | in its place while no vault is open: **Make a vault** while Files holds none, "Unlock" and the file's name for one locked vault in Files, **Unlock a vault** for several; each comes back here |
 | **Out unprotected…** | the node key to the stick unprotected, through [This is a secret](files.md#this-is-a-secret) |
 
 ## On a narrow window

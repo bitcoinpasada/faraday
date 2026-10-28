@@ -1,8 +1,7 @@
 # Vault contents
 
-**Kind:** Spec
-**Status:** Written from the app's code and strings (`faraday/faraday-core/src/vault/screen.rs`, `faraday/faraday-core/src/vault/screen/save.rs`, `faraday/faraday-core/src/vault/area.rs`, `faraday/faraday-core/src/vault/mod.rs`); not yet read beside the running app
-**Open:** the pictures, drawn once after the theming has landed
+**Kind:** Reference
+**Status:** Checked against the app's pictures in docs/guide/pictures/ (drawn by just guide-pictures) and its code and strings (`faraday/faraday-core/src/vault/screen.rs`, `faraday/faraday-core/src/vault/screen/save.rs`, `faraday/faraday-core/src/vault/area.rs`, `faraday/faraday-core/src/vault/mod.rs`)
 **Screen:** `VaultContents`, `VaultSave`, `GpgSign`
 **Group:** Vaults
 
@@ -15,16 +14,19 @@ and Secure Boot keys. A change stays in this session until the next
 lock, which seals it into the vault in Files; the next stick visit
 writes the vault back over its own file.
 
-*Picture to come: `vault-key.png`, Vault 1 open on Bitcoin keys, its key chosen.*
+![Vault open on Bitcoin keys with key 3dca6805 chosen: its fingerprint, words hidden, SeedQR, Save to a stick](../pictures/vault-key.png)
+
+*A vault with no name, "Open · 2 unsaved changes", on **Bitcoin keys**: the key 3dca6805 chosen, its **Words** and **SeedQR** hidden, **Load at unlock** "Loads with New wallet 1", **Save to a stick** and **Hold to delete from vault**.*
 
 ## On this screen
 
 | Control | What it does |
 |---|---|
-| the title | the vault's name, then **Open**, or "Open · 2 unsaved changes" in the warning tone |
+| the title | the vault's name ("Vault 1"), or "Vault" for a vault with no name |
+| the state | under the title: **Open**, or "Open · 2 unsaved changes" in the warning tone |
 | **Rename** | opens **Rename the vault** in the detail: **Name**, **Save**, **Cancel** |
 | **Lock** | locks, sealing every open vault; [Lock](lock-and-power.md#lock) asks first when the lock would end something |
-| the line under the title | the file and its unlock cost; with more than one vault open, a button per vault, the one shown filled |
+| the line under the state | the file and its unlock cost ("vault.ofv · 64 MiB · 3 passes"); with more than one vault open, a button per vault, the one shown filled |
 | "A secret value shows after a press on its eye …" | in Guided mode |
 
 The page has three columns: the kinds, the items of the kind chosen,
@@ -96,13 +98,18 @@ The title is its name; its line its shape ("2 of 3 · …").
 
 ## An entry
 
-The title is its title; its line **Password**, **TOTP**, or **Entry**.
+The title is its title; its line **Password**, **TOTP**, both
+("Password · TOTP"), or **Entry**.
+
+![Passwords on Entries with Mail chosen: username, password hidden, URL, its TOTP code with 21 s left, Edit and Export for KeePass](../pictures/vaults-and-passwords-entry.png)
+
+*The Passwords vault on **Entries**, with **Add an entry**, **Scan a code**, **TOTP codes** and **Search entries**; the entry Mail chosen, its code 838 140 with 21 s left.*
 
 | Field or control | What it is |
 |---|---|
 | **Username**, **URL** | shown as typed |
 | **Password**, **TOTP secret**, **Notes** | hidden behind their eyes |
-| **Code** | the TOTP code now and the seconds it has left; **Set the time** while the clock is not set this power-on; "HOTP" or **Unreadable** for a secret Faraday does not count codes for |
+| **Code** | the TOTP code now and the seconds it has left; **Set the time** while the clock is not set this power-on; **HOTP** or **Unreadable** for a secret Faraday does not count codes for |
 | **Edit** | opens **Edit the entry** in the detail |
 | **Export for KeePass** | opens **Export for KeePass** in the detail: **Passphrase**, **Seal and export**, **Cancel**. While it works, **Sealing** |
 | **Hold to delete from vault** | deletes the item |
@@ -121,20 +128,22 @@ shows its **Descriptor** and **Note**.
 ## A GPG key
 
 The title is its user ID; its line **Ed25519 · does not expire** or
-"Ed25519 · expires 2028-10-27".
+"Ed25519 · expires 2029-10-25".
 
-*Picture to come: `vault-gpg-key.png`, a GPG key's page.*
+![Vault 1 on GPG keys with Example Signer chosen: fingerprint, signing subkey, valid dates, Renew for and Export public key](../pictures/vault-gpg-key.png)
+
+*Vault 1 (Vault-1.ofv) on **GPG keys**: Example Signer's key, valid 2026-10-26 to 2029-10-25, its revocation certificate kept, its backup **Written to every place**, **Renew for** with **Renew** grey, and **Export public key**, **Show as QR** and **PNG**.*
 
 | Field or control | What it is |
 |---|---|
 | **Fingerprint**, **Signing subkey**, **User ID** | the key's facts |
-| **Valid** | "From 2026-10-27 · does not expire", or its start and end |
+| **Valid** | "From 2026-10-27 · does not expire", or its start and end ("2026-10-26 to 2029-10-25") |
 | **Status** | "Revoked on …", once marked revoked |
 | **Revocation certificate** | "Kept with the key · made …", or **None kept yet** |
 | **Paperkey** | the secret key as paperkey text, hidden behind its eye |
 | "Term now: expires …" | the term as it stands; **Term now: does not expire** |
 | **Renew for** | **1 year**, **2 years**, **3 years**, **5 years**, **Never**; **Renew** sets the new term from now, grey until one is chosen |
-| **Backup** | for a key made by the backup flow: "1 of 2 written", and **Continue the backup** until every place is |
+| **Backup** | for a key made by the backup flow: "1 of 2 written", and **Continue the backup** until every place is; then **Written to every place** |
 | **Export public key** | puts the public key in Files, for the stick |
 | **Show as QR**, **PNG** | the public key as a QR code, or as a picture in Files |
 | **Export the kept revocation** | the revocation certificate, through [This is a secret](files.md#this-is-a-secret) |
@@ -163,6 +172,10 @@ subkey, and "Signing subkey ID … · main key ID … · created …".
 
 The title is **Owner keys**; its line **PK, KEK, db**.
 
+![Vault 1 on Secure Boot with Owner keys chosen: the owner GUID, PK, KEK, db, Windows-compatible chosen, Enrolment files and Sign or check an image](../pictures/secure-boot-keys-page.png)
+
+*Vault 1's **Owner keys**: the owner GUID, the Example Org PK, KEK and db, **Windows-compatible** chosen, the backup **Written to every place**. **Sign or check an image** is outlined.*
+
 | Field or control | What it is |
 |---|---|
 | **Owner GUID**, PK, KEK, db | the owner's GUID and each key's name |
@@ -178,16 +191,22 @@ Each EFI image in Files with **Check** and **Sign**; "No EFI image from
 the stick" while there is none. **Check** says under the list what it
 found: **Signed by this vault's db key**, **Signed by another key**,
 **Changed since it was signed**, **Not signed**, or **Its signature
-could not be read**. **Sign** opens "Sign BOOTX64.EFI": its **SHA-256**,
-the line "The boot program of release 0.1.8, checked against its signed
+could not be read**. **Sign** opens "Sign faraday-0.9.0-BOOTX64.EFI": its **SHA-256**,
+the line "The boot program of release 0.9.0, checked against its signed
 sums" or why it is refused, in the error tone, **Hold to sign** and
 **Back**. **Back to the keys** closes the images.
+
+![Sign faraday-0.9.0-BOOTX64.EFI: its SHA-256, the release line, Hold to sign and Back](../pictures/secure-boot-keys-sign.png)
+
+*Signing the boot program of a test release, 0.9.0, checked against its signed sums; for a real release the steps are the same. **Hold to sign** is outlined.*
 
 ## Save to a stick
 
 **Opened from:** **Save to a stick** on a key or a wallet in the vault.
 
-*Picture to come: `vault-save-to-a-stick.png`, Save to a stick for a key, its words and SeedQR files ticked.*
+![Save to a stick for key 3dca6805: the warning, Words and SeedQR ticked with their file names, Cancel and Save](../pictures/vault-save-to-a-stick.png)
+
+*Save to a stick for the key 3dca6805: **Anyone who finds this stick has this seed**, **Words** (seed-3dca6805.txt) and **SeedQR** (seedqr-3dca6805.png) ticked, **Cancel** and **Save**.*
 
 | Control | What it does |
 |---|---|
@@ -201,7 +220,9 @@ sums" or why it is refused, in the error tone, **Hold to sign** and
 **Opened from:** **Sign** on the signing page. Its title is **Sign
 with …** and the key's user ID.
 
-*Picture to come: `vault-sign-with.png`, Sign with a key, two files and the signature time.*
+![Sign with Example Signer: notes.txt and minutes.txt, the signature time, Set the time, Hold to sign 2 files and Cancel](../pictures/vault-sign-with.png)
+
+*Sign with Example Signer's key: notes.txt and minutes.txt, the **Signature time** in UTC, **Set the time**, "Hold to sign 2 files" and **Cancel**.*
 
 | Control | What it does |
 |---|---|

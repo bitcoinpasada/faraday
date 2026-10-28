@@ -1,8 +1,7 @@
 # Sign a message and Check a signed message
 
-**Kind:** Spec
-**Status:** Written from the app's code and strings (`faraday/faraday-core/src/screens/message.rs`, `faraday/faraday-core/src/screens/check_message.rs`, `faraday/faraday-core/src/state.rs`, `faraday/faraday-core/src/guide.rs`); not yet read beside the running app
-**Open:** the pictures, drawn once after the theming has landed
+**Kind:** Reference
+**Status:** Checked against the app's pictures in docs/guide/pictures/ (drawn by just guide-pictures) and its code and strings (`faraday/faraday-core/src/screens/message.rs`, `faraday/faraday-core/src/screens/check_message.rs`, `faraday/faraday-core/src/state.rs`, `faraday/faraday-core/src/guide.rs`)
 **Screen:** `Message`, `CheckMessage`
 **Group:** Tools
 
@@ -18,7 +17,9 @@ single-key wallet's key here**), which reads **Needs a single-key
 wallet with its key here** and does not open while no such wallet is
 loaded; the sidebar's row for the signing while it is under way.
 
-*Picture to come: `messages-sign.png`, Sign a message with the Address card open on New wallet 1.*
+![Sign a message on New wallet 1, the Address card open at receive address 0/0](../pictures/messages-sign.png)
+
+*Sign a message on New wallet 1: **Address** open at "Receive address 0/0", **Message**, **Format** and **Signature** closed below.*
 
 A column of four cards, each closed to one line once it is done. It
 opens on **Address**, with the first single-key wallet whose key is
@@ -26,7 +27,7 @@ loaded chosen and BIP-322 as the format.
 
 | Control | What it does |
 |---|---|
-| the way back | at the top left, named after where the page was opened from (**Wallets** at first); <kbd>Escape</kbd> does the same |
+| the way back | at the top left, its name under the title: on **Address**, where the page was opened from (the wallet, "New wallet 1"), on a later card the card before it; <kbd>Escape</kbd> does the same |
 | **Steps only**, **Guided** | at the top right: the short text on each open card, off or on; on **Address** and **Format** with a link to Learn's **Signing a message** |
 | **Cancel** | at the top: ends the signing ([Cancel a flow](prompts.md#cancel-a-flow)) |
 | a card | its title and what was chosen; a press opens it again |
@@ -69,13 +70,18 @@ Closed, **Signed** or **Not signed yet**.
 |---|---|
 | **Sign the message** | signs; a message that cannot be signed says why in red under the card |
 | **Signature** | the signature, in base64 |
-| `message-` and the address's last six characters, `.txt` | the file, **Signed message**, made as the message is signed and put **For the stick**; its button reads **Make the file** if it was taken off |
+| `message-` and the address's last six characters, `.txt` | the file, **Signed message**, made as the message is signed and put **For the stick** |
+| **Remove** | takes the file off **For the stick**; its button then reads **Make the file**, or **Make again** once a stick visit has written it |
 | **Show as QR** | the signed message as a [QR code](qr-and-scan.md#a-qr-code) |
 | **PNG for the stick** | the same code as a picture file, for the stick |
 
 The file and the code hold three lines: the address, the signature,
 and the message. A change to the address, the message or the format
 after signing drops the signature.
+
+![The Signature card open, the signature in base64 and message-rtc6am.txt for the stick](../pictures/messages-signed.png)
+
+*The message signed: the **Signature** card open, the signature in base64, `message-rtc6am.txt` **For the stick**, **Show as QR** and **PNG for the stick**.*
 
 ## Check a signed message
 
@@ -86,12 +92,14 @@ message in Files and reads **Copy a signed message in first** while
 there is none. In Faraday Demo's Practice, with none in Files, the tile
 checks the sample `sample-message.txt`.
 
-*Picture to come: `messages-check.png`, Check a signed message, the signature valid and its address in New wallet 1.*
+![Check a signed message with no file chosen](../pictures/messages-check.png)
+
+*Check a signed message opened with no file chosen: **No signed message chosen**.*
 
 | Control | What it does |
 |---|---|
-| the way back | at the top left, named after where the page was opened from (**Wallets** at first) |
-| "A valid signature proves that whoever holds this address's key signed exactly this text. …" | under the title, with a link to Learn's **Signing a message** |
+| the way back | at the top left, named after where the page was opened from, under the title |
+| "A valid signature proves that whoever holds this address's key signed exactly this text. …" | under the title with **Guided** on, with a link to Learn's **Signing a message** |
 | the verdict | in a card: "The signature is valid (BIP-322)" in the ok tone, or why it does not ("The signature does not verify for this address and this message", "The signature is not base64 or not a signature of its format"), in red |
 | **File** | the file's name |
 | **Address** | the address it was signed for |

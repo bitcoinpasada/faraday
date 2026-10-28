@@ -1,8 +1,7 @@
 # Prompts
 
-**Kind:** Spec
-**Status:** Written from the app's code and strings (`faraday/faraday-core/src/screens/sheets.rs`, `faraday/faraday-core/src/boot_import/screen.rs`, `faraday/faraday-core/src/in_progress.rs`); not yet read beside the running app
-**Open:** the pictures, drawn once after the theming has landed
+**Kind:** Reference
+**Status:** Checked against the app's pictures in docs/guide/pictures/ (drawn by just guide-pictures) and its code and strings (`faraday/faraday-core/src/screens/sheets.rs`, `faraday/faraday-core/src/boot_import/screen.rs`, `faraday/faraday-core/src/in_progress.rs`)
 **Screen:** `Devices`, `NewInput`, `Import`, `Pull`, `CancelFlow`, `CancelKey`
 **Group:** Home
 
@@ -17,7 +16,9 @@ later that can show the screen or type elsewhere; while one is
 attached, anything that would show, load or have a secret typed opens
 this sheet first. Not in Faraday Demo.
 
-*Picture to come: `prompts-attached.png`, Attached to this computer naming a KVM.*
+![The Attached to this computer sheet naming a PiKVM, with Check again and Continue anyway](../pictures/prompts-attached.png)
+
+*A KVM attached: its name, what it can do, **Check again** and **Continue anyway**.*
 
 | Control | What it does |
 |---|---|
@@ -48,7 +49,9 @@ started. Its typing or pointing does nothing until it is let in. The
 title is **A new keyboard**, **A new pointer**, or **A new keyboard and
 pointer**.
 
-*Picture to come: `prompts-new-keyboard.png`, A new keyboard with its code half typed.*
+![The A new keyboard sheet with three of its six code letters typed and green](../pictures/prompts-new-keyboard.png)
+
+*A new keyboard: its name, **Type this code on it** with three of the six letters typed, and **Ignore this device**.*
 
 | Control | What it does |
 |---|---|
@@ -70,11 +73,13 @@ it holds files; Home's **Import from …** lead and the sidebar's
 the stick's name ("Read from Boot stick"). Nothing on the stick is
 read until **Import**.
 
-*Picture to come: `prompts-import.png`, the boot stick's files, each ticked, with Later and Import.*
+![Read from Boot stick listing three files, each ticked, with Later and Import](../pictures/prompts-import.png)
+
+*Three files on the boot stick, each ticked: a descriptor, a PSBT and a vault, with **Unselect all**, **Later** and **Import**.*
 
 | Control | What it does |
 |---|---|
-| the count | what the files are by their names: "1 vault · 2 other files, by their names", or **No files Faraday reads** |
+| the count | what the files are by their names: "1 vault · 1 PSBT · 1 other file, by their names", or **No files Faraday reads** |
 | **Select all**, **Unselect all** | ticks or unticks every file |
 | a file's row | its name, what it is by its name, and its size; a press ticks or unticks it. A file Faraday does not read is greyed, and so is every file once **Import** is pressed |
 | **Later** | closes the sheet, reads nothing and brings in nothing. A press beside the sheet does the same |
@@ -100,7 +105,9 @@ key**, **Pull the stick to unlock**, **Pull the stick to scan**,
 **Pull the stick to load the wallet**, **Pull the stick to load the
 samples**, **Pull the stick to create the vault, then your key**.
 
-*Picture to come: `prompts-pull.png`, Pull the stick to add a key.*
+![Pull the stick to add a key, naming KEYSTICK, with the TV reminder and Cancel](../pictures/prompts-pull.png)
+
+*The sheet **Pull the stick to add a key** with KEYSTICK attached, the reminder about a TV, and **Cancel**.*
 
 | Control | What it does |
 |---|---|
@@ -116,7 +123,9 @@ Pulling the stick closes the sheet and what was pressed goes ahead.
 lose something. A flow with nothing past its first card ends at once,
 without the sheet.
 
-*Picture to come: `prompts-cancel.png`, Cancel making this wallet? over Make a new wallet.*
+![Cancel making this wallet? over Make a new wallet, with Keep going and Cancel the flow](../pictures/prompts-cancel.png)
+
+*The sheet **Cancel making this wallet?** over Make a new wallet: **Its answers are lost.**, **Keep going** and **Cancel the flow**.*
 
 | Title | Shown for |
 |---|---|

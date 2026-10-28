@@ -1,8 +1,7 @@
 # Add a key: typing a key
 
-**Kind:** Spec
-**Status:** Written from the app's code and strings (`faraday/faraday-core/src/screens/entry.rs`, `faraday/faraday-core/src/word_entry.rs`, `faraday/faraday-core/src/forms.rs`, `faraday/faraday-core/src/codex32_correct/screen.rs`); not yet read beside the running app
-**Open:** the pictures, drawn once after the theming has landed
+**Kind:** Reference
+**Status:** Checked against the app's pictures in docs/guide/pictures/ (drawn by just guide-pictures) and its code and strings (`faraday/faraday-core/src/screens/entry.rs`, `faraday/faraday-core/src/word_entry.rs`, `faraday/faraday-core/src/forms.rs`, `faraday/faraday-core/src/codex32_correct/screen.rs`)
 **Screen:** `Entry`
 **Group:** Wallets
 
@@ -20,7 +19,9 @@ The page is where a key is typed: its words, or its shares, strings or
 parts. [Add a key](new-key.md) on Wallets is the card flow, whose typing
 card is this page's form.
 
-*Picture to come: `add-a-key-words.png`, Add a key with twelve words typed and the checksum correct.*
+![Add a key with twelve words typed and the line 12 words, checksum correct, 3dca6805](../pictures/add-a-key-words.png)
+
+*The published test seed's twelve words typed: the status reads "12 words · checksum correct · 3dca6805", and **Add key** is outlined.*
 
 ## On this screen
 
@@ -28,18 +29,19 @@ card is this page's form.
 |---|---|
 | the way back | at the top left: **Wallets**, or **Spend** when the Spend tab opened it. <kbd>Escape</kbd> does the same |
 | the title | **Add a key**; "Add a key · SLIP-39 shares" on another form; "Add key 3dca6805" for a wallet's missing key; "Add a key for New wallet 1"; "Type share C of name" for a codex32 string a backup asked for |
-| **Other forms** | opens the forms as buttons: **BIP-39 words**, **SLIP-39 shares**, **codex32**, **Seed XOR parts**, the one on show filled |
+| the keyboard | at the top right, where the keyboard on screen is offered: shows or hides it (**Keyboard**) |
+| **Other forms** | under the word boxes: opens the forms as buttons: **BIP-39 words**, **SLIP-39 shares**, **codex32**, **Seed XOR parts**, the one on show filled |
 
 ## The words
 
 | Control | What it does |
 |---|---|
-| **Scan a SeedQR** | opens the camera for a SeedQR; for a wallet's missing key, the camera for that wallet's key. The leading button until a word is typed |
-| **Other languages** | opens the word lists as buttons: **English**, **Spanish**, **French**, **Italian**, **Czech**, **Portuguese**, **Japanese**, **Korean**, **Chinese (Simplified)**, **Chinese (Traditional)** |
-| **Words** | the count: 12, 15, 18, 21 or 24 |
+| **Scan a SeedQR** | across the top: opens the camera for a SeedQR; for a wallet's missing key, the camera for that wallet's key. The leading button until a word is typed |
+| **Words** | the count: **12**, 15, 18, 21 or **24** |
 | the word boxes | numbered; a word is typed into each. **No word starts with that** under a box that matches none, and "· Tab completes a single match" |
+| **Other languages** | beside **Other forms**: opens the word lists as buttons: **English**, **Spanish**, **French**, **Italian**, **Czech**, **Portuguese**, **Japanese**, **Korean**, **Chinese (Simplified)**, **Chinese (Traditional)** |
 | the status | "12 words", then "12 words · checksum correct · 3dca6805" once they make a key; why not, in the error tone ("Word 3 is not on the English list") |
-| **BIP-39 passphrase** | a press opens the field: the passphrase typed with the words. Another passphrase is another key |
+| **BIP-39 passphrase** | the field, with **No passphrase** in it while it is empty: the passphrase typed with the words. Another passphrase is another key |
 | "From a stick · plug it in" | while no stick is attached; with one, **Copy files in** in its place, which opens the [stick visit](stick-visit.md): a key file copied in loads once the stick is pulled |
 | **Add key** | loads the key and goes back: to Wallets, the Spend tab, Restore or the backup that opened the page. The toast says "Key 3dca6805 added" |
 | **Clear** | empties the boxes |

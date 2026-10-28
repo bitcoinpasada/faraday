@@ -1,8 +1,7 @@
 # Restore an existing wallet
 
-**Kind:** Spec
-**Status:** Written from the app's code and strings (`faraday/faraday-core/src/screens/restore.rs`, `faraday/faraday-core/src/restore.rs`, `faraday/faraday-core/src/seeds/screen.rs`, `faraday/faraday-core/src/screens/parts.rs`); not yet read beside the running app
-**Open:** the pictures, drawn once after the theming has landed
+**Kind:** Reference
+**Status:** Checked against the app's pictures in docs/guide/pictures/ (drawn by just guide-pictures) and its code and strings (`faraday/faraday-core/src/screens/restore.rs`, `faraday/faraday-core/src/restore.rs`, `faraday/faraday-core/src/seeds/screen.rs`, `faraday/faraday-core/src/screens/parts.rs`)
 **Screen:** `Restore`
 **Group:** Wallets
 
@@ -16,15 +15,18 @@ One card per step, from what the wallet is to the wallet loaded. A
 wallet description (a descriptor, a wallet file, a BIP 129 record) fills
 the first cards at once.
 
-*Picture to come: `restore-keys.png`, Restore with Keys open, one key typed and two Not here.*
+![Restore an existing wallet with Keys open: key 1 3dca6805 is Key 1 of the wallet, keys 2 and 3 Not here, and Make the wallet](../pictures/restore-keys.png)
+
+*A 2-of-3 wallet read from its description: **Kind**, **Quorum** and **Description** filled from it, **Use vaults** **No**, and on **Keys** key 1 reads **Key 1 of the wallet**, keys 2 and 3 **Not here** with **Change**.*
 
 ## On this screen
 
 | Control | What it does |
 |---|---|
-| the way back | at the top left: **Home** or **Wallets**, where it was opened from; once a card is closed, named after the card before the one open |
+| the way back | at the top left, the arrow with a name under the title: **Home** or **Wallets**, where it was opened from; once a card is closed, the card before the one open |
 | **Steps only**, **Guided** | at the top right: the short text on the open card, off or on |
-| a card | its title, what it holds, and **Change**. A card filled from a description has none |
+| a card | its number, its title, what it holds, and **Change**. A card filled from a description has none |
+| **Cancel** | at the top right, while the wallet is in progress: asks, then leaves ([Cancel a flow](prompts.md#cancel-a-flow)) |
 
 The cards: **Kind**, **Quorum** (for several keys), **Description**,
 **Use vaults**, **Number of vaults** (after **Yes**), **Keys**,

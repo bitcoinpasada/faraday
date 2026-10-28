@@ -1,8 +1,7 @@
 # Add a key
 
-**Kind:** Spec
-**Status:** Written from the app's code and strings (`faraday/faraday-core/src/keygen/screen.rs`, `faraday/faraday-core/src/keygen/mod.rs`, `faraday/faraday-core/src/codex32/screen.rs`, `faraday/faraday-core/src/flow.rs`); not yet read beside the running app
-**Open:** the pictures, drawn once after the theming has landed
+**Kind:** Reference
+**Status:** Checked against the app's pictures in docs/guide/pictures/ (drawn by just guide-pictures) and its code and strings (`faraday/faraday-core/src/keygen/screen.rs`, `faraday/faraday-core/src/keygen/mod.rs`, `faraday/faraday-core/src/codex32/screen.rs`, `faraday/faraday-core/src/flow.rs`)
 **Screen:** `KeyGen`, `KeyLengths`
 **Group:** Wallets
 
@@ -17,16 +16,18 @@ The page makes a key here, or takes one typed or scanned, one card per
 step. Its title is **Add a key**, or **New key** when it was opened for
 a slot of Make a new wallet or from the typing page.
 
-*Picture to come: `new-key-start.png`, Add a key with Start closed and Length open.*
+![Add a key with Start closed on Make a new key, BIP-39 words, and Length open](../pictures/new-key-start.png)
+
+*Add a key as it opens: **Start** closed on "Make a new key · BIP-39 words", **Length** open with **BIP-39 words** chosen, and the cards after it closed: **Randomness** on "Dice · Words chosen by the dice", **Rolls** "0 of 70", **Key**, **Words** and **Quiz**.*
 
 ## On this screen
 
 | Control | What it does |
 |---|---|
-| the way back | at the top left, named after the card before the one open; on the first card, after where the page was opened from: **Make a new wallet**, **Add a key**, **Tools**, or **Back**. <kbd>Escape</kbd> does the same. Once the key is locked in, it no longer opens a card before **Key** |
+| the way back | at the top left, the arrow with a name under the title: the card before the one open; on the first card, after where the page was opened from: **Make a new wallet**, **Add a key**, **Tools**, or **Back**. <kbd>Escape</kbd> does the same. Once the key is locked in, it no longer opens a card before **Key** |
 | **Steps only**, **Guided** | at the top right: the short text on each open card, off or on, with its Learn link |
-| a card | its title and what was chosen, and **Change**, which opens it again with its choice kept. A finished card before **Key** has no **Change** once the key is locked in |
-| **Cancel** | while the page was opened for a slot of Make a new wallet and the key is not locked in: asks, then goes back to Make a new wallet ([Cancel a flow](prompts.md#cancel-a-flow)) |
+| a card | its number, its title and what was chosen, and **Change**, which opens it again with its choice kept; a card not reached yet says so (**Not locked in**, **Not made yet**, **Not yet**). A finished card before **Key** has no **Change** once the key is locked in |
+| **Cancel** | at the top right, only while the page was opened for a slot of Make a new wallet, that wallet is not made yet and the key is not locked in: asks when rolls, characters, words or a passphrase would be lost, then goes back to Make a new wallet at its **Keys** card ([Cancel a flow](prompts.md#cancel-a-flow)) |
 
 The cards that show depend on Start:
 
@@ -40,7 +41,8 @@ The cards that show depend on Start:
 
 ## Start
 
-Closed at first on "Make a new key · BIP-39 words", with **Length** open.
+Closed at first on "Make a new key · BIP-39 words", with **Length** open
+and **Randomness** closed on "Dice · Words chosen by the dice".
 
 | Group | Choices |
 |---|---|
@@ -107,14 +109,16 @@ Its title is what it takes: **Rolls**, **Flips**, **Cards**, **Digits**,
 | "Last: 4" | the last entry |
 | **Undo**, **Clear** | takes the last entry back, or every entry |
 | **Randomness check** | once every entry is in: **Fair: no cautions**, or each caution in the warning tone, with **Roll again** (**Draw again**, **Take again**, **Start again**) |
-| **Continue** | goes on to **Key** |
+| **Continue** | goes on to **Key**, where the words come from the entries themselves; **Make the words** where the computer makes them from the entries |
 | **Next source** | in a mix: the next source's entries |
 
-The **Generator** card has **Source**, **Trust** (**this device's
-software**) and **Result** (**Not checkable**), and takes randomness of
-yours mixed in: **Make the words** (**Waiting for randomness** until
-the system's is in), **Skip** to add none ([Make a key, step
-3.6](../walk/new-key.md#36-rolls)).
+The **Generator** card has **Source** (the operating system's source),
+**Trust** (**this device's software**) and **Result** (**Not
+checkable**), and takes randomness of yours mixed in. Its foot has
+**Skip** at the start, which adds none, and **Make the words** at the
+end; **Waiting for randomness**, grey, while the system's is not in yet
+([Make a key, step 3.6](../walk/new-key.md#36-rolls)). It has no
+**Undo** or **Clear**.
 
 ## Check
 
@@ -166,9 +170,15 @@ For SLIP-39 shares, each share in turn: **Share**, "1 of 3 · 2 needed",
 ## Make codex32 shares
 
 **Opened from:** **Codex32** on Start, and **Make codex32 shares** on a
-slot of a single-key wallet backed up in shares. **Make the rest** and
-**Add a share** on the typing page open the same cards on strings typed
-in.
+slot of a single-key wallet backed up in shares. From Make a new wallet
+with **Use vaults** answered **No**, the page opens as **New key** with
+**Start** and **Scheme** already filled from the wallet's quorum, on
+**Identifier**. **Make the rest** and **Add a share** on the typing page
+open the same cards on strings typed in.
+
+![New key on Identifier: four empty boxes, Suggest and the codex32 keyboard, the cards Entropy, Characters and Worksheets after it](../pictures/4-11-identifier.png)
+
+*New key from Make a new wallet: **Start** reads "Make a new key · Codex32", **Scheme** "48 characters · 2 of 3", and **Identifier** is open on the codex32 keyboard with **Suggest**.*
 
 | Card | Controls |
 |---|---|
@@ -176,7 +186,7 @@ in.
 | **Index** | in place of **Scheme** for **Add a share**: **From** the strings typed, the index offered, typed over on the codex32 keyboard |
 | **Identifier** | four characters on the codex32 keyboard, and **Suggest**, which fills four |
 | **Entropy** | **Roll dice**, **Type the characters** or **Type shares made by hand**; for dice, how many faces and each die's colour |
-| the characters | "Share A · character 7 of 26": each roll or character entered on the pad beside the sheets, the dice and checksum worksheets filling as on paper; **Continue** once every character is in |
+| **Characters** | "Share A · character 7 of 26": each roll or character entered on the pad beside the sheets, the dice and checksum worksheets filling as on paper; **Continue** once every character is in |
 | **Worksheets** | each sheet whole, a tab each, to read against the paper |
 | "Share 1 of 3" | each string to write down, as **String** or **Codex32QR**, then typed back: **Typed back the same**, or the box that differs; **Skip** asks once more |
 | **Strings made** | **Split**, **Length**, **Identifier**, **Fingerprint**, **Entropy**; **Check on another device** lists **Sets to try** (**Previous**, **Next**, **Done**); **Lock in** loads the key |

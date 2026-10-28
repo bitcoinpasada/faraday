@@ -1,8 +1,7 @@
 # Silent payments
 
-**Kind:** Spec
-**Status:** Written from the app's code and strings (`faraday/faraday-core/src/silent/screen.rs`, `faraday/faraday-core/src/silent/mod.rs`); not yet read beside the running app
-**Open:** the pictures, drawn once after the theming has landed
+**Kind:** Reference
+**Status:** Checked against the app's pictures in docs/guide/pictures/ (drawn by just guide-pictures) and its code and strings (`faraday/faraday-core/src/silent/screen.rs`, `faraday/faraday-core/src/silent/mod.rs`)
 **Screen:** `Silent`
 **Group:** Tools
 
@@ -16,13 +15,15 @@ A loaded key's silent payments address, its scan key, and a check of
 whether a transaction pays it. A column of four cards; with one key
 loaded it opens on **Address**, that key chosen.
 
-*Picture to come: `silent-payments.png`, Silent payments with the Address card open on key 3dca6805, no label.*
+![Silent payments on key 3dca6805, the Address card open with no label and its sp1q address](../pictures/silent-payments.png)
+
+*Silent payments on key 3dca6805: the **Address** card open on **No label**, the address in full (sp1qqdp65uwk…89huec), its buttons and **Continue**; **Scan key** and **Check a payment** closed below.*
 
 ## On this screen
 
 | Control | What it does |
 |---|---|
-| the way back | at the top left, named after where the page was opened from |
+| the way back | at the top left, its name under the title: where the page was opened from on the first card, the card before on a later one |
 | **Steps only**, **Guided** | at the top right: the short text on each open card, off or on, with a link to Learn's **Silent payments** |
 | a card | its title and what was chosen; a press opens it again |
 
@@ -43,7 +44,7 @@ Closed, the address, shortened.
 | Control | What it does |
 |---|---|
 | **-**, **No label**, **+** | the label: **No label**, or "Label 1" and on. Each label makes another address of the same wallet; a label shown counts as handed out, and the wallet's record lists it from then on |
-| the address | in full, for the label shown |
+| the address | in full, for the label shown; on Mainnet it begins `sp1q` |
 | **Show as QR** | the address as a [QR code](qr-and-scan.md#a-qr-code) |
 | **As a bitcoin: link** | the same as a `bitcoin:` link in a code |
 | **Record for the stick** | the wallet's record as a file, `silent-3dca6805.txt`, for the stick |
@@ -65,7 +66,7 @@ Closed, **A secret: shows every payment**.
 |---|---|
 | **Secret · shows every payment, cannot spend** | a tag in the warning tone |
 | "Save into Vault 1" | the scan key into the open vault |
-| **Make a vault**, "Unlock vault.ofv", **Unlock a vault** | in its place while no vault is open: makes or unlocks one, then comes back here |
+| **Make a vault**, "Unlock Vault-1.ofv", **Unlock a vault** | in its place while no vault is open: **Make a vault** while Files holds none, "Unlock" and the file's name for one locked vault in Files, **Unlock a vault** for several; each comes back here |
 | **Out unprotected…** | the scan key to the stick unprotected, through [This is a secret](files.md#this-is-a-secret) |
 
 ### Check a payment

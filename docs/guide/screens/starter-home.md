@@ -1,8 +1,7 @@
 # Faraday Starter: Home
 
-**Kind:** Spec
-**Status:** Written from the app's code and strings (`faraday/faraday-starter/src/draw/home.rs`, `faraday/faraday-starter/src/draw/nav.rs`, `faraday/faraday-starter/src/draw.rs`, `faraday/faraday-starter/src/decide.rs`); not yet read beside the running app
-**Open:** the pictures, drawn once after the theming has landed
+**Kind:** Reference
+**Status:** Checked against the app's pictures in docs/guide/pictures/ (drawn by just guide-pictures) and its code and strings (`faraday/faraday-starter/src/draw/home.rs`, `faraday/faraday-starter/src/draw/nav.rs`, `faraday/faraday-starter/src/draw.rs`, `faraday/faraday-starter/src/decide.rs`)
 **Starter page:** `Home`
 **Starter sheet:** `LetThrough`
 **Group:** Starter
@@ -14,14 +13,16 @@ Home is about this computer: the This computer card with its
 checklist and the screen's one primary button, then a card for each
 thing about this computer and this copy of the Starter that applies.
 
-*Picture to come: `starter-home.png`, the Starter's Home with the rail, This computer and its Checklist, and the Faraday Demo card, at 1280 × 800.*
+![The Starter's Home: the rail, This computer with its checklist and Make a Faraday stick, and the Faraday Demo card](../pictures/starter-home.png)
+
+*Home on a Windows computer with Secure Boot on and no stick attached: **This computer**, its **Checklist** with **Make a Faraday stick** highlighted, the button **Make a Faraday stick**, and the **Faraday Demo** card. The computer's name is made up for the picture.*
 
 ## The rail, the bar and the top app bar
 
 | Control | What it does |
 |---|---|
 | **Home**, **Make**, **Tools**, **Learn** | the four destinations, on the rail at the left (on a narrow window, a bar across the foot); the one on show is on a pill. A press opens a destination as it was last left; a press on the one on show goes to its top. Make: [Make](starter-make.md#make); Tools: [Tools](starter-tools.md#tools); Learn: [Learn](starter-learn-and-boot.md#learn) |
-| the wordmark | on Home, the Faraday wordmark with "Starter" beside it in grey; on Make and Tools, the destination's name |
+| the wordmark | on Home, the Faraday wordmark with "Starter" beside it; on Make, Tools and Learn, the destination's name |
 | **Install** | at the top right while no copy is installed: opens [Install](starter-menu.md#install-and-update) |
 | **Update** | in place of **Install** while this copy is newer than the one installed: opens the same page as Update |
 | **⋮** | the menu: [Appearance, About, Uninstall, Remove the Faraday boot entry](starter-menu.md#the--menu) |
@@ -37,7 +38,7 @@ at. While a stick is written there is no way back.
 | Control | What it does |
 |---|---|
 | **This computer** | the card's heading |
-| the computer's name | its maker and model ("ExampleMaker Laptop 14", as the computer reports them); **This computer** when neither could be read. On a Mac, its name from the Starter's table of Macs, then its model identifier, then **Apple T2 Security Chip** on a Mac that has it |
+| the computer's name | its maker and model ("Example Computers Example 14", as the computer reports them); **This computer** when neither could be read. On a Mac, its name from the Starter's table of Macs, then its model identifier, then **Apple T2 Security Chip** on a Mac that has it |
 | **Secure Boot: on**, **Secure Boot: off**, **Secure Boot: not read** | whether Secure Boot is on, as the system reports it. Not shown on a Mac |
 | **This computer cannot start a Faraday stick** | in the warning tone, on an ARM computer. The checklist then holds only **Make a Faraday stick**, for another computer |
 | **Started in legacy BIOS mode: UEFI has to be on** | in the warning tone, on a computer started in legacy BIOS mode |
@@ -103,7 +104,7 @@ stick](starter-learn-and-boot.md#start-this-computer-from-the-stick).
 |---|---|---|
 | **Faraday Demo** | on Windows and Linux | "Version 0.1.8", the Starter's own version; the reason in the warning tone when the Demo could not be opened; **Open Faraday Demo**, which shows [Faraday Demo](../walk/faraday-demo.md) in this window, under a top app bar that reads **Faraday Demo** with the way back to **Home** |
 | **Update the installed Faraday** | while this copy is newer than the one installed | "Installed 0.1.7 · this copy 0.1.8" and **Update**, which opens [Install](starter-menu.md#install-and-update) as Update |
-| **Boot entry** | on Linux, while the Faraday stick's entry is in the firmware's boot list and no Faraday stick is attached | **In this computer's boot list**, **Removing** while the removal runs, or why it failed in the warning tone; **Remove the Faraday boot entry**, which removes the entry |
+| **Boot entry** | on Linux, while the Faraday stick's entry is in the firmware's boot list and no Faraday stick is attached | **In this computer's boot list**, **Removing** while the removal runs, or why it failed in the warning tone; **Remove the Faraday boot entry**, which removes the entry: the system asks for the password first (the removal runs through `pkexec`) |
 
 On a wide window the cards sit in columns under the This computer
 card, which spans them all; on a narrower one, in one column.

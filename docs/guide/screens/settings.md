@@ -1,8 +1,8 @@
 # Settings
 
 **Kind:** Spec
-**Status:** Written from the app's code and strings (`faraday/faraday-core/src/screens/settings.rs`, `faraday/faraday-core/src/screens/set_time.rs`, `faraday/faraday-core/src/set_time.rs`, `faraday/faraday-core/src/screens/randomness.rs`, `faraday/faraday-core/src/fresh.rs`, `faraday/faraday-ui/src/appearance.rs`); not yet read beside the running app
-**Open:** the pictures, drawn once after the theming has landed
+**Status:** Checked against the app's pictures in docs/guide/pictures/ (drawn by just guide-pictures) and its code and strings (`faraday/faraday-core/src/screens/settings.rs`, `faraday/faraday-core/src/screens/set_time.rs`, `faraday/faraday-core/src/set_time.rs`, `faraday/faraday-core/src/screens/randomness.rs`, `faraday/faraday-core/src/fresh.rs`, `faraday/faraday-ui/src/appearance.rs`), but for Add randomness's picture
+**Open:** Add randomness's picture, `settings-add-randomness.png`, is drawn as an empty page and is to be drawn again
 **Screen:** `Settings`, `SetTime`, `Randomness`
 **Group:** Settings
 
@@ -14,7 +14,12 @@ and Add randomness.
 **Opened from:** the sidebar's **Settings**; **Settings** in the **⋮**
 menu on a tall narrow window.
 
-*Picture to come: `settings.png`, Settings in two columns, Mode to Randomness on the left, Appearance to About on the right.*
+![Settings in two columns: Mode, Session and Time on the left, Appearance and Display on the right](../pictures/settings.png)
+
+*Settings with a key loaded: **Steps only** chosen over the columns;
+**Mode** reading **Mainnet**, **Session** with **Lock**, **Remove every
+key** and **Power off**, and **Time** on the left; **Appearance** with
+**Cobalt** chosen, and **Display**, on the right.*
 
 At 1280 × 800 the sections are cards in two columns: **Mode**,
 **Session**, **Time** and **Randomness** on the left, **Appearance**,
@@ -22,13 +27,13 @@ At 1280 × 800 the sections are cards in two columns: **Mode**,
 
 | Control | What it does |
 |---|---|
-| **Steps only**, **Guided** | under the title: with **Guided**, each section has a line under its name on what it does |
+| **Steps only**, **Guided** | under the title, over both columns: with **Guided**, each section has a line under its name on what it does |
 
 ### Mode
 
 | Control | What it does |
 |---|---|
-| **Mode** | the row, with the mode in use at its end (**Mainnet**, **Practice**, …): opens the [Mode](mode.md#mode) sheet. On Mainnet, where no pill shows, it is the only way to the sheet |
+| **Mode** | a card of one row, with the mode in use and an arrow at its end (**Mainnet**, **Practice**, …): opens the [Mode](mode.md#mode) sheet. On Mainnet, where no pill shows, it is the only way to the sheet |
 
 ### Session
 
@@ -68,7 +73,7 @@ checked read this clock.
 | **Theme** | ten chips, each in its own colours: **Cobalt** (marked **Default**), **Bitcoin Orange**, **Lamplight**, **Mars**, **Forest**, **Frost**, **Dusk**, **Lavender**, **Rose**, **Monochrome**; the chosen one ringed and ticked |
 | **Mode** | **Light**, **Dark** |
 | **Contrast** | **Standard**, **Medium**, **High** |
-| **Text size** | **Standard**, **Large** |
+| **Text size** | **Standard**, **Large**, **Larger** |
 | **Reduce motion** | a switch: on, changes show at once, with no slide or fade |
 
 A choice changes the whole window at once.
@@ -111,17 +116,21 @@ certificate made, a GPG signature), on its own while the clock has not
 been checked since power-on. Back, **Set** and **Keep this time**
 return to where it was opened from, with the sheet that was open there.
 
-*Picture to come: `settings-set-time.png`, Set the time with the date and time typed.*
+![Set the time with the clock not known: Now Not known, Time zone UTC+00:00, No clock reading, the Date and Time fields empty, Set greyed](../pictures/settings-set-time.png)
+
+*The page **Set the time**, opened from **Settings**, with no clock reading:
+**Now** reads **Not known**, the **Date** and **Time** fields are
+empty, and **Set** is greyed beside **Back**.*
 
 | Control | What it does |
 |---|---|
-| the way back | at the top left, named after where the page was opened from |
-| **Now** | the local date and time, with seconds, or **Not known** |
-| **Time zone** | **-** and **+**, as in Settings |
+| the way back | at the top left, the arrow beside the title, named under it after where the page was opened from (**Settings**) |
+| **Now** | in a card at the top: the local date and time, with seconds, or **Not known** |
+| **Time zone** | in the same card: **-** and **+**, as in Settings |
 | **No clock reading**, **Counted from Set: no clock reading** | where the computer gives no clock reading: none at all, or a time set here counted on from **Set** |
 | **Date** | the field, `YYYY-MM-DD`, filled with today's date where the clock is known; from 2020-01-01 to 2099-12-31 |
 | **Time** | the field, `HH:MM`, 24-hour; typing goes here first. <kbd>Tab</kbd> moves between the two |
-| **Set** | once both are a real date and time: the time typed, at :00 seconds, becomes the time ("Time set to 14:05"). <kbd>Enter</kbd> does the same. The computer's own clock is not changed |
+| **Set** | greyed until both are a real date and time; then the time typed, at :00 seconds, becomes the time ("Time set to 14:05"). <kbd>Enter</kbd> does the same. The computer's own clock is not changed |
 | **Keep this time** | while the clock is known: marks it checked and sets nothing |
 | **Back** | goes back and marks nothing; <kbd>Escape</kbd> does the same |
 
@@ -169,7 +178,7 @@ variation in that picture**.
 Settings is a list of its sections, each a row: **Mode** opens its
 sheet, any other opens that section as its own page, whose way back is
 the list. Set the time puts **Now** and the time zone in a card at the
-top; Add randomness sets the sources two to a row.
+top, as on a wide window; Add randomness sets the sources two to a row.
 
 ## Why
 

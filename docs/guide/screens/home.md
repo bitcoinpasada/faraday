@@ -1,15 +1,16 @@
 # Home
 
-**Kind:** Spec
-**Status:** Written from the app's code and strings (`faraday/faraday-core/src/screens/home.rs`, `faraday/faraday-core/src/screens/sidebar.rs`, `faraday/faraday-core/src/nav/screen.rs`); not yet read beside the running app
-**Open:** the pictures, drawn once after the theming has landed
+**Kind:** Reference
+**Status:** Checked against the app's pictures in docs/guide/pictures/ (drawn by just guide-pictures) and its code and strings (`faraday/faraday-core/src/screens/home.rs`, `faraday/faraday-core/src/screens/sidebar.rs`, `faraday/faraday-core/src/nav/screen.rs`)
 **Screen:** `Home`, `NavMenu`
 **Group:** Home
 
 **Opened from:** the sidebar's **Home**; Faraday opens on it after the
 self-test, and again after every lock.
 
-*Picture to come: `home-new-stick.png`, Home on a new stick, nothing loaded, at 1280 × 800.*
+![Home on a new stick: the sidebar at the left, Start with four tiles, Scan at the bottom right](../pictures/home-new-stick.png)
+
+*Home on a new stick: **Start** with **Make a new wallet**, **Restore an existing wallet**, **Spend from a backup, step by step** and **Create a vault**, and **Files** and **Sticks** in the sidebar reading **none**.*
 
 ## On this screen
 
@@ -102,8 +103,6 @@ On such a window a page's top bar puts what has no room in its own
 | **Show keyboard**, **Hide keyboard** | shows or hides the on-screen keyboard |
 | **Show sheets**, **Hide sheets** | on Make codex32 shares: shows or hides the worksheets' contents |
 | **Close** | closes the menu |
-
-*Picture to come: `home-menu.png`, the ⋮ menu open on a tall narrow window.*
 
 ## On a narrow window
 

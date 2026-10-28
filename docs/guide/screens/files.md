@@ -1,8 +1,7 @@
 # Files
 
-**Kind:** Spec
-**Status:** Written from the app's code and strings (`faraday/faraday-core/src/screens/files.rs`, `faraday/faraday-core/src/file_menu.rs`, `faraday/faraday-core/src/screens/sheets.rs`, `faraday/faraday-core/src/secrets.rs`); not yet read beside the running app
-**Open:** the pictures, drawn once after the theming has landed
+**Kind:** Reference
+**Status:** Checked against the app's pictures in docs/guide/pictures/ (drawn by just guide-pictures) and its code and strings (`faraday/faraday-core/src/screens/files.rs`, `faraday/faraday-core/src/file_menu.rs`, `faraday/faraday-core/src/screens/sheets.rs`, `faraday/faraday-core/src/secrets.rs`)
 **Screen:** `Files`, `FileMenu`, `Rename`, `Details`, `Potential`, `SecretOut`
 **Group:** Files
 
@@ -15,18 +14,22 @@ Files is what Faraday holds in memory: **From the stick**, the files
 copied in, and **For the stick**, the files waiting to be written.
 Both are emptied at power-off.
 
-*Picture to come: `files-both.png`, Files with a PSBT from the stick and a vault for the stick.*
+![Files with a wallet's description and a PSBT from the stick, a signed PSBT and a finished transaction for the stick](../pictures/files-both.png)
+
+*Files: **From the stick** holds a wallet's description and a PSBT, with
+**Load the wallet** and **Sign**; **For the stick** holds a signed PSBT
+and a finished transaction, each **Ready**.*
 
 ## On this screen
 
 | Control | What it does |
 |---|---|
-| the stick chip | at the top right: "Waiting for a stick"; "Stick attached · lock to use it" while a secret is held, which locks; "Visit Boot stick", which opens the [stick visit](stick-visit.md) |
-| **In memory · emptied at power-off** | a label |
+| the stick chip | at the top right: "Waiting for a stick"; "Stick attached · lock to use it" while a secret is held, which locks; "Visit" and the stick's name ("Visit TRANSFER"), which opens the [stick visit](stick-visit.md) |
 | **Scan a QR code** | opens the camera ([Scan](qr-and-scan.md#scan)); what it reads lands in **From the stick** |
+| **In memory · emptied at power-off** | a label beside it |
 | "Remove the stick when you are done" | in the warning tone, after **Import and load**, while the stick is still in: the keys copied in load once it is out ("1 key copied in · remove the stick to load it") |
 | an open vault's panel | see [An open vault](#an-open-vault) |
-| what the files give | see [What the files give](#what-the-files-give) |
+| what the files give | a panel headed **From the stick**, above the two lists: see [What the files give](#what-the-files-give) |
 | **From the stick** | the files copied in, with their count; each row its name, what it is and its size, its button, and its **⋮** |
 | **For the stick** | the files waiting to be written, with their count, in three groups |
 | "Power off asks first while files wait for the stick" | at the foot, while **For the stick** holds a file |
@@ -49,6 +52,9 @@ Each row has one button for what its kind is for, and **⋮** for the rest.
 | shares of a wallet | "Restore the wallet · 3 shares" | opens Restore with them; "2 of 3 keys in hand" while some are missing |
 | a recovery sheet | **Make PDF** | Faraday Demo only: makes its PDF |
 
+Any other file has only its **⋮**. An xpub's way on is **Make it a
+watch-only wallet**, under **Xpubs with no wallet** in the panel above.
+
 **Empty · files are copied in on a stick visit** while there is none.
 
 ### Files for the stick
@@ -60,9 +66,15 @@ Each row has one button for what its kind is for, and **⋮** for the rest.
 | **Unprotected secrets** | **Anyone who has the stick can use these**, in the error tone | **Unprotected** |
 
 A file there has no button; its **⋮** holds the rest. **Empty** while
-there is none. After a stick visit wrote, the receipt follows: "Written
-to Boot stick at 14:02", then each file with **verified** or why it was
-not.
+there is none. After a stick visit wrote, the receipt follows under
+it, in the ok tone: "Written to KEYSTICK" (with "at 14:02" once the
+clock is set), then each file with **verified** or why it was not.
+
+![Files after a write: For the stick empty, and under it Written to KEYSTICK with two files verified](../pictures/files-and-sticks-receipt.png)
+
+*After a stick visit wrote: **For the stick** is **Empty**, and the
+receipt reads "Written to KEYSTICK", each file **verified**; the vault
+written stays in **From the stick**, locked, to **Unlock** again.*
 
 ## An open vault
 
@@ -80,7 +92,10 @@ Vault 1 · open").
 
 ## What the files give
 
-Shown while the files from the stick give something to load.
+A panel headed **From the stick**, above the two lists, shown while the
+files from the stick give something to load. Its parts are
+**Wallets**, **Keys with no wallet**, **Xpubs with no wallet** and
+**Not complete or sealed**, each shown where it has a row.
 
 | Control | What it does |
 |---|---|
@@ -95,7 +110,10 @@ Shown while the files from the stick give something to load.
 **Opened from:** a file row's **⋮**: a menu under it, a sheet on a
 small window.
 
-*Picture to come: `files-menu.png`, a file's ⋮ menu open on For the stick.*
+![The ⋮ menu of payment-signed.psbt on For the stick: Show as QR, Rename, Details, Remove](../pictures/files-menu.png)
+
+*A file's **⋮** on **For the stick**: the file's name over **Show as
+QR**, **Rename**, **Details** and **Remove**.*
 
 | Row | Choices |
 |---|---|
@@ -135,7 +153,11 @@ Its title is **Rename …** and the file's name.
 from 3dca6805", "A watch-only wallet from 3dca6805", or **A watch-only
 wallet from an xpub**.
 
-*Picture to come: `files-make-it-a-wallet.png`, A wallet from 3dca6805 with its kinds.*
+![A wallet from 3dca6805: the passphrase field, the fingerprint, and the four single-key kinds with native SegWit chosen](../pictures/files-make-it-a-wallet.png)
+
+*"A wallet from 3dca6805", from new-key-1-words.txt: **BIP-39
+passphrase · none if left empty**, the **Fingerprint**, **Single-key
+wallet** with native SegWit chosen, and **Make the wallet**.*
 
 | Control | What it does |
 |---|---|
@@ -155,18 +177,22 @@ GPG revocation, and a secret file ticked on a stick visit to be copied
 to another stick. Its title is **This is a secret**, or **This may be a
 secret** for text Faraday cannot tell about.
 
-*Picture to come: `files-this-is-a-secret.png`, This is a secret for a seed file, with Save into Vault 1.*
+![This is a secret for a child seed's words file, with Save into vault.ofv and Put it for the stick unprotected](../pictures/files-this-is-a-secret.png)
+
+*The sheet **This is a secret** for bip85-3dca6805-words-0.txt, a child seed's
+words: **Sealed in a vault** over "Save into vault.ofv", then
+"Unprotected, for the stick" over "Put it for the stick unprotected".*
 
 | Control | What it does |
 |---|---|
 | **File**, **What it is**, **Who can use it** | the file's name, what it holds, and who can use it |
 | **Sealed in a vault** | in the ok tone, where the secret can go into a vault |
-| "Save into Vault 1" | puts the secret into the open vault, sealed. "In Vault 1" in its place where the vault holds it already |
+| "Save into vault.ofv" | puts the secret into the open vault, sealed; the button names the open vault by its file. "In vault.ofv" in its place where the vault holds it already |
 | "Make a vault", "Unlock vault.ofv", **Unlock a vault** | with no vault open: opens [Create a vault](create-vault.md) or [Unlock](vaults.md#unlock); the sheet opens again after |
 | "Unprotected, for the stick" | in the error tone: what the other way is; "Unprotected, on the stick" for a file a stick visit copies |
 | the forms | where the secret has more than one form (a seed's **Words** or **SeedQR**), a button each |
-| "Put it for the stick unprotected" | opens [Save without encryption?](#save-without-encryption) |
-| **Cancel** | closes the sheet; the secret goes nowhere |
+| "Put it for the stick unprotected" | at the foot: opens [Save without encryption?](#save-without-encryption) |
+| **Cancel** | beside it: closes the sheet; the secret goes nowhere |
 
 ### Save without encryption?
 

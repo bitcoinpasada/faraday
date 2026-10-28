@@ -1,8 +1,7 @@
 # Sign a transaction
 
-**Kind:** Spec
-**Status:** Written from the app's code and strings (`faraday/faraday-core/src/screens/spend.rs`, `faraday/faraday-core/src/review.rs`, `faraday/faraday-core/src/wallet.rs`); not yet read beside the running app
-**Open:** the pictures, drawn once after the theming has landed
+**Kind:** Reference
+**Status:** Checked against the app's pictures in docs/guide/pictures/ (drawn by just guide-pictures) and its code and strings (`faraday/faraday-core/src/screens/spend.rs`, `faraday/faraday-core/src/review.rs`, `faraday/faraday-core/src/wallet.rs`)
 **Screen:** `Spend`
 **Group:** Wallets
 
@@ -10,18 +9,23 @@
 **Tools → Sign a transaction** (the PSBT in Files, or the camera); a
 PSBT read by the camera; Home's "Continue signing payment.psbt" lead
 while a spend is under way; and the lead bar over Wallets' list
-(**Signing**, **Continue**). Its way back is **Wallets**.
+(**Signing**, **Continue**). Its way back, at the top left, is named
+after the card before the one open, else the screen it was opened from.
 
 Sign a transaction is a PSBT's review and signing, one card per step,
 each closed to one line once it is done. The Spend tab's spend ([Spend
 from a wallet](spend-tab.md#spend-from-a-wallet)) runs the same cards
 under its own titles.
 
-*Picture to come: `sign-transaction.png`, Sign a transaction with Transaction open and the panel beside it.*
+![Sign a transaction with Transaction open, a fee warning and Hold to pay this fee, and the panel This transaction beside it](../pictures/6-8-fee.png)
+
+*Sign a transaction on a 2-of-3 wallet's PSBT whose fee is 80% of what it sends: **Transaction** open with the fee's warnings and **Hold to pay this fee**, and the panel **This transaction** at the right, its signatures "0 of 2" over "Sign with 3dca6805, 5d388376".*
 
 ## The cards
 
-Which cards a spend has depends on the wallet it spends from:
+**Steps only** and **Guided**, over the cards, turn the short text on
+the open card off or on. Which cards a spend has depends on the wallet
+it spends from:
 
 | Card | Shown for |
 |---|---|
@@ -54,7 +58,7 @@ For a wallet with more than one way to spend. Closed, "2 ways to spend".
 | Control | What it does |
 |---|---|
 | "Path 1" | each way: its keys ("key 1 3dca6805"), each marked where it is here |
-| **No wait**, "Waits 52560" | the wait the path needs |
+| **No wait**, "Waits 52560 blocks after the coins arrived (about 365 days)" | the wait the path needs |
 | **This transaction's sequence allows this path** | in the ok tone; **This transaction's sequence does not allow this path** where it does not |
 
 ### Transaction
@@ -165,9 +169,13 @@ in the warning tone.
 ## The panel
 
 At 1280 × 800 a panel beside the cards, **This transaction**, keeps
-the spend in view: **Verified**, **Wallet** (**Not loaded** where none
-matches), **Sends**, **To**, **Fee**, **Change** (**None**), **Txid** and
-**Signatures** ("1 of 2", a dot per signature).
+the spend in view, a row each: **Wallet** (**Not loaded** where none
+matches), **Sends**, **To**, **Fee**, **Change** (**Verified**, or
+**None**) and **Txid**; a press on a row opens its card. At its foot,
+**Signatures** ("0 of 2", a dot per signature) over what is missing
+("Sign here and collect 1 more", **Complete**), and under it the next
+press ("Sign with 3dca6805, 5d388376", **Finish**, **Open Files**,
+"Insert a stick to write it").
 
 ## States
 
@@ -182,10 +190,8 @@ is signed ([Cancel a flow](prompts.md#cancel-a-flow)).
 
 ## On a narrow window
 
-The cards fill the window; a bar at the foot shows "1 of 2", what is
-missing ("Sign here and collect 1 more", **Complete**), and the next
-press ("Sign with 3dca6805", **Finish**, **Open Files**, "Insert a stick
-to write it").
+The cards fill the window; the panel's foot becomes a bar at the foot
+of the window: "1 of 2", what is missing, and the next press.
 
 ## Why
 

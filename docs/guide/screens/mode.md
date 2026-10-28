@@ -1,8 +1,7 @@
 # Mode and Load samples
 
-**Kind:** Spec
-**Status:** Written from the app's code and strings (`faraday/faraday-core/src/modes/screen.rs`, `faraday/faraday-core/src/samples/screen.rs`); not yet read beside the running app
-**Open:** the pictures, drawn once after the theming has landed
+**Kind:** Reference
+**Status:** Checked against the app's pictures in docs/guide/pictures/ (drawn by just guide-pictures) and its code and strings (`faraday/faraday-core/src/modes/screen.rs`, `faraday/faraday-core/src/samples/screen.rs`)
 **Screen:** `Mode`, `Samples`
 **Group:** Home
 
@@ -12,7 +11,9 @@
 but Mainnet (**Practice · Testnet** in Practice, **Practice** alone on
 a narrow window, otherwise the mode's name), and **Settings → Mode**.
 
-*Picture to come: `mode-mode.png`, the Mode sheet in Faraday Demo with Practice ticked.*
+![The Mode sheet in Faraday Demo: Practice (Testnet) ticked, then Testnet, Signet, Regtest and Not now](../pictures/mode-mode.png)
+
+*The Mode sheet in Faraday Demo: **Practice** (**Testnet**) ticked, **Testnet**, **Signet**, **Regtest**, and **Not now**; there is no **Mainnet** in the Demo.*
 
 | Control | What it does |
 |---|---|
@@ -32,7 +33,9 @@ stick, keys and wallets are emptied. When that would lose something,
 **Opened from:** **Samples** in Faraday Demo's strip, in Practice. In
 Faraday Demo the sheet opens above the strip.
 
-*Picture to come: `mode-samples.png`, Load samples with every sample ticked.*
+![Load samples with the passphrase faraday, Unselect all, and the sample wallets each ticked](../pictures/mode-samples.png)
+
+*The sheet **Load samples** with every sample ticked: the passphrase `faraday`, **Unselect all**, the **Wallets** (Savings, Spending, Taproot and the rest), **Not now** and **Load ticked**.*
 
 | Control | What it does |
 |---|---|

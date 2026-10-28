@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Written from the app's code and strings (`faraday/faraday-core/src/tools/screen.rs`, `faraday/faraday-core/src/tools/mod.rs`, `faraday/faraday-core/src/catalog.rs`); not yet read beside the running app
-**Open:** the pictures, drawn once after the theming has landed
+**Open:** the picture: `calculators.png` is drawn as an empty page, the screens tour opening Tools with no calculator chosen
 **Screen:** `Tools`
 **Group:** Tools
 
@@ -22,7 +22,7 @@ keeps nothing; none of them touches a key.
 | Control | What it does |
 |---|---|
 | the way back | at the top left, named after where the page was opened from (**Tools**); <kbd>Escape</kbd> does the same and empties the field |
-| "Calculators: each takes what you type, works one thing out and keeps nothing. …" | under the title, with a link to Learn's **Tools** |
+| "Calculators: each takes what you type, works one thing out and keeps nothing. …" | under the title with **Guided** on, with a link to Learn's **Tools** |
 | **Hashes**, **Encodings**, **Descriptor checksum**, **Convert an xpub**, **Units**, **Miniscript compiler** | a button per calculator; the one on show filled |
 | the mode row | for **Hashes**, **Units** and **Miniscript compiler** only: how what is typed is read |
 | the field | what is typed goes into it; its hint names what it takes |

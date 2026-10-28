@@ -1,8 +1,7 @@
 # Faraday Starter: Make
 
-**Kind:** Spec
-**Status:** Written from the app's code and strings (`faraday/faraday-starter/src/draw/home.rs`, `faraday/faraday-starter/src/draw.rs`, `faraday/faraday-starter/src/draw/boot_file.rs`, `faraday/faraday-starter/src/lib.rs`); not yet read beside the running app
-**Open:** the pictures, drawn once after the theming has landed
+**Kind:** Reference
+**Status:** Checked against the app's pictures in docs/guide/pictures/ (drawn by just guide-pictures) and its code and strings (`faraday/faraday-starter/src/draw/home.rs`, `faraday/faraday-starter/src/draw.rs`, `faraday/faraday-starter/src/draw/boot_file.rs`, `faraday/faraday-starter/src/lib.rs`)
 **Starter page:** `Make`, `Which`, `Disks`, `Mode`, `Confirm`, `Writing`, `Done`
 **Group:** Starter
 
@@ -16,14 +15,19 @@ Starter carries two stick images), **Which stick?** or **Which card?**,
 **What to write?**, **Confirm**, **Writing**, then **Written** or **Not
 written**. The walkthrough is [Get Faraday on a stick](../walk/get-faraday.md).
 
+The disks, versions and sums in the pictures are made up for them:
+the Starter that drew them is 0.1.8 and carries test images of 0.2.0.
+
 ## Make
 
-*Picture to come: `starter-make.png`, Make with its two cards.*
+![Make: the Faraday stick card with Make a Faraday stick, and the Pi card with Make a Pi card](../pictures/starter-make.png)
+
+*Make with no stick attached: **Faraday stick** reads **No Faraday stick attached** over **Make a Faraday stick**; **Pi card** reads "Version 0.2.0" over **Make a Pi card**.*
 
 | Card | Line | Button |
 |---|---|---|
 | **Faraday stick** | **No Faraday stick attached**, or "Faraday stick attached · 0.1.8" | **Make a Faraday stick**: the primary button until a Faraday stick is attached. Opens [For which computer?](#for-which-computer) or [Which stick?](#which-stick-or-which-card) |
-| **Pi card** | "Version 0.1.8", the Pi image's, or **Not in this Starter** | **Make a Pi card**: opens [Which card?](#which-stick-or-which-card). Grey when this Starter carries no Pi image |
+| **Pi card** | "Version 0.2.0", the Pi image's, or **Not in this Starter** | **Make a Pi card**: opens [Which card?](#which-stick-or-which-card). Grey when this Starter carries no Pi image |
 
 ## Make a Faraday stick
 
@@ -42,7 +46,9 @@ Shown only once the Starter carries both stick images.
 
 ### Which stick? or Which card?
 
-*Picture to come: `starter-make-which-stick.png`, Which stick? with two sticks listed.*
+![Which stick? listing two USB Flash Drives, 32 GB empty and 64 GB with PHOTOS](../pictures/starter-make-which-stick.png)
+
+*Which stick? with two sticks: a 32 GB "USB Flash Drive" that is **Empty**, and a 64 GB one reading "PHOTOS, files on it".*
 
 **Which stick?** for a stick, **Which card?** for a Pi card. Every disk
 attached is a row, Faraday sticks first, then the others by size,
@@ -61,6 +67,10 @@ pulled out. No disk is ever chosen for you.
 | **For a Raspberry Pi 3B, 3B+ or Zero 2 W with the Waveshare 2.8 inch screen** | on Which card?, the Pi and screen the card is for |
 | **Cameras: a USB webcam, or Camera Module v1 or v2** | on Which card?, the cameras Faraday reads on the Pi |
 
+![Which card? with the Pi and cameras lines over an SD card reader holding boot and rootfs](../pictures/starter-tools-pi-card.png)
+
+*Which card?: **For a Raspberry Pi 3B, 3B+ or Zero 2 W with the Waveshare 2.8 inch screen**, **Cameras: a USB webcam, or Camera Module v1 or v2**, and the computer's "SD card reader" with "boot, rootfs, files on them".*
+
 | State | What the page shows |
 |---|---|
 | no disk attached | **No USB stick attached · 256 MB or larger**; on Which card?, **No SD card or USB stick attached · 256 MB or larger** |
@@ -69,17 +79,19 @@ pulled out. No disk is ever chosen for you.
 
 ### What to write?
 
-*Picture to come: `starter-make-what-to-write.png`, What to write? for an empty stick.*
+![What to write? for an empty 32 GB stick: New Faraday stick ticked, the Boot file choices, and Continue](../pictures/starter-make-what-to-write.png)
 
-The chosen disk and its size are the first line ("SanDisk Ultra ·
+*What to write? for an empty stick: **New Faraday stick** ticked (**Everything on it is lost**), **Boot file** on **The release's (unsigned)**, and **Continue**.*
+
+The chosen disk and its size are the first line ("USB Flash Drive ·
 32 GB"). A ring is filled on the choice ticked.
 
 | Control | What it does |
 |---|---|
 | **New Faraday stick** (**Everything on it is lost**) | the whole stick is written. **New Faraday card** on a Pi card. On a disk that is not a Faraday stick it is the only choice, and starts ticked |
-| **Replace Faraday, keep data** (**Only the boot partition is written**) | shown only on a Faraday stick: the boot partition is written; the data partition, with its vaults and settings, is not read and not written |
+| **Replace Faraday, keep data** (**Only the boot partition is written**) | shown only on a Faraday stick, under New Faraday stick: the boot partition is written; the data partition, with its vaults and settings, is not read and not written |
 | **This computer can read and change the data partition while the stick is attached.** | under Replace Faraday, keep data |
-| **Replacing Faraday on a stick** | under it: opens that Learn page |
+| **Replacing Faraday on a stick** | under it, a row: opens that Learn page |
 | **Already this build** | in place of the second line, in the warning tone: the stick holds this build already, and keep data cannot be ticked |
 | **The image is a boot partition alone** | in place of New Faraday stick's second line, in the warning tone, and it cannot be ticked: a developer's image that holds only a boot partition, written only over a Faraday stick, keeping its data |
 | **Reading the stick's version** | on Windows, after keep data is ticked on a stick whose version was not read: Windows asks once for administrator permission, and Continue waits for the answer |
@@ -90,6 +102,10 @@ the buttons.
 
 #### Boot file
 
+![What to write? for a Faraday stick: Replace Faraday, keep data ticked, and One I signed with the signed file taken](../pictures/secure-boot-keys-boot-file.png)
+
+*What to write? on a Faraday stick with **Replace Faraday, keep data** ticked and **One I signed** chosen: **Certificate name**, **Certificate SHA-256: compare it with your db key's**, **File**, and the folder's `.efi` files under it.*
+
 For a stick for a PC or an Intel Mac, under the choices:
 
 | Control | What it does |
@@ -97,12 +113,13 @@ For a stick for a PC or an Intel Mac, under the choices:
 | **Boot file** | the section's label |
 | **The release's (unsigned)** | ticked at first: the release's own boot file |
 | **One I signed** | a boot file signed with your own db key, taken from the `.efi` files in Downloads. Continue waits until one is taken |
+| **Certificate name**, **Certificate SHA-256: compare it with your db key's**, **File** | once a file is taken, over the folder's list: see below |
 | **BOOTX64.EFI signed with your db key** | under it until a file is taken |
-| "In …" | the folder searched, over its `.efi` files, a row each: a press checks the file against this release |
+| "In …" | the folder searched, over its `.efi` files, a row each, the newest first: a press checks the file against this release. A file ending `.efi`, `.EFI` or any other case is listed; folders are not entered |
 | **Checking against this release** | on the row being checked |
 | "No .efi file in …" | when the folder holds none |
 | **Certificate name** | the taken file's signer, as its certificate names it (**None** when it names none) |
-| **Certificate SHA-256: compare it with your db key's** | the signing certificate's SHA-256 |
+| **Certificate SHA-256: compare it with your db key's** | the SHA-256 of the signing certificate, in groups: the same sum `sha256sum db.cer` gives for your db key's certificate |
 | **File** | the taken file's name |
 | "BOOTX64.EFI: This boot file is not signed" | in the error tone, a refused file and why: **This is not this release's boot file**, **This boot file is not signed**, **This boot file has no signature that holds**, **This boot file holds more than the release's program and one signature** |
 
@@ -110,7 +127,9 @@ The walkthrough is [Your own Secure Boot keys](../walk/secure-boot-keys.md).
 
 ### Confirm
 
-*Picture to come: `starter-make-confirm.png`, Confirm, before the stick is written.*
+![Confirm for a 32 GB USB Flash Drive: its facts, what is written, the image's SHA-256 and Erase and write](../pictures/starter-make-confirm.png)
+
+*Confirm before a new stick is written: **Stick**, **Size**, **Device**, **Serial**, **On it**, **Writes**, **Boot file**, **Build**, **SHA-256 of the image**, then **Erase and write**.*
 
 | Control | What it does |
 |---|---|
@@ -139,22 +158,28 @@ The walkthrough is [Your own Secure Boot keys](../walk/secure-boot-keys.md).
 
 ### Writing
 
-*Picture to come: `starter-make-writing.png`, Writing, part way.*
+![Writing: the stick's name and size, the bar a third of the way, and the amount written](../pictures/starter-make-writing.png)
+
+*Writing, a third of the way: "Written 67 MB of 202 MB" under the bar, with no way back.*
 
 No way back while the disk is written.
 
 | Control | What it does |
 |---|---|
-| "SanDisk Ultra · 32 GB" | the disk being written |
+| "USB Flash Drive · 32 GB" | the disk being written |
 | the bar | how much of the image is written, then read back |
-| "Written 1.2 GB of 2.0 GB" | while writing |
-| "Reading back · 1.2 GB of 2.0 GB" | while the written disk is read back and compared |
+| "Written 67 MB of 202 MB" | while writing |
+| "Reading back · 67 MB of 202 MB" | while the written disk is read back and compared |
 
 ### Written or Not written
 
+![Written: the tick, keep the stick in, the boot menu name, and Start this computer from the stick beside Done](../pictures/1-6-written.png)
+
+*Written: **Keep the stick in to start this computer from it. To start another computer, pull it out.**, **In the boot menu** "something like UEFI: USB Flash Drive, Partition 1", then **Start this computer from the stick** and **Done**.*
+
 | Result | What the page shows |
 |---|---|
-| **Written** | the tick in the ok tone. **Keep the stick in to start this computer from it. To start another computer, pull it out.** (a Pi card: **The card can be pulled out.**). For a stick, **In the boot menu**, "something like UEFI: SanDisk Ultra, Partition 1": roughly the name this computer's boot menu gives the stick, when the stick reports its maker or model. **Start this computer from the stick** (primary; on an Intel Mac **Start this Mac from the stick**) opens [Start this computer from the stick](starter-learn-and-boot.md#start-this-computer-from-the-stick); **Done** goes to Home. A Pi card has **Done** alone |
+| **Written** | the tick in the ok tone. **Keep the stick in to start this computer from it. To start another computer, pull it out.** (a Pi card: **The card can be pulled out.**). For a stick, **In the boot menu**, "something like UEFI: USB Flash Drive, Partition 1": roughly the name this computer's boot menu gives the stick, when the stick reports its maker or model. **Start this computer from the stick** (primary; on an Intel Mac **Start this Mac from the stick**) opens [Start this computer from the stick](starter-learn-and-boot.md#start-this-computer-from-the-stick); **Done** goes to Home. A Pi card has **Done** alone |
 | **Not written** | the cross in the error tone, and the reason in the error tone ([what each says](../walk/get-faraday.md#16-writing-then-written)). **Try again** goes back to the disk list; **Done** goes to Home |
 
 The boot menu name follows this computer's maker: "UEFI: …, Partition

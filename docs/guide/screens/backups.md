@@ -1,8 +1,7 @@
 # Backups and the chart
 
-**Kind:** Spec
-**Status:** Written from the app's code and strings (`faraday/faraday-core/src/backups/screen.rs`, `faraday/faraday-core/src/backups/mod.rs`, `faraday/faraday-core/src/glance/sheet.rs`, `faraday/faraday-core/src/chart_edit.rs`); not yet read beside the running app
-**Open:** the pictures, drawn once after the theming has landed
+**Kind:** Reference
+**Status:** Checked against the app's pictures in docs/guide/pictures/ (drawn by just guide-pictures) and its code and strings (`faraday/faraday-core/src/backups/screen.rs`, `faraday/faraday-core/src/backups/mod.rs`, `faraday/faraday-core/src/glance/sheet.rs`, `faraday/faraday-core/src/chart_edit.rs`)
 **Screen:** `Backups`, `Chart`
 **Group:** Wallets
 
@@ -16,7 +15,9 @@ here, and what can be done with it.
 backed up"), shown once a wallet is known; the backup line on a
 [wallet's card](wallets.md#the-card).
 
-*Picture to come: `backups-list.png`, Backups with New wallet 1 chosen and its places beside the list.*
+![Backups with New wallet 1 chosen: its card reads No backup plan, with Back up](../pictures/backups-list.png)
+
+*Backups with one wallet, made here and not backed up yet: its card reads **No backup plan**, with **Back up** at its top right.*
 
 At 1280 × 800 the page is the wallets on the left and the one chosen on
 the right. A wallet is listed once, whether it is loaded, in an open
@@ -26,7 +27,7 @@ vault, or remembered from a vault now locked.
 |---|---|
 | a wallet's row | its name and shape; a press shows it |
 | the wallet's name and shape | at the top of its card |
-| **Back up** | opens [Back up a wallet](back-up-wallet.md) on it; **Continue the backup** for one left part way. Shown for a loaded wallet |
+| **Back up** | at the card's top right: opens [Back up a wallet](back-up-wallet.md) on it; **Continue the backup** for one left part way. Shown for a loaded wallet |
 | **No backup plan** | in the warning tone, where no plan is known for the wallet |
 | a place's row | where ("Place 1", **Vault**, "Stick of files", **Watch-only software**, **Own devices**), what it holds, its tag (**secret**, **sealed**, **public**), and what was seen of it |
 
@@ -44,8 +45,9 @@ What was seen of a place:
 | "Plan" with "In vault.ofv · locked" | a wallet a locked vault holds a plan for |
 
 The wallet card's backup line reads from the same: "Backup: paper ×2
-checked · vault.ofv · unchanged", **Not backed up**, or "Backup:
-planned".
+checked · vault.ofv · unchanged" (every paper copy checked), "Backup:
+paper 0 of 1 checked" (some not yet), **Not backed up**, or "Backup:
+planned" where the plan has no paper, vault or files yet.
 
 ### States
 
@@ -64,11 +66,15 @@ a [wallet's card](wallets.md#the-card), at the end of a backup
 
 **Opened from:** a press on a node of the chart (the wallet, a key, a
 place, a vault, the files, the software) or on a line inside one. At
-1280 × 800 the sheet stands at the side of the page; on a narrow window
-over it. **Close** (**Back** on a narrow window) closes it. Opening it
+1280 × 800 the sheet stands at the right of the page, **Close** at its
+top right; the wallet's card stays beside it whole, and on Wallets the
+list gives way while the room left cannot hold both. On a narrow window
+the sheet covers the page, and **Back** closes it. Opening it
 changes nothing; each action leads into the flow that does it.
 
-*Picture to come: `backups-chart.png`, the chart's sheet for Place 1 beside the wallet's card.*
+![Wallets with New wallet 1's card at the left and the chart's sheet for Place 1 at the right](../pictures/backups-chart.png)
+
+*Place 1 of a single-key wallet's plan, pressed on its chart: **Found alone** "Can spend", **Seen here** **Not checked**, **Last checked here** **Not yet**, **In it** "Key 1 words" and "Wallet sheet", then the place's rows; with no vault open, those that keep something read **Open a vault to keep this**.*
 
 Names, dates and marks are kept in the open vault. With none open, a
 row that keeps one reads **Open a vault to keep this** and leads to one.
@@ -107,12 +113,12 @@ checked**, and **Its seed is at** the places that keep it.
 ### A place, a vault, the files, the software
 
 The node's name; **Stick**, **Found alone** (what someone who finds it
-gets), **Seen here** and **Last checked** (**Not yet**). **In it** lists
+gets), **Seen here** and **Last checked here** (**Not yet**). **In it** lists
 each thing kept there; a press on one opens [a line](#a-line).
 
 | Node | Rows |
 |---|---|
-| a place | **Rename**; **Mark checked**; **What goes in its envelope**; **The envelope list** (**PDF, for the stick**); **Add here**; **Mark lost**, **Mark exposed**; **Remove the place**, with more than one place |
+| a place | **Rename**; **Mark checked**; **What goes in its envelope**; **The envelope list** (**PDF, for the stick**); **Add here**; **Mark lost**, **Mark exposed**; **Remove the place**, last, only while the plan has more than one place |
 | a vault | the way to open it; **Rename**; **Save its seeds into it**; **Copy to another stick**; **Save more into it**: "Key 1 seed", **The description** |
 | the files | **Write the seed files again**, **Write the public files again**, **Remove from the plan** (**Destroy its copies by hand**) |
 | the software | **Show the descriptor QR again**, **Public files for this software** |
@@ -120,7 +126,7 @@ each thing kept there; a press on one opens [a line](#a-line).
 ### A line
 
 One thing kept at one place: **Kept at**, **Seen here**, **Last
-checked**, and **Marked** (**Lost**, **Exposed**, **Drawn in part**).
+checked here**, and **Marked** (**Lost**, **Exposed**, **Drawn in part**).
 
 | Thing | Rows |
 |---|---|

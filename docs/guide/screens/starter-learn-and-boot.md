@@ -1,8 +1,7 @@
 # Faraday Starter: Start from the stick, and Learn
 
-**Kind:** Spec
-**Status:** Written from the app's code and strings (`faraday/faraday-starter/src/draw.rs`, `faraday/faraday-starter/src/notes.rs`, `faraday/faraday-starter/src/decide.rs`, `faraday/faraday-starter/src/lib.rs`); not yet read beside the running app
-**Open:** the pictures, drawn once after the theming has landed
+**Kind:** Reference
+**Status:** Checked against the app's pictures in docs/guide/pictures/ (drawn by just guide-pictures) and its code and strings (`faraday/faraday-starter/src/draw.rs`, `faraday/faraday-starter/src/notes.rs`, `faraday/faraday-starter/src/decide.rs`, `faraday/faraday-starter/src/lib.rs`)
 **Starter page:** `Start`
 **Starter sheet:** `Restart`
 **Group:** Starter
@@ -19,7 +18,9 @@ the stick** on [Written](starter-make.md#written-or-not-written). Its
 way back is the destination it was opened from. On an Intel Mac it is
 **Start this Mac from the stick** ([below](#on-an-intel-mac)).
 
-*Picture to come: `starter-start.png`, Start this computer from the stick for a known maker, Secure Boot on.*
+![Start this computer from the stick on a Dell with Secure Boot on: the maker's guide row, Write down, Print and the four steps](../pictures/starter-start.png)
+
+*Start this computer from the stick on a Dell running Windows, Secure Boot on: the row **Starting a Dell computer from the stick**, **What Secure Boot and BitLocker are**, **Write down** (F12, F2, Boot Configuration → Secure Boot), **Print**, and the four steps, then **On a phone**.*
 
 The steps shown follow this computer's state, from the top:
 
@@ -29,7 +30,7 @@ The steps shown follow this computer's state, from the top:
 | **This computer cannot start a Faraday stick** | on an ARM computer: the only line on the page |
 | **Started in legacy BIOS mode: UEFI has to be on** | in the warning band, on a computer started in legacy BIOS mode |
 | the lines of what can record | as on [Home](starter-home.md#what-can-record-the-screen-or-the-keys), with **Continue anyway**, **Check again** and **Screens and devices that can record** |
-| this computer's guide | a row titled by its Learn page: its maker's ("Starting an HP computer from the stick"), or **Starting a Windows computer from the stick** or **Starting a Linux computer from the stick**. A press opens it |
+| this computer's guide | a row titled by its Learn page: its maker's, when its maker has a page ("Starting a Dell computer from the stick"); for any other maker, **Starting a Windows computer from the stick** or **Starting a Linux computer from the stick**, as the system running. A press opens it |
 | **What Secure Boot and BitLocker are** | opens that Learn page |
 | "An encrypted drive Faraday does not manage: …" and **I have its rescue disk or password** | on Windows, while another encryption product is not yet confirmed; the restart buttons are grey until it is pressed |
 
@@ -114,7 +115,9 @@ with the T2 chip**. A Mac known to have no T2 chip has only the
 into the BIOS** and **Restart to choose a device**. The sheet asks once
 before the computer restarts.
 
-*Picture to come: `starter-restart.png`, the Restart into the BIOS sheet with its QR code.*
+![The Restart into the BIOS sheet: its warning, Keep the stick in, the QR code and its address, Cancel and Restart](../pictures/starter-restart.png)
+
+*The **Restart into the BIOS** sheet on Windows: **This restarts the computer now. Save your work first.**, **Keep the stick in.**, the QR code of `https://faradayoffline.app/start/windows`, then **Cancel** and **Restart**.*
 
 | Control | What it does |
 |---|---|
@@ -125,7 +128,7 @@ before the computer restarts.
 | **About the boot entry** | Restart from the stick, on Linux: opens the Learn page on the firmware's Faraday stick entry |
 | the QR code | this computer's guide on the website, with its address under it |
 | **Cancel** | closes the sheet |
-| **Restart** | restarts now. Restart into the BIOS restarts into the firmware's settings. Restart from the stick: on Linux the system asks for the password, then the computer starts from the attached stick once; on Windows, Windows' Choose an option follows |
+| **Restart** | restarts now. Restart into the BIOS restarts into the firmware's settings. Restart from the stick: on Linux the system asks for the password (the boot entry is made through `pkexec`), then the computer starts from the attached stick once; on Windows, Windows' Choose an option follows |
 
 When the restart from the stick cannot be set up on Linux, Home's card
 says why and offers **Restart into the BIOS** instead.
@@ -138,11 +141,15 @@ the Starter (a guide's row, **What Secure Boot and BitLocker are**,
 **Replacing Faraday on a stick**) opens its one page as a page inside
 a task, with the way back to where it was opened.
 
-*Picture to come: `starter-learn.png`, the Learn destination with the rail.*
+![The Learn destination: the rail, a row of page tabs, and Starting a Windows computer from the stick open under them](../pictures/starter-learn.png)
 
-Learn is Faraday's own Learn, drawn as the page under the Starter's top
-app bar, with the rail beside it. It holds the Starter's pages, in this
-order:
+*Learn on a Windows computer whose maker has no page: the tabs **Starting a Windows computer from the stick**, **Starting a Linux computer from the stick**, **When the stick does not start** and the rest, the first open under them.*
+
+Learn is Faraday's own Learn, drawn under the Starter's top app bar,
+which reads **Learn**, with the rail beside it. Its pages are tabs in a
+row across the top, the one open underlined, and the page under them;
+the row scrolls sideways to the tabs past the window's edge. It opens
+on the first tab. The tabs, in this order:
 
 - this computer's maker's page, when its maker has one (on an HP,
   [Starting an HP computer from the stick](../../learn/faraday/boot/maker-hp.md));

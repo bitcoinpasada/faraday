@@ -1,8 +1,7 @@
 # Learn
 
-**Kind:** Spec
-**Status:** Written from the app's code and strings (`faraday/faraday-core/src/learn.rs`, `faraday/faraday-core/src/screens/sheets.rs`, `faraday/faraday-core/src/screens/learn_pane.rs`, `faraday/faraday-core/src/flow.rs`); not yet read beside the running app
-**Open:** the pictures, drawn once after the theming has landed
+**Kind:** Reference
+**Status:** Checked against the app's pictures in docs/guide/pictures/ (drawn by just guide-pictures) and its code and strings (`faraday/faraday-core/src/learn.rs`, `faraday/faraday-core/src/screens/sheets.rs`, `faraday/faraday-core/src/screens/learn_pane.rs`, `faraday/faraday-core/src/flow.rs`)
 **Screen:** `Learn`
 **Group:** Learn
 
@@ -14,14 +13,18 @@ The pages that explain the screen on show, one tab each. Learn says
 why; the screens say what. Its text is the same as the Learn pages in
 the repository (`docs/learn/`).
 
-*Picture to come: `learn.png`, Learn over New key, on Randomness.*
+![Learn over New key on its Randomness tab, with Seed words beside it, Spending, step by step and Done](../pictures/learn.png)
+
+*Learn over New key: **Spending, step by step** at the top left,
+**Done** at the top right, the tabs Randomness and Seed words, and the
+Randomness page.*
 
 ## On this screen
 
 | Control | What it does |
 |---|---|
 | **Spending, step by step** | the first tab, on every screen but the Spend tab itself: closes Learn and opens the [Spend](spend-tab.md) tab |
-| a page's tab | one per page the screen gives, by the page's title; the one on show filled. A Guided card's link opens on its page's tab, or on that page alone where the screen does not give it |
+| a page's tab | one per page the screen gives, by the page's title, under **Spending, step by step**; the one on show underlined. A Guided card's link opens on its page's tab, or on that page alone where the screen does not give it |
 | the page | its title, then its sections; the wheel and the arrow keys scroll it |
 | a step's circle | on a page of numbered steps: ticks the step, or clears its tick. The ticks last until the session ends |
 | **Done** | at the top right: closes the sheet; <kbd>Escape</kbd> does the same |

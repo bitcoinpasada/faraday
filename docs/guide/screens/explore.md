@@ -1,8 +1,7 @@
 # Explore
 
-**Kind:** Spec
-**Status:** Written from the app's code and strings (`faraday/faraday-core/src/explore/screen.rs`, `faraday/faraday-core/src/explore/pages.rs`, `faraday/faraday-core/src/explore/mod.rs`, `faraday/faraday-core/src/explore/addresses.rs`); not yet read beside the running app
-**Open:** the pictures, drawn once after the theming has landed
+**Kind:** Reference
+**Status:** Checked against the app's pictures in docs/guide/pictures/ (drawn by just guide-pictures) and its code and strings (`faraday/faraday-core/src/explore/screen.rs`, `faraday/faraday-core/src/explore/pages.rs`, `faraday/faraday-core/src/explore/mod.rs`, `faraday/faraday-core/src/explore/addresses.rs`)
 **Screen:** `Explore`
 **Group:** Tools
 
@@ -17,20 +16,22 @@ for the same path. The key's secret and its private keys show only
 behind their eyes. It opens on the first key loaded (or the key
 pressed) at BIP-84's first receive address.
 
-*Picture to come: `explore.png`, Explore on key 3dca6805 at 84h/0h/0h/0/0, Native SegWit.*
+![Explore on key 3dca6805 at m/84h/0h/0h/0/0, Native SegWit, its address, public key and xpub](../pictures/explore.png)
+
+*Explore on key 3dca6805 at m/84h/0h/0h/0/0, **Native SegWit**: the address bc1q cfk6 qv40 … rtc6 am, its public key and its extended key, the secrets behind their eyes.*
 
 ## On this screen
 
 | Control | What it does |
 |---|---|
-| the way back | at the top left, named after where the page was opened from |
-| "The public side of a loaded key at any path: …" | under the title, with a link to Learn's **Xpubs and privacy** |
-| a key's button | one per key loaded, by fingerprint and name; the one explored filled |
+| the way back | at the top left, named after where the page was opened from, under the title **Explore** |
+| "The public side of a loaded key at any path: …" | under the title with **Guided** on, with a link to Learn's **Xpubs and privacy** |
+| a key's button | one per key loaded, by fingerprint, and name where it has one; the one explored filled |
 | **Secret** | an eye: shows the key's words in their numbered grid, and its **Passphrase** where it has one; for a key with no words, its **Master seed** in hex, its **codex32 secret** and each "codex32 share A" held |
 | **Path** | the path, after `m/`; whatever is typed goes into it. A path that cannot be read has its edge in red and why under it |
 | "BIP-84", "BIP-86", "BIP-49", "BIP-44", "BIP-48" | set the path to that standard's first receive address (BIP-48: its account) |
 | **Index -1**, **Index +1** | step the path's last number |
-| **Script** | **Native SegWit**, **Taproot**, **Nested SegWit**, **Legacy**: the kind of address, where the path does not name it |
+| **Script** | **Legacy**, **Nested SegWit**, **Native SegWit**, **Taproot**: the kind of address, where the path does not name it |
 | **Address** | the address at the path |
 | **Private key (WIF)** | an eye: the address's private key under it |
 | **Public key** | the public key at the path |
@@ -46,13 +47,17 @@ is dropped once it is off screen.
 
 **Opened from:** **Addresses** on Explore. Its way back is **Explore**.
 
+![Addresses of key 3dca6805's account m/84h/0h/0h, receive 0 to 9](../pictures/more-from-a-key-addresses.png)
+
+*Addresses of the account m/84h/0h/0h · Native SegWit, **Receive** from index 0: Receive 0, bc1qcfk6qv40…rtc6am, to Receive 9, each with its private key behind an eye.*
+
 | Control | What it does |
 |---|---|
 | **Account** | "m/84h/0h/0h · Native SegWit": the account the list is of |
 | **Receive**, **Change** | the chain listed |
 | **From index** | the first index listed |
-| **Previous 10**, **Next 10** | the page before or after |
-| a row | "Receive 12" over the address, and an eye on its **Private key (WIF)** |
+| **Previous 10**, **Next 10** | the page before or after; **Previous 10** grey from index 0 |
+| a row | "Receive 0" over the address, whole, and an eye on its **Private key (WIF)** |
 
 ## Find an address
 

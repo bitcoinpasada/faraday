@@ -1,8 +1,7 @@
 # Vaults and Unlock
 
-**Kind:** Spec
-**Status:** Written from the app's code and strings (`faraday/faraday-core/src/vault/screen.rs`, `faraday/faraday-core/src/vault/panes_screen.rs`, `faraday/faraday-core/src/vault/load_screen.rs`, `faraday/faraday-core/src/vault/mod.rs`); not yet read beside the running app
-**Open:** the pictures, drawn once after the theming has landed
+**Kind:** Reference
+**Status:** Checked against the app's pictures in docs/guide/pictures/ (drawn by just guide-pictures) and its code and strings (`faraday/faraday-core/src/vault/screen.rs`, `faraday/faraday-core/src/vault/panes_screen.rs`, `faraday/faraday-core/src/vault/load_screen.rs`, `faraday/faraday-core/src/vault/mod.rs`)
 **Screen:** `Vaults`, `Unlock`, `UnlockLoad`, `PassphraseSeeds`
 **Group:** Vaults
 
@@ -18,7 +17,9 @@ once Files holds a vault or one is open. A flow that needs a vault (a
 backup, a secret on its way out) opens the list with the way back to
 the flow above it.
 
-*Picture to come: `vaults-list.png`, Vaults with one vault locked and its card beside the list.*
+![Vaults with Passwords locked in the list and its card beside it, with Unlock](../pictures/vaults-and-passwords-written.png)
+
+*Passwords locked, read from KEYSTICK: its card reads "On KEYSTICK · current · key 3dca6805 · 2 entries · seen 07:46", **Locked**, and **Unlock**.*
 
 At 1280 × 800 the page is a list and the vault chosen beside it: the
 list on the left, the first vault's card on the right.
@@ -60,8 +61,12 @@ An open vault's line gives where it is, its size and its unlock cost.
 
 | State | What Vaults shows |
 |---|---|
-| no vault in Files | **No vault in Files** in place of the card |
+| no vault in Files | **No vault in Files** in place of the card, and **Create a vault** where the list would be |
 | a vault open | its card with **View contents** and **Lock** |
+
+![Vaults with no vault in Files: Create a vault on the left, No vault in Files on the right](../pictures/vaults-list.png)
+
+*No vault in Files: **Create a vault**, and **No vault in Files** in place of the card.*
 
 ## Unlock
 
@@ -70,13 +75,15 @@ Home's **Unlock …** lead, and the boot stick's import sheet. Its way
 back at the top goes to **Vaults**, to **Import**, or to the flow that
 asked for the vault.
 
-*Picture to come: `vaults-unlock.png`, Unlock with the passphrase field and the vault's cost.*
+![Unlock with Locked vault chosen in the list, the Passphrase field, Unlock and the memory free](../pictures/vaults-unlock.png)
+
+*Unlock opened from Vaults: **Locked vault** chosen beside the **Passphrase** field, and "This computer: 14.6 GiB free". **Unlock** is outlined.*
 
 | Control | What it does |
 |---|---|
 | "Choose the vault and type a passphrase. …" | in Guided mode |
-| **Type the passphrase once more to open it** | shown over the vault just made by Create a vault |
-| the vault | the vault chosen in the list beside it. On a narrower window, each locked vault is a row: its file, where it is and its size, its unlock cost, and "about 2.4 s here", the time it takes on this computer; a press chooses it |
+| **Type the passphrase once more to open it** | over the field, for the vault just made by Create a vault |
+| the vault | the vault chosen in the list beside it, by its name and state (**Locked vault**, **Locked**; a vault just made, **New vault**, **Locked · not written yet**), with **Create a vault** under the list. On a narrower window, each locked vault is a row: its file, where it is and its size, its unlock cost, and "about 2.4 s here", the time it takes on this computer; a press chooses it |
 | **Passphrase** | the field; its eye shows or hides what is typed |
 | "Remove the stick, then type the passphrase" | in place of the field while a stick is attached |
 | **Unlock** | tries the passphrase. Grey while a stick is attached |
@@ -102,13 +109,15 @@ how many it holds. Once open:
 
 **Opened from:** an unlock from Vaults or from the boot stick's import,
 when the vault holds a key or wallet the session does not hold. Its
-title is **Load from …** with the vault's file ("Load from vault.ofv").
+title is **Load from …** with the vault's name ("Load from Passwords"), or "Load from Vault" for a vault with no name.
 
-*Picture to come: `vaults-load-from.png`, Load from vault.ofv with one wallet ticked.*
+![Load from Vault: 1 wallet and 1 key, New wallet 1 ticked, with Not now and Load ticked](../pictures/vaults-load-from.png)
+
+*"Load from Vault", "1 wallet · 1 key": **New wallet 1** ticked with its seed 3dca6805, and **Unselect all**. **Load ticked** is outlined.*
 
 | Control | What it does |
 |---|---|
-| the count | what the vault holds: "1 wallet · 2 keys" |
+| the count | what the vault holds, its wallets' seeds among the keys: "1 wallet · 1 key" |
 | **Select all**, **Unselect all** | ticks or unticks every card |
 | a wallet's card | its name, its kind, each of its seeds the vault holds by fingerprint, and **Watch-only here** or "1 of 2 seeds kept elsewhere"; a press ticks or unticks the wallet with its seeds. A seed in another wallet too says "also in …" |
 | **Keys** | the card of keys in no wallet of the vault, each ticked on its own |
@@ -126,8 +135,6 @@ stays.
 **Opened from:** **Load with a passphrase** on a wallet short of a key
 (its card, the Spend tab, a spend), while an open vault keeps a seed
 with no passphrase. With one such seed, the sheet opens at its field.
-
-*Picture to come: `vaults-passphrase-seeds.png`, Seeds with no passphrase stored with one seed chosen.*
 
 | Control | What it does |
 |---|---|

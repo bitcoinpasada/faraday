@@ -1,8 +1,7 @@
 # The backup flow
 
-**Kind:** Spec
-**Status:** Written from the app's code and strings (`faraday/faraday-core/src/backup_flow/screen.rs`, `faraday/faraday-core/src/backup_flow/wallet_screen.rs`, `faraday/faraday-core/src/backup_flow/steps.rs`, `faraday/faraday-core/src/backup_flow/mod.rs`); not yet read beside the running app
-**Open:** the pictures, drawn once after the theming has landed
+**Kind:** Reference
+**Status:** Checked against the app's pictures in docs/guide/pictures/ (drawn by just guide-pictures) and its code and strings (`faraday/faraday-core/src/backup_flow/screen.rs`, `faraday/faraday-core/src/backup_flow/wallet_screen.rs`, `faraday/faraday-core/src/backup_flow/steps.rs`, `faraday/faraday-core/src/backup_flow/mod.rs`, `faraday/faraday-core/src/stick/pills.rs`)
 **Screen:** `BackupFlow`
 **Group:** Wallets
 
@@ -23,9 +22,21 @@ wallet** for a wallet's vaults and sticks.
   the sticks;
 - Home's lead, or **Continue the backup**, for a flow left part way.
 
-Its way back is **Home**, which keeps the flow as it is.
+Its way back, at the top left, is named after the card before the one
+open, else the screen it was opened from, else **Home**; it keeps the
+flow as it is. **Cancel**, at the top right, is offered until the key is
+made; after that the flow ends only by finishing.
 
-*Picture to come: `backup-flow-where.png`, the flow for a GPG key with Where it will be kept open.*
+On the Faraday stick a strip across the top holds a pill per stick the
+flow uses ("Boot stick · out", "Stick 2 · out", "Stick 3 · out"), lit
+while that stick is in, and the lines name each stick by its pill; on
+Faraday Demo and the desktop app the sticks are folders, and the lines
+say "the stick for Vault 1 (Place 1)". The pictures are the Faraday
+stick's.
+
+![GPG key with Where it will be kept open: Place 1 and Place 2 each a stick with Vault 1, Public files here at Place 1, and Vault 1 new](../pictures/backup-flow-where.png)
+
+*The flow for a GPG key, opened from Tools: two places, each a stick with Vault 1, Place 1 also carrying the public files, and "Vault 1 · new" kept at both.*
 
 ## The cards
 
@@ -33,8 +44,8 @@ Its way back is **Home**, which keeps the flow as it is.
 |---|---|---|
 | **Where it will be kept** (**The plan** for a wallet) | "Places 2 · Vaults 1" | always |
 | "Bring in the sticks" | "1 of 2 read" | where the plan has a stick |
-| **Vaults** | "1 of 2 unlocked", then "1 vaults" | where the plan has a vault |
-| **Make the key** (**Make the keys** for a wallet) | the key's name, or **Not made** | always |
+| **Vaults** | "0 of 1 unlocked", then "1 vault" or "2 vaults" | where the plan has a vault |
+| **Make the key** (**Make the keys** for a wallet) | the key's name ("Example Signer"), or **Not made** | always |
 | **Lock** | **Not locked**, **Locked** | where the plan has a stick |
 | "Write the sticks" | "1 of 2 written" | where the plan has a stick |
 | **Done** | **Written** | always |
@@ -115,7 +126,7 @@ Why a stick is refused, in the error tone:
 |---|---|---|
 | a GPG key | **Name**, **Email**, **Expires** | **User ID**, **Fingerprint**, **Revocation certificate** ("Kept with the key · made 2026-10-27"), **Show as QR** |
 | Secure Boot keys | **Owner name** | **Owner GUID**, **Show as QR** |
-| a wallet | none: **Make the keys** sends on to make them | the wallet's name |
+| a wallet | none: once the sticks and vaults are in, the flow goes back to [Make a new wallet](make-a-wallet.md#keys), whose **Keys** card makes them | the wallet's name |
 
 **Make the key** makes it; **Making the key** while it is made; "In
 Vault 1" for each vault it is saved into, then **Continue**. A vault
@@ -136,10 +147,15 @@ wiped.
 The slots again, each ticked once written, and the stick asked for
 next, with the files it gets:
 
+![Write the sticks with Stick 2 written and Insert Stick 3: Vault 1 (Place 2), the file Vault-1.ofv, 1.0 MB](../pictures/gpg-write.png)
+
+*Stick 2 written (its label "KEYSTICK" beside it), and the flow asking for the next: "Insert Stick 3: Vault 1 (Place 2)", the file "Vault-1.ofv · 1.0 MB" under it.*
+
+
 | Control | What it does |
 |---|---|
 | "Insert the stick for Vault 1 (Place 1)" | the stick to plug in, as on Bring in the sticks |
-| "Writing vault.ofv" | each file written, read back and compared |
+| "Writing Vault-1.ofv" | each file written, read back and compared |
 | "Written and checked on Stick 2" | in the ok tone, then "Pull the stick" |
 | "Hold: this is a second stick" | where the stick reads as one written before: held until it fills, it writes it |
 | "Use another stick" | refuses this stick |
@@ -148,21 +164,27 @@ next, with the files it gets:
 |---|---|
 | **Pulled before the copy was checked. Nothing counted** | plug it in again |
 | "The copy did not check on Stick 2. Nothing counted" | the copy read back differs |
-| "vault.ofv did not read back from Stick 2; try another stick" | the stick did not keep what was written |
+| "Vault-1.ofv did not read back from Stick 2; try another stick" | the stick did not keep what was written |
 | "This stick has the first copy" | the stick already written for another place |
 | "Not the stick read for Vault 1 (Place 1)" | a different stick from the one read for this slot |
 
 ## Done
 
-**Written**, a line per stick: its place, its label, the time and the
-files written to it. "Unlock Vault 1" opens the vault with its
+![Secure Boot keys with Done open: Written, Stick 2 and Stick 3 each with its files, and Unlock Vault 1](../pictures/secure-boot-keys-done.png)
+
+*The flow for Secure Boot keys done: each stick's line, its files under it, and "Unlock Vault 1", which is outlined.*
+
+**Written**, a line per stick: the stick, its place, its label and the
+time ("Stick 2 · Vault 1 (Place 1) · KEYSTICK · 07:33"), and under it
+the files written to it. "Unlock Vault 1" opens the vault with its
 passphrase; for a GPG key or Secure Boot keys the key's page follows,
 for a wallet its card. A wallet with no vault has **Home**. In Guided
 mode a wallet's **Done** has the line on extra copies.
 
 ## On a narrow window
 
-One card a page, "Step 2 of 7" at the top.
+One card a page, its title with "Step 2 of 7" beside it, counted over
+the flow's cards.
 
 ## Why
 

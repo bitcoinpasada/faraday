@@ -1,14 +1,14 @@
 # Stick visit
 
-**Kind:** Spec
-**Status:** Written from the app's code and strings (`faraday/faraday-core/src/screens/visit.rs`, `faraday/faraday-core/src/visit_taken.rs`, `faraday/faraday-core/src/stick/wipe.rs`, `faraday/faraday-core/src/screens/sheets.rs`, `faraday/faraday-core/src/lib.rs`); not yet read beside the running app
-**Open:** the pictures, drawn once after the theming has landed
+**Kind:** Reference
+**Status:** Checked against the app's pictures in docs/guide/pictures/ (drawn by just guide-pictures) and its code and strings (`faraday/faraday-core/src/screens/visit.rs`, `faraday/faraday-core/src/visit_taken.rs`, `faraday/faraday-core/src/stick/wipe.rs`, `faraday/faraday-core/src/screens/sheets.rs`, `faraday/faraday-core/src/lib.rs`)
 **Screen:** `Visit`, `Taken`, `WriteOut`, `Delete`, `Zeroing`
 **Group:** Files
 
 **Opened from:** a stick plugged in while Faraday holds no secret; the
 sidebar's **Stick visit** and Home's **Stick visit** tile while a stick
-is attached and no key is loaded; Files' "Visit Boot stick" chip; **Lock
+is attached and no key is loaded; Files' "Visit KEYSTICK" chip, named
+after the stick; **Lock
 and use stick** on [A stick is attached](lock-and-power.md#a-stick-is-attached);
 and **Copy files in from a stick** in Restore and the Spend tab. The
 boot stick alone, at its first look in a power-on, leaves Home on
@@ -20,27 +20,35 @@ A visit writes what waits for the stick and copies in what is needed
 from it. Each file written is read back and compared before it counts.
 Keys load only once the stick is out.
 
-*Picture to come: `stick-visit.png`, Stick visit with a PSBT to write and a vault on the stick.*
+![Stick visit on KEYSTICK: In Faraday with a signed PSBT ticked, On the stick with a PSBT and a vault ticked](../pictures/stick-visit.png)
+
+*Stick visit on KEYSTICK, **Then: Home**: **In Faraday** lists
+**Settings**, a signed PSBT ticked and, under **From the stick**, two
+files, with "Write 1 file"; **On the stick** lists a PSBT and a vault,
+both ticked, with **Delete files**, "Import 2 files" and **Import and
+load**; the band reads **Remove the stick when you are done**, beside
+**Open Files**.*
 
 ## On this screen
 
 | Control | What it does |
 |---|---|
-| **Stick visit** | the title, and a chip beside it saying where pulling the stick goes: **Then: Home**, **Then: Unlock**, or "Then: …" naming the flow that opened it |
-| a stick's chip | one per stick attached, at the top right, the one shown selected: a press shows that stick |
+| **Stick visit** | the title |
+| **Then: Home** | the chip under the title, at the left: where pulling the stick goes, **Then: Home**, **Then: Unlock**, or "Then: …" naming the flow that opened it |
+| a stick's chip | one per stick attached, by its name, at the right of the same row, the one shown selected: a press shows that stick |
 | "Write what waits for the stick …" | in Guided mode |
 | **In Faraday** | the left card: what can be written to the stick, each row ticked or not |
 | **On the stick** | the right card: the stick's files, each row ticked to copy in or not |
-| the warning band | "Remove the stick when you are done", "Remove the stick to unlock vault.ofv", "1 key copied in · remove the stick to load it" |
-| **Open Files** | opens [Files](files.md) |
-| the last two lines | what the visit did, in the ok or error tone: "… not written: …", "… renamed …", "… deleted, zeros over it first" |
+| the warning band | under the cards: "Remove the stick when you are done", "Remove the stick to unlock vault.ofv", "1 key copied in · remove the stick to load it" |
+| **Open Files** | at the band's right end: opens [Files](files.md) |
+| the last two lines | what the visit did, in the ok or error tone. After a write, a line per file: "Wrote payment-signed.psbt, read back and matched", or "Wrote payment-signed.psbt as payment-signed-2.psbt, read back and matched" where **Keep both** gave it another name; otherwise "… not written: …", "… renamed …", "… deleted, zeros over it first" |
 
 ### In Faraday
 
 | Control | What it does |
 |---|---|
 | **Select all** | ticks every row, or none; an unprotected secret is ticked one at a time |
-| **Settings** | Faraday's settings file, tagged **Public**; a press ticks it |
+| **Settings** | Faraday's settings file (faraday-settings.txt), tagged **Public**; a press ticks it |
 | a file for the stick | its name and what it is, tagged **Public**, **Sealed** or **Unprotected secret**; **In the backup** for a file a backup flow writes, which cannot be unticked here |
 | **From the stick** | under the files for the stick: the files copied in, which can be written to this stick too. Tagged **Public**, **Sealed**, **May be a secret** or **Secret**; **On this stick** for one it holds already. Ticking a secret opens [This is a secret](files.md#this-is-a-secret) first |
 | "Nothing waits for the stick" | while nothing does |
@@ -70,7 +78,11 @@ scroll to see them" under it.
 **Opened from:** "Write 2 files" when a file's name is on the stick
 already, ignoring case. Its title is **Already on the stick**.
 
-*Picture to come: `stick-visit-already.png`, Already on the stick with one file and one vault.*
+![Already on the stick: a PSBT kept both as payment-signed-2.psbt, and vault.ofv the same vault, updated here](../pictures/stick-visit-already.png)
+
+*The sheet **Already on the stick**: "payment-signed.psbt · Keep both:
+payment-signed-2.psbt" and "vault.ofv · the same vault, updated here".
+**Replace** is outlined.*
 
 | Control | What it does |
 |---|---|
@@ -85,7 +97,11 @@ already, ignoring case. Its title is **Already on the stick**.
 stick, while Faraday has held a secret since it started: a stick is
 written only from a fresh start. Its title is "Write to a stick".
 
-*Picture to come: `stick-visit-write-to-a-stick.png`, Write to a stick with what the lock keeps and wipes.*
+![Write to a stick: Kept 1 file for the stick, Wiped from memory Seed 3dca6805, Then Lock, and the visit writes them](../pictures/stick-visit-write-to-a-stick.png)
+
+*"Write to a stick": **Kept** 1 file for the stick, **Wiped from
+memory** Seed 3dca6805 · nowhere else, **Then** **Lock, and the visit
+writes them**, over **Not now** and **Lock**.*
 
 | Control | What it does |
 |---|---|
@@ -99,12 +115,16 @@ written only from a fresh start. Its title is "Write to a stick".
 **Opened from:** **Delete files** on a stick visit, and "Delete from the
 stick" in a file's **⋮**. Its title is "Delete files from Boot stick".
 
-*Picture to come: `stick-visit-delete.png`, Delete files with one file chosen.*
+![Delete files from KEYSTICK on Chosen files, payment-signed.psbt ticked, Delete 1 file with zeros](../pictures/stick-visit-delete.png)
+
+*"Delete files from KEYSTICK" on **Chosen files**: payment-signed.psbt
+ticked, vault.ofv not, and "Delete 1 file with zeros" beside
+**Cancel**.*
 
 | Control | What it does |
 |---|---|
 | **Danger zone: what is deleted here cannot be undone** | the band at the top |
-| **Chosen files** | **Zeros over each, then it is removed with its name**: the stick's files, each ticked or not, with its size |
+| **Chosen files** | **Zeros over each, then it is removed with its name**: the stick's files, under the three choices, each ticked or not, with its size |
 | **The free space** | **The files stay; what earlier deletes left is zeroed**: with the amount to write and the time ("1.8 GB to write · about 6 minutes on a typical stick") |
 | **The whole partition** | **Every file is deleted, then all of it is zeroed**: with **One pass** and **Two passes** |
 | the lines under them | that only the stick's files partition is written, why, and what zeros do not reach |
@@ -123,11 +143,14 @@ files. Its title is "Zeroing the free space on Boot stick" or "Zeroing
 the whole partition on Boot stick". No press beside the sheet closes
 it.
 
-*Picture to come: `stick-visit-zeroing.png`, Zeroing the free space, 40% done.*
+![Zeroing the free space on KEYSTICK at 40%, about 7 minutes left, with Stop](../pictures/stick-visit-zeroing.png)
+
+*"Zeroing the free space on KEYSTICK": "40% · about 7 minutes left",
+"Keep the stick in until it is done", and **Stop**.*
 
 | Control | What it does |
 |---|---|
-| the bar | how far: "40% · about 4 minutes left", and "Pass 1 of 2" |
+| the bar | how far: "40% · about 7 minutes left", and "Pass 1 of 2" for two passes |
 | "Keep the stick in until it is done" | a line |
 | **Stop** | stops after the step under way (**Stopping**); the visit says "Stopped at 40%" |
 

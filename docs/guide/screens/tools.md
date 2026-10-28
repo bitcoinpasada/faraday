@@ -1,8 +1,7 @@
 # Tools
 
-**Kind:** Spec
-**Status:** Written from the app's code and strings (`faraday/faraday-core/src/screens/catalog.rs`, `faraday/faraday-core/src/catalog.rs`, `faraday/faraday-core/src/wordlist/screen.rs`, `faraday/faraday-core/src/wordlist/mod.rs`); not yet read beside the running app
-**Open:** the pictures, drawn once after the theming has landed
+**Kind:** Reference
+**Status:** Checked against the app's pictures in docs/guide/pictures/ (drawn by just guide-pictures) and its code and strings (`faraday/faraday-core/src/screens/catalog.rs`, `faraday/faraday-core/src/catalog.rs`, `faraday/faraday-core/src/wordlist/screen.rs`, `faraday/faraday-core/src/wordlist/mod.rs`)
 **Screen:** `Catalog`, `WordList`
 **Group:** Tools
 
@@ -11,7 +10,11 @@
 Every flow Faraday has, as a tile, by group. A tile names what it does
 and the standards it follows, as small tags.
 
-*Picture to come: `tools.png`, Tools with every group shown.*
+![Tools with the guide's key loaded: the search field, then Keys and seeds and Wallets as tiles with their standards](../pictures/tools.png)
+
+*Tools with a key loaded: **Find a tool: a name, a BIP number** at the
+top right, then **Keys and seeds** and **Wallets**, each tile with its
+name, its line and its standards; the groups below scroll into view.*
 
 ## On this screen
 
@@ -19,7 +22,7 @@ and the standards it follows, as small tags.
 |---|---|
 | **Find a tool: a name, a BIP number** | the search field; whatever is typed on the page goes into it. It keeps the tiles whose name, line, group or standard holds every word typed ("85" finds BIP-85). **No tool matches** when none does |
 | a tile | its name, its line, its standards; a press opens its flow |
-| a tile's line in the warning tone | what the tile needs first; the tile is greyed and takes no press. A vault tile still opens, into making or unlocking a vault |
+| a tile's line in the warning tone | what the tile needs first; the tile is greyed and takes no press. A vault tile still opens, into making or unlocking a vault, and a tile reading **Continue** opens where its making was left |
 
 ### What a tile needs first
 
@@ -31,7 +34,7 @@ and the standards it follows, as small tags.
 | **Needs a single-key wallet with its key here** | **Sign a message** |
 | **Copy a signed message in first** | **Check a signed message** |
 | **Make a vault first**, **Unlock a vault first** | **TOTP codes**, **KeePass export**, while no vault is open |
-| **Continue** | **GPG key**, **Secure Boot keys**: a key's making left part way |
+| **Continue** | **GPG key**, **Secure Boot keys**: a key's making left part way; the tile opens it there |
 
 ## The tiles
 
@@ -67,14 +70,18 @@ with that word marked; a word pressed while rolling a Diceware
 passphrase in Create a vault, which opens its EFF list with that word
 marked.
 
-*Picture to come: `tools-word-list.png`, the word list on BIP-39 English with one word marked.*
+![The word list on BIP-39 English, word 1421 ranch marked, with its search field and Back](../pictures/tools-word-list.png)
+
+*The word list on **BIP-39 English**: "2048 words · word 1421 of 2048
+marked", the columns **No.**, **Bits** and **Word**, and ranch, word
+1421, lit.*
 
 | Control | What it does |
 |---|---|
 | **BIP-39 English**, **EFF large**, **EFF short 1**, **EFF short 2** | a tab for each list; the one on show filled |
-| **Back** | closes the sheet; a press beside it does the same |
+| **Back** | at the top right: closes the sheet; a press beside it does the same |
 | the search field | **Word, number or bits** for BIP-39, **Word, number or dice** for an EFF list |
-| the count | "2048 words", "2048 words · word 1730 of 2048 marked", or "3 found" while something is typed |
+| the count | at the right of the search field: "2048 words", "2048 words · word 1421 of 2048 marked", or "3 found" while something is typed |
 | **No.**, **Bits** or **Dice**, **Word** | the columns: a word's number, its bits or its dice, and the word; the marked word lit |
 
 ## On a narrow window
