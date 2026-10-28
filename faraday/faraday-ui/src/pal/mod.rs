@@ -42,6 +42,10 @@ pub enum Paint {
     Role(Role, u8),
     /// A colour drawn as it is in every theme.
     Fixed(Color),
+    /// A stick's tone ([`stick`]), at an opacity (of 255): chosen by the
+    /// mode and contrast the frame is drawn in, not by the theme, and
+    /// held to the High contrast rules as a role is.
+    Stick(u8, u8),
 }
 
 impl Paint {
@@ -55,28 +59,31 @@ impl Paint {
         match self {
             Paint::Role(r, _) => Paint::Role(r, a),
             Paint::Fixed(c) => Paint::Fixed(c.with_alpha(a)),
+            Paint::Stick(n, _) => Paint::Stick(n, a),
         }
     }
 
     /// Its opacity, of 255.
     pub const fn alpha(self) -> u8 {
         match self {
-            Paint::Role(_, a) => a,
+            Paint::Role(_, a) | Paint::Stick(_, a) => a,
             Paint::Fixed(c) => c.a,
         }
     }
 
-    /// Whether it is one of the scheme's roles, rather than a colour
-    /// drawn as it is in every theme.
+    /// Whether it is one of the theme's colours (a role or a stick's
+    /// tone), which the High contrast rules apply to, rather than a
+    /// colour drawn as it is in every theme.
     pub const fn is_role(self) -> bool {
-        matches!(self, Paint::Role(..))
+        matches!(self, Paint::Role(..) | Paint::Stick(..))
     }
 
-    /// The colour it is in `scheme`: a lookup.
-    pub fn in_scheme(self, scheme: &Scheme) -> Color {
+    /// The colour it is in `theme`: a lookup.
+    pub(crate) fn in_theme(self, theme: crate::Theme) -> Color {
         match self {
-            Paint::Role(r, a) => scheme[r as usize].with_alpha(a),
+            Paint::Role(r, a) => theme.scheme()[r as usize].with_alpha(a),
             Paint::Fixed(c) => c,
+            Paint::Stick(n, a) => stick_in(usize::from(n), theme).with_alpha(a),
         }
     }
 }
@@ -179,9 +186,9 @@ pub const STICKS_LIGHT: [Color; 7] = [
     Color::rgb(0xb0, 0x2f, 0x98),
 ];
 
-/// The colour of a stick's pill: `n` 0 the boot stick, `n` the
-/// backup Stick `n` otherwise, on a light page or a dark one. These
-/// are not in the schemes: they are chosen by Mode alone.
+/// The colour of a stick's pill as the pills were drawn before
+/// [`stick`]: `n` 0 the boot stick, `n` the backup Stick `n` otherwise,
+/// on a light page or a dark one, by Mode alone.
 pub fn stick_tone(n: usize, light: bool) -> Color {
     match (n, light) {
         (0, false) => STICK_BOOT,
@@ -189,6 +196,84 @@ pub fn stick_tone(n: usize, light: bool) -> Color {
         (n, false) => STICKS[(n - 1) % STICKS.len()],
         (n, true) => STICKS_LIGHT[(n - 1) % STICKS_LIGHT.len()],
     }
+}
+
+/// The sticks' tones on a light page at Standard and Medium contrast,
+/// the boot stick's first, then Stick 1, 2, 3 and on: [`STICKS_LIGHT`]
+/// and the boot stick's orange taken down until white on each reads
+/// 4.5:1 or more, and each 3:1 or more on every surface of every light
+/// scheme (`docs/decisions/F142.md`).
+const STICKS_ON_LIGHT: [Color; 8] = [
+    Color::rgb(0xa3, 0x4f, 0x00),
+    Color::rgb(0xb8, 0x2f, 0x2f),
+    Color::rgb(0x7c, 0x62, 0x00),
+    Color::rgb(0x27, 0x74, 0x27),
+    Color::rgb(0x00, 0x71, 0x80),
+    Color::rgb(0x2c, 0x5f, 0xc9),
+    Color::rgb(0x6a, 0x45, 0xc8),
+    Color::rgb(0xb0, 0x2f, 0x98),
+];
+/// [`STICKS_ON_LIGHT`] at High contrast: darker, white on each 7:1 or
+/// more.
+const STICKS_ON_LIGHT_HIGH: [Color; 8] = [
+    Color::rgb(0x71, 0x37, 0x00),
+    Color::rgb(0x88, 0x23, 0x23),
+    Color::rgb(0x54, 0x42, 0x00),
+    Color::rgb(0x1b, 0x50, 0x1b),
+    Color::rgb(0x00, 0x4e, 0x58),
+    Color::rgb(0x1f, 0x42, 0x8d),
+    Color::rgb(0x4e, 0x33, 0x94),
+    Color::rgb(0x7d, 0x21, 0x6c),
+];
+/// The sticks' tones on a dark page at High contrast: [`STICK_BOOT`]
+/// and [`STICKS`] made lighter where black on them read under 7:1.
+const STICKS_ON_DARK_HIGH: [Color; 8] = [
+    STICK_BOOT,
+    Color::rgb(0xf1, 0x8d, 0x8d),
+    Color::rgb(0xe9, 0xd8, 0x6b),
+    Color::rgb(0x8b, 0xd4, 0x7a),
+    Color::rgb(0x6f, 0xd6, 0xe0),
+    Color::rgb(0x82, 0xa8, 0xf1),
+    Color::rgb(0xb4, 0x9a, 0xf2),
+    Color::rgb(0xe6, 0x89, 0xd4),
+];
+
+/// A stick's tone as a paint: `n` 0 the boot stick, `n` the backup Stick
+/// `n` otherwise, the colours going round from the first after the
+/// seventh. Not in the schemes: chosen by the mode and contrast the
+/// frame is drawn in (`docs/THEMES.md` §6, `docs/decisions/F142.md`).
+pub const fn stick(n: usize) -> Paint {
+    let k = if n == 0 {
+        0
+    } else {
+        1 + (n - 1) % STICKS.len()
+    };
+    Paint::Stick(k as u8, 255)
+}
+
+/// What is written and drawn on a stick's tone filled at full strength:
+/// white on a light page's dark tones, black on a dark page's light
+/// ones (`docs/decisions/F142.md`).
+pub fn on_stick(theme: crate::Theme) -> Paint {
+    Paint::Fixed(if theme.is_light() {
+        Color::WHITE
+    } else {
+        Color::BLACK
+    })
+}
+
+/// The colour of tone `k` ([`stick`]'s number, 0 to 7) in `theme`.
+fn stick_in(k: usize, theme: crate::Theme) -> Color {
+    let high = theme.is_high_contrast();
+    let set: [Color; 8] = match (theme.is_light(), high) {
+        (true, false) => STICKS_ON_LIGHT,
+        (true, true) => STICKS_ON_LIGHT_HIGH,
+        (false, true) => STICKS_ON_DARK_HIGH,
+        (false, false) => [
+            STICK_BOOT, STICKS[0], STICKS[1], STICKS[2], STICKS[3], STICKS[4], STICKS[5], STICKS[6],
+        ],
+    };
+    set[k % set.len()]
 }
 
 /// The structure chart's line colours (`docs/DESIGN.md` §4.16), one

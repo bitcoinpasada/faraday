@@ -24,19 +24,18 @@ pub struct AppBar<'s, A> {
 }
 
 /// The bar at the top of the page, `w` wide, its name kept left of
-/// `right`, where the actions drawn after it begin.
+/// `right`, where the actions drawn after it begin. Surface, and
+/// surface-container once the page is scrolled under it
+/// ([`app_bar_fill`]); no rule under it (Material's top app bar).
 pub fn app_bar<A: Copy + PartialEq>(ui: &mut Ui<A>, w: f32, bar: &AppBar<A>, right: f32) {
-    ui.fill(0.0, 0.0, w, APP_BAR_H, 0.0, Role::Surface);
-    ui.fill(0.0, APP_BAR_H - 1.0, w, 1.0, 0.0, Role::OutlineVariant);
+    let fill = app_bar_fill(ui.offset > 0.0 && !ui.in_sheet);
+    ui.fill(0.0, 0.0, w, APP_BAR_H, 0.0, fill);
     let mut x = MARGIN_COMPACT;
     let room = |x: f32| (right - x).max(0.0);
     if let Some((label, action)) = bar.back {
         let (bx, by) = (GAP_SMALL, (APP_BAR_H - TOUCH) / 2.0);
-        ui.state_layer(
-            (bx, by, TOUCH, TOUCH, TOUCH / 2.0),
-            Role::OnSurfaceVariant.paint(),
-            action,
-        );
+        let round = (bx, by, TOUCH, TOUCH, TOUCH / 2.0);
+        ui.state_layer(round, Role::OnSurfaceVariant.paint(), action);
         ui.icon(
             bx,
             by,
@@ -45,7 +44,7 @@ pub fn app_bar<A: Copy + PartialEq>(ui: &mut Ui<A>, w: f32, bar: &AppBar<A>, rig
             NAV_ICON,
             Role::OnSurfaceVariant,
         );
-        ui.hit_quiet(bx, by, TOUCH, TOUCH, action);
+        ui.hit_ringed(round, (bx, by, TOUCH, TOUCH), action);
         ui.tip_plain((bx, by, TOUCH, TOUCH), action, bar.back_tip);
         ui.back(action);
         x = bx + TOUCH;
@@ -58,6 +57,16 @@ pub fn app_bar<A: Copy + PartialEq>(ui: &mut Ui<A>, w: f32, bar: &AppBar<A>, rig
     } else {
         let (role, name) = bar_title(ui, bar.title, room(x));
         ui.text_mid_as((x, 0.0, APP_BAR_H), role, Role::OnSurface, &name);
+    }
+}
+
+/// The top app bar's container (`docs/THEMES.md` §7): surface, and
+/// surface-container while the page is `scrolled` under it.
+pub fn app_bar_fill(scrolled: bool) -> Role {
+    if scrolled {
+        Role::SurfaceContainer
+    } else {
+        Role::Surface
     }
 }
 
@@ -104,9 +113,10 @@ pub fn icon_action<A: Copy + PartialEq>(
     } else {
         Role::OnSurfaceVariant
     };
-    ui.state_layer((x, y, TOUCH, TOUCH, TOUCH / 2.0), fg.paint(), action);
+    let round = (x, y, TOUCH, TOUCH, TOUCH / 2.0);
+    ui.state_layer(round, fg.paint(), action);
     ui.icon(x, y, TOUCH, icon, NAV_ICON, fg);
-    ui.hit_quiet(x, y, TOUCH, TOUCH, action);
+    ui.hit_ringed(round, (x, y, TOUCH, TOUCH), action);
     ui.tip_plain((x, y, TOUCH, TOUCH), action, label);
     x
 }
@@ -122,11 +132,8 @@ pub fn help<A: Copy + PartialEq>(
     let (x, y) = (right - TOUCH, (APP_BAR_H - TOUCH) / 2.0);
     let d = ICON_SMALL + GAP_SMALL * 2.0;
     let (cx, cy) = (x + (TOUCH - d) / 2.0, y + (TOUCH - d) / 2.0);
-    ui.state_layer(
-        (cx, cy, d, d, d / 2.0),
-        Role::OnSurfaceVariant.paint(),
-        action,
-    );
+    let round = (cx, cy, d, d, d / 2.0);
+    ui.state_layer(round, Role::OnSurfaceVariant.paint(), action);
     ui.stroke(cx, cy, d, d, d / 2.0, Role::Outline);
     let tw = ui.measure(LABEL, W::S, "?");
     ui.text_mid(
@@ -138,7 +145,7 @@ pub fn help<A: Copy + PartialEq>(
         Role::OnSurfaceVariant,
         "?",
     );
-    ui.hit_quiet(x, y, TOUCH, TOUCH, action);
+    ui.hit_ringed(round, (x, y, TOUCH, TOUCH), action);
     ui.tip_plain((x, y, TOUCH, TOUCH), action, label);
     x
 }
@@ -152,11 +159,8 @@ pub fn more<A: Copy + PartialEq>(
     label: &'static str,
 ) -> f32 {
     let (x, y) = (right - TOUCH, (APP_BAR_H - TOUCH) / 2.0);
-    ui.state_layer(
-        (x, y, TOUCH, TOUCH, TOUCH / 2.0),
-        Role::OnSurfaceVariant.paint(),
-        action,
-    );
+    let round = (x, y, TOUCH, TOUCH, TOUCH / 2.0);
+    ui.state_layer(round, Role::OnSurfaceVariant.paint(), action);
     let (cx, cy) = (x + TOUCH / 2.0, y + TOUCH / 2.0);
     let r = GAP_SMALL / 2.0;
     for k in [-1.0f32, 0.0, 1.0] {
@@ -167,7 +171,7 @@ pub fn more<A: Copy + PartialEq>(
             Role::OnSurfaceVariant,
         );
     }
-    ui.hit_quiet(x, y, TOUCH, TOUCH, action);
+    ui.hit_ringed(round, (x, y, TOUCH, TOUCH), action);
     ui.tip_plain((x, y, TOUCH, TOUCH), action, label);
     x
 }

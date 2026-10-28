@@ -1,12 +1,16 @@
 //! Material 3's snackbar, the app's toast (`docs/THEMES.md` §7,
 //! `docs/DESIGN.md` §4.11): a message over the page in the scheme's
 //! inverse roles, so it reads as standing apart from the page in every
-//! theme, mode and contrast.
+//! theme, mode and contrast. One shows at a time in Material; where two
+//! must (a notice that stays while a toast comes and goes), the second
+//! stands above the first ([`Ui::snackbar`] returns the room the first
+//! took).
 
 use crate::Ui;
 use crate::pal::Role;
 use faraday_draw::tokens::{
-    ELEVATION_FAB, SHAPE_XS, TOAST_H, TOAST_MARGIN, TOAST_PAD, TOAST_PAD_Y, TOAST_TEXT,
+    ELEVATION_FAB, SHAPE_XS, TOAST_H, TOAST_MARGIN, TOAST_MAX_W, TOAST_MIN_W, TOAST_PAD,
+    TOAST_PAD_Y, TOAST_STACK_GAP, TOAST_TEXT, WINDOW_MEDIUM,
 };
 
 /// The snackbar's container: inverse-surface.
@@ -15,17 +19,34 @@ pub const SNACKBAR_FILL: Role = Role::InverseSurface;
 pub const SNACKBAR_INK: Role = Role::InverseOnSurface;
 
 impl<A: Copy + PartialEq> Ui<'_, A> {
-    /// `text` as Material's snackbar, centred in `cw` from `x` above
-    /// `foot`: inverse-surface with extra-small corners at elevation
-    /// level 3, its text in body medium and inverse-on-surface, one line
-    /// [`TOAST_H`] tall, wrapping where the width does not hold it.
-    /// `shown` (0 to 1) is how far it has faded in, `rise` how far below
-    /// its place it still is.
-    pub fn snackbar(&mut self, (x, cw, foot): (f32, f32, f32), text: &str, shown: f32, rise: f32) {
+    /// Costs measuring and breaking `text`. `text` as Material's
+    /// snackbar in the width `cw` from `x`, its foot [`TOAST_MARGIN`]
+    /// above `foot`: inverse-surface with extra-small corners at
+    /// elevation level 3, its text in body medium and inverse-on-surface
+    /// from its start, one line [`TOAST_H`] tall, wrapping where the width
+    /// does not hold it. In a compact window (under [`WINDOW_MEDIUM`]) it
+    /// is the window's width less the margins; wider, as wide as its text
+    /// between [`TOAST_MIN_W`] and [`TOAST_MAX_W`], centred. How far it
+    /// has faded in, its shadow with it, is `shown`, from 0 to 1, and
+    /// `rise` how far below its place it still is. Returns the height it
+    /// takes above `foot` with the gap above it: how far above `foot` a
+    /// second one's foot goes.
+    pub fn snackbar(
+        &mut self,
+        (x, cw, foot): (f32, f32, f32),
+        text: &str,
+        shown: f32,
+        rise: f32,
+    ) -> f32 {
         let fade = |r: Role| r.at(shown);
         let room = (cw - 2.0 * TOAST_MARGIN).max(0.0);
-        let one = self.measure_as(TOAST_TEXT, text);
-        let line = one.min((room - 2.0 * TOAST_PAD).max(0.0));
+        let w = if cw < WINDOW_MEDIUM {
+            room
+        } else {
+            let one = self.measure_as(TOAST_TEXT, text) + 2.0 * TOAST_PAD;
+            one.clamp(TOAST_MIN_W, TOAST_MAX_W).min(room)
+        };
+        let line = (w - 2.0 * TOAST_PAD).max(0.0);
         let mut lines = 0usize;
         let mut from = 0;
         while let Some((_, next)) = self.snackbar_line(text, from, line) {
@@ -35,12 +56,9 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
         let lines = lines.max(1);
         let lh = self.line_as(TOAST_TEXT);
         let h = (lines as f32 * lh + 2.0 * TOAST_PAD_Y).max(TOAST_H);
-        let w = line + 2.0 * TOAST_PAD;
         let tx = x + (cw - w) / 2.0;
         let ty = foot - TOAST_MARGIN - h + rise;
-        if shown >= 1.0 {
-            self.shadow(tx, ty, w, h, SHAPE_XS, ELEVATION_FAB);
-        }
+        self.shadow_faded((tx, ty, w, h, SHAPE_XS), ELEVATION_FAB, shown);
         self.wash(tx, ty, w, h, SHAPE_XS, fade(SNACKBAR_FILL));
         let mut y = ty + (h - lines as f32 * lh) / 2.0;
         let mut from = 0;
@@ -50,6 +68,7 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
             y += lh;
             from = next;
         }
+        h + TOAST_STACK_GAP
     }
 
     /// The line of the toast's `text` that starts at byte `from`, broken

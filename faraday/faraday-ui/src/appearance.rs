@@ -10,9 +10,9 @@ use faraday_draw::Color;
 use faraday_draw::tokens::{
     APPEARANCE_LABEL_GAP, APPEARANCE_ROW_GAP, BODY_L, BODY_M, FILTER_CHIP_GAP, FILTER_CHIP_H,
     FILTER_CHIP_ICON, FILTER_CHIP_LEAD, FILTER_CHIP_TRAIL, GAP, LABEL_L, LIST_PAD_V, SEGMENTED_H,
-    SHAPE_S, STATE_HOVER, STATE_PRESS, SWITCH_EDGE, SWITCH_H, SWITCH_HANDLE_OFF, SWITCH_HANDLE_ON,
-    SWITCH_HANDLE_PRESSED, SWITCH_STATE, SWITCH_W, THEME_CHIP_DOT, THEME_CHIP_RING,
-    THEME_CHIP_RING_GAP, THEME_CHIP_TICK, TOUCH, alpha_of, shape_full,
+    SHAPE_S, STATE_FOCUS, STATE_HOVER, STATE_PRESS, SWITCH_EDGE, SWITCH_H, SWITCH_HANDLE_OFF,
+    SWITCH_HANDLE_ON, SWITCH_HANDLE_PRESSED, SWITCH_STATE, SWITCH_W, THEME_CHIP_DOT,
+    THEME_CHIP_RING, THEME_CHIP_RING_GAP, THEME_CHIP_TICK, TOUCH, alpha_of, shape_full,
 };
 use faraday_draw::widgets::Icon;
 use faraday_strings::EN;
@@ -242,6 +242,7 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
         let (w, h) = (SWITCH_W, SWITCH_H);
         let r = shape_full(h);
         let pressed = self.is_pressed(action);
+        let lit = self.is_hovered(action) || self.focused == Some(action);
         let (handle, layer) = if on {
             self.fill(x, y, w, h, r, Role::Primary);
             let handle = if pressed {
@@ -256,7 +257,9 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
             let color = self.col(Role::Outline);
             self.c
                 .stroke_rounded_rect(edge, r * self.f, SWITCH_EDGE * self.f, color);
-            let handle = if pressed {
+            // Material's switch: the off handle in outline, and in
+            // on-surface-variant while hovered, focused or pressed.
+            let handle = if pressed || lit {
                 Role::OnSurfaceVariant
             } else {
                 Role::Outline
@@ -275,7 +278,9 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
         let cy = y + h / 2.0;
         let opacity = if pressed {
             Some(STATE_PRESS)
-        } else if self.is_hovered(action) || self.focused == Some(action) {
+        } else if self.focused == Some(action) {
+            Some(STATE_FOCUS)
+        } else if self.is_hovered(action) {
             Some(STATE_HOVER)
         } else {
             None

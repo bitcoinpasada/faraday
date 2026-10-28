@@ -10,15 +10,18 @@
 mod appearance;
 mod controls;
 pub mod demo;
+pub mod hold;
 pub mod keyboard;
 mod lists;
 mod mark;
+pub mod menu;
 pub mod nav;
 pub mod parts;
 pub mod region;
 pub mod roles;
 pub mod sheet;
 pub mod snackbar;
+pub mod stick;
 mod theme;
 pub mod tooltip;
 
@@ -463,6 +466,9 @@ pub struct Ui<'a, A> {
     hit_clip: Option<Rect>,
     /// The hit being taken draws its own hover look.
     quiet_hover: bool,
+    /// The hit being taken shows what it holds as drawn while pressed: a
+    /// held secret ([`Ui::hit_held`]).
+    held: bool,
     /// The hit being taken draws its own focus ring too
     /// ([`Ui::hit_drawn`]).
     own_ring: bool,
@@ -511,6 +517,13 @@ pub struct Ui<'a, A> {
     /// only" card ([`demo`]), in the order offered.
     pub demo: Vec<demo::DemoItem<A>>,
 }
+
+/// The fill behind selected text: secondary-container, the selected
+/// colour (`docs/THEMES.md` §7).
+pub const SELECTION_FILL: Role = Role::SecondaryContainer;
+/// Text on [`SELECTION_FILL`] where it is not drawn in on-surface:
+/// on-secondary-container.
+pub const SELECTION_INK: Role = Role::OnSecondaryContainer;
 
 /// The smallest rectangle holding both.
 fn union(a: Rect, b: Rect) -> Rect {
@@ -586,6 +599,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
             cut: Vec::new(),
             hit_clip: None,
             quiet_hover: false,
+            held: false,
             own_ring: false,
             around: false,
             outside: None,
@@ -623,26 +637,34 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
     /// (`docs/MOTION.md` §3.3) moves what was drawn in it, and what is
     /// pressable there, and the page shows in the gap.
     pub fn report_scroll(&mut self, view: Rect, max: f32) {
+        self.report_scroll_on(view, max, Role::Surface);
+    }
+
+    /// [`Ui::report_scroll`] for a region that sits on the container
+    /// `ground` rather than on the page (a dialog, a sheet, a menu): its
+    /// edges fade into that container, and that container shows in the
+    /// gap a stretch past an end opens (`docs/THEMES.md` §6, §7).
+    pub fn report_scroll_on(&mut self, view: Rect, max: f32, ground: Role) {
         let offset = self.offset;
-        self.report(Slot::Page, view, max, offset, false);
+        self.report(Slot::Page, (view, ground), max, offset, false);
     }
 
     /// [`Ui::report_scroll`], for a region that draws its own scrollbar.
     pub fn report_scroll_own_bar(&mut self, view: Rect, max: f32) {
         let offset = self.offset;
-        self.report(Slot::Page, view, max, offset, true);
+        self.report(Slot::Page, (view, Role::Surface), max, offset, true);
     }
 
     /// [`Ui::report_scroll_own_bar`], for a region beside the page's that
     /// moves by its own offset, `offset` units now.
     pub fn report_scroll_in(&mut self, slot: Slot, view: Rect, max: f32, offset: f32) {
-        self.report(slot, view, max, offset, true);
+        self.report(slot, (view, Role::Surface), max, offset, true);
     }
 
     /// [`Ui::report_scroll_in`] for a region that shows the page's own
     /// overlay scrollbar at its right edge while it is the one scrolled.
     pub fn report_scroll_beside(&mut self, slot: Slot, view: Rect, max: f32, offset: f32) {
-        self.report(slot, view, max, offset, false);
+        self.report(slot, (view, Role::Surface), max, offset, false);
     }
 
     /// [`Ui::report_scroll_beside`] for a region whose content also pans
@@ -657,7 +679,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         max: (f32, f32),
         offset: (f32, f32),
     ) {
-        self.report(slot, view, max.1, offset.1, false);
+        self.report(slot, (view, Role::Surface), max.1, offset.1, false);
         if let Some(s) = self.scrolled.iter_mut().find(|s| s.slot == slot) {
             s.max_x = max.0.max(0.0);
         }
@@ -703,7 +725,18 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         self.col(Role::OnSurfaceVariant.with_alpha((u16::from(alpha) * most / 255) as u8))
     }
 
-    fn report(&mut self, slot: Slot, view: Rect, max: f32, offset: f32, own_bar: bool) {
+    /// Keeps the region `slot` seen through `view` (pixels) on the
+    /// container `ground`, its content scrolling `max` units and `offset`
+    /// of them now; stretches it, fades its edges into `ground` and draws
+    /// its scrollbar.
+    fn report(
+        &mut self,
+        slot: Slot,
+        (view, ground): (Rect, Role),
+        max: f32,
+        offset: f32,
+        own_bar: bool,
+    ) {
         let max = max.max(0.0);
         let region = Scrolled {
             slot,
@@ -720,9 +753,9 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
             return;
         }
         if slot == self.active {
-            self.stretch_view(view);
+            self.stretch_view(view, ground);
         }
-        self.edge_fades(view, max, offset);
+        self.edge_fades(view, max, offset, ground);
         // A small panel draws no scrollbar: the edge fades say the page
         // goes on.
         if let Some((alpha, offset)) = self.bar
@@ -768,21 +801,20 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         self.c.fill_rounded_rect(rect, w as f32 / 2.0, color);
     }
 
-    /// The region's content fades into the page at an edge it continues
-    /// past: under the top once scrolled, above the bottom while there is
-    /// more. Each fade comes in over the first 24 units scrolled.
-    /// At High contrast a scheme draws none: a fade lowers the contrast of
-    /// what is under it, and the scrollbar says the page goes on.
-    fn edge_fades(&mut self, view: Rect, max: f32, offset: f32) {
+    /// The region's content fades into `ground`, the surface it sits on,
+    /// at an edge it continues past: under the top once scrolled, above
+    /// the bottom while there is more. Each fade comes in over the first
+    /// 24 units scrolled. At High contrast a scheme draws none: a fade
+    /// lowers the contrast of what is under it, and the scrollbar says
+    /// the page goes on.
+    fn edge_fades(&mut self, view: Rect, max: f32, offset: f32, ground: Role) {
         if max <= 0.0 || view.h <= 0 || self.theme.is_high_contrast() {
             return;
         }
         // Deeper on a small panel, where it is the sign there is more.
         let depth = if self.compact { 44.0 } else { 24.0 };
         let band = ((depth * self.f).round() as i32).clamp(1, view.h / 4 + 1);
-        // The page and a sheet are both the surface (`docs/DECISIONS.md`
-        // F39).
-        let page = self.col(Role::Surface);
+        let page = self.col(ground);
         let reach = band as f32 / self.f;
         let top = (offset / reach).clamp(0.0, 1.0);
         let bottom = ((max - offset) / reach).clamp(0.0, 1.0);
@@ -836,13 +868,30 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         if self.theme.is_high_contrast() {
             return;
         }
+        self.shadow_faded((x, y, w, h, r), level, 1.0);
+    }
+
+    /// [`Ui::shadow`] under something `shown` (0 to 1) of the way faded
+    /// in, at that share of its strength, at (x, y), w by h with corners
+    /// of `r`.
+    pub fn shadow_faded(
+        &mut self,
+        (x, y, w, h, r): (f32, f32, f32, f32, f32),
+        level: u8,
+        shown: f32,
+    ) {
+        if self.theme.is_high_contrast() || shown <= 0.0 {
+            return;
+        }
         let rect = self.rect(x, y, w, h);
-        self.c.elevation(rect, r * self.f, level, self.f);
+        self.c
+            .elevation_faded(rect, r * self.f, level, self.f, shown);
     }
 
     /// Moves what was drawn in `view` by the stretch, and what is
-    /// pressable there with it; the page shows in the gap.
-    fn stretch_view(&mut self, view: Rect) {
+    /// pressable there with it; `ground`, the surface the region sits on,
+    /// shows in the gap.
+    fn stretch_view(&mut self, view: Rect, ground: Role) {
         let n = self.stretch.abs().min(view.h);
         if n == 0 {
             return;
@@ -853,9 +902,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         } else {
             Rect::new(view.x, view.bottom() - n, view.w, n)
         };
-        // The page and a sheet are both the surface (`docs/DECISIONS.md`
-        // F39).
-        let page = self.col(Role::Surface);
+        let page = self.col(ground);
         self.c.fill_rect(gap, page);
         for (r, _) in self.hits.iter_mut() {
             if r.intersect(&view) == *r {
@@ -873,26 +920,34 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
 
     /// The selection behind text `shown` drawn at (x, y) in a field of
     /// height `h`, when the field is focused and all of it is selected:
-    /// for a field drawn as one string, whose caret stays at its end.
+    /// for a field drawn as one string, whose caret stays at its end. The
+    /// text drawn on it is written in [`SELECTION_INK`].
     #[allow(clippy::too_many_arguments)]
     pub fn selection(&mut self, x: f32, y: f32, h: f32, size: f32, w: W, shown: &str, on: bool) {
         if on && self.edit.all(shown.chars().count()) {
             let tw = self.measure(size, w, shown);
-            self.selected_band(x, y, h, tw);
+            let _ = self.selected_band(x, y, h, tw);
         }
     }
 
     /// The band behind selected text `tw` wide from x, in a field `h`
-    /// tall at y.
-    fn selected_band(&mut self, x: f32, y: f32, h: f32, tw: f32) {
-        self.fill(
-            x - 2.0,
-            y + h * 0.2,
-            tw + 4.0,
-            h * 0.6,
-            3.0,
-            Role::Primary.with_alpha(90),
-        );
+    /// tall at y ([`Ui::selection_band`]). Returns where it is, in
+    /// pixels.
+    fn selected_band(&mut self, x: f32, y: f32, h: f32, tw: f32) -> Rect {
+        use faraday_draw::tokens::{SELECTION_BAND, SELECTION_PAD};
+        let bh = h * SELECTION_BAND;
+        let at = (x - SELECTION_PAD, y + (h - bh) / 2.0);
+        self.selection_band(at.0, at.1, tw + 2.0 * SELECTION_PAD, bh);
+        self.rect(at.0, at.1, tw + 2.0 * SELECTION_PAD, bh)
+    }
+
+    /// The band behind selected text, at (x, y), `w` by `h`: one selection
+    /// paint wherever text is selected, [`SELECTION_FILL`], the text on
+    /// it in [`SELECTION_INK`], which reads on it at 4.5:1 or more in
+    /// every scheme and 7:1 at High contrast.
+    pub fn selection_band(&mut self, x: f32, y: f32, w: f32, h: f32) {
+        use faraday_draw::tokens::SHAPE_XS;
+        self.fill(x, y, w, h, SHAPE_XS, SELECTION_FILL);
     }
 
     /// One line of typing (`docs/history/NEW-WALLET.md` §13.2): `text`, dots
@@ -944,13 +999,35 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         }
         let left = |i: usize| x + edge[i] - edge[from];
         let selected = edit.selected(n);
-        if let Some((lo, hi)) = selected {
+        let shown = &text[at[from]..at[to]];
+        let band = selected.and_then(|(lo, hi)| {
             let (lo, hi) = (lo.clamp(from, to), hi.clamp(from, to));
-            if hi > lo {
-                self.selected_band(left(lo), y, h, edge[hi] - edge[lo]);
+            (hi > lo).then(|| self.selected_band(left(lo), y, h, edge[hi] - edge[lo]))
+        });
+        match band {
+            // What is selected is written in the selection's own ink, the
+            // rest beside it as asked.
+            Some(b) => {
+                // The row, with room for a letter's overhang at its ends.
+                let row = self.rect(x - h, y, room + 2.0 * h, h);
+                let before = Rect::new(row.x, row.y, (b.x - row.x).max(0), row.h);
+                let after = Rect::new(b.right(), row.y, (row.right() - b.right()).max(0), row.h);
+                for (clip, ink) in [
+                    (before, color),
+                    (after, color),
+                    (Rect::new(b.x, row.y, b.w, row.h), SELECTION_INK.paint()),
+                ] {
+                    if clip.w > 0 {
+                        self.c.push_clip(clip);
+                        self.text_mid(x, y, h, size, w, ink, shown);
+                        self.c.pop_clip();
+                    }
+                }
+            }
+            None => {
+                self.text_mid(x, y, h, size, w, color, shown);
             }
         }
-        self.text_mid(x, y, h, size, w, color, &text[at[from]..at[to]]);
         if focused {
             self.note_focus(x, y, room, h);
             self.focus_action = Some(action);
@@ -1566,9 +1643,9 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
     /// is scrolled out of sight cannot be pressed.
     ///
     /// It shows its state as Material's state layer over what was drawn
-    /// there (hovered, the keyboard on it, with the focus ring; pressed,
-    /// a region that is not a control shows what it holds as drawn),
-    /// unless it draws its own (a button) or covers so much of the
+    /// there, hovered, with the keyboard on it (and the focus ring) and
+    /// pressed, in small corners ([`Ui::hit_shaped`] takes the control's
+    /// own), unless it draws its own (a button) or covers so much of the
     /// screen that a layer would light the page. It takes a press at
     /// least [`faraday_draw::tokens::TOUCH`] square ([`Reach`]).
     pub fn hit(&mut self, x: f32, y: f32, w: f32, h: f32, action: A) {
@@ -1588,12 +1665,10 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
             let screen = i64::from(self.c.width()) * i64::from(self.c.height());
             let small = i64::from(rect.w) * i64::from(rect.h) * 4 < screen;
             use faraday_draw::tokens::SHAPE_S;
-            if small && !self.quiet_hover {
-                // Pressed, a region shows what it holds as drawn: a held
-                // secret's code stays readable under the finger.
-                if !self.is_pressed(action) {
-                    self.state_layer((x, y, w, h, SHAPE_S), Role::OnSurface.paint(), action);
-                }
+            // Pressed, a held secret shows what it holds as drawn, its
+            // code readable under the finger ([`Ui::hit_held`]).
+            if small && !self.quiet_hover && !(self.held && self.is_pressed(action)) {
+                self.state_layer((x, y, w, h, SHAPE_S), Role::OnSurface.paint(), action);
             }
             // A region with its own hover look is still ringed while the
             // keyboard is on it, unless it rings itself.
@@ -1605,6 +1680,32 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
                 self.reach_for(rect, clip, action);
             }
         }
+    }
+
+    /// [`Ui::hit`] for a held secret (a code shown while a finger is on
+    /// it): no pressed layer over it, so what it shows reads as drawn;
+    /// hovered and focused as [`Ui::hit`].
+    pub fn hit_held(&mut self, x: f32, y: f32, w: f32, h: f32, action: A) {
+        self.held = true;
+        self.hit(x, y, w, h, action);
+        self.held = false;
+    }
+
+    /// [`Ui::hit`] for a region that draws its own state layer in the
+    /// shape at `at` (x, y, w, h and its corners) and takes its press on
+    /// the box `target` (x, y, w, h), which may be larger: its focus ring
+    /// follows its shape (a round icon button, a navigation item's pill).
+    pub fn hit_ringed(
+        &mut self,
+        at: (f32, f32, f32, f32, f32),
+        target: (f32, f32, f32, f32),
+        action: A,
+    ) {
+        if !self.dimmed.contains(&action) {
+            self.focus_ring(at, action);
+        }
+        let (x, y, w, h) = target;
+        self.hit_drawn(x, y, w, h, action);
     }
 
     /// [`Ui::hit`] for a region that draws its own hover look: no state
@@ -1852,7 +1953,16 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         width
     }
 
-    /// A rounded label with a dot. Returns its width.
+    /// A status tag (`docs/DESIGN.md` §3 Status): a rounded label with
+    /// a dot in `status`'s container colour, its dot and text in its
+    /// on-container colour. Returns its width.
+    pub fn tag(&mut self, x: f32, y: f32, label: &str, status: Status) -> f32 {
+        let (bg, fg) = status.roles();
+        self.chip(x, y, label, fg, bg)
+    }
+
+    /// A rounded label with a dot, in any two paints: [`Ui::tag`] for a
+    /// status. Returns its width.
     pub fn chip(
         &mut self,
         x: f32,
@@ -1975,6 +2085,32 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
             let rect = self.rect(x, y, SIDE, SIDE);
             self.c
                 .stroke_rounded_rect(rect, R * self.f, 2.0 * self.f, edge);
+        }
+    }
+}
+
+/// What a status tag says (`docs/DESIGN.md` §3 Status,
+/// `docs/THEMES.md` §6): done, needs attention, refused, or neither.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Status {
+    /// Done, verified, can sign: ok-container.
+    Ok,
+    /// Waiting, unsaved, needs attention: warning-container.
+    Warning,
+    /// Refused: error-container.
+    Error,
+    /// Neither: surface-container-highest.
+    Neutral,
+}
+
+impl Status {
+    /// Its container and the colour on it.
+    pub const fn roles(self) -> (Role, Role) {
+        match self {
+            Status::Ok => (Role::OkContainer, Role::OnOkContainer),
+            Status::Warning => (Role::WarningContainer, Role::OnWarningContainer),
+            Status::Error => (Role::ErrorContainer, Role::OnErrorContainer),
+            Status::Neutral => (Role::SurfaceContainerHighest, Role::OnSurfaceVariant),
         }
     }
 }

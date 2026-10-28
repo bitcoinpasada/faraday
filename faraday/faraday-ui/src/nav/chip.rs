@@ -105,8 +105,10 @@ fn chip_drawn<A: Copy + PartialEq>(
         );
     }
     if let Some(a) = action {
+        // Ringed round the chip as drawn, its press taken a touch target
+        // tall.
         let ty = y - (TOUCH - STATUS_CHIP_H) / 2.0;
-        ui.hit_quiet(x, ty, w, TOUCH, a);
+        ui.hit_ringed((x, y, w, STATUS_CHIP_H, r), (x, ty, w, TOUCH), a);
     }
     w
 }

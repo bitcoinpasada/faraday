@@ -244,8 +244,10 @@ several uses, C2 picks the role by the use, as the row says.
 Not in the tables today and unchanged: `SCRIM` becomes the scrim role
 (black in every scheme, as now); a camera's overlay (`VIEWFINDER`,
 `VIEWFINDER_READ`, `VIEWFINDER_BAND`) and a QR code's black and white are
-drawn as they are. The sticks' pill colours (`STICK_BOOT`, `STICKS` and
-their light sets) stay outside the schemes, chosen by Mode. The
+drawn as they are. The sticks' tones (`STICK_BOOT`, `STICKS` and
+their light sets) stay outside the schemes, chosen by mode and contrast
+(F142, `faraday_ui::pal::stick`); a stick's pill is filled in its tone
+while the stick is in, its label white or black on it. The
 structure chart's line colours (`KEY_LINES`) become primary, ok,
 warning, error and on-surface-variant.
 
@@ -278,16 +280,20 @@ the same.
 | Filled card | surface-container-highest | on-surface | |
 | Navigation rail | surface | inactive on-surface-variant; active label on-surface | active indicator secondary-container, its icon on-secondary-container |
 | Expanded rail (the sidebar) | surface-container-low | inactive on-surface-variant | active indicator secondary-container, its label on-secondary-container |
-| Navigation bar | surface-container | inactive on-surface-variant; active label on-surface | active indicator secondary-container, its icon on-secondary-container |
-| Top app bar | surface; surface-container once scrolled under | title on-surface; icons on-surface-variant | |
+| Navigation bar | surface-container | inactive on-surface-variant; active label on-surface | active indicator secondary-container, its icon on-secondary-container; no divider |
+| Top app bar | surface; surface-container once scrolled under | title on-surface; icons on-surface-variant | no divider |
 | Assist chip | none | on-surface; icon primary | outline |
 | Filter chip | none; selected secondary-container | on-surface-variant; selected on-secondary-container | outline; none once selected |
 | Theme chip (Settings' Theme, F120) | that theme's primary-container | that theme's on-primary-container | chosen: a ring in that theme's primary, 3 dp thick, 2 dp outside |
 | Segmented button | none; selected secondary-container | on-surface; selected on-secondary-container | outline |
 | Dialog | surface-container-high | headline on-surface; text on-surface-variant; icon secondary; actions primary | scrim behind |
 | Bottom sheet | surface-container-low | on-surface | drag handle on-surface-variant; scrim behind |
-| Menu | surface-container | on-surface | shadow, level 2 |
-| Snackbar (the toast) | inverse-surface | inverse-on-surface, body medium; action inverse-primary | shadow, level 3; extra-small corners |
+| Menu (`faraday_ui::menu`) | surface-container | on-surface; a group heading on-surface-variant | shadow, level 2, extra-small corners; at High contrast, where there is no shadow, outline; the chosen item secondary-container with on-secondary-container and a tick |
+| Snackbar (the toast) | inverse-surface | inverse-on-surface, body medium, from its start; action inverse-primary | shadow, level 3, fading in with it; extra-small corners; a compact window's width less its margins, else 344 to 672 dp; a second stands above the first |
+| Hold (`Ui::hold_button`) | none; the part held error-container | error; on the part held on-error-container | error edge; full corners |
+| Status tag (`Ui::tag`) | ok-, warning- or error-container, or surface-container-highest | that container's on-role | |
+| Stick pill (`Ui::stick_pill`, F142) | in: its tone; else surface-container-highest | in: white or black; asked: on-surface; else on-surface-variant | asked: its tone; quiet: outline-variant |
+| Selected text | secondary-container | on-secondary-container | |
 | Filled text field | surface-container-highest | input on-surface; label on-surface-variant; caret primary | indicator on-surface-variant, primary while focused, error when wrong |
 | Outlined text field | none | as filled | outline, primary while focused, error when wrong |
 | Switch | track primary; off surface-container-highest | handle on-primary; off outline | off track edge outline |
@@ -296,7 +302,7 @@ the same.
 | Divider, a rule | | | outline-variant |
 | List row | surface | on-surface; supporting on-surface-variant | |
 | Plain tooltip | inverse-surface | inverse-on-surface | |
-| Focus ring | | | secondary, 3 dp thick, 2 dp outside (as today's `FOCUS_RING`, `FOCUS_OFFSET`) |
+| Focus ring | | | secondary, 3 dp thick, 2 dp outside (as today's `FOCUS_RING`, `FOCUS_OFFSET`), in the shape of the control's state layer; inside a menu's item, which the menu's edge would cut |
 
 Faraday's cards keep their edge (F39 put steps in flat sections and kept
 cards edged where they are cards); the fill is Material's elevated

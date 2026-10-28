@@ -294,6 +294,49 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
             .stroke_rounded_rect(rect, (r + out) * self.f, FOCUS_RING * self.f, color);
     }
 
+    /// The focus ring round one segment of a segmented button at (x, y),
+    /// w by h, when the keyboard is on `action`: round with corners of
+    /// `r` at the button's own ends (`first`, `last`), square where the
+    /// segment meets another, as the segment's shape is.
+    fn segment_ring(
+        &mut self,
+        (x, y, w, h, r): (f32, f32, f32, f32, f32),
+        (first, last): (bool, bool),
+        action: A,
+    ) {
+        if self.focused != Some(action) {
+            return;
+        }
+        let out = FOCUS_OFFSET + FOCUS_RING;
+        let ring = self.rect(x - out, y - out, w + 2.0 * out, h + 2.0 * out);
+        // A ring reaching on past each inner end far enough that its
+        // round corner there falls outside the segment's own, cut to the
+        // segment's; a straight side closes it there.
+        let reach = |end: bool| if end { 0.0 } else { r + out };
+        let (left, right) = (reach(first), reach(last));
+        let shape = self.rect(
+            x - out - left,
+            y - out,
+            w + 2.0 * out + left + right,
+            h + 2.0 * out,
+        );
+        let color = self.col(Role::Secondary);
+        let thick = FOCUS_RING * self.f;
+        self.c.push_clip(ring);
+        self.c
+            .stroke_rounded_rect(shape, (r + out) * self.f, thick, color);
+        let t = (thick.round() as i32).max(1);
+        if !first {
+            self.c
+                .fill_rect(Rect::new(ring.x, ring.y, t, ring.h), color);
+        }
+        if !last {
+            self.c
+                .fill_rect(Rect::new(ring.right() - t, ring.y, t, ring.h), color);
+        }
+        self.c.pop_clip();
+    }
+
     /// [`Ui::hit`] for a control with corners of `r`: its state layer and
     /// focus ring follow its shape.
     pub fn hit_shaped(&mut self, at: (f32, f32, f32, f32, f32), action: A) {
@@ -387,7 +430,8 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
                     label,
                 );
             }
-            self.focus_ring((sx, y, sw, h, r), action);
+            let ends = (i == 0, i + 1 == options.len());
+            self.segment_ring((sx, y, sw, h, r), ends, action);
             self.hit_drawn(sx, y, sw, h, action);
         }
         self.stroke(x, y, total, h, r, Role::Outline);

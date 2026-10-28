@@ -106,7 +106,8 @@ fn framed<A: Copy + PartialEq>(
     ui.sheet_pinning = false;
     ui.sheet_pin = None;
     ui.c.pop_clip();
-    ui.report_scroll(clip, max);
+    // Its edges fade into its own container (`docs/THEMES.md` §7).
+    ui.report_scroll_on(clip, max, fill);
     if !items.is_empty() {
         if max > 0.0 {
             ui.fill(

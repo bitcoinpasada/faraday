@@ -1065,6 +1065,7 @@ dependencies = [
  "faraday-codec",
  "faraday-core",
  "faraday-crypto",
+ "faraday-draw",
  "faraday-keys",
  "faraday-qr",
  "faraday-samples",
@@ -1072,6 +1073,7 @@ dependencies = [
  "faraday-selftest",
  "faraday-shell-api",
  "faraday-storage",
+ "faraday-ui",
  "faraday-vault",
  "png",
 ]

@@ -335,6 +335,97 @@ fn fields_and_lists(ui: &mut Ui<u8>) {
     }
 }
 
+/// The shared pieces: a hold of each tone at rest and held to its end, a status
+/// tag of each kind, every stick's pill quiet, asked for and in, a guide
+/// step to do and one ticked, a field with part of what it holds
+/// selected, and a snackbar at the foot.
+fn pieces(ui: &mut Ui<u8>) {
+    use crate::hold::HoldTone;
+    use crate::stick::{PillAt, StickState};
+    let tones = [HoldTone::Error, HoldTone::Warning, HoldTone::Primary];
+    for (k, tone) in tones.into_iter().enumerate() {
+        let x = 16.0 + k as f32 * 200.0;
+        ui.hold_button((x, 16.0, 190.0), ("Hold to erase", tone), 0.0, 1);
+        ui.hold_button((x, 340.0, 190.0), ("Hold to erase", tone), 1.0, 2);
+    }
+    let mut x = 16.0;
+    for (label, status) in [
+        ("Done", Status::Ok),
+        ("Waiting", Status::Warning),
+        ("Refused", Status::Error),
+        ("Idle", Status::Neutral),
+    ] {
+        x += ui.tag(x, 76.0, label, status) + 8.0;
+    }
+    let states = [StickState::Quiet, StickState::Asked, StickState::Inserted];
+    for (row, state) in states.into_iter().enumerate() {
+        for n in 0..8 {
+            let at = PillAt {
+                x: 16.0 + n as f32 * 76.0,
+                y: 110.0 + row as f32 * 40.0,
+                w: 70.0,
+                h: 30.0,
+                pad: 8.0,
+                dot_r: 4.0,
+                dot_room: 14.0,
+                text: 13.0,
+            };
+            let label = if n == 0 { "Boot" } else { "Stick" };
+            let action = if row == 2 {
+                3 + n as u8
+            } else {
+                11 + row as u8
+            };
+            ui.stick_pill(at, n, state, label, Some(action));
+        }
+    }
+    parts::step_circle(ui, 16.0, 240.0, 1, false, Some(13));
+    parts::step_circle(ui, 60.0, 240.0, 2, true, Some(13));
+    ui.edit = Edit {
+        field: Some(14),
+        caret: Some(3),
+        anchor: Some(9),
+    };
+    let fh = ui.field_box((320.0, 236.0, 280.0), true, None);
+    let at = (336.0, 236.0, fh);
+    ui.typed(
+        at.0,
+        at.1,
+        at.2,
+        16.0,
+        W::R,
+        Role::OnSurface,
+        "bc1qexample",
+        240.0,
+        true,
+        14,
+    );
+    ui.snackbar((0.0, 640.0, 480.0), "Time set to 14:30", 1.0, 0.0);
+}
+
+/// Material's menu as a popup, under group headings, one item chosen and
+/// the arrow keys on another.
+fn menu_popup(ui: &mut Ui<u8>) {
+    use crate::menu::{Menu, MenuLine, menu};
+    let lines = [
+        MenuLine::Head("Place 1"),
+        MenuLine::Item("Move here", 1, true),
+        MenuLine::Item("Copy here", 2, false),
+        MenuLine::Head("Place 2"),
+        MenuLine::Item("Move here", 3, false),
+    ];
+    let m = Menu {
+        title: Some("Stick 1"),
+        icon: Glyph::Icon(Icon::Done),
+        lines: &lines,
+        at: Some(2),
+        anchor: None,
+        cancel: ("Cancel", 4),
+        shown: 1.0,
+    };
+    menu(ui, 640.0, 480.0, &m);
+}
+
 /// The on-screen keyboard, Shift on.
 fn keyboard(ui: &mut Ui<u8>) {
     keyboard::keyboard(
@@ -358,8 +449,10 @@ fn keyboard(ui: &mut Ui<u8>) {
 
 #[test]
 fn what_the_components_write_reads_on_what_they_are_drawn_on_in_every_scheme() {
-    let scenes: [(&str, Scene); 7] = [
+    let scenes: [(&str, Scene); 9] = [
         ("controls", controls),
+        ("pieces", pieces),
+        ("menu", menu_popup),
         ("fields and lists", fields_and_lists),
         ("appearance", appearance),
         ("navigation", navigation),
@@ -403,6 +496,184 @@ fn what_the_components_write_reads_on_what_they_are_drawn_on_in_every_scheme() {
         }
     }
     assert!(short.is_empty(), "{short:#?}");
+}
+
+/// A stick's dot and edge, its tone, stand out from every surface at
+/// 3:1 or more in every scheme, so which stick a pill is reads from its
+/// tone wherever the pill is drawn.
+#[test]
+fn every_sticks_tone_stands_out_from_every_surface_in_every_scheme() {
+    let surfaces = [
+        Role::Surface,
+        Role::SurfaceDim,
+        Role::SurfaceBright,
+        Role::SurfaceContainerLowest,
+        Role::SurfaceContainerLow,
+        Role::SurfaceContainer,
+        Role::SurfaceContainerHigh,
+        Role::SurfaceContainerHighest,
+    ];
+    let mut short = Vec::new();
+    for theme in Theme::all() {
+        for n in 0..8 {
+            for s in surfaces {
+                let got = ratio(theme.color(pal::stick(n)), theme.role(s));
+                if got < 3.0 {
+                    short.push(format!("{theme:?}: stick {n} on {s:?} is {got:.2}:1"));
+                }
+            }
+        }
+    }
+    assert!(short.is_empty(), "{short:#?}");
+}
+
+/// A dialog whose body is taller than the window, scrolled: under its
+/// top edge the content fades into the dialog's own container, not into
+/// the page's colour, in every scheme that fades.
+#[test]
+fn a_scrolled_dialog_fades_into_its_own_container() {
+    use faraday_draw::tokens::PAD;
+    let mut short = Vec::new();
+    for theme in Theme::all().filter(|t| !t.is_high_contrast()) {
+        let mut canvas = canvas();
+        let mut hits = Vec::new();
+        {
+            let mut ui: Ui<u8> = Ui::new(&mut canvas, 1.0, &mut hits, None);
+            ui.theme = theme;
+            ui.clear(Role::Surface);
+            ui.offset = 60.0;
+            sheet::dialog(
+                &mut ui,
+                (640.0, 480.0, 400.0),
+                (Glyph::Icon(Icon::Done), Role::Secondary.paint(), "A dialog"),
+                &mut |_, _, _, _| 2000.0,
+                &[("Close", Style::Ghost, 1)],
+            );
+        }
+        let got = pixel(&canvas, 320.0, PAD + 2.0);
+        let want = theme.role(Role::SurfaceContainerHigh);
+        let near = |a: u8, b: u8| a.abs_diff(b) <= 2;
+        if !(near(got.r, want.r) && near(got.g, want.g) && near(got.b, want.b)) {
+            short.push(format!(
+                "{theme:?}: under the top edge is {got:?}, not {want:?}"
+            ));
+        }
+    }
+    assert!(short.is_empty(), "{short:#?}");
+}
+
+/// The top app bar is the page's colour while the page is at its top
+/// and surface-container once the page is scrolled under it.
+#[test]
+fn the_top_app_bar_turns_surface_container_once_the_page_scrolls_under_it() {
+    for (offset, want) in [(0.0, Role::Surface), (30.0, Role::SurfaceContainer)] {
+        let mut canvas = canvas();
+        let mut hits = Vec::new();
+        {
+            let mut ui: Ui<u8> = Ui::new(&mut canvas, 1.0, &mut hits, None);
+            ui.clear(Role::Surface);
+            ui.offset = offset;
+            let bar = AppBar {
+                back: None,
+                title: "Home",
+                back_tip: "Back",
+            };
+            nav::app_bar(&mut ui, 640.0, &bar, 640.0);
+        }
+        assert_eq!(pixel(&canvas, 600.0, 4.0), Theme::default().role(want));
+    }
+}
+
+/// A finger on a region shows it is pressed; a finger on a held secret
+/// leaves what it shows as drawn.
+#[test]
+fn a_pressed_region_shows_it_and_a_held_secret_reads_as_drawn() {
+    let page = Theme::default().role(Role::Surface);
+    for (held, changed) in [(false, true), (true, false)] {
+        let mut canvas = canvas();
+        let mut hits = Vec::new();
+        {
+            let mut ui: Ui<u8> = Ui::new(&mut canvas, 1.0, &mut hits, Some(1));
+            ui.clear(Role::Surface);
+            if held {
+                ui.hit_held(100.0, 100.0, 120.0, 40.0, 1);
+            } else {
+                ui.hit(100.0, 100.0, 120.0, 40.0, 1);
+            }
+        }
+        assert_eq!(pixel(&canvas, 160.0, 120.0) != page, changed, "held {held}");
+    }
+}
+
+/// A menu's chosen item is filled in secondary-container; the others
+/// stand on the menu's own surface-container.
+#[test]
+fn a_menus_chosen_item_is_filled_in_the_selected_colour() {
+    let mut canvas = canvas();
+    canvas.record_ink(true);
+    let mut hits = Vec::new();
+    {
+        let mut ui: Ui<u8> = Ui::new(&mut canvas, 1.0, &mut hits, None);
+        ui.clear(Role::Surface);
+        use crate::menu::{Menu, MenuLine, menu};
+        let lines = [
+            MenuLine::Item("Move here", 1, true),
+            MenuLine::Item("Copy here", 2, false),
+        ];
+        let m = Menu {
+            title: None,
+            icon: Glyph::Icon(Icon::Done),
+            lines: &lines,
+            at: None,
+            anchor: None,
+            cancel: ("Cancel", 4),
+            shown: 1.0,
+        };
+        menu(&mut ui, 640.0, 480.0, &m);
+    }
+    let at = |label: &str| {
+        canvas
+            .ink()
+            .iter()
+            .find_map(|i| match &i.kind {
+                InkKind::Text { text, .. } if text == label => Some(i.rect),
+                _ => None,
+            })
+            .expect("drawn")
+    };
+    let (chosen, other) = (at("Move here"), at("Copy here"));
+    let theme = Theme::default();
+    let beside = |r: faraday_draw::Rect| pixel(&canvas, (r.x - 4) as f32, (r.y + r.h / 2) as f32);
+    assert_eq!(beside(chosen), theme.role(Role::SecondaryContainer));
+    assert_eq!(beside(other), theme.role(Role::SurfaceContainer));
+}
+
+/// A notice that stays at the foot and a toast over it: the toast stands
+/// above the notice, neither over the other.
+#[test]
+fn a_toast_over_a_notice_stands_clear_of_it() {
+    let mut canvas = canvas();
+    canvas.record_ink(true);
+    let mut hits = Vec::new();
+    {
+        let mut ui: Ui<u8> = Ui::new(&mut canvas, 1.0, &mut hits, None);
+        ui.clear(Role::Surface);
+        let up = ui.snackbar((0.0, 640.0, 480.0), "Remove the stick", 1.0, 0.0);
+        ui.snackbar((0.0, 640.0, 480.0 - up), "Time set to 14:30", 1.0, 0.0);
+    }
+    let rect = |label: &str| {
+        canvas
+            .ink()
+            .iter()
+            .find_map(|i| match &i.kind {
+                InkKind::Text { text, .. } if text == label => Some(i.rect),
+                _ => None,
+            })
+            .expect("drawn")
+    };
+    let (notice, toast) = (rect("Remove the stick"), rect("Time set to 14:30"));
+    assert!(toast.bottom() < notice.y, "{toast:?} over {notice:?}");
+    assert!(notice.bottom() <= 480);
 }
 
 /// The tooltips' own pairs: plain on inverse-surface, rich on its

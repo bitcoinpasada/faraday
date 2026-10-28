@@ -156,3 +156,4 @@ Read this table, then only the decision you need.
 | [F139](decisions/F139.md) | A compact top app bar's title steps down to Title M where Title L would be cut | 2026-10-27 | Active | design |
 | [F140](decisions/F140.md) | The mark in golden proportions | 2026-10-27 | Active | design |
 | [F141](decisions/F141.md) | A miniscript or a taproot tree of one key is signed only through its registered wallet | 2026-10-27 | Active | wallets |
+| [F142](decisions/F142.md) | A stick's pill is filled in its tone while the stick is in, its tones set by mode and contrast | 2026-10-27 | Active | design |

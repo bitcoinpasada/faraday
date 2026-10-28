@@ -20,6 +20,9 @@ faraday-crypto = { path = "../../../core/faraday-crypto" }
 faraday-vault = { path = "../../faraday-vault" }
 faraday-sb = { path = "../../faraday-sb" }
 faraday-shell-api = { path = "../../../core/faraday-shell-api" }
+# The components tour draws faraday-ui's pieces on a canvas of its own.
+faraday-ui = { path = "../../faraday-ui" }
+faraday-draw = { path = "../../../core/faraday-draw" }
 png.workspace = true
 faraday-codec = { path = "../../../core/faraday-codec" }
 faraday-selftest = { path = "../../../core/faraday-selftest" }

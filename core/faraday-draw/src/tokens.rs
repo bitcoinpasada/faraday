@@ -1889,6 +1889,33 @@ pub const TOAST_TEXT: TypeRole = BODY_M;
 pub const TOAST_MARGIN: f32 = 16.0;
 /// How long the toast stays on screen, ms.
 pub const TOAST_SHOW_MS: u64 = 4000;
+/// The toast's least width on a window wider than compact (Material's
+/// snackbar); a compact window's is its width less the margins.
+pub const TOAST_MIN_W: f32 = 344.0;
+/// The toast's widest (Material's snackbar).
+pub const TOAST_MAX_W: f32 = 672.0;
+/// The band behind selected text: its height as a share of the field's.
+pub const SELECTION_BAND: f32 = 0.6;
+/// How far the band behind selected text reaches past it each side.
+pub const SELECTION_PAD: f32 = 2.0;
+
+/// The gap between two toasts stacked at the foot.
+pub const TOAST_STACK_GAP: f32 = 8.0;
+
+/// A menu's item (Material's menu list item): 48 dp tall.
+pub const MENU_ITEM_H: f32 = 48.0;
+/// A menu item's room each side of its label.
+pub const MENU_ITEM_PAD: f32 = 12.0;
+/// A menu's room above its first item and below its last.
+pub const MENU_PAD_V: f32 = 8.0;
+/// A menu's narrowest (Material's menu).
+pub const MENU_MIN_W: f32 = 112.0;
+/// A menu's widest (Material's menu).
+pub const MENU_MAX_W: f32 = 280.0;
+/// A menu's group heading: a line of label medium and its room.
+pub const MENU_HEAD_H: f32 = 32.0;
+/// How far a menu's items under a heading stand in from its start.
+pub const MENU_INDENT: f32 = 12.0;
 
 /// A plain tooltip's widest (Material 3's plain tooltip).
 pub const TIP_PLAIN_MAX_W: f32 = 200.0;

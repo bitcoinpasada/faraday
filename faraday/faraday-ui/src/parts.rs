@@ -200,14 +200,11 @@ pub fn qr_code<A: Copy + PartialEq>(
 
 pub use faraday_draw::tokens::{STEP_INDENT, STEP_SIDE, STEP_TOUCH};
 
-/// A ticked step's green: one colour in every theme, so the number in
-/// white reads on it.
-pub const STEP_DONE: faraday_draw::Color = faraday_draw::Color::rgb(0x1d, 0x85, 0x56);
-
 /// A guide step's number in a circle, its top-left at (x, y): outlined
-/// while it is to do, filled green with the number in white once
-/// `ticked`. With an `action`, a tap anywhere in the touch square around
-/// it takes the action. Returns [`STEP_SIDE`].
+/// while it is to do; once `ticked`, filled in ok with the number in
+/// on-ok (`docs/THEMES.md` §6 OK), a mark 3:1 or more on every surface.
+/// With an `action`, a tap anywhere in the touch square around it takes
+/// the action, its focus ring round the circle. Returns [`STEP_SIDE`].
 pub fn step_circle<A: Copy + PartialEq>(
     ui: &mut Ui<A>,
     x: f32,
@@ -222,8 +219,8 @@ pub fn step_circle<A: Copy + PartialEq>(
     let role = if label.len() > 1 { LABEL_M } else { TITLE_S };
     let pressed = action.is_some_and(|a| ui.is_pressed(a));
     let fg = if ticked {
-        ui.dot(x + r, y + r, r, STEP_DONE);
-        Paint::from(faraday_draw::Color::WHITE)
+        ui.dot(x + r, y + r, r, Role::Ok);
+        Role::OnOk.paint()
     } else {
         if pressed {
             ui.dot(x + r, y + r, r, Role::SurfaceContainerHighest);
@@ -239,12 +236,12 @@ pub fn step_circle<A: Copy + PartialEq>(
         );
         Role::OnSurface.paint()
     };
-    // White is no colour of the theme's: it is drawn as it is.
     let tw = ui.measure_as(role, &label);
     ui.text_mid_as((x + r - tw / 2.0, y, d), role, fg, &label);
     if let Some(a) = action {
         let pad = (STEP_TOUCH - d) / 2.0;
-        ui.hit_quiet(x - pad, y - pad, STEP_TOUCH, STEP_TOUCH, a);
+        let target = (x - pad, y - pad, STEP_TOUCH, STEP_TOUCH);
+        ui.hit_ringed((x, y, d, d, r), target, a);
     }
     d
 }

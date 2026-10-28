@@ -501,7 +501,22 @@ impl Canvas {
     /// each in black at its opacity, their dp sizes times `scale`. Costs
     /// two [`Canvas::shadow`] passes, each over a ring a few pixels wide.
     pub fn elevation(&mut self, rect: Rect, radius: f32, level: u8, scale: f32) {
+        self.elevation_faded(rect, radius, level, scale, 1.0);
+    }
+
+    /// Costs two [`Canvas::shadow`] passes. [`Canvas::elevation`] at
+    /// `strength` (0 to 1) of its opacity: the shadow of something fading
+    /// in or out.
+    pub fn elevation_faded(
+        &mut self,
+        rect: Rect,
+        radius: f32,
+        level: u8,
+        scale: f32,
+        strength: f32,
+    ) {
         let i = usize::from(level.clamp(1, 5)) - 1;
+        let k = strength.clamp(0.0, 1.0);
         for (layer, opacity) in [
             (
                 crate::tokens::ELEVATION_AMBIENT[i],
@@ -518,7 +533,7 @@ impl Canvas {
                 layer.blur * scale,
                 layer.spread * scale,
                 (layer.y * scale + 0.5) as i32,
-                Color::BLACK.with_alpha(opacity),
+                Color::BLACK.with_alpha((f32::from(opacity) * k + 0.5) as u8),
             );
         }
     }

@@ -7,14 +7,17 @@
 //! The roles are Material's (`docs/THEMES.md` §7): the current
 //! destination's pill is secondary-container, its icon on-secondary-
 //! container and its label on-surface; the others are on-surface-variant;
-//! hover and press are state layers; an edge is outline-variant.
+//! hover and press are state layers, and the focus ring follows the
+//! shape the state layer takes. The bars carry no rule along their
+//! edge (Material's top app bar and navigation bar); the rail's divider
+//! is outline-variant.
 
 mod app_bar;
 mod bar;
 mod chip;
 mod rail;
 
-pub use app_bar::{AppBar, app_bar, help, icon_action, more};
+pub use app_bar::{AppBar, app_bar, app_bar_fill, help, icon_action, more};
 pub use bar::bar;
 pub use chip::{Chip, status_chip};
 pub use rail::{Rail, destination_row, rail};
@@ -147,5 +150,6 @@ fn item<A: Copy + PartialEq>(ui: &mut Ui<A>, x: f32, y: f32, w: f32, h: f32, d: 
         room,
     );
     ui.text_fit_as(band, role, fg, d.label);
-    ui.hit_quiet(x, y, w, h, d.action);
+    // Ringed round its pill, the shape its state layer takes.
+    ui.hit_ringed(pill, (x, y, w, h), d.action);
 }

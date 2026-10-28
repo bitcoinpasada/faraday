@@ -22,11 +22,13 @@ pub struct Rail<'s, A> {
     pub foot: &'s [Dest<'s, A>],
 }
 
-/// The rail down the window's left, `h` tall. Each destination takes
-/// `NAV_ITEM_H` where the rail has room and never less than a touch
-/// target, so a low window keeps every one in reach.
+/// The rail down the window's left, `h` tall, on the surface as the
+/// page is (Material's navigation rail, `docs/THEMES.md` §7), a divider
+/// at its edge. Each destination takes `NAV_ITEM_H` where the rail has
+/// room and never less than a touch target, so a low window keeps every
+/// one in reach.
 pub fn rail<A: Copy + PartialEq>(ui: &mut Ui<A>, h: f32, r: &Rail<A>) {
-    ui.fill(0.0, 0.0, RAIL_W, h, 0.0, Role::SurfaceContainerLow);
+    ui.fill(0.0, 0.0, RAIL_W, h, 0.0, Role::Surface);
     ui.fill(RAIL_W - 1.0, 0.0, 1.0, h, 0.0, Role::OutlineVariant);
     let n = r.top.len() + r.under.len() + r.foot.len();
     let divider = if r.under.is_empty() { 0.0 } else { 2.0 * GAP };
@@ -73,7 +75,8 @@ pub fn destination_row<A: Copy + PartialEq>(
     } else {
         Role::OnSurfaceVariant
     };
-    ui.state_layer((x, y, w, TOUCH, r), fg.paint(), action);
+    let pill = (x, y, w, TOUCH, r);
+    ui.state_layer(pill, fg.paint(), action);
     let ix = x + PAD;
     let iy = y + (TOUCH - ICON_SMALL) / 2.0;
     ui.icon(ix, iy, ICON_SMALL, icon, NAV_ICON, fg);
@@ -92,5 +95,5 @@ pub fn destination_row<A: Copy + PartialEq>(
     if let Some(e) = end {
         ui.text_right_as((right, y, TOUCH), LABEL_M.regular(), fg, e);
     }
-    ui.hit_quiet(x, y, w, TOUCH, action);
+    ui.hit_ringed(pill, (x, y, w, TOUCH), action);
 }

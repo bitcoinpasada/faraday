@@ -97,10 +97,10 @@ impl Theme {
         self.scheme()[role as usize]
     }
 
-    /// `paint` as this scheme draws it: a role looked up, a fixed colour
-    /// as it is.
+    /// `paint` as this scheme draws it: a role looked up, a stick's tone
+    /// by mode and contrast, a fixed colour as it is.
     pub fn color(self, paint: impl Into<Paint>) -> Color {
-        paint.into().in_scheme(self.scheme())
+        paint.into().in_theme(self)
     }
 
     /// Dark text on a light page: shadows are lighter.

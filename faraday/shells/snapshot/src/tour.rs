@@ -373,21 +373,24 @@ impl Tour {
         self.n += 1;
         let path = self.out.join(format!("{:02}-{name}.png", self.n));
         let frame = self.app.frame();
-        let file = std::fs::File::create(&path).map_err(|e| format!("{}: {e}", path.display()))?;
-        let mut enc = png::Encoder::new(
-            std::io::BufWriter::new(file),
-            u32::from(frame.width),
-            u32::from(frame.height),
-        );
-        enc.set_color(png::ColorType::Rgba);
-        enc.set_depth(png::BitDepth::Eight);
-        let mut w = enc.write_header().map_err(|e| e.to_string())?;
-        w.write_image_data(frame.rgba).map_err(|e| e.to_string())?;
-        println!("{}", path.display());
+        write_png(&path, frame.width, frame.height, frame.rgba)?;
         if std::env::var_os("FARADAY_SNAP_TEXT").is_some() {
             self.note_cut(name)?;
         }
         Ok(())
+    }
+
+    /// What is drawn on `canvas`, saved as the next picture, `name`: a
+    /// tour that draws pieces on a canvas of its own.
+    pub(crate) fn save_canvas(
+        &mut self,
+        name: &str,
+        canvas: &faraday_draw::Canvas,
+    ) -> Result<(), String> {
+        self.n += 1;
+        let path = self.out.join(format!("{:02}-{name}.png", self.n));
+        let frame = canvas.frame();
+        write_png(&path, frame.width, frame.height, frame.rgba)
     }
 
     /// Adds to `cut.txt` each line of text the frame on screen, picture
@@ -446,6 +449,23 @@ fn drawn_over(texts: &[DrawnText]) -> Vec<String> {
 /// virtual machine, a panel of its own.
 pub(crate) fn laptop() -> faraday_core::devices::DeviceCheck {
     faraday_core::devices::DeviceCheck::machine("flags\t: fpu vme", "LENOVO", "20XW", "10")
+}
+
+/// Writes `rgba`, `width` by `height`, as a PNG at `path`, and prints
+/// the path.
+fn write_png(path: &Path, width: u16, height: u16, rgba: &[u8]) -> Result<(), String> {
+    let file = std::fs::File::create(path).map_err(|e| format!("{}: {e}", path.display()))?;
+    let mut enc = png::Encoder::new(
+        std::io::BufWriter::new(file),
+        u32::from(width),
+        u32::from(height),
+    );
+    enc.set_color(png::ColorType::Rgba);
+    enc.set_depth(png::BitDepth::Eight);
+    let mut w = enc.write_header().map_err(|e| e.to_string())?;
+    w.write_image_data(rgba).map_err(|e| e.to_string())?;
+    println!("{}", path.display());
+    Ok(())
 }
 
 pub(crate) fn display((width, height): (u16, u16), dpi: u16) -> Event {
