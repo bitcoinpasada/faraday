@@ -7,11 +7,9 @@ use crate::ui::pal::*;
 use crate::ui::{Style, Ui};
 use crate::wallet::FileKind;
 use crate::{Action, Faraday, Screen};
-use faraday_draw::tokens::{
-    BODY_M, BODY_S, BUTTON_H, HEADLINE_M, LABEL_L, LABEL_M, TITLE_M, TITLE_S,
-};
+use faraday_draw::tokens::{BODY_M, BODY_S, BUTTON_H, LABEL_L, LABEL_M, TITLE_M, TITLE_S};
 use faraday_draw::widgets::Icon;
-use faraday_ui::parts::{title, wrap_buttons};
+use faraday_ui::parts::wrap_buttons;
 
 /// [`visit`] on a small panel: one scrolled column. The sticks, what is
 /// left to do, then what to write and what to import, each a list with
@@ -394,24 +392,20 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     use faraday_draw::tokens::{PAGE_INSET, VISIT_GAP};
     let x = x0 + PAGE_INSET;
     let width = cw - 2.0 * PAGE_INSET;
-    let mut y = 36.0;
-    title(ui, x, y, app.medium.visit());
-    // Where pulling the stick goes.
-    let tw = ui.measure_as(HEADLINE_M.medium(), app.medium.visit());
+    // The top app bar names the page; where pulling the stick goes leads
+    // it.
+    let mut y = super::bar_head(ui, None, app.medium.visit());
     ui.chip(
-        x + tw + 14.0,
+        x,
         y + 4.0,
         &app.visit_then(),
         Role::OnSecondaryContainer,
         Role::SecondaryContainer,
     );
     // One chip per stick; the chosen one selected (Material's filter
-    // chip), below the top bar's row of pills.
+    // chip).
     let mut chx = x + width;
-    let chy = {
-        use faraday_draw::tokens::{GAP_SMALL, MODE_PILL_HEIGHT, TOP_ROW_MID};
-        y.max(TOP_ROW_MID + MODE_PILL_HEIGHT / 2.0 + GAP_SMALL)
-    };
+    let chy = y;
     for (k, st) in app.stick.iter().enumerate().rev() {
         let label = st.label.clone();
         let wdt = ui.measure_as(LABEL_L, &label) + 28.0;

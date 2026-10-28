@@ -11,7 +11,7 @@ use faraday_draw::tokens::{self};
 use faraday_draw::tokens::{BODY_L, BODY_M, BODY_S, BUTTON_H, LABEL_L, LABEL_M, TITLE_L};
 use faraday_draw::widgets::Icon;
 use faraday_ui::Status;
-use faraday_ui::parts::{section_label, title, wrap_buttons};
+use faraday_ui::parts::{section_label, wrap_buttons};
 
 /// The line beside key `fp`'s fingerprint where the codex32 strings it
 /// was loaded from went in by a correction (`docs/CODEX32.md` §8.4):
@@ -365,7 +365,7 @@ fn add_key_button(app: &View, ui: &mut Ui, pane: &mut crate::panes::screen::List
 /// chosen wallet's page beside it (`docs/LAYOUT.md` §5).
 fn panes_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     use crate::compact::M;
-    let p = crate::panes::screen::split(ui, x0, cw);
+    let p = crate::panes::screen::split(x0, cw);
     wallet_list(app, ui, (p.list.0, p.top, p.list.1, h - p.top));
     let (dx, _) = p.detail;
     crate::compact::screen::wallet_card(app, ui, dx - M, p.reading() + 2.0 * M, h);
@@ -383,9 +383,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     }
     let x = x0 + MARGIN_WIDE;
     let width = cw - 2.0 * MARGIN_WIDE;
-    let mut y = 28.0;
-    title(ui, x, y, EN.wallets_wallets);
-    y += 56.0;
+    let mut y = super::bar_head(ui, None, EN.wallets_wallets);
 
     // An Inbox PSBT leads.
     let lead = match app.wallets.spend() {
@@ -426,7 +424,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let (loose, _) = app.loose_keys();
     let card_offers = none && !loose.is_empty();
     // The list pane, and the chosen wallet's card beside it.
-    let p = crate::panes::screen::split(ui, x0, cw);
+    let p = crate::panes::screen::split(x0, cw);
     wallet_list(app, ui, (p.list.0, y, p.list.1, bottom - y));
 
     // The wallet card: its reading parts at most `COLUMN_MAX`, the

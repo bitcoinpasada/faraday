@@ -1,17 +1,17 @@
-//! The top strip's actions (the mode pill, the ?, the eye) keep a surface
-//! behind them on every wide page, so a page scrolled under them shows
-//! nothing there (Material's top app bar; `docs/LAYOUT.md` §15).
+//! The top app bar's actions (the mode pill, the ?) stand on the bar on
+//! every wide page, so a page scrolled under them shows nothing there
+//! (Material's top app bar; `docs/LAYOUT.md` §3, §15).
 
 use faraday_core::{Action, Faraday, Screen};
 use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
 
-/// The strip's corner of the frame drawn now: the right 140 px and the
-/// top 96.
+/// The bar's right end in the frame drawn now: the right 140 px and the
+/// top 36, the bar being 38 px tall at 96 dpi.
 fn corner(app: &mut Faraday, w: usize) -> Vec<u8> {
     let f = app.frame();
     let width = usize::from(f.width);
     let mut out = Vec::new();
-    for y in 0..96 {
+    for y in 0..36 {
         let from = (y * width + w - 140) * 4;
         out.extend_from_slice(&f.rgba[from..from + 140 * 4]);
     }
@@ -19,7 +19,7 @@ fn corner(app: &mut Faraday, w: usize) -> Vec<u8> {
 }
 
 #[test]
-fn nothing_but_the_surface_is_drawn_under_the_pills_of_a_long_wide_page() {
+fn nothing_but_the_bar_is_drawn_under_the_actions_of_a_long_wide_page() {
     let mut app = Faraday::new();
     app.event(Event::Display(DisplayInfo {
         width: 1280,
@@ -41,8 +41,8 @@ fn nothing_but_the_surface_is_drawn_under_the_pills_of_a_long_wide_page() {
         let _ = app.frame();
     };
     tick(&mut app);
-    let at_top = corner(&mut app, 1280);
     let first = app.frame().rgba.to_vec();
+    let mut under: Option<Vec<u8>> = None;
     let mut seen = 0;
     for _ in 0..40 {
         app.event(Event::Scroll {
@@ -54,14 +54,18 @@ fn nothing_but_the_surface_is_drawn_under_the_pills_of_a_long_wide_page() {
         for _ in 0..12 {
             tick(&mut app);
         }
-        // At every stop of the scroll the corner is what it was at the top.
-        if corner(&mut app, 1280) != at_top {
-            seen += 1;
+        // At every stop of the scroll the corner is what it was at the
+        // first: the bar in its scrolled-under colour and its actions.
+        let now = corner(&mut app, 1280);
+        match &under {
+            None => under = Some(now),
+            Some(c) if *c != now => seen += 1,
+            Some(_) => {}
         }
     }
     assert_eq!(
         seen, 0,
-        "page content under the pills at {seen} of 40 stops"
+        "page content under the actions at {seen} of 40 stops"
     );
     let scrolled = app.frame().rgba.to_vec();
     assert_ne!(first, scrolled, "the page scrolled");

@@ -4,7 +4,6 @@
 use crate::Action;
 use crate::backups::{Entry, Line};
 use crate::drawing::View;
-use crate::screens::title;
 use crate::strings::EN;
 use crate::strings::fill;
 use crate::ui::pal::*;
@@ -31,8 +30,6 @@ fn tag_tone(t: crate::plan::Tag) -> crate::ui::Paint {
     }
 }
 
-/// The wide page's title's top.
-const TOP: f32 = 36.0;
 /// A wallet's card: its head, a row per place, the foot.
 const CARD_HEAD: f32 = 68.0;
 const ROW: f32 = 28.0;
@@ -51,10 +48,10 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     }
     // List and detail (`docs/LAYOUT.md` §5): the wallets in the list
     // pane, the one chosen's map beside it.
-    let p = split(ui, x0, cw);
+    let p = split(x0, cw);
     let at = app.backups_area.at().min(entries.len().saturating_sub(1));
     if !ui.compact {
-        title(ui, p.list.0, TOP, EN.backups_backups);
+        crate::screens::bar_head(ui, None, EN.backups_backups);
     }
     let mut pane = ListPane::begin(app, ui, (p.list.0, p.top, p.list.1, h - p.top));
     for (k, e) in entries.iter().enumerate() {

@@ -1033,13 +1033,13 @@ pub const LIST_PANE: f32 = 360.0;
 /// (`docs/LAYOUT.md` §17): Material's default pane width.
 pub const SETTINGS_CARD_MIN: f32 = LIST_PANE;
 
-/// Where a list pane and its detail begin under a wide page's title: the
-/// title's 28 dp top and its 56 dp row.
-pub const PANE_TOP: f32 = 84.0;
-
-/// Where a list pane and its detail begin under the top app bar, on the
-/// rail's windows: Material's list padding.
+/// Where a list pane and its detail begin under the top app bar:
+/// Material's list padding.
 pub const PANE_TOP_BAR: f32 = 8.0;
+
+/// Where a wide page's first line stands under the top app bar
+/// (`docs/LAYOUT.md` §3).
+pub const PAGE_TOP_BAR: f32 = PAD;
 
 /// A button's height: Material's common buttons (`docs/LAYOUT.md` §8).
 pub const BUTTON_H: f32 = 40.0;
@@ -1321,9 +1321,6 @@ pub const NAV_ICON_GAP: f32 = 12.0;
 /// key's link to it: Material's 40 dp container, pressed in a `TOUCH`
 /// target.
 pub const OWN_BUTTON: f32 = 40.0;
-
-/// Add randomness's way back: from the page's top to its row.
-pub const OWN_TOP: f32 = 28.0;
 
 /// Pointer and keys' area on Add randomness: the height the pointer
 /// moves over.

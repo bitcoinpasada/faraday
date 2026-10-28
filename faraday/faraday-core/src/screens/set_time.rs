@@ -7,19 +7,7 @@ use crate::strings::EN;
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui};
 use faraday_draw::tokens::{BODY_S, BUTTON_H, FIELD_H, GAP, PAD, TITLE_M};
-use faraday_draw::widgets::Icon;
-use faraday_ui::parts::{section_label, title, wrap_buttons};
-
-/// The back link at the top of the page.
-fn back_link(app: &View, ui: &mut Ui, x: f32, y: f32) {
-    let back = Action::SetTimeBack;
-    let muted = Role::OnSurfaceVariant;
-    ui.icon(x - 4.0, y, 16.0, Icon::ChevronLeft, 10.0, muted);
-    let name = app.back_link_name(app.set_time.back_to());
-    ui.text_as(x + 14.0, y, BODY_S, muted, app.named_back((name, back)).0);
-    ui.hit(x - 4.0, y - 4.0, 70.0, 24.0, back);
-    ui.back(back);
-}
+use faraday_ui::parts::{section_label, wrap_buttons};
 
 /// `Screen::SetTime` (`docs/TOTP.md` §3): the Enter screen that sets the
 /// time by hand.
@@ -29,11 +17,9 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     }
     let x = x0 + 56.0;
     let width = (cw - 112.0).min(520.0);
-    let mut y = 28.0;
-    back_link(app, ui, x, y);
-    y += 26.0;
-    title(ui, x, y, EN.set_time_set_the_time);
-    y += 64.0;
+    let name = app.back_link_name(app.set_time.back_to());
+    let back = app.named_back((name, Action::SetTimeBack));
+    let mut y = super::bar_head(ui, Some(back), EN.set_time_set_the_time);
     // Context: Now, and the time zone.
     ui.card(x, y, width, 112.0, Role::OutlineVariant);
     ui.text_mid_as(

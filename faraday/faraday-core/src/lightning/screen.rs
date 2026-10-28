@@ -3,7 +3,7 @@
 use crate::Action;
 use crate::drawing::View;
 use crate::lightning::NodeSource;
-use crate::screens::{button_rows, guide_text_learn, title};
+use crate::screens::{button_rows, guide_text_learn};
 use crate::strings::EN;
 use crate::strings::fill;
 use crate::ui::pal::*;
@@ -31,10 +31,11 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let below = if compact { 20.0 } else { 0.0 };
     let top = 12.0 - app.list_offset;
     let guide = EN.lightning_a_lightning_node;
-    let mut y = if compact { top } else { 36.0 };
-    if !compact {
-        y = header(app, ui, x, y, width, guide);
-    }
+    let y = if compact {
+        top
+    } else {
+        header(app, ui, x, width, guide)
+    };
     let end = body(app, ui, x, y, width, (vx, vw, below));
     if compact {
         let y = end
@@ -50,27 +51,15 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     }
 }
 
-/// The way back, the title and what explains the page, as the desktop
-/// draws them. Returns where the page goes on.
-fn header(app: &View, ui: &mut Ui, x: f32, mut y: f32, width: f32, guide: &str) -> f32 {
+/// The way back and the name, handed to the top app bar, and what
+/// explains the page, as the desktop draws them. Returns where the page
+/// goes on.
+fn header(app: &View, ui: &mut Ui, x: f32, width: f32, guide: &str) -> f32 {
     let Some(l) = app.lightning.state() else {
-        return y;
+        return 0.0;
     };
-    ui.icon(
-        x - 4.0,
-        y,
-        16.0,
-        faraday_draw::widgets::Icon::ChevronLeft,
-        10.0,
-        Role::OnSurfaceVariant,
-    );
-    let (label, _) = app.named_back((EN.lightning_wallets, Action::Nav(l.back)));
-    ui.text_as(x + 14.0, y, BODY_S, Role::OnSurfaceVariant, label);
-    ui.hit(x - 4.0, y - 4.0, 70.0, 24.0, Action::Nav(l.back));
-    ui.back(Action::Nav(l.back));
-    y += 22.0;
-    title(ui, x, y, EN.lightning_lightning_node);
-    y += 52.0;
+    let back = app.named_back((EN.lightning_wallets, Action::Nav(l.back)));
+    let y = crate::screens::bar_head(ui, Some(back), EN.lightning_lightning_node);
     y + guide_text_learn(app, ui, x, y, width, guide, crate::learn::Topic::Tools)
 }
 

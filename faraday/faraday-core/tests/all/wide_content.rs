@@ -156,13 +156,14 @@ fn explore_keeps_its_column_centred_and_wraps_long_values_between_groups() {
     for (w, h) in [(1920u16, 1080u16), (2560, 1440)] {
         let mut app = exploring(w, h);
         let _ = app.frame();
-        let title = boxes(&mut app, "Explore")
+        // The top app bar names the page; the column starts at its labels.
+        let label = boxes(&mut app, "Path")
             .into_iter()
             .filter(|b| b.0 > RAIL)
             .min_by_key(|b| b.1)
-            .expect("Explore's title");
+            .expect("the path's label");
         // The 720 dp column's middle is the room's beside the rail.
-        let middle = title.0 + 720 / 2;
+        let middle = label.0 + 720 / 2;
         let room = RAIL + (i32::from(w) - RAIL) / 2;
         assert!(
             (middle - room).abs() <= 2,
@@ -186,7 +187,7 @@ fn explore_keeps_its_column_centred_and_wraps_long_values_between_groups() {
                 t.split(' ').all(|g| g.chars().count() <= 4),
                 "{w}: {t:?} in groups of four"
             );
-            assert!(b.0 + b.2 <= title.0 + 720, "{w}: {t:?} at {b:?}");
+            assert!(b.0 + b.2 <= label.0 + 720, "{w}: {t:?} at {b:?}");
         }
     }
 }

@@ -41,7 +41,7 @@ pub(crate) use entry::{
     codex32_check_button, codex32_found, codex32_head, codex32_mark, codex32_tick, entry_form,
     entry_scan, entry_stick, entry_typed, entry_words, keyed_status, word_count_row,
 };
-use faraday_draw::tokens::{BODY_S, BUTTON_H, LABEL_L, TITLE_M};
+use faraday_draw::tokens::{APP_BAR_H, BODY_S, BUTTON_H, LABEL_L, TITLE_M};
 use faraday_draw::tokens::{
     COLUMN_MAX, MARGIN_WIDE, NAV_BAR_H, PAGE_AREA_UNTIL_W, RAIL_W, READING_EXPLORE_W,
     READING_PAGE_W, READING_RANDOM_W, READING_TIME_W, SPACER, SUPPORT_PANE, SUPPORT_PANE_TOP,
@@ -50,7 +50,7 @@ use faraday_draw::tokens::{
 use faraday_draw::widgets::Icon;
 pub use faraday_ui::parts::qr_code;
 pub(crate) use faraday_ui::parts::{button_rows, section_label, sheet_box, title, wrap_buttons};
-pub(crate) use files::vault_panel;
+pub(crate) use files::{stick_chip as files_stick_chip, vault_panel};
 pub(crate) use home::{home_lead_beside_tiles, tile_grid};
 pub(crate) use message::{MESSAGE_STEPS, MSTEPS};
 pub(crate) use parts::{
@@ -204,6 +204,22 @@ pub(crate) fn backup_work_end(app: &crate::Faraday) -> Option<f32> {
     (room > PAGE_AREA_UNTIL_W).then(|| nav + room - support_pane_room())
 }
 
+/// Whether the frame draws the top app bar over `screen` on the wide
+/// layout: every page but Home and the step flows, which keep their own
+/// heads (`docs/LAYOUT.md` §3). A lookup.
+pub(crate) fn wide_bar(screen: Screen) -> bool {
+    !crate::compact::draws_own_bar(screen)
+}
+
+/// A wide page's head: its name and its way back (the name of where it
+/// lands, and the press) handed to the top app bar the frame draws over
+/// the page (`docs/LAYOUT.md` §3, DESIGN §4.1). Returns where the page's
+/// first line stands under the bar. A lookup.
+pub(crate) fn bar_head(ui: &mut Ui, back: Option<(&str, Action)>, name: &str) -> f32 {
+    ui.head = Some((name.to_string(), back.map(|(l, a)| (l.to_string(), a))));
+    faraday_draw::tokens::PAGE_TOP_BAR
+}
+
 /// The room a supporting pane takes from the page at its right: the pane,
 /// the spacer before it and the margin after it.
 pub(crate) fn support_pane_room() -> f32 {
@@ -282,13 +298,32 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
         // The stick pills' strip lies over the room above the page's
         // first line; a taller strip moves the page down by the rest.
         let strip = crate::stick::pills::strip_h(app, ui, full_w);
-        let drop = crate::stick::pills::page_drop(strip);
-        ui.oy = drop - lift;
-        ui.top_row_left = top_row_left(app, ui, full_w) - ox;
-        dispatch(app, ui, x, cw, if kb > 0.0 { win_h } else { h } - drop);
+        let page_h = if kb > 0.0 { win_h } else { h };
+        let bar = wide_bar(app.screen);
+        if bar {
+            // Under the top app bar, which is drawn after the page and
+            // which the page scrolls under: nothing of the page is drawn
+            // or pressed above the bar's foot (`docs/LAYOUT.md` §3).
+            let top = strip + APP_BAR_H;
+            ui.ox = 0.0;
+            ui.oy = 0.0;
+            let clip = ui.rect(x, top, room, (page_h - top).max(0.0));
+            ui.c.push_clip(clip);
+            ui.ox = ox;
+            ui.oy = top - lift;
+            ui.head = None;
+            dispatch(app, ui, x, cw, page_h - top);
+            ui.c.pop_clip();
+        } else {
+            let drop = crate::stick::pills::page_drop(strip);
+            ui.oy = drop - lift;
+            ui.top_row_left = top_row_left(app, ui, full_w) - ox;
+            dispatch(app, ui, x, cw, page_h - drop);
+            ui.oy = 0.0;
+            ui.ox = 0.0;
+            top_actions_clear(app, ui, full_w);
+        }
         ui.oy = 0.0;
-        ui.ox = 0.0;
-        top_actions_clear(app, ui, full_w);
         // The top-right row and the eye stand against the window's right
         // edge, whatever area the page is laid out in (§15).
         ui.ox = 0.0;
@@ -313,32 +348,13 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
                 Action::Scan,
             );
         }
-        let kx = header_network_pill(app, ui, full_w - TOP_ROW_QUESTION);
-        // Under a sheet the keyboard button is drawn over it, below.
-        if app.sheet.is_none() {
-            crate::compact::wide_keyboard_button(app, ui, kx);
-            // The codex32 sheets' eye, in the right margin under the ?.
-            crate::compact::wide_eye_button(app, ui, full_w);
-        }
-        // The ? at the top right opens what explains this screen.
-        if !app.learn_pages().is_empty() {
-            // In the right margin, clear of every screen's own title row.
-            let (qx, qy) = (full_w - TOP_ROW_QUESTION, 12.0);
-            ui.fill(qx, qy, 28.0, 28.0, 14.0, Role::Surface);
-            ui.stroke(qx, qy, 28.0, 28.0, 14.0, Role::OutlineVariant);
-            let tw = ui.measure_as(LABEL_L, "?");
-            ui.text_mid_as(
-                (qx + 14.0 - tw / 2.0, qy, 28.0),
-                LABEL_L,
-                Role::OnSurfaceVariant,
-                "?",
-            );
-            ui.hit_shaped((qx, qy, 28.0, 28.0, 14.0), Action::Learn);
-            ui.tip_plain(
-                (qx - 6.0, qy - 6.0, 40.0, 40.0),
-                Action::Learn,
-                EN.tip_learn,
-            );
+        if bar {
+            // The top app bar over the page, below the stick pills' strip.
+            ui.ox = x;
+            ui.oy = strip;
+            crate::nav::screen::app_bar(app, ui, room, Nav::ExpandedRail);
+        } else {
+            top_right_row(app, ui, full_w);
         }
         ui.ox = 0.0;
         ui.oy = 0.0;
@@ -467,6 +483,40 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
     // for the demo into its strip (`docs/DESKTOP-HOST.md` §3).
     if app.hosted() {
         app.sample_area.note_aids(ui.take_demo());
+    }
+}
+
+/// A step flow's or Home's top-right row on the wide layout, against the
+/// window's right edge: the mode pill, the keyboard button, the codex32
+/// sheets' eye and the ? (DESIGN §4.1). Every other wide page has these
+/// in its top app bar.
+fn top_right_row(app: &View, ui: &mut Ui, full_w: f32) {
+    let kx = header_network_pill(app, ui, full_w - TOP_ROW_QUESTION);
+    // Under a sheet the keyboard button is drawn over it, below.
+    if app.sheet.is_none() {
+        crate::compact::wide_keyboard_button(app, ui, kx);
+        // The codex32 sheets' eye, in the right margin under the ?.
+        crate::compact::wide_eye_button(app, ui, full_w);
+    }
+    // The ? at the top right opens what explains this screen.
+    if !app.learn_pages().is_empty() {
+        // In the right margin, clear of every screen's own title row.
+        let (qx, qy) = (full_w - TOP_ROW_QUESTION, 12.0);
+        ui.fill(qx, qy, 28.0, 28.0, 14.0, Role::Surface);
+        ui.stroke(qx, qy, 28.0, 28.0, 14.0, Role::OutlineVariant);
+        let tw = ui.measure_as(LABEL_L, "?");
+        ui.text_mid_as(
+            (qx + 14.0 - tw / 2.0, qy, 28.0),
+            LABEL_L,
+            Role::OnSurfaceVariant,
+            "?",
+        );
+        ui.hit_shaped((qx, qy, 28.0, 28.0, 14.0), Action::Learn);
+        ui.tip_plain(
+            (qx - 6.0, qy - 6.0, 40.0, 40.0),
+            Action::Learn,
+            EN.tip_learn,
+        );
     }
 }
 

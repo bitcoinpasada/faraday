@@ -8,11 +8,11 @@ use crate::ui::pal::*;
 use crate::ui::{Style, Ui};
 use faraday_draw::tokens::{
     APPEARANCE_LABEL_GAP, APPEARANCE_LABEL_W, APPEARANCE_ROW_GAP, COLUMN_MAX, GAP, GUIDE_AFTER,
-    MARGIN_WIDE, PANE_TOP, PANE_TOP_BAR, SETTINGS_CARD_MIN, SPACER, TOUCH,
+    MARGIN_WIDE, PANE_TOP_BAR, SETTINGS_CARD_MIN, SPACER, TOUCH,
 };
 use faraday_draw::tokens::{BODY_M, BODY_S, BUTTON_H, LABEL_L, SEGMENTED_H, TITLE_M};
 use faraday_shell_api::Orientation;
-use faraday_ui::parts::{title, wrap_buttons};
+use faraday_ui::parts::wrap_buttons;
 use std::borrow::Cow;
 use std::sync::OnceLock;
 
@@ -477,10 +477,10 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let col_w = if two { (room - SPACER) / 2.0 } else { room }.min(COLUMN_MAX);
     let across = if two { 2.0 * col_w + SPACER } else { col_w };
     let x = x0 + (cw - across) / 2.0;
-    let mut top = (if ui.compact { PANE_TOP_BAR } else { PANE_TOP }) - app.list_offset;
     if !ui.compact {
-        title(ui, x, top - PANE_TOP + 28.0, EN.settings_settings);
+        super::bar_head(ui, None, EN.settings_settings);
     }
+    let mut top = PANE_TOP_BAR - app.list_offset;
     top += guided_row(app, ui, x, top);
     let (mut left, mut right) = (top, top);
     for p in parts() {

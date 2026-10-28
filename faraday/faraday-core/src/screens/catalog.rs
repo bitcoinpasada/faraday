@@ -7,7 +7,7 @@ use crate::ui::Ui;
 use crate::ui::pal::*;
 use faraday_draw::tokens::{BODY_M, BODY_S, LABEL_S, TITLE_S};
 use faraday_draw::tokens::{CATALOG_COLUMNS_MIN, CATALOG_TILE_MIN, PAGE_INSET};
-use faraday_ui::parts::{section_label, title};
+use faraday_ui::parts::section_label;
 
 /// Tools: every flow by group, as many tiles to a row as fit and at
 /// least three, each with its standards; Find a tool narrows them as it is typed.
@@ -24,11 +24,12 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     };
     let clip = ui.rect(x0, 0.0, cw, h);
     ui.c.push_clip(clip);
-    let top = if compact { 14.0 } else { 36.0 } - app.list_offset;
+    let top = if compact {
+        14.0
+    } else {
+        super::bar_head(ui, None, EN.catalog_tools)
+    } - app.list_offset;
     let mut y = top;
-    if !compact {
-        title(ui, x, y, EN.catalog_tools);
-    }
     // Find a tool: typing on this page goes here.
     let fw = if compact {
         width

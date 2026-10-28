@@ -36,9 +36,17 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     };
     let clip = ui.rect(x0, 0.0, cw, h);
     ui.c.push_clip(clip);
-    let top = if compact { 14.0 } else { 36.0 } - app.list_offset;
+    // Beside the expanded rail the top app bar names the page; held, the
+    // holder's top app bar stands above the page, which keeps its title.
+    let top = if compact {
+        14.0
+    } else if app.held {
+        36.0
+    } else {
+        crate::screens::bar_head(ui, None, EN.transfer_transfer)
+    } - app.list_offset;
     let mut y = top;
-    if !compact {
+    if !compact && app.held {
         title(ui, x, y, EN.transfer_transfer);
         y += 52.0;
     }

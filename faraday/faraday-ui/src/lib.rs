@@ -440,6 +440,10 @@ pub struct Ui<'a, A> {
     /// ?) begins, in the page's x; a flow's column ends left of it.
     /// Infinite where there is no such row.
     pub top_row_left: f32,
+    /// On the wide layout, the page's name and its way back (the name of
+    /// where it lands, and the press), handed over by the page for the
+    /// top app bar the frame draws over it (`docs/LAYOUT.md` §3).
+    pub head: Option<(String, Option<(String, A)>)>,
     /// On a small panel, which walk-through is shown on this screen: a
     /// step's place, or the app's own number for its About.
     pub about_open: Option<u8>,
@@ -585,6 +589,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
             dice_shown: 1.0,
             press_shown: 0.0,
             top_row_left: f32::INFINITY,
+            head: None,
             about_open: None,
             pinning: false,
             pin: None,

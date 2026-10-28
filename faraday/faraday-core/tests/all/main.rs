@@ -154,6 +154,7 @@ mod text_size;
 mod toast;
 mod tools;
 mod top_actions_surface;
+mod top_app_bar;
 mod totp;
 mod transitions;
 mod vanity;

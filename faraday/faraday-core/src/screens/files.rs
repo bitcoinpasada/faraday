@@ -12,7 +12,7 @@ use faraday_draw::tokens::{
     BODY_M, BODY_S, BUTTON_H, LABEL_L, LABEL_M, SHAPE_M, SHAPE_S, TITLE_M, TITLE_S,
 };
 use faraday_draw::widgets::Icon;
-use faraday_ui::parts::{title, wrap_buttons};
+use faraday_ui::parts::wrap_buttons;
 
 /// What the Inbox gives, put together: its wallets, once each, with the
 /// seeds here that are their keys; seeds no wallet names, each a potential
@@ -381,9 +381,8 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     // what is above them takes their width (`docs/LAYOUT.md` §17).
     let x = x0 + MARGIN_WIDE;
     let width = (2.0 * LIST_PANE + SPACER).min(cw - 2.0 * MARGIN_WIDE);
-    let mut y = 36.0;
-    title(ui, x, y, EN.files_files);
-    stick_chip(app, ui, x0 + cw - MARGIN_WIDE);
+    // The top app bar names the page and carries its stick chip.
+    let mut y = super::bar_head(ui, None, EN.files_files);
     let label = EN.files_in_memory_emptied;
     let pw = ui.measure_as(BODY_S, label) + 24.0;
     ui.pill(x + width - pw, y + 2.0, 30.0, label);
@@ -397,7 +396,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         Style::Secondary,
         Action::Scan,
     );
-    y += 64.0;
+    y += BUTTON_H + SPACER;
     y += guide_text_learn(
         app,
         ui,
@@ -854,23 +853,23 @@ fn stick_status(app: &View) -> (String, Option<Action>) {
     }
 }
 
-/// Files' stick status as a chip in the top strip's row, ending where
-/// the row's mode pill and ? begin, or at `right` where none stands
-/// (`docs/LAYOUT.md` §17).
-fn stick_chip(app: &View, ui: &mut Ui, right: f32) {
-    use faraday_draw::tokens::{GAP, STATUS_CHIP_H, STATUS_CHIP_PAD, TOP_ROW_MID};
+/// Files' stick status as a chip among the top app bar's actions on the
+/// wide layout, ending a gap left of `right`, where the actions right of
+/// it begin (`docs/LAYOUT.md` §17). Returns where it begins.
+pub(crate) fn stick_chip(app: &View, ui: &mut Ui, right: f32) -> f32 {
+    use faraday_draw::tokens::{APP_BAR_H, GAP, STATUS_CHIP_H, STATUS_CHIP_PAD};
     let (label, action) = stick_status(app);
-    // A gap before the row, which covers from a gap left of it.
-    let right = (ui.top_row_left - GAP).min(right);
+    let mid = APP_BAR_H / 2.0;
+    let right = right - GAP;
     let dot = GAP;
     let bw = ui.measure_as(LABEL_L, &label) + 2.0 * STATUS_CHIP_PAD + dot + GAP;
-    let (bx, by) = (right - bw, TOP_ROW_MID - STATUS_CHIP_H / 2.0);
+    let (bx, by) = (right - bw, mid - STATUS_CHIP_H / 2.0);
     let r = STATUS_CHIP_H / 2.0;
     // In secondary-container, never a tint (`docs/DESIGN.md` §3).
     let ink = Role::OnSecondaryContainer;
     ui.fill(bx, by, bw, STATUS_CHIP_H, r, Role::SecondaryContainer);
     let cx = bx + STATUS_CHIP_PAD + dot / 2.0;
-    ui.dot(cx, TOP_ROW_MID, dot / 2.0, ink);
+    ui.dot(cx, mid, dot / 2.0, ink);
     let tx = bx + STATUS_CHIP_PAD + dot + GAP;
     ui.text_mid_as((tx, by, STATUS_CHIP_H), LABEL_L, ink, &label);
     if let Some(a) = action {
@@ -878,6 +877,7 @@ fn stick_chip(app: &View, ui: &mut Ui, right: f32) {
         let target = (bx, by - GAP, bw, STATUS_CHIP_H + 2.0 * GAP);
         ui.hit_ringed((bx, by, bw, STATUS_CHIP_H, r), target, a);
     }
+    bx
 }
 
 /// The last visit's receipt under For the stick: "Written to STICK at

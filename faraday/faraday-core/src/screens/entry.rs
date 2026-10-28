@@ -10,7 +10,7 @@ use crate::ui::pal::*;
 use crate::ui::{CoreUi, Style, Ui, W};
 use crate::wallet::fp_text;
 use crate::{Action, Screen};
-use faraday_draw::tokens::{BODY_M, BODY_S, BUTTON_H, HEADLINE_S, LABEL_L, TITLE_S};
+use faraday_draw::tokens::{BODY_M, BODY_S, BUTTON_H, LABEL_L, TITLE_S};
 use faraday_draw::widgets::Icon;
 use faraday_ui::parts::{button_rows, section_label, wrap_buttons};
 
@@ -24,37 +24,14 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let width = (cw - 112.0).min(900.0);
     // The word grid can run to 24 cells, taller than the window; the
     // page scrolls, as Tools' and Files' do (`app.list_offset`).
-    let top = 36.0 - app.list_offset;
-    let mut y = top;
     let clip = ui.rect(x0, 0.0, cw, h);
     ui.c.push_clip(clip);
     let back = Action::Nav(app.entry_leave());
-    ui.icon(
-        x - 4.0,
-        y,
-        16.0,
-        Icon::ChevronLeft,
-        10.0,
-        Role::OnSurfaceVariant,
-    );
-    ui.text_as(
-        x + 14.0,
-        y,
-        BODY_S,
-        Role::OnSurfaceVariant,
-        app.named_back((
-            if app.entry_leave() == Screen::Family {
-                EN.entry_spend
-            } else {
-                EN.entry_wallets
-            },
-            back,
-        ))
-        .0,
-    );
-    ui.hit(x - 4.0, y - 4.0, 70.0, 24.0, back);
-    ui.back(back);
-    y += 22.0;
+    let back_name = if app.entry_leave() == Screen::Family {
+        EN.entry_spend
+    } else {
+        EN.entry_wallets
+    };
     let for_wallet = app
         .entry
         .state()
@@ -76,9 +53,10 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         }
         (None, None) => EN.entry_add_a_key.to_string(),
     };
-    let heading = ui.fit_as(HEADLINE_S.medium(), &heading, width);
-    ui.text_as(x, y, HEADLINE_S.medium(), Role::OnSurface, &heading);
-    y += ui.line_as(HEADLINE_S.medium()) + faraday_draw::tokens::PAD;
+    // The top app bar names the page and has its way back.
+    let back = Some(app.named_back((back_name, back)));
+    let top = super::bar_head(ui, back, &heading) - app.list_offset;
+    let mut y = top;
     // The words form is the one everyday way in; the other three are
     // behind Other forms, or already shown when a Tools tile opened one
     // of them (`docs/history/SIMPLIFY.md` §2.4).

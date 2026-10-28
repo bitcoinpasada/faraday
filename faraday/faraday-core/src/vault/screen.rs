@@ -6,13 +6,13 @@ use crate::strings::EN;
 use crate::strings::fill;
 use faraday_crypto::work::Compute;
 use faraday_draw::tokens::{
-    BODY_L, BODY_M, BODY_S, BUTTON_H, FIELD_H, FIELD_PAD, HEADLINE_M, LABEL_L, LABEL_M, TITLE_M,
+    BODY_L, BODY_M, BODY_S, BUTTON_H, FIELD_H, FIELD_PAD, LABEL_L, LABEL_M, TITLE_M,
 };
 use faraday_draw::widgets::Icon;
 
 use crate::demo::Show;
 use crate::drawing::{Scrolled, View};
-use crate::screens::{guide_text, never_real_seed_if, never_under, section_label, title};
+use crate::screens::{guide_text, never_real_seed_if, never_under, section_label};
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui, W};
 use crate::vault::{
@@ -280,27 +280,22 @@ pub(crate) fn list(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     }
     let x = x0 + 48.0;
     let w = cw - 96.0;
-    let mut y = 36.0;
-    // Made from another flow: the way back to it, and no second vault
-    // started in its place (that would drop the way back).
-    if let Some(s) = app.vaults.back_to {
-        back_link(app, ui, x, 28.0, (app.back_link_name(s), va(V::Back)));
-        y = 54.0;
-    }
-    title(ui, x, y, EN.vault_vaults);
+    let mut y = crate::screens::bar_head(ui, vaults_back(app), EN.vault_vaults);
+    // Made from another flow: no second vault started in its place (that
+    // would drop the way back).
     if app.vaults.back_to.is_none() {
         let bw = ui.measure_as(LABEL_L, EN.vault_create_a_vault) + 32.0;
         ui.button(
             x + w - bw,
-            y - 4.0,
+            y,
             Some(bw),
             BUTTON_H,
             EN.vault_create_a_vault,
             Style::Primary,
             va(V::Create),
         );
+        y += BUTTON_H + tokens::SPACER;
     }
-    y += 60.0;
     y += guide_text(
         app,
         ui,
@@ -382,13 +377,10 @@ pub(crate) fn unlock(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     }
     let x = x0 + 48.0;
     let w = (cw - 96.0).min(760.0);
-    let mut y = 28.0;
-    back_link(app, ui, x, y, unlock_back(app));
-    y += faraday_draw::tokens::BACK_LINK_ROW;
-    title(ui, x, y, EN.vault_unlock);
-    y += 56.0;
+    let back = Some(app.named_back(unlock_back(app)));
+    let mut y = crate::screens::bar_head(ui, back, EN.vault_unlock);
     if just_made_picked(app) {
-        ui.text_as(x, y - 14.0, BODY_M, muted, ONCE_MORE);
+        ui.text_as(x, y, BODY_M, muted, ONCE_MORE);
         y += ui.line_as(BODY_M);
     }
     y += guide_text(app, ui, x, y, w, EN.vault_choose_the_vault);
@@ -785,6 +777,13 @@ fn unlock_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     }
     y += about(ui, x, y, w, EN.vault_choose_the_vault);
     finish(app, ui, x0, cw, h, y - top + 16.0);
+}
+
+/// Vaults' way back, named, where it was opened from another flow to make
+/// a vault for it: the top app bar's on the wide layout. A lookup.
+pub(crate) fn vaults_back<'a>(app: &'a View) -> Option<(&'a str, Action)> {
+    let s = app.vaults.back_to?;
+    Some(app.named_back((app.back_link_name(s), va(V::Back))))
 }
 
 pub(crate) fn back_link(app: &View, ui: &mut Ui, x: f32, y: f32, back: (&str, Action)) {
@@ -1891,20 +1890,18 @@ pub(crate) fn contents(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     }
     let x = x0 + 40.0;
     let w = cw - 80.0;
-    let mut y = 28.0;
-    let back = (EN.vault_vaults, Action::Nav(Screen::Vaults));
-    back_link(app, ui, x, y, back);
-    y += faraday_draw::tokens::BACK_LINK_ROW;
+    let back = Some(app.named_back((EN.vault_vaults, Action::Nav(Screen::Vaults))));
     let Some(v) = app.vaults.open.get(app.vaults.current) else {
-        title(ui, x, y, EN.vault_vault_contents);
-        ui.text_as(x, y + 56.0, BODY_M, muted, EN.vault_no_vault_is_open);
+        let y = crate::screens::bar_head(ui, back, EN.vault_vault_contents);
+        ui.text_as(x, y, BODY_M, muted, EN.vault_no_vault_is_open);
         if let Some((label, a)) = app.vault_way(Screen::VaultContents) {
-            ui.button(x, y + 90.0, None, BUTTON_H, &label, Style::Primary, a);
+            ui.button(x, y + 34.0, None, BUTTON_H, &label, Style::Primary, a);
         }
         return;
     };
-    title(ui, x, y, &v.label(app.vaults.store()));
-    let lw = ui.measure_as(HEADLINE_M.medium(), &v.label(app.vaults.store()));
+    // The top app bar names the vault; its state, Rename and Lock lead
+    // the page.
+    let mut y = crate::screens::bar_head(ui, back, &v.label(app.vaults.store()));
     let state = if v.changes == 0 {
         EN.vault_open_button.to_string()
     } else {
@@ -1921,18 +1918,16 @@ pub(crate) fn contents(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         )
     };
     ui.text_mid_as(
-        (x + lw + 16.0, y + 2.0, 32.0),
+        (x, y, BUTTON_H),
         LABEL_L,
         if v.changes == 0 { good } else { warn },
         &state,
     );
-    // Lock and Rename end left of the top row's pills and ?, which the
-    // page scrolls under (`docs/LAYOUT.md` §15).
-    let end = (x + w).min(ui.top_row_left - tokens::GAP);
+    let end = x + w;
     let lockw = ui.measure_as(LABEL_L, EN.vault_lock) + 36.0;
     ui.button(
         end - lockw,
-        y - 2.0,
+        y,
         Some(lockw),
         BUTTON_H,
         EN.vault_lock,
@@ -1942,14 +1937,14 @@ pub(crate) fn contents(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let rw = ui.measure_as(LABEL_L, EN.vault_rename) + 28.0;
     ui.button(
         end - lockw - 8.0 - rw,
-        y + 2.0,
+        y,
         Some(rw),
         BUTTON_H,
         EN.vault_rename,
         Style::Ghost,
         va(V::Rename),
     );
-    y += 40.0;
+    y += BUTTON_H + tokens::GAP;
     let sub = format!("{} · {}", v.name, cost_text(&v.header().cost));
     ui.text_as(x, y, BODY_S.mono(), muted, &sub);
     let mut vx = x + ui.measure_as(BODY_S.mono(), &sub) + 24.0;

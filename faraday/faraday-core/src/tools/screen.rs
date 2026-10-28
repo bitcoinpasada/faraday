@@ -10,7 +10,7 @@ use faraday_bip::slip132::KeyReading;
 use faraday_codec::encodings::ReadAs;
 
 use crate::Action;
-use crate::screens::{button_rows, guide_text_learn, title};
+use crate::screens::{button_rows, guide_text_learn};
 use crate::tools::{UNITS, tool_name};
 use crate::ui::pal::*;
 use crate::ui::{CoreUi, Style, Ui, W};
@@ -46,31 +46,19 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     use faraday_draw::tokens::{TOOLS_COLUMN_W, TOOLS_INSET};
     let x = x0 + TOOLS_INSET;
     let width = (cw - 2.0 * TOOLS_INSET).min(TOOLS_COLUMN_W);
-    let y = header(app, ui, x, 36.0, width);
+    let y = header(app, ui, x, width);
     body(app, ui, x, y, width);
 }
 
-/// The way back, the title and what explains the page, as the desktop
-/// draws them. Returns where the page goes on.
-fn header(app: &View, ui: &mut Ui, x: f32, mut y: f32, width: f32) -> f32 {
+/// The way back and the name, handed to the top app bar, and what
+/// explains the page, as the desktop draws them. Returns where the page
+/// goes on.
+fn header(app: &View, ui: &mut Ui, x: f32, width: f32) -> f32 {
     let Some(t) = app.tools.state() else {
-        return y;
+        return 0.0;
     };
-    ui.icon(
-        x - 4.0,
-        y,
-        16.0,
-        faraday_draw::widgets::Icon::ChevronLeft,
-        10.0,
-        Role::OnSurfaceVariant,
-    );
-    let (label, _) = app.named_back((EN.tools_wallets, Action::Nav(t.back)));
-    ui.text_as(x + 14.0, y, BODY_S, Role::OnSurfaceVariant, label);
-    ui.hit(x - 4.0, y - 4.0, 70.0, 24.0, Action::Nav(t.back));
-    ui.back(Action::Nav(t.back));
-    y += 22.0;
-    title(ui, x, y, EN.tools_tools);
-    y += 52.0;
+    let back = app.named_back((EN.tools_wallets, Action::Nav(t.back)));
+    let y = crate::screens::bar_head(ui, Some(back), EN.tools_tools);
     y + guide_text_learn(app, ui, x, y, width, GUIDE, crate::learn::Topic::Tools)
 }
 

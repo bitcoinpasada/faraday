@@ -9,8 +9,7 @@ use crate::{Action, Screen};
 use faraday_draw::tokens::{
     BODY_M, BODY_S, BUTTON_H, DECODE_INDEX_W, DECODE_KIND_GAP, DECODE_VALUE_ROOM, LABEL_L, LABEL_M,
 };
-use faraday_draw::widgets::Icon;
-use faraday_ui::parts::{section_label, title, wrap_buttons};
+use faraday_ui::parts::{section_label, wrap_buttons};
 
 /// A transaction taken apart: what it is, what goes in, what comes out
 /// and to whom, and its bytes.
@@ -44,25 +43,13 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let clip = ui.rect(x0, 0.0, cw, h);
     ui.c.push_clip(clip);
     // Scrolled as far as the end it last drew to (`content_h`).
-    let top = if compact { 14.0 } else { 28.0 } - app.list_offset;
+    let top = if compact {
+        14.0
+    } else {
+        let back = app.named_back((decode_back(d.back), Action::Nav(d.back)));
+        super::bar_head(ui, Some(back), EN.decode_decode_a_transaction)
+    } - app.list_offset;
     let mut y = top;
-    if !compact {
-        ui.icon(
-            x - 4.0,
-            y,
-            16.0,
-            Icon::ChevronLeft,
-            10.0,
-            Role::OnSurfaceVariant,
-        );
-        let (label, _) = app.named_back((decode_back(d.back), Action::Nav(d.back)));
-        let lw = ui.text_as(x + 14.0, y, BODY_S, Role::OnSurfaceVariant, label);
-        ui.hit(x - 4.0, y - 4.0, lw + 30.0, 24.0, Action::Nav(d.back));
-        ui.back(Action::Nav(d.back));
-        y += 22.0;
-        title(ui, x, y, EN.decode_decode_a_transaction);
-        y += 44.0;
-    }
     y += ui.wrap_as((x, y, w), BODY_S, Role::OnSurfaceVariant, &t.source) + 14.0;
 
     let fee = match t.fee {

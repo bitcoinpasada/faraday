@@ -9,7 +9,7 @@ use crate::wallet::{Session, key_line};
 use crate::{Action, Screen};
 use faraday_draw::tokens::{BODY_M, BODY_S, BUTTON_H, LABEL_L, LABEL_M, TITLE_M};
 use faraday_draw::widgets::Icon;
-use faraday_ui::parts::{section_label, title, wrap_buttons};
+use faraday_ui::parts::{section_label, wrap_buttons};
 
 #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
@@ -19,11 +19,11 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     } else {
         (x0 + 48.0, cw - 96.0)
     };
-    let mut y = if compact { 14.0 } else { 36.0 } - app.list_offset;
-    if !compact {
-        title(ui, x, y, EN.start_wallets);
-        y += 60.0;
-    }
+    let mut y = if compact {
+        14.0
+    } else {
+        super::bar_head(ui, None, EN.start_wallets)
+    } - app.list_offset;
     // No wallet and no vault yet: two ways in.
     let empty = app.session.wallets.is_empty()
         && app.vaults.open.is_empty()

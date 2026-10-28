@@ -5,7 +5,6 @@
 use crate::Action;
 use crate::codes::{CodeKind, CodeRow, codes_rows_at, va};
 use crate::drawing::View;
-use crate::screens::title;
 use crate::strings::EN;
 use crate::strings::fill;
 use crate::ui::pal::*;
@@ -168,9 +167,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     }
     let x = x0 + 48.0;
     let w = cw - 96.0;
-    let mut y = 36.0;
-    title(ui, x, y, EN.codes_totp_codes);
-    y += 60.0;
+    let mut y = crate::screens::bar_head(ui, None, EN.codes_totp_codes);
     y += now_row(app, ui, x, y, w) + 12.0;
     let rows = codes_rows_at(app, app.clock_now());
     y += search(app, ui, x, y, w, rows.is_empty());

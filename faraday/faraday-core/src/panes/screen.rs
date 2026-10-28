@@ -5,7 +5,7 @@
 use crate::drawing::View;
 use crate::ui::{Paint, Ui};
 use crate::{Action, Screen};
-use faraday_draw::tokens::{COLUMN_MAX, LIST_PANE, MARGIN_WIDE, PANE_TOP, PANE_TOP_BAR, SPACER};
+use faraday_draw::tokens::{COLUMN_MAX, LIST_PANE, MARGIN_WIDE, PANE_TOP_BAR, SPACER};
 use faraday_ui::roles::ListItem;
 
 /// Where the two panes stand: each one's left edge and width, and the
@@ -17,8 +17,7 @@ pub(crate) struct Split {
     /// The detail: its left edge and width, to the page area's right
     /// margin.
     pub detail: (f32, f32),
-    /// Where both begin: under a wide page's title, or under the top app
-    /// bar on the rail's windows.
+    /// Where both begin, under the top app bar.
     pub top: f32,
 }
 
@@ -39,14 +38,13 @@ pub(crate) fn shown(app: &View, screen: Screen) -> bool {
 /// Where the list pane and the detail stand in the page area at `x0`,
 /// `cw` wide: the list `LIST_PANE` wide at the start, the `SPACER`, and
 /// the detail to the area's right margin. Arithmetic.
-pub(crate) fn split(ui: &Ui, x0: f32, cw: f32) -> Split {
-    let top = if ui.compact { PANE_TOP_BAR } else { PANE_TOP };
+pub(crate) fn split(x0: f32, cw: f32) -> Split {
     let lx = x0 + MARGIN_WIDE;
     let dx = lx + LIST_PANE + SPACER;
     Split {
         list: (lx, LIST_PANE),
         detail: (dx, (x0 + cw - MARGIN_WIDE - dx).max(0.0)),
-        top,
+        top: PANE_TOP_BAR,
     }
 }
 

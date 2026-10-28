@@ -6,7 +6,7 @@ use faraday_draw::tokens as T;
 
 use super::Eye;
 use super::addresses::{DEPTHS, PAGE, Search};
-use super::screen::{Cols, eye_button, frame, head, script_name, value_row};
+use super::screen::{Cols, eye_button, frame, script_name, value_row};
 use super::shown::address_path;
 use crate::Action;
 use crate::drawing::View;
@@ -26,11 +26,11 @@ fn xa(a: XAction) -> Action {
 /// the desktop (a small panel's bar has both), then the account the
 /// list is of. Returns where the page goes on.
 fn top(app: &View, ui: &mut Ui, x: f32, y: f32, width: f32, name: &str) -> f32 {
-    let mut y = y;
     if !ui.compact {
         let back = (EN.explore_explore, xa(XAction::Page(Page::Path)));
-        y = head(ui, x, y, back, name);
+        crate::screens::bar_head(ui, Some(back), name);
     }
+    let mut y = y;
     let Some((_, account, script, ..)) = app.explore_account() else {
         return y;
     };

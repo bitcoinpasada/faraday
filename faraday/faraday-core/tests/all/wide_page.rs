@@ -57,15 +57,10 @@ fn set_the_time_sits_centred_in_the_room_beside_the_navigation_on_a_big_window()
         app.press(Action::Nav(Screen::Settings));
         app.press(Action::OpenSetTime);
         let _ = app.frame();
-        let title = app
-            .drawn_text_boxes()
-            .into_iter()
-            .filter(|(t, _)| t == "Set the time")
-            .map(|b| b.1)
-            .min_by_key(|r| r.1)
-            .expect("the page's title");
-        // Its column runs 520 dp from the title's left edge.
-        let middle = f32::from(i16::try_from(title.0).expect("on screen")) + 520.0 / 2.0;
+        // Its 520 dp column, under the top app bar: the card of Now, its
+        // label at its start and the time at its end, as far in.
+        let (_, right) = page_span(&mut app);
+        let middle = (text_left(&mut app, "Now") + right) / 2.0;
         let room = SIDEBAR + (f32::from(w) - SIDEBAR) / 2.0;
         assert!(
             (middle - room).abs() <= 2.0,
@@ -75,13 +70,13 @@ fn set_the_time_sits_centred_in_the_room_beside_the_navigation_on_a_big_window()
 }
 
 /// The left and right ends of what the page draws beside the
-/// navigation, below the top-right row's 48 dp (the ? and the pills).
+/// navigation, below the top app bar's 64 dp.
 fn page_span(app: &mut Faraday) -> (f32, f32) {
     let ink = app.drawn_ink();
     let boxes = ink
         .iter()
         .map(|i| i.rect)
-        .filter(|r| r.x as f32 > SIDEBAR && r.y + r.h > 48);
+        .filter(|r| r.x as f32 > SIDEBAR && r.y >= 64);
     let left = boxes.clone().map(|r| r.x).min().expect("the page draws") as f32;
     let right = boxes.map(|r| r.x + r.w).max().expect("the page draws") as f32;
     (left, right)
@@ -109,7 +104,7 @@ fn tools_stands_centred_in_the_room_on_a_big_window() {
         let mut app = shown(w, h);
         app.press(Action::Tools);
         let _ = app.frame();
-        // From the way back to the field's Clear.
+        // From the column's start to the field's Clear.
         let (left, _) = page_span(&mut app);
         let clear = app.hit_box(Action::TClear).expect("the field's Clear");
         let right = f32::from(clear.0 + clear.2);
@@ -158,8 +153,8 @@ fn a_stick_visits_two_lists_stand_centred_in_the_room_on_a_big_window() {
         app.press(Action::Nav(Screen::Visit));
         let _ = app.frame();
         assert_eq!(app.screen, Screen::Visit);
-        // From the page's title to the end of the second list.
-        let left = text_left(&mut app, "Stick visit");
+        // From the column's start to the end of the second list.
+        let (left, _) = page_span(&mut app);
         let end = [Action::VisitInAll, Action::VisitOutAll]
             .into_iter()
             .filter_map(|a| app.hit_box(a))

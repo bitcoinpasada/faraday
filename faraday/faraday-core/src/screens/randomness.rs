@@ -13,12 +13,11 @@ use crate::fresh::page::{Act, OwnPage};
 use crate::strings::{EN, fill};
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui};
-use faraday_draw::tokens::{
-    BACK_LINK_ROW, COLUMN_MAX, GAP, GAP_SMALL, LABEL, MARGIN_COMPACT, MARGIN_WIDE, OWN_AREA,
-    OWN_BUTTON, OWN_TOP, PAD, SHAPE_M,
-};
 use faraday_draw::tokens::{BODY_M, BODY_S};
-use faraday_ui::parts::title;
+use faraday_draw::tokens::{
+    COLUMN_MAX, GAP, GAP_SMALL, LABEL, MARGIN_COMPACT, MARGIN_WIDE, OWN_AREA, OWN_BUTTON, PAD,
+    SHAPE_M,
+};
 
 /// The sources a person picks from, in order: Camera only where the
 /// shell has a camera, Pointer and keys only where it has a pointer and
@@ -46,15 +45,15 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         let w = (cw - 4.0 * MARGIN_WIDE).min(COLUMN_MAX);
         (x0 + 2.0 * MARGIN_WIDE, w)
     };
-    let top = if ui.compact { PAD } else { OWN_TOP } - app.list_offset;
-    let mut y = top;
-    // A small panel has the way back and the name in its bar.
-    if !ui.compact {
+    // The top app bar has the way back and the name.
+    let top = if ui.compact {
+        PAD
+    } else {
         let name = app.trail_name().unwrap_or(EN.compact_settings);
-        crate::vault::screen::back_link(app, ui, x, y, (name, Action::Back));
-        y += BACK_LINK_ROW;
-        y += title(ui, x, y, EN.own_add_randomness) + PAD;
-    }
+        let back = app.named_back((name, Action::Back));
+        super::bar_head(ui, Some(back), EN.own_add_randomness)
+    } - app.list_offset;
+    let mut y = top;
     y += ui.wrap_as((x, y, w), BODY_M, Role::OnSurfaceVariant, &app.own_status()) + PAD;
     y += own_sources(app, p, ui, (x, y, w), false);
     let content = y + PAD - top;

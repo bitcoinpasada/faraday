@@ -8,7 +8,7 @@ use faraday_bip::keys::ScriptType;
 use crate::Action;
 use crate::explore::shown::xprv_path;
 use crate::explore::{Eye, PRESETS, Page, Shown, XAction};
-use crate::screens::{button_rows, guide_text_learn, title};
+use crate::screens::{button_rows, guide_text_learn};
 use crate::strings::fill;
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui};
@@ -370,7 +370,7 @@ pub(super) fn frame(app: &View, ui: &Ui, x0: f32, cw: f32) -> (f32, f32, f32, f3
     let start = if ui.compact {
         top
     } else {
-        36.0 - app.list_offset
+        faraday_draw::tokens::PAGE_TOP_BAR - app.list_offset
     };
     (x, width, top, start)
 }
@@ -381,31 +381,7 @@ fn header(app: &View, ui: &mut Ui, x: f32, y: f32, width: f32, guide: &str) -> f
     let Some(e) = app.explore.state() else {
         return y;
     };
-    let y = head(
-        ui,
-        x,
-        y,
-        app.named_back((EN.explore_wallets, Action::Nav(e.back))),
-        EN.explore_explore,
-    );
+    let back = app.named_back((EN.explore_wallets, Action::Nav(e.back)));
+    crate::screens::bar_head(ui, Some(back), EN.explore_explore);
     y + guide_text_learn(app, ui, x, y, width, guide, crate::learn::Topic::Xpubs)
-}
-
-/// The way back, named, and the title, as the desktop draws them.
-/// Returns where the page goes on.
-pub(super) fn head(ui: &mut Ui, x: f32, mut y: f32, back: (&str, Action), name: &str) -> f32 {
-    ui.icon(
-        x - 4.0,
-        y,
-        16.0,
-        faraday_draw::widgets::Icon::ChevronLeft,
-        10.0,
-        Role::OnSurfaceVariant,
-    );
-    ui.text_as(x + 14.0, y, BODY_S, Role::OnSurfaceVariant, back.0);
-    ui.hit(x - 4.0, y - 4.0, 70.0, 24.0, back.1);
-    ui.back(back.1);
-    y += 22.0;
-    title(ui, x, y, name);
-    y + 52.0
 }

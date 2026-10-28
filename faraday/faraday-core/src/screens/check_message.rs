@@ -8,7 +8,6 @@ use crate::ui::{Ui, grouped};
 use crate::{Action, Screen};
 use faraday_draw::tokens::{BODY_M, BODY_S, TITLE_M, TITLE_S};
 use faraday_draw::widgets::Icon;
-use faraday_ui::parts::title;
 
 #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
@@ -23,32 +22,10 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let top = if compact {
         14.0 - app.list_offset
     } else {
-        28.0
+        let back = app.named_back((EN.check_wallets, Action::Nav(Screen::WalletsStart)));
+        super::bar_head(ui, Some(back), EN.check_check_a_signed)
     };
     let mut y = top;
-    if !compact {
-        ui.icon(
-            x - 4.0,
-            y,
-            16.0,
-            Icon::ChevronLeft,
-            10.0,
-            Role::OnSurfaceVariant,
-        );
-        let (label, _) = app.named_back((EN.check_wallets, Action::Nav(Screen::WalletsStart)));
-        ui.text_as(x + 14.0, y, BODY_S, Role::OnSurfaceVariant, label);
-        ui.hit(
-            x - 4.0,
-            y - 4.0,
-            80.0,
-            24.0,
-            Action::Nav(Screen::WalletsStart),
-        );
-        ui.back(Action::Nav(Screen::WalletsStart));
-        y += 22.0;
-        title(ui, x, y, EN.check_check_a_signed);
-        y += 60.0;
-    }
     let guide = EN.check_a_valid_signature;
     // On a small panel it comes after what it explains.
     if !compact {

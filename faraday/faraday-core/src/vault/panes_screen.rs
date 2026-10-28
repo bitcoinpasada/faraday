@@ -6,7 +6,7 @@
 
 use crate::drawing::View;
 use crate::panes::screen::{Item, ListPane, split};
-use crate::screens::{guide_text, title};
+use crate::screens::guide_text;
 use crate::strings::{EN, fill};
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui};
@@ -118,10 +118,11 @@ fn chosen(app: &View) -> usize {
 /// Vaults and a vault's Unlock from expanded windows up: the list pane
 /// and, beside it, the chosen vault's card or its Unlock.
 pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
-    let p = split(ui, x0, cw);
+    let p = split(x0, cw);
     let (lx, lw) = p.list;
     if !ui.compact {
-        title(ui, lx, 28.0, EN.vault_vaults);
+        let back = crate::vault::screen::vaults_back(app);
+        crate::screens::bar_head(ui, back, EN.vault_vaults);
     }
     let files = app.vault_files();
     let at = chosen(app);

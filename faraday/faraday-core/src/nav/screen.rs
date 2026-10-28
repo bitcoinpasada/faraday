@@ -149,8 +149,10 @@ pub(crate) fn bar(app: &View, ui: &mut Ui, y: f32, w: f32) {
 
 /// The top app bar across the page, `w` wide: the way back and the
 /// page's name (on Home, the wordmark), and at its right end the ⋮ menu
-/// and Lock on the bar's windows, the ?, the mode pill and the keyboard.
-/// Returns its height.
+/// and Lock on the bar's windows, the ?, the mode pill and the keyboard;
+/// on the wide layout (`Nav::ExpandedRail`), drawn after the page that
+/// scrolls under it, the name and way back the page handed over, and
+/// Files' stick chip left of the actions. Returns its height.
 pub(crate) fn app_bar(app: &View, ui: &mut Ui, w: f32, nav: Nav) -> f32 {
     let mut right = w - GAP_SMALL;
     // On a step that must not be left, nothing here leads away.
@@ -194,13 +196,31 @@ pub(crate) fn app_bar(app: &View, ui: &mut Ui, w: f32, nav: Nav) -> f32 {
                 EN.tip_keyboard,
             );
         }
+        if nav == Nav::ExpandedRail && app.screen == Screen::Files {
+            *right = crate::screens::files_stick_chip(app, ui, *right);
+        }
     };
     let ends = crate::compact::screen::measured(ui, |ui| {
         let mut r = right;
         actions(ui, &mut r);
         r
     });
-    if app.screen == Screen::Home {
+    if nav == Nav::ExpandedRail {
+        // The wide page handed over its name and its way back as it was
+        // drawn, under this bar (`crate::screens::bar_head`); one that
+        // handed over none is named as its compact bar names it.
+        let head = ui.head.take();
+        let (title, back) = match &head {
+            Some((name, back)) => (name.as_str(), back.as_ref().map(|(l, a)| (l.as_str(), *a))),
+            None => (crate::compact::screen_name(app.screen, app.medium), None),
+        };
+        let bar = AppBar {
+            back,
+            title,
+            back_tip: EN.tip_back,
+        };
+        faraday_ui::nav::app_bar(ui, w, &bar, ends);
+    } else if app.screen == Screen::Home {
         faraday_ui::nav::app_bar(
             ui,
             w,
