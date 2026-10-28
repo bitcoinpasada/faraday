@@ -55,7 +55,7 @@ pub struct Face {
     pub data: &'static [u8],
 }
 
-const MAGIC: &[u8; 4] = b"OSKO";
+const MAGIC: &[u8; 4] = b"FDOL";
 const HEADER_LEN: usize = 20;
 const RECORD_LEN: usize = 20;
 

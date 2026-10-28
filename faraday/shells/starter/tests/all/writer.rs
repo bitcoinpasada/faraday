@@ -541,21 +541,22 @@ fn keep_data_over_a_disk_that_is_not_a_faraday_stick_writes_nothing() {
 }
 
 #[test]
-fn keep_data_over_a_stick_with_the_old_partition_table_writes_nothing() {
-    // A stick made before the partitions were renamed: OSKBOOT and
-    // OSKDATA, and the UUIDs of that layout.
-    let old = [
-        "4F70656E-5369-676E-6572-4B6974000000",
-        "4F70656E-5369-676E-6572-4B6974000001",
-        "4F70656E-5369-676E-6572-4B6974000002",
+fn keep_data_over_a_stick_of_another_layout_or_other_partition_names_writes_nothing() {
+    // Two partitions, an EFI system partition and a data partition, as
+    // another tool lays a stick out: another disk's UUIDs, or Faraday's
+    // UUIDs under other names.
+    let other = [
+        "0B9C1F2E-6D4A-4E8B-9F3C-2A7D5E1B8C40",
+        "0B9C1F2E-6D4A-4E8B-9F3C-2A7D5E1B8C41",
+        "0B9C1F2E-6D4A-4E8B-9F3C-2A7D5E1B8C42",
     ];
-    let new = [gpt::DISK_UUID, gpt::BOOT_UUID, gpt::DATA_UUID];
+    let ours = [gpt::DISK_UUID, gpt::BOOT_UUID, gpt::DATA_UUID];
     for (name, uuids, fault) in [
-        ("keep-old-table", old, StickFault::DiskUuid),
-        ("keep-old-names", new, StickFault::BootName),
+        ("keep-other-table", other, StickFault::DiskUuid),
+        ("keep-other-names", ours, StickFault::BootName),
     ] {
         let path = tmp(name);
-        let before = stick_layout(uuids, ["OSKBOOT", "OSKDATA"], 0xDA);
+        let before = stick_layout(uuids, ["BOOT", "DATA"], 0xDA);
         std::fs::write(&path, &before).expect("a stick");
         let image = image_file(
             &format!("{name}-boot.vfat"),

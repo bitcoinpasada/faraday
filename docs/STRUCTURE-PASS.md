@@ -27,19 +27,15 @@ Moved to `docs/history/STRUCTURE-PASS-LOG.md`.
 
 ### 3.2 What the rename must not touch
 
-The rename edits crate names, paths and Rust identifiers (`osk_bip::`)
-from an exact list of tokens. It never edits a pattern such as `osk-`,
-because these byte strings contain one and are part of a format, a
-derivation or a file a person already holds:
-
-- **Magics:** `OSKO` (baked font outlines).
-- **Domain-separation and nonce tags:**
-  - `osk-sealed-v1`, `osk-sealed-nonce`, `osk-session-key-weak`,
-    `osk-secp-blind`;
-  - `osk-schnorr-aux`;
-  - `OpenSigner/musig-rand`, `OpenSigner/musig-next-seed`;
-  - `osk-kdbx-uuid`.
-- **Text formats:** the `osk-silent` header.
+The rename edited crate names, paths and Rust identifiers (`osk_bip::`)
+from an exact list of tokens, and left the byte strings that are part of
+a format or a derivation as they were. With no one holding a file made
+by an earlier build, those were renamed afterwards (F144): the font
+outlines' magic is `FDOL`; the labels and tags are `faraday-sealed-v1`,
+`faraday-sealed-nonce`, `faraday-session-key-weak`, `faraday-secp-blind`,
+`faraday-schnorr-aux`, `Faraday/musig-rand`, `Faraday/musig-next-seed`
+and `faraday-kdbx-uuid`; the silent payments record's header is
+`faraday-silent`.
 
 What the rename was expected to change, and its check: moved to `docs/history/STRUCTURE-PASS-LOG.md`.
 

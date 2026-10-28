@@ -89,7 +89,6 @@ fn input_words(d: &Detail) -> Option<Cow<'static, str>> {
             &[&n(*input), &n(*m), &n(*keys), &n(*first_m), &n(*first_n)],
         ),
         D::MusigNonceReplaced { input } => t(EN.psbt_warn_musig_nonce_replaced, &[&n(*input)]),
-        D::UnreadRecords { input } => t(EN.psbt_warn_unread_records, &[&n(*input)]),
         D::WalletNotRegistered { input } => t(EN.psbt_warn_wallet_not_registered, &[&n(*input)]),
         D::NoWalletForScript { input, taproot } => t(
             if *taproot {

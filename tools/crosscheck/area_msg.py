@@ -426,7 +426,7 @@ def aux_for(fresh):
     of the call's bytes (`faraday_psbt::sign::Aux::for_input(0)`)."""
     if fresh is None:
         return bytes(32)
-    return hashlib.sha256(b"osk-schnorr-aux" + fresh + (0).to_bytes(8, "little")).digest()
+    return hashlib.sha256(b"faraday-schnorr-aux" + fresh + (0).to_bytes(8, "little")).digest()
 
 
 def wif_secret(wif):

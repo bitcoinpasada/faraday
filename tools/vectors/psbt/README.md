@@ -109,7 +109,7 @@ transaction.
 ## The MuSig2 wallet, and what Bitcoin Core 31.1 checked
 
 Bitcoin Core 31.1 signs `musig()` descriptor wallets and is the only
-counterpart that speaks BIP-373's fields today. On 2026-09-17, on a throwaway regtest node (Core v31.1.0 on
+counterpart that speaks BIP-373's fields today. On 2026-10-28, on a throwaway regtest node (Core v31.1.0 on
 this machine, no network), a two-key `musig()` wallet was built with Core
 holding the second key, funded, and spent in both orders: Core's nonce
 first with the device signing last and no session, and the device's nonce
@@ -139,7 +139,7 @@ tools/scripts/musig-regtest.sh stop <datadir>
 ```
 
 `setup` imports
-`tr(musig([73c5da0a/86h/1h/0h]tpub…,[0285c650/86h/1h/0h]tpub…)/<0;1>/*)`,
+`tr(musig([73c5da0a/86h/1h/0h]tpub…,[5e8169da/86h/1h/0h]tpub…)/<0;1>/*)`,
 funds it with 1 BTC, and asks for a 0.5 BTC spend; Core's `tprv` stays in
 the datadir.
 
@@ -152,7 +152,7 @@ the datadir.
 | `sign` | this crate | `wallet-musig-core-first-signed.psbt`: this device's public nonce and partial signature, the PSBT not complete |
 | `walletprocesspsbt` | Core | `complete: true` — Core read this device's nonce and partial signature, wrote its own, and aggregated |
 | `finalizepsbt` | Core | `complete: true` |
-| `testmempoolaccept` | Core | `allowed: true`, txid `8f06551973e373166a8eb841a92fa0cb93bf02d2d65f8cd1c8b06b7346650b33`, 154 vB, 1 550 sat |
+| `testmempoolaccept` | Core | `allowed: true`, txid `f7616435c000b521129945c872f669fa3e2bc6d627103acdfe547388962b571d`, 154 vB, 1 550 sat |
 
 **The device first, with the session.**
 
@@ -163,11 +163,11 @@ the datadir.
 | `walletprocesspsbt` | Core | `complete: false`, two nonces and one partial signature: `wallet-musig-device-first-core.psbt`. A third call changes nothing, because what is missing is this device's signature |
 | `sign` round 2 | this crate | `wallet-musig-device-first-signed.psbt`: this device's partial signature, both aggregated, and the aggregate written as `tap_key_sig` |
 | `finalizepsbt` | Core | `complete: true` |
-| `testmempoolaccept` | Core | `allowed: true`, txid `8f06551973e373166a8eb841a92fa0cb93bf02d2d65f8cd1c8b06b7346650b33`, 154 vB, 616 WU, 1 550 sat |
+| `testmempoolaccept` | Core | `allowed: true`, txid `f7616435c000b521129945c872f669fa3e2bc6d627103acdfe547388962b571d`, 154 vB, 616 WU, 1 550 sat |
 
 Both orders spend the same unsigned transaction, so both end at the same
 txid; the witnesses differ, because the two runs aggregate different
-nonces, and so do the wtxids (`3c8a0c62…` and `ac92c1a4…`).
+nonces, and so do the wtxids (`3d413ccd…` and `832cfb12…`).
 
 The three PSBTs this device wrote are written by
 `cargo run -p faraday-psbt --example musig -- tools/vectors/psbt`, that is
@@ -180,13 +180,13 @@ as they came out of the run:
 
 | File | SHA-256 |
 |---|---|
-| `wallet-musig-regtest.policy` | `0662672ff1e30bdf403c14cf12ec1d1a12311a29515efe71c8b97ef5766227b2` |
-| `wallet-musig-device-first.psbt` | `759a845920175f11316d8d8a878eabe12f5d4d779e168b3aa596a714d6a34e6e` |
-| `wallet-musig-core-first.psbt` | `bf05968c8711c187d46ac3d7a5269c7c62060794912654987178ccd80dbe38b9` |
-| `wallet-musig-core-first-signed.psbt` | `36b6f5e6691b70887c1ca7b14219c89f9be0f4d519c5f087b35895e7281fcd31` |
-| `wallet-musig-device-first-nonce.psbt` | `58c9dfa2289375952fe5b6aa1129b0e34fddf34146d4386063be28d34365e981` |
-| `wallet-musig-device-first-core.psbt` | `006e461174540c925a8a37fb1f3a988118c6d5fef5c64db417db55373b76cc26` |
-| `wallet-musig-device-first-signed.psbt` | `6d11780f193583b637244aff4f800b44aa3d9dea89e07d7980705ad8d2556d65` |
+| `wallet-musig-regtest.policy` | `fee6addc49714a89f0a97d9a807068718e3538dc53d5574ffd4330b8e71103f2` |
+| `wallet-musig-device-first.psbt` | `07c2d9e03fdb89b12420bbdbf523d1f4615aef56bd49010676ce870b5f7b027d` |
+| `wallet-musig-core-first.psbt` | `dcfda85105aabe3597146ab9b3e676cad0eecc7b0373c7789bda2b6f3bde5d75` |
+| `wallet-musig-core-first-signed.psbt` | `fa64fccc09f367129806734e3dc57cfdef8d63a58a9609e18c53a53ab03c140e` |
+| `wallet-musig-device-first-nonce.psbt` | `b5f3949f555f8eda24e39a96079ee344e164076cccc60b68fa3a9ef5fe4b8a39` |
+| `wallet-musig-device-first-core.psbt` | `90c5c7f3a7e673b6a4cfa6735474e27c27cb014c5c25d8f3e83c74bbaff47cc6` |
+| `wallet-musig-device-first-signed.psbt` | `62d366e3c618714db2c03292f3700c78c9b3b7805abcdafb3a42a643eb45ea7c` |
 
 ## The taproot multisig, and what Bitcoin Core 31.1 checked
 

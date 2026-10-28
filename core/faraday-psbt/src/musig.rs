@@ -239,11 +239,11 @@ pub fn write_input_participants(input: &mut Input, participants: &Participants) 
 /// call is hashed under, so that one session seed gives a different
 /// value for every input and participant, which is what BIP-327 asks
 /// for.
-const RAND_TAG: &[u8] = b"OpenSigner/musig-rand";
+const RAND_TAG: &[u8] = b"Faraday/musig-rand";
 
 /// The tag a session's seed is hashed under after every draw, so that no
 /// two draws of one session use the same seed.
-const NEXT_SEED_TAG: &[u8] = b"OpenSigner/musig-next-seed";
+const NEXT_SEED_TAG: &[u8] = b"Faraday/musig-next-seed";
 
 /// BIP-340's tagged hash.
 pub(crate) fn tagged(tag: &[u8], parts: &[&[u8]]) -> [u8; 32] {

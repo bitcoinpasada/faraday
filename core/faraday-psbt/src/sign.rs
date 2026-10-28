@@ -138,7 +138,7 @@ impl Aux {
 }
 
 /// The label the per-input auxiliary randomness is hashed under.
-const AUX_LABEL: &[u8] = b"osk-schnorr-aux";
+const AUX_LABEL: &[u8] = b"faraday-schnorr-aux";
 
 /// What part a MuSig2 signature plays on its input.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

@@ -437,7 +437,7 @@ impl Drop for WifAscii {
 }
 
 /// Domain separation for the blind a key derives for itself.
-const SECP_BLIND_LABEL: &[u8] = b"osk-secp-blind";
+const SECP_BLIND_LABEL: &[u8] = b"faraday-secp-blind";
 
 /// A signing context blinded for `xpriv`.
 ///

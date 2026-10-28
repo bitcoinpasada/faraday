@@ -2,7 +2,7 @@
 //! what its review states.
 //!
 //! ```text
-//! osk-silent 1
+//! faraday-silent 1
 //! network mainnet
 //! key [73c5da0a/352h/0h/0h]
 //! labels 2
@@ -34,7 +34,7 @@ use crate::keys::{Fingerprint, Network};
 use crate::silent;
 
 /// The first line's name.
-pub const MAGIC: &str = "osk-silent";
+pub const MAGIC: &str = "faraday-silent";
 /// The version this build writes and the only one it reads.
 pub const VERSION: &str = "1";
 

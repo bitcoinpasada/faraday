@@ -32,7 +32,7 @@ wsh(sortedmulti(2,[3f5e4e09/48'/0'/0']xpub6BtEVX9WezWA2EYa8Wf1rJTokXpF96Rmqr4JKo
 /0/*,/1/*
 bc1qjppd555998lvpgdew30kdrvu2qg90n5gg684khrc2u5g7kj8cnuqujvz3p# The same wallet as wallet-2of3.policy, in the text form Sparrow,
 # Nunchuk, Specter and Coldcard exchange a multisig config in.
-Name: OpenSignerKit demo
+Name: Faraday demo
 Policy: 2 of 3
 Derivation: m/48'/1'/0'/2'
 Format: P2WSH

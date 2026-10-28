@@ -92,7 +92,7 @@ as the source font states them.
 
 ```
 offset  size  field
-0       4     magic   "OSKO"
+0       4     magic   "FDOL"
 4       2     version = 1
 6       2     flags   none defined
 8       2     units_per_em

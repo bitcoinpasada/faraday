@@ -238,7 +238,7 @@ aggregation.
 
 The session is `MusigSession`: the unsigned transaction's txid, a seed,
 and one secret nonce per input and participant. Each `NonceGen` call
-draws its own `rand'` as `tagged_hash("OpenSigner/musig-rand", seed ‖
+draws its own `rand'` as `tagged_hash("Faraday/musig-rand", seed ‖
 input index ‖ participant key)`, which is the fresh value per call
 BIP-327 asks for. It is memory and nothing else: not `Clone`, never
 serialised, dropped and wiped when another transaction opens a session,
@@ -277,9 +277,6 @@ script-path MuSig2 spend and is refused: `tr(musig())` has no tree.
   chain rejects and nothing to combine it with. Taproot commits to every
   amount it spends and needs no such transaction.
 - PSBT versions other than 0, and PSBTs `bitcoin` rejects.
-- A taproot key-path input carrying proprietary records under the
-  identifier `osk`, which this build does not read: blocked as
-  `UnreadRecords` (F127).
 
 `finalize` builds the scriptSig/witness for the supported kinds (`bitcoin`
 has no finalizer), clears the signing fields as BIP-174 requires, and

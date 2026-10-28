@@ -158,3 +158,4 @@ Read this table, then only the decision you need.
 | [F141](decisions/F141.md) | A miniscript or a taproot tree of one key is signed only through its registered wallet | 2026-10-27 | Active | wallets |
 | [F142](decisions/F142.md) | A stick's pill is filled in its tone while the stick is in, its tones set by mode and contrast | 2026-10-27 | Active | design |
 | [F143](decisions/F143.md) | The user guide's key is a Practice sample, and New key keeps a sample's own words | 2026-10-27 | Active | design |
+| [F144](decisions/F144.md) | With no one holding an earlier build's files, the formats drop the names before Faraday's, and another program's PSBT records are signed past | 2026-10-28 | Active | wallets |

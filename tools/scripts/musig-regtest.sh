@@ -29,7 +29,8 @@
 # datadir and never in this tree.
 set -euo pipefail
 
-B=$HOME/.local/opt/bitcoin-31.1/bin
+# Core 31.1's bin/ folder; BITCOIN_BIN names another.
+B=${BITCOIN_BIN:-$HOME/.local/opt/bitcoin-31.1/bin}
 MODE=${1:?setup|finish|stop}
 D=${2:?datadir}
 C() { "$B/bitcoin-cli" -regtest -datadir="$D" "$@"; }
@@ -45,6 +46,10 @@ start() {
             -fallbackfee=0.0001 >/dev/null
         sleep 3
     fi
+    # A restarted daemon loads no wallet by itself.
+    for w in keyA keyB musig; do
+        C loadwallet "$w" >/dev/null 2>&1 || true
+    done
 }
 
 case "$MODE" in

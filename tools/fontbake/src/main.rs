@@ -527,7 +527,7 @@ fn bake(
     }
 
     let mut out = Vec::with_capacity(HEADER_LEN + records.len() + outlines.len());
-    out.extend_from_slice(b"OSKO");
+    out.extend_from_slice(b"FDOL");
     out.extend_from_slice(&1u16.to_le_bytes());
     out.extend_from_slice(&0u16.to_le_bytes()); // flags: none defined
     out.extend_from_slice(&upem.to_le_bytes());

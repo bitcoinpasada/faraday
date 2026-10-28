@@ -5100,8 +5100,6 @@ strings! {
     /// A warning on Review. `{}`: the input.
     psbt_warn_musig_nonce_replaced: "input {} carries a nonce of this device's that no open session holds; it is replaced and the partial signatures made against it are dropped",
     /// A warning on Review. `{}`: the input.
-    psbt_warn_unread_records: "input {}: it carries `osk` records this version does not read",
-    /// A warning on Review. `{}`: the input.
     psbt_warn_wallet_not_registered: "input {} spends from a wallet of several keys that is not registered here; register the wallet to sign",
     /// A warning on Review. `{}`: the input, the wait (a `psbt_wait_*`).
     psbt_warn_timelock: "input {} spends a path that waits {}, which this transaction's sequence and locktime do not meet; it can never be valid",

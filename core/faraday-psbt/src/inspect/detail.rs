@@ -90,11 +90,6 @@ pub enum Detail {
         /// The input.
         input: usize,
     },
-    /// A taproot input carries `osk` records this build does not read.
-    UnreadRecords {
-        /// The input.
-        input: usize,
-    },
     /// An input of several keys spends from a wallet not registered here.
     WalletNotRegistered {
         /// The input.

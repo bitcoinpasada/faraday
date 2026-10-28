@@ -16,7 +16,7 @@ use faraday_crypto::work::Compute;
 use libfuzzer_sys::fuzz_target;
 
 const NAMES: [&str; 8] = [
-    "a.txt", "a.psbt", "a.efi", "a.osk", "a.ofv", "a.json", "a.png", "a.apk",
+    "a.txt", "a.psbt", "a.efi", "a.ofv", "a.json", "a.png", "a.apk",
 ];
 
 fuzz_target!(|data: &[u8]| {

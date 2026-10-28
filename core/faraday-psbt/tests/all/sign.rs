@@ -464,11 +464,12 @@ fn a_taproot_signature_beside_an_input_without_its_spent_output_does_not_stop_th
     assert!(finalize(&mut psbt).is_err());
 }
 
-/// A taproot key-path input of a loaded key that carries proprietary
-/// records under Faraday's own identifier `osk` is blocked: this build
-/// reads no such record, so it neither signs the input nor drops them.
+/// A taproot key-path input of a loaded key that carries another
+/// program's proprietary records is signed, and the records stay as they
+/// were: BIP 174 has a signer pass over proprietary fields it does not
+/// know.
 #[test]
-fn a_key_path_input_with_osk_records_is_blocked_and_not_signed() {
+fn a_key_path_input_with_another_programs_proprietary_records_is_signed() {
     let c = Compute::unchecked();
     let abandon = master(ABANDON, NET);
     let keys = [KeyRef::from_master(&c, &abandon, 0).unwrap()];
@@ -480,30 +481,32 @@ fn a_key_path_input_with_osk_records_is_blocked_and_not_signed() {
     };
     let mut psbt = build(ScriptType::Taproot);
     let key = bitcoin::psbt::raw::ProprietaryKey {
-        prefix: b"osk".to_vec(),
+        prefix: b"another-wallet".to_vec(),
         subtype: 0,
         key: vec![2; 66],
     };
     psbt.inner_mut().inputs[0]
         .proprietary
-        .insert(key, vec![0; 66]);
-    let before = psbt.clone();
-    let insp = inspect(&c, &psbt, &ctx);
-    assert!(insp.blocked().contains(&WarningKind::UnreadRecords));
-    for accepted in [Vec::new(), vec![WarningKind::AbsurdFeeRate]] {
-        let r = sign(
-            &c,
-            &mut psbt,
-            &[&abandon],
-            &[abandon.fingerprint()],
-            &ctx,
-            &accepted,
-            Nonce::LowR,
-            Aux::Deterministic,
-            &mut None,
-            &faraday_crypto::Zeroizing::new([0u8; 32]),
-        );
-        assert!(matches!(r, Err(Error::Blocked(ref b)) if b.contains(&WarningKind::UnreadRecords)));
-    }
-    assert_eq!(psbt, before, "nothing written");
+        .insert(key.clone(), vec![0; 66]);
+    assert!(inspect(&c, &psbt, &ctx).blocked().is_empty());
+    let r = sign(
+        &c,
+        &mut psbt,
+        &[&abandon],
+        &[abandon.fingerprint()],
+        &ctx,
+        &[],
+        Nonce::LowR,
+        Aux::Deterministic,
+        &mut None,
+        &faraday_crypto::Zeroizing::new([0u8; 32]),
+    );
+    assert!(r.is_ok(), "{r:?}");
+    let input = &psbt.inner().inputs[0];
+    assert!(input.tap_key_sig.is_some(), "signed");
+    assert_eq!(
+        input.proprietary.get(&key),
+        Some(&vec![0; 66]),
+        "the records kept"
+    );
 }

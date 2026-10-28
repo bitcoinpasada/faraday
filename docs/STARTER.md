@@ -1022,11 +1022,8 @@ same partition-table checks as `faraday/image/stick-boot.sh`, and
 checks the partition table is unchanged afterwards: GPT with the disk
 UUID `46617261-6461-792D-5374-69636B000000` and exactly two partitions,
 `FARADAYBOOT` (an EFI system partition, `…000001`) and `FARADAYDATA`
-(`…000002`). A stick made before 2026-10-21, whose partitions are
-`OSKBOOT` and `OSKDATA`,
-is refused as any other disk is, and nothing is relabelled: its files are
-moved to a new stick by hand (owner, 2026-10-21; `docs/DECISIONS.md`
-F67). A stick whose `FARADAYBOOT` is smaller than the image's 64 MiB,
+(`…000002`). A disk with any other layout or partition names is
+refused, and nothing is relabelled. A stick whose `FARADAYBOOT` is smaller than the image's 64 MiB,
 such as one made with a 48 MB boot partition before F80, is refused
 the same way, with both sizes. The source is
 decompressed from the payload while it is written, and the SHA-256 of

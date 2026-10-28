@@ -151,10 +151,6 @@ pub enum WarningKind {
     /// open session holds the secret for, so this pass draws a new one
     /// and drops the partial signatures made against the old one.
     MusigNonceReplaced,
-    /// A taproot key-path input carries proprietary records under the
-    /// identifier `osk`, which this build does not read: it is not signed
-    /// for what those records would have it be.
-    UnreadRecords,
     /// A signature already on the transaction does not verify against
     /// the key it is under: the transaction was altered after it was
     /// signed, or the signer that made it is broken.
@@ -899,15 +895,6 @@ pub fn inspect(c: &Compute, psbt: &Psbt, ctx: &Context) -> Inspection {
                     }
                 }
             }
-            // Faraday's own `osk` records are read by no code in this
-            // build, so an input carrying them is blocked, not signed as a
-            // plain key-path input.
-            ScriptKind::P2trKey if has_osk_records(input) => warn(
-                &mut warnings,
-                Level::Blocked,
-                WarningKind::UnreadRecords,
-                Detail::UnreadRecords { input: i },
-            ),
             ScriptKind::P2trKey => {
                 for (xonly, (_, (fp, path))) in &input.tap_key_origins {
                     let fp = Fingerprint::from(*fp);
@@ -2406,12 +2393,4 @@ fn musig_output<C: Verification>(
         Ok(script) if script == txout.script_pubkey => Some(Ok((wallet, change, index))),
         _ => Some(Err(())),
     }
-}
-
-/// The proprietary identifier of Faraday's own `osk` records.
-const OSK: &[u8] = b"osk";
-
-/// Whether an input carries any `osk` record at all.
-fn has_osk_records(input: &Input) -> bool {
-    input.proprietary.keys().any(|k| k.prefix == OSK)
 }

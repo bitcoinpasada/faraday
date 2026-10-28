@@ -318,7 +318,7 @@ reassemble to it.
 
 Reads `sp([fp/352h/{coin}h/{acct}h]spscan1q…)` and `tspscan` (Keystone,
 Sparrow), a bare `[origin]spscan1q…` (Specter DIY), and Coldcard's export
-`bip352` object rooted at its top-level `xfp`, each as an `osk-silent 1`
+`bip352` object rooted at its top-level `xfp`, each as an `faraday-silent 1`
 record. The scan private key is never kept; a file without an origin is
 refused ("This sp() descriptor names no key origin"); with the key
 loaded, a record whose keys are not the ones it derives is refused.

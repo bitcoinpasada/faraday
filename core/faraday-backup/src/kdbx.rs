@@ -585,7 +585,7 @@ fn document(items: &[Item<'_>], inner_key: &[u8], master_seed: &[u8], out: &mut 
 fn put_uuid(master_seed: &[u8], i: u8, out: &mut Vec<u8>) {
     let mut h = Sha256::new();
     h.update(master_seed);
-    h.update(b"osk-kdbx-uuid");
+    h.update(b"faraday-kdbx-uuid");
     h.update([i]);
     let digest = h.finalize();
     out.extend_from_slice(b"<UUID>");

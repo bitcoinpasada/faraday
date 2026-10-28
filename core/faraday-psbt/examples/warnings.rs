@@ -217,7 +217,7 @@ pub fn fixtures() -> Vec<Fixture> {
         "info: an OP_RETURN output, which has no address",
         paying(&[
             (theirs(0, NET), 99_000),
-            (ScriptBuf::new_op_return(b"opensignerkit"), 0),
+            (ScriptBuf::new_op_return(b"faraday"), 0),
         ]),
     );
 

@@ -11,7 +11,7 @@
 //! (§4.2: the shell supplies entropy, the core never asks the OS). Each
 //! seal uses the 96-bit nonce `counter ‖ prefix`: a 32-bit big-endian
 //! count of seals under this key, followed by 64 bits derived once per key
-//! as `HMAC-SHA512(key, "osk-sealed-nonce")[..8]`. Uniqueness is what the
+//! as `HMAC-SHA512(key, "faraday-sealed-nonce")[..8]`. Uniqueness is what the
 //! AEAD needs, and the counter never repeats within a key's lifetime
 //! (sealing refuses after 2³² − 1 seals, a number no session approaches);
 //! a rotated key starts a new counter under a new prefix, and the old
@@ -51,12 +51,12 @@ pub const TAG_LEN: usize = 16;
 pub const MAX_MNEMONIC_WORDS: usize = 24;
 
 /// Domain separation for the per-key nonce prefix.
-const NONCE_LABEL: &[u8] = b"osk-sealed-nonce";
+const NONCE_LABEL: &[u8] = b"faraday-sealed-nonce";
 /// Domain separation for a key mixed from weak material.
-const WEAK_LABEL: &[u8] = b"osk-session-key-weak";
+const WEAK_LABEL: &[u8] = b"faraday-session-key-weak";
 /// Associated data bound to every seal, so that a future format change
 /// cannot be confused with this one.
-const AAD: &[u8] = b"osk-sealed-v1";
+const AAD: &[u8] = b"faraday-sealed-v1";
 
 /// Why a seal or unseal failed.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

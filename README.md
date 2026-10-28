@@ -485,9 +485,7 @@ just release=1 faraday-stick-image        # a published release
 stick's `FARADAYBOOT` partition and leaves its data partition as it is. It
 refuses a disk that is not a Faraday stick on USB or has anything
 mounted, and asks for the device to be typed back; `--dry-run` only
-checks. It is for development only. A stick made before 2026-10-21,
-whose partitions are `OSKBOOT` and `OSKDATA`, is not a Faraday stick to
-it or to the Starter's *keep data*: copy its files to a newly made stick.
+checks. It is for development only.
 
 Flash the image to a stick and boot a PC from it; the stick image starts
 on mainnet. `faraday/image/README.md` describes the image layout and

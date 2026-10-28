@@ -448,30 +448,6 @@ if [ -n "$linux_dir" ] && [ -d "$linux_dir/drivers/video/logo" ] \
     make -C /output linux-clean-for-rebuild
 fi
 
-# A build tree from before the image's names were Faraday's (2026-10-21):
-# the app was /usr/bin/opensigner-pi from the opensigner-pi package, its
-# arguments were in /etc/opensigner, and the image was opensigner-*.img.
-# The overlay's /usr/sbin/faraday-usb-watch, which nothing started, is
-# gone too.
-# Buildroot never takes a file out of the target tree once a package or
-# an overlay has put it there, so the old names go here, once. The users
-# need nothing: Buildroot writes them into a copy of the target tree for
-# each root filesystem it makes.
-old_names=(
-    "$gen/overlay/etc/opensigner"
-    /output/target/etc/opensigner
-    /output/target/usr/bin/opensigner-pi
-    /output/target/usr/sbin/opensigner-usb-watch
-    /output/target/usr/sbin/faraday-usb-watch
-    /output/build/opensigner-pi-prebuilt
-)
-for old in "${old_names[@]}" /output/images/opensigner-*.img; do
-    if [ -e "$old" ]; then
-        echo "==> removing $old, the name before Faraday's"
-        find "$old" -delete
-    fi
-done
-
 # ---- the kernel tarball is the one the board pinned.
 #
 # The board's buildroot.fragment carries the sha256 of the tarball it
