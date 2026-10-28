@@ -104,7 +104,6 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         note: from.is_none().then_some(EN.family_this_page_takes),
         chip: None,
         chip_tap: None,
-        cancel: app.cancel_offered().is_some(),
     };
     let scroll = app.family.state.scroll;
     let (next, again) = {
@@ -124,14 +123,12 @@ fn loaded(app: &View, ui: &mut Ui, x0: f32, cw: f32) -> f32 {
     let x = x0 + 48.0;
     let w = (cw - 96.0).min(980.0);
     let scrolled = app.family.state.scroll.y;
-    let mut y = 36.0 - scrolled;
-    // Opened from another screen: the way back to it, over the title, so
-    // the page is the same height either way (F77).
-    if let Some(name) = app.trail_name() {
-        let at = y - faraday_draw::tokens::BACK_LINK_ROW;
-        crate::vault::screen::back_link(app, ui, x, at, (name, Action::Back));
-    }
-    crate::screens::title(ui, x, y, EN.family_spend);
+    // Named by the top app bar, with the way back where it was opened
+    // from another screen (F77); Walk through leads the page under it.
+    let back = app
+        .trail_name()
+        .map(|name| app.named_back((name, Action::Back)));
+    let mut y = crate::screens::bar_head(ui, back, EN.family_spend) - scrolled;
     let lw = ui.measure_as(LABEL_L, EN.family_walk_through) + 32.0;
     ui.button(
         x + w - lw,
@@ -142,7 +139,7 @@ fn loaded(app: &View, ui: &mut Ui, x0: f32, cw: f32) -> f32 {
         Style::Ghost,
         fa(F::Walkthrough),
     );
-    y += 64.0;
+    y += BUTTON_H + faraday_draw::tokens::PAD;
 
     // A transaction being signed comes first.
     if let Some(s) = app.wallets.spend() {

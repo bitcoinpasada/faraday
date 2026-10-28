@@ -15,11 +15,11 @@ use faraday_draw::widgets::Icon;
 
 use crate::Action;
 use crate::ui::Disclosure;
+use crate::ui::Ui;
 use crate::ui::pal::*;
-use crate::ui::{Style, Ui};
 use faraday_draw::tokens;
 use faraday_draw::tokens::{
-    BODY_M, BODY_S, BUTTON_H, HEADLINE_S, LABEL_L, LABEL_M, MARGIN_COMPACT, SEGMENTED_H, TITLE_M,
+    BODY_M, BODY_S, LABEL_L, LABEL_M, MARGIN_COMPACT, SEGMENTED_H, TITLE_M,
 };
 
 /// How far in from a step's left edge its body is drawn, under its title.
@@ -73,26 +73,22 @@ pub struct Column<'a> {
     pub w: f32,
     /// The window's height in design units.
     pub h: f32,
-    /// The back link above the title.
+    /// The way back, on the top app bar over the flow.
     pub back: Option<(&'a str, Action)>,
-    /// The title.
+    /// The flow's name, on the top app bar over it.
     pub heading: &'a str,
     /// Whether Guided mode is on.
     pub guided: bool,
-    /// Whether the Guided/Full switch is shown beside the title.
+    /// Whether Steps only · Guided is shown at the head of the column.
     pub switch: bool,
-    /// A line under the title, about the page as a whole.
+    /// A line at the head of the column, about the page as a whole.
     pub note: Option<&'a str>,
-    /// A chip beside the title: where the flow goes next, or what it
-    /// works on.
+    /// A chip at the head of the column: where the flow goes next, or
+    /// what it works on.
     pub chip: Option<&'a str>,
     /// What a press on the chip does; where it was drawn is left in
     /// [`Ui::chip_at`].
     pub chip_tap: Option<Action>,
-    /// **Cancel** at the top, beside the switch: the flow can be in
-    /// progress, and Cancel leaves it (F51). On a small panel it is in
-    /// the bar's tools, from the same state.
-    pub cancel: bool,
 }
 
 /// Draws the cards. `body` draws the open card's controls at (x, y) in a
@@ -144,68 +140,31 @@ pub fn column_wide(
     }
     let clip = ui.rect(col.area_x, 0.0, col.area_w, col.h);
     ui.c.push_clip(clip);
-    let top = 28.0 - scroll.y;
+    let top = tokens::PAGE_TOP_BAR - scroll.y;
     let mut y = top;
-    // Beside the sidebar the column scrolls under the top-right row of
-    // the mode and the ?: it ends left of it.
     let (x, w) = (col.x, col.w);
-    if let Some((label, action)) = col.back {
-        ui.icon(
-            x - 4.0,
-            y,
-            16.0,
-            Icon::ChevronLeft,
-            10.0,
-            Role::OnSurfaceVariant,
-        );
-        let lw = ui.text_as(x + 14.0, y, BODY_S, Role::OnSurfaceVariant, label);
-        ui.hit(x - 4.0, y - 4.0, lw + 30.0, 24.0, action);
-        ui.back(action);
-        y += 22.0;
-    }
-    let hw = ui.text_as(x, y, HEADLINE_S.medium(), Role::OnSurface, col.heading);
-    // Cancel at the right end, then Steps only or Guided beside it;
-    // laid out from the right.
-    // The wide layout's top-right row (the mode pill and the ?) stands
-    // against the window's edge (`docs/LAYOUT.md` §15): the controls end
-    // left of it.
-    // Controls under a back link stand below the row and keep the
-    // column's width.
-    let row_bottom = tokens::TOP_ROW_MID + tokens::MODE_PILL_HEIGHT / 2.0;
-    let mut bx = if y + scroll.y < row_bottom {
-        (x + w).min(ui.top_row_left - tokens::GAP)
-    } else {
-        x + w
-    };
-    if col.cancel {
-        let bw = ui.measure_as(LABEL_L, EN.flow_cancel) + 32.0;
-        bx -= bw;
-        let a = Action::CancelFlow;
-        ui.button(
-            bx,
-            y + 2.0,
-            Some(bw),
-            BUTTON_H,
-            EN.flow_cancel,
-            Style::Secondary,
-            a,
-        );
-        bx -= 12.0;
-    }
+    // The top app bar over the page names the flow and carries its way
+    // back and Cancel (`docs/LAYOUT.md` §3, DESIGN §4.1); the flow's own
+    // head keeps what is the flow's: its chip at the left and Steps only ·
+    // Guided at the right.
+    crate::screens::bar_head(ui, col.back, col.heading);
+    let mut bx = x + w;
+    let mut row = 0.0;
     if col.switch {
         bx -= guided_width(ui);
-        guided_choice(ui, (bx, y + 2.0), col.guided);
+        guided_choice(ui, (bx, y), col.guided);
+        row = SEGMENTED_H;
     }
-    // The chip beside the heading where it clears the buttons, else on
-    // its own line under the heading.
-    let mut chip_line = 0.0;
+    // The chip beside the switch where it clears it, else on its own line
+    // under it.
     if let Some(chip) = col.chip {
-        let beside = x + hw + 14.0;
-        let (cx, cy) = if beside + ui.chip_width(chip) + tokens::GAP <= bx {
-            (beside, y + 4.0)
+        let (cx, cy) = if x + ui.chip_width(chip) + tokens::GAP <= bx {
+            row = f32::max(row, tokens::TAG_H);
+            (x, y + (row - tokens::TAG_H) / 2.0)
         } else {
-            chip_line = tokens::CHIP_LINE;
-            (x, y + 40.0)
+            let cy = y + row + tokens::GAP;
+            row += tokens::GAP + tokens::TAG_H;
+            (x, cy)
         };
         let cw = ui.chip(
             cx,
@@ -215,11 +174,14 @@ pub fn column_wide(
             Role::SecondaryContainer,
         );
         if let Some(a) = col.chip_tap {
-            ui.hit_shaped((cx, cy, cw, 26.0, tokens::shape_full(26.0)), a);
-            ui.chip_at = Some((cx, cy + 26.0, cw));
+            let h = tokens::TAG_H;
+            ui.hit_shaped((cx, cy, cw, h, tokens::shape_full(h)), a);
+            ui.chip_at = Some((cx, cy + h, cw));
         }
     }
-    y += 52.0 + chip_line;
+    if row > 0.0 {
+        y += row + tokens::PAD;
+    }
     if let Some(note) = col.note {
         let nh = ui.wrap_as(
             (x + 14.0, y, w - 14.0),

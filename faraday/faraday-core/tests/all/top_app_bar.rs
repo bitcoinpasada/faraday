@@ -107,3 +107,67 @@ fn the_top_app_bar_takes_the_scrolled_under_colour_while_the_page_is_scrolled() 
         "back at the top, the bar's colour"
     );
 }
+
+fn a_flow_is_named_by_the_bar(width: u16, height: u16) {
+    let mut app = on(width, height, 160);
+    app.press(Action::Nav(Screen::WalletsStart));
+    app.press(Action::RestoreWallet);
+    tick(&mut app);
+    assert_eq!(app.screen, Screen::Restore, "Restore is open");
+    let boxes = app.drawn_text_boxes();
+    let title = boxes
+        .iter()
+        .find(|(t, _)| t == EN.restore_title)
+        .unwrap_or_else(|| panic!("no flow name drawn at {width} × {height}"));
+    assert!(
+        title.1.1 + title.1.3 <= bar_px(160) && title.1.0 > 240,
+        "the flow's name at {:?} is not in the bar at {width} × {height}",
+        title.1
+    );
+    // The back arrow at the bar's start, beside the rail.
+    let (x, y) = (240 + 4 + 24, 32);
+    for phase in [TouchPhase::Down, TouchPhase::Up] {
+        app.event(Event::Touch { x, y, phase });
+    }
+    tick(&mut app);
+    assert_eq!(
+        app.screen,
+        Screen::WalletsStart,
+        "the bar's back arrow at {width} × {height}"
+    );
+}
+
+#[test]
+fn a_wide_step_flow_is_named_by_its_top_app_bar_whose_back_arrow_leaves_it() {
+    a_flow_is_named_by_the_bar(1280, 800);
+    a_flow_is_named_by_the_bar(1920, 1080);
+}
+
+#[test]
+fn a_wide_flow_in_progress_has_cancel_on_its_top_app_bar() {
+    let mut app = on(1280, 800, 160);
+    app.press(Action::Entry(None));
+    for c in testkit::test_words("bacon").chars() {
+        app.event(Event::Key(faraday_shell_api::Key::Char(c)));
+    }
+    app.press(Action::EntryAdd);
+    app.press(Action::CreateWallet);
+    app.press(Action::CNext(faraday_core::cstep::KIND));
+    tick(&mut app);
+    assert_eq!(app.screen, Screen::Create, "Make a new wallet is open");
+    let (x, y) = app
+        .where_offered(Action::CancelFlow)
+        .expect("Cancel is offered");
+    assert!(
+        i32::from(y) <= bar_px(160) && x > 240,
+        "Cancel at {x}, {y} is not on the bar"
+    );
+    for phase in [TouchPhase::Down, TouchPhase::Up] {
+        app.event(Event::Touch { x, y, phase });
+    }
+    tick(&mut app);
+    assert!(
+        app.screen != Screen::Create || app.sheet.is_some(),
+        "Cancel on the bar leaves the flow or asks first"
+    );
+}

@@ -420,9 +420,8 @@ working, and every computed cell opens to what made it (§6.4, §7.4).
   `faraday/faraday-core/src/work/budget/codex32.rs`, the live
   translation worksheets in `faraday/faraday-keys/tests/codex32.rs`; the
   snapshot tour `codex32`. The masking of §6.4.6 is built
-  (`Codex32Make::masked`): the eye, Material's icon button (on the small
-  panel's bar; on the wide page in the right margin under the ?, clear of
-  the cards' rows), masks every character, roll and working
+  (`Codex32Make::masked`): the eye, Material's icon button on the top
+  app bar on every window (`compact::bar_eye`), masks every character, roll and working
   as dots and shows them again; on Faraday Demo, the stick and the Pi the sheets are
   shown while the flow is open and masked again when the entry is left
   backwards (an earlier card, Start's Change, the entry card closed);

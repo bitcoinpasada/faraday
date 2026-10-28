@@ -203,40 +203,53 @@ fn tools_from(app: &View, ui: &mut Ui, w: f32, over: Overflow) -> f32 {
         right =
             faraday_ui::nav::icon_action(ui, right, Icon::Keyboard, action, shown, EN.tip_keyboard);
     }
-    // The eye, while Make codex32 shares has sheets to mask
-    // (`docs/CODEX32.md` §6.4.6).
-    if let Some(masked) = eye.filter(|_| !held.eye) {
-        // Material's icon button: 40 dp round in a 48 dp target.
-        let edge = (TOUCH - ICON_BUTTON) / 2.0;
-        let (kx, ky) = (right - edge - ICON_BUTTON, (BAR_H - ICON_BUTTON) / 2.0);
-        eye_icon(ui, kx, ky, masked);
-        let eye = Action::Codex32(crate::codex32::C32::Eye);
-        eye_hit(ui, (kx - edge, ky - edge, TOUCH, TOUCH), eye, !masked);
-        right = kx - edge;
+    if !held.eye {
+        right = bar_eye(app, ui, right);
     }
-    // Cancel, on a flow that can be in progress: it leaves the flow
-    // (`docs/FLOWS.md`, Cancel; F51). Material's text button, in a 48 dp
-    // target.
-    if app.cancel_shown() {
-        let a = Action::CancelFlow;
-        let label = EN.flow_cancel;
-        let cw = screen::measured(ui, |ui| {
-            ui.button(0.0, 0.0, None, BUTTON_H, label, Style::Ghost, a)
-        });
-        let cx = right - cw;
-        ui.button(
-            cx,
-            (BAR_H - BUTTON_H) / 2.0,
-            None,
-            BUTTON_H,
-            label,
-            Style::Ghost,
-            a,
-        );
-        ui.hit(cx, (BAR_H - TOUCH) / 2.0, cw, TOUCH, a);
-        right = cx - GAP_SMALL;
+    bar_cancel(app, ui, right)
+}
+
+/// The eye on a top app bar, its target's right edge at `right`, while
+/// Make codex32 shares has sheets to mask (`docs/CODEX32.md` §6.4.6):
+/// Material's icon button, 40 dp round in a 48 dp target. Returns where
+/// the next action ends.
+pub(crate) fn bar_eye(app: &View, ui: &mut Ui, right: f32) -> f32 {
+    let Some(masked) = eye_state(app) else {
+        return right;
+    };
+    let edge = (TOUCH - ICON_BUTTON) / 2.0;
+    let (kx, ky) = (right - edge - ICON_BUTTON, (BAR_H - ICON_BUTTON) / 2.0);
+    eye_icon(ui, kx, ky, masked);
+    let eye = Action::Codex32(crate::codex32::C32::Eye);
+    eye_hit(ui, (kx - edge, ky - edge, TOUCH, TOUCH), eye, !masked);
+    kx - edge
+}
+
+/// **Cancel** on a top app bar, its right edge at `right`, on a flow that
+/// can be in progress: it leaves the flow (`docs/FLOWS.md`, Cancel; F51).
+/// Material's text button, in a 48 dp target. Returns where the next
+/// action ends.
+pub(crate) fn bar_cancel(app: &View, ui: &mut Ui, right: f32) -> f32 {
+    if !app.cancel_shown() {
+        return right;
     }
-    right
+    let a = Action::CancelFlow;
+    let label = EN.flow_cancel;
+    let cw = screen::measured(ui, |ui| {
+        ui.button(0.0, 0.0, None, BUTTON_H, label, Style::Ghost, a)
+    });
+    let cx = right - cw;
+    ui.button(
+        cx,
+        (BAR_H - BUTTON_H) / 2.0,
+        None,
+        BUTTON_H,
+        label,
+        Style::Ghost,
+        a,
+    );
+    ui.hit(cx, (BAR_H - TOUCH) / 2.0, cw, TOUCH, a);
+    cx - GAP_SMALL
 }
 
 /// A compact bar's overflow menu (Material's menu from its ⋮; on the
@@ -318,23 +331,6 @@ fn eye_icon(ui: &mut Ui, x: f32, y: f32, masked: bool) {
         ICON_GLYPH,
         crate::ui::pal::on_selected(!masked, Role::OnSurfaceVariant),
     );
-}
-
-/// The wide layout's eye (`docs/CODEX32.md` §6.4.6): Material's icon
-/// button in the page's right margin, `right` its right edge, under the
-/// top row of the network and the ?, so it stands over no row of the
-/// flow's column.
-pub(crate) fn wide_eye_button(app: &View, ui: &mut Ui, right: f32) {
-    use faraday_draw::tokens::{EYE_WIDE_INSET, ICON_BUTTON, TOUCH};
-    let Some(masked) = eye_state(app) else {
-        return;
-    };
-    let edge = (TOUCH - ICON_BUTTON) / 2.0;
-    let x = right - EYE_WIDE_INSET - ICON_BUTTON;
-    let y = TOUCH + edge;
-    eye_icon(ui, x, y, masked);
-    let eye = Action::Codex32(crate::codex32::C32::Eye);
-    eye_hit(ui, (x - edge, y - edge, TOUCH, TOUCH), eye, !masked);
 }
 
 /// An eye's press target at `rect`, with the tooltip that names what a

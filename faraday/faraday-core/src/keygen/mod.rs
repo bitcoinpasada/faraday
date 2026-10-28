@@ -2143,7 +2143,11 @@ impl crate::Faraday {
                 redraw = true;
             }
         }
-        if due && self.worksheet_due() {
+        // Once the cards have settled: the page is brought clear from
+        // where the Enter card will stand, not where it stands while the
+        // card before it still closes.
+        let settling = self.disclosed.as_ref().is_some_and(|d| d.moving);
+        if due && !settling && self.worksheet_due() {
             redraw = true;
         }
         let f = self.f;
@@ -2211,7 +2215,9 @@ impl crate::Faraday {
             let shell = (win, compact, k);
             let column = crate::codex32::pane_screen::column_now(m, page_w, h, shell);
             let side = crate::codex32::pane_screen::side_room(column);
-            let tall = h - 2.0 * faraday_draw::tokens::MARGIN_WIDE;
+            // The page's room under the top app bar (`docs/LAYOUT.md` §3).
+            let tall =
+                h - faraday_draw::tokens::APP_BAR_H - 2.0 * faraday_draw::tokens::MARGIN_WIDE;
             // The input panel's room: at the foot its height; beside the
             // sheets its width, from the column's start (§16.3).
             let panel = crate::codex32::input_panel::place_now(m, page_w, h, shell);

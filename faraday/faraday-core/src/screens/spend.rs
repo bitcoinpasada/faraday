@@ -14,7 +14,7 @@ use faraday_draw::tokens::{
 use faraday_draw::widgets::Icon;
 use faraday_psbt::{Level, OutputKind};
 use faraday_ui::Status;
-use faraday_ui::parts::{title, wrap_buttons};
+use faraday_ui::parts::wrap_buttons;
 
 /// The nonce check: each signature against its key and this
 /// transaction, each one made here recomputed from its key, and any nonce
@@ -143,17 +143,29 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let col_w = cw - panel_w - 72.0;
     let needed = app.spend_needed();
     if app.wallets.spend().is_none() {
-        title(ui, col_x, 28.0, EN.spend_sign_a_transaction);
+        // On the wide layout the top app bar names the page; on the
+        // one-column layouts its own head does.
+        let top = if ui.compact {
+            faraday_ui::parts::title(ui, col_x, 28.0, EN.spend_sign_a_transaction);
+            80.0
+        } else {
+            let back = app.named_back((EN.spend_wallets, Action::Nav(Screen::WalletsStart)));
+            super::bar_head(ui, Some(back), EN.spend_sign_a_transaction)
+        };
         ui.text_as(
             col_x,
-            80.0,
+            top,
             BODY_M,
             Role::OnSurfaceVariant,
             EN.spend_no_transaction,
         );
         ui.button(
             col_x,
-            116.0,
+            top + if ui.compact {
+                36.0
+            } else {
+                ui.line_as(BODY_M) + faraday_draw::tokens::PAD
+            },
             None,
             BUTTON_H,
             EN.spend_open_files,
@@ -209,7 +221,6 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         note: None,
         chip: None,
         chip_tap: None,
-        cancel: app.cancel_offered().is_some(),
     };
     let (next, again) = {
         let app_ref: &View = app;

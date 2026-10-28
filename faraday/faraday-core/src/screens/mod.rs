@@ -205,10 +205,10 @@ pub(crate) fn backup_work_end(app: &crate::Faraday) -> Option<f32> {
 }
 
 /// Whether the frame draws the top app bar over `screen` on the wide
-/// layout: every page but Home and the step flows, which keep their own
-/// heads (`docs/LAYOUT.md` §3). A lookup.
+/// layout: every page but Home, which keeps its own head
+/// (`docs/LAYOUT.md` §3). A lookup.
 pub(crate) fn wide_bar(screen: Screen) -> bool {
-    !crate::compact::draws_own_bar(screen)
+    screen != Screen::Home
 }
 
 /// A wide page's head: its name and its way back (the name of where it
@@ -486,17 +486,14 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
     }
 }
 
-/// A step flow's or Home's top-right row on the wide layout, against the
-/// window's right edge: the mode pill, the keyboard button, the codex32
-/// sheets' eye and the ? (DESIGN §4.1). Every other wide page has these
-/// in its top app bar.
+/// Home's top-right row on the wide layout, against the window's right
+/// edge: the mode pill, the keyboard button and the ? (DESIGN §4.1).
+/// Every other wide page has these in its top app bar.
 fn top_right_row(app: &View, ui: &mut Ui, full_w: f32) {
     let kx = header_network_pill(app, ui, full_w - TOP_ROW_QUESTION);
     // Under a sheet the keyboard button is drawn over it, below.
     if app.sheet.is_none() {
         crate::compact::wide_keyboard_button(app, ui, kx);
-        // The codex32 sheets' eye, in the right margin under the ?.
-        crate::compact::wide_eye_button(app, ui, full_w);
     }
     // The ? at the top right opens what explains this screen.
     if !app.learn_pages().is_empty() {

@@ -197,9 +197,6 @@ pub const TOUCH: f32 = 48.0;
 pub const ICON: f32 = 28.0;
 /// Icon size inside a list row or an app bar.
 pub const ICON_SMALL: f32 = 20.0;
-/// The room a page's way back takes above its title, on a wide
-/// display: the chevron and where it goes.
-pub const BACK_LINK_ROW: f32 = 26.0;
 
 // ---------------------------------------------------------------------
 // Rows
@@ -1763,10 +1760,6 @@ pub const TOP_ROW_QUESTION: f32 = MARGIN_WIDE + 28.0;
 /// from the top and is 28 dp tall, and what else stands in the row (Files'
 /// stick chip) is centred on it (`docs/LAYOUT.md` §17).
 pub const TOP_ROW_MID: f32 = 12.0 + 14.0;
-/// The wide page's eye: its container's right edge in from the window's,
-/// under the ? at the top right, level with it at `MARGIN_WIDE`
-/// (`docs/LAYOUT.md` §15, `docs/CODEX32.md` §6.4.6).
-pub const EYE_WIDE_INSET: f32 = MARGIN_WIDE;
 /// The check glyph in a seen worksheet tab.
 pub const CODEX32_TAB_GLYPH: f32 = 12.0;
 /// The icon's room at the head of the cell sheet.

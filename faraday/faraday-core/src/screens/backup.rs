@@ -15,7 +15,7 @@ use faraday_draw::tokens as T;
 use faraday_draw::tokens::{BODY_L, BODY_M, BODY_S, BUTTON_H, LABEL_L, LABEL_S, TITLE_M};
 use faraday_draw::widgets::Icon;
 use faraday_keys::Reveal;
-use faraday_ui::parts::{button_rows, section_label, title, wrap_buttons};
+use faraday_ui::parts::{button_rows, section_label, wrap_buttons};
 
 /// The rows of the software question.
 pub(crate) const SOFTWARE_ROWS: [&str; 5] = [
@@ -241,7 +241,8 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             let right = ui.bar_tools_x.unwrap_or(cw);
             faraday_ui::nav::app_bar(ui, cw, &head, right);
         } else {
-            title(ui, col_x, 28.0, EN.backup_back_up_a_wallet);
+            let back = app.named_back((EN.flow_home, Action::Nav(Screen::Home)));
+            super::bar_head(ui, Some(back), EN.backup_back_up_a_wallet);
         }
         return;
     };
@@ -377,7 +378,6 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             many.then_some(wallet.name.as_str())
         },
         chip_tap: (many && !b.from_create).then_some(Action::BWallets),
-        cancel: app.cancel_offered().is_some(),
     };
     let scroll = b.scroll;
     ui.chip_at = None;

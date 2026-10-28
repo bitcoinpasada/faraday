@@ -196,6 +196,12 @@ pub(crate) fn app_bar(app: &View, ui: &mut Ui, w: f32, nav: Nav) -> f32 {
                 EN.tip_keyboard,
             );
         }
+        if nav == Nav::ExpandedRail {
+            // A step flow's: the codex32 sheets' eye and Cancel, as the
+            // one-column layouts' bar has them (`compact::flow_bar_tools`).
+            *right = crate::compact::bar_eye(app, ui, *right);
+            *right = crate::compact::bar_cancel(app, ui, *right);
+        }
         if nav == Nav::ExpandedRail && app.screen == Screen::Files {
             *right = crate::screens::files_stick_chip(app, ui, *right);
         }

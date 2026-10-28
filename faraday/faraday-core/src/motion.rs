@@ -1015,6 +1015,11 @@ impl Faraday {
     /// (`docs/LAYOUT.md` §16.4). Returns how far down the page goes, or
     /// none when the view has not been drawn yet. Arithmetic.
     pub(crate) fn worksheet_page_clear(&mut self) -> Option<f32> {
+        // While a card opens or closes the view is not where it will
+        // stand: the page waits until the cards have settled (`page_due`).
+        if self.disclosed.as_ref().is_some_and(|d| d.moving) {
+            return None;
+        }
         let key = self.region_key();
         let f = self.unit_px();
         let reduce = self.reduce_motion();
@@ -1030,8 +1035,9 @@ impl Faraday {
             return None;
         };
         let limit = self.window().height - self.codex32_panel_foot_now();
-        // Never so far that the view's own top leaves the window.
-        let spare = (e.view.y as f32 / f - faraday_draw::tokens::MARGIN_WIDE).max(0.0);
+        // Never so far that the view's own top leaves the page's room,
+        // under the top app bar.
+        let spare = ((e.view.y - p.view.y) as f32 / f - faraday_draw::tokens::MARGIN_WIDE).max(0.0);
         let need = ((e.view.y + e.view.h) as f32 / f - limit).clamp(0.0, spare);
         self.keygen.page_clear(need, p.max, reduce);
         Some(need)

@@ -786,16 +786,6 @@ pub(crate) fn vaults_back<'a>(app: &'a View) -> Option<(&'a str, Action)> {
     Some(app.named_back((app.back_link_name(s), va(V::Back))))
 }
 
-pub(crate) fn back_link(app: &View, ui: &mut Ui, x: f32, y: f32, back: (&str, Action)) {
-    let muted = Role::OnSurfaceVariant;
-    let (label, action) = app.named_back(back);
-    ui.icon(x - 4.0, y, 18.0, Icon::ChevronLeft, 12.0, muted);
-    ui.text_mid_as((x + 14.0, y, 18.0), BODY_S, muted, label);
-    let lw = ui.measure_as(BODY_S, label) + 20.0;
-    ui.hit(x - 6.0, y - 4.0, lw, 26.0, action);
-    ui.back(action);
-}
-
 // ---------------------------------------------------------------------
 // Create a vault
 // ---------------------------------------------------------------------
@@ -860,7 +850,6 @@ pub(crate) fn create(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         note: None,
         chip: then.as_deref(),
         chip_tap: None,
-        cancel: app.cancel_offered().is_some(),
     };
     let scroll = c.scroll;
     let (next, again) = {

@@ -1154,8 +1154,9 @@ fn drag_from(app: &mut Faraday, (x, y): (u16, u16), dy: i32) {
     frames(app, 3);
 }
 
-/// The middle of the topmost of the string's boxes in view: somewhere on
-/// the worksheet's view to put a finger.
+/// The middle of the lowest of the given boxes in view, on the worksheet
+/// under the string's own boxes: somewhere on the worksheet's view to put
+/// a finger.
 fn top_of_the_sheet(app: &Faraday) -> (u16, u16) {
     (1..=48)
         .filter_map(|b| {
@@ -1163,7 +1164,7 @@ fn top_of_the_sheet(app: &Faraday) -> (u16, u16) {
                 faraday_core::codex32::Cell::Given { sheet: 0, b },
             )))
         })
-        .min_by_key(|b| b.1)
+        .max_by_key(|b| b.1)
         .map(|(x, y, w, h)| (x + w / 2, y + h / 2))
         .expect("a box in view")
 }

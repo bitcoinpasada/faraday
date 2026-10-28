@@ -106,7 +106,6 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         note: None,
         chip: None,
         chip_tap: None,
-        cancel: app.cancel_offered().is_some(),
     };
     let scroll = r.scroll;
     let (next, again) = {
