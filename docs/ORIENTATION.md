@@ -1,17 +1,18 @@
 # Panel orientation
 
-**Kind:** Spec
-**Status:** Specified (F100), partly built: native orientation, the panel's density and the known list (O1); the shell turning its frame, touch and arrow (O2); the setting, its line and the turn without a restart (O3)
-**Open:** the snapshot sizes, the Size menu's portrait rows, the guide's walkthrough and the docs that follow (O4).
+**Kind:** Reference
+**Status:** Built (F100): native orientation and the panel's density read at start, the known list, the stick shell turning its frame, touch and arrow, Settings › Display › Rotation kept on the stick, the panels' snapshot sizes and the Size menu's portrait rows
 
-A 7-inch or 10-inch panel starts in landscape. Settings › Display gains
+A 7-inch or 10-inch panel starts in landscape. Settings › Display has
 **Rotation**: Landscape, Portrait. A panel that is portrait natively is
 turned to landscape by the app, and its touch input with it. The choice
 is kept on the stick. Changing it lays the screen out again at the
 class its new width gives (`docs/LAYOUT.md` §2), with no restart. The
-owner's choices are F100, which amends F92.
+owner's choices are F100, which amends F92; the plan this was built
+from, the display path as it was before, and the owner's answers are in
+`docs/history/ORIENTATION-LOG.md`.
 
-## 1. What the display path is today
+## 1. The display path
 
 - **The stick.** The firmware sets a mode and hands its framebuffer
   over; `sysfb` and `efifb` or `simplefb` publish it as `/dev/fb0`
@@ -19,50 +20,38 @@ owner's choices are F100, which amends F92.
   kernel has no DRM: `# CONFIG_DRM is not set` in
   `faraday/image/common/linux.fragment`. The shell reads the size,
   depth and stride from sysfs (`Geometry::from_sysfs`,
-  `faraday/shells/stick/src/fb.rs`), converts the core's RGBA frame to
-  the panel's format row by row (`fb::convert_into`), compares rows with
-  the last frame (`faraday/shells/stick/src/present.rs`) and writes the
-  rows that differ with `pwrite` in bands of 64 rows
-  (`faraday/shells/stick/src/panel.rs`). The mouse arrow is drawn into
-  those bands in panel pixels (`faraday/shells/stick/src/cursor.rs`).
-  Nothing is turned: the frame is the framebuffer's size and
-  orientation.
-- **Density on the stick.** `faraday.dpi=160` on the kernel command line
+  `faraday/shells/stick/src/fb.rs`), converts the rows of the core's
+  frame that changed into the panel's format, turned as §3 says
+  (`fb::convert_turned`, `faraday/shells/stick/src/present.rs`), and
+  writes them (`faraday/shells/stick/src/panel.rs`). The mouse arrow is
+  drawn into what is written (`faraday/shells/stick/src/cursor.rs`).
+- **Density on the stick.** §2.1: the EDID's on a screen of 11 inches
+  or less, `faraday.dpi=160` from the kernel command line elsewhere
   (`faraday/image/boards/x86_64-uefi/cmdline.txt`), doubled on a
   framebuffer 2800 pixels wide or more (F101; `dpi` in
-  `faraday/shells/stick/src/main.rs`). `docs/LAYOUT.md` §7 names EDID's
-  physical size as the source; that is not read yet. The shell reads the
-  EDID base block the EFI stub leaves in the boot parameters only for the
-  device check (`faraday/faraday-core/src/edid.rs`, `from_boot_params`).
+  `faraday/shells/stick/src/main.rs`).
 - **Touch on the stick.** Every `/dev/input/event*` is classified by
   what it reports (`faraday/shells/stick/src/evdev.rs`). A touchscreen's
-  position is scaled from the controller's grid to panel pixels and
-  clamped (`Parser::transform`, `faraday/shells/stick/src/touch.rs`); a
-  HID touchscreen's grid is the ranges its report descriptor declares
-  (`faraday/shells/stick/src/hid.rs`). There is no swap or inversion of
-  axes.
+  position is put to the panel's axes and scaled from the controller's
+  grid to panel pixels (`Parser::transform`,
+  `faraday/shells/stick/src/touch.rs`; a HID touchscreen's grid is the
+  ranges its report descriptor declares, `faraday/shells/stick/src/hid.rs`),
+  then mapped to the frame (§4).
 - **The Pi.** The firmware drives the 2.8-inch DPI panel, 480 × 640
-  portrait at 286 dpi, and hands Linux its framebuffer through
-  `FB_BCM2708` (`faraday/image/panels/waveshare-28dpi/panel.conf`,
-  `faraday/image/panels/waveshare-28dpi/config.txt`). The Goodix
-  controller reports in a 640 × 480 grid, which the shell scales to the
-  panel (`TOUCH_GRID`). There is no 7-inch or 10-inch panel directory
-  under `faraday/image/panels/`.
+  portrait at 286 dpi (`faraday/image/panels/waveshare-28dpi/panel.conf`).
+  It states `NATIVE=portrait` and no `MOUNT`: Rotation is not offered
+  there (§5). There is no 7-inch or 10-inch panel directory under
+  `faraday/image/panels/`.
 - **Settings.** The stick keeps its settings in `faraday-settings.txt`,
-  one `key=value` line each (`scale=`, `theme=`, `mode=`, `contrast=`,
-  `motion=`, `guided=`, `qr-ms=`, `idle-lock=`, `idle-off=`, `tz=`;
-  `Settings::body` and `Settings::apply`,
+  one `key=value` line each (`Settings::body` and `Settings::apply`,
   `faraday/faraday-core/src/stick/settings.rs`). Settings' sections are
-  Mode, Session, Time, Randomness, Appearance, Display scale, Signed
-  amounts, Stick and About (`Part`,
-  `faraday/faraday-core/src/screens/settings.rs`); Display scale is one
-  row of choices. A scale chosen lays the screen out again at once
-  (`layout_scale`: the last `DisplayInfo` given to `display` again).
+  Mode, Session, Time, Randomness, Appearance, Display, Signed amounts
+  and About (`Part`, `faraday/faraday-core/src/screens/settings.rs`).
 
 So every 7-inch or 10-inch panel today is a stick on a PC: a small
 tablet or panel PC with its own screen, or a portable monitor on HDMI or
 USB-C. Such a panel that is portrait natively (common in small x86
-tablets: 800 × 1280, 1200 × 1920) is drawn portrait.
+tablets: 800 × 1280, 1200 × 1920) is turned to landscape at start.
 
 ## 2. How the app knows a panel is portrait natively
 
@@ -94,15 +83,17 @@ Three things are read once at start, in this order:
    its "right side up" a turn of 90 and its "left side up" 270.
 
 The touch device's axes are not used to decide. A HID touchscreen
-reports in the panel's native axes; the shell compares the aspect of its
-ranges with the framebuffer's, and a controller whose axes are swapped
-or reversed against the panel is a known-list row (§4.2), never a guess.
+reports in the panel's native axes, and a controller whose axes are
+swapped or reversed against the panel is stated in `panel.conf`
+(§4.2), never guessed.
 
 A panel directory for a soldered panel states its native orientation
-and mounting in `panel.conf`, as it states its size and density: a new
+and mounting in `panel.conf`, as it states its size and density:
 `NATIVE=portrait|landscape` and `MOUNT=90|270`, the quarter turn for the
-other orientation. The image writes
-them into the shell's arguments as it writes `--touch-grid`.
+other orientation. The image writes them into the shell's arguments
+(`--native`, `--mount`) as it writes `--touch-grid`
+(`faraday/image/README.md`, "Adding a panel"). A panel that states a
+`MOUNT` is offered Rotation; one that does not is not.
 
 ### 2.1 The density of a panel
 
@@ -140,28 +131,27 @@ every changed row:
 - The core draws a frame at the turned size: on a 1280 × 800 panel
   turned a quarter, 800 × 1280. `DisplayInfo` carries the turned width
   and height; the core knows nothing else of the turn.
-- `fb.rs` gains a conversion of a band of the core's rows into the
-  panel buffer at the turn: rows as now at 0, rows reversed at 180,
-  columns at 90 and 270, walked in tiles of 16 × 16 pixels so a column's
-  writes stay in cache.
-- `present.rs` compares the core's rows with its last frame as now. At
-  0 and 180 the rows that changed are panel rows; at 90 and 270 they are
-  a band of panel columns, and `Panel` writes, for each panel row, only
-  the bytes of that band (one `pwrite` per row). A caret's blink at 90
-  is about 800 short writes on a 1280 × 800 panel; the timing of §9's
-  late-flow session decides whether that stands or whole rows are
-  written instead.
+- `fb.rs` converts a band of the core's rows into the panel buffer at
+  the turn (`convert_turned`): rows as they are at 0, rows reversed at
+  180, columns at 90 and 270, walked in tiles of 16 × 16 pixels so a
+  column's writes stay in cache.
+- `present.rs` compares the core's rows with its last frame. At 0 and
+  180 the rows that changed are panel rows; at 90 and 270 they are a
+  band of panel columns, and `Panel::write_columns` writes, for each
+  panel row whose bytes in that band changed, only those bytes (one
+  `pwrite` per row). A caret's blink at 90 changes the core's rows the
+  caret covers, a band of the panel's columns, and only the two panel
+  rows its width covers are written.
 - The arrow is drawn at its turned place with its bitmap turned: each
   of its pixels goes through the frame's map (`cursor.rs`), so it
   points up and to the left as the person sees it at every turn.
 
-Timed before O2 was committed, on the build machine (x86, release
-build), a 1280 × 800 panel at 32 bits: a whole frame converted and
+What it costs, timed on the build machine (x86, release build) on a
+1280 × 800 panel at 32 bits, into memory: a whole frame converted and
 written takes 1.4 ms at 0 and 2.7 ms at 90 (3.2 ms at 180, which walks
 the same tiles), at 16 bits 0.9 ms and 2.1 ms; a caret's blink takes
 0.21 ms at 0 and 0.22 ms at 90, its two short writes included, the
-comparison of the frames being most of it. The column-band writes
-stand.
+comparison of the frames being most of it.
 
 The boot logo and anything the kernel draws are not turned: they are
 drawn before the app runs, at the panel's native orientation (§8).
@@ -195,13 +185,16 @@ threads (`orient::Shared`), which read it for every touch.
 
 Before the turn, a controller's own axes are put to the panel's:
 
-- **Grid.** As now: `--touch-grid` from `panel.conf`, or the HID
-  descriptor's ranges.
+- **Grid.** `--touch-grid` from `panel.conf`, or the HID descriptor's
+  ranges.
 - **Swap and reversal.** A controller whose x runs along the panel's
   height, or runs right to left, is corrected by `TOUCH_SWAP=1`,
-  `TOUCH_INVERT_X=1`, `TOUCH_INVERT_Y=1` in `panel.conf`, or by the
-  machine's row on the known list. These describe the hardware and do
-  not change with the setting.
+  `TOUCH_INVERT_X=1`, `TOUCH_INVERT_Y=1` in `panel.conf`
+  (`--touch-swap`, `--touch-invert-x`, `--touch-invert-y`;
+  `touch::Calibration`): the reversal is on the controller's own axes,
+  before the swap. These describe the hardware and do not change with
+  the setting. The known list carries no touch correction yet: the
+  kernel's table it comes from has none.
 - **The turn.** §4.1, from the setting and the mounting.
 
 So the calibration for each of the four turns is the same grid, swap and
@@ -241,15 +234,18 @@ is not affected; the arrow keys move as the screen shows.
   the other the mounting's quarter turn. 180 and the quarter turn
   opposite the mounting's are drawn by the same code and tested, and
   are not offered (an upside-down choice is not in F100).
-- **Settings.** The section **Display scale** becomes **Display**,
-  holding two rows: **Scale**, the choices it has now, and, where
-  offered, **Rotation**, a Material 3 segmented button of two segments,
-  Landscape and Portrait, the chosen one selected, as the Contrast and
-  Scale rows are drawn (`Ui::choices`). On a compact window the Display
-  section opens as its own page as every section does
-  (`docs/LAYOUT.md` §17). Each segment is a 48 dp touch target.
+- **Settings.** The section **Display** holds two rows: **Scale**, its
+  seven choices, and, where offered, **Rotation**, a Material 3
+  segmented button of two segments, Landscape and Portrait, the chosen
+  one selected, as the Contrast row is drawn (`Ui::choices`), each row's
+  label beside it where the column has room and over it on a compact
+  window, as Appearance's are. Rotation's explainer stands under it
+  while Guided is on. On a compact window the Display section opens as
+  its own page as every section does (`docs/LAYOUT.md` §17). Each
+  segment is a 48 dp touch target.
 - **Strings**, in `faraday/faraday-strings/src/en.rs`:
-  `settings_display` "Display", `settings_scale` "Scale",
+  `settings_display` "Display" (which replaced "Display scale"),
+  `settings_scale` "Scale",
   `settings_rotation` "Rotation", `settings_landscape` "Landscape",
   `settings_portrait` "Portrait". Guided mode's explainer:
   `settings_guide_rotation` "Landscape suits the backup board and lists
@@ -274,7 +270,10 @@ A press on a segment:
    height and the same density;
 3. the core lays out at the new size as for any `Event::Display`: the
    class its new width gives (`docs/LAYOUT.md` §2), the navigation that
-   class has (§3 there), Settings with the Display section in view;
+   class has (§3 there), Settings with the Display section in view: from
+   the page of every section the press opens Display as its own page,
+   which a compact window shows, and from that page it goes back to the
+   page of every section where it was;
 4. the kept settings are marked changed, so the next stick visit offers
    the file as it offers a changed theme.
 
@@ -288,7 +287,9 @@ in progress at the press ends with the press.
   natively), so the first frame is landscape (F100).
 - The settings file is read with the theme and scale, before the
   passphrase screen. A kept `rotation=portrait` turns the screen once
-  there, as §7 does.
+  there, as §7 does. The core answers `RotationOffered` with the
+  choice it holds then (Landscape at a cold start), and the boot
+  stick's file, read after, asks again only when it says Portrait.
 - The kernel's boot logo is drawn by the framebuffer console before the
   app, at the panel's native orientation: on a panel portrait natively
   its centred mark shows a quarter turned until the app's first frame.
@@ -302,8 +303,9 @@ in progress at the press ends with the press.
 
 Each states what a person would notice.
 
-In the stick shell (`faraday/shells/stick/src/`, beside the touch and
-present tests):
+In the stick shell (`faraday/shells/stick/src/turned_tests.rs`, and the
+map's, the conversion's and the calibration's own in `orient.rs`,
+`fb.rs` and `touch.rs`):
 
 1. **A touch lands where it is drawn, at each turn.** On a 1024 × 600
    panel and an 800 × 1280 panel, at each of 0, 90, 180 and 270, a frame
@@ -320,8 +322,8 @@ present tests):
    writes nothing.
 5. A caret's blink at 90 writes only the band of columns it covers.
 
-In `faraday/faraday-core/tests/all/` (a new `orientation.rs`, and
-`settings_file.rs` for the kept line):
+In `faraday/faraday-core/tests/all/orientation.rs`, and
+`edid_size.rs` for the EDID read against a captured base block:
 
 6. **The setting survives a restart.** Portrait chosen, the settings
    file written; a new `Faraday` given that file asks the shell for
@@ -335,11 +337,18 @@ In `faraday/faraday-core/tests/all/` (a new `orientation.rs`, and
 9. A turn keeps the session: with a key loaded, choosing Portrait and
    back leaves the key loaded and Settings on screen.
 
-The core's work budget (`faraday/faraday-core/src/work/budget/`) names the
-relayout for a press of Rotation as it names one for Scale. The shell's
-turned conversion is work done after every frame drawn: it is timed in a
-late-flow session on a 1280 × 800 panel turned a quarter before O2 is
-committed (`docs/SPEED.md` §7).
+A press of Rotation works out nothing itself: the relayout comes with
+the shell's `Event::Display`, as a scale's does, and the core's work
+budget (`faraday/faraday-core/src/work/budget/`) holds it as it holds
+any display. The shell's turned conversion is work done after every
+frame drawn: §3 gives what it costs.
+
+What only a device shows: the shell's framebuffer and input on a real
+7-inch or 10-inch panel, the known list's mountings and a controller's
+calibration on the machines themselves, and the cost of the column
+writes on a real framebuffer, are not tried here; the tests above run
+the same code on a panel in memory and controllers' packets made in
+the test.
 
 ## 10. Snapshots
 
@@ -352,103 +361,43 @@ so each orientation is its own size:
 | 10-inch, 1280 × 800 | `1280x800@150` | `800x1280@150` | large; expanded |
 
 `faraday/faraday.just`'s `faraday-snap` knows the four sizes by name
-with their density, as it knows `480x640`, and `faraday-snapshots`
-renders all four. `1280x800` already names the desktop window at 160
-dpi; the 10-inch panel's landscape render is `1280x800@150`, written to
-`out/snapshots/faraday/1280x800-150/`.
+with their density, as it knows `480x640`: `1024x600`, `600x1024`,
+`1280x800-150` and `800x1280`; `faraday-snapshots` renders all four.
+`1280x800` names the desktop window at 160 dpi; the 10-inch panel's
+landscape render is `1280x800@150`, written to
+`out/snapshots/faraday/1280x800-150/`. At these four sizes the snapshot
+shell offers Rotation as the stick does, chosen the way the render
+stands, so Settings › Display shows its row; the `panes` tour shows the
+Display section.
 
-Faraday Demo's Size menu (`docs/PREVIEW-SIZE.md` §1) gains **7-inch
+Faraday Demo's Size menu (`docs/PREVIEW-SIZE.md` §1) has **7-inch
 panel, portrait** (565 × 964 dp) and **10-inch panel, portrait**
 (853 × 1365 dp), and its 7-inch and 10-inch rows take the densities
 above (964 × 565 and 1365 × 853), in `PREVIEW_SIZES`
 (`core/faraday-draw/src/tokens.rs`).
 
 The 10-inch panel in portrait at its own density is 853 dp wide,
-expanded, not the medium of F100 and `docs/LAYOUT.md` §2's table, which
-count it at 160 dpi (800 dp). Both classes have the rail beside one
-column (`docs/LAYOUT.md` §3), so what F100 describes holds; the table's
-row is corrected with O4.
+expanded, not the medium F100 counts at 160 dpi (800 dp). Both classes
+have the rail beside one column (`docs/LAYOUT.md` §3), so what F100
+describes holds; `docs/LAYOUT.md` §2's table counts it at its own
+density.
 
 ## 11. The guide
 
-`docs/GUIDE.md` gains, after §2.4:
-
-> ### 2.5 Settings → Display
->
-> On a 7-inch or 10-inch panel, **Settings → Display → Rotation** turns
-> the screen: **Landscape** or **Portrait**. Faraday starts in
-> landscape. Landscape suits the backup board and a list beside its
-> detail. Portrait suits typing words in: the keyboard leaves more of
-> the screen above it. The choice is kept on the stick. **Scale** makes
-> text and controls larger or smaller.
->
-> Picture: Settings → Display on the 7-inch panel, landscape.
+The guide says it where a person meets it: Settings' page
+(`docs/guide/screens/settings.md`, Display) lists **Scale** and
+**Rotation** and what each suits, and the walkthrough of a first start
+(`docs/guide/walk/first-start.md`) names Rotation for a 7-inch or
+10-inch panel. Their pictures are drawn with the guide's other pictures.
 
 ## 12. Batches
 
-Each batch ends with `just` green.
-
-| Batch | What | Model | Size |
-|---|---|---|---|
-| O1 | Native orientation and density: the EDID detailed timing's size and mm read (`faraday/faraday-core/src/edid.rs`), the diagonal and density rule of §2.1 in the stick shell's `dpi`; `NATIVE`, `MOUNT`, `TOUCH_SWAP`, `TOUCH_INVERT_X`, `TOUCH_INVERT_Y` in `panel.conf` and the shell's arguments (`faraday/image/README.md`, "Adding a panel"); the known list, its first rows from the kernel's table; tests of the EDID read against a captured base block | Opus: which machines go on the list, the density rule's edges | small |
-| O2 | The shell turns: the map module, the turned conversion and column-band writes (`fb.rs`, `present.rs`, `panel.rs`), the arrow (`cursor.rs`), touch (`touch.rs`), `Event::RotationOffered`, `Command::Orientation` (`core/faraday-shell-api/src/lib.rs`); tests 1–5; the late-flow timing | Opus: the band writes and the timing call | medium |
-| O3 | The setting: `Orientation`, Settings' Display section and its Rotation row, the strings, the `rotation=` line, the turn on change and at start; tests 6–9; the budget's named relayout | Sonnet: specified here | small |
-| O4 | The snapshot sizes in `faraday/faraday.just`, the Size menu's portrait rows and densities, the guide's §2.5 and its picture, the docs of §13 | Sonnet | small |
-
-O2 needs O1's arguments; O3 needs O2's event and command; O4 needs O3.
-
-Edit list:
-
-- `faraday/faraday-core/src/edid.rs`: the detailed timing's active size
-  and image size.
-- `faraday/shells/stick/src/main.rs`: `dpi` (§2.1), the arguments, the
-  turn at start, `Command::Orientation`.
-- `faraday/shells/stick/src/fb.rs`, `faraday/shells/stick/src/present.rs`,
-  `faraday/shells/stick/src/panel.rs`, `faraday/shells/stick/src/cursor.rs`,
-  `faraday/shells/stick/src/touch.rs`: §3, §4; a new module for the map
-  and the known list.
-- `faraday/image/panels/efi-framebuffer/panel.conf`,
-  `faraday/image/panels/waveshare-28dpi/panel.conf`, the image's build
-  script and `faraday/image/README.md`: the new `panel.conf` keys (the
-  2.8-inch panel states `NATIVE=portrait` and offers no rotation).
-- `core/faraday-shell-api/src/lib.rs`: `Orientation`,
-  `Event::RotationOffered`, `Command::Orientation`.
-- `faraday/faraday-core/src/stick/settings.rs`: the field, the
-  `rotation=` line.
-- `faraday/faraday-core/src/screens/settings.rs`: the Display section and
-  its rows.
-- `faraday/faraday-strings/src/en.rs`: §6's strings.
-- `core/faraday-draw/src/tokens.rs`: `PREVIEW_SIZES`.
-- `faraday/faraday.just`: §10's sizes.
-- Tests as §9.
+Moved to `docs/history/ORIENTATION-LOG.md`.
 
 ## 13. Docs that follow
 
-- `docs/LAYOUT.md` §2: the 10-inch portrait row (§10); §7: the density
-  rule of §2.1.
-- `docs/PREVIEW-SIZE.md` §1: the portrait rows and densities.
-- `docs/DESIGN.md` §5 Settings: the Display section.
-- `docs/GUIDE.md` §2.5 (§11).
-- `faraday/image/README.md`: the `panel.conf` keys.
-- This document becomes a Reference and its plan moves to
-  ORIENTATION-LOG.md in `docs/history/` with the last batch.
+Moved to `docs/history/ORIENTATION-LOG.md`.
 
 ## 14. Questions for the owner
 
-Asked 2026-10-26; answered 2026-10-27, each as recommended (F100).
-
-1. The density from the EDID on screens of 11 inches or less, and
-   `faraday.dpi` kept elsewhere (§2.1, amending F101)? Yes: at 160 dpi a
-   7-inch panel in portrait is 600 dp, medium, not the compact F100
-   counts.
-2. Which panels first? The stick: a 7-inch 1024 × 600 panel, landscape
-   natively, and a 10-inch 800 × 1280 panel, portrait natively. The Pi's
-   7-inch and 10-inch panels later, as their own work.
-3. Portrait on a panel that is landscape natively? Yes, on panels of 6
-   to 11 inches; never on a laptop's screen or a monitor.
-4. The half turn and the opposite quarter turn offered? Not now; the
-   map draws and is tested at all four.
-5. The boot logo and the kernel console turned too? No: they stay as the
-   firmware draws them.
-6. Faraday Demo's Size menu gains the two portrait rows, and its 7-inch
-   and 10-inch rows their real densities? Yes.
+Moved to `docs/history/ORIENTATION-LOG.md`.

@@ -42,6 +42,10 @@ pub(crate) fn panes_tour(t: &mut Tour) -> Result<(), String> {
     t.shot("panes-settings-guided")?;
     t.press(Action::SettingsSection(Some(4)));
     t.shot("panes-settings-appearance")?;
+    // Display, with Rotation on a 7-inch or 10-inch panel's render
+    // (`docs/ORIENTATION.md` §6).
+    t.press(Action::SettingsSection(Some(5)));
+    t.shot("panes-settings-display")?;
     t.press(Action::Guided(false));
     t.press(Action::SettingsSection(None));
     Ok(())

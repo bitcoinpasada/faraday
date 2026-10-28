@@ -845,13 +845,17 @@ pub const SETTINGS_VALUE_LINE: f32 = 16.0;
 /// The screens the desktop app can show its screens at
 /// (`docs/PREVIEW-SIZE.md`), width and height in dp, in Settings'
 /// order: the Pi panel, a narrow window, a half-screen window, a 7-inch
-/// panel, a 10-inch panel, the desktop window, a full monitor.
-pub const PREVIEW_SIZES: [(u16, u16); 7] = [
+/// panel (1024 × 600 at 170 dpi) and the same in portrait, a 10-inch
+/// panel (1280 × 800 at 150 dpi) and the same in portrait
+/// (`docs/ORIENTATION.md` §10), the desktop window, a full monitor.
+pub const PREVIEW_SIZES: [(u16, u16); 9] = [
     (268, 358),
     (400, 800),
     (760, 1000),
-    (960, 580),
-    (1370, 860),
+    (964, 565),
+    (565, 964),
+    (1365, 853),
+    (853, 1365),
     (1280, 800),
     (1920, 1080),
 ];

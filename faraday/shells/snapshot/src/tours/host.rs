@@ -12,7 +12,7 @@ use faraday_shell_api::{App as _, Event};
 /// The Pi panel's size and the 7-inch panel's, in dp, as the Size menu
 /// lists them (`PREVIEW_SIZES`).
 const PI: (u16, u16) = (268, 358);
-const SEVEN_INCH: (u16, u16) = (960, 580);
+const SEVEN_INCH: (u16, u16) = (964, 565);
 
 /// The app's size in a window `win` at 160 dpi: the window less the
 /// host's strip.

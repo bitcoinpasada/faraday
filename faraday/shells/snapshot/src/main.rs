@@ -102,9 +102,36 @@ mod tours;
 use crate::tour::{Tour, display};
 use faraday_core::{Action, Faraday, Medium};
 use faraday_crypto::work::Compute;
-use faraday_shell_api::App;
+use faraday_shell_api::{App, Orientation};
 use std::path::Path;
 use std::process::ExitCode;
+
+/// The panel's own orientation where `size` at `dpi` is one of the
+/// stick's 7-inch or 10-inch panels, either way round: the 7-inch
+/// 1024 × 600 at 170 dpi, landscape natively, and the 10-inch 800 × 1280
+/// at 150 dpi, portrait natively.
+fn panel_native(size: (u16, u16), dpi: u16) -> Option<Orientation> {
+    match (size, dpi) {
+        ((1024, 600) | (600, 1024), 170) => Some(Orientation::Landscape),
+        ((1280, 800) | (800, 1280), 150) => Some(Orientation::Portrait),
+        _ => None,
+    }
+}
+
+/// Offers Rotation as the stick does, on a 7-inch or 10-inch panel's
+/// render.
+fn offer_rotation(app: &mut Faraday, size: (u16, u16), dpi: u16) {
+    // A 7-inch or 10-inch panel's render (`docs/ORIENTATION.md` §10):
+    // the stick offers Rotation there, chosen the way this render
+    // stands. The render is already that size: the turn the app asks
+    // for is left unanswered.
+    if let Some(native) = panel_native(size, dpi) {
+        app.event(faraday_shell_api::Event::RotationOffered { native });
+        if size.1 > size.0 {
+            app.press(Action::Rotation(Orientation::Portrait));
+        }
+    }
+}
 
 /// Costs what the tour it runs costs.
 fn run(
@@ -120,6 +147,7 @@ fn run(
     let mut app = Faraday::new();
     app.medium = medium;
     app.event(display(size, dpi));
+    offer_rotation(&mut app, size, dpi);
     // The session goes to the test wallets' network (testnet unless
     // `--network` chose another), since a session on one network takes
     // none of another's wallets once a key is loaded.

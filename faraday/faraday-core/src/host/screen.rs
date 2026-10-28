@@ -323,7 +323,7 @@ fn roller_ctls(app: &Faraday, which: Roller) -> Vec<Ctl> {
 
 /// The preview sizes the Size menu lists, each its name and its size in
 /// dp; `None` is the window itself.
-fn sizes() -> [(&'static str, Option<(u16, u16)>); 8] {
+fn sizes() -> [(&'static str, Option<(u16, u16)>); 10] {
     let s = t::PREVIEW_SIZES;
     [
         (EN.settings_preview_this_window, None),
@@ -331,9 +331,11 @@ fn sizes() -> [(&'static str, Option<(u16, u16)>); 8] {
         (EN.settings_preview_narrow, Some(s[1])),
         (EN.settings_preview_half, Some(s[2])),
         (EN.settings_preview_7in, Some(s[3])),
-        (EN.settings_preview_10in, Some(s[4])),
-        (EN.settings_preview_desktop, Some(s[5])),
-        (EN.settings_preview_monitor, Some(s[6])),
+        (EN.settings_preview_7in_portrait, Some(s[4])),
+        (EN.settings_preview_10in, Some(s[5])),
+        (EN.settings_preview_10in_portrait, Some(s[6])),
+        (EN.settings_preview_desktop, Some(s[7])),
+        (EN.settings_preview_monitor, Some(s[8])),
     ]
 }
 

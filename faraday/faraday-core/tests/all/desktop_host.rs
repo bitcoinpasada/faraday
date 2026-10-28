@@ -1377,7 +1377,7 @@ fn a_finger_drag_scrolls_samples_sheet_and_presses_nothing() {
 
 #[test]
 fn a_finger_drag_scrolls_the_size_menu_to_its_last_row_which_a_tap_chooses() {
-    let last = faraday_draw::tokens::PREVIEW_SIZES[6];
+    let last = faraday_draw::tokens::PREVIEW_SIZES[8];
     let monitor = HostPress::Size(Some(last));
     let mut shell = Shell::default();
     // A window too short for the menu: it stands above the strip, its

@@ -172,24 +172,30 @@ snap_suffix := if snap_net == "testnet" { "" } else { "-" + snap_net }
 # default), then the two small-panel references: 480x640 at 286 dpi is
 # the Pi's Waveshare panel, 240x320 at 143 is the smallest the design
 # supports -- both `small` size class, so this
-# is where a card or a flow that only fits `wide` would show up.
+# is where a card or a flow that only fits `wide` would show up. Then
+# the stick's 7-inch and 10-inch panels at both orientations
+# (docs/ORIENTATION.md §10): 1024x600 and 600x1024 at 170 dpi, and
+# 1280x800 and 800x1280 at 150, the landscape one into 1280x800-150
+# beside the desktop window's 1280x800.
 [group('test')]
 faraday-snapshots: faraday-testkit
     #!/usr/bin/env bash
     set -euo pipefail
-    for spec in "1280x800 160" "1920x1080 160" "1024x768 160" "3840x2160 160" "480x640 286" "240x320 143"; do
-        read -r size dpi <<< "$spec"
-        cargo run -q -p faraday-snapshot -- "$size@$dpi" out/testkit "out/snapshots/faraday/$size" > /dev/null
-        echo "out/snapshots/faraday/$size"
-        FARADAY_SNAP_TEXT=larger cargo run -q -p faraday-snapshot -- "$size@$dpi" out/testkit "out/snapshots/faraday/$size-larger" > /dev/null
-        echo "out/snapshots/faraday/$size-larger"
+    for spec in "1280x800 1280x800 160" "1920x1080 1920x1080 160" "1024x768 1024x768 160" "3840x2160 3840x2160 160" "480x640 480x640 286" "240x320 240x320 143" "1024x600 1024x600 170" "600x1024 600x1024 170" "1280x800-150 1280x800 150" "800x1280 800x1280 150"; do
+        read -r name size dpi <<< "$spec"
+        cargo run -q -p faraday-snapshot -- "$size@$dpi" out/testkit "out/snapshots/faraday/$name" > /dev/null
+        echo "out/snapshots/faraday/$name"
+        FARADAY_SNAP_TEXT=larger cargo run -q -p faraday-snapshot -- "$size@$dpi" out/testkit "out/snapshots/faraday/$name-larger" > /dev/null
+        echo "out/snapshots/faraday/$name-larger"
     done
 
 # One tour at one size, for looking at a change: `just faraday-snap
 # 480x640` for the default tour, `just faraday-snap 480x640 spend` for one
 # of the named tours faraday-snapshot's usage lists, into
 # out/snapshots/faraday/WxH[/TOUR]. Known sizes (480x640, 240x320,
-# 1280x800, 1920x1080, 1024x768, 3840x2160) carry their own dpi; any other
+# 1280x800, 1920x1080, 1024x768, 3840x2160, and the stick's panels at
+# both orientations: 1024x600 and 600x1024 at 170 dpi, 1280x800-150 and
+# 800x1280 at 150) carry their own dpi; any other
 # size needs `WxH@DPI` spelled out (`just faraday-snap 320x480@213`), or
 # it renders at 160. The tour runs on testnet; `FARADAY_SNAP_NET=mainnet
 # just faraday-snap 1280x800 spend` runs it as a Mainnet stick shows it
@@ -206,6 +212,10 @@ faraday-snap size tour="": (faraday-testkit snap_kit snap_net)
     case "{{size}}" in
         480x640) arg="480x640@286" ;;
         240x320) arg="240x320@143" ;;
+        1024x600) arg="1024x600@170" ;;
+        600x1024) arg="600x1024@170" ;;
+        1280x800-150) arg="1280x800@150" ;;
+        800x1280) arg="800x1280@150" ;;
     esac
     out="out/snapshots/faraday/{{size}}{{snap_suffix}}"
     case "${FARADAY_SNAP_TEXT:-standard}" in

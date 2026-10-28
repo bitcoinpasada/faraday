@@ -219,3 +219,36 @@ fn a_turn_keeps_the_session_and_settings() {
             .is_some()
     );
 }
+
+#[test]
+fn rotation_is_in_view_after_each_turn() {
+    let mut app = on_panel((1024, 600), 170);
+    app.press(Action::Nav(Screen::Settings));
+    let portrait = Action::Rotation(Orientation::Portrait);
+    let landscape = Action::Rotation(Orientation::Landscape);
+    // Down the page of every section until Rotation shows.
+    let mut now = 0;
+    for _ in 0..40 {
+        let _ = app.frame();
+        if app.where_offered(portrait).is_some() {
+            break;
+        }
+        app.event(Event::Scroll {
+            x: 500,
+            y: 400,
+            dy: 120,
+        });
+        app.event(Event::ScrollEnd { x: 500, y: 400 });
+        crate::common::settle(&mut app, now);
+        now += 20;
+    }
+    assert!(app.where_offered(portrait).is_some(), "Rotation reached");
+    // Portrait: Display is its own page; landscape again: the page of
+    // every section where it was, Rotation still in view.
+    app.press(portrait);
+    shell(&mut app, (1024, 600), 170);
+    assert!(app.where_offered(landscape).is_some(), "portrait");
+    app.press(landscape);
+    shell(&mut app, (1024, 600), 170);
+    assert!(app.where_offered(portrait).is_some(), "landscape again");
+}

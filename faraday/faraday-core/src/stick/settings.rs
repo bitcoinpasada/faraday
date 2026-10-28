@@ -501,15 +501,18 @@ impl Faraday {
             }
             // The shell turns its frame and tells the turned size, which
             // lays the screens out again (`docs/ORIENTATION.md` §7), with
-            // Display in view: on a compact window it opens as its own
-            // page.
+            // Display in view: from the page of every section, Display
+            // opens as its own page for a compact window, and from that
+            // page the page of every section comes back where it was.
             Action::Rotation(o) => {
                 if self.settings.orientation() == o {
                     return;
                 }
                 self.settings.set_orientation(o);
-                let display = crate::screens::settings_display_section();
-                if self.scroll.panes().settings() != Some(display) {
+                if crate::panes::settings_listed(self.window()) {
+                    self.settings_section(None);
+                } else {
+                    let display = crate::screens::settings_display_section();
                     self.settings_section(Some(display));
                 }
                 self.ask_orientation();

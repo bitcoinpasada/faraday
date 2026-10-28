@@ -141,3 +141,16 @@ new over a third of a second. Any theme can be Light or Dark at any
 contrast. The choice is kept across a lock, and on a stick until power-off.
 
 Picture to be drawn: Settings → Appearance with Theme, Mode and Contrast.
+
+### 2.5 Settings → Display
+
+On a 7-inch or 10-inch panel, [**Settings → Display**](../screens/settings.md#display)
+→ **Rotation** turns the screen: **Landscape** or **Portrait**. Faraday
+starts in landscape. Landscape suits the backup board and a list beside
+its detail. Portrait suits typing words in: the keyboard leaves more of
+the screen above it. The screen and its touch turn at once, nothing
+restarts, and the choice is kept on the stick. **Scale** makes text and
+controls larger or smaller. A laptop's screen, a monitor and the Pi's
+2.8-inch panel have **Scale** only.
+
+Picture to be drawn: Settings → Display on the 7-inch panel, landscape.

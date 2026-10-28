@@ -22,12 +22,16 @@ checked:
 | Pi panel | 268 × 358 | compact, short |
 | Narrow window | 400 × 800 | compact |
 | Half screen | 760 × 1000 | medium |
-| 7-inch panel | 960 × 580 | expanded, low |
-| 10-inch panel | 1370 × 860 | large |
+| 7-inch panel | 964 × 565 | expanded, low |
+| 7-inch panel, portrait | 565 × 964 | compact |
+| 10-inch panel | 1365 × 853 | large |
+| 10-inch panel, portrait | 853 × 1365 | expanded |
 | Desktop window | 1280 × 800 | large |
 | Full monitor | 1920 × 1080 | extra-large |
 
-The sizes are `PREVIEW_SIZES` in `core/faraday-draw/src/tokens.rs`.
+The sizes are `PREVIEW_SIZES` in `core/faraday-draw/src/tokens.rs`. The
+7-inch and 10-inch panels are the stick's (`docs/ORIENTATION.md` §10):
+1024 × 600 at 170 dpi and 1280 × 800 at 150 dpi, each either way round.
 Out of Settings and out of the app (owner, 2026-10-25): the size is
 Faraday Demo's, not the device's, so it stands with the host's other
 controls; the strip is under every screen, so the way back to This

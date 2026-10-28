@@ -6183,10 +6183,15 @@ strings! {
     settings_preview_narrow: "Narrow window",
     /// Preview size's choice: half a screen, 760 × 1000 dp.
     settings_preview_half: "Half screen",
-    /// Preview size's choice: a 7-inch panel, 960 × 580 dp.
+    /// Preview size's choice: a 7-inch panel, 964 × 565 dp.
     settings_preview_7in: "7-inch panel",
-    /// Preview size's choice: a 10-inch panel, 1370 × 860 dp.
+    /// Preview size's choice: a 7-inch panel turned to portrait, 565 ×
+    /// 964 dp (`docs/ORIENTATION.md` §10).
+    settings_preview_7in_portrait: "7-inch panel, portrait",
+    /// Preview size's choice: a 10-inch panel, 1365 × 853 dp.
     settings_preview_10in: "10-inch panel",
+    /// Preview size's choice: a 10-inch panel in portrait, 853 × 1365 dp.
+    settings_preview_10in_portrait: "10-inch panel, portrait",
     /// Preview size's choice: the desktop app's window, 1280 × 800 dp.
     settings_preview_desktop: "Desktop window",
     /// Preview size's choice: a full monitor, 1920 × 1080 dp.
