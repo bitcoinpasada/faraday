@@ -189,10 +189,15 @@ impl Grind {
         self.prefix = Prefix::fixed(script, network);
     }
 
-    /// Starts the run: the counter at zero, nothing measured yet.
+    /// Starts the run, nothing measured yet: the counter at zero, or,
+    /// searching again after a find, just past it, so the next find is
+    /// another.
     pub fn start(&mut self, now_ms: u64) {
         self.step = Step::Running;
-        self.cursor = 0;
+        self.cursor = self
+            .find
+            .as_ref()
+            .map_or(0, |f| f.counter.saturating_add(1));
         self.tested = 0;
         self.elapsed_ms = 0;
         self.last_ms = now_ms;

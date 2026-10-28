@@ -120,7 +120,11 @@ press **Camera** (with a camera attached), **Dice**, **Coins**,
 **Cards** or **Pointer and keys**, enter some, then **Add** (**Undo**
 takes the last one back, **Clear** the batch). **Pointer and keys**
 takes the pointer's moves over its box and the keys typed while it is
-chosen, and adds them as they come. Once some is added, the card reads **Randomness
+chosen, with no **Add**: they are added in batches: every 64 moves and keys, when the
+pointer leaves the box, when a key it does not take is pressed, when another
+source is chosen, and when **Make the words** is pressed (which then
+waits once more for the operating system's randomness). Once some is
+added, the card reads **Randomness
 added to the pool**, and **Source** ends **· with your own**. To go on
 without adding any, press **Skip**. Settings' **Randomness** row opens
 the same choices on a page of their own ([Add randomness](../screens/settings.md#add-randomness)).

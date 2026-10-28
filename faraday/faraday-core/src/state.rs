@@ -805,6 +805,9 @@ impl Faraday {
     /// it: handles the message-signing flow's actions (`SignMessage`, `M*`, `CheckMessage`).
     pub(crate) fn message_act(&mut self, action: Action, c: &Compute) {
         if self.message.edit(&action) {
+            if matches!(action, Action::MWallet(_)) {
+                self.message_format_fit();
+            }
             return;
         }
         match action {
@@ -816,6 +819,7 @@ impl Faraday {
                     bip322: true,
                     ..MessageState::default()
                 });
+                self.message_format_fit();
                 self.screen = Screen::Message;
             }
             Action::MSign => {
@@ -876,6 +880,33 @@ impl Faraday {
         }
     }
 
+    /// Sign a message's format, kept to one its wallet allows: where the
+    /// chosen one is greyed for the wallet, the first it allows is
+    /// chosen.
+    fn message_format_fit(&mut self) {
+        use faraday_psbt::message::Format;
+        let Some(m) = self.message.state.as_mut() else {
+            return;
+        };
+        let allowed = m
+            .wallet
+            .and_then(|w| self.session.wallets.get(w))
+            .and_then(|w| match crate::wallet::Kind::of(w.policy()) {
+                crate::wallet::Kind::Single(t) => Some(Format::for_script(t)),
+                _ => None,
+            })
+            .unwrap_or(&[]);
+        let chosen = if m.bip322 {
+            Format::Bip322
+        } else {
+            Format::Bip137
+        };
+        if !allowed.contains(&chosen)
+            && let Some(first) = allowed.first()
+        {
+            m.bip322 = *first == Format::Bip322;
+        }
+    }
 }
 
 impl Faraday {

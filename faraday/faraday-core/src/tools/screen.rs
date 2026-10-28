@@ -254,10 +254,7 @@ fn body(app: &View, ui: &mut Ui, x: f32, mut y: f32, width: f32) -> f32 {
             KeyReading::None => note = Some(EN.tools_not_an_extended.into()),
         },
         Reading::Nothing => {
-            let digits: u64 = t.typed.parse().unwrap_or(0);
-            let sats = digits
-                .saturating_mul(UNITS[usize::from(t.unit)].1)
-                .min(crate::tools::MAX_SATS);
+            let sats = crate::tools::units_sats(&t.typed, t.unit);
             rows.push(("sat".into(), crate::ui::thousands(sats)));
             rows.push((
                 "BTC".into(),

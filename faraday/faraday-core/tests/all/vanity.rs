@@ -49,6 +49,26 @@ fn opened_address(app: &mut Faraday) -> String {
 }
 
 #[test]
+fn search_again_finds_another_address() {
+    let mut app = with_key();
+    let first = search(&mut app, "q");
+    let account = app.vanity().unwrap().grind.find.as_ref().unwrap().account;
+    app.press(Action::Vanity(V::Start));
+    let mut again = None;
+    for t in 5000..10_000u64 {
+        app.event(Event::Tick { now_ms: t * 100 });
+        if let Some(f) = &app.vanity().unwrap().grind.find {
+            again = Some((f.address.as_str().to_string(), f.account));
+            break;
+        }
+    }
+    let (second, next) = again.expect("a second find");
+    assert!(second.starts_with("tb1qq"), "{second}");
+    assert_ne!(second, first, "Search again found the same address");
+    assert!(next > account, "it goes on past the first find");
+}
+
+#[test]
 fn the_account_dial_finds_an_address_and_opens_its_wallet() {
     let mut app = with_key();
     let found = search(&mut app, "q");

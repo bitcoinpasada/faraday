@@ -54,8 +54,12 @@ fn the_units_field_takes_digits_only() {
     let mut app = Faraday::new();
     app.press(Action::Tools);
     tool(&mut app, Tool::Units);
-    typed(&mut app, "12a3");
-    assert_eq!(testkit::tools(&app).unwrap().typed, "123");
+    typed(&mut app, "12a3.4");
+    assert_eq!(
+        testkit::tools(&app).unwrap().typed,
+        "1234",
+        "sat has no point"
+    );
 }
 
 /// The app on a 1280 × 800 window.
@@ -81,6 +85,30 @@ fn row(app: &mut Faraday, label: &str, value: &str) -> bool {
     app.drawn_texts()
         .windows(2)
         .any(|w| w[0] == label && w[1] == value)
+}
+
+#[test]
+fn an_amount_in_btc_or_mbtc_takes_a_point_down_to_one_satoshi() {
+    let mut app = wide();
+    app.press(Action::Tools);
+    tool(&mut app, Tool::Units);
+    // BTC: eight places, one point.
+    app.press(Action::TMode(1));
+    typed(&mut app, "0.5.00000019");
+    assert_eq!(testkit::tools(&app).unwrap().typed, "0.50000001");
+    assert!(
+        row(&mut app, "sat", "50,000,001"),
+        "{:?}",
+        app.drawn_texts()
+    );
+    assert!(row(&mut app, "mBTC", "500.00001"));
+    // mBTC: five places; the places past them are dropped.
+    app.press(Action::TMode(2));
+    assert_eq!(testkit::tools(&app).unwrap().typed, "0.50000");
+    assert!(row(&mut app, "sat", "50,000"));
+    // sat: no point, so the places go.
+    app.press(Action::TMode(0));
+    assert_eq!(testkit::tools(&app).unwrap().typed, "0");
 }
 
 #[test]

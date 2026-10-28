@@ -39,7 +39,7 @@ mono; what cannot be read shows in red instead.
 | **Encodings** | none | **Base58, bech32 or hex** | **Encoding**, **Prefix** (bech32's), **Version**, **Checksum** (**holds** or **does not hold**), **Bytes**. **Not Base58, bech32, bech32m or hex** |
 | **Descriptor checksum** | none | **A descriptor** | **Checksum**; **Given**, the checksum typed after `#` and whether it **holds**; **With it**, the descriptor with its checksum; **Wallet**: **one this device loads** or **not one this device loads**. **Not a descriptor** |
 | **Convert an xpub** | none | **An xpub, ypub, zpub, tpub…** | the key in BIP-32's spelling, then as **Legacy**, **Nested SegWit**, **Native SegWit** and **Taproot**; **Depth**, **Fingerprint**, **Child**. **That is an extended private key: this tool takes public keys only**; **Not an extended key** |
-| **Units** | **In sat**, **In BTC**, **In mBTC**, **In bits** | **An amount**: digits only, a whole number of the unit chosen | the amount in sat, BTC, mBTC and bits |
+| **Units** | **In sat**, **In BTC**, **In mBTC**, **In bits** | **An amount**: digits, and in BTC, mBTC or bits one point with up to 8, 5 or 2 places after it, down to one satoshi; in sat a whole number | the amount in sat, BTC, mBTC and bits |
 | **Miniscript compiler** | "wsh", "tr": the script it is compiled for | **A policy, e.g. or(pk(9a6a2580),and(pk(…),older(1000)))**; a loaded key may be named by its fingerprint | **Descriptor**, the policy compiled; **Spend paths**, how many; **Wallet**: **one this device loads**, or **keys need origins and both chains to load**. A policy that does not compile shows the compiler's message |
 
 ## On a narrow window

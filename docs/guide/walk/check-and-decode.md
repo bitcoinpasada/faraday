@@ -175,7 +175,7 @@ touches a key.
 | **Encodings** | **Base58, bech32 or hex**: an address, an xpub, any such string | **Encoding**, **Prefix**, **Version**, **Checksum** (**holds** or **does not hold**) and **Bytes**; **Not Base58, bech32, bech32m or hex** |
 | **Descriptor checksum** | **A descriptor**, with its checksum after `#` or without | **Checksum**; **Given**, the one typed, and whether it **holds**; **With it**, the descriptor with its checksum; **Wallet**: **one this device loads** or **not one this device loads**. **Not a descriptor** |
 | **Convert an xpub** | **An xpub, ypub, zpub, tpub…** | the key in BIP-32's spelling and as **Legacy**, **Nested SegWit**, **Native SegWit** and **Taproot**; **Depth**, **Fingerprint** and **Child**. An extended private key is refused: **That is an extended private key: this tool takes public keys only** |
-| **Units** | **An amount**, whole digits, in the unit the mode row chooses: **In sat**, **In BTC**, **In mBTC**, **In bits** | the amount in sat, BTC, mBTC and bits |
+| **Units** | **An amount**, down to one satoshi (0.5 in BTC; a whole number in sat), in the unit the mode row chooses: **In sat**, **In BTC**, **In mBTC**, **In bits** | the amount in sat, BTC, mBTC and bits |
 | **Miniscript compiler** | a policy (step 8) | its descriptor (step 8) |
 
 Try **Hashes** with `abc`, read as text: **Bytes** 3, and SHA-256

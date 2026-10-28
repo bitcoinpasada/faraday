@@ -120,6 +120,49 @@ pub const UNITS: [(&str, u64); 4] = [
     ("bits", 100),
 ];
 
+/// The places after the point an amount in unit `unit` (an index into
+/// [`UNITS`]) is typed to: none for sat, 8 for BTC, 5 for mBTC, 2 for
+/// bits, so that the last place is one satoshi.
+pub fn unit_places(unit: u8) -> usize {
+    UNITS
+        .get(usize::from(unit))
+        .map_or(0, |(_, f)| f.ilog10() as usize)
+}
+
+/// The satoshi an amount typed in unit `unit` is, up to every satoshi
+/// there will be: the whole part and up to [`unit_places`] after the
+/// point; nothing typed, or only a point, is 0.
+pub fn units_sats(typed: &str, unit: u8) -> u64 {
+    let factor = UNITS.get(usize::from(unit)).map_or(1, |(_, f)| *f);
+    let (whole, frac) = typed.split_once('.').unwrap_or((typed, ""));
+    let whole: u64 = whole.parse().unwrap_or(0);
+    let mut part: u64 = 0;
+    for k in 0..unit_places(unit) {
+        let d = frac
+            .as_bytes()
+            .get(k)
+            .filter(|b| b.is_ascii_digit())
+            .map_or(0, |b| u64::from(b - b'0'));
+        part = part * 10 + d;
+    }
+    whole
+        .saturating_mul(factor)
+        .saturating_add(part)
+        .min(MAX_SATS)
+}
+
+/// Whether the Units field, holding `typed` in unit `unit`, takes `c`:
+/// digits, and one point in a unit with places after it, as many places
+/// as reach one satoshi.
+fn units_takes(typed: &str, unit: u8, c: char) -> bool {
+    let places = unit_places(unit);
+    match typed.split_once('.') {
+        _ if c == '.' => places > 0 && !typed.contains('.'),
+        Some((_, frac)) => c.is_ascii_digit() && frac.len() < places,
+        None => c.is_ascii_digit(),
+    }
+}
+
 /// Tools' state: the open calculator, and what is typed in the Tools
 /// page's Find a tool.
 #[derive(Default)]
@@ -253,7 +296,15 @@ impl ToolsArea {
                         t.read_as = r;
                     }
                 }
-                Tool::Units => t.unit = i.min(3),
+                Tool::Units => {
+                    t.unit = i.min(3);
+                    // Places the new unit does not have are dropped.
+                    let places = unit_places(t.unit);
+                    if let Some(at) = t.typed.find('.') {
+                        let keep = if places == 0 { at } else { at + 1 + places };
+                        t.typed.truncate(keep);
+                    }
+                }
                 Tool::Miniscript => {
                     if let Some(&s) = PolicyScript::ALL.get(usize::from(i)) {
                         t.script = s;
@@ -274,7 +325,7 @@ impl ToolsArea {
             return (false, None);
         };
         match key {
-            K::Char(c) if t.tool == Tool::Units && !c.is_ascii_digit() => {}
+            K::Char(c) if t.tool == Tool::Units && !units_takes(&t.typed, t.unit, c) => {}
             K::Char(c) => {
                 if t.typed.chars().count() < 1024 {
                     t.typed.push(c);
