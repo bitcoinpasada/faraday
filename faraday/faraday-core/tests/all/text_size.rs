@@ -341,3 +341,59 @@ fn at_larger_on_the_smallest_panel_each_word_key_is_on_screen_and_types_its_lett
     }
     assert_eq!(typed, 25);
 }
+
+/// Make codex32 shares' entry on dice of twenty faces at Larger on a
+/// `width` × `height` display at `dpi`: the first character's rolls in,
+/// one pair struck as equal, then the step-through a step back. Neither
+/// the page, the dice sheet, the checksum worksheet nor the input panel
+/// draws text cut off at a side or over other text.
+fn codex32_dice_at_larger((width, height, dpi): (u16, u16, u16)) -> Vec<String> {
+    use faraday_core::codex32::{C32, Card, DIE_SIZES, SPLITS, Split, WAYS, Way};
+    use faraday_core::keygen::{Start, kstep};
+    use faraday_shell_api::EntropyBytes;
+    let mut app = shown_on(width, height, dpi);
+    for i in 0..8u8 {
+        app.event(Event::Entropy(EntropyBytes::new([0x50 + i; 32])));
+    }
+    app.press(Action::TextSize(TextSize::Larger));
+    let c32 = |app: &mut Faraday, p: C32| app.press(Action::Codex32(p));
+    app.press(Action::Nav(Screen::WalletsStart));
+    app.press(Action::KeyGen(None));
+    app.press(Action::KStep(kstep::START));
+    app.press(Action::KStart(Start::MakeCodex32.index()));
+    let split = SPLITS.iter().position(|s| *s == Split::TwoOfThree).unwrap();
+    c32(&mut app, C32::Split(split as u8));
+    c32(&mut app, C32::Next);
+    for ch in "name".chars() {
+        c32(&mut app, C32::Key(faraday_ui::keyboard::OskPress::Char(ch)));
+    }
+    c32(&mut app, C32::Next);
+    let way = WAYS.iter().position(|w| *w == Way::Dice).unwrap();
+    c32(&mut app, C32::Way(way as u8));
+    let d20 = DIE_SIZES.iter().position(|&n| n == 20).unwrap();
+    c32(&mut app, C32::Faces(d20 as u8));
+    c32(&mut app, C32::Next);
+    let open = app
+        .keygen()
+        .and_then(|k| k.codex32.as_ref())
+        .map(|m| m.open());
+    assert_eq!(open, Some(Some(Card::Enter)));
+    let on = format!("{width}×{height} at {dpi} dpi");
+    let mut found = Vec::new();
+    for f in [17, 3, 20, 20, 9, 12, 4, 15] {
+        c32(&mut app, C32::Face(f));
+    }
+    check(&mut app, &mut found, &format!("{on}, the rolls"), true);
+    c32(&mut app, C32::Step(-1));
+    check(&mut app, &mut found, &format!("{on}, a step back"), true);
+    found
+}
+
+#[test]
+fn at_larger_codex32s_dice_entry_draws_no_text_cut_off_or_over_other_text() {
+    let mut found = Vec::new();
+    for at in [(240, 320, 143), (480, 640, 286), (1024, 768, 160)] {
+        found.extend(codex32_dice_at_larger(at));
+    }
+    assert!(found.is_empty(), "{}", found.join("\n"));
+}

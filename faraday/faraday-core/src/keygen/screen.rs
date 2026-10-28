@@ -111,6 +111,14 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         cancel: app.key_cancel_offered(),
     };
     let scroll = k.scroll;
+    // The page shows above the input panel at the foot, and not at all
+    // under a cell's working drawn as a page of its own: what they cover
+    // is not drawn under them.
+    let foot = panel.foot_h();
+    let covered = ui.compact && k.codex32.as_ref().is_some_and(|m| m.cell().is_some());
+    let page_h = if covered { 0.0 } else { h - foot };
+    let page = ui.rect(0.0, 0.0, x0 + cw, page_h);
+    ui.c.push_clip(page);
     let (next, again) = {
         let app_ref: &View = app;
         let mut body = |ui: &mut Ui, i: usize, x: f32, y: f32, w: f32| -> f32 {
@@ -125,9 +133,9 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         };
         flow::column(ui, &col, &cards, scroll, &mut body)
     };
+    ui.c.pop_clip();
     app.scroll(Scrolled::KeyGen, next, again);
     // The dice sheet's column stands above the input panel at the foot.
-    let foot = panel.foot_h();
     if let Some(m) = k.codex32.as_ref() {
         crate::codex32::pane_screen::draw(app, m, ui, column, (x0, cw, h - foot));
     }
@@ -149,7 +157,11 @@ fn codex32_places(app: &View, k: &KeyGen, (cw, h): (f32, f32)) -> (bool, PanelAt
     let Some(m) = k.codex32.as_ref() else {
         return (false, PanelAt::Page);
     };
-    let shell = (app.window().class(), app.is_compact());
+    let shell = (
+        app.window().class(),
+        app.is_compact(),
+        app.text_size().factor(),
+    );
     let column = crate::codex32::pane_screen::column_now(m, cw, h, shell);
     let panel = crate::codex32::input_panel::place(app, m, cw, h);
     (column, panel)

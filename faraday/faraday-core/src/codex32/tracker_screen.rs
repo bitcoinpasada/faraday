@@ -37,28 +37,36 @@ fn text_w(w: f32) -> f32 {
     }
 }
 
-/// The lines kept for a step's working in an area `w` wide: as many as
-/// the longest step needs at that width. Arithmetic on tokens.
-fn text_lines(w: f32) -> f32 {
-    let lines = (t::CODEX32_WORKING_TEXT_MAX / text_w(w).max(1.0)).ceil();
+/// The lines kept for a step's working in an area `w` wide at the text
+/// factor `k`: as many as the longest step needs at that width, its text
+/// as much wider as the factor makes it. Arithmetic on tokens.
+fn text_lines(w: f32, k: f32) -> f32 {
+    let lines = (t::CODEX32_WORKING_TEXT_MAX * k / text_w(w).max(1.0)).ceil();
     lines.max(t::CODEX32_WORKING_LINES_MIN)
+}
+
+/// One line of the Working area at the text factor `k`
+/// (`docs/TEXT-SIZE.md` §5). Arithmetic on tokens.
+fn line_at(k: f32) -> f32 {
+    t::CODEX32_WORKING_LINE * k
 }
 
 /// The Working area's height in `w` with its Previous and Next standing
 /// elsewhere ([`draw_beside`]): its head line and the lines the longest
-/// step needs across the whole width, at least two. Arithmetic on tokens.
-pub(crate) fn working_text_h(w: f32) -> f32 {
-    let lines = (t::CODEX32_WORKING_TEXT_MAX / w.max(1.0)).ceil();
-    (1.0 + lines.max(t::CODEX32_WORKING_LINES_MIN)) * t::CODEX32_WORKING_LINE
+/// step needs across the whole width, at least two, at the text factor
+/// `k`. Arithmetic on tokens.
+pub(crate) fn working_text_h(w: f32, k: f32) -> f32 {
+    let lines = (t::CODEX32_WORKING_TEXT_MAX * k / w.max(1.0)).ceil();
+    (1.0 + lines.max(t::CODEX32_WORKING_LINES_MIN)) * line_at(k)
 }
 
 /// The Working area's height in `w`: its head row and the lines kept for
 /// a step's working, whatever the step says, so the pad beside it never
-/// moves. Arithmetic on tokens.
-pub(crate) fn working_area_h(w: f32) -> f32 {
-    let text = text_lines(w) * t::CODEX32_WORKING_LINE;
+/// moves, at the text factor `k`. Arithmetic on tokens.
+pub(crate) fn working_area_h(w: f32, k: f32) -> f32 {
+    let text = text_lines(w, k) * line_at(k);
     if side(w) {
-        (t::CODEX32_WORKING_LINE + text).max(t::TOUCH)
+        (line_at(k) + text).max(t::TOUCH)
     } else {
         t::TOUCH + text
     }
@@ -172,20 +180,17 @@ pub(super) fn draw_beside(
         return 0.0;
     }
     let apart = buttons.is_some();
+    let k = ui.text_factor();
     let h = if apart {
-        working_text_h(w)
+        working_text_h(w, k)
     } else {
-        working_area_h(w)
+        working_area_h(w, k)
     };
     let beside = |w: f32| apart || side(w);
     let (count, text) = lines(m, !beside(w));
     let tw = if apart { w } else { text_w(w) };
     // The head's row: a line beside the buttons, or the buttons' own row.
-    let head_h = if beside(w) {
-        t::CODEX32_WORKING_LINE
-    } else {
-        t::TOUCH
-    };
+    let head_h = if beside(w) { line_at(k) } else { t::TOUCH };
     // Narrow, the area is the small panel's Working tile, which names it.
     let cx = if beside(w) {
         let head = EN.codex32_track_head;
@@ -233,18 +238,18 @@ fn arrows(m: &Codex32Make, ui: &mut Ui, (bx, by): (f32, f32)) {
 
 /// The lines the Working area takes as one paragraph `w` wide: its head,
 /// where the step stands and the longest step's working, run on (owner,
-/// 2026-10-25). Arithmetic on tokens.
-fn line_lines(w: f32) -> f32 {
-    ((t::CODEX32_WORKING_TEXT_MAX + t::CODEX32_WORKING_HEAD_W) / w.max(1.0))
+/// 2026-10-25), at the text factor `k`. Arithmetic on tokens.
+fn line_lines(w: f32, k: f32) -> f32 {
+    ((t::CODEX32_WORKING_TEXT_MAX + t::CODEX32_WORKING_HEAD_W) * k / w.max(1.0))
         .ceil()
         .max(1.0)
 }
 
 /// The Working area's height as one paragraph `w` wide ([`draw_line`]),
-/// whatever the step says, so nothing beside it moves. Arithmetic on
-/// tokens.
-pub(crate) fn working_line_h(w: f32) -> f32 {
-    line_lines(w) * t::CODEX32_WORKING_LINE
+/// whatever the step says, so nothing beside it moves, at the text
+/// factor `k`. Arithmetic on tokens.
+pub(crate) fn working_line_h(w: f32, k: f32) -> f32 {
+    line_lines(w, k) * line_at(k)
 }
 
 /// The Working area as one paragraph at (`x`, `y`), `w` wide: "Working",
@@ -261,7 +266,8 @@ pub(super) fn draw_line(
     if m.work().is_none() {
         return 0.0;
     }
-    let line = t::CODEX32_WORKING_LINE;
+    let k = ui.text_factor();
+    let line = line_at(k);
     let (count, text) = lines(m, false);
     let text = if m.masked() && !text.is_empty() {
         MASK.repeat(3)
@@ -292,5 +298,5 @@ pub(super) fn draw_line(
     }
     let bt = (t::TOUCH - t::ICON_BUTTON) / 2.0;
     arrows(m, ui, (px + bt, py + bt));
-    working_line_h(w)
+    working_line_h(w, k)
 }

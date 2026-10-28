@@ -573,19 +573,24 @@ pub(crate) fn draw(
         cx + ox + g.cell >= x && cx + ox <= x + vw && cy + oy + g.cell >= y && cy + oy <= y + vh
     };
     let size = fit.map_or(t::codex32_cell_char(cls), |c| c * t::CODEX32_CELL_CHAR_PART);
-    for &(cx, cy, m) in &marks {
-        if seen(cx - g.cell, cy) {
-            ui.text_right(
-                cx + ox - t::CODEX32_MARK_GAP,
-                cy + oy,
-                g.cell,
-                size,
-                W::M,
-                ink,
-                m,
-            );
+    // The sheet is the booklet's grid: its cells are sized for the
+    // characters they hold, so what is written in them keeps its size at
+    // every text size (`docs/TEXT-SIZE.md` §3).
+    ui.fixed_text(|ui| {
+        for &(cx, cy, m) in &marks {
+            if seen(cx - g.cell, cy) {
+                ui.text_right(
+                    cx + ox - t::CODEX32_MARK_GAP,
+                    cy + oy,
+                    g.cell,
+                    size,
+                    W::M,
+                    ink,
+                    m,
+                );
+            }
         }
-    }
+    });
     let shown: Vec<&Drawn> = cells.iter().filter(|d| seen(d.x, d.y)).collect();
     // Fills, then the thin rules, then the bold ones over them, then the
     // front: cells share their rules, as on paper.
@@ -603,7 +608,7 @@ pub(crate) fn draw(
     }
     thin(ui, &shown, (ox, oy), g.cell);
     for d in &shown {
-        one(ui, d, (ox, oy), g.cell, size);
+        ui.fixed_text(|ui| one(ui, d, (ox, oy), g.cell, size));
         if let Some(cell) = d.press.filter(|_| s.press && !s.hide) {
             ui.hit_quiet(
                 d.x + ox,

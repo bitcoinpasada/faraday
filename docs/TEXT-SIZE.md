@@ -1,8 +1,8 @@
 # Text size
 
 **Kind:** Spec
-**Status:** Partly built (F85): the setting, its storage, the one-column decision and the desktop app's `--text` (T1); the components that grow with their text and the canvas's `cut` note (T2); the screens refitted at Larger but for two areas, their line advances growing with the text where they follow their line (T3); `FARADAY_SNAP_TEXT`, `cut.txt` and the justfile's Larger renders (T5)
-**Open:** at Larger, codex32's worksheet panels and the dice roller's pages, which still draw lines over one another; the line advances still written in place (`tools/lint-tokens.counts`); then Larger offered in Settings (T3); the Starter (T4); tests 8 and 9; planned.
+**Status:** Partly built (F85): the setting, its storage, the one-column decision and the desktop app's `--text` (T1); the components that grow with their text and the canvas's `cut` note (T2); the screens refitted at Larger, their line advances growing with the text where they follow their line (T3); `FARADAY_SNAP_TEXT`, `cut.txt` and the justfile's Larger renders (T5)
+**Open:** Larger offered in Settings (T3); the Starter (T4); tests 8 and 9; planned.
 
 Settings › Appearance gains **Text size**: Standard, Large, Larger. It
 makes text larger and lets the layout make room for it. It is kept as
@@ -111,6 +111,7 @@ the factor to 1 for what it draws and puts it back.
 | Data in the mono face: fingerprints, hex, paths, addresses, xpubs, txids, descriptors | Larger; addresses and keys already break by character and wrap. Inside a chip or a node, fit-down. |
 | Keyboards: keys, the candidate strip, the kana grid, the card pad, the dice pad | Unchanged (`fixed_text`). Their sizes are set by what must fit on the panel. |
 | QR codes and SeedQR, the scanner's picture | Unchanged: they are pictures. Their captions are text and grow. |
+| The booklet's drawings in Make codex32 shares: the checksum worksheet's cells (their characters, box numbers, letters and `+` `=` marks) and the die tracks' pads and dice | Unchanged (`fixed_text`): each is drawn in a cell or pad sized for it, as the booklet prints it (`docs/CODEX32.md` §7.1, §5.5). The worksheet's heading, the tracks' heads and each die's name are text; a die's name before its track fits down. |
 | A row's icon (the leading icon of a list, menu or value row) | Grows with its label, by the same factor (§9 item 4); the row's height is §5's. |
 | Other icons (`ICON`, `ICON_SMALL` elsewhere, glyphs, the wordmark) | Unchanged. |
 | The structure chart's lines and the board's boxes | Lengths unchanged; their text as one-line slots or wrapping labels as above. |

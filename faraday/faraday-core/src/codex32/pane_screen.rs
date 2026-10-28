@@ -29,13 +29,13 @@ pub(crate) fn side_room(column: bool) -> f32 {
 /// in a page area `cw` wide in a window `h` tall, on a window of `class`
 /// with one-column pages or not (`compact`): only where the checksum
 /// worksheet still draws whole beside it and the column fits the
-/// window's height, over the input panel at the foot. Elsewhere both
-/// sheets stand in the page. Arithmetic.
+/// window's height, over the input panel at the foot, at the text factor
+/// `k`. Elsewhere both sheets stand in the page. Arithmetic.
 pub(crate) fn column_now(
     m: &Codex32Make,
     cw: f32,
     h: f32,
-    (class, compact): (WindowClass, bool),
+    (class, compact, k): (WindowClass, bool, f32),
 ) -> bool {
     let entering = m.open() == Some(Card::Enter)
         && m.dice_sheet_shown()
@@ -48,7 +48,7 @@ pub(crate) fn column_now(
     let Some((sheet_w, sheet_h)) = m.sheet_least() else {
         return false;
     };
-    let panel = super::input_panel::place_in(m, cw, h, class, side);
+    let panel = super::input_panel::place_in(m, (cw, h), (class, k), side);
     let start = panel.start_room();
     let lead = if start > 0.0 {
         start - t::KEYGEN_COLUMN_IN

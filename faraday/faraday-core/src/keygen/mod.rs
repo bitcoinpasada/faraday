@@ -2165,7 +2165,11 @@ impl crate::Faraday {
     /// right now (`docs/LAYOUT.md` §16.1). Arithmetic.
     pub(crate) fn codex32_column_now(&self) -> bool {
         let page_w = crate::screens::keygen_page_w(self);
-        let shell = (self.window().class(), self.compact);
+        let shell = (
+            self.window().class(),
+            self.compact,
+            self.text_size().factor(),
+        );
         let h = self.window().height;
         self.keygen
             .state
@@ -2179,7 +2183,11 @@ impl crate::Faraday {
     /// there, else none. Arithmetic.
     pub(crate) fn codex32_panel_foot_now(&self) -> f32 {
         let page_w = crate::screens::keygen_page_w(self);
-        let shell = (self.window().class(), self.compact);
+        let shell = (
+            self.window().class(),
+            self.compact,
+            self.text_size().factor(),
+        );
         self.keygen
             .state
             .as_ref()
@@ -2198,6 +2206,7 @@ impl crate::Faraday {
     pub(crate) fn codex32_refit(&mut self) {
         let compact = self.compact;
         let class = self.window().class();
+        let k = self.text_size().factor();
         let page_w = crate::screens::keygen_page_w(self);
         let h = self.window().height;
         let Some(m) = self.keygen.state.as_mut().and_then(|k| k.codex32.as_mut()) else {
@@ -2205,7 +2214,7 @@ impl crate::Faraday {
         };
         m.note_sheet();
         let room = (!compact).then(|| {
-            let shell = (class, compact);
+            let shell = (class, compact, k);
             let column = crate::codex32::pane_screen::column_now(m, page_w, h, shell);
             let side = crate::codex32::pane_screen::side_room(column);
             let tall = h - 2.0 * faraday_draw::tokens::MARGIN_WIDE;

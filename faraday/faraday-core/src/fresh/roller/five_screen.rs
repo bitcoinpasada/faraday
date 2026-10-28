@@ -15,7 +15,7 @@ use crate::codex32::{DieColour, DieRow};
 use crate::strings::{EN, fill};
 use crate::ui::Paint;
 use crate::ui::{Ui, pal::*};
-use faraday_draw::tokens::{BODY_S, LABEL_L, LABEL_M};
+use faraday_draw::tokens::{BODY_S, LABEL_L, LABEL_M, TypeRole};
 use faraday_draw::tokens::{
     GAP_SMALL, INPUT_ROLLS_COL, INPUT_ROLLS_LINE, INPUT_ROLLS_STRUCK, ROLLER_BOUNCE, ROLLER_DIE,
     ROLLER_DIE_RADIUS, ROLLER_FIVE_GAP, ROLLER_GAP, ROLLER_PAIR_COL, ROLLER_PAIR_DIE,
@@ -218,20 +218,22 @@ pub fn pairs(ui: &mut Ui, (x, y, w): (f32, f32, f32), p: &Pairs, r: Option<&Five
 /// [`struck_across`]). Always [`pairs_across_h`] tall, or
 /// [`pairs_row_h`] without the struck pair.
 pub fn pairs_across(ui: &mut Ui, (x, y, w): (f32, f32, f32), p: &Pairs, struck: bool) -> f32 {
-    let (col, d, line) = (INPUT_ROLLS_COL, ROLLER_PAIR_DIE, INPUT_ROLLS_LINE);
+    let k = ui.text_factor();
+    let (col, d, line) = (INPUT_ROLLS_COL, ROLLER_PAIR_DIE, rolls_line(k));
     let mut cy = y;
     let pair_w = 2.0 * d + GAP_SMALL;
     let left = |i: usize| x + i as f32 * col;
     let centre = |i: usize| left(i) + pair_w / 2.0;
+    // Each die's column is a one-line slot: larger text fits down to
+    // Standard there (`docs/TEXT-SIZE.md` §3).
+    let room = col - GAP_SMALL;
+    let centred = |ui: &mut Ui, i: usize, y: f32, role: TypeRole, ink: Role, s: &str| {
+        let sw = ui.text_fit_width(role, s, room);
+        ui.text_fit_as((centre(i) - sw / 2.0, y, line, room), role, ink, s);
+    };
     for i in 0..BOOKLET_DICE {
         let name = fill(EN.codex32_die_n, &[&(i + 1).to_string()]);
-        let nw = ui.measure_as(LABEL_M, &name);
-        ui.text_mid_as(
-            (centre(i) - nw / 2.0, cy, line),
-            LABEL_M,
-            Role::OnSurface,
-            &name,
-        );
+        centred(ui, i, cy, LABEL_M, Role::OnSurface, &name);
     }
     cy += line + GAP_SMALL;
     for (i, &colour) in p.colours.iter().enumerate() {
@@ -256,21 +258,15 @@ pub fn pairs_across(ui: &mut Ui, (x, y, w): (f32, f32, f32), p: &Pairs, struck: 
     cy += d + GAP_SMALL;
     for i in 0..BOOKLET_DICE {
         if let Some(text) = pair_text(p, i) {
-            let tw = ui.measure_as(BODY_S.mono(), &text);
-            ui.text_mid_as(
-                (centre(i) - tw / 2.0, cy, line),
-                BODY_S.mono(),
-                Role::Primary,
-                &text,
-            );
+            centred(ui, i, cy, BODY_S.mono(), Role::Primary, &text);
         }
     }
     if !struck {
-        return pairs_row_h();
+        return pairs_row_h(k);
     }
     cy += line + GAP_SMALL;
     struck_across(ui, (x, cy, w, line), p);
-    pairs_across_h()
+    pairs_across_h(k)
 }
 
 /// The latest pair struck as equal, struck through, in a row (x, y) `w`
@@ -288,23 +284,30 @@ pub fn struck_across(ui: &mut Ui, (x, y, w, h): (f32, f32, f32, f32), p: &Pairs)
             EN.codex32_die_equal,
             &[&(usize::from(row.die) + 1).to_string(), &f, &sc],
         );
-        let s = ui.fit_as(BODY_S, &s, w);
-        let tw = ui.text_mid_as((x, y, h), BODY_S, Role::Warning, &s);
+        let tw = ui.text_fit_as((x, y, h, w), BODY_S, Role::Warning, &s);
         ui.fill(x, y + h / 2.0, tw.min(w), 1.0, 0.0, Role::Warning);
     }
 }
 
-/// The height of [`pairs_across`] without its struck pair: the names,
-/// the row of rolls and what the pairs give. Arithmetic.
-pub fn pairs_row_h() -> f32 {
-    let line = INPUT_ROLLS_LINE + GAP_SMALL;
-    line + ROLLER_PAIR_DIE + GAP_SMALL + INPUT_ROLLS_LINE
+/// A line of [`pairs_across`] at the text factor `k`
+/// (`docs/TEXT-SIZE.md` §5). Arithmetic.
+pub fn rolls_line(k: f32) -> f32 {
+    INPUT_ROLLS_LINE * k
 }
 
-/// The height of [`pairs_across`]: the names, the row of rolls, what the
-/// pairs give, and the room for the struck pair. Arithmetic.
-pub fn pairs_across_h() -> f32 {
-    let line = INPUT_ROLLS_LINE + GAP_SMALL;
+/// The height of [`pairs_across`] without its struck pair, at the text
+/// factor `k`: the names, the row of rolls and what the pairs give.
+/// Arithmetic.
+pub fn pairs_row_h(k: f32) -> f32 {
+    let line = rolls_line(k) + GAP_SMALL;
+    line + ROLLER_PAIR_DIE + GAP_SMALL + rolls_line(k)
+}
+
+/// The height of [`pairs_across`] at the text factor `k`: the names, the
+/// row of rolls, what the pairs give, and the room for the struck pair.
+/// Arithmetic.
+pub fn pairs_across_h(k: f32) -> f32 {
+    let line = rolls_line(k) + GAP_SMALL;
     line + ROLLER_PAIR_DIE + GAP_SMALL + line + INPUT_ROLLS_STRUCK as f32 * line - GAP_SMALL
 }
 

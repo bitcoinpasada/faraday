@@ -506,8 +506,10 @@ pub(super) fn struck(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32) -> f3
             EN.codex32_die_equal,
             &[&(usize::from(row.die) + 1).to_string(), &f, &sc],
         );
-        let tw = ui.text_as(x, cy, BODY_S, Role::Warning, &s);
+        // A one-line slot, struck through: larger text fits down to
+        // Standard there (`docs/TEXT-SIZE.md` §3).
         let lh = ui.line_as(BODY_S);
+        let tw = ui.text_fit_as((x, cy, lh, w), BODY_S, Role::Warning, &s);
         ui.fill(x, cy + lh / 2.0, tw.min(w), 1.0, 0.0, Role::Warning);
         cy += lh + t::GAP_SMALL;
     }
@@ -667,7 +669,15 @@ fn tracks(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         let lh = ui.line_as(LABEL_M);
         swatch(ui, x + t::CODEX32_SWATCH, cy + th / 2.0 - lh / 2.0, colour);
         let nx = x + 2.0 * t::CODEX32_SWATCH + t::GAP_SMALL;
-        ui.text_as(nx, cy + th / 2.0 - lh, LABEL_M, Role::OnSurface, &name);
+        // A one-line slot before the track: larger text fits down to
+        // Standard there (`docs/TEXT-SIZE.md` §3).
+        let room = tx - nx - t::GAP_SMALL;
+        ui.text_fit_as(
+            (nx, cy + th / 2.0 - lh, lh, room),
+            LABEL_M,
+            Role::OnSurface,
+            &name,
+        );
         track(m, ui, (tx, cy, u), die);
         // The step-through's die: where the page follows its roll.
         if m.walk_die_mark().is_some_and(|(d, _)| d == die) {
@@ -688,11 +698,15 @@ fn tracks(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     cy - y
 }
 
-/// `s` centred on (`cx`, `cy`) in the caption size.
+/// `s` centred on (`cx`, `cy`) in the caption size. A pad's number is
+/// part of the booklet's drawing, sized with its pad, so it keeps its
+/// size at every text size (`docs/TEXT-SIZE.md` §3).
 fn centred(ui: &mut Ui, (cx, cy): (f32, f32), s: &str, ink: Paint) {
-    let w = ui.measure_as(LABEL_M, s);
-    let h = ui.line_as(LABEL_M);
-    ui.text_as(cx - w / 2.0, cy - h / 2.0, LABEL_M, ink, s);
+    ui.fixed_text(|ui| {
+        let w = ui.measure_as(LABEL_M, s);
+        let h = ui.line_as(LABEL_M);
+        ui.text_as(cx - w / 2.0, cy - h / 2.0, LABEL_M, ink, s);
+    });
 }
 
 /// Die `die`'s track with its top-left at (`tx`, `top`), `u` dp to the
