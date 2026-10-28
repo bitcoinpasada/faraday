@@ -297,84 +297,21 @@ struct TabItem {
     action: Action,
 }
 
-/// Secondary tabs, [`t::CODEX32_TAB`] tall, an indicator in `primary`
-/// under the one shown, a rule under the row. Where they do not all fit
-/// the row shows the run that ends at the one shown (it scrolls with
-/// it). Returns the height.
+/// Material's secondary tabs (faraday-ui's [`faraday_ui::tabs`]),
+/// [`t::CODEX32_TAB`] tall, a seen one with a check. Returns the height
+/// with the gap under it.
 fn tabs(ui: &mut Ui, x: f32, y: f32, w: f32, items: &[TabItem]) -> f32 {
-    let icon = t::CODEX32_TAB_ICON;
-    let widths: Vec<f32> = items
+    use faraday_ui::tabs::{Tab, TabKind};
+    let row: Vec<Tab<'_, Action>> = items
         .iter()
-        .map(|i| {
-            ui.measure_as(TITLE_S, &i.label)
-                + 2.0 * t::PAD
-                + if i.seen { icon + t::GAP_SMALL } else { 0.0 }
+        .map(|i| Tab {
+            label: &i.label,
+            on: i.on,
+            done: i.seen,
+            action: i.action,
         })
         .collect();
-    let total: f32 = widths.iter().sum();
-    let on = items.iter().position(|i| i.on).unwrap_or(0);
-    let equal = w / items.len().max(1) as f32;
-    // Fixed tabs share the width where every label fits its share.
-    let fixed = total <= w && widths.iter().all(|&wd| wd <= equal);
-    let mut first = 0;
-    if total > w {
-        let mut used = widths[on];
-        first = on;
-        while first > 0 && used + widths[first - 1] <= w {
-            first -= 1;
-            used += widths[first];
-        }
-    }
-    ui.rule(x, y + t::CODEX32_TAB - 1.0, w, Role::OutlineVariant);
-    let mut tx = x;
-    for (i, item) in items.iter().enumerate().skip(first) {
-        let tw = if fixed { equal } else { widths[i] };
-        if tx + tw > x + w + 0.5 {
-            break;
-        }
-        if ui.is_pressed(item.action) {
-            ui.wash(
-                tx,
-                y,
-                tw,
-                t::CODEX32_TAB,
-                0.0,
-                Role::OnSurface.at(faraday_draw::tokens::STATE_PRESS),
-            );
-        }
-        let colour = if item.on {
-            Role::Primary
-        } else {
-            Role::OnSurfaceVariant
-        };
-        let lw = ui.measure_as(TITLE_S, &item.label);
-        let seen = if item.seen { icon + t::GAP_SMALL } else { 0.0 };
-        let lx = tx + (tw - lw - seen) / 2.0;
-        if item.seen {
-            ui.icon(
-                lx,
-                y + (t::CODEX32_TAB - icon) / 2.0,
-                icon,
-                Icon::Done,
-                t::CODEX32_TAB_GLYPH,
-                Role::Ok,
-            );
-        }
-        ui.text_mid_as((lx + seen, y, t::CODEX32_TAB), TITLE_S, colour, &item.label);
-        if item.on {
-            ui.fill(
-                tx,
-                y + t::CODEX32_TAB - t::CODEX32_INDICATOR,
-                tw,
-                t::CODEX32_INDICATOR,
-                0.0,
-                Role::Primary,
-            );
-        }
-        ui.hit(tx, y, tw, t::CODEX32_TAB, item.action);
-        tx += tw;
-    }
-    t::CODEX32_TAB + t::GAP
+    ui.tabs((x, y, w, t::CODEX32_TAB), TabKind::Secondary, &row) + t::GAP
 }
 
 /// A card's body. Returns its height.

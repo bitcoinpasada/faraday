@@ -22,6 +22,7 @@ pub mod roles;
 pub mod sheet;
 pub mod snackbar;
 pub mod stick;
+pub mod tabs;
 mod theme;
 pub mod tooltip;
 

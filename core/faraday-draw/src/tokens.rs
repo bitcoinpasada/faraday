@@ -1765,8 +1765,17 @@ pub const CODEX32_TAB_GLYPH: f32 = 12.0;
 pub const CODEX32_SHEET_ICON: f32 = 28.0;
 /// The check icon in a seen worksheet tab.
 pub const CODEX32_TAB_ICON: f32 = 20.0;
-/// A tab's active indicator, Material's 3 dp.
-pub const CODEX32_INDICATOR: f32 = 3.0;
+/// A tab's height with a label alone: Material's tabs, 48 dp.
+pub const TAB_H: f32 = TOUCH;
+/// A primary tab's active indicator: 3 dp, round at its top corners,
+/// as wide as the tab's content.
+pub const TAB_INDICATOR_PRIMARY: f32 = 3.0;
+/// A primary tab's active indicator at its narrowest: Material's 24 dp.
+pub const TAB_INDICATOR_MIN: f32 = 24.0;
+/// A secondary tab's active indicator: 2 dp across the whole tab.
+pub const TAB_INDICATOR_SECONDARY: f32 = 2.0;
+/// The room at each side of a tab's label: Material's 16 dp.
+pub const TAB_PAD: f32 = 16.0;
 
 // ---------------------------------------------------------------------
 // Material 3: shape, state layers, focus, targets, icons, motion

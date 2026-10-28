@@ -213,51 +213,6 @@ pub(super) fn potential_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     );
 }
 
-/// `button_rows`, except a label too wide for the row even alone is
-/// never cut (`docs/DESIGN.md` "Menu row"): it takes the row whole and
-/// wraps onto further lines, its chip growing to hold them. Used where
-/// `button_rows`'s "a long label is cut" must not hold — the Learn
-/// sheet's tabs, whose first row names a label the spec gives in full
-/// (`docs/history/SIMPLIFY.md` §6.2).
-pub(crate) fn learn_tabs(
-    ui: &mut Ui,
-    x: f32,
-    y: f32,
-    w: f32,
-    items: &[(String, Style, Action)],
-) -> f32 {
-    let (mut bx, mut by) = (x, y);
-    for (label, style, action) in items {
-        let natural = ui.measure_as(LABEL_L, label) + 32.0;
-        if natural <= w {
-            if bx > x && bx + natural > x + w {
-                bx = x;
-                by += 40.0;
-            }
-            bx += ui.button(bx, by, Some(natural), BUTTON_H, label, *style, *action) + 6.0;
-        } else {
-            if bx > x {
-                bx = x;
-                by += 40.0;
-            }
-            let lines = ui.wrap_lines_as(LABEL_L, label, w - 24.0).max(1);
-            let line_h = ui.line_as(LABEL_L);
-            let bh = 32.0 + (lines - 1) as f32 * line_h;
-            // An empty-labelled button draws this style's background,
-            // border and hit region exactly as any other; the label is
-            // then wrapped over it, since `Ui::button` itself only ever
-            // draws one line.
-            ui.button(bx, by, Some(w), bh, "", *style, *action);
-            let fg = style.label();
-            let top = by + (bh - lines as f32 * line_h) / 2.0;
-            ui.wrap_as((bx + 12.0, top, w - 24.0), LABEL_L, fg, label);
-            by += bh + 6.0;
-            bx = x;
-        }
-    }
-    by - y + 44.0
-}
-
 /// The device check's buttons: Check again, then Continue anyway, whose
 /// question has its hold in the body (F136), or Power off on a virtual
 /// machine, which has no way on.
@@ -1597,24 +1552,28 @@ pub(super) struct LearnLook {
     pub(super) clip_hits: bool,
 }
 
-/// The Learn sheet's tabs: a direct way to the Spend tab first
-/// (`docs/history/SIMPLIFY.md` §6.2), except from the Spend tab itself
-/// and in a held app (`Faraday::held`), which has none; then one per
-/// page, the one on show marked.
-fn learn_tab_items(app: &View) -> Vec<(String, Style, Action)> {
-    let mut tabs: Vec<(String, Style, Action)> = Vec::new();
-    if app.screen != Screen::Family && !app.held {
-        tabs.push((
-            EN.learn_spending_step.to_string(),
-            Style::Secondary,
-            Action::LearnSpend,
-        ));
-    }
-    tabs.extend(app.learn().pages.iter().enumerate().map(|(i, p)| {
-        let style = Style::chosen(i == app.learn().page);
-        (p.title.to_string(), style, Action::LearnPage(i as u8))
-    }));
-    tabs
+/// The Learn sheet's tabs, Material's primary tabs: one per page, the
+/// one on show marked.
+fn learn_tab_items(app: &View) -> Vec<faraday_ui::tabs::Tab<'static, Action>> {
+    let learn = app.learn();
+    learn
+        .pages
+        .iter()
+        .enumerate()
+        .map(|(i, p)| faraday_ui::tabs::Tab {
+            label: p.title,
+            on: i == learn.page,
+            done: false,
+            action: Action::LearnPage(i as u8),
+        })
+        .collect()
+}
+
+/// Whether Learn offers its direct way to the Spend tab
+/// (`docs/history/SIMPLIFY.md` §6.2): not from the Spend tab itself, nor
+/// in a held app (`Faraday::held`), which has none.
+fn learn_offers_spend(app: &View) -> bool {
+    app.screen != Screen::Family && !app.held
 }
 
 /// Learn's tabs and the page on show in the box (x, y, w, h), laid out
@@ -1630,11 +1589,34 @@ pub(super) fn learn_body(
 ) -> Option<(faraday_draw::Rect, f32)> {
     let page = app.learn().pages.get(app.learn().page).copied()?;
     let pad = look.pad;
-    // Tabs, one per page; on a small panel they wrap.
-    let tabs = learn_tab_items(app);
+    // The way to the Spend tab first, a text button: it goes elsewhere,
+    // so it is not a tab.
     let tabs_w = sw - 2.0 * pad - look.end;
-    let tabs_h = if tabs.len() > 1 || look.one_tab_row {
-        learn_tabs(ui, x + pad, y + look.tabs_top, tabs_w, &tabs) - 44.0 + 34.0
+    let mut tabs_h = 0.0;
+    if learn_offers_spend(app) {
+        // Its label is never cut (`docs/history/SIMPLIFY.md` §6.2): too
+        // wide for the row, it wraps and the button grows to hold it.
+        let label = EN.learn_spending_step;
+        let bp = T::BUTTON_PAD;
+        let bw = (ui.measure_as(LABEL_L, label) + 2.0 * bp).min(tabs_w);
+        let lines = ui.wrap_lines_as(LABEL_L, label, bw - 2.0 * bp).max(1);
+        let line_h = ui.line_as(LABEL_L);
+        let bh = ui.button_height(BUTTON_H) + (lines - 1) as f32 * line_h;
+        let (bx, by) = (x + pad, y + look.tabs_top);
+        let style = Style::Ghost;
+        // An empty label draws the button's shape, layers and press; the
+        // label is wrapped over it.
+        ui.button(bx, by, Some(bw), bh, "", style, Action::LearnSpend);
+        let top = by + (bh - lines as f32 * line_h) / 2.0;
+        ui.wrap_as((bx + bp, top, bw - 2.0 * bp), LABEL_L, style.label(), label);
+        tabs_h += bh + T::GAP_SMALL;
+    }
+    // Then Material's primary tabs, one per page, scrolling where they
+    // do not all fit.
+    let tabs = learn_tab_items(app);
+    tabs_h += if tabs.len() > 1 || look.one_tab_row {
+        let at = (x + pad, y + look.tabs_top + tabs_h, tabs_w, T::TAB_H);
+        ui.tabs(at, faraday_ui::tabs::TabKind::Primary, &tabs)
     } else {
         34.0
     };
