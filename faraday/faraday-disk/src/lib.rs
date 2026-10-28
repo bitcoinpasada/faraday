@@ -267,11 +267,11 @@ impl Disks {
         let mut node = Node::open(&f.node).map_err(|e| Unreadable::Other(e.to_string()))?;
         let mut sector = [0u8; 512];
         node.read_at(0, &mut sector)
-            .map_err(|e| Unreadable::Other(e.reason().to_string()))?;
+            .map_err(|e| Unreadable::Other(faraday_files::fat_text(e)))?;
         if faraday_fat::boot_sector_label(&sector).is_some_and(|l| l.starts_with(BOOT.as_bytes())) {
             return Err(Unreadable::Boot);
         }
-        Volume::open(node).map_err(|e| Unreadable::NotFat(e.reason().to_string()))
+        Volume::open(node).map_err(|e| Unreadable::NotFat(faraday_files::fat_text(e)))
     }
 
     fn stick(&mut self, f: &Found) -> Option<Stick> {

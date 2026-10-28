@@ -66,8 +66,12 @@ status=0
 # a record line or marked `// not shown: <why>`: an enum's or an error's
 # code name is never wording, and the screen maps the kind to a string.
 # The vault crate's errors are such kinds, mapped by the app
-# (`vault/errors.rs`); its sources are read here so that no wording
-# comes back into them.
+# (`vault/errors.rs`), as are the FAT crate's (`faraday_files::fat_text`)
+# and Secure Boot's (`secure_boot::error_text`); their sources are read
+# here so that no wording comes back into them. A literal in them that
+# is data, not wording (a certificate's common name, a format's fixed
+# field), is marked `// not wording: <why>`, on its line or the comment
+# line above it.
 # The Learn pages (docs/learn, faraday-learn's pages) and the self-test's check names
 # are outside this lint, as CLAUDE.md says.
 FARADAY_SCREENS="$(find faraday/faraday-core/src -name '*.rs' -not -path '*/drawing/*' -not -path '*/work/*' | sort | grep -v '/testkit\.rs$\|/names\.rs$')
@@ -78,16 +82,18 @@ faraday/faraday-guides/src/*.rs
 faraday/faraday-intake/src/*.rs
 faraday/faraday-vault/src/lib.rs
 faraday/faraday-vault/src/records.rs
+faraday/faraday-fat/src/*.rs
+faraday/faraday-sb/src/*.rs
 faraday/shells/desktop/src/main.rs
 faraday/shells/desktop/src/lib.rs
 faraday/shells/starter/src/main.rs"
 
 # shellcheck disable=SC2086
 hits=$(awk '
-FNR == 1 { intest = 0; dev = 0 }
+FNR == 1 { intest = 0; dev = 0; mark = 0 }
 /^#\[cfg\(test\)\]/ { intest = 1 }
 intest { next }
-/^[[:space:]]*\/\// { next }
+/^[[:space:]]*\/\// { mark = ($0 ~ /\/\/ not wording: /); next }
 /^[[:space:]]*#!?\[|^[[:space:]]*reason = "/ { next }
 dev > 0 { dev += gsub(/\(/, "(") - gsub(/\)/, ")"); next }
 /\.expect\(|panic!\(|unreachable!\(|assert(_eq|_ne)?!\(|todo!\(|eprintln!\(|eprint!\(|println!\(|print!\(|debug_assert/ {
@@ -98,6 +104,10 @@ dev > 0 { dev += gsub(/\(/, "(") - gsub(/\)/, ")"); next }
 /\.(starts_with|ends_with|strip_prefix|strip_suffix|trim_start_matches|trim_end_matches|split_once|contains|contains_key)\(|std::env::var|\.join\(|PathBuf::from\(|Path::new\(|Command::new\(|\.args?\(|include_str!|include_bytes!|json_strings?\(/ { next }
 /tags: &\[|(vendors|families): &\[/ { next }
 /bsms_record\(/ { next }
+# A line marked `// not wording: <why>`, on it or on the comment line
+# just above, holds data, not wording: a name a certificate carries, a
+# fixed field of a format.
+mark || /\/\/ not wording: / { mark = 0; next }
 {
     line = $0
     sub(/[[:space:]]\/\/ .*$/, "", line)
@@ -126,7 +136,7 @@ function allowed(s, b) {
     if (b ~ /^[a-z0-9][a-z0-9_.:+-]* *$/) return 1
     if (b ~ /^[A-Za-z0-9_:+-]+$/ && (b ~ /^[A-Z0-9_:+-]+$/ || b ~ /[A-Za-z-][A-Z]/ || b ~ /[0-9]/)) return 1
     if (s ~ /^(BIP|SLIP|RFC|SHA|HASH|KDBX|BC-UR|ur:)/ || s ~ /^[A-Za-z](prv|pub)$/) return 1
-    if (s ~ /[\/\\]/ || b ~ /^[.-]/ || s ~ /^[A-Za-z0-9_{}-]+\.([a-z0-9]{2,6}|\{[a-z]*\})$/) return 1
+    if (s ~ /[\/\\]/ || b ~ /^[.-]/ || s ~ /^[A-Za-z0-9_{}-]+\.([a-z0-9]{2,6}|[A-Z0-9]{2,6}|\{[a-z]*\})$/) return 1
     if (s ~ /\\[nt]/ || s ~ /^[a-z0-9-]+ [0-9]+$/) return 1
     if (b ~ /^ *([0-9.]+ )?(s|h|B|sat|sats|BTC|mBTC|bits|[KMGT]i?B)$/) return 1
     if (s ~ /^m$/ || s ~ /^(wpkh|wsh|sh|tr|pkh|musig)\(/ || s ~ /^ms1/ || s ~ /^0x/) return 1

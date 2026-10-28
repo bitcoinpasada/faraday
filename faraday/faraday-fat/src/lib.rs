@@ -91,18 +91,19 @@ impl Disk for Vec<u8> {
     }
 }
 
-/// Why an operation was refused.
+/// Why an operation was refused: a kind, which the app words
+/// (`faraday_files::fat_text`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Error {
     /// The disk could not be read or written there.
     Io,
     /// Not a FAT boot sector, or one whose numbers do not fit together.
-    NotFat(&'static str),
+    NotFat(Boot),
     /// A FAT12 volume.
     Fat12,
     /// The filesystem contradicts itself: a cluster out of range, a
     /// chain too short or looping.
-    Corrupt(&'static str),
+    Corrupt(Fault),
     /// No file by that name.
     NotFound,
     /// A file by that name is already there.
@@ -112,27 +113,74 @@ pub enum Error {
     /// The root directory has no room for the entries (FAT16's is fixed).
     DirFull,
     /// A name FAT cannot hold.
-    Name(&'static str),
+    Name(BadName),
     /// The file is larger than the caller allows.
     TooLarge,
 }
 
-impl Error {
-    /// The sentence a screen shows.
-    pub fn reason(self) -> &'static str {
-        match self {
-            Error::Io => "the stick could not be read or written",
-            Error::NotFat(why) => why,
-            Error::Fat12 => "a FAT12 volume, which Faraday does not read",
-            Error::Corrupt(why) => why,
-            Error::NotFound => "no such file",
-            Error::Exists => "a file by that name is already there",
-            Error::Full => "the stick is full",
-            Error::DirFull => "the stick's top folder is full",
-            Error::Name(why) => why,
-            Error::TooLarge => "the file is too large",
-        }
-    }
+/// What in a boot sector is not FAT's.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Boot {
+    /// No 0x55 0xAA at its end.
+    Signature,
+    /// A sector size FAT does not have.
+    SectorSize,
+    /// A cluster size FAT does not have.
+    ClusterSize,
+    /// No reserved sectors, or no FAT, or more than two.
+    NoFat,
+    /// A FAT of no size.
+    EmptyFat,
+    /// The FATs and the root directory are larger than the volume.
+    FatsLarger,
+    /// More clusters than the FAT can number.
+    TooManyClusters,
+    /// A FAT32 boot sector with a FAT16 root directory.
+    Fat32Root,
+    /// More clusters than FAT16 holds.
+    Fat16Clusters,
+    /// A FAT16 volume with no root directory.
+    Fat16NoRoot,
+    /// A volume larger than its partition.
+    VolumeLarger,
+    /// A FAT too small for its clusters.
+    FatSmall,
+    /// A FAT32 root directory outside the volume.
+    RootOutside,
+}
+
+/// How a filesystem contradicts itself.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Fault {
+    /// A cluster number FAT16 cannot hold.
+    ClusterNumber,
+    /// A cluster outside the volume.
+    ClusterOutside,
+    /// A cluster chain that loops.
+    Loop,
+    /// A top folder longer than FAT allows.
+    TopFolderLong,
+    /// A folder longer than FAT allows.
+    FolderLong,
+    /// A file longer than its clusters.
+    FileLonger,
+    /// A root directory of no clusters.
+    EmptyRoot,
+    /// A block read back with its old bytes after a write.
+    Unwritten,
+}
+
+/// Why FAT cannot hold a name.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BadName {
+    /// An empty name.
+    Empty,
+    /// Longer than 255 characters.
+    Long,
+    /// Ending in a space or a dot.
+    Ending,
+    /// A character FAT does not allow.
+    Character,
 }
 
 /// Which FAT.
@@ -258,20 +306,20 @@ impl<D: Disk> Volume<D> {
         let mut bs = [0u8; 512];
         disk.read_at(0, &mut bs)?;
         if bs[510] != 0x55 || bs[511] != 0xAA {
-            return Err(Error::NotFat("no boot sector signature"));
+            return Err(Error::NotFat(Boot::Signature));
         }
         let bps = u16_at(&bs, 11);
         if !matches!(bps, 512 | 1024 | 2048 | 4096) {
-            return Err(Error::NotFat("a sector size FAT does not have"));
+            return Err(Error::NotFat(Boot::SectorSize));
         }
         let spc = u32::from(bs[13]);
         if spc == 0 || !spc.is_power_of_two() || spc * bps > 64 * 1024 {
-            return Err(Error::NotFat("a cluster size FAT does not have"));
+            return Err(Error::NotFat(Boot::ClusterSize));
         }
         let reserved = u16_at(&bs, 14);
         let fats = u32::from(bs[16]);
         if reserved == 0 || !(1..=2).contains(&fats) {
-            return Err(Error::NotFat("no reserved sectors or no FAT"));
+            return Err(Error::NotFat(Boot::NoFat));
         }
         let root_entries = u16_at(&bs, 17);
         let total = match u16_at(&bs, 19) {
@@ -284,16 +332,16 @@ impl<D: Disk> Volume<D> {
             n => n,
         };
         if fat_size == 0 {
-            return Err(Error::NotFat("a FAT of no size"));
+            return Err(Error::NotFat(Boot::EmptyFat));
         }
         let root_sectors = (root_entries * 32).div_ceil(bps);
         let meta =
             u64::from(reserved) + u64::from(fats) * u64::from(fat_size) + u64::from(root_sectors);
         let data_sectors = u64::from(total)
             .checked_sub(meta)
-            .ok_or(Error::NotFat("the FATs are larger than the volume"))?;
+            .ok_or(Error::NotFat(Boot::FatsLarger))?;
         let clusters = u32::try_from(data_sectors / u64::from(spc))
-            .map_err(|_| Error::NotFat("too many clusters"))?;
+            .map_err(|_| Error::NotFat(Boot::TooManyClusters))?;
         // The boot sector says which FAT it is, as Linux reads it: a FAT32
         // boot sector has no 16-bit FAT size and no fixed root. The
         // cluster count decides only between FAT12 and FAT16; tools such
@@ -301,30 +349,30 @@ impl<D: Disk> Volume<D> {
         // 65525 clusters, and every system reads them.
         let kind = if fat16_size == 0 {
             if root_entries != 0 {
-                return Err(Error::NotFat("a FAT32 volume with a FAT16 root directory"));
+                return Err(Error::NotFat(Boot::Fat32Root));
             }
             if clusters > FAT32_MAX_CLUSTERS {
-                return Err(Error::NotFat("too many clusters"));
+                return Err(Error::NotFat(Boot::TooManyClusters));
             }
             Kind::Fat32
         } else if clusters < 4085 {
             return Err(Error::Fat12);
         } else {
             if clusters > FAT16_MAX_CLUSTERS {
-                return Err(Error::NotFat("more clusters than FAT16 holds"));
+                return Err(Error::NotFat(Boot::Fat16Clusters));
             }
             if root_entries == 0 {
-                return Err(Error::NotFat("a FAT16 volume with no root directory"));
+                return Err(Error::NotFat(Boot::Fat16NoRoot));
             }
             Kind::Fat16
         };
         if u64::from(total) * u64::from(bps) > disk.size() {
-            return Err(Error::NotFat("a volume larger than its partition"));
+            return Err(Error::NotFat(Boot::VolumeLarger));
         }
         let entry = if kind == Kind::Fat16 { 2 } else { 4 };
         let fat_bytes = u64::from(fat_size) * u64::from(bps);
         if fat_bytes < (u64::from(clusters) + 2) * entry {
-            return Err(Error::NotFat("a FAT too small for its clusters"));
+            return Err(Error::NotFat(Boot::FatSmall));
         }
         let bps = u64::from(bps);
         let fat_start = u64::from(reserved) * bps;
@@ -358,7 +406,7 @@ impl<D: Disk> Volume<D> {
             media: bs[21],
         };
         if kind == Kind::Fat32 && !v.valid(root_cluster) {
-            return Err(Error::NotFat("a root directory outside the volume"));
+            return Err(Error::NotFat(Boot::RootOutside));
         }
         // An FSInfo sector without its signatures is not one.
         if let Some(at) = v.fsinfo {
@@ -381,6 +429,7 @@ impl<D: Disk> Volume<D> {
         let l = self.label?;
         let s: String = l.iter().map(|&b| char::from(b)).collect();
         let s = s.trim_end();
+        // not wording: the label FAT writes for none, compared
         (!s.is_empty() && s != "NO NAME").then(|| String::from(s))
     }
 
@@ -444,8 +493,7 @@ impl<D: Disk> Volume<D> {
             let at = self.fat_entry_at(c) + k * self.fat_bytes;
             match self.kind {
                 Kind::Fat16 => {
-                    let v = u16::try_from(v)
-                        .map_err(|_| Error::Corrupt("a cluster number FAT16 cannot hold"))?;
+                    let v = u16::try_from(v).map_err(|_| Error::Corrupt(Fault::ClusterNumber))?;
                     self.disk.write_at(at, &v.to_le_bytes())?
                 }
                 Kind::Fat32 => {
@@ -463,22 +511,17 @@ impl<D: Disk> Volume<D> {
 
     /// The clusters of a chain, in order, bounded by the volume.
     fn chain(&mut self, first: u32) -> Result<Vec<u32>, Error> {
-        self.chain_within(first, self.clusters, "a cluster chain that loops")
+        self.chain_within(first, self.clusters, Fault::Loop)
     }
 
     /// The clusters of a chain, in order, refused as `too_long` past
     /// `max` of them.
-    fn chain_within(
-        &mut self,
-        first: u32,
-        max: u32,
-        too_long: &'static str,
-    ) -> Result<Vec<u32>, Error> {
+    fn chain_within(&mut self, first: u32, max: u32, too_long: Fault) -> Result<Vec<u32>, Error> {
         let mut out = Vec::new();
         let mut c = first;
         loop {
             if !self.valid(c) {
-                return Err(Error::Corrupt("a cluster outside the volume"));
+                return Err(Error::Corrupt(Fault::ClusterOutside));
             }
             if out.len() as u32 >= max {
                 return Err(Error::Corrupt(too_long));
@@ -500,7 +543,7 @@ impl<D: Disk> Volume<D> {
         let mut c = first;
         while out.len() < n {
             if !self.valid(c) {
-                return Err(Error::Corrupt("a cluster outside the volume"));
+                return Err(Error::Corrupt(Fault::ClusterOutside));
             }
             out.push(c);
             if out.len() == n {
@@ -508,7 +551,7 @@ impl<D: Disk> Volume<D> {
             }
             let next = self.fat_get(c)?;
             if self.is_end(next) {
-                return Err(Error::Corrupt("a file longer than its clusters"));
+                return Err(Error::Corrupt(Fault::FileLonger));
             }
             c = next;
         }
@@ -516,7 +559,7 @@ impl<D: Disk> Volume<D> {
         let mut sorted = out.clone();
         sorted.sort_unstable();
         if sorted.windows(2).any(|w| w[0] == w[1]) {
-            return Err(Error::Corrupt("a cluster chain that loops"));
+            return Err(Error::Corrupt(Fault::Loop));
         }
         Ok(out)
     }
@@ -537,7 +580,7 @@ impl<D: Disk> Volume<D> {
             Kind::Fat32 => self.chain_within(
                 self.root_cluster,
                 self.max_root_clusters(),
-                "a top folder longer than FAT allows",
+                Fault::TopFolderLong,
             ),
         }
     }
@@ -737,7 +780,7 @@ impl<D: Disk> Volume<D> {
                 return Err(Error::DirFull);
             }
             // A new, empty cluster at the end of the root's chain.
-            let last = *chain.last().ok_or(Error::Corrupt("an empty root"))?;
+            let last = *chain.last().ok_or(Error::Corrupt(Fault::EmptyRoot))?;
             let c = *self.free_clusters(1)?.first().ok_or(Error::Full)?;
             let zero = vec![0u8; self.cluster_bytes as usize];
             let at = self.cluster_at(c);
@@ -852,7 +895,7 @@ impl<D: Disk> Volume<D> {
                 let at = self.cluster_at(c);
                 self.disk.read_at(at, &mut back)?;
                 if back.iter().any(|&b| b != 0) {
-                    return Err(Error::Corrupt("a block kept its old bytes"));
+                    return Err(Error::Corrupt(Fault::Unwritten));
                 }
             }
         }
@@ -939,7 +982,7 @@ impl<D: Disk> Volume<D> {
                 let n = (len - at).min(CHUNK);
                 self.disk.read_at(start + at, &mut back[..n as usize])?;
                 if back[..n as usize].iter().any(|&b| b != 0) {
-                    return Err(Error::Corrupt("a block kept its old bytes"));
+                    return Err(Error::Corrupt(Fault::Unwritten));
                 }
                 at += n;
             }
@@ -1082,11 +1125,7 @@ impl<D: Disk> Volume<D> {
                 .into_iter()
                 .find(|e| e.dir && same_name(&e.name, name))
                 .ok_or(Error::NotFound)?;
-            chain = self.chain_within(
-                e.cluster,
-                self.max_root_clusters(),
-                "a folder longer than FAT allows",
-            )?;
+            chain = self.chain_within(e.cluster, self.max_root_clusters(), Fault::FolderLong)?;
             root = false;
         }
         let bytes = if root {
@@ -1320,19 +1359,19 @@ fn short_text(short: &[u8; 11], flags: u8) -> String {
 /// Whether FAT can hold the name as a long name.
 fn check_name(name: &str) -> Result<(), Error> {
     if name.is_empty() || name == "." || name == ".." {
-        return Err(Error::Name("an empty name"));
+        return Err(Error::Name(BadName::Empty));
     }
     if name.encode_utf16().count() > 255 {
-        return Err(Error::Name("a name longer than 255 characters"));
+        return Err(Error::Name(BadName::Long));
     }
     if name.ends_with(' ') || name.ends_with('.') {
-        return Err(Error::Name("a name ending in a space or a dot"));
+        return Err(Error::Name(BadName::Ending));
     }
     if name
         .chars()
         .any(|c| (c as u32) < 0x20 || "\"*/:<>?\\|".contains(c))
     {
-        return Err(Error::Name("a name with a character FAT does not allow"));
+        return Err(Error::Name(BadName::Character));
     }
     Ok(())
 }

@@ -33,7 +33,7 @@ use std::path::Path;
 
 use faraday_payload::ImageKind;
 use faraday_sb::pe::{self, Signer, Transplant};
-use faraday_starter::api::{BootFile, BootSigner, Reason};
+use faraday_starter::api::{BootFile, BootSigner, Reason, ReleaseFault};
 
 use crate::writer::{self, Job, Source};
 
@@ -129,9 +129,9 @@ pub fn shown_name(cn: &str) -> String {
 /// Costs a read of the release's boot file from its boot partition.
 fn release_file(partition: &[u8]) -> Result<Vec<u8>, Reason> {
     let mut v = faraday_fat::Volume::open(partition.to_vec())
-        .map_err(|e| Reason::ReleaseBootFile(e.reason().to_string()))?;
+        .map_err(|e| Reason::ReleaseBootFile(ReleaseFault::Fat(e)))?;
     v.read_in(&BOOT_PATH, MAX_BOOT_FILE as u32)
-        .map_err(|e| Reason::ReleaseBootFile(e.reason().to_string()))
+        .map_err(|e| Reason::ReleaseBootFile(ReleaseFault::Fat(e)))
 }
 
 /// Costs two Authenticode image hashes and an RSA verification per
@@ -140,7 +140,7 @@ fn release_file(partition: &[u8]) -> Result<Vec<u8>, Reason> {
 /// is the release's program with one signature that holds.
 pub fn build(release: &[u8], signed: &[u8]) -> Result<(Vec<u8>, BootSigner), Reason> {
     let built = pe::transplant(release, signed).map_err(|t| match t {
-        Transplant::Release => Reason::ReleaseBootFile(faraday_sb::Error::Image.reason().into()),
+        Transplant::Release => Reason::ReleaseBootFile(ReleaseFault::Image),
         Transplant::Other => Reason::BootFileOther,
         Transplant::Unsigned => Reason::BootFileUnsigned,
         Transplant::Layout => Reason::BootFileLayout,
@@ -216,9 +216,9 @@ pub fn prepare(file: &BootFile, source: &Source<'_>) -> Result<Patch, Reason> {
     let (at, partition) = writer::boot_partition(source)?;
     let (built, _) = build(&release_file(&partition)?, &signed)?;
     let mut v = faraday_fat::Volume::open(partition)
-        .map_err(|e| Reason::ReleaseBootFile(e.reason().to_string()))?;
+        .map_err(|e| Reason::ReleaseBootFile(ReleaseFault::Fat(e)))?;
     v.rewrite_in(&BOOT_PATH, &built)
-        .map_err(|e| Reason::ReleaseBootFile(e.reason().to_string()))?;
+        .map_err(|e| Reason::ReleaseBootFile(ReleaseFault::Fat(e)))?;
     Ok(Patch {
         at,
         bytes: v.into_disk(),

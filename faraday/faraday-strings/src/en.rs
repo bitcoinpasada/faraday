@@ -722,7 +722,7 @@ strings! {
     starter_why_boot_file_changed: "{} changed after it was chosen. Nothing was written.",
     /// Reason: `{}` the file.
     starter_why_boot_file_large: "{} is larger than a boot partition",
-    /// Reason: `{}` the filesystem's words.
+    /// Reason: `{}` why, one of the `fat_` strings or `secureboot_error_image`.
     starter_why_release_boot_file: "The release's boot file could not be read or replaced: {}",
     /// Reason.
     starter_why_unsupported: "Not on this computer",
@@ -8026,6 +8026,71 @@ strings! {
     vault_fault_two_passphrases: "two passphrase records for key {}",
     /// What is faulty. `{}`: the start of the transaction's SHA-256.
     vault_fault_two_amounts: "two signed amounts records for transaction {}…",
+    // ----- A stick's FAT refused (faraday-files' `fat_text`, faraday-fat's kinds) -----
+    /// Why a stick's file could not be read or written.
+    fat_io: "the stick could not be read or written",
+    /// Why a stick's file could not be read or written.
+    fat_12: "a FAT12 volume, which Faraday does not read",
+    /// Why a stick's file could not be read or written.
+    fat_not_found: "no such file",
+    /// Why a stick's file could not be read or written.
+    fat_exists: "a file by that name is already there",
+    /// Why a stick's file could not be read or written.
+    fat_full: "the stick is full",
+    /// Why a stick's file could not be read or written.
+    fat_dir_full: "the stick's top folder is full",
+    /// Why a stick's file could not be read or written.
+    fat_too_large: "the file is too large",
+    /// A partition is not FAT: its boot sector.
+    fat_boot_signature: "no boot sector signature",
+    /// A partition is not FAT: its boot sector.
+    fat_boot_sector_size: "a sector size FAT does not have",
+    /// A partition is not FAT: its boot sector.
+    fat_boot_cluster_size: "a cluster size FAT does not have",
+    /// A partition is not FAT: its boot sector.
+    fat_boot_no_fat: "no reserved sectors or no FAT",
+    /// A partition is not FAT: its boot sector.
+    fat_boot_empty_fat: "a FAT of no size",
+    /// A partition is not FAT: its boot sector.
+    fat_boot_fats_larger: "the FATs are larger than the volume",
+    /// A partition is not FAT: its boot sector.
+    fat_boot_too_many_clusters: "too many clusters",
+    /// A partition is not FAT: its boot sector.
+    fat_boot_fat32_root: "a FAT32 volume with a FAT16 root directory",
+    /// A partition is not FAT: its boot sector.
+    fat_boot_fat16_clusters: "more clusters than FAT16 holds",
+    /// A partition is not FAT: its boot sector.
+    fat_boot_fat16_no_root: "a FAT16 volume with no root directory",
+    /// A partition is not FAT: its boot sector.
+    fat_boot_volume_larger: "a volume larger than its partition",
+    /// A partition is not FAT: its boot sector.
+    fat_boot_fat_small: "a FAT too small for its clusters",
+    /// A partition is not FAT: its boot sector.
+    fat_boot_root_outside: "a root directory outside the volume",
+    /// A stick's filesystem contradicts itself.
+    fat_fault_cluster_number: "a cluster number FAT16 cannot hold",
+    /// A stick's filesystem contradicts itself.
+    fat_fault_cluster_outside: "a cluster outside the volume",
+    /// A stick's filesystem contradicts itself.
+    fat_fault_loop: "a cluster chain that loops",
+    /// A stick's filesystem contradicts itself.
+    fat_fault_top_folder_long: "a top folder longer than FAT allows",
+    /// A stick's filesystem contradicts itself.
+    fat_fault_folder_long: "a folder longer than FAT allows",
+    /// A stick's filesystem contradicts itself.
+    fat_fault_file_longer: "a file longer than its clusters",
+    /// A stick's filesystem contradicts itself.
+    fat_fault_empty_root: "an empty root",
+    /// A stick's filesystem contradicts itself: a write did not take.
+    fat_fault_unwritten: "a block kept its old bytes",
+    /// A file name FAT cannot hold.
+    fat_name_empty: "an empty name",
+    /// A file name FAT cannot hold.
+    fat_name_long: "a name longer than 255 characters",
+    /// A file name FAT cannot hold.
+    fat_name_ending: "a name ending in a space or a dot",
+    /// A file name FAT cannot hold.
+    fat_name_character: "a name with a character FAT does not allow",
     /// Toast in `vault_form_save`. `{}`: `self.medium.for_the()`.
     vaults_made_the_certificate: "The certificate waits {}. The revocation certificate is kept with the key",
     /// Text in `vault_form_save`.

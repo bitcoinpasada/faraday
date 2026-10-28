@@ -480,6 +480,7 @@ dependencies = [
  "faraday-codec",
  "faraday-crypto",
  "faraday-fat",
+ "faraday-strings",
  "png",
  "zeroize",
 ]
@@ -626,6 +627,8 @@ dependencies = [
  "faraday-core",
  "faraday-crypto",
  "faraday-draw",
+ "faraday-fat",
+ "faraday-files",
  "faraday-guides",
  "faraday-learn",
  "faraday-shell-api",

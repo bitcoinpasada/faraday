@@ -124,6 +124,7 @@ pub fn image_hash(pe: &[u8]) -> Result<[u8; 32], Error> {
 
 /// The SpcIndirectDataContent naming an image hash.
 fn spc_content(digest: &[u8; 32]) -> Vec<u8> {
+    // not wording: Authenticode's fixed SpcLink text
     let obsolete: Vec<u8> = "<<<Obsolete>>>"
         .encode_utf16()
         .flat_map(u16::to_be_bytes)

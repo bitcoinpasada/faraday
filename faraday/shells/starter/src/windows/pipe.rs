@@ -17,7 +17,8 @@
 
 use std::io::BufRead;
 
-use faraday_starter::api::{InUse, Reason, StickFault, WriteStage};
+use faraday_fat::{BadName, Boot, Error as Fat, Fault};
+use faraday_starter::api::{InUse, Reason, ReleaseFault, StickFault, WriteStage};
 
 /// The longest line read; a longer one ends the conversation.
 pub const MAX_LINE: usize = 8192;
@@ -141,7 +142,7 @@ pub(crate) fn reason_fields(r: &Reason) -> (&'static str, Vec<String>) {
         Reason::BootFileRead(p) => ("BootFileRead", vec![s(p)]),
         Reason::BootFileChanged(p) => ("BootFileChanged", vec![s(p)]),
         Reason::BootFileLarge(p) => ("BootFileLarge", vec![s(p)]),
-        Reason::ReleaseBootFile(d) => ("ReleaseBootFile", vec![s(d)]),
+        Reason::ReleaseBootFile(f) => ("ReleaseBootFile", vec![s(release_fault_name(*f))]),
     }
 }
 
@@ -217,6 +218,109 @@ fn fault(f: &mut Fields<'_>) -> Result<StickFault, String> {
         "BootPastEnd" => StickFault::BootPastEnd,
         other => return Err(format!("{other}: not a fault")),
     })
+}
+
+/// Every kind of [`ReleaseFault`], by the name the pipe carries: the
+/// kind goes over the pipe and the window words it, so no words cross.
+pub const RELEASE_FAULTS: [(&str, ReleaseFault); 33] = [
+    ("Image", ReleaseFault::Image),
+    ("Io", ReleaseFault::Fat(Fat::Io)),
+    ("Fat12", ReleaseFault::Fat(Fat::Fat12)),
+    ("NotFound", ReleaseFault::Fat(Fat::NotFound)),
+    ("Exists", ReleaseFault::Fat(Fat::Exists)),
+    ("Full", ReleaseFault::Fat(Fat::Full)),
+    ("DirFull", ReleaseFault::Fat(Fat::DirFull)),
+    ("TooLarge", ReleaseFault::Fat(Fat::TooLarge)),
+    ("Signature", ReleaseFault::Fat(Fat::NotFat(Boot::Signature))),
+    (
+        "SectorSize",
+        ReleaseFault::Fat(Fat::NotFat(Boot::SectorSize)),
+    ),
+    (
+        "ClusterSize",
+        ReleaseFault::Fat(Fat::NotFat(Boot::ClusterSize)),
+    ),
+    ("NoFat", ReleaseFault::Fat(Fat::NotFat(Boot::NoFat))),
+    ("EmptyFat", ReleaseFault::Fat(Fat::NotFat(Boot::EmptyFat))),
+    (
+        "FatsLarger",
+        ReleaseFault::Fat(Fat::NotFat(Boot::FatsLarger)),
+    ),
+    (
+        "TooManyClusters",
+        ReleaseFault::Fat(Fat::NotFat(Boot::TooManyClusters)),
+    ),
+    ("Fat32Root", ReleaseFault::Fat(Fat::NotFat(Boot::Fat32Root))),
+    (
+        "Fat16Clusters",
+        ReleaseFault::Fat(Fat::NotFat(Boot::Fat16Clusters)),
+    ),
+    (
+        "Fat16NoRoot",
+        ReleaseFault::Fat(Fat::NotFat(Boot::Fat16NoRoot)),
+    ),
+    (
+        "VolumeLarger",
+        ReleaseFault::Fat(Fat::NotFat(Boot::VolumeLarger)),
+    ),
+    ("FatSmall", ReleaseFault::Fat(Fat::NotFat(Boot::FatSmall))),
+    (
+        "RootOutside",
+        ReleaseFault::Fat(Fat::NotFat(Boot::RootOutside)),
+    ),
+    (
+        "ClusterNumber",
+        ReleaseFault::Fat(Fat::Corrupt(Fault::ClusterNumber)),
+    ),
+    (
+        "ClusterOutside",
+        ReleaseFault::Fat(Fat::Corrupt(Fault::ClusterOutside)),
+    ),
+    ("Loop", ReleaseFault::Fat(Fat::Corrupt(Fault::Loop))),
+    (
+        "TopFolderLong",
+        ReleaseFault::Fat(Fat::Corrupt(Fault::TopFolderLong)),
+    ),
+    (
+        "FolderLong",
+        ReleaseFault::Fat(Fat::Corrupt(Fault::FolderLong)),
+    ),
+    (
+        "FileLonger",
+        ReleaseFault::Fat(Fat::Corrupt(Fault::FileLonger)),
+    ),
+    (
+        "EmptyRoot",
+        ReleaseFault::Fat(Fat::Corrupt(Fault::EmptyRoot)),
+    ),
+    (
+        "Unwritten",
+        ReleaseFault::Fat(Fat::Corrupt(Fault::Unwritten)),
+    ),
+    ("NameEmpty", ReleaseFault::Fat(Fat::Name(BadName::Empty))),
+    ("NameLong", ReleaseFault::Fat(Fat::Name(BadName::Long))),
+    ("NameEnding", ReleaseFault::Fat(Fat::Name(BadName::Ending))),
+    (
+        "NameCharacter",
+        ReleaseFault::Fat(Fat::Name(BadName::Character)),
+    ),
+];
+
+/// The name of `f` in [`RELEASE_FAULTS`], which lists every kind.
+fn release_fault_name(f: ReleaseFault) -> &'static str {
+    RELEASE_FAULTS
+        .iter()
+        .find(|(_, k)| *k == f)
+        .map(|(n, _)| *n)
+        .unwrap_or_else(|| unreachable!("every kind is in RELEASE_FAULTS"))
+}
+
+fn release_fault(name: &str) -> Result<ReleaseFault, String> {
+    RELEASE_FAULTS
+        .iter()
+        .find(|(n, _)| *n == name)
+        .map(|(_, k)| *k)
+        .ok_or_else(|| format!("{name}: not a release fault"))
 }
 
 fn code(n: u64) -> Result<u32, String> {
@@ -333,7 +437,7 @@ pub(crate) fn reason(name: &str, f: &mut Fields<'_>) -> Result<Reason, String> {
         "BootFileChanged" => Reason::BootFileChanged(f.s()?),
         "BootFileRead" => Reason::BootFileRead(f.s()?),
         "BootFileLarge" => Reason::BootFileLarge(f.s()?),
-        "ReleaseBootFile" => Reason::ReleaseBootFile(f.s()?),
+        "ReleaseBootFile" => Reason::ReleaseBootFile(release_fault(&f.s()?)?),
         other => BARE
             .iter()
             .find(|(n, _)| *n == other)

@@ -10,6 +10,8 @@ publish = false
 
 [dependencies]
 faraday-fat = { path = "../faraday-fat" }
+# The words for faraday-fat's refusals (`fat_text`).
+faraday-strings = { path = "../faraday-strings" }
 faraday-codec = { path = "../../core/faraday-codec" }
 # The count of costly work (`faraday_crypto::work`): a PNG decoded.
 faraday-crypto = { path = "../../core/faraday-crypto" }

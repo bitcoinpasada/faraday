@@ -14,7 +14,9 @@ use faraday_ui::hold::HoldTone;
 use faraday_ui::parts::qr_code;
 use faraday_ui::{Glyph, NameSuffix, Paint, Style};
 
-use crate::api::{Concern, InUse, InstallItem, Kind, Mode, Os, Reason, StickFault, WriteStage};
+use crate::api::{
+    Concern, InUse, InstallItem, Kind, Mode, Os, Reason, ReleaseFault, StickFault, WriteStage,
+};
 use crate::decide::{Item, Refusal, State, Target};
 use crate::macs::{self, StickFor};
 use crate::notes;
@@ -740,7 +742,13 @@ pub(crate) fn reason_text(r: &Reason) -> String {
         Reason::BootFileRead(p) => fill(S.starter_why_boot_file_read, &[p]),
         Reason::BootFileChanged(p) => fill(S.starter_why_boot_file_changed, &[p]),
         Reason::BootFileLarge(p) => fill(S.starter_why_boot_file_large, &[p]),
-        Reason::ReleaseBootFile(d) => fill(S.starter_why_release_boot_file, &[d]),
+        Reason::ReleaseBootFile(f) => {
+            let why = match f {
+                ReleaseFault::Image => S.secureboot_error_image.to_string(),
+                ReleaseFault::Fat(e) => faraday_files::fat_text(*e),
+            };
+            fill(S.starter_why_release_boot_file, &[&why])
+        }
     }
 }
 

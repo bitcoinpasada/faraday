@@ -606,8 +606,14 @@ fn every_reason() -> Vec<Reason> {
         Reason::BootFileRead(s()),
         Reason::BootFileChanged(s()),
         Reason::BootFileLarge(s()),
-        Reason::ReleaseBootFile(s()),
     ]
+    .into_iter()
+    .chain(
+        pipe::RELEASE_FAULTS
+            .iter()
+            .map(|&(_, f)| Reason::ReleaseBootFile(f)),
+    )
+    .collect()
 }
 
 #[test]

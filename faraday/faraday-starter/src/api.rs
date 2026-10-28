@@ -609,11 +609,21 @@ pub enum Reason {
     /// The boot file chosen is larger than a boot partition: the file.
     BootFileLarge(String),
     /// The release's own boot file could not be read from its boot
-    /// partition, or the signed one put there: why, in the filesystem's
+    /// partition, or the signed one put there: why, a kind the Starter
     /// words.
-    ReleaseBootFile(String),
+    ReleaseBootFile(ReleaseFault),
     /// Not on this computer.
     Unsupported,
+}
+
+/// Why the release's own boot file could not be read or replaced
+/// ([`Reason::ReleaseBootFile`]).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ReleaseFault {
+    /// Its boot program is no EFI image this build reads.
+    Image,
+    /// Its boot partition's filesystem refused.
+    Fat(faraday_fat::Error),
 }
 
 /// What an attached thing of concern is (§3.1a): something that can

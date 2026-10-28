@@ -164,6 +164,55 @@ impl Place for Dir {
     }
 }
 
+/// Why `faraday-fat` refused, in a few words from the strings file: its
+/// errors are kinds, worded here for every caller that shows one (the
+/// app's Files, the disk process, the Starter's boot file).
+pub fn fat_text(e: faraday_fat::Error) -> String {
+    use faraday_fat::{BadName, Boot, Error, Fault};
+    use faraday_strings::EN;
+    let s = match e {
+        Error::Io => EN.fat_io,
+        Error::Fat12 => EN.fat_12,
+        Error::NotFound => EN.fat_not_found,
+        Error::Exists => EN.fat_exists,
+        Error::Full => EN.fat_full,
+        Error::DirFull => EN.fat_dir_full,
+        Error::TooLarge => EN.fat_too_large,
+        Error::NotFat(b) => match b {
+            Boot::Signature => EN.fat_boot_signature,
+            Boot::SectorSize => EN.fat_boot_sector_size,
+            Boot::ClusterSize => EN.fat_boot_cluster_size,
+            Boot::NoFat => EN.fat_boot_no_fat,
+            Boot::EmptyFat => EN.fat_boot_empty_fat,
+            Boot::FatsLarger => EN.fat_boot_fats_larger,
+            Boot::TooManyClusters => EN.fat_boot_too_many_clusters,
+            Boot::Fat32Root => EN.fat_boot_fat32_root,
+            Boot::Fat16Clusters => EN.fat_boot_fat16_clusters,
+            Boot::Fat16NoRoot => EN.fat_boot_fat16_no_root,
+            Boot::VolumeLarger => EN.fat_boot_volume_larger,
+            Boot::FatSmall => EN.fat_boot_fat_small,
+            Boot::RootOutside => EN.fat_boot_root_outside,
+        },
+        Error::Corrupt(f) => match f {
+            Fault::ClusterNumber => EN.fat_fault_cluster_number,
+            Fault::ClusterOutside => EN.fat_fault_cluster_outside,
+            Fault::Loop => EN.fat_fault_loop,
+            Fault::TopFolderLong => EN.fat_fault_top_folder_long,
+            Fault::FolderLong => EN.fat_fault_folder_long,
+            Fault::FileLonger => EN.fat_fault_file_longer,
+            Fault::EmptyRoot => EN.fat_fault_empty_root,
+            Fault::Unwritten => EN.fat_fault_unwritten,
+        },
+        Error::Name(n) => match n {
+            BadName::Empty => EN.fat_name_empty,
+            BadName::Long => EN.fat_name_long,
+            BadName::Ending => EN.fat_name_ending,
+            BadName::Character => EN.fat_name_character,
+        },
+    };
+    s.to_string()
+}
+
 /// A FAT16 or FAT32 volume.
 pub struct Fat<D: faraday_fat::Disk>(pub faraday_fat::Volume<D>);
 
@@ -172,7 +221,7 @@ impl<D: faraday_fat::Disk> Place for Fat<D> {
         Ok(self
             .0
             .list()
-            .map_err(|e| e.reason().to_string())?
+            .map_err(fat_text)?
             .into_iter()
             .filter(|e| !e.dir)
             .map(|e| (e.name, u64::from(e.size)))
@@ -181,46 +230,44 @@ impl<D: faraday_fat::Disk> Place for Fat<D> {
 
     fn read(&mut self, name: &str, max: u64) -> Result<Vec<u8>, String> {
         let max = u32::try_from(max).unwrap_or(u32::MAX);
-        self.0.read(name, max).map_err(|e| e.reason().to_string())
+        self.0.read(name, max).map_err(fat_text)
     }
 
     fn create(&mut self, name: &str, bytes: &[u8]) -> Result<(), String> {
         self.0
             .create(name, bytes)
             .and_then(|()| self.0.flush())
-            .map_err(|e| e.reason().to_string())
+            .map_err(fat_text)
     }
 
     fn remove(&mut self, name: &str) -> Result<(), String> {
         self.0
             .delete(name)
             .and_then(|()| self.0.flush())
-            .map_err(|e| e.reason().to_string())
+            .map_err(fat_text)
     }
 
     fn wipe(&mut self, name: &str) -> Result<(), String> {
-        self.0.wipe(name).map_err(|e| e.reason().to_string())
+        self.0.wipe(name).map_err(fat_text)
     }
 
     fn space(&mut self) -> Result<(u64, u64), String> {
-        self.0.space().map_err(|e| e.reason().to_string())
+        self.0.space().map_err(fat_text)
     }
 
     fn zero_free(&mut self, from: u32) -> Result<Zeroed, String> {
-        self.0
-            .zero_free(from, ZERO_STEP)
-            .map_err(|e| e.reason().to_string())
+        self.0.zero_free(from, ZERO_STEP).map_err(fat_text)
     }
 
     fn make_empty(&mut self) -> Result<(), String> {
-        self.0.make_empty().map_err(|e| e.reason().to_string())
+        self.0.make_empty().map_err(fat_text)
     }
 
     fn rename(&mut self, from: &str, to: &str) -> Result<(), String> {
         self.0
             .rename(from, to)
             .and_then(|()| self.0.flush())
-            .map_err(|e| e.reason().to_string())
+            .map_err(fat_text)
     }
 }
 

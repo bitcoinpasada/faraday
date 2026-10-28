@@ -28,7 +28,8 @@ use alloc::vec::Vec;
 pub use pe::Check;
 pub use x509::Pair;
 
-/// Why something could not be made or read.
+/// Why something could not be made or read: a kind, which the app words
+/// (`faraday-core`'s `secure_boot::error_text`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Error {
     /// A key could not be made, read or used.
@@ -37,17 +38,6 @@ pub enum Error {
     Image,
     /// Not the boot program a release's checked sums name (F134).
     NotRelease,
-}
-
-impl Error {
-    /// The reason in a few words.
-    pub fn reason(self) -> &'static str {
-        match self {
-            Error::Key => "The key could not be made or read",
-            Error::Image => "Not an EFI image this build reads",
-            Error::NotRelease => "Not the boot program the release's sums list",
-        }
-    }
 }
 
 /// An owner's three keys and the GUID they are listed under.
@@ -81,6 +71,7 @@ pub fn make(seed: &[u8; 32], owner: &str, now: u64) -> Result<Keys, Error> {
     guid[8] = (guid[8] & 0x3f) | 0x80;
     let serials = [draw16(), draw16(), draw16()];
     let owner = if owner.trim().is_empty() {
+        // not wording: a certificate's common name, the product's
         "Faraday"
     } else {
         owner.trim()
@@ -146,24 +137,28 @@ pub struct Microsoft {
 /// dates of what db and KEK hold, and Windows still boots through them.
 pub const MICROSOFT: [Microsoft; 4] = [
     Microsoft {
+        // not wording: the certificate\'s own common name
         name: "Microsoft Corporation KEK CA 2011",
         store: Store::Kek,
         der: include_bytes!("../certs/kek-ca-2011.der"),
         sha256: "a1117f516a32cefcba3f2d1ace10a87972fd6bbe8fe0d0b996e09e65d802a503",
     },
     Microsoft {
+        // not wording: the certificate\'s own common name
         name: "Microsoft Corporation KEK 2K CA 2023",
         store: Store::Kek,
         der: include_bytes!("../certs/kek-2k-ca-2023.der"),
         sha256: "3cd3f0309edae228767a976dd40d9f4affc4fbd5218f2e8cc3c9dd97e8ac6f9d",
     },
     Microsoft {
+        // not wording: the certificate\'s own common name
         name: "Microsoft Windows Production PCA 2011",
         store: Store::Db,
         der: include_bytes!("../certs/windows-pca-2011.der"),
         sha256: "e8e95f0733a55e8bad7be0a1413ee23c51fcea64b3c8fa6a786935fddcc71961",
     },
     Microsoft {
+        // not wording: the certificate\'s own common name
         name: "Windows UEFI CA 2023",
         store: Store::Db,
         der: include_bytes!("../certs/windows-uefi-ca-2023.der"),

@@ -26,6 +26,9 @@ faraday-ui = { path = "../faraday-ui" }
 faraday-learn = { path = "../faraday-learn" }
 # The website's guides to starting a computer from the stick.
 faraday-guides = { path = "../faraday-guides" }
+# A boot partition's refusals: faraday-fat's kinds, worded by faraday-files.
+faraday-fat = { path = "../faraday-fat" }
+faraday-files = { path = "../faraday-files" }
 # The BitLocker recovery key held for the sheet (docs/STARTER.md §3.4, §6,
 # F49), and the sheet's buffers, wiped when dropped.
 zeroize = { workspace = true, features = ["alloc"] }
