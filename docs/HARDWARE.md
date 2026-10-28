@@ -13,7 +13,7 @@ it.
 
 | Platform | Image or file | Runs on | State |
 |---|---|---|---|
-| The stick | `faraday-stick-X.Y.Z-x86_64-uefi-strict.img.xz` and `…-compatible.img.xz` (`docs/IMAGES.md` §1) | a 64-bit PC with UEFI firmware (Strict has `efi=disable_early_pci_dma`; Compatible is for PCs that do not start with it); an Intel Mac (`docs/MAC.md` §1, §3) | released; booted in QEMU with OVMF (`faraday/image/README.md`, "The boards") |
+| The stick | `faraday-stick-X.Y.Z-x86_64-uefi-strict.img.xz` and `…-compatible.img.xz` (`docs/IMAGES.md` §1) | a 64-bit PC with UEFI firmware (Strict has `efi=disable_early_pci_dma`; Compatible is for PCs that do not start with it); Intel Macs planned (`docs/MAC.md` §1, §3, batch I) | released; booted in QEMU with OVMF (`faraday/image/README.md`, "The boards"), not yet tried on a PC |
 | The Pi | `faraday-pi-X.Y.Z-pi3-waveshare-28dpi.img.xz` | a Raspberry Pi 3B or 3B+ with the Waveshare 2.8-inch DPI panel | released, tested |
 | The Pi Zero 2 W | the Pi image, `faraday/image/boards/pi3` | a Raspberry Pi Zero 2 W with the same panel | built, not tried: the Pi image carries its device tree (F147); nobody has booted it on a Zero 2 W |
 | The Apple Silicon stick | `docs/MAC.md` §4 | Macs with M1 or M2 | planned: its Spec is `docs/MAC.md` |
@@ -62,7 +62,7 @@ frames in a row (`docs/MOTION.md`).
 The stick's and the Pi's kernels carry only the drivers
 `docs/SECURITY-MODEL.md` lists ("What the kernel can reach").
 
-| | The stick (PC, Intel Mac) | The Pi |
+| | The stick (PC) | The Pi |
 |---|---|---|
 | Touch, keyboard, pointer | built-in keyboard, touchpad and touchscreen; USB ones once approved | the panel's touch only: no HID driver |
 | Camera, for QR codes | a USB webcam, plugged in or built in, that offers uncompressed frames; not a MIPI camera (`faraday/image/README.md`, "USB is kept for a webcam") | a Pi camera or a USB webcam |

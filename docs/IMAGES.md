@@ -70,10 +70,10 @@ at the panel's own density; classes are `docs/LAYOUT.md` §2.
 
 | Screen | Panel | Pixels | dpi | Layout | Build |
 |---|---|---|---|---|---|
-| 2.8-inch | Waveshare 2.8inch DPI LCD, Goodix (today's) | 480 × 640, portrait | 286 | 268 × 358 dp: compact and short | Strict or Open |
-| 5-inch | Raspberry Pi Touch Display 2, 5-inch, Goodix GT911 (to confirm) | 720 × 1280, portrait | 294 | 392 × 697 dp: compact; landscape 697 × 392: medium and short | Open |
-| 7-inch | Waveshare 7inch DSI LCD (C), Goodix | 1024 × 600, landscape | 170 | 964 × 565 dp: expanded and low; portrait: compact | Open |
-| 10-inch, DSI | Waveshare 10.1inch DSI LCD (C), Goodix | 1280 × 800, landscape | 149 | 1372 × 857 dp: large; portrait 857 × 1372: expanded | Open |
+| 2.8-inch | Waveshare 2.8inch DPI LCD, Goodix (today's) | 480 × 640, portrait | 286 | 268 × 358 dp: compact and short | Strict or Compatible |
+| 5-inch | Raspberry Pi Touch Display 2, 5-inch, Goodix GT911 (to confirm) | 720 × 1280, portrait | 294 | 392 × 697 dp: compact; landscape 697 × 392: medium and short | Compatible |
+| 7-inch | Waveshare 7inch DSI LCD (C), Goodix | 1024 × 600, landscape | 170 | 964 × 565 dp: expanded and low; portrait: compact | Compatible |
+| 10-inch, DSI | Waveshare 10.1inch DSI LCD (C), Goodix | 1280 × 800, landscape | 149 | 1372 × 857 dp: large; portrait 857 × 1372: expanded | Compatible |
 | An HDMI screen | any HDMI monitor with a USB keyboard and mouse, or Waveshare 10.1inch HDMI LCD (B) with its USB touch | the screen's mode, from its EDID | the screen's, from its EDID; `faraday.dpi=160` where it gives none | by its width | Compatible |
 
 - **No 7-inch Strict image.** The original Raspberry Pi Touch Display
