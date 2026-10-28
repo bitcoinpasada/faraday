@@ -68,7 +68,9 @@ status=0
 # The vault crate's errors are such kinds, mapped by the app
 # (`vault/errors.rs`), as are the FAT crate's (`faraday_files::fat_text`)
 # and Secure Boot's (`secure_boot::error_text`); their sources are read
-# here so that no wording comes back into them. A literal in them that
+# here so that no wording comes back into them. faraday-files and the
+# disk process word what they refuse from the strings file themselves,
+# and are read here too. A literal in them that
 # is data, not wording (a certificate's common name, a format's fixed
 # field), is marked `// not wording: <why>`, on its line or the comment
 # line above it.
@@ -85,6 +87,8 @@ faraday/faraday-vault/src/records.rs
 faraday/faraday-fat/src/*.rs
 faraday/faraday-sb/src/*.rs
 faraday/faraday-qr/src/*.rs
+faraday/faraday-files/src/*.rs
+faraday/faraday-disk/src/*.rs
 faraday/shells/desktop/src/main.rs
 faraday/shells/desktop/src/lib.rs
 faraday/shells/starter/src/main.rs"

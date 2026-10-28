@@ -24,6 +24,22 @@ use std::io::Write as _;
 use std::path::PathBuf;
 
 use faraday_crypto::work::{Compute, Work};
+use faraday_strings::{EN, fill};
+
+/// Why the computer refused a folder's file, in the strings file's
+/// words: the operating system's own message is not shown.
+fn io_text(e: std::io::Error) -> String {
+    use std::io::ErrorKind as K;
+    match e.kind() {
+        K::NotFound => EN.fat_not_found,
+        K::AlreadyExists => EN.fat_exists,
+        K::StorageFull => EN.fat_full,
+        K::PermissionDenied => EN.files_denied,
+        K::ReadOnlyFilesystem => EN.files_read_only,
+        _ => EN.fat_io,
+    }
+    .to_string()
+}
 
 /// The largest file read from a stick. A PSBT or a wallet is kilobytes; a
 /// vault with four 4 MiB slots is the largest thing Faraday writes.
@@ -74,7 +90,7 @@ pub struct Dir(pub PathBuf);
 impl Place for Dir {
     fn files(&mut self) -> Result<Vec<(String, u64)>, String> {
         Ok(fs::read_dir(&self.0)
-            .map_err(|e| e.to_string())?
+            .map_err(io_text)?
             .filter_map(Result::ok)
             .filter_map(|e| {
                 let meta = e.metadata().ok()?;
@@ -86,21 +102,24 @@ impl Place for Dir {
 
     fn read(&mut self, name: &str, max: u64) -> Result<Vec<u8>, String> {
         let path = self.0.join(name);
-        let meta = fs::metadata(&path).map_err(|e| e.to_string())?;
+        let meta = fs::metadata(&path).map_err(io_text)?;
         if meta.len() > max {
-            return Err(format!("larger than {} MB", max / 1024 / 1024));
+            return Err(fill(
+                EN.files_larger_than,
+                &[&(max / 1024 / 1024).to_string()],
+            ));
         }
-        fs::read(&path).map_err(|e| e.to_string())
+        fs::read(&path).map_err(io_text)
     }
 
     fn create(&mut self, name: &str, bytes: &[u8]) -> Result<(), String> {
-        let mut f = fs::File::create_new(self.0.join(name)).map_err(|e| e.to_string())?;
-        f.write_all(bytes).map_err(|e| e.to_string())?;
-        f.sync_all().map_err(|e| e.to_string())
+        let mut f = fs::File::create_new(self.0.join(name)).map_err(io_text)?;
+        f.write_all(bytes).map_err(io_text)?;
+        f.sync_all().map_err(io_text)
     }
 
     fn remove(&mut self, name: &str) -> Result<(), String> {
-        fs::remove_file(self.0.join(name)).map_err(|e| e.to_string())
+        fs::remove_file(self.0.join(name)).map_err(io_text)
     }
 
     fn wipe(&mut self, name: &str) -> Result<(), String> {
@@ -110,29 +129,29 @@ impl Place for Dir {
             .read(true)
             .write(true)
             .open(&path)
-            .map_err(|e| e.to_string())?;
-        let len = f.metadata().map_err(|e| e.to_string())?.len();
+            .map_err(io_text)?;
+        let len = f.metadata().map_err(io_text)?.len();
         let zeros = [0u8; 64 * 1024];
         let mut left = len;
         while left > 0 {
             let n = left.min(zeros.len() as u64) as usize;
-            f.write_all(&zeros[..n]).map_err(|e| e.to_string())?;
+            f.write_all(&zeros[..n]).map_err(io_text)?;
             left -= n as u64;
         }
-        f.sync_all().map_err(|e| e.to_string())?;
-        f.seek(SeekFrom::Start(0)).map_err(|e| e.to_string())?;
+        f.sync_all().map_err(io_text)?;
+        f.seek(SeekFrom::Start(0)).map_err(io_text)?;
         let mut back = [0u8; 64 * 1024];
         loop {
-            let n = f.read(&mut back).map_err(|e| e.to_string())?;
+            let n = f.read(&mut back).map_err(io_text)?;
             if n == 0 {
                 break;
             }
             if back[..n].iter().any(|&b| b != 0) {
-                return Err("a block kept its old bytes".to_string());
+                return Err(EN.fat_fault_unwritten.to_string());
             }
         }
         drop(f);
-        fs::remove_file(path).map_err(|e| e.to_string())
+        fs::remove_file(path).map_err(io_text)
     }
 
     // A folder standing for a stick has no free space of its own to
@@ -158,9 +177,9 @@ impl Place for Dir {
 
     fn rename(&mut self, from: &str, to: &str) -> Result<(), String> {
         if self.0.join(to).exists() {
-            return Err(format!("{to} is already there"));
+            return Err(fill(EN.files_already_there, &[to]));
         }
-        fs::rename(self.0.join(from), self.0.join(to)).map_err(|e| e.to_string())
+        fs::rename(self.0.join(from), self.0.join(to)).map_err(io_text)
     }
 }
 
@@ -169,7 +188,6 @@ impl Place for Dir {
 /// app's Files, the disk process, the Starter's boot file).
 pub fn fat_text(e: faraday_fat::Error) -> String {
     use faraday_fat::{BadName, Boot, Error, Fault};
-    use faraday_strings::EN;
     let s = match e {
         Error::Io => EN.fat_io,
         Error::Fat12 => EN.fat_12,
@@ -285,8 +303,8 @@ pub fn wipe(place: &mut dyn Place, name: &str) -> Result<(), String> {
 /// folder (and XP's), Explorer's folder settings and its thumbnail
 /// cache.
 const WINDOWS_OWN: [&str; 5] = [
-    "System Volume Information",
-    "$RECYCLE.BIN",
+    "System Volume Information", // not wording: the name Windows gives its folder
+    "$RECYCLE.BIN",              // not wording: the name Windows gives its folder
     "RECYCLER",
     "desktop.ini",
     "Thumbs.db",
@@ -329,7 +347,7 @@ pub fn checked(name: &str) -> Result<&str, String> {
         || name.contains('\\')
         || name.contains('\0')
     {
-        return Err(format!("{name:?} is not a file name"));
+        return Err(fill(EN.files_not_a_name, &[name]));
     }
     Ok(name)
 }
@@ -347,7 +365,7 @@ pub fn checked_for_write(name: &str) -> Result<&str, String> {
         || name.ends_with('.')
         || device_name(name)
     {
-        return Err(format!("{name:?} is not a file name"));
+        return Err(fill(EN.files_not_a_name, &[name]));
     }
     Ok(name)
 }
@@ -397,7 +415,7 @@ fn free_name(place: &mut dyn Place, name: &str) -> Result<String, String> {
     (2..100)
         .map(|n| format!("{stem}-{n}{ext}"))
         .find(|c| !taken.contains(&c.to_ascii_lowercase()))
-        .ok_or_else(|| "no free name".to_string())
+        .ok_or_else(|| EN.files_no_free_name.to_string())
 }
 
 /// Writes `bytes` under the hidden name `temp`, reads them back and
@@ -410,7 +428,7 @@ fn put_checked(place: &mut dyn Place, temp: &str, bytes: &[u8]) -> Result<(), St
     let back = place.read(temp, bytes.len() as u64);
     if back.as_deref() != Ok(bytes) {
         let _ = place.remove(temp);
-        return Err("read back different from what was written".to_string());
+        return Err(EN.files_read_back.to_string());
     }
     Ok(())
 }
@@ -423,7 +441,7 @@ pub fn write(place: &mut dyn Place, name: &str, bytes: &[u8]) -> Result<String, 
     put_checked(place, &temp, bytes)?;
     if has(place, &name)? {
         let _ = place.remove(&temp);
-        return Err(format!("{name} appeared while writing"));
+        return Err(fill(EN.files_appeared, &[&name]));
     }
     if let Err(e) = place.rename(&temp, &name) {
         let _ = place.remove(&temp);
@@ -498,7 +516,7 @@ pub fn write_vault_over(
     renamed: bool,
 ) -> Result<String, String> {
     finish_vault_writes(place);
-    let want = vault_identity(bytes, bytes.len() as u64).ok_or("not a vault")?;
+    let want = vault_identity(bytes, bytes.len() as u64).ok_or(EN.files_not_a_vault)?;
     let mut same: Vec<String> = Vec::new();
     for (n, len) in place.files()? {
         if !n.to_ascii_lowercase().ends_with(".ofv") || n.starts_with('.') || len != want.1 {
@@ -513,17 +531,11 @@ pub fn write_vault_over(
     let original = match same.len() {
         0 => return write(place, name, bytes),
         1 if !over => {
-            return Err(format!(
-                "{} is this vault, and this session did not unlock or write it: not replaced",
-                same[0]
-            ));
+            return Err(fill(EN.files_vault_not_ours, &[&same[0]]));
         }
         1 => same.remove(0),
         _ => {
-            return Err(format!(
-                "{} and {} are the same vault; remove one",
-                same[0], same[1]
-            ));
+            return Err(fill(EN.files_vault_twice, &[&same[0], &same[1]]));
         }
     };
     let temp = format!(".faraday-{original}.part");
@@ -563,7 +575,7 @@ pub fn rename(place: &mut dyn Place, from: &str, to: &str) -> Result<(), Unrenam
     let to = checked_for_write(to).map_err(Unrenamed::Failed)?;
     let files = place.files().map_err(Unrenamed::Failed)?;
     let Some(&(_, len)) = files.iter().find(|(n, _)| n == from) else {
-        return Err(Unrenamed::Failed(format!("{from} is not on the stick")));
+        return Err(Unrenamed::Failed(fill(EN.files_not_on_stick, &[from])));
     };
     if let Some((other, olen)) = files
         .iter()
@@ -727,22 +739,24 @@ pub fn qr_in_png(c: &Compute, bytes: &[u8]) -> Result<zeroize::Zeroizing<Vec<Vec
     c.count(Work::PngDecode);
     let mut decoder = png::Decoder::new(std::io::Cursor::new(bytes));
     decoder.set_transformations(png::Transformations::normalize_to_color8());
-    let mut reader = decoder.read_info().map_err(|e| e.to_string())?;
+    let mut reader = decoder.read_info().map_err(|_| EN.files_picture_unread)?;
     let (w, h) = {
         let info = reader.info();
         (info.width as usize, info.height as usize)
     };
     if w.saturating_mul(h) > MAX_PIXELS {
-        return Err("the image is too large".into());
+        return Err(EN.files_picture_large.into());
     }
     // The picture may be of a SeedQR: every copy of its pixels is wiped.
     let mut buf = zeroize::Zeroizing::new(vec![
         0u8;
         reader
             .output_buffer_size()
-            .ok_or("the image is too large")?
+            .ok_or(EN.files_picture_large)?
     ]);
-    let info = reader.next_frame(&mut buf).map_err(|e| e.to_string())?;
+    let info = reader
+        .next_frame(&mut buf)
+        .map_err(|_| EN.files_picture_unread)?;
     let px = &buf[..info.buffer_size()];
     let luma_of =
         |r: u8, g: u8, b: u8| ((u32::from(r) * 3 + u32::from(g) * 6 + u32::from(b)) / 10) as u8;
@@ -757,10 +771,10 @@ pub fn qr_in_png(c: &Compute, bytes: &[u8]) -> Result<zeroize::Zeroizing<Vec<Vec
             .chunks_exact(4)
             .map(|p| luma_of(p[0], p[1], p[2]))
             .collect(),
-        png::ColorType::Indexed => return Err("a palette image was not expanded".into()),
+        png::ColorType::Indexed => return Err(EN.files_picture_unread.into()),
     });
     if luma.len() != w * h {
-        return Err("the image's pixels do not add up".into());
+        return Err(EN.files_picture_unread.into());
     }
     // A code printed light on dark is read too.
     Ok(zeroize::Zeroizing::new(

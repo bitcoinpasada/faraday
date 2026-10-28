@@ -11,6 +11,8 @@ publish = false
 [dependencies]
 faraday-fat = { path = "../faraday-fat" }
 faraday-files = { path = "../faraday-files" }
+# The words of its refusals.
+faraday-strings = { path = "../faraday-strings" }
 faraday-crypto = { path = "../../core/faraday-crypto" }
 zeroize = { workspace = true, features = ["alloc"] }
 

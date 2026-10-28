@@ -40,6 +40,7 @@ use std::sync::{Arc, Mutex, PoisonError};
 
 use faraday_disk::Disks;
 use faraday_files::proto::{self, Request, Response};
+use faraday_strings::EN;
 
 /// The shell being served now, by the number of its conversation, and
 /// the pipe its answers go down; `None` between shells.
@@ -136,7 +137,7 @@ fn serve_on(
                             pictures.send((talk, seq, bytes))
                         {
                             zeroize::Zeroize::zeroize(&mut bytes);
-                            Response::Failed("the pictures cannot be read now".into())
+                            Response::Failed(EN.disk_pictures_busy.into())
                         } else {
                             continue;
                         }
@@ -151,10 +152,12 @@ fn serve_on(
                 if let Response::Sticks(s) = &answer {
                     let now: Vec<String> = s
                         .iter()
+                        // not wording: the console's line for a machine being brought up
                         .map(|s| format!("{} {} files", s.id, s.files.len()))
                         .collect();
                     let now = now.join(", ");
                     if now != last {
+                        // not wording: the console's line, as above
                         say!("faraday-disk: listing [{now}]");
                         last = now;
                     }
@@ -162,7 +165,7 @@ fn serve_on(
                 answer
             }
             Err(_) => {
-                answer_to(now, talk, seq, Response::Failed("malformed request".into()))?;
+                answer_to(now, talk, seq, Response::Failed(EN.disk_malformed.into()))?;
                 return Ok(());
             }
         };
@@ -193,6 +196,7 @@ fn main() -> ExitCode {
         return ExitCode::SUCCESS;
     }
     if args.len() != 3 && args.len() != 5 {
+        // not wording: the command line's usage, on the console
         say!("usage: faraday-disk REQUESTS RESPONSES [SYS DEV]");
         return ExitCode::from(2);
     }

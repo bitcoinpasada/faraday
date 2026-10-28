@@ -8193,6 +8193,50 @@ strings! {
     fat_name_ending: "a name ending in a space or a dot",
     /// A file name FAT cannot hold.
     fat_name_character: "a name with a character FAT does not allow",
+    // ----- A stick's file refused (faraday-files, the disk process) -----
+    /// Why a file was not read: it is over the largest Faraday reads.
+    /// `{}`: that size in MB.
+    files_larger_than: "larger than {} MB",
+    /// Why a rename was refused. `{}`: the new name.
+    files_already_there: "{} is already there",
+    /// Why a name was refused. `{}`: the name.
+    files_not_a_name: "\"{}\" is not a file name",
+    /// Why a file was not written: every numbered name is taken.
+    files_no_free_name: "no free name",
+    /// Why a file was not written: what was read back is not what was
+    /// written.
+    files_read_back: "read back different from what was written",
+    /// Why a file was not written: another file took its name meanwhile.
+    /// `{}`: the name.
+    files_appeared: "{} appeared while writing",
+    /// Why a vault was not written: the bytes are not a vault.
+    files_not_a_vault: "not a vault",
+    /// Why a vault was not written over its file. `{}`: the file.
+    files_vault_not_ours: "{} is this vault, and this session did not unlock or write it: not replaced",
+    /// Why a vault was not written: two files hold it. `{}`: the files.
+    files_vault_twice: "{} and {} are the same vault; remove one",
+    /// Why a rename was refused. `{}`: the file.
+    files_not_on_stick: "{} is not on the stick",
+    /// Why a picture was not read for codes: it is over the largest.
+    files_picture_large: "the image is too large",
+    /// Why a picture was not read for codes: it is not a PNG Faraday
+    /// reads.
+    files_picture_unread: "the picture could not be read",
+    /// Why a file in a folder standing for a stick was refused: the
+    /// computer does not allow it.
+    files_denied: "the computer does not allow it",
+    /// Why a file in a folder standing for a stick was refused: it is
+    /// read-only.
+    files_read_only: "the stick is read-only",
+    /// Why the disk process does not open a partition: it is the one the
+    /// machine started from.
+    disk_boot: "the boot partition is never opened",
+    /// Why the disk process could not answer: the stick was taken out.
+    disk_gone: "the stick is gone",
+    /// Why the disk process could not read a picture's codes now.
+    disk_pictures_busy: "the pictures cannot be read now",
+    /// Why the disk process could not answer: the request did not read.
+    disk_malformed: "malformed request",
     /// Toast in `vault_form_save`. `{}`: `self.medium.for_the()`.
     vaults_made_the_certificate: "The certificate waits {}. The revocation certificate is kept with the key",
     /// Text in `vault_form_save`.

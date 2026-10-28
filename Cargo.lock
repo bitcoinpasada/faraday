@@ -852,6 +852,7 @@ dependencies = [
  "faraday-crypto",
  "faraday-fat",
  "faraday-files",
+ "faraday-strings",
  "zeroize",
 ]
 

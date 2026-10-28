@@ -22,6 +22,7 @@ use std::path::{Path, PathBuf};
 use faraday_fat::{Disk, Volume};
 use faraday_files::proto::{Problem, Request, Response, Stick};
 use faraday_files::{Fat, Place};
+use faraday_strings::EN;
 
 /// The label and partition name the boot partition carries.
 pub const BOOT: &str = "FARADAYBOOT";
@@ -83,7 +84,7 @@ enum Unreadable {
 impl Unreadable {
     fn text(&self) -> String {
         match self {
-            Unreadable::Boot => "the boot partition is never opened".into(),
+            Unreadable::Boot => EN.disk_boot.into(),
             Unreadable::NotFat(e) | Unreadable::Other(e) => e.clone(),
         }
     }
@@ -347,14 +348,18 @@ impl Disks {
             .iter()
             .map(|f| {
                 let what = if !f.open {
+                    // not wording: the console's line for a machine being brought up
                     "not handed out".to_string()
                 } else {
                     match Self::volume(f) {
+                        // not wording: the console's line, as above
                         Ok(v) => format!("FAT, label {:?}", v.label()),
+                        // not wording: the console's line, as above
                         Err(e) => format!("not listed: {}", e.text()),
                     }
                 };
                 format!(
+                    // not wording: the console's line, as above
                     "{} node {} partname {:?} boot {}: {what}",
                     f.id,
                     f.node.display(),
@@ -378,7 +383,7 @@ impl Disks {
             .found()
             .into_iter()
             .find(|f| f.id == id)
-            .ok_or("the stick is gone")?;
+            .ok_or(EN.disk_gone)?;
         if !f.open {
             return Err(faraday_files::proto::NOT_OPEN.into());
         }

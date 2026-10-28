@@ -579,6 +579,7 @@ pub fn send(w: &mut dyn Write, seq: u32, payload: &[u8]) -> std::io::Result<()> 
     let len = u32::try_from(payload.len())
         .ok()
         .filter(|n| *n <= MAX_FRAME)
+        // not wording: the pipe's own error; faraday-storage says what it shows
         .ok_or_else(|| std::io::Error::other("frame too large"))?;
     let mut frame = Vec::with_capacity(payload.len() + 8);
     frame.extend_from_slice(&len.to_le_bytes());
@@ -601,6 +602,7 @@ pub fn receive(r: &mut dyn Read) -> std::io::Result<Option<(u32, Zeroizing<Vec<u
     let len = u32::from_le_bytes([head[0], head[1], head[2], head[3]]);
     let seq = u32::from_le_bytes([head[4], head[5], head[6], head[7]]);
     if len > MAX_FRAME {
+        // not wording: the pipe's own error, as above
         return Err(std::io::Error::other("frame too large"));
     }
     let mut buf = Zeroizing::new(vec![0u8; len as usize]);
