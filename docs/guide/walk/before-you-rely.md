@@ -41,9 +41,12 @@ nothing else at hand.
    - From paper: press **Wallets → Add a key**, **Change** on
      **Start**, then **Type the words**. Type the words from the paper
      and press **Continue**.
-   - From a vault: plug the vault's stick in on Home, press **Import**,
-     pull the stick, type the passphrase, press **Unlock**, then
-     **Load ticked** ([Restore a wallet, step 7.4](restore.md#74-from-a-vault)).
+   - From a vault: plug the vault's stick in. On **Stick visit**,
+     press **Import 1 file**, then pull the stick
+     ([Files, sticks and QR codes, step 2](files-and-sticks.md#2-a-stick-visit-bring-files-in)).
+     In **Files**, press **Unlock** on the vault's row, type the
+     passphrase, press **Unlock**, then **Load ticked**
+     ([Restore a wallet, step 7.4](restore.md#74-from-a-vault)).
    - A wallet of several keys: **Restore an existing wallet**, as
      [Restore a wallet](restore.md) does it, then check it as
      [step 7.3](restore.md#73-check-then-done) says.

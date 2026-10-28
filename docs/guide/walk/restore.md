@@ -12,7 +12,8 @@ What you need:
 
 - Faraday with no key loaded.
 - The wallet description: here `new-wallet-1-descriptor.txt`, brought
-  into Files from a stick (step 6.3); a printed wallet sheet's QR code
+  into Files from a stick
+  ([Files, sticks and QR codes, step 2](files-and-sticks.md#2-a-stick-visit-bring-files-in)); a printed wallet sheet's QR code
   or the description's QR picture works the same way with **Scan it**.
 - The paper copy of key `3dca6805`. Keys `5d388376` and `cf2e083d` stay
   away: two of three keys are enough to sign, and one is enough to
@@ -114,15 +115,22 @@ blockchain.
 A wallet backed up into a vault (section 4) comes back from the vault's
 stick:
 
-1. Start Faraday from the Faraday stick that holds the vault, or plug
-   the vault's stick in on Home with no key loaded. Faraday lists the
-   stick's files by name (**Read from …**); press **Import**: it reads
-   the ticked files, lists **Locked · vault.ofv**, and asks **Pull the
-   stick to continue**.
-2. Pull the stick, type the vault's passphrase and press **Unlock**.
-3. **Load from vault.ofv** lists what the vault holds, each seed and
+1. Start Faraday from the Faraday stick that holds the vault. Faraday
+   lists the stick's files by name (**Read from …**); press
+   **Import**: it reads the ticked files, lists **Locked · vault.ofv**,
+   and asks **Pull the stick to continue**. Pull the stick, type the
+   vault's passphrase and press **Unlock**.
+
+   Or, with Faraday started and no key loaded, plug the vault's stick
+   in: **Stick visit** opens, with `vault.ofv` ticked under **On the
+   stick**. Press **Import 1 file** and pull the stick
+   ([Files, sticks and QR codes, step 2](files-and-sticks.md#2-a-stick-visit-bring-files-in)).
+   In **Files**, press **Unlock** on `vault.ofv`'s row, type the
+   vault's passphrase and press **Unlock**.
+2. **Load from vault.ofv** lists what the vault holds, each seed and
    wallet saved with **Load at unlock** (step 4.8) ticked. Press **Load
-   ticked**: the wallet and its keys load, and Wallets opens.
+   ticked**: the wallet and its keys load, and Wallets opens
+   ([Vaults, passwords and codes, step 10](vaults-and-passwords.md#10-unlock-it-again-and-load-from-it)).
 
 Then check it as in step 7.3: the checksum, Receive 0/0 against Sparrow
 or the wallet sheet, the fingerprints. **Unlock Vault 1** on the backup's

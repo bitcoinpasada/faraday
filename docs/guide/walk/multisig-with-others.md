@@ -90,7 +90,7 @@ record.
 
 | By QR code | On a stick |
 |---|---|
-| Press **Scan** on Home and hold the coordinator's wallet QR code up to the camera. A bar says the file is in Files. | Save the export to the stick. With no key loaded, plug it in and press **Stick visit** on Home; the file comes in ticked. Press **Import 1 file**, then pull the stick. With a key loaded, a stick goes in only after a lock, which wipes the key ([Spend, step 6.3](spend.md#63-write-the-payment-and-bring-it-here)). |
+| Press **Scan** on Home and hold the coordinator's wallet QR code up to the camera. A bar says the file is in Files. | Save the export to the stick. With no key loaded, plug it in and press **Stick visit** on Home; the file comes in ticked. Press **Import 1 file**, then pull the stick. With a key loaded, a stick goes in only after a lock, which wipes the key ([Files, sticks and QR codes, step 2](files-and-sticks.md#2-a-stick-visit-bring-files-in)). |
 
 Then press **Files** at the foot of the sidebar, and **Load the wallet**
 on the file.
