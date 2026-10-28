@@ -124,7 +124,7 @@ Once the PSBT is in, its cards follow in the column, as on
 [Spend](../walk/spend.md) and in [Sign a transaction](sign.md), each where the spend needs it: **Read the
 transaction**, **The transaction id**, **Which way it spends**,
 **Nonces**, **Who signs** (**Add the seeds that can sign** for a wallet
-that came in as a description or was made here), **Sign it**, **The other signatures**, **Send
+that came in as a description, or was made here and has a key away), **Sign it**, **The other signatures**, **Send
 it**. Before the PSBT is in they are listed as **After the
 transaction**.
 

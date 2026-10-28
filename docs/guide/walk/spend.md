@@ -47,8 +47,9 @@ The page [**Spend from New wallet 1**](../screens/spend-tab.md#spend-from-a-wall
 
 The cards below are the steps to come: **Write the payment in
 Sparrow**, **Read the transaction**, **Sign it**, **Send it** and **Put
-everything away**; once a PSBT is in, **Add the seeds that can sign**
-and **The other signatures** join them. Press **It is loaded**. The link at the top left is named after the
+everything away**; once a PSBT is in, **Who signs** (**Add the seeds
+that can sign** while a key is away) and **The other signatures** join
+them. Press **It is loaded**. The link at the top left is named after the
 card before the one open (**Load the wallet in Sparrow**, once the next
 card is open): it opens that card again, with what was done there kept.
 On the first card it goes back to the wallet's card.
@@ -125,11 +126,12 @@ with the payee's.
 
 ### 6.5 The keys that sign, and Sign it
 
-The next card, **Add the seeds that can sign**, lists the wallet's keys:
+The next card, **Who signs**, lists the wallet's keys; with a key away
+it is **Add the seeds that can sign**:
 
 | Both keys here | One key here |
 |---|---|
-| ![Add the seeds that can sign with 2 of 2 signatures here, Continue outlined](../pictures/6-5-signers.png) | ![Add the seeds that can sign with 1 of 2 signatures here, Scan a key outlined](../pictures/6-5-signers-short.png) |
+| ![Who signs with 2 of 2 signatures here, Continue outlined](../pictures/6-5-signers.png) | ![Add the seeds that can sign with 1 of 2 signatures here, Scan a key outlined](../pictures/6-5-signers-short.png) |
 | `3dca6805` and `5d388376` read **Signs here**, `cf2e083d` **Not here**; **2 of 2 signatures here** and **Can spend**. | `3dca6805` reads **Signs here**, the others **Not here**; **1 of 2 signatures here · 1 more needed**. **Scan a key** loads the second key (step 6.6); **Collect a signature** takes a copy signed elsewhere ([Multisig with other people and devices](multisig-with-others.md)). |
 
 With both keys here, press **Continue**; with one, step 6.6 first.

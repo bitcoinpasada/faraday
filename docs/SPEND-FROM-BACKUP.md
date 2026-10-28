@@ -95,7 +95,8 @@ wallet*) are one page since `docs/history/SCAN-TO-SIGN.md` §4; the sections
 below keep their numbers. The route is not chosen: it is set from what
 came in. **Vault** when a vault was unlocked here, **Paper** when a
 wallet description came in (whole or rebuilt from split sheets),
-**Words** when only seeds did.
+**Words** when only seeds did, or when the wallet was made here and its
+keys are here.
 
 ## 4. The prose, page by page
 

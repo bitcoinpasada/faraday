@@ -764,10 +764,20 @@ impl Faraday {
                 self.family.state.from_card = true;
                 self.family.state.help = false;
                 self.screen = Screen::Family;
+                // A wallet made here with its keys still here came from its
+                // seeds, not from paper: it has no seeds to add.
+                let keys_here = self
+                    .session
+                    .slots(w)
+                    .iter()
+                    .filter(|s| s.held_by.is_some())
+                    .count()
+                    >= crate::wallet::needed(w);
                 self.family.state.route = Some(match w.origin {
                     crate::wallet::Origin::TypedWords | crate::wallet::Origin::TypedSeeds => {
                         Route::Words
                     }
+                    crate::wallet::Origin::Statement if keys_here => Route::Words,
                     crate::wallet::Origin::Vault => Route::Vault,
                     crate::wallet::Origin::Statement | crate::wallet::Origin::Named => Route::Paper,
                 });

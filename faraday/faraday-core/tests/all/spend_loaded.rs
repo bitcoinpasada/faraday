@@ -100,6 +100,35 @@ fn a_ready_wallet_with_its_transaction_in_files_goes_to_signing() {
     assert!(app.spend().unwrap().steps.contains(&step::SIGN));
 }
 
+/// A wallet made here with its keys loaded asks for no seeds: its
+/// signers' card is Who signs, not Add the seeds that can sign.
+#[test]
+fn a_wallet_made_here_with_its_keys_loaded_asks_for_no_seeds() {
+    use faraday_core::strings::EN;
+    let c = testkit::compute();
+    let mut app = with_files(vec![savings_psbt()]);
+    add_key(&mut app, 0);
+    add_key(&mut app, 1);
+    app.session
+        .add_wallet(
+            &c,
+            "Savings",
+            &kit("savings").descriptor,
+            EN.create_make_made_here,
+            faraday_core::wallet::Origin::Statement,
+        )
+        .unwrap();
+    app.press(Action::Nav(Screen::Family));
+    app.press(Action::Family(F::SpendFrom(0)));
+    let _ = app.frame();
+    let texts = app.drawn_texts();
+    assert!(texts.iter().any(|t| t == EN.family_who_signs), "{texts:?}");
+    assert!(
+        !texts.iter().any(|t| t == EN.family_add_the_seeds),
+        "{texts:?}"
+    );
+}
+
 #[test]
 fn a_wallet_short_of_keys_is_opened_rather_than_spent() {
     let mut app = with_files(vec![savings()]);
