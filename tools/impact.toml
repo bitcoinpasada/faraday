@@ -184,9 +184,8 @@ misses = "PSBT signing end to end, taproot script trees, miniscript, AEZ (docs/C
 id = "lint-docs-held-by"
 run = "tools/lint-docs.sh"
 stage = "just lint"
-catches = "a decision without a Held by line, or naming a rule the registry lacks (docs/IMPACT.md §8)"
-misses = "planned: lint-docs rule 6 comes with batch 5"
-status = "planned"
+catches = "a decision without a Held by line, naming a rule the registry lacks, or held by tests that no Rust file names (docs/IMPACT.md §8)"
+misses = "whether the ids named are the right ones, and whether the test that names a decision tests all of it; review is the author's judgement"
 
 [[check]]
 id = "impact-check"
@@ -477,7 +476,6 @@ when = ["docs/decisions/F{n}.md"]
 on = ["add"]
 kind = "held"
 held_by = ["lint-docs-held-by"]
-status = "planned"
 
 # ------------------------------------------------------------- standards
 

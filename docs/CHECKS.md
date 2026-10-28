@@ -41,7 +41,7 @@ does what is `tools/README.md`'s.
 | `doctests` | just test | `cargo test --locked --workspace --doc` | the doc tests, which nextest does not run | - | built |
 | `budget-tests` | just test | `cargo nextest run --locked -p faraday-core -E 'test(/^work::budget::/)'` | a frame, a pointer move, a press or a key doing costly work its budget does not name | work that is not counted through the compute token | built |
 | `crosscheck` | just crosscheck | `just crosscheck` | Faraday's Rust against the Python references over published vectors and a seeded random corpus (F79) | PSBT signing end to end, taproot script trees, miniscript, AEZ (docs/CROSSCHECK.md §10.5) | built |
-| `lint-docs-held-by` | just lint | `tools/lint-docs.sh` | a decision without a Held by line, or naming a rule the registry lacks (docs/IMPACT.md §8) | planned: lint-docs rule 6 comes with batch 5 | planned |
+| `lint-docs-held-by` | just lint | `tools/lint-docs.sh` | a decision without a Held by line, naming a rule the registry lacks, or held by tests that no Rust file names (docs/IMPACT.md §8) | whether the ids named are the right ones, and whether the test that names a decision tests all of it; review is the author's judgement | built |
 | `impact-check` | just lint | `python3 -I -B tools/impact.py check --quiet` | a pair left unmet in the range from main, a refused change, a missing Material trailer | a rule a reviewer must judge | built |
 | `impact-docs` | just lint | `python3 -I -B tools/impact.py docs --check` | docs/CHECKS.md differing from the registry | - | built |
 | `impact-lint` | just lint | `python3 -I -B tools/impact.py lint` | the registry against itself and the tree: ids, held_by, sources, paths, the lint recipe against the checks, each app's reads against cargo metadata | whether a rule is right | built |
@@ -86,7 +86,7 @@ does what is `tools/README.md`'s.
 | Rule | Triggered by | Kind | Must change with it | Held by | Misses | Source |
 |---|---|---|---|---|---|---|
 | `decisions.indexed`: each decision has its row in docs/DECISIONS.md and each row its file | `docs/decisions/F{n}.md`<br>`docs/history/decisions/**` | held | - | `lint-docs` | - | `CLAUDE.md`<br>`docs/DECISIONS.md` |
-| `decisions.held-by` (planned): each decision carries a Held by line naming rules of the registry | `docs/decisions/F{n}.md`<br>on add | held | - | `lint-docs-held-by` | - | `docs/decisions/F149.md` |
+| `decisions.held-by`: each decision carries a Held by line naming rules of the registry | `docs/decisions/F{n}.md`<br>on add | held | - | `lint-docs-held-by` | - | `docs/decisions/F149.md` |
 
 ### 2.5 standards
 

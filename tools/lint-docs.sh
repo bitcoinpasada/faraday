@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Documentation lint (docs/README.md, docs/STRUCTURE-PASS.md phase 2).
 #
-# Five rules, so that a document says what kind it is, cites only what
+# Six rules, so that a document says what kind it is, cites only what
 # exists, and holds what is true now or still to be built, not how it was
 # built (CLAUDE.md, "Docs").
 #
@@ -43,6 +43,14 @@
 #    docs/history/decisions/ when its status is Replaced, Superseded or
 #    Withdrawn and under docs/decisions/ otherwise; the file's Status
 #    line is the row's; and every file in either folder has a row.
+#
+# 6. Held by. Every decision in docs/decisions/ (Status Active or
+#    Amended by ...) carries `**Held by:**` in its first 12 lines: a comma
+#    list of rule ids of tools/impact.toml, each of which exists, or one
+#    of the words `review`, `tests` or `none`; `tests` only where a Rust
+#    file of the tree names the decision (a test or the code it tests).
+#    Every rule whose `source` names a decision file is named in that
+#    decision's line (docs/IMPACT.md §8). Retired decisions are exempt.
 #
 # Prints `file:line: message` for each failure and exits non-zero if
 # there is one. Run from the repository root; `just lint` does.
@@ -167,6 +175,60 @@ def check_decisions():
 
 
 check_decisions()
+
+
+# Rule 6: each active decision says what holds it.
+def check_held_by():
+    import tomllib
+    try:
+        with open("tools/impact.toml", "rb") as fh:
+            rules = tomllib.load(fh).get("rule", [])
+    except OSError:
+        return
+    ids = {r.get("id") for r in rules}
+    named = {}
+    for r in rules:
+        for src in r.get("source", []):
+            m = re.match(r"docs/decisions/(F\d+)\.md", src)
+            if m:
+                named.setdefault(m.group(1), []).append(r["id"])
+    import subprocess
+    cited = set(subprocess.run(["git", "grep", "-ohwE", "F[0-9]+", "--", "*.rs"],
+                               capture_output=True, text=True).stdout.split())
+    for f in files:
+        m = re.match(r"docs/decisions/(F\d+)\.md$", f)
+        if not m:
+            continue
+        head = open(f, encoding="utf-8").read().split("\n")[:12]
+        status = next((l[len("**Status:** "):] for l in head
+                       if l.startswith("**Status:**")), "")
+        if not status.startswith(("Active", "Amended")):
+            continue
+        line = next((l[len("**Held by:**"):].strip() for l in head
+                     if l.startswith("**Held by:**")), None)
+        if line is None:
+            fail(f, 1, "no `**Held by:**` line in the first 12 lines")
+            continue
+        words = [w.strip() for w in line.split(",")]
+        if words in (["review"], ["tests"], ["none"]):
+            if m.group(1) in named:
+                fail(f, 1, f"`**Held by:** {words[0]}` but rules "
+                           f"{', '.join(named[m.group(1)])} name it as source")
+            elif words == ["tests"] and m.group(1) not in cited:
+                fail(f, 1, f"`**Held by:** tests` but no Rust file names "
+                           f"{m.group(1)}: name it in its test, or say review")
+            continue
+        for w in words:
+            if w not in ids:
+                fail(f, 1, f"Held by `{w}` is not a rule of "
+                           f"tools/impact.toml (or review, tests, none)")
+        for rid in named.get(m.group(1), []):
+            if rid not in words:
+                fail(f, 1, f"rule `{rid}` has this decision as its source "
+                           f"and is not in its Held by line")
+
+
+check_held_by()
 
 
 # Rule 1: headers.

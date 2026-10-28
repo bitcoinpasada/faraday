@@ -1,8 +1,8 @@
 # Impact: what a change brings with it
 
 **Kind:** Spec
-**Status:** Specified (F149); the registry, `plan`, `check`, `lint`, `docs`, docs/CHECKS.md and their lines in `just lint`, `report` and `check --consumer` built (batches 1 to 4)
-**Open:** batches 5 and 6 of §10: the decisions' `**Held by:**` line and its lint (`lint-docs` rule 6), the website's step before it publishes
+**Status:** Specified (F149); the registry, `plan`, `check`, `lint`, `docs`, docs/CHECKS.md and their lines in `just lint`, `report`, `check --consumer` and the decisions' Held by line with `lint-docs` rule 6 built (batches 1 to 5)
+**Open:** batch 6 of §10: the website's step before it publishes
 
 A change to Faraday often needs a second change somewhere else: a string
 renamed needs the guide's bold name, a new board needs its line in
@@ -343,7 +343,8 @@ area. The registry indexes it and holds what can be held.
   followed by the ids of the registry's rules it sets, or by `review`
   (it binds changes, and no rule fits a script), or by `tests` (its
   behaviour is the app's and the tests hold it; it binds no other
-  change), or by `none` (a one-time act, or a rule another decision
+  change; only where a Rust file of the tree names the decision, so a
+  test cites what it holds), or by `none` (a one-time act, or a rule another decision
   now carries). `lint-docs` holds it: the line is there in every
   decision numbered from this one, each id it names is a rule of
   tools/impact.toml, and every rule whose `source` names a decision is
@@ -355,8 +356,8 @@ area. The registry indexes it and holds what can be held.
   a section such as SPEED §7) gets its rule when it is written; the
   rule's `source` names the section.
 
-The decisions before this one take the line in one batch (§10, batch 5)
-if the owner agrees (§11, Q1).
+The decisions before this one took the line in one batch (§10, batch 5;
+§11, Q1).
 
 ## 9. The first rules
 
@@ -391,7 +392,7 @@ H held, P pair, F forbid, T trailer, R review. "planned" names a check F148 or
 | `docs.spec-done` | a Spec's `**Kind:** Spec` line removed from a document that stays (`lines`, `on = modify`) | P | its plan in `docs/history/{NAME}-LOG.md`, Kind Reference | `CLAUDE.md`; H in part by `lint-docs` rule 4 |
 | `docs.no-silent-delete` | a file of `docs/decisions/` or a `docs/*.md` deleted | F | refused unless the same range adds it under `docs/history/` (`docs/history/decisions/F{n}.md`, `docs/history/{NAME}.md`: a move) | F149 |
 | `decisions.indexed` | `docs/decisions/F{n}.md`, `docs/history/decisions/**` | H | `lint-docs` rule 5 | `CLAUDE.md`, `docs/DECISIONS.md` |
-| `decisions.held-by` | `docs/decisions/F{n}.md` added | H | `lint-docs` rule 6 (planned, §8) | F149 |
+| `decisions.held-by` | `docs/decisions/F{n}.md` added | H | `lint-docs` rule 6 (§8) | F149 |
 | `structure.ratchet-raised` | `tools/lint-layout.counts`, `tools/lint-tokens.counts` (`rises`) | P | a decision added: `docs/decisions/F{n}.md` | `CLAUDE.md`, F74 |
 | `structure.code-map` | `faraday/faraday-core/src/**` | H | `lint-layout` | `CLAUDE.md`, F74 |
 | `structure.size` | `**/*.rs` | H | `lint-layout` counts | `CLAUDE.md`, F74 |
