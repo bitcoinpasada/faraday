@@ -762,6 +762,8 @@ destinations; Faraday Demo and the device keep their own navigation
    write* or *Write*. Then the system's own prompt where there is one
    (§2).
 4. **Writing** (Progress): written of total, then *Reading back*.
+   Under *keep data* the total is the boot partition's size, the only
+   bytes that reach the stick, also when a whole image is written.
 5. **Done** (Result): "Keep the stick in to start this computer from it. To start another computer, pull it out." (a Pi card: "The card can be pulled out."); a row **In the
    boot menu**, "something like" the entry this computer's boot menu
    will list the stick as, from the stick's own vendor and model and

@@ -472,6 +472,47 @@ fn keep_data_from_a_whole_image_writes_only_its_boot_partition() {
 }
 
 #[test]
+fn keep_data_from_a_whole_image_counts_only_its_boot_partition_as_written() {
+    let path = tmp("keep-whole-progress");
+    std::fs::write(&path, stick_image(gpt::DISK_UUID, 0xDA)).expect("a stick");
+    let mut new = stick_image(gpt::DISK_UUID, 0x00);
+    let from = (BOOT_FIRST * SECTOR) as usize;
+    let to = (DATA_FIRST * SECTOR) as usize;
+    new[from..to].copy_from_slice(&boot_partition(to - from, 0xB2));
+    let image = image_file("faraday-x86_64-uefi-dev-progress.img", &new);
+    assert!(image.sum.size > (to - from) as u64);
+    let mut disk = FileDisk::new(&path);
+    let order = disk.order(
+        Confirmed::Image {
+            path: image.path.display().to_string(),
+            sha256: image.sum.sha256.to_string(),
+        },
+        Mode::KeepData,
+    );
+    let mut seen = Vec::new();
+    let r = writer::write(
+        &order,
+        Job::Image(image).source(),
+        &mut disk,
+        &mut |stage, done, total| {
+            seen.push((stage, done, total));
+        },
+    );
+    assert_eq!(r, Ok(()));
+    let boot = (to - from) as u64;
+    // Writing and reading back each count the boot partition, to its
+    // end, and never the image's data partition.
+    for stage in [WriteStage::Writing, WriteStage::ReadingBack] {
+        let of: Vec<_> = seen.iter().filter(|s| s.0 == stage).collect();
+        assert!(
+            of.iter()
+                .all(|&&(_, done, total)| total == boot && done <= total)
+        );
+        assert_eq!(of.last().map(|s| s.1), Some(boot));
+    }
+}
+
+#[test]
 fn keep_data_over_a_disk_that_is_not_a_faraday_stick_writes_nothing() {
     let path = tmp("keep-not-faraday");
     let before = stick_image("11111111-2222-3333-4444-555555555555", 0xDA);

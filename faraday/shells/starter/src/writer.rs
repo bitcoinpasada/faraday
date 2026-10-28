@@ -17,7 +17,8 @@
 //! 4. *Keep data*: its partition table is a Faraday stick's, as
 //!    `faraday/image/stick-boot.sh` checks it, and only the boot
 //!    partition's range is written; a whole image's own boot partition
-//!    is taken from inside it as it streams.
+//!    is taken from inside it as it streams, and the progress counts that
+//!    partition's bytes alone, the only ones that reach the stick.
 //! 5. The source is decompressed as it is written, and its SHA-256 must
 //!    be the manifest's (or Confirm's); a signed boot file's partition
 //!    goes in place of the source's own; then everything is flushed.
@@ -27,6 +28,7 @@
 //! 8. The system is asked to read the partition table again.
 
 use std::borrow::Cow;
+use std::cell::Cell;
 use std::fs::File;
 use std::io::{self, BufReader, Cursor, Read, Seek, SeekFrom, Write};
 use std::sync::mpsc::Sender;
@@ -126,10 +128,16 @@ where
     std::thread::spawn(move || {
         let result = open().and_then(|mut device| {
             let mut last = None::<Instant>;
+            let mut sent = None;
             let mut progress = |stage, done, total| {
                 let now = Instant::now();
-                if done == total || last.is_none_or(|t| now - t >= PROGRESS_EVERY) {
+                // The end is sent once: keep data from a whole image
+                // stays at its boot partition's end while the rest of
+                // the image streams past.
+                let end = done == total && sent != Some((stage, done, total));
+                if end || last.is_none_or(|t| now - t >= PROGRESS_EVERY) {
                     last = Some(now);
+                    sent = Some((stage, done, total));
                     let _ = out.send(StarterEvent::WriteProgress { stage, done, total });
                 }
             };
@@ -182,10 +190,11 @@ impl Source<'_> {
             offset: 0,
             len: u64::MAX,
         };
-        let mut out = Window::new(Memory(Vec::new()), everything, self.size());
+        let range = Cell::new(None);
+        let mut out = Window::new(Memory(Vec::new()), everything, self.size(), &range);
         self.pump(&mut out, &mut |_, _| {})
             .map_err(payload_reason)?;
-        let at = out.range.map_or(0, |(from, _)| from);
+        let at = range.get().map_or(0, |(from, _)| from);
         Ok((at, out.out.sink.0))
     }
 
@@ -370,36 +379,31 @@ pub fn write(
         detail: e.to_string(),
     })?;
     // 4. Where it goes.
-    let (plan, table) = match order.mode {
-        Mode::Whole => (Plan::At(0), None),
-        Mode::KeepData => {
-            let not_stick = |fault| Reason::NotStick {
-                device: order.device.clone(),
-                fault,
-            };
-            let table = gpt::read(&mut |at, buf| read_exact_at(&mut disk, at, buf), len)
-                .map_err(not_stick)?;
-            let needs = if source.boot_only() { total } else { 0 };
-            let boot = gpt::faraday_boot(&table, needs).map_err(not_stick)?;
-            let before = regions(&mut disk, &table)?;
-            let plan = if source.boot_only() {
-                Plan::Boot(boot)
-            } else {
-                Plan::Within(boot, total)
-            };
-            (plan, Some((table, before)))
+    let (plan, table) = place(order, &source, &mut disk, len)?;
+    // Where a whole image's own boot partition lies in it, once the
+    // window has read the image's table: keep data's progress counts its
+    // bytes alone.
+    let range = Cell::new(None);
+    let mut report = |stage, done, total| match plan {
+        Plan::Within(stick, _) => {
+            let (done, total) = boot_progress(range.get(), stick.len, done);
+            progress(stage, done, total);
         }
+        Plan::At(_) | Plan::Boot(_) => progress(stage, done, total),
     };
     // 5. Written and flushed.
     {
-        let out = plan.writer(Writing {
-            disk: &mut disk,
-            buf: None,
-            block: block as usize,
-        });
+        let out = plan.writer(
+            Writing {
+                disk: &mut disk,
+                buf: None,
+                block: block as usize,
+            },
+            &range,
+        );
         let mut out = Patched::new(out, patch.as_ref());
         source
-            .pump(&mut out, &mut |d, t| progress(WriteStage::Writing, d, t))
+            .pump(&mut out, &mut |d, t| report(WriteStage::Writing, d, t))
             .map_err(payload_reason)?;
     }
     disk.sync_all().map_err(|e| Reason::Flush {
@@ -412,11 +416,9 @@ pub fn write(
     // 6. Read back and compared.
     let mut back = device.open_read()?;
     {
-        let mut out = Patched::new(plan.writer(Comparing(&mut back)), patch.as_ref());
+        let mut out = Patched::new(plan.writer(Comparing(&mut back), &range), patch.as_ref());
         source
-            .pump(&mut out, &mut |d, t| {
-                progress(WriteStage::ReadingBack, d, t)
-            })
+            .pump(&mut out, &mut |d, t| report(WriteStage::ReadingBack, d, t))
             .map_err(|e| read_back_reason(e, &order.device))?;
     }
     // 7. The partition table as it was.
@@ -432,6 +434,54 @@ pub fn write(
         eprintln!("faraday-starter: {}: {e:?}", order.device);
     }
     Ok(())
+}
+
+/// A stick's partition table and the bytes of the regions it names,
+/// read before keep data writes, to compare after.
+type KeptTable = (gpt::Table, Vec<Vec<u8>>);
+
+/// Where `source` goes on `disk` (`len` bytes long): from its first
+/// byte, or, for keep data, at the stick's boot partition, with the
+/// stick's partition table and what it holds, to check after the write.
+fn place(
+    order: &WriteOrder,
+    source: &Source<'_>,
+    disk: &mut File,
+    len: u64,
+) -> Result<(Plan, Option<KeptTable>), Reason> {
+    match order.mode {
+        Mode::Whole => Ok((Plan::At(0), None)),
+        Mode::KeepData => {
+            let not_stick = |fault| Reason::NotStick {
+                device: order.device.clone(),
+                fault,
+            };
+            let table =
+                gpt::read(&mut |at, buf| read_exact_at(disk, at, buf), len).map_err(not_stick)?;
+            let total = source.size();
+            let needs = if source.boot_only() { total } else { 0 };
+            let boot = gpt::faraday_boot(&table, needs).map_err(not_stick)?;
+            let before = regions(disk, &table)?;
+            let plan = if source.boot_only() {
+                Plan::Boot(boot)
+            } else {
+                Plan::Within(boot, total)
+            };
+            Ok((plan, Some((table, before))))
+        }
+    }
+}
+
+/// Keep data from a whole image: of the image's first `done` bytes,
+/// those inside its own boot partition (`range`, once its table is
+/// read), out of that partition's length, which is all that reaches the
+/// stick; before the table is read, none of the stick's boot partition
+/// (`stick` bytes).
+fn boot_progress(range: Option<(u64, u64)>, stick: u64, done: u64) -> (u64, u64) {
+    match range {
+        Some((from, to)) => (done.clamp(from, to) - from, to - from),
+        None => (0, stick),
+    }
 }
 
 /// Whether `seen` is the disk `order` confirmed: the same device,
@@ -633,11 +683,17 @@ enum Plan {
 }
 
 impl Plan {
-    fn writer<'a, K: Flush + 'a>(self, sink: K) -> Box<dyn Write + 'a> {
+    /// A writer to `sink`; a whole image's window keeps where its boot
+    /// partition lies in `range`.
+    fn writer<'a, K: Flush + 'a>(
+        self,
+        sink: K,
+        range: &'a Cell<Option<(u64, u64)>>,
+    ) -> Box<dyn Write + 'a> {
         match self {
             Plan::At(base) => Box::new(Placed::new(sink, base, false)),
             Plan::Boot(b) => Box::new(Placed::new(sink, b.offset, true)),
-            Plan::Within(b, total) => Box::new(Window::new(sink, b, total)),
+            Plan::Within(b, total) => Box::new(Window::new(sink, b, total, range)),
         }
     }
 }
@@ -908,25 +964,27 @@ impl<K: Flush> Write for Placed<K> {
 /// from its first bytes, must be a Faraday stick's, and its boot
 /// partition must fit the stick's; nothing reaches the disk before all
 /// of that holds.
-struct Window<K: Flush> {
+struct Window<'r, K: Flush> {
     out: Buffered<K>,
     target: Boot,
     total: u64,
     pos: u64,
     head: Vec<u8>,
-    range: Option<(u64, u64)>,
+    /// The image's boot partition, from its first byte to past its
+    /// last, once its table is read; shared with the write's progress.
+    range: &'r Cell<Option<(u64, u64)>>,
     first: Vec<u8>,
 }
 
-impl<K: Flush> Window<K> {
-    fn new(sink: K, target: Boot, total: u64) -> Self {
+impl<'r, K: Flush> Window<'r, K> {
+    fn new(sink: K, target: Boot, total: u64, range: &'r Cell<Option<(u64, u64)>>) -> Self {
         Window {
             out: Buffered::new(sink),
             target,
             total,
             pos: 0,
             head: Vec::new(),
-            range: None,
+            range,
             first: Vec::new(),
         }
     }
@@ -954,7 +1012,7 @@ impl<K: Flush> Window<K> {
                 stick: self.target.len,
             }));
         }
-        self.range = Some((boot.offset, boot.offset + boot.len));
+        self.range.set(Some((boot.offset, boot.offset + boot.len)));
         let held = std::mem::take(&mut self.head);
         self.pass(0, &held)
     }
@@ -962,7 +1020,7 @@ impl<K: Flush> Window<K> {
     /// The part of `data`, which starts at image byte `at`, inside the
     /// image's boot partition, to the stick's.
     fn pass(&mut self, at: u64, data: &[u8]) -> io::Result<()> {
-        let Some((r0, r1)) = self.range else {
+        let Some((r0, r1)) = self.range.get() else {
             return Ok(());
         };
         let end = at + data.len() as u64;
@@ -988,11 +1046,11 @@ impl<K: Flush> Window<K> {
     }
 }
 
-impl<K: Flush> Write for Window<K> {
+impl<K: Flush> Write for Window<'_, K> {
     fn write(&mut self, data: &[u8]) -> io::Result<usize> {
         let at = self.pos;
         self.pos += data.len() as u64;
-        if self.range.is_none() {
+        if self.range.get().is_none() {
             let take = (HEAD - self.head.len()).min(data.len());
             self.head.extend_from_slice(&data[..take]);
             if self.head.len() < HEAD && self.pos < self.total {
@@ -1007,7 +1065,7 @@ impl<K: Flush> Write for Window<K> {
     }
 
     fn flush(&mut self) -> io::Result<()> {
-        if self.range.is_none() {
+        if self.range.get().is_none() {
             self.locate()?;
         }
         self.out.done()
