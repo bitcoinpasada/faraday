@@ -456,6 +456,50 @@ fn a_key_with_no_kept_revocation_makes_one_when_its_page_is_opened() {
     assert!(record(&app).field(8).is_some());
 }
 
+/// The key's page at 1280 × 800: its Renew for row wraps (Never on a
+/// second row), and Backup and the rows under it start below it, not
+/// over it.
+#[test]
+fn the_keys_page_draws_no_text_over_other_text() {
+    let mut app = unlocked();
+    keep_the_time(&mut app);
+    make_key(&mut app, "Test Person <test@example.com>");
+    app.event(Event::Display(DisplayInfo {
+        width: 1280,
+        height: 800,
+        dpi: 160,
+        inset_bottom: 0,
+        inset_top: 0,
+        buttons: 0,
+        camera_fixed: false,
+        secure: SecureHardware::None,
+        boot: BootState::Unknown,
+        memory_mib: None,
+    }));
+    app.press(Action::Nav(Screen::VaultContents));
+    app.press(Action::Vault(V::Category(4)));
+    app.press(Action::Vault(V::Item(0)));
+    let texts = app.drawn_past_sides_and_text().1;
+    assert!(
+        texts.iter().any(|(t, _)| t == "Never"),
+        "{:?} {:?} {:?}",
+        app.screen,
+        app.sheet,
+        app.toast_text()
+    );
+    let mut over = Vec::new();
+    for (i, (a, ra)) in texts.iter().enumerate() {
+        for (b, rb) in &texts[i + 1..] {
+            let w = (ra.0 + ra.2).min(rb.0 + rb.2) - ra.0.max(rb.0);
+            let h = (ra.1 + ra.3).min(rb.1 + rb.3) - ra.1.max(rb.1);
+            if w > 1 && h > 1 && a != b {
+                over.push(format!("{a:?} over {b:?}"));
+            }
+        }
+    }
+    assert!(over.is_empty(), "{over:?}");
+}
+
 /// A scratch GnuPG home; GnuPG 2.4 is on the build machine, and a machine
 /// without it fails the test unless `FARADAY_SKIP_GNUPG=1`.
 struct Home(PathBuf);

@@ -3115,7 +3115,7 @@ fn detail(
                         va(V::GpgRenew),
                     );
                 }
-                dy = ry + 46.0;
+                dy = (ry + 46.0).max(dy + yh + faraday_draw::tokens::GAP * 2.0);
             }
             dy += backup_row(app, ui, crate::backup_flow::Kind::Gpg, r, dx, dy, dw);
             // Each file on a row of its own: to the Outbox, as a code,

@@ -4,7 +4,7 @@ use crate::tour::{Tour, bmap, boff, keep_vault, type_text, vault_place};
 use faraday_core::board::{BoardPress as BP, Chip, Thing, Zone};
 use faraday_core::plan::{self as fplan, At, What};
 use faraday_core::vault::VaultAction as V;
-use faraday_core::{Action, Screen, StickInfo, StorageEvent, bstep, qstep};
+use faraday_core::{Action, Screen, StickInfo, StorageEvent, bstep};
 use faraday_crypto::work::Compute;
 
 /// Costs a map of the plan (through `bmap`). Every seed's words and
@@ -129,17 +129,13 @@ pub(crate) fn wallet_flow_tour(c: &Compute, t: &mut Tour) -> Result<(), String> 
     t.pump();
     t.shot("wallet-flow-9-write")?;
     // Change the plan in the flow: the board, drawn in the flow on the
-    // flow's own plan (`docs/BACKUP-FLOW.md` §17.12 item 1): The plan,
-    // then the board after the lock, Seed 1 selected, a vault's stick
-    // also at another place.
+    // flow's own plan (`docs/BACKUP-FLOW.md` §17.12 item 1), after the
+    // lock. A wallet's plan opens on its board (§17.21 item 11); then a
+    // vault's chip held.
     t.press(Action::Flow(F::ChangePlan));
-    t.shot("wallet-flow-9a-plan-card")?;
-    t.press(Action::Flow(F::Plan(faraday_core::PlanPress::Q(
-        qstep::BOARD,
-    ))));
-    t.shot("wallet-flow-9b-plan-board")?;
+    t.shot("wallet-flow-9a-plan-board")?;
     t.press(Action::Board(BP::Chip(Chip::List(Thing::Vault(0)))));
-    t.shot("wallet-flow-9c-plan-board-vault-held")?;
+    t.shot("wallet-flow-9b-plan-board-vault-held")?;
     t.press(Action::Cancel);
     if let Some(n) = t.app.flow().map(|f| f.step.n()) {
         t.press(Action::Flow(F::Open(n)));

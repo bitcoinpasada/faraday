@@ -698,9 +698,15 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         if group.is_empty() {
             continue;
         }
-        let lw = ui.text_as(ox, oy, LABEL_M, tone, label);
-        ui.text_as(ox + lw + 10.0, oy, BODY_S, Role::OnSurfaceVariant, &line);
-        oy += ui.line_as(BODY_S) + faraday_draw::tokens::GRID;
+        // The line beside the label, wrapped to the column.
+        let lw = ui.text_as(ox, oy, LABEL_M, tone, label) + 10.0;
+        let lh = ui.wrap_as(
+            (ox + lw, oy, colw - lw),
+            BODY_S,
+            Role::OnSurfaceVariant,
+            &line,
+        );
+        oy += lh.max(ui.line_as(BODY_S)) + faraday_draw::tokens::GRID;
         for (k, item) in group {
             if !ui.shows(oy, 66.0) {
                 oy += 78.0;

@@ -603,6 +603,15 @@ fn a_power_off_between_writes_leaves_the_copy_and_the_key_signs_at_once_from_it(
     fresh.press(Action::Vault(V::Item(0)));
     assert!(fresh.backup_row(Kind::Gpg, &[0; 20]).is_none());
     assert!(!has(&mut fresh, "Back up first"));
+    // Its actions are under the renew terms and the Backup row: the page
+    // scrolled down to them.
+    for _ in 0..6 {
+        fresh.event(faraday_shell_api::Event::Scroll {
+            x: 1000,
+            y: 400,
+            dy: 120,
+        });
+    }
     assert!(has(&mut fresh, "Sign a file"));
     fresh.press(Action::Vault(V::GpgSignPick));
     assert!(fresh.vaults().signing, "signing opens");
