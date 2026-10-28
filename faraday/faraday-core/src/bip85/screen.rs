@@ -125,11 +125,7 @@ fn card(app: &View, b: &Bip85State, ui: &mut Ui, s: u8, x: f32, y: f32, w: f32) 
                     let fp = k.fingerprint;
                     (
                         crate::wallet::key_line(fp, &k.label),
-                        if b.key == Some(fp.0) {
-                            Style::Primary
-                        } else {
-                            Style::Secondary
-                        },
+                        Style::chosen(b.key == Some(fp.0)),
                         Action::PKey(fp.0),
                     )
                 })
@@ -143,11 +139,7 @@ fn card(app: &View, b: &Bip85State, ui: &mut Ui, s: u8, x: f32, y: f32, w: f32) 
                 .map(|(i, a)| {
                     (
                         app_name(*a).to_string(),
-                        if *a == b.app {
-                            Style::Primary
-                        } else {
-                            Style::Secondary
-                        },
+                        Style::chosen(*a == b.app),
                         Action::PApp(i as u8),
                     )
                 })

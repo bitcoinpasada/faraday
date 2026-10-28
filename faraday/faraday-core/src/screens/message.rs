@@ -126,11 +126,7 @@ fn message_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
             let mut bx = x;
             for wi in app.session.message_wallets() {
                 let wl = &app.session.wallets[wi];
-                let style = if m.wallet == Some(wi) {
-                    Style::Primary
-                } else {
-                    Style::Secondary
-                };
+                let style = Style::chosen(m.wallet == Some(wi));
                 bx += ui.button(bx, cy, None, BUTTON_H, &wl.name, style, Action::MWallet(wi)) + 8.0;
             }
             cy += 48.0;
@@ -174,19 +170,16 @@ fn message_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
         }
         mstep::TEXT => {
             let box_h = 120.0;
-            ui.fill(x, cy, w, box_h, 8.0, Role::SurfaceContainerHighest);
-            ui.stroke(
-                x,
-                cy,
-                w,
-                box_h,
-                8.0,
-                if m.typing {
-                    Role::Primary.with_alpha(110)
-                } else {
-                    Role::OutlineVariant.paint()
-                },
-            );
+            // Material's outlined text field: its edge in outline, in
+            // primary and thicker while typing goes to it.
+            use faraday_draw::tokens::{FIELD_EDGE, FIELD_EDGE_ACTIVE, FIELD_RADIUS};
+            let (edge, width) = if m.typing {
+                (Role::Primary, FIELD_EDGE_ACTIVE)
+            } else {
+                (Role::Outline, FIELD_EDGE)
+            };
+            let field = (x, cy, w, box_h);
+            crate::menu::outline(ui, field, FIELD_RADIUS, width, edge.paint());
             let shown = if m.text.is_empty() {
                 if m.typing {
                     EN.message_type_the_message.to_string()
@@ -199,20 +192,18 @@ fn message_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                 m.text.clone()
             };
             ui.c.push_clip(ui.rect(x, cy, w, box_h));
-            if m.typing && ui.edit.all(m.text.chars().count()) {
-                ui.fill(
-                    x + 4.0,
-                    cy + 4.0,
-                    w - 8.0,
-                    box_h - 8.0,
-                    6.0,
-                    Role::Primary.with_alpha(40),
-                );
+            // All of it selected: on the one selection paint, in its ink.
+            let selected = m.typing && ui.edit.all(m.text.chars().count());
+            if selected {
+                let pad = 2.0 * FIELD_EDGE_ACTIVE;
+                ui.selection_band(x + pad, cy + pad, w - 2.0 * pad, box_h - 2.0 * pad);
             }
             ui.wrap_as(
                 (x + 14.0, cy + 12.0, w - 28.0),
                 BODY_M,
-                if m.text.is_empty() {
+                if selected {
+                    faraday_ui::SELECTION_INK
+                } else if m.text.is_empty() {
                     Role::OnSurfaceVariant
                 } else {
                     Role::OnSurface
@@ -267,10 +258,8 @@ fn message_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                 };
                 let style = if !allowed.contains(&f) {
                     Style::Disabled
-                } else if m.bip322 == is322 {
-                    Style::Primary
                 } else {
-                    Style::Secondary
+                    Style::chosen(m.bip322 == is322)
                 };
                 bx += ui.button(
                     bx,

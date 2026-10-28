@@ -13,6 +13,7 @@ use faraday_draw::tokens::{
 };
 use faraday_draw::widgets::Icon;
 use faraday_psbt::{Level, OutputKind};
+use faraday_ui::Status;
 use faraday_ui::parts::{title, wrap_buttons};
 
 /// The nonce check: each signature against its key and this
@@ -757,20 +758,14 @@ pub(crate) fn step_body(
             }
             if !warned {
                 let mut chx = x;
-                chx += ui.chip(
-                    chx,
-                    cy,
-                    EN.step_no_warnings,
-                    Role::OnOkContainer,
-                    Role::OkContainer,
-                ) + 6.0;
+                chx += ui.tag(chx, cy, EN.step_no_warnings, Status::Ok) + 6.0;
                 let net = app.session.network();
-                let c = if net.is_mainnet() {
-                    Role::Ok
+                let status = if net.is_mainnet() {
+                    Status::Ok
                 } else {
-                    Role::Warning
+                    Status::Warning
                 };
-                ui.chip(chx, cy, network_name(net), c, c.with_alpha(26));
+                ui.tag(chx, cy, network_name(net), status);
                 cy += 34.0;
             }
             if s.table && compact {
@@ -960,18 +955,14 @@ pub(crate) fn step_body(
                                 );
                             }
                             None => {
-                                let (t, fg, bg) = if slot.held_by.is_some() {
-                                    (EN.step_signs_here, Role::OnOkContainer, Role::OkContainer)
+                                let (t, status) = if slot.held_by.is_some() {
+                                    (EN.step_signs_here, Status::Ok)
                                 } else {
-                                    (
-                                        EN.step_not_here,
-                                        Role::OnSurfaceVariant,
-                                        Role::SurfaceContainerHighest,
-                                    )
+                                    (EN.step_not_here, Status::Neutral)
                                 };
                                 let cw2 = ui.measure_as(BODY_S, t) + 34.0;
                                 let chip_x = if compact { x + 22.0 } else { x + w - cw2 };
-                                ui.chip(chip_x, cy + 8.0, t, fg, bg);
+                                ui.tag(chip_x, cy + 8.0, t, status);
                             }
                         }
                         ui.rule(x, cy + 42.0, w, Role::OutlineVariant);
@@ -1025,7 +1016,7 @@ pub(crate) fn step_body(
                     .collect();
                 let mut items: Vec<(&str, Style, Action)> = Vec::new();
                 if let Some((wi, _)) = wl {
-                    let scan = if may { Style::Primary } else { Style::Disabled };
+                    let scan = Style::Primary.when(may);
                     items.push((EN.step_scan_a_key, scan, Action::ScanKey(wi)));
                 }
                 items.extend(unlocks.iter().map(|(l, a)| (l.as_str(), style, *a)));
@@ -1484,17 +1475,13 @@ pub(crate) fn step_body(
                     let mut kx = left;
                     for (slot, fp, here) in &p.keys {
                         let t = fill(EN.step_key, &[&slot.to_string(), &fp.to_string()]);
-                        let (fg, bg) = if *here {
-                            (Role::OnOkContainer, Role::OkContainer)
-                        } else {
-                            (Role::OnSurfaceVariant, Role::SurfaceContainerHighest)
-                        };
+                        let status = if *here { Status::Ok } else { Status::Neutral };
                         let kw = ui.measure_as(BODY_S, &t) + 34.0;
                         if kx > left && kx + kw > x + w - 10.0 {
                             kx = left;
                             ky += 30.0;
                         }
-                        kx += ui.chip(kx, ky, &t, fg, bg) + 6.0;
+                        kx += ui.tag(kx, ky, &t, status) + 6.0;
                     }
                     let mut ly = ky + 32.0;
                     if p.locks.is_empty() {
@@ -1725,16 +1712,10 @@ pub(crate) fn signers_count(
         let cw = ui.measure_as(BODY_S, t) + 34.0;
         if used + 10.0 + cw > w {
             cy += 36.0;
-            ui.chip(x, cy + 7.0, t, Role::OnOkContainer, Role::OkContainer);
+            ui.tag(x, cy + 7.0, t, Status::Ok);
             used = cw;
         } else {
-            ui.chip(
-                x + used + 10.0,
-                cy + 7.0,
-                t,
-                Role::OnOkContainer,
-                Role::OkContainer,
-            );
+            ui.tag(x + used + 10.0, cy + 7.0, t, Status::Ok);
             used += 10.0 + cw;
         }
     }
@@ -1787,7 +1768,7 @@ fn review_stop_block(
         w,
         EN.step_fee_hold,
         Action::ReviewHold,
-        Role::Error.paint(),
+        faraday_ui::hold::HoldTone::Error,
     );
     cy += CHIP_LINE + GAP;
     cy - y

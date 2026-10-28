@@ -14,8 +14,10 @@ use crate::ui::{CoreUi, Style, Ui, W};
 use crate::wallet::{Session, fp_text};
 use crate::{Action, Screen};
 use faraday_draw::tokens::{
-    BODY_L, BODY_M, BODY_S, BUTTON_H, FIELD_H, FIELD_PAD, LABEL_L, LABEL_M, LABEL_S, TITLE_M,
+    BODY_L, BODY_M, BODY_S, BUTTON_H, FIELD_H, FIELD_PAD, LABEL_L, LABEL_M, LABEL_S, SHAPE_M,
+    TITLE_M,
 };
+use faraday_ui::Status;
 
 pub(crate) use faraday_ui::parts::measured;
 
@@ -34,7 +36,6 @@ pub(crate) fn row(
     action: Option<Action>,
 ) -> f32 {
     let enabled = action.is_some();
-    let pressed = action.is_some_and(|a| ui.is_pressed(a));
     // The icon grows with the label (`docs/TEXT-SIZE.md` §3).
     let ib = ui.row_icon(32.0);
     let mut tx = x + 14.0;
@@ -56,8 +57,8 @@ pub(crate) fn row(
         ui.line_as(BODY_S)
     };
     let h = 56.0 + (lines - 1) as f32 * line_h + (line_h + sub_h) * more;
-    crate::ui::fill_pressed(ui, (x, y, w, h, 10.0), Role::SurfaceContainerLow, pressed);
-    ui.stroke(x, y, w, h, 10.0, Role::OutlineVariant.paint());
+    ui.fill(x, y, w, h, SHAPE_M, Role::SurfaceContainerLow);
+    ui.stroke(x, y, w, h, SHAPE_M, Role::OutlineVariant.paint());
     if let Some(i) = icon {
         let (bg, fg) = if enabled {
             (
@@ -99,7 +100,7 @@ pub(crate) fn row(
             9.0,
             Role::OnSurfaceVariant,
         );
-        ui.hit(x, y, w, h, a);
+        ui.hit_shaped((x, y, w, h, SHAPE_M), a);
     }
     h + 8.0
 }
@@ -169,25 +170,16 @@ pub(crate) fn wallet_card(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         }),
     };
     if let Some((line, action)) = lead {
-        let bg = if ui.is_pressed(action) {
-            Role::Primary.with_alpha(40)
-        } else {
-            Role::Primary.with_alpha(18)
-        };
-        ui.fill(x, cy, iw, 44.0, 10.0, bg);
-        ui.stroke(x, cy, iw, 44.0, 10.0, Role::Primary.with_alpha(76));
-        ui.icon(x + 10.0, cy + 12.0, 20.0, Icon::File, 12.0, Role::Primary);
+        // A filled card: what leads stands in secondary-container, never
+        // a tint (`docs/DESIGN.md` §3).
+        let ink = Role::OnSecondaryContainer;
+        ui.fill(x, cy, iw, 44.0, SHAPE_M, Role::SecondaryContainer);
+        ui.icon(x + 10.0, cy + 12.0, 20.0, Icon::File, 12.0, ink);
         let line = ui.fit_as(LABEL_L, &line, iw - 64.0);
-        ui.text_mid_as((x + 36.0, cy, 44.0), LABEL_L, Role::OnSurface, &line);
-        ui.icon(
-            x + iw - 24.0,
-            cy + 12.0,
-            20.0,
-            Icon::ChevronRight,
-            9.0,
-            Role::Primary,
-        );
-        ui.hit(x, cy, iw, 44.0, action);
+        ui.text_mid_as((x + 36.0, cy, 44.0), LABEL_L, ink, &line);
+        ui.icon(x + iw - 24.0, cy + 12.0, 20.0, Icon::ChevronRight, 9.0, ink);
+        ui.state_layer((x, cy, iw, 44.0, SHAPE_M), ink.paint(), action);
+        ui.hit_ringed((x, cy, iw, 44.0, SHAPE_M), (x, cy, iw, 44.0), action);
         cy += 56.0;
     }
 
@@ -269,16 +261,12 @@ pub(crate) fn wallet_card(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     );
     if can {
         // A key not of the wallet spends it alone: never the plain green.
-        let (t, on, bg) = if crate::wallet::another_key_spends(wlt) {
-            (
-                EN.wallets_another_can_spend,
-                Role::OnErrorContainer,
-                Role::ErrorContainer,
-            )
+        let (t, status) = if crate::wallet::another_key_spends(wlt) {
+            (EN.wallets_another_can_spend, Status::Error)
         } else {
-            (EN.compact_can_spend, Role::OnOkContainer, Role::OkContainer)
+            (EN.compact_can_spend, Status::Ok)
         };
-        ui.chip(x + 14.0, cy + 38.0, t, on, bg);
+        ui.tag(x + 14.0, cy + 38.0, t, status);
     } else {
         ui.button(
             x + 10.0,
@@ -426,23 +414,15 @@ fn silent_card(
         Role::OnSurface,
         &fp_text(r.fingerprint),
     );
-    let (state, fg, bg) = if app.silent_differs(app.wallets.wallet()) {
-        (
-            EN.silent_wallet_card_differs,
-            Role::OnErrorContainer,
-            Role::ErrorContainer,
-        )
+    let (state, status) = if app.silent_differs(app.wallets.wallet()) {
+        (EN.silent_wallet_card_differs, Status::Error)
     } else if held.is_some() {
-        (EN.compact_here, Role::OnOkContainer, Role::OkContainer)
+        (EN.compact_here, Status::Ok)
     } else {
-        (
-            EN.compact_not_here,
-            Role::OnSurfaceVariant,
-            Role::SurfaceContainerHighest,
-        )
+        (EN.compact_not_here, Status::Neutral)
     };
     let chipw = ui.measure_as(BODY_S, state) + 34.0;
-    ui.chip(x + iw - chipw, cy + 3.0, state, fg, bg);
+    ui.tag(x + iw - chipw, cy + 3.0, state, status);
     cy += 30.0;
     if let Some(label) = held {
         if !label.trim().eq_ignore_ascii_case(&fp_text(r.fingerprint)) {
@@ -635,11 +615,7 @@ pub(crate) fn entry(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             .map(|(i, f)| {
                 (
                     f.name().to_string(),
-                    if *f == es.form {
-                        Style::Primary
-                    } else {
-                        Style::Secondary
-                    },
+                    Style::chosen(*f == es.form),
                     Action::EntryForm(i as u8),
                 )
             })
@@ -742,7 +718,7 @@ pub(crate) fn entry_words(app: &View, ui: &mut Ui, x: f32, y: f32, iw: f32, page
                 (
                     crate::forms::language_name(*l).to_string(),
                     if *l == lang {
-                        Style::Primary
+                        Style::Selected
                     } else {
                         Style::Ghost
                     },
@@ -867,18 +843,7 @@ pub(crate) fn keyed_taken(
         let cx = x + (k % cols) as f32 * (cellw + 6.0);
         let cy = y + (k / cols) as f32 * 32.0;
         ui.fill(cx, cy, cellw, 28.0, 6.0, Role::SurfaceContainerHighest);
-        ui.stroke(
-            cx,
-            cy,
-            cellw,
-            28.0,
-            6.0,
-            if k == taken.len() {
-                Role::Primary.with_alpha(110)
-            } else {
-                Role::OutlineVariant.paint()
-            },
-        );
+        crate::screens::word_cell_edge(ui, (cx, cy, cellw, 28.0), k == taken.len());
         ui.text_mid_as(
             (cx + 6.0, cy, 28.0),
             LABEL_S,

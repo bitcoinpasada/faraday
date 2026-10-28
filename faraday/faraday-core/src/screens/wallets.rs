@@ -10,6 +10,7 @@ use crate::{Action, Screen};
 use faraday_draw::tokens::{self};
 use faraday_draw::tokens::{BODY_L, BODY_M, BODY_S, BUTTON_H, LABEL_L, LABEL_M, TITLE_L};
 use faraday_draw::widgets::Icon;
+use faraday_ui::Status;
 use faraday_ui::parts::{section_label, title, wrap_buttons};
 
 /// The line beside key `fp`'s fingerprint where the codex32 strings it
@@ -61,9 +62,7 @@ pub(crate) fn slot_marks(
 pub(crate) fn backup_line(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, i: usize) -> f32 {
     let line = app.backup_line(i);
     let action = Action::BackupsOf(i);
-    let tone = if ui.is_pressed(action) {
-        Role::Primary
-    } else if line.starts_with(
+    let tone = if line.starts_with(
         EN.backups_backup
             .split("{}")
             .next()
@@ -408,23 +407,17 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     if let Some((name, where_, action, verb)) = lead
         && !app.session.wallets.is_empty()
     {
-        let bg = if ui.is_pressed(action) {
-            Role::Primary.with_alpha(40)
-        } else {
-            Role::Primary.with_alpha(18)
-        };
-        ui.fill(x, y, width, 48.0, 12.0, bg);
-        ui.stroke(x, y, width, 48.0, 12.0, Role::Primary.with_alpha(76));
-        ui.icon(x + 14.0, y + 14.0, 20.0, Icon::File, 13.0, Role::Primary);
-        let nw = ui.text_mid_as((x + 44.0, y, 48.0), BODY_M.mono(), Role::OnSurface, &name);
-        ui.text_mid_as(
-            (x + 56.0 + nw, y, 48.0),
-            BODY_M,
-            Role::OnSurfaceVariant,
-            where_,
-        );
-        ui.text_right_as((x + width - 18.0, y, 48.0), LABEL_L, Role::Primary, verb);
-        ui.hit(x, y, width, 48.0, action);
+        // A filled card: what leads stands in secondary-container, never
+        // a tint (`docs/DESIGN.md` §3).
+        let ink = Role::OnSecondaryContainer;
+        let card = (x, y, width, 48.0, tokens::SHAPE_M);
+        ui.fill(x, y, width, 48.0, tokens::SHAPE_M, Role::SecondaryContainer);
+        ui.icon(x + 14.0, y + 14.0, 20.0, Icon::File, 13.0, ink);
+        let nw = ui.text_mid_as((x + 44.0, y, 48.0), BODY_M.mono(), ink, &name);
+        ui.text_mid_as((x + 56.0 + nw, y, 48.0), BODY_M, ink, where_);
+        ui.text_right_as((x + width - 18.0, y, 48.0), LABEL_L, ink, verb);
+        ui.state_layer(card, ink.paint(), action);
+        ui.hit_ringed(card, (x, y, width, 48.0), action);
         y += 64.0;
     }
 
@@ -472,14 +465,10 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 8.0,
                 Role::SurfaceContainerHighest,
             );
-            ui.stroke(
-                ix - 6.0,
-                cy - 4.0,
-                360.0,
-                38.0,
-                8.0,
-                Role::Primary.with_alpha(110),
-            );
+            // Typing goes to it: Material's focused field indicator.
+            let field = (ix - 6.0, cy - 4.0, 360.0, 38.0);
+            let width = faraday_draw::tokens::FIELD_EDGE_ACTIVE;
+            crate::menu::outline(ui, field, 8.0, width, Role::Primary.paint());
             ui.typed(
                 ix,
                 cy - 4.0,
@@ -630,17 +619,13 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     // (`docs/history/SCAN-TO-SIGN.md` §2.2).
     if app.can_spend(app.wallets.wallet()) {
         // A key not of the wallet spends it alone: never the plain green.
-        let (t, on, bg) = if crate::wallet::another_key_spends(wlt) {
-            (
-                EN.wallets_another_can_spend,
-                Role::OnErrorContainer,
-                Role::ErrorContainer,
-            )
+        let (t, status) = if crate::wallet::another_key_spends(wlt) {
+            (EN.wallets_another_can_spend, Status::Error)
         } else {
-            (EN.wallets_can_spend, Role::OnOkContainer, Role::OkContainer)
+            (EN.wallets_can_spend, Status::Ok)
         };
         let chipw = ui.measure_as(BODY_S, t) + 34.0;
-        ui.chip(ix + iw - 16.0 - chipw, cy + 12.0, t, on, bg);
+        ui.tag(ix + iw - 16.0 - chipw, cy + 12.0, t, status);
     } else {
         let label = EN.wallets_scan_a_key;
         let bw = ui.measure_as(LABEL_L, label) + 32.0;
@@ -835,24 +820,12 @@ fn silent_wallet_card(
     if let Some(label) = held {
         ui.text_mid_as((ix + 104.0, cy, 46.0), BODY_S, muted, label);
     }
-    let (state, fg, bg) = if app.silent_differs(app.wallets.wallet()) {
-        (
-            EN.silent_wallet_card_differs,
-            Role::OnErrorContainer,
-            Role::ErrorContainer,
-        )
+    let (state, status) = if app.silent_differs(app.wallets.wallet()) {
+        (EN.silent_wallet_card_differs, Status::Error)
     } else if held.is_some() {
-        (
-            EN.silent_wallet_card_here,
-            Role::OnOkContainer,
-            Role::OkContainer,
-        )
+        (EN.silent_wallet_card_here, Status::Ok)
     } else {
-        (
-            EN.silent_wallet_card_not_here,
-            muted,
-            Role::SurfaceContainerHighest,
-        )
+        (EN.silent_wallet_card_not_here, Status::Neutral)
     };
     let button = held.is_none().then(|| {
         let slot = crate::wallet::Slot::bare(r.fingerprint);
@@ -875,7 +848,7 @@ fn silent_wallet_card(
     });
     let bw = button.map_or(0.0, |(l, _, _)| ui.measure_as(LABEL_L, l) + 28.0);
     let chipw = ui.measure_as(BODY_S, state) + 34.0;
-    ui.chip(ix + iw - bw - 10.0 - chipw, cy + 10.0, state, fg, bg);
+    ui.tag(ix + iw - bw - 10.0 - chipw, cy + 10.0, state, status);
     if let Some((label, style, action)) = button {
         let style = if may { style } else { Style::Disabled };
         ui.button(

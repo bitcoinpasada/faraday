@@ -91,16 +91,6 @@ fn send(app: &View, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     ui.rule(x, y, w, Role::OutlineVariant);
     for (i, (name, size)) in t.files.iter().enumerate() {
         let action = Action::TransferSend(i);
-        if ui.is_pressed(action) {
-            ui.wash(
-                x - 8.0,
-                y,
-                w + 16.0,
-                ROW,
-                8.0,
-                Role::OnSurface.at(faraday_draw::tokens::STATE_PRESS),
-            );
-        }
         let over = *size > crate::transfer::MAX_SEND;
         let tail = if over {
             EN.transfer_over_256_kib.to_string()

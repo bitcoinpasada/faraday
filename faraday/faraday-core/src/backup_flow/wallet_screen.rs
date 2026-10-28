@@ -275,10 +275,8 @@ fn ask_card(
     let style = |on: bool| {
         if locked {
             Style::Disabled
-        } else if on {
-            Style::Primary
         } else {
-            Style::Secondary
+            Style::chosen(on)
         }
     };
     let bw = 96.0;
@@ -307,11 +305,7 @@ fn ask_card(
         let label = FEN.create_continue;
         let lw = ui.measure_as(LABEL_L, label) + 36.0;
         // Nothing is asked of the person until they have answered.
-        let style = if ask.answer.is_some() {
-            Style::Primary
-        } else {
-            Style::Disabled
-        };
+        let style = Style::Primary.when(ask.answer.is_some());
         ui.button(x + w - lw, cy, Some(lw), BUTTON_H, label, style, next);
         cy += 48.0;
     }

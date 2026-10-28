@@ -19,7 +19,7 @@ use crate::ui::{Glyph, Style, Ui};
 use crate::{Action, Faraday, Screen};
 use faraday_draw::tokens::{
     APP_BAR_H, BODY_S, BUTTON_H, GAP, GAP_SMALL, ICON_BUTTON, LABEL_L, LABEL_S, MARGIN_COMPACT,
-    MODE_PILL_HEIGHT, TOUCH,
+    MODE_PILL_HEIGHT, SHAPE_M, SHAPE_XS, TOUCH,
 };
 use faraday_ui::nav::AppBar;
 pub(crate) use faraday_ui::sheet::{
@@ -339,8 +339,11 @@ pub(crate) fn wide_eye_button(app: &View, ui: &mut Ui, right: f32) {
 
 /// An eye's press target at `rect`, with the tooltip that names what a
 /// press does: it hides what `shown` shows, and shows what is hidden.
+/// Pressed, no layer goes over the secret it shows ([`Ui::hit_held`]).
 pub(crate) fn eye_hit(ui: &mut Ui, rect: (f32, f32, f32, f32), action: Action, shown: bool) {
-    ui.hit_tip(rect, action, if shown { EN.tip_hide } else { EN.tip_show });
+    let (x, y, w, h) = rect;
+    ui.hit_held(x, y, w, h, action);
+    ui.tip_plain(rect, action, if shown { EN.tip_hide } else { EN.tip_show });
 }
 
 /// The wide layout's keyboard button, in the top-right row its right
@@ -359,11 +362,9 @@ pub(crate) fn wide_keyboard_button(app: &View, ui: &mut Ui, right: f32) {
     let (s, y) = (28.0, 12.0);
     let x = right - s;
     let tint = if shown {
-        Role::SecondaryContainer.paint()
-    } else if ui.is_pressed(action) || ui.is_hovered(action) {
-        Role::SurfaceContainerHighest.paint()
+        Role::SecondaryContainer
     } else {
-        Role::Surface.paint()
+        Role::Surface
     };
     ui.fill(x, y, s, s, s / 2.0, tint);
     ui.stroke(
@@ -382,7 +383,8 @@ pub(crate) fn wide_keyboard_button(app: &View, ui: &mut Ui, right: f32) {
         13.0,
         crate::ui::pal::on_selected(shown, Role::OnSurfaceVariant),
     );
-    ui.hit_tip(
+    ui.hit_shaped((x, y, s, s, s / 2.0), action);
+    ui.tip_plain(
         (x - 6.0, y - 6.0, s + 12.0, s + 12.0),
         action,
         EN.tip_keyboard,
@@ -576,19 +578,13 @@ pub(crate) fn home(app: &View, ui: &mut Ui, w: f32, h: f32) {
         Screen::Wallets
     };
     let action = Action::Nav(session);
-    let pressed = ui.is_pressed(action);
     // Its two lines, the card as tall as they need (`docs/TEXT-SIZE.md`
     // §5).
     let (l1, l2) = (ui.line_as(LABEL_L), ui.line_as(BODY_S));
     let card_h = ui.row_height(52.0, l1 + l2, faraday_draw::tokens::GRID);
     let top = y + (card_h - l1 - l2) / 2.0;
-    crate::ui::fill_pressed(
-        ui,
-        (M, y, inner, card_h, 10.0),
-        Role::SurfaceContainerLow,
-        pressed,
-    );
-    ui.stroke(M, y, inner, card_h, 10.0, Role::OutlineVariant);
+    ui.fill(M, y, inner, card_h, SHAPE_M, Role::SurfaceContainerLow);
+    ui.stroke(M, y, inner, card_h, SHAPE_M, Role::OutlineVariant);
     ui.dot(M + 16.0, top + l1 / 2.0, 4.0, dot);
     let line = ui.fit_as(LABEL_L, &line, inner - 40.0);
     ui.text_mid_as((M + 28.0, top, l1), LABEL_L, Role::OnSurface, &line);
@@ -599,7 +595,7 @@ pub(crate) fn home(app: &View, ui: &mut Ui, w: f32, h: f32) {
         Role::OnSurfaceVariant,
         &sub,
     );
-    ui.hit(M, y, inner, card_h, action);
+    ui.hit_shaped((M, y, inner, card_h, SHAPE_M), action);
     y += card_h + 10.0;
 
     // The session strip: the four stages of the lock cycle, the one now
@@ -607,16 +603,6 @@ pub(crate) fn home(app: &View, ui: &mut Ui, w: f32, h: f32) {
     {
         let stage = app.session_stage();
         let open_files = Action::Nav(Screen::Files);
-        if ui.is_pressed(open_files) {
-            ui.wash(
-                M,
-                y,
-                inner,
-                22.0,
-                6.0,
-                Role::OnSurface.at(faraday_draw::tokens::STATE_PRESS),
-            );
-        }
         let mut sx = M + 4.0;
         for (i, label) in [
             EN.compact_bring_in_button,
@@ -637,7 +623,7 @@ pub(crate) fn home(app: &View, ui: &mut Ui, w: f32, h: f32) {
             };
             sx += ui.text_mid_as((sx, y, 22.0), LABEL_S, fg, label);
         }
-        ui.hit(M, y, inner, 22.0, open_files);
+        ui.hit_shaped((M, y, inner, 22.0, SHAPE_XS), open_files);
         y += 22.0 + 10.0;
     }
 
@@ -670,28 +656,17 @@ pub(crate) fn home(app: &View, ui: &mut Ui, w: f32, h: f32) {
         inner.min(LEAD_MAX)
     };
     for (icon, label, action, tone) in prompts(app) {
-        let pressed = action.is_some_and(|a| ui.is_pressed(a));
-        let edge = if tone == Role::Warning.paint() {
-            Role::Warning.with_alpha(110)
+        // In its tone's container, its icon and words in the
+        // container's on-role: never a tint (`docs/DESIGN.md` §3).
+        let (bg, ink) = if tone == Role::Warning.paint() {
+            (Role::WarningContainer, Role::OnWarningContainer)
         } else {
-            Role::Primary.with_alpha(110)
+            (Role::SecondaryContainer, Role::OnSecondaryContainer)
         };
-        ui.fill(
-            M,
-            y,
-            lead_w,
-            44.0,
-            10.0,
-            if pressed {
-                Role::SurfaceContainerHighest.paint()
-            } else {
-                tone.with_alpha(26)
-            },
-        );
-        ui.stroke(M, y, lead_w, 44.0, 10.0, edge);
-        ui.icon(M + 8.0, y + 8.0, 28.0, icon, 14.0, tone);
+        ui.fill(M, y, lead_w, 44.0, SHAPE_M, bg);
+        ui.icon(M + 8.0, y + 8.0, 28.0, icon, 14.0, ink);
         let label = ui.fit_as(LABEL_L, &label, lead_w - 60.0);
-        ui.text_mid_as((M + 44.0, y, 44.0), LABEL_L, Role::OnSurface, &label);
+        ui.text_mid_as((M + 44.0, y, 44.0), LABEL_L, ink, &label);
         if let Some(a) = action {
             ui.icon(
                 M + lead_w - 26.0,
@@ -699,9 +674,10 @@ pub(crate) fn home(app: &View, ui: &mut Ui, w: f32, h: f32) {
                 20.0,
                 Icon::ChevronRight,
                 9.0,
-                Role::OnSurfaceVariant,
+                ink,
             );
-            ui.hit(M, y, lead_w, 44.0, a);
+            ui.state_layer((M, y, lead_w, 44.0, SHAPE_M), ink.paint(), a);
+            ui.hit_ringed((M, y, lead_w, 44.0, SHAPE_M), (M, y, lead_w, 44.0), a);
         }
         y += 44.0 + 8.0;
     }
@@ -722,14 +698,8 @@ pub(crate) fn home(app: &View, ui: &mut Ui, w: f32, h: f32) {
     for (i, (icon, label, sub, action, enabled)) in tiles.iter().enumerate() {
         let tx = M + (i % cols) as f32 * (tw + gap);
         let ty = y + (i / cols) as f32 * (th + gap);
-        let pressed = ui.is_pressed(*action);
-        crate::ui::fill_pressed(
-            ui,
-            (tx, ty, tw, th, 12.0),
-            Role::SurfaceContainerLow,
-            pressed,
-        );
-        ui.stroke(tx, ty, tw, th, 12.0, Role::OutlineVariant);
+        ui.fill(tx, ty, tw, th, SHAPE_M, Role::SurfaceContainerLow);
+        ui.stroke(tx, ty, tw, th, SHAPE_M, Role::OutlineVariant);
         let (ibg, ifg) = if *enabled {
             (
                 Role::SecondaryContainer.paint(),
@@ -784,7 +754,7 @@ pub(crate) fn home(app: &View, ui: &mut Ui, w: f32, h: f32) {
             }
         }
         if *enabled {
-            ui.hit(tx, ty, tw, th, *action);
+            ui.hit_shaped((tx, ty, tw, th, SHAPE_M), *action);
         }
     }
     y += tiles.len().div_ceil(cols) as f32 * (th + gap) + 4.0;
@@ -826,19 +796,12 @@ fn lock_row(app: &View, ui: &mut Ui, y: f32, inner: f32, gap: f32) -> f32 {
         );
     }
     let px = M + inner - pw;
-    if ui.is_pressed(Action::PowerAsk) {
-        ui.wash(
-            px,
-            y,
-            pw,
-            44.0,
-            10.0,
-            Role::OnSurface.at(faraday_draw::tokens::STATE_PRESS),
-        );
-    }
-    ui.stroke(px, y, pw, 44.0, 10.0, Role::OutlineVariant);
+    // Material's outlined icon button, round (F108).
+    let r = faraday_draw::tokens::shape_full(pw);
+    ui.stroke(px, y, pw, 44.0, r, Role::OutlineVariant);
     ui.icon(px, y, pw, Icon::Power, 15.0, Role::OnSurfaceVariant);
-    ui.hit_tip((px, y, pw, 44.0), Action::PowerAsk, EN.tip_power_off);
+    ui.hit_shaped((px, y, pw, 44.0, r), Action::PowerAsk);
+    ui.tip_plain((px, y, pw, 44.0), Action::PowerAsk, EN.tip_power_off);
     44.0 + 16.0
 }
 

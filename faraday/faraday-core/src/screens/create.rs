@@ -452,7 +452,7 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                         let on = *src == Source::Here(fp.0);
                         row.push((
                             key_line(fp, &k.label),
-                            if on { Style::Primary } else { Style::Secondary },
+                            Style::chosen(on),
                             Action::CSlotHere(slot as u8, fp.0),
                         ));
                     }
@@ -502,11 +502,7 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                     if pass_offered && !c.kind.multi() {
                         row.push((
                             EN.create_add_a_passphrase.to_string(),
-                            if c.pass_slot == Some(slot as u8) {
-                                Style::Primary
-                            } else {
-                                Style::Secondary
-                            },
+                            Style::chosen(c.pass_slot == Some(slot as u8)),
                             Action::CPassOpen(slot as u8),
                         ));
                     }
@@ -548,11 +544,7 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                                 1,
                                 (
                                     EN.create_add_a_passphrase.to_string(),
-                                    if c.pass_slot == Some(k) {
-                                        Style::Primary
-                                    } else {
-                                        Style::Secondary
-                                    },
+                                    Style::chosen(c.pass_slot == Some(k)),
                                     Action::CPassOpen(k),
                                 ),
                             );

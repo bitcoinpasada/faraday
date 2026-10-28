@@ -219,8 +219,7 @@ fn card(
     ui.fill(x, y, w, ch, SHAPE_M, Role::SurfaceContainerLow);
     ui.stroke(x, y, w, ch, SHAPE_M, l.edge);
     let mut cy = y + pad;
-    ui.fill(ix, cy, TOUCH, TOUCH, GAP + GAP / 4.0, l.icon.with_alpha(30));
-    ui.icon(ix, cy, TOUCH, Icon::Lock, 20.0, l.icon);
+    crate::ui::icon_tile(ui, (ix, cy, TOUCH, SHAPE_M), Icon::Lock, 20.0, l.icon);
     let tx = ix + TOUCH + 2.0 * GAP;
     let tw = iw - TOUCH - 2.0 * GAP;
     let t = ui.fit_as(TITLE_M, &l.title, tw);

@@ -80,11 +80,7 @@ fn body(ui: &mut Ui, x: f32, y: f32, w: f32, view: &LoadView, may: bool) -> f32 
             (EN.load_sheet_not_now, Style::Secondary, va(V::LoadNotNow)),
             (
                 EN.load_sheet_load_ticked,
-                if any && may {
-                    Style::Primary
-                } else {
-                    Style::Disabled
-                },
+                Style::Primary.when(any && may),
                 va(V::LoadTicked),
             ),
         ],
@@ -322,11 +318,7 @@ pub(crate) fn pass_seeds(app: &View, ui: &mut Ui, w: f32, h: f32) {
                         back,
                         (
                             EN.pass_seeds_load,
-                            if may && !empty {
-                                Style::Primary
-                            } else {
-                                Style::Disabled
-                            },
+                            Style::Primary.when(may && !empty),
                             va(V::PromptGo),
                         ),
                     ],

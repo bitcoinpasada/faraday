@@ -8,7 +8,7 @@ use crate::ui::{Glyph, NameSuffix, Style, Ui};
 use crate::wallet::{Session, fp_text};
 use crate::{Action, Screen, Sheet};
 use faraday_draw::tokens::{BODY_S, BUTTON_H, LABEL_M, LABEL_S};
-use faraday_draw::tokens::{STATE_PRESS, TOUCH};
+use faraday_draw::tokens::{SHAPE_S, TOUCH};
 use faraday_draw::widgets::Icon;
 
 /// How many rows of seeds and of wallets the sidebar shows, in `rows`:
@@ -46,9 +46,7 @@ fn flow_row(ui: &mut Ui, y: f32, r: &crate::in_progress::Row, lit: bool) {
     let action = Action::Resume(r.going);
     let (x, w) = (46.0, SIDEBAR_W - 58.0);
     if lit {
-        ui.fill(x, y, w, FLOW_ROW, 6.0, Role::SecondaryContainer);
-    } else if ui.is_pressed(action) {
-        ui.wash(x, y, w, FLOW_ROW, 6.0, Role::OnSurface.at(STATE_PRESS));
+        ui.fill(x, y, w, FLOW_ROW, SHAPE_S, Role::SecondaryContainer);
     }
     let (tx, right) = (54.0, SIDEBAR_W - 24.0);
     let room = right - tx;
@@ -61,7 +59,7 @@ fn flow_row(ui: &mut Ui, y: f32, r: &crate::in_progress::Row, lit: bool) {
     let fg = crate::ui::pal::on_selected(lit, Role::OnSurfaceVariant);
     ui.text_mid_as((tx, y, FLOW_ROW), LABEL_M, fg, &name);
     ui.text_right_as((right, y, FLOW_ROW), BODY_S, fg, &step);
-    ui.hit(x, y, w, FLOW_ROW, action);
+    ui.hit_shaped((x, y, w, FLOW_ROW, SHAPE_S), action);
 }
 
 #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
@@ -192,10 +190,6 @@ pub(super) fn sidebar(app: &View, ui: &mut Ui, h: f32) {
     {
         let stage = app.session_stage();
         let open_files = Action::Nav(Screen::Files);
-        if ui.is_pressed(open_files) {
-            let press = Role::OnSurface.at(STATE_PRESS);
-            ui.wash(16.0, fy - 4.0, SIDEBAR_W - 32.0, 28.0, 6.0, press);
-        }
         let mut sx = 24.0;
         for (i, label) in [
             EN.sidebar_bring_in_button,
@@ -248,10 +242,6 @@ pub(super) fn sidebar(app: &View, ui: &mut Ui, h: f32) {
             total
         };
         for (head, tail, mono, action, mark, pass) in rows.take(shown) {
-            if ui.is_pressed(action) {
-                let press = Role::OnSurface.at(STATE_PRESS);
-                ui.wash(16.0, *fy, SIDEBAR_W - 32.0, ROW, 6.0, press);
-            }
             // A wallet's dot: green when the seeds here sign for it alone,
             // grey when some of them are here.
             if let Some(c) = mark {
@@ -287,10 +277,6 @@ pub(super) fn sidebar(app: &View, ui: &mut Ui, h: f32) {
         }
         if total > cap && cap > 0 {
             let line = fill(EN.sidebar_more, &[&(total - shown).to_string()]);
-            if ui.is_pressed(more) {
-                let press = Role::OnSurface.at(STATE_PRESS);
-                ui.wash(16.0, *fy, SIDEBAR_W - 32.0, ROW, 6.0, press);
-            }
             ui.text_mid_as((28.0, *fy, ROW), LABEL_M, Role::Primary, &line);
             ui.hit(16.0, *fy, SIDEBAR_W - 32.0, ROW, more);
             *fy += ROW;
@@ -450,17 +436,9 @@ pub(super) fn sidebar(app: &View, ui: &mut Ui, h: f32) {
         );
     }
     let px = SIDEBAR_W - 16.0 - 36.0;
-    if ui.is_pressed(Action::PowerAsk) {
-        ui.wash(
-            px,
-            fy,
-            36.0,
-            36.0,
-            8.0,
-            Role::OnSurface.at(faraday_draw::tokens::STATE_PRESS),
-        );
-    }
-    ui.stroke(px, fy, 36.0, 36.0, 8.0, Role::OutlineVariant);
+    // Material's outlined icon button, round (F108).
+    let r = faraday_draw::tokens::shape_full(36.0);
+    ui.stroke(px, fy, 36.0, 36.0, r, Role::OutlineVariant);
     ui.icon(
         px,
         fy,
@@ -469,7 +447,8 @@ pub(super) fn sidebar(app: &View, ui: &mut Ui, h: f32) {
         14.0,
         Role::OnSurfaceVariant,
     );
-    ui.hit_tip((px, fy, 36.0, 36.0), Action::PowerAsk, EN.tip_power_off);
+    ui.hit_shaped((px, fy, 36.0, 36.0, r), Action::PowerAsk);
+    ui.tip_plain((px, fy, 36.0, 36.0), Action::PowerAsk, EN.tip_power_off);
     if held {
         lock_held_pill(ui, 16.0, fy + 44.0, SIDEBAR_W - 32.0);
     }

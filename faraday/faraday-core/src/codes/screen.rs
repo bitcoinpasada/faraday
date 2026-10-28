@@ -47,8 +47,8 @@ fn pill_right(ui: &mut Ui, right: f32, y: f32, label: &str) {
     let tw = ui.measure_as(LABEL_M, label);
     let pw = tw + 24.0;
     let x = right - pw;
-    ui.fill(x, y, pw, 26.0, 13.0, Role::OnSurfaceVariant.with_alpha(30));
-    ui.stroke(x, y, pw, 26.0, 13.0, Role::OnSurfaceVariant.with_alpha(110));
+    ui.fill(x, y, pw, 26.0, 13.0, Role::SurfaceContainerHighest);
+    ui.stroke(x, y, pw, 26.0, 13.0, Role::OutlineVariant);
     ui.text_mid_as(
         (x + (pw - tw) / 2.0, y, 26.0),
         LABEL_M,
@@ -62,10 +62,10 @@ fn pill_right(ui: &mut Ui, right: f32, y: f32, label: &str) {
 fn code_row(ui: &mut Ui, x: f32, y: f32, w: f32, r: &CodeRow) -> f32 {
     let action = Action::CodesOpen(r.vault, r.item);
     let h = 80.0;
-    let pressed = ui.is_pressed(action);
-    crate::ui::fill_pressed(ui, (x, y, w, h, 12.0), Role::SurfaceContainerLow, pressed);
-    ui.stroke(x, y, w, h, 12.0, Role::OutlineVariant);
-    ui.hit(x, y, w, h, action);
+    let shape = faraday_draw::tokens::SHAPE_M;
+    ui.fill(x, y, w, h, shape, Role::SurfaceContainerLow);
+    ui.stroke(x, y, w, h, shape, Role::OutlineVariant);
+    ui.hit_shaped((x, y, w, h, shape), action);
     let t = ui.fit_as(TITLE_M, &r.title, w - 140.0);
     ui.text_as(x + 16.0, y + 14.0, TITLE_M, Role::OnSurface, &t);
     let sub = if r.account.is_empty() {

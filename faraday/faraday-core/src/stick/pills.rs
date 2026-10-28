@@ -26,9 +26,9 @@ use crate::backup_flow::{Purpose, Step};
 use crate::drawing::View;
 use crate::medium::Medium;
 use crate::strings::{EN, fill};
-use crate::ui::pal::*;
 use crate::ui::{Ui, W};
 use crate::{Action, Faraday, StickInfo};
+use faraday_ui::stick::{PillAt, StickState};
 
 /// The boot stick's folder.
 pub const BOOT_FOLDER: &str = "BOOTSTICK";
@@ -576,37 +576,16 @@ pub(crate) fn page_drop(strip: f32) -> f32 {
     (strip - PAGE_TOP_ROOM).max(0.0)
 }
 
-/// A pill's colours: its text, its edge and its body, and the tone of its
-/// dot. Lit in its own tone while the stick is in, edged in it while the
-/// flow asks for it, else quiet.
-fn paints(p: &Pill, pressed: bool, light: bool) -> (Paint, Paint, Paint, Paint) {
-    // The tones are counted from the boot stick's, the first.
-    let tone = Paint::from(stick_tone(p.n.saturating_sub(1), light));
-    let (fg, edge, body) = if p.inserted {
-        (
-            tone,
-            tone.with_alpha(170),
-            tone.with_alpha(if pressed { 70 } else { 34 }),
-        )
+/// Where a pill's stick stands, as its pill shows it: in, asked for by
+/// the flow, or neither.
+fn state(p: &Pill) -> StickState {
+    if p.inserted {
+        StickState::Inserted
     } else if p.asked {
-        (tone, tone, tone.with_alpha(if pressed { 70 } else { 18 }))
+        StickState::Asked
     } else {
-        quiet(pressed)
-    };
-    (fg, edge, body, tone)
-}
-
-/// A quiet pill's text, edge and body.
-fn quiet(pressed: bool) -> (Paint, Paint, Paint) {
-    (
-        Role::OnSurfaceVariant.paint(),
-        Role::OutlineVariant.paint(),
-        if pressed {
-            Role::SurfaceContainerHigh.paint()
-        } else {
-            Role::SurfaceContainerHighest.paint()
-        },
-    )
+        StickState::Quiet
+    }
 }
 
 /// Draws the strip of pills across the top of the window, over the page
@@ -625,7 +604,6 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, window_w: f32) {
     }
     let z = size(app);
     let l = layout(&pills, ui, z, window_w - 2.0 * z.side);
-    let light = ui.theme.is_light();
     let presses = app.shell_sticks;
     let was = (ui.ox, ui.oy, ui.in_sheet);
     ui.ox = 0.0;
@@ -637,22 +615,19 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, window_w: f32) {
         for &k in &row.items {
             let (p, w) = (&pills[k], l.widths[k]);
             let action = Action::StickPill(p.n as u8);
-            let (fg, edge, body, tone) = paints(p, presses && ui.is_pressed(action), light);
-            ui.fill(x, y, w, z.h, z.h / 2.0, body);
-            ui.stroke(x, y, w, z.h, z.h / 2.0, edge);
-            ui.dot(x + z.pad + z.dot_r, y + z.h / 2.0, z.dot_r, tone);
-            ui.text_mid(
-                x + z.pad + z.dot_room,
+            let at = PillAt {
+                x,
                 y,
-                z.h,
-                z.text,
-                W::S,
-                fg,
-                &l.texts[k],
-            );
-            if presses {
-                ui.hit(x, y, w, z.h, action);
-            }
+                w,
+                h: z.h,
+                pad: z.pad,
+                dot_r: z.dot_r,
+                dot_room: z.dot_room,
+                text: z.text,
+            };
+            // The tones are counted from the boot stick's, the first.
+            let n = p.n.saturating_sub(1);
+            ui.stick_pill(at, n, state(p), &l.texts[k], presses.then_some(action));
             x += w + z.gap;
         }
     }

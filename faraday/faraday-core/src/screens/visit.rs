@@ -52,11 +52,7 @@ fn visit_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             .iter()
             .enumerate()
             .map(|(k, st)| {
-                let style = if k == app.visit.stick {
-                    Style::Primary
-                } else {
-                    Style::Secondary
-                };
+                let style = Style::chosen(k == app.visit.stick);
                 (st.label.as_str(), style, Action::VisitStick(k))
             })
             .collect();
@@ -828,7 +824,6 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     // What is left to do: pull the stick, and where the copied files went.
     let ay = h - 32.0 - 44.0 - 44.0;
     ui.fill(x, ay, width, 44.0, 10.0, Role::WarningContainer);
-    ui.stroke(x, ay, width, 44.0, 10.0, Role::Warning.with_alpha(90));
     ui.icon(
         x + 16.0,
         ay + 12.0,

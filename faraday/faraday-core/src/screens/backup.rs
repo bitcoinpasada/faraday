@@ -519,37 +519,50 @@ fn check_rows(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
 }
 
 /// The loaded wallets, one row each, under the backup's wallet chip at
-/// (x, y): a press on one starts its backup, a press beside the list
-/// closes it.
+/// (x, y), drawn as Material's menu ([`faraday_ui::menu`]): extra-small
+/// corners at elevation 2 (an outline in its place at High contrast),
+/// the wallet chosen now in secondary-container with a tick. A press on
+/// one starts its backup, a press beside the list closes it.
 fn wallet_pick(app: &View, ui: &mut Ui, x: f32, y: f32, chip_w: f32, right: f32) {
+    use faraday_draw::tokens::{
+        ELEVATION_MENU, ICON_GAP, ICON_GLYPH_BUTTON, MENU_ITEM_H, MENU_ITEM_PAD, MENU_PAD_V,
+        SHAPE_XS,
+    };
     let current = app.backup().map_or(0, |b| b.wallet);
     let lw = 340.0_f32.max(chip_w).min(right - x);
-    let rh = 44.0;
+    let rh = MENU_ITEM_H;
     let n = app.session.wallets.len();
-    let lh = n as f32 * rh + 8.0;
+    let lh = n as f32 * rh + 2.0 * MENU_PAD_V;
     ui.hit_around(x, y, lw, lh, Action::BWallets);
-    ui.shadow(x, y, lw, lh, 12.0, faraday_draw::tokens::ELEVATION_MENU);
-    ui.fill(x, y, lw, lh, 12.0, Role::SurfaceContainer);
-    ui.stroke(x, y, lw, lh, 12.0, Role::OutlineVariant);
+    ui.shadow(x, y, lw, lh, SHAPE_XS, ELEVATION_MENU);
+    ui.fill(x, y, lw, lh, SHAPE_XS, Role::SurfaceContainer);
+    if ui.theme.is_high_contrast() {
+        ui.stroke(x, y, lw, lh, SHAPE_XS, Role::Outline);
+    }
     for (k, wl) in app.session.wallets.iter().enumerate() {
-        let ry = y + 4.0 + k as f32 * rh;
-        let (fg, weight) = if k == current {
-            (Role::Primary, LABEL_L)
-        } else {
-            (Role::OnSurface, BODY_M)
-        };
+        let ry = y + MENU_PAD_V + k as f32 * rh;
+        let chosen = k == current;
+        if chosen {
+            ui.fill(x, ry, lw, rh, 0.0, Role::SecondaryContainer);
+        }
+        let fg = on_selected(chosen, Role::OnSurface);
+        let muted = on_selected(chosen, Role::OnSurfaceVariant);
+        let tick = ICON_GLYPH_BUTTON + ICON_GAP;
+        let inner = lw - 2.0 * MENU_ITEM_PAD - tick;
         // The name first, up to half the row; the shape in what is left.
-        let nw = ui.measure_as(weight, &wl.name).min(lw / 2.0);
-        let name = ui.fit_as(weight, &wl.name, nw);
-        let shape = ui.fit_as(BODY_S, &Session::shape(wl), lw - nw - 48.0);
-        ui.text_mid_as((x + 14.0, ry, rh), weight, fg, &name);
-        ui.text_right_as(
-            (x + lw - 14.0, ry, rh),
-            BODY_S,
-            Role::OnSurfaceVariant,
-            &shape,
-        );
-        ui.hit(x + 4.0, ry, lw - 8.0, rh, Action::Backup(k));
+        let nw = ui.measure_as(BODY_M, &wl.name).min(lw / 2.0);
+        let name = ui.fit_as(BODY_M, &wl.name, nw);
+        let shape = ui.fit_as(BODY_S, &Session::shape(wl), inner - nw - MENU_ITEM_PAD);
+        ui.text_mid_as((x + MENU_ITEM_PAD, ry, rh), BODY_M, fg, &name);
+        let end = x + lw - MENU_ITEM_PAD - tick;
+        ui.text_right_as((end, ry, rh), BODY_S, muted, &shape);
+        if chosen {
+            let tx = x + lw - MENU_ITEM_PAD - ICON_GLYPH_BUTTON;
+            let ty = ry + (rh - ICON_GLYPH_BUTTON) / 2.0;
+            ui.icon(tx, ty, ICON_GLYPH_BUTTON, Icon::Done, ICON_GLYPH_BUTTON, fg);
+        }
+        ui.state_layer((x, ry, lw, rh, 0.0), fg, Action::Backup(k));
+        ui.hit_ringed((x, ry, lw, rh, 0.0), (x, ry, lw, rh), Action::Backup(k));
     }
 }
 
@@ -772,11 +785,7 @@ fn backup_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                 (x + 140.0, 64.0)
             };
             for words in [12usize, 24] {
-                let style = if b.words == words {
-                    Style::Primary
-                } else {
-                    Style::Secondary
-                };
+                let style = Style::chosen(b.words == words);
                 bx += ui.button(
                     bx,
                     cy,
@@ -940,11 +949,7 @@ fn backup_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                     ]
                     .into_iter()
                     .map(|(label, c)| {
-                        let style = if b.compact == c {
-                            Style::Primary
-                        } else {
-                            Style::Secondary
-                        };
+                        let style = Style::chosen(b.compact == c);
                         (label, style, Action::BCompact(c))
                     })
                     .collect();

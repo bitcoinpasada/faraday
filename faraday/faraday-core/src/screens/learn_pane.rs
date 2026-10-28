@@ -62,18 +62,9 @@ fn close_button(ui: &mut Ui, x: f32, y: f32) {
     let a = Action::LearnClose;
     let edge = (T::TOUCH - T::ICON_BUTTON) / 2.0;
     let (bx, by) = (x + edge, y + edge);
-    let layer = if ui.is_pressed(a) {
-        Some(T::STATE_PRESS)
-    } else if ui.is_hovered(a) {
-        Some(T::STATE_HOVER)
-    } else {
-        None
-    };
-    if let Some(at) = layer {
-        let r = T::shape_full(T::ICON_BUTTON);
-        let c = Role::OnSurfaceVariant.at(at);
-        ui.wash(bx, by, T::ICON_BUTTON, T::ICON_BUTTON, r, c);
-    }
+    let r = T::shape_full(T::ICON_BUTTON);
+    let button = (bx, by, T::ICON_BUTTON, T::ICON_BUTTON, r);
+    ui.state_layer(button, Role::OnSurfaceVariant.paint(), a);
     let mark = "×";
     let mw = ui.measure(T::ICON_GLYPH, W::R, mark);
     let (mx, size) = (bx + (T::ICON_BUTTON - mw) / 2.0, T::ICON_GLYPH);
@@ -86,5 +77,6 @@ fn close_button(ui: &mut Ui, x: f32, y: f32) {
         Role::OnSurfaceVariant,
         mark,
     );
-    ui.hit_tip((x, y, T::TOUCH, T::TOUCH), a, EN.learn_close);
+    ui.hit_ringed(button, (x, y, T::TOUCH, T::TOUCH), a);
+    ui.tip_plain((x, y, T::TOUCH, T::TOUCH), a, EN.learn_close);
 }

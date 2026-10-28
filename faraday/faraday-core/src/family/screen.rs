@@ -17,6 +17,7 @@ use crate::ui::{Style, Ui};
 use crate::vault::{VaultAction, cost_text, file_text, mib_text};
 use crate::wallet::{FileKind, Kind, Session, fp_text, step};
 use crate::{Action, Faraday, flow};
+use faraday_ui::Status;
 
 fn fa(a: F) -> Action {
     Action::Family(a)
@@ -184,17 +185,7 @@ fn loaded(app: &View, ui: &mut Ui, x0: f32, cw: f32) -> f32 {
         let need = crate::wallet::needed(wl);
         let ready = here >= need;
         let ch = if ready { 64.0 } else { 108.0 };
-        ui.card(
-            x,
-            y,
-            w,
-            ch,
-            if ready {
-                Role::Ok.with_alpha(90)
-            } else {
-                Role::OutlineVariant.paint()
-            },
-        );
+        ui.card(x, y, w, ch, Role::OutlineVariant);
         ui.icon(
             x + 18.0,
             y + 14.0,
@@ -399,7 +390,7 @@ fn loaded_compact(app: &View, ui: &mut Ui, cw: f32, h: f32) {
             )
         });
         let ch = lh + 14.0 + 12.0 + 40.0 + 14.0;
-        ui.card(x, y, w, ch, Role::Primary.with_alpha(110));
+        ui.card(x, y, w, ch, Role::OutlineVariant);
         ui.icon(x + 14.0, y + 14.0, 20.0, Icon::Sign, 12.0, Role::Primary);
         ui.wrap_as(
             (x + 46.0, y + 14.0, w - 60.0),
@@ -588,17 +579,7 @@ fn wallet_card_compact(
     let bh = ui.button_height(BUTTON_H);
     let mh = measured(ui, |ui| missing(ui, y));
     let ch = head + mh + bh + 14.0;
-    ui.card(
-        x,
-        y,
-        w,
-        ch,
-        if ready {
-            Role::Ok.with_alpha(90)
-        } else {
-            Role::OutlineVariant.paint()
-        },
-    );
+    ui.card(x, y, w, ch, Role::OutlineVariant);
     let ib = ui.row_icon(20.0);
     let icon = ui.row_icon(12.0);
     ui.icon(
@@ -646,7 +627,7 @@ fn next_row(
     line: &str,
     button: Option<(&str, Action)>,
 ) -> f32 {
-    ui.card(x, y, w, 60.0, Role::Primary.with_alpha(110));
+    ui.card(x, y, w, 60.0, Role::OutlineVariant);
     ui.icon(x + 18.0, y + 20.0, 20.0, icon, 12.0, Role::Primary);
     let line = ui.fit_as(LABEL_L, line, w - 260.0);
     ui.text_mid_as((x + 46.0, y, 60.0), LABEL_L, Role::OnSurface, &line);
@@ -1895,21 +1876,9 @@ fn signers(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                     let bw = ui.measure_as(LABEL_L, label) + 32.0;
                     let cw2 = ui.measure_as(BODY_S, t) + 34.0;
                     if compact {
-                        ui.chip(
-                            x + 22.0,
-                            cy + 8.0,
-                            t,
-                            Role::OnWarningContainer,
-                            Role::WarningContainer,
-                        );
+                        ui.tag(x + 22.0, cy + 8.0, t, Status::Warning);
                     } else {
-                        ui.chip(
-                            x + w - bw - 8.0 - cw2,
-                            cy + 8.0,
-                            t,
-                            Role::OnWarningContainer,
-                            Role::WarningContainer,
-                        );
+                        ui.tag(x + w - bw - 8.0 - cw2, cy + 8.0, t, Status::Warning);
                     }
                     ui.button(
                         x + w - bw,
@@ -1959,14 +1928,10 @@ fn signers(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                         )),
                     );
                 } else {
-                    let (t, fg, bg) = if slot.held_by.is_some() {
-                        (EN.family_signs_here, Role::OnOkContainer, Role::OkContainer)
+                    let (t, status) = if slot.held_by.is_some() {
+                        (EN.family_signs_here, Status::Ok)
                     } else {
-                        (
-                            EN.family_not_here,
-                            Role::OnSurfaceVariant,
-                            Role::SurfaceContainerHighest,
-                        )
+                        (EN.family_not_here, Status::Neutral)
                     };
                     let cw2 = ui.measure_as(BODY_S, t) + 34.0;
                     let chip_x = if compact { x + 22.0 } else { x + w - cw2 };
@@ -1979,7 +1944,7 @@ fn signers(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                             &label,
                         );
                     }
-                    ui.chip(chip_x, cy + 8.0, t, fg, bg);
+                    ui.tag(chip_x, cy + 8.0, t, status);
                 }
                 ui.rule(x, cy + 42.0, w, Role::OutlineVariant);
                 cy += 44.0;

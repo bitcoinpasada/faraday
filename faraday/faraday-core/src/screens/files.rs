@@ -7,7 +7,9 @@ use crate::ui::pal::*;
 use crate::ui::{Style, Ui};
 use crate::wallet::{FileKind, fp_text};
 use crate::{Action, Screen};
-use faraday_draw::tokens::{BODY_M, BODY_S, BUTTON_H, LABEL_L, LABEL_M, TITLE_M, TITLE_S};
+use faraday_draw::tokens::{
+    BODY_M, BODY_S, BUTTON_H, LABEL_L, LABEL_M, SHAPE_M, SHAPE_S, TITLE_M, TITLE_S,
+};
 use faraday_draw::widgets::Icon;
 use faraday_ui::parts::{title, wrap_buttons};
 
@@ -409,8 +411,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     );
     // Arrived from Import and load: pulling the stick is the next step.
     if !app.stick.is_empty() && !app.visit.load_after.is_empty() {
-        ui.fill(x, y, width, 48.0, 10.0, Role::WarningContainer);
-        ui.stroke(x, y, width, 48.0, 10.0, Role::Warning.with_alpha(90));
+        ui.fill(x, y, width, 48.0, SHAPE_M, Role::WarningContainer);
         ui.icon(
             x + 16.0,
             y + 14.0,
@@ -711,12 +712,15 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                     Icon::Export,
                     Role::Primary.paint(),
                 ),
-                Exposure::Sealed => (Role::Ok.with_alpha(70), Icon::Lock, Role::Ok.paint()),
-                Exposure::Secret => (Role::Error.with_alpha(110), Icon::Lock, Role::Error.paint()),
+                Exposure::Sealed => (Role::OutlineVariant.paint(), Icon::Lock, Role::Ok.paint()),
+                Exposure::Secret => (
+                    Role::OutlineVariant.paint(),
+                    Icon::Lock,
+                    Role::Error.paint(),
+                ),
             };
             ui.card(ox, oy, colw, 66.0, edge);
-            ui.fill(ox + 16.0, oy + 14.0, 36.0, 36.0, 10.0, ink.with_alpha(26));
-            ui.icon(ox + 16.0, oy + 14.0, 36.0, icon, 14.0, ink);
+            crate::ui::icon_tile(ui, (ox + 16.0, oy + 14.0, 36.0, SHAPE_M), icon, 14.0, ink);
             let (line, state) = out_line(app, item, exposure);
             // No main action: the row's ⋮ alone, at its top right, holds
             // Show as QR or Make PDF, Rename, Details and Remove (decision
@@ -861,15 +865,17 @@ fn stick_chip(app: &View, ui: &mut Ui, right: f32) {
     let bw = ui.measure_as(LABEL_L, &label) + 2.0 * STATUS_CHIP_PAD + dot + GAP;
     let (bx, by) = (right - bw, TOP_ROW_MID - STATUS_CHIP_H / 2.0);
     let r = STATUS_CHIP_H / 2.0;
-    ui.fill(bx, by, bw, STATUS_CHIP_H, r, Role::Primary.with_alpha(16));
-    ui.stroke(bx, by, bw, STATUS_CHIP_H, r, Role::Primary.with_alpha(110));
+    // In secondary-container, never a tint (`docs/DESIGN.md` §3).
+    let ink = Role::OnSecondaryContainer;
+    ui.fill(bx, by, bw, STATUS_CHIP_H, r, Role::SecondaryContainer);
     let cx = bx + STATUS_CHIP_PAD + dot / 2.0;
-    ui.dot(cx, TOP_ROW_MID, dot / 2.0, Role::Primary);
+    ui.dot(cx, TOP_ROW_MID, dot / 2.0, ink);
     let tx = bx + STATUS_CHIP_PAD + dot + GAP;
-    let ink = Role::OnSurface;
     ui.text_mid_as((tx, by, STATUS_CHIP_H), LABEL_L, ink, &label);
     if let Some(a) = action {
-        ui.hit(bx, by - GAP, bw, STATUS_CHIP_H + 2.0 * GAP, a);
+        ui.state_layer((bx, by, bw, STATUS_CHIP_H, r), ink.paint(), a);
+        let target = (bx, by - GAP, bw, STATUS_CHIP_H + 2.0 * GAP);
+        ui.hit_ringed((bx, by, bw, STATUS_CHIP_H, r), target, a);
     }
 }
 
@@ -1834,8 +1840,7 @@ fn file_card(
 ) -> f32 {
     let draw = |ui: &mut Ui| -> f32 {
         let mut cy = y + 12.0;
-        ui.fill(x + 12.0, cy, 32.0, 32.0, 8.0, ink.with_alpha(26));
-        ui.icon(x + 12.0, cy, 32.0, icon, 13.0, ink);
+        crate::ui::icon_tile(ui, (x + 12.0, cy, 32.0, SHAPE_S), icon, 13.0, ink);
         let dw = 32.0;
         let room = w - 56.0 - 12.0 - dw - 8.0;
         let n = ui.fit_as(BODY_M.mono(), name, room);
@@ -1914,13 +1919,15 @@ fn compact_head(app: &View, ui: &mut Ui, (x, y0, w): (f32, f32, f32)) -> f32 {
     let mut y = y0;
     // The stick, or what waits for one.
     let (label, action) = stick_status(app);
-    ui.fill(x, y, w, 44.0, 10.0, Role::Primary.with_alpha(16));
-    ui.stroke(x, y, w, 44.0, 10.0, Role::Primary.with_alpha(110));
-    ui.dot(x + 18.0, y + 22.0, 4.0, Role::Primary);
+    // In secondary-container, never a tint (`docs/DESIGN.md` §3).
+    let ink = Role::OnSecondaryContainer;
+    ui.fill(x, y, w, 44.0, SHAPE_M, Role::SecondaryContainer);
+    ui.dot(x + 18.0, y + 22.0, 4.0, ink);
     let label = ui.fit_as(BODY_M, &label, w - 44.0);
-    ui.text_mid_as((x + 32.0, y, 44.0), BODY_M, Role::OnSurface, &label);
+    ui.text_mid_as((x + 32.0, y, 44.0), BODY_M, ink, &label);
     if let Some(a) = action {
-        ui.hit(x, y, w, 44.0, a);
+        ui.state_layer((x, y, w, 44.0, SHAPE_M), ink.paint(), a);
+        ui.hit_ringed((x, y, w, 44.0, SHAPE_M), (x, y, w, 44.0), a);
     }
     y += 52.0;
     ui.button(
@@ -2062,8 +2069,12 @@ fn compact_outbox(app: &View, ui: &mut Ui, (x, y0, w): (f32, f32, f32)) -> f32 {
                     Icon::Export,
                     Role::Primary.paint(),
                 ),
-                Exposure::Sealed => (Role::Ok.with_alpha(70), Icon::Lock, Role::Ok.paint()),
-                Exposure::Secret => (Role::Error.with_alpha(110), Icon::Lock, Role::Error.paint()),
+                Exposure::Sealed => (Role::OutlineVariant.paint(), Icon::Lock, Role::Ok.paint()),
+                Exposure::Secret => (
+                    Role::OutlineVariant.paint(),
+                    Icon::Lock,
+                    Role::Error.paint(),
+                ),
             };
             let (line, state) = out_line(app, item, exposure);
             // No main action: the ⋮ alone (decision 61).

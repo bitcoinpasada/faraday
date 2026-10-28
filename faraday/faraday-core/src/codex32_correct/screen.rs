@@ -313,11 +313,7 @@ fn pairs<A: Copy + PartialEq>(
                 ),
                 (
                     EN.codex32_correct_next,
-                    if last {
-                        Style::Disabled
-                    } else {
-                        Style::Primary
-                    },
+                    Style::Primary.when(!last),
                     to(Press::Next),
                 ),
             ],

@@ -102,17 +102,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         0.0
     };
     let card_h = if compact { line_h + 32.0 } else { 64.0 };
-    ui.card(
-        x,
-        y,
-        width,
-        card_h,
-        if c.verdict.is_ok() {
-            Role::Ok.with_alpha(110)
-        } else {
-            Role::Error.with_alpha(110)
-        },
-    );
+    ui.card(x, y, width, card_h, Role::OutlineVariant);
     ui.icon(
         x + lx - 36.0,
         y + card_h / 2.0 - 12.0,

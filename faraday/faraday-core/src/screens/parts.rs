@@ -35,7 +35,7 @@ pub(crate) fn guide_text(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, text: 
         return 0.0;
     }
     let h = ui.wrap_as((x + 14.0, y, w - 14.0), BODY_M, Role::OnSurface, text);
-    ui.fill(x, y, 3.0, h, 1.5, Role::Primary.with_alpha(140));
+    ui.fill(x, y, 3.0, h, 1.5, Role::Primary.paint());
     h + 18.0
 }
 
@@ -1036,13 +1036,8 @@ pub(crate) fn typed_cells(
         let cx = x + (k % cols) as f32 * (cellw + 10.0);
         let cy = y + (k / cols) as f32 * 46.0;
         let current = k == words.len() - usize::from(typing_word && !words.is_empty()) && k < shown;
-        let edge = if current {
-            Role::Primary.with_alpha(110)
-        } else {
-            Role::OutlineVariant.paint()
-        };
         ui.fill(cx, cy, cellw, 38.0, 8.0, Role::SurfaceContainerHighest);
-        ui.stroke(cx, cy, cellw, 38.0, 8.0, edge);
+        word_cell_edge(ui, (cx, cy, cellw, 38.0), current);
         ui.text_mid_as(
             (cx + 10.0, cy, 38.0),
             LABEL_S.regular(),
@@ -1136,18 +1131,7 @@ pub(crate) fn keyed_cells(
         let cy = y + (k / cols) as f32 * 42.0;
         let current = k == taken.len();
         ui.fill(cx, cy, cellw, 36.0, 8.0, Role::SurfaceContainerHighest);
-        ui.stroke(
-            cx,
-            cy,
-            cellw,
-            36.0,
-            8.0,
-            if current {
-                Role::Primary.with_alpha(110)
-            } else {
-                Role::OutlineVariant.paint()
-            },
-        );
+        word_cell_edge(ui, (cx, cy, cellw, 36.0), current);
         ui.text_mid_as(
             (cx + 8.0, cy, 36.0),
             LABEL_S.regular(),
@@ -1486,7 +1470,7 @@ pub(crate) fn card_pad(
                 Some(bw),
                 BUTTON_H,
                 &ch.to_string(),
-                if on { Style::Primary } else { Style::Secondary },
+                Style::chosen(on),
                 rank_press(r as u8),
             );
         }
@@ -1656,7 +1640,7 @@ pub(crate) fn copy_grid(ui: &mut Ui, x: f32, y: f32, w: f32, g: &CopyGrid<'_>) -
     let items: Vec<(&str, Style, Action)> = modes
         .iter()
         .map(|&(l, on, act)| {
-            let style = if on { Style::Primary } else { Style::Secondary };
+            let style = Style::chosen(on);
             (l, style, act)
         })
         .collect();
@@ -1887,4 +1871,17 @@ pub(crate) fn key_path_line(
         ui.wrap_as((x, y, w), BODY_S, Role::OnSurfaceVariant, &line.text)
     };
     h + faraday_draw::tokens::GAP_SMALL
+}
+
+/// A word cell's edge at (x, y, w, h): outline-variant, or, on the cell
+/// typing goes to, Material's focused field indicator, primary and
+/// thicker.
+pub(crate) fn word_cell_edge(ui: &mut Ui, at: (f32, f32, f32, f32), current: bool) {
+    use faraday_draw::tokens::{FIELD_EDGE, FIELD_EDGE_ACTIVE, SHAPE_S};
+    let (edge, width) = if current {
+        (Role::Primary, FIELD_EDGE_ACTIVE)
+    } else {
+        (Role::OutlineVariant, FIELD_EDGE)
+    };
+    crate::menu::outline(ui, at, SHAPE_S, width, edge.paint());
 }

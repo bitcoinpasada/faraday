@@ -451,11 +451,7 @@ fn institute_note(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             cy += line_h;
         }
         if word == SITE {
-            let tone = if ui.is_pressed(Action::OpenInstitute) {
-                Role::OnSurface
-            } else {
-                Role::Primary
-            };
+            let tone = Role::Primary;
             ui.text_as(cx, cy, BODY_S, tone, word);
             ui.fill(cx, cy + line_h - 3.0, ww, 1.0, 0.0, tone);
             ui.hit(

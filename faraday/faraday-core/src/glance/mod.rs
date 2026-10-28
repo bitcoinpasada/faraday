@@ -1106,13 +1106,7 @@ impl Node {
 
     fn draw(&self, ui: &mut Ui, x: f32, y: f32, w: f32, h: f32) {
         let pad = tokens::CHART_NODE_PAD;
-        let pressed = self.action.is_some_and(|a| ui.is_pressed(a));
-        crate::ui::fill_pressed(
-            ui,
-            (x, y, w, h, tokens::RADIUS),
-            Role::SurfaceContainerHighest,
-            pressed,
-        );
+        ui.fill(x, y, w, h, tokens::RADIUS, Role::SurfaceContainerHighest);
         ui.stroke(x, y, w, h, tokens::RADIUS, Role::OutlineVariant);
         let inner = w - 2.0 * pad;
         let mut cy = y + pad;
@@ -1130,7 +1124,7 @@ impl Node {
         // The node's own press first: a line pressed on its own is found
         // over it.
         if let Some(a) = self.action {
-            ui.hit(x, y, w, h, a);
+            ui.hit_shaped((x, y, w, h, tokens::RADIUS), a);
         }
         let title = ui.fit_as(LABEL_L, &self.title, inner - tag_w);
         ui.text_as(x + pad, cy, LABEL_L, Role::OnSurface, &title);
@@ -1899,15 +1893,16 @@ fn check_boxes(ui: &mut Ui, x: f32, y: f32, w: f32, c: plan::Check, beside: bool
         } else {
             (x, cy, heights[i])
         };
-        ui.fill(bx, by, box_w, bh, tokens::RADIUS_SMALL, tone.with_alpha(18));
-        ui.stroke(bx, by, box_w, bh, tokens::RADIUS_SMALL, tone.with_alpha(90));
+        // In its tone's container, never a tint (`docs/DESIGN.md` §3).
+        let (bg, fg) = crate::ui::container_of(tone.paint());
+        ui.fill(bx, by, box_w, bh, tokens::RADIUS_SMALL, bg);
         let tx = bx + pad;
         let tw = box_w - 2.0 * pad;
-        let lh = ui.wrap_as((tx, by + pad, tw), BODY_S, Role::OnSurfaceVariant, label);
+        let lh = ui.wrap_as((tx, by + pad, tw), BODY_S, fg, label);
         ui.wrap_as(
             (tx, by + pad + lh + tokens::GAP_SMALL, tw),
             TITLE_M,
-            tone,
+            fg,
             value,
         );
         if !side {

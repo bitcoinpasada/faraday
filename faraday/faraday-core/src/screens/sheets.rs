@@ -357,7 +357,7 @@ pub(super) fn devices_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
                     iw,
                     s.devices_continue_hold,
                     Action::DevicesHold,
-                    Role::Warning.paint(),
+                    faraday_ui::hold::HoldTone::Warning,
                 );
                 cy += T::CHIP_LINE + T::GAP;
             }
@@ -550,7 +550,7 @@ fn kept_sheet(
                     room,
                     label,
                     action,
-                    Role::Error.paint(),
+                    faraday_ui::hold::HoldTone::Error,
                 ) + T::GAP;
             }
             if hx > x {
@@ -1611,11 +1611,7 @@ fn learn_tab_items(app: &View) -> Vec<(String, Style, Action)> {
         ));
     }
     tabs.extend(app.learn().pages.iter().enumerate().map(|(i, p)| {
-        let style = if i == app.learn().page {
-            Style::Primary
-        } else {
-            Style::Secondary
-        };
+        let style = Style::chosen(i == app.learn().page);
         (p.title.to_string(), style, Action::LearnPage(i as u8))
     }));
     tabs
@@ -1773,8 +1769,14 @@ pub(super) fn learn_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         clip_hits: false,
     };
     if let Some((clip, max)) = learn_body(app, ui, &look, (x, y, sw, sh)) {
-        // The overlay scrollbar, held and dragged as on any page.
-        ui.report_scroll(clip, max);
+        // The overlay scrollbar, held and dragged as on any page; in its
+        // box, the edges fade into the box's own container.
+        let ground = if app.held {
+            Role::Surface
+        } else {
+            Role::SurfaceContainerHigh
+        };
+        ui.report_scroll_on(clip, max, ground);
     }
 }
 
@@ -1936,7 +1938,7 @@ fn plain_sheet(app: &View, ui: &mut Ui, (w, h): (f32, f32), plain: &crate::secre
                 iw,
                 EN.plain_hold,
                 Action::SecretHold,
-                Role::Error.paint(),
+                faraday_ui::hold::HoldTone::Error,
             );
             cy += T::CHIP_LINE + T::GAP;
             cy - y
@@ -1979,7 +1981,7 @@ pub(super) fn key_path_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
                 iw,
                 EN.wallet_key_path_hold,
                 Action::KeyPathHold,
-                Role::Error.paint(),
+                faraday_ui::hold::HoldTone::Error,
             );
             cy += T::CHIP_LINE + T::GAP_SMALL;
             cy - y

@@ -17,6 +17,38 @@ pub fn off() -> Paint {
     Role::OnSurface.at(faraday_draw::tokens::DISABLED_CONTENT)
 }
 
+/// The container a tone stands in, and the colour on it: what an icon's
+/// tile, a lead or a band is filled in (`docs/DESIGN.md` §3: never a
+/// tint). Ok, warning, error, primary, secondary and tertiary each in
+/// their own container; any other paint in surface-container-highest
+/// under on-surface-variant.
+pub fn container_of(tone: Paint) -> (Role, Role) {
+    match tone {
+        Paint::Role(Role::Ok, _) => (Role::OkContainer, Role::OnOkContainer),
+        Paint::Role(Role::Warning, _) => (Role::WarningContainer, Role::OnWarningContainer),
+        Paint::Role(Role::Error, _) => (Role::ErrorContainer, Role::OnErrorContainer),
+        Paint::Role(Role::Primary, _) => (Role::PrimaryContainer, Role::OnPrimaryContainer),
+        Paint::Role(Role::Secondary, _) => (Role::SecondaryContainer, Role::OnSecondaryContainer),
+        Paint::Role(Role::Tertiary, _) => (Role::TertiaryContainer, Role::OnTertiaryContainer),
+        _ => (Role::SurfaceContainerHighest, Role::OnSurfaceVariant),
+    }
+}
+
+/// An icon's tile at `(x, y)`, `side` square with corners of `r`: in
+/// `tone`'s container, the icon `glyph` units tall in the colour on it
+/// ([`container_of`]).
+pub fn icon_tile(
+    ui: &mut Ui,
+    (x, y, side, r): (f32, f32, f32, f32),
+    icon: impl Into<Glyph>,
+    glyph: f32,
+    tone: impl Into<Paint>,
+) {
+    let (bg, fg) = container_of(tone.into());
+    ui.fill(x, y, side, side, r, bg);
+    ui.icon(x, y, side, icon, glyph, fg);
+}
+
 /// A card, tile or row at `(x, y, w, h, r)` filled in `fill`, with
 /// the pressed state layer over it while `pressed` (`docs/THEMES.md` §8).
 pub fn fill_pressed(ui: &mut Ui, at: (f32, f32, f32, f32, f32), fill: Role, pressed: bool) {

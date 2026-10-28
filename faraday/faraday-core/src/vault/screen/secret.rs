@@ -75,7 +75,7 @@ pub(super) fn secret_with(
     let edge = if shown {
         warn.paint()
     } else {
-        Role::Warning.with_alpha(110)
+        Role::Outline.paint()
     };
     ui.stroke(x, y, w, bh, 8.0, edge);
     if shown {
@@ -109,7 +109,7 @@ pub(super) fn seedqr_box(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32
     let edge = if shown {
         warn.paint()
     } else {
-        Role::Warning.with_alpha(110)
+        Role::Outline.paint()
     };
     ui.stroke(x, y, w, bh, 8.0, edge);
     match code {

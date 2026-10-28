@@ -241,14 +241,9 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             + (max_sub_lines - 1) as f32 * sub_line_h;
         for (k, (icon, label, sub, action)) in ways.iter().enumerate() {
             let tx = x + k as f32 * (tw + gap);
-            let pressed = ui.is_pressed(*action);
-            crate::ui::fill_pressed(
-                ui,
-                (tx, y, tw, card_h, 12.0),
-                Role::SurfaceContainerLow,
-                pressed,
-            );
-            ui.stroke(tx, y, tw, card_h, 12.0, Role::OutlineVariant);
+            let r = faraday_draw::tokens::SHAPE_M;
+            ui.fill(tx, y, tw, card_h, r, Role::SurfaceContainerLow);
+            ui.stroke(tx, y, tw, card_h, r, Role::OutlineVariant);
             ui.fill(
                 tx + 20.0,
                 y + 24.0,
@@ -282,7 +277,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 let sub = ui.fit_as(BODY_S, sub, label_room);
                 ui.text_as(tx + 82.0, sub_y, BODY_S, Role::OnSurfaceVariant, &sub);
             }
-            ui.hit(tx, y, tw, card_h, *action);
+            ui.hit_shaped((tx, y, tw, card_h, r), *action);
         }
         y += card_h + 28.0;
         let files = app.vault_files();
@@ -395,32 +390,11 @@ pub(crate) fn wallet_rows(
         let ry = y + (k / cols) as f32 * 52.0;
         let action = open(i);
         let ready = app.readiness(i);
-        ui.fill(
-            rx,
-            ry,
-            rw,
-            44.0,
-            10.0,
-            if ui.is_pressed(action) {
-                Role::SurfaceContainerHighest
-            } else {
-                Role::Surface
-            },
-        );
-        ui.stroke(
-            rx,
-            ry,
-            rw,
-            44.0,
-            10.0,
-            if crate::wallet::another_key_spends(w) {
-                Role::Error.with_alpha(90)
-            } else if ready == 2 {
-                Role::Ok.with_alpha(90)
-            } else {
-                Role::OutlineVariant.paint()
-            },
-        );
+        // Its edge outline-variant as a card's: its marker says how it
+        // stands (`docs/DESIGN.md` §3).
+        let r = faraday_draw::tokens::SHAPE_M;
+        ui.fill(rx, ry, rw, 44.0, r, Role::Surface);
+        ui.stroke(rx, ry, rw, 44.0, r, Role::OutlineVariant);
         let (m, _) = Session::quorum(w);
         let here = app
             .session
@@ -472,7 +446,7 @@ pub(crate) fn wallet_rows(
             Role::OnSurfaceVariant,
             &shape,
         );
-        ui.hit(rx, ry, rw, 44.0, action);
+        ui.hit_shaped((rx, ry, rw, 44.0, r), action);
     }
     let mut used = shown.div_ceil(cols) as f32 * 52.0;
     if shown < total {

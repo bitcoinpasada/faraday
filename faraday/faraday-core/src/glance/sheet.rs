@@ -1622,13 +1622,7 @@ fn field(ui: &mut Ui, x: f32, y: f32, w: f32, label: &str, text: &str, hint: boo
 /// Returns its height.
 fn menu_row(ui: &mut Ui, x: f32, y: f32, w: f32, r: &Row) -> f32 {
     let h = tokens::CHART_SHEET_ROW;
-    let pressed = r.action.is_some_and(|a| ui.is_pressed(a));
-    crate::ui::fill_pressed(
-        ui,
-        (x, y, w, h, tokens::RADIUS_SMALL),
-        Role::SurfaceContainerLow,
-        pressed,
-    );
+    ui.fill(x, y, w, h, tokens::RADIUS_SMALL, Role::SurfaceContainerLow);
     ui.stroke(x, y, w, h, tokens::RADIUS_SMALL, Role::OutlineVariant);
     let pad = tokens::PAD;
     let chevron = if r.action.is_some() {
@@ -1669,7 +1663,7 @@ fn menu_row(ui: &mut Ui, x: f32, y: f32, w: f32, r: &Row) -> f32 {
             tokens::GRID,
             Role::OnSurfaceVariant,
         );
-        ui.hit(x, y, w, h, a);
+        ui.hit_shaped((x, y, w, h, tokens::RADIUS_SMALL), a);
     }
     h
 }

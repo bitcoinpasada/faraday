@@ -215,7 +215,7 @@ pub fn column_wide(
             Role::SecondaryContainer,
         );
         if let Some(a) = col.chip_tap {
-            ui.hit(cx, cy, cw, 26.0, a);
+            ui.hit_shaped((cx, cy, cw, 26.0, tokens::shape_full(26.0)), a);
             ui.chip_at = Some((cx, cy + 26.0, cw));
         }
     }
@@ -227,7 +227,7 @@ pub fn column_wide(
             Role::OnSurfaceVariant,
             note,
         );
-        ui.fill(x, y, 3.0, nh, 1.5, Role::Primary.with_alpha(140));
+        ui.fill(x, y, 3.0, nh, 1.5, Role::Primary.paint());
         y += nh + 20.0;
     }
 
@@ -443,7 +443,7 @@ fn paged(
             Role::SecondaryContainer,
         );
         if let Some(a) = col.chip_tap {
-            ui.hit(M, y, cw, 26.0, a);
+            ui.hit_shaped((M, y, cw, 26.0, tokens::shape_full(26.0)), a);
             ui.chip_at = Some((M, y + 26.0, cw));
         }
         y += 36.0;
@@ -504,7 +504,7 @@ fn paged(
                         Role::OnSurfaceVariant,
                         text,
                     );
-                    ui.fill(M, y, 3.0, gh, 1.5, Role::Primary.with_alpha(140));
+                    ui.fill(M, y, 3.0, gh, 1.5, Role::Primary.paint());
                     y += gh + 8.0;
                 }
             }
@@ -517,21 +517,11 @@ fn paged(
                     Role::OnSurfaceVariant,
                     note,
                 );
-                ui.fill(M, y, 3.0, nh, 1.5, Role::Primary.with_alpha(140));
+                ui.fill(M, y, 3.0, nh, 1.5, Role::Primary.paint());
                 y += nh + 14.0;
             }
             for (i, card) in cards.iter().enumerate() {
                 // Each step a row on the page, a rule above it (F39).
-                if ui.is_pressed(card.toggle) {
-                    ui.wash(
-                        M,
-                        y,
-                        inner,
-                        52.0,
-                        10.0,
-                        Role::OnSurface.at(faraday_draw::tokens::STATE_PRESS),
-                    );
-                }
                 ui.rule(M, y, inner, Role::OutlineVariant);
                 ui.badge(M + 10.0, y + 13.0, &(i + 1).to_string(), card.done, false);
                 let tw = inner - 70.0;
@@ -606,16 +596,6 @@ pub(crate) fn about(
     let mut cy = y + 8.0;
     ui.rule(x, cy, w, Role::OutlineVariant);
     cy += 6.0;
-    if ui.is_pressed(action) {
-        ui.wash(
-            x,
-            cy,
-            w,
-            36.0,
-            8.0,
-            Role::OnSurface.at(faraday_draw::tokens::STATE_PRESS),
-        );
-    }
     ui.icon(x, cy + 8.0, 20.0, Icon::Info, 11.0, Role::OnSurfaceVariant);
     ui.text_mid_as((x + 26.0, cy, 36.0), LABEL_M, Role::OnSurfaceVariant, label);
     ui.icon(
@@ -639,7 +619,7 @@ pub(crate) fn about(
             Role::OnSurfaceVariant,
             text,
         );
-        ui.fill(x, cy, 3.0, gh, 1.5, Role::Primary.with_alpha(140));
+        ui.fill(x, cy, 3.0, gh, 1.5, Role::Primary.paint());
         cy += gh;
         if let Some(t) = learn {
             cy += learn_link(ui, x, cy, w, t);
@@ -692,7 +672,7 @@ pub(crate) fn guide_text(ui: &mut Ui, (x, y, w): (f32, f32, f32), text: &str) ->
     use tokens::{GUIDE_BAR, GUIDE_INDENT};
     let tx = x + GUIDE_INDENT;
     let gh = ui.wrap_as((tx, y, w - GUIDE_INDENT), BODY_M, Role::OnSurface, text);
-    let bar = Role::Primary.with_alpha(140);
+    let bar = Role::Primary.paint();
     ui.fill(x, y, GUIDE_BAR, gh, GUIDE_BAR / 2.0, bar);
     gh
 }

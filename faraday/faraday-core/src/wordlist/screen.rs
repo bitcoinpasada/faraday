@@ -46,11 +46,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, w: f32, h: f32) {
         .iter()
         .enumerate()
         .map(|(i, l)| {
-            let style = if *l == st.list {
-                Style::Primary
-            } else {
-                Style::Secondary
-            };
+            let style = Style::chosen(*l == st.list);
             (
                 l.name().to_string(),
                 style,

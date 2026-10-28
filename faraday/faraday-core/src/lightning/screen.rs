@@ -100,22 +100,14 @@ fn body(
                     EN.lightning_ldk_node,
                     &[&crate::wallet::key_line(fp, &k.label).to_string()],
                 ),
-                if l.source == Some(NodeSource::Key(fp.0)) {
-                    Style::Primary
-                } else {
-                    Style::Secondary
-                },
+                Style::chosen(l.source == Some(NodeSource::Key(fp.0))),
                 Action::LKey(fp.0),
             )
         })
         .collect();
     row.push((
         EN.lightning_lnd_type.to_string(),
-        if l.source == Some(NodeSource::Aezeed) {
-            Style::Primary
-        } else {
-            Style::Secondary
-        },
+        Style::chosen(l.source == Some(NodeSource::Aezeed)),
         Action::LAezeed,
     ));
     y += button_rows(ui, x, y, width, &row) + 6.0;

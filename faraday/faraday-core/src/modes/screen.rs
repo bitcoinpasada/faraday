@@ -48,10 +48,12 @@ pub(crate) fn pill_width(app: &View, ui: &Ui) -> f32 {
 /// One pill at (`px`, `py`), `pw` wide, in `tone`, pressed for `action`.
 fn chip(ui: &mut Ui, (px, py, pw): (f32, f32, f32), label: &str, tone: Paint, action: Action) {
     let h = MODE_PILL_HEIGHT;
-    ui.fill(px, py, pw, h, h / 2.0, tone.with_alpha(30));
-    ui.stroke(px, py, pw, h, h / 2.0, tone.with_alpha(110));
-    ui.text_mid_as((px + MODE_PILL_PAD, py, h), LABEL_M, tone, label);
-    ui.hit(px, py, pw, h, action);
+    // In its tone's container, never a tint (`docs/DESIGN.md` §3).
+    let (bg, fg) = crate::ui::container_of(tone);
+    let shape = (px, py, pw, h, h / 2.0);
+    ui.fill(px, py, pw, h, h / 2.0, bg);
+    ui.text_mid_as((px + MODE_PILL_PAD, py, h), LABEL_M, fg, label);
+    ui.hit_shaped(shape, action);
 }
 
 /// The mode pill at (`px`, `py`), in the caution tone: it names the

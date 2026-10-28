@@ -94,7 +94,11 @@ fn framed<A: Copy + PartialEq>(
         faraday_draw::tokens::ELEVATION_SHEET,
     );
     ui.fill(sx, sy, sw, sh, SHAPE_XL, fill);
-    ui.stroke(sx, sy, sw, sh, SHAPE_XL, Role::OutlineVariant);
+    // At High contrast, where it casts no shadow, its outline sets it
+    // apart (`docs/THEMES.md` §9); elsewhere its shadow and scrim do.
+    if ui.theme.is_high_contrast() {
+        ui.stroke(sx, sy, sw, sh, SHAPE_XL, Role::Outline);
+    }
     // Taller than the panel: what is above the buttons scrolls.
     let view = sh - foot;
     let max = (ch + 2.0 * pad - view).max(0.0);

@@ -212,11 +212,7 @@ pub(super) fn find(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         .map(|(i, &d)| {
             (
                 fill(EN.explore_first_n, &[&thousands(u64::from(d))]),
-                if d == e.depth {
-                    Style::Primary
-                } else {
-                    Style::Secondary
-                },
+                Style::chosen(d == e.depth),
                 xa(XAction::Depth(i as u8)),
             )
         })

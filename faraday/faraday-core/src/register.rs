@@ -256,7 +256,7 @@ pub(crate) fn sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
                 iw,
                 EN.register_hold,
                 Action::RegisterHold,
-                Role::Primary.paint(),
+                faraday_ui::hold::HoldTone::Primary,
             );
             cy += T::CHIP_LINE + T::GAP_SMALL;
             cy - y

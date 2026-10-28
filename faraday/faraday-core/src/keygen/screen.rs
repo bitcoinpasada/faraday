@@ -22,6 +22,7 @@ use crate::ui::{Style, Ui, W};
 use crate::wallet::fp_text;
 use crate::{Action, flow, guide};
 use faraday_draw::widgets::Icon;
+use faraday_ui::Status;
 
 pub(super) const TITLES: [&str; kstep::COUNT] = [
     EN.keygen_start,
@@ -817,10 +818,10 @@ fn other_lengths() -> Vec<(String, Action)> {
         .collect()
 }
 
-/// A choice on the Length card: filled once chosen, as the card's kinds
-/// have always been drawn, so the row keeps its width.
+/// A choice on the Length card: selected once chosen, as a chosen option
+/// is (F108).
 fn picked(on: bool) -> Style {
-    if on { Style::Primary } else { Style::Secondary }
+    Style::chosen(on)
 }
 
 /// The counts: a share's two for SLIP-39, its first chosen from the
@@ -1037,13 +1038,7 @@ fn group_head(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32, g: Group) -> f32 
             cy += 4.0;
             let mut bx = x;
             if g == Group::ByHand {
-                bx += ui.chip(
-                    x,
-                    cy,
-                    EN.keygen_recommended,
-                    Role::OnOkContainer,
-                    Role::OkContainer,
-                ) + 8.0;
+                bx += ui.tag(x, cy, EN.keygen_recommended, Status::Ok) + 8.0;
             }
             if let Some(way) = chosen.filter(|_| !open) {
                 let name = ui.fit_as(LABEL_L, &way_name(way), x + w - bx);
@@ -1070,13 +1065,7 @@ fn group_head(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32, g: Group) -> f32 
     let i = group_index(g);
     if g == Group::ByHand {
         let lw = ui.measure_as(TITLE_S, title);
-        ui.chip(
-            x + lw + 12.0,
-            y - 4.0,
-            EN.keygen_recommended,
-            Role::OnOkContainer,
-            Role::OkContainer,
-        );
+        ui.tag(x + lw + 12.0, y - 4.0, EN.keygen_recommended, Status::Ok);
     }
     let open = k.groups_open[usize::from(i)];
     ui.icon(
@@ -1426,7 +1415,7 @@ fn entries(app: &View, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
 /// next row starts.
 fn entry_style(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = y;
-    let style = |on: bool| if on { Style::Primary } else { Style::Secondary };
+    let style = Style::chosen;
     let mut bx = x;
     if k.active() == Some(Source::Coins) {
         for (label, on) in [(EN.keygen_coin, false), (EN.keygen_die, true)] {

@@ -89,11 +89,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             .map(|(i, f)| {
                 (
                     f.name().to_string(),
-                    if *f == app.entry.state().form {
-                        Style::Primary
-                    } else {
-                        Style::Secondary
-                    },
+                    Style::chosen(*f == app.entry.state().form),
                     Action::EntryForm(i as u8),
                 )
             })
@@ -269,11 +265,7 @@ pub(crate) fn word_count_row(
     let gap = 6.0;
     let bw = ((x + w - bx - gap * (counts.len() - 1) as f32) / counts.len() as f32).min(64.0);
     for n in counts {
-        let style = if usize::from(n) == chosen {
-            Style::Primary
-        } else {
-            Style::Secondary
-        };
+        let style = Style::chosen(usize::from(n) == chosen);
         ui.button(
             bx,
             y,
@@ -735,11 +727,7 @@ pub(crate) fn entry_form(
         None,
         BUTTON_H,
         label,
-        if ready {
-            Style::Primary
-        } else {
-            Style::Disabled
-        },
+        Style::Primary.when(ready),
         action,
     );
     // Its Enter on an empty line makes the key; the flow's opens Key.

@@ -13,8 +13,8 @@ use faraday_shell_api::Key as KeyIn;
 
 use crate::Action;
 use crate::ui::pal::*;
-use crate::ui::{Style, Ui};
-use faraday_draw::tokens::{BODY_M, LABEL_M};
+use crate::ui::{Glyph, Ui};
+use faraday_ui::menu::{Menu, MenuLine};
 
 /// One row of a menu.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -144,151 +144,30 @@ pub(crate) fn measure(ui: &mut Ui, draw: &mut dyn FnMut(&mut Ui) -> f32) -> f32 
     h
 }
 
-/// A menu's rows from (x, y), `w` wide: each place's name over the
-/// choices there, indented under it; the arrows' choice edged. Returns
-/// their height.
-fn rows(ui: &mut Ui, v: &View, x: f32, y: f32, w: f32) -> f32 {
-    // As tall as larger text needs (`docs/TEXT-SIZE.md` §5).
-    let rh = ui.row_height(
-        tokens::BOARD_MENU_ROW,
-        ui.line_as(BODY_M),
-        tokens::LIST_PAD_V,
-    );
-    let mut cy = y;
-    let mut k = 0;
-    let mut under = false;
-    for line in v.lines {
-        match line {
-            Line::Head(name) => {
-                if cy > y {
-                    cy += tokens::GAP_SMALL;
-                }
-                let hx = x + tokens::GAP_SMALL;
-                let shown = ui.fit_as(LABEL_M, name, w - tokens::GAP_SMALL);
-                ui.text_mid_as(
-                    (hx, cy, tokens::BOARD_ZONE_LABEL),
-                    LABEL_M,
-                    Role::OnSurfaceVariant,
-                    &shown,
-                );
-                cy += tokens::BOARD_ZONE_LABEL;
-                under = true;
-            }
-            Line::Item(label, a) => {
-                let a = *a;
-                let on = v.keys && v.at == k;
-                if on {
-                    ui.fill(
-                        x,
-                        cy,
-                        w,
-                        rh,
-                        tokens::SHAPE_XS,
-                        Role::SurfaceContainerHighest,
-                    );
-                    outline(
-                        ui,
-                        (x, cy, w, rh),
-                        tokens::SHAPE_XS,
-                        tokens::FOCUS_STROKE,
-                        Role::Primary.paint(),
-                    );
-                }
-                let ix = x + tokens::GAP_SMALL + if under { tokens::BOARD_PAD } else { 0.0 };
-                let shown = ui.fit_as(BODY_M, label, x + w - ix - tokens::GAP_SMALL);
-                ui.text_mid_as((ix, cy, rh), BODY_M, Role::OnSurface, &shown);
-                ui.hit(x, cy, w, rh, a);
-                cy += rh;
-                k += 1;
-            }
-        }
-    }
-    cy - y
-}
-
-/// The menu drawn: a popup under its ⋮ on `wide`, a sheet on the small
-/// panel (§19.20 item 5).
+/// Costs measuring every line. The menu drawn as Material's menu
+/// ([`faraday_ui::menu::menu`]): a popup under its ⋮ on `wide`, a sheet
+/// on the small panel (§19.20 item 5).
 pub(crate) fn draw(ui: &mut Ui, w: f32, h: f32, v: &View) {
-    if ui.compact {
-        let place = (tokens::GAP, w - 2.0 * tokens::GAP);
-        let pad = tokens::GRID * 2.0;
-        crate::compact::scroll_sheet(ui, place, h, tokens::GAP, pad, &mut |ui, x, y, iw| {
-            let mut cy = y;
-            cy += crate::compact::sheet_head(ui, x, cy, iw, v.icon, Role::OnSurface, v.title);
-            cy += rows(ui, v, x, cy, iw) + tokens::GAP;
-            cy += crate::compact::buttons(
-                ui,
-                x,
-                cy,
-                iw,
-                &[(v.cancel.0, Style::Secondary, v.cancel.1)],
-            );
-            cy - y
-        });
-        return;
-    }
-    let pad = tokens::GAP_SMALL;
-    let margin = tokens::GAP;
-    let pw = tokens::BOARD_POPUP_WIDTH.min(w - 2.0 * margin);
-    let iw = pw - 2.0 * pad;
-    let body = |ui: &mut Ui, x: f32, y: f32| -> f32 {
-        let shown = ui.fit_as(LABEL_M, v.title, iw - tokens::GAP_SMALL);
-        ui.text_mid_as(
-            (x + tokens::GAP_SMALL, y, tokens::BOARD_ZONE_LABEL),
-            LABEL_M,
-            Role::OnSurface,
-            &shown,
-        );
-        tokens::BOARD_ZONE_LABEL + rows(ui, v, x, y + tokens::BOARD_ZONE_LABEL, iw)
-    };
-    let content = measure(ui, &mut |ui| body(ui, 0.0, 0.0)) + 2.0 * pad;
-    let ph = content.min(h - 2.0 * margin);
-    let f = ui.f.max(0.1);
-    let (x, y) = match v.anchor {
-        Some((ax, ay, aw, ah)) => {
-            let (ax, ay) = (ax as f32 / f - ui.ox, ay as f32 / f - ui.oy);
-            let (aw, ah) = (aw as f32 / f, ah as f32 / f);
-            let x = (ax + aw - pw).clamp(margin, (w - pw - margin).max(margin));
-            let y = if ay + ah + ph <= h - margin {
-                ay + ah
-            } else if ay - ph >= margin {
-                ay - ph
-            } else {
-                (h - ph - margin).max(margin)
-            };
-            (x, y)
-        }
-        None => ((w - pw) / 2.0, (h - ph) / 2.0),
-    };
-    if let Some(a) = ui.outside {
-        ui.hit_around(x, y, pw, ph, a);
-    }
-    let max = (content - ph).max(0.0);
-    // Opening or closing, it unrolls from its top edge (Material's menu).
-    let ph = (ph * v.shown.clamp(0.0, 1.0)).round();
-    if ph <= 0.0 {
-        return;
-    }
-    // Material's menu: extra-small corners.
-    ui.shadow(x, y, pw, ph, tokens::SHAPE_XS, tokens::ELEVATION_MENU);
-    ui.fill(x, y, pw, ph, tokens::SHAPE_XS, Role::SurfaceContainer);
-    ui.stroke(x, y, pw, ph, tokens::SHAPE_XS, Role::OutlineVariant);
-    let off = ui.offset.clamp(0.0, max);
-    let clip = ui.rect(x, y, pw, ph);
-    ui.c.push_clip(clip);
-    let mark = ui.hits.len();
-    body(ui, x + pad, y + pad - off);
-    // What is scrolled out of the popup takes no press.
-    let mut k = mark;
-    while k < ui.hits.len() {
-        let r = ui.hits[k].0.intersect(&clip);
-        if r.w <= 0 || r.h <= 0 {
-            ui.hits.remove(k);
-        } else {
-            ui.hits[k].0 = r;
-            k += 1;
-        }
-    }
-    ui.c.pop_clip();
-    ui.report_scroll(clip, max);
+    let lines: Vec<MenuLine<Action>> = v
+        .lines
+        .iter()
+        .map(|l| match l {
+            Line::Head(name) => MenuLine::Head(name.as_str()),
+            Line::Item(label, a) => MenuLine::Item(label.as_str(), *a, false),
+        })
+        .collect();
+    faraday_ui::menu::menu(
+        ui,
+        w,
+        h,
+        &Menu {
+            title: Some(v.title),
+            icon: Glyph::Icon(v.icon),
+            lines: &lines,
+            at: v.keys.then_some(v.at),
+            anchor: v.anchor,
+            cancel: v.cancel,
+            shown: v.shown,
+        },
+    );
 }

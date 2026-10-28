@@ -30,7 +30,7 @@ pub(super) fn dice_panel(
 ) -> f32 {
     use faraday_bip::diceware::List;
     let mut cy = y;
-    ui.fill(x, cy, w, 4.0, 2.0, Role::Primary.with_alpha(60));
+    ui.fill(x, cy, w, 4.0, 2.0, Role::Primary);
     cy += 14.0;
     ui.text_as(x, cy, LABEL_L, Role::OnSurface, EN.dice_list_title);
     cy += ui.advance_as(LABEL_L, 22.0);
@@ -171,11 +171,7 @@ pub(super) fn dice_panel(
         Role::OnSurfaceVariant,
         &vault::dice_aim(list),
     ) + 12.0;
-    let style = if words.is_empty() {
-        Style::Disabled
-    } else {
-        Style::Primary
-    };
+    let style = Style::Primary.when(!words.is_empty());
     let uw = ui.button(
         x,
         cy,

@@ -94,7 +94,7 @@ pub(crate) fn gpg_sign_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
                     iw,
                     &label,
                     va(V::GpgHoldSign),
-                    primary.paint(),
+                    HoldTone::Primary,
                 );
             } else {
                 ui.button(
@@ -337,11 +337,7 @@ pub(crate) fn years_row(
     ]
     .into_iter()
     .map(|(label, years)| {
-        let style = if chosen == Some(years) {
-            Style::Primary
-        } else {
-            Style::Secondary
-        };
+        let style = Style::chosen(chosen == Some(years));
         (label, style, va(act(years)))
     })
     .collect();
@@ -360,11 +356,7 @@ pub(super) fn reasons_row(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f3
     .into_iter()
     .enumerate()
     .map(|(n, label)| {
-        let style = if usize::from(app.vaults.revoke_reason) == n {
-            Style::Primary
-        } else {
-            Style::Secondary
-        };
+        let style = Style::chosen(usize::from(app.vaults.revoke_reason) == n);
         (label, style, va(V::GpgReason(n as u8)))
     })
     .collect();
@@ -377,7 +369,6 @@ pub(super) fn reasons_row(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f3
 /// refusal leaves out (`docs/history/PLAN.md` §8).
 #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub(super) fn images_panel(app: &View, ui: &mut Ui, dx: f32, mut dy: f32, dw: f32) -> f32 {
-    let primary = Role::Primary;
     let (muted, ink) = (Role::OnSurfaceVariant, Role::OnSurface);
     if let Some((k, checked)) = &app.vaults.sb_sign
         && let Some(item) = app.inbox.get(*k)
@@ -414,7 +405,7 @@ pub(super) fn images_panel(app: &View, ui: &mut Ui, dx: f32, mut dy: f32, dw: f3
                     dy,
                     EN.vault_hold_to_sign,
                     va(V::SbHoldSign),
-                    primary.paint(),
+                    HoldTone::Primary,
                 )
         } else {
             dx

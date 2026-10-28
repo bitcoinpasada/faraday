@@ -87,11 +87,7 @@ fn body(app: &View, ui: &mut Ui, x: f32, mut y: f32, width: f32) -> f32 {
         .map(|(i, tool)| {
             (
                 tool_name(*tool).to_string(),
-                if *tool == t.tool {
-                    Style::Primary
-                } else {
-                    Style::Secondary
-                },
+                Style::chosen(*tool == t.tool),
                 Action::TTool(i as u8),
             )
         })

@@ -536,7 +536,6 @@ pub(crate) fn delete_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         // The danger, in its own band.
         let bh = 40.0;
         ui.fill(x, cy, iw, bh, 8.0, Role::ErrorContainer);
-        ui.stroke(x, cy, iw, bh, 8.0, Role::Error.with_alpha(110));
         ui.icon(
             x + 10.0,
             cy + 10.0,
@@ -609,13 +608,7 @@ pub(crate) fn delete_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
             }
             What::Whole => {
                 cy += ui.wrap_as((x, cy, iw), LABEL_L, Role::OnSurface, &amount(true)) + 10.0;
-                let pass_style = |n: u8| {
-                    if d.passes == n {
-                        Style::Primary
-                    } else {
-                        Style::Secondary
-                    }
-                };
+                let pass_style = |n: u8| Style::chosen(d.passes == n);
                 cy += wrap_buttons(
                     ui,
                     x,
@@ -659,7 +652,7 @@ pub(crate) fn delete_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
                 iw,
                 &held_go,
                 Action::Vault(crate::vault::VaultAction::HoldWipe),
-                Role::Error.paint(),
+                faraday_ui::hold::HoldTone::Error,
             );
             cy += 36.0 + 8.0;
             cy += buttons(

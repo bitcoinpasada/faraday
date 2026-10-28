@@ -300,7 +300,7 @@ fn where_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) -
                 let on = vs.contains(&v);
                 items.push((
                     BackupFlow::vault_name(v),
-                    if on { Style::Primary } else { Style::Secondary },
+                    Style::chosen(on),
                     fa(F::PlaceVault(p, v)),
                 ));
             }
@@ -322,11 +322,7 @@ fn where_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) -
             if vs.len() > 1 {
                 items.push((
                     fill(FEN.backup_flow_both, &[app.medium.noun()]),
-                    if f.plan.together.contains(&p) {
-                        Style::Primary
-                    } else {
-                        Style::Secondary
-                    },
+                    Style::chosen(f.plan.together.contains(&p)),
                     fa(F::Together(p)),
                 ));
             }
@@ -334,7 +330,7 @@ fn where_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) -
                 items.push((
                     FEN.backup_flow_public_here.to_string(),
                     if f.plan.public_at == p {
-                        Style::Primary
+                        Style::Selected
                     } else {
                         Style::Ghost
                     },
@@ -418,11 +414,7 @@ fn where_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) -
             &fill(FEN.backup_flow_at_least, &[&min.to_string()]),
         ) + 10.0;
     }
-    let style = if sticks >= min {
-        Style::Primary
-    } else {
-        Style::Disabled
-    };
+    let style = Style::Primary.when(sticks >= min);
     ui.button(
         x,
         cy,
@@ -723,7 +715,16 @@ fn stick_card(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) -
 /// The hold, and **Use another stick** beside it, or under it where the row
 /// is too narrow. Returns the height.
 fn hold_row(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, label: &str, other: &str) -> f32 {
-    let bw = hold_button_in(app, ui, x, y, w, label, fa(F::Hold), Role::Primary.paint());
+    let bw = hold_button_in(
+        app,
+        ui,
+        x,
+        y,
+        w,
+        label,
+        fa(F::Hold),
+        faraday_ui::hold::HoldTone::Primary,
+    );
     let ow = ui.measure_as(LABEL_L, other) + 32.0;
     if bw + 10.0 + ow <= w {
         ui.button(
@@ -1008,11 +1009,7 @@ fn vaults_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) 
                     Role::Primary.paint(),
                 );
             } else {
-                let style = if app.may_load_keys() {
-                    Style::Primary
-                } else {
-                    Style::Disabled
-                };
+                let style = Style::Primary.when(app.may_load_keys());
                 let bw = ui.button(
                     x,
                     cy,

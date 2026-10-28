@@ -173,34 +173,9 @@ pub const STICKS: [Color; 7] = [
     Color::rgb(0xa9, 0x8b, 0xf0),
     Color::rgb(0xe3, 0x7d, 0xd0),
 ];
-/// [`STICK_BOOT`] on a light page, darkened to read there as text.
-pub const STICK_BOOT_LIGHT: Color = Color::rgb(0xc2, 0x5e, 0x00);
-/// [`STICKS`] on a light page, darkened to read there as text.
-pub const STICKS_LIGHT: [Color; 7] = [
-    Color::rgb(0xb8, 0x2f, 0x2f),
-    Color::rgb(0x8a, 0x6d, 0x00),
-    Color::rgb(0x2a, 0x7d, 0x2a),
-    Color::rgb(0x00, 0x7a, 0x8a),
-    Color::rgb(0x2c, 0x5f, 0xc9),
-    Color::rgb(0x6a, 0x45, 0xc8),
-    Color::rgb(0xb0, 0x2f, 0x98),
-];
-
-/// The colour of a stick's pill as the pills were drawn before
-/// [`stick`]: `n` 0 the boot stick, `n` the backup Stick `n` otherwise,
-/// on a light page or a dark one, by Mode alone.
-pub fn stick_tone(n: usize, light: bool) -> Color {
-    match (n, light) {
-        (0, false) => STICK_BOOT,
-        (0, true) => STICK_BOOT_LIGHT,
-        (n, false) => STICKS[(n - 1) % STICKS.len()],
-        (n, true) => STICKS_LIGHT[(n - 1) % STICKS_LIGHT.len()],
-    }
-}
-
 /// The sticks' tones on a light page at Standard and Medium contrast,
-/// the boot stick's first, then Stick 1, 2, 3 and on: [`STICKS_LIGHT`]
-/// and the boot stick's orange taken down until white on each reads
+/// the boot stick's first, then Stick 1, 2, 3 and on: [`STICKS`]'s
+/// hues and the boot stick's orange taken down until white on each reads
 /// 4.5:1 or more, and each 3:1 or more on every surface of every light
 /// scheme (`docs/decisions/F142.md`).
 const STICKS_ON_LIGHT: [Color; 8] = [

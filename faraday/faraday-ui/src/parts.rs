@@ -154,7 +154,11 @@ pub fn sheet_box_in<A: Copy + PartialEq>(
         faraday_draw::tokens::ELEVATION_DIALOG,
     );
     ui.fill(x, y, sw, sh, SHAPE_XL, Role::SurfaceContainerHigh);
-    ui.stroke(x, y, sw, sh, SHAPE_XL, Role::OutlineVariant);
+    // At High contrast, where it casts no shadow, its outline sets it
+    // apart (`docs/THEMES.md` §9).
+    if ui.theme.is_high_contrast() {
+        ui.stroke(x, y, sw, sh, SHAPE_XL, Role::Outline);
+    }
     (x, y)
 }
 

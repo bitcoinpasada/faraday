@@ -24,6 +24,8 @@ use crate::{Action, Code, Faraday, Screen, flow};
 use faraday_draw::tokens;
 use faraday_keys::vault::RecordView;
 use faraday_keys::{Part, Reveal};
+use faraday_ui::Status;
+pub(crate) use faraday_ui::hold::HoldTone;
 use faraday_vault::records::{field, kind};
 use faraday_vault::{SLOT_SIZES, file_len};
 
@@ -105,7 +107,6 @@ pub(crate) fn stick_banner(ui: &mut Ui, x: f32, y: f32, w: f32, text: &str) -> f
         ui.c.pop_clip();
         let bh = th + 24.0;
         ui.fill(x, y, w, bh, 10.0, Role::WarningContainer);
-        ui.stroke(x, y, w, bh, 10.0, Role::Warning.with_alpha(110));
         ui.icon(
             x + 10.0,
             y + bh / 2.0 - 10.0,
@@ -123,7 +124,6 @@ pub(crate) fn stick_banner(ui: &mut Ui, x: f32, y: f32, w: f32, text: &str) -> f
         return bh + 12.0;
     }
     ui.fill(x, y, w, 48.0, 10.0, Role::WarningContainer);
-    ui.stroke(x, y, w, 48.0, 10.0, Role::Warning.with_alpha(110));
     ui.icon(
         x + 14.0,
         y + 14.0,
@@ -220,7 +220,6 @@ fn text_area(
 
 /// "Hold to delete from vault", filling while it is held.
 fn hold_delete(app: &View, ui: &mut Ui, x: f32, y: f32) -> f32 {
-    let bad = Role::Error;
     hold_button(
         app,
         ui,
@@ -228,11 +227,12 @@ fn hold_delete(app: &View, ui: &mut Ui, x: f32, y: f32) -> f32 {
         y,
         EN.vault_hold_to_delete,
         va(V::HoldDelete),
-        bad.paint(),
+        HoldTone::Error,
     )
 }
 
-/// A button that acts when held, filling while it is held.
+/// A button that acts when held, filling while it is held
+/// ([`Ui::hold_button`]), in `tone`.
 pub(crate) fn hold_button(
     app: &View,
     ui: &mut Ui,
@@ -240,9 +240,9 @@ pub(crate) fn hold_button(
     y: f32,
     label: &str,
     action: Action,
-    color: crate::ui::Paint,
+    tone: HoldTone,
 ) -> f32 {
-    hold_button_in(app, ui, x, y, f32::MAX, label, action, color)
+    hold_button_in(app, ui, x, y, f32::MAX, label, action, tone)
 }
 
 /// [`hold_button`] no wider than `room`: a long label is cut to fit.
@@ -255,23 +255,17 @@ pub(crate) fn hold_button_in(
     room: f32,
     label: &str,
     action: Action,
-    color: crate::ui::Paint,
+    tone: HoldTone,
 ) -> f32 {
-    let w = (ui.measure_as(LABEL_L, label) + 32.0).min(room);
-    let label = ui.fit_as(LABEL_L, label, w - 32.0);
-    let label = label.as_str();
-    if ui.is_pressed(action) {
-        let held = app
-            .now_ms
+    let held = if ui.is_pressed(action) {
+        app.now_ms
             .saturating_sub(app.vaults.pressed_at)
             .min(HOLD_MS) as f32
-            / HOLD_MS as f32;
-        ui.fill(x, y, w * held, BUTTON_H, 10.0, color.with_alpha(60));
-    }
-    ui.stroke(x, y, w, BUTTON_H, 10.0, color.with_alpha(115));
-    ui.text_mid_as((x + 16.0, y, BUTTON_H), LABEL_L, color, label);
-    ui.hit(x, y, w, BUTTON_H, action);
-    w
+            / HOLD_MS as f32
+    } else {
+        0.0
+    };
+    ui.hold_button((x, y, room), (label, tone), held, action)
 }
 
 // ---------------------------------------------------------------------
@@ -334,15 +328,8 @@ pub(crate) fn list(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         let ch = 92.0;
         ui.fill(x, y, w, ch, 12.0, Role::SurfaceContainerLow);
         ui.stroke(x, y, w, ch, 12.0, edge);
-        ui.fill(
-            x + 18.0,
-            y + 22.0,
-            48.0,
-            48.0,
-            10.0,
-            icon_color.with_alpha(30),
-        );
-        ui.icon(x + 18.0, y + 22.0, 48.0, Icon::Lock, 20.0, icon_color);
+        let tile = (x + 18.0, y + 22.0, 48.0, tokens::SHAPE_M);
+        crate::ui::icon_tile(ui, tile, Icon::Lock, 20.0, icon_color);
         ui.text_as(x + 84.0, y + 16.0, TITLE_M, ink, &title_text);
         ui.text_as(x + 84.0, y + 42.0, BODY_S.mono(), muted, &f.name);
         let where_ = if f.in_outbox {
@@ -437,8 +424,8 @@ pub(crate) fn unlock(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         ui.fill(x, y, w, ch, 12.0, fill_);
         ui.stroke(x, y, w, ch, 12.0, selected_or(on, rule));
         let fg = muted;
-        ui.fill(x + 16.0, y + 14.0, 44.0, 44.0, 10.0, fg.with_alpha(30));
-        ui.icon(x + 16.0, y + 14.0, 44.0, Icon::Lock, 18.0, fg);
+        let tile = (x + 16.0, y + 14.0, 44.0, tokens::SHAPE_M);
+        crate::ui::icon_tile(ui, tile, Icon::Lock, 18.0, fg);
         ui.text_as(x + 76.0, y + 14.0, BODY_M.mono(), ink, &f.name);
         let where_ = if f.in_outbox {
             app.medium.for_box()
@@ -493,11 +480,7 @@ pub(crate) fn unlock(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         let line = fill(EN.vault_unlocking, &[&t.to_string()]);
         crate::screens::working_line(ui, (x, y, w, 46.0), &line);
     } else {
-        let style = if app.may_load_keys() {
-            Style::Primary
-        } else {
-            Style::Disabled
-        };
+        let style = Style::Primary.when(app.may_load_keys());
         ui.button(
             x,
             y,
@@ -625,15 +608,8 @@ fn list_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         let ch = 112.0 + 40.0;
         ui.fill(x, y, w, ch, 12.0, Role::SurfaceContainerLow);
         ui.stroke(x, y, w, ch, 12.0, edge);
-        ui.fill(
-            x + 12.0,
-            y + 14.0,
-            36.0,
-            36.0,
-            8.0,
-            icon_color.with_alpha(30),
-        );
-        ui.icon(x + 12.0, y + 14.0, 36.0, Icon::Lock, 15.0, icon_color);
+        let tile = (x + 12.0, y + 14.0, 36.0, tokens::SHAPE_S);
+        crate::ui::icon_tile(ui, tile, Icon::Lock, 15.0, icon_color);
         let room = w - 60.0 - 12.0;
         let t = ui.fit_as(TITLE_M, &title_text, room);
         ui.text_as(x + 60.0, y + 10.0, TITLE_M, ink, &t);
@@ -730,8 +706,8 @@ fn unlock_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         ui.fill(x, y, w, ch, 12.0, fill_);
         ui.stroke(x, y, w, ch, 12.0, selected_or(on, rule));
         let fg = muted;
-        ui.fill(x + 12.0, y + 12.0, 36.0, 36.0, 8.0, fg.with_alpha(30));
-        ui.icon(x + 12.0, y + 12.0, 36.0, Icon::Lock, 15.0, fg);
+        let tile = (x + 12.0, y + 12.0, 36.0, tokens::SHAPE_S);
+        crate::ui::icon_tile(ui, tile, Icon::Lock, 15.0, fg);
         let room = w - 60.0 - 12.0;
         let name = ui.fit_as(BODY_M.mono(), &f.name, room);
         ui.text_as(x + 60.0, y + 10.0, BODY_M.mono(), ink, &name);
@@ -785,11 +761,7 @@ fn unlock_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         crate::screens::working_line(ui, (x, y, w, 44.0), &line);
         y += 52.0;
     } else {
-        let style = if app.may_load_keys() {
-            Style::Primary
-        } else {
-            Style::Disabled
-        };
+        let style = Style::Primary.when(app.may_load_keys());
         if crate::screens::pin_button(
             ui,
             x,
@@ -1086,11 +1058,7 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                 cy += ui.advance_as(BODY_S, 22.0);
                 let mut bx = x;
                 for (i, m) in CUSTOM_MEMORY.iter().enumerate() {
-                    let style = if *m == c.memory {
-                        Style::Primary
-                    } else {
-                        Style::Secondary
-                    };
+                    let style = Style::chosen(*m == c.memory);
                     bx += ui.button(
                         bx,
                         cy,
@@ -1106,11 +1074,7 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                 cy += ui.advance_as(BODY_S, 22.0);
                 let mut bx = x;
                 for (i, p) in CUSTOM_PASSES.iter().enumerate() {
-                    let style = if *p == c.passes {
-                        Style::Primary
-                    } else {
-                        Style::Secondary
-                    };
+                    let style = Style::chosen(*p == c.passes);
                     bx += ui.button(
                         bx,
                         cy,
@@ -1606,9 +1570,11 @@ fn create_summary(app: &View, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     }
     y += 4.0;
     for (t, color) in &warnings {
-        let th = ui.wrap_as((x + 12.0, y + 10.0, w - 24.0), BODY_S, *color, t);
-        ui.fill(x, y, w, th + 20.0, 8.0, color.with_alpha(26));
-        ui.wrap_as((x + 12.0, y + 10.0, w - 24.0), BODY_S, *color, t);
+        // In its tone's container, never a tint (`docs/DESIGN.md` §3).
+        let (bg, fg) = crate::ui::container_of(*color);
+        let th = ui.wrap_as((x + 12.0, y + 10.0, w - 24.0), BODY_S, fg, t);
+        ui.fill(x, y, w, th + 20.0, 8.0, bg);
+        ui.wrap_as((x + 12.0, y + 10.0, w - 24.0), BODY_S, fg, t);
         y += th + 28.0;
     }
     y += 8.0;
@@ -1665,11 +1631,7 @@ fn create_button(app: &View, ui: &mut Ui, x: f32, by: f32, w: f32) -> f32 {
         Some(w),
         46.0,
         EN.vault_create_vault,
-        if app.may_load_keys() {
-            Style::Primary
-        } else {
-            Style::Disabled
-        },
+        Style::Primary.when(app.may_load_keys()),
         va(V::CGo),
     ) {
         // Pinned at the panel's foot.
@@ -1995,11 +1957,7 @@ pub(crate) fn contents(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let mut vx = x + ui.measure_as(BODY_S.mono(), &sub) + 24.0;
     if app.vaults.open.len() > 1 {
         for (i, o) in app.vaults.open.iter().enumerate() {
-            let style = if i == app.vaults.current {
-                Style::Primary
-            } else {
-                Style::Secondary
-            };
+            let style = Style::chosen(i == app.vaults.current);
             vx += ui.button(
                 vx,
                 y - 8.0,
@@ -2376,11 +2334,7 @@ fn contents_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             .iter()
             .enumerate()
             .map(|(i, l)| {
-                let style = if i == app.vaults.current {
-                    Style::Primary
-                } else {
-                    Style::Secondary
-                };
+                let style = Style::chosen(i == app.vaults.current);
                 (l.as_str(), style, va(V::Show(i)))
             })
             .collect();
@@ -2396,11 +2350,7 @@ fn contents_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let kind_items: Vec<(&str, Style, Action)> = kind_labels
         .iter()
         .map(|(k, l)| {
-            let style = if *k == app.vaults.category {
-                Style::Primary
-            } else {
-                Style::Secondary
-            };
+            let style = Style::chosen(*k == app.vaults.category);
             (l.as_str(), style, va(V::Category(*k)))
         })
         .collect();
@@ -2486,8 +2436,8 @@ fn code_badge(ui: &mut Ui, x: f32, y: f32, label: &str) {
     let muted = Role::OnSurfaceVariant;
     let tw = ui.measure_as(LABEL_M, label);
     let pw = tw + 24.0;
-    ui.fill(x, y, pw, 26.0, 13.0, Role::OnSurfaceVariant.with_alpha(30));
-    ui.stroke(x, y, pw, 26.0, 13.0, Role::OnSurfaceVariant.with_alpha(110));
+    ui.fill(x, y, pw, 26.0, 13.0, Role::SurfaceContainerHighest);
+    ui.stroke(x, y, pw, 26.0, 13.0, Role::OutlineVariant);
     ui.text_mid_as((x + (pw - tw) / 2.0, y, 26.0), LABEL_M, muted, label);
 }
 
@@ -2567,7 +2517,7 @@ fn detail(
     mut dy: f32,
     dw: f32,
 ) -> f32 {
-    let (bad, warn) = (Role::Error, Role::Warning);
+    let bad = Role::Error;
     let (muted, ink) = (Role::OnSurfaceVariant, Role::OnSurface);
     if let Some(form) = &app.vaults.form {
         let revoking = form.kind == kind::GPG && form.fields.first().is_some_and(|f| f.0 == 3);
@@ -2803,12 +2753,11 @@ fn detail(
             let name = ui.fit_as(BODY_M.mono(), &line, name_w);
             ui.text_mid_as((dx + 30.0, dy, 40.0), BODY_M.mono(), ink, &name);
             if signed {
-                ui.chip(
+                ui.tag(
                     dx + 30.0 + name_w + 8.0,
                     dy + 10.0,
                     EN.vault_signed,
-                    Role::OnOkContainer,
-                    Role::OkContainer,
+                    Status::Ok,
                 );
             }
             // On a small panel the buttons are on the line below: the
@@ -2849,7 +2798,7 @@ fn detail(
             None,
             BUTTON_H,
             EN.vault_sign,
-            if any { Style::Primary } else { Style::Disabled },
+            Style::Primary.when(any),
             va(V::GpgSign),
         );
         ui.button(
@@ -3227,11 +3176,7 @@ fn detail(
             ]
             .into_iter()
             .map(|(label, own)| {
-                let style = if app.vaults.sb_own_only == own {
-                    Style::Primary
-                } else {
-                    Style::Secondary
-                };
+                let style = Style::chosen(app.vaults.sb_own_only == own);
                 (label, style, va(V::SbOwnOnly(own)))
             })
             .collect();
@@ -3276,7 +3221,7 @@ fn detail(
             (hx, dy) = (dx, dy + faraday_draw::tokens::TOUCH);
         }
         let hold = va(V::GpgHoldRevoke);
-        hold_button_in(app, ui, hx, dy, room - hx, label, hold, warn.paint());
+        hold_button_in(app, ui, hx, dy, room - hx, label, hold, HoldTone::Warning);
     }
     dy + 48.0
 }

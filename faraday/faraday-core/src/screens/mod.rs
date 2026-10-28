@@ -60,7 +60,7 @@ pub(crate) use parts::{
     next_button_when, pass_field, pin_button, side_panel_w, sign_readiness, size_text, stepper,
     ticked, word_keys, working_bar, working_line,
 };
-pub(crate) use parts::{camera_row, card_pad, coin_pad, dice_pad, key_path_line};
+pub(crate) use parts::{camera_row, card_pad, coin_pad, dice_pad, key_path_line, word_cell_edge};
 pub(crate) use restore::RSTEPS;
 pub(crate) use settings::open_head as settings_open;
 use sheets::{
@@ -323,8 +323,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
         if !app.learn_pages().is_empty() {
             // In the right margin, clear of every screen's own title row.
             let (qx, qy) = (full_w - TOP_ROW_QUESTION, 12.0);
-            let pressed = ui.is_pressed(Action::Learn);
-            crate::ui::fill_pressed(ui, (qx, qy, 28.0, 28.0, 14.0), Role::Surface, pressed);
+            ui.fill(qx, qy, 28.0, 28.0, 14.0, Role::Surface);
             ui.stroke(qx, qy, 28.0, 28.0, 14.0, Role::OutlineVariant);
             let tw = ui.measure_as(LABEL_L, "?");
             ui.text_mid_as(
@@ -333,7 +332,8 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
                 Role::OnSurfaceVariant,
                 "?",
             );
-            ui.hit_tip(
+            ui.hit_shaped((qx, qy, 28.0, 28.0, 14.0), Action::Learn);
+            ui.tip_plain(
                 (qx - 6.0, qy - 6.0, 40.0, 40.0),
                 Action::Learn,
                 EN.tip_learn,
@@ -721,33 +721,19 @@ fn draw_compact(app: &View, ui: &mut Ui, area: (f32, f32), h: f32, kb: bool, y0:
     ui.oy = 0.0;
 }
 
-/// "Remove the stick" and the toast, centred in `cw` from `x`, at the foot.
+/// "Remove the stick" and the toast in `cw` from `x`, at the foot `h`:
+/// each Material's snackbar, the toast standing above the notice while
+/// both show.
 fn notices(app: &View, ui: &mut Ui, x: f32, cw: f32, h: f32) {
+    let mut foot = h;
     if app.stick.not_now() && !app.stick.is_empty() && app.sheet.is_none() {
         let msg = &fill(EN.notices_remove_medium, &[app.medium.noun()]);
-        let bw = ui.measure_as(LABEL_L, msg) + 40.0;
-        let bx = x + (cw - bw) / 2.0;
-        ui.shadow(
-            bx,
-            h - 64.0,
-            bw,
-            44.0,
-            10.0,
-            faraday_draw::tokens::ELEVATION_FAB,
-        );
-        ui.fill(bx, h - 64.0, bw, 44.0, 10.0, Role::WarningContainer);
-        ui.stroke(bx, h - 64.0, bw, 44.0, 10.0, Role::Warning.with_alpha(110));
-        ui.text_mid_as(
-            (bx + 20.0, h - 64.0, 44.0),
-            LABEL_L,
-            Role::OnWarningContainer,
-            msg,
-        );
+        foot -= ui.snackbar((x, cw, h), msg, 1.0, 0.0);
     }
     if let Some(t) = app.toast_text().map(str::to_string) {
         // Material's snackbar, rising in and fading as its time runs out.
         let (shown, rise) = app.toast_shown();
-        ui.snackbar((x, cw, h), &t, shown, rise);
+        ui.snackbar((x, cw, foot), &t, shown, rise);
     }
 }
 

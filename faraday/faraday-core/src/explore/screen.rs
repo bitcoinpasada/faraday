@@ -41,11 +41,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             let fp = k.fingerprint;
             (
                 crate::wallet::key_line(fp, &k.label),
-                if e.key == Some(fp.0) {
-                    Style::Primary
-                } else {
-                    Style::Secondary
-                },
+                Style::chosen(e.key == Some(fp.0)),
                 Action::XKey(fp.0),
             )
         })
@@ -116,11 +112,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         .map(|(i, s)| {
             (
                 script_name(*s).to_string(),
-                if *s == r.script {
-                    Style::Primary
-                } else {
-                    Style::Secondary
-                },
+                Style::chosen(*s == r.script),
                 Action::XScript(i as u8),
             )
         })

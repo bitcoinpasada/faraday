@@ -11,6 +11,7 @@ use crate::ui::{Style, Ui};
 use crate::wallet::fp_text;
 use crate::{Action, Code, flow};
 use faraday_draw::tokens::{BODY_M, BODY_S, BUTTON_H, GAP, LABEL_L, PAD, TITLE_M};
+use faraday_ui::Status;
 
 pub(crate) const TITLES: [&str; sstep::COUNT] = [
     EN.silent_key,
@@ -107,11 +108,7 @@ fn card(app: &View, s: &SilentState, ui: &mut Ui, k: u8, x: f32, y: f32, w: f32)
                     let fp = key.fingerprint;
                     (
                         crate::wallet::key_line(fp, &key.label),
-                        if s.key == Some(fp.0) {
-                            Style::Primary
-                        } else {
-                            Style::Secondary
-                        },
+                        Style::chosen(s.key == Some(fp.0)),
                         Action::SKey(fp.0),
                     )
                 })
@@ -237,13 +234,7 @@ fn card(app: &View, s: &SilentState, ui: &mut Ui, k: u8, x: f32, y: f32, w: f32)
         }
         sstep::CHECK => cy += check_card(app, s, ui, x, cy, w),
         _ => {
-            ui.chip(
-                x,
-                cy,
-                EN.silent_secret_shows,
-                Role::OnWarningContainer,
-                Role::WarningContainer,
-            );
+            ui.tag(x, cy, EN.silent_secret_shows, Status::Warning);
             cy += 38.0;
             let mut row: Vec<(String, Style, Action)> = Vec::new();
             match app.vaults.open.get(app.vaults.current) {

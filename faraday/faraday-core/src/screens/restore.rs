@@ -368,11 +368,7 @@ fn restore_description(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                         },
                         &line,
                     ) + 10.0;
-                    let style = if m.whole.is_some() {
-                        Style::Primary
-                    } else {
-                        Style::Disabled
-                    };
+                    let style = Style::Primary.when(m.whole.is_some());
                     ui.button(
                         x,
                         cy,

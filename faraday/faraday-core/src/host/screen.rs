@@ -709,7 +709,11 @@ pub(crate) fn draw(host: &Host, ui: &mut HostUi, area: Option<Area>, scroll: f32
     if !row.section.is_empty() {
         let sw = 2.0 * SECTION_PAD + run_w(ui, &row.section);
         let sy = top + t::GAP_SMALL;
-        ui.fill(x, sy, sw, sh - 2.0 * t::GAP_SMALL, t::SHAPE_L, look.section);
+        let sh2 = sh - 2.0 * t::GAP_SMALL;
+        ui.fill(x, sy, sw, sh2, t::SHAPE_L, look.section);
+        // Edged, so it stands apart from the strip where the two
+        // containers meet in tone.
+        ui.stroke(x, sy, sw, sh2, t::SHAPE_L, look.edge);
         x += SECTION_PAD;
         for p in &row.section {
             x += piece(
@@ -910,10 +914,8 @@ fn control(host: &Host, ui: &mut HostUi, c: &Ctl, (x, y): (f32, f32), inks: Inks
     let look = Look::now(host);
     let w = ctl_w(ui, c);
     let h = t::HOST_CONTROL_H;
-    let r = match c.kind {
-        Kind::Stick { .. } => t::shape_full(h),
-        _ => t::SHAPE_M,
-    };
+    // Material's buttons are round at their ends (F108).
+    let r = t::shape_full(h);
     let open = matches!(c.kind, Kind::Opens(m) if host.menu.map(|o| o.0) == Some(m));
     let off = layer(inks.ink, t::DISABLED_CONTENT);
     // (label, outline, fill)
@@ -962,7 +964,7 @@ fn control(host: &Host, ui: &mut HostUi, c: &Ctl, (x, y): (f32, f32), inks: Inks
         ui.icon(ix, iy, t::ICON_SMALL, Icon::ChevronUp, t::TITLE_M.size, ink);
     }
     if c.kind != Kind::Off {
-        ui.hit(x, y, w, h, c.press);
+        ui.hit_ringed((x, y, w, h, r), (x, y, w, h), c.press);
     }
     w
 }
@@ -1099,9 +1101,14 @@ fn menu(
     let mh = whole.min(bottom - t::PAD).max(t::HOST_MENU_ROW);
     let max = (whole - mh).max(0.0);
     let my = bottom - mh;
+    // Material's menu: extra-small corners at elevation 2, an outline in
+    // place of the shadow at High contrast (`docs/THEMES.md` §7, §9).
+    raised(ui, (mx, my, mw, mh), shown);
     let fading = Fading::begin(ui, (mx, my, mw, mh), shown);
-    ui.fill(mx, my, mw, mh, t::GAP_SMALL, look.raised);
-    ui.stroke(mx, my, mw, mh, t::GAP_SMALL, look.rule);
+    ui.fill(mx, my, mw, mh, t::SHAPE_XS, look.raised);
+    if ui.theme.is_high_contrast() {
+        ui.stroke(mx, my, mw, mh, t::SHAPE_XS, look.edge);
+    }
     // A press on the menu itself is the menu's: it closes nothing, and
     // shows no state of its own.
     ui.hit_quiet(mx, my, mw, mh, HostPress::Sheet);
@@ -1116,7 +1123,15 @@ fn menu(
                 ui.text_mid_as((mx + t::PAD, ry, rh), t::TITLE_S, dim, &r.label);
             }
             Some(p) => {
-                let ink = look.on_raised;
+                // The chosen item in secondary-container (Material's
+                // menu).
+                let ink = if r.chosen {
+                    let h = look.theme;
+                    ui.fill(mx, ry, mw, rh, 0.0, h.role(Role::SecondaryContainer));
+                    h.role(Role::OnSecondaryContainer)
+                } else {
+                    look.on_raised
+                };
                 if ui.is_pressed(p) {
                     ui.wash(mx, ry, mw, rh, 0.0, layer(ink, t::STATE_PRESS));
                 } else if ui.is_hovered(p) {
@@ -1145,7 +1160,7 @@ fn menu(
                     let dim = look.on_raised_dim;
                     ui.text_mid_as((nx, ry, rh), t::BODY_M, dim, &r.note);
                 }
-                ui.hit(mx, ry, mw, rh, p);
+                ui.hit_ringed((mx, ry, mw, rh, 0.0), (mx, ry, mw, rh), p);
             }
         }
         ry += rh;
@@ -1153,6 +1168,13 @@ fn menu(
     ui.c.pop_clip();
     fading.end(ui);
     Some((place, max))
+}
+
+/// The shadow under a menu or Samples' sheet at (x, y, w, h), `shown`
+/// of the way faded in: Material's menu's, level 2, none at High
+/// contrast.
+fn raised(ui: &mut HostUi, (x, y, w, h): (f32, f32, f32, f32), shown: f32) {
+    ui.shadow_faded((x, y, w, h, t::SHAPE_XS), t::ELEVATION_MENU, shown);
 }
 
 /// A menu or Samples' sheet fading in or out: what it stands on, kept to
@@ -1284,11 +1306,15 @@ fn samples_sheet(
     let view = (mh - head - foot).max(0.0);
     let max = (body - view).max(0.0);
     let scroll = host.list_shown(max);
+    raised(ui, (mx, my, mw, mh), shown);
     let fading = Fading::begin(ui, (mx, my, mw, mh), shown);
-    ui.fill(mx, my, mw, mh, t::GAP_SMALL, look.raised);
-    ui.stroke(mx, my, mw, mh, t::GAP_SMALL, look.rule);
-    // A press on the sheet itself is the sheet's: it closes nothing.
-    ui.hit(mx, my, mw, mh, HostPress::Sheet);
+    ui.fill(mx, my, mw, mh, t::SHAPE_XS, look.raised);
+    if ui.theme.is_high_contrast() {
+        ui.stroke(mx, my, mw, mh, t::SHAPE_XS, look.edge);
+    }
+    // A press on the sheet itself is the sheet's: it closes nothing, and
+    // shows no state of its own.
+    ui.hit_drawn(mx, my, mw, mh, HostPress::Sheet);
     let x = mx + t::PAD;
     let title = EN.samples_title;
     ui.text_mid_as(
@@ -1376,7 +1402,11 @@ fn sheet_lists(
         );
     }
     ui.text_mid_as((x, cy, row), t::LABEL_L, ink, link);
-    ui.hit(x - t::GAP, cy, link_w, row, all);
+    ui.hit_ringed(
+        (x - t::GAP, ly, link_w, line, t::GAP),
+        (x - t::GAP, cy, link_w, row),
+        all,
+    );
     texts.push(link.to_string());
     cy += row;
     let wallets: Vec<String> = state
@@ -1523,6 +1553,6 @@ fn tick_row(
         ui.text_mid_as((x + w - t::PAD - nw, y, row), t::BODY_M, dim, &note);
     }
     if on {
-        ui.hit(x, y, w, row, press);
+        ui.hit_ringed((x, y, w, row, 0.0), (x, y, w, row), press);
     }
 }

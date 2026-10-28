@@ -6,7 +6,7 @@ use crate::strings::{EN, fill};
 use crate::ui::pal::*;
 use crate::ui::{Glyph, Ui};
 use crate::{Action, Screen};
-use faraday_draw::tokens::{BODY_M, BODY_S, LABEL_L, TITLE_M};
+use faraday_draw::tokens::{BODY_M, BODY_S, LABEL_L, SHAPE_M, TITLE_M};
 use faraday_draw::tokens::{
     HOME_TILE_ICON, HOME_TILE_INSET, HOME_TILE_TEXT_X, LEAD_MAX, MARGIN_WIDE, TILE_H, TILE_MIN,
 };
@@ -322,14 +322,8 @@ fn tiles(app: &View, ui: &mut Ui, (x, y): (f32, f32), width: f32, gap: f32) {
     for (i, (icon, label, sub, action)) in ways.iter().enumerate() {
         let tx = x + (i % cols) as f32 * (tilew + gap);
         let ty = y + (i / cols) as f32 * (tile_h + gap);
-        let pressed = ui.is_pressed(*action);
-        crate::ui::fill_pressed(
-            ui,
-            (tx, ty, tilew, tile_h, 12.0),
-            Role::SurfaceContainerLow,
-            pressed,
-        );
-        ui.stroke(tx, ty, tilew, tile_h, 12.0, Role::OutlineVariant);
+        ui.fill(tx, ty, tilew, tile_h, SHAPE_M, Role::SurfaceContainerLow);
+        ui.stroke(tx, ty, tilew, tile_h, SHAPE_M, Role::OutlineVariant);
         let (ix, ib) = (HOME_TILE_INSET, HOME_TILE_ICON);
         let iy = (tile_h - ib) / 2.0;
         ui.fill(tx + ix, ty + iy, ib, ib, 10.0, Role::SecondaryContainer);
@@ -358,7 +352,7 @@ fn tiles(app: &View, ui: &mut Ui, (x, y): (f32, f32), width: f32, gap: f32) {
             Role::OnSurfaceVariant,
             &sub,
         );
-        ui.hit(tx, ty, tilew, tile_h, *action);
+        ui.hit_shaped((tx, ty, tilew, tile_h, SHAPE_M), *action);
     }
 }
 
@@ -387,25 +381,8 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32) {
     if let Some((icon, label, sub, action, enabled)) = home_job(app) {
         let lead_h = 96.0;
         let lead_w = width.min(LEAD_MAX);
-        let pressed = enabled && ui.is_pressed(action);
-        crate::ui::fill_pressed(
-            ui,
-            (x, y, lead_w, lead_h, 14.0),
-            Role::SurfaceContainerLow,
-            pressed,
-        );
-        ui.stroke(
-            x,
-            y,
-            lead_w,
-            lead_h,
-            14.0,
-            if enabled {
-                Role::OutlineVariant.paint()
-            } else {
-                Role::Warning.with_alpha(110)
-            },
-        );
+        ui.fill(x, y, lead_w, lead_h, SHAPE_M, Role::SurfaceContainerLow);
+        ui.stroke(x, y, lead_w, lead_h, SHAPE_M, Role::OutlineVariant);
         let (ibg, ifg) = if enabled {
             (
                 Role::SecondaryContainer.paint(),
@@ -436,7 +413,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32) {
             );
         }
         if enabled {
-            ui.hit(x, y, lead_w, lead_h, action);
+            ui.hit_shaped((x, y, lead_w, lead_h, SHAPE_M), action);
         }
         y += lead_h + gap;
     }

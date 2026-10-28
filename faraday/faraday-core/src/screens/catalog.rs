@@ -37,7 +37,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     };
     let fx = x + width - fw;
     ui.fill(fx, y - 2.0, fw, 40.0, 8.0, Role::SurfaceContainerHighest);
-    ui.stroke(fx, y - 2.0, fw, 40.0, 8.0, Role::Primary.with_alpha(110));
+    ui.stroke(fx, y - 2.0, fw, 40.0, 8.0, Role::Outline);
     let (shown, tone) = if app.tools.find().is_empty() {
         (EN.catalog_find_a_tool.to_string(), Role::OnSurfaceVariant)
     } else {
@@ -84,14 +84,9 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             let need = app.tile_need(tile.go);
             let opens = app.tile_opens(tile.go);
             let action = Action::Catalog(*i as u8);
-            let pressed = ui.is_pressed(action);
-            crate::ui::fill_pressed(
-                ui,
-                (tx, ty, tw3, th, 10.0),
-                Role::SurfaceContainerLow,
-                pressed,
-            );
-            ui.stroke(tx, ty, tw3, th, 10.0, Role::OutlineVariant);
+            let r = faraday_draw::tokens::SHAPE_M;
+            ui.fill(tx, ty, tw3, th, r, Role::SurfaceContainerLow);
+            ui.stroke(tx, ty, tw3, th, r, Role::OutlineVariant);
             let name = ui.fit_as(TITLE_S, tile.name, tw3 - 32.0);
             ui.text_as(
                 tx + 16.0,
@@ -133,7 +128,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 gx += gw + 6.0;
             }
             if opens {
-                ui.hit(tx, ty, tw3, th, action);
+                ui.hit_shaped((tx, ty, tw3, th, r), action);
             }
         }
         y += tiles.len().div_ceil(per) as f32 * (th + 10.0) + 16.0;
