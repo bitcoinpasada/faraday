@@ -9043,6 +9043,12 @@ strings! {
     backup_flow_reading: "Reading {}",
     /// Summary of step 2.
     backup_flow_read_count: "{} of {} read",
+    /// Bring in the sticks closed with none read: each is read on Write
+    /// the sticks, as it is written.
+    backup_flow_read_at_write: "Read as written",
+    /// Bring in the sticks closed with some read: the others are read on
+    /// Write the sticks. `{}`: the sticks read, then all of them.
+    backup_flow_read_rest_at_write: "{} of {} read, the rest as written",
     /// Takes a place off the plan.
     backup_flow_remove: "Remove",
     /// A vault on a stick, seen open this session.

@@ -44,7 +44,7 @@ stick's.
 | Card | Closed | Shown |
 |---|---|---|
 | **Where it will be kept** (**The plan** for a wallet) | "Places 2 · Vaults 1" | always |
-| "Bring in the sticks" | "1 of 2 read" | where the plan has a stick |
+| "Bring in the sticks" | "1 of 2 read"; once passed with sticks of new vaults still to read, "Read as written" or "1 of 3 read, the rest as written": those are read on **Write the sticks** | where the plan has a stick |
 | **Vaults** | "0 of 1 unlocked", then "1 vault" or "2 vaults" | where the plan has a vault |
 | **Make the key** (**Make the keys** for a wallet) | the key's name ("Example Signer"), or **Not made** | always |
 | **Lock** | **Not locked**, **Locked** | where the plan has a stick |

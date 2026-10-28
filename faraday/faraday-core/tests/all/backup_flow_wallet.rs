@@ -444,7 +444,7 @@ fn a_single_key_with_a_vault_on_two_sticks_and_the_descriptor_on_a_stick_of_file
     assert_eq!(app.screen, Screen::BackupFlow);
     assert_eq!(step(&app), Step::Write);
     assert!(!app.holds_secret(), "a stick meets a clean process");
-    // Each stick ticks on its own write.
+    expect(&mut app, "1 of 3 read, the rest as written"); // each stick read as written
     shell.plug(&mut app, "S1");
     assert!(app.flow().unwrap().slots[0].written.is_some());
     assert!(app.flow().unwrap().slots[1].written.is_none());

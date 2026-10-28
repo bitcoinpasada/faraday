@@ -147,10 +147,21 @@ fn card(app: &View, f: &BackupFlow, s: Step) -> flow::Card {
         ),
         Step::Sticks => {
             let bound = f.slots.iter().filter(|x| x.bound.is_some()).count();
-            fill(
-                FEN.backup_flow_read_count,
-                &[&bound.to_string(), &m.to_string()],
-            )
+            // Passed with sticks not read: they hold only new vaults, read
+            // as they are written (`docs/BACKUP-FLOW.md` §4.2).
+            if bound == 0 && f.step > Step::Sticks {
+                FEN.backup_flow_read_at_write.to_string()
+            } else if bound < m && f.step > Step::Sticks {
+                fill(
+                    FEN.backup_flow_read_rest_at_write,
+                    &[&bound.to_string(), &m.to_string()],
+                )
+            } else {
+                fill(
+                    FEN.backup_flow_read_count,
+                    &[&bound.to_string(), &m.to_string()],
+                )
+            }
         }
         Step::Vaults if f.step > Step::Vaults => match f.plan.used_vaults().len() {
             1 => FEN.backup_flow_vaults_one.to_string(),
