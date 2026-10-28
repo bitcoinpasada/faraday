@@ -60,3 +60,9 @@ A match proves the address belongs to the wallet whose keys are loaded
 here. It does not prove the payer sends to it: a payer copies the address
 from Sparrow, and malware on that computer can change what is copied.
 Compare what the payer received with what Faraday found.
+
+> **With your own key**
+>
+> - Check the address on Faraday's screen, not only on the computer.
+>
+> Why: [Verifying](../../learn/06-verifying.md).

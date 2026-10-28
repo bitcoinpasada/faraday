@@ -143,3 +143,17 @@ do asks first:
 
 The rest is section 4: the checklist, a copy checked per seed, any
 vaults, and the sticks, each place in its turn.
+
+> **With your own key**
+>
+> - Check the first address on Faraday against the watch-only wallet
+>   before using either
+>   ([Receive, step 5.4](receive.md#54-show-the-wallet-to-a-watch-only-wallet)).
+> - Take receive addresses from Faraday or from the watch-only wallet,
+>   never from a web page or a message.
+> - For a multisig wallet, check each cosigner's fingerprint with that
+>   person directly, not through the coordinator.
+>
+> Why: [Verifying](../../learn/06-verifying.md),
+> [Multisig](../../learn/09-multisig.md),
+> [Coordinator files](../../learn/19-coordinators.md).

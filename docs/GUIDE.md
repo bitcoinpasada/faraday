@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Index; the text is split into walkthroughs under `docs/guide/walk/`, the written ones checked against the app's screens and strings
-**Open:** the walkthroughs that are stubs (the Starter and Faraday Demo first); a test by a reader new to Faraday; the picture of §2.4 to draw
+**Open:** the walkthroughs that are stubs; a test by a reader new to Faraday; the picture of §2.4 to draw
 
 Each step is one thing to do, in the order it is done. A path in bold is
 what the screen shows: **Wallets → Add a key** is the Wallets row in the
@@ -10,23 +10,31 @@ sidebar, then the Add a key tile. The pictures are the app's own
 screens, drawn at 1280 × 800, the size Faraday Demo opens at; a stick
 on a larger screen draws the same pages wider.
 
-The guide uses public test data only. The key made in section 3 is from
-a published dice transcript, and its fingerprint is given to compare
-against. Never keep funds on a key whose words are in this guide.
+The guide uses public test data only. A key whose words are in this
+guide is public: never use it for anything real.
 
 Sections 4 to 7 name places Place 1, Place 2 and Place 3.
 
 
-## The walkthroughs
+## Start here
 
-Each walkthrough is one file under `docs/guide/walk/`, in the order to read them.
+The walkthroughs follow public example data, never a real key: the key
+made in [Make a key](guide/walk/new-key.md) comes from a published dice
+transcript, and its fingerprint, `3dca6805`, is given to compare with
+the one Faraday shows. A key from your own dice has another fingerprint;
+the "With your own key" box at the end of a walkthrough says what
+changes. Every walkthrough of the app, from First start on, can be
+followed in Faraday Demo, the app in a window on testnet
+([The Starter and Faraday Demo](guide/walk/starter-tour.md)).
+
+Read these in order. Each walkthrough is one file under
+`docs/guide/walk/`.
 
 | Walkthrough | File |
 |---|---|
 | The Starter and Faraday Demo | `docs/guide/walk/starter-tour.md` |
 | Get Faraday on a stick | `docs/guide/walk/get-faraday.md` |
 | Start a PC from the stick | `docs/guide/walk/start-from-the-stick.md` |
-| Try it first: Faraday Demo | `docs/guide/walk/try-faraday-demo.md` |
 | First start, Home and the session | `docs/guide/walk/first-start.md` |
 | Make a key | `docs/guide/walk/new-key.md` |
 | Back it up | `docs/guide/walk/back-up.md` |
@@ -34,6 +42,14 @@ Each walkthrough is one file under `docs/guide/walk/`, in the order to read them
 | Receive | `docs/guide/walk/receive.md` |
 | Spend | `docs/guide/walk/spend.md` |
 | Restore a wallet | `docs/guide/walk/restore.md` |
+| Before you rely on a key | `docs/guide/walk/before-you-rely.md` |
+
+## More
+
+In any order.
+
+| Walkthrough | File |
+|---|---|
 | Multisig with other people and devices | `docs/guide/walk/multisig-with-others.md` |
 | codex32 shares | `docs/guide/walk/codex32.md` |
 | Spend from a backup, step by step | `docs/guide/walk/spend-from-a-backup.md` |
@@ -92,7 +108,7 @@ Moved to `docs/guide/walk/start-from-the-stick.md`.
 
 ### 1.11 Faraday Demo, the alternative
 
-Moved to `docs/guide/walk/try-faraday-demo.md`.
+Moved to `docs/guide/walk/starter-tour.md`.
 
 ## 2. First boot and Home
 

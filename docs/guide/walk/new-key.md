@@ -218,3 +218,17 @@ under **Keys**. It is in memory only: Lock or Power off wipes it, and
 the paper copy is then the only one.
 
 Next: section 4 makes a wallet from the key and backs it up.
+
+> **With your own key**
+>
+> - Roll your own fair dice, and enter every roll as it lands. Never
+>   use the guide's published rolls.
+> - Your fingerprint will not match `3dca6805`. Write yours down.
+> - Write the words on paper or metal, never on a computer, a phone or
+>   in a photo, and check each word against the screen.
+> - Make the key with no one watching and no camera able to see the
+>   screen.
+>
+> Why: [Randomness](../../learn/03-randomness.md),
+> [Seed words](../../learn/02-words.md),
+> [Screens and devices that can record](../../learn/faraday/boot/screens-that-record.md).

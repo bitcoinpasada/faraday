@@ -13,8 +13,8 @@ its own, so the wallet comes first (step 4.1).
 What you need:
 
 - Faraday with key `3dca6805` loaded (section 3) and no stick attached.
-- A blank template for 12 words, printed from the Starter (**Blank
-  templates** on its Home), and a pen.
+- A blank template for 12 words, printed from the Starter (**Tools →
+  Blank templates**), and a pen.
 - Two USB sticks formatted FAT32, other than the Faraday stick: one for
   the vault, one for the public files.
 - An envelope.
@@ -258,3 +258,23 @@ again.
 What "Written and checked" proves: the stick read back what was
 written. It does not prove the stick will last: keep the paper copy as
 well.
+
+> **With your own key**
+>
+> - The places are real. Choose them first, and know who can reach
+>   each one.
+> - Use new sticks you trust. USB sticks are not very reliable for
+>   long-term storage: name-brand sticks are generally better, and
+>   cheap off-brand sticks should not be relied on to keep a backup for
+>   years. Always keep a paper or metal backup as well.
+> - Seal and label each envelope as the checklist's
+>   **One envelope per place** says.
+> - Keep the record of what is at each place. Never write the words on
+>   it.
+> - Before you rely on the key, restore it once from the backup alone,
+>   on a fresh start, and check the fingerprint:
+>   [Before you rely on a key](before-you-rely.md).
+>
+> Why: [Backups](../../learn/04-backups.md),
+> [A backup plan's check](../../learn/faraday/backup-plan-check.md),
+> [Extra copies](../../learn/faraday/extra-copies.md).

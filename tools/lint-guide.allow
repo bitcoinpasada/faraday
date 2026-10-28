@@ -22,3 +22,8 @@ Final  # the codex32 checksum worksheet's row label, drawn by the worksheet
 Must read  # the codex32 checksum worksheet's row label, drawn by the worksheet
 Demo only  # the Demo's sample card title, drawn by the Demo shell
 re:fee rate is about [0-9]+ sat/vB  # Review's warning, made in faraday-psbt
+You'll need  # the guide's own lead-in of a walkthrough's facts, not an app name
+Time  # the guide's own lead-in of a walkthrough's facts, not an app name
+Before you start  # the guide's own lead-in of a walkthrough's facts, not an app name
+You end with  # the guide's own lead-in of a walkthrough's facts, not an app name
+With your own key  # the title of the guide's own box at a walkthrough's end, not an app name

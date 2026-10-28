@@ -208,3 +208,10 @@ in its own words, in red for danger. A PSBT opened from Files (its
 
 Declining costs nothing: press **Cancel** at the top right, and nothing
 is signed.
+
+> **With your own key**
+>
+> - Read every output and the fee on Faraday's screen before signing.
+>
+> Why: [Verifying](../../learn/06-verifying.md),
+> [Mistakes and scams](../../learn/08-scams.md).
