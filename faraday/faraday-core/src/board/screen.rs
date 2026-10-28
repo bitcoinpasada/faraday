@@ -252,10 +252,14 @@ fn chip_size(ui: &Ui, cv: &ChipView, avail: f32) -> Fit {
         tokens::BOARD_CHIP_GAP + ui.measure_as(BODY_S, &format!("· {}", cv.marks))
     };
     let one = tokens::BOARD_CHIP;
+    // The forms under the name wrap at the chip's width, a row each.
+    let rows = toggle_rows(ui, cv, avail - 2.0 * tokens::BOARD_PAD) as f32;
     let two = if cv.forms.is_empty() {
         tokens::BOARD_CHIP + ui.line_as(BODY_S)
     } else {
-        tokens::BOARD_CHIP + tokens::BOARD_TAG
+        tokens::BOARD_CHIP
+            + tokens::BOARD_TAG
+            + (rows - 1.0) * (tokens::BOARD_TAG + tokens::BOARD_CHIP_GAP)
     };
     let has_marks = !cv.marks.is_empty() || !cv.forms.is_empty();
     for role in [pick(LABEL_L), pick(LABEL_M)] {
@@ -299,19 +303,43 @@ fn toggles_w(ui: &Ui, cv: &ChipView) -> f32 {
         + n.saturating_sub(1) as f32 * tokens::BOARD_CHIP_GAP
 }
 
+/// How many rows a chip's form toggles take wrapped at `room`.
+fn toggle_rows(ui: &Ui, cv: &ChipView, room: f32) -> usize {
+    let mut rows = usize::from(!cv.forms.is_empty());
+    let mut used = 0.0;
+    for (label, _) in &cv.forms {
+        let tw = toggle_w(ui, label);
+        if used > 0.0 && used + tokens::BOARD_CHIP_GAP + tw > room {
+            rows += 1;
+            used = 0.0;
+        }
+        used += if used > 0.0 {
+            tokens::BOARD_CHIP_GAP
+        } else {
+            0.0
+        } + tw;
+    }
+    rows
+}
+
 /// A chip's form toggles drawn from (x, y), a line `line_h` tall
 /// (`docs/BACKUP-FLOW.md` §17.3): each its name in a pill, ticked where
-/// the form is kept; a press turns it on or off. `hits`: they take
-/// presses.
-fn toggles(ui: &mut Ui, cv: &ChipView, x: f32, y: f32, line_h: f32, hits: bool) {
+/// the form is kept; a press turns it on or off. They wrap at `room`,
+/// a row under the other, as [`toggle_rows`] counts them. `hits`: they
+/// take presses.
+fn toggles(ui: &mut Ui, cv: &ChipView, (x, y, room): (f32, f32, f32), line_h: f32, hits: bool) {
     let Chip::Placed(z, t) = cv.chip else {
         return;
     };
     let th = tokens::BOARD_TAG;
-    let ty = y + (line_h - th) / 2.0;
+    let mut ty = y + (line_h - th) / 2.0;
     let mut tx = x;
     for (k, (label, on)) in cv.forms.iter().enumerate() {
         let tw = toggle_w(ui, label);
+        if tx > x && tx + tw > x + room {
+            tx = x;
+            ty += th + tokens::BOARD_CHIP_GAP;
+        }
         let action = Action::Board(BoardPress::Form(z, t, u8::try_from(k).unwrap_or(u8::MAX)));
         ui.fill(tx, ty, tw, th, th / 2.0, Role::Surface);
         ui.stroke(
@@ -535,7 +563,14 @@ fn chip(ui: &mut Ui, fr: &mut Frame, cv: &ChipView, x: f32, y: f32, fit: Fit, hi
         } else {
             line_h
         };
-        toggles(ui, cv, tx, ty, th, hits && !cv.fixed);
+        // Under the name they wrap at the chip's width; beside it they
+        // fit (`chip_size`).
+        let room = if h > line_h {
+            w - 2.0 * tokens::BOARD_PAD
+        } else {
+            f32::INFINITY
+        };
+        toggles(ui, cv, (tx, ty, room), th, hits && !cv.fixed);
     }
 }
 
