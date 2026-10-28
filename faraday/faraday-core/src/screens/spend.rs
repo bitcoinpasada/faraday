@@ -243,8 +243,9 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 }
 
 /// Where a signing stands: the signatures there, how many are missing,
-/// the line that says what is left, and the main button's label.
-fn spend_status(app: &View, needed: usize) -> (usize, usize, String, String) {
+/// the line that says what is left, the main button's label and its
+/// style: off while a check on Transaction stops signing here (F136).
+fn spend_status(app: &View, needed: usize) -> (usize, usize, String, String, Style) {
     let s = app.wallets.spend().expect("spend");
     let i = &s.inspection;
     let signed_count = s.signers.len();
@@ -264,7 +265,13 @@ fn spend_status(app: &View, needed: usize) -> (usize, usize, String, String) {
         .filter(|fp| app.session.keys.key_label(**fp).is_some() && !s.signers.contains(&fp.0))
         .map(|fp| fp_text(*fp))
         .collect::<Vec<_>>();
-    let need_line = if s.spend.finished.is_some() && s.out_signed && s.out_tx {
+    let stopped = s.spend.finished.is_none()
+        && missing > 0
+        && !can_sign_here.is_empty()
+        && crate::review::review_stop(i, &s.held).is_some();
+    let need_line = if stopped {
+        fill(EN.spend_status_stopped, &[EN.app_transaction])
+    } else if s.spend.finished.is_some() && s.out_signed && s.out_tx {
         fill(EN.spend_status_both_wait, &[app.medium.for_the()])
     } else if missing == 0 {
         EN.spend_status_complete.to_string()
@@ -295,7 +302,12 @@ fn spend_status(app: &View, needed: usize) -> (usize, usize, String, String) {
     } else {
         crate::wallet::collect_line(missing, count)
     };
-    (count, missing, need_line, label)
+    let style = if stopped {
+        Style::PrimaryOff
+    } else {
+        Style::Primary
+    };
+    (count, missing, need_line, label, style)
 }
 
 /// The foot of Sign a transaction on a small panel: the signatures, what
@@ -309,8 +321,8 @@ fn spend_bar(
     needed: usize,
     step: Option<(String, Style, Action)>,
 ) {
-    let (count, missing, need_line, label) = spend_status(app, needed);
-    let (label, style, action) = step.unwrap_or((label, Style::Primary, Action::Primary));
+    let (count, missing, need_line, label, style) = spend_status(app, needed);
+    let (label, style, action) = step.unwrap_or((label, style, Action::Primary));
     let (x, w) = (x0 + crate::compact::M, cw - 2.0 * crate::compact::M);
     ui.fill(x0, y, cw, spend_bar_h(ui), 0.0, Role::SurfaceContainerLow);
     ui.fill(x0, y, cw, 1.0, 0.0, Role::OutlineVariant);
@@ -1689,7 +1701,7 @@ fn spend_panel(
         ui.hit(x, y, w, 38.0, Action::Step(*step));
         y += 40.0;
     }
-    let (count, missing, need_line, action_label) = spend_status(app, needed);
+    let (count, missing, need_line, action_label, style) = spend_status(app, needed);
     let fy = h - 26.0 - 46.0 - 14.0 - 82.0;
     ui.fill(x, fy, w, 82.0, 12.0, Role::SurfaceContainerHighest);
     ui.stroke(x, fy, w, 82.0, 12.0, Role::OutlineVariant);
@@ -1724,15 +1736,7 @@ fn spend_panel(
     );
     let by = h - 26.0 - 46.0;
     let label = ui.fit_as(TITLE_M, &action_label, w - 32.0);
-    ui.button(
-        x,
-        by,
-        Some(w),
-        BUTTON_H,
-        &label,
-        Style::Primary,
-        Action::Primary,
-    );
+    ui.button(x, by, Some(w), BUTTON_H, &label, style, Action::Primary);
 }
 
 /// Who signs' count (`docs/history/SCAN-TO-SIGN.md` §3.1): enough, the count and

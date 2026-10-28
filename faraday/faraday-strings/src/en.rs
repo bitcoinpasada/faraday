@@ -4898,6 +4898,9 @@ strings! {
     spend_status_finish: "Finish",
     /// Text in `spend_status`. `{}`: `can_sign_here.join(", ")`.
     spend_status_sign_with_keys: "Sign with {}",
+    /// Text in `spend_status` while a check stops signing here. `{}`: the
+    /// step that says why, `EN.app_transaction`.
+    spend_status_stopped: "Not signed here: see {}",
     // ----- spend_bar (faraday-core/src/screens/spend.rs) -----
     /// Text in `spend_bar`. `{}`: `count`, `needed`.
     spend_bar_count: "{} of {}",

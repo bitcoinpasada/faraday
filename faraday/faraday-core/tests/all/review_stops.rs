@@ -97,6 +97,24 @@ fn a_high_fee_is_paid_only_after_its_hold() {
     assert!(!app.spend().unwrap().spend.signed_here.is_empty());
 }
 
+/// While Review stops it, the side panel offers no signing: its line
+/// points to Transaction and its button is off; once held, it signs.
+#[test]
+fn the_side_panel_offers_no_signing_while_review_stops_it() {
+    let mut psbt = testkit::unsigned(&kit("spending")).unwrap();
+    psbt.inner_mut().unsigned_tx.output[1].value -=
+        faraday_psbt::bitcoin::Amount::from_sat(3_000_000);
+    let mut app = reviewing(&psbt);
+    let stopped = faraday_core::strings::fill(EN.spend_status_stopped, &[EN.app_transaction]);
+    assert_eq!(count(&mut app, &stopped), 1);
+    assert!(!offered(&mut app, Action::Primary));
+    app.press(Action::Primary);
+    assert!(app.spend().unwrap().spend.signed_here.is_empty());
+    hold(&mut app, Action::ReviewHold);
+    assert_eq!(count(&mut app, &stopped), 0);
+    assert!(offered(&mut app, Action::Primary));
+}
+
 #[test]
 fn a_key_origin_that_does_not_give_the_inputs_key_is_refused_at_review() {
     let mut psbt = testkit::unsigned(&kit("spending")).unwrap();

@@ -19,7 +19,7 @@ under its own titles.
 
 ![Sign a transaction with Transaction open, a fee warning and Hold to pay this fee, and the panel This transaction beside it](../pictures/6-8-fee.png)
 
-*Sign a transaction on a 2-of-3 wallet's PSBT whose fee is 80% of what it sends: **Transaction** open with the fee's warnings and **Hold to pay this fee**, and the panel **This transaction** at the right, its signatures "0 of 2" over "Sign with 3dca6805, 5d388376".*
+*Sign a transaction on a 2-of-3 wallet's PSBT whose fee is 80% of what it sends: **Transaction** open with the fee's warnings and **Hold to pay this fee**, and the panel **This transaction** at the right, its signatures "0 of 2" over "Not signed here: see Transaction", and **Sign with 3dca6805, 5d388376** off until the fee is held.*
 
 ## The cards
 

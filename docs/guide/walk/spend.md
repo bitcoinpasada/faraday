@@ -206,7 +206,7 @@ in its own words, in red for danger. A PSBT opened from Files (its
 | A fee of 0.012 BTC | Another wallet's PSBT |
 |---|---|
 | ![Sign a transaction with a fee of 1,200,000 sat, its two warnings and Hold to pay this fee](../pictures/6-8-fee.png) | ![Sign a transaction of a wallet not loaded: a second Sends row and the warnings under it](../pictures/6-8-other-wallet.png) |
-| **fee 1200000 is 80% of the amount sent** and **fee rate is about 6349 sat/vB**, then **Hold to pay this fee**. **This transaction**, on the right, sums it up beside the signatures. | **Wallet** reads **No loaded wallet matches**; the change is a second **Sends** row and, under **This transaction**, **Change** reads **None**, with **output 1 claims to be change of a wallet you are using, but the script is not that address** and **Faraday does not sign this transaction. Make it again in the coordinator without what is marked above.** |
+| **fee 1200000 is 80% of the amount sent** and **fee rate is about 6349 sat/vB**, then **Hold to pay this fee**. **This transaction**, on the right, sums it up beside the signatures: "Not signed here: see Transaction", its **Sign with** off until the fee is held. | **Wallet** reads **No loaded wallet matches**; the change is a second **Sends** row and, under **This transaction**, **Change** reads **None**, with **output 1 claims to be change of a wallet you are using, but the script is not that address** and **Faraday does not sign this transaction. Make it again in the coordinator without what is marked above.** The panel reads "Not signed here: see Transaction", its **Sign with** off. |
 
 | On the card | Meaning | Do |
 |---|---|---|
