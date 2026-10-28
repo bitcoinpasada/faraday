@@ -66,7 +66,7 @@
 //! - Faraday Demo's host: `host` (the strip at the window's foot, the
 //!   preview frame and the pointer carried into the app, with
 //!   `host/screen.rs` and its lists under a finger in `host/scroll.rs`; `docs/DESKTOP-HOST.md`).
-//! - Support: `wordlist`, `learn`, `modes` (F81, with `modes/screen.rs`), `samples` (with `samples/screen.rs`, and `samples/card.rs`, the "Demo only" card every page and sheet hands its demo-only items to), `tools`, `testkit`.
+//! - Support: `wordlist`, `learn`, `modes` (F81, with `modes/screen.rs`), `samples` (with `samples/screen.rs`, and `samples/put.rs`, Use a sample, whose buttons Faraday Demo's strip shows), `tools`, `testkit`.
 //!
 //! `Faraday::act_inner` is the dispatch for presses: it runs the checks that
 //! come before any action, then sends each `Action` to its area's

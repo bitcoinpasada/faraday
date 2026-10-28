@@ -643,7 +643,7 @@ fn key_card(app: &View, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 
             cy += never_real_seed(app, ui, x, cy, w);
         }
         // The demo adds a sample in place of words made here (F20): the
-        // "Demo only" card says which (`samples/card.rs`).
+        // strip says which (`host`).
         if let Some(n) = &k.note {
             cy += ui.wrap_as((x, cy, w), BODY_M, Role::Error, n) + 6.0;
         }

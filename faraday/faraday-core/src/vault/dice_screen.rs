@@ -218,8 +218,8 @@ fn dice_card(
         rolls_box(app, ui, (x, cy, w), rolls);
         cy += FIELD_H + 10.0 + never_under(app, ui, x, cy, w);
     }
-    // The computer's roller, on Faraday Demo only, is in the "Practice
-    // only" card (`docs/CODEX32.md` §5.6, `samples/card.rs`).
+    // The computer's roller, on Faraday Demo only, is in the strip
+    // (`docs/CODEX32.md` §5.6, `host`).
     let words = vault::dice_words(&rolls.text, list);
     // The words as the rolls make them, each a pill that opens it in its
     // list, as New key shows its words.
