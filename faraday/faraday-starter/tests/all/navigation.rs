@@ -300,7 +300,8 @@ fn transfer_is_a_task_page_under_the_top_app_bar_and_back_returns_to_tools() {
     tap(&mut s, StarterAction::Transfer);
     assert!(s.showing_held());
     let t = s.drawn_texts();
-    assert!(t.iter().any(|x| x == "Transfer"), "{t:?}");
+    // Named once, by the top app bar.
+    assert_eq!(t.iter().filter(|x| *x == "Transfer").count(), 1, "{t:?}");
     for d in DESTINATIONS {
         assert!(!s.offers_action(d), "{d:?} beside Transfer");
     }

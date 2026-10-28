@@ -3,7 +3,7 @@
 
 use crate::Action;
 use crate::drawing::View;
-use crate::screens::{section_label, size_text, title};
+use crate::screens::{section_label, size_text};
 use crate::strings::EN;
 use crate::strings::fill;
 use crate::ui::pal::*;
@@ -26,7 +26,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let clip = ui.rect(x0, 0.0, cw, h);
     ui.c.push_clip(clip);
     // Beside the expanded rail the top app bar names the page; held, the
-    // holder's top app bar stands above the page, which keeps its title.
+    // holder's top app bar above the page names it.
     let top = if compact {
         14.0
     } else if app.held {
@@ -35,10 +35,6 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         crate::screens::bar_head(ui, None, EN.transfer_transfer)
     } - app.list_offset;
     let mut y = top;
-    if !compact && app.held {
-        title(ui, x, y, EN.transfer_transfer);
-        y += 52.0;
-    }
     let side = !compact && w >= 600.0;
     let end = if side {
         let colw = (w - 32.0) / 2.0;
@@ -146,11 +142,7 @@ fn receive(app: &View, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     }
     y += wrap_buttons(ui, x, y, w, BUTTON_H, &buttons) + GAP;
     for (line, warn) in t.saved.iter().rev() {
-        let tone = if *warn {
-            Role::Warning
-        } else {
-            Role::OnSurface
-        };
+        let tone = if *warn { Role::Warning } else { Role::Ok };
         y += ui.wrap_as((x, y, w), BODY_S, tone, line) + 8.0;
     }
     y - y0

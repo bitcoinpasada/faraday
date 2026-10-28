@@ -49,7 +49,7 @@ use faraday_draw::tokens::{
 };
 use faraday_draw::widgets::Icon;
 pub use faraday_ui::parts::qr_code;
-pub(crate) use faraday_ui::parts::{button_rows, section_label, sheet_box, title, wrap_buttons};
+pub(crate) use faraday_ui::parts::{button_rows, section_label, sheet_box, wrap_buttons};
 pub(crate) use files::{stick_chip as files_stick_chip, vault_panel};
 pub(crate) use home::{home_lead_beside_tiles, tile_grid};
 pub(crate) use message::{MESSAGE_STEPS, MSTEPS};

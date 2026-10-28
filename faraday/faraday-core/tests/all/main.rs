@@ -157,6 +157,7 @@ mod tools;
 mod top_actions_surface;
 mod top_app_bar;
 mod totp;
+mod transfer;
 mod transitions;
 mod vanity;
 mod vault_full_slot;
