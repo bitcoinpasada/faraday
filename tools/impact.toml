@@ -1,7 +1,7 @@
 # The registry of what a change brings with it (docs/IMPACT.md, F149).
-# Read by tools/impact.py. So far: every check of `just lint` and the test
-# suite, and the rules of kind `held`; the other rules and the consumers
-# come with the next batch. A check or rule marked planned is not yet run.
+# Read by tools/impact.py. Every check of `just lint` and the test suite, the
+# consumers (the apps and the website) and the rules. A check or rule marked
+# planned is not yet run.
 
 [[check]]
 id = "clippy"
@@ -109,6 +109,13 @@ catches = "crypto sources changed since the last passing cross-check (F79)"
 misses = "whether the cross-check covers the change"
 
 [[check]]
+id = "crosscheck-facts"
+run = "python3 -I -B tools/crosscheck/facts.py check"
+stage = "just lint"
+catches = "a cross-check area without its stated facts, a path it names that does not exist, tools/crosscheck/README.md's table and known differences out of step with them (F148)"
+misses = "whether the stated facts are true of what the area runs"
+
+[[check]]
 id = "lint-themes"
 run = "tools/lint-themes.sh"
 stage = "just lint"
@@ -212,6 +219,176 @@ catches = "the generated parts of STANDARDS and AUDIT differing from the manifes
 misses = "planned: not yet written"
 status = "planned"
 
+[[consumer]]
+id = "app.faraday"
+name = "the device app, the stick and the Pi images"
+reads = [
+  "faraday/faraday-core/**", "faraday/faraday-ui/**", "faraday/faraday-strings/**",
+  "faraday/faraday-learn/**", "faraday/faraday-keys/**", "faraday/shells/stick/**",
+  "faraday/shells/window/**", "faraday/shells/desktop/**", "faraday/image/**", "core/**",
+  "faraday/faraday-boot/**", "faraday/faraday-disk/**", "faraday/faraday-fat/**",
+  "faraday/faraday-files/**", "faraday/faraday-guides/**", "faraday/faraday-intake/**",
+  "faraday/faraday-payload/**", "faraday/faraday-pgp/**", "faraday/faraday-qr/**",
+  "faraday/faraday-samples/**", "faraday/faraday-sb/**", "faraday/faraday-scanner/**",
+  "faraday/faraday-storage/**", "faraday/faraday-vault/**", "faraday/faraday-grant/**",
+  "faraday/shells/v4l2/**", "faraday/shells/avfoundation/**", "faraday/shells/mediafoundation/**",
+]
+act = "the device app, the stick and the Pi images are built again"
+
+[[consumer]]
+id = "app.starter"
+name = "the Starter"
+reads = [
+  "faraday/faraday-starter/**", "faraday/shells/starter/**", "faraday/faraday-ui/**",
+  "faraday/faraday-strings/**", "core/faraday-draw/**", "faraday/builds.toml",
+  "faraday/faraday-core/**", "faraday/faraday-disk/**", "faraday/faraday-fat/**",
+  "faraday/faraday-files/**", "faraday/faraday-payload/**", "faraday/faraday-learn/**",
+  "faraday/faraday-guides/**", "faraday/faraday-grant/**", "faraday/faraday-storage/**",
+  "faraday/faraday-keys/**", "faraday/faraday-vault/**", "faraday/faraday-qr/**",
+  "faraday/faraday-scanner/**", "faraday/faraday-pgp/**", "faraday/faraday-intake/**",
+  "faraday/faraday-sb/**", "faraday/faraday-boot/**", "faraday/faraday-samples/**",
+  "faraday/shells/window/**", "faraday/shells/desktop/**", "faraday/shells/v4l2/**", "faraday/shells/avfoundation/**",
+  "faraday/shells/mediafoundation/**", "core/**",
+]
+act = "the Starter is built again"
+
+[[consumer]]
+id = "website.guide"
+name = "the website's guide"
+reads = ["docs/GUIDE.md", "docs/guide/**"]
+act = "the guide's pages and pictures are made again"
+blocking = true
+
+[[consumer]]
+id = "website.start"
+name = "the website's start pages"
+reads = ["docs/learn/faraday/boot/*.md"]
+act = "a page added needs its description in the site's guide builder"
+blocking = true
+
+[[consumer]]
+id = "website.download"
+name = "the website's download page"
+reads = ["faraday/builds.toml"]
+act = "a new hardware id needs its lines and drawing in the site's download builder"
+blocking = true
+
+[[consumer]]
+id = "website.download-pictures"
+name = "the website's pictures of Home at each panel size"
+reads = ["faraday/faraday-core/src/screens/home.rs"]
+act = "the pictures of Home at each panel size are made again"
+
+[[consumer]]
+id = "website.roles"
+name = "the website's colour roles"
+reads = ["faraday/faraday-ui/src/pal/schemes.rs"]
+act = "the site's roles are written again from the pinned commit"
+blocking = true
+
+[[consumer]]
+id = "website.wordmark"
+name = "the website's wordmark"
+reads = ["faraday/faraday-ui/assets/wordmark.txt"]
+act = "the site's wordmark outlines are copied again"
+blocking = true
+
+[[consumer]]
+id = "website.standards"
+name = "the website's standards page"
+reads = ["docs/STANDARDS.md"]
+act = "the standards page is edited to match (rendered from the manifest once F148 is built)"
+blocking = true
+
+[[consumer]]
+id = "website.tour"
+name = "the website's tour"
+reads = ["**/screen.rs", "faraday/faraday-core/src/screens/**"]
+act = "the tour's pictures are made again"
+
+[[consumer]]
+id = "website.demo"
+name = "the website's demo"
+reads = ["faraday/faraday-core/src/host/**", "faraday/faraday-samples/**", "Cargo.lock"]
+act = "the demo is built and its tests run; its own build refuses a break"
+
+# ------------------------------------------------------------------ repo
+
+[[rule]]
+id = "repo.no-hosted-ci"
+title = "no hosted CI, no GitHub Actions"
+source = ["CLAUDE.md"]
+when = [".github/workflows/**"]
+on = ["add"]
+kind = "forbid"
+
+[[rule]]
+id = "repo.build-machine-unnamed"
+title = "the remote build machine is \"the build machine\" in docs, comments and messages, never its hostname, owner or address"
+source = ["CLAUDE.md"]
+when = ["**"]
+kind = "review"
+
+[[rule]]
+id = "repo.personal-information"
+title = "every new commit's diff and message checked for names, addresses, hostnames, local paths, keys and tokens before a push"
+source = ["CLAUDE.md"]
+when = ["**"]
+kind = "review"
+
+[[rule]]
+id = "repo.upstream-name"
+title = "the upstream project is named only in LICENSE"
+source = ["docs/decisions/F73.md"]
+when = ["**", "!LICENSE"]
+kind = "review"
+misses = "planned check: read the name from LICENSE and refuse it elsewhere"
+
+[[rule]]
+id = "repo.contributing"
+title = "CONTRIBUTING.md's summary follows CLAUDE.md's rules"
+source = ["CONTRIBUTING.md"]
+when = ["CLAUDE.md"]
+kind = "review"
+
+[[rule]]
+id = "repo.developing"
+title = "a recipe, prerequisite or output path changed is changed in DEVELOPING.md or tools/README.md"
+source = ["CLAUDE.md"]
+when = ["justfile", "faraday/faraday.just"]
+lines = '^[+-]( {4}[^\s#]|[a-z][A-Za-z0-9_-]*( [^:]*)?:( |$))'
+kind = "pair"
+with = ["docs/DEVELOPING.md", "tools/README.md"]
+misses = "a recipe changed whose text DEVELOPING.md does not show"
+
+[[rule]]
+id = "repo.tests-kept"
+title = "a test is changed to the rule it now encodes, never deleted to make the build pass"
+source = ["CLAUDE.md"]
+when = ["**/*.rs"]
+lines = '^-\s*#\[(test|rstest)'
+kind = "review"
+
+[[rule]]
+id = "repo.tests-user-facing"
+title = "a test covers user-facing behaviour or a published vector; none states a design rule, a token's value or a screen's geometry against a document"
+source = ["CLAUDE.md"]
+when = ["**/tests/**", "**/*tests.rs"]
+kind = "review"
+
+# ------------------------------------------------------------------ tree
+
+[[rule]]
+id = "tree.top-level"
+title = "a top-level entry is listed in README.md's \"Repository layout\" and in tools/lint-tree.sh"
+source = ["CLAUDE.md"]
+when = ["*"]
+on = ["add"]
+kind = "pair"
+with_each = ["README.md", "tools/lint-tree.sh"]
+held_by = ["lint-tree"]
+misses = "a new top-level directory: only a file added at the top is seen here, lint-tree holds the list"
+
 [[rule]]
 id = "tree.clean"
 title = "nothing an editor, a merge or a session leaves behind is tracked, no file over 2 MiB"
@@ -219,6 +396,17 @@ source = ["CLAUDE.md"]
 when = ["**"]
 kind = "held"
 held_by = ["lint-tree"]
+
+[[rule]]
+id = "tree.image-metadata"
+title = "an image or PDF carries no metadata"
+source = ["tools/README.md"]
+when = ["**/*.png"]
+on = ["add", "modify"]
+kind = "review"
+misses = "planned check: every tracked image metadata-free; just guide-pictures checks the guide's only"
+
+# ------------------------------------------------------------------ docs
 
 [[rule]]
 id = "docs.headers"
@@ -235,6 +423,38 @@ source = ["CLAUDE.md"]
 when = ["**/*.md"]
 kind = "held"
 held_by = ["lint-docs"]
+
+[[rule]]
+id = "docs.readme-index"
+title = "a document added, deleted or changed in Kind has its line in docs/README.md"
+source = ["docs/README.md"]
+when = ["docs/*.md", "!docs/README.md"]
+lines = '^[+-]\*\*Kind:\*\*'
+kind = "pair"
+with = ["docs/README.md"]
+
+[[rule]]
+id = "docs.spec-done"
+title = "a Spec that stops being one moves its plan to docs/history/<NAME>-LOG.md and becomes a Reference"
+source = ["CLAUDE.md"]
+when = ["docs/{name}.md", "!docs/README.md"]
+on = ["modify"]
+lines = '^-\*\*Kind:\*\* Spec'
+kind = "pair"
+with = ["docs/history/{name}-LOG.md"]
+held_by = ["lint-docs"]
+misses = "lint-docs rule 4 holds the Open line and the plan's place in part"
+
+[[rule]]
+id = "docs.no-silent-delete"
+title = "a decision or a docs/*.md document is moved to docs/history/, never deleted"
+source = ["docs/decisions/F149.md"]
+when = ["docs/decisions/{f}.md", "docs/{f}.md"]
+on = ["delete"]
+kind = "forbid"
+with = ["docs/history/decisions/{f}.md", "docs/history/{f}.md"]
+
+# ------------------------------------------------------------- decisions
 
 [[rule]]
 id = "decisions.indexed"
@@ -254,6 +474,55 @@ kind = "held"
 held_by = ["lint-docs-held-by"]
 status = "planned"
 
+# ------------------------------------------------------------- standards
+
+[[rule]]
+id = "standards.what-goes-in"
+title = "what the app takes in is a published standard checked against another implementation, or Faraday's own rule that fails closed"
+source = ["docs/STANDARDS.md §0"]
+when = ["core/*/src/**"]
+kind = "review"
+
+[[rule]]
+id = "standards.refusals-stay"
+title = "what the code refuses stays refused; accepting more than a standard requires is a decision"
+source = ["CLAUDE.md", "docs/decisions/F90.md"]
+when = ["core/*/src/**"]
+kind = "review"
+
+[[rule]]
+id = "standards.no-way-past"
+title = "a check that keeps keys or money safe has no way past it unless a decision names the case; a hold names it"
+source = ["CLAUDE.md", "docs/decisions/F136.md"]
+when = ["core/faraday-psbt/src/**"]
+lines = '^\+.*\b[Hh]old'
+kind = "review"
+misses = "planned check: every hold listed with its decision"
+
+[[rule]]
+id = "standards.out-of-app"
+title = "unpublished or unreviewed work stays in the repository, compiled out of the app"
+source = ["docs/STANDARDS.md §0", "docs/decisions/F109.md"]
+when = ["core/*/src/**"]
+kind = "review"
+
+[[rule]]
+id = "standards.scope"
+title = "a new kind of key or signature is a decision"
+source = ["docs/decisions/F116.md"]
+when = ["core/*/src/**"]
+kind = "review"
+
+[[rule]]
+id = "standards.learn-in-step"
+title = "STANDARDS.md and the Learn pages are kept in step until F148 generates both"
+source = ["docs/STANDARDS.md"]
+when = ["docs/STANDARDS.md"]
+kind = "pair"
+with = ["docs/learn/**"]
+
+# ---------------------------------------------------------------- crypto
+
 [[rule]]
 id = "crypto.crosscheck-stamp"
 title = "the crypto sources match the last passing cross-check"
@@ -261,6 +530,14 @@ source = ["docs/decisions/F79.md"]
 when = ["core/*/src/**", "tools/crosscheck/**", "Cargo.lock"]
 kind = "held"
 held_by = ["lint-crosscheck"]
+
+[[rule]]
+id = "crypto.tested"
+title = "a cryptographic change is tested against published vectors or another implementation"
+source = ["CLAUDE.md", "docs/decisions/F148.md"]
+when = ["core/*/src/**"]
+kind = "review"
+misses = "planned: F148's inventory and re-stamp"
 
 [[rule]]
 id = "crypto.action-covered"
@@ -281,12 +558,57 @@ held_by = ["crypto-gen"]
 status = "planned"
 
 [[rule]]
+id = "crypto.at-source"
+title = "core/ is Faraday's own code: a thing is fixed at its source rather than wrapped"
+source = ["CLAUDE.md"]
+when = ["core/**"]
+kind = "review"
+
+[[rule]]
+id = "crypto.kept-values"
+title = "a type re-implemented from a core/ one keeps the values the original works out once"
+source = ["CLAUDE.md"]
+when = ["faraday/**/src/**"]
+kind = "review"
+
+[[rule]]
+id = "crypto.costs-said"
+title = "a function that costs more than a lookup says \"Costs\" in the first line of its doc"
+source = ["CLAUDE.md"]
+when = ["core/*/src/**", "faraday/**/src/**"]
+kind = "review"
+held_by = ["costs-lint"]
+misses = "work that is costly and not marked so"
+
+# ------------------------------------------------------------------ keys
+
+[[rule]]
 id = "keys.boundary"
 title = "key material lives in faraday-keys and leaves only through its named reveals"
 source = ["CLAUDE.md", "docs/decisions/F70.md"]
 when = ["faraday/**"]
 kind = "held"
 held_by = ["lint-secrets", "lint-keys-tests"]
+
+[[rule]]
+id = "keys.new-reveal"
+title = "a new reveal is listed in KEYS.md and AUDIT.md"
+source = ["docs/KEYS.md §2"]
+when = ["faraday/faraday-keys/src/session.rs"]
+lines = '^\+ {4}[A-Z][A-Za-z0-9]*(\(.*\))?,'
+kind = "pair"
+with_each = ["docs/KEYS.md", "docs/AUDIT.md"]
+
+[[rule]]
+id = "keys.secret-files"
+title = "a file that starts to hold secrets is added to lint-secrets' SECRET_FILES"
+source = ["tools/README.md"]
+when = ["faraday/**/src/**"]
+kind = "review"
+held_by = ["lint-secrets"]
+misses = "a file that starts to hold secrets and is not yet in SECRET_FILES"
+
+# --------------------------------------------------------------- compute
 
 [[rule]]
 id = "compute.token"
@@ -297,12 +619,50 @@ kind = "held"
 held_by = ["costs-lint", "budget-tests"]
 
 [[rule]]
+id = "compute.new-mint"
+title = "a new place that mints the compute token is listed in COMPUTE.md"
+source = ["docs/COMPUTE.md §8"]
+when = ["core/*/src/**", "faraday/**/src/**"]
+lines = '^\+.*\bCompute::new\('
+kind = "pair"
+with = ["docs/COMPUTE.md"]
+held_by = ["costs-lint"]
+
+# ----------------------------------------------------------------- speed
+
+[[rule]]
+id = "speed.kept-in-step"
+title = "a value kept on the state for drawing has its invariant written where it lives and a test that changes the source"
+source = ["CLAUDE.md", "docs/SPEED.md §3"]
+when = ["faraday/faraday-core/src/**"]
+lines = '^\+.*\b(kept|memo)\b'
+kind = "review"
+
+[[rule]]
+id = "speed.late-flow-timed"
+title = "work added while drawing or after every event is timed in a late-flow session before it is committed"
+source = ["CLAUDE.md", "docs/SPEED.md §7"]
+when = ["**/screen.rs", "faraday/faraday-core/src/drawing.rs", "faraday/faraday-core/src/screens/**"]
+kind = "review"
+
+[[rule]]
 id = "speed.budgets"
 title = "a frame, a pointer move, a press or a key does only the costly work its budget names"
 source = ["CLAUDE.md"]
 when = ["**/screen.rs", "faraday/faraday-core/src/drawing.rs", "faraday/faraday-core/src/screens/**"]
 kind = "held"
 held_by = ["budget-tests"]
+
+# ------------------------------------------------------------- structure
+
+[[rule]]
+id = "structure.ratchet-raised"
+title = "a ratchet count raised is the owner's decision, recorded in DECISIONS"
+source = ["CLAUDE.md", "docs/decisions/F74.md"]
+when = ["tools/lint-layout.counts", "tools/lint-tokens.counts"]
+rises = true
+kind = "pair"
+with = ["docs/decisions/F{n}.md"]
 
 [[rule]]
 id = "structure.code-map"
@@ -329,6 +689,35 @@ kind = "held"
 held_by = ["lint-layout"]
 
 [[rule]]
+id = "structure.no-new-mut"
+title = "a new *_mut accessor or DerefMut on an area is avoided; the few that exist are listed in STRUCTURE-PASS.md"
+source = ["docs/STRUCTURE-PASS.md §7"]
+when = ["faraday/faraday-core/src/**"]
+lines = '^\+.*(\bfn \w+_mut\(|\bDerefMut\b)'
+kind = "pair"
+with = ["docs/STRUCTURE-PASS.md"]
+
+[[rule]]
+id = "structure.areas-private"
+title = "an area's state is a struct with private fields, reached through accessors and its own methods"
+source = ["docs/STRUCTURE-PASS.md §7"]
+when = ["faraday/faraday-core/src/**"]
+kind = "review"
+
+[[rule]]
+id = "structure.new-lint"
+title = "a new lint in the lint recipe is described in tools/README.md and is a [[check]] of the registry"
+source = ["docs/decisions/F74.md"]
+when = ["justfile"]
+lines = '^\+ {4}(tools/(lint|check)-|python3 (-[IB] )*tools/lint|cargo (run -q -p costs-lint|deny|vet))'
+kind = "pair"
+with_each = ["tools/README.md", "tools/impact.toml"]
+held_by = ["impact-check"]
+misses = "impact.py lint compares the recipe with the registry's checks once it is in just lint"
+
+# --------------------------------------------------------------- strings
+
+[[rule]]
 id = "strings.one-file"
 title = "every user-facing string is in faraday-strings/src/en.rs"
 source = ["CLAUDE.md", "docs/decisions/F68.md"]
@@ -345,12 +734,88 @@ kind = "held"
 held_by = ["lint-guide"]
 
 [[rule]]
+id = "strings.no-explanation"
+title = "a working screen carries labels, values and actions, never an explanation; Learn and About explain"
+source = ["CLAUDE.md", "docs/decisions/F112.md"]
+when = ["faraday/faraday-strings/src/en.rs"]
+kind = "review"
+
+[[rule]]
+id = "strings.plain"
+title = "text anywhere in the product is plain statement of fact, never mannered prose"
+source = ["CLAUDE.md", "docs/DESIGN.md §2"]
+when = ["faraday/faraday-strings/src/en.rs", "docs/learn/**", "docs/guide/**"]
+kind = "review"
+
+[[rule]]
+id = "strings.medium"
+title = "the medium's words come from Medium; \"SD card\" where it is one"
+source = ["docs/decisions/F4.md"]
+when = ["faraday/faraday-strings/src/en.rs"]
+kind = "review"
+
+# ---------------------------------------------------------------- design
+
+[[rule]]
+id = "design.material3"
+title = "a screen or component change names the Material 3 page it was checked against"
+source = ["CLAUDE.md", "docs/decisions/F91.md", "docs/decisions/F92.md", "docs/decisions/F108.md"]
+when = ["**/screen.rs", "faraday/faraday-core/src/screens/**", "core/faraday-draw/src/widgets/**", "faraday/faraday-ui/**", "faraday/faraday-starter/src/**"]
+kind = "trailer"
+trailer = "Material"
+misses = "whether the page named is the right one; 48 dp touch targets over the snapshot tours (planned check)"
+
+[[rule]]
+id = "design.left-out"
+title = "none of F111's left-out components is added"
+source = ["docs/decisions/F111.md"]
+when = ["**/screen.rs", "faraday/faraday-core/src/screens/**", "core/faraday-draw/src/widgets/**", "faraday/faraday-ui/**"]
+kind = "review"
+
+[[rule]]
+id = "design.new-component"
+title = "a new component is in DESIGN.md §4"
+source = ["CLAUDE.md"]
+when = ["core/faraday-draw/src/widgets/*.rs"]
+on = ["add"]
+kind = "pair"
+with = ["docs/DESIGN.md"]
+
+[[rule]]
+id = "design.new-screen"
+title = "a new Screen or Sheet is in DESIGN.md §5 and CLAUDE.md's count"
+source = ["CLAUDE.md"]
+when = ["faraday/faraday-core/src/lib.rs"]
+lines = '^\+ {4}[A-Z][A-Za-z0-9]*(\(.*\)|\s*\{.*\})?,\s*(//.*)?$'
+kind = "pair"
+with_each = ["docs/DESIGN.md"]
+misses = "CLAUDE.md's count of screens, which a new Sheet leaves unchanged"
+
+[[rule]]
+id = "design.demo-matches"
+title = "Faraday Demo differs from the device only by a decision"
+source = ["docs/decisions/F117.md"]
+when = ["faraday/shells/window/**", "faraday/faraday-core/src/host/**"]
+kind = "review"
+
+[[rule]]
+id = "design.maker-pages"
+title = "the Starter's maker pages show several families at once, no model, no maker's screenshot or name"
+source = ["docs/decisions/F14.md", "docs/decisions/F18.md"]
+when = ["docs/learn/faraday/boot/**", "faraday/faraday-starter/src/**"]
+kind = "review"
+
+# ---------------------------------------------------------------- tokens
+
+[[rule]]
 id = "tokens.named"
 title = "a new dimension is a name in tokens.rs; numbers written in screens only fall"
 source = ["CLAUDE.md"]
 when = ["core/faraday-draw/src/**", "faraday/faraday-core/src/screens/**", "**/screen.rs"]
 kind = "held"
 held_by = ["lint-tokens"]
+
+# ---------------------------------------------------------------- themes
 
 [[rule]]
 id = "themes.generated"
@@ -359,6 +824,8 @@ source = ["docs/THEMES.md"]
 when = ["faraday/faraday-ui/src/pal/**", "tools/themes/**"]
 kind = "held"
 held_by = ["lint-themes"]
+
+# ----------------------------------------------------------------- guide
 
 [[rule]]
 id = "guide.screens-named"
@@ -369,12 +836,24 @@ kind = "held"
 held_by = ["lint-guide"]
 
 [[rule]]
+id = "guide.pictures"
+title = "the guide's pictures are drawn again when a screen changes"
+source = ["docs/GUIDE.md"]
+when = ["**/screen.rs", "faraday/faraday-core/src/screens/**"]
+kind = "review"
+consumers = ["website.guide"]
+
+# ----------------------------------------------------------------- learn
+
+[[rule]]
 id = "learn.sync"
 title = "docs/learn/ and the Learn pages' en.rs are one text"
 source = ["CLAUDE.md"]
 when = ["docs/learn/**", "faraday/faraday-learn/src/pages/en.rs"]
 kind = "held"
 held_by = ["learn-sync"]
+
+# ------------------------------------------------------------------ deps
 
 [[rule]]
 id = "deps.vetted"
@@ -385,12 +864,64 @@ kind = "held"
 held_by = ["cargo-vet", "cargo-vet-fuzz", "cargo-vet-faraday-fuzz", "cargo-deny"]
 
 [[rule]]
+id = "deps.page"
+title = "a direct dependency added has its page in docs/deps/"
+source = ["docs/decisions/F71.md"]
+when = ["**/Cargo.toml"]
+lines = '^\+(?!(name|version|edition|license|description|publish|rust-version|authors|default-run|default-features|features|resolver|members|repository|readme|exclude|include|build|path|harness|test|bench|doc|crate-type|required-features|workspace|optional|package|git|branch|rev|tag)\b)(?!.*\bpath\s*=)[a-z][a-z0-9_-]*\s*=\s*(\{|")'
+kind = "pair"
+with = ["docs/deps/*.md"]
+misses = "a version bump of an existing dependency also matches; the page of the new name is not matched by name; a path dependency on a workspace crate has no page and is not matched"
+
+[[rule]]
+id = "deps.locked"
+title = "builds and checks pass --locked"
+source = ["CLAUDE.md", "docs/decisions/F71.md"]
+when = ["justfile", "faraday/faraday.just", "**/*.sh"]
+lines = '^\+.*\bcargo (build|test|run|nextest|clippy|check|doc)\b(?!.*--locked)'
+kind = "review"
+
+# ---------------------------------------------------------------- builds
+
+[[rule]]
 id = "builds.list"
 title = "faraday/builds.toml lists every build, and every board and panel directory is named by one"
 source = ["faraday/builds.toml"]
 when = ["faraday/builds.toml", "faraday/image/boards/**", "faraday/image/panels/**"]
 kind = "held"
 held_by = ["lint-builds"]
+
+[[rule]]
+id = "builds.docs"
+title = "a build added or changed is in docs/IMAGES.md or docs/DEVELOPING.md"
+source = ["faraday/builds.toml"]
+when = ["faraday/builds.toml"]
+lines = '^[+-]\[\[(build|hardware)\]\]'
+kind = "pair"
+with = ["docs/IMAGES.md", "docs/DEVELOPING.md"]
+consumers = ["website.download"]
+
+# ------------------------------------------------------------------ fuzz
+
+[[rule]]
+id = "fuzz.parser-target"
+title = "a parser of untrusted input has its fuzz target in the same change"
+source = ["tools/README.md"]
+when = ["core/*/src/**", "faraday/**/src/**"]
+kind = "review"
+misses = "planned: F148's fuzz check"
+
+# --------------------------------------------------------------- release
+
+[[rule]]
+id = "release.before"
+title = "before a release: just, just crosscheck --fresh, the fuzz run and its corpus"
+source = ["tools/README.md"]
+at = "release"
+when = ["**"]
+kind = "review"
+
+# ---------------------------------------------------------------- impact
 
 [[rule]]
 id = "impact.registry"
@@ -400,3 +931,12 @@ when = ["tools/impact.toml"]
 kind = "held"
 held_by = ["impact-check", "impact-docs"]
 status = "planned"
+
+[[rule]]
+id = "impact.rules-indexed"
+title = "a new rule line in CLAUDE.md is a new rule in the registry in the same commit"
+source = ["docs/decisions/F149.md"]
+when = ["CLAUDE.md"]
+lines = '^\+- '
+kind = "pair"
+with = ["tools/impact.toml"]

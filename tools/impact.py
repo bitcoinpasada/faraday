@@ -546,7 +546,15 @@ def evaluate(reg, changes, commits):
                 unmet = pair_unmet(r, changes, trig)
                 why = "; ".join(unmet)
             elif r["kind"] == "forbid":
-                unmet = [f"{c.path} {VERB[c.status]}, which is refused" for c, _ in trig]
+                # `with` names a move that allows the change: a path in it
+                # (captures filled) changing in the same range.
+                unmet = []
+                for c, caps in trig:
+                    anyp = [fill(p, caps) for p in r["with"]]
+                    if anyp and any(match_list(anyp, x.path) is not None
+                                    for x in changes if x.path != c.path):
+                        continue
+                    unmet.append(f"{c.path} {VERB[c.status]}, which is refused")
                 why = "; ".join(unmet)
             else:  # trailer
                 have = trailer_values(commits, r["trailer"])
@@ -690,11 +698,61 @@ def tracked_set(git, root):
     return found
 
 
+# The packages each app consumer is built from (docs/IMPACT.md §9.2).
+APP_ROOTS = {
+    "app.faraday": ("faraday-desktop", "faraday-stick"),
+    "app.starter": ("faraday-starter-shell",),
+}
+
+
+def app_reads_lint(reg, root, metadata=None):
+    """Every workspace crate an app is built from is read by that app's
+    consumer (docs/IMPACT.md §9.2): the problems, from `cargo metadata
+    --offline`. Costs a cargo metadata run. When cargo cannot run, prints
+    a note and finds none."""
+    import json
+    if metadata is None:
+        try:
+            p = subprocess.run(["cargo", "metadata", "--offline", "--format-version", "1"],
+                               cwd=str(root), capture_output=True, timeout=120)
+            if p.returncode != 0:
+                raise OSError(p.stderr.decode(errors="replace").strip()[-200:] or "failed")
+            metadata = json.loads(p.stdout)
+        except (OSError, ValueError, subprocess.SubprocessError) as e:
+            print(f"impact: lint: cargo metadata not available ({e}); "
+                  "app consumers not compared with the workspace")
+            return []
+    base = str(metadata["workspace_root"]) + "/"
+    pkgs = {p["id"]: p for p in metadata["packages"]}
+    members = set(metadata["workspace_members"])
+    deps = {n["id"]: [d["pkg"] for d in n["deps"]
+                      if any(k["kind"] in (None, "build") for k in d["dep_kinds"])]
+            for n in metadata["resolve"]["nodes"]}
+    errs = []
+    for cid, roots in APP_ROOTS.items():
+        cons = next((c for c in reg.consumers if c["id"] == cid), None)
+        if cons is None:
+            errs.append(f"{cid}: no such consumer")
+            continue
+        seen, todo = set(), [i for i, p in pkgs.items() if p["name"] in roots]
+        while todo:
+            i = todo.pop()
+            if i not in seen:
+                seen.add(i)
+                todo.extend(deps.get(i, ()))
+        for i in sorted(seen & members, key=lambda i: pkgs[i]["name"]):
+            manifest = pkgs[i]["manifest_path"].replace(base, "")
+            if match_list(cons["reads"], manifest) is None:
+                errs.append(f"{cid}: workspace crate {pkgs[i]['name']} ({manifest}) "
+                            "is used by the app and read by no pattern of reads")
+    return errs
+
+
 def run_lint(reg, root=ROOT):
     git = Git(root)
     jf = Path(root) / "justfile"
     text = jf.read_text(encoding="utf-8") if jf.is_file() else ""
-    return lint(reg, root, tracked_set(git, root), text)
+    return lint(reg, root, tracked_set(git, root), text) + app_reads_lint(reg, root)
 
 
 def cmd_lint(args):
@@ -914,8 +972,28 @@ def self_test():
     ok(res[0][0] == "unmet", "forbid refuses")
     res, _ = evaluate(_reg(rf), [ch("A", ".github/workflows/a.yml")], [("h", "S\n\nImpact-skip: f.f: a fork's file")])
     ok(res[0][0] == "waived", "forbid waived")
+    rm = mkrule(id="m.m", when=["docs/{f}.md"], on=["delete"], kind="forbid",
+                **{"with": ["docs/history/{f}.md"]})
+    res, _ = evaluate(_reg(rm), [ch("D", "docs/X.md")], [])
+    ok(res[0][0] == "unmet", "forbid with a move: a plain delete is refused")
+    res, _ = evaluate(_reg(rm), [ch("D", "docs/X.md"), ch("A", "docs/history/X.md")], [])
+    ok(res[0][0] == "met", "forbid with a move: the move passes")
+    res, _ = evaluate(_reg(rm), [ch("D", "docs/X.md"), ch("A", "docs/history/Y.md")], [])
+    ok(res[0][0] == "unmet", "forbid with a move: another file's move does not")
+    meta = {"workspace_root": "/w", "workspace_members": ["a", "b"],
+            "packages": [{"id": "a", "name": "faraday-desktop", "manifest_path": "/w/app/Cargo.toml"},
+                         {"id": "b", "name": "lib", "manifest_path": "/w/lib/Cargo.toml"}],
+            "resolve": {"nodes": [{"id": "a", "deps": [{"pkg": "b", "dep_kinds": [{"kind": None}]}]},
+                                  {"id": "b", "deps": []}]}}
+    regc = _reg()
+    regc.consumers = [{"id": "app.faraday", "reads": ["app/**"]},
+                      {"id": "app.starter", "reads": []}]
+    errs = app_reads_lint(regc, ".", meta)
+    ok(len(errs) == 1 and "lib" in errs[0], "an app crate no pattern reads", errs)
+    regc.consumers[0]["reads"] = ["app/**", "lib/**"]
+    ok(app_reads_lint(regc, ".", meta) == [], "every crate read")
     rh = mkrule(id="h.h", when=["a"], kind="held", held_by=["c"])
-    rr = mkrule(id="r.r", when=["a"], kind="review", title="look")
+    rr =mkrule(id="r.r", when=["a"], kind="review", title="look")
     rpl = mkrule(id="p.p", when=["a"], kind="pair", status="planned", **{"with": ["b"]})
     rel = mkrule(id="e.e", when=["a"], at="release", kind="pair", **{"with": ["b"]})
     res, _ = evaluate(_reg(rh, rr, rpl, rel), [ch("M", "a")], [])

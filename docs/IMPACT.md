@@ -85,7 +85,7 @@ Fields not given take their defaults: `at = "change"`, `on` all three,
 |---|---|---|
 | `held` | a check in `held_by` holds the rule whole | lists it in plan; nothing more |
 | `pair` | when the rule triggers, a path in `with` (any one) and every path in `with_each` change in the same range | fails while unmet and not waived (§3) |
-| `forbid` | a change matching `when` is refused | fails unless waived |
+| `forbid` | a change matching `when` is refused, unless a path in `with` (captures filled) changes in the same range, which makes it a move | fails unless waived |
 | `trailer` | when the rule triggers, a commit in the range carries the trailer named in `trailer` (`Material: <page>`), with a value | fails while no commit carries it and the rule is not waived (§3) |
 | `review` | no script can see whether it was kept | lists it in plan and in check's output; never fails |
 
@@ -360,11 +360,12 @@ H held, P pair, F forbid, T trailer, R review. "planned" names a check F148 or
 | `repo.tests-user-facing` | `**/tests/**`, test modules | R | no test states a design rule, a token's value or geometry against a document | `CLAUDE.md` |
 | `tree.top-level` | a top-level entry added | P | `README.md` ("Repository layout") and `tools/lint-tree.sh` | `CLAUDE.md`; H by `lint-tree` for the list |
 | `tree.clean` | any path | H | `lint-tree` (leftovers, 2 MiB) | `CLAUDE.md` |
-| `tree.image-metadata` | `**/*.png`, `**/*.webp`, `**/*.jpg`, `**/*.pdf` added or changed | R | no metadata; `just guide-pictures` checks the guide's only (planned check: every tracked image) | `tools/README.md` |
+| `tree.image-metadata` | `**/*.png` added or changed (the only image form tracked) | R | no metadata; `just guide-pictures` checks the guide's only (planned check: every tracked image) | `tools/README.md` |
 | `docs.headers` | `docs/**/*.md` | H | `lint-docs` rules 1, 3, 4 | `CLAUDE.md` |
 | `docs.paths` | `**/*.md` | H | `lint-docs` rule 2 | `CLAUDE.md` |
 | `docs.readme-index` | `docs/*.md` added or deleted, or its Kind line changed | P | `docs/README.md` | `docs/README.md` |
-| `docs.spec-done` | a Spec's `**Open:**` line removed (`lines`) | P | its plan in `docs/history/{NAME}-LOG.md`, Kind Reference | `CLAUDE.md`; H in part by `lint-docs` rule 4 |
+| `docs.spec-done` | a Spec's `**Kind:** Spec` line removed from a document that stays (`lines`, `on = modify`) | P | its plan in `docs/history/{NAME}-LOG.md`, Kind Reference | `CLAUDE.md`; H in part by `lint-docs` rule 4 |
+| `docs.no-silent-delete` | a file of `docs/decisions/` or a `docs/*.md` deleted | F | refused unless the same range adds it under `docs/history/` (`docs/history/decisions/F{n}.md`, `docs/history/{NAME}.md`: a move) | F149 |
 | `decisions.indexed` | `docs/decisions/F{n}.md`, `docs/history/decisions/**` | H | `lint-docs` rule 5 | `CLAUDE.md`, `docs/DECISIONS.md` |
 | `decisions.held-by` | `docs/decisions/F{n}.md` added | H | `lint-docs` rule 6 (planned, §8) | F149 |
 | `structure.ratchet-raised` | `tools/lint-layout.counts`, `tools/lint-tokens.counts` (`rises`) | P | a decision added: `docs/decisions/F{n}.md` | `CLAUDE.md`, F74 |
@@ -373,7 +374,7 @@ H held, P pair, F forbid, T trailer, R review. "planned" names a check F148 or
 | `structure.impl-faraday` | `faraday/faraday-core/src/**` | H | `lint-layout` | `CLAUDE.md`, F74 |
 | `structure.no-new-mut` | a `fn …_mut(` or `impl DerefMut` added in `faraday/faraday-core/src/**` (`lines`) | P | `docs/STRUCTURE-PASS.md` (§7.3's list) | `docs/STRUCTURE-PASS.md` §7.3 |
 | `structure.areas-private` | `faraday/faraday-core/src/**` | R | an area's state reached through accessors and its own methods | `docs/STRUCTURE-PASS.md` §7.3 |
-| `structure.new-lint` | a line added to `justfile`'s `lint` recipe | P | `tools/README.md` ("The lints `just lint` runs") and the registry's `[[check]]` | F74; H by `impact.py lint` |
+| `structure.new-lint` | a lint command added to `justfile` (`lines`: a `tools/lint-*`, `tools/check-*`, `cargo deny`, `cargo vet` or `costs-lint` line) | P | `tools/README.md` ("The lints `just lint` runs") and the registry's `[[check]]` | F74; H by `impact.py lint` |
 | `keys.boundary` | `faraday/**` | H | `lint-secrets` rule 4, `lint-keys-tests` | `CLAUDE.md`, F70 |
 | `keys.new-reveal` | `faraday/faraday-keys/src/session.rs` (`lines` in `Reveal`) | P | `docs/KEYS.md` and `docs/AUDIT.md` | `docs/KEYS.md` §2 |
 | `keys.secret-files` | a file starting to hold secrets | R | added to `lint-secrets`' `SECRET_FILES` | `tools/README.md` |
@@ -392,11 +393,11 @@ H held, P pair, F forbid, T trailer, R review. "planned" names a check F148 or
 | `crypto.tested` | `core/*/src/**` | R | tested against published vectors or another implementation (planned: F148's inventory and re-stamp) | `CLAUDE.md`, F148 |
 | `crypto.action-covered` | `core/*/src/**`, `faraday/faraday-keys/src/**` | H, planned | F148's inventory | F148 |
 | `crypto.generated` | `docs/STANDARDS.md` §1 to §7, `docs/AUDIT.md` §3 | H, planned | F148's `gen.py check` | F148 |
-| `core.at-source` | `core/**` | R | fixed at its source, not wrapped | `CLAUDE.md` |
-| `core.kept-values` | a type re-implemented from `core/` | R | keeps the values the original keeps | `CLAUDE.md` |
-| `core.costs-said` | a costly function added | R | "Costs …" first in its doc (H by `costs-lint` where it takes the token) | `CLAUDE.md` |
+| `crypto.at-source` | `core/**` | R | fixed at its source, not wrapped | `CLAUDE.md` |
+| `crypto.kept-values` | a type re-implemented from `core/` | R | keeps the values the original keeps | `CLAUDE.md` |
+| `crypto.costs-said` | a costly function added | R | "Costs …" first in its doc (H by `costs-lint` where it takes the token) | `CLAUDE.md` |
 | `deps.vetted` | `**/Cargo.toml`, `Cargo.lock` | H | `cargo vet --locked`, `cargo deny check` | F71 |
-| `deps.page` | a dependency line added to a `Cargo.toml` (`lines`) | P | `docs/deps/{crate}.md` | F71 |
+| `deps.page` | a registry dependency line added to a `Cargo.toml` (`lines`; not a `path` dependency, not a package key) | P | a page of `docs/deps/` (the script cannot take the crate's name from the line) | F71 |
 | `deps.locked` | a `cargo` line added in `justfile`, `faraday/faraday.just`, `**/*.sh` (`lines`) | R | it passes `--locked` | `CLAUDE.md`, F71 |
 | `strings.one-file` | `faraday/**/src/**` | H | `lint-strings` | `CLAUDE.md`, F68 |
 | `strings.guide-names` | `faraday/faraday-strings/src/en.rs` | H | `lint-guide` | `tools/README.md` |
@@ -421,8 +422,11 @@ H held, P pair, F forbid, T trailer, R review. "planned" names a check F148 or
 | `impact.registry` | tools/impact.toml | H | `impact.py lint`, `impact.py docs --check` | F149 |
 | `impact.rules-indexed` | `CLAUDE.md` | P | tools/impact.toml | F149 |
 
-That is 70 rules: 23 held (three of them by a check still to be
-built), 15 pair, 1 forbid, 1 trailer, 30 review.
+That is 71 rules: 23 held (four of them by a check still to be
+built), 15 pair, 2 forbid, 1 trailer, 30 review. `tree.top-level` sees
+a file added at the top, not a new directory. `design.new-screen` and
+`keys.new-reveal` read an enum variant line of `lib.rs` and
+`session.rs`, so another enum's variant added there triggers them too.
 Every pair rule is checkable from paths and changed lines. The rules
 whose trigger is not a path ("a file starting to hold secrets", "a
 parser added", "a new kind of key") are review: plan lists them for any
@@ -446,9 +450,12 @@ change to the paths they name.
 
 The app consumers are for plan's "read by" line; which apps a commit
 touches is `cargo tree -i <crate>`'s answer, and the patterns above are
-its summary. A consumer for every crate is not kept by hand: batch 2's
-lint compares the app consumers with `cargo metadata` and fails on a
-workspace crate an app uses and no app consumer reads.
+its summary: tools/impact.toml names each crate's directory. `impact.py
+lint` compares each app consumer with `cargo metadata --offline`, from
+the packages `faraday-desktop` and `faraday-stick` (the device app) and
+`faraday-starter-shell` (the Starter), and fails on a workspace crate
+the app is built from that no pattern of its consumer reads. Where cargo
+cannot run, it prints a note and skips the comparison.
 
 ### 9.3 Checks proposed beside it
 
