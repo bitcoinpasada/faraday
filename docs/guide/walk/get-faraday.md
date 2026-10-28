@@ -24,9 +24,9 @@ with one from a second place.
 
 ### 1.2 Open the Starter
 
-- **Windows:** open the `.exe`. Windows shows "Windows protected your
+- Windows: open the `.exe`. Windows shows "Windows protected your
   PC" the first time: press *More info*, then *Run anyway*.
-- **Linux:** extract the `.tar.gz` and open the file inside.
+- Linux: extract the `.tar.gz` and open the file inside.
 
 The Starter opens on its Home.
 

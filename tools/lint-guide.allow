@@ -1,0 +1,24 @@
+# Names the guide shows in bold that tools/lint-guide.py does not find in
+# faraday/faraday-strings/src/en.rs: test values, glyphs, words of the public
+# test keys, and text the app makes outside en.rs. One name per line, then
+# "  # reason". A line "re:<pattern>" matches a whole name.
+×  # the remove glyph on a chip
+⋮  # the menu glyph
+?  # the Learn glyph on the top bar
+-  # the stepper's minus
++  # the stepper's plus
+12  # a word count, a button and a value
+24  # a word count, a button and a value
+C  # share index of the published codex32 sample set
+D  # share index of the published codex32 sample set
+zebra  # word of a public test key
+summer  # word of a public test key
+torch  # word 12 of the published test seed
+off  # the status value in "Secure Boot: on" or "off"
+2/s  # a speed button of the QR display
+5/s  # a speed button of the QR display
+new-wallet-1-descriptor  # file name the wallet's descriptor is saved under
+Final  # the codex32 checksum worksheet's row label, drawn by the worksheet
+Must read  # the codex32 checksum worksheet's row label, drawn by the worksheet
+Demo only  # the Demo's sample card title, drawn by the Demo shell
+re:fee rate is about [0-9]+ sat/vB  # Review's warning, made in faraday-psbt

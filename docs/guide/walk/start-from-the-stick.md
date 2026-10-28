@@ -29,7 +29,7 @@ On Windows the first checklist line reads **Faraday stick attached ·
 version not read**: the Starter reads a stick's version on Windows only
 with administrator permission. Nothing here needs it.
 
-**BitLocker (Windows).** With BitLocker on, the Start page shows a row
+BitLocker (Windows). With BitLocker on, the Start page shows a row
 **BitLocker, drive C:** under **Print**. Nothing here is required:
 with Secure Boot back on before Windows starts (step 1.10), Windows
 usually starts as before. A PC whose BIOS changes its Secure Boot keys

@@ -76,7 +76,7 @@ ticked.
 
 The link at the top left is named after the card before the one open
 (**Start**, with Length open): it opens that card again, with its choice
-kept. On Start it goes back to **Wallets**. **Escape** does the same.
+kept. On Start it goes back to **Wallets**. <kbd>Escape</kbd> does the same.
 Once the key is locked in (step 3.7) the link no longer opens a card
 before **Key**.
 

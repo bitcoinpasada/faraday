@@ -22,7 +22,8 @@ test:
 # (a Kind and Status header on every document, every cited path real,
 # tools/lint-docs.sh), and the layout lint (the code map, file sizes and
 # long functions, counts that only fall, tools/lint-layout.sh), and cargo
-# vet: every dependency trusted, audited or exempted (F71).
+# vet: every dependency trusted, audited or exempted (F71), and the guide
+# lint (bold names are the app's strings, links resolve, tools/lint-guide.py).
 [group('lint')]
 lint:
     python3 tools/clippy.py --locked --workspace --all-targets
@@ -54,6 +55,9 @@ lint:
     tools/lint-keys-tests.sh
     tools/check-macos.sh
     python3 tools/learn/sync.py check
+    # The guide's bold names are the app's strings, its links resolve.
+    python3 -B tools/lint-guide.py --self-test
+    python3 -B tools/lint-guide.py
 
 # Fetch the audit sets supply-chain/config.toml imports, write them to
 # imports.lock, and drop exemptions they now cover (F71), keeping those
