@@ -434,12 +434,6 @@ pub const VIEWFINDER_STATE_SIZE: f32 = CAPTION;
 // Hub and the wide template
 // ---------------------------------------------------------------------
 
-/// The highest screen density, in pixels per dp, that raises the
-/// window size the wide layout needs (`docs/DESIGN.md` §3, F78). Above
-/// it, a window's own pixels decide: a window of the same pixel size
-/// takes the same layout at any compositor scale from this one up.
-pub const WIDE_FLOOR_DENSITY: f32 = 1.5;
-
 // ---------------------------------------------------------------------
 // Structure chart
 // ---------------------------------------------------------------------
@@ -639,10 +633,6 @@ pub const ENTRY_CELL_HEIGHT: f32 = 38.0;
 /// the next.
 pub const ENTRY_ROW: f32 = 46.0;
 
-/// The field where one share or part is typed on a wide display: its
-/// height.
-pub const ENTRY_FIELD_HEIGHT: f32 = 44.0;
-
 /// Corner radius of an entry field and its word cells: Material's
 /// extra-small.
 pub const FIELD_RADIUS: f32 = SHAPE_XS;
@@ -775,9 +765,6 @@ pub const GUIDE_LINK_ABOVE: f32 = 6.0;
 /// A Guided text's Learn link: the room added to its label's width.
 pub const GUIDE_LINK_PAD: f32 = 24.0;
 
-/// A Guided text's Learn link: the size of its label.
-pub const GUIDE_LINK_TEXT: f32 = 13.0;
-
 /// A Guided text: how far in from its bar the words stand.
 pub const GUIDE_INDENT: f32 = 14.0;
 
@@ -823,18 +810,6 @@ pub const WINDOW_DEFAULT_H: f32 = 800.0;
 /// one-column layout: the wide layout's 1280 dp page (`docs/STARTER.md`
 /// §3.1d).
 pub const WINDOW_HELD_WIDE: f32 = 1280.0;
-
-/// A row of Settings' choices, its height.
-pub const SETTINGS_CHOICE_H: f32 = 38.0;
-
-/// The space above a value under a row of choices.
-pub const SETTINGS_VALUE_GAP: f32 = 12.0;
-
-/// A value under a row of choices, its text size.
-pub const SETTINGS_VALUE_TEXT: f32 = 13.0;
-
-/// A value's line under a row of choices.
-pub const SETTINGS_VALUE_LINE: f32 = 16.0;
 
 /// The screens the desktop app can show its screens at
 /// (`docs/PREVIEW-SIZE.md`), width and height in dp, in Settings'
@@ -1175,21 +1150,6 @@ pub const FINISH_CARD_INSET: f32 = 14.0;
 /// A list item's room at its start and end (Material 3 Lists).
 pub const LIST_PAD: f32 = 16.0;
 
-/// A list item's headline: Material's body large.
-pub const LIST_HEADLINE: f32 = 16.0;
-
-/// A list item's supporting text: Material's body medium.
-pub const LIST_SUPPORTING: f32 = 14.0;
-
-/// A list item's trailing text: Material's label small.
-pub const LIST_TRAILING: f32 = 11.0;
-
-/// The headline's top in a two-line list item.
-pub const LIST_HEADLINE_Y: f32 = 14.0;
-
-/// The supporting text's top in a two-line list item.
-pub const LIST_SUPPORTING_Y: f32 = 38.0;
-
 /// A supporting pane's width (`docs/LAYOUT.md` §6).
 pub const SUPPORT_PANE: f32 = 400.0;
 
@@ -1469,9 +1429,6 @@ pub const CODEX32_FRONT_STROKE: f32 = 2.0;
 pub const CODEX32_LABEL_W: f32 = 76.0;
 /// The gap between the two panels on `wide`.
 pub const CODEX32_PANEL_GAP: f32 = 24.0;
-/// The five-dice roller's column beside the codex32 dice pad (CODEX32
-/// §5.5): five dice and their gaps, and room for the reach chips.
-pub const CODEX32_ROLLER_W: f32 = 320.0;
 /// The narrowest the codex32 entry's own column is drawn beside the
 /// "Demo only" box (CODEX32 §5.5); narrower, the box goes under it.
 pub const CODEX32_MAIN_MIN: f32 = 420.0;
@@ -1763,8 +1720,6 @@ pub const TOP_BAND: f32 = 56.0;
 pub const TOP_ROW_QUESTION: f32 = MARGIN_WIDE + 28.0;
 /// The check glyph in a seen worksheet tab.
 pub const CODEX32_TAB_GLYPH: f32 = 12.0;
-/// The icon's room at the head of the cell sheet.
-pub const CODEX32_SHEET_ICON: f32 = 28.0;
 /// The check icon in a seen worksheet tab.
 pub const CODEX32_TAB_ICON: f32 = 20.0;
 /// A tab's height with a label alone: Material's tabs, 48 dp.
@@ -1961,8 +1916,6 @@ pub const SCRIM_ALPHA: u8 = 82;
 
 /// A progress indicator's track and bar.
 pub const PROGRESS_H: f32 = 4.0;
-/// One pass of the indeterminate indicator's bar along its track, ms.
-pub const PROGRESS_CYCLE_MS: u64 = 2000;
 /// The indeterminate indicator's bar, as a share of its track.
 pub const PROGRESS_SPAN: f32 = 0.3;
 

@@ -144,7 +144,7 @@ pub fn column_wide(
     let mut y = top;
     let (x, w) = (col.x, col.w);
     // The top app bar over the page names the flow and carries its way
-    // back and Cancel (`docs/LAYOUT.md` §3, DESIGN §4.1); the flow's own
+    // back and Cancel (`docs/LAYOUT.md` §3, DESIGN §4.1, §4.13); the flow's own
     // head keeps what is the flow's: its chip at the left and Steps only ·
     // Guided at the right.
     crate::screens::bar_head(ui, col.back, col.heading);

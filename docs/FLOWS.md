@@ -390,7 +390,7 @@ where it goes.
 **The roller** (F96, `docs/CODEX32.md` §5.6; Faraday Demo only, never
 the stick, the Pi or the website). Beside the dice entry of every dice
 way of the randomness step stands one die, drawn as the dice pad's row
-(DESIGN §4, Dice roller): **Rolled by this computer** over it, **Roll**
+(DESIGN §4.3, Dice roller): **Rolled by this computer** over it, **Roll**
 beside it, and **Rolls per click**: **1** (the default) · **5** · **10** ·
 **To the end** · a number typed. The pad and its entries stay for real
 dice, and the person uses either or both. A click's values land on the

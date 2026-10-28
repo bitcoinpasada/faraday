@@ -767,7 +767,7 @@ SHA-256, so a later change to the booklet is seen as a change there.
 
 ### 5.2 Characters typed
 
-The person types the characters on the codex32 keyboard (DESIGN §4.3),
+The person types the characters on the codex32 keyboard (`KeyboardKind::Codex32`),
 for a person who made them on paper by any method. Each character goes
 into its box as it is typed, masked as the dice characters are. One line of fact
 stands above the entry: "Characters from dice or a worksheet, not
@@ -943,7 +943,7 @@ Create a vault's **Generate with dice** (the diceware passphrase) gain
 one die drawn the same way, with **Rolls per click**: 1 (the default)
 · 5 · 10 · To the end, or a number typed. It stands beside the pad and
 its entries, which stay for real dice exactly as the stick shows them
-(DESIGN §4's dice pad: the entries in groups of five, the progress line);
+(DESIGN §4.3's Dice, coin, card keys: the entries in groups of five, the count so far);
 the person uses either, or both. A click's values land on the pad's
 entries as presses would, all at once in the frame that shows the click
 (owner, 2026-10-25); the die then tumbles for Material's short 4
@@ -1137,8 +1137,8 @@ A Choice: **Roll dice** (ticked; §5.1) · **Type the characters**
 
 #### 6.4.1 The screen
 
-The Pad screen (DESIGN §5, Enter intent; or the Entry screen with the
-codex32 keyboard for typed characters), its card **Characters**, the top
+The entry card of New key's step flow (DESIGN §5, `KeyGen`; the dice pad of
+§4.3, or the codex32 keyboard for typed characters), its card **Characters**, the top
 app bar's title where the entry stands while a character is still to
 come: "Share A · character 7 of 26" (k of 2 or more) or "Secret ·
 character 7 of 26" (k = 0), "Share A · 7 of 26" where the bar has no
@@ -1298,7 +1298,7 @@ bits; it is refused all the same, and a typed one asked for.
 
 #### 6.4.6 Masking
 
-DESIGN §4.10's mask policy masks dice entries, checksum bits and all
+DESIGN §4.10's Mask policy masks dice entries, checksum bits and all
 that the entropy becomes, behind the eye. A worksheet that fills live
 under a mask shows nothing of its working, which is the opposite of the
 owner's requirement. The owner's answer (§1.1 item 1), an exception
@@ -1367,12 +1367,12 @@ comparing with paper jumps to one sheet). On `wide` and `mobile` the
 tab row wraps to a second line where it does not fit; on `small`, where
 six tabs do not fit, the tab row is a Choice titled by the worksheet
 shown ("Checksum · A ▾") with **Previous** and **Next**. The tab row is
-new to DESIGN §4 (§15.3). The live entry screen (§6.4) is where the
+a Tab row in DESIGN §4.2. The live entry screen (§6.4) is where the
 sheets are worked; the tabs are where each is read back whole.
 
 ### 6.6 The strings
 
-One Secret screen per string (DESIGN §4.10, §5 Secret), titled
+One Strings card per string (a card of `KeyGen`, DESIGN §5; masked as DESIGN §4.10's Masked secret), titled
 "Share 2 of 5" or "Codex32" for k = 0: the string as a comparison
 string in groups of four at the largest mono size that fits; for a
 48-character string a toggle **String · Codex32QR** shows its Codex32QR
@@ -1383,7 +1383,7 @@ differs ("Box 17 differs").
 
 ### 6.7 Strings made
 
-The Result DESIGN §5 describes, now built: "Split · 3 of 5" or
+The Strings made card (a card of `KeyGen`, DESIGN §5) shows: "Split · 3 of 5" or
 "Split · none", "Length · 48", "Identifier · w0za", "Fingerprint ·
 73c5da0a", "Entropy · your dice" (or "your characters", "your shares"),
 and, where Faraday's randomness was used (§9), "Random shares · <source>"
@@ -1440,7 +1440,7 @@ the person chooses, and Next waits until they have (owner, 2026-10-24,
 Right after "(codex32)" in the first row's name stands Material's info
 icon button (the outlined "info" symbol, in the row's secondary ink, a
 48 dp target that takes the press only on the button itself). It and
-the word carry a rich tooltip (DESIGN §4.12, Tooltip): "codex32 is the
+the word carry a rich tooltip (DESIGN §4.12, Tooltip, rich): "codex32 is the
 only method that makes a seed and its shares fully by hand, the
 checksum included." It shows when the pointer rests on the button or
 the word, when the keyboard is on the button, on a long press of
@@ -1487,9 +1487,9 @@ Other forms.
 
 ## 7. The worksheets as Faraday shows them
 
-During entry the worksheets are the Pad screen's context (§6.4); for
-review, each is a Secret screen whose panel is the worksheet's grid.
-Both are DESIGN §5 screens; no new screen is added. Masking is §6.4.6.
+During entry the worksheets are the entry card's context (§6.4); for
+review, each is a tab of the Worksheets card (§6.5), whose panel is the
+worksheet's grid. Both are cards of `KeyGen` (DESIGN §5); no new screen is added. Masking is §6.4.6.
 Each box is drawn at a token's size (§13.4). A string's boxes stand in
 groups of four, each with its number above it, small and in the muted
 colour (owner, 2026-10-24); the checksum worksheet is drawn as the
@@ -1580,7 +1580,7 @@ checked. For k = 2 there is one recovery symbol and nothing to fuse.
 
 ### 7.4 Every cell opens to its working
 
-A press on any cell of any worksheet opens DESIGN §4.16's **Sheet** (a
+A press on any cell of any worksheet opens a sheet (DESIGN §4.10, Worksheet; a
 `CHART_SHEET_WIDTH` sheet on `wide`, the whole panel as a page on
 `small`; on `mobile` the same sheet from the bottom), a component and not
 a screen. Its head names the cell ("Box 23 · sum row 7"); its rows are
@@ -2016,7 +2016,7 @@ and checked where the backup is (§6.6, the checklist's Check my copy,
 A codex32 set's upkeep belongs with the backup, since it changes what
 the places keep, so the plan, its board and its checks stay true. The
 actions are on the set's node in the wallet's chart (`docs/history/NEW-WALLET.md`
-§6, the structure chart; DESIGN §4.16's node sheet), beside where its
+§6, the structure chart; DESIGN §4.16, Sheet), beside where its
 places are shown, and on the plan's codex32 chips. Changing a form
 between standards (codex32 to SLIP-39 and the like) is not here; that is
 the conversion tool (§10.5). The same three actions apply to a SLIP-39
@@ -2099,9 +2099,9 @@ loaded until enough strings are in.
 ### 10.2 Showing
 
 Where Faraday shows one 48-character string (§6.6, §8.2, §9.1), the
-Secret screen's toggle **String · Codex32QR** draws it as a Codex32QR
+Strings card's toggle **String · Codex32QR** draws it as a Codex32QR
 code: the string in upper case, alphanumeric mode, version 3, EC level
-L, the standard quiet zone, black on white, at DESIGN §4.9's QR side,
+L, the standard quiet zone, black on white, at DESIGN §3's QR side (`qr_side`),
 the mode the profile's pictures use (owner, 2026-10-24; F95). Reading
 takes a Codex32QR in either mode: a code drawn in byte mode, as Faraday
 drew them before, still scans. It is a
