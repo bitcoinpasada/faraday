@@ -111,7 +111,7 @@ its options, with **Continue** back.
 | **Form** | **BIP-39 words**, **codex32** | **BIP-39 words** |
 | **Words** | **12**, **24** | **24** |
 | **Copy** | **Words**, **SeedQR**, **Both** (the word lines, the SeedQR grid, or both on one sheet) | **Words** |
-| **Places** | **Fewer** and **More**: one or more, filled in by hand | 2 |
+| **Places** | **Fewer** and **More**: one to 13, filled in by hand | 2 |
 
 For [Back it up](back-up.md)'s template: **Words** → **12** →
 **Continue**. Then:

@@ -978,8 +978,9 @@ back; then the buttons:
 - **Copy**: **Words** · **SeedQR** · **Both**, Words chosen: the word
   lines, the SeedQR grid, or both on one sheet, as the backup's `copy:`
   line has them (`docs/history/NEW-WALLET.md` §14.7);
-- **Places**: a count to fill in by hand, 2 filled in, one or more, no
-  upper bound;
+- **Places**: a count to fill in by hand, 2 filled in, from one to the
+  13 rows the places page holds (`PLACES_MAX` in `pdf.rs`), **More**
+  off at 13;
 - **Print** (primary) → the sheet made by `faraday-core`'s
   `backup::sheet_blank` with no wallet (no name, no shape), the network
   "mainnet", and the choices above (a `copy:` line added to the sheet

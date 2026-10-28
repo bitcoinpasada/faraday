@@ -2429,7 +2429,7 @@ fn template_places(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f
             ),
             (
                 S.starter_tpl_more,
-                Style::Secondary,
+                Style::Secondary.when(starter.template.places < faraday_core::pdf::PLACES_MAX),
                 StarterAction::PlacesMore,
             ),
         ],

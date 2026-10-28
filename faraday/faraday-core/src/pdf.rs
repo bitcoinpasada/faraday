@@ -17,6 +17,11 @@ const PAGE_W: f32 = 595.0;
 const PAGE_H: f32 = 842.0;
 const MARGIN: f32 = 48.0;
 
+/// The most places a blank template's places page holds: a row each, 56
+/// pt apart from 40 pt under its heading, the last row's second line (34
+/// pt down) above the bottom margin. The Starter's count goes no higher.
+pub const PLACES_MAX: usize = 13;
+
 /// One page's drawing operators, with the origin at the top left and y
 /// going down, as the screens draw.
 #[derive(Default)]
@@ -631,7 +636,7 @@ fn blank_sheet(c: &Compute, f: &[(String, String)]) -> Result<Vec<u8>, String> {
     let places: usize = get(f, "places")
         .and_then(|v| v.parse().ok())
         .unwrap_or(1)
-        .clamp(1, 20);
+        .clamp(1, PLACES_MAX);
     let mut q = Page::default();
     let mut y = MARGIN;
     q.text(MARGIN, y, 18.0, Font::Bold, EN.pdf_places);

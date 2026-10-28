@@ -113,7 +113,7 @@ fn the_defaults_are_24_words_copied_as_words_in_2_places() {
 }
 
 #[test]
-fn places_are_one_or_more_with_no_upper_bound() {
+fn places_are_one_up_to_what_the_page_holds_and_each_is_printed() {
     let mut s = starter();
     s.press(StarterAction::Templates);
     s.press(StarterAction::TemplateChoice(TemplateChoice::Places));
@@ -124,7 +124,14 @@ fn places_are_one_or_more_with_no_upper_bound() {
     for _ in 0..40 {
         s.press(StarterAction::PlacesMore);
     }
-    assert_eq!(s.template.places, 41);
+    let most = s.template.places;
+    assert!(most > 1 && most < 41, "{most}");
+    let _ = s.drawn_texts();
+    assert!(!s.offers_action(StarterAction::PlacesMore), "More is off");
+    // Every place counted has its line on the PDF.
+    let pdf = pdf::sheet(&compute(), &s.template.sheet()).expect("a PDF");
+    let lines = pdf.windows(9).filter(|w| *w == b"(Place) T").count();
+    assert_eq!(lines, most);
 }
 
 #[test]

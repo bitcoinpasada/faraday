@@ -2046,7 +2046,9 @@ impl Starter {
                 self.template.saved = None;
             }
             StarterAction::PlacesMore if self.page == Page::TemplatePlaces => {
-                self.template.places = self.template.places.saturating_add(1);
+                // No more than the places page holds.
+                self.template.places =
+                    (self.template.places + 1).min(faraday_core::pdf::PLACES_MAX);
                 self.template.saved = None;
             }
             StarterAction::PrintTemplate if self.page == Page::Templates => {

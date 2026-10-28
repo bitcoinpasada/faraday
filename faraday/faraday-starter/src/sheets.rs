@@ -338,7 +338,7 @@ pub fn sheet(c: &Compute, text: &str) -> Result<Vec<u8>, String> {
     let places: usize = get(f, "places")
         .and_then(|v| v.parse().ok())
         .unwrap_or(1)
-        .clamp(1, 20);
+        .clamp(1, faraday_core::pdf::PLACES_MAX);
     let mut pages = Vec::new();
     if string {
         pages.push(card(chars));

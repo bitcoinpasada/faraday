@@ -76,7 +76,7 @@ a press chooses it. **Continue** goes back to Blank templates.
 | **Length** | "48 characters", "74 characters", "127 characters". A length that no longer allows the copy or the worksheets chosen puts them back to **String** and **None** |
 | **Copy** | with BIP-39 words: **Words** (the word lines), **SeedQR** (the SeedQR grid), **Both** (both on one sheet). With codex32: **String**; at 48 characters only, also **Codex32QR**, **Both** and **Four Codex32QR grids** |
 | **Worksheets** | **None**; **Dice, checksum and translation**, not at 127 characters |
-| **Places** | the count of places to fill in by hand, at the top as a row (**Places** and the number); **Fewer** and **More** change it, never below one. The PDF ends with a page titled **Places** holding a line for each, "Place ____ holds ____", at most 20 |
+| **Places** | the count of places to fill in by hand, at the top as a row (**Places** and the number); **Fewer** and **More** change it, from one to 13, **More** off at 13. The PDF ends with a page titled **Places** holding a line for each, "Place ____ holds ____" |
 
 Faraday's backup checklist asks for these templates: a 12-word one in
 [Back it up](../walk/back-up.md), a codex32 one in [codex32
