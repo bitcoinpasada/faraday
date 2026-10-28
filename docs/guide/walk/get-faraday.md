@@ -89,8 +89,8 @@ pulled out: a stick not listed is pulled out and plugged in again.
 **New Faraday stick** (Everything on it is lost) is ticked, the only
 choice for this stick. Press **Continue**.
 
-A stick that already holds Faraday also offers keeping its data; that
-is for upgrading, and is not covered here.
+A stick that already holds Faraday also offers keeping its data, for
+upgrading: [Replace Faraday, keep the data](starter-tools.md#5-replace-faraday-keep-the-data).
 
 ### 1.5 Confirm
 
