@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Specified (F148), not built
-**Open:** everything: the manifest and its entries, the inventory lint, fingerprints and the re-stamp recipe, the generated Learn blocks, STANDARDS and AUDIT §3 generated from the manifest, the bar's How Faraday does it action, the reachability test, the cross-check stamp read from the manifest, the website's rendering
+**Open:** the manifest and its entries, the inventory lint, fingerprints and the re-stamp recipe, the generated Learn blocks, STANDARDS and AUDIT §3 generated from the manifest, the bar's How Faraday does it action and its Learn tab and the Starter's sheet as §8 designs them (its icon, its strings, §8.5's drawing), the two Learn pages of §8.4 and §12 in the apps' page lists (their text is written), the reachability test, the cross-check stamp read from the manifest, the website's rendering
 
 Every screen that does something cryptographic opens a block that says
 how Faraday does it: the standard, the code, what checks it, how the
@@ -408,20 +408,36 @@ in the diff:
 
 ## 8. Reaching the block
 
-Checked against Material 3's pages: Top app bar (Guidelines: trailing
-action icons, overflow menu), Icon buttons (standard, 48 dp target),
-Tabs, Lists (two-line items), Bottom sheets and Side sheets, Menus.
+Checked against Material 3's pages (m3.material.io): Top app bar
+(Guidelines: trailing action icons, the overflow menu for what does
+not fit), Icon buttons (standard,
+a 40 dp container in a 48 dp target, a plain tooltip naming the action),
+Tabs (primary tabs, scrollable), Lists (Specs: list item, headline
+Body L in on-surface, supporting text Body M in on-surface-variant, 16 dp
+side padding; Guidelines: dividers between groups), Dividers
+(full-width), Bottom sheets and Side sheets, Menus, and Material
+Symbols (`fact_check`). The script-drawn pages were read as Android's
+Compose documentation states them (`ListItem`, `TopAppBar`,
+`PrimaryScrollableTabRow`), as DESIGN §4.12's tooltip row was.
 
 ### 8.1 The bar's action
 
 On every page and step flow whose screen offers an action of the
 manifest, the top app bar carries **How Faraday does it**: Material's
 standard icon button, in a 48 dp target, immediately left of the ?.
-Its icon is new in `faraday-draw`'s set, `Icon::Method` (Material
-Symbols' `fact_check` outline, drawn in Faraday's stroke), its tooltip
-"How Faraday does it". Where a flow offers an action on one step only,
-the button shows on that step and the steps after it that the action's
-result is on (a signed PSBT's step), not before.
+Its icon is new in `faraday-draw`'s set, `Icon::Method`: Material
+Symbols' `fact_check` (a sheet with two check marks at its left and two
+lines beside them), in its filled form, so that it sits beside the set's
+solid glyphs (Font Awesome 6 Free Solid, the SeedSigner icons) at the
+same weight. Its outline is taken from Material Symbols' published SVG
+(Apache License 2.0), kept in `tools/fonts/` with its licence beside the
+other faces, and baked by `tools/fontbake` into the icon face at a
+code point of its own, so it is filled at every size as every `Icon`
+is; it is not a `Glyph` drawn in code. Its tooltip is plain: "How
+Faraday does it". It has no selected state, as the ? has none. Where a
+flow offers an action on one step only, the button shows on that step
+and the steps after it that the action's result is on (a signed PSBT's
+step), not before.
 
 The bar's tools then read, from the start of the trailing group: Cancel,
 the eye (Make codex32 shares' sheets), the keyboard button, Load samples
@@ -432,24 +448,30 @@ the ⋮ where the layout has them (DESIGN §4.1).
 
 It opens Learn as the ? does, below extra-large the Learn sheet, on an
 extra-large window the supporting pane (LAYOUT §6), on a tab **How
-Faraday does it** placed first among the sheet's tabs. The tab holds
-the blocks of the screen's actions, in the order the screen offers them,
-the open step's first. Each block is a Material list of two-line items:
-the field's label in Label M in on-surface-variant, its value in Body M
-in on-surface, under the action's name in Title S; "not checked against
-vectors" and the other unchecked values in the Warning role (THEMES).
-The ? opens Learn as today, on the screen's first page, with the How
-tab still first among the tabs. Learn's own page for the action carries
-the same blocks after its sections (§3.1).
+Faraday does it** placed first among the sheet's tabs. The tab is there
+exactly while the bar offers the button: on a step before the action's,
+Learn has no How tab. The ? opens Learn as today, on the screen's first
+page, with the How tab still first among the tabs; on an extra-large
+window the ? pressed while the pane is shown puts it away, whichever
+tab it shows, as today. **How Faraday does it** pressed while the pane
+shows the How tab puts it away; pressed while the pane shows another
+tab, it moves the pane to the How tab. Escape, the pane's close button
+and the mouse's back button put the pane away as they do now. When the
+step changes, the How tab follows the screen's actions as the pane
+follows its pages (LAYOUT §6).
+
+The tab holds the blocks of the screen's actions, in the order the
+screen offers them, the open step's first (§8.5). Learn's own page for
+the action carries the same blocks after its sections (§3.1).
 
 ### 8.3 Every size class
 
 | Class | Where the action is |
 |---|---|
-| Compact, the Pi's panel (268 dp) | When the bar's tools would reach the chevron's target (LAYOUT §8), **How Faraday does it** goes into the ⋮ overflow menu first, before the ?: its row reads "How Faraday does it". On the panel the ⋮ menu is a sheet, as every menu there. |
-| Compact, other windows | On the bar while it fits, else in the ⋮ as on the Pi. |
+| Compact, the Pi's panel (268 dp) | When the bar's tools would reach the chevron's target (LAYOUT §8), **How Faraday does it** goes into the ⋮ overflow menu first, before the ?: its row reads "How Faraday does it", with `Icon::Method` at its start, and it is the menu's first row, above **Learn**, **Show keyboard** and **Show sheets**. On the panel the ⋮ menu is a sheet, as every menu there. |
+| Compact, other windows | On the bar while it fits, else in the ⋮ as on the Pi, by the same order. |
 | Medium, expanded, large | On the bar. |
-| Extra-large | On the bar; it opens the supporting pane, and pressed again while the pane shows the How tab puts the pane away, as the ? does. |
+| Extra-large | On the bar; it opens the supporting pane, and pressed again while the pane shows the How tab puts the pane away (§8.2). |
 
 Every target stays 48 dp, and no two overlap (owner, 2026-10-26).
 
@@ -459,12 +481,29 @@ The Starter's computing actions: writing an image and checking its
 SHA-256 (`faraday/faraday-payload/src/decode.rs`), checking a boot file
 the person signed (`faraday/shells/starter/src/signed.rs`, F133), and
 once IMAGES is built, checking the release's image list. Its top app
-bar carries the same action left of the ⋮ on the pages inside a task
-that perform them (Make's write and check pages), and in the ⋮ on a
-compact window. It opens a sheet in the Starter's look (`faraday-ui`)
-with the blocks, and the Starter's Learn destination gets a page for
-them, Checking what is written (new, docs/learn/faraday/), built from the
-same blocks.
+bar carries the same action, the same icon and tooltip, left of the ⋮,
+on the pages inside a task that perform them:
+
+| Page (STARTER §3.2 to §3.4) | Blocks, in order |
+|---|---|
+| What to write | starter-write, then starter-signed while *One I signed* is offered |
+| Confirm, Writing, Done | starter-write, then starter-signed when a signed boot file is chosen |
+| Start this computer from the stick, while **Include the BitLocker recovery key** is offered | starter-recovery-key |
+
+On a compact window it goes into the ⋮ as its first row, as in Faraday.
+It opens a sheet in the Starter's look (`faraday-ui`), drawn as the
+Starter's other sheets (`faraday_ui::sheet::scroll_sheet`, DESIGN §5):
+the window's width less its margin on a compact window, centred at
+most 560 dp wide otherwise (LAYOUT §5), over the page's frost and
+scrim. Its head is `Icon::Method` and **How Faraday does it**
+(`faraday_ui::sheet::sheet_head`); under it the blocks, drawn as §8.5
+draws them, scrolling within the sheet; at its foot **Close**, a text
+button. A press beside it, Escape and the back arrow close it. The
+Starter has no supporting pane, so the sheet is the same at every
+size. The Starter's Learn destination gets a page for them, Checking
+what is written (`docs/learn/faraday/checking-written.md`, id
+`checking-written`), listed after **Replacing Faraday on a stick**,
+built from the same blocks after its sections.
 
 The Starter's templates draw a blank SeedQR grid and a blank codex32
 worksheet: no secret, no computation; they are `[[not_crypto]]` with
@@ -474,6 +513,133 @@ that reason. Its notes PDF carries a BitLocker recovery key as text
 written: where the key is read, that it is held only until the sheet is
 made and wiped when dropped, and what the Starter checks of it (the
 groups' shape only).
+
+### 8.5 The block's drawing
+
+One drawing at every size: a block is a Material list, the same list
+on the 480x640 window, at 1280x800, in the extra-large supporting pane
+and on the Pi's panel; only its width changes.
+
+- **The action's name** heads the block in Title S, in on-surface, with
+  16 dp of side padding (`LIST_PAD`), as a section's label is
+  (`parts::section_label`). Blocks follow one another down the tab;
+  between two blocks Material's full-width divider in the
+  outline-variant role, with `GAP` above and below it. A screen with
+  several actions (Spend offers nine) shows every block whole, the open step's first and
+  the rest in the order the screen offers them; nothing is folded, so
+  every field of every block is reached by scrolling the tab alone.
+- **Each field** of §1 is one list item, in §1's order: its headline the
+  field's label in Body L, on-surface; its supporting text the value in
+  Body M, on-surface-variant (Material's list item, `Ui::list_item`,
+  `LIST_2` for a one-line value, `LIST_3` for two). The Action field's
+  value is one sentence and is drawn as any other.
+- **A field with several entries** (Standards, Checked against, Code,
+  Limits, Faraday's own calls, Cross-check) writes each entry as its own
+  paragraph of the supporting text, `GAP_SMALL` (4 dp) between
+  entries, each wrapped in the room the item leaves; an entry is never
+  run into the next on one line.
+- **Cross-check**, the longest field, is one list item like the rest:
+  headline "Cross-check", then its parts in §1's order, each a paragraph
+  led by its part's name in the medium face of Body M (Area, Faraday's
+  code, Compared with, Vectors, Random cases, Differences, When it runs,
+  Last passing run) and its value after it in the regular face. An area
+  with no second implementation for a part says so in that part's
+  paragraph; an action with no area has the one paragraph "not
+  cross-checked: <reason>". At 268 dp the field runs to about thirty
+  lines and the tab scrolls; it is not shortened.
+- **Values read character by character** (a file path, a function, a
+  library's version, a fingerprint, a seed) are Body M `.mono()`, as
+  DESIGN §3 sets data. A path that does not fit wraps after a `/`, a
+  function after `::`, and otherwise at the character that reaches the
+  edge; the release string in the Code field is filled when the block is
+  drawn (§1).
+- **What is not checked** ("not checked against vectors", "no fuzz
+  target: …", "not cross-checked: …", "no decision", "not stated by the
+  library") is drawn in the Warning role (THEMES §5) with
+  `Icon::Warning` at `ICON_GLYPH_SMALL` before it, so the state is not
+  told by colour alone (DESIGN §3).
+- **Height.** An item is as tall as its text: `LIST_1` to `LIST_3`
+  while the value takes up to two lines, and beyond `LIST_3` by the
+  lines it takes after that, its headline at `LIST_3_TOP` from its top.
+  Material's list item stops at three lines and truncates the rest;
+  Faraday cuts no fact (LAYOUT §8, "Nothing is cut off"), so this
+  differs from Material and needs a decision (§16 item 9).
+- **No presses.** A block is read, not acted on: its items take no
+  press, have no state layer and no trailing icon. The tab scrolls as
+  the Learn sheet scrolls, by wheel, drag and the arrow keys.
+
+At 480x640 (compact) the sheet is the window's width less 16 dp
+margins; at 1280x800 (expanded) the sheet's column, its text held to
+the reading measure (about 70 characters, LAYOUT §8); at extra-large the pane's 400 dp less
+its padding; on the Pi's panel 268 dp less 16 dp margins, where
+Body L's labels stay on one line ("Faraday's own calls" is the longest)
+and every value wraps.
+
+### 8.6 The strings
+
+Field labels and the action's name, for `faraday/faraday-strings/src/en.rs`
+(each a key of its own, as the bar's ? and its ⋮ row are, `tip_learn`
+and `bar_menu_learn`). They are added with the code that draws them:
+the strings lint fails a key no code names.
+
+| Key | Value | Where |
+|---|---|---|
+| `tip_how` | How Faraday does it | The bar's button's tooltip, Faraday and the Starter |
+| `bar_menu_how` | How Faraday does it | The ⋮ row on a compact bar, Faraday and the Starter |
+| `learn_tab_how` | How Faraday does it | The Learn sheet's and pane's first tab |
+| `starter_how_title` | How Faraday does it | The Starter's sheet's head |
+| `starter_how_close` | Close | The Starter's sheet's foot |
+| `how_field_action` | Action | §1 |
+| `how_field_standards` | Standards | §1 |
+| `how_field_implementation` | Implementation | §1 |
+| `how_field_checked` | Checked against | §1 |
+| `how_field_crosscheck` | Cross-check | §1 |
+| `how_field_code` | Code | §1 |
+| `how_field_secret` | Secret handling | §1 |
+| `how_field_limits` | Limits | §1 |
+| `how_field_own_calls` | Faraday's own calls | §1 |
+| `how_cc_area` | Area | Cross-check's parts (§8.5) |
+| `how_cc_code` | Faraday's code | Cross-check |
+| `how_cc_second` | Compared with | Cross-check |
+| `how_cc_vectors` | Vectors | Cross-check |
+| `how_cc_random` | Random cases | Cross-check |
+| `how_cc_differences` | Differences | Cross-check |
+| `how_cc_when` | When it runs | Cross-check |
+| `how_cc_last_run` | Last passing run | Cross-check |
+| `how_cc_seed_cases` | Seed {} · {} cases | Last passing run's value; `{}`: the seed, then the area's case count |
+| `how_code_entry` | {} · {} · {} | One Code entry; `{}`: the release, the file, the function |
+| `how_repository` | github.com/bitcoinpasada/faraday | The Code field's last entry |
+
+The values are the manifest's and the cross-check's, carried by
+`faraday-learn` (§1), not strings of this file.
+
+### 8.7 The guide's pages
+
+The bar's new button changes the guide's pictures of the screens that
+offer an action, and the guide's text that names the bar's tools. Batch
+7 draws them again (`just guide-pictures`) and says so in each page's
+"On this screen" table, after the ?:
+
+- Faraday's screens: `docs/guide/screens/add-a-key.md` (Entry),
+  `restore.md`, `files.md`, `spend-tab.md` (Family), `new-key.md`
+  (KeyGen), `vault.md` (VaultContents), `make-a-wallet.md` (Create),
+  `explore.md`, `wallets.md` (Wallets, WalletsStart), `calculators.md`
+  (Tools), `settings.md` (Settings, Randomness), `back-up-wallet.md`
+  (Backup), `backup-flow.md`, `backups.md`, `create-vault.md`,
+  `vaults.md` (Unlock), `codes.md`, `sign.md` (Spend), `child-seeds.md`
+  (Bip85), `vanity.md`, `lightning.md`, `silent-payments.md`,
+  `messages.md` (Message, CheckMessage), `decode.md`, `qr-and-scan.md`
+  (the QR sheet, Transfer) and `stick-visit.md` (Visit), all in
+  `docs/guide/screens/`.
+- `docs/guide/screens/learn.md`: the How tab, first among the tabs.
+- `docs/guide/screens/home.md` and `docs/guide/screens/prompts.md`:
+  the ⋮ menu's first row on the Pi's panel, where they show it.
+- The Starter: `docs/guide/screens/starter-make.md` (What to write,
+  Confirm, Writing, Done), `starter-learn-and-boot.md` (the new Learn
+  page and the Start page's BitLocker tick box) and `starter-menu.md`
+  (the ⋮'s first row on a compact window).
+- The walkthroughs whose pictures show those bars, found by the
+  pictures `just guide-pictures` draws again.
 
 ## 9. Tests and checks of reach
 
@@ -585,7 +751,9 @@ The functions are the roots; batch 3 checks each against the code and
 adds what the inventory finds uncovered. Screens are `Screen` variants;
 "QR" is the QR sheet and the scanner, on every screen that shows or
 reads a code. Learn pages are `pages::EN`'s fields, or Faraday's own by
-id; "new" is a page batch 5 writes.
+id (`docs/learn/faraday/<id>.md`); `secure-boot-keys` and
+`checking-written` are new, their text written, not yet in the apps'
+page lists.
 
 ### Keys
 
@@ -702,17 +870,17 @@ id; "new" is a page batch 5 writes.
 | gpg-paperkey | Write the paperkey (`Reveal::GpgPaperkey`) | `faraday_pgp::paperkey`; `gpg_paperkey` | VaultContents | faraday:gpg |
 | gpg-restore | Restore a GPG key from its paperkey; built in the crates, no screen yet | `gpg::Restore::line`, `finish` | none | faraday:gpg |
 | gpg-verify | Read public armour and verify a detached signature | `read_public_armor`, `verify_detached` | Files, VaultContents | faraday:gpg |
-| sb-keys | Make Secure Boot keys and their enrolment files | `faraday_sb::make`, `enrolment`; `secure_boot::create`; `sb_enrolment`; `rng` | VaultContents | new: Secure Boot keys |
-| sb-sign | Check a release's sums and signature, then sign its boot program (F134) | `release::check`, `sign`; `pe`'s Authenticode; `sb_sign_image` | VaultContents | new: Secure Boot keys |
+| sb-keys | Make Secure Boot keys and their enrolment files | `faraday_sb::make`, `enrolment`; `secure_boot::create`; `sb_enrolment`; `rng` | VaultContents | faraday:secure-boot-keys |
+| sb-sign | Check a release's sums and signature, then sign its boot program (F134) | `release::check`, `sign`; `pe`'s Authenticode; `sb_sign_image` | VaultContents | faraday:secure-boot-keys |
 
 ### The device and the Starter
 
 | Id | Action | Roots | Screens | Learn |
 |---|---|---|---|---|
 | selftest | The start-up self-test | `faraday_selftest::run` and its checks | Settings | faraday:keys-kept |
-| starter-write | Write an image and check its SHA-256 | `faraday_payload::decode::write_payload`, `write_image`, `hash_image` | the Starter's Make | new: Checking what is written |
-| starter-signed | Check a boot file the person signed (F133) | `signed.rs`' `choose`; `faraday_sb::pe::transplant` | the Starter's Make | new: Checking what is written |
-| starter-recovery-key | Read a BitLocker recovery key for the notes PDF, hold it until the sheet is made, wipe it (F49) | `faraday_starter::api::RecoveryKey::parse` and the sheet's maker | the Starter's BitLocker step | new: Checking what is written |
+| starter-write | Write an image and check its SHA-256 | `faraday_payload::decode::write_payload`, `write_image`, `hash_image` | the Starter's Make | faraday:checking-written |
+| starter-signed | Check a boot file the person signed (F133) | `signed.rs`' `choose`; `faraday_sb::pe::transplant` | the Starter's Make | faraday:checking-written |
+| starter-recovery-key | Read a BitLocker recovery key for the notes PDF, hold it until the sheet is made, wipe it (F49) | `faraday_starter::api::RecoveryKey::parse` and the sheet's maker | the Starter's BitLocker step | faraday:checking-written |
 
 77 actions: 10 keys, 5 wallets, 11 randomness, 11 backups, 6 derived
 keys and tools, 11 signing, 5 transfer, 6 vaults, 8 GPG and Secure
@@ -805,12 +973,21 @@ exemptions.
 5. **Review** (Opus). The generated STANDARDS and AUDIT §3 against
    today's text, each difference settled against the code; the
    `[[not_crypto]]` list read entry by entry.
-6. **Screens** (Opus). The icon, the bar's order, the Learn tab and the
-   block's drawing at the three sizes and the Pi, the Starter's sheet;
-   the two new Learn pages (Secure Boot keys; Checking what is written)
-   and the pages added to Bip85's and Explore's lists; strings; DESIGN
-   §4.1, LAYOUT §8 and the guide's screen pages.
-7. **Screens built** (Sonnet). From batch 6's design; the reachability
+6. **Screens** (Opus). Designed: the icon, the bar's order, the Learn
+   tab and the block's drawing at every size and the Pi, the Starter's
+   sheet (§8); the strings listed (§8.6); the two new Learn pages
+   written (`docs/learn/faraday/secure-boot-keys.md`,
+   `docs/learn/faraday/checking-written.md`); DESIGN §4.1 and §4.12 and
+   LAYOUT §8 point to §8; the guide's pages listed (§8.7). Left to
+   batch 7, being code: the strings themselves, the two pages in
+   faraday-learn's `OWN` table and the Starter's `LearnId`, and Bip85's
+   and Explore's Learn lists (`faraday/faraday-core/src/learn.rs`).
+7. **Screens built** (Sonnet). From batch 6's design (§8): the icon
+   baked, the strings of §8.6, the pages registered (`secure-boot-keys`
+   in `OWN` and on VaultContents' Secure Boot kind, `checking-written`
+   in `OWN` and `LearnId`), `keys_kept_page()` added to Explore's
+   pages and `&EN.tools` to Bip85's, the guide's pages of §8.7 drawn
+   again; the reachability
    test (§9.1); the screens check (§9.2); one tour rendered per size.
 8. **The cross-check** (Sonnet). Each area's facts as attributes
    (§10.1), moved from the README's table word for word; the README's
@@ -846,6 +1023,15 @@ Reference.
 8. **What the cross-check does.** Settled (owner, 2026-10-28): each block
    carries a Cross-check field saying what the F79 cross-check does for
    the action, read from its area (§1, §10.1).
+9. **A list item taller than three lines.** Open. Material's list item
+   has one, two or three lines and truncates its supporting text after
+   two; a block's field (the Cross-check above all, some thirty lines on
+   the Pi's panel) is drawn whole, the item growing by its lines
+   (§8.5), since Faraday cuts no fact. That differs from Material, so
+   it needs a decision before batch 7 builds it. The other way is to
+   draw a long field as several items, one per entry, each within three
+   lines; an entry longer than two lines (a Cross-check part, a limit)
+   would still need the same decision.
 
 ## 17. What this does not catch
 

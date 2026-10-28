@@ -218,7 +218,10 @@ each at the text size the person's system asks for.
   The small panel's bar holds Back, the page's name, Cancel, the eye,
   the mode pill and the ?: the name is shortened, or left off where
   they leave it no room, and the ? where they would reach Back's target
-  (DESIGN §4.1). The test is `tests/all/pi_panel.rs`: on the stick's
+  (DESIGN §4.1). Where the page offers a cryptographic action, **How
+  Faraday does it** stands left of the ? and goes into the ⋮ first,
+  before the ?, its row the menu's first (not built;
+  `docs/CRYPTO-LEARN.md` §8.3). The test is `tests/all/pi_panel.rs`: on the stick's
   Pi (480 × 640 at 286 dpi) and in Faraday Demo's Pi preview, on
   Mainnet, Testnet and in Practice, it walks every screen and sheet
   (listed by a match that fails to build when one is added), each step
