@@ -108,7 +108,7 @@ the factor to 1 for what it draws and puts it back.
 | Data in the mono face: fingerprints, hex, paths, addresses, xpubs, txids, descriptors | Larger; addresses and keys already break by character and wrap. Inside a chip or a node, fit-down. |
 | Keyboards: keys, the candidate strip, the kana grid, the card pad, the dice pad | Unchanged (`fixed_text`). Their sizes are set by what must fit on the panel. |
 | QR codes and SeedQR, the scanner's picture | Unchanged: they are pictures. Their captions are text and grow. |
-| The booklet's drawings in Make codex32 shares: the checksum worksheet's cells (their characters, box numbers, letters and `+` `=` marks) and the die tracks' pads and dice | Unchanged (`fixed_text`): each is drawn in a cell or pad sized for it, as the booklet prints it (`docs/CODEX32.md` §7.1, §5.5). The worksheet's heading, the tracks' heads and each die's name are text; a die's name before its track fits down. |
+| The booklet's drawings in Make codex32 shares: the checksum and translation worksheets' cells (their characters, box numbers, letters and `+` `=` marks), the string's boxes and their numbers, and the die tracks' pads and dice | Unchanged (`fixed_text`): each is drawn in a cell or pad sized for it, as the booklet prints it (`docs/CODEX32.md` §7.1, §5.5). The worksheet's heading, the tracks' heads and each die's name are text; a die's name before its track fits down. |
 | A row's icon (the leading icon of a list, menu or value row) | Grows with its label, by the same factor (F85); the row's height is §5's. |
 | Other icons (`ICON`, `ICON_SMALL` elsewhere, glyphs, the wordmark) | Unchanged. |
 | The structure chart's lines and the board's boxes | Lengths unchanged; their text as one-line slots or wrapping labels as above. |

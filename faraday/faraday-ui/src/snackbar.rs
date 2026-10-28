@@ -30,7 +30,8 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
     /// has faded in, its shadow with it, is `shown`, from 0 to 1, and
     /// `rise` how far below its place it still is. Returns the height it
     /// takes above `foot` with the gap above it: how far above `foot` a
-    /// second one's foot goes.
+    /// second one's foot goes. Faded out (`shown` 0), nothing is drawn
+    /// and it takes no room: its time has run out.
     pub fn snackbar(
         &mut self,
         (x, cw, foot): (f32, f32, f32),
@@ -38,6 +39,9 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
         shown: f32,
         rise: f32,
     ) -> f32 {
+        if shown <= 0.0 {
+            return 0.0;
+        }
         let fade = |r: Role| r.at(shown);
         let room = (cw - 2.0 * TOAST_MARGIN).max(0.0);
         let w = if cw < WINDOW_MEDIUM {

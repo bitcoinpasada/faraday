@@ -1087,8 +1087,22 @@ fn one_box(
 
 /// The share's string in boxes, each numbered, groups of four, `ms1` first,
 /// wrapping to the width: the header outlined, the checksum pink, the
-/// front box in the accent (§6.4.1).
+/// front box in the accent (§6.4.1). Its characters and numbers keep
+/// the sizes the boxes give them at every text size, as the worksheet's
+/// cells do (`docs/TEXT-SIZE.md` §3): a number grown past its box would
+/// run into the next.
 fn string_boxes(work: &WorkSet, share: usize, front: Option<usize>, ui: &mut Ui, at: At) -> f32 {
+    ui.fixed_text(|ui| string_boxes_drawn(work, share, front, ui, at))
+}
+
+/// [`string_boxes`] at Standard text.
+fn string_boxes_drawn(
+    work: &WorkSet,
+    share: usize,
+    front: Option<usize>,
+    ui: &mut Ui,
+    at: At,
+) -> f32 {
     let (x, y, cls) = (at.x, at.y, at.cls);
     let Some(sheet) = work.worksheet(share, Reveal::PaperForm) else {
         return 0.0;
@@ -1190,15 +1204,20 @@ fn grid(
     let (x, y, cls) = (at.x, at.y, at.cls);
     let s = t::codex32_box(cls);
     let gx = x + t::CODEX32_LABEL_W;
-    for n in (from..=to).filter(|n| (n - 1) % 4 == 0 || *n == from) {
-        ui.text_as(
-            box_x(gx, from, n, s),
-            y,
-            LABEL_S.regular(),
-            Role::OnSurfaceVariant,
-            &n.to_string(),
-        );
-    }
+    // The box numbers and the cells keep the sizes the cells give them
+    // at every text size (`docs/TEXT-SIZE.md` §3); the rows' names are
+    // text.
+    ui.fixed_text(|ui| {
+        for n in (from..=to).filter(|n| (n - 1) % 4 == 0 || *n == from) {
+            ui.text_as(
+                box_x(gx, from, n, s),
+                y,
+                LABEL_S.regular(),
+                Role::OnSurfaceVariant,
+                &n.to_string(),
+            );
+        }
+    });
     let mut cy = y + t::CODEX32_NUMBER_ROW;
     for (r, row) in rows.iter().enumerate() {
         if r + 1 == rows.len() && row.look == Look::Given {
@@ -1220,15 +1239,17 @@ fn grid(
             let cell = (row.cell)(sheet, row.j, i);
             let bx = box_x(gx, from, b, s);
             let mark = marks.iter().find(|m| m.0 == (row.id)(sheet, row.j, i));
-            one_box(
-                ui,
-                at.to(bx, cy, 0.0),
-                (s, t::codex32_char(cls)),
-                *v,
-                look,
-                mark.is_some_and(|m| m.1),
-                Some(cell),
-            );
+            ui.fixed_text(|ui| {
+                one_box(
+                    ui,
+                    at.to(bx, cy, 0.0),
+                    (s, t::codex32_char(cls)),
+                    *v,
+                    look,
+                    mark.is_some_and(|m| m.1),
+                    Some(cell),
+                )
+            });
             if let Some(&(_, main)) = mark {
                 if !main {
                     let o = t::CODEX32_FRONT_STROKE / 2.0;

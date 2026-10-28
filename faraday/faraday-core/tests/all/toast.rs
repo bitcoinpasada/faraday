@@ -67,3 +67,30 @@ fn a_toast_is_drawn_in_the_schemes_inverse_roles_in_every_theme() {
     }
     assert!(short.is_empty(), "{short:#?}");
 }
+
+/// Whether the frame on screen draws `text`.
+fn draws(app: &mut Faraday, text: &str) -> bool {
+    app.drawn_ink()
+        .iter()
+        .any(|i| matches!(&i.kind, InkKind::Text { text: t, .. } if t == text))
+}
+
+#[test]
+fn a_toast_is_drawn_until_its_time_runs_out_and_not_after() {
+    let mut app = toasted(Theme::all().next().expect("a theme"));
+    let toast = app.toast_text().expect("the toast is up").to_string();
+    // The toast came up at the save, at the app's first moment, before
+    // `toasted`'s ticks began.
+    let until = faraday_draw::tokens::TOAST_SHOW_MS;
+    app.event(Event::Tick {
+        now_ms: until - 200,
+    });
+    let _ = app.frame();
+    assert!(draws(&mut app, &toast), "the toast shows as it fades");
+    app.event(Event::Tick { now_ms: until });
+    let _ = app.frame();
+    assert!(
+        !draws(&mut app, &toast),
+        "faded out, nothing of it is drawn"
+    );
+}

@@ -1079,6 +1079,32 @@ fn the_whole_sheet_brings_the_page_to_the_work_over_several_frames() {
 }
 
 #[test]
+fn at_larger_on_a_compact_window_the_strings_box_numbers_stand_apart() {
+    // The 7-inch panel in portrait, text at Larger: each box's number
+    // stands over its own box, never run into the next ("101112").
+    let mut app = on(600, 1024, 170);
+    app.press(Action::TextSize(faraday_core::ui::TextSize::Larger));
+    opened(&mut app);
+    to_entry(&mut app, Way::Typed);
+    let _ = app.frame();
+    type_a(&mut app, 0..1);
+    frames(&mut app, 40);
+    let numbers: Vec<_> = app
+        .drawn_text_boxes()
+        .into_iter()
+        .filter(|(t, _)| t.parse::<usize>().is_ok_and(|n| (10..=48).contains(&n)))
+        .collect();
+    assert!(numbers.len() >= 39, "the boxes are numbered: {numbers:?}");
+    for (i, (a, ra)) in numbers.iter().enumerate() {
+        for (b, rb) in &numbers[i + 1..] {
+            let w = (ra.0 + ra.2).min(rb.0 + rb.2) - ra.0.max(rb.0);
+            let h = (ra.1 + ra.3).min(rb.1 + rb.3) - ra.1.max(rb.1);
+            assert!(w <= 0 || h <= 0, "{a} {ra:?} runs into {b} {rb:?}");
+        }
+    }
+}
+
+#[test]
 fn at_1920_the_strings_boxes_run_twenty_four_a_row() {
     let mut app = typed_a(1920, 1080, 1);
     // A row of numbered boxes: a line on which every one of `boxes` is
