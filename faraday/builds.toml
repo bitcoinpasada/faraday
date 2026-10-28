@@ -1,0 +1,170 @@
+# Every build this repository makes, and the ones planned, one [[build]]
+# each. Tools that offer a choice of builds read this file rather than a
+# list of their own, so a new build is added here and nowhere else; a new
+# board or panel directory under faraday/image/ without a build here fails
+# `just lint` (tools/lint-builds.py).
+#
+#   id        a short name, unique
+#   label     what a person reads
+#   group     "app", "image" or "starter"
+#   status    "built": the recipe below builds it today
+#             "planned": a document plans it (spec); it has no recipe yet
+#   board, panel  for an image: the directories under faraday/image/boards
+#             and faraday/image/panels it is built from
+#   recipe    the just recipe; vars are just variables set before its name
+#             (`just board=pi02w faraday-pi-image`), args its arguments,
+#             env the environment it needs ({version} is the release's)
+#   needs     what must be built first: "payload" is the stick and Pi
+#             images staged by faraday/tools/stage-release.sh's first pass
+#   dev       true when dev=1 builds a dev variant (a console and a login)
+#   outputs   the files it leaves, from the repository's root; {dev} is
+#             "-dev" for a dev build and "" otherwise
+#   release   the files a release publishes from it ({version}), if any
+
+# ---------------------------------------------------------------- apps
+
+[[build]]
+id = "desktop-linux"
+label = "Faraday Demo for Linux"
+group = "app"
+status = "built"
+recipe = "faraday-linux-bin"
+outputs = ["out/linux/faraday"]
+
+[[build]]
+id = "desktop-windows"
+label = "Faraday Demo for Windows"
+group = "app"
+status = "built"
+recipe = "faraday-windows-bin"
+args = ["build", "out/windows", "out/build/run", "faraday-desktop", "faraday"]
+outputs = ["out/windows/faraday.exe"]
+
+# ---------------------------------------------------------------- images
+
+[[build]]
+id = "stick"
+label = "PC stick (x86-64, UEFI)"
+group = "image"
+status = "built"
+board = "x86_64-uefi"
+panel = "efi-framebuffer"
+recipe = "faraday-stick-image"
+dev = true
+outputs = ["out/stick/faraday-x86_64-uefi{dev}.img"]
+release = ["faraday-stick-{version}-x86_64-uefi.img.xz", "faraday-{version}-BOOTX64.EFI"]
+
+[[build]]
+id = "pi3-waveshare-28dpi"
+label = "Raspberry Pi 3, 2.8-inch screen"
+group = "image"
+status = "built"
+board = "pi3"
+panel = "waveshare-28dpi"
+recipe = "faraday-pi-image"
+vars = { board = "pi3", panel = "waveshare-28dpi" }
+dev = true
+outputs = ["out/pi/faraday-pi3-waveshare-28dpi{dev}.img"]
+release = ["faraday-pi-{version}-pi3-waveshare-28dpi.img.xz"]
+
+[[build]]
+id = "pi02w-waveshare-28dpi"
+label = "Raspberry Pi Zero 2 W, 2.8-inch screen"
+group = "image"
+status = "built"
+board = "pi02w"
+panel = "waveshare-28dpi"
+recipe = "faraday-pi-image"
+vars = { board = "pi02w", panel = "waveshare-28dpi" }
+dev = true
+outputs = ["out/pi/faraday-pi02w-waveshare-28dpi{dev}.img"]
+
+# ---------------------------------------------------------------- the Starter
+
+[[build]]
+id = "starter-linux"
+label = "Faraday Starter for Linux"
+group = "starter"
+status = "built"
+recipe = "faraday-linux-bin"
+args = ["out/linux", "out/build/run", "faraday-starter-shell", "faraday-starter"]
+env = { FARADAY_STARTER_PAYLOAD = "out/payload/{version}/linux" }
+needs = "payload"
+outputs = ["out/linux/faraday-starter"]
+release = ["Faraday-Starter-{version}-Linux.tar.gz"]
+
+[[build]]
+id = "starter-windows"
+label = "Faraday Starter for Windows"
+group = "starter"
+status = "built"
+recipe = "faraday-windows-bin"
+env = { FARADAY_STARTER_PAYLOAD = "out/payload/{version}/windows" }
+needs = "payload"
+outputs = ["out/windows/faraday-starter.exe"]
+release = ["Faraday-Starter-{version}-Windows.exe"]
+
+# ---------------------------------------------------------------- planned (F145)
+
+[[build]]
+id = "stick-open"
+label = "PC stick, Open build"
+group = "image"
+status = "planned"
+spec = "docs/IMAGES.md"
+
+[[build]]
+id = "pi3-waveshare-28dpi-open"
+label = "Raspberry Pi 3, 2.8-inch screen, Open build"
+group = "image"
+status = "planned"
+spec = "docs/IMAGES.md"
+
+[[build]]
+id = "pi3-5inch-open"
+label = "Raspberry Pi 3, 5-inch screen (Touch Display 2)"
+group = "image"
+status = "planned"
+spec = "docs/IMAGES.md"
+
+[[build]]
+id = "pi3-7inch-open"
+label = "Raspberry Pi 3, 7-inch DSI screen"
+group = "image"
+status = "planned"
+spec = "docs/IMAGES.md"
+
+[[build]]
+id = "pi3-10inch-dsi-open"
+label = "Raspberry Pi 3, 10-inch DSI screen"
+group = "image"
+status = "planned"
+spec = "docs/IMAGES.md"
+
+[[build]]
+id = "pi3-10inch-hdmi-open"
+label = "Raspberry Pi 3, 10-inch HDMI screen"
+group = "image"
+status = "planned"
+spec = "docs/IMAGES.md"
+
+[[build]]
+id = "pi3-monitor-open"
+label = "Raspberry Pi 3, HDMI monitor with keyboard and mouse"
+group = "image"
+status = "planned"
+spec = "docs/IMAGES.md"
+
+[[build]]
+id = "pi02w-waveshare-28dpi-open"
+label = "Raspberry Pi Zero 2 W, 2.8-inch screen, Open build"
+group = "image"
+status = "planned"
+spec = "docs/IMAGES.md"
+
+[[build]]
+id = "pi02w-monitor-open"
+label = "Raspberry Pi Zero 2 W, HDMI monitor"
+group = "image"
+status = "planned"
+spec = "docs/IMAGES.md"

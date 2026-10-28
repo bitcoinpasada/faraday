@@ -49,6 +49,7 @@ lint:
     tools/lint-docs.sh
     tools/lint-layout.sh
     tools/lint-tree.sh
+    python3 -I -B tools/lint-builds.py
     cargo run -q -p costs-lint
     tools/lint-unchecked.sh
     tools/lint-crosscheck.sh

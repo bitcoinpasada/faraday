@@ -39,6 +39,10 @@ variants/   dev only: a serial login and a talking console
 external/   the Buildroot br2-external tree: the two packages
 ```
 
+Each board and panel combination that is built has its entry in
+`faraday/builds.toml`, the repository's list of builds; `just lint`
+fails on a board or panel directory no entry builds.
+
 The owner's Pi is `pi3` and `waveshare-28dpi`, which are the defaults:
 
 ```

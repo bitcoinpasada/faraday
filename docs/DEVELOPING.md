@@ -71,6 +71,12 @@ version override and a tree that differs from its commit
 (`docs/decisions/F5.md`). `faraday/image/README.md` describes the
 image, its partitions, the boards and panels, and the build.
 
+`faraday/builds.toml` lists every build the repository makes, each
+with its recipe, its `just` variables and the files it leaves, and the
+builds that are planned and not yet made. A tool that offers a choice of
+builds reads it; a new build is added there, and `just lint` fails while
+a board or panel directory has no entry.
+
 ## 5. Reproducing a release
 
 The images are built in a container with every compiler pinned, the

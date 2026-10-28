@@ -107,6 +107,10 @@ at the panel's own density; classes are `docs/LAYOUT.md` §2.
   name, the two SHA-256 sums, platform, screen, build, and the boards
   it starts. It is staged with the manifest (`docs/STARTER.md` §1.3)
   and covered by `SHA256SUMS`.
+- **Each image has its entry in `faraday/builds.toml`**, the
+  repository's list of builds: its recipe, the files it leaves and
+  its release file names. The images this plan adds are listed there
+  as planned, and an entry becomes built with its recipe.
 - **Each image is reproducible** from the release's commit, as
   `docs/DEVELOPING.md` §5 says. A recipe builds one image by its
   platform, screen and build, and the release recipe builds them all.
