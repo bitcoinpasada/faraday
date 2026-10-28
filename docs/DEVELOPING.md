@@ -76,7 +76,9 @@ with its recipe, its `just` variables and the files it leaves, and the
 builds that are untried (a recipe, never built or booted) or planned
 and not yet made. A tool that offers a choice of
 builds reads it; a new build is added there, and `just lint` fails while
-a board or panel directory has no entry.
+a board or panel directory has no entry. Its `[[hardware]]` entries are
+the website's download tiles (`docs/IMAGES.md` §7): each image names the
+hardware and the build (Strict or Open) it is offered as.
 
 ## 5. Reproducing a release
 

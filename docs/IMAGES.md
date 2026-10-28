@@ -159,7 +159,9 @@ balenaEtcher or `dd`. The README says so in a few lines per system.
 The download page asks one thing, the hardware, and leads to one build
 per visit (F147):
 
-1. **Tiles**, one per piece of hardware: the PC, then each Pi screen by
+1. **Tiles**, one per piece of hardware, from `faraday/builds.toml`'s
+   `[[hardware]]` entries, in their order, each image naming the
+   hardware and build it is offered as: the PC, then each Pi screen by
    size, and an HDMI monitor. Each shows the hardware with Faraday's
    screen at that size, its name, the Pis it fits, and whether it is
    tested, looking for testers, or coming soon. The Pi model is not

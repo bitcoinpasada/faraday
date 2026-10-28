@@ -21,6 +21,66 @@
 #   outputs   the files it leaves, from the repository's root; {dev} is
 #             "-dev" for a dev build and "" otherwise
 #   release   the files a release publishes from it ({version}), if any
+#   hardware  for an image: the [[hardware]] entry it is offered under
+#   build     for an image: "strict" or "open" (docs/IMAGES.md §1)
+#   option    for an image: what tells it from another image of the same
+#             hardware and build, as a person reads it ("Ribbon cable (DSI)")
+#
+# And one [[hardware]] entry for each piece of hardware the download page
+# offers a tile for (docs/IMAGES.md §7, F147), in the tiles' order:
+#
+#   id        a short name, unique; the download page's address
+#   label     the tile's name, as a person reads it
+#   fits      what it runs on, as a person reads it ("Pi 3 or Zero 2 W")
+#   soon      what it will also run on once that is built ("Pi 4"), if any
+#   tested    true once a built image of it has been tried on the hardware
+#
+# A tile reads Tested when tested is true, Looking for testers when an image
+# of it is built but not tried, and Coming soon when none is built yet; its
+# page offers the Strict image where one is built, the other beside it.
+
+# ---------------------------------------------------------------- hardware
+
+[[hardware]]
+id = "pc"
+label = "A laptop or PC"
+fits = "From a USB stick"
+tested = true
+
+[[hardware]]
+id = "pi-2-8-inch"
+label = "Pi + 2.8-inch screen"
+fits = "Pi 3"
+soon = "Zero 2 W and Pi 4"
+tested = true
+
+[[hardware]]
+id = "pi-5-inch"
+label = "Pi + 5-inch screen"
+fits = "Pi 3"
+soon = "Pi 4"
+tested = false
+
+[[hardware]]
+id = "pi-7-inch"
+label = "Pi + 7-inch screen"
+fits = "Pi 3"
+soon = "Pi 4"
+tested = false
+
+[[hardware]]
+id = "pi-10-inch"
+label = "Pi + 10-inch screen"
+fits = "Pi 3"
+soon = "Pi 4"
+tested = false
+
+[[hardware]]
+id = "pi-monitor"
+label = "Pi + HDMI monitor"
+fits = "Pi 3 or Zero 2 W"
+soon = "Pi 4"
+tested = false
 
 # ---------------------------------------------------------------- apps
 
@@ -51,6 +111,8 @@ status = "built"
 board = "x86_64-uefi"
 panel = "efi-framebuffer"
 recipe = "faraday-stick-image"
+hardware = "pc"
+build = "open"
 dev = true
 outputs = ["out/stick/faraday-x86_64-uefi{dev}.img"]
 release = ["faraday-stick-{version}-x86_64-uefi.img.xz", "faraday-{version}-BOOTX64.EFI"]
@@ -64,6 +126,8 @@ board = "pi3"
 panel = "waveshare-28dpi"
 recipe = "faraday-pi-image"
 vars = { board = "pi3", panel = "waveshare-28dpi" }
+hardware = "pi-2-8-inch"
+build = "strict"
 dev = true
 outputs = ["out/pi/faraday-pi3-waveshare-28dpi{dev}.img"]
 release = ["faraday-pi-{version}-pi3-waveshare-28dpi.img.xz"]
@@ -110,10 +174,12 @@ release = ["Faraday-Starter-{version}-Windows.exe"]
 # built (F147); the DSI screens fit the 3B, 3B+ and Pi 4.
 
 [[build]]
-id = "stick-open"
-label = "PC stick, Open build"
+id = "stick-strict"
+label = "PC stick, Strict build"
 group = "image"
 status = "planned"
+hardware = "pc"
+build = "strict"
 spec = "docs/IMAGES.md"
 
 [[build]]
@@ -122,6 +188,8 @@ label = "Raspberry Pi, 2.8-inch screen, Open build"
 group = "image"
 status = "planned"
 spec = "docs/IMAGES.md"
+hardware = "pi-2-8-inch"
+build = "open"
 
 [[build]]
 id = "pi3-5inch-open"
@@ -129,6 +197,8 @@ label = "Raspberry Pi, 5-inch screen (Touch Display 2)"
 group = "image"
 status = "planned"
 spec = "docs/IMAGES.md"
+hardware = "pi-5-inch"
+build = "open"
 
 [[build]]
 id = "pi3-7inch-open"
@@ -136,6 +206,8 @@ label = "Raspberry Pi, 7-inch DSI screen"
 group = "image"
 status = "planned"
 spec = "docs/IMAGES.md"
+hardware = "pi-7-inch"
+build = "open"
 
 [[build]]
 id = "pi3-10inch-dsi-open"
@@ -143,6 +215,9 @@ label = "Raspberry Pi, 10-inch DSI screen"
 group = "image"
 status = "planned"
 spec = "docs/IMAGES.md"
+hardware = "pi-10-inch"
+build = "open"
+option = "Ribbon cable (DSI)"
 
 [[build]]
 id = "pi3-10inch-hdmi-open"
@@ -150,6 +225,9 @@ label = "Raspberry Pi, 10-inch HDMI screen"
 group = "image"
 status = "planned"
 spec = "docs/IMAGES.md"
+hardware = "pi-10-inch"
+build = "open"
+option = "HDMI cable"
 
 [[build]]
 id = "pi3-monitor-open"
@@ -157,3 +235,5 @@ label = "Raspberry Pi, HDMI monitor with keyboard and mouse"
 group = "image"
 status = "planned"
 spec = "docs/IMAGES.md"
+hardware = "pi-monitor"
+build = "open"
