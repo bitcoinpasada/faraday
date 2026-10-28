@@ -1149,6 +1149,8 @@ strings! {
     catalog_restore_slip39: "Restore from SLIP-39",
     /// Text in `TILES`.
     catalog_shares_typed: "Shares typed or scanned back into a key",
+    /// A tile's name in `TILES`: the standard's own name.
+    catalog_codex32: "codex32",
     /// Text in `TILES`.
     catalog_codex32_line: "A secret or its shares typed into a key",
     /// Text in `TILES`.
@@ -1189,6 +1191,8 @@ strings! {
     catalog_taproot_multisig: "Taproot multisig",
     /// Text in `TILES`.
     catalog_k_of_n_in_one: "k of n in one script leaf",
+    /// A tile's name in `TILES`: the standard's own name.
+    catalog_musig2: "MuSig2",
     /// Text in `TILES`.
     catalog_all_keys_one: "All keys, one signature on chain",
     /// Text in `TILES`.
@@ -7877,6 +7881,12 @@ strings! {
     vault_back_to_the_vault: "Back to the vault",
     /// Button in `lock_ask_sheet` with no vault open: closes the sheet.
     lock_ask_cancel: "Cancel",
+    /// The QR sheet's speeds, in frames a second, slowest first.
+    qr_speed_2: "2/s",
+    /// The QR sheet's middle speed.
+    qr_speed_3: "3/s",
+    /// The QR sheet's fastest speed.
+    qr_speed_5: "5/s",
     /// Title and button in `lock_ask_sheet`.
     vault_lock: "Lock",
     /// The Then line in `lock_ask_sheet`.

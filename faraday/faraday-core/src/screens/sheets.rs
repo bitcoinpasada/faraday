@@ -546,6 +546,11 @@ pub(super) fn lock_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
 /// wiped from memory, each key or wallet in no vault with its Save, and
 /// then (decision 28). With no randomness to seal with, the line says so
 /// and the lock is one without sealing.
+/// The QR sheet's speeds' labels, in the order of `QR_SPEEDS`.
+fn qr_speed_labels() -> [&'static str; 3] {
+    [EN.qr_speed_2, EN.qr_speed_3, EN.qr_speed_5]
+}
+
 pub(super) fn lock_ask_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let blocked = app.vaults().seal_blocked();
     let (head, line, lock) = if app.seal_waits() {
@@ -1055,7 +1060,7 @@ pub(super) fn qr_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let chosen = crate::QrFormat::ALL.iter().position(|f| *f == q.format);
     bx += ui.segmented((bx, row, 36.0), 13.0, &formats, chosen, None) + 14.0;
     if q.frames.len() > 1 {
-        let speeds: Vec<(&str, Action)> = ["2/s", "3/s", "5/s"]
+        let speeds: Vec<(&str, Action)> = qr_speed_labels()
             .into_iter()
             .zip(crate::QR_SPEEDS)
             .map(|(label, ms)| (label, Action::QrSpeed(ms)))
@@ -1139,7 +1144,7 @@ fn qr_sheet_compact(app: &View, q: &crate::QrView, ui: &mut Ui, w: f32, h: f32) 
     }
     if animated {
         cycles.push((
-            ["2/s", "3/s", "5/s"][sp],
+            qr_speed_labels()[sp],
             Style::Secondary,
             Action::QrSpeed(crate::QR_SPEEDS[(sp + 1) % 3]),
         ));

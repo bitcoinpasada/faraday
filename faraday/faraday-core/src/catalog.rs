@@ -125,7 +125,7 @@ pub const TILES: &[Tile] = &[
     },
     Tile {
         group: EN.catalog_keys_and_seeds,
-        name: "codex32",
+        name: EN.catalog_codex32,
         line: EN.catalog_codex32_line,
         tags: &["BIP-93"],
         go: Go::AddKey(Form::Codex32),
@@ -195,7 +195,7 @@ pub const TILES: &[Tile] = &[
     },
     Tile {
         group: EN.catalog_wallets,
-        name: "MuSig2",
+        name: EN.catalog_musig2,
         line: EN.catalog_all_keys_one,
         tags: &["BIP-327", "BIP-328", "BIP-373", "BIP-390"],
         go: Go::Create(NewKind::MuSig),
