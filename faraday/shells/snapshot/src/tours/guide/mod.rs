@@ -97,7 +97,7 @@ const NAME: [&str; 3] = [
 
 /// A fresh stick session on Mainnet with the guide's key (3dca6805)
 /// typed into Add a key and added.
-fn key_session(t: &mut Tour) {
+pub(crate) fn key_session(t: &mut Tour) {
     crate::tours::screens::stick_session(t);
     t.press(Action::Nav(Screen::WalletsStart));
     t.press(Action::Entry(None));
@@ -139,7 +139,11 @@ fn folder_stick(name: &str, label: &str, files: &[(&str, Vec<u8>)]) -> Result<St
 /// Costs a key's account derived. The guide's single-key wallet over its
 /// key (loaded first in this session) as a test kit's wallet, its spend
 /// paying `fee`: the wallet a coordinator such as Sparrow holds.
-fn single_kit(c: &Compute, t: &Tour, fee: u64) -> Result<faraday_core::testkit::Kit, String> {
+pub(crate) fn single_kit(
+    c: &Compute,
+    t: &Tour,
+    fee: u64,
+) -> Result<faraday_core::testkit::Kit, String> {
     let key = crate::tour::key_text_of(c, &t.app.session.keys, 0, NewKind::NativeSegwit)?;
     Ok(faraday_core::testkit::Kit {
         id: "guide",
@@ -152,7 +156,7 @@ fn single_kit(c: &Compute, t: &Tour, fee: u64) -> Result<faraday_core::testkit::
 
 /// The Inbox as it is, `files` added after it, and `outbox` For the
 /// stick, as a stick visit or a lock leaves them.
-fn files_in(t: &mut Tour, files: &[(&str, Vec<u8>)], outbox: &[(&str, Vec<u8>)]) {
+pub(crate) fn files_in(t: &mut Tour, files: &[(&str, Vec<u8>)], outbox: &[(&str, Vec<u8>)]) {
     let own = |f: &[(&str, Vec<u8>)]| -> Vec<(String, Vec<u8>)> {
         f.iter()
             .map(|(n, b)| ((*n).to_string(), b.clone()))

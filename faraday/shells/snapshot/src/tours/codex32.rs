@@ -16,7 +16,7 @@ use faraday_core::{Action, Screen};
 use faraday_shell_api::App;
 
 /// Vector 2's initial shares A and C (`tools/vectors/bip93/vectors.json`).
-const SHARES: [&str; 2] = [
+pub(crate) const SHARES: [&str; 2] = [
     "ms12namea320zyxwvutsrqpnmlkjhgfedcaxrpp870hkkqrm",
     "ms12namecacdefghjklmnpqrstuvwxyz023ftr2gdzmpy6pn",
 ];
@@ -36,7 +36,7 @@ fn key(t: &mut Tour, ch: char) {
 
 /// Rolls character `ch` on the booklet's sheet: each die's bit 0 as 5
 /// then 2, 1 as 2 then 5.
-fn roll(t: &mut Tour, ch: u8) {
+pub(crate) fn roll(t: &mut Tour, ch: u8) {
     let v = CHARSET.iter().position(|&x| x == ch).unwrap_or(0) as u8;
     let bits: Vec<u8> = (0..5).map(|d| v >> (4 - d) & 1).collect();
     for &b in &bits {

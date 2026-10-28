@@ -2,14 +2,16 @@
 //! (`just faraday-starter-snap WxH`).
 //!
 //! ```text
-//! cargo run -p faraday-starter --example snap -- [--guide] WxH[@DPI] OUT_DIR [THEME]
+//! cargo run -p faraday-starter --example snap -- [--guide|--tour] WxH[@DPI] OUT_DIR [THEME]
 //! ```
 //!
 //! The shell's reports are made up here: a laptop, sticks and disks, a
 //! payload. Each picture is `OUT_DIR/<name>.png`, named for the page and
 //! its state. `--guide` draws the user guide's pictures of the Starter
 //! instead (`docs/guide/`), each named as its picture's file, with
-//! `<name>.mark.json` beside one whose next control is marked.
+//! `<name>.mark.json` beside one whose next control is marked. `--tour`
+//! draws the website tour's picture of the Starter instead: Home after a
+//! stick is made, one stick attached throughout.
 //!
 //! `FARADAY_SNAP_TEXT=large|larger` draws them at that text size
 //! (`docs/TEXT-SIZE.md` §7), and lists in `OUT_DIR/cut.txt` each picture
@@ -922,6 +924,28 @@ fn run(s: &Snap) -> Result<(), String> {
 
 /// The guide's pictures of the Starter (`docs/guide/`), each named as its
 /// picture's file, at the size and scheme given (`just guide-pictures`).
+/// The website tour's picture: a Faraday stick made on a Linux laptop
+/// with one stick attached throughout (Which stick?, Confirm, the write,
+/// Written), then Home with that stick, Faraday's now.
+fn run_tour(s: &Snap) -> Result<(), String> {
+    let blank = disk("sdb", "USB", "Flash Drive", 32 * GB, &[]);
+    let mut h = s.starter();
+    h.starter_event(StarterEvent::Disks(vec![blank.clone()]));
+    to(&mut h, "sdb", Mode::Whole);
+    h.press(StarterAction::Write);
+    h.starter_event(StarterEvent::Written(Ok(())));
+    let written = Disk {
+        faraday: Some(FaradayStick {
+            release: Some(format!("6.6.84-faraday-{}", env!("CARGO_PKG_VERSION"))),
+            read: true,
+        }),
+        ..blank
+    };
+    h.starter_event(StarterEvent::Disks(vec![written]));
+    h.press(StarterAction::Home);
+    s.shot(&mut h, "starter-stick")
+}
+
 fn run_guide(s: &Snap) -> Result<(), String> {
     guide_shots(s)?;
     guide_start_shots(s)?;
@@ -1271,8 +1295,15 @@ fn main() -> ExitCode {
         }
         None => false,
     };
+    let tour = match args.iter().position(|a| a == "--tour") {
+        Some(i) => {
+            args.remove(i);
+            true
+        }
+        None => false,
+    };
     if args.len() != 3 && args.len() != 4 {
-        eprintln!("usage: snap [--guide] WxH[@DPI] OUT_DIR [THEME]");
+        eprintln!("usage: snap [--guide|--tour] WxH[@DPI] OUT_DIR [THEME]");
         return ExitCode::from(2);
     }
     let (size, dpi) = match args[1].split_once('@') {
@@ -1327,7 +1358,13 @@ fn main() -> ExitCode {
         theme,
         text,
     };
-    let done = if guide { run_guide(&snap) } else { run(&snap) };
+    let done = if guide {
+        run_guide(&snap)
+    } else if tour {
+        run_tour(&snap)
+    } else {
+        run(&snap)
+    };
     match done {
         Ok(()) => ExitCode::SUCCESS,
         Err(e) => {

@@ -87,13 +87,11 @@
 //! name each picture as its file, with no number, and write
 //! `<name>.mark.json` beside a picture whose next control is marked
 //! (`just guide-pictures`); with
-//! `tour`, the user guide's and the website tour's pictures (run it with
-//! `--network mainnet`): Home with nothing loaded, the vault read from
-//! the boot stick at power-on, New key from dice, a SeedQR scanned and a
-//! wallet's missing key scanned, a 2-of-3 made and its backup board
-//! edited by a finger's drag, its menus and sheets, a backup's checklist
-//! and sticks written, a spend signed with its animated code, a stick
-//! visit, Files and a vault, the Spend tab's map and a restore.
+//! `tour`, the website tour's pictures (run it with `--network
+//! mainnet`), with the guide's key: Make codex32 shares and a vault's
+//! passphrase, each from dice as the rolls go in, Settings' Appearance
+//! in two themes, a 2-of-3's backup board laid out, and a
+//! transaction's review with its warnings.
 //!
 //! `@DPI` defaults to 160 (a desktop monitor); a real panel must give
 //! its own, since the core picks `small`/`medium`/`wide` from physical
