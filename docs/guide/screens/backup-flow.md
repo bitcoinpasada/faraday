@@ -23,8 +23,9 @@ wallet** for a wallet's vaults and sticks.
 - Home's lead, or **Continue the backup**, for a flow left part way.
 
 Its way back, at the top left, is named after the card before the one
-open, else the screen it was opened from, else **Home**; it keeps the
-flow as it is. **Cancel**, at the top right, is offered until the key is
+open, else the screen it was opened from, else **Tools** for a GPG key
+or Secure Boot keys (after the lock too) and **Home** for a wallet's; it
+keeps the flow as it is. **Cancel**, at the top right, is offered until the key is
 made; after that the flow ends only by finishing.
 
 On the Faraday stick a strip across the top holds a pill per stick the

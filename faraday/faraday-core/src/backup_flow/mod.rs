@@ -66,6 +66,17 @@ impl Kind {
         })
     }
 
+    /// Where Back from its flow lands when nothing before it on the way
+    /// back is shown: Tools for the keys Tools starts, Home for a
+    /// wallet's.
+    pub(crate) fn left_for(self) -> crate::Screen {
+        if self.is_wallet() {
+            crate::Screen::Home
+        } else {
+            crate::Screen::Catalog
+        }
+    }
+
     /// The vault category its keys are listed in (`vault::CATEGORIES`).
     pub fn category(self) -> usize {
         match self {

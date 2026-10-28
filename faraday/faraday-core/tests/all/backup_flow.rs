@@ -830,7 +830,12 @@ fn home_leads_with_the_backup_not_finished_and_the_power_sheet_lists_it() {
     let mut app = gpg_locked(&mut shell);
     write_all(&mut shell, &mut app, &[("S1", false)]);
     app.press(Action::Flow(F::Back));
-    assert_eq!(app.screen, Screen::Home);
+    assert_eq!(
+        app.screen,
+        Screen::Catalog,
+        "a GPG key's flow leaves to Tools"
+    );
+    app.press(Action::Nav(Screen::Home));
     expect(&mut app, "Continue the backup of Release");
     app.press(Action::PowerAsk);
     expect_part(&mut app, "Backup of Release: written to 1 of 2 places");
@@ -1106,7 +1111,7 @@ fn the_tools_tile_starts_the_flow_with_no_vault_and_reads_continue_once_one_wait
         start(&mut app, kind);
         assert_eq!(app.screen, Screen::BackupFlow, "{kind:?}");
         app.press(Action::Flow(F::Back));
-        assert_eq!(app.screen, Screen::Home);
+        assert_eq!(app.screen, Screen::Catalog, "back to Tools");
         assert_eq!(app.tile_need(go), Some("Continue"), "{kind:?}");
         start(&mut app, kind);
         assert_eq!(app.screen, Screen::BackupFlow);
@@ -1148,7 +1153,23 @@ fn back_does_not_leave_while_a_write_is_under_way() {
     assert_eq!(app.screen, Screen::BackupFlow);
     shell.pull(&mut app, "S1");
     app.press(Action::Flow(F::Back));
-    assert_eq!(app.screen, Screen::Home);
+    assert_eq!(app.screen, Screen::Catalog);
+}
+
+/// After the lock that writes its sticks, a GPG key's flow is still
+/// Tools': its way back reads Tools, as it did before the lock, and
+/// leads there.
+#[test]
+fn after_the_lock_a_tools_flows_way_back_reads_tools() {
+    let mut shell = Shell::new();
+    let mut app = gpg_locked(&mut shell);
+    let _ = app.frame();
+    let texts = app.drawn_texts();
+    // The rail names both once; the way back names Tools.
+    let count = |s: &str| texts.iter().filter(|t| *t == s).count();
+    assert_eq!(count("Tools"), count("Home") + 1, "{texts:?}");
+    app.press(Action::Flow(F::Back));
+    assert_eq!(app.screen, Screen::Catalog);
 }
 
 #[test]

@@ -385,7 +385,7 @@ impl Faraday {
                 self.flows.all[i].on_screen = false;
                 self.flows.on = None;
                 self.vaults.leave_create();
-                self.screen = Screen::Home;
+                self.screen = self.flows.all[i].kind.left_for();
             }
             F::ChangePlan => {
                 let f = &mut self.flows.all[i];
@@ -2912,14 +2912,9 @@ impl Faraday {
         self.flows.on = None;
         if let Some(i) = on {
             self.flow_show(i);
+            // The Home the new process started on was never seen.
+            self.trail.forget_entered();
         }
-    }
-
-    /// Costs what `BackupFlowArea::gate_restore` costs. Reads the keys
-    /// that wait.
-    pub(crate) fn flow_gate_restore(&mut self, bytes: &[u8]) {
-        let c = self.compute();
-        self.flows.gate_restore(&c, bytes);
     }
 }
 

@@ -535,7 +535,9 @@ impl Faraday {
             }
         }
         if let Some(bytes) = gate {
-            self.flow_gate_restore(bytes);
+            // Costs what `BackupFlowArea::gate_restore` costs.
+            let c = self.compute();
+            self.flows.gate_restore(&c, bytes);
         }
     }
 }

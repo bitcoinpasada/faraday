@@ -8821,6 +8821,9 @@ strings! {
     backup_flow_kind_sb: "Secure Boot keys",
     /// The way out of the flow, which keeps its state.
     backup_flow_leave: "Home",
+    /// The way out of a flow Tools starts (a GPG key, Secure Boot keys),
+    /// where nothing else names it: back to Tools.
+    backup_flow_leave_tools: "Tools",
     /// A vault of the plan, by number.
     backup_flow_vault_n: "Vault {}",
     /// A place of the plan, by number.

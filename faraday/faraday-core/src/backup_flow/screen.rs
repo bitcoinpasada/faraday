@@ -74,7 +74,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             None => (cw - 72.0).min(820.0),
         },
         h,
-        back: Some(app.named_back((FEN.backup_flow_leave, fa(F::Back)))),
+        back: Some(app.named_back((leave_name(f.kind), fa(F::Back)))),
         heading: f.kind.name(),
         // The setup of a wallet's vaults is Make a new wallet's, with its
         // Guided switch (owner, 2026-10-25).
@@ -1401,4 +1401,15 @@ fn done_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) ->
         items.iter().map(|(l, s, a)| (l.as_str(), *s, *a)).collect();
     cy += crate::screens::wrap_buttons(ui, x, cy, w, 40.0, &refs) + 6.0;
     cy - y
+}
+
+/// Where the flow's Back lands when nothing else on the way back names a
+/// screen (after a lock, which starts the trail again): Tools for the
+/// keys Tools starts, Home for a wallet's.
+fn leave_name(kind: crate::backup_flow::Kind) -> &'static str {
+    if kind.is_wallet() {
+        FEN.backup_flow_leave
+    } else {
+        FEN.backup_flow_leave_tools
+    }
 }
