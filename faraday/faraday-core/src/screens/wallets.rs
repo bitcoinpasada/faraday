@@ -421,9 +421,15 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let none = app.session.wallets.is_empty();
     let (loose, _) = app.loose_keys();
     let card_offers = none && !loose.is_empty();
-    // The list pane, and the chosen wallet's card beside it.
-    let p = crate::panes::screen::split(x0, cw);
-    wallet_list(app, ui, (p.list.0, y, p.list.1, bottom - y));
+    // The list pane, and the chosen wallet's card beside it; the card
+    // alone where a chart's side sheet leaves no room for both.
+    let p = if crate::panes::screen::fits(cw) {
+        let p = crate::panes::screen::split(x0, cw);
+        wallet_list(app, ui, (p.list.0, y, p.list.1, bottom - y));
+        p
+    } else {
+        crate::panes::screen::alone(x0, cw)
+    };
 
     // The wallet card: its reading parts at most `COLUMN_MAX`, the
     // chart the card's width.

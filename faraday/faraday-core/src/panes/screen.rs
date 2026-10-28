@@ -35,6 +35,26 @@ pub(crate) fn shown(app: &View, screen: Screen) -> bool {
     super::has_list(screen) && super::side_by_side(app.window())
 }
 
+/// Whether a page area `cw` wide holds the list pane and, beside it, a
+/// detail at least as wide. A chart's side sheet narrows the page area by
+/// its width; where the rest is too narrow for both, the one chosen
+/// stands alone in it until the sheet closes, as on a medium window (§5),
+/// rather than squeezed beside the list. Arithmetic.
+pub(crate) fn fits(cw: f32) -> bool {
+    cw >= 2.0 * (MARGIN_WIDE + LIST_PANE) + SPACER
+}
+
+/// Where the chosen one stands alone in the page area at `x0`, `cw`
+/// wide, the list pane given way ([`fits`]): the detail from margin to
+/// margin. Arithmetic.
+pub(crate) fn alone(x0: f32, cw: f32) -> Split {
+    Split {
+        list: (x0 + MARGIN_WIDE, 0.0),
+        detail: (x0 + MARGIN_WIDE, (cw - 2.0 * MARGIN_WIDE).max(0.0)),
+        top: PANE_TOP_BAR,
+    }
+}
+
 /// Where the list pane and the detail stand in the page area at `x0`,
 /// `cw` wide: the list `LIST_PANE` wide at the start, the `SPACER`, and
 /// the detail to the area's right margin. Arithmetic.
