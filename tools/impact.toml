@@ -236,20 +236,18 @@ catches = "the registry against itself and the tree: ids, held_by, sources, path
 misses = "whether a rule is right"
 
 [[check]]
-id = "crypto-inventory"
-run = "cargo run -q -p costs-lint --bin crypto-inventory"
+id = "crypto-check"
+run = "python3 -I -B docs/crypto/check.py check"
 stage = "just lint"
-catches = "a cryptographic function not covered by a test or the inventory (F148)"
-misses = "planned: not yet in just lint"
-status = "planned"
+catches = "a cryptographic function the inventory finds (crypto-inventory, run by the check) that no action covers and no [[not_crypto]] names; an entry naming a function, test, vector folder, area, fuzz target, self-test check, reveal, Learn page or screen that does not exist; an action whose code, libraries, vectors, area or used actions changed since its fingerprint was written; AUDIT §1's crate rows, the Reveal count, COMPUTE §2.3's roots, the Tools tags, a screen calling a root it does not list, and the not_crypto and screens_not counts in tools/lint-crypto.counts (F148)"
+misses = "a function a macro generates or one reached only through a trait object; in faraday-core, what a closure reaches only through a `Faraday` method (docs/CRYPTO-LEARN.md §4.4); whether an entry's text is true (docs/CRYPTO-LEARN.md §17)"
 
 [[check]]
 id = "crypto-gen"
 run = "python3 -I -B docs/crypto/gen.py check"
 stage = "just lint"
-catches = "the generated parts of STANDARDS and AUDIT differing from the manifest (F148)"
-misses = "planned: not yet written"
-status = "planned"
+catches = "the generated parts of STANDARDS, AUDIT §3, the Learn blocks and the cross-check README's independence table differing from the manifest (F148)"
+misses = "the text outside the marker lines"
 
 [[check]]
 id = "touch-targets"
@@ -628,7 +626,7 @@ source = ["docs/decisions/F160.md"]
 when = ["docs/crypto/actions.toml", "tools/crosscheck/area_*.py"]
 kind = "held"
 held_by = ["crypto-verified"]
-misses = "whether a stated class is true of the area's code; the generated text going stale, as gen.py check is not yet in just lint"
+misses = "whether a stated class is true of the area's code"
 
 [[rule]]
 id = "crypto.independence-said"
@@ -643,7 +641,7 @@ title = "a cryptographic change is tested against published vectors or another i
 source = ["CLAUDE.md", "docs/decisions/F148.md"]
 when = ["core/*/src/**", "!core/faraday-draw/**"]
 kind = "review"
-misses = "planned: F148's inventory and re-stamp"
+misses = "the inventory and the fingerprints (crypto-check) say a cryptographic function changed, not whether it was tested; that is the review the re-stamp (just crypto-review) prompts"
 
 [[rule]]
 id = "crypto.action-covered"
@@ -651,17 +649,15 @@ title = "every cryptographic function is covered by the inventory"
 source = ["docs/decisions/F148.md"]
 when = ["core/*/src/**", "faraday/faraday-keys/src/**"]
 kind = "held"
-held_by = ["crypto-inventory"]
-status = "planned"
+held_by = ["crypto-check"]
 
 [[rule]]
 id = "crypto.generated"
 title = "STANDARDS and AUDIT's generated sections match the manifest"
 source = ["docs/decisions/F148.md"]
-when = ["docs/STANDARDS.md", "docs/AUDIT.md"]
+when = ["docs/STANDARDS.md", "docs/AUDIT.md", "docs/crypto/actions.toml", "faraday/faraday-learn/src/how.rs"]
 kind = "held"
 held_by = ["crypto-gen"]
-status = "planned"
 
 [[rule]]
 id = "crypto.at-source"
@@ -765,7 +761,7 @@ held_by = ["budget-tests"]
 id = "structure.ratchet-raised"
 title = "a ratchet count raised is the owner's decision, recorded in DECISIONS"
 source = ["CLAUDE.md", "docs/decisions/F74.md"]
-when = ["tools/lint-layout.counts", "tools/lint-tokens.counts", "tools/touch-targets.counts", "tools/lint-upstream.counts"]
+when = ["tools/lint-layout.counts", "tools/lint-tokens.counts", "tools/touch-targets.counts", "tools/lint-upstream.counts", "tools/lint-crypto.counts"]
 rises = true
 kind = "pair"
 with = ["docs/decisions/F{n}.md"]

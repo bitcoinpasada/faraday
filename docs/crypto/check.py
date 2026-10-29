@@ -95,6 +95,16 @@ CHECKED_KEYS = {"vectors", "tests", "crosscheck", "not_crosschecked", "selftest"
                 "fuzz_none", "other", "independence"}
 SECRETS_KEYS = {"reveal", "constant_time", "wiped"}
 OWN_KEYS = {"text", "kind", "decision"}
+# Crates whose closures stop at glue (§4.4): faraday-core's screens and state.
+GLUE_CRATES = {"faraday-core"}
+
+
+def is_glue_method(r):
+    """A method of `Faraday`, the app's top-level state: the glue between areas
+    (docs/STRUCTURE-PASS.md §7.3), where a closure in a GLUE_CRATES crate stops
+    unless the method is itself a root."""
+    return r["name"].startswith("Faraday::")
+
 REVIEW_KEYS = {"places", "fingerprint", "reviewed"}
 
 
@@ -272,6 +282,7 @@ class Ctx:
                 self.owner.setdefault(f, []).append(a.get("id"))
         self.closure = {}
         self.uses = {}
+        leads = self.leads_to_crypto()
         for a in self.actions:
             i = a.get("id")
             roots = [f for f in as_list(a.get("functions")) if f in inv.fns]
@@ -286,7 +297,8 @@ class Ctx:
                 for c in r["callees"]:
                     if c in others:
                         used.update(x for x in self.owner[c] if x != i)
-                    elif c in inv.fns:
+                    elif c in inv.fns and (inv.fns[c]["crate"] not in GLUE_CRATES
+                                           or (c in leads and not is_glue_method(inv.fns[c]))):
                         stack.append(c)
                 for c in r["cross"]:
                     for t in self.cross_roots(c):
@@ -295,6 +307,31 @@ class Ctx:
             self.uses[i] = used
         self.not_crypto = {n.get("function") for n in self.data.get("not_crypto", [])
                            if isinstance(n, dict)}
+
+    def leads_to_crypto(self):
+        """The functions of a crate in GLUE_CRATES that a closure passes through (§4.4):
+        those from which a call path within the crate reaches a cryptographic function,
+        an action's root, a call site of another crate's cryptographic function, or a
+        cross-crate call to an action's root. The rest is the crate's glue (a toast, the
+        Outbox, a screen's state), where a closure stops."""
+        inv = self.inv
+        glue = {f for f, r in inv.fns.items() if r["crate"] in GLUE_CRATES}
+        hits = {f for f in glue if f in inv.cryptographic or f in self.owner}
+        hits |= {s["in"] for s in inv.sites if s.get("in") in glue}
+        hits |= {f for f in glue if any(self.cross_roots(c) for c in inv.fns[f]["cross"])}
+        callers = {}
+        for f in glue:
+            for c in inv.fns[f]["callees"]:
+                if c in glue:
+                    callers.setdefault(c, []).append(f)
+        seen, stack = set(), list(hits)
+        while stack:
+            f = stack.pop()
+            if f in seen:
+                continue
+            seen.add(f)
+            stack.extend(callers.get(f, ()))
+        return seen
 
     def cross_roots(self, call):
         """The action roots a cross-crate call `crate::path::name` can name (§4.4)."""
@@ -1907,6 +1944,22 @@ def self_test():
         c = check(base)
         expect(not c.errors.items, f"check passes after review {msgs(c)}")
         expect(sorted(c.uses["one"]) == ["two"], "one uses two (f calls g)")
+
+        print("a closure in faraday-core stops at glue (§4.4):")
+        core = "faraday-core"
+        c = Ctx(root, Inventory(json.dumps(r) for r in [
+            fn_rec("src/a.rs", "f", "f1", crate=core,
+                   callees=["src/a.rs::h", "src/a.rs::q", "src/a.rs::Faraday::t"]),
+            fn_rec("src/a.rs", "g", "g1", crate=core),
+            fn_rec("src/a.rs", "h", "h1", rules=(), crate=core),
+            fn_rec("src/a.rs", "q", "q1", rules=(), crate=core, callees=["src/a.rs::g"]),
+            fn_rec("src/a.rs", "Faraday::t", "t1", rules=(), crate=core,
+                   callees=["src/a.rs::k"]),
+            fn_rec("src/a.rs", "k", "k1", crate=core),
+        ]))
+        expect(c.closure["one"] == {"src/a.rs::f", "src/a.rs::q"},
+               f"a helper reaching no crypto and a Faraday method are left out: {sorted(c.closure['one'])}")
+        expect(sorted(c.uses["one"]) == ["two"], "a helper on the way to another root is kept")
 
         print("coverage:")
         c = check(fixture_inventory(extra=True))

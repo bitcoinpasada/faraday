@@ -178,3 +178,4 @@ Read this table, then only the decision you need.
 | [F161](decisions/F161.md) | A finalized input carries the smallest valid witness by its real size, a tie broken as Bitcoin Core breaks it | 2026-10-29 | Active | crypto |
 | [F162](decisions/F162.md) | Anti-exfil in both directions, Faraday as the host first, FractalEncrypt's exchange in dev builds only behind `experimental` | 2026-10-29 | Active | crypto |
 | [F163](decisions/F163.md) | The toast's text is centred | 2026-10-29 | Active | design |
+| [F164](decisions/F164.md) | The manifest's screens_not count is 24 | 2026-10-29 | Active | crypto |

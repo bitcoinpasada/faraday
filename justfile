@@ -63,6 +63,14 @@ lint:
     python3 -I -B tools/lint-standards.py
     # Every STANDARDS row names a check, and every check is a row's.
     python3 -I -B docs/crypto/verified.py check
+    # Every cryptographic function the inventory finds is an action's, each
+    # entry names what exists, and no action's code changed since its
+    # fingerprint was written (docs/CRYPTO-LEARN.md §4 to §7; `just
+    # crypto-review ID` re-stamps one).
+    python3 -I -B docs/crypto/check.py check
+    # STANDARDS, AUDIT §3, the Learn blocks and the cross-check README's
+    # independence table are what the manifest makes (`gen.py write`).
+    python3 -I -B docs/crypto/gen.py check
     # The upstream project is named only in LICENSE (F73).
     python3 -I -B tools/lint-upstream.py
     # Each cross-check area's facts are stated, their paths resolve, and the

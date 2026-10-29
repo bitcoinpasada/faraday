@@ -320,7 +320,9 @@ python3 -I -B docs/crypto/gen.py --self-test    the generator over a small fixtu
 `docs/STANDARDS.md` §1 to §7 and `docs/AUDIT.md` §3 are generated from the manifest
 between `<!-- crypto-manifest: begin … -->` and `end` lines: change the manifest and
 run `gen.py write`, never the text between the lines. `just crypto-review ID` runs
-`gen.py write` itself.
+`gen.py write` itself. `just lint` runs `check.py check` and `gen.py check`, so an
+action whose code changed since its review, or a generated place out of date, fails
+the build.
 
 ## 8. Fuzzing
 

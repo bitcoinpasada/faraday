@@ -563,7 +563,7 @@ standard_note = "Version 4 packets; GnuPG behaviour (F32)"
 id = "gpg-restore"
 section = 5
 what = "GPG paperkey restore"
-completeness = "Built in faraday-pgp and faraday-keys; no screen offers it yet (`docs/GPG-PAPERKEY.md`)"
+completeness = "From the paperkey's lines typed in the backup flow and the public key in Files; scanning either is not built (`docs/GPG-PAPERKEY.md`)"
 
 [[row]]
 id = "secure-boot"
@@ -925,6 +925,8 @@ kind = "Neutral"
 decision = "no decision"
 
 [action.review]
+fingerprint = "e93c4c693974a9f99ba1be2a88a0f6cd5e094ed50e0cb6e9ca48cc24bee57141"
+reviewed = "2026-10-29"
 places = [
   "core/faraday-bip/README.md",
   "docs/learn/02-words.md",
@@ -976,6 +978,10 @@ wiped = "The bit buffer is a Secret, zeroized when dropped; the Mnemonic wipes i
 lines = [
   "Entropy lengths other than 16, 20, 24, 28 and 32 bytes are refused.",
 ]
+
+[action.review]
+fingerprint = "bb6474c9e62dc2e355a60b7278d3e9c8a3d33a21c5bbf7f8780791e4102f7707"
+reviewed = "2026-10-29"
 
 [[action]]
 id = "seed"
@@ -1050,6 +1056,8 @@ kind = "Conservative"
 decision = "F155"
 
 [action.review]
+fingerprint = "f3bf0a0ddc9124061660632052f56690b597d828eba237e9535f4cb94006261b"
+reviewed = "2026-10-29"
 places = [
   "core/faraday-bip/README.md",
   "docs/KEYS.md",
@@ -1142,6 +1150,8 @@ kind = "Conservative"
 decision = "no decision"
 
 [action.review]
+fingerprint = "88bd27ec5c2775c010b072a788200cb2727eaf0ec356534a31bd641c22aa5bb7"
+reviewed = "2026-10-29"
 places = [
   "core/faraday-bip/README.md",
   "docs/KEYS.md",
@@ -1261,6 +1271,8 @@ kind = "Conservative"
 decision = "F155"
 
 [action.review]
+fingerprint = "0b8af06781a7a6539a57eda74975fd532efef909350e3c84a527ba483bf508ea"
+reviewed = "2026-10-29"
 places = [
   "core/faraday-bip/README.md",
   "docs/KEYS.md",
@@ -1334,6 +1346,8 @@ kind = "Conservative"
 decision = "F155"
 
 [action.review]
+fingerprint = "dce78479ec18c268739e21f691672e1a99003fbb9ce763c1871b2e4e568df8b2"
+reviewed = "2026-10-29"
 places = [
   "core/faraday-bip/README.md",
 ]
@@ -1380,7 +1394,7 @@ libraries = [
   "subtle",
   "secp256k1",
 ]
-adds = "Each key's signing context is randomized from the session's randomness, again whenever it changes; pinned pages hold a long-lived secret apart from other data and are asked to stay out of swap; words, passphrases and seeds are values wiped on drop. The in-memory sealing (`Sealed`, `SessionKey`: a counter nonce with a prefix derived from the key, refusing a key built without shell entropy and a key past 2^32 - 1 seals) is built and tested, but no shipped code builds a session key or seals a value."
+adds = "Each key's signing context is randomized from the session's randomness, again whenever it changes, each key's blind drawn by HKDF-Expand under a count so no two are the same; pinned pages hold a long-lived secret apart from other data and are asked to stay out of swap; words, passphrases and seeds are values wiped on drop. The in-memory sealing (`Sealed`, `SessionKey`: a counter nonce with a prefix derived from the key, refusing a key built without shell entropy and a key past 2^32 - 1 seals) is built and tested, but no shipped code builds a session key or seals a value."
 written_here = "The counter nonce of the in-memory sealing (`faraday-crypto`), reached by no shipped code"
 
 [action.checked]
@@ -1405,7 +1419,7 @@ wiped = "A Secret and a Pinned page are zeroized on drop; nothing is sealed in m
 [action.limits]
 lines = [
   "Nothing held in memory is sealed: Sealed and SessionKey are reached by no shipped code.",
-  "Pinning is a feature of the desktop and Pi builds; the browser and Android builds hold the same value unpinned.",
+  "Pinning is a feature of the desktop app and of the stick and Pi images (faraday-crypto's pin-pages); a build without it holds the same value unpinned.",
 ]
 
 [[action.own]]
@@ -1419,6 +1433,8 @@ kind = "Neutral"
 decision = "no decision"
 
 [action.review]
+fingerprint = "83f48cccd66a5dd376c76881178c86693647cdcb95f9b27833a515a7d41453db"
+reviewed = "2026-10-29"
 places = [
   "core/faraday-crypto/README.md",
   "docs/SECURITY-MODEL.md",
@@ -1459,7 +1475,7 @@ tests = [
   "faraday/faraday-keys/tests/operations.rs::explore::each_reason_gives_only_its_own_secret",
 ]
 crosscheck = "codex32"
-independence = { class = "outside", author = "python-codex32, by Ben Westgate" }
+independence = { class = "own-over-outside", author = "python-codex32, by Ben Westgate", ours = "three rules BIP 93 states that python-codex32 does not enforce (a threshold of 0 or 2 to 9, the seed's lengths, the order shares are handed out), written in `area_codex32.py` from the BIP's text" }
 fuzz_none = "Takes a held key and a reason; no outside input is parsed."
 
 [action.secrets]
@@ -1476,6 +1492,8 @@ lines = [
 ]
 
 [action.review]
+fingerprint = "938c11c7330377fb8c4f33a5ecfda18f69e17b5e89849ba379f808be57939c3a"
+reviewed = "2026-10-29"
 places = [
   "docs/KEYS.md",
 ]
@@ -1536,6 +1554,8 @@ lines = [
 ]
 
 [action.review]
+fingerprint = "003e405750172a617a502987b475bbf698f4e4783ff0cc61dc768a070bd52a17"
+reviewed = "2026-10-29"
 places = [
   "docs/KEYS.md",
 ]
@@ -1592,6 +1612,8 @@ lines = [
 ]
 
 [action.review]
+fingerprint = "c74768b0c9691e31d04f3294b82847df2215e7fdec7540e6ca5c78db43dd3eb7"
+reviewed = "2026-10-29"
 places = [
   "docs/KEYS.md",
 ]
@@ -1653,6 +1675,8 @@ kind = "Conservative"
 decision = "F70"
 
 [action.review]
+fingerprint = "b7b6846fa599fd5883d6865589d54f9081990452f65f4270ec0e69d09c0a6500"
+reviewed = "2026-10-29"
 places = [
   "docs/KEYS.md",
   "docs/SECURITY-MODEL.md",
@@ -1661,12 +1685,13 @@ places = [
 [[action]]
 id = "hashes-macs"
 name = "Hash and authenticate bytes"
-action = "Hashes and authenticates bytes with SHA-256, HMAC-SHA256 and HMAC-SHA512, and stretches a password with PBKDF2."
+action = "Hashes and authenticates bytes with SHA-256, HMAC-SHA256 and HMAC-SHA512, expands a key with HKDF-Expand over SHA-256, and stretches a password with PBKDF2."
 row = "hash-primitives"
 standards = [
   "FIPS 180-4",
   "RFC 2104",
   "RFC 4231",
+  "RFC 5869",
   "RFC 8018",
   "RFC 7914",
 ]
@@ -1677,6 +1702,7 @@ functions = [
   "core/faraday-crypto/src/hash.rs::sha256_whole",
   "core/faraday-crypto/src/hash.rs::hmac_sha512",
   "core/faraday-crypto/src/hash.rs::hmac_sha256",
+  "core/faraday-crypto/src/hash.rs::hkdf_sha256_expand",
   "core/faraday-crypto/src/hash.rs::pbkdf2_hmac_sha512",
   "core/faraday-crypto/src/hash.rs::pbkdf2_hmac_sha256",
   "core/faraday-crypto/src/hash.rs::pbkdf2_sha256",
@@ -1694,7 +1720,7 @@ libraries = [
   "hmac",
   "pbkdf2",
 ]
-adds = "Thin wrappers, the one entry point the rest of the core uses, so the choice of crate is confined here; any HMAC key length is accepted; the whole-file SHA-256 and the key-stretching calls count themselves on the compute token."
+adds = "Thin wrappers, the one entry point the rest of the core uses, so the choice of crate is confined here; any HMAC key length is accepted; the whole-file SHA-256 and the key-stretching calls count themselves on the compute token. HKDF-Expand (RFC 5869 §2.3) is written here over `hmac`, for the blinding of the session's keys and Schnorr signing's per-input auxiliary randomness; it is checked against RFC 5869's test cases 1 to 3. The bip39 area reaches SHA-256 and PBKDF2-HMAC-SHA512 only; HMAC-SHA256, PBKDF2-HMAC-SHA256 and HKDF-Expand are checked by their RFCs' cases here."
 
 [action.checked]
 tests = [
@@ -1703,6 +1729,8 @@ tests = [
   "core/faraday-crypto/tests/primitives.rs::hmac_sha512_rfc4231_case_2",
   "core/faraday-crypto/tests/primitives.rs::hmac_sha256_rfc4231_case_1",
   "core/faraday-crypto/tests/primitives.rs::hmac_sha256_rfc4231_case_2",
+  "core/faraday-crypto/tests/primitives.rs::hkdf_sha256_expand_rfc5869_cases",
+  "core/faraday-crypto/tests/primitives.rs::hkdf_sha256_expand_refuses_more_than_255_blocks",
   "core/faraday-crypto/tests/primitives.rs::pbkdf2_hmac_sha512_known_answer",
   "core/faraday-crypto/tests/primitives.rs::pbkdf2_hmac_sha256_rfc7914_known_answers",
 ]
@@ -1721,9 +1749,12 @@ wiped = "The wrappers keep no state after they return; wiping an input is the ca
 [action.limits]
 lines = [
   "PBKDF2 here is HMAC-SHA256 or HMAC-SHA512 only.",
+  "HKDF-Expand makes at most 255 blocks of 32 bytes (RFC 5869 §2.3); a longer output is refused and nothing is written.",
 ]
 
 [action.review]
+fingerprint = "59f488c28d511c1c65b744f5611319412a7eaa5ba4ce9e3eb798cf9c4223f48e"
+reviewed = "2026-10-29"
 places = [
   "core/faraday-crypto/README.md",
 ]
@@ -1781,6 +1812,8 @@ kind = "Neutral"
 decision = "no decision"
 
 [action.review]
+fingerprint = "dc0f182408d49857f46ae64d61b21029b491ee2553bd71e1f83ffaa8eec959ee"
+reviewed = "2026-10-29"
 places = [
   "core/faraday-crypto/README.md",
 ]
@@ -1853,7 +1886,7 @@ tests = [
   "faraday/faraday-core/tests/all/explore_addresses.rs::a_whole_address_is_found_at_its_index_on_each_chain",
 ]
 crosscheck = "addr"
-independence = { class = "outside", author = "Bitcoin Core v31.1 itself (`deriveaddresses`) and its functional-test framework, by Bitcoin Core's contributors; btclib-wallet's `bip32` and `slip132`, by the btclib developers, on btclib's own curve, for the account keys" }
+independence = { class = "outside", author = "Bitcoin Core v31.1 itself (`deriveaddresses`) and its functional-test framework, by Bitcoin Core's contributors; btclib-wallet's `bip32` and `slip132`, by the btclib developers, on btclib's own curve, for the account keys; BIP 380's own checksum code, as the BIP prints it; python-mnemonic, by Trezor (SatoshiLabs), for the seeds" }
 selftest = [
   "bip84_address",
 ]
@@ -1877,6 +1910,8 @@ lines = [
 ]
 
 [action.review]
+fingerprint = "7f1feb133198885aa0087208975bdf7199884fde97e9ea1838651f7b857a5af2"
+reviewed = "2026-10-29"
 places = [
   "core/faraday-bip/README.md",
   "docs/learn/06-verifying.md",
@@ -2015,6 +2050,8 @@ kind = "Neutral"
 decision = "F66"
 
 [action.review]
+fingerprint = "815e8b1334731bc29c2343cac4f6f993697ce373f9eb9d05655b3eff7544ae30"
+reviewed = "2026-10-29"
 places = [
   "core/faraday-bip/README.md",
   "docs/INTEROP.md",
@@ -2047,7 +2084,7 @@ libraries = [
   "miniscript",
   "bitcoin",
 ]
-adds = "A primary spending path and recovery paths behind relative delays, as Liana writes them; a taproot form puts one primary key on the key path; a wallet no one could recover is refused."
+adds = "A primary spending path and recovery paths behind relative delays, as Liana writes them; a taproot form puts one primary key on the key path; a wallet no one could recover is refused. The miniscript area compares the scripts of wallets of these shapes through WalletPolicy; it does not call RecoveryPolicy's builder or reader."
 
 [action.checked]
 vectors = [
@@ -2088,6 +2125,8 @@ kind = "Neutral"
 decision = "no decision"
 
 [action.review]
+fingerprint = "aa860feb66c3dc28194dc4099556991897a27fbbb2939b93af363fb0d2ce850b"
+reviewed = "2026-10-29"
 places = [
   "core/faraday-bip/README.md",
   "docs/learn/12-inheritance.md",
@@ -2168,6 +2207,8 @@ kind = "Conservative"
 decision = "F132"
 
 [action.review]
+fingerprint = "b20adfb60532c640acd3498dee8c26a27cadd935972a3fac48e09f5b7ecb0303"
+reviewed = "2026-10-29"
 places = [
   "core/faraday-bip/README.md",
 ]
@@ -2261,6 +2302,8 @@ kind = "Conservative"
 decision = "F155"
 
 [action.review]
+fingerprint = "304a7a75eab1154c93c4cbe039ea1a1ceab4f58b735639e9846eec3701f1982e"
+reviewed = "2026-10-29"
 places = [
   "docs/INTEROP.md",
 ]
@@ -2340,11 +2383,13 @@ kind = "Neutral"
 decision = "no decision"
 
 [[action.own]]
-text = "A descriptor record whose paths line is other than /0/*,/1/* is refused."
+text = "A descriptor record whose paths line is neither /0/*,/1/* nor No path restrictions is refused."
 kind = "Conservative"
 decision = "no decision"
 
 [action.review]
+fingerprint = "7ca25dea71301c7785e6f3b4f599213f4b5d39e728b501c6713b3813a7a1e211"
+reviewed = "2026-10-29"
 places = [
   "core/faraday-bip/README.md",
   "docs/INTEROP.md",
@@ -2401,6 +2446,8 @@ kind = "Neutral"
 decision = "no decision"
 
 [action.review]
+fingerprint = "dc17b0f8e42283e92308222ba040d5549749f90b1fc34fe2ae9283b767514517"
+reviewed = "2026-10-29"
 places = [
   "core/faraday-bip/README.md",
   "docs/learn/10-spend-paths.md",
@@ -2496,6 +2543,8 @@ kind = "Conservative"
 decision = "F155"
 
 [action.review]
+fingerprint = "34d8947a5414526d1b7378ea2ab55260f56cc0727dc71a5bca441dc020197c46"
+reviewed = "2026-10-29"
 places = [
   "core/faraday-bip/README.md",
   "docs/learn/09-multisig.md",
@@ -2574,6 +2623,8 @@ kind = "Conservative"
 decision = "F155"
 
 [action.review]
+fingerprint = "e55491edf607cb8b90228855d47f2d188253adac84f4283c8576b8fee465ded8"
+reviewed = "2026-10-29"
 places = [
   "core/faraday-bip/README.md",
   "docs/learn/11-xpubs.md",
@@ -2638,6 +2689,8 @@ lines = [
 ]
 
 [action.review]
+fingerprint = "0629c32da6344183295aee502c7c85aee6cd43aa79f52b22ce560827fef3a497"
+reviewed = "2026-10-29"
 places = [
   "core/faraday-bip/README.md",
 ]
@@ -2691,8 +2744,7 @@ tests = [
   "core/faraday-codec/src/encodings.rs::bech32_and_bech32m_are_told_apart",
   "core/faraday-codec/src/encodings.rs::base58check_round_trips_through_bitcoins_own_encoder",
 ]
-crosscheck = "addr"
-independence = { class = "outside", author = "Bitcoin Core's functional-test framework, v31.1, by Bitcoin Core's contributors, and Python's `hashlib`" }
+not_crosschecked = "The calculator's hashes and spellings (faraday_bip::hashes, faraday_codec::encodings) are reached by no cross-check area; the addr area reads addresses and descriptor checksums, not these."
 fuzz = [
   "encodings",
 ]
@@ -2708,6 +2760,8 @@ lines = [
 ]
 
 [action.review]
+fingerprint = "9d6d62a4b52fbfabee2c77efde401fb667e8b3b55baa5dd7b430e08ef8851cc4"
+reviewed = "2026-10-29"
 places = [
   "core/faraday-bip/README.md",
 ]
@@ -2781,6 +2835,8 @@ kind = "Neutral"
 decision = "no decision"
 
 [action.review]
+fingerprint = "41e58d6308c32f14feba5f4bcaa5cb3440461876a83e36877cc0932624a0c1f2"
+reviewed = "2026-10-29"
 places = [
   "docs/OWN-RANDOMNESS.md",
   "docs/learn/03-randomness.md",
@@ -2845,6 +2901,8 @@ kind = "Neutral"
 decision = "no decision"
 
 [action.review]
+fingerprint = "0e7d6459d5adc5f1cb3c4f7838d22d3054b78f16b946cf497c6895ffeeb738a1"
+reviewed = "2026-10-29"
 places = [
   "docs/OWN-RANDOMNESS.md",
   "tools/reference/entropy/README.md",
@@ -2911,6 +2969,8 @@ kind = "Novel"
 decision = "F158"
 
 [action.review]
+fingerprint = "74732b9c05fa14fdf14b4b19ceae9181ede7e373ea0884bb84baaef116fc7c14"
+reviewed = "2026-10-29"
 places = [
   "docs/OWN-RANDOMNESS.md",
   "tools/reference/entropy/README.md",
@@ -2980,6 +3040,8 @@ kind = "Novel"
 decision = "F158"
 
 [action.review]
+fingerprint = "4ddae471e9e1874b2a299606962d92a4eb8a9bde711eafa84859ecf0491e539b"
+reviewed = "2026-10-29"
 places = [
   "docs/OWN-RANDOMNESS.md",
   "tools/reference/entropy/README.md",
@@ -3041,6 +3103,8 @@ kind = "Novel"
 decision = "F86"
 
 [action.review]
+fingerprint = "e2481903d2ebb496d8ad666f0409dd19039f7f300cff59b0f6f25622067a5726"
+reviewed = "2026-10-29"
 places = [
   "docs/OWN-RANDOMNESS.md",
 ]
@@ -3102,6 +3166,8 @@ kind = "Novel"
 decision = "F158"
 
 [action.review]
+fingerprint = "f6929be5fa6744cc2968f8ed3f23c7cb3148a9b7cccd2322a6366e2d2ac17a90"
+reviewed = "2026-10-29"
 places = [
   "docs/OWN-RANDOMNESS.md",
   "tools/reference/entropy/README.md",
@@ -3140,7 +3206,7 @@ tests = [
   "faraday/faraday-core/tests/all/keygen.rs::this_devices_key_is_its_generators_fresh_answer_hashed_and_nothing_else",
 ]
 crosscheck = "entropy"
-independence = { class = "own-only", author = "Faraday's authors (`area_entropy.py`), over Python's `hashlib`", ours = "the hash of the shell's answer, written out in `area_entropy.py`" }
+independence = { class = "own-only", author = "Faraday's authors (`area_entropy.py`), over Python's `hashlib`", ours = "the hash of the shell's answer, written out in `area_entropy.py`; with what the person added, as `area_own.py` writes it" }
 fuzz_none = "Takes one 32-byte answer from the shell."
 
 [action.secrets]
@@ -3159,6 +3225,8 @@ kind = "Neutral"
 decision = "no decision"
 
 [action.review]
+fingerprint = "13cf98ae1acb33052e5bb4c59dbfe7747957adf325fb456c7bfa4415555caf42"
+reviewed = "2026-10-29"
 places = [
   "docs/OWN-RANDOMNESS.md",
 ]
@@ -3166,7 +3234,7 @@ places = [
 [[action]]
 id = "system-random"
 name = "Read the system's randomness"
-action = "Reads 32 bytes from the system's generator for the desktop app and names the source."
+action = "Reads 32 bytes from the system's generator for the desktop app and the Starter, and names the source."
 row = "own-randomness"
 standards = []
 learn = "randomness"
@@ -3216,6 +3284,8 @@ kind = "Conservative"
 decision = "F86"
 
 [action.review]
+fingerprint = "cf1c5f9b439026cfeb919aec0b03529d38b25a3d46c0cfe88c3cd83ffeffb04b"
+reviewed = "2026-10-29"
 places = [
   "docs/OWN-RANDOMNESS.md",
 ]
@@ -3250,7 +3320,7 @@ novel_rank = 3
 
 [action.implementation]
 crate = "faraday/faraday-core"
-libraries = []
+libraries = ["bitcoin_hashes"]
 adds = "The seed is the shell's first answer, hashed with the person's accumulator when there is one and again at each batch added (SHA-256 of a label, the base and the accumulator); the accumulator chains each batch's commitment; a fresh answer is SHA-256 of a label, what it is for, the answer and the accumulator; a signing round's seed is SHA-256 of a label, the session's seed and a count of rounds; nothing is made before the system has answered."
 written_here = "The session's random generator: its seed and pool, and the mixing of a person's own randomness (`faraday-core::fresh`)"
 
@@ -3301,6 +3371,8 @@ kind = "Neutral"
 decision = "F109"
 
 [action.review]
+fingerprint = "c8534cc2a907cf87e552df18bcfc5986b2ae36af572961684064bf6c4ef3f607"
+reviewed = "2026-10-29"
 places = [
   "docs/OWN-RANDOMNESS.md",
   "docs/learn/03-randomness.md",
@@ -3357,6 +3429,8 @@ kind = "Neutral"
 decision = "no decision"
 
 [action.review]
+fingerprint = "e963638c80169010d4768910846b9ce50fc853bdffb10ea14270a4d034116fc3"
+reviewed = "2026-10-29"
 places = [
   "tools/reference/booklet-dice/README.md",
   "docs/CODEX32.md",
@@ -3419,6 +3493,8 @@ kind = "Neutral"
 decision = "F96"
 
 [action.review]
+fingerprint = "07ced7643826fe42725f0c648321a010320ff920cf0138e755dd8975a0628f81"
+reviewed = "2026-10-29"
 places = [
   "docs/CODEX32.md",
   "docs/DEMO.md",
@@ -3449,7 +3525,7 @@ code = [
 [action.implementation]
 crate = "core/faraday-bip"
 libraries = []
-adds = "The lists are generated at build time from the committed EFF files; a roll is the index written in base six with one added to each digit; each list's SHA-256 is checked against the committed file."
+adds = "The lists are modules written by tools/diceware/gen.py from the committed EFF files and built in; a roll is the index written in base six with one added to each digit; a test checks each list and its SHA-256 against the committed file."
 
 [action.checked]
 vectors = [
@@ -3474,6 +3550,8 @@ lines = [
 ]
 
 [action.review]
+fingerprint = "a9f02dc6e84b4b7c12f497ed88b406242e53f380531310bb9314acaf6f3ccaf2"
+reviewed = "2026-10-29"
 places = [
   "docs/learn/05-passphrases.md",
 ]
@@ -3502,8 +3580,6 @@ functions = [
   "core/faraday-bip/src/bip85.rs::child_password_base85",
   "faraday/faraday-keys/src/bip85.rs::child",
   "faraday/faraday-keys/src/operations.rs::Keys::bip85_child",
-  "core/faraday-bip/src/base64.rs::encode",
-  "core/faraday-bip/src/base64.rs::decode",
 ]
 code = [
   "core/faraday-bip/src/bip85.rs::derive",
@@ -3515,7 +3591,7 @@ crate = "core/faraday-bip"
 libraries = [
   "bitcoin",
 ]
-adds = "The path is m/83696968'/app'/params'/index', fully hardened; the derived private key is run through HMAC-SHA512 with the BIP's key; every value is a fixed-size buffer that zeroizes on drop and nothing here allocates."
+adds = "The path is m/83696968'/app'/params'/index', fully hardened; the derived private key is run through HMAC-SHA512 with the BIP's key; the passwords' base64 (RFC 4648) and base85 (RFC 1924's alphabet) are written here; every value is a fixed-size buffer that zeroizes on drop and nothing here allocates."
 
 [action.checked]
 vectors = [
@@ -3555,6 +3631,8 @@ kind = "Neutral"
 decision = "F27"
 
 [action.review]
+fingerprint = "b9d077fa6040bce881f8771860e2eec5a191b240132c5f5a23949868fb210f61"
+reviewed = "2026-10-29"
 places = [
   "core/faraday-bip/README.md",
   "tools/vectors/bip85/README.md",
@@ -3622,6 +3700,8 @@ kind = "Neutral"
 decision = "no decision"
 
 [action.review]
+fingerprint = "c1b4ee8fb1f5366d60fa4ec449512787e3a33a5a4451ff3e8143ccd80395e256"
+reviewed = "2026-10-29"
 places = [
   "core/faraday-bip/README.md",
   "tools/reference/vanity/README.md",
@@ -3700,6 +3780,8 @@ kind = "Neutral"
 decision = "no decision"
 
 [action.review]
+fingerprint = "0f0beb9a217ec26c446fdc294cda371fc897cfe1ef07966e0a057e11b818d3e0"
+reviewed = "2026-10-29"
 places = [
   "core/faraday-bip/README.md",
   "tools/reference/aezeed/README.md",
@@ -3775,6 +3857,8 @@ lines = [
 ]
 
 [action.review]
+fingerprint = "812aa4523541a4f1c4b5bd7b2c96829340a935f70a3c42b8d2562569ba2939b4"
+reviewed = "2026-10-29"
 places = [
   "core/faraday-bip/README.md",
   "tools/reference/aezeed/README.md",
@@ -3884,6 +3968,8 @@ kind = "Neutral"
 decision = "no decision"
 
 [action.review]
+fingerprint = "8fc91a9462ec35aba7a2fca57c74e3f1194d197f425debbcd714d5c982bc6d81"
+reviewed = "2026-10-29"
 places = [
   "core/faraday-bip/README.md",
   "docs/learn/20-silent-payments.md",
@@ -3909,8 +3995,6 @@ functions = [
   "faraday/faraday-keys/src/session.rs::Keys::words_id",
   "faraday/faraday-keys/src/session.rs::Keys::same_words",
   "faraday/faraday-keys/src/session.rs::words_id",
-  "core/faraday-psbt/src/silent.rs::check",
-  "core/faraday-psbt/src/silent.rs::check_inputs",
   "faraday/faraday-keys/src/session.rs::Keys::words_match",
   "faraday/faraday-keys/src/session.rs::Keys::words_alone",
   "faraday/faraday-keys/src/session.rs::Keys::words_identity",
@@ -3922,14 +4006,10 @@ code = [
   "faraday/faraday-keys/src/session.rs::Keys::words_id",
 ]
 
-[[action.screens_not]]
-screen = "Silent"
-reason = "`silent::check::Check` is a type of the same name as a root's method; nothing here compares words"
-
 [action.implementation]
 crate = "faraday/faraday-keys"
 libraries = []
-adds = "The id is the SHA-256 of all 32 bytes of the words' entropy, worked out the first time it is asked and kept beside the key, so two seeds never pass for one; the same words with and without a passphrase share it. What is kept of a secret's fingerprint is keyed by SHA-256 of a tag and the secret, so the secret itself is kept nowhere. The copy check's questions are ordered from the clock and a SHA-256 of the word numbers."
+adds = "The id is all 32 bytes of the SHA-256 of the words' entropy, worked out the first time it is asked and kept beside the key, so two seeds never pass for one; the same words with and without a passphrase share it. What is kept of a secret's fingerprint is keyed by SHA-256 of a tag and the secret, so the secret itself is kept nowhere. The copy check's questions are ordered from the clock and a SHA-256 of the word numbers."
 
 [action.checked]
 tests = [
@@ -3955,6 +4035,8 @@ kind = "Conservative"
 decision = "no decision"
 
 [action.review]
+fingerprint = "c9b9e652282d26981efe48f4b59ab089542755dfaa67f7c5a5fa6bd200b0aa76"
+reviewed = "2026-10-29"
 places = [
   "docs/KEYS.md",
 ]
@@ -4085,7 +4167,7 @@ code = ["core/faraday-psbt/src/psbt.rs::Psbt::parse_bytes", "core/faraday-psbt/s
 [action.implementation]
 crate = "core/faraday-psbt"
 libraries = ["bitcoin"]
-adds = "Refuses a version other than 0, version 2 fields inside a version 0 file and a key origin of more than 16 steps; a field not changed since it was read is written back exactly as read. The app tells a file is a PSBT by reading it once as bytes, else as base64 text, when it comes in."
+adds = "Refuses a version other than 0, version 2 fields inside a version 0 file, a 65-byte taproot signature whose sighash byte is 0 (BIP 341) and a key origin of more than 16 steps; a field not changed since it was read is written back exactly as read. The app tells a file is a PSBT by reading it once as bytes, else as base64 text, when it comes in."
 written_here = "The PSBT format, inspection, signing orchestration and verification logic (`faraday-psbt`, over `faraday-bip`'s keys and `bitcoin`'s secp256k1)"
 
 [action.checked]
@@ -4112,6 +4194,7 @@ wiped = "Nothing secret is held."
 lines = [
   "Version 0 only; version 2 has its own reader, which the app does not use.",
   "Version 2 fields in a version 0 file are refused.",
+  "A 65-byte taproot signature whose sighash byte is 0 is refused.",
   "A key origin of more than 16 steps is refused.",
 ]
 
@@ -4121,6 +4204,8 @@ kind = "Conservative"
 decision = "F155"
 
 [action.review]
+fingerprint = "9d212deb0daeaea2b535237230dc42227cab3e98c4ce7bd9712a401d5b656b10"
+reviewed = "2026-10-29"
 places = ["core/faraday-psbt/README.md#What is refused"]
 
 [[action]]
@@ -4179,6 +4264,8 @@ kind = "Conservative"
 decision = "no decision"
 
 [action.review]
+fingerprint = "0052ae5a9a3861dcb0d43cc9170d7a395d660e51ff9fb952f013e6e013665f23"
+reviewed = "2026-10-29"
 places = ["core/faraday-psbt/README.md#What is refused"]
 
 [[action]]
@@ -4281,6 +4368,8 @@ kind = "Conservative"
 decision = "F155"
 
 [action.review]
+fingerprint = "324a4568ede5b489f0ba46eb68c934b227ba0cb3f65da3297fd9f2b7ab237b1f"
+reviewed = "2026-10-29"
 places = [
   "core/faraday-psbt/README.md#What is inspected",
   "core/faraday-psbt/README.md#How change is verified",
@@ -4291,7 +4380,7 @@ places = [
 [[action]]
 id = "sighash-review"
 name = "Review the sighash types"
-action = "Reads each input's sighash type and signs only SIGHASH_ALL and SIGHASH_DEFAULT."
+action = "Reads each input's sighash type and signs SIGHASH_ALL and SIGHASH_DEFAULT, and ALL with ANYONECANPAY after a caution."
 row = "sighash"
 standards = [
   "BIP 143",
@@ -4311,7 +4400,7 @@ code = ["core/faraday-psbt/src/inspect.rs::sighash_kind"]
 [action.implementation]
 crate = "core/faraday-psbt"
 libraries = ["bitcoin"]
-adds = "Names the sighash kind of every input; ALL|ANYONECANPAY is a caution, NONE and SINGLE with an output are dangers with no way past, SINGLE with no output of its index is blocked."
+adds = "Names the sighash kind of every input; ALL|ANYONECANPAY is a caution, NONE, a non-standard value and SINGLE with an output are dangers with no way past, SINGLE with no output of its index is blocked. The tx area checks the signature hashes bitcoin computes for each type; the naming and ranking of a sighash is not cross-checked."
 
 [action.checked]
 vectors = ["sighash"]
@@ -4322,7 +4411,7 @@ tests = [
   "core/faraday-psbt/tests/all/inspect.rs::all_and_default_still_sign_with_nothing_held",
 ]
 crosscheck = "tx"
-independence = { class = "outside", author = "Bitcoin Core's functional-test framework, v31.1, by Bitcoin Core's contributors" }
+independence = { class = "own-over-outside", author = "Bitcoin Core's functional-test framework, v31.1, by Bitcoin Core's contributors", ours = "BIP-341's refusal of SIGHASH_SINGLE with no output and of a hash type it does not list, which the framework hashes anyway, written in `area_tx.py`" }
 fuzz = ["psbt_parse"]
 other = [
   "Core end to end (INTEROP §1)",
@@ -4335,7 +4424,7 @@ wiped = "Nothing secret is held."
 
 [action.limits]
 lines = [
-  "Only SIGHASH_ALL and SIGHASH_DEFAULT are signed.",
+  "SIGHASH_ALL and SIGHASH_DEFAULT are signed, and ALL with ANYONECANPAY after a caution; NONE, SINGLE and non-standard sighashes are refused.",
   "SIGHASH_SINGLE on an input with no output of its index is blocked.",
 ]
 
@@ -4345,6 +4434,8 @@ kind = "Conservative"
 decision = "F136"
 
 [action.review]
+fingerprint = "cc023c96f9d80e5986019d17e245ba2d597a5df81f7380dd42983f2498ac87a9"
+reviewed = "2026-10-29"
 places = ["core/faraday-psbt/README.md#Warning thresholds"]
 
 [[action]]
@@ -4427,6 +4518,8 @@ kind = "Neutral"
 decision = "no decision"
 
 [action.review]
+fingerprint = "0832a2293d87c796312e98d62136f998353750c055956299f5463347d34fa08c"
+reviewed = "2026-10-29"
 places = ["core/faraday-psbt/README.md#Signing", "docs/learn/13-nonces.md"]
 
 [[action]]
@@ -4447,7 +4540,7 @@ code = ["core/faraday-psbt/src/sign.rs::sign_taproot", "core/faraday-psbt/src/si
 [action.implementation]
 crate = "core/faraday-psbt"
 libraries = ["secp256k1", "bitcoin"]
-adds = "Signs the key path with the BIP 341 tweaked key and a leaf with the leaf's own key under its leaf hash; each signature is made twice, compared and verified; aux_rand is zero by default; a miniscript or a tree is signed only through a registered wallet."
+adds = "Signs the key path with the BIP 341 tweaked key and a leaf with the leaf's own key under its leaf hash; each signature is made twice, compared and verified; aux_rand is zero by default, and fresh bytes a caller passes are expanded for each input with HKDF-Expand (RFC 5869, faraday-crypto), which the app does not use; a miniscript or a tree is signed only through a registered wallet."
 
 [action.checked]
 vectors = ["psbt"]
@@ -4467,11 +4560,11 @@ fuzz_none = "No target runs sign: it needs a master key and a PSBT that inspect 
 [action.secrets]
 reveal = "none"
 constant_time = "libsecp256k1 documents its signing as constant time."
-wiped = "bitcoin forces two copies of the key for Schnorr, the untweaked and the tweaked keypair; both are erased before the function returns."
+wiped = "bitcoin forces two copies of the key for Schnorr, the untweaked and the tweaked keypair; both are overwritten with secp256k1's non_secure_erase before the function returns, which the library calls best effort."
 
 [action.limits]
 lines = [
-  "Only SIGHASH_ALL and DEFAULT are signed.",
+  "SIGHASH_DEFAULT and ALL are signed, and ALL with ANYONECANPAY after a caution; NONE, SINGLE and undefined types are refused.",
   "A taproot input that no key of this device can sign is left unsigned.",
   "A leaf is signed only when the leaf's script checks a signature against the key, read through the miniscript.",
 ]
@@ -4487,6 +4580,8 @@ kind = "Conservative"
 decision = "F141"
 
 [action.review]
+fingerprint = "ecee7bf34dfd93e74ec97ab87ae49510c337a509f30e9b4d5050352dc47e9e3b"
+reviewed = "2026-10-29"
 places = ["core/faraday-psbt/README.md#Signing", "docs/learn/13-nonces.md"]
 
 [[action]]
@@ -4570,6 +4665,8 @@ kind = "Conservative"
 decision = "F109"
 
 [action.review]
+fingerprint = "638c0e63bc7de92fec4e20154fc2b24fa2c40294c8752fd63fdeca81ec4b9449"
+reviewed = "2026-10-29"
 places = ["core/faraday-psbt/README.md#MuSig2", "docs/learn/13-nonces.md"]
 
 [[action]]
@@ -4619,7 +4716,7 @@ fuzz = ["psbt_parse"]
 [action.secrets]
 reveal = "none"
 constant_time = "Private keys are used only to recompute this device's signatures; what comes back is a verdict. The library does not state the recomputation's timing."
-wiped = "The keypair made to recompute a signature is erased."
+wiped = "The keypairs made to recompute a signature are overwritten with secp256k1's non_secure_erase, which the library calls best effort."
 
 [action.limits]
 lines = [
@@ -4634,6 +4731,8 @@ kind = "Neutral"
 decision = "no decision"
 
 [action.review]
+fingerprint = "c23f733e165f64c169256063307810819ddd57fb74548ea60c550dbbc91d8664"
+reviewed = "2026-10-29"
 places = ["core/faraday-psbt/README.md#Signing", "docs/learn/13-nonces.md"]
 
 [[action]]
@@ -4693,6 +4792,8 @@ kind = "Neutral"
 decision = "F161"
 
 [action.review]
+fingerprint = "9ff4d9d83eddbba02c6dae17822bf04cf9654f613b34027a7215607028462bdf"
+reviewed = "2026-10-29"
 places = ["core/faraday-psbt/README.md#What is refused"]
 
 [[action]]
@@ -4739,7 +4840,7 @@ fuzz_none = "No fuzz target signs: the signer takes the person's own text and ke
 [action.secrets]
 reveal = "none"
 constant_time = "libsecp256k1 documents its signing as constant time; the BIP 137 low-R grind repeats the signing until r is small."
-wiped = "The secret key is borrowed for the moment it signs; the two Schnorr copies bitcoin forces for a taproot address are erased before the function returns."
+wiped = "The secret key is borrowed for the moment it signs; the two Schnorr copies bitcoin forces for a taproot address are overwritten with secp256k1's non_secure_erase before the function returns, which the library calls best effort."
 
 [action.limits]
 lines = [
@@ -4754,6 +4855,8 @@ kind = "Neutral"
 decision = "F156"
 
 [action.review]
+fingerprint = "3577298f53df7dcb6defe00648c27f63fee83d494d9b7cef1ed8f816a3d442dc"
+reviewed = "2026-10-29"
 places = ["core/faraday-psbt/src/message.rs"]
 
 [[action]]
@@ -4802,6 +4905,8 @@ kind = "Neutral"
 decision = "no decision"
 
 [action.review]
+fingerprint = "9705b7f2a4b8e5cc501affe3a3ce28e9ab642e194fcc52649a134d7382b8ce6c"
+reviewed = "2026-10-29"
 places = ["core/faraday-psbt/src/message.rs"]
 
 [[action]]
@@ -4852,7 +4957,7 @@ tests = [
   "core/faraday-psbt/tests/all/transaction.rs::a_transaction_core_refuses_for_a_superfluous_witness_flag_is_refused",
 ]
 crosscheck = "tx"
-independence = { class = "outside", author = "Bitcoin Core's functional-test framework, v31.1, by Bitcoin Core's contributors" }
+independence = { class = "own-over-outside", author = "Bitcoin Core's functional-test framework, v31.1, by Bitcoin Core's contributors", ours = "the rule that a raw transaction is read only when its bytes are exactly the serialisation of what was read, where the framework reads past a short input, written in `area_tx.py`" }
 fuzz = ["transaction"]
 
 [action.secrets]
@@ -4873,6 +4978,8 @@ kind = "Conservative"
 decision = "no decision"
 
 [action.review]
+fingerprint = "ff7ccffa2ab70acf2cf997ec1ff7d6a998a0485ba710a3ca6b7ac79fa120c5b3"
+reviewed = "2026-10-29"
 places = ["core/faraday-psbt/src/transaction.rs"]
 
 [[action]]
@@ -4944,6 +5051,8 @@ kind = "Neutral"
 decision = "no decision"
 
 [action.review]
+fingerprint = "9b77d925c1429e17942830eb109deac1c5dd30193cd4e910af8870fd4dba3145"
+reviewed = "2026-10-29"
 places = ["docs/QR.md"]
 
 [[action]]
@@ -5052,6 +5161,8 @@ kind = "Conservative"
 decision = "no decision"
 
 [action.review]
+fingerprint = "72b4f890ba0cf4fe873bcad526747715278705b3a7ca62c819603b9e5bfb19dd"
+reviewed = "2026-10-29"
 places = ["docs/QR.md"]
 
 [[action]]
@@ -5116,6 +5227,8 @@ kind = "Conservative"
 decision = "F155"
 
 [action.review]
+fingerprint = "944f65ca9fbd6bef9b1a72e06f4a62641e4275ccef75639611c05bd7cc23840d"
+reviewed = "2026-10-29"
 places = ["docs/QR.md"]
 
 [[action]]
@@ -5170,6 +5283,8 @@ kind = "Conservative"
 decision = "no decision"
 
 [action.review]
+fingerprint = "f50c72af8d25792af2603a6ca050d0694d88dec3aa13078e9ff3ce4f76fb1243"
+reviewed = "2026-10-29"
 places = ["docs/QR.md"]
 
 [[action]]
@@ -5215,6 +5330,8 @@ kind = "Neutral"
 decision = "no decision"
 
 [action.review]
+fingerprint = "7f06b83cf9d6b17bd658bb49dbe1e0cb1dba54046dfaa45a4b632554c51a90f9"
+reviewed = "2026-10-29"
 places = ["docs/QR.md"]
 
 [[action]]
@@ -5275,7 +5392,7 @@ constant_time = "Not stated by the encoder."
 wiped = "The digit buffer is a fixed array inside a Secret and the module grid is zeroizing; both wipe on drop."
 
 [action.limits]
-lines = ["12 and 24 words only: 48 or 96 digits, or 16 or 32 bytes.", "The picture carries no wordlist language."]
+lines = ["A SeedQR is made for any word count; one is read back only at 12 and 24 words: 48 or 96 digits, or 16 or 32 bytes.", "The CompactSeedQR of 15, 18 or 21 words is the entropy itself, a form SeedSigner does not define.", "The picture carries no wordlist language."]
 
 [[action.own]]
 text = "The picture is a copy only when it is checked by a scan or typed words."
@@ -5283,6 +5400,8 @@ kind = "Neutral"
 decision = "F29"
 
 [action.review]
+fingerprint = "5a5c479a3903d1ed23af92ac0215515a81029215971a40881f64df4341d0124e"
+reviewed = "2026-10-29"
 places = ["tools/vectors/seedqr/README.md", "docs/QR.md"]
 
 [[action]]
@@ -5327,6 +5446,8 @@ kind = "Neutral"
 decision = "F29"
 
 [action.review]
+fingerprint = "70046e38ea2f9067815bf171627745320febca0630acd0e4ab1ef84dbcc1ad79"
+reviewed = "2026-10-29"
 places = ["tools/vectors/seedqr/README.md"]
 
 [[action]]
@@ -5379,7 +5500,7 @@ tests = [
   "faraday/faraday-keys/tests/codex32.rs::set::strings_typed_back_rebuild_their_key_and_no_other",
 ]
 crosscheck = "codex32"
-independence = { class = "outside", author = "python-codex32, by Ben Westgate" }
+independence = { class = "own-over-outside", author = "python-codex32, by Ben Westgate", ours = "three rules BIP 93 states that python-codex32 does not enforce (a threshold of 0 or 2 to 9, the seed's lengths, the order shares are handed out), written in `area_codex32.py` from the BIP's text" }
 fuzz = ["seed_parts"]
 
 [action.secrets]
@@ -5406,6 +5527,8 @@ kind = "Neutral"
 decision = "no decision"
 
 [action.review]
+fingerprint = "01106493873989925ee9136a92a6827cf1b67764470a65d1e1e9029cc2d2b0b3"
+reviewed = "2026-10-29"
 places = ["docs/CODEX32.md", "core/faraday-bip/README.md"]
 
 [[action]]
@@ -5486,6 +5609,8 @@ kind = "Conservative"
 decision = "F90"
 
 [action.review]
+fingerprint = "f3aa3825786e297593b28df7e980ddf282e10602cbd8ce8c1a852144939845d7"
+reviewed = "2026-10-29"
 places = ["docs/CODEX32.md"]
 
 [[action]]
@@ -5513,7 +5638,7 @@ tests = [
   "core/faraday-bip/tests/all/codex32_correct.rs::ms1_and_the_header_the_set_fixes_are_never_changed",
 ]
 crosscheck = "codex32_correct"
-independence = { class = "outside", author = "python-codex32, by Ben Westgate (its `correction.py`)" }
+independence = { class = "own-over-outside", author = "python-codex32, by Ben Westgate (its `correction.py`)", ours = "the bound BIP 93 states (substitutions and unreadable boxes, one run up to the checksum's length) and a held string's fixed header, written in `area_codex32_correct.py` from the BIP's sentence" }
 fuzz = ["seed_parts"]
 
 [action.secrets]
@@ -5540,6 +5665,8 @@ kind = "Conservative"
 decision = "F155"
 
 [action.review]
+fingerprint = "c913d8fa8b10c3ef850dc69ce434707088c76e4a3f73bc00ac136f885bc146fa"
+reviewed = "2026-10-29"
 places = ["docs/CODEX32.md"]
 
 [[action]]
@@ -5584,6 +5711,8 @@ kind = "Conservative"
 decision = "F95"
 
 [action.review]
+fingerprint = "9ed896c4c235483d60e6611efe660ed894f7f05ddde570717fab18999cb27447"
+reviewed = "2026-10-29"
 places = ["tools/vectors/codex32qr/README.md", "docs/CODEX32.md"]
 
 [[action]]
@@ -5615,7 +5744,7 @@ code = ["core/faraday-bip/src/slip39.rs::split", "core/faraday-bip/src/slip39.rs
 [action.implementation]
 crate = "core/faraday-bip"
 libraries = []
-adds = "Written here over faraday-crypto's HMAC-SHA256 and PBKDF2-HMAC-SHA256: the RS1024 checksum, Shamir over GF(256), the digest share and the Feistel cipher. The recovered master secret is the BIP 32 seed, not BIP 39 entropy. New key's split takes the shares' identifier and the split's randomness from one fresh draw of the system, stretched as SHA-256 of a label, the draw and a counter, 32 bytes at a time; the identifier is 15 bits of it."
+adds = "Written here over faraday-crypto's HMAC-SHA256 and PBKDF2-HMAC-SHA256: the RS1024 checksum, Shamir over GF(256), the digest share and the Feistel cipher. The recovered master secret is the BIP 32 seed, not BIP 39 entropy. New key's split takes the shares' identifier and the split's randomness from the session's randomness, each 32 bytes from an answer of the system's of its own; the identifier is 15 bits of the first two bytes."
 written_here = "SLIP-39 Shamir backup (`faraday-bip::slip39`)"
 
 [action.checked]
@@ -5661,16 +5790,13 @@ kind = "Conservative"
 decision = "F155"
 
 [[action.own]]
-text = "The 1-of-1 identifier is taken from the master fingerprint, which puts 15 bits of it on every share."
-kind = "Neutral"
-decision = "no decision"
-
-[[action.own]]
 text = "The split's randomness is taken from the session's randomness, an answer for every 32 bytes; SLIP-0039 does not say where a split's randomness comes from."
 kind = "Neutral"
 decision = "F154"
 
 [action.review]
+fingerprint = "9acc02c0db405b4875a6b6f04fd40ba4ecdb71debc69c2b97a0e41aada8375ef"
+reviewed = "2026-10-29"
 places = ["tools/vectors/slip39/README.md", "core/faraday-bip/src/slip39.rs"]
 
 [[action]]
@@ -5695,7 +5821,7 @@ code = ["core/faraday-entropy/src/xor.rs::SeedXor::push", "faraday/faraday-keys/
 [action.implementation]
 crate = "core/faraday-entropy"
 libraries = []
-adds = "The bitwise XOR of the parts' entropy; the random parts are spread from a 32-byte fresh draw; every part is a valid mnemonic of the same word count."
+adds = "The bitwise XOR of the parts' entropy; the random parts are taken in turn, the seed's length each, from 32 fresh bytes for each random part; every part is a valid mnemonic of the same word count."
 
 [action.checked]
 vectors = ["xor"]
@@ -5716,6 +5842,8 @@ wiped = "The parts' accumulator zeroizes on drop and the parts handed out are ze
 lines = ["Two to four parts; one part alone is the seed itself.", "Every part is needed: XOR is not a threshold scheme."]
 
 [action.review]
+fingerprint = "7b3460d855675e7e1851dbc088020a317d541c15506d41d7dfead32041a380cd"
+reviewed = "2026-10-29"
 places = ["tools/vectors/xor/README.md"]
 
 [[action]]
@@ -5776,6 +5904,8 @@ kind = "Conservative"
 decision = "no decision"
 
 [action.review]
+fingerprint = "e2f142c51ea2a9b4823c9fac40b2e2120c03fcf5f642f79fec90a0dde202911c"
+reviewed = "2026-10-29"
 places = [
   "docs/BACKUP-FLOW.md",
   "docs/KEYS.md",
@@ -5834,6 +5964,8 @@ kind = "Conservative"
 decision = "no decision"
 
 [action.review]
+fingerprint = "5e913fd26eea098f18cb1e838b18c60f5ddeee53b9721678759e10962c29ca2b"
+reviewed = "2026-10-29"
 places = [
   "docs/BACKUP-FLOW.md",
   "docs/KEYS.md",
@@ -5906,6 +6038,8 @@ kind = "Conservative"
 decision = "no decision"
 
 [action.review]
+fingerprint = "8dfc9348fb324b1f29f022c1299dd361954b09e0063dd80b1828d8a6db5c68fd"
+reviewed = "2026-10-29"
 places = ["docs/KEYS.md"]
 
 [[action]]
@@ -5929,6 +6063,7 @@ functions = [
   "core/faraday-psbt/src/silent.rs::signable",
   "core/faraday-psbt/src/silent.rs::tap_origin",
   "core/faraday-psbt/src/silent.rs::add_input",
+  "core/faraday-psbt/src/silent.rs::check_inputs",
   "core/faraday-bip/src/dleq.rs::secret_mul",
   "core/faraday-bip/src/dleq.rs::generate_proof",
   "core/faraday-bip/src/dleq.rs::generate_proof_with",
@@ -5985,6 +6120,8 @@ kind = "Conservative"
 decision = "no decision"
 
 [action.review]
+fingerprint = "13e2d2e63545ade98337ac2d602e473e8ca0952f496083b9c0ac7f6dd3a14c79"
+reviewed = "2026-10-29"
 places = ["core/faraday-psbt/src/silent.rs", "core/faraday-bip/src/dleq.rs"]
 
 [[not_crypto]]
@@ -6210,7 +6347,7 @@ kind = "Conservative"
 decision = "F159"
 
 [action.review]
-fingerprint = "1e1f7bfe00845e70a16c05b3247b79cff0ee1214544159db06ebb6f327cc576f"
+fingerprint = "9743698bb88cfe47b15a8237cb5ad5ab9083fc6b402b230e04a2cf734240e881"
 reviewed = "2026-10-29"
 places = [
   "docs/VAULT.md",
@@ -6262,7 +6399,7 @@ libraries = [
   "sha2",
   "unicode-normalization",
 ]
-adds = "The passphrase is put in NFC; all four slots are tried whichever opens, so the work does not say which slot a passphrase opens; a slot whose tag verifies and whose 32-byte commitment block is not zero, checked in constant time, refuses the file, as do two slots opening under one key; the slot's seal count is taken out of its records and kept with the open slot; the header is checked before anything is allocated or derived."
+adds = "The passphrase is put in NFC; all four slots are tried whichever opens, so the work does not say which slot a passphrase opens; a slot whose tag verifies and whose 32-byte commitment block is not zero, checked in constant time, refuses the file, as do two slots opening under one key; the slot's seal count is taken out of its records and kept with the open slot; another copy of the same vault (the same header) has its slot's seal count read with the key just opened, one decryption and no Argon2id, and a slot is told from another of the same count by its SHA-256; the header is checked before anything is allocated or derived."
 
 [action.checked]
 vectors = [
@@ -6315,7 +6452,7 @@ kind = "Conservative"
 decision = "F159"
 
 [action.review]
-fingerprint = "b5955e397d9ac868b803809adfdcd0dce892fa33ebce2dfe88ffe073fcc1c265"
+fingerprint = "f71b09b43a210c25bf02f13024e4e74ff7233cb69c7f4a57d707fdc3bb4f958b"
 reviewed = "2026-10-29"
 places = [
   "docs/VAULT.md",
@@ -6384,7 +6521,7 @@ kind = "Neutral"
 decision = "F159"
 
 [action.review]
-fingerprint = "ceca2a630be4a11a9606a6f8e69c0df50d6d233bc7321f197c92447a7a30de49"
+fingerprint = "9672266b85a080bb7fa7aa2b192f719d985327eea88a8da6f95a0765921e256c"
 reviewed = "2026-10-29"
 places = [
   "docs/VAULT.md",
@@ -6395,7 +6532,7 @@ places = [
 [[action]]
 id = "vault-reveal"
 name = "Reveal a vault secret"
-action = "Puts a secret of an open vault's record in the clear for the one reason named: a key's words or passphrase, an entry's password, TOTP secret or notes, a note's text."
+action = "Puts a secret of an open vault's record in the clear for the one reason named: a key's words or passphrase, a kept passphrase, an entry's password, TOTP secret or notes, a note's text."
 row = "vault"
 standards = []
 learn = "faraday:vaults"
@@ -6445,7 +6582,7 @@ wiped = "Words come back as a value wiped on drop; a revealed text is borrowed f
 [action.limits]
 lines = [
   "A reason that names another part than the one asked for gives an empty text.",
-  "A key record's words are given whatever reason is named: the reason is not checked.",
+  "A key record's words are given only for a reason that names the words or the SeedQR.",
 ]
 
 [[action.own]]
@@ -6454,6 +6591,8 @@ kind = "Conservative"
 decision = "F70"
 
 [action.review]
+fingerprint = "187daba6a98d22e3e20232e31f379799cd0c2aaae9207f1f6626e9bee7fe620c"
+reviewed = "2026-10-29"
 places = [
   "docs/KEYS.md",
   "docs/VAULT.md",
@@ -6519,6 +6658,8 @@ kind = "Novel"
 decision = "F97"
 
 [action.review]
+fingerprint = "56294f2f05097fe0d35c1983f6f63f1a144cc5a42cfb77d0acf6240133bf1bf6"
+reviewed = "2026-10-29"
 places = [
   "docs/VAULT.md#7. Slot contents",
   "tools/vault/open.py",
@@ -6601,6 +6742,8 @@ kind = "Conservative"
 decision = "no decision"
 
 [action.review]
+fingerprint = "6f4cafbf62cba60a3f8a347f703cde1779196463203f567085bc512b56ddd07f"
+reviewed = "2026-10-29"
 places = ["docs/VAULT.md#7. Slot contents"]
 
 [[action]]
@@ -6651,7 +6794,7 @@ libraries = [
   "hmac",
   "sha2",
 ]
-adds = "Write only: version 4.0, ChaCha20, no compression, the composite key is the passphrase alone; the check after writing reads the header hash, header HMAC and every block HMAC of a file this module wrote and parses no XML; the salt, seed, IV and inner key come from one caller-given seed. In the app the seed is one fresh draw of the system, stretched as SHA-256 of the draw and a counter, 32 bytes at a time, and nothing is made until the system has answered."
+adds = "Write only: version 4.0, ChaCha20, no compression, the composite key is the passphrase alone; the check after writing reads the header hash, header HMAC and every block HMAC of a file this module wrote and parses no XML; the salt, seed, IV, inner key and UUIDs come from one caller-given seed. In the app that seed is the session's randomness, each 32 bytes from an answer of the system's of its own, and nothing is made until the system has answered."
 written_here = "The KDBX 4 file format (`faraday-backup`)"
 
 [action.checked]
@@ -6698,6 +6841,8 @@ kind = "Neutral"
 decision = "F154"
 
 [action.review]
+fingerprint = "201a4a753c3129320d036822475fc2b926b4ce522780c96d6808192b1568e173"
+reviewed = "2026-10-29"
 places = [
   "docs/KDBX.md",
   "tools/vectors/backup/README.md",
@@ -6762,6 +6907,8 @@ kind = "Neutral"
 decision = "F7"
 
 [action.review]
+fingerprint = "81914dbcf877fe86b52d8188fa675e16136df9601e7b9ac8509979e6b24c6167"
+reviewed = "2026-10-29"
 places = ["docs/TOTP.md#4. Reading a TOTP secret"]
 
 [[action]]
@@ -6855,6 +7002,8 @@ kind = "Neutral"
 decision = "F32"
 
 [action.review]
+fingerprint = "be0f92e1f44067164c921908ea0a4fabd78d54d19e6bbe7fbb557968b5b3ace5"
+reviewed = "2026-10-29"
 places = [
   "docs/learn/faraday/gpg.md",
   "docs/decisions/F32.md",
@@ -6863,7 +7012,7 @@ places = [
 [[action]]
 id = "gpg-sign"
 name = "Sign with the GPG key"
-action = "Signs data with the GPG key's signing subkey: an Ed25519 detached signature over the SHA-256 or SHA-512 of the data, armoured."
+action = "Signs data with the GPG key's signing subkey: an Ed25519 detached signature over the SHA-512 of the data, armoured."
 row = "gpg"
 standards = [
   "RFC 4880",
@@ -6923,6 +7072,8 @@ kind = "Conservative"
 decision = "F32"
 
 [action.review]
+fingerprint = "15040c6fc02c859b6d2f3b49483e382c65dac2cd5ff1aa0246a6b15b56cbfacb"
+reviewed = "2026-10-29"
 places = [
   "docs/learn/faraday/gpg.md",
   "docs/decisions/F32.md",
@@ -6990,6 +7141,8 @@ kind = "Neutral"
 decision = "F32"
 
 [action.review]
+fingerprint = "af90a6b05807b28987afb18f957700fc6d0709386c07965706b94c057152642b"
+reviewed = "2026-10-29"
 places = [
   "docs/learn/faraday/gpg.md",
   "docs/decisions/F32.md",
@@ -7012,7 +7165,7 @@ code = ["faraday/faraday-pgp/src/lib.rs::Key::paperkey"]
 
 [action.implementation]
 crate = "faraday/faraday-pgp"
-libraries = ["sha1"]
+libraries = ["ed25519-dalek", "sha1", "sha2"]
 adds = "The secret MPIs of the primary and the subkey, each behind its 20-byte fingerprint, in lines with a CRC-24, computed only to be shown and wiped after; the unprotected transferable secret key the tests give to paperkey and Faraday does not put in the Outbox."
 
 [action.checked]
@@ -7045,6 +7198,8 @@ kind = "Conservative"
 decision = "F32"
 
 [action.review]
+fingerprint = "f614164b0b5dabbb45f78d5aa8968ada18122b041f3f6ce2119470f334dc30f5"
+reviewed = "2026-10-29"
 places = [
   "docs/learn/faraday/gpg.md",
   "docs/decisions/F32.md",
@@ -7063,7 +7218,7 @@ standards = [
   "RFC 8032",
 ]
 learn = "faraday:gpg"
-screens = []
+screens = ["BackupFlow"]
 functions = [
   "faraday/faraday-pgp/src/certificate.rs::restore",
   "faraday/faraday-pgp/src/certificate.rs::Certificate::read",
@@ -7113,7 +7268,7 @@ wiped = "The typed lines and the restored seeds are wiped when the restore is wi
 lines = [
   "Refuses a paperkey protected by a passphrase, one of another algorithm, one for another key or subkey, and one whose secret does not make the public key.",
   "A certification by another key is set aside and counted, not restored.",
-  "No screen offers the restore yet (docs/GPG-PAPERKEY.md batches P3 to P6).",
+  "The public key is read from Files; it is not scanned yet, nor are the paperkey's lines (docs/GPG-PAPERKEY.md batches P4 to P6).",
 ]
 
 [[action.own]]
@@ -7122,6 +7277,8 @@ kind = "Conservative"
 decision = "F155"
 
 [action.review]
+fingerprint = "e34251b5ea1eabab7fd4499eafc1fa5578c5be4a917f8dd85b96785d33ecffae"
+reviewed = "2026-10-29"
 places = [
   "docs/GPG-PAPERKEY.md#4. The flow",
   "docs/learn/faraday/gpg.md",
@@ -7188,6 +7345,8 @@ kind = "Conservative"
 decision = "F134"
 
 [action.review]
+fingerprint = "358e6b1e27fd9d01c8043eba4b89f54c9b3701253bb90c5e36a79e1ac52b33d6"
+reviewed = "2026-10-29"
 places = [
   "docs/learn/faraday/gpg.md",
   "docs/decisions/F32.md",
@@ -7225,7 +7384,7 @@ libraries = [
   "chacha20",
   "rand_core",
 ]
-adds = "The RSA key generator draws from an adapter written here, a ChaCha20 keystream of a 32-byte seed from the system's entropy, with a stream for the key, one for the GUID and serials and one that blinds the signing; the certificates are written by hand in DER; the `rsa` crate is a release candidate and pinned."
+adds = "The RSA key generator draws from an adapter written here, a ChaCha20 keystream of a fresh 32-byte draw (a system answer, with the person's own randomness hashed in when they added some), with a stream for the key, one for the GUID and serials and one that blinds the signing; the certificates are written by hand in DER; the `rsa` crate is a release candidate and pinned."
 written_here = "X.509/CMS structure, Authenticode signing, and the RSA RNG adapter (`faraday-sb`)"
 
 [action.checked]
@@ -7262,6 +7421,8 @@ kind = "Novel"
 decision = "F158"
 
 [action.review]
+fingerprint = "58730c5f4ad4a0cd413e360b3c44e01febfba58a993748ed824272aa53176e0c"
+reviewed = "2026-10-29"
 places = [
   "docs/decisions/F134.md",
   "faraday/faraday-sb/tests/vectors/make.sh",
@@ -7332,6 +7493,8 @@ kind = "Conservative"
 decision = "F134"
 
 [action.review]
+fingerprint = "3a9db9dc0f5b843a3e6b5b3261366b35a624d61227788251fc08886d84f0f6fe"
+reviewed = "2026-10-29"
 places = [
   "docs/decisions/F134.md",
   "faraday/faraday-sb/tests/vectors/make.sh",
@@ -7391,6 +7554,8 @@ kind = "Neutral"
 decision = "no decision"
 
 [action.review]
+fingerprint = "ca61d035b4553adcf980655d076c8173bdf58e968e95759b1502a187ace88ec9"
+reviewed = "2026-10-29"
 places = [
   "docs/decisions/F134.md",
   "faraday/faraday-sb/tests/vectors/make.sh",
@@ -7453,7 +7618,7 @@ selftest = [
   "scrypt_vector",
   "argon2id_vector",
 ]
-not_crosschecked = "It checks the app's own functions against fixed published answers; the functions it calls are cross-checked in the bip39, bip32, sign and vault areas."
+not_crosschecked = "It checks the app's own functions against fixed published answers; the functions it calls are cross-checked in the bip39, bip32, addr, sign, lightning and vault areas."
 fuzz_none = "It takes no input."
 
 [action.secrets]
@@ -7473,6 +7638,8 @@ kind = "Conservative"
 decision = "no decision"
 
 [action.review]
+fingerprint = "8502cd4797616ea74f2124479731c3333c44d263ad77e3b348a55adacbbebc28"
+reviewed = "2026-10-29"
 places = ["docs/AUDIT.md"]
 
 [[action]]
@@ -7524,7 +7691,7 @@ wiped = "Nothing secret is held."
 
 [action.limits]
 lines = [
-  "An xz stream that asks for more than 65 MiB of memory for one block is refused before it is allocated.",
+  "An xz stream that asks for more than 128 MiB of memory for one block is refused before it is allocated.",
   "A payload whose xz sum does not match writes nothing.",
   "SHA-256 shows that the bytes are the release's, not who made them.",
 ]
@@ -7535,6 +7702,8 @@ kind = "Conservative"
 decision = "no decision"
 
 [action.review]
+fingerprint = "709bada8dc61606fa59ce1147d55a3b2143a5bc5c4392306ef3d3810da5713dd"
+reviewed = "2026-10-29"
 places = [
   "docs/STARTER.md",
   "docs/learn/faraday/checking-written.md",
@@ -7602,6 +7771,8 @@ kind = "Conservative"
 decision = "F133"
 
 [action.review]
+fingerprint = "cb37b81d76b67ce4f50273dbf5c809e6d1e025df269561308d1d630b30470f78"
+reviewed = "2026-10-29"
 places = [
   "docs/decisions/F133.md",
   "docs/learn/faraday/checking-written.md",
@@ -7661,6 +7832,8 @@ kind = "Conservative"
 decision = "F49"
 
 [action.review]
+fingerprint = "9eeb3acfbaad3c920a99dd72f1457bedd96e34b8ddb98a614236f054cd2434ca"
+reviewed = "2026-10-29"
 places = [
   "docs/STARTER.md",
   "docs/learn/faraday/checking-written.md",

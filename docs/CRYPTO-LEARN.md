@@ -1,8 +1,8 @@
 # How Faraday does it: one manifest for every cryptographic action
 
 **Kind:** Spec
-**Status:** Specified (F148), not built
-**Open:** the manifest and its entries, the inventory lint, fingerprints and the re-stamp recipe, the step-by-step order of a flow's blocks (§8.1, §8.5), the guide's pictures and text of §8.7, the ⋮ row's leading icon (§8.3), the cross-check stamp read from the manifest, the website's rendering, §18's constructions on the website (§18.7) and their `vault-slot` and `vault-plain` tables (§18.2; the manifest, check.py, gen.py and Learn's drawing of them are built, F159)
+**Status:** Specified (F148); the manifest, its inventory lint, fingerprints, the re-stamp recipe and the generator built and held by `just lint`
+**Open:** the step-by-step order of a flow's blocks (§8.1, §8.5), the guide's pictures and text of §8.7, the ⋮ row's leading icon (§8.3), the cross-check stamp read from the manifest, the website's rendering, §18's constructions on the website (§18.7) and their `vault-slot` and `vault-plain` tables (§18.2; the manifest, check.py, gen.py and Learn's drawing of them are built, F159)
 
 Every screen that does something cryptographic opens a block that says
 how Faraday does it: the standard, the code, what checks it, how the
@@ -370,6 +370,27 @@ in some 4,900 functions of `faraday-core` by name alone, and now 37):
   call. A path or call expression `name(...)` is a call even when a local
   of that name exists (`let write = write(…)`); only the bare `name` used
   as a value is the local.
+
+In faraday-core a closure follows the cryptographic work and stops at the
+app's glue (owner, 2026-10-29): followed through the crate's calls, a callee
+enters it only if
+
+- some call path from it within faraday-core reaches a cryptographic
+  function (rules 1 to 4), an action's root, a call site of another crate's
+  cryptographic function (§9.2), or a cross-crate call to an action's root;
+  and
+- it is not a method of `Faraday`, the top-level state whose methods are
+  the glue between areas (`docs/STRUCTURE-PASS.md` §7.3): a toast, the
+  Outbox, a screen's state. A `Faraday` method is in a closure only as a
+  root.
+
+So an action rooted in faraday-core is fingerprinted over its cryptographic
+work and the helpers on the way to it, not over the screens its glue
+reaches. What a `Faraday` method calls belongs to the actions rooted there
+or below; a use reached only through one is not recorded. The coverage
+check below still holds every cryptographic function to an action.
+`docs/crypto/check.py` (`GLUE_CRATES`, `leads_to_crypto`) holds the rule
+and its self-test checks it.
 
 That still over-approximates: a helper may fall into a closure it is not
 in, which only makes the fingerprint change more often. It must not miss
