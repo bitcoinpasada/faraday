@@ -174,6 +174,7 @@ fn backing_up() -> Faraday {
     keep_time(&mut app);
     create_single_key(&mut app);
     app.press(Action::KeyGen(Some(0)));
+    app.press(Action::KStart(faraday_core::keygen::Start::Make.index()));
     app.press(Action::KWords(12));
     app.press(Action::KWay(faraday_core::keygen::Way::Coins.index()));
     app.press(Action::KNext);

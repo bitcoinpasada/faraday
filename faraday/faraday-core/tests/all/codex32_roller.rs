@@ -75,7 +75,6 @@ fn play(app: &mut Faraday, reach: Reach) {
 fn on_dice_entry(app: &mut Faraday) {
     app.press(Action::Nav(Screen::WalletsStart));
     app.press(Action::KeyGen(None));
-    app.press(Action::KStep(kstep::START));
     app.press(Action::KStart(Start::MakeCodex32.index()));
     let split = SPLITS.iter().position(|s| *s == Split::TwoOfThree).unwrap();
     c32(app, C32::Split(split as u8));
@@ -267,6 +266,7 @@ fn on_bip39_dice(offered: bool) -> Faraday {
     let mut app = app(offered, true);
     app.press(Action::Entry(None));
     app.press(Action::KeyGen(None));
+    app.press(Action::KStart(faraday_core::keygen::Start::Make.index()));
     app.press(Action::KWords(12));
     app.press(Action::KNext);
     app.press(Action::KWay(faraday_core::keygen::Way::DiceHashed.index()));

@@ -1291,6 +1291,13 @@ pub fn test_efi() -> Vec<u8> {
     pe
 }
 
+/// Opens New key, for a Create slot or on its own, and presses Make a new
+/// key on Start (which opens with nothing ticked), so Length is open.
+pub fn new_key_on_length(app: &mut crate::Faraday, slot: Option<u8>) {
+    app.press(crate::Action::KeyGen(slot));
+    app.press(crate::Action::KStart(crate::keygen::Start::Make.index()));
+}
+
 /// The app as a shell starts it: made, then told its display, which is
 /// when the start-up self-test runs and before which no key is accepted.
 /// 1280 × 800 at 160 dpi, the size the app assumes before a display

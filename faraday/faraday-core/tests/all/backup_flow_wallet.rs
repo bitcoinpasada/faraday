@@ -286,7 +286,7 @@ pub(crate) fn single_key_ready(shell: &mut Shell) -> (Faraday, usize, [u8; 4]) {
 /// A key made by New key for slot 0 of the Create open: coin flips, its
 /// words locked in. The wallet is made with it.
 fn new_key(app: &mut Faraday) -> [u8; 4] {
-    app.press(Action::KeyGen(Some(0)));
+    faraday_core::testkit::new_key_on_length(app, Some(0));
     app.press(Action::KWords(12));
     app.press(Action::KWay(faraday_core::keygen::Way::Coins.index()));
     app.press(Action::KNext);
@@ -876,7 +876,7 @@ fn the_account_keys_and_their_records_are_written_to_the_stick_of_public_files()
 /// Key `slot` of the Create open, made by New key (coin flips that differ
 /// from slot to slot).
 fn new_key_at(app: &mut Faraday, slot: u8) -> [u8; 4] {
-    app.press(Action::KeyGen(Some(slot)));
+    faraday_core::testkit::new_key_on_length(app, Some(slot));
     app.press(Action::KWords(12));
     app.press(Action::KWay(faraday_core::keygen::Way::Coins.index()));
     app.press(Action::KNext);
@@ -1576,7 +1576,7 @@ fn a_seed_kept_only_as_a_file_is_held_until_its_stick_is_written() {
 /// A key made by New key for slot 0 of the Create open, whose wallet is
 /// made with it (no flow).
 fn new_key_here(app: &mut Faraday) -> [u8; 4] {
-    app.press(Action::KeyGen(Some(0)));
+    faraday_core::testkit::new_key_on_length(app, Some(0));
     app.press(Action::KWords(12));
     app.press(Action::KWay(faraday_core::keygen::Way::Coins.index()));
     app.press(Action::KNext);

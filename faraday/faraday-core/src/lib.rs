@@ -2843,7 +2843,6 @@ impl Faraday {
             | Action::KQuizRetry
             | Action::KSkip
             | Action::KAgain
-            | Action::KForm(_)
             | Action::KSlipWords(_)
             | Action::KSlipM(_)
             | Action::KSlipN(_)

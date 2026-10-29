@@ -378,7 +378,6 @@ impl KeyGenArea {
                     open(k, s);
                 }
             }
-            A::KForm(on) => k.set_slip39(on),
             A::KSlipWords(n) => {
                 if k.slip39 && k.counts().contains(&n) && usize::from(n) != k.words {
                     k.words = usize::from(n);

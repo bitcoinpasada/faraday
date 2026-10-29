@@ -356,7 +356,7 @@ fn at_larger_on_the_smallest_panel_each_word_key_is_on_screen_and_types_its_lett
 /// draws text cut off at a side or over other text.
 fn codex32_dice_at_larger((width, height, dpi): (u16, u16, u16)) -> Vec<String> {
     use faraday_core::codex32::{C32, Card, DIE_SIZES, SPLITS, Split, WAYS, Way};
-    use faraday_core::keygen::{Start, kstep};
+    use faraday_core::keygen::Start;
     use faraday_shell_api::EntropyBytes;
     let mut app = shown_on(width, height, dpi);
     for i in 0..8u8 {
@@ -366,7 +366,6 @@ fn codex32_dice_at_larger((width, height, dpi): (u16, u16, u16)) -> Vec<String> 
     let c32 = |app: &mut Faraday, p: C32| app.press(Action::Codex32(p));
     app.press(Action::Nav(Screen::WalletsStart));
     app.press(Action::KeyGen(None));
-    app.press(Action::KStep(kstep::START));
     app.press(Action::KStart(Start::MakeCodex32.index()));
     let split = SPLITS.iter().position(|s| *s == Split::TwoOfThree).unwrap();
     c32(&mut app, C32::Split(split as u8));

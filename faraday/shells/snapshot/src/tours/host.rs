@@ -141,11 +141,10 @@ pub(crate) fn host_tour(t: &mut Tour) -> Result<(), String> {
 /// strip, then the menu open; the Pi panel's size too.
 fn codex32(t: &mut Tour, win: (u16, u16)) -> Result<(), String> {
     use faraday_core::codex32::{C32, DIE_SIZES, OskPress, Step, WAYS, WalkAct, Way};
-    use faraday_core::keygen::{Start, kstep};
+    use faraday_core::keygen::Start;
     let c = |t: &mut Tour, p: C32| t.press(Action::Codex32(p));
     t.press(Action::Nav(Screen::WalletsStart));
     t.press(Action::KeyGen(None));
-    t.press(Action::KStep(kstep::START));
     t.press(Action::KStart(Start::MakeCodex32.index()));
     c(t, C32::Next);
     for ch in "name".chars() {
@@ -200,6 +199,7 @@ fn rollers(t: &mut Tour, win: (u16, u16)) -> Result<(), String> {
     t.press(Action::Entry(None));
     shot(t, win, "host-add-key", None, None)?;
     t.press(Action::KeyGen(None));
+    t.press(Action::KStart(faraday_core::keygen::Start::Make.index()));
     t.press(Action::KWords(12));
     t.press(Action::KWay(Way::DiceHashed.index()));
     t.press(Action::KNext);

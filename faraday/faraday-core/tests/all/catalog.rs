@@ -139,14 +139,13 @@ fn the_add_a_key_tile_opens_new_key_on_start() {
     assert_eq!(app.screen, Screen::KeyGen);
     assert_eq!(
         app.keygen().unwrap().open,
-        Some(faraday_core::keygen::kstep::LENGTH),
-        "Start is closed on its default"
+        Some(faraday_core::keygen::kstep::START),
+        "Start opens with nothing ticked"
     );
     // The page is titled as the tile is, and Start's Type the words is
     // the way to the words: one tile for both (owner, 2026-10-24).
     let _ = app.frame();
     assert!(app.drawn_texts().iter().any(|t| t == "Add a key"));
-    app.press(Action::KStep(faraday_core::keygen::kstep::START));
     app.press(Action::KStart(faraday_core::keygen::Start::Words.index()));
     assert_eq!(
         app.keygen().unwrap().start,

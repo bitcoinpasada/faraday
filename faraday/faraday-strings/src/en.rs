@@ -3165,10 +3165,6 @@ strings! {
     /// Text in `SLIP39_FACTS`.
     keygen_slip39_share_length: "A share is 20 words for a 128-bit seed, the strength of 12 BIP-39 words, or 33 words for 256 bits.",
     /// Text in `length`.
-    keygen_bip_39_words: "BIP-39 words",
-    /// Text in `length`.
-    keygen_slip_39_shares: "SLIP-39 shares",
-    /// Text in `length`.
     keygen_shares_needed: "Shares needed",
     /// Text in `length`.
     keygen_shares_dealt: "Shares dealt",

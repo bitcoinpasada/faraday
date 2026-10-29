@@ -10,7 +10,7 @@
 //! on. The step-through's Next brings the die it rolls into view.
 
 use faraday_core::codex32::{C32, Card, DIE_SIZES, SPLITS, Split, Step, WAYS, WalkAct, Way};
-use faraday_core::keygen::{Start, kstep};
+use faraday_core::keygen::Start;
 use faraday_core::{Action, Faraday, Screen};
 use faraday_shell_api::{
     App, BootState, DisplayInfo, EntropyBytes, Event, SecureHardware, TouchPhase,
@@ -62,7 +62,6 @@ fn on_entropy(width: u16, height: u16, dpi: u16, roller: bool) -> Faraday {
     app.press(Action::ReduceMotion(true));
     app.press(Action::Nav(Screen::WalletsStart));
     app.press(Action::KeyGen(None));
-    app.press(Action::KStep(kstep::START));
     app.press(Action::KStart(Start::MakeCodex32.index()));
     let split = SPLITS.iter().position(|s| *s == Split::TwoOfThree).unwrap();
     c32(&mut app, C32::Split(split as u8));

@@ -106,7 +106,6 @@ fn make_codex32_shares_and_the_codex32_form_open_learn_on_the_codex32_page() {
     app.press(Action::KeyGen(None));
     let _ = app.frame();
     assert_ne!(first_page(&app), Some(CODEX32_PAGE), "BIP-39 words first");
-    app.press(Action::KStep(faraday_core::keygen::kstep::START));
     let _ = app.frame();
     app.press(Action::KStart(Start::MakeCodex32.index()));
     assert_eq!(first_page(&app), Some(CODEX32_PAGE));

@@ -534,7 +534,6 @@ fn new_key(rig: &mut Rig) -> Vec<String> {
     for (i, s) in STARTS.iter().enumerate() {
         rig.press(Action::Nav(Screen::Home));
         rig.press(Action::KeyGen(None));
-        rig.press(Action::KStep(kstep::START));
         rig.press(Action::KStart(i as u8));
         rig.settle();
         found.extend(walk(rig, &format!("New key, {s:?}")));
@@ -573,6 +572,7 @@ fn new_key(rig: &mut Rig) -> Vec<String> {
     // BIP-39 from coin flips, through the words and the quiz.
     rig.press(Action::Nav(Screen::Home));
     rig.press(Action::KeyGen(None));
+    rig.press(Action::KStart(faraday_core::keygen::Start::Make.index()));
     rig.press(Action::KWords(12));
     rig.press(Action::KWay(Way::Coins.index()));
     kpress(rig, Action::KNext, "New key, BIP-39 flips", &mut found);
@@ -693,7 +693,6 @@ fn codex32_shares(rig: &mut Rig, from_create: bool) -> Vec<String> {
         to_codex32_from_create(rig);
     } else {
         rig.press(Action::KeyGen(None));
-        rig.press(Action::KStep(kstep::START));
         rig.press(Action::KStart(Start::MakeCodex32.index()));
         rig.settle();
         on_card(rig, Card::Scheme);
@@ -1210,6 +1209,7 @@ fn new_key_from_create(rig: &mut Rig) {
     rig.press(Action::CreateWallet);
     rig.press(Action::CKind(0));
     rig.press(Action::KeyGen(Some(0)));
+    rig.press(Action::KStart(faraday_core::keygen::Start::Make.index()));
     rig.press(Action::KWords(12));
     rig.press(Action::KNext);
     let mut x: u32 = 0x2545_f491;

@@ -102,9 +102,10 @@ fn guided_on_the_pi_panel_shows_the_open_sections_explainer() {
 fn settings_guided_and_a_flows_guided_are_one_setting() {
     use faraday_core::learn::Topic;
     let mut app = on(1280, 800);
-    // New key opens on Length, whose Guided text links its Learn page.
+    // New key's Length, whose Guided text links its Learn page.
     let flow_guided = |app: &mut Faraday| {
         app.press(Action::KeyGen(None));
+        app.press(Action::KStart(faraday_core::keygen::Start::Make.index()));
         let _ = app.frame();
         app.offers(Action::LearnTopic(Topic::Words))
     };

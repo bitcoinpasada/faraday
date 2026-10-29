@@ -785,6 +785,7 @@ pub(crate) fn scroll_to(t: &mut Tour, action: Action) {
 pub(crate) fn device_key(t: &mut Tour, slot: u8) {
     let device = faraday_core::keygen::Way::Device.index();
     t.press(Action::KeyGen(Some(slot)));
+    t.press(Action::KStart(faraday_core::keygen::Start::Make.index()));
     t.press(Action::KWords(24));
     t.press(Action::KWay(device));
     t.press(Action::KNext);

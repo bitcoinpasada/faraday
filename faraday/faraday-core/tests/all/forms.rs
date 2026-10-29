@@ -204,7 +204,6 @@ fn a_fresh_add_a_key_offers_type_the_words_and_no_share_form_until_other_forms()
     use faraday_core::keygen::Start;
     let mut app = faraday_core::testkit::started();
     app.press(Action::KeyGen(None));
-    app.press(Action::KStep(faraday_core::keygen::kstep::START));
     let _ = app.frame();
     assert!(app.offers(Action::KStart(Start::Words.index())));
     assert!(

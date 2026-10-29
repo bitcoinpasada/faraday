@@ -65,7 +65,6 @@ fn make_codex32_shares_cards_are_steps_of_new_key() {
     let mut app = faraday_core::testkit::started();
     app.press(Action::Nav(Screen::WalletsStart));
     app.press(Action::KeyGen(None));
-    app.press(Action::KStep(kstep::START));
     app.press(Action::KStart(Start::MakeCodex32.index()));
     app.press(Action::Codex32(C32::Next));
     let card = |app: &Faraday| app.keygen().unwrap().codex32.as_ref().unwrap().open();
@@ -156,7 +155,6 @@ fn the_arrow_names_a_typed_form_by_the_form() {
     let mut app = faraday_core::testkit::started();
     app.press(Action::Nav(Screen::WalletsStart));
     app.press(Action::KeyGen(None));
-    app.press(Action::KStep(kstep::START));
     app.press(Action::KStart(Start::Codex32.index()));
     assert_eq!(open(&app), Some(kstep::TYPED));
     for share in [

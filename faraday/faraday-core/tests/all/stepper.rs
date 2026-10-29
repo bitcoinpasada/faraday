@@ -6,7 +6,7 @@
 
 use faraday_core::codex32::{C32, SPLITS, Split};
 use faraday_core::create::NewKind;
-use faraday_core::keygen::{Start, kstep};
+use faraday_core::keygen::Start;
 use faraday_core::strings::EN;
 use faraday_core::{Action, Faraday, Screen};
 use faraday_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware, TouchPhase};
@@ -41,7 +41,6 @@ fn other_with(width: u16, height: u16, reduce: bool) -> Faraday {
     let _ = app.frame();
     app.press(Action::KeyGen(None));
     let _ = app.frame();
-    app.press(Action::KStep(kstep::START));
     let _ = app.frame();
     app.press(Action::KStart(Start::MakeCodex32.index()));
     let other = SPLITS.iter().position(|s| *s == Split::Other).unwrap();

@@ -43,12 +43,11 @@ pub(crate) fn camera(t: &mut Tour) {
 fn codex32_dice(t: &mut Tour) -> Result<(), String> {
     use crate::tours::codex32::{SHARES, roll};
     use faraday_core::codex32::{C32, OskPress, SPLITS, Split, WAYS, Way};
-    use faraday_core::keygen::{Start, kstep};
+    use faraday_core::keygen::Start;
     crate::tours::screens::stick_session(t);
     let c = |t: &mut Tour, p: C32| t.press(Action::Codex32(p));
     t.press(Action::Nav(Screen::WalletsStart));
     t.press(Action::KeyGen(None));
-    t.press(Action::KStep(kstep::START));
     t.press(Action::KStart(Start::MakeCodex32.index()));
     let two = SPLITS
         .iter()

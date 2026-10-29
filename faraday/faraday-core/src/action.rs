@@ -698,8 +698,6 @@ pub enum Action {
     KSkip,
     /// Throw the entries away and start again.
     KAgain,
-    /// New key as SLIP-39 shares (true) or BIP-39 words (false).
-    KForm(bool),
     /// A SLIP-39 share's word count, chosen without leaving the card.
     KSlipWords(u8),
     /// Shares needed, one more or one fewer.

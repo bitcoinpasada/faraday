@@ -49,13 +49,12 @@ pub(crate) fn roller_tour(t: &mut Tour) -> Result<(), String> {
 /// worksheet's view moves to follow the work.
 fn codex32_demo_only(t: &mut Tour) -> Result<(), String> {
     use faraday_core::codex32::{C32, DIE_SIZES, OskPress, Step, WAYS, WalkAct, Way};
-    use faraday_core::keygen::{Start, kstep};
+    use faraday_core::keygen::Start;
     let c = |t: &mut Tour, p: C32| t.press(Action::Codex32(p));
     // The steps are shown as they are, with motion.
     t.press(Action::ReduceMotion(false));
     t.press(Action::Nav(faraday_core::Screen::WalletsStart));
     t.press(Action::KeyGen(None));
-    t.press(Action::KStep(kstep::START));
     t.press(Action::KStart(Start::MakeCodex32.index()));
     c(t, C32::Next);
     for ch in "name".chars() {

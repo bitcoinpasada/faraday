@@ -49,6 +49,7 @@ pub(crate) fn cancel_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::CKind(0));
     t.press(Action::CVaults(false));
     t.press(Action::KeyGen(Some(0)));
+    t.press(Action::KStart(faraday_core::keygen::Start::Make.index()));
     t.press(Action::KWords(12));
     t.press(Action::KWay(faraday_core::keygen::Way::DiceHashed.index()));
     t.press(Action::KNext);

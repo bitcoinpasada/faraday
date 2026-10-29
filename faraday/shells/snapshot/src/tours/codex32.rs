@@ -11,7 +11,7 @@
 
 use crate::tour::Tour;
 use faraday_core::codex32::{C32, Cell, DIE_SIZES, OskPress, SPLITS, Split, WAYS, Way};
-use faraday_core::keygen::{Start, kstep};
+use faraday_core::keygen::Start;
 use faraday_core::{Action, Screen};
 use faraday_shell_api::App;
 
@@ -88,7 +88,6 @@ fn twenty_faced(t: &mut Tour) -> Result<(), String> {
 pub(crate) fn worksheet(t: &mut Tour) {
     t.press(Action::Nav(Screen::WalletsStart));
     t.press(Action::KeyGen(None));
-    t.press(Action::KStep(kstep::START));
     t.press(Action::KStart(Start::MakeCodex32.index()));
     let two = SPLITS
         .iter()
@@ -126,7 +125,6 @@ fn working(t: &mut Tour, ch: u8) -> Result<(), String> {
 pub(crate) fn codex32_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::Nav(Screen::WalletsStart));
     t.press(Action::KeyGen(None));
-    t.press(Action::KStep(kstep::START));
     t.shot("codex32-start")?;
     t.press(Action::KStart(Start::MakeCodex32.index()));
     let other = SPLITS.iter().position(|s| *s == Split::Other).unwrap_or(2);
@@ -353,7 +351,6 @@ pub(crate) fn codex32_shares_tour(t: &mut Tour) -> Result<(), String> {
     use faraday_core::codex32::TourStep;
     t.press(Action::Nav(Screen::WalletsStart));
     t.press(Action::KeyGen(None));
-    t.press(Action::KStep(kstep::START));
     t.press(Action::KStart(Start::MakeCodex32.index()));
     let three = SPLITS
         .iter()

@@ -93,6 +93,7 @@ fn locked_after_backup() -> (Boxes, Boxes) {
     app.press(Action::CKind(at));
     app.press(Action::CNext(cstep::KIND));
     app.press(Action::KeyGen(Some(0)));
+    app.press(Action::KStart(faraday_core::keygen::Start::Make.index()));
     app.press(Action::KWords(12));
     app.press(Action::KWay(Way::Coins.index()));
     app.press(Action::KNext);

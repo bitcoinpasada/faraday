@@ -13,6 +13,7 @@ fn new_key() -> Faraday {
     app.press(Action::Entry(None));
     app.press(Action::KeyGen(None));
     assert_eq!(app.screen, Screen::KeyGen);
+    app.press(Action::KStart(faraday_core::keygen::Start::Make.index()));
     let _ = app.frame();
     app
 }

@@ -131,12 +131,16 @@ fn a_wallet_is_made_by_touch_from_a_key_rolled_on_dice() {
     tap(&mut app, Action::CKind(0));
     tap(&mut app, Action::CVaults(false));
     assert_eq!(app.screen, Screen::KeyGen);
-    // New key opens with Start closed on Make a new key and Length open;
-    // pressing a count takes it and opens Randomness (F103).
+    // New key opens on Start with nothing ticked; a choice opens Length,
+    // and pressing a count takes it and opens Randomness (F103).
     assert_eq!(
         app.keygen().and_then(|k| k.open),
-        Some(faraday_core::keygen::kstep::LENGTH),
-        "Start is closed on its default"
+        Some(faraday_core::keygen::kstep::START),
+        "Start opens with nothing ticked"
+    );
+    tap(
+        &mut app,
+        Action::KStart(faraday_core::keygen::Start::Make.index()),
     );
     tap(&mut app, Action::KWords(12));
     assert_eq!(

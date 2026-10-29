@@ -263,7 +263,7 @@ fn start(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             *cy,
             w,
             Row {
-                on: k.start == s,
+                on: k.started == Some(s),
                 name: start_name(s),
                 line: "",
                 action: Action::KStart(s.index()),
@@ -803,22 +803,6 @@ const SLIP39_FACTS: [&str; 7] = [
 
 fn length(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = y;
-    // Words or shares, the second under the first where the column is
-    // too narrow for both (the Pi's panel).
-    let kinds = [
-        (
-            EN.keygen_bip_39_words,
-            picked(!k.slip39),
-            Action::KForm(false),
-        ),
-        (
-            EN.keygen_slip_39_shares,
-            picked(k.slip39),
-            Action::KForm(true),
-        ),
-    ];
-    let touch = faraday_draw::tokens::TOUCH;
-    cy += crate::screens::wrap_buttons(ui, x, cy, w, touch, &kinds);
     let used = length_counts(k, ui, x, cy, w);
     cy += used;
     if k.slip39 {

@@ -6,7 +6,7 @@
 
 use faraday_core::codex32::WalkAct;
 use faraday_core::codex32::{C32, Card, DIE_SIZES, DieColour, SPLITS, Split, WAYS, Way};
-use faraday_core::keygen::{Start, kstep};
+use faraday_core::keygen::Start;
 use faraday_core::testkit::five::Reach;
 use faraday_core::{Action, Faraday, Screen};
 use faraday_shell_api::{App, BootState, DisplayInfo, EntropyBytes, Event, SecureHardware};
@@ -69,7 +69,6 @@ fn die(faces: u8) -> C32 {
 fn to_entry(app: &mut Faraday, faces: u8) {
     app.press(Action::Nav(Screen::WalletsStart));
     app.press(Action::KeyGen(None));
-    app.press(Action::KStep(kstep::START));
     app.press(Action::KStart(Start::MakeCodex32.index()));
     let split = SPLITS.iter().position(|s| *s == Split::TwoOfThree).unwrap();
     c32(app, C32::Split(split as u8));
@@ -293,7 +292,6 @@ fn each_die_takes_a_named_colour_and_the_dice_are_kept_for_the_session() {
     let mut app = on(1366, 768);
     app.press(Action::Nav(Screen::WalletsStart));
     app.press(Action::KeyGen(None));
-    app.press(Action::KStep(kstep::START));
     app.press(Action::KStart(Start::MakeCodex32.index()));
     c32(&mut app, C32::Next);
     for ch in "name".chars() {
@@ -320,7 +318,6 @@ fn each_die_takes_a_named_colour_and_the_dice_are_kept_for_the_session() {
     // A new Make codex32 shares this session starts on them.
     app.press(Action::Nav(Screen::WalletsStart));
     app.press(Action::KeyGen(None));
-    app.press(Action::KStep(kstep::START));
     app.press(Action::KStart(Start::MakeCodex32.index()));
     assert_eq!(make(&app).dice_choice(), chosen);
     assert_eq!(make(&app).dice_choice().faces, 12);

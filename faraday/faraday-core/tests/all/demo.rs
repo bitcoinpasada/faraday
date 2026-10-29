@@ -600,6 +600,7 @@ fn feed(app: &mut Faraday, i: usize) {
 fn new_key(app: &mut Faraday, way: Way, words: u8) -> String {
     app.press(Action::Entry(None));
     app.press(Action::KeyGen(None));
+    app.press(Action::KStart(faraday_core::keygen::Start::Make.index()));
     app.press(Action::KWords(words));
     app.press(Action::KNext);
     app.press(Action::KWay(way.index()));

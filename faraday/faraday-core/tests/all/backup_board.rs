@@ -385,7 +385,7 @@ fn a_seed_kept_nowhere_holds_the_plan() {
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
     keep_time(&mut app);
     create_single_key(&mut app);
-    app.press(Action::KeyGen(Some(0)));
+    faraday_core::testkit::new_key_on_length(&mut app, Some(0));
     app.press(Action::KWords(12));
     app.press(Action::KWay(faraday_core::keygen::Way::Coins.index()));
     app.press(Action::KNext);
@@ -1089,7 +1089,7 @@ fn passphrase_key_on_the_board() -> Faraday {
     use faraday_core::keygen::Way;
     let mut app = testkit::started();
     create_single_key(&mut app);
-    app.press(Action::KeyGen(Some(0)));
+    faraday_core::testkit::new_key_on_length(&mut app, Some(0));
     app.press(Action::KWords(12));
     app.press(Action::KWay(Way::Coins.index()));
     app.press(Action::KNext);

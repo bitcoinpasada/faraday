@@ -3,7 +3,7 @@
 //! entering their dice would notice it; outside Practice nothing rolls.
 
 use faraday_core::codex32::{C32, Card, SPLITS, Split, WAYS, WalkAct, Way};
-use faraday_core::keygen::{Start, kstep};
+use faraday_core::keygen::Start;
 use faraday_core::{Action, Faraday, Screen};
 use faraday_shell_api::{App, BootState, DisplayInfo, EntropyBytes, Event, SecureHardware};
 use faraday_ui::keyboard::OskPress;
@@ -41,7 +41,6 @@ fn key(app: &mut Faraday, ch: char) {
 fn to_entry(app: &mut Faraday) {
     app.press(Action::Nav(Screen::WalletsStart));
     app.press(Action::KeyGen(None));
-    app.press(Action::KStep(kstep::START));
     app.press(Action::KStart(Start::MakeCodex32.index()));
     let split = SPLITS.iter().position(|s| *s == Split::TwoOfThree).unwrap();
     c32(app, C32::Split(split as u8));

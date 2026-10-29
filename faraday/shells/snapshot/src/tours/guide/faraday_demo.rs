@@ -3,7 +3,7 @@
 use super::{c32, c32_type};
 use crate::tour::{Tour, display};
 use faraday_core::codex32::{C32, SPLITS, Split, WAYS, Way as C32Way};
-use faraday_core::keygen::{Start, kstep};
+use faraday_core::keygen::Start;
 use faraday_core::{Action, Faraday, Host, HostPress, Screen};
 use faraday_shell_api::{App, Event};
 
@@ -41,7 +41,6 @@ pub(super) fn desktop_home(t: &mut Tour) -> Result<(), String> {
     host_shot_marking(t, "starter-tour-aids", Action::UseSample)?;
     t.press(Action::Nav(Screen::WalletsStart));
     t.press(Action::KeyGen(None));
-    t.press(Action::KStep(kstep::START));
     t.press(Action::KStart(Start::MakeCodex32.index()));
     let two = SPLITS
         .iter()

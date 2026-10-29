@@ -10,7 +10,7 @@ use faraday_core::create::NewKind;
 use faraday_core::cstep;
 use faraday_core::fresh::OwnSource;
 use faraday_core::fresh::page::Act;
-use faraday_core::keygen::Way;
+use faraday_core::keygen::{Start, Way};
 use faraday_core::wordlist::WordListAction as WL;
 use faraday_core::{Action, Screen};
 use faraday_shell_api::{App, EntropyBytes, Event, Key};
@@ -30,6 +30,9 @@ pub(crate) fn keygen_tour(t: &mut Tour) -> Result<(), String> {
     if t.app.screen != Screen::KeyGen {
         return Err("Make a new wallet opened no New key".into());
     }
+    // Start opens with nothing ticked; a choice opens Length.
+    t.shot("keygen-start")?;
+    t.press(Action::KStart(Start::Make.index()));
     t.shot("keygen-length")?;
     t.press(Action::KOtherLengths);
     t.shot("keygen-length-other")?;

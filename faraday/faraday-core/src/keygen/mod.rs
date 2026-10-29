@@ -1132,12 +1132,10 @@ impl crate::Faraday {
         // Add a key's own state waits in the flow, which types into the
         // app's; it comes back when the flow ends.
         k.entry_kept = self.entry.take();
-        // Start opens closed on its default, Make a new key: Length is
-        // open, and Change on Start reopens it (F103, `docs/FLOWS.md`,
-        // New key).
-        k.done[usize::from(kstep::START)] = true;
-        k.started = Some(Start::Make);
-        k.open = Some(kstep::LENGTH);
+        // Start opens with no choice ticked: the person picks one, and
+        // the cards after it open from there (F103, `docs/FLOWS.md`, New
+        // key).
+        k.open = Some(kstep::START);
         // Single key, backup in shares: its slot opens Make codex32
         // shares on the identifier, the Quorum's scheme fixed
         // (`docs/CODEX32.md` §6.9).
@@ -1459,6 +1457,10 @@ impl crate::Faraday {
             return;
         }
         if action == A::KNext && k.open == Some(kstep::START) {
+            // Nothing is ticked until a choice is made: no Next before.
+            if k.started.is_none() {
+                return;
+            }
             self.keygen_start_next();
             return;
         }

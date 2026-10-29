@@ -70,9 +70,8 @@ fn opened(app: &mut Faraday) {
     let _ = app.frame();
     app.press(Action::KeyGen(None));
     let _ = app.frame();
-    // Start opens closed on Make a new key; Change opens it.
-    assert_eq!(app.keygen().unwrap().open, Some(kstep::LENGTH));
-    app.press(Action::KStep(kstep::START));
+    // Start opens with nothing ticked.
+    assert_eq!(app.keygen().unwrap().open, Some(kstep::START));
     let _ = app.frame();
     assert!(
         app.offers(Action::KStart(Start::MakeCodex32.index())),
@@ -316,7 +315,6 @@ fn a_multisig_slot_offers_no_codex32_to_make() {
     app.press(Action::CNext(faraday_core::cstep::KIND));
     app.press(Action::CNext(faraday_core::cstep::QUORUM));
     app.press(Action::KeyGen(Some(0)));
-    app.press(Action::KStep(kstep::START));
     let _ = app.frame();
     assert!(app.offers(Action::KStart(Start::Make.index())));
     assert!(!app.offers(Action::KStart(Start::MakeCodex32.index())));

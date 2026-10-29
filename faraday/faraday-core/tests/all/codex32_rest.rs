@@ -198,7 +198,6 @@ fn shares_made_by_hand_go_on_into_make_the_rest() {
     let _ = app.frame();
     app.press(Action::KeyGen(None));
     let _ = app.frame();
-    app.press(Action::KStep(kstep::START));
     let _ = app.frame();
     app.press(Action::KStart(Start::MakeCodex32.index()));
     let other = SPLITS.iter().position(|s| *s == Split::Other).unwrap();
@@ -387,7 +386,6 @@ fn entry(app: &mut Faraday, way: Way) {
     let _ = app.frame();
     app.press(Action::KeyGen(None));
     let _ = app.frame();
-    app.press(Action::KStep(kstep::START));
     let _ = app.frame();
     app.press(Action::KStart(Start::MakeCodex32.index()));
     let split = SPLITS.iter().position(|s| *s == Split::TwoOfThree).unwrap();

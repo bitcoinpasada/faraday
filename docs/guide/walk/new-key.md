@@ -65,9 +65,7 @@ plugged in.
 ### 3.3 Start
 
 The page is [**Add a key**](../screens/new-key.md), one card per step. A finished card shows its
-choice and **Change**. It opens with **Start** closed on **Make a new
-key · BIP-39 words** and **Length** open, so for this guide go straight
-to step 3.4. **Change** on Start opens it:
+choice and **Change**. It opens on **Start**, open with no choice ticked:
 
 ![Add a key with the Start card open, BIP-39 words outlined](../pictures/3-3-start.png)
 
@@ -77,8 +75,9 @@ to step 3.4. **Change** on Start opens it:
 | **Add a key you have** | **Type the words**, **Scan a SeedQR**, **Type codex32 strings** |
 | **Other forms** (a link that opens the group) | SLIP-39 shares, made here or typed; Seed XOR parts, typed |
 
-A choice moves on to the next card by itself; **BIP-39 words**, pressed
-again, goes back to Length.
+A choice moves on to the next card by itself, and **Change** on Start
+opens it again with the choice ticked; **BIP-39 words**, pressed again,
+goes back to Length. For this guide press **BIP-39 words**.
 
 **Codex32** makes the key by hand as codex32 shares: a scheme, an
 identifier, your own dice or characters, the worksheets filled in as on
@@ -98,10 +97,9 @@ before **Key**.
 
 ### 3.4 Length
 
-![The Length card with BIP-39 words chosen, 12 words outlined](../pictures/3-4-length.png)
+![The Length card with 12 words outlined](../pictures/3-4-length.png)
 
-**BIP-39 words** is chosen (beside it, **SLIP-39 shares**); no length is
-chosen yet. Press **12
+No length is chosen yet. Press **12
 words**: the card closes and **Randomness** opens. (24 words takes more
 rolls; the steps are the same. [**Other**](../screens/new-key.md#other) opens a menu of 15, 18 and 21
 words.)

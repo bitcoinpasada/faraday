@@ -4,7 +4,7 @@ use super::{DICE_WORDS, NAME, fresh_session, kind_at};
 use crate::tour::{Tour, scroll_to, type_text};
 use faraday_core::board::{BoardPress as BP, Chip, Thing, Zone};
 use faraday_core::create::NewKind;
-use faraday_core::keygen::{Start, kstep};
+use faraday_core::keygen::Start;
 use faraday_core::{Action, Screen, StorageEvent, cstep};
 use faraday_crypto::work::Compute;
 use faraday_shell_api::{App, Event, Key};
@@ -16,7 +16,6 @@ use faraday_shell_api::{App, Event, Key};
 pub(super) fn corrected_key(_c: &Compute, t: &mut Tour) -> Result<(), String> {
     fresh_session(t);
     t.press(Action::KeyGen(None));
-    t.press(Action::KStep(kstep::START));
     t.press(Action::KStart(Start::Codex32.index()));
     corrected_entry(t);
     t.shot_marking("5-1-key-card", Action::KLock)?;
@@ -103,7 +102,6 @@ pub(super) fn multisig(t: &mut Tour) -> Result<(), String> {
     // the words typed, Lock in and Done.
     t.press(Action::Nav(Screen::WalletsStart));
     t.press(Action::KeyGen(None));
-    t.press(Action::KStep(kstep::START));
     t.press(Action::KStart(Start::Words.index()));
     t.shot("5-1-type-words")?;
     type_text(t, DICE_WORDS);

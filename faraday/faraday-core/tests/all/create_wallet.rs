@@ -306,6 +306,7 @@ fn the_keys_foot_shows_make_the_wallet_once_every_slot_is_filled() {
 fn key_made_on_its_own(app: &mut Faraday) -> [u8; 4] {
     use faraday_core::keygen::Way;
     app.press(Action::KeyGen(None));
+    app.press(Action::KStart(faraday_core::keygen::Start::Make.index()));
     app.press(Action::KWords(12));
     app.press(Action::KWay(Way::Device.index()));
     app.press(Action::KNext);

@@ -32,8 +32,8 @@ pub(crate) fn pass_quiz(t: &mut Tour) {
 /// card on the way.
 pub(crate) fn dice_key(t: &mut Tour, slot: u8) -> Result<(), String> {
     t.press(Action::KeyGen(Some(slot)));
-    // Start's Continue: the Length card open.
-    t.press(Action::KNext);
+    // Start's choice opens the Length card.
+    t.press(Action::KStart(faraday_core::keygen::Start::Make.index()));
     t.shot("keygen-length")?;
     t.press(Action::KWords(24));
     t.shot("keygen-source")?;
@@ -81,6 +81,7 @@ pub(crate) fn word_lists(t: &mut Tour) -> Result<(), String> {
     use faraday_core::keygen::{Way, kstep};
     use faraday_core::wordlist::WordListAction as WL;
     t.press(Action::KeyGen(None));
+    t.press(Action::KStart(faraday_core::keygen::Start::Make.index()));
     t.press(Action::KWords(12));
     t.press(Action::KWay(Way::Coins.index()));
     t.press(Action::KNext);
@@ -130,6 +131,7 @@ pub(crate) fn word_lists(t: &mut Tour) -> Result<(), String> {
 pub(crate) fn rolled_words(t: &mut Tour) -> Result<(), String> {
     use faraday_core::keygen::{Way, kstep};
     t.press(Action::KeyGen(None));
+    t.press(Action::KStart(faraday_core::keygen::Start::Make.index()));
     t.press(Action::KWords(12));
     t.press(Action::KWay(Way::DiceWords.index()));
     t.press(Action::KNext);
@@ -1394,6 +1396,7 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
     t.app.secure_boot = faraday_core::SecureBootAtStart::Unknown;
     // New key's hint for cards, with its en dash.
     t.press(Action::KeyGen(None));
+    t.press(Action::KStart(faraday_core::keygen::Start::Make.index()));
     t.press(Action::KWords(12));
     t.press(Action::KWay(faraday_core::keygen::Way::Cards.index()));
     t.press(Action::KNext);

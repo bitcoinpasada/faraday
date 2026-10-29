@@ -330,8 +330,8 @@ SeedQR** takes a Codex32QR code and opens the codex32 form with it in
 mark's line beside the fingerprint on Wallets and New key's Key card.
 
 **Add a key is New key, opening on Start** (decision 60, F44). New key's
-first card is **Start**: under **Make a new key**, **BIP-39 words**
-(ticked) and **Codex32**; under **Add a key you have**, **Type the
+first card is **Start**, open with no choice ticked (owner, 2026-10-29):
+under **Make a new key**, **BIP-39 words** and **Codex32**, the same; under **Add a key you have**, **Type the
 words**, **Scan a SeedQR** and **Type codex32 strings**; and under
 **Other forms** (closed) **Make SLIP-39 shares**, **Type SLIP-39
 shares**, **Type Seed XOR parts**; closed, it shows the choice ("Make a
@@ -347,10 +347,11 @@ words behind **Show words**, **Passphrase** and **Passphrase again**
 does (not marked made here) and fills a Create slot, and leaves the
 flow by itself, with no Words or Quiz. Add a key on Wallets and its
 Tools tile (one tile for making and for typing a key, owner,
-2026-10-24) open with Start closed on Make a new key, and so does New
-key from a Create slot (F103): Length is open, and
-**Change** on Start reopens it, where a press on a choice, the ticked
-one included, moves on by itself. The SLIP-39, codex32 and Seed XOR tiles open with their
+2026-10-24) open with Start open and nothing ticked, and so does New key
+from a Create slot (F103): a press on a choice takes it and opens the
+next card, and nothing moves on before one is pressed. **Change** on
+Start reopens it with its choice ticked, where a press on a choice, the
+ticked one included, moves on by itself. The SLIP-39, codex32 and Seed XOR tiles open with their
 choice made and Start closed. The page is titled **Add a key**, and
 **New key** for a Create slot and from the Add a key screen's Make a new
 key, which opens with Start closed on it. The Add a key screen (Home,
@@ -359,11 +360,13 @@ wallet's missing key, Restore's seed slots, and a seed scanned from Home
 or the Spend tab. New key keeps nothing when its screen is left, so it
 has no sidebar row (Flows in progress).
 
-**Make a new key** (decisions 34 and 38, F103). Length opens
-first, its default count chosen; pressing a count takes it and opens
+**Make a new key** (decisions 34 and 38, F103). Once Start has a
+choice, Length opens, no count chosen; pressing a count takes it and opens
 Randomness, and pressing a way opens the entry card, with no Continue
 (a mix keeps its Continue: its sources are ticked first; SLIP-39's
-Length keeps its Continue: its steppers are values). New key's BIP-39 cards are Length · Randomness ·
+Length keeps its Continue: its steppers are values). Length offers no
+choice of SLIP-39: shares are chosen on Start, under Other forms, **Make
+SLIP-39 shares**, which opens Length with the share counts. New key's BIP-39 cards are Length · Randomness ·
 *entry* · **Key** for a Create slot, and Length · Randomness · *entry* ·
 Key · Words · Quiz on its own (Tools, Seeds); SLIP-39 shares keep Length
 · Randomness · *entry* · Check · Words · Quiz. For BIP-39 there is no

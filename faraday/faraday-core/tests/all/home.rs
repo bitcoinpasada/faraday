@@ -111,8 +111,8 @@ fn add_a_key_from_wallets_opens_new_key_on_start() {
     assert_eq!(app.sheet, None);
     assert_eq!(
         app.keygen().unwrap().open,
-        Some(faraday_core::keygen::kstep::LENGTH),
-        "Start is closed on its default"
+        Some(faraday_core::keygen::kstep::START),
+        "Start opens with nothing ticked"
     );
 }
 
@@ -225,10 +225,6 @@ fn a_seedqr_scanned_from_home_loads_the_key_add_a_keys_scan_loads() {
     let mut from_add = shown();
     from_add.press(Action::Nav(Screen::WalletsStart));
     tap(&mut from_add, Action::KeyGen(None));
-    tap(
-        &mut from_add,
-        Action::KStep(faraday_core::keygen::kstep::START),
-    );
     // The card is opening: until it has, its lower rows are still under
     // the next card's header, which a press there reaches. Let it finish
     // before pressing a row on it.

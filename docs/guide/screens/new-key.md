@@ -16,9 +16,9 @@ The page makes a key here, or takes one typed or scanned, one card per
 step. Its title is **Add a key**, or **New key** when it was opened for
 a slot of Make a new wallet or from the typing page.
 
-![Add a key with Start closed on Make a new key, BIP-39 words, and Length open](../pictures/new-key-start.png)
+![Add a key with Start open and no choice ticked](../pictures/new-key-start.png)
 
-*Add a key as it opens: **Start** closed on "Make a new key · BIP-39 words", **Length** open with **BIP-39 words** chosen, and the cards after it closed: **Randomness** on "Dice · Words chosen by the dice", **Rolls** "0 of 70", **Key**, **Words** and **Quiz**.*
+*Add a key as it opens: **Start** open with nothing ticked, and the cards after it closed.*
 
 ## On this screen
 
@@ -41,8 +41,7 @@ The cards that show depend on Start:
 
 ## Start
 
-Closed at first on "Make a new key · BIP-39 words", with **Length** open
-and **Randomness** closed on "Dice · Words chosen by the dice".
+Open at first, with no choice ticked: a choice is pressed to go on.
 
 | Group | Choices |
 |---|---|
@@ -50,17 +49,16 @@ and **Randomness** closed on "Dice · Words chosen by the dice".
 | **Add a key you have** | **Type the words**, **Scan a SeedQR**, **Type codex32 strings** |
 | **Other forms** | a press opens the list: **Make SLIP-39 shares**, **Type SLIP-39 shares**, **Type Seed XOR parts** |
 
-A choice moves on to the next card by itself.
+A choice moves on to the next card by itself. **Change** on Start opens it again with the choice made ticked.
 
 ## Length
 
 | Control | What it does |
 |---|---|
-| **BIP-39 words**, **SLIP-39 shares** | the form of the key |
 | **12 words**, **24 words** | the count; a press moves on to **Randomness**. No count is chosen at first |
 | **Other** | opens [Other](#other) with 15, 18 and 21 words; once one is chosen there, the button reads it ("18 words") |
 
-For SLIP-39 shares the counts are a share's (20 or 33 words), and the
+For SLIP-39 shares (**Make SLIP-39 shares** on Start, under Other forms) the counts are a share's (20 or 33 words), and the
 card adds:
 
 | Control | What it does |

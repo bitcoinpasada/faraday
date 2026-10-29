@@ -37,6 +37,8 @@ pub(crate) fn compact_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::CKind(0));
     t.shot("create-keys")?;
     t.press(Action::KeyGen(Some(0)));
+    t.shot("keygen-start")?;
+    t.press(Action::KStart(faraday_core::keygen::Start::Make.index()));
     t.shot("keygen-length")?;
     t.press(Action::KWords(12));
     t.shot("keygen-source")?;

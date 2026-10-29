@@ -19,9 +19,7 @@ pub(super) fn run(t: &mut Tour) -> Result<(), String> {
         t.press(Action::DevicesUnderstood);
     }
     t.go_on = true;
-    // Start opens closed on Make a new key with Length open (F103):
-    // Change opens it, and Make a new key, pressed again, moves on.
-    t.press(Action::KStep(kstep::START));
+    // Start opens with nothing ticked; a choice moves on (F103).
     t.shot_marking("3-3-start", Action::KStart(Start::Make.index()))?;
     t.press(Action::KStart(Start::Make.index()));
     t.shot_marking("3-4-length", Action::KWords(12))?;

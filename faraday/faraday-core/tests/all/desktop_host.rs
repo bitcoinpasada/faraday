@@ -6,7 +6,7 @@
 
 use crate::common::*;
 use faraday_core::codex32::{C32, Card, SPLITS, Split, WAYS, WalkAct, Way};
-use faraday_core::keygen::{Start, kstep};
+use faraday_core::keygen::Start;
 use faraday_core::{Action, BOOT_FOLDER, Faraday, Host, HostMenu, HostPress, Screen, testkit};
 use faraday_shell_api::{
     App, BootState, Command, DisplayInfo, EntropyBytes, Event, SecureHardware, TouchPhase,
@@ -312,7 +312,6 @@ fn on_codex32_dice(host: &mut Host) {
     let c = |host: &mut Host, p: C32| host.app.press(Action::Codex32(p));
     host.app.press(Action::Nav(Screen::WalletsStart));
     host.app.press(Action::KeyGen(None));
-    host.app.press(Action::KStep(kstep::START));
     host.app.press(Action::KStart(Start::MakeCodex32.index()));
     let split = SPLITS.iter().position(|s| *s == Split::TwoOfThree).unwrap();
     c(host, C32::Split(split as u8));
@@ -395,6 +394,8 @@ fn the_dice_roller_stands_in_the_strip_on_new_keys_dice_and_rolls_from_there() {
     let mut shell = Shell::default();
     let mut host = desktop(&mut shell, 0, true, (1280, 800));
     host.app.press(Action::KeyGen(None));
+    host.app
+        .press(Action::KStart(faraday_core::keygen::Start::Make.index()));
     host.app.press(Action::KWords(12));
     host.app
         .press(Action::KWay(faraday_core::keygen::Way::DiceHashed.index()));
@@ -485,6 +486,8 @@ fn the_dies_rolls_per_click_menu_chooses_how_many_a_roll_makes() {
     let mut shell = Shell::default();
     let mut host = desktop(&mut shell, 0, true, (1280, 800));
     host.app.press(Action::KeyGen(None));
+    host.app
+        .press(Action::KStart(faraday_core::keygen::Start::Make.index()));
     host.app.press(Action::KWords(12));
     host.app
         .press(Action::KWay(faraday_core::keygen::Way::DiceHashed.index()));
@@ -817,6 +820,8 @@ fn what_the_host_writes_reads_on_its_fill_in_every_scheme() {
     let mut shell = Shell::default();
     let mut dice = desktop(&mut shell, 0, true, (1280, 800));
     dice.app.press(Action::KeyGen(None));
+    dice.app
+        .press(Action::KStart(faraday_core::keygen::Start::Make.index()));
     dice.app.press(Action::KWords(12));
     dice.app
         .press(Action::KWay(faraday_core::keygen::Way::DiceHashed.index()));
@@ -1303,6 +1308,8 @@ fn a_roll_from_the_strip_is_in_the_entry_in_the_frame_that_shows_the_press() {
     let mut host = desktop(&mut shell, 0, true, (1280, 800));
     host.app.press(Action::ReduceMotion(false));
     host.app.press(Action::KeyGen(None));
+    host.app
+        .press(Action::KStart(faraday_core::keygen::Start::Make.index()));
     host.app.press(Action::KWords(12));
     host.app
         .press(Action::KWay(faraday_core::keygen::Way::DiceHashed.index()));

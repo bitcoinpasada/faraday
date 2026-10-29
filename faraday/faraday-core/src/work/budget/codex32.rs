@@ -58,7 +58,6 @@ fn entry_on(panel: Panel) -> Faraday {
     }
     app.press(Action::Nav(Screen::WalletsStart));
     app.press(Action::KeyGen(None));
-    app.press(Action::KStep(crate::keygen::kstep::START));
     app.press(Action::KStart(Start::MakeCodex32.index()));
     let two = SPLITS
         .iter()

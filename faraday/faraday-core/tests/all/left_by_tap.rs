@@ -79,7 +79,6 @@ fn new_key_left_by_a_tap_on_the_sidebar_forgets_the_words_typed() {
     let mut app = testkit::started();
     app.press(Action::Nav(Screen::WalletsStart));
     app.press(Action::KeyGen(None));
-    app.press(Action::KStep(faraday_core::keygen::kstep::START));
     app.press(Action::KStart(Start::Words.index()));
     let _ = app.frame();
     typed(&mut app, &words);
@@ -97,7 +96,7 @@ fn new_key_left_by_a_tap_on_the_sidebar_forgets_the_words_typed() {
     app.press(Action::KeyGen(None));
     assert_eq!(
         app.keygen().unwrap().open,
-        Some(faraday_core::keygen::kstep::LENGTH)
+        Some(faraday_core::keygen::kstep::START)
     );
     not_drawn(&mut app, &shown);
 }
@@ -263,9 +262,7 @@ fn new_key_left_by_a_tap_on_its_back_link_forgets_its_entries() {
     let mut app = testkit::started();
     app.press(Action::Entry(None));
     app.press(Action::KeyGen(None));
-    let words = app.keygen().unwrap().words as u8;
-    app.press(Action::KWords(words));
-    app.press(Action::KNext);
+    app.press(Action::KStart(faraday_core::keygen::Start::Make.index()));
     app.press(Action::KWords(12));
     app.press(Action::KWay(faraday_core::keygen::Way::DiceFlips.index()));
     app.press(Action::KNext);
