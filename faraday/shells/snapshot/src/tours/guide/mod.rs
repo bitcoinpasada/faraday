@@ -133,7 +133,11 @@ fn folder_stick(name: &str, label: &str, files: &[(&str, Vec<u8>)]) -> Result<St
             .iter()
             .map(|(n, b)| ((*n).to_string(), b.len() as u64))
             .collect(),
-        vaults: Vec::new(),
+        vaults: files
+            .iter()
+            .filter(|(_, b)| b.starts_with(b"FVLT"))
+            .map(|(n, _)| (*n).to_string())
+            .collect(),
     })
 }
 
