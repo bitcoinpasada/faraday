@@ -159,10 +159,10 @@ def write(seed, scale, seconds, jobs=1, interpreters=(), cases=None, core=None):
 
 def distribution_versions():
     """The versions of the distribution's packages the vault and kdbx
-    areas use (F79, docs/CROSSCHECK.md §10.4), a line each."""
+    areas and the second-lineage checks use (F79, docs/CROSSCHECK.md §10.4), a line each."""
     from importlib import metadata
     out = ""
-    for name in ("argon2-cffi", "PyNaCl", "cryptography", "pykeepass"):
+    for name in ("argon2-cffi", "PyNaCl", "cryptography", "pykeepass", "ecdsa"):
         try:
             out += f"{name} {metadata.version(name)}\n"
         except metadata.PackageNotFoundError:

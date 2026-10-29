@@ -45,12 +45,9 @@ from common import ROOT, Area, HarnessError, Mismatch, use_reference, use_wheels
 use_reference("bip39")
 from mnemonic import Mnemonic  # noqa: E402
 
-use_wheels("btclib", [
-    "typing_extensions-4.16.0-py3-none-any.whl",
-    "ecc-2026.10.23-py3-none-any.whl",
-    "btclib-2026.10.24-py3-none-any.whl",
-    "btclib_wallet-2026.10.29-py3-none-any.whl",
-])
+import lineage
+
+use_wheels("btclib", lineage.BTCLIB_WHEELS)
 from ecc import curves  # noqa: E402
 
 # btclib's own curve arithmetic, never libsecp256k1's: that is what makes
@@ -260,7 +257,8 @@ class Msg(Area):
         "Bitcoin Core v31.1 and btclib for BIP-137, btclib-wallet and btcd for BIP-322: "
         "Core's `signmessagewithprivkey`, `verifymessage` and `signrawtransactionwithkey` "
         "(the low-R P2WPKH witness); btclib's `bms` and btclib-wallet's `bip322` "
-        "(`btclib/`, btclib's own curve); btcd's `bip322` from pull request 2521 "
+        "(`btclib/`, btclib's own curve); python-ecdsa (the distribution's package) for the "
+        "first-nonce ECDSA signature of BIP-137; btcd's `bip322` from pull request 2521 "
         "(`btcd-bip322/`, Go)"
     )
     reference_checked = (
@@ -405,6 +403,10 @@ class Msg(Area):
             first = bms.sign(m, key, address)
             if nonce == "first":
                 want(first.b64encode())
+                # python-ecdsa, plain RFC 6979: the signature body is its own.
+                digest = hashlib.sha256(magic_message(m)).digest()
+                body = base64.b64decode(rust[1]["signature"])[1:]
+                lineage.check_ecdsa(d, None, digest, lineage.der_of(body), "first")
             else:
                 # Core's low-R grind on the plain signer, by btclib; the
                 # recoverable form's header is the one btclib's verifier

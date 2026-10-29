@@ -94,6 +94,8 @@ from mnemonic import Mnemonic  # noqa: E402
 use_reference("bip352", "secp256k1lab", "src")
 from secp256k1lab.bip340 import schnorr_sign, schnorr_verify  # noqa: E402
 
+import lineage  # noqa: E402
+
 N = btc.N
 NUMS_HEX = "50929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0"
 TAPSCRIPT = 0xC0
@@ -845,19 +847,22 @@ def expected_value(inp, inputs, tx, key, value, nonce, masters):
     Faraday must have made where Core signed `key` with `value`. ECDSA:
     Core's own under the low-R rule; under the first RFC 6979 nonce,
     Core's `key.py`'s, once Core's signature verifies under the hash
-    computed here. BIP-340: BIP-340's reference with zero auxiliary
-    randomness, once Core's signature verifies under the hash computed
-    here."""
+    computed here; either one is also checked by python-ecdsa (the first
+    nonce byte for byte, the other verified). BIP-340: BIP-340's
+    reference with zero auxiliary randomness, once Core's signature
+    verifies under the hash computed here; btclib verifies it and makes it
+    again byte for byte."""
     m, i = inp.m, inp.i
     ht_field = one(m, 0x03)
     if key[0] == 0x02:
-        if nonce == "low_r":
-            return value
         pk = key[1:]
         ht = int.from_bytes(ht_field, "little") if ht_field else 1
         if value[-1] != ht:
             raise AssertionError("Core's ECDSA signature carries another sighash byte")
         h = inp.ecdsa_sighash(tx, ht)
+        if nonce == "low_r":
+            lineage.check_ecdsa(held_key(m, pk, masters, False).k, pk, h, value[:-1], nonce)
+            return value
         pub = ECPubKey()
         pub.set(pk)
         if not pub.verify_ecdsa(value[:-1], h):
@@ -869,6 +874,7 @@ def expected_value(inp, inputs, tx, key, value, nonce, masters):
         r_len = sig[3]
         if r_len < 33 and sig != value:
             raise AssertionError("the first RFC 6979 nonce gave a low R, and not Core's signature")
+        lineage.check_ecdsa(d, pk, h, sig[:-1], nonce)
         return sig
     ht = int.from_bytes(ht_field, "little") if ht_field else 0
     suffix = bytes([ht]) if ht else b""
@@ -891,7 +897,9 @@ def expected_value(inp, inputs, tx, key, value, nonce, masters):
         signer = x
     if not schnorr_verify(msg, signer, value[:64]):
         raise AssertionError("Core's BIP-340 signature does not verify under the hash here")
-    return schnorr_sign(msg, seckey, bytes(32)) + suffix
+    mine = schnorr_sign(msg, seckey, bytes(32))
+    lineage.check_schnorr(seckey, msg, signer, mine)
+    return mine + suffix
 
 
 # ----- Bitcoin Core: the finalizer and the mempool -------------------------------
@@ -972,7 +980,10 @@ class Sign(Area):
         "the held masters' keys, `finalizepsbt` finalizes and extracts, `testmempoolaccept` "
         "judges each finalized transaction over its funding on the node; BIP-340's "
         "reference (`secp256k1lab`) and Core's `key.py` for the deterministic nonces, over "
-        "Core's `script.py` sighashes; python-bip380 (`miniscript/`) reads the leaves. "
+        "Core's `script.py` sighashes; python-ecdsa (the distribution's package) and btclib "
+        "(`btclib/`, its own curve) as a second curve lineage, beside them: every ECDSA "
+        "signature again under plain RFC 6979 or verified, every BIP-340 signature verified "
+        "and made again; python-bip380 (`miniscript/`) reads the leaves. "
         "Faraday's refusals and the inputs a wallet's rule leaves unsigned are ours, in "
         "`area_sign.py`"
     )

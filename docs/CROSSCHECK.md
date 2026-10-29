@@ -299,6 +299,16 @@ The cross-check fetches nothing, ever.
   or their equivalents), installed once on the machine
   that runs the cross-check and verified by the distribution's
   signatures, not by pip. Their versions are in the stamp.
+- **python-ecdsa** (`python3-ecdsa`, by Brian Warner and Hubert Kario; MIT,
+  pure Python) is the same kind of package, checked for presence like
+  argon2-cffi (the run stops without it) and its version is in the stamp.
+  With btclib's curve it is the second lineage beside libsecp256k1
+  (`tools/crosscheck/lineage.py`, owner, 2026-10-29): it makes every
+  ECDSA signature the `sign` and `msg` areas expect again under plain
+  RFC 6979 and verifies the low-R ones; btclib verifies every BIP-340
+  signature and makes it again where the auxiliary randomness is known,
+  and verifies MuSig2's aggregate. Core's `key.py` and `secp256k1lab`
+  are still asked.
 - **python-bip380**, Antoine Poinsot's miniscript, is copied from its
   signed commit (`tools/reference/miniscript/README.md`), the signature
   checked against the key Bitcoin Core's `guix.sigs` publishes; two

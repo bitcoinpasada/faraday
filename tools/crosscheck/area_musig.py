@@ -8,6 +8,7 @@ be a valid BIP-340 signature under the tweaked aggregate key.
 
 import functools
 
+import lineage
 from common import Area, as_verify, use_reference, vectors
 
 use_reference("bip327")
@@ -53,7 +54,8 @@ class Musig(Area):
         '`faraday_bip::musig`'
     )
     reference = (
-        "BIP-327's `reference.py` (`bip327/`)"
+        "BIP-327's `reference.py` (`bip327/`); btclib (`btclib/`, its own curve) "
+        "verifies the aggregate signature as BIP-340"
     )
     reference_checked = (
         'its vendored files are hashed against `references.sha256` before any run, and '
@@ -268,6 +270,8 @@ class Musig(Area):
         # The reference's BIP-340 check takes 32-byte messages only.
         if len(msg) == 32 and not R.schnorr_verify(msg, aggpk, sig):
             raise AssertionError("the aggregate signature does not verify under BIP-340")
+        # btclib, its own curve: BIP-340 verifies the aggregate too.
+        lineage.check_schnorr_verify(msg, aggpk, sig)
         if n > 1:
             others = R.nonce_agg(pubs[1:])
             rand = self.randbytes(32) if rng.random() < 0.5 else None
