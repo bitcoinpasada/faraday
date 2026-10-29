@@ -179,24 +179,17 @@ it leaves Faraday.
 
 ### 4.3 Where `rho` comes from
 
-- **Faraday's own randomness** (the default). `rho` is drawn from the
-  pool every other secret comes from (`faraday/faraday-core/src/fresh.rs`),
-  which mixes everything the person has added into the system's
-  randomness (`docs/OWN-RANDOMNESS.md` §2.3). The step holds the
-  Randomness row above its press (`docs/OWN-RANDOMNESS.md` §8.2), so
-  dice, coins, cards, the camera, and pointer and keys on the desktop
-  app can all be added before `rho` is drawn. The press is a row to add
-  to §8.1's table.
-- **Yours only.** `rho` is a hash of the person's dice alone, so that
-  another tool can compute it again and the person can confirm Faraday
-  did not choose it: per slot, `rho = SHA-256(SHA-256(tag) ‖ SHA-256(tag)
-  ‖ dice ‖ 0x00 ‖ m ‖ P)`, the BIP-340 tagged hash with `tag` the ASCII
-  text `Faraday/anti-exfil/dice`, `dice` the rolls as ASCII digits 1 to
-  6, `m` the slot's 32-byte sighash and `P` its 33-byte public key.
-  Faraday shows each slot's `rho` for the person to compare with their
-  own computation. It is Faraday's own construction, and carries F160's
-  label "own construction, not yet independently reviewed". The step
-  says, as a label: the rolls and `rho` are never written down or kept.
+`rho` is drawn the way every other secret Faraday makes is: from the
+pool (`faraday/faraday-core/src/fresh.rs`), which mixes everything the
+person has added into the system's randomness (`docs/OWN-RANDOMNESS.md`
+§2.3). The step holds the Randomness row above its press
+(`docs/OWN-RANDOMNESS.md` §8.2), so dice, coins, cards, the camera, and
+pointer and keys on the desktop app can all be added before `rho` is
+drawn. The press is a row to add to §8.1's table.
+
+There is no mode of its own and no minimum of the person's sources
+(owner, 2026-10-29): the system's randomness alone is enough, and what
+the person adds only adds to it.
 
 ### 4.4 The host's rules
 
@@ -217,8 +210,7 @@ it (F136).
    transaction's id. After a lock or a power-off, `rho` is gone (it is
    never saved), so that payment is not retried with Faraday's own
    randomness: a new exchange needs a new transaction from the
-   coordinator. In yours-only mode the same rolls give the same `rho`,
-   so the retry is the same exchange.
+   coordinator.
 3. **Aborts are counted.** An abort after the reveal is counted per
    signer key: the transaction's id, the key's fingerprint, and each
    slot's `c` and `R1`, never `rho`, in the open vault, or in memory for
@@ -282,7 +274,7 @@ The hosts that would check it, and what each protects against:
 |---|---|---|---|
 | FractalEncrypt's Sparrow fork (today) | the online computer | a backdoored Faraday whose author reads the chain | malware on the online computer that records the reveal or reads `rho` from memory |
 | Sparrow, if it adopts the exchange (the goal) | the online computer | the same | the same |
-| A second Faraday device, with the person's dice (yours only, §4.3) | offline, from the dice | a backdoored Faraday on the signing device, with `rho` never online; a backdoored host Faraday cannot choose `rho`, which the person computes again with another tool | a backdoored host Faraday that misreports its checks, unless the person checks them with another tool too; one build's backdoor shared by both devices, beyond `rho`'s choice |
+| A second Faraday device | offline, from that device's randomness with the person's own added (§4.3) | a backdoored Faraday on the signing device, with `rho` never online | a backdoored host Faraday that misreports its checks or leaks `rho`; one build's backdoor shared by both devices |
 
 ## 6. The Nonce check
 
@@ -351,20 +343,19 @@ record after an exchange.
 ## 9. Questions for the owner
 
 Decided (owner, 2026-10-29; F162): both directions; Faraday as host
-first, then as signer; `rho` from Faraday's own randomness with every
-source, and a yours-only mode; FractalEncrypt's encoding in dev builds
+first, then as signer; `rho` drawn as every other secret is, from Faraday's
+randomness with every source the person adds, no mode of its own and no
+minimum; FractalEncrypt's encoding in dev builds
 only behind `experimental`; Jade's and FractalEncrypt's published
 schemes later; QR only, no USB for Jade; the host rules of §4.4; the
 Nonce check of §6; the references of §8; the wording of §10.
 
 Open:
 
-1. How many rolls yours-only mode needs at least (50 rolls of a
-   six-sided die are 129 bits; 99 are 256).
-2. The abort count past which the screen says to move the funds
+1. The abort count past which the screen says to move the funds
    (libsecp256k1-zkp's header suggests a strong warning after about 20
    in a device's life).
-3. Whether the stage 2 review on Faraday as signer can be left out,
+2. Whether the stage 2 review on Faraday as signer can be left out,
    since it approves nothing.
 
 ## 10. How it is described
