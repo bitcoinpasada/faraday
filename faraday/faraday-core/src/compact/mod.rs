@@ -183,9 +183,15 @@ fn tools_from(app: &View, ui: &mut Ui, w: f32, over: Overflow) -> f32 {
     let how = app.how_offered();
     let keyboard = keyboard_action(app);
     let eye = eye_state(app);
+    // On the Pi's panel Add randomness is the ⋮'s first row on every step
+    // that offers it, so the ⋮ is drawn there even where the tools fit,
+    // and the ? and How go in with it, as the ⋮ stands where they stood
+    // (`docs/OWN-RANDOMNESS.md` §8.3).
+    let own = app.nav() == crate::nav::Nav::Menu && crate::screens::randomness::own_at_press(app);
     let held = Overflow {
-        how: over.help && how,
-        help: over.help && help,
+        own,
+        how: (over.help || own) && how,
+        help: (over.help || own) && help,
         keyboard: over.keyboard && keyboard.is_some(),
         keyboard_up: over.keyboard && keyboard.is_some_and(|(_, shown)| shown),
         eye: over.eye && eye.is_some(),
@@ -280,6 +286,11 @@ pub(crate) fn overflow_sheet(app: &View, ui: &mut Ui, w: f32, h: f32, held: Over
         crate::menu::Line::Item(label.to_string(), Action::NavMenu(MenuPress::Tool(t)))
     };
     let mut lines = Vec::new();
+    // Add randomness first, on a step whose press draws the system's
+    // randomness (`docs/OWN-RANDOMNESS.md` §8.3).
+    if held.own {
+        lines.push(item(EN.own_add_randomness, BarTool::Own));
+    }
     if held.how {
         lines.push(item(EN.bar_menu_how, BarTool::How));
     }
@@ -1588,6 +1599,7 @@ impl Faraday {
             MenuPress::Tool(t) => {
                 self.sheet = None;
                 self.act_inner(match t {
+                    BarTool::Own => Action::Own(crate::fresh::page::Act::Open),
                     BarTool::How => Action::How,
                     BarTool::Help => Action::Learn,
                     BarTool::Keyboard if self.osk_shown() => Action::Osk(OskPress::Hide),

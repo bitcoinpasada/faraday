@@ -1047,3 +1047,238 @@ fn add_randomness_reached_by_navigation_opens_its_page_with_a_way_back() {
     app.press(Action::Back);
     assert_eq!(app.screen, Screen::Settings);
 }
+
+// ---------------------------------------------------------------------
+// Add randomness at the press (`docs/OWN-RANDOMNESS.md` §8, F157)
+// ---------------------------------------------------------------------
+
+/// The Pi's panel: 480 × 640 pixels at 286 dpi.
+fn pi_panel() -> faraday_shell_api::DisplayInfo {
+    faraday_shell_api::DisplayInfo {
+        width: 480,
+        height: 640,
+        dpi: 286,
+        ..tall()
+    }
+}
+
+/// On the step on show, the Randomness row's Add randomness opens the
+/// page with no source chosen and no camera started, and Back lands on
+/// the step as it was left, its sheet over it again, where `press` is
+/// still offered.
+fn opens_from_the_press_and_comes_back(app: &mut Faraday, press: Action) {
+    let _ = app.frame();
+    let screen = app.screen;
+    assert!(
+        app.offers(press),
+        "the press is not on show: {screen:?} {:?}",
+        app.drawn_texts()
+    );
+    assert!(app.offers(own(Act::Open)), "no Randomness row at the press");
+    let (screen, sheet) = (app.screen, app.sheet);
+    commands(app);
+    app.press(own(Act::Open));
+    assert_eq!(app.screen, Screen::Randomness);
+    assert!(!commands(app).contains(&Command::CameraOn));
+    app.press(own(Act::Roll(1)));
+    assert_eq!(app.own_counts(), OwnCounts::default(), "nothing is chosen");
+    app.press(Action::Back);
+    assert_eq!((app.screen, app.sheet), (screen, sheet));
+    let _ = app.frame();
+    assert!(app.offers(press), "the press is not back");
+}
+
+/// The overflow the Pi's bar offers, if it has one.
+fn overflow(app: &mut Faraday) -> Option<faraday_core::nav::Overflow> {
+    use faraday_core::nav::{MenuPress, Overflow};
+    let _ = app.frame();
+    (0u8..32)
+        .map(|bits| Overflow {
+            own: bits & 16 != 0,
+            how: bits & 1 != 0,
+            help: bits & 2 != 0,
+            keyboard: bits & 4 != 0,
+            keyboard_up: false,
+            eye: bits & 8 != 0,
+        })
+        .find(|held| app.offers(Action::NavMenu(MenuPress::Open(Some(*held)))))
+}
+
+/// On the Pi's panel the step keeps the status line, and Add randomness
+/// is the first row of the bar's ⋮, which opens the page.
+fn in_the_pis_menu(app: &mut Faraday) {
+    use faraday_core::nav::{BarTool, MenuPress};
+    let held = overflow(app);
+    let screen = app.screen;
+    let held = held.unwrap_or_else(|| panic!("no ⋮: {screen:?} {:?}", app.drawn_texts()));
+    assert!(held.own, "Add randomness is not in the ⋮");
+    assert!(!app.offers(own(Act::Open)), "the action is in the ⋮");
+    app.press(Action::NavMenu(MenuPress::Open(Some(held))));
+    let _ = app.frame();
+    let item = Action::NavMenu(MenuPress::Tool(BarTool::Own));
+    assert!(app.offers(item));
+    let screen = app.screen;
+    app.press(item);
+    assert_eq!(app.screen, Screen::Randomness);
+    app.press(Action::Back);
+    assert_eq!(app.screen, screen);
+}
+
+/// A vault open with test key 2 saved into it, the system's answers in.
+fn changed_vault() -> Faraday {
+    let mut app = vault_device(testkit::test_vault().unwrap());
+    answer(&mut app, SEED);
+    answer(&mut app, POOLED);
+    open_and_change(&mut app);
+    app
+}
+
+#[test]
+fn an_open_vault_with_changes_offers_add_randomness_on_its_screen_and_on_the_lock_sheet() {
+    let mut app = changed_vault();
+    app.event(Event::Display(tall()));
+    app.press(Action::Nav(Screen::VaultContents));
+    // The unlock's Load sheet put away: nothing loaded.
+    if app.sheet.is_some() {
+        app.press(Action::Cancel);
+    }
+    opens_from_the_press_and_comes_back(&mut app, Action::LockAsk);
+    app.press(Action::LockAsk);
+    assert_eq!(app.sheet, Some(Sheet::LockAsk));
+    opens_from_the_press_and_comes_back(&mut app, Action::Lock);
+    // The lock still seals, as it did.
+    app.press(Action::Lock);
+    assert!(sealed(&app).is_some(), "the lock did not seal");
+}
+
+#[test]
+fn on_the_pis_panel_add_randomness_is_the_first_row_of_the_menu() {
+    let mut app = changed_vault();
+    app.event(Event::Display(pi_panel()));
+    app.press(Action::Nav(Screen::VaultContents));
+    // The unlock's Load sheet put away: nothing loaded.
+    if app.sheet.is_some() {
+        app.press(Action::Cancel);
+    }
+    in_the_pis_menu(&mut app);
+}
+
+#[test]
+fn a_vault_with_no_changes_has_no_randomness_row() {
+    let mut app = changed_vault();
+    app.press(Action::Lock);
+    let mut app = vault_device(sealed(&app).expect("sealed"));
+    answer(&mut app, SEED);
+    app.event(Event::Display(tall()));
+    app.press(Action::Vault(faraday_core::vault::VaultAction::Open(0)));
+    crate::common::type_text(&mut app, testkit::VAULT_PASSPHRASES[0]);
+    app.press(Action::Vault(faraday_core::vault::VaultAction::Unlock));
+    for t in 1..60u64 {
+        if !app.vaults().open.is_empty() {
+            break;
+        }
+        let _ = app.frame();
+        app.event(Event::Tick { now_ms: t * 1000 });
+    }
+    app.press(Action::Nav(Screen::VaultContents));
+    // The unlock's Load sheet put away: nothing loaded.
+    if app.sheet.is_some() {
+        app.press(Action::Cancel);
+    }
+    let _ = app.frame();
+    assert!(app.offers(Action::LockAsk));
+    assert!(!app.offers(own(Act::Open)));
+}
+
+/// A SLIP-39 key from 128 coin flips, 2 of 3, on its Enter step with its
+/// entry made, the system's answers in; the dice added first when asked.
+fn slip39_entered(dice: bool) -> Faraday {
+    let mut app = testkit::started();
+    app.event(Event::Display(tall()));
+    for i in 0..8u8 {
+        answer(&mut app, [0x40 + i; 32]);
+    }
+    if dice {
+        add_dice(&mut app);
+    }
+    app.press(Action::KeyGenSlip39);
+    app.press(Action::KWords(20));
+    app.press(Action::KWay(Way::Coins.index()));
+    app.press(Action::KNext);
+    for i in 0..128 {
+        app.press(Action::KFlip(i % 3 != 1));
+    }
+    app
+}
+
+#[test]
+fn dealing_slip39_shares_offers_add_randomness_and_takes_what_was_added() {
+    let mut app = slip39_entered(false);
+    opens_from_the_press_and_comes_back(&mut app, Action::KNext);
+    let shares = |mut app: Faraday| {
+        app.press(Action::KNext);
+        let k = app.keygen().unwrap();
+        assert_eq!(k.open, Some(faraday_core::keygen::kstep::CHECK));
+        k.shares
+            .iter()
+            .map(|s| s.indices().to_vec())
+            .collect::<Vec<_>>()
+    };
+    let plain = shares(slip39_entered(false));
+    assert_eq!(plain, shares(slip39_entered(false)), "the same answers");
+    assert_ne!(plain, shares(slip39_entered(true)), "the dice change them");
+}
+
+#[test]
+fn on_the_pis_panel_dealing_shares_keeps_the_line_and_puts_the_action_in_the_menu() {
+    let mut app = slip39_entered(false);
+    app.event(Event::Display(pi_panel()));
+    in_the_pis_menu(&mut app);
+}
+
+#[test]
+fn a_musig2_round_offers_add_randomness_at_sign_here_and_other_dice_share_another_nonce() {
+    use faraday_core::wallet::step;
+    let session = |dice: bool| {
+        let mut app = musig_device(true);
+        app.event(Event::Display(tall()));
+        if dice {
+            add_dice(&mut app);
+        }
+        app.press(Action::StartSpend(at(&app, "musig-unsigned.psbt")));
+        app
+    };
+    let mut app = session(false);
+    app.press(Action::Step(step::SIGN));
+    opens_from_the_press_and_comes_back(&mut app, Action::SignHere);
+    app.press(Action::SignHere);
+    let plain = our_nonce(&app).expect("a nonce shared");
+    let mut mixed = session(true);
+    mixed.press(Action::SignHere);
+    assert_ne!(Some(plain), our_nonce(&mixed), "the dice change the nonce");
+}
+
+#[test]
+fn a_spend_shows_no_randomness_row_before_its_signing_step() {
+    use faraday_core::wallet::step;
+    let mut app = musig_device(true);
+    app.event(Event::Display(tall()));
+    app.press(Action::StartSpend(at(&app, "musig-unsigned.psbt")));
+    app.press(Action::Step(step::TXID));
+    let _ = app.frame();
+    assert!(!app.offers(own(Act::Open)));
+}
+
+#[test]
+fn a_key_from_coins_alone_has_no_randomness_row() {
+    let mut app = testkit::started();
+    app.event(Event::Display(tall()));
+    answer(&mut app, SEED);
+    testkit::new_key_on_length(&mut app, None);
+    app.press(Action::KWords(12));
+    app.press(Action::KWay(Way::Coins.index()));
+    app.press(Action::KNext);
+    let _ = app.frame();
+    assert_eq!(app.screen, Screen::KeyGen);
+    assert!(!app.offers(own(Act::Open)));
+}

@@ -135,8 +135,15 @@ empty, and **Set** is greyed beside **Back**.*
 
 ## Add randomness
 
-**Opened from:** **Add randomness** in Settings → Randomness. New key's
-**Generator** card offers the same sources on itself
+**Opened from:** **Add randomness** in Settings → Randomness, and the
+**Randomness** row above every press that draws the system's randomness
+(dealing SLIP-39 shares, codex32's **Suggest**, **Create vault**, **Seal
+and export**, a GPG or Secure Boot key's **Make**, **Enrolment files**,
+**Hold to sign**, Seed XOR's parts, **Make the new set**, a MuSig2 round's
+**Sign here** and collecting, and a lock that seals a changed vault). On
+the Pi's panel that row is the status line alone, and **Add randomness**
+is the first row of the bar's ⋮. Back returns to the press as it was
+left. New key's **Generator** card offers the same sources on itself
 ([Add a key](new-key.md#the-entry-card)).
 
 Randomness of your own, hashed with the system's into the session's

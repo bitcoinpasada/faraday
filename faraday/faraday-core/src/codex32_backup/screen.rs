@@ -183,7 +183,7 @@ pub(crate) fn item(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, i: usize) ->
     let mapped = app.plan_mapped(&shape, &b.answers);
     let place = |p: usize| app.place_name(p);
     if !matches!(st.set, SetStep::None) {
-        return (set_step(ui, x, y, w, form, st), false);
+        return (set_step(app, ui, (x, y, w), form, st), false);
     }
     if let Some(j) = st.at {
         let places: Vec<String> = places_of_string(&mapped, i, j)
@@ -354,7 +354,7 @@ fn one_string(
 }
 
 /// The set action under way (§9.7). Returns the height.
-fn set_step(ui: &mut Ui, x: f32, y: f32, w: f32, form: &C32, st: &Strings) -> f32 {
+fn set_step(app: &View, ui: &mut Ui, (x, y, w): (f32, f32, f32), form: &C32, st: &Strings) -> f32 {
     let mut cy = y;
     let id = form.id_text();
     let mut next: Option<(&str, Action)> = None;
@@ -406,6 +406,9 @@ fn set_step(ui: &mut Ui, x: f32, y: f32, w: f32, form: &C32, st: &Strings) -> f3
         SetStep::Scheme(k, n) => {
             cy += heading(ui, x, cy, w, &fill(EN.c32_new_set_of, &[&id]));
             cy += scheme(ui, x, cy, w, (*k, *n), st);
+            // The new set's shares draw the system's randomness
+            // (`docs/OWN-RANDOMNESS.md` §8.1 row 12).
+            cy += crate::screens::randomness::row(app, ui, (x, cy, w));
             next = Some((EN.c32_make_new_set, set(SetPress::MakeNew)));
         }
     }

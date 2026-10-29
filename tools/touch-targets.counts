@@ -1,6 +1,6 @@
 desktop_1280x800 Backup BC32 31
 desktop_1280x800 Backup BName 1
-desktop_1280x800 Backup BPin 8
+desktop_1280x800 Backup BPin 6
 desktop_1280x800 Backup BReveal 1
 desktop_1280x800 Backup Board 82
 desktop_1280x800 Backup Chart 5
@@ -201,7 +201,7 @@ small_240x320 Vanity About 1
 small_240x320 VaultContents Cancel 1
 small_240x320 VaultContents CodePng 1
 small_240x320 VaultContents ShowCode 1
-small_240x320 VaultContents Vault 17
+small_240x320 VaultContents Vault 16
 small_240x320 Visit Cancel 1
 small_240x320 Visit DeleteGo 1
 small_240x320 Visit File 1
@@ -263,7 +263,7 @@ small_480x640 Vanity Vanity 3
 small_480x640 VaultContents Cancel 1
 small_480x640 VaultContents CodePng 3
 small_480x640 VaultContents ShowCode 3
-small_480x640 VaultContents Vault 15
+small_480x640 VaultContents Vault 14
 small_480x640 Visit Cancel 1
 small_480x640 Visit DeleteGo 1
 small_480x640 Visit File 2

@@ -1822,6 +1822,9 @@ fn paper_section(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     cy += ui.line_as(faraday_draw::tokens::TITLE_S) + faraday_draw::tokens::GRID;
     match &b.paper {
         None => {
+            // Seed XOR's parts draw the system's randomness
+            // (`docs/OWN-RANDOMNESS.md` §8.1 row 11).
+            cy += crate::screens::randomness::row(app, ui, (x, cy, w));
             let row: Vec<(String, Style, Action)> = vec![
                 (
                     EN.paper_section_seed_xor.into(),

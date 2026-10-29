@@ -2850,7 +2850,7 @@ impl Faraday {
             Action::Codex32(p) => self.keygen_codex32(p),
             Action::Nav(s @ (Screen::Transfer | Screen::Randomness)) => self.nav_open(s),
             Action::Back => self.back(),
-            Action::Own(a) => self.own_act(a),
+            Action::Own(a) => self.own_press(a),
             Action::Resume(g) => self.flow_resume(g),
             Action::CancelFlow => self.flow_cancel(),
             Action::CancelFlowNow => self.flow_cancel_now(),
@@ -7176,6 +7176,6 @@ impl Faraday {
 /// Whether a pass over this transaction may open a MuSig2 round, which
 /// draws secret nonces: any such input is one, since what the pass does
 /// with it is decided only as it signs.
-fn spend_opens_round(inspection: &faraday_psbt::Inspection) -> bool {
+pub(crate) fn spend_opens_round(inspection: &faraday_psbt::Inspection) -> bool {
     inspection.inputs.iter().any(|i| i.musig.is_some())
 }

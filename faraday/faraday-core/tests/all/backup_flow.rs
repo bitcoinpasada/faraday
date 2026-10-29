@@ -627,6 +627,16 @@ fn signing_waits_until_every_place_is_written_then_works_after_the_unlock() {
     app.press(Action::Vault(V::Category(4)));
     app.press(Action::Vault(V::Item(0)));
     expect(&mut app, "Back up first");
+    // The Backup row is under the renew terms, and under the vault's
+    // Randomness row while it holds a change not yet sealed: the page
+    // scrolled down to it.
+    for _ in 0..6 {
+        app.event(faraday_shell_api::Event::Scroll {
+            x: 1000,
+            y: 400,
+            dy: 120,
+        });
+    }
     expect(&mut app, "Not written");
     assert!(!has(&mut app, "Sign a file"));
     app.press(Action::Vault(V::GpgSignPick));

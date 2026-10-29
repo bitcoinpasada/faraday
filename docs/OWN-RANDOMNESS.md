@@ -1,8 +1,8 @@
 # Your own randomness, and the kernel's at boot
 
 **Kind:** Spec
-**Status:** Specified, partly built (F86, F157): §2.3's mixing into the seed and the pool, and the lock (R1, `faraday/faraday-core/src/fresh.rs`); New key's This device mixing and its label (§2.3, §2.4; `faraday/faraday-core/src/keygen/mod.rs`, `device_own`); the Add randomness page with camera, dice, coins and cards, Settings' Randomness row, the status line and New key's link (R2; `faraday/faraday-core/src/fresh/page.rs`, `faraday/faraday-core/src/screens/randomness.rs`); pointer and keys on the desktop app (R3; `core/faraday-entropy/src/pointer_keys.rs`); option A (§3.3, R4); the kernel check of §3 done from the repository
-**Open:** §8's Add randomness at every press that draws the system's randomness (R7, F157, planned); §3.5's late seed and the Pi's generator (R5, R6, F102); the boot measurement on one real PC, in passing (§3.4 item 2; QEMU's worst case is measured).
+**Status:** Specified, partly built (F86, F157): §2.3's mixing into the seed and the pool, and the lock (R1, `faraday/faraday-core/src/fresh.rs`); New key's This device mixing and its label (§2.3, §2.4; `faraday/faraday-core/src/keygen/mod.rs`, `device_own`); the Add randomness page with camera, dice, coins and cards, Settings' Randomness row, the status line and New key's link (R2; `faraday/faraday-core/src/fresh/page.rs`, `faraday/faraday-core/src/screens/randomness.rs`); pointer and keys on the desktop app (R3; `core/faraday-entropy/src/pointer_keys.rs`); option A (§3.3, R4); §8's Randomness row at every press that draws the system's randomness, first in the Pi's ⋮ (R7, F157; `faraday/faraday-core/src/screens/randomness.rs`, `row`); the kernel check of §3 done from the repository
+**Open:** a split wallet's Files list, whose per-file Add signatures has no Randomness row yet (§8.1 row 14, planned); §3.5's late seed and the Pi's generator (R5, R6, F102); the boot measurement on one real PC, in passing (§3.4 item 2; QEMU's worst case is measured).
 
 Two things. (a) A person may add randomness of their own, camera noise,
 dice rolls, coin flips or cards on every shell and pointer moves and

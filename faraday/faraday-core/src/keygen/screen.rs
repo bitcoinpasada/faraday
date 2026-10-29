@@ -1404,6 +1404,11 @@ fn entries(app: &View, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             Action::KNext,
         ));
     }
+    // Dealing the shares draws the system's randomness: the Randomness
+    // row above Next (`docs/OWN-RANDOMNESS.md` §8.1 row 2).
+    if k.slip39 {
+        cy += crate::screens::randomness::row(app, ui, (x, cy, w));
+    }
     // Words' foot button waits for the last entry.
     let next = (k.slip39 || ready).then_some((label, Action::KNext));
     cy += buttons_and_next(ui, x, cy, w, &edits, next) + 4.0;

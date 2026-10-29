@@ -344,7 +344,7 @@ pub(crate) fn body(
     };
     let h = match card {
         Card::Scheme => scheme(m, ui, x, y, w),
-        Card::Identifier => identifier(m, ui, at),
+        Card::Identifier => identifier(app, m, ui, at),
         Card::Entropy => entropy(m, ui, x, y, w),
         Card::Enter => enter(m, ui, at),
         Card::Sheets => sheets(m, ui, at),
@@ -525,9 +525,14 @@ fn keyboard_with(
 }
 
 /// §6.2: four boxes typed on the codex32 keyboard, and Suggest.
-fn identifier(m: &Codex32Make, ui: &mut Ui, at: At) -> f32 {
+fn identifier(app: &View, m: &Codex32Make, ui: &mut Ui, at: At) -> f32 {
     let (x, y, w, cls) = (at.x, at.y, at.w, at.cls);
     let mut cy = y;
+    // Suggest draws the system's randomness: the Randomness row before it
+    // (`docs/OWN-RANDOMNESS.md` §8.1 row 3).
+    if m.work().is_none() {
+        cy += crate::screens::randomness::row(app, ui, (x, cy, w));
+    }
     let id = m.identifier();
     let b = t::codex32_box(cls) * 2.0;
     for i in 0..usize::from(ID_LEN) {

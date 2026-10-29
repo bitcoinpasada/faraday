@@ -512,6 +512,13 @@ fn kept_sheet(
             if hx > x {
                 cy += T::CHIP_LINE + T::GAP + T::GAP_SMALL;
             }
+            // The Lock sheet, where the lock will seal a changed vault: the
+            // seal's nonce is drawn (`docs/OWN-RANDOMNESS.md` §8.1 row 15).
+            if app.sheet == Some(crate::Sheet::LockAsk)
+                && super::randomness::lock_seals_changes(app)
+            {
+                cy += super::randomness::row_in(app, ui, (x, cy, iw), false);
+            }
             cy - y
         },
         &pressed,

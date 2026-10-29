@@ -30,11 +30,14 @@ use faraday_vault::records::{field, kind};
 use faraday_vault::{SLOT_SIZES, file_len};
 
 mod codes;
+mod create;
 mod save;
 mod search;
 mod secret;
+use crate::screens::randomness::row as own_row;
 use codes::code_badge;
 pub(crate) use codes::codes_form;
+use create::{create_button, create_button_h, create_summary};
 pub(crate) use save::{gpg_sign_sheet, stick_save_sheet, years_row};
 use save::{images_panel, reasons_row, save_panel};
 pub(crate) use search::bar as search_bar;
@@ -1485,137 +1488,8 @@ fn create_panel(
         y += 46.0;
     }
     y += create_summary(app, ui, x, y, w);
-    let by = (h - 26.0 - 46.0).max(y + 12.0);
+    let by = (h - 26.0 - create_button_h(app, ui, w)).max(y + 12.0);
     create_button(app, ui, x, by, w);
-}
-
-/// What Create vault will make: warnings about its cost, the file, its
-/// size, memory and unlock time, and the passphrases' strength. Returns
-/// its height.
-fn create_summary(app: &View, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
-    let (bad, warn) = (Role::Error, Role::Warning);
-    let (muted, ink) = (Role::OnSurfaceVariant, Role::OnSurface);
-    let Some(c) = app.vaults.create.as_ref() else {
-        return 0.0;
-    };
-    let mut y = y0;
-    let (k, mem, passes) = app.vaults.form_cost().unwrap_or((0, 64, 3));
-    let (weakest, limit) = app.vaults.weakest();
-    let name = if k == CUSTOM {
-        EN.vault_custom
-    } else {
-        PRESETS[k].0
-    };
-    let mut warnings: Vec<(String, crate::ui::Paint)> = Vec::new();
-    let slot = app
-        .vaults
-        .create
-        .as_ref()
-        .map_or(faraday_vault::DEFAULT_SLOT, |c| c.slot);
-    if let Some(free) = app.vaults.memory_free_mib
-        && vault::vault_need_mib(mem, slot) > free
-    {
-        warnings.push((
-            fill(EN.vault_this_computer_n, &[&mib_text(mem).to_string()]),
-            bad.paint(),
-        ));
-    }
-    if mem > limit {
-        warnings.push((
-            fill(
-                EN.vault_memory_mismatch,
-                &[
-                    name,
-                    &mib_text(mem).to_string(),
-                    &weakest.to_string(),
-                    &mib_text(limit).to_string(),
-                ],
-            ),
-            warn.paint(),
-        ));
-    }
-    if app.vaults.seconds(mem, passes).is_some_and(|s| s > 10.0) {
-        warnings.push((
-            fill(
-                EN.vault_unlocking_takes,
-                &[&app.vaults.time_text(mem, passes).to_string()],
-            ),
-            warn.paint(),
-        ));
-    }
-    if c.on[1..].iter().any(|on| *on) {
-        warnings.push((EN.vault_raspberry_pi.to_string(), muted.paint()));
-    }
-    y += 4.0;
-    for (t, color) in &warnings {
-        // In its tone's container, never a tint (`docs/DESIGN.md` §3).
-        let (bg, fg) = crate::ui::container_of(*color);
-        let th = ui.wrap_as((x + 12.0, y + 10.0, w - 24.0), BODY_S, fg, t);
-        ui.fill(x, y, w, th + 20.0, 8.0, bg);
-        ui.wrap_as((x + 12.0, y + 10.0, w - 24.0), BODY_S, fg, t);
-        y += th + 28.0;
-    }
-    y += 8.0;
-    ui.text_as(x, y, LABEL_L, muted, EN.vault_will_create);
-    y += ui.advance_as(LABEL_L, 26.0);
-    let cost = vault::cost_bits(mem, passes);
-    let strength = c.weakest_text(cost, app.demo_passphrase());
-    let facts = [
-        (
-            EN.vault_file,
-            format!("{}.fvlt", vault::vault_stem(&c.name.text)),
-        ),
-        (EN.vault_size, file_text(file_len(c.slot))),
-        (EN.vault_unlock_memory, mib_text(mem)),
-        (EN.vault_unlock_here, app.vaults.time_text(mem, passes)),
-        (
-            EN.vault_unlock_cost_adds,
-            fill(EN.vault_bits, &[&format!("{cost:.1}")]),
-        ),
-        (
-            if c.phrases.len() > 1 {
-                EN.vault_weakest_passphrase
-            } else {
-                EN.vault_strength
-            },
-            strength,
-        ),
-        (EN.vault_goes_to_label, app.medium.for_box().to_string()),
-    ];
-    for (k, v) in facts.iter().filter(|(_, v)| !v.is_empty()) {
-        ui.text_mid_as((x, y, 30.0), BODY_S, muted, k);
-        ui.text_right_as((x + w, y, 30.0), BODY_S, ink, v);
-        y += 30.0;
-    }
-    if let Some(e) = &c.error {
-        y += 6.0;
-        y += ui.wrap_as((x, y, w), BODY_S, bad, e) + 6.0;
-    }
-    y - y0
-}
-
-/// Create vault, or how long creating takes while it works. Returns its
-/// height.
-fn create_button(app: &View, ui: &mut Ui, x: f32, by: f32, w: f32) -> f32 {
-    let (_, mem, passes) = app.vaults.form_cost().unwrap_or((0, 64, 3));
-    if app.vaults.working == Some(vault::Work::Create) {
-        let t = app.vaults.time_text(mem, passes).to_string();
-        let line = fill(EN.vault_creating, &[&t]);
-        crate::screens::working_line(ui, (x, by, w, 46.0), &line);
-    } else if !crate::screens::pin_button(
-        ui,
-        x,
-        by,
-        Some(w),
-        46.0,
-        EN.vault_create_vault,
-        Style::Primary.when(app.may_load_keys()),
-        va(V::CGo),
-    ) {
-        // Pinned at the panel's foot.
-        return 0.0;
-    }
-    46.0
 }
 
 // ---------------------------------------------------------------------
@@ -1912,6 +1786,10 @@ pub(crate) fn contents(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     // The top app bar names the vault; its state, Rename and Lock lead
     // the page.
     let mut y = crate::screens::bar_head(ui, back, &v.label(app.vaults.store()));
+    // Changes not yet sealed: the seal's nonce is drawn at Lock (row 15).
+    if v.changes > 0 {
+        y += own_row(app, ui, (x, y, w));
+    }
     let state = if v.changes == 0 {
         EN.vault_open_button.to_string()
     } else {
@@ -2316,6 +2194,9 @@ fn contents_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let sub = ui.fit_as(BODY_S.mono(), &sub, w);
     ui.text_as(x, y, BODY_S.mono(), muted, &sub);
     y += ui.advance_as(BODY_S.mono(), 26.0);
+    if v.changes > 0 {
+        y += own_row(app, ui, (x, y, w));
+    }
     let half = (w - 8.0) / 2.0;
     ui.button(
         x,
@@ -2567,6 +2448,10 @@ fn detail(
         if app.vaults.working == Some(vault::Work::Kdbx) {
             crate::screens::working_line(ui, (dx, dy, dw, 40.0), EN.vault_sealing);
         } else {
+            // Sealing the export draws the system's randomness (row 6).
+            if p.purpose == vault::Purpose::Kdbx {
+                dy += own_row(app, ui, (dx, dy, dw));
+            }
             let label = match p.purpose {
                 vault::Purpose::Kdbx => EN.vault_seal_and_export,
                 vault::Purpose::KeyPassphrase | vault::Purpose::ForWallet(..) => EN.vault_load,
@@ -3135,6 +3020,8 @@ fn detail(
                     back_up_first(crate::backup_flow::Kind::SecureBoot),
                 ));
             } else {
+                // The enrolment files' blinding is drawn (row 9).
+                dy += own_row(app, ui, (dx, dy, dw));
                 actions.push((EN.vault_enrolment_files, va(V::SbEnrol)));
             }
             actions.push((EN.vault_sign_or_check, va(V::SbImages)));

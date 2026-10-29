@@ -150,8 +150,9 @@ fn every_line_of_a_block_is_reached_by_scrolling_on_the_pi() {
 /// The overflow the bar offers, if it has one.
 fn overflow(app: &Faraday) -> Option<Overflow> {
     let mut out = None;
-    for bits in 0u8..16 {
+    for bits in 0u8..32 {
         let held = Overflow {
+            own: bits & 16 != 0,
             how: bits & 1 != 0,
             help: bits & 2 != 0,
             keyboard: bits & 4 != 0,

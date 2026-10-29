@@ -1203,6 +1203,9 @@ fn make_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) ->
             ) + 16.0;
         }
     }
+    // Making the key draws the system's randomness: the Randomness row
+    // above the press (`docs/OWN-RANDOMNESS.md` §8.1 rows 7 and 8).
+    cy += crate::screens::randomness::row(app, ui, (x, cy, w));
     cy += btn(
         ui,
         x,

@@ -1150,6 +1150,12 @@ pub(crate) fn step_body(
                         EN.step_inputs
                     }
                 );
+                // A MuSig2 round opened here draws its secret nonces from
+                // the system's randomness (`docs/OWN-RANDOMNESS.md` §8.1
+                // row 13).
+                if crate::spend_opens_round(i) {
+                    cy += super::randomness::row(app, ui, (x, cy, w));
+                }
                 cy += sign_row(ui, (x, cy, w), &inputs, &label, Style::Primary);
             }
         }
@@ -1234,6 +1240,11 @@ pub(crate) fn step_body(
                         EN.step_no_cosigner_s,
                     );
                     cy += 34.0;
+                }
+                // A MuSig2 round aggregated as a copy comes in may share a
+                // nonce again (`docs/OWN-RANDOMNESS.md` §8.1 row 14).
+                if !copies.is_empty() && crate::spend_opens_round(i) {
+                    cy += super::randomness::row(app, ui, (x, cy, w));
                 }
                 for (k, name) in &copies {
                     // No wider than the column; a long name is cut.
@@ -1508,6 +1519,9 @@ pub(crate) fn step_body(
                     cy += 42.0;
                 }
                 cy += 10.0;
+                // Sharing a nonce and collecting draw the system's
+                // randomness (`docs/OWN-RANDOMNESS.md` §8.1 rows 13, 14).
+                cy += super::randomness::row(app, ui, (x, cy, w));
                 let txid = s.spend.txid;
                 let copies: Vec<(usize, String)> = app
                     .inbox

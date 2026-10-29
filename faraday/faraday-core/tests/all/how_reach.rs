@@ -77,8 +77,9 @@ fn app(width: u16, height: u16, dpi: u16) -> Faraday {
 
 /// The overflow the bar offers, if it has one.
 fn overflow(app: &Faraday) -> Option<Overflow> {
-    (0u8..16)
+    (0u8..32)
         .map(|bits| Overflow {
+            own: bits & 16 != 0,
             how: bits & 1 != 0,
             help: bits & 2 != 0,
             keyboard: bits & 4 != 0,

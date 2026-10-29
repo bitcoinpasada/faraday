@@ -321,6 +321,10 @@ pub(crate) struct Spot {
     /// The Learn sheet was open over it, the one sheet that is put back:
     /// what it shows is kept while it is closed.
     learn: bool,
+    /// The Lock sheet was open over it, asking before a lock seals a
+    /// changed vault: put back after Add randomness opened from it
+    /// (`docs/OWN-RANDOMNESS.md` §8.2).
+    lock_ask: bool,
     /// The wallet whose card was shown.
     wallet: usize,
     /// The card was shown as its chart.
@@ -376,11 +380,22 @@ impl Faraday {
         }
     }
 
+    /// A press on Add randomness, or one that opens it: from the Lock
+    /// sheet the sheet goes, kept with its screen on the trail, and Back
+    /// puts it back (`docs/OWN-RANDOMNESS.md` §8.2).
+    pub(crate) fn own_press(&mut self, a: crate::fresh::page::Act) {
+        if a == crate::fresh::page::Act::Open && self.sheet == Some(Sheet::LockAsk) {
+            self.sheet = None;
+        }
+        self.own_act(a);
+    }
+
     /// The screen on show as it is seen now.
     pub(crate) fn spot(&self) -> Spot {
         Spot {
             screen: self.screen,
             learn: self.sheet == Some(Sheet::Learn),
+            lock_ask: self.sheet == Some(Sheet::LockAsk),
             wallet: self.wallets.wallet(),
             glance: self.glance.open(),
             list_offset: self.list_offset,
@@ -538,6 +553,9 @@ impl Faraday {
         self.screen = s.screen;
         if s.learn {
             self.sheet = Some(Sheet::Learn);
+        }
+        if s.lock_ask {
+            self.sheet = Some(Sheet::LockAsk);
         }
         self.osk_leave();
         self.wallets.set_renaming(None);

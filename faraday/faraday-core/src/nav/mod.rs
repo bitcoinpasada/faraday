@@ -26,6 +26,9 @@ pub enum MenuPress {
 /// leave no room on it, in the order they go there.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BarTool {
+    /// **Add randomness**, on a step whose press draws the system's
+    /// randomness (`docs/OWN-RANDOMNESS.md` §8.3): the menu's first row.
+    Own,
     /// **How Faraday does it**: Learn on the How tab.
     How,
     /// The ?: the page's Learn.
@@ -39,6 +42,8 @@ pub enum BarTool {
 /// Which of a compact bar's tools are in its overflow menu.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct Overflow {
+    /// **Add randomness**, on the Pi's panel wherever the page offers it.
+    pub own: bool,
     /// **How Faraday does it**, which goes in with the ?.
     pub how: bool,
     /// The ?.
@@ -55,7 +60,7 @@ pub struct Overflow {
 impl Overflow {
     /// Whether it holds anything: the bar then shows its ⋮.
     pub fn any(self) -> bool {
-        self.how || self.help || self.keyboard || self.eye
+        self.own || self.how || self.help || self.keyboard || self.eye
     }
 }
 

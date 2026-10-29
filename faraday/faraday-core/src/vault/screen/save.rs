@@ -396,6 +396,11 @@ pub(super) fn images_panel(app: &View, ui: &mut Ui, dx: f32, mut dy: f32, dw: f3
             Err(r) => (crate::secure_boot::refusal_text(r), Role::Error),
         };
         dy += ui.wrap_as((dx, dy, dw), BODY_S, role, &line) + 16.0;
+        // The signature's blinding is drawn from the system's randomness
+        // (`docs/OWN-RANDOMNESS.md` §8.1 row 10).
+        if checked.is_ok() {
+            dy += own_row(app, ui, (dx, dy, dw));
+        }
         let back_x = if checked.is_ok() {
             dx + 10.0
                 + hold_button(
