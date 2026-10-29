@@ -72,4 +72,4 @@ vendor and review, which would make the `.m` or the `.c` file
 unnecessary. (Windows capture, which §16.33 deferred, has since been
 built the same way: `faraday-mediafoundation`, in C rather than C++.)
 
-**Review.** Not reviewed: an exemption in `supply-chain/config.toml` (F71).
+**Review.** Trusted by publisher (`github:rust-lang/cc-rs`) under F71 (`docs/decisions/F71.md`), until 2027-10-01: `supply-chain/audits.toml`. Not read line by line here.

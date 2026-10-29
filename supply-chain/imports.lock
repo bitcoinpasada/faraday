@@ -105,6 +105,11 @@ user-id = 696
 user-login = "fitzgen"
 user-name = "Nick Fitzgerald"
 
+[[publisher.cc]]
+version = "1.4.5"
+when = "2026-09-04"
+trusted-publisher = "github:rust-lang/cc-rs"
+
 [[publisher.chacha20poly1305]]
 version = "0.11.0"
 when = "2026-06-28"
@@ -198,6 +203,11 @@ when = "2026-07-06"
 user-id = 6979
 user-login = "rozbb"
 user-name = "Michael Rosenberg"
+
+[[publisher.find-msvc-tools]]
+version = "0.1.12"
+when = "2026-09-04"
+trusted-publisher = "github:rust-lang/cc-rs"
 
 [[publisher.hashbrown]]
 version = "0.17.1"

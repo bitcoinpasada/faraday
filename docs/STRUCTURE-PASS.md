@@ -68,8 +68,8 @@ The plan as written: moved to `docs/history/STRUCTURE-PASS-LOG.md`.
 ## 6. Dependency policy (F71)
 
 `cargo vet --locked` is in `just lint`
-and passes: 88 trust entries, the imported audits, 15 audits of
-Faraday's own, and 144 exemptions (223 at first). Trust is by the
+and passes: 90 trust entries, the imported audits, 15 audits of
+Faraday's own, and 142 exemptions (223 at first). Trust is by the
 publisher of each locked version, all under F71's named groups:
 rust-bitcoin (apoelstra: `bitcoin`, `bitcoin-io`, `bitcoin-internals`,
 `bech32`, `miniscript`), RustCrypto (tarcieri and RustCrypto's GitHub
@@ -78,7 +78,7 @@ hashes, `rsa`, `der`/`spki`/`pkcs*`, `crypto-bigint`, `signature`,
 `ed25519`, `zeroize`), dalek (rozbb: `curve25519-dalek`,
 `ed25519-dalek`), and the publishers Mozilla, ISRG and the Bytecode
 Alliance already trust (dtolnay, sunfishcode, kennykerr, BurntSushi,
-epage, alexcrichton, rust-lang-owner, cuviper). Every trust entry ends on 2027-10-01; the board carries
+epage, alexcrichton, rust-lang-owner, cuviper, and `github:rust-lang/cc-rs` for `cc` and `find-msvc-tools`). Every trust entry ends on 2027-10-01; the board carries
 the renewal a month before.
 
 Faraday's own reads are recorded under the criteria
@@ -96,14 +96,12 @@ audits of the desktop shell's `getrandom` 0.4.3 rest), and deltas from
 an imported audit for `arrayvec`, `tinyvec`, `miniz_oxide`, `png`,
 `flate2`, `crc32fast`, `simd-adler32`, `bitflags`, `bytemuck` and `log`.
 
-The 144 exemptions stay "not reviewed", the 16 crates the AI reads cover
+The 142 exemptions stay "not reviewed", the 16 crates the AI reads cover
 among them. 117 are crates of the desktop
 window stack, what `faraday-window` reaches on any target with every
 feature cargo vet turns on, the drawing library `tiny-skia` 0.12.0
 among them (about 27,000 lines with `tiny-skia-path`, SIMD pipelines
-included, left for a pass of its own). The other eleven are `cc` and `find-msvc-tools`, now published by the
-cc repository's GitHub publishing (`github:rust-lang/cc-rs`), which F71
-does not name; the
+included, left for a pass of its own). The other nine are the
 Starter's D-Bus and payload crates (`rustbus`, `rustbus_derive`, `nix`,
 `memoffset`, `lzma-rust2`), `zlib-rs` (reached only through `png`'s
 optional `zlib-rs` feature), `bip39` (a dev-dependency, exempt as

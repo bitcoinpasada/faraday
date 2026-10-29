@@ -91,10 +91,6 @@ criteria = "safe-to-deploy"
 version = "0.3.0"
 criteria = "safe-to-deploy"
 
-[[exemptions.cc]]
-version = "1.4.5"
-criteria = "safe-to-deploy"
-
 [[exemptions.combine]]
 version = "4.6.8"
 criteria = "safe-to-deploy"
@@ -169,10 +165,6 @@ criteria = "safe-to-deploy"
 
 [[exemptions.fastrand]]
 version = "2.5.0"
-criteria = "safe-to-deploy"
-
-[[exemptions.find-msvc-tools]]
-version = "0.1.12"
 criteria = "safe-to-deploy"
 
 [[exemptions.flate2]]
