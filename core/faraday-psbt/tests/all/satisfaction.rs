@@ -63,6 +63,29 @@ fn or_b_carries_the_smaller_signature() {
     );
 }
 
+const TAP_TIE_PSBT: &str =
+    include_str!("../../../../tools/vectors/psbt/finalize-tap-leaf-tie.psbt");
+const TAP_TIE_FINAL: &str =
+    include_str!("../../../../tools/vectors/psbt/finalize-tap-leaf-tie-final.psbt");
+
+/// The cross-check's case: input 1 spends a taproot tree whose leaves
+/// tie by `miniscript`'s count, which leaves out each element's length
+/// byte, and differ by one byte as written. Faraday's witness is the
+/// 240-byte one the reference gives, not the 241-byte one.
+#[test]
+fn taproot_leaf_is_the_smaller_as_written() {
+    let c = Compute::unchecked();
+    let mut psbt = Psbt::parse_base64(&c, TAP_TIE_PSBT.trim()).expect("the vector");
+    let reference = Psbt::parse_base64(&c, TAP_TIE_FINAL.trim()).expect("the reference's answer");
+
+    finalize(&mut psbt).expect("finalizes");
+    let got = &psbt.inner().inputs[1];
+    let want = &reference.inner().inputs[1];
+    assert_eq!(got.final_script_witness, want.final_script_witness);
+    let written = bitcoin::consensus::serialize(got.final_script_witness.as_ref().expect("final"));
+    assert_eq!(written.len(), 240);
+}
+
 struct Spend {
     script: ScriptBuf,
     tx: Transaction,

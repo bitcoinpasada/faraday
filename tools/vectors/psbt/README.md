@@ -28,6 +28,8 @@
 | `wallet-musig-device-first-signed.psbt` | The device's round 2 over that: its partial signature, the aggregate as the key-path signature, and the input final |
 | `finalize-or-b.psbt` | The cross-check's seeded sign case `4fde5465…`, signed and not final: input 3 spends `wsh(or_b(pk(A),s:pk(B)))` with a 72-byte signature from A and a 71-byte one from B |
 | `finalize-or-b-final.psbt` | python-bip380's finalized answer to it: input 3's witness carries B's signature and A's empty push, the smaller of the two satisfactions (`core/faraday-psbt/tests/all/satisfaction.rs`) |
+| `finalize-tap-leaf-tie.psbt` | The cross-check's seeded sign case `d2720ca6…` (corpus 17), signed and not final: input 1 spends a taproot tree whose leaves' witnesses differ by one byte as serialized and tie by `miniscript`'s count |
+| `finalize-tap-leaf-tie-final.psbt` | The cross-check's finalized answer to it: input 1's witness is the 240-byte leaf (`core/faraday-psbt/tests/all/satisfaction.rs`); Bitcoin Core v31.1.0's `finalizepsbt` on regtest gives the same witness, byte for byte |
 
 ## The miniscript wallets' addresses
 

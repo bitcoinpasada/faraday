@@ -20,6 +20,9 @@
 //! the witness carries is then chosen again by the real size of its
 //! signatures ([`smallest`]), and that witness, where it differs, goes
 //! through the same interpreter check.
+//!
+//! For a taproot script path, which leaf the witness spends is chosen
+//! by the real size of the witness each leaf gives ([`by_leaf`]).
 
 mod smallest;
 
@@ -31,6 +34,7 @@ use bitcoin::psbt::Input;
 use bitcoin::script::{Builder, PushBytesBuf};
 use bitcoin::secp256k1::{Secp256k1, XOnlyPublicKey};
 use bitcoin::sighash::Prevouts;
+use bitcoin::taproot::ControlBlock;
 use bitcoin::{PublicKey, ScriptBuf, Transaction, Witness, ecdsa};
 use miniscript::psbt::PsbtExt;
 use miniscript::{ExtParams, Interpreter, Miniscript, Segwitv0, Tap, Terminal};
@@ -241,7 +245,7 @@ fn build_final(
         ScriptKind::Miniscript { .. } => {
             satisfy(psbt, index).map(|chosen| by_size(psbt, index, c, chosen))
         }
-        ScriptKind::P2trScript => satisfy(psbt, index),
+        ScriptKind::P2trScript => by_leaf(psbt, index),
         ScriptKind::Unknown => return Err(index_err(Reason::UnknownScript)),
     })
 }
@@ -262,17 +266,82 @@ fn build_final(
 /// 32. Such a leaf is signed for and left for the coordinator to
 /// finalize; any other leaf, or the key path, still finalizes here.
 fn satisfy(psbt: &bitcoin::Psbt, index: usize) -> Option<Final> {
+    satisfy_leaves(psbt, index, |_| true)
+}
+
+/// [`satisfy`] with only the taproot leaves `keep` accepts, by control
+/// block, left in the input.
+fn satisfy_leaves(
+    psbt: &bitcoin::Psbt,
+    index: usize,
+    keep: impl Fn(&ControlBlock) -> bool,
+) -> Option<Final> {
     let secp = Secp256k1::verification_only();
     let mut attempt = psbt.clone();
     attempt.inputs[index]
         .tap_scripts
-        .retain(|_, (script, _)| !leaf_has_pkh(script));
+        .retain(|control, (script, _)| keep(control) && !leaf_has_pkh(script));
     attempt.finalize_inp_mut(&secp, index).ok()?;
     let input = &attempt.inputs[index];
     Some((
         input.final_script_sig.clone(),
         input.final_script_witness.clone(),
     ))
+}
+
+/// Costs one signature check per signature of every leaf the PSBT
+/// carries (the interpreter's, once per leaf): a taproot script-path
+/// input finalized with the leaf whose witness is smallest as written.
+///
+/// `miniscript` 12 chooses among leaves by a size that leaves out each
+/// element's length byte, so on a tie it can keep the leaf that is one
+/// byte heavier as serialized. Each leaf is finalized alone, so each
+/// witness is one `miniscript`'s finalizer built and its interpreter
+/// accepted, and the one of least serialized size is kept: its element
+/// count, and every element with its length, plus the script and
+/// control block. Where two weigh the same, the first leaf in the
+/// PSBT's order (its control blocks', as `tap_scripts` keeps them) is
+/// kept. What can be finalized at all is unchanged: an input no leaf
+/// satisfies stays partial.
+fn by_leaf(psbt: &bitcoin::Psbt, index: usize) -> Option<Final> {
+    let controls: Vec<ControlBlock> = psbt.inputs[index].tap_scripts.keys().cloned().collect();
+    if controls.is_empty() {
+        return satisfy(psbt, index);
+    }
+    let mut best: Option<(usize, Final)> = None;
+    for control in &controls {
+        let Some(found) = satisfy_leaves(psbt, index, |c| c == control) else {
+            continue;
+        };
+        let size = witness_size(found.1.as_ref());
+        if best.as_ref().is_none_or(|(least, _)| size < *least) {
+            best = Some((size, found));
+        }
+    }
+    best.map(|(_, found)| found)
+}
+
+/// A witness as a transaction writes it: the element count, then each
+/// element with its length.
+fn witness_size(witness: Option<&Witness>) -> usize {
+    let Some(witness) = witness else {
+        return usize::MAX;
+    };
+    compact_size(witness.len())
+        + witness
+            .iter()
+            .map(|e| compact_size(e.len()) + e.len())
+            .sum::<usize>()
+}
+
+/// The bytes a compact-size integer takes.
+fn compact_size(n: usize) -> usize {
+    match n {
+        0..=0xfc => 1,
+        0xfd..=0xffff => 3,
+        0x10000..=0xffff_ffff => 5,
+        _ => 9,
+    }
 }
 
 /// Costs one signature check per signature when the witness changes
