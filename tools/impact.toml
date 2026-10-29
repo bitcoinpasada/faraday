@@ -562,6 +562,16 @@ held_by = ["lint-standards"]
 misses = "work kept out that no [[out_of_app]] of tools/lint-standards.toml names; a method call the inventory cannot resolve"
 
 [[rule]]
+id = "standards.experimental-dev-only"
+title = "work behind the experimental feature reaches only a dev build: no release or test-release binary carries it"
+source = ["docs/decisions/F162.md", "docs/ANTI-EXFIL.md §3"]
+when = ["**/Cargo.toml", "faraday/image/build.sh", "justfile", "faraday/faraday.just"]
+kind = "held"
+held_by = ["lint-keys-tests"]
+misses = "planned: no experimental feature exists yet; lint-keys-tests gains the check on shipped binaries, and faraday/image/build.sh its refusal of the feature without DEV=1, with the first code behind it"
+status = "planned"
+
+[[rule]]
 id = "standards.rows-checked"
 title = "every STANDARDS row names a cross-check area, a vectors folder or a test, and every area and vectors folder is named by a row"
 source = ["docs/STANDARDS.md §0"]

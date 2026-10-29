@@ -92,7 +92,7 @@ need. Each document's header says what kind it is:
 
 **Spec**
 
-- `docs/ANTI-EXFIL.md`: Anti-exfil. Planned, not scheduled.
+- `docs/ANTI-EXFIL.md`: Anti-exfil, Faraday checking a signer and signing with it. Planned, not built; experimental, for dev builds only (F162).
 - `docs/BACKUP-FLOW.md`: The backup flow. Partly built.
 - `docs/DESKTOP-HOST.md`: Faraday Demo as a simulator: the host. Built (F118); the website's part planned.
 - `docs/FLOWS.md`: Flows. Built but for the items under Open.

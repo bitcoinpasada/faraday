@@ -454,9 +454,9 @@ own = "Fails closed by design (F84). Conservative."
 id = "anti-exfil"
 section = 4
 what = "Anti-exfil"
-completeness = "Not built (`docs/ANTI-EXFIL.md`)"
+completeness = "Not built; planned in dev builds only (`docs/ANTI-EXFIL.md`, F162)"
 no_action = "Not built."
-standard = "Jade's protocol, libsecp256k1-zkp s2c"
+standard = "libsecp256k1-zkp `ecdsa_s2c`; FractalEncrypt's four-stage exchange over QR (alpha, unpublished)"
 verified = "None"
 own = "None"
 
