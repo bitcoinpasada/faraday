@@ -150,7 +150,9 @@ randomness. Nothing is chosen until a source is pressed.
 |---|---|
 | the way back | at the top left, named after where the page was opened from (**Settings**) |
 | the status line | as in Settings: "System: … · your own: …" |
+| **Add randomness to the pool** | the label over the sources |
 | **Camera**, **Dice**, **Coins**, **Cards**, **Pointer and keys** | the source; **Camera** only where there is a camera, **Pointer and keys** only where there are a pointer and keys |
+| "Added to the pool 3 times · last: 6 dice rolls" | with a check mark, under the pad once anything is added ("Added to the pool once: …" after the first); each batch added changes it and briefly shades it |
 
 ### The sources
 

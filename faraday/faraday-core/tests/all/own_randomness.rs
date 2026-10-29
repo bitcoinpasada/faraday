@@ -484,6 +484,91 @@ fn settings_randomness_row_counts_what_the_page_added_and_none_after_a_lock() {
     );
 }
 
+/// Add randomness's added line on show, if any.
+fn added_shown(app: &mut Faraday) -> Option<String> {
+    app.drawn_texts()
+        .into_iter()
+        .find(|t| t.starts_with("Added to the pool"))
+}
+
+#[test]
+fn the_page_says_what_it_adds_to_and_each_batch_added_changes_its_line() {
+    let mut app = testkit::started();
+    answer(&mut app, SEED);
+    app.press(Action::Nav(Screen::Settings));
+    crate::common::settings_section(&mut app, "Randomness");
+    app.press(own(Act::Open));
+    assert!(
+        app.drawn_texts()
+            .iter()
+            .any(|t| t == "Add randomness to the pool"),
+        "{:?}",
+        app.drawn_texts()
+    );
+    assert_eq!(added_shown(&mut app), None, "nothing added yet");
+    app.press(own(Act::Source(OwnSource::Dice)));
+    for f in 1..=6 {
+        app.press(own(Act::Roll(f)));
+    }
+    assert_eq!(added_shown(&mut app), None, "nothing before Add");
+    app.press(own(Act::Add));
+    assert_eq!(
+        added_shown(&mut app).as_deref(),
+        Some("Added to the pool once: 6 dice rolls")
+    );
+    // The same batch again still changes the line: its count goes up.
+    for f in 1..=6 {
+        app.press(own(Act::Roll(f)));
+    }
+    app.press(own(Act::Add));
+    assert_eq!(
+        added_shown(&mut app).as_deref(),
+        Some("Added to the pool 2 times · last: 6 dice rolls")
+    );
+    app.press(own(Act::Source(OwnSource::Coins)));
+    app.press(own(Act::Flip(true)));
+    app.press(own(Act::Add));
+    assert_eq!(
+        added_shown(&mut app).as_deref(),
+        Some("Added to the pool 3 times · last: 1 coin flip")
+    );
+    // A lock wipes it with what was added.
+    app.press(Action::Lock);
+    app.press(Action::Nav(Screen::Settings));
+    crate::common::settings_section(&mut app, "Randomness");
+    app.press(own(Act::Open));
+    assert_eq!(added_shown(&mut app), None);
+}
+
+#[test]
+fn an_added_batch_is_emphasised_briefly_and_not_at_all_with_reduce_motion() {
+    // Whether ticks after a batch still ask for frames: the line's
+    // emphasis easing away.
+    fn draws_after(app: &mut Faraday, ms: u64) -> bool {
+        let _ = commands(app);
+        app.event(Event::Tick { now_ms: ms });
+        commands(app).contains(&Command::Draw)
+    }
+    for reduce in [false, true] {
+        let mut app = testkit::started();
+        answer(&mut app, SEED);
+        app.press(Action::ReduceMotion(reduce));
+        app.press(Action::Nav(Screen::Settings));
+        crate::common::settings_section(&mut app, "Randomness");
+        app.press(own(Act::Open));
+        app.press(own(Act::Source(OwnSource::Dice)));
+        app.press(own(Act::Roll(4)));
+        app.event(Event::Tick { now_ms: 100_000 });
+        app.event(Event::Tick { now_ms: 101_000 });
+        assert!(!draws_after(&mut app, 102_000), "nothing moves before Add");
+        app.press(own(Act::Add));
+        assert_eq!(draws_after(&mut app, 102_016), !reduce, "reduce {reduce}");
+        assert_eq!(draws_after(&mut app, 102_200), !reduce, "reduce {reduce}");
+        assert!(!draws_after(&mut app, 104_000), "over within its time");
+        assert!(!draws_after(&mut app, 105_000));
+    }
+}
+
 #[test]
 fn dice_typed_on_the_page_mix_in_as_the_known_answers_say() {
     let mut app = testkit::started();

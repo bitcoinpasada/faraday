@@ -328,7 +328,8 @@ Press **Add randomness**.
    them; at 99 rolls it reads **Enough for 256 bits on its own**.
    **Undo** takes the last back, **Clear** the batch.
 3. Press **Add**. The line at the top reads "… · your own: 10 dice
-   rolls".
+   rolls", and a check mark under the pad reads "Added to the pool
+   once: 10 dice rolls"; each batch after that counts up there.
 
 **Pointer and keys** takes the pointer's moves over its box and the
 keys typed while it is chosen. What is added is kept for this session

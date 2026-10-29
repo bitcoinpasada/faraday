@@ -23,6 +23,7 @@
 //! never stands in for the system's bytes, and alone it makes nothing.
 
 use faraday_bip::bitcoin::hashes::{Hash, HashEngine, sha256};
+use faraday_draw::tokens::PRESS_EMPHASIS_MS;
 use faraday_shell_api::Command;
 use zeroize::Zeroizing;
 
@@ -132,16 +133,63 @@ pub(crate) fn own_status(source: Option<&str>, c: OwnCounts) -> String {
     fill(EN.own_status, &[&system, &yours])
 }
 
+/// What Add randomness says was added: how many batches in all and the
+/// last one, as its line reads ("Added to the pool 3 times · last: 6 dice
+/// rolls"), made once as the batch is taken, and the clock of the brief
+/// emphasis that shows the line changed.
+pub(crate) struct OwnAdded {
+    /// Batches taken in this session.
+    times: u32,
+    /// The line, kept: made again only by the next batch taken.
+    line: String,
+    /// When the emphasis started: `None` until the first tick after the
+    /// batch.
+    at: Option<u64>,
+    /// Whether the emphasis still runs (ticks ask for frames).
+    moving: bool,
+}
+
 /// The person's own randomness: an accumulator over every commitment
 /// added, and the counts. Kept in the session only: a lock wipes it,
 /// and it is never written or shown. Invariant: `acc` is `Some` exactly
-/// when a count is above zero, since only a taken batch changes either.
+/// when a count is above zero, and `added` exactly when `acc` is, its
+/// line naming the last batch taken, since only a taken batch changes
+/// any of them.
 #[derive(Default)]
 pub(crate) struct Own {
     /// SHA-256 chained over the commitments; `None` before the first.
     acc: Option<Zeroizing<[u8; 32]>>,
     /// What was added, for the status line.
     counts: OwnCounts,
+    /// What Add randomness's line says was added.
+    added: Option<OwnAdded>,
+}
+
+/// A count's noun for `source`, one or more than one, as the status line
+/// names it.
+fn own_noun(source: OwnSource, n: u32) -> &'static str {
+    use crate::strings::EN;
+    let (one, many) = match source {
+        OwnSource::Camera => (EN.own_camera_frame, EN.own_camera_frames),
+        OwnSource::Dice => (EN.own_dice_roll, EN.own_dice_rolls),
+        OwnSource::Coins => (EN.own_coin_flip, EN.own_coin_flips),
+        OwnSource::Cards => (EN.own_card, EN.own_cards),
+        OwnSource::PointerKeys => (EN.own_pointer_key, EN.own_pointer_keys),
+    };
+    if n == 1 { one } else { many }
+}
+
+/// Add randomness's line after `times` batches, the last `n` from
+/// `source`: "Added to the pool once: 6 dice rolls", or "Added to the
+/// pool 3 times · last: 6 dice rolls".
+fn own_added_line(times: u32, source: OwnSource, n: u32) -> String {
+    use crate::strings::{EN, fill};
+    let last = fill(EN.own_count, &[&n.to_string(), own_noun(source, n)]);
+    if times == 1 {
+        fill(EN.own_added_once, &[&last])
+    } else {
+        fill(EN.own_added_times, &[&times.to_string(), &last])
+    }
 }
 
 impl Own {
@@ -166,6 +214,13 @@ impl Own {
             OwnSource::PointerKeys => &mut c.pointer_keys,
         };
         *count = count.saturating_add(n);
+        let times = self.added.as_ref().map_or(0, |a| a.times).saturating_add(1);
+        self.added = Some(OwnAdded {
+            times,
+            line: own_added_line(times, source, n),
+            at: None,
+            moving: true,
+        });
         true
     }
 }
@@ -305,6 +360,35 @@ impl Fresh {
     /// The accumulator, while anything was added (a lookup).
     pub(crate) fn own_acc(&self) -> Option<&[u8; 32]> {
         self.own.acc.as_deref()
+    }
+
+    /// Add randomness's line, when its emphasis started and whether it
+    /// still runs, once a batch was added (a lookup).
+    pub(crate) fn own_added(&self) -> Option<(&str, Option<u64>, bool)> {
+        self.own
+            .added
+            .as_ref()
+            .map(|a| (a.line.as_str(), a.at, a.moving))
+    }
+
+    /// One tick of the line's emphasis: starts its clock on the first
+    /// tick after a batch, ends it once `ms` are up, or at once under
+    /// `still`. Returns whether it still moves. A lookup.
+    pub(crate) fn own_added_tick(&mut self, now_ms: u64, ms: u64, still: bool) -> bool {
+        let Some(a) = self.own.added.as_mut().filter(|a| a.moving) else {
+            return false;
+        };
+        let at = *a.at.get_or_insert(now_ms);
+        a.moving = !still && now_ms < at + ms + crate::motion::FIRST_STEP_MS;
+        a.moving
+    }
+
+    /// The added line's emphasis brought to rest at once, as everything
+    /// moving is when a driver settles the screen.
+    pub(crate) fn own_settle(&mut self) {
+        if let Some(a) = self.own.added.as_mut() {
+            a.moving = false;
+        }
     }
 
     /// The lock: what the person added is wiped, and the next session
@@ -472,6 +556,31 @@ impl Faraday {
     /// the person added. A lookup and a format.
     pub fn own_status(&self) -> String {
         own_status(self.keygen.entropy_source(), self.own_counts())
+    }
+
+    /// One tick of Add randomness's added line: its emphasis eases away
+    /// over Material's medium 4 after each batch, none under reduce
+    /// motion. Returns whether it still moves, so a frame is asked for.
+    /// A lookup.
+    pub(crate) fn own_tick(&mut self, now_ms: u64) -> bool {
+        let still = self.reduce_motion();
+        self.fresh.own_added_tick(now_ms, PRESS_EMPHASIS_MS, still)
+    }
+
+    /// Add randomness's added line, once anything was added, and how
+    /// strongly it is emphasised now: 1 from the first tick after a
+    /// batch is taken, easing to 0; 0 before that tick, so a frame no
+    /// tick follows (a still picture) shows the line at rest. A lookup.
+    pub(crate) fn own_added(&self) -> Option<(&str, f32)> {
+        use crate::motion::{ease_move, progress};
+        let (line, at, moving) = self.fresh.own_added()?;
+        let shown = match at {
+            Some(at) if moving && !self.reduce_motion() => {
+                1.0 - ease_move(progress(Some(at), self.now_ms, PRESS_EMPHASIS_MS))
+            }
+            _ => 0.0,
+        };
+        Some((line, shown))
     }
 
     /// Add randomness, while it is on show.

@@ -62,6 +62,12 @@ strings! {
     own_randomness: "Randomness",
     /// The page's title, and the button on Settings and New key that opens it.
     own_add_randomness: "Add randomness",
+    /// Add randomness's label over its sources.
+    own_add_to_pool: "Add randomness to the pool",
+    /// Add randomness once one batch was added. `{}`: the batch, `own_count`.
+    own_added_once: "Added to the pool once: {}",
+    /// Add randomness once more than one was added. `{}`: how many times, then the last batch, `own_count`.
+    own_added_times: "Added to the pool {} times · last: {}",
     /// Source choice.
     own_source_camera: "Camera",
     /// Source choice.

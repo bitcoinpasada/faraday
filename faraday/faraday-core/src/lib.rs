@@ -6432,6 +6432,7 @@ impl Faraday {
             d.moving = false;
         }
         self.guided_moving = None;
+        self.fresh.own_settle();
         let whole = self.whole_offset();
         let offset = self.scroll_slot().map_or(0.0, |o| whole(*o));
         self.scroll
@@ -6439,8 +6440,7 @@ impl Faraday {
         if self.out.toast.is_some() {
             self.out.toast_at = Some(self.now_ms.saturating_sub(motion::TOAST_MS));
         }
-        // The next frame is the screen at rest, not part of the way from
-        // the one before.
+        // The next frame is the screen at rest, not on the way from the last.
         self.fade.restart();
         self.out.dirty = true;
     }
@@ -7017,7 +7017,7 @@ impl App for Faraday {
                     self.scroll.release(self.f);
                 }
                 let tip = self.pointer.tip_tick(now_ms) | self.keygen.dice_tick(now_ms);
-                if self.motion_tick(now_ms) || fading || tip {
+                if self.own_tick(now_ms) | self.motion_tick(now_ms) || fading || tip {
                     self.out.dirty = true;
                     self.out.commands.push_back(Command::Draw);
                 }

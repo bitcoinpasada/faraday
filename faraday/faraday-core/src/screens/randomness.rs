@@ -14,11 +14,12 @@ use crate::strings::{EN, fill};
 use crate::ui::Shape;
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui};
-use faraday_draw::tokens::{BODY_M, BODY_S};
+use faraday_draw::tokens::{BODY_M, BODY_S, TITLE_S};
 use faraday_draw::tokens::{
-    COLUMN_MAX, GAP, GAP_SMALL, LABEL, MARGIN_COMPACT, MARGIN_WIDE, OWN_AREA, OWN_BUTTON, PAD,
-    SHAPE_M,
+    COLUMN_MAX, GAP, GAP_SMALL, ICON_GAP, ICON_GLYPH_BUTTON, LABEL, MARGIN_COMPACT, MARGIN_WIDE,
+    OWN_AREA, OWN_BUTTON, PAD, PRESS_EMPHASIS, SHAPE_M, SHAPE_S, STATE_PRESS,
 };
+use faraday_draw::widgets::Icon;
 
 /// The sources a person picks from, in order: Camera only where the
 /// shell has a camera, Pointer and keys only where it has a pointer and
@@ -56,9 +57,33 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     } - app.list_offset;
     let mut y = top;
     y += ui.wrap_as((x, y, w), BODY_M, Role::OnSurfaceVariant, &app.own_status()) + PAD;
+    y += ui.wrap_as((x, y, w), TITLE_S, Role::OnSurface, EN.own_add_to_pool) + PAD;
     y += own_sources(app, p, ui, (x, y, w), false);
+    if let Some((line, shown)) = app.own_added() {
+        y += PAD + added(ui, (x, y + PAD, w), line, shown);
+    }
     let content = y + PAD - top;
     crate::compact::screen::finish(app, ui, x0, cw, h, content);
+}
+
+/// What was added, once anything was: a check mark and the line
+/// ("Added to the pool 3 times · last: 6 dice rolls"). As a batch is
+/// taken a pressed state layer in the accent, as strong as the codex32
+/// pad's emphasised key at `shown` 1, eases away behind it to nothing;
+/// none under reduce motion, where the line's own count is what changes.
+/// Returns its height.
+fn added(ui: &mut Ui, (x, y, w): (f32, f32, f32), line: &str, shown: f32) -> f32 {
+    let icon = ui.line_as(BODY_M);
+    let (tx, tw) = (x + icon + ICON_GAP, w - icon - ICON_GAP);
+    let h = ui.wrap_height_as(BODY_M, line, tw).max(icon) + 2.0 * GAP_SMALL;
+    if shown > 0.0 {
+        let alpha = (STATE_PRESS + PRESS_EMPHASIS) * shown.clamp(0.0, 1.0);
+        ui.wash(x, y, w, h, SHAPE_S, Role::Primary.at(alpha));
+    }
+    let cy = y + GAP_SMALL;
+    ui.icon(x, cy, icon, Icon::Success, ICON_GLYPH_BUTTON, Role::Ok);
+    ui.wrap_as((tx, cy, tw), BODY_M, Role::OnSurface, line);
+    h
 }
 
 /// The sources, the chosen one's pad and its batch from (x, y), `w`

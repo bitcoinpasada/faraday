@@ -290,6 +290,11 @@ extent; a motion left from another screen or sheet is stopped.
     where it stands;
   - a switch's fill slides in 150 ms on Material's standard curve
     (`motion::SWITCH_MS`, `motion::ease_move`);
+  - a batch added on Add randomness puts a pressed state layer in the
+    accent behind its added line, easing to nothing over 400 ms on
+    Material's standard curve (`tokens::PRESS_EMPHASIS_MS`, medium 4,
+    `Faraday::own_tick`), from the first tick after the batch, so a
+    still picture shows the line at rest;
   - a change of theme, mode or contrast (a different `Theme`, the triple
     of THEMES §3) cross-fades the whole frame the same way, over 350 ms
     (`motion::THEME_FADE_MS`, Material's medium 3), on Material's

@@ -113,7 +113,14 @@ on) are the page's, not the source's.
   coins and cards: the **Add** button under the pad; camera: each frame;
   pointer and keys: as §2.1 says). Pointer and keys' pad is an area to
   move the pointer over and type, with a count of what it took ("412
-  pointer moves, 30 keys"). The page stays until Back.
+  pointer moves, 30 keys"). The sources stand under the label **Add
+  randomness to the pool**. Once a batch is added, from any source, a
+  check mark and a line under the pad say how many batches this session
+  has taken and the last one ("Added to the pool once: 6 dice rolls",
+  "Added to the pool 3 times · last: 1 camera frame"), the line kept
+  with the counts and made again by each batch taken, and a pressed
+  state layer eases away behind it (`docs/MOTION.md` §3.5; none with
+  reduce motion), so each addition shows. The page stays until Back.
 - **New key, This device**: its row's label carries the status (§2.4),
   and the source's step, the Generator card, offers Camera (where the
   shell has one), Dice, Coins, Cards and, where the page offers it,
