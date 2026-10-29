@@ -444,13 +444,6 @@ class Import(Area):
             "recovers the record's key: btclib is asked with the address that form names "
             "(Faraday reads no address from the record)."
         ),
-        (
-            "Counted: a taproot `sortedmulti_a` wallet written one chain a descriptor (a "
-            "receive and a change line, a receive line alone, Core's `listdescriptors`, "
-            "Specter's file) is refused by Faraday, which reads such descriptors first with "
-            "rust-miniscript 12.3.7, which has no `sortedmulti_a`; Core reads them. The "
-            "multipath descriptor of the same wallet is read and agrees."
-        ),
     ]
     not_compared = (
         "the wallet's name a file carries; Electrum's encrypted files and BSMS's encrypted "
@@ -568,11 +561,6 @@ class Import(Area):
                                            for i in range(len(w.accounts))]})
         if damage:
             return text, self.refused("Core's descsum_check: the checksum is wrong")
-        if w.shape == "tapmulti" and fmt not in ("multipath", "bare"):
-            # A known difference: descriptors one chain each are first read
-            # by rust-miniscript 12.3.7, which has no `sortedmulti_a`.
-            self.known += 1
-            return text, self.refused("rust-miniscript has no sortedmulti_a", Ours)
         return text, w.expected
 
     @staticmethod

@@ -508,12 +508,6 @@ difference"), and says why.
   - A key record's signature in any of BIP-137's header forms is
     accepted when it recovers the record's key: btclib is asked with the
     address that form names (Faraday reads no address from the record).
-  - Counted: a taproot `sortedmulti_a` wallet written one chain a
-    descriptor (a receive and a change line, a receive line alone,
-    Core's `listdescriptors`, Specter's file) is refused by Faraday,
-    which reads such descriptors first with rust-miniscript 12.3.7,
-    which has no `sortedmulti_a`; Core reads them. The multipath
-    descriptor of the same wallet is read and agrees.
 - `miniscript`
   - Miniscript: Faraday reads `sortedmulti_a` only as a `tr()`'s one
     leaf; BIP 387 allows it deeper in a tree, and Core reads it there.

@@ -205,7 +205,7 @@ own = "`m/45'` is an account path with no account number to choose. Neutral; no 
 id = "taproot-multisig"
 section = 2
 what = "Taproot multisig `tr(H, sortedmulti_a)` (`core/faraday-bip/src/tapmulti.rs`)"
-completeness = "`sortedmulti_a` is parsed here because miniscript lacks it; a hardened wildcard is parsed but not derived"
+completeness = "`sortedmulti_a` is parsed here because miniscript lacks it, as a multipath descriptor or one chain a descriptor (a receive and a change line, a receive line alone); a hardened wildcard is parsed but not derived"
 
 [[row]]
 id = "miniscript-recovery"
@@ -2227,6 +2227,8 @@ tests = [
   "core/faraday-bip/tests/all/json.rs::a_key_named_twice_too_deep_or_too_long_is_refused",
   "faraday/faraday-core/tests/all/inbox_found.rs::an_account_xpub_alone_becomes_a_watch_only_wallet_of_its_paths_kind",
   "faraday/faraday-core/tests/all/inbox_found.rs::a_cosigners_multisig_xpub_is_not_a_wallet_on_its_own",
+  "faraday/faraday-core/tests/all/interop.rs::cores_and_specters_files_of_a_taproot_sortedmulti_a_wallet_read_as_it_with_cores_address",
+  "faraday/faraday-core/tests/all/interop.rs::a_taproot_sortedmulti_a_pair_of_two_wallets_or_with_a_wrong_checksum_is_refused",
 ]
 crosscheck = "import"
 independence = { class = "own-over-outside", author = "Bitcoin Core v31.1 (`deriveaddresses`, and BIP-380's checksum in its `descriptors.py`), by the Bitcoin Core developers, for every wallet's addresses and checksums; btclib-wallet's BIP-32 and btclib's SLIP-132 versions, by the btclib developers, for the keys; Faraday's authors (`area_import.py`) for the files", ours = "the files themselves and what each format's fields mean (Coldcard's export and multisig file, Caravan's, Electrum's, Cobo's, Keystone's, Wasabi's, Specter Desktop's, Core's `listdescriptors`), written in `area_import.py` from each format's documentation, which account of a Coldcard export and which pair of a `listdescriptors` is the wallet, and F155's SLIP-132 refusals" }
@@ -2244,6 +2246,7 @@ wiped = "Nothing secret is held."
 lines = [
   "A file whose stated first address is not its wallet's is refused.",
   "A key in a SLIP-132 version that disagrees with the script is refused.",
+  "A receive and a change descriptor are one wallet only when they are the same but for /0/* and /1/*, each with its checksum, if any, holding; otherwise the file is refused.",
   "A file for Wasabi is written only for a native SegWit single-key wallet at 84h/0h/0h (mainnet) or 84h/1h/0h (test networks).",
 ]
 

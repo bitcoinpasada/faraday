@@ -220,8 +220,10 @@ the wallet; each checksum is Core's (shape of `faraday/faraday-core/tests/vector
 The rows read **Core 29 or later** and **Core before 29**, each "Bitcoin
 Core, watch-only" under it. The More options state is
 `BackupState::public_more`, open when a file under it is already For the
-stick. A `sortedmulti_a` pair is written but does not read back here as a
-pair (`miniscript` has no `sortedmulti_a`). `core-check.py` against Core
+stick. A `sortedmulti_a` pair reads back as its wallet, as every other
+pair does: `miniscript` has no `sortedmulti_a`, so each line is first read
+as its `multi_a` twin, its checksum checked over the line as written
+(`faraday_bip::descriptor::reads_as_descriptor`). `core-check.py` against Core
 28.x is not done. The build's notes: moved to `docs/history/INTEROP-LOG.md`.
 
 ### I5. Caravan and Unchained configs (§4 item 2; #44)

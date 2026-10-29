@@ -191,10 +191,21 @@ pub fn script_type(text: &str) -> Option<ScriptType> {
 /// Costs a parse of the descriptor: whether `text` reads as one output
 /// descriptor of public keys, checksum and all, by `miniscript`'s own
 /// reader, whatever wallet it is or is not.
+///
+/// `miniscript` has no `sortedmulti_a`: a `tr()` whose tree is one
+/// `sortedmulti_a` leaf is read as its `multi_a` twin, as
+/// [`WalletPolicy`] reads it, its `#checksum`, if present, checked first
+/// over the text as written.
 pub fn reads_as_descriptor(c: &Compute, text: &str) -> bool {
     use core::str::FromStr;
     c.count(Work::DescriptorParse);
-    miniscript::Descriptor::<miniscript::DescriptorPublicKey>::from_str(text).is_ok()
+    let read =
+        |t: &str| miniscript::Descriptor::<miniscript::DescriptorPublicKey>::from_str(t).is_ok();
+    let body = text.split_once('#').map_or(text, |(body, _)| body);
+    match crate::tapmulti::unsorted_text(body) {
+        Some(twin) => (body.len() == text.len() || verify_checksum(text)) && read(&twin),
+        None => read(text),
+    }
 }
 
 /// The master fingerprint of every key origin a descriptor carries, in

@@ -928,14 +928,82 @@ fn the_two_descriptors_for_core_before_29_read_back_as_the_wallet_each_with_a_va
                 "{id}"
             );
         }
-        // Read back as a receive and a change descriptor: `miniscript`,
-        // which reads such a pair here, has no `sortedmulti_a`.
-        if id != "taproot-multisig" {
-            let both = format!("{}\n{}", requests[0].0, requests[1].0);
-            let back = read_wallet(&c, &both).unwrap_or_else(|e| panic!("{id}: {}", e.text()));
-            assert!(same(&back, &read_wallet(&c, &d).unwrap()), "{id}");
-        }
+        let both = format!("{}\n{}", requests[0].0, requests[1].0);
+        let back = read_wallet(&c, &both).unwrap_or_else(|e| panic!("{id}: {}", e.text()));
+        assert!(same(&back, &read_wallet(&c, &d).unwrap()), "{id}");
     }
+}
+
+// A taproot `sortedmulti_a` wallet written one chain a descriptor: the
+// 2-of-3 Bitcoin Core 31.1 funded (`tools/vectors/psbt/README.md`).
+
+const TAPMULTI: &str = include_str!("../../../../tools/vectors/psbt/wallet-tapmulti.policy");
+/// What Core's `getnewaddress` gave for that wallet: its first receive
+/// address.
+const TAPMULTI_CORE_FIRST: &str =
+    "bcrt1pqh24wx2tfxedcq9tmj7r2e424n59zfqw54rehz4rh3kqws7kgqasqyjafg";
+/// A key of another wallet, at another account (`wallet-tree.policy`).
+const OTHER_KEY: &str = "[b8688df1/86h/1h/0h]tpubDDHnNFFb1gf8qGYVejVx4GwzQPwcphirPssHFMWFcL9iajxm1wWd5ye22T7UQrVPjwwifJaCJGBAphuu8oePzYTCN7eZgm1KnyfNDmcfnsu";
+
+fn tapmulti_keys() -> Vec<&'static str> {
+    TAPMULTI.lines().skip(1).filter(|l| !l.is_empty()).collect()
+}
+
+/// The wallet's descriptor over `keys` on one chain (`"0"`, `"1"`) or
+/// both (`"<0;1>"`), with its checksum.
+fn tapmulti_desc(keys: &[&str], chain: &str) -> String {
+    let mut d = TAPMULTI.lines().next().unwrap().to_string();
+    for (i, k) in keys.iter().enumerate() {
+        d = d.replace(&format!("@{i}/**"), &format!("{k}/{chain}/*"));
+    }
+    let sum = faraday_bip::descriptor::descriptor_checksum(&d).unwrap();
+    format!("{d}#{}", std::str::from_utf8(&sum).unwrap())
+}
+
+#[test]
+fn cores_and_specters_files_of_a_taproot_sortedmulti_a_wallet_read_as_it_with_cores_address() {
+    let c = faraday_core::testkit::compute();
+    let keys = tapmulti_keys();
+    let (recv, change) = (tapmulti_desc(&keys, "0"), tapmulti_desc(&keys, "1"));
+    let multipath = read_wallet(&c, &tapmulti_desc(&keys, "<0;1>")).unwrap();
+    let entry = |d: &str, internal: bool| {
+        format!(
+            "{{\"desc\":\"{d}\",\"timestamp\":1791392643,\"active\":true,\"internal\":{internal},\"range\":[0,999],\"next\":0,\"next_index\":0}}"
+        )
+    };
+    let core = format!(
+        "{{\"wallet_name\":\"tapmulti\",\"descriptors\":[{},{}]}}",
+        entry(&recv, false),
+        entry(&change, true)
+    );
+    let specter = format!(
+        "{{\"label\":\"Wallet\",\"blockheight\":0,\"descriptor\":\"{recv}\",\"devices\":[]}}"
+    );
+    for (what, text) in [
+        ("Core's listdescriptors", core),
+        ("Specter's file", specter),
+        ("a receive and a change line", format!("{recv}\n{change}")),
+        ("a receive line alone", recv.clone()),
+    ] {
+        let w = read_wallet(&c, &text).unwrap_or_else(|e| panic!("{what}: {}", e.text()));
+        assert!(same(&w, &multipath), "{what}");
+        assert_eq!(first(&w, Network::Regtest), TAPMULTI_CORE_FIRST, "{what}");
+    }
+}
+
+#[test]
+fn a_taproot_sortedmulti_a_pair_of_two_wallets_or_with_a_wrong_checksum_is_refused() {
+    let c = faraday_core::testkit::compute();
+    let keys = tapmulti_keys();
+    let recv = tapmulti_desc(&keys, "0");
+    // The change line of a wallet with one key another.
+    let other = tapmulti_desc(&[keys[0], keys[1], OTHER_KEY], "1");
+    assert!(read_wallet(&c, &format!("{recv}\n{other}")).is_err());
+    // The change line with its checksum one character off.
+    let change = tapmulti_desc(&keys, "1");
+    let (body, sum) = change.split_at(change.len() - 1);
+    let wrong = format!("{body}{}", if sum == "q" { 'p' } else { 'q' });
+    assert!(read_wallet(&c, &format!("{recv}\n{wrong}")).is_err());
 }
 
 // Electrum wallet files (`docs/INTEROP.md` §5 I6).
