@@ -4211,7 +4211,8 @@ tests = [
   "core/faraday-psbt/tests/all/registered.rs::a_psbt_with_global_xpubs_registers_its_wallet_and_then_signs",
   "faraday/faraday-core/tests/all/register_wallet.rs::register_this_wallet_shows_the_wallet_and_the_hold_registers_it_and_it_signs",
 ]
-not_crosschecked = "The review's warnings and thresholds are Faraday's own rules; area sign checks the signing that follows them."
+crosscheck = "review"
+independence = { class = "own-over-outside", author = "Faraday's authors (`area_review.py`), over Bitcoin Core v31.1 (`decodepsbt`, `analyzepsbt`, `deriveaddresses`), by the Bitcoin Core developers", ours = "the rule that an output is change when it claims a held key's origins and Core's script at the path it states is the output's own, the rule that a script of several keys, a miniscript or a taproot tree is change only for a registered wallet, and the account keys a registered wallet names, derived in the area" }
 fuzz = ["psbt_parse"]
 other = [
   "Core end to end (INTEROP §1)",

@@ -29,6 +29,7 @@ mod musig;
 mod own;
 mod parts;
 mod psbt;
+mod review;
 mod roller;
 mod seedqr;
 mod sign;
@@ -60,6 +61,7 @@ fn dispatch(op: &str, req: &Value) -> Answer {
         "addr" => addr::handle(name, req),
         "tx" => tx::handle(name, req),
         "psbt" => psbt::handle(name, req),
+        "review" => review::handle(name, req),
         "sign" => sign::handle(name, req),
         "taproot" => taproot::handle(name, req),
         "miniscript" => miniscript::handle(name, req),
