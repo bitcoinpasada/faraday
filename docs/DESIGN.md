@@ -183,7 +183,7 @@ Material 3's tokens are named there too (F108):
   menus, fields (`FIELD_RADIUS`) and the toast extra-small, the floating
   action large, dialogs and sheets extra-large; a checkbox's corners are
   `SHAPE_CHECKBOX`.
-- **Touch targets**: `TOUCH`, 48, on every layout (principle 12).
+- **Touch targets**: `TOUCH`, 48, on every layout (principle 12), held by the touch-target test over the snapshot tours (`docs/M3-CHECKS.md` §2; its exceptions §3, F152).
 - **States**: `STATE_HOVER` 8 %, `STATE_FOCUS` 10 %, `STATE_PRESS` 10 %
   and `STATE_DRAG` 16 %, the opacity of a control's content colour laid
   over it (F113); the focus ring, `FOCUS_RING` 3 thick and

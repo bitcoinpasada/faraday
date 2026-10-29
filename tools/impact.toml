@@ -223,6 +223,13 @@ catches = "the generated parts of STANDARDS and AUDIT differing from the manifes
 misses = "planned: not yet written"
 status = "planned"
 
+[[check]]
+id = "touch-targets"
+run = "cargo nextest run --locked -p faraday-snapshot -E 'test(/^targets::/)'"
+stage = "just test"
+catches = "a press target under 48 dp on a frame a snapshot tour reaches, at its four sizes, not in M3-CHECKS §3; a count in tools/touch-targets.counts risen or not lowered"
+misses = "frames no tour reaches; sizes other than the four (targets.txt, by review); the Starter until A3"
+
 [[consumer]]
 id = "app.faraday"
 name = "the device app, the stick and the Pi images"
@@ -668,7 +675,7 @@ held_by = ["budget-tests"]
 id = "structure.ratchet-raised"
 title = "a ratchet count raised is the owner's decision, recorded in DECISIONS"
 source = ["CLAUDE.md", "docs/decisions/F74.md"]
-when = ["tools/lint-layout.counts", "tools/lint-tokens.counts"]
+when = ["tools/lint-layout.counts", "tools/lint-tokens.counts", "tools/touch-targets.counts"]
 rises = true
 kind = "pair"
 with = ["docs/decisions/F{n}.md"]
@@ -772,7 +779,15 @@ source = ["CLAUDE.md", "docs/decisions/F91.md", "docs/decisions/F92.md", "docs/d
 when = ["**/screen.rs", "faraday/faraday-core/src/screens/**", "core/faraday-draw/src/widgets/**", "faraday/faraday-ui/**", "faraday/faraday-starter/src/**"]
 kind = "trailer"
 trailer = "Material"
-misses = "whether the page named is the right one; 48 dp touch targets over the snapshot tours (planned check)"
+misses = "whether the page named is the right one"
+
+[[rule]]
+id = "design.touch-targets"
+title = "every press target is at least 48 dp, or listed with its case"
+source = ["docs/decisions/F152.md", "docs/decisions/F108.md", "docs/M3-CHECKS.md §3"]
+when = ["**/screen.rs", "faraday/faraday-core/src/screens/**", "faraday/faraday-ui/**", "faraday/shells/snapshot/src/tours/**"]
+kind = "held"
+held_by = ["touch-targets"]
 
 [[rule]]
 id = "design.left-out"

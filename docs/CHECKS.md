@@ -47,6 +47,7 @@ does what is `tools/README.md`'s.
 | `impact-lint` | just lint | `python3 -I -B tools/impact.py lint` | the registry against itself and the tree: ids, held_by, sources, paths, the lint recipe against the checks, each app's reads against cargo metadata | whether a rule is right | built |
 | `crypto-inventory` | just lint | `cargo run -q -p costs-lint --bin crypto-inventory` | a cryptographic function not covered by a test or the inventory (F148) | planned: not yet in just lint | planned |
 | `crypto-gen` | just lint | `python3 -I -B docs/crypto/gen.py check` | the generated parts of STANDARDS and AUDIT differing from the manifest (F148) | planned: not yet written | planned |
+| `touch-targets` | just test | `cargo nextest run --locked -p faraday-snapshot -E 'test(/^targets::/)'` | a press target under 48 dp on a frame a snapshot tour reaches, at its four sizes, not in M3-CHECKS §3; a count in tools/touch-targets.counts risen or not lowered | frames no tour reaches; sizes other than the four (targets.txt, by review); the Starter until A3 | built |
 
 ## 2. Rules by area
 
@@ -138,7 +139,7 @@ does what is `tools/README.md`'s.
 
 | Rule | Triggered by | Kind | Must change with it | Held by | Misses | Source |
 |---|---|---|---|---|---|---|
-| `structure.ratchet-raised`: a ratchet count raised is the owner's decision, recorded in DECISIONS | `tools/lint-layout.counts`<br>`tools/lint-tokens.counts`<br>a number that rises | pair | `docs/decisions/F{n}.md` | - | - | `CLAUDE.md`<br>`docs/decisions/F74.md` |
+| `structure.ratchet-raised`: a ratchet count raised is the owner's decision, recorded in DECISIONS | `tools/lint-layout.counts`<br>`tools/lint-tokens.counts`<br>`tools/touch-targets.counts`<br>a number that rises | pair | `docs/decisions/F{n}.md` | - | - | `CLAUDE.md`<br>`docs/decisions/F74.md` |
 | `structure.code-map`: lib.rs's code map names every module and every screen's file | `faraday/faraday-core/src/**` | held | - | `lint-layout` | - | `CLAUDE.md`<br>`docs/decisions/F74.md` |
 | `structure.size`: no new file over 2,500 lines or function over 100 lines | `**/*.rs` | held | - | `lint-layout` | - | `CLAUDE.md`<br>`docs/decisions/F74.md` |
 | `structure.impl-faraday`: Faraday's field count and the files with impl Faraday only fall | `faraday/faraday-core/src/**` | held | - | `lint-layout` | - | `CLAUDE.md`<br>`docs/decisions/F74.md` |
@@ -160,7 +161,8 @@ does what is `tools/README.md`'s.
 
 | Rule | Triggered by | Kind | Must change with it | Held by | Misses | Source |
 |---|---|---|---|---|---|---|
-| `design.material3`: a screen or component change names the Material 3 page it was checked against | `**/screen.rs`<br>`faraday/faraday-core/src/screens/**`<br>`core/faraday-draw/src/widgets/**`<br>`faraday/faraday-ui/**`<br>`faraday/faraday-starter/src/**` | trailer | a `Material:` trailer | - | whether the page named is the right one; 48 dp touch targets over the snapshot tours (planned check) | `CLAUDE.md`<br>`docs/decisions/F91.md`<br>`docs/decisions/F92.md`<br>`docs/decisions/F108.md` |
+| `design.material3`: a screen or component change names the Material 3 page it was checked against | `**/screen.rs`<br>`faraday/faraday-core/src/screens/**`<br>`core/faraday-draw/src/widgets/**`<br>`faraday/faraday-ui/**`<br>`faraday/faraday-starter/src/**` | trailer | a `Material:` trailer | - | whether the page named is the right one | `CLAUDE.md`<br>`docs/decisions/F91.md`<br>`docs/decisions/F92.md`<br>`docs/decisions/F108.md` |
+| `design.touch-targets`: every press target is at least 48 dp, or listed with its case | `**/screen.rs`<br>`faraday/faraday-core/src/screens/**`<br>`faraday/faraday-ui/**`<br>`faraday/shells/snapshot/src/tours/**` | held | - | `touch-targets` | - | `docs/decisions/F152.md`<br>`docs/decisions/F108.md`<br>`docs/M3-CHECKS.md` §3 |
 | `design.left-out`: none of F111's left-out components is added | `**/screen.rs`<br>`faraday/faraday-core/src/screens/**`<br>`core/faraday-draw/src/widgets/**`<br>`faraday/faraday-ui/**` | review | - | - | - | `docs/decisions/F111.md` |
 | `design.new-component`: a new component is in DESIGN.md §4 | `core/faraday-draw/src/widgets/*.rs`<br>on add | pair | `docs/DESIGN.md` | - | - | `CLAUDE.md` |
 | `design.new-screen`: a new Screen or Sheet is in DESIGN.md §5 and CLAUDE.md's count | `faraday/faraday-core/src/lib.rs`<br>lines matching `^\+ {4}[A-Z][A-Za-z0-9]*(\(.*\)\|\s*\{.*\})?,\s*(//.*)?$` | pair | `docs/DESIGN.md` | - | CLAUDE.md's count of screens, which a new Sheet leaves unchanged | `CLAUDE.md` |
