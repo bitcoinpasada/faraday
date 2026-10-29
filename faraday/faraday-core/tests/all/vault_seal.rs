@@ -138,6 +138,7 @@ fn a_new_keyboard_and_a_lock_wait_for_the_same_randomness() {
         name: "USB Keyboard".into(),
         keyboard: true,
         pointer: false,
+        touch: false,
     });
     assert_eq!(app.new_inputs()[0].code, None);
     app.press(Action::InputIgnore(4));
@@ -148,6 +149,7 @@ fn a_new_keyboard_and_a_lock_wait_for_the_same_randomness() {
         name: "USB Keyboard".into(),
         keyboard: true,
         pointer: false,
+        touch: false,
     });
     assert!(app.new_inputs()[0].code.is_some());
     app.press(Action::InputIgnore(5));

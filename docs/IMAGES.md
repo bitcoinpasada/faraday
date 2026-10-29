@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Specified (F145), the PC's two builds, the Pi's two builds and the HDMI screen's image built
-**Open:** the four new Pi screens with their own panels (5-inch, 7-inch, 10-inch DSI) and the 10-inch HDMI panel's touch name confirmed, the release's image list, the Starter finding images, the website's choice
+**Open:** the four new Pi screens with their own panels (5-inch, 7-inch, 10-inch DSI), the release's image list, the Starter finding images, the website's choice
 
 A person picks their hardware, and gets the one signed image built for
 it. Each Pi screen and each PC build is its own image and its own
@@ -46,17 +46,25 @@ refuses it as Strict before anything is built.
 What Compatible adds to the kernel's reach, against `docs/SECURITY-MODEL.md`:
 
 - **DRM, for the display only.** vc4's display side, the DSI host and
-  the panels' drivers, with their I²C touch controllers. There is no
-  V3D: no GPU render node. Kconfig has no switch for either, so the
-  Compatible build carries two changes of Faraday's own to the kernel
-  source, `faraday/image/boards/pi3/builds/compatible/linux-patches/`:
-  vc4 registers no V3D component and creates no render node, and DRM no
-  longer selects `KCMP`, the `kcmp()` system call Mesa wants and every
-  Faraday image forbids. Strict builds the board's source as it is. The shell keeps writing `/dev/fb0`
-  through DRM's framebuffer emulation; `/dev/dri/card0` is root's, as
-  every node `mdev.conf` gives no owner is, and nothing runs as root
-  after start. HDMI-CEC is not built. `BCM_VCIO` stays forbidden in both
-  builds.
+  the panels' drivers, with their I²C touch controllers. Both builds
+  build the board's kernel source as it is: Faraday carries no kernel
+  patch of its own (owner, F153). vc4 also binds the GPU's 3D block,
+  V3D, and creates a render node, `/dev/dri/renderD128`; Kconfig has no
+  switch for either. **The render node is root's alone, no patch:**
+  `faraday/image/common/rootfs-overlay/etc/mdev.conf` gives it and
+  `/dev/dri/card0` to root at 0600, and nothing that runs after start
+  opens them: the app runs as its own user, and the only root processes
+  after boot, init and its two shell loops, open no DRM node
+  (`docs/SECURITY-MODEL.md`, "When root is used"). The shell keeps writing
+  `/dev/fb0` through DRM's framebuffer emulation. HDMI-CEC is not
+  built. `BCM_VCIO` stays forbidden in both builds.
+- **`kcmp()`, in this build only.** DRM selects `KCMP` for Mesa's sake,
+  and Compatible allows it (F153): it moves from
+  `faraday/image/common/kernel.forbidden` to the Strict Pi's and the
+  PC's own lists, which keep forbidding it. It only says whether two
+  processes share a kernel object, for processes that pass ptrace's read
+  check against the caller, and each of the device's processes runs as
+  a user of its own.
 - **The sound core, and no sound driver.** vc4 does not build without
   the kernel's sound core and its SoC layer (`depends on SND && SND_SOC`
   in its Kconfig), since its HDMI encoder can carry audio. The core is
@@ -71,19 +79,22 @@ What Compatible adds to the kernel's reach, against `docs/SECURITY-MODEL.md`:
   devices"):
   - interfaces are authorised one at a time;
   - a new keyboard counts once it types the code on the screen;
-  - a new pointer counts once trusted input approves it.
-- **A USB touchscreen named by the screen's profile is trusted input**
-  (owner, F145). An HDMI panel's touch reaches the Pi over USB, and on
-  such a panel it is the only input there is. The panel's profile
-  names its touch controller as the 2.8-inch's names the Goodix
-  (`TOUCH_NAME` in `faraday/image/panels/waveshare-28dpi/panel.conf`).
-  The first USB touchscreen matching that name is the panel's own and
-  needs no approval. Any other touchscreen, pointer or keyboard follows
-  the rules above. The shell does this already for any panel's
-  `--touch-name` (`faraday/shells/stick/src/evdev.rs`). The HDMI
-  screen's profile names `WaveShare`, Waveshare's USB vendor string;
-  what the 10.1inch HDMI LCD (B)'s touch calls itself is to be read off
-  the panel when it is tried.
+  - a new pointer counts once trusted input approves it;
+  - a new touchscreen counts once it taps the target on the screen.
+- **A new USB touchscreen approves itself; nothing is trusted by name**
+  (owner, F153, replacing F145's touchscreen named by the profile). An
+  HDMI panel's touch reaches the Pi over USB, and on such a panel it is
+  the only input there is. It is held back as every plugged-in device
+  is, and the app draws a target at a place drawn from the system's
+  randomness; a tap on it lets the touchscreen in, three taps beside it
+  keep it out until it is unplugged and count toward the limit of
+  devices kept out, as a keyboard's wrong codes do
+  (`faraday/faraday-core/src/inputs.rs`). A touch controller on a bus
+  that is part of the machine (the 2.8-inch's Goodix on I²C, a laptop's
+  built-in touchscreen) stays trusted as before; `--touch-name` picks
+  it out on that bus only (`faraday/shells/stick/src/evdev.rs`). The
+  HDMI screen's profile gives no `TOUCH_NAME`, only the grid its touch
+  reports in when its descriptor gives none.
 - **USB storage and SCSI.** These sit behind `faraday-grant` and
   `faraday-disk`, as on the PC: one partition at a time, never the boot
   partition, read only while no secret is open.

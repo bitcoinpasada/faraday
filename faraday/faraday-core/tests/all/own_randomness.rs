@@ -97,6 +97,7 @@ fn keyboard_code(app: &mut Faraday, id: u32) -> Option<String> {
         name: "USB Keyboard".into(),
         keyboard: true,
         pointer: false,
+        touch: false,
     });
     app.new_inputs().iter().find(|i| i.id == id)?.code.clone()
 }

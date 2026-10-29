@@ -6,6 +6,7 @@
 # the panel's fragments as they were before the Pi had two builds.
 
 DRM            the firmware sets the panel up and hands Linux a plain framebuffer; the kernel-mode-setting stack draws nothing here
+KCMP           comparing another process's kernel objects; only DRM would select it, and it is not built (F153)
 SOUND          the device has no speaker and the app makes no sound
 HID            USB is kept for a webcam and for nothing else; no keyboard, no mouse, no keypad
 USB_STORAGE    the only storage is the card the firmware booted from

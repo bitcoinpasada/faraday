@@ -750,7 +750,12 @@ The sheets (`Sheet` in `faraday/faraday-core/src/lib.rs`, drawn in
 `faraday/faraday-core/src/screens/sheets.rs` and the area that owns
 them) include the QR sheet and the scanner (§4.9), the Learn sheet, the word list (a tab per list, Back, and at the start of the row under them a search field that finds a word by its word, number, bits or dice and lists only what it finds), a secret on its
 way out (§4.10), the lock and its question, the idle warning and the
-locked sheet (§4.14), power, a new input device, what is attached that
+locked sheet (§4.14), power, a new input device (a dialog; for a new USB
+touchscreen the whole window instead: its title, name and **Tap the
+target**, **Tries left** once a tap missed, the target, a filled icon
+button, `ICON_BUTTON` round in a `TOUCH` target, at the place drawn for
+it between them and **Ignore this device** at the bottom end, F153),
+what is attached that
 can capture the screen or the keys, a seed read by the camera, a chart
 node's sheet (§4.16; a standard side sheet beside the chart on the wide
 layout, the one sheet that leaves the page under it live), the board's list, its balance and partials sheets

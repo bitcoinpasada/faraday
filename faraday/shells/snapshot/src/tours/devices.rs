@@ -103,6 +103,21 @@ pub(crate) fn devices_tour(t: &mut Tour) -> Result<(), String> {
     t.pump();
     t.shot("devices-tv-edid")?;
     t.press(Action::Cancel);
+    // A USB touchscreen plugged in, one tap beside its target (F153).
+    let id = 9;
+    t.app.storage(faraday_core::StorageEvent::NewInput {
+        id,
+        name: "USB Touchscreen".into(),
+        keyboard: false,
+        pointer: false,
+        touch: true,
+    });
+    t.pump();
+    t.app
+        .storage(faraday_core::StorageEvent::InputTapped { id, x: 4, y: 4 });
+    t.pump();
+    t.shot("devices-new-touchscreen")?;
+    t.press(Action::InputIgnore(id));
     t.app.devices = laptop();
     t.app.usb_devices(&[]);
     t.pump();

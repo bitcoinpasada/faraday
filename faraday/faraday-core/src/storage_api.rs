@@ -172,6 +172,9 @@ pub enum StorageEvent {
         keyboard: bool,
         /// It points.
         pointer: bool,
+        /// It names places on the screen: a touchscreen on USB, which is
+        /// let in by tapping a target (F153).
+        touch: bool,
     },
     /// A character a held-back keyboard typed.
     InputTyped {
@@ -179,6 +182,16 @@ pub enum StorageEvent {
         id: u32,
         /// The character.
         ch: char,
+    },
+    /// Where a held-back touchscreen put a finger down, in the frame's
+    /// pixels, as [`faraday_shell_api::Event::Touch`] gives them.
+    InputTapped {
+        /// The device.
+        id: u32,
+        /// Pixels from the left edge.
+        x: u16,
+        /// Pixels from the top edge.
+        y: u16,
     },
     /// The cameras the shell can open: an id it takes back from
     /// [`Faraday::take_camera`] and the name the camera gives.

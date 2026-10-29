@@ -1003,6 +1003,7 @@ fn mouse(app: &mut Faraday) {
         name: "USB Optical Mouse".into(),
         keyboard: false,
         pointer: true,
+        touch: false,
     });
 }
 

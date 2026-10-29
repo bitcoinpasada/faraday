@@ -26,10 +26,13 @@
 //! One device may be several: a wireless receiver is one node that is
 //! both a keyboard and a mouse, and both are read.
 //!
-//! `--touch-name` still wins for touch: a device whose name holds it is
-//! the touchscreen and no other device is, which is how the Pi's panel is
-//! found and how a laptop with a touchscreen the classification misreads
-//! can be told what it has.
+//! `--touch-name` still wins for touch on a bus that is part of the
+//! machine: a device there whose name holds it is the touchscreen and no
+//! other device is, which is how the Pi's panel is found and how a laptop
+//! with a touchscreen the classification misreads can be told what it
+//! has. A device on USB is never trusted for its name (F153): a USB
+//! touchscreen is held back like any other plugged-in device and is let
+//! in by tapping the target the app draws.
 //!
 //! **Devices plugged in after start are found.** [`Watch`] lists
 //! `/dev/input` again every couple of seconds and classifies whatever is
@@ -301,9 +304,9 @@ pub struct Device {
     /// multitouch axes.
     pub abs_single: bool,
     /// Part of the machine: the built-in keyboard and touchpad, anything
-    /// on a hard-wired USB port, the named touch panel. Any other device's
-    /// input is held back until a person says it is theirs (`docs/history/PLAN.md`
-    /// §4.6).
+    /// on a hard-wired USB port, the touch panel on the machine's own bus.
+    /// Any other device's input is held back until a person says it is
+    /// theirs (`docs/history/PLAN.md` §4.6, F153).
     pub trusted: bool,
     /// A HID touchscreen's axis ranges, from its report descriptor
     /// (`hid.rs`). None for a panel that is not HID, such as the Pi's
@@ -344,10 +347,10 @@ pub const RESCAN: std::time::Duration = std::time::Duration::from_secs(2);
 
 /// Every device under `/sys/class/input` this shell can read.
 ///
-/// `wanted` is `--touch-name`: a device whose name holds it is the
-/// touchscreen and no other device is. That is how the Pi's Goodix panel
-/// is found, and it is why a Pi's frames and events are what they were
-/// before a laptop was ever considered.
+/// `wanted` is `--touch-name`: a device on a bus that is part of the
+/// machine whose name holds it is the touchscreen and no other device is.
+/// That is how the Pi's Goodix panel is found, and it is why a Pi's frames
+/// and events are what they were before a laptop was ever considered.
 pub fn find_devices(sys_class_input: &Path, dev_dir: &Path, wanted: &str) -> Vec<Device> {
     let mut names: Vec<String> = match fs::read_dir(sys_class_input) {
         Ok(dir) => dir
@@ -397,29 +400,19 @@ pub fn find_devices(sys_class_input: &Path, dev_dir: &Path, wanted: &str) -> Vec
     }
 
     // The named panel is the touch device, whatever the bitmaps said, and
-    // it is the only one. A device on a bus that is part of the machine
-    // (the Pi's Goodix, on I2C) is the panel by its name alone. One on
-    // USB, which anyone can plug in, is the panel only when it is a
-    // touchscreen, and then only its touch is read: a keyboard or mouse
-    // that calls itself by the panel's name is not trusted for it (an
-    // HDMI panel's USB touch, docs/IMAGES.md §2, F145).
+    // it is the only one, when it is on a bus that is part of the machine
+    // (the Pi's Goodix, on I2C). A name is what a device says about
+    // itself, and anyone can plug in a USB device that says any name: one
+    // on USB is not the panel for its name, and is held back as every
+    // plugged-in device is (F153, docs/IMAGES.md §2).
     if !wanted.is_empty()
         && let Some(i) = devices
             .iter()
-            .position(|d| d.name.contains(wanted) && (d.trusted || d.touchscreen))
+            .position(|d| d.name.contains(wanted) && d.trusted)
     {
-        let on_board = devices[i].trusted;
         for (j, d) in devices.iter_mut().enumerate() {
             d.touchscreen = j == i;
         }
-        if !on_board {
-            let d = &mut devices[i];
-            d.keyboard = false;
-            d.mouse = false;
-            d.touchpad = false;
-        }
-        // The panel is part of the machine.
-        devices[i].trusted = true;
     }
     devices.retain(Device::wanted);
     devices
@@ -1000,25 +993,39 @@ mod tests {
         fs::remove_dir_all(&root).expect("clean up");
     }
 
-    /// An HDMI panel's USB touch, named by the screen's profile, needs no
-    /// approval; a keyboard that calls itself by the same name does, and
-    /// is not taken for the panel.
+    /// A touchscreen is trusted for the name the panel's profile gives
+    /// only on a bus that is part of the machine (the Pi's Goodix, on
+    /// I2C): a USB one of that name is held back as any plugged-in device
+    /// is, and so is a keyboard that calls itself by it.
     #[test]
-    fn the_named_usb_touchscreen_is_trusted_and_a_keyboard_of_that_name_is_not() {
+    fn only_the_panel_on_the_machines_own_bus_is_trusted_for_its_name() {
         let root = std::env::temp_dir().join(format!("faraday-pi-named-{}", std::process::id()));
         let _ = fs::remove_dir_all(&root);
         let (sys, dev) = (root.join("sys"), root.join("dev"));
-        plug(&sys, &dev, 0, "WaveShare Keyboard", &keyboard_caps());
-        plug(&sys, &dev, 1, "WaveShare WaveShare", &touchscreen_caps());
-        plug(&sys, &dev, 2, "Other Touch", &touchscreen_caps());
+        plug(
+            &sys,
+            &dev,
+            0,
+            "Goodix Capacitive TouchScreen",
+            &touchscreen_caps(),
+        );
+        let id = sys.join("event0/device/id");
+        fs::create_dir_all(&id).expect("sysfs");
+        // BUS_I2C.
+        fs::write(id.join("bustype"), "0018\n").expect("bustype");
+        plug(&sys, &dev, 1, "Goodix Keyboard", &keyboard_caps());
+        let found = find_devices(&sys, &dev, "Goodix");
+        let by = |found: &[Device], n: &str| found.iter().find(|d| d.name == n).cloned();
+        let panel = by(&found, "Goodix Capacitive TouchScreen").expect("the panel");
+        assert!(panel.touchscreen && panel.trusted);
+        let keys = by(&found, "Goodix Keyboard").expect("the keyboard");
+        assert!(keys.keyboard && !keys.trusted);
+
+        // An HDMI screen's USB touch, by the name its maker gives it.
+        plug(&sys, &dev, 2, "WaveShare WaveShare", &touchscreen_caps());
         let found = find_devices(&sys, &dev, "WaveShare");
         fs::remove_dir_all(&root).expect("clean up");
-        let by = |n: &str| found.iter().find(|d| d.name == n).expect(n);
-        let panel = by("WaveShare WaveShare");
-        assert!(panel.touchscreen && panel.trusted && !panel.keyboard);
-        let keys = by("WaveShare Keyboard");
-        assert!(keys.keyboard && !keys.trusted && !keys.touchscreen);
-        // Any other touchscreen is not the panel, and is not trusted.
-        assert!(found.iter().all(|d| d.name != "Other Touch" || !d.trusted));
+        let usb = by(&found, "WaveShare WaveShare").expect("the USB touchscreen");
+        assert!(usb.touchscreen && !usb.trusted);
     }
 }

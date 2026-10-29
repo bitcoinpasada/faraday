@@ -1,10 +1,12 @@
 # The Pi's Compatible build (docs/IMAGES.md §2): what it still does not
 # build, on top of common/ and the board's lists. DRM is for the display
 # only, sound is built only because vc4 depends on it, and HID and USB
-# storage are what the PC has, no more.
+# storage are what the PC has, no more. KCMP, which common/ no longer
+# forbids, is not in this list: DRM selects it, and Faraday carries no
+# kernel patch of its own to take the select out (F153).
 
 # The display only.
-DRM_V3D                 the Pi 4's 3D driver; nothing here renders on the GPU
+DRM_V3D                 the Pi 4's 3D driver; nothing here renders on the GPU (the Pi 3's V3D is part of vc4, and its render node is root's, F153)
 DRM_VC4_HDMI_CEC        HDMI-CEC, the monitor's remote-control bus into the device
 CEC_CORE                the layer under it, named so it cannot come back under another driver
 DRM_DP_AUX_CHARDEV      raw DisplayPort AUX access from a process

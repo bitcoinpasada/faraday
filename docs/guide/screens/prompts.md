@@ -62,8 +62,22 @@ pointer**.
 
 **This keyboard cannot be let in until Faraday restarts** shows in
 place of the code while the system has given no randomness. After three
-keyboards kept out, new keyboards are ignored until Faraday starts
-again ("New keyboards are ignored until Faraday starts again.").
+keyboards or touchscreens kept out, new ones are ignored until Faraday
+starts again ("New keyboards and touchscreens are ignored until Faraday
+starts again.").
+
+A USB touchscreen plugged in (an HDMI screen's touch on the Pi, for
+one) fills the screen instead, titled **A new touchscreen**:
+
+| Control | What it does |
+|---|---|
+| the device's name | what the device says about itself |
+| **Tap the target** | the round target below it, at a place drawn at random. Tapped on the new touchscreen, it lets it in ("… is in use") |
+| "Tries left: 2" | shows once a tap lands beside the target. The third keeps the touchscreen out until it is unplugged ("… tapped beside the target. Unplug it to try again.") |
+| **Ignore this device** | keeps it out until it is unplugged |
+
+**This touchscreen cannot be let in until Faraday restarts** shows in
+place of **Tap the target** while the system has given no randomness.
 
 ## Read from the boot stick
 

@@ -577,7 +577,7 @@ impl Faraday {
     /// Handles the device checks', mode and input-device actions (`Devices*`, `Mode`, `Input*`).
     pub(crate) fn devices_act(&mut self, action: Action) {
         match action {
-            Action::InputUse(id) => self.input_believe(id),
+            Action::InputUse(id) | Action::InputTarget(id) => self.input_believe(id),
             Action::InputIgnore(id) => self.input_ignore(id),
             Action::Mode(m) => self.mode_act(m),
             Action::ModeSheet => self.mode_sheet_open(),

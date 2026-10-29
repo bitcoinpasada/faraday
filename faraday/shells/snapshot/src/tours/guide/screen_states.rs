@@ -79,6 +79,7 @@ fn new_keyboard(t: &mut Tour) -> Result<(), String> {
         name: "USB Keyboard".into(),
         keyboard: true,
         pointer: false,
+        touch: false,
     });
     t.pump();
     let code = t

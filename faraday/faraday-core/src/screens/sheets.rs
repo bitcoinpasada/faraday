@@ -1234,6 +1234,10 @@ pub(super) fn new_input_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let Some(d) = app.new_inputs().first() else {
         return;
     };
+    if d.by_target() {
+        new_input_target(app, ui, (w, h), d);
+        return;
+    }
     let what = match (d.keyboard, d.pointer) {
         (true, true) => EN.new_input_title,
         (true, false) => EN.new_input_a_new_keyboard,
@@ -1324,6 +1328,72 @@ pub(super) fn new_input_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
             cy - y
         },
         &items,
+    );
+}
+
+/// A new touchscreen's sheet (F153): the whole screen, its title, name and
+/// label at the top, Ignore at the bottom, and the target at the place
+/// drawn for it in the room between, which a device that cannot see the
+/// screen does not know.
+fn new_input_target(app: &View, ui: &mut Ui, (w, h): (f32, f32), d: &crate::inputs::NewInput) {
+    use faraday_draw::tokens::{BUTTON_PAD, GAP, GAP_SMALL, ICON_BUTTON, ICON_GLYPH, PAD, TOUCH};
+    ui.fill(0.0, 0.0, w, h, 0.0, Role::Surface);
+    let iw = w - 2.0 * PAD;
+    let mut y = PAD;
+    let head = (Icon::Warning, Role::Warning.paint());
+    y += crate::compact::sheet_head(
+        ui,
+        PAD,
+        y,
+        iw,
+        head.0,
+        head.1,
+        EN.new_input_a_new_touchscreen,
+    );
+    y += ui.wrap_as((PAD, y, iw), BODY_M.mono(), Role::OnSurface, &d.name) + GAP;
+    let (lead, ink) = if d.spot.is_none() && app.seed_missing() {
+        (EN.new_input_no_target, Role::Error)
+    } else {
+        (EN.new_input_tap_target, Role::OnSurfaceVariant)
+    };
+    y += ui.wrap_as((PAD, y, iw), LABEL_L, ink, lead) + GAP_SMALL;
+    // The tries left take a line that is there from the start, so the
+    // target does not move when they show.
+    if d.missed > 0 {
+        let left = crate::inputs::TAP_TRIES
+            .saturating_sub(d.missed)
+            .to_string();
+        let tries = fill(EN.new_input_tries_left, &[&left]);
+        ui.text_as(PAD, y, LABEL_L, Role::Error, &tries);
+    }
+    y += ui.line_as(LABEL_L) + GAP;
+    let bh = ui.button_height(BUTTON_H);
+    let bw = ui.measure_as(LABEL_L, EN.new_input_ignore_button) + 2.0 * BUTTON_PAD;
+    let by = h - PAD - bh;
+    ui.button(
+        w - PAD - bw,
+        by,
+        Some(bw),
+        bh,
+        EN.new_input_ignore_button,
+        Style::Secondary,
+        Action::InputIgnore(d.id),
+    );
+    let Some((sx, sy)) = d.spot else {
+        return;
+    };
+    // The room between the label and the button, less the target itself.
+    let room_w = (iw - TOUCH).max(0.0);
+    let room_h = (by - GAP - y - TOUCH).max(0.0);
+    let tx = PAD + room_w * f32::from(sx) / f32::from(u16::MAX);
+    let ty = y + room_h * f32::from(sy) / f32::from(u16::MAX);
+    let inset = (TOUCH - ICON_BUTTON) / 2.0;
+    let c = (tx + inset, ty + inset, ICON_BUTTON);
+    ui.fill(c.0, c.1, c.2, c.2, c.2 / 2.0, Role::Primary);
+    ui.icon(c.0, c.1, c.2, Icon::Check, ICON_GLYPH, Role::OnPrimary);
+    ui.hit_shaped(
+        (tx, ty, TOUCH, TOUCH, TOUCH / 2.0),
+        Action::InputTarget(d.id),
     );
 }
 

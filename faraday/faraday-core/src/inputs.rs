@@ -11,15 +11,21 @@
 //! keyboards are ignored until Faraday starts again, so a device that
 //! unplugs and plugs itself back in gets no fresh codes to try. A new
 //! pointer is believed once a person says so with input already
-//! trusted, or with the code typed on a keyboard that comes with it.
-//! **Ignore this device** keeps it out until it is unplugged; ignored
-//! devices are listed in Settings. The code is drawn from the session's
-//! seed: a keyboard that arrives before the seed waits without one, held
-//! back, and gets one when the seed arrives.
+//! trusted, or with the code typed on a keyboard that comes with it. A
+//! new touchscreen (one on USB: the machine's own panel is trusted by the
+//! shell) is believed once it taps the target drawn at a place on the
+//! screen it cannot see, and one that taps beside it [`TAP_TRIES`] times
+//! is kept out until it is unplugged and counts toward
+//! [`KEPT_OUT_LIMIT`] as a keyboard does (F153). Nothing is believed for
+//! the name it gives. **Ignore this device** keeps it out until it is
+//! unplugged; ignored devices are listed in Settings. The code and the
+//! target's place are drawn from the session's seed, which is the
+//! system's randomness: a device that arrives before the seed waits
+//! without them, held back, and gets them when the seed arrives.
 
 use crate::strings::EN;
 use crate::strings::fill;
-use crate::{Faraday, Sheet};
+use crate::{Action, Faraday, Sheet, StorageEvent};
 use std::collections::VecDeque;
 
 /// How long the code is.
@@ -32,6 +38,10 @@ pub const CODE_TRIES: usize = 3;
 /// How many keyboards may be kept out for the wrong code in a session
 /// before new keyboards are ignored without a code.
 pub const KEPT_OUT_LIMIT: usize = 3;
+
+/// How many taps beside the target a touchscreen may make before it is
+/// kept out: a person whose finger slips has room to tap again.
+pub const TAP_TRIES: usize = 3;
 
 /// The code's letters: no two that look alike.
 const LETTERS: &[u8] = b"acdefhjkmnprtvwxy";
@@ -47,12 +57,28 @@ pub struct NewInput {
     pub keyboard: bool,
     /// It points.
     pub pointer: bool,
+    /// It names places on the screen: a touchscreen.
+    pub touch: bool,
     /// The code it must type; `None` until the session's seed arrived.
     pub code: Option<String>,
+    /// Where the target it must tap is, as fractions of the room the
+    /// sheet leaves for it (0 to `u16::MAX` across and down); `None`
+    /// until the session's seed arrived. Drawn with the code.
+    pub spot: Option<(u16, u16)>,
+    /// How many times it tapped beside the target.
+    pub missed: usize,
     /// What it has typed so far, the last few letters.
     pub typed: String,
     /// How many letters it has typed in all.
     pub letters: usize,
+}
+
+impl NewInput {
+    /// It is let in by tapping a target rather than typing a code: a
+    /// touchscreen with no keys of its own.
+    pub fn by_target(&self) -> bool {
+        self.touch && !self.keyboard
+    }
 }
 
 /// How a device announced is taken.
@@ -71,7 +97,8 @@ pub(crate) enum Typed {
     Nothing,
     /// It typed its code: it is to be believed.
     Matched,
-    /// It typed too many letters without it and is kept out;
+    /// It typed too many letters without it, or tapped beside the
+    /// target too often, and is kept out;
     /// `limit` is whether the limit of such keyboards is now reached.
     KeptOut { name: String, limit: bool },
 }
@@ -87,7 +114,8 @@ pub(crate) struct InputsArea {
     /// Devices kept out until they are unplugged: the shell's number and
     /// the name it gave.
     ignored: Vec<(u32, String)>,
-    /// How many keyboards were kept out for the wrong code this session.
+    /// How many keyboards and touchscreens were kept out for the wrong
+    /// code or taps beside the target this session.
     kept_out: usize,
     /// Decisions the shell has not been told: believed (`true`) or kept
     /// out (`false`).
@@ -105,43 +133,72 @@ impl InputsArea {
         &self.ignored
     }
 
-    /// A device the shell holds back; `code` draws its code, and is
-    /// called only when it is held.
+    /// A device the shell holds back; `draw` draws its code and its
+    /// target's place, and is called only when it is held.
     pub(crate) fn admit(
         &mut self,
         id: u32,
         name: String,
-        keyboard: bool,
-        pointer: bool,
-        code: impl FnOnce() -> Option<String>,
+        (keyboard, pointer, touch): (bool, bool, bool),
+        draw: impl FnOnce() -> Option<(String, (u16, u16))>,
     ) -> Admitted {
         if self.held.iter().any(|i| i.id == id) {
             return Admitted::Known;
         }
-        if keyboard && self.kept_out >= KEPT_OUT_LIMIT {
+        if (keyboard || touch) && self.kept_out >= KEPT_OUT_LIMIT {
             self.decisions.push_back((id, false));
             self.ignored.push((id, name));
             return Admitted::Ignored;
         }
+        let (code, spot) = draw().unzip();
         self.held.push(NewInput {
             id,
             name,
             keyboard,
             pointer,
-            code: code(),
+            touch,
+            code,
+            spot,
+            missed: 0,
             typed: String::new(),
             letters: 0,
         });
         Admitted::Held
     }
 
-    /// The seed arrived: each device waiting without a code gets one
-    /// from `code`.
-    pub(crate) fn coded(&mut self, code: impl Fn(u32) -> Option<String>) {
+    /// The seed arrived: each device waiting without a code gets one,
+    /// and its target's place, from `draw`.
+    pub(crate) fn coded(&mut self, draw: impl Fn(u32) -> Option<(String, (u16, u16))>) {
         for d in &mut self.held {
             if d.code.is_none() {
-                d.code = code(d.id);
+                (d.code, d.spot) = draw(d.id).unzip();
             }
+        }
+    }
+
+    /// A tap a held-back touchscreen made while its target was drawn:
+    /// on the target, or beside it.
+    pub(crate) fn tapped(&mut self, id: u32, on_target: bool) -> Typed {
+        let Some(d) = self.held.iter_mut().find(|d| d.id == id) else {
+            return Typed::Nothing;
+        };
+        // With no target to tap, a tap is held back and counts for nothing.
+        if !d.by_target() || d.spot.is_none() {
+            return Typed::Nothing;
+        }
+        if on_target {
+            return Typed::Matched;
+        }
+        d.missed += 1;
+        if d.missed < TAP_TRIES {
+            return Typed::Nothing;
+        }
+        let name = d.name.clone();
+        self.ignore(id);
+        self.kept_out += 1;
+        Typed::KeptOut {
+            name,
+            limit: self.kept_out >= KEPT_OUT_LIMIT,
         }
     }
 
@@ -216,12 +273,32 @@ impl Faraday {
         self.inputs.ignored()
     }
 
-    /// A device the shell holds back.
-    pub(crate) fn input_new(&mut self, id: u32, name: String, keyboard: bool, pointer: bool) {
+    /// What the shell said of a held-back device: one announced, a key it
+    /// typed, a tap it made, or one unplugged.
+    pub(crate) fn input_event(&mut self, event: StorageEvent) {
+        match event {
+            StorageEvent::NewInput {
+                id,
+                name,
+                keyboard,
+                pointer,
+                touch,
+            } => self.input_new(id, name, (keyboard, pointer, touch)),
+            StorageEvent::InputTyped { id, ch } => self.input_typed(id, ch),
+            StorageEvent::InputTapped { id, x, y } => self.input_tapped(id, x, y),
+            StorageEvent::InputGone { id } => self.input_gone(id),
+            // `storage` passes only the events matched above.
+            _ => {}
+        }
+    }
+
+    /// A device the shell holds back, with what it says it is: keyboard,
+    /// pointer, touchscreen.
+    pub(crate) fn input_new(&mut self, id: u32, name: String, kinds: (bool, bool, bool)) {
         let (fresh, now) = (&self.fresh, self.now_ms);
         match self
             .inputs
-            .admit(id, name, keyboard, pointer, || input_code(fresh, id, now))
+            .admit(id, name, kinds, || input_code(fresh, id, now))
         {
             Admitted::Known => return,
             Admitted::Ignored => {
@@ -249,7 +326,39 @@ impl Faraday {
 
     /// A key a held-back keyboard typed.
     pub(crate) fn input_typed(&mut self, id: u32, ch: char) {
-        match self.inputs.typed(id, ch) {
+        let typed = self.inputs.typed(id, ch);
+        self.input_tried(id, typed, EN.inputs_wrong_code);
+    }
+
+    /// A tap a held-back touchscreen made at (x, y), in pixels. It counts
+    /// only while the sheet shows that device's target: on the target it
+    /// lets the device in, on the sheet's Ignore it keeps it out, and
+    /// anywhere else it is a tap beside the target. A lookup.
+    pub(crate) fn input_tapped(&mut self, id: u32, x: u16, y: u16) {
+        let showing = self.sheet == Some(Sheet::NewInput)
+            && self.inputs.held().first().is_some_and(|d| d.id == id);
+        if !showing {
+            return;
+        }
+        let (x, y) = (i32::from(x), i32::from(y));
+        // Only the control's own box: no room around it.
+        let hit = self
+            .pointer
+            .hit_at(x, y)
+            .filter(|(_, r)| r.contains(x, y))
+            .map(|(a, _)| a);
+        if hit == Some(Action::InputIgnore(id)) {
+            self.input_ignore(id);
+            return;
+        }
+        let tapped = self.inputs.tapped(id, hit == Some(Action::InputTarget(id)));
+        self.input_tried(id, tapped, EN.inputs_wrong_taps);
+    }
+
+    /// What a held-back device's try led to; `wrong` is the toast for one
+    /// kept out for it.
+    fn input_tried(&mut self, id: u32, tried: Typed, wrong: &str) {
+        match tried {
             Typed::Nothing => {}
             Typed::Matched => self.input_believe(id),
             Typed::KeptOut { name, limit } => {
@@ -257,7 +366,7 @@ impl Faraday {
                 if limit {
                     self.toast(EN.inputs_new_keyboards_ignored);
                 } else {
-                    self.toast(&fill(EN.inputs_wrong_code, &[&name]));
+                    self.toast(&fill(wrong, &[&name]));
                 }
             }
         }
@@ -304,15 +413,20 @@ impl Faraday {
     }
 }
 
-/// A code from the session's seed, one per device; `None` before the
-/// seed arrived.
-fn input_code(fresh: &crate::fresh::Fresh, id: u32, now_ms: u64) -> Option<String> {
+/// A code and a target's place from the session's seed, one per device;
+/// `None` before the seed arrived. The code is the draw's first bytes,
+/// the place four of the bytes after it.
+fn input_code(fresh: &crate::fresh::Fresh, id: u32, now_ms: u64) -> Option<(String, (u16, u16))> {
     let count = [id.to_le_bytes().as_slice(), &now_ms.to_le_bytes()].concat();
     let draw = fresh.draw(b"faraday input code", &count)?;
-    Some(
-        draw.iter()
-            .take(CODE_LEN)
-            .map(|b| char::from(LETTERS[usize::from(*b) % LETTERS.len()]))
-            .collect(),
-    )
+    let code = draw
+        .iter()
+        .take(CODE_LEN)
+        .map(|b| char::from(LETTERS[usize::from(*b) % LETTERS.len()]))
+        .collect();
+    let spot = (
+        u16::from_le_bytes([draw[8], draw[9]]),
+        u16::from_le_bytes([draw[10], draw[11]]),
+    );
+    Some((code, spot))
 }

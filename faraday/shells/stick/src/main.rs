@@ -213,6 +213,33 @@ enum HeldInput {
     Panic(bool),
 }
 
+/// A held-back device as the app is told of it.
+struct Announce {
+    /// The shell's number for it.
+    id: u32,
+    /// What it calls itself.
+    name: String,
+    /// It types.
+    keyboard: bool,
+    /// It moves the cursor.
+    pointer: bool,
+    /// It names places on the screen.
+    touch: bool,
+}
+
+impl Announce {
+    /// What the app is told of `device`.
+    fn of(id: u32, device: &evdev::Device) -> Announce {
+        Announce {
+            id,
+            name: device.name.clone(),
+            keyboard: device.keyboard,
+            pointer: device.mouse || device.touchpad,
+            touch: device.touchscreen,
+        }
+    }
+}
+
 impl HeldInput {
     /// The input a reader produced, held; anything else is not input.
     fn of(wake: Wake) -> Option<HeldInput> {
@@ -743,7 +770,7 @@ struct Shell {
     /// Devices whose input is held back, and where each stands.
     held: std::collections::BTreeMap<u32, Hold>,
     /// Held-back devices found before the app was there to be told.
-    announce: Vec<(u32, String, bool, bool)>,
+    announce: Vec<Announce>,
     /// The app locked: exit with the restart code.
     restart: bool,
     /// The framebuffer and what is on it, shared with the input threads,
@@ -841,12 +868,7 @@ impl Shell {
             }
             if !device.trusted {
                 self.held.insert(id, Hold::Pending);
-                self.announce.push((
-                    id,
-                    device.name.clone(),
-                    device.keyboard,
-                    device.mouse || device.touchpad,
-                ));
+                self.announce.push(Announce::of(id, &device));
             }
             if (device.mouse || device.touchpad) && self.cursor.is_none() {
                 let (w, h) = self.frame_size();
@@ -1365,7 +1387,14 @@ impl Shell {
     /// what it decided about others.
     fn take_input_decisions(&mut self) {
         let Some(app) = self.app.as_mut() else { return };
-        for (id, name, keyboard, pointer) in self.announce.drain(..) {
+        for Announce {
+            id,
+            name,
+            keyboard,
+            pointer,
+            touch,
+        } in self.announce.drain(..)
+        {
             if self.verbose {
                 eprintln!("input {id} {name:?} held back until a person says it is theirs");
             }
@@ -1374,6 +1403,7 @@ impl Shell {
                 name,
                 keyboard,
                 pointer,
+                touch,
             });
         }
         while let Some((id, believed)) = app.poll_input_decision() {
@@ -1391,18 +1421,24 @@ impl Shell {
     }
 
     /// What a held-back device sent: through, once believed; its typed
-    /// characters to the app, while it waits; nothing, once ignored.
+    /// characters and where its finger went down to the app, while it
+    /// waits; nothing, once ignored.
     fn held_wake(&mut self, id: u32, input: HeldInput, batch: &mut Vec<Wake>) {
         match self.held.get(&id) {
             Some(Hold::Believed) => batch.push(input.wake()),
             Some(Hold::Pending) => {
-                if let HeldInput::Key(Key::Char(ch)) = input
-                    && let Some(app) = self.app.as_mut()
-                {
-                    app.storage(StorageEvent::InputTyped { id, ch });
-                    self.dirty = true;
-                    self.take_input_decisions();
+                let Some(app) = self.app.as_mut() else { return };
+                match input {
+                    HeldInput::Key(Key::Char(ch)) => {
+                        app.storage(StorageEvent::InputTyped { id, ch });
+                    }
+                    HeldInput::Touch(t) if t.phase == TouchPhase::Down => {
+                        app.storage(StorageEvent::InputTapped { id, x: t.x, y: t.y });
+                    }
+                    _ => return,
                 }
+                self.dirty = true;
+                self.take_input_decisions();
             }
             _ => {}
         }
@@ -1615,10 +1651,10 @@ fn run(args: Args) -> Result<Exit, String> {
     let camera = Camera::new(args.camera.clone(), args.no_camera, tx.clone());
     // Devices already plugged in that are not part of the machine: held
     // back from the start, and announced once the app is up.
-    let initial: Vec<(u32, String, bool, bool)> = found
+    let initial: Vec<Announce> = found
         .iter()
         .filter(|(_, d)| !d.trusted)
-        .map(|(id, d)| (*id, d.name.clone(), d.keyboard, d.mouse || d.touchpad))
+        .map(|(id, d)| Announce::of(*id, d))
         .collect();
     // Landscape first wherever Rotation is offered (F100); the kept
     // choice turns it once the core has read it.
@@ -1711,10 +1747,7 @@ fn run(args: Args) -> Result<Exit, String> {
         clean: None,
         clean_stuck: false,
         usb: None,
-        held: initial
-            .iter()
-            .map(|(id, ..)| (*id, Hold::Pending))
-            .collect(),
+        held: initial.iter().map(|a| (a.id, Hold::Pending)).collect(),
         announce: initial,
         restart: false,
         panel,

@@ -27,8 +27,9 @@ what is attached to the PC:
 | ![Attached to this computer naming a KVM, Check again outlined](../pictures/2-1-attached.png) **Attached to this computer**, naming a KVM ("a KVM can show this screen and type on this computer from elsewhere") or a TV ("a TV can record what it shows") | that device can record the screen or type | unplug it and press **Check again**. **Continue anyway** asks once more, naming the case (**Only for a screen or switch that is your own, in front of you. What is listed stays possible while it is attached.**), with **Hold to continue**. |
 | the same sheet naming a virtual machine ("a virtual machine's host sees and can change everything in it") | Faraday is not running on the PC itself | **Power off**: Faraday must start on a real computer |
 
-A keyboard or mouse plugged in after Faraday starts does nothing until
-it types the code Faraday shows, or clicks the target it draws.
+A keyboard plugged in after Faraday starts does nothing until it types
+the code Faraday shows, a mouse until it is let in with input already
+in use, and a USB touchscreen until it taps the target Faraday draws.
 
 A new stick holds no files, so nothing is offered to import.
 

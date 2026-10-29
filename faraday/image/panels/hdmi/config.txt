@@ -12,8 +12,9 @@
 #            overlay's own default is 256 MB: one frame at the Pi 3's
 #            largest HDMI mode is under 9 MB, and a Zero 2 W has 512 MB.
 #
-# The overlay also turns the V3D node on; the kernel's vc4 has no V3D to
-# bind to it (boards/pi3/builds/compatible/linux-patches).
+# The overlay also turns the V3D node on, and vc4 binds it: its render
+# node, /dev/dri/renderD128, is root's alone (common/rootfs-overlay/etc/
+# mdev.conf, F153), and the app never opens it.
 dtoverlay=vc4-kms-v3d,noaudio,cma-64
 
 # The firmware's own HDMI-CEC handling off; the kernel builds no CEC.

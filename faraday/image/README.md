@@ -74,9 +74,11 @@ its `linux.fragment`, vc4's display side through DRM with its
 framebuffer emulation, the sound core vc4 cannot build without (and no
 sound driver), the generic USB HID drivers, and USB storage and SCSI;
 its `kernel.required` and `kernel.forbidden` hold each of those to the
-PC's rules. Its `linux-patches/` are Faraday's two changes to the kernel
-source: vc4 binds no V3D and creates no render node, and DRM does not
-select `KCMP`, which `common/kernel.forbidden` keeps out. Its image is
+PC's rules. Both builds compile the board's kernel source as it is, with
+no patch of Faraday's own (F153): vc4 binds the Pi 3's V3D and creates a
+render node, which `common/rootfs-overlay/etc/mdev.conf` gives to root
+alone with `/dev/dri/card0`, and DRM selects `KCMP`, which Compatible
+allows while the Strict Pi's and the PC's lists forbid it. Its image is
 `out/pi/faraday-pi3-<panel>-compatible.img`. A panel that needs it says
 `BUILDS="compatible"` in its `panel.conf`, and build.sh refuses it in
 another build.
@@ -182,7 +184,8 @@ distribution.
 A directory under `panels/` with four files:
 
 - `panel.conf` — `NAME`, and then only what is true of this display:
-  `WIDTH` and `HEIGHT`, `DPI`, `TOUCH_NAME` and `TOUCH_GRID`, `FB`,
+  `WIDTH` and `HEIGHT`, `DPI`, `TOUCH_NAME` (a controller on the board's
+  own bus, never USB, which needs `TOUCH_GRID` with it) and `TOUCH_GRID`, `FB`,
   `LOGO_WIDTH` and `LOGO_HEIGHT`, and the panel's orientation
   (`docs/ORIENTATION.md` §2, §4.2):
 
@@ -487,9 +490,10 @@ That is the Pi's Strict build. Its Compatible build also carries USB
 keyboards, mice, touchscreens and sticks, with the stick's drivers and
 the stick's rules: `faraday-grant` authorises each interface, a new
 keyboard types the code on the screen, a new pointer is approved with
-trusted input, and a stick's partitions reach `faraday-disk` one at a
-time. The one USB device trusted without approval is the touchscreen the
-panel's `TOUCH_NAME` names (F145), and only for its touch.
+trusted input, a new touchscreen taps the target the app draws at a
+random place, and a stick's partitions reach `faraday-disk` one at a
+time. No USB device is trusted without approval, whatever name it gives
+(F153); the panel's own touch on I²C is.
 
 On the stick, USB carries the camera, the keyboard, the mouse and the
 disk the machine booted from. Gadget mode and the network adapters are

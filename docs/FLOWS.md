@@ -1667,11 +1667,18 @@ to use in the desktop Faraday is copied in from a stick folder.
 ## New devices and settings
 
 **A keyboard or pointer arrives** → it does nothing until it types the
-code shown, or clicks the target drawn → **Ignore this device** lists it
-in Settings until unplugged. A keyboard that types three codes' worth of
-letters without the code is ignored the same way, with a toast saying
-to unplug it to try again. After three keyboards are ignored that way,
-new keyboards are ignored without a code until Faraday starts again.
+code shown, or a person lets the pointer in with input already trusted
+→ **Ignore this device** lists it in Settings until unplugged. A
+keyboard that types three codes' worth of letters without the code is
+ignored the same way, with a toast saying to unplug it to try again.
+
+**A USB touchscreen arrives** (F153) → it does nothing until it taps
+the target drawn at a random place on the screen → a tap beside it
+shows the tries left, and the third keeps it out until unplugged, with
+a toast saying so. Its tap on **Ignore this device** keeps it out. A
+touchscreen that is part of the machine (the Pi's panel, a laptop's
+own) needs nothing. After three keyboards or touchscreens are kept out
+for wrong tries, new ones are ignored until Faraday starts again.
 
 **No camera, or the camera is refused** → the scanner says which, and
 offers Type and Read a file.

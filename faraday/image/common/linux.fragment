@@ -311,7 +311,8 @@ CONFIG_LSM="lockdown,yama"
 # CONFIG_FS_ENCRYPTION is not set
 # CONFIG_INTEGRITY is not set
 # process_vm_readv/writev and kcmp: reading another process's memory and
-# comparing its kernel objects.
+# comparing its kernel objects. The Pi's Compatible build has kcmp, which
+# DRM selects (F153); every other image forbids it in its own list.
 # CONFIG_CROSS_MEMORY_ATTACH is not set
 # CONFIG_KCMP is not set
 # Interpreters for arbitrary binary formats; the image runs two ELF files.

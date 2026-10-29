@@ -129,10 +129,11 @@ if [ -n "${WIDTH:-}" ] || [ -n "${HEIGHT:-}" ]; then
         [ -n "${!v:-}" ] || { echo "$panel_dir/panel.conf has WIDTH or HEIGHT but not both" >&2; exit 1; }
     done
 fi
-if [ -n "${TOUCH_NAME:-}" ] || [ -n "${TOUCH_GRID:-}" ]; then
-    for v in TOUCH_NAME TOUCH_GRID; do
-        [ -n "${!v:-}" ] || { echo "$panel_dir/panel.conf has TOUCH_NAME or TOUCH_GRID but not both" >&2; exit 1; }
-    done
+# A touch controller named for its bus needs the grid it reports in; a
+# grid alone is for a USB touchscreen whose descriptor may give none.
+if [ -n "${TOUCH_NAME:-}" ] && [ -z "${TOUCH_GRID:-}" ]; then
+    echo "$panel_dir/panel.conf has TOUCH_NAME but no TOUCH_GRID" >&2
+    exit 1
 fi
 
 case "${NATIVE:-}" in
@@ -277,7 +278,10 @@ if [ -n "${DPI:-}" ]; then
     args="$args --dpi ${DPI}"
 fi
 if [ -n "${TOUCH_NAME:-}" ]; then
-    args="$args --touch-name ${TOUCH_NAME} --touch-grid ${TOUCH_GRID}"
+    args="$args --touch-name ${TOUCH_NAME}"
+fi
+if [ -n "${TOUCH_GRID:-}" ]; then
+    args="$args --touch-grid ${TOUCH_GRID}"
 fi
 for v in TOUCH_SWAP TOUCH_INVERT_X TOUCH_INVERT_Y; do
     if [ "${!v:-0}" = 1 ]; then

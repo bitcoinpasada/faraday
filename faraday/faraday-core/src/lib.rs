@@ -1685,14 +1685,10 @@ impl Faraday {
             }
             StorageEvent::Saved { path } => self.transfer_saved(Ok(path)),
             StorageEvent::SaveFailed { reason } => self.transfer_saved(Err(reason)),
-            StorageEvent::NewInput {
-                id,
-                name,
-                keyboard,
-                pointer,
-            } => self.input_new(id, name, keyboard, pointer),
-            StorageEvent::InputTyped { id, ch } => self.input_typed(id, ch),
-            StorageEvent::InputGone { id } => self.input_gone(id),
+            e @ (StorageEvent::NewInput { .. }
+            | StorageEvent::InputTyped { .. }
+            | StorageEvent::InputTapped { .. }
+            | StorageEvent::InputGone { .. }) => self.input_event(e),
             StorageEvent::Restored {
                 inbox,
                 outbox,
@@ -2985,6 +2981,7 @@ impl Faraday {
             | Action::RegisterReading(_)) => self.register_act(a),
             a @ (Action::InputUse(..)
             | Action::InputIgnore(..)
+            | Action::InputTarget(..)
             | Action::Mode(..)
             | Action::ModeSheet
             | Action::DevicesCheck

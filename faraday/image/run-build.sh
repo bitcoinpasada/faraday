@@ -101,9 +101,9 @@ board_fragment="$image/boards/$board/buildroot.fragment"
 kernel_lines() {
     grep -E '^(BR2_LINUX_KERNEL_CUSTOM_TARBALL_LOCATION|BR2_LINUX_KERNEL_PATCH)=' "$1" | sort || true
 }
-# A build (strict or compatible) may add patches of its own (the Pi's
-# Compatible does, boards/pi3/builds/compatible/linux-patches); they count
-# too, and a build without any hashes as the board alone does.
+# A build (strict or compatible) may add patches of its own (none does:
+# Faraday carries no kernel patch of its own on the Pi, F153); they would
+# count too, and a build without any hashes as the board alone does.
 build_dir="$image/boards/$board/builds/$build"
 kernel_source="$({
     kernel_lines "$board_fragment"

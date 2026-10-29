@@ -2962,8 +2962,10 @@ strings! {
     inputs_is_in_use: "{} is in use",
     /// Toast in `input_typed`. `{}`: `name`.
     inputs_wrong_code: "{} typed the wrong code. Unplug it to try again.",
-    /// Toast in `input_typed` and `input_new`.
-    inputs_new_keyboards_ignored: "New keyboards are ignored until Faraday starts again.",
+    /// Toast in `input_tapped`. `{}`: `name`.
+    inputs_wrong_taps: "{} tapped beside the target. Unplug it to try again.",
+    /// Toast in `input_typed`, `input_tapped` and `input_new`.
+    inputs_new_keyboards_ignored: "New keyboards and touchscreens are ignored until Faraday starts again.",
     // ----- keygen (faraday-core/src/keygen/mod.rs) -----
     /// Text in `source_name`.
     keygen_seed_xor: "Seed XOR",
@@ -6720,6 +6722,15 @@ strings! {
     new_input_ignore_button: "Ignore this device",
     /// Button in `new_input_sheet`.
     new_input_use_pointer: "Use this pointer",
+    /// Title in `new_input_target`.
+    new_input_a_new_touchscreen: "A new touchscreen",
+    /// Label in `new_input_target`, over the target.
+    new_input_tap_target: "Tap the target",
+    /// Value in `new_input_target`, once a tap missed. `{}`: tries left.
+    new_input_tries_left: "Tries left: {}",
+    /// Line in `new_input_target`, in place of the target while the
+    /// system has given no randomness.
+    new_input_no_target: "This touchscreen cannot be let in until Faraday restarts",
     // ----- idle_warn (faraday-core/src/screens/sheets.rs) -----
     /// Text in `idle_warn_sheet`.
     idle_warn_wiped: "Wiped",

@@ -7,20 +7,26 @@
 
 # ---- the display: vc4's display side, through DRM ----
 # The HVS, the pixel valves, the HDMI encoder and the DSI hosts are one
-# driver, vc4. Its V3D, the GPU's 3D block, is not bound and there is no
-# render node: linux-patches/ takes both out of the driver. Only the app
-# opens a display node, and it opens /dev/fb0, DRM's framebuffer
-# emulation; no line in common/rootfs-overlay/etc/mdev.conf gives
-# /dev/dri/card0 to anyone, so it stays root's.
+# driver, vc4, and the kernel source is the board's as it is: Faraday
+# carries no kernel patch of its own (F153). vc4 also binds the GPU's 3D
+# block, V3D, and gives the device a render node, /dev/dri/renderD128,
+# beside /dev/dri/card0. Only the app opens a display node, and it opens
+# /dev/fb0, DRM's framebuffer emulation; common/rootfs-overlay/etc/mdev.conf
+# gives both DRM nodes to root alone (0600), and the only root processes
+# after boot are init and its two shell loops, which open neither
+# (docs/SECURITY-MODEL.md, "When root is used").
 CONFIG_DRM=y
 CONFIG_DRM_VC4=y
 CONFIG_DRM_FBDEV_EMULATION=y
 # HDMI-CEC: a monitor's remote-control bus, which reaches into the device.
 # CONFIG_DRM_VC4_HDMI_CEC is not set
 # CONFIG_CEC_CORE is not set
-# kcmp(), which DRM selects for Mesa's sake; linux-patches/ takes the
-# select out, and common/kernel.forbidden keeps it out of every image.
-# CONFIG_KCMP is not set
+# kcmp(), which DRM selects for Mesa's sake. This build allows it (F153):
+# it only says whether two processes share a kernel object, and only for
+# processes that pass ptrace's read check against the caller; each of the
+# device's processes runs as a user of its own, so the app can compare
+# only its own. Every other image forbids it in its own kernel.forbidden.
+CONFIG_KCMP=y
 # The rest of DRM is for other hardware, or for a desktop.
 # CONFIG_DRM_V3D is not set
 # CONFIG_DRM_DP_AUX_CHARDEV is not set

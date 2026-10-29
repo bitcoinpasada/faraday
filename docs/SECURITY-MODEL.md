@@ -81,13 +81,19 @@ internal error rather than carrying on.
   | USB stick | Yes | No: the kernel has no USB storage driver | Yes, as on the PC |
   | SD card | Only in a USB card reader that presents itself as USB mass storage. A built-in SD slot is not read: its driver is the one many laptops use for their internal eMMC disk. | Yes, its own slot | Yes, its own slot, and in a USB card reader |
   | Keyboard and pointer | Built-in keyboard, touchpad and touchscreen, and USB | The touch panel only: the kernel has no HID driver | The panel's own touch, and USB keyboards, mice and touchscreens through the generic HID drivers only |
-  | Display | The framebuffer the firmware set up | The framebuffer the Pi's firmware set up; no kernel graphics driver | vc4's display side, through the kernel's DRM: HDMI, reading the screen's EDID. No 3D engine is bound and there is no render node; HDMI-CEC is not built and HDMI audio is off. The app writes `/dev/fb0`; the DRM device is root's. |
+  | Display | The framebuffer the firmware set up | The framebuffer the Pi's firmware set up; no kernel graphics driver | vc4 through the kernel's DRM: HDMI, reading the screen's EDID. vc4 binds the 3D engine and creates a render node; both DRM nodes are root's alone (0600), and no process after boot opens them. HDMI-CEC is not built and HDMI audio is off. The app writes `/dev/fb0`. |
   | Camera | A USB webcam, plugged in or built in, that offers uncompressed frames. Not a built-in camera on a MIPI lane, as in many recent thin laptops: its driver needs firmware and an image processor Faraday does not have. | Pi camera or USB webcam | Pi camera or USB webcam |
 
   The Pi's Compatible kernel builds the sound core, because the vc4
   driver will not build without it, and no sound driver: HDMI audio is
   turned off in the device tree, so no sound card exists. Its `/dev/snd`
   nodes, if any, are root's, as every node `mdev.conf` names no owner for.
+  It is the board's kernel source as it is, with no patch of Faraday's
+  own, so it also has `kcmp()`, which the kernel's DRM selects (F153):
+  it says only whether two processes share a kernel object, for
+  processes that pass ptrace's read check against the caller, and each
+  process on the device runs as a user of its own. Every other image
+  leaves `kcmp()` out.
 
 - **Why the stick comes out.** Nothing reaches a stick except through
   a stick visit, which writes only what waits For the stick, and only while
@@ -137,15 +143,21 @@ internal error rather than carrying on.
   types a random code shown on the screen, and until it is unplugged if
   it types three codes' worth of letters without it; after three such
   keyboards, new ones are ignored until Faraday starts again. A new
-  pointer is ignored until a person approves it with trusted input. On a
-  Pi the panel's own touch is trusted input; on the Compatible build so is
-  the first USB touchscreen whose name is the one the screen's profile
-  gives (`TOUCH_NAME`, the 10-inch HDMI panel's), since that panel has no
-  other input (F145). Every other USB device follows the rules above.
+  pointer is ignored until a person approves it with trusted input. A
+  new USB touchscreen is ignored until it taps a target the app draws at
+  a place drawn from the system's randomness, and until it is unplugged
+  if it taps beside it three times; it counts toward the three devices
+  kept out as a keyboard does (F153). It needs no other input, so an
+  HDMI panel whose only input is its USB touch approves itself. No USB
+  device is trusted for the name it gives. A touchscreen on a bus that
+  is part of the machine (a Pi panel's touch controller on I²C, a
+  laptop's built-in touchscreen) is trusted input.
 - **Also absent:** swap, suspend, hibernation, core dumps, `/dev/mem`,
   `/proc/kcore`, kexec, debugfs, BPF, kernel probes and tracing,
   io_uring, asynchronous I/O, System V IPC, the kernel keyring, one
-  process reading another's memory, and Thunderbolt PCIe tunnelling. On
+  process reading another's memory, comparing another process's kernel
+  objects (`kcmp()`, except on the Pi's Compatible build), and
+  Thunderbolt PCIe tunnelling. On
   a PC also the 32-bit system calls, raw HID access, virtio, the CD-ROM
   driver and the vendor-specific keyboard and mouse drivers, and on the
   Pi's Compatible build raw HID access, the CD-ROM driver, raw SCSI
