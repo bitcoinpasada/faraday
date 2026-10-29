@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Specified (F148), not built
-**Open:** the manifest and its entries, the inventory lint, fingerprints and the re-stamp recipe, the generated Learn blocks, STANDARDS and AUDIT §3 generated from the manifest, the bar's How Faraday does it action and its Learn tab and the Starter's sheet as §8 designs them (its icon, its strings, §8.5's drawing), the two Learn pages of §8.4 and §12 in the apps' page lists (their text is written), the reachability test, the cross-check stamp read from the manifest, the website's rendering
+**Open:** the manifest and its entries, the inventory lint, fingerprints and the re-stamp recipe, the generated Learn blocks (`faraday/faraday-learn/src/how.rs` holds the type and no block yet; the generator fills it), STANDARDS and AUDIT §3 generated from the manifest, §8.5's block on Learn's own pages after their sections, the step-by-step order of a flow's blocks (§8.1, §8.5), the guide's pictures and text of §8.7, the ⋮ row's leading icon (§8.3), the reachability test and the screens check (§9), the cross-check stamp read from the manifest, the website's rendering
 
 Every screen that does something cryptographic opens a block that says
 how Faraday does it: the standard, the code, what checks it, how the

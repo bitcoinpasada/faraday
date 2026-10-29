@@ -35,6 +35,7 @@ const S: &Strings = &EN;
 mod appearance;
 mod boot_file;
 mod home;
+mod how;
 mod nav;
 
 use faraday_draw::tokens::{
@@ -169,6 +170,7 @@ fn sheet_over(starter: &Starter, ui: &mut Ui, w: f32, h: f32, sheet: Sheet) {
         Sheet::Restart(to) => restart_sheet(starter, ui, w, h, to),
         Sheet::Uninstall => uninstall_sheet(starter, ui, w, h),
         Sheet::LetThrough => let_through_sheet(starter, ui, w, h),
+        Sheet::How => how::sheet(starter, ui, w, h),
     }
     ui.in_sheet = false;
 }
@@ -1364,6 +1366,7 @@ fn learn_title(id: LearnId) -> &'static str {
         LearnId::StartLinux => S.starter_learn_start_linux,
         LearnId::NoStart => S.starter_learn_no_start,
         LearnId::KeepData => S.starter_learn_keep_data,
+        LearnId::CheckingWritten => S.starter_learn_checking_written,
         LearnId::Maker(_) => id.page().map_or("", |p| p.title),
         LearnId::SecureBootBitLocker => S.starter_learn_secure_boot_bitlocker,
         LearnId::ScreensThatRecord => S.starter_learn_screens,

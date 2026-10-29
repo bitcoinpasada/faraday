@@ -26,6 +26,8 @@ pub enum MenuPress {
 /// leave no room on it, in the order they go there.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BarTool {
+    /// **How Faraday does it**: Learn on the How tab.
+    How,
     /// The ?: the page's Learn.
     Help,
     /// The keyboard button.
@@ -37,6 +39,8 @@ pub enum BarTool {
 /// Which of a compact bar's tools are in its overflow menu.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct Overflow {
+    /// **How Faraday does it**, which goes in with the ?.
+    pub how: bool,
     /// The ?.
     pub help: bool,
     /// The keyboard button.
@@ -51,7 +55,7 @@ pub struct Overflow {
 impl Overflow {
     /// Whether it holds anything: the bar then shows its ⋮.
     pub fn any(self) -> bool {
-        self.help || self.keyboard || self.eye
+        self.how || self.help || self.keyboard || self.eye
     }
 }
 

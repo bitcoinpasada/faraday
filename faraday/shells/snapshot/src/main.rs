@@ -250,6 +250,7 @@ fn named_tour(c: &Compute, t: &mut Tour, name: &str) -> Option<Result<(), String
         "createfrom" => tours::create_from::create_from_tour(c, t),
         "inprogress" => tours::in_progress::in_progress_tour(t),
         "cancel" => tours::cancel::cancel_tour(t),
+        "how" => tours::how::how_tour(t),
         "std" => tours::standard::standard_tour(t),
         "parts" => tours::partials::partials_tour(t),
         "panes" => tours::panes::panes_tour(t),
@@ -290,7 +291,7 @@ fn main() -> ExitCode {
     }
     if !(4..=5).contains(&args.len()) {
         eprintln!(
-            "usage: faraday-snapshot [--sd-card] [--network NAME] WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy|scan|public|seedfile|vaultway|kept|again|plan|inbox|transfer|glance|chartedit|fromvault|first|restore|osk|flow|walletflow|demo|modes|vaultshow|addkey|cancel|guide|screens|tour|codex32]"
+            "usage: faraday-snapshot [--sd-card] [--network NAME] WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy|scan|public|seedfile|vaultway|kept|again|plan|inbox|transfer|glance|chartedit|fromvault|first|restore|osk|flow|walletflow|demo|modes|vaultshow|addkey|cancel|how|guide|screens|tour|codex32]"
         );
         return ExitCode::from(2);
     }
@@ -376,6 +377,7 @@ fn main() -> ExitCode {
             "createfrom",
             "inprogress",
             "cancel",
+            "how",
             "std",
             "parts",
             "panes",
@@ -394,7 +396,7 @@ fn main() -> ExitCode {
         .contains(&m)
     }) {
         eprintln!(
-            "the tour is spend, devices, themes, tooltips, compact, seeds, keys, visit, copy, scan, public, seedfile, vaultway, kept, again, plan, board, menu, m3, inbox, transfer, glance, chartedit, fromvault, first, restore, osk, flow, bootplace, passseeds, power, pills, components, walletflow, demo, modes, vaultshow, addkey, keygen, codex32correct, createfrom, inprogress, cancel, std, parts, panes, guide, roller, randomness, dice5, codex32, codex32tour, codex32form, createshares, codex32backup, screens or tour"
+            "the tour is spend, devices, themes, tooltips, compact, seeds, keys, visit, copy, scan, public, seedfile, vaultway, kept, again, plan, board, menu, m3, inbox, transfer, glance, chartedit, fromvault, first, restore, osk, flow, bootplace, passseeds, power, pills, components, walletflow, demo, modes, vaultshow, addkey, keygen, codex32correct, createfrom, inprogress, cancel, how, std, parts, panes, guide, roller, randomness, dice5, codex32, codex32tour, codex32form, createshares, codex32backup, screens or tour"
         );
         return ExitCode::from(2);
     }

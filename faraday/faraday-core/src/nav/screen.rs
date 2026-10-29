@@ -147,6 +147,21 @@ pub(crate) fn bar(app: &View, ui: &mut Ui, y: f32, w: f32) {
     faraday_ui::nav::bar(ui, y, w, &five);
 }
 
+/// The ? where the page has Learn pages, and left of it **How Faraday
+/// does it** where it offers an action with a block
+/// (`docs/CRYPTO-LEARN.md` §8.1), their right edge at `right`. Returns
+/// where the next action ends. A lookup.
+fn learn_tools(app: &View, ui: &mut Ui, mut right: f32) -> f32 {
+    if !app.learn_pages().is_empty() {
+        right = faraday_ui::nav::help(ui, right, Action::Learn, EN.tip_learn);
+    }
+    if app.how_offered() {
+        right =
+            faraday_ui::nav::icon_action(ui, right, Icon::Method, Action::How, false, EN.tip_how);
+    }
+    right
+}
+
 /// The top app bar across the page, `w` wide: the way back and the
 /// page's name (on Home, the wordmark), and at its right end the ⋮ menu
 /// and Lock on the bar's windows, the ?, the mode pill and the keyboard;
@@ -177,9 +192,7 @@ pub(crate) fn app_bar(app: &View, ui: &mut Ui, w: f32, nav: Nav) -> f32 {
                 );
             }
         }
-        if !app.learn_pages().is_empty() {
-            *right = faraday_ui::nav::help(ui, *right, Action::Learn, EN.tip_learn);
-        }
+        *right = learn_tools(app, ui, *right);
         if crate::modes::screen::shows_pill(app) {
             let pw = crate::modes::screen::pill_width(app, ui);
             let px = *right - GAP - pw;

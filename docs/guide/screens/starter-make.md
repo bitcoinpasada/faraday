@@ -3,6 +3,7 @@
 **Kind:** Reference
 **Status:** Checked against the app's pictures in docs/guide/pictures/ (drawn by just guide-pictures) and its code and strings (`faraday/faraday-starter/src/draw/home.rs`, `faraday/faraday-starter/src/draw.rs`, `faraday/faraday-starter/src/draw/boot_file.rs`, `faraday/faraday-starter/src/lib.rs`)
 **Starter page:** `Make`, `Which`, `Disks`, `Mode`, `Confirm`, `Writing`, `Done`
+**Starter sheet:** `How`
 **Group:** Starter
 
 **Opened from:** **Make** on the rail or the bar. Its steps open from

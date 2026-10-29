@@ -150,6 +150,9 @@ pub enum Icon {
     Add,
     /// A minus: one fewer, a stepper's −.
     Remove,
+    /// A sheet with two checks and two lines: How Faraday does it
+    /// (Material Symbols `fact_check`, filled).
+    Method,
 }
 
 impl Icon {
@@ -157,7 +160,7 @@ impl Icon {
     /// draws.
     pub const SEARCH: Icon = Icon::Verify;
     /// Every icon, for the gallery and for the completeness test.
-    pub const ALL: [Icon; 64] = [
+    pub const ALL: [Icon; 65] = [
         Icon::Scan,
         Icon::Keys,
         Icon::Sign,
@@ -222,6 +225,7 @@ impl Icon {
         Icon::UserSecret,
         Icon::Add,
         Icon::Remove,
+        Icon::Method,
     ];
 
     /// The code point in the baked icon face.
@@ -291,6 +295,7 @@ impl Icon {
             Icon::LayerGroup => '\u{f5fd}',
             Icon::EnvelopeOpen => '\u{f658}',
             Icon::SdCard => '\u{f7c2}',
+            Icon::Method => '\u{e930}',
         }
     }
 
@@ -361,6 +366,7 @@ impl Icon {
             Icon::UserSecret => "UserSecret",
             Icon::Add => "Add",
             Icon::Remove => "Remove",
+            Icon::Method => "Method",
         }
     }
 }

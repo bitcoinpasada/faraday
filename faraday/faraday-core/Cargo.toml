@@ -32,7 +32,7 @@ zeroize = { workspace = true, features = ["alloc"] }
 [features]
 # The test wallets and the files a test stick carries. The stick image's
 # app is built without it.
-testkit = []
+testkit = ["faraday-learn/sample-how"]
 
 [dev-dependencies]
 faraday-core = { path = ".", features = ["testkit"] }

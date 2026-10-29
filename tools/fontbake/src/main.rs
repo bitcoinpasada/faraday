@@ -167,7 +167,15 @@ const ICONS: &[u32] = &[
     0xF5FD, // layer-group
     0xF658, // envelope-open-text
     0xF7C2, // sd-card
+    // material-symbols/*.svg (Apache-2.0), see `SVG_ICONS`
+    0xE930, // fact_check, filled
 ];
+
+/// Icons whose outline is a Material Symbols SVG path, kept in
+/// `tools/fonts/material-symbols/` (Apache License 2.0,
+/// `tools/fonts/LICENSE-material-symbols.txt`): code point and file. The
+/// SVG's 960-unit box is the icon face's em.
+const SVG_ICONS: &[(u32, &str)] = &[(0xE930, "material-symbols/fact_check_fill1_24px.svg")];
 
 /// The mono face: Iosevka's default Regular cut, SIL OFL 1.1
 /// (`tools/fonts/OFL.txt`). It advances 0.5 em and tells 0 from O and 1
@@ -462,6 +470,146 @@ fn synthesized(c: char) -> Option<(f32, Vec<Polygon>)> {
     }
 }
 
+/// The `d` attribute of the first `<path>` in a Material Symbols SVG.
+fn svg_path_data(svg: &str) -> &str {
+    let start = svg.find(" d=\"").expect("a path with data") + 4;
+    let end = svg[start..].find('"').expect("the path data ends");
+    &svg[start..start + end]
+}
+
+/// The numbers and command letters of path data, in order.
+fn svg_tokens(d: &str) -> Vec<Result<f32, char>> {
+    let mut out = Vec::new();
+    let b: Vec<char> = d.chars().collect();
+    let mut i = 0;
+    while i < b.len() {
+        let c = b[i];
+        if c.is_ascii_alphabetic() {
+            out.push(Err(c));
+            i += 1;
+        } else if c == '-' || c == '.' || c.is_ascii_digit() {
+            let start = i;
+            i += 1;
+            let mut dot = c == '.';
+            while i < b.len() && (b[i].is_ascii_digit() || (b[i] == '.' && !dot)) {
+                dot |= b[i] == '.';
+                i += 1;
+            }
+            let t: String = b[start..i].iter().collect();
+            out.push(Ok(t.parse().expect("a number")));
+        } else {
+            i += 1;
+        }
+    }
+    out
+}
+
+/// An SVG icon as a glyph: the path's commands M L H V Q T Z, absolute
+/// and relative, in a box `size` units square whose top is `-size`
+/// (Material Symbols' `0 -960 960 960`), scaled to `upem` and flipped to
+/// y up.
+fn outline_svg(svg: &str, size: f32, upem: u16) -> Outline {
+    let scale = f64::from(upem) / f64::from(size);
+    let mut collector = Collector::new(scale);
+    let (mut x0, mut y0, mut x1, mut y1) = (f32::MAX, f32::MAX, f32::MIN, f32::MIN);
+    let mut note = |x: f32, y: f32| {
+        x0 = x0.min(x);
+        y0 = y0.min(-y);
+        x1 = x1.max(x);
+        y1 = y1.max(-y);
+    };
+    let tokens = svg_tokens(svg_path_data(svg));
+    let (mut cx, mut cy) = (0f32, 0f32);
+    let (mut sx, mut sy) = (0f32, 0f32);
+    let mut last_ctrl: Option<(f32, f32)> = None;
+    let mut cmd = ' ';
+    let mut i = 0;
+    while i < tokens.len() {
+        if let Err(c) = tokens[i] {
+            cmd = c;
+            i += 1;
+            if matches!(c, 'Z' | 'z') {
+                collector.close();
+                cx = sx;
+                cy = sy;
+                last_ctrl = None;
+                continue;
+            }
+        }
+        let mut take = |n: usize| -> Vec<f32> {
+            let v: Vec<f32> = tokens[i..i + n]
+                .iter()
+                .map(|t| t.expect("a number"))
+                .collect();
+            i += n;
+            v
+        };
+        let rel = cmd.is_ascii_lowercase();
+        let (ox, oy) = if rel { (cx, cy) } else { (0.0, 0.0) };
+        match cmd.to_ascii_uppercase() {
+            'M' => {
+                let v = take(2);
+                (cx, cy) = (ox + v[0], oy + v[1]);
+                (sx, sy) = (cx, cy);
+                collector.move_to(cx, -cy);
+                note(cx, cy);
+                // Further pairs after a move are lines.
+                cmd = if rel { 'l' } else { 'L' };
+                last_ctrl = None;
+            }
+            'L' => {
+                let v = take(2);
+                (cx, cy) = (ox + v[0], oy + v[1]);
+                collector.line_to(cx, -cy);
+                note(cx, cy);
+                last_ctrl = None;
+            }
+            'H' => {
+                cx = ox + take(1)[0];
+                collector.line_to(cx, -cy);
+                note(cx, cy);
+                last_ctrl = None;
+            }
+            'V' => {
+                cy = oy + take(1)[0];
+                collector.line_to(cx, -cy);
+                note(cx, cy);
+                last_ctrl = None;
+            }
+            'Q' => {
+                let v = take(4);
+                let (qx, qy) = (ox + v[0], oy + v[1]);
+                (cx, cy) = (ox + v[2], oy + v[3]);
+                collector.quad_to(qx, -qy, cx, -cy);
+                note(qx, qy);
+                note(cx, cy);
+                last_ctrl = Some((qx, qy));
+            }
+            'T' => {
+                let v = take(2);
+                let (qx, qy) = last_ctrl.map_or((cx, cy), |(a, b)| (2.0 * cx - a, 2.0 * cy - b));
+                (cx, cy) = (ox + v[0], oy + v[1]);
+                collector.quad_to(qx, -qy, cx, -cy);
+                note(qx, qy);
+                note(cx, cy);
+                last_ctrl = Some((qx, qy));
+            }
+            other => panic!("svg path command {other} is not supported"),
+        }
+    }
+    collector.end_contour();
+    Outline {
+        advance: upem,
+        bbox: [
+            rescale(x0, scale),
+            rescale(y0, scale),
+            rescale(x1, scale),
+            rescale(y1, scale),
+        ],
+        commands: collector.out,
+    }
+}
+
 /// The synthesized polygons as line contours in font units.
 fn outline_synthesized(advance_em: f32, polys: &[Polygon], upem: u16) -> Outline {
     let s = f64::from(upem);
@@ -616,6 +764,14 @@ fn ensure_iosevka(fonts_dir: &Path) {
     assert!(status.success(), "unpack {}: {status}", path.display());
 }
 
+/// The SVG icon at code point `c`, if it is one of [`SVG_ICONS`].
+fn svg_icon(fonts_dir: &Path, c: char, upem: u16) -> Option<Outline> {
+    let (_, file) = SVG_ICONS.iter().find(|(cp, _)| *cp == c as u32)?;
+    let svg =
+        fs::read_to_string(fonts_dir.join(file)).unwrap_or_else(|e| panic!("read {file}: {e}"));
+    Some(outline_svg(&svg, 960.0, upem))
+}
+
 fn main() {
     let root = repo_root();
     let fonts_dir = root.join("tools/fonts");
@@ -667,7 +823,8 @@ fn main() {
             (face.ascender(), face.descender(), face.line_gap())
         };
         let bytes = bake(chars, upem, metrics, spec.name, |c| {
-            outline_from(&face, c, upem)
+            svg_icon(&fonts_dir, c, upem)
+                .or_else(|| outline_from(&face, c, upem))
                 .or_else(|| outline_from(fallback, c, upem))
                 .or_else(|| {
                     synthesized(c)

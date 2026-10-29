@@ -11,6 +11,7 @@ mod appearance;
 mod controls;
 pub mod demo;
 pub mod hold;
+pub mod how;
 pub mod keyboard;
 mod lists;
 mod mark;

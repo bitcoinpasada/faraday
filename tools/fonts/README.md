@@ -13,6 +13,7 @@ to `tools/fontbake` only; no font file and no TTF parser ships on a device.
 | `iosevka/Iosevka-Regular.ttf` | Iosevka | everything read character by character: keycaps, candidates, fingerprints, hex, paths, addresses, chunked strings |
 | `seedsigner-icons.otf` | SeedSigner icons | the `U+E9xx` icons of the `Icon` set |
 | `Font_Awesome_6_Free-Solid-900.otf` | Font Awesome 6 Free Solid | the rest of the `Icon` set |
+| `material-symbols/fact_check_fill1_24px.svg` | Material Symbols | `Icon::Method` (How Faraday does it), a path baked into the icon face at `U+E930` |
 | `cjk/NotoSans{JP,KR,TC,SC}-Regular.otf` | Noto Sans CJK | the wordlist and keyboard glyphs the faces above lack |
 
 ## Iosevka, which is not committed
@@ -79,6 +80,10 @@ swaps them in on `small`.
   Creative Commons Attribution 4.0 International. Both are reproduced in
   `LICENSE-fontawesome.txt`. Attribution: icons by Font Awesome
   (fontawesome.com), CC BY 4.0.
+
+- **material-symbols/**: Material Symbols (Google), Apache License 2.0,
+  reproduced in `LICENSE-material-symbols.txt`. The SVG is the published
+  `fact_check` filled icon, unmodified.
 
 Only the glyphs the `Icon` enum names are extracted, and only their
 outlines: no font file, no name table and no glyph the UI does not draw

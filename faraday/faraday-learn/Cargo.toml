@@ -11,5 +11,10 @@ publish = false
 [dependencies]
 faraday-strings = { path = "../faraday-strings" }
 
+[features]
+# One sample block offered on the Decode screen and the Starter's What to
+# write page, for tests and the snapshot tour. Never in a shipped build.
+sample-how = []
+
 [lints]
 workspace = true

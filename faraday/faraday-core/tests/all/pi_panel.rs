@@ -181,6 +181,7 @@ fn sheets() -> Vec<Sheet> {
         PassphraseSeeds, GpgSign, Mode, Samples, NavMenu(None), KeyLengths, KeyPath, Register);
     // A compact bar's overflow menu, holding every tool it can.
     all.push(Sheet::NavMenu(Some(Overflow {
+        how: true,
         help: true,
         keyboard: true,
         keyboard_up: true,

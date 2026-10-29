@@ -77,6 +77,7 @@ mod gpg;
 mod half_screen;
 mod home;
 mod hover;
+mod how_block;
 mod icon_tooltips;
 mod idle;
 mod import;

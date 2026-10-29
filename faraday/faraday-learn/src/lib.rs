@@ -16,8 +16,11 @@ use std::sync::OnceLock;
 use faraday_strings::EN;
 use pages::Page as LearnPage;
 
+pub mod block;
+pub mod how;
 pub mod pages;
 
+pub use block::Block;
 pub use pages::{Page, Section};
 
 /// Faraday's own pages, each by its id.
@@ -29,7 +32,7 @@ pub use pages::{Page, Section};
 /// (`docs/learn/faraday/boot/*.md`) are `faraday-guides`' own table, not
 /// this one, except `replace-faraday`, which the Starter's Keep data
 /// shows ([`known`]).
-const OWN: [(&str, &str); 9] = [
+const OWN: [(&str, &str); 11] = [
     // A multisig backup's shares (`docs/history/NEW-WALLET.md` §4.2).
     (
         "shares",
@@ -65,6 +68,17 @@ const OWN: [(&str, &str); 9] = [
     (
         "vaults",
         include_str!("../../../docs/learn/faraday/vaults.md"),
+    ),
+    // The three Secure Boot keys (`docs/CRYPTO-LEARN.md` §12).
+    (
+        "secure-boot-keys",
+        include_str!("../../../docs/learn/faraday/secure-boot-keys.md"),
+    ),
+    // What the Starter checks of what it writes (`docs/CRYPTO-LEARN.md`
+    // §8.4).
+    (
+        "checking-written",
+        include_str!("../../../docs/learn/faraday/checking-written.md"),
     ),
 ];
 
@@ -340,4 +354,14 @@ pub fn keys_kept_page() -> &'static LearnPage {
 /// "Vaults".
 pub fn vaults_page() -> &'static LearnPage {
     known("vaults")
+}
+
+/// "Secure Boot keys".
+pub fn secure_boot_keys_page() -> &'static LearnPage {
+    known("secure-boot-keys")
+}
+
+/// "Checking what is written".
+pub fn checking_written_page() -> &'static LearnPage {
+    known("checking-written")
 }

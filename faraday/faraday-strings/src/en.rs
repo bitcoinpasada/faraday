@@ -6856,6 +6856,58 @@ strings! {
     /// The close button's label in Learn's supporting pane
     /// (`screens/learn_pane.rs`).
     learn_close: "Close",
+    /// Tooltip on the top app bar's How Faraday does it button, in Faraday and the Starter (`docs/CRYPTO-LEARN.md` §8.1).
+    tip_how: "Cryptography",
+    /// The ⋮ row on a compact bar for the button, first above Learn (§8.3).
+    bar_menu_how: "Cryptography",
+    /// The first tab of the Learn sheet and of the supporting pane (§8.2).
+    learn_tab_how: "Cryptography",
+    /// The head of the Starter's sheet of blocks (§8.4).
+    starter_how_title: "Cryptography",
+    /// The foot of the Starter's sheet of blocks.
+    starter_how_close: "Close",
+    /// Guide title in the Starter's Learn list.
+    starter_learn_checking_written: "Checking what is written",
+    /// A block's field (`docs/CRYPTO-LEARN.md` §1).
+    how_field_action: "Action",
+    /// A block's field.
+    how_field_standards: "Standards",
+    /// A block's field.
+    how_field_implementation: "Implementation",
+    /// A block's field.
+    how_field_checked: "Checked against",
+    /// A block's field.
+    how_field_crosscheck: "Cross-check",
+    /// A block's field.
+    how_field_code: "Code",
+    /// A block's field.
+    how_field_secret: "Secret handling",
+    /// A block's field.
+    how_field_limits: "Limits",
+    /// A block's field.
+    how_field_own_calls: "Faraday's own calls",
+    /// A part of a block's Cross-check (§8.5).
+    how_cc_area: "Area",
+    /// A part of a block's Cross-check.
+    how_cc_code: "Faraday's code",
+    /// A part of a block's Cross-check.
+    how_cc_second: "Compared with",
+    /// A part of a block's Cross-check.
+    how_cc_vectors: "Vectors",
+    /// A part of a block's Cross-check.
+    how_cc_random: "Random cases",
+    /// A part of a block's Cross-check.
+    how_cc_differences: "Differences",
+    /// A part of a block's Cross-check.
+    how_cc_when: "When it runs",
+    /// A part of a block's Cross-check.
+    how_cc_last_run: "Last passing run",
+    /// The Last passing run's value. `{}`: the seed, then the area's case count.
+    how_cc_seed_cases: "Seed {} · {} cases",
+    /// One Code entry of a block. `{}`: the release, the file, the function.
+    how_code_entry: "{} · {} · {}",
+    /// The Code field's last entry.
+    how_repository: "github.com/bitcoinpasada/faraday",
     // ----- secret_out (faraday-core/src/screens/sheets.rs) -----
     /// Text in `secret_out_sheet`.
     secret_out_this_may: "This may be a secret",

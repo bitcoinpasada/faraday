@@ -26,6 +26,7 @@ pub(crate) mod from_vault;
 pub(crate) mod glance;
 pub(crate) mod guide;
 pub(crate) mod host;
+pub(crate) mod how;
 pub(crate) mod in_progress;
 pub(crate) mod inbox;
 pub(crate) mod kept;

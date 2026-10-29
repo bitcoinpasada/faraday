@@ -1,0 +1,20 @@
+//! The how tour (`docs/CRYPTO-LEARN.md` §8): the top app bar's How
+//! Faraday does it beside the ?, the Learn sheet on its first tab with a
+//! block, and the tab scrolled down. Until the manifest is filled the
+//! block is the sample one (`faraday-learn`'s `sample-how`).
+
+use crate::tour::{Tour, scroll};
+use faraday_core::{Action, Screen};
+
+pub(crate) fn how_tour(t: &mut Tour) -> Result<(), String> {
+    t.press(Action::Nav(Screen::Decode));
+    t.shot("how-1-bar")?;
+    t.press(Action::How);
+    t.shot("how-2-tab")?;
+    for n in 3..6 {
+        scroll(t, 240);
+        t.shot(&format!("how-{n}-scrolled"))?;
+    }
+    t.press(Action::LearnPage(0));
+    t.shot("how-6-page")
+}

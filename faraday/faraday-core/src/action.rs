@@ -599,8 +599,12 @@ pub enum Action {
     /// Learn's supporting pane's close button: puts the pane away
     /// (`docs/LAYOUT.md` §6).
     LearnClose,
-    /// Show the Learn sheet's page.
+    /// Show the Learn sheet's page, or its How tab for
+    /// [`crate::learn::HOW_TAB`].
     LearnPage(u8),
+    /// **How Faraday does it** on the top app bar: Learn on the How tab
+    /// (`docs/CRYPTO-LEARN.md` §8.2).
+    How,
     /// Tick step `n` of the guide page on show in the Learn sheet, or
     /// clear its tick if it is ticked already.
     LearnStep(u32),

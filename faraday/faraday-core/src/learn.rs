@@ -4,17 +4,22 @@
 //! drifts. Each screen names the pages that explain it; a wallet's screens
 //! name the pages for its kind.
 
+use faraday_learn::Block;
 use faraday_learn::Page as LearnPage;
 use faraday_learn::pages::EN;
 
 pub use faraday_learn::{
     GUIDES, MAKERS, Maker, backup_plan_check_page, demo_page, gpg_page, guide_address, guide_id,
-    keys_kept_page, maker, page, shares_page, time_page, vaults_page,
+    keys_kept_page, maker, page, secure_boot_keys_page, shares_page, time_page, vaults_page,
 };
 
 use crate::create::NewKind;
 use crate::wallet::Kind;
 use crate::{Faraday, Screen};
+
+/// The tab number the How Faraday does it tab is pressed as
+/// ([`crate::Action::LearnPage`]): no page has it.
+pub const HOW_TAB: u8 = u8::MAX;
 
 /// A Learn page a Guided card links to, named by what it explains. Merged
 /// pages are named by the page they are in.
@@ -150,6 +155,19 @@ pub struct LearnState {
     pub scroll: f32,
     /// The furthest it can scroll, as last drawn.
     pub max: f32,
+    /// The How Faraday does it tab is on show, in place of the page
+    /// (`docs/CRYPTO-LEARN.md` §8.2). Kept only while the screen offers
+    /// blocks ([`Faraday::learn_place`]).
+    pub how: bool,
+}
+
+impl LearnState {
+    /// The tab on show, by its place among the tabs the sheet draws when
+    /// the How tab is there: 0 for How, else the page's place from 1.
+    /// A lookup.
+    pub fn tab(&self) -> usize {
+        if self.how { 0 } else { self.page + 1 }
+    }
 }
 
 fn for_kind(kind: Kind) -> Vec<&'static LearnPage> {
@@ -248,11 +266,11 @@ impl Faraday {
             }
             Screen::Entry => vec![&EN.words, &EN.passphrases],
             Screen::Silent => vec![&EN.silent_payments, &EN.xpubs],
-            Screen::Explore => vec![&EN.xpubs, &EN.glossary],
+            Screen::Explore => vec![&EN.xpubs, &EN.glossary, keys_kept_page()],
             Screen::Vanity => vec![&EN.passphrases, &EN.wallet_kinds],
             Screen::Lightning => vec![&EN.tools, &EN.glossary],
             Screen::Tools => vec![&EN.tools, &EN.glossary],
-            Screen::Bip85 => vec![&EN.words, &EN.passphrases, &EN.glossary],
+            Screen::Bip85 => vec![&EN.words, &EN.passphrases, &EN.tools, &EN.glossary],
             Screen::Backup => {
                 // A multisig's backup can keep shares of its description.
                 let splits = self
@@ -278,6 +296,10 @@ impl Faraday {
             Screen::VaultContents if self.vaults.category == 4 => {
                 vec![gpg_page(), vaults_page(), &EN.passphrases]
             }
+            // The Secure Boot kind (`crate::vault::CATEGORIES`, place 5).
+            Screen::VaultContents if self.vaults.category == 5 => {
+                vec![secure_boot_keys_page(), vaults_page(), &EN.passphrases]
+            }
             Screen::Vaults
             | Screen::CreateVault
             | Screen::Unlock
@@ -298,7 +320,9 @@ impl Faraday {
     /// supporting pane beside the page; pressed again while the pane is
     /// shown, and the pane's close button, put the pane away.
     pub(crate) fn learn_press(&mut self, action: crate::Action) {
-        if action == crate::Action::LearnClose || self.learn_pane_shown() {
+        if action == crate::Action::How {
+            self.how_press();
+        } else if action == crate::Action::LearnClose || self.learn_pane_shown() {
             self.learn_close();
         } else {
             self.learn_open();
@@ -306,10 +330,58 @@ impl Faraday {
         }
     }
 
+    /// **How Faraday does it** on the bar: opens Learn on the How tab;
+    /// while the supporting pane shows that tab it puts the pane away,
+    /// and while the pane shows another tab it moves the pane to the How
+    /// tab (`docs/CRYPTO-LEARN.md` §8.2).
+    pub(crate) fn how_press(&mut self) {
+        if !self.how_offered() {
+            return;
+        }
+        if self.learn_pane_shown() {
+            if self.learn.state().how {
+                self.learn_close();
+            } else {
+                self.learn.show_how();
+            }
+        } else {
+            self.learn_open();
+            self.learn.show_how();
+            self.learn_place();
+        }
+    }
+
+    /// The screens' name for the blocks to find it by: its variant's
+    /// name, in a buffer on the stack. A lookup.
+    fn how_screen_name(&self) -> ScreenName {
+        use std::fmt::Write;
+        let mut name = ScreenName::default();
+        // not shown: the variant's name, which the blocks list their screens by
+        let _ = write!(name, "{:?}", self.screen);
+        name
+    }
+
+    /// The blocks of the actions the screen on show offers, in the order
+    /// the manifest lists them (`docs/CRYPTO-LEARN.md` §8.2, §9.2); none
+    /// in a held app, whose holder has its own. A lookup.
+    pub fn how_blocks(&self) -> Vec<&'static Block> {
+        if self.held {
+            return Vec::new();
+        }
+        faraday_learn::how::for_screen(self.how_screen_name().as_str())
+    }
+
+    /// Whether the screen on show offers an action with a block: the bar
+    /// then carries **How Faraday does it** and Learn a How tab. A
+    /// lookup.
+    pub fn how_offered(&self) -> bool {
+        !self.held && faraday_learn::how::offered(self.how_screen_name().as_str())
+    }
+
     /// Opens the Learn sheet on the screen's first page.
     fn learn_open(&mut self) {
         let pages = self.learn_pages();
-        if pages.is_empty() {
+        if pages.is_empty() && !self.how_offered() {
             return;
         }
         self.learn.open(pages, &mut self.sheet);
@@ -397,6 +469,9 @@ impl Faraday {
     /// first is shown. Costs a lookup of the screen's pages while Learn
     /// is open.
     pub(crate) fn learn_place(&mut self) {
+        if self.learn.state().how && !self.how_offered() {
+            self.learn.drop_how();
+        }
         if self.learn.pane_open() {
             if self.sheet.is_some() {
                 return;
@@ -407,7 +482,7 @@ impl Faraday {
                 return;
             }
             let now = self.learn_pages();
-            if now.is_empty() || !self.learn_pane_place_free() {
+            if (now.is_empty() && !self.how_offered()) || !self.learn_pane_place_free() {
                 self.learn_close();
             } else {
                 self.learn.follow(now);
@@ -582,8 +657,25 @@ impl LearnArea {
 
     /// Shows the sheet's page `i`.
     pub(crate) fn show_page(&mut self, i: u8) {
-        if usize::from(i) < self.state.pages.len() {
+        if i == HOW_TAB {
+            self.show_how();
+        } else if usize::from(i) < self.state.pages.len() {
             self.state.page = usize::from(i);
+            self.state.how = false;
+            self.state.scroll = 0.0;
+        }
+    }
+
+    /// The screen offers no blocks any more: the first page is on show.
+    pub(crate) fn drop_how(&mut self) {
+        self.state.how = false;
+        self.state.scroll = 0.0;
+    }
+
+    /// Shows the How tab, from its top.
+    pub(crate) fn show_how(&mut self) {
+        if !self.state.how {
+            self.state.how = true;
             self.state.scroll = 0.0;
         }
     }
@@ -617,5 +709,30 @@ impl LearnArea {
         if !done.is_empty() {
             self.ticks.push((page, done));
         }
+    }
+}
+
+/// A `Screen` variant's name in a buffer on the stack, for the lookup of
+/// its blocks (`faraday_learn::how`), which every frame asks several
+/// times.
+#[derive(Default)]
+struct ScreenName {
+    buf: [u8; 24],
+    len: usize,
+}
+
+impl ScreenName {
+    fn as_str(&self) -> &str {
+        std::str::from_utf8(&self.buf[..self.len]).unwrap_or("")
+    }
+}
+
+impl std::fmt::Write for ScreenName {
+    fn write_str(&mut self, s: &str) -> std::fmt::Result {
+        let end = self.len + s.len();
+        let room = self.buf.get_mut(self.len..end).ok_or(std::fmt::Error)?;
+        room.copy_from_slice(s.as_bytes());
+        self.len = end;
+        Ok(())
     }
 }

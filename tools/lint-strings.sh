@@ -76,12 +76,13 @@ status=0
 # `// not wording: <why>`, and one that is a developer's text no screen
 # shows (a Display kept for developers, a console line) is marked
 # `// not shown: <why>`, on its line or the comment line above it.
-# The Learn pages (docs/learn, faraday-learn's pages) and the self-test's check names
-# are outside this lint, as CLAUDE.md says.
+# The Learn pages (docs/learn, faraday-learn's pages), faraday-learn's
+# generated `how.rs` (the manifest's values, carried as the pages' text is)
+# and the self-test's check names are outside this lint, as CLAUDE.md says.
 FARADAY_SCREENS="$(find faraday/faraday-core/src -name '*.rs' -not -path '*/drawing/*' -not -path '*/work/*' | sort | grep -v '/testkit\.rs$\|/names\.rs$')
 faraday/faraday-starter/src/*.rs
 faraday/faraday-ui/src/*.rs
-faraday/faraday-learn/src/*.rs
+$(ls faraday/faraday-learn/src/*.rs | grep -v '/how\.rs$')
 faraday/faraday-guides/src/*.rs
 faraday/faraday-intake/src/*.rs
 faraday/faraday-vault/src/lib.rs

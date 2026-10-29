@@ -175,9 +175,11 @@ fn tools(app: &View, ui: &mut Ui, w: f32) -> f32 {
 fn tools_from(app: &View, ui: &mut Ui, w: f32, over: Overflow) -> f32 {
     let mut right = w - GAP_SMALL;
     let help = !app.learn_pages().is_empty();
+    let how = app.how_offered();
     let keyboard = keyboard_action(app);
     let eye = eye_state(app);
     let held = Overflow {
+        how: over.help && how,
         help: over.help && help,
         keyboard: over.keyboard && keyboard.is_some(),
         keyboard_up: over.keyboard && keyboard.is_some_and(|(_, shown)| shown),
@@ -186,8 +188,22 @@ fn tools_from(app: &View, ui: &mut Ui, w: f32, over: Overflow) -> f32 {
     if held.any() {
         let open = Action::NavMenu(MenuPress::Open(Some(held)));
         right = faraday_ui::nav::more(ui, right, open, EN.tip_more);
-    } else if help {
-        right = faraday_ui::nav::help(ui, right, Action::Learn, EN.tip_learn);
+    } else {
+        // Immediately left of the ?: **How Faraday does it**
+        // (`docs/CRYPTO-LEARN.md` §8.1).
+        if help {
+            right = faraday_ui::nav::help(ui, right, Action::Learn, EN.tip_learn);
+        }
+        if how {
+            right = faraday_ui::nav::icon_action(
+                ui,
+                right,
+                Icon::Method,
+                Action::How,
+                false,
+                EN.tip_how,
+            );
+        }
     }
     // The mode, off mainnet, beside the ?: centred on the bar, a gap
     // either side. Pressed, it opens the mode sheet.
@@ -260,6 +276,9 @@ pub(crate) fn overflow_sheet(app: &View, ui: &mut Ui, w: f32, h: f32, held: Over
         crate::menu::Line::Item(label.to_string(), Action::NavMenu(MenuPress::Tool(t)))
     };
     let mut lines = Vec::new();
+    if held.how {
+        lines.push(item(EN.bar_menu_how, BarTool::How));
+    }
     if held.help {
         lines.push(item(EN.bar_menu_learn, BarTool::Help));
     }
@@ -1541,6 +1560,7 @@ impl Faraday {
             MenuPress::Tool(t) => {
                 self.sheet = None;
                 self.act_inner(match t {
+                    BarTool::How => Action::How,
                     BarTool::Help => Action::Learn,
                     BarTool::Keyboard if self.osk_shown() => Action::Osk(OskPress::Hide),
                     BarTool::Keyboard => Action::Osk(OskPress::Show),

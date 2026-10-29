@@ -1567,16 +1567,27 @@ pub(super) struct LearnLook {
 /// one on show marked.
 fn learn_tab_items(app: &View) -> Vec<faraday_ui::tabs::Tab<'static, Action>> {
     let learn = app.learn();
-    learn
-        .pages
-        .iter()
-        .enumerate()
-        .map(|(i, p)| faraday_ui::tabs::Tab {
-            label: p.title,
-            on: i == learn.page,
-            done: false,
-            action: Action::LearnPage(i as u8),
-        })
+    // **How Faraday does it** first, while the screen offers an action
+    // with a block (`docs/CRYPTO-LEARN.md` §8.2).
+    let how = app.how_offered().then_some(faraday_ui::tabs::Tab {
+        label: EN.learn_tab_how,
+        on: learn.how,
+        done: false,
+        action: Action::LearnPage(crate::learn::HOW_TAB),
+    });
+    how.into_iter()
+        .chain(
+            learn
+                .pages
+                .iter()
+                .enumerate()
+                .map(|(i, p)| faraday_ui::tabs::Tab {
+                    label: p.title,
+                    on: !learn.how && i == learn.page,
+                    done: false,
+                    action: Action::LearnPage(i as u8),
+                }),
+        )
         .collect()
 }
 
@@ -1598,7 +1609,11 @@ pub(super) fn learn_body(
     look: &LearnLook,
     (x, y, sw, sh): (f32, f32, f32, f32),
 ) -> Option<(faraday_draw::Rect, f32)> {
-    let page = app.learn().pages.get(app.learn().page).copied()?;
+    let how = app.learn().how && app.how_offered();
+    let page = app.learn().pages.get(app.learn().page).copied();
+    if !how {
+        page?;
+    }
     let pad = look.pad;
     // The way to the Spend tab first, a text button: it goes elsewhere,
     // so it is not a tab.
@@ -1644,7 +1659,11 @@ pub(super) fn learn_body(
     let scroll = app.learn().scroll;
     ui.c.push_clip(clip);
     let mark = ui.hits.len();
-    let text = learn_page(app, ui, look, page, (bx, top + look.text_top - scroll, bw));
+    let at = (bx, top + look.text_top - scroll, bw);
+    let text = match page {
+        Some(page) if !how => learn_page(app, ui, look, page, at),
+        _ => learn_how(app, ui, at),
+    };
     if look.clip_hits {
         let mut k = mark;
         while k < ui.hits.len() {
@@ -1661,6 +1680,14 @@ pub(super) fn learn_body(
     let max = (look.text_top + text - view).max(0.0);
     app.learn_scroll(max, scroll.min(max));
     Some((clip, max))
+}
+
+/// The How Faraday does it tab: the blocks of the screen's actions
+/// from (x, y), `w` wide, drawn as `faraday_ui::how` draws them
+/// (`docs/CRYPTO-LEARN.md` §8.5). Returns the height used.
+fn learn_how(app: &View, ui: &mut Ui, at: (f32, f32, f32)) -> f32 {
+    let blocks = app.how_blocks();
+    faraday_ui::how::blocks(ui, at, &blocks, &crate::version::version_label())
 }
 
 /// The page's title and its sections from (x, y), `w` wide: headings,
@@ -1730,7 +1757,7 @@ pub(super) fn learn_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         let (x, y) = sheet_box(ui, w, h, sw, sh);
         (x, y, sw, sh)
     };
-    if app.learn().pages.get(app.learn().page).is_none() {
+    if app.learn().pages.get(app.learn().page).is_none() && !app.how_offered() {
         return;
     }
     let done_w = if compact { 72.0 } else { 96.0 };

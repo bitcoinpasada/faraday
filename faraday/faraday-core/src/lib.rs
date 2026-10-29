@@ -2753,7 +2753,7 @@ impl Faraday {
             Action::Host(_) => {}
             Action::Family(f) => self.family_act(f),
             Action::Vanity(v) => self.vanity_act(v),
-            Action::Learn | Action::LearnClose => self.learn_press(action),
+            Action::Learn | Action::LearnClose | Action::How => self.learn_press(action),
             Action::NavMenu(to) => self.nav_menu(to),
             Action::LearnShares => self.learn_shares(),
             Action::LearnTopic(t) => self.learn_topic(t),

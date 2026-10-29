@@ -650,6 +650,7 @@ version = "0.1.8"
 dependencies = [
  "faraday-codec",
  "faraday-draw",
+ "faraday-learn",
  "faraday-strings",
 ]
 

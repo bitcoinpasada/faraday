@@ -109,6 +109,12 @@ pub(super) fn top_bar(starter: &Starter, ui: &mut Ui, rail_w: f32, aw: f32) {
     if let Some(bw) = button_w {
         ends -= bw + GAP;
     }
+    // **How Faraday does it**, at the bar's end on a task page (which
+    // has no ⋮) and left of the ⋮ on a destination.
+    let how = starter.how_offered();
+    if how {
+        ends -= TOUCH;
+    }
     let name = page_name(starter);
     let back = back_name(starter);
     let back = back
@@ -155,6 +161,16 @@ pub(super) fn top_bar(starter: &Starter, ui: &mut Ui, rail_w: f32, aw: f32) {
                 action.host(),
             );
         }
+    }
+    if how {
+        fnav::icon_action(
+            ui,
+            right,
+            Icon::Method,
+            StarterAction::How.host(),
+            false,
+            S.tip_how,
+        );
     }
     ui.ox = 0.0;
 }

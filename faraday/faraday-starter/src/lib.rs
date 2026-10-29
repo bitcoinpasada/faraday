@@ -21,6 +21,9 @@ pub mod concern;
 pub mod decide;
 mod demo;
 mod draw;
+mod how;
+mod learn_id;
+pub use learn_id::LearnId;
 pub mod macs;
 pub mod notes;
 mod scroll;
@@ -169,6 +172,8 @@ pub enum Sheet {
     /// Continue anyway, asked once for the item [`Starter::asking`] names
     /// (§3.1a).
     LetThrough,
+    /// How Faraday does it: the page's blocks (CRYPTO-LEARN §8.4).
+    How,
 }
 
 /// Where a restart goes.
@@ -196,95 +201,6 @@ pub enum Card {
     /// Another encryption product's rescue disk or password is not yet
     /// confirmed (§6.4): the button confirms it, and the restart follows.
     Rescue,
-}
-
-/// A guide, by its Learn page (§7.2, `docs/learn/faraday/boot/`). A page
-/// that does not exist shows its title as a line and opens nothing.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum LearnId {
-    /// Starting a Windows computer from the stick.
-    StartWindows,
-    /// Starting a Linux computer from the stick.
-    StartLinux,
-    /// When the stick does not start.
-    NoStart,
-    /// Replacing Faraday on a stick.
-    KeepData,
-    /// A maker family's page, by its id in `faraday_learn::MAKERS`
-    /// (§7.6).
-    Maker(&'static str),
-    /// What Secure Boot and BitLocker are (§3.1b).
-    SecureBootBitLocker,
-    /// Screens and devices that can record (§3.1a).
-    ScreensThatRecord,
-    /// What else runs on this computer: the management processors
-    /// under the operating system.
-    WhatElseRuns,
-    /// About the boot entry (§3.1c).
-    BootEntry,
-    /// Starting an Intel Mac from the stick (`docs/MAC.md` §3.1–§3.2).
-    MacIntel,
-}
-
-impl LearnId {
-    /// The page's id among the guides (`faraday_guides::BOOT`), which
-    /// is also its name on the website.
-    pub fn id(self) -> &'static str {
-        match self {
-            LearnId::StartWindows => "windows",
-            LearnId::StartLinux => "linux",
-            LearnId::NoStart => "not-starting",
-            LearnId::KeepData => "replace-faraday",
-            LearnId::Maker(id) => id,
-            LearnId::SecureBootBitLocker => "secure-boot-bitlocker",
-            LearnId::ScreensThatRecord => "screens-that-record",
-            LearnId::WhatElseRuns => "what-else-runs",
-            LearnId::BootEntry => "boot-entry",
-            LearnId::MacIntel => "mac-intel",
-        }
-    }
-
-    /// The page.
-    pub fn page(self) -> Option<&'static faraday_learn::Page> {
-        faraday_guides::page(self.id())
-    }
-
-    /// Its address on the website (§7.4).
-    pub fn address(self) -> String {
-        faraday_learn::guide_address(self.id())
-    }
-
-    /// The guide for this computer (§3.4): on a Mac, whatever system it
-    /// runs, the Mac guide; otherwise its maker's page where there is one
-    /// (§7.6), and the general page for its operating system where there
-    /// is not.
-    pub fn for_computer(c: &Computer) -> LearnId {
-        if macs::is_apple(&c.maker) {
-            return LearnId::MacIntel;
-        }
-        let general = match c.os {
-            Os::Windows => LearnId::StartWindows,
-            // macOS on a computer whose maker is not Apple: none is
-            // expected, and Linux's page is the nearer of the two.
-            Os::Linux | Os::MacOs => LearnId::StartLinux,
-        };
-        match faraday_learn::guide_id(&c.maker, &c.family, &c.model, general.id()) {
-            id if id == general.id() => general,
-            id => LearnId::Maker(id),
-        }
-    }
-
-    const ALL: [LearnId; 9] = [
-        LearnId::StartWindows,
-        LearnId::StartLinux,
-        LearnId::NoStart,
-        LearnId::KeepData,
-        LearnId::SecureBootBitLocker,
-        LearnId::ScreensThatRecord,
-        LearnId::BootEntry,
-        LearnId::MacIntel,
-        LearnId::WhatElseRuns,
-    ];
 }
 
 /// Everything a press can do on the Starter's own pages.
@@ -401,6 +317,8 @@ pub enum StarterAction {
     /// Print what to write down on the Start page (§3.4, F47): its PDF
     /// opened in the system's viewer.
     PrintNotes,
+    /// The top app bar's How Faraday does it: its sheet (CRYPTO-LEARN §8.4).
+    How,
     /// Include the BitLocker recovery key on the sheet, ticked or not
     /// (F49).
     IncludeKey,
@@ -508,6 +426,7 @@ impl StarterAction {
             StarterAction::BootChoice(signed) => (65, u32::from(signed)),
             StarterAction::BootFile(n) => (66, u32::from(n)),
             StarterAction::TextSize(t) => (67, u32::from(t.pct())),
+            StarterAction::How => (68, 0),
         };
         (kind << 16) | arg
     }
@@ -599,6 +518,7 @@ impl StarterAction {
                     .into_iter()
                     .find(|t| u32::from(t.pct()) == arg)?,
             ),
+            68 => StarterAction::How,
             _ => return None,
         })
     }
@@ -1784,9 +1704,11 @@ impl Starter {
                     | StarterAction::RestartNow
                     | StarterAction::UninstallNow
                     | StarterAction::LetThrough
+                    | StarterAction::How
             )
             && !(action == StarterAction::LearnPage(LearnId::BootEntry)
                 && self.sheet == Some(Sheet::Restart(RestartTo::Stick)))
+            && !(action == StarterAction::Back && self.sheet == Some(Sheet::How))
         {
             return;
         }
@@ -2002,6 +1924,7 @@ impl Starter {
                 }
             }
             StarterAction::About => self.go(Page::About),
+            StarterAction::How => self.how_press(),
             StarterAction::Templates => {
                 self.template.saved = None;
                 self.template.open_failed = None;
