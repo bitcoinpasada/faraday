@@ -160,8 +160,8 @@ class SignParticipation(unittest.TestCase):
 
     def test_a_wallet_beside_a_tree_it_does_not_give_takes_no_part(self):
         import area_sign as A
-        import btc
-        master = btc.master(bytes.fromhex(SEED_806), test=True)
+        import bip32_ref
+        master = bip32_ref.master(bytes.fromhex(SEED_806), test=True)
         masters = {master.fingerprint(): master}
         raw = bytes.fromhex("".join(PSBT_806))
         wallet = "".join(WALLET_806)
@@ -186,9 +186,9 @@ class SignParticipation(unittest.TestCase):
         BIP-86 key-path input of the same master at m/86'/1'/0'/0/0: the
         master, the PSBT, and the leaf's wallet."""
         import area_sign as A
-        import btc
-        H = btc.HARDENED
-        master = btc.master(bytes(range(32)), test=True)
+        import bip32_ref
+        H = bip32_ref.HARDENED
+        master = bip32_ref.master(bytes(range(32)), test=True)
         fp = master.fingerprint()
         account = [86 + H, 1 + H, 0 + H]
         ins, tx = [], A.CTransaction()

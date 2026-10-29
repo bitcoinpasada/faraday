@@ -5,8 +5,7 @@ Every PSBT is made with Core: `createpsbt` for the unsigned transaction,
 `createrawtransaction` and `decoderawtransaction` for the previous
 transactions, `descriptorprocesspsbt` over the wallet's public descriptors
 for the key origins and scripts of the inputs and the outputs, every
-address derived from `tprv` descriptors with `deriveaddresses` (no
-`btc.py`). The area adds the UTXO fields of the inputs, splices a spoofed
+address derived from `tprv` descriptors with `deriveaddresses`. The area adds the UTXO fields of the inputs, splices a spoofed
 output, and derives each registered wallet's account keys (Core derives
 the same addresses from them, or the area stops).
 

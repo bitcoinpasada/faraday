@@ -1,8 +1,13 @@
 """The vanity address search (`faraday_bip::vanity`) against a search
 written here from EntropyLab's counter as `tools/reference/vanity/README.md`
-quotes it, over python-mnemonic (`bip39/`), BIP-32 from `btc.py`, and
-the addresses as the `addr` area writes them (Core's `segwit_addr.py`
-and Base58Check, BIP-86's tweak).
+quotes it, over python-mnemonic (`bip39/`) for the seed, and Bitcoin Core
+v31.1 itself for every candidate's address: Core derives it from the
+candidate seed's master key (btclib's, `bip32_ref.py`) written as a
+`tprv` descriptor with the whole path (`deriveaddresses` on regtest, one
+RPC batch a search), and Core's framework writes the script it pays for
+the search's network, as the `addr` area does. The counter, the prefix
+rules, the expected work and the search loop are ours, written from the
+quotation.
 
 The search, as the area holds it:
 
@@ -31,11 +36,9 @@ The search, as the area holds it:
   before a match and after.
 """
 
-import hashlib
-import hmac
-
-import btc
-from area_addr import P2PKH, P2SH, PURPOSE, byte_to_base58, p2tr_bip86, segwit_addr
+import bip32_ref
+import core_node
+from area_addr import BODY, PURPOSE, descriptors, read_on, ref_from_script
 from common import Area, use_reference
 
 use_reference("bip39")
@@ -49,7 +52,7 @@ HRP = {"mainnet": "bc", "testnet": "tb", "signet": "tb", "regtest": "bcrt"}
 MAX_WIDTH = 8
 MAX_FREE = 68
 U64 = (1 << 64) - 1
-H = btc.HARDENED
+H = bip32_ref.HARDENED
 ENGLISH = Mnemonic("english")
 
 
@@ -110,33 +113,22 @@ def expected(prefix, script, network):
     return min(total, U64)
 
 
-def private_child(chain, k, i):
-    """BIP-32's CKDpriv, without the parent fingerprint a serialised key
-    needs (a point multiplication this search never uses)."""
-    data = b"\0" + k.to_bytes(32, "big") if i >= H else btc.point(k)
-    digest = hmac.new(chain, data + i.to_bytes(4, "big"), hashlib.sha512).digest()
-    il = int.from_bytes(digest[:32], "big")
-    child = (il + k) % btc.N
-    if il >= btc.N or child == 0:
-        raise btc.Invalid("an invalid child")
-    return digest[32:], child
-
-
-def address(seed, network, script, account):
-    test = network != "mainnet"
-    m = btc.master(seed, test)
-    chain, k = m.chain, m.k
-    for i in [PURPOSE[script] + H, (1 if test else 0) + H, account + H, 0, 0]:
-        chain, k = private_child(chain, k, i)
-    pub = btc.point(k)
-    h = btc.hash160(pub)
-    if script == 0:
-        return byte_to_base58(h, P2PKH[network])
-    if script == 1:
-        return byte_to_base58(btc.hash160(b"\x00\x14" + h), P2SH[network])
-    if script == 2:
-        return segwit_addr.encode_segwit_address(HRP[network], 0, h)
-    return segwit_addr.encode_segwit_address(HRP[network], 1, p2tr_bip86(pub))
+def addresses(candidates, network, script):
+    """Costs one RPC request, a five-step derivation in Core for each
+    candidate: the first receive address of each candidate (seed,
+    account) on `network`, by Bitcoin Core from the seed's master key, or
+    None where Core derives none (an invalid child)."""
+    coin = 1 if network != "mainnet" else 0
+    calls = []
+    for seed, account in candidates:
+        tprv = bip32_ref.master(seed, True).serialize()
+        key = f"{tprv}/{PURPOSE[script]}h/{coin}h/{account}h/0/0"
+        calls.append(("deriveaddresses", descriptors.descsum_create(BODY[script].format(key))))
+    out = []
+    for got in core_node.answers(calls):
+        out.append(ref_from_script(read_on(got[1][0], "regtest"), network)
+                   if got[0] == "ok" else None)
+    return out
 
 
 def matches(addr, prefix, script):
@@ -152,9 +144,9 @@ def grind(dial, key, base, script, prefix, network, start, budget):
     if not can_begin(prefix, script, network):
         return none
     words = ENGLISH.to_mnemonic(key) if dial == "passphrase" else None
-    tested = 0
-    while tested < budget:
-        k = start + tested
+    candidates = []
+    while len(candidates) < budget:
+        k = start + len(candidates)
         if dial == "passphrase":
             try:
                 suffix = counter_text(k)
@@ -163,33 +155,33 @@ def grind(dial, key, base, script, prefix, network, start, budget):
             passphrase = base + suffix.encode()
             if len(passphrase) > 256:
                 break
-            seed = hashlib.pbkdf2_hmac("sha512", words.encode(), b"mnemonic" + passphrase, 2048)
+            seed = ENGLISH.to_seed(words, passphrase.decode("ascii"))
             account = 0
         else:
             if k >= H:
                 break
             suffix, seed, account = "", key, k
-        tested += 1
-        try:
-            addr = address(seed, network, script, account)
-        except btc.Invalid:
-            continue
-        if matches(addr, prefix, script):
+        candidates.append((k, suffix, seed, account))
+    found = addresses([(seed, account) for _, _, seed, account in candidates], network, script)
+    for tested, ((k, suffix, _, account), addr) in enumerate(zip(candidates, found), 1):
+        if addr is not None and matches(addr, prefix, script):
             return {"tested": tested, "find": {"counter": k, "suffix": suffix,
                                                "account": account, "address": addr}}
-    return {"tested": tested, "find": None}
+    return {"tested": len(candidates), "find": None}
 
 
 class Vanity(Area):
     name = "vanity"
+    CORE = True
     faraday = (
         '`faraday_bip::vanity` (the counter, prefixes and their expected work, the '
         'search on both dials)'
     )
     reference = (
         "EntropyLab's counter as `tools/reference/vanity/README.md` quotes it, written "
-        "out in `area_vanity.py` over python-mnemonic, `btc.py` and the `addr` area's "
-        'address writing'
+        "out in `area_vanity.py` over python-mnemonic, each candidate's address by "
+        "Bitcoin Core v31.1 (`deriveaddresses` on regtest, from btclib's master key) "
+        "and Core's framework, as the `addr` area writes it"
     )
     reference_checked = (
         "the search is written in the area from the README's quotation of EntropyLab's "

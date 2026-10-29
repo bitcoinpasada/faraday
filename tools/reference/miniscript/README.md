@@ -31,7 +31,7 @@ uses no `multi_a` inside a larger leaf.
 `shims/coincurve/` gives its two key types and its tweak over the BIPs
 repository's `secp256k1lab` (`tools/reference/bip352/`);
 `shims/bip32/` refuses every extended key (the cross-check derives keys
-with `tools/crosscheck/btc.py` and passes raw keys) and reads a key
+with btclib, `tools/crosscheck/bip32_ref.py`, and passes raw keys) and reads a key
 origin's path.
 
 SHA-256 of every file, so a change to the vendored copy is visible. The
@@ -59,6 +59,6 @@ mismatch.
 | `bip380/utils/bignum.py` | `00a01acc27db1cd72aa802b6f9c33ec288fe5b582c633d41b54ac5c4ed5edc2e` |
 | `bip380/utils/hashes.py` | `7ecf887e9c115e7f92dc7ec103f1e1316196d543d5a0f8bb788d4a1f51ccf428` |
 | `bip380/utils/script.py` | `911be91fd65446294e88d3fc789624604171a66029c342bf0054699a76e132e8` |
-| `shims/bip32/__init__.py` | `7f536c027095f0f26886da3b429989b25375563e85c2ee4289f968acd7400a6b` |
+| `shims/bip32/__init__.py` | `2b7b33c9c40ab4f5a84b3843c0d125bff608ec8b4a46a45535d5f56b8e521194` |
 | `shims/bip32/utils.py` | `b8dbacab47471fbaafb9c78a264909512d38a2fc8ee83e9fd7d12d7cb5ce8328` |
 | `shims/coincurve/__init__.py` | `621519739974c94eab2ed3942d283fd41ade06c44e549cde95aeb8c61f2e4212` |

@@ -57,8 +57,9 @@ that derives another key or a key not in the script; a miniscript or a
 taproot tree is signed only through a registered wallet that holds a
 held key and gives its script, and an input of several keys is refused
 without one (F141). Core signs all of these. The keys of the checks are
-derived by `btc.py`. The signature hashes for the deterministic nonces
-are computed with Core's `script.py` over the script code chosen here.
+derived by btclib (`bip32_ref.py`, on btclib's own curve). The signature
+hashes for the deterministic nonces are computed with Core's `script.py`
+over the script code chosen here.
 
 A witness script or leaf is read from the miniscript text it was
 compiled from (`miniscript_ref.Scripts`, python-bip380): the corpus keeps
@@ -72,14 +73,15 @@ input where Core would have finalized otherwise.
 """
 
 import base64
+import hashlib
 import io
 import re
 
-import btc
+import bip32_ref
 import core_node
 import miniscript_ref as ms
 from area_psbt import MAGIC, compact, read_map, read_unsigned, ser_compact, write_map
-from btc import HARDENED
+from bip32_ref import HARDENED
 from common import ROOT, Area, HarnessError, Mismatch, use_reference
 
 use_reference("core")
@@ -96,7 +98,7 @@ from secp256k1lab.bip340 import schnorr_sign, schnorr_verify  # noqa: E402
 
 import lineage  # noqa: E402
 
-N = btc.N
+N = bip32_ref.N
 NUMS_HEX = "50929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0"
 TAPSCRIPT = 0xC0
 STANDARD = [1, 2, 3, 0x81, 0x82, 0x83]
@@ -139,10 +141,11 @@ def split_tree(tree):
 def register_policy(text, raw):
     """The miniscripts of a BIP-388 wallet policy at the chain and index
     each input of `raw` names in its key origins, kept with their
-    scripts: each key derived by `btc.py` from the policy's own key."""
+    scripts: each key derived by btclib (`bip32_ref.py`) from the policy's
+    own key."""
     lines = [x.strip() for x in text.splitlines() if x.strip() and not x.startswith("#")]
     template, keys = lines[0], lines[1:]
-    xpubs = [btc.decode(k.split("]", 1)[1], False) for k in keys]
+    xpubs = [bip32_ref.decode(k.split("]", 1)[1], False) for k in keys]
     tap = template.startswith("tr(")
     for m in parse(raw)[1]:
         chains = [origin(v)[1][-2:] for _, v in of_type(m, 0x06)]
@@ -189,13 +192,13 @@ def read_wallet(text):
         exprs = [k.strip() for line in lines[1:] for k in line.split(",") if k.strip()]
         for e in exprs:
             fp, path = e[1:].split("]", 1)[0].split("/", 1)
-            keys.append((bytes.fromhex(fp), btc.parse_path("m/" + path),
-                         btc.decode(e.split("]", 1)[1], False)))
+            keys.append((bytes.fromhex(fp), bip32_ref.parse_path("m/" + path),
+                         bip32_ref.decode(e.split("]", 1)[1], False)))
         return lines[0], keys
 
     def sub(m):
-        keys.append((bytes.fromhex(m.group(1)), btc.parse_path("m" + m.group(2)),
-                     btc.decode(m.group(3), False)))
+        keys.append((bytes.fromhex(m.group(1)), bip32_ref.parse_path("m" + m.group(2)),
+                     bip32_ref.decode(m.group(3), False)))
         return f"@{len(keys) - 1}/**"
     return KEY_EXPR.sub(sub, " ".join(lines).split("#")[0]), keys
 
@@ -440,11 +443,11 @@ def p2wpkh(h):
 
 
 def p2sh(script):
-    return b"\xa9\x14" + btc.hash160(script) + b"\x87"
+    return b"\xa9\x14" + bip32_ref.hash160(script) + b"\x87"
 
 
 def p2wsh(script):
-    return b"\x00\x20" + btc.sha256(script)
+    return b"\x00\x20" + hashlib.sha256(script).digest()
 
 
 def multisig_script(m, keys):
@@ -561,11 +564,11 @@ class Input:
     def key_in_script(self, pk):
         spk = bytes(self.utxo.scriptPubKey)
         if self.kind == "p2pkh":
-            return spk == p2pkh(btc.hash160(pk))
+            return spk == p2pkh(bip32_ref.hash160(pk))
         if self.kind == "p2wpkh":
-            return len(pk) == 33 and spk == p2wpkh(btc.hash160(pk))
+            return len(pk) == 33 and spk == p2wpkh(bip32_ref.hash160(pk))
         if self.kind == "p2sh-p2wpkh":
-            return len(pk) == 33 and self.redeem == p2wpkh(btc.hash160(pk))
+            return len(pk) == 33 and self.redeem == p2wpkh(bip32_ref.hash160(pk))
         return pk in self.script_keys()
 
     def ecdsa_sighash(self, tx, ht):
@@ -745,7 +748,7 @@ def input_checks(inp, inputs, tx, masters, wallets):
 
 def core_key(key):
     """An extended private key as Core on regtest reads it (tprv)."""
-    return btc.Key(key.chain, key.k, None, key.depth, key.parent, key.child, test=True).serialize()
+    return key.with_test(True).serialize()
 
 
 def descriptors(ins, masters, leave_out=()):
@@ -756,7 +759,7 @@ def descriptors(ins, masters, leave_out=()):
     for m in ins:
         for fp, path in input_origins(m):
             if fp in masters and (fp, tuple(path)) not in leave_out:
-                out.add(f"pk({core_key(masters[fp])}{btc.path_text(path)[1:]})")
+                out.add(f"pk({core_key(masters[fp])}{bip32_ref.path_text(path)[1:]})")
     return sorted(out)
 
 
@@ -1185,7 +1188,7 @@ class Sign(Area):
             r = roles[f"role {name}"]
             return bytes.fromhex(r["hex"][0]) if "hex" in r else base64.b64decode(r["base64"][0])
         tprv = head["master-tprv"][0]
-        master = btc.decode(tprv, True)
+        master = bip32_ref.decode(tprv, True)
         masters = {master.fingerprint(): master}
         # As published: the P2SH-P2WSH input carries no previous
         # transaction, so Faraday refuses the PSBT.
@@ -1233,7 +1236,7 @@ class Sign(Area):
             "legal": "legal winner thank year wave sausage worth useful legal winner thank yellow",
         }
         seeds = {n: Mnemonic.to_seed(w, "") for n, w in words.items()}
-        keys = {n: btc.master(s, test=True) for n, s in seeds.items()}
+        keys = {n: bip32_ref.master(s, test=True) for n, s in seeds.items()}
         subsets = [["abandon"], ["zoo"], ["legal"], ["abandon", "zoo"], ["zoo", "legal"],
                    ["abandon", "zoo", "legal"]]
         policies = {"wallet-liana": "wallet-liana", "wallet-liana-recovery": "wallet-liana",
@@ -1259,7 +1262,7 @@ class Sign(Area):
 
     def new_master(self):
         seed = self.randbytes(self.rng.choice([16, 32, 64]))
-        return seed, btc.master(seed, test=self.test)
+        return seed, bip32_ref.master(seed, test=self.test)
 
     def key(self, purpose, master=None, script=None):
         """A key at a BIP-44-style path below `master` (a new foreign
@@ -1350,7 +1353,7 @@ class Sign(Area):
         amounts = [546 + b - a for a, b in zip([0] + cuts, cuts + [spare])]
         for a in amounts:
             spk = (p2wpkh(self.randbytes(20)) if self.rng.random() < 0.5
-                   else b"\x51\x20" + btc.point(self.rng.randrange(1, N))[1:])
+                   else b"\x51\x20" + bip32_ref.point(self.rng.randrange(1, N))[1:])
             tx.vout.append(CTxOut(a, spk))
         g = [(b"\x00", tx.serialize_without_witness())]
         outs = [[] for _ in tx.vout]
@@ -1387,7 +1390,7 @@ class Sign(Area):
         if kind in ("p2pkh", "p2wpkh", "p2sh-p2wpkh"):
             purpose = {"p2pkh": 44, "p2wpkh": 84, "p2sh-p2wpkh": 49}[kind]
             pk, fp, path, _ = self.key(purpose, self.rng.choice(self.ours)[1])
-            h = btc.hash160(pk)
+            h = bip32_ref.hash160(pk)
             if kind == "p2pkh":
                 spk = p2pkh(h)
                 extra["witness_utxo"] = False
@@ -1461,7 +1464,7 @@ class Sign(Area):
             path = head + [chain, index]
             slots.append((master.derive(path).pub, master.fingerprint(), path, master))
             xpub = master.derive(head).neuter().serialize()
-            exprs.append(f"[{master.fingerprint().hex()}/{btc.path_text(head)[2:]}]{xpub}/<0;1>/*")
+            exprs.append(f"[{master.fingerprint().hex()}/{bip32_ref.path_text(head)[2:]}]{xpub}/<0;1>/*")
         return slots, exprs
 
     def cosigners(self, slots):
@@ -1637,7 +1640,7 @@ class Sign(Area):
         pk, fp, path, _ = self.key(84, master)
         wrong = list(path)
         wrong[-1] ^= 1
-        spk = p2wpkh(btc.hash160(pk))
+        spk = p2wpkh(bip32_ref.hash160(pk))
         prev, at = self.funding(spk, 50_000)
         tx = CTransaction()
         tx.vin = [CTxIn(COutPoint(prev.txid_int, at), b"", 0xFFFFFFFD)]

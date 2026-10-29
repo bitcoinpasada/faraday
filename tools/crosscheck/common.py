@@ -3,10 +3,11 @@ comparison, the seeded randomness and the vendored references.
 
 Standard library only. Every vendored reference, code Faraday did not
 write, is imported from `tools/reference/` after `references.sha256` has
-been checked. The models Faraday's own authors wrote (`btc.py`,
-`miniscript_ref.py` and the models inside the `area_*.py` files) live
-here in `tools/crosscheck/`; they are not independent implementations
-(F160, `docs/crypto/actions.toml`'s `independence`).
+been checked. What Faraday's own authors wrote (the models inside the
+`area_*.py` files, and the glue that sets references up: `bip32_ref.py`,
+`miniscript_ref.py`) lives here in `tools/crosscheck/`; a model is not an
+independent implementation (F160, `docs/crypto/actions.toml`'s
+`independence`).
 """
 
 import hashlib

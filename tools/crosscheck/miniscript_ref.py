@@ -6,7 +6,7 @@ scripts a descriptor pays to).
 python-bip380 imports `coincurve` and `bip32`, two packages over
 libsecp256k1; the shims beside it stand in for them over
 `secp256k1lab`, and the areas give it raw keys only, derived by
-`btc.py`. It hashes RIPEMD-160 with `hashlib.new("ripemd160")`, which
+btclib (`bip32_ref.py`). It hashes RIPEMD-160 with `hashlib.new("ripemd160")`, which
 an OpenSSL without its legacy provider refuses; that one name is sent
 to the BIPs repository's `ripemd160.py` (`tools/reference/bip352/`),
 so the answer does not depend on how the machine's OpenSSL was built.
@@ -19,8 +19,9 @@ was compiled from (`Scripts`), as a wallet keeps its descriptor.
 
 import hashlib
 
-import btc  # noqa: F401 - puts secp256k1lab on the path for the shims
 from common import use_reference
+
+use_reference("bip352", "secp256k1lab", "src")  # for the shims
 
 use_reference("bip352")
 from ripemd160 import ripemd160  # noqa: E402

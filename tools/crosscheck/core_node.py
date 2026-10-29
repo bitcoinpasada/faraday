@@ -268,6 +268,24 @@ def batch(calls):
     return out
 
 
+def answers(calls):
+    """Costs one request to the node: Core's answer to each of `calls`,
+    `(method, param, …)`, sent as one JSON-RPC batch, in order, each
+    ("ok", result) or ("err", Core's message)."""
+    node = rpc()
+    reqs = [getattr(node, method).get_request(*params) for method, *params in calls]
+    if not reqs:
+        return []
+    by_id = {r["id"]: r for r in node.batch(reqs)}
+    out = []
+    for req in reqs:
+        r = by_id.get(req["id"])
+        if r is None:
+            raise CoreError(f"Bitcoin Core: no answer to {req['method']}")
+        out.append(("err", r["error"].get("message")) if r.get("error") else ("ok", r["result"]))
+    return out
+
+
 # ----- Coins for the areas that spend on the node (`Area.FUND`) ----------------
 #
 # The node's coinbases pay P2WSH(OP_TRUE), which anyone spends with the

@@ -1,10 +1,11 @@
 """Addresses, descriptor checksums and single-key accounts against
 Bitcoin Core's functional-test framework (`core/test_framework/`):
 `segwit_addr.py` (BIP-173 and BIP-350's reference code as Core keeps
-it), `address.py`'s Base58Check and `descriptors.py`'s BIP-380 checksum,
-with BIP-32 from `btc.py` and BIP-39 from python-mnemonic. Every
-descriptor checksum is also asked of BIP 380's own code, as the BIP
-prints it (`tools/reference/bip380/descsum.py`).
+it), `address.py`'s Base58Check and `descriptors.py`'s BIP-380 checksum;
+accounts' addresses from Bitcoin Core v31.1 itself, their keys from
+btclib (`bip32_ref.py`, btclib's own curve) and BIP-39 from
+python-mnemonic. Every descriptor checksum is also asked of BIP 380's
+own code, as the BIP prints it (`tools/reference/bip380/descsum.py`).
 
 - Every address of `tools/vectors/addresses/`: BIP-350's and BIP-173's
   valid addresses read to the script each pays and written back from
@@ -18,40 +19,38 @@ prints it (`tools/reference/bip380/descsum.py`).
   back, and scripts no address has refused; the addresses changed a
   character, in case, in their prefix, in their checksum's kind, read
   on the wrong network, cut or lengthened.
-- Random single-key accounts of each type: the account xpub, its
-  SLIP-132 form, its descriptor with key origin and checksum, and an
-  address at a random index (BIP-86's tweak included), with indices of
-  2³¹ and above refused.
+- Random single-key accounts of each type, on every network: the
+  account xpub, its SLIP-132 form (btclib's `slip132`) and its
+  descriptor with key origin and Core's checksum, by btclib; and an
+  address at a random index, by Bitcoin Core v31.1 (bitcoind on regtest,
+  offline; `core_node.py`), which derives it from the seed's master key
+  written as a `tprv` descriptor with the account's whole path
+  (`deriveaddresses`, BIP-86's tweak Core's own), the script it pays then
+  written for the account's network by Core's framework. Accounts and
+  indices of 2³¹ and above are refused by both.
 - Random descriptors over BIP-380's character set and outside it: the
   checksum made, and a checksum checked after a character is changed.
-- Bitcoin Core v31.1 itself (bitcoind on regtest, offline;
-  `core_node.py`), for every regtest account above and a fixed set in
-  the prelude: Core derives the address from the seed's master key,
-  written as a `tprv` descriptor with the account's whole path
-  (`deriveaddresses`), with no `btc.py` in the way; and Core reads
-  Faraday's own account descriptor, checksum included
+- For every regtest account above and a fixed set in the prelude,
+  Core also reads Faraday's own account descriptor, checksum included
   (`getdescriptorinfo`), and derives the same address from its key.
-  Indices of 2³¹ and above are refused by both.
 
 An address is read as Faraday reads one: spaces at its ends ignored, a
 refusal named `Invalid` when no network reads it and `WrongNetwork`
 when another network does.
 """
 
-import hashlib
-import hmac
 import json
 
-import btc
+import bip32_ref
 import core_node
-from btc import HARDENED
+from bip32_ref import HARDENED
 from common import ROOT, Area, Mismatch, as_verify, use_reference
 
 use_reference("core")
 from test_framework import descriptors  # noqa: E402
 from test_framework import segwit_addr  # noqa: E402
 from test_framework.address import base58_to_byte, byte_to_base58  # noqa: E402
-from test_framework.authproxy import JSONRPCException  # noqa: E402
+from btclib_wallet import slip132  # noqa: E402 - unpacked by bip32_ref
 
 use_reference("bip380")
 import descsum as bip380  # noqa: E402
@@ -63,10 +62,6 @@ NETWORKS = ["mainnet", "testnet", "signet", "regtest"]
 HRP = {"mainnet": "bc", "testnet": "tb", "signet": "tb", "regtest": "bcrt"}
 P2PKH = {"mainnet": 0, "testnet": 111, "signet": 111, "regtest": 111}
 P2SH = {"mainnet": 5, "testnet": 196, "signet": 196, "regtest": 196}
-# SLIP-132's versions for an account's public key: nested and native
-# segwit, mainnet and test.
-SLIP132 = {(1, False): "049d7cb2", (1, True): "044a5262", (2, False): "04b24746",
-           (2, True): "045f1cf6"}
 PURPOSE = [44, 49, 84, 86]
 
 
@@ -121,81 +116,69 @@ def ref_from_script(script, network):
     raise Refused("not an address")
 
 
-def tagged(tag, msg):
-    t = hashlib.sha256(tag.encode()).digest()
-    return hashlib.sha256(t + t + msg).digest()
+BODY = ["pkh({})", "sh(wpkh({}))", "wpkh({})", "tr({})"]
 
 
-def p2tr_bip86(pub):
-    """BIP-86: the output key of an internal key with no script path."""
-    p = btc.GE.from_bytes_compressed(pub)
-    if not p.has_even_y():
-        p = -p
-    xonly = p.to_bytes_xonly()
-    t = int.from_bytes(tagged("TapTweak", xonly), "big")
-    if t >= btc.N:
-        raise Refused("tweak")
-    return (p + btc.FAST_G.mul(t)).to_bytes_xonly()
+def account_path(network, script, account):
+    test = network != "mainnet"
+    return [PURPOSE[script] + HARDENED, (1 if test else 0) + HARDENED, account + HARDENED]
+
+
+def btclib_account(seed, network, script, account):
+    """The account's keys by btclib: its xpub, the SLIP-132 spelling
+    btclib's `slip132` writes for the script (`ypub`/`upub` for nested
+    segwit, `zpub`/`vpub` for native; none for P2PKH and taproot, whose
+    account key is the xpub), and the descriptor with its key origin and
+    Core's checksum (`descriptors.py`)."""
+    m = bip32_ref.master(seed, network != "mainnet")
+    path = account_path(network, script, account)
+    xpub = m.derive(path).neuter().serialize()
+    slip = xpub
+    spell = {1: slip132.p2wpkh_p2sh_xkey, 2: slip132.p2wpkh_xkey}.get(script)
+    if spell:
+        slip = bip32_ref.bip32.xpub_from_xprv(spell(m.data, path))
+    origin = bip32_ref.path_text(path).replace("m", m.fingerprint().hex(), 1)
+    key = f"[{origin}]{xpub}/<0;1>/*"
+    return {"xpub": xpub, "slip132": slip,
+            "descriptor": descriptors.descsum_create(BODY[script].format(key))}
+
+
+def core_tprv(seed):
+    """btclib's master key of a seed, as Core on regtest reads it (tprv)."""
+    return bip32_ref.master(seed, True).serialize()
+
+
+def core_address(seed, network, script, account, change, index):
+    """Costs one RPC (a derivation of five steps in Core): the address on
+    `network` of the account's key at `change`/`index`, Bitcoin Core
+    deriving it from the seed's master key and paying it to the script
+    (`deriveaddresses` on regtest, then Core's framework writing the
+    script for `network`). Core's refusal raises."""
+    path = bip32_ref.path_text(account_path(network, script, account))[2:]
+    desc = descriptors.descsum_create(
+        BODY[script].format(f"{core_tprv(seed)}/{path}/{int(change)}/*"))
+    (got,) = core_node.answers([("deriveaddresses", desc, [index, index])])
+    if got[0] == "err":
+        raise Refused(f"Core: {got[1]}")
+    return ref_from_script(read_on(got[1][0], "regtest"), network)
 
 
 def ref_account(seed, network, script, account, change, index):
-    test = network != "mainnet"
-    if account >= HARDENED or index >= HARDENED:
-        raise Refused("index out of range")
-    m = btc.master(seed, test)
-    path = [PURPOSE[script] + HARDENED, (1 if test else 0) + HARDENED, account + HARDENED]
-    acct = m.derive(path)
-    xpub = acct.neuter().serialize()
-    slip = xpub
-    if (script, test) in SLIP132:
-        raw = btc.b58check_decode(xpub)
-        slip = btc.b58check_encode(bytes.fromhex(SLIP132[(script, test)]) + raw[4:])
-    origin = "/".join([m.fingerprint().hex()] + [f"{i - HARDENED}h" for i in path])
-    key = f"[{origin}]{xpub}/<0;1>/*"
-    body = ["pkh({})", "sh(wpkh({}))", "wpkh({})", "tr({})"][script].format(key)
-    pub = acct.neuter().derive([int(change), index]).pub
-    h = btc.hash160(pub)
-    if script == 0:
-        address = byte_to_base58(h, P2PKH[network])
-    elif script == 1:
-        address = byte_to_base58(btc.hash160(b"\x00\x14" + h), P2SH[network])
-    elif script == 2:
-        address = segwit_addr.encode_segwit_address(HRP[network], 0, h)
-    else:
-        address = segwit_addr.encode_segwit_address(HRP[network], 1, p2tr_bip86(pub))
-    return {"xpub": xpub, "slip132": slip, "descriptor": descriptors.descsum_create(body),
-            "address": address}
-
-
-def core_account(seed, script, account, change, index):
-    """Bitcoin Core's address for a regtest account, derived by Core from
-    the seed's master key alone: ("ok", {"address": ...}), or ("err", why)
-    when Core refuses. Costs two RPCs (a hardened derivation of four or
-    five steps each, in Core). A node that does not answer is the
-    harness's failure, never a refusal."""
-    i = hmac.new(b"Bitcoin seed", seed, hashlib.sha512).digest()
-    raw = bytes.fromhex("04358394") + bytes(9) + i[32:] + b"\0" + i[:32]
-    tprv = byte_to_base58(raw[1:], raw[0])
-    path = f"{PURPOSE[script]}h/1h/{account}h/{int(change)}/*"
-    body = ["pkh({})", "sh(wpkh({}))", "wpkh({})", "tr({})"][script].format(f"{tprv}/{path}")
-    node = core_node.rpc()
-    try:
-        desc = f"{body}#{node.getdescriptorinfo(body)['checksum']}"
-        return ("ok", {"address": node.deriveaddresses(desc, [index, index])[0]})
-    except JSONRPCException as e:
-        return ("err", f"Core: {e.error.get('message')}")
+    """btclib's account keys, Core's address."""
+    out = btclib_account(seed, network, script, account)
+    out["address"] = core_address(seed, network, script, account, change, index)
+    return out
 
 
 def core_reads(descriptor, change, index):
     """The address Core derives from Faraday's own account descriptor
     (`<0;1>/*`, with its key origin and checksum), or why Core refuses it.
-    Costs two RPCs."""
-    node = core_node.rpc()
-    try:
-        node.getdescriptorinfo(descriptor)
-        return ("ok", node.deriveaddresses(descriptor, [index, index])[int(change)][0])
-    except JSONRPCException as e:
-        return ("err", f"Core: {e.error.get('message')}")
+    Costs one RPC request of two calls."""
+    info, derived = core_node.answers([("getdescriptorinfo", descriptor),
+                                       ("deriveaddresses", descriptor, [index, index])])
+    if info[0] == "err" or derived[0] == "err":
+        return ("err", f"Core: {(info if info[0] == 'err' else derived)[1]}")
+    return ("ok", derived[1][int(change)][0])
 
 
 def refusal(answer):
@@ -217,9 +200,10 @@ class Addr(Area):
     reference = (
         "Bitcoin Core's functional-test framework (`core/`): `segwit_addr.py`, "
         "Base58Check, `descriptors.py`; BIP 380's own checksum code as the BIP prints "
-        "it (`bip380/`); `btc.py`; BIP-86's tweak written in the area; Bitcoin Core "
-        "v31.1's `bitcoind` on regtest for regtest accounts (`deriveaddresses`, "
-        "`getdescriptorinfo`)"
+        "it (`bip380/`); btclib-wallet's `bip32` and `slip132` (`btclib/`, on btclib's "
+        "own curve) for accounts' keys; Bitcoin Core v31.1's `bitcoind` on regtest for "
+        "every account's address (`deriveaddresses`) and for reading Faraday's regtest "
+        "descriptors (`getdescriptorinfo`)"
     )
     reference_checked = (
         'its vendored files are hashed against `references.sha256` before any run, and '
@@ -262,21 +246,11 @@ class Addr(Area):
             lambda: ref_account(seed, network, script, account, change, index), expected)
 
     def core(self, seed, script, account, change, index):
-        """A regtest account asked of Bitcoin Core: the address Core derives
-        from the seed must be Faraday's, and Core must read Faraday's
-        descriptor to the same address."""
+        """A regtest account, asked of Faraday as every account is, whose
+        descriptor Core must then read to the same address."""
         inputs = {"seed": seed.hex(), "network": "regtest", "script": script,
                   "account": account, "change": change, "index": index}
-        ref = core_account(seed, script, account, change, index)
-
-        def by_core():
-            if ref[0] == "err":
-                raise core_node.CoreError(ref[1])
-            return ref[1]
-
-        def address(answer):
-            return answer if answer[0] == "err" else ("ok", {"address": answer[1]["address"]})
-        got = self.compare("addr.account", inputs, by_core, normalize=address)
+        got = self.account(seed, "regtest", script, account, change, index)
         if got[0] != "ok":
             return
         read = core_reads(got[1]["descriptor"], change, index)
@@ -407,9 +381,10 @@ class Addr(Area):
             index = rng.choice([0, 1, rng.randrange(1000), rng.randrange(HARDENED), HARDENED])
             seed = self.randbytes(rng.choice([16, 32, 64]))
             script, change = rng.randrange(4), rng.random() < 0.3
-            self.account(seed, network, script, account, change, index)
             if network == "regtest":
                 self.core(seed, script, account, change, index)
+            else:
+                self.account(seed, network, script, account, change, index)
         if rng.random() < 0.3:
             charset = descriptors.INPUT_CHARSET
             text = "".join(rng.choice(charset) for _ in range(rng.randint(0, 120)))

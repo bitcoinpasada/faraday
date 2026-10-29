@@ -66,8 +66,8 @@ lineage for the curve (§10.7).
 | Operation | Standards | Needs a secret | Second implementation |
 |---|---|---|---|
 | Seed from words | BIP-39 | yes | python-mnemonic |
-| Master fingerprint, account xpub, child keys | BIP-32, 44, 48, 49, 84, 86 | from a seed: yes; from an xpub: no | Core's `key.py` plus a BIP-32 routine (today `btc.py`, Faraday's own), or embit, btclib or Core itself |
-| Addresses of a wallet | BIP-380 to 386, 388, 389 | no | Core's `descriptors.py` and `script.py`, or embit |
+| Master fingerprint, account xpub, child keys | BIP-32, 44, 48, 49, 84, 86 | from a seed: yes; from an xpub: no | btclib-wallet's `bip32` on btclib's own curve (`bip32_ref.py`), and Core itself for addresses |
+| Addresses of a wallet | BIP-380 to 386, 388, 389 | no | Core itself (`deriveaddresses`) |
 | Descriptor checksum | BIP-380 | no | Core's `descriptors.py` |
 | Sighash of each input | BIP-143, 341, 342 | no | Core's `script.py` |
 | Signature verification | ECDSA, BIP-340 | no | Core's `key.py` |
@@ -178,14 +178,16 @@ website's Cryptography blocks are generated from it, and
 As of 2026-10-29:
 
 - **Outside:** `bip39`, `codex32`, `codex32-correct`, `slip39`, `musig`,
-  `sp`, `tx`, `ur`, `kdbx`, the QR encoder in `seedqr`, and the address
-  text in `addr`.
-- **Faraday's own model over outside code:** `bip32` (`btc.py`), the keys
-  under `addr`, `miniscript`, `vanity` and `lightning`, BIP-86's tweak,
-  SLIP-132's versions, `psbt` (the whole reader and writer), `sign` (the
+  `sp`, `tx`, `ur`, `kdbx`, `bip85`, `miniscript`, the QR encoder in
+  `seedqr`, `addr` (the address text by Core's framework, accounts'
+  keys and SLIP-132 by btclib, their addresses by Core itself), and
+  `bip32`'s derivation (btclib).
+- **Faraday's own model over outside code:** `bip32`'s strict reading
+  (which versions it takes), `vanity`'s search, ldk-node's key in
+  `lightning`, `psbt` (the whole reader and writer), `sign` (the
   signer, the finalizer, the leaf chosen, the refusals), `msg` (BIP-137
-  and BIP-322 written out), `taproot`'s control-block check, `bip85`'s
-  hardened shim, the codex32 worksheets, and `vault` (the container,
+  and BIP-322 written out), `taproot`'s control-block check, the codex32
+  worksheets, and `vault` (the container,
   HKDF and the ChaCha20 block, over argon2-cffi and libsodium).
 - **Faraday's own model only:** `own-randomness`, `entropy` and `roller`.
 
@@ -277,8 +279,7 @@ so adding an area does not lengthen the run much.
   which the funding of `sign`'s cases on Core's node is 20 s; signed
   messages 1,150 s, taproot trees 620 s, BIP-39 90 s, since
   python-mnemonic is given its wordlists with a table to find a word's
-  place, and the BIP-32 keys of `btc.py` work out a parent's fingerprint
-  only when it is read).
+  place).
 
 ### 10.4 Offline, and pinned
 

@@ -1,6 +1,7 @@
-"""BIP-32 against the derivation written in `btc.py` from BIP-32's text,
-which is first checked against the BIP's test vectors 1 to 5
-(`tools/vectors/bip32/`).
+"""BIP-32 against btclib (`tools/reference/btclib/`: btclib-wallet's
+`bip32`, on btclib's own curve with libsecp256k1 turned off, through
+`bip32_ref.py`), which is first checked against the BIP's test vectors
+1 to 5 (`tools/vectors/bip32/`).
 
 - The master key of a seed (16 to 64 bytes), mainnet and test.
 - Private derivation along random paths of hardened and normal steps,
@@ -14,12 +15,17 @@ which is first checked against the BIP's test vectors 1 to 5
   length, the version, a depth-0 key with a parent or an index, the pad
   byte, a scalar of 0 or past n, a public key's prefix or a point off
   the curve) refused by both.
+
+What is ours: which versions a strict reader takes. btclib reads every
+version of its network table, SLIP-132's included; the area keeps
+BIP-32's own four (xprv and tprv for a private key, xpub and tpub for a
+public one, from btclib's table) and refuses the rest, as Faraday does.
 """
 
 import json
 
-import btc
-from btc import HARDENED, N, Invalid
+import bip32_ref
+from bip32_ref import HARDENED, N, Invalid
 from common import ROOT, Area
 
 NETWORKS = ["mainnet", "testnet", "signet", "regtest"]
@@ -36,12 +42,14 @@ class Bip32(Area):
         "decoding), `bitcoin`'s `Xpub::derive_pub`"
     )
     reference = (
-        '`btc.py`, BIP-32 written from the BIP over `secp256k1lab` and `ripemd160.py` '
-        '(`bip352/`)'
+        "btclib-wallet's `bip32` over btclib and `ecc` (`btclib/`), on btclib's own "
+        'curve with libsecp256k1 turned off, through `bip32_ref.py`; which versions a '
+        "strict reader takes (BIP-32's four, from btclib's network table) is ours"
     )
     reference_checked = (
-        "`check_driver` runs `btc.py` against BIP-32's vectors 1 to 5 and the invalid "
-        'keys of vector 5 before anything else'
+        'the wheels are hashed against `references.sha256` before any run; '
+        "`check_driver` runs btclib against BIP-32's vectors 1 to 5 and the invalid keys "
+        'of vector 5 before anything else'
     )
     vectors = (
         "BIP-32's vectors 1 to 5 (`tools/vectors/bip32/`), python-mnemonic's master "
@@ -62,29 +70,29 @@ class Bip32(Area):
     )
 
     def check_driver(self):
-        """`btc.py` against BIP-32's own vectors before anything else."""
+        """btclib against BIP-32's own vectors before anything else."""
         for v in json.loads((ROOT / "tools/vectors/bip32/vectors.json").read_text()):
-            m = btc.master(bytes.fromhex(v["seed"]))
+            m = bip32_ref.master(bytes.fromhex(v["seed"]))
             for chain in v["chains"]:
-                k = m.derive(btc.parse_path(chain["path"]))
+                k = m.derive(bip32_ref.parse_path(chain["path"]))
                 if (k.serialize(), k.neuter().serialize()) != (chain["xprv"], chain["xpub"]):
-                    raise AssertionError(f"btc.py fails BIP-32 at {chain['path']}")
-                if btc.decode(chain["xpub"], False).serialize() != chain["xpub"]:
-                    raise AssertionError("btc.py does not read back a BIP-32 xpub")
+                    raise AssertionError(f"btclib fails BIP-32 at {chain['path']}")
+                if bip32_ref.decode(chain["xpub"], False).serialize() != chain["xpub"]:
+                    raise AssertionError("btclib does not read back a BIP-32 xpub")
         for line in (ROOT / "tools/vectors/bip32/invalid-keys.txt").read_text().splitlines():
             key = line.split()[0] if line.strip() else ""
             if not key or key.startswith("#"):
                 continue
             for private in (True, False):
                 try:
-                    btc.decode(key, private)
+                    bip32_ref.decode(key, private)
                 except Invalid:
                     continue
-                raise AssertionError(f"btc.py reads {key}, which BIP-32 vector 5 rejects")
+                raise AssertionError(f"btclib reads {key}, which BIP-32 vector 5 rejects")
 
     def master(self, seed, network, expected=None):
         def ref():
-            m = btc.master(seed, is_test(network))
+            m = bip32_ref.master(seed, is_test(network))
             return {"xprv": m.serialize(), "xpub": m.neuter().serialize(),
                     "fingerprint": m.fingerprint().hex()}
         return self.compare("bip32.master", {"seed": seed.hex(), "network": network}, ref,
@@ -92,27 +100,27 @@ class Bip32(Area):
 
     def derive(self, seed, network, path, expected=None):
         def ref():
-            m = btc.master(seed, is_test(network))
+            m = bip32_ref.master(seed, is_test(network))
             k = m.derive(path)
             return {"xprv": k.serialize(), "xpub": k.neuter().serialize(),
                     "fingerprint": k.fingerprint().hex(),
                     "master_fingerprint": m.fingerprint().hex()}
         return self.compare("bip32.derive", {"seed": seed.hex(), "network": network,
-                                             "path": btc.path_text(path)}, ref, expected)
+                                             "path": bip32_ref.path_text(path)}, ref, expected)
 
     def derive_pub(self, xpub, path):
-        return self.compare("bip32.derive_pub", {"xpub": xpub, "path": btc.path_text(path)},
-                            lambda: {"xpub": btc.decode(xpub, False).derive(path).serialize()})
+        return self.compare("bip32.derive_pub", {"xpub": xpub, "path": bip32_ref.path_text(path)},
+                            lambda: {"xpub": bip32_ref.decode(xpub, False).derive(path).serialize()})
 
     def decode(self, key, private):
         op = "bip32.decode_xprv" if private else "bip32.decode_xpub"
         return self.compare(op, {"key": key},
-                            lambda: {"key": btc.decode(key, private).serialize()})
+                            lambda: {"key": bip32_ref.decode(key, private).serialize()})
 
     def import_master(self, key):
         def ref():
-            k = btc.decode(key, True)
-            if k.depth != 0:
+            k = bip32_ref.decode(key, True)
+            if not k.data.is_root:
                 raise Invalid("not a master key")
             return {"xprv": k.serialize(), "fingerprint": k.fingerprint().hex()}
         return self.compare("bip32.import", {"key": key}, ref)
@@ -122,7 +130,7 @@ class Bip32(Area):
         for v in json.loads((ROOT / "tools/vectors/bip32/vectors.json").read_text()):
             seed = bytes.fromhex(v["seed"])
             for chain in v["chains"]:
-                path = btc.parse_path(chain["path"])
+                path = bip32_ref.parse_path(chain["path"])
                 got = self.need(self.derive(seed, "mainnet", path), "derive")
                 if (got["xprv"], got["xpub"]) != (chain["xprv"], chain["xpub"]):
                     raise AssertionError(f"BIP-32 vector at {chain['path']}")
@@ -155,7 +163,7 @@ class Bip32(Area):
     def broken(self, key):
         """`key` (a valid extended key's text) with one rule broken."""
         rng = self.rng
-        raw = bytearray(btc.b58check_decode(key))
+        raw = bytearray(bip32_ref.b58check_decode(key))
         how = rng.randrange(10)
         if how == 0:
             # A character changed: the checksum fails, or the text is
@@ -165,7 +173,7 @@ class Bip32(Area):
         if how == 1:
             raw = raw + b"\0" if rng.random() < 0.5 else raw[:-1]
         elif how == 2:
-            raw[:4] = rng.choice([btc.XPRV, btc.XPUB, btc.TPRV, btc.TPUB,
+            raw[:4] = rng.choice([*bip32_ref.PRV, *bip32_ref.PUB,
                                   bytes.fromhex("049d7cb2"), bytes.fromhex("04b2430c"),
                                   self.randbytes(4)])
         elif how == 3:
@@ -186,7 +194,7 @@ class Bip32(Area):
             raw[4] = rng.choice([1, 255, raw[4] + 1 & 0xFF])
         else:
             raw[13:45] = self.randbytes(32)
-        return btc.b58check_encode(bytes(raw))
+        return bip32_ref.b58check_encode(bytes(raw))
 
     def corpus_case(self):
         rng = self.rng

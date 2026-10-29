@@ -29,8 +29,10 @@ check the second. A control block is 33 + 32m bytes with m at most 128.
 import functools
 import json
 
-import btc
 from common import ROOT, Area, as_verify, use_reference
+
+use_reference("bip352", "secp256k1lab", "src")
+from secp256k1lab.secp256k1 import GE  # noqa: E402
 
 use_reference("core")
 import test_framework.key as K  # noqa: E402
@@ -90,7 +92,7 @@ def reference_tree(internal, items, n):
         raise Refused("a leaf version is odd")
     if any(v == 0x50 for _, _, v in flat(items)):
         raise Refused("0x50 is the annex's tag, not a leaf version")
-    btc.GE.from_bytes_xonly(internal)  # an internal key that is no point is refused
+    GE.from_bytes_xonly(internal)  # an internal key that is no point is refused
     info = taproot_construct(internal, items)
     controls, hashes = [], []
     for name in range(n):
@@ -129,8 +131,8 @@ def verify_control(output_key, control, script):
         raise Refused("0x50 is not a leaf version")
     internal = control[1:33]
     try:
-        btc.GE.from_bytes_xonly(internal)
-        btc.GE.from_bytes_xonly(output_key)
+        GE.from_bytes_xonly(internal)
+        GE.from_bytes_xonly(output_key)
     except (ValueError, AssertionError) as e:
         raise Refused("not a point") from e
     k = TaggedHash("TapLeaf", bytes([version]) + ser_string(script))
@@ -222,7 +224,7 @@ class Taproot(Area):
         while True:
             x = self.randbytes(32)
             try:
-                btc.GE.from_bytes_xonly(x)
+                GE.from_bytes_xonly(x)
                 return x
             except (ValueError, AssertionError):
                 continue
@@ -281,7 +283,7 @@ class Taproot(Area):
         while True:
             bad = self.randbytes(32)
             try:
-                btc.GE.from_bytes_xonly(bad)
+                GE.from_bytes_xonly(bad)
             except (ValueError, AssertionError):
                 break
         items, leaves = self.random_tree(self.rng.randrange(1, 4))

@@ -6,11 +6,13 @@ crypto cross-check (`tools/crosscheck/area_bip85.py`, F79). It imports
 here, unchanged) and `pycoin`, of which it uses only hardened BIP-32
 derivation, WIF and xprv serialisation.
 
-`shims/pycoin/` is written here, not upstream: those few calls, over
-HMAC-SHA512 and base58check, refusing anything else (a non-hardened step
-would need curve arithmetic). It stands in for all of pycoin so that the
-reference runs unchanged; BIP-85's published vectors, which the
-cross-check runs first, check it.
+`shims/pycoin/` is written here, not upstream: those few calls, each
+handed to btclib (`tools/reference/btclib/`: btclib-wallet's `bip32` and
+btclib's `b58`, on btclib's own curve with libsecp256k1 turned off), so
+that the derivation, the xprv read and written and the WIF are btclib's
+and the shim is only pycoin's names and its path spelling. It stands in
+for all of pycoin so that the reference runs unchanged; BIP-85's
+published vectors, which the cross-check runs first, check it.
 
 | What | Source | Commit |
 |---|---|---|
@@ -37,4 +39,4 @@ mismatch.
 | `shims/pycoin/encoding/__init__.py` | `d6a068ca1e73b1a66dfca95637f2233eaac9f1368c8c89bc598b62e798c059cc` |
 | `shims/pycoin/encoding/bytes32.py` | `f91b8c817eadfa1ea961419864f0b97808831992c2b8ef1f9a2026429aa2b7e0` |
 | `shims/pycoin/symbols/__init__.py` | `e1930b16118cdd57e68a7549116d709731c1bef7036d2b6c1998e0fb7ddeaf9c` |
-| `shims/pycoin/symbols/btc.py` | `3ede16bb0f3e5f91227684ab56d914b32afd9ad118c2166fed7435c5ba571d80` |
+| `shims/pycoin/symbols/btc.py` | `118991856d1ae9245645f385b035d0bb9d8d57594e0b4902fa489b77a1d1797e` |

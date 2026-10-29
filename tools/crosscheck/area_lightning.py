@@ -2,8 +2,8 @@
 LND's own code (the vendored Go tree of `tools/reference/lnd/`, one
 process for the run: `main.go` there) and ldk's published answers
 (`tools/vectors/aezeed/`), with ldk's derivation written here from the
-sources `tools/reference/aezeed/README.md` quotes, over BIP-32 from
-`btc.py` and python-mnemonic (`bip39/`).
+sources `tools/reference/aezeed/README.md` quotes, over btclib's BIP-32
+(`bip32_ref.py`, btclib's own curve) and python-mnemonic (`bip39/`).
 
 - LND (README §3), answered by LND's code: the aezeed read by LND's
   `aezeed` package (its wordlist, version byte, CRC-32C, scrypt and the AEZ
@@ -12,9 +12,11 @@ sources `tools/reference/aezeed/README.md` quotes, over BIP-32 from
   the BIP-32 seed over btcd's `hdkeychain`, coin 0 on mainnet and 1
   elsewhere. The path's numbers are `keychain/derivation.go`'s, written in
   `main.go`; LND derives them through btcwallet, which is not vendored.
-- ldk-node (README §6), still ours: a master key from the 64-byte BIP-39
-  seed, its private key taken as LDK's 32-byte seed, a second master key
-  from that, and `m/0'` of the second; the network changes nothing.
+- ldk-node (README §6), still ours as a composition: a master key from
+  the 64-byte BIP-39 seed, its private key taken as LDK's 32-byte seed, a
+  second master key from that, and `m/0'` of the second; the network
+  changes nothing. Each master key, the derivation and the public key are
+  btclib's.
 
 - Every vector of `tools/vectors/aezeed/`.
 - Random BIP-39 seeds on every network (ldk) and random entropies on
@@ -29,13 +31,13 @@ import json
 import os
 import subprocess
 
-import btc
+import bip32_ref
 from common import ROOT, Area, HarnessError, use_reference
 
 use_reference("bip39")
 from mnemonic import Mnemonic  # noqa: E402
 
-H = btc.HARDENED
+H = bip32_ref.HARDENED
 NETWORKS = ["mainnet", "testnet", "signet", "regtest"]
 ENGLISH = Mnemonic("english")
 
@@ -65,14 +67,12 @@ def with_checksum(data):
     return data[:29] + crc32c(data[:29]).to_bytes(4, "big")
 
 
-def node(k):
-    return {"secret": k.to_bytes(32, "big").hex(), "node_id": btc.point(k).hex()}
-
-
 def ldk(seed):
-    outer = btc.master(seed)
-    inner = btc.master(outer.k.to_bytes(32, "big"), True)
-    return node(inner.derive([H]).k)
+    """Costs an elliptic-curve multiplication or two, in btclib."""
+    outer = bip32_ref.master(seed)
+    inner = bip32_ref.master(outer.k.to_bytes(32, "big"), True)
+    child = inner.derive([H])
+    return {"secret": child.k.to_bytes(32, "big").hex(), "node_id": child.pub.hex()}
 
 
 def lnd_exe():
@@ -126,7 +126,7 @@ class Lightning(Area):
         "over Yawning Angel's `aez`, and the node key over btcd's `hdkeychain`), one "
         "process answering the run's requests; ldk-node's derivation as "
         "`tools/reference/aezeed/README.md` quotes it, written out in `area_lightning.py` "
-        'over `btc.py`'
+        "over btclib's BIP-32 (`btclib/`, on btclib's own curve)"
     )
     reference_checked = (
         "LND's code reads the aezeed (wordlist, version, CRC-32C, scrypt, AEZ) and "

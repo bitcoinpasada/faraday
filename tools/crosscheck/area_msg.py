@@ -89,7 +89,8 @@ INVALID = bip322._INVALID
 import hashlib  # noqa: E402
 import hmac  # noqa: E402
 
-import btc  # noqa: E402
+use_reference("bip352", "secp256k1lab", "src")
+from secp256k1lab.secp256k1 import FAST_G  # noqa: E402
 
 
 def rfc6979(d, h, extra=None):
@@ -116,7 +117,7 @@ def rfc6979(d, h, extra=None):
 def ecdsa_sign(d, h, extra=None):
     """(r, s, recovery id), s low."""
     k = rfc6979(d, h, extra)
-    R = btc.FAST_G.mul(k)
+    R = FAST_G.mul(k)
     r = int(R.x) % N
     s = pow(k, -1, N) * (int.from_bytes(h, "big") + r * d) % N
     recid = (1 if not R.has_even_y() else 0) | (2 if int(R.x) >= N else 0)

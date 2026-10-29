@@ -1117,7 +1117,7 @@ tests = [
   "faraday/faraday-keys/tests/operations.rs::a_master_key_is_told_from_another_by_all_of_its_identity",
 ]
 crosscheck = "bip32"
-independence = { class = "own-over-outside", author = "Faraday's authors (`btc.py`), over `secp256k1lab`, by libsecp256k1's developers", ours = "BIP-32's derivation, serialisation, Base58Check and strict decoding, written in `btc.py` from the BIP" }
+independence = { class = "own-over-outside", author = "btclib-wallet's `bip32`, by the btclib developers, on btclib's own curve", ours = "which versions a strict reader takes: BIP-32's xprv and tprv, xpub and tpub, from btclib's network table (btclib reads SLIP-132's too), in `bip32_ref.py`" }
 selftest = [
   "bip32_vector",
 ]
@@ -1228,7 +1228,7 @@ tests = [
   "faraday/faraday-core/tests/all/explore.rs::a_path_typed_wrongly_is_named",
 ]
 crosscheck = "bip32"
-independence = { class = "own-over-outside", author = "Faraday's authors (`btc.py`), over `secp256k1lab`, by libsecp256k1's developers", ours = "BIP-32's derivation, serialisation, Base58Check and strict decoding, written in `btc.py` from the BIP" }
+independence = { class = "outside", author = "btclib-wallet's `bip32`, by the btclib developers, on btclib's own curve" }
 selftest = [
   "bip32_vector",
 ]
@@ -1310,7 +1310,7 @@ tests = [
   "core/faraday-bip/tests/all/bsms.rs::the_record_this_device_writes_parses_back_and_verifies",
 ]
 crosscheck = "bip32"
-independence = { class = "own-over-outside", author = "Faraday's authors (`btc.py`), over `secp256k1lab`, by libsecp256k1's developers", ours = "BIP-32's derivation, serialisation, Base58Check and strict decoding, written in `btc.py` from the BIP" }
+independence = { class = "outside", author = "btclib-wallet's `bip32`, by the btclib developers, on btclib's own curve" }
 fuzz_none = "Takes a held key and an account number; no outside text is parsed."
 other = [
   "Bitcoin Core end to end, two sessions' signatures combined by Core (INTEROP §1)",
@@ -1520,7 +1520,7 @@ tests = [
   "faraday/faraday-core/tests/all/explore.rs::everything_is_hidden_after_leaving_and_coming_back",
 ]
 crosscheck = "bip32"
-independence = { class = "own-over-outside", author = "Faraday's authors (`btc.py`), over `secp256k1lab`, by libsecp256k1's developers", ours = "BIP-32's derivation, serialisation, Base58Check and strict decoding, written in `btc.py` from the BIP" }
+independence = { class = "outside", author = "btclib-wallet's `bip32`, by the btclib developers, on btclib's own curve" }
 fuzz_none = "Takes a held key, a path and a reason; no outside input is parsed."
 
 [action.secrets]
@@ -1576,7 +1576,7 @@ tests = [
   "faraday/faraday-core/tests/all/explore.rs::an_addresss_private_key_shown_is_bip84s",
 ]
 crosscheck = "bip32"
-independence = { class = "own-over-outside", author = "Faraday's authors (`btc.py`), over `secp256k1lab`, by libsecp256k1's developers", ours = "BIP-32's derivation, serialisation, Base58Check and strict decoding, written in `btc.py` from the BIP" }
+independence = { class = "outside", author = "btclib-wallet's `bip32`, by the btclib developers, on btclib's own curve" }
 fuzz_none = "Takes a held key, a path and a reason; no outside input is parsed."
 
 [action.secrets]
@@ -1853,7 +1853,7 @@ tests = [
   "faraday/faraday-core/tests/all/explore_addresses.rs::a_whole_address_is_found_at_its_index_on_each_chain",
 ]
 crosscheck = "addr"
-independence = { class = "own-over-outside", author = "Bitcoin Core's functional-test framework, v31.1, by Bitcoin Core's contributors, for the address text; Faraday's authors (`btc.py`), over `secp256k1lab`, by libsecp256k1's developers, for the keys", ours = "the wallet's keys, derived by `btc.py`, and BIP-86's tweak, written in `area_addr.py`" }
+independence = { class = "outside", author = "Bitcoin Core v31.1 itself (`deriveaddresses`) and its functional-test framework, by Bitcoin Core's contributors; btclib-wallet's `bip32` and `slip132`, by the btclib developers, on btclib's own curve, for the account keys" }
 selftest = [
   "bip84_address",
 ]
@@ -1984,7 +1984,7 @@ tests = [
   "core/faraday-bip/tests/all/core_import.rs::the_pair_for_core_before_29_is_cores_own_receive_and_change_descriptors",
 ]
 crosscheck = "miniscript"
-independence = { class = "own-over-outside", author = "python-bip380, by Antoine Poinsot, and Bitcoin Core's `taproot_construct`", ours = "the wallet's keys, derived by `btc.py`" }
+independence = { class = "outside", author = "Bitcoin Core v31.1 itself (`deriveaddresses`) and its functional-test framework, by Bitcoin Core's contributors; python-bip380, by Antoine Poinsot, for Core's vectors that state no script; btclib-wallet's `bip32`, by the btclib developers, for the cosigners' keys" }
 fuzz = [
   "policy",
 ]
@@ -2061,7 +2061,7 @@ tests = [
   "core/faraday-bip/tests/all/recovery.rs::the_taproot_recovery_wallets_pay_the_addresses_bitcoin_core_derives",
 ]
 crosscheck = "miniscript"
-independence = { class = "own-over-outside", author = "python-bip380, by Antoine Poinsot, and Bitcoin Core's `taproot_construct`", ours = "the wallet's keys, derived by `btc.py`" }
+independence = { class = "outside", author = "Bitcoin Core v31.1 itself (`deriveaddresses`) and its functional-test framework, by Bitcoin Core's contributors; python-bip380, by Antoine Poinsot, for Core's vectors that state no script; btclib-wallet's `bip32`, by the btclib developers, for the cosigners' keys" }
 fuzz = [
   "policy",
 ]
@@ -2548,7 +2548,7 @@ tests = [
   "core/faraday-bip/tests/all/calculators.rs::one_key_is_shown_in_every_spelling",
 ]
 crosscheck = "addr"
-independence = { class = "own-over-outside", author = "Bitcoin Core's functional-test framework, v31.1, by Bitcoin Core's contributors, for Base58Check", ours = "SLIP-132's version table and the rule for which version goes with which script, written in `area_addr.py`" }
+independence = { class = "outside", author = "btclib-wallet's `slip132` and `bip32`, by the btclib developers" }
 fuzz = [
   "xkey",
 ]
@@ -3509,7 +3509,7 @@ tests = [
   "faraday/faraday-keys/tests/operations.rs::bip85_children_are_the_ones_the_bip_publishes",
 ]
 crosscheck = "bip85"
-independence = { class = "own-over-outside", author = "ethankosakovsky/bip85, by Ethan Kosakovsky, over python-mnemonic, by Trezor (SatoshiLabs)", ours = "the hardened-BIP-32 shim it runs on, written in `tools/reference/bip85/shims/`" }
+independence = { class = "outside", author = "btclib-wallet's `bip85`, by the btclib developers, on btclib's own curve; ethankosakovsky/bip85, by Ethan Kosakovsky, over python-mnemonic, by Trezor (SatoshiLabs), and btclib through a pycoin shim" }
 fuzz_none = "Takes a held key, an application and numbers chosen on a pad; no text is parsed."
 
 [action.secrets]
@@ -3579,7 +3579,7 @@ tests = [
   "faraday/faraday-core/tests/all/vanity.rs::the_passphrase_dial_loads_the_words_with_the_passphrase_found",
 ]
 crosscheck = "vanity"
-independence = { class = "own-over-outside", author = "Faraday's authors (`area_vanity.py`), over python-mnemonic, `btc.py` and the `addr` area's address writing", ours = "EntropyLab's counter, written out in `area_vanity.py` from a quotation" }
+independence = { class = "own-over-outside", author = "Faraday's authors (`area_vanity.py`) for the search, over python-mnemonic, Bitcoin Core v31.1 (`deriveaddresses`) and btclib for each candidate's address", ours = "EntropyLab's counter, the prefix rules, the expected work and the search loop, written out in `area_vanity.py` from a quotation" }
 fuzz_none = "Takes a prefix typed on a pad and a held key; no outside text is parsed."
 
 [action.secrets]
@@ -3730,7 +3730,7 @@ tests = [
   "core/faraday-bip/src/aezeed.rs::the_ldk_node_key_matches_what_ldk_node_derives",
 ]
 crosscheck = "lightning"
-independence = { class = "own-over-outside", author = "LND's node key by btcd's `hdkeychain` in LND's vendored tree, by Lightning Labs and the btcd developers, for LND; Faraday's authors (`area_lightning.py`), over `btc.py` and python-mnemonic, for ldk-node", ours = "ldk-node's node key, written in `area_lightning.py` from the sources `tools/reference/aezeed/README.md` quotes, and LND's key-path numbers (1017', coin, 6', 0, 0), written in `tools/reference/lnd/main.go` from `keychain/derivation.go`" }
+independence = { class = "own-over-outside", author = "LND's node key by btcd's `hdkeychain` in LND's vendored tree, by Lightning Labs and the btcd developers, for LND; Faraday's authors (`area_lightning.py`), over btclib-wallet's `bip32` and python-mnemonic, for ldk-node", ours = "ldk-node's node key, composed in `area_lightning.py` from the sources `tools/reference/aezeed/README.md` quotes (each step btclib's), and LND's key-path numbers (1017', coin, 6', 0, 0), written in `tools/reference/lnd/main.go` from `keychain/derivation.go`" }
 fuzz = [
   "aezeed",
 ]
@@ -4361,7 +4361,7 @@ tests = [
   "core/faraday-psbt/tests/all/multisig.rs::a_cosigner_key_under_a_loaded_fingerprint_is_not_ours",
 ]
 crosscheck = "sign"
-independence = { class = "own-over-outside", author = "the Bitcoin Core developers: Core v31.1 itself (`descriptorprocesspsbt` signs, `testmempoolaccept` judges the spend), and Core's `key.py` and `script.py` for the first RFC 6979 nonce, and python-ecdsa, by Brian Warner and Hubert Kario (no Bitcoin code), which makes that nonce's signature again byte for byte and verifies the low-R ones; Faraday's authors (`area_sign.py`) for the refusals", ours = "Faraday's refusals (F136, F141) and the inputs a wallet's rule leaves unsigned, the script code of the hash the first RFC 6979 nonce is checked under, and the keys of those checks derived by `btc.py`, in `area_sign.py`" }
+independence = { class = "own-over-outside", author = "the Bitcoin Core developers: Core v31.1 itself (`descriptorprocesspsbt` signs, `testmempoolaccept` judges the spend), and Core's `key.py` and `script.py` for the first RFC 6979 nonce, and python-ecdsa, by Brian Warner and Hubert Kario (no Bitcoin code), which makes that nonce's signature again byte for byte and verifies the low-R ones; Faraday's authors (`area_sign.py`) for the refusals", ours = "Faraday's refusals (F136, F141) and the inputs a wallet's rule leaves unsigned, the script code of the hash the first RFC 6979 nonce is checked under, in `area_sign.py`; the keys of those checks are btclib's" }
 selftest = ["ecdsa_vector"]
 fuzz_none = "No target runs sign: it needs a master key and a PSBT that inspect accepts; psbt_parse fuzzes the PSBT it reads."
 
@@ -4437,7 +4437,7 @@ tests = [
   "core/faraday-psbt/tests/all/sign.rs::a_taproot_tree_with_no_way_into_it_is_refused",
 ]
 crosscheck = "sign"
-independence = { class = "own-over-outside", author = "the Bitcoin Core developers: Core v31.1 itself (`descriptorprocesspsbt` signs, `testmempoolaccept` judges the spend), with BIP-340's reference (`secp256k1lab`) and Core's `script.py` for the zero-randomness nonce, and btclib, by the btclib developers, on its own curve, which verifies each signature and makes it again byte for byte; Faraday's authors (`area_sign.py`) for the refusals", ours = "Faraday's refusals (F136, F141) and the inputs a wallet's rule leaves unsigned, and the keys of the zero-randomness check derived by `btc.py`, in `area_sign.py`" }
+independence = { class = "own-over-outside", author = "the Bitcoin Core developers: Core v31.1 itself (`descriptorprocesspsbt` signs, `testmempoolaccept` judges the spend), with BIP-340's reference (`secp256k1lab`) and Core's `script.py` for the zero-randomness nonce, and btclib, by the btclib developers, on its own curve, which verifies each signature and makes it again byte for byte; Faraday's authors (`area_sign.py`) for the refusals", ours = "Faraday's refusals (F136, F141) and the inputs a wallet's rule leaves unsigned, in `area_sign.py`; the keys of the zero-randomness check are btclib's" }
 selftest = ["schnorr_vector"]
 fuzz_none = "No target runs sign: it needs a master key and a PSBT that inspect accepts; psbt_parse fuzzes the PSBT it reads."
 
