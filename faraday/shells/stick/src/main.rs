@@ -2368,11 +2368,28 @@ mod tests {
         assert!(!marker_stuck(true, &done));
     }
 
-    fn scratch(name: &str) -> PathBuf {
+    /// A scratch folder that is removed when it goes out of scope, also
+    /// when the test fails.
+    struct Scratch(PathBuf);
+
+    impl std::ops::Deref for Scratch {
+        type Target = PathBuf;
+        fn deref(&self) -> &PathBuf {
+            &self.0
+        }
+    }
+
+    impl Drop for Scratch {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.0);
+        }
+    }
+
+    fn scratch(name: &str) -> Scratch {
         let dir = std::env::temp_dir().join(format!("faraday-mode-{}-{name}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
-        dir
+        Scratch(dir)
     }
 
     #[test]
@@ -2385,7 +2402,6 @@ mod tests {
             keep_mode(&dir, *mode);
             assert_eq!(mode_at_start(&dir), *mode);
         }
-        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]
@@ -2409,7 +2425,6 @@ mod tests {
         assert_eq!(mode_at_start(&dir.join("missing")), Mode::Mainnet);
         keep_mode(&dir, Mode::Demo);
         assert_eq!(mode_at_start(&dir), Mode::Mainnet);
-        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]
@@ -2421,7 +2436,6 @@ mod tests {
         assert!(!dir.join(MODE_FILE).exists());
         // A start with no lock before it is Mainnet again.
         assert_eq!(mode_at_start(&dir), Mode::Mainnet);
-        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]
