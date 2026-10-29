@@ -63,6 +63,7 @@ for f in "${FILES[@]}"; do
     fi
 done
 
+regular=()
 for f in "${FILES[@]}"; do
     base="${f##*/}"
     case "$base" in
@@ -72,13 +73,19 @@ for f in "${FILES[@]}"; do
             ;;
     esac
     if [ -f "$f" ] && [ ! -L "$f" ]; then
-        size=$(stat -c %s -- "$f" 2>/dev/null || echo 0)
+        regular+=("$f")
+    fi
+done
+
+# Every size in one stat: a process per file takes seconds on a slow fork.
+if [ "${#regular[@]}" -gt 0 ]; then
+    while IFS=$'\t' read -r -d '' size f; do
         if [ "$size" -gt "$MAX_BYTES" ]; then
             echo "lint-tree: $f is $size bytes, over 2 MiB; build output stays out of the repository"
             status=1
         fi
-    fi
-done
+    done < <(printf '%s\0' "${regular[@]}" | xargs -0 stat --printf '%s\t%n\0' --)
+fi
 
 images=()
 for f in "${FILES[@]}"; do
