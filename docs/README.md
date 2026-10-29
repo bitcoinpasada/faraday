@@ -104,6 +104,7 @@ need. Each document's header says what kind it is:
 - `docs/INTEROP.md`: Interoperability with other wallets. Tested.
 - `docs/LARGE-FILES.md`: Large files on a stick visit. Not built (F26, amended by F30).
 - `docs/MAC.md`: Faraday on Macs. Partly built.
+- `docs/M3-CHECKS.md`: Material 3 checks: touch targets tested over the snapshot tours, and state layers by construction. Specified (F152), not built.
 - `docs/MODES.md`: Modes, Practice and samples. Specified (F81), not built.
 - `docs/MOTION.md`: Scrolling, motion and appearance. Built; not yet checked by the owner on hardware.
 - `docs/CRYPTO-LEARN.md`: How Faraday does it: one manifest for every cryptographic action. Specified (F148), not built.
