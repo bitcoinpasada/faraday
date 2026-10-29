@@ -4,7 +4,8 @@
 # the committed seeds, reduced by `cargo fuzz cmin` to the inputs that
 # between them reach everything the whole set reaches. The folder is ready
 # to commit to the repository that publishes the corpora after a release
-# (`tools/README.md`, "Before a release").
+# (`tools/README.md`, "Before a release"), and the store keeps the same
+# minimized set in place of what it held.
 #
 #   tools/fuzz-corpus-export.sh        (`just fuzz-corpus-export`)
 #
@@ -32,6 +33,16 @@ export_one() {
         return 1
     }
     rm -f "$out/$name.log"
+    # The store keeps the minimized set in place of what it held: it
+    # reaches what the store reached, and a slow target, which runs every
+    # kept input before it fuzzes, loads it in about a third of the time
+    # (app_scanned's 2,027 inputs took 77 s, its 1,124 after this 28 s).
+    if [ -d "$store/$name" ]; then
+        rm -rf "$store/$name.min"
+        cp -r "$to" "$store/$name.min"
+        rm -rf "$store/$name"
+        mv "$store/$name.min" "$store/$name"
+    fi
     echo "fuzz-corpus-export: $name: $(find "$to" -type f | wc -l) inputs"
 }
 export -f export_one options

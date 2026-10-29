@@ -11,7 +11,9 @@
 # folder per target: a checkout is replaced when it is synced, and the
 # corpus a run has grown is worth more than the seeds. The committed seeds
 # are read from `corpus/` beside the target as well, so a new target
-# starts from them. The store belongs to the machine the run is on.
+# starts from them. The store belongs to the machine the run is on;
+# `tools/fuzz-corpus-export.sh` leaves it minimized. A target with a
+# dictionary (`dict/<target>.dict` beside its corpus) runs with it.
 #
 # `FARADAY_FUZZ_CORPUS=DIR` names a folder of corpora, one folder per
 # target (a checkout of the published corpus, or `out/fuzz-corpus/` from
@@ -70,7 +72,7 @@ run_one() {
     set +e
     # shellcheck disable=SC2046
     "$bin" "${corpus[@]}" -max_total_time="$seconds" -rss_limit_mb=2048 \
-        -artifact_prefix="$dir/artifacts/$name/" $(options "$name") \
+        -artifact_prefix="$dir/artifacts/$name/" $(options "$name") $(dictionary "$dir" "$name") \
         >>"$work/$name.log" 2>&1
     status=$?
     set -e
@@ -87,7 +89,7 @@ run_one() {
     printf '%s\t%s\t%s\t%s\t%s\t%s\n' \
         "$name" "$elapsed" "${runs:-0}" "$entries" "$bytes" "$result" >"$work/$name.result"
 }
-export -f run_one options
+export -f run_one options dictionary
 export seconds store work host start_corpus
 
 echo "fuzz-release: building every target with $nightly"

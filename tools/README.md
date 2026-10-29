@@ -30,8 +30,8 @@ in `justfile` and `faraday/faraday.just`.
 | `tools/lint-fuzz-parsers.py` | lint | `just lint` | a fuzz target or an excuse for every parser of untrusted input in `core/`, listed in `tools/fuzz-parsers.toml` (below) |
 | `tools/lint-unchecked.sh` | lint | `just lint` | no shipped binary compiles `Compute::unchecked` (below) |
 | `tools/fuzz-release.sh` | release | `just fuzz-release` | the fuzz run before a release: every target of `fuzz/` and `faraday/fuzz/`, 10 minutes each, in parallel, corpus kept between runs; writes `out/fuzz-release.txt` for the release notes |
-| `tools/fuzz-corpus-export.sh` | release | `just fuzz-corpus-export` | each target's kept corpus and seeds minimized with `cargo fuzz cmin` into `out/fuzz-corpus/<target>/`, for the repository that publishes the corpora |
-| `tools/fuzz-common.sh` | release | the two scripts above | the pinned nightly, each target's libFuzzer options, the corpus store |
+| `tools/fuzz-corpus-export.sh` | release | `just fuzz-corpus-export` | each target's kept corpus and seeds minimized with `cargo fuzz cmin` into `out/fuzz-corpus/<target>/`, for the repository that publishes the corpora; the store keeps the minimized set |
+| `tools/fuzz-common.sh` | release | the two scripts above | the pinned nightly, each target's libFuzzer options and dictionary, the corpus store |
 | `tools/check-macos.sh` | lint | `just lint` | clippy over the Starter's macOS code for both Mac targets, without a Mac |
 | `tools/lint-crosscheck.sh` | lint | `just lint` | the crypto has not changed since the last passing cross-check (below) |
 | `tools/lint-standards.py` | lint | `just lint` | `docs/STANDARDS.md` §0 held against `tools/lint-standards.toml`: cross-check coverage, work kept out of the app, every hold with its decision, §8's disagreements (below) |
@@ -96,7 +96,7 @@ none is part of `just`, which stays fast.
       runs. Any crash fails it; fix the parser, add the input to the
       target's corpus and run again.
    2. `just fuzz-corpus-export`: each target's corpus, minimized, in
-      `out/fuzz-corpus/`.
+      `out/fuzz-corpus/`, and the same minimized set kept as the store.
    3. Commit that folder's contents to the corpus repository,
       https://github.com/bitcoinpasada/faraday-fuzz-corpus, and tag the
       commit with the release's tag.

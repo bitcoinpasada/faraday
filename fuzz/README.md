@@ -95,7 +95,9 @@ release notes quote it.
 
 `just fuzz-corpus-export` (`tools/fuzz-corpus-export.sh`) minimizes each
 target's kept corpus and seeds with `cargo fuzz cmin` into
-`out/fuzz-corpus/<target>/`, to be committed to the repository that
+`out/fuzz-corpus/<target>/`, and the store keeps that
+minimized set in place of what it held, so the next run loads only it.
+The folder is to be committed to the repository that
 publishes the corpora, https://github.com/bitcoinpasada/faraday-fuzz-corpus
 (one commit per release, tagged with the release's tag).
 
@@ -112,6 +114,14 @@ committed, so the dependencies are the release's.
 - `corpus/<target>/` — the seed inputs, committed, all with an extension.
   A run adds its own entries beside them, named after their SHA-1 and
   ignored by git. (`just fuzz-release` grows its corpus elsewhere, above.)
+- `dict/<target>.dict` — a libFuzzer dictionary, which `just fuzz` and
+  `just fuzz-release` pass with `-dict=` (either fuzz directory may have
+  one): the words a text format is made of. `classify` and `policy` have
+  one; in two 60-second runs from the seeds, `classify` reached 12 to 17%
+  more coverage with its dictionary, `policy` about 10% (within the
+  spread between repeats). BIP-39's words for `bip39_words` and the UR
+  words for `ur_receive` made no measurable difference, so those two
+  have none (2026-10-29).
 - `artifacts/<target>/` — an input that crashed. Committed ones have an
   extension and a name: they are the minimized reproducer of a crash,
   kept while it is open and kept after it is fixed, since an input that

@@ -42,6 +42,13 @@ options() {
     esac
 }
 
+# A target's dictionary, when its directory has one (`dict/<target>.dict`):
+# the words of the format it reads, which libFuzzer splices into inputs.
+dictionary() {
+    [ -f "$1/dict/$2.dict" ] && echo "-dict=$1/dict/$2.dict"
+    return 0
+}
+
 # Builds both fuzz crates and prints "DIR TARGET" for each target. The
 # lock files are committed: a lock that is out of date fails here
 # (`cargo fuzz` has no --locked of its own), and a build then changes none.

@@ -151,7 +151,8 @@ psbt-fixtures:
 # directory or lock file; each has its own committed Cargo.lock. cargo-fuzz
 # has no --locked, so a recipe checks the lock with `cargo metadata
 # --locked` first: a lock that is out of date fails instead of changing.
-# `fuzz` finds a target's directory itself.
+# `fuzz` finds a target's directory itself, and passes the target's
+# dictionary (DIR/dict/TARGET.dict) when there is one.
 
 fuzz_seconds := "60"
 fuzz_nightly := `sed -n 's/^channel *= *"\(.*\)"$/\1/p' fuzz/rust-toolchain.toml`
@@ -174,7 +175,9 @@ fuzz TARGET seconds=fuzz_seconds:
         listing="$(cargo +{{fuzz_nightly}} fuzz list --fuzz-dir "$dir" 2>/dev/null)"
         if grep -qx '{{TARGET}}' <<<"$listing"; then
             cargo +{{fuzz_nightly}} metadata --locked --format-version 1 --manifest-path "$dir/Cargo.toml" >/dev/null
-            exec cargo +{{fuzz_nightly}} fuzz run --fuzz-dir "$dir" '{{TARGET}}' -- -max_total_time={{seconds}}
+            dict=()
+            [ -f "$dir/dict/{{TARGET}}.dict" ] && dict=("-dict=$dir/dict/{{TARGET}}.dict")
+            exec cargo +{{fuzz_nightly}} fuzz run --fuzz-dir "$dir" '{{TARGET}}' -- -max_total_time={{seconds}} "${dict[@]}"
         fi
     done
     echo "just fuzz: no target named {{TARGET}} (just fuzz-list)" >&2
