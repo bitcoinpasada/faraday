@@ -29,6 +29,7 @@ need. Each document's header says what kind it is:
 | How is a vault stored? | `docs/VAULT.md`; what changes next (its name, the passphrase, key commitment, the seal count), `docs/VAULT-HARDENING.md` |
 | What is in the KeePass (KDBX 4) file Faraday writes? | `docs/KDBX.md` |
 | How does data move by QR code, and how is a code scanned? | `docs/QR.md` |
+| What does each scanner do with each kind of code, and with one read in the wrong scanner? | `docs/SCANNING.md` |
 | Which other wallets' files and codes does Faraday read and write? | `docs/INTEROP.md`, `docs/WALLETS.md` |
 | How does the Starter write a stick and start a computer from it? | `docs/STARTER.md` |
 | Did a signing device do only what it was asked? | `docs/SIGNER-CHECK.md` |
@@ -113,6 +114,7 @@ need. Each document's header says what kind it is:
 - `docs/NOSTR.md`: The Nostr key. Not built, not scheduled (F27, amended by F34).
 - `docs/OWN-RANDOMNESS.md`: Your own randomness, and the kernel's at boot. Specified, partly built (F86, F157); Add randomness at every press that draws the system's randomness (§8) built, but for a split wallet's Files list; the late seed and the Pi's generator (§3.5) not built.
 - `docs/QR.md`: QR transfer and scanning. Built, except §7.
+- `docs/SCANNING.md`: What each scanner takes, and the way over for a code read in the wrong one. Planned, not built.
 - `docs/SEED-CONVERSION.md`: Convert a seed. Specified (F88), not built.
 - `docs/SIGNER-CHECK.md`: Check a signer. Planned, not built.
 - `docs/SPEED.md`: Speed in long flows. Built but for the glyph cache (§3.8).
