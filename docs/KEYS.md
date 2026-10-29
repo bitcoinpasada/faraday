@@ -436,7 +436,7 @@ Moved to `docs/history/KEYS-LOG.md`.
 An auditor reads faraday/faraday-keys and the primitive crates, plus
 the reveal list, and can state:
 - every byte of key material lives in one crate;
-- it leaves through these N named reasons;
+- it leaves through these fourteen named reasons;
 - `just` fails if any other code touches a secret type.
 
 Before F70 that took reading 36 files of faraday-core. As built, the

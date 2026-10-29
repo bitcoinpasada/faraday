@@ -1,0 +1,5 @@
+# Held by docs/crypto/check.py (docs/CRYPTO-LEARN.md §7). The count of
+# [[not_crypto]] entries in docs/crypto/actions.toml: a function the
+# inventory's rules find that computes nothing on a secret or signed data.
+# It only falls; raising it is the owner's decision, recorded in DECISIONS.
+not_crypto 6

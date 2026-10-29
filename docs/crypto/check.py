@@ -18,12 +18,19 @@ cryptographic is found, with its closure), which costs one read and parse
 of every source file. Standard library only
 (`tomllib`, Python 3.11).
 
-Not checked yet (batch 4): the comparisons of §3.2 with docs/AUDIT.md §1,
-§2 and docs/KEYS.md (the Reveal count and every variant named), with
-docs/COMPUTE.md §2.3, the Tools tiles' tags, the Learn pages a screen
-opens (§9.1) and the screens list (§9.2); and the generated places of
-§3.1, which review reaches through `docs/crypto/gen.py` when that file
-exists (`regenerate`).
+Checked places (§3.2): docs/AUDIT.md §1's crate rows and "written here" claims,
+every `Reveal` variant named by an action and the count in words (AUDIT, KEYS,
+CLAUDE.md), docs/COMPUTE.md §2.3's roots, the Tools tiles' tags, and the
+ratchet in tools/lint-crypto.counts. A tile's tag and COMPUTE's table are read
+from their text; a function that takes `&Compute` counting a `Work` kind is not
+checked (the inventory does not record parameters).
+
+Not checked yet: the Learn pages a screen opens (§9.1) and the screens list (§9.2).
+The generated places of §3.1 are written by `docs/crypto/gen.py`, which review
+runs (`regenerate`); `gen.py check` holds them.
+
+    check.py inventory
+        the inventory the manifest's roots ask for, to a file for --inventory
 """
 
 import contextlib
@@ -53,7 +60,9 @@ KINDS = {"Conservative", "Neutral", "Novel"}
 CFG_OK = {"cfg(test)", 'cfg(target_pointer_width = "64")', "cfg(unix)",
           'cfg(target_os = "linux")', 'cfg(target_arch = "x86_64")'}
 
-TOP_KEYS = {"schema", "standard", "row", "action", "not_crypto", "vector_no_action"}
+TOP_KEYS = {"schema", "standard", "row", "action", "not_crypto", "vector_no_action", "hold"}
+HOLD_KEYS = {"action", "check", "case", "decision"}
+COUNTS = "tools/lint-crypto.counts"
 STANDARD_KEYS = {"name", "status", "checked", "source"}
 ROW_KEYS = {"id", "section", "what", "completeness"}
 ACTION_KEYS = {"id", "action", "row", "standards", "learn", "screens", "functions", "code",
@@ -208,6 +217,7 @@ class Ctx:
         self.root = pathlib.Path(root)
         self.inv = inv
         self.errors = Errors()
+        self.notes = []
         self.text = manifest_text if manifest_text is not None else self.read(MANIFEST)
         self.lock = parse_lock(lock_text_ if lock_text_ is not None else self.read(LOCK))
         self.lock_raw = lock_text_ if lock_text_ is not None else self.read(LOCK)
@@ -411,6 +421,16 @@ def check_schema(c):
         unknown(e, "not_crypto", n, {"function", "reason"})
         if not str_ok(n.get("function")) or not str_ok(n.get("reason")):
             e.add("schema", f"not_crypto {n.get('function')}: `function` and `reason` are required")
+    for h in d.get("hold", []):
+        unknown(e, "hold", h, HOLD_KEYS)
+        if not all(str_ok(h.get(k)) for k in HOLD_KEYS):
+            e.add("schema", f"hold {h.get('action')}: `action`, `check`, `case` and `decision` "
+                  "are all required")
+        elif h["action"] not in ids:
+            e.add("schema", f"hold: action `{h['action']}` is not an action")
+        elif not (re.fullmatch(r"F\d+", h["decision"]) and c.exists(f"docs/decisions/{h['decision']}.md")):
+            e.add("schema", f"hold {h['action']}: decision {h['decision']} is not a file "
+                  "under docs/decisions/")
     for n in d.get("vector_no_action", []):
         unknown(e, "vector_no_action", n, {"folder", "reason"})
         if not str_ok(n.get("folder")) or not str_ok(n.get("reason")):
@@ -735,12 +755,305 @@ def check_deps(c):
                          "page lacks the line `**Cryptography:** computes`")
 
 
+# ------------------------------------------------- the places checked (§3.2)
+
+NUMBER_WORDS = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine",
+                "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen",
+                "seventeen", "eighteen", "nineteen", "twenty", "twenty-one", "twenty-two",
+                "twenty-three", "twenty-four", "twenty-five", "twenty-six", "twenty-seven",
+                "twenty-eight", "twenty-nine", "thirty"]
+# Where the count of `Reveal` variants is written in words.
+REVEAL_COUNT_FILES = ("docs/AUDIT.md", "docs/KEYS.md", "CLAUDE.md", "README.md",
+                      "docs/SECURITY-MODEL.md")
+# The Work kinds of COMPUTE §2.3 whose roots an action must cover.
+COMPUTE_KINDS = {"WordsParse", "Kdf", "MasterKey", "KeyDerive", "DescriptorParse", "Address",
+                 "PsbtParse", "PsbtInspect", "Sign", "QrEncode", "QrDecode", "FileHash"}
+# The screen(s) a Tools tile (`Go::…` in faraday-core's catalog.rs) leads to.
+TILE_SCREENS = {
+    "NewKey": ("KeyGen",), "NewShares": ("KeyGen",), "AddKey": ("KeyGen",),
+    "SeedQr": ("KeyGen",), "Explore": ("Explore",), "Bip85": ("Bip85",),
+    "Vanity": ("Vanity",), "Silent": ("Silent",), "Lightning": ("Lightning",),
+    "Create": ("Create",), "Restore": ("Restore",), "Backup": ("BackupFlow", "Backup"),
+    "Sign": ("Spend",), "NonceCheck": ("Spend",), "Decode": ("Decode",),
+    "CheckAddress": ("Files",), "Scan": ("Files",), "SignMessage": ("Message",),
+    "CheckMessage": ("CheckMessage",), "Vaults": ("Vaults",), "Codes": ("Codes",),
+    "CreateVault": ("CreateVault",), "VaultCategory": ("VaultContents",),
+    "Calculator": ("Tools",), "WordList": ("Tools",),
+}
+
+
+def audit_section(text, n):
+    m = re.search(rf"^## {n}\..*?(?=^## {n + 1}\.)", text, re.S | re.M)
+    return m.group(0) if m else ""
+
+
+def audit_crate_rows(c):
+    """{crate: the row's 'written here' claim} from the tables of docs/AUDIT.md §1."""
+    rows = {}
+    for ln in audit_section(c.read("docs/AUDIT.md"), 1).split("\n"):
+        m = re.match(r"\| `([a-z0-9-]+)` \|", ln)
+        if m:
+            cells = ln.split("|")
+            what = cells[3] if len(cells) > 3 else ""
+            claim = re.search(r"written here", re.sub(r"[Nn]o primitive is written here", "", what),
+                              re.I) is not None
+            rows[m.group(1)] = claim
+    return rows
+
+
+def package_name(c, crate_dir):
+    """The package name of a crate directory (its Cargo.toml), else the directory's name."""
+    try:
+        return tomllib.loads(c.read(f"{crate_dir}/Cargo.toml"))["package"]["name"]
+    except (tomllib.TOMLDecodeError, KeyError):
+        return crate_dir.rsplit("/", 1)[-1]
+
+
+def check_audit_crates(c):
+    """AUDIT §1: a row for every crate an action names, an action for every row, and the
+    row's 'written here' agrees with the libraries of its actions."""
+    e = c.errors
+    rows = audit_crate_rows(c)
+    if not rows:
+        e.add("audit", "docs/AUDIT.md §1 has no crate rows (| `crate` | … |)")
+        return
+    named = {}
+    for a in c.actions:
+        crate = a.get("implementation", {}).get("crate") if isinstance(a.get("implementation"), dict) else None
+        if crate:
+            named.setdefault(package_name(c, crate), []).append(a)
+    for crate, acts in sorted(named.items()):
+        ids = ", ".join(a.get("id") for a in acts[:4]) + (", …" if len(acts) > 4 else "")
+        if crate not in rows:
+            e.add("audit", f"docs/AUDIT.md §1 has no row for `{crate}`, which the actions {ids} "
+                  f"name as their implementation: add a row to the table of its tier "
+                  f"(or change implementation.crate)")
+            continue
+        unlibraried = [a.get("id") for a in acts if not as_list(a["implementation"].get("libraries"))]
+        if unlibraried and not rows[crate]:
+            e.add("audit", f"docs/AUDIT.md §1: the row for `{crate}` does not say 'written here', "
+                  f"and the action(s) {', '.join(unlibraried[:4])} name no library: say in the row "
+                  "what is written here, or name the library in the action")
+        if rows[crate] and not unlibraried:
+            e.add("audit", f"docs/AUDIT.md §1: the row for `{crate}` says 'written here', and "
+                  "every action of that crate names a library: change the row, or the actions' "
+                  "implementation.libraries")
+    for crate in sorted(set(rows) - set(named)):
+        e.add("audit", f"docs/AUDIT.md §1 has a row for `{crate}`, and no action's "
+              "implementation.crate names it: remove the row, or add the action")
+
+
+def count_word(n):
+    return NUMBER_WORDS[n] if n < len(NUMBER_WORDS) else str(n)
+
+
+def check_reveals(c):
+    """Every Reveal variant is named by an action; the count in words is the variants' count."""
+    e = c.errors
+    variants = enum_variants(c.read("faraday/faraday-keys/src/session.rs"), "Reveal")
+    if variants is None:
+        e.add("reveal", "faraday/faraday-keys/src/session.rs has no `pub enum Reveal`")
+        return
+    named = set()
+    for a in c.actions:
+        sec = a.get("secrets") if isinstance(a.get("secrets"), dict) else {}
+        for r in as_list(sec.get("reveal")):
+            m = re.fullmatch(r"Reveal::(\w+)", str(r))
+            if m:
+                named.add(m.group(1))
+    for v in sorted(variants - named):
+        e.add("reveal", f"Reveal::{v} is named by no action's secrets.reveal: add "
+              f"\"Reveal::{v}\" to the action that reveals it")
+    word = count_word(len(variants))
+    for rel in REVEAL_COUNT_FILES:
+        text = c.read(rel)
+        for m in re.finditer(r"\b([A-Za-z][A-Za-z-]*) (?:named (?:reasons|reveals)|`Reveal` variants)",
+                             text):
+            if m.group(1).lower() != word:
+                line = text.count("\n", 0, m.start()) + 1
+                e.add("reveal", f"{rel}:{line} says `{m.group(0)}`, and Reveal has {len(variants)} "
+                      f"variants: write `{word}`")
+
+
+def strip_parens(s):
+    """The text without its parenthesised prose; backticked spans are kept whole."""
+    out, depth, tick = [], 0, False
+    for ch in s:
+        if ch == "`":
+            tick = not tick
+        if not tick and ch == "(":
+            depth += 1
+        elif not tick and ch == ")" and depth:
+            depth -= 1
+        elif depth == 0:
+            out.append(ch)
+    return "".join(out)
+
+
+def compute_roots(c):
+    """[(kind-cell, token, crate hint, path tail, bare)] from the table of COMPUTE §2.3."""
+    m = re.search(r"^### 2\.3.*?(?=^## )", c.read("docs/COMPUTE.md"), re.S | re.M)
+    out = []
+    for ln in (m.group(0) if m else "").split("\n"):
+        cells = ln.split("|")
+        if len(cells) < 4 or not cells[1].strip().startswith("`"):
+            continue
+        kinds = set(re.findall(r"`(\w+)`", cells[1]))
+        roots = strip_parens(re.split(r"Through these", cells[2], maxsplit=1, flags=re.I)[0])
+        carry = (None, [])
+        for seg in roots.split(";"):
+            carry = (carry[0], [])
+            for tok in re.findall(r"`([^`]+)`", seg):
+                tok = re.sub(r"\(.*", "", tok).strip()
+                parts = tok.split("::")
+                if "-" in tok and len(parts) == 1:
+                    continue                      # a crate's name, not a function
+                crate = None
+                if parts[0].startswith("faraday_"):
+                    crate = parts[0].replace("_", "-")
+                    parts = parts[1:]
+                if len(parts) == 1:
+                    crate = crate or carry[0]
+                    tail = carry[1] + parts
+                else:
+                    tail = parts
+                carry = (crate, tail[:-1])
+                out.append((kinds, tok, crate, tail))
+    return out
+
+
+def fns_for_root(c, crate, tail):
+    last = tail[-1]
+    prev = tail[-2] if len(tail) > 1 else None
+    hits = []
+    for r in c.inv.fns.values():
+        if crate and r["crate"].replace("_", "-") != crate:
+            continue
+        name = r["name"]
+        if prev and prev[:1].isupper():
+            ok = name == f"{prev}::{last}" or name.endswith(f"::{prev}::{last}")
+        elif prev:
+            stem = r["file"].rsplit("/", 1)[-1].removesuffix(".rs")
+            parent = r["file"].rsplit("/", 2)[-2] if r["file"].count("/") >= 2 else ""
+            ok = (name == last or name.endswith("::" + last)) and prev in (stem, parent)
+        else:
+            ok = name == last
+        if ok:
+            hits.append(r["id"])
+    return hits
+
+
+def check_compute(c):
+    """COMPUTE §2.3: each root of the listed kinds is a function some action covers."""
+    e = c.errors
+    roots = compute_roots(c)
+    if not roots:
+        e.add("compute", "docs/COMPUTE.md §2.3 has no table of roots")
+        return
+    covered = set().union(*c.closure.values()) if c.closure else set()
+    covered |= c.not_crypto
+    for kinds, tok, crate, tail in roots:
+        want = sorted(kinds & COMPUTE_KINDS)
+        if not want:
+            continue
+        hits = fns_for_root(c, crate, tail)
+        kind = "/".join(want)
+        if not hits:
+            e.add("compute", f"docs/COMPUTE.md §2.3 names `{'::'.join(tail)}` ({kind}), and the inventory "
+                  "finds no function of that name: write the root in full, or remove it from the table")
+            continue
+        for f in hits:
+            if f not in covered:
+                e.add("compute", f"docs/COMPUTE.md §2.3 root `{'::'.join(tail)}` ({kind}) is {f}, which no "
+                      "action covers: add it to an action's functions, or to [[not_crypto]] with its reason")
+
+
+def tile_tags(c):
+    """[(tag, Go variant)] for every tile of the Tools page."""
+    text = c.read("faraday/faraday-core/src/catalog.rs")
+    out = []
+    for m in re.finditer(r"tags:\s*&\[(.*?)\],\s*go:\s*Go::(\w+)", text, re.S):
+        for t in re.findall(r'"([^"]*)"', m.group(1)):
+            out.append((t, m.group(2)))
+    return out
+
+
+def tag_standard(tag, standards):
+    m = re.fullmatch(r"(BIP|RFC|SLIP)[- ]?0*(\d+)", tag)
+    if m:
+        for k in standards:
+            mk = re.fullmatch(r"(BIP|RFC|SLIP)[- ]?0*(\d+)", k)
+            if mk and mk.groups() == m.groups():
+                return k
+        return None
+
+    def n(s):
+        return re.sub(r"[^a-z0-9]", "", s.lower())
+
+    for k, v in standards.items():
+        if n(tag) and (n(tag) in n(k) or n(tag) in n(v.get("name", ""))):
+            return k
+    return None
+
+
+def check_tiles(c):
+    """Each tag on a Tools tile is a standard of an action whose screens include the tile's."""
+    e = c.errors
+    tags = tile_tags(c)
+    if not tags:
+        e.add("tiles", "faraday/faraday-core/src/catalog.rs has no tile with tags")
+        return
+    standards = c.data.get("standard", {})
+    seen = set()
+    for tag, go in tags:
+        if (tag, go) in seen:
+            continue
+        seen.add((tag, go))
+        screens = TILE_SCREENS.get(go)
+        if screens is None:
+            e.add("tiles", f"catalog.rs: a tile leads to Go::{go}, which check.py's TILE_SCREENS "
+                  "does not know: add the screens it opens")
+            continue
+        std = tag_standard(tag, standards)
+        if std is None:
+            e.add("tiles", f"catalog.rs: the tag \"{tag}\" on a Go::{go} tile is no standard of the "
+                  "manifest: remove the tag, or add its [standard] and an action")
+            continue
+        # A tile is on the Tools page and opens its flow's screen: an action on either backs it.
+        want = set(screens) | {"Tools"}
+        if not any(std in as_list(a.get("standards")) and want & set(as_list(a.get("screens")))
+                   for a in c.actions):
+            e.add("tiles", f"catalog.rs: the tag \"{tag}\" ({std}) on a Go::{go} tile: no action "
+                  f"with {std} has {' or '.join(sorted(want))} among its screens: remove the "
+                  "tag, or back the standard with an action on that screen")
+
+
+def check_ratchet(c):
+    """tools/lint-crypto.counts holds the count of [[not_crypto]] entries; it only falls."""
+    n = len(c.data.get("not_crypto", []))
+    m = re.search(r"^not_crypto\s+(\d+)\s*$", c.read(COUNTS), re.M)
+    if not m:
+        c.errors.add("ratchet", f"{COUNTS} has no line `not_crypto N`")
+    elif n > int(m.group(1)):
+        c.errors.add("ratchet", f"[[not_crypto]] has {n} entries and {COUNTS} allows {m.group(1)}: "
+                     "cover the function with an action, or have the owner raise the count "
+                     "(recorded in DECISIONS)")
+    elif n < int(m.group(1)):
+        c.notes.append(f"{COUNTS} allows {m.group(1)} [[not_crypto]] entries and there are {n}: "
+                       f"lower the count to {n}")
+
+
 def run_checks(c):
     check_deps(c)
     check_schema(c)
     check_truth(c)
     check_coverage(c)
     check_fingerprints(c)
+    check_audit_crates(c)
+    check_reveals(c)
+    check_compute(c)
+    check_tiles(c)
+    check_ratchet(c)
     return c.errors
 
 
@@ -748,7 +1061,8 @@ def report(errors, show_all=False, out=sys.stdout):
     cats = {}
     for cat, a, msg in errors.items:
         cats.setdefault(cat, []).append((a, msg))
-    for cat in ("deps", "schema", "untrue", "coverage", "uncovered", "unnamed", "fingerprint"):
+    for cat in ("deps", "schema", "untrue", "coverage", "uncovered", "unnamed", "fingerprint",
+                "audit", "reveal", "compute", "tiles", "ratchet"):
         items = cats.get(cat, [])
         if not items:
             continue
@@ -759,11 +1073,23 @@ def report(errors, show_all=False, out=sys.stdout):
             print(f"  … {len(items) - 15} more (--all lists them)", file=out)
 
 
+def cmd_inventory(root):
+    """The inventory the manifest's roots ask for, as JSON lines (for --inventory FILE)."""
+    try:
+        manifest = (pathlib.Path(root) / MANIFEST).read_text()
+    except OSError:
+        manifest = ""
+    sys.stdout.write("\n".join(cargo_inventory(root, manifest_roots(manifest))) + "\n")
+    return 0
+
+
 def cmd_check(root, inv_path, show_all):
     inv = read_inventory(root, inv_path)
     c = Ctx(root, inv)
     run_checks(c)
     report(c.errors, show_all)
+    for n in c.notes:
+        print(f"note: {n}")
     n_unc = sum(1 for x in c.errors.items if x[0] == "uncovered")
     print(f"{len(c.actions)} actions; {len(inv.cryptographic)} cryptographic functions, "
           f"{n_unc} uncovered; {len(c.errors.items)} failures")
@@ -818,7 +1144,7 @@ def edit_stamp(text, i, fp, date):
 
 
 def regenerate(root):
-    """The hook for batch 4: the generated places of §3.1, from the manifest as it now stands."""
+    """The generated places of §3.1, from the manifest as it now stands (`gen.py write`)."""
     gen = pathlib.Path(root) / GEN
     if not gen.exists():
         print(f"generated places: {GEN} is not built yet; nothing regenerated")
@@ -1009,7 +1335,7 @@ action = "Does one."
 row = "row-one"
 standards = ["BIP 1"]
 learn = "none"
-screens = []
+screens = ["Spend"]
 functions = ["src/a.rs::f"]
 code = ["src/a.rs::f"]
 
@@ -1056,13 +1382,28 @@ selftest = []
 fuzz_none = "none here"
 
 [action.secrets]
-reveal = "none"
+reveal = ["Reveal::Words"]
 constant_time = "not stated by the library"
 wiped = "nothing held"
 
 [action.limits]
 lines = ["Two."]
 '''
+
+FIXTURE_FILES = {
+    "docs/AUDIT.md": "# Audit\n\n## 1. Crates\n\n| Crate | Computes | Written here | Checked |\n"
+                     "|---|---|---|---|\n| `src` | things | **written here** | v |\n\n"
+                     "## 2. The key boundary\n\nA secret leaves through one named reasons.\n\n## 3. x\n",
+    "docs/KEYS.md": "- it leaves through these one named reasons;\n",
+    "CLAUDE.md": "its one named reveals (F70)\n",
+    "faraday/faraday-keys/src/session.rs": "pub enum Reveal {\n    Words,\n}\n",
+    "faraday/faraday-core/src/lib.rs": "pub enum Screen {\n    Spend,\n}\n",
+    "docs/COMPUTE.md": "### 2.3 What takes a token\n\n| Kind | Roots |\n|---|---|\n"
+                       "| `Sign` | `a::g` |\n| Faraday's own | `plan::map` |\n\n## 3. Who\n",
+    "faraday/faraday-core/src/catalog.rs": "pub const TILES: &[Tile] = &[\n    Tile {\n"
+                                           "        tags: &[\"BIP-1\"],\n        go: Go::Sign,\n    },\n];\n",
+    "tools/lint-crypto.counts": "not_crypto 0\n",
+}
 
 FIXTURE_CARGO = '''[[package]]
 name = "lib1"
@@ -1104,6 +1445,9 @@ def self_test():
         (root / "tools/vectors/v1").mkdir(parents=True)
         (root / "tools/vectors/v1/data.txt").write_text("vector\n")
         (root / "Cargo.lock").write_text(FIXTURE_CARGO)
+        for rel, text in FIXTURE_FILES.items():
+            (root / rel).parent.mkdir(parents=True, exist_ok=True)
+            (root / rel).write_text(text)
         (root / "src").mkdir()
         (root / MANIFEST).write_text(FIXTURE_MANIFEST)
         (root / LOCK).write_text(LOCK_HEAD)
@@ -1182,6 +1526,71 @@ def self_test():
         expect(rc == 1 and "refuses" in out, "review exits 1 and says it refuses")
         expect((root / MANIFEST).read_text() == m0 and (root / LOCK).read_text() == l0,
                "and writes nothing")
+        print("the checked places (§3.2), each broken in turn:")
+
+        def broken(rel, old, new, cat, needle, inv=None):
+            """Check with `old` replaced by `new` in a file; True if `needle` is among the
+            failures of `cat`. The file is put back."""
+            path = root / rel
+            before = path.read_text()
+            assert old in before, (rel, old)
+            path.write_text(before.replace(old, new, 1) if old else before + new)
+            try:
+                c = check(inv or moved)
+            finally:
+                path.write_text(before)
+            return any(needle in m for m in msgs(c, cat)), c
+
+        c = check(moved)
+        expect(not c.errors.items and not c.notes, f"the fixture's places agree {msgs(c)}")
+        ok, _ = broken("docs/AUDIT.md", "| `src` | things", "| `other` | things", "audit",
+                       "no row for `src`")
+        expect(ok, "AUDIT §1: a crate an action names with no row fails")
+        ok, _ = broken("docs/AUDIT.md", "| v |\n", "| v |\n| `gone` | x | y | z |\n", "audit",
+                       "row for `gone`")
+        expect(ok, "AUDIT §1: a row no action names fails")
+        ok, _ = broken("docs/AUDIT.md", "**written here**", "a crate", "audit",
+                       "does not say 'written here'")
+        expect(ok, "AUDIT §1: an action with no library and a row that does not say so fails")
+        ok, _ = broken("docs/AUDIT.md", "**written here**", "No primitive is written here", "audit",
+                       "does not say 'written here'")
+        expect(ok, "AUDIT §1: 'No primitive is written here' is not the claim")
+        ok, _ = broken("faraday/faraday-keys/src/session.rs", "    Words,\n", "    Words,\n    Seed,\n",
+                       "reveal", "Reveal::Seed is named by no action")
+        expect(ok, "a Reveal variant no action names fails")
+        ok, _ = broken("docs/KEYS.md", "one named", "fourteen named", "reveal", "write `one`")
+        expect(ok, "the count of reveals in words must be the variants' count")
+        ok, _ = broken("CLAUDE.md", "one named reveals", "N named reveals", "reveal", "CLAUDE.md:1")
+        expect(ok, "and in CLAUDE.md")
+        ok, _ = broken("docs/COMPUTE.md", "| Faraday's own", "| `Kdf` | `a::zzz` |\n| Faraday's own",
+                       "compute", "names `a::zzz`")
+        expect(ok, "COMPUTE §2.3: a root the inventory does not find fails")
+        ok, _ = broken("docs/COMPUTE.md", "| Faraday's own", "| `Kdf` | `a::k` |\n| Faraday's own",
+                       "compute", "which no action covers", fixture_inventory(extra=True, moved=True))
+        expect(ok, "COMPUTE §2.3: a root no action covers fails")
+        ok, _ = broken("docs/COMPUTE.md", "| Faraday's own", "| `Other` | `a::zzz` |\n| Faraday's own",
+                       "compute", "zzz")
+        expect(not ok, "COMPUTE §2.3: a kind outside the list is not checked")
+        ok, _ = broken("faraday/faraday-core/src/catalog.rs", '"BIP-1"', '"BIP-1", "BIP-370"', "tiles",
+                       "\"BIP-370\"")
+        expect(ok, "a Tools tag that is no standard of the manifest fails")
+        ok, _ = broken("faraday/faraday-core/src/catalog.rs", "Go::Sign", "Go::Decode", "tiles",
+                       "\"BIP-1\" (BIP 1) on a Go::Decode tile")
+        expect(ok, "a Tools tag no action on the tile's screen backs fails")
+        ok, _ = broken("faraday/faraday-core/src/catalog.rs", "Go::Sign", "Go::Mystery", "tiles",
+                       "TILE_SCREENS")
+        expect(ok, "a tile that leads somewhere check.py does not know fails")
+        ok, c = broken("docs/crypto/actions.toml", "", '\n[[not_crypto]]\nfunction = "src/a.rs::h"\n'
+                       'reason = "A lookup."\n', "ratchet", "allows 0")
+        expect(ok, "the not_crypto count rising above tools/lint-crypto.counts fails")
+        ok, c = broken("tools/lint-crypto.counts", "not_crypto 0", "not_crypto 3", "ratchet", "allows")
+        expect(not ok and any("lower the count to 0" in n for n in c.notes),
+               "the count falling is a note to lower the file")
+        ok, _ = broken("docs/crypto/actions.toml", "", '\n[[hold]]\naction = "nope"\ncheck = "x"\n'
+                       'case = "y"\ndecision = "F1"\n', "schema", "action `nope` is not an action")
+        expect(ok, "a [[hold]] names an action")
+        c = check(moved)
+        expect(not c.errors.items, f"and the fixture is whole again {msgs(c)}")
     print("the roots the inventory is asked for:")
     sample = ('[[action]]\nid = "a"\nfunctions = ["x/src/a.rs::f", "y/src/b.rs::T::g"]\n'
               '[[action]]\nid = "b"\nfunctions = ["x/src/a.rs::f"]\n'
@@ -1211,6 +1620,8 @@ def main(argv):
             rest.append(x)
     if rest[:1] == ["check"] and len(rest) == 1:
         return cmd_check(ROOT, inv_path, show_all)
+    if rest[:1] == ["inventory"] and len(rest) == 1:
+        return cmd_inventory(ROOT)
     if rest[:1] == ["review"] and len(rest) == 2:
         return cmd_review(ROOT, rest[1], inv_path)
     if rest[:1] == ["changes"] and len(rest) == 2:

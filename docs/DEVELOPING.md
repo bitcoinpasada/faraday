@@ -261,9 +261,19 @@ later:
 just crypto-review ID           print the action's entry, what changed in its code and the
                                 places to read with it; then write its fingerprint
 just crypto-changes TAG         the actions whose fingerprint changed since a tag
-python3 -I -B docs/crypto/check.py check        coverage, truth and fingerprints
+python3 -I -B docs/crypto/check.py check        coverage, truth, fingerprints and the places
+                                                it checks (AUDIT §1, the Reveal count, COMPUTE
+                                                §2.3, the Tools tags, the not_crypto count)
 python3 -I -B docs/crypto/check.py --self-test  the checker over a small fixture
+python3 -I -B docs/crypto/gen.py write          rewrite the generated places of STANDARDS and AUDIT
+python3 -I -B docs/crypto/gen.py check          fail if one differs from the manifest
+python3 -I -B docs/crypto/gen.py --self-test    the generator over a small fixture
 ```
+
+`docs/STANDARDS.md` §1 to §7 and `docs/AUDIT.md` §3 are generated from the manifest
+between `<!-- crypto-manifest: begin … -->` and `end` lines: change the manifest and
+run `gen.py write`, never the text between the lines. `just crypto-review ID` runs
+`gen.py write` itself.
 
 ## 8. Fuzzing
 

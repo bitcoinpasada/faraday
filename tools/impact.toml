@@ -217,7 +217,7 @@ status = "planned"
 
 [[check]]
 id = "crypto-gen"
-run = "python3 tools/crypto/gen.py check"
+run = "python3 -I -B docs/crypto/gen.py check"
 stage = "just lint"
 catches = "the generated parts of STANDARDS and AUDIT differing from the manifest (F148)"
 misses = "planned: not yet written"
