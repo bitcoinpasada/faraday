@@ -179,7 +179,7 @@ run `python3 -I -B tools/crosscheck/facts.py write`. `just lint` runs its
 | `bip32` | `faraday_bip::keys` (master, private derivation), `faraday_bip::xkey` (strict decoding), `bitcoin`'s `Xpub::derive_pub` | `btc.py`, BIP-32 written from the BIP over `secp256k1lab` and `ripemd160.py` (`bip352/`) | BIP-32's vectors 1 to 5 (`tools/vectors/bip32/`), python-mnemonic's master keys | seeds of 16 to 64 bytes on every network, random paths with every index, public derivation against private, keys broken one rule at a time and the master-key import |
 | `addr` | `faraday_bip::address::parse`, `bitcoin`'s `Address::from_script`, `faraday_bip::account` (account xpub, SLIP-132, descriptor, addresses), `faraday_bip::descriptor`'s checksum | Bitcoin Core's functional-test framework (`core/`): `segwit_addr.py`, Base58Check, `descriptors.py`; BIP 380's own checksum code as the BIP prints it (`bip380/`); `btc.py`; BIP-86's tweak written in the area; Bitcoin Core v31.1's `bitcoind` on regtest for regtest accounts (`deriveaddresses`, `getdescriptorinfo`) | BIP-350's and BIP-173's addresses, BIP-380's checksum cases, BIP-49's, 84's and 86's accounts (`tools/vectors/addresses/`) | scripts of every address kind on every network, written and read back, then changed; accounts of every type at random indices; random descriptors' checksums |
 | `tx` | `faraday_psbt::transaction::read_raw`, `bitcoin`'s `SighashCache` as `faraday_psbt::sign` calls it | Core's `messages.py` and `script.py` (`core/`) | Core's 500 legacy sighashes, BIP-143's thirteen, BIP-341's key-path sighashes (`tools/vectors/sighash/`) | random transactions with and without witnesses (txid, wtxid, weight, bytes), cut or lengthened; every input hashed as legacy, BIP-143 P2WPKH and P2WSH, BIP-341 key and script path under every hash type |
-| `psbt` | `faraday_psbt::Psbt` (version 0, over `bitcoin`), `faraday_psbt::v2::PsbtV2` (version 2, Faraday's own) | BIP-174, 370 and 371 written out in `area_psbt.py`, over Core's `CTransaction` | every PSBT of BIP-174's, 370's and 371's test vectors (`tools/vectors/psbt-bips/`), with BIP-370's locktimes | random version 0 and 2 PSBTs with every field Faraday reads, taproot trees among them, written back byte for byte as read, then broken one rule at a time; BIP-370's locktime under every mix of required locktimes |
+| `psbt` | `faraday_psbt::Psbt` (version 0, over `bitcoin`), `faraday_psbt::v2::PsbtV2` (version 2, Faraday's own) | Bitcoin Core v31.1's `bitcoind` on regtest for version 0 (`decodepsbt`, `combinepsbt` of one PSBT as its writer, the test framework's `taproot_tree_helper`); HWI's `psbt.py` (`hwi/`) for version 2 and the version 2 fields refused in version 0, its version 0 form read by Core; the refusals neither makes written in `area_psbt.py` | every PSBT of BIP-174's, 370's and 371's test vectors (`tools/vectors/psbt-bips/`), with BIP-370's locktimes | random version 0 and 2 PSBTs with every field Faraday reads, taproot trees among them, in random order, read field for field as Core reads them and written back byte for byte as read and as Core writes them, then broken one rule at a time; BIP-370's locktime, transaction and version 0 form under every mix of required locktimes |
 | `sign` | `faraday_psbt::sign` (every held key selected, deterministic Schnorr, both RFC 6979 nonce rules) and `faraday_psbt::finalize` | Bitcoin Core v31.1 on regtest (`core_node.py`): `descriptorprocesspsbt` signs from the held masters' keys, `finalizepsbt` finalizes and extracts, `testmempoolaccept` judges each finalized transaction over its funding on the node; BIP-340's reference (`secp256k1lab`) and Core's `key.py` for the deterministic nonces, over Core's `script.py` sighashes; python-bip380 (`miniscript/`) reads the leaves. Faraday's refusals and the inputs a wallet's rule leaves unsigned are ours, in `area_sign.py` | BIP-174's signer, finalizer and extractor vectors; the Core-built spends of `tools/vectors/psbt/` (2-of-3 `sortedmulti`, the Liana wallet down both paths, a taproot tree by a leaf and by the key path, BIP 387's taproot multisig), signed by every subset of their keys; the finalizer vectors there (`or_b`'s smaller signature, the taproot leaves that tie by count, the taproot multisig and MuSig2 spends) | PSBTs of one to four inputs, each spending a funding output on the node: P2PKH, P2SH-P2WPKH, P2WPKH, `multi`/`sortedmulti` in P2SH, P2WSH and P2SH-P2WSH, P2TR key path, P2TR script path (`pk`, `pkh`, timelocked keys, `or_d`, `multi_a`) with the key path beside it, miniscript in P2WSH and P2SH-P2WSH; held and foreign keys, cosigners' signatures already on (Core's), every standard sighash type, timelocks met and not; Core's signatures (ECDSA byte for byte, BIP-340 by verification and the deterministic nonce), each final scriptSig and witness and the extracted transaction Core's, the cleared fields, and every finalized transaction accepted by Core's mempool; an origin that derives another key refused |
 | `psbt-review` | `faraday_psbt::inspect` (amounts in and out, the fee, verified change and the spoofed-change and missing-UTXO warnings), over `faraday_psbt::Psbt` and the keys and registered wallets the Sign screen holds | Bitcoin Core v31.1's `bitcoind` on regtest, offline: `decodepsbt` and `analyzepsbt` for amounts and fee, `deriveaddresses` from `tprv` descriptors for which outputs are change, `createpsbt`, `createrawtransaction` and `descriptorprocesspsbt` to make the PSBTs; the area adds each input's UTXO fields, splices a spoofed output, derives the account keys a registered wallet names (checked by Core deriving the same addresses from them), and applies the rule that an output is change when it claims a held key's origins and Core's script at the path it states is the output's own | none: Core's own decoding and derivation are the reference, over each wallet shape with change, spoofed change, a foreign claim and missing UTXO data in the prelude | PSBTs of one to three inputs and one to four outputs over single-key accounts (P2PKH, P2SH-P2WPKH, P2WPKH, P2TR) and registered wallets (`sortedmulti` in P2WSH, a miniscript in P2WSH, a taproot tree, a taproot `sortedmulti_a`) or the same wallets unregistered: witness UTXOs, previous transactions and no UTXO data, fees from nothing to a third of the inputs, payments, change on either chain, another wallet's change, and spoofed change over the wallet's own script at another index, another wallet's and a stranger's; one key held, two, or none of the wallet's |
 | `taproot` | `bitcoin`'s `TaprootBuilder` and `TaprootSpendInfo` (as `faraday_bip::tapmulti` and `miniscript`'s `tr()` build trees), `ScriptBuf::new_p2tr` as `faraday_psbt::sign` checks a key path, `Address::p2tr_tweaked`, `ControlBlock` decoding and `verify_taproot_commitment` | Core's `taproot_construct`, `key.py`'s tweak and `segwit_addr.py`; BIP-341's script-path check written out in `area_taproot.py` | BIP-341's `scriptPubKey` wallet vectors, all seven (`tools/vectors/sighash/`) | trees of 0 to 12 leaves in random shapes with random scripts and leaf versions over random internal keys: leaf hashes, Merkle root, tweak, output key and parity, script, address, control blocks; each control block checked, then changed eleven ways; internal keys that are no point, odd leaf versions and 0x50 refused |
@@ -260,11 +260,13 @@ leaves uncompared.
   any run, and a published vector's answer is required of the reference
   as well as of Faraday; each published signature hash is checked
   against the reference first.
-- `psbt`: its vendored files are hashed against `references.sha256`
-  before any run, and a published vector's answer is required of the
-  reference as well as of Faraday; the reader is written in the area
-  from the BIPs' text and every PSBT of their test vectors is required
-  of it.
+- `psbt`: Core's release tarball is checked against its pinned SHA-256
+  (`tools/reference/core/release.pin`) before every run, and the node's
+  version is asked; HWI's vendored files are hashed against
+  `references.sha256` before any run; a published vector's answer is
+  required of the side that decides. Not compared: whether a
+  `PSBT_GLOBAL_VERSION` of 0 is written: Core reads a version 0 PSBT
+  alike with it or without it, and Faraday writes it back as read.
 - `sign`: Core is the pinned release, hashed against its pin before
   every run; the vendored files are hashed against `references.sha256`;
   a published vector's answer is required of Core as well as of Faraday;
@@ -421,17 +423,23 @@ difference"), and says why.
     written back as at least one byte, and the harness's own tests check
     the shortcut.
 - `psbt`
+  - Bitcoin Core reads a version 0 PSBT with a version 2 field as valid,
+    the field as unknown; Faraday refuses it, as BIP-370 does, and so
+    does HWI, which decides it.
+  - A taproot signature of 65 bytes whose sighash byte is 0, which
+    neither Core nor HWI refuses, and bytes after a version 2 PSBT's
+    last map or a stream that ends inside one, which HWI reads: Faraday
+    refuses each, as BIP-341 and BIP-174 do, and the refusal is checked
+    by a rule written in the area.
   - PSBT version 2 (`faraday_psbt::v2`): a BIP-370 key with key data is
     an unknown key; BIP-174's and BIP-371's fields inside are checked
     only when the PSBT is bridged to version 0, except a taproot
-    signature whose sighash byte is 0, refused on reading.
-  - Both refuse a version 0 PSBT with a version 2 field, bytes after its
-    last map or a taproot signature whose sighash byte is 0, and write
-    every PSBT back byte for byte as read (PSBT_OUT_TAP_TREE's order and
-    a PSBT_GLOBAL_VERSION of 0 included). Both refuse on reading a
-    version 2 PSBT's output without PSBT_OUT_SCRIPT (unless a silent
-    payment's), invalid required locktimes, and wrongly sized locktime
-    fields and modifiable flags (owner, 2026-10-23).
+    signature whose sighash byte is 0, refused on reading. HWI checks
+    them on reading; the area requires HWI to read the PSBT without
+    those pairs, to Faraday's locktime and transaction. Where HWI reads
+    a value shorter than its length says and makes a version 0 PSBT of
+    it, which Faraday does not, Core must refuse the version 0 PSBT of
+    the PSBT's own pairs.
 - `sign`
   - PSBT signing: Faraday refuses to sign a SegWit v0 input with no
     previous transaction in a transaction of more than one input; Core
@@ -581,8 +589,8 @@ with an area and no class (`docs/crypto/check.py`).
 | `lightning` | code Faraday did not write | Lightning Labs (LND), Yawning Angel (AEZ) | none | aezeed |
 | `lightning` | Faraday's own model over outside code | LND's node key by btcd's `hdkeychain` in LND's vendored tree, by Lightning Labs and the btcd developers, for LND; Faraday's authors (`area_lightning.py`), over `btc.py` and python-mnemonic, for ldk-node | ldk-node's node key, written in `area_lightning.py` from the sources `tools/reference/aezeed/README.md` quotes, and LND's key-path numbers (1017', coin, 6', 0, 0), written in `tools/reference/lnd/main.go` from `keychain/derivation.go` | lightning-node |
 | `sp` | code Faraday did not write | BIP-352's `reference.py`, by the BIP's authors, over `secp256k1lab` | none | silent-receive |
-| `psbt` | Faraday's own model over outside code | Faraday's authors (`area_psbt.py`), over Bitcoin Core's `CTransaction` | the PSBT reader and writer, BIP-174's and 371's field rules, written in `area_psbt.py` | psbt-read |
-| `psbt` | Faraday's own model over outside code | Faraday's authors (`area_psbt.py`), over Bitcoin Core's `CTransaction` | the PSBT reader and writer, BIP-370's field rules and the conversion, written in `area_psbt.py` | psbt-v2 |
+| `psbt` | Faraday's own model over outside code | Bitcoin Core v31.1 (`decodepsbt`, and `combinepsbt` as its writer), by Bitcoin Core's contributors; HWI's `psbt.py`, by Ava Chow and HWI's contributors, for the version 2 fields BIP-370 refuses in version 0 | the refusal of a 65-byte taproot signature whose sighash byte is 0 (BIP-341), which neither Core nor HWI makes, written in `area_psbt.py` | psbt-read |
+| `psbt` | Faraday's own model over outside code | HWI's `psbt.py` (reading, `compute_lock_time`, `get_unsigned_tx`, `convert_to_v0`), by Ava Chow and HWI's contributors, with both version 0 forms read by Bitcoin Core v31.1 | the refusals HWI does not make (bytes after the last map, a stream that ends inside a map, a 65-byte taproot signature whose sighash byte is 0), the choice of the pairs Faraday leaves to the bridge to version 0, and the version 0 PSBT of a PSBT's own pairs that Core judges where HWI repairs a short value, written in `area_psbt.py` | psbt-v2 |
 | `psbt-review` | Faraday's own model over outside code | Faraday's authors (`area_review.py`), over Bitcoin Core v31.1 (`decodepsbt`, `analyzepsbt`, `deriveaddresses`), by the Bitcoin Core developers | the rule that an output is change when it claims a held key's origins and Core's script at the path it states is the output's own, the rule that a script of several keys, a miniscript or a taproot tree is change only for a registered wallet, and the account keys a registered wallet names, derived in the area | psbt-review |
 | `tx` | code Faraday did not write | Bitcoin Core's functional-test framework, v31.1, by Bitcoin Core's contributors | none | sighash-review, tx-decode |
 | `sign` | Faraday's own model over outside code | the Bitcoin Core developers: Core v31.1 itself (`descriptorprocesspsbt` signs, `testmempoolaccept` judges the spend), and Core's `key.py` and `script.py` for the first RFC 6979 nonce; Faraday's authors (`area_sign.py`) for the refusals | Faraday's refusals (F136, F141) and the inputs a wallet's rule leaves unsigned, the script code of the hash the first RFC 6979 nonce is checked under, and the keys of those checks derived by `btc.py`, in `area_sign.py` | sign-ecdsa |

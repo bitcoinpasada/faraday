@@ -4074,7 +4074,7 @@ tests = [
   "core/faraday-psbt/tests/all/registered.rs::an_origin_of_more_than_sixteen_steps_is_refused",
 ]
 crosscheck = "psbt"
-independence = { class = "own-over-outside", author = "Faraday's authors (`area_psbt.py`), over Bitcoin Core's `CTransaction`", ours = "the PSBT reader and writer, BIP-174's and 371's field rules, written in `area_psbt.py`" }
+independence = { class = "own-over-outside", author = "Bitcoin Core v31.1 (`decodepsbt`, and `combinepsbt` as its writer), by Bitcoin Core's contributors; HWI's `psbt.py`, by Ava Chow and HWI's contributors, for the version 2 fields BIP-370 refuses in version 0", ours = "the refusal of a 65-byte taproot signature whose sighash byte is 0 (BIP-341), which neither Core nor HWI makes, written in `area_psbt.py`" }
 fuzz = ["psbt_parse"]
 other = [
   "Core end to end (INTEROP §1)",
@@ -4134,7 +4134,7 @@ tests = [
   "core/faraday-psbt/tests/all/bips.rs::bytes_after_the_last_map_are_refused",
 ]
 crosscheck = "psbt"
-independence = { class = "own-over-outside", author = "Faraday's authors (`area_psbt.py`), over Bitcoin Core's `CTransaction`", ours = "the PSBT reader and writer, BIP-370's field rules and the conversion, written in `area_psbt.py`" }
+independence = { class = "own-over-outside", author = "HWI's `psbt.py` (reading, `compute_lock_time`, `get_unsigned_tx`, `convert_to_v0`), by Ava Chow and HWI's contributors, with both version 0 forms read by Bitcoin Core v31.1", ours = "the refusals HWI does not make (bytes after the last map, a stream that ends inside a map, a 65-byte taproot signature whose sighash byte is 0), the choice of the pairs Faraday leaves to the bridge to version 0, and the version 0 PSBT of a PSBT's own pairs that Core judges where HWI repairs a short value, written in `area_psbt.py`" }
 fuzz_none = "No fuzz target reads version 2: psbt_parse takes version 0."
 
 [action.secrets]

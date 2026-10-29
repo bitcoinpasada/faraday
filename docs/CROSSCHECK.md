@@ -304,9 +304,14 @@ The cross-check fetches nothing, ever.
   checked against the key Bitcoin Core's `guix.sigs` publishes; two
   shims stand in for the libsecp256k1 packages it imports.
 - **Bitcoin Core's functional-test framework** is copied from the
-  release tag `v31.1` (`tools/reference/core/`); BIP-32, BIP-137,
-  BIP-322 and the PSBT BIPs' readers are written in the areas from the
-  BIPs' text, each checked against the BIPs' own vectors first.
+  release tag `v31.1` (`tools/reference/core/`); BIP-32, BIP-137 and
+  BIP-322 are written in the areas from the BIPs' text, each checked
+  against the BIPs' own vectors first.
+- **HWI's PSBT reader** (`hwilib/psbt.py` and the modules it imports) is
+  copied from a signed commit on HWI's `master`, the signature checked
+  against the key Bitcoin Core's `guix.sigs` publishes
+  (`tools/reference/hwi/README.md`, which says why not its last
+  release); a shim stands in for `typing_extensions`.
 - **Bitcoin Core v31.1 itself** (`bitcoind` and `bitcoin-cli`) is a
   binary reference, required (owner, 2026-10-29). Its release tarball
   is over the tree's 2 MiB limit and is not in the tree, nor in Ubuntu's
