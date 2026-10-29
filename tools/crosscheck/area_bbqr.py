@@ -1,7 +1,8 @@
 """BBQr (`faraday_qr::bbqr`) against Coinkite's own Python library
 (`tools/reference/bbqr/`), and the numbered text parts Specter writes
-(`faraday_qr::specter`) against a reader written here from SeedSigner's
-(`tools/reference/specter/README.md`).
+(`faraday_qr::specter`) against SeedSigner's own reader, its
+`SpecterWalletQrDecoder` from `decode_qr.py` (`tools/reference/seedsigner/`,
+vendored unchanged; `tools/reference/specter/README.md`).
 
 - BBQr's test files from Coinkite's repository are not vendored; the
   corpus is random files of every type and size, split by Coinkite's
@@ -13,9 +14,9 @@
 - What Faraday writes (`2` only, a fixed number of bytes a part), made
   again with Coinkite's base32 and part header and read back by
   `join_qrs`.
-- Numbered parts written by Faraday and read back by the reader, and
-  random sets read in any order, with the same faults, a number of 0,
-  and malformed headers.
+- Numbered parts written by Faraday and read back by SeedSigner's
+  decoder, and random sets read in any order, with the same faults, a
+  number of 0, and malformed headers.
 
 Known differences, each checked to still hold and counted:
 
@@ -28,7 +29,12 @@ Known differences, each checked to still hold and counted:
   (shorter or equal); Coinkite's `join_qrs` decodes each part on its own.
   The corpus does not make such sets.
 - SeedSigner matches `P` and `OF` in upper case; Faraday does not. A
-  count over 1,000 is refused by Faraday.
+  count over 1,000 is refused by Faraday. SeedSigner files a part number
+  of 0 as the last part, fails on one past the count, keeps the first of
+  a part twice with other text and takes a part with no header as the
+  whole text; Faraday refuses all four, which the area keeps in front of
+  SeedSigner's decoder (the numbers, the text and the putting together
+  are SeedSigner's).
 """
 
 import re
@@ -39,6 +45,13 @@ from common import Area, use_reference
 use_reference("bbqr", "shims")
 use_reference("bbqr")
 use_reference("qrcodegen")
+use_reference("seedsigner", "shims")
+use_reference("seedsigner")
+use_reference("embit")
+import outside_imports  # noqa: E402
+
+outside_imports.install()
+from seedsigner.models.decode_qr import SpecterWalletQrDecoder  # noqa: E402
 from bbqr import join_qrs, split_qrs  # noqa: E402
 from bbqr.utils import encode_data, int2base36, version_to_chars  # noqa: E402
 from qrcodegen import QrCode, QrSegment  # noqa: E402
@@ -101,30 +114,43 @@ SPECTER_PART = re.compile(r"^p(\d+)of(\d+) (.+$)")
 
 
 def specter_parse(text):
-    """SeedSigner's pattern, matched as written but case-sensitive
-    (Faraday's reading; see the known differences)."""
-    m = SPECTER_PART.match(text)
-    if not m:
+    """A part's number, count and text as SeedSigner's
+    `SpecterWalletQrDecoder` reads them, behind Faraday's own rule, which
+    is stricter: a header in lower case (SeedSigner matches `P` and `OF`
+    too, and takes a part without a header as the whole text), a number of
+    1 to the count (SeedSigner files 0 as the last part and fails on one
+    past the count), and a count of 1,000 at most."""
+    if not SPECTER_PART.match(text):
         raise ValueError("not a numbered part")
-    n, total = int(m.group(1)), int(m.group(2))
+    d = SpecterWalletQrDecoder()
+    n, total = d.current_segment_num(text), d.total_segment_nums(text)
     if not 1 <= n <= total or total > SPECTER_MAX:
         raise ValueError("a part number of 0, past the count, or over 1,000")
-    return n, total, m.group(3)
+    return n, total, d.parse_segment(text)
 
 
 def specter_join(parts):
-    total, seen = None, {}
+    """Parts put together by SeedSigner's decoder (`add`, its `segments`).
+    Faraday's refusal of a part twice with other text stays here (SeedSigner
+    keeps the first), and the check of the text as JSON that follows the
+    last part is let to raise `TypeError` (JSON that is not an object),
+    the parts being filed before it."""
+    d = SpecterWalletQrDecoder()
     for p in parts:
         n, m, body = specter_parse(p)
-        if total is not None and m != total:
-            raise ValueError("the count changed")
-        total = m
-        if seen.setdefault(n, body) != body:
+        if len(d.segments) == m and d.segments[n - 1] not in (None, body):
             raise ValueError("a part twice with other text")
-    missing = [i for i in range(1, total + 1) if i not in seen]
+        try:
+            d.add(p)
+        except TypeError:
+            pass
+        except Exception as e:
+            raise ValueError(str(e))
+    total = d.total_segments
+    missing = [i + 1 for i, s in enumerate(d.segments) if s is None]
     if missing:
         return {"part": {"have": total - len(missing), "total": total, "missing": missing}}
-    return {"done": "".join(seen[i] for i in range(1, total + 1))}
+    return {"done": "".join(d.segments)}
 
 
 class Bbqr(Area):
@@ -134,14 +160,17 @@ class Bbqr(Area):
     )
     reference = (
         "Coinkite's BBQr library (`bbqr/`, with a one-table pyqrcode shim checked "
-        "against `qrcodegen.py`); SeedSigner's numbered-part reader written out in "
-        '`area_bbqr.py` from `tools/reference/specter/README.md`'
+        "against `qrcodegen.py`); SeedSigner's own `SpecterWalletQrDecoder` "
+        '(`seedsigner/`, unchanged)'
     )
     reference_checked = (
         "`check_capacities` runs first, the pyqrcode shim's table of version capacities "
         "against `qrcodegen.py`'s; its vendored files are hashed against "
         "`references.sha256` before any run, and a published vector's answer is "
-        'required of the reference as well as of Faraday'
+        'required of the reference as well as of Faraday; where Faraday refuses what '
+        "SeedSigner's decoder files or misfiles (a part number of 0 or past the count, "
+        "a repeat with other text, a header in upper case or missing, a count over "
+        '1,000) the refusal is written in the area, in front of the decoder'
     )
     vectors = (
         "none published beyond the specification's examples"
@@ -163,7 +192,10 @@ class Bbqr(Area):
         ),
         (
             'Numbered parts: SeedSigner matches `P` and `OF` in upper case; Faraday does '
-            'not (checked and counted).'
+            'not (checked and counted). Faraday also refuses a part number of 0 or past '
+            'the count, a count over 1,000, a repeat with other text and a part with no '
+            "header, which SeedSigner's decoder files, fails on or takes whole; those "
+            'refusals are written in the area, in front of the decoder.'
         ),
     ]
     not_compared = (
@@ -258,6 +290,10 @@ class Bbqr(Area):
             "parts": [f"p{i + 1}of{m} {text[i * chunk:(i + 1) * chunk]}"
                       for m in [max(1, -(-len(text) // chunk))] for i in range(m)]})
         parts = self.need(got, "specter.encode")["parts"]
+        # (A set over 1,000 parts is past what Faraday reads back.)
+        back = specter_join(parts) if len(parts) <= SPECTER_MAX else {"done": text}
+        if back != {"done": text}:
+            raise AssertionError(f"SeedSigner's decoder does not read Faraday's parts back: {back}")
         order = parts[:]
         rng.shuffle(order)
         if len(order) > 1 and rng.random() < 0.2:

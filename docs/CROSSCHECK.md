@@ -185,8 +185,7 @@ As of 2026-10-29:
   SLIP-132's versions, `psbt` (the whole reader and writer), `sign` (the
   signer, the finalizer, the leaf chosen, the refusals), `msg` (BIP-137
   and BIP-322 written out), `taproot`'s control-block check, `bip85`'s
-  hardened shim, the codex32 worksheets, SeedQR's digits, the numbered
-  parts in `bbqr`, Seed XOR's byte layer, and `vault` (the container,
+  hardened shim, the codex32 worksheets, and `vault` (the container,
   HKDF and the ChaCha20 block, over argon2-cffi and libsodium).
 - **Faraday's own model only:** `own-randomness`, `entropy` and `roller`.
 

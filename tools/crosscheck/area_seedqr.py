@@ -1,18 +1,31 @@
 """SeedQR and CompactSeedQR (`faraday_codec::seedqr`) against SeedSigner's
-specification, written here from its text
-(`tools/vectors/seedqr/README.md` names it) over python-mnemonic
-(`bip39/`), and the QR codes against Project Nayuki's `qrcodegen.py`
+own encoder and decoder (`encode_qr.py` and `decode_qr.py`, vendored
+unchanged in `seedsigner/`, with its BIP-39 pieces from embit in
+`embit/`), and the QR codes against Project Nayuki's `qrcodegen.py`
 (`qrcodegen/`), the Python library Faraday's encoder was ported from,
 module for module.
 
-The specification, as the area holds it: a SeedQR is every word's
-wordlist index as four zero-padded decimal digits, concatenated, in a
-numeric-mode QR code at level L; a CompactSeedQR is the entropy behind
-the words, without the checksum bits, in a byte-mode code at level L.
-Only 12 and 24 words are defined, so only 48 or 96 digits and 16 or 32
-bytes are read; the words read must pass BIP-39's checksum. The code is
-the smallest version that holds the payload, at the level asked for
-(never raised), with the mask Nayuki's encoder picks.
+What SeedSigner's code does: `SeedQrEncoder` writes every word's
+wordlist index as four zero-padded decimal digits, `CompactSeedQrEncoder`
+the entropy behind the words without the checksum bits; `DecodeQR`,
+SeedSigner's front door for a scanned code, tells the two apart and
+`SeedQrDecoder` reads them. A SeedQR is a numeric-mode QR code at level
+L, a CompactSeedQR a byte-mode one; the code is the smallest version
+that holds the payload, at the level asked for (never raised), with the
+mask Nayuki's encoder picks.
+
+SeedSigner reads more than Faraday does, so Faraday's own rule stays in
+the area, in front of SeedSigner's reader: only 12 and 24 words are
+defined, so exactly 48 or 96 digits (SeedSigner's search for a run of 48
+to 96 digits takes 49 as 12 words and drops the tail, and `int()` takes a sign
+or a space inside a group of four) and 16 or 32 bytes (embit takes 20,
+24 and 28 too) are read. SeedSigner does not check BIP-39's checksum
+when it reads digits; the area takes the entropy from embit's
+`mnemonic_to_bytes`, which does, and Faraday must refuse what that
+refuses. SeedSigner has the English wordlist only, and the indices of a
+key are the same in every language, so the area runs it in English and
+compares in indices and entropy; Faraday's language path is still what
+is asked.
 
 - SeedSigner's nine test SeedQRs (`tools/vectors/seedqr/`): the digits
   and the bytes made from the words and read back to them, and their
@@ -56,6 +69,17 @@ from common import ROOT, Area, Mismatch, use_reference
 use_reference("bip39")
 from mnemonic import Mnemonic  # noqa: E402
 
+use_reference("seedsigner", "shims")
+use_reference("seedsigner")
+use_reference("embit")
+import outside_imports  # noqa: E402
+
+outside_imports.install()
+from embit import bip39 as embit_bip39  # noqa: E402
+from seedsigner.models.decode_qr import DecodeQR, DecodeQRStatus  # noqa: E402
+from seedsigner.models.encode_qr import CompactSeedQrEncoder, SeedQrEncoder  # noqa: E402
+from seedsigner.models.qr_type import QRType  # noqa: E402
+
 use_reference("qrcodegen")
 from qrcodegen import QrCode, QrSegment  # noqa: E402
 
@@ -87,34 +111,51 @@ def code(segment, ecc, max_version=40):
 
 
 def encode(lang, entropy):
-    digits = "".join(f"{i:04d}" for i in indices(lang, entropy))
-    return {"digits": digits, "compact": entropy.hex(),
+    """SeedSigner's two encoders over the words embit makes of the entropy
+    (English: the indices, and so the digits, are the same in every
+    language). `CompactSeedQrEncoder` strips the checksum bits of 12 and
+    24 words only, so for the other lengths the compact form is the
+    entropy, as Faraday writes it."""
+    words = embit_bip39.mnemonic_from_bytes(entropy).split()
+    digits = SeedQrEncoder(mnemonic=words).next_part()
+    if len(words) in (12, 24):
+        compact = CompactSeedQrEncoder(mnemonic=words).next_part()
+    else:
+        compact = bytes(entropy)
+    return {"digits": digits, "compact": compact.hex(),
             "seedqr": code(QrSegment.make_numeric(digits), 0),
-            "compact_qr": code(QrSegment.make_bytes(entropy), 0)}
+            "compact_qr": code(QrSegment.make_bytes(compact), 0)}
 
 
-def words_of(lang, idx):
-    """The words the indices name, which BIP-39's checksum must pass."""
-    m = mnemonic(lang)
-    entropy = bytes(m.to_entropy([m.wordlist[i] for i in idx]))
-    return {"indices": idx, "entropy": entropy.hex()}
+def seedsigner_reads(data, qr_type):
+    """What SeedSigner's `DecodeQR` makes of a scanned payload: the words
+    it names, as wordlist indices, with the entropy embit's own BIP-39
+    reader gets from them (which checks the checksum)."""
+    d = DecodeQR()
+    status = d.add_data(data)
+    if status != DecodeQRStatus.COMPLETE or d.qr_type != qr_type:
+        raise ValueError(f"SeedSigner does not read it as {qr_type}: {status}, {d.qr_type}")
+    words = d.get_seed_phrase()
+    entropy = embit_bip39.mnemonic_to_bytes(" ".join(words))
+    return {"indices": [embit_bip39.WORDLIST.index(w) for w in words], "entropy": entropy.hex()}
 
 
 def read_digits(lang, digits):
+    # Faraday's own rule, which SeedSigner is looser than (see above).
     if len(digits) not in (48, 96):
         raise ValueError("SeedQR is 48 or 96 digits")
     if not all(c in "0123456789" for c in digits):
         raise ValueError("a SeedQR is digits")
-    idx = [int(digits[i:i + 4]) for i in range(0, len(digits), 4)]
-    if max(idx) >= 2048:
-        raise ValueError("an index past the wordlist")
-    return words_of(lang, idx)
+    return seedsigner_reads(digits, QRType.SEED__SEEDQR)
 
 
 def read_compact(lang, data):
     if len(data) not in (16, 32):
         raise ValueError("CompactSeedQR is 16 or 32 bytes")
-    return {"indices": indices(lang, data), "entropy": data.hex()}
+    got = seedsigner_reads(data, QRType.SEED__COMPACTSEEDQR)
+    if got["entropy"] != data.hex():
+        raise AssertionError("SeedSigner reads other entropy from a CompactSeedQR")
+    return got
 
 
 CODEX32 = "qpzry9x8gf2tvdw0s3jn54khce6mua7l"
@@ -250,16 +291,19 @@ class SeedQR(Area):
         '`faraday_core::picture` writes of it'
     )
     reference = (
-        "SeedSigner's specification written out in `area_seedqr.py` over "
-        "python-mnemonic (`bip39/`); Project Nayuki's `qrcodegen.py` (`qrcodegen/`), "
-        'module for module'
+        "SeedSigner's own encoders and `DecodeQR` (`seedsigner/`, unchanged, with "
+        "embit's BIP-39 code in `embit/`); Project Nayuki's `qrcodegen.py` "
+        '(`qrcodegen/`), module for module'
     )
     reference_checked = (
         'its vendored files are hashed against `references.sha256` before any run, and '
         "a published vector's answer is required of the reference as well as of "
-        'Faraday; the SeedQR specification is written in the area from its text, and '
-        "the profile's own pictures are read from their pixels and must be Faraday's "
-        'code module for module'
+        "Faraday; SeedSigner's reader is looser than Faraday (it takes 49 digits, a "
+        'sign inside a group, 20 to 28 bytes, and does not check the checksum of '
+        "digits), so Faraday's own rule, the lengths and the digits, stands in front of "
+        "it in `area_seedqr.py` and the checksum is embit's; SeedSigner runs in English "
+        'for every language, the indices being the same; the profile\'s own pictures '
+        "are read from their pixels and must be Faraday's code module for module"
     )
     vectors = (
         "SeedSigner's nine test SeedQRs (`tools/vectors/seedqr/`); every string and "
@@ -272,6 +316,14 @@ class SeedQR(Area):
         'pictures written of them read back, other lengths refused'
     )
     differences = [
+        (
+            'SeedQR digits: SeedSigner reads a string with 1 to 3 digits more than 48 or '
+            '96 (it drops the tail) and one with a sign or a space inside a group of four '
+            '(`int()` takes them); Faraday refuses both (5 cases, each checked on both '
+            'sides and counted). SeedSigner takes no CompactSeedQR of 20, 24 or 28 bytes '
+            'either, and strips checksum bits for 12 and 24 words only; the corpus keeps '
+            "Faraday's 15, 18 and 21 word compact form on the entropy itself."
+        ),
         (
             "Codex32QR: Faraday picks the mask Nayuki's encoder picks; the profile's "
             'encoder chose another for 6 of its 22 pictures. For those the area swaps the '
@@ -360,6 +412,9 @@ class SeedQR(Area):
             entropy = bytes(m.to_entropy(case["words"].split()))
             if entropy.hex() != case["compact"]:
                 raise AssertionError(f"python-mnemonic and SeedSigner differ on {case['words']}")
+            ss = encode(0, entropy)
+            if ss["digits"] != case["digits"] or ss["compact"] != case["compact"]:
+                raise AssertionError(f"SeedSigner's own encoders differ from its vector: {case}")
             got = self.need(self.encode(0, entropy), "encode")
             if got["digits"] != case["digits"] or got["compact"] != case["compact"]:
                 raise AssertionError(f"SeedSigner's vector differs: {case} {got}")
@@ -404,8 +459,27 @@ class SeedQR(Area):
 
     LOOPS = (("corpus", 800),)
 
+    def seedsigner_known(self):
+        """Digits SeedSigner reads and Faraday refuses: a digit more than 48
+        or 96 (the tail is dropped), and a sign or a space inside a group
+        (`int()` takes both). Each must still hold on both sides."""
+        base = "".join(f"{i:04d}" for i in indices(0, bytes(range(16))))
+        long = "".join(f"{i:04d}" for i in indices(0, bytes(range(32))))
+        cases = [base + "0", base + "123", long + "9",
+                 long[:48] + "+" + long[49:], long[:48] + " " + long[49:]]
+        for digits in cases:
+            d = DecodeQR()
+            if d.add_data(digits) != DecodeQRStatus.COMPLETE:
+                raise AssertionError(f"SeedSigner no longer reads {digits!r}")
+            got = self.rust.call("seedqr.digits", language=0, digits=digits)
+            self.compared += 1
+            if got[0] != "err":
+                raise AssertionError(f"Faraday now reads {digits!r}, which it refused: {got}")
+            self.known += 1
+
     def prelude(self):
         self.published()
+        self.seedsigner_known()
         self.codex32qr_profile()
 
     def case_corpus(self):

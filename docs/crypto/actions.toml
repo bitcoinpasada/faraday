@@ -5060,10 +5060,10 @@ tests = [
   "faraday/faraday-qr/tests/interop.rs::ten_bbqr_parts_are_the_psbt_in_any_order",
 ]
 crosscheck = "bbqr"
-independence = { class = "own-over-outside", author = "Coinkite's BBQr library, by Coinkite, for BBQr; Faraday's authors (`area_bbqr.py`), for the numbered parts", ours = "SeedSigner's numbered-part reader, written in `area_bbqr.py` from a quotation, and a one-table pyqrcode shim" }
+independence = { class = "own-over-outside", author = "Coinkite's BBQr library, by Coinkite, for BBQr; SeedSigner's `SpecterWalletQrDecoder`, by the SeedSigner developers, for the numbered parts", ours = "Faraday's refusals written in `area_bbqr.py` in front of SeedSigner's decoder (a part number of 0 or past the count, a repeat with other text, a header in upper case or missing, a count over 1,000), the writing of numbered parts, and a one-table pyqrcode shim" }
 fuzz = ["qr_assembler"]
 other = [
-  "the numbered parts against SeedSigner's reader as `tools/reference/specter/README.md` quotes it",
+  "the numbered parts against SeedSigner's own decoder (`tools/reference/seedsigner/README.md`, `tools/reference/specter/README.md`)",
 ]
 
 [action.secrets]
@@ -5234,7 +5234,7 @@ tests = [
   "core/faraday-codec/src/qr.rs::a_seedqr_matrix_is_wiped",
 ]
 crosscheck = "seedqr"
-independence = { class = "own-over-outside", author = "Faraday's authors (`area_seedqr.py`), over python-mnemonic and Project Nayuki's `qrcodegen.py`, by Nayuki", ours = "SeedSigner's SeedQR specification, written out in `area_seedqr.py`" }
+independence = { class = "own-over-outside", author = "SeedSigner's encoders and `DecodeQR`, by the SeedSigner developers, over embit's BIP-39 code, by Stepan Snigirev, and Project Nayuki's `qrcodegen.py`, by Nayuki", ours = "the CompactSeedQR of 15, 18 and 21 words, which SeedSigner does not define (the entropy itself)" }
 fuzz = ["seedqr"]
 
 [action.secrets]
@@ -5278,7 +5278,7 @@ tests = [
   "core/faraday-codec/src/seedqr.rs::rejects_bad_payloads",
 ]
 crosscheck = "seedqr"
-independence = { class = "own-over-outside", author = "Faraday's authors (`area_seedqr.py`), over python-mnemonic and Project Nayuki's `qrcodegen.py`, by Nayuki", ours = "SeedSigner's SeedQR specification, written out in `area_seedqr.py`" }
+independence = { class = "own-over-outside", author = "SeedSigner's encoders and `DecodeQR`, by the SeedSigner developers, over embit's BIP-39 code, by Stepan Snigirev, and Project Nayuki's `qrcodegen.py`, by Nayuki", ours = "Faraday's rule written in `area_seedqr.py` in front of SeedSigner's reader (exactly 48 or 96 digits, 16 or 32 bytes), and the CompactSeedQR of 15, 18 and 21 words, which SeedSigner does not define" }
 fuzz = ["seedqr"]
 
 [action.secrets]
@@ -5672,7 +5672,7 @@ tests = [
   "core/faraday-entropy/tests/xor.rs::twenty_four_words_in_three_parts_combine_into_the_seed",
 ]
 crosscheck = "xor"
-independence = { class = "own-over-outside", author = "python-mnemonic, by Trezor (SatoshiLabs)", ours = "the byte XOR of the parts, written in `area_xor.py`" }
+independence = { class = "own-over-outside", author = "Coldcard's `xor` and `xor_split`, by Coinkite, over python-mnemonic, by Trezor (SatoshiLabs)", ours = "the count of parts (2 to 4) and the five BIP-39 lengths, Faraday's rule written in `area_xor.py` in front of Coldcard's `xor`, which asserts only equal lengths" }
 fuzz_none = "The parts are BIP 39 mnemonics read by the BIP 39 reader before they combine; bip39_words fuzzes that."
 
 [action.secrets]

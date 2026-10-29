@@ -3,9 +3,10 @@
 Specter Desktop shows a PSBT or a wallet's descriptor too long for one
 QR code as a run of codes `p<n>of<m> <text>`, and SeedSigner reads
 them. No document describes the format. The cross-check's `bbqr` area
-(`tools/crosscheck/area_bbqr.py`) checks `faraday_qr::specter` against a
-reader written in the area from SeedSigner's, quoted here; nothing is
-vendored, as the file imports embit and SeedSigner's settings.
+(`tools/crosscheck/area_bbqr.py`) checks `faraday_qr::specter` against
+SeedSigner's own reader, `SpecterWalletQrDecoder` in `decode_qr.py`,
+vendored unchanged with what it imports in `tools/reference/seedsigner/`
+(its README has the commit, the licence and every file's SHA-256).
 
 | Source | URL | Commit | File | SHA-256 |
 |---|---|---|---|---|
@@ -39,10 +40,11 @@ and how parts are put together, `BaseAnimatedQrDecoder.add`:
 
 with the text the parts joined in order (`"".join(self.segments)`).
 
-The area reads parts that way, and refuses where SeedSigner's reader
-would fail or misread: a part number of 0 (which SeedSigner files as the
-last part) or past the count, and a part arriving twice with other
-text, which SeedSigner keeps the first of. Faraday refuses those too,
-and two more the area counts as known differences: an upper-case `P` or
-`OF`, which SeedSigner matches and Faraday does not, and a count over
-1,000, Faraday's limit.
+The area runs that decoder, `add` and its `segments`, over every set
+and part, and refuses in front of it where SeedSigner's would fail or
+misread: a part number of 0 (which SeedSigner files as the last part) or
+past the count, a part arriving twice with other text (SeedSigner keeps
+the first of), a part with no header (SeedSigner takes it as the whole
+text). Faraday refuses those too, and two more the area counts as known
+differences: an upper-case `P` or `OF`, which SeedSigner matches and
+Faraday does not, and a count over 1,000, Faraday's limit.

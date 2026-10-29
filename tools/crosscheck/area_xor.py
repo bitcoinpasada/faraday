@@ -1,16 +1,27 @@
-"""Seed XOR against python-mnemonic (Trezor's BIP-39 reference) and a
-plain byte XOR.
+"""Seed XOR against Coldcard's own code (`xor`, and `xor_split` beside it,
+from its repository's `testing/xor.py`, the same function as the
+firmware's `shared/utils.py` `xor` that `shared/xor_seed.py` combines
+parts with; vendored unchanged in `coldcard/`), with python-mnemonic
+(Trezor's BIP-39 reference) for the words.
 
 Coldcard's two published examples and this tree's two constructed
 vectors, then random splits and combines in every BIP-39 language and
-length, and refusals: a part with a broken checksum, parts of different
-lengths, one part alone, five parts.
+length, parts Coldcard's own `xor_split` made read back by Faraday, and
+refusals: a part with a broken checksum, parts of different lengths, one
+part alone, five parts.
+
+What stays Faraday's own rule, in front of Coldcard's `xor`: 2 to 4
+parts of 16, 20, 24, 28 or 32 bytes (the firmware offers 12, 18 and 24
+words, and its `xor` asserts only that the lengths are equal).
 """
 
 from common import Area, ROOT, use_reference
 
 use_reference("bip39")
 from mnemonic import Mnemonic  # noqa: E402
+
+use_reference("coldcard")
+from xor import xor as coldcard_xor, xor_split as coldcard_split  # noqa: E402
 
 LANGUAGES = ["english", "japanese", "korean", "spanish", "chinese_simplified",
              "chinese_traditional", "french", "italian", "czech", "portuguese"]
@@ -30,15 +41,13 @@ def indices(lang, entropy):
 
 
 def xor_all(parts):
-    """Coldcard's Seed XOR: 2 to 4 parts of one BIP-39 length."""
+    """Coldcard's `xor` over 2 to 4 parts of one BIP-39 length (Faraday's
+    rule; Coldcard's function asserts only equal lengths)."""
     if not 2 <= len(parts) <= 4:
         raise ValueError(f"{len(parts)} parts")
     if len({len(p) for p in parts}) != 1 or len(parts[0]) not in LENGTHS:
         raise ValueError("parts of different or wrong lengths")
-    out = bytes(len(parts[0]))
-    for p in parts:
-        out = bytes(a ^ b for a, b in zip(out, p))
-    return out
+    return bytes(coldcard_xor(*parts))
 
 
 def answer(lang, entropy):
@@ -51,20 +60,23 @@ class Xor(Area):
         '`faraday_entropy::SeedXor` with `faraday_bip::bip39`'
     )
     reference = (
-        'python-mnemonic and a byte XOR (`bip39/`)'
+        "Coldcard's own `xor` and `xor_split` (`coldcard/`, unchanged) with "
+        'python-mnemonic (`bip39/`) for the words'
     )
     reference_checked = (
         'its vendored files are hashed against `references.sha256` before any run, and '
         "a published vector's answer is required of the reference as well as of "
-        'Faraday; the byte XOR is written in the area, 2 to 4 parts of one BIP-39 '
-        'length'
+        "Faraday; the count of parts (2 to 4) and the five BIP-39 lengths are Faraday's "
+        "rule, written in the area in front of Coldcard's `xor`, which asserts only "
+        'equal lengths'
     )
     vectors = (
         "Coldcard's two examples (`tools/vectors/xor/coldcard.json`) and this tree's "
         'two'
     )
     corpus = (
-        'splits and combines in all ten languages and five lengths, with refusals'
+        'splits and combines in all ten languages and five lengths, with refusals; '
+        "parts made by Coldcard's `xor_split` read back to their seed"
     )
     differences = [
         (
@@ -129,6 +141,11 @@ class Xor(Area):
         self.combine(lang, sentences[:1] + [m.to_mnemonic(self.randbytes(other))])
         self.combine(lang, sentences[:1])
         self.split(lang, [self.randbytes(n) for _ in range(4)], self.randbytes(n))
+        # Parts Coldcard's own split made (the deterministic one, so a case
+        # is the same on every run) combine, in Faraday, to the seed.
+        made = coldcard_split(seed, rng.randint(2, 4), deterministic=True)
+        theirs = [m.to_mnemonic(bytes(p)) for p in made]
+        self.combine(lang, theirs, ("ok", answer(lang, seed)))
 
     LOOPS = (("corpus", 4000),)
 

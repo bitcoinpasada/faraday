@@ -172,7 +172,7 @@ run `python3 -I -B tools/crosscheck/facts.py write`. `just lint` runs its
 | `slip39` | `faraday_bip::slip39` | python-shamir-mnemonic (`slip39/`) | all 45 of `tools/vectors/slip39/` | splits fed the same random bytes, which must match word for word; recovery from qualifying and short subsets and a changed word; the passphrase cipher |
 | `codex32` | `faraday_bip::codex32` | python-codex32 (`codex32/`); the worksheet's rows written in the area from its polymod | every vector of `tools/vectors/bip93/`, the 55 invalid strings included; volvelle-website's worksheet cells (`tools/vectors/codex32-volvelle/`); the booklet's checksum, derivation, recovery, addition, translation and fusion tables (`tools/vectors/codex32-booklet/`); the Codex32QR profile's sets (`tools/vectors/codex32qr/`) | secrets, splits (the same randomness), recovery, derived shares, corrupted strings; fresh sets of every threshold up to 31 strings at 48, 74 and 127 characters, the checksum worksheets of their strings and of corrupted ones, checksums made on a sheet, translation and recovery symbols, translation worksheets |
 | `codex32-correct` | `faraday_bip::codex32::correct` | python-codex32's decoder, `correction.py` at a later commit (`codex32/correction/`), asked with BIP 93's bound | python-codex32's frozen correction corpus, 57 cases (`tools/vectors/codex32-correction/`) | random strings of every length with substitutions and unreadable boxes up to and past the bound, runs of unreadable boxes around the checksum's length, a held string's header fixed, upper case, `ms1` damaged |
-| `xor` | `faraday_entropy::SeedXor` with `faraday_bip::bip39` | python-mnemonic and a byte XOR (`bip39/`) | Coldcard's two examples (`tools/vectors/xor/coldcard.json`) and this tree's two | splits and combines in all ten languages and five lengths, with refusals |
+| `xor` | `faraday_entropy::SeedXor` with `faraday_bip::bip39` | Coldcard's own `xor` and `xor_split` (`coldcard/`, unchanged) with python-mnemonic (`bip39/`) for the words | Coldcard's two examples (`tools/vectors/xor/coldcard.json`) and this tree's two | splits and combines in all ten languages and five lengths, with refusals; parts made by Coldcard's `xor_split` read back to their seed |
 | `vault` | `faraday_vault` (create, open, seal, the slot's records and payload layouts), `faraday_backup::argon2id`, the `chacha20poly1305` crate's detached XChaCha20-Poly1305 as the vault calls it | `docs/VAULT.md` written out in `area_vault.py`, over argon2-cffi, PyNaCl and PyCA cryptography (the distribution's packages; the last for HKDF-SHA256 and ChaCha20) | RFC 5869's three SHA-256 cases, RFC 8439's five block vectors, draft-irtf-cfrg-xchacha-03's AEAD vector, the Argon2id known answer (`tools/vectors/vault-primitives/`); the vaults and the slot vectors of `tools/vectors/vault/`, among them `two-keys.fvlt`, whose one slot PyNaCl verifies under two passphrases' keys | Argon2id at small random costs and the costs it refuses; the AEAD at random lengths with one byte changed; payloads made, read and malformed; random records of all thirteen types a caller writes (type 12 is retired and refused) with the seal count, encoded, decoded and broken a rule at a time; passphrases in every Unicode form, made and opened; whole vaults of every slot size made byte for byte from a seed, opened by each passphrase, resealed with a count one higher, and refused for each header fault, a wrong passphrase, a changed byte, two slots under one key, a commitment block not zero and faulty contents |
 | `bip39` | `faraday_bip::bip39` | python-mnemonic (`bip39/`) | the ten wordlists; every vector of `tools/vectors/bip39/vectors.json` in Faraday's languages; the Japanese vectors with non-ASCII passphrases | entropy to words and back in every language and length; seeds under random ASCII passphrases; a changed word, an unknown word, a word too many or too few; every valid last word |
 | `bip32` | `faraday_bip::keys` (master, private derivation), `faraday_bip::xkey` (strict decoding), `bitcoin`'s `Xpub::derive_pub` | `btc.py`, BIP-32 written from the BIP over `secp256k1lab` and `ripemd160.py` (`bip352/`) | BIP-32's vectors 1 to 5 (`tools/vectors/bip32/`), python-mnemonic's master keys | seeds of 16 to 64 bytes on every network, random paths with every index, public derivation against private, keys broken one rule at a time and the master-key import |
@@ -186,8 +186,8 @@ run `python3 -I -B tools/crosscheck/facts.py write`. `just lint` runs its
 | `own-randomness` | `faraday_core`'s `fresh.rs` (`Own`, the session seed and pool) through the testkit's `fresh` and `seed_draw`, with `faraday_entropy`'s dice, coin, camera and pointer-and-keys commitments | `docs/OWN-RANDOMNESS.md` §2.1 and §2.3 written out in `area_own.py` over `hashlib` | the known answers of `faraday/faraday-core/tests/all/own_randomness.rs`: nothing added, dice before and after the system's answers, dice then coins, a batch of pointer moves and keys, a lock | random sessions of system answers, dice, coins, camera frames (some refused, some empty) and pointer moves and keys (none to several batches), locks, seed draws, fresh bytes and counts, in any order |
 | `entropy` | `faraday_entropy`: dice under the three procedures, coins, hex, cards, camera frames, the device's answer, a mix | the procedures written out in `area_entropy.py` over `hashlib`, from `tools/reference/entropy/README.md` and the dice sources quoted in `tools/reference/dice/README.md`, except that the hashed dice procedure and every rolls commitment are Coldcard's own `rolls.py` and `rolls12.py` (`tools/reference/coldcard-rolls/`, run, public domain) | Coldcard's `rolls.py` digest, EntropyLab's six-as-zero and direct word selection (`tools/vectors/entropy/`) | runs of every source at every strength, short of the count, at it and past it, with faces, cards, frames and characters the pads refuse and every source past its limit; mixes of one to six sources given by their inputs |
 | `roller` | Faraday Demo's dice rollers (`faraday_core`'s `fresh/roller/`, through the testkit) | `docs/CODEX32.md` §5.6's "The values" and §5.5's worksheet written out in `area_roller.py` | every byte value as an answer: each face from 42 bytes, the four above 251 skipped; every byte as a face of every die of 2 to 20 faces (`faraday_entropy::uniform_face`); the booklet's 32 paths on six- and twenty-faced dice and its order with an equal pair (`roller.sheet`) | random answers (some mostly skipped bytes) under clicks of every size into entries of random room, with resets; the five dice of random faces (2 to 20) under clicks of every reach into codex32 shares of random count and length, answers running out part way; rolls of random dice entered by hand, equal pairs among them |
-| `seedqr` | `faraday_codec::seedqr` (SeedQR, CompactSeedQR), `faraday_codec::qr`, the encoder that draws them, and `faraday_codec::qr::codex32qr` with the picture `faraday_core::picture` writes of it | SeedSigner's specification written out in `area_seedqr.py` over python-mnemonic (`bip39/`); Project Nayuki's `qrcodegen.py` (`qrcodegen/`), module for module | SeedSigner's nine test SeedQRs (`tools/vectors/seedqr/`); every string and picture of the Codex32QR profile (`tools/vectors/codex32qr/`) | keys of every length and language, both codes and the words read back; digits and bytes malformed; payloads in each mode at each level and version limit; 48-character codex32 strings in either case as Codex32QR codes and the pictures written of them read back, other lengths refused |
-| `bbqr` | `faraday_qr::bbqr`, `faraday_qr::specter` (numbered text parts) | Coinkite's BBQr library (`bbqr/`, with a one-table pyqrcode shim checked against `qrcodegen.py`); SeedSigner's numbered-part reader written out in `area_bbqr.py` from `tools/reference/specter/README.md` | none published beyond the specification's examples | files of every type and size split by Coinkite in each encoding and read in any order, with repeats, a part missing, another transfer's part, a conflicting repeat and a part past the count; what Faraday writes read back by `join_qrs`; numbered parts written, read in any order and refused when malformed |
+| `seedqr` | `faraday_codec::seedqr` (SeedQR, CompactSeedQR), `faraday_codec::qr`, the encoder that draws them, and `faraday_codec::qr::codex32qr` with the picture `faraday_core::picture` writes of it | SeedSigner's own encoders and `DecodeQR` (`seedsigner/`, unchanged, with embit's BIP-39 code in `embit/`); Project Nayuki's `qrcodegen.py` (`qrcodegen/`), module for module | SeedSigner's nine test SeedQRs (`tools/vectors/seedqr/`); every string and picture of the Codex32QR profile (`tools/vectors/codex32qr/`) | keys of every length and language, both codes and the words read back; digits and bytes malformed; payloads in each mode at each level and version limit; 48-character codex32 strings in either case as Codex32QR codes and the pictures written of them read back, other lengths refused |
+| `bbqr` | `faraday_qr::bbqr`, `faraday_qr::specter` (numbered text parts) | Coinkite's BBQr library (`bbqr/`, with a one-table pyqrcode shim checked against `qrcodegen.py`); SeedSigner's own `SpecterWalletQrDecoder` (`seedsigner/`, unchanged) | none published beyond the specification's examples | files of every type and size split by Coinkite in each encoding and read in any order, with repeats, a part missing, another transfer's part, a conflicting repeat and a part past the count; what Faraday writes read back by `join_qrs`; numbered parts written, read in any order and refused when malformed |
 | `ur` | `faraday_codec::ur` (single-part URs, the animation's parts, the decoder) | Foundation Devices' foundation-ur-py (`ur/`), URKit ported | URKit's single-part and multipart encoder vectors (`tools/vectors/ur/`) | messages as `crypto-psbt` and `bytes` at random fragment lengths, parts byte for byte; sets with fragments dropped, mixes added, shuffled, repeated and upper case, put together by both; URs of other types written, read, changed and cut |
 | `vanity` | `faraday_bip::vanity` (the counter, prefixes and their expected work, the search on both dials) | EntropyLab's counter as `tools/reference/vanity/README.md` quotes it, written out in `area_vanity.py` over python-mnemonic, `btc.py` and the `addr` area's address writing | EntropyLab's two finds | counters at every width's edges; prefixes of every kind on every network, valid and not; searches of random keys on both dials from random starting counters, with budgets ending before a match and after |
 | `kdbx` | `faraday_backup::kdbx` (the KDBX 4 export and its own check) | pykeepass, the distribution's package (`python3-pykeepass`) | the repository's export (`tools/vectors/backup/`), written again byte for byte and opened | databases of one to eight items with markup characters, control characters, line ends and several scripts, at small Argon2id costs, every entry read back; the writer's check against pykeepass under the right passphrase, a wrong one and a changed byte |
@@ -226,8 +226,9 @@ leaves uncompared.
   nothing else.
 - `xor`: its vendored files are hashed against `references.sha256`
   before any run, and a published vector's answer is required of the
-  reference as well as of Faraday; the byte XOR is written in the area,
-  2 to 4 parts of one BIP-39 length.
+  reference as well as of Faraday; the count of parts (2 to 4) and the
+  five BIP-39 lengths are Faraday's rule, written in the area in front
+  of Coldcard's `xor`, which asserts only equal lengths.
 - `vault`: `check_primitives` runs before anything else: HKDF against
   RFC 5869's three SHA-256 cases, ChaCha20 against RFC 8439's five block
   vectors, PyNaCl against draft-irtf-cfrg-xchacha-03's AEAD vector,
@@ -293,13 +294,21 @@ leaves uncompared.
   as well as of Faraday.
 - `seedqr`: its vendored files are hashed against `references.sha256`
   before any run, and a published vector's answer is required of the
-  reference as well as of Faraday; the SeedQR specification is written
-  in the area from its text, and the profile's own pictures are read
-  from their pixels and must be Faraday's code module for module.
+  reference as well as of Faraday; SeedSigner's reader is looser than
+  Faraday (it takes 49 digits, a sign inside a group, 20 to 28 bytes,
+  and does not check the checksum of digits), so Faraday's own rule, the
+  lengths and the digits, stands in front of it in `area_seedqr.py` and
+  the checksum is embit's; SeedSigner runs in English for every
+  language, the indices being the same; the profile's own pictures are
+  read from their pixels and must be Faraday's code module for module.
 - `bbqr`: `check_capacities` runs first, the pyqrcode shim's table of
   version capacities against `qrcodegen.py`'s; its vendored files are
   hashed against `references.sha256` before any run, and a published
-  vector's answer is required of the reference as well as of Faraday.
+  vector's answer is required of the reference as well as of Faraday;
+  where Faraday refuses what SeedSigner's decoder files or misfiles (a
+  part number of 0 or past the count, a repeat with other text, a header
+  in upper case or missing, a count over 1,000) the refusal is written
+  in the area, in front of the decoder.
 - `ur`: its vendored files are hashed against `references.sha256` before
   any run, and a published vector's answer is required of the reference
   as well as of Faraday; foundation-ur-py is itself a port of URKit
@@ -444,6 +453,13 @@ difference"), and says why.
     strictly refuses Trezor's and Electrum's "no script type"
     signatures.
 - `seedqr`
+  - SeedQR digits: SeedSigner reads a string with 1 to 3 digits more
+    than 48 or 96 (it drops the tail) and one with a sign or a space
+    inside a group of four (`int()` takes them); Faraday refuses both (5
+    cases, each checked on both sides and counted). SeedSigner takes no
+    CompactSeedQR of 20, 24 or 28 bytes either, and strips checksum bits
+    for 12 and 24 words only; the corpus keeps Faraday's 15, 18 and 21
+    word compact form on the entropy itself.
   - Codex32QR: Faraday picks the mask Nayuki's encoder picks; the
     profile's encoder chose another for 6 of its 22 pictures. For those
     the area swaps the mask of Faraday's code for the picture's with
@@ -456,7 +472,11 @@ difference"), and says why.
     39 at most. Faraday also refuses a set whose parts are not one
     length but the last, which Coinkite never writes.
   - Numbered parts: SeedSigner matches `P` and `OF` in upper case;
-    Faraday does not (checked and counted).
+    Faraday does not (checked and counted). Faraday also refuses a part
+    number of 0 or past the count, a count over 1,000, a repeat with
+    other text and a part with no header, which SeedSigner's decoder
+    files, fails on or takes whole; those refusals are written in the
+    area, in front of the decoder.
 - `ur`
   - UR: Faraday has no minimum fragment length, writes a one-fragment
     message as a part like any other, and refuses to animate an empty
@@ -534,12 +554,13 @@ with an area and no class (`docs/crypto/check.py`).
 | `msg` | Faraday's own model over outside code | Faraday's authors (`area_msg.py`), over Bitcoin Core's `script.py` sighashes and `secp256k1lab`'s BIP-340 | BIP-137 and BIP-322 written out in `area_msg.py`: RFC 6979 ECDSA, the low-R grind, the headers, BIP-322's virtual transactions | message-sign, message-verify |
 | `seedqr` | code Faraday did not write | Project Nayuki's `qrcodegen.py`, by Nayuki | none | qr, codex32qr |
 | `ur` | code Faraday did not write | foundation-ur-py, by Foundation Devices | none | ur |
-| `bbqr` | Faraday's own model over outside code | Coinkite's BBQr library, by Coinkite, for BBQr; Faraday's authors (`area_bbqr.py`), for the numbered parts | SeedSigner's numbered-part reader, written in `area_bbqr.py` from a quotation, and a one-table pyqrcode shim | bbqr |
-| `seedqr` | Faraday's own model over outside code | Faraday's authors (`area_seedqr.py`), over python-mnemonic and Project Nayuki's `qrcodegen.py`, by Nayuki | SeedSigner's SeedQR specification, written out in `area_seedqr.py` | seedqr-make, seedqr-read |
+| `bbqr` | Faraday's own model over outside code | Coinkite's BBQr library, by Coinkite, for BBQr; SeedSigner's `SpecterWalletQrDecoder`, by the SeedSigner developers, for the numbered parts | Faraday's refusals written in `area_bbqr.py` in front of SeedSigner's decoder (a part number of 0 or past the count, a repeat with other text, a header in upper case or missing, a count over 1,000), the writing of numbered parts, and a one-table pyqrcode shim | bbqr |
+| `seedqr` | Faraday's own model over outside code | SeedSigner's encoders and `DecodeQR`, by the SeedSigner developers, over embit's BIP-39 code, by Stepan Snigirev, and Project Nayuki's `qrcodegen.py`, by Nayuki | the CompactSeedQR of 15, 18 and 21 words, which SeedSigner does not define (the entropy itself) | seedqr-make |
+| `seedqr` | Faraday's own model over outside code | SeedSigner's encoders and `DecodeQR`, by the SeedSigner developers, over embit's BIP-39 code, by Stepan Snigirev, and Project Nayuki's `qrcodegen.py`, by Nayuki | Faraday's rule written in `area_seedqr.py` in front of SeedSigner's reader (exactly 48 or 96 digits, 16 or 32 bytes), and the CompactSeedQR of 15, 18 and 21 words, which SeedSigner does not define | seedqr-read |
 | `codex32` | Faraday's own model over outside code | python-codex32, by Ben Westgate | the worksheets' rows, written in `area_codex32.py` from python-codex32's polymod | codex32-make |
 | `codex32-correct` | code Faraday did not write | python-codex32, by Ben Westgate (its `correction.py`) | none | codex32-correct |
 | `slip39` | code Faraday did not write | python-shamir-mnemonic, by Trezor (SatoshiLabs) | none | slip39 |
-| `xor` | Faraday's own model over outside code | python-mnemonic, by Trezor (SatoshiLabs) | the byte XOR of the parts, written in `area_xor.py` | xor |
+| `xor` | Faraday's own model over outside code | Coldcard's `xor` and `xor_split`, by Coinkite, over python-mnemonic, by Trezor (SatoshiLabs) | the count of parts (2 to 4) and the five BIP-39 lengths, Faraday's rule written in `area_xor.py` in front of Coldcard's `xor`, which asserts only equal lengths | xor |
 | `vault` | Faraday's own model over outside code | Faraday's authors (`area_vault.py`), over argon2-cffi (the Argon2 designers' reference code), PyNaCl (libsodium) and PyCA `cryptography` (OpenSSL, for HKDF-SHA256 and ChaCha20) | the container, its slot layout, key schedule and records, written in `area_vault.py` from `docs/VAULT.md` | vault-create, vault-unlock, vault-seal, vault-edit |
 | `kdbx` | code Faraday did not write | pykeepass, by the libkeepass project (the distribution's package) | none | kdbx |
 <!-- crypto-manifest: end independence -->

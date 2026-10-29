@@ -279,9 +279,9 @@ records its sources).
 
 | Conversion | Published vectors | An implementation Faraday did not write |
 |---|---|---|
-| Words ↔ SeedQR, CompactSeedQR | SeedSigner's SeedQR specification vectors | SeedSigner's own encoder (Python), planned (CROSSCHECK §10.7 item 5); today the `seedqr` area compares with SeedSigner's specification written out by Faraday's own authors, not an independent check |
+| Words ↔ SeedQR, CompactSeedQR | SeedSigner's SeedQR specification vectors | SeedSigner's own `SeedQrEncoder`, `CompactSeedQrEncoder` and `DecodeQR` (Python, `tools/reference/seedsigner/`) over embit's BIP-39 code; the `seedqr` area keeps only Faraday's stricter rule (48 or 96 digits, 16 or 32 bytes) in front of SeedSigner's reader |
 | Words ↔ entropy, numbers, starts | BIP-39's vectors (`tools/vectors/bip39`) | python-mnemonic |
-| Words ↔ Seed XOR | Coldcard's published examples (`tools/vectors/xor`) | Coldcard's `xor_seed` code (Python), planned where its licence allows (CROSSCHECK §10.7 item 5); today the `xor` area's byte XOR is Faraday's own, over python-mnemonic |
+| Words ↔ Seed XOR | Coldcard's published examples (`tools/vectors/xor`) | Coldcard's own `xor` and `xor_split` (Python, `tools/reference/coldcard/`) over python-mnemonic; the `xor` area keeps only Faraday's count (2 to 4 parts) and lengths in front of `xor` |
 | Words → seed, xprv | BIP-39's vectors (seed and xprv columns) | python-mnemonic, embit |
 | codex32 ↔ SLIP-39 | BIP-93's and SLIP-39's vectors (`tools/vectors/slip39`), each read and written the other way | python-codex32 and python-shamir-mnemonic over random seeds: the same fingerprint both ways |
 | SLIP-39 with passphrase → codex32 | SLIP-39's vectors (passphrase `TREZOR`) | python-shamir-mnemonic |
