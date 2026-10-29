@@ -1,8 +1,7 @@
 # Impact: what a change brings with it
 
-**Kind:** Spec
-**Status:** Specified (F149); the registry, `plan`, `check`, `lint`, `docs`, docs/CHECKS.md and their lines in `just lint`, `report`, `check --consumer` and the decisions' Held by line with `lint-docs` rule 6 built (batches 1 to 5)
-**Open:** batch 6 of §10: the website's step before it publishes
+**Kind:** Reference
+**Status:** Built (F149)
 
 A change to Faraday often needs a second change somewhere else: a string
 renamed needs the guide's bold name, a new board needs its line in
@@ -279,13 +278,14 @@ demo). Its consumers are `[[consumer]]` tables with `id` starting
 change, a `site_check` run in the website's tree where one exists, and
 the website's paths (`site_with`) whose change shows the work done.
 
-The website's side, built in its own repository:
+The website's side, in its own repository (a script `faraday-impact.sh` in its tools,
+its publish script, the file `faraday.published` and its `CLAUDE.md`):
 
 - Its publish script records, at every publish, the Faraday commit it
   published from and its own commit, in a file of its repository.
-- Its `just faraday` runs the pinned commit's script, from the Faraday
-  checkout beside it, on the range from the last published commit to
-  the pin: `impact.py check <published>..<pin> --consumer website --site
+- Its `just faraday` runs the pinned commit's script (`--repo` names the
+  Faraday checkout beside it, whose history is read), on the range from
+  the last published commit to the pin: `impact.py check <published>..<pin> --consumer website --site
   <its tree> --site-since <its commit at that publish>`. The registry
   read is the pin's, not the checkout's `HEAD`'s.
 - Its output, one line each, pending first, then the triggered rules
@@ -306,7 +306,7 @@ The website's side, built in its own repository:
   <consumer id>: <reason>`. It prints each one, met or not.
 - The publish script runs the same and refuses while a blocking
   consumer is unmet. A consumer with `blocking = false` is listed and
-  never refuses (§11.3, Q3).
+  never refuses (owner, 2026-10-28: the consumers a script can tell are done refuse; the pictures are listed).
 
 The consumers and what they read are rules of the public registry
 (§9.2), so the Faraday side changes them in the same commit as the paths
@@ -515,59 +515,11 @@ over the snapshot tours (`design.material3`). The crypto ones are F148's.
 
 ## 10. Order of work
 
-Each batch is its own commit, for Sonnet, with `just` passing at its
-end. While working, the batch runs `python3 -I -B tools/impact.py` on
-the tree; nothing here compiles.
-
-1. **The script's core.** tools/impact.py: reading the registry and the
-   extra files, the matcher of §1.5 with a self-test (`impact.py
-   --self-test`, as `tools/lint-guide.py` has: each pattern form, `on`,
-   `lines`, `rises`, captures), `lint` (§2.5), `plan` and `check` with
-   the trailer and `--message`, `--paths`. A registry with the checks
-   of `just lint` and the rules of kind `held` only. Check: `impact.py
-   lint`; `impact.py check` over the last twenty commits of `main` runs
-   and prints.
-2. **The rules.** The rest of §9.1 and the consumers of §9.2; the app
-   consumers' lint against `cargo metadata` (run with `--offline`).
-   Check: `impact.py check` over the last fifty commits of `main` prints
-   each unmet pair; each is looked at, and a rule that is wrong for a
-   good commit is narrowed (its `lines`, its `on`) until the commits
-   that kept the rule pass. The list of what remained unmet goes in the
-   batch's report: those are the stragglers this was built to find.
-3. **CHECKS.md and `just lint`.** `impact.py docs`; docs/CHECKS.md;
-   `just lint` runs `check --quiet` and `docs --check`; the rows in
-   `docs/README.md`; `tools/README.md`'s table and lints list;
-   `CLAUDE.md`'s line (§12); `docs/DEVELOPING.md` §2 says what the
-   check needs (Python 3.11 or later, git).
-4. **`report` and `--consumer`.** `report`; `check --consumer website
-   --site --site-since` and its output; a self-test over a fixture
-   range.
-5. **Held by.** `lint-docs` rule 6 (§8); the line in this decision, and
-   in the earlier decisions if the owner agrees (Q1).
-6. **The website's step** (in the website's repository). Its publish
-   script's record; `just faraday` and the publish script calling
-   `--consumer website`; its `CLAUDE.md`'s line.
-
-Estimate: batches 1 and 2 are the work, about 900 lines of Python and
-350 of TOML; 3 to 6 are small.
+Moved to `docs/history/IMPACT-LOG.md`.
 
 ## 11. Questions for the owner
 
-Answered (owner, 2026-10-28):
-
-1. **Q1.** The active decisions before this one take a `**Held by:**`
-   line too, in one batch (batch 5).
-2. **Q2.** A screen change carries a `Material: <page>` trailer:
-   `design.material3` is a `trailer` rule (§1.3, §3).
-3. **Q3.** The consumers a script can tell are done refuse a publish
-   (roles, wordmark, start pages, download's hardware ids, the standards
-   page, the guide); the pictures (tour, Home) are listed and never
-   refuse.
-4. **Q4.** `deps.page` triggers on a new dependency name only, not on a
-   version bump.
-5. Rules on files git does not track are checked with `--paths`, from
-   the files changed since the last run by their modification times
-   (§2.2).
+Moved to `docs/history/IMPACT-LOG.md`.
 
 ## 12. Rule line for CLAUDE.md
 

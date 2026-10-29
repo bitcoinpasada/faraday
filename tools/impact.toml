@@ -262,6 +262,7 @@ name = "the website's guide"
 reads = ["docs/GUIDE.md", "docs/guide/**"]
 act = "the guide's pages and pictures are made again"
 blocking = true
+site_with = ["assets/guide/**"]
 
 [[consumer]]
 id = "website.start"
@@ -269,6 +270,7 @@ name = "the website's start pages"
 reads = ["docs/learn/faraday/boot/*.md"]
 act = "a page added needs its description in the site's guide builder"
 blocking = true
+site_with = ["tools/guides.py"]
 
 [[consumer]]
 id = "website.download"
@@ -276,6 +278,7 @@ name = "the website's download page"
 reads = ["faraday/builds.toml"]
 act = "a new hardware id needs its lines and drawing in the site's download builder"
 blocking = true
+site_with = ["tools/download.py", "assets/download/**"]
 
 [[consumer]]
 id = "website.download-pictures"
@@ -289,6 +292,8 @@ name = "the website's colour roles"
 reads = ["faraday/faraday-ui/src/pal/schemes.rs"]
 act = "the site's roles are written again from the pinned commit"
 blocking = true
+site_check = "python3 -B tools/roles.py check"
+site_with = ["web/site.css"]
 
 [[consumer]]
 id = "website.wordmark"
@@ -303,6 +308,7 @@ name = "the website's standards page"
 reads = ["docs/STANDARDS.md"]
 act = "the standards page is edited to match (rendered from the manifest once F148 is built)"
 blocking = true
+site_with = ["web/standards.html"]
 
 [[consumer]]
 id = "website.tour"

@@ -924,7 +924,7 @@ def cmd_check(args):
         if args.site and not Path(args.site).is_dir():
             print(f"impact: --site {args.site} is not a directory")
             return 2
-    git = Git(ROOT)
+    git = Git(args.repo or ROOT)
     code, changes, commits = collect(args, git)
     if code is not None:
         return code
@@ -1568,6 +1568,13 @@ status = "active"
         ok(consumer_states([cg2], chs[:1], [], [], (td, []))[0][0] == "met", "site_check passing: met")
         cg3 = dict(cg, site_check="false", site_with=[])
         ok(consumer_states([cg3], chs[:1], [], [], (td, []))[0][0] == "pending", "site_check failing: pending")
+        # --repo: the range is read from another repository than the script's.
+        (Path(td) / "c").write_text("3")
+        git("add", "."), git("commit", "-q", "-m", "third")
+        run = subprocess.run([sys.executable, "-I", "-B", str(Path(__file__).resolve()), "check",
+                              f"{since}..HEAD", "--repo", td], capture_output=True)
+        ok(b"cannot read the range" not in run.stdout and run.returncode in (0, 1), "--repo reads that repository's range",
+           run.stdout)
     print("impact self-test: ok")
 
 
@@ -1591,6 +1598,7 @@ def main(argv):
     p.add_argument("--quiet", action="store_true")
     p.add_argument("--message")
     p.add_argument("--paths", nargs="+")
+    p.add_argument("--repo")
     p.add_argument("--consumer")
     p.add_argument("--site")
     p.add_argument("--site-since")
