@@ -13,18 +13,17 @@ The pages that explain the screen on show, one tab each. Learn says
 why; the screens say what. Its text is the same as the Learn pages in
 the repository (`docs/learn/`).
 
-![Learn over New key on its Randomness tab, with Seed words beside it, Spending, step by step and Done](../pictures/learn.png)
+![Learn over New key on its Randomness tab, with Seed words beside it and Done](../pictures/learn.png)
 
-*Learn over New key: **Spending, step by step** at the top left,
-**Done** at the top right, the tabs Randomness and Seed words, and the
-Randomness page.*
+*Learn over New key: **Done** at the top right, the tabs Randomness and
+Seed words, and the Randomness page.*
 
 ## On this screen
 
 | Control | What it does |
 |---|---|
-| **Spending, step by step** | the first tab, on every screen but the Spend tab itself: closes Learn and opens the [Spend](spend-tab.md) tab |
-| a page's tab | one per page the screen gives, by the page's title, under **Spending, step by step**; the one on show underlined. A Guided card's link opens on its page's tab, or on that page alone where the screen does not give it |
+| **Spending, step by step** | above the tabs, on the [Spend](spend-tab.md) tab only: closes Learn over the Spend tab's steps |
+| a page's tab | one per page the screen gives, by the page's title (Where keys are kept's reads **Key storage**); the one on show underlined. Each label shows whole: where the tabs do not all fit, a chevron at an end of the row shows the next tab past it. A Guided card's link opens on its page's tab, or on that page alone where the screen does not give it |
 | the page | its title, then its sections; the wheel and the arrow keys scroll it |
 | a step's circle | on a page of numbered steps: ticks the step, or clears its tick. The ticks last until the session ends |
 | **Done** | at the top right: closes the sheet; <kbd>Escape</kbd> does the same |
@@ -32,9 +31,14 @@ Randomness page.*
 ## Beside the page
 
 On a window 1600 wide and over, Learn opens as a pane beside the page
-instead of a sheet over it, with the same tabs and a **Close** button.
-Its pages follow the screen: a new screen's pages replace the old ones,
-on the same tab where the new screen has it. **Learn** or the **?**
+instead of a sheet over it, closed until **Learn**, the **?** or
+**Cryptography** is pressed. Its header row reads **Learn**, with the
+pin (**Keep open**) and a **Close** button at its end; the same tabs
+stand under it, across the pane's width. Moving to another screen
+closes the pane, unless it is pinned: the pin pressed fills, its
+tooltip reads **Unpin**, and the pane stays open on each screen after,
+showing that screen's pages on the same tab where it has it. Closing
+the pane takes the pin off; a lock or power-off does too. **Learn** or the **?**
 pressed again, **Close**, <kbd>Escape</kbd> and the mouse's back button
 put it away. Make codex32 shares, Back up a wallet and the backup flow
 keep that place for their own panes, and show Learn as the sheet.

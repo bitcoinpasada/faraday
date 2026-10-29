@@ -153,22 +153,23 @@ fn back_from_a_backup_opened_in_tools_lands_on_tools_not_the_wallet() {
 }
 
 #[test]
-fn back_from_spend_opened_in_learn_opens_learn_again_on_the_same_page() {
+fn back_from_the_spend_tab_after_learns_spending_row_lands_where_it_was_opened_from() {
     let mut app = with(1, 1280, 800);
     app.press(Action::Nav(Screen::WalletsStart));
     app.press(Action::OpenWallet(0));
     app.press(Action::Learn);
     assert_eq!(app.sheet, Some(Sheet::Learn));
-    app.press(Action::LearnPage(1));
+    // Learn offers no way to the Spend tab outside it.
+    assert!(!app.offers(Action::LearnSpend));
+    app.press(Action::Cancel);
+    app.press(Action::Nav(Screen::Family));
+    app.press(Action::Learn);
     let _ = app.frame();
-    let page = app.learn().page;
-    assert_eq!(page, 1);
     app.press(Action::LearnSpend);
     assert_eq!((app.screen, app.sheet), (Screen::Family, None));
     tap_back(&mut app);
     assert_eq!((app.screen, app.wallet_index()), (Screen::Wallets, 0));
-    assert_eq!(app.sheet, Some(Sheet::Learn));
-    assert_eq!(app.learn().page, page);
+    assert_eq!(app.sheet, None, "Learn stays closed");
 }
 
 #[test]

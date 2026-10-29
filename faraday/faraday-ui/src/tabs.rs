@@ -3,15 +3,18 @@
 //! Primary tabs stand at the top of a pane and name its main pages (the
 //! Learn sheet's and pane's pages); secondary tabs part what is inside
 //! one card (codex32's worksheets). Where the labels all fit, each tab
-//! takes an equal share of the row; where they do not, the row scrolls,
-//! the tab shown kept in view with its neighbours at the edges, so a
-//! press on one at an edge brings the next into view.
+//! takes an equal share of the row, or its own width where one label is
+//! wider than a share; where they do not, the row scrolls (Material 3
+//! Tabs, scrollable tabs). A label is never cut: a scrolled row shows
+//! only whole tabs, the one shown among them, sharing the row's room,
+//! and a chevron at an end with tabs past it, whose press shows the next
+//! tab that way.
 
 use crate::pal::{Paint, Role};
 use crate::{Shape, Ui};
 use faraday_draw::tokens::{
-    CODEX32_TAB_GLYPH, CODEX32_TAB_ICON, GAP_SMALL, TAB_INDICATOR_MIN, TAB_INDICATOR_PRIMARY,
-    TAB_INDICATOR_SECONDARY, TAB_PAD, TITLE_S,
+    CODEX32_TAB_GLYPH, CODEX32_TAB_ICON, GAP_SMALL, ICON_BUTTON, ICON_GLYPH, TAB_INDICATOR_MIN,
+    TAB_INDICATOR_PRIMARY, TAB_INDICATOR_SECONDARY, TAB_PAD, TITLE_S, TOUCH, shape_full,
 };
 use faraday_draw::widgets::Icon;
 
@@ -58,42 +61,67 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
         let natural: Vec<f32> = content.iter().map(|c| c + 2.0 * TAB_PAD).collect();
         let total: f32 = natural.iter().sum();
         let equal = w / items.len().max(1) as f32;
-        // Fixed tabs share the row where every label fits its share.
-        let fixed = natural.iter().all(|&n| n <= equal);
-        let widths: Vec<f32> = if fixed {
-            vec![equal; items.len()]
-        } else {
-            natural
-        };
         let on = items.iter().position(|t| t.on).unwrap_or(0);
-        // Scrolled so the tab shown stands in the middle where it can.
-        let before: f32 = widths[..on].iter().sum();
-        let shift = if fixed {
-            0.0
+        // Fixed tabs share the row where every label fits its share; tabs
+        // that fit only at their own widths take those, from the start.
+        let (shown, widths, before, after) = if natural.iter().all(|&n| n <= equal) {
+            (0..items.len(), vec![equal; items.len()], false, false)
+        } else if total <= w {
+            (0..items.len(), natural.clone(), false, false)
         } else {
-            let mid = before + widths.get(on).copied().unwrap_or(0.0) / 2.0;
-            (mid - w / 2.0).clamp(0.0, (total - w).max(0.0))
+            whole_tabs(&natural, on, w)
         };
         self.rule(x, y + h - 1.0, w, Role::OutlineVariant);
         let row = self.rect(x, y, w, h);
         self.c.push_clip(row);
         let cut_from = (self.c.cut_mark(), self.cut.len());
-        let mut tx = x - shift;
-        for (i, item) in items.iter().enumerate() {
-            let tw = widths[i];
-            if tx + tw > x && tx < x + w {
-                self.tab(item, kind, (tx, y, tw, h), content[i]);
+        let mut tx = x + if before { TOUCH } else { 0.0 };
+        let mut narrow = false;
+        for (i, tw) in shown.clone().zip(&widths) {
+            if let Some(item) = items.get(i) {
+                // Only a tab wider than the whole row is narrowed: its
+                // label is held to its own box.
+                let own = *tw < natural[i];
+                narrow |= own;
+                if own {
+                    let clip = self.rect(tx, y, *tw, h);
+                    self.c.push_clip(clip);
+                }
+                self.tab(item, kind, (tx, y, *tw, h), content[i]);
+                if own {
+                    self.c.pop_clip();
+                }
             }
             tx += tw;
         }
-        // A row that scrolls holds the tabs past its sides scrolled
-        // there, not cut off.
-        if !fixed {
+        // That tab's label runs on under the row's edge as a scrolled
+        // row's would, not cut off.
+        if narrow {
             self.c.scrolled_across(cut_from.0);
             self.cut.truncate(cut_from.1);
         }
+        let prev = shown.start.checked_sub(1).and_then(|i| items.get(i));
+        if let Some(prev) = prev.filter(|_| before) {
+            self.tab_chevron((x, y, h), Icon::ChevronLeft, prev.action);
+        }
+        if let Some(next) = items.get(shown.end).filter(|_| after) {
+            self.tab_chevron((x + w - TOUCH, y, h), Icon::ChevronRight, next.action);
+        }
         self.c.pop_clip();
         h
+    }
+
+    /// A scrolled row's chevron at (x, y), `h` tall: Material's standard
+    /// icon button in a `TOUCH` target, whose press does `action`, the
+    /// next tab past that end.
+    fn tab_chevron(&mut self, (x, y, h): (f32, f32, f32), icon: Icon, action: A) {
+        let edge = (TOUCH - ICON_BUTTON) / 2.0;
+        let (bx, by) = (x + edge, y + (h - ICON_BUTTON) / 2.0);
+        let shape = Shape::new(bx, by, ICON_BUTTON, ICON_BUTTON, shape_full(ICON_BUTTON));
+        let ink = Role::OnSurfaceVariant.paint();
+        self.press_to(shape, (x, y, TOUCH, h), ink, action);
+        let glyph = (ICON_BUTTON - ICON_GLYPH) / 2.0;
+        self.icon(bx + glyph, by + glyph, ICON_GLYPH, icon, ICON_GLYPH, ink);
     }
 
     /// One tab of [`Ui::tabs`] in the box (x, y, w, h), its label and
@@ -145,4 +173,33 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
             }
         }
     }
+}
+
+/// The tabs a scrolled row shows whole, `w` wide, tabs `natural` wide:
+/// the one shown (`on`) and as many before it as fit, then after it,
+/// each end with tabs past it keeping a chevron's `TOUCH` of the row;
+/// the room left is shared out among the tabs shown, and a tab shown
+/// that is wider than the row by itself is narrowed to it. Returns their
+/// range, their widths, and whether a chevron stands before and after.
+/// Arithmetic.
+fn whole_tabs(
+    natural: &[f32],
+    on: usize,
+    w: f32,
+) -> (std::ops::Range<usize>, Vec<f32>, bool, bool) {
+    let n = natural.len();
+    let room = |a: usize, b: usize| {
+        let sum: f32 = natural[a..b].iter().sum();
+        let ends = f32::from(u8::from(a > 0)) + f32::from(u8::from(b < n));
+        w - sum - ends * TOUCH
+    };
+    let on = on.min(n.saturating_sub(1));
+    let a = (0..=on).find(|&a| room(a, on + 1) >= 0.0).unwrap_or(on);
+    let mut b = on + 1;
+    while b < n && room(a, b + 1) >= 0.0 {
+        b += 1;
+    }
+    let spare = room(a, b) / (b - a).max(1) as f32;
+    let widths = natural[a..b].iter().map(|t| (t + spare).max(0.0)).collect();
+    (a..b, widths, a > 0, b < n)
 }

@@ -844,15 +844,21 @@ fn the_spend_tab_opens_from_the_wallets_empty_state() {
     assert_eq!(app.screen, Screen::Family);
 }
 
-/// The Learn sheet's first row is the other way in, from any screen that
-/// is not the Spend tab itself.
+/// Learn offers **Spending, step by step** only on the Spend tab: from
+/// Home it is not there; on the Spend tab it closes Learn over the steps.
 #[test]
-fn the_spend_tab_opens_from_learn() {
+fn learn_offers_spending_step_by_step_only_on_the_spend_tab() {
     let mut app = shown();
     app.press(Action::Learn);
     let _ = app.frame();
     assert_eq!(app.sheet, Some(faraday_core::Sheet::Learn));
-    assert!(app.offers(Action::LearnSpend));
+    assert!(!app.offers(Action::LearnSpend), "not outside the Spend tab");
+    app.press(Action::Cancel);
+    app.press(Action::Nav(Screen::Family));
+    app.press(Action::Learn);
+    let _ = app.frame();
+    assert_eq!(app.sheet, Some(faraday_core::Sheet::Learn));
+    assert!(app.offers(Action::LearnSpend), "on the Spend tab");
     app.press(Action::LearnSpend);
     assert_eq!(app.screen, Screen::Family);
     assert_eq!(app.sheet, None);

@@ -153,6 +153,12 @@ pub enum Icon {
     /// A sheet with two checks and two lines: How Faraday does it
     /// (Material Symbols `fact_check`, filled).
     Method,
+    /// A push pin, outlined: a pane that closes when the screen changes,
+    /// its pin off (Material Symbols `push_pin`).
+    Pin,
+    /// A push pin, filled: a pane kept open across screens, its pin on
+    /// (Material Symbols `push_pin`, filled).
+    Pinned,
 }
 
 impl Icon {
@@ -160,7 +166,7 @@ impl Icon {
     /// draws.
     pub const SEARCH: Icon = Icon::Verify;
     /// Every icon, for the gallery and for the completeness test.
-    pub const ALL: [Icon; 65] = [
+    pub const ALL: [Icon; 67] = [
         Icon::Scan,
         Icon::Keys,
         Icon::Sign,
@@ -226,6 +232,8 @@ impl Icon {
         Icon::Add,
         Icon::Remove,
         Icon::Method,
+        Icon::Pin,
+        Icon::Pinned,
     ];
 
     /// The code point in the baked icon face.
@@ -296,6 +304,8 @@ impl Icon {
             Icon::EnvelopeOpen => '\u{f658}',
             Icon::SdCard => '\u{f7c2}',
             Icon::Method => '\u{e930}',
+            Icon::Pin => '\u{e931}',
+            Icon::Pinned => '\u{e932}',
         }
     }
 
@@ -367,6 +377,8 @@ impl Icon {
             Icon::Add => "Add",
             Icon::Remove => "Remove",
             Icon::Method => "Method",
+            Icon::Pin => "Pin",
+            Icon::Pinned => "Pinned",
         }
     }
 }

@@ -2752,7 +2752,7 @@ impl Faraday {
             Action::NavMenu(to) => self.nav_menu(to),
             Action::LearnShares => self.learn_shares(),
             Action::LearnTopic(t) => self.learn_topic(t),
-            Action::LearnSpend => self.learn_spend(),
+            Action::LearnSpend | Action::LearnPin => self.learn_button(action),
             Action::Osk(p) => self.osk_press(p),
             a @ (Action::ScanPaste
             | Action::PasteWords

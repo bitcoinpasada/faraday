@@ -17,6 +17,17 @@ use crate::create::NewKind;
 use crate::wallet::Kind;
 use crate::{Faraday, Screen};
 
+/// The label of `page`'s tab in the Learn sheet and pane: its title, or
+/// a shorter name where the title is too long for a row of tabs to show
+/// whole beside the others (Material 3 Tabs). A lookup.
+pub fn tab_label(page: &'static LearnPage) -> &'static str {
+    if std::ptr::eq(page, keys_kept_page()) {
+        crate::strings::EN.learn_tab_keys_kept
+    } else {
+        page.title
+    }
+}
+
 /// The tab number the How Faraday does it tab is pressed as
 /// ([`crate::Action::LearnPage`]): no page has it.
 pub const HOW_TAB: u8 = u8::MAX;
@@ -399,11 +410,22 @@ impl Faraday {
         self.learn.open(pages, &mut self.sheet);
     }
 
-    /// The Learn sheet's first row, **Spending, step by step**: the sheet
-    /// closes and the Spend tab opens; a pane stays beside it and follows
-    /// it there.
-    pub(crate) fn learn_spend(&mut self) {
+    /// The pane's pin, which turns it on or off, or **Spending, step by
+    /// step** over Learn's tabs.
+    pub(crate) fn learn_button(&mut self, action: crate::Action) {
+        if action == crate::Action::LearnPin {
+            self.learn.toggle_pin(self.screen);
+        } else {
+            self.learn_spend();
+        }
+    }
+
+    /// The Learn sheet's and pane's first row on the Spend tab,
+    /// **Spending, step by step**: Learn closes, sheet or pane, and the
+    /// Spend tab's steps are on show.
+    fn learn_spend(&mut self) {
         self.sheet = None;
+        self.learn_close();
         self.screen = Screen::Family;
     }
 
@@ -429,10 +451,12 @@ impl Faraday {
     }
 
     /// Whether Learn stands as the supporting pane this frame: open as
-    /// the pane, on a window and a screen that hold it, with no chart's
-    /// side sheet in the pane's place. A lookup.
+    /// the pane, pinned or on the screen it was opened beside, on a
+    /// window and a screen that hold it, with no chart's side sheet in
+    /// the pane's place. A lookup.
     pub(crate) fn learn_pane_shown(&self) -> bool {
         self.learn.pane_open()
+            && self.learn.stays_beside(self.screen)
             && self.learn_pane_room()
             && self.learn_pane_place_free()
             && crate::glance::sheet::side_now(self).is_none()
@@ -473,7 +497,9 @@ impl Faraday {
     /// Learn opens. The sheet becomes the pane once the window holds one
     /// (extra-large), and the pane the sheet once it does not, unless
     /// another sheet is up; a pane on a screen that keeps the pane's
-    /// place for its own goes. While the pane is open its pages are the
+    /// place for its own goes, and so does an unpinned pane once the
+    /// screen is another than the one it stood beside (owner,
+    /// 2026-10-29). While the pane is open its pages are the
     /// Learn pages of the screen on show ([`Faraday::learn_pages`]),
     /// worked out again here and compared with the ones it last
     /// followed, so a change of screen or step changes them however it
@@ -493,6 +519,11 @@ impl Faraday {
                 self.scroll.went_to(crate::ui::Slot::Page);
                 return;
             }
+            // Unpinned, it goes when the person moves to another screen.
+            if self.learn.left_screen(self.screen) {
+                self.learn_close();
+                return;
+            }
             let now = self.learn_pages();
             if (now.is_empty() && !self.how_offered()) || !self.learn_pane_place_free() {
                 self.learn_close();
@@ -504,7 +535,7 @@ impl Faraday {
             && self.learn_pane_place_free()
         {
             let now = self.learn_pages();
-            self.learn.move_to_pane(&mut self.sheet, now);
+            self.learn.move_to_pane(&mut self.sheet, now, self.screen);
         }
     }
 
@@ -546,6 +577,11 @@ impl Faraday {
         self.learn.state()
     }
 
+    /// Whether Learn's pane is pinned open across screens.
+    pub fn learn_pinned(&self) -> bool {
+        self.learn.pinned()
+    }
+
     /// The steps ticked on `page` this session, in order.
     /// Kept in memory only: leaving and
     /// reopening the page in the same session keeps them; a new session
@@ -567,6 +603,14 @@ pub(crate) struct LearnArea {
     /// Learn is open as the supporting pane beside the page, on an
     /// extra-large window (`docs/LAYOUT.md` §6), not as the sheet.
     pane: bool,
+    /// The pane's pin is on: the pane stays open as the person moves to
+    /// another screen. Session state only, in memory; off whenever the
+    /// pane is not open.
+    pinned: bool,
+    /// The screen the pane last stood beside, kept in step with the
+    /// screen by [`Faraday::learn_place`] before every frame. `None`
+    /// while the pane is not open.
+    beside: Option<crate::Screen>,
     /// The screen's Learn pages as the pane last followed them. Kept in
     /// step with the screen by [`Faraday::learn_place`] before every
     /// frame: once the screen's pages are no longer these, the pane's
@@ -610,17 +654,48 @@ impl LearnArea {
         self.pane
     }
 
-    /// The open sheet becomes the pane, on the pages and tab it shows;
-    /// `screen` is the screen's pages now, which the pane follows from
-    /// here.
+    /// The open sheet becomes the pane, on the pages and tab it shows,
+    /// beside `on`; `screen` is the screen's pages now, which the pane
+    /// follows from here.
     pub(crate) fn move_to_pane(
         &mut self,
         sheet: &mut Option<crate::Sheet>,
         screen: Vec<&'static LearnPage>,
+        on: crate::Screen,
     ) {
         *sheet = None;
         self.pane = true;
+        self.beside = Some(on);
         self.followed = screen;
+    }
+
+    /// Whether the pane's pin is on.
+    pub(crate) fn pinned(&self) -> bool {
+        self.pinned
+    }
+
+    /// The pin pressed on the pane beside `on`: on, the pane stays open
+    /// across screens; off, it goes at the next one.
+    pub(crate) fn toggle_pin(&mut self, on: crate::Screen) {
+        if self.pane {
+            self.pinned = !self.pinned;
+            self.beside = Some(on);
+        }
+    }
+
+    /// Whether the pane still stands beside `screen`: pinned, or on the
+    /// screen it last stood beside.
+    pub(crate) fn stays_beside(&self, screen: crate::Screen) -> bool {
+        self.pinned || self.beside.is_none_or(|s| s == screen)
+    }
+
+    /// Notes that the pane stands beside `screen` now. True when the
+    /// pane is unpinned and that is another screen than the one it stood
+    /// beside: it is then put away.
+    pub(crate) fn left_screen(&mut self, screen: crate::Screen) -> bool {
+        let left = !self.stays_beside(screen);
+        self.beside = Some(screen);
+        left
     }
 
     /// The pane becomes the sheet, on the pages and tab it shows.
@@ -629,9 +704,11 @@ impl LearnArea {
         *sheet = Some(crate::Sheet::Learn);
     }
 
-    /// The pane is put away.
+    /// The pane is put away, and its pin taken off.
     pub(crate) fn close_pane(&mut self) {
         self.pane = false;
+        self.pinned = false;
+        self.beside = None;
         self.followed.clear();
     }
 

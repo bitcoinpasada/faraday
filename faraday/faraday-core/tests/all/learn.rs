@@ -124,13 +124,16 @@ fn at_1280_learn_opens_as_the_sheet() {
 }
 
 #[test]
-fn the_pane_follows_the_step_to_its_pages() {
+fn a_pinned_pane_follows_the_step_and_the_screens_to_their_pages() {
     let mut app = learn_on_create(1920, 1080);
     // A multisig chosen: the pane shows the pages about it.
     app.press(Action::CKind(4));
     frame(&mut app);
     assert_eq!(shown(&app), "Multisig");
     assert!(app.offers(Action::LearnClose));
+    app.press(Action::LearnPin);
+    frame(&mut app);
+    assert!(app.learn_pinned());
     // A new key: its pages; the tab on show stays where the next
     // screen's pages have it too.
     app.press(Action::Entry(None));
@@ -268,4 +271,170 @@ fn the_vaults_page_goes_on_to_how_the_vault_is_built_and_passphrase_strength() {
         );
         assert!(past.is_empty(), "{w}x{h}: nothing past a side: {past:?}");
     }
+}
+
+/// Started on an extra-large window and taken round the destinations,
+/// Learn's pane is never there until Learn or Cryptography is pressed;
+/// Learn then opens it beside the page, and Cryptography on its tab.
+#[test]
+fn on_a_wide_window_the_pane_opens_only_when_learn_or_cryptography_is_pressed() {
+    use faraday_core::Screen;
+    for (width, height) in [(1600, 900), (1920, 1080), (2560, 1440)] {
+        let mut app = faraday_core::testkit::started();
+        window(&mut app, width, height);
+        frame(&mut app);
+        let round = [
+            Screen::Home,
+            Screen::WalletsStart,
+            Screen::Backups,
+            Screen::Vaults,
+            Screen::Files,
+            Screen::Catalog,
+            Screen::Family,
+            Screen::Settings,
+        ];
+        for s in round {
+            app.press(Action::Nav(s));
+            frame(&mut app);
+            assert!(
+                !app.offers(Action::LearnClose),
+                "no pane on {s:?} at {width}"
+            );
+            assert_eq!(app.sheet, None, "no Learn sheet on {s:?} at {width}");
+        }
+        app.press(Action::Learn);
+        frame(&mut app);
+        assert!(app.offers(Action::LearnClose), "Learn opened the pane");
+        assert_eq!(shown(&app), "Where keys are kept");
+        app.press(Action::LearnClose);
+        frame(&mut app);
+        assert!(!app.offers(Action::LearnClose));
+        app.press(Action::How);
+        frame(&mut app);
+        assert!(app.offers(Action::LearnClose), "Cryptography opened it");
+        assert!(app.learn().how, "on its Cryptography tab");
+    }
+}
+
+/// On Settings at the narrowest and a wide extra-large window the pane's
+/// tabs Cryptography, Key storage and Glossary show whole: each takes a
+/// press side by side, none past the close button's end; every other
+/// page's tab is reached from the row too.
+#[test]
+fn the_panes_tabs_on_settings_show_whole() {
+    use faraday_core::Screen;
+    for (width, height) in [(1600, 900), (2560, 1440)] {
+        let mut app = faraday_core::testkit::started();
+        window(&mut app, width, height);
+        app.press(Action::Nav(Screen::Settings));
+        app.press(Action::Learn);
+        frame(&mut app);
+        let close = app.hit_box(Action::LearnClose).expect("the pane");
+        let end = u32::from(close.0) + u32::from(close.2);
+        let tabs = [
+            Action::LearnPage(faraday_core::learn::HOW_TAB),
+            Action::LearnPage(0),
+            Action::LearnPage(1),
+        ];
+        let mut last = 0;
+        for tab in tabs {
+            let b = app.hit_box(tab).expect("every tab takes a press");
+            assert!(u32::from(b.0) >= last, "the tabs side by side");
+            last = u32::from(b.0) + u32::from(b.2);
+            assert!(last <= end, "{tab:?} at {width} runs past the pane");
+        }
+        for i in 0..app.learn().pages.len() {
+            assert!(app.offers(Action::LearnPage(i as u8)), "page {i}'s tab");
+        }
+        assert_eq!(
+            faraday_core::learn::tab_label(faraday_core::learn::keys_kept_page()),
+            "Key storage"
+        );
+    }
+}
+
+/// Learn's pane offers **Spending, step by step** on the Spend tab only.
+#[test]
+fn the_pane_offers_spending_step_by_step_only_on_the_spend_tab() {
+    use faraday_core::Screen;
+    let mut app = faraday_core::testkit::started();
+    window(&mut app, 1920, 1080);
+    app.press(Action::Nav(Screen::Settings));
+    app.press(Action::Learn);
+    frame(&mut app);
+    assert!(app.offers(Action::LearnClose));
+    assert!(!app.offers(Action::LearnSpend), "not on Settings");
+    app.press(Action::LearnPin);
+    app.press(Action::Nav(Screen::Family));
+    frame(&mut app);
+    assert!(app.offers(Action::LearnSpend), "on the Spend tab");
+    app.press(Action::LearnSpend);
+    frame(&mut app);
+    assert!(
+        !app.offers(Action::LearnClose),
+        "Learn closed over the steps"
+    );
+    assert_eq!(app.screen, Screen::Family);
+}
+
+/// Unpinned, the pane goes when the person moves to another screen;
+/// pinned, it stays open there; closed, it opens next time unpinned.
+#[test]
+fn the_pane_closes_at_another_screen_unless_pinned() {
+    use faraday_core::Screen;
+    let mut app = faraday_core::testkit::started();
+    window(&mut app, 1920, 1080);
+    app.press(Action::Nav(Screen::Settings));
+    app.press(Action::Learn);
+    frame(&mut app);
+    assert!(app.offers(Action::LearnPin), "the pane's pin");
+    assert!(!app.learn_pinned());
+    app.press(Action::Nav(Screen::Home));
+    frame(&mut app);
+    assert!(!app.offers(Action::LearnClose), "closed on Home");
+    assert_eq!(app.sheet, None);
+
+    app.press(Action::Learn);
+    frame(&mut app);
+    app.press(Action::LearnPin);
+    frame(&mut app);
+    assert!(app.learn_pinned());
+    app.press(Action::Nav(Screen::Settings));
+    frame(&mut app);
+    assert!(app.offers(Action::LearnClose), "still open on Settings");
+    assert_eq!(shown(&app), "Where keys are kept", "on Settings' pages");
+    app.press(Action::Nav(Screen::Vaults));
+    frame(&mut app);
+    assert!(app.offers(Action::LearnClose), "and on Vaults");
+
+    app.press(Action::LearnClose);
+    frame(&mut app);
+    assert!(!app.learn_pinned(), "closing it takes the pin off");
+    app.press(Action::Learn);
+    frame(&mut app);
+    assert!(app.offers(Action::LearnClose));
+    assert!(!app.learn_pinned(), "it opens unpinned");
+    app.press(Action::Nav(Screen::Home));
+    frame(&mut app);
+    assert!(
+        !app.offers(Action::LearnClose),
+        "and closes at the next screen"
+    );
+}
+
+/// Learn pressed on the next screen, before a frame has put the last
+/// screen's pane away, opens the pane there rather than closing it.
+#[test]
+fn learn_pressed_straight_after_moving_on_opens_the_pane_there() {
+    use faraday_core::Screen;
+    let mut app = faraday_core::testkit::started();
+    window(&mut app, 1920, 1080);
+    app.press(Action::Nav(Screen::Settings));
+    app.press(Action::Learn);
+    frame(&mut app);
+    app.press(Action::Nav(Screen::Vaults));
+    app.press(Action::Learn);
+    frame(&mut app);
+    assert!(app.offers(Action::LearnClose), "the pane on Vaults");
+    assert_eq!(shown(&app), "Vaults");
 }

@@ -1601,8 +1601,10 @@ pub(super) fn power_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
 /// How the Learn sheet or Learn's supporting pane lays out its tabs and
 /// the page on show: one body, [`learn_body`], drawn by both.
 pub(super) struct LearnLook {
-    /// The margin at each side of the tabs and the text.
+    /// The margin at each side of the text.
     pub(super) pad: f32,
+    /// The margin at each side of the tabs.
+    pub(super) tabs_edge: f32,
     /// The tabs' top below the box's.
     pub(super) tabs_top: f32,
     /// The room left at the tabs' end, for Done or the close button.
@@ -1611,7 +1613,8 @@ pub(super) struct LearnLook {
     pub(super) one_tab_row: bool,
     /// The text's view's top below the tabs.
     pub(super) after_tabs: f32,
-    /// How far above the text's view the rule stands.
+    /// How far above the text's view the divider stands where no row
+    /// of tabs, with its own, is drawn.
     pub(super) rule: f32,
     /// The text's inset within the margin, at each side.
     pub(super) inset: f32,
@@ -1650,7 +1653,7 @@ fn learn_tab_items(app: &View) -> Vec<faraday_ui::tabs::Tab<'static, Action>> {
                 .iter()
                 .enumerate()
                 .map(|(i, p)| faraday_ui::tabs::Tab {
-                    label: p.title,
+                    label: crate::learn::tab_label(p),
                     on: !learn.how && i == learn.page,
                     done: false,
                     action: Action::LearnPage(i as u8),
@@ -1659,11 +1662,12 @@ fn learn_tab_items(app: &View) -> Vec<faraday_ui::tabs::Tab<'static, Action>> {
         .collect()
 }
 
-/// Whether Learn offers its direct way to the Spend tab
-/// (`docs/history/SIMPLIFY.md` §6.2): not from the Spend tab itself, nor
-/// in a held app (`Faraday::held`), which has none.
+/// Whether Learn offers **Spending, step by step** above its tabs: only
+/// while the person is in Spend from a backup (the Spend tab,
+/// `docs/SPEND-FROM-BACKUP.md` §2), never in a held app
+/// (`Faraday::held`), which has none (owner, 2026-10-29).
 fn learn_offers_spend(app: &View) -> bool {
-    app.screen != Screen::Family && !app.held
+    app.screen == Screen::Family && !app.held
 }
 
 /// Learn's tabs and the page on show in the box (x, y, w, h), laid out
@@ -1685,14 +1689,14 @@ pub(super) fn learn_body(
     let pad = look.pad;
     // The way to the Spend tab first, a text button: it goes elsewhere,
     // so it is not a tab.
-    let tabs_w = sw - 2.0 * pad - look.end;
+    let tabs_w = sw - 2.0 * look.tabs_edge - look.end;
     let mut tabs_h = 0.0;
     if learn_offers_spend(app) {
         // Its label is never cut (`docs/history/SIMPLIFY.md` §6.2): too
         // wide for the row, it wraps and the button grows to hold it.
         let label = EN.learn_spending_step;
         let bp = T::BUTTON_PAD;
-        let bw = (ui.measure_as(LABEL_L, label) + 2.0 * bp).min(tabs_w);
+        let bw = (ui.measure_as(LABEL_L, label) + 2.0 * bp).min(sw - 2.0 * pad - look.end);
         let lines = ui.wrap_lines_as(LABEL_L, label, bw - 2.0 * bp).max(1);
         let line_h = ui.line_as(LABEL_L);
         let bh = ui.button_height(BUTTON_H) + (lines - 1) as f32 * line_h;
@@ -1705,22 +1709,32 @@ pub(super) fn learn_body(
         ui.wrap_as((bx + bp, top, bw - 2.0 * bp), LABEL_L, style.label(), label);
         tabs_h += bh + T::GAP_SMALL;
     }
-    // Then Material's primary tabs, one per page, scrolling where they
-    // do not all fit.
+    // Then Material's primary tabs, one per page, each whole, over their
+    // own divider.
     let tabs = learn_tab_items(app);
-    tabs_h += if tabs.len() > 1 || look.one_tab_row {
-        let at = (x + pad, y + look.tabs_top + tabs_h, tabs_w, T::TAB_H);
+    let row = tabs.len() > 1 || look.one_tab_row;
+    tabs_h += if row {
+        let at = (
+            x + look.tabs_edge,
+            y + look.tabs_top + tabs_h,
+            tabs_w,
+            T::TAB_H,
+        );
         ui.tabs(at, faraday_ui::tabs::TabKind::Primary, &tabs)
     } else {
         34.0
     };
     let top = y + look.tabs_top + tabs_h + look.after_tabs;
-    ui.rule(
-        x + pad,
-        top - look.rule,
-        sw - 2.0 * pad,
-        Role::OutlineVariant,
-    );
+    // Without a row of tabs, a divider of its own over the text: one
+    // divider either way (Material 3 Tabs).
+    if !row {
+        ui.rule(
+            x + pad,
+            top - look.rule,
+            sw - 2.0 * pad,
+            Role::OutlineVariant,
+        );
+    }
     let (bx, bw) = (x + pad + look.inset, sw - 2.0 * pad - 2.0 * look.inset);
     let view = sh - (top - y) - look.foot;
     let clip = ui.rect(x, top, sw, view);
@@ -1853,6 +1867,7 @@ pub(super) fn learn_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     }
     let look = LearnLook {
         pad,
+        tabs_edge: pad,
         tabs_top: 14.0,
         end: if app.held { 0.0 } else { done_w + 8.0 },
         one_tab_row: !compact,

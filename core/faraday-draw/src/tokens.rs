@@ -1158,12 +1158,17 @@ pub const SUPPORT_PANE: f32 = 400.0;
 pub const SUPPORT_PANE_TOP: f32 = PAGE_TOP_BAR;
 
 /// Learn's supporting pane (`docs/LAYOUT.md` §6): the margin at each
-/// side of its tabs and text, and the tabs' top inside it.
+/// side of its headline, tabs and text.
 pub const LEARN_PANE_PAD: f32 = PAD;
-/// The top of the close button's target in Learn's pane, at its top
-/// end: its middle level with the middle of the first row of tabs, whose
-/// chips are 32 dp tall at `LEARN_PANE_PAD`.
+/// The top of the close button's target in Learn's pane, at the end of
+/// its header row, the headline level with the target's middle.
 pub const LEARN_PANE_CLOSE_TOP: f32 = LEARN_PANE_PAD + 16.0 - TOUCH / 2.0;
+/// The top of the tabs in Learn's pane: under the header row, so the
+/// tabs take the pane's whole width (Material 3 Tabs: labels never cut).
+pub const LEARN_PANE_TABS_TOP: f32 = LEARN_PANE_CLOSE_TOP + TOUCH;
+/// The push pin in Learn's pane's header: the size at which it reads as
+/// large as the close button's × beside it (owner, 2026-10-29).
+pub const LEARN_PANE_PIN_GLYPH: f32 = ICON_GLYPH_BUTTON;
 /// The room between paragraphs in Learn's pane, under its Body M text.
 pub const LEARN_PANE_PARA: f32 = GAP + GAP_SMALL;
 

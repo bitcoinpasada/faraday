@@ -6875,6 +6875,18 @@ strings! {
     /// The close button's label in Learn's supporting pane
     /// (`screens/learn_pane.rs`).
     learn_close: "Close",
+    /// The headline of Learn's supporting pane, at the start of its
+    /// header row (`screens/learn_pane.rs`).
+    learn_pane_title: "Learn",
+    /// Tooltip on the pin of Learn's supporting pane while it is off: a
+    /// press keeps the pane open across screens (`screens/learn_pane.rs`).
+    learn_pin: "Keep open",
+    /// Tooltip on the pin of Learn's supporting pane while it is on: a
+    /// press lets the pane close at the next screen.
+    learn_unpin: "Unpin",
+    /// The tab of the Learn page "Where keys are kept", short so the
+    /// Learn sheet's and pane's tabs fit their row (`screens/sheets.rs`).
+    learn_tab_keys_kept: "Key storage",
     /// Tooltip on the top app bar's How Faraday does it button, in Faraday and the Starter (`docs/CRYPTO-LEARN.md` §8.1).
     tip_how: "Cryptography",
     /// The ⋮ row on a compact bar for the button, first above Learn (§8.3).

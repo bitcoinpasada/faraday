@@ -155,7 +155,8 @@ Panes are separated by a 24 dp spacer and each has its own scroll.
 
 On extra-large, Learn opens as a pane at the right, `SUPPORT_PANE`
 (400 dp) wide, beside the page it explains, instead of the Learn
-sheet over it; it follows the page's section as the person moves on,
+sheet over it; it follows the page's steps as the person moves on,
+closes when the person moves to another screen unless it is pinned,
 and its close button puts it away. Below extra-large, Learn stays the
 sheet it is today.
 
@@ -172,21 +173,44 @@ and for Learn (`screens/learn_pane.rs`). The "Demo only" card that stood here is
 Faraday Demo's host strip now, outside the app (F118,
 `docs/DESKTOP-HOST.md`).
 
-Learn's pane, from 1600 dp: the ? and Learn in the sidebar open it
-beside the page, which is laid out in the room left of it, so nothing
-of the page is under it and the page takes presses as before. The pane
-is a card in the surface-container role, Material's large shape; its
-tabs and ticked steps are the sheet's, the page's title is in Title L
-and its text in Body M, and its close button, Material's standard icon
-button in a 48 dp target, stands at its top end. The close button, the
-? pressed again, Escape and the mouse's back button put it away. When
-the screen or its step changes, the pane shows that screen's Learn
-pages, on the tab it showed where they have it, else on the first.
+Learn's pane, from 1600 dp: the ? and Learn in the sidebar, and the
+bar's Cryptography, open it beside the page, which is laid out in the
+room left of it, so nothing of the page is under it and the page takes
+presses as before; nothing else opens it, on any screen or size (owner,
+2026-10-29). The pane
+is a card in the surface-container role, Material's large shape. Its
+header row, as Material's side sheet has, holds the headline **Learn**
+in Title L and, at its end, the pin and the close button, each
+Material's standard icon button in a 48 dp target
+(`LEARN_PANE_CLOSE_TOP`); the pin is a toggle, the push pin outlined
+in on-surface-variant while off ("Keep open") and filled in primary
+while on ("Unpin"), sized to read as large as the × beside it
+(`LEARN_PANE_PIN_GLYPH`), its button at the end of its target nearest
+the close button's, the two targets meeting without overlapping
+(owner, 2026-10-29). The tabs stand under it (`LEARN_PANE_TABS_TOP`)
+across the pane's whole width, a single divider under them, so
+each label shows whole (Material 3 Tabs; Where keys are kept's tab
+reads Key storage). Where a screen's labels together are wider than
+the row, it shows whole tabs only, the one on show among them sharing
+the row, and a chevron (Material's standard icon button in a 48 dp
+target) at an end with tabs past it, whose press shows the next tab
+that way (`faraday-ui`'s tabs). Its tabs and ticked steps are the sheet's, and
+on the Spend tab alone **Spending, step by step** stands above them;
+the page's title is in Title L and its text in Body M. The close button, the
+? pressed again, Escape and the mouse's back button put it away, and
+take its pin off. When the person moves to another screen the pane
+closes, unless it is pinned (owner, 2026-10-29); pinned, it stays open
+as the person moves on until it is closed or unpinned. The pin is kept
+for the session in memory only: a lock or a power-off clears it. When
+the step changes, or a pinned pane's screen, the pane shows that
+screen's Learn pages, on the tab it showed where they have it, else on
+the first.
 One pane stands at a time: the codex32 entry (its dice sheet's
 column), Back up and a wallet's backup flow (the board's lists) keep
 the place for their own, and Learn is the sheet there; a pane open on
 arriving there is put away. A window resized across 1600 dp moves
-Learn between the pane and the sheet, on the page it shows.
+Learn between the pane and the sheet, on the page it shows; the sheet
+has no pin, so a pane that comes back from it is unpinned.
 
 ## 7. Density
 

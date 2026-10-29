@@ -169,13 +169,19 @@ const ICONS: &[u32] = &[
     0xF7C2, // sd-card
     // material-symbols/*.svg (Apache-2.0), see `SVG_ICONS`
     0xE930, // fact_check, filled
+    0xE931, // push_pin, outlined
+    0xE932, // push_pin, filled
 ];
 
 /// Icons whose outline is a Material Symbols SVG path, kept in
 /// `tools/fonts/material-symbols/` (Apache License 2.0,
 /// `tools/fonts/LICENSE-material-symbols.txt`): code point and file. The
 /// SVG's 960-unit box is the icon face's em.
-const SVG_ICONS: &[(u32, &str)] = &[(0xE930, "material-symbols/fact_check_fill1_24px.svg")];
+const SVG_ICONS: &[(u32, &str)] = &[
+    (0xE930, "material-symbols/fact_check_fill1_24px.svg"),
+    (0xE931, "material-symbols/push_pin_24px.svg"),
+    (0xE932, "material-symbols/push_pin_fill1_24px.svg"),
+];
 
 /// The mono face: Iosevka's default Regular cut, SIL OFL 1.1
 /// (`tools/fonts/OFL.txt`). It advances 0.5 em and tells 0 from O and 1

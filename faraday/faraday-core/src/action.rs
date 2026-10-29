@@ -603,6 +603,9 @@ pub enum Action {
     /// Learn's supporting pane's close button: puts the pane away
     /// (`docs/LAYOUT.md` §6).
     LearnClose,
+    /// Learn's supporting pane's pin: kept open across screens while on,
+    /// put away at the next screen while off (`docs/LAYOUT.md` §6).
+    LearnPin,
     /// Show the Learn sheet's page, or its How tab for
     /// [`crate::learn::HOW_TAB`].
     LearnPage(u8),
@@ -612,8 +615,8 @@ pub enum Action {
     /// Tick step `n` of the guide page on show in the Learn sheet, or
     /// clear its tick if it is ticked already.
     LearnStep(u32),
-    /// The Learn sheet's first row, **Spending, step by step**: closes
-    /// the sheet and opens the Spend tab (`docs/history/SIMPLIFY.md` §6.2).
+    /// **Spending, step by step** above Learn's tabs on the Spend tab:
+    /// closes Learn over the tab's steps.
     LearnSpend,
     /// **What is a share?** beside the backup plan's In shares: the
     /// Learn sheet on the page about shares (`docs/history/NEW-WALLET.md` §4.2).

@@ -554,7 +554,12 @@ shows the How tab puts it away; pressed while the pane shows another
 tab, it moves the pane to the How tab. Escape, the pane's close button
 and the mouse's back button put the pane away as they do now. When the
 step changes, the How tab follows the screen's actions as the pane
-follows its pages (LAYOUT §6).
+follows its pages (LAYOUT §6). The pane is never open by itself: only
+the ? or **Cryptography** pressed opens it, and it closes at another
+screen unless its pin is on (owner, 2026-10-29). Its
+tabs stand under its header row, across its width, each label whole:
+with the How tab, Settings' tabs read Cryptography, Key storage and
+Glossary (`learn_tab_keys_kept`).
 
 The tab holds the blocks of the screen's actions, in the order the
 screen offers them, the open step's first (§8.5). Learn's own page for

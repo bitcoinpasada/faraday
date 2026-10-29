@@ -86,7 +86,12 @@ fn the_button_opens_learn_on_the_first_tab_at_every_size() {
         app.press(Action::LearnPage(0));
         let _ = app.frame();
         assert!(!shows(&mut app, "Sample action"), "{name}: a page's tab");
-        assert!(shows(&mut app, EN.learn_tab_how), "{name}: How stays first");
+        // How stays first: its tab, or where the row is too narrow to
+        // show it whole beside the page's, the chevron that shows it.
+        let how_tab = Action::LearnPage(faraday_core::learn::HOW_TAB);
+        let how = app.hit_box(how_tab).expect("the How tab or its chevron");
+        let page = app.hit_box(Action::LearnPage(0)).expect("the page's tab");
+        assert!(how.0 < page.0, "{name}: How stays first");
         app.press(Action::LearnPage(faraday_core::learn::HOW_TAB));
         let _ = app.frame();
         assert!(how_tab_open(&mut app), "{name}: back on the How tab");

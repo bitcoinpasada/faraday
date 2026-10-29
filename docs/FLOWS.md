@@ -1438,8 +1438,8 @@ guarantees for this file's rule:
 
 Spend left the sidebar and the small Home grid (`docs/history/SIMPLIFY.md`
 §6.2, 2026-10-10); it is reached from the Wallets empty state's
-**Spend from a backup, step by step**, the Learn sheet's first row
-**Spending, step by step**, Home's lead when a spend is under way, and
+**Spend from a backup, step by step**, Home's lead when a spend is
+under way, and
 a wallet card's **Spend from this wallet** (decision 43), which opens it
 on that wallet at **Load the wallet in Sparrow**, then **Write the
 payment in Sparrow** (the PSBT by camera or stick), with **I have the
