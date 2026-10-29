@@ -54,7 +54,7 @@ dimmed, **Cancel**.*
 | the line in the picture | **Starting the camera**, **Hold the QR in front of the camera**, what was read ("UR: 2 of 8 · missing 3, 4, 5, 6, 7, 8"), or why there is no picture: **The camera sends no picture**, **The camera was refused**, **The camera is in use by another app**, **No camera found**. A bar under it fills as the parts of an animated code are read |
 | the cameras | a button each, where there is more than one |
 | **Type the words instead** | for a key of a wallet, and the Spend tab's intake: the words typed in place of a SeedQR |
-| **Paste** | reads the clipboard's text as a code; dimmed where there is no clipboard. **Nothing to paste** when it is empty |
+| **Paste** | reads the clipboard's text as a code; shown only where the shell has a clipboard. **Nothing to paste** when it is empty |
 | **Cancel** | closes the camera; **Done** on the Spend tab's intake |
 
 What a code holds goes where the scan was for: a file into **From the

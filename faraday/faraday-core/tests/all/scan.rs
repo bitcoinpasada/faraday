@@ -634,13 +634,26 @@ fn a_secret_pasted_where_it_is_not_taken_is_refused() {
 }
 
 #[test]
-fn paste_is_dimmed_where_the_shell_has_no_clipboard() {
+fn paste_is_not_offered_where_the_shell_has_no_clipboard() {
     let mut app = scanning(Vec::new());
-    assert!(app.scan_pastes());
+    display(&mut app);
+    assert!(!app.scan_pastes());
     app.press(Action::ScanPaste);
     let asked = std::iter::from_fn(|| app.poll_command())
         .any(|c| matches!(c, faraday_shell_api::Command::RequestClipboard { .. }));
     assert!(!asked, "a shell with no clipboard was asked for it");
+    let _ = app.frame();
+    assert!(
+        !app.drawn_texts().iter().any(|t| t == "Paste"),
+        "Paste drawn"
+    );
+    app.clipboard = true;
+    assert!(app.scan_pastes(), "a shell with a clipboard has no Paste");
+    let _ = app.frame();
+    assert!(
+        app.drawn_texts().iter().any(|t| t == "Paste"),
+        "no Paste drawn"
+    );
 }
 
 #[test]
@@ -695,7 +708,7 @@ fn a_camera_that_sends_no_picture_is_said_to() {
     assert_eq!(state(&app), "Starting the camera");
     app.event(Event::Tick { now_ms: 7_100 });
     assert_eq!(state(&app), "The camera sends no picture");
-    assert!(app.scan_pastes(), "the scanner closed");
+    assert!(app.scan().is_some(), "the scanner closed");
     // A picture after all.
     frame(&mut app);
     assert_eq!(state(&app), "Hold the QR in front of the camera");
@@ -765,7 +778,7 @@ fn each_camera_failure_is_named_and_the_scanner_stays() {
         let mut app = scanning(Vec::new());
         app.event(event);
         assert_eq!(state(&app), said);
-        assert!(app.scan_pastes(), "the scanner closed");
+        assert!(app.scan().is_some(), "the scanner closed");
         // Its other ways in still work.
         app.clipboard = true;
         paste(&mut app, &kit("spending").descriptor);

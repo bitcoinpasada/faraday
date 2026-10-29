@@ -577,17 +577,21 @@ impl Faraday {
 }
 
 impl Faraday {
-    /// Whether the scanner on screen offers Paste: one that takes
-    /// anything, and, where the shell has a clipboard (the desktop app),
-    /// one that loads a seed (F75). Not a TOTP code's, nor a copy
-    /// check's (`docs/QR.md` §8 item 5).
+    /// Whether the scanner on screen offers Paste: only where the shell
+    /// has a clipboard (the desktop app), and then on one that takes
+    /// anything or loads a seed (F75). Not a TOTP code's, nor a copy
+    /// check's (`docs/QR.md` §8 item 5). Without a clipboard no scanner
+    /// has it.
     pub fn scan_pastes(&self) -> bool {
-        self.sheet == Some(Sheet::Scan)
+        self.clipboard
+            && self.sheet == Some(Sheet::Scan)
             && self.camera.scan().is_some_and(|s| match s.purpose {
-                ScanPurpose::Files | ScanPurpose::Transfer | ScanPurpose::Intake => true,
-                ScanPurpose::Seed | ScanPurpose::KeyPart | ScanPurpose::WalletKey(_) => {
-                    self.clipboard
-                }
+                ScanPurpose::Files
+                | ScanPurpose::Transfer
+                | ScanPurpose::Intake
+                | ScanPurpose::Seed
+                | ScanPurpose::KeyPart
+                | ScanPurpose::WalletKey(_) => true,
                 ScanPurpose::VaultEntry | ScanPurpose::CheckCopy(_) | ScanPurpose::CheckCodex32 => {
                     false
                 }

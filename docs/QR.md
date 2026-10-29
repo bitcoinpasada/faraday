@@ -504,9 +504,9 @@ The comparison that led here: moved to `docs/history/QR-LOG.md`.
    is still refused there. Other text goes where a QR read by
    the camera goes (`scanned`), parts included, and is wiped once
    routed. Empty text or `ClipboardUnavailable` puts "Nothing to paste"
-   on the state line for `NOTE_FLASH_MS` (2 s). The small panel has no
-   Paste: no shell there has a clipboard, and no dimmed tile stands in
-   for it. Paste on the desktop is live: the window shell reads the text
+   on the state line for `NOTE_FLASH_MS` (2 s). A shell with no
+   clipboard (the stick, the Pi) has no Paste on any scanner, and no
+   dimmed tile stands in for it. Paste on the desktop is live: the window shell reads the text
    through the platform's own tool (`wl-paste`, `xclip`, `pbpaste`; the
    Windows API on Windows; `docs/deps/clipboard.md`), run only on a press,
    and sets `Faraday::clipboard`. Ctrl+V (Command+V on macOS) is
