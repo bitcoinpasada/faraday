@@ -170,3 +170,4 @@ Read this table, then only the decision you need.
 | [F153](decisions/F153.md) | No kernel patch of Faraday's own on the Pi, and a new USB touchscreen approves itself by tapping a target: nothing is trusted by name | 2026-10-28 | Active | security |
 | [F154](decisions/F154.md) | Random bytes are taken from the source, an answer for every 32, or expanded by HKDF-Expand | 2026-10-28 | Active | security |
 | [F155](decisions/F155.md) | The other refusals of input a standard allows: keys, wallet files, PSBTs, transfers, shares, the vault and the paperkey | 2026-10-28 | Active | crypto |
+| [F156](decisions/F156.md) | Schnorr signatures are made with zero aux_rand | 2026-10-28 | Active | security |

@@ -2282,7 +2282,7 @@ kind = "Neutral"
 decision = "no decision"
 
 [[action.own]]
-text = "Path-restricted records are refused."
+text = "A descriptor record whose paths line is other than /0/*,/1/* is refused."
 kind = "Conservative"
 decision = "no decision"
 
@@ -4192,9 +4192,9 @@ lines = [
 ]
 
 [[action.own]]
-text = "Any sighash other than ALL or DEFAULT is refused for signing; the others are review cards."
+text = "NONE, SINGLE and non-standard sighashes are refused for signing; ALL with ANYONECANPAY is signed after a caution."
 kind = "Conservative"
-decision = "no decision"
+decision = "F136"
 
 [action.review]
 places = ["core/faraday-psbt/README.md#Warning thresholds"]
@@ -4245,7 +4245,7 @@ wiped = "The derived key lives in the signing function's frame and is wiped when
 
 [action.limits]
 lines = [
-  "Only SIGHASH_ALL is signed.",
+  "ALL is signed, and ALL with ANYONECANPAY after a caution; NONE, SINGLE and non-standard sighashes are refused.",
   "A SegWit v0 input with no previous transaction, in a transaction of several inputs, is refused.",
   "A key comes from the PSBT's origin only; a multisig key with no origin is refused.",
   "The app signs with the low-R nonce; the first RFC 6979 nonce is the library's other choice and is not offered in the app.",
@@ -4327,7 +4327,7 @@ lines = [
 [[action.own]]
 text = "aux_rand is zero, so a signature can be made again byte for byte; BIP 340 recommends fresh randomness against fault attacks. The library offers fresh aux_rand, and the app does not use it."
 kind = "Neutral"
-decision = "no decision"
+decision = "F156"
 
 [[action.own]]
 text = "A miniscript or a taproot tree of one key is signed only through its registered wallet."
@@ -4589,7 +4589,7 @@ lines = [
 [[action.own]]
 text = "The app signs with the low-R nonce and zero aux_rand for a taproot address."
 kind = "Neutral"
-decision = "no decision"
+decision = "F156"
 
 [action.review]
 places = ["core/faraday-psbt/src/message.rs"]
