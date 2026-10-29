@@ -1039,7 +1039,7 @@ lines = [
 [[action.own]]
 text = "A passphrase is printable ASCII, at most 256 bytes. BIP 39 allows any NFKD text, so a wallet made elsewhere with another passphrase cannot be restored here; a letter outside the range typed into a passphrase field is refused."
 kind = "Conservative"
-decision = "no decision"
+decision = "F155"
 
 [action.review]
 places = [
@@ -1245,7 +1245,7 @@ decision = "F98"
 [[action.own]]
 text = "Restore takes a seed for a wallet's key slot only when its whole extended public key at the slot's path matches the wallet's, not the four bytes of its fingerprint."
 kind = "Conservative"
-decision = "no decision"
+decision = "F155"
 
 [action.review]
 places = [
@@ -1316,7 +1316,7 @@ lines = [
 [[action.own]]
 text = "A multisig key with no origin is refused where a policy reads it."
 kind = "Conservative"
-decision = "no decision"
+decision = "F155"
 
 [action.review]
 places = [
@@ -2197,12 +2197,12 @@ lines = [
 [[action.own]]
 text = "A SLIP-132 version is checked against the script and the path around the key."
 kind = "Conservative"
-decision = "no decision"
+decision = "F155"
 
 [[action.own]]
 text = "A Caravan file whose startingAddressIndex is not 0, and an Electrum multisig keystore with no fingerprint, are refused."
 kind = "Conservative"
-decision = "no decision"
+decision = "F155"
 
 [action.review]
 places = [
@@ -2432,7 +2432,7 @@ lines = [
 [[action.own]]
 text = "Script-path spends of a musig() wallet are refused; only the key path is built."
 kind = "Conservative"
-decision = "no decision"
+decision = "F155"
 
 [action.review]
 places = [
@@ -2508,7 +2508,7 @@ lines = [
 [[action.own]]
 text = "A SLIP-132 version is checked against the script and the path around the key."
 kind = "Conservative"
-decision = "no decision"
+decision = "F155"
 
 [action.review]
 places = [
@@ -3976,7 +3976,7 @@ lines = [
 [[action.own]]
 text = "A key origin of more than 16 steps anywhere in a PSBT is refused when it is parsed."
 kind = "Conservative"
-decision = "no decision"
+decision = "F155"
 
 [action.review]
 places = ["core/faraday-psbt/README.md#What is refused"]
@@ -4127,12 +4127,12 @@ decision = "F141"
 [[action.own]]
 text = "A SegWit v0 input with only a witness UTXO in a transaction of several inputs is refused, which BIP 174 allows."
 kind = "Conservative"
-decision = "no decision"
+decision = "F155"
 
 [[action.own]]
 text = "The signed-amount memory refuses one transaction stated again with other amounts."
 kind = "Conservative"
-decision = "no decision"
+decision = "F155"
 
 [action.review]
 places = [
@@ -4254,7 +4254,7 @@ lines = [
 [[action.own]]
 text = "A key comes from the PSBT's origin only, under the master key's fingerprint; a key whose derived public key differs from the one named, or that the script does not hold, is refused, and an origin under an account's fingerprint matches no key."
 kind = "Conservative"
-decision = "no decision"
+decision = "F155"
 
 [[action.own]]
 text = "A script of several keys is signed only for a registered wallet that holds a loaded key."
@@ -4933,7 +4933,7 @@ lines = [
 [[action.own]]
 text = "Every limit fails closed: a frame, a count or a size past it is refused."
 kind = "Conservative"
-decision = "no decision"
+decision = "F155"
 
 [action.review]
 places = ["docs/QR.md"]
@@ -5330,7 +5330,7 @@ decision = "F94"
 [[action.own]]
 text = "A character outside the bech32 alphabet is not read as an erasure, and more than 8 erasures not in one run are refused; BIP 93 makes the first optional, and python-codex32 accepts both."
 kind = "Conservative"
-decision = "no decision"
+decision = "F155"
 
 [action.review]
 places = ["docs/CODEX32.md"]
@@ -5446,7 +5446,7 @@ decision = "F90"
 [[action.own]]
 text = "Secrets above 256 bits are refused."
 kind = "Conservative"
-decision = "no decision"
+decision = "F155"
 
 [[action.own]]
 text = "The 1-of-1 identifier is taken from the master fingerprint, which puts 15 bits of it on every share."
@@ -5948,7 +5948,7 @@ decision = "no decision"
 [[action.own]]
 text = "The reader limits (lanes exactly 1, passes at most 10, memory 8 MiB to 4 GiB) refuse headers that would cost a guess or an allocation the vault does not state."
 kind = "Conservative"
-decision = "no decision"
+decision = "F155"
 
 [action.review]
 places = [
@@ -6727,7 +6727,7 @@ lines = [
 [[action.own]]
 text = "A restore that cannot reproduce the certificate's own signatures is refused rather than accepted on the public key alone."
 kind = "Conservative"
-decision = "no decision"
+decision = "F155"
 
 [action.review]
 places = [
