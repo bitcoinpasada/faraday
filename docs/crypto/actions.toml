@@ -841,6 +841,7 @@ screens = [
   "Explore",
   "Wallets",
   "Tools",
+  "Restore",
 ]
 functions = [
   "core/faraday-bip/src/keys.rs::MasterKey::derive",
@@ -859,6 +860,17 @@ functions = [
   "faraday/faraday-keys/src/texts.rs::key_text",
   "faraday/faraday-keys/src/texts.rs::single_account",
   "faraday/faraday-keys/src/texts.rs::account_at",
+  "faraday/faraday-core/src/explore/mod.rs::parse_path",
+  "faraday/faraday-core/src/explore/mod.rs::implied_script",
+  "faraday/faraday-core/src/explore/mod.rs::ExploreArea::path",
+  "faraday/faraday-core/src/explore/mod.rs::ExploreArea::reading_now",
+  "faraday/faraday-core/src/explore/mod.rs::ExploreArea::act",
+  "faraday/faraday-core/src/explore/mod.rs::Faraday::explore_path",
+  "faraday/faraday-core/src/explore/addresses.rs::account_of",
+  "faraday/faraday-core/src/create.rs::account_of",
+  "faraday/faraday-core/src/create.rs::path_spec",
+  "faraday/faraday-core/src/restore.rs::Faraday::restore_refusal_typed",
+  "faraday/faraday-core/src/restore.rs::Faraday::restore_took",
 ]
 code = [
   "core/faraday-bip/src/keys.rs::MasterKey::derive",
@@ -872,7 +884,7 @@ libraries = [
   "bitcoin",
   "secp256k1",
 ]
-adds = "The account path is purpose'/coin'/account' with the purpose of the script type; an account or index of 2^31 or more is refused; the key text is [fingerprint/path]xpub with h for hardened."
+adds = "The account path is purpose'/coin'/account' with the purpose of the script type; an account or index of 2^31 or more is refused; the key text is [fingerprint/path]xpub with h for hardened. Explore reads a path typed with h or ' for hardened, of at most 10 levels, each index under 2^31, and takes the script type from a hardened purpose of 44, 49, 84 or 86; the account of an address path is the path without its chain and index, and none for the multisig purposes 45 and 48."
 
 [action.checked]
 vectors = [
@@ -887,6 +899,8 @@ tests = [
   "core/faraday-bip/tests/all/accounts.rs::bip86_taproot_mainnet",
   "core/faraday-bip/tests/all/accounts.rs::other_accounts_and_index_limits",
   "core/faraday-bip/tests/all/accounts.rs::coin_types_and_purposes_decide_the_path",
+  "faraday/faraday-core/tests/all/explore.rs::bip84_and_bip86s_first_addresses",
+  "faraday/faraday-core/tests/all/explore.rs::a_path_typed_wrongly_is_named",
 ]
 crosscheck = "bip32"
 selftest = [
@@ -902,6 +916,7 @@ wiped = "A derived private key is overwritten when it is dropped and where its s
 [action.limits]
 lines = [
   "Account and address indexes of 2^31 or more are refused.",
+  "An Explore path of more than 10 levels, or with an empty level or an index of 2^31 or more, is refused.",
 ]
 
 [[action.own]]
@@ -913,6 +928,11 @@ decision = "F66"
 text = "The account is asked after the quorum, not on Kind."
 kind = "Neutral"
 decision = "F98"
+
+[[action.own]]
+text = "Restore takes a seed for a wallet's key slot only when its whole extended public key at the slot's path matches the wallet's, not the four bytes of its fingerprint."
+kind = "Conservative"
+decision = "no decision"
 
 [action.review]
 places = [
@@ -1136,6 +1156,10 @@ screens = [
 ]
 functions = [
   "faraday/faraday-keys/src/session.rs::Keys::xprv_at",
+  "faraday/faraday-core/src/explore/shown.rs::Shown::xprvs",
+  "faraday/faraday-core/src/explore/shown.rs::xprv_path",
+  "faraday/faraday-core/src/explore/shown.rs::ExploreArea::eye",
+  "faraday/faraday-core/src/explore/shown.rs::ExploreArea::prune",
 ]
 code = [
   "faraday/faraday-keys/src/session.rs::Keys::xprv_at",
@@ -1144,7 +1168,7 @@ code = [
 [action.implementation]
 crate = "faraday/faraday-keys"
 libraries = []
-adds = "Answers only the reason Reveal::ExtendedPrivateKey; the key is derived at the path and written in a fixed buffer."
+adds = "Answers only the reason Reveal::ExtendedPrivateKey; the key is derived at the path and written in a fixed buffer. In the app each of Explore's eyes makes what it shows once, at the press that opens it, by the reveal that names it: the seed's forms, the root's and the account's extended private keys together, or an address's private key; the account is the path's account, or the path itself where it is in none, and what is not on screen is dropped after every press and key on Explore, and by closing an eye, leaving Explore, the idle warning and a lock."
 
 [action.checked]
 vectors = [
@@ -1154,6 +1178,8 @@ tests = [
   "faraday/faraday-keys/tests/operations.rs::explore::the_root_extended_private_key_is_bip32s_vector_1",
   "faraday/faraday-keys/tests/operations.rs::explore::the_account_extended_private_key_is_bip84s",
   "faraday/faraday-keys/tests/operations.rs::explore::each_reason_gives_only_its_own_secret",
+  "faraday/faraday-core/tests/all/explore.rs::the_extended_private_keys_show_behind_their_eye",
+  "faraday/faraday-core/tests/all/explore.rs::everything_is_hidden_after_leaving_and_coming_back",
 ]
 crosscheck = "bip32"
 fuzz_none = "Takes a held key, a path and a reason; no outside input is parsed."
@@ -1188,6 +1214,8 @@ screens = [
 ]
 functions = [
   "faraday/faraday-keys/src/session.rs::Keys::wif_at",
+  "faraday/faraday-core/src/explore/shown.rs::Shown::wif",
+  "faraday/faraday-core/src/explore/shown.rs::address_path",
 ]
 code = [
   "faraday/faraday-keys/src/session.rs::Keys::wif_at",
@@ -1196,7 +1224,7 @@ code = [
 [action.implementation]
 crate = "faraday/faraday-keys"
 libraries = []
-adds = "Answers only the reason Reveal::AddressKey; the WIF is compressed and carries the store's network."
+adds = "Answers only the reason Reveal::AddressKey; the WIF is compressed and carries the store's network. On Explore's address list an address's key is asked at the account's path, its chain and its index."
 
 [action.checked]
 vectors = [
@@ -1205,6 +1233,7 @@ vectors = [
 tests = [
   "faraday/faraday-keys/tests/operations.rs::explore::the_first_addresss_private_key_pays_to_bip84s_first_address",
   "faraday/faraday-keys/tests/operations.rs::explore::each_reason_gives_only_its_own_secret",
+  "faraday/faraday-core/tests/all/explore.rs::an_addresss_private_key_shown_is_bip84s",
 ]
 crosscheck = "bip32"
 fuzz_none = "Takes a held key, a path and a reason; no outside input is parsed."
@@ -1437,6 +1466,12 @@ functions = [
   "core/faraday-bip/src/policy.rs::WalletPolicy::find_address",
   "core/faraday-bip/src/account.rs::AccountXpub::address",
   "core/faraday-bip/src/account.rs::AccountXpub::find_address",
+  "faraday/faraday-core/src/explore/addresses.rs::derive",
+  "faraday/faraday-core/src/explore/addresses.rs::Kept::at",
+  "faraday/faraday-core/src/explore/addresses.rs::Kept::page",
+  "faraday/faraday-core/src/explore/addresses.rs::ExploreArea::tick",
+  "faraday/faraday-core/src/wallet.rs::Wallet::script_at",
+  "faraday/faraday-core/src/drawing/kept.rs::View::script_at",
 ]
 code = [
   "core/faraday-bip/src/policy.rs::WalletPolicy::script_at",
@@ -1451,7 +1486,7 @@ libraries = [
   "secp256k1",
   "miniscript",
 ]
-adds = "The script is derived from the keys of the policy on a verification-only context; an index of 2^31 or more is refused; the search takes the receive and change address at each index in turn, nearest first."
+adds = "The script is derived from the keys of the policy on a verification-only context; an index of 2^31 or more is refused; the search takes the receive and change address at each index in turn, nearest first. Explore's address list and search derive from the account's extended public key as a single-key wallet and keep up to 10,000 addresses of each chain from index 0; a search looks 100, 1,000 or 10,000 indices deep, and a wallet keeps the scripts it has derived, a lookup after the first."
 
 [action.checked]
 vectors = [
@@ -1466,6 +1501,8 @@ tests = [
   "core/faraday-bip/tests/all/accounts.rs::find_address_scans_both_chains",
   "core/faraday-bip/tests/all/accounts.rs::other_accounts_and_index_limits",
   "core/faraday-bip/src/policy.rs::a_wallet_over_a_bare_key_derives_the_published_addresses",
+  "faraday/faraday-core/tests/all/explore_addresses.rs::the_list_gives_the_published_addresses_of_each_account",
+  "faraday/faraday-core/tests/all/explore_addresses.rs::a_whole_address_is_found_at_its_index_on_each_chain",
 ]
 crosscheck = "addr"
 selftest = [
@@ -1484,6 +1521,7 @@ wiped = "Nothing secret is held."
 lines = [
   "An address index of 2^31 or more is refused.",
   "A search looks only as far as the index it is given.",
+  "A search keeps its first 50 matches and counts the rest.",
 ]
 
 [action.review]
@@ -1753,7 +1791,7 @@ places = [
 
 [[action]]
 id = "wallet-files"
-action = "Reads another wallet's export (Coldcard JSON and multisig configuration files) as a wallet, checking the first address the file states."
+action = "Reads another wallet's export (Coldcard JSON and multisig configuration files) as a wallet, checking the first address the file states, and writes a native SegWit single-key wallet as Coldcard's file for Wasabi."
 row = "wallet-files"
 standards = [
   "BIP 388",
@@ -1778,6 +1816,9 @@ functions = [
   "core/faraday-bip/src/json.rs::parse",
   "core/faraday-bip/src/json.rs::Value::as_u64",
   "core/faraday-bip/src/json.rs::Value::strings_named",
+  "faraday/faraday-core/src/inbox.rs::kind_of_path",
+  "faraday/faraday-intake/src/single_key.rs::wasabi_key",
+  "faraday/faraday-intake/src/wallet.rs::network_of_kind",
 ]
 code = [
   "core/faraday-bip/src/coldcard.rs::read",
@@ -1789,7 +1830,7 @@ crate = "core/faraday-bip"
 libraries = [
   "bitcoin",
 ]
-adds = "JSON is read by Faraday's own reader (depth and size limited, an object that names a key twice refused); a Coldcard export's stated first address is derived and compared; a multisig file with more than fifteen cosigners is refused at the sixteenth."
+adds = "JSON is read by Faraday's own reader (depth and size limited, an object that names a key twice refused); a Coldcard export's stated first address is derived and compared; a multisig file with more than fifteen cosigners is refused at the sixteenth. An account key alone becomes a wallet of the kind its path's purpose names (44 legacy, 49 nested SegWit, 84 native SegWit, 86 taproot), and a purpose of 45, 48 or 87 is a cosigner's key and no wallet on its own; a key of a test network is taken as testnet unless the session is already on a test network; the file for Wasabi is written only for a native SegWit single-key wallet whose key has an origin at exactly 84h/0h/0h or 84h/1h/0h."
 
 [action.checked]
 tests = [
@@ -1799,6 +1840,8 @@ tests = [
   "core/faraday-bip/src/multisig_config.rs::a_config_of_more_cosigners_than_a_multisig_takes_is_refused",
   "core/faraday-bip/src/multisig_config.rs::slip132_spellings_of_a_key_read_as_the_same_wallet",
   "core/faraday-bip/tests/all/json.rs::a_key_named_twice_too_deep_or_too_long_is_refused",
+  "faraday/faraday-core/tests/all/inbox_found.rs::an_account_xpub_alone_becomes_a_watch_only_wallet_of_its_paths_kind",
+  "faraday/faraday-core/tests/all/inbox_found.rs::a_cosigners_multisig_xpub_is_not_a_wallet_on_its_own",
 ]
 not_crosschecked = "The files are other wallets' formats; they are checked against files from those wallets' test suites, not a second implementation."
 fuzz = [
@@ -1815,6 +1858,7 @@ wiped = "Nothing secret is held."
 lines = [
   "A file whose stated first address is not its wallet's is refused.",
   "A key in a SLIP-132 version that disagrees with the script is refused.",
+  "A file for Wasabi is written only for a native SegWit single-key wallet at 84h/0h/0h (mainnet) or 84h/1h/0h (test networks).",
 ]
 
 [[action.own]]
@@ -2151,6 +2195,7 @@ functions = [
   "core/faraday-bip/src/address.rs::is_address_prefix",
   "core/faraday-bip/src/address.rs::parses",
   "core/faraday-bip/src/address.rs::parse",
+  "faraday/faraday-core/src/lib.rs::Faraday::address_note",
 ]
 code = [
   "core/faraday-bip/src/address.rs::parse",
@@ -2161,7 +2206,7 @@ crate = "core/faraday-bip"
 libraries = [
   "bitcoin",
 ]
-adds = "An address of another network is told apart from an invalid one, and a silent payment address is told apart from both."
+adds = "An address of another network is told apart from an invalid one, and a silent payment address is told apart from both. A scanned address is told apart as one of a loaded wallet's first 100 receive or change addresses, one of another network, or text of at least 26 characters with an address's prefix that does not parse."
 
 [action.checked]
 vectors = [
@@ -2183,6 +2228,7 @@ wiped = "Nothing secret is held."
 [action.limits]
 lines = [
   "An address of another network is refused.",
+  "A scanned address is looked for among 100 addresses on each chain of each loaded wallet.",
 ]
 
 [action.review]
@@ -2625,6 +2671,7 @@ screens = [
 functions = [
   "core/faraday-entropy/src/device.rs::DeviceRandom::commitment",
   "core/faraday-entropy/src/device.rs::DeviceRandom::entropy",
+  "faraday/faraday-core/src/keygen/mod.rs::device_own",
 ]
 code = [
   "core/faraday-entropy/src/device.rs::DeviceRandom::entropy",
@@ -2633,7 +2680,7 @@ code = [
 [action.implementation]
 crate = "core/faraday-entropy"
 libraries = []
-adds = "The entropy is SHA-256 of the 32 bytes, truncated to the strength, so the key is not the shell's bytes themselves; the source trusts the device."
+adds = "The entropy is SHA-256 of the 32 bytes, truncated to the strength, so the key is not the shell's bytes themselves; the source trusts the device. Where the person added randomness of their own, the hash is over a label, the 32 bytes and the accumulator of what was added, so someone who lacks either part cannot predict the key."
 
 [action.checked]
 vectors = [
@@ -2734,6 +2781,8 @@ functions = [
   "faraday/faraday-core/src/fresh.rs::Seed::draw",
   "faraday/faraday-core/src/fresh.rs::reseed",
   "faraday/faraday-core/src/fresh.rs::Own::add",
+  "faraday/faraday-core/src/fresh.rs::Fresh::take",
+  "faraday/faraday-core/src/fresh.rs::Fresh::sign_seed",
 ]
 code = [
   "faraday/faraday-core/src/fresh.rs::Seed::draw",
@@ -2856,6 +2905,7 @@ screens = [
 ]
 functions = [
   "faraday/faraday-core/src/fresh/roller/mod.rs::Pool::clear",
+  "faraday/faraday-core/src/fresh/roller/mod.rs::Pool::next",
 ]
 code = [
   "faraday/faraday-core/src/fresh/roller/mod.rs::Pool::clear",
@@ -3275,6 +3325,13 @@ functions = [
   "faraday/faraday-keys/src/silent.rs::receiver",
   "faraday/faraday-keys/src/silent.rs::Receiver::scan_key",
   "faraday/faraday-keys/src/operations.rs::Keys::silent_receiver",
+  "faraday/faraday-keys/src/silent.rs::Receiver::address",
+  "faraday/faraday-keys/src/silent.rs::Receiver::payments_in",
+  "faraday/faraday-keys/src/silent.rs::Receiver::scan_public_key",
+  "faraday/faraday-keys/src/silent.rs::Receiver::spend_public_key",
+  "faraday/faraday-core/src/silent/check.rs::Check::prevouts",
+  "faraday/faraday-core/src/silent/check.rs::Check::tx",
+  "faraday/faraday-core/src/silent/check.rs::Check::waiting_for",
 ]
 code = [
   "core/faraday-bip/src/silent.rs::Receiver::derive",
@@ -3287,7 +3344,7 @@ libraries = [
   "bitcoin",
   "secp256k1",
 ]
-adds = "The scan and spend keys are taken at BIP 352's paths; a transaction's eligible inputs give the input hash and shared secret, and every output it pays to the wallet is found with the label it was paid to, up to K_max; the scan private key leaves only as BIP 392's spscan1q text for a named reason."
+adds = "The scan and spend keys are taken at BIP 352's paths; a transaction's eligible inputs give the input hash and shared secret, and every output it pays to the wallet is found with the label it was paid to, up to K_max; the scan private key leaves only as BIP 392's spscan1q text for a named reason. The app's check of a transaction takes its previous transactions one at a time and gives the previous outputs, in input order, once every one is known."
 
 [action.checked]
 vectors = [
@@ -3357,6 +3414,7 @@ functions = [
   "faraday/faraday-keys/src/session.rs::Keys::words_identity",
   "faraday/faraday-keys/src/session.rs::Keys::words_record_id",
   "faraday/faraday-core/src/quiz.rs::Quiz::seed",
+  "faraday/faraday-keys/src/identity.rs::secret_id",
 ]
 code = [
   "faraday/faraday-keys/src/session.rs::Keys::words_id",
@@ -3365,7 +3423,7 @@ code = [
 [action.implementation]
 crate = "faraday/faraday-keys"
 libraries = []
-adds = "The id is the SHA-256 of all 32 bytes of the words' entropy, worked out the first time it is asked and kept beside the key, so two seeds never pass for one; the same words with and without a passphrase share it."
+adds = "The id is the SHA-256 of all 32 bytes of the words' entropy, worked out the first time it is asked and kept beside the key, so two seeds never pass for one; the same words with and without a passphrase share it. What is kept of a secret's fingerprint is keyed by SHA-256 of a tag and the secret, so the secret itself is kept nowhere."
 
 [action.checked]
 tests = [
@@ -3570,6 +3628,18 @@ what = "SeedQR and CompactSeedQR"
 completeness = "12 and 24 words; the specification assumes English words"
 
 [[row]]
+id = "seed-files"
+section = 3
+what = "Seed files for a backup stick and for the Outbox"
+completeness = "Words, passphrase, SeedQR picture and codex32 files; each leaves only past the hold that lets a secret out unprotected"
+
+[[row]]
+id = "inbox-secret"
+section = 4
+what = "Seeds and keys found in files and scans"
+completeness = "Words, SLIP-39 shares, codex32 strings, extended private keys and WIF keys are recognised and kept out of places a secret may not go"
+
+[[row]]
 id = "codex32"
 section = 3
 what = "codex32"
@@ -3614,13 +3684,14 @@ functions = [
   "core/faraday-psbt/src/psbt.rs::Psbt::inner",
   "core/faraday-psbt/src/psbt.rs::Psbt::inner_mut",
   "core/faraday-psbt/src/psbt.rs::Psbt::into_inner",
+  "faraday/faraday-core/src/wallet.rs::classify_read",
 ]
 code = ["core/faraday-psbt/src/psbt.rs::Psbt::parse_bytes", "core/faraday-psbt/src/psbt.rs::Psbt::parse_base64"]
 
 [action.implementation]
 crate = "core/faraday-psbt"
 libraries = ["bitcoin"]
-adds = "Refuses a version other than 0, version 2 fields inside a version 0 file and a key origin of more than 16 steps; a field not changed since it was read is written back exactly as read."
+adds = "Refuses a version other than 0, version 2 fields inside a version 0 file and a key origin of more than 16 steps; a field not changed since it was read is written back exactly as read. The app tells a file is a PSBT by reading it once as bytes, else as base64 text, when it comes in."
 
 [action.checked]
 vectors = ["psbt", "psbt-bips"]
@@ -3697,7 +3768,7 @@ lines = [
   "A taproot signature with a sighash byte of 0 is refused.",
   "A key twice in a map, and bytes after the last map, are refused.",
   "The fallback locktime, the modifiable flags, the sequence and the required locktimes are held to their sizes and ranges.",
-  "The app reads version 2 files through faraday-intake's converter, which this action does not cover.",
+  "The app does not read version 2 files: it reads version 0 only.",
 ]
 
 [[action.own]]
@@ -3734,13 +3805,18 @@ functions = [
   "core/faraday-psbt/src/context.rs::Context::wallet_claim",
   "core/faraday-psbt/src/context.rs::KeyRef::from_master",
   "core/faraday-psbt/src/context.rs::KeyRef::derive_key",
+  "faraday/faraday-core/src/register.rs::path_text",
+  "faraday/faraday-core/src/memory.rs::stated",
+  "faraday/faraday-core/src/wallet.rs::psbt_network",
+  "faraday/faraday-core/src/wallet.rs::Faraday::register_act",
+  "faraday/faraday-core/src/wallet.rs::Spend::collect",
 ]
 code = ["core/faraday-psbt/src/inspect.rs::inspect"]
 
 [action.implementation]
 crate = "core/faraday-psbt"
 libraries = ["bitcoin", "miniscript"]
-adds = "Change is verified only when the output's script is the address a loaded key's account (or a registered wallet) derives at the stated path; a claim on a loaded key that derives another script is a block; warnings are ranked Info, Caution, Danger and Blocked; a wallet is offered for registering only when the PSBT's global xpubs give every script of its inputs and outputs."
+adds = "Change is verified only when the output's script is the address a loaded key's account (or a registered wallet) derives at the stated path; a claim on a loaded key that derives another script is a block; warnings are ranked Info, Caution, Danger and Blocked; a wallet is offered for registering only when the PSBT's global xpubs give every script of its inputs and outputs. A PSBT's network is read from its global xpubs, else from the coin type of a BIP 44, 49, 84, 86 or 48 key path, else it is the session's; the signed-amount memory keeps the SHA-256 of the unsigned transaction and the amount each input states, and only when every input states one; another device's signatures are merged only into a PSBT of the same transaction that asks the same sighashes, and are refused when one is invalid; the register sheet's hold registers a wallet only once its descriptor gives the spend's scripts and one of its keys is a loaded key's own at its path."
 
 [action.checked]
 vectors = ["psbt"]
@@ -3753,6 +3829,7 @@ tests = [
   "core/faraday-psbt/tests/all/inspect.rs::network_mismatch",
   "core/faraday-psbt/tests/all/registered.rs::an_unregistered_two_of_three_input_is_blocked_held_or_not",
   "core/faraday-psbt/tests/all/registered.rs::a_psbt_with_global_xpubs_registers_its_wallet_and_then_signs",
+  "faraday/faraday-core/tests/all/register_wallet.rs::register_this_wallet_shows_the_wallet_and_the_hold_registers_it_and_it_signs",
 ]
 not_crosschecked = "The review's warnings and thresholds are Faraday's own rules; area sign checks the signing that follows them."
 fuzz = ["psbt_parse"]
@@ -3768,6 +3845,7 @@ lines = [
   "Multisig change is verified only by re-deriving it from a registered wallet.",
   "A SegWit v0 input with no previous transaction in a transaction of several inputs is blocked.",
   "Only a high fee and an absurd fee rate can be held past; every other danger and every block has no way past.",
+  "Another device's PSBT for another transaction, one that asks another sighash of an input and one with a signature that does not verify are refused, never merged.",
 ]
 
 [[action.own]]
@@ -4143,13 +4221,16 @@ row = "psbt-v0"
 standards = ["BIP 174"]
 learn = "verifying"
 screens = ["Spend", "Family"]
-functions = ["core/faraday-psbt/src/finalize.rs::finalize"]
+functions = [
+  "core/faraday-psbt/src/finalize.rs::finalize",
+  "faraday/faraday-core/src/wallet.rs::Spend::finished_hex",
+]
 code = ["core/faraday-psbt/src/finalize.rs::finalize"]
 
 [action.implementation]
 crate = "core/faraday-psbt"
 libraries = ["bitcoin", "miniscript"]
-adds = "bitcoin has no finalizer, so single-key and plain multisig inputs are finalized here; a miniscript or a tree goes through miniscript's finalizer with its interpreter check; among satisfactions of a wsh miniscript the smaller by real signature size is chosen; the signing fields are cleared as BIP 174 requires."
+adds = "bitcoin has no finalizer, so single-key and plain multisig inputs are finalized here; a miniscript or a tree goes through miniscript's finalizer with its interpreter check; among satisfactions of a wsh miniscript the smaller by real signature size is chosen; the signing fields are cleared as BIP 174 requires. The app keeps the finished transaction and writes it as hex."
 
 [action.checked]
 vectors = ["psbt"]
@@ -4201,13 +4282,14 @@ functions = [
   "core/faraday-psbt/src/message.rs::virtual_txids",
   "faraday/faraday-keys/src/message.rs::sign",
   "faraday/faraday-keys/src/session.rs::Keys::sign_message",
+  "faraday/faraday-core/src/wallet.rs::Session::sign_message",
 ]
 code = ["core/faraday-psbt/src/message.rs::sign"]
 
 [action.implementation]
 crate = "core/faraday-psbt"
 libraries = ["secp256k1", "bitcoin"]
-adds = "The address is derived from the key that signs, so the address in the result is the one the signature verifies against; BIP 137 low-R is ground here, libsecp256k1 having no low-R recoverable signer; the key's own blinded curve context is used."
+adds = "The address is derived from the key that signs, so the address in the result is the one the signature verifies against; BIP 137 low-R is ground here, libsecp256k1 having no low-R recoverable signer; the key's own blinded curve context is used. In the app the key is the one behind an address of a loaded single-key wallet's receive chain, and a wallet of several keys is refused."
 
 [action.checked]
 vectors = ["message"]
@@ -4248,13 +4330,16 @@ row = "message-signing"
 standards = ["BIP 137", "BIP 322"]
 learn = "message"
 screens = ["CheckMessage"]
-functions = ["core/faraday-psbt/src/message.rs::verify"]
+functions = [
+  "core/faraday-psbt/src/message.rs::verify",
+  "faraday/faraday-core/src/wallet.rs::Session::check_message",
+]
 code = ["core/faraday-psbt/src/message.rs::verify"]
 
 [action.implementation]
 crate = "core/faraday-psbt"
 libraries = ["secp256k1", "bitcoin"]
-adds = "Reads the recovery id from the BIP 137 header and asks the address itself which form to rebuild, as Electrum and Sparrow do; a P2PKH address is tried in both key encodings."
+adds = "Reads the recovery id from the BIP 137 header and asks the address itself which form to rebuild, as Electrum and Sparrow do; a P2PKH address is tried in both key encodings. The app requires the address to be on the session's network and looks for it among each loaded wallet's first 100 addresses on both chains."
 
 [action.checked]
 vectors = ["message"]
@@ -4302,13 +4387,20 @@ functions = [
   "core/faraday-psbt/src/transaction.rs::Spending::add_previous",
   "core/faraday-psbt/src/transaction.rs::Spending::prevouts",
   "core/faraday-psbt/src/transaction.rs::prevout_of",
+  "faraday/faraday-core/src/decode.rs::decode",
+  "faraday/faraday-core/src/decode.rs::Faraday::amounts_in",
+  "faraday/faraday-core/src/decode.rs::prevouts_of",
+  "faraday/faraday-core/src/decode.rs::same_unsigned",
+  "faraday/faraday-core/src/decode.rs::script_kind",
+  "faraday/faraday-core/src/decode.rs::btc",
+  "faraday/faraday-qr/src/lib.rs::transaction_hex",
 ]
 code = ["core/faraday-psbt/src/transaction.rs::read_raw"]
 
 [action.implementation]
 crate = "core/faraday-psbt"
 libraries = ["bitcoin"]
-adds = "A raw transaction is read from hex or bytes by rust-bitcoin; a previous transaction is accepted for an input only when its txid is the one spent."
+adds = "A raw transaction is read from hex or bytes by rust-bitcoin; a previous transaction is accepted for an input only when its txid is the one spent. The Decode screen takes the amounts its inputs spend from the spend's PSBT and the Inbox's PSBTs whose unsigned transaction is exactly the one decoded, and uses an input's amount only when no two of them state different ones; an output is named by its script kind (P2WPKH, P2WSH, P2TR, P2SH, P2PKH or OP_RETURN) and marked when it pays to a loaded wallet's first 100 addresses on either chain; a text is taken as a transaction in hex only when it has an even number of at least 120 hex digits that read as a transaction."
 
 [action.checked]
 tests = [
@@ -4327,6 +4419,7 @@ wiped = "Nothing secret is held."
 lines = [
   "A raw transaction is read only when its bytes are exactly the serialisation of what was read.",
   "A previous transaction with another id does not state the spent output.",
+  "Amounts that two PSBTs state differently for an input are not used.",
 ]
 
 [[action.own]]
@@ -4443,6 +4536,9 @@ functions = [
   "faraday/faraday-qr/src/send.rs::ur_psbt_frames",
   "faraday/faraday-qr/src/send.rs::ur_bytes_frames",
   "faraday/faraday-qr/src/send.rs::ur_bytes_animated",
+  "faraday/faraday-qr/src/registry.rs::read",
+  "faraday/faraday-qr/src/registry.rs::hdkey",
+  "faraday/faraday-qr/src/registry.rs::account_cbor",
 ]
 code = [
   "core/faraday-codec/src/ur/mod.rs::encode_single",
@@ -4453,7 +4549,7 @@ code = [
 [action.implementation]
 crate = "core/faraday-codec"
 libraries = []
-adds = "The whole transport is written here: bytewords in the minimal style with their CRC-32, the xoshiro generator that picks a part's fragments, the fountain parts with their CBOR and the ur: text; SHA-256 and CRC-32 come from faraday-crypto. A decoder reduces a mix by any buffered mix whose fragments are a subset of its own."
+adds = "The whole transport is written here: bytewords in the minimal style with their CRC-32, the xoshiro generator that picks a part's fragments, the fountain parts with their CBOR and the ur: text; SHA-256 and CRC-32 come from faraday-crypto. A decoder reduces a mix by any buffered mix whose fragments are a subset of its own. The registry's crypto-hdkey, crypto-account and crypto-output are read as key lines or a descriptor, and a crypto-account is written for one key as SeedSigner shows it."
 
 [action.checked]
 vectors = ["ur"]
@@ -4520,13 +4616,14 @@ functions = [
   "faraday/faraday-qr/src/send.rs::numbered",
   "faraday/faraday-qr/src/send.rs::bbqr_frames",
   "faraday/faraday-qr/src/send.rs::animated",
+  "faraday/faraday-qr/src/lib.rs::Assembler::feed",
 ]
 code = ["faraday/faraday-qr/src/send.rs::bbqr_frames", "faraday/faraday-qr/src/send.rs::parts_frames"]
 
 [action.implementation]
 crate = "faraday/faraday-qr"
 libraries = []
-adds = "BBQr is written in base32 only and read in base32, hex and raw DEFLATE (miniz_oxide, decompressed within a bound); the numbered parts are Specter's and SeedSigner's pNofM; every limit fails closed."
+adds = "BBQr is written in base32 only and read in base32, hex and raw DEFLATE (miniz_oxide, decompressed within a bound); the numbered parts are Specter's and SeedSigner's pNofM; every limit fails closed. The assembler keeps a transfer part-way through across scans; a part of another transfer starts that one afresh, and any other refusal leaves the transfer as it was."
 
 [action.checked]
 tests = [
@@ -4565,13 +4662,17 @@ row = "file-envelope"
 standards = []
 learn = "air_gap"
 screens = ["Transfer", "Files"]
-functions = ["faraday/faraday-qr/src/envelope.rs::pack"]
+functions = [
+  "faraday/faraday-qr/src/envelope.rs::pack",
+  "faraday/faraday-qr/src/envelope.rs::unpack",
+  "faraday/faraday-qr/src/lib.rs::classify_text",
+]
 code = ["faraday/faraday-qr/src/envelope.rs::pack"]
 
 [action.implementation]
 crate = "faraday/faraday-qr"
 libraries = ["bitcoin"]
-adds = "The envelope is canonical JSON with sorted keys and no spaces; unpack reads the fields, puts the file in an envelope again and refuses unless the bytes are identical; the SHA-256 of the file is written in the envelope and checked when one is read."
+adds = "The envelope is canonical JSON with sorted keys and no spaces; unpack reads the fields, puts the file in an envelope again and refuses unless the bytes are identical; the SHA-256 of the file is written in the envelope and checked when one is read. A scanned text is taken as an envelope only when it looks like one and unpack accepts it."
 
 [action.checked]
 tests = [
@@ -4614,13 +4715,19 @@ row = "file-hash"
 standards = ["FIPS 180-4"]
 learn = "air_gap"
 screens = ["Files", "Visit"]
-functions = ["faraday/faraday-core/src/receipt.rs::sha256_of"]
+functions = [
+  "faraday/faraday-core/src/receipt.rs::sha256_of",
+  "faraday/faraday-core/src/file_menu.rs::sha256",
+  "faraday/faraday-core/src/gpg.rs::sha256",
+  "faraday/faraday-core/src/gpg.rs::sha256_hex",
+  "faraday/faraday-core/src/lib.rs::Item::hash",
+]
 code = ["faraday/faraday-core/src/receipt.rs::sha256_of"]
 
 [action.implementation]
 crate = "core/faraday-crypto"
 libraries = ["sha2"]
-adds = "sha2's SHA-256 over every byte, counted as file-hash work through the compute token."
+adds = "sha2's SHA-256 over every byte, counted as file-hash work through the compute token. A file in the Inbox is hashed when it comes in and the sum is kept on it, a lookup after; the Files menu and the GPG signing page hash through the same function."
 
 [action.checked]
 tests = [
@@ -4660,13 +4767,16 @@ functions = [
   "core/faraday-codec/src/seedqr.rs::encode_seedqr",
   "core/faraday-codec/src/seedqr.rs::encode_compact",
   "faraday/faraday-keys/src/session.rs::Keys::seedqr_matrix",
+  "faraday/faraday-core/src/backup_flow/mod.rs::seedqr_picture",
+  "faraday/faraday-core/src/picture.rs::labelled_png",
+  "faraday/faraday-core/src/pdf.rs::probe_matrix",
 ]
 code = ["core/faraday-codec/src/seedqr.rs::encode_seedqr", "core/faraday-codec/src/seedqr.rs::encode_compact"]
 
 [action.implementation]
 crate = "core/faraday-codec"
 libraries = []
-adds = "The word indices as four decimal digits each in numeric mode, or the entropy bytes in byte mode, at error-correction level L; the matrix and the digit buffer are wiped; the code is the smallest version that holds the payload."
+adds = "The word indices as four decimal digits each in numeric mode, or the entropy bytes in byte mode, at error-correction level L; the matrix and the digit buffer are wiped; the code is the smallest version that holds the payload. The app writes the picture as an eight-bit greyscale PNG with the key's fingerprint as its title, and wipes the pixels drawn once the file is made; the blank sheet's grid is the SeedQR of an all-zero seed of the same length, so its fixed squares are every seed's."
 
 [action.checked]
 vectors = ["seedqr"]
@@ -4989,7 +5099,11 @@ action = "Splits a master secret into SLIP-39 shares and recovers it from them, 
 row = "slip39"
 standards = ["SLIP-0039"]
 learn = "other_backups"
-screens = ["Backup", "Entry"]
+screens = [
+  "Backup",
+  "Entry",
+  "KeyGen",
+]
 functions = [
   "core/faraday-bip/src/slip39.rs::split",
   "core/faraday-bip/src/slip39.rs::recover",
@@ -4999,13 +5113,14 @@ functions = [
   "core/faraday-bip/src/slip39.rs::Share::from_indices",
   "faraday/faraday-keys/src/words.rs::slip39_split",
   "faraday/faraday-keys/src/operations.rs::slip39_seed",
+  "faraday/faraday-core/src/keygen/mod.rs::KeyGen::deal",
 ]
 code = ["core/faraday-bip/src/slip39.rs::split", "core/faraday-bip/src/slip39.rs::recover"]
 
 [action.implementation]
 crate = "core/faraday-bip"
 libraries = []
-adds = "Written here over faraday-crypto's HMAC-SHA256 and PBKDF2-HMAC-SHA256: the RS1024 checksum, Shamir over GF(256), the digest share and the Feistel cipher. The recovered master secret is the BIP 32 seed, not BIP 39 entropy."
+adds = "Written here over faraday-crypto's HMAC-SHA256 and PBKDF2-HMAC-SHA256: the RS1024 checksum, Shamir over GF(256), the digest share and the Feistel cipher. The recovered master secret is the BIP 32 seed, not BIP 39 entropy. New key's split takes the shares' identifier and the split's randomness from one fresh draw of the system, stretched as SHA-256 of a label, the draw and a counter, 32 bytes at a time; the identifier is 15 bits of it."
 
 [action.checked]
 vectors = ["slip39"]
@@ -5051,6 +5166,11 @@ decision = "no decision"
 [[action.own]]
 text = "The 1-of-1 identifier is taken from the master fingerprint, which puts 15 bits of it on every share."
 kind = "Neutral"
+decision = "no decision"
+
+[[action.own]]
+text = "The split's randomness is one system draw stretched by SHA-256 of a label, the draw and a counter; SLIP-0039 does not say where a split's randomness comes from."
+kind = "Novel"
 decision = "no decision"
 
 [action.review]
@@ -5103,6 +5223,191 @@ decision = "no decision"
 
 [action.review]
 places = ["tools/vectors/xor/README.md"]
+
+[[action]]
+id = "stick-write"
+action = "Makes the file a backup stick holds for a key: its words or passphrase as one line, its SeedQR as a labelled picture, a codex32 string as one line or as a Codex32QR picture."
+row = "seed-files"
+standards = [
+  "BIP 39",
+  "SeedQR",
+  "BIP 93",
+]
+learn = "backups"
+screens = [
+  "BackupFlow",
+  "Backup",
+]
+functions = [
+  "faraday/faraday-core/src/backup_flow/wallet.rs::Faraday::seed_stick_bytes",
+  "faraday/faraday-core/src/backups/mod.rs::Faraday::codex32_stick_bytes",
+]
+code = [
+  "faraday/faraday-core/src/backup_flow/wallet.rs::Faraday::seed_stick_bytes",
+  "faraday/faraday-core/src/backups/mod.rs::Faraday::codex32_stick_bytes",
+]
+
+[action.implementation]
+crate = "faraday/faraday-core"
+libraries = []
+adds = "Each secret is lent by faraday-keys for the reason BackupStick, which names the part (words, passphrase, SeedQR or codex32), and written into a zeroizing buffer; the words and the passphrase are one line each; the SeedQR is made by the SeedQR encoder and drawn as a labelled picture."
+
+[action.checked]
+tests = [
+  "faraday/faraday-core/tests/all/backup_flow_wallet.rs::a_seed_let_out_unprotected_is_written_to_the_stick_of_files_and_to_no_other",
+  "faraday/faraday-core/tests/all/backup_flow_wallet.rs::only_this_wallets_seed_files_go_to_the_stick_of_files_and_public_files_have_their_own",
+  "faraday/faraday-core/tests/all/backup_flow_wallet.rs::a_seed_kept_only_as_a_file_is_held_until_its_stick_is_written",
+  "faraday/faraday-core/tests/all/save_without_encryption.rs::a_seed_file_placed_on_a_stick_asks_the_hold_once_and_cancel_leaves_it_off",
+]
+not_crosschecked = "The files are text lines and pictures made by seedqr-make and the codex32 actions, which have their own checks; no second implementation reads the files this writes."
+fuzz_none = "Takes a held key and a form; no outside input is parsed."
+
+[action.secrets]
+reveal = ["Reveal::BackupStick"]
+constant_time = "Not applicable: the secret is copied into a file's bytes, not compared or computed on here."
+wiped = "The file's bytes are a zeroizing buffer, and the pixels drawn for a picture are wiped once it is made."
+
+[action.limits]
+lines = [
+  "A SeedQR file is made for English words only.",
+  "A key with no words gets no words file, and a key with no passphrase no passphrase file.",
+  "A codex32 string this session does not hold gets no file.",
+]
+
+[[action.own]]
+text = "A secret goes to a stick only for the reason BackupStick, and only the part that reason names."
+kind = "Conservative"
+decision = "no decision"
+
+[action.review]
+places = [
+  "docs/BACKUP-FLOW.md",
+  "docs/KEYS.md",
+]
+
+[[action]]
+id = "outbox"
+action = "Makes a key's words file and its SeedQR picture, standard or compact, for the secret sheet to save to the Outbox unprotected."
+row = "seed-files"
+standards = [
+  "BIP 39",
+  "SeedQR",
+]
+learn = "air_gap"
+screens = [
+  "Files",
+  "Backup",
+]
+functions = ["faraday/faraday-core/src/secrets.rs::Faraday::offer_seed"]
+code = ["faraday/faraday-core/src/secrets.rs::Faraday::offer_seed"]
+
+[action.implementation]
+crate = "faraday/faraday-core"
+libraries = []
+adds = "The words are lent by faraday-keys for the reason OutboxFile and written as one line, as Add a key and other signers read them; a SeedQR picture is added for English words only, and only where the plan copies the seed as a SeedQR, titled with the key's fingerprint; the sheet's warning differs for a wallet that needs more than one key, and says how many more keys whoever holds the file needs."
+
+[action.checked]
+tests = [
+  "faraday/faraday-core/tests/all/seed_backup.rs::the_unprotected_button_does_nothing_until_the_hold",
+  "faraday/faraday-core/tests/all/seed_backup.rs::cancelling_the_sheet_lets_nothing_out",
+  "faraday/faraday-core/tests/all/seed_backup.rs::the_seedqr_picture_scans_back_as_the_same_key_standard_and_compact",
+  "faraday/faraday-core/tests/all/seed_backup.rs::the_words_file_read_from_a_stick_loads_the_same_key",
+  "faraday/faraday-core/tests/all/seed_backup.rs::no_file_holds_the_passphrase",
+  "faraday/faraday-core/tests/all/save_without_encryption.rs::unprotected_writes_nothing_until_the_hold_is_held_to_its_end",
+  "faraday/faraday-core/tests/all/save_without_encryption.rs::cancel_on_the_hold_sends_nothing_out",
+]
+not_crosschecked = "The files are one line of words and a picture made by seedqr-make; no second implementation reads what this writes."
+fuzz_none = "Takes a held key and a form; no outside input is parsed."
+
+[action.secrets]
+reveal = ["Reveal::OutboxFile"]
+constant_time = "Not applicable: the words are copied into a file's bytes, not compared or computed on here."
+wiped = "The words and the file's bytes are zeroizing buffers, and the pixels drawn for a picture are wiped once it is made."
+
+[action.limits]
+lines = [
+  "No file holds the passphrase: the words file and the SeedQR picture carry the words alone.",
+  "A key with no words is offered nothing.",
+  "A SeedQR picture is made for English words only.",
+]
+
+[[action.own]]
+text = "Nothing is written to the Outbox until the hold on the secret sheet is held to its end."
+kind = "Conservative"
+decision = "no decision"
+
+[action.review]
+places = [
+  "docs/BACKUP-FLOW.md",
+  "docs/KEYS.md",
+]
+
+[[action]]
+id = "inbox-secret"
+action = "Recognises a seed or a private key in a file, a scan or pasted text, works out the fingerprint of its key, and refuses a secret where one may not go."
+row = "inbox-secret"
+standards = [
+  "BIP 39",
+  "BIP 93",
+  "SLIP-0039",
+  "BIP 32",
+]
+learn = "air_gap"
+screens = [
+  "Files",
+  "Visit",
+]
+functions = [
+  "faraday/faraday-core/src/inbox.rs::Secret::fingerprint",
+  "faraday/faraday-core/src/inbox.rs::words_of",
+  "faraday/faraday-core/src/inbox.rs::Faraday::secret_in",
+  "faraday/faraday-core/src/inbox.rs::Faraday::potential_seed",
+  "faraday/faraday-core/src/scan_key.rs::key_of",
+  "faraday/faraday-core/src/scan_key.rs::pasted_secret",
+  "faraday/faraday-core/src/wallet.rs::text_may_be_secret",
+  "faraday/faraday-keys/src/identity.rs::is_wif",
+]
+code = [
+  "faraday/faraday-core/src/inbox.rs::Faraday::secret_in",
+  "faraday/faraday-core/src/scan_key.rs::pasted_secret",
+]
+
+[action.implementation]
+crate = "faraday/faraday-core"
+libraries = ["bitcoin"]
+adds = "A words file is read in whichever BIP 39 word list it is in, checksum included; SLIP-39 shares and codex32 strings are gathered from their files and the codex32 seed is recovered from them; the fingerprint is that of the master key, with the passphrase a passphrase file or the person brings, and is kept by a memo keyed by SHA-256 of a tag and the secret, so the secret is kept nowhere; pasted text is refused when it is words of any list, checksum or not, a SeedQR's 48 or 96 digits, an extended private key, a WIF key, a codex32 string or a SLIP-39 share, and a scanner that loads a seed refuses only a private key."
+
+[action.checked]
+tests = [
+  "faraday/faraday-core/tests/all/inbox_found.rs::a_seed_in_several_backups_is_one_seed",
+  "faraday/faraday-core/tests/all/inbox_found.rs::a_passphrase_makes_the_potential_wallet_another_key",
+  "faraday/faraday-core/tests/all/inbox_found.rs::codex32_strings_count_once_they_add_up",
+  "faraday/faraday-core/tests/all/inbox_found.rs::slip39_shares_count_once_they_add_up",
+  "faraday/faraday-core/tests/all/paste_a_seed.rs::a_private_key_pasted_into_a_seed_scanner_is_still_refused",
+  "faraday/faraday-core/tests/all/paste_a_seed.rs::seed_words_pasted_into_a_scanner_that_takes_no_seed_are_refused",
+  "faraday/faraday-core/tests/all/stick_copy.rs::a_gpg_private_key_block_is_still_offered_as_something_that_may_be_a_secret",
+]
+not_crosschecked = "The key a seed makes is checked by the bip39, bip32, codex32 and slip39 areas; the recognising of files and pasted text has no second implementation."
+fuzz_none = "No fuzz target reads a file as a seed; the readers it calls (words, codex32 and SLIP-39 strings) have their own."
+
+[action.secrets]
+reveal = "none"
+constant_time = "Not stated; the seed and master key functions it calls state their own."
+wiped = "The text of a file read as a secret and the words made from it are zeroizing; a file that may hold a secret is dropped from the Inbox at a lock."
+
+[action.limits]
+lines = [
+  "Text of a seed's words is read only if the words are in a BIP 39 list and their checksum holds.",
+  "A scanner that loads a seed takes the seed's own forms and refuses a private key.",
+]
+
+[[action.own]]
+text = "A secret pasted or scanned where a secret may not go is refused, whatever its form."
+kind = "Conservative"
+decision = "no decision"
+
+[action.review]
+places = ["docs/KEYS.md"]
 
 [[action]]
 id = "silent-send"
@@ -5319,6 +5624,12 @@ id = "selftest"
 section = 5
 what = "Start-up self-test"
 completeness = "Eight fixed-vector checks before any key is accepted"
+
+[[row]]
+id = "starter-recovery-key"
+section = 5
+what = "The Starter prints the BitLocker recovery key"
+completeness = "The key is read for the notes sheet, held until the sheet is made and wiped; nothing else of BitLocker is printed"
 
 [[row]]
 id = "starter-image"
@@ -5684,13 +5995,14 @@ functions = [
   "faraday/faraday-keys/src/vault.rs::key_identity",
   "faraday/faraday-keys/src/vault.rs::key_account",
   "faraday/faraday-keys/src/session.rs::Keys::key_record",
+  "faraday/faraday-keys/src/session.rs::Keys::seed_record_id",
 ]
 code = ["faraday/faraday-keys/src/vault.rs::OpenVaults::load_from_vault"]
 
 [action.implementation]
 crate = "faraday/faraday-keys"
 libraries = []
-adds = "Reads a record's words or seed from the open slot and hands them to the session's key functions (`Keys::add_mnemonic`, `add_seed`, `fingerprint`); the vault record only decides which key is loaded and with which passphrase."
+adds = "Reads a record's words or seed from the open slot and hands them to the session's key functions (`Keys::add_mnemonic`, `add_seed`, `fingerprint`); the vault record only decides which key is loaded and with which passphrase. A key loaded from a master seed, as a codex32 or SLIP-39 key is, is known to a vault by the id of a key record made of its seed."
 
 [action.checked]
 vectors = [
@@ -5744,6 +6056,7 @@ functions = [
   "core/faraday-backup/src/kdbx.rs::chacha20",
   "core/faraday-backup/src/lib.rs::argon2id",
   "faraday/faraday-keys/src/vault.rs::OpenVaults::kdbx_entry",
+  "faraday/faraday-core/src/vault/mod.rs::Faraday::vault_kdbx",
 ]
 code = [
   "core/faraday-backup/src/kdbx.rs::write",
@@ -5758,7 +6071,7 @@ libraries = [
   "hmac",
   "sha2",
 ]
-adds = "Write only: version 4.0, ChaCha20, no compression, the composite key is the passphrase alone; `verify` checks the header hash, header HMAC and every block HMAC of a file this module wrote and parses no XML; the salt, seed, IV and inner key come from one caller-given seed."
+adds = "Write only: version 4.0, ChaCha20, no compression, the composite key is the passphrase alone; `verify` checks the header hash, header HMAC and every block HMAC of a file this module wrote and parses no XML; the salt, seed, IV and inner key come from one caller-given seed. In the app the seed is one fresh draw of the system, stretched as SHA-256 of the draw and a counter, 32 bytes at a time, and nothing is made until the system has answered."
 
 [action.checked]
 vectors = [
@@ -5793,6 +6106,11 @@ lines = [
 text = "Nostr entries are never exported (F27)."
 kind = "Neutral"
 decision = "F27"
+
+[[action.own]]
+text = "The one system draw is spread over the file's salt, seed, IV and inner key by SHA-256 of the draw and a counter."
+kind = "Novel"
+decision = "no decision"
 
 [action.review]
 places = [
@@ -6611,6 +6929,62 @@ decision = "F133"
 [action.review]
 places = [
   "docs/decisions/F133.md",
+  "docs/learn/faraday/checking-written.md",
+]
+
+[[action]]
+id = "starter-recovery-key"
+action = "Reads a BitLocker recovery key, eight groups of six digits, for the system drive, holds it until the notes sheet is made and wipes it."
+row = "starter-recovery-key"
+standards = []
+learn = "faraday:checking-written"
+screens = []
+functions = [
+  "faraday/faraday-starter/src/api.rs::RecoveryKey::parse",
+  "faraday/faraday-starter/src/notes.rs::Notes::pdf_with_key",
+  "faraday/faraday-starter/src/notes.rs::Notes::sheet",
+  "faraday/faraday-starter/src/lib.rs::Starter::print_notes",
+]
+code = [
+  "faraday/faraday-starter/src/api.rs::RecoveryKey::parse",
+  "faraday/faraday-starter/src/notes.rs::Notes::pdf_with_key",
+]
+
+[action.implementation]
+crate = "faraday/faraday-starter"
+libraries = []
+adds = "A key is taken only as eight groups of six digits joined by hyphens, for a drive that is a letter and a colon; it is held in a zeroizing string, printed on the sheet after the other rows with its drive, four groups to a line, and the rows' copies of its text are zeroized once the PDF is made; Debug prints none of it."
+
+[action.checked]
+tests = [
+  "faraday/faraday-starter/tests/all/bitlocker.rs::a_recovery_key_is_eight_groups_of_six_digits_and_debug_shows_none_of_it",
+  "faraday/faraday-starter/tests/all/bitlocker.rs::the_sheet_carries_the_key_only_when_ticked",
+  "faraday/faraday-starter/tests/all/bitlocker.rs::a_key_that_cannot_be_read_says_why_and_prints_nothing",
+  "faraday/faraday-starter/tests/all/bitlocker.rs::the_key_s_sheet_names_nothing_else_no_path_no_computer_and_holds_no_qr_code",
+]
+not_crosschecked = "The key is read and printed as text; nothing is computed from it, and there is no second implementation."
+fuzz_none = "Takes one drive and one key text from the elevated copy; the shape is checked by tests."
+
+[action.secrets]
+reveal = "none"
+constant_time = "Not applicable: the key is read and printed, not used in a computation."
+wiped = "The key is a zeroizing string wiped when dropped, once the sheet is made; the rows' copies of its text are zeroized after the PDF is written, and the PDF is the caller's to wipe."
+
+[action.limits]
+lines = [
+  "A key that is not eight groups of six digits, or a drive that is not a letter and a colon, is not taken.",
+  "The key is on the sheet only when the person ticked Include the BitLocker recovery key.",
+  "The sheet carries nothing else of BitLocker and no QR code of the key.",
+]
+
+[[action.own]]
+text = "The sheet carries the key only when it is ticked, and holds it only until the sheet is made."
+kind = "Conservative"
+decision = "F49"
+
+[action.review]
+places = [
+  "docs/STARTER.md",
   "docs/learn/faraday/checking-written.md",
 ]
 

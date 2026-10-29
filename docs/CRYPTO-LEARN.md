@@ -202,9 +202,15 @@ release (F79).
 The inventory is a second binary in `tools/costs-lint`, crypto-inventory
 (new), sharing its source walker: the crate roots under `core/` and
 `faraday/`, the modules each root reaches, and what is compiled for
-tests left out (`#[cfg(test)]`, the test kit's cfg). The costs lint and
-the inventory must agree on what is shipped code; one walker makes that
-true by construction. A rule inside `costs-lint` itself was considered
+tests left out (`#[cfg(test)]`, and a `cfg` naming one of the features
+no shipped binary turns on, `testkit` and `master-for-tests`:
+`tools/lint-keys-tests.sh` fails when one is on in a shipped binary),
+and the crates that are in no shipped binary (`faraday-testkit`,
+`faraday-snapshot`, `faraday-alloc-count`, `faraday-argon2-bench`; the
+inventory's `NOT_SHIPPED_CRATES`). The costs lint and the inventory must
+agree on what is shipped code; one walker makes that true by
+construction. Code that is not shipped is left out, never listed under
+`[[not_crypto]]`. A rule inside `costs-lint` itself was considered
 and not chosen: its job is the token's discipline, its findings are
 `path:line` errors, and the inventory's output is data the manifest's
 checker reads. Both binaries are one package, one `syn`, no new crate.
@@ -285,7 +291,7 @@ of every crate. `--roots FILE` prints, besides, the functions whose ids
 FILE lists (one `file::Type::name` per line) and what they reach in their
 crate: `check.py` writes the manifest's roots and `not_crypto` functions
 to such a file and runs the inventory with it, so a root in a crate the
-rules do not flag (`faraday-intake`'s `psbt_v2.rs`, the Starter's
+rules do not flag (`faraday-core`'s `inbox.rs`, the Starter's
 `api.rs`, `faraday-files`) resolves and is fingerprinted with its closure.
 (Chosen over printing every crate with `"rules":[]`, which would put
 some 15,000 lines through the checker on every run.) A root the walker

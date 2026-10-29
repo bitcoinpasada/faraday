@@ -104,7 +104,7 @@ pub fn sha256(data: &[u8]) -> [u8; 32] {
 }
 ";
 
-const BIP_LIB: &str = r"
+const BIP_LIB: &str = r#"
 use faraday_crypto::work::Compute;
 use faraday_crypto::Secret;
 use sha2::{Digest, Sha256};
@@ -173,7 +173,19 @@ mod tests {
         let _ = Sha256::new();
     }
 }
-";
+
+#[cfg(feature = "testkit")]
+pub mod testkit {
+    pub fn kit_hash(_c: &Compute) {
+        let _ = Sha256::new();
+    }
+}
+
+#[cfg(any(test, feature = "testkit"))]
+pub fn kit_or_test_hash(_c: &Compute) {
+    let _ = Sha256::new();
+}
+"#;
 
 const BIP_INNER: &str = r"
 pub fn deep(d: &[u8]) -> usize { crate::alias_hash(d).len() }
@@ -295,6 +307,16 @@ fn write_fixture(root: &Path) {
     write(root, "faraday/fx-via/src/loose.rs", VIA_LOOSE);
     write(root, "faraday/fx-via/src/m1.rs", VIA_M1);
     write(root, "faraday/fx-via/src/m2.rs", VIA_M2);
+    write(
+        root,
+        "faraday/shells/snapshot/Cargo.toml",
+        &manifest("faraday-snapshot", &["faraday-crypto"]),
+    );
+    write(
+        root,
+        "faraday/shells/snapshot/src/lib.rs",
+        "pub fn snapshot_hash(d: &[u8]) -> [u8; 32] { faraday_crypto::sha256(d) }\n",
+    );
     write(
         root,
         "faraday/faraday-plain/Cargo.toml",
@@ -427,6 +449,18 @@ fn rule_checks(c: &mut Checks, root: &Path) {
     c.ok(
         "a function under #[cfg(test)] is left out",
         !names.contains("helper_in_tests"),
+    );
+    c.ok(
+        "a module under cfg(feature = \"testkit\") is left out",
+        !names.contains("kit_hash"),
+    );
+    c.ok(
+        "a function under cfg(any(test, feature = \"testkit\")) is left out",
+        !names.contains("kit_or_test_hash"),
+    );
+    c.ok(
+        "a crate no shipped binary contains is left out",
+        !names.contains("snapshot_hash"),
     );
     c.ok(
         "a private function that reaches a hash is not rule 4",

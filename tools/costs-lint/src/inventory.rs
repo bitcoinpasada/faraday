@@ -66,6 +66,17 @@ const PRIMITIVE_CRATES: &[&str] = &[
     "getrandom",
 ];
 
+/// The crates no shipped binary contains: the test-stick writer, the
+/// screen renderer for review, the allocation counter for the frame
+/// budgets and the Argon2 timer. The inventory leaves them out as it
+/// leaves out `cfg(test)`, whatever they compute (§4.1).
+const NOT_SHIPPED_CRATES: &[&str] = &[
+    "faraday-testkit",
+    "faraday-snapshot",
+    "faraday-alloc-count",
+    "faraday-argon2-bench",
+];
+
 /// What `faraday-crypto` exports that computes nothing: the compute token
 /// and the secret wrappers. A path into them is not a path into a
 /// primitive (§4.2 rule 3 would otherwise take the 600 functions of
@@ -348,7 +359,7 @@ fn read_crates(root: &Path) -> Vec<Crate> {
     for src in walk::crate_sources(root) {
         let Some(dir) = src.parent() else { continue };
         let (name, deps) = read_manifest(&dir.join("Cargo.toml"));
-        if name.is_empty() {
+        if name.is_empty() || NOT_SHIPPED_CRATES.contains(&name.as_str()) {
             continue;
         }
         crates.push(Crate {

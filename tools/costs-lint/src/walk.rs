@@ -250,8 +250,13 @@ pub fn cfg_text(attrs: &[syn::Attribute]) -> String {
         .join(" & ")
 }
 
+/// The features that only tests and tools turn on: the test kit
+/// (`faraday-core`) and the master-key accessor (`faraday-keys`); no
+/// shipped binary enables them (`tools/lint-keys-tests.sh`).
+const TEST_FEATURES: &[&str] = &["testkit", "master-for-tests"];
+
 /// Whether `attrs` compile the item for tests only: a `cfg` naming
-/// `test` (alone, or in `all`/`any` with the test kit's feature) and no
+/// `test` or one of [`TEST_FEATURES`] (alone, or in `all`/`any`) and no
 /// `not`.
 pub fn is_test(attrs: &[syn::Attribute]) -> bool {
     attrs.iter().any(|a| {
@@ -262,8 +267,25 @@ pub fn is_test(attrs: &[syn::Attribute]) -> bool {
             return false;
         };
         let words: Vec<String> = l.tokens.clone().into_iter().flat_map(flatten).collect();
-        words.iter().any(|w| w == "test") && !words.iter().any(|w| w == "not")
+        let feature = l
+            .tokens
+            .clone()
+            .into_iter()
+            .flat_map(literals)
+            .any(|w| TEST_FEATURES.contains(&w.as_str()));
+        (words.iter().any(|w| w == "test") || feature) && !words.iter().any(|w| w == "not")
     })
+}
+
+/// The string literals of a token tree, groups opened.
+fn literals(t: proc_macro2::TokenTree) -> Vec<String> {
+    match t {
+        proc_macro2::TokenTree::Group(g) => g.stream().into_iter().flat_map(literals).collect(),
+        proc_macro2::TokenTree::Literal(l) => {
+            vec![l.to_string().trim_matches('"').to_string()]
+        }
+        _ => Vec::new(),
+    }
 }
 
 /// The identifiers of a token tree, groups opened.
