@@ -6793,7 +6793,12 @@ tests = [
   "faraday/faraday-keys/tests/vault.rs::a_restored_key_signs_renews_and_revokes_as_makes_does",
 ]
 fuzz = ["pgp_armor"]
-not_crosschecked = "Judged by real gnupg and paperkey in faraday/faraday-pgp/tests/gnupg.rs, not by an F79 area; those tests fail where the tools are missing unless FARADAY_SKIP_GNUPG=1."
+not_crosschecked = "Judged by real gnupg and paperkey in faraday/faraday-pgp/tests/gnupg.rs, not by an F79 area; those tests fail where the tools are missing."
+other = [
+  "Real `gpg` 2.4 end to end: it imports the certificate, checks its signatures and revocation and takes its renewal, with its clock set (`faraday/faraday-pgp/tests/gnupg.rs`, `faraday/faraday-keys/tests/vault.rs`); GnuPG's authors, outside Faraday; required, nothing skips it (docs/DEVELOPING.md)",
+  "Real `paperkey` 1.6 reads the key's secret to the same lines (`faraday/faraday-pgp/tests/gnupg.rs`); paperkey's author, outside Faraday",
+]
+
 
 [action.secrets]
 reveal = "none"
@@ -6860,7 +6865,11 @@ tests = [
   "faraday/faraday-pgp/tests/gnupg.rs::a_signature_whose_r_or_s_starts_with_a_zero_byte_verifies",
   "faraday/faraday-pgp/tests/verify_refusals.rs::a_signature_made_here_of_faradays_shape_verifies",
 ]
-not_crosschecked = "Judged by real gnupg in faraday/faraday-pgp/tests/gnupg.rs, not by an F79 area."
+not_crosschecked = "Judged by real gnupg in faraday/faraday-pgp/tests/gnupg.rs, not by an F79 area; the test fails where gnupg is missing."
+other = [
+  "Real `gpg` 2.4 verifies Faraday's signatures, including those whose r or s starts with a zero byte (`faraday/faraday-pgp/tests/gnupg.rs`); GnuPG's authors, outside Faraday; required, nothing skips it",
+]
+
 fuzz_none = "Signing takes the signed bytes and the key; pgp_verify fuzzes the reading of a signature."
 
 [action.secrets]
@@ -6923,7 +6932,11 @@ tests = [
   "faraday/faraday-pgp/tests/gnupg.rs::the_rev_file_lists_the_key_as_gnupg_does",
   "faraday/faraday-keys/tests/vault.rs::a_kept_revocation_leaves_only_as_a_rev_file_asked_for_by_name",
 ]
-not_crosschecked = "Judged by real gnupg in faraday/faraday-pgp/tests/gnupg.rs, not by an F79 area."
+not_crosschecked = "Judged by real gnupg in faraday/faraday-pgp/tests/gnupg.rs, not by an F79 area; the tests fail where gnupg is missing."
+other = [
+  "Real `gpg` 2.4 takes the revocation and lists the key as revoked, and refuses a `.rev` file until its colon is removed (`faraday/faraday-pgp/tests/gnupg.rs`); GnuPG's authors, outside Faraday; required, nothing skips it",
+]
+
 fuzz_none = "Revocation takes the key's own record and a reason from a menu."
 
 [action.secrets]
@@ -6977,7 +6990,11 @@ tests = [
   "faraday/faraday-pgp/tests/paperkey.rs::paperkeys_text_and_raw_output_read_as_faradays_lines",
 ]
 fuzz = ["pgp_paperkey"]
-not_crosschecked = "Judged by real paperkey 1.6 in faraday/faraday-pgp/tests/gnupg.rs, not by an F79 area."
+not_crosschecked = "Judged by real paperkey 1.6 in faraday/faraday-pgp/tests/gnupg.rs, not by an F79 area; the tests fail where paperkey is missing."
+other = [
+  "Real `paperkey` 1.6 prints the same lines and reads Faraday's back (`faraday/faraday-pgp/tests/gnupg.rs`, `paperkey.rs`); paperkey's author, outside Faraday; required, nothing skips it",
+]
+
 
 [action.secrets]
 reveal = ["Reveal::GpgPaperkey"]
@@ -7049,7 +7066,10 @@ fuzz = [
   "pgp_restore",
   "pgp_paperkey",
 ]
-not_crosschecked = "Judged by real paperkey 1.6 in faraday/faraday-pgp/tests/paperkey.rs, not by an F79 area."
+not_crosschecked = "Judged by real paperkey 1.6 in faraday/faraday-pgp/tests/paperkey.rs, not by an F79 area; the tests fail where paperkey is missing."
+other = [
+  "Real `paperkey` 1.6 restores Faraday's lines to the key and reads its own output as Faraday's lines (`faraday/faraday-pgp/tests/paperkey.rs`); paperkey's author, outside Faraday; required, nothing skips it",
+]
 
 [action.secrets]
 reveal = "none"
@@ -7112,6 +7132,10 @@ tests = [
 ]
 fuzz = ["pgp_verify"]
 not_crosschecked = "Judged by signatures made with real gnupg (tools/vectors/release-sums), not by an F79 area."
+other = [
+  "Signatures made by real `gpg` 2.4 over SHA-512 and SHA-256 verify (`faraday/faraday-pgp/tests/verify.rs`, `tools/vectors/release-sums`); GnuPG's authors, outside Faraday; fixtures committed, so this check needs no tool at run time",
+]
+
 
 [action.secrets]
 reveal = "none"
@@ -7180,7 +7204,11 @@ tests = [
   "faraday/faraday-sb/tests/judged.rs::the_generator_is_rfc_8439_chacha20_keyed_by_the_seed",
   "faraday/faraday-sb/tests/judged.rs::openssl_checks_every_private_key_made",
 ]
-not_crosschecked = "Judged by openssl in faraday/faraday-sb/tests/judged.rs, which skips a tool that is not on PATH; not by an F79 area."
+not_crosschecked = "Judged by openssl in faraday/faraday-sb/tests/judged.rs, which fails where openssl is missing; not by an F79 area."
+other = [
+  "Real `openssl` reads the certificates and verifies the `.auth` PKCS #7 signatures and every private key made (`faraday/faraday-sb/tests/judged.rs`); OpenSSL's authors, outside Faraday; required, nothing skips it (docs/DEVELOPING.md)",
+]
+
 fuzz_none = "Key making takes a seed and a name; pe_image fuzzes the reading of images."
 
 [action.secrets]
@@ -7247,7 +7275,11 @@ fuzz = [
   "release_sums",
   "pe_image",
 ]
-not_crosschecked = "Judged by sbverify and openssl in faraday/faraday-sb/tests/judged.rs, which skips a tool that is not on PATH; not by an F79 area."
+not_crosschecked = "Judged by sbverify and openssl in faraday/faraday-sb/tests/judged.rs, which fails where one is missing; not by an F79 area."
+other = [
+  "Real `sbverify` (sbsigntools, by its authors, outside Faraday) verifies a signed image against the db certificate and refuses an altered one, and `openssl` (OpenSSL's authors) checks the PKCS #7 signature (`faraday/faraday-sb/tests/judged.rs`); required, nothing skips it",
+]
+
 
 [action.secrets]
 reveal = "none"
@@ -7303,7 +7335,11 @@ tests = [
   "faraday/faraday-sb/tests/judged.rs::an_image_whose_signature_table_is_shorter_than_its_header_reads_as_unreadable",
 ]
 fuzz = ["pe_image"]
-not_crosschecked = "Judged by images signed by sbsign and osslsigncode and by sbverify (faraday/faraday-sb/tests/judged.rs), not by an F79 area."
+not_crosschecked = "Judged by images signed by sbsign and osslsigncode and by sbverify (faraday/faraday-sb/tests/judged.rs), not by an F79 area; sbverify fails the test where it is missing."
+other = [
+  "Images signed by `sbsign` (sbsigntools) and `osslsigncode` (its author) are read and their signer named, and `sbverify` agrees with Faraday on a signed and an altered image (`faraday/faraday-sb/tests/judged.rs`); outside Faraday; the signed fixtures are committed, `sbverify` is required",
+]
+
 
 [action.secrets]
 reveal = "none"
@@ -7510,7 +7546,11 @@ tests = [
   "faraday/faraday-sb/tests/judged.rs::a_signature_is_moved_onto_the_releases_bytes_only_when_it_is_alone_at_the_end",
 ]
 fuzz = ["pe_transplant"]
-not_crosschecked = "Judged by images signed by sbsign and osslsigncode and by sbverify (faraday/faraday-sb/tests/judged.rs), not by an F79 area."
+not_crosschecked = "Judged by images signed by sbsign and osslsigncode and by sbverify (faraday/faraday-sb/tests/judged.rs), not by an F79 area; sbverify fails the test where it is missing."
+other = [
+  "Real `sbverify` (sbsigntools, outside Faraday) verifies the signature moved onto the release's bytes and refuses it on a changed program (`faraday/faraday-sb/tests/judged.rs`, the transplant test); required, nothing skips it",
+]
+
 
 [action.secrets]
 reveal = "none"

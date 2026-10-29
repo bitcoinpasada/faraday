@@ -4,7 +4,8 @@
 //! verifies a signed image against the db certificate; and Faraday's own
 //! check tells a signed image from an altered one and from one signed by
 //! another key. A tool not on PATH (`sbverify` also as `FARADAY_SBVERIFY`)
-//! is said and its check skipped.
+//! fails the test: nothing here is skipped (docs/DEVELOPING.md names the
+//! packages).
 
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
@@ -49,7 +50,9 @@ fn scratch(name: &str) -> Scratch {
 }
 
 fn run(cmd: &str, args: &[&str]) -> Option<(bool, String)> {
-    let out = Command::new(cmd).args(args).output().ok()?;
+    let out = Command::new(cmd).args(args).output().unwrap_or_else(|e| {
+        panic!("{cmd} is not installed ({e}); these tests need openssl and sbverify, see docs/DEVELOPING.md")
+    });
     Some((
         out.status.success(),
         String::from_utf8_lossy(&out.stdout).into_owned() + &String::from_utf8_lossy(&out.stderr),
@@ -91,10 +94,7 @@ fn microsoft_certificates_are_what_was_recorded() {
 fn openssl_verifies_the_certificates_and_the_auth_signatures() {
     let dir = scratch("openssl");
     let k = keys();
-    let Some(pk) = pem(&dir, "pk", &k.pk.cert) else {
-        eprintln!("openssl is not installed: skipped");
-        return;
-    };
+    let pk = pem(&dir, "pk", &k.pk.cert).expect("openssl reads the PK certificate");
     let kek = pem(&dir, "kek", &k.kek.cert).unwrap();
     for c in [&pk, &kek] {
         let (ok, said) = run("openssl", &["verify", "-check_ss_sig", "-CAfile", c, c]).unwrap();
@@ -204,7 +204,7 @@ fn a_signed_image_checks_and_an_altered_one_does_not() {
         images.push(("efi", std::fs::read(path).unwrap()));
     }
     let sbverify = std::env::var("FARADAY_SBVERIFY").unwrap_or_else(|_| "sbverify".to_string());
-    let db = pem(&dir, "db", &k.db.cert);
+    let db = pem(&dir, "db", &k.db.cert).expect("openssl reads the db certificate");
     for (name, image) in images {
         assert_eq!(pe::check(&image, &k.db.cert).unwrap(), Check::Unsigned);
         let signed = pe::sign(&mut blind(), &image, &k.db).unwrap();
@@ -228,18 +228,15 @@ fn a_signed_image_checks_and_an_altered_one_does_not() {
             Check::Altered,
             "{name}"
         );
-        if let Some(db) = &db {
+        {
             let path = dir.join(format!("{name}.signed.efi"));
             std::fs::write(&path, &signed).unwrap();
-            match run(&sbverify, &["--cert", db, path.to_str().unwrap()]) {
-                Some((ok, said)) => assert!(ok, "sbverify {name}:\n{said}"),
-                None => eprintln!("sbverify is not installed: skipped"),
-            }
+            let (ok, said) = run(&sbverify, &["--cert", &db, path.to_str().unwrap()]).unwrap();
+            assert!(ok, "sbverify {name}:\n{said}");
             let bad = dir.join(format!("{name}.altered.efi"));
             std::fs::write(&bad, &altered).unwrap();
-            if let Some((ok, _)) = run(&sbverify, &["--cert", db, bad.to_str().unwrap()]) {
-                assert!(!ok, "sbverify took an altered {name}");
-            }
+            let (ok, _) = run(&sbverify, &["--cert", &db, bad.to_str().unwrap()]).unwrap();
+            assert!(!ok, "sbverify took an altered {name}");
         }
     }
 }
@@ -331,7 +328,7 @@ fn blinding_leaves_the_signature_as_it_was() {
     match out {
         Ok(o) if o.status.success() => assert_eq!(o.stdout, plain),
         Ok(o) => panic!("openssl: {}", String::from_utf8_lossy(&o.stderr)),
-        Err(_) => eprintln!("openssl is not installed: skipped"),
+        Err(e) => panic!("openssl is not installed ({e}); see docs/DEVELOPING.md"),
     }
 
     let image = tiny_pe();
@@ -407,6 +404,23 @@ fn a_signature_is_moved_onto_the_releases_bytes_only_when_it_is_alone_at_the_end
     let signed = pe::sign(&mut blind(), &release, &k.db).unwrap();
     let built = pe::transplant(&release, &signed).unwrap();
     assert_eq!(built, signed);
+    // sbverify takes the moved signature on the release's bytes, and not
+    // on the release's bytes with one code byte changed.
+    let tmp = scratch("transplant");
+    let sbverify = std::env::var("FARADAY_SBVERIFY").unwrap_or_else(|_| "sbverify".to_string());
+    let db = pem(&tmp, "db", &k.db.cert).expect("openssl reads the db certificate");
+    let path = tmp.join("moved.efi");
+    std::fs::write(&path, &built).unwrap();
+    let (ok, said) = run(&sbverify, &["--cert", &db, path.to_str().unwrap()]).unwrap();
+    assert!(ok, "sbverify the moved signature:\n{said}");
+    let mut changed = built.clone();
+    changed[0x200] ^= 1;
+    std::fs::write(&path, &changed).unwrap();
+    let (ok, _) = run(&sbverify, &["--cert", &db, path.to_str().unwrap()]).unwrap();
+    assert!(
+        !ok,
+        "sbverify took the moved signature on a changed program"
+    );
     assert_eq!(
         pe::signer(&built).unwrap(),
         pe::Signer::By(k.db.cert.clone())
@@ -548,7 +562,7 @@ fn openssl_checks_every_private_key_made() {
     for (name, pair) in [("pk", &k.pk), ("kek", &k.kek), ("db", &k.db)] {
         let path = dir.join(format!("{name}.key.der"));
         std::fs::write(&path, &pair.key[..]).unwrap();
-        let Some((ok, said)) = run(
+        let (ok, said) = run(
             "openssl",
             &[
                 "pkey",
@@ -559,10 +573,8 @@ fn openssl_checks_every_private_key_made() {
                 "-check",
                 "-noout",
             ],
-        ) else {
-            eprintln!("openssl is not installed: skipped");
-            return;
-        };
+        )
+        .unwrap();
         assert!(ok, "{name}: {said}");
         assert!(said.contains("valid"), "{name}: {said}");
     }

@@ -9,8 +9,8 @@
 //! The fixtures in `tools/vectors/paperkey/` were made by the tools
 //! (`make.sh` there, its README naming each file). The tests that run the
 //! tools find them on PATH (`paperkey` also as `FARADAY_PAPERKEY`) and
-//! fail without them, unless `FARADAY_SKIP_GNUPG=1` skips them on
-//! purpose. Every call to `gpg` sets its clock (`--faked-system-time`).
+//! fail without them. Every call to `gpg` sets its clock
+//! (`--faked-system-time`).
 
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
@@ -132,10 +132,6 @@ fn scratch(name: &str) -> Scratch {
     Scratch(dir)
 }
 
-fn skipped() -> bool {
-    std::env::var("FARADAY_SKIP_GNUPG").is_ok_and(|v| v == "1")
-}
-
 /// A tool's run: whether it succeeded, its stdout, and its stderr.
 struct Ran {
     ok: bool,
@@ -143,8 +139,7 @@ struct Ran {
     err: String,
 }
 
-/// Runs `tool`; `None` when it is missing and the check is skipped on
-/// purpose, a failure when it is missing otherwise.
+/// Runs `tool`; a failure when it is missing.
 fn run(tool: &str, cmd: &mut Command) -> Option<Ran> {
     match cmd.output() {
         Ok(o) => Some(Ran {
@@ -152,11 +147,7 @@ fn run(tool: &str, cmd: &mut Command) -> Option<Ran> {
             out: o.stdout,
             err: String::from_utf8_lossy(&o.stderr).into_owned(),
         }),
-        Err(_) if skipped() => {
-            eprintln!("{tool} is not installed: skipped, FARADAY_SKIP_GNUPG=1");
-            None
-        }
-        Err(e) => panic!("{tool} is not installed ({e}); set FARADAY_SKIP_GNUPG=1 to skip"),
+        Err(e) => panic!("{tool} is not installed ({e}); see docs/DEVELOPING.md"),
     }
 }
 

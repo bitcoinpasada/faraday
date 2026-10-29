@@ -471,7 +471,7 @@ fn a_mistyped_line_is_refused_and_typed_again() {
 }
 
 /// `gpg --verify` of `sig` over `data` with `cert` imported, at `now`.
-/// `None` when gpg is missing and `FARADAY_SKIP_GNUPG=1` says to skip.
+/// Fails when gpg is missing.
 fn gnupg_verifies(cert: &[u8], data: &[u8], sig: &str, now: u32) -> Option<String> {
     let dir = std::env::temp_dir().join(format!("faraday-keys-restore-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
@@ -502,8 +502,7 @@ fn gnupg_verifies(cert: &[u8], data: &[u8], sig: &str, now: u32) -> Option<Strin
     let path = |n: &str| dir.join(n).to_str().unwrap().to_string();
     let out = match gpg(&["--import", &path("cert.asc")]) {
         Ok(o) => o,
-        Err(_) if std::env::var("FARADAY_SKIP_GNUPG").is_ok_and(|v| v == "1") => return None,
-        Err(e) => panic!("gpg is not installed ({e}); set FARADAY_SKIP_GNUPG=1 to skip"),
+        Err(e) => panic!("gpg is not installed ({e}); see docs/DEVELOPING.md"),
     };
     assert!(
         out.status.success(),

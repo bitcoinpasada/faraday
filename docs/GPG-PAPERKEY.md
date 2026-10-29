@@ -504,8 +504,8 @@ made by the real tools in a throwaway `GNUPGHOME`, with
 new folder tools/vectors/paperkey/ with a README naming each file's
 command, the tools' versions (paperkey 1.6, GnuPG 2.4) and its SHA-256,
 as `tools/vectors/bip93/` records its files. The tests that run the
-tools themselves fail where they are missing unless
-`FARADAY_SKIP_GNUPG=1`, as `faraday/faraday-pgp/tests/gnupg.rs` does.
+tools themselves fail where they are missing, as
+`faraday/faraday-pgp/tests/gnupg.rs` does; nothing skips them.
 
 **Against paperkey** (`faraday-pgp`, a new tests/paperkey.rs):
 

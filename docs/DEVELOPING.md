@@ -33,6 +33,10 @@ CI.
   repository.
 - **Podman or Docker**, rootless, for the stick and Pi images and the
   Linux and Windows app builds (`DOCKER=podman` picks Podman).
+- **GnuPG 2.4, paperkey 1.6, OpenSSL, sbsigntool** (`sbverify`): the
+  GPG and Secure Boot tests run these tools against Faraday's files and
+  fail where one is missing; nothing skips them. On Debian or Ubuntu:
+  `sudo apt install gnupg paperkey openssl sbsigntool`.
 - **mtools, dosfstools** (`mkfs.fat`, `fsck.fat`): the FAT tests skip
   with a note without them.
 - **QEMU and OVMF**, to boot the stick image without a stick (§6.3).

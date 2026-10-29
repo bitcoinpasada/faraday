@@ -8,7 +8,7 @@
 //!
 //! The tools are found on PATH (`paperkey` also as `FARADAY_PAPERKEY`). A
 //! machine without one fails the test, so that a check never passes by
-//! not running; `FARADAY_SKIP_GNUPG=1` skips them on purpose. Every call
+//! not running; nothing skips them. Every call
 //! to `gpg` sets its clock (`--faked-system-time`), so no date in a test
 //! depends on the day it runs.
 
@@ -65,13 +65,8 @@ fn scratch(name: &str) -> Scratch {
     Scratch(dir)
 }
 
-/// Whether the tools are to be skipped on purpose.
-fn skipped() -> bool {
-    std::env::var("FARADAY_SKIP_GNUPG").is_ok_and(|v| v == "1")
-}
-
 /// `gpg` with its clock at `now`, in `home`. Fails the test when `gpg`
-/// is not there, unless the check is skipped on purpose.
+/// is not there.
 fn gpg_at(home: &Path, now: u32, args: &[&str]) -> Option<(bool, String)> {
     let out = Command::new("gpg")
         .arg("--homedir")
@@ -83,11 +78,7 @@ fn gpg_at(home: &Path, now: u32, args: &[&str]) -> Option<(bool, String)> {
         .output();
     let out = match out {
         Ok(o) => o,
-        Err(_) if skipped() => {
-            eprintln!("gpg is not installed: skipped, FARADAY_SKIP_GNUPG=1");
-            return None;
-        }
-        Err(e) => panic!("gpg is not installed ({e}); set FARADAY_SKIP_GNUPG=1 to skip"),
+        Err(e) => panic!("gpg is not installed ({e}); see docs/DEVELOPING.md"),
     };
     let text =
         String::from_utf8_lossy(&out.stdout).into_owned() + &String::from_utf8_lossy(&out.stderr);
@@ -339,11 +330,7 @@ fn paperkey_prints_the_same_lines() {
             .output()
         {
             Ok(o) => o,
-            Err(_) if skipped() => {
-                eprintln!("paperkey is not installed: skipped, FARADAY_SKIP_GNUPG=1");
-                return;
-            }
-            Err(e) => panic!("paperkey is not installed ({e}); set FARADAY_SKIP_GNUPG=1 to skip"),
+            Err(e) => panic!("paperkey is not installed ({e}); see docs/DEVELOPING.md"),
         };
         assert!(
             out.status.success(),

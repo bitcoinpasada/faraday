@@ -502,7 +502,7 @@ fn the_keys_page_draws_no_text_over_other_text() {
 }
 
 /// A scratch GnuPG home; GnuPG 2.4 is on the build machine, and a machine
-/// without it fails the test unless `FARADAY_SKIP_GNUPG=1`.
+/// without it fails the test.
 struct Home(PathBuf);
 
 impl Drop for Home {
@@ -537,8 +537,7 @@ fn gpg_at(home: &Path, now: u64, args: &[&str]) -> Option<(bool, String)> {
             o.status.success(),
             String::from_utf8_lossy(&o.stdout).into_owned() + &String::from_utf8_lossy(&o.stderr),
         )),
-        Err(_) if std::env::var("FARADAY_SKIP_GNUPG").is_ok_and(|v| v == "1") => None,
-        Err(e) => panic!("gpg is not installed ({e}); set FARADAY_SKIP_GNUPG=1 to skip"),
+        Err(e) => panic!("gpg is not installed ({e}); see docs/DEVELOPING.md"),
     }
 }
 
