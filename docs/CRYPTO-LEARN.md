@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Specified (F148), not built
-**Open:** the manifest and its entries, the inventory lint, fingerprints and the re-stamp recipe, the step-by-step order of a flow's blocks (§8.1, §8.5), the guide's pictures and text of §8.7, the ⋮ row's leading icon (§8.3), the cross-check stamp read from the manifest, the website's rendering, the constructions of §18 (F159)
+**Open:** the manifest and its entries, the inventory lint, fingerprints and the re-stamp recipe, the step-by-step order of a flow's blocks (§8.1, §8.5), the guide's pictures and text of §8.7, the ⋮ row's leading icon (§8.3), the cross-check stamp read from the manifest, the website's rendering, §18's constructions on the website (§18.7) and their `vault-slot` and `vault-plain` tables (§18.2; the manifest, check.py, gen.py and Learn's drawing of them are built, F159)
 
 Every screen that does something cryptographic opens a block that says
 how Faraday does it: the standard, the code, what checks it, how the
@@ -1269,8 +1269,16 @@ until = "magic"                 # dropped when that Open item is built
 text = "The magic is FVLT."
 planned = "magic"               # an item of docs/VAULT-HARDENING.md's Open line (§18.6)
 
-[construction.section.table]
-kind = "vault-header"           # a table gen.py writes from the code (§18.6)
+[[construction.section.para]]
+table = "vault-header"          # a table gen.py writes from the code (§18.6), in its place among the paragraphs
+
+[open_item.magic]               # an item of a Spec's Open line, by the words that line names it with
+spec = "docs/VAULT-HARDENING.md"
+names = "the `.fvlt` extension and the magic `FVLT`"
+
+[[name_with_digits]]
+name = "Argon2id"
+reason = "The function's name (RFC 9106)."
 ```
 
 - **`para.text`**: plain statements. A number is never typed: it is a
@@ -1279,31 +1287,53 @@ kind = "vault-header"           # a table gen.py writes from the code (§18.6)
   of that file, as `HEADER_LEN` is), `{len:<file>::<STATIC>}` for an
   array's length, `{f:<expr>}` for arithmetic over such placeholders
   (`log2` of a list's length, rounded to a tenth), and `|words` after any
-  of them for a count written as a word ("four slots"). A function or a
-  type is `{fn:<file>::<name>}`, drawn in mono. A standard is named by
-  its key in the standards table ("RFC 5869"), whose digits are its name.
+  of them for a count written as a word ("four slots"). A byte string
+  (a magic, a label) is `{b:<file>::<CONST>}`. A literal the code
+  states inside a function (Argon2id's version, its output length, the
+  lanes and the fewest passes `check_cost` takes) is `{v:<name>}`, read
+  from that function's body by gen.py's `CODE_VALUES`, which fails when
+  the body no longer has that shape. A function or a type is
+  `{fn:<file>::<name>}`. A standard is named by its key in the
+  standards table ("RFC 5869"), whose digits are its name; another name
+  that holds digits ("Argon2id", a U+ code point) is in
+  `[[name_with_digits]]` with its reason, as a `name` or a `pattern`.
+  A paragraph's text holds no backticks.
 - **`para.planned`** names an item of a Spec's Open line that the
-  paragraph describes as not built. The generator draws it led by
-  "Planned, not built:". **`para.until`** marks a paragraph about today's
-  behaviour that the item replaces. The batch that builds the item drops
-  its `until` paragraphs and its paragraphs' `planned` keys, rewording
-  them as built.
-- **`table.kind`**: one of the tables gen.py writes from the code:
-  `vault-header` (the header's fields, from `Header::to_bytes`),
-  `vault-slot` (a slot's fields), `vault-plain` (a slot's plaintext),
-  `vault-sizes` (each of `SLOT_SIZES` with its file size, by
-  `file_len`'s formula over the constants), `diceware-bits` (with
-  `words = [4, 10]`: each list of `core/faraday-bip/src/diceware/`, its
-  length read from its `WORDS` array, and the bits for each count of
-  words). A table typed by hand is not allowed.
-- **In faraday-learn:** the generator writes `CONSTRUCTIONS` beside
-  `BLOCKS` in `faraday/faraday-learn/src/how.rs`, each with its title,
-  its page and its sections as headings, paragraphs and table rows, and a
-  lookup `constructions_for_page(page)`. A Learn page draws its own
+  paragraph describes as not built, by its key in `[open_item]`, whose
+  `names` are the words the Open line of `spec` names it with. The
+  generator draws the paragraph led by "Planned, not built:", so its
+  text begins in lower case unless its first word is a name; a number of
+  that work, which no constant holds yet, is `{planned:<n>}`, allowed only
+  there. **`para.until`** marks a paragraph about today's behaviour that
+  the item replaces. The batch that builds the item drops its `until`
+  paragraphs and its paragraphs' `planned` keys, rewording them as built,
+  and the `[open_item]`.
+- **`para.table`**: in place of `text`, one of the tables gen.py writes
+  from the code, drawn where the paragraph stands: `vault-header` (the
+  header's fields, from `Header::to_bytes`), `vault-sizes` (each of
+  `SLOT_SIZES` with its file size, by `file_len`'s formula over the
+  constants), `diceware-bits` (with `words = [4, 10]`: each list of
+  `core/faraday-bip/src/diceware/`, its length read from its `WORDS`
+  array, and the bits for each count of words). `vault-slot` (a slot's
+  fields) and `vault-plain` (a slot's plaintext) are not written yet: the
+  account tells a slot in its paragraphs. A table typed by hand is not
+  allowed.
+- **In faraday-learn:** gen.py writes `CONSTRUCTIONS` and
+  `docs/crypto/gen_how.py` puts them after `BLOCKS` in
+  `faraday/faraday-learn/src/how.rs`, each with its title, its page and its sections as headings,
+  paragraphs and table rows (the type is
+  `faraday/faraday-learn/src/construction.rs`), and the lookups
+  `constructions_for_page(page)` and, by the page itself,
+  `faraday_learn::constructions_after`. A Learn page draws its own
   sections, then each construction for it as more sections under the
-  construction's title, then its blocks under **How Faraday does it**
-  (§3.1). The drawing is a Learn page's (headings in Title S, paragraphs
-  in Body L, a table as Learn's tables are drawn), not a block's list.
+  construction's title (`faraday_ui::how::construction`), then its
+  blocks under **How Faraday does it** (§3.1). The drawing is a Learn
+  page's (the title as the page's, headings and paragraphs in the page's
+  type), not a block's list; a table is Material's data table: heads in
+  Title S, cells in Body M, a divider under each row, columns sharing the
+  width where they do not fit. Each part's height is kept for the width
+  and text size it was drawn at, as a block's is, so a part wholly
+  outside the view costs a lookup when the frame is drawn again.
 
 ### 18.3 The vault: how it is built
 
@@ -1315,6 +1345,15 @@ fresh seal nonce (`docs/OWN-RANDOMNESS.md`, F154). "Planned, not built"
 sentences read as here until then; "Today" sentences are `until`
 paragraphs, dropped when their item lands. The numbers are what the
 placeholders give today.
+
+The fresh seal nonce ([N]) had landed when the account was built
+(`Faraday::vault_seal_nonce` takes a fresh answer for "vault seal" when one is
+waiting, `docs/VAULT.md` §5), and no Open line names it, so the
+manifest writes its sentences as built: the nonce is the first 24 bytes
+of a fresh answer when one is waiting, else of SHA-256 over the label,
+the seed and the count; and two seals share a nonce only when no fresh
+answer was waiting at either and the system gave both sessions the same
+seed. The sentences marked [N] below are as specified before it landed.
 
 **The file**
 
@@ -1331,8 +1370,7 @@ length, chosen when the vault is made and fixed for its life:
 
 Every vault has four slots, whether it has one passphrase or four.
 
-- **[M]** Today the file's name ends in `.ofv`. Planned, not built: it
-  ends in `.fvlt`.
+- The file's name ends in `.fvlt`.
 
 **The header**
 
@@ -1349,8 +1387,7 @@ Nothing in it is secret, and none of it is a key.
 | 17 | 4 | *L* |
 | 21 | 32 | Argon2id salt |
 
-- **[M]** Today the magic is `OFVT`. Planned, not built: the magic is
-  `FVLT`.
+- The magic is `FVLT`.
 
 **The keys**
 
@@ -1561,11 +1598,14 @@ The website links them; the device names them as text.
 - a paragraph's text holds a digit outside a placeholder, a standard's
   key, or a name in the manifest's `[[name_with_digits]]` list
   (Argon2id, HKDF-SHA256, SHA-256, XChaCha20-Poly1305, ChaCha20,
-  Poly1305, UTF-8, U+ code points, "Faraday vault v1 slot", each with
-  its reason), so no number is typed;
-- a `planned` or `until` names an item no Spec's Open line names: the
-  batch that builds an item, which removes it from the Open line, must
-  rewrite its paragraphs in the same change;
+  Poly1305, UTF-8, U+ code points, log2, NIST Special Publication
+  800-63B, each with its reason; the label "Faraday vault v1 slot" is
+  `SLOT_INFO`'s bytes, a placeholder), so no number is typed;
+- a `planned` or `until` names no `[open_item]`, or an item whose
+  Spec's Open line no longer names it: the batch that builds an item,
+  which removes it from the Open line, must rewrite its paragraphs in the
+  same change; an `[open_item]` no paragraph names fails too;
+- a `{planned:<n>}` stands outside a planned paragraph;
 - a construction names an action that does not exist, a Learn page that
   does not exist (`learn_pages`, as for actions), or a table kind gen.py
   does not write;
@@ -1573,9 +1613,10 @@ The website links them; the device names them as text.
 
 `docs/crypto/gen.py` reads what the tables and placeholders name:
 
-- `vault-header` and `vault-slot`: the offsets from `Header::to_bytes`'
-  slices and `encrypt_slot`'s, failing when the code no longer has that
-  shape; and the offsets `tools/vault/open.py` reads, which
+- `vault-header`: the offsets from `Header::to_bytes`' slices, failing
+  when the code no longer has that shape; and the sizes and offsets
+  `tools/vault/open.py` reads (`HEADER_LEN`, `NONCE_LEN`, `TAG_LEN`,
+  `SLOT_SIZES`, the salt's slice, the four integers), which
   `faraday/faraday-vault/tests/open_py.rs` holds to the vectors;
 - `vault-sizes`: `SLOT_SIZES`, `HEADER_LEN`, `SLOTS`, `NONCE_LEN` and
   `TAG_LEN`, by `file_len`'s formula; the vectors' lengths are held by
@@ -1588,9 +1629,13 @@ The website links them; the device names them as text.
   `tools/diceware/gen.py`'s output changes the table.
 
 A construction is fingerprinted as an action is (§5), over the code its
-placeholders name, so a change to `faraday/faraday-vault/src/lib.rs`
-fails `just lint` until the account is reviewed and re-stamped with the
-vault actions.
+placeholders name: its lock lines in `docs/crypto/actions.lock` are
+each value it reads (`val c:<file>::<CONST> 53`) and a digest of each
+table, and `just crypto-review <id>` stamps it in `[construction.review]`
+with no inventory. A change to a value the account states fails check
+until the account is reviewed and re-stamped with the vault actions.
+check.py is not yet among `just lint`'s checks; `gen.py check` holds
+`how.rs`'s `CONSTRUCTIONS` to the manifest.
 
 ### 18.7 The website's /cryptography page
 

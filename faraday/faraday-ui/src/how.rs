@@ -6,9 +6,12 @@
 //! Material, whose item stops at three lines). A block is read, not
 //! acted on: its items take no press.
 
-use faraday_draw::tokens::{BODY_L, BODY_M, GAP, GAP_SMALL, ICON_GLYPH_SMALL, LIST_PAD_V, TITLE_S};
+use faraday_draw::tokens::{
+    BODY_L, BODY_M, GAP, GAP_SMALL, ICON_GLYPH_SMALL, LIST_PAD_V, PAD, TITLE_S, TypeRole,
+};
 use faraday_draw::widgets::Icon;
 use faraday_learn::block::{Area, Block, CrossCheck, Kind, Line};
+use faraday_learn::construction::{Construction, Item, Table};
 use faraday_strings::{EN, fill};
 use std::sync::{Arc, Mutex};
 
@@ -43,6 +46,9 @@ pub fn blocks<A: Copy + PartialEq>(
 /// two line heights the block's text is set in.
 type Key = (i32, i32, u32, u32);
 
+/// The kept height of each part (0 the whole) at a `Key`, as drawn.
+type Heights = Mutex<Vec<(Key, usize, f32)>>;
+
 /// [`block`], or its kept height where the block lies wholly outside the
 /// clip and has been drawn at this width and text size before.
 fn kept_block<A: Copy + PartialEq>(
@@ -58,7 +64,7 @@ fn kept_block<A: Copy + PartialEq>(
         ui.line_as(BODY_L).to_bits(),
     );
     let cooked = cooked(b, release);
-    kept(ui, &cooked, key, 0, at.1, &mut |ui, y| {
+    kept(ui, &cooked.heights, key, 0, at.1, &mut |ui, y| {
         block(ui, (at.0, y, at.2), b, &cooked, key)
     })
 }
@@ -68,14 +74,14 @@ fn kept_block<A: Copy + PartialEq>(
 /// outside the clip: then only its kept height. A lookup in that case.
 fn kept<A: Copy + PartialEq>(
     ui: &mut Ui<A>,
-    cooked: &Cooked,
+    store: &Heights,
     key: Key,
     index: usize,
     y: f32,
     draw: &mut dyn FnMut(&mut Ui<A>, f32) -> f32,
 ) -> f32 {
     let known = {
-        let heights = cooked.heights.lock().unwrap_or_else(|e| e.into_inner());
+        let heights = store.lock().unwrap_or_else(|e| e.into_inner());
         heights
             .iter()
             .find(|(k, n, _)| *k == key && *n == index)
@@ -90,7 +96,7 @@ fn kept<A: Copy + PartialEq>(
     }
     let h = draw(ui, y);
     if known.is_none() {
-        let mut heights = cooked.heights.lock().unwrap_or_else(|e| e.into_inner());
+        let mut heights = store.lock().unwrap_or_else(|e| e.into_inner());
         heights.push((key, index, h));
     }
     h
@@ -106,7 +112,7 @@ fn block<A: Copy + PartialEq>(
     key: Key,
 ) -> f32 {
     let mut cy = y;
-    cy += kept(ui, cooked, key, 1, cy, &mut |ui, y| {
+    cy += kept(ui, &cooked.heights, key, 1, cy, &mut |ui, y| {
         ui.wrap_as((x, y, w), TITLE_S, Role::OnSurface, b.name)
     });
     let one = [Line {
@@ -120,14 +126,14 @@ fn block<A: Copy + PartialEq>(
         (EN.how_field_checked, b.checked),
     ];
     for (n, (label, lines)) in fields.into_iter().enumerate() {
-        cy += kept(ui, cooked, key, 2 + n, cy, &mut |ui, y| {
+        cy += kept(ui, &cooked.heights, key, 2 + n, cy, &mut |ui, y| {
             field(ui, (x, y, w), label, lines)
         });
     }
-    cy += kept(ui, cooked, key, 6, cy, &mut |ui, y| {
+    cy += kept(ui, &cooked.heights, key, 6, cy, &mut |ui, y| {
         cross_check(ui, (x, y, w), &b.cross_check, &cooked.run)
     });
-    cy += kept(ui, cooked, key, 7, cy, &mut |ui, y| {
+    cy += kept(ui, &cooked.heights, key, 7, cy, &mut |ui, y| {
         item(ui, (x, y, w), EN.how_field_code, |ui, at| {
             let all = cooked.code.iter().map(String::as_str);
             entries(
@@ -143,7 +149,7 @@ fn block<A: Copy + PartialEq>(
         (EN.how_field_own_calls, b.own_calls),
     ];
     for (n, (label, lines)) in rest.into_iter().enumerate() {
-        cy += kept(ui, cooked, key, 8 + n, cy, &mut |ui, y| {
+        cy += kept(ui, &cooked.heights, key, 8 + n, cy, &mut |ui, y| {
             field(ui, (x, y, w), label, lines)
         });
     }
@@ -224,7 +230,7 @@ fn area<A: Copy + PartialEq>(
 /// the Code entries and the Cross-check's last run.
 struct Cooked {
     /// The height of each part of the block (0 the whole) at a `Key`, as drawn.
-    heights: Mutex<Vec<(Key, usize, f32)>>,
+    heights: Heights,
     release: String,
     code: Vec<String>,
     run: String,
@@ -321,4 +327,146 @@ fn line<A: Copy + PartialEq>(
             ui.wrap_as((tx, y, w - (tx - x)), BODY_M, Role::Warning, text)
         }
     }
+}
+
+/// The type and the room a construction is drawn with: a Learn page's
+/// own (`docs/CRYPTO-LEARN.md` §18.2), so its sections read as more of
+/// the page's.
+#[derive(Debug, Clone, Copy)]
+pub struct PageLook {
+    /// The construction's title, as a page's title.
+    pub title: TypeRole,
+    /// A section's heading.
+    pub heading: TypeRole,
+    /// A paragraph.
+    pub body: TypeRole,
+    /// The room under the title, a heading, a paragraph and a section.
+    pub after: [f32; 4],
+}
+
+/// A construction from (x, y), `w` wide, after a Learn page's own
+/// sections: its title, then each section's heading and its paragraphs
+/// and tables. It is read, not acted on: nothing in it takes a press.
+/// Returns the height used. Each part's height is kept for the width and
+/// text size it was drawn at, as a block's is, and a part wholly outside
+/// the clip is not drawn again: it costs a lookup. Costs a pass over the
+/// text of the parts in view, and of those not yet drawn.
+pub fn construction<A: Copy + PartialEq>(
+    ui: &mut Ui<A>,
+    (x, y, w): (f32, f32, f32),
+    c: &Construction,
+    look: &PageLook,
+) -> f32 {
+    let key = (
+        ui.px(w),
+        ui.px(ui.line_as(look.heading)),
+        ui.line_as(look.body).to_bits(),
+        ui.line_as(BODY_M).to_bits(),
+    );
+    let store = construction_heights(c.id);
+    kept(ui, &store, key, 0, y, &mut |ui, y| {
+        construction_parts(ui, (x, y, w), c, look, &store, key)
+    })
+}
+
+/// The parts of a construction, each kept apart (`kept`), numbered from 1
+/// in the order drawn. Returns the height used.
+fn construction_parts<A: Copy + PartialEq>(
+    ui: &mut Ui<A>,
+    (x, y, w): (f32, f32, f32),
+    c: &Construction,
+    look: &PageLook,
+    store: &Heights,
+    key: Key,
+) -> f32 {
+    let [after_title, after_heading, after_para, after_section] = look.after;
+    let mut n = 1;
+    let mut cy = y;
+    cy += kept(ui, store, key, n, cy, &mut |ui, y| {
+        ui.wrap_as((x, y, w), look.title, Role::OnSurface, c.title)
+    }) + after_title;
+    for part in c.sections {
+        n += 1;
+        cy += kept(ui, store, key, n, cy, &mut |ui, y| {
+            ui.wrap_as((x, y, w), look.heading, Role::Primary, part.heading)
+        }) + after_heading;
+        for it in part.items {
+            n += 1;
+            cy += kept(ui, store, key, n, cy, &mut |ui, y| match it {
+                Item::Para(text) => ui.wrap_as((x, y, w), look.body, Role::OnSurface, text),
+                Item::Table(t) => table(ui, (x, y, w), t),
+            }) + after_para;
+        }
+        cy += after_section;
+    }
+    cy - y
+}
+
+/// The kept heights of the construction `id`. A lookup, and a reference
+/// count, after the first time it is drawn in a process.
+fn construction_heights(id: &'static str) -> Arc<Heights> {
+    static KEPT: Mutex<Vec<(&'static str, Arc<Heights>)>> = Mutex::new(Vec::new());
+    let mut kept = KEPT.lock().unwrap_or_else(|e| e.into_inner());
+    if let Some((_, h)) = kept.iter().find(|(i, _)| *i == id) {
+        return Arc::clone(h);
+    }
+    let h = Arc::new(Mutex::new(Vec::new()));
+    kept.push((id, Arc::clone(&h)));
+    h
+}
+
+/// A table: its heads in Title S on-surface-variant, its cells in Body M,
+/// a divider under the heads and under each row (Material's data table),
+/// columns as wide as their text where the row fits and shared out where
+/// it does not, a cell's text wrapping in its column. Returns the height.
+fn table<A: Copy + PartialEq>(ui: &mut Ui<A>, (x, y, w): (f32, f32, f32), t: &Table) -> f32 {
+    let n = t.head.len();
+    if n == 0 {
+        return 0.0;
+    }
+    let natural: Vec<f32> = (0..n)
+        .map(|i| {
+            let head = ui.measure_as(TITLE_S, t.head[i]);
+            t.rows
+                .iter()
+                .filter_map(|r| r.get(i))
+                .map(|cell| ui.measure_as(BODY_M, cell))
+                .fold(head, f32::max)
+        })
+        .collect();
+    let widths = shared(&natural, (w - PAD * (n - 1) as f32).max(n as f32));
+    let mut cy = y;
+    let rows = std::iter::once((t.head, TITLE_S, Role::OnSurfaceVariant))
+        .chain(t.rows.iter().map(|r| (*r, BODY_M, Role::OnSurface)));
+    for (cells, role, colour) in rows {
+        let mut cx = x;
+        let mut tall: f32 = 0.0;
+        for (cell, cw) in cells.iter().zip(&widths) {
+            tall = tall.max(ui.wrap_as((cx, cy, *cw), role, colour, cell));
+            cx += cw + PAD;
+        }
+        cy += tall + GAP_SMALL;
+        ui.rule(x, cy, w, Role::OutlineVariant);
+        cy += GAP_SMALL;
+    }
+    cy - y
+}
+
+/// Column widths in `room`: each column's natural width where all fit;
+/// otherwise the narrow columns keep theirs and the rest share what is
+/// left equally.
+fn shared(natural: &[f32], room: f32) -> Vec<f32> {
+    if natural.iter().sum::<f32>() <= room {
+        return natural.to_vec();
+    }
+    let mut order: Vec<usize> = (0..natural.len()).collect();
+    order.sort_by(|a, b| natural[*a].total_cmp(&natural[*b]));
+    let mut out = vec![0.0; natural.len()];
+    let mut left = room;
+    for (k, &i) in order.iter().enumerate() {
+        let share = left / (natural.len() - k) as f32;
+        out[i] = natural[i].min(share);
+        left -= out[i];
+    }
+    out
 }

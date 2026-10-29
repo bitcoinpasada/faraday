@@ -63,7 +63,14 @@ CFG_OK = {"cfg(test)", 'cfg(target_pointer_width = "64")', "cfg(unix)",
           'cfg(target_os = "linux")', 'cfg(target_arch = "x86_64")'}
 
 TOP_KEYS = {"schema", "standard", "row", "action", "not_crypto", "vector_no_action", "hold",
-            "tag_no_standard"}
+            "tag_no_standard", "construction", "name_with_digits", "open_item"}
+SCHEMA = 2
+# A construction (§18): how a format several actions share is built, drawn in Learn.
+CONSTRUCTION_KEYS = {"id", "title", "learn", "actions", "section", "review"}
+SECTION_KEYS = {"heading", "para"}
+PARA_KEYS = {"text", "table", "words", "planned", "until"}
+OPEN_ITEM_KEYS = {"spec", "names"}
+NAME_DIGITS_KEYS = {"name", "pattern", "reason"}
 HOLD_KEYS = {"action", "check", "case", "decision"}
 COUNTS = "tools/lint-crypto.counts"
 STANDARD_KEYS = {"name", "status", "checked", "source"}
@@ -386,8 +393,8 @@ def unknown(e, where, d, allowed, who=None):
 def check_schema(c):
     e = c.errors
     d = c.data
-    if d.get("schema") != 1:
-        e.add("schema", f"{MANIFEST}: `schema = 1` is required")
+    if d.get("schema") != SCHEMA:
+        e.add("schema", f"{MANIFEST}: `schema = {SCHEMA}` is required")
     unknown(e, MANIFEST, d, TOP_KEYS)
     for name, s in d.get("standard", {}).items():
         w = f"standard.{name}"
@@ -786,9 +793,29 @@ def check_fingerprints(c):
                   f"{review.get('reviewed', '?')}\n    changed: " + "\n             ".join(ch[:12])
                   + (f"\n             … {len(ch) - 12} more" if len(ch) > 12 else "")
                   + f"\n    run: just crypto-review {i}", i)
+    for con in constructions(c):
+        i = con.get("id")
+        if not str_ok(i):
+            continue
+        review = con.get("review") if isinstance(con.get("review"), dict) else {}
+        stored, locked = review.get("fingerprint"), c.lock.get(i)
+        now = construction_lines(c, con)
+        if not stored or locked is None:
+            e.add("fingerprint", "construction never reviewed: no fingerprint or no lock lines; "
+                  f"run: just crypto-review {i}", i)
+            continue
+        if fingerprint_of(locked) != stored:
+            e.add("fingerprint", "the fingerprint is not the hash of its lock lines "
+                  f"(edited by hand?); run: just crypto-review {i}", i)
+        if sorted(locked) != sorted(now):
+            ch = diff_parts(locked, now)
+            e.add("fingerprint", f"the code the construction reads changed since it was reviewed "
+                  f"on {review.get('reviewed', '?')}\n    changed: " + "\n             ".join(ch[:12])
+                  + f"\n    run: just crypto-review {i}", i)
+    names = {con.get("id") for con in constructions(c)}
     for f in c.lock:
-        if f not in c.by_id:
-            e.add("fingerprint", f"{LOCK} holds lines for {f}, which is no action")
+        if f not in c.by_id and f not in names:
+            e.add("fingerprint", f"{LOCK} holds lines for {f}, which is no action or construction")
 
 
 def primitive_crates(c):
@@ -1143,10 +1170,195 @@ def check_screens(c):
                      "`screens` nor `screens_not`", a)
 
 
+# ------------------------------------------------------- constructions (§18)
+
+_GEN = None
+
+
+def gen_module():
+    """docs/crypto/gen.py, loaded by path (`-I` keeps this directory off sys.path): its
+    placeholders and tables are what check holds a construction to."""
+    global _GEN
+    if _GEN is None:
+        import importlib.util
+        spec = importlib.util.spec_from_file_location(
+            "crypto_gen", pathlib.Path(__file__).resolve().parent / "gen.py")
+        _GEN = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(_GEN)
+    return _GEN
+
+
+def constructions(c):
+    v = c.data.get("construction", [])
+    return [x for x in v if isinstance(x, dict)] if isinstance(v, list) else []
+
+
+def construction_lines(c, con):
+    """A construction's lock lines: every value its placeholders and tables read (§18.6)."""
+    return gen_module().render_construction(c.root, con)[2]
+
+
+def open_line(c, spec):
+    m = re.search(r"^\*\*Open:\*\*(.*)$", c.read(spec), re.M)
+    return m.group(1) if m else None
+
+
+def digit_free(c, text):
+    """`text` without its placeholders, its standards' keys and the names that hold
+    digits ([[name_with_digits]]): a digit left in it was typed."""
+    g = gen_module()
+    out, last = [], 0
+    for s, e_, _ in g.placeholders(text):
+        out.append(text[last:s] + " ")
+        last = e_
+    out.append(text[last:])
+    t = "".join(out)
+    for k in sorted(c.data.get("standard", {}), key=len, reverse=True):
+        t = t.replace(k, " ")
+    for n in c.data.get("name_with_digits", []):
+        if isinstance(n, dict) and str_ok(n.get("name")):
+            t = t.replace(n["name"], " ")
+        if isinstance(n, dict) and str_ok(n.get("pattern")):
+            t = re.sub(n["pattern"], " ", t)
+    return t
+
+
+def check_constructions(c):
+    """§18.6: a construction's schema, the pages and actions it names, its open items,
+    that no number is typed, and that every placeholder and table resolves."""
+    e, g = c.errors, gen_module()
+    v = c.data.get("construction", [])
+    if not isinstance(v, list):
+        e.add("construction", "`construction` is not an array of tables ([[construction]])")
+        return
+    items = c.data.get("open_item", {})
+    if not isinstance(items, dict):
+        e.add("construction", "`open_item` is not a table of items ([open_item.<key>])")
+        items = {}
+    for k, it in items.items():
+        if not isinstance(it, dict):
+            e.add("construction", f"open_item.{k}: not a table")
+            continue
+        unknown(e, f"open_item.{k}", it, OPEN_ITEM_KEYS)
+        if not (str_ok(it.get("spec")) and str_ok(it.get("names"))):
+            e.add("construction", f"open_item.{k}: `spec` and `names` are required")
+            continue
+        line = open_line(c, it["spec"])
+        if line is None:
+            e.add("construction", f"open_item.{k}: {it['spec']} has no **Open:** line, so the item "
+                  "is built: rewrite its paragraphs as built, drop their `until` paragraphs and "
+                  "the item")
+        elif it["names"] not in line:
+            e.add("construction", f"open_item.{k}: {it['spec']}'s Open line no longer names "
+                  f"\"{it['names']}\", so the item is built: rewrite its `planned` paragraphs as "
+                  "built, drop its `until` paragraphs and the item")
+    for n in c.data.get("name_with_digits", []):
+        if not isinstance(n, dict):
+            continue
+        unknown(e, "name_with_digits", n, NAME_DIGITS_KEYS)
+        if not str_ok(n.get("reason")) or str_ok(n.get("name")) == str_ok(n.get("pattern")):
+            e.add("construction", f"name_with_digits {n.get('name') or n.get('pattern')}: a `name` "
+                  "or a `pattern`, and its `reason`")
+    used = {k: False for k in items}
+    pages, own_pages = learn_pages(c)
+    seen = set()
+    for con in v:
+        i = con.get("id") if isinstance(con, dict) else None
+        if not (str_ok(i) and re.fullmatch(r"[a-z0-9]+(-[a-z0-9]+)*", i)):
+            e.add("construction", f"construction id `{i}` is not lower-case words with hyphens")
+            continue
+        if i in seen or i in c.by_id:
+            e.add("construction", "the id is another construction's or an action's", i)
+        seen.add(i)
+        unknown(e, f"construction {i}", con, CONSTRUCTION_KEYS, i)
+        for k in ("title", "learn"):
+            if not str_ok(con.get(k)):
+                e.add("construction", f"`{k}` is missing or empty", i)
+        lp = str(con.get("learn", ""))
+        if lp and not (lp[8:] in own_pages if lp.startswith("faraday:") else lp in pages):
+            e.add("construction", f"Learn page `{lp}` does not exist", i)
+        acts = con.get("actions")
+        if not (isinstance(acts, list) and acts and all(str_ok(a) for a in acts)):
+            e.add("construction", "`actions` is not a list of action ids", i)
+            acts = []
+        for a in acts:
+            if a not in c.by_id:
+                e.add("construction", f"action {a} does not exist", i)
+        secs = con.get("section")
+        if not (isinstance(secs, list) and secs):
+            e.add("construction", "no [[construction.section]]", i)
+            continue
+        for s in secs:
+            unknown(e, f"construction {i}.section", s, SECTION_KEYS, i)
+            h = s.get("heading")
+            if not str_ok(h):
+                e.add("construction", "a section has no heading", i)
+            elif re.search(r"\d", digit_free(c, h)):
+                e.add("construction", f"the heading \"{h}\" holds a digit", i)
+            paras = s.get("para")
+            if not (isinstance(paras, list) and paras):
+                e.add("construction", f"section \"{h}\" has no [[construction.section.para]]", i)
+                continue
+            for p in paras:
+                check_para(c, g, i, h, p, items, used)
+        try:
+            render = g.render_construction(c.root, con)
+        except Exception as x:              # a shape the generator does not know
+            e.add("construction", f"gen.py cannot render it: {x}", i)
+            continue
+        for msg in render[1]:
+            e.add("construction", msg, i)
+    for k, u in used.items():
+        if not u:
+            e.add("construction", f"open_item.{k} is named by no paragraph's `planned` or `until`")
+
+
+def check_para(c, g, i, h, p, items, used):
+    e = c.errors
+    where = f"section \"{h}\""
+    unknown(e, f"construction {i}.para", p, PARA_KEYS, i)
+    if ("text" in p) == ("table" in p):
+        e.add("construction", f"{where}: a paragraph has `text` or `table`, one of the two", i)
+        return
+    if "planned" in p and "until" in p:
+        e.add("construction", f"{where}: a paragraph is `planned` or `until`, not both", i)
+    for k in ("planned", "until"):
+        if k in p:
+            if p[k] not in items:
+                e.add("construction", f"{where}: `{k} = \"{p[k]}\"` names no [open_item.{p[k]}]: "
+                      "an item of a Spec's Open line", i)
+            else:
+                used[p[k]] = True
+    if "words" in p and p.get("table") != "diceware-bits":
+        e.add("construction", f"{where}: `words` is for the table diceware-bits", i)
+    if "table" in p:
+        if p["table"] not in g.TABLE_KINDS:
+            e.add("construction", f"{where}: table `{p['table']}` is not one gen.py writes "
+                  f"({', '.join(g.TABLE_KINDS)})", i)
+        return
+    text = p.get("text")
+    if not str_ok(text):
+        e.add("construction", f"{where}: an empty paragraph", i)
+        return
+    if "`" in text:
+        e.add("construction", f"{where}: a code name in backticks is not a placeholder: "
+              f"\"{text[:60]}…\"", i)
+    try:
+        rest = digit_free(c, text)
+    except g.Unresolved as x:
+        e.add("construction", f"{where}: {x}", i)
+        return
+    m = re.search(r"\S*\d\S*", rest)
+    if m:
+        e.add("construction", f"{where}: `{m.group(0)}` is a number typed: a placeholder gives it, "
+              "or a name that holds digits is in [[name_with_digits]] with its reason", i)
+
+
 def run_checks(c):
     check_screens(c)
     check_deps(c)
     check_schema(c)
+    check_constructions(c)
     check_truth(c)
     check_coverage(c)
     check_fingerprints(c)
@@ -1162,8 +1374,8 @@ def report(errors, show_all=False, out=sys.stdout):
     cats = {}
     for cat, a, msg in errors.items:
         cats.setdefault(cat, []).append((a, msg))
-    for cat in ("deps", "schema", "untrue", "coverage", "uncovered", "unnamed", "fingerprint",
-                "audit", "reveal", "compute", "tiles", "ratchet"):
+    for cat in ("deps", "schema", "construction", "untrue", "coverage", "uncovered", "unnamed",
+                "fingerprint", "audit", "reveal", "compute", "tiles", "screens", "ratchet"):
         items = cats.get(cat, [])
         if not items:
             continue
@@ -1199,14 +1411,16 @@ def cmd_check(root, inv_path, show_all):
 
 # ------------------------------------------------------------------- review
 
-def action_block(text, i):
-    """(start, end) of an action's lines in the manifest text, as line indexes."""
+def action_block(text, i, table="action"):
+    """(start, end) of an action's (or a construction's) lines in the manifest text, as
+    line indexes."""
     lines = text.split("\n")
-    starts = [n for n, ln in enumerate(lines) if ln.strip() == "[[action]]"]
+    head = f"[[{table}]]"
+    starts = [n for n, ln in enumerate(lines) if ln.strip() == head]
     for s in starts:
         e = len(lines)
         for n in range(s + 1, len(lines)):
-            if re.match(r"\[(?!\[?action\b)", lines[n]) or lines[n].strip() == "[[action]]":
+            if re.match(rf"\[(?!\[?{table}\b)", lines[n]) or lines[n].strip() == head:
                 e = n
                 break
         for n in range(s + 1, e):
@@ -1225,17 +1439,17 @@ def edit_repoint(text, i, mapping):
     return "\n".join(lines)
 
 
-def edit_stamp(text, i, fp, date):
-    lines, s, e = action_block(text, i)
+def edit_stamp(text, i, fp, date, table="action"):
+    lines, s, e = action_block(text, i, table)
     if s is None:
-        raise SystemExit(f"{MANIFEST}: no [[action]] with id \"{i}\"")
+        raise SystemExit(f"{MANIFEST}: no [[{table}]] with id \"{i}\"")
     new = [f'fingerprint = "{fp}"', f'reviewed = "{date}"']
-    head = next((n for n in range(s, e) if lines[n].strip() == "[action.review]"), None)
+    head = next((n for n in range(s, e) if lines[n].strip() == f"[{table}.review]"), None)
     if head is None:
         end = e
         while end > s + 1 and not lines[end - 1].strip():
             end -= 1
-        lines[end:end] = ["", "[action.review]"] + new
+        lines[end:end] = ["", f"[{table}.review]"] + new
     else:
         stop = next((n for n in range(head + 1, e) if lines[n].startswith("[")), e)
         body = [ln for ln in lines[head + 1:stop]
@@ -1296,8 +1510,55 @@ def touchpoints(c, a):
     return out
 
 
+def cmd_review_construction(root, i):
+    """Stamp a construction (§18.6): what its placeholders and tables read is its
+    fingerprint, and reading it needs no inventory."""
+    c = Ctx(root, Inventory([]))
+    con = next(x for x in constructions(c) if x.get("id") == i)
+    check_constructions(c)
+    mine = [x for x in c.errors.items if x[0] == "construction" and x[1] in (i, None)]
+    locked, now = c.lock.get(i), construction_lines(c, con)
+    review = con.get("review") if isinstance(con.get("review"), dict) else {}
+    if (locked is not None and review.get("fingerprint") == fingerprint_of(locked)
+            and sorted(locked) == sorted(now) and not mine):
+        print(f"{i}: nothing changed since the last review")
+        return 0
+    lines, s, e = action_block(c.text, i, "construction")
+    print(f"== construction {i}")
+    print("\n".join(lines[s:e]).rstrip())
+    print("\n== what it reads from the code")
+    for x in (diff_parts(locked, now) if locked is not None else now):
+        print(f"  {x}")
+    print(f"\n== touchpoints: Learn page {con.get('learn')}; actions "
+          f"{', '.join(as_list(con.get('actions')))}; the website's /cryptography#{i}\n")
+    if mine:
+        print("review refuses; nothing was written:")
+        for cat, _, msg in mine:
+            print(f"  [{cat}] {msg}")
+        return 1
+    if not regenerate(root):
+        print("review refuses; nothing was written: the generator failed")
+        return 1
+    lock = dict(c.lock)
+    lock[i] = sorted(now)
+    text = edit_stamp(c.text, i, fingerprint_of(now), datetime.date.today().isoformat(),
+                      "construction")
+    tomllib.loads(text)
+    (root / MANIFEST).write_text(text)
+    (root / LOCK).write_text(lock_text(lock))
+    print(f"{i}: reviewed; fingerprint {fingerprint_of(now)[:12]}")
+    return 0
+
+
 def cmd_review(root, i, inv_path, inv=None):
     root = pathlib.Path(root)
+    try:
+        cons = {x.get("id") for x in tomllib.loads((root / MANIFEST).read_text())
+                .get("construction", []) if isinstance(x, dict)}
+    except (OSError, tomllib.TOMLDecodeError):
+        cons = set()
+    if i in cons:
+        return cmd_review_construction(root, i)
     inv = inv or read_inventory(root, inv_path)
     c = Ctx(root, inv)
     if i not in c.by_id:
@@ -1416,7 +1677,7 @@ def fn_rec(file, name, h, rules=(3,), callees=(), cross=(), crate="c"):
             "cross": list(cross)}
 
 
-FIXTURE_MANIFEST = '''schema = 1
+FIXTURE_MANIFEST = '''schema = 2
 
 [standard."BIP 1"]
 name = "A standard"
@@ -1516,7 +1777,39 @@ FIXTURE_FILES = {
     "faraday/faraday-core/src/catalog.rs": "pub const TILES: &[Tile] = &[\n    Tile {\n"
                                            "        tags: &[\"BIP-1\"],\n        go: Go::Sign,\n    },\n];\n",
     "tools/lint-crypto.counts": "not_crypto 0\nscreens_not 0\n",
+    "faraday/faraday-learn/src/lib.rs": 'const OWN: [(&str, &str); 1] = [\n'
+                                        '    ("page", include_str!("page.md")),\n];\n',
+    "src/k.rs": "pub const SIDES: usize = 2 + EXTRA;\nconst EXTRA: usize = 4;\n"
+                "pub static WORDS: [&str; 3] = [\"a\", \"b\", \"c\"];\n",
+    "docs/SPEC.md": "# A spec\n\n**Kind:** Spec\n**Status:** Specified\n"
+                    "**Open:** the dice of §2, the coins of §3\n",
 }
+
+FIXTURE_CONSTRUCTION = '''
+[open_item.dice]
+spec = "docs/SPEC.md"
+names = "the dice of §2"
+
+[[name_with_digits]]
+name = "SHA-256"
+reason = "A name."
+
+[[construction]]
+id = "dice"
+title = "How dice are read"
+learn = "faraday:page"
+actions = ["one"]
+
+[[construction.section]]
+heading = "The dice"
+
+[[construction.section.para]]
+text = "A die has {c:src/k.rs::SIDES} sides, {c:src/k.rs::SIDES|words} in words; SHA-256 (BIP 1) of {len:src/k.rs::WORDS} words is {f:log2({c:src/k.rs::SIDES} * 2)} bits."
+
+[[construction.section.para]]
+text = "they are thrown {planned:3} times."
+planned = "dice"
+'''
 
 FIXTURE_CARGO = '''[[package]]
 name = "lib1"
@@ -1561,7 +1854,7 @@ def self_test():
         for rel, text in FIXTURE_FILES.items():
             (root / rel).parent.mkdir(parents=True, exist_ok=True)
             (root / rel).write_text(text)
-        (root / "src").mkdir()
+        (root / "src").mkdir(exist_ok=True)
         (root / MANIFEST).write_text(FIXTURE_MANIFEST)
         (root / LOCK).write_text(LOCK_HEAD)
 
@@ -1751,6 +2044,54 @@ def self_test():
         expect(ok, "a row with its own actions types no cell")
         c = check(moved)
         expect(not c.errors.items, f"and the fixture is whole again {msgs(c)}")
+
+        print("a construction (§18.6):")
+        m0, l0 = (root / MANIFEST).read_text(), (root / LOCK).read_text()
+        (root / MANIFEST).write_text(m0 + FIXTURE_CONSTRUCTION)
+        c = check(moved)
+        expect(not msgs(c, "construction") and any("construction never reviewed" in m
+                                                   for m in msgs(c, "fingerprint")),
+               f"a whole construction fails only as never reviewed {msgs(c)}")
+        g = gen_module()
+        secs, probs, _ = g.render_construction(root, tomllib.loads(
+            (root / MANIFEST).read_text())["construction"][0])
+        expect(not probs and secs[0][1] == [
+            ("para", "A die has 6 sides, six in words; SHA-256 (BIP 1) of 3 words is 3.6 bits."),
+            ("para", "Planned, not built: they are thrown 3 times.")],
+            f"its placeholders are filled from the code, a planned paragraph led as planned {secs}")
+        rc, out = review("dice", moved)
+        c = check(moved)
+        expect(rc == 0 and not c.errors.items, f"review stamps it, and check passes {msgs(c)}")
+        ok, c = broken("src/k.rs", "EXTRA: usize = 4", "EXTRA: usize = 5", "fingerprint",
+                       "the code the construction reads changed")
+        expect(ok, "a value it reads changed in the code fails it until it is reviewed again")
+        cases = [
+            ("{c:src/k.rs::SIDES} sides", "{c:src/k.rs::NOPE} sides", "has no constant",
+             "a placeholder that does not resolve fails"),
+            ("{c:src/k.rs::SIDES} sides", "{c:src/gone.rs::SIDES} sides", "no such file",
+             "a placeholder naming a file that does not exist fails"),
+            ("{c:src/k.rs::SIDES} sides", "6 sides", "`6` is a number typed",
+             "a typed digit fails"),
+            ("A die has", "A `die` has", "backticks", "a code name in backticks fails"),
+            ('planned = "dice"', 'planned = "coins"', "names no [open_item.coins]",
+             "a planned item that is no open item fails"),
+            ('names = "the dice of §2"', 'names = "the dice of §9"', "no longer names",
+             "an open item no Spec's Open line names fails"),
+            ("in words;", "in words, {planned:7};", "only for a planned paragraph",
+             "a number of work not built outside a planned paragraph fails"),
+            ('learn = "faraday:page"', 'learn = "faraday:none"', "Learn page",
+             "a Learn page that does not exist fails"),
+            ('actions = ["one"]', 'actions = ["nine"]', "action nine does not exist",
+             "an action that does not exist fails"),
+            ("[[construction.section.para]]\ntext = \"they",
+             "[[construction.section.para]]\ntable = \"plates\"\n\n[[construction.section.para]]\n"
+             "text = \"they", "table `plates`", "a table gen.py does not write fails"),
+        ]
+        for old, new, needle, what in cases:
+            ok, c = broken(MANIFEST, old, new, "construction", needle)
+            expect(ok, f"{what} {msgs(c, 'construction')[:2] if not ok else ''}")
+        (root / MANIFEST).write_text(m0)
+        (root / LOCK).write_text(l0)
     print("the roots the inventory is asked for:")
     sample = ('[[action]]\nid = "a"\nfunctions = ["x/src/a.rs::f", "y/src/b.rs::T::g"]\n'
               '[[action]]\nid = "b"\nfunctions = ["x/src/a.rs::f"]\n'

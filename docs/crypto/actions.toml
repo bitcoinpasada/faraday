@@ -4,7 +4,7 @@
 # every function no action covers; docs/crypto/gen.py writes STANDARDS §1 to §7
 # and AUDIT §3 from this file.
 
-schema = 1
+schema = 2                      # constructions (docs/CRYPTO-LEARN.md §18) are new in schema 2
 
 [standard."BIP 32"]
 name = "Hierarchical Deterministic Wallets"
@@ -7533,3 +7533,241 @@ folder = "wallet"
 reason = "An account's zpub that no test or tool reads."
 
 # --- end: vaults, gpg and secure boot, the device and the starter ---
+
+# --- constructions (docs/CRYPTO-LEARN.md §18) ---
+# How a format several actions share is built, drawn in Learn after its page's
+# own sections. A number is never typed: `{c:<file>::<CONST>}`, `{len:…}`,
+# `{b:…}` (a byte string), `{v:<name>}` (a literal gen.py reads from a
+# function), `{f:<arithmetic>}`, `|words` for a count in words, and in a
+# planned paragraph `{planned:<n>}` for a number of work not built. A table is
+# written from the code (`table = "<kind>"`). A paragraph with `planned` is
+# drawn led by "Planned, not built:"; one with `until` is today's behaviour,
+# dropped when that item is built. Each item is an `[open_item]`, named by a
+# Spec's Open line.
+
+[open_item.seals]
+spec = "docs/VAULT-HARDENING.md"
+names = "the seal count shown, its comparisons and its lines in the backup plan"
+
+[[name_with_digits]]
+name = "Argon2id"
+reason = "The function's name (RFC 9106)."
+
+[[name_with_digits]]
+name = "HKDF-SHA256"
+reason = "HKDF over SHA-256: the function's name (RFC 5869)."
+
+[[name_with_digits]]
+name = "SHA-256"
+reason = "The hash's name (FIPS 180-4)."
+
+[[name_with_digits]]
+name = "XChaCha20-Poly1305"
+reason = "The cipher's name (draft-irtf-cfrg-xchacha-03)."
+
+[[name_with_digits]]
+name = "ChaCha20"
+reason = "The cipher's name (RFC 8439)."
+
+[[name_with_digits]]
+name = "Poly1305"
+reason = "The authenticator's name (RFC 8439)."
+
+[[name_with_digits]]
+name = "UTF-8"
+reason = "The encoding's name."
+
+[[name_with_digits]]
+pattern = "U\\+[0-9A-F]{4,6}"
+reason = "A Unicode code point is named by its number."
+
+[[name_with_digits]]
+name = "log2"
+reason = "The logarithm's name."
+
+[[name_with_digits]]
+name = "NIST Special Publication 800-63B"
+reason = "The publication's name."
+
+[[construction]]
+id = "vault"
+title = "How the vault is built"
+learn = "faraday:vaults"
+actions = ["vault-create", "vault-unlock", "vault-seal"]
+
+[[construction.section]]
+heading = "The file"
+
+[[construction.section.para]]
+text = "A vault is one file: a header of {c:faraday/faraday-vault/src/lib.rs::HEADER_LEN} bytes, then {c:faraday/faraday-vault/src/lib.rs::SLOTS|words} slots of L + {f:{c:faraday/faraday-vault/src/lib.rs::NONCE_LEN} + {c:faraday/faraday-vault/src/lib.rs::TAG_LEN}} bytes each, {c:faraday/faraday-vault/src/lib.rs::HEADER_LEN} + {c:faraday/faraday-vault/src/lib.rs::SLOTS} × (L + {f:{c:faraday/faraday-vault/src/lib.rs::NONCE_LEN} + {c:faraday/faraday-vault/src/lib.rs::TAG_LEN}}) bytes in all. L is a slot's plaintext length, chosen when the vault is made and fixed for its life:"
+
+[[construction.section.para]]
+table = "vault-sizes"
+
+[[construction.section.para]]
+text = "Every vault has {c:faraday/faraday-vault/src/lib.rs::SLOTS|words} slots, whether it has one passphrase or {c:faraday/faraday-vault/src/lib.rs::SLOTS|words}."
+
+[[construction.section.para]]
+text = "The file's name ends in .fvlt."
+
+[[construction.section]]
+heading = "The header"
+
+[[construction.section.para]]
+text = "The header is the first {c:faraday/faraday-vault/src/lib.rs::HEADER_LEN} bytes. Its integers are little-endian. Nothing in it is secret, and none of it is a key."
+
+[[construction.section.para]]
+table = "vault-header"
+
+[[construction.section.para]]
+text = "The magic is {b:faraday/faraday-intake/src/lib.rs::VAULT_MAGIC}."
+
+[[construction.section]]
+heading = "The keys"
+
+[[construction.section.para]]
+text = "The passphrase is stretched by Argon2id version {v:argon2-version} (RFC 9106) under the header's salt, memory, passes and lanes, to {v:argon2-out} bytes. HKDF-SHA256 (RFC 5869), with an empty salt and the label \"{b:faraday/faraday-vault/src/lib.rs::SLOT_INFO}\", makes the slot key from them. One passphrase gives one slot key, which is tried on every slot."
+
+[[construction.section.para]]
+text = "The passphrase is first put in Unicode Normalization Form C (UAX #15), and Argon2id takes that form's UTF-8 bytes. Then \"é\" typed as one character (U+00E9) and as \"e\" with a combining accent (U+0065 U+0301) open the same slot, and two passphrases with one Form C are refused as the same when a vault is made. Nothing else is changed: case, spaces and every character are kept as typed, and Form C keeps full-width letters and ligatures as they are: \"Ａ\" is not \"A\"."
+
+[[construction.section]]
+heading = "The slots"
+
+[[construction.section.para]]
+text = "Each slot is a {c:faraday/faraday-vault/src/lib.rs::NONCE_LEN}-byte nonce, L bytes of ciphertext and a {c:faraday/faraday-vault/src/lib.rs::TAG_LEN}-byte Poly1305 tag, sealed with XChaCha20-Poly1305 (draft-irtf-cfrg-xchacha-03). Its associated data is the whole header and the slot's number, zero to {f:{c:faraday/faraday-vault/src/lib.rs::SLOTS} - 1|words}: {f:{c:faraday/faraday-vault/src/lib.rs::HEADER_LEN} + 1} bytes. A slot's plaintext is a format byte, the slot's records, an end record, and zeros to L."
+
+[[construction.section.para]]
+text = "The plaintext starts with {c:faraday/faraday-vault/src/lib.rs::COMMIT_LEN} zero bytes, before the format byte. L and the file's size do not change; the room for records is {c:faraday/faraday-vault/src/lib.rs::COMMIT_LEN} bytes less."
+
+[[construction.section.para]]
+text = "Every slot holds one seal count record: how many times the slot has been written, and when it was last written by the clock of the computer that wrote it."
+
+[[construction.section.para]]
+text = "A slot no passphrase opens is a nonce and L + {c:faraday/faraday-vault/src/lib.rs::TAG_LEN} bytes, drawn when the vault is made from a ChaCha20 keystream keyed by HKDF-SHA256 of the computer's randomness: random-looking bytes the length of a used slot. The salt, the order in which the passphrases take the slots, and each used slot's first nonce come from the same keystream."
+
+[[construction.section]]
+heading = "Opening"
+
+[[construction.section.para]]
+text = "The reader checks the magic, the version, L against the {len:faraday/faraday-vault/src/lib.rs::SLOT_SIZES|words} sizes, the file's length against L, and the cost against its limits: memory {f:{c:faraday/faraday-vault/src/lib.rs::MIN_MEMORY_KIB} / 1024} MiB to {f:{c:faraday/faraday-vault/src/lib.rs::MAX_MEMORY_KIB} / 1024 / 1024} GiB, passes {v:min-passes} to {c:faraday/faraday-vault/src/lib.rs::MAX_PASSES}, lanes exactly {v:lanes}. A file outside them is refused before any memory is taken. The memory a vault needs is in its header, and Unlock shows it before the passphrase is typed. Faraday makes vaults with at least {f:{c:faraday/faraday-vault/src/lib.rs::CREATE_MIN_MEMORY_KIB} / 1024} MiB and {c:faraday/faraday-vault/src/lib.rs::CREATE_MIN_PASSES} passes."
+
+[[construction.section.para]]
+text = "The slot key is derived once and tried on all {c:faraday/faraday-vault/src/lib.rs::SLOTS|words} slots. One tag verifies: that slot opens. None: the passphrase opens nothing. More than one: the file is refused, since Faraday never makes two slots under one key. Every slot is tried whichever opens, so the time taken does not show which slot a passphrase opens. A passphrase that opens none decrypts and reads no slot, which the result shows anyway. The opened slot's records are read, and any fault refuses the slot."
+
+[[construction.section.para]]
+text = "A slot whose tag verifies and whose first {c:faraday/faraday-vault/src/lib.rs::COMMIT_LEN} bytes are not zero refuses the file."
+
+[[construction.section]]
+heading = "Sealing"
+
+[[construction.section.para]]
+text = "Sealing writes the open slot again under the same slot key with a new nonce, and copies the other {f:{c:faraday/faraday-vault/src/lib.rs::SLOTS} - 1|words} slots byte for byte. A session cannot tell an unused slot from one another passphrase opens, so it never rewrites one. The sealed vault is written to its stick as a new file, read back and compared byte for byte, and then takes the old copy's place."
+
+[[construction.section.para]]
+text = "Each seal's nonce is the first {c:faraday/faraday-vault/src/lib.rs::NONCE_LEN} bytes of a fresh answer from the system's randomness, when one is waiting. With none waiting, it is the first {c:faraday/faraday-vault/src/lib.rs::NONCE_LEN} bytes of SHA-256 over a label, the session's seed and a count of the nonces drawn that way, so a lock never waits on the system beyond its first answer."
+
+[[construction.section.para]]
+text = "Each seal writes the slot's seal count, one more than the last, and the time."
+
+[[construction.section]]
+heading = "What a changed header can do"
+
+[[construction.section.para]]
+text = "Changing the cost or the salt gives another key, so every slot fails. Changing L, the magic or the version fails the reader's checks, the length check or every tag. A slot moved to another position fails: its number is in its associated data. A slot moved to another vault fails: another salt gives another key, and another header is other associated data. The most a changed header can do is stop the vault opening, or, within the limits, make it slow or need more memory than a computer has."
+
+[[construction.section]]
+heading = "What it promises"
+
+[[construction.section.para]]
+text = "Without a passphrase, one copy of a vault shows {c:faraday/faraday-vault/src/lib.rs::SLOTS|words} random-looking slots of equal size. It does not show how many passphrases exist or which slots are in use. Nothing in a slot can be read without its passphrase, and a changed byte makes its tag fail, so nothing in it can be changed unnoticed."
+
+[[construction.section]]
+heading = "What it does not promise"
+
+[[construction.section.para]]
+text = "Offline guessing. Anyone with the file has its salt and cost and can try passphrases on their own computers. Each guess costs one Argon2id at the vault's cost and tests all {c:faraday/faraday-vault/src/lib.rs::SLOTS|words} slots. A slot is as strong as its passphrase: Passphrase strength, below."
+
+[[construction.section.para]]
+text = "Rollback. An older copy of a vault still opens. Someone who can write to the stick can put an older copy back; they cannot read or change anything in it."
+
+[[construction.section.para]]
+text = "Today nothing shows a rollback."
+until = "seals"
+
+[[construction.section.para]]
+text = "Unlock shows a slot's seal count; an older copy is named when a newer one was opened or read since power-on, or when an open vault's backup plan records a newer one; and a stick visit does not write an older copy over a newer one. A rollback is not seen when no newer copy is opened or read between power-on and the older copy's unlock and no open vault's plan records one, or when a vault and its plan are rolled back together."
+planned = "seals"
+
+[[construction.section.para]]
+text = "a backup plan records, for each other vault it places, that vault's salt, size, slot position, seal count and a digest of the slot. Whoever opens the slot holding the plan learns those vaults' salts and sizes, which slot of each holds the plan's seeds, and how often it was sealed."
+planned = "seals"
+
+[[construction.section.para]]
+text = "The seal's nonce. Two seals share a nonce only when no fresh answer from the system was waiting at either and the system gave both sessions the same seed, as a computer started again from a saved state, a virtual machine's snapshot for instance, can. Two seals under one key with one nonce show much of the slot to whoever has both copies, and let them forge it."
+
+[[construction.section.para]]
+text = "Two copies from different times. A slot's bytes change only when it is sealed. Someone with two copies sees which slots changed, and so which are in use. That weakens deniability, not secrecy."
+
+[[construction.section.para]]
+text = "Availability. A slot is checked only when it is opened. A changed byte in a slot no one opened is not noticed until its passphrase is next used, and then that slot is lost. A damaged header loses all {c:faraday/faraday-vault/src/lib.rs::SLOTS|words} slots. A copy at another place is the remedy."
+
+[[construction.section.para]]
+text = "Key commitment. XChaCha20-Poly1305 does not commit to its key: a slot can be made whose tag verifies under two passphrases, showing other contents under each. Making one needs both passphrases."
+
+[[construction.section.para]]
+text = "The {c:faraday/faraday-vault/src/lib.rs::COMMIT_LEN} zero bytes at the start of every slot's plaintext: under a second key they decrypt to other bytes, and the file is refused."
+
+[[construction.section.para]]
+text = "The seal count is read by whoever opens the slot. A decoy slot sealed twice beside one sealed daily says it is little used. Opening and sealing the decoy raises its count."
+
+[construction.review]
+fingerprint = "3bf2adf7b20c112cf92d92c6dd02fdf92ae4dd033f50ae6943dd272162b89049"
+reviewed = "2026-10-29"
+
+[[construction]]
+id = "passphrase-strength"
+title = "Passphrase strength"
+learn = "faraday:vaults"
+actions = ["vault-create"]
+
+[[construction.section]]
+heading = "Words from dice"
+
+[[construction.section.para]]
+text = "A passphrase of words drawn by dice from a list carries log2 of the list's length in bits for every word. Faraday has the {len:core/faraday-bip/src/diceware/mod.rs::ALL|words} lists the EFF publishes (EFF word lists):"
+
+[[construction.section.para]]
+table = "diceware-bits"
+words = [4, 10]
+
+[[construction.section.para]]
+text = "The bits hold when every word is drawn by fair dice or by the computer's randomness, and not when a person chooses a word."
+
+[[construction.section]]
+heading = "What Argon2id adds"
+
+[[construction.section.para]]
+text = "Each guess costs one Argon2id at the vault's memory and passes, on the guesser's own hardware. Faraday states that work as log2(memory in KiB × passes) bits, which Create a vault shows beside each cost. The memory of the vaults Faraday makes ranges over a factor of {f:{c:faraday/faraday-vault/src/lib.rs::MAX_MEMORY_KIB} / {c:faraday/faraday-vault/src/lib.rs::CREATE_MIN_MEMORY_KIB}}, which is {f:log2({c:faraday/faraday-vault/src/lib.rs::MAX_MEMORY_KIB} / {c:faraday/faraday-vault/src/lib.rs::CREATE_MIN_MEMORY_KIB})} bits; one more word from the large list is {f:log2({len:core/faraday-bip/src/diceware/large.rs::WORDS})}. The figure counts work, not how much more memory costs a guesser than time, and it gives no time per guess."
+
+[[construction.section]]
+heading = "Other passphrases"
+
+[[construction.section.para]]
+text = "A person may use any passphrase. Its strength is then theirs to ensure: Faraday does not measure a typed passphrase. A short passphrase, or one used anywhere else, is not protected by any cost."
+
+[[construction.section]]
+heading = "Where to learn more"
+
+[[construction.section.para]]
+text = "The EFF's page on dice-generated passphrases, eff.org/dice."
+
+[[construction.section.para]]
+text = "Arnold Reinhold's Diceware page, where the method began, theworld.com/~reinhold/diceware.html."
+
+[[construction.section.para]]
+text = "NIST Special Publication 800-63B, Digital Identity Guidelines, on what makes a password strong."
+
+[construction.review]
+fingerprint = "5f4619e32da6dfd0a25efc59bd8840d5994bdd03111393a49b7f560262cbf8da"
+reviewed = "2026-10-29"

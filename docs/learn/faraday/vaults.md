@@ -18,13 +18,7 @@ The passphrase is stretched with Argon2id before it opens anything, at a memory 
 
 The cost is chosen for the weakest computer the vault will ever be opened on. A computer without the memory cannot open the vault at all, and Unlock says how much it needs before the passphrase is typed. A slow computer opens it slowly.
 
-## Passphrase strength
-
-The passphrase matters more than the cost. The whole range of costs adds about six bits to every guess. One more word from the long dice list adds 12.9 bits.
-
-Six words rolled with dice, Generate with dice on Create vault, are 77.5 bits, beyond reach at any cost. A short passphrase, or one used anywhere else, is not protected by any cost. Create vault shows the bits of a passphrase the dice made, with the cost's bits added, and does not measure a typed one.
-
-If the passphrase is lost, the slot it opens is lost. There is no reset.
+If the passphrase is lost, the slot it opens is lost. There is no reset. Passphrase strength, below, gives the bits of a passphrase from dice and what the cost adds.
 
 A passphrase is read in Unicode's composed form (NFC), so an accented letter typed as one character or as a letter and a mark opens the same slot. Two passphrases that differ only in that way are one passphrase.
 

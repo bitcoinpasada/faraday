@@ -21,7 +21,11 @@
 //!   referred to by every block of the area;
 //! - an action with no screen (`screens: &[]`, `learn: ""`) is emitted
 //!   too and is offered nowhere;
-//! - only `BLOCKS`, `learn_page` and the area statics change between generations. The
+//! - `CONSTRUCTIONS` (`docs/CRYPTO-LEARN.md` §18), written by gen.py: a
+//!   `Construction` per `[[construction]]` in the manifest's order, its
+//!   paragraphs' placeholders filled from the code, one about work not
+//!   built led by "Planned, not built:", its tables written from the code;
+//! - only `BLOCKS`, `learn_page`, `CONSTRUCTIONS` and the area statics change between generations. The
 //!   lookups below the marker line are written once and the same in
 //!   every generation.
 
@@ -1805,6 +1809,164 @@ pub fn learn_page(id: &str) -> Option<&'static crate::Page> {
     }
 }
 
+use crate::construction::{Construction, Item, Part, Table};
+
+/// Every construction (`docs/CRYPTO-LEARN.md` §18), in the manifest's order.
+#[rustfmt::skip]
+pub static CONSTRUCTIONS: &[Construction] = &[
+    Construction {
+        id: "vault",
+        title: "How the vault is built",
+        learn: "faraday:vaults",
+        actions: &["vault-create", "vault-unlock", "vault-seal"],
+        sections: &[
+            Part {
+                heading: "The file",
+                items: &[
+                    Item::Para("A vault is one file: a header of 53 bytes, then four slots of L + 40 bytes each, 53 + 4 × (L + 40) bytes in all. L is a slot's plaintext length, chosen when the vault is made and fixed for its life:"),
+                    Item::Table(Table {
+                        head: &["L", "File"],
+                        rows: &[
+                            &["65 536", "262 357"],
+                            &["262 144", "1 048 789"],
+                            &["1 048 576", "4 194 517"],
+                            &["4 194 304", "16 777 429"],
+                        ],
+                    }),
+                    Item::Para("Every vault has four slots, whether it has one passphrase or four."),
+                    Item::Para("The file's name ends in .fvlt."),
+                ],
+            },
+            Part {
+                heading: "The header",
+                items: &[
+                    Item::Para("The header is the first 53 bytes. Its integers are little-endian. Nothing in it is secret, and none of it is a key."),
+                    Item::Table(Table {
+                        head: &["At", "Bytes", "What"],
+                        rows: &[
+                            &["0", "4", "magic"],
+                            &["4", "1", "version, 1"],
+                            &["5", "4", "Argon2id memory, in KiB"],
+                            &["9", "4", "Argon2id passes"],
+                            &["13", "4", "Argon2id lanes"],
+                            &["17", "4", "L"],
+                            &["21", "32", "Argon2id salt"],
+                        ],
+                    }),
+                    Item::Para("The magic is FVLT."),
+                ],
+            },
+            Part {
+                heading: "The keys",
+                items: &[
+                    Item::Para("The passphrase is stretched by Argon2id version 1.3 (RFC 9106) under the header's salt, memory, passes and lanes, to 32 bytes. HKDF-SHA256 (RFC 5869), with an empty salt and the label \"Faraday vault v1 slot\", makes the slot key from them. One passphrase gives one slot key, which is tried on every slot."),
+                    Item::Para("The passphrase is first put in Unicode Normalization Form C (UAX #15), and Argon2id takes that form's UTF-8 bytes. Then \"é\" typed as one character (U+00E9) and as \"e\" with a combining accent (U+0065 U+0301) open the same slot, and two passphrases with one Form C are refused as the same when a vault is made. Nothing else is changed: case, spaces and every character are kept as typed, and Form C keeps full-width letters and ligatures as they are: \"Ａ\" is not \"A\"."),
+                ],
+            },
+            Part {
+                heading: "The slots",
+                items: &[
+                    Item::Para("Each slot is a 24-byte nonce, L bytes of ciphertext and a 16-byte Poly1305 tag, sealed with XChaCha20-Poly1305 (draft-irtf-cfrg-xchacha-03). Its associated data is the whole header and the slot's number, zero to three: 54 bytes. A slot's plaintext is a format byte, the slot's records, an end record, and zeros to L."),
+                    Item::Para("The plaintext starts with 32 zero bytes, before the format byte. L and the file's size do not change; the room for records is 32 bytes less."),
+                    Item::Para("Every slot holds one seal count record: how many times the slot has been written, and when it was last written by the clock of the computer that wrote it."),
+                    Item::Para("A slot no passphrase opens is a nonce and L + 16 bytes, drawn when the vault is made from a ChaCha20 keystream keyed by HKDF-SHA256 of the computer's randomness: random-looking bytes the length of a used slot. The salt, the order in which the passphrases take the slots, and each used slot's first nonce come from the same keystream."),
+                ],
+            },
+            Part {
+                heading: "Opening",
+                items: &[
+                    Item::Para("The reader checks the magic, the version, L against the four sizes, the file's length against L, and the cost against its limits: memory 8 MiB to 4 GiB, passes 1 to 10, lanes exactly 1. A file outside them is refused before any memory is taken. The memory a vault needs is in its header, and Unlock shows it before the passphrase is typed. Faraday makes vaults with at least 64 MiB and 2 passes."),
+                    Item::Para("The slot key is derived once and tried on all four slots. One tag verifies: that slot opens. None: the passphrase opens nothing. More than one: the file is refused, since Faraday never makes two slots under one key. Every slot is tried whichever opens, so the time taken does not show which slot a passphrase opens. A passphrase that opens none decrypts and reads no slot, which the result shows anyway. The opened slot's records are read, and any fault refuses the slot."),
+                    Item::Para("A slot whose tag verifies and whose first 32 bytes are not zero refuses the file."),
+                ],
+            },
+            Part {
+                heading: "Sealing",
+                items: &[
+                    Item::Para("Sealing writes the open slot again under the same slot key with a new nonce, and copies the other three slots byte for byte. A session cannot tell an unused slot from one another passphrase opens, so it never rewrites one. The sealed vault is written to its stick as a new file, read back and compared byte for byte, and then takes the old copy's place."),
+                    Item::Para("Each seal's nonce is the first 24 bytes of a fresh answer from the system's randomness, when one is waiting. With none waiting, it is the first 24 bytes of SHA-256 over a label, the session's seed and a count of the nonces drawn that way, so a lock never waits on the system beyond its first answer."),
+                    Item::Para("Each seal writes the slot's seal count, one more than the last, and the time."),
+                ],
+            },
+            Part {
+                heading: "What a changed header can do",
+                items: &[
+                    Item::Para("Changing the cost or the salt gives another key, so every slot fails. Changing L, the magic or the version fails the reader's checks, the length check or every tag. A slot moved to another position fails: its number is in its associated data. A slot moved to another vault fails: another salt gives another key, and another header is other associated data. The most a changed header can do is stop the vault opening, or, within the limits, make it slow or need more memory than a computer has."),
+                ],
+            },
+            Part {
+                heading: "What it promises",
+                items: &[
+                    Item::Para("Without a passphrase, one copy of a vault shows four random-looking slots of equal size. It does not show how many passphrases exist or which slots are in use. Nothing in a slot can be read without its passphrase, and a changed byte makes its tag fail, so nothing in it can be changed unnoticed."),
+                ],
+            },
+            Part {
+                heading: "What it does not promise",
+                items: &[
+                    Item::Para("Offline guessing. Anyone with the file has its salt and cost and can try passphrases on their own computers. Each guess costs one Argon2id at the vault's cost and tests all four slots. A slot is as strong as its passphrase: Passphrase strength, below."),
+                    Item::Para("Rollback. An older copy of a vault still opens. Someone who can write to the stick can put an older copy back; they cannot read or change anything in it."),
+                    Item::Para("Today nothing shows a rollback."),
+                    Item::Para("Planned, not built: Unlock shows a slot's seal count; an older copy is named when a newer one was opened or read since power-on, or when an open vault's backup plan records a newer one; and a stick visit does not write an older copy over a newer one. A rollback is not seen when no newer copy is opened or read between power-on and the older copy's unlock and no open vault's plan records one, or when a vault and its plan are rolled back together."),
+                    Item::Para("Planned, not built: a backup plan records, for each other vault it places, that vault's salt, size, slot position, seal count and a digest of the slot. Whoever opens the slot holding the plan learns those vaults' salts and sizes, which slot of each holds the plan's seeds, and how often it was sealed."),
+                    Item::Para("The seal's nonce. Two seals share a nonce only when no fresh answer from the system was waiting at either and the system gave both sessions the same seed, as a computer started again from a saved state, a virtual machine's snapshot for instance, can. Two seals under one key with one nonce show much of the slot to whoever has both copies, and let them forge it."),
+                    Item::Para("Two copies from different times. A slot's bytes change only when it is sealed. Someone with two copies sees which slots changed, and so which are in use. That weakens deniability, not secrecy."),
+                    Item::Para("Availability. A slot is checked only when it is opened. A changed byte in a slot no one opened is not noticed until its passphrase is next used, and then that slot is lost. A damaged header loses all four slots. A copy at another place is the remedy."),
+                    Item::Para("Key commitment. XChaCha20-Poly1305 does not commit to its key: a slot can be made whose tag verifies under two passphrases, showing other contents under each. Making one needs both passphrases."),
+                    Item::Para("The 32 zero bytes at the start of every slot's plaintext: under a second key they decrypt to other bytes, and the file is refused."),
+                    Item::Para("The seal count is read by whoever opens the slot. A decoy slot sealed twice beside one sealed daily says it is little used. Opening and sealing the decoy raises its count."),
+                ],
+            },
+        ],
+    },
+    Construction {
+        id: "passphrase-strength",
+        title: "Passphrase strength",
+        learn: "faraday:vaults",
+        actions: &["vault-create"],
+        sections: &[
+            Part {
+                heading: "Words from dice",
+                items: &[
+                    Item::Para("A passphrase of words drawn by dice from a list carries log2 of the list's length in bits for every word. Faraday has the three lists the EFF publishes (EFF word lists):"),
+                    Item::Table(Table {
+                        head: &["Words", "EFF large list: 7 776 words, 12.9 bits a word", "EFF short list 1: 1 296 words, 10.3 bits a word", "EFF short list 2: 1 296 words, 10.3 bits a word"],
+                        rows: &[
+                            &["4", "51.7", "41.4", "41.4"],
+                            &["5", "64.6", "51.7", "51.7"],
+                            &["6", "77.5", "62.0", "62.0"],
+                            &["7", "90.5", "72.4", "72.4"],
+                            &["8", "103.4", "82.7", "82.7"],
+                            &["9", "116.3", "93.1", "93.1"],
+                            &["10", "129.2", "103.4", "103.4"],
+                        ],
+                    }),
+                    Item::Para("The bits hold when every word is drawn by fair dice or by the computer's randomness, and not when a person chooses a word."),
+                ],
+            },
+            Part {
+                heading: "What Argon2id adds",
+                items: &[
+                    Item::Para("Each guess costs one Argon2id at the vault's memory and passes, on the guesser's own hardware. Faraday states that work as log2(memory in KiB × passes) bits, which Create a vault shows beside each cost. The memory of the vaults Faraday makes ranges over a factor of 64, which is 6 bits; one more word from the large list is 12.9. The figure counts work, not how much more memory costs a guesser than time, and it gives no time per guess."),
+                ],
+            },
+            Part {
+                heading: "Other passphrases",
+                items: &[
+                    Item::Para("A person may use any passphrase. Its strength is then theirs to ensure: Faraday does not measure a typed passphrase. A short passphrase, or one used anywhere else, is not protected by any cost."),
+                ],
+            },
+            Part {
+                heading: "Where to learn more",
+                items: &[
+                    Item::Para("The EFF's page on dice-generated passphrases, eff.org/dice."),
+                    Item::Para("Arnold Reinhold's Diceware page, where the method began, theworld.com/~reinhold/diceware.html."),
+                    Item::Para("NIST Special Publication 800-63B, Digital Identity Guidelines, on what makes a password strong."),
+                ],
+            },
+        ],
+    },
+];
+
 // ---- lookups (the same in every generation) ----
 
 /// The blocks of the actions the screen named `screen` offers, in the
@@ -1845,6 +2007,28 @@ pub fn for_learn_page(page: &'static crate::Page) -> Vec<&'static Block> {
         .iter()
         .filter(|b| learn_page(b.learn).is_some_and(|p| std::ptr::eq(p, page)))
         .collect()
+}
+
+/// The constructions a Learn page carries after its sections, in the
+/// manifest's order: those whose `learn` is `page`'s id. A lookup.
+pub fn constructions_for_page(page: &str) -> impl Iterator<Item = &'static Construction> + '_ {
+    CONSTRUCTIONS.iter().filter(move |c| c.learn == page)
+}
+
+/// The constructions drawn after `page`'s own sections, before its
+/// blocks (`docs/CRYPTO-LEARN.md` §18.5): those whose `learn` names this
+/// page (`learn_page`). A lookup.
+pub fn constructions_for_learn_page(
+    page: &'static crate::Page,
+) -> impl Iterator<Item = &'static Construction> {
+    CONSTRUCTIONS
+        .iter()
+        .filter(move |c| learn_page(c.learn).is_some_and(|p| std::ptr::eq(p, page)))
+}
+
+/// The construction `id`. A lookup.
+pub fn construction(id: &str) -> Option<&'static Construction> {
+    CONSTRUCTIONS.iter().find(|c| c.id == id)
 }
 
 #[cfg(not(any(test, feature = "sample-how")))]

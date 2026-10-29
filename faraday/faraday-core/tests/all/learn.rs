@@ -215,3 +215,57 @@ fn resizing_across_1600_moves_learn_between_pane_and_sheet() {
     assert!(app.offers(Action::CKind(4)), "the page takes presses");
     assert_eq!(shown(&app), page);
 }
+
+/// Every line Learn draws on the Vaults page, scrolled from its top to its
+/// foot, and whatever ran past a side on the way, at `width` × `height`.
+fn vaults_page_read_to_its_foot(width: u16, height: u16) -> (Vec<String>, Vec<String>) {
+    let mut app = faraday_core::testkit::started();
+    window(&mut app, width, height);
+    app.press(Action::Nav(faraday_core::Screen::Vaults));
+    app.press(Action::Learn);
+    frame(&mut app);
+    assert_eq!(shown(&app), "Vaults");
+    let tab = app.hit_box(Action::LearnPage(0)).expect("the page's tab");
+    let (x, y) = (tab.0 + tab.2 / 2, tab.1 + tab.3 + 80);
+    let (mut lines, mut past) = (Vec::new(), Vec::new());
+    let mut last = -1.0;
+    for _ in 0..400 {
+        let (p, t) = app.drawn_past_sides_and_text();
+        past.extend(p);
+        lines.extend(t.into_iter().map(|(s, _)| s));
+        if app.learn().scroll == last {
+            break;
+        }
+        last = app.learn().scroll;
+        app.event(Event::Scroll { x, y, dy: 120 });
+        app.event(Event::ScrollEnd { x, y });
+        for _ in 0..4 {
+            frame(&mut app);
+        }
+    }
+    (lines, past)
+}
+
+#[test]
+fn the_vaults_page_goes_on_to_how_the_vault_is_built_and_passphrase_strength() {
+    for (w, h) in [(1280, 800), (480, 640)] {
+        let (lines, past) = vaults_page_read_to_its_foot(w, h);
+        let has = |s: &str| lines.iter().any(|l| l == s);
+        assert!(
+            has("How the vault is built"),
+            "{w}x{h}: the vault's account"
+        );
+        assert!(has("Passphrase strength"), "{w}x{h}: after it");
+        assert!(
+            has("The header") && has("Bytes"),
+            "{w}x{h}: the header's table"
+        );
+        assert!(has("16 777 429"), "{w}x{h}: the largest vault's size");
+        assert!(has("77.5"), "{w}x{h}: six words of the large list");
+        assert!(
+            lines.iter().any(|l| l.starts_with("Planned, not built:")),
+            "{w}x{h}: work not built says so"
+        );
+        assert!(past.is_empty(), "{w}x{h}: nothing past a side: {past:?}");
+    }
+}

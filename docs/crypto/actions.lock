@@ -1,6 +1,39 @@
 # Written by `just crypto-review`, never by hand (docs/CRYPTO-LEARN.md §5):
 # per action, the parts its fingerprint is the hash of.
 
+[passphrase-strength]
+table diceware-bits a77bd1783a542bf1
+val c:faraday/faraday-vault/src/lib.rs::CREATE_MIN_MEMORY_KIB 65536
+val c:faraday/faraday-vault/src/lib.rs::MAX_MEMORY_KIB 4194304
+val len:core/faraday-bip/src/diceware/large.rs::WORDS 7776
+val len:core/faraday-bip/src/diceware/mod.rs::ALL 3
+val len:core/faraday-bip/src/diceware/short1.rs::WORDS 1296
+val len:core/faraday-bip/src/diceware/short2.rs::WORDS 1296
+
+[vault]
+table vault-header 3dbc33cb9d482548
+table vault-sizes 76fc3aaeacbc85a8
+val b:faraday/faraday-intake/src/lib.rs::VAULT_MAGIC FVLT
+val b:faraday/faraday-vault/src/lib.rs::SLOT_INFO Faraday vault v1 slot
+val c:faraday/faraday-vault/src/lib.rs::COMMIT_LEN 32
+val c:faraday/faraday-vault/src/lib.rs::CREATE_MIN_MEMORY_KIB 65536
+val c:faraday/faraday-vault/src/lib.rs::CREATE_MIN_PASSES 2
+val c:faraday/faraday-vault/src/lib.rs::HEADER_LEN 53
+val c:faraday/faraday-vault/src/lib.rs::MAX_MEMORY_KIB 4194304
+val c:faraday/faraday-vault/src/lib.rs::MAX_PASSES 10
+val c:faraday/faraday-vault/src/lib.rs::MIN_MEMORY_KIB 8192
+val c:faraday/faraday-vault/src/lib.rs::NONCE_LEN 24
+val c:faraday/faraday-vault/src/lib.rs::SALT_LEN 32
+val c:faraday/faraday-vault/src/lib.rs::SLOTS 4
+val c:faraday/faraday-vault/src/lib.rs::TAG_LEN 16
+val c:faraday/faraday-vault/src/lib.rs::VERSION 1
+val len:faraday/faraday-vault/src/lib.rs::SLOT_SIZES 4
+val list:faraday/faraday-vault/src/lib.rs::SLOT_SIZES 65536 262144 1048576 4194304
+val v:argon2-out 32
+val v:argon2-version 1.3
+val v:lanes 1
+val v:min-passes 1
+
 [vault-create]
 area vault 943d221b1163b35e72c28ae9b3e16fd5bad0509fc5db75c10d3c1b1574052772
 fn 025b5ceae7f4b2c2118ec131131e0332f276f522b1d999552b7e2733e969563d faraday/faraday-vault/src/records.rs::Contents::used

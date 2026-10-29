@@ -17,6 +17,7 @@ use faraday_strings::EN;
 use pages::Page as LearnPage;
 
 pub mod block;
+pub mod construction;
 pub mod how;
 pub mod pages;
 
@@ -242,6 +243,14 @@ pub fn ids() -> impl Iterator<Item = &'static str> {
 /// Faraday's own page with this id, or `None` for an id it does not have.
 pub fn page(id: &str) -> Option<&'static LearnPage> {
     OWN.iter().position(|(i, _)| *i == id).map(|n| &own()[n])
+}
+
+/// The constructions drawn after `page`'s own sections, before its
+/// blocks (`docs/CRYPTO-LEARN.md` §18.5). A lookup.
+pub fn constructions_after(
+    page: &'static LearnPage,
+) -> impl Iterator<Item = &'static construction::Construction> {
+    how::constructions_for_learn_page(page)
 }
 
 /// Faraday's own page with an id from [`OWN`].

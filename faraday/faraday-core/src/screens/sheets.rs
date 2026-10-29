@@ -1794,7 +1794,19 @@ fn learn_page(
         }
         cy += after_section;
     }
+    // Then the constructions told after this page (`docs/CRYPTO-LEARN.md`
+    // §18.5), as more of its sections.
+    let page_look = faraday_ui::how::PageLook {
+        title: look.head,
+        heading: look.heading,
+        body: look.body,
+        after: look.after,
+    };
+    for c in faraday_learn::constructions_after(page) {
+        cy += faraday_ui::how::construction(ui, (bx, cy, bw), c, &page_look);
+    }
     // The blocks of the actions the page is about, after its own sections
+    // and its constructions
     // (`docs/CRYPTO-LEARN.md` §3.1).
     let blocks = faraday_learn::how::for_learn_page(page);
     if !blocks.is_empty() {

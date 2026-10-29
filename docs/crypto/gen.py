@@ -30,10 +30,15 @@ compared against: the area's `reference` up to its first clause, read from
 tools/crosscheck/area_<file>.py without importing it.
 
 faraday/faraday-learn/src/how.rs (the Learn blocks) is written by gen_how.py,
-called from `generated`. Standard library only (`tomllib`, Python 3.11).
+called from `generated`, with its CONSTRUCTIONS (docs/CRYPTO-LEARN.md §18) from
+here: each paragraph's placeholders filled from the code and each table written
+from it (`render_construction`, which check.py also runs). Standard library only
+(`tomllib`, Python 3.11).
 """
 
 import ast
+import hashlib
+import math
 import pathlib
 import re
 import sys
@@ -315,6 +320,462 @@ def gen_written_here(data):
     return "\n".join(out)
 
 
+# ------------------------------------------------------------- constructions
+
+# A construction (docs/CRYPTO-LEARN.md §18) is drawn from its paragraphs, whose
+# numbers are placeholders filled from the code here, and its tables, written
+# from the code here; nothing in them is typed by hand.
+
+PLANNED_LEAD = "Planned, not built: "
+TABLE_KINDS = ("vault-header", "vault-sizes", "diceware-bits")
+VAULT = "faraday/faraday-vault/src/lib.rs"
+OPEN_PY = "tools/vault/open.py"
+DICEWARE = "core/faraday-bip/src/diceware"
+NUMBER_WORDS = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine",
+                "ten", "eleven", "twelve"]
+# `{v:<name>}`: a value the code states as a literal inside a function, read from
+# that function's body; the reader fails when the code no longer has that shape.
+CODE_VALUES = {
+    "argon2-version": (VAULT, "stretch", r"Version::V0x(\d)(\d)", lambda m: f"{m[1]}.{m[2]}"),
+    "argon2-out": (VAULT, "stretch", r"Some\((\d+)\)", lambda m: int(m[1])),
+    "lanes": (VAULT, "check_cost", r"cost\.lanes != (\d+)", lambda m: int(m[1])),
+    "min-passes": (VAULT, "check_cost", r"\((\d+)\.\.=MAX_PASSES\)", lambda m: int(m[1])),
+}
+# The header's fields, by what `Header::to_bytes` copies into each.
+HEADER_FIELDS = {
+    "MAGIC": "magic",
+    "VERSION": "version, {VERSION}",
+    "self.cost.memory_kib": "Argon2id memory, in KiB",
+    "self.cost.passes": "Argon2id passes",
+    "self.cost.lanes": "Argon2id lanes",
+    "self.slot_len": "L",
+    "self.salt": "Argon2id salt",
+}
+FILE_LEN = "HEADER_LEN + SLOTS * (slot_len as usize + NONCE_LEN + TAG_LEN)"
+
+
+class Unresolved(Exception):
+    """A placeholder or a table the code does not give."""
+
+
+def fmt_num(x):
+    """A number as the account writes it: to a tenth where it is not whole, its
+    digits in threes from a thousand."""
+    if isinstance(x, float) and abs(x - round(x)) > 1e-9:
+        return f"{x:.1f}"
+    n = int(round(x))
+    s = f"{abs(n):,}".replace(",", " ") if abs(n) >= 1000 else str(abs(n))
+    return ("-" if n < 0 else "") + s
+
+
+def word_of(x):
+    whole = not isinstance(x, float) or abs(x - round(x)) < 1e-9
+    if not whole or not 0 <= int(round(x)) < len(NUMBER_WORDS):
+        raise Unresolved(f"{fmt_num(x)} has no word (`|words` is for zero to twelve)")
+    return NUMBER_WORDS[int(round(x))]
+
+
+def rust_body(text, name):
+    """The body of `fn name` in a Rust source, braces matched; None if absent."""
+    m = re.search(rf"\bfn {re.escape(name)}\b[^{{]*\{{", text)
+    if not m:
+        return None
+    depth, i = 1, m.end()
+    while i < len(text) and depth:
+        depth += {"{": 1, "}": -1}.get(text[i], 0)
+        i += 1
+    return text[m.end():i - 1]
+
+
+class Code:
+    """What a construction's placeholders and tables read from the tree. Each
+    value read is noted as a lock line: the construction's fingerprint (§18.6)."""
+
+    def __init__(self, root):
+        self.root = pathlib.Path(root)
+        self.files = {}
+        self.lines = set()
+
+    def read(self, rel):
+        if rel not in self.files:
+            p = self.root / rel
+            if not rel or not p.is_file():
+                raise Unresolved(f"{rel or 'a placeholder'}: no such file")
+            self.files[rel] = p.read_text()
+        return self.files[rel]
+
+    def item(self, rel, name):
+        """(type, value) of `const` or `static` `name` in a Rust file, as written."""
+        m = re.search(rf"^\s*(?:pub(?:\([^)]*\))?\s+)?(?:const|static)\s+{re.escape(name)}\s*:"
+                      r"\s*(?P<ty>[^=]+?)\s*=\s*(?P<val>.*?);\s*$", self.read(rel), re.M | re.S)
+        if not m:
+            raise Unresolved(f"{rel} has no constant or static `{name}`")
+        return m.group("ty"), m.group("val")
+
+    def const(self, rel, name, depth=0):
+        """An integer constant: an expression of literals and the file's other constants."""
+        if depth > 8:
+            raise Unresolved(f"{rel}::{name} refers to itself")
+        _, val = self.item(rel, name)
+        v = self.int_expr(rel, val, f"{rel}::{name}", depth)
+        self.lines.add(f"val c:{rel}::{name} {v}")
+        return v
+
+    def int_expr(self, rel, expr, what, depth=0):
+        expr = re.sub(r"\bas\s+(?:u8|u16|u32|u64|usize|i32|i64)\b", "", expr)
+        expr = re.sub(r"(?<=\d)_(?=\d)", "", expr)
+        expr = re.sub(r"\b(\d+)(?:u8|u16|u32|u64|usize)\b", r"\1", expr)
+        try:
+            tree = ast.parse(expr.strip(), mode="eval")
+        except SyntaxError:
+            raise Unresolved(f"{what} is not an integer expression gen.py evaluates")
+
+        def ev(n):
+            if isinstance(n, ast.Expression):
+                return ev(n.body)
+            if isinstance(n, ast.Constant) and type(n.value) is int:
+                return n.value
+            if isinstance(n, ast.Name):
+                return self.const(rel, n.id, depth + 1)
+            if isinstance(n, ast.BinOp) and type(n.op) in (ast.Add, ast.Sub, ast.Mult, ast.Div):
+                a, b = ev(n.left), ev(n.right)
+                if isinstance(n.op, ast.Div) and not b:
+                    raise Unresolved(f"{what} divides by zero")
+                return {ast.Add: lambda: a + b, ast.Sub: lambda: a - b, ast.Mult: lambda: a * b,
+                        ast.Div: lambda: a // b}[type(n.op)]()
+            raise Unresolved(f"{what} is not an integer expression gen.py evaluates")
+
+        return ev(tree)
+
+    def length(self, rel, name):
+        ty, _ = self.item(rel, name)
+        m = re.fullmatch(r"\[[^;\]]+;\s*([^\]]+)\]", ty.strip())
+        if not m:
+            raise Unresolved(f"{rel}::{name} is not an array of a stated length")
+        v = self.int_expr(rel, m.group(1), f"the length of {rel}::{name}")
+        self.lines.add(f"val len:{rel}::{name} {v}")
+        return v
+
+    def int_list(self, rel, name):
+        _, val = self.item(rel, name)
+        m = re.fullmatch(r"\[(.*)\]", val.strip(), re.S)
+        if not m:
+            raise Unresolved(f"{rel}::{name} is not an array literal")
+        out = [self.int_expr(rel, x, f"an element of {rel}::{name}")
+               for x in m.group(1).split(",") if x.strip()]
+        self.lines.add(f"val list:{rel}::{name} {' '.join(map(str, out))}")
+        return out
+
+    def byte_string(self, rel, name):
+        _, val = self.item(rel, name)
+        m = re.fullmatch(r'\*?b"([ -~]*)"', val.strip())
+        if not m or "\\" in m.group(1):
+            raise Unresolved(f"{rel}::{name} is not a byte string literal")
+        self.lines.add(f"val b:{rel}::{name} {m.group(1)}")
+        return m.group(1)
+
+    def body(self, rel, name):
+        b = rust_body(self.read(rel), name)
+        if b is None:
+            raise Unresolved(f"{rel} has no function `{name}`")
+        return b
+
+    def function(self, rel, name):
+        self.body(rel, name.split("::")[-1])
+        self.lines.add(f"val fn:{rel}::{name}")
+        return name
+
+    def value(self, name):
+        if name not in CODE_VALUES:
+            raise Unresolved(f"`{{v:{name}}}` is no value gen.py reads ({', '.join(CODE_VALUES)})")
+        rel, fn, pat, get = CODE_VALUES[name]
+        m = re.search(pat, self.body(rel, fn))
+        if not m:
+            raise Unresolved(f"{rel}::{fn} no longer has the shape `{{v:{name}}}` reads ({pat})")
+        v = get(m)
+        self.lines.add(f"val v:{name} {v}")
+        return v
+
+
+def placeholders(text):
+    """[(start, end, inner)] of the outermost `{…}` spans of a text."""
+    out, depth, start = [], 0, None
+    for i, ch in enumerate(text):
+        if ch == "{":
+            if depth == 0:
+                start = i
+            depth += 1
+        elif ch == "}":
+            if not depth:
+                raise Unresolved("a `}` closes nothing")
+            depth -= 1
+            if depth == 0:
+                out.append((start, i + 1, text[start + 1:i]))
+    if depth:
+        raise Unresolved("a `{` is not closed")
+    return out
+
+
+def split_mod(inner):
+    """(placeholder, modifier): `|words` after it, outside any inner placeholder."""
+    depth, cut = 0, -1
+    for i, ch in enumerate(inner):
+        depth += {"{": 1, "}": -1}.get(ch, 0)
+        if ch == "|" and depth == 0:
+            cut = i
+    return (inner, "") if cut < 0 else (inner[:cut], inner[cut + 1:])
+
+
+def resolve(code, inner, planned=False):
+    """A placeholder's value: a number, or text."""
+    body, mod = split_mod(inner)
+    if mod and mod != "words":
+        raise Unresolved(f"`|{mod}` is no modifier (only `|words`)")
+    kind, _, ref = body.partition(":")
+    rel, _, name = ref.partition("::")
+    if kind in ("c", "len", "b", "fn") and not (rel and name):
+        raise Unresolved(f"`{{{inner}}}` names no `<file>::<name>`")
+    if kind == "c":
+        v = code.const(rel, name)
+    elif kind == "len":
+        v = code.length(rel, name)
+    elif kind == "b":
+        v = code.byte_string(rel, name)
+    elif kind == "fn":
+        v = code.function(rel, name)
+    elif kind == "v":
+        v = code.value(ref)
+    elif kind == "planned":
+        if not planned:
+            raise Unresolved(f"`{{{inner}}}`, a number of work not built, is only for a planned "
+                             "paragraph")
+        if not re.fullmatch(r"\d+", ref):
+            raise Unresolved(f"`{{{inner}}}` is not a whole number")
+        v = int(ref)
+    elif kind == "f":
+        v = arith(code, ref, planned)
+    else:
+        raise Unresolved(f"`{{{inner}}}` is no placeholder (c, len, f, b, v, fn, planned)")
+    if mod == "words":
+        if isinstance(v, str):
+            raise Unresolved(f"`{{{inner}}}` is text, which has no word")
+        return word_of(v)
+    return v
+
+
+def arith(code, expr, planned):
+    """`{f:…}`: + - × / over numbers and placeholders, and `log2`, to a tenth."""
+    parts, last = [], 0
+    for s, e, inner in placeholders(expr):
+        parts.append(expr[last:s])
+        v = resolve(code, inner, planned)
+        if isinstance(v, str):
+            raise Unresolved(f"`{{{inner}}}` in an expression is not a number")
+        parts.append(repr(v))
+        last = e
+    parts.append(expr[last:])
+    try:
+        tree = ast.parse("".join(parts).strip(), mode="eval")
+    except SyntaxError:
+        raise Unresolved(f"`{{f:{expr}}}` is not arithmetic")
+
+    def ev(n):
+        if isinstance(n, ast.Expression):
+            return ev(n.body)
+        if isinstance(n, ast.Constant) and type(n.value) in (int, float):
+            return n.value
+        if isinstance(n, ast.BinOp) and type(n.op) in (ast.Add, ast.Sub, ast.Mult, ast.Div):
+            a, b = ev(n.left), ev(n.right)
+            if isinstance(n.op, ast.Div):
+                if not b:
+                    raise Unresolved(f"`{{f:{expr}}}` divides by zero")
+                return a / b
+            return {ast.Add: a + b, ast.Sub: a - b, ast.Mult: a * b}[type(n.op)]
+        if (isinstance(n, ast.Call) and isinstance(n.func, ast.Name) and n.func.id == "log2"
+                and len(n.args) == 1 and not n.keywords):
+            a = ev(n.args[0])
+            if a <= 0:
+                raise Unresolved(f"`{{f:{expr}}}` takes log2 of {a}")
+            return math.log2(a)
+        raise Unresolved(f"`{{f:{expr}}}` is not arithmetic gen.py evaluates")
+
+    v = ev(tree)
+    if abs(v - round(v)) < 1e-9:
+        return int(round(v))
+    return round(v, 1)
+
+
+def render_text(code, text, planned=False):
+    """A paragraph with its placeholders filled."""
+    out, last = [], 0
+    for s, e, inner in placeholders(text):
+        out.append(text[last:s])
+        v = resolve(code, inner, planned)
+        out.append(fmt_num(v) if isinstance(v, (int, float)) else v)
+        last = e
+    out.append(text[last:])
+    return "".join(out)
+
+
+def table_vault_header(code):
+    body = code.body(VAULT, "to_bytes")
+    rows, at = [], 0
+    for m in re.finditer(r"h\[(\d+)(?:\.\.(\d+))?\](?:\.copy_from_slice\(&(.+?)\);| = (\w+);)", body):
+        start = int(m[1])
+        end = int(m[2]) if m[2] else start + 1
+        src = (m[3] or m[4]).removesuffix(".to_le_bytes()")
+        if start != at:
+            raise Unresolved(f"{VAULT}::Header::to_bytes writes a field at {start}, where {at} "
+                             "was expected")
+        if src not in HEADER_FIELDS:
+            raise Unresolved(f"{VAULT}::Header::to_bytes copies `{src}`, which gen.py's "
+                             "HEADER_FIELDS does not name")
+        what = HEADER_FIELDS[src].replace("{VERSION}", str(code.const(VAULT, "VERSION")))
+        rows.append([fmt_num(start), fmt_num(end - start), what])
+        at = end
+    header_len = code.const(VAULT, "HEADER_LEN")
+    if not rows or at != header_len:
+        raise Unresolved(f"{VAULT}::Header::to_bytes writes {at} bytes, and HEADER_LEN is "
+                         f"{header_len}")
+    check_open_py(code, rows)
+    return ["At", "Bytes", "What"], rows
+
+
+def check_open_py(code, header_rows=None):
+    """tools/vault/open.py, which reads the vectors, has the Rust code's sizes and offsets."""
+    py = code.read(OPEN_PY)
+    for name in ("HEADER_LEN", "NONCE_LEN", "TAG_LEN"):
+        m = re.search(rf"^{name} = (\d+)$", py, re.M)
+        if not m or int(m[1]) != code.const(VAULT, name):
+            raise Unresolved(f"{OPEN_PY}: {name} is not {VAULT}'s")
+    m = re.search(r"^SLOT_SIZES = \(([\d, ]+)\)$", py, re.M)
+    if not m or [int(x) for x in m[1].split(",") if x.strip()] != code.int_list(VAULT, "SLOT_SIZES"):
+        raise Unresolved(f"{OPEN_PY}: SLOT_SIZES is not {VAULT}'s")
+    if header_rows:
+        at = {r[2]: int(r[0].replace(" ", "")) for r in header_rows}
+        salt = re.search(r"salt = blob\[(\d+):(\d+)\]", py)
+        ints = re.search(r'struct\.unpack_from\("<4I", blob, (\d+)\)', py)
+        if (not salt or int(salt[1]) != at.get("Argon2id salt")
+                or int(salt[2]) != code.const(VAULT, "HEADER_LEN")):
+            raise Unresolved(f"{OPEN_PY}: the salt's slice is not the header's")
+        if not ints or int(ints[1]) != at.get("Argon2id memory, in KiB"):
+            raise Unresolved(f"{OPEN_PY}: the four integers are not read where the header has them")
+
+
+def table_vault_sizes(code):
+    body = " ".join(code.body(VAULT, "file_len").split())
+    if body != FILE_LEN:
+        raise Unresolved(f"{VAULT}::file_len is no longer `{FILE_LEN}`")
+    h, s = code.const(VAULT, "HEADER_LEN"), code.const(VAULT, "SLOTS")
+    n, t = code.const(VAULT, "NONCE_LEN"), code.const(VAULT, "TAG_LEN")
+    check_open_py(code)
+    return ["L", "File"], [[fmt_num(sl), fmt_num(h + s * (sl + n + t))]
+                           for sl in code.int_list(VAULT, "SLOT_SIZES")]
+
+
+def diceware_lists(code):
+    d = code.root / DICEWARE
+    files = sorted(p.name for p in d.glob("*.rs") if p.name != "mod.rs") if d.is_dir() else []
+    if not files:
+        raise Unresolved(f"{DICEWARE} has no word lists")
+    out = []
+    for f in files:
+        m = re.fullmatch(r"(large)|short(\d)", f.removesuffix(".rs"))
+        if not m:
+            raise Unresolved(f"{DICEWARE}/{f} is no list gen.py names")
+        name = "EFF large list" if m[1] else f"EFF short list {m[2]}"
+        out.append((name, code.length(f"{DICEWARE}/{f}", "WORDS")))
+    return out
+
+
+def table_diceware(code, words):
+    if not (isinstance(words, list) and len(words) == 2 and all(type(w) is int for w in words)
+            and 0 < words[0] <= words[1]):
+        raise Unresolved("diceware-bits takes `words = [first, last]`")
+    lists = diceware_lists(code)
+    head = ["Words"] + [f"{name}: {fmt_num(n)} words, {math.log2(n):.1f} bits a word"
+                        for name, n in lists]
+    rows = [[str(w)] + [f"{w * math.log2(n):.1f}" for _, n in lists]
+            for w in range(words[0], words[1] + 1)]
+    return head, rows
+
+
+def render_table(code, para):
+    kind = para.get("table")
+    if kind == "vault-header":
+        return table_vault_header(code)
+    if kind == "vault-sizes":
+        return table_vault_sizes(code)
+    if kind == "diceware-bits":
+        return table_diceware(code, para.get("words"))
+    raise Unresolved(f"table `{kind}` is not one gen.py writes ({', '.join(TABLE_KINDS)})")
+
+
+def render_construction(root, con):
+    """(sections, problems, lock lines): each section (heading, [item]), an item
+    ("para", text) or ("table", head, rows)."""
+    code = Code(root)
+    problems, sections = [], []
+    for s in as_list(con.get("section")):
+        items = []
+        for p in as_list(s.get("para")):
+            try:
+                if "table" in p:
+                    head, rows = render_table(code, p)
+                    items.append(("table", head, rows))
+                    digest = hashlib.sha256(repr((head, rows)).encode()).hexdigest()[:16]
+                    code.lines.add(f"table {p['table']} {digest}")
+                else:
+                    planned = "planned" in p
+                    t = render_text(code, str(p.get("text", "")), planned)
+                    items.append(("para", PLANNED_LEAD + t if planned else t))
+            except Unresolved as e:
+                problems.append(f"{s.get('heading')}: {e}")
+        sections.append((s.get("heading", ""), items))
+    return sections, problems, sorted(code.lines)
+
+
+def rs_str(s):
+    return '"' + str(s).replace("\\", "\\\\").replace('"', '\\"') + '"'
+
+
+def gen_constructions(root, data):
+    """The CONSTRUCTIONS part of faraday/faraday-learn/src/how.rs, which gen_how.py puts
+    after the blocks."""
+    out = ["use crate::construction::{Construction, Item, Part, Table};", "",
+           "/// Every construction (`docs/CRYPTO-LEARN.md` §18), in the manifest's order.",
+           "#[rustfmt::skip]",
+           "pub static CONSTRUCTIONS: &[Construction] = &["]
+    for con in data.get("construction", []):
+        sections, problems, _ = render_construction(root, con)
+        if problems:
+            raise SystemExit(f"construction {con.get('id')}: " + "; ".join(problems)
+                             + " (docs/crypto/check.py check says more)")
+        out += ["    Construction {",
+                f"        id: {rs_str(con.get('id'))},",
+                f"        title: {rs_str(con.get('title'))},",
+                f"        learn: {rs_str(con.get('learn'))},",
+                "        actions: &[" + ", ".join(rs_str(a) for a in as_list(con.get("actions"))) + "],",
+                "        sections: &["]
+        for heading, items in sections:
+            out += ["            Part {", f"                heading: {rs_str(heading)},",
+                    "                items: &["]
+            for it in items:
+                if it[0] == "para":
+                    out.append(f"                    Item::Para({rs_str(it[1])}),")
+                    continue
+                out += ["                    Item::Table(Table {",
+                        "                        head: &[" + ", ".join(map(rs_str, it[1])) + "],",
+                        "                        rows: &["]
+                out += ["                            &[" + ", ".join(map(rs_str, r)) + "],"
+                        for r in it[2]]
+                out += ["                        ],", "                    }),"]
+            out += ["                ],", "            },"]
+        out += ["        ],", "    },"]
+    out.append("];")
+    return "\n".join(out)
+
+
 PLACES = [
     (STANDARDS, "§1", lambda d, ar: gen_status_table(d)),
     (STANDARDS, "§2", lambda d, ar: gen_row_table(d, 2, ar)),
@@ -359,7 +820,7 @@ def generated(root, data=None):
         if text is None:
             text = (root / path).read_text()
         texts[path] = replace_region(text, name, fn(data, areas), path)
-    texts[HOW] = gen_how.how_text(root, data)
+    texts[HOW] = gen_how.how_text(root, data, gen_constructions(root, data))
     return texts
 
 
@@ -475,6 +936,27 @@ def self_test():
         expect(False, "a missing marker fails")
     except SystemExit:
         expect(True, "a missing marker fails")
+    print("constructions:")
+    import tempfile
+    with tempfile.TemporaryDirectory() as d:
+        (pathlib.Path(d) / "k.rs").write_text(
+            "pub const LEN: usize = 4 + 1 + SALT;\nconst SALT: usize = 1_024;\n"
+            "pub static W: [&str; SALT] = [];\nconst TAG: &[u8] = b\"a v1 b\";\n")
+        code = Code(d)
+        t = render_text(code, "{c:k.rs::LEN} bytes, {f:{c:k.rs::LEN} - 1025|words}, "
+                        "{f:log2({len:k.rs::W})} and {f:log2(7776)}, \"{b:k.rs::TAG}\"")
+        expect(t == "1 029 bytes, four, 10 and 12.9, \"a v1 b\"",
+               f"constants, lengths, arithmetic, words and byte strings fill a paragraph: {t}")
+        expect(sorted(code.lines)[0] == "val b:k.rs::TAG a v1 b", "each value read is a lock line")
+        for bad in ("{c:k.rs::NONE}", "{f:{c:k.rs::LEN}|lots}", "{c:k.rs::LEN|words}",
+                    "{planned:3}", "{q:k.rs::LEN}", "{c:k.rs::LEN"):
+            try:
+                render_text(Code(d), bad)
+                expect(False, f"{bad} fails")
+            except Unresolved:
+                expect(True, f"{bad} fails")
+        expect(render_text(Code(d), "{planned:32}", planned=True) == "32",
+               "a number of work not built, in a planned paragraph")
     if failures:
         print(f"{len(failures)} failed")
         return 1
