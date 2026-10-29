@@ -173,7 +173,7 @@ run `python3 -I -B tools/crosscheck/facts.py write`. `just lint` runs its
 | `codex32` | `faraday_bip::codex32` | python-codex32 (`codex32/`); the worksheet's rows written in the area from its polymod | every vector of `tools/vectors/bip93/`, the 55 invalid strings included; volvelle-website's worksheet cells (`tools/vectors/codex32-volvelle/`); the booklet's checksum, derivation, recovery, addition, translation and fusion tables (`tools/vectors/codex32-booklet/`); the Codex32QR profile's sets (`tools/vectors/codex32qr/`) | secrets, splits (the same randomness), recovery, derived shares, corrupted strings; fresh sets of every threshold up to 31 strings at 48, 74 and 127 characters, the checksum worksheets of their strings and of corrupted ones, checksums made on a sheet, translation and recovery symbols, translation worksheets |
 | `codex32-correct` | `faraday_bip::codex32::correct` | python-codex32's decoder, `correction.py` at a later commit (`codex32/correction/`), asked with BIP 93's bound | python-codex32's frozen correction corpus, 57 cases (`tools/vectors/codex32-correction/`) | random strings of every length with substitutions and unreadable boxes up to and past the bound, runs of unreadable boxes around the checksum's length, a held string's header fixed, upper case, `ms1` damaged |
 | `xor` | `faraday_entropy::SeedXor` with `faraday_bip::bip39` | python-mnemonic and a byte XOR (`bip39/`) | Coldcard's two examples (`tools/vectors/xor/coldcard.json`) and this tree's two | splits and combines in all ten languages and five lengths, with refusals |
-| `vault` | `faraday_vault` (create, open, seal, the slot's records and payload layouts), `faraday_backup::argon2id`, the `chacha20poly1305` crate's detached XChaCha20-Poly1305 as the vault calls it | `docs/VAULT.md` written out in `area_vault.py`, over argon2-cffi and PyNaCl (the distribution's packages), with HKDF-SHA256 and the ChaCha20 block written over the standard library | RFC 5869's three SHA-256 cases, RFC 8439's five block vectors, draft-irtf-cfrg-xchacha-03's AEAD vector, the Argon2id known answer (`tools/vectors/vault-primitives/`); the vaults and the slot vectors of `tools/vectors/vault/`, among them `two-keys.fvlt`, whose one slot PyNaCl verifies under two passphrases' keys | Argon2id at small random costs and the costs it refuses; the AEAD at random lengths with one byte changed; payloads made, read and malformed; random records of all thirteen types a caller writes (type 12 is retired and refused) with the seal count, encoded, decoded and broken a rule at a time; passphrases in every Unicode form, made and opened; whole vaults of every slot size made byte for byte from a seed, opened by each passphrase, resealed with a count one higher, and refused for each header fault, a wrong passphrase, a changed byte, two slots under one key, a commitment block not zero and faulty contents |
+| `vault` | `faraday_vault` (create, open, seal, the slot's records and payload layouts), `faraday_backup::argon2id`, the `chacha20poly1305` crate's detached XChaCha20-Poly1305 as the vault calls it | `docs/VAULT.md` written out in `area_vault.py`, over argon2-cffi, PyNaCl and PyCA cryptography (the distribution's packages; the last for HKDF-SHA256 and ChaCha20) | RFC 5869's three SHA-256 cases, RFC 8439's five block vectors, draft-irtf-cfrg-xchacha-03's AEAD vector, the Argon2id known answer (`tools/vectors/vault-primitives/`); the vaults and the slot vectors of `tools/vectors/vault/`, among them `two-keys.fvlt`, whose one slot PyNaCl verifies under two passphrases' keys | Argon2id at small random costs and the costs it refuses; the AEAD at random lengths with one byte changed; payloads made, read and malformed; random records of all thirteen types a caller writes (type 12 is retired and refused) with the seal count, encoded, decoded and broken a rule at a time; passphrases in every Unicode form, made and opened; whole vaults of every slot size made byte for byte from a seed, opened by each passphrase, resealed with a count one higher, and refused for each header fault, a wrong passphrase, a changed byte, two slots under one key, a commitment block not zero and faulty contents |
 | `bip39` | `faraday_bip::bip39` | python-mnemonic (`bip39/`) | the ten wordlists; every vector of `tools/vectors/bip39/vectors.json` in Faraday's languages; the Japanese vectors with non-ASCII passphrases | entropy to words and back in every language and length; seeds under random ASCII passphrases; a changed word, an unknown word, a word too many or too few; every valid last word |
 | `bip32` | `faraday_bip::keys` (master, private derivation), `faraday_bip::xkey` (strict decoding), `bitcoin`'s `Xpub::derive_pub` | `btc.py`, BIP-32 written from the BIP over `secp256k1lab` and `ripemd160.py` (`bip352/`) | BIP-32's vectors 1 to 5 (`tools/vectors/bip32/`), python-mnemonic's master keys | seeds of 16 to 64 bytes on every network, random paths with every index, public derivation against private, keys broken one rule at a time and the master-key import |
 | `addr` | `faraday_bip::address::parse`, `bitcoin`'s `Address::from_script`, `faraday_bip::account` (account xpub, SLIP-132, descriptor, addresses), `faraday_bip::descriptor`'s checksum | Bitcoin Core's functional-test framework (`core/`): `segwit_addr.py`, Base58Check, `descriptors.py`; BIP 380's own checksum code as the BIP prints it (`bip380/`); `btc.py`; BIP-86's tweak written in the area; Bitcoin Core v31.1's `bitcoind` on regtest for regtest accounts (`deriveaddresses`, `getdescriptorinfo`) | BIP-350's and BIP-173's addresses, BIP-380's checksum cases, BIP-49's, 84's and 86's accounts (`tools/vectors/addresses/`) | scripts of every address kind on every network, written and read back, then changed; accounts of every type at random indices; random descriptors' checksums |
@@ -191,7 +191,7 @@ run `python3 -I -B tools/crosscheck/facts.py write`. `just lint` runs its
 | `ur` | `faraday_codec::ur` (single-part URs, the animation's parts, the decoder) | Foundation Devices' foundation-ur-py (`ur/`), URKit ported | URKit's single-part and multipart encoder vectors (`tools/vectors/ur/`) | messages as `crypto-psbt` and `bytes` at random fragment lengths, parts byte for byte; sets with fragments dropped, mixes added, shuffled, repeated and upper case, put together by both; URs of other types written, read, changed and cut |
 | `vanity` | `faraday_bip::vanity` (the counter, prefixes and their expected work, the search on both dials) | EntropyLab's counter as `tools/reference/vanity/README.md` quotes it, written out in `area_vanity.py` over python-mnemonic, `btc.py` and the `addr` area's address writing | EntropyLab's two finds | counters at every width's edges; prefixes of every kind on every network, valid and not; searches of random keys on both dials from random starting counters, with budgets ending before a match and after |
 | `kdbx` | `faraday_backup::kdbx` (the KDBX 4 export and its own check) | pykeepass, the distribution's package (`python3-pykeepass`) | the repository's export (`tools/vectors/backup/`), written again byte for byte and opened | databases of one to eight items with markup characters, control characters, line ends and several scripts, at small Argon2id costs, every entry read back; the writer's check against pykeepass under the right passphrase, a wrong one and a changed byte |
-| `lightning` | `faraday_bip::aezeed` (ldk-node's and LND's node keys, the aezeed read) | ldk-node's and LND's derivations as `tools/reference/aezeed/README.md` quotes them, and the aezeed's outer layer (CRC-32C, version), written out in `area_lightning.py` over `btc.py`; AEZ itself has no second implementation here | LND's five cipher seeds, LND's two node keys, ldk's five node ids (`tools/vectors/aezeed/`) | random BIP-39 seeds and entropies on every network; random words, a wrong version with a right checksum, published seeds under a changed passphrase, a changed enciphered byte or salt with the checksum put right, a changed word |
+| `lightning` | `faraday_bip::aezeed` (ldk-node's and LND's node keys, the aezeed read) | LND's own code, vendored in Go (`tools/reference/lnd/`: its `aezeed` package over Yawning Angel's `aez`, and the node key over btcd's `hdkeychain`), one process answering the run's requests; ldk-node's derivation as `tools/reference/aezeed/README.md` quotes it, written out in `area_lightning.py` over `btc.py` | LND's five cipher seeds, LND's two node keys, ldk's five node ids (`tools/vectors/aezeed/`) | random BIP-39 seeds and entropies on every network; random words, a wrong version with a right checksum, published seeds under a changed passphrase, a changed enciphered byte or salt with the checksum put right, a changed word, each refused by LND's code |
 
 ### How each reference is checked
 
@@ -232,9 +232,9 @@ leaves uncompared.
   RFC 5869's three SHA-256 cases, ChaCha20 against RFC 8439's five block
   vectors, PyNaCl against draft-irtf-cfrg-xchacha-03's AEAD vector,
   argon2-cffi against `tools/vectors/kdf/`'s known answer; the versions
-  of argon2-cffi and PyNaCl are written into the stamp; the passphrase
-  in NFC is `unicodedata`'s, and the area stops where Python's Unicode
-  is newer than `unicode-normalization`'s.
+  of argon2-cffi, PyNaCl and cryptography are written into the stamp;
+  the passphrase in NFC is `unicodedata`'s, and the area stops where
+  Python's Unicode is newer than `unicode-normalization`'s.
 - `bip39`: its vendored files are hashed against `references.sha256`
   before any run, and a published vector's answer is required of the
   reference as well as of Faraday; python-mnemonic's own
@@ -310,14 +310,19 @@ leaves uncompared.
 - `kdbx`: pykeepass is the distribution's package and the area stops and
   names it when it is missing, so a run without it fails; the versions
   are written into the stamp.
-- `lightning`: the derivations are written in the area from the sources
-  `tools/reference/aezeed/README.md` quotes, and LND's and ldk's
-  published answers are required of them as well as of Faraday. Not
-  compared: AEZ itself has no second implementation here: what comes out
-  of the cipher is checked against LND's five published seeds, and a
-  seed whose checksum holds but whose passphrase or enciphered bytes
-  were changed must be refused (AEZ's 32-bit tag fails, but for one time
-  in 2³²).
+- `lightning`: LND's code reads the aezeed (wordlist, version, CRC-32C,
+  scrypt, AEZ) and derives the node key, and its published answers
+  (`tools/vectors/aezeed/`) are required of it as well as of Faraday;
+  the Go program is built offline from the vendored tree
+  (`GOFLAGS=-mod=vendor`, `GOTOOLCHAIN=local`) and its version is
+  written into the stamp; the area stops when the program is missing;
+  ldk-node's derivation is written in the area from the sources the
+  README quotes, and ldk's published answers are required of it as well
+  as of Faraday. Not compared: ldk-node's node key is compared with a
+  derivation written here, not with ldk's code (Rust, not vendored):
+  only ldk's five published answers are outside it; LND's key path
+  numbers are written in the Go program from `keychain/derivation.go`,
+  as LND derives through btcwallet, which is not vendored.
 <!-- facts:end what-runs -->
 
 <!-- facts:begin known-differences -->
@@ -498,7 +503,7 @@ with an area and no class (`docs/crypto/check.py`).
 | `bip32` | Faraday's own model over outside code | Faraday's authors (`btc.py`), over `secp256k1lab`, by libsecp256k1's developers | BIP-32's derivation, serialisation, Base58Check and strict decoding, written in `btc.py` from the BIP | master, derive, multisig-account, xprv-shown, wif-shown |
 | `codex32` | code Faraday did not write | python-codex32, by Ben Westgate | none | seed-shown, codex32 |
 | `bip39` | code Faraday did not write | python-mnemonic, by Trezor (SatoshiLabs), and Python's `hashlib` and `hmac` (OpenSSL) | none | hashes-macs |
-| `lightning` | Faraday's own model over outside code | Faraday's authors (`area_lightning.py`), from LND's and ldk-node's sources as `tools/reference/aezeed/README.md` quotes them, over `btc.py` and python-mnemonic | the area runs no scrypt of its own: scrypt is checked only through LND's five published seeds | scrypt |
+| `lightning` | code Faraday did not write | LND's `aezeed` package, by Lightning Labs, over `golang.org/x/crypto`'s scrypt, vendored in `tools/reference/lnd/` | none | scrypt |
 | `addr` | Faraday's own model over outside code | Bitcoin Core's functional-test framework, v31.1, by Bitcoin Core's contributors, for the address text; Faraday's authors (`btc.py`), over `secp256k1lab`, by libsecp256k1's developers, for the keys | the wallet's keys, derived by `btc.py`, and BIP-86's tweak, written in `area_addr.py` | address |
 | `miniscript` | Faraday's own model over outside code | python-bip380, by Antoine Poinsot, and Bitcoin Core's `taproot_construct` | the wallet's keys, derived by `btc.py` | descriptor, recovery |
 | `taproot` | Faraday's own model over outside code | Bitcoin Core's functional-test framework, v31.1, by Bitcoin Core's contributors | BIP-341's script-path check of a control block, written in `area_taproot.py` | tapmulti |
@@ -517,8 +522,8 @@ with an area and no class (`docs/crypto/check.py`).
 | `roller` | Faraday's own model only | Faraday's authors (`area_roller.py`) | Faraday Demo's roller, written out in `area_roller.py` from `docs/CODEX32.md` §5.6 | roller |
 | `bip85` | Faraday's own model over outside code | ethankosakovsky/bip85, by Ethan Kosakovsky, over python-mnemonic, by Trezor (SatoshiLabs) | the hardened-BIP-32 shim it runs on, written in `tools/reference/bip85/shims/` | bip85 |
 | `vanity` | Faraday's own model over outside code | Faraday's authors (`area_vanity.py`), over python-mnemonic, `btc.py` and the `addr` area's address writing | EntropyLab's counter, written out in `area_vanity.py` from a quotation | vanity |
-| `lightning` | Faraday's own model over outside code | Faraday's authors (`area_lightning.py`), from LND's and ldk-node's sources as `tools/reference/aezeed/README.md` quotes them, over `btc.py` and python-mnemonic | the aezeed's outer layer (CRC-32C, version), written in `area_lightning.py`; AEZ has no second implementation, only LND's published seeds | aezeed |
-| `lightning` | Faraday's own model over outside code | Faraday's authors (`area_lightning.py`), from LND's and ldk-node's sources as `tools/reference/aezeed/README.md` quotes them, over `btc.py` and python-mnemonic | ldk-node's and LND's derivations, written in `area_lightning.py` from quoted sources, over `btc.py` | lightning-node |
+| `lightning` | code Faraday did not write | Lightning Labs (LND), Yawning Angel (AEZ) | none | aezeed |
+| `lightning` | Faraday's own model over outside code | LND's node key by btcd's `hdkeychain` in LND's vendored tree, by Lightning Labs and the btcd developers, for LND; Faraday's authors (`area_lightning.py`), over `btc.py` and python-mnemonic, for ldk-node | ldk-node's node key, written in `area_lightning.py` from the sources `tools/reference/aezeed/README.md` quotes, and LND's key-path numbers (1017', coin, 6', 0, 0), written in `tools/reference/lnd/main.go` from `keychain/derivation.go` | lightning-node |
 | `sp` | code Faraday did not write | BIP-352's `reference.py`, by the BIP's authors, over `secp256k1lab` | none | silent-receive |
 | `psbt` | Faraday's own model over outside code | Faraday's authors (`area_psbt.py`), over Bitcoin Core's `CTransaction` | the PSBT reader and writer, BIP-174's and 371's field rules, written in `area_psbt.py` | psbt-read |
 | `psbt` | Faraday's own model over outside code | Faraday's authors (`area_psbt.py`), over Bitcoin Core's `CTransaction` | the PSBT reader and writer, BIP-370's field rules and the conversion, written in `area_psbt.py` | psbt-v2 |
@@ -535,7 +540,7 @@ with an area and no class (`docs/crypto/check.py`).
 | `codex32-correct` | code Faraday did not write | python-codex32, by Ben Westgate (its `correction.py`) | none | codex32-correct |
 | `slip39` | code Faraday did not write | python-shamir-mnemonic, by Trezor (SatoshiLabs) | none | slip39 |
 | `xor` | Faraday's own model over outside code | python-mnemonic, by Trezor (SatoshiLabs) | the byte XOR of the parts, written in `area_xor.py` | xor |
-| `vault` | Faraday's own model over outside code | Faraday's authors (`area_vault.py`), over argon2-cffi (the Argon2 designers' reference code) and PyNaCl (libsodium) | the container, its slot layout, key schedule and records, written in `area_vault.py` from `docs/VAULT.md`, and HKDF-SHA256 and the ChaCha20 block written over the standard library | vault-create, vault-unlock, vault-seal, vault-edit |
+| `vault` | Faraday's own model over outside code | Faraday's authors (`area_vault.py`), over argon2-cffi (the Argon2 designers' reference code), PyNaCl (libsodium) and PyCA `cryptography` (OpenSSL, for HKDF-SHA256 and ChaCha20) | the container, its slot layout, key schedule and records, written in `area_vault.py` from `docs/VAULT.md` | vault-create, vault-unlock, vault-seal, vault-edit |
 | `kdbx` | code Faraday did not write | pykeepass, by the libkeepass project (the distribution's package) | none | kdbx |
 <!-- crypto-manifest: end independence -->
 
@@ -545,11 +550,15 @@ with an area and no class (`docs/crypto/check.py`).
 `hashlib`), `unshare` from util-linux with unprivileged user namespaces
 allowed, and the Rust toolchain; PyPy 3.11 or later if it is to go
 faster (above). Nothing is installed with pip. The
-`vault` area needs the distribution's Argon2 and libsodium bindings,
-argon2-cffi and PyNaCl (Debian and Ubuntu: `python3-argon2`
-`python3-nacl`), and the `kdbx` area the distribution's pykeepass
-(`python3-pykeepass`); without them each stops and names them, and the
-run fails. A passing run writes their versions into the stamp. Bitcoin
+`vault` area needs the distribution's Argon2, libsodium and
+cryptography bindings, argon2-cffi, PyNaCl and PyCA cryptography
+(Debian and Ubuntu: `python3-argon2` `python3-nacl`
+`python3-cryptography`), and the `kdbx` area the distribution's
+pykeepass (`python3-pykeepass`); without them each stops and names them,
+and the run fails. The `lightning` area needs Go 1.27 or later
+(`go version`; `run.sh` builds `tools/reference/lnd/` offline from its
+vendored modules, with `GOTOOLCHAIN=local`) and stops the run when `go`
+is missing or older. A passing run writes these versions into the stamp. Bitcoin
 Core v31.1's release tarball, fetched once with `fetch_core.py`, which
 needs `gpg` and `git` (above).
 

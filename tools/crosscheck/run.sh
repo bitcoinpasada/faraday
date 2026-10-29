@@ -37,6 +37,23 @@ if [ -z "$exe" ]; then
 fi
 say "build: done"
 
+# LND's answers, a Go program over the vendored tree of tools/reference/lnd/
+# (offline: the vendor folder only, the installed toolchain only). A missing
+# or older Go stops the run.
+say "build: LND's answer program (go build -mod=vendor, tools/reference/lnd)"
+if ! command -v go >/dev/null; then
+    say "build: FAILED: no Go toolchain on the PATH (docs/DEVELOPING.md §1)"
+    exit 2
+fi
+if ! GOFLAGS=-mod=vendor GOTOOLCHAIN=local GOPROXY=off GOTELEMETRY=off CGO_ENABLED=0 \
+        go build -C tools/reference/lnd -trimpath -o "$PWD/$progress/lnd-ref" . \
+        2>"$progress/go-build.log"; then
+    cat "$progress/go-build.log" >&2
+    say "build: FAILED: LND's answer program did not build (the Go version go.mod names)"
+    exit 2
+fi
+say "build: LND's answer program done"
+
 # A network namespace of its own, with loopback only: whatever tries to
 # fetch fails instead of downloading. crosscheck.py brings `lo` up for
 # Bitcoin Core's RPC on loopback (core_node.py) and refuses to run if

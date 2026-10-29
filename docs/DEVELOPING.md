@@ -18,8 +18,15 @@ CI.
 - **Python 3.11 or later** and **git** for the lints (`tools/impact.py`
   reads TOML with `tomllib` and the history with git) and the
   cross-check. The cross-check's
-  `vault` and `kdbx` areas need the distribution's argon2-cffi, PyNaCl
-  and pykeepass; PyPy is optional (`tools/crosscheck/README.md`).
+  `vault` and `kdbx` areas need the distribution's argon2-cffi, PyNaCl,
+  PyCA cryptography (`python3-cryptography`) and pykeepass; PyPy is
+  optional (`tools/crosscheck/README.md`).
+- **Go** 1.27 or later, for the cross-check only: its `lightning` area
+  builds LND's own aezeed code from `tools/reference/lnd/` (vendored, so
+  offline, with `GOTOOLCHAIN=local`). Install it from
+  <https://go.dev/dl/> (the tarball's SHA-256 is on that page) or the
+  distribution's `golang` package; `go version` must say 1.27 or later,
+  or `just crosscheck` stops.
 - **Bitcoin Core v31.1**, which the cross-check requires: the official
   release tarball for x86_64 or aarch64 Linux, fetched and checked once
   by a script that needs **gpg** and git (§7). It is not in the

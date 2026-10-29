@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Option A decided (F79) and built, §10.5 items 1 to 6; options B and C deferred
-**Open:** what §10.5 item 6 leaves (a second AEZ, LND node keys beyond the two recorded), planned with LND's Go code (F160); the references of Faraday's own replaced by outside code (§10.7), planned; B and C wait for the owner (§9).
+**Open:** the references of Faraday's own replaced by outside code (§10.7), planned; B and C wait for the owner (§9).
 
 ## 1. The idea
 
@@ -58,8 +58,8 @@ lineage for the curve (§10.7).
 | `python-shamir-mnemonic` (Trezor) | Python | none needed | SLIP-39 | The SLIP's reference implementation |
 | embit | Python | pure Python fallback, or `libsecp256k1` | BIP-32, 39, PSBT, descriptors, miniscript, addresses | Used by SeedSigner and Specter; runs on MicroPython (not yet checked whether its pure fallback does) |
 | noble-curves, scure-bip32/39, btc-signer | JavaScript | its own, audited | the same set as embit | Needs a JavaScript engine (QuickJS is about 1 MB) |
-| btcd / btcec | Go | its own | the same set | A static binary; a large one |
-| `argon2-cffi`, PyNaCl | Python over C | n/a | Argon2id (the PHC reference C), XChaCha20-Poly1305 (libsodium) | Independent of RustCrypto; `tools/vault/open.py` already opens a vault this way |
+| btcd / btcec, LND's `aezeed` | Go | its own | the same set; LND's aezeed with AEZ | Vendored in `tools/reference/lnd/` and built by `run.sh`; the `lightning` area asks it |
+| `argon2-cffi`, PyNaCl, PyCA cryptography | Python over C | n/a | Argon2id (the PHC reference C), XChaCha20-Poly1305 (libsodium), HKDF-SHA256 and ChaCha20 (OpenSSL) | Independent of RustCrypto; `tools/vault/open.py` already opens a vault this way |
 
 ## 4. What can be computed twice
 
@@ -278,9 +278,10 @@ The cross-check fetches nothing, ever.
   commit. A first copy is checked against something other than the
   web's certificates: the BIPs repository's commit hash, Core's signed
   tag, Trezor's signed release.
-- **Argon2id and XChaCha20-Poly1305** come from the Linux
-  distribution's packages (argon2-cffi and PyNaCl: `python3-argon2`,
-  `python3-nacl` or their equivalents), installed once on the machine
+- **Argon2id, XChaCha20-Poly1305, HKDF-SHA256 and ChaCha20** come from the
+  Linux distribution's packages (argon2-cffi, PyNaCl and PyCA
+  cryptography: `python3-argon2`, `python3-nacl`, `python3-cryptography`
+  or their equivalents), installed once on the machine
   that runs the cross-check and verified by the distribution's
   signatures, not by pip. Their versions are in the stamp.
 - **python-bip380**, Antoine Poinsot's miniscript, is copied from its
@@ -341,11 +342,9 @@ The cross-check fetches nothing, ever.
    (area `entropy`), Faraday Demo's dice rollers (`roller`), SeedQR
    and the QR encoder (`seedqr`), BBQr and numbered parts (`bbqr`), UR
    (`ur`), the vanity search (`vanity`), the KDBX export read by
-   pykeepass (`kdbx`), the Lightning node keys and the aezeed's outer
-   layer (`lightning`), and BIP 380's own checksum code beside Core's in
-   `addr`. Built. Not built: a second implementation of AEZ, and LND
-   node keys beyond the two `tools/reference/aezeed/README.md` records,
-   which need LND's Go code run again. Not scheduled.
+   pykeepass (`kdbx`), the Lightning node keys and the aezeed read by
+   LND's own Go code (`lightning`, vendored in `tools/reference/lnd/`),
+   and BIP 380's own checksum code beside Core's in `addr`. Built.
 
 ### 10.6 What it does not catch
 

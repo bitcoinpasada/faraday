@@ -1759,7 +1759,7 @@ tests = [
   "core/faraday-crypto/src/scrypt.rs::rfc_7914_vectors",
 ]
 crosscheck = "lightning"
-independence = { class = "own-over-outside", author = "Faraday's authors (`area_lightning.py`), from LND's and ldk-node's sources as `tools/reference/aezeed/README.md` quotes them, over `btc.py` and python-mnemonic", ours = "the area runs no scrypt of its own: scrypt is checked only through LND's five published seeds" }
+independence = { class = "outside", author = "LND's `aezeed` package, by Lightning Labs, over `golang.org/x/crypto`'s scrypt, vendored in `tools/reference/lnd/`" }
 selftest = [
   "scrypt_vector",
 ]
@@ -3651,7 +3651,7 @@ tests = [
   "core/faraday-bip/tests/all/aez.rs::encrypt_vectors",
 ]
 crosscheck = "lightning"
-independence = { class = "own-over-outside", author = "Faraday's authors (`area_lightning.py`), from LND's and ldk-node's sources as `tools/reference/aezeed/README.md` quotes them, over `btc.py` and python-mnemonic", ours = "the aezeed's outer layer (CRC-32C, version), written in `area_lightning.py`; AEZ has no second implementation, only LND's published seeds" }
+independence = { class = "outside", author = "Lightning Labs (LND), Yawning Angel (AEZ)" }
 fuzz = [
   "aezeed",
 ]
@@ -3672,7 +3672,7 @@ lines = [
 ]
 
 [[action.own]]
-text = "aezeed and AEZ are written here; AEZ itself has no second implementation in the cross-check."
+text = "aezeed and AEZ are written here; the cross-check asks LND's own Go aezeed package, over Yawning Angel's AEZ, the same words and passphrases and requires the same answers or refusals."
 kind = "Neutral"
 decision = "no decision"
 
@@ -3730,7 +3730,7 @@ tests = [
   "core/faraday-bip/src/aezeed.rs::the_ldk_node_key_matches_what_ldk_node_derives",
 ]
 crosscheck = "lightning"
-independence = { class = "own-over-outside", author = "Faraday's authors (`area_lightning.py`), from LND's and ldk-node's sources as `tools/reference/aezeed/README.md` quotes them, over `btc.py` and python-mnemonic", ours = "ldk-node's and LND's derivations, written in `area_lightning.py` from quoted sources, over `btc.py`" }
+independence = { class = "own-over-outside", author = "LND's node key by btcd's `hdkeychain` in LND's vendored tree, by Lightning Labs and the btcd developers, for LND; Faraday's authors (`area_lightning.py`), over `btc.py` and python-mnemonic, for ldk-node", ours = "ldk-node's node key, written in `area_lightning.py` from the sources `tools/reference/aezeed/README.md` quotes, and LND's key-path numbers (1017', coin, 6', 0, 0), written in `tools/reference/lnd/main.go` from `keychain/derivation.go`" }
 fuzz = [
   "aezeed",
 ]
@@ -6135,7 +6135,7 @@ tests = [
   "faraday/faraday-vault/src/tests.rs::a_slot_filled_to_its_room_seals_and_one_byte_more_is_full",
 ]
 crosscheck = "vault"
-independence = { class = "own-over-outside", author = "Faraday's authors (`area_vault.py`), over argon2-cffi (the Argon2 designers' reference code) and PyNaCl (libsodium)", ours = "the container, its slot layout, key schedule and records, written in `area_vault.py` from `docs/VAULT.md`, and HKDF-SHA256 and the ChaCha20 block written over the standard library" }
+independence = { class = "own-over-outside", author = "Faraday's authors (`area_vault.py`), over argon2-cffi (the Argon2 designers' reference code), PyNaCl (libsodium) and PyCA `cryptography` (OpenSSL, for HKDF-SHA256 and ChaCha20)", ours = "the container, its slot layout, key schedule and records, written in `area_vault.py` from `docs/VAULT.md`" }
 fuzz_none = "Creation takes no outside bytes but the passphrases and the caller's seed; vault_header and vault_records fuzz what a vault is read from."
 other = [
   "a Python reader Faraday's authors wrote from `docs/VAULT.md`, over outside primitives (`tools/vault/open.py`): not an independent check of the container",
@@ -6255,7 +6255,7 @@ fuzz = [
   "vault_records",
 ]
 crosscheck = "vault"
-independence = { class = "own-over-outside", author = "Faraday's authors (`area_vault.py`), over argon2-cffi (the Argon2 designers' reference code) and PyNaCl (libsodium)", ours = "the container, its slot layout, key schedule and records, written in `area_vault.py` from `docs/VAULT.md`, and HKDF-SHA256 and the ChaCha20 block written over the standard library" }
+independence = { class = "own-over-outside", author = "Faraday's authors (`area_vault.py`), over argon2-cffi (the Argon2 designers' reference code), PyNaCl (libsodium) and PyCA `cryptography` (OpenSSL, for HKDF-SHA256 and ChaCha20)", ours = "the container, its slot layout, key schedule and records, written in `area_vault.py` from `docs/VAULT.md`" }
 
 [action.secrets]
 reveal = "none"
@@ -6323,7 +6323,7 @@ tests = [
   "faraday/faraday-core/tests/all/vault_seal.rs::a_seal_takes_a_fresh_answer_when_one_waits_and_the_seed_when_none_does",
 ]
 crosscheck = "vault"
-independence = { class = "own-over-outside", author = "Faraday's authors (`area_vault.py`), over argon2-cffi (the Argon2 designers' reference code) and PyNaCl (libsodium)", ours = "the container, its slot layout, key schedule and records, written in `area_vault.py` from `docs/VAULT.md`, and HKDF-SHA256 and the ChaCha20 block written over the standard library" }
+independence = { class = "own-over-outside", author = "Faraday's authors (`area_vault.py`), over argon2-cffi (the Argon2 designers' reference code), PyNaCl (libsodium) and PyCA `cryptography` (OpenSSL, for HKDF-SHA256 and ChaCha20)", ours = "the container, its slot layout, key schedule and records, written in `area_vault.py` from `docs/VAULT.md`" }
 fuzz_none = "Sealing takes the open slot's own records and a nonce; vault_records fuzzes the records' reading."
 
 [action.secrets]
@@ -6467,7 +6467,7 @@ tests = [
 ]
 fuzz = ["vault_records"]
 crosscheck = "vault"
-independence = { class = "own-over-outside", author = "Faraday's authors (`area_vault.py`), over argon2-cffi (the Argon2 designers' reference code) and PyNaCl (libsodium)", ours = "the container, its slot layout, key schedule and records, written in `area_vault.py` from `docs/VAULT.md`, and HKDF-SHA256 and the ChaCha20 block written over the standard library" }
+independence = { class = "own-over-outside", author = "Faraday's authors (`area_vault.py`), over argon2-cffi (the Argon2 designers' reference code), PyNaCl (libsodium) and PyCA `cryptography` (OpenSSL, for HKDF-SHA256 and ChaCha20)", ours = "the container, its slot layout, key schedule and records, written in `area_vault.py` from `docs/VAULT.md`" }
 
 [action.secrets]
 reveal = "none"

@@ -57,7 +57,7 @@ SELF_TEST_SCALE = 0.05
 # A corpus loop is cut into at most this many batches.
 PIECES = 50
 
-# Each area: its module, its class, the operation the self-test makes the
+# Each area: its module, its class, the operation (or operations, one self-test round each) the self-test makes the
 # Rust command answer wrongly, and its weight: about how long it takes,
 # relative to the others (seconds at scale 10, 2026-10-27), which orders
 # the queue (the slowest first) and nothing else.
@@ -87,7 +87,8 @@ AREAS = {
     "ur": ("area_ur", "Ur", "ur.encode", 410),
     "vanity": ("area_vanity", "Vanity", "vanity.grind", 460),
     "kdbx": ("area_kdbx", "Kdbx", "kdbx.verify", 30),
-    "lightning": ("area_lightning", "Lightning", "lightning.ldk", 240),
+    "lightning": ("area_lightning", "Lightning",
+                  ("lightning.ldk", "lightning.aezeed", "lightning.lnd"), 240),
 }
 
 
@@ -582,7 +583,7 @@ class Progress:
         a["state"] = "done" if r["status"] == "pass" else "failed"
         work = say_time(a["seconds"])
         if self.name == "self-test":
-            op = AREAS[area][2]
+            op = SABOTAGED[area]
             caught = r["status"] == "mismatch" and r.get("op") == op
             a["state"] = "done" if caught else "failed"
             self.log(f"self-test {area}: " + (f"caught a wrong {op} ({work} of work)" if caught
@@ -691,23 +692,41 @@ def interpreters_for(args):
     return out
 
 
+# The operation each area's Rust command is told to answer wrongly in the
+# self-test round being run (SABOTAGED[area]).
+SABOTAGED = {}
+
+
+def sabotaged_ops(area):
+    """The operations the self-test makes wrong for an area, one a round:
+    the area's third entry, a name or a tuple of names."""
+    op = AREAS[area][2]
+    return (op,) if isinstance(op, str) else tuple(op)
+
+
 def self_test(args, areas, jobs, interpreters, progress):
-    """Every area must catch an operation answered wrongly."""
-    batches, queue = plan(areas, DEFAULT_SEED, SELF_TEST_SCALE, args.rust, args.shaped,
-                          sabotage=lambda a: AREAS[a][2])
-    progress.phase("self-test", batches, jobs)
-    progress.log(f"self-test: {len(areas)} areas, {len(batches)} batches")
-    results = run_pool(batches, queue, jobs, interpreters, progress)
+    """Every area must catch each operation answered wrongly that it
+    names, one round for each operation an area names."""
     ok = True
     lines = []
-    for area in areas:
-        r = merge(batches, results, area)
-        if r["status"] == "mismatch" and r["op"] == AREAS[area][2]:
-            lines.append(f"self-test {area}: caught a wrong {AREAS[area][2]} ({r['seconds']} s)")
-        else:
-            ok = False
-            lines.append(f"self-test {area}: FAILED to catch a wrong {AREAS[area][2]}: "
-                         f"{r['status']} {r.get('report', '')}")
+    for k in range(max(len(sabotaged_ops(a)) for a in areas)):
+        round_areas = [a for a in areas if len(sabotaged_ops(a)) > k]
+        SABOTAGED.clear()
+        SABOTAGED.update({a: sabotaged_ops(a)[k] for a in round_areas})
+        batches, queue = plan(round_areas, DEFAULT_SEED, SELF_TEST_SCALE, args.rust, args.shaped,
+                              sabotage=lambda a: SABOTAGED[a])
+        progress.phase("self-test", batches, jobs)
+        progress.log(f"self-test: {len(round_areas)} areas, {len(batches)} batches")
+        results = run_pool(batches, queue, jobs, interpreters, progress)
+        for area in round_areas:
+            r = merge(batches, results, area)
+            op = SABOTAGED[area]
+            if r["status"] == "mismatch" and r["op"] == op:
+                lines.append(f"self-test {area}: caught a wrong {op} ({r['seconds']} s)")
+            else:
+                ok = False
+                lines.append(f"self-test {area}: FAILED to catch a wrong {op}: "
+                             f"{r['status']} {r.get('report', '')}")
     progress.log("self-test: " + ("every area caught its wrong answer" if ok else "FAILED"))
     return ok, lines
 

@@ -1,8 +1,8 @@
 """The vault (`docs/VAULT.md`) against a reader and writer written here
 from that document, over Argon2id from argon2-cffi and
-XChaCha20-Poly1305 from PyNaCl (libsodium), the distribution's packages
-(F79, `docs/CROSSCHECK.md` §10.4), with HKDF-SHA256 (RFC 5869) and the
-ChaCha20 block (RFC 8439) written here over the standard library.
+XChaCha20-Poly1305 from PyNaCl (libsodium), and HKDF-SHA256 (RFC 5869)
+and ChaCha20 (RFC 8439) from PyCA cryptography, the distribution's
+packages (F79, `docs/CROSSCHECK.md` §10.4).
 
 Before anything else the area checks its own pieces against published
 answers (`tools/vectors/vault-primitives/`): HKDF against RFC 5869's
@@ -62,7 +62,6 @@ agree.
 """
 
 import hashlib
-import hmac
 import importlib.util
 import json
 import struct
@@ -74,11 +73,17 @@ try:
     import nacl.bindings as sodium
     from nacl.exceptions import CryptoError
     from argon2.low_level import Type, hash_secret_raw
+    from cryptography.hazmat.primitives import hashes
+    from cryptography.hazmat.primitives.ciphers import Cipher
+    from cryptography.hazmat.primitives.ciphers.algorithms import ChaCha20
+    from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 except ImportError as e:  # pragma: no cover - the machine's packages
     raise HarnessError(
-        "the vault area needs the distribution's Argon2 and libsodium bindings, argon2-cffi "
-        "and PyNaCl (Debian and Ubuntu: python3-argon2 python3-nacl; Fedora: python3-argon2-cffi "
-        f"python3-pynacl; Arch: python-argon2_cffi python-pynacl): {e}") from e
+        "the vault area needs the distribution's Argon2, libsodium and cryptography bindings, "
+        "argon2-cffi, PyNaCl and PyCA cryptography (Debian and Ubuntu: python3-argon2 "
+        "python3-nacl python3-cryptography; Fedora: python3-argon2-cffi python3-pynacl "
+        "python3-cryptography; Arch: python-argon2_cffi python-pynacl python-cryptography): "
+        f"{e}") from e
 
 VECTORS = json.loads((ROOT / "tools/vectors/vault-primitives/vectors.json").read_text())
 
@@ -107,49 +112,25 @@ class Refused(Exception):
 
 
 def hkdf_sha256(ikm, salt, info, length):
-    """RFC 5869 over HMAC-SHA256; an empty salt is 32 zero bytes."""
-    prk = hmac.new(salt or bytes(32), ikm, hashlib.sha256).digest()
-    out, t, i = b"", b"", 1
-    while len(out) < length:
-        t = hmac.new(prk, t + info + bytes([i]), hashlib.sha256).digest()
-        out += t
-        i += 1
-    return prk, out[:length]
-
-
-M32 = 0xFFFFFFFF
-
-
-def _quarter(s, a, b, c, d):
-    s[a] = (s[a] + s[b]) & M32; s[d] ^= s[a]; s[d] = ((s[d] << 16) | (s[d] >> 16)) & M32  # noqa: E702
-    s[c] = (s[c] + s[d]) & M32; s[b] ^= s[c]; s[b] = ((s[b] << 12) | (s[b] >> 20)) & M32  # noqa: E702
-    s[a] = (s[a] + s[b]) & M32; s[d] ^= s[a]; s[d] = ((s[d] << 8) | (s[d] >> 24)) & M32  # noqa: E702
-    s[c] = (s[c] + s[d]) & M32; s[b] ^= s[c]; s[b] = ((s[b] << 7) | (s[b] >> 25)) & M32  # noqa: E702
+    """RFC 5869 over HMAC-SHA256 from PyCA cryptography; an empty salt is
+    32 zero bytes (RFC 5869 §2.2)."""
+    return HKDF(algorithm=hashes.SHA256(), length=length, salt=salt or None,
+                info=bytes(info)).derive(bytes(ikm))
 
 
 def chacha20_block(key, counter, nonce):
-    """RFC 8439 §2.3: one 64-byte block."""
-    state = ([0x61707865, 0x3320646E, 0x79622D32, 0x6B206574] + list(struct.unpack("<8I", key))
-             + [counter] + list(struct.unpack("<3I", nonce)))
-    w = list(state)
-    for _ in range(10):
-        _quarter(w, 0, 4, 8, 12); _quarter(w, 1, 5, 9, 13)  # noqa: E702
-        _quarter(w, 2, 6, 10, 14); _quarter(w, 3, 7, 11, 15)  # noqa: E702
-        _quarter(w, 0, 5, 10, 15); _quarter(w, 1, 6, 11, 12)  # noqa: E702
-        _quarter(w, 2, 7, 8, 13); _quarter(w, 3, 4, 9, 14)  # noqa: E702
-    return struct.pack("<16I", *[(w[i] + state[i]) & M32 for i in range(16)])
+    """RFC 8439 §2.3: one 64-byte block, from PyCA cryptography's
+    ChaCha20 (its 16-byte nonce is the little-endian counter, then the
+    12-byte nonce)."""
+    enc = Cipher(ChaCha20(bytes(key), struct.pack("<I", counter) + bytes(nonce)),
+                 mode=None).encryptor()
+    return enc.update(bytes(64))
 
 
 def chacha20_stream(key, length):
-    """ChaCha20 with a zero nonce from counter 0. Block 0 is computed
-    here; the rest is libsodium's RFC 8439 AEAD over zeros, whose
-    ciphertext is the keystream from counter 1 (checked against the
-    blocks here in `check_primitives`)."""
-    first = chacha20_block(key, 0, bytes(12))
-    if length <= 64:
-        return first[:length]
-    rest = sodium.crypto_aead_chacha20poly1305_ietf_encrypt(bytes(length - 64), None, bytes(12), key)
-    return first + rest[:-16]
+    """ChaCha20 with a zero nonce from counter 0, from PyCA cryptography."""
+    enc = Cipher(ChaCha20(bytes(key), bytes(16)), mode=None).encryptor()
+    return enc.update(bytes(length))
 
 
 def argon2id(password, salt, memory_kib, passes, lanes):
@@ -457,7 +438,7 @@ def nfc(passphrase):
 def slot_key(header, passphrase):
     memory, passes, lanes = struct.unpack("<III", header[5:17])
     k = argon2id(nfc(passphrase), header[21:53], memory, passes, lanes)
-    return hkdf_sha256(k, b"", SLOT_INFO, 32)[1]
+    return hkdf_sha256(k, b"", SLOT_INFO, 32)
 
 
 def slot_at(slot_len, i):
@@ -528,7 +509,7 @@ def ref_create(slot_len, cost, passphrases, contents, seed):
     if len({nfc(p) for p in passphrases}) != len(passphrases):
         raise Refused("SamePassphrase")
     plains = [encode(c, slot_len) for c in contents]
-    key = hkdf_sha256(seed, b"", CREATE_INFO, 32)[1]
+    key = hkdf_sha256(seed, b"", CREATE_INFO, 32)
     stream = chacha20_stream(key, 32 + 64 + file_len(slot_len) + 24 * 4)
     at = 0
 
@@ -587,15 +568,14 @@ class Vault(Area):
         'XChaCha20-Poly1305 as the vault calls it'
     )
     reference = (
-        '`docs/VAULT.md` written out in `area_vault.py`, over argon2-cffi and PyNaCl '
-        "(the distribution's packages), with HKDF-SHA256 and the ChaCha20 block written "
-        'over the standard library'
+        '`docs/VAULT.md` written out in `area_vault.py`, over argon2-cffi, PyNaCl '
+        "and PyCA cryptography (the distribution's packages; the last for HKDF-SHA256 and ChaCha20)"
     )
     reference_checked = (
         "`check_primitives` runs before anything else: HKDF against RFC 5869's three "
         "SHA-256 cases, ChaCha20 against RFC 8439's five block vectors, PyNaCl against "
         "draft-irtf-cfrg-xchacha-03's AEAD vector, argon2-cffi against "
-        "`tools/vectors/kdf/`'s known answer; the versions of argon2-cffi and PyNaCl "
+        "`tools/vectors/kdf/`'s known answer; the versions of argon2-cffi, PyNaCl and cryptography "
         'are written into the stamp; the passphrase in NFC is `unicodedata`\'s, and the area '
         "stops where Python's Unicode is newer than `unicode-normalization`'s"
     )
@@ -630,8 +610,8 @@ class Vault(Area):
     def check_primitives(self):
         """The area's own pieces against their published answers."""
         for v in VECTORS["hkdf_sha256"]:
-            prk, okm = hkdf_sha256(*(bytes.fromhex(v[k]) for k in ("ikm", "salt", "info")), v["L"])
-            if (prk.hex(), okm.hex()) != (v["prk"], v["okm"]):
+            okm = hkdf_sha256(*(bytes.fromhex(v[k]) for k in ("ikm", "salt", "info")), v["L"])
+            if okm.hex() != v["okm"]:
                 raise HarnessError(f"the area's HKDF fails RFC 5869: {v}")
         for v in VECTORS["chacha20_block"]:
             got = chacha20_block(bytes.fromhex(v["key"]), v["counter"], bytes.fromhex(v["nonce"]))
@@ -640,7 +620,7 @@ class Vault(Area):
         key = self.randbytes(32)
         stream = chacha20_stream(key, 64 * 5 + 17)
         if stream != b"".join(chacha20_block(key, c, bytes(12)) for c in range(6))[:64 * 5 + 17]:
-            raise HarnessError("libsodium's keystream is not ChaCha20's from counter 1")
+            raise HarnessError("PyCA's ChaCha20 stream is not its blocks in turn")
         v = VECTORS["xchacha20poly1305"]
         ct, tag = aead_seal(*(bytes.fromhex(v[k]) for k in ("key", "nonce", "aad", "plaintext")))
         if (ct.hex(), tag.hex()) != (v["ciphertext"], v["tag"]):

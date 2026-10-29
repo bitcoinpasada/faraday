@@ -162,12 +162,25 @@ def distribution_versions():
     areas use (F79, docs/CROSSCHECK.md §10.4), a line each."""
     from importlib import metadata
     out = ""
-    for name in ("argon2-cffi", "PyNaCl", "pykeepass"):
+    for name in ("argon2-cffi", "PyNaCl", "cryptography", "pykeepass"):
         try:
             out += f"{name} {metadata.version(name)}\n"
         except metadata.PackageNotFoundError:
             out += f"{name} missing\n"
-    return out
+    return out + f"{go_version()}\n"
+
+
+def go_version():
+    """`go <version>` of the toolchain on the PATH that builds LND's answer
+    program (tools/reference/lnd), or `go missing`."""
+    import shutil
+    import subprocess
+    exe = shutil.which("go")
+    if not exe:
+        return "go missing"
+    run = subprocess.run([exe, "env", "GOVERSION"], capture_output=True, text=True)
+    version = run.stdout.strip().removeprefix("go")
+    return f"go {version}" if version else "go unknown"
 
 
 def recorded(key="inputs"):

@@ -1,21 +1,20 @@
 """Lightning node keys and the aezeed (`faraday_bip::aezeed`) against
-LND's and ldk's published answers (`tools/vectors/aezeed/`) and a
-reference written here from the sources `tools/reference/aezeed/README.md`
-quotes, over BIP-32 from `btc.py` and python-mnemonic (`bip39/`).
+LND's own code (the vendored Go tree of `tools/reference/lnd/`, one
+process for the run: `main.go` there) and ldk's published answers
+(`tools/vectors/aezeed/`), with ldk's derivation written here from the
+sources `tools/reference/aezeed/README.md` quotes, over BIP-32 from
+`btc.py` and python-mnemonic (`bip39/`).
 
-- ldk-node (README §6): a master key from the 64-byte BIP-39 seed, its
-  private key taken as LDK's 32-byte seed, a second master key from that,
-  and `m/0'` of the second; the network changes nothing.
-- LND (README §3): `m/1017'/coin'/6'/0/0` of the aezeed's sixteen bytes
-  of entropy taken as the BIP-32 seed, coin 0 on mainnet and 1 elsewhere.
-- The aezeed's outer layer (README §1): 24 words of 11 bits are 33
-  bytes, a version byte (0), 23 enciphered bytes, a 5-byte salt and a
-  CRC-32C (Castagnoli) of the first 29 bytes, big-endian. A seed whose
-  version is not 0 or whose checksum fails is refused before scrypt runs.
-  AEZ itself has no second implementation here: what comes out of the
-  cipher is checked against LND's five published seeds, and a seed whose
-  checksum holds but whose passphrase or enciphered bytes were changed
-  must be refused (AEZ's 32-bit tag fails, but for one time in 2³²).
+- LND (README §3), answered by LND's code: the aezeed read by LND's
+  `aezeed` package (its wordlist, version byte, CRC-32C, scrypt and the AEZ
+  of Yawning Angel's `aez`, unchanged), and the node key at
+  `m/1017'/coin'/6'/0/0` of the aezeed's sixteen bytes of entropy taken as
+  the BIP-32 seed over btcd's `hdkeychain`, coin 0 on mainnet and 1
+  elsewhere. The path's numbers are `keychain/derivation.go`'s, written in
+  `main.go`; LND derives them through btcwallet, which is not vendored.
+- ldk-node (README §6), still ours: a master key from the 64-byte BIP-39
+  seed, its private key taken as LDK's 32-byte seed, a second master key
+  from that, and `m/0'` of the second; the network changes nothing.
 
 - Every vector of `tools/vectors/aezeed/`.
 - Random BIP-39 seeds on every network (ldk) and random entropies on
@@ -23,13 +22,15 @@ quotes, over BIP-32 from `btc.py` and python-mnemonic (`bip39/`).
 - Random word lists (the checksum fails), lists with the checksum put
   right and a version other than 0, and the published seeds under a
   changed passphrase, with an enciphered byte or the salt changed and the
-  checksum put right, and with a word changed.
+  checksum put right, and with a word changed: each of them LND refuses.
 """
 
 import json
+import os
+import subprocess
 
 import btc
-from common import ROOT, Area, use_reference
+from common import ROOT, Area, HarnessError, use_reference
 
 use_reference("bip39")
 from mnemonic import Mnemonic  # noqa: E402
@@ -64,16 +65,6 @@ def with_checksum(data):
     return data[:29] + crc32c(data[:29]).to_bytes(4, "big")
 
 
-def outer_refusal(words):
-    """Why the outer layer refuses, or None when it holds."""
-    data = to_bytes(words)
-    if data[0] != 0:
-        return "a version other than 0"
-    if crc32c(data[:29]) != int.from_bytes(data[29:], "big"):
-        return "the checksum fails"
-    return None
-
-
 def node(k):
     return {"secret": k.to_bytes(32, "big").hex(), "node_id": btc.point(k).hex()}
 
@@ -84,9 +75,43 @@ def ldk(seed):
     return node(inner.derive([H]).k)
 
 
-def lnd(entropy, network):
-    coin = 0 if network == "mainnet" else 1
-    return node(btc.master(entropy).derive([1017 + H, coin + H, 6 + H, 0, 0]).k)
+def lnd_exe():
+    """LND's answers as a program: built by `tools/crosscheck/run.sh` from
+    the vendored Go tree (`FARADAY_LND_REF` names another place)."""
+    path = os.environ.get("FARADAY_LND_REF") or str(ROOT / "out/crosscheck/lnd-ref")
+    if not os.access(path, os.X_OK):
+        raise HarnessError(
+            f"the lightning area needs LND's answer program, {path}, which "
+            "tools/crosscheck/run.sh builds from tools/reference/lnd/ with the Go toolchain "
+            "(docs/DEVELOPING.md: the version go.mod names, installed from go.dev/dl)")
+    return path
+
+
+class Lnd:
+    """The Go program answering with LND's code, a request a line."""
+
+    def __init__(self):
+        self.proc = subprocess.Popen([lnd_exe()], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                                     text=True, bufsize=1)
+        self.next_id = 0
+
+    def call(self, op, **args):
+        self.next_id += 1
+        self.proc.stdin.write(json.dumps(dict(args, id=self.next_id, op=op)) + "\n")
+        self.proc.stdin.flush()
+        line = self.proc.stdout.readline()
+        if not line:
+            raise HarnessError(f"{op}: LND's answer program exited")
+        out = json.loads(line)
+        if out.get("id") != self.next_id:
+            raise HarnessError(f"{op}: LND's answer out of step: {line.strip()}")
+        if "ok" in out:
+            return out["ok"]
+        raise ValueError(out["err"])
+
+    def close(self):
+        self.proc.stdin.close()
+        self.proc.wait()
 
 
 class Lightning(Area):
@@ -97,15 +122,20 @@ class Lightning(Area):
         "`faraday_bip::aezeed` (ldk-node's and LND's node keys, the aezeed read)"
     )
     reference = (
-        "ldk-node's and LND's derivations as `tools/reference/aezeed/README.md` quotes "
-        "them, and the aezeed's outer layer (CRC-32C, version), written out in "
-        '`area_lightning.py` over `btc.py`; AEZ itself has no second implementation '
-        'here'
+        "LND's own code, vendored in Go (`tools/reference/lnd/`: its `aezeed` package "
+        "over Yawning Angel's `aez`, and the node key over btcd's `hdkeychain`), one "
+        "process answering the run's requests; ldk-node's derivation as "
+        "`tools/reference/aezeed/README.md` quotes it, written out in `area_lightning.py` "
+        'over `btc.py`'
     )
     reference_checked = (
-        'the derivations are written in the area from the sources '
-        "`tools/reference/aezeed/README.md` quotes, and LND's and ldk's published "
-        'answers are required of them as well as of Faraday'
+        "LND's code reads the aezeed (wordlist, version, CRC-32C, scrypt, AEZ) and "
+        "derives the node key, and its published answers (`tools/vectors/aezeed/`) are "
+        "required of it as well as of Faraday; the Go program is built offline from the "
+        "vendored tree (`GOFLAGS=-mod=vendor`, `GOTOOLCHAIN=local`) and its version is "
+        "written into the stamp; the area stops when the program is missing; "
+        "ldk-node's derivation is written in the area from the sources the README "
+        "quotes, and ldk's published answers are required of it as well as of Faraday"
     )
     vectors = (
         "LND's five cipher seeds, LND's two node keys, ldk's five node ids "
@@ -114,7 +144,8 @@ class Lightning(Area):
     corpus = (
         'random BIP-39 seeds and entropies on every network; random words, a wrong '
         'version with a right checksum, published seeds under a changed passphrase, a '
-        'changed enciphered byte or salt with the checksum put right, a changed word'
+        'changed enciphered byte or salt with the checksum put right, a changed word, '
+        "each refused by LND's code"
     )
     differences = [
         (
@@ -122,11 +153,23 @@ class Lightning(Area):
         ),
     ]
     not_compared = (
-        'AEZ itself has no second implementation here: what comes out of the cipher is '
-        "checked against LND's five published seeds, and a seed whose checksum holds "
-        "but whose passphrase or enciphered bytes were changed must be refused (AEZ's "
-        '32-bit tag fails, but for one time in 2³²)'
+        "ldk-node's node key is compared with a derivation written here, not with "
+        "ldk's code (Rust, not vendored): only ldk's five published answers are outside "
+        "it; LND's key path numbers are written in the Go program from "
+        "`keychain/derivation.go`, as LND derives through btcwallet, which is not vendored"
     )
+
+    lnd_proc = None
+
+    def lnd_ref(self):
+        if self.lnd_proc is None:
+            self.lnd_proc = Lnd()
+        return self.lnd_proc
+
+    def close(self):
+        if self.lnd_proc is not None:
+            self.lnd_proc.close()
+        super().close()
 
     def ldk(self, seed, network, expected=None):
         return self.compare("lightning.ldk", {"seed": seed.hex(), "network": network},
@@ -134,20 +177,17 @@ class Lightning(Area):
 
     def lnd(self, entropy, network, expected=None):
         return self.compare("lightning.lnd", {"entropy": entropy.hex(), "network": network},
-                            lambda: lnd(entropy, network), expected)
+                            lambda: self.lnd_ref().call("node", entropy=entropy.hex(),
+                                                        network=network), expected)
 
     def aezeed(self, words, passphrase, cost, expected):
-        """Faraday's reading against the outer layer's rule and, where
-        that holds, the expected answer."""
+        """Faraday's reading against LND's, and the expected answer: a
+        published seed's, or a refusal."""
         def ref():
-            why = outer_refusal(words)
-            if why:
-                raise ValueError(why)
-            if expected[0] == "err":
-                raise ValueError("AEZ's tag fails")
-            return expected[1]
+            return self.lnd_ref().call("aezeed", words=[ENGLISH.wordlist[w] for w in words],
+                                       passphrase=passphrase.hex(), cost=cost)
         return self.compare("lightning.aezeed", {"words": words, "passphrase": passphrase.hex(),
-                                                 "cost": cost}, ref)
+                                                 "cost": cost}, ref, expected)
 
     def published(self):
         v = self.aezeed_vectors
