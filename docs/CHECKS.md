@@ -31,6 +31,9 @@ does what is `tools/README.md`'s.
 | `costs-lint` | just lint | `cargo run -q -p costs-lint` | a costly function without the compute token or its Costs doc line, a stray Compute::new, a Compute stored outside View | work that is costly and not marked so | built |
 | `lint-unchecked` | just lint | `tools/lint-unchecked.sh` | the unchecked feature of faraday-crypto on in a shipped binary | - | built |
 | `lint-crosscheck` | just lint | `tools/lint-crosscheck.sh` | crypto sources changed since the last passing cross-check (F79) | whether the cross-check covers the change | built |
+| `lint-standards` | just lint | `python3 -I -B tools/lint-standards.py` | a crate with cryptography (a primitive dependency, or a function the crypto inventory finds) outside the stamp's CRATES, or a faraday-core file outside its FILES, not listed with its reason; a function STANDARDS §0 keeps out of the app that a faraday/ crate's shipped code reaches, or a faraday/ source line naming MuSig2's secret nonce; a hold the code defines with no entry naming its decision (F136); a STANDARDS §8 disagreement whose text changed, or a bullet with no entry; a stale entry of any kind (tools/lint-standards.toml) | a method call whose receiver's type the inventory cannot tell; a way past a check that is not a hold (a caution that signs); whether a reason is true | built |
+| `crypto-verified` | just lint | `python3 -I -B docs/crypto/verified.py check` | a STANDARDS row of the manifest whose actions name no cross-check area, no vectors folder the cross-check reads and no test file that exists; a cross-check area or a tools/vectors/ folder no row names | STANDARDS §9, written by hand; whether a named test tests the row's standard | built |
+| `lint-upstream` | just lint | `python3 -I -B tools/lint-upstream.py` | a tracked file other than LICENSE whose bytes name the upstream project (the name read from LICENSE), beyond tools/lint-upstream.counts (F73) | the name spelled with spaces between its words, or abbreviated | built |
 | `crosscheck-facts` | just lint | `python3 -I -B tools/crosscheck/facts.py check` | a cross-check area without its stated facts, a path it names that does not exist, tools/crosscheck/README.md's table and known differences out of step with them (F148) | whether the stated facts are true of what the area runs | built |
 | `lint-themes` | just lint | `tools/lint-themes.sh` | the colour tables differing from what the vendored material-color-utilities makes | the website's copy of the roles | built |
 | `lint-keys-tests` | just lint | `tools/lint-keys-tests.sh` | a shipped binary with faraday-keys' master-for-tests or faraday-core's testkit feature | - | built |
@@ -59,7 +62,7 @@ does what is `tools/README.md`'s.
 | `repo.no-hosted-ci`: no hosted CI, no GitHub Actions | `.github/workflows/**`<br>on add | forbid | - | - | - | `CLAUDE.md` |
 | `repo.build-machine-unnamed`: the remote build machine is "the build machine" in docs, comments and messages, never its hostname, owner or address | `**` | review | - | - | - | `CLAUDE.md` |
 | `repo.personal-information`: every new commit's diff and message checked for names, addresses, hostnames, local paths, keys and tokens before a push | `**` | review | - | - | - | `CLAUDE.md` |
-| `repo.upstream-name`: the upstream project is named only in LICENSE | `**`<br>`!LICENSE` | review | - | - | planned check: read the name from LICENSE and refuse it elsewhere | `docs/decisions/F73.md` |
+| `repo.upstream-name`: the upstream project is named only in LICENSE | `**`<br>`!LICENSE` | held | - | `lint-upstream` | - | `docs/decisions/F73.md` |
 | `repo.contributing`: CONTRIBUTING.md's summary follows CLAUDE.md's rules | `CLAUDE.md` | review | - | - | - | `CONTRIBUTING.md` |
 | `repo.developing`: a recipe, prerequisite or output path changed is changed in DEVELOPING.md or tools/README.md | `justfile`<br>`faraday/faraday.just`<br>lines matching `^[+-]( {4}[^\s#]\|[a-z][A-Za-z0-9_-]*( [^:]*)?:( \|$))` | pair | one of `docs/DEVELOPING.md`<br>`tools/README.md` | - | a recipe changed whose text DEVELOPING.md does not show | `CLAUDE.md` |
 | `repo.tests-kept`: a test is changed to the rule it now encodes, never deleted to make the build pass | `**/*.rs`<br>lines matching `^-\s*#\[(test\|rstest)` | review | - | - | - | `CLAUDE.md` |
@@ -96,8 +99,10 @@ does what is `tools/README.md`'s.
 |---|---|---|---|---|---|---|
 | `standards.what-goes-in`: what the app takes in is a published standard checked against another implementation, or Faraday's own rule that fails closed | `core/*/src/**`<br>`!core/faraday-draw/**` | review | - | - | - | `docs/STANDARDS.md` §0 |
 | `standards.refusals-stay`: what the code refuses stays refused; accepting more than a standard requires is a decision | `core/*/src/**`<br>`!core/faraday-draw/**` | review | - | - | - | `CLAUDE.md`<br>`docs/decisions/F90.md` |
-| `standards.no-way-past`: a check that keeps keys or money safe has no way past it unless a decision names the case; a hold names it | `core/faraday-psbt/src/**`<br>lines matching `^\+.*\b[Hh]old` | review | - | - | planned check: every hold listed with its decision | `CLAUDE.md`<br>`docs/decisions/F136.md` |
-| `standards.out-of-app`: unpublished or unreviewed work stays in the repository, compiled out of the app | `core/*/src/**`<br>`!core/faraday-draw/**` | review | - | - | - | `docs/STANDARDS.md` §0<br>`docs/decisions/F109.md` |
+| `standards.no-way-past`: a check that keeps keys or money safe has no way past it unless a decision names the case; a hold names it | `core/faraday-psbt/src/**`<br>`faraday/faraday-core/src/action.rs`<br>`faraday/faraday-starter/src/scroll.rs`<br>`tools/lint-standards.toml`<br>lines matching `^\+.*\b[Hh]old` | review | - | `lint-standards` | whether the case a hold names is legitimate; a way past a check that is not a hold (a caution that signs) | `CLAUDE.md`<br>`docs/decisions/F136.md` |
+| `standards.out-of-app`: unpublished or unreviewed work stays in the repository, compiled out of the app | `core/*/src/**`<br>`!core/faraday-draw/**` | review | - | `lint-standards` | work kept out that no [[out_of_app]] of tools/lint-standards.toml names; a method call the inventory cannot resolve | `docs/STANDARDS.md` §0<br>`docs/decisions/F109.md` |
+| `standards.rows-checked`: every STANDARDS row names a cross-check area, a vectors folder or a test, and every area and vectors folder is named by a row | `docs/crypto/actions.toml`<br>`tools/crosscheck/area_*.py`<br>`tools/vectors/**` | held | - | `crypto-verified` | - | `docs/STANDARDS.md` §0 |
+| `standards.disagreements-held`: each disagreement STANDARDS §8 lists is held by a [[disagreement]] that fails when it changes | `docs/STANDARDS.md`<br>`tools/lint-standards.toml` | held | - | `lint-standards` | - | `docs/STANDARDS.md` §8 |
 | `standards.scope`: a new kind of key or signature is a decision | `core/*/src/**`<br>`!core/faraday-draw/**` | review | - | - | - | `docs/decisions/F116.md` |
 | `standards.learn-in-step`: STANDARDS.md and the Learn pages are kept in step until F148 generates both | `docs/STANDARDS.md` | pair | `docs/learn/**` | - | - | `docs/STANDARDS.md` |
 
@@ -106,6 +111,7 @@ does what is `tools/README.md`'s.
 | Rule | Triggered by | Kind | Must change with it | Held by | Misses | Source |
 |---|---|---|---|---|---|---|
 | `crypto.crosscheck-stamp`: the crypto sources match the last passing cross-check | `core/*/src/**`<br>`tools/crosscheck/**`<br>`Cargo.lock` | held | - | `lint-crosscheck` | - | `docs/decisions/F79.md` |
+| `crypto.crosscheck-covered`: cryptography outside the cross-check stamp's crates and files is listed with the reason it is not covered | `core/*/src/**`<br>`faraday/**/src/**`<br>`core/*/Cargo.toml`<br>`faraday/**/Cargo.toml`<br>`tools/crosscheck/stamp.py`<br>`tools/lint-standards.toml` | held | - | `lint-standards` | whether a reason is true, and whether a listed file should be in the stamp's FILES | `docs/STANDARDS.md` §0<br>`docs/decisions/F79.md` |
 | `crypto.tested`: a cryptographic change is tested against published vectors or another implementation | `core/*/src/**`<br>`!core/faraday-draw/**` | review | - | - | planned: F148's inventory and re-stamp | `CLAUDE.md`<br>`docs/decisions/F148.md` |
 | `crypto.action-covered` (planned): every cryptographic function is covered by the inventory | `core/*/src/**`<br>`faraday/faraday-keys/src/**` | held | - | `crypto-inventory` | - | `docs/decisions/F148.md` |
 | `crypto.generated` (planned): STANDARDS and AUDIT's generated sections match the manifest | `docs/STANDARDS.md`<br>`docs/AUDIT.md` | held | - | `crypto-gen` | - | `docs/decisions/F148.md` |
@@ -140,7 +146,7 @@ does what is `tools/README.md`'s.
 
 | Rule | Triggered by | Kind | Must change with it | Held by | Misses | Source |
 |---|---|---|---|---|---|---|
-| `structure.ratchet-raised`: a ratchet count raised is the owner's decision, recorded in DECISIONS | `tools/lint-layout.counts`<br>`tools/lint-tokens.counts`<br>`tools/touch-targets.counts`<br>a number that rises | pair | `docs/decisions/F{n}.md` | - | - | `CLAUDE.md`<br>`docs/decisions/F74.md` |
+| `structure.ratchet-raised`: a ratchet count raised is the owner's decision, recorded in DECISIONS | `tools/lint-layout.counts`<br>`tools/lint-tokens.counts`<br>`tools/touch-targets.counts`<br>`tools/lint-upstream.counts`<br>a number that rises | pair | `docs/decisions/F{n}.md` | - | - | `CLAUDE.md`<br>`docs/decisions/F74.md` |
 | `structure.code-map`: lib.rs's code map names every module and every screen's file | `faraday/faraday-core/src/**` | held | - | `lint-layout` | - | `CLAUDE.md`<br>`docs/decisions/F74.md` |
 | `structure.size`: no new file over 2,500 lines or function over 100 lines | `**/*.rs` | held | - | `lint-layout` | - | `CLAUDE.md`<br>`docs/decisions/F74.md` |
 | `structure.impl-faraday`: Faraday's field count and the files with impl Faraday only fall | `faraday/faraday-core/src/**` | held | - | `lint-layout` | - | `CLAUDE.md`<br>`docs/decisions/F74.md` |
@@ -237,7 +243,6 @@ No script holds these; a reviewer reads this list for the change.
 |---|---|
 | `repo.build-machine-unnamed`: the remote build machine is "the build machine" in docs, comments and messages, never its hostname, owner or address | `CLAUDE.md` |
 | `repo.personal-information`: every new commit's diff and message checked for names, addresses, hostnames, local paths, keys and tokens before a push | `CLAUDE.md` |
-| `repo.upstream-name`: the upstream project is named only in LICENSE | `docs/decisions/F73.md` |
 | `repo.contributing`: CONTRIBUTING.md's summary follows CLAUDE.md's rules | `CONTRIBUTING.md` |
 | `repo.tests-kept`: a test is changed to the rule it now encodes, never deleted to make the build pass | `CLAUDE.md` |
 | `repo.tests-user-facing`: a test covers user-facing behaviour or a published vector; none states a design rule, a token's value or a screen's geometry against a document | `CLAUDE.md` |

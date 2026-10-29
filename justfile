@@ -56,6 +56,15 @@ lint:
     cargo run -q -p costs-lint
     tools/lint-unchecked.sh
     tools/lint-crosscheck.sh
+    # STANDARDS §0 held: crypto the cross-check's stamp misses is listed with
+    # its reason, the work kept out of the app is reached by no app code,
+    # every hold names its decision (F136), and §8's disagreements are
+    # still what §8 says (tools/lint-standards.toml).
+    python3 -I -B tools/lint-standards.py
+    # Every STANDARDS row names a check, and every check is a row's.
+    python3 -I -B docs/crypto/verified.py check
+    # The upstream project is named only in LICENSE (F73).
+    python3 -I -B tools/lint-upstream.py
     # Each cross-check area's facts are stated, their paths resolve, and the
     # README's table and known differences are what they say.
     python3 -I -B tools/crosscheck/facts.py check

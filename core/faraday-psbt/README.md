@@ -263,8 +263,9 @@ script-path MuSig2 spend and is refused: `tr(musig())` has no tree.
 
 ## What is refused
 
-- Taproot script-path inputs (`P2trScript`) and unknown scripts, when an
-  input names a selected key: `Unsupported`.
+- Unknown scripts, when an input names a selected key: `Unsupported`.
+  A Taproot script-path input (`P2trScript`) is signed in every leaf the
+  PSBT carries that holds a key of this signer's.
 - Inputs whose UTXO or script data fails the BIP-174 signer checks:
   `Unsupported` with the reason.
 - SegWit v0 inputs (p2wpkh, p2sh-p2wpkh, p2wsh, p2sh-p2wsh) with no

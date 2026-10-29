@@ -1,0 +1,298 @@
+# What tools/lint-standards.py holds docs/STANDARDS.md §0 against: the
+# cryptography the F79 cross-check's stamp does not cover, the work kept out
+# of the app, every hold with its decision (F136), and the disagreements of
+# STANDARDS §8. A new entry is the change's author's statement, reviewed
+# with it (standards.what-goes-in, standards.no-way-past).
+
+# ------------------------------------------------------------ uncovered
+# A crate whose normal dependencies include a primitive crate, or that has
+# a function the crypto inventory finds cryptographic, and that is not in
+# tools/crosscheck/stamp.py's CRATES; in faraday-core, a file not in its
+# FILES. A change here does not stale the stamp. Each says why.
+
+[[uncovered]]
+crate = "core/faraday-draw"
+reason = "Names faraday-crypto's compute token (`work::Work`) to count drawing work; computes nothing cryptographic."
+
+[[uncovered]]
+crate = "core/faraday-selftest"
+reason = "The start-up self-test checks the app's own functions against fixed published answers (BIP 39, BIP 32, ECDSA, Schnorr, scrypt, Argon2id); the functions it calls are cross-checked in the bip39, bip32, sign and vault areas."
+
+[[uncovered]]
+crate = "faraday/faraday-disk"
+reason = "Takes the compute token for its file reads; computes nothing cryptographic."
+
+[[uncovered]]
+crate = "faraday/faraday-files"
+reason = "Takes the compute token for its file reads; computes nothing cryptographic."
+
+[[uncovered]]
+crate = "faraday/faraday-intake"
+reason = "Reads other wallets' files and names rust-bitcoin's network kinds; the keys and descriptors it reads are parsed by faraday-bip, which the stamp covers. The files are checked against those wallets' test files, not a second implementation."
+
+[[uncovered]]
+crate = "faraday/faraday-payload"
+reason = "The Starter's SHA-256 of the images it writes (sha2); the sums are compared with `sha256sum`'s in its tests, and no F79 area runs the decoder."
+
+[[uncovered]]
+crate = "faraday/faraday-pgp"
+reason = "OpenPGP keys, signatures, revocations and paperkey, judged end to end by real GnuPG and paperkey in its tests (`faraday/faraday-pgp/tests/gnupg.rs`, `paperkey.rs`), not by an F79 area."
+
+[[uncovered]]
+crate = "faraday/faraday-sb"
+reason = "Secure Boot keys and signed images (RSA, X.509, PKCS #7), judged by openssl, sbverify, sbsign and osslsigncode in `faraday/faraday-sb/tests/judged.rs`, not by an F79 area."
+
+[[uncovered]]
+crate = "faraday/faraday-starter"
+reason = "Takes the compute token; the Starter's hashes are faraday-payload's."
+
+[[uncovered]]
+crate = "faraday/faraday-storage"
+reason = "Takes the compute token for the disk process's answers; computes nothing cryptographic."
+
+[[uncovered]]
+crate = "faraday/shells/desktop"
+reason = "Turns on faraday-crypto's `pin-pages`; computes nothing cryptographic."
+
+[[uncovered]]
+crate = "faraday/shells/starter"
+reason = "CRC-32 of a GPT header and its entries (faraday-crypto's `crc32`), a checksum the GPT format defines, not a cryptographic check."
+
+[[uncovered]]
+crate = "faraday/shells/stick"
+reason = "Turns on faraday-crypto's `pin-pages` and reports a pinning failure; computes nothing cryptographic."
+
+[[uncovered]]
+crate = "faraday/shells/window"
+reason = "Fills the bytes the app asks for from the operating system (`getrandom`); what the app does with them is faraday-core's fresh.rs, which the stamp covers (area own-randomness)."
+
+[[uncovered]]
+crate = "tools/fontbake"
+reason = "A build tool: SHA-256 checks the downloaded fonts against their pinned sums; in no shipped binary."
+
+[[uncovered]]
+file = "faraday/faraday-core/src/create.rs"
+reason = "Names rust-bitcoin's derivation-path types to write a new wallet's path; the keys at it are derived by faraday-keys and faraday-bip, which the stamp covers."
+
+[[uncovered]]
+file = "faraday/faraday-core/src/decode.rs"
+reason = "Decode's view of a transaction: each output's address with rust-bitcoin's `Address::from_script`, and the txid and wtxid with rust-bitcoin's `compute_txid` and `compute_wtxid`. No secret; no F79 area runs it."
+
+[[uncovered]]
+file = "faraday/faraday-core/src/drawing/kept.rs"
+reason = "Reads a wallet's script kept on the state; the script is computed by faraday-bip."
+
+[[uncovered]]
+file = "faraday/faraday-core/src/explore/addresses.rs"
+reason = "Explore's address pages: keys and addresses derived by faraday-keys and faraday-bip, which the stamp covers, over rust-bitcoin's types."
+
+[[uncovered]]
+file = "faraday/faraday-core/src/explore/mod.rs"
+reason = "Explore's paths: keys derived by faraday-keys, written with rust-bitcoin's types."
+
+[[uncovered]]
+file = "faraday/faraday-core/src/explore/shown.rs"
+reason = "Explore's shown keys: the xprv and WIF are faraday-keys' reveals, which the stamp covers."
+
+[[uncovered]]
+file = "faraday/faraday-core/src/inbox.rs"
+reason = "Reads a derivation path's steps to tell a wallet's kind; computes nothing."
+
+[[uncovered]]
+file = "faraday/faraday-core/src/keygen/mod.rs"
+reason = "`device_own`: SHA-256 of the device's draw and the person's own randomness (docs/OWN-RANDOMNESS.md §2.3). Area own-randomness states the formula and its reference computes it, but stamp.py's FILES do not name this file."
+
+[[uncovered]]
+file = "faraday/faraday-core/src/lib.rs"
+reason = "`Faraday::address_note` parses a typed address with rust-bitcoin to name its network; computes nothing on a secret."
+
+[[uncovered]]
+file = "faraday/faraday-core/src/memory.rs"
+reason = "SHA-256 of an unsigned transaction (rust-bitcoin), the key of the signed-amount memory (F136); no F79 area runs it."
+
+[[uncovered]]
+file = "faraday/faraday-core/src/quiz.rs"
+reason = "SHA-256 of the word indices, mixed with the clock, orders the words a quiz asks; makes no key."
+
+[[uncovered]]
+file = "faraday/faraday-core/src/receipt.rs"
+reason = "Calls faraday-crypto's `sha256_whole`, which the stamp covers, for a file's hash."
+
+[[uncovered]]
+file = "faraday/faraday-core/src/register.rs"
+reason = "Writes a derivation path's steps as text; computes nothing."
+
+[[uncovered]]
+file = "faraday/faraday-core/src/restore.rs"
+reason = "Derives the extended public key at a slot's path through faraday-keys, which the stamp covers, to compare it with the one stated."
+
+[[uncovered]]
+file = "faraday/faraday-core/src/silent/check.rs"
+reason = "Matches the transactions a silent payments check asks for by their txids (rust-bitcoin's types); the scan is faraday-bip's and faraday-keys'."
+
+[[uncovered]]
+file = "faraday/faraday-core/src/transfer/mod.rs"
+reason = "Calls faraday-crypto's `sha256_whole`, which the stamp covers, for a scanned transfer's hash."
+
+[[uncovered]]
+file = "faraday/faraday-core/src/vault/mod.rs"
+reason = "Calls faraday-crypto's `sha256_whole`, which the stamp covers, for a vault file's hash."
+
+[[uncovered]]
+file = "faraday/faraday-core/src/wallet.rs"
+reason = "Glue over rust-bitcoin's types: parses addresses, paths and sighash types and calls faraday-bip, faraday-psbt and faraday-keys, which the stamp covers."
+
+# ----------------------------------------------------------- out of app
+# STANDARDS §0: work whose standard is unpublished, or whose construction
+# is Faraday's own and unreviewed, stays in the repository, built and
+# tested, and no shipped code of the app reaches it. Its roots are the
+# manifest action's `functions`, or the ids given.
+
+[[out_of_app]]
+what = "Sending to silent payments (STANDARDS §0.1: BIP 374 and BIP 375 are drafts)"
+decision = "F109"
+action = "silent-send"
+
+# The app's crates never name the secret nonce's type, so none of them can
+# keep one (the vault, a file); faraday-psbt's session holds it in memory
+# for one transaction. Reading one back from bytes is reached by no app
+# code. (`SecNonce::serialize` is not a root: the inventory resolves a
+# method call by its name, and every `pk.serialize()` in musig.rs would
+# stand for it.)
+[[out_of_app]]
+what = "MuSig2 signing across places (STANDARDS §0.1): a secret nonce is never kept or read back"
+decision = "F109"
+functions = ["core/faraday-bip/src/musig.rs::SecNonce::from_bytes"]
+unnamed = '(?<![:\w])SecNonce\b|musig::SecNonce\b'
+
+# ---------------------------------------------------------------- holds
+# Where the code says which actions are holds. Every action such a
+# function names (`A::B`, or an arm `A::B =>` whose answer is not `false`)
+# is a [[hold]] below.
+
+[[hold_source]]
+where = "app"
+file = "faraday/faraday-core/src/action.rs"
+function = "is_hold"
+
+[[hold_source]]
+where = "starter"
+file = "faraday/faraday-starter/src/scroll.rs"
+function = "is_hold"
+arms = true
+
+[[hold_source]]
+where = "signing"
+file = "core/faraday-psbt/src/inspect.rs"
+function = "is_holdable"
+
+[[hold]]
+where = "app"
+hold = "Action::ReviewHold"
+decision = "F136"
+case = "Hold to pay this fee, past HighFee or AbsurdFeeRate: a child paying for its parent, a large batch, a consolidation"
+
+[[hold]]
+where = "app"
+hold = "Action::DevicesHold"
+decision = "F136"
+case = "Hold to continue, the stick's device check after Continue anyway: a TV or a KVM that is the person's own"
+
+[[hold]]
+where = "app"
+hold = "Action::KeyPathHold"
+decision = "F132"
+case = "Hold to add this wallet: a tr() wallet whose key path another key spends"
+
+[[hold]]
+where = "app"
+hold = "Action::RegisterHold"
+decision = "F135"
+case = "Hold to register: a wallet the coordinator's PSBT defines, its keys checked to be the person's"
+
+[[hold]]
+where = "app"
+hold = "Action::SecretHold"
+decision = "F129"
+case = "Hold to save without encryption: the person's own destructive act"
+
+[[hold]]
+where = "app"
+hold = "Action::HoldPowerOff"
+decision = "F136"
+case = "Power off with files waiting or a vault unsaved: the person's own destructive act"
+
+[[hold]]
+where = "app"
+hold = "Action::HoldRestart"
+decision = "F136"
+case = "Restart with files waiting or a vault unsaved: the person's own destructive act"
+
+[[hold]]
+where = "app"
+hold = "VaultAction::HoldDelete"
+decision = "F136"
+case = "Delete a vault's item: the person's own destructive act"
+
+[[hold]]
+where = "app"
+hold = "VaultAction::HoldWipe"
+decision = "F131"
+case = "Delete files, a vault among them, or zero a stick's free space or partition: the person's own destructive act"
+
+[[hold]]
+where = "app"
+hold = "VaultAction::SbHoldSign"
+decision = "F134"
+case = "Sign the boot program looked at, a release's own"
+
+[[hold]]
+where = "app"
+hold = "VaultAction::GpgHoldSign"
+decision = "F63"
+case = "Sign the ticked files with a GPG key, from the sheet that shows the time"
+
+[[hold]]
+where = "app"
+hold = "VaultAction::GpgHoldRevoke"
+decision = "F136"
+case = "Revoke a GPG key: the person's own destructive act"
+
+[[hold]]
+where = "app"
+hold = "FlowAction::Hold"
+decision = "F37"
+case = "The backup plan's confirm: this is the stick for its place, or a second stick"
+
+[[hold]]
+where = "starter"
+hold = "StarterAction::LetThrough"
+decision = "F136"
+case = "Hold to continue, the Starter's Continue anyway: a TV or a KVM that is the person's own"
+
+[[hold]]
+where = "starter"
+hold = "StarterAction::Write"
+decision = "F136"
+case = "Hold to write the older release, keeping data over a stick holding a newer one: going back to an older release"
+
+[[hold]]
+where = "signing"
+hold = "WarningKind::HighFee"
+decision = "F136"
+case = "A fee of 20 % or more of what is sent, or over 0.01 BTC, paid on purpose"
+
+[[hold]]
+where = "signing"
+hold = "WarningKind::AbsurdFeeRate"
+decision = "F136"
+case = "A fee rate of 1000 sat/vB or more, paid on purpose"
+
+# ------------------------------------------------------- STANDARDS §8
+# One entry per bullet of STANDARDS §8: the text, in each file named,
+# that makes the disagreement. When a fix removes it, the bullet and the
+# entry go together.
+
+[[disagreement]]
+what = "the Taproot multisig path"
+holds = { "faraday/faraday-core/src/create.rs" = "NewKind::TapMulti => format!\\(\"m/48'/\\{c\\}'/0'/3'\"\\)", "tools/vectors/psbt/README.md" = "`wallet-tapmulti.policy` .* at BIP 48's `2'` account" }

@@ -68,6 +68,13 @@ decision F109):
   on the owner's word, recorded in DECISIONS; the list below names what
   is left out.
 
+`just lint` holds this section: `tools/lint-standards.py` fails on
+cryptography the cross-check's stamp does not cover and
+`tools/lint-standards.toml` does not list with its reason, on app code
+that reaches work kept out of the app (§0.1), and on a hold that names no
+decision; `docs/crypto/verified.py` fails on a row of §2 to §5 that names
+no check, and on a cross-check area or vectors folder no row names.
+
 ### 0.1 Left out, and why
 
 | Left out | Why | Where it stands |
@@ -377,9 +384,10 @@ Ranked by how much a mistake would cost.
 
 ## 8. Documentation that disagrees with the code
 
-- `core/faraday-psbt/README.md`, "What is refused", still lists Taproot
-  script-path inputs; `core/faraday-psbt/src/sign.rs` signs `P2trScript`
-  and the tapmulti fixtures show it working.
+Each disagreement here is held by `tools/lint-standards.py`, which fails
+when the text that makes it changes (`tools/lint-standards.toml`,
+`[[disagreement]]`); a fix removes the bullet and the entry together.
+
 - The Taproot multisig path is `3'` in `faraday/faraday-core/src/create.rs`;
   the fixture is at BIP 48's `2'` (`tools/vectors/psbt/README.md`).
 

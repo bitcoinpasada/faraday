@@ -116,6 +116,27 @@ catches = "crypto sources changed since the last passing cross-check (F79)"
 misses = "whether the cross-check covers the change"
 
 [[check]]
+id = "lint-standards"
+run = "python3 -I -B tools/lint-standards.py"
+stage = "just lint"
+catches = "a crate with cryptography (a primitive dependency, or a function the crypto inventory finds) outside the stamp's CRATES, or a faraday-core file outside its FILES, not listed with its reason; a function STANDARDS §0 keeps out of the app that a faraday/ crate's shipped code reaches, or a faraday/ source line naming MuSig2's secret nonce; a hold the code defines with no entry naming its decision (F136); a STANDARDS §8 disagreement whose text changed, or a bullet with no entry; a stale entry of any kind (tools/lint-standards.toml)"
+misses = "a method call whose receiver's type the inventory cannot tell; a way past a check that is not a hold (a caution that signs); whether a reason is true"
+
+[[check]]
+id = "crypto-verified"
+run = "python3 -I -B docs/crypto/verified.py check"
+stage = "just lint"
+catches = "a STANDARDS row of the manifest whose actions name no cross-check area, no vectors folder the cross-check reads and no test file that exists; a cross-check area or a tools/vectors/ folder no row names"
+misses = "STANDARDS §9, written by hand; whether a named test tests the row's standard"
+
+[[check]]
+id = "lint-upstream"
+run = "python3 -I -B tools/lint-upstream.py"
+stage = "just lint"
+catches = "a tracked file other than LICENSE whose bytes name the upstream project (the name read from LICENSE), beyond tools/lint-upstream.counts (F73)"
+misses = "the name spelled with spaces between its words, or abbreviated"
+
+[[check]]
 id = "crosscheck-facts"
 run = "python3 -I -B tools/crosscheck/facts.py check"
 stage = "just lint"
@@ -365,8 +386,8 @@ id = "repo.upstream-name"
 title = "the upstream project is named only in LICENSE"
 source = ["docs/decisions/F73.md"]
 when = ["**", "!LICENSE"]
-kind = "review"
-misses = "planned check: read the name from LICENSE and refuse it elsewhere"
+kind = "held"
+held_by = ["lint-upstream"]
 
 [[rule]]
 id = "repo.contributing"
@@ -517,10 +538,11 @@ kind = "review"
 id = "standards.no-way-past"
 title = "a check that keeps keys or money safe has no way past it unless a decision names the case; a hold names it"
 source = ["CLAUDE.md", "docs/decisions/F136.md"]
-when = ["core/faraday-psbt/src/**"]
+when = ["core/faraday-psbt/src/**", "faraday/faraday-core/src/action.rs", "faraday/faraday-starter/src/scroll.rs", "tools/lint-standards.toml"]
 lines = '^\+.*\b[Hh]old'
 kind = "review"
-misses = "planned check: every hold listed with its decision"
+held_by = ["lint-standards"]
+misses = "whether the case a hold names is legitimate; a way past a check that is not a hold (a caution that signs)"
 
 [[rule]]
 id = "standards.out-of-app"
@@ -528,6 +550,24 @@ title = "unpublished or unreviewed work stays in the repository, compiled out of
 source = ["docs/STANDARDS.md §0", "docs/decisions/F109.md"]
 when = ["core/*/src/**", "!core/faraday-draw/**"]
 kind = "review"
+held_by = ["lint-standards"]
+misses = "work kept out that no [[out_of_app]] of tools/lint-standards.toml names; a method call the inventory cannot resolve"
+
+[[rule]]
+id = "standards.rows-checked"
+title = "every STANDARDS row names a cross-check area, a vectors folder or a test, and every area and vectors folder is named by a row"
+source = ["docs/STANDARDS.md §0"]
+when = ["docs/crypto/actions.toml", "tools/crosscheck/area_*.py", "tools/vectors/**"]
+kind = "held"
+held_by = ["crypto-verified"]
+
+[[rule]]
+id = "standards.disagreements-held"
+title = "each disagreement STANDARDS §8 lists is held by a [[disagreement]] that fails when it changes"
+source = ["docs/STANDARDS.md §8"]
+when = ["docs/STANDARDS.md", "tools/lint-standards.toml"]
+kind = "held"
+held_by = ["lint-standards"]
 
 [[rule]]
 id = "standards.scope"
@@ -553,6 +593,15 @@ source = ["docs/decisions/F79.md"]
 when = ["core/*/src/**", "tools/crosscheck/**", "Cargo.lock"]
 kind = "held"
 held_by = ["lint-crosscheck"]
+
+[[rule]]
+id = "crypto.crosscheck-covered"
+title = "cryptography outside the cross-check stamp's crates and files is listed with the reason it is not covered"
+source = ["docs/STANDARDS.md §0", "docs/decisions/F79.md"]
+when = ["core/*/src/**", "faraday/**/src/**", "core/*/Cargo.toml", "faraday/**/Cargo.toml", "tools/crosscheck/stamp.py", "tools/lint-standards.toml"]
+kind = "held"
+held_by = ["lint-standards"]
+misses = "whether a reason is true, and whether a listed file should be in the stamp's FILES"
 
 [[rule]]
 id = "crypto.tested"
@@ -682,7 +731,7 @@ held_by = ["budget-tests"]
 id = "structure.ratchet-raised"
 title = "a ratchet count raised is the owner's decision, recorded in DECISIONS"
 source = ["CLAUDE.md", "docs/decisions/F74.md"]
-when = ["tools/lint-layout.counts", "tools/lint-tokens.counts", "tools/touch-targets.counts"]
+when = ["tools/lint-layout.counts", "tools/lint-tokens.counts", "tools/touch-targets.counts", "tools/lint-upstream.counts"]
 rises = true
 kind = "pair"
 with = ["docs/decisions/F{n}.md"]
