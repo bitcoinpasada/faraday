@@ -7,7 +7,9 @@ use std::collections::BTreeMap;
 
 use faraday_codec::vault_file::{MAGIC, file_len};
 use faraday_crypto::work::Compute;
-use faraday_files::{Place, Zeroed, vault_names, write_any, write_replacing, write_vault};
+use faraday_files::{
+    Place, Zeroed, finish_vault_writes, vault_names, write_any, write_replacing, write_vault,
+};
 
 #[derive(Default)]
 struct Memory {
@@ -70,6 +72,7 @@ impl Place for Memory {
 fn vault(salt: u8) -> Vec<u8> {
     let mut v = vec![0u8; file_len(65_536)];
     v[..4].copy_from_slice(&MAGIC);
+    v[17..21].copy_from_slice(&65_536u32.to_le_bytes());
     v[21..53].fill(salt);
     v
 }
@@ -88,6 +91,10 @@ fn a_vault_is_found_by_its_contents_under_any_name() {
     place.files.insert("VAULT~1.FVL".into(), vault(1));
     place.files.insert("vault".into(), vault(2));
     place.files.insert("named.fvlt".into(), vault(3));
+    // Named `.fvlt` and holding other bytes: not a vault.
+    place
+        .files
+        .insert("fake.fvlt".into(), vec![7; file_len(65_536)]);
     // Other bytes at a vault's length, and the magic at another length.
     place
         .files
@@ -98,8 +105,39 @@ fn a_vault_is_found_by_its_contents_under_any_name() {
     let files = place.files().unwrap();
     assert_eq!(
         vault_names(&compute(), &mut place, &files),
-        ["VAULT~1.FVL", "vault"]
+        ["VAULT~1.FVL", "named.fvlt", "vault"]
     );
+}
+
+#[test]
+fn a_vault_whose_header_names_another_slot_length_is_not_written_back() {
+    let mut place = Memory::default();
+    let mut odd = vault(1);
+    odd[17..21].copy_from_slice(&262_144u32.to_le_bytes());
+    assert!(write_vault(&mut place, "v.fvlt", &odd).is_err());
+    assert!(place.files.is_empty());
+}
+
+/// A part file as an interrupted write-back leaves it.
+fn part(name: &str) -> String {
+    format!(".faraday-{name}.part")
+}
+
+#[test]
+fn an_interrupted_write_back_finishes_only_under_a_name_a_vault_may_have() {
+    let mut place = Memory::default();
+    // Its original is gone: the copy takes the name.
+    place.files.insert(part("mine.fvlt"), vault(1));
+    // A crafted part file for a name no vault is written under.
+    place.files.insert(part("autorun.inf"), vault(2));
+    place.files.insert(part("a:b.fvlt"), vault(3));
+    // The short name of a vault that was replaced: kept as a `.fvlt`.
+    place.files.insert(part("VAULT~1.FVL"), vault(4));
+    finish_vault_writes(&mut place);
+    assert_eq!(place.files["mine.fvlt"], vault(1));
+    assert!(!place.files.contains_key("autorun.inf"));
+    assert!(!place.files.contains_key("a:b.fvlt"));
+    assert_eq!(place.files["VAULT~1.FVL.fvlt"], vault(4));
 }
 
 #[test]

@@ -52,7 +52,8 @@ magic and its length is one of the four sizes of §2, whatever its name
 or extension. `.fvlt` is the name Faraday writes and the one its lists
 group its own files by; a file named so that holds other bytes is not a
 vault, and `VAULT~1.FVL` (the short name FAT gives `vault.fvlt`) or a
-file with no extension is one when it has these contents.
+file with no extension is one when it has these contents. The wipe
+still asks for its hold on any file named `.fvlt`, whatever it holds.
 
 ## 2. Slot sizes
 

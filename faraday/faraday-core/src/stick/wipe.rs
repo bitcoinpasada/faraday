@@ -177,13 +177,17 @@ impl Faraday {
             .delete_ask
             .as_ref()
             .is_some_and(|d| match d.what {
-                // The listing's kind: named `.fvlt`, or told a vault by
-                // its contents when it was made (§2.1).
+                // Told a vault by its contents when the listing was made
+                // (§2.1), or named `.fvlt`, whatever it holds: erring safe.
                 What::Files => self
                     .stick
                     .iter()
                     .find(|s| s.id == d.stick)
-                    .is_some_and(|s| d.chosen.iter().any(|f| s.is_vault(f))),
+                    .is_some_and(|s| {
+                        d.chosen
+                            .iter()
+                            .any(|f| s.is_vault(f) || f.to_ascii_lowercase().ends_with(".fvlt"))
+                    }),
                 What::Free | What::Whole => true,
             })
     }

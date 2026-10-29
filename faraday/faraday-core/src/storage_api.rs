@@ -17,26 +17,30 @@ pub struct StickInfo {
     pub serial: Option<u32>,
     /// The files at its top level, with their sizes.
     pub files: Vec<(String, u64)>,
-    /// The files among them that are vaults by their contents, though
-    /// not named `.fvlt` (`docs/VAULT-HARDENING.md` §2.1): found once
-    /// when the shell made the listing.
+    /// The files among them that are vaults by their contents, whatever
+    /// the name (`docs/VAULT-HARDENING.md` §2.1): found once when the
+    /// shell made the listing.
     pub vaults: Vec<String>,
 }
 
 impl StickInfo {
-    /// Whether the file listed as `name` is a vault: named `.fvlt`, or
-    /// found by its contents when the listing was made. A lookup.
+    /// Whether the file listed as `name` is a vault, found by its
+    /// contents when the listing was made; a file named `.fvlt` holding
+    /// other bytes is not. A lookup.
     #[must_use]
     pub fn is_vault(&self, name: &str) -> bool {
-        name.to_ascii_lowercase().ends_with(".fvlt") || self.vaults.iter().any(|v| v == name)
+        self.vaults.iter().any(|v| v == name)
     }
 
     /// What a visit calls the file listed as `name` ([`crate::stick_kind`]),
     /// a vault by its contents too. A lookup.
     #[must_use]
     pub fn kind_of(&self, name: &str) -> Option<&'static str> {
-        if self.vaults.iter().any(|v| v == name) {
+        if self.is_vault(name) {
             return Some(faraday_strings::EN.stick_kind_vault);
+        }
+        if name.to_ascii_lowercase().ends_with(".fvlt") {
+            return Some(faraday_strings::EN.stick_kind_file);
         }
         crate::stick_kind(name)
     }

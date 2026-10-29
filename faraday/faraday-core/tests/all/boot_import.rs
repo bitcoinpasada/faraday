@@ -83,11 +83,11 @@ fn boot_stick(files: &[(String, Vec<u8>)]) -> StickInfo {
             .iter()
             .map(|(n, b)| (n.clone(), b.len() as u64))
             .collect(),
-        // What the shell's listing finds: a vault not named .fvlt, by its
-        // first four bytes and its length.
+        // What the shell's listing finds: a vault by its first four bytes
+        // and its length, whatever its name.
         vaults: files
             .iter()
-            .filter(|(n, b)| !n.ends_with(".fvlt") && faraday_intake::is_vault(b))
+            .filter(|(_, b)| faraday_intake::is_vault(b))
             .map(|(n, _)| n.clone())
             .collect(),
     }

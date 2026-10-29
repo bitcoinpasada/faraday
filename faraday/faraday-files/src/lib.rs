@@ -279,6 +279,11 @@ impl<D: faraday_fat::Disk> Place for Fat<D> {
         self.0.read(name, max).map_err(fat_text)
     }
 
+    fn head(&mut self, name: &str, n: usize, max: u64) -> Result<Vec<u8>, String> {
+        let max = u32::try_from(max).unwrap_or(u32::MAX);
+        self.0.head(name, n, max).map_err(fat_text)
+    }
+
     fn create(&mut self, name: &str, bytes: &[u8]) -> Result<(), String> {
         self.0
             .create(name, bytes)
@@ -400,17 +405,13 @@ pub fn checked_for_write(name: &str) -> Result<&str, String> {
 
 /// Costs a read of the first four bytes of each file that could be a
 /// vault: the names in `files` that are a vault by its contents
-/// (`docs/VAULT-HARDENING.md` §2.1) and not named `.fvlt`, which are
-/// vaults by name. A file is read only where its length is one of the
-/// four vault sizes. Made once when the listing is, and kept with it.
+/// (`docs/VAULT-HARDENING.md` §2.1), whatever the name, a `.fvlt` too.
+/// A file is read only where its length is one of the four vault sizes. Made once when the listing is, and kept with it.
 pub fn vault_names(c: &Compute, place: &mut dyn Place, files: &[(String, u64)]) -> Vec<String> {
     let mut out = Vec::new();
     for (n, len) in files {
-        if n.to_ascii_lowercase().ends_with(".fvlt")
-            || n.starts_with('.')
-            || foreign(n)
-            || !vault_file::is_vault_len(*len)
-        {
+        let named = n.to_ascii_lowercase().ends_with(".fvlt");
+        if (n.starts_with('.') && !named) || foreign(n) || !vault_file::is_vault_len(*len) {
             continue;
         }
         c.count(Work::FileRead);
@@ -538,9 +539,10 @@ pub fn write_replacing(place: &mut dyn Place, name: &str, bytes: &[u8]) -> Resul
     Ok(old)
 }
 
-/// Whether the file `name` on the place is a vault: named `.fvlt`, or
-/// one of the vault lengths and beginning with the magic (§2.1). Reads
-/// four bytes of a file that is not named so.
+/// Whether the file `name` on the place is held as a vault: named
+/// `.fvlt`, whatever it holds (erring safe), or one of the vault lengths
+/// and beginning with the magic (§2.1). Reads four bytes of a file that
+/// is not named so.
 fn is_vault_on(place: &mut dyn Place, name: &str) -> bool {
     if name.to_ascii_lowercase().ends_with(".fvlt") {
         return true;
@@ -558,7 +560,7 @@ fn is_vault_on(place: &mut dyn Place, name: &str) -> bool {
 /// A vault's identity: its salt and its length (`docs/VAULT.md` §6).
 /// `None` for anything that is not a vault.
 fn vault_identity(bytes: &[u8], len: u64) -> Option<([u8; 32], u64)> {
-    if !vault_file::is_vault_file(bytes) || bytes.len() as u64 != len {
+    if !whole_vault(bytes) || bytes.len() as u64 != len {
         return None;
     }
     let mut salt = [0u8; 32];
@@ -702,18 +704,30 @@ pub fn finish_vault_writes(place: &mut dyn Place) {
         if !named && !(vault_file::is_vault_len(*len) && *len <= MAX_READ) {
             continue;
         }
-        if !named && !place.read(n, MAX_READ).is_ok_and(|b| whole_vault(&b)) {
+        // A part file larger than any vault is a crafted one: it goes
+        // without being read. The rest are read once.
+        let whole = *len <= MAX_READ && place.read(n, MAX_READ).is_ok_and(|b| whole_vault(&b));
+        if !named && !whole {
             continue;
         }
-        if files.iter().any(|(o, _)| o.eq_ignore_ascii_case(name)) {
+        if files.iter().any(|(o, _)| o.eq_ignore_ascii_case(name)) || !whole {
             let _ = place.remove(n);
             continue;
         }
-        // A part file larger than any vault is a crafted one: it goes
-        // without being read.
-        if *len <= MAX_READ && place.read(n, MAX_READ).is_ok_and(|b| whole_vault(&b)) {
-            let _ = place.rename(n, name);
+        // A whole vault takes the name it was written for only where a
+        // write could have given that name. The name of a vault that
+        // was not `.fvlt` is gone with the original, so its copy takes
+        // `.fvlt` after it, and never a name that could be another
+        // kind of file's.
+        let target = if named {
+            name.to_string()
         } else {
+            format!("{name}.fvlt")
+        };
+        let taken = files.iter().any(|(o, _)| o.eq_ignore_ascii_case(&target));
+        if checked_for_write(&target).is_ok() && !taken {
+            let _ = place.rename(n, &target);
+        } else if named {
             let _ = place.remove(n);
         }
     }

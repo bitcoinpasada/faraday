@@ -656,6 +656,28 @@ impl<D: Disk> Volume<D> {
         Ok(out)
     }
 
+    /// A file's first `n` bytes (fewer where it is shorter), refused when
+    /// the file is larger than `max` bytes. Reads the first cluster of
+    /// the file and not the rest.
+    pub fn head(&mut self, name: &str, n: usize, max: u32) -> Result<Vec<u8>, Error> {
+        let e = self.find(name)?.filter(|e| !e.dir).ok_or(Error::NotFound)?;
+        if e.size > max {
+            return Err(Error::TooLarge);
+        }
+        let size = (e.size as usize).min(n);
+        if size == 0 {
+            return Ok(Vec::new());
+        }
+        let cb = self.cluster_bytes as usize;
+        let chain = self.chain_start(e.cluster, size.div_ceil(cb))?;
+        let mut out = vec![0u8; size];
+        for (k, part) in out.chunks_mut(cb).enumerate() {
+            let at = self.cluster_at(chain[k]);
+            self.disk.read_at(at, part)?;
+        }
+        Ok(out)
+    }
+
     /// Every cluster's FAT entry from `from` on, in order, read a
     /// [`FAT_PIECE`] at a time, handed to `each` until it returns false.
     /// Returns the cluster it stopped before: the end when it did not.

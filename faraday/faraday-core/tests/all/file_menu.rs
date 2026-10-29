@@ -311,6 +311,17 @@ fn a_vault_deleted_from_the_stick_takes_a_hold() {
 }
 
 #[test]
+fn a_file_named_fvlt_holding_other_bytes_is_deleted_by_a_hold_too() {
+    let (_shell, mut app) = visiting(Vec::new(), vec![file("notes.fvlt", b"just text")]);
+    menu_of(&mut app, Row::Stick(0));
+    choose(&mut app, "Delete from the stick");
+    while app.poll_storage().is_some() {}
+    let _ = app.frame();
+    assert!(!app.offers(Action::DeleteGo), "no plain button");
+    assert!(app.offers(Action::Vault(faraday_core::vault::VaultAction::HoldWipe)));
+}
+
+#[test]
 fn details_shows_the_sha_256_of_the_bytes() {
     let c = faraday_core::testkit::compute();
     let bytes = b"what the file holds";

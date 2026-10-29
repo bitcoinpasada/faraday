@@ -144,6 +144,25 @@ def open_vault(blob: bytes, passphrase: str) -> bytes:
     return opened[0]
 
 
+def check_seal_count(fields: list[tuple[int, bytes]]) -> None:
+    """What the vault library refuses of a seal count record (type 16):
+    its count missing, a field that is not 8 bytes or not known, a field
+    twice, and a count of zero."""
+    seen = set()
+    for number, value in fields:
+        if number not in (1, 2):
+            raise SystemExit(f"field {number} is not in a seal count record")
+        if number in seen:
+            raise SystemExit(f"field {number} of the seal count appears twice")
+        seen.add(number)
+        if len(value) != 8:
+            raise SystemExit(f"field {number} of the seal count is not 8 bytes")
+    if 1 not in seen:
+        raise SystemExit("the seal count record has no count")
+    if dict(fields)[1] == bytes(8):
+        raise SystemExit("the seal count is zero")
+
+
 def records(plain: bytes) -> list[tuple[int, list[tuple[int, bytes]]]]:
     """The slot's records as (type, [(field, bytes)])."""
     if plain[0] != 1:
@@ -156,15 +175,25 @@ def records(plain: bytes) -> list[tuple[int, list[tuple[int, bytes]]]]:
             break
         if kind not in RECORDS:
             raise SystemExit(f"record type {kind} is not in docs/VAULT.md")
+        if at + 4 > len(plain):
+            raise SystemExit("a record is cut short")
         (length,) = struct.unpack_from("<I", plain, at)
         at += 4
+        if at + length > len(plain):
+            raise SystemExit("a record is cut short")
         body, at = plain[at : at + length], at + length
         fields, p = [], 0
         while p < len(body):
+            if p + 3 > len(body):
+                raise SystemExit(f"a field of record type {kind} is cut short")
             number = body[p]
             (n,) = struct.unpack_from("<H", body, p + 1)
+            if p + 3 + n > len(body):
+                raise SystemExit(f"a field of record type {kind} is cut short")
             fields.append((number, body[p + 3 : p + 3 + n]))
             p += 3 + n
+        if kind == 16:
+            check_seal_count(fields)
         out.append((kind, fields))
     if any(plain[at:]):
         raise SystemExit("bytes after the end record")

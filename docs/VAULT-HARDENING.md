@@ -90,9 +90,11 @@ The sites that read the magic and the size instead of the name:
   the bytes alone;
 - a stick's listing (`faraday/faraday-core/src/lib.rs`, the stick kind
   by extension): a file whose size is one of the four vault sizes and
-  whose name does not end in `.fvlt` has its first four bytes read once
-  when the listing is made, and is listed as a vault when they are the
-  magic. The read costs a file read; it is done once per listing, kept
+  has its first four bytes read once when the listing is made (a name
+  ending in `.fvlt` too), and is listed as a vault when they are the
+  magic; a file named `.fvlt` holding other bytes is listed as a file,
+  while the wipe still holds for any name ending in `.fvlt`, erring
+  safe. The read costs a file read; it is done once per listing, kept
   on the listing's state and never repeated while drawing;
 - `faraday/faraday-core/src/boot_import/mod.rs`'s count of vaults and
   `faraday/faraday-core/src/stick/wipe.rs`'s `is_vault_name`: the

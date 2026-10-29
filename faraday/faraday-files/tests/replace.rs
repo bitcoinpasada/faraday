@@ -112,7 +112,8 @@ fn a_vault_is_never_written_over_another_vault() {
     // write asks.
     let vault = |salt: u8| {
         let mut v = b"FVLT".to_vec();
-        v.extend_from_slice(&[0u8; 17]);
+        v.extend_from_slice(&[0u8; 13]);
+        v.extend_from_slice(&65_536u32.to_le_bytes());
         v.extend_from_slice(&[salt; 32]);
         v.resize(faraday_codec::vault_file::file_len(65_536), 0);
         v

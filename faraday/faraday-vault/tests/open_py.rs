@@ -228,3 +228,84 @@ fn open_py_reads_a_codex32_keys_set_and_a_codex32_share() {
     );
     assert!(text.contains("key fingerprint: fab6868a"), "{text}");
 }
+
+/// Runs `open.py`'s slot reader on the crafted slot plaintext `hex`
+/// (format 1, the records, the end record) and gives its output; `None`
+/// where Python or the libraries are missing.
+fn read_slot(hex: &str) -> Option<Output> {
+    let script = r#"
+import importlib.util, sys
+spec = importlib.util.spec_from_file_location("open_py", sys.argv[1])
+m = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(m)
+m.records(bytes.fromhex(sys.argv[2]))
+print("read")
+"#;
+    let out = Command::new("python3")
+        .args(["-I", "-B", "-c", script])
+        .arg(repo("tools/vault/open.py"))
+        .arg(hex)
+        .output()
+        .ok()?;
+    let err = String::from_utf8_lossy(&out.stderr);
+    if !out.status.success() && (err.contains("ModuleNotFoundError") || err.contains("ImportError"))
+    {
+        eprintln!("the Python libraries open.py needs are not installed: skipped");
+        return None;
+    }
+    Some(out)
+}
+
+/// A seal count record (type 16) of these fields, as hex.
+fn seals(fields: &[(u8, &[u8])]) -> String {
+    let mut body = Vec::new();
+    for (n, v) in fields {
+        body.push(*n);
+        body.extend((v.len() as u16).to_le_bytes());
+        body.extend(*v);
+    }
+    let mut out = vec![16u8];
+    out.extend((body.len() as u32).to_le_bytes());
+    out.extend(body);
+    out.iter().map(|b| format!("{b:02x}")).collect()
+}
+
+/// The slot `01`, the records, `00`, with the zeros after.
+fn slot(records: &[String]) -> String {
+    format!("01{}00{}", records.concat(), "00".repeat(16))
+}
+
+#[test]
+fn open_py_refuses_the_seal_counts_the_library_refuses_and_reads_a_sound_one() {
+    let one = 1u64.to_le_bytes();
+    let when = 5u64.to_le_bytes();
+    let sound = slot(&[seals(&[(1, &one), (2, &when)])]);
+    let Some(out) = read_slot(&sound) else {
+        return;
+    };
+    assert!(
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    for (what, hex) in [
+        ("count zero", slot(&[seals(&[(1, &[0u8; 8])])])),
+        ("count missing", slot(&[seals(&[(2, &when)])])),
+        ("count not 8 bytes", slot(&[seals(&[(1, &one[..4])])])),
+        (
+            "time not 8 bytes",
+            slot(&[seals(&[(1, &one), (2, &[1u8])])]),
+        ),
+        (
+            "a second record",
+            slot(&[seals(&[(1, &one)]), seals(&[(1, &one)])]),
+        ),
+        // A field whose length runs past the record's end.
+        ("a cut field", slot(&["10040000000108".to_string() + "00"])),
+    ] {
+        let out = read_slot(&hex).unwrap();
+        let err = String::from_utf8_lossy(&out.stderr);
+        assert!(!out.status.success(), "{what} was read");
+        assert!(!err.contains("Traceback"), "{what}: {err}");
+    }
+}

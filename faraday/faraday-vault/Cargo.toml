@@ -36,6 +36,8 @@ sha1 = { version = "0.11", default-features = false }
 [dev-dependencies]
 # The slot vectors' file (tools/vectors/vault/slots.json).
 serde_json.workspace = true
+# The vault sizes it must agree with (tests/sizes.rs).
+faraday-codec = { path = "../../core/faraday-codec", default-features = false }
 
 [lints]
 workspace = true
