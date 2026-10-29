@@ -108,13 +108,15 @@ fn on_fill(app: &mut Faraday, fill: Color) -> Vec<(String, f64)> {
 #[test]
 fn what_is_written_on_a_checksum_square_or_a_badge_reads_in_every_theme() {
     let mut short = Vec::new();
+    // The entry done: Share C's string, its checksum filled in, over its
+    // worksheet, which keeps the last box in view. Typed once; a scheme
+    // chosen in Settings redraws the same screen in it.
+    let mut app = both_typed_in(Theme::all().next().unwrap(), 1280, 1600);
     for theme in Theme::all() {
         let preset = theme;
         let need = if theme.is_high_contrast() { 7.0 } else { 4.5 };
         let fill = theme.color(Role::ChecksumContainer).with_alpha(255);
-        // The entry done: Share C's string, its checksum filled in, over
-        // its worksheet, which keeps the last box in view.
-        let mut app = both_typed_in(preset, 1280, 1600);
+        app.press(Action::Theme(theme));
         let drawn = on_fill(&mut app, fill);
         // The string's checksum characters, and the worksheet's
         // characters and box numbers in its checksum squares.
