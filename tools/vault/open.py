@@ -42,10 +42,13 @@ The layout, all little-endian:
     21   salt, 32 bytes               -- 0..53 is the header
     53   four slots, each a 24-byte nonce, L bytes of ciphertext, a tag
 
-K = Argon2id(passphrase, salt); the slot key is HKDF-SHA256 of K with an
-empty salt and the info "Faraday vault v1 slot"; slot i's associated
-data is the header and the byte i. Every slot is tried; exactly one
-opens.
+K = Argon2id(passphrase in Unicode NFC, salt); the slot key is
+HKDF-SHA256 of K with an empty salt and the info "Faraday vault v1 slot";
+slot i's associated data is the header and the byte i. Every slot is
+tried; exactly one opens. A slot's plaintext begins with 32 zero bytes,
+the commitment block: a slot whose tag verifies and whose block is not
+zero refuses the file. Then the format byte, 1, the records (exactly one
+of them the seal count, type 16), the end record and zeros.
 """
 
 from __future__ import annotations
@@ -58,6 +61,8 @@ import importlib.util
 import os
 import struct
 import sys
+import time
+import unicodedata
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -72,6 +77,7 @@ NONCE_LEN = 24
 TAG_LEN = 16
 SLOT_SIZES = (65536, 262144, 1048576, 4194304)
 SLOT_INFO = b"Faraday vault v1 slot"
+COMMIT_LEN = 32
 
 RECORDS = {
     1: ("Slot label", {1: "label"}),
@@ -88,6 +94,7 @@ RECORDS = {
     13: ("Wallet share", {1: "share", 2: "wallet name", 3: "share number", 4: "of", 5: "wallet"}),
     14: ("Passphrase", {1: "key fingerprint", 2: "passphrase"}),
     15: ("Codex32 share", {1: "string", 2: "key fingerprint"}),
+    16: ("Seal count", {1: "count", 2: "last sealed"}),
 }
 
 CODEX32_STATES = ("made", "placed", "lost", "exposed", "destroyed")
@@ -103,8 +110,9 @@ def hkdf_sha256(ikm: bytes, info: bytes) -> bytes:
     return hmac.new(prk, info + b"\x01", hashlib.sha256).digest()
 
 
-def open_vault(blob: bytes, passphrase: bytes) -> bytes:
-    """The plaintext of the one slot `passphrase` opens."""
+def open_vault(blob: bytes, passphrase: str) -> bytes:
+    """The plaintext of the one slot `passphrase` opens, after its
+    commitment block. The passphrase is put in NFC first."""
     if blob[:4] != MAGIC or len(blob) < HEADER_LEN or blob[4] != 1:
         raise SystemExit("not a Faraday vault of version 1")
     memory, passes, lanes, slot_len = struct.unpack_from("<4I", blob, 5)
@@ -114,15 +122,21 @@ def open_vault(blob: bytes, passphrase: bytes) -> bytes:
         raise SystemExit("the stated Argon2id cost is outside the format's limits")
     header = blob[:HEADER_LEN]
     salt = blob[21:53]
-    key = hkdf_sha256(prim.argon2id(passphrase, salt, memory, passes, lanes), SLOT_INFO)
-    opened = []
+    nfc = unicodedata.normalize("NFC", passphrase).encode()
+    key = hkdf_sha256(prim.argon2id(nfc, salt, memory, passes, lanes), SLOT_INFO)
+    opened, uncommitted = [], False
     for i in range(4):
         at = HEADER_LEN + i * (slot_len + NONCE_LEN + TAG_LEN)
         nonce = blob[at : at + NONCE_LEN]
         sealed = blob[at + NONCE_LEN : at + NONCE_LEN + slot_len + TAG_LEN]
         plain = prim.xchacha20poly1305_open(key, nonce, header + bytes([i]), sealed)
         if plain is not None:
-            opened.append(plain)
+            if any(plain[:COMMIT_LEN]):
+                uncommitted = True
+            else:
+                opened.append(plain[COMMIT_LEN:])
+    if uncommitted:
+        raise SystemExit("a slot opened that is not committed to this passphrase; the file is not sound")
     if not opened:
         raise SystemExit("that passphrase opens nothing in this vault")
     if len(opened) > 1:
@@ -154,6 +168,8 @@ def records(plain: bytes) -> list[tuple[int, list[tuple[int, bytes]]]]:
         out.append((kind, fields))
     if any(plain[at:]):
         raise SystemExit("bytes after the end record")
+    if sum(1 for kind, _ in out if kind == 16) != 1:
+        raise SystemExit("the slot does not hold exactly one seal count")
     return out
 
 
@@ -176,6 +192,14 @@ def show(kind: int, number: int, value: bytes) -> str:
         known = ", ".join(f"{chr(value[i])} {CODEX32_STATES[value[i + 1]]}" for i in range(7, len(value), 2))
         more = f", {unknown} not known" if unknown else ""
         return f"k {k} · identifier {ident} · {length} characters · {known or 'none known'}{more}"
+    if kind == 16:
+        (n,) = struct.unpack("<Q", value)
+        if number == 1:
+            return str(n)
+        try:
+            return time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime(n))
+        except (OverflowError, OSError, ValueError):
+            return f"{n} seconds after 1970"
     if (kind, number) in TEXT_FIELDS:
         return value.decode()
     return value.hex()
@@ -230,7 +254,7 @@ def main() -> None:
     else:
         # A passphrase piped in (a test's): one line, without its newline.
         passphrase = sys.stdin.readline().rstrip("\r\n")
-    recs = records(open_vault(blob, passphrase.encode()))
+    recs = records(open_vault(blob, passphrase))
     if args.field is not None:
         return write_field(recs, args.field, args.index, args.out)
     for kind, fields in recs:

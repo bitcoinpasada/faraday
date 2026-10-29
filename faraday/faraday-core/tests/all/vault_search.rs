@@ -53,7 +53,7 @@ fn many_entries() -> Vec<u8> {
         &c,
         faraday_vault::SLOT_SIZES[0],
         cost,
-        &[PASSPHRASE.as_bytes()],
+        &[PASSPHRASE],
         &[Contents { records }],
         &[0x42; 32],
     )

@@ -171,6 +171,40 @@ fn a_type_the_slot_does_not_hold_and_a_wrong_passphrase_write_nothing() {
     assert!(!file.exists());
 }
 
+/// The vector made with "café" in NFD opens in the reader under the
+/// passphrase in NFD and in NFC, its seal count read.
+#[test]
+fn open_py_opens_the_nfd_vector_under_either_form() {
+    for p in [vectors::NFD.1[0], vectors::NFD_AS_NFC] {
+        let Some(out) = open_py(vectors::NFD.0, p, &[]) else {
+            return;
+        };
+        let text = String::from_utf8_lossy(&out.stdout);
+        assert!(
+            out.status.success(),
+            "{}",
+            String::from_utf8_lossy(&out.stderr)
+        );
+        assert!(text.contains("label: Accents"), "{text}");
+        assert!(text.contains("Seal count\n  count: 1"), "{text}");
+    }
+}
+
+/// The slot that verifies under two passphrases' keys is refused by the
+/// reader under each, for its commitment block.
+#[test]
+fn open_py_refuses_the_slot_two_passphrases_open() {
+    for p in vectors::TWO_KEYS.1 {
+        let Some(out) = open_py(vectors::TWO_KEYS.0, p, &[]) else {
+            return;
+        };
+        let err = String::from_utf8_lossy(&out.stderr);
+        assert!(!out.status.success());
+        assert!(out.stdout.is_empty());
+        assert!(err.contains("not committed"), "{err}");
+    }
+}
+
 #[test]
 fn open_py_reads_a_codex32_keys_set_and_a_codex32_share() {
     let Some(out) = open_py(vectors::CODEX32.0, vectors::CODEX32.1[0], &[]) else {

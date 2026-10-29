@@ -1360,11 +1360,10 @@ with an empty salt and the label "Faraday vault v1 slot", makes the slot
 key from them. One passphrase gives one slot key, which is tried on
 every slot.
 
-- **[P]** Today Argon2id takes the passphrase's UTF-8 bytes as typed, so
-  "é" typed as one character (U+00E9) and as "e" with a combining accent
-  (U+0065 U+0301) are different passphrases.
-- **[P]** Planned, not built: the passphrase is first put in Unicode
-  Normalization Form C. Then both forms of "é" open the same slot, and
+- The passphrase is first put in Unicode Normalization Form C, and
+  Argon2id takes that form's UTF-8 bytes. Then "é" typed as one
+  character (U+00E9) and as "e" with a combining accent (U+0065 U+0301)
+  open the same slot, and
   two passphrases with one Form C are refused as the same when a vault
   is made. Nothing else is changed: case, spaces and every character are
   kept as typed, and Form C keeps full-width letters and ligatures as
@@ -1378,12 +1377,12 @@ Poly1305 tag, sealed with XChaCha20-Poly1305
 and the slot's number, 0 to 3: 54 bytes. A slot's plaintext is a format
 byte, the slot's records, an end record, and zeros to *L*.
 
-- **[C]** Planned, not built: the plaintext starts with 32 zero bytes,
-  before the format byte. *L* and the file's size do not change; the room
-  for records is 32 bytes less.
-- **[S]** Planned, not built: every slot holds one seal count record:
-  how many times the slot has been written, and when it was last written
-  by the clock of the computer that wrote it.
+- The plaintext starts with 32 zero bytes, before the format byte. *L*
+  and the file's size do not change; the room for records is 32 bytes
+  less.
+- Every slot holds one seal count record: how many times the slot has
+  been written, and when it was last written by the clock of the
+  computer that wrote it.
 
 A slot no passphrase opens is a nonce and *L* + 16 bytes, drawn when the
 vault is made from a ChaCha20 keystream keyed by HKDF-SHA256 of the
@@ -1408,8 +1407,8 @@ show which slot a passphrase opens. A passphrase that opens none
 decrypts and reads no slot, which the result shows anyway. The opened
 slot's records are read, and any fault refuses the slot.
 
-- **[C]** Planned, not built: a slot whose tag verifies and whose first
-  32 bytes are not zero refuses the file.
+- A slot whose tag verifies and whose first 32 bytes are not zero
+  refuses the file.
 
 **Sealing**
 
@@ -1425,8 +1424,8 @@ place.
   Planned, not built: each seal's nonce is drawn fresh from the system's
   randomness; the seed and count are used only when no fresh answer is
   available.
-- **[S]** Planned, not built: each seal writes the slot's seal count, one
-  more than when it was opened, and the time.
+- Each seal writes the slot's seal count, one more than the last, and
+  the time.
 
 **What a changed header can do**
 
@@ -1484,14 +1483,10 @@ be changed unnoticed.
 - **Key commitment.** XChaCha20-Poly1305 does not commit to its key: a
   slot can be made whose tag verifies under two passphrases, showing
   other contents under each. Making one needs both passphrases.
-  - **[C]** Planned, not built: the 32 zero bytes at the start of every
-    slot's plaintext; under a second key they decrypt to other bytes, and
-    the file is refused.
-- **[S]** Planned, not built: **the seal count is read by whoever opens
-  the slot.** A decoy slot sealed twice beside one sealed daily says it
+  - The 32 zero bytes at the start of every slot's plaintext: under a
+    second key they decrypt to other bytes, and the file is refused.
+- **The seal count is read by whoever opens the slot.** A decoy slot sealed twice beside one sealed daily says it
   is little used. Opening and sealing the decoy raises its count.
-- **[P]** Today a passphrase typed in another Unicode form opens nothing
-  (The keys, above).
 
 ### 18.4 Passphrase strength
 

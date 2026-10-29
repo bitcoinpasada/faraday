@@ -105,7 +105,7 @@ fn remembering_vault(psbt: &faraday_psbt::Psbt, with_wallet: bool) -> Vec<u8> {
             passes: 1,
             lanes: 1,
         },
-        &[PHRASE.as_bytes()],
+        &[PHRASE],
         &[Contents { records }],
         &[0x4d; 32],
     )

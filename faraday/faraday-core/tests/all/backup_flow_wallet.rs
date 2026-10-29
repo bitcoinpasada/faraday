@@ -2388,7 +2388,7 @@ fn vault_with_key(label: &str, phrase: &str, seed: u8, n: usize) -> Vec<u8> {
         &c,
         faraday_vault::SLOT_SIZES[0],
         cost,
-        &[phrase.as_bytes()],
+        &[phrase],
         &[contents],
         &[seed; 32],
     )
@@ -3654,7 +3654,7 @@ fn a_share_kept_in_a_vault_is_saved_sealed_and_rebuilds_with_another() {
         app.flow().unwrap().live.problem
     );
     let sealed = fvlt(&shell, "S1").expect("the vault's copy");
-    let (_, c) = faraday_vault::open(&c, &sealed, PHRASE.as_bytes()).unwrap();
+    let (_, c) = faraday_vault::open(&c, &sealed, PHRASE).unwrap();
     assert_eq!(c.of(kind::WALLET_SHARE).count(), 1, "sealed with the share");
     // Restore: that vault open, Share 1 in the Inbox.
     let name = format!("{stem}-share-1-of-{n}.txt");
@@ -3763,7 +3763,7 @@ fn a_share_put_into_a_vault_after_the_lock_starts_the_round_and_is_sealed() {
         app.flow().unwrap().live.problem
     );
     let sealed = fvlt(&shell, "S1").expect("Vault 1 on S1");
-    let (_, c) = faraday_vault::open(&c, &sealed, PHRASE.as_bytes()).unwrap();
+    let (_, c) = faraday_vault::open(&c, &sealed, PHRASE).unwrap();
     assert_eq!(
         c.of(kind::WALLET_SHARE).count(),
         1,
@@ -4017,7 +4017,7 @@ fn a_passphrase_taken_out_of_a_vault_after_the_lock_starts_a_round_and_leaves_it
         app.flow().unwrap().live.problem
     );
     let sealed = fvlt(&shell, "S1").expect("Vault 1 on S1");
-    let (_, c) = faraday_vault::open(&c, &sealed, PHRASE.as_bytes()).unwrap();
+    let (_, c) = faraday_vault::open(&c, &sealed, PHRASE).unwrap();
     let keys: Vec<bool> = c
         .of(kind::KEY)
         .map(|(_, r)| {
@@ -4376,7 +4376,7 @@ fn a_vault_kept_with_apostrophes_opens_with_its_plan_attached() {
         &c,
         faraday_vault::SLOT_SIZES[0],
         cost,
-        &[PHRASE.as_bytes()],
+        &[PHRASE],
         &[contents],
         &[9; 32],
     )
@@ -4478,7 +4478,7 @@ fn a_key_an_existing_vault_held_before_the_flow_is_never_taken_out() {
         app.flow().unwrap().live.problem
     );
     let sealed = fvlt(&shell, "S1").expect("Vault 1 on S1");
-    let (_, c) = faraday_vault::open(&c, &sealed, PHRASE.as_bytes()).unwrap();
+    let (_, c) = faraday_vault::open(&c, &sealed, PHRASE).unwrap();
     assert_eq!(c.of(kind::KEY).count(), 1, "Key 1 stays");
 }
 
@@ -4577,7 +4577,7 @@ fn a_held_seed_is_never_left_on_no_stick_after_the_lock() {
     );
     for d in ["S1", "S2"] {
         let sealed = fvlt(&shell, d).expect("Vault 1's copy");
-        let (_, c) = faraday_vault::open(&c, &sealed, PHRASE.as_bytes()).unwrap();
+        let (_, c) = faraday_vault::open(&c, &sealed, PHRASE).unwrap();
         assert_eq!(c.of(kind::KEY).count(), 1, "{d} holds the key");
     }
     assert!(
@@ -5370,7 +5370,7 @@ fn a_passphrase_taken_out_leaves_the_earlier_bare_record_alone() {
         app.flow().unwrap().live.problem
     );
     let sealed = fvlt(&shell, "S1").expect("Vault 1 on S1");
-    let (_, c) = faraday_vault::open(&c, &sealed, PHRASE.as_bytes()).unwrap();
+    let (_, c) = faraday_vault::open(&c, &sealed, PHRASE).unwrap();
     let keys: Vec<bool> = c
         .of(kind::KEY)
         .map(|(_, r)| r.field(field::KEY_PASSPHRASE).is_some())
@@ -5450,7 +5450,7 @@ fn another_open_vault_never_replaces_a_backup_past_its_lock() {
         &c,
         faraday_vault::SLOT_SIZES[0],
         cost,
-        &[PHRASE_2.as_bytes()],
+        &[PHRASE_2],
         &[contents],
         &[0x77; 32],
     )

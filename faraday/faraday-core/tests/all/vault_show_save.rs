@@ -314,7 +314,7 @@ fn a_japanese_seed_saved_to_a_stick_is_its_words() {
             passes: 1,
             lanes: 1,
         },
-        &[b"japanese phrase"],
+        &["japanese phrase"],
         &[faraday_vault::Contents {
             records: vec![record],
         }],

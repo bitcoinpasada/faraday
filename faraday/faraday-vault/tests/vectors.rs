@@ -28,13 +28,20 @@ fn each_passphrase_opens_its_slot_of_the_vectors() {
     let c = vectors::compute();
     let three = committed(vectors::THREE.0);
     for (p, label) in vectors::THREE.1.iter().zip(vectors::LABELS) {
-        let (_, got) = faraday_vault::open(&c, &three, p.as_bytes()).expect("opens");
+        let (_, got) = faraday_vault::open(&c, &three, p).expect("opens");
         assert_eq!(got.records.len(), 12);
         assert_eq!(got.records[0].text(field::LABEL), Some(label));
     }
     let one = committed(vectors::ONE.0);
-    assert!(faraday_vault::open(&c, &one, vectors::ONE.1[0].as_bytes()).is_ok());
-    assert!(faraday_vault::open(&c, &one, b"first passphrase").is_err());
+    assert!(faraday_vault::open(&c, &one, vectors::ONE.1[0]).is_ok());
+    assert!(faraday_vault::open(&c, &one, "first passphrase").is_err());
+    // Made with the passphrase in NFD, the vector opens under it in NFC.
+    let nfd = committed(vectors::NFD.0);
+    for p in [vectors::NFD.1[0], vectors::NFD_AS_NFC] {
+        let (opened, got) = faraday_vault::open(&c, &nfd, p).expect("opens");
+        assert_eq!(got.records[0].text(field::LABEL), Some("Accents"));
+        assert_eq!(opened.seals(), faraday_vault::Seals::FIRST);
+    }
 }
 
 fn unhex(s: &str) -> Vec<u8> {
@@ -54,7 +61,7 @@ fn each_slot_vector_is_read_as_its_file_says() {
     let text = String::from_utf8(committed("slots.json")).unwrap();
     let v: serde_json::Value = serde_json::from_str(&text).unwrap();
     let cases = v["cases"].as_array().unwrap();
-    assert_eq!(cases.len(), 12);
+    assert_eq!(cases.len(), 16);
     for case in cases {
         let name = case["case"].as_str().unwrap();
         let got = faraday_vault::Contents::decode(&unhex(case["plain"].as_str().unwrap()));
@@ -101,7 +108,12 @@ fn a_duplicate_record_is_not_written() {
         ),
         (vec![amounts(7), amounts(8)], None),
     ] {
-        let got = Contents { records }.encode(65_536).err();
+        let got = Contents { records }
+            .encode(
+                65_536 - faraday_vault::COMMIT_LEN,
+                faraday_vault::Seals::FIRST,
+            )
+            .err();
         assert_eq!(got, fault.map(Error::Contents));
     }
 }
@@ -112,7 +124,7 @@ fn a_duplicate_record_is_not_written() {
 fn an_empty_passphrase_is_refused_at_create() {
     let c = vectors::compute();
     let size = faraday_vault::SLOT_SIZES[0];
-    for passphrases in [vec![&b""[..]], vec![&b"one"[..], &b""[..]]] {
+    for passphrases in [vec![""], vec!["one", ""]] {
         let contents = vec![faraday_vault::Contents::default(); passphrases.len()];
         let got = faraday_vault::create(&c, size, vectors::COST, &passphrases, &contents, &[1; 32]);
         assert_eq!(got.err(), Some(faraday_vault::Error::Passphrases));

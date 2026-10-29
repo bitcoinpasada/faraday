@@ -1145,7 +1145,7 @@ fn seeds_vault() -> Result<Vec<u8>, String> {
         &c,
         faraday_vault::SLOT_SIZES[0],
         cost,
-        &[BACKUP_VAULT_PASSPHRASE.as_bytes()],
+        &[BACKUP_VAULT_PASSPHRASE],
         &[main],
         &[0x5b; 32],
     )
@@ -1216,10 +1216,7 @@ pub fn test_vault() -> Result<Vec<u8>, String> {
         &c,
         faraday_vault::SLOT_SIZES[0],
         cost,
-        &[
-            VAULT_PASSPHRASES[0].as_bytes(),
-            VAULT_PASSPHRASES[1].as_bytes(),
-        ],
+        &[VAULT_PASSPHRASES[0], VAULT_PASSPHRASES[1]],
         &[main, decoy],
         &[0x7a; 32],
     )

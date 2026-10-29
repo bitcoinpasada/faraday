@@ -70,7 +70,11 @@ K_slot = HKDF-SHA256(ikm = K, salt = empty, info = "Faraday vault v1 slot")
 AD_i   = bytes 0..53 of the file || i      (one byte, 0 to 3)
 ```
 
-The passphrase is its UTF-8 bytes, unnormalised. One
+The passphrase is put in Unicode NFC (Unicode Standard Annex #15), and
+Argon2id takes the NFC form's UTF-8 bytes; two passphrases with one NFC
+form are one passphrase. Nothing else is done to it: no character is
+mapped or refused, and compatibility characters ("ﬁ", "Ａ"), case and
+spaces are kept as typed. One
 passphrase gives one `K_slot`; it is tried against every slot. The header
 is associated data for every slot, so a changed header fails every tag
 rather than costing work under the wrong parameters.
@@ -241,10 +245,20 @@ This computer has 1.5 GiB free." It does not attempt the derivation.
 2. Derive `K_slot` once.
 3. Try to decrypt **all four** slots, each with its own nonce and `AD_i`,
    in place and one at a time, zeroizing a buffer whose tag fails. The
-   work is the same whichever slot opens and whether any does.
+   work is the same whichever slot opens; a passphrase that opens none
+   does not decrypt or parse a slot, which the result says anyway.
 4. Exactly one tag verifies: that slot is open. None: the passphrase is
    wrong. More than one: refuse the file (it cannot be written by this
-   format, since slots under one key are never created).
+   format, since slots under one key are never created). A slot whose
+   tag verifies and whose first 32 bytes, the commitment block, are not
+   all zero refuses the file too: the block is checked in constant time
+   (an OR of every byte, compared once), before anything in the slot is
+   read. XChaCha20-Poly1305 does not commit to its key, so a slot can be
+   made whose tag verifies under two keys (Len, Grubbs and Ristenpart,
+   "Partitioning Oracle Attacks", 2021); under the second key the block
+   decrypts to other bytes (Albertini et al., "How to Abuse and Fix
+   Authenticated Encryption Without Key Commitment", 2022), and this
+   format never writes one.
 5. Parse the opened plaintext (§7). Any fault is a refusal of that slot.
 
 Several vaults may be open at once, each with one open slot.
@@ -349,9 +363,14 @@ A slot's plaintext is *L* bytes:
 
 | At | Bytes | What |
 |---|---|---|
-| 0 | 1 | slot format, 1 |
-| 1 | … | records, then the end record |
+| 0 | 32 | zero: the commitment block (§4 step 4) |
+| 32 | 1 | slot format, 1 |
+| 33 | … | records, then the end record |
 | … | … | zero, to *L* |
+
+The room for records is *L* less the commitment block, the format byte,
+the seal count at its largest (27 bytes, with its time) and the end
+record, whether or not the clock was set.
 
 A **record** is a type byte, a `u32` body length, and the body. Type 0 is
 the end record and has no length or body. Every byte after it must be
@@ -379,6 +398,7 @@ exactly where its last field does, refuses the slot.
 | 13 | Wallet share | 1 the share: a part of a multisig wallet's description with some keys left off, as the share's `.txt` file holds it (`docs/BACKUP-FLOW.md` §15.6); 2 the wallet's name; 3 which share, `u8`, from 1; 4 how many shares, `u8`; 5 the wallet, as a type 11 record's field 1 holds it, by which a share is told from another wallet's of the same name. Repeatable per slot, one record per share and wallet. Written by the backup checklist's vault item when the plan keeps a share in that vault; a build before 2026-10-15 refuses a slot that holds one |
 | 14 | Passphrase | 1 the fingerprint of the key it is the BIP-39 passphrase of, the key's words with this passphrase (4 bytes); 2 the passphrase. Both required; at most one record per key and slot, and a slot holding two for one key is refused, naming the key. Written by the backup checklist's vault item when the plan keeps a seed's passphrase in a vault that does not hold the seed (`docs/BACKUP-FLOW.md` §17.12 item 4, `What::PassphraseSealed`); a vault that holds the seed keeps the passphrase in the key record's field 4 instead. Loading a key record with no field 4 from any open vault uses the passphrase a type 14 record in an open vault keeps for it, found by the fingerprint its words make with it. A build before F37 refuses a slot that holds one |
 | 15 | Codex32 share | 1 the string, a codex32 string (BIP 93) in lower case, of a set whose threshold is 2 or more and never its secret (the secret is the seed, kept as a key record); 2 the fingerprint of the key its set makes (4 bytes). Both required; at most one record per share index and key in a slot. What the backup plan places as a string in a vault (`docs/CODEX32.md` §9.5, `What::Codex32Share` in a vault); written by the backup checklist's vault item and the flow's round, and gathered across the open vaults at unlock towards its key (`docs/CODEX32.md` §2); its string is secret (`faraday-keys`' `SECRET_FIELDS`). A build before it refuses a slot that holds one |
+| 16 | Seal count | 1 how many times the slot has been written, `u64`, 1 or more; 2 the time of the last seal, `u64` seconds since 1970-01-01 UTC by the clock of the computer that sealed it, absent when that clock was not set. Exactly one per slot, and a slot with none or two is refused. Written by `faraday-vault` alone: making a vault writes count 1 with no time in every used slot, each seal writes one more than the slot was opened with (or than the last seal of the same opening) and the time, and records given to be written that hold one are refused. Faraday writes it first, after the format byte; a reader takes it from anywhere among the records. Read by whoever opens the slot, and by no one else: it is inside the slot |
 
 An open slot's view shows each type 3 wallet with the type 11 plan this
 slot keeps for it, as a chart read from the backup up: the places,
@@ -409,8 +429,9 @@ read by `faraday/faraday-vault/src/layouts.rs`:
 A key record's field 1 of 34 bytes is read as words and any other length
 as a seed.
 
-Records appear in any order. A slot with no records holds only the format
-byte and the end record, and is still a used slot.
+Records appear in any order. A slot with no records holds the
+commitment block, the format byte, its seal count and the end record,
+and is still a used slot.
 
 ## 8. Creating
 
@@ -483,7 +504,7 @@ slot and writes that one field's bytes, of the record of that type
 primary seed, type 7 field 1, for instance) reaches another tool without
 Faraday. The vectors in `tools/vectors/vault/` are opened by both
 implementations in the tests: a 64 KiB vault with one passphrase, and a
-64 KiB vault with three, each slot holding one record of every type but the retired 12 and the codex32 ones; and a 64 KiB vault, `vault-codex32.fvlt`, whose one slot holds BIP 93 vector 2's key with its codex32 set (type 2, field 5) and a codex32 share record (type 15).
+64 KiB vault with three, each slot holding one record of every type but the retired 12 and the codex32 ones; a 64 KiB vault, `vault-codex32.fvlt`, whose one slot holds BIP 93 vector 2's key with its codex32 set (type 2, field 5) and a codex32 share record (type 15); `vault-nfd.fvlt`, made with "café" in NFD (e and U+0301), which opens under its NFC form too; and `two-keys.fvlt`, written by `tools/vectors/vault/two_keys.py`, one of whose slots verifies under the slot keys of two passphrases and is refused under both for its commitment block. Every slot of the vectors holds its seal count, 1. The reader puts the passphrase in NFC, checks the commitment block and prints the seal count.
 
 ## 11. What the app remembers of a locked vault
 

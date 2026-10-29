@@ -8,7 +8,9 @@
 //! private to `faraday_vault`; they are checked through `vault.create`,
 //! whose every byte depends on both.
 //!
-//! Records travel as `[[type, [[field, hex], ...]], ...]`.
+//! Records travel as `[[type, [[field, hex], ...]], ...]`, a seal count
+//! as `[count, last]` (`last` null when absent), and passphrases as
+//! JSON text, which `faraday_vault` puts in NFC.
 
 use chacha20poly1305::aead::inout::InOutBuf;
 use chacha20poly1305::{AeadInOut, KeyInit, Tag, XChaCha20Poly1305, XNonce};
@@ -16,11 +18,11 @@ use faraday_backup::Cost;
 use faraday_bip::bip39::{Language, Mnemonic};
 use faraday_crypto::work::Compute;
 use faraday_vault::layouts::{self, Opened};
-use faraday_vault::{Contents, Record};
+use faraday_vault::{COMMIT_LEN, Contents, Record, Seals};
 use serde_json::{Value, json};
 
 use crate::Answer;
-use crate::json::{b32, bytes, bytes_list, hex, num};
+use crate::json::{b32, bytes, hex, num, text, texts};
 
 fn err<E: core::fmt::Debug>(e: E) -> String {
     format!("{e:?}")
@@ -68,6 +70,18 @@ fn records(c: &Contents) -> Value {
             })
             .collect(),
     )
+}
+
+fn seals(s: Seals) -> Value {
+    json!([s.count, s.last])
+}
+
+/// The seal count a request gives as `count` and `last`.
+fn seals_of(req: &Value) -> Seals {
+    Seals {
+        count: num(req, "count"),
+        last: req["last"].as_u64(),
+    }
 }
 
 fn nonce(req: &Value) -> [u8; 24] {
@@ -118,8 +132,7 @@ pub fn handle(name: &str, req: &Value) -> Answer {
         }
         // A new vault from the seed every random byte is drawn from.
         "create" => {
-            let passphrases = bytes_list(req, "passphrases");
-            let refs: Vec<&[u8]> = passphrases.iter().map(Vec::as_slice).collect();
+            let refs = texts(req, "passphrases");
             let all: Vec<Contents> = req["contents"]
                 .as_array()
                 .expect("contents is a list")
@@ -133,31 +146,47 @@ pub fn handle(name: &str, req: &Value) -> Answer {
             Ok(json!({"file": hex(&file)}))
         }
         "open" => {
-            let (_, opened) =
-                faraday_vault::open(&c, &bytes(req, "file"), &bytes(req, "passphrase"))
+            let (opened, contents) =
+                faraday_vault::open(&c, &bytes(req, "file"), text(req, "passphrase"))
                     .map_err(err)?;
-            Ok(json!({"records": records(&opened)}))
+            Ok(json!({"records": records(&contents), "seals": seals(opened.seals())}))
+        }
+        // The Unicode version the passphrase is put in NFC under.
+        "unicode_version" => {
+            let (a, b, v) = faraday_vault::UNICODE_VERSION;
+            Ok(json!({"version": format!("{a}.{b}.{v}")}))
         }
         // Opens the slot a passphrase opens and seals new contents into
         // it under the nonce given.
         "seal" => {
             let file = bytes(req, "file");
-            let (opened, _) =
-                faraday_vault::open(&c, &file, &bytes(req, "passphrase")).map_err(err)?;
+            let (mut opened, _) =
+                faraday_vault::open(&c, &file, text(req, "passphrase")).map_err(err)?;
             let sealed = opened
-                .seal(&file, &contents(&req["contents"]), &nonce(req))
+                .seal(
+                    &file,
+                    &contents(&req["contents"]),
+                    &nonce(req),
+                    req["now"].as_u64(),
+                )
                 .map_err(err)?;
             Ok(json!({"file": hex(&sealed)}))
         }
-        // A slot's plaintext, and its reading, with no cipher around it.
+        // A slot's plaintext after its commitment block, and its
+        // reading, with no cipher around it.
         "encode" => {
-            let slot_len = u32::try_from(num(req, "slot_len")).map_err(err)?;
-            let plain = contents(&req["contents"]).encode(slot_len).map_err(err)?;
+            let slot_len = usize::try_from(num(req, "slot_len")).map_err(err)?;
+            let len = slot_len
+                .checked_sub(COMMIT_LEN)
+                .ok_or("shorter than the block")?;
+            let plain = contents(&req["contents"])
+                .encode(len, seals_of(req))
+                .map_err(err)?;
             Ok(json!({"plain": hex(&plain)}))
         }
         "decode" => {
-            let c = Contents::decode(&bytes(req, "plain")).map_err(err)?;
-            Ok(json!({"records": records(&c)}))
+            let (c, s) = Contents::decode(&bytes(req, "plain")).map_err(err)?;
+            Ok(json!({"records": records(&c), "seals": seals(s)}))
         }
         _ => layout(name, req),
     }

@@ -63,7 +63,7 @@ pub(crate) fn pass_seeds_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
         c,
         faraday_vault::SLOT_SIZES[0],
         cost,
-        &[b"trio phrase".as_slice()],
+        &["trio phrase"],
         &[Contents { records }],
         &[0x5e; 32],
     )

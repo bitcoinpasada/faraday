@@ -1484,7 +1484,7 @@ impl Vaults {
         bytes: Vec<u8>,
         cost: Cost,
     ) -> Result<(VaultId, Header), fv::Error> {
-        let result = self.store.unlock(c, bytes, self.passphrase.text.as_bytes());
+        let result = self.store.unlock(c, bytes, &self.passphrase.text);
         work::note_vault(VaultAct::Unlocked, cost, VaultEnded::of(&result));
         result
     }

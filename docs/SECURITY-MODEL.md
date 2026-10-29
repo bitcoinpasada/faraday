@@ -265,13 +265,23 @@ everything below about the process still applies.
 - A vault is one file. Its header (format version, Argon2id cost and a
   random 32-byte salt) is not secret. Everything after it is ciphertext.
 - **Key.** Argon2id version 1.3 over the passphrase and the salt, then
-  HKDF-SHA256 with a fixed label, gives a 256-bit key. Faraday creates
+  HKDF-SHA256 with a fixed label, gives a 256-bit key. The passphrase is
+  put in Unicode NFC first, so "é" typed as one character or as "e" and
+  an accent is one passphrase; nothing else is changed in it. Faraday creates
   vaults with at least 64 MiB of memory and 2 passes; presets go up to
   2 GiB, chosen for the weakest machine that will open the vault.
 - **Cipher.** XChaCha20-Poly1305 with a random 24-byte nonce, drawn fresh
   every time the vault is sealed. The header is authenticated as
   associated data, so a changed salt or cost makes the file fail to open
   rather than changing what a guess costs.
+- **Key commitment.** XChaCha20-Poly1305 does not commit to its key: a
+  slot can be made whose tag verifies under two keys. Every slot's
+  plaintext begins with 32 zero bytes, checked in constant time once the
+  tag verifies; under a second key they decrypt to other bytes, and the
+  file is refused.
+- **Seal count.** Every slot holds a count of the times it has been
+  sealed and the time of the last seal, inside the slot, so whoever
+  opens it can tell an older copy from a newer one.
 - **Fixed size.** The contents are padded to a size chosen at creation,
   from 64 KiB to 4 MiB. The file does not grow as entries are added and
   does not show how much it holds.

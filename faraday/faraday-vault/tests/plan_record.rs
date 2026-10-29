@@ -2,7 +2,7 @@
 //! were in (field 6, an access layer's name, `docs/DECISIONS.md` F38)
 //! still opens: the vault holding it is read, not refused.
 
-use faraday_vault::records::{Contents, Record, field, kind};
+use faraday_vault::records::{Contents, Record, Seals, field, kind};
 
 #[test]
 fn a_plan_record_with_an_access_layers_name_still_opens() {
@@ -14,8 +14,10 @@ fn a_plan_record_with_an_access_layers_name_still_opens() {
     let written = Contents {
         records: vec![plan],
     };
-    let plain = written.encode(4096).expect("a vault holding it is written");
-    let read = Contents::decode(&plain).expect("and read back");
+    let plain = written
+        .encode(4096, Seals::FIRST)
+        .expect("a vault holding it is written");
+    let (read, _) = Contents::decode(&plain).expect("and read back");
     assert_eq!(read.records.len(), 1);
     assert_eq!(read.records[0].text(field::PLAN_PLACE), Some("Home"));
 }

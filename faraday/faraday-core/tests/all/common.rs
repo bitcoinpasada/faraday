@@ -642,12 +642,11 @@ pub fn vault(label: &str, phrases: &[&str], seed: u8) -> Vec<u8> {
             ],
         })
         .collect();
-    let p: Vec<&[u8]> = phrases.iter().map(|p| p.as_bytes()).collect();
     faraday_vault::create(
         &c,
         faraday_vault::SLOT_SIZES[0],
         cost,
-        &p,
+        phrases,
         &contents,
         &[seed; 32],
     )

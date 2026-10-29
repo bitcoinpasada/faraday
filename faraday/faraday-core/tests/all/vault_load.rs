@@ -122,7 +122,7 @@ fn load_vault() -> Vec<u8> {
         &c,
         faraday_vault::SLOT_SIZES[0],
         cost,
-        &[PHRASE.as_bytes()],
+        &[PHRASE],
         &[slot],
         &[0x5d; 32],
     )
@@ -586,7 +586,7 @@ fn trio_vault(extra: Vec<Record>) -> Vec<u8> {
         &c,
         faraday_vault::SLOT_SIZES[0],
         cost,
-        &[PHRASE.as_bytes()],
+        &[PHRASE],
         &[Contents { records }],
         &[0x5e; 32],
     )

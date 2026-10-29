@@ -5912,6 +5912,13 @@ checked = "2026-10-28"
 source = "datatracker.ietf.org (expired draft)"
 tags = ["XChaCha20-Poly1305"]
 
+[standard."UAX #15"]
+name = "Unicode Standard Annex #15: Unicode Normalization Forms"
+status = "Complete"
+checked = "2026-10-29"
+source = "unicode.org"
+tags = ["NFC", "Unicode normalization"]
+
 [standard."RFC 9106"]
 name = "Argon2 Memory-Hard Function for Password Hashing and Proof-of-Work Applications"
 status = "Informational"
@@ -6008,6 +6015,7 @@ standards = [
   "RFC 5869",
   "draft-irtf-cfrg-xchacha-03",
   "RFC 8439",
+  "UAX #15",
 ]
 learn = "faraday:vaults"
 screens = ["CreateVault"]
@@ -6043,8 +6051,9 @@ libraries = [
   "chacha20",
   "hmac",
   "sha2",
+  "unicode-normalization",
 ]
-adds = "The container is Faraday's own: a header the slots authenticate, four slots of equal size, a slot key from Argon2id and an HKDF-SHA256 written out over HMAC, and every random byte drawn from a ChaCha20 keystream of one caller-given seed; the Argon2id memory is asked for, not taken, and filled with zeros before it is given back."
+adds = "The container is Faraday's own: a header the slots authenticate, four slots of equal size, a slot key from Argon2id over the passphrase in NFC and an HKDF-SHA256 written out over HMAC, every slot's plaintext begun with 32 zero bytes and a seal count of 1, and every random byte drawn from a ChaCha20 keystream of one caller-given seed; the Argon2id memory is asked for, not taken, and filled with zeros before it is given back."
 written_here = "The four-equal-slot vault container and its HKDF-SHA256 over HMAC (`faraday-vault`)"
 
 [action.checked]
@@ -6058,6 +6067,9 @@ tests = [
   "faraday/faraday-vault/src/tests.rs::hkdf_matches_rfc_5869",
   "faraday/faraday-vault/src/tests.rs::create_refuses_what_it_cannot_keep",
   "faraday/faraday-vault/tests/vectors.rs::an_empty_passphrase_is_refused_at_create",
+  "faraday/faraday-vault/src/tests.rs::a_passphrase_opens_in_either_unicode_form",
+  "faraday/faraday-vault/src/tests.rs::contents_holding_a_seal_count_are_not_written",
+  "faraday/faraday-vault/src/tests.rs::a_slot_filled_to_its_room_seals_and_one_byte_more_is_full",
 ]
 crosscheck = "vault"
 fuzz_none = "Creation takes no outside bytes but the passphrases and the caller's seed; vault_header and vault_records fuzz what a vault is read from."
@@ -6068,7 +6080,7 @@ other = [
 [action.secrets]
 reveal = "none"
 constant_time = "Not stated by the argon2, hmac or chacha20poly1305 crates; the HKDF is two HMAC calls over secret input."
-wiped = "The Argon2id output, the HKDF keys and the slot key are Secret values wiped on drop; the Argon2id memory is overwritten before it is released; each slot's plaintext buffer is zeroized after it is encrypted."
+wiped = "The Argon2id output, the HKDF keys and the slot key are Secret values wiped on drop; the Argon2id memory is overwritten before it is released; each passphrase's NFC form is wiped on drop (the normaliser's own buffer of combining marks is not); each slot's plaintext buffer is zeroized after it is encrypted."
 
 [action.limits]
 lines = [
@@ -6076,7 +6088,8 @@ lines = [
   "Slot sizes 64 KiB, 256 KiB, 1 MiB and 4 MiB only.",
   "A vault is made at any cost the reader accepts: memory 8 MiB to 4 GiB, 1 to 10 passes, 1 lane. The app offers 64 MiB and 2 passes at least.",
   "A cost whose memory cannot be allocated is an error that names the MiB needed.",
-  "A passphrase is its UTF-8 bytes, not normalised.",
+  "A passphrase is put in Unicode NFC, and Argon2id takes that form's UTF-8 bytes; two passphrases with one NFC form are refused as the same.",
+  "Records given to be written may not hold a seal count (type 16): the vault writes it.",
 ]
 
 [[action.own]]
@@ -6089,7 +6102,19 @@ text = "The reader limits (lanes exactly 1, passes at most 10, memory 8 MiB to 4
 kind = "Conservative"
 decision = "F155"
 
+[[action.own]]
+text = "Every passphrase is put in Unicode NFC before Argon2id, and nothing else is done to it: compatibility characters, case and spaces are kept as typed (docs/VAULT.md §3)."
+kind = "Neutral"
+decision = "F159"
+
+[[action.own]]
+text = "Every slot's plaintext begins with 32 zero bytes, the padding fix for key commitment, so a slot that verifies under two keys shows them under at most one (docs/VAULT.md §4, §7)."
+kind = "Conservative"
+decision = "F159"
+
 [action.review]
+fingerprint = "ae43c7c364366b8068318977f1a59500472d6a9df1780ea3100f6310b3621aee"
+reviewed = "2026-10-29"
 places = [
   "docs/VAULT.md",
   "docs/SECURITY-MODEL.md#Vault cryptography",
@@ -6105,6 +6130,7 @@ standards = [
   "RFC 9106",
   "RFC 5869",
   "draft-irtf-cfrg-xchacha-03",
+  "UAX #15",
 ]
 learn = "faraday:vaults"
 screens = ["Unlock"]
@@ -6124,8 +6150,9 @@ libraries = [
   "chacha20poly1305",
   "hmac",
   "sha2",
+  "unicode-normalization",
 ]
-adds = "All four slots are tried whichever opens, so the work does not say which slot a passphrase opens; a file in which two slots open under one key is refused; the header is checked before anything is allocated or derived."
+adds = "The passphrase is put in NFC; all four slots are tried whichever opens, so the work does not say which slot a passphrase opens; a slot whose tag verifies and whose 32-byte commitment block is not zero, checked in constant time, refuses the file, as do two slots opening under one key; the slot's seal count is taken out of its records and kept with the open slot; the header is checked before anything is allocated or derived."
 
 [action.checked]
 vectors = [
@@ -6139,6 +6166,12 @@ tests = [
   "faraday/faraday-vault/src/tests.rs::a_changed_header_opens_nothing",
   "faraday/faraday-vault/src/tests.rs::the_header_is_checked_before_any_work",
   "faraday/faraday-vault/tests/open_py.rs::open_py_opens_a_slot_holding_a_wallet_share_and_a_passphrase",
+  "faraday/faraday-vault/src/tests.rs::a_passphrase_opens_in_either_unicode_form",
+  "faraday/faraday-vault/src/tests.rs::a_slot_made_for_two_passphrases_opens_under_neither",
+  "faraday/faraday-vault/src/tests.rs::a_slot_whose_commitment_block_is_not_zero_is_refused_unread",
+  "faraday/faraday-vault/src/tests.rs::a_slot_without_exactly_one_seal_count_is_refused",
+  "faraday/faraday-vault/tests/open_py.rs::open_py_opens_the_nfd_vector_under_either_form",
+  "faraday/faraday-vault/tests/open_py.rs::open_py_refuses_the_slot_two_passphrases_open",
 ]
 fuzz = [
   "vault_header",
@@ -6155,6 +6188,8 @@ wiped = "A slot's plaintext buffer is zeroized when its tag fails and when the c
 lines = [
   "Refuses a file whose magic, version, slot size, length or cost is not the format's, before any derivation.",
   "Refuses a file in which more than one slot opens.",
+  "Refuses a file in which a slot's tag verifies and its first 32 bytes are not zero.",
+  "Refuses a slot without exactly one seal count, or with a count of 0.",
   "A wrong passphrase and a file with no readable slot give the same refusal.",
 ]
 
@@ -6163,7 +6198,14 @@ text = "Four tag checks on every open, so timing does not show which slot a pass
 kind = "Conservative"
 decision = "no decision"
 
+[[action.own]]
+text = "A slot whose tag verifies and whose commitment block is not zero refuses the whole file, as two slots opening under one key do: this format never writes one (docs/VAULT.md §4)."
+kind = "Conservative"
+decision = "F159"
+
 [action.review]
+fingerprint = "8518327d329402a6dfcd944c6165764e497b3da634e02f9b50d03801e4a4f2c2"
+reviewed = "2026-10-29"
 places = [
   "docs/VAULT.md",
   "docs/SECURITY-MODEL.md#Vault cryptography",
@@ -6190,12 +6232,13 @@ libraries = [
   "chacha20poly1305",
   "sha2",
 ]
-adds = "The header is the associated data of every slot, so a slot cannot be moved to another file or place; the nonce is the caller's: the first 24 bytes of a fresh system answer for the seal when one waits, else of a SHA-256 over a label, the session's seed and a count."
+adds = "The header is the associated data of every slot, so a slot cannot be moved to another file or place; the slot's plaintext begins with its 32-byte commitment block and its seal count, one more than the last, with the time the caller gives; the nonce is the caller's: the first 24 bytes of a fresh system answer for the seal when one waits, else of a SHA-256 over a label, the session's seed and a count."
 
 [action.checked]
 vectors = ["vault"]
 tests = [
   "faraday/faraday-vault/src/tests.rs::sealing_changes_only_the_open_slot",
+  "faraday/faraday-vault/src/tests.rs::each_seal_of_one_opening_counts_one_more_and_keeps_its_time",
   "faraday/faraday-keys/tests/vault.rs::a_vault_sealed_after_a_change_opens_with_it",
   "faraday/faraday-keys/tests/vault.rs::every_edit_moves_the_version_and_a_read_does_not",
   "faraday/faraday-core/tests/all/vault_seal.rs::a_seal_takes_a_fresh_answer_when_one_waits_and_the_seed_when_none_does",
@@ -6212,6 +6255,7 @@ wiped = "The slot's plaintext buffer is zeroized after it is encrypted."
 lines = [
   "Refuses a file whose header is not the one the slot was opened from.",
   "Refuses records that do not fit the slot.",
+  "Refuses records that hold a seal count (type 16): the vault writes it.",
   "Nothing is sealed before the session's seed has arrived.",
   "The other three slots are never rewritten, re-randomised or cleared.",
 ]
@@ -6221,7 +6265,14 @@ text = "The seal nonce is a fresh system answer when the pool holds one, and the
 kind = "Neutral"
 decision = "F158"
 
+[[action.own]]
+text = "Each slot counts its seals (record 16): the count and the time by the sealing computer's clock, inside the slot and read by whoever opens it, so an older copy can be told from a newer one (docs/VAULT.md §5, §7)."
+kind = "Neutral"
+decision = "F159"
+
 [action.review]
+fingerprint = "fa087f29eee7f8ed6720d7fc3ead069e24fc85ad9dde908a4c2a1a3ec311102a"
+reviewed = "2026-10-29"
 places = [
   "docs/VAULT.md",
   "docs/SECURITY-MODEL.md#Vault cryptography",

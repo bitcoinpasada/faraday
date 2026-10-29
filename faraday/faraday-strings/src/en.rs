@@ -8378,6 +8378,8 @@ strings! {
     vault_error_passphrase: "That passphrase opens nothing in this vault",
     /// Under Unlock: two slots opened.
     vault_error_two_slots: "Two slots opened under one passphrase; the file is not sound",
+    /// Under Unlock: a slot opened whose commitment block is not zero.
+    vault_error_commitment: "A slot opened that is not committed to its passphrase; the file is not sound",
     /// Under Unlock. `{}`: one of the `vault_fault_*` lines.
     vault_error_contents: "The slot opened but its contents are faulty: {}",
     /// Saving: the contents are too big for the slot.
@@ -8406,6 +8408,8 @@ strings! {
     vault_fault_value: "field {} of record type {} has a bad value",
     /// What is faulty.
     vault_fault_two_labels: "two slot labels",
+    /// What is faulty: not exactly one seal count record.
+    vault_fault_seals: "no single seal count",
     /// What is faulty. `{}`: the key's fingerprint.
     vault_fault_two_passphrases: "two passphrase records for key {}",
     /// What is faulty. `{}`: the start of the transaction's SHA-256.

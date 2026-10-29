@@ -34,17 +34,19 @@ fn two_of_three() -> SetFacts {
 /// A slot of `records`, encoded and read back.
 fn round_trip(records: Vec<Record>) -> Result<Contents, Fault> {
     let plain = Contents { records }
-        .encode(65_536)
+        .encode(
+            65_536 - faraday_vault::COMMIT_LEN,
+            faraday_vault::Seals::FIRST,
+        )
         .map_err(|_| Fault::Truncated)?;
-    Contents::decode(&plain)
+    Contents::decode(&plain).map(|(c, _)| c)
 }
 
 #[test]
 fn the_codex32_vector_opens_with_its_key_set_and_share() {
     let c = vectors::compute();
     let bytes = committed(vectors::CODEX32.0);
-    let (_, got) =
-        faraday_vault::open(&c, &bytes, vectors::CODEX32.1[0].as_bytes()).expect("opens");
+    let (_, got) = faraday_vault::open(&c, &bytes, vectors::CODEX32.1[0]).expect("opens");
     let key = got.of(kind::KEY).next().expect("a key record").1;
     let set = set_of(key.field(field::KEY_CODEX32).expect("the set")).expect("reads");
     assert_eq!(set, two_of_three());

@@ -2125,11 +2125,7 @@ impl Faraday {
                 .map(|(a, _)| a.text.to_string())
                 .unwrap_or_default(),
         );
-        let phrases: Vec<&[u8]> = form
-            .phrases
-            .iter()
-            .map(|(a, _)| a.text.as_bytes())
-            .collect();
+        let phrases: Vec<&str> = form.phrases.iter().map(|(a, _)| &*a.text).collect();
         // Every slot starts with the vault's name: a slot opened under
         // pressure says nothing of the others (`docs/VAULT.md` §9, F57).
         let label = match form.name.text.trim() {
@@ -2260,9 +2256,10 @@ impl Faraday {
         let draw = self.vault_seal_nonce()?;
         let mut nonce = [0u8; fv::NONCE_LEN];
         nonce.copy_from_slice(&draw[..fv::NONCE_LEN]);
-        let v = &self.vaults.open[i];
-        let bytes = self.vaults.store.sealed(v.id, &nonce)?;
-        let name = v.name.clone();
+        let now = self.clock_now();
+        let id = self.vaults.open[i].id;
+        let bytes = self.vaults.state.store.sealed(id, &nonce, now)?;
+        let name = self.vaults.open[i].name.clone();
         // The keys waiting for their copies that this sealing holds.
         self.flow_sealed(i, &name, &bytes);
         Some((name, bytes))

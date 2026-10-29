@@ -27,7 +27,7 @@ fn compute() -> Compute {
 
 /// A vault of the smallest slot holding one key record of the "abandon"
 /// words under `passphrase`. Costs the cheapest Argon2id `create` allows.
-fn made(c: &Compute, passphrase: &[u8]) -> Vec<u8> {
+fn made(c: &Compute, passphrase: &str) -> Vec<u8> {
     let m = Mnemonic::parse(c, Language::English, ABANDON).expect("the words");
     let contents = Contents {
         records: vec![
@@ -55,13 +55,13 @@ fn made(c: &Compute, passphrase: &[u8]) -> Vec<u8> {
 #[test]
 fn a_key_in_a_vault_loads_as_the_key_the_bips_publish() {
     let c = compute();
-    let file = made(&c, b"first passphrase");
+    let file = made(&c, "first passphrase");
     let mut store = OpenVaults::default();
     assert!(
-        store.unlock(&c, file.clone(), b"another one").is_err(),
+        store.unlock(&c, file.clone(), "another one").is_err(),
         "a wrong passphrase opens nothing"
     );
-    let (id, _) = store.unlock(&c, file, b"first passphrase").expect("opens");
+    let (id, _) = store.unlock(&c, file, "first passphrase").expect("opens");
     let mut keys = Keys::on(Network::Mainnet);
     let all = (0..store.records(id).len()).collect();
     let loaded = store.load_from_vault(&c, &mut keys, id, &all);
@@ -73,21 +73,21 @@ fn a_key_in_a_vault_loads_as_the_key_the_bips_publish() {
 #[test]
 fn a_vault_sealed_after_a_change_opens_with_it() {
     let c = compute();
-    let file = made(&c, b"first passphrase");
+    let file = made(&c, "first passphrase");
     let mut store = OpenVaults::default();
-    let (id, _) = store.unlock(&c, file, b"first passphrase").expect("opens");
+    let (id, _) = store.unlock(&c, file, "first passphrase").expect("opens");
     store.insert(id, Record::new(kind::NOTE).with(field::NOTE, b"kept"));
-    let sealed = store.sealed(id, &[9u8; 24]).expect("seals");
+    let sealed = store.sealed(id, &[9u8; 24], None).expect("seals");
     store.close(id);
     let (again, _) = store
-        .unlock(&c, sealed, b"first passphrase")
+        .unlock(&c, sealed, "first passphrase")
         .expect("the sealed vault opens");
     assert_eq!(store.records(again).of(kind::NOTE).count(), 1);
     assert_eq!(store.records(again).of(kind::KEY).count(), 1);
 }
 
 /// A vault of the smallest slot holding `records`, under `passphrase`.
-fn made_with(c: &Compute, passphrase: &[u8], records: Vec<Record>) -> Vec<u8> {
+fn made_with(c: &Compute, passphrase: &str, records: Vec<Record>) -> Vec<u8> {
     let cost = Cost {
         memory_kib: faraday_vault::CREATE_MIN_MEMORY_KIB,
         passes: faraday_vault::CREATE_MIN_PASSES,
@@ -115,9 +115,9 @@ fn entry() -> Record {
 #[test]
 fn a_record_shows_its_public_fields_and_only_the_length_of_a_secret_one() {
     let c = compute();
-    let file = made_with(&c, b"pass", vec![entry()]);
+    let file = made_with(&c, "pass", vec![entry()]);
     let mut store = OpenVaults::default();
-    let (id, _) = store.unlock(&c, file, b"pass").expect("opens");
+    let (id, _) = store.unlock(&c, file, "pass").expect("opens");
     let r = store.records(id).get(0).expect("the entry");
     assert_eq!(r.public_text(field::TITLE), Some("Mail"));
     assert_eq!(r.public_text(field::USERNAME), Some("me"));
@@ -133,9 +133,9 @@ fn a_record_shows_its_public_fields_and_only_the_length_of_a_secret_one() {
 #[test]
 fn a_secret_leaves_a_record_only_through_a_reveal_that_names_it() {
     let c = compute();
-    let file = made_with(&c, b"pass", vec![entry()]);
+    let file = made_with(&c, "pass", vec![entry()]);
     let mut store = OpenVaults::default();
-    let (id, _) = store.unlock(&c, file, b"pass").expect("opens");
+    let (id, _) = store.unlock(&c, file, "pass").expect("opens");
     let shown = |why| store.reveal(&c, id, 0, field::PASSWORD, why).to_string();
     assert_eq!(shown(Reveal::VaultEntry(Part::Password)), "hunter2");
     assert_eq!(
@@ -178,9 +178,9 @@ fn gpg_key() -> Record {
 #[test]
 fn a_kept_revocation_leaves_only_as_a_rev_file_asked_for_by_name() {
     let c = compute();
-    let file = made_with(&c, b"pass", vec![gpg_key()]);
+    let file = made_with(&c, "pass", vec![gpg_key()]);
     let mut store = OpenVaults::default();
-    let (id, _) = store.unlock(&c, file, b"pass").expect("opens");
+    let (id, _) = store.unlock(&c, file, "pass").expect("opens");
     let rev = Reveal::OutboxFile(Part::Revocation);
     assert!(
         store.gpg_revocation_file(id, 0, rev).is_none(),
@@ -224,9 +224,9 @@ fn a_kept_revocation_leaves_only_as_a_rev_file_asked_for_by_name() {
 #[test]
 fn a_secret_field_is_written_as_secret_and_a_public_one_as_public() {
     let c = compute();
-    let file = made_with(&c, b"pass", vec![entry()]);
+    let file = made_with(&c, "pass", vec![entry()]);
     let mut store = OpenVaults::default();
-    let (id, _) = store.unlock(&c, file, b"pass").expect("opens");
+    let (id, _) = store.unlock(&c, file, "pass").expect("opens");
     assert!(!store.set_public(id, 0, field::PASSWORD, b"x"));
     assert!(!store.set_secret(id, 0, field::TITLE, &zeroize::Zeroizing::new(b"x".to_vec())));
     assert!(store.set_public(id, 0, field::TITLE, b"Work"));
@@ -255,9 +255,9 @@ fn a_secret_field_is_written_as_secret_and_a_public_one_as_public() {
 #[test]
 fn every_edit_moves_the_version_and_a_read_does_not() {
     let c = compute();
-    let file = made_with(&c, b"pass", vec![entry()]);
+    let file = made_with(&c, "pass", vec![entry()]);
     let mut store = OpenVaults::default();
-    let (id, _) = store.unlock(&c, file, b"pass").expect("opens");
+    let (id, _) = store.unlock(&c, file, "pass").expect("opens");
     let v0 = store.version(id);
     let _ = store.records(id).iter().count();
     let _ = store.reveal(
@@ -287,9 +287,9 @@ fn what_is_read_of_the_words_follows_the_record_it_was_read_from() {
     let key = |m: &Mnemonic| {
         Record::new(kind::KEY).with(field::KEY, &faraday_vault::records::words_payload(m))
     };
-    let file = made_with(&c, b"pass", vec![key(&m12)]);
+    let file = made_with(&c, "pass", vec![key(&m12)]);
     let mut store = OpenVaults::default();
-    let (id, _) = store.unlock(&c, file, b"pass").expect("opens");
+    let (id, _) = store.unlock(&c, file, "pass").expect("opens");
     assert_eq!(store.word_count(&c, id, 0), Some(12));
     let before = store.words_id(&c, id, 0).copied();
     store.replace(id, 0, key(&m24));
@@ -304,11 +304,11 @@ fn what_is_read_of_the_words_follows_the_record_it_was_read_from() {
 #[test]
 fn a_key_record_copied_between_vaults_is_the_same_key_there() {
     let c = compute();
-    let from = made(&c, b"first");
-    let to = made_with(&c, b"second", Vec::new());
+    let from = made(&c, "first");
+    let to = made_with(&c, "second", Vec::new());
     let mut store = OpenVaults::default();
-    let (a, _) = store.unlock(&c, from, b"first").expect("opens");
-    let (b, _) = store.unlock(&c, to, b"second").expect("opens");
+    let (a, _) = store.unlock(&c, from, "first").expect("opens");
+    let (b, _) = store.unlock(&c, to, "second").expect("opens");
     assert_eq!(store.records(b).len(), 0);
     store.copy_record(a, 0, b, None).expect("copied");
     assert_eq!(store.records(b).len(), 1);
@@ -354,10 +354,10 @@ fn read_cert(packets: &[u8]) -> faraday_pgp::Certificate {
 /// Two vaults opened from one empty file, Make's key in the first: the
 /// store, their ids, and the key's paperkey as its page shows it.
 fn with_made(c: &Compute, made: &faraday_keys::gpg::Made) -> (OpenVaults, [vault::VaultId; 2]) {
-    let file = made_with(c, b"pass", Vec::new());
+    let file = made_with(c, "pass", Vec::new());
     let mut store = OpenVaults::default();
-    let (a, _) = store.unlock(c, file.clone(), b"pass").expect("opens");
-    let (b, _) = store.unlock(c, file, b"pass").expect("opens");
+    let (a, _) = store.unlock(c, file.clone(), "pass").expect("opens");
+    let (b, _) = store.unlock(c, file, "pass").expect("opens");
     store.insert(a, &made.key).expect("kept");
     (store, [a, b])
 }
@@ -415,7 +415,7 @@ fn a_key_restored_from_its_paperkey_is_the_record_make_wrote() {
     // The two vaults, sealed under one nonce, are the same bytes: every
     // field of the two records, secret ones included, is the same.
     let nonce = [3u8; 24];
-    assert_eq!(store.sealed(a, &nonce), store.sealed(b, &nonce));
+    assert_eq!(store.sealed(a, &nonce, None), store.sealed(b, &nonce, None));
 }
 
 /// A line mistyped is refused and nothing of it kept; once typed right,

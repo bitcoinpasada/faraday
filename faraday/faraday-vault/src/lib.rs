@@ -9,9 +9,17 @@
 //!   contents of each (§8).
 //! - [`open`] derives the slot key once and tries it against all four
 //!   slots, so the work is the same whichever slot opens (§4).
-//! - [`Opened::seal`] re-encrypts the open slot under a fresh nonce and
-//!   copies the other three byte for byte (§5).
-//! - [`records`] is the slot's plaintext: typed records of fields (§7).
+//! - [`Opened::seal`] re-encrypts the open slot under a fresh nonce with
+//!   its seal count one higher, and copies the other three byte for byte
+//!   (§5).
+//! - [`records`] is the slot's plaintext: typed records of fields (§7),
+//!   and the seal count ([`Seals`]) this crate alone writes.
+//!
+//! Every passphrase is put in Unicode NFC before Argon2id, at creation
+//! and at opening, so a passphrase typed in either form derives one key
+//! (§3). Every slot's plaintext begins with [`COMMIT_LEN`] zero bytes,
+//! checked in constant time once its tag verifies, so a slot made to
+//! verify under two keys is refused under both (§4).
 //!
 //! The cryptography is `faraday-backup`'s: Argon2id version 1.3 and
 //! XChaCha20-Poly1305, with the working memory asked for rather than
@@ -30,7 +38,9 @@ pub mod layouts;
 pub mod records;
 pub mod totp;
 
+use alloc::string::String;
 use alloc::vec::Vec;
+use core::ops::Range;
 
 use argon2::{Algorithm, Argon2, Block, Params, Version};
 use chacha20::ChaCha20;
@@ -41,10 +51,19 @@ use faraday_crypto::work::{Compute, Work};
 use faraday_crypto::{Secret, Zeroize};
 use hmac::{Hmac, KeyInit as HmacInit, Mac};
 use sha2::Sha256;
+use unicode_normalization::UnicodeNormalization;
 use zeroize::Zeroizing;
 
 pub use faraday_backup::Cost;
-pub use records::{Contents, Field, Record};
+pub use records::{Contents, Field, Record, Seals};
+
+/// The zero bytes every slot's plaintext begins with, which commit the
+/// slot to its key (§4).
+pub const COMMIT_LEN: usize = 32;
+
+/// The Unicode version a passphrase is put in NFC under: the
+/// normaliser's tables.
+pub use unicode_normalization::UNICODE_VERSION;
 
 /// The first four bytes of every vault.
 pub const MAGIC: [u8; 4] = faraday_intake::VAULT_MAGIC;
@@ -101,13 +120,17 @@ pub enum Error {
     Passphrase,
     /// More than one slot opened, which this format never writes.
     TwoSlots,
+    /// A slot's tag verified and its first [`COMMIT_LEN`] bytes are not
+    /// zero, which this format never writes: a slot made to verify under
+    /// more than one key.
+    Commitment,
     /// The opened slot's contents are not what §7 allows.
     Contents(records::Fault),
     /// The contents do not fit in a slot.
     Full,
     /// No passphrase, more than four, or an empty one.
     Passphrases,
-    /// Two passphrases are the same.
+    /// Two passphrases are the same, or the same in Unicode NFC.
     SamePassphrase,
     /// The file being sealed is not the file this slot was opened from.
     OtherFile,
@@ -196,10 +219,28 @@ pub struct SlotKey(Secret<[u8; 32]>);
 
 /// Costs an Argon2id at the header's cost, then HKDF-SHA256 with an
 /// empty salt and the slot info: derives the slot key a passphrase
-/// gives under `header` (§3).
-pub fn derive(c: &Compute, header: &Header, passphrase: &[u8]) -> Result<SlotKey, Error> {
-    let k = stretch(c, &header.cost, passphrase, &header.salt)?;
+/// gives under `header` (§3), from the passphrase's NFC form.
+pub fn derive(c: &Compute, header: &Header, passphrase: &str) -> Result<SlotKey, Error> {
+    let nfc = nfc(passphrase)?;
+    let k = stretch(c, &header.cost, nfc.as_bytes(), &header.salt)?;
     Ok(SlotKey(hkdf_sha256(k.expose(), SLOT_INFO)))
+}
+
+/// A passphrase in Unicode Normalization Form C (UAX #15), in a buffer
+/// sized once and wiped on drop. Nothing else is done to it: no character
+/// is mapped or refused. The normaliser's own buffer of combining marks
+/// is not wiped.
+fn nfc(passphrase: &str) -> Result<Zeroizing<String>, Error> {
+    let len: usize = passphrase.nfc().map(char::len_utf8).sum();
+    let mut out = Zeroizing::new(String::new());
+    out.try_reserve_exact(len)
+        .map_err(|_| Error::Memory((len / (1024 * 1024)) as u32 + 1))?;
+    // The capacity is the whole form, so the buffer never moves and
+    // leaves no copy behind.
+    for ch in passphrase.nfc() {
+        out.push(ch);
+    }
+    Ok(out)
 }
 
 /// Costs an Argon2id run: `cost.memory_kib` of memory filled
@@ -255,6 +296,13 @@ fn slot_at(slot_len: u32, i: usize) -> usize {
     HEADER_LEN + i * (slot_len as usize + NONCE_LEN + TAG_LEN)
 }
 
+/// The bytes of slot `i` in a vault whose slots are `slot_len` long: its
+/// nonce, ciphertext and tag, 40 + *L* bytes (§1).
+pub fn slot_range(slot_len: u32, i: usize) -> Range<usize> {
+    let at = slot_at(slot_len, i);
+    at..at + NONCE_LEN + slot_len as usize + TAG_LEN
+}
+
 /// Slot `i`'s associated data: the header, then the slot number.
 fn associated(header: &[u8], i: usize) -> [u8; HEADER_LEN + 1] {
     let mut ad = [0u8; HEADER_LEN + 1];
@@ -263,36 +311,49 @@ fn associated(header: &[u8], i: usize) -> [u8; HEADER_LEN + 1] {
     ad
 }
 
-/// Encrypts `plain` (exactly the slot length) into slot `i` of `file`.
+/// Encrypts the commitment block and `body` (the slot length less
+/// [`COMMIT_LEN`], as [`Contents::encode`] writes it) into slot `i` of
+/// `file`. The plaintext is wiped once encrypted.
 fn encrypt_slot(
     file: &mut [u8],
     key: &SlotKey,
     i: usize,
     nonce: &[u8; NONCE_LEN],
-    plain: &mut [u8],
-) {
-    let slot_len = plain.len() as u32;
+    body: &[u8],
+) -> Result<(), Error> {
+    let len = COMMIT_LEN + body.len();
+    let mut plain: Zeroizing<Vec<u8>> = Zeroizing::new(Vec::new());
+    plain
+        .try_reserve_exact(len)
+        .map_err(|_| Error::Memory((len / (1024 * 1024)) as u32 + 1))?;
+    plain.resize(COMMIT_LEN, 0);
+    plain.extend_from_slice(body);
     let ad = associated(file, i);
     let cipher = XChaCha20Poly1305::new_from_slice(key.0.expose()).expect("32-byte key");
     let tag = cipher
         .encrypt_inout_detached(&XNonce::from(*nonce), &ad, InOutBuf::from(&mut plain[..]))
         .expect("a slot is far below the cipher's limit");
-    let at = slot_at(slot_len, i);
+    let at = slot_at(len as u32, i);
     file[at..at + NONCE_LEN].copy_from_slice(nonce);
-    file[at + NONCE_LEN..at + NONCE_LEN + plain.len()].copy_from_slice(plain);
-    file[at + NONCE_LEN + plain.len()..at + NONCE_LEN + plain.len() + TAG_LEN]
-        .copy_from_slice(&tag);
-    plain.zeroize();
+    file[at + NONCE_LEN..at + NONCE_LEN + len].copy_from_slice(&plain);
+    file[at + NONCE_LEN + len..at + NONCE_LEN + len + TAG_LEN].copy_from_slice(&tag);
+    Ok(())
 }
 
-/// Decrypts slot `i` of `file` in a buffer of its own, or `None` when
-/// the tag fails, in which case the buffer is wiped.
-fn decrypt_slot(
-    file: &[u8],
-    header: &Header,
-    key: &SlotKey,
-    i: usize,
-) -> Result<Option<Zeroizing<Vec<u8>>>, Error> {
+/// What trying one slot under a key gave.
+enum Tried {
+    /// The tag failed.
+    Shut,
+    /// The tag verified and the commitment block is zero: the slot's
+    /// whole plaintext.
+    Opened(Zeroizing<Vec<u8>>),
+    /// The tag verified and the commitment block is not zero.
+    Uncommitted,
+}
+
+/// Decrypts slot `i` of `file` in a buffer of its own and checks its
+/// commitment block. The buffer is wiped unless the slot opens.
+fn decrypt_slot(file: &[u8], header: &Header, key: &SlotKey, i: usize) -> Result<Tried, Error> {
     let len = header.slot_len as usize;
     let at = slot_at(header.slot_len, i);
     let mut nonce = [0u8; NONCE_LEN];
@@ -314,22 +375,36 @@ fn decrypt_slot(
             &Tag::from(tag),
         )
         .is_ok();
-    if ok {
-        Ok(Some(plain))
+    if !ok {
+        plain.zeroize();
+        return Ok(Tried::Shut);
+    }
+    if committed(&plain[..COMMIT_LEN]) {
+        Ok(Tried::Opened(plain))
     } else {
         plain.zeroize();
-        Ok(None)
+        Ok(Tried::Uncommitted)
     }
 }
 
-/// One open slot: which slot, under which key, of which file. The key
-/// stays for sealing and is wiped with this.
+/// Whether every byte of the commitment block is zero: an OR of every
+/// byte, compared once, so the time does not depend on which byte is not.
+fn committed(block: &[u8]) -> bool {
+    let any = block.iter().fold(0u8, |acc, &b| acc | b);
+    core::hint::black_box(any) == 0
+}
+
+/// One open slot: which slot, under which key, of which file, and its
+/// seal count. The key stays for sealing and is wiped with this.
 pub struct Opened {
     /// The slot that opened, 0 to 3. Never shown: §9 has nothing on
     /// screen count or name slots.
     slot: usize,
     key: SlotKey,
     header: Header,
+    /// The seal count the slot was opened with, or the last seal of this
+    /// opening wrote.
+    seals: Seals,
 }
 
 impl Opened {
@@ -338,62 +413,100 @@ impl Opened {
         &self.header
     }
 
+    /// The slot's seal count: as it was opened, or as the last
+    /// [`Opened::seal`] of this opening wrote it.
+    pub fn seals(&self) -> Seals {
+        self.seals
+    }
+
+    /// The slot's position in the file, 0 to 3, for telling copies of one
+    /// slot apart ([`slot_range`]). Never shown: nothing on screen counts
+    /// or names slots (§9).
+    pub fn position(&self) -> usize {
+        self.slot
+    }
+
     /// The vault with this slot holding `contents` under a fresh nonce,
-    /// and every other slot copied from `file` byte for byte (§5).
+    /// its seal count one higher with the time `now` (Unix seconds, `None`
+    /// when the clock is not set), and every other slot copied from `file`
+    /// byte for byte (§5). The new count is kept, so two seals of one
+    /// opening count two.
     pub fn seal(
-        &self,
+        &mut self,
         file: &[u8],
         contents: &Contents,
         nonce: &[u8; NONCE_LEN],
+        now: Option<u64>,
     ) -> Result<Vec<u8>, Error> {
         let header = read_header(file)?;
         if header != self.header {
             return Err(Error::OtherFile);
         }
-        let mut plain = contents.encode(header.slot_len)?;
+        let count =
+            self.seals
+                .count
+                .checked_add(1)
+                .ok_or(Error::Contents(records::Fault::Value(
+                    records::kind::SEALS,
+                    records::field::SEAL_COUNT,
+                )))?;
+        let seals = Seals { count, last: now };
+        let body = contents.encode(header.slot_len as usize - COMMIT_LEN, seals)?;
         let mut out: Vec<u8> = Vec::new();
         out.try_reserve_exact(file.len())
             .map_err(|_| Error::Memory((file.len() / (1024 * 1024)) as u32 + 1))?;
         out.extend_from_slice(file);
-        encrypt_slot(&mut out, &self.key, self.slot, nonce, &mut plain);
+        encrypt_slot(&mut out, &self.key, self.slot, nonce, &body)?;
+        self.seals = seals;
         Ok(out)
     }
 }
 
 /// Costs what `derive` costs. Opens the slot `passphrase` opens (§4):
-/// derives the key once, tries all four slots, and parses the one that
-/// opens.
-pub fn open(c: &Compute, file: &[u8], passphrase: &[u8]) -> Result<(Opened, Contents), Error> {
+/// derives the key once from the passphrase's NFC form, tries all four
+/// slots, and parses the one that opens.
+pub fn open(c: &Compute, file: &[u8], passphrase: &str) -> Result<(Opened, Contents), Error> {
     let header = read_header(file)?;
     let key = derive(c, &header, passphrase)?;
     open_with(file, &header, key)
 }
 
-/// Opens with a slot key already derived.
+/// Opens with a slot key already derived. A slot whose tag verifies and
+/// whose commitment block is not zero refuses the file, as two slots
+/// opening do.
 pub fn open_with(file: &[u8], header: &Header, key: SlotKey) -> Result<(Opened, Contents), Error> {
     let mut found: Option<(usize, Zeroizing<Vec<u8>>)> = None;
     let mut twice = false;
+    let mut uncommitted = false;
     // Every slot is tried, whichever opens, so the work does not say
     // which slot a passphrase opens.
     for i in 0..SLOTS {
-        if let Some(plain) = decrypt_slot(file, header, &key, i)? {
-            if found.is_some() {
-                twice = true;
-            } else {
-                found = Some((i, plain));
+        match decrypt_slot(file, header, &key, i)? {
+            Tried::Shut => {}
+            Tried::Uncommitted => uncommitted = true,
+            Tried::Opened(plain) => {
+                if found.is_some() {
+                    twice = true;
+                } else {
+                    found = Some((i, plain));
+                }
             }
         }
+    }
+    if uncommitted {
+        return Err(Error::Commitment);
     }
     if twice {
         return Err(Error::TwoSlots);
     }
     let (slot, plain) = found.ok_or(Error::Passphrase)?;
-    let contents = Contents::decode(&plain).map_err(Error::Contents)?;
+    let (contents, seals) = Contents::decode(&plain[COMMIT_LEN..]).map_err(Error::Contents)?;
     Ok((
         Opened {
             slot,
             key,
             header: *header,
+            seals,
         },
         contents,
     ))
@@ -401,14 +514,15 @@ pub fn open_with(file: &[u8], header: &Header, key: SlotKey) -> Result<(Opened, 
 
 /// Costs what `derive` costs. Makes a vault (§8): one to four
 /// passphrases, each with the contents of its own slot, at `cost` with
-/// slots of `slot_len`. Everything random (the salt, which slots the
-/// passphrases take, the nonces and the unused slots) is drawn from a
-/// ChaCha20 keystream keyed by `seed`.
+/// slots of `slot_len`, every used slot with seal count 1. Everything
+/// random (the salt, which slots the passphrases take, the nonces and the
+/// unused slots) is drawn from a ChaCha20 keystream keyed by `seed`. Two
+/// passphrases with one NFC form are the same passphrase.
 pub fn create(
     c: &Compute,
     slot_len: u32,
     cost: Cost,
-    passphrases: &[&[u8]],
+    passphrases: &[&str],
     contents: &[Contents],
     seed: &[u8; 32],
 ) -> Result<Vec<u8>, Error> {
@@ -423,15 +537,19 @@ pub fn create(
     {
         return Err(Error::Passphrases);
     }
-    for (i, a) in passphrases.iter().enumerate() {
-        if passphrases[i + 1..].contains(a) {
+    let forms: Vec<Zeroizing<String>> = passphrases
+        .iter()
+        .map(|p| nfc(p))
+        .collect::<Result<_, _>>()?;
+    for (i, a) in forms.iter().enumerate() {
+        if forms[i + 1..].contains(a) {
             return Err(Error::SamePassphrase);
         }
     }
     // Every slot's plaintext is checked to fit before any work is done.
     let mut plains: Vec<Zeroizing<Vec<u8>>> = Vec::new();
     for c in contents {
-        plains.push(c.encode(slot_len)?);
+        plains.push(c.encode(slot_len as usize - COMMIT_LEN, Seals::FIRST)?);
     }
 
     let mut stream = keystream(seed);
@@ -469,11 +587,11 @@ pub fn create(
     // same distribution as a used slot. Used slots are overwritten below.
     file.resize(len, 0);
     draw(&mut file[HEADER_LEN..]);
-    for (k, passphrase) in passphrases.iter().enumerate() {
+    for (k, passphrase) in forms.iter().enumerate() {
         let key = derive(c, &header, passphrase)?;
         let mut nonce = [0u8; NONCE_LEN];
         draw(&mut nonce);
-        encrypt_slot(&mut file, &key, order[k], &nonce, &mut plains[k]);
+        encrypt_slot(&mut file, &key, order[k], &nonce, &plains[k])?;
     }
     Ok(file)
 }

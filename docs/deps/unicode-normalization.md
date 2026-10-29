@@ -4,7 +4,9 @@
 sentence in NFKD before it matches the words, as BIP-39 requires, so a
 word typed composed (é, ぞ, a Hangul syllable), as most keyboards type
 it, is the listed word. The tests and the sample tools that wrote NFKD
-forms before use the same crate.
+forms before use the same crate. `faraday-vault` puts every vault
+passphrase in NFC with it before Argon2id (`docs/VAULT.md` §3), so a
+passphrase typed in either form opens the same slot.
 
 **Why this crate.** NFKD needs the Unicode decomposition and
 compatibility tables; writing them by hand would be a copy of this

@@ -1,8 +1,11 @@
 //! Writes the vault vectors (`docs/VAULT.md` §10) into a directory: a
 //! 64 KiB vault with one passphrase and one with three, every slot
-//! holding one record of every type those two were made with; and one
+//! holding one record of every type those two were made with; one
 //! with a codex32 key and a codex32 share (`docs/CODEX32.md` §9.4,
-//! §9.5), the two records codex32 added.
+//! §9.5), the two records codex32 added; and one made with a passphrase
+//! in NFD (§3). Every slot carries its commitment block and its seal
+//! count, 1. `two-keys.fvlt` is not this build's: `two_keys.py` beside
+//! the vectors writes it.
 //!
 //! ```text
 //! cargo run -p faraday-vault --example vectors -- tools/vectors/vault
@@ -44,6 +47,21 @@ pub const THREE: (&str, &[&str]) = (
 
 /// The codex32 vault's file and passphrase.
 pub const CODEX32: (&str, &[&str]) = ("vault-codex32.fvlt", &["codex32 passphrase"]);
+
+/// The vault made with a passphrase in NFD, "café" with its e and the
+/// combining acute apart (U+0065 U+0301), and the same passphrase in NFC
+/// (U+00E9), which opens it too (`docs/VAULT.md` §3).
+pub const NFD: (&str, &[&str]) = ("vault-nfd.fvlt", &["cafe\u{301}"]);
+/// [`NFD`]'s passphrase in NFC.
+pub const NFD_AS_NFC: &str = "caf\u{e9}";
+
+/// The vault whose one slot verifies under two passphrases' keys, written
+/// by `tools/vectors/vault/two_keys.py` and refused under both
+/// (`docs/VAULT.md` §4). Not written by this build.
+pub const TWO_KEYS: (&str, &[&str]) = (
+    "two-keys.fvlt",
+    &["first of two keys", "second of two keys"],
+);
 
 /// BIP 93's vector 2: its seed, a share of it, and the fingerprint of
 /// the key the seed makes.
@@ -161,20 +179,19 @@ pub const LABELS: [&str; 3] = ["Main", "Second", "Decoy"];
 /// A vault's bytes.
 pub fn vault(passphrases: &[&str], labels: &[&str], seed: u8) -> Vec<u8> {
     let c = compute();
-    let p: Vec<&[u8]> = passphrases.iter().map(|s| s.as_bytes()).collect();
     let all: Vec<Contents> = labels.iter().map(|l| contents(l)).collect();
-    faraday_vault::create(&c, SLOT_SIZES[0], COST, &p, &all, &[seed; 32]).expect("the vectors")
+    faraday_vault::create(&c, SLOT_SIZES[0], COST, passphrases, &all, &[seed; 32])
+        .expect("the vectors")
 }
 
 /// The codex32 vault's bytes.
 pub fn codex32_vault() -> Vec<u8> {
     let c = compute();
-    let p: Vec<&[u8]> = CODEX32.1.iter().map(|s| s.as_bytes()).collect();
     faraday_vault::create(
         &c,
         SLOT_SIZES[0],
         COST,
-        &p,
+        CODEX32.1,
         &[codex32_contents()],
         &[15; 32],
     )
@@ -187,6 +204,7 @@ pub fn vectors() -> Vec<(&'static str, Vec<u8>)> {
         (ONE.0, vault(ONE.1, &["Main"], 1)),
         (THREE.0, vault(THREE.1, &LABELS, 3)),
         (CODEX32.0, codex32_vault()),
+        (NFD.0, vault(NFD.1, &["Accents"], 16)),
     ]
 }
 

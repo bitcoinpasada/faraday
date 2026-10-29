@@ -17,6 +17,7 @@ pub fn error_text(e: Error) -> String {
         Error::Memory(mib) => fill(EN.vault_error_memory, &[&mib.to_string()]),
         Error::Passphrase => EN.vault_error_passphrase.to_string(),
         Error::TwoSlots => EN.vault_error_two_slots.to_string(),
+        Error::Commitment => EN.vault_error_commitment.to_string(),
         Error::Contents(f) => fill(EN.vault_error_contents, &[&fault_text(f)]),
         Error::Full => EN.vault_error_full.to_string(),
         Error::Passphrases => EN.vault_error_passphrases.to_string(),
@@ -40,6 +41,7 @@ fn fault_text(f: Fault) -> String {
         Fault::Repeated(t, f) => fill(EN.vault_fault_repeated, &[&f.to_string(), &t.to_string()]),
         Fault::Value(t, f) => fill(EN.vault_fault_value, &[&f.to_string(), &t.to_string()]),
         Fault::TwoLabels => EN.vault_fault_two_labels.to_string(),
+        Fault::Seals => EN.vault_fault_seals.to_string(),
         Fault::Duplicate { kind: ty, of } => {
             let of = format!("{:08x}", u32::from_be_bytes(of));
             if ty == kind::PASSPHRASE {

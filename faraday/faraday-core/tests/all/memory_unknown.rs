@@ -23,7 +23,7 @@ fn vault_at(mib: u32) -> Vec<u8> {
             passes: 1,
             lanes: 1,
         },
-        &[b"memory phrase"],
+        &["memory phrase"],
         &[faraday_vault::Contents {
             records: Vec::new(),
         }],

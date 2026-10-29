@@ -491,13 +491,13 @@ mod set {
             &c,
             faraday_vault::SLOT_SIZES[0],
             cost,
-            &[b"pass"],
+            &["pass"],
             &[Contents::default()],
             &[7u8; 32],
         )
         .unwrap();
         let mut store = OpenVaults::default();
-        let (id, _) = store.unlock(&c, file, b"pass").expect("opens");
+        let (id, _) = store.unlock(&c, file, "pass").expect("opens");
         let at = store.insert(id, record).unwrap();
         let r: RecordView<'_> = store.records(id).get(at).unwrap();
         // The set is public, and holds no string.

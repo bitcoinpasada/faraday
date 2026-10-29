@@ -477,7 +477,7 @@ fn vault_file(c: &Compute) -> Vec<u8> {
         c,
         faraday_vault::SLOT_SIZES[0],
         cost,
-        &[PASSPHRASE.as_bytes()],
+        &[PASSPHRASE],
         &[contents],
         &[0x7a; 32],
     )

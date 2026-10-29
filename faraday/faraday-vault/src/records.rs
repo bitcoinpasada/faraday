@@ -1,5 +1,12 @@
-//! A slot's plaintext (`docs/VAULT.md` §7): the format byte, typed
-//! records, the end record, and zeros to the slot's length.
+//! A slot's plaintext (`docs/VAULT.md` §7) after its commitment block:
+//! the format byte, typed records, the end record, and zeros to the
+//! slot's length.
+//!
+//! Every slot holds exactly one seal count (type 16), which this crate
+//! writes and no caller does: [`Contents::decode`] takes it out of the
+//! records and gives it back beside them as [`Seals`], and
+//! [`Contents::encode`] writes the one it is given and refuses records
+//! that hold one.
 //!
 //! A record is a type byte, a `u32` body length and the body; a body is
 //! fields, each a number, a `u16` length and the bytes. What each type
@@ -60,6 +67,9 @@ pub mod kind {
     /// One codex32 string of a set, kept without the seed it rebuilds
     /// (`docs/CODEX32.md` §9.5).
     pub const CODEX32_SHARE: u8 = 15;
+    /// The slot's seal count: how many times it has been written, and
+    /// when last. Written by this crate alone ([`super::Seals`]).
+    pub const SEALS: u8 = 16;
 }
 
 /// The fields of each record type, by number.
@@ -159,6 +169,14 @@ pub mod field {
     pub const CODEX32_STRING: u8 = 1;
     /// Codex32 share: the fingerprint of the key its set makes (4 bytes).
     pub const CODEX32_KEY: u8 = 2;
+
+    /// Seal count: how many times the slot has been written, `u64`, 1 or
+    /// more.
+    pub const SEAL_COUNT: u8 = 1;
+    /// Seal count: the time of the last seal, `u64` seconds since
+    /// 1970-01-01 UTC by the sealing computer's clock; absent when that
+    /// clock was not set.
+    pub const SEAL_TIME: u8 = 2;
 }
 
 /// Bit 0 of a key's or a wallet's flags: the Load sheet an unlock
@@ -191,6 +209,10 @@ pub enum Fault {
     Value(u8, u8),
     /// More than one slot label.
     TwoLabels,
+    /// The slot does not hold exactly one seal count (type 16), or
+    /// records given to be written hold one, which only this crate
+    /// writes.
+    Seals,
     /// Two records of a type that holds one per key or per transaction:
     /// a passphrase (type 14) for the key whose fingerprint `of` is, or
     /// signed amounts (type 10) for the transaction whose SHA-256 starts
@@ -352,6 +374,11 @@ const CODEX32_SHARE_RULES: &[Rule] = &[
     rule(2, true, false, Shape::Exact(4)),
 ];
 
+const SEALS_RULES: &[Rule] = &[
+    rule(1, true, false, Shape::Exact(8)),
+    rule(2, false, false, Shape::Exact(8)),
+];
+
 /// The fields of each record type (§7).
 fn rules(kind: u8) -> Option<&'static [Rule]> {
     Some(match kind {
@@ -369,6 +396,7 @@ fn rules(kind: u8) -> Option<&'static [Rule]> {
         kind::WALLET_SHARE => WALLET_SHARE_RULES,
         kind::PASSPHRASE => PASSPHRASE_RULES,
         kind::CODEX32_SHARE => CODEX32_SHARE_RULES,
+        kind::SEALS => SEALS_RULES,
         _ => return None,
     })
 }
@@ -495,6 +523,9 @@ impl Record {
         {
             return Err(Fault::Value(self.kind, field::CODEX32_STRING));
         }
+        if self.kind == kind::SEALS && self.field(field::SEAL_COUNT) == Some(&[0u8; 8][..]) {
+            return Err(Fault::Value(self.kind, field::SEAL_COUNT));
+        }
         if self.kind == kind::SHEET
             && let Some(payload) = self.field(field::SHEET)
             && crate::layouts::payload_of(crate::layouts::KIND_SHEET, payload).is_none()
@@ -515,7 +546,56 @@ impl Record {
     }
 }
 
-/// A slot's records.
+/// A slot's seal count (type 16): how many times the slot has been
+/// written, and the time of the last seal by the clock that sealed it.
+/// Not secret to whoever opens the slot; never written by a caller.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Seals {
+    /// How many times the slot has been written, 1 or more.
+    pub count: u64,
+    /// The last seal's time, Unix seconds by the sealing computer's
+    /// clock; `None` when that clock was not set.
+    pub last: Option<u64>,
+}
+
+impl Seals {
+    /// What `create` writes in every used slot: the first write, with no
+    /// time.
+    pub const FIRST: Seals = Seals {
+        count: 1,
+        last: None,
+    };
+
+    fn record(self) -> Record {
+        let r = Record::new(kind::SEALS).with(field::SEAL_COUNT, &self.count.to_le_bytes());
+        match self.last {
+            Some(t) => r.with(field::SEAL_TIME, &t.to_le_bytes()),
+            None => r,
+        }
+    }
+
+    /// The seal count a checked type 16 record holds.
+    fn of(r: &Record) -> Seals {
+        let u64_of = |n: u8| {
+            r.field(n).map(|b| {
+                let mut a = [0u8; 8];
+                a.copy_from_slice(b);
+                u64::from_le_bytes(a)
+            })
+        };
+        Seals {
+            count: u64_of(field::SEAL_COUNT).unwrap_or(0),
+            last: u64_of(field::SEAL_TIME),
+        }
+    }
+}
+
+/// The most bytes a seal count record takes: its type and length, the
+/// count and the time. The room for records is reckoned with it, so
+/// whether a slot is full does not depend on whether the clock was set.
+const SEALS_MAX: usize = 5 + 3 + 8 + 3 + 8;
+
+/// A slot's records, without its seal count.
 #[derive(Clone, Debug, Default)]
 pub struct Contents {
     /// The records, in the order they are written.
@@ -523,21 +603,28 @@ pub struct Contents {
 }
 
 impl Contents {
-    /// The plaintext of a slot `slot_len` long holding these records.
-    pub fn encode(&self, slot_len: u32) -> Result<Zeroizing<Vec<u8>>, Error> {
+    /// The `len` bytes of a slot's plaintext that follow its commitment
+    /// block (`len` is *L* − [`crate::COMMIT_LEN`]): the format byte, the
+    /// seal count `seals`, these records, the end record and zeros.
+    /// `Full` when [`Contents::used`] is more than *L*.
+    pub fn encode(&self, len: usize, seals: Seals) -> Result<Zeroizing<Vec<u8>>, Error> {
+        if self.records.iter().any(|r| r.kind == kind::SEALS) {
+            return Err(Error::Contents(Fault::Seals));
+        }
         for r in &self.records {
             r.check().map_err(Error::Contents)?;
         }
         check_across(&self.records).map_err(Error::Contents)?;
-        let len = slot_len as usize;
-        if self.used() > len {
+        let seal = seals.record();
+        seal.check().map_err(Error::Contents)?;
+        if self.used() > len + crate::COMMIT_LEN {
             return Err(Error::Full);
         }
         let mut out: Zeroizing<Vec<u8>> = Zeroizing::new(Vec::new());
         out.try_reserve_exact(len)
             .map_err(|_| Error::Memory((len / (1024 * 1024)) as u32 + 1))?;
         out.push(FORMAT);
-        for r in &self.records {
+        for r in core::iter::once(&seal).chain(&self.records) {
             out.push(r.kind);
             let body: usize = r.encoded_len() - 5;
             out.extend_from_slice(&(body as u32).to_le_bytes());
@@ -552,19 +639,27 @@ impl Contents {
         Ok(out)
     }
 
-    /// The bytes these records take in a slot, with the format byte and
-    /// the end record.
+    /// The bytes these records take in a slot of *L* bytes, which they
+    /// fit while this is at most *L*: the commitment block, the format
+    /// byte, the seal count at its largest, the records and the end
+    /// record.
     pub fn used(&self) -> usize {
-        2 + self.records.iter().map(Record::encoded_len).sum::<usize>()
+        crate::COMMIT_LEN
+            + 2
+            + SEALS_MAX
+            + self.records.iter().map(Record::encoded_len).sum::<usize>()
     }
 
-    /// Reads a slot's plaintext.
-    pub fn decode(plain: &[u8]) -> Result<Contents, Fault> {
+    /// Reads the bytes of a slot's plaintext after its commitment block:
+    /// the records, and the seal count taken out of them.
+    pub fn decode(plain: &[u8]) -> Result<(Contents, Seals), Fault> {
         if plain.first() != Some(&FORMAT) {
             return Err(Fault::Format);
         }
         let mut at = 1usize;
         let mut records = Vec::new();
+        let mut seals: Option<Seals> = None;
+        let mut twice = false;
         loop {
             let t = *plain.get(at).ok_or(Fault::Truncated)?;
             at += 1;
@@ -589,14 +684,22 @@ impl Contents {
                 p += 3 + n;
             }
             record.check()?;
-            records.push(record);
+            if t == kind::SEALS {
+                twice |= seals.is_some();
+                seals = Some(Seals::of(&record));
+            } else {
+                records.push(record);
+            }
             at = end;
         }
         if plain[at..].iter().any(|&b| b != 0) {
             return Err(Fault::Trailing);
         }
         check_across(&records)?;
-        Ok(Contents { records })
+        match seals {
+            Some(s) if !twice => Ok((Contents { records }, s)),
+            _ => Err(Fault::Seals),
+        }
     }
 
     /// The records of one type, with their positions.

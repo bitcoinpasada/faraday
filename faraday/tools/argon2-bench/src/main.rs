@@ -46,7 +46,7 @@ fn main() {
         let mut refused = None;
         for _ in 0..3 {
             let start = Instant::now();
-            match derive(c, &header, b"argon2-bench") {
+            match derive(c, &header, "argon2-bench") {
                 Ok(_) => times.push(start.elapsed().as_secs_f64()),
                 Err(Error::Memory(m)) => {
                     refused = Some(format!("cannot allocate {m} MiB"));

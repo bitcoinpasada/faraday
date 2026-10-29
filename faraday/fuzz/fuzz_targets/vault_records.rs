@@ -9,8 +9,8 @@ use faraday_vault::records::Contents;
 use libfuzzer_sys::fuzz_target;
 
 fuzz_target!(|data: &[u8]| {
-    if let Ok(contents) = Contents::decode(data) {
+    if let Ok((contents, seals)) = Contents::decode(data) {
         let _ = contents.used();
-        let _ = contents.encode(data.len() as u32);
+        let _ = contents.encode(data.len(), seals);
     }
 });

@@ -35,7 +35,7 @@ pub(crate) const SECRET: &str = "MS12NAMES6XQGUZTTXKEQNJSJZV4JV3NZ5K3KWGSPHUH6EV
 /// `phrase`.
 pub(crate) fn sealed_strings(bytes: &[u8], phrase: &str) -> Vec<Vec<u8>> {
     let c = testkit::compute();
-    let (_, contents) = faraday_vault::open(&c, bytes, phrase.as_bytes()).unwrap();
+    let (_, contents) = faraday_vault::open(&c, bytes, phrase).unwrap();
     contents
         .of(kind::CODEX32_SHARE)
         .map(|(_, r)| r.field(field::CODEX32_STRING).unwrap_or_default().to_vec())

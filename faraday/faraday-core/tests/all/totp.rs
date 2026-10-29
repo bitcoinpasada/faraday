@@ -97,7 +97,7 @@ fn entry_vault(passphrase: &str, label: &str, title: &str, totp: &[u8], seed: u8
         &c,
         faraday_vault::SLOT_SIZES[0],
         cost,
-        &[passphrase.as_bytes()],
+        &[passphrase],
         &[main],
         &[seed; 32],
     )

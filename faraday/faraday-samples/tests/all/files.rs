@@ -14,8 +14,8 @@ fn the_vault_opens_under_the_passphrase_to_sample_key_1_and_the_savings_wallet()
     let c = compute();
     let vault = SAMPLES.inputs.vault;
     assert!(faraday_vault::is_vault(vault));
-    assert!(faraday_vault::open(&c, vault, b"password").is_err());
-    let (_, contents) = faraday_vault::open(&c, vault, PASSPHRASE.as_bytes()).expect("it opens");
+    assert!(faraday_vault::open(&c, vault, "password").is_err());
+    let (_, contents) = faraday_vault::open(&c, vault, PASSPHRASE).expect("it opens");
     let of = |k: u8| -> Vec<&faraday_vault::Record> {
         contents.records.iter().filter(|r| r.kind == k).collect()
     };
@@ -36,7 +36,7 @@ fn the_vault_opens_under_the_passphrase_to_sample_key_1_and_the_savings_wallet()
         .expect("bacon");
     assert_eq!(Some(fp.0), key("sample_words").plain);
     // Another passphrase does not open it.
-    assert!(faraday_vault::open(&c, vault, b"decoy").is_err());
+    assert!(faraday_vault::open(&c, vault, "decoy").is_err());
 }
 
 /// Sample Spending in a session on Testnet, with bacon loaded.

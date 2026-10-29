@@ -26,6 +26,8 @@ Six words rolled with dice, Generate with dice on Create vault, are 77.5 bits, b
 
 If the passphrase is lost, the slot it opens is lost. There is no reset.
 
+A passphrase is read in Unicode's composed form (NFC), so an accented letter typed as one character or as a letter and a mark opens the same slot. Two passphrases that differ only in that way are one passphrase.
+
 ## Load at unlock
 
 Unlocking a vault from the boot sheet or the Vaults tab shows Load from the vault: a card for each wallet, with its seeds that the vault holds, and a Keys card for keys in no wallet. Load ticked loads what is ticked; Not now loads nothing and leaves the vault open.

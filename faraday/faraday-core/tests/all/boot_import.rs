@@ -214,7 +214,7 @@ fn spare_vault() -> Vec<u8> {
         &c,
         faraday_vault::SLOT_SIZES[0],
         cost,
-        &[b"spare".as_slice()],
+        &["spare"],
         &[slot],
         &[0x5b; 32],
     )
@@ -1241,7 +1241,7 @@ fn seed_vault() -> Vec<u8> {
         &c,
         faraday_vault::SLOT_SIZES[0],
         cost,
-        &[b"seeds".as_slice()],
+        &["seeds"],
         &[slot],
         &[0x5c; 32],
     )

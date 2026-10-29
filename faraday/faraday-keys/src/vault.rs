@@ -490,7 +490,7 @@ impl OpenVaults {
         &mut self,
         c: &Compute,
         file: Vec<u8>,
-        passphrase: &[u8],
+        passphrase: &str,
     ) -> Result<(VaultId, Header), fv::Error> {
         let (opened, contents) = fv::open(c, &file, passphrase)?;
         let header = *opened.header();
@@ -518,13 +518,19 @@ impl OpenVaults {
     }
 
     /// A lookup. Open vault `id` with its slot's records changed, sealed
-    /// under a fresh `nonce`: the vault file, with every other slot copied
-    /// from the file it was opened from. `None` where it does not seal
-    /// (the contents do not fit, or the file is another's). The bytes are
-    /// encrypted, so public.
-    pub fn sealed(&self, id: VaultId, nonce: &[u8; fv::NONCE_LEN]) -> Option<Vec<u8>> {
-        let s = self.slot(id)?;
-        s.opened.seal(&s.file, &s.records, nonce).ok()
+    /// under a fresh `nonce`, its seal count one higher with the time
+    /// `now` (Unix seconds, `None` when the clock is not set): the vault
+    /// file, with every other slot copied from the file it was opened
+    /// from. `None` where it does not seal (the contents do not fit, or
+    /// the file is another's). The bytes are encrypted, so public.
+    pub fn sealed(
+        &mut self,
+        id: VaultId,
+        nonce: &[u8; fv::NONCE_LEN],
+        now: Option<u64>,
+    ) -> Option<Vec<u8>> {
+        let s = self.slot_mut(id)?;
+        s.opened.seal(&s.file, &s.records, nonce, now).ok()
     }
 
     // ---- reading ----
@@ -1961,7 +1967,7 @@ pub fn create(
     c: &Compute,
     slot_len: u32,
     cost: fv::Cost,
-    passphrases: &[&[u8]],
+    passphrases: &[&str],
     contents: &[Contents],
     seed: &[u8; 32],
 ) -> Result<Vec<u8>, fv::Error> {
@@ -1971,7 +1977,7 @@ pub fn create(
 /// Costs an Argon2id run at `header`'s cost, thrown away: the time a
 /// vault's unlock takes on this computer, measured.
 pub fn measure(c: &Compute, header: &Header) {
-    let _ = fv::derive(c, header, b"measure");
+    let _ = fv::derive(c, header, "measure");
 }
 
 /// Costs a KDBX 4 database's Argon2id run. A KeePass database holding one

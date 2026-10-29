@@ -1449,7 +1449,7 @@ fn main_vault_board(shell: &mut Shell) -> (Faraday, testkit::Kit) {
             &c,
             faraday_vault::SLOT_SIZES[0],
             cost,
-            &[PHRASE.as_bytes()],
+            &[PHRASE],
             &contents,
             &[0x41; 32],
         )

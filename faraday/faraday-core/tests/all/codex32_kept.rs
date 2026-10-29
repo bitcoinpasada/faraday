@@ -219,7 +219,7 @@ pub(crate) fn vault_of(phrase: &str, records: Vec<Record>, seed: u8) -> Vec<u8> 
             passes: 1,
             lanes: 1,
         },
-        &[phrase.as_bytes()],
+        &[phrase],
         &[Contents { records: all }],
         &[seed; 32],
     )

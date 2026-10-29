@@ -644,7 +644,7 @@ fn vault_with(records: Vec<faraday_vault::Record>, phrase: &str, salt: u8) -> Ve
         &c,
         faraday_vault::SLOT_SIZES[0],
         cost,
-        &[phrase.as_bytes()],
+        &[phrase],
         &[faraday_vault::Contents { records }],
         &[salt; 32],
     )
