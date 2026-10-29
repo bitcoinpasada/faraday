@@ -1,9 +1,14 @@
-"""The entropy procedures (`faraday_entropy`) against a reference written
-here over `hashlib`, from the statements of `tools/reference/entropy/README.md`
-(coins, hex, cards, camera noise, the device, a mix) and the procedures
-quoted in `tools/reference/dice/README.md` (the three dice procedures),
-never from the Rust.
+"""The entropy procedures (`faraday_entropy`) against Coldcard's own scripts
+and a reference written here, never from the Rust.
 
+- Outside code: the hashed dice procedure, and every source's rolls
+  commitment, are Coldcard's `rolls.py` and `rolls12.py` run
+  (`tools/reference/coldcard-rolls/`). Ours, labelled: EntropyLab's
+  six-as-zero and direct word selection (its JavaScript needs Node,
+  which the build machines lack, transcribed in `tools/reference/dice/README.md`),
+  the cut of Coldcard's digest to 20, 24 and 28 bytes, the counts and
+  refusals, coins, hex, cards, camera noise, the device and the mix
+  (`tools/reference/entropy/README.md`; no outside implementation).
 - The dice answers other tools print (`tools/vectors/entropy/dice.json`):
   Coldcard's `rolls.py`, EntropyLab's six-as-zero and direct word
   selection.
@@ -17,11 +22,17 @@ never from the Rust.
   given by its inputs and committed as that source commits.
 """
 
+import contextlib
 import hashlib
+import io
 import json
 import math
 
-from common import ROOT, Area
+from common import ROOT, Area, use_reference
+
+use_reference("coldcard-rolls")
+import rolls as coldcard_rolls  # noqa: E402
+import rolls12 as coldcard_rolls12  # noqa: E402
 
 STRENGTHS = [16, 20, 24, 28, 32]
 PROCEDURES = ["hashed", "six_as_zero", "words"]
@@ -80,13 +91,37 @@ def dice_kept(rolls, procedure):
     return kept, out
 
 
+def coldcard(module, text):
+    """The first line Coldcard's own script prints for the rolls `text`:
+    its `main()` run with `input` answering `text`, as `echo text |
+    python3 rolls.py` does (rolls12.py prints the first sixteen bytes)."""
+    module.input = lambda: text
+    out = io.StringIO()
+    with contextlib.redirect_stdout(out):
+        module.main()
+    return bytes.fromhex(out.getvalue().splitlines()[0])
+
+
 def dice_commitment(kept):
-    return sha("".join(str(r) for r in kept).encode())
+    """SHA-256 of the rolls as ASCII digits: Coldcard's rolls.py's digest."""
+    return coldcard(coldcard_rolls, "".join(str(r) for r in kept))
+
+
+def hashed_entropy(kept, n):
+    """Coldcard's own answer: rolls12.py's sixteen bytes at 128 bits, rolls.py's
+    thirty-two at 256. The other lengths are a cut of rolls.py's digest, which
+    is ours (no outside script makes 20, 24 or 28 bytes)."""
+    text = "".join(str(r) for r in kept)
+    if n == 16:
+        return coldcard(coldcard_rolls12, text)
+    return coldcard(coldcard_rolls, text)[:n]
 
 
 def dice_entropy(kept, procedure, n):
     if procedure == "hashed":
-        return cut(dice_commitment(kept), n, len(kept), rolls_needed(n))
+        if len(kept) < rolls_needed(n):
+            return None
+        return hashed_entropy(kept, n).hex()
     if procedure == "six_as_zero":
         return cut(sha("".join("0" if r == 6 else str(r) for r in kept).encode()), n,
                    len(kept), rolls_needed(n))
@@ -186,12 +221,16 @@ class Entropy(Area):
     reference = (
         'the procedures written out in `area_entropy.py` over `hashlib`, from '
         '`tools/reference/entropy/README.md` and the dice sources quoted in '
-        '`tools/reference/dice/README.md`'
+        '`tools/reference/dice/README.md`, except that the hashed dice procedure and every '
+        "rolls commitment are Coldcard's own `rolls.py` and `rolls12.py` "
+        '(`tools/reference/coldcard-rolls/`, run, public domain)'
     )
     reference_checked = (
-        'the procedures are written in the area over `hashlib` from the statements of '
-        '`tools/reference/entropy/README.md` and `tools/reference/dice/README.md`, and '
-        'the published dice answers are required of them as well as of Faraday'
+        "the hashed dice procedure is Coldcard's own scripts run, their files hashed against "
+        '`references.sha256` before any run; the rest is written in the area over `hashlib` '
+        'from the statements of `tools/reference/entropy/README.md` and '
+        '`tools/reference/dice/README.md`, and the published dice answers are required of '
+        'them as well as of Faraday'
     )
     vectors = (
         "Coldcard's `rolls.py` digest, EntropyLab's six-as-zero and direct word "

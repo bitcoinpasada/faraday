@@ -2750,7 +2750,7 @@ tests = [
   "faraday/faraday-core/tests/all/keygen.rs::too_few_rolls_make_no_words",
 ]
 crosscheck = "entropy"
-independence = { class = "own-only", author = "Faraday's authors (`area_entropy.py`), over Python's `hashlib`", ours = "the three dice procedures, written out in `area_entropy.py` from the sources `tools/reference/dice/README.md` quotes" }
+independence = { class = "own-over-outside", author = "Coldcard's `rolls.py` and `rolls12.py` (public domain), run for the hashed procedure and every rolls commitment; Faraday's authors (`area_entropy.py`) for the rest", ours = "EntropyLab's six-as-zero and direct word selection (JavaScript, which needs Node, written out in `area_entropy.py` from `tools/reference/dice/README.md`), the cut of Coldcard's digest to 20, 24 and 28 bytes, and the roll counts and refused faces" }
 fuzz_none = "Takes single key presses from a pad, one die face at a time; no text is parsed."
 
 [action.secrets]

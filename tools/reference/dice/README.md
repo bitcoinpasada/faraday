@@ -6,8 +6,12 @@ Each function below is quoted as the file holds it, so a later change to
 a source is visible as a change to this page rather than as a silent
 difference of opinion.
 
-Nothing here is built, run or vendored. The repositories were cloned to
-read, and only this page is kept.
+Only Coldcard's `rolls.py` and `rolls12.py` are vendored and run
+(`tools/reference/coldcard-rolls/`); the cross-check runs them for the
+hashed procedure. The other sources were cloned to read, and only this
+page is kept: EntropyLab's JavaScript needs Node, which the build
+machines do not have, so the cross-check keeps its own transcription of
+§2 and §3, labelled.
 
 | Source | URL | Commit | Fetched |
 |---|---|---|---|
