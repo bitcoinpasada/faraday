@@ -5,7 +5,6 @@
 
 use faraday_bip::bip39::Mnemonic;
 use faraday_bip::bitcoin::bip32::{DerivationPath, Xpub};
-use faraday_bip::bitcoin::hashes::{Hash, HashEngine, sha256};
 use faraday_bip::codex32::{self, Codex32};
 use faraday_bip::keys::ScriptType;
 use faraday_bip::slip39;
@@ -42,20 +41,19 @@ pub enum Paper {
     Failed,
 }
 
-/// `len` bytes spread from one fresh draw, for `what`.
-pub(crate) fn spread(draw: &[u8; 32], what: &[u8], len: usize) -> Zeroizing<Vec<u8>> {
-    let mut out = Zeroizing::new(Vec::with_capacity(len + 32));
-    let mut i = 0u32;
-    while out.len() < len {
-        let mut e = sha256::Hash::engine();
-        e.input(draw);
-        e.input(what);
-        e.input(&i.to_le_bytes());
-        out.extend_from_slice(&sha256::Hash::from_engine(e).to_byte_array());
-        i += 1;
-    }
-    out.truncate(len);
-    out
+/// The fresh bytes Seed XOR into `parts` parts takes at most (a lookup):
+/// a random part of the longest words, 32 bytes, for every part but the
+/// last ([`Keys::seed_xor`]).
+pub fn seed_xor_random_len(parts: u8) -> usize {
+    usize::from(parts.saturating_sub(1)) * 32
+}
+
+/// The fresh bytes a codex32 set any `k` of which recover the seed takes
+/// at most (a lookup): a symbol for each of the longest seed's, 64 bytes,
+/// in each of the `k − 1` random shares ([`Keys::codex32_shares`],
+/// [`Keys::codex32_new_set`]).
+pub fn codex32_random_len(k: u8) -> usize {
+    usize::from(k.saturating_sub(1)) * codex32::symbols_for(64)
 }
 
 impl Keys {
@@ -138,13 +136,16 @@ impl Keys {
 
     /// Costs a parse of the words and a split. Key `i`'s words split into
     /// `parts` Seed XOR parts, each a line of words, every one needed.
-    /// `draw` is fresh randomness the random parts are spread from.
+    /// `random` is fresh randomness, taken as it is: the random parts are
+    /// its first bytes in turn, each as long as the words' entropy; fewer
+    /// bytes than that are refused ([`seed_xor_random_len`] is always
+    /// enough).
     pub fn seed_xor(
         &self,
         c: &Compute,
         i: usize,
         parts: u8,
-        draw: &[u8; 32],
+        random: &[u8],
         _why: Reveal,
     ) -> Result<Held<Vec<Zeroizing<String>>>, Paper> {
         let s = self.secrets(i).ok_or(Paper::NoWords)?;
@@ -153,14 +154,18 @@ impl Keys {
         let lang = m.language();
         let entropy = m.entropy();
         let seed = entropy.expose().as_bytes();
+        let randoms = usize::from(parts.saturating_sub(1));
+        if random.len() < randoms * seed.len() {
+            return Err(Paper::Failed);
+        }
         let mut xor = SeedXor::new();
         let mut out = Vec::new();
-        for k in 0..parts.saturating_sub(1) {
-            let random = spread(draw, &[b'x', k], seed.len());
-            if xor.push(&random).is_err() {
+        for part in random.chunks_exact(seed.len()).take(randoms) {
+            let part = Zeroizing::new(part.to_vec());
+            if xor.push(&part).is_err() {
                 return Err(Paper::Failed);
             }
-            out.push(random);
+            out.push(part);
         }
         if xor.push(seed).is_err() {
             return Err(Paper::Failed);
@@ -191,14 +196,16 @@ impl Keys {
     /// from `k` to 31), or, with `k` 0 and `n` 1, the secret itself. A key
     /// loaded from a master seed (`add_seed`) gives the seed it was loaded
     /// from, at that seed's own length; a key with words is refused
-    /// ([`Paper::Words`]). `draw` is fresh randomness the other shares are
-    /// spread from.
+    /// ([`Paper::Words`]). `random` is fresh randomness, taken as it is:
+    /// the other shares' symbols are its first bytes in turn, one byte a
+    /// symbol; fewer than they need are refused ([`codex32_random_len`]
+    /// is always enough).
     pub fn codex32_shares(
         &self,
         i: usize,
         k: u8,
         n: u8,
-        draw: &[u8; 32],
+        random: &[u8],
         _why: Reveal,
     ) -> Result<Held<Vec<Zeroizing<String>>>, Paper> {
         let s = self.secrets(i).ok_or(Paper::NoWords)?;
@@ -222,9 +229,11 @@ impl Keys {
             )]));
         }
         let need = usize::from(k.saturating_sub(1)) * codex32::symbols_for(seed.len());
-        let fresh = spread(draw, b"codex32 shares", need);
+        let fresh = random
+            .get(..need)
+            .ok_or_else(|| one(codex32::Error::NotEnoughRandomness))?;
         Codex32::from_seed(k, id, seed)
-            .and_then(|secret| secret.split(k, n, &fresh))
+            .and_then(|secret| secret.split(k, n, fresh))
             .map(|shares| {
                 shares
                     .iter()

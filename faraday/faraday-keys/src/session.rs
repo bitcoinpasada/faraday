@@ -376,19 +376,21 @@ impl Keys {
 
     /// Costs an elliptic-curve multiplication once the app has handed
     /// randomness down. Key `k`'s context randomized from the next blind
-    /// drawn from the session's randomness: SHA-256("faraday key blind" ‖
-    /// seed ‖ count).
+    /// drawn from the session's randomness: HKDF-Expand (RFC 5869) from
+    /// the seed, with `info` "faraday key blind" and the count (eight
+    /// bytes, little-endian), 32 bytes.
     fn blind_key(&mut self, c: &Compute, k: usize) {
-        use faraday_bip::bitcoin::hashes::{Hash, HashEngine, sha256};
+        const INFO: &[u8] = b"faraday key blind";
         let Some((seed, count)) = self.blind.as_mut() else {
             return;
         };
         *count += 1;
-        let mut e = sha256::Hash::engine();
-        e.input(b"faraday key blind");
-        e.input(&seed[..]);
-        e.input(&count.to_le_bytes());
-        let blind = Zeroizing::new(sha256::Hash::from_engine(e).to_byte_array());
+        let mut info = [0u8; INFO.len() + 8];
+        info[..INFO.len()].copy_from_slice(INFO);
+        info[INFO.len()..].copy_from_slice(&count.to_le_bytes());
+        let mut blind = Zeroizing::new([0u8; 32]);
+        faraday_crypto::hkdf_sha256_expand(&seed[..], &info, &mut blind[..])
+            .expect("32 bytes is one block");
         if let Some(entry) = self.entries.get_mut(k) {
             entry.key.master.reblind(c, &blind);
         }

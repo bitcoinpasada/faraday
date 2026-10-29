@@ -18,8 +18,8 @@ const KDBX_VECTOR: &[u8] =
 /// The passphrase the vector was written under.
 const VECTOR_PASSPHRASE: &str = "correct horse battery staple";
 
-/// The 140 bytes the KDBX vector's master seed, IV, salt and inner key
-/// were taken from.
+/// The 284 bytes the KDBX vector's master seed, IV, salt, inner key and
+/// UUIDs were taken from: 0, 1, 2 … counting on past 255 from 0 again.
 fn kdbx_vector_seed() -> [u8; faraday_backup::kdbx::SEED_LEN] {
     let mut seed = [0u8; faraday_backup::kdbx::SEED_LEN];
     for (i, b) in seed.iter_mut().enumerate() {

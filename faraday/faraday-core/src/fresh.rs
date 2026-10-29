@@ -1,9 +1,11 @@
 //! Fresh randomness for key material. The shell answers each
 //! `RequestEntropy` with 32 bytes from the system's generator; the first
-//! answer seeds the session, and the next few wait in a small pool. A key
+//! answer seeds the session, and the next ones wait in a pool. A key
 //! made here (a vault's keys, a GPG key, Secure Boot keys) takes one
 //! answer of its own, hashed with what it is for, and the pool is topped
-//! up. A signing pass that opens a MuSig2 round takes
+//! up; what needs more than 32 bytes (a SLIP-39 or codex32 split, Seed
+//! XOR's parts, a KeePass file) takes an answer for every 32 of them
+//! ([`Fresh::take_bytes`]), never one answer stretched. A signing pass that opens a MuSig2 round takes
 //! [`Faraday::sign_seed`]: the session's seed with a count of the passes,
 //! so that no two passes of a
 //! process draw the same nonce. A vault's seal nonce and a new keyboard's
@@ -27,8 +29,11 @@ use crate::{Faraday, out::Out};
 pub mod page;
 pub(crate) mod roller;
 
-/// Answers kept waiting for the next key.
-pub const POOL: usize = 3;
+/// Answers kept waiting for the next key: as many as the most one press
+/// takes ([`Fresh::take_bytes`]), a codex32 set any nine of which recover
+/// a 64-byte seed: eight random shares of 103 symbols, 824 bytes, 26
+/// answers.
+pub const POOL: usize = 26;
 
 /// How long after the first display a missing seed is said on screen.
 /// The shell answers the first `RequestEntropy` within the first frame;
@@ -231,14 +236,49 @@ impl Fresh {
     pub(crate) fn take(&mut self, what: &[u8], out: &mut Out) -> Option<[u8; 32]> {
         out.command(Command::RequestEntropy);
         let bytes = self.pool.pop()?;
+        Some(self.mixed(what, &bytes))
+    }
+
+    /// `n` bytes of their own for `what`, each 32 from a pooled answer
+    /// of its own, as [`Fresh::take`] makes them: `ceil(n / 32)` answers,
+    /// the last one cut to what is left. `None`, with nothing taken,
+    /// while fewer answers wait than it needs, or when `n` is more than
+    /// [`POOL`] answers hold; either way as many answers are asked for
+    /// as it takes.
+    pub(crate) fn take_bytes(
+        &mut self,
+        what: &[u8],
+        n: usize,
+        out: &mut Out,
+    ) -> Option<Zeroizing<Vec<u8>>> {
+        let answers = n.div_ceil(32);
+        for _ in 0..answers {
+            out.command(Command::RequestEntropy);
+        }
+        if answers > POOL || self.pool.len() < answers {
+            return None;
+        }
+        let mut bytes = Zeroizing::new(Vec::with_capacity(answers * 32));
+        for _ in 0..answers {
+            let answer = self.pool.pop()?;
+            bytes.extend_from_slice(&Zeroizing::new(self.mixed(what, &answer))[..]);
+        }
+        bytes.truncate(n);
+        Some(bytes)
+    }
+
+    /// SHA-256("faraday fresh" ‖ `what` ‖ `answer` ‖ the person's
+    /// accumulator, when there is one): one answer, for `what`
+    /// (`docs/OWN-RANDOMNESS.md` §2.3).
+    fn mixed(&self, what: &[u8], answer: &[u8; 32]) -> [u8; 32] {
         let mut e = sha256::Hash::engine();
         e.input(b"faraday fresh");
         e.input(what);
-        e.input(&bytes[..]);
+        e.input(&answer[..]);
         if let Some(acc) = self.own.acc.as_deref() {
             e.input(acc);
         }
-        Some(sha256::Hash::from_engine(e).to_byte_array())
+        sha256::Hash::from_engine(e).to_byte_array()
     }
 
     /// The person added a batch of their own: hashed into the
@@ -362,6 +402,13 @@ impl Faraday {
     /// not answered yet; either way another answer is asked for.
     pub(crate) fn fresh(&mut self, what: &[u8]) -> Option<[u8; 32]> {
         self.fresh.take(what, &mut self.out)
+    }
+
+    /// `n` bytes of their own for `what`, an answer for every 32
+    /// ([`Fresh::take_bytes`]), or `None` while fewer answers wait than
+    /// that; either way as many are asked for.
+    pub(crate) fn fresh_bytes(&mut self, what: &[u8], n: usize) -> Option<Zeroizing<Vec<u8>>> {
+        self.fresh.take_bytes(what, n, &mut self.out)
     }
 
     /// The shell is Faraday Demo and offers the dice roller

@@ -24,10 +24,19 @@ configuration, and a plan for the boot measurement (QEMU, then one real PC in pa
   getentropy(2), crypto.getRandomValues). A shell that cannot answer
   sends nothing.
 - **The session** (`faraday/faraday-core/src/fresh.rs`). The first
-  answer is the seed (`Seed`); the next ones wait in a pool of up to six.
-  `fresh(what)` takes one pooled answer and returns SHA-256("faraday
-  fresh" ‖ what ‖ bytes): vault creation, GPG and Secure Boot keys,
-  Seed XOR, codex32, KeePass, SLIP-39's split. `Seed::draw` is SHA-256
+  answer is the seed (`Seed`); the next ones wait in a pool: the first
+  display asks for 26 (`POOL`, as many as the most one press takes),
+  and up to 52 are kept. `fresh(what)` takes one pooled answer and
+  returns SHA-256("faraday fresh" ‖ what ‖ bytes): vault creation, GPG
+  and Secure Boot keys, codex32's identifier. `fresh_bytes(what, n)`
+  takes an answer for every 32 of `n` bytes, each made as `fresh` makes
+  it, the latest answer first and the last cut to what is left, or
+  takes none while fewer wait: SLIP-39's split (its identifier and
+  `split`'s bytes, `slip39::random_len`), Seed XOR's random parts,
+  codex32's random shares (a set of nine from a 64-byte seed, the most,
+  takes 26 answers), a KeePass file's seed, IV, salt, inner key and
+  UUIDs (9 answers). No answer is stretched into more bytes than it
+  holds (owner, 2026-10-28). `Seed::draw` is SHA-256
   (what ‖ seed ‖ count): a vault's seal nonces, a new keyboard's code.
   `sign_seed` draws a MuSig2 round's nonces from the seed with a
   count. Nothing is made before the first answer: `seeded()` is false,
@@ -354,6 +363,11 @@ In `faraday/faraday-core/tests/all/` (a new `own_randomness.rs`):
    and keys on the source changes the derived bytes as its records say,
    and the system's bytes still change the result; 64 events are added
    as a batch and the rest as the page goes.
+7. More than 32 bytes are an answer for every 32: `fresh_bytes` gives
+   the known answers of three pooled answers, latest first, and takes
+   none while only two wait; a SLIP-39 split's identifier and shares
+   are those of `split` given exactly those bytes, and a KeePass file's
+   master seed and IV are the known answers of its answers.
 
 The construction (§2.3) is SHA-256 over concatenations; per CLAUDE.md a
 cryptographic change is checked against another implementation, so its

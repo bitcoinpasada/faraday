@@ -1794,7 +1794,8 @@ impl Faraday {
         if !self.paper_key() {
             return self.toast(EN.paper_no_words_to_split);
         }
-        let Some(draw) = self.fresh(b"seed xor") else {
+        let Some(draw) = self.fresh_bytes(b"seed xor", faraday_keys::seed_xor_random_len(parts))
+        else {
             return self.toast(EN.paper_no_randomness);
         };
         let Some(b) = self.backup.state() else {

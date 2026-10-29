@@ -612,15 +612,17 @@ impl Keys {
     /// Costs a parse of the words and a PBKDF2 for a key with words, and a
     /// split. Key `i`'s seed as a new codex32 set with identifier
     /// `identifier` (`docs/CODEX32.md` §9.7, Rotate the set): `n` strings,
-    /// any `k` enough, the other shares spread from the fresh `draw`. The
-    /// strings are paper forms, in index order.
+    /// any `k` enough, the other shares' symbols the first bytes of the
+    /// fresh `random` in turn, one byte a symbol; fewer than they need are
+    /// refused ([`crate::operations::codex32_random_len`] is always
+    /// enough). The strings are paper forms, in index order.
     pub fn codex32_new_set(
         &self,
         c: &Compute,
         i: usize,
         (k, n): (u8, u8),
         identifier: [u8; 4],
-        draw: &[u8; 32],
+        random: &[u8],
         why: Reveal,
     ) -> Result<Held<Vec<Zeroizing<String>>>, crate::Paper> {
         use crate::Paper;
@@ -630,9 +632,11 @@ impl Keys {
         let seed = self.codex32_seed_of(c, i).ok_or(Paper::NoWords)?;
         let refused = |e: Error| Paper::Refused(faraday_strings::bip::codex32_error(&e));
         let need = usize::from(k - 1) * faraday_bip::codex32::symbols_for(seed.len());
-        let fresh = crate::operations::spread(draw, b"codex32 rotation", need);
+        let fresh = random
+            .get(..need)
+            .ok_or_else(|| refused(Error::NotEnoughRandomness))?;
         let shares = Codex32::from_seed(k, identifier, &seed)
-            .and_then(|secret| secret.split(k, n, &fresh))
+            .and_then(|secret| secret.split(k, n, fresh))
             .map_err(refused)?;
         Ok(Held::of(
             shares

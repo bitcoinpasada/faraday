@@ -168,3 +168,4 @@ Read this table, then only the decision you need.
 | [F151](decisions/F151.md) | A review rule a change triggers is attested in the commit | 2026-10-28 | Active | repository |
 | [F152](decisions/F152.md) | Touch targets are tested over the snapshot tours, and a press cannot be made without its state layer | 2026-10-28 | Active | design |
 | [F153](decisions/F153.md) | No kernel patch of Faraday's own on the Pi, and a new USB touchscreen approves itself by tapping a target: nothing is trusted by name | 2026-10-28 | Active | security |
+| [F154](decisions/F154.md) | Random bytes are taken from the source, an answer for every 32, or expanded by HKDF-Expand | 2026-10-28 | Active | security |

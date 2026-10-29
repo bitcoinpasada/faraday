@@ -1758,6 +1758,13 @@ pub fn fresh(app: &mut crate::Faraday, what: &[u8]) -> Option<[u8; 32]> {
     app.fresh(what)
 }
 
+/// The `n` bytes a split or a file made now for `what` takes from the
+/// session's fresh randomness ([`crate::Faraday::fresh_bytes`]): an
+/// answer for every 32, used up.
+pub fn fresh_bytes(app: &mut crate::Faraday, what: &[u8], n: usize) -> Option<Vec<u8>> {
+    app.fresh_bytes(what, n).map(|b| b.to_vec())
+}
+
 /// The bytes New key's This device keeps when the shell answers its
 /// request with `bytes`: with what the person added of their own mixed
 /// in, once they have (`docs/OWN-RANDOMNESS.md` §2.3).

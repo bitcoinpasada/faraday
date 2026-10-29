@@ -26,7 +26,7 @@ use alloc::vec::Vec;
 use core::fmt;
 
 use bitcoin::bip32::DerivationPath;
-use bitcoin::hashes::{Hash, HashEngine, sha256};
+use bitcoin::hashes::Hash;
 use bitcoin::key::TapTweak;
 use bitcoin::secp256k1::{self, Keypair, Message, XOnlyPublicKey};
 use bitcoin::sighash::{Prevouts, SighashCache, TapSighashType};
@@ -120,25 +120,29 @@ impl fmt::Debug for Aux {
 
 impl Aux {
     /// The 32 bytes input `index` signs under: zero in the
-    /// deterministic mode, and otherwise this call's bytes hashed with
-    /// the index, so that two inputs of one call never sign under the
-    /// same auxiliary randomness.
+    /// deterministic mode, and otherwise HKDF-Expand (RFC 5869) from this
+    /// call's bytes, with `info` the label and the index (eight bytes,
+    /// little-endian), so that two inputs of one call never sign under
+    /// the same auxiliary randomness.
     pub(crate) fn for_input(self, index: usize) -> [u8; 32] {
         match self {
             Aux::Deterministic => [0u8; 32],
             Aux::Fresh(bytes) => {
-                let mut engine = sha256::Hash::engine();
-                engine.input(AUX_LABEL);
-                engine.input(&bytes);
-                engine.input(&(index as u64).to_le_bytes());
-                sha256::Hash::from_engine(engine).to_byte_array()
+                let mut info = [0u8; AUX_INFO.len() + 8];
+                info[..AUX_INFO.len()].copy_from_slice(AUX_INFO);
+                info[AUX_INFO.len()..].copy_from_slice(&(index as u64).to_le_bytes());
+                let mut aux = [0u8; 32];
+                faraday_crypto::hkdf_sha256_expand(&bytes, &info, &mut aux)
+                    .expect("32 bytes is one block");
+                aux
             }
         }
     }
 }
 
-/// The label the per-input auxiliary randomness is hashed under.
-const AUX_LABEL: &[u8] = b"faraday-schnorr-aux";
+/// The HKDF-Expand `info` label the per-input auxiliary randomness is
+/// drawn under, before the input's index.
+const AUX_INFO: &[u8] = b"faraday-schnorr-aux";
 
 /// What part a MuSig2 signature plays on its input.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

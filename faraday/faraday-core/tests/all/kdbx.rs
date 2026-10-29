@@ -32,8 +32,9 @@ fn an_entry_exported_for_keepass_is_sealed_under_its_passphrase() {
         boot: BootState::Unknown,
         memory_mib: None,
     }));
-    // The answers a shell gives to the requests for randomness.
-    for i in 0..6u8 {
+    // The answers a shell gives to the requests for randomness: the
+    // session's seed, then eleven pooled.
+    for i in 0..12u8 {
         app.event(Event::Entropy(faraday_shell_api::EntropyBytes::new(
             [0x40 + i; 32],
         )));
@@ -89,4 +90,36 @@ fn an_entry_exported_for_keepass_is_sealed_under_its_passphrase() {
         b"keepass passphrase"
     ));
     assert!(!faraday_backup::kdbx::verify(&c, &file.bytes, b"another"));
+    // Its randomness is the system's fresh bytes as they came, an answer
+    // for every 32, the latest first: the master seed is the last
+    // answer's, 0x4b × 32, taken as SHA-256("faraday fresh" ‖ "kdbx" ‖
+    // answer), and the encryption IV the first 12 bytes of the one
+    // before's (computed with Python's `hashlib`).
+    assert_eq!(
+        hex(header_field(&file.bytes, 4)),
+        "3c654f400a8e486b60e50c4487b18f5f5e263fad2f571fbf1a4ff9460315d3f5"
+    );
+    assert_eq!(
+        hex(header_field(&file.bytes, 7)),
+        "7e8f080f045fb896678ccbee"
+    );
+}
+
+fn hex(b: &[u8]) -> String {
+    b.iter().map(|x| format!("{x:02x}")).collect()
+}
+
+/// The value of KDBX 4 outer header field `id`: after the two signatures
+/// and the version, each field is its id, a four-byte little-endian
+/// length and the value.
+fn header_field(file: &[u8], id: u8) -> &[u8] {
+    let mut at = 12;
+    loop {
+        let len = u32::from_le_bytes(file[at + 1..at + 5].try_into().unwrap()) as usize;
+        if file[at] == id {
+            return &file[at + 5..at + 5 + len];
+        }
+        assert_ne!(file[at], 0, "no field {id}");
+        at += 5 + len;
+    }
 }

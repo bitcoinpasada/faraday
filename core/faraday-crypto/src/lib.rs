@@ -56,7 +56,8 @@ pub mod work;
 pub use blake2b::{MAX_OUT as BLAKE2B_MAX_OUT, blake2b};
 pub use crc32::crc32;
 pub use hash::{
-    hmac_sha256, hmac_sha512, pbkdf2_hmac_sha256, pbkdf2_hmac_sha512, sha256, sha256_whole,
+    HKDF_SHA256_MAX, hkdf_sha256_expand, hmac_sha256, hmac_sha512, pbkdf2_hmac_sha256,
+    pbkdf2_hmac_sha512, sha256, sha256_whole,
 };
 pub use pinned::{Pinned, pin_failure_to_report};
 pub use scrypt::{Error as ScryptError, scrypt};

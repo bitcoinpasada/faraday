@@ -40,7 +40,7 @@ except ImportError as e:  # pragma: no cover - the machine's packages
         "the kdbx area needs the distribution's pykeepass (Debian and Ubuntu: python3-pykeepass;"
         f" Fedora: python3-pykeepass; Arch: python-pykeepass): {e}") from e
 
-SEED_LEN = 32 + 12 + 32 + 64
+SEED_LEN = 32 + 12 + 32 + 64 + 16 * (1 + 8)
 MAX_ITEMS = 8
 MAX_FIELD = 16 * 1024
 VECTOR = ROOT / "tools/vectors/backup/backup-kdbx-words-12-english.kdbx"
@@ -186,7 +186,8 @@ class Kdbx(Area):
         words = " ".join(["abandon"] * 11 + ["about"])
         passphrase = "correct horse battery staple"
         item = [("73c5da0a", "12 words, English", words)]
-        data = self.write(item, passphrase, (65536, 3, 1), bytes(range(SEED_LEN)))
+        data = self.write(item, passphrase, (65536, 3, 1),
+                          bytes(i % 256 for i in range(SEED_LEN)))
         if data != VECTOR.read_bytes():
             raise AssertionError("Faraday no longer writes tools/vectors/backup's KDBX file")
         self.verify(data, passphrase)

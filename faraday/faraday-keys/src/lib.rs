@@ -42,7 +42,9 @@ pub mod words;
 
 pub use codex32::{Making, StringCheck, WorkSet};
 pub use identity::{Material, fingerprint, fp_text};
-pub use operations::{Dial, Paper, codex32_seed, slip39_seed};
+pub use operations::{
+    Dial, Paper, codex32_random_len, codex32_seed, seed_xor_random_len, slip39_seed,
+};
 pub use session::{
     CopyCheck, Handout, Held, Infos, KEY_TEXTS_KEPT, KeyId, KeyInfo, Keys, Part, Reveal, Revealed,
     WordsId, compare_words, words_id,

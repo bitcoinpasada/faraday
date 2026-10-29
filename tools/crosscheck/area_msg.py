@@ -422,11 +422,13 @@ def refusal(answer):
 
 
 def aux_for(fresh):
-    """The 32 bytes BIP-340 receives: zero, or Faraday's per-input hash
-    of the call's bytes (`faraday_psbt::sign::Aux::for_input(0)`)."""
+    """The 32 bytes BIP-340 receives: zero, or HKDF-Expand (RFC 5869)
+    from the call's bytes for input 0, the first block, written out over
+    Python's `hmac` (`faraday_psbt::sign::Aux::for_input(0)`)."""
     if fresh is None:
         return bytes(32)
-    return hashlib.sha256(b"faraday-schnorr-aux" + fresh + (0).to_bytes(8, "little")).digest()
+    info = b"faraday-schnorr-aux" + (0).to_bytes(8, "little")
+    return hmac.new(fresh, info + b"\x01", hashlib.sha256).digest()
 
 
 def wif_secret(wif):

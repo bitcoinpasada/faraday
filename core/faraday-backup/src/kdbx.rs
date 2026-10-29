@@ -117,9 +117,17 @@ const KDF_SALT_LEN: usize = 32;
 /// The inner random stream's key, at the size ChaCha20 wants.
 const INNER_KEY_LEN: usize = 64;
 
+/// A group's or an entry's UUID.
+const UUID_LEN: usize = 16;
+/// The UUIDs one database can hold: its group's, then one for each of
+/// the most entries it holds.
+const UUIDS_LEN: usize = UUID_LEN * (1 + MAX_ITEMS);
+
 /// The random bytes one database needs: the master seed, the encryption
-/// IV, the Argon2id salt and the inner stream's key, in that order.
-pub const SEED_LEN: usize = MASTER_SEED_LEN + IV_LEN + KDF_SALT_LEN + INNER_KEY_LEN;
+/// IV, the Argon2id salt, the inner stream's key and the UUIDs (the
+/// group's, then the entries' in order; those of entries it does not
+/// hold are not used), in that order.
+pub const SEED_LEN: usize = MASTER_SEED_LEN + IV_LEN + KDF_SALT_LEN + INNER_KEY_LEN + UUIDS_LEN;
 
 /// SHA-256 and HMAC-SHA-256, which are 32 bytes each.
 const HASH_LEN: usize = 32;
@@ -181,14 +189,16 @@ pub fn write(
     let master_seed = &seed[..MASTER_SEED_LEN];
     let iv = &seed[MASTER_SEED_LEN..MASTER_SEED_LEN + IV_LEN];
     let kdf_salt = &seed[MASTER_SEED_LEN + IV_LEN..MASTER_SEED_LEN + IV_LEN + KDF_SALT_LEN];
-    let inner_key = &seed[MASTER_SEED_LEN + IV_LEN + KDF_SALT_LEN..];
+    let inner_at = MASTER_SEED_LEN + IV_LEN + KDF_SALT_LEN;
+    let inner_key = &seed[inner_at..inner_at + INNER_KEY_LEN];
+    let uuids = &seed[inner_at + INNER_KEY_LEN..];
 
     let header = header(master_seed, iv, kdf_salt, cost)?;
     let keys = keys(c, master_seed, kdf_salt, passphrase, cost)?;
 
     let mut body: Zeroizing<Vec<u8>> = Zeroizing::new(Vec::new());
     inner_header(inner_key, &mut body);
-    document(items, inner_key, master_seed, &mut body);
+    document(items, inner_key, uuids, &mut body);
 
     // The body is encrypted in place, so what is left in the buffer is
     // ciphertext and the plaintext is gone before the buffer is.
@@ -543,8 +553,9 @@ fn inner_header(inner_key: &[u8], out: &mut Vec<u8>) {
 const ZERO_TIME: &[u8] = b"AAAAAAAAAAA=";
 
 /// The XML document: one group, one entry per item, the secret field
-/// protected by the inner stream.
-fn document(items: &[Item<'_>], inner_key: &[u8], master_seed: &[u8], out: &mut Vec<u8>) {
+/// protected by the inner stream, each UUID the next 16 of `uuids`.
+fn document(items: &[Item<'_>], inner_key: &[u8], uuids: &[u8], out: &mut Vec<u8>) {
+    let mut uuids = uuids.chunks_exact(UUID_LEN);
     let mut h = Sha512::new();
     h.update(inner_key);
     let mut wide = Secret::new(<[u8; 64]>::from(h.finalize()));
@@ -563,12 +574,14 @@ fn document(items: &[Item<'_>], inner_key: &[u8], master_seed: &[u8], out: &mut 
     out.extend_from_slice(b"<ProtectURL>False</ProtectURL>");
     out.extend_from_slice(b"<ProtectNotes>False</ProtectNotes></MemoryProtection></Meta>");
     out.extend_from_slice(b"<Root><Group>");
-    put_uuid(master_seed, 0xFF, out);
+    put_uuid(uuids.next().expect("the group's UUID"), out);
     out.extend_from_slice(b"<Name>Faraday</Name>");
     put_times(out);
-    for (i, item) in items.iter().enumerate() {
+    for item in items {
         out.extend_from_slice(b"<Entry>");
-        put_uuid(master_seed, i as u8, out);
+        // `write` holds at most MAX_ITEMS items, and there are as many
+        // UUIDs after the group's.
+        put_uuid(uuids.next().expect("an entry's UUID"), out);
         out.extend_from_slice(b"<IconID>0</IconID>");
         put_times(out);
         put_string(b"Title", item.title, out);
@@ -580,16 +593,11 @@ fn document(items: &[Item<'_>], inner_key: &[u8], master_seed: &[u8], out: &mut 
     out.extend_from_slice(b"</Group></Root></KeePassFile>");
 }
 
-/// One entry's or group's UUID, derived from the master seed so that
+/// One entry's or group's UUID: 16 of the caller's fresh bytes, so that
 /// nothing outside the file decides it and no two entries share one.
-fn put_uuid(master_seed: &[u8], i: u8, out: &mut Vec<u8>) {
-    let mut h = Sha256::new();
-    h.update(master_seed);
-    h.update(b"faraday-kdbx-uuid");
-    h.update([i]);
-    let digest = h.finalize();
+fn put_uuid(uuid: &[u8], out: &mut Vec<u8>) {
     out.extend_from_slice(b"<UUID>");
-    base64(&digest[..16], out);
+    base64(uuid, out);
     out.extend_from_slice(b"</UUID>");
 }
 

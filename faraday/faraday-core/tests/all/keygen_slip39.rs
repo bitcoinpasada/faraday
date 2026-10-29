@@ -26,8 +26,9 @@ fn ready() -> Faraday {
     app
 }
 
-/// A SLIP-39 key from 128 coin flips, dealt 2 of 3, up to its shares.
-fn dealt() -> Faraday {
+/// A SLIP-39 key from 128 coin flips, 2 of 3, its entry made and not
+/// yet finished.
+fn entered() -> Faraday {
     let mut app = ready();
     app.press(Action::KeyGenSlip39);
     assert_eq!(app.screen, Screen::KeyGen);
@@ -40,6 +41,12 @@ fn dealt() -> Faraday {
     for i in 0..128 {
         app.press(Action::KFlip(i % 3 != 1));
     }
+    app
+}
+
+/// A SLIP-39 key from 128 coin flips, dealt 2 of 3, up to its shares.
+fn dealt() -> Faraday {
+    let mut app = entered();
     app.press(Action::KNext);
     let k = app.keygen().unwrap();
     assert_eq!(k.open, Some(kstep::CHECK), "{:?}", k.note);
@@ -96,5 +103,54 @@ fn the_key_loads_once_every_share_is_quizzed() {
     assert!(
         !app.session.keys[0].has_words(),
         "a SLIP-39 key has no BIP-39 words"
+    );
+}
+
+/// The split's randomness is the system's fresh bytes as they came
+/// (`many_fresh_bytes_are_an_answer_for_every_32` holds what those are):
+/// the same session takes the same bytes for "slip39 split" in place of
+/// the deal, their first two the identifier and the next 12 the digest
+/// share's random part; a split given exactly those bytes deals the same
+/// shares.
+#[test]
+fn the_split_takes_its_randomness_from_the_fresh_bytes() {
+    let c = faraday_core::testkit::compute();
+    let mut twin = entered();
+    let n = twin
+        .keygen()
+        .unwrap()
+        .deal_random_len(faraday_bip::slip39::MAX_STRENGTH_BYTES);
+    let fresh = faraday_core::testkit::fresh_bytes(&mut twin, b"slip39 split", n).unwrap();
+    let app = dealt();
+    let k = app.keygen().unwrap();
+    let secret = k.secret.as_ref().unwrap();
+    let id = u16::from_le_bytes([fresh[0], fresh[1]]) & 0x7fff;
+    assert!(k.shares.iter().all(|s| s.identifier() == id));
+    let mut rest = &fresh[2..k.deal_random_len(secret.len())];
+    let mut want: Vec<faraday_bip::slip39::Share> = Vec::new();
+    want.resize_with(3, Default::default);
+    faraday_keys::words::slip39_split(
+        &c,
+        secret,
+        id,
+        2,
+        3,
+        &mut |out: &mut [u8]| {
+            let (now, after) = rest.split_at(out.len());
+            out.copy_from_slice(now);
+            rest = after;
+        },
+        &mut want,
+    )
+    .unwrap();
+    assert!(rest.is_empty());
+    assert_eq!(
+        k.shares
+            .iter()
+            .map(|s| s.indices().to_vec())
+            .collect::<Vec<_>>(),
+        want.iter()
+            .map(|s| s.indices().to_vec())
+            .collect::<Vec<_>>()
     );
 }

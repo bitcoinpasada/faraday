@@ -1013,6 +1013,19 @@ pub struct GroupSpec {
     pub count: u8,
 }
 
+/// The random bytes [`split`] asks `random` for, in all, for a master
+/// secret of `secret_len` bytes and these groups (a lookup): for the
+/// groups and for each group's members, nothing at a threshold of 1, and
+/// otherwise `threshold − 2` shares and the digest share's random part
+/// (SLIP-39's "Splitting a secret").
+pub fn random_len(secret_len: usize, group_threshold: u8, groups: &[GroupSpec]) -> usize {
+    let one = |threshold: u8| match usize::from(threshold) {
+        0 | 1 => 0,
+        t => (t - 2) * secret_len + secret_len.saturating_sub(DIGEST_LENGTH),
+    };
+    one(group_threshold) + groups.iter().map(|g| one(g.threshold)).sum::<usize>()
+}
+
 /// Costs a PBKDF2 (through `feistel`). Splits `secret` into the shares
 /// `groups` describes.
 ///

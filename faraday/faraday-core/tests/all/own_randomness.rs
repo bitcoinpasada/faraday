@@ -114,6 +114,32 @@ fn with_nothing_added_the_bytes_are_the_systems_as_before() {
     );
 }
 
+/// SHA-256("faraday fresh" ‖ WHAT ‖ 0x33 × 32) and with 0x44 × 32: two
+/// more pooled answers' fresh bytes.
+const FRESH_33: &str = "705927da03ce84eddb44675093515cf350262607e21a3abcfb79f45643ea928e";
+const FRESH_44: &str = "47dd19cc4c04530bbdf4a06efbdabf827269339f8879af44b42c004a058874cc";
+
+/// More than 32 bytes take a pooled answer for every 32, each as one
+/// answer's fresh bytes are, the latest answer first, the last cut to
+/// what is left: never one answer stretched. While fewer answers wait
+/// than it needs, it takes none.
+#[test]
+fn many_fresh_bytes_are_an_answer_for_every_32() {
+    let mut app = testkit::started();
+    answer(&mut app, SEED);
+    answer(&mut app, POOLED);
+    answer(&mut app, [0x33; 32]);
+    assert_eq!(testkit::fresh_bytes(&mut app, WHAT, 70), None);
+    answer(&mut app, [0x44; 32]);
+    let got = testkit::fresh_bytes(&mut app, WHAT, 70).expect("three answers pooled");
+    let want = format!("{FRESH_44}{FRESH_33}{}", &FRESH_PLAIN[..12]);
+    assert_eq!(
+        got.iter().map(|x| format!("{x:02x}")).collect::<String>(),
+        want
+    );
+    assert_eq!(testkit::fresh(&mut app, WHAT), None);
+}
+
 #[test]
 fn dice_added_are_mixed_into_the_seed_and_the_fresh_bytes_as_defined() {
     // Added after the system's answers.

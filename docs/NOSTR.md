@@ -439,10 +439,10 @@ As NIP-49 writes it:
   (`faraday_crypto::scrypt` zeroizes its own working memory, not its
   output), and zeroizes the password's copy, the plaintext secret and
   the decrypted copy.
-- The 40 random bytes come from one fresh draw (`Faraday::fresh`,
-  labelled `ncryptsec`), spread over the bytes by SHA-256 as the KeePass
-  export spreads its draw. Every export draws again, so no salt or
-  nonce is reused.
+- The 40 random bytes are taken fresh, an answer for every 32
+  (`Faraday::fresh_bytes`, labelled `ncryptsec`), as the KeePass export
+  takes its bytes; no answer is stretched. Every export draws again, so
+  no salt or nonce is reused.
 - Bech32 with HRP `ncryptsec` over the 91 bytes (§2.4 on the length).
 
 ### 6.3 The key-security byte

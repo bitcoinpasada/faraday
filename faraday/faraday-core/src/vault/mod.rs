@@ -28,7 +28,6 @@ pub use search::{SearchAct, SearchIn};
 use crate::stick;
 use crate::strings::EN;
 use crate::strings::fill;
-use faraday_bip::bitcoin::hashes::{Hash, HashEngine, sha256};
 use faraday_crypto::work::Compute;
 use faraday_keys::vault::{IntoRecord, RecordView, VaultId};
 use faraday_vault::records::{self, field, kind};
@@ -1627,22 +1626,16 @@ impl Faraday {
         else {
             return;
         };
-        // The database's own randomness: one fresh draw, spread over the
-        // bytes the format needs.
-        let Some(draw) = self.fresh(b"kdbx") else {
+        // The database's own randomness, every byte the format needs
+        // taken fresh.
+        let Some(draw) = self.fresh_bytes(b"kdbx", faraday_keys::vault::KDBX_SEED_LEN) else {
             if let Some(p) = self.vaults.state.prompt.as_mut() {
                 p.error = Some(EN.vaults_no_randomness.to_string());
             }
             return;
         };
         let mut seed = Zeroizing::new([0u8; faraday_keys::vault::KDBX_SEED_LEN]);
-        for (i, chunk) in seed.chunks_mut(32).enumerate() {
-            let mut e = sha256::Hash::engine();
-            e.input(&draw);
-            e.input(&(i as u32).to_le_bytes());
-            let h = sha256::Hash::from_engine(e).to_byte_array();
-            chunk.copy_from_slice(&h[..chunk.len()]);
-        }
+        seed.copy_from_slice(&draw);
         let words = faraday_keys::vault::KdbxWords {
             title: EN.vaults_entry,
             username: EN.vaults_username,

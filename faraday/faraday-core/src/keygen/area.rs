@@ -330,14 +330,14 @@ impl KeyGenArea {
     }
 
     /// Costs a seed's fingerprint and a share deal when the entry is
-    /// finished. A press that changes only the flow. `draw` is the fresh
-    /// draw dealing shares takes, asked for before the flow is borrowed.
+    /// finished. A press that changes only the flow. `draw` is the fresh bytes
+    /// dealing shares takes, asked for before the flow is borrowed.
     #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
     pub(crate) fn act(
         &mut self,
         action: crate::Action,
         c: &Compute,
-        draw: Option<zeroize::Zeroizing<[u8; 32]>>,
+        draw: Option<zeroize::Zeroizing<Vec<u8>>>,
         now_ms: u64,
     ) {
         use crate::Action as A;
@@ -443,7 +443,7 @@ impl KeyGenArea {
                     }
                     if k.finish_entry() {
                         if k.slip39 {
-                            if let Err(e) = draw.as_ref().map_or(Ok(()), |r| k.deal(c, r)) {
+                            if let Err(e) = draw.as_ref().map_or(Ok(()), |r| k.deal(c, &r[..])) {
                                 k.note = Some(e);
                                 return;
                             }

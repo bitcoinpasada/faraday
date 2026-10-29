@@ -4,10 +4,10 @@
 entry, titled `73c5da0a`, whose password is the twelve words of the
 all-zero-entropy English key (`abandon` ×11 `about`) and whose notes are
 `12 words, English`. It is written under the passphrase `correct horse
-battery staple`, at 65536 KiB, 3 passes and 1 lane, from 140 bytes of
-seed (the master seed, the encryption IV, the Argon2id salt and the inner
-random stream's key) counted up from `00` to `8b`. The format is
-`docs/KDBX.md`.
+battery staple`, at 65536 KiB, 3 passes and 1 lane, from 284 bytes of
+seed (the master seed, the encryption IV, the Argon2id salt, the inner
+random stream's key and nine UUIDs, the group's first) counted up from
+`00` to `ff` and on from `00` to `1b`. The format is `docs/KDBX.md`.
 
 `core/faraday-backup/tests/vectors.rs` rebuilds the file from exactly
 those inputs and compares, so it cannot drift from the code that writes

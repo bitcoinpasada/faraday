@@ -29,7 +29,6 @@ use faraday_entropy::{
 pub use crate::quiz::QuizState;
 pub use faraday_entropy::{MIX_SOURCES, SOURCE_ROWS, Source};
 
-use faraday_bip::bitcoin::hashes::{Hash, HashEngine, sha256};
 use faraday_crypto::work::Compute;
 
 use crate::forms::Form;
@@ -580,35 +579,44 @@ impl KeyGen {
         self.shares.get(at).map(|s| s.indices())
     }
 
+    /// The fresh bytes dealing `slip_m` of `slip_n` shares of a secret of
+    /// `secret_len` bytes takes (a lookup): two for the identifier, then
+    /// what the split asks for ([`faraday_bip::slip39::random_len`]).
+    pub fn deal_random_len(&self, secret_len: usize) -> usize {
+        use faraday_bip::slip39;
+        let group = slip39::GroupSpec {
+            threshold: self.slip_m,
+            count: self.slip_n,
+        };
+        2 + slip39::random_len(secret_len, 1, &[group])
+    }
+
     /// Costs a PBKDF2 (through `split`). Deals the master secret into
     /// `slip_m` of `slip_n` shares, with `random` for the split's own
-    /// randomness (a fresh draw from the system's generator).
-    pub fn deal(
-        &mut self,
-        c: &Compute,
-        random: &zeroize::Zeroizing<[u8; 32]>,
-    ) -> Result<(), String> {
+    /// randomness: fresh bytes from the system's generator, the first
+    /// [`KeyGen::deal_random_len`] of the secret's length used, the first
+    /// two the identifier and the rest taken by the split in turn; what
+    /// is left over is not used. Fewer are refused, and nothing is dealt.
+    pub fn deal(&mut self, c: &Compute, random: &[u8]) -> Result<(), String> {
         use faraday_bip::slip39;
         let Some(secret) = self.secret.as_ref() else {
             return Err(EN.keygen_no_secret_yet.to_string());
         };
-        // The draw, stretched: SHA-256 over the draw and a counter, as
-        // much as the split asks for.
-        let mut counter: u32 = 0;
-        let mut fill = |out: &mut [u8]| {
-            for chunk in out.chunks_mut(32) {
-                let mut e = sha256::Hash::engine();
-                e.input(b"faraday slip39 split");
-                e.input(&random[..]);
-                e.input(&counter.to_le_bytes());
-                counter += 1;
-                let h = zeroize::Zeroizing::new(sha256::Hash::from_engine(e).to_byte_array());
-                chunk.copy_from_slice(&h[..chunk.len()]);
-            }
+        let Some(random) = random.get(..self.deal_random_len(secret.len())) else {
+            return Err(EN.keygen_no_randomness.to_string());
         };
-        let mut id = [0u8; 2];
-        fill(&mut id);
-        let identifier = u16::from_le_bytes(id) & 0x7fff;
+        let (id, mut rest) = random.split_at(2);
+        let identifier = u16::from_le_bytes([id[0], id[1]]) & 0x7fff;
+        // The split takes its bytes in turn; one that would run past
+        // them gets nothing and the deal is refused.
+        let mut short = false;
+        let mut fill = |out: &mut [u8]| match rest.split_at_checked(out.len()) {
+            Some((now, after)) => {
+                out.copy_from_slice(now);
+                rest = after;
+            }
+            None => short = true,
+        };
         let mut out: Vec<slip39::Share> = Vec::new();
         out.resize_with(usize::from(self.slip_n), slip39::Share::default);
         let n = faraday_keys::words::slip39_split(
@@ -626,6 +634,9 @@ impl KeyGen {
                 &[&faraday_strings::bip::slip39_error(&e)],
             )
         })?;
+        if short || !rest.is_empty() {
+            return Err(EN.keygen_no_randomness.to_string());
+        }
         out.truncate(n);
         self.shares = out;
         self.share_at = 0;
@@ -1386,18 +1397,16 @@ impl crate::Faraday {
             A::KWords(_) if self.sheet == Some(crate::Sheet::KeyLengths) => self.sheet = None,
             _ => {}
         }
-        // Dealing shares takes a fresh draw of its own from the system's
-        // generator; asked for before the flow is borrowed.
-        let dealing = action == A::KNext
-            && self
-                .keygen
-                .state()
-                .is_some_and(|k| k.slip39 && k.open == Some(kstep::ENTER));
-        let draw = if dealing {
-            self.fresh(b"slip39 split").map(zeroize::Zeroizing::new)
-        } else {
-            None
-        };
+        // Dealing shares takes fresh bytes of its own from the system's
+        // generator, as many as the split of the longest secret needs
+        // (the entry is not read yet); asked for before the flow is
+        // borrowed.
+        let dealing = self
+            .keygen
+            .state()
+            .filter(|k| action == A::KNext && k.slip39 && k.open == Some(kstep::ENTER))
+            .map(|k| k.deal_random_len(faraday_bip::slip39::MAX_STRENGTH_BYTES));
+        let draw = dealing.and_then(|n| self.fresh_bytes(b"slip39 split", n));
         if action == A::KAdd {
             self.keygen_add();
             return;

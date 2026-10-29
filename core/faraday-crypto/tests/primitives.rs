@@ -3,8 +3,8 @@
 use core::sync::atomic::{AtomicUsize, Ordering};
 
 use faraday_crypto::{
-    Pinned, Secret, Zeroize, ZeroizeOnDrop, hmac_sha256, hmac_sha512, pbkdf2_hmac_sha256,
-    pbkdf2_hmac_sha512, sha256, work::Compute,
+    HKDF_SHA256_MAX, Pinned, Secret, Zeroize, ZeroizeOnDrop, hkdf_sha256_expand, hmac_sha256,
+    hmac_sha512, pbkdf2_hmac_sha256, pbkdf2_hmac_sha512, sha256, work::Compute,
 };
 
 fn unhex(s: &str) -> Vec<u8> {
@@ -202,4 +202,50 @@ fn pbkdf2_hmac_sha256_rfc7914_known_answers() {
              a1d425a1225833549adb841b51c9b3176a272bdebba1d078478f62b397f33c8d"
         )
     );
+}
+
+/// RFC 5869 Appendix A, test cases 1 to 3: HKDF-Expand from the PRK each
+/// case states, with its info, gives the case's OKM.
+#[test]
+fn hkdf_sha256_expand_rfc5869_cases() {
+    let info2: Vec<u8> = (0xb0..=0xff).collect();
+    let cases: [(&str, &[u8], &str); 3] = [
+        (
+            "077709362c2e32df0ddc3f0dc47bba6390b6c73bb50f9c3122ec844ad7c2b3e5",
+            &[0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7, 0xf8, 0xf9],
+            "3cb25f25faacd57a90434f64d0362f2a2d2d0a90cf1a5a4c5db02d56ecc4c5bf\
+             34007208d5b887185865",
+        ),
+        (
+            "06a6b88c5853361a06104c9ceb35b45cef760014904671014a193f40c15fc244",
+            &info2,
+            "b11e398dc80327a1c8e7f78c596a49344f012eda2d4efad8a050cc4c19afa97c\
+             59045a99cac7827271cb41c65e590e09da3275600c2f09b8367793a9aca3db71\
+             cc30c58179ec3e87c14c01d5c1f3434f1d87",
+        ),
+        (
+            "19ef24a32c717b167f33a91d6f648bdf96596776afdb6377ac434c1c293ccb04",
+            b"",
+            "8da4e775a563c18f715f802a063c5a31b8a11f5c5ee1879ec3454e5f3c738d2d\
+             9d201395faa4b61a96c8",
+        ),
+    ];
+    for (prk, info, okm) in cases {
+        let want = unhex(okm);
+        let mut got = vec![0u8; want.len()];
+        assert_eq!(hkdf_sha256_expand(&unhex(prk), info, &mut got), Some(()));
+        assert_eq!(got, want);
+    }
+}
+
+/// RFC 5869 §2.3 bounds the output at 255 blocks: one byte more is
+/// refused and nothing is written.
+#[test]
+fn hkdf_sha256_expand_refuses_more_than_255_blocks() {
+    let prk = [7u8; 32];
+    let mut most = vec![0u8; HKDF_SHA256_MAX];
+    assert_eq!(hkdf_sha256_expand(&prk, b"x", &mut most), Some(()));
+    let mut over = vec![0u8; HKDF_SHA256_MAX + 1];
+    assert_eq!(hkdf_sha256_expand(&prk, b"x", &mut over), None);
+    assert!(over.iter().all(|&b| b == 0));
 }

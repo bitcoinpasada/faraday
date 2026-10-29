@@ -5400,7 +5400,6 @@ functions = [
   "faraday/faraday-core/src/keygen/mod.rs::KeyGen::deal",
 ]
 code = ["core/faraday-bip/src/slip39.rs::split", "core/faraday-bip/src/slip39.rs::recover"]
-novel_rank = 4
 
 [action.implementation]
 crate = "core/faraday-bip"
@@ -5455,9 +5454,9 @@ kind = "Neutral"
 decision = "no decision"
 
 [[action.own]]
-text = "The split's randomness is one system draw stretched by SHA-256 of a label, the draw and a counter; SLIP-0039 does not say where a split's randomness comes from."
-kind = "Novel"
-decision = "no decision"
+text = "The split's randomness is taken from the session's randomness, an answer for every 32 bytes; SLIP-0039 does not say where a split's randomness comes from."
+kind = "Neutral"
+decision = "F154"
 
 [action.review]
 places = ["tools/vectors/slip39/README.md", "core/faraday-bip/src/slip39.rs"]
@@ -6298,7 +6297,6 @@ code = [
   "core/faraday-backup/src/kdbx.rs::write",
   "faraday/faraday-keys/src/vault.rs::OpenVaults::kdbx_entry",
 ]
-novel_rank = 5
 
 [action.implementation]
 crate = "core/faraday-backup"
@@ -6349,9 +6347,9 @@ kind = "Neutral"
 decision = "F27"
 
 [[action.own]]
-text = "The one system draw is spread over the file's salt, seed, IV and inner key by SHA-256 of the draw and a counter."
-kind = "Novel"
-decision = "no decision"
+text = "The file's seed, IV, salt, inner key and UUIDs are taken from the session's randomness, an answer for every 32 bytes."
+kind = "Neutral"
+decision = "F154"
 
 [action.review]
 places = [

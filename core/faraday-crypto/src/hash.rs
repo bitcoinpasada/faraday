@@ -40,6 +40,35 @@ pub fn hmac_sha256(key: &[u8], msg: &[u8]) -> [u8; 32] {
     mac.finalize().into_bytes().into()
 }
 
+/// The most bytes [`hkdf_sha256_expand`] makes: 255 blocks of 32, the
+/// bound RFC 5869 §2.3 puts on `L`.
+pub const HKDF_SHA256_MAX: usize = 255 * 32;
+
+/// HKDF-Expand with SHA-256 (RFC 5869 §2.3), an HMAC-SHA-256 per 32
+/// bytes of `out`: fills `out` with T(1) ‖ T(2) ‖ …, where T(0) is empty
+/// and T(i) = HMAC-SHA-256(`prk`, T(i−1) ‖ `info` ‖ i). `prk` is a
+/// pseudorandom key of at least 32 bytes: HKDF-Extract's output, or
+/// bytes already uniformly random, as §3.3 allows. `None`, with `out`
+/// untouched, when `out` is longer than [`HKDF_SHA256_MAX`].
+pub fn hkdf_sha256_expand(prk: &[u8], info: &[u8], out: &mut [u8]) -> Option<()> {
+    if out.len() > HKDF_SHA256_MAX {
+        return None;
+    }
+    let mut t = zeroize::Zeroizing::new([0u8; 32]);
+    let mut previous = 0;
+    for (i, chunk) in out.chunks_mut(32).enumerate() {
+        let mut mac = Hmac::<Sha256>::new_from_slice(prk).expect("HMAC accepts any key length");
+        mac.update(&t[..previous]);
+        mac.update(info);
+        // At most 255 blocks, checked above.
+        mac.update(&[(i + 1) as u8]);
+        t.copy_from_slice(&mac.finalize().into_bytes());
+        previous = 32;
+        chunk.copy_from_slice(&t[..chunk.len()]);
+    }
+    Some(())
+}
+
 /// Costs a PBKDF2: `rounds` HMACs per 32 bytes of `out`. PBKDF2 with
 /// HMAC-SHA-256 as the PRF (RFC 8018 §5.2). Fills `out`, which may be any length; SLIP-39's
 /// round function uses it with half the master secret's length.

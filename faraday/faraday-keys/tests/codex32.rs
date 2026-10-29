@@ -31,6 +31,43 @@ fn unhex(s: &str) -> Vec<u8> {
 
 const CHARSET: &[u8; 32] = b"qpzry9x8gf2tvdw0s3jn54khce6mua7l";
 
+/// Fresh bytes enough for any set: nine of a 64-byte seed.
+const R: usize = 8 * 103;
+
+/// The random shares are the fresh bytes as they were given, a symbol a
+/// byte (its low five bits), the first share first: nothing stretches
+/// or hashes them.
+#[test]
+fn a_set_s_random_shares_are_the_fresh_bytes() {
+    let c = compute();
+    let seed = unhex("ffeeddccbbaa99887766554433221100ffeeddccbbaa99887766554433221100");
+    let mut keys = Keys::on(Network::Mainnet);
+    keys.add_seed(&c, &seed, "").unwrap();
+    let random: Vec<u8> = (0..R).map(|i| (i * 7 + 3) as u8).collect();
+    let need = 2 * Codex32::parse(
+        keys.codex32_shares(0, 0, 1, &[], Reveal::PaperForm)
+            .unwrap()[0]
+            .as_str(),
+    )
+    .unwrap()
+    .payload()
+    .len();
+    let shares = keys
+        .codex32_shares(0, 3, 5, &random, Reveal::PaperForm)
+        .unwrap();
+    let mut drawn = Vec::new();
+    for s in &shares[..2] {
+        drawn.extend_from_slice(Codex32::parse(s.as_str()).unwrap().payload());
+    }
+    let want: Vec<u8> = random[..need].iter().map(|b| b & 31).collect();
+    assert_eq!(drawn, want);
+    // One byte fewer than the shares need is refused.
+    assert!(matches!(
+        keys.codex32_shares(0, 3, 5, &random[..need - 1], Reveal::PaperForm),
+        Err(Paper::Refused(_))
+    ));
+}
+
 fn sym(c: u8) -> u8 {
     CHARSET.iter().position(|&x| x == c).unwrap() as u8
 }
@@ -251,7 +288,7 @@ fn a_key_loaded_from_a_seed_writes_its_shares_and_they_recover_it() {
     assert!(keys.info(0).is_some_and(|i| !i.has_words()));
     for (k, n) in [(2u8, 2u8), (2, 3), (3, 5), (5, 9), (9, 31)] {
         let shares = keys
-            .codex32_shares(0, k, n, &[7; 32], Reveal::PaperForm)
+            .codex32_shares(0, k, n, &[7; R], Reveal::PaperForm)
             .unwrap_or_else(|_| panic!("{k} of {n}"));
         assert_eq!(shares.len(), usize::from(n));
         let strings: Vec<&str> = shares.iter().map(|s| s.as_str()).collect();
@@ -271,7 +308,7 @@ fn a_key_loaded_from_a_long_seed_writes_shares_at_its_length() {
     let mut keys = Keys::on(Network::Mainnet);
     keys.add_seed(&c, &seed, "").unwrap();
     let shares = keys
-        .codex32_shares(0, 2, 3, &[1; 32], Reveal::PaperForm)
+        .codex32_shares(0, 2, 3, &[1; R], Reveal::PaperForm)
         .unwrap();
     assert!(shares.iter().all(|s| s.len() == 74));
     let strings: Vec<&str> = shares.iter().map(|s| s.as_str()).collect();
@@ -292,12 +329,12 @@ fn without_a_threshold_the_key_gives_its_secret_alone() {
     let mut keys = Keys::on(Network::Mainnet);
     keys.add_seed(&c, &seed, "").unwrap();
     let one = keys
-        .codex32_shares(0, 0, 1, &[0; 32], Reveal::PaperForm)
+        .codex32_shares(0, 0, 1, &[0; R], Reveal::PaperForm)
         .unwrap();
     assert_eq!(one.len(), 1);
     assert_eq!(recovers(&[one[0].as_str()]), seed);
     assert!(matches!(
-        keys.codex32_shares(0, 0, 2, &[0; 32], Reveal::PaperForm),
+        keys.codex32_shares(0, 0, 2, &[0; R], Reveal::PaperForm),
         Err(Paper::Refused(_))
     ));
 }
@@ -310,7 +347,7 @@ fn a_key_of_words_is_never_split_into_codex32_strings() {
     assert!(!keys.holds_seed_bytes(0));
     for (k, n) in [(0u8, 1u8), (2, 3), (4, 7)] {
         assert_eq!(
-            keys.codex32_shares(0, k, n, &[9; 32], Reveal::PaperForm)
+            keys.codex32_shares(0, k, n, &[9; R], Reveal::PaperForm)
                 .err(),
             Some(Paper::Words),
             "{k} of {n}"
@@ -326,14 +363,14 @@ fn shares_are_refused_for_a_split_that_bip93_does_not_allow() {
     for (k, n) in [(1u8, 3u8), (10, 12), (3, 2), (2, 32)] {
         assert!(
             matches!(
-                keys.codex32_shares(0, k, n, &[3; 32], Reveal::PaperForm),
+                keys.codex32_shares(0, k, n, &[3; R], Reveal::PaperForm),
                 Err(Paper::Refused(_))
             ),
             "{k} of {n}"
         );
     }
     assert!(matches!(
-        keys.codex32_shares(5, 2, 3, &[3; 32], Reveal::PaperForm),
+        keys.codex32_shares(5, 2, 3, &[3; R], Reveal::PaperForm),
         Err(Paper::NoWords)
     ));
 }
@@ -388,7 +425,7 @@ mod set {
     /// Vector 3's first share: another set, another seed.
     const OTHER: &str = "ms13casha320zyxwvutsrqpnmlkjhgfedca2a8d0zehn8a0t";
 
-    use super::compute;
+    use super::{R, compute};
 
     const CHARSET: &[u8; 32] = b"qpzry9x8gf2tvdw0s3jn54khce6mua7l";
 
@@ -555,7 +592,7 @@ mod set {
         let c = compute();
         let keys = made_here(&c);
         let made = keys
-            .codex32_new_set(&c, 0, (3, 5), *b"w0za", &[9; 32], Reveal::PaperForm)
+            .codex32_new_set(&c, 0, (3, 5), *b"w0za", &[9; R], Reveal::PaperForm)
             .expect("a new set");
         assert_eq!(made.len(), 5);
         let strings: Vec<Codex32> = made.iter().map(|s| parse(s)).collect();
@@ -570,7 +607,7 @@ mod set {
         }
         // Fresh randomness makes another set.
         let again = keys
-            .codex32_new_set(&c, 0, (3, 5), *b"w0za", &[10; 32], Reveal::PaperForm)
+            .codex32_new_set(&c, 0, (3, 5), *b"w0za", &[10; R], Reveal::PaperForm)
             .unwrap();
         assert_ne!(again[1].as_str(), made[1].as_str());
     }

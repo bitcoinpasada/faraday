@@ -622,7 +622,8 @@ fn in_demo_the_keepass_export_takes_a_passphrase_typed_by_the_person_and_offers_
     assert!(app.outbox.iter().all(|i| !i.name.ends_with(".kdbx")));
     // Eight go through and the export is written.
     type_in(&mut app, "x");
-    for i in 0..8u8 {
+    // A KeePass file takes nine answers.
+    for i in 0..10u8 {
         app.event(Event::Entropy(faraday_shell_api::EntropyBytes::new(
             [0x50 + i; 32],
         )));

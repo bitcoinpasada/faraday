@@ -164,6 +164,45 @@ fn split_to_shares(secret: &[u8], group_threshold: u8, groups: &[GroupSpec]) -> 
     out
 }
 
+/// `random_len` is what a split asks for: a caller that takes exactly
+/// that many fresh bytes beforehand never runs short and leaves none.
+#[test]
+fn a_split_asks_for_random_len_bytes() {
+    let c = Compute::unchecked();
+    let g = |threshold, count| GroupSpec { threshold, count };
+    let shapes: [(u8, Vec<GroupSpec>); 5] = [
+        (1, vec![g(1, 1)]),
+        (1, vec![g(2, 3)]),
+        (1, vec![g(16, 16)]),
+        (2, vec![g(1, 1), g(3, 5)]),
+        (3, vec![g(2, 2), g(1, 1), g(4, 7), g(2, 3)]),
+    ];
+    for secret_len in [16usize, 32] {
+        let secret = vec![0x5a; secret_len];
+        for (group_threshold, groups) in &shapes {
+            let mut asked = 0usize;
+            let mut out: Vec<Share> = (0..64).map(|_| Share::default()).collect();
+            slip39::split(
+                &c,
+                &secret,
+                b"",
+                1,
+                true,
+                0,
+                *group_threshold,
+                groups,
+                &mut |buf| asked += buf.len(),
+                &mut out,
+            )
+            .unwrap();
+            assert_eq!(
+                asked,
+                slip39::random_len(secret_len, *group_threshold, groups)
+            );
+        }
+    }
+}
+
 #[test]
 fn a_split_recombines_from_every_threshold_subset() {
     let c = Compute::unchecked();
