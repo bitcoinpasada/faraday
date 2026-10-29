@@ -14,7 +14,7 @@ Anyone can copy the three lines and pass them on; only the key can make a new on
 
 ## Formats
 
-Faraday signs with a single-key wallet's key, at one of its receive addresses. It produces BIP-137 signatures for legacy and SegWit addresses, and BIP-322 signatures, which work for every address type including Taproot. Choose the format your verifier expects. Most exchanges and older tools expect BIP-137.
+Faraday signs with a single-key wallet's key, at one of its receive addresses. It produces BIP-137 signatures for legacy and SegWit addresses, and BIP-322 signatures in the simple form, for native SegWit (bc1q) and Taproot (bc1p) addresses. Choose the format your verifier expects. Most exchanges and older tools expect BIP-137.
 
 ## Checking a signed message
 
