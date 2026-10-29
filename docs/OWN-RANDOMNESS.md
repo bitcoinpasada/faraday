@@ -553,11 +553,12 @@ Built from the code at fa72a199: every caller of `Faraday::fresh`,
 | 16 | No press: a keyboard or touchscreen plugged in (F153) | `Seed::draw("faraday input code")` | its code and its target's place | `inputs.rs` (`input_code`) |
 | 17 | No press: the seed arriving, or an addition | `Seed::draw("faraday key blinding")` | the blinding of the session's keys | `fresh.rs` (`keys_reblind`) |
 
-Rows 15 to 17 are covered by the session's mixing, with no row of their
-own. 16 and 17 have no press to put the row at. For 15, whether Lock
-gets the row is question 1 of §8.6. Its recommended answer: no, since
-Lock is one press and must not be delayed, and the nonce only has to be
-unique, which its count ensures.
+Rows 16 and 17 are covered by the session's mixing, with no row of
+their own: they have no press to put the row at. Row 15's row is on the
+Lock sheet, shown only when the lock will seal a changed vault (owner,
+2026-10-28); the idle lock has no sheet and is covered by the mixing.
+Row 4, the demo's dice roller, gets no row (owner, 2026-10-28): it
+stands in for dice in Faraday Demo's Practice only.
 
 Draws nothing from the system, so nothing to offer: signing a PSBT
 (ECDSA nonces are RFC 6979's, low-R; Schnorr's aux_rand is zero, F156),
@@ -605,8 +606,8 @@ before the press:
   so as it changes.
 - **Only where it draws.** Row 13's row shows only while the spend opens
   a MuSig2 round, and row 14's only while one is being aggregated. Row
-  3's row sits on the codex32 identifier's step. Row 4's sits beside the
-  roller, only where the roller is offered (Faraday Demo, Practice).
+  3's row sits on the codex32 identifier's step. Row 15's sits on the Lock
+  sheet only when the lock will seal a changed vault. Row 4 has none.
 - **Drawing reads.** The status line is a lookup and a format through the
   drawing memo (`docs/SPEED.md` §3.3), as Settings' row draws it. The
   row adds no costly work.
@@ -639,9 +640,8 @@ before the press:
   randomness** row and the ⋮ kept on a step that offers it.
 - The screens that draw it, at the presses of §8.1:
   `faraday/faraday-core/src/keygen/screen.rs` (rows 2, 3),
-  `faraday/faraday-core/src/keygen/dice_panel.rs` (row 4),
   `faraday/faraday-core/src/vault/screen.rs` (rows 5, 6, 9, 10),
-  `faraday/faraday-core/src/vault/dice_screen.rs` (row 4),
+  the Lock sheet's screen (row 15),
   `faraday/faraday-core/src/backup_flow/screen.rs` (rows 7, 8),
   `faraday/faraday-core/src/screens/backup.rs` (row 11),
   `faraday/faraday-core/src/codex32_backup/screen.rs` (row 12),
@@ -694,12 +694,7 @@ In `faraday/faraday-core/tests/all/own_randomness.rs`, user-facing:
 
 ### 8.6 Questions for the owner
 
-1. **Lock and seals (row 15).** Recommended: no row on Lock or the Lock
-   sheet. Lock stays one press. The seal nonce only has to be unique,
-   which its count gives, and the seed it is drawn from already carries
-   everything added. Or: a row on the Lock sheet, which shows only when
-   a lock would lose changes.
-2. **The demo's dice roller (row 4).** Recommended: the row beside the
-   roller, as the rule asks, in Faraday Demo's Practice only. Or: none,
-   since the roller stands in for dice for practice and is never on the
-   stick or the Pi.
+1. **Lock and seals (row 15).** Settled (owner, 2026-10-28): a row on the
+   Lock sheet, shown only when the lock will seal a changed vault.
+2. **The demo's dice roller (row 4).** Settled (owner, 2026-10-28): no
+   row; the roller stands in for dice for practice.
