@@ -599,8 +599,10 @@ impl Faraday {
     }
 
     /// Whether the scanner on screen loads a seed and takes one pasted
-    /// (F75): Add a key's, a part of a key's, a wallet's key's, and What
-    /// do you have?, on a shell with a clipboard.
+    /// (F75): Add a key's, a part of a key's, a wallet's key's, What do
+    /// you have?, and Home's Scan (owner, 2026-10-29), on a shell with a
+    /// clipboard. Home's Scan is the Files purpose opened on Home; Files'
+    /// own scanner stays refused.
     fn scan_takes_pasted_seed(&self) -> bool {
         self.clipboard
             && self.camera.scan().is_some_and(|s| {
@@ -610,7 +612,7 @@ impl Faraday {
                         | ScanPurpose::KeyPart
                         | ScanPurpose::WalletKey(_)
                         | ScanPurpose::Intake
-                )
+                ) || (s.purpose == ScanPurpose::Files && self.screen == crate::Screen::Home)
             })
     }
 

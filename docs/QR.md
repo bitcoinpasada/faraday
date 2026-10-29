@@ -487,8 +487,8 @@ The comparison that led here: moved to `docs/history/QR-LOG.md`.
 5. **Paste.** A Paste button beside the scanner's other ways in, where
    the scanner takes anything: Files, Transfer's Receive and What do you
    have?. The scanners that load a seed (a SeedQR, a key part, a
-   wallet's key) have it only where the shell has a clipboard (F75); the
-   copy check and the TOTP scanner have none. The button is dimmed
+   wallet's key, and Home's Scan) have it only where the shell has a
+   clipboard (F75); the copy check and the TOTP scanner have none. The button is dimmed
    where the shell has no clipboard. `Faraday::clipboard` is set by a shell
    that answers `RequestClipboard` with the clipboard's text (the desktop
    app); it is never set on the stick or the Pi. A press asks
@@ -496,7 +496,7 @@ The comparison that led here: moved to `docs/history/QR-LOG.md`.
    and named: a seed's words (12 to 24 English words, checksum or not),
    a SeedQR's digits, an extended private key, a WIF private key, a
    codex32 string or a SLIP-39 share. A scanner that loads a seed (the
-   three above and What do you have?), where the shell has a clipboard,
+   three above, Home's Scan and What do you have?), where the shell has a clipboard,
    takes the seed's own forms instead (F75): words (in any case, any
    spacing), a SeedQR's digits, and a codex32 string or SLIP-39 share
    where the scanner takes one; they load as the same code scanned

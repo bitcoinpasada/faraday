@@ -623,7 +623,10 @@ fn a_secret_pasted_where_it_is_not_taken_is_refused() {
         (wif, "private key"),
         (codex32, "share of a key"),
     ] {
-        let mut app = scanning(Vec::new());
+        // Files' own scanner: Home's takes a seed pasted (F75).
+        let mut app = Faraday::new();
+        app.press(Action::Nav(faraday_core::Screen::Files));
+        app.press(Action::Scan);
         app.clipboard = true;
         paste(&mut app, secret);
         assert!(note(&app).contains(said), "{secret}: {}", note(&app));

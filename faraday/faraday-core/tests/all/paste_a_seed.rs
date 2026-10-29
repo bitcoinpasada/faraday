@@ -223,6 +223,7 @@ fn a_private_key_pasted_into_a_seed_scanner_is_still_refused() {
 #[test]
 fn seed_words_pasted_into_a_scanner_that_takes_no_seed_are_refused() {
     let mut app = desktop();
+    app.press(Action::Nav(faraday_core::Screen::Files));
     app.press(Action::Scan);
     let (words, _) = VECTORS[1];
     paste(&mut app, words, false);
@@ -234,6 +235,35 @@ fn seed_words_pasted_into_a_scanner_that_takes_no_seed_are_refused() {
     assert!(app.session.keys.is_empty(), "the words loaded a key");
     assert!(app.inbox().is_empty(), "the words were filed");
     assert_eq!(app.sheet, Some(Sheet::Scan), "the scanner closed");
+}
+
+#[test]
+fn words_pasted_into_homes_scan_load_the_key_as_a_scan_would() {
+    let mut app = desktop();
+    assert_eq!(app.screen, faraday_core::Screen::Home);
+    app.press(Action::Scan);
+    assert!(app.scan_pastes(), "Home's Scan has no Paste");
+    let (words, xprv) = VECTORS[0];
+    paste(&mut app, words, false);
+    assert_eq!(app.sheet, Some(Sheet::SeedRead), "{}", note(&app));
+    app.press(Action::SeedRead(Choice::AddPass));
+    app.press(Action::SeedRead(Choice::Field(0)));
+    type_text(&mut app, "TREZOR");
+    app.press(Action::SeedRead(Choice::Field(1)));
+    type_text(&mut app, "TREZOR");
+    testkit::pause(&mut app);
+    app.press(Action::SeedRead(Choice::WithPass));
+    assert_eq!(app.session.keys[0].fingerprint.0, fingerprint_of(xprv));
+    assert!(app.inbox().is_empty(), "the words were filed");
+}
+
+#[test]
+fn a_private_key_pasted_into_homes_scan_is_still_refused() {
+    let mut app = desktop();
+    app.press(Action::Scan);
+    paste(&mut app, VECTORS[0].1, false);
+    assert!(note(&app).contains("private key"), "{}", note(&app));
+    assert!(app.session.keys.is_empty());
 }
 
 #[test]
