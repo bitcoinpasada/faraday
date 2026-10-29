@@ -57,9 +57,15 @@ chmod +x "$dir/cc" "$dir/ar"
 cc=$(pwd)/$dir/cc
 ar=$(pwd)/$dir/ar
 
+# Both targets in one cargo: the build scripts and proc macros, which run on
+# the host, are built once for the two.
+stand_ins=()
+target_args=()
 for t in "${targets[@]}"; do
     var=${t//-/_}
-    echo "check-macos: $t"
-    env "CC_$var=$cc" "AR_$var=$ar" CARGO_TARGET_DIR="$dir" \
-        python3 tools/clippy.py -p faraday-starter-shell --all-targets --target "$t"
+    stand_ins+=("CC_$var=$cc" "AR_$var=$ar")
+    target_args+=(--target "$t")
 done
+echo "check-macos: ${targets[*]}"
+env "${stand_ins[@]}" CARGO_TARGET_DIR="$dir" \
+    python3 tools/clippy.py --locked -p faraday-starter-shell --all-targets "${target_args[@]}"
