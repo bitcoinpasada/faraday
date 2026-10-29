@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Specified (F148), not built
-**Open:** the manifest and its entries, the inventory lint, fingerprints and the re-stamp recipe, the step-by-step order of a flow's blocks (§8.1, §8.5), the guide's pictures and text of §8.7, the ⋮ row's leading icon (§8.3), the cross-check stamp read from the manifest, the website's rendering
+**Open:** the manifest and its entries, the inventory lint, fingerprints and the re-stamp recipe, the step-by-step order of a flow's blocks (§8.1, §8.5), the guide's pictures and text of §8.7, the ⋮ row's leading icon (§8.3), the cross-check stamp read from the manifest, the website's rendering, the constructions of §18 (F159)
 
 Every screen that does something cryptographic opens a block that says
 how Faraday does it: the standard, the code, what checks it, how the
@@ -861,6 +861,10 @@ written by hand (owner, 2026-10-28):
 - **One screen.** The whole page is one scrolling page with the filters
   above it; a filter hides blocks, never moves to another page.
 
+- **Constructions.** Each construction of §18 (the vault's account,
+  passphrase strength) at its own anchor, before its actions' blocks
+  (§18.7).
+
 The page reads only what §11 lists; the hash rule above holds it.
 
 ## 12. The actions found in the code
@@ -1207,3 +1211,421 @@ Reference.
 - A library's behaviour changing without its version changing (a
   vendored patch) is caught by `cargo vet` and the cross-check stamp,
   not by a fingerprint.
+
+## 18. Constructions: how a format is built
+
+(owner, 2026-10-28; F159.) The vault, and how strong a passphrase is,
+need an account of their own: the header field by field, the keys, the
+slots, opening and sealing, what the format promises and what it does
+not. No block holds that. This section adds it to the manifest as a
+**construction**, drawn in Learn under the vault's page and on
+/cryptography beside the vault's actions.
+
+### 18.1 Why a construction, and not a field of a block
+
+A block is facts about one action, in nine fixed fields (§1, F148). The
+vault's account is about the format several actions share (vault-create,
+vault-unlock, vault-seal), and much of it is why: why a changed header
+cannot expose a slot, what two copies show, what the format does not
+promise. That is explanation. CLAUDE.md keeps explanation off working
+screens and puts it in Learn and About, which are not working screens. A
+block is drawn in Learn, but its rule is facts only, so the account does
+not go into a block's field. Three forms were weighed:
+
+- **A field on the vault actions** (`action.account`): three actions
+  would carry one text, or one would carry it for the others; a tenth
+  field breaks §1's fixed nine and the block's drawing (§8.5).
+- **A Learn page of Faraday's own** (`docs/learn/faraday/`): its prose is
+  not in the manifest, so the website's /cryptography page would not
+  render it from the pin, and no lint would hold its numbers to the code.
+- **A manifest table, `[[construction]]`** (chosen): one text, in the
+  one source the app's blocks and the website already read, naming the
+  actions it belongs to, with its numbers and names held to the code by
+  `check.py` (§18.6). It is still Learn's: it is drawn after a Learn
+  page's own sections, never on a working screen.
+
+### 18.2 Its form in the manifest
+
+```toml
+schema = 2                      # constructions are new in schema 2; the website stops on a schema it does not know
+
+[[construction]]
+id = "vault"
+title = "How the vault is built"
+learn = "faraday:vaults"        # the Learn page it is drawn after
+actions = ["vault-create", "vault-unlock", "vault-seal"]   # /cryptography shows it before their blocks
+
+[[construction.section]]
+heading = "The header"
+
+[[construction.section.para]]
+text = "The header is the first {c:faraday/faraday-vault/src/lib.rs::HEADER_LEN} bytes. Nothing in it is secret, and none of it is a key."
+
+[[construction.section.para]]
+text = "Today the magic is OFVT."
+until = "magic"                 # dropped when that Open item is built
+
+[[construction.section.para]]
+text = "The magic is FVLT."
+planned = "magic"               # an item of docs/VAULT-HARDENING.md's Open line (§18.6)
+
+[construction.section.table]
+kind = "vault-header"           # a table gen.py writes from the code (§18.6)
+```
+
+- **`para.text`**: plain statements. A number is never typed: it is a
+  placeholder that gen.py fills when it generates: `{c:<file>::<CONST>}`
+  for a constant (an integer expression of literals and other constants
+  of that file, as `HEADER_LEN` is), `{len:<file>::<STATIC>}` for an
+  array's length, `{f:<expr>}` for arithmetic over such placeholders
+  (`log2` of a list's length, rounded to a tenth), and `|words` after any
+  of them for a count written as a word ("four slots"). A function or a
+  type is `{fn:<file>::<name>}`, drawn in mono. A standard is named by
+  its key in the standards table ("RFC 5869"), whose digits are its name.
+- **`para.planned`** names an item of a Spec's Open line that the
+  paragraph describes as not built. The generator draws it led by
+  "Planned, not built:". **`para.until`** marks a paragraph about today's
+  behaviour that the item replaces. The batch that builds the item drops
+  its `until` paragraphs and its paragraphs' `planned` keys, rewording
+  them as built.
+- **`table.kind`**: one of the tables gen.py writes from the code:
+  `vault-header` (the header's fields, from `Header::to_bytes`),
+  `vault-slot` (a slot's fields), `vault-plain` (a slot's plaintext),
+  `vault-sizes` (each of `SLOT_SIZES` with its file size, by
+  `file_len`'s formula over the constants), `diceware-bits` (with
+  `words = [4, 10]`: each list of `core/faraday-bip/src/diceware/`, its
+  length read from its `WORDS` array, and the bits for each count of
+  words). A table typed by hand is not allowed.
+- **In faraday-learn:** the generator writes `CONSTRUCTIONS` beside
+  `BLOCKS` in `faraday/faraday-learn/src/how.rs`, each with its title,
+  its page and its sections as headings, paragraphs and table rows, and a
+  lookup `constructions_for_page(page)`. A Learn page draws its own
+  sections, then each construction for it as more sections under the
+  construction's title, then its blocks under **How Faraday does it**
+  (§3.1). The drawing is a Learn page's (headings in Title S, paragraphs
+  in Body L, a table as Learn's tables are drawn), not a block's list.
+
+### 18.3 The vault: how it is built
+
+The account as it ships, by section. A sentence marked **[M]**,
+**[P]**, **[C]**, **[S]** or **[N]** changes when that item lands: the
+file's name and magic, the passphrase in Form C, the commitment
+block and the seal count of `docs/VAULT-HARDENING.md` §2 to §5, and the
+fresh seal nonce (`docs/OWN-RANDOMNESS.md`, F154). "Planned, not built"
+sentences read as here until then; "Today" sentences are `until`
+paragraphs, dropped when their item lands. The numbers are what the
+placeholders give today.
+
+**The file**
+
+A vault is one file: a header of 53 bytes, then four slots of *L* + 40
+bytes each, 53 + 4 × (*L* + 40) bytes in all. *L* is a slot's plaintext
+length, chosen when the vault is made and fixed for its life:
+
+| *L* | File |
+|---|---|
+| 65 536 | 262 357 |
+| 262 144 | 1 048 789 |
+| 1 048 576 | 4 194 517 |
+| 4 194 304 | 16 777 429 |
+
+Every vault has four slots, whether it has one passphrase or four.
+
+- **[M]** Today the file's name ends in `.ofv`. Planned, not built: it
+  ends in `.fvlt`.
+
+**The header**
+
+The header is the first 53 bytes. Its integers are little-endian.
+Nothing in it is secret, and none of it is a key.
+
+| At | Bytes | What |
+|---|---|---|
+| 0 | 4 | magic |
+| 4 | 1 | version, 1 |
+| 5 | 4 | Argon2id memory, in KiB |
+| 9 | 4 | Argon2id passes |
+| 13 | 4 | Argon2id lanes |
+| 17 | 4 | *L* |
+| 21 | 32 | Argon2id salt |
+
+- **[M]** Today the magic is `OFVT`. Planned, not built: the magic is
+  `FVLT`.
+
+**The keys**
+
+The passphrase is stretched by Argon2id version 1.3 under the header's
+salt, memory, passes and lanes, to 32 bytes. HKDF-SHA256 (RFC 5869),
+with an empty salt and the label "Faraday vault v1 slot", makes the slot
+key from them. One passphrase gives one slot key, which is tried on
+every slot.
+
+- **[P]** Today Argon2id takes the passphrase's UTF-8 bytes as typed, so
+  "é" typed as one character (U+00E9) and as "e" with a combining accent
+  (U+0065 U+0301) are different passphrases.
+- **[P]** Planned, not built: the passphrase is first put in Unicode
+  Normalization Form C. Then both forms of "é" open the same slot, and
+  two passphrases with one Form C are refused as the same when a vault
+  is made. Nothing else is changed: case, spaces and every character are
+  kept as typed, and Form C keeps full-width letters and ligatures as
+  they are: "Ａ" is not "A".
+
+**The slots**
+
+Each slot is a 24-byte nonce, *L* bytes of ciphertext and a 16-byte
+Poly1305 tag, sealed with XChaCha20-Poly1305
+(draft-irtf-cfrg-xchacha-03). Its associated data is the whole header
+and the slot's number, 0 to 3: 54 bytes. A slot's plaintext is a format
+byte, the slot's records, an end record, and zeros to *L*.
+
+- **[C]** Planned, not built: the plaintext starts with 32 zero bytes,
+  before the format byte. *L* and the file's size do not change; the room
+  for records is 32 bytes less.
+- **[S]** Planned, not built: every slot holds one seal count record:
+  how many times the slot has been written, and when it was last written
+  by the clock of the computer that wrote it.
+
+A slot no passphrase opens is a nonce and *L* + 16 bytes, drawn when the
+vault is made from a ChaCha20 keystream keyed by HKDF-SHA256 of the
+computer's randomness: random-looking bytes the length of a used slot.
+The salt, the order in which the passphrases take the slots, and each
+used slot's first nonce come from the same keystream.
+
+**Opening**
+
+The reader checks the magic, the version, *L* against the four sizes,
+the file's length against *L*, and the cost against its limits: memory
+8 MiB to 4 GiB, passes 1 to 10, lanes exactly 1. A file outside them is
+refused before any memory is taken. The memory a vault needs is in its
+header, and Unlock shows it before the passphrase is typed. Faraday makes
+vaults with at least 64 MiB and 2 passes.
+
+The slot key is derived once and tried on all four slots. One tag
+verifies: that slot opens. None: the passphrase opens nothing. More than
+one: the file is refused, since Faraday never makes two slots under one
+key. Every slot is tried whichever opens, so the time taken does not
+show which slot a passphrase opens. A passphrase that opens none
+decrypts and reads no slot, which the result shows anyway. The opened
+slot's records are read, and any fault refuses the slot.
+
+- **[C]** Planned, not built: a slot whose tag verifies and whose first
+  32 bytes are not zero refuses the file.
+
+**Sealing**
+
+Sealing writes the open slot again under the same slot key with a new
+nonce, and copies the other three slots byte for byte. A session cannot
+tell an unused slot from one another passphrase opens, so it never
+rewrites one. The sealed vault is written to its stick as a new file,
+read back and compared byte for byte, and then takes the old copy's
+place.
+
+- **[N]** Today the nonce is the first 24 bytes of SHA-256 over a label,
+  the session's seed and the count of seals this session has made.
+  Planned, not built: each seal's nonce is drawn fresh from the system's
+  randomness; the seed and count are used only when no fresh answer is
+  available.
+- **[S]** Planned, not built: each seal writes the slot's seal count, one
+  more than when it was opened, and the time.
+
+**What a changed header can do**
+
+Changing the cost or the salt gives another key, so every slot fails.
+Changing *L*, the magic or the version fails the reader's checks, the
+length check or every tag. A slot moved to another position fails: its
+number is in its associated data. A slot moved to another vault fails:
+another salt gives another key, and another header is other associated
+data. The most a changed header can do is stop the vault opening, or,
+within the limits, make it slow or need more memory than a computer has.
+
+**What it promises**
+
+Without a passphrase, one copy of a vault shows four random-looking
+slots of equal size. It does not show how many passphrases exist or
+which slots are in use. Nothing in a slot can be read without its
+passphrase, and a changed byte makes its tag fail, so nothing in it can
+be changed unnoticed.
+
+**What it does not promise**
+
+- **Offline guessing.** Anyone with the file has its salt and cost and
+  can try passphrases on their own computers. Each guess costs one
+  Argon2id at the vault's cost and tests all four slots. A slot is as
+  strong as its passphrase (Passphrase strength, §18.4).
+- **Rollback.** An older copy of a vault still opens. Someone who can
+  write to the stick can put an older copy back; they cannot read or
+  change anything in it.
+  - **[S]** Today nothing shows it. Planned, not built: Unlock shows a
+    slot's seal count; an older copy is named when a newer one was opened
+    or read since power-on, or when an open vault's backup plan records
+    a newer one; and a stick visit does not write an older copy over a
+    newer one. A rollback is not seen when no newer copy is opened or
+    read between power-on and the older copy's unlock and no open
+    vault's plan records one, or when a vault and its plan are rolled
+    back together.
+  - **[S]** Planned, not built: a backup plan records, for each other
+    vault it places, that vault's salt, size, slot position, seal count
+    and a digest of the slot. Whoever opens the slot holding the plan
+    learns those vaults' salts and sizes, which slot of each holds the
+    plan's seeds, and how often it was sealed.
+- **The seal's nonce.** **[N]** Today the nonce comes from the session's
+  seed and a count. A computer started again from a saved state, a
+  virtual machine's snapshot for instance, can draw the same seed again;
+  two seals under one key with one nonce show much of the slot to
+  whoever has both copies, and let them forge it. Planned, not built: a
+  fresh nonce from the system at every seal.
+- **Two copies from different times.** A slot's bytes change only when
+  it is sealed. Someone with two copies sees which slots changed, and so
+  which are in use. That weakens deniability, not secrecy.
+- **Availability.** A slot is checked only when it is opened. A changed
+  byte in a slot no one opened is not noticed until its passphrase is
+  next used, and then that slot is lost. A damaged header loses all four
+  slots. A copy at another place is the remedy.
+- **Key commitment.** XChaCha20-Poly1305 does not commit to its key: a
+  slot can be made whose tag verifies under two passphrases, showing
+  other contents under each. Making one needs both passphrases.
+  - **[C]** Planned, not built: the 32 zero bytes at the start of every
+    slot's plaintext; under a second key they decrypt to other bytes, and
+    the file is refused.
+- **[S]** Planned, not built: **the seal count is read by whoever opens
+  the slot.** A decoy slot sealed twice beside one sealed daily says it
+  is little used. Opening and sealing the decoy raises its count.
+- **[P]** Today a passphrase typed in another Unicode form opens nothing
+  (The keys, above).
+
+### 18.4 Passphrase strength
+
+A second construction, `id = "passphrase-strength"`, on the same Learn
+page (`learn = "faraday:vaults"`, which Create a vault's Learn opens) and
+on /cryptography beside vault-create. It replaces the "Passphrase
+strength" section of `docs/learn/faraday/vaults.md`, whose facts it
+keeps. As it ships:
+
+**Words from dice**
+
+A passphrase of words drawn by dice from a list carries log2 of the
+list's length in bits for every word. Faraday has the three lists the
+EFF publishes:
+
+| Words | EFF large list: 7 776 words, 12.9 bits a word | EFF short list 1: 1 296 words, 10.3 bits a word | EFF short list 2: 1 296 words, 10.3 bits a word |
+|---|---|---|---|
+| 4 | 51.7 | 41.4 | 41.4 |
+| 5 | 64.6 | 51.7 | 51.7 |
+| 6 | 77.5 | 62.0 | 62.0 |
+| 7 | 90.5 | 72.4 | 72.4 |
+| 8 | 103.4 | 82.7 | 82.7 |
+| 9 | 116.3 | 93.1 | 93.1 |
+| 10 | 129.2 | 103.4 | 103.4 |
+
+The bits hold when every word is drawn by fair dice or by the computer's
+randomness, and not when a person chooses a word.
+
+**What Argon2id adds**
+
+Each guess costs one Argon2id at the vault's memory and passes, on the
+guesser's own hardware. Faraday states that work as log2(memory in KiB ×
+passes) bits, which Create a vault shows beside each cost. The memory of
+the vaults Faraday makes ranges over a factor of 64, which is 6 bits;
+one more word from the large list is 12.9. The figure counts work, not
+how much more memory costs a guesser than time, and it gives no time per
+guess.
+
+**Other passphrases**
+
+A person may use any passphrase. Its strength is then theirs to ensure:
+Faraday does not measure a typed passphrase.
+
+**Where to learn more**
+
+- The EFF's page on dice-generated passphrases, eff.org/dice.
+- Arnold Reinhold's Diceware page, where the method began,
+  theworld.com/~reinhold/diceware.html.
+- NIST Special Publication 800-63B, Digital Identity Guidelines, on what
+  makes a password strong.
+
+The website links them; the device names them as text.
+
+### 18.5 Where it is drawn
+
+- **In the app:** after the Learn page `faraday:vaults`' own sections,
+  which Vaults, Create a vault, Unlock, the vault's contents and the
+  backup flow open (`faraday/faraday-core/src/learn.rs`,
+  `Faraday::screen_pages`): "How the vault is built", then "Passphrase
+  strength", then the page's blocks.
+- **On /cryptography:** each construction at its own anchor
+  (`/cryptography#vault`), before the first of its actions' blocks, in
+  §12's group of its actions (Vaults), and in the index (§18.7).
+
+### 18.6 What check.py holds
+
+`docs/crypto/check.py check` fails when:
+
+- a placeholder does not resolve: its file does not exist, or holds no
+  constant, static or function of that name, or the constant is not an
+  integer expression gen.py can evaluate;
+- a paragraph's text holds a digit outside a placeholder, a standard's
+  key, or a name in the manifest's `[[name_with_digits]]` list
+  (Argon2id, HKDF-SHA256, SHA-256, XChaCha20-Poly1305, ChaCha20,
+  Poly1305, UTF-8, U+ code points, "Faraday vault v1 slot", each with
+  its reason), so no number is typed;
+- a `planned` or `until` names an item no Spec's Open line names: the
+  batch that builds an item, which removes it from the Open line, must
+  rewrite its paragraphs in the same change;
+- a construction names an action that does not exist, a Learn page that
+  does not exist (`learn_pages`, as for actions), or a table kind gen.py
+  does not write;
+- a code name in backticks inside a paragraph is not a placeholder.
+
+`docs/crypto/gen.py` reads what the tables and placeholders name:
+
+- `vault-header` and `vault-slot`: the offsets from `Header::to_bytes`'
+  slices and `encrypt_slot`'s, failing when the code no longer has that
+  shape; and the offsets `tools/vault/open.py` reads, which
+  `faraday/faraday-vault/tests/open_py.rs` holds to the vectors;
+- `vault-sizes`: `SLOT_SIZES`, `HEADER_LEN`, `SLOTS`, `NONCE_LEN` and
+  `TAG_LEN`, by `file_len`'s formula; the vectors' lengths are held by
+  `faraday/faraday-vault/tests/vectors.rs`;
+- the cost limits: `MIN_MEMORY_KIB`, `MAX_MEMORY_KIB`, `MAX_PASSES`,
+  `CREATE_MIN_MEMORY_KIB`, `CREATE_MIN_PASSES`, and lanes' 1 from
+  `check_cost`;
+- the label: `SLOT_INFO`'s bytes;
+- `diceware-bits`: each list's `WORDS` length, so a list changed in
+  `tools/diceware/gen.py`'s output changes the table.
+
+A construction is fingerprinted as an action is (§5), over the code its
+placeholders name, so a change to `faraday/faraday-vault/src/lib.rs`
+fails `just lint` until the account is reviewed and re-stamped with the
+vault actions.
+
+### 18.7 The website's /cryptography page
+
+What changes in §11.1:
+
+- **The index** lists the constructions above the standards, each a link
+  to its anchor.
+- **The actions:** each construction is drawn before the first block of
+  the actions it names, in their group, with its headings, paragraphs
+  and tables, a planned paragraph led by "Planned, not built:", as in
+  the app.
+- **Filters:** a construction shows whenever any of its actions shows; a
+  filter "Planned, not built" shows the constructions with a planned
+  paragraph.
+- **Links:** "Where to learn more" links eff.org/dice,
+  theworld.com/~reinhold/diceware.html and NIST SP 800-63B's page; the
+  account's `fn` placeholders link to the file at the release's tag, as
+  the Code field does.
+- **The schema:** the website reads `schema = 2`; a build of it that
+  knows only 1 stops, as §11 has it.
+
+### 18.8 Order of work
+
+One batch (Sonnet, before or after VAULT-HARDENING's batch 0, its
+sentences marked): the schema of §18.2 in check.py (`TOP_KEYS` gains
+`construction` and `name_with_digits`; `schema = 2`; `--self-test`
+covers a placeholder that does not resolve, a typed digit, a planned
+item no Open line names), gen.py's tables and placeholders, the two
+constructions in docs/crypto/actions.toml with §18.3's and §18.4's text,
+`CONSTRUCTIONS` in `faraday/faraday-learn/src/how.rs`, the Learn page's
+drawing of them, and `docs/learn/faraday/vaults.md`'s "Passphrase
+strength" section removed. Each later VAULT-HARDENING batch rewrites its
+planned paragraphs (§18.6).
