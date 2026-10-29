@@ -33,6 +33,30 @@ pub(crate) struct Tour {
     /// guide's tours, whose shot names are their pictures' file names
     /// (`just guide-pictures`).
     pub(crate) named: bool,
+    /// Whether `save` writes the PNG, the marks and `cut.txt`. Off for
+    /// the touch-target test, which looks at no picture.
+    pub(crate) pictures: bool,
+    /// The targets under the touch floor each saved frame offers
+    /// (`docs/M3-CHECKS.md` §2), collected when this is `Some`.
+    pub(crate) targets: Option<Vec<Small>>,
+}
+
+/// A press target a saved frame offers under the touch floor, with where
+/// it was found.
+#[derive(Debug, Clone)]
+pub(crate) struct Small {
+    /// The picture's number and name, as the pictures are named.
+    pub(crate) step: String,
+    /// The screen, and the open sheet.
+    pub(crate) screen: String,
+    pub(crate) sheet: Option<String>,
+    pub(crate) action: Action,
+    /// Where the press is taken, and the control as drawn: (w, h) and
+    /// (x, y, w, h), pixels.
+    pub(crate) target: (i32, i32),
+    pub(crate) drawn: (i32, i32, i32, i32),
+    /// The floor at this frame's scale, pixels.
+    pub(crate) floor: i32,
 }
 
 pub(crate) type Files = Vec<(String, Vec<u8>)>;
@@ -383,6 +407,9 @@ impl Tour {
 
     /// Writes the mark of `next` in the frame last saved, picture `name`.
     pub(crate) fn mark(&mut self, name: &str, next: Action) -> Result<(), String> {
+        if !self.pictures {
+            return Ok(());
+        }
         let file = self.file_of(name);
         if let Some((x, y, w, h)) = self.app.hit_box(next) {
             let path = self.out.join(format!("{file}.mark.json"));
@@ -415,8 +442,13 @@ impl Tour {
         self.n += 1;
         let path = self.out.join(format!("{}.png", self.file_of(name)));
         let frame = self.app.frame();
-        write_png(&path, frame.width, frame.height, frame.rgba)?;
-        if std::env::var_os("FARADAY_SNAP_TEXT").is_some() {
+        if self.pictures {
+            write_png(&path, frame.width, frame.height, frame.rgba)?;
+        }
+        if self.targets.is_some() {
+            self.note_small(name);
+        }
+        if self.pictures && std::env::var_os("FARADAY_SNAP_TEXT").is_some() {
             self.note_cut(name)?;
         }
         Ok(())
@@ -430,9 +462,44 @@ impl Tour {
         canvas: &faraday_draw::Canvas,
     ) -> Result<(), String> {
         self.n += 1;
+        if !self.pictures {
+            return Ok(());
+        }
         let path = self.out.join(format!("{:02}-{name}.png", self.n));
         let frame = canvas.frame();
         write_png(&path, frame.width, frame.height, frame.rgba)
+    }
+
+    /// Collects the targets of the frame on screen, picture `name`, that
+    /// are under the touch floor and not cut by a clip (`docs/M3-CHECKS.md`
+    /// §2.2): wider or taller than a pixel short of `TOUCH` at the
+    /// frame's scale, which the tool takes as its density alone (Standard
+    /// text, no Display scale). With `targets.txt` for the pictures.
+    fn note_small(&mut self, name: &str) {
+        let f = (f32::from(self.dpi.max(1)) / 160.0).max(0.5);
+        let floor = (faraday_draw::tokens::TOUCH * f).round() as i32;
+        let small = self.app.window().width < 600.0;
+        let found: Vec<Small> = self
+            .app
+            .drawn_targets()
+            .into_iter()
+            .filter(|(a, t, _, cut)| {
+                !cut && (t.w + 1 < floor || t.h + 1 < floor)
+                    && !crate::targets::excepted(&format!("{a:?}"), small)
+            })
+            .map(|(action, t, d, _)| Small {
+                step: format!("{:02}-{name}", self.n),
+                screen: format!("{:?}", self.app.screen),
+                sheet: self.app.sheet.map(|s| format!("{s:?}")),
+                action,
+                target: (t.w, t.h),
+                drawn: (d.x, d.y, d.w, d.h),
+                floor,
+            })
+            .collect();
+        if let Some(all) = self.targets.as_mut() {
+            all.extend(found);
+        }
     }
 
     /// Adds to `cut.txt` each line of text the frame on screen, picture

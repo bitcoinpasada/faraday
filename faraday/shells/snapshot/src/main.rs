@@ -98,10 +98,11 @@
 //! width, not pixels. The Pi's Waveshare panel is `480x640@286`; the
 //! smallest panel the design supports is `240x320@143`.
 
+mod targets;
 mod tour;
 mod tours;
 
-use crate::tour::{Tour, display};
+use crate::tour::{Small, Tour, display};
 use faraday_core::{Action, Faraday, Medium};
 use faraday_crypto::work::Compute;
 use faraday_shell_api::{App, Orientation};
@@ -135,16 +136,83 @@ fn offer_rotation(app: &mut Faraday, size: (u16, u16), dpi: u16) {
     }
 }
 
+/// The tours `faraday-snapshot` runs by name.
+pub(crate) const TOURS: &[&str] = &[
+    "spend",
+    "devices",
+    "themes",
+    "tooltips",
+    "compact",
+    "seeds",
+    "keys",
+    "visit",
+    "copy",
+    "scan",
+    "public",
+    "seedfile",
+    "vaultway",
+    "kept",
+    "again",
+    "plan",
+    "board",
+    "boardunsorted",
+    "menu",
+    "m3",
+    "inbox",
+    "silent",
+    "keypath",
+    "register",
+    "transfer",
+    "glance",
+    "chartedit",
+    "fromvault",
+    "first",
+    "restore",
+    "osk",
+    "flow",
+    "bootplace",
+    "passseeds",
+    "power",
+    "pills",
+    "components",
+    "host",
+    "walletflow",
+    "demo",
+    "modes",
+    "vaultshow",
+    "addkey",
+    "keygen",
+    "codex32correct",
+    "createfrom",
+    "inprogress",
+    "cancel",
+    "how",
+    "std",
+    "parts",
+    "panes",
+    "guide",
+    "screens",
+    "roller",
+    "randomness",
+    "dice5",
+    "tour",
+    "codex32",
+    "codex32tour",
+    "codex32form",
+    "createshares",
+    "codex32backup",
+];
+
 /// Costs what the tour it runs costs.
 fn run(
     c: &Compute,
     size: (u16, u16),
     dpi: u16,
-    kit: &Path,
-    out: &Path,
+    (kit, out): (&Path, &Path),
     only: Option<&str>,
     medium: Medium,
-) -> Result<(), String> {
+    pictures: bool,
+) -> Result<Vec<Small>, String> {
     std::fs::create_dir_all(out).map_err(|e| e.to_string())?;
     let mut app = Faraday::new();
     app.medium = medium;
@@ -188,11 +256,14 @@ fn run(
         boxes: None,
         go_on: true,
         named: matches!(only, Some("guide" | "screens")),
+        pictures,
+        targets: Some(Vec::new()),
     };
     match only.and_then(|name| named_tour(c, &mut t, name)) {
         Some(done) => done,
         None => tours::default::default_tour(c, &mut t, medium),
-    }
+    }?;
+    Ok(t.targets.take().unwrap_or_default())
 }
 
 /// Costs what the tour it runs costs. The tour named `name`, run;
@@ -266,7 +337,6 @@ fn named_tour(c: &Compute, t: &mut Tour, name: &str) -> Option<Result<(), String
     })
 }
 
-#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn main() -> ExitCode {
     let mut args: Vec<String> = std::env::args().collect();
     let medium = match args.iter().position(|a| a == "--sd-card") {
@@ -327,74 +397,7 @@ fn main() -> ExitCode {
     )]
     let compute = faraday_crypto::work::Compute::new(|_| {});
     let only = args.get(4).map(String::as_str);
-    if only.is_some_and(|m| {
-        ![
-            "spend",
-            "devices",
-            "themes",
-            "tooltips",
-            "compact",
-            "seeds",
-            "keys",
-            "visit",
-            "copy",
-            "scan",
-            "public",
-            "seedfile",
-            "vaultway",
-            "kept",
-            "again",
-            "plan",
-            "board",
-            "boardunsorted",
-            "menu",
-            "m3",
-            "inbox",
-            "silent",
-            "keypath",
-            "register",
-            "transfer",
-            "glance",
-            "chartedit",
-            "fromvault",
-            "first",
-            "restore",
-            "osk",
-            "flow",
-            "bootplace",
-            "passseeds",
-            "power",
-            "pills",
-            "components",
-            "host",
-            "walletflow",
-            "demo",
-            "modes",
-            "vaultshow",
-            "addkey",
-            "keygen",
-            "codex32correct",
-            "createfrom",
-            "inprogress",
-            "cancel",
-            "how",
-            "std",
-            "parts",
-            "panes",
-            "guide",
-            "screens",
-            "roller",
-            "randomness",
-            "dice5",
-            "tour",
-            "codex32",
-            "codex32tour",
-            "codex32form",
-            "createshares",
-            "codex32backup",
-        ]
-        .contains(&m)
-    }) {
+    if only.is_some_and(|m| !TOURS.contains(&m)) {
         eprintln!(
             "the tour is spend, devices, themes, tooltips, compact, seeds, keys, visit, copy, scan, public, seedfile, vaultway, kept, again, plan, board, menu, m3, inbox, transfer, glance, chartedit, fromvault, first, restore, osk, flow, bootplace, passseeds, power, pills, components, walletflow, demo, modes, vaultshow, addkey, keygen, codex32correct, createfrom, inprogress, cancel, how, std, parts, panes, guide, roller, randomness, dice5, codex32, codex32tour, codex32form, createshares, codex32backup, screens or tour"
         );
@@ -404,12 +407,18 @@ fn main() -> ExitCode {
         &compute,
         (w, h),
         dpi,
-        Path::new(&args[2]),
-        Path::new(&args[3]),
+        (Path::new(&args[2]), Path::new(&args[3])),
         only,
         medium,
+        true,
     ) {
-        Ok(()) => ExitCode::SUCCESS,
+        Ok(small) => match targets::write(Path::new(&args[3]), only, &small) {
+            Ok(()) => ExitCode::SUCCESS,
+            Err(e) => {
+                eprintln!("faraday-snapshot: {e}");
+                ExitCode::FAILURE
+            }
+        },
         Err(e) => {
             eprintln!("faraday-snapshot: {e}");
             ExitCode::FAILURE

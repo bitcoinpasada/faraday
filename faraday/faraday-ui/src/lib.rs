@@ -1692,7 +1692,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
             }
             self.hits.push((rect, action));
             if !self.around {
-                self.reach_for(rect, clip, action);
+                self.reach_for(rect, clip, rect != whole, action);
             }
         }
     }

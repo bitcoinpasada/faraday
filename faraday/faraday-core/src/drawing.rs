@@ -538,6 +538,32 @@ impl Faraday {
         out
     }
 
+    /// Each press the last frame offers, in drawing order, as (action,
+    /// target, drawn, cut), pixels: the pointer's targets; a hit with no
+    /// target left (trimmed to a pane) as its box, marked cut. For the
+    /// touch-target test over the snapshot tours (`docs/M3-CHECKS.md`
+    /// §2). A lookup.
+    pub fn drawn_targets(
+        &self,
+    ) -> Vec<(
+        crate::Action,
+        faraday_draw::geom::Rect,
+        faraday_draw::geom::Rect,
+        bool,
+    )> {
+        let reach = self.pointer.reach();
+        let mut out: Vec<_> = reach
+            .iter()
+            .map(|t| (t.action, t.target, t.drawn, t.cut))
+            .collect();
+        for (r, a) in self.pointer.hits() {
+            if !reach.iter().any(|t| t.drawn == *r && t.action == *a) {
+                out.push((*a, *r, *r, true));
+            }
+        }
+        out
+    }
+
     /// What the frame last drawn ran past the sides of its clips.
     fn past_sides(&self) -> Vec<String> {
         let Some(c) = self.canvas.as_ref() else {

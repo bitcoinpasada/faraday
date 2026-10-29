@@ -31,6 +31,9 @@ pub struct Reach<A> {
     pub drawn: Rect,
     /// What the press does.
     pub action: A,
+    /// The control's box as asked was cut by its clip (scrolled part-way
+    /// out of its region, or under a reveal).
+    pub cut: bool,
 }
 
 /// Where the keyboard moves among `order`, the controls in the order a
@@ -225,7 +228,7 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
     /// Keeps where `drawn`, a press just offered (pixels, clipped), is
     /// taken: grown to the touch floor inside `clip`, sharing any overlap
     /// with the targets before it ([`Reach`]).
-    pub(crate) fn reach_for(&mut self, drawn: Rect, clip: Rect, action: A) {
+    pub(crate) fn reach_for(&mut self, drawn: Rect, clip: Rect, cut: bool, action: A) {
         let floor = self.px(TOUCH);
         let gw = (floor - drawn.w).max(0);
         let gh = (floor - drawn.h).max(0);
@@ -250,6 +253,7 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
             target,
             drawn,
             action,
+            cut,
         });
     }
 

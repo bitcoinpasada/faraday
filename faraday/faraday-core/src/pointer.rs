@@ -78,6 +78,12 @@ impl Pointer {
         &self.hits
     }
 
+    /// Where each control the last frame drew takes a press, in drawing
+    /// order.
+    pub(crate) fn reach(&self) -> &[Reach] {
+        &self.reach
+    }
+
     /// The controls the last frame drew past a side of their clip.
     pub(crate) fn cut(&self) -> &[(Rect, Action)] {
         &self.cut
