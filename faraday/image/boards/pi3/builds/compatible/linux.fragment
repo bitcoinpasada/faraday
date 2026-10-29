@@ -1,0 +1,110 @@
+# The Pi's Compatible build (docs/IMAGES.md §2): what it adds to the
+# board's kernel, so that a screen driven through the kernel (HDMI, and the
+# DSI panels once they are built), USB keyboards, mice and touchscreens,
+# and USB sticks work. Merged after the board's and the panel's fragments,
+# so a line here replaces theirs. Every addition is checked by this
+# directory's kernel.required and kernel.forbidden.
+
+# ---- the display: vc4's display side, through DRM ----
+# The HVS, the pixel valves, the HDMI encoder and the DSI hosts are one
+# driver, vc4. Its V3D, the GPU's 3D block, is not bound and there is no
+# render node: linux-patches/ takes both out of the driver. Only the app
+# opens a display node, and it opens /dev/fb0, DRM's framebuffer
+# emulation; no line in common/rootfs-overlay/etc/mdev.conf gives
+# /dev/dri/card0 to anyone, so it stays root's.
+CONFIG_DRM=y
+CONFIG_DRM_VC4=y
+CONFIG_DRM_FBDEV_EMULATION=y
+# HDMI-CEC: a monitor's remote-control bus, which reaches into the device.
+# CONFIG_DRM_VC4_HDMI_CEC is not set
+# CONFIG_CEC_CORE is not set
+# kcmp(), which DRM selects for Mesa's sake; linux-patches/ takes the
+# select out, and common/kernel.forbidden keeps it out of every image.
+# CONFIG_KCMP is not set
+# The rest of DRM is for other hardware, or for a desktop.
+# CONFIG_DRM_V3D is not set
+# CONFIG_DRM_DP_AUX_CHARDEV is not set
+# CONFIG_DRM_LOAD_EDID_FIRMWARE is not set
+# CONFIG_DRM_LEGACY is not set
+# CONFIG_DRM_VC4_KUNIT_TEST is not set
+
+# ---- sound: only because vc4 depends on it ----
+# DRM_VC4 depends on SND and SND_SOC, since its HDMI encoder can carry
+# audio (drivers/gpu/drm/vc4/Kconfig), so the sound core is built. No
+# sound driver is: the HDMI encoder's audio is the only one, and the
+# panel's config.txt turns it off in the device tree (vc4-kms-v3d's
+# noaudio), so no sound card is registered.
+CONFIG_SOUND=y
+CONFIG_SND=y
+CONFIG_SND_SOC=y
+# CONFIG_SND_DRIVERS is not set
+# CONFIG_SND_ARM is not set
+# CONFIG_SND_SPI is not set
+# CONFIG_SND_USB is not set
+# CONFIG_SND_BCM2835 is not set
+# CONFIG_SND_BCM2835_SOC_I2S is not set
+# CONFIG_SND_SEQUENCER is not set
+# CONFIG_SND_OSSEMUL is not set
+# CONFIG_SND_PCM_OSS is not set
+# CONFIG_SND_SUPPORT_OLD_API is not set
+# CONFIG_SND_VERBOSE_PROCFS is not set
+# CONFIG_SND_SOC_ALL_CODECS is not set
+
+# ---- USB input: HID, as on the PC ----
+# The generic HID driver for keyboards and mice, the USB transport, and
+# hid-multitouch for a USB touchscreen. The board fragment turns USB_HID
+# and HID off; these lines turn them on again.
+CONFIG_INPUT=y
+CONFIG_INPUT_EVDEV=y
+CONFIG_HID=y
+CONFIG_HID_GENERIC=y
+CONFIG_USB_HID=y
+CONFIG_HID_MULTITOUCH=y
+# Raw HID access. Input reaches the shell through evdev, and nothing reads
+# a HID report itself.
+# CONFIG_HIDRAW is not set
+# CONFIG_USB_HIDDEV is not set
+# The vendor HID drivers. Each binds to a vendor and product ID any USB
+# device can claim and parses that device's reports with its own code.
+# HID_GENERIC and HID_MULTITOUCH cover keyboards, mice and touchscreens; a
+# vendor's extra keys are what is lost.
+# CONFIG_HID_A4TECH is not set
+# CONFIG_HID_APPLE is not set
+# CONFIG_HID_BELKIN is not set
+# CONFIG_HID_CHERRY is not set
+# CONFIG_HID_CHICONY is not set
+# CONFIG_HID_CYPRESS is not set
+# CONFIG_HID_EZKEY is not set
+# CONFIG_HID_GYRATION is not set
+# CONFIG_HID_ITE is not set
+# CONFIG_HID_KENSINGTON is not set
+# CONFIG_HID_LOGITECH is not set
+# CONFIG_HID_REDRAGON is not set
+# CONFIG_HID_MICROSOFT is not set
+# CONFIG_HID_MONTEREY is not set
+# CONFIG_HID_NTRIG is not set
+# CONFIG_HID_PANTHERLORD is not set
+# CONFIG_HID_PETALYNX is not set
+# CONFIG_HID_SAMSUNG is not set
+# CONFIG_HID_SONY is not set
+# CONFIG_HID_SUNPLUS is not set
+# CONFIG_HID_TOPSEED is not set
+# CONFIG_HID_PID is not set
+
+# ---- USB storage: a stick, through faraday-grant and faraday-disk ----
+# A USB mass-storage device is a SCSI disk. Its partitions reach the disk
+# process only through faraday-grant, as on the PC: one at a time, never a
+# boot partition, and no filesystem driver (the board fragment keeps FAT
+# out). GPT, beside the board's MBR, because most sticks carry one.
+CONFIG_SCSI=y
+CONFIG_BLK_DEV_SD=y
+CONFIG_USB_STORAGE=y
+CONFIG_EFI_PARTITION=y
+# The SAS, iSCSI, fibre-channel and RAID controllers a disk can be behind.
+# CONFIG_SCSI_LOWLEVEL is not set
+# The SCSI CD-ROM driver binds to any USB device that presents a CD-ROM
+# and parses what it sends.
+# CONFIG_BLK_DEV_SR is not set
+# CONFIG_CHR_DEV_SG is not set
+# CONFIG_SCSI_PROC_FS is not set
+# CONFIG_USB_UAS is not set

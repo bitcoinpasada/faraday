@@ -1,0 +1,7 @@
+# What an HDMI screen does not work without, on top of the Compatible
+# build's list (boards/pi3/builds/compatible/kernel.required).
+
+DRM_VC4                 the HDMI encoder is vc4's, and so are the HVS and pixel valve in front of it
+DRM_FBDEV_EMULATION     /dev/fb0 at the screen's mode, which the shell writes
+I2C_BCM2835             the HDMI DDC bus the screen's EDID is read over
+HID_MULTITOUCH          the 10.1-inch panel's USB touch

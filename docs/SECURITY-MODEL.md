@@ -70,14 +70,24 @@ internal error rather than carrying on.
   not built, so the computer's own disk is invisible: it cannot be read,
   written or mounted. The firmware variable filesystem is not built
   either.
-- **Removable storage, by platform.**
+- **Removable storage, input and display, by platform and build.** The
+  Pi has two builds (`docs/IMAGES.md` §1): Strict is the kernel the Pi
+  has always had, and Compatible adds a display through the kernel, USB
+  input and USB storage. On the PC the two builds have the same drivers
+  and differ only in their command line.
 
-  | | PC | Raspberry Pi |
-  |---|---|---|
-  | USB stick | Yes | No: the kernel has no USB storage driver |
-  | SD card | Only in a USB card reader that presents itself as USB mass storage. A built-in SD slot is not read: its driver is the one many laptops use for their internal eMMC disk. | Yes, its own slot |
-  | Keyboard and pointer | Built-in keyboard, touchpad and touchscreen, and USB | The touch panel only: the kernel has no HID driver |
-  | Camera | A USB webcam, plugged in or built in, that offers uncompressed frames. Not a built-in camera on a MIPI lane, as in many recent thin laptops: its driver needs firmware and an image processor Faraday does not have. | Pi camera or USB webcam |
+  | | PC | Raspberry Pi, Strict | Raspberry Pi, Compatible |
+  |---|---|---|---|
+  | USB stick | Yes | No: the kernel has no USB storage driver | Yes, as on the PC |
+  | SD card | Only in a USB card reader that presents itself as USB mass storage. A built-in SD slot is not read: its driver is the one many laptops use for their internal eMMC disk. | Yes, its own slot | Yes, its own slot, and in a USB card reader |
+  | Keyboard and pointer | Built-in keyboard, touchpad and touchscreen, and USB | The touch panel only: the kernel has no HID driver | The panel's own touch, and USB keyboards, mice and touchscreens through the generic HID drivers only |
+  | Display | The framebuffer the firmware set up | The framebuffer the Pi's firmware set up; no kernel graphics driver | vc4's display side, through the kernel's DRM: HDMI, reading the screen's EDID. No 3D engine is bound and there is no render node; HDMI-CEC is not built and HDMI audio is off. The app writes `/dev/fb0`; the DRM device is root's. |
+  | Camera | A USB webcam, plugged in or built in, that offers uncompressed frames. Not a built-in camera on a MIPI lane, as in many recent thin laptops: its driver needs firmware and an image processor Faraday does not have. | Pi camera or USB webcam | Pi camera or USB webcam |
+
+  The Pi's Compatible kernel builds the sound core, because the vc4
+  driver will not build without it, and no sound driver: HDMI audio is
+  turned off in the device tree, so no sound card exists. Its `/dev/snd`
+  nodes, if any, are root's, as every node `mdev.conf` names no owner for.
 
 - **Why the stick comes out.** Nothing reaches a stick except through
   a stick visit, which writes only what waits For the stick, and only while
@@ -117,22 +127,30 @@ internal error rather than carrying on.
   What the kernel does read from such a stick is its USB descriptors and
   its partition table. Its storage interface is the only one authorised,
   so a stick that also claims to be a keyboard types nothing.
-- **USB devices.** On a PC the kernel has drivers for mass storage,
-  keyboards and pointers, webcams and hubs; on a Pi, for webcams and
-  hubs. Nothing else has a driver. Interfaces are authorised one at a
+- **USB devices.** On a PC and on the Pi's Compatible build the kernel
+  has drivers for mass storage, keyboards and pointers, webcams and hubs;
+  on the Pi's Strict build, for webcams and hubs. Nothing else has a
+  driver. Interfaces are authorised one at a
   time: a device with a storage interface gets only that interface, so a
   stick that also claims to be a keyboard is never authorised as one. A
   keyboard other than the computer's built-in one is ignored until it
   types a random code shown on the screen, and until it is unplugged if
   it types three codes' worth of letters without it; after three such
   keyboards, new ones are ignored until Faraday starts again. A new
-  pointer is ignored until a person approves it with trusted input.
+  pointer is ignored until a person approves it with trusted input. On a
+  Pi the panel's own touch is trusted input; on the Compatible build so is
+  the first USB touchscreen whose name is the one the screen's profile
+  gives (`TOUCH_NAME`, the 10-inch HDMI panel's), since that panel has no
+  other input (F145). Every other USB device follows the rules above.
 - **Also absent:** swap, suspend, hibernation, core dumps, `/dev/mem`,
   `/proc/kcore`, kexec, debugfs, BPF, kernel probes and tracing,
   io_uring, asynchronous I/O, System V IPC, the kernel keyring, one
   process reading another's memory, and Thunderbolt PCIe tunnelling. On
   a PC also the 32-bit system calls, raw HID access, virtio, the CD-ROM
-  driver and the vendor-specific keyboard and mouse drivers. Kernel
+  driver and the vendor-specific keyboard and mouse drivers, and on the
+  Pi's Compatible build raw HID access, the CD-ROM driver, raw SCSI
+  access and the vendor-specific keyboard and mouse drivers. On every Pi,
+  `/dev/vcio`, the firmware mailbox from userspace. Kernel
   lockdown is forced to its strictest level from early boot, which
   closes whatever interface remains for a process to read or write
   kernel memory or raw hardware. The IOMMU is on from boot in strict

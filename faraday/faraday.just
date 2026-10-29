@@ -38,9 +38,11 @@ dev := "0"
 # The stick's board and panel.
 stick_board := "x86_64-uefi"
 stick_panel := "efi-framebuffer"
-# The stick's build (docs/IMAGES.md §1): strict, with
-# efi=disable_early_pci_dma on its command line, or compatible, without it. A
-# directory under faraday/image/boards/<board>/builds.
+# The build (docs/IMAGES.md §1), a directory under
+# faraday/image/boards/<board>/builds: on the stick strict, with
+# efi=disable_early_pci_dma on its command line, or compatible, without it;
+# on the Pi strict, with no DRM, HID or USB storage, or compatible, with
+# them (§2).
 build := "strict"
 
 # The desktop app at out/linux/faraday, built in a Debian 11 container
@@ -447,20 +449,29 @@ faraday-pi-bin:
         out/faraday/{{board}}/faraday-grant
 
 # The Faraday microSD card image, at
-# out/pi/faraday-<board>-<panel>.img (dev=1: -dev.img, with a console and
-# a login on the board's serial port). Flash it to a card and boot the Pi
-# from it. A test release unless release=1 (docs/DECISIONS.md F5):
+# out/pi/faraday-<board>-<panel>.img for the Strict build and
+# -<panel>-compatible.img for the Compatible (dev=1: -dev.img after them,
+# with a console and a login on the board's serial port). The builds
+# differ in the kernel (docs/IMAGES.md §1, §2); a panel that needs the
+# kernel mode setting, the HDMI screen's, is built Compatible only. Flash
+# it to a card and boot the Pi from it. A test release unless release=1
+# (docs/DECISIONS.md F5):
 #
 #   just faraday-pi-image                        the owner's device (pi3,
-#                                                  waveshare-28dpi)
+#                                                  waveshare-28dpi), Strict
+#   just build=compatible faraday-pi-image       the same panel, Compatible
+#   just panel=hdmi build=compatible faraday-pi-image  an HDMI screen
 #   just board=B panel=P dev=0|1 faraday-pi-image any other combination
 #   just release=1 faraday-pi-image              a published release
 [group('build')]
 faraday-pi-image: faraday-pi-bin
     #!/usr/bin/env bash
     set -euo pipefail
-    variant="{{board}}-{{panel}}"
+    variant="{{board}}-{{panel}}-{{build}}"
     name="faraday-{{board}}-{{panel}}"
+    if [ "{{build}}" != "strict" ]; then
+        name="$name-{{build}}"
+    fi
     if [ "{{dev}}" != "0" ]; then
         variant="$variant-dev"
         name="$name-dev"
@@ -468,7 +479,7 @@ faraday-pi-image: faraday-pi-bin
     DOCKER="{{docker}}" FARADAY_RELEASE="{{release}}" FARADAY_VERSION="{{version}}" \
         faraday/image/run-build.sh \
         "{{board}}" "{{panel}}" "{{dev}}" "{{buildroot_tag}}" \
-        "{{buildroot_commit}}"
+        "{{buildroot_commit}}" "{{build}}"
     mkdir -p out/pi
     cp "out/pi/$variant/output/images/faraday-pi.img" "out/pi/$name.img"
     ls -l "out/pi/$name.img"

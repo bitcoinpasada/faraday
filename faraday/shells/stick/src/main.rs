@@ -348,6 +348,8 @@ fn medium() -> Medium {
 
 /// The kernel's boot parameters, and the firmware's maker string.
 const BOOT_PARAMS: &str = "/sys/kernel/boot_params/data";
+/// The DRM connectors, where a Pi's HDMI screen's EDID is.
+const DRM_CLASS: &str = "/sys/class/drm";
 const SYS_VENDOR: &str = "/sys/class/dmi/id/sys_vendor";
 /// The computer's model, for the device check's virtual machine.
 const PRODUCT_FAMILY: &str = "/sys/class/dmi/id/product_family";
@@ -1549,8 +1551,15 @@ fn run(args: Args) -> Result<Exit, String> {
     } else {
         std::fs::read(BOOT_PARAMS).unwrap_or_default()
     };
-    let edid_size =
-        faraday_core::edid::from_boot_params(&boot_params).and_then(faraday_core::edid::size);
+    // A Pi's HDMI screen gives its EDID through DRM instead.
+    let drm_edid = if args.off_device {
+        Vec::new()
+    } else {
+        orient::drm_edid(Path::new(DRM_CLASS))
+    };
+    let edid_size = faraday_core::edid::from_boot_params(&boot_params)
+        .or_else(|| (!drm_edid.is_empty()).then_some(drm_edid.as_slice()))
+        .and_then(faraday_core::edid::size);
     let fb_size = (geometry.width, geometry.height);
     let dpi = dpi(
         &args,

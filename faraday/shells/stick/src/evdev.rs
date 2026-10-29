@@ -397,14 +397,28 @@ pub fn find_devices(sys_class_input: &Path, dev_dir: &Path, wanted: &str) -> Vec
     }
 
     // The named panel is the touch device, whatever the bitmaps said, and
-    // it is the only one.
+    // it is the only one. A device on a bus that is part of the machine
+    // (the Pi's Goodix, on I2C) is the panel by its name alone. One on
+    // USB, which anyone can plug in, is the panel only when it is a
+    // touchscreen, and then only its touch is read: a keyboard or mouse
+    // that calls itself by the panel's name is not trusted for it (an
+    // HDMI panel's USB touch, docs/IMAGES.md §2, F145).
     if !wanted.is_empty()
-        && let Some(i) = devices.iter().position(|d| d.name.contains(wanted))
+        && let Some(i) = devices
+            .iter()
+            .position(|d| d.name.contains(wanted) && (d.trusted || d.touchscreen))
     {
+        let on_board = devices[i].trusted;
         for (j, d) in devices.iter_mut().enumerate() {
             d.touchscreen = j == i;
         }
-        // The panel soldered to the board is part of the machine.
+        if !on_board {
+            let d = &mut devices[i];
+            d.keyboard = false;
+            d.mouse = false;
+            d.touchpad = false;
+        }
+        // The panel is part of the machine.
         devices[i].trusted = true;
     }
     devices.retain(Device::wanted);
@@ -984,5 +998,27 @@ mod tests {
         assert!(third[0].1.mouse && watch.pointing());
 
         fs::remove_dir_all(&root).expect("clean up");
+    }
+
+    /// An HDMI panel's USB touch, named by the screen's profile, needs no
+    /// approval; a keyboard that calls itself by the same name does, and
+    /// is not taken for the panel.
+    #[test]
+    fn the_named_usb_touchscreen_is_trusted_and_a_keyboard_of_that_name_is_not() {
+        let root = std::env::temp_dir().join(format!("faraday-pi-named-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        let (sys, dev) = (root.join("sys"), root.join("dev"));
+        plug(&sys, &dev, 0, "WaveShare Keyboard", &keyboard_caps());
+        plug(&sys, &dev, 1, "WaveShare WaveShare", &touchscreen_caps());
+        plug(&sys, &dev, 2, "Other Touch", &touchscreen_caps());
+        let found = find_devices(&sys, &dev, "WaveShare");
+        fs::remove_dir_all(&root).expect("clean up");
+        let by = |n: &str| found.iter().find(|d| d.name == n).expect(n);
+        let panel = by("WaveShare WaveShare");
+        assert!(panel.touchscreen && panel.trusted && !panel.keyboard);
+        let keys = by("WaveShare Keyboard");
+        assert!(keys.keyboard && !keys.trusted && !keys.touchscreen);
+        // Any other touchscreen is not the panel, and is not trusted.
+        assert!(found.iter().all(|d| d.name != "Other Touch" || !d.trusted));
     }
 }

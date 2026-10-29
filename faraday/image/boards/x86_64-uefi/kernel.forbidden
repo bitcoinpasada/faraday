@@ -1,5 +1,7 @@
 # What this board does not have, on top of common/kernel.forbidden.
 
+DRM                     the firmware hands Linux a plain framebuffer; the kernel-mode-setting stack draws nothing here
+SOUND                   the machine's speaker is not used and the app makes no sound
 THUNDERBOLT             a Thunderbolt or USB4 port is a PCIe slot on the outside of the case; without this driver it carries USB and DisplayPort and nothing that speaks PCIe
 MICROCODE_LATE_LOADING  replacing the microcode of a running CPU, which this image has no blob to do with anyway
 X86_MSR                 the model-specific registers as a file to read and write, which is DEVMEM by another name

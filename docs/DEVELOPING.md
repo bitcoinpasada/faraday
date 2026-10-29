@@ -61,6 +61,9 @@ Demo", and `docs/DEMO.md`.
 just faraday-stick-image                  out/stick/faraday-x86_64-uefi-strict.img
 just build=compatible faraday-stick-image out/stick/faraday-x86_64-uefi-compatible.img
 just faraday-pi-image                     out/pi/faraday-pi3-waveshare-28dpi.img
+just build=compatible faraday-pi-image    out/pi/faraday-pi3-waveshare-28dpi-compatible.img
+just panel=hdmi build=compatible faraday-pi-image
+                                          out/pi/faraday-pi3-hdmi-compatible.img
 just dev=1 faraday-stick-image            out/stick/faraday-x86_64-uefi-strict-dev.img
 just dev=1 faraday-pi-image               out/pi/faraday-pi3-waveshare-28dpi-dev.img
 just faraday-starter                      the Starter, built and run here
@@ -81,7 +84,10 @@ and not yet made. A tool that offers a choice of
 builds reads it; a new build is added there, and `just lint` fails while
 a board or panel directory has no entry. Its `[[hardware]]` entries are
 the website's download tiles (`docs/IMAGES.md` §7): each image names the
-hardware and the build (Strict or Open) it is offered as.
+hardware and the build (Strict or Compatible) it is offered as. On the
+Pi, Strict is the kernel the Pi has always had and Compatible adds a
+display through the kernel, USB input and USB storage (`docs/IMAGES.md`
+§1, §2); the HDMI screen is built Compatible only.
 
 ## 5. Reproducing a release
 

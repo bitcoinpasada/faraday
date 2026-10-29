@@ -1,0 +1,12 @@
+# The Pi's Strict build (docs/IMAGES.md §1): today's kernel, on top of
+# common/ and the board's lists. The panel's touch controller is the whole
+# input device and the USB ports carry a camera, so the display, input and
+# storage stacks Compatible adds are not built, and this list proves it.
+# Strict has no linux.fragment of its own: its kernel is the board's and
+# the panel's fragments as they were before the Pi had two builds.
+
+DRM            the firmware sets the panel up and hands Linux a plain framebuffer; the kernel-mode-setting stack draws nothing here
+SOUND          the device has no speaker and the app makes no sound
+HID            USB is kept for a webcam and for nothing else; no keyboard, no mouse, no keypad
+USB_STORAGE    the only storage is the card the firmware booted from
+SCSI           only USB storage would have wanted it

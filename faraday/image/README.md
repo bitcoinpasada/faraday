@@ -13,13 +13,13 @@ with different boards:
 
 | | `just faraday-pi-image` | `just faraday-stick-image` |
 |---|---|---|
-| The machine | a Raspberry Pi with a 2.8" touch panel | any laptop or PC with UEFI firmware |
+| The machine | a Raspberry Pi with a 2.8" touch panel, or with an HDMI screen | any laptop or PC with UEFI firmware |
 | The medium | a microSD card | a USB stick |
 | What the firmware runs | `zImage`, named in `config.txt` | `EFI/BOOT/BOOTX64.EFI`, which is the kernel |
-| The display | the panel the firmware sets up, 480×640 at 286 dpi | whatever the firmware left running, read from sysfs |
-| Input | the Goodix touch controller | the built-in keyboard and touchpad, USB keyboards and mice, a HID touchscreen |
+| The display | the panel the firmware sets up, 480×640 at 286 dpi; on the HDMI image, the screen vc4 drives at its EDID's mode | whatever the firmware left running, read from sysfs |
+| Input | the Goodix touch controller; on a Compatible image also USB keyboards, mice and touchscreens | the built-in keyboard and touchpad, USB keyboards and mice, a HID touchscreen |
 | Files | the card's `FARADAYDATA` partition, at `/mnt/microsd` | the stick's `FARADAYDATA` partition at `/mnt/microsd`, and every FAT partition on every other USB disk, at `/mnt/usb/<label>` |
-| The image | `out/pi/faraday-pi3-waveshare-28dpi.img` | `out/stick/faraday-x86_64-uefi-strict.img` |
+| The image | `out/pi/faraday-pi3-waveshare-28dpi.img` (Strict), `-compatible.img`, `out/pi/faraday-pi3-hdmi-compatible.img` | `out/stick/faraday-x86_64-uefi-strict.img` |
 
 Nothing here is shared with any other project.
 
@@ -49,6 +49,8 @@ The owner's Pi is `pi3` and `waveshare-28dpi`, which are the defaults:
 just faraday-pi-image                                       # a test release
 just dev=1 faraday-pi-image                                 # the same, with a login
 just board=pi3 panel=waveshare-28dpi dev=0 faraday-pi-image # written out in full
+just build=compatible faraday-pi-image                      # the same panel, Compatible build
+just panel=hdmi build=compatible faraday-pi-image           # an HDMI screen, Compatible only
 just faraday-stick-image                                    # the USB stick, Strict build
 just build=compatible faraday-stick-image                   # the USB stick, Compatible build
 just dev=1 faraday-stick-image                              # the same, with a login
@@ -62,6 +64,22 @@ with its own `kernel.cmdline` checked against the built kernel's
 `CONFIG_CMDLINE`. The root filesystem and the app are the same; each build has
 its own build tree, `out/pi/x86_64-uefi-efi-framebuffer-<build>[-dev]/output`,
 and its own image, `out/stick/faraday-x86_64-uefi-<build>[-dev].img`.
+
+The Pi has two builds too, under `boards/pi3/builds/` (IMAGES §1, §2).
+Strict is the kernel the Pi has always had: its directory holds only a
+`kernel.forbidden`, which keeps DRM, sound, HID, USB storage and SCSI
+out, so a Strict card proves it carries none of them, and its image keeps
+the name it had, `out/pi/faraday-pi3-<panel>.img`. Compatible adds, in
+its `linux.fragment`, vc4's display side through DRM with its
+framebuffer emulation, the sound core vc4 cannot build without (and no
+sound driver), the generic USB HID drivers, and USB storage and SCSI;
+its `kernel.required` and `kernel.forbidden` hold each of those to the
+PC's rules. Its `linux-patches/` are Faraday's two changes to the kernel
+source: vc4 binds no V3D and creates no render node, and DRM does not
+select `KCMP`, which `common/kernel.forbidden` keeps out. Its image is
+`out/pi/faraday-pi3-<panel>-compatible.img`. A panel that needs it says
+`BUILDS="compatible"` in its `panel.conf`, and build.sh refuses it in
+another build.
 
 Each combination has its own build tree at
 `out/pi/<board>-<panel>[-<build>][-dev]/output` and its own image. The Buildroot
@@ -88,7 +106,8 @@ architecture.
 | `users.table` | the `faraday` account | — | — | — |
 | `board.conf` / `panel.conf` | — | the toolchain, the DTBs, the firmware, the exchange partition, the console tty | what the shell must be told about the display | — |
 
-`build.sh` walks common, board, panel, dev, `boards/<board>/dev` in that
+`build.sh` walks common, board, panel, the build
+(`boards/<board>/builds/<build>`), dev, `boards/<board>/dev` in that
 order. `config.txt` is
 the parts concatenated. `cmdline.txt` is the parts' words joined, with
 comments stripped and a word written `-quiet` removing the `quiet` an
@@ -143,8 +162,9 @@ A directory under `boards/` with three fragments and a `board.conf`:
   copying it.
 - `kernel.forbidden` and `kernel.required` — what this machine does not
   have and what it does not work without, each line a symbol and the
-  reason. The Pi forbids `HID`, `SCSI` and `USB_STORAGE`; the stick
-  requires all three. That is what these files are per board for.
+  reason. The Pi's Strict build forbids `HID`, `SCSI` and
+  `USB_STORAGE`; the stick and the Pi's Compatible build require all
+  three. That is what these files are per board, and per build, for.
 - `genimage.cfg` — the layout of the medium, with `@DTBS@` where the
   device trees go.
 - `post-image.sh` — optional, and run before the one that calls
@@ -182,6 +202,9 @@ A directory under `panels/` with four files:
   `/etc/faraday/args`, which the inittab passes to the shell, and the
   size pair also sets the size of the boot logo. No value may contain a
   space: the args file is word-split by the shell that starts the app.
+
+  `BUILDS` names the builds the panel works in, where that is not all
+  of them: `panels/hdmi` needs the Compatible kernel.
 
   A soldered-on panel states all of it. A firmware framebuffer states
   almost none of it: it reports its own size in sysfs, no firmware
@@ -302,7 +325,9 @@ evdev, V4L2, the initramfs, devtmpfs, FAT and the serial console.
 netfilter, no wireless or Bluetooth stack, and no Ethernet, Wi-Fi or USB
 network driver. So are sound, DRM, USB gadget, HID, mass storage, SCSI,
 infrared, DVB, IIO, MD, six filesystems, and the tracing and profiling
-machinery. `check-kernel-config.sh` is the list, with a reason per line.
+machinery; the Pi's Compatible build alone brings back DRM for the
+display, the sound core with no driver, HID and mass storage, each in
+its build directory's lists. `check-kernel-config.sh` is the list, with a reason per line.
 
 ### The kernel configuration is checked on every build
 
@@ -318,9 +343,10 @@ as a black panel on the owner's desk.
 
 The lists are per part because the devices differ. `common/` holds what no
 Faraday image builds and what every one needs; a board holds what that
-machine does not have and does not work without. `HID`, `SCSI` and
-`USB_STORAGE` are in the Pi's forbidden list and in the stick's required
-list, which is the whole reason these are files in board directories
+machine does not have and does not work without, and a build
+(`boards/<board>/builds/<build>`) what that build adds or keeps out.
+`HID`, `SCSI` and `USB_STORAGE` are in the Pi's Strict forbidden list and
+in the stick's and the Pi Compatible's required lists, which is the whole reason these are files in board directories
 rather than one list with exceptions in it. A symbol in both lists at
 once fails the build too: two rules that cannot both hold would otherwise
 be settled by whichever ran last.
@@ -456,6 +482,14 @@ which takes the first one — can scan with it. That is the whole reason
 USB is on there. Gadget mode, HID, mass storage and SCSI are out, and the
 USB network adapters went with `CONFIG_NET`, so the port carries a camera
 or nothing.
+
+That is the Pi's Strict build. Its Compatible build also carries USB
+keyboards, mice, touchscreens and sticks, with the stick's drivers and
+the stick's rules: `faraday-grant` authorises each interface, a new
+keyboard types the code on the screen, a new pointer is approved with
+trusted input, and a stick's partitions reach `faraday-disk` one at a
+time. The one USB device trusted without approval is the touchscreen the
+panel's `TOUCH_NAME` names (F145), and only for its touch.
 
 On the stick, USB carries the camera, the keyboard, the mouse and the
 disk the machine booted from. Gadget mode and the network adapters are
@@ -829,11 +863,12 @@ no login, nothing listening.
   starts from the same bytes. The only thing the running device writes is
   the file a user asked to save, onto the second partition; a dev card
   also writes its timings there.
-- **No sound, no DRM, no USB gadget, no infrared, no DVB, no IIO** — and
+- **No sound, no DRM** (but on the Pi's Compatible build, for its
+  display), **no USB gadget, no infrared, no DVB, no IIO** — and
   no `ext4`, `btrfs`, `f2fs`, `xfs`, `NFS`, `CIFS`, `squashfs`,
   `overlayfs` or `FUSE`. The rootfs is an initramfs and the exchange
   partition is FAT; nothing else is ever mounted. **No HID, no mass
-  storage and no SCSI on the Pi**, whose touch controller is its whole
+  storage and no SCSI on the Pi's Strict build**, whose touch controller is its whole
   input device and whose only storage is the card the firmware booted
   from; the stick needs all three, because a laptop's keyboard and
   touchpad are HIDs and it boots from a USB disk.

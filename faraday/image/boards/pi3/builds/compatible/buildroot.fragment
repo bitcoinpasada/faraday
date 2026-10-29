@@ -1,0 +1,5 @@
+# The Pi's Compatible build: Faraday's two changes to the kernel source,
+# vc4 without V3D or a render node, and DRM without kcmp() (linux-patches/,
+# docs/IMAGES.md §2).
+# Strict builds the board's kernel source as it is.
+BR2_LINUX_KERNEL_PATCH="/image/boards/pi3/builds/compatible/linux-patches"

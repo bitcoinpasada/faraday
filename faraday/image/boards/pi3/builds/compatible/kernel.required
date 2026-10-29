@@ -1,0 +1,14 @@
+# The Pi's Compatible build (docs/IMAGES.md §2): what it adds, on top of
+# common/ and the board's lists. The screen's own driver is the panel's.
+
+DRM                    the kernel-mode-setting stack a screen behind HDMI or DSI is driven through
+DRM_VC4                vc4's display side: the HVS, the pixel valves and the HDMI and DSI encoders (V3D taken out, linux-patches/)
+DRM_FBDEV_EMULATION    /dev/fb0 over DRM, which is what the shell writes every frame to
+HID                    a USB keyboard, mouse and touchscreen are all HIDs
+HID_GENERIC            USB keyboards and mice
+USB_HID                the transport they arrive on
+HID_MULTITOUCH         what a USB touchscreen reports through
+USB_STORAGE            a USB stick, whose partitions reach the disk process through faraday-grant
+SCSI                   the layer USB storage hands its disk to
+BLK_DEV_SD             that disk as /dev/sdX
+EFI_PARTITION          most sticks are GPT; without the parser there is no partition to hand out

@@ -1,0 +1,21 @@
+
+# ---- An HDMI screen: a monitor, or Waveshare's 10.1inch HDMI LCD (B) ----
+# The kernel drives HDMI through vc4's kernel mode setting (the Compatible
+# build, docs/IMAGES.md §2), and reads the screen's modes from its EDID,
+# so no mode is named here. The overlay and its parameters are the
+# firmware's (the overlay README in the firmware's boot/overlays,
+# "vc4-kms-v3d"):
+#
+#   noaudio  no audio over HDMI: the encoder's audio has no DMA channel,
+#            so no sound card is registered.
+#   cma-64   64 MB of contiguous memory for the framebuffer, where the
+#            overlay's own default is 256 MB: one frame at the Pi 3's
+#            largest HDMI mode is under 9 MB, and a Zero 2 W has 512 MB.
+#
+# The overlay also turns the V3D node on; the kernel's vc4 has no V3D to
+# bind to it (boards/pi3/builds/compatible/linux-patches).
+dtoverlay=vc4-kms-v3d,noaudio,cma-64
+
+# The firmware's own HDMI-CEC handling off; the kernel builds no CEC.
+hdmi_ignore_cec=1
+hdmi_ignore_cec_init=1

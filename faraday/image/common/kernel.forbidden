@@ -3,15 +3,15 @@
 # wireless and Bluetooth stacks and every network driver.
 #
 # What one device forbids and another needs is not here. It is in that
-# board's own kernel.forbidden or kernel.required.
+# board's own kernel.forbidden or kernel.required, or in one build's
+# (boards/<board>/builds/): DRM and SOUND, which the PC never builds and
+# the Pi's Compatible build needs for its display (docs/IMAGES.md §2).
 
 MODULES        a loadable module is a driver that is not in the image and can still be loaded into it
 NET            the device signs offline; with no socket layer there is no interface, no stack and no driver to reach one
 INET           follows NET, and named on its own so a stack cannot come back under a different menu
 WLAN           no radios
 BT             no radios
-SOUND          the device has no speaker and the app makes no sound
-DRM            the firmware hands Linux a plain framebuffer; the kernel-mode-setting stack draws nothing here
 USB_GADGET     a device-mode USB port is a way into the device that nothing in this image needs
 INPUT_JOYSTICK nothing in this product is played
 INPUT_MISC     nothing behind it is on any of these devices

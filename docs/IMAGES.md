@@ -1,8 +1,8 @@
 # Images for each piece of hardware
 
 **Kind:** Spec
-**Status:** Specified (F145), the PC's two builds built
-**Open:** the Pi's Compatible kernel, the four new Pi screens, an image per screen and build, the release's image list, the Starter finding images, the website's choice
+**Status:** Specified (F145), the PC's two builds, the Pi's two builds and the HDMI screen's image built
+**Open:** the four new Pi screens with their own panels (5-inch, 7-inch, 10-inch DSI) and the 10-inch HDMI panel's touch name confirmed, the release's image list, the Starter finding images, the website's choice
 
 A person picks their hardware, and gets the one signed image built for
 it. Each Pi screen and each PC build is its own image and its own
@@ -17,18 +17,29 @@ images (§1.3).
 
 | | Strict | Compatible |
 |---|---|---|
-| The Pi | today's kernel: no DRM, no HID, no USB storage (`faraday/image/boards/pi3/kernel.forbidden`); the DPI panel's touch is the only input | DRM for the DSI panels; HDMI; USB keyboards, mice and touchscreens; USB storage |
+| The Pi | today's kernel: no DRM, no HID, no USB storage (`faraday/image/boards/pi3/builds/strict/kernel.forbidden`); the DPI panel's touch is the only input | DRM for HDMI and the DSI panels; USB keyboards, mice and touchscreens; USB storage (`faraday/image/boards/pi3/builds/compatible/`) |
 | The PC stick | today's kernel with `efi=disable_early_pci_dma` on its built-in command line (`faraday/image/boards/x86_64-uefi/builds/strict/kernel.cmdline`) | today's kernel as it is |
 
 Strict is the most locked-down build a piece of hardware allows. Compatible
 works with more hardware. Some older PCs do not start with
 `efi=disable_early_pci_dma`. They take Compatible.
 
-Each build has its own `kernel.forbidden` and `kernel.required`. The
-Strict Pi list keeps DRM, HID and USB storage forbidden, so a Strict
-build proves it carries none of what Compatible adds. The root filesystem,
-the app and its checks are the same in both builds of a platform. The
-kernel and its command line differ, and on the Pi the screen's lines.
+Each build has its own `kernel.forbidden` and `kernel.required`, in a
+directory under the board's `builds/` that `build.sh` adds after the
+panel. The Strict Pi list keeps DRM, sound, HID and USB storage
+forbidden, so a Strict build proves it carries none of what Compatible
+adds; Strict has no kernel fragment of its own, so its kernel is the one
+the Pi had before it had two builds. The root filesystem, the app and
+its checks are the same in both builds of a platform. The kernel and its
+command line differ, and on the Pi the screen's lines.
+
+`just faraday-pi-image` builds the 2.8-inch Strict, as it always has,
+into `out/pi/faraday-pi3-waveshare-28dpi.img`; `just build=compatible
+faraday-pi-image` the 2.8-inch Compatible, `…-compatible.img`, and
+`just panel=hdmi build=compatible faraday-pi-image` the HDMI screen's,
+`out/pi/faraday-pi3-hdmi-compatible.img`. A panel that needs the
+Compatible kernel says so in its `panel.conf` (`BUILDS`), and the build
+refuses it as Strict before anything is built.
 
 ## 2. The Pi's Compatible kernel
 
@@ -36,10 +47,22 @@ What Compatible adds to the kernel's reach, against `docs/SECURITY-MODEL.md`:
 
 - **DRM, for the display only.** vc4's display side, the DSI host and
   the panels' drivers, with their I²C touch controllers. There is no
-  V3D: no GPU render node. The shell keeps writing `/dev/fb0` through
-  DRM's framebuffer emulation, and only the app's user may open the DRM
-  device. HDMI-CEC and HDMI audio are not built. `BCM_VCIO` stays
-  forbidden in both builds.
+  V3D: no GPU render node. Kconfig has no switch for either, so the
+  Compatible build carries two changes of Faraday's own to the kernel
+  source, `faraday/image/boards/pi3/builds/compatible/linux-patches/`:
+  vc4 registers no V3D component and creates no render node, and DRM no
+  longer selects `KCMP`, the `kcmp()` system call Mesa wants and every
+  Faraday image forbids. Strict builds the board's source as it is. The shell keeps writing `/dev/fb0`
+  through DRM's framebuffer emulation; `/dev/dri/card0` is root's, as
+  every node `mdev.conf` gives no owner is, and nothing runs as root
+  after start. HDMI-CEC is not built. `BCM_VCIO` stays forbidden in both
+  builds.
+- **The sound core, and no sound driver.** vc4 does not build without
+  the kernel's sound core and its SoC layer (`depends on SND && SND_SOC`
+  in its Kconfig), since its HDMI encoder can carry audio. The core is
+  built, no sound driver is (`SND_USB`, `SND_BCM2835` and the generic
+  drivers are forbidden), and HDMI audio is off in the device tree
+  (`vc4-kms-v3d,noaudio`), so no sound card is registered.
 - **HDMI.** A monitor's EDID is read by the kernel. A monitor is a
   small new input; the owner accepts it (F145).
 - **USB HID.** The generic HID and multitouch drivers, the USB keyboard
@@ -56,7 +79,11 @@ What Compatible adds to the kernel's reach, against `docs/SECURITY-MODEL.md`:
   (`TOUCH_NAME` in `faraday/image/panels/waveshare-28dpi/panel.conf`).
   The first USB touchscreen matching that name is the panel's own and
   needs no approval. Any other touchscreen, pointer or keyboard follows
-  the rules above.
+  the rules above. The shell does this already for any panel's
+  `--touch-name` (`faraday/shells/stick/src/evdev.rs`). The HDMI
+  screen's profile names `WaveShare`, Waveshare's USB vendor string;
+  what the 10.1inch HDMI LCD (B)'s touch calls itself is to be read off
+  the panel when it is tried.
 - **USB storage and SCSI.** These sit behind `faraday-grant` and
   `faraday-disk`, as on the PC: one partition at a time, never the boot
   partition, read only while no secret is open.
@@ -70,12 +97,20 @@ at the panel's own density; classes are `docs/LAYOUT.md` §2.
 
 | Screen | Panel | Pixels | dpi | Layout | Build |
 |---|---|---|---|---|---|
-| 2.8-inch | Waveshare 2.8inch DPI LCD, Goodix (today's) | 480 × 640, portrait | 286 | 268 × 358 dp: compact and short | Strict or Compatible |
+| 2.8-inch | Waveshare 2.8inch DPI LCD, Goodix (today's) | 480 × 640, portrait | 286 | 268 × 358 dp: compact and short | Strict or Compatible (both built) |
 | 5-inch | Raspberry Pi Touch Display 2, 5-inch, Goodix GT911 (to confirm) | 720 × 1280, portrait | 294 | 392 × 697 dp: compact; landscape 697 × 392: medium and short | Compatible |
 | 7-inch | Waveshare 7inch DSI LCD (C), Goodix | 1024 × 600, landscape | 170 | 964 × 565 dp: expanded and low; portrait: compact | Compatible |
 | 10-inch, DSI | Waveshare 10.1inch DSI LCD (C), Goodix | 1280 × 800, landscape | 149 | 1372 × 857 dp: large; portrait 857 × 1372: expanded | Compatible |
-| An HDMI screen | any HDMI monitor with a USB keyboard and mouse, or Waveshare 10.1inch HDMI LCD (B) with its USB touch | the screen's mode, from its EDID | the screen's, from its EDID; `faraday.dpi=160` where it gives none | by its width | Compatible |
+| An HDMI screen | any HDMI monitor with a USB keyboard and mouse, or Waveshare 10.1inch HDMI LCD (B) with its USB touch | the screen's mode, from its EDID | the screen's, from its EDID, on a screen of 11 inches or less; `faraday.dpi=160` otherwise | by its width | Compatible (built: `faraday/image/panels/hdmi`) |
 
+- **The HDMI screen** is driven by vc4's kernel mode setting
+  (`dtoverlay=vc4-kms-v3d,noaudio,cma-64`, the firmware's overlay README,
+  "vc4-kms-v3d"), which reads the screen's EDID over the HDMI bus and
+  sets its preferred mode; no mode is named on the card, so one image
+  serves every HDMI screen (F150). The shell reads the EDID from
+  `/sys/class/drm` for the density and whether the screen is small, as
+  the stick reads the firmware's (`docs/ORIENTATION.md` §2). `NATIVE`
+  and `MOUNT` are not given: the screen's mode says which way it is.
 - **No 7-inch Strict image.** The original Raspberry Pi Touch Display
   (800 × 480) may still run on the firmware's display path without DRM,
   but nothing current confirms it, so it is not offered (owner, F145).
@@ -210,7 +245,13 @@ marked so (`docs/HARDWARE.md` §6).
    (a wire to test point TP5 locks it in hardware).
 3. The Pi's Compatible kernel: its fragment, its forbidden and required
    lists, and the image that boots with it, starting with the monitor
-   (HDMI with a USB keyboard), which needs no new panel.
+   (HDMI with a USB keyboard), which needs no new panel (built:
+   `faraday/image/boards/pi3/builds/`, `faraday/image/panels/hdmi`;
+   `just panel=hdmi build=compatible faraday-pi-image`, and the 2.8-inch
+   Compatible with `just build=compatible faraday-pi-image`; not yet tried on
+   a Pi: no HDMI output in QEMU's raspi3b). Left: trying both on a Pi 3B+
+   with a monitor, and the 10-inch HDMI panel's touch name read off the
+   panel (step 7).
 4. The PC's Strict and Compatible: the command line in each, two
    images, two boot programs (built: `just build=compatible
    faraday-stick-image`; not yet tried on a PC).

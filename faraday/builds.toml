@@ -135,18 +135,49 @@ release = ["faraday-stick-{version}-x86_64-uefi-compatible.img.xz", "faraday-{ve
 
 [[build]]
 id = "pi3-waveshare-28dpi"
-label = "Raspberry Pi 3, 2.8-inch screen"
+label = "Raspberry Pi, 2.8-inch screen, Strict build"
 group = "image"
 status = "built"
 board = "pi3"
 panel = "waveshare-28dpi"
 recipe = "faraday-pi-image"
-vars = { board = "pi3", panel = "waveshare-28dpi" }
+vars = { board = "pi3", panel = "waveshare-28dpi", build = "strict" }
 hardware = "pi-2-8-inch"
 build = "strict"
 dev = true
 outputs = ["out/pi/faraday-pi3-waveshare-28dpi{dev}.img"]
 release = ["faraday-pi-{version}-pi3-waveshare-28dpi.img.xz"]
+
+# The Pi's Compatible images (docs/IMAGES.md §2, §3). A release does not
+# publish them yet: the release's image list is IMAGES §9 step 5.
+
+[[build]]
+id = "pi3-waveshare-28dpi-compatible"
+label = "Raspberry Pi, 2.8-inch screen, Compatible build"
+group = "image"
+status = "built"
+board = "pi3"
+panel = "waveshare-28dpi"
+recipe = "faraday-pi-image"
+vars = { board = "pi3", panel = "waveshare-28dpi", build = "compatible" }
+hardware = "pi-2-8-inch"
+build = "compatible"
+dev = true
+outputs = ["out/pi/faraday-pi3-waveshare-28dpi-compatible{dev}.img"]
+
+[[build]]
+id = "pi3-monitor-compatible"
+label = "Raspberry Pi, an HDMI screen (a monitor, or the 10-inch HDMI panel)"
+group = "image"
+status = "built"
+board = "pi3"
+panel = "hdmi"
+recipe = "faraday-pi-image"
+vars = { board = "pi3", panel = "hdmi", build = "compatible" }
+hardware = "pi-monitor"
+build = "compatible"
+dev = true
+outputs = ["out/pi/faraday-pi3-hdmi-compatible{dev}.img"]
 
 # ---------------------------------------------------------------- the Starter
 
@@ -178,15 +209,6 @@ release = ["Faraday-Starter-{version}-Windows.exe"]
 # built (F147); the DSI screens fit the 3B, 3B+ and Pi 4.
 
 [[build]]
-id = "pi3-waveshare-28dpi-compatible"
-label = "Raspberry Pi, 2.8-inch screen, Compatible build"
-group = "image"
-status = "planned"
-spec = "docs/IMAGES.md"
-hardware = "pi-2-8-inch"
-build = "compatible"
-
-[[build]]
 id = "pi3-5inch-compatible"
 label = "Raspberry Pi, 5-inch screen (Touch Display 2)"
 group = "image"
@@ -211,13 +233,4 @@ group = "image"
 status = "planned"
 spec = "docs/IMAGES.md"
 hardware = "pi-10-inch"
-build = "compatible"
-
-[[build]]
-id = "pi3-monitor-compatible"
-label = "Raspberry Pi, an HDMI screen (a monitor, or the 10-inch HDMI panel)"
-group = "image"
-status = "planned"
-spec = "docs/IMAGES.md"
-hardware = "pi-monitor"
 build = "compatible"

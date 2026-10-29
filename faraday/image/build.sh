@@ -104,10 +104,21 @@ unset RUST_TARGET CC CFLAGS
 # The panel's values, cleared first so a board.conf that happens to set one
 # of the same names cannot be read as the panel's answer.
 unset NAME WIDTH HEIGHT DPI TOUCH_NAME TOUCH_GRID FB LOGO_WIDTH LOGO_HEIGHT \
-    NATIVE MOUNT TOUCH_SWAP TOUCH_INVERT_X TOUCH_INVERT_Y
+    NATIVE MOUNT TOUCH_SWAP TOUCH_INVERT_X TOUCH_INVERT_Y BUILDS
 # shellcheck source=/dev/null
 . "$panel_dir/panel.conf"
 [ -n "${NAME:-}" ] || { echo "$panel_dir/panel.conf has no NAME" >&2; exit 1; }
+
+# A panel that works only in some of a board's builds says which (BUILDS):
+# an HDMI screen needs the kernel mode setting and the USB input only the
+# Pi's Compatible build has. Refused here, before anything is built,
+# rather than by the kernel check after the toolchain.
+if [ -n "${BUILDS:-}" ]; then
+    case " $BUILDS " in
+        *" ${BUILD:-none} "*) ;;
+        *) echo "$PANEL is built only as: $BUILDS (build=$BUILD given)" >&2; exit 1 ;;
+    esac
+fi
 
 # A soldered-on panel knows its size and its density and the shell is told
 # both; a firmware framebuffer reports its size in sysfs and no firmware

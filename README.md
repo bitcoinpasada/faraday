@@ -209,8 +209,10 @@ On Windows, Explorer's Format offers FAT32 only for 32 GB or less; for a
 larger stick, use Disk Management to make a partition of 32 GB or less
 and format it FAT32.
 
-The Raspberry Pi image reads no USB stick: its kernel has no USB storage
-driver, and the SD card it boots from is its only storage. Its screens say
+The Raspberry Pi's Strict image reads no USB stick: its kernel has no
+USB storage driver, and the SD card it boots from is its only storage.
+Its Compatible images read USB sticks as the PC does (`docs/IMAGES.md`
+§2). Its screens say
 "SD card" wherever the PC's say "stick": "SD card visit", "Lock and use
 SD card", "Remove the SD card".
 

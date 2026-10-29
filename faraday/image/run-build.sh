@@ -101,10 +101,20 @@ board_fragment="$image/boards/$board/buildroot.fragment"
 kernel_lines() {
     grep -E '^(BR2_LINUX_KERNEL_CUSTOM_TARBALL_LOCATION|BR2_LINUX_KERNEL_PATCH)=' "$1" | sort || true
 }
+# A build (strict or compatible) may add patches of its own (the Pi's
+# Compatible does, boards/pi3/builds/compatible/linux-patches); they count
+# too, and a build without any hashes as the board alone does.
+build_dir="$image/boards/$board/builds/$build"
 kernel_source="$({
     kernel_lines "$board_fragment"
     grep -E '^# KERNEL_SHA256 ' "$board_fragment" || true
     cat "$image/boards/$board/linux-patches/"*.patch 2>/dev/null || true
+    if [ -n "$build" ] && [ -f "$build_dir/buildroot.fragment" ]; then
+        kernel_lines "$build_dir/buildroot.fragment"
+    fi
+    if [ -n "$build" ]; then
+        cat "$build_dir/linux-patches/"*.patch 2>/dev/null || true
+    fi
 } | sha256sum | cut -d' ' -f1)"
 source_stamp="$root/out/pi/$variant/kernel-source"
 config="$root/out/pi/$variant/output/.config"
@@ -115,7 +125,12 @@ elif [ -f "$config" ]; then
     # .config writes BR2_LINUX_KERNEL_PATCH="" where a fragment says
     # nothing.
     old="$(kernel_lines "$config" | grep -v '^BR2_LINUX_KERNEL_PATCH=""$' || true)"
-    new="$(kernel_lines "$board_fragment" | grep -v '^BR2_LINUX_KERNEL_PATCH=""$' || true)"
+    new="$({
+        kernel_lines "$board_fragment"
+        if [ -n "$build" ] && [ -f "$build_dir/buildroot.fragment" ]; then
+            kernel_lines "$build_dir/buildroot.fragment"
+        fi
+    } | grep -v '^BR2_LINUX_KERNEL_PATCH=""$' | sort || true)"
     [ "$old" = "$new" ] || changed=yes
 fi
 if [ "$changed" = yes ] && [ -f "$root/out/pi/$variant/output/Makefile" ]; then

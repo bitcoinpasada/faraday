@@ -9,6 +9,7 @@
 //! which says how the panel is mounted in its case. A soldered panel's
 //! `panel.conf` says the same with `NATIVE` and `MOUNT`.
 
+use std::path::Path;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU16, Ordering};
 
@@ -186,6 +187,37 @@ pub fn edid_dpi(size: Option<edid::Size>, fb: (u16, u16)) -> Option<u16> {
     size.dpi().filter(|d| DPI_RANGE.contains(d))
 }
 
+/// Costs a file read for each connector: the EDID of the first connected
+/// screen under `root` (`/sys/class/drm`), where a Pi's HDMI screen says
+/// what it is, which the kernel's vc4 read over the HDMI bus
+/// (`docs/IMAGES.md` §3). A PC's EDID is the firmware's, in the boot
+/// parameters, instead. Empty when no connector is connected or none
+/// holds an EDID, as on every image without DRM.
+pub fn drm_edid(root: &Path) -> Vec<u8> {
+    let Ok(entries) = std::fs::read_dir(root) else {
+        return Vec::new();
+    };
+    // card0-HDMI-A-1 and the like: a connector, not the card itself.
+    let mut connectors: Vec<_> = entries
+        .flatten()
+        .map(|e| e.path())
+        .filter(|p| {
+            p.file_name()
+                .and_then(|n| n.to_str())
+                .is_some_and(|n| n.starts_with("card") && n.contains('-'))
+        })
+        .collect();
+    connectors.sort();
+    connectors
+        .into_iter()
+        .filter(|c| {
+            std::fs::read_to_string(c.join("status")).is_ok_and(|s| s.trim() == "connected")
+        })
+        .filter_map(|c| std::fs::read(c.join("edid")).ok())
+        .find(|e| !e.is_empty())
+        .unwrap_or_default()
+}
+
 /// What is known of the panel at start, and so where Rotation stands.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Setup {
@@ -286,6 +318,36 @@ mod tests {
         // No EDID, or a size no panel has.
         assert_eq!(edid_dpi(None, (1024, 600)), None);
         assert_eq!(edid_dpi(size((1024, 600), (20, 12)), (1024, 600)), None);
+    }
+
+    /// A Pi with an HDMI screen: the connected connector's EDID is the
+    /// one read, and it gives the 10.1-inch panel's density.
+    #[test]
+    fn a_pi_reads_its_hdmi_screen_from_the_connected_connector() {
+        let root = std::env::temp_dir().join(format!("faraday-drm-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        let put = |dir: &str, name: &str, value: &[u8]| {
+            std::fs::create_dir_all(root.join(dir)).unwrap();
+            std::fs::write(root.join(dir).join(name), value).unwrap();
+        };
+        // A 1280 × 800 panel 217 × 136 mm: 10.1 inches.
+        let mut edid = vec![0u8; 128];
+        edid[..8].copy_from_slice(&[0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00]);
+        edid[54..72].copy_from_slice(&[
+            0x1d, 0x1d, 0x00, 0x00, 0x50, 0x20, 0x00, 0x30, 0, 0, 0, 0, 217, 136, 0x00, 0, 0, 0,
+        ]);
+        put("card0", "dev", b"226:0\n");
+        put("card0-Writeback-1", "status", b"unknown\n");
+        put("card0-HDMI-A-1", "status", b"connected\n");
+        put("card0-HDMI-A-1", "edid", &edid);
+        let read = drm_edid(&root);
+        put("card0-HDMI-A-1", "status", b"disconnected\n");
+        let unplugged = drm_edid(&root);
+        let _ = std::fs::remove_dir_all(&root);
+        assert_eq!(read, edid);
+        assert!(unplugged.is_empty());
+        assert_eq!(edid_dpi(edid::size(&read), (1280, 800)), Some(150));
+        assert!(drm_edid(Path::new("/nonexistent/drm")).is_empty());
     }
 
     #[test]

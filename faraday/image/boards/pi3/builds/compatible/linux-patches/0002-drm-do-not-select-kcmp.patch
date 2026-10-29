@@ -1,0 +1,20 @@
+drm: do not select KCMP
+
+Faraday's own change (docs/IMAGES.md §2), applied to the Pi's Compatible
+build only. DRM selects KCMP so that Mesa's gallium drivers can compare
+file descriptors with kcmp(); nothing in the kernel uses it, and Faraday
+runs no GPU userspace. common/kernel.forbidden keeps KCMP out of every
+image, so this takes the select out rather than the rule.
+
+--- a/drivers/gpu/drm/Kconfig
++++ b/drivers/gpu/drm/Kconfig
+@@ -16,9 +16,6 @@
+ 	select I2C_ALGOBIT
+ 	select DMA_SHARED_BUFFER
+ 	select SYNC_FILE
+-# gallium uses SYS_kcmp for os_same_file_description() to de-duplicate
+-# device and dmabuf fd. Let's make sure that is available for our userspace.
+-	select KCMP
+ 	help
+ 	  Kernel-level support for the Direct Rendering Infrastructure (DRI)
+ 	  introduced in XFree86 4.0. If you say Y here, you need to select

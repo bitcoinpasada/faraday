@@ -1,0 +1,11 @@
+# An HDMI screen's part of the kernel command line.
+#
+# faraday.dpi=160: a monitor larger than 11 inches gives no density the
+# shell believes, so dp are pixels, as on the stick (docs/ORIENTATION.md
+# §2.1).
+#
+# fbcon=logo-pos:center: the boot logo is a small square, since the
+# screen's size is not known when the image is built; this puts it in the
+# middle of the screen rather than at its top left.
+faraday.dpi=160
+fbcon=logo-pos:center
