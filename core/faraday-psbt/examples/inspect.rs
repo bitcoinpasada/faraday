@@ -105,10 +105,10 @@ fn load_psbt(arg: &str) -> Result<Psbt, String> {
 
 fn master_from(words: &str, passphrase: &str, network: Network) -> Result<MasterKey, String> {
     let c = Compute::unchecked();
-    let m = Mnemonic::parse(&c, Language::English, words).map_err(|e| e.to_string())?;
+    let m = Mnemonic::parse(&c, Language::English, words).map_err(|e| format!("{e:?}"))?;
     let seed = m
         .to_seed(&c, passphrase.as_bytes())
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| format!("{e:?}"))?;
     Ok(MasterKey::from_seed(&c, &seed, network))
 }
 
@@ -271,9 +271,9 @@ fn run(a: Args) -> Result<(), String> {
         )?;
         let recipient = other
             .account_xpub(&c, ScriptType::NativeSegwit, 0)
-            .map_err(|e| e.to_string())?
+            .map_err(|e| format!("{e:?}"))?
             .address(false, 0)
-            .map_err(|e| e.to_string())?
+            .map_err(|e| format!("{e:?}"))?
             .script_pubkey();
         let mut b = builder::Build::new(a.script_type, a.network);
         b.recipients.push((recipient, 60_000));
@@ -295,7 +295,7 @@ fn run(a: Args) -> Result<(), String> {
         None => None,
     };
     let keys: Vec<KeyRef> = match &master {
-        Some(m) => vec![KeyRef::from_master(&c, m, 0).map_err(|e| e.to_string())?],
+        Some(m) => vec![KeyRef::from_master(&c, m, 0).map_err(|e| format!("{e:?}"))?],
         None => Vec::new(),
     };
     let ctx = Context {

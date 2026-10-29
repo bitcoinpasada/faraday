@@ -80,22 +80,6 @@ pub enum Error {
     IndexOutOfRange,
 }
 
-impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(match self {
-            Error::Template => "unsupported descriptor template",
-            Error::Key => "key is not [fingerprint/path]xpub",
-            Error::Placeholder => "key placeholders are not @0, @1, … in order",
-            Error::Derivation => "derivation must be /** or /<0;1>/*",
-            Error::Threshold => "threshold must be between 1 and the number of keys",
-            Error::Checksum => "descriptor checksum does not match",
-            Error::IndexOutOfRange => "index must be below 2^31",
-        })
-    }
-}
-
-impl core::error::Error for Error {}
-
 /// The multipath suffix a template writes: `/**`, BIP-388's shorthand
 /// for the receive chain then the change chain.
 pub const TEMPLATE_SUFFIX: &str = "/**";
@@ -644,7 +628,7 @@ impl WalletPolicy {
             // A sorted leaf is held as its `multi_a` twin and written
             // back as what it is.
             if self.sorted_a.is_some() {
-                return text.replacen("multi_a(", "sortedmulti_a(", 1);
+                return text.replacen("multi_a(", "sortedmulti_a(", 1); // not wording: a descriptor's function name
             }
             return text;
         }
@@ -1507,9 +1491,10 @@ fn multi_args(
     text: &str,
     key: &mut dyn FnMut(&str) -> Result<(), Error>,
 ) -> Result<(usize, bool), Error> {
-    let (args, sorted) = match inside(text, "sortedmulti(") {
+    const SORTED: &str = "sortedmulti("; // not wording: a descriptor's function name
+    let (args, sorted) = match inside(text, SORTED) {
         Some(args) => (args, true),
-        None => (inside(text, "multi(").ok_or(Error::Template)?, false),
+        None => (inside(text, "multi(").ok_or(Error::Template)?, false), // not wording: a descriptor's function name
     };
     let mut parts = args.split(',');
     let threshold: usize = parts

@@ -669,6 +669,6 @@ fn probe_matrix(c: &Compute, words: usize) -> Result<QrMatrix, String> {
     let len = if words == 24 { 32 } else { 16 };
     let m =
         faraday_keys::words::from_entropy(faraday_bip::bip39::Language::English, &entropy[..len])
-            .map_err(|e| e.to_string())?;
+            .map_err(|e| faraday_strings::bip::bip39_error(&e))?;
     faraday_codec::seedqr::encode_seedqr(c, &m).map_err(|e| e.to_string())
 }

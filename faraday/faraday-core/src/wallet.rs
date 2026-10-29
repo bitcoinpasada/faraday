@@ -4,8 +4,7 @@
 //! `faraday-psbt`'s; this module only decides which call comes next.
 
 use crate::modes::Mode;
-use crate::strings::EN;
-use crate::strings::fill;
+use crate::strings::{EN, fill};
 use crate::{Action, Faraday, Screen, Sheet, family, result_stem, wallet};
 use faraday_bip::bip39::{Language, Mnemonic};
 use faraday_bip::bitcoin::consensus::encode::serialize_hex;
@@ -16,6 +15,7 @@ use faraday_crypto::work::Compute;
 use faraday_psbt::verify::Verdict;
 use faraday_psbt::{Context, Inspection, KeyRef, Psbt};
 use faraday_shell_api::Key as KeyIn;
+use faraday_strings::bip::policy_error;
 
 /// The network a session starts on, before a wallet or a PSBT says
 /// otherwise.
@@ -193,7 +193,7 @@ impl Wallet {
             self.policy
                 .address_at(c, network, change, index)
                 .map(|a| a.to_string())
-                .unwrap_or_else(|e| fill(EN.wallet_no_address, &[&e.to_string()]))
+                .unwrap_or_else(|e| fill(EN.wallet_no_address, &[&policy_error(&e)]))
         };
         let mut kept = self.addresses.borrow_mut();
         // A long walk through addresses keeps the latest only.

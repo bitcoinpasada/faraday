@@ -1146,6 +1146,7 @@ dependencies = [
  "faraday-files",
  "faraday-qr",
  "faraday-shell-api",
+ "faraday-strings",
  "zeroize",
 ]
 
@@ -1153,6 +1154,7 @@ dependencies = [
 name = "faraday-strings"
 version = "0.1.8"
 dependencies = [
+ "faraday-bip",
  "zeroize",
 ]
 

@@ -28,12 +28,12 @@ pub(crate) fn register_tour(t: &mut Tour) -> Result<(), String> {
     // The third key's entry carries another account's key under the
     // origin the input states.
     let mut wrong = with.clone();
-    let policy = WalletPolicy::parse_any(&c, &kit.descriptor).map_err(|e| e.to_string())?;
+    let policy = WalletPolicy::parse_any(&c, &kit.descriptor).map_err(|e| format!("{e:?}"))?;
     let other = WalletPolicy::parse_any(
         &c,
         &format!("wpkh({}/<0;1>/*)", testkit::key(2, "m/48'/1'/1'/2'")),
     )
-    .map_err(|e| e.to_string())?;
+    .map_err(|e| format!("{e:?}"))?;
     let xpubs = &mut wrong.inner_mut().xpub;
     let origin = xpubs
         .remove(policy.keys()[2].xpub())

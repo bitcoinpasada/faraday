@@ -80,21 +80,6 @@ pub enum Error {
     TooLong,
 }
 
-impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(match self {
-            Error::Address => "not a silent payment address",
-            Error::Version => "silent payment address version is not one this build reads",
-            Error::Key => "not a public key on the curve",
-            Error::Scalar => "the derived value is not a usable scalar",
-            Error::NoInputs => "the transaction has no input a shared secret comes from",
-            Error::TooLong => "the text is longer than the buffer it is written into",
-        })
-    }
-}
-
-impl core::error::Error for Error {}
-
 // ---------------------------------------------------------------------
 // Fixed-size text
 // ---------------------------------------------------------------------
@@ -320,7 +305,7 @@ pub fn encode_address(
 /// query, and the address as the `sp` parameter.
 pub fn uri(address: &str) -> Result<UriText, Error> {
     let mut out = UriText::new();
-    fmt::Write::write_str(&mut out, "bitcoin:?sp=").map_err(|_| Error::TooLong)?;
+    fmt::Write::write_str(&mut out, "bitcoin:?sp=").map_err(|_| Error::TooLong)?; // not wording: a BIP 21 URI prefix
     fmt::Write::write_str(&mut out, address).map_err(|_| Error::TooLong)?;
     Ok(out)
 }
@@ -482,7 +467,7 @@ impl Receiver {
         let key = self.scan_key_text()?;
         let mut out = DescriptorText::new();
         let mut write = |s: &str| fmt::Write::write_str(&mut out, s).map_err(|_| Error::TooLong);
-        write("sp(")?;
+        write("sp(")?; // not wording: a descriptor's function name
         if let Some((fingerprint, account)) = origin {
             write("[")?;
             let hex = fingerprint.to_hex();

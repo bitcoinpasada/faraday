@@ -604,7 +604,9 @@ impl Keys {
             }
         }
         Err(Refusal::Words(
-            first.map(|e| e.to_string()).unwrap_or_default(),
+            first
+                .map(|e| faraday_strings::bip::bip39_error(&e))
+                .unwrap_or_default(),
         ))
     }
 
@@ -623,7 +625,7 @@ impl Keys {
         let lang = mnemonic.language();
         let seed = mnemonic
             .to_seed(c, passphrase.as_bytes())
-            .map_err(|e| Refusal::Words(e.to_string()))?;
+            .map_err(|e| Refusal::Words(faraday_strings::bip::bip39_error(&e)))?;
         let master = MasterKey::from_seed(c, &seed, self.network);
         let fp = master.fingerprint();
         if let Some(w) = wanted
@@ -755,7 +757,8 @@ impl Keys {
             base.as_deref().map_or("", |p| p.as_str())
         ));
         let lang = self.entries[i].info.language;
-        let m = Mnemonic::parse(c, lang, &words).map_err(|e| Refusal::Words(e.to_string()))?;
+        let m = Mnemonic::parse(c, lang, &words)
+            .map_err(|e| Refusal::Words(faraday_strings::bip::bip39_error(&e)))?;
         self.add_mnemonic(c, &m, &passphrase, label, None)
     }
 

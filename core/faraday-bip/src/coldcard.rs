@@ -232,7 +232,7 @@ pub fn cosigner_keys(text: &str) -> Vec<String> {
         ("p2sh", Script::LegacyMultisig),
     ] {
         if let (Some(d), Some(x)) = (
-            string_field(&file, &alloc::format!("{field}_deriv")),
+            string_field(&file, &alloc::format!("{field}_deriv")), // not wording: a key of Coldcard's export
             string_field(&file, field),
         ) && let Some(k) = key(d, x, Some(around))
         {

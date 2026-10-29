@@ -319,8 +319,14 @@ impl Correction {
                 )
             }
             Refusal::HeaderFixed => EN.codex32_correct_header_fixed.to_string(),
-            Refusal::Malformed(e) => fill(EN.codex32_correct_malformed, &[&e.to_string()]),
-            Refusal::NotAString(e) => fill(EN.codex32_correct_not_a_string, &[&e.to_string()]),
+            Refusal::Malformed(e) => fill(
+                EN.codex32_correct_malformed,
+                &[&faraday_strings::bip::codex32_error(&e)],
+            ),
+            Refusal::NotAString(e) => fill(
+                EN.codex32_correct_not_a_string,
+                &[&faraday_strings::bip::codex32_error(&e)],
+            ),
         })
     }
 

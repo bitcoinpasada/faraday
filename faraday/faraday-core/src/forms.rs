@@ -329,7 +329,10 @@ pub fn codex32_refusal(given: &str, e: &faraday_bip::codex32::Error) -> String {
             &[&char::from(i.to_ascii_uppercase()).to_string()],
         );
     }
-    fill(EN.forms_not_a_codex32, &[&e.to_string()])
+    fill(
+        EN.forms_not_a_codex32,
+        &[&faraday_strings::bip::codex32_error(e)],
+    )
 }
 
 /// What a codex32 string is, by its header: "Share C · id w0za · 2
@@ -492,7 +495,8 @@ pub fn typed_mnemonic(lang: Language, typed: &str) -> Result<Mnemonic, String> {
             )
         })?);
     }
-    let m = faraday_keys::words::from_indices(lang, &idx).map_err(|e| e.to_string());
+    let m = faraday_keys::words::from_indices(lang, &idx)
+        .map_err(|e| faraday_strings::bip::bip39_error(&e));
     zeroize::Zeroize::zeroize(&mut idx);
     m
 }

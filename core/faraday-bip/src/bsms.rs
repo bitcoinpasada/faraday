@@ -52,7 +52,7 @@ use bitcoin::hashes::Hash;
 use bitcoin::secp256k1::ecdsa::{RecoverableSignature, RecoveryId};
 use bitcoin::secp256k1::{Message, PublicKey, Secp256k1, SecretKey, Signing, Verification};
 use bitcoin::sign_message::signed_msg_hash;
-use core::fmt::{self, Write as _};
+use core::fmt::Write as _;
 use core::str::FromStr;
 use faraday_crypto::work::Compute;
 
@@ -62,14 +62,14 @@ use crate::keys::Network;
 use crate::policy::{self, PolicyKey, TEMPLATE_SUFFIX, WalletPolicy};
 
 /// The specification version both records carry on their first line.
-pub const VERSION: &str = "BSMS 1.0";
+pub const VERSION: &str = "BSMS 1.0"; // not wording: a line of BIP 129's record
 
 /// The token that says the session is not encrypted.
 pub const NO_ENCRYPTION: &str = "00";
 
 /// The paths line a record writes when the descriptor is not a
 /// template.
-pub const NO_PATH_RESTRICTIONS: &str = "No path restrictions";
+pub const NO_PATH_RESTRICTIONS: &str = "No path restrictions"; // not wording: a line of BIP 129's record
 
 /// Why a BSMS record could not be read or did not hold.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -105,26 +105,6 @@ pub enum Error {
     /// The descriptor is not a wallet this device can read.
     Policy(policy::Error),
 }
-
-impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Error::Version => f.write_str("the first line is not BSMS 1.0"),
-            Error::Lines => f.write_str("the record does not have the lines it needs"),
-            Error::Token => f.write_str("the token is not 00 or a hex nonce"),
-            Error::Encrypted => f.write_str("this record is encrypted"),
-            Error::Key => f.write_str("key is not [fingerprint/path]xpub"),
-            Error::Description => f.write_str("the description is longer than 80 characters"),
-            Error::Signature => f.write_str("the signature is not this key's"),
-            Error::Paths => f.write_str("the derivation paths are not /0/*,/1/*"),
-            Error::Address => f.write_str("the fourth line is not an address"),
-            Error::FirstAddress => f.write_str("this is not the wallet's first address"),
-            Error::Policy(e) => write!(f, "{e}"),
-        }
-    }
-}
-
-impl core::error::Error for Error {}
 
 impl From<policy::Error> for Error {
     fn from(e: policy::Error) -> Self {

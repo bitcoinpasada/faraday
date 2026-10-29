@@ -62,26 +62,26 @@ pub const SYMBOL_NAMES: [&str; 32] = [
     "aleph",
     "alpha",
     "beta",
-    "Gamma",
-    "Delta",
+    "Gamma", // not wording: a PostScript glyph name
+    "Delta", // not wording: a PostScript glyph name
     "epsilon",
     "eta",
-    "Theta",
-    "Lambda",
+    "Theta",  // not wording: a PostScript glyph name
+    "Lambda", // not wording: a PostScript glyph name
     "mu",
-    "Xi",
-    "Pi",
+    "Xi", // not wording: a PostScript glyph name
+    "Pi", // not wording: a PostScript glyph name
     "rho",
-    "Sigma",
-    "Phi",
-    "Psi",
-    "Omega",
+    "Sigma", // not wording: a PostScript glyph name
+    "Phi",   // not wording: a PostScript glyph name
+    "Psi",   // not wording: a PostScript glyph name
+    "Omega", // not wording: a PostScript glyph name
     "at",
     "numbersign",
     "percent",
     "cent",
     "yen",
-    "Euro",
+    "Euro", // not wording: a PostScript glyph name
     "currency",
     "circleplus",
     "dagger",

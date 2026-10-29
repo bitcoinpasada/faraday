@@ -641,6 +641,7 @@ dependencies = [
 name = "faraday-strings"
 version = "0.1.8"
 dependencies = [
+ "faraday-bip",
  "zeroize",
 ]
 

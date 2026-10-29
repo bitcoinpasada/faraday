@@ -499,7 +499,7 @@ impl Secret {
             Secret::Words(m) => keys.add_words_with(c, &phrase(m), passphrase, label, None),
             Secret::Slip39(shares) => {
                 let secret = faraday_keys::slip39_seed(c, shares, passphrase.as_bytes())
-                    .map_err(|e| Refusal::Words(e.to_string()))?;
+                    .map_err(|e| Refusal::Words(faraday_strings::bip::slip39_error(&e)))?;
                 keys.add_seed(c, &secret, label)
             }
             Secret::Codex32(s, facts) => {

@@ -124,7 +124,7 @@ fn run(args: Args) -> Result<(), String> {
             let words: Vec<&str> = text.split_whitespace().collect();
             let lang = detect_language(&words).ok_or("no wordlist contains every word")?;
             let indices: Vec<u16> = words.iter().map(|w| lang.index_of(w).unwrap()).collect();
-            let candidates = last_word_candidates(&indices).map_err(|e| e.to_string())?;
+            let candidates = last_word_candidates(&indices).map_err(|e| format!("{e:?}"))?;
             println!("{} words given, language {}", words.len(), lang.name());
             println!("{} valid final words:", candidates.len());
             for idx in candidates {
@@ -136,14 +136,14 @@ fn run(args: Args) -> Result<(), String> {
             let text = nfkd(text);
             let words: Vec<&str> = text.split_whitespace().collect();
             let lang = detect_language(&words).ok_or("no wordlist contains every word")?;
-            let m = Mnemonic::parse(&c, lang, &text).map_err(|e| e.to_string())?;
+            let m = Mnemonic::parse(&c, lang, &text).map_err(|e| format!("{e:?}"))?;
             println!("{} words, language {}", m.word_count(), lang.name());
             m
         }
         Source::Entropy(hex) => {
             let entropy = unhex(hex)?;
-            let m =
-                Mnemonic::from_entropy(Language::English, &entropy).map_err(|e| e.to_string())?;
+            let m = Mnemonic::from_entropy(Language::English, &entropy)
+                .map_err(|e| format!("{e:?}"))?;
             println!(
                 "{} bytes of entropy, {} words, language english",
                 entropy.len(),
@@ -156,7 +156,7 @@ fn run(args: Args) -> Result<(), String> {
 
     let seed = mnemonic
         .to_seed(&c, args.passphrase.as_bytes())
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| format!("{e:?}"))?;
     let master = MasterKey::from_seed(&c, &seed, args.network);
     println!("network: {}", args.network);
     println!(
@@ -172,7 +172,7 @@ fn run(args: Args) -> Result<(), String> {
     for script_type in ScriptType::ALL {
         let account = master
             .account_xpub(&c, script_type, 0)
-            .map_err(|e| e.to_string())?;
+            .map_err(|e| format!("{e:?}"))?;
         println!();
         println!("== {} (BIP-{}) ==", script_type, script_type.purpose());
         print!("path: m");
@@ -188,7 +188,9 @@ fn run(args: Args) -> Result<(), String> {
         println!("descriptor: {}", account.descriptor());
         for (change, label) in [(false, "receive"), (true, "change")] {
             for index in 0..args.count {
-                let address = account.address(change, index).map_err(|e| e.to_string())?;
+                let address = account
+                    .address(change, index)
+                    .map_err(|e| format!("{e:?}"))?;
                 println!("  {label} {index}: {}", chunked(&address.to_string()));
             }
         }

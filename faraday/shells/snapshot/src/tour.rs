@@ -548,8 +548,8 @@ pub(crate) fn copy_digits(c: &Compute, t: &Tour, wrong: Option<usize>) -> Result
     if words.is_empty() {
         return Err("no words".to_string());
     }
-    let m =
-        faraday_bip::bip39::Mnemonic::parse(c, key.language, &words).map_err(|e| format!("{e}"))?;
+    let m = faraday_bip::bip39::Mnemonic::parse(c, key.language, &words)
+        .map_err(|e| format!("{e:?}"))?;
     let mut digits = faraday_codec::seedqr::to_digits(&m)
         .expose()
         .as_bytes()

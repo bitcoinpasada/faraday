@@ -12,6 +12,7 @@ use std::path::{Path, PathBuf};
 
 use faraday_core::{Faraday, StickInfo, StorageCommand, StorageEvent};
 use faraday_files::{Dir, checked};
+use faraday_strings::{EN, fill};
 
 pub use faraday_files::{MAX_PIXELS, MAX_READ, Unrenamed, foreign};
 
@@ -248,7 +249,7 @@ pub fn vm_stat_available_mib(text: &str) -> Option<u32> {
     let mut lines = text.lines();
     let size: u64 = lines
         .next()?
-        .split("page size of ")
+        .split("page size of ") // not wording: vm_stat's header line
         .nth(1)?
         .split_whitespace()
         .next()?
@@ -258,9 +259,9 @@ pub fn vm_stat_available_mib(text: &str) -> Option<u32> {
         let line = text.lines().find(|l| l.starts_with(name))?;
         line[name.len()..].trim().trim_end_matches('.').parse().ok()
     };
-    let free = pages("Pages free:")?;
-    let inactive = pages("Pages inactive:")?;
-    let speculative = pages("Pages speculative:")?;
+    let free = pages("Pages free:")?; // not wording: a vm_stat field name
+    let inactive = pages("Pages inactive:")?; // not wording: a vm_stat field name
+    let speculative = pages("Pages speculative:")?; // not wording: a vm_stat field name
     let bytes = (free + inactive + speculative).checked_mul(size)?;
     u32::try_from(bytes >> 20).ok()
 }
@@ -555,7 +556,7 @@ pub fn save_download(dir: &Path, name: &str, bytes: &[u8]) -> Result<PathBuf, St
             Err(e) => return Err(e.to_string()),
         }
     }
-    Err(format!("no free name for {name}"))
+    Err(fill(EN.storage_no_free_name, &[name]))
 }
 
 /// Opens a folder in this computer's file manager, or a web address in
@@ -688,7 +689,7 @@ fn serve_queued(
                         done,
                     },
                     Err(reason) => {
-                        said.push(format!("cannot zero {stick}: {reason}"));
+                        said.push(format!("cannot zero {stick}: {reason}")); // not shown: a line for a verbose shell's console
                         StorageEvent::ZeroFailed { stick, reason }
                     }
                 };
@@ -697,7 +698,7 @@ fn serve_queued(
             StorageCommand::MakeEmpty { stick } => {
                 let ev = match sticks.make_empty(&stick) {
                     Ok(()) => {
-                        said.push(format!("made {stick} empty"));
+                        said.push(format!("made {stick} empty")); // not shown: a line for a verbose shell's console
                         StorageEvent::Zeroing {
                             stick,
                             next: 2,
@@ -706,7 +707,7 @@ fn serve_queued(
                         }
                     }
                     Err(reason) => {
-                        said.push(format!("cannot make {stick} empty: {reason}"));
+                        said.push(format!("cannot make {stick} empty: {reason}")); // not shown: a line for a verbose shell's console
                         StorageEvent::ZeroFailed { stick, reason }
                     }
                 };
@@ -737,7 +738,7 @@ fn serve_queued(
                 });
                 said.push(match &refused {
                     None => format!("renamed {stick}/{from} {to}"),
-                    Some(r) => format!("cannot rename {stick}/{from}: {r:?}"),
+                    Some(r) => format!("cannot rename {stick}/{from}: {r:?}"), // not shown: a line for a verbose shell's console
                 });
                 app.storage(StorageEvent::Renamed {
                     stick,
@@ -761,7 +762,7 @@ fn serve_queued(
             StorageCommand::Print { name, bytes } => {
                 let ev = match print {
                     None => StorageEvent::PrintFailed {
-                        reason: "this device does not print".into(),
+                        reason: EN.storage_no_print.into(),
                     },
                     Some(dir) => {
                         let saved = fs::create_dir_all(dir)
@@ -786,7 +787,7 @@ fn serve_queued(
                 let ev = match host {
                     None => StorageEvent::HostReadFailed {
                         path,
-                        reason: "this device does not read this computer's files".into(),
+                        reason: EN.storage_no_host_read.into(),
                     },
                     Some(_) => match read_host(Path::new(&path)) {
                         Ok(bytes) => StorageEvent::HostRead { path, bytes },
@@ -798,7 +799,7 @@ fn serve_queued(
             StorageCommand::SaveDownload { name, mut bytes } => {
                 let ev = match host {
                     None => StorageEvent::SaveFailed {
-                        reason: "this device does not save downloads".into(),
+                        reason: EN.storage_no_download.into(),
                     },
                     Some(h) => match save_download(&h.downloads, &name, &bytes) {
                         Ok(path) => {
@@ -824,14 +825,14 @@ fn serve_queued(
                 if host.is_some_and(|h| h.opens)
                     && let Err(e) = open_folder(Path::new("https://nakamotoinstitute.org"))
                 {
-                    said.push(format!("cannot open nakamotoinstitute.org: {e}"));
+                    said.push(format!("cannot open nakamotoinstitute.org: {e}")); // not shown: a line for a verbose shell's console
                 }
             }
             StorageCommand::OpenDownloads => {
                 if let Some(h) = host.filter(|h| h.opens)
                     && let Err(e) = open_folder(&h.downloads)
                 {
-                    said.push(format!("cannot open {}: {e}", h.downloads.display()));
+                    said.push(format!("cannot open {}: {e}", h.downloads.display())); // not shown: a line for a verbose shell's console
                 }
             }
             StorageCommand::SaveBoxes {
@@ -840,7 +841,7 @@ fn serve_queued(
                 kept,
             } => {
                 if let Err(e) = boxes.save(inbox, outbox, kept) {
-                    said.push(format!("cannot keep the Inbox and Outbox: {e}"));
+                    said.push(format!("cannot keep the Inbox and Outbox: {e}")); // not shown: a line for a verbose shell's console
                     app.storage(StorageEvent::NotKept);
                 }
             }
@@ -920,8 +921,8 @@ impl DiskProcess {
             let picture = match Response::decode(&frame) {
                 Ok(Response::Qr { bytes, codes }) => Ok((bytes, codes)),
                 Ok(Response::Failed(why)) => Err(why),
-                Ok(_) => Err("an answer that is not codes".to_string()),
-                Err(_) => Err("a malformed answer".to_string()),
+                Ok(_) => Err(EN.storage_answer_codes.to_string()),
+                Err(_) => Err(EN.storage_answer_malformed.to_string()),
             };
             self.pictures_done.push((stick, name, picture));
         }
@@ -963,13 +964,13 @@ impl DiskProcess {
                 Ok((seq, mut frame)) if seq == self.seq => {
                     let answer = Response::decode(&frame);
                     zeroize::Zeroize::zeroize(&mut frame);
-                    return answer.map_err(|_| "a malformed answer".to_string());
+                    return answer.map_err(|_| EN.storage_answer_malformed.to_string());
                 }
                 Ok((seq, other)) => {
                     self.aside(seq, other);
                     continue;
                 }
-                Err(_) => return Err("the disk process does not answer".to_string()),
+                Err(_) => return Err(EN.storage_disk_silent.to_string()),
             }
         }
     }
@@ -1004,7 +1005,7 @@ impl DiskProcess {
                     .collect())
             }
             Response::Failed(why) => Err(why),
-            _ => Err("an answer that is not a listing".to_string()),
+            _ => Err(EN.storage_answer_listing.to_string()),
         }
     }
 }
@@ -1018,7 +1019,7 @@ impl Sticks for DiskProcess {
         })? {
             Response::Bytes(b) => Ok(b),
             Response::Failed(why) => Err(why),
-            _ => Err("an answer that is not a file".to_string()),
+            _ => Err(EN.storage_answer_file.to_string()),
         }
     }
 
@@ -1043,7 +1044,7 @@ impl Sticks for DiskProcess {
         match answer? {
             Response::Written(n) => Ok(n),
             Response::Failed(why) => Err(why),
-            _ => Err("an answer that is not a write".to_string()),
+            _ => Err(EN.storage_answer_write.to_string()),
         }
     }
 
@@ -1055,7 +1056,7 @@ impl Sticks for DiskProcess {
         })? {
             Response::Wiped => Ok(()),
             Response::Failed(why) => Err(why),
-            _ => Err("an answer that is not a delete".to_string()),
+            _ => Err(EN.storage_answer_delete.to_string()),
         }
     }
 
@@ -1066,7 +1067,7 @@ impl Sticks for DiskProcess {
         })? {
             Response::Space { free, size } => Ok((free, size)),
             Response::Failed(why) => Err(why),
-            _ => Err("an answer that is not a stick's space".to_string()),
+            _ => Err(EN.storage_answer_space.to_string()),
         }
     }
 
@@ -1078,7 +1079,7 @@ impl Sticks for DiskProcess {
         })? {
             Response::Zeroing { next, total, done } => Ok((next, total, done)),
             Response::Failed(why) => Err(why),
-            _ => Err("an answer that is not zeroing".to_string()),
+            _ => Err(EN.storage_answer_zeroing.to_string()),
         }
     }
 
@@ -1089,7 +1090,7 @@ impl Sticks for DiskProcess {
         })? {
             Response::Zeroing { .. } => Ok(()),
             Response::Failed(why) => Err(why),
-            _ => Err("an answer that is not zeroing".to_string()),
+            _ => Err(EN.storage_answer_zeroing.to_string()),
         }
     }
 
@@ -1109,7 +1110,7 @@ impl Sticks for DiskProcess {
             .is_some_and(|p| p.3.elapsed() > ASK_PICTURE)
             && let Some((_, stick, name, _)) = self.picture.take()
         {
-            let why = "the disk process does not answer".to_string();
+            let why = EN.storage_disk_silent.to_string();
             self.pictures_done.push((stick, name, Err(why)));
         }
         if self.picture.is_none()
@@ -1150,7 +1151,7 @@ impl Sticks for DiskProcess {
             Response::NameTaken { same_vault: false } => Err(U::Taken),
             Response::NameTaken { same_vault: true } => Err(U::SameVault),
             Response::Failed(why) => Err(U::Failed(why)),
-            _ => Err(U::Failed("an answer that is not a rename".to_string())),
+            _ => Err(U::Failed(EN.storage_answer_rename.to_string())),
         }
     }
 }

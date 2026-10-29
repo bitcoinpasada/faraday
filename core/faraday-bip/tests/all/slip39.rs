@@ -70,7 +70,7 @@ fn every_published_vector_recovers_or_is_refused() {
             }
             (Ok(_), true) => panic!("{}: accepted, should be refused", v.description),
             (Err(_), true) => refused += 1,
-            (Err(e), false) => panic!("{}: refused with {e}", v.description),
+            (Err(e), false) => panic!("{}: refused with {e:?}", v.description),
         }
     }
     assert_eq!((recovered, refused), (15, 30));
@@ -573,8 +573,6 @@ fn a_set_above_the_highest_iteration_exponent_read_is_refused() {
             recover(&c, &[share], PASSPHRASE).err(),
             Some(slip39::Error::IterationExponentTooHigh { exponent })
         );
-        let text = slip39::Error::IterationExponentTooHigh { exponent }.to_string();
-        assert!(text.contains(&format!("iteration exponent {exponent}")));
     }
     // The forged share is otherwise sound: set back to 1 it opens.
     let c = Compute::unchecked();

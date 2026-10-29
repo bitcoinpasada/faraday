@@ -162,7 +162,7 @@ fn every_built_wallet_reads_back_as_the_paths_it_was_built_from() {
         for form in [Form::SegWit, Form::Taproot] {
             let policy = wanted
                 .to_wallet_policy(&c, form)
-                .unwrap_or_else(|e| panic!("{wanted:?} in {form:?}: {e}"));
+                .unwrap_or_else(|e| panic!("{wanted:?} in {form:?}: {e:?}"));
             assert_eq!(
                 RecoveryPolicy::from_wallet_policy(&policy).as_ref(),
                 Some(&wanted),

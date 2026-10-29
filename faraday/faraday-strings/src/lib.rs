@@ -6,6 +6,7 @@
 //! [`fill`], in order. The Learn pages and the self-test's check names are
 //! the two exceptions (CLAUDE.md).
 
+pub mod bip;
 mod en;
 
 pub use en::{EN, Strings};

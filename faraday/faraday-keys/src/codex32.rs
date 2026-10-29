@@ -599,7 +599,7 @@ impl Keys {
         if k < 2 || self.codex32_rebuilds(c, i, strings) != Some(true) {
             return Err(Paper::Failed);
         }
-        let refused = |e: Error| Paper::Refused(e.to_string());
+        let refused = |e: Error| Paper::Refused(faraday_strings::bip::codex32_error(&e));
         let have = strings
             .iter()
             .take(k)
@@ -628,7 +628,7 @@ impl Keys {
             return Err(Paper::Failed);
         }
         let seed = self.codex32_seed_of(c, i).ok_or(Paper::NoWords)?;
-        let refused = |e: Error| Paper::Refused(e.to_string());
+        let refused = |e: Error| Paper::Refused(faraday_strings::bip::codex32_error(&e));
         let need = usize::from(k - 1) * faraday_bip::codex32::symbols_for(seed.len());
         let fresh = crate::operations::spread(draw, b"codex32 rotation", need);
         let shares = Codex32::from_seed(k, identifier, &seed)

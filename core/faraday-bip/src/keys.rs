@@ -246,17 +246,6 @@ pub enum Error {
     NotMaster,
 }
 
-impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Error::IndexOutOfRange => f.write_str("index must be below 2^31"),
-            Error::NotMaster => f.write_str("extended private key is not a master key"),
-        }
-    }
-}
-
-impl core::error::Error for Error {}
-
 /// Why an extended private key offered as text was not taken as a master
 /// key. Both halves are the existing vocabulary: the decoder's reason, or
 /// the master-key rule [`Error::NotMaster`] states.
@@ -267,17 +256,6 @@ pub enum ImportError {
     /// It decodes, but it is not a master key.
     NotMaster,
 }
-
-impl fmt::Display for ImportError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            ImportError::Decode(e) => e.fmt(f),
-            ImportError::NotMaster => Error::NotMaster.fmt(f),
-        }
-    }
-}
-
-impl core::error::Error for ImportError {}
 
 /// The first four bytes of `HASH160(compressed public key)`, BIP-32's key
 /// identifier. Non-secret; identifies a wallet on screen and in key

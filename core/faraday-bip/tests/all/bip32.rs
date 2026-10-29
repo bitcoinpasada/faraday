@@ -230,7 +230,7 @@ fn vector_5_invalid_keys_are_rejected() {
             }
             other => panic!("unhandled reason: {other}"),
         };
-        assert!(expected, "{why}: {err}");
+        assert!(expected, "{why}: {err:?}");
         // Whatever the reason, no import path takes the key.
         assert!(MasterKey::decode(&c, key).is_err(), "{why}");
         assert!(faraday_bip::slip132::decode_xpub(key).is_err(), "{why}");

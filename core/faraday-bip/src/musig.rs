@@ -28,7 +28,7 @@
 
 use alloc::string::String;
 use alloc::vec::Vec;
-use core::fmt;
+
 use core::str::FromStr;
 
 use bitcoin::bip32::{ChainCode, ChildNumber, DerivationPath, Fingerprint, Xpub};
@@ -93,28 +93,6 @@ pub enum Error {
     /// make over this message.
     VerifyFailed,
 }
-
-impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(match self {
-            Error::NoKeys => "key aggregation needs at least one key",
-            Error::Infinity => "the aggregate key is the point at infinity",
-            Error::TweakOutOfRange => "the tweak must be less than the curve order",
-            Error::Expression => "not a musig() expression a tr() descriptor can hold",
-            Error::Key => "participant key is not a public key or an extended public key",
-            Error::Derivation => "derivation must be unhardened, with the wildcard last",
-            Error::IndexOutOfRange => "index must be below 2^31",
-            Error::PubNonce => "public nonce is not two compressed points",
-            Error::AggNonce => "aggregate nonce is not two points",
-            Error::SecNonce => "secret nonce is not a usable pair of scalars for this key",
-            Error::PartialSig => "partial signature must be less than the curve order",
-            Error::NotAParticipant => "the signer's key is not one of the session's keys",
-            Error::VerifyFailed => "partial signature does not verify",
-        })
-    }
-}
-
-impl core::error::Error for Error {}
 
 // ---------------------------------------------------------------------
 // Scalars mod n

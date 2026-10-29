@@ -48,7 +48,6 @@
 //! them, for any threshold and up to 31 strings.
 
 use alloc::vec::Vec;
-use core::fmt;
 
 use faraday_crypto::work::Compute;
 use faraday_crypto::{Secret, Zeroize, ZeroizeOnDrop};
@@ -145,38 +144,6 @@ pub enum Error {
     /// The caller supplied too few random bytes for the shares asked for.
     NotEnoughRandomness,
 }
-
-impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Error::NotPrintable => f.write_str("string holds a character outside printable ASCII"),
-            Error::MixedCase => f.write_str("string mixes upper and lower case"),
-            Error::BadPrefix => f.write_str("string does not start with ms1"),
-            Error::BadLength => f.write_str("string length does not encode a master seed"),
-            Error::BadCharacter { position } => {
-                write!(f, "character {} is not a bech32 character", position + 1)
-            }
-            Error::BadThreshold => f.write_str("threshold is not 0 or 2 to 9"),
-            Error::SecretIndexRequired => f.write_str("threshold 0 needs the share index s"),
-            Error::BadChecksum => f.write_str("checksum does not match"),
-            Error::WrongKind => f.write_str("string is the wrong kind for this operation"),
-            Error::DuplicateIndex => f.write_str("two strings carry the same share index"),
-            Error::IdentifierMismatch => f.write_str("identifiers differ across the set"),
-            Error::ThresholdMismatch => f.write_str("thresholds differ across the set"),
-            Error::LengthMismatch => f.write_str("lengths differ across the set"),
-            Error::WrongShareCount => f.write_str("the number of shares is not the threshold"),
-            Error::BadShareIndex => f.write_str("share index is not free and in the alphabet"),
-            Error::BadIdentifier => f.write_str("identifier is not four bech32 characters"),
-            Error::BadSeedLength => {
-                f.write_str("master seed must be 16, 20, 24, 28, 32 or 64 bytes")
-            }
-            Error::BadSplit => f.write_str("threshold must be 2 to 9 and at most the share count"),
-            Error::NotEnoughRandomness => f.write_str("too few random bytes for the shares asked"),
-        }
-    }
-}
-
-impl core::error::Error for Error {}
 
 /// Costs an add. Notes one piece of codex32 work against the token
 /// (`docs/COMPUTE.md`): the one place the count goes.

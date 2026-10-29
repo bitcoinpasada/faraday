@@ -13,7 +13,7 @@ use faraday_bip::keys::Network;
 use faraday_bip::policy::WalletPolicy;
 use faraday_bip::slip132::{self, Mismatch, Script};
 use faraday_crypto::work::Compute;
-use faraday_strings::{EN, fill};
+use faraday_strings::{EN, bip, fill};
 
 /// What a network is called on screen.
 pub fn network_name(n: Network) -> &'static str {
@@ -146,7 +146,8 @@ pub fn policy_network(policy: &WalletPolicy, current: Network) -> Option<Network
 pub fn read_wallet(c: &Compute, text: &str) -> Result<WalletPolicy, Refusal> {
     // A silent payments record is read whole: its lines are its fields.
     if faraday_bip::silent_wallet::SilentWallet::looks_like_record(text) {
-        return WalletPolicy::parse_any(c, text).map_err(|e| Refusal::NotAWallet(e.to_string()));
+        return WalletPolicy::parse_any(c, text)
+            .map_err(|e| Refusal::NotAWallet(bip::policy_error(&e)));
     }
     if faraday_bip::coldcard::looks_like_export(text) {
         return coldcard_export(c, text);
@@ -176,17 +177,17 @@ pub fn read_wallet(c: &Compute, text: &str) -> Result<WalletPolicy, Refusal> {
                         ))
                     })?;
                     return WalletPolicy::parse_any(c, &d)
-                        .map_err(|e| Refusal::NotAWallet(e.to_string()));
+                        .map_err(|e| Refusal::NotAWallet(bip::policy_error(&e)));
                 }
                 if caravan::looks_like(&v) {
                     let d = caravan::descriptor(&v).map_err(Refusal::NotAWallet)?;
                     return WalletPolicy::parse_any(c, &d)
-                        .map_err(|e| Refusal::NotAWallet(e.to_string()));
+                        .map_err(|e| Refusal::NotAWallet(bip::policy_error(&e)));
                 }
                 if electrum::looks_like(&v) {
                     let d = electrum::descriptor(&v).map_err(Refusal::NotAWallet)?;
                     return WalletPolicy::parse_any(c, &d)
-                        .map_err(|e| Refusal::NotAWallet(e.to_string()));
+                        .map_err(|e| Refusal::NotAWallet(bip::policy_error(&e)));
                 }
                 read_json = Some(v);
             }
@@ -220,7 +221,7 @@ pub fn read_wallet(c: &Compute, text: &str) -> Result<WalletPolicy, Refusal> {
                 .iter()
                 .map(|d| plain(d.as_str()))
                 .collect::<Result<Vec<_>, _>>()?;
-            multipath(c, &all).ok_or_else(|| Refusal::NotAWallet(e.to_string()))
+            multipath(c, &all).ok_or_else(|| Refusal::NotAWallet(bip::policy_error(&e)))
         });
     }
     // BIP 129's descriptor record: read whole, its first address checked
@@ -228,7 +229,7 @@ pub fn read_wallet(c: &Compute, text: &str) -> Result<WalletPolicy, Refusal> {
     if faraday_bip::bsms::looks_like_record(text) && !faraday_bip::bsms::is_signer_record(text) {
         return faraday_bip::bsms::DescriptorRecord::parse(c, text)
             .map(|r| r.policy)
-            .map_err(|e| Refusal::NotAWallet(fill(EN.wallet_bsms, &[&e.to_string()])));
+            .map_err(|e| Refusal::NotAWallet(fill(EN.wallet_bsms, &[&bip::bsms_error(&e)])));
     }
     if faraday_bip::multisig_config::looks_like_config(text) {
         // A key whose SLIP-132 version names another script than the
@@ -238,7 +239,7 @@ pub fn read_wallet(c: &Compute, text: &str) -> Result<WalletPolicy, Refusal> {
                 Some(m) if e == faraday_bip::policy::Error::Key => {
                     Refusal::NotAWallet(mismatch_text(&m))
                 }
-                _ => Refusal::NotAWallet(e.to_string()),
+                _ => Refusal::NotAWallet(bip::policy_error(&e)),
             }
         });
     }
@@ -261,7 +262,7 @@ pub fn read_wallet(c: &Compute, text: &str) -> Result<WalletPolicy, Refusal> {
         };
         if let Some(wrap) = wrap {
             return WalletPolicy::parse_any(c, &wrap.replace('K', &k.text))
-                .map_err(|e| Refusal::NotAWallet(e.to_string()));
+                .map_err(|e| Refusal::NotAWallet(bip::policy_error(&e)));
         }
     }
     let lines = written
@@ -274,7 +275,7 @@ pub fn read_wallet(c: &Compute, text: &str) -> Result<WalletPolicy, Refusal> {
         })
         .collect::<Result<Vec<String>, _>>()?;
     WalletPolicy::parse_any(c, &lines.concat())
-        .or_else(|e| multipath(c, &lines).ok_or_else(|| Refusal::NotAWallet(e.to_string())))
+        .or_else(|e| multipath(c, &lines).ok_or_else(|| Refusal::NotAWallet(bip::policy_error(&e))))
 }
 
 /// Whether text is another wallet's file that holds a secret beside its
@@ -399,9 +400,9 @@ fn coldcard_export(c: &Compute, text: &str) -> Result<WalletPolicy, Refusal> {
                 bad(&fill(EN.wallet_its_first_address, &[account, &first]))
             }
             ReadError::NoDeriv(_) => {
-                Refusal::NotAWallet(faraday_bip::policy::Error::Key.to_string())
+                Refusal::NotAWallet(bip::policy_error(&faraday_bip::policy::Error::Key))
             }
-            ReadError::Policy(e) => Refusal::NotAWallet(e.to_string()),
+            ReadError::Policy(e) => Refusal::NotAWallet(bip::policy_error(&e)),
         })
 }
 

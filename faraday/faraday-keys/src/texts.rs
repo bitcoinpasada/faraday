@@ -55,7 +55,7 @@ pub fn single_account(
 ) -> Result<AccountKey, String> {
     let a = master
         .account_xpub(c, script, account)
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| faraday_strings::bip::keys_error(&e))?;
     Ok(AccountKey {
         xpub: *a.xpub(),
         fingerprint: a.master_fingerprint(),
@@ -73,7 +73,7 @@ pub fn multisig_account(
 ) -> Result<AccountKey, String> {
     let a = master
         .multisig_account_xpub(c, script, account)
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| faraday_strings::bip::keys_error(&e))?;
     Ok(AccountKey {
         xpub: *a.xpub(),
         fingerprint: a.master_fingerprint(),

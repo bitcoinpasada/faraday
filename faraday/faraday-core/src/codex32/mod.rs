@@ -1913,7 +1913,12 @@ impl Codex32Make {
                 self.show_tab(0);
                 self.finish(Card::Scheme, Card::Sheets);
             }
-            Err(e) => self.note = Some(fill(EN.codex32_refused, &[&e.to_string()])),
+            Err(e) => {
+                self.note = Some(fill(
+                    EN.codex32_refused,
+                    &[&faraday_strings::bip::codex32_error(&e)],
+                ))
+            }
         }
     }
 
@@ -2000,7 +2005,10 @@ impl Codex32Make {
                 true
             }
             Err(e) => {
-                self.note = Some(fill(EN.codex32_refused, &[&e.to_string()]));
+                self.note = Some(fill(
+                    EN.codex32_refused,
+                    &[&faraday_strings::bip::codex32_error(&e)],
+                ));
                 false
             }
         }
@@ -2224,7 +2232,10 @@ impl Codex32Make {
             return;
         };
         if let Err(e) = work.push(c, share, value) {
-            self.note = Some(fill(EN.codex32_refused, &[&e.to_string()]));
+            self.note = Some(fill(
+                EN.codex32_refused,
+                &[&faraday_strings::bip::codex32_error(&e)],
+            ));
             return;
         }
         let typed = rolled.is_none();

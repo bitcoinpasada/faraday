@@ -9,6 +9,7 @@ repository.workspace = true
 publish = false
 
 [dependencies]
+faraday-bip = { path = "../../core/faraday-bip" }
 zeroize = { workspace = true, features = ["alloc"] }
 
 [lints]

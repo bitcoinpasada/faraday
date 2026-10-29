@@ -225,7 +225,8 @@ impl Kept {
         if let Some((_, p)) = self.texts_parsed.borrow().iter().find(|(t, _)| t == text) {
             return p.clone();
         }
-        let p = WalletPolicy::parse_any(c, text).map_err(|e| e.to_string());
+        let p =
+            WalletPolicy::parse_any(c, text).map_err(|e| faraday_strings::bip::policy_error(&e));
         let mut kept = self.texts_parsed.borrow_mut();
         if kept.len() >= TEXTS_PARSED_KEPT {
             let _ = kept.remove(0);
@@ -329,7 +330,7 @@ impl Kept {
             .and_then(|p| {
                 p.address_at(c, net, false, 0)
                     .map(|a| a.to_string())
-                    .map_err(|e| e.to_string())
+                    .map_err(|e| faraday_strings::bip::policy_error(&e))
             });
         let mut kept = self.seeds_addresses.borrow_mut();
         if kept.len() >= SEEDS_ADDRESSES_KEPT {

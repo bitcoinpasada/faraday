@@ -56,7 +56,7 @@ use alloc::collections::BTreeMap;
 use alloc::string::String;
 use alloc::sync::Arc;
 use alloc::vec::Vec;
-use core::fmt;
+
 use core::str::FromStr;
 use faraday_crypto::work::Compute;
 
@@ -113,20 +113,6 @@ pub enum Error {
     /// The keys and delays given make no script this form can hold.
     Script,
 }
-
-impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(match self {
-            Error::NoRecovery => "a recovery wallet needs at least one recovery path",
-            Error::Delay => "a delay must be 1 to 65535 blocks, and no two the same",
-            Error::Path => "a path needs 1 to 20 keys and a threshold within them",
-            Error::Key => "key is not [fingerprint/path]xpub, or is named twice",
-            Error::Script => "these keys and delays make no script of this form",
-        })
-    }
-}
-
-impl core::error::Error for Error {}
 
 /// Which script the wallet pays to.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

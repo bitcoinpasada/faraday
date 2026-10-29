@@ -33,8 +33,6 @@
 //! assert_eq!(secret.expose().as_bytes().len(), 16);
 //! ```
 
-use core::fmt;
-
 use faraday_crypto::work::Compute;
 use faraday_crypto::{Secret, Zeroize, ZeroizeOnDrop, hmac_sha256, pbkdf2_hmac_sha256};
 
@@ -177,76 +175,6 @@ pub enum Error {
     /// The output slice is too short for the shares asked for.
     OutputTooSmall,
 }
-
-impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Error::InvalidWordCount => f.write_str("a share is 20 or 33 words"),
-            Error::UnknownWord { position } => {
-                write!(f, "word {} is not in the wordlist", position + 1)
-            }
-            Error::BadChecksum => f.write_str("checksum does not match"),
-            Error::NonZeroPadding => f.write_str("padding bits are not zero"),
-            Error::InvalidSecretLength => {
-                f.write_str("the share value must be an even number of bytes, at least 16")
-            }
-            Error::NoShares => f.write_str("no shares given"),
-            Error::MismatchedIdentifiers => f.write_str("the shares are from different backups"),
-            Error::MismatchedExtendable => {
-                f.write_str("the shares disagree about the extendable flag")
-            }
-            Error::MismatchedIterationExponents => {
-                f.write_str("the shares disagree about the iteration exponent")
-            }
-            Error::MismatchedGroupThresholds => {
-                f.write_str("the shares disagree about how many groups must be present")
-            }
-            Error::MismatchedGroupCounts => {
-                f.write_str("the shares disagree about how many groups there are")
-            }
-            Error::MismatchedValueLengths => {
-                f.write_str("the shares disagree about the secret's length")
-            }
-            Error::MismatchedMemberThresholds => {
-                f.write_str("one group's shares disagree about how many of them must be present")
-            }
-            Error::GroupThresholdExceedsCount => {
-                f.write_str("more groups must be present than the backup has")
-            }
-            Error::GroupIndexOutOfRange => f.write_str("a group index is outside the group count"),
-            Error::DuplicateMemberIndex => {
-                f.write_str("two shares of one group are the same share")
-            }
-            Error::WrongGroupCount { needed, given } => {
-                write!(f, "{needed} groups must be present, {given} given")
-            }
-            Error::WrongMemberCount {
-                group_index,
-                needed,
-                given,
-            } => write!(
-                f,
-                "group {} needs {needed} shares, {given} given",
-                group_index + 1
-            ),
-            Error::BadDigest => f.write_str("the shares do not belong together"),
-            Error::PassphraseNotAscii => f.write_str("passphrase must be printable ASCII"),
-            Error::PassphraseTooLong => {
-                write!(f, "passphrase exceeds {MAX_PASSPHRASE_BYTES} bytes")
-            }
-            Error::InvalidParameters => f.write_str("thresholds and counts are 1 to 16"),
-            Error::IterationExponentTooHigh { exponent } => write!(
-                f,
-                "iteration exponent {exponent} asks for {} PBKDF2 rounds; \
-                 {MAX_READ_ITERATION_EXPONENT} is the most read",
-                u64::from(BASE_ITERATION_COUNT) << exponent
-            ),
-            Error::OutputTooSmall => f.write_str("not enough room for the shares"),
-        }
-    }
-}
-
-impl core::error::Error for Error {}
 
 // --- the wordlist ----------------------------------------------------------
 

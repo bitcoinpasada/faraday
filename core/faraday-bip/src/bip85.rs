@@ -94,21 +94,6 @@ pub enum Error {
     InvalidKey,
 }
 
-impl core::fmt::Display for Error {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        match self {
-            Error::WordCount => f.write_str("word count must be 12, 15, 18, 21 or 24"),
-            Error::IndexOutOfRange => f.write_str("index must be below 2^31"),
-            Error::Wordlist => f.write_str("this build does not carry that wordlist"),
-            Error::ByteCount => f.write_str("byte count must be 16 to 64"),
-            Error::PasswordLength => f.write_str("password length is outside the range"),
-            Error::InvalidKey => f.write_str("the derived key is not valid; use the next index"),
-        }
-    }
-}
-
-impl core::error::Error for Error {}
-
 /// The code application 39' gives `language`, which is its position in
 /// [`Language::ALL`]: English 0, Japanese 1, Korean 2, Spanish 3,
 /// Chinese (Simplified) 4, Chinese (Traditional) 5, French 6, Italian 7,

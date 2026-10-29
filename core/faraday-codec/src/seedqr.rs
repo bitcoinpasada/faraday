@@ -52,7 +52,7 @@ impl fmt::Display for Error {
             Error::BadLength => f.write_str("not a SeedQR: wrong length"),
             Error::BadCharacter => f.write_str("not a SeedQR: non-digit character"),
             Error::IndexOutOfRange => f.write_str("not a SeedQR: word index 2048 or more"),
-            Error::Mnemonic(e) => write!(f, "{e}"),
+            Error::Mnemonic(_) => f.write_str("not a SeedQR: the words are not a mnemonic"),
             Error::Qr(e) => write!(f, "{e}"),
         }
     }

@@ -72,10 +72,11 @@ pub fn node_from_words(
     passphrase: &str,
     network: Network,
 ) -> Result<Node, String> {
-    let m = Mnemonic::parse(c, language, words).map_err(|e| e.to_string())?;
+    let m =
+        Mnemonic::parse(c, language, words).map_err(|e| faraday_strings::bip::bip39_error(&e))?;
     let seed = m
         .to_seed(c, passphrase.as_bytes())
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| faraday_strings::bip::bip39_error(&e))?;
     Ok(node_of(c, &aezeed::ldk_node_key(c, &seed, network), None))
 }
 

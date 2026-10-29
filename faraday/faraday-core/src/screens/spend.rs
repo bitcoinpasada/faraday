@@ -2,6 +2,7 @@
 
 use super::parts::{made_place, side_panel_w, spaced};
 use crate::drawing::{Scrolled, View};
+use crate::review::unchecked_text;
 use crate::strings::{EN, fill};
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui, btc, short, thousands};
@@ -1952,15 +1953,5 @@ fn nonce_mode_text(m: faraday_psbt::verify::NonceMode) -> &'static str {
         M::LowR => EN.nonce_mode_low_r,
         M::First => EN.nonce_mode_first,
         M::Bip340 => EN.nonce_mode_bip340,
-    }
-}
-
-/// Why a signature was not checked, as the Nonce check says it.
-fn unchecked_text(u: faraday_psbt::verify::Unchecked) -> &'static str {
-    use faraday_psbt::verify::Unchecked as U;
-    match u {
-        U::NoPrevout => EN.nonce_unchecked_no_prevout,
-        U::UnsupportedScript => EN.nonce_unchecked_script,
-        U::UnknownKey => EN.nonce_unchecked_no_key,
     }
 }

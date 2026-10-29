@@ -10774,4 +10774,238 @@ strings! {
     tip_decrease: "Decrease",
     /// Tooltip on a stepper's +.
     tip_increase: "Increase",
+    // ----- Why faraday-bip refuses what it reads or makes, worded by `faraday_strings::bip` (docs/STRUCTURE-PASS.md §7) -----
+    /// A BIP-39, SLIP-39 or codex32 string whose checksum is wrong.
+    bip_checksum_mismatch: "checksum does not match",
+    /// A derivation index of 2^31 or more.
+    bip_index_out_of_range: "index must be below 2^31",
+    /// A BIP-39 mnemonic of another length.
+    bip_word_count: "word count must be 12, 15, 18, 21 or 24",
+    /// A word that is not in the wordlist; its position.
+    bip_word_not_in_list: "word {} is not in the wordlist",
+    /// A passphrase with a character outside printable ASCII.
+    bip_passphrase_not_ascii: "passphrase must be printable ASCII",
+    /// A passphrase over the limit; the limit.
+    bip_passphrase_too_long: "passphrase exceeds {} bytes",
+    /// BIP-39 entropy of another length.
+    bip_entropy_length: "entropy must be 16, 20, 24, 28 or 32 bytes",
+    /// Text that is not base64.
+    bip_invalid_base64: "invalid base64",
+    /// An aezeed of another version.
+    bip_aezeed_version: "this is not a version 0 cipher seed",
+    /// An aezeed whose words fail their checksum.
+    bip_aezeed_checksum: "the words do not check out",
+    /// An aezeed opened with a wrong passphrase.
+    bip_aezeed_passphrase: "wrong passphrase",
+    /// An aezeed whose key derivation failed.
+    bip_aezeed_kdf: "the key could not be stretched",
+    /// BIP-85 child words in a wordlist this build lacks.
+    bip_bip85_wordlist: "this build does not carry that wordlist",
+    /// BIP-85 hex bytes outside the range.
+    bip_bip85_byte_count: "byte count must be 16 to 64",
+    /// BIP-85 password length outside the range.
+    bip_bip85_password_length: "password length is outside the range",
+    /// BIP-85 derived key not usable.
+    bip_bip85_invalid_key: "the derived key is not valid; use the next index",
+    /// A BSMS record without its version line.
+    bip_bsms_version: "the first line is not BSMS 1.0",
+    /// A BSMS record with missing lines.
+    bip_bsms_lines: "the record does not have the lines it needs",
+    /// A BSMS record with a bad token.
+    bip_bsms_token: "the token is not 00 or a hex nonce",
+    /// An encrypted BSMS record.
+    bip_bsms_encrypted: "this record is encrypted",
+    /// A key that is not written [fingerprint/path]xpub.
+    bip_key_not_xpub: "key is not [fingerprint/path]xpub",
+    /// A BSMS description over 80 characters.
+    bip_bsms_description: "the description is longer than 80 characters",
+    /// A BSMS signature that is not the key's.
+    bip_bsms_signature: "the signature is not this key's",
+    /// A BSMS record with other derivation paths.
+    bip_bsms_paths: "the derivation paths are not /0/*,/1/*",
+    /// A BSMS record whose fourth line is not an address.
+    bip_bsms_address: "the fourth line is not an address",
+    /// A BSMS first address that does not match the wallet.
+    bip_bsms_first_address: "this is not the wallet's first address",
+    /// A DLEQ proof with a zero nonce.
+    bip_dleq_nonce: "the proof's nonce is zero",
+    /// A DLEQ product at infinity.
+    bip_dleq_infinity: "a product is the point at infinity",
+    /// A DLEQ proof that fails its own check.
+    bip_dleq_self_check: "the proof made does not verify",
+    /// MuSig2 aggregation with no keys.
+    bip_musig_no_keys: "key aggregation needs at least one key",
+    /// MuSig2 aggregate key at infinity.
+    bip_musig_infinity: "the aggregate key is the point at infinity",
+    /// A MuSig2 tweak out of range.
+    bip_musig_tweak: "the tweak must be less than the curve order",
+    /// A musig() expression a tr() cannot hold.
+    bip_musig_expression: "not a musig() expression a tr() descriptor can hold",
+    /// A MuSig2 participant key that is not public.
+    bip_musig_key: "participant key is not a public key or an extended public key",
+    /// A MuSig2 derivation that is hardened.
+    bip_musig_derivation: "derivation must be unhardened, with the wildcard last",
+    /// A MuSig2 public nonce that is malformed.
+    bip_musig_pub_nonce: "public nonce is not two compressed points",
+    /// A MuSig2 aggregate nonce that is malformed.
+    bip_musig_agg_nonce: "aggregate nonce is not two points",
+    /// A MuSig2 secret nonce not usable for the key.
+    bip_musig_sec_nonce: "secret nonce is not a usable pair of scalars for this key",
+    /// A MuSig2 partial signature out of range.
+    bip_musig_partial_sig: "partial signature must be less than the curve order",
+    /// A MuSig2 signer who is not a participant.
+    bip_musig_not_participant: "the signer's key is not one of the session's keys",
+    /// A MuSig2 partial signature that fails verification.
+    bip_musig_verify: "partial signature does not verify",
+    /// A descriptor template the wallet policy does not support.
+    bip_policy_template: "unsupported descriptor template",
+    /// A wallet policy whose key placeholders are out of order.
+    bip_policy_placeholder: "key placeholders are not @0, @1, … in order",
+    /// A wallet policy key with another derivation.
+    bip_policy_derivation: "derivation must be /** or /<0;1>/*",
+    /// A wallet policy threshold out of range.
+    bip_policy_threshold: "threshold must be between 1 and the number of keys",
+    /// A descriptor whose checksum is wrong.
+    bip_policy_checksum: "descriptor checksum does not match",
+    /// A recovery wallet with no recovery path.
+    bip_recovery_none: "a recovery wallet needs at least one recovery path",
+    /// A recovery wallet delay out of range or repeated.
+    bip_recovery_delay: "a delay must be 1 to 65535 blocks, and no two the same",
+    /// A recovery path with a wrong key count or threshold.
+    bip_recovery_path: "a path needs 1 to 20 keys and a threshold within them",
+    /// A recovery wallet key that is malformed or repeated.
+    bip_recovery_key: "key is not [fingerprint/path]xpub, or is named twice",
+    /// A recovery wallet that makes no script.
+    bip_recovery_script: "these keys and delays make no script of this form",
+    /// Text that is not a silent payment address.
+    bip_silent_address: "not a silent payment address",
+    /// A silent payment address of another version.
+    bip_silent_version: "silent payment address version is not one this build reads",
+    /// A silent payment key off the curve.
+    bip_silent_key: "not a public key on the curve",
+    /// A silent payment derived value that is not a scalar.
+    bip_silent_scalar: "the derived value is not a usable scalar",
+    /// A transaction with no input for a shared secret.
+    bip_silent_no_inputs: "the transaction has no input a shared secret comes from",
+    /// A silent payment text that does not fit its buffer.
+    bip_silent_too_long: "the text is longer than the buffer it is written into",
+    /// An extended key that is not base58check.
+    bip_xkey_base58: "not valid base58check",
+    /// An extended key of another length; its length.
+    bip_xkey_length: "extended key is {} bytes, expected 78",
+    /// An extended key of an unknown version; its four bytes in hex.
+    bip_xkey_version: "unknown version {}",
+    /// An extended key at depth 0 with a parent.
+    bip_xkey_zero_depth: "depth 0 with a parent fingerprint or child number",
+    /// An extended private key with a wrong pad byte; the byte in hex.
+    bip_xkey_pad: "byte before the private key is {}, expected 00",
+    /// An extended key the key library refused.
+    bip_xkey_invalid: "invalid extended key",
+    /// An extended private key that is not a master key.
+    bip_keys_not_master: "extended private key is not a master key",
+    /// A codex32 string with a non-ASCII character.
+    bip_codex32_not_printable: "string holds a character outside printable ASCII",
+    /// A codex32 string in mixed case.
+    bip_codex32_mixed_case: "string mixes upper and lower case",
+    /// A codex32 string without the ms1 prefix.
+    bip_codex32_prefix: "string does not start with ms1",
+    /// A codex32 string of a length that is no master seed.
+    bip_codex32_length: "string length does not encode a master seed",
+    /// A codex32 character outside bech32; its position.
+    bip_codex32_character: "character {} is not a bech32 character",
+    /// A codex32 threshold out of range.
+    bip_codex32_threshold: "threshold is not 0 or 2 to 9",
+    /// A codex32 threshold 0 without index s.
+    bip_codex32_secret_index: "threshold 0 needs the share index s",
+    /// A codex32 string of the wrong kind.
+    bip_codex32_wrong_kind: "string is the wrong kind for this operation",
+    /// Two codex32 strings with one share index.
+    bip_codex32_duplicate_index: "two strings carry the same share index",
+    /// A codex32 set with differing identifiers.
+    bip_codex32_identifier_mismatch: "identifiers differ across the set",
+    /// A codex32 set with differing thresholds.
+    bip_codex32_threshold_mismatch: "thresholds differ across the set",
+    /// A codex32 set with differing lengths.
+    bip_codex32_length_mismatch: "lengths differ across the set",
+    /// A codex32 set that is not the threshold in size.
+    bip_codex32_share_count: "the number of shares is not the threshold",
+    /// A codex32 share index taken or outside the alphabet.
+    bip_codex32_share_index: "share index is not free and in the alphabet",
+    /// A codex32 identifier of the wrong form.
+    bip_codex32_identifier: "identifier is not four bech32 characters",
+    /// A codex32 master seed of another length.
+    bip_codex32_seed_length: "master seed must be 16, 20, 24, 28, 32 or 64 bytes",
+    /// A codex32 split with a threshold out of range.
+    bip_codex32_split: "threshold must be 2 to 9 and at most the share count",
+    /// A codex32 split given too few random bytes.
+    bip_codex32_randomness: "too few random bytes for the shares asked",
+    /// A SLIP-39 share of another length.
+    bip_slip39_word_count: "a share is 20 or 33 words",
+    /// A SLIP-39 share with padding bits set.
+    bip_slip39_padding: "padding bits are not zero",
+    /// A SLIP-39 share value of a bad length.
+    bip_slip39_secret_length: "the share value must be an even number of bytes, at least 16",
+    /// SLIP-39 recovery with no shares.
+    bip_slip39_no_shares: "no shares given",
+    /// SLIP-39 shares from different backups.
+    bip_slip39_identifiers: "the shares are from different backups",
+    /// SLIP-39 shares with differing extendable flags.
+    bip_slip39_extendable: "the shares disagree about the extendable flag",
+    /// SLIP-39 shares with differing iteration exponents.
+    bip_slip39_iteration_exponents: "the shares disagree about the iteration exponent",
+    /// SLIP-39 shares with differing group thresholds.
+    bip_slip39_group_thresholds: "the shares disagree about how many groups must be present",
+    /// SLIP-39 shares with differing group counts.
+    bip_slip39_group_counts: "the shares disagree about how many groups there are",
+    /// SLIP-39 shares with differing value lengths.
+    bip_slip39_value_lengths: "the shares disagree about the secret's length",
+    /// SLIP-39 shares of one group with differing thresholds.
+    bip_slip39_member_thresholds: "one group's shares disagree about how many of them must be present",
+    /// A SLIP-39 group threshold above the group count.
+    bip_slip39_group_threshold_exceeds: "more groups must be present than the backup has",
+    /// A SLIP-39 group index out of range.
+    bip_slip39_group_index: "a group index is outside the group count",
+    /// SLIP-39 shares of one group that repeat.
+    bip_slip39_duplicate_member: "two shares of one group are the same share",
+    /// SLIP-39 recovery with too few groups; needed, given.
+    bip_slip39_group_count: "{} groups must be present, {} given",
+    /// SLIP-39 recovery with too few shares in a group; group, needed, given.
+    bip_slip39_member_count: "group {} needs {} shares, {} given",
+    /// SLIP-39 shares whose digest fails.
+    bip_slip39_digest: "the shares do not belong together",
+    /// SLIP-39 parameters out of range.
+    bip_slip39_parameters: "thresholds and counts are 1 to 16",
+    /// A SLIP-39 iteration exponent above what is read; exponent, rounds, most.
+    bip_slip39_iteration_too_high: "iteration exponent {} asks for {} PBKDF2 rounds; {} is the most read",
+    /// SLIP-39 output buffer too small.
+    bip_slip39_output_too_small: "not enough room for the shares",
+    // ----- What faraday-storage refuses, worded here (docs/STRUCTURE-PASS.md §7) -----
+    /// A download that found no free file name; the name.
+    storage_no_free_name: "no free name for {}",
+    /// Print on a device with no printing.
+    storage_no_print: "this device does not print",
+    /// Reading a computer file on a device with none.
+    storage_no_host_read: "this device does not read this computer's files",
+    /// Saving a download on a device with no downloads folder.
+    storage_no_download: "this device does not save downloads",
+    /// The disk process gave no answer in time.
+    storage_disk_silent: "the disk process does not answer",
+    /// The disk process answered with bytes that do not decode.
+    storage_answer_malformed: "a malformed answer",
+    /// The disk process answered a picture read with another answer.
+    storage_answer_codes: "an answer that is not codes",
+    /// The disk process answered a listing with another answer.
+    storage_answer_listing: "an answer that is not a listing",
+    /// The disk process answered a read with another answer.
+    storage_answer_file: "an answer that is not a file",
+    /// The disk process answered a write with another answer.
+    storage_answer_write: "an answer that is not a write",
+    /// The disk process answered a delete with another answer.
+    storage_answer_delete: "an answer that is not a delete",
+    /// The disk process answered a space query with another answer.
+    storage_answer_space: "an answer that is not a stick's space",
+    /// The disk process answered a zeroing step with another answer.
+    storage_answer_zeroing: "an answer that is not zeroing",
+    /// The disk process answered a rename with another answer.
+    storage_answer_rename: "an answer that is not a rename",
 }

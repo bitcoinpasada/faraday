@@ -81,7 +81,9 @@ pub fn fingerprint_of_words(
             }
         }
     }
-    Err(first.map(|e| e.to_string()).unwrap_or_default())
+    Err(first
+        .map(|e| faraday_strings::bip::bip39_error(&e))
+        .unwrap_or_default())
 }
 
 /// Costs a PBKDF2 and an elliptic-curve multiplication. The fingerprint a
@@ -94,7 +96,7 @@ pub fn fingerprint_of_mnemonic(
 ) -> Result<Fingerprint, String> {
     let seed = m
         .to_seed(c, passphrase.as_bytes())
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| faraday_strings::bip::bip39_error(&e))?;
     Ok(MasterKey::from_seed(c, &seed, Network::Mainnet).fingerprint())
 }
 
@@ -154,7 +156,8 @@ pub fn key_text_of_words(
     spec: &crate::texts::Spec,
 ) -> Result<String, String> {
     let normal = zeroize::Zeroizing::new(words.split_whitespace().collect::<Vec<_>>().join(" "));
-    let m = Mnemonic::parse(c, Language::English, &normal).map_err(|e| e.to_string())?;
+    let m = Mnemonic::parse(c, Language::English, &normal)
+        .map_err(|e| faraday_strings::bip::bip39_error(&e))?;
     let master = master_of(c, Material::Words(&m), passphrase, network)
         .ok_or_else(|| "no key".to_string())?;
     crate::texts::key_text(c, &master, spec)

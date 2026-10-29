@@ -25,7 +25,6 @@
 //! before this module returns.
 
 use alloc::vec::Vec;
-use core::fmt;
 
 use bitcoin::base58;
 use bitcoin::bip32::{Xpriv, Xpub};
@@ -67,27 +66,6 @@ pub enum Error {
     /// curve or carries a prefix other than 0x02 or 0x03.
     Key(bitcoin::bip32::Error),
 }
-
-impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Error::Base58 => f.write_str("not valid base58check"),
-            Error::Length(n) => write!(f, "extended key is {n} bytes, expected 78"),
-            Error::UnknownVersion(v) => {
-                write!(
-                    f,
-                    "unknown version {:02x}{:02x}{:02x}{:02x}",
-                    v[0], v[1], v[2], v[3]
-                )
-            }
-            Error::ZeroDepth => f.write_str("depth 0 with a parent fingerprint or child number"),
-            Error::Pad(b) => write!(f, "byte before the private key is {b:02x}, expected 00"),
-            Error::Key(e) => write!(f, "invalid extended key: {e}"),
-        }
-    }
-}
-
-impl core::error::Error for Error {}
 
 /// The 78 bytes of `s`, base58check-decoded and length-checked.
 ///

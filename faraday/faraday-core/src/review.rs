@@ -396,7 +396,7 @@ fn script_kind_text(k: faraday_psbt::ScriptKind) -> String {
 }
 
 /// Why a signature was not checked, in the strings file's words.
-fn unchecked_text(u: faraday_psbt::verify::Unchecked) -> &'static str {
+pub(crate) fn unchecked_text(u: faraday_psbt::verify::Unchecked) -> &'static str {
     use faraday_psbt::verify::Unchecked as U;
     match u {
         U::NoPrevout => EN.nonce_unchecked_no_prevout,

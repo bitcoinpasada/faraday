@@ -232,7 +232,8 @@ impl EntryArea {
         match e.keys.as_ref() {
             Some(w) => {
                 let mut idx: Vec<u16> = w.committed_indices().collect();
-                let m = faraday_keys::words::from_indices(lang, &idx).map_err(|e| e.to_string());
+                let m = faraday_keys::words::from_indices(lang, &idx)
+                    .map_err(|e| faraday_strings::bip::bip39_error(&e));
                 zeroize::Zeroize::zeroize(&mut idx);
                 m
             }
@@ -541,8 +542,12 @@ pub(crate) fn ascii_refused() -> String {
 
 /// One SLIP-39 share more, refused when it is not one or is a repeat.
 fn add_slip39(parts: &mut forms::Parts, text: &str) -> Result<(), String> {
-    let s = slip39::Share::parse(text)
-        .map_err(|e| fill(EN.forms_not_slip39_share, &[&e.to_string()]))?;
+    let s = slip39::Share::parse(text).map_err(|e| {
+        fill(
+            EN.forms_not_slip39_share,
+            &[&faraday_strings::bip::slip39_error(&e)],
+        )
+    })?;
     if parts.slip39.iter().any(|t| t.indices() == s.indices()) {
         return Err(EN.forms_share_duplicate.to_string());
     }
@@ -584,8 +589,12 @@ fn add_codex32(parts: &mut forms::Parts, given: &str) -> Result<Added, String> {
 /// Costs what reading the words costs, a checksum and a hash. One Seed
 /// XOR part more, its words checked.
 fn add_xor(c: &Compute, parts: &mut forms::Parts, text: &str) -> Result<(), String> {
-    let m = crate::wallet::parse_words(c, Language::English, text)
-        .map_err(|e| fill(EN.forms_not_bip_39_words, &[&e.to_string()]))?;
+    let m = crate::wallet::parse_words(c, Language::English, text).map_err(|e| {
+        fill(
+            EN.forms_not_bip_39_words,
+            &[&faraday_strings::bip::bip39_error(&e)],
+        )
+    })?;
     let ent = m.entropy();
     parts
         .xor
@@ -963,7 +972,12 @@ impl Faraday {
                 Some(r) => r.map_err(|e| e.text())?,
                 None => {
                     let fp = faraday_keys::codex32_seed(typed)
-                        .map_err(|e| fill(EN.forms_the_strings_do, &[&e.to_string()]))
+                        .map_err(|e| {
+                            fill(
+                                EN.forms_the_strings_do,
+                                &[&faraday_strings::bip::codex32_error(&e)],
+                            )
+                        })
                         .and_then(|seed| {
                             self.session
                                 .keys
@@ -1140,7 +1154,12 @@ impl Faraday {
                 &self.entry.state().parts.slip39,
                 self.entry.state().passphrase.as_bytes(),
             )
-            .map_err(|e| fill(EN.forms_the_shares_do, &[&e.to_string()]))
+            .map_err(|e| {
+                fill(
+                    EN.forms_the_shares_do,
+                    &[&faraday_strings::bip::slip39_error(&e)],
+                )
+            })
             .and_then(|seed| {
                 self.session
                     .keys
@@ -1157,7 +1176,7 @@ impl Faraday {
                 .map_err(|_| EN.forms_seed_xor_needs.to_string())
                 .and_then(|e| {
                     faraday_keys::words::from_entropy(Language::English, e.as_bytes())
-                        .map_err(|e| e.to_string())
+                        .map_err(|e| faraday_strings::bip::bip39_error(&e))
                 })
                 .and_then(|m| {
                     let words: Vec<&str> = m

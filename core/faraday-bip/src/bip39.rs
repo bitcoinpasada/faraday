@@ -11,8 +11,6 @@
 //! assert_eq!(seed.expose()[0], 0xc5);
 //! ```
 
-use core::fmt;
-
 use faraday_crypto::work::{Compute, Work};
 use faraday_crypto::{Secret, Zeroize, ZeroizeOnDrop, pbkdf2_hmac_sha512, sha256};
 
@@ -55,27 +53,6 @@ pub enum Error {
     /// The passphrase is longer than [`MAX_PASSPHRASE_BYTES`].
     PassphraseTooLong,
 }
-
-impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Error::InvalidWordCount => f.write_str("word count must be 12, 15, 18, 21 or 24"),
-            Error::InvalidEntropyLength => {
-                f.write_str("entropy must be 16, 20, 24, 28 or 32 bytes")
-            }
-            Error::UnknownWord { position } => {
-                write!(f, "word {} is not in the wordlist", position + 1)
-            }
-            Error::BadChecksum => f.write_str("checksum does not match"),
-            Error::PassphraseNotAscii => f.write_str("passphrase must be printable ASCII"),
-            Error::PassphraseTooLong => {
-                write!(f, "passphrase exceeds {MAX_PASSPHRASE_BYTES} bytes")
-            }
-        }
-    }
-}
-
-impl core::error::Error for Error {}
 
 /// One of the ten official BIP-39 wordlists.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

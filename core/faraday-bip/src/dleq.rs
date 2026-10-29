@@ -36,18 +36,6 @@ pub enum Error {
     SelfCheck,
 }
 
-impl core::fmt::Display for Error {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        f.write_str(match self {
-            Error::Nonce => "the proof's nonce is zero",
-            Error::Infinity => "a product is the point at infinity",
-            Error::SelfCheck => "the proof made does not verify",
-        })
-    }
-}
-
-impl core::error::Error for Error {}
-
 /// A 64-byte proof: `e` then `s`, each 32 bytes big-endian.
 pub type Proof = [u8; 64];
 

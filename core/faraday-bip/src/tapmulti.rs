@@ -87,7 +87,7 @@ pub(crate) fn unsorted_text(text: &str) -> Option<String> {
     if !tree.starts_with("sortedmulti_a(") || !tree.ends_with(')') {
         return None;
     }
-    Some(text.trim().replacen("sortedmulti_a(", "multi_a(", 1))
+    Some(text.trim().replacen("sortedmulti_a(", "multi_a(", 1)) // not wording: a descriptor's function name
 }
 
 /// The internal key and the x-only keys of a derived one-leaf

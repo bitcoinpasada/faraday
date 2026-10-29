@@ -181,12 +181,15 @@ mapfile -t WORDS_FILES < <(printf '%s\n' "${BOUNDARY[@]}" | grep -v '^faraday/fa
 mapfile -t RELEASE_FILES < <(printf '%s\n' "${BOUNDARY[@]}" | grep -vxF -f <(tr ' ' '\n' <<< "$RELEASES"))
 secret_types='\b(MasterKey|SecretKey|Xpriv|Keypair|PrivateKey|DerivedKey|SecNonce|SlotKey)\b|\bto_seed\b'
 # `Work::MasterKey` is a kind of costly work, not the type, and so is the
-# enum variant work.rs declares for it.
+# enum variant work.rs declares for it. faraday-strings' bip.rs words
+# MuSig2's error kind `SecNonce` (a nonce missing or used twice), which
+# names the error, not a nonce in hand.
 report "a key or seed outside faraday-keys (rule 4a)" \
     "$(in_code "$secret_types" "${BOUNDARY[@]}" \
         | sed -E 's/\b(Work|C)::MasterKey\b//g' \
         | grep -E "$secret_types" \
-        | grep -vE '^faraday/faraday-core/src/work\.rs:[0-9]+:[[:space:]]*MasterKey,$')"
+        | grep -vE '^faraday/faraday-core/src/work\.rs:[0-9]+:[[:space:]]*MasterKey,$' \
+        | grep -vE '^faraday/faraday-strings/src/bip\.rs:[0-9]+:[[:space:]]*E::SecNonce => EN\.bip_musig_sec_nonce,$')"
 report "seed words made outside faraday_keys::words (rule 4b)" \
     "$(in_code 'Mnemonic::(parse|from_indices|from_entropy|from_phrase)|seedqr::from_(entropy|digits)|slip39::split|records::words_of' "${WORDS_FILES[@]}")"
 report "a primitive's secret-taking function outside faraday-keys (rule 4c)" \

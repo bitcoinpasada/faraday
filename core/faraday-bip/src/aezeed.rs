@@ -83,19 +83,6 @@ pub enum Error {
     Kdf,
 }
 
-impl core::fmt::Display for Error {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        match self {
-            Error::Version(_) => f.write_str("this is not a version 0 cipher seed"),
-            Error::Checksum => f.write_str("the words do not check out"),
-            Error::Passphrase => f.write_str("wrong passphrase"),
-            Error::Kdf => f.write_str("the key could not be stretched"),
-        }
-    }
-}
-
-impl core::error::Error for Error {}
-
 /// What a decoded aezeed holds. The entropy is the BIP-32 seed and is
 /// zeroized on drop; the version and the birthday are not secret.
 pub struct CipherSeed {

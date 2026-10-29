@@ -101,12 +101,12 @@ fn run(args: &[String]) -> Result<(), String> {
         ["addresses", id, n] => {
             let k = kit(id)?;
             let n: u32 = n.parse().map_err(|_| "n is a number")?;
-            let policy = WalletPolicy::parse_any(&c, &k.descriptor).map_err(|e| e.to_string())?;
+            let policy = WalletPolicy::parse_any(&c, &k.descriptor).map_err(|e| format!("{e:?}"))?;
             for change in [false, true] {
                 for i in 0..n {
                     let a = policy
                         .address_at(&c, Network::Regtest, change, i)
-                        .map_err(|e| e.to_string())?;
+                        .map_err(|e| format!("{e:?}"))?;
                     println!("{} {i} {a}", u8::from(change));
                 }
             }

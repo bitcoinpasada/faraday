@@ -466,7 +466,7 @@ fn funding(script_pubkey: ScriptBuf) -> Transaction {
 pub fn unsigned(kit: &Kit) -> Result<Psbt, String> {
     let c = compute();
     let policy =
-        WalletPolicy::parse_any(&c, &kit.descriptor).map_err(|e| format!("{}: {e}", kit.id))?;
+        WalletPolicy::parse_any(&c, &kit.descriptor).map_err(|e| format!("{}: {e:?}", kit.id))?;
     let input = definite(&policy, false, 0)?;
     let back = definite(&policy, true, 0)?;
     let fund = funding(input.script_pubkey());
@@ -517,7 +517,7 @@ pub fn unsigned(kit: &Kit) -> Result<Psbt, String> {
 pub fn unsigned_with_xpubs(kit: &Kit) -> Result<Psbt, String> {
     let c = compute();
     let policy =
-        WalletPolicy::parse_any(&c, &kit.descriptor).map_err(|e| format!("{}: {e}", kit.id))?;
+        WalletPolicy::parse_any(&c, &kit.descriptor).map_err(|e| format!("{}: {e:?}", kit.id))?;
     let mut psbt = unsigned(kit)?;
     for key in policy.keys() {
         let (Some(fp), Some(path)) = (key.fingerprint(), key.path()) else {
@@ -589,7 +589,7 @@ pub fn files() -> Result<Vec<(String, Vec<u8>)>, String> {
         ));
         // The same wallet as a coordinator's export: the wallet .json
         // Sparrow imports, and a multisig's setup file.
-        let policy = WalletPolicy::parse_any(&c, &kit.descriptor).map_err(|e| e.to_string())?;
+        let policy = WalletPolicy::parse_any(&c, &kit.descriptor).map_err(|e| format!("{e:?}"))?;
         out.push((
             format!("{}-wallet.json", kit.id),
             crate::wallet_backup::wallet_json(kit.name, &policy).into_bytes(),
@@ -784,7 +784,7 @@ pub fn musig_policy() -> Result<WalletPolicy, String> {
         })
         .collect();
     let refs: Vec<&str> = texts.iter().map(String::as_str).collect();
-    WalletPolicy::from_parts(&c, "tr(musig(@0,@1,@2)/**)", &refs).map_err(|e| e.to_string())
+    WalletPolicy::from_parts(&c, "tr(musig(@0,@1,@2)/**)", &refs).map_err(|e| format!("{e:?}"))
 }
 
 fn taproot_account(n: usize) -> faraday_bip::bitcoin::bip32::Xpub {
@@ -838,7 +838,9 @@ pub fn musig_unsigned() -> Result<Psbt, String> {
     let c = compute();
     use std::collections::BTreeMap;
     let policy = musig_policy()?;
-    let spk = policy.script_at(&c, false, 0).map_err(|e| e.to_string())?;
+    let spk = policy
+        .script_at(&c, false, 0)
+        .map_err(|e| format!("{e:?}"))?;
     let fund = funding(spk);
     let recipient: Address = RECIPIENT
         .parse::<Address<_>>()

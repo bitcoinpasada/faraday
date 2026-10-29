@@ -208,11 +208,13 @@ impl Keys {
             (None, Some(bytes)) => bytes,
             (None, None) => return Err(Paper::NoWords),
         };
-        let one = |e: codex32::Error| Paper::Refused(e.to_string());
+        let one = |e: codex32::Error| Paper::Refused(faraday_strings::bip::codex32_error(&e));
         let id = codex32::identifier_for(fp);
         if k == 0 {
             if n != 1 {
-                return Err(Paper::Refused(codex32::Error::BadSplit.to_string()));
+                return Err(Paper::Refused(faraday_strings::bip::codex32_error(
+                    &codex32::Error::BadSplit,
+                )));
             }
             let secret = Codex32::from_seed(0, id, seed).map_err(one)?;
             return Ok(Held::of(vec![Zeroizing::new(
