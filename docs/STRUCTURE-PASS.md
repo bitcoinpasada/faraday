@@ -177,6 +177,8 @@ cannot quietly undo it:
     file named there exists and draws it;
   - file size: no Rust source file over 2,500 lines, except those in
     the counts file at their size, which only falls;
+    the vault area's two files over it stay together on purpose
+    (F170);
   - function size: clippy's `too_many_lines` is on, each long function
     carries an `#[expect]`, and their number is in the counts file; the
     same holds for `#[allow(clippy::too_many_arguments)]`;

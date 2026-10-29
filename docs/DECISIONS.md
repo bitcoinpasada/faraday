@@ -184,3 +184,4 @@ Read this table, then only the decision you need.
 | [F167](decisions/F167.md) | Home's Scan takes everything a scanner takes | 2026-10-29 | Active | keys |
 | [F168](decisions/F168.md) | The Nonce check page carries the rail's two touch-target exceptions every rail page carries | 2026-10-29 | Active | design |
 | [F169](decisions/F169.md) | A GPG key is restored from its paperkey and its public certificate | 2026-10-29 | Active | crypto |
+| [F170](decisions/F170.md) | The vault area's code stays together for auditability, not split per screen | 2026-10-29 | Active | repository |

@@ -159,6 +159,7 @@ does what is `tools/README.md`'s.
 | `structure.impl-faraday`: Faraday's field count and the files with impl Faraday only fall | `faraday/faraday-core/src/**` | held | - | `lint-layout` | - | `CLAUDE.md`<br>`docs/decisions/F74.md` |
 | `structure.no-new-mut`: a new *_mut accessor or DerefMut on an area is avoided; the few that exist are listed in STRUCTURE-PASS.md | `faraday/faraday-core/src/**`<br>lines matching `^\+.*(\bfn \w+_mut\(\|\bDerefMut\b)` | pair | `docs/STRUCTURE-PASS.md` | - | - | `docs/STRUCTURE-PASS.md` §7 |
 | `structure.areas-private`: an area's state is a struct with private fields, reached through accessors and its own methods | `faraday/faraday-core/src/**` | review | - | - | - | `docs/STRUCTURE-PASS.md` §7 |
+| `structure.vault-together`: the vault code is not split per screen (F170) | `faraday/faraday-core/src/vault/**`<br>on add | review | - | - | - | `docs/decisions/F170.md` |
 | `structure.new-lint`: a new lint in the lint recipe is described in tools/README.md and is a [[check]] of the registry | `justfile`<br>lines matching `^\+ {4}(tools/(lint\|check)-\|python3 (-[IB] )*tools/lint\|cargo (run -q -p costs-lint\|deny\|vet))` | pair | each of `tools/README.md`<br>`tools/impact.toml` | `impact-check`, `impact-lint` | whether the lint's description in tools/README.md says what it holds | `docs/decisions/F74.md` |
 
 ### 2.11 strings
@@ -271,6 +272,7 @@ No script holds these; a reviewer reads this list for the change.
 | `speed.kept-in-step`: a value kept on the state for drawing has its invariant written where it lives and a test that changes the source | `CLAUDE.md`<br>`docs/SPEED.md` §3 |
 | `speed.late-flow-timed`: work added while drawing or after every event is timed in a late-flow session before it is committed | `CLAUDE.md`<br>`docs/SPEED.md` §7 |
 | `structure.areas-private`: an area's state is a struct with private fields, reached through accessors and its own methods | `docs/STRUCTURE-PASS.md` §7 |
+| `structure.vault-together`: the vault code is not split per screen (F170) | `docs/decisions/F170.md` |
 | `strings.no-explanation`: a working screen carries labels, values and actions, never an explanation; Learn and About explain | `CLAUDE.md`<br>`docs/decisions/F112.md` |
 | `strings.plain`: text anywhere in the product is plain statement of fact, never mannered prose | `CLAUDE.md`<br>`docs/DESIGN.md` §2 |
 | `strings.medium`: the medium's words come from Medium; "SD card" where it is one | `docs/decisions/F4.md` |

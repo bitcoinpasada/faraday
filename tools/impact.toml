@@ -836,6 +836,14 @@ when = ["faraday/faraday-core/src/**"]
 kind = "review"
 
 [[rule]]
+id = "structure.vault-together"
+title = "the vault code is not split per screen (F170)"
+source = ["docs/decisions/F170.md"]
+when = ["faraday/faraday-core/src/vault/**"]
+on = ["add"]
+kind = "review"
+
+[[rule]]
 id = "structure.new-lint"
 title = "a new lint in the lint recipe is described in tools/README.md and is a [[check]] of the registry"
 source = ["docs/decisions/F74.md"]
