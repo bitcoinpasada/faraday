@@ -4630,7 +4630,7 @@ code = ["core/faraday-psbt/src/finalize.rs::finalize"]
 [action.implementation]
 crate = "core/faraday-psbt"
 libraries = ["bitcoin", "miniscript"]
-adds = "bitcoin has no finalizer, so single-key and plain multisig inputs are finalized here; a miniscript or a tree goes through miniscript's finalizer with its interpreter check; among satisfactions of a wsh miniscript the smaller by real signature size is chosen; the signing fields are cleared as BIP 174 requires. The app keeps the finished transaction and writes it as hex."
+adds = "bitcoin has no finalizer, so single-key and plain multisig inputs are finalized here; a miniscript or a tree goes through miniscript's finalizer with its interpreter check; among satisfactions of a wsh miniscript the smaller by real signature size is chosen, as Bitcoin Core's finalizepsbt chooses it, a multi() keeping its k smallest signatures; the signing fields are cleared as BIP 174 requires. The app keeps the finished transaction and writes it as hex."
 
 [action.checked]
 vectors = ["psbt"]
@@ -4638,6 +4638,9 @@ tests = [
   "core/faraday-psbt/tests/all/sign.rs::sign_verify_finalize_every_script_type",
   "core/faraday-psbt/tests/all/multisig.rs::bip174_signer_finalizer_extractor",
   "core/faraday-psbt/tests/all/satisfaction.rs::or_b_carries_the_smaller_signature",
+  "core/faraday-psbt/tests/all/satisfaction.rs::multi_inside_or_d_keeps_the_smallest_signatures",
+  "core/faraday-psbt/tests/all/satisfaction.rs::thresh_tie_satisfies_the_later_branches",
+  "core/faraday-psbt/tests/all/satisfaction.rs::taproot_leaves_that_weigh_the_same_keep_the_first_script_by_bytes",
   "core/faraday-psbt/tests/all/miniscript.rs::the_liana_spend_completes_with_the_first_key_alone",
   "core/faraday-psbt/tests/all/tapmulti.rs::two_of_the_three_keys_sign_and_the_input_finalizes",
 ]
@@ -4662,9 +4665,9 @@ lines = [
 ]
 
 [[action.own]]
-text = "Of several satisfactions of a wsh miniscript, the one with the smaller real signature size is chosen."
+text = "Of several satisfactions of a wsh miniscript, the one with the smaller real signature size is chosen; where two weigh the same, the one Bitcoin Core keeps: an or's first branch, a multi()'s keys named first, a thresh()'s branches named last, a taproot spend's leaf whose script sorts first by its bytes."
 kind = "Neutral"
-decision = "no decision"
+decision = "F161"
 
 [action.review]
 places = ["core/faraday-psbt/README.md#What is refused"]

@@ -1,5 +1,6 @@
 //! The satisfaction of a `wsh` or `sh(wsh)` miniscript, chosen by the
-//! size of the signatures it carries.
+//! size of the signatures it carries, as Bitcoin Core's `finalizepsbt`
+//! chooses it.
 //!
 //! `miniscript` 12's non-malleable satisfier chooses between two ways
 //! of satisfying a fragment by an estimate in which every ECDSA
@@ -10,23 +11,30 @@
 //! `or_b(pk(A),s:pk(B))` with both signed, a 72-byte signature from A
 //! and a 71-byte one from B, it writes A's.
 //!
-//! This makes the same choices that satisfier makes, fragment by
-//! fragment (`miniscript`'s `Satisfaction::satisfy_helper` and
-//! `dissatisfy_helper`), with the signatures and every other element
-//! measured as they are written: each its bytes and a length byte.
-//! Where two satisfactions weigh the same, the first branch the
-//! fragment names is taken, as python-bip380's satisfier does
-//! (`docs/CROSSCHECK.md` §10): `or_b`, `or_d`, `or_c` and `or_i` their
-//! left branch, `andor` its `and`, and an `or_i` dissatisfied its left.
-//! A `thresh` orders its branches and a `multi` its signatures as
-//! `miniscript` does: a `multi` takes the first signatures in key
-//! order. What can be satisfied at all is `miniscript`'s answer, not
-//! this one: it runs only on an input `miniscript` has finalized.
+//! This makes the choices Bitcoin Core's satisfier makes
+//! (`ProduceInput` in Core's `src/script/miniscript.h`), fragment by
+//! fragment, with the signatures and every other element measured as
+//! they are written: each its bytes and a length byte. Between two
+//! satisfactions, one needing no signature is taken (a third party could
+//! otherwise strip the signature); between two that both need one, the
+//! smaller; and where they weigh the same, the first Core lists (its
+//! `operator|` keeps its left operand on a tie). That is the first
+//! branch the fragment names for `or_b`, `or_d`, `or_c` and `or_i`, and
+//! the `and` for `andor`; an `or_i` dissatisfied takes its left.
+//!
+//! A `multi` keeps the k smallest of the signatures on hand, in key
+//! order, as Core's walk of its keys does: where two weigh the same, the
+//! one for the key named first. A `thresh` chooses which k branches to
+//! satisfy by the same rule over the whole stack, walking its branches
+//! from the last, as Core does: where two choices weigh the same, the
+//! later branches are satisfied and the earlier dissatisfied (F161:
+//! Faraday breaks a tie as Core does). What can be satisfied
+//! at all is `miniscript`'s answer, not this one: it runs only on an
+//! input `miniscript` has finalized.
 
 use alloc::sync::Arc;
 use alloc::vec;
 use alloc::vec::Vec;
-use core::mem;
 
 use bitcoin::PublicKey;
 use bitcoin::hashes::hash160;
@@ -36,29 +44,19 @@ use miniscript::{Miniscript, Satisfier, Segwitv0, Terminal, Threshold};
 /// `miniscript`'s standardness limit on a P2WSH witness's items.
 const MAX_STANDARD_P2WSH_STACK_ITEMS: usize = 100;
 
-/// The estimate `miniscript` gives every ECDSA signature, its length
-/// byte included.
-const SIG_ESTIMATE: usize = 73;
-
 #[derive(Clone)]
 struct Item {
     bytes: Vec<u8>,
-    sig: bool,
 }
 
 impl Item {
     fn data(bytes: Vec<u8>) -> Self {
-        Item { bytes, sig: false }
+        Item { bytes }
     }
 
     /// The element as a witness writes it: its bytes and a length byte.
     fn size(&self) -> usize {
         self.bytes.len() + 1
-    }
-
-    /// `miniscript`'s estimate of it, which only a `thresh` reads here.
-    fn estimate(&self) -> usize {
-        if self.sig { SIG_ESTIMATE } else { self.size() }
     }
 }
 
@@ -115,16 +113,6 @@ fn size(items: &[Item]) -> usize {
     items.iter().map(Item::size).sum()
 }
 
-fn estimate(items: &[Item]) -> usize {
-    let count = items.len();
-    let varint = match count {
-        0..=0xfc => 1,
-        0xfd..=0xffff => 3,
-        _ => 5,
-    };
-    items.iter().map(Item::estimate).sum::<usize>() + varint
-}
-
 #[derive(Clone)]
 struct Sat {
     stack: Stack,
@@ -149,8 +137,9 @@ impl Sat {
         )
     }
 
-    /// `miniscript`'s `Satisfaction::minimum`, by real size, a tie going
-    /// to `first`.
+    /// Core's `operator|` between two satisfactions, by real size, a tie
+    /// going to `first` (`miniscript`'s `Satisfaction::minimum` is the
+    /// same choice by its estimate).
     fn either(first: Sat, second: Sat) -> Sat {
         match (&first.stack, &second.stack) {
             (Stack::Impossible, _) => return second,
@@ -210,10 +199,7 @@ impl Satisfy<'_> {
 
     fn sig(&self, pk: &PublicKey) -> Stack {
         match self.s().lookup_ecdsa_sig(pk) {
-            Some(sig) => Stack::of(vec![Item {
-                bytes: sig.to_vec(),
-                sig: true,
-            }]),
+            Some(sig) => Stack::of(vec![Item::data(sig.to_vec())]),
             None => Stack::Impossible,
         }
     }
@@ -255,13 +241,9 @@ impl Satisfy<'_> {
                     Satisfier::<PublicKey>::lookup_raw_pkh_ecdsa_sig(&self.s, h),
                     self.raw_pkh_key(h),
                 ) {
-                    (Some((_, sig)), Some(pk)) => Stack::of(vec![
-                        Item {
-                            bytes: sig.to_vec(),
-                            sig: true,
-                        },
-                        Item::data(pk.to_bytes()),
-                    ]),
+                    (Some((_, sig)), Some(pk)) => {
+                        Stack::of(vec![Item::data(sig.to_vec()), Item::data(pk.to_bytes())])
+                    }
                     _ => Stack::Impossible,
                 };
                 Sat::new(stack, true)
@@ -307,27 +289,8 @@ impl Satisfy<'_> {
                     Sat::new(Stack::combine(r.stack, Stack::push_0()), r.has_sig),
                 )
             }
-            Terminal::Thresh(t) if t.k() == t.n() => t
-                .iter()
-                .map(|s| self.sat(&s.node))
-                .fold(Sat::empty(), Sat::then),
             Terminal::Thresh(t) => self.thresh(t),
-            Terminal::Multi(t) => {
-                let sigs: Vec<Item> = t
-                    .iter()
-                    .filter_map(|pk| self.s().lookup_ecdsa_sig(pk))
-                    .take(t.k())
-                    .map(|sig| Item {
-                        bytes: sig.to_vec(),
-                        sig: true,
-                    })
-                    .collect();
-                if sigs.len() < t.k() {
-                    Sat::new(Stack::Impossible, false)
-                } else {
-                    Sat::new(Stack::combine(Stack::push_0(), Stack::of(sigs)), true)
-                }
-            }
+            Terminal::Multi(t) => self.multi(t),
             // Not a SegWit v0 fragment: the parse refuses it.
             Terminal::MultiA(_) => Sat::new(Stack::Impossible, false),
         }
@@ -386,35 +349,50 @@ impl Satisfy<'_> {
         }
     }
 
-    /// `miniscript`'s `Satisfaction::thresh`: the branches ordered by
-    /// whether they can be satisfied at all, then those needing no
-    /// signature first, then by the estimate of what satisfying one adds
-    /// over dissatisfying it, the first k satisfied.
+    /// Core's `thresh`: the best stack satisfying j of the last i
+    /// branches, built up from the last branch to the first, each step
+    /// choosing by [`Sat::either`] between dissatisfying the branch (the
+    /// first, so taken on a tie) and satisfying it; the answer is the
+    /// stack for k of all n.
     fn thresh(&self, t: &Branches) -> Sat {
-        let mut sats: Vec<Sat> = t.iter().map(|s| self.sat(&s.node)).collect();
-        let mut chosen: Vec<Sat> = t.iter().map(|s| self.dissat(&s.node)).collect();
-        let mut order: Vec<usize> = (0..t.n()).collect();
-        order.sort_by_key(|&i| {
-            let weight = match (&sats[i].stack, &chosen[i].stack) {
-                (Stack::Unavailable | Stack::Impossible, _) => i64::MAX,
-                (_, Stack::Unavailable | Stack::Impossible) => i64::MIN,
-                (Stack::Items(s), Stack::Items(d)) => estimate(s) as i64 - estimate(d) as i64,
-            };
-            let impossible = matches!(sats[i].stack, Stack::Impossible);
-            (impossible, sats[i].has_sig, weight)
-        });
-        for &i in &order[..t.k()] {
-            mem::swap(&mut chosen[i], &mut sats[i]);
+        let mut best = vec![Sat::empty()];
+        for branch in t.iter().rev() {
+            let sat = self.sat(&branch.node);
+            let dissat = self.dissat(&branch.node);
+            let mut next = Vec::with_capacity(best.len() + 1);
+            next.push(dissat.clone().then(best[0].clone()));
+            for j in 1..best.len() {
+                next.push(Sat::either(
+                    dissat.clone().then(best[j].clone()),
+                    sat.clone().then(best[j - 1].clone()),
+                ));
+            }
+            next.push(sat.then(best[best.len() - 1].clone()));
+            best = next;
         }
-        if matches!(sats[order[t.k() - 1]].stack, Stack::Impossible) {
-            Sat::new(Stack::Impossible, false)
-        } else if !sats[order[t.k()]].has_sig
-            && !matches!(sats[order[t.k()]].stack, Stack::Impossible)
-        {
-            Sat::new(Stack::Unavailable, false)
-        } else {
-            chosen.into_iter().fold(Sat::empty(), Sat::then)
+        best.swap_remove(t.k())
+    }
+
+    /// Core's `multi`: the k smallest of the signatures on hand, in key
+    /// order after the empty push `CHECKMULTISIG` pops. Core's walk of the
+    /// keys, first to last, keeps a key's signature only when it makes
+    /// the stack strictly smaller, so of signatures that weigh the same
+    /// the one for the key named first is kept; a sort by size that
+    /// keeps key order among equals takes the same k.
+    fn multi<const N: usize>(&self, t: &Threshold<PublicKey, N>) -> Sat {
+        let mut sigs: Vec<(usize, Vec<u8>)> = t
+            .iter()
+            .enumerate()
+            .filter_map(|(i, pk)| self.s().lookup_ecdsa_sig(pk).map(|sig| (i, sig.to_vec())))
+            .collect();
+        if sigs.len() < t.k() {
+            return Sat::new(Stack::Impossible, false);
         }
+        sigs.sort_by_key(|(_, sig)| sig.len());
+        sigs.truncate(t.k());
+        sigs.sort_by_key(|(i, _)| *i);
+        let items = sigs.into_iter().map(|(_, sig)| Item::data(sig)).collect();
+        Sat::new(Stack::combine(Stack::push_0(), Stack::of(items)), true)
     }
 }
 

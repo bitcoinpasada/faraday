@@ -299,15 +299,28 @@ fn satisfy_leaves(
 /// witness is one `miniscript`'s finalizer built and its interpreter
 /// accepted, and the one of least serialized size is kept: its element
 /// count, and every element with its length, plus the script and
-/// control block. Where two weigh the same, the first leaf in the
-/// PSBT's order (its control blocks', as `tap_scripts` keeps them) is
-/// kept. What can be finalized at all is unchanged: an input no leaf
-/// satisfies stays partial.
+/// control block. Where two weigh the same, the leaf kept is the one
+/// Bitcoin Core keeps (F161): Core tries the leaves in the
+/// order of their script's bytes, then their leaf version, each with
+/// its shortest control block (then the smaller by bytes), and takes a
+/// later leaf only when it is strictly smaller. What can be finalized
+/// at all is unchanged: an input no leaf satisfies stays partial.
 fn by_leaf(psbt: &bitcoin::Psbt, index: usize) -> Option<Final> {
-    let controls: Vec<ControlBlock> = psbt.inputs[index].tap_scripts.keys().cloned().collect();
+    let mut controls: Vec<ControlBlock> = psbt.inputs[index].tap_scripts.keys().cloned().collect();
     if controls.is_empty() {
         return satisfy(psbt, index);
     }
+    let scripts = &psbt.inputs[index].tap_scripts;
+    controls.sort_by_cached_key(|control| {
+        let (script, version) = &scripts[control];
+        let control = control.serialize();
+        (
+            script.to_bytes(),
+            version.to_consensus(),
+            control.len(),
+            control,
+        )
+    });
     let mut best: Option<(usize, Final)> = None;
     for control in &controls {
         let Some(found) = satisfy_leaves(psbt, index, |c| c == control) else {

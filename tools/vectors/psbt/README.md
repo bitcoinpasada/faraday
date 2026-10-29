@@ -30,6 +30,14 @@
 | `finalize-or-b-final.psbt` | python-bip380's finalized answer to it: input 3's witness carries B's signature and A's empty push, the smaller of the two satisfactions (`core/faraday-psbt/tests/all/satisfaction.rs`) |
 | `finalize-tap-leaf-tie.psbt` | The cross-check's seeded sign case `d2720ca6…` (corpus 17), signed and not final: input 1 spends a taproot tree whose leaves' witnesses differ by one byte as serialized and tie by `miniscript`'s count |
 | `finalize-tap-leaf-tie-final.psbt` | The cross-check's finalized answer to it: input 1's witness is the 240-byte leaf (`core/faraday-psbt/tests/all/satisfaction.rs`); Bitcoin Core v31.1.0's `finalizepsbt` on regtest gives the same witness, byte for byte |
+| `finalize-multi-smallest.psbt` | The cross-check's seeded sign case `faraday-crosscheck-1` corpus 28, signed and not final: input 0 spends `sh(wsh(or_d(multi(2,A,B,C),and_v(v:pkh(D),older(N)))))` with four signatures on hand, one of 72 bytes and three of 71, the timelock not met |
+| `finalize-multi-smallest-final.psbt` | Bitcoin Core v31.1.0's `finalizepsbt` answer to it on regtest: input 0's `multi` carries two 71-byte signatures, a 284-byte witness (`core/faraday-psbt/tests/all/satisfaction.rs`) |
+| `finalize-multi-smallest-wsh.psbt` | The cross-check's sign case at seed `4e79bf0fbd080bcdd4aa2a01c5febb02` corpus 157, signed and not final: input 0 spends `wsh(or_d(multi(2,A,B,C),and_v(v:pkh(D),older(N))))` with four signatures on hand, one of 70 bytes and three of 71 |
+| `finalize-multi-smallest-wsh-final.psbt` | Core v31.1.0's `finalizepsbt` answer to it: the `multi` carries the 70-byte signature and a 71-byte one, a 283-byte witness (`core/faraday-psbt/tests/all/satisfaction.rs`) |
+| `finalize-thresh-tie.psbt` | The cross-check's seeded sign case `faraday-crosscheck-1` corpus 4, signed and not final: input 2 spends `sh(wsh(thresh(2,pk(A),s:pk(B),sln:older(N))))` with A and B signed at 71 bytes each and the timelock met, so two satisfactions weigh 161 bytes |
+| `finalize-thresh-tie-final.psbt` | Core v31.1.0's `finalizepsbt` answer to it: B and the timelock satisfied, an empty push for A, as Core breaks a `thresh` tie (`core/faraday-psbt/tests/all/satisfaction.rs`) |
+| `finalize-tap-leaf-order.psbt` | The cross-check's sign case at seed `41cb5a3d9e61f800a8639fab29ef926e` (scale 10) corpus 298, signed and not final: input 0 spends a taproot tree by its script path, two leaves of which give witnesses of the same 235 bytes |
+| `finalize-tap-leaf-order-final.psbt` | Core v31.1.0's `finalizepsbt` answer to it: the leaf whose script sorts first by its bytes (`core/faraday-psbt/tests/all/satisfaction.rs`) |
 
 ## The miniscript wallets' addresses
 
