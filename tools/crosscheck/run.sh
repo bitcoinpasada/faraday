@@ -37,9 +37,10 @@ if [ -z "$exe" ]; then
 fi
 say "build: done"
 
-# LND's answers, a Go program over the vendored tree of tools/reference/lnd/
-# (offline: the vendor folder only, the installed toolchain only). A missing
-# or older Go stops the run.
+# The Go answer programs, LND's over the vendored tree of tools/reference/lnd/
+# and btcd's BIP-322 over tools/reference/btcd-bip322/ (offline: the vendor
+# folders only, the installed toolchain only). A missing or older Go stops
+# the run.
 say "build: LND's answer program (go build -mod=vendor, tools/reference/lnd)"
 if ! command -v go >/dev/null; then
     say "build: FAILED: no Go toolchain on the PATH (docs/DEVELOPING.md §1)"
@@ -53,6 +54,15 @@ if ! GOFLAGS=-mod=vendor GOTOOLCHAIN=local GOPROXY=off GOTELEMETRY=off CGO_ENABL
     exit 2
 fi
 say "build: LND's answer program done"
+say "build: btcd's BIP-322 program (go build -mod=vendor, tools/reference/btcd-bip322)"
+if ! GOFLAGS=-mod=vendor GOTOOLCHAIN=local GOPROXY=off GOTELEMETRY=off CGO_ENABLED=0 \
+        go build -C tools/reference/btcd-bip322 -trimpath -o "$PWD/$progress/btcd-bip322-ref" . \
+        2>"$progress/go-build-bip322.log"; then
+    cat "$progress/go-build-bip322.log" >&2
+    say "build: FAILED: btcd's BIP-322 program did not build (the Go version go.mod names)"
+    exit 2
+fi
+say "build: btcd's BIP-322 program done"
 
 # A network namespace of its own, with loopback only: whatever tries to
 # fetch fails instead of downloading. crosscheck.py brings `lo` up for

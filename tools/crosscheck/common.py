@@ -88,6 +88,32 @@ def use_reference(*parts):
     sys.path.insert(0, str(ROOT.joinpath("tools", "reference", *parts)))
 
 
+_UNPACKED = {}
+
+
+def use_wheels(folder, wheels):
+    """Puts vendored wheels first on the import path, unpacked. A wheel is
+    kept as published (its SHA-256 in `references.sha256`, checked before
+    any area runs); its packages read data files beside their modules,
+    which an import from the zip cannot serve, so each process unpacks
+    them once into a scratch folder of its own, removed at exit. Costs
+    the unpacking, about a tenth of a second."""
+    import atexit
+    import shutil
+    import tempfile
+    import zipfile
+
+    if folder in _UNPACKED:
+        return
+    into = tempfile.mkdtemp(prefix=f"faraday-crosscheck-{folder}-")
+    atexit.register(shutil.rmtree, into, True)
+    for name in wheels:
+        with zipfile.ZipFile(ROOT / "tools" / "reference" / folder / name) as z:
+            z.extractall(into)
+    _UNPACKED[folder] = into
+    sys.path.insert(0, into)
+
+
 def vectors(*parts):
     return json.loads(ROOT.joinpath("tools", "vectors", *parts).read_text())
 

@@ -1,0 +1,58 @@
+# github.com/btcsuite/btcd/address/v2 v2.0.0
+## explicit; go 1.25
+github.com/btcsuite/btcd/address/v2
+github.com/btcsuite/btcd/address/v2/base58
+github.com/btcsuite/btcd/address/v2/bech32
+# github.com/btcsuite/btcd/bip322 v0.0.0-00010101000000-000000000000 => ./btcd/bip322
+## explicit; go 1.26.10
+github.com/btcsuite/btcd/bip322
+# github.com/btcsuite/btcd/btcec/v2 v2.5.0
+## explicit; go 1.25
+github.com/btcsuite/btcd/btcec/v2
+github.com/btcsuite/btcd/btcec/v2/ecdsa
+github.com/btcsuite/btcd/btcec/v2/schnorr
+# github.com/btcsuite/btcd/btcutil/v2 v2.0.0
+## explicit; go 1.25
+github.com/btcsuite/btcd/btcutil/v2
+github.com/btcsuite/btcd/btcutil/v2/hdkeychain
+# github.com/btcsuite/btcd/chaincfg/v2 v2.0.0
+## explicit; go 1.23.2
+github.com/btcsuite/btcd/chaincfg/v2
+# github.com/btcsuite/btcd/chainhash/v2 v2.0.0
+## explicit; go 1.23.2
+github.com/btcsuite/btcd/chainhash/v2
+# github.com/btcsuite/btcd/psbt/v2 v2.0.0 => ./btcd/psbt
+## explicit; go 1.26.10
+github.com/btcsuite/btcd/psbt/v2
+# github.com/btcsuite/btcd/txscript/v2 v2.0.0 => ./btcd/txscript
+## explicit; go 1.26.10
+github.com/btcsuite/btcd/txscript/v2
+# github.com/btcsuite/btcd/wire/v2 v2.0.0 => ./btcd/wire
+## explicit; go 1.26.10
+github.com/btcsuite/btcd/wire/v2
+# github.com/btcsuite/btclog v1.0.0
+## explicit; go 1.17.0
+github.com/btcsuite/btclog
+# github.com/decred/dcrd/crypto/blake256 v1.1.0
+## explicit; go 1.17
+github.com/decred/dcrd/crypto/blake256
+github.com/decred/dcrd/crypto/blake256/internal/compress
+# github.com/decred/dcrd/dcrec/secp256k1/v4 v4.4.1
+## explicit; go 1.17
+github.com/decred/dcrd/dcrec/secp256k1/v4
+github.com/decred/dcrd/dcrec/secp256k1/v4/ecdsa
+github.com/decred/dcrd/dcrec/secp256k1/v4/schnorr
+# github.com/kcalvinalvin/anet v0.0.0-20251112173137-d8ddc1f6dbee
+## explicit; go 1.20
+github.com/kcalvinalvin/anet
+# golang.org/x/crypto v0.57.0
+## explicit; go 1.26.0
+golang.org/x/crypto/ripemd160
+golang.org/x/crypto/sha3
+# golang.org/x/sys v0.48.0
+## explicit; go 1.26.0
+golang.org/x/sys/cpu
+# github.com/btcsuite/btcd/bip322 => ./btcd/bip322
+# github.com/btcsuite/btcd/psbt/v2 => ./btcd/psbt
+# github.com/btcsuite/btcd/txscript/v2 => ./btcd/txscript
+# github.com/btcsuite/btcd/wire/v2 => ./btcd/wire

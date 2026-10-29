@@ -7,7 +7,22 @@ in it was produced by this repository.
 | File | Source |
 |---|---|
 | `bip322-basic.json` | `bip-0322/basic-test-vectors.json` in the [BIP repository](https://github.com/bitcoin/bips) |
+| `bip322-generated.json` | `bip-0322/generated-test-vectors.json` in the BIP repository, at commit `99ece780c80af963cfd22eb23a46d3756f1d3a59` (BIP-322 2.1.0); SHA-256 `187205f77b4a639f8d7e9a8e9d9070204a4c6658cf925569001b4d15f02a6539` |
+| `bip322-btcd-negative.json` | `bip322/testdata/generated-negative-test-vectors.json` of btcd's BIP-322 (pull request 2521 of [btcd](https://github.com/btcsuite/btcd), head commit `503719c950953906a8fad9286b3b51aef5ff152b`); SHA-256 `51d51f1646c57759f6361c5560ac71d5ddd08337aa5edc6f96ab45dac8a2d0f2` |
 | `bip137.txt` | Trezor's and Electrum's own test suites (see below) |
+
+## `bip322-generated.json` and `bip322-btcd-negative.json`
+
+The BIP's generated vectors, made by btcd's implementation from random
+keys: simple, full and proof-of-funds signatures for every address type,
+single key and multisig, P2SH, P2WSH, P2TR and timelocks, and 28 that must
+not verify. btcd's negative vectors are 84 more that must not verify, each
+naming the result it must give: 76 invalid, 8 inconclusive (BIP-322's
+upgradeable rules). The cross-check (`tools/crosscheck/area_msg.py`)
+requires every one of Faraday, btclib-wallet and btcd: Faraday verifies the
+simple P2WPKH and P2TR signatures and makes the P2WPKH one again byte for
+byte; it reads no full form and no proof of funds, and checks no script
+address, and refuses those, which the cross-check counts.
 
 ## `bip322-basic.json`
 

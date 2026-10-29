@@ -80,7 +80,7 @@ AREAS = {
     "psbt-review": ("area_review", "Review", "review.inspect", 120),
     "taproot": ("area_taproot", "Taproot", "taproot.tree", 900),
     "miniscript": ("area_miniscript", "Miniscript", "miniscript.script", 460),
-    "msg": ("area_msg", "Msg", "msg.sign", 930),
+    "msg": ("area_msg", "Msg", ("msg.sign", "msg.verify", "msg.bip322"), 150),
     "own-randomness": ("area_own", "Own", "own.session", 80),
     "entropy": ("area_entropy", "Entropy", "entropy.cards", 140),
     "roller": ("area_roller", "Roller", "roller.five", 45),

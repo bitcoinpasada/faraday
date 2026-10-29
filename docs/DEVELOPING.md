@@ -22,8 +22,9 @@ CI.
   PyCA cryptography (`python3-cryptography`) and pykeepass; PyPy is
   optional (`tools/crosscheck/README.md`).
 - **Go** 1.27 or later, for the cross-check only: its `lightning` area
-  builds LND's own aezeed code from `tools/reference/lnd/` (vendored, so
-  offline, with `GOTOOLCHAIN=local`). Install it from
+  builds LND's own aezeed code from `tools/reference/lnd/` and its `msg`
+  area btcd's BIP-322 code from `tools/reference/btcd-bip322/` (vendored,
+  so offline, with `GOTOOLCHAIN=local`). Install it from
   <https://go.dev/dl/> (the tarball's SHA-256 is on that page) or the
   distribution's `golang` package; `go version` must say 1.27 or later,
   or `just crosscheck` stops.

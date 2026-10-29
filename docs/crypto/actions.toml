@@ -4710,7 +4710,7 @@ tests = [
   "core/faraday-psbt/tests/all/message.rs::a_signature_belongs_to_one_address",
 ]
 crosscheck = "msg"
-independence = { class = "own-over-outside", author = "Faraday's authors (`area_msg.py`), over Bitcoin Core's `script.py` sighashes and `secp256k1lab`'s BIP-340", ours = "BIP-137 and BIP-322 written out in `area_msg.py`: RFC 6979 ECDSA, the low-R grind, the headers, BIP-322's virtual transactions" }
+independence = { class = "outside", author = "Bitcoin Core v31.1 (`signmessagewithprivkey`, `verifymessage`, `signrawtransactionwithkey`); btclib's `bms` and btclib-wallet's `bip322`, by the btclib developers, on btclib's own curve; btcd's `bip322` (pull request 2521), by Oliver Gugger and the btcd developers" }
 fuzz_none = "No fuzz target signs: the signer takes the person's own text and key; message_verify fuzzes the reading of a signed message."
 
 [action.secrets]
@@ -4762,7 +4762,7 @@ tests = [
   "core/faraday-psbt/tests/all/message.rs::a_witness_signature_that_is_not_der_is_malformed",
 ]
 crosscheck = "msg"
-independence = { class = "own-over-outside", author = "Faraday's authors (`area_msg.py`), over Bitcoin Core's `script.py` sighashes and `secp256k1lab`'s BIP-340", ours = "BIP-137 and BIP-322 written out in `area_msg.py`: RFC 6979 ECDSA, the low-R grind, the headers, BIP-322's virtual transactions" }
+independence = { class = "outside", author = "Bitcoin Core v31.1 (`signmessagewithprivkey`, `verifymessage`, `signrawtransactionwithkey`); btclib's `bms` and btclib-wallet's `bip322`, by the btclib developers, on btclib's own curve; btcd's `bip322` (pull request 2521), by Oliver Gugger and the btcd developers" }
 fuzz = ["message_verify"]
 
 [action.secrets]

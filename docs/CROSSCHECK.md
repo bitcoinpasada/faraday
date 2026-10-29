@@ -304,14 +304,23 @@ The cross-check fetches nothing, ever.
   checked against the key Bitcoin Core's `guix.sigs` publishes; two
   shims stand in for the libsecp256k1 packages it imports.
 - **Bitcoin Core's functional-test framework** is copied from the
-  release tag `v31.1` (`tools/reference/core/`); BIP-32, BIP-137 and
-  BIP-322 are written in the areas from the BIPs' text, each checked
-  against the BIPs' own vectors first.
+  release tag `v31.1` (`tools/reference/core/`); BIP-32 is written in
+  the areas from the BIP's text, checked against the BIP's own vectors
+  first.
 - **HWI's PSBT reader** (`hwilib/psbt.py` and the modules it imports) is
   copied from a signed commit on HWI's `master`, the signature checked
   against the key Bitcoin Core's `guix.sigs` publishes
   (`tools/reference/hwi/README.md`, which says why not its last
   release); a shim stands in for `typing_extensions`.
+- **btclib, ecc and btclib-wallet** are their published wheels, byte for
+  byte, pinned by the SHA-256 btclib-wallet's `uv.lock` names and
+  compared with the tagged commits (`tools/reference/btclib/`); the run
+  unpacks them after the hash check and uses btclib's own curve, never
+  libsecp256k1.
+- **btcd's BIP-322** (pull request 2521, unmerged, at its head commit)
+  is a Go module vendored with `go mod vendor`
+  (`tools/reference/btcd-bip322/`), built by `run.sh` with
+  `GOFLAGS=-mod=vendor`, `GOPROXY=off` and `GOTOOLCHAIN=local`.
 - **Bitcoin Core v31.1 itself** (`bitcoind` and `bitcoin-cli`) is a
   binary reference, required (owner, 2026-10-29). Its release tarball
   is over the tree's 2 MiB limit and is not in the tree, nor in Ubuntu's
@@ -417,7 +426,12 @@ own with code other people wrote, moves the action's `independence` to
    AEZ §10.5 item 6 lacks, and LND's node keys.
 7. **BIP-322:** against an outside implementation if a reasonable one
    exists; if none does, BIP-322 is held out of the app until it can be
-   checked, never labelled self-checked.
+   checked, never labelled self-checked. Built: btclib-wallet's `bip322`
+   and btcd's (pull request 2521, Go) answer every case of the `msg`
+   area, with the BIP's generated vectors and btcd's negative ones; with
+   Core's `signmessagewithprivkey` and `verifymessage` and btclib's `bms`
+   for BIP-137 (the message parts of items 1 and 2), they replaced
+   `area_msg.py`'s own BIP-137 and BIP-322.
 8. **Faraday's own constructions** (the vault's container, own
    randomness, cards, the camera, a mix, the Demo roller): a model
    written by an outside party from the spec alone, or a named outside
