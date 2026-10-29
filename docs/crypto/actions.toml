@@ -4361,7 +4361,7 @@ tests = [
   "core/faraday-psbt/tests/all/multisig.rs::a_cosigner_key_under_a_loaded_fingerprint_is_not_ours",
 ]
 crosscheck = "sign"
-independence = { class = "own-over-outside", author = "Faraday's authors (`area_sign.py`), over Bitcoin Core's `script.py`, `taproot_construct` and `key.py`, and python-bip380 by Antoine Poinsot", ours = "BIP-174's signer: which inputs and keys sign, the low-R grind and the refusals, written in `area_sign.py`" }
+independence = { class = "own-over-outside", author = "the Bitcoin Core developers: Core v31.1 itself (`descriptorprocesspsbt` signs, `testmempoolaccept` judges the spend), and Core's `key.py` and `script.py` for the first RFC 6979 nonce; Faraday's authors (`area_sign.py`) for the refusals", ours = "Faraday's refusals (F136, F141) and the inputs a wallet's rule leaves unsigned, the script code of the hash the first RFC 6979 nonce is checked under, and the keys of those checks derived by `btc.py`, in `area_sign.py`" }
 selftest = ["ecdsa_vector"]
 fuzz_none = "No target runs sign: it needs a master key and a PSBT that inspect accepts; psbt_parse fuzzes the PSBT it reads."
 
@@ -4437,7 +4437,7 @@ tests = [
   "core/faraday-psbt/tests/all/sign.rs::a_taproot_tree_with_no_way_into_it_is_refused",
 ]
 crosscheck = "sign"
-independence = { class = "own-over-outside", author = "Faraday's authors (`area_sign.py`), over Bitcoin Core's `script.py`, `taproot_construct` and `key.py`, and python-bip380 by Antoine Poinsot", ours = "BIP-174's signer and BIP-371's fields: which keys and leaves sign, written in `area_sign.py`" }
+independence = { class = "own-over-outside", author = "the Bitcoin Core developers: Core v31.1 itself (`descriptorprocesspsbt` signs, `testmempoolaccept` judges the spend), with BIP-340's reference (`secp256k1lab`) and Core's `script.py` for the zero-randomness nonce; Faraday's authors (`area_sign.py`) for the refusals", ours = "Faraday's refusals (F136, F141) and the inputs a wallet's rule leaves unsigned, and the keys of the zero-randomness check derived by `btc.py`, in `area_sign.py`" }
 selftest = ["schnorr_vector"]
 fuzz_none = "No target runs sign: it needs a master key and a PSBT that inspect accepts; psbt_parse fuzzes the PSBT it reads."
 
@@ -4645,7 +4645,7 @@ tests = [
   "core/faraday-psbt/tests/all/tapmulti.rs::two_of_the_three_keys_sign_and_the_input_finalizes",
 ]
 crosscheck = "sign"
-independence = { class = "own-over-outside", author = "Faraday's authors (`area_sign.py`), over Bitcoin Core's `script.py`, `taproot_construct` and `key.py`, and python-bip380 by Antoine Poinsot", ours = "BIP-174's finalizer and extractor, the tap leaf chosen, the `multi_a` rule and the timelock checks, written in `area_sign.py`" }
+independence = { class = "own-over-outside", author = "the Bitcoin Core developers: Core v31.1 itself (`finalizepsbt` finalizes and extracts, `testmempoolaccept` judges the transaction over its funding on the node); Faraday's authors (`area_sign.py`) for what is taken off first", ours = "the signatures under a taproot `pkh` leaf taken off before Core finalizes, as Faraday leaves such a leaf to the coordinator, and the fields BIP-174 keeps on a finalized input, in `area_sign.py`" }
 fuzz = ["psbt_parse"]
 other = [
   "Core end to end (INTEROP §1)",

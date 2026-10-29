@@ -226,6 +226,17 @@ report. The run writes its progress as it goes (`out/crosscheck/`,
 `just crosscheck-status`); the README says how to watch it, how much
 memory a worker takes and how to run it under PyPy.
 
+An area whose cases spend on Bitcoin Core's node (§10.4) has its coins
+before the self-test. The node's coinbases pay P2WSH(OP_TRUE) and are
+fanned out into coins of one value, the same in every run, as a regtest
+coinbase's txid depends only on its height and what it pays. The
+workers build each case's funding transactions from the case's own
+random stream and the run sends and buries them all (for `sign`, 1,100
+blocks, past every timelock its corpus spends with). A case then builds
+the same funding again, so the transaction Faraday finalizes spends real
+outputs, and Core's `testmempoolaccept` judges it with its own script
+interpreter and mempool policy.
+
 ### 10.2 When it runs
 
 - **The stamp.** A passing run writes a stamp file beside the
@@ -261,8 +272,13 @@ so adding an area does not lengthen the run much.
   answers). Pure-Python curve arithmetic takes about 5 to 30 ms an
   operation, so an area gets a few thousand random cases.
 - The run before a release: ten times the cases, 465,000 corpus cases,
-  about 10 minutes on twelve workers (7,400 s of work), the slowest area
-  no longer setting the length of the run.
+  under 10 minutes on twelve workers, the slowest area no longer setting
+  the length of the run (2026-10-29: about 9 minutes, 6,300 s of work, of
+  which the funding of `sign`'s cases on Core's node is 20 s; signed
+  messages 1,150 s, taproot trees 620 s, BIP-39 90 s, since
+  python-mnemonic is given its wordlists with a table to find a word's
+  place, and the BIP-32 keys of `btc.py` work out a parent's fingerprint
+  only when it is read).
 
 ### 10.4 Offline, and pinned
 
@@ -368,15 +384,19 @@ addresses and signatures first. Each step replaces a model of Faraday's
 own with code other people wrote, moves the action's `independence` to
 `outside`, and retires the model once nothing needs it.
 
-1. **Bitcoin Core as a program**, required (§10.4): `finalizepsbt` over
-   every PSBT of the `sign` corpus, compared byte for byte;
-   `descriptorprocesspsbt` from extended private keys, for the inputs and
-   keys chosen; a regtest node's `testmempoolaccept` of each transaction
-   Faraday signs; `deriveaddresses` for the keys and addresses of `bip32`,
-   `addr`, `miniscript` and `vanity`; `decodepsbt` for version 0 PSBTs;
-   `signmessagewithprivkey` and `verifymessage` for BIP-137 with P2PKH.
-   The refusals of F136 and F141 are Faraday's policy, which Core does not
-   share, and stay in Faraday's model, labelled so.
+1. **Bitcoin Core as a program**, required (§10.4). Built for `sign`
+   (2026-10-29): `descriptorprocesspsbt` signs every PSBT of its vectors
+   and corpus from the held masters' extended private keys, so Core
+   derives the keys and chooses where each signs, and its ECDSA
+   signatures are compared byte for byte; `finalizepsbt` finalizes and
+   extracts, compared byte for byte; `testmempoolaccept` judges every
+   transaction Faraday finalizes over funding on the node (§10.1). Built
+   for `addr` (2026-10-29): `deriveaddresses` from the seed's master.
+   Planned: `deriveaddresses` for `bip32`, `miniscript` and `vanity`;
+   `decodepsbt` for version 0 PSBTs; `signmessagewithprivkey` and
+   `verifymessage` for BIP-137 with P2PKH. The refusals of F136 and F141
+   are Faraday's policy, which Core does not share, and stay in Faraday's
+   model, labelled so.
 2. **btclib** (vendored by commit and SHA-256): BIP-32 derivation and
    strict decoding, BIP-137's other headers, and BIP-340 with its
    randomness given. **python-ecdsa** (the distribution's package): every

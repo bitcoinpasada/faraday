@@ -145,6 +145,7 @@ def run_batch(req, alternative):
         if isinstance(cls, Exception):
             raise cls
         area = cls(req["rust"], req["seed"], req["scale"], req.get("sabotage"))
+        area.fund_coins = req.get("coins")
         try:
             area.run_part(req["part"], req["lo"], req["hi"])
         finally:
@@ -152,6 +153,8 @@ def run_batch(req, alternative):
         result.update(status="pass", compared=area.compared, known=area.known)
         if req["part"] not in ("prelude", "coda"):
             result["cases"] = req["hi"] - req["lo"]
+        if req["part"].startswith("fund:"):
+            result["funding"] = area.funding_txs
     except common.Mismatch as m:
         result.update(status="mismatch", report=m.report(), op=m.op, inputs=m.inputs,
                       rust=m.rust, reference=m.reference)
@@ -214,7 +217,8 @@ def shape(area):
     all be imported into one."""
     cls = area_class(area)
     return {"loops": [list(x) for x in cls.LOOPS], "coda": cls.coda is not common.Area.coda,
-            "core": bool(getattr(cls, "CORE", False))}
+            "core": bool(getattr(cls, "CORE", False)), "fund": dict(getattr(cls, "FUND", {})),
+            "fund_depth": int(getattr(cls, "FUND_DEPTH", 0))}
 
 
 def shapes(areas):
@@ -237,35 +241,42 @@ def shapes(areas):
     return out
 
 
-def plan(areas, seed, scale, rust, shaped, sabotage=None, only=None):
+def plan(areas, seed, scale, rust, shaped, sabotage=None, only=None, coins=None, fund=False):
     """Every batch of these areas, in each area's case order, and the
     order they are queued in: the heaviest areas' first, each area's
     prelude and coda before the corpus batches, which are the ones that
     even the load at the end. An area whose shape could not be read is
     one batch that fails with the reason: never a run with cases left
-    out."""
+    out. With `fund`, the batches of the funded loops' funding
+    (`fund:<loop>`) instead; `coins` gives each area its coins."""
     batches = []
     for area in areas:
         sh = shaped[area]
         if "error" in sh:
             parts = [("unreadable", 0, 0)]
         else:
-            parts = [("prelude", 0, 0)]
+            parts = [] if fund else [("prelude", 0, 0)]
             for loop, n in sh["loops"]:
+                if fund and loop not in sh.get("fund", {}):
+                    continue
                 n = max(1, int(n * scale))
                 k = min(n, PIECES)
-                parts += [(loop, j * n // k, (j + 1) * n // k) for j in range(k)]
-            if sh["coda"]:
+                name = f"fund:{loop}" if fund else loop
+                parts += [(name, j * n // k, (j + 1) * n // k) for j in range(k)]
+            if sh["coda"] and not fund:
                 parts.append(("coda", 0, 0))
         if only:
             loop, i = only
-            parts = [(loop, i, i + 1)]
+            if fund and loop not in sh.get("fund", {}):
+                continue
+            parts = [(f"fund:{loop}" if fund else loop, i, i + 1)]
         for index, (part, lo, hi) in enumerate(parts):
             batches.append({
                 "area": area, "index": index, "part": part, "lo": lo, "hi": hi,
                 "seed": seed, "scale": scale, "rust": rust,
                 "sabotage": sabotage(area) if sabotage else None,
                 "why": sh.get("error"),
+                "coins": (coins or {}).get(area),
             })
     order = sorted(range(len(batches)), key=lambda b: (
         batches[b]["part"] not in ("prelude", "coda"),
@@ -590,6 +601,8 @@ class Progress:
             a["state"] = "done" if caught else "failed"
             self.log(f"self-test {area}: " + (f"caught a wrong {op} ({work} of work)" if caught
                                                else f"FAILED to catch a wrong {op}: {r['status']}"))
+        elif self.name == "funding":
+            pass
         elif r["status"] == "pass":
             self.log(f"{area}: done, {a['cases_done']} of {a['cases_total']} cases, "
                      f"{r['compared']} answers agree"
@@ -706,7 +719,60 @@ def sabotaged_ops(area):
     return (op,) if isinstance(op, str) else tuple(op)
 
 
-def self_test(args, areas, jobs, interpreters, progress):
+def coin_layout(areas, shaped, scale):
+    """Which coins each funded area's loops spend, in the run and in the
+    self-test: ({area: {loop: base}} for each, the coins in all). The
+    run's come first, so case i of an area's first funded loop spends
+    the same coins whatever the scale or the cases picked."""
+    out, k = ({}, {}), 0
+    for which, s in ((0, scale), (1, SELF_TEST_SCALE)):
+        for area in areas:
+            sh = shaped[area]
+            for loop, n in sh.get("loops", []):
+                per = sh.get("fund", {}).get(loop)
+                if per:
+                    out[which].setdefault(area, {})[loop] = k
+                    k += max(1, int(n * s)) * per
+    return out[0], out[1], k
+
+
+def fund(args, areas, jobs, interpreters, progress, seed, scale, only):
+    """The coins of the areas that spend on Core's node, and their
+    funding sent and buried, for the self-test and the run: each area's
+    coins for the two, or a report of what failed."""
+    funded = [a for a in areas if args.shaped[a].get("fund")]
+    run_base, self_base, total = coin_layout(funded, args.shaped, scale)
+    spec = core_node.make_coins(total)
+    coins = ({a: dict(spec, base=run_base[a]) for a in funded},
+             {a: dict(spec, base=self_base[a]) for a in funded})
+    batches, queue = [], []
+    phases = [(seed, scale, only, coins[0])]
+    if not args.no_self_test:
+        phases.insert(0, (DEFAULT_SEED, SELF_TEST_SCALE, None, coins[1]))
+    for s_seed, s_scale, s_only, s_coins in phases:
+        b, q = plan(funded, s_seed, s_scale, args.rust, args.shaped, only=s_only,
+                    coins=s_coins, fund=True)
+        for x in b:
+            x["id"] += len(batches)
+        batches += b
+        queue += q
+    progress.phase("funding", batches, jobs)
+    results = run_pool(batches, queue, jobs, interpreters, progress)
+    sent = []
+    for b in batches:
+        r = results.get(b["id"], {"status": "error", "report": "not run"})
+        if r["status"] != "pass":
+            return None, (f"crosscheck: FAILED: the funding of {b['area']}'s cases failed"
+                          f"{case_words(r.get('case'))}: {r.get('report', r['status'])}")
+        sent += r.get("funding", [])
+    core_node.submit(sent)
+    height = core_node.bury(max(args.shaped[a].get("fund_depth", 0) for a in funded))
+    progress.log(f"funding: {total} coins, {len(sent)} funding transactions for "
+                 f"{', '.join(funded)}, buried at height {height}")
+    return coins, None
+
+
+def self_test(args, areas, jobs, interpreters, progress, coins=None):
     """Every area must catch each operation answered wrongly that it
     names, one round for each operation an area names."""
     ok = True
@@ -716,7 +782,7 @@ def self_test(args, areas, jobs, interpreters, progress):
         SABOTAGED.clear()
         SABOTAGED.update({a: sabotaged_ops(a)[k] for a in round_areas})
         batches, queue = plan(round_areas, DEFAULT_SEED, SELF_TEST_SCALE, args.rust, args.shaped,
-                              sabotage=lambda a: SABOTAGED[a])
+                              sabotage=lambda a: SABOTAGED[a], coins=coins)
         progress.phase("self-test", batches, jobs)
         progress.log(f"self-test: {len(round_areas)} areas, {len(batches)} batches")
         results = run_pool(batches, queue, jobs, interpreters, progress)
@@ -839,15 +905,21 @@ def run(args, areas, jobs, only, seed, scale, core):
                      f"({core['tarball']}, SHA-256 {core['sha256']})")
 
     report = []
+    coins = ({}, {})
+    if core and any(args.shaped[a].get("fund") for a in areas):
+        coins, failed = fund(args, areas, jobs, interpreters, progress, seed, scale, only)
+        if failed:
+            report.append(failed)
+            return finish(progress, report, "failed", 1)
     if not args.no_self_test:
-        ok, lines = self_test(args, areas, jobs, interpreters, progress)
+        ok, lines = self_test(args, areas, jobs, interpreters, progress, coins[1])
         report += lines
         if not ok:
             report.append("crosscheck: the self-test failed; the cross-check cannot be trusted")
             return finish(progress, report, "failed", 1)
 
     report.append(f"crosscheck: seed {seed}, scale {scale}, areas {', '.join(areas)}")
-    batches, queue = plan(areas, seed, scale, args.rust, args.shaped, only=only)
+    batches, queue = plan(areas, seed, scale, args.rust, args.shaped, only=only, coins=coins[0])
     progress.phase("run", batches, jobs)
     progress.log(f"run: {len(areas)} areas, {len(batches)} batches, "
                  f"{sum(cases_total(batches, a) for a in areas)} corpus cases")

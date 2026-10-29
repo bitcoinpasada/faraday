@@ -94,9 +94,18 @@ class Key:
 
     def __init__(self, chain, k=None, pub=None, depth=0, parent=b"\0\0\0\0", child=0,
                  test=False):
-        self.chain, self.k, self.depth, self.parent, self.child, self.test = (
+        self.chain, self.k, self.depth, self._parent, self.child, self.test = (
             chain, k, depth, parent, child, test)
         self._pub = pub
+
+    @property
+    def parent(self):
+        """Costs an elliptic-curve multiplication when first read: the
+        parent's fingerprint, worked out from the parent key then, as a
+        private key's hardened child needs no public key but this."""
+        if isinstance(self._parent, Key):
+            self._parent = self._parent.fingerprint()
+        return self._parent
 
     @property
     def pub(self):
@@ -121,7 +130,7 @@ class Key:
         il, ir = int.from_bytes(digest[:32], "big"), digest[32:]
         if il >= N:
             raise Invalid("I_L is not below n")
-        common = dict(depth=self.depth + 1, parent=fingerprint(self.pub), child=i, test=self.test)
+        common = dict(depth=self.depth + 1, parent=self, child=i, test=self.test)
         if self.k is not None:
             k = (il + self.k) % N
             if k == 0:

@@ -1,7 +1,7 @@
 # The last passing crypto cross-check (`just crosscheck`, F79).
 # `just lint` fails when `inputs` no longer matches the crypto sources,
 # the cross-check and the crypto crates' Cargo.lock entries.
-inputs 03a76e6bc30c9c8fd9c4c8d94bfd6b95f101671201c0a2b57ad2548a0ed48ae9
+inputs 4b0a0cc7bb5f7664bc24a280e79d4baf8712bcc080ec36c73e2893dca2c9baed
 references 022892b2facc192f1b4fdea3f747cc7cc46e459101fa01b130e96bd635cfe37a
 python 3.14.4
 argon2-cffi 25.1.0
@@ -13,7 +13,7 @@ bitcoin-core 31.1.0 bitcoin-31.1-x86_64-linux-gnu.tar.gz b80d9c3e04da78fb6f05696
 seed faraday-crosscheck-1
 scale 1.0
 workers 12; PyPy 3.11.13 for the areas it speeds
-seconds 100.7
+seconds 95.3
 cases musig 20
 cases sp 100
 cases sps 80

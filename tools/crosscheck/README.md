@@ -180,7 +180,7 @@ run `python3 -I -B tools/crosscheck/facts.py write`. `just lint` runs its
 | `addr` | `faraday_bip::address::parse`, `bitcoin`'s `Address::from_script`, `faraday_bip::account` (account xpub, SLIP-132, descriptor, addresses), `faraday_bip::descriptor`'s checksum | Bitcoin Core's functional-test framework (`core/`): `segwit_addr.py`, Base58Check, `descriptors.py`; BIP 380's own checksum code as the BIP prints it (`bip380/`); `btc.py`; BIP-86's tweak written in the area; Bitcoin Core v31.1's `bitcoind` on regtest for regtest accounts (`deriveaddresses`, `getdescriptorinfo`) | BIP-350's and BIP-173's addresses, BIP-380's checksum cases, BIP-49's, 84's and 86's accounts (`tools/vectors/addresses/`) | scripts of every address kind on every network, written and read back, then changed; accounts of every type at random indices; random descriptors' checksums |
 | `tx` | `faraday_psbt::transaction::read_raw`, `bitcoin`'s `SighashCache` as `faraday_psbt::sign` calls it | Core's `messages.py` and `script.py` (`core/`) | Core's 500 legacy sighashes, BIP-143's thirteen, BIP-341's key-path sighashes (`tools/vectors/sighash/`) | random transactions with and without witnesses (txid, wtxid, weight, bytes), cut or lengthened; every input hashed as legacy, BIP-143 P2WPKH and P2WSH, BIP-341 key and script path under every hash type |
 | `psbt` | `faraday_psbt::Psbt` (version 0, over `bitcoin`), `faraday_psbt::v2::PsbtV2` (version 2, Faraday's own) | BIP-174, 370 and 371 written out in `area_psbt.py`, over Core's `CTransaction` | every PSBT of BIP-174's, 370's and 371's test vectors (`tools/vectors/psbt-bips/`), with BIP-370's locktimes | random version 0 and 2 PSBTs with every field Faraday reads, taproot trees among them, written back byte for byte as read, then broken one rule at a time; BIP-370's locktime under every mix of required locktimes |
-| `sign` | `faraday_psbt::sign` (every held key selected, deterministic Schnorr, both RFC 6979 nonce rules) and `faraday_psbt::finalize` | BIP-174's signer and finalizer and BIP-371's fields written out in `area_sign.py`, over Core's `script.py` sighashes and `taproot_construct`, `key.py`'s RFC 6979 ECDSA, BIP-340 signing and tweak, `area_msg.py`'s low-R grind; python-bip380 (`miniscript/`) for a miniscript's satisfaction | BIP-174's signer, finalizer and extractor vectors; the Core-built spends of `tools/vectors/psbt/` (2-of-3 `sortedmulti`, the Liana wallet down both paths, a taproot tree by a leaf and by the key path, BIP 387's taproot multisig), signed by every subset of their keys | PSBTs of one to four inputs: P2PKH, P2SH-P2WPKH, P2WPKH, `multi`/`sortedmulti` in P2SH, P2WSH and P2SH-P2WSH, P2TR key path, P2TR script path (`pk`, `pkh`, timelocked keys, `or_d`, `multi_a`) with the key path beside it, miniscript in P2WSH and P2SH-P2WSH; held and foreign keys, cosigners' signatures already on, every standard sighash type, timelocks met and not; every signature made again byte for byte and verified, the signed PSBT's pairs, each final scriptSig and witness, the cleared fields and the extracted transaction; an origin that derives another key refused |
+| `sign` | `faraday_psbt::sign` (every held key selected, deterministic Schnorr, both RFC 6979 nonce rules) and `faraday_psbt::finalize` | Bitcoin Core v31.1 on regtest (`core_node.py`): `descriptorprocesspsbt` signs from the held masters' keys, `finalizepsbt` finalizes and extracts, `testmempoolaccept` judges each finalized transaction over its funding on the node; BIP-340's reference (`secp256k1lab`) and Core's `key.py` for the deterministic nonces, over Core's `script.py` sighashes; python-bip380 (`miniscript/`) reads the leaves. Faraday's refusals and the inputs a wallet's rule leaves unsigned are ours, in `area_sign.py` | BIP-174's signer, finalizer and extractor vectors; the Core-built spends of `tools/vectors/psbt/` (2-of-3 `sortedmulti`, the Liana wallet down both paths, a taproot tree by a leaf and by the key path, BIP 387's taproot multisig), signed by every subset of their keys; the finalizer vectors there (`or_b`'s smaller signature, the taproot leaves that tie by count, the taproot multisig and MuSig2 spends) | PSBTs of one to four inputs, each spending a funding output on the node: P2PKH, P2SH-P2WPKH, P2WPKH, `multi`/`sortedmulti` in P2SH, P2WSH and P2SH-P2WSH, P2TR key path, P2TR script path (`pk`, `pkh`, timelocked keys, `or_d`, `multi_a`) with the key path beside it, miniscript in P2WSH and P2SH-P2WSH; held and foreign keys, cosigners' signatures already on (Core's), every standard sighash type, timelocks met and not; Core's signatures (ECDSA byte for byte, BIP-340 by verification and the deterministic nonce), each final scriptSig and witness and the extracted transaction Core's, the cleared fields, and every finalized transaction accepted by Core's mempool; an origin that derives another key refused |
 | `psbt-review` | `faraday_psbt::inspect` (amounts in and out, the fee, verified change and the spoofed-change and missing-UTXO warnings), over `faraday_psbt::Psbt` and the keys and registered wallets the Sign screen holds | Bitcoin Core v31.1's `bitcoind` on regtest, offline: `decodepsbt` and `analyzepsbt` for amounts and fee, `deriveaddresses` from `tprv` descriptors for which outputs are change, `createpsbt`, `createrawtransaction` and `descriptorprocesspsbt` to make the PSBTs; the area adds each input's UTXO fields, splices a spoofed output, derives the account keys a registered wallet names (checked by Core deriving the same addresses from them), and applies the rule that an output is change when it claims a held key's origins and Core's script at the path it states is the output's own | none: Core's own decoding and derivation are the reference, over each wallet shape with change, spoofed change, a foreign claim and missing UTXO data in the prelude | PSBTs of one to three inputs and one to four outputs over single-key accounts (P2PKH, P2SH-P2WPKH, P2WPKH, P2TR) and registered wallets (`sortedmulti` in P2WSH, a miniscript in P2WSH, a taproot tree, a taproot `sortedmulti_a`) or the same wallets unregistered: witness UTXOs, previous transactions and no UTXO data, fees from nothing to a third of the inputs, payments, change on either chain, another wallet's change, and spoofed change over the wallet's own script at another index, another wallet's and a stranger's; one key held, two, or none of the wallet's |
 | `taproot` | `bitcoin`'s `TaprootBuilder` and `TaprootSpendInfo` (as `faraday_bip::tapmulti` and `miniscript`'s `tr()` build trees), `ScriptBuf::new_p2tr` as `faraday_psbt::sign` checks a key path, `Address::p2tr_tweaked`, `ControlBlock` decoding and `verify_taproot_commitment` | Core's `taproot_construct`, `key.py`'s tweak and `segwit_addr.py`; BIP-341's script-path check written out in `area_taproot.py` | BIP-341's `scriptPubKey` wallet vectors, all seven (`tools/vectors/sighash/`) | trees of 0 to 12 leaves in random shapes with random scripts and leaf versions over random internal keys: leaf hashes, Merkle root, tweak, output key and parity, script, address, control blocks; each control block checked, then changed eleven ways; internal keys that are no point, odd leaf versions and 0x50 refused |
 | `miniscript` | `faraday_bip::policy::WalletPolicy` (a wallet's descriptor and the script it pays at an index), `faraday_bip::policy::parse_script_descriptor`, a witness script read back as `faraday_psbt` reads one | Antoine Poinsot's python-bip380 (`miniscript/`), with keys from `btc.py` and Core's `taproot_construct` for trees | Bitcoin Core's miniscript unit tests, 97 miniscripts in P2WSH and Tapscript (`tools/vectors/miniscript/`) | wallets of the Liana, Nunchuk, Sparrow and recovery shapes in `wsh()` and `sh(wsh())`, `multi`/`sortedmulti` in `sh()`, `wsh()`, `sh(wsh())`, `tr()` with trees of one to six leaves or a lone `sortedmulti_a`, over random accounts on every network, at random indices of both chains; the same made not sane, refused |
@@ -265,11 +265,12 @@ leaves uncompared.
   reference as well as of Faraday; the reader is written in the area
   from the BIPs' text and every PSBT of their test vectors is required
   of it.
-- `sign`: its vendored files are hashed against `references.sha256`
-  before any run, and a published vector's answer is required of the
-  reference as well as of Faraday; the BIP-174 signer and finalizer are
-  written in the area from the BIPs' text, and the vectors and the
-  Core-built spends are required of them.
+- `sign`: Core is the pinned release, hashed against its pin before
+  every run; the vendored files are hashed against `references.sha256`;
+  a published vector's answer is required of Core as well as of Faraday;
+  every ECDSA and BIP-340 signature Core makes is checked to verify
+  under the hash the area computes before that hash is used for
+  Faraday's deterministic nonces.
 - `psbt-review`: Core's release tarball is checked against its pinned
   SHA-256 (`tools/reference/core/release.pin`) before every run, and the
   node's version is asked; every PSBT is one Core made and read, and
@@ -433,9 +434,9 @@ difference"), and says why.
     fields and modifiable flags (owner, 2026-10-23).
 - `sign`
   - PSBT signing: Faraday refuses to sign a SegWit v0 input with no
-    previous transaction in a transaction of more than one input;
-    BIP-174's signer signs it, and BIP-174's own signer vector is such a
-    PSBT. The refusal is checked and counted. Faraday holds a finalized
+    previous transaction in a transaction of more than one input; Core
+    signs it, and BIP-174's own signer vector is such a PSBT. The
+    refusal is ours, checked and counted. Faraday holds a finalized
     input to the same rule and refuses the PSBT when such an input is
     final, except a taproot one, whose final witness is the
     coordinator's.
@@ -444,29 +445,30 @@ difference"), and says why.
     more, a taproot script path whose carried leaves name two or more
     with its internal key, or are not its whole tree) only for a
     registered wallet that holds one of its keys and whose script it is;
-    BIP-174's signer signs any. The area refuses where no wallet the
-    request registers holds a held key and gives the input, and counts
-    it only where Faraday's refusal is that the wallet is not
+    Core signs any. The area refuses, by a rule of its own, where no
+    wallet the request registers holds a held key and gives the input,
+    and counts it only where Faraday's refusal is that the wallet is not
     registered. A miniscript or a taproot tree of one key is signed only
     through such a wallet, and is otherwise left unsigned while the rest
-    is signed (F141); the area leaves it unsigned the same way. Half the
+    is signed (F141); the area takes Core's signatures off it. Half the
     corpus's `multi`, miniscript and taproot-tree inputs come with their
     wallet registered, so their signatures are still compared. A
     registered tree's every leaf has its wait met, since Faraday refuses
     a path that can never be valid, which the area does not work out.
   - PSBT signing: Faraday refuses a PSBT any input of which asks for a
     `NONE` or `SINGLE` sighash, and one that none of the held keys can
-    sign: dangers no hold accepts (F136). BIP-174's signer signs the
-    first and answers the second with nothing signed. The area expects
-    both refusals, counting a held key as taking part as Faraday's
-    inspection does (a miniscript or a taproot tree only through a
-    wallet in use), checks that Faraday's refusal names the danger, and
-    counts them.
+    sign: dangers no hold accepts (F136). Core signs the first and
+    answers the second with nothing signed. The area expects both
+    refusals by a rule of its own, counting a held key as taking part as
+    Faraday's inspection does (a miniscript or a taproot tree only
+    through a wallet in use), checks that Faraday's refusal names the
+    danger, and counts them.
   - Taproot `pkh` leaves: Faraday signs a taproot leaf that checks its
     key by hash but does not finalize it: `miniscript` 12's finalizer
     looks the key up among the ECDSA origins and panics, and would push
-    33 bytes where the leaf hashed 32. The area leaves such a leaf
-    unfinalized too and counts each one it could have satisfied.
+    33 bytes where the leaf hashed 32. Core finalizes such a leaf; the
+    area takes the signatures under it off before Core finalizes, and
+    counts each input Core would otherwise have finalized another way.
 - `psbt-review`
   - Change of a script of several keys, a miniscript or a taproot tree:
     Faraday verifies it only for a registered wallet that holds a loaded
@@ -583,9 +585,9 @@ with an area and no class (`docs/crypto/check.py`).
 | `psbt` | Faraday's own model over outside code | Faraday's authors (`area_psbt.py`), over Bitcoin Core's `CTransaction` | the PSBT reader and writer, BIP-370's field rules and the conversion, written in `area_psbt.py` | psbt-v2 |
 | `psbt-review` | Faraday's own model over outside code | Faraday's authors (`area_review.py`), over Bitcoin Core v31.1 (`decodepsbt`, `analyzepsbt`, `deriveaddresses`), by the Bitcoin Core developers | the rule that an output is change when it claims a held key's origins and Core's script at the path it states is the output's own, the rule that a script of several keys, a miniscript or a taproot tree is change only for a registered wallet, and the account keys a registered wallet names, derived in the area | psbt-review |
 | `tx` | code Faraday did not write | Bitcoin Core's functional-test framework, v31.1, by Bitcoin Core's contributors | none | sighash-review, tx-decode |
-| `sign` | Faraday's own model over outside code | Faraday's authors (`area_sign.py`), over Bitcoin Core's `script.py`, `taproot_construct` and `key.py`, and python-bip380 by Antoine Poinsot | BIP-174's signer: which inputs and keys sign, the low-R grind and the refusals, written in `area_sign.py` | sign-ecdsa |
-| `sign` | Faraday's own model over outside code | Faraday's authors (`area_sign.py`), over Bitcoin Core's `script.py`, `taproot_construct` and `key.py`, and python-bip380 by Antoine Poinsot | BIP-174's signer and BIP-371's fields: which keys and leaves sign, written in `area_sign.py` | sign-schnorr |
-| `sign` | Faraday's own model over outside code | Faraday's authors (`area_sign.py`), over Bitcoin Core's `script.py`, `taproot_construct` and `key.py`, and python-bip380 by Antoine Poinsot | BIP-174's finalizer and extractor, the tap leaf chosen, the `multi_a` rule and the timelock checks, written in `area_sign.py` | finalize |
+| `sign` | Faraday's own model over outside code | the Bitcoin Core developers: Core v31.1 itself (`descriptorprocesspsbt` signs, `testmempoolaccept` judges the spend), and Core's `key.py` and `script.py` for the first RFC 6979 nonce; Faraday's authors (`area_sign.py`) for the refusals | Faraday's refusals (F136, F141) and the inputs a wallet's rule leaves unsigned, the script code of the hash the first RFC 6979 nonce is checked under, and the keys of those checks derived by `btc.py`, in `area_sign.py` | sign-ecdsa |
+| `sign` | Faraday's own model over outside code | the Bitcoin Core developers: Core v31.1 itself (`descriptorprocesspsbt` signs, `testmempoolaccept` judges the spend), with BIP-340's reference (`secp256k1lab`) and Core's `script.py` for the zero-randomness nonce; Faraday's authors (`area_sign.py`) for the refusals | Faraday's refusals (F136, F141) and the inputs a wallet's rule leaves unsigned, and the keys of the zero-randomness check derived by `btc.py`, in `area_sign.py` | sign-schnorr |
+| `sign` | Faraday's own model over outside code | the Bitcoin Core developers: Core v31.1 itself (`finalizepsbt` finalizes and extracts, `testmempoolaccept` judges the transaction over its funding on the node); Faraday's authors (`area_sign.py`) for what is taken off first | the signatures under a taproot `pkh` leaf taken off before Core finalizes, as Faraday leaves such a leaf to the coordinator, and the fields BIP-174 keeps on a finalized input, in `area_sign.py` | finalize |
 | `msg` | Faraday's own model over outside code | Faraday's authors (`area_msg.py`), over Bitcoin Core's `script.py` sighashes and `secp256k1lab`'s BIP-340 | BIP-137 and BIP-322 written out in `area_msg.py`: RFC 6979 ECDSA, the low-R grind, the headers, BIP-322's virtual transactions | message-sign, message-verify |
 | `seedqr` | code Faraday did not write | Project Nayuki's `qrcodegen.py`, by Nayuki | none | qr, codex32qr |
 | `ur` | code Faraday did not write | foundation-ur-py, by Foundation Devices | none | ur |

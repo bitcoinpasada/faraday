@@ -159,6 +159,15 @@ class Area:
     # Whether the area asks Bitcoin Core (`core_node.rpc()`): the run then
     # starts the pinned bitcoind, and fails without it.
     CORE = False
+    # The loops whose cases spend coins on Core's node, each with the coins
+    # a case may spend ({loop: coins}), and how deep their funding must be
+    # buried before the cases run (blocks). Before the self-test, the run
+    # asks `fund_<loop>()` of every case, from the case's own random
+    # stream, for the funding transactions the case will build again
+    # (`self.funding_txs` gets them), sends them and buries them; `self.fund_coins`
+    # then says which coins case i of a loop spends (`fund_coin`).
+    FUND = {}
+    FUND_DEPTH = 0
 
     def __init__(self, exe, seed, scale, sabotage=None):
         self.rust = Rust(exe, self.name, sabotage)
@@ -168,6 +177,8 @@ class Area:
         self.compared = 0
         self.known = 0
         self.case_at = None
+        self.fund_coins = None
+        self.funding_txs = []
 
     def cases(self, n):
         return max(1, int(n * self.scale))
@@ -192,9 +203,29 @@ class Area:
         self.rng = random.Random(f"{self.run_seed}:{self.name}:{loop}:{i}")
         getattr(self, f"case_{loop}")()
 
+    def fund_coin(self, j):
+        """The j-th coin the case being run may spend, (txid, vout, value),
+        or None when the run gave the area no coins."""
+        if self.fund_coins is None:
+            return None
+        loop, i = self.case_at
+        per = self.FUND[loop]
+        if not 0 <= j < per:
+            raise HarnessError(f"{loop}: a case spends at most {per} coins")
+        k = self.fund_coins["base"][loop] + i * per + j
+        txid = self.fund_coins["fanout"][k // self.fund_coins["per"]]
+        return txid, k % self.fund_coins["per"], self.fund_coins["value"]
+
     def run_part(self, part, lo=0, hi=0):
-        """One batch: the prelude, the coda, or cases lo to hi - 1 of a loop."""
-        if part == "prelude":
+        """One batch: the prelude, the coda, cases lo to hi - 1 of a loop,
+        or (`fund:<loop>`) those cases' funding transactions."""
+        if part.startswith("fund:"):
+            loop = part[len("fund:"):]
+            for i in range(lo, hi):
+                self.case_at = (loop, i)
+                self.rng = random.Random(f"{self.run_seed}:{self.name}:{loop}:{i}")
+                getattr(self, f"fund_{loop}")()
+        elif part == "prelude":
             self.case_at = ("prelude", None)
             self.rng = random.Random(f"{self.run_seed}:{self.name}")
             self.prelude()

@@ -249,6 +249,112 @@ class Node:
 _proxy = None
 
 
+def batch(calls):
+    """Costs one request to the node: Core's answers to `calls`, each
+    `(method, param, …)`, sent as one JSON-RPC batch and given back in
+    order. An answer that is an error raises CoreError naming the call."""
+    node = rpc()
+    reqs = [getattr(node, method).get_request(*params) for method, *params in calls]
+    if not reqs:
+        return []
+    by_id = {r["id"]: r for r in node.batch(reqs)}
+    out = []
+    for req in reqs:
+        r = by_id.get(req["id"])
+        if r is None or r.get("error"):
+            raise CoreError(f"Bitcoin Core: {req['method']} answered "
+                            f"{None if r is None else r['error']}")
+        out.append(r["result"])
+    return out
+
+
+# ----- Coins for the areas that spend on the node (`Area.FUND`) ----------------
+#
+# The node's coinbases pay P2WSH(OP_TRUE), which anyone spends with the
+# witness script alone, and each is fanned out into PER coins of one
+# value. Coin k is output k % PER of fan-out k // PER: the same in every
+# run, as a regtest coinbase's txid depends only on its height and what
+# it pays. An area spends its coins in funding transactions of its own,
+# which the run submits and buries before any case is compared.
+
+OP_TRUE = b"\x51"
+PER = 1000
+FANOUT_FEE = 100_000
+
+
+def op_true_spk():
+    return b"\x00\x20" + hashlib.sha256(OP_TRUE).digest()
+
+
+def _framework():
+    import sys
+    folder = str(ROOT / "tools" / "reference" / "core")
+    if folder not in sys.path:
+        sys.path.insert(0, folder)
+    import test_framework.messages as messages
+    return messages
+
+
+def _op_true_descriptor():
+    raw = f"raw({op_true_spk().hex()})"
+    return rpc().getdescriptorinfo(raw)["descriptor"]
+
+
+def make_coins(count):
+    """Costs mining 100 blocks and one per thousand coins, and a fan-out
+    each: `count` coins spendable by OP_TRUE, as the areas are told of
+    them ({"fanout": txids, "per", "value"})."""
+    m = _framework()
+    node = rpc()
+    desc = _op_true_descriptor()
+    fanouts = max(1, -(-count // PER))
+    if node.getblockcount() != 0:
+        raise CoreError("Bitcoin Core: the run's node is not at its genesis block")
+    hashes = node.generatetodescriptor(fanouts, desc)
+    node.generatetodescriptor(100, desc)
+    txids, value = [], None
+    for h in hashes:
+        coinbase = node.getblock(h)["tx"][0]
+        reward = int(round(node.getrawtransaction(coinbase, True, h)["vout"][0]["value"] * 10**8))
+        each = (reward - FANOUT_FEE) // PER
+        value = each if value is None else min(value, each)
+        txids.append(coinbase)
+    out = []
+    for coinbase in txids:
+        tx = m.CTransaction()
+        tx.version = 2
+        tx.vin = [m.CTxIn(m.COutPoint(int(coinbase, 16), 0), b"", 0xFFFFFFFF)]
+        tx.vout = [m.CTxOut(value, op_true_spk()) for _ in range(PER)]
+        w = m.CTxInWitness()
+        w.scriptWitness.stack = [OP_TRUE]
+        tx.wit.vtxinwit = [w]
+        out.append(tx.serialize().hex())
+    fanned = submit(out)
+    node.generatetodescriptor(1, desc)
+    return {"fanout": fanned, "per": PER, "value": value}
+
+
+def submit(hexes, chunk=500):
+    """Costs a request to the node a `chunk` transactions: each sent to
+    its mempool (no fee limit); their txids, in order."""
+    out = []
+    for at in range(0, len(hexes), chunk):
+        out += batch([("sendrawtransaction", h, 0) for h in hexes[at:at + chunk]])
+    return out
+
+
+def bury(depth):
+    """Costs mining a block for each block's worth of the mempool and
+    `depth` more: every transaction sent is confirmed `depth` deep."""
+    node = rpc()
+    desc = _op_true_descriptor()
+    while node.getmempoolinfo()["size"]:
+        node.generatetodescriptor(1, desc)
+    if depth:
+        node.generatetodescriptor(depth, desc)
+    return node.getblockcount()
+
+
 def rpc():
     """This process's RPC client to the run's node, made on first use."""
     global _proxy
@@ -263,4 +369,7 @@ def rpc():
             sys.path.insert(0, folder)
         from test_framework.authproxy import AuthServiceProxy
         _proxy = AuthServiceProxy(json.loads(raw)["url"], timeout=120)
+        # A connection of its own for each request: Core closes one left
+        # idle for 30 seconds, and a worker can wait longer between batches.
+        _proxy.reuse_http_connections = False
     return _proxy

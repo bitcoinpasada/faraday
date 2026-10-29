@@ -155,7 +155,8 @@ class SignParticipation(unittest.TestCase):
     """A taproot tree or a miniscript takes part, and is signed, only
     through a registered wallet whose script it is (F135, F136, F141), as
     Faraday's inspection counts it; another wallet registered beside it
-    does not."""
+    does not. These are the area's own rules (`area_sign.policy`), which
+    need no Bitcoin Core."""
 
     def test_a_wallet_beside_a_tree_it_does_not_give_takes_no_part(self):
         import area_sign as A
@@ -176,7 +177,7 @@ class SignParticipation(unittest.TestCase):
         self.assertFalse(any(A.takes_part(i, masters, [wallet]) for i in inputs))
         for wallets in ([wallet], []):
             with self.assertRaises(A.Known) as refused:
-                A.ref_sign(raw, masters, "low_r", wallets)
+                A.policy(raw, masters, wallets)
             self.assertEqual(refused.exception.kind, "NoParticipatingKey")
 
     def leaf_spend(self, key_path):
@@ -219,22 +220,36 @@ class SignParticipation(unittest.TestCase):
     def test_a_leaf_without_its_wallet_is_left_unsigned_beside_a_signed_input(self):
         import area_sign as A
         masters, raw, wallet = self.leaf_spend(True)
-        signed = A.ref_sign(raw, masters, "low_r", [])
-        self.assertEqual(signed["signatures"], 1)
-        _, ins, _, _ = A.parse(bytes.fromhex(signed["psbt"]))
-        self.assertTrue(A.of_type(ins[0], 0x13))
-        self.assertFalse(A.of_type(ins[1], 0x14))
-        signed = A.ref_sign(raw, masters, "low_r", [wallet])
-        self.assertEqual(signed["signatures"], 2)
-        self.assertTrue(signed["complete"])
+        self.assertEqual(A.policy(raw, masters, [])[2], {1})
+        self.assertEqual(A.policy(raw, masters, [wallet])[2], set())
 
     def test_a_leaf_without_its_wallet_alone_takes_no_part(self):
         import area_sign as A
         masters, raw, wallet = self.leaf_spend(False)
         with self.assertRaises(A.Known) as refused:
-            A.ref_sign(raw, masters, "low_r", [])
+            A.policy(raw, masters, [])
         self.assertEqual(refused.exception.kind, "NoParticipatingKey")
-        self.assertEqual(A.ref_sign(raw, masters, "low_r", [wallet])["signatures"], 1)
+        self.assertEqual(A.policy(raw, masters, [wallet])[2], set())
+
+
+class Bip39Words(unittest.TestCase):
+    """`area_bip39` hands python-mnemonic its wordlists as `Words`: the
+    same words, and `index` and `in` answer as the plain list's do."""
+
+    def test_words_answer_as_the_list_does(self):
+        import area_bip39
+        for lang in range(len(area_bip39.LANGUAGES)):
+            words = area_bip39.mnemonic(lang).wordlist
+            plain = list(words)
+            self.assertIsInstance(words, area_bip39.Words)
+            self.assertEqual(len(plain), 2048)
+            for w in plain + ["", "zzzz", plain[0] + "x", plain[-1].upper()]:
+                self.assertEqual(w in words, w in plain)
+                if w in plain:
+                    self.assertEqual(words.index(w), plain.index(w))
+                else:
+                    with self.assertRaises(ValueError):
+                        words.index(w)
 
 
 class MusigKept(unittest.TestCase):

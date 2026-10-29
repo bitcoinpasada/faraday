@@ -39,9 +39,39 @@ LENGTHS = [16, 20, 24, 28, 32]
 _M = {}
 
 
+class Words(list):
+    """A wordlist, the same list, that finds a word's place by a table
+    rather than by reading the list from its start: python-mnemonic's
+    `check` looks every word up with `index`, and `last_words` checks
+    2048 sentences a case. `index` and `in` answer as a list's do (the
+    first place a word is at; ValueError for a word not in it)."""
+
+    def __init__(self, words):
+        super().__init__(words)
+        self._at = {}
+        for i, w in enumerate(self):
+            self._at.setdefault(w, i)
+
+    def index(self, word, *bounds):
+        if bounds:
+            return super().index(word, *bounds)
+        try:
+            return self._at[word]
+        except (KeyError, TypeError):
+            raise ValueError(f"{word!r} is not in list") from None
+
+    def __contains__(self, word):
+        try:
+            return word in self._at
+        except TypeError:
+            return super().__contains__(word)
+
+
 def mnemonic(lang):
     if lang not in _M:
-        _M[lang] = Mnemonic(LANGUAGES[lang])
+        m = Mnemonic(LANGUAGES[lang])
+        m.wordlist = Words(m.wordlist)
+        _M[lang] = m
     return _M[lang]
 
 

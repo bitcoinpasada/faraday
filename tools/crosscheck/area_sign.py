@@ -1,109 +1,98 @@
 """PSBT signing and finalizing end to end: `faraday_psbt::sign` and
-`faraday_psbt::finalize` against a BIP-174 signer and finalizer written
-here from BIP-174's and BIP-371's text, over Bitcoin Core's
-functional-test framework (`core/test_framework/`: `script.py`'s three
-signature hashes and `taproot_construct`, `key.py`'s RFC 6979 ECDSA,
-BIP-340 signing and taproot tweak, `messages.py`'s transactions), with
-python-bip380 (`miniscript_ref.py`) for the satisfaction of a miniscript
-and `btc.py` for BIP-32.
+`faraday_psbt::finalize` against Bitcoin Core itself, the pinned release
+on regtest (`core_node.py`, F79): Core's signer, Core's finalizer and
+extractor, and Core's script interpreter and mempool policy judging every
+transaction Faraday finalizes.
 
 - Published: BIP-174's signer, finalizer and extractor vectors
   (`tools/vectors/psbt/bip174-roles.txt`), and the wallets' spends in
   `tools/vectors/psbt/` that Bitcoin Core built (a 2-of-3 `sortedmulti`,
   the Liana-shaped miniscript down both paths, a taproot tree by a leaf
   and by the key path, BIP 387's taproot multisig), signed with every
-  subset of their keys that matters.
+  subset of their keys that matters; and the finalizer vectors there,
+  each finalized as its final PSBT says where it has one.
 - Random PSBTs of one to four inputs of every kind Faraday signs: P2PKH,
   P2SH-P2WPKH, P2WPKH, `multi` and `sortedmulti` in P2SH, P2WSH and
   P2SH-P2WSH, P2TR key path (BIP-86, and a key path beside a tree),
   P2TR script path (leaves of `pk`, `pkh` and timelocked keys, `or_d`,
   `multi_a`), and miniscript in P2WSH and P2SH-P2WSH (the Liana,
   recovery and threshold shapes), with keys this device holds, keys it
-  does not, signatures cosigners already made, every standard sighash
-  type, timelocks met and not met, under both RFC 6979 nonce rules.
+  does not, signatures cosigners already made (Core's), every standard
+  sighash type, timelocks met and not met, under both RFC 6979 nonce
+  rules. Each input spends an output of a funding transaction made on
+  the node from a coin of the run's (`Area.FUND`), sent and buried
+  before the run, so the spend is real.
 
-Each PSBT is signed by Faraday holding a random set of its masters; the
-reference signs it the same way, and the two PSBTs must hold the same
-key-value pairs: each ECDSA signature made again byte for byte (the
-first RFC 6979 nonce from Core's `key.py`, Core's low-R grind as
-libsecp256k1 states it from `area_msg.py`), checked low-S and, under
-low-R, low-R; each BIP-340 signature made again byte for byte with zero
-auxiliary randomness, by the tweaked key for a key path. Then Faraday
-finalizes its own signed PSBT and the reference finalizes the same
-bytes: each final scriptSig and witness as BIP-174 builds it for the
-script (a miniscript's the smallest non-malleable satisfaction
-python-bip380 finds; a taproot input's its key path when signed for,
-otherwise the cheapest leaf's), the fields BIP-174 clears cleared, and
-the extracted transaction byte for byte, its txid the unsigned
-transaction's.
+Signing. Core's `descriptorprocesspsbt` signs the same PSBT with a
+`pk()` descriptor for each key origin the PSBT names under a held
+master, the master's extended private key and the origin's path, so Core
+derives every key and decides which keys sign where: Faraday's added
+pairs must be Core's. An ECDSA signature under Faraday's default nonce
+rule (low R, ground as Core grinds) is Core's byte for byte. Under the
+first RFC 6979 nonce, Core's signature is checked to verify under the
+signature hash computed here (Core's `script.py`, the script code chosen
+here), and Faraday's must be the one Core's `key.py` makes with that
+nonce, and Core's when its R is low. Core's BIP-340 signatures are
+randomised: each is checked to verify under the hash computed here, and
+Faraday's must be the one BIP-340's reference (`secp256k1lab`) makes with
+zero auxiliary randomness, by the tweaked key on a key path. Core signs a
+taproot key path alone where it can; the leaves beside it are signed by a
+second call without the internal key's descriptor.
 
-What the reference signs is BIP-174's signer with Faraday's rules where
-the BIP leaves the choice: every input whose key origins name a held
-master, the key derived from the origin's path and refused when it is
-not the key the PSBT names or not in the script; a taproot leaf signed
-by every held key the leaf names and whose origin lists the leaf; the
-key path signed when the internal key is held and the output is that
-key tweaked by the stated Merkle root. A miniscript or a taproot tree is
-signed only through a registered wallet that holds a held key and gives
-its script, whatever the number of its keys, and is otherwise left
-unsigned (F141).
+Finalizing. Core's `finalizepsbt` finalizes the PSBT Faraday finalizes:
+each final scriptSig and witness must be Core's byte for byte (Core keeps
+the smallest witness among a taproot input's leaves, and a miniscript's
+smallest non-malleable satisfaction), the extracted transaction Core's,
+and the PSBT's other fields those BIP-174 keeps (the UTXOs and unknown
+types). Then `testmempoolaccept` must accept the extracted transaction,
+which spends the funding outputs on the node: consensus and standardness
+are Core's verdict.
 
-python-bip380 writes a `multi_a`'s satisfaction with the first key's
-signature deepest, which BIP 342's `OP_CHECKSIGADD` reads the other way;
-a leaf that is one `multi_a` is satisfied here by BIP 379's rule, the
-last key's signature or nothing first, the first key's last, exactly k
-signatures, any k of those present.
+What is ours, in this file (F160): which inputs Faraday refuses or leaves
+unsigned. Faraday refuses a SegWit v0 input that carries no previous
+transaction in a transaction of more than one input, a finalized one
+of those too unless taproot, a `NONE` or `SINGLE` sighash, a PSBT none of
+the held keys takes part in (F136), and an origin under a held master
+that derives another key or a key not in the script; a miniscript or a
+taproot tree is signed only through a registered wallet that holds a
+held key and gives its script, and an input of several keys is refused
+without one (F141). Core signs all of these. The keys of the checks are
+derived by `btc.py`. The signature hashes for the deterministic nonces
+are computed with Core's `script.py` over the script code chosen here.
 
 A witness script or leaf is read from the miniscript text it was
-compiled from (`miniscript_ref.Scripts`): the corpus keeps each text,
-and a fixture's are its wallet policy's, the keys derived by `btc.py` at
-the chain and index the input's origins name.
+compiled from (`miniscript_ref.Scripts`, python-bip380): the corpus keeps
+each text, and a fixture's are its wallet policy's.
 
-Known differences, counted: Faraday refuses to sign a SegWit v0 input
-that carries no previous transaction in a transaction of more than one
-input, which BIP-174's signer signs (`faraday_psbt::sign`), and it holds a
-finalized input to the same rule, refusing the PSBT when such an input is
-final but for a taproot one, since a final witness is the coordinator's;
-BIP-174's own signer vector is such a PSBT, final input or not. Faraday
-refuses a PSBT any input of which asks for a `NONE` or `SINGLE` sighash,
-which BIP-174's signer signs, and one none of the held keys can sign,
-which BIP-174's signer answers with nothing signed: dangers no hold
-accepts (F136). Faraday signs a taproot leaf with a `pkh`
-but leaves it unfinalized (`faraday_psbt::finalize`: `miniscript` 12
-cannot write that satisfaction); the reference does the same, and counts
-each such leaf it could have satisfied. Faraday signs an input spent
-from a script of several keys (a `multi` of two or more, a miniscript
-naming two or more, a taproot leaf of two or more) only for a registered
-wallet whose script it is, where BIP-174's signer signs any; the
-reference refuses where no wallet the request registers gives the input
-(a `multi` or `wsh` miniscript wallet's script derived at the chain and
-index the input's origins name and compared; a fixture's taproot wallet
-taken as the spend Bitcoin Core built from it) and counts each such
-PSBT. The random corpus registers the wallet of half its `multi`,
-miniscript and taproot-tree inputs, built from the cosigners' account
-keys at one chain and index, so their signatures are still compared.
+Known differences, counted: the refusals above. Faraday signs a taproot
+leaf with a `pkh` but leaves it unfinalized (`miniscript` 12 cannot
+write that satisfaction), where Core finalizes it: the area takes the
+signatures under such a leaf off before Core finalizes, and counts each
+input where Core would have finalized otherwise.
 """
 
 import base64
 import io
 import re
 
-import area_msg
 import btc
+import core_node
 import miniscript_ref as ms
 from area_psbt import MAGIC, compact, read_map, read_unsigned, ser_compact, write_map
 from btc import HARDENED
-from common import ROOT, Area, Mismatch, use_reference
+from common import ROOT, Area, HarnessError, Mismatch, use_reference
 
 use_reference("core")
 import test_framework.script as S  # noqa: E402
-from test_framework.key import (  # noqa: E402
-    ECKey, ECPubKey, TaggedHash, sign_schnorr, tweak_add_privkey, verify_schnorr)
+from test_framework.key import ECKey, ECPubKey, TaggedHash, tweak_add_privkey  # noqa: E402
 from test_framework.messages import (  # noqa: E402
     COutPoint, CTransaction, CTxIn, CTxInWitness, CTxOut, ser_string)
 
 use_reference("bip39")
 from mnemonic import Mnemonic  # noqa: E402
+
+use_reference("bip352", "secp256k1lab", "src")
+from secp256k1lab.bip340 import schnorr_sign, schnorr_verify  # noqa: E402
 
 N = btc.N
 NUMS_HEX = "50929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0"
@@ -114,6 +103,10 @@ TAPROOT = [0, 1, 2, 3, 0x81, 0x82, 0x83]
 # but for the UTXOs; any other type is unknown and kept.
 DEFINED = {0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d,
            0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0xfc}
+SIGS = (0x02, 0x13, 0x14)
+# The chain heights a corpus timelock reaches: the funding is buried
+# deeper than any relative one, and the chain is past every absolute one.
+LOCKS = 1000
 
 
 class Refused(Exception):
@@ -126,9 +119,6 @@ SCRIPTS = ms.Scripts()
 # The sighash types that leave outputs open to change after signing: a
 # danger Faraday refuses with no way past it (F136), a known difference.
 OPEN = [2, 3, 0x82, 0x83]
-# Satisfiable taproot leaves with a `pkh` the reference left unfinalized,
-# as Faraday does: a known difference, counted.
-PKH_LEFT = [0]
 
 
 def split_tree(tree):
@@ -177,8 +167,8 @@ def register_policy(text, raw):
 
 
 class Known(Refused):
-    """A refusal Faraday makes where BIP-174 signs; `kind` is the
-    warning Faraday's refusal must name, where it is one."""
+    """A refusal Faraday makes where Core signs; `kind` is the warning
+    Faraday's refusal must name, where it is one."""
 
     def __init__(self, why, kind=None):
         super().__init__(why)
@@ -420,14 +410,6 @@ def ser_origin(fp, path):
     return fp + b"".join(i.to_bytes(4, "little") for i in path)
 
 
-def ser_witness(stack):
-    return ser_compact(len(stack)) + b"".join(ser_compact(len(e)) + e for e in stack)
-
-
-def witness_weight(stack):
-    return len(ser_witness(stack))
-
-
 def read_txout(v):
     out = CTxOut()
     out.deserialize(io.BytesIO(v))
@@ -438,6 +420,10 @@ def read_prev(v):
     tx = CTransaction()
     tx.deserialize(io.BytesIO(v))
     return tx
+
+
+def b64(raw):
+    return base64.b64encode(raw).decode()
 
 
 # ----- scripts ------------------------------------------------------------------
@@ -482,27 +468,6 @@ def parse_multisig(script):
     return m, keys
 
 
-def is_plain_multi_a(script):
-    """A leaf that is one `multi_a` and nothing else: its threshold and
-    keys, or None."""
-    try:
-        ops = list(S.CScript(script))
-    except S.CScriptInvalidError:
-        return None
-    if len(ops) < 4 or ops[-1] != S.OP_NUMEQUAL or ops[1] != S.OP_CHECKSIG:
-        return None
-    keys = ops[0:-2:2]
-    rest = ops[1:-2:2]
-    if not all(isinstance(k, bytes) and len(k) == 32 for k in keys):
-        return None
-    if rest[0] != S.OP_CHECKSIG or any(op != S.OP_CHECKSIGADD for op in rest[1:]):
-        return None
-    k = ops[-2]
-    if type(k) is not int:
-        return None
-    return k, keys
-
-
 def tap_leaf_hash(script, version):
     return TaggedHash("TapLeaf", bytes([version]) + ser_string(script))
 
@@ -513,11 +478,11 @@ def p2tr(internal, merkle):
     return b"\x51\x20" + q[0], tweak
 
 
-# ----- the reference signer -----------------------------------------------------
+# ----- the inputs, and Faraday's refusals (ours) --------------------------------
 
 
 class Input:
-    """One input as BIP-174's signer reads it."""
+    """One input as a signer reads it."""
 
     def __init__(self, m, tx, i):
         self.m, self.i = m, i
@@ -602,6 +567,8 @@ class Input:
         return pk in self.script_keys()
 
     def ecdsa_sighash(self, tx, ht):
+        """The ECDSA signature hash, Core's `script.py` over the script
+        code chosen here: for the first RFC 6979 nonce's check."""
         amount = self.utxo.nValue
         if self.kind == "p2pkh":
             h, _ = S.LegacySignatureHash(S.CScript(bytes(self.utxo.scriptPubKey)), tx, self.i, ht)
@@ -614,41 +581,6 @@ class Input:
             code = p2pkh(program[2:22])
             return S.SegwitV0SignatureHash(S.CScript(code), tx, self.i, ht, amount)
         return S.SegwitV0SignatureHash(S.CScript(self.ws), tx, self.i, ht, amount)
-
-
-def ecdsa(d, h, nonce, ht, pk):
-    """The DER signature and its sighash byte, as libsecp256k1 makes it
-    under the nonce rule: Core's `key.py` makes the first RFC 6979 one,
-    `area_msg.py` grinds for low R. Verified by Core's `key.py` against
-    `pk`."""
-    if nonce == "first":
-        key = ECKey()
-        key.set(d.to_bytes(32, "big"), True)
-        sig = key.sign_ecdsa(h, low_s=True, rfc6979=True)
-        r, s, _ = area_msg.ecdsa_sign(d, h)
-        if area_msg.der(r, s) != sig:
-            raise AssertionError("Core's RFC 6979 and libsecp256k1's as written differ")
-    else:
-        r, s, _ = area_msg.sign_ground(d, h, True)
-        if r >= 1 << 255:
-            raise AssertionError("a low-R signature with a high R")
-        sig = area_msg.der(r, s)
-    if s > N // 2:
-        raise AssertionError("a high-S signature")
-    pub = ECPubKey()
-    pub.set(pk)
-    if not pub.verify_ecdsa(sig, h):
-        raise AssertionError("the reference's ECDSA signature does not verify")
-    return sig + bytes([ht])
-
-
-def schnorr(seckey, h, ht, signer):
-    """A BIP-340 signature with zero auxiliary randomness, verified
-    against the x-only key `signer` (the output key for a key path)."""
-    sig = sign_schnorr(seckey, h, aux=bytes(32))
-    if not verify_schnorr(signer, sig, h):
-        raise AssertionError("the reference's BIP-340 signature does not verify")
-    return sig + (bytes([ht]) if ht else b"")
 
 
 def prevouts(inputs):
@@ -697,11 +629,18 @@ def takes_part(inp, masters, wallets):
             and any(wallet_gives(w, inp, masters) for w in wallets))
 
 
-def ref_sign(raw, masters, nonce, wallets=()):
-    """BIP-174's signer over `raw` with every master in `masters`
-    (fingerprint → btc.Key), the wallets in `wallets` registered: the
-    signed PSBT, the number of signatures, and whether every input can
-    now be finalized."""
+# The kinds signed only through a registered wallet whose script the input
+# is, whatever the number of their keys (F135, F141).
+THROUGH_WALLET = ("p2wsh-ms", "p2sh-p2wsh-ms", "tr-script")
+
+
+def policy(raw, masters, wallets=()):
+    """Costs a BIP-32 derivation for each held key origin: Faraday's
+    refusals and the inputs it leaves unsigned, ours; Core signs every
+    one of these. Raises Known (counted, its kind named by
+    Faraday's refusal) or Refused; otherwise the inputs, and the indexes
+    of those a miniscript or a taproot tree leaves unsigned without its
+    wallet (F141)."""
     g, ins, outs, tx = parse(raw)
     inputs = [Input(m, tx, i) for i, m in enumerate(ins)]
     for inp in inputs:
@@ -717,68 +656,50 @@ def ref_sign(raw, masters, nonce, wallets=()):
             taproot = len(spk) == 34 and spk[:2] == b"\x51\x20"
             if inp.final and inp.utxo is not None and not inp.has_prev and not taproot:
                 raise Known("a final input with no previous transaction beside another input")
-    out_ins = []
-    count = 0
-    for inp, m in zip(inputs, ins):
-        added = []
-        if not inp.final:
-            added = sign_input(inp, inputs, tx, masters, nonce, wallets)
-        count += len(added)
-        out_ins.append(list(m) + added)
-    # Where BIP-174's signer signs, the dangers no hold accepts (F136),
-    # each named by the kind Faraday's refusal must give.
+    skip = set()
+    for inp in inputs:
+        if not inp.final and not input_checks(inp, inputs, tx, masters, wallets):
+            skip.add(inp.i)
+    # Where Core signs, the dangers no hold accepts (F136), each named by
+    # the kind Faraday's refusal must give.
     for inp in inputs:
         ht_field = one(inp.m, 0x03)
         if ht_field and int.from_bytes(ht_field, "little") in OPEN:
             raise Known("a NONE or SINGLE sighash, which no hold accepts", "UnusualSighash")
     if not any(takes_part(inp, masters, wallets) for inp in inputs):
         raise Known("none of the held keys can sign", "NoParticipatingKey")
-    signed = write(g, out_ins, outs)
-    complete = ref_finalize(signed, check_only=True)
-    return {"psbt": signed.hex(), "signatures": count, "complete": complete}
+    return inputs, tx, skip
 
 
-# The kinds signed only through a registered wallet whose script the input
-# is, whatever the number of their keys (F135, F141).
-THROUGH_WALLET = ("p2wsh-ms", "p2sh-p2wsh-ms", "tr-script")
-
-
-def sign_input(inp, inputs, tx, masters, nonce, wallets=None):
-    """The signatures the held masters add to `inp`. A miniscript or a
-    taproot tree is signed only through a wallet in `wallets` that holds a
-    held key and gives its script, and is otherwise left unsigned (F141);
-    with `wallets` None it is signed whatever its wallet, as the corpus's
-    cosigners sign before Faraday."""
+def input_checks(inp, inputs, tx, masters, wallets):
+    """Costs a BIP-32 derivation for each held key origin: Faraday's
+    refusals of one input, ours; False when the input is left unsigned
+    (F141)."""
     m, i = inp.m, inp.i
     ecdsa_claims = [(k, origin(v)) for k, v in of_type(m, 0x06) if origin(v)[0] in masters]
     tap = [(k, tap_origin(v)) for k, v in of_type(m, 0x16)]
     key_claims = [(k, fp, p) for k, (ls, fp, p) in tap if not ls and fp in masters]
     leaf_claims = [(k, ls, fp, p) for k, (ls, fp, p) in tap if ls and fp in masters]
     if not ecdsa_claims and not key_claims and not leaf_claims:
-        return []
+        return True
     if inp.utxo is None:
         raise Refused("no previous output")
     if inp.kind in ("p2wpkh", "p2sh-p2wpkh", "p2wsh-multi", "p2sh-p2wsh-multi", "p2wsh-ms",
                     "p2sh-p2wsh-ms") and not inp.has_prev and len(inputs) > 1:
         raise Known("a SegWit v0 input with no previous transaction beside another input")
-    if (wallets is not None and inp.kind in THROUGH_WALLET
-            and not any(wallet_gives(w, inp, masters) for w in wallets)):
-        return []
+    if inp.kind in THROUGH_WALLET and not any(wallet_gives(w, inp, masters) for w in wallets):
+        return False
     ht_field = one(m, 0x03)
-    added = []
     if not inp.kind.startswith("tr-"):
         ht = int.from_bytes(ht_field, "little") if ht_field else 1
         if ht not in STANDARD:
             raise Refused("not a standard sighash type")
         for pk, (fp, path) in ecdsa_claims:
-            key = masters[fp].derive(path)
-            if key.pub != pk or not inp.key_in_script(pk):
+            if masters[fp].derive(path).pub != pk or not inp.key_in_script(pk):
                 raise Refused("the key the origin derives is not the one named, or not in the script")
             if ht & 3 == 3 and i >= len(tx.vout):
                 raise Refused("SIGHASH_SINGLE without an output")
-            h = inp.ecdsa_sighash(tx, ht)
-            added.append((b"\x02" + pk, ecdsa(key.k, h, nonce, ht, pk)))
-        return added
+        return True
     ht = int.from_bytes(ht_field, "little") if ht_field else 0
     internal = one(m, 0x17)
     spk = bytes(inp.utxo.scriptPubKey)
@@ -788,13 +709,11 @@ def sign_input(inp, inputs, tx, masters, nonce, wallets=None):
                 raise Refused("taproot input without an internal key")
             if internal != x or p2tr(internal, None)[0] != spk:
                 raise Refused("the key path is not this key's")
-            key = masters[fp].derive(path)
-            if key.pub[1:] != x:
+            if masters[fp].derive(path).pub[1:] != x:
                 raise Refused("the key the origin derives is not the one named")
-            tweaked = tweak_add_privkey(key.k.to_bytes(32, "big"), p2tr(internal, None)[1])
-            h = tap_sighash(tx, inputs, i, ht)
-            added.append((b"\x13", schnorr(tweaked, h, ht, spk[2:])))
-        return added
+            tap_sighash(tx, inputs, i, ht)
+        return True
+    signs = False
     for control, value in of_type(m, 0x15):
         script, version = value[:-1], value[-1]
         lh = tap_leaf_hash(script, version)
@@ -802,233 +721,241 @@ def sign_input(inp, inputs, tx, masters, nonce, wallets=None):
         for x, leaves, fp, path in leaf_claims:
             if lh not in leaves or x not in names:
                 continue
-            key = masters[fp].derive(path)
-            if key.pub[1:] != x:
+            if masters[fp].derive(path).pub[1:] != x:
                 raise Refused("the key the origin derives is not the one named")
-            h = tap_sighash(tx, inputs, i, ht, script, version)
-            added.append((b"\x14" + x + lh, schnorr(key.k.to_bytes(32, "big"), h, ht, x)))
+            tap_sighash(tx, inputs, i, ht, script, version)
+            signs = True
     merkle = one(m, 0x18)
     for x, fp, path in key_claims:
         if internal != x or p2tr(internal, merkle)[0] != spk:
             continue
-        key = masters[fp].derive(path)
-        if key.pub[1:] != x:
+        if masters[fp].derive(path).pub[1:] != x:
             raise Refused("the key the origin derives is not the one named")
-        tweaked = tweak_add_privkey(key.k.to_bytes(32, "big"), p2tr(internal, merkle)[1])
-        h = tap_sighash(tx, inputs, i, ht)
-        added.append((b"\x13", schnorr(tweaked, h, ht, spk[2:])))
-    if not added:
+        tap_sighash(tx, inputs, i, ht)
+        signs = True
+    if not signs:
         raise Refused("no leaf or key path of this taproot input is ours")
+    return True
+
+
+# ----- Bitcoin Core: the signer -------------------------------------------------
+
+
+def core_key(key):
+    """An extended private key as Core on regtest reads it (tprv)."""
+    return btc.Key(key.chain, key.k, None, key.depth, key.parent, key.child, test=True).serialize()
+
+
+def descriptors(ins, masters, leave_out=()):
+    """A `pk()` descriptor for each key origin the inputs name under a
+    held master, Core to derive the key from the master: but those in
+    `leave_out`, (fingerprint, path)."""
+    out = set()
+    for m in ins:
+        for fp, path in input_origins(m):
+            if fp in masters and (fp, tuple(path)) not in leave_out:
+                out.add(f"pk({core_key(masters[fp])}{btc.path_text(path)[1:]})")
+    return sorted(out)
+
+
+def added_signatures(before, after):
+    """The signature pairs `after`'s inputs hold that `before`'s do not."""
+    _, b_ins, _, _ = parse(before)
+    _, a_ins, _, _ = parse(after)
+    out = []
+    for bm, am in zip(b_ins, a_ins):
+        have = set(bm)
+        out.append([(k, v) for k, v in am if k[0] in SIGS and (k, v) not in have])
+    return out
+
+
+SIGHASH_NAMES = {0: "DEFAULT", 1: "ALL", 2: "NONE", 3: "SINGLE", 0x81: "ALL|ANYONECANPAY",
+                  0x82: "NONE|ANYONECANPAY", 0x83: "SINGLE|ANYONECANPAY"}
+
+
+def core_sign(raw, masters):
+    """Costs a request to Bitcoin Core (descriptorprocesspsbt, once for
+    each sighash type the inputs ask for, and again for each when a
+    taproot input's internal key is held beside its leaves): the
+    signature pairs Core adds to each input with the held masters' keys.
+
+    Core signs every input of a PSBT under the one sighash type it is
+    asked for, and refuses a PSBT any input of which says another, by
+    its field or by a signature already on it: each call asks for one
+    type, with the other inputs' fields and every signature already made
+    taken off, and keeps the signatures of the inputs that asked for it
+    (no field is Core's DEFAULT: ALL for ECDSA, DEFAULT for taproot).
+    Core signs a taproot key path alone where it can, so the leaves
+    beside one are taken from a call without the internal key."""
+    g, ins, outs, _ = parse(raw)
+    internal = set()
+    beside = set()
+    for j, m in enumerate(ins):
+        x = one(m, 0x17)
+        if x is None or not of_type(m, 0x15):
+            continue
+        for k, v in of_type(m, 0x16):
+            leaves, fp, path = tap_origin(v)
+            if k == x and not leaves and fp in masters:
+                internal.add((fp, tuple(path)))
+                beside.add(j)
+    asks = []
+    for m in ins:
+        field = one(m, 0x03)
+        asks.append(int.from_bytes(field, "little") if field is not None else 0)
+    calls, which = [], []
+    for ht in sorted(set(asks)):
+        if ht not in SIGHASH_NAMES:
+            continue
+        variant = write(g, [[(k, v) for k, v in m
+                             if k[0] not in SIGS and (a == ht or k != b"\x03")]
+                            for m, a in zip(ins, asks)], outs)
+        for without in ((), internal) if beside else ((),):
+            calls.append(("descriptorprocesspsbt", b64(variant),
+                          descriptors(ins, masters, without), SIGHASH_NAMES[ht], False, False))
+            which.append((ht, bool(without), variant))
+    answers = core_node.batch(calls)
+    added = [[] for _ in ins]
+    for (ht, leaves_only, variant), answer in zip(which, answers):
+        got = added_signatures(variant, base64.b64decode(answer["psbt"]))
+        for j, pairs in enumerate(got):
+            if asks[j] != ht:
+                continue
+            if j in beside:
+                pairs = [p for p in pairs if (p[0][0] == 0x14) == leaves_only]
+            elif leaves_only:
+                continue
+            added[j] += pairs
     return added
 
 
-# ----- the reference finalizer ----------------------------------------------------
+def held_key(m, x, masters, xonly):
+    """Costs a BIP-32 derivation: the held master's private key the
+    input's origin for `x` names."""
+    for k, v in of_type(m, 0x16 if xonly else 0x06):
+        if k == x:
+            fp, path = tap_origin(v)[1:] if xonly else origin(v)
+            if fp in masters:
+                return masters[fp].derive(path)
+    raise AssertionError(f"Core signed for {x.hex()}, which no held origin names")
 
 
-def timelock_material(tx, i):
-    """What BIP-68 and BIP-65 let this input's satisfaction use, in
-    blocks: the relative height its sequence makes, the absolute height
-    the locktime makes (both zero when disabled or counted in time)."""
-    seq = tx.vin[i].nSequence
-    rel = 0
-    if tx.version >= 2 and not seq & (1 << 31) and not seq & (1 << 22):
-        rel = seq & 0xFFFF
-    absolute = 0
-    if seq != 0xFFFFFFFF and tx.nLockTime < 500_000_000:
-        absolute = tx.nLockTime
-    return rel, absolute
+def expected_value(inp, inputs, tx, key, value, nonce, masters):
+    """Costs up to six elliptic-curve multiplications: the signature
+    Faraday must have made where Core signed `key` with `value`. ECDSA:
+    Core's own under the low-R rule; under the first RFC 6979 nonce,
+    Core's `key.py`'s, once Core's signature verifies under the hash
+    computed here. BIP-340: BIP-340's reference with zero auxiliary
+    randomness, once Core's signature verifies under the hash computed
+    here."""
+    m, i = inp.m, inp.i
+    ht_field = one(m, 0x03)
+    if key[0] == 0x02:
+        if nonce == "low_r":
+            return value
+        pk = key[1:]
+        ht = int.from_bytes(ht_field, "little") if ht_field else 1
+        if value[-1] != ht:
+            raise AssertionError("Core's ECDSA signature carries another sighash byte")
+        h = inp.ecdsa_sighash(tx, ht)
+        pub = ECPubKey()
+        pub.set(pk)
+        if not pub.verify_ecdsa(value[:-1], h):
+            raise AssertionError("Core's ECDSA signature does not verify under the hash here")
+        d = held_key(m, pk, masters, False).k
+        ec = ECKey()
+        ec.set(d.to_bytes(32, "big"), True)
+        sig = ec.sign_ecdsa(h, low_s=True, rfc6979=True) + bytes([ht])
+        r_len = sig[3]
+        if r_len < 33 and sig != value:
+            raise AssertionError("the first RFC 6979 nonce gave a low R, and not Core's signature")
+        return sig
+    ht = int.from_bytes(ht_field, "little") if ht_field else 0
+    suffix = bytes([ht]) if ht else b""
+    if value[64:] != suffix:
+        raise AssertionError("Core's BIP-340 signature carries another sighash byte")
+    spk = bytes(inp.utxo.scriptPubKey)
+    if key[0] == 0x13:
+        x = one(m, 0x17)
+        tweak = p2tr(x, one(m, 0x18))[1]
+        seckey = tweak_add_privkey(held_key(m, x, masters, True).k.to_bytes(32, "big"), tweak)
+        msg = tap_sighash(tx, inputs, i, ht)
+        signer = spk[2:]
+    else:
+        x, lh = key[1:33], key[33:]
+        leaf = [v for _, v in of_type(m, 0x15) if tap_leaf_hash(v[:-1], v[-1]) == lh]
+        if not leaf:
+            raise AssertionError("Core signed under a leaf the input does not carry")
+        seckey = held_key(m, x, masters, True).k.to_bytes(32, "big")
+        msg = tap_sighash(tx, inputs, i, ht, leaf[0][:-1], leaf[0][-1])
+        signer = x
+    if not schnorr_verify(msg, signer, value[:64]):
+        raise AssertionError("Core's BIP-340 signature does not verify under the hash here")
+    return schnorr_sign(msg, seckey, bytes(32)) + suffix
 
 
-def final_for(inp, tx):
-    """(scriptSig, witness) choices for one input, or None while it
-    cannot be finalized. Each choice is a list of acceptable
-    (scriptSig, witness) pairs, or a predicate over one."""
-    m = inp.m
-    sigs = {k: v for k, v in of_type(m, 0x02)}
-    kind = inp.kind
-    if kind in ("p2pkh", "p2wpkh", "p2sh-p2wpkh"):
-        found = [(pk, s) for pk, s in sorted(sigs.items()) if inp.key_in_script(pk)]
-        if not found:
-            return None
-        pk, s = found[0]
-        if kind == "p2pkh":
-            return [(bytes(S.CScript([s, pk])), None)]
-        script_sig = bytes(S.CScript([inp.redeem])) if kind == "p2sh-p2wpkh" else b""
-        return [(script_sig, [s, pk])]
-    if kind.endswith("-multi"):
-        script = inp.redeem if kind == "p2sh-multi" else inp.ws
-        need, keys = parse_multisig(script)
-        chosen = [sigs[k] for k in keys if k in sigs][:need]
-        if len(chosen) < need:
-            return None
-        if kind == "p2sh-multi":
-            return [(bytes(S.CScript([S.OP_0] + chosen + [script])), None)]
-        script_sig = bytes(S.CScript([inp.redeem])) if kind == "p2sh-p2wsh-multi" else b""
-        return [(script_sig, [b""] + chosen + [script])]
-    if kind.endswith("-ms"):
-        rel, absolute = timelock_material(tx, inp.i)
-        wit = ms.satisfy(inp.node(), sigs, rel, absolute)
-        if wit is None:
-            return None
-        script_sig = bytes(S.CScript([inp.redeem])) if kind == "p2sh-p2wsh-ms" else b""
-        return [(script_sig, list(wit) + [inp.ws])]
-    if kind == "tr-key" or (kind == "tr-script" and one(m, 0x13) is not None):
-        key_sig = one(m, 0x13)
-        return None if key_sig is None else [(b"", [key_sig])]
-    # A script path: every leaf the PSBT carries, the cheapest.
-    rel, absolute = timelock_material(tx, inp.i)
-    options = []
-    for control, value in of_type(m, 0x15):
+# ----- Bitcoin Core: the finalizer and the mempool -------------------------------
+
+
+def pkh_leaves(m):
+    """The leaf hashes of an input's carried leaves that check a key by
+    its hash (python-bip380), which Faraday leaves unfinalized."""
+    out = set()
+    for _, value in of_type(m, 0x15):
         script, version = value[:-1], value[-1]
-        lh = tap_leaf_hash(script, version)
-        here = {k[:32]: v for k, v in of_type(m, 0x14) if k[32:] == lh}
-        multi = is_plain_multi_a(script)
-        if multi:
-            need, keys = multi
-            if sum(1 for x in keys if x in here) < need:
-                continue
-            size = witness_weight([b""] * (len(keys) - need)
-                                  + [here[x] for x in keys if x in here][:need]
-                                  + [script, control])
-            options.append((size, ("multi_a", need, keys, here, script, control)))
-            continue
         node = SCRIPTS.node(script, True) if version == TAPSCRIPT else None
-        if node is None:
-            continue
-        wit = ms.satisfy(node, here, rel, absolute)
-        if wit is None:
-            continue
-        if ms.has_pkh(node):
-            # Faraday leaves a taproot leaf with a `pkh` to the
-            # coordinator (`faraday_psbt::finalize`).
-            PKH_LEFT[0] += 1
-            continue
-        stack = list(wit) + [script, control]
-        options.append((witness_weight(stack), ("exact", stack)))
-    if not options:
-        return None
-    best = min(size for size, _ in options)
-    return [(b"", choice) for size, choice in options if size == best]
-
-
-def acceptable(choice, script_sig, witness):
-    want_sig, want = choice
-    if want_sig != script_sig:
-        return False
-    if isinstance(want, tuple) and want[0] == "exact":
-        return want[1] == witness
-    if isinstance(want, tuple) and want[0] == "multi_a":
-        _, need, keys, here, script, control = want
-        if witness is None or len(witness) != len(keys) + 2:
-            return False
-        if witness[-2:] != [script, control]:
-            return False
-        # BIP 379: the last key's signature (or nothing) deepest.
-        body = witness[:-2]
-        used = 0
-        for x, element in zip(reversed(keys), body):
-            if element == b"":
-                continue
-            if here.get(x) != element:
-                return False
-            used += 1
-        return used == need
-    return want == witness
-
-
-def ref_finalize(raw, check_only=False, theirs=None):
-    """BIP-174's finalizer and extractor over `raw`. With `theirs`
-    (Faraday's finalized PSBT), each input's final scriptSig and witness
-    is checked against every choice the reference allows and the
-    reference answers with Faraday's choice where it is one of them."""
-    g, ins, outs, tx = parse(raw)
-    inputs = [Input(m, tx, i) for i, m in enumerate(ins)]
-    their_ins = parse(theirs)[1] if theirs is not None else None
-    out_ins = []
-    finals = []
-    all_final = True
-    for j, (inp, m) in enumerate(zip(inputs, ins)):
-        if inp.final:
-            out_ins.append(m)
-            finals.append((one(m, 0x07) or b"", read_witness_value(one(m, 0x08))))
-            continue
-        if inp.utxo is None:
-            all_final = False
-            out_ins.append(m)
-            finals.append(None)
-            continue
-        choices = final_for(inp, tx)
-        if choices is None:
-            all_final = False
-            out_ins.append(m)
-            finals.append(None)
-            continue
-        pick = choices[0]
-        if their_ins is not None:
-            got_sig = one(their_ins[j], 0x07) or b""
-            got_wit = read_witness_value(one(their_ins[j], 0x08))
-            if any(acceptable(c, got_sig, got_wit) for c in choices):
-                pick = (got_sig, got_wit)
-            else:
-                pick = concrete(pick)
-        else:
-            pick = concrete(pick)
-        script_sig, witness = pick
-        kept = [(k, v) for k, v in m if k[0] in (0x00, 0x01) or k[0] not in DEFINED]
-        if script_sig:
-            kept.append((b"\x07", script_sig))
-        if witness:
-            kept.append((b"\x08", ser_witness(witness)))
-        out_ins.append(kept)
-        finals.append((script_sig, witness))
-    if check_only:
-        return all_final
-    final_psbt = write(g, out_ins, outs)
-    if not all_final:
-        return {"psbt": final_psbt.hex(), "tx": None}
-    done = CTransaction(tx)
-    done.wit.vtxinwit = []
-    for k, (script_sig, witness) in enumerate(finals):
-        done.vin[k].scriptSig = script_sig
-        w = CTxInWitness()
-        w.scriptWitness.stack = list(witness or [])
-        done.wit.vtxinwit.append(w)
-    # With no scriptSig, the extracted transaction's txid is the unsigned
-    # one's: only the witness was added.
-    if all(not v.scriptSig for v in done.vin) and done.txid_hex != tx.txid_hex:
-        raise AssertionError("the extracted transaction's txid is not the unsigned one's")
-    return {"psbt": final_psbt.hex(), "tx": done.serialize().hex()}
-
-
-def concrete(choice):
-    """One witness out of a choice, for the answer when Faraday's was not
-    acceptable: the exact one, or a `multi_a`'s first k signatures."""
-    script_sig, want = choice
-    if isinstance(want, tuple) and want[0] == "exact":
-        return script_sig, want[1]
-    if isinstance(want, tuple) and want[0] == "multi_a":
-        _, need, keys, here, script, control = want
-        body, used = [], 0
-        for x in keys:
-            if x in here and used < need:
-                body.append(here[x])
-                used += 1
-            else:
-                body.append(b"")
-        return script_sig, list(reversed(body)) + [script, control]
-    return script_sig, want
-
-
-def read_witness_value(v):
-    if v is None:
-        return None
-    n, at = compact(v, 0)
-    out = []
-    for _ in range(n):
-        size, at = compact(v, at)
-        out.append(v[at:at + size])
-        at += size
+        if node is not None and ms.has_pkh(node):
+            out.add(tap_leaf_hash(script, version))
     return out
+
+
+def without_pkh(raw):
+    """The PSBT with the signatures under each `pkh` leaf taken off."""
+    g, ins, outs, _ = parse(raw)
+    kept = []
+    for m in ins:
+        drop = pkh_leaves(m)
+        kept.append([(k, v) for k, v in m if not (k[0] == 0x14 and k[33:] in drop)])
+    return write(g, kept, outs)
+
+
+def core_finalize(raw):
+    """Costs a request to Bitcoin Core (finalizepsbt, twice or three
+    times): what Faraday's finalizer must answer for `raw`, its PSBT and
+    its transaction, with whether Core would have finalized more but for
+    the signatures under a `pkh` leaf taken off. An input Core finalizes
+    keeps the fields BIP-174 keeps (the UTXOs and unknown types) and
+    Core's final scriptSig and witness; any other keeps its pairs."""
+    stripped = without_pkh(raw)
+    calls = [("finalizepsbt", b64(stripped), False), ("finalizepsbt", b64(stripped), True)]
+    if stripped != raw:
+        calls.append(("finalizepsbt", b64(raw), False))
+    answers = core_node.batch(calls)
+    g, ins, outs, _ = parse(raw)
+    _, core_ins, _, _ = parse(base64.b64decode(answers[0]["psbt"]))
+    final = []
+    for m, cm in zip(ins, core_ins):
+        got = [(k, v) for k, v in cm if k[0] in (0x07, 0x08)]
+        if got and not any(k[0] in (0x07, 0x08) for k, _ in m):
+            final.append([(k, v) for k, v in m if k[0] in (0x00, 0x01) or k[0] not in DEFINED]
+                         + got)
+        else:
+            final.append(m)
+    more = False
+    if len(answers) == 3:
+        _, whole, _, _ = parse(base64.b64decode(answers[2]["psbt"]))
+        more = [[k for k, _ in x if k[0] in (0x07, 0x08)] for x in whole] != \
+            [[k for k, _ in x if k[0] in (0x07, 0x08)] for x in core_ins]
+    complete = answers[1]["complete"]
+    return {"psbt": write(g, final, outs).hex(), "tx": answers[1]["hex"] if complete else None,
+            "complete": complete, "more": more}
+
+
+def core_accepts(tx_hex):
+    """Costs a request to Bitcoin Core (testmempoolaccept): None when Core
+    would take the transaction into its mempool, else its reason."""
+    got = core_node.batch([("testmempoolaccept", [tx_hex])])[0][0]
+    return None if got.get("allowed") else got.get("reject-reason", "refused")
 
 
 # ----- the area -----------------------------------------------------------------
@@ -1041,38 +968,45 @@ class Sign(Area):
         '6979 nonce rules) and `faraday_psbt::finalize`'
     )
     reference = (
-        "BIP-174's signer and finalizer and BIP-371's fields written out in "
-        "`area_sign.py`, over Core's `script.py` sighashes and `taproot_construct`, "
-        "`key.py`'s RFC 6979 ECDSA, BIP-340 signing and tweak, `area_msg.py`'s low-R "
-        "grind; python-bip380 (`miniscript/`) for a miniscript's satisfaction"
+        "Bitcoin Core v31.1 on regtest (`core_node.py`): `descriptorprocesspsbt` signs from "
+        "the held masters' keys, `finalizepsbt` finalizes and extracts, `testmempoolaccept` "
+        "judges each finalized transaction over its funding on the node; BIP-340's "
+        "reference (`secp256k1lab`) and Core's `key.py` for the deterministic nonces, over "
+        "Core's `script.py` sighashes; python-bip380 (`miniscript/`) reads the leaves. "
+        "Faraday's refusals and the inputs a wallet's rule leaves unsigned are ours, in "
+        "`area_sign.py`"
     )
     reference_checked = (
-        'its vendored files are hashed against `references.sha256` before any run, and '
-        "a published vector's answer is required of the reference as well as of "
-        'Faraday; the BIP-174 signer and finalizer are written in the area from the '
-        "BIPs' text, and the vectors and the Core-built spends are required of them"
+        'Core is the pinned release, hashed against its pin before every run; the vendored '
+        "files are hashed against `references.sha256`; a published vector's answer is "
+        "required of Core as well as of Faraday; every ECDSA and BIP-340 signature Core "
+        'makes is checked to verify under the hash the area computes before that hash is '
+        "used for Faraday's deterministic nonces"
     )
     vectors = (
         "BIP-174's signer, finalizer and extractor vectors; the Core-built spends of "
         '`tools/vectors/psbt/` (2-of-3 `sortedmulti`, the Liana wallet down both paths, '
         "a taproot tree by a leaf and by the key path, BIP 387's taproot multisig), "
-        'signed by every subset of their keys'
+        "signed by every subset of their keys; the finalizer vectors there (`or_b`'s smaller "
+        'signature, the taproot leaves that tie by count, the taproot multisig and MuSig2 '
+        'spends)'
     )
     corpus = (
-        'PSBTs of one to four inputs: P2PKH, P2SH-P2WPKH, P2WPKH, `multi`/`sortedmulti` '
-        'in P2SH, P2WSH and P2SH-P2WSH, P2TR key path, P2TR script path (`pk`, `pkh`, '
-        'timelocked keys, `or_d`, `multi_a`) with the key path beside it, miniscript in '
-        "P2WSH and P2SH-P2WSH; held and foreign keys, cosigners' signatures already on, "
-        'every standard sighash type, timelocks met and not; every signature made again '
-        "byte for byte and verified, the signed PSBT's pairs, each final scriptSig and "
-        'witness, the cleared fields and the extracted transaction; an origin that '
-        'derives another key refused'
+        'PSBTs of one to four inputs, each spending a funding output on the node: P2PKH, '
+        'P2SH-P2WPKH, P2WPKH, `multi`/`sortedmulti` in P2SH, P2WSH and P2SH-P2WSH, P2TR key '
+        'path, P2TR script path (`pk`, `pkh`, timelocked keys, `or_d`, `multi_a`) with the '
+        "key path beside it, miniscript in P2WSH and P2SH-P2WSH; held and foreign keys, "
+        "cosigners' signatures already on (Core's), every standard sighash type, timelocks "
+        "met and not; Core's signatures (ECDSA byte for byte, BIP-340 by verification and the "
+        "deterministic nonce), each final scriptSig and witness and the extracted transaction "
+        "Core's, the cleared fields, and every finalized transaction accepted by Core's "
+        'mempool; an origin that derives another key refused'
     )
     differences = [
         (
             'PSBT signing: Faraday refuses to sign a SegWit v0 input with no previous '
-            "transaction in a transaction of more than one input; BIP-174's signer signs "
-            "it, and BIP-174's own signer vector is such a PSBT. The refusal is checked and"
+            "transaction in a transaction of more than one input; Core signs it, and "
+            "BIP-174's own signer vector is such a PSBT. The refusal is ours, checked and"
             ' counted. Faraday holds a finalized input to the same rule and refuses the '
             'PSBT when such an input is final, except a taproot one, whose final witness is'
             " the coordinator's."
@@ -1082,12 +1016,12 @@ class Sign(Area):
             'keys (a `multi` of two or more, a miniscript naming two or more, a taproot '
             'script path whose carried leaves name two or more with its internal key, or '
             'are not its whole tree) only for a registered wallet that holds one of its '
-            "keys and whose script it is; BIP-174's signer signs any. The area refuses "
-            'where no wallet the request registers holds a held key and gives the input, '
-            "and counts it only where Faraday's refusal is that the wallet is not "
+            "keys and whose script it is; Core signs any. The area refuses, by a rule of "
+            'its own, where no wallet the request registers holds a held key and gives the '
+            "input, and counts it only where Faraday's refusal is that the wallet is not "
             'registered. A miniscript or a taproot tree of one key is signed only through '
             'such a wallet, and is otherwise left unsigned while the rest is signed (F141);'
-            " the area leaves it unsigned the same way. Half the corpus's `multi`, "
+            " the area takes Core's signatures off it. Half the corpus's `multi`, "
             'miniscript and taproot-tree inputs come with their wallet registered, so their'
             " signatures are still compared. A registered tree's every leaf has its wait "
             'met, since Faraday refuses a path that can never be valid, which the area does'
@@ -1096,66 +1030,102 @@ class Sign(Area):
         (
             'PSBT signing: Faraday refuses a PSBT any input of which asks for a `NONE` or '
             '`SINGLE` sighash, and one that none of the held keys can sign: dangers no hold'
-            " accepts (F136). BIP-174's signer signs the first and answers the second with "
-            'nothing signed. The area expects both refusals, counting a held key as taking '
-            "part as Faraday's inspection does (a miniscript or a taproot tree only through"
-            " a wallet in use), checks that Faraday's refusal names the danger, and counts "
-            'them.'
+            " accepts (F136). Core signs the first and answers the second with nothing "
+            'signed. The area expects both refusals by a rule of its own, counting a held '
+            "key as taking part as Faraday's inspection does (a miniscript or a taproot tree "
+            "only through a wallet in use), checks that Faraday's refusal names the danger, "
+            'and counts them.'
         ),
         (
             'Taproot `pkh` leaves: Faraday signs a taproot leaf that checks its key by hash'
             " but does not finalize it: `miniscript` 12's finalizer looks the key up among "
             'the ECDSA origins and panics, and would push 33 bytes where the leaf hashed '
-            '32. The area leaves such a leaf unfinalized too and counts each one it could '
-            'have satisfied.'
+            "32. Core finalizes such a leaf; the area takes the signatures under it off "
+            'before Core finalizes, and counts each input Core would otherwise have '
+            'finalized another way.'
         ),
     ]
     not_compared = (
         'none'
     )
+    CORE = True
+    FUND = {"corpus": 4}
+    # Past the longest relative timelock the corpus spends with (`LOCKS`
+    # blocks and up to 50 more).
+    FUND_DEPTH = LOCKS + 100
 
     def __init__(self, *a):
         super().__init__(*a)
         self.known = 0
+        self.real = False
+        self.collecting = False
+        self.finals = {}
 
     def sign(self, raw, seeds, xprvs, network, nonce, masters, wallets=()):
         inputs = {"psbt": raw.hex(), "seeds": [s.hex() for s in seeds], "xprvs": xprvs,
                   "network": network, "nonce": nonce, "wallets": list(wallets)}
+        answer = self.rust.call("sign.sign", **inputs)
+        self.compared += 1
+        named = None
+        try:
+            ref = ("ok", self.ref_sign(raw, masters, nonce, wallets))
+        except Known as e:
+            self.known += 1
+            named = e.kind
+            ref = ("err", f"Known: {e}")
+        except Refused as e:
+            ref = ("err", f"Refused: {e}")
 
-        named = []
-
-        def ref():
-            try:
-                return ref_sign(raw, masters, nonce, wallets)
-            except Known as e:
-                self.known += 1
-                if e.kind:
-                    named.append(e.kind)
-                raise
-
-        def norm(answer):
-            if answer[0] != "ok":
-                return answer
-            return ("ok", dict(answer[1], psbt=canonical(bytes.fromhex(answer[1]["psbt"]))))
-        answer = self.compare("sign.sign", inputs, ref, normalize=norm)
+        def norm(a):
+            if a[0] != "ok":
+                return a
+            return ("ok", dict(a[1], psbt=canonical(bytes.fromhex(a[1]["psbt"]))))
+        got, want = norm(answer), norm(ref)
+        if got[0] != want[0] or (got[0] == "ok" and got[1] != want[1]):
+            raise Mismatch(self.name, "sign.sign", inputs, answer, ref)
         # A known difference with a warning of its own is Faraday's refusal
         # only where Faraday's refusal names that warning.
-        for kind in named:
-            if answer[0] != "err" or kind not in str(answer[1]):
-                raise Mismatch(self.name, "sign.sign", inputs, answer, ("err", kind),
-                               f"the refusal does not name {kind}")
+        if named and named not in str(answer[1]):
+            raise Mismatch(self.name, "sign.sign", inputs, answer, ("err", named),
+                           f"the refusal does not name {named}")
         return answer
+
+    def ref_sign(self, raw, masters, nonce, wallets):
+        """What Faraday's signer must answer: Faraday's refusals and the
+        inputs it leaves unsigned (ours, `policy`), and on the rest the
+        signatures Core makes, each as Faraday must have made it."""
+        inputs, tx, skip = policy(raw, masters, wallets)
+        g, ins, outs, _ = parse(raw)
+        added = core_sign(raw, masters)
+        out_ins, count = [], 0
+        for inp, m, pairs in zip(inputs, ins, added):
+            if inp.i in skip or inp.final:
+                pairs = []
+            mine = [(k, expected_value(inp, inputs, tx, k, v, nonce, masters)) for k, v in pairs]
+            count += len(mine)
+            out_ins.append(list(m) + mine)
+        signed = write(g, out_ins, outs)
+        return {"psbt": signed.hex(), "signatures": count,
+                "complete": self.core_final(signed)["complete"]}
+
+    def core_final(self, raw):
+        """Core's finalizing of `raw`, asked once a case."""
+        if raw not in self.finals:
+            self.finals[raw] = core_finalize(raw)
+        return self.finals[raw]
 
     def finalize(self, raw):
         theirs = self.rust.call("sign.finalize", psbt=raw.hex())
         self.compared += 1
-        theirs_psbt = bytes.fromhex(theirs[1]["psbt"]) if theirs[0] == "ok" else None
-        before = PKH_LEFT[0]
         try:
-            ref = ("ok", ref_finalize(raw, theirs=theirs_psbt))
+            parse(raw)
+            core = self.core_final(raw)
         except Refused as e:
+            core = None
             ref = ("err", str(e))
-        self.known += PKH_LEFT[0] - before
+        if core is not None:
+            ref = ("ok", {"psbt": core["psbt"], "tx": core["tx"]})
+            self.known += core["more"]
 
         def norm(answer):
             if answer[0] != "ok":
@@ -1165,10 +1135,17 @@ class Sign(Area):
         a, b = norm(theirs), norm(ref)
         if a[0] != b[0] or (a[0] == "ok" and a != b):
             raise Mismatch(self.name, "sign.finalize", {"psbt": raw.hex()}, theirs, ref)
+        if self.real and a[0] == "ok" and theirs[1]["tx"]:
+            reason = core_accepts(theirs[1]["tx"])
+            self.compared += 1
+            if reason:
+                raise Mismatch(self.name, "sign.finalize", {"psbt": raw.hex()}, theirs,
+                               ("err", reason), "Core's mempool refuses the transaction")
         return theirs
 
     def round(self, raw, seeds, xprvs, network, masters, nonce=None, wallets=()):
         nonce = nonce or self.rng.choice(["low_r", "first"])
+        self.finals = {}
         signed = self.sign(raw, seeds, xprvs, network, nonce, masters, wallets)
         if signed[0] == "ok":
             self.finalize(bytes.fromhex(signed[1]["psbt"]))
@@ -1211,6 +1188,7 @@ class Sign(Area):
         self.sign(raw, [], [tprv], "testnet", "first", masters)
         # The rest of the chain from the combiner vector, which holds both
         # signatures Bitcoin Core produced.
+        self.finals = {}
         done = self.finalize(psbt("combiner"))
         if canonical(bytes.fromhex(done[1]["psbt"])) != canonical(psbt("finalizer")):
             raise Mismatch(self.name, "sign.finalize", {}, done, "BIP-174's finalizer PSBT")
@@ -1219,6 +1197,23 @@ class Sign(Area):
             raise Mismatch(self.name, "sign.finalize", {}, done, extracted,
                            "not BIP-174's extracted transaction")
         self.round(raw, [], [tprv], "testnet", masters, nonce="low_r")
+
+    def finalized(self):
+        """The finalizer vectors of `tools/vectors/psbt/`, each finalized by
+        Faraday as Core finalizes it, and as the vector's final PSBT
+        says where it has one."""
+        vectors = ROOT / "tools/vectors/psbt"
+        for name in ("finalize-or-b", "finalize-tap-leaf-tie", "wallet-tapmulti-signed",
+                     "wallet-musig-device-first-signed"):
+            raw = base64.b64decode((vectors / f"{name}.psbt").read_text().strip())
+            self.finals = {}
+            done = self.finalize(raw)
+            final = vectors / f"{name}-final.psbt"
+            if final.is_file():
+                want = base64.b64decode(final.read_text().strip())
+                if canonical(bytes.fromhex(done[1]["psbt"])) != canonical(want):
+                    raise Mismatch(self.name, "sign.finalize", {"psbt": raw.hex()}, done,
+                                   ("ok", {"psbt": want.hex()}), f"not {final.name}")
 
     def fixtures(self):
         words = {
@@ -1239,10 +1234,10 @@ class Sign(Area):
             raw = base64.b64decode(text)
             wallets = []
             if name in policies:
-                policy = (ROOT / f"tools/vectors/psbt/{policies[name]}.policy").read_text()
-                wallets = [policy]
+                policy_text = (ROOT / f"tools/vectors/psbt/{policies[name]}.policy").read_text()
+                wallets = [policy_text]
                 if name != "wallet-2of3":
-                    register_policy(policy, raw)
+                    register_policy(policy_text, raw)
             for subset in subsets:
                 masters = {keys[n].fingerprint(): keys[n] for n in subset}
                 for nonce in ("low_r", "first"):
@@ -1268,16 +1263,31 @@ class Sign(Area):
         k = master.derive(path)
         return k.pub, master.fingerprint(), path, master
 
-    def funding(self, spk, value):
+    def funding(self, spk, value, j=None):
+        """The transaction the input spends: from the case's coin `j` on
+        the node when the run gave coins (sent before the run, while
+        `collecting`), else a made-up one."""
+        coin = self.fund_coin(j) if j is not None else None
         prev = CTransaction()
         prev.version = 2
-        prev.vin = [CTxIn(COutPoint(int.from_bytes(self.randbytes(32), "big"), self.rng.randrange(4)),
-                          b"", 0xFFFFFFFF)]
+        if coin is None:
+            prev.vin = [CTxIn(COutPoint(int.from_bytes(self.randbytes(32), "big"),
+                                        self.rng.randrange(4)), b"", 0xFFFFFFFF)]
+        else:
+            txid, vout, _ = coin
+            prev.vin = [CTxIn(COutPoint(int(txid, 16), vout), b"", 0xFFFFFFFF)]
+            w = CTxInWitness()
+            w.scriptWitness.stack = [core_node.OP_TRUE]
+            prev.wit.vtxinwit = [w]
         n = self.rng.randrange(1, 4)
         at = self.rng.randrange(n)
-        prev.vout = [CTxOut(self.rng.randrange(1000, 10**7), p2wpkh(self.randbytes(20)))
+        prev.vout = [CTxOut(self.rng.randrange(1000, 500_000), p2wpkh(self.randbytes(20)))
                      for _ in range(n)]
         prev.vout[at] = CTxOut(value, spk)
+        if coin is not None and sum(o.nValue for o in prev.vout) > coin[2]:
+            raise HarnessError("a funding transaction pays more than its coin")
+        if coin is not None and self.collecting:
+            self.funding_txs.append(prev.serialize().hex())
         return prev, at
 
     def holder(self):
@@ -1287,55 +1297,59 @@ class Sign(Area):
             return self.rng.choice(self.ours)[1]
         return None
 
-    def corpus_case(self):
+    def fund_corpus(self):
+        self.collecting = True
+        try:
+            self.corpus_case(fund_only=True)
+        finally:
+            self.collecting = False
+
+    def corpus_case(self, fund_only=False):
         self.test = self.rng.random() < 0.7
         network = self.rng.choice(["testnet", "regtest", "signet"]) if self.test else "mainnet"
         self.ours = [self.new_master() for _ in range(self.rng.randrange(1, 4))]
         masters = {m.fingerprint(): m for _, m in self.ours}
         tx = CTransaction()
         tx.version = 2
-        tx.nLockTime = self.rng.choice([0, self.rng.randrange(1, 900_000)])
+        tx.nLockTime = self.rng.choice([0, self.rng.randrange(1, LOCKS)])
         n_in = self.rng.randrange(1, 5)
         n_out = self.rng.randrange(1, 4)
         ins = []
         total = 0
-        presign = []
+        presign = {}
         wallets = []
         for i in range(n_in):
             m, spk, value, seq, extra = self.input_spec(i, n_out)
             if "wallet" in extra:
                 wallets.append(extra["wallet"])
-            prev, at = self.funding(spk, value)
+            prev, at = self.funding(spk, value, i)
             total += value
             tx.vin.append(CTxIn(COutPoint(prev.txid_int, at), b"", seq))
             fields = [(b"\x00", prev.serialize_without_witness())] if extra.get("prev", True) else []
             if extra.get("witness_utxo", True):
                 fields.append((b"\x01", CTxOut(value, spk).serialize()))
             ins.append(fields + m)
-            presign.append(extra.get("cosigners", {}))
-        fee = self.rng.randrange(500, 20_000)
-        left = max(total - fee, n_out * 1000)
-        cuts = sorted(self.rng.randrange(1, left) for _ in range(n_out - 1))
-        amounts = [b - a for a, b in zip([0] + cuts, cuts + [left])]
+            presign.update(extra.get("cosigners", {}))
+        if fund_only:
+            return
+        self.real = self.fund_coins is not None
+        fee = self.rng.randrange(500, min(20_000, total - n_out * 1000))
+        spare = total - fee - n_out * 546
+        cuts = sorted(self.rng.randrange(0, spare + 1) for _ in range(n_out - 1))
+        amounts = [546 + b - a for a, b in zip([0] + cuts, cuts + [spare])]
         for a in amounts:
             spk = (p2wpkh(self.randbytes(20)) if self.rng.random() < 0.5
                    else b"\x51\x20" + btc.point(self.rng.randrange(1, N))[1:])
-            tx.vout.append(CTxOut(max(a, 546), spk))
+            tx.vout.append(CTxOut(a, spk))
         g = [(b"\x00", tx.serialize_without_witness())]
         outs = [[] for _ in tx.vout]
         raw = write(g, ins, outs)
-        # Cosigners that already signed: their signatures are on the PSBT
-        # Faraday receives.
-        for i, cos in enumerate(presign):
-            if cos:
-                try:
-                    _, pins, _, _ = parse(raw)
-                    inputs = [Input(mm, tx, j) for j, mm in enumerate(pins)]
-                    added = sign_input(inputs[i], inputs, tx, cos, "low_r")
-                except Refused:
-                    added = []
-                ins[i] = ins[i] + added
-        raw = write(g, ins, outs)
+        # Cosigners that already signed, by Core: their signatures are on
+        # the PSBT Faraday receives.
+        if presign:
+            for j, pairs in enumerate(core_sign(raw, presign)):
+                ins[j] = ins[j] + pairs
+            raw = write(g, ins, outs)
         held = [s for s, _ in self.ours]
         self.round(raw, held, [], network, masters, wallets=wallets)
 
@@ -1355,7 +1369,7 @@ class Sign(Area):
     def input_spec(self, i, n_out):
         kind = self.rng.choice(["p2pkh", "p2wpkh", "p2sh-p2wpkh", "multi", "multi", "tr-key",
                                 "tr-tree", "tr-tree", "ms", "ms"])
-        value = self.rng.randrange(20_000, 10**8)
+        value = self.rng.randrange(20_000, 3_000_000)
         seq = self.rng.choice([0xFFFFFFFF, 0xFFFFFFFE, 0xFFFFFFFD])
         extra = {}
         fields = []
@@ -1446,10 +1460,10 @@ class Sign(Area):
         return chosen
 
     def locks(self, i):
-        """A block delay and a height for a timelocked template, and the
-        sequence this input spends with: sometimes enough, sometimes not."""
-        older = self.rng.randrange(1, 1000)
-        after = self.rng.randrange(1, 800_000)
+        """A block delay and a height for a timelocked template, both
+        within the chain the run's funding is buried in."""
+        older = self.rng.randrange(1, LOCKS)
+        after = self.rng.randrange(1, LOCKS)
         return older, after
 
     MS = [
@@ -1620,18 +1634,22 @@ class Sign(Area):
         ins = [[(b"\x00", prev.serialize_without_witness()), (b"\x01", CTxOut(50_000, spk).serialize()),
                 (b"\x06" + pk, ser_origin(fp, wrong))]]
         raw = write([(b"\x00", tx.serialize_without_witness())], ins, [[]])
+        self.finals = {}
         self.sign(raw, [seed], [], "testnet", "low_r", {fp: master})
 
     LOOPS = (("mismatched", 8), ("corpus", 120))
 
     def prelude(self):
         self.bip174()
+        self.finalized()
         self.fixtures()
 
     def case_mismatched(self):
+        self.real = False
         self.mismatched()
 
     def case_corpus(self):
+        self.real = False
         self.corpus_case()
 
 
