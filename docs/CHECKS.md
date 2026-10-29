@@ -92,11 +92,11 @@ does what is `tools/README.md`'s.
 
 | Rule | Triggered by | Kind | Must change with it | Held by | Misses | Source |
 |---|---|---|---|---|---|---|
-| `standards.what-goes-in`: what the app takes in is a published standard checked against another implementation, or Faraday's own rule that fails closed | `core/*/src/**` | review | - | - | - | `docs/STANDARDS.md` §0 |
-| `standards.refusals-stay`: what the code refuses stays refused; accepting more than a standard requires is a decision | `core/*/src/**` | review | - | - | - | `CLAUDE.md`<br>`docs/decisions/F90.md` |
+| `standards.what-goes-in`: what the app takes in is a published standard checked against another implementation, or Faraday's own rule that fails closed | `core/*/src/**`<br>`!core/faraday-draw/**` | review | - | - | - | `docs/STANDARDS.md` §0 |
+| `standards.refusals-stay`: what the code refuses stays refused; accepting more than a standard requires is a decision | `core/*/src/**`<br>`!core/faraday-draw/**` | review | - | - | - | `CLAUDE.md`<br>`docs/decisions/F90.md` |
 | `standards.no-way-past`: a check that keeps keys or money safe has no way past it unless a decision names the case; a hold names it | `core/faraday-psbt/src/**`<br>lines matching `^\+.*\b[Hh]old` | review | - | - | planned check: every hold listed with its decision | `CLAUDE.md`<br>`docs/decisions/F136.md` |
-| `standards.out-of-app`: unpublished or unreviewed work stays in the repository, compiled out of the app | `core/*/src/**` | review | - | - | - | `docs/STANDARDS.md` §0<br>`docs/decisions/F109.md` |
-| `standards.scope`: a new kind of key or signature is a decision | `core/*/src/**` | review | - | - | - | `docs/decisions/F116.md` |
+| `standards.out-of-app`: unpublished or unreviewed work stays in the repository, compiled out of the app | `core/*/src/**`<br>`!core/faraday-draw/**` | review | - | - | - | `docs/STANDARDS.md` §0<br>`docs/decisions/F109.md` |
+| `standards.scope`: a new kind of key or signature is a decision | `core/*/src/**`<br>`!core/faraday-draw/**` | review | - | - | - | `docs/decisions/F116.md` |
 | `standards.learn-in-step`: STANDARDS.md and the Learn pages are kept in step until F148 generates both | `docs/STANDARDS.md` | pair | `docs/learn/**` | - | - | `docs/STANDARDS.md` |
 
 ### 2.6 crypto
@@ -104,12 +104,12 @@ does what is `tools/README.md`'s.
 | Rule | Triggered by | Kind | Must change with it | Held by | Misses | Source |
 |---|---|---|---|---|---|---|
 | `crypto.crosscheck-stamp`: the crypto sources match the last passing cross-check | `core/*/src/**`<br>`tools/crosscheck/**`<br>`Cargo.lock` | held | - | `lint-crosscheck` | - | `docs/decisions/F79.md` |
-| `crypto.tested`: a cryptographic change is tested against published vectors or another implementation | `core/*/src/**` | review | - | - | planned: F148's inventory and re-stamp | `CLAUDE.md`<br>`docs/decisions/F148.md` |
+| `crypto.tested`: a cryptographic change is tested against published vectors or another implementation | `core/*/src/**`<br>`!core/faraday-draw/**` | review | - | - | planned: F148's inventory and re-stamp | `CLAUDE.md`<br>`docs/decisions/F148.md` |
 | `crypto.action-covered` (planned): every cryptographic function is covered by the inventory | `core/*/src/**`<br>`faraday/faraday-keys/src/**` | held | - | `crypto-inventory` | - | `docs/decisions/F148.md` |
 | `crypto.generated` (planned): STANDARDS and AUDIT's generated sections match the manifest | `docs/STANDARDS.md`<br>`docs/AUDIT.md` | held | - | `crypto-gen` | - | `docs/decisions/F148.md` |
 | `crypto.at-source`: core/ is Faraday's own code: a thing is fixed at its source rather than wrapped | `core/**` | review | - | - | - | `CLAUDE.md` |
 | `crypto.kept-values`: a type re-implemented from a core/ one keeps the values the original works out once | `faraday/**/src/**` | review | - | - | - | `CLAUDE.md` |
-| `crypto.costs-said`: a function that costs more than a lookup says "Costs" in the first line of its doc | `core/*/src/**`<br>`faraday/**/src/**` | review | - | `costs-lint` | work that is costly and not marked so | `CLAUDE.md` |
+| `crypto.costs-said`: a function that costs more than a lookup says "Costs" in the first line of its doc | `core/*/src/**`<br>`faraday/**/src/**`<br>`!core/faraday-draw/**` | review | - | `costs-lint` | work that is costly and not marked so | `CLAUDE.md` |
 
 ### 2.7 keys
 
@@ -211,7 +211,7 @@ does what is `tools/README.md`'s.
 
 | Rule | Triggered by | Kind | Must change with it | Held by | Misses | Source |
 |---|---|---|---|---|---|---|
-| `fuzz.parser-target`: a parser of untrusted input has its fuzz target in the same change | `core/*/src/**`<br>`faraday/**/src/**` | review | - | - | planned: F148's fuzz check | `tools/README.md` |
+| `fuzz.parser-target`: a parser of untrusted input has its fuzz target in the same change | `core/*/src/**`<br>`faraday/**/src/**`<br>`!core/faraday-draw/**`<br>lines matching `^\+.*\bfn\s+(parse\|decode\|read\|from_bytes\|from_str\|deserialize)\w*` | review | - | - | planned: F148's fuzz check | `tools/README.md` |
 
 ### 2.20 release
 

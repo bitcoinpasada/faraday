@@ -50,7 +50,8 @@ changes and nothing else has to be kept in step.
   what reads the paths outside the repository. `python3 -I -B
   tools/impact.py plan <paths>` says it for a task; `just lint` fails on
   a pair left unmet, unless a commit says why (`Impact-skip: <rule>:
-  <reason>`). A new rule line here, or a decision that binds later
+  <reason>`); a review rule a change triggers is attested with a
+  `Reviewed: <rule>[, <rule>]` trailer (F151). A new rule line here, or a decision that binds later
   changes, is a rule in the registry in the same commit.
   `docs/CHECKS.md` is generated from it.
 - A new dimension is a name in `core/faraday-draw/src/tokens.rs`. The

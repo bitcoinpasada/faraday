@@ -521,6 +521,19 @@ def trailer_values(commits, name):
             if k.lower() == name.lower() and v]
 
 
+def reviewed(commits):
+    """{rule: label} from the commits' Reviewed trailers, each of which
+    names one or more rules, comma-separated."""
+    out = {}
+    for label, message in commits:
+        for key, value in trailers(message):
+            if key.lower() == "reviewed":
+                for name in value.split(","):
+                    if name.strip():
+                        out.setdefault(name.strip(), label)
+    return out
+
+
 def evaluate(reg, changes, commits):
     """The check: ([(state, rule, text)], counts) with state one of unmet,
     waived, met, review, held, planned."""
@@ -528,6 +541,8 @@ def evaluate(reg, changes, commits):
     wv = waivers(commits)
     notes = []
     known = {r["id"] for r in reg.rules}
+    rv = reviewed(commits)
+    attestable = set()
     for rule, _, _ in wv:
         if rule not in known:
             notes.append(f"waiver of {rule}: no such rule")
@@ -542,8 +557,17 @@ def evaluate(reg, changes, commits):
             results.append(("planned", r, r["title"]))
         elif r["kind"] == "held":
             results.append(("held", r, ""))
-        elif r["kind"] == "review":
+        elif r["kind"] == "review" and (r["_extra"] or standing(r)):
             results.append(("review", r, r["title"]))
+        elif r["kind"] == "review":
+            attestable.add(r["id"])
+            if r["id"] in rv:
+                results.append(("met", r, f'"Reviewed: {r["id"]}" ({rv[r["id"]]})'))
+            elif mine:
+                results.append(("waived", r, f'"{mine[0][1]}" ({mine[0][2]})'))
+            else:
+                paths = ", ".join(dict.fromkeys(c.path for c, _ in trig))
+                results.append(("unmet", r, f'{paths}; add "Reviewed: {r["id"]}" once checked'))
         else:
             if r["kind"] == "pair":
                 unmet = pair_unmet(r, changes, trig)
@@ -572,6 +596,11 @@ def evaluate(reg, changes, commits):
                 results.append(("waived", r, f'"{mine[0][1]}" ({mine[0][2]})'))
             else:
                 results.append(("unmet", r, why))
+    for rule in rv:
+        if rule not in known:
+            notes.append(f"Reviewed: {rule}: no such rule")
+        elif rule not in attestable:
+            notes.append(f"Reviewed: {rule}: not triggered, or not a review rule of the registry")
     return results, notes
 
 
@@ -586,6 +615,9 @@ def render(results, quiet):
                 continue
             if r["_extra"]:
                 text = f"(a rule of {r['_file']})"
+            if st == "unmet" and r["kind"] == "review":
+                lines.append(f"impact: unreviewed {r['id']}: {text}")
+                continue
             lines.append(f"impact: {st} {r['id']}: {text}")
     counts = {}
     for st, _, _ in results:
@@ -613,6 +645,14 @@ def expand_paths(paths, tracked):
     return out
 
 
+def standing(r):
+    """A review rule whose only trigger is every file (`**`, exclusions aside):
+    it applies to every change, so it is listed, never attested per change
+    (F151). The push hook or a check of its own holds such a rule."""
+    pos = [p for p in r["when"] if not p.startswith("!")]
+    return bool(pos) and all(p == "**" for p in pos)
+
+
 def plan(reg, paths, at, long):
     rules = []
     for r in reg.rules:
@@ -626,7 +666,7 @@ def plan(reg, paths, at, long):
             rules.append((r, hit))
     n = len(paths)
     out = [f"impact: {n} path{'s' if n != 1 else ''}, {len(rules)} rule{'s' if len(rules) != 1 else ''}"]
-    change, trail, forbid, review, held = [], [], [], [], []
+    change, trail, forbid, review, attest, held = [], [], [], [], [], []
     for r, hit in rules:
         for h in r["held_by"]:
             if h not in held:
@@ -642,9 +682,9 @@ def plan(reg, paths, at, long):
                     ps.append(text)
             change.append((r["id"], "; ".join(ps)))
         elif r["kind"] == "review" and (r["with"] or r["with_each"]):
-            change.append((r["id"], "(review) " + r["title"]))
+            change.append((r["id"], ("(needs Reviewed) " if not r["_extra"] else "(review) ") + r["title"]))
         elif r["kind"] == "review":
-            review.append(r["id"])
+            (review if r["_extra"] or standing(r) else attest).append(r["id"])
         elif r["kind"] == "trailer":
             trail.append(f"{r['id']} ({r['trailer']}: <value>)")
         elif r["kind"] == "forbid":
@@ -657,6 +697,8 @@ def plan(reg, paths, at, long):
         out.append("held by: " + ", ".join(held))
     out += [f"trailer: {t}" for t in trail]
     out += [f"forbidden: {t}" for t in forbid]
+    if attest:
+        out.append("needs a Reviewed: <rule> line in the commit: " + ", ".join(attest))
     if review:
         out.append("review: " + ", ".join(review))
     reads = []
@@ -1197,8 +1239,16 @@ def mkrule(**kw):
     return r
 
 
+def _standing_test(ok):
+    r = {"when": ["**", "!LICENSE"]}
+    ok(standing(r), "a rule on every file is standing")
+    ok(not standing({"when": ["**/screen.rs"]}), "a narrower rule is not standing")
+    ok(not standing({"when": []}), "a rule with no trigger is not standing")
+
+
 def self_test():
     ok = lambda c, *m: c or sys.exit("impact self-test failed: " + " ".join(map(str, m)))
+    _standing_test(ok)
 
     # Pattern forms.
     m = lambda pats, path: match_list(pats, path)
@@ -1288,13 +1338,37 @@ def self_test():
     regc.consumers[0]["reads"] = ["app/**", "lib/**"]
     ok(app_reads_lint(regc, ".", meta) == [], "every crate read")
     rh = mkrule(id="h.h", when=["a"], kind="held", held_by=["c"])
-    rr =mkrule(id="r.r", when=["a"], kind="review", title="look")
+    rr = mkrule(id="r.r", when=["a"], kind="review", title="look", _extra=True)
     rpl = mkrule(id="p.p", when=["a"], kind="pair", status="planned", **{"with": ["b"]})
     rel = mkrule(id="e.e", when=["a"], at="release", kind="pair", **{"with": ["b"]})
     res, _ = evaluate(_reg(rh, rr, rpl, rel), [ch("M", "a")], [])
     ok([s for s, _, _ in res] == ["held", "review", "planned"], res)
     lines, unmet = render(res, False)
     ok(unmet == 0 and lines[-1] == "impact: 3 rules triggered: 1 held, 1 review, 1 planned", lines)
+
+    # Review rules of the registry are attested in the commit.
+    rv1 = mkrule(id="v.one", when=["a"], kind="review", title="look")
+    rv2 = mkrule(id="v.two", when=["a"], kind="review", title="look again")
+    c1 = [ch("M", "a")]
+    res, _ = evaluate(_reg(rv1), c1, [])
+    ok(res[0][0] == "unmet", "a review rule with no trailer")
+    lines, unmet = render(res, True)
+    ok(unmet == 1 and lines[0] == 'impact: unreviewed v.one: a; add "Reviewed: v.one" once checked', lines)
+    res, _ = evaluate(_reg(rv1), c1, [("a1b2c3d4", "S\n\nBody\n\nReviewed: v.one\n")])
+    ok(res[0][0] == "met" and "a1b2c3d4" in res[0][2], res)
+    res, _ = evaluate(_reg(rv1, rv2), c1, [("a1b2c3d4", "S\n\nReviewed: v.two, v.one\n")])
+    ok([s for s, _, _ in res] == ["met", "met"], res)
+    res, _ = evaluate(_reg(rv1, rv2), c1, [("a1b2c3d4", "S\n\nReviewed: v.one\n")])
+    ok([s for s, _, _ in res] == ["met", "unmet"], res)
+    res, _ = evaluate(_reg(rv1), c1, [("a1b2c3d4", "S\n\nImpact-skip: v.one: nothing to judge\n")])
+    ok(res[0][0] == "waived", res)
+    res, _ = evaluate(_reg(rv1), c1, [("message", "S\n\nReviewed: v.one\n")])
+    ok(res[0][0] == "met", "the message file counts as a commit")
+    res, notes = evaluate(_reg(rv1, rh), c1, [("a1b2c3d4", "S\n\nReviewed: h.h, v.one, nope.x\n")])
+    ok(any("h.h" in n for n in notes) and any("nope.x" in n for n in notes) and "unmet" not in [s for s, _, _ in res],
+       (res, notes))
+    res, notes = evaluate(_reg(rv1), [ch("M", "zzz")], [("a1b2c3d4", "S\n\nReviewed: v.one\n")])
+    ok(res == [] and any("v.one" in n for n in notes), "a Reviewed line for a rule not triggered is a note")
 
     # Trailer rule and trailer parsing.
     rt = mkrule(id="t.t", when=["**/screen.rs"], kind="trailer", trailer="Material")
@@ -1338,7 +1412,7 @@ def self_test():
     out = plan(reg, ["a/b.rs", "docs/decisions/F9.md"], "change", False)
     ok(out[0] == "impact: 2 paths, 4 rules", out)
     ok(any("docs.b" in l and "docs/DECISIONS.md and docs/x-9.md" in l for l in out), out)
-    ok("held by: c" in out and "trailer: s.t (Material: <value>)" in out and "review: s.r" in out
+    ok("held by: c" in out and "trailer: s.t (Material: <value>)" in out and "needs a Reviewed: <rule> line in the commit: s.r" in out
        and "read by: app.z" in out, out)
     ok("s.rel" not in " ".join(out) and "s.rel" in " ".join(plan(reg, ["a/b.rs"], "release", False)), "moments")
     ok(plan(reg, [], "change", False) == ["impact: 0 paths, 0 rules"], "empty plan")

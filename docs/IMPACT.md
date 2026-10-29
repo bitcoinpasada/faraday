@@ -87,7 +87,7 @@ Fields not given take their defaults: `at = "change"`, `on` all three,
 | `pair` | when the rule triggers, a path in `with` (any one) and every path in `with_each` change in the same range | fails while unmet and not waived (§3) |
 | `forbid` | a change matching `when` is refused, unless a path in `with` (captures filled) changes in the same range, which makes it a move | fails unless waived |
 | `trailer` | when the rule triggers, a commit in the range carries the trailer named in `trailer` (`Material: <page>`), with a value | fails while no commit carries it and the rule is not waived (§3) |
-| `review` | no script can see whether it was kept | lists it in plan and in check's output; never fails |
+| `review` | no script can see whether it was kept | fails while no commit in the range carries a `Reviewed:` trailer naming it and it is not waived (§3); a rule of an extra file (§6), or a standing rule whose only trigger is every file (`**`), is listed in the output and never fails (F151 point 6) |
 
 A `held` or `review` rule may still name checks that hold part of it;
 `misses` says what part nothing holds. A rule whose `status` is
@@ -132,10 +132,10 @@ rule's source and misses.
 impact: 3 paths, 7 rules
 change with it:
   docs.readme-index     docs/README.md
-  guide.pictures        (review) the guide's pictures, just guide-pictures
+  guide.pictures        (needs Reviewed) the guide's pictures, just guide-pictures
 held by: lint-strings, lint-guide, lint-tokens, lint-layout
 trailer: design.material3 (Material: <the Material page checked>)
-review: strings.no-explanation
+needs a Reviewed: <rule> line in the commit: strings.no-explanation
 read by: app.faraday, app.starter, website.guide
 ```
 
@@ -159,8 +159,15 @@ Output, one line each, unmet first:
 impact: unmet docs.readme-index: docs/IMPACT.md added; change docs/README.md
 impact: waived builds.website-hardware: "no new hardware id" (a1b2c3d4)
 impact: met design.material3: "Material: Lists" (e5f6a7b8)
-impact: 12 rules triggered: 1 unmet, 1 waived, 6 held, 1 met, 3 review
+impact: unreviewed strings.plain: faraday/faraday-strings/src/en.rs; add "Reviewed: strings.plain" once checked
+impact: met crypto.kept-values: "Reviewed: crypto.kept-values" (a1b2c3d4)
+impact: 12 rules triggered: 1 unmet, 1 waived, 6 held, 2 met
 ```
+
+A triggered `review` rule of the registry is met by a `Reviewed:` trailer
+naming it (§3) and prints `unreviewed` while it is not; a `Reviewed:` for
+a rule that is not triggered, is not a review rule or does not exist is
+a note, not a failure.
 
 Exit 0 when nothing is unmet, 1 when something is, 2 when the registry
 does not read (§2.5). `--quiet` prints only unmet rules and the count.
@@ -237,6 +244,20 @@ Material: Lists, Top app bar
 The value is the Material 3 page or pages the change was checked
 against (CLAUDE.md, F91, F92); `--message <file>` reads it the same way.
 
+A `review` rule of the registry is met by a trailer naming the rule,
+which says the author did the judgement the rule asks for (F151):
+
+```
+Reviewed: strings.plain, crypto.kept-values
+```
+
+One trailer may name several rules, comma-separated, or there may be
+one trailer a rule; a trailer in any commit of the range, or in the
+`--message` file, covers the range. `Impact-skip: <rule>: <reason>` waives
+a review rule as it does a pair. A rule of a `FARADAY_IMPACT_EXTRA` file
+(§6) is exempt: the repository does not know it, so it is listed and
+never fails.
+
 ## 4. At landing
 
 `just lint` runs `python3 -I -B tools/impact.py check --quiet` and
@@ -246,7 +267,7 @@ checkout, says so and passes: the range is whoever lands it to check.
 
 A rule's check is in `just lint` already when its kind is `held`; impact
 does not run it again. What it adds is the pairs no lint holds, the
-refusals of `forbid`, the list of review rules a change touched, and the
+refusals of `forbid`, the review rules a change touched (met by a `Reviewed:` trailer), and the
 consumers it affects.
 
 ## 5. The website
@@ -562,8 +583,9 @@ Added by batch 3:
 
 ## 13. What this does not catch
 
-- A rule a reviewer must judge stays review: the registry lists it for
-  the change, and nobody is made to read the list.
+- A rule a reviewer must judge stays review: the commit must say it
+  was judged (`Reviewed:`, F151), but no script can tell whether the
+  judgement was made; the trailer is the author's word, on the record.
 - A pair met by a token change (the paired file touched, its text not
   brought up to date) passes; the waiver's reason is the only record of
   why a pair was skipped.

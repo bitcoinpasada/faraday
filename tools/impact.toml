@@ -483,14 +483,14 @@ held_by = ["lint-docs-held-by"]
 id = "standards.what-goes-in"
 title = "what the app takes in is a published standard checked against another implementation, or Faraday's own rule that fails closed"
 source = ["docs/STANDARDS.md §0"]
-when = ["core/*/src/**"]
+when = ["core/*/src/**", "!core/faraday-draw/**"]
 kind = "review"
 
 [[rule]]
 id = "standards.refusals-stay"
 title = "what the code refuses stays refused; accepting more than a standard requires is a decision"
 source = ["CLAUDE.md", "docs/decisions/F90.md"]
-when = ["core/*/src/**"]
+when = ["core/*/src/**", "!core/faraday-draw/**"]
 kind = "review"
 
 [[rule]]
@@ -506,14 +506,14 @@ misses = "planned check: every hold listed with its decision"
 id = "standards.out-of-app"
 title = "unpublished or unreviewed work stays in the repository, compiled out of the app"
 source = ["docs/STANDARDS.md §0", "docs/decisions/F109.md"]
-when = ["core/*/src/**"]
+when = ["core/*/src/**", "!core/faraday-draw/**"]
 kind = "review"
 
 [[rule]]
 id = "standards.scope"
 title = "a new kind of key or signature is a decision"
 source = ["docs/decisions/F116.md"]
-when = ["core/*/src/**"]
+when = ["core/*/src/**", "!core/faraday-draw/**"]
 kind = "review"
 
 [[rule]]
@@ -538,7 +538,7 @@ held_by = ["lint-crosscheck"]
 id = "crypto.tested"
 title = "a cryptographic change is tested against published vectors or another implementation"
 source = ["CLAUDE.md", "docs/decisions/F148.md"]
-when = ["core/*/src/**"]
+when = ["core/*/src/**", "!core/faraday-draw/**"]
 kind = "review"
 misses = "planned: F148's inventory and re-stamp"
 
@@ -578,7 +578,7 @@ kind = "review"
 id = "crypto.costs-said"
 title = "a function that costs more than a lookup says \"Costs\" in the first line of its doc"
 source = ["CLAUDE.md"]
-when = ["core/*/src/**", "faraday/**/src/**"]
+when = ["core/*/src/**", "faraday/**/src/**", "!core/faraday-draw/**"]
 kind = "review"
 held_by = ["costs-lint"]
 misses = "work that is costly and not marked so"
@@ -910,7 +910,8 @@ consumers = ["website.download"]
 id = "fuzz.parser-target"
 title = "a parser of untrusted input has its fuzz target in the same change"
 source = ["tools/README.md"]
-when = ["core/*/src/**", "faraday/**/src/**"]
+when = ["core/*/src/**", "faraday/**/src/**", "!core/faraday-draw/**"]
+lines = '^\+.*\bfn\s+(parse|decode|read|from_bytes|from_str|deserialize)\w*'
 kind = "review"
 misses = "planned: F148's fuzz check"
 
