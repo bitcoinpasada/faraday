@@ -16,6 +16,9 @@ marker lines, `<!-- crypto-manifest: begin §3 -->` and
                        of one rank are one item
     AUDIT §3           the "written here" list: each action's
                        `implementation.written_here`, grouped by crate
+    tools/crosscheck/README.md, independence
+                       each area's references by who wrote them: one row per
+                       area and independence class (F160), with the actions
 
 A row's cells come from the actions whose `row` is its id. A row with `uses`
 (the actions it describes as well as the rows they belong to) takes them from
@@ -27,7 +30,9 @@ actions name.
 
 The Verified by cell names a cross-check area by its `name` and says what it is
 compared against: the area's `reference` up to its first clause, read from
-tools/crosscheck/area_<file>.py without importing it.
+tools/crosscheck/area_<file>.py without importing it, and, where the row's
+actions on that area name a reference of Faraday's own (`independence`, F160),
+that it is not an independent check.
 
 faraday/faraday-learn/src/how.rs (the Learn blocks) is written by gen_how.py,
 called from `generated`, with its CONSTRUCTIONS (docs/CRYPTO-LEARN.md §18) from
@@ -53,6 +58,18 @@ STANDARDS = "docs/STANDARDS.md"
 AUDIT = "docs/AUDIT.md"
 HOW = "faraday/faraday-learn/src/how.rs"
 AREAS = "tools/crosscheck"
+CC_README = "tools/crosscheck/README.md"
+
+# What a reference of each independence class is called (F160), weakest last.
+INDEPENDENCE = {
+    "outside": "code Faraday did not write",
+    "own-over-outside": "Faraday's own model over outside code",
+    "own-only": "Faraday's own model only",
+}
+NOT_INDEPENDENT = {
+    "own-over-outside": "partly Faraday's own model, not an independent check",
+    "own-only": "Faraday's own model, not an independent check",
+}
 
 
 def as_list(v):
@@ -201,7 +218,11 @@ def verified_cell(actions, areas):
         parts.append("vectors " + ", ".join(f"`tools/vectors/{v}`" for v in vec))
     for stem in ccs:
         name, against = areas.get(stem, (stem, ""))
-        parts.append(f"F79 area `{name}`" + (f" against {against}" if against else ""))
+        classes = {(a["checked"].get("independence") or {}).get("class") for a in actions
+                   if a.get("checked", {}).get("crosscheck") == stem}
+        weakest = next((k for k in reversed(INDEPENDENCE) if k in classes), "outside")
+        note = f" ({NOT_INDEPENDENT[weakest]})" if weakest in NOT_INDEPENDENT else ""
+        parts.append(f"F79 area `{name}`" + (f" against {against}" if against else "") + note)
     parts += [bare(o) for o in other]
     if tests:
         crates = uniq(crate_of(t) for t in tests)
@@ -303,8 +324,31 @@ def gen_novel(data):
             calls = " ".join(f"{sentence_end(o['text'])} ({o.get('decision', 'no decision')})"
                              for o in novel)
             parts.append(f"**{bare(a['action'])}.** {calls}")
+        if any(a.get("label") for a, _ in groups[key]):
+            parts.append("Own construction, not yet independently reviewed (F160).")
         out.append(f"{i}. " + " ".join(parts))
     return "\n".join(out)
+
+
+def gen_independence(data, areas):
+    """tools/crosscheck/README.md: one row per area and independence class, who wrote
+    the reference, what of it is Faraday's own, and the actions (F160)."""
+    groups = {}
+    for a in data["action"]:
+        chk = a.get("checked", {})
+        stem = chk.get("crosscheck")
+        if not stem:
+            continue
+        name = areas.get(stem, (stem, ""))[0]
+        ind = chk.get("independence") or {}
+        key = (name, ind.get("class", "?"), ind.get("author", ""), ind.get("ours", ""))
+        groups.setdefault(key, []).append(a["id"])
+    lines = ["| Area | Reference | Written by | Faraday's own part | Actions |",
+             "|---|---|---|---|---|"]
+    for (name, ind, by, ours), ids in groups.items():
+        lines.append(f"| `{name}` | {cell(INDEPENDENCE.get(ind, ind))} | {cell(by)} | "
+                     f"{cell(ours) if ours else 'none'} | {', '.join(ids)} |")
+    return "\n".join(lines)
 
 
 def gen_written_here(data):
@@ -785,6 +829,7 @@ PLACES = [
     (STANDARDS, "§6", lambda d, ar: gen_conservative(d)),
     (STANDARDS, "§7", lambda d, ar: gen_novel(d)),
     (AUDIT, "§3", lambda d, ar: gen_written_here(d)),
+    (CC_README, "independence", gen_independence),
 ]
 
 

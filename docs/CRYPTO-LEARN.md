@@ -32,7 +32,7 @@ block:
 | **Standards** | Each standard by number and name, with its status: "BIP 174, Partially Signed Bitcoin Transaction Format, Deployed"; "RFC 6979, Deterministic Usage of DSA and ECDSA, Informational". | Names and statuses come from the manifest's standards table (§2.2), the one place a status is written. A convention or Faraday's own format says so: "Coldcard's seed-xor document, a convention"; "None: Faraday's own (F86)". |
 | **Implementation** | Faraday's own crate and module in `core/` or `faraday/`, or the library by name and version ("secp256k1 0.29.1, through bitcoin 0.32.102"), and what Faraday adds over it. | A library's version is read from `Cargo.lock` when the block is generated, never typed. |
 | **Checked against** | The vector folders under `tools/vectors/`, the tests by name, the self-test check, the fuzz target. | A missing check is written "not checked against vectors", "no fuzz target: <reason>"; never left out. |
-| **Cross-check** | What the F79 cross-check does for this action (owner, 2026-10-28), one line each: the area; the Faraday code it drives; the second implementation it compares against and how that one is itself checked first; the published vectors it runs; what its random cases vary; each known difference, where Faraday refuses what the second implementation accepts; when it runs (whenever the crypto changes, and with a new seed and about ten times the cases before every release); and the last passing run for this release: its seed and its case count for the area. | Read from the area (§10.1), never typed in the manifest. An action with no area reads "not cross-checked: <reason>", and an area with no second implementation for a part says which part ("AEZ itself has no second implementation here"). |
+| **Cross-check** | First, for an own construction, its label "Own construction, not yet independently reviewed", and for an action with an area, who wrote the reference and, where it is Faraday's own model, that it is not an independent check and which part Faraday wrote (F160, §10.3). Then what the F79 cross-check does for this action (owner, 2026-10-28), one line each: the area; the Faraday code it drives; the second implementation it compares against and how that one is itself checked first; the published vectors it runs; what its random cases vary; each known difference, where Faraday refuses what the second implementation accepts; when it runs (whenever the crypto changes, and with a new seed and about ten times the cases before every release); and the last passing run for this release: its seed and its case count for the area. | The independence lines are read from the action's `independence` and `label` in the manifest (§10.3); the rest from the area (§10.1), never typed in the manifest. An action with no area reads "not cross-checked: <reason>", and an area with no second implementation for a part says which part ("AEZ itself has no second implementation here"). |
 | **Code** | Release · file · function, for the functions the entry names as its code; the repository's address as text, `github.com/bitcoinpasada/faraday`. | No line numbers. The release is the build's own release string (F5), filled when the block is drawn, so a version change does not regenerate the blocks. |
 | **Secret handling** | Which `faraday-keys` reveal the action goes through (`Reveal::…`), or "none: no secret leaves `faraday-keys`"; constant time or not, and for which part; what is wiped, and when. | "Constant time" is stated only where the code or the library documents it; otherwise "not stated by the library". |
 | **Limits** | What the action does not do, or refuses: lengths, script kinds, sighashes, cost limits. | Facts from the code and the entry's standard; one line each. |
@@ -63,7 +63,7 @@ second export, and an entry's prose in Rust string literals is what
 ### 2.2 Schema
 
 ```toml
-schema = 1
+schema = 3                   # 2: constructions (§18); 3: independence and label (§10.3)
 
 # One table per standard, the only place its name and status are written.
 [standard."BIP 174"]
@@ -121,6 +121,7 @@ functions = [                # the roots this entry covers (§4.4)
 ]
 code = ["core/faraday-psbt/src/sign.rs::sign_ecdsa"]   # what the block's Code field shows
 novel_rank = 3               # an action with a Novel own call: its place in STANDARDS §7
+label = "own construction, not yet independently reviewed"   # schema 3, F160: every action with a novel_rank, and any other own construction
 
 [action.implementation]
 crate = "core/faraday-psbt"
@@ -132,6 +133,9 @@ written_here = "…"           # what the crate writes itself rather than takes 
 vectors = ["psbt"]           # folders under tools/vectors/
 tests = ["core/faraday-psbt/tests/all/sign.rs::rfc6979_vectors"]
 crosscheck = "sign"          # tools/crosscheck/area_sign.py; or not_crosschecked = "<reason>"
+independence = { class = "own-over-outside", author = "Faraday's authors (`area_sign.py`), over …", ours = "BIP-174's signer …" }
+                             # schema 3, F160, with crosscheck only: class outside, own-over-outside or own-only;
+                             # author, who wrote the reference; ours, the part Faraday wrote (not for outside)
 selftest = ["ecdsa_vector"]
 fuzz_none = "Signing takes no outside input but the PSBT; psbt_parse fuzzes that."
 other = ["Core end to end (INTEROP §1)"]   # checks outside the tree: another program, other wallets' files
@@ -631,7 +635,9 @@ and on the Pi's panel; only its width changes.
   entries, each wrapped in the room the item leaves; an entry is never
   run into the next on one line.
 - **Cross-check**, the longest field, is one list item like the rest:
-  headline "Cross-check", then its parts in §1's order, each a paragraph
+  headline "Cross-check", then the action's independence lines (§10.3),
+  each a paragraph, what is not independent in the Warning role, then
+  the area's parts in §1's order, each a paragraph
   led by its part's name in the medium face of Body M (Area, Faraday's
   code, Compared with, Vectors, Random cases, Differences, When it runs,
   Last passing run) and its value after it in the regular face. An area
@@ -783,8 +789,10 @@ which the generator reads (§3.1) and the lint checks are present and
 non-empty:
 
 - `faraday`: the Faraday code it drives, as paths the lint resolves;
-- `reference`: the second implementation, with its pinned folder under
-  `tools/reference/` or its distribution package, and `reference_checked`:
+- `reference`: the reference it compares with, with its pinned folder
+  under `tools/reference/` or its distribution package, or the area's own
+  file where Faraday's authors wrote it (whether it is independent is the
+  manifest's, §10.3), and `reference_checked`:
   how that one is checked before any case (its `check_driver`);
 - `vectors`: the published vector folders it runs, or "none published"
   with what there is;
@@ -820,13 +828,38 @@ was reviewed against its code. They fit together:
   fingerprints changed, so the rerun's reviewer knows which areas and
   which texts to look at.
 
+### 10.3 Who wrote the reference
+
+Built (F160, schema 3). An area may compare one action with code
+others wrote and another with a model of Faraday's own (`sign`'s
+signatures and its finalizer), so the class is the action's, not the
+area's: `independence = { class, author, ours }` in the action's
+`[action.checked]`, required with `crosscheck` and refused without it.
+`class` is `outside` (code Faraday did not write, used as published),
+`own-over-outside` (Faraday's own model over outside code) or `own-only`
+(Faraday's own model alone); `author` says who wrote the reference;
+`ours` names the part Faraday wrote and is given for the last two only.
+Faraday's own constructions carry `label = "own construction, not yet
+independently reviewed"` at the action's top level, every action with a
+`novel_rank` among them, until a decision records an outside review.
+
+The block draws them first in Cross-check: the label in the Warning
+role; for `outside`, "Reference written outside Faraday: <author>."; for
+the other two, "Not an independent check: …" in the Warning role with
+the part Faraday wrote, then "Reference written by <author>.". gen.py
+writes the cross-check README's "Who wrote each reference" and marks a
+STANDARDS Verified by cell whose area's reference is Faraday's own, and
+§7's items. `docs/crypto/verified.py`, in `just lint`, fails an action
+with an area and no class, and a novel action with no label.
+
 ## 11. The website's interface
 
 The website (its own private repository) builds from a pinned Faraday
 commit and already reads the guide from the pin. It reads:
 
-- docs/crypto/actions.toml at the pin, `schema = 1`, the schema of §2.2;
-  a schema it does not know stops its build;
+- docs/crypto/actions.toml at the pin, `schema = 3` (2 added §18's
+  constructions, 3 the independence of §10.3), the schema of §2.2; a
+  schema it does not know stops its build;
 - `docs/STANDARDS.md` at the pin, already generated;
 - the SHA-256 of actions.toml's bytes at the pin, written into each
   rendered page that shows a block or the standards.
@@ -855,7 +888,8 @@ written by hand (owner, 2026-10-28):
   at the release's tag. The actions with no screen follow under "In the
   repository, not in the app".
 - **Filters.** By standard, by status, by unchecked value (not checked
-  against vectors, not cross-checked, no fuzz target), by an own call
+  against vectors, not cross-checked, no fuzz target, a reference of
+  Faraday's own, an own construction's label, §10.3), by an own call
   with no decision, and by an own call's kind (Conservative, Neutral,
   Novel). With no filter, everything shows.
 - **One screen.** The whole page is one scrolling page with the filters

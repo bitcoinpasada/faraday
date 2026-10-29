@@ -53,7 +53,8 @@ WHAT = b"faraday test"
 DRAW = b"faraday test draw"
 COUNT = b"count"
 # The known answers own_randomness.rs states (computed there with
-# hashlib from §2.3, independently of the code).
+# hashlib from §2.3, apart from the Rust code but by Faraday's own
+# authors: not an independent check, F160).
 DRAW_PLAIN = "5e1e6e312247cd1efb95edae7db2c66f3a6588cde135c90ee91e75c29679364f"
 FRESH_PLAIN = "bf1ad502ef69b59b91987efa113f86dc832293d47fa42f3a604743799fdf4c07"
 DRAW_DICE = "7b795d54616b572836b470cc594e232e72c1a24c0bbae282c5186b76b602d031"

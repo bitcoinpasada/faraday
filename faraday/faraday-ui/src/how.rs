@@ -131,7 +131,7 @@ fn block<A: Copy + PartialEq>(
         });
     }
     cy += kept(ui, &cooked.heights, key, 6, cy, &mut |ui, y| {
-        cross_check(ui, (x, y, w), &b.cross_check, &cooked.run)
+        cross_check(ui, (x, y, w), b.independence, &b.cross_check, &cooked.run)
     });
     cy += kept(ui, &cooked.heights, key, 7, cy, &mut |ui, y| {
         item(ui, (x, y, w), EN.how_field_code, |ui, at| {
@@ -168,18 +168,32 @@ fn field<A: Copy + PartialEq>(
     })
 }
 
-/// Cross-check: one item, its parts each a paragraph led by the part's
+/// Cross-check: one item, the action's independence lines first (F160),
+/// each a paragraph, then its parts each a paragraph led by the part's
 /// name in the medium face of Body M. An action with no area has the one
 /// paragraph that says why.
 fn cross_check<A: Copy + PartialEq>(
     ui: &mut Ui<A>,
     at: (f32, f32, f32),
+    independence: &[Line],
     cc: &CrossCheck,
     run: &str,
 ) -> f32 {
-    item(ui, at, EN.how_field_crosscheck, |ui, (x, y, w)| match cc {
-        CrossCheck::Not(why) => line(ui, (x, y, w), why, Kind::Warn),
-        CrossCheck::Area(a) => area(ui, (x, y, w), a, run),
+    item(ui, at, EN.how_field_crosscheck, |ui, (x, y, w)| {
+        let mut cy = y;
+        if !independence.is_empty() {
+            cy += entries(
+                ui,
+                (x, cy, w),
+                independence.iter().map(|l| (l.text, l.kind)),
+            );
+            cy += GAP_SMALL;
+        }
+        cy += match cc {
+            CrossCheck::Not(why) => line(ui, (x, cy, w), why, Kind::Warn),
+            CrossCheck::Area(a) => area(ui, (x, cy, w), a, run),
+        };
+        cy - y
     })
 }
 

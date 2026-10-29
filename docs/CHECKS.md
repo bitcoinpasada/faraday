@@ -112,6 +112,8 @@ does what is `tools/README.md`'s.
 |---|---|---|---|---|---|---|
 | `crypto.crosscheck-stamp`: the crypto sources match the last passing cross-check | `core/*/src/**`<br>`tools/crosscheck/**`<br>`Cargo.lock` | held | - | `lint-crosscheck` | - | `docs/decisions/F79.md` |
 | `crypto.crosscheck-covered`: cryptography outside the cross-check stamp's crates and files is listed with the reason it is not covered | `core/*/src/**`<br>`faraday/**/src/**`<br>`core/*/Cargo.toml`<br>`faraday/**/Cargo.toml`<br>`tools/crosscheck/stamp.py`<br>`tools/lint-standards.toml` | held | - | `lint-standards` | whether a reason is true, and whether a listed file should be in the stamp's FILES | `docs/STANDARDS.md` §0<br>`docs/decisions/F79.md` |
+| `crypto.independence-labelled`: an action with a cross-check area says who wrote its reference and whether it is Faraday's own; an own construction carries its label | `docs/crypto/actions.toml`<br>`tools/crosscheck/area_*.py` | held | - | `crypto-verified` | whether a stated class is true of the area's code; the generated text going stale, as gen.py check is not yet in just lint | `docs/decisions/F160.md` |
+| `crypto.independence-said`: no text calls a check independent where the reference is Faraday's own | `docs/CROSSCHECK.md`<br>`docs/STANDARDS.md`<br>`docs/AUDIT.md`<br>`docs/crypto/actions.toml`<br>`tools/crosscheck/README.md`<br>`tools/crosscheck/area_*.py`<br>`tools/reference/**`<br>`tools/vault/**` | review | - | - | - | `docs/decisions/F160.md` |
 | `crypto.tested`: a cryptographic change is tested against published vectors or another implementation | `core/*/src/**`<br>`!core/faraday-draw/**` | review | - | - | planned: F148's inventory and re-stamp | `CLAUDE.md`<br>`docs/decisions/F148.md` |
 | `crypto.action-covered` (planned): every cryptographic function is covered by the inventory | `core/*/src/**`<br>`faraday/faraday-keys/src/**` | held | - | `crypto-inventory` | - | `docs/decisions/F148.md` |
 | `crypto.generated` (planned): STANDARDS and AUDIT's generated sections match the manifest | `docs/STANDARDS.md`<br>`docs/AUDIT.md` | held | - | `crypto-gen` | - | `docs/decisions/F148.md` |
@@ -253,6 +255,7 @@ No script holds these; a reviewer reads this list for the change.
 | `standards.no-way-past`: a check that keeps keys or money safe has no way past it unless a decision names the case; a hold names it | `CLAUDE.md`<br>`docs/decisions/F136.md` |
 | `standards.out-of-app`: unpublished or unreviewed work stays in the repository, compiled out of the app | `docs/STANDARDS.md` §0<br>`docs/decisions/F109.md` |
 | `standards.scope`: a new kind of key or signature is a decision | `docs/decisions/F116.md` |
+| `crypto.independence-said`: no text calls a check independent where the reference is Faraday's own | `docs/decisions/F160.md` |
 | `crypto.tested`: a cryptographic change is tested against published vectors or another implementation | `CLAUDE.md`<br>`docs/decisions/F148.md` |
 | `crypto.at-source`: core/ is Faraday's own code: a thing is fixed at its source rather than wrapped | `CLAUDE.md` |
 | `crypto.kept-values`: a type re-implemented from a core/ one keeps the values the original works out once | `CLAUDE.md` |
@@ -285,5 +288,6 @@ No script holds these; a reviewer reads this list for the change.
 | `website.roles`: the website's colour roles | `faraday/faraday-ui/src/pal/schemes.rs` | the site's roles are written again from the pinned commit |
 | `website.wordmark`: the website's wordmark | `faraday/faraday-ui/assets/wordmark.txt` | the site's wordmark outlines are copied again |
 | `website.standards`: the website's standards page | `docs/STANDARDS.md` | the standards page is edited to match (rendered from the manifest once F148 is built) |
+| `website.cryptography`: the website's /cryptography page | `docs/crypto/actions.toml`<br>`docs/crypto/gen.py`<br>`docs/crypto/gen_how.py`<br>`docs/CRYPTO-LEARN.md`<br>`tools/crosscheck/stamp`<br>`tools/crosscheck/area_*.py`<br>`Cargo.lock` | the page is generated again from the pinned manifest; a schema it does not know stops its build (docs/CRYPTO-LEARN.md §11.1) |
 | `website.tour`: the website's tour | `**/screen.rs`<br>`faraday/faraday-core/src/screens/**` | the tour's pictures are made again |
 | `website.demo`: the website's demo | `faraday/faraday-core/src/host/**`<br>`faraday/faraday-samples/**`<br>`Cargo.lock` | the demo is built and its tests run; its own build refuses a break |

@@ -1,8 +1,12 @@
 """What every area of the cross-check shares: the Rust process, the
 comparison, the seeded randomness and the vendored references.
 
-Standard library only. Every reference is imported from
-`tools/reference/`, after `references.sha256` has been checked.
+Standard library only. Every vendored reference, code Faraday did not
+write, is imported from `tools/reference/` after `references.sha256` has
+been checked. The models Faraday's own authors wrote (`btc.py`,
+`miniscript_ref.py` and the models inside the `area_*.py` files) live
+here in `tools/crosscheck/`; they are not independent implementations
+(F160, `docs/crypto/actions.toml`'s `independence`).
 """
 
 import hashlib

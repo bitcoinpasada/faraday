@@ -346,6 +346,14 @@ blocking = true
 site_with = ["web/standards.html"]
 
 [[consumer]]
+id = "website.cryptography"
+name = "the website's /cryptography page"
+reads = ["docs/crypto/actions.toml", "docs/crypto/gen.py", "docs/crypto/gen_how.py", "docs/CRYPTO-LEARN.md", "tools/crosscheck/stamp", "tools/crosscheck/area_*.py", "Cargo.lock"]
+act = "the page is generated again from the pinned manifest; a schema it does not know stops its build (docs/CRYPTO-LEARN.md §11.1)"
+blocking = true
+site_with = ["tools/cryptography.py", "web/cryptography.html"]
+
+[[consumer]]
 id = "website.tour"
 name = "the website's tour"
 reads = ["**/screen.rs", "faraday/faraday-core/src/screens/**"]
@@ -602,6 +610,22 @@ when = ["core/*/src/**", "faraday/**/src/**", "core/*/Cargo.toml", "faraday/**/C
 kind = "held"
 held_by = ["lint-standards"]
 misses = "whether a reason is true, and whether a listed file should be in the stamp's FILES"
+
+[[rule]]
+id = "crypto.independence-labelled"
+title = "an action with a cross-check area says who wrote its reference and whether it is Faraday's own; an own construction carries its label"
+source = ["docs/decisions/F160.md"]
+when = ["docs/crypto/actions.toml", "tools/crosscheck/area_*.py"]
+kind = "held"
+held_by = ["crypto-verified"]
+misses = "whether a stated class is true of the area's code; the generated text going stale, as gen.py check is not yet in just lint"
+
+[[rule]]
+id = "crypto.independence-said"
+title = "no text calls a check independent where the reference is Faraday's own"
+source = ["docs/decisions/F160.md"]
+when = ["docs/CROSSCHECK.md", "docs/STANDARDS.md", "docs/AUDIT.md", "docs/crypto/actions.toml", "tools/crosscheck/README.md", "tools/crosscheck/area_*.py", "tools/reference/**", "tools/vault/**"]
+kind = "review"
 
 [[rule]]
 id = "crypto.tested"

@@ -734,7 +734,8 @@ introduction):
 ## 8. Tests that are not added
 
 No test states a constant (`COMMIT_LEN`'s value) or the layout against
-this document: the vectors and the second implementation hold the bytes,
+this document: the vectors and the second reader (a model Faraday's own
+authors wrote, not an independent implementation, F160) hold the bytes,
 and the tests above are what a person or a second reader notices.
 
 ## 9. Order of work
@@ -813,7 +814,9 @@ encryption and associated data, the filler of unused slots, opening all
 four, sealing, the passphrase in NFC, the commitment block, the
 seal count, and the record and payload layouts of VAULT §7 (F97). Not in
 scope: Argon2id, XChaCha20-Poly1305 and HKDF themselves (published, and
-checked against their vectors and a second implementation); the app's
+checked against their vectors; Argon2id and XChaCha20-Poly1305 also
+against argon2-cffi and libsodium, HKDF against a model of Faraday's own
+until PyCA `cryptography` replaces it, CROSSCHECK §10.7); the app's
 screens; the backup plan.
 
 **What to ask the reviewer:**

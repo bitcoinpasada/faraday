@@ -109,7 +109,7 @@ need. Each document's header says what kind it is:
 - `docs/MOTION.md`: Scrolling, motion and appearance. Built; not yet checked by the owner on hardware.
 - `docs/CRYPTO-LEARN.md`: How Faraday does it: one manifest for every cryptographic action. Specified (F148), not built.
 - `docs/VAULT-HARDENING.md`: Vault hardening: the file's name, the passphrase, key commitment and the seal count. Specified (F159), not built.
-- `docs/CROSSCHECK.md`: Two implementations of every cryptographic step. Option A decided (F79) and built (§10.5); options B and C deferred.
+- `docs/CROSSCHECK.md`: A second implementation of each cryptographic step, and which references are Faraday's own (§10, §10.7, F160). Option A decided (F79) and built (§10.5); options B and C deferred.
 - `docs/NOSTR.md`: The Nostr key. Not built, not scheduled (F27, amended by F34).
 - `docs/OWN-RANDOMNESS.md`: Your own randomness, and the kernel's at boot. Specified, partly built (F86, F157); Add randomness at every press that draws the system's randomness (§8) not built.
 - `docs/QR.md`: QR transfer and scanning. Built, except §7.

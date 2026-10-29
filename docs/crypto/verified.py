@@ -15,8 +15,13 @@ vectors folder the cross-check reads (`tools/crosscheck/stamp.py`'s
 describes work not built, or work that computes nothing of its own, and
 names no check by rule. Every cross-check area (`tools/crosscheck/area_*.py`)
 and every folder of `tools/vectors/` is named by a row's actions, or the
-folder is in `[[vector_no_action]]`. Standard library only; reads no
-source file but the manifest and two directory listings.
+folder is in `[[vector_no_action]]`. Every action with an area says how
+independent its reference is (F160): `independence` (outside,
+own-over-outside or own-only), with its `author` and, for a reference of
+Faraday's own, `ours`; an action with a `novel_rank` carries the `label`
+of an own construction. So a new area, which some action must name, declares
+its class. Standard library only; reads no source file but the manifest
+and two directory listings.
 
 Not checked: STANDARDS §9, which is written by hand; whether a named test
 tests the row's standard (check.py's truth checks hold the names).
@@ -44,9 +49,30 @@ def checks_of(data, row):
     return areas, vectors, tests
 
 
+def independence_problems(data):
+    """An action with an area and no class, or a novel action with no label (F160)."""
+    out = []
+    for a in data.get("action", []):
+        chk, i = a.get("checked", {}), a.get("id")
+        if chk.get("crosscheck"):
+            ind = chk.get("independence")
+            ind = ind if isinstance(ind, dict) else {}
+            cls = ind.get("class")
+            if cls not in check.INDEPENDENCE:
+                out.append(f"action {i}: its area's reference has no `independence` class "
+                           f"({', '.join(sorted(check.INDEPENDENCE))})")
+            if not check.str_ok(ind.get("author")):
+                out.append(f"action {i}: no `independence.author`, who wrote its area's reference")
+            if cls in ("own-over-outside", "own-only") and not check.str_ok(ind.get("ours")):
+                out.append(f"action {i}: no `independence.ours`, the part Faraday wrote")
+        if "novel_rank" in a and a.get("label") not in check.LABELS:
+            out.append(f"action {i}: a novel action with no own-construction `label`")
+    return out
+
+
 def problems(root, data, vectors_read):
     root = pathlib.Path(root)
-    out = []
+    out = independence_problems(data)
     named_areas, named_vectors = set(), set()
     for row in data.get("row", []):
         rid = row.get("id")
@@ -94,7 +120,9 @@ def self_test():
         good = {
             "row": [{"id": "r1"}, {"id": "r2"}, {"id": "r3", "no_action": "Not built."}],
             "action": [
-                {"id": "a1", "row": "r1", "checked": {"crosscheck": "one", "vectors": ["vec"]}},
+                {"id": "a1", "row": "r1", "checked": {"crosscheck": "one", "vectors": ["vec"],
+                                                      "independence": {"class": "outside",
+                                                                       "author": "them"}}},
                 {"id": "a2", "row": "r2", "checked": {"tests": ["t.rs::x"]}},
             ],
         }
@@ -104,6 +132,17 @@ def self_test():
         bad = {"row": [{"id": "r1"}], "action": [{"id": "a1", "row": "r1", "checked": {"tests": ["gone.rs::x"]}}]}
         p = problems(root, bad, ["vec"])
         for want in ("row r1", "area one", "tools/vectors/vec"):
+            if not any(want in x for x in p):
+                fails.append(f"missed: {want}")
+        unlabelled = {"action": [
+            {"id": "b1", "checked": {"crosscheck": "one"}},
+            {"id": "b2", "checked": {"crosscheck": "one",
+                                     "independence": {"class": "own-only", "author": "us"}}},
+            {"id": "b3", "novel_rank": 1, "checked": {"not_crosschecked": "none"}},
+        ]}
+        p = independence_problems(unlabelled)
+        for want in ("b1: its area's reference has no `independence`", "b1: no `independence.author`",
+                     "b2: no `independence.ours`", "b3: a novel action"):
             if not any(want in x for x in p):
                 fails.append(f"missed: {want}")
         for f in fails:

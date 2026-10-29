@@ -1,10 +1,13 @@
 # The crypto cross-check
 
 F79, `docs/CROSSCHECK.md` §10. Faraday's own Rust answers requests, and
-independent pure-Python references recompute every answer, over every
-published vector and a corpus of random inputs drawn from a fixed seed.
-The first disagreement stops the area and is printed with its inputs
-and both answers.
+pure-Python references recompute every answer, over every published
+vector and a corpus of random inputs drawn from a fixed seed. The first
+disagreement stops the area and is printed with its inputs and both
+answers. Some references are code Faraday did not write; others are
+models Faraday's authors wrote, over outside code or alone, and those
+are not independent checks (F160): "Who wrote each reference" below says
+which, per action.
 
 ## Running it
 
@@ -438,6 +441,66 @@ difference"), and says why.
     header's hash and derives nothing, and only then with the
     passphrase.
 <!-- facts:end known-differences -->
+
+## Who wrote each reference
+
+Each action's cross-check reference by its independence class (F160):
+code Faraday did not write; Faraday's own model over outside code, which
+names the part Faraday wrote; or Faraday's own model only. Only the first
+is an independent check. The table is written by `docs/crypto/gen.py`
+from the `independence` table of each action in
+`docs/crypto/actions.toml`, which the app's and the website's
+Cryptography blocks read too: edit the manifest, then run
+`python3 -I -B docs/crypto/gen.py write`. `just lint` fails on an action
+with an area and no class (`docs/crypto/check.py`).
+
+<!-- crypto-manifest: begin independence -->
+| Area | Reference | Written by | Faraday's own part | Actions |
+|---|---|---|---|---|
+| `bip39` | code Faraday did not write | python-mnemonic, by Trezor (SatoshiLabs) | none | words-read, words-make, seed, vault-load |
+| `bip32` | Faraday's own model over outside code | Faraday's authors (`btc.py`), over `secp256k1lab`, by libsecp256k1's developers | BIP-32's derivation, serialisation, Base58Check and strict decoding, written in `btc.py` from the BIP | master, derive, multisig-account, xprv-shown, wif-shown |
+| `codex32` | code Faraday did not write | python-codex32, by Ben Westgate | none | seed-shown, codex32 |
+| `bip39` | code Faraday did not write | python-mnemonic, by Trezor (SatoshiLabs), and Python's `hashlib` and `hmac` (OpenSSL) | none | hashes-macs |
+| `lightning` | Faraday's own model over outside code | Faraday's authors (`area_lightning.py`), from LND's and ldk-node's sources as `tools/reference/aezeed/README.md` quotes them, over `btc.py` and python-mnemonic | the area runs no scrypt of its own: scrypt is checked only through LND's five published seeds | scrypt |
+| `addr` | Faraday's own model over outside code | Bitcoin Core's functional-test framework, v31.1, by Bitcoin Core's contributors, for the address text; Faraday's authors (`btc.py`), over `secp256k1lab`, by libsecp256k1's developers, for the keys | the wallet's keys, derived by `btc.py`, and BIP-86's tweak, written in `area_addr.py` | address |
+| `miniscript` | Faraday's own model over outside code | python-bip380, by Antoine Poinsot, and Bitcoin Core's `taproot_construct` | the wallet's keys, derived by `btc.py` | descriptor, recovery |
+| `taproot` | Faraday's own model over outside code | Bitcoin Core's functional-test framework, v31.1, by Bitcoin Core's contributors | BIP-341's script-path check of a control block, written in `area_taproot.py` | tapmulti |
+| `musig` | code Faraday did not write | BIP-327's `reference.py`, by the BIP's authors | none | musig-key, sign-musig |
+| `addr` | Faraday's own model over outside code | Bitcoin Core's functional-test framework, v31.1, by Bitcoin Core's contributors, for Base58Check | SLIP-132's version table and the rule for which version goes with which script, written in `area_addr.py` | xpub-spellings |
+| `addr` | code Faraday did not write | Bitcoin Core's functional-test framework, v31.1, by Bitcoin Core's contributors | none | address-read |
+| `addr` | code Faraday did not write | Bitcoin Core's functional-test framework, v31.1, by Bitcoin Core's contributors, and Python's `hashlib` | none | tools-hash |
+| `entropy` | Faraday's own model only | Faraday's authors (`area_entropy.py`), over Python's `hashlib` | the three dice procedures, written out in `area_entropy.py` from the sources `tools/reference/dice/README.md` quotes | dice |
+| `entropy` | Faraday's own model only | Faraday's authors (`area_entropy.py`), over Python's `hashlib` | the packing of flips and digits, written out in `area_entropy.py` | coins-hex |
+| `entropy` | Faraday's own model only | Faraday's authors (`area_entropy.py`), over Python's `hashlib` | the card procedure, written out in `area_entropy.py` | cards |
+| `entropy` | Faraday's own model only | Faraday's authors (`area_entropy.py`), over Python's `hashlib` | the frames' commitment, written out in `area_entropy.py` | camera |
+| `own-randomness` | Faraday's own model only | Faraday's authors (`area_own.py`), over Python's `hashlib` | `docs/OWN-RANDOMNESS.md` §2.1 and §2.3, written out in `area_own.py` | pointer-keys, fresh |
+| `entropy` | Faraday's own model only | Faraday's authors (`area_entropy.py`), over Python's `hashlib` | the mix of commitments, written out in `area_entropy.py` | mix |
+| `entropy` | Faraday's own model only | Faraday's authors (`area_entropy.py`), over Python's `hashlib` | the hash of the shell's answer, written out in `area_entropy.py` | device |
+| `roller` | Faraday's own model only | Faraday's authors (`area_roller.py`) | the booklet's dice worksheet, written out in `area_roller.py` from `docs/CODEX32.md` §5.5 | booklet |
+| `roller` | Faraday's own model only | Faraday's authors (`area_roller.py`) | Faraday Demo's roller, written out in `area_roller.py` from `docs/CODEX32.md` §5.6 | roller |
+| `bip85` | Faraday's own model over outside code | ethankosakovsky/bip85, by Ethan Kosakovsky, over python-mnemonic, by Trezor (SatoshiLabs) | the hardened-BIP-32 shim it runs on, written in `tools/reference/bip85/shims/` | bip85 |
+| `vanity` | Faraday's own model over outside code | Faraday's authors (`area_vanity.py`), over python-mnemonic, `btc.py` and the `addr` area's address writing | EntropyLab's counter, written out in `area_vanity.py` from a quotation | vanity |
+| `lightning` | Faraday's own model over outside code | Faraday's authors (`area_lightning.py`), from LND's and ldk-node's sources as `tools/reference/aezeed/README.md` quotes them, over `btc.py` and python-mnemonic | the aezeed's outer layer (CRC-32C, version), written in `area_lightning.py`; AEZ has no second implementation, only LND's published seeds | aezeed |
+| `lightning` | Faraday's own model over outside code | Faraday's authors (`area_lightning.py`), from LND's and ldk-node's sources as `tools/reference/aezeed/README.md` quotes them, over `btc.py` and python-mnemonic | ldk-node's and LND's derivations, written in `area_lightning.py` from quoted sources, over `btc.py` | lightning-node |
+| `sp` | code Faraday did not write | BIP-352's `reference.py`, by the BIP's authors, over `secp256k1lab` | none | silent-receive |
+| `psbt` | Faraday's own model over outside code | Faraday's authors (`area_psbt.py`), over Bitcoin Core's `CTransaction` | the PSBT reader and writer, BIP-174's and 371's field rules, written in `area_psbt.py` | psbt-read |
+| `psbt` | Faraday's own model over outside code | Faraday's authors (`area_psbt.py`), over Bitcoin Core's `CTransaction` | the PSBT reader and writer, BIP-370's field rules and the conversion, written in `area_psbt.py` | psbt-v2 |
+| `tx` | code Faraday did not write | Bitcoin Core's functional-test framework, v31.1, by Bitcoin Core's contributors | none | sighash-review, tx-decode |
+| `sign` | Faraday's own model over outside code | Faraday's authors (`area_sign.py`), over Bitcoin Core's `script.py`, `taproot_construct` and `key.py`, and python-bip380 by Antoine Poinsot | BIP-174's signer: which inputs and keys sign, the low-R grind and the refusals, written in `area_sign.py` | sign-ecdsa |
+| `sign` | Faraday's own model over outside code | Faraday's authors (`area_sign.py`), over Bitcoin Core's `script.py`, `taproot_construct` and `key.py`, and python-bip380 by Antoine Poinsot | BIP-174's signer and BIP-371's fields: which keys and leaves sign, written in `area_sign.py` | sign-schnorr |
+| `sign` | Faraday's own model over outside code | Faraday's authors (`area_sign.py`), over Bitcoin Core's `script.py`, `taproot_construct` and `key.py`, and python-bip380 by Antoine Poinsot | BIP-174's finalizer and extractor, the tap leaf chosen, the `multi_a` rule and the timelock checks, written in `area_sign.py` | finalize |
+| `msg` | Faraday's own model over outside code | Faraday's authors (`area_msg.py`), over Bitcoin Core's `script.py` sighashes and `secp256k1lab`'s BIP-340 | BIP-137 and BIP-322 written out in `area_msg.py`: RFC 6979 ECDSA, the low-R grind, the headers, BIP-322's virtual transactions | message-sign, message-verify |
+| `seedqr` | code Faraday did not write | Project Nayuki's `qrcodegen.py`, by Nayuki | none | qr, codex32qr |
+| `ur` | code Faraday did not write | foundation-ur-py, by Foundation Devices | none | ur |
+| `bbqr` | Faraday's own model over outside code | Coinkite's BBQr library, by Coinkite, for BBQr; Faraday's authors (`area_bbqr.py`), for the numbered parts | SeedSigner's numbered-part reader, written in `area_bbqr.py` from a quotation, and a one-table pyqrcode shim | bbqr |
+| `seedqr` | Faraday's own model over outside code | Faraday's authors (`area_seedqr.py`), over python-mnemonic and Project Nayuki's `qrcodegen.py`, by Nayuki | SeedSigner's SeedQR specification, written out in `area_seedqr.py` | seedqr-make, seedqr-read |
+| `codex32` | Faraday's own model over outside code | python-codex32, by Ben Westgate | the worksheets' rows, written in `area_codex32.py` from python-codex32's polymod | codex32-make |
+| `codex32-correct` | code Faraday did not write | python-codex32, by Ben Westgate (its `correction.py`) | none | codex32-correct |
+| `slip39` | code Faraday did not write | python-shamir-mnemonic, by Trezor (SatoshiLabs) | none | slip39 |
+| `xor` | Faraday's own model over outside code | python-mnemonic, by Trezor (SatoshiLabs) | the byte XOR of the parts, written in `area_xor.py` | xor |
+| `vault` | Faraday's own model over outside code | Faraday's authors (`area_vault.py`), over argon2-cffi (the Argon2 designers' reference code) and PyNaCl (libsodium) | the container, its slot layout, key schedule and records, written in `area_vault.py` from `docs/VAULT.md`, and HKDF-SHA256 and the ChaCha20 block written over the standard library | vault-create, vault-unlock, vault-seal, vault-edit |
+| `kdbx` | code Faraday did not write | pykeepass, by the libkeepass project (the distribution's package) | none | kdbx |
+<!-- crypto-manifest: end independence -->
 
 ## What the machine needs
 

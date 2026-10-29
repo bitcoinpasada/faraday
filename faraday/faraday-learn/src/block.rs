@@ -89,6 +89,11 @@ pub struct Block {
     pub checked: &'static [Line],
     /// Cross-check.
     pub cross_check: CrossCheck,
+    /// Drawn first in Cross-check (F160): an own construction's label
+    /// ("Own construction, not yet independently reviewed: ..."), then
+    /// who wrote the area's reference and, for a reference of Faraday's
+    /// own, that it is not an independent check. Empty for neither.
+    pub independence: &'static [Line],
     /// Code: the entries; the repository's address follows them.
     pub code: &'static [Code],
     /// Secret handling.

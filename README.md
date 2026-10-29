@@ -334,9 +334,13 @@ Why this is better than one repository and one application:
   question with no screen in it, lives in `core/` (`docs/WALLETS.md` §1
   rule 5).
 - **Checked against others.** Each cryptographic crate is tested against
-  published vectors (`tools/vectors/`) and independent implementations:
-  a Python reader opens Faraday's vaults, `gpg` and `paperkey` judge its
-  OpenPGP packets, `openssl` and `sbverify` its Secure Boot output.
+  published vectors (`tools/vectors/`) and, where one exists, an
+  implementation Faraday did not write: `gpg` and `paperkey` judge its
+  OpenPGP packets, `openssl` and `sbverify` its Secure Boot output. Some
+  references are still models Faraday's own authors wrote (the Python
+  reader of Faraday's vaults among them), and the vault and own
+  randomness are Faraday's own constructions, not yet independently
+  reviewed; `docs/CROSSCHECK.md` §10 says which (F160).
 
 `unsafe` Rust is forbidden across the workspace. The exceptions in what
 Faraday builds are `faraday-crypto` (locking secret pages in RAM), the camera crate
@@ -452,7 +456,7 @@ just                                         the check: every test and lint
 cargo run -p faraday-desktop --release       Faraday in a window, on testnet
 just dev=1 faraday-stick-image               a stick image for trying a machine
 just faraday-starter --image out/stick/faraday-x86_64-uefi-strict-dev.img   write it to a stick
-just crosscheck                              the crypto against independent references
+just crosscheck                              the crypto against its Python references
 just crosscheck-status --follow              a running cross-check, from another terminal
 ```
 

@@ -64,7 +64,13 @@ CFG_OK = {"cfg(test)", 'cfg(target_pointer_width = "64")', "cfg(unix)",
 
 TOP_KEYS = {"schema", "standard", "row", "action", "not_crypto", "vector_no_action", "hold",
             "tag_no_standard", "construction", "name_with_digits", "open_item"}
-SCHEMA = 2
+SCHEMA = 3
+# How independent an action's cross-check reference is (F160, schema 3): code Faraday did not
+# write, a model of Faraday's own over outside primitives, or a model of Faraday's own only.
+INDEPENDENCE = {"outside", "own-over-outside", "own-only"}
+INDEPENDENCE_KEYS = {"class", "author", "ours"}
+# The tag an action of Faraday's own construction carries until an outside review (F160).
+LABELS = {"own construction, not yet independently reviewed"}
 # A construction (§18): how a format several actions share is built, drawn in Learn.
 CONSTRUCTION_KEYS = {"id", "title", "learn", "actions", "section", "review"}
 SECTION_KEYS = {"heading", "para"}
@@ -83,10 +89,10 @@ ROW_KEYS = {"id", "section", "what", "completeness", "standard_note", "uses", "n
 ROW_TEXTS = ("standard", "verified", "own")
 STARTER_PAGES = {"write", "confirm", "writing", "done", "start"}
 ACTION_KEYS = {"id", "name", "screens_not", "action", "row", "standards", "learn", "screens", "functions", "code",
-               "novel_rank", "implementation", "checked", "secrets", "limits", "own", "review"}
+               "novel_rank", "implementation", "checked", "secrets", "limits", "own", "review", "label"}
 IMPL_KEYS = {"crate", "libraries", "adds", "written_here"}
 CHECKED_KEYS = {"vectors", "tests", "crosscheck", "not_crosschecked", "selftest", "fuzz",
-                "fuzz_none", "other"}
+                "fuzz_none", "other", "independence"}
 SECRETS_KEYS = {"reveal", "constant_time", "wiped"}
 OWN_KEYS = {"text", "kind", "decision"}
 REVIEW_KEYS = {"places", "fingerprint", "reviewed"}
@@ -541,6 +547,27 @@ def schema_action(c, a, i):
             bad("checked: exactly one of `crosscheck` and `not_crosschecked`")
         if bool(chk.get("fuzz")) == bool(chk.get("fuzz_none")):
             bad("checked: exactly one of `fuzz` and `fuzz_none`")
+        ind = chk.get("independence")
+        if chk.get("crosscheck"):
+            if not isinstance(ind, dict):
+                bad("checked: `independence = { class, author }` is missing (F160)")
+                ind = {}
+            unknown(e, f"action {i}.checked.independence", ind, INDEPENDENCE_KEYS, i)
+            cls = ind.get("class")
+            if cls not in INDEPENDENCE:
+                bad(f"checked: `independence.class` is one of {sorted(INDEPENDENCE)} (F160)")
+            if not str_ok(ind.get("author")):
+                bad("checked: `independence.author`, who wrote the reference, is missing or empty")
+            if cls == "outside" and "ours" in ind:
+                bad("checked: an `outside` reference has no `ours`")
+            if cls in ("own-over-outside", "own-only") and not str_ok(ind.get("ours")):
+                bad("checked: `independence.ours`, the part Faraday wrote, is missing or empty")
+        elif ind is not None:
+            bad("checked: `independence` is for an action with a cross-check area")
+    if "label" in a and a["label"] not in LABELS:
+        bad(f"`label` is one of {sorted(LABELS)}")
+    if "novel_rank" in a and "label" not in a:
+        bad("an action with `novel_rank` carries the `label` of an own construction (F160)")
     if isinstance(sec, dict):
         rv = sec.get("reveal")
         if not (rv == "none" or (isinstance(rv, list) and rv and all(str_ok(x) for x in rv))):
@@ -1677,7 +1704,7 @@ def fn_rec(file, name, h, rules=(3,), callees=(), cross=(), crate="c"):
             "cross": list(cross)}
 
 
-FIXTURE_MANIFEST = '''schema = 2
+FIXTURE_MANIFEST = '''schema = 3
 
 [standard."BIP 1"]
 name = "A standard"
@@ -2042,6 +2069,28 @@ def self_test():
         ok, _ = broken("docs/crypto/actions.toml", 'completeness = "All"\n',
                        'completeness = "All"\nown = "Typed."\n', "schema", "takes its cells from them")
         expect(ok, "a row with its own actions types no cell")
+        print("independence (F160):")
+        nocc = 'not_crosschecked = "none here"\nselftest'
+        ok, _ = broken("docs/crypto/actions.toml", nocc,
+                       'not_crosschecked = "none here"\nindependence = { class = "outside" }\nselftest',
+                       "schema", "`independence` is for an action with a cross-check area")
+        expect(ok, "an action with no area states no independence")
+        ok, _ = broken("docs/crypto/actions.toml", nocc, 'crosscheck = "x"\nselftest', "schema",
+                       "`independence = { class, author }` is missing")
+        expect(ok, "an action with an area states its reference's independence")
+        ok, _ = broken("docs/crypto/actions.toml", nocc, 'crosscheck = "x"\nindependence = '
+                       '{ class = "outside" }\nselftest', "schema", "`independence.author`")
+        expect(ok, "an action with an area names who wrote its reference")
+        ok, _ = broken("docs/crypto/actions.toml", nocc, 'crosscheck = "x"\nindependence = '
+                       '{ class = "own-only", author = "us" }\nselftest', "schema", "`independence.ours`")
+        expect(ok, "a reference of Faraday's own names the part Faraday wrote")
+        ok, _ = broken("docs/crypto/actions.toml", nocc, 'crosscheck = "x"\nindependence = '
+                       '{ class = "outside", author = "them", ours = "x" }\nselftest', "schema",
+                       "has no `ours`")
+        expect(ok, "an outside reference names no part of Faraday's")
+        ok, _ = broken("docs/crypto/actions.toml", 'row = "row-one"\nstandards',
+                       'row = "row-one"\nnovel_rank = 1\nstandards', "schema", "carries the `label`")
+        expect(ok, "a novel action carries the own-construction label")
         c = check(moved)
         expect(not c.errors.items, f"and the fixture is whole again {msgs(c)}")
 

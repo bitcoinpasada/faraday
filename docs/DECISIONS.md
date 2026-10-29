@@ -93,7 +93,7 @@ Read this table, then only the decision you need.
 | [F76](decisions/F76.md) | The key explorer lists an account's addresses and finds one | 2026-10-22 | Active | wallets |
 | [F77](decisions/F77.md) | Back lands on the screen seen before, as it was seen | 2026-10-22 | Amended by F104, F128 | design |
 | [F78](history/decisions/F78.md) | A window's layout does not follow the compositor's scale above 1.5 | 2026-10-22 | Replaced by F101 | design |
-| [F79](decisions/F79.md) | Faraday's crypto is cross-checked against Python references, offline, at build time | 2026-10-22 | Active | crypto |
+| [F79](decisions/F79.md) | Faraday's crypto is cross-checked against Python references, offline, at build time | 2026-10-22 | Amended by F160 | crypto |
 | [F80](decisions/F80.md) | A stick or Pi card has a 64 MiB boot and a 128 MiB FAT32 data partition | 2026-10-22 | Amended by F128 | stick |
 | [F81](decisions/F81.md) | Modes: a pressable pill, Practice on testnet, samples at every step | 2026-10-22 | Amended by F119, F143 | design |
 | [F82](decisions/F82.md) | A first start opens Steps only; Guided is a choice | 2026-10-22 | Active | design |
@@ -172,5 +172,6 @@ Read this table, then only the decision you need.
 | [F155](decisions/F155.md) | The other refusals of input a standard allows: keys, wallet files, PSBTs, transfers, shares, the vault and the paperkey | 2026-10-28 | Active | crypto |
 | [F156](decisions/F156.md) | Schnorr signatures are made with zero aux_rand | 2026-10-28 | Active | security |
 | [F157](decisions/F157.md) | Wherever the system's randomness is used, the person can add their own: Add randomness at every press that draws it | 2026-10-28 | Active | security |
-| [F158](decisions/F158.md) | Faraday's own constructions in the app until an outside review: cards, the camera, a mix, the vault's container and the Secure Boot generator | 2026-10-28 | Active | security |
+| [F158](decisions/F158.md) | Faraday's own constructions in the app until an outside review: cards, the camera, a mix, the vault's container and the Secure Boot generator | 2026-10-28 | Amended by F160 | security |
 | [F159](decisions/F159.md) | The vault is a `.fvlt` file beginning `FVLT`, its passphrase in NFC, each slot committed to its key and counting its seals, and its construction told in Learn | 2026-10-28 | Active | security |
+| [F160](decisions/F160.md) | A check counts only against code Faraday did not write; Faraday's own constructions are labelled until an outside review; Bitcoin Core in the cross-check | 2026-10-29 | Active | crypto |

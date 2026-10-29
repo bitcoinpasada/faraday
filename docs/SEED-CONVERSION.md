@@ -9,7 +9,7 @@ another form. It replaces putting conversions in vault items or on the
 backup board (`docs/CODEX32.md` §9.6 and §10.5 send them here). A
 conversion is offered only where its result restores the same wallet in
 the standard it is written in, checked against that standard's
-published vectors and another implementation. Each result says which
+published vectors and an implementation Faraday did not write (F160). Each result says which
 standard it is and which software restores it.
 
 ## 1. The rules
@@ -270,17 +270,18 @@ SLIP-39 needs that codex32 does not:
 ## 9. Tests
 
 Each conversion against its standard's published vectors and against
-another implementation (`docs/CROSSCHECK.md` §2's references, run
+an implementation Faraday did not write (F160; `docs/CROSSCHECK.md` §3's
+references, run
 through §10's cross-check once built; until then their output is
 checked in as fixtures under `tools/vectors/`, each with the script and
 the reference's commit that made it, as `tools/reference/aezeed/README.md`
 records its sources).
 
-| Conversion | Published vectors | Another implementation |
+| Conversion | Published vectors | An implementation Faraday did not write |
 |---|---|---|
-| Words ↔ SeedQR, CompactSeedQR | SeedSigner's SeedQR specification vectors | SeedSigner's own encoder (Python) |
+| Words ↔ SeedQR, CompactSeedQR | SeedSigner's SeedQR specification vectors | SeedSigner's own encoder (Python), planned (CROSSCHECK §10.7 item 5); today the `seedqr` area compares with SeedSigner's specification written out by Faraday's own authors, not an independent check |
 | Words ↔ entropy, numbers, starts | BIP-39's vectors (`tools/vectors/bip39`) | python-mnemonic |
-| Words ↔ Seed XOR | Coldcard's published examples (`tools/vectors/xor`) | Coldcard's `xor_seed` code (Python) |
+| Words ↔ Seed XOR | Coldcard's published examples (`tools/vectors/xor`) | Coldcard's `xor_seed` code (Python), planned where its licence allows (CROSSCHECK §10.7 item 5); today the `xor` area's byte XOR is Faraday's own, over python-mnemonic |
 | Words → seed, xprv | BIP-39's vectors (seed and xprv columns) | python-mnemonic, embit |
 | codex32 ↔ SLIP-39 | BIP-93's and SLIP-39's vectors (`tools/vectors/slip39`), each read and written the other way | python-codex32 and python-shamir-mnemonic over random seeds: the same fingerprint both ways |
 | SLIP-39 with passphrase → codex32 | SLIP-39's vectors (passphrase `TREZOR`) | python-shamir-mnemonic |

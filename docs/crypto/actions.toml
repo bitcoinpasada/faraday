@@ -4,7 +4,7 @@
 # every function no action covers; docs/crypto/gen.py writes STANDARDS §1 to §7
 # and AUDIT §3 from this file.
 
-schema = 2                      # constructions (docs/CRYPTO-LEARN.md §18) are new in schema 2
+schema = 3                      # constructions (docs/CRYPTO-LEARN.md §18) are new in schema 2; independence (F160) in 3
 
 [standard."BIP 32"]
 name = "Hierarchical Deterministic Wallets"
@@ -895,6 +895,7 @@ tests = [
   "core/faraday-bip/tests/all/readings.rs::typing_a_reading_finds_the_character_it_names",
 ]
 crosscheck = "bip39"
+independence = { class = "outside", author = "python-mnemonic, by Trezor (SatoshiLabs)" }
 selftest = [
   "bip39_vector",
   "bip39_japanese_vector",
@@ -963,6 +964,7 @@ tests = [
   "core/faraday-bip/tests/all/vectors.rs::trezor_vectors_all_languages",
 ]
 crosscheck = "bip39"
+independence = { class = "outside", author = "python-mnemonic, by Trezor (SatoshiLabs)" }
 fuzz_none = "Takes entropy of a fixed length from the person's own source; no outside text is parsed."
 
 [action.secrets]
@@ -1024,6 +1026,7 @@ tests = [
   "faraday/faraday-keys/tests/operations.rs::keys_added_from_words_come_back_with_their_fingerprint_and_word_count",
 ]
 crosscheck = "bip39"
+independence = { class = "outside", author = "python-mnemonic, by Trezor (SatoshiLabs)" }
 selftest = [
   "bip39_vector",
   "bip39_japanese_vector",
@@ -1114,6 +1117,7 @@ tests = [
   "faraday/faraday-keys/tests/operations.rs::a_master_key_is_told_from_another_by_all_of_its_identity",
 ]
 crosscheck = "bip32"
+independence = { class = "own-over-outside", author = "Faraday's authors (`btc.py`), over `secp256k1lab`, by libsecp256k1's developers", ours = "BIP-32's derivation, serialisation, Base58Check and strict decoding, written in `btc.py` from the BIP" }
 selftest = [
   "bip32_vector",
 ]
@@ -1224,6 +1228,7 @@ tests = [
   "faraday/faraday-core/tests/all/explore.rs::a_path_typed_wrongly_is_named",
 ]
 crosscheck = "bip32"
+independence = { class = "own-over-outside", author = "Faraday's authors (`btc.py`), over `secp256k1lab`, by libsecp256k1's developers", ours = "BIP-32's derivation, serialisation, Base58Check and strict decoding, written in `btc.py` from the BIP" }
 selftest = [
   "bip32_vector",
 ]
@@ -1305,6 +1310,7 @@ tests = [
   "core/faraday-bip/tests/all/bsms.rs::the_record_this_device_writes_parses_back_and_verifies",
 ]
 crosscheck = "bip32"
+independence = { class = "own-over-outside", author = "Faraday's authors (`btc.py`), over `secp256k1lab`, by libsecp256k1's developers", ours = "BIP-32's derivation, serialisation, Base58Check and strict decoding, written in `btc.py` from the BIP" }
 fuzz_none = "Takes a held key and an account number; no outside text is parsed."
 other = [
   "Bitcoin Core end to end, two sessions' signatures combined by Core (INTEROP §1)",
@@ -1337,6 +1343,7 @@ id = "hold"
 name = "Hold a key in memory"
 action = "Holds a key in memory blinded and on pinned pages; the sealing under a session key built in faraday-crypto is reached by no shipped code."
 row = "keys-held"
+label = "own construction, not yet independently reviewed"
 standards = []
 learn = "faraday:keys-kept"
 screens = [
@@ -1452,6 +1459,7 @@ tests = [
   "faraday/faraday-keys/tests/operations.rs::explore::each_reason_gives_only_its_own_secret",
 ]
 crosscheck = "codex32"
+independence = { class = "outside", author = "python-codex32, by Ben Westgate" }
 fuzz_none = "Takes a held key and a reason; no outside input is parsed."
 
 [action.secrets]
@@ -1512,6 +1520,7 @@ tests = [
   "faraday/faraday-core/tests/all/explore.rs::everything_is_hidden_after_leaving_and_coming_back",
 ]
 crosscheck = "bip32"
+independence = { class = "own-over-outside", author = "Faraday's authors (`btc.py`), over `secp256k1lab`, by libsecp256k1's developers", ours = "BIP-32's derivation, serialisation, Base58Check and strict decoding, written in `btc.py` from the BIP" }
 fuzz_none = "Takes a held key, a path and a reason; no outside input is parsed."
 
 [action.secrets]
@@ -1567,6 +1576,7 @@ tests = [
   "faraday/faraday-core/tests/all/explore.rs::an_addresss_private_key_shown_is_bip84s",
 ]
 crosscheck = "bip32"
+independence = { class = "own-over-outside", author = "Faraday's authors (`btc.py`), over `secp256k1lab`, by libsecp256k1's developers", ours = "BIP-32's derivation, serialisation, Base58Check and strict decoding, written in `btc.py` from the BIP" }
 fuzz_none = "Takes a held key, a path and a reason; no outside input is parsed."
 
 [action.secrets]
@@ -1697,6 +1707,7 @@ tests = [
   "core/faraday-crypto/tests/primitives.rs::pbkdf2_hmac_sha256_rfc7914_known_answers",
 ]
 crosscheck = "bip39"
+independence = { class = "outside", author = "python-mnemonic, by Trezor (SatoshiLabs), and Python's `hashlib` and `hmac` (OpenSSL)" }
 selftest = [
   "bip39_vector",
 ]
@@ -1748,6 +1759,7 @@ tests = [
   "core/faraday-crypto/src/scrypt.rs::rfc_7914_vectors",
 ]
 crosscheck = "lightning"
+independence = { class = "own-over-outside", author = "Faraday's authors (`area_lightning.py`), from LND's and ldk-node's sources as `tools/reference/aezeed/README.md` quotes them, over `btc.py` and python-mnemonic", ours = "the area runs no scrypt of its own: scrypt is checked only through LND's five published seeds" }
 selftest = [
   "scrypt_vector",
 ]
@@ -1841,6 +1853,7 @@ tests = [
   "faraday/faraday-core/tests/all/explore_addresses.rs::a_whole_address_is_found_at_its_index_on_each_chain",
 ]
 crosscheck = "addr"
+independence = { class = "own-over-outside", author = "Bitcoin Core's functional-test framework, v31.1, by Bitcoin Core's contributors, for the address text; Faraday's authors (`btc.py`), over `secp256k1lab`, by libsecp256k1's developers, for the keys", ours = "the wallet's keys, derived by `btc.py`, and BIP-86's tweak, written in `area_addr.py`" }
 selftest = [
   "bip84_address",
 ]
@@ -1971,6 +1984,7 @@ tests = [
   "core/faraday-bip/tests/all/core_import.rs::the_pair_for_core_before_29_is_cores_own_receive_and_change_descriptors",
 ]
 crosscheck = "miniscript"
+independence = { class = "own-over-outside", author = "python-bip380, by Antoine Poinsot, and Bitcoin Core's `taproot_construct`", ours = "the wallet's keys, derived by `btc.py`" }
 fuzz = [
   "policy",
 ]
@@ -2047,6 +2061,7 @@ tests = [
   "core/faraday-bip/tests/all/recovery.rs::the_taproot_recovery_wallets_pay_the_addresses_bitcoin_core_derives",
 ]
 crosscheck = "miniscript"
+independence = { class = "own-over-outside", author = "python-bip380, by Antoine Poinsot, and Bitcoin Core's `taproot_construct`", ours = "the wallet's keys, derived by `btc.py`" }
 fuzz = [
   "policy",
 ]
@@ -2124,6 +2139,7 @@ tests = [
   "core/faraday-bip/tests/all/bip387.rs::sorting_is_of_the_derived_keys",
 ]
 crosscheck = "taproot"
+independence = { class = "own-over-outside", author = "Bitcoin Core's functional-test framework, v31.1, by Bitcoin Core's contributors", ours = "BIP-341's script-path check of a control block, written in `area_taproot.py`" }
 fuzz = [
   "policy",
 ]
@@ -2453,6 +2469,7 @@ tests = [
   "core/faraday-bip/tests/all/musig.rs::a_tweak_out_of_range_is_refused",
 ]
 crosscheck = "musig"
+independence = { class = "outside", author = "BIP-327's `reference.py`, by the BIP's authors" }
 fuzz = [
   "policy",
 ]
@@ -2531,6 +2548,7 @@ tests = [
   "core/faraday-bip/tests/all/calculators.rs::one_key_is_shown_in_every_spelling",
 ]
 crosscheck = "addr"
+independence = { class = "own-over-outside", author = "Bitcoin Core's functional-test framework, v31.1, by Bitcoin Core's contributors, for Base58Check", ours = "SLIP-132's version table and the rule for which version goes with which script, written in `area_addr.py`" }
 fuzz = [
   "xkey",
 ]
@@ -2598,6 +2616,7 @@ tests = [
   "core/faraday-bip/tests/all/silent.rs::text_that_begins_with_other_scripts_is_not_an_address",
 ]
 crosscheck = "addr"
+independence = { class = "outside", author = "Bitcoin Core's functional-test framework, v31.1, by Bitcoin Core's contributors" }
 fuzz = [
   "encodings",
 ]
@@ -2668,6 +2687,7 @@ tests = [
   "core/faraday-codec/src/encodings.rs::base58check_round_trips_through_bitcoins_own_encoder",
 ]
 crosscheck = "addr"
+independence = { class = "outside", author = "Bitcoin Core's functional-test framework, v31.1, by Bitcoin Core's contributors, and Python's `hashlib`" }
 fuzz = [
   "encodings",
 ]
@@ -2730,6 +2750,7 @@ tests = [
   "faraday/faraday-core/tests/all/keygen.rs::too_few_rolls_make_no_words",
 ]
 crosscheck = "entropy"
+independence = { class = "own-only", author = "Faraday's authors (`area_entropy.py`), over Python's `hashlib`", ours = "the three dice procedures, written out in `area_entropy.py` from the sources `tools/reference/dice/README.md` quotes" }
 fuzz_none = "Takes single key presses from a pad, one die face at a time; no text is parsed."
 
 [action.secrets]
@@ -2799,6 +2820,7 @@ tests = [
   "faraday/faraday-core/tests/all/keygen.rs::one_hundred_twenty_eight_flips_are_a_twelve_word_key_bit_for_bit",
 ]
 crosscheck = "entropy"
+independence = { class = "own-only", author = "Faraday's authors (`area_entropy.py`), over Python's `hashlib`", ours = "the packing of flips and digits, written out in `area_entropy.py`" }
 fuzz_none = "Takes single flips and digits from a pad; no outside text is parsed beyond hex digits."
 
 [action.secrets]
@@ -2828,6 +2850,7 @@ id = "cards"
 name = "Turn cards into entropy"
 action = "Turns playing-card draws into entropy as SHA-256 of the draws' indices, one byte each."
 row = "cards"
+label = "own construction, not yet independently reviewed"
 standards = []
 learn = "randomness"
 screens = [
@@ -2860,6 +2883,7 @@ tests = [
   "faraday/faraday-core/tests/all/keygen.rs::cards_in_the_order_of_a_new_deck_are_cautioned_and_do_not_stop_the_key",
 ]
 crosscheck = "entropy"
+independence = { class = "own-only", author = "Faraday's authors (`area_entropy.py`), over Python's `hashlib`", ours = "the card procedure, written out in `area_entropy.py`" }
 fuzz_none = "Takes single cards from a pad; no text is parsed."
 
 [action.secrets]
@@ -2890,6 +2914,7 @@ id = "camera"
 name = "Turn the camera into entropy"
 action = "Commits to camera frames as SHA-256 over the frames' SHA-256 digests, for a mix or the session's randomness, never a key alone."
 row = "camera"
+label = "own construction, not yet independently reviewed"
 standards = []
 learn = "randomness"
 screens = [
@@ -2923,6 +2948,7 @@ tests = [
   "faraday/faraday-core/tests/all/keygen.rs::the_camera_is_offered_only_among_a_mixs_sources",
 ]
 crosscheck = "entropy"
+independence = { class = "own-only", author = "Faraday's authors (`area_entropy.py`), over Python's `hashlib`", ours = "the frames' commitment, written out in `area_entropy.py`" }
 fuzz = [
   "v4l2_luma",
 ]
@@ -2956,6 +2982,7 @@ id = "pointer-keys"
 name = "Record pointer and keys"
 action = "Records pointer moves and key presses with time and a running count, and commits them in batches of SHA-256 for the session's randomness."
 row = "own-randomness"
+label = "own construction, not yet independently reviewed"
 standards = []
 learn = "randomness"
 screens = [
@@ -2984,6 +3011,7 @@ tests = [
   "faraday/faraday-core/tests/all/own_randomness.rs::sixty_four_events_are_added_as_a_batch_and_the_rest_as_the_page_goes",
 ]
 crosscheck = "own"
+independence = { class = "own-only", author = "Faraday's authors (`area_own.py`), over Python's `hashlib`", ours = "`docs/OWN-RANDOMNESS.md` §2.1 and §2.3, written out in `area_own.py`" }
 fuzz_none = "Takes single events from the shell; no text is parsed."
 
 [action.secrets]
@@ -3011,6 +3039,7 @@ id = "mix"
 name = "Mix entropy sources"
 action = "Combines two to five sources, dice or this device among them, by hashing their commitments in the order taken."
 row = "mix-sources"
+label = "own construction, not yet independently reviewed"
 standards = []
 learn = "randomness"
 screens = [
@@ -3041,6 +3070,7 @@ tests = [
   "faraday/faraday-core/tests/all/keygen.rs::a_mix_without_dice_or_this_device_is_refused",
 ]
 crosscheck = "entropy"
+independence = { class = "own-only", author = "Faraday's authors (`area_entropy.py`), over Python's `hashlib`", ours = "the mix of commitments, written out in `area_entropy.py`" }
 fuzz_none = "Takes 32-byte commitments from sources already entered."
 
 [action.secrets]
@@ -3098,6 +3128,7 @@ tests = [
   "faraday/faraday-core/tests/all/keygen.rs::this_devices_key_is_its_generators_fresh_answer_hashed_and_nothing_else",
 ]
 crosscheck = "entropy"
+independence = { class = "own-only", author = "Faraday's authors (`area_entropy.py`), over Python's `hashlib`", ours = "the hash of the shell's answer, written out in `area_entropy.py`" }
 fuzz_none = "Takes one 32-byte answer from the shell."
 
 [action.secrets]
@@ -3182,6 +3213,7 @@ id = "fresh"
 name = "Keep the session's randomness"
 action = "Keeps the session's seed and pool from the shell's answers, mixes a person's own randomness in, never in place of the system's, and draws the seed of a MuSig2 round."
 row = "own-randomness"
+label = "own construction, not yet independently reviewed"
 standards = []
 learn = "randomness"
 screens = [
@@ -3221,6 +3253,7 @@ tests = [
   "faraday/faraday-core/tests/all/own_randomness.rs::a_lock_wipes_what_was_added",
 ]
 crosscheck = "own"
+independence = { class = "own-only", author = "Faraday's authors (`area_own.py`), over Python's `hashlib`", ours = "`docs/OWN-RANDOMNESS.md` §2.1 and §2.3, written out in `area_own.py`" }
 fuzz_none = "Takes 32-byte answers from the shell."
 
 [action.secrets]
@@ -3288,6 +3321,7 @@ tests = [
   "core/faraday-entropy/src/booklet.rs::a_twenty_faced_die_reads_by_the_same_comparison",
 ]
 crosscheck = "roller"
+independence = { class = "own-only", author = "Faraday's authors (`area_roller.py`)", ours = "the booklet's dice worksheet, written out in `area_roller.py` from `docs/CODEX32.md` §5.5" }
 fuzz_none = "Takes single die faces from a pad."
 
 [action.secrets]
@@ -3316,6 +3350,7 @@ id = "roller"
 name = "Roll simulated dice"
 action = "Rolls simulated dice for Faraday Demo from the session's randomness, one value per byte with no bias."
 row = "demo-roller"
+label = "own construction, not yet independently reviewed"
 standards = []
 learn = "faraday:demo"
 screens = [
@@ -3341,6 +3376,7 @@ tests = [
   "faraday/faraday-core/tests/all/roller.rs::rolled_or_typed_demo_puts_faraday_in_place_and_measures_nothing",
 ]
 crosscheck = "roller"
+independence = { class = "own-only", author = "Faraday's authors (`area_roller.py`)", ours = "Faraday Demo's roller, written out in `area_roller.py` from `docs/CODEX32.md` §5.6" }
 fuzz_none = "Takes 32-byte answers from the session; no text is parsed."
 
 [action.secrets]
@@ -3473,6 +3509,7 @@ tests = [
   "faraday/faraday-keys/tests/operations.rs::bip85_children_are_the_ones_the_bip_publishes",
 ]
 crosscheck = "bip85"
+independence = { class = "own-over-outside", author = "ethankosakovsky/bip85, by Ethan Kosakovsky, over python-mnemonic, by Trezor (SatoshiLabs)", ours = "the hardened-BIP-32 shim it runs on, written in `tools/reference/bip85/shims/`" }
 fuzz_none = "Takes a held key, an application and numbers chosen on a pad; no text is parsed."
 
 [action.secrets]
@@ -3542,6 +3579,7 @@ tests = [
   "faraday/faraday-core/tests/all/vanity.rs::the_passphrase_dial_loads_the_words_with_the_passphrase_found",
 ]
 crosscheck = "vanity"
+independence = { class = "own-over-outside", author = "Faraday's authors (`area_vanity.py`), over python-mnemonic, `btc.py` and the `addr` area's address writing", ours = "EntropyLab's counter, written out in `area_vanity.py` from a quotation" }
 fuzz_none = "Takes a prefix typed on a pad and a held key; no outside text is parsed."
 
 [action.secrets]
@@ -3613,6 +3651,7 @@ tests = [
   "core/faraday-bip/tests/all/aez.rs::encrypt_vectors",
 ]
 crosscheck = "lightning"
+independence = { class = "own-over-outside", author = "Faraday's authors (`area_lightning.py`), from LND's and ldk-node's sources as `tools/reference/aezeed/README.md` quotes them, over `btc.py` and python-mnemonic", ours = "the aezeed's outer layer (CRC-32C, version), written in `area_lightning.py`; AEZ has no second implementation, only LND's published seeds" }
 fuzz = [
   "aezeed",
 ]
@@ -3691,6 +3730,7 @@ tests = [
   "core/faraday-bip/src/aezeed.rs::the_ldk_node_key_matches_what_ldk_node_derives",
 ]
 crosscheck = "lightning"
+independence = { class = "own-over-outside", author = "Faraday's authors (`area_lightning.py`), from LND's and ldk-node's sources as `tools/reference/aezeed/README.md` quotes them, over `btc.py` and python-mnemonic", ours = "ldk-node's and LND's derivations, written in `area_lightning.py` from quoted sources, over `btc.py`" }
 fuzz = [
   "aezeed",
 ]
@@ -3797,6 +3837,7 @@ tests = [
   "faraday/faraday-core/tests/all/silent.rs::a_payment_to_this_wallet_is_found_and_one_to_another_is_not",
 ]
 crosscheck = "silent"
+independence = { class = "outside", author = "BIP-352's `reference.py`, by the BIP's authors, over `secp256k1lab`" }
 fuzz_none = "Takes a transaction from the PSBT or chain data the program has already parsed; psbt_parse fuzzes that."
 
 [action.secrets]
@@ -4033,6 +4074,7 @@ tests = [
   "core/faraday-psbt/tests/all/registered.rs::an_origin_of_more_than_sixteen_steps_is_refused",
 ]
 crosscheck = "psbt"
+independence = { class = "own-over-outside", author = "Faraday's authors (`area_psbt.py`), over Bitcoin Core's `CTransaction`", ours = "the PSBT reader and writer, BIP-174's and 371's field rules, written in `area_psbt.py`" }
 fuzz = ["psbt_parse"]
 other = [
   "Core end to end (INTEROP §1)",
@@ -4092,6 +4134,7 @@ tests = [
   "core/faraday-psbt/tests/all/bips.rs::bytes_after_the_last_map_are_refused",
 ]
 crosscheck = "psbt"
+independence = { class = "own-over-outside", author = "Faraday's authors (`area_psbt.py`), over Bitcoin Core's `CTransaction`", ours = "the PSBT reader and writer, BIP-370's field rules and the conversion, written in `area_psbt.py`" }
 fuzz_none = "No fuzz target reads version 2: psbt_parse takes version 0."
 
 [action.secrets]
@@ -4255,6 +4298,7 @@ tests = [
   "core/faraday-psbt/tests/all/inspect.rs::all_and_default_still_sign_with_nothing_held",
 ]
 crosscheck = "tx"
+independence = { class = "outside", author = "Bitcoin Core's functional-test framework, v31.1, by Bitcoin Core's contributors" }
 fuzz = ["psbt_parse"]
 other = [
   "Core end to end (INTEROP §1)",
@@ -4316,6 +4360,7 @@ tests = [
   "core/faraday-psbt/tests/all/multisig.rs::a_cosigner_key_under_a_loaded_fingerprint_is_not_ours",
 ]
 crosscheck = "sign"
+independence = { class = "own-over-outside", author = "Faraday's authors (`area_sign.py`), over Bitcoin Core's `script.py`, `taproot_construct` and `key.py`, and python-bip380 by Antoine Poinsot", ours = "BIP-174's signer: which inputs and keys sign, the low-R grind and the refusals, written in `area_sign.py`" }
 selftest = ["ecdsa_vector"]
 fuzz_none = "No target runs sign: it needs a master key and a PSBT that inspect accepts; psbt_parse fuzzes the PSBT it reads."
 
@@ -4391,6 +4436,7 @@ tests = [
   "core/faraday-psbt/tests/all/sign.rs::a_taproot_tree_with_no_way_into_it_is_refused",
 ]
 crosscheck = "sign"
+independence = { class = "own-over-outside", author = "Faraday's authors (`area_sign.py`), over Bitcoin Core's `script.py`, `taproot_construct` and `key.py`, and python-bip380 by Antoine Poinsot", ours = "BIP-174's signer and BIP-371's fields: which keys and leaves sign, written in `area_sign.py`" }
 selftest = ["schnorr_vector"]
 fuzz_none = "No target runs sign: it needs a master key and a PSBT that inspect accepts; psbt_parse fuzzes the PSBT it reads."
 
@@ -4471,6 +4517,7 @@ tests = [
   "core/faraday-bip/tests/all/musig.rs::bip327_det_sign_vectors",
 ]
 crosscheck = "musig"
+independence = { class = "outside", author = "BIP-327's `reference.py`, by the BIP's authors" }
 fuzz_none = "No target runs the MuSig2 rounds; psbt_parse fuzzes the PSBT that carries their fields through inspect."
 other = [
   "Core 31.1 round trip in both orders (`tools/vectors/psbt`, `wallet-musig-*`)",
@@ -4594,6 +4641,7 @@ tests = [
   "core/faraday-psbt/tests/all/tapmulti.rs::two_of_the_three_keys_sign_and_the_input_finalizes",
 ]
 crosscheck = "sign"
+independence = { class = "own-over-outside", author = "Faraday's authors (`area_sign.py`), over Bitcoin Core's `script.py`, `taproot_construct` and `key.py`, and python-bip380 by Antoine Poinsot", ours = "BIP-174's finalizer and extractor, the tap leaf chosen, the `multi_a` rule and the timelock checks, written in `area_sign.py`" }
 fuzz = ["psbt_parse"]
 other = [
   "Core end to end (INTEROP §1)",
@@ -4658,6 +4706,7 @@ tests = [
   "core/faraday-psbt/tests/all/message.rs::a_signature_belongs_to_one_address",
 ]
 crosscheck = "msg"
+independence = { class = "own-over-outside", author = "Faraday's authors (`area_msg.py`), over Bitcoin Core's `script.py` sighashes and `secp256k1lab`'s BIP-340", ours = "BIP-137 and BIP-322 written out in `area_msg.py`: RFC 6979 ECDSA, the low-R grind, the headers, BIP-322's virtual transactions" }
 fuzz_none = "No fuzz target signs: the signer takes the person's own text and key; message_verify fuzzes the reading of a signed message."
 
 [action.secrets]
@@ -4709,6 +4758,7 @@ tests = [
   "core/faraday-psbt/tests/all/message.rs::a_witness_signature_that_is_not_der_is_malformed",
 ]
 crosscheck = "msg"
+independence = { class = "own-over-outside", author = "Faraday's authors (`area_msg.py`), over Bitcoin Core's `script.py` sighashes and `secp256k1lab`'s BIP-340", ours = "BIP-137 and BIP-322 written out in `area_msg.py`: RFC 6979 ECDSA, the low-R grind, the headers, BIP-322's virtual transactions" }
 fuzz = ["message_verify"]
 
 [action.secrets]
@@ -4770,6 +4820,7 @@ tests = [
   "core/faraday-psbt/tests/all/transaction.rs::a_previous_transaction_with_another_id_does_not_state_the_spent_output",
 ]
 crosscheck = "tx"
+independence = { class = "outside", author = "Bitcoin Core's functional-test framework, v31.1, by Bitcoin Core's contributors" }
 fuzz = ["transaction"]
 
 [action.secrets]
@@ -4836,6 +4887,7 @@ tests = [
   "core/faraday-codec/tests/png.rs::a_grey_picture_reads_back_as_its_pixels",
 ]
 crosscheck = "seedqr"
+independence = { class = "outside", author = "Project Nayuki's `qrcodegen.py`, by Nayuki" }
 fuzz = [
   "decode_luma",
   "classify",
@@ -4933,6 +4985,7 @@ tests = [
   "core/faraday-codec/tests/ur_single.rs::a_single_part_ur_of_any_type_is_the_published_one_and_reads_back",
 ]
 crosscheck = "ur"
+independence = { class = "outside", author = "foundation-ur-py, by Foundation Devices" }
 fuzz = ["ur_receive", "ur_registry"]
 other = [
   "SeedSigner's and Keystone's codes (INTEROP §2)",
@@ -5007,6 +5060,7 @@ tests = [
   "faraday/faraday-qr/tests/interop.rs::ten_bbqr_parts_are_the_psbt_in_any_order",
 ]
 crosscheck = "bbqr"
+independence = { class = "own-over-outside", author = "Coinkite's BBQr library, by Coinkite, for BBQr; Faraday's authors (`area_bbqr.py`), for the numbered parts", ours = "SeedSigner's numbered-part reader, written in `area_bbqr.py` from a quotation, and a one-table pyqrcode shim" }
 fuzz = ["qr_assembler"]
 other = [
   "the numbered parts against SeedSigner's reader as `tools/reference/specter/README.md` quotes it",
@@ -5180,6 +5234,7 @@ tests = [
   "core/faraday-codec/src/qr.rs::a_seedqr_matrix_is_wiped",
 ]
 crosscheck = "seedqr"
+independence = { class = "own-over-outside", author = "Faraday's authors (`area_seedqr.py`), over python-mnemonic and Project Nayuki's `qrcodegen.py`, by Nayuki", ours = "SeedSigner's SeedQR specification, written out in `area_seedqr.py`" }
 fuzz = ["seedqr"]
 
 [action.secrets]
@@ -5223,6 +5278,7 @@ tests = [
   "core/faraday-codec/src/seedqr.rs::rejects_bad_payloads",
 ]
 crosscheck = "seedqr"
+independence = { class = "own-over-outside", author = "Faraday's authors (`area_seedqr.py`), over python-mnemonic and Project Nayuki's `qrcodegen.py`, by Nayuki", ours = "SeedSigner's SeedQR specification, written out in `area_seedqr.py`" }
 fuzz = ["seedqr"]
 
 [action.secrets]
@@ -5291,6 +5347,7 @@ tests = [
   "faraday/faraday-keys/tests/codex32.rs::set::strings_typed_back_rebuild_their_key_and_no_other",
 ]
 crosscheck = "codex32"
+independence = { class = "outside", author = "python-codex32, by Ben Westgate" }
 fuzz = ["seed_parts"]
 
 [action.secrets]
@@ -5376,6 +5433,7 @@ tests = [
   "faraday/faraday-keys/tests/codex32.rs::the_derived_share_is_made_by_its_translation_worksheet",
 ]
 crosscheck = "codex32"
+independence = { class = "own-over-outside", author = "python-codex32, by Ben Westgate", ours = "the worksheets' rows, written in `area_codex32.py` from python-codex32's polymod" }
 fuzz_none = "The characters are typed one at a time into worksheets that refuse a symbol outside the alphabet and a length that is not codex32's."
 
 [action.secrets]
@@ -5423,6 +5481,7 @@ tests = [
   "core/faraday-bip/tests/all/codex32_correct.rs::ms1_and_the_header_the_set_fixes_are_never_changed",
 ]
 crosscheck = "codex32_correct"
+independence = { class = "outside", author = "python-codex32, by Ben Westgate (its `correction.py`)" }
 fuzz = ["seed_parts"]
 
 [action.secrets]
@@ -5474,6 +5533,7 @@ tests = [
   "core/faraday-bip/tests/all/codex32_sheets.rs::codex32qr_vectors_recover_to_their_secret_and_key",
 ]
 crosscheck = "seedqr"
+independence = { class = "outside", author = "Project Nayuki's `qrcodegen.py`, by Nayuki" }
 fuzz_none = "The encoder takes a string that Codex32::parse has already accepted; seed_parts fuzzes that reading."
 
 [action.secrets]
@@ -5537,6 +5597,7 @@ tests = [
   "core/faraday-bip/tests/all/slip39.rs::changing_one_word_of_a_share_is_refused",
 ]
 crosscheck = "slip39"
+independence = { class = "outside", author = "python-shamir-mnemonic, by Trezor (SatoshiLabs)" }
 fuzz = ["seed_parts"]
 
 [action.secrets]
@@ -5611,6 +5672,7 @@ tests = [
   "core/faraday-entropy/tests/xor.rs::twenty_four_words_in_three_parts_combine_into_the_seed",
 ]
 crosscheck = "xor"
+independence = { class = "own-over-outside", author = "python-mnemonic, by Trezor (SatoshiLabs)", ours = "the byte XOR of the parts, written in `area_xor.py`" }
 fuzz_none = "The parts are BIP 39 mnemonics read by the BIP 39 reader before they combine; bip39_words fuzzes that."
 
 [action.secrets]
@@ -6010,6 +6072,7 @@ id = "vault-create"
 name = "Make a vault"
 action = "Makes a vault file of four equal slots from one to four passphrases, with Argon2id, HKDF-SHA256 and XChaCha20-Poly1305, and a ChaCha20 keystream for the salt, the nonces and the unused slots."
 row = "vault"
+label = "own construction, not yet independently reviewed"
 standards = [
   "RFC 9106",
   "RFC 5869",
@@ -6072,9 +6135,10 @@ tests = [
   "faraday/faraday-vault/src/tests.rs::a_slot_filled_to_its_room_seals_and_one_byte_more_is_full",
 ]
 crosscheck = "vault"
+independence = { class = "own-over-outside", author = "Faraday's authors (`area_vault.py`), over argon2-cffi (the Argon2 designers' reference code) and PyNaCl (libsodium)", ours = "the container, its slot layout, key schedule and records, written in `area_vault.py` from `docs/VAULT.md`, and HKDF-SHA256 and the ChaCha20 block written over the standard library" }
 fuzz_none = "Creation takes no outside bytes but the passphrases and the caller's seed; vault_header and vault_records fuzz what a vault is read from."
 other = [
-  "a Python reader over independent primitives (`tools/vault/open.py`)",
+  "a Python reader Faraday's authors wrote from `docs/VAULT.md`, over outside primitives (`tools/vault/open.py`): not an independent check of the container",
 ]
 
 [action.secrets]
@@ -6126,6 +6190,7 @@ id = "vault-unlock"
 name = "Open a vault slot"
 action = "Opens the slot a passphrase opens: checks the header, derives the slot key once with Argon2id and HKDF-SHA256, tries XChaCha20-Poly1305 on all four slots and parses the one whose tag verifies."
 row = "vault"
+label = "own construction, not yet independently reviewed"
 standards = [
   "RFC 9106",
   "RFC 5869",
@@ -6190,6 +6255,7 @@ fuzz = [
   "vault_records",
 ]
 crosscheck = "vault"
+independence = { class = "own-over-outside", author = "Faraday's authors (`area_vault.py`), over argon2-cffi (the Argon2 designers' reference code) and PyNaCl (libsodium)", ours = "the container, its slot layout, key schedule and records, written in `area_vault.py` from `docs/VAULT.md`, and HKDF-SHA256 and the ChaCha20 block written over the standard library" }
 
 [action.secrets]
 reveal = "none"
@@ -6229,6 +6295,7 @@ id = "vault-seal"
 name = "Write a vault back"
 action = "Writes an open vault back: encrypts the open slot's records with XChaCha20-Poly1305 under a new 24-byte nonce and copies the other three slots unchanged."
 row = "vault"
+label = "own construction, not yet independently reviewed"
 standards = ["draft-irtf-cfrg-xchacha-03"]
 learn = "faraday:vaults"
 screens = [
@@ -6256,6 +6323,7 @@ tests = [
   "faraday/faraday-core/tests/all/vault_seal.rs::a_seal_takes_a_fresh_answer_when_one_waits_and_the_seed_when_none_does",
 ]
 crosscheck = "vault"
+independence = { class = "own-over-outside", author = "Faraday's authors (`area_vault.py`), over argon2-cffi (the Argon2 designers' reference code) and PyNaCl (libsodium)", ours = "the container, its slot layout, key schedule and records, written in `area_vault.py` from `docs/VAULT.md`, and HKDF-SHA256 and the ChaCha20 block written over the standard library" }
 fuzz_none = "Sealing takes the open slot's own records and a nonce; vault_records fuzzes the records' reading."
 
 [action.secrets]
@@ -6363,6 +6431,7 @@ id = "vault-edit"
 name = "Edit a vault's records"
 action = "Adds, changes, copies and makes public the records of an open vault, holding every secret field in a value that wipes on drop."
 row = "vault"
+label = "own construction, not yet independently reviewed"
 standards = []
 learn = "faraday:vaults"
 screens = [
@@ -6398,6 +6467,7 @@ tests = [
 ]
 fuzz = ["vault_records"]
 crosscheck = "vault"
+independence = { class = "own-over-outside", author = "Faraday's authors (`area_vault.py`), over argon2-cffi (the Argon2 designers' reference code) and PyNaCl (libsodium)", ours = "the container, its slot layout, key schedule and records, written in `area_vault.py` from `docs/VAULT.md`, and HKDF-SHA256 and the ChaCha20 block written over the standard library" }
 
 [action.secrets]
 reveal = "none"
@@ -6411,7 +6481,7 @@ lines = [
 ]
 
 [[action.own]]
-text = "Faraday's own record layouts (docs/VAULT.md §7); a reader written separately from the code reads them."
+text = "Faraday's own record layouts (docs/VAULT.md §7); a reader Faraday's authors wrote from that text, not from the code, reads them, which is not an independent check."
 kind = "Novel"
 decision = "F97"
 
@@ -6479,6 +6549,7 @@ tests = [
 ]
 fuzz = ["vault_records"]
 crosscheck = "bip39"
+independence = { class = "outside", author = "python-mnemonic, by Trezor (SatoshiLabs)" }
 
 [action.secrets]
 reveal = "none"
@@ -6564,6 +6635,7 @@ tests = [
   "faraday/faraday-core/tests/all/kdbx.rs::an_entry_exported_for_keepass_is_sealed_under_its_passphrase",
 ]
 crosscheck = "kdbx"
+independence = { class = "outside", author = "pykeepass, by the libkeepass project (the distribution's package)" }
 fuzz_none = "Nothing here reads a KDBX file but `verify`, which reads only a file this device wrote."
 other = [
   "every file read back by `tools/backup/read-kdbx.py`",
@@ -7069,6 +7141,7 @@ id = "sb-keys"
 name = "Make Secure Boot keys"
 action = "Makes an owner's Secure Boot keys, PK, KEK and db as RSA-2048 with self-signed certificates, and the enrolment files: signature lists, PKCS #7 signed updates and certificates."
 row = "secure-boot"
+label = "own construction, not yet independently reviewed"
 standards = [
   "UEFI Specification",
   "RFC 5280",

@@ -231,8 +231,9 @@ stick on a laptop", lists what is known to work and what is not.
 
 ## 7. The crypto cross-check
 
-Faraday's Rust is checked against independent Python references over
-every published vector and a seeded random corpus (`docs/CROSSCHECK.md`,
+Faraday's Rust is checked against Python references, some written by
+others and some Faraday's own models (`docs/CROSSCHECK.md` §10, F160),
+over every published vector and a seeded random corpus (`docs/CROSSCHECK.md`,
 `docs/decisions/F79.md`). It runs offline, in a network namespace of
 its own.
 

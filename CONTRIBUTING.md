@@ -27,8 +27,12 @@ change is held to the same rules, whoever makes it.
 3. Keep one change to one thing, with its tests and the documents it
    changes. A user-facing behaviour gets a test of what a person or a
    wallet would notice; a cryptographic change is checked against
-   published vectors or another implementation, and the cross-check
-   (`just crosscheck`) passes and its stamp is committed with it.
+   published vectors and an implementation Faraday did not write (a
+   model written by Faraday's own authors is not one; a construction of
+   Faraday's own carries the label "own construction, not yet
+   independently reviewed" until an outside review, F160), and the
+   cross-check (`just crosscheck`) passes and its stamp is committed
+   with it.
 4. Write the commit message as what changed for a person using Faraday
    and why, then the test that holds it.
 
