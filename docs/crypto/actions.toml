@@ -6204,7 +6204,7 @@ kind = "Conservative"
 decision = "F159"
 
 [action.review]
-fingerprint = "8518327d329402a6dfcd944c6165764e497b3da634e02f9b50d03801e4a4f2c2"
+fingerprint = "cd652e05cbec1d91796e4cf83eee9d764c434be5cf71a2e202a5c6f30687cb23"
 reviewed = "2026-10-29"
 places = [
   "docs/VAULT.md",
@@ -6271,7 +6271,7 @@ kind = "Neutral"
 decision = "F159"
 
 [action.review]
-fingerprint = "fa087f29eee7f8ed6720d7fc3ead069e24fc85ad9dde908a4c2a1a3ec311102a"
+fingerprint = "1a7cd5208fbb47b52c52f0afe42b23877305b37131058a7a02a652a31b0edbaa"
 reviewed = "2026-10-29"
 places = [
   "docs/VAULT.md",

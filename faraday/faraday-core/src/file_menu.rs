@@ -206,7 +206,12 @@ impl Faraday {
             }),
             Row::Stick(k) => {
                 let (name, size) = self.stick_file(k)?;
-                let kind = match crate::stick_kind(&name).filter(|_| size <= crate::READ_MAX) {
+                let kind = match self
+                    .stick
+                    .get(self.visit.stick)
+                    .and_then(|s| s.kind_of(&name))
+                    .filter(|_| size <= crate::READ_MAX)
+                {
                     Some(kind) => format!("{kind} · {}", crate::screens::size_text(size)),
                     None => EN.visit_file_too_large.to_string(),
                 };

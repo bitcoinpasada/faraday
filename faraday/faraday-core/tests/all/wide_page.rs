@@ -150,6 +150,7 @@ fn a_stick_visits_two_lists_stand_centred_in_the_room_on_a_big_window() {
             label: "TESTSTICK".into(),
             boot: false,
             files: vec![("spend.psbt".into(), 300)],
+            vaults: Vec::new(),
         }]));
         app.press(Action::Nav(Screen::Visit));
         let _ = app.frame();

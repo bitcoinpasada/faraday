@@ -53,6 +53,7 @@ fn booted() -> (Faraday, Vec<u8>) {
         label: "FARADAY".into(),
         boot: true,
         files: vec![("vault.fvlt".into(), vault.len() as u64)],
+        vaults: Vec::new(),
     }]));
     pump(&mut app, &vault);
     (app, vault)

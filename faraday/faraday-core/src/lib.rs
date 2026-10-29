@@ -2332,7 +2332,7 @@ impl Faraday {
             .files
             .iter()
             .filter(|(n, size)| {
-                stick_kind(n).is_some()
+                stick.kind_of(n).is_some()
                     && *size <= READ_MAX
                     && !seed_by_name(n)
                     && !self

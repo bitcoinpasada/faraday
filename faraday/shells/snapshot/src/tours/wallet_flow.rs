@@ -48,6 +48,7 @@ pub(crate) fn wallet_flow_tour(c: &Compute, t: &mut Tour) -> Result<(), String> 
         label: "KEYSTICK".into(),
         boot: false,
         files: Vec::new(),
+        vaults: Vec::new(),
     };
     t.press(Action::CreateWallet);
     t.press(Action::CKind(0));
@@ -180,6 +181,7 @@ pub(crate) fn wallet_flow_tour(c: &Compute, t: &mut Tour) -> Result<(), String> 
         label: "FARADAY".into(),
         boot: true,
         files: Vec::new(),
+        vaults: Vec::new(),
     };
     t.press(Action::Guided(false));
     t.press(Action::CreateWallet);

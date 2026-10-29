@@ -98,7 +98,7 @@ fn visit_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     for (k, (name, size)) in stick.files.iter().enumerate() {
         // A file larger than the disk process reads is listed, not read.
         let big = *size > crate::READ_MAX;
-        let kind = crate::stick_kind(name).filter(|_| !big);
+        let kind = stick.kind_of(name).filter(|_| !big);
         let on = app.visit.inn.contains(name);
         ui.checkbox(x + 2.0, y + 10.0, on, kind.is_some());
         let fg = if kind.is_some() {
@@ -687,7 +687,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         }
         // A file larger than the disk process reads is listed, not read.
         let big = *size > crate::READ_MAX;
-        let kind = crate::stick_kind(name).filter(|_| !big);
+        let kind = stick.kind_of(name).filter(|_| !big);
         let on = app.visit.inn.contains(name);
         ui.checkbox(ix + 22.0, ry + 15.0, on, kind.is_some());
         let fg = if kind.is_some() {

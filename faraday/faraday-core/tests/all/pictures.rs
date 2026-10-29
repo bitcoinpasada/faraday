@@ -22,6 +22,7 @@ fn visiting() -> Faraday {
         label: "TESTSTICK".to_string(),
         boot: false,
         files: Vec::new(),
+        vaults: Vec::new(),
     }]));
     app.press(Action::Nav(Screen::Visit));
     app

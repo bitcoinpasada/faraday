@@ -101,9 +101,16 @@ fn a_file_of_a_persons_notes_and_numbered_words_gives_the_words_alone() {
 
 #[test]
 fn a_file_is_a_vault_or_a_keepass_database_by_how_it_begins() {
+    // The magic and one of the four vault lengths, whatever the name.
+    assert_eq!(VAULT_MAGIC, faraday_codec::vault_file::MAGIC);
     let mut vault = VAULT_MAGIC.to_vec();
-    vault.extend_from_slice(&[1, 2, 3]);
+    vault.resize(faraday_codec::vault_file::file_len(65_536), 0);
     assert!(is_vault(&vault));
+    // The magic at another length is not a vault.
+    let mut other = VAULT_MAGIC.to_vec();
+    other.extend_from_slice(&[1, 2, 3]);
+    assert!(!is_vault(&other));
+    assert!(!is_vault(&vault[..vault.len() - 1]));
     assert!(!is_vault(b"FVL"));
     assert!(!is_vault(b"{\"wallet_type\": \"standard\"}"));
     let kdbx = [0x03, 0xD9, 0xA2, 0x9A, 0x67, 0xFB, 0x4B, 0xB5, 0, 0];

@@ -30,6 +30,9 @@ pub enum Work {
     QrEncode,
     /// A whole file's or transaction's bytes hashed.
     FileHash,
+    /// The first bytes of a file on a stick read, for a listing to tell
+    /// a vault by its contents (`docs/VAULT-HARDENING.md` §2.1).
+    FileRead,
     /// A PNG's pixels decoded.
     PngDecode,
     /// A key stretched: PBKDF2, scrypt or Argon2.

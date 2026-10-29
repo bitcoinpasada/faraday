@@ -19,6 +19,7 @@ fn attach(app: &mut Faraday) {
         label: "TESTSTICK".to_string(),
         boot: false,
         files: vec![(FILE.to_string(), words().len() as u64)],
+        vaults: Vec::new(),
     }]));
 }
 
@@ -98,6 +99,7 @@ fn a_words_file_with_a_note_line_is_copied_and_loads_on_pulling_the_stick() {
         label: "TESTSTICK".to_string(),
         boot: false,
         files: vec![(name.clone(), bytes.len() as u64)],
+        vaults: Vec::new(),
     }]));
     app.press(Action::Nav(Screen::Visit));
     app.press(Action::VisitIn(0));

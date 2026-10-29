@@ -162,6 +162,7 @@ mod totp;
 mod transfer;
 mod transitions;
 mod vanity;
+mod vault_by_contents;
 mod vault_full_slot;
 mod vault_keys;
 mod vault_load;

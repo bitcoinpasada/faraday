@@ -28,6 +28,7 @@ fn sticks_in(app: &mut Faraday, attached: bool, boot: bool) {
             label: "STICK".into(),
             boot,
             files: Vec::new(),
+            vaults: Vec::new(),
         }]
     } else {
         Vec::new()

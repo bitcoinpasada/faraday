@@ -21,6 +21,7 @@ pub(super) fn run(t: &mut Tour) -> Result<(), String> {
         boot: true,
         serial: Some(0x1234_5678),
         files: Vec::new(),
+        vaults: Vec::new(),
     }]));
     t.pump();
     // An IP-KVM attached at start: named before anything else, then

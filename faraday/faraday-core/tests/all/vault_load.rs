@@ -390,6 +390,7 @@ fn from_the_boot_sheet_each_unlock_asks_what_to_load_before_the_next() {
             .iter()
             .map(|(n, b)| (n.clone(), b.len() as u64))
             .collect(),
+        vaults: Vec::new(),
     }]));
     app.press(Action::Import(I::Go));
     pump(&mut app, &files);

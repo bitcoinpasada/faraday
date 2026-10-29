@@ -48,6 +48,7 @@ fn unlocked() -> Faraday {
         label: "FARADAY".into(),
         boot: true,
         files: vec![("vault.fvlt".into(), vault.len() as u64)],
+        vaults: Vec::new(),
     }]));
     app.press(Action::Import(I::Go));
     pump(&mut app, &vault);

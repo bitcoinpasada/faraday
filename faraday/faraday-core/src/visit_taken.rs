@@ -62,9 +62,10 @@ impl Taken {
     }
 }
 
-/// Whether these bytes are a sealed vault, written by `write_vault`.
-fn is_vault(name: &str, bytes: &[u8]) -> bool {
-    name.ends_with(".fvlt") && bytes.starts_with(b"FVLT")
+/// Whether these bytes are a vault, whatever the file is named: the
+/// magic and a vault length (`docs/VAULT-HARDENING.md` §2.1).
+fn is_vault(bytes: &[u8]) -> bool {
+    faraday_intake::is_vault(bytes)
 }
 
 /// The first of `name`, `stem-2.ext`, `stem-3.ext`… none of `taken`
@@ -277,12 +278,12 @@ impl Faraday {
             };
             // A vault of the same length is taken for the same one; the
             // write itself checks its salt and never goes over another.
-            let fate = if is_vault(&name, &bytes) && *size == bytes.len() as u64 {
+            let fate = if is_vault(&bytes) && *size == bytes.len() as u64 {
                 Fate::SameVault
             } else {
                 let keep_as = free_name(&names, &name);
                 names.push(keep_as.to_ascii_lowercase());
-                if is_vault(&name, &bytes) {
+                if is_vault(&bytes) {
                     Fate::OtherVault { keep_as }
                 } else {
                     Fate::File { keep_as }
@@ -358,7 +359,7 @@ impl Faraday {
             // length, decided where the stick is read) only when this
             // session unlocked or wrote it: a copy from Files that it did
             // not could be older than what the stick holds.
-            let over = if is_vault(&name, &bytes) {
+            let over = if is_vault(&bytes) {
                 !from_inbox || self.vault_is_this_sessions(&c, &bytes)
             } else {
                 replace && taken.contains(&name)

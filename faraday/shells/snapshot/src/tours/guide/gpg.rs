@@ -110,6 +110,7 @@ fn stick_of(slot: usize) -> StickInfo {
         label: "KEYSTICK".into(),
         boot: false,
         files: Vec::new(),
+        vaults: Vec::new(),
     }
 }
 

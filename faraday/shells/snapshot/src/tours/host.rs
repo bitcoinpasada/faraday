@@ -54,6 +54,7 @@ fn desktop(t: &mut Tour, win: (u16, u16), demo: bool) {
         boot: name == "BOOTSTICK",
         serial: None,
         files: Vec::new(),
+        vaults: Vec::new(),
     };
     t.app
         .storage(StorageEvent::Sticks(vec![stick("BOOTSTICK")]));

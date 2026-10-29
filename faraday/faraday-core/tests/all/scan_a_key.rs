@@ -44,6 +44,7 @@ fn unlocked() -> Faraday {
         label: "FARADAY".into(),
         boot: true,
         files: vec![("vault.fvlt".into(), vault.len() as u64)],
+        vaults: Vec::new(),
     }]));
     app.press(Action::Import(faraday_core::boot_import::ImportAction::Go));
     pump(&mut app, &vault);
@@ -285,6 +286,7 @@ fn with_a_stick_attached_scan_a_key_asks_for_it_to_be_pulled() {
         label: "STICK".into(),
         boot: false,
         files: Vec::new(),
+        vaults: Vec::new(),
     }]));
     let _ = app.frame();
     app.press(Action::ScanKey(w));

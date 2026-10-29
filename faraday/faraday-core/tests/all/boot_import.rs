@@ -83,6 +83,13 @@ fn boot_stick(files: &[(String, Vec<u8>)]) -> StickInfo {
             .iter()
             .map(|(n, b)| (n.clone(), b.len() as u64))
             .collect(),
+        // What the shell's listing finds: a vault not named .fvlt, by its
+        // first four bytes and its length.
+        vaults: files
+            .iter()
+            .filter(|(n, b)| !n.ends_with(".fvlt") && faraday_intake::is_vault(b))
+            .map(|(n, _)| n.clone())
+            .collect(),
     }
 }
 
@@ -893,6 +900,7 @@ fn a_picture_on_a_visit_comes_in_ticked_and_has_its_codes_read_into_the_inbox() 
         label: "TESTSTICK".into(),
         boot: false,
         files: vec![("wallet-qr.png".into(), 9000)],
+        vaults: Vec::new(),
     }]));
     assert_eq!(app.screen, Screen::Visit);
     let _ = app.frame();
@@ -1358,4 +1366,41 @@ fn import_keeps_a_file_of_a_held_name_beside_it_and_a_same_one_once() {
         "{:?}",
         app.toast_text()
     );
+}
+
+#[test]
+fn a_vault_under_a_short_name_is_counted_and_imported_as_a_vault() {
+    let mut files = stick_files();
+    for f in &mut files {
+        if f.0 == "vault.fvlt" {
+            f.0 = "VAULT~1.FVL".into();
+        }
+    }
+    let mut app = booted_with(&files);
+    let texts = drawn(&mut app);
+    assert!(
+        texts.contains("1 vault · 1 PSBT · 5 other files, by their names"),
+        "{texts}"
+    );
+    go(&mut app, &files);
+    pull(&mut app);
+    assert!(inbox_names(&app).contains(&"VAULT~1.FVL".to_string()));
+    assert_eq!(
+        app.import_field().map(|v| v.name),
+        Some("VAULT~1.FVL".into())
+    );
+}
+
+#[test]
+fn a_file_named_fvlt_that_holds_other_bytes_is_not_counted_as_a_vault() {
+    let mut files = stick_files();
+    for f in &mut files {
+        if f.0 == "vault.fvlt" {
+            f.1 = b"not a vault".to_vec();
+        }
+    }
+    let mut app = booted_with(&files);
+    go(&mut app, &files);
+    pull(&mut app);
+    assert!(app.import_field().is_none());
 }

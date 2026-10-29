@@ -38,11 +38,6 @@ const SECRET: &str = EN.stick_wipe_if_a_seed;
 const WITHIN: &str = EN.stick_wipe_within;
 const BOUNDARY: &str = EN.stick_wipe_boundary_why;
 
-/// Whether a file on a stick is a vault, by its name.
-fn is_vault_name(name: &str) -> bool {
-    name.to_ascii_lowercase().ends_with(".fvlt")
-}
-
 /// How fast a typical stick is written and read back, MB a second, for
 /// the time the sheet says before the first step measures it.
 const TYPICAL_MBPS: u64 = 6;
@@ -182,7 +177,13 @@ impl Faraday {
             .delete_ask
             .as_ref()
             .is_some_and(|d| match d.what {
-                What::Files => d.chosen.iter().any(|f| is_vault_name(f)),
+                // The listing's kind: named `.fvlt`, or told a vault by
+                // its contents when it was made (§2.1).
+                What::Files => self
+                    .stick
+                    .iter()
+                    .find(|s| s.id == d.stick)
+                    .is_some_and(|s| d.chosen.iter().any(|f| s.is_vault(f))),
                 What::Free | What::Whole => true,
             })
     }

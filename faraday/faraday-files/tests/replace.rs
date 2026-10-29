@@ -114,6 +114,7 @@ fn a_vault_is_never_written_over_another_vault() {
         let mut v = b"FVLT".to_vec();
         v.extend_from_slice(&[0u8; 17]);
         v.extend_from_slice(&[salt; 32]);
+        v.resize(faraday_codec::vault_file::file_len(65_536), 0);
         v
     };
     let old = vault(1);

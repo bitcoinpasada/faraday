@@ -62,9 +62,9 @@ fn a_part_file_of_a_hundred_megabytes_is_removed_unread_and_the_vault_is_written
     stick
         .files
         .insert(".faraday-x.fvlt.part".into(), (100 << 20, Vec::new()));
-    // A vault of slot size 0: 53 + 4 * 40 bytes.
+    // A vault of the smallest slot size.
     let mut vault = b"FVLT".to_vec();
-    vault.resize(53 + 160, 0);
+    vault.resize(faraday_codec::vault_file::file_len(65_536), 0);
     let wrote = write_vault_over(&mut stick, "x.fvlt", &vault, true, false).unwrap();
     assert_eq!(wrote, "x.fvlt");
     assert!(!stick.files.contains_key(".faraday-x.fvlt.part"));

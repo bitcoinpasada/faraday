@@ -44,6 +44,7 @@ impl Stick {
                 .iter()
                 .map(|(n, b)| (n.clone(), b.len() as u64))
                 .collect(),
+            vaults: Vec::new(),
         }
     }
 }
@@ -346,6 +347,7 @@ fn a_file_larger_than_18_mib_is_not_read() {
             ("film.mp4".into(), 19 * 1024 * 1024),
             ("savings-share-1-of-3.txt".into(), 900),
         ],
+        vaults: Vec::new(),
     }]));
     app.press(Action::Nav(Screen::Visit));
     let _ = app.frame();

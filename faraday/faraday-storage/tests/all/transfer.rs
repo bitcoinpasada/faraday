@@ -370,6 +370,7 @@ fn the_camera_opens_for_receive_with_a_stick_attached() {
         label: "BLANK".into(),
         boot: false,
         files: Vec::new(),
+        vaults: Vec::new(),
     }]));
     app.press(Action::Nav(Screen::Transfer));
     app.press(Action::TransferReceive);

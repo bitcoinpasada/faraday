@@ -198,6 +198,7 @@ fn a_vaults_currency_reads_never_written_then_current_then_changed() {
         label: "VAULTSTICK".into(),
         boot: false,
         files: Vec::new(),
+        vaults: Vec::new(),
     }]));
     app.press(Action::Nav(Screen::Visit));
     app.press(Action::VisitWrite);
@@ -253,6 +254,7 @@ fn a_vault_copied_in_reads_current_on_its_stick_or_unchanged() {
         label: "VAULTSTICK".into(),
         boot: false,
         files: vec![("vault.fvlt".into(), vault.len() as u64)],
+        vaults: Vec::new(),
     }]));
     app.press(Action::Nav(Screen::Visit));
     app.press(Action::VisitCopy);

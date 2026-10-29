@@ -121,6 +121,7 @@ fn copy_in(t: &mut Tour, (name, bytes): &(String, Vec<u8>)) -> Result<(), String
         boot: false,
         serial: Some(0x3300),
         files: vec![(name.clone(), bytes.len() as u64)],
+        vaults: Vec::new(),
     };
     t.app.storage(StorageEvent::Sticks(vec![stick]));
     t.pump();

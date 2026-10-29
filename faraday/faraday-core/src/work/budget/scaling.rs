@@ -192,6 +192,7 @@ fn boot_import(copies: usize) -> Faraday {
             .iter()
             .map(|(n, b)| (n.clone(), b.len() as u64))
             .collect(),
+        vaults: Vec::new(),
     }]));
     while let Some(c) = app.poll_storage() {
         match c {

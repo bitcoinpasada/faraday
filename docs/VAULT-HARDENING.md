@@ -1,8 +1,8 @@
 # Vault hardening: the file's name, the passphrase, key commitment and the seal count
 
 **Kind:** Spec
-**Status:** Specified (F159); the passphrase in NFC (§3), the commitment block (§4) and the seal count's record (§5.1) built
-**Open:** a vault known by its contents (§2.1), the seal count shown, its comparisons and its lines in the backup plan (§5.2 to §5.7), the outside review of the container (§10)
+**Status:** Specified (F159); the passphrase in NFC (§3), the commitment block (§4) and the seal count's record (§5.1) and a vault known by its contents (§2.1) built
+**Open:** the seal count shown, its comparisons and its lines in the backup plan (§5.2 to §5.7), the outside review of the container (§10)
 
 The vault's format is `docs/VAULT.md`. This spec changes it in four
 places and renames its file. Every change was settled by the owner on

@@ -149,7 +149,7 @@ use faraday_shell_api::{
     App, BootState, Command, DisplayInfo, EntropyBytes, Event, Key, Orientation, SecureHardware,
     TouchPhase,
 };
-use faraday_storage::{Boxes, Dirs, DiskProcess, Sticks, serve_with, stick_info};
+use faraday_storage::{Boxes, Dirs, DiskProcess, Sticks, serve_with, stick_info_after};
 use fb::{Depth, Geometry};
 use files::Files;
 use pace::Pace;
@@ -1494,11 +1494,24 @@ impl Shell {
         }
         let mounts = std::fs::read_to_string("/proc/mounts").unwrap_or_default();
         let mut sticks = Vec::new();
+        // The token for the listing's reads, minted where the shell looks
+        // at the sticks (docs/COMPUTE.md §3).
+        #[expect(
+            clippy::disallowed_methods,
+            reason = "a mint: the shell's look at the sticks draws nothing (docs/COMPUTE.md §3)"
+        )]
+        let c = faraday_crypto::work::Compute::new(|_| {});
         for line in mounts.lines() {
             let point = line.split_whitespace().nth(1).unwrap_or("");
             if point == DEFAULT_FILES {
                 // The app names the boot medium itself.
-                sticks.push(stick_info(Path::new(point), "", true));
+                sticks.push(stick_info_after(
+                    &c,
+                    &self.sticks,
+                    Path::new(point),
+                    "",
+                    true,
+                ));
             } else if let Some(name) = point
                 .strip_prefix(USB_MOUNTS)
                 .and_then(|p| p.strip_prefix('/'))
@@ -1512,7 +1525,13 @@ impl Shell {
                 } else {
                     name.to_string()
                 };
-                sticks.push(stick_info(Path::new(point), &label, false));
+                sticks.push(stick_info_after(
+                    &c,
+                    &self.sticks,
+                    Path::new(point),
+                    &label,
+                    false,
+                ));
             }
         }
         sticks

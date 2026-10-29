@@ -16,14 +16,42 @@ use faraday_strings::{EN, fill};
 
 pub use faraday_files::{MAX_PIXELS, MAX_READ, Unrenamed, foreign};
 
-/// What a stick directory holds at its top level, as the app sees it.
-pub fn stick_info(dir: &Path, label: &str, boot: bool) -> StickInfo {
+/// Costs a look at the folder and a read of four bytes of each file
+/// that could be a vault: what a stick directory holds at its top level,
+/// as the app sees it.
+pub fn stick_info(
+    c: &faraday_crypto::work::Compute,
+    dir: &Path,
+    label: &str,
+    boot: bool,
+) -> StickInfo {
+    stick_info_after(c, &[], dir, label, boot)
+}
+
+/// Costs what [`stick_info`] costs: a read of four bytes of each file of
+/// a vault's length that `before`, the listing made last, did not tell
+/// apart under the same name and size.
+pub fn stick_info_after(
+    c: &faraday_crypto::work::Compute,
+    before: &[StickInfo],
+    dir: &Path,
+    label: &str,
+    boot: bool,
+) -> StickInfo {
+    let id = dir.display().to_string();
+    let mut place = Dir(dir.to_path_buf());
+    let files = faraday_files::listing(&mut place);
+    let vaults = match before.iter().find(|s| s.id == id && s.files == files) {
+        Some(s) => s.vaults.clone(),
+        None => faraday_files::vault_names(c, &mut place, &files),
+    };
     StickInfo {
-        id: dir.display().to_string(),
+        id,
         label: label.to_string(),
         boot,
         serial: None,
-        files: faraday_files::listing(&mut Dir(dir.to_path_buf())),
+        files,
+        vaults,
     }
 }
 
@@ -1001,6 +1029,7 @@ impl DiskProcess {
                         boot: s.boot,
                         serial: s.serial,
                         files: s.files,
+                        vaults: s.vaults,
                     })
                     .collect())
             }

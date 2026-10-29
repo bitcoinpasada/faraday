@@ -84,6 +84,7 @@ finds them.
 | `QrEncode` | `faraday_codec::qr::encode`, `encode_bounded`; `seedqr::encode_seedqr`, `encode_compact` |
 | `QrDecode` | `faraday_codec::decode::decode_luma` |
 | `FileHash` | new `faraday_crypto::hash::sha256_whole(c, bytes)`; Faraday's whole-file hashes move to it (`transfer.rs`, `lib.rs`, `gpg.rs`, `Item::sha`) |
+| `FileRead` | `faraday_files::vault_names`: four bytes of each file on a stick that has a vault's length and no `.fvlt` name, read once when a listing is made (`docs/VAULT-HARDENING.md` §2.1) |
 | Faraday's own | `plan::map`, `plan::check` (`PlanMap`); picture/pdf makers (`Picture`); `Wallet::script_at` (`WalletMatch`); `faraday_files::qr_in_png` (`PngDecode`); `Key` and `Wallet` kept accessors (`KeyDerive`, `Address`) |
 
 Not gated: `Canvas::frost`, `snapshot`, `snapshot_into`, `restore`,
@@ -103,10 +104,11 @@ already parsed); `faraday_crypto::hash::sha256` on small fixed inputs;
 | `faraday-core/src/drawing.rs`: `View::new` | `new(work::core_count)`, into a private field | Memo fills, kept values, `Allowed` |
 | `faraday-storage/src/lib.rs`: `Pictures::ask` | `new(\|_\| {})` | The pictures' worker thread, which draws nothing; a token cannot cross threads, so the thread mints its own |
 | `faraday-disk/src/main.rs`: `pictures` and `main` | `new(\|_\| {})` | The disk process's pictures thread and its serving loop, which draw nothing |
+| `faraday/shells/desktop/src/lib.rs`: `Demo::sticks`, `faraday/shells/stick/src/main.rs`: `Shell::mounted_sticks` | `new(\|_\| {})` | The shells' look at the stick folders, which draws nothing; the listing reads four bytes of a file of a vault's length (`FileRead`) |
 | `faraday/shells/snapshot/src/main.rs`: `main` | `new(\|_\| {})` | A tool |
 | `faraday/tools/argon2-bench/src/main.rs`: `main` | `new(\|_\| {})` | A benchmark tool |
 | `faraday-core/src/testkit.rs`: `testkit::compute()` (cfg `test`/`testkit`) | `new(work::core_count)` | Faraday's tests and the snapshot tool's sessions |
-| `compute()` in `faraday-vault`'s `src/tests.rs` and `examples/vectors.rs`, `faraday-disk/tests/disks.rs`, `faraday-files/tests/picture.rs`, `faraday-intake/tests/all/common.rs`, `faraday-keys/tests/operations.rs`, `vault.rs` and `codex32.rs`, `faraday-qr/tests/formats.rs` and `interop.rs`, `faraday-scanner/src/lib.rs` (its unit tests), `faraday-starter/tests/all/{bitlocker,notes,template,template_codex32}.rs`, the Starter's `examples/snap.rs` | `new(\|_\| {})` | Tests and tools in crates that cannot reach faraday-core's test kit |
+| `compute()` in `faraday-vault`'s `src/tests.rs` and `examples/vectors.rs`, `faraday-disk/tests/disks.rs`, `faraday-files/tests/picture.rs` and `vault_by_contents.rs`, `faraday-storage/tests/all/main.rs`, `faraday-intake/tests/all/common.rs`, `faraday-keys/tests/operations.rs`, `vault.rs` and `codex32.rs`, `faraday-qr/tests/formats.rs` and `interop.rs`, `faraday-scanner/src/lib.rs` (its unit tests), `faraday-starter/tests/all/{bitlocker,notes,template,template_codex32}.rs`, the Starter's `examples/snap.rs` | `new(\|_\| {})` | Tests and tools in crates that cannot reach faraday-core's test kit |
 | Core tests and benches, `fuzz/`, `faraday/fuzz/` | `unchecked()` | No app guarantee |
 
 The costs lint's `MINTS` (`tools/costs-lint/src/main.rs`) is this table,

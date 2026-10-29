@@ -6,6 +6,7 @@
 use std::fs;
 use std::path::PathBuf;
 
+use crate::compute;
 use faraday_core::backup_folder;
 use faraday_storage::{stick_info, write};
 
@@ -21,7 +22,7 @@ fn sticks_dir() -> PathBuf {
 fn in_now(dir: &std::path::Path, attached: &[String]) -> Vec<faraday_core::StickInfo> {
     attached
         .iter()
-        .map(|name| stick_info(&dir.join(name), name, false))
+        .map(|name| stick_info(&compute(), &dir.join(name), name, false))
         .collect()
 }
 

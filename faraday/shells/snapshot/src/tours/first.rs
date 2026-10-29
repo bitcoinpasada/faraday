@@ -163,5 +163,6 @@ fn empty_stick(id: &str, serial: u32) -> faraday_core::StickInfo {
         label: "KEYSTICK".into(),
         boot: false,
         files: Vec::new(),
+        vaults: Vec::new(),
     }
 }

@@ -23,6 +23,7 @@ use std::fs;
 use std::io::Write as _;
 use std::path::PathBuf;
 
+use faraday_codec::vault_file;
 use faraday_crypto::work::{Compute, Work};
 use faraday_strings::{EN, fill};
 
@@ -61,6 +62,14 @@ pub trait Place {
     fn files(&mut self) -> Result<Vec<(String, u64)>, String>;
     /// A file's bytes; refused over `max`.
     fn read(&mut self, name: &str, max: u64) -> Result<Vec<u8>, String>;
+    /// A file's first `n` bytes (fewer where it is shorter); refused
+    /// over `max` in all. Where a place cannot read a part, it reads the
+    /// whole.
+    fn head(&mut self, name: &str, n: usize, max: u64) -> Result<Vec<u8>, String> {
+        let mut b = self.read(name, max)?;
+        b.truncate(n);
+        Ok(b)
+    }
     /// A new file, on the medium when this returns. Refused when the name
     /// is taken.
     fn create(&mut self, name: &str, bytes: &[u8]) -> Result<(), String>;
@@ -110,6 +119,25 @@ impl Place for Dir {
             ));
         }
         fs::read(&path).map_err(io_text)
+    }
+
+    fn head(&mut self, name: &str, n: usize, max: u64) -> Result<Vec<u8>, String> {
+        use std::io::Read;
+        let path = self.0.join(name);
+        let meta = fs::metadata(&path).map_err(io_text)?;
+        if meta.len() > max {
+            return Err(fill(
+                EN.files_larger_than,
+                &[&(max / 1024 / 1024).to_string()],
+            ));
+        }
+        let mut out = Vec::new();
+        fs::File::open(&path)
+            .map_err(io_text)?
+            .take(n as u64)
+            .read_to_end(&mut out)
+            .map_err(io_text)?;
+        Ok(out)
     }
 
     fn create(&mut self, name: &str, bytes: &[u8]) -> Result<(), String> {
@@ -370,6 +398,33 @@ pub fn checked_for_write(name: &str) -> Result<&str, String> {
     Ok(name)
 }
 
+/// Costs a read of the first four bytes of each file that could be a
+/// vault: the names in `files` that are a vault by its contents
+/// (`docs/VAULT-HARDENING.md` §2.1) and not named `.fvlt`, which are
+/// vaults by name. A file is read only where its length is one of the
+/// four vault sizes. Made once when the listing is, and kept with it.
+pub fn vault_names(c: &Compute, place: &mut dyn Place, files: &[(String, u64)]) -> Vec<String> {
+    let mut out = Vec::new();
+    for (n, len) in files {
+        if n.to_ascii_lowercase().ends_with(".fvlt")
+            || n.starts_with('.')
+            || foreign(n)
+            || !vault_file::is_vault_len(*len)
+        {
+            continue;
+        }
+        c.count(Work::FileRead);
+        if place
+            .head(n, vault_file::MAGIC.len(), MAX_READ)
+            .is_ok_and(|b| vault_file::has_magic(&b))
+        {
+            out.push(n.clone());
+        }
+    }
+    out.sort();
+    out
+}
+
 /// The files a person sees: none of an operating system's own
 /// ([`foreign`]), sorted by name.
 pub fn listing(place: &mut dyn Place) -> Vec<(String, u64)> {
@@ -468,7 +523,7 @@ pub fn write_replacing(place: &mut dyn Place, name: &str, bytes: &[u8]) -> Resul
     };
     // A vault on the stick is never removed by a replacing write: only
     // `write_vault` goes over a vault, and only over the same one.
-    if old.to_ascii_lowercase().ends_with(".fvlt") {
+    if is_vault_on(place, &old) {
         return write(place, name, bytes);
     }
     let temp = format!(".faraday-{old}.part");
@@ -483,10 +538,27 @@ pub fn write_replacing(place: &mut dyn Place, name: &str, bytes: &[u8]) -> Resul
     Ok(old)
 }
 
+/// Whether the file `name` on the place is a vault: named `.fvlt`, or
+/// one of the vault lengths and beginning with the magic (§2.1). Reads
+/// four bytes of a file that is not named so.
+fn is_vault_on(place: &mut dyn Place, name: &str) -> bool {
+    if name.to_ascii_lowercase().ends_with(".fvlt") {
+        return true;
+    }
+    let sized = place.files().is_ok_and(|f| {
+        f.iter()
+            .any(|(n, l)| n == name && vault_file::is_vault_len(*l))
+    });
+    sized
+        && place
+            .head(name, vault_file::MAGIC.len(), MAX_READ)
+            .is_ok_and(|b| vault_file::has_magic(&b))
+}
+
 /// A vault's identity: its salt and its length (`docs/VAULT.md` §6).
 /// `None` for anything that is not a vault.
 fn vault_identity(bytes: &[u8], len: u64) -> Option<([u8; 32], u64)> {
-    if bytes.len() < 53 || bytes[0..4] != *b"FVLT" {
+    if !vault_file::is_vault_file(bytes) || bytes.len() as u64 != len {
         return None;
     }
     let mut salt = [0u8; 32];
@@ -519,7 +591,7 @@ pub fn write_vault_over(
     let want = vault_identity(bytes, bytes.len() as u64).ok_or(EN.files_not_a_vault)?;
     let mut same: Vec<String> = Vec::new();
     for (n, len) in place.files()? {
-        if !n.to_ascii_lowercase().ends_with(".fvlt") || n.starts_with('.') || len != want.1 {
+        if n.starts_with('.') || len != want.1 {
             continue;
         }
         if let Ok(b) = place.read(&n, len)
@@ -581,10 +653,7 @@ pub fn rename(place: &mut dyn Place, from: &str, to: &str) -> Result<(), Unrenam
         .iter()
         .find(|(n, _)| n != from && n.eq_ignore_ascii_case(to))
     {
-        let vaults = from.to_ascii_lowercase().ends_with(".fvlt")
-            && other.to_ascii_lowercase().ends_with(".fvlt")
-            && len == *olen
-            && len <= MAX_READ;
+        let vaults = len == *olen && vault_file::is_vault_len(len) && len <= MAX_READ;
         let same = vaults && {
             let a = place.read(from, MAX_READ).ok();
             let b = place.read(other, MAX_READ).ok();
@@ -608,7 +677,7 @@ pub fn rename(place: &mut dyn Place, from: &str, to: &str) -> Result<(), Unrenam
 /// Whether these bytes are a whole vault file: its length is the one its
 /// slot size gives.
 fn whole_vault(b: &[u8]) -> bool {
-    b.len() >= 21 && b[0..4] == *b"FVLT" && {
+    vault_file::is_vault_file(b) && {
         let slot = u32::from_le_bytes([b[17], b[18], b[19], b[20]]) as usize;
         b.len() == 53 + 4 * (slot + 40)
     }
@@ -627,7 +696,13 @@ pub fn finish_vault_writes(place: &mut dyn Place) {
         else {
             continue;
         };
-        if !name.to_ascii_lowercase().ends_with(".fvlt") {
+        // A part file of a vault under another name is told by its
+        // contents; a part file of any other file is not this function's.
+        let named = name.to_ascii_lowercase().ends_with(".fvlt");
+        if !named && !(vault_file::is_vault_len(*len) && *len <= MAX_READ) {
+            continue;
+        }
+        if !named && !place.read(n, MAX_READ).is_ok_and(|b| whole_vault(&b)) {
             continue;
         }
         if files.iter().any(|(o, _)| o.eq_ignore_ascii_case(name)) {
@@ -695,7 +770,7 @@ pub fn write_file(
     replace: bool,
     renamed: bool,
 ) -> Result<String, String> {
-    if name.ends_with(".fvlt") && bytes.starts_with(b"FVLT") {
+    if vault_file::is_vault_file(bytes) {
         write_vault_over(place, name, bytes, replace, renamed)
     } else if name.eq_ignore_ascii_case(SETTINGS_FILE) && bytes.starts_with(b"faraday-settings ") {
         write_settings(place, bytes)

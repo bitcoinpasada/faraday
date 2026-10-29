@@ -296,6 +296,7 @@ fn the_stick_visit_carries_a_dot_until_the_stick_is_visited() {
         label: "FARADAY".into(),
         boot: true,
         files: Vec::new(),
+        vaults: Vec::new(),
     }]));
     assert_eq!(app.screen, Screen::Home);
     let drawn = dots(&mut app);

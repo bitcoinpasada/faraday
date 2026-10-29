@@ -150,6 +150,7 @@ fn guide_stick(files: &[(String, Vec<u8>)]) -> Result<StickInfo, String> {
             .iter()
             .map(|(n, b)| (n.clone(), b.len() as u64))
             .collect(),
+        vaults: Vec::new(),
     })
 }
 

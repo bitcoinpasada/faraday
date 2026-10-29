@@ -70,6 +70,7 @@ fn boot_stick(file: Option<&[u8]>) -> StickInfo {
         files: file
             .map(|f| vec![(FILE.to_string(), f.len() as u64)])
             .unwrap_or_default(),
+        vaults: Vec::new(),
     }
 }
 

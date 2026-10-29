@@ -225,6 +225,7 @@ fn after_the_vault_is_written_the_vault_line_names_the_stick() {
         label: "VAULTSTICK".into(),
         boot: false,
         files: Vec::new(),
+        vaults: Vec::new(),
     }]));
     app.press(Action::Nav(Screen::Visit));
     app.press(Action::VisitWrite);

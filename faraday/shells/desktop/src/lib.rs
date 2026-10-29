@@ -29,7 +29,7 @@ use std::time::{Duration, Instant};
 
 use faraday_core::{BOOT_FOLDER, Faraday, StickInfo, StorageEvent};
 use faraday_shell_api::{Command, Event};
-use faraday_storage::{Boxes, Dirs, Host, serve_with, stick_info};
+use faraday_storage::{Boxes, Dirs, Host, serve_with, stick_info_after};
 use faraday_window::camera;
 use faraday_window::clipboard::Clipboard;
 
@@ -340,13 +340,28 @@ impl Demo {
     }
 
     fn sticks(&self) -> Vec<StickInfo> {
+        // The token for the listing's reads, minted where the shell looks
+        // at the sticks (docs/COMPUTE.md §3).
+        #[expect(
+            clippy::disallowed_methods,
+            reason = "a mint: the shell's look at the sticks draws nothing (docs/COMPUTE.md §3)"
+        )]
+        let c = faraday_crypto::work::Compute::new(|_| {});
         self.attached
             .iter()
             // A folder renamed or removed is a stick pulled.
             .filter(|name| self.sticks_dir.join(name).is_dir())
             // The boot stick's first plugging in a session, at start,
             // reads its settings file and brings up the boot import.
-            .map(|name| stick_info(&self.sticks_dir.join(name), name, name == BOOT))
+            .map(|name| {
+                stick_info_after(
+                    &c,
+                    &self.seen,
+                    &self.sticks_dir.join(name),
+                    name,
+                    name == BOOT,
+                )
+            })
             .collect()
     }
 

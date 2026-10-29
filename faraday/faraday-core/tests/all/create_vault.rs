@@ -148,6 +148,7 @@ fn a_new_vaults_passphrases_wait_until_the_stick_is_pulled() {
             label: "STICK".into(),
             boot: false,
             files: Vec::new(),
+            vaults: Vec::new(),
         },
     ]));
     app.press(Action::Vault(V::CFocus(0, false)));

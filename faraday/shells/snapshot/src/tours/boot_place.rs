@@ -20,6 +20,7 @@ pub(crate) fn boot_place_tour(t: &mut Tour) -> Result<(), String> {
         boot: true,
         serial: Some(0x1234_5678),
         files: Vec::new(),
+        vaults: Vec::new(),
     }]));
     t.pump();
     let tile = faraday_core::catalog::TILES

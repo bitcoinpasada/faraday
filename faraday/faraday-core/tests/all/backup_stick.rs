@@ -112,6 +112,7 @@ fn importing_everything_and_pulling_the_stick_asks_for_the_vault_and_loads_the_s
             .iter()
             .map(|(n, b)| (n.clone(), b.len() as u64))
             .collect(),
+        vaults: Vec::new(),
     }]));
     assert_eq!(app.screen, Screen::Visit);
     // Every file comes in ticked.
@@ -249,6 +250,7 @@ fn lock_sheet_lines(app: &mut Faraday) -> Vec<String> {
         label: "OTHER".into(),
         boot: false,
         files: Vec::new(),
+        vaults: Vec::new(),
     }]));
     assert_eq!(app.sheet, Some(faraday_core::Sheet::Lock));
     app.drawn_texts()
@@ -361,6 +363,7 @@ fn with_two_vault_files_waiting_a_visit_ticks_one() {
         label: label.into(),
         boot: false,
         files: Vec::new(),
+        vaults: Vec::new(),
     };
     let ticked = |app: &Faraday| -> Vec<String> {
         app.visit()

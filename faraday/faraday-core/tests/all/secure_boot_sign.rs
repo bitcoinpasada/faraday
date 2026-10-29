@@ -71,6 +71,7 @@ fn visit(app: &mut Faraday, files: &[(String, Vec<u8>)]) {
             .iter()
             .map(|(n, b)| (n.clone(), b.len() as u64))
             .collect(),
+        vaults: Vec::new(),
     }]));
     app.press(Action::VisitCopy);
     while let Some(c) = app.poll_storage() {

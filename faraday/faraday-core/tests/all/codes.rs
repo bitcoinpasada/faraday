@@ -151,6 +151,7 @@ fn key_scanned(name: &str, png: &[u8]) -> String {
         label: "TESTSTICK".to_string(),
         boot: false,
         files: Vec::new(),
+        vaults: Vec::new(),
     }]));
     app.press(Action::Nav(Screen::Visit));
     app.storage(StorageEvent::QrRead {

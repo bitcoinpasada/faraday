@@ -133,6 +133,7 @@ fn folder_stick(name: &str, label: &str, files: &[(&str, Vec<u8>)]) -> Result<St
             .iter()
             .map(|(n, b)| ((*n).to_string(), b.len() as u64))
             .collect(),
+        vaults: Vec::new(),
     })
 }
 
@@ -265,6 +266,7 @@ fn write_sticks(t: &mut Tour, name: &str, pictures: &[(&str, &str)]) -> Result<(
             label: "KEYSTICK".into(),
             boot: false,
             files: Vec::new(),
+            vaults: Vec::new(),
         };
         t.app.storage(StorageEvent::Sticks(vec![stick]));
         t.pump();

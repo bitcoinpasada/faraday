@@ -59,6 +59,7 @@ impl Disk {
                 .iter()
                 .map(|(n, b)| (n.clone(), b.len() as u64))
                 .collect(),
+            vaults: Vec::new(),
         }
     }
 

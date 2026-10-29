@@ -174,6 +174,7 @@ fn stick() -> StickInfo {
         label: "KEYSTICK".into(),
         boot: false,
         files: Vec::new(),
+        vaults: Vec::new(),
     }
 }
 

@@ -90,6 +90,7 @@ impl Tour {
             label: "TESTSTICK".into(),
             boot: false,
             files,
+            vaults: Vec::new(),
         }
     }
 

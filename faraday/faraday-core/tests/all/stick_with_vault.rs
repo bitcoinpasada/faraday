@@ -72,6 +72,7 @@ fn stick() -> Vec<StickInfo> {
         label: "STICK".into(),
         boot: false,
         files: Vec::new(),
+        vaults: Vec::new(),
     }]
 }
 

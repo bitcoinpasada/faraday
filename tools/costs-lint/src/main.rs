@@ -100,6 +100,26 @@ const MINTS: &[(&str, &str, &str)] = &[
         "faraday-disk's tests, which cannot reach faraday-core's test kit",
     ),
     (
+        "faraday/faraday-files/tests/vault_by_contents.rs",
+        "compute",
+        "faraday-files' tests, which cannot reach faraday-core's test kit",
+    ),
+    (
+        "faraday/faraday-storage/tests/all/main.rs",
+        "compute",
+        "faraday-storage's tests, which draw nothing",
+    ),
+    (
+        "faraday/shells/desktop/src/lib.rs",
+        "Demo::sticks",
+        "the desktop shell's look at the stick folders, which draws nothing",
+    ),
+    (
+        "faraday/shells/stick/src/main.rs",
+        "Shell::mounted_sticks",
+        "the stick shell's look at the mounted sticks, which draws nothing",
+    ),
+    (
         "faraday/faraday-files/tests/picture.rs",
         "compute",
         "faraday-files' tests, which cannot reach faraday-core's test kit",

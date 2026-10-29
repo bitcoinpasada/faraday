@@ -171,7 +171,7 @@ pub use faraday_intake::is_vault;
 
 /// Checks a vault's header and length (§4 step 1).
 pub fn read_header(bytes: &[u8]) -> Result<Header, Error> {
-    if !is_vault(bytes) {
+    if !bytes.starts_with(&MAGIC) {
         return Err(Error::Magic);
     }
     if bytes.len() < HEADER_LEN {

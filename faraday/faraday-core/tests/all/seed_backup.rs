@@ -307,6 +307,7 @@ fn the_words_file_read_from_a_stick_loads_the_same_key() {
         label: "TESTSTICK".to_string(),
         boot: false,
         files: vec![(name.clone(), bytes.len() as u64)],
+        vaults: Vec::new(),
     }]));
     next.press(Action::Nav(Screen::Visit));
     next.press(Action::VisitIn(0));
@@ -397,6 +398,7 @@ fn a_stick_visit_leaves_the_seed_file_unticked() {
             label: "TESTSTICK".to_string(),
             boot: false,
             files: Vec::new(),
+            vaults: Vec::new(),
         }]));
         app.press(Action::Nav(Screen::Visit));
         let _ = app.frame();

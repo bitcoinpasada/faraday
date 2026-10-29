@@ -72,6 +72,10 @@ pub struct StagedFile {
     pub name: String,
     /// Its size on the stick.
     pub size: u64,
+    /// Whether the listing found it a vault: named `.fvlt`, or told by
+    /// its contents when the listing was made (`docs/VAULT-HARDENING.md`
+    /// §2.1).
+    pub vault: bool,
     /// Where it stands.
     pub state: Staged,
 }
@@ -343,6 +347,7 @@ impl Faraday {
             state.files.push(StagedFile {
                 name: name.clone(),
                 size: *size,
+                vault: boot.is_vault(name),
                 state: if stick_kind(name).is_some() {
                     Staged::Listed
                 } else {
@@ -586,7 +591,7 @@ impl Faraday {
             match &file.state {
                 Staged::NotRead => {}
                 Staged::Listed if !imp.asked => match ext(&file.name).as_str() {
-                    "fvlt" => c.vaults += 1,
+                    _ if file.vault => c.vaults += 1,
                     "psbt" => c.psbts += 1,
                     _ => c.other += 1,
                 },
@@ -658,7 +663,14 @@ impl Faraday {
                 // What it is by its name alone: nothing of it is read.
                 Staged::Listed => fill(
                     EN.boot_import_by_name,
-                    &[stick_kind(&file.name).unwrap_or_default(), &size],
+                    &[
+                        if file.vault {
+                            EN.stick_kind_vault
+                        } else {
+                            stick_kind(&file.name).unwrap_or_default()
+                        },
+                        &size,
+                    ],
                 ),
                 Staged::NotRead => fill(EN.boot_import_not_a_kind, &[&size]),
                 Staged::Reading => fill(EN.boot_import_being_read, &[&size]),

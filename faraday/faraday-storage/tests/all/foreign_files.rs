@@ -7,6 +7,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use crate::compute;
 use faraday_core::{Action, Faraday, Screen, Sheet, StorageCommand, StorageEvent, testkit};
 use faraday_storage::{read, stick_info, write};
 
@@ -79,6 +80,7 @@ fn the_boot_stick_reads_and_counts_the_psbt_alone() {
         available_mib: 15_000,
     });
     app.storage(StorageEvent::Sticks(vec![stick_info(
+        &compute(),
         &dir,
         "FARADAYDATA",
         true,
@@ -104,7 +106,10 @@ fn a_visit_lists_and_copies_the_psbt_alone() {
     let dir = visited_stick("visit");
     let mut app = testkit::started();
     app.storage(StorageEvent::Sticks(vec![stick_info(
-        &dir, "KINGSTON", false,
+        &compute(),
+        &dir,
+        "KINGSTON",
+        false,
     )]));
     app.press(Action::Nav(Screen::Visit));
     assert_eq!(
@@ -146,7 +151,7 @@ fn a_file_faraday_writes_leaves_the_psbt_and_their_files_as_they_were() {
         read(&id, "desktop.ini").is_err(),
         "Windows' own file is never read"
     );
-    let names: Vec<String> = stick_info(&dir, "KINGSTON", false)
+    let names: Vec<String> = stick_info(&compute(), &dir, "KINGSTON", false)
         .files
         .into_iter()
         .map(|(n, _)| n)

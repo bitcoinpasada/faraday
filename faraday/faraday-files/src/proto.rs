@@ -115,6 +115,10 @@ pub struct Stick {
     pub serial: Option<u32>,
     /// Its top-level files and their sizes.
     pub files: Vec<(String, u64)>,
+    /// The files among them that are vaults by their contents and are
+    /// not named `.fvlt` (`docs/VAULT-HARDENING.md` §2.1), read once
+    /// when the listing was made.
+    pub vaults: Vec<String>,
     /// Why it cannot be used for a backup, when it cannot: found by the disk
     /// process, which alone opens the partition.
     pub problem: Option<Problem>,
@@ -441,6 +445,10 @@ impl Response {
                         o.str(n);
                         o.0.extend_from_slice(&len.to_le_bytes());
                     }
+                    o.count(s.vaults.len());
+                    for n in s.vaults.iter().take(u16::MAX as usize) {
+                        o.str(n);
+                    }
                     o.0.push(Problem::code(s.problem));
                 }
                 o
@@ -515,6 +523,11 @@ impl Response {
                     for _ in 0..k {
                         files.push((i.str()?, i.u64()?));
                     }
+                    let k = i.u16()?;
+                    let mut vaults = Vec::new();
+                    for _ in 0..k {
+                        vaults.push(i.str()?);
+                    }
                     let problem = Problem::of(i.u8()?)?;
                     sticks.push(Stick {
                         id,
@@ -522,6 +535,7 @@ impl Response {
                         boot,
                         serial,
                         files,
+                        vaults,
                         problem,
                     });
                 }
@@ -615,6 +629,31 @@ mod tests {
     use super::*;
 
     #[test]
+    fn sticks_with_a_problem_read_back_as_written() {
+        let r = Response::Sticks(vec![
+            Stick {
+                id: "sdc1@8".into(),
+                label: "BIG".into(),
+                boot: false,
+                serial: None,
+                files: Vec::new(),
+                vaults: Vec::new(),
+                problem: Some(Problem::NotFat),
+            },
+            Stick {
+                id: "sdd1@9".into(),
+                label: "LOCKED".into(),
+                boot: false,
+                serial: Some(1),
+                files: vec![("a.txt".into(), 1)],
+                vaults: Vec::new(),
+                problem: Some(Problem::ReadOnly),
+            },
+        ]);
+        assert_eq!(Response::decode(&r.encode()), Ok(r));
+    }
+
+    #[test]
     fn every_message_reads_back_as_written() {
         let requests = [
             Request::List,
@@ -670,26 +709,9 @@ mod tests {
                 boot: false,
                 serial: Some(0xcafe_f00d),
                 files: vec![("a.psbt".into(), 1234), ("café.txt".into(), 0)],
+                vaults: vec!["VAULT~1.FVL".into()],
                 problem: None,
             }]),
-            Response::Sticks(vec![
-                Stick {
-                    id: "sdc1@8".into(),
-                    label: "BIG".into(),
-                    boot: false,
-                    serial: None,
-                    files: Vec::new(),
-                    problem: Some(Problem::NotFat),
-                },
-                Stick {
-                    id: "sdd1@9".into(),
-                    label: "LOCKED".into(),
-                    boot: false,
-                    serial: Some(1),
-                    files: vec![("a.txt".into(), 1)],
-                    problem: Some(Problem::ReadOnly),
-                },
-            ]),
             Response::Bytes(vec![9; 100]),
             Response::Written("signed-2.psbt".into()),
             Response::Qr {

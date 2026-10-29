@@ -469,6 +469,7 @@ fn the_reminders_ride_on_the_sheet_that_asks_for_a_stick_to_be_pulled() {
                 label: "STICK".into(),
                 boot: false,
                 files: Vec::new(),
+                vaults: Vec::new(),
             }]
         } else {
             Vec::new()

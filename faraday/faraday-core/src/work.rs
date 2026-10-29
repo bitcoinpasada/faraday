@@ -79,10 +79,13 @@ pub enum Work {
     /// A key's signing context randomized from the session's randomness
     /// (`docs/KEYS.md` §2): an elliptic-curve multiplication.
     Blind,
+    /// The first bytes of a file on a stick read, for a listing to tell
+    /// a vault by its contents.
+    FileRead,
 }
 
 /// Every kind, in the order the counts keep them.
-pub const KINDS: [Work; 20] = [
+pub const KINDS: [Work; 21] = [
     Work::MasterKey,
     Work::KeyDerive,
     Work::Address,
@@ -103,6 +106,7 @@ pub const KINDS: [Work; 20] = [
     Work::FullCanvas,
     Work::Codex32,
     Work::Blind,
+    Work::FileRead,
 ];
 
 /// The kinds that are drawing's own pixel work: a frame does them (a
@@ -131,6 +135,7 @@ fn of_core(w: faraday_crypto::work::Work) -> Work {
         C::FullCanvas => Work::FullCanvas,
         C::Codex32 => Work::Codex32,
         C::Blind => Work::Blind,
+        C::FileRead => Work::FileRead,
     }
 }
 

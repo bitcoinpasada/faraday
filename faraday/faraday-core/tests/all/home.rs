@@ -35,6 +35,7 @@ fn stick(app: &mut Faraday, on: bool) {
             label: "STICK".into(),
             boot: false,
             files: Vec::new(),
+            vaults: Vec::new(),
         }]
     } else {
         Vec::new()
@@ -392,6 +393,7 @@ fn boot_stick(files: &[(String, Vec<u8>)]) -> StickInfo {
             .iter()
             .map(|(n, b)| (n.clone(), b.len() as u64))
             .collect(),
+        vaults: Vec::new(),
     }
 }
 

@@ -275,7 +275,9 @@ impl Disks {
         Volume::open(node).map_err(|e| Unreadable::NotFat(faraday_files::fat_text(e)))
     }
 
-    fn stick(&mut self, f: &Found) -> Option<Stick> {
+    /// Costs a read of four bytes of each file of a vault's length on a
+    /// partition not listed before: one partition, as the app sees it.
+    fn stick(&mut self, c: &Compute, f: &Found) -> Option<Stick> {
         let named = |f: &Found| {
             f.partname
                 .clone()
@@ -293,6 +295,7 @@ impl Disks {
                 boot: f.boot,
                 serial: None,
                 files: Vec::new(),
+                vaults: Vec::new(),
                 problem: Some(if f.read_only {
                     Problem::ReadOnly
                 } else {
@@ -317,6 +320,7 @@ impl Disks {
                     boot: f.boot,
                     serial: None,
                     files: Vec::new(),
+                    vaults: Vec::new(),
                     problem: Some(Problem::NotFat),
                 };
                 self.seen.insert(f.id.clone(), s.clone());
@@ -328,13 +332,16 @@ impl Disks {
             .or_else(|| f.partname.clone())
             .unwrap_or_else(|| f.id.split('@').next().unwrap_or("").to_string());
         let serial = v.serial();
-        let files = faraday_files::listing(&mut Fat(v));
+        let mut place = Fat(v);
+        let files = faraday_files::listing(&mut place);
+        let vaults = faraday_files::vault_names(c, &mut place, &files);
         let s = Stick {
             id: f.id.clone(),
             label,
             boot: f.boot,
             serial,
             files,
+            vaults,
             problem: f.read_only.then_some(Problem::ReadOnly),
         };
         self.seen.insert(f.id.clone(), s.clone());
@@ -370,12 +377,13 @@ impl Disks {
             .collect()
     }
 
-    /// The partitions handed out now.
-    pub fn list(&mut self) -> Vec<Stick> {
+    /// Costs what [`Disks::stick`] costs for each partition not listed
+    /// before: the partitions handed out now.
+    pub fn list(&mut self, c: &Compute) -> Vec<Stick> {
         let found = self.found();
         self.seen
             .retain(|id, _| found.iter().any(|f| &f.id == id && f.open));
-        found.iter().filter_map(|f| self.stick(f)).collect()
+        found.iter().filter_map(|f| self.stick(c, f)).collect()
     }
 
     fn place(&mut self, id: &str) -> Result<Fat<Node>, String> {
@@ -393,7 +401,7 @@ impl Disks {
     /// Costs what `read_qr_png` costs. Answers one request.
     pub fn handle(&mut self, c: &Compute, req: Request) -> Response {
         let answer = match req {
-            Request::List => return Response::Sticks(self.list()),
+            Request::List => return Response::Sticks(self.list(c)),
             Request::Read { stick, name } => self
                 .place(&stick)
                 .and_then(|mut p| faraday_files::read(&mut p, &name))

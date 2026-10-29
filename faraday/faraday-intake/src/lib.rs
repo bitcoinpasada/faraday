@@ -182,10 +182,12 @@ pub fn part_of(text: &str) -> Option<Part> {
 /// The first four bytes of every Faraday vault (`docs/VAULT.md`).
 pub const VAULT_MAGIC: [u8; 4] = *b"FVLT";
 
-/// Whether the bytes begin as a vault does. Says nothing of whether the
-/// rest is sound.
+/// Whether a whole file is a vault, whatever its name: it begins with
+/// the magic and its length is one of the four vault sizes
+/// (`docs/VAULT-HARDENING.md` §2.1). Says nothing of whether the rest is
+/// sound.
 pub fn is_vault(bytes: &[u8]) -> bool {
-    bytes.len() >= 4 && bytes[0..4] == VAULT_MAGIC
+    faraday_codec::vault_file::is_vault_file(bytes)
 }
 
 /// KeePass's two signatures, little-endian, as KDBX 2 to 4 begin.

@@ -9,6 +9,7 @@ use std::fs;
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
+use crate::compute;
 use faraday_codec::qr::{self, Ecc, Payload, QUIET_ZONE};
 use faraday_core::boot_import::ImportAction;
 use faraday_core::{Action, Faraday, Sheet, StorageEvent, testkit};
@@ -67,7 +68,10 @@ fn a_sticks_pictures_come_in_while_its_sheet_is_drawn() {
     });
     let _ = app.frame();
     app.storage(StorageEvent::Sticks(vec![stick_info(
-        &stick.0, "BOOT", true,
+        &compute(),
+        &stick.0,
+        "BOOT",
+        true,
     )]));
     let mut boxes = Boxes::Memory {
         inbox: Vec::new(),

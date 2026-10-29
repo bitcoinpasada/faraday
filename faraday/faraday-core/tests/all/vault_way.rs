@@ -196,6 +196,7 @@ fn a_vault_tile_with_a_stick_in_asks_for_the_stick_before_unlock() {
         label: "STICK".into(),
         boot: false,
         files: Vec::new(),
+        vaults: Vec::new(),
     }]));
     app.press(Action::Nav(Screen::Catalog));
     app.press(Action::Catalog(tile("KeePass export")));

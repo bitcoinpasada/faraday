@@ -32,6 +32,7 @@ fn attach(app: &mut Faraday, on: bool) {
             label: "PHOTOS".into(),
             boot: false,
             files: Vec::new(),
+            vaults: Vec::new(),
         }]
     } else {
         Vec::new()
@@ -81,6 +82,7 @@ fn the_pi_calls_the_card_it_started_from_the_boot_sd_card() {
         label: "FARADAYDATA".into(),
         boot: true,
         files: Vec::new(),
+        vaults: Vec::new(),
     }]));
     let _ = app.frame();
     assert_eq!(app.home_files_line(), "none · Boot SD card");

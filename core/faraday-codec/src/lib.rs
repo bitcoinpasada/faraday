@@ -11,6 +11,8 @@
 //!   route it: SeedQR, PSBT, BC-UR, address, descriptor, xpub, words.
 //! - [`ur`]: BC-UR `crypto-psbt` and `bytes`, single-part and animated
 //!   multi-part, over an in-house fountain codec (§16.61).
+//! - [`vault_file`]: the magic and the lengths that make a file a vault,
+//!   whatever its name.
 //! - [`decode`] (feature `decode`, on by default): QR detection and
 //!   decoding from an 8-bit luma frame through `rqrr`. This is the one
 //!   place in the core that needs `std`, recorded in
@@ -38,6 +40,7 @@ pub mod png;
 pub mod qr;
 pub mod seedqr;
 pub mod ur;
+pub mod vault_file;
 
 pub use classify::{PayloadKind, classify};
 #[cfg(feature = "decode")]

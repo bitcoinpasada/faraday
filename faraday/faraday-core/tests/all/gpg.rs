@@ -81,6 +81,7 @@ fn visit(app: &mut Faraday, files: &[(String, Vec<u8>)]) {
             .iter()
             .map(|(n, b)| (n.clone(), b.len() as u64))
             .collect(),
+        vaults: Vec::new(),
     }]));
     // Every file comes in ticked.
     app.press(Action::VisitCopy);
@@ -1333,6 +1334,7 @@ fn files_from_a_second_stick_after_the_boot_stick_are_offered_for_signing() {
         label: "FARADAY".into(),
         boot: true,
         files: listing(&boot),
+        vaults: Vec::new(),
     }]));
     assert_eq!(app.sheet, Some(Sheet::Import));
     app.press(Action::Import(faraday_core::boot_import::ImportAction::Go));
@@ -1373,6 +1375,7 @@ fn files_from_a_second_stick_after_the_boot_stick_are_offered_for_signing() {
         label: "FILES".into(),
         boot: false,
         files: listing(&files),
+        vaults: Vec::new(),
     };
     app.storage(StorageEvent::Sticks(vec![second.clone()]));
     assert_eq!(app.sheet, Some(Sheet::Lock));
@@ -1462,6 +1465,7 @@ fn files_imported_from_the_boot_sheet_are_offered_for_signing() {
             .iter()
             .map(|(n, b)| (n.clone(), b.len() as u64))
             .collect(),
+        vaults: Vec::new(),
     }]));
     assert_eq!(app.sheet, Some(Sheet::Import));
     let view = app.import_view().unwrap();

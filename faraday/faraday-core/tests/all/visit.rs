@@ -42,6 +42,7 @@ fn with_stick_at(n: usize, (width, height, dpi): (u16, u16, u16)) -> Faraday {
         label: "TESTSTICK".into(),
         boot: false,
         files,
+        vaults: Vec::new(),
     }]));
     app.press(Action::Nav(Screen::Visit));
     let _ = app.frame();
@@ -98,6 +99,7 @@ fn a_fresh_visit_has_the_psbts_and_descriptors_ticked_and_the_words_file_not() {
             ("savings-9a6a2580-seedqr.png".into(), 4000),
             ("film.mp4".into(), 19 * 1024 * 1024),
         ],
+        vaults: Vec::new(),
     }]));
     assert_eq!(app.screen, Screen::Visit);
     let ticked: Vec<&str> = app.visit().inn.iter().map(String::as_str).collect();
@@ -365,6 +367,7 @@ fn process(boxes: (Files, Files, Files), stick: Option<&str>) -> Faraday {
             label: label.into(),
             boot: false,
             files: Vec::new(),
+            vaults: Vec::new(),
         }]));
     }
     let _ = app.frame();
@@ -824,6 +827,7 @@ fn writing_over(on_stick: &[(&str, u64)], outbox: Vec<(&str, Vec<u8>)>) -> Farad
         label: "TESTSTICK".into(),
         boot: false,
         files: on_stick.iter().map(|(n, s)| (n.to_string(), *s)).collect(),
+        vaults: Vec::new(),
     }]));
     app.press(Action::Nav(Screen::Visit));
     let names: Vec<String> = app.outbox.iter().map(|i| i.name.clone()).collect();
@@ -1023,6 +1027,7 @@ fn made_unclean(app: &mut Faraday) {
         label: "TESTSTICK".into(),
         boot: false,
         files: Vec::new(),
+        vaults: Vec::new(),
     };
     app.storage(StorageEvent::Sticks(Vec::new()));
     app.press(Action::Entry(None));

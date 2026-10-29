@@ -272,6 +272,7 @@ fn boot_stick(app: &mut Faraday, files: &[(String, Vec<u8>)]) {
             .iter()
             .map(|(n, b)| (n.clone(), b.len() as u64))
             .collect(),
+        vaults: Vec::new(),
     }]));
     while let Some(c) = app.poll_storage() {
         if let faraday_core::StorageCommand::Read { stick, name } = c
@@ -336,6 +337,7 @@ fn every_text(width: u16, height: u16, dpi: u16) -> Vec<(String, String)> {
         label: "STICK".into(),
         boot: false,
         files: vec![("spend.psbt".into(), 300)],
+        vaults: Vec::new(),
     }]));
     app.sheet = None;
     app.press(Action::Nav(S::Visit));

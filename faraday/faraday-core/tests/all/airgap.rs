@@ -193,6 +193,7 @@ fn the_boot_import_offers_its_files_at_once() {
         label: "FARADAY".into(),
         boot: true,
         files: vec![("words.txt".into(), OTHER.len() as u64)],
+        vaults: Vec::new(),
     }]));
     while let Some(c) = app.poll_storage() {
         if let StorageCommand::Read { stick, name } = c {

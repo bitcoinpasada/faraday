@@ -93,6 +93,7 @@ pub(crate) fn modes_tour(t: &mut Tour) -> Result<(), String> {
             label: "BOOT".into(),
             boot: true,
             files: Vec::new(),
+            vaults: Vec::new(),
         },
     ]));
     t.press(Action::Cancel);

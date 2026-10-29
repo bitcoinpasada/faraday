@@ -59,6 +59,7 @@ pub(crate) fn flow_tour(t: &mut Tour) -> Result<(), String> {
         label: "SPARE".into(),
         boot: false,
         files: Vec::new(),
+        vaults: Vec::new(),
     };
     t.app.storage(StorageEvent::Sticks(vec![empty("empty-a")]));
     t.pump();
