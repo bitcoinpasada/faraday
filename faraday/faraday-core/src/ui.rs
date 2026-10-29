@@ -7,8 +7,9 @@ use faraday_draw::tokens::{LABEL_M, LABEL_S};
 
 pub use faraday_ui::pal;
 pub use faraday_ui::{
-    BAR_GRAB, BarGeometry, Contrast, Disclosure, Glyph, Mode, NameSuffix, Paint, Role, Scrolled,
-    Slot, Style, TextSize, Theme, ThemeName, W, btc, grouped, short, thousands,
+    BAR_GRAB, BarGeometry, Contrast, Disclosure, Glyph, Mode, NameSuffix, Paint, Plain, Role,
+    Scrolled, Shape, Slot, Style, TextSize, Theme, ThemeName, Unpressed, W, btc, grouped, short,
+    thousands,
 };
 
 /// What is written or drawn on a control that is not available now:
@@ -155,6 +156,19 @@ impl CoreUi for Ui<'_> {
                 self.dot(at(n), mid, 3.0, c);
             }
         }
+        // Each stop takes the presses nearest it, the ends out to the
+        // slider's edges. Its layer is Material's slider handle's, a
+        // `SLIDER_HALO` circle round the stop under the pointer or the
+        // keyboard, over the track and under the thumb.
+        let halo_r = faraday_draw::tokens::SLIDER_HALO / 2.0;
+        for n in lo..=hi {
+            let left = if n == lo { x } else { at(n) - gap / 2.0 };
+            let right = if n == hi { x + w } else { at(n) + gap / 2.0 };
+            let d = 2.0 * halo_r;
+            let halo = Shape::new(at(n) - halo_r, mid - halo_r, d, d, halo_r);
+            let target = (left, y, right - left, 40.0);
+            self.press_to(halo, target, Role::Primary.paint(), Action::Slide(id, n));
+        }
         let r = if held { 15.0 } else { 13.0 };
         let bg = if held {
             Paint::from(self.col(Role::Primary).mix(self.col(Role::OnSurface), 0.12))
@@ -185,13 +199,6 @@ impl CoreUi for Ui<'_> {
             Role::OnSurfaceVariant,
             &h,
         );
-        // Each stop takes the presses nearest it, the ends out to the
-        // slider's edges.
-        for n in lo..=hi {
-            let left = if n == lo { x } else { at(n) - gap / 2.0 };
-            let right = if n == hi { x + w } else { at(n) + gap / 2.0 };
-            self.hit_quiet(left, y, right - left, 40.0, Action::Slide(id, n));
-        }
         56.0
     }
 

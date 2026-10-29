@@ -15,12 +15,13 @@ use faraday_draw::geom::Rect;
 use faraday_draw::tokens as t;
 use faraday_draw::widgets::Icon;
 use faraday_ui::demo::DemoItem;
-use faraday_ui::{Mode, Role, Theme};
+use faraday_ui::{Mode, Paint, Role, Theme};
 
 use super::{Area, Host, HostMenu as Menu, HostPress};
 use crate::fresh::roller::Act as DieAct;
 use crate::samples::{PASSPHRASE, Pick, Roller};
 use crate::strings::{EN, fill};
+use crate::ui::{Plain, Shape};
 use crate::{Action, Faraday};
 
 /// The host's colours for the app's scheme: the strip in the app's
@@ -934,11 +935,7 @@ fn control(host: &Host, ui: &mut HostUi, c: &Ctl, (x, y): (f32, f32), inks: Inks
         ui.fill(x, y, w, h, r, b);
     }
     if c.kind != Kind::Off {
-        if ui.is_pressed(c.press) {
-            ui.wash(x, y, w, h, r, layer(ink, t::STATE_PRESS));
-        } else if ui.is_hovered(c.press) {
-            ui.wash(x, y, w, h, r, layer(ink, t::STATE_HOVER));
-        }
+        ui.press(Shape::new(x, y, w, h, r), Paint::Fixed(ink), c.press);
     }
     ui.stroke(x, y, w, h, r, edge);
     if c.mark {
@@ -967,9 +964,6 @@ fn control(host: &Host, ui: &mut HostUi, c: &Ctl, (x, y): (f32, f32), inks: Inks
         // The menu opens upward from the strip.
         let iy = y + (h - t::ICON_SMALL) / 2.0;
         ui.icon(ix, iy, t::ICON_SMALL, Icon::ChevronUp, t::TITLE_M.size, ink);
-    }
-    if c.kind != Kind::Off {
-        ui.hit_ringed((x, y, w, h, r), (x, y, w, h), c.press);
     }
     w
 }
@@ -1116,7 +1110,7 @@ fn menu(
     }
     // A press on the menu itself is the menu's: it closes nothing, and
     // shows no state of its own.
-    ui.hit_quiet(mx, my, mw, mh, HostPress::Sheet);
+    ui.press_plain((mx, my, mw, mh), Plain::Body, HostPress::Sheet);
     let place = ui.rect(mx, my, mw, mh);
     ui.c.push_clip(place);
     let mut ry = my + t::GAP - host.list_shown(max);
@@ -1137,11 +1131,7 @@ fn menu(
                 } else {
                     look.on_raised
                 };
-                if ui.is_pressed(p) {
-                    ui.wash(mx, ry, mw, rh, 0.0, layer(ink, t::STATE_PRESS));
-                } else if ui.is_hovered(p) {
-                    ui.wash(mx, ry, mw, rh, 0.0, layer(ink, t::STATE_HOVER));
-                }
+                ui.press(Shape::new(mx, ry, mw, rh, 0.0), Paint::Fixed(ink), p);
                 let mut tx = mx + t::PAD;
                 if let Some(d) = r.dot {
                     ui.dot(tx + t::GAP_SMALL, ry + rh / 2.0, t::GAP_SMALL, d);
@@ -1165,7 +1155,6 @@ fn menu(
                     let dim = look.on_raised_dim;
                     ui.text_mid_as((nx, ry, rh), t::BODY_M, dim, &r.note);
                 }
-                ui.hit_ringed((mx, ry, mw, rh, 0.0), (mx, ry, mw, rh), p);
             }
         }
         ry += rh;
@@ -1319,7 +1308,7 @@ fn samples_sheet(
     }
     // A press on the sheet itself is the sheet's: it closes nothing, and
     // shows no state of its own.
-    ui.hit_drawn(mx, my, mw, mh, HostPress::Sheet);
+    ui.press_plain((mx, my, mw, mh), Plain::Body, HostPress::Sheet);
     let x = mx + t::PAD;
     let title = EN.samples_title;
     ui.text_mid_as(
@@ -1387,31 +1376,14 @@ fn sheet_lists(
     let all = HostPress::App(Action::SamplesAll);
     let link_w = ui.measure_as(t::LABEL_L, link) + 2.0 * t::GAP;
     let ly = cy + (row - line) / 2.0;
-    if ui.is_pressed(all) {
-        ui.wash(
-            x - t::GAP,
-            ly,
-            link_w,
-            line,
-            t::GAP,
-            layer(ink, t::STATE_PRESS),
-        );
-    } else if ui.is_hovered(all) {
-        ui.wash(
-            x - t::GAP,
-            ly,
-            link_w,
-            line,
-            t::GAP,
-            layer(ink, t::STATE_HOVER),
-        );
-    }
-    ui.text_mid_as((x, cy, row), t::LABEL_L, ink, link);
-    ui.hit_ringed(
-        (x - t::GAP, ly, link_w, line, t::GAP),
+    let link_at = Shape::new(x - t::GAP, ly, link_w, line, t::GAP);
+    ui.press_to(
+        link_at,
         (x - t::GAP, cy, link_w, row),
+        Paint::Fixed(ink),
         all,
     );
+    ui.text_mid_as((x, cy, row), t::LABEL_L, ink, link);
     texts.push(link.to_string());
     cy += row;
     let wallets: Vec<String> = state
@@ -1526,11 +1498,7 @@ fn tick_row(
     let on = !r.loaded;
     let ink = look.on_raised;
     if on {
-        if ui.is_pressed(press) {
-            ui.wash(x, y, w, row, 0.0, layer(ink, t::STATE_PRESS));
-        } else if ui.is_hovered(press) {
-            ui.wash(x, y, w, row, 0.0, layer(ink, t::STATE_HOVER));
-        }
+        ui.press(Shape::new(x, y, w, row, 0.0), Paint::Fixed(ink), press);
     }
     let (ink, tick) = if on {
         (ink, look.main)
@@ -1556,8 +1524,5 @@ fn tick_row(
         let nw = ui.measure_as(t::BODY_M, &note);
         let dim = if on { look.on_raised_dim } else { ink };
         ui.text_mid_as((x + w - t::PAD - nw, y, row), t::BODY_M, dim, &note);
-    }
-    if on {
-        ui.hit_ringed((x, y, w, row, 0.0), (x, y, w, row), press);
     }
 }

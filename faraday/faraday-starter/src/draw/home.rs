@@ -408,8 +408,8 @@ fn checklist(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
         ui.icon(cx, cy, 20.0, Icon::ChevronRight, 9.0, muted);
         // The pressed layer in the row's content colour, over its
         // selected fill when it is the next step.
-        ui.state_layer(layer, fg, action.host());
-        ui.hit_ringed(layer, (x - 6.0, y, w + 12.0, ROW_H), action.host());
+        let shape = Shape::new(layer.0, layer.1, layer.2, layer.3, layer.4);
+        ui.press_to(shape, (x - 6.0, y, w + 12.0, ROW_H), fg, action.host());
         y += ROW_H;
         if row.item == Item::SecureBootOn {
             y += link(ui, tx, y, w - 44.0, LearnId::SecureBootBitLocker);

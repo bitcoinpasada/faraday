@@ -12,6 +12,7 @@ use faraday_draw::widgets::Icon;
 use faraday_shell_api::Key as KeyIn;
 
 use crate::Action;
+use crate::ui::Shape;
 use crate::ui::pal::*;
 use crate::ui::{Glyph, Ui};
 use faraday_ui::menu::{Menu, MenuLine};
@@ -103,7 +104,7 @@ pub(crate) fn dots(ui: &mut Ui, cx: f32, cy: f32, color: crate::ui::Paint) {
 pub(crate) fn button(ui: &mut Ui, x: f32, y: f32, h: f32, action: Action, focused: bool) -> f32 {
     let w = h;
     let r = tokens::SHAPE_S;
-    ui.state_layer((x, y, w, h, r), Role::OnSurface.paint(), action);
+    ui.press(Shape::new(x, y, w, h, r), Role::OnSurface.paint(), action);
     ui.stroke(x, y, w, h, r, Role::Outline);
     dots(ui, x + w / 2.0, y + h / 2.0, Role::OnSurfaceVariant.paint());
     if focused {
@@ -115,7 +116,6 @@ pub(crate) fn button(ui: &mut Ui, x: f32, y: f32, h: f32, action: Action, focuse
             Role::Primary.paint(),
         );
     }
-    ui.hit_quiet(x, y, w, h, action);
     w
 }
 

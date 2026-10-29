@@ -1663,7 +1663,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
     ///
     /// It shows its state as Material's state layer over what was drawn
     /// there, hovered, with the keyboard on it (and the focus ring) and
-    /// pressed, in small corners ([`Ui::hit_shaped`] takes the control's
+    /// pressed, in small corners ([`Ui::press`] takes the control's
     /// own), unless it draws its own (a button) or covers so much of the
     /// screen that a layer would light the page. It takes a press at
     /// least [`faraday_draw::tokens::TOUCH`] square ([`Reach`]).

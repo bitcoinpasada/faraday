@@ -6,6 +6,7 @@ use super::parts::{
 };
 use crate::drawing::{Scrolled, View};
 use crate::strings::{EN, fill};
+use crate::ui::Shape;
 use crate::ui::pal::*;
 use crate::ui::{CoreUi, Style, Ui};
 use crate::wallet::{Session, fp_text, key_line};
@@ -561,8 +562,7 @@ fn wallet_pick(app: &View, ui: &mut Ui, x: f32, y: f32, chip_w: f32, right: f32)
             let ty = ry + (rh - ICON_GLYPH_BUTTON) / 2.0;
             ui.icon(tx, ty, ICON_GLYPH_BUTTON, Icon::Done, ICON_GLYPH_BUTTON, fg);
         }
-        ui.state_layer((x, ry, lw, rh, 0.0), fg, Action::Backup(k));
-        ui.hit_ringed((x, ry, lw, rh, 0.0), (x, ry, lw, rh), Action::Backup(k));
+        ui.press(Shape::new(x, ry, lw, rh, 0.0), fg, Action::Backup(k));
     }
 }
 

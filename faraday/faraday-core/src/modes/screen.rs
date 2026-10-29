@@ -10,6 +10,7 @@ use crate::compact::{buttons, scroll_sheet, sheet_head};
 use crate::drawing::View;
 use crate::strings::EN;
 use crate::ui::Paint;
+use crate::ui::Shape;
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui};
 use crate::wallet::network_name;
@@ -50,10 +51,11 @@ fn chip(ui: &mut Ui, (px, py, pw): (f32, f32, f32), label: &str, tone: Paint, ac
     let h = MODE_PILL_HEIGHT;
     // In its tone's container, never a tint (`docs/DESIGN.md` §3).
     let (bg, fg) = crate::ui::container_of(tone);
-    let shape = (px, py, pw, h, h / 2.0);
+    let shape = Shape::new(px, py, pw, h, h / 2.0);
     ui.fill(px, py, pw, h, h / 2.0, bg);
+    // Its layer in its label's colour, under the label.
+    ui.press(shape, fg.paint(), action);
     ui.text_mid_as((px + MODE_PILL_PAD, py, h), LABEL_M, fg, label);
-    ui.hit_shaped(shape, action);
 }
 
 /// The mode pill at (`px`, `py`), in the caution tone: it names the
@@ -146,22 +148,13 @@ fn body(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         let ry = cy + i as f32 * MODE_ROW;
         let live = m == now || !fixed;
         let action = Action::Mode(m);
-        if live && (ui.is_pressed(action) || ui.is_hovered(action)) {
-            ui.wash(
-                x,
-                ry + 2.0,
-                w,
-                MODE_ROW - 4.0,
-                8.0,
-                Role::OnSurface.at(faraday_draw::tokens::STATE_PRESS),
-            );
+        if live {
+            let shape = Shape::new(x, ry + 2.0, w, MODE_ROW - 4.0, 8.0);
+            ui.press_to(shape, (x, ry, w, MODE_ROW), Role::OnSurface.paint(), action);
         }
         mode_row(ui, x, ry, w, m, m == now, live);
         if i + 1 < modes.len() {
             ui.rule(x, ry + MODE_ROW, w, Role::OutlineVariant);
-        }
-        if live {
-            ui.hit(x, ry, w, MODE_ROW, action);
         }
     }
     cy += modes.len() as f32 * MODE_ROW + PAD;

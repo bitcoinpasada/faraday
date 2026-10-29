@@ -11,6 +11,7 @@ use crate::drawing::View;
 use crate::fresh::OwnSource;
 use crate::fresh::page::{Act, OwnPage};
 use crate::strings::{EN, fill};
+use crate::ui::Shape;
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui};
 use faraday_draw::tokens::{BODY_M, BODY_S};
@@ -154,11 +155,15 @@ fn pad(p: &OwnPage, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
 /// what it has taken. Returns its height.
 fn pointer_keys_area(p: &OwnPage, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
     ui.fill(x, y, w, OWN_AREA, SHAPE_M, Role::SurfaceContainerHighest);
+    ui.press(
+        Shape::new(x, y, w, OWN_AREA, SHAPE_M),
+        Role::OnSurfaceVariant.paint(),
+        own(Act::Area),
+    );
     let label = EN.own_pointer_keys_area;
     let lw = ui.measure_as(BODY_M, label);
     let lx = x + ((w - lw) / 2.0).max(PAD);
     ui.text_mid_as((lx, y, OWN_AREA), BODY_M, Role::OnSurfaceVariant, label);
-    ui.hit_quiet(x, y, w, OWN_AREA, own(Act::Area));
     let mut cy = y + OWN_AREA + GAP;
     let (moves, keys) = p.pointer_keys();
     let count = |n: u32, one: &str, many: &str| {

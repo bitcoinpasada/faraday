@@ -19,6 +19,7 @@ use crate::board::{
 use crate::drawing::View;
 use crate::menu::{measure, outline};
 use crate::strings::EN;
+use crate::ui::Shape;
 use crate::ui::pal::*;
 use crate::ui::{Glyph, Style, Ui, W};
 
@@ -191,9 +192,9 @@ fn dots(
     }
     // Round, as its focus outline is: its state layer in its content's
     // colour.
-    let round = (x + 1.0, y + 1.0, mw - 2.0, h - 2.0, (h - 2.0) / 2.0);
+    let round = Shape::new(x + 1.0, y + 1.0, mw - 2.0, h - 2.0, (h - 2.0) / 2.0);
     if hits {
-        ui.state_layer(round, color, a);
+        ui.press_to(round, (x, y, mw, h), color, a);
     }
     let inset = tokens::GAP_SMALL;
     ui.fill(
@@ -219,9 +220,6 @@ fn dots(
                 Role::Primary.paint()
             },
         );
-    }
-    if hits {
-        ui.hit_ringed(round, (x, y, mw, h), a);
     }
 }
 
@@ -378,7 +376,11 @@ fn toggles(ui: &mut Ui, cv: &ChipView, (x, y, room): (f32, f32, f32), line_h: f3
         );
         if hits {
             // Material's state layer and focus ring in the pill's shape.
-            ui.hit_shaped((tx, ty, tw, th, th / 2.0), action);
+            ui.press(
+                Shape::new(tx, ty, tw, th, th / 2.0),
+                Role::OnSurface.paint(),
+                action,
+            );
         }
         tx += tw + tokens::BOARD_CHIP_GAP;
     }
@@ -536,8 +538,12 @@ fn chip(ui: &mut Ui, fr: &mut Frame, cv: &ChipView, x: f32, y: f32, fit: Fit, hi
         };
         // Its state layer and focus ring in the chip's shape; the press
         // on its body.
-        ui.state_layer((x, y, w, h, r), Role::OnSurface.paint(), action);
-        ui.hit_ringed((x, y, w, h, r), (x, y, body, body_h), action);
+        ui.press_to(
+            Shape::new(x, y, w, h, r),
+            (x, y, body, body_h),
+            Role::OnSurface.paint(),
+            action,
+        );
         if held {
             fr.held_at = Some(((x, y, w, h), cv.clone()));
         }
@@ -697,10 +703,9 @@ fn paper(
     let (places, _) = flow(ui, chips, x + pad, y + lh, w - 2.0 * pad);
     ui.fill(x, y, w, h, tokens::GAP, fill);
     outline(ui, r, tokens::GAP, tokens::BOARD_BOX_EDGE, edge_c);
-    let zone = (x, y, w, h);
-    ui.hit_ringed(
-        (x, y, w, h, tokens::GAP),
-        zone,
+    ui.press(
+        Shape::new(x, y, w, h, tokens::GAP),
+        Role::OnSurface.paint(),
         Action::Board(BoardPress::Zone(z)),
     );
     let mark = tokens::BOARD_MARK;
@@ -785,7 +790,11 @@ fn add_stick(ui: &mut Ui, fr: &Frame, p: usize, r: Box4) {
         Role::OnSurfaceVariant,
         EN.board_add_stick,
     );
-    ui.hit_shaped((x, y, w, h, tokens::GAP), a);
+    ui.press(
+        Shape::new(x, y, w, h, tokens::GAP),
+        Role::OnSurface.paint(),
+        a,
+    );
     let on = takes_held && fr.drag.is_none_or(|d| inside(d, r));
     if on {
         edge(ui, r, tokens::GAP, Role::Primary.paint());
@@ -1052,7 +1061,11 @@ fn place(
     let (lay, h) = place_lay(ui, v, cv, (x, y, w), min_h);
     let (bx, bw) = place_box(ui, x, y, w, h);
     let zone = Action::Board(BoardPress::Zone(Zone::Card(cv.p)));
-    ui.hit_ringed((x, y, w, h, tokens::RADIUS), (x, y, w, h), zone);
+    ui.press(
+        Shape::new(x, y, w, h, tokens::RADIUS),
+        Role::OnSurface.paint(),
+        zone,
+    );
     // A vault's chip held goes to the place as a whole.
     if let Some(c) = fr.held
         && let Thing::Vault(_) = c.thing()
@@ -1194,9 +1207,10 @@ fn vault_head(
             Role::OnPrimary.paint(),
         );
     }
-    ui.hit_ringed(
-        (x, y, w, hh, tokens::GAP),
+    ui.press_to(
+        Shape::new(x, y, w, hh, tokens::GAP),
         (x, y, w - mw - off_w, hh),
+        Role::OnSurface.paint(),
         action,
     );
     if held {
@@ -1258,7 +1272,11 @@ fn stick(ui: &mut Ui, fr: &mut Frame, st: &crate::board::StickView, r: Box4, cus
     // The stick box outside its files box and vault box still keeps a
     // drop as a file (§19.17 item 2).
     let zone = Action::Board(BoardPress::Zone(fz));
-    ui.hit_ringed((x, y, w, h, tokens::GAP), (x, y, w, h), zone);
+    ui.press(
+        Shape::new(x, y, w, h, tokens::GAP),
+        Role::OnSurface.paint(),
+        zone,
+    );
     // Its × (after the lock, only for a stick that carries a vault alone:
     // its files stay as made, §17.8); none while the board is read-only.
     if custom && !(fr.locked && !files.is_empty()) {
@@ -1301,9 +1319,9 @@ fn stick(ui: &mut Ui, fr: &mut Frame, st: &crate::board::StickView, r: Box4, cus
             Role::SurfaceContainerLowest,
         );
         let zone = Action::Board(BoardPress::Zone(vz.zone));
-        ui.hit_ringed(
-            (vx, vy, vw, vault_h, tokens::GAP),
-            (vx, vy, vw, vault_h),
+        ui.press(
+            Shape::new(vx, vy, vw, vault_h, tokens::GAP),
+            Role::OnSurface.paint(),
             zone,
         );
         vault_head(ui, fr, vc, (&st.sealed, &st.sealed_short), vx, vy, vw);
@@ -1364,7 +1382,11 @@ fn software(ui: &mut Ui, fr: &mut Frame, v: &BoardView, x: f32, y: f32, w: f32) 
         let hh = stick_box(ui, fr.stick_glyph, &sv.stick_label, r);
         let z = Zone::SoftStick;
         let zone = Action::Board(BoardPress::Zone(z));
-        ui.hit_ringed((r.0, r.1, r.2, r.3, tokens::GAP), r, zone);
+        ui.press(
+            Shape::new(r.0, r.1, r.2, r.3, tokens::GAP),
+            Role::OnSurface.paint(),
+            zone,
+        );
         let sp = tokens::BOARD_STICK_PAD;
         let fh = paper_h(ui, chips, r.2 - 2.0 * sp);
         let files_box = (r.0 + sp, r.1 + hh, r.2 - 2.0 * sp, fh);
@@ -1409,7 +1431,11 @@ fn add_place(ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         Role::OnSurfaceVariant,
         EN.board_add_place,
     );
-    ui.hit_shaped((x, y, w, h, tokens::GAP), a);
+    ui.press(
+        Shape::new(x, y, w, h, tokens::GAP),
+        Role::OnSurface.paint(),
+        a,
+    );
     h
 }
 
@@ -2035,7 +2061,14 @@ fn list_in(app: &View, ui: &mut Ui, (px, top, pw, view): Box4, card: bool) {
     let view = if card { view.min(content) } else { view };
     let clip = ui.rect(px, top, pw, view);
     let zone = Action::Board(BoardPress::Zone(Zone::List));
-    ui.hit_ringed((px, top, pw, view, 0.0), (px, top, pw, view), zone);
+    // One of the board's zones: its layer and ring as theirs, a card's
+    // corners where it is drawn as one.
+    let corner = if card { tokens::SHAPE_M } else { 0.0 };
+    ui.press(
+        Shape::new(px, top, pw, view, corner),
+        Role::OnSurface.paint(),
+        zone,
+    );
     let taken = fr.held.is_some_and(|c| matches!(c, Chip::Placed(..)));
     ui.c.push_clip(clip);
     let mark = ui.presses_mark();

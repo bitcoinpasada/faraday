@@ -1696,6 +1696,9 @@ pub const C32_ZOOM_MIN_CELL: f32 = 24.0;
 /// its header, so the panel and the pad are in view together (the tabs a
 /// scroll up away).
 pub const CODEX32_ENTER_SCROLL: f32 = 140.0;
+/// The state layer round a slider's handle: Material's slider, a 40 dp
+/// circle centred on the handle (`CoreUi::slider`).
+pub const SLIDER_HALO: f32 = 40.0;
 /// Material's icon button: its container, round, drawn in a `TOUCH`
 /// target with an `ICON_GLYPH` icon (the codex32 sheets' eye).
 pub const ICON_BUTTON: f32 = 40.0;

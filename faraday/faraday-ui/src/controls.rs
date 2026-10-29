@@ -341,17 +341,6 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
         self.c.pop_clip();
     }
 
-    /// [`Ui::hit`] for a control with corners of `r`: its state layer and
-    /// focus ring follow its shape.
-    pub fn hit_shaped(&mut self, at: (f32, f32, f32, f32, f32), action: A) {
-        let (x, y, w, h, r) = at;
-        if !self.dimmed.contains(&action) {
-            self.state_layer((x, y, w, h, r), Role::OnSurface.paint(), action);
-            self.focus_ring((x, y, w, h, r), action);
-        }
-        self.hit_drawn(x, y, w, h, action);
-    }
-
     /// The width of one segment of a segmented button over `labels` at
     /// `size`: the widest label, its padding and the tick's room, so no
     /// segment changes width as the choice moves.

@@ -22,6 +22,7 @@
 //! nothing here computes but the cells' places.
 
 use crate::ui::Paint;
+use crate::ui::Shape;
 use faraday_draw::geom::WindowClass;
 use faraday_draw::tokens as t;
 use faraday_draw::tokens::{BODY_M, TITLE_S};
@@ -608,16 +609,20 @@ pub(crate) fn draw(
     }
     thin(ui, &shown, (ox, oy), g.cell);
     for d in &shown {
-        ui.fixed_text(|ui| one(ui, d, (ox, oy), g.cell, size));
+        // Its layer under what is written in it, in that writing's colour.
         if let Some(cell) = d.press.filter(|_| s.press && !s.hide) {
-            ui.hit_quiet(
-                d.x + ox,
-                d.y + oy,
-                g.cell,
-                g.cell,
+            let ink = if d.pink {
+                Role::OnChecksumContainer
+            } else {
+                Role::OnSurface
+            };
+            ui.press(
+                Shape::new(d.x + ox, d.y + oy, g.cell, g.cell, 0.0),
+                ink.paint(),
                 Action::Codex32(C32::Cell(cell)),
             );
         }
+        ui.fixed_text(|ui| one(ui, d, (ox, oy), g.cell, size));
     }
     frames(ui, &s, &g, &shown, (ox, oy));
     // What is panned out of the view takes no press.

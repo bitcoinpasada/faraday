@@ -20,6 +20,7 @@ pub mod sheet;
 use crate::strings::EN;
 use crate::strings::fill;
 use crate::ui::Paint;
+use crate::ui::Shape;
 use faraday_crypto::work::Compute;
 use faraday_draw::tokens;
 
@@ -1124,7 +1125,11 @@ impl Node {
         // The node's own press first: a line pressed on its own is found
         // over it.
         if let Some(a) = self.action {
-            ui.hit_shaped((x, y, w, h, tokens::RADIUS), a);
+            ui.press(
+                Shape::new(x, y, w, h, tokens::RADIUS),
+                Role::OnSurface.paint(),
+                a,
+            );
         }
         let title = ui.fit_as(LABEL_L, &self.title, inner - tag_w);
         ui.text_as(x + pad, cy, LABEL_L, Role::OnSurface, &title);

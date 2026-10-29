@@ -7,6 +7,7 @@ use crate::codes::{CodeKind, CodeRow, codes_rows_at, va};
 use crate::drawing::View;
 use crate::strings::EN;
 use crate::strings::fill;
+use crate::ui::Shape;
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui};
 use crate::vault::{Focus, SearchIn, VaultAction as V};
@@ -78,7 +79,11 @@ fn code_row(ui: &mut Ui, x: f32, y: f32, w: f32, r: &CodeRow) -> f32 {
     let shape = faraday_draw::tokens::SHAPE_M;
     ui.fill(x, y, w, h, shape, Role::SurfaceContainerLow);
     ui.stroke(x, y, w, h, shape, Role::OutlineVariant);
-    ui.hit_shaped((x, y, w, h, shape), action);
+    ui.press(
+        Shape::new(x, y, w, h, shape),
+        Role::OnSurface.paint(),
+        action,
+    );
     let t = ui.fit_as(TITLE_M, &r.title, w - 140.0);
     ui.text_as(x + 16.0, y + 14.0, TITLE_M, Role::OnSurface, &t);
     let sub = if r.account.is_empty() {

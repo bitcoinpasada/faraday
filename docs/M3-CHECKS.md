@@ -1,8 +1,8 @@
 # Material 3 checks: touch targets and state layers
 
 **Kind:** Spec
-**Status:** Specified (F152); A1, A2, A3 and B1 built (the touch-target test, its registry rule and the Starter's frames; the press constructor in faraday-ui)
-**Open:** of §6, the press constructor's use in faraday-core and the Starter and the hit functions made private (B2 and B3)
+**Status:** Specified (F152); A1, A2, A3, B1 and B2 built (the touch-target test, its registry rule and the Starter's frames; the press constructor in faraday-ui and its use in faraday-core and the Starter)
+**Open:** of §6, the 121 plain `hit` calls and the hit functions made private (B3)
 
 Two of Material 3's rules that Faraday follows (F91, F92, F108) are
 today held by review alone: a press is taken on at least 48 × 48 dp, and
@@ -300,7 +300,7 @@ faraday-ui (the components there are built on them), and the fields
 
 Built so far (B1): `Ui::press*` and the mark, rewind, clip, take, drop
 and cover methods, with `Ui::hits` and `Ui::reach` private; the old
-`hit*`, `state_layer` and `focus_ring` stay public until B3. A control
+`hit*`, `state_layer` and `focus_ring` stay public until B3 (`hit_shaped` is gone; B2 moved the opt-out sites of faraday-core and the Starter onto `press*`). A control
 whose layer is not its box (a switch's handle, a menu item's inset ring)
 lays it in `Ui::press_custom`, crate-private to faraday-ui, which still
 takes the press with it. The keyboard's keys are `Ui::key_in`.

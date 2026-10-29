@@ -11,6 +11,7 @@ use crate::backup_flow::{BackupFlow, Step};
 use crate::drawing::View;
 use crate::screens::stepper;
 use crate::strings::{EN as FEN, fill};
+use crate::ui::Shape;
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui};
 use faraday_draw::tokens::{BODY_M, BODY_S, BUTTON_H, LABEL_L, TITLE_M};
@@ -135,16 +136,7 @@ fn card_head(
     toggle: Action,
 ) -> f32 {
     let h = 44.0;
-    if ui.is_pressed(toggle) || ui.is_hovered(toggle) {
-        ui.wash(
-            x,
-            y,
-            w,
-            h,
-            8.0,
-            Role::OnSurface.at(faraday_draw::tokens::STATE_PRESS),
-        );
-    }
+    ui.press(Shape::new(x, y, w, h, 8.0), Role::OnSurface.paint(), toggle);
     ui.stroke(x, y, w, h, 8.0, Role::OutlineVariant);
     let tw = ui.measure_as(LABEL_L, title).min(w * 0.5);
     let t = ui.fit_as(LABEL_L, title, w * 0.5);
@@ -153,7 +145,6 @@ fn card_head(
         let s = ui.fit_as(BODY_S, summary, w - tw - 36.0);
         ui.text_right_as((x + w - 12.0, y, h), BODY_S, Role::OnSurfaceVariant, &s);
     }
-    ui.hit(x, y, w, h, toggle);
     h + 8.0
 }
 

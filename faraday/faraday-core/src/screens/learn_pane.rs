@@ -13,6 +13,7 @@ use super::sheets::{LearnLook, learn_body};
 use crate::Action;
 use crate::drawing::View;
 use crate::strings::EN;
+use crate::ui::Shape;
 use crate::ui::pal::*;
 use crate::ui::{Slot, Ui, W};
 
@@ -60,8 +61,13 @@ fn close_button(ui: &mut Ui, x: f32, y: f32) {
     let edge = (T::TOUCH - T::ICON_BUTTON) / 2.0;
     let (bx, by) = (x + edge, y + edge);
     let r = T::shape_full(T::ICON_BUTTON);
-    let button = (bx, by, T::ICON_BUTTON, T::ICON_BUTTON, r);
-    ui.state_layer(button, Role::OnSurfaceVariant.paint(), a);
+    let button = Shape::new(bx, by, T::ICON_BUTTON, T::ICON_BUTTON, r);
+    ui.press_to(
+        button,
+        (x, y, T::TOUCH, T::TOUCH),
+        Role::OnSurfaceVariant.paint(),
+        a,
+    );
     let mark = "×";
     let mw = ui.measure(T::ICON_GLYPH, W::R, mark);
     let (mx, size) = (bx + (T::ICON_BUTTON - mw) / 2.0, T::ICON_GLYPH);
@@ -74,6 +80,5 @@ fn close_button(ui: &mut Ui, x: f32, y: f32) {
         Role::OnSurfaceVariant,
         mark,
     );
-    ui.hit_ringed(button, (x, y, T::TOUCH, T::TOUCH), a);
     ui.tip_plain((x, y, T::TOUCH, T::TOUCH), a, EN.learn_close);
 }

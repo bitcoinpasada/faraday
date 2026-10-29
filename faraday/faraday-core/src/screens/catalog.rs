@@ -3,6 +3,7 @@
 use crate::Action;
 use crate::drawing::View;
 use crate::strings::EN;
+use crate::ui::Shape;
 use crate::ui::Ui;
 use crate::ui::pal::*;
 use faraday_draw::tokens::{BODY_M, BODY_S, LABEL_S, TITLE_S};
@@ -136,7 +137,11 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 gx += gw + 6.0;
             }
             if opens {
-                ui.hit_shaped((tx, ty, tw3, th, r), action);
+                ui.press(
+                    Shape::new(tx, ty, tw3, th, r),
+                    Role::OnSurface.paint(),
+                    action,
+                );
             }
         }
         y += tiles.len().div_ceil(per) as f32 * (th + 10.0) + 16.0;

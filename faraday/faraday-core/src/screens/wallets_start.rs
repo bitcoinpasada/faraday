@@ -3,6 +3,7 @@
 use super::parts::FROM_KEY;
 use crate::drawing::View;
 use crate::strings::{EN, fill};
+use crate::ui::Shape;
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui};
 use crate::wallet::{Session, key_line};
@@ -270,7 +271,11 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 let sub = ui.fit_as(BODY_S, sub, label_room);
                 ui.text_as(tx + 82.0, sub_y, BODY_S, Role::OnSurfaceVariant, &sub);
             }
-            ui.hit_shaped((tx, y, tw, card_h, r), *action);
+            ui.press(
+                Shape::new(tx, y, tw, card_h, r),
+                Role::OnSurface.paint(),
+                *action,
+            );
         }
         y += card_h + 28.0;
         let files = app.vault_files();
@@ -439,7 +444,11 @@ pub(crate) fn wallet_rows(
             Role::OnSurfaceVariant,
             &shape,
         );
-        ui.hit_shaped((rx, ry, rw, 44.0, r), action);
+        ui.press(
+            Shape::new(rx, ry, rw, 44.0, r),
+            Role::OnSurface.paint(),
+            action,
+        );
     }
     let mut used = shown.div_ceil(cols) as f32 * 52.0;
     if shown < total {

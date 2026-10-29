@@ -9,10 +9,10 @@ use faraday_core::build::{Fit, describe, version};
 use faraday_draw::widgets::Icon;
 use faraday_strings::fill;
 use faraday_strings::{EN, Strings};
-use faraday_ui::Role;
 use faraday_ui::hold::HoldTone;
 use faraday_ui::parts::qr_code;
 use faraday_ui::{Glyph, NameSuffix, Paint, Style};
+use faraday_ui::{Role, Shape};
 
 use crate::api::{
     Concern, InUse, InstallItem, Kind, Mode, Os, Reason, ReleaseFault, StickFault, WriteStage,
@@ -464,7 +464,11 @@ fn nav_row(
             Role::OnSurfaceVariant,
         );
         // Its state layer in the card's own corners.
-        ui.hit_shaped((x, y, w, h, SHAPE_M), a.host());
+        ui.press(
+            Shape::new(x, y, w, h, SHAPE_M),
+            Role::OnSurface.paint(),
+            a.host(),
+        );
     }
     h + 8.0
 }
@@ -506,10 +510,9 @@ pub(crate) fn link(ui: &mut Ui, x: f32, y: f32, w: f32, id: LearnId) -> f32 {
     let tw = ui.measure_as(TITLE_S, &label);
     // Material's text button: the label in primary, its state layer
     // primary, round at its ends.
-    let at = (x - 4.0, y, tw + 8.0, 28.0, 14.0);
-    ui.state_layer(at, Role::Primary.paint(), action);
+    let at = Shape::new(x - 4.0, y, tw + 8.0, 28.0, 14.0);
+    ui.press(at, Role::Primary.paint(), action);
     ui.text_mid_as((x, y, 28.0), TITLE_S, Role::Primary, &label);
-    ui.hit_ringed(at, (x - 4.0, y, tw + 8.0, 28.0), action);
     32.0
 }
 
@@ -1038,8 +1041,9 @@ fn mode(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
         let enabled = refused.is_none();
         let rh = LIST_2;
         if enabled {
-            ui.state_layer(
-                (x - 6.0, y + 2.0, w + 12.0, rh - 4.0, SHAPE_S),
+            ui.press_to(
+                Shape::new(x - 6.0, y + 2.0, w + 12.0, rh - 4.0, SHAPE_S),
+                (x - 6.0, y, w + 12.0, rh),
                 Role::OnSurface.paint(),
                 action,
             );
@@ -1063,10 +1067,6 @@ fn mode(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
         };
         let rooms = (w - 40.0, w - 40.0);
         two_lines(ui, (tx, y, rh), rooms, (head, ink), (sub, tone.paint()));
-        if enabled {
-            let layer = (x - 6.0, y + 2.0, w + 12.0, rh - 4.0, SHAPE_S);
-            ui.hit_ringed(layer, (x - 6.0, y, w + 12.0, rh), action);
-        }
         y += rh;
         // The one fact the Learn page explains (§4.4).
         if m == Mode::KeepData {
@@ -1664,8 +1664,8 @@ fn notes_block(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     let lines = ui.wrap_height_as(BODY_M, key, room);
     let rh = ui.row_height(44.0, lines, LIST_PAD_V);
     let a = StarterAction::IncludeKey.host();
-    let layer = (tx - 6.0, ty, tick_w + 12.0, rh, SHAPE_S);
-    ui.state_layer(layer, Role::OnSurface.paint(), a);
+    let layer = Shape::new(tx - 6.0, ty, tick_w + 12.0, rh, SHAPE_S);
+    ui.press(layer, Role::OnSurface.paint(), a);
     ui.checkbox(tx, ty + (rh - 18.0) / 2.0, starter.include_key, true);
     if lines > ui.line_as(BODY_M) {
         let top = ty + (rh - lines) / 2.0;
@@ -1673,7 +1673,6 @@ fn notes_block(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     } else {
         ui.text_mid_as((tx + 30.0, ty, rh), BODY_M, Role::OnSurface, key);
     }
-    ui.hit_ringed(layer, (tx - 6.0, ty, tick_w + 12.0, rh), a);
     y = ty + rh;
     if starter.key_reading {
         y += 8.0;
@@ -2274,8 +2273,13 @@ fn tick_row(
     let tw = w - 36.0;
     let lines = ui.wrap_height_as(BODY_L, head, tw);
     let rh = ui.row_height(LIST_1, lines, LIST_PAD_V);
-    let layer = (x - 6.0, y + 2.0, w + 12.0, rh - 4.0, SHAPE_S);
-    ui.state_layer(layer, Role::OnSurface.paint(), a);
+    let layer = Shape::new(x - 6.0, y + 2.0, w + 12.0, rh - 4.0, SHAPE_S);
+    ui.press_to(
+        layer,
+        (x - 6.0, y, w + 12.0, rh),
+        Role::OnSurface.paint(),
+        a,
+    );
     let cy = y + rh / 2.0;
     radio_mark(ui, x, cy, on, true);
     if lines > ui.line_as(BODY_L) {
@@ -2284,7 +2288,6 @@ fn tick_row(
     } else {
         ui.text_mid_as((x + 36.0, y, rh), BODY_L, Role::OnSurface, head);
     }
-    ui.hit_ringed(layer, (x - 6.0, y, w + 12.0, rh), a);
     ui.rule(x, y + rh, w, Role::OutlineVariant);
     rh
 }

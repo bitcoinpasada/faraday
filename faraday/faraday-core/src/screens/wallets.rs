@@ -3,6 +3,7 @@
 use super::parts::FROM_KEY;
 use crate::drawing::View;
 use crate::strings::{EN, fill};
+use crate::ui::Shape;
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui, W};
 use crate::wallet::{Session, fp_text, key_line};
@@ -406,14 +407,13 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         // A filled card: what leads stands in secondary-container, never
         // a tint (`docs/DESIGN.md` §3).
         let ink = Role::OnSecondaryContainer;
-        let card = (x, y, width, 48.0, tokens::SHAPE_M);
+        let card = Shape::new(x, y, width, 48.0, tokens::SHAPE_M);
         ui.fill(x, y, width, 48.0, tokens::SHAPE_M, Role::SecondaryContainer);
         ui.icon(x + 14.0, y + 14.0, 20.0, Icon::File, 13.0, ink);
         let nw = ui.text_mid_as((x + 44.0, y, 48.0), BODY_M.mono(), ink, &name);
         ui.text_mid_as((x + 56.0 + nw, y, 48.0), BODY_M, ink, where_);
         ui.text_right_as((x + width - 18.0, y, 48.0), LABEL_L, ink, verb);
-        ui.state_layer(card, ink.paint(), action);
-        ui.hit_ringed(card, (x, y, width, 48.0), action);
+        ui.press(card, ink.paint(), action);
         y += 64.0;
     }
 

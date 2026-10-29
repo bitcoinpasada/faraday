@@ -3,7 +3,7 @@
 //! rows, a sheet's box, a QR code, and the height of what is not drawn.
 
 use crate::pal::*;
-use crate::{Plain, Style, Ui, W};
+use crate::{Plain, Shape, Style, Ui, W};
 use faraday_draw::tokens::{BUTTON_H, BUTTON_PAD, GAP, HEADLINE_M, LABEL_L, LABEL_M, TITLE_S};
 
 /// A page's title, in Material's headline medium. Returns its height:
@@ -233,14 +233,10 @@ pub fn step_circle<A: Copy + PartialEq>(
     let r = d / 2.0;
     let label = n.to_string();
     let role = if label.len() > 1 { LABEL_M } else { TITLE_S };
-    let pressed = action.is_some_and(|a| ui.is_pressed(a));
     let fg = if ticked {
         ui.dot(x + r, y + r, r, Role::Ok);
         Role::OnOk.paint()
     } else {
-        if pressed {
-            ui.dot(x + r, y + r, r, Role::SurfaceContainerHighest);
-        }
         ui.stroke(x, y, d, d, r, Role::OnSurfaceVariant);
         ui.stroke(
             x + 1.0,
@@ -252,12 +248,13 @@ pub fn step_circle<A: Copy + PartialEq>(
         );
         Role::OnSurface.paint()
     };
-    let tw = ui.measure_as(role, &label);
-    ui.text_mid_as((x + r - tw / 2.0, y, d), role, fg, &label);
+    // Its state layer in the number's colour, ticked or not.
     if let Some(a) = action {
         let pad = (STEP_TOUCH - d) / 2.0;
         let target = (x - pad, y - pad, STEP_TOUCH, STEP_TOUCH);
-        ui.hit_ringed((x, y, d, d, r), target, a);
+        ui.press_to(Shape::new(x, y, d, d, r), target, fg, a);
     }
+    let tw = ui.measure_as(role, &label);
+    ui.text_mid_as((x + r - tw / 2.0, y, d), role, fg, &label);
     d
 }

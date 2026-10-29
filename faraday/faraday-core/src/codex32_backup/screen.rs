@@ -17,6 +17,7 @@ use crate::drawing::View;
 use crate::plan::codex32::{C32, PaperCopy, index_char, places_of_string};
 use crate::screens::buttons_and_next;
 use crate::strings::{EN, fill};
+use crate::ui::Shape;
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui};
 
@@ -83,6 +84,13 @@ fn chips(ui: &mut Ui, x: f32, y: f32, w: f32, items: &[(&str, bool, Action)]) ->
                 Role::OutlineVariant
             },
         );
+        // Its layer over the fill and under the label.
+        ui.press_to(
+            Shape::new(cx, cy, cw, t::C32_CHIP, t::RADIUS_SMALL),
+            (cx, cy - (row - t::C32_CHIP) / 2.0, cw, row),
+            Role::OnSurface.paint(),
+            action,
+        );
         let mut tx = cx + t::PAD;
         if on {
             ui.icon(
@@ -96,7 +104,6 @@ fn chips(ui: &mut Ui, x: f32, y: f32, w: f32, items: &[(&str, bool, Action)]) ->
             tx += lead - t::GAP_SMALL;
         }
         ui.text_mid_as((tx, cy, t::C32_CHIP), TITLE_S, Role::OnSurface, label);
-        ui.hit_quiet(cx, cy - (row - t::C32_CHIP) / 2.0, cw, row, action);
         cx += cw + t::GAP;
     }
     cy + t::C32_CHIP + (row - t::C32_CHIP) / 2.0 - y

@@ -11,6 +11,7 @@
 
 use crate::strings::EN;
 use crate::strings::fill;
+use crate::ui::Shape;
 use faraday_draw::widgets::Icon;
 
 use crate::Action;
@@ -175,7 +176,11 @@ pub fn column_wide(
         );
         if let Some(a) = col.chip_tap {
             let h = tokens::TAG_H;
-            ui.hit_shaped((cx, cy, cw, h, tokens::shape_full(h)), a);
+            ui.press(
+                Shape::new(cx, cy, cw, h, tokens::shape_full(h)),
+                Role::OnSurface.paint(),
+                a,
+            );
             ui.chip_at = Some((cx, cy + h, cw));
         }
     }
@@ -405,7 +410,11 @@ fn paged(
             Role::SecondaryContainer,
         );
         if let Some(a) = col.chip_tap {
-            ui.hit_shaped((M, y, cw, 26.0, tokens::shape_full(26.0)), a);
+            ui.press(
+                Shape::new(M, y, cw, 26.0, tokens::shape_full(26.0)),
+                Role::OnSurface.paint(),
+                a,
+            );
             ui.chip_at = Some((M, y + 26.0, cw));
         }
         y += 36.0;

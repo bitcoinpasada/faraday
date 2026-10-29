@@ -7,6 +7,7 @@ pub(crate) mod screen;
 
 use crate::strings::EN;
 use crate::strings::fill;
+use crate::ui::{Shape, Unpressed};
 use faraday_draw::tokens::{
     GRID_TILE_INSET, GRID_TILE_TEXT_X, LEAD_MAX, TILE_H_COMPACT, TILE_H_GRID,
 };
@@ -268,7 +269,6 @@ pub(crate) fn bar_cancel(app: &View, ui: &mut Ui, right: f32) -> f32 {
         Style::Ghost,
         a,
     );
-    ui.hit(cx, (BAR_H - TOUCH) / 2.0, cw, TOUCH, a);
     cx - GAP_SMALL
 }
 
@@ -358,10 +358,15 @@ fn eye_icon(ui: &mut Ui, x: f32, y: f32, masked: bool) {
 
 /// An eye's press target at `rect`, with the tooltip that names what a
 /// press does: it hides what `shown` shows, and shows what is hidden.
-/// Pressed, no layer goes over the secret it shows ([`Ui::hit_held`]).
+/// Pressed, no layer goes over the secret it shows ([`Unpressed::HeldSecret`]).
 pub(crate) fn eye_hit(ui: &mut Ui, rect: (f32, f32, f32, f32), action: Action, shown: bool) {
     let (x, y, w, h) = rect;
-    ui.hit_held(x, y, w, h, action);
+    ui.press_unpressed(
+        Shape::new(x, y, w, h, faraday_draw::tokens::SHAPE_S),
+        Role::OnSurface.paint(),
+        Unpressed::HeldSecret,
+        action,
+    );
     ui.tip_plain(rect, action, if shown { EN.tip_hide } else { EN.tip_show });
 }
 
@@ -402,7 +407,11 @@ pub(crate) fn wide_keyboard_button(app: &View, ui: &mut Ui, right: f32) {
         13.0,
         crate::ui::pal::on_selected(shown, Role::OnSurfaceVariant),
     );
-    ui.hit_shaped((x, y, s, s, s / 2.0), action);
+    ui.press(
+        Shape::new(x, y, s, s, s / 2.0),
+        Role::OnSurface.paint(),
+        action,
+    );
     ui.tip_plain(
         (x - 6.0, y - 6.0, s + 12.0, s + 12.0),
         action,
@@ -614,7 +623,11 @@ pub(crate) fn home(app: &View, ui: &mut Ui, w: f32, h: f32) {
         Role::OnSurfaceVariant,
         &sub,
     );
-    ui.hit_shaped((M, y, inner, card_h, SHAPE_M), action);
+    ui.press(
+        Shape::new(M, y, inner, card_h, SHAPE_M),
+        Role::OnSurface.paint(),
+        action,
+    );
     y += card_h + 10.0;
 
     // The session strip: the four stages of the lock cycle, the one now
@@ -642,7 +655,11 @@ pub(crate) fn home(app: &View, ui: &mut Ui, w: f32, h: f32) {
             };
             sx += ui.text_mid_as((sx, y, 22.0), LABEL_S, fg, label);
         }
-        ui.hit_shaped((M, y, inner, 22.0, SHAPE_XS), open_files);
+        ui.press(
+            Shape::new(M, y, inner, 22.0, SHAPE_XS),
+            Role::OnSurface.paint(),
+            open_files,
+        );
         y += 22.0 + 10.0;
     }
 
@@ -695,8 +712,7 @@ pub(crate) fn home(app: &View, ui: &mut Ui, w: f32, h: f32) {
                 9.0,
                 ink,
             );
-            ui.state_layer((M, y, lead_w, 44.0, SHAPE_M), ink.paint(), a);
-            ui.hit_ringed((M, y, lead_w, 44.0, SHAPE_M), (M, y, lead_w, 44.0), a);
+            ui.press(Shape::new(M, y, lead_w, 44.0, SHAPE_M), ink.paint(), a);
         }
         y += 44.0 + 8.0;
     }
@@ -773,7 +789,11 @@ pub(crate) fn home(app: &View, ui: &mut Ui, w: f32, h: f32) {
             }
         }
         if *enabled {
-            ui.hit_shaped((tx, ty, tw, th, SHAPE_M), *action);
+            ui.press(
+                Shape::new(tx, ty, tw, th, SHAPE_M),
+                Role::OnSurface.paint(),
+                *action,
+            );
         }
     }
     y += tiles.len().div_ceil(cols) as f32 * (th + gap) + 4.0;
@@ -819,7 +839,11 @@ fn lock_row(app: &View, ui: &mut Ui, y: f32, inner: f32, gap: f32) -> f32 {
     let r = faraday_draw::tokens::shape_full(pw);
     ui.stroke(px, y, pw, 44.0, r, Role::OutlineVariant);
     ui.icon(px, y, pw, Icon::Power, 15.0, Role::OnSurfaceVariant);
-    ui.hit_shaped((px, y, pw, 44.0, r), Action::PowerAsk);
+    ui.press(
+        Shape::new(px, y, pw, 44.0, r),
+        Role::OnSurface.paint(),
+        Action::PowerAsk,
+    );
     ui.tip_plain((px, y, pw, 44.0), Action::PowerAsk, EN.tip_power_off);
     44.0 + 16.0
 }

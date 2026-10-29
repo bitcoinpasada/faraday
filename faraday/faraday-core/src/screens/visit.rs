@@ -3,6 +3,7 @@
 use super::parts::{guide_text_learn, kind_line, pull_line, size_text};
 use crate::drawing::View;
 use crate::strings::{EN, fill};
+use crate::ui::Shape;
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui};
 use crate::wallet::FileKind;
@@ -977,20 +978,16 @@ fn visit_list_bar(
         let tx = right - 14.0;
         let ty = top + (track_h - thumb) * shift / max_shift;
         ui.fill(tx, top, 6.0, track_h, 3.0, Role::SurfaceContainerHighest);
-        let held = ui.is_pressed(Action::VisitBar(column));
-        ui.fill(
-            tx,
-            ty,
-            6.0,
-            thumb,
-            3.0,
-            if held {
-                Role::Primary
-            } else {
-                Role::OutlineVariant
-            },
+        // One press: its layer and ring round the thumb, over the track
+        // and under the thumb; the press on the whole track.
+        let (gx, gw) = (tx - 8.0, 22.0);
+        ui.press_to(
+            Shape::new(gx, ty, gw, thumb, faraday_draw::tokens::shape_full(gw)),
+            (gx, top, gw, track_h),
+            Role::OnSurface.paint(),
+            Action::VisitBar(column),
         );
-        ui.hit(tx - 8.0, top, 22.0, track_h, Action::VisitBar(column));
+        ui.fill(tx, ty, 6.0, thumb, 3.0, Role::OutlineVariant);
         let r = ui.rect(tx, top, 6.0, track_h);
         bar.set(Some((r.y, r.h, ui.px(thumb), max_shift)));
     } else {

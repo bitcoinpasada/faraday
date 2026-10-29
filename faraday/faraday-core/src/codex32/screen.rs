@@ -28,6 +28,7 @@ use crate::drawing::View;
 use crate::keygen::{KeyGen, kstep};
 use crate::screens::{next_button, next_button_when};
 use crate::strings::{EN, fill};
+use crate::ui::Shape;
 use crate::ui::pal::*;
 use crate::ui::{Slot, Style, Ui, W};
 use crate::wallet::fp_text;
@@ -958,6 +959,24 @@ fn one_box(
         Look::Given | Look::Fixed => Role::Surface,
     };
     ui.fill(bx, y, s, s, t::CODEX32_RADIUS, fill_c);
+    // The press on a box opens the working of the nearest one: each
+    // box's hit takes the gaps round it, so the boxes tile the sheet
+    // (§7.4). A masked sheet opens nothing. Its layer is over the fill
+    // and under what is written, in that writing's colour.
+    if let Some(cell) = cell.filter(|_| v.is_some() && !at.hide && at.press) {
+        let (gx, gy) = (t::CODEX32_BOX_GAP, t::CODEX32_ROW_GAP);
+        let ink = if look == Look::Checksum {
+            Role::OnChecksumContainer
+        } else {
+            Role::OnSurface
+        };
+        ui.press_to(
+            Shape::new(bx, y, s, s, t::CODEX32_RADIUS),
+            (bx - gx / 2.0, y - gy / 2.0, s + gx, s + gy),
+            ink.paint(),
+            a(C32::Cell(cell)),
+        );
+    }
     let edge = match look {
         Look::Given | Look::Checksum => Role::OnSurface,
         _ => Role::OutlineVariant,
@@ -1011,19 +1030,6 @@ fn one_box(
             Role::OnSurface
         };
         ui.text_mid(bx + (s - cw) / 2.0, y, s, size, weight, ink, &ch);
-        // The press on a box opens the working of the nearest one: each
-        // box's hit takes the gaps round it, so the boxes tile the sheet
-        // (§7.4). A masked sheet opens nothing.
-        if let Some(cell) = cell.filter(|_| !at.hide && at.press) {
-            let (gx, gy) = (t::CODEX32_BOX_GAP, t::CODEX32_ROW_GAP);
-            ui.hit_quiet(
-                bx - gx / 2.0,
-                y - gy / 2.0,
-                s + gx,
-                s + gy,
-                a(C32::Cell(cell)),
-            );
-        }
     }
 }
 

@@ -2,6 +2,7 @@
 
 use crate::drawing::View;
 use crate::strings::{EN, fill};
+use crate::ui::Shape;
 use crate::ui::pal::*;
 use crate::ui::{CoreUi, Glyph, Style, Ui, W};
 use crate::wallet::fp_text;
@@ -1387,8 +1388,9 @@ fn new_input_target(app: &View, ui: &mut Ui, (w, h): (f32, f32), d: &crate::inpu
     let c = (tx + inset, ty + inset, ICON_BUTTON);
     ui.fill(c.0, c.1, c.2, c.2, c.2 / 2.0, Role::Primary);
     ui.icon(c.0, c.1, c.2, Icon::Check, ICON_GLYPH, Role::OnPrimary);
-    ui.hit_shaped(
-        (tx, ty, TOUCH, TOUCH, TOUCH / 2.0),
+    ui.press(
+        Shape::new(tx, ty, TOUCH, TOUCH, TOUCH / 2.0),
+        Role::OnSurface.paint(),
         Action::InputTarget(d.id),
     );
 }

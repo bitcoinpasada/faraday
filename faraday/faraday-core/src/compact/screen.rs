@@ -5,6 +5,7 @@
 use crate::drawing::View;
 use crate::strings::EN;
 use crate::strings::fill;
+use crate::ui::Shape;
 use faraday_draw::widgets::Icon;
 
 use crate::compact::M;
@@ -100,7 +101,7 @@ pub(crate) fn row(
             9.0,
             Role::OnSurfaceVariant,
         );
-        ui.hit_shaped((x, y, w, h, SHAPE_M), a);
+        ui.press(Shape::new(x, y, w, h, SHAPE_M), Role::OnSurface.paint(), a);
     }
     h + 8.0
 }
@@ -178,8 +179,7 @@ pub(crate) fn wallet_card(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         let line = ui.fit_as(LABEL_L, &line, iw - 64.0);
         ui.text_mid_as((x + 36.0, cy, 44.0), LABEL_L, ink, &line);
         ui.icon(x + iw - 24.0, cy + 12.0, 20.0, Icon::ChevronRight, 9.0, ink);
-        ui.state_layer((x, cy, iw, 44.0, SHAPE_M), ink.paint(), action);
-        ui.hit_ringed((x, cy, iw, 44.0, SHAPE_M), (x, cy, iw, 44.0), action);
+        ui.press(Shape::new(x, cy, iw, 44.0, SHAPE_M), ink.paint(), action);
         cy += 56.0;
     }
 

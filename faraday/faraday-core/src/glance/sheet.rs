@@ -21,6 +21,7 @@
 use crate::strings::EN;
 use crate::strings::fill;
 use crate::ui::Paint;
+use crate::ui::Shape;
 use faraday_crypto::work::Compute;
 use faraday_draw::tokens;
 use faraday_draw::widgets::Icon;
@@ -1658,7 +1659,11 @@ fn menu_row(ui: &mut Ui, x: f32, y: f32, w: f32, r: &Row) -> f32 {
             tokens::GRID,
             Role::OnSurfaceVariant,
         );
-        ui.hit_shaped((x, y, w, h, tokens::RADIUS_SMALL), a);
+        ui.press(
+            Shape::new(x, y, w, h, tokens::RADIUS_SMALL),
+            Role::OnSurface.paint(),
+            a,
+        );
     }
     h
 }

@@ -2,6 +2,7 @@
 
 use crate::drawing::View;
 use crate::strings::{EN, fill};
+use crate::ui::Shape;
 use crate::ui::pal::*;
 use crate::ui::{CoreUi, Style, Ui, W};
 use crate::wallet::{FileKind, Session};
@@ -466,8 +467,9 @@ fn shares_tip(ui: &mut Ui, (word, word_w, end, mid): (f32, f32, f32, f32), (y, h
     use tokens::{ICON_BUTTON, ICON_SMALL, shape_full};
     let a = Action::CKindAbout;
     let (bx, by) = (end, mid - ICON_BUTTON / 2.0);
-    ui.hit_shaped(
-        (bx, by, ICON_BUTTON, ICON_BUTTON, shape_full(ICON_BUTTON)),
+    ui.press(
+        Shape::new(bx, by, ICON_BUTTON, ICON_BUTTON, shape_full(ICON_BUTTON)),
+        Role::OnSurface.paint(),
         a,
     );
     ui.icon(

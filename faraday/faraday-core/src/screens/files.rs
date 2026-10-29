@@ -3,6 +3,7 @@
 use super::parts::{guide_text_learn, kind_line, pull_line};
 use crate::drawing::View;
 use crate::strings::{EN, fill};
+use crate::ui::Shape;
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui};
 use crate::wallet::{FileKind, fp_text};
@@ -879,9 +880,9 @@ pub(crate) fn stick_chip(app: &View, ui: &mut Ui, right: f32) -> f32 {
     let tx = bx + STATUS_CHIP_PAD + dot + GAP;
     ui.text_mid_as((tx, by, STATUS_CHIP_H), LABEL_L, ink, &label);
     if let Some(a) = action {
-        ui.state_layer((bx, by, bw, STATUS_CHIP_H, r), ink.paint(), a);
         let target = (bx, by - GAP, bw, STATUS_CHIP_H + 2.0 * GAP);
-        ui.hit_ringed((bx, by, bw, STATUS_CHIP_H, r), target, a);
+        let shape = Shape::new(bx, by, bw, STATUS_CHIP_H, r);
+        ui.press_to(shape, target, ink.paint(), a);
     }
     bx
 }
@@ -1983,8 +1984,7 @@ fn compact_head(app: &View, ui: &mut Ui, (x, y0, w): (f32, f32, f32)) -> f32 {
     let label = ui.fit_as(BODY_M, &label, w - 44.0);
     ui.text_mid_as((x + 32.0, y, 44.0), BODY_M, ink, &label);
     if let Some(a) = action {
-        ui.state_layer((x, y, w, 44.0, SHAPE_M), ink.paint(), a);
-        ui.hit_ringed((x, y, w, 44.0, SHAPE_M), (x, y, w, 44.0), a);
+        ui.press(Shape::new(x, y, w, 44.0, SHAPE_M), ink.paint(), a);
     }
     y += 52.0;
     ui.button(

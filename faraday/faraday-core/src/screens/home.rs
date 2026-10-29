@@ -3,6 +3,7 @@
 use crate::drawing::View;
 use crate::in_progress::Going;
 use crate::strings::{EN, fill};
+use crate::ui::Shape;
 use crate::ui::pal::*;
 use crate::ui::{Glyph, Ui};
 use crate::{Action, Screen};
@@ -359,7 +360,11 @@ fn tiles(app: &View, ui: &mut Ui, (x, y): (f32, f32), width: f32, gap: f32) {
             Role::OnSurfaceVariant,
             &sub,
         );
-        ui.hit_shaped((tx, ty, tilew, tile_h, SHAPE_M), *action);
+        ui.press(
+            Shape::new(tx, ty, tilew, tile_h, SHAPE_M),
+            Role::OnSurface.paint(),
+            *action,
+        );
     }
 }
 
@@ -419,7 +424,11 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32) {
             );
         }
         if enabled {
-            ui.hit_shaped((x, y, lead_w, lead_h, SHAPE_M), action);
+            ui.press(
+                Shape::new(x, y, lead_w, lead_h, SHAPE_M),
+                Role::OnSurface.paint(),
+                action,
+            );
         }
         y += lead_h + gap;
     }

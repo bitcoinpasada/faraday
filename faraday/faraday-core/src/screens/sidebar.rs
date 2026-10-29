@@ -3,6 +3,7 @@
 use super::SIDEBAR_W;
 use crate::drawing::View;
 use crate::strings::{EN, fill};
+use crate::ui::Shape;
 use crate::ui::pal::*;
 use crate::ui::{Glyph, NameSuffix, Style, Ui};
 use crate::wallet::{Session, fp_text};
@@ -59,7 +60,11 @@ fn flow_row(ui: &mut Ui, y: f32, r: &crate::in_progress::Row, lit: bool) {
     let fg = crate::ui::pal::on_selected(lit, Role::OnSurfaceVariant);
     ui.text_mid_as((tx, y, FLOW_ROW), LABEL_M, fg, &name);
     ui.text_right_as((right, y, FLOW_ROW), BODY_S, fg, &step);
-    ui.hit_shaped((x, y, w, FLOW_ROW, SHAPE_S), action);
+    ui.press(
+        Shape::new(x, y, w, FLOW_ROW, SHAPE_S),
+        Role::OnSurface.paint(),
+        action,
+    );
 }
 
 #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
@@ -447,7 +452,11 @@ pub(super) fn sidebar(app: &View, ui: &mut Ui, h: f32) {
         14.0,
         Role::OnSurfaceVariant,
     );
-    ui.hit_shaped((px, fy, 36.0, 36.0, r), Action::PowerAsk);
+    ui.press(
+        Shape::new(px, fy, 36.0, 36.0, r),
+        Role::OnSurface.paint(),
+        Action::PowerAsk,
+    );
     ui.tip_plain((px, fy, 36.0, 36.0), Action::PowerAsk, EN.tip_power_off);
     if held {
         lock_held_pill(ui, 16.0, fy + 44.0, SIDEBAR_W - 32.0);
