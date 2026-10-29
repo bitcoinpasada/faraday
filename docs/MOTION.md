@@ -311,7 +311,11 @@ extent; a motion left from another screen or sheet is stopped.
     it is at once with reduce motion and on a machine whose fades are
     gated off, runs to its end, and a second theme pressed mid-fade
     starts from the frame on screen;
-  - a change of screen or sheet, or of the Learn sheet's tab,
+  - a change of screen or sheet, of the Learn sheet's tab, or of Learn's
+    supporting pane (it opening, closing or changing its tab, which
+    Material's side sheets animate, LAYOUT §6; `Faraday::fade_begin`
+    keeps whether the pane stood in what a frame drew, so a pinned pane
+    following a change of screen is one fade),
     cross-fades from the frame before it over 200 ms, linear
     (`motion::FADE_MS`; 2026-10-12, phase 4.6; an eased 150 ms was over
     in three frames and read as a flash): the frame that shows the

@@ -96,6 +96,7 @@ mod keygen_slip39;
 mod keygen_steps;
 mod languages;
 mod learn;
+mod learn_pane_fade;
 mod left_by_tap;
 mod lightning;
 mod list_detail;

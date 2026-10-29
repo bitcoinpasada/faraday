@@ -73,9 +73,10 @@ pub(crate) struct Fade {
     /// The frosted page under the open sheet, and the screen, sheet and
     /// theme it was made for.
     frost: Option<((ScreenKey, Theme), Vec<u8>)>,
-    /// The screen and sheet the last frame drew, the Learn sheet's page
-    /// and the theme, so that a change is known at the next.
-    last_drawn: Option<(ScreenKey, usize, Theme)>,
+    /// The screen and sheet the last frame drew, whether Learn's pane
+    /// stood beside the page and the tab on show in the sheet or the
+    /// pane, and the theme, so that a change is known at the next.
+    last_drawn: Option<(ScreenKey, (bool, usize), Theme)>,
     /// Whether the fade under way is a change of theme, which takes
     /// longer and is eased; set when a fade starts.
     theme_fade: bool,
@@ -261,16 +262,20 @@ pub struct FadeCounts {
 
 impl Faraday {
     /// Before a frame is drawn in full on `canvas`, which still holds the
-    /// frame before it: a change of screen or sheet, or of the Learn
-    /// sheet's tab, starts a fade from that frame. The first frame ever,
+    /// frame before it: a change of screen or sheet, of the Learn
+    /// pane's presence, or of the Learn tab, starts a fade from that frame. The first frame ever,
     /// and the first after a resize, have nothing to fade from. Costs a
     /// copy of the whole canvas when a fade starts.
     pub(crate) fn fade_begin(&mut self, canvas: &Canvas) {
-        let page = if self.sheet == Some(Sheet::Learn) {
+        // The pane opening, closing or changing its tab is a change as a
+        // sheet's is (`docs/MOTION.md` §3.5, Material's side sheets).
+        let pane = self.learn_pane_shown();
+        let page = if pane || self.sheet == Some(Sheet::Learn) {
             self.learn.state().tab()
         } else {
             0
         };
+        let page = (pane, page);
         let theme = self.settings.theme();
         let drawn_key = ((self.screen, self.sheet), page, theme);
         // Drawn in full: what asked for this frame is drawn as it is now,
