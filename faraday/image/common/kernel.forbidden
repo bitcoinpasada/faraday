@@ -62,8 +62,6 @@ AIO                 the older asynchronous I/O; nothing here uses it
 SYSVIPC             shared memory, semaphores and queues between processes, on a device that runs one
 KEYS                the kernel keyring; nothing here stores a key in the kernel
 CROSS_MEMORY_ATTACH process_vm_readv and writev: one process reading another's memory
->>>
-
 BINFMT_MISC         interpreters for arbitrary binary formats; the image runs two ELF files
 CRASH_DUMP          a crash kernel, which cannot exist without KEXEC
 GPIO_CDEV           /dev/gpiochip*; the touch controller is a kernel driver and nothing reads a pin from userspace
