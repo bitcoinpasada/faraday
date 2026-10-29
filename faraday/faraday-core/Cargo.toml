@@ -50,6 +50,8 @@ faraday-scanner = { path = "../faraday-scanner" }
 # The test binary's allocator, counting each thread's allocations for the
 # frame budgets (`src/work/budget.rs`).
 faraday-alloc-count = { path = "../tools/alloc-count" }
+# The known answers of Faraday's own constructions (`tools/vectors/`).
+serde_json.workspace = true
 
 [lints]
 workspace = true

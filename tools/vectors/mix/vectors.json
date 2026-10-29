@@ -1,0 +1,26 @@
+{
+ "construction": "F158: a mix of two to five sources, SHA-256 over their 32-byte commitments in the order taken, cut to the strength",
+ "vectors": [
+  {
+   "sources": [
+    {
+     "source": "dice",
+     "rolls": "32461151351521144121541512665155412152342515356215",
+     "commitment": "b4b7bf155511dfa13688d93685fea50b2d56414be59fbde4658b84b42f355fa7"
+    },
+    {
+     "source": "coins",
+     "flips": "HTTHTTHTTHTTHTTHTTHTTHTTHTTHTTHTTHTTHTTHTTHTTHTTHTTHTTHTTHTTHTTHTTHTTHTTHTTHTTHTTHTTHTTHTTHTTHTTHTTHTTHTTHTTHTTHTTHTTHTTHTTHTTHT",
+     "commitment": "05c02790c25f8ee96b748f80d154b690cd7552d6d100682691a813bf41c9b02d"
+    }
+   ],
+   "commitment": "068958a5b9b5ebc7e5501ac5121041e241738182dec79f08e3f9d0e7602d6394",
+   "strength": 128,
+   "entropy": "068958a5b9b5ebc7e5501ac5121041e2"
+  }
+ ],
+ "refused": [
+  {"sources": 0, "error": "too few", "have": 0, "need": 2},
+  {"sources": 1, "error": "too few", "have": 1, "need": 2}
+ ]
+}

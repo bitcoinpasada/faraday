@@ -1,0 +1,25 @@
+{
+ "construction": "F158 item 1: playing-card draws, SHA-256 of their one-byte indices (suit × 13 + rank), cut to the strength",
+ "ranks": "A23456789TJQK",
+ "suits": "♠♥♦♣",
+ "needed": {"128": 25, "160": 31, "256": 58},
+ "vectors": [
+  {
+   "cards": "A♠2♠3♠4♠5♠6♠7♠8♠9♠T♠J♠Q♠K♠A♥2♥3♥4♥5♥6♥7♥8♥9♥T♥J♥Q♥",
+   "indices": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24],
+   "bits": 132.44,
+   "commitment": "b729ce724d9a48d3884dbfcbee1d3793d922b29fa9d639e7290af4978263772b",
+   "strength": 128,
+   "entropy": "b729ce724d9a48d3884dbfcbee1d3793",
+   "too_few": {"strength": 256, "have": 25, "need": 58}
+  },
+  {
+   "cards": "A♠2♠3♠4♠5♠6♠7♠8♠9♠T♠J♠Q♠K♠A♥2♥3♥4♥5♥6♥7♥8♥9♥T♥J♥Q♥K♥A♦2♦3♦4♦5♦",
+   "indices": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30],
+   "bits": 160.11,
+   "commitment": "4f23c2ca8c5c962e50cd31e221bfb6d0adca19111dca8e0c62598ff146dd19c4",
+   "strength": 160,
+   "entropy": "4f23c2ca8c5c962e50cd31e221bfb6d0adca1911"
+  }
+ ]
+}

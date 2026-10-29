@@ -278,6 +278,8 @@ mod coins;
 mod device;
 mod dice;
 mod hex;
+#[cfg(test)]
+mod known;
 mod mix;
 mod pointer_keys;
 mod xor;

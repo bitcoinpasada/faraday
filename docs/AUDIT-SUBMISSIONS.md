@@ -282,14 +282,18 @@ answer it.
 The vault first: it holds a person's keys. Each row names the spec to
 write from, the answers to reproduce, and Faraday's code for the
 construction, which a model's author does not read until the model is
-written.
+written. The vectors of own randomness, the cards, the camera, a mix
+and the rollers are a JSON file each, beside a README that says what
+each vector covers and how it was made, and gives the construction in
+words and a few lines of Python, standard library only, that reproduce
+its answers; Faraday's tests read the same files.
 
 | Construction | Actions (`id`) | Spec | Vectors and known answers | Faraday's code (not read first) | Cross-check area |
 |---|---|---|---|---|---|
 | The vault: its file, slots, key schedule, sealing and records | `vault-create`, `vault-unlock`, `vault-seal`, `vault-edit` | `docs/VAULT.md` §1 to §9 and §11; F97, F158, F159; `docs/SECURITY-MODEL.md`, "Vault cryptography"; RFC 9106, RFC 5869, draft-irtf-cfrg-xchacha-03, RFC 8439, UAX #15 | `tools/vectors/vault/` (its README lists each file and passphrase); `tools/vectors/vault-primitives/`; `tools/vectors/kdf/` | `faraday/faraday-vault/`, `faraday/faraday-keys/src/vault.rs`, `tools/vault/`, `tools/crosscheck/area_vault.py` | `vault` |
-| Own randomness: the accumulator, the seed, the pool, a seed draw, the lock, and the pointer-and-keys commitment | `fresh`, `pointer-keys` | `docs/OWN-RANDOMNESS.md` §2.1, §2.3; F86, F154 | the known answers in `faraday/faraday-core/tests/all/own_randomness.rs` | `faraday/faraday-core/src/fresh.rs`, `core/faraday-entropy/src/pointer_keys.rs`, `tools/crosscheck/area_own.py` | `own` |
-| Entropy from playing cards, camera frames and a mix of sources | `cards`, `camera`, `mix` | `tools/reference/entropy/README.md` (the procedures as stated); `docs/STANDARDS.md` §3; F158 | the tests in `core/faraday-entropy/src/cards.rs`, `camera.rs` and `mix.rs`; `tools/vectors/entropy/` for a mix's dice | `core/faraday-entropy/src/`, `tools/crosscheck/area_entropy.py` | `entropy` |
-| Faraday Demo's dice rollers | `roller` | `docs/CODEX32.md` §5.5, §5.6; `tools/reference/booklet-dice/README.md`; F96 | the tests in `faraday/faraday-core/tests/all/roller.rs` | `faraday/faraday-core/src/fresh/roller/`, `tools/crosscheck/area_roller.py` | `roller` |
+| Own randomness: the accumulator, the seed, the pool, a seed draw, the lock, and the pointer-and-keys commitment | `fresh`, `pointer-keys` | `docs/OWN-RANDOMNESS.md` §2.1, §2.3; F86, F154 | `tools/vectors/own-randomness/`, which `faraday/faraday-core/tests/all/own_randomness.rs` reads | `faraday/faraday-core/src/fresh.rs`, `core/faraday-entropy/src/pointer_keys.rs`, `tools/crosscheck/area_own.py` | `own` |
+| Entropy from playing cards, camera frames and a mix of sources | `cards`, `camera`, `mix` | `tools/reference/entropy/README.md` (the procedures as stated); `docs/STANDARDS.md` §3; F158 | `tools/vectors/cards/`, `tools/vectors/camera/` and `tools/vectors/mix/`, which the tests in `core/faraday-entropy/src/cards.rs`, `camera.rs` and `mix.rs` read; `tools/vectors/entropy/` for a mix's dice | `core/faraday-entropy/src/`, `tools/crosscheck/area_entropy.py` | `entropy` |
+| Faraday Demo's dice rollers | `roller` | `docs/CODEX32.md` §5.5, §5.6; `tools/reference/booklet-dice/README.md`; F96 | `tools/vectors/roller/` for the five dice, which `faraday/faraday-core/src/fresh/roller/five_tests.rs` reads; the one die has none beyond the cross-check's cases | `faraday/faraday-core/src/fresh/roller/`, `tools/crosscheck/area_roller.py` | `roller` |
 | Secure Boot keys: the generator and the enrolment files | `sb-keys` | F134, F158; `docs/learn/faraday/secure-boot-keys.md`; the UEFI Specification, RFC 5280, RFC 5652, RFC 8017 | `faraday/faraday-sb/tests/golden.rs` (the keys made from a fixed seed), `judged.rs` (OpenSSL's checks), `faraday/faraday-sb/tests/vectors/` | `faraday/faraday-sb/` | none: OpenSSL judges the keys and signatures |
 | A key held in memory: blinding, pinned pages and the in-memory seal, which no shipped code reaches | `hold` | `core/faraday-crypto/README.md`; `docs/SECURITY-MODEL.md`; `docs/KEYS.md` | the tests in `core/faraday-crypto/src/sealed.rs` | `core/faraday-crypto/`, `faraday/faraday-keys/src/session.rs` | none |
 
@@ -364,11 +368,15 @@ Once the model is written:
   prints the seed. `just crosscheck --area vault --seed S --case
   corpus:N` runs case N of it again (`tools/crosscheck/README.md`). The
   prerequisites are in `docs/DEVELOPING.md`.
-- `cargo test -p faraday-core --test all own_randomness` and
-  `cargo test -p faraday-core --test all roller` run the known answers of
-  own randomness and the rollers; `cargo test -p faraday-entropy`, those
-  of cards, the camera and a mix; `cargo test -p faraday-sb`, the Secure
-  Boot keys.
+- `cargo test -p faraday-core --test all own_randomness` runs the known
+  answers of own randomness, and `cargo test -p faraday-core --lib
+  five_tests` those of the five dice, over the files in
+  `tools/vectors/own-randomness/` and `tools/vectors/roller/`;
+  `cargo test -p faraday-entropy`, those of cards, the camera and a mix,
+  over `tools/vectors/cards/`, `tools/vectors/camera/` and
+  `tools/vectors/mix/`; `cargo test -p
+  faraday-sb`, the Secure Boot keys. Each of those five folders' README
+  checks its file with Python alone.
 
 ### 10.5 Submitting
 

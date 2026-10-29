@@ -113,45 +113,48 @@ impl Mixed {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::dice::tests::{RANDOM_50, dice};
-    use crate::{CoinFlips, Error, Strength};
-    use faraday_crypto::sha256;
+    use crate::dice::tests::dice;
+    use crate::known::{self, bytes, count, strength};
+    use crate::{CoinFlips, Error};
 
+    /// The known answers are `tools/vectors/mix/`, whose README writes out
+    /// the construction and a few lines of Python that reproduce them.
     #[test]
     fn a_mix_commits_to_its_sources_and_hashes_the_commitments() {
-        let dice = dice(RANDOM_50);
+        let v = known::json(known::MIX);
+        let case = &v["vectors"][0];
+        let [d, c] = [0, 1].map(|i| &case["sources"][i]);
+        assert_eq!(d["source"], "dice");
+        assert_eq!(c["source"], "coins");
+        // Fifty rolls, then 128 flips, flip i heads when i mod 3 is 0.
+        let dice = dice(d["rolls"].as_str().unwrap());
         let mut coins = CoinFlips::new();
-        for i in 0..128 {
-            coins.push(i % 3 == 0);
+        for f in c["flips"].as_str().unwrap().bytes() {
+            assert!(coins.push(f == b'H'));
         }
         // Each commitment is SHA-256 of that source's raw input.
-        assert_eq!(dice.commitment(), sha256(RANDOM_50.as_bytes()));
-        let mut ht = [0u8; 128];
-        for (i, b) in ht.iter_mut().enumerate() {
-            *b = if i % 3 == 0 { b'H' } else { b'T' };
-        }
-        assert_eq!(coins.commitment(), sha256(&ht));
+        assert_eq!(dice.commitment()[..], bytes(&d["commitment"])[..]);
+        assert_eq!(coins.commitment()[..], bytes(&c["commitment"])[..]);
 
+        let at = strength(&case["strength"]);
         let mut m = Mixed::new();
-        assert_eq!(
-            m.entropy(Strength::Bits128).err(),
-            Some(Error::TooFew { have: 0, need: 2 })
-        );
+        let refused = |n: usize| {
+            let r = &v["refused"][n];
+            Some(Error::TooFew {
+                have: count(&r["have"]),
+                need: count(&r["need"]),
+            })
+        };
+        assert_eq!(m.entropy(at).err(), refused(0));
         assert!(m.push(dice.commitment()));
-        assert_eq!(
-            m.entropy(Strength::Bits128).err(),
-            Some(Error::TooFew { have: 1, need: 2 }),
-            "one source is not a mix"
-        );
+        assert_eq!(m.entropy(at).err(), refused(1), "one source is not a mix");
         assert!(m.push(coins.commitment()));
         assert_eq!(m.commitments(), &[dice.commitment(), coins.commitment()]);
-        let mut buf = [0u8; 64];
-        buf[..32].copy_from_slice(&dice.commitment());
-        buf[32..].copy_from_slice(&coins.commitment());
-        assert_eq!(m.commitment(), sha256(&buf));
+        // SHA-256 over the two commitments, in the order taken.
+        assert_eq!(m.commitment()[..], bytes(&case["commitment"])[..]);
         assert_eq!(
-            m.entropy(Strength::Bits128).unwrap().as_bytes(),
-            &sha256(&buf)[..16]
+            m.entropy(at).unwrap().as_bytes(),
+            &bytes(&case["entropy"])[..]
         );
         // The order is part of the definition.
         let mut n = Mixed::new();

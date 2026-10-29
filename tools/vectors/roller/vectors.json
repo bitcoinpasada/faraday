@@ -1,0 +1,30 @@
+{
+ "construction": "docs/CODEX32.md §5.5 and §5.6: Faraday Demo's five dice, each value one byte of a 32-byte answer taken from its last byte to its first, filling the booklet's worksheet",
+ "tree": "qpzry9x8gf2tvdw0s3jn54khce6mua7l",
+ "five_dice": [
+  {
+   "name": "clean",
+   "faces": 6,
+   "bytes": [0, 1, 2, 3, 4, 1, 2, 3, 4, 5],
+   "rolls": [1, 2, 3, 4, 5, 2, 3, 4, 5, 6],
+   "value": 31,
+   "character": "l"
+  },
+  {
+   "name": "tied",
+   "faces": 6,
+   "bytes": [0, 1, 2, 3, 4, 0, 5, 1, 2, 1, 4, 3],
+   "rolls": [1, 2, 3, 4, 5, 1, 6, 2, 3, 2, 5, 4],
+   "value": 10,
+   "character": "2"
+  },
+  {
+   "name": "twenty",
+   "faces": 20,
+   "bytes": [255, 240, 239, 0, 20, 19, 100, 241, 5, 7, 8, 9, 10],
+   "rolls": [20, 1, 1, 20, 1, 6, 8, 9, 10, 11],
+   "value": 13,
+   "character": "d"
+  }
+ ]
+}

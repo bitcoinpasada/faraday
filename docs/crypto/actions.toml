@@ -2875,10 +2875,12 @@ adds = "A deck tracker refuses a card already out, so each draw is worth log2 of
 
 [action.checked]
 vectors = [
+  "cards",
   "entropy",
 ]
 tests = [
   "core/faraday-entropy/src/cards.rs::cards_hash_their_indices_and_count_the_deck_down",
+  "core/faraday-entropy/src/cards.rs::cards_reach_160_bits_at_the_thirty_first_draw",
   "core/faraday-entropy/src/cards.rs::the_deck_tracker_refuses_a_card_already_out",
   "core/faraday-entropy/src/cards.rs::twenty_four_words_from_cards_asks_for_a_second_deck",
   "core/faraday-entropy/src/cards.rs::a_deck_in_new_deck_order_is_cautioned",
@@ -2941,6 +2943,7 @@ adds = "A frame is taken only if it has at least 32 distinct luma values and its
 
 [action.checked]
 vectors = [
+  "camera",
   "entropy",
 ]
 tests = [
@@ -3007,6 +3010,9 @@ libraries = []
 adds = "Each event is a 17-byte record of its kind, a running count, the time and its position or key code; a batch of at most 64 is committed as SHA-256 of the domain and its records and then wiped, and the count goes on across batches."
 
 [action.checked]
+vectors = [
+  "own-randomness",
+]
 tests = [
   "core/faraday-entropy/src/pointer_keys.rs::a_full_batch_asks_to_be_committed_and_the_count_runs_on",
   "faraday/faraday-core/tests/all/own_randomness.rs::the_pointer_and_keys_commitment_and_its_mix_are_the_known_answers",
@@ -3065,6 +3071,7 @@ adds = "The entropy is SHA-256 over the sources' 32-byte commitments, concatenat
 [action.checked]
 vectors = [
   "entropy",
+  "mix",
 ]
 tests = [
   "core/faraday-entropy/src/mix.rs::a_mix_commits_to_its_sources_and_hashes_the_commitments",
@@ -3245,8 +3252,13 @@ adds = "The seed is the shell's first answer, hashed with the person's accumulat
 written_here = "The session's random generator: its seed and pool, and the mixing of a person's own randomness (`faraday-core::fresh`)"
 
 [action.checked]
+vectors = [
+  "own-randomness",
+]
 tests = [
   "faraday/faraday-core/tests/all/own_randomness.rs::with_nothing_added_the_bytes_are_the_systems_as_before",
+  "faraday/faraday-core/tests/all/own_randomness.rs::many_fresh_bytes_are_an_answer_for_every_32",
+  "faraday/faraday-core/tests/all/own_randomness.rs::new_keys_this_device_mixes_in_what_was_added_and_says_so",
   "faraday/faraday-core/tests/all/own_randomness.rs::dice_added_are_mixed_into_the_seed_and_the_fresh_bytes_as_defined",
   "faraday/faraday-core/tests/all/own_randomness.rs::a_second_batch_chains_onto_the_first_and_reseeds_again",
   "faraday/faraday-core/tests/all/own_randomness.rs::a_batch_of_nothing_is_not_taken",
@@ -3372,7 +3384,13 @@ libraries = []
 adds = "Each value is one byte of a 32-byte fresh answer taken from the last to the first; a byte among the 256 mod faces highest is skipped so no face is likelier; a new answer is asked for when one is used up."
 
 [action.checked]
+vectors = [
+  "roller",
+]
 tests = [
+  "faraday/faraday-core/src/fresh/roller/five_tests.rs::a_character_click_gives_the_character_the_same_faces_typed_give",
+  "faraday/faraday-core/src/fresh/roller/five_tests.rs::an_equal_pair_is_rolled_again",
+  "faraday/faraday-core/src/fresh/roller/five_tests.rs::twenty_faced_dice_take_a_byte_below_240_as_its_face_plus_one",
   "faraday/faraday-core/tests/all/roller.rs::a_roll_fills_the_rolls_as_the_keys_would",
   "faraday/faraday-core/tests/all/roller.rs::a_device_shell_has_no_roller",
   "faraday/faraday-core/tests/all/roller.rs::rolled_or_typed_demo_puts_faraday_in_place_and_measures_nothing",

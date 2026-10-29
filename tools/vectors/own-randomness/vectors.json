@@ -1,0 +1,65 @@
+{
+ "construction": "docs/OWN-RANDOMNESS.md §2.1 and §2.3: own randomness's accumulator, the session's seed, a fresh answer, a seed draw, This device's answer, and the pointer-and-keys commitment",
+ "seed_answer": "1111111111111111111111111111111111111111111111111111111111111111",
+ "pooled_answer": "2222222222222222222222222222222222222222222222222222222222222222",
+ "what": "faraday test",
+ "draw_what": "faraday test draw",
+ "draw_count": "count",
+ "commitments": {
+  "dice": {
+   "rolls": "123456",
+   "commitment": "8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92"
+  },
+  "coins": {
+   "flips": "HTTH",
+   "commitment": "caf9dbbd728bd060896af6384a77e548fb1d79b96928d2345b5d30a65675a546"
+  },
+  "pointer-keys": {
+   "events": [
+    {"kind": "pointer", "x": 100, "y": 200, "ms": 1000},
+    {"kind": "pointer", "x": 101, "y": 202, "ms": 1016},
+    {"kind": "pointer", "x": 102, "y": 204, "ms": 1032},
+    {"kind": "key", "code": 97, "ms": 1100},
+    {"kind": "key", "code": 1114112, "ms": 1150}
+   ],
+   "records": "500000000000000000000003e8006400c8500000000100000000000003f8006500ca50000000020000000000000408006600cc4b00000003000000000000044c000000614b00000004000000000000047e00110000",
+   "commitment": "76206ffcb6d7a777e190b9e7624f39c383fecc9eacef6f62c8b6a485550f3ab4"
+  }
+ },
+ "cases": {
+  "nothing added": {
+   "batches": [],
+   "acc": [],
+   "seed": "1111111111111111111111111111111111111111111111111111111111111111",
+   "draw": "5e1e6e312247cd1efb95edae7db2c66f3a6588cde135c90ee91e75c29679364f",
+   "fresh": "bf1ad502ef69b59b91987efa113f86dc832293d47fa42f3a604743799fdf4c07"
+  },
+  "dice": {
+   "batches": ["dice"],
+   "acc": ["75d9c9423ecc3f48c29504e586d2b4a85f9a53aeda2366fe04c15d4addb8c187"],
+   "seed": "4cb8ba8ae9ed62e5ded9b6959fca47f5ec18504016ea77c24bf94273eba2a505",
+   "draw": "7b795d54616b572836b470cc594e232e72c1a24c0bbae282c5186b76b602d031",
+   "fresh": "7e3f2c6b2ebffb02a1d505b8004ffefbacfb7806df8032b1b93589e3693a6c65",
+   "device_own": "71018a2755836a806283b23356523a88c063153b225d6eeffe5176180be792b1"
+  },
+  "dice then coins": {
+   "batches": ["dice", "coins"],
+   "acc": ["75d9c9423ecc3f48c29504e586d2b4a85f9a53aeda2366fe04c15d4addb8c187", "0fc60cf21da462e4a20077c3c90e486027d629f02ceca09c9b7a01b1ee5dc8dd"],
+   "seed": "06074fca37dfbb11e2cdbebbd0b9b96b18f3a49b5321aa5e2f4d746d6c255093",
+   "draw": "c1b0177f5056c4ec9f56f550f1743f96366034354f5ba066b03ffa105f9d09b6",
+   "fresh": "881bfdaab65025a43c5b28bcf6b98c228a2b05c2d67c911098962b13a24dfc53"
+  },
+  "pointer and keys": {
+   "batches": ["pointer-keys"],
+   "acc": ["20db6f282b2f7bb276a162e4bc5da3ce88f3c90710c7ee2677840c09d9de86e8"],
+   "seed": "8f76ab6c1eff7c194ad34df886589b0928f3d92af6109a589e45a7bdaf466c91",
+   "draw": "af3906fa1a2bfe06b925227ae70c6f4591e40964f162a6d49ceb065cc23420ab",
+   "fresh": "db3dc34ce02d9bda8d5fd4c4b28fcf9678880b590d0a75f69f26aaa10fa80c1d"
+  }
+ },
+ "many_fresh": {
+  "pooled": ["2222222222222222222222222222222222222222222222222222222222222222", "3333333333333333333333333333333333333333333333333333333333333333", "4444444444444444444444444444444444444444444444444444444444444444"],
+  "length": 70,
+  "bytes": "47dd19cc4c04530bbdf4a06efbdabf827269339f8879af44b42c004a058874cc705927da03ce84eddb44675093515cf350262607e21a3abcfb79f45643ea928ebf1ad502ef69"
+ }
+}

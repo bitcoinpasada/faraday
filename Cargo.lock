@@ -796,6 +796,7 @@ dependencies = [
  "faraday-strings",
  "faraday-ui",
  "faraday-vault",
+ "serde_json",
  "zeroize",
 ]
 
@@ -872,6 +873,7 @@ version = "0.1.0"
 dependencies = [
  "bip39",
  "faraday-crypto",
+ "serde_json",
  "zeroize",
 ]
 

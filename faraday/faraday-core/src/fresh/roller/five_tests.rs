@@ -96,7 +96,7 @@ impl Host {
 }
 
 /// A stream of fresh answers that gives `faces`, then more.
-fn stream(faces: &[u8]) -> impl FnMut() -> Option<[u8; 32]> {
+fn stream(faces: &[u8]) -> impl FnMut() -> Option<[u8; 32]> + use<> {
     let mut next = faces.to_vec();
     let mut state = 0x2545_f491_u32;
     move || {
@@ -118,7 +118,7 @@ fn stream(faces: &[u8]) -> impl FnMut() -> Option<[u8; 32]> {
 
 /// A stream of fresh answers whose bytes, in the order the roller uses
 /// them, are `bytes`, then zeros.
-fn raw(bytes: &[u8]) -> impl FnMut() -> Option<[u8; 32]> {
+fn raw(bytes: &[u8]) -> impl FnMut() -> Option<[u8; 32]> + use<> {
     let mut next = bytes.to_vec();
     move || {
         let mut out = [0u8; 32];
@@ -157,17 +157,69 @@ fn roll(h: &Host, r: &mut FiveRoller, now: u64) {
     r.act(Act::Roll, &h.at(), now);
 }
 
+/// The known answers (`tools/vectors/roller/`, whose README writes out
+/// §5.5 and §5.6 and a few lines of Python that reproduce them).
+const VECTORS: &str = include_str!("../../../../../tools/vectors/roller/vectors.json");
+
+/// A known answer of the five dice: the faces of its dice, the bytes in
+/// the order the roller uses them, the faces they land, and the value of
+/// the character the sheet makes.
+struct Known {
+    faces: u8,
+    bytes: Vec<u8>,
+    rolls: Vec<u8>,
+    value: u8,
+}
+
+fn known(name: &str) -> Known {
+    let v: serde_json::Value = serde_json::from_str(VECTORS).expect("the vectors are JSON");
+    let case = v["five_dice"]
+        .as_array()
+        .expect("the five dice")
+        .iter()
+        .find(|c| c["name"] == name)
+        .unwrap_or_else(|| panic!("no case {name}"));
+    let n = |x: &serde_json::Value| u8::try_from(x.as_u64().expect("a number")).unwrap();
+    let list = |k: &str| case[k].as_array().expect("a list").iter().map(n).collect();
+    let k = Known {
+        faces: n(&case["faces"]),
+        bytes: list("bytes"),
+        rolls: list("rolls"),
+        value: n(&case["value"]),
+    };
+    let tree = v["tree"].as_str().unwrap().as_bytes();
+    assert_eq!(
+        case["character"].as_str().unwrap().as_bytes(),
+        &tree[usize::from(k.value)..=usize::from(k.value)]
+    );
+    k
+}
+
+/// A six-faced case's faces, whose bytes are each face less one, as
+/// [`stream`] makes them.
+fn six(name: &str) -> Vec<u8> {
+    let k = known(name);
+    assert_eq!(k.faces, 6);
+    assert!(k.bytes.iter().zip(&k.rolls).all(|(b, f)| b + 1 == *f));
+    k.rolls
+}
+
 /// First row 1 to 5, second row 2 to 6: every die higher, ten faces.
-const CLEAN: [u8; 10] = [1, 2, 3, 4, 5, 2, 3, 4, 5, 6];
+fn clean() -> Vec<u8> {
+    six("clean")
+}
+
 /// Die 1's two values equal, so it is rolled again (6 then 2) before the
 /// other dice's second values, as the pad takes them.
-const TIED: [u8; 12] = [1, 2, 3, 4, 5, 1, 6, 2, 3, 2, 5, 4];
+fn tied() -> Vec<u8> {
+    six("tied")
+}
 
 #[test]
 fn the_step_through_rolls_a_character_as_a_click_of_one_character_does() {
     // The same answers give the same faces whether a click lands them or
     // the step-through rolls them ahead (`docs/CODEX32.md` §5.5).
-    for faces in [&CLEAN[..], &TIED[..]] {
+    for faces in [&clean()[..], &tied()[..]] {
         let mut h = Host::new();
         let mut clicked = FiveRoller::default();
         roll(&h, &mut clicked, 0);
@@ -185,11 +237,14 @@ fn a_character_click_gives_the_character_the_same_faces_typed_give() {
     let mut r = FiveRoller::default();
     r.act(Act::Reach(Reach::Character), &h.at(), 0);
     roll(&h, &mut r, 0);
-    let faces = run(&mut h, &mut r, true, &mut stream(&CLEAN));
-    assert_eq!(faces, CLEAN);
+    let clean = known("clean");
+    let faces = run(&mut h, &mut r, true, &mut raw(&clean.bytes));
+    assert_eq!(faces, clean.rolls);
     assert_eq!(h.entered(), 1);
+    // Every die higher: 11111, "l".
+    assert_eq!(h.m.made_of(0, 0).unwrap().value(), clean.value);
     let mut typed = Host::new();
-    for f in CLEAN {
+    for f in clean.rolls {
         typed.press(f);
     }
     assert_eq!(
@@ -203,11 +258,13 @@ fn an_equal_pair_is_rolled_again() {
     let mut h = Host::new();
     let mut r = FiveRoller::default();
     roll(&h, &mut r, 0);
-    let faces = run(&mut h, &mut r, true, &mut stream(&TIED));
-    assert_eq!(faces, TIED);
+    let tied = known("tied");
+    let faces = run(&mut h, &mut r, true, &mut raw(&tied.bytes));
+    assert_eq!(faces, tied.rolls);
     assert_eq!(h.entered(), 1);
-    // Die 1: 2 then 6 gives bit 0; the others 1 0 1 0: 01010, "2".
-    assert_eq!(h.m.made_of(0, 0).unwrap().value(), 10);
+    // Die 1 rolled again: 6 then 2 gives bit 0; the others 1 0 1 0:
+    // 01010, "2".
+    assert_eq!(h.m.made_of(0, 0).unwrap().value(), tied.value);
     assert!(
         h.m.made_of(0, 0)
             .unwrap()
@@ -223,7 +280,7 @@ fn a_pass_is_the_five_dice_once() {
     let mut h = Host::new();
     let mut r = FiveRoller::default();
     r.act(Act::Reach(Reach::Pass), &h.at(), 0);
-    let mut draw = stream(&TIED);
+    let mut draw = stream(&tied());
     roll(&h, &mut r, 0);
     assert_eq!(run(&mut h, &mut r, true, &mut draw).len(), 5);
     assert_eq!(h.m.dice().len(), 5);
@@ -273,7 +330,7 @@ fn every_face_it_made_is_marked_and_a_typed_one_is_not() {
     let mut h = Host::new();
     let mut r = FiveRoller::default();
     roll(&h, &mut r, 0);
-    run(&mut h, &mut r, true, &mut stream(&CLEAN));
+    run(&mut h, &mut r, true, &mut stream(&clean()));
     assert!((0..10).all(|p| r.is_rolled(0, p)));
     assert!(r.char_rolled(0));
     assert_eq!(r.sim(10), Sim::All);
@@ -285,7 +342,7 @@ fn every_face_it_made_is_marked_and_a_typed_one_is_not() {
     // Backspace takes marks back with their faces.
     h.back(&mut r, &[]);
     assert!((0..10).all(|p| r.is_rolled(0, p)));
-    h.back(&mut r, &CLEAN[..9]);
+    h.back(&mut r, &clean()[..9]);
     assert_eq!(h.entered(), 0);
     assert!(r.is_rolled(0, 8) && !r.is_rolled(0, 9));
     r.reset();
@@ -296,21 +353,21 @@ fn every_face_it_made_is_marked_and_a_typed_one_is_not() {
 fn the_dice_tumble_and_a_character_lands_with_a_pause() {
     let mut h = Host::new();
     let mut r = FiveRoller::default();
-    let mut draw = stream(&CLEAN);
+    let mut draw = stream(&clean());
     roll(&h, &mut r, 0);
     assert!(r.rolling() && r.tumbling(0));
     let (faces, redraw) = r.tick(ROLLER_TUMBLE_MS / 2, false, &h.at(), &mut draw);
     assert!(faces.is_empty() && redraw);
     // The first pass lands; the second tumbles at once.
     let (faces, _) = r.tick(ROLLER_TUMBLE_MS, false, &h.at(), &mut draw);
-    assert_eq!(faces, &CLEAN[..5]);
+    assert_eq!(faces, &clean()[..5]);
     for f in faces {
         h.press(f);
     }
     assert!(r.tumbling(0));
     let t = 2 * ROLLER_TUMBLE_MS;
     let (faces, _) = r.tick(t, false, &h.at(), &mut draw);
-    assert_eq!(faces, &CLEAN[5..]);
+    assert_eq!(faces, &clean()[5..]);
     for f in faces {
         h.press(f);
     }
@@ -327,8 +384,8 @@ fn reduce_motion_lands_everything_at_once() {
     let h = Host::new();
     let mut r = FiveRoller::default();
     roll(&h, &mut r, 0);
-    let (faces, _) = r.tick(0, true, &h.at(), &mut stream(&CLEAN));
-    assert_eq!(faces, CLEAN);
+    let (faces, _) = r.tick(0, true, &h.at(), &mut stream(&clean()));
+    assert_eq!(faces, clean());
     assert!(!r.active());
 }
 
@@ -375,21 +432,24 @@ fn the_result_says_simulated_dice_alone_or_with_the_persons() {
 fn twenty_faced_dice_take_a_byte_below_240_as_its_face_plus_one() {
     // 240 to 255 are skipped, as 256 is not a multiple of 20: 239 is 20,
     // 0 and 20 are 1, 19 is 20.
-    let bytes = [255, 240, 239, 0, 20, 19, 100, 241, 5, 7, 8, 9, 10];
+    // The bytes 255, 240, 239, 0, 20, 19, 100, 241, 5, 7, 8, 9, 10 land
+    // 20, 1, 1, 20, 1, 6, 8, 9, 10, 11.
+    let twenty = known("twenty");
+    assert_eq!(twenty.faces, 20);
     let mut h = Host::with_faces(20);
     let mut r = FiveRoller::default();
     r.set_faces(20);
     roll(&h, &mut r, 0);
-    let faces = run(&mut h, &mut r, true, &mut raw(&bytes));
-    assert_eq!(faces, [20, 1, 1, 20, 1, 6, 8, 9, 10, 11]);
+    let faces = run(&mut h, &mut r, true, &mut raw(&twenty.bytes));
+    assert_eq!(faces, twenty.rolls);
     // 20 then 6 lower, 1 then 8 higher, 1 then 9 higher, 20 then 10
     // lower, 1 then 11 higher: 01101, "d".
-    assert_eq!(h.m.made_of(0, 0).unwrap().value(), 13);
+    assert_eq!(h.m.made_of(0, 0).unwrap().value(), twenty.value);
     let mut typed = Host::with_faces(20);
     for f in faces {
         typed.press(f);
     }
-    assert_eq!(typed.m.made_of(0, 0).unwrap().value(), 13);
+    assert_eq!(typed.m.made_of(0, 0).unwrap().value(), twenty.value);
 }
 
 #[test]

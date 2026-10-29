@@ -15,6 +15,8 @@ zeroize.workspace = true
 [dev-dependencies]
 # Another implementation of BIP-39, for the Seed XOR vectors.
 bip39.workspace = true
+# The known answers of the cards, the camera and a mix (`tools/vectors/`).
+serde_json.workspace = true
 
 [lints]
 workspace = true

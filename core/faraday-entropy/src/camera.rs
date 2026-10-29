@@ -229,50 +229,53 @@ impl CameraNoise {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::known::{self, bytes, count, strength};
     use crate::{Error, Strength};
-    use faraday_crypto::sha256;
 
+    /// The known answers are `tools/vectors/camera/`, whose README writes
+    /// out the procedure and a few lines of Python that reproduce them.
     #[test]
     fn a_covered_lens_is_refused_and_frames_hash_in_order() {
+        let v = known::json(known::CAMERA);
+        // A covered lens, one value, is refused; a gradient of 32 values,
+        // the least a frame may carry, is taken.
         let mut c = CameraNoise::new();
-        let covered = [7u8; 4096];
-        let (stats, taken) = c.push(&covered);
-        assert!(!taken);
-        assert_eq!(stats.distinct, 1);
-        assert_eq!(stats.mean, 7.0);
-        assert_eq!(stats.variance, 0.0);
-        assert_eq!(stats.pixels, 4096);
-        assert!(c.is_empty());
+        for one in v["frames"].as_array().expect("single frames") {
+            let frame = bytes(&one["frame"]);
+            let (stats, taken) = c.push(&frame);
+            assert_eq!(Some(taken), one["taken"].as_bool());
+            assert_eq!(Some(u64::from(stats.distinct)), one["distinct"].as_u64());
+            if !taken {
+                assert_eq!(stats.mean, 7.0);
+                assert_eq!(stats.variance, 0.0);
+                assert_eq!(stats.pixels, 4096);
+                assert!(c.is_empty());
+            }
+        }
 
-        // A gradient of 32 values is the least a frame may carry.
-        let edge: [u8; 256] = core::array::from_fn(|i| (i % 32) as u8);
-        let (stats, taken) = c.push(&edge);
-        assert_eq!(stats.distinct, 32);
-        assert!(taken);
-
+        // Three frames of 512 bytes, frame f's byte i (7i + 3f) mod 256.
+        let case = &v["vectors"][0];
         let mut c = CameraNoise::new();
-        let frames: [[u8; 512]; 3] =
-            core::array::from_fn(|f| core::array::from_fn(|i| (i * 7 + f * 3) as u8));
-        for f in &frames {
-            assert!(c.push(f).1);
+        for f in case["frames"].as_array().expect("frames") {
+            assert!(c.push(&bytes(f)).1);
         }
         assert_eq!(c.len(), 3);
-        assert!(c.is_enough(Strength::Bits128));
+        let at = strength(&case["strength"]);
+        assert!(c.is_enough(at));
         assert!(!c.is_enough(Strength::Bits256));
-        // The definition, computed here: SHA-256 over the frames'
-        // SHA-256 digests, in order.
-        let mut buf = [0u8; 96];
-        for (i, f) in frames.iter().enumerate() {
-            buf[i * 32..(i + 1) * 32].copy_from_slice(&sha256(f));
-        }
-        assert_eq!(c.commitment(), sha256(&buf));
+        // SHA-256 over the frames' SHA-256 digests, in order.
+        assert_eq!(c.commitment()[..], bytes(&case["commitment"])[..]);
         assert_eq!(
-            c.entropy(Strength::Bits128).unwrap().as_bytes(),
-            &sha256(&buf)[..16]
+            c.entropy(at).unwrap().as_bytes(),
+            &bytes(&case["entropy"])[..]
         );
+        let few = &case["too_few"];
         assert_eq!(
-            c.entropy(Strength::Bits256).err(),
-            Some(Error::TooFew { have: 3, need: 6 })
+            c.entropy(strength(&few["strength"])).err(),
+            Some(Error::TooFew {
+                have: count(&few["have"]),
+                need: count(&few["need"]),
+            })
         );
     }
 

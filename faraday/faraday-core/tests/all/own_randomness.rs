@@ -4,10 +4,12 @@
 //! before the system's first answer, and goes at a lock; with nothing
 //! added the bytes are what they were before it existed.
 //!
-//! The known answers were computed with Python's `hashlib` from §2.3's
-//! definitions, independently of this code: SHA-256("faraday own" ‖ acc
-//! ‖ commitment) from an all-zero acc, SHA-256("faraday reseed" ‖ seed ‖
-//! acc), SHA-256("faraday fresh" ‖ what ‖ answer ‖ acc), and a seed draw
+//! The known answers are `tools/vectors/own-randomness/vectors.json`,
+//! computed with Python's `hashlib` from §2.3's definitions,
+//! independently of this code, and reproduced by the few lines of Python
+//! in its README: SHA-256("faraday own" ‖ acc ‖ commitment) from an
+//! all-zero acc, SHA-256("faraday reseed" ‖ seed ‖ acc),
+//! SHA-256("faraday fresh" ‖ what ‖ answer ‖ acc), and a seed draw
 //! SHA-256(what ‖ seed ‖ count).
 
 use crate::rounds::{at, device as musig_device, our_nonce};
@@ -29,22 +31,40 @@ const WHAT: &[u8] = b"faraday test";
 const DRAW: &[u8] = b"faraday test draw";
 const COUNT: &[u8] = b"count";
 
-/// SHA-256("faraday fresh" ‖ WHAT ‖ POOLED).
-const FRESH_PLAIN: &str = "bf1ad502ef69b59b91987efa113f86dc832293d47fa42f3a604743799fdf4c07";
-/// SHA-256(DRAW ‖ SEED ‖ COUNT).
-const DRAW_PLAIN: &str = "5e1e6e312247cd1efb95edae7db2c66f3a6588cde135c90ee91e75c29679364f";
-/// SHA-256("123456"): the dice commitment of the rolls 1 to 6.
-const DICE_COMMITMENT: &str = "8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92";
-/// SHA-256("HTTH"): the coin commitment of heads, tails, tails, heads.
-const COINS_COMMITMENT: &str = "caf9dbbd728bd060896af6384a77e548fb1d79b96928d2345b5d30a65675a546";
-/// With the dice added: the draw from SHA-256("faraday reseed" ‖ SEED ‖
-/// acc1), and the fresh bytes with acc1 after the answer.
-const DRAW_DICE: &str = "7b795d54616b572836b470cc594e232e72c1a24c0bbae282c5186b76b602d031";
-const FRESH_DICE: &str = "7e3f2c6b2ebffb02a1d505b8004ffefbacfb7806df8032b1b93589e3693a6c65";
-/// With the dice, then the coins added: acc2 chained from acc1, the seed
-/// hashed again with it.
-const DRAW_DICE_COINS: &str = "c1b0177f5056c4ec9f56f550f1743f96366034354f5ba066b03ffa105f9d09b6";
-const FRESH_DICE_COINS: &str = "881bfdaab65025a43c5b28bcf6b98c228a2b05c2d67c911098962b13a24dfc53";
+/// The known answers (`tools/vectors/own-randomness/`).
+const VECTORS: &str = include_str!("../../../../tools/vectors/own-randomness/vectors.json");
+
+/// The string at `path` in the known answers, a number in it indexing an
+/// array.
+fn known(path: &[&str]) -> String {
+    let v: serde_json::Value = serde_json::from_str(VECTORS).expect("the vectors are JSON");
+    let at = path.iter().fold(&v, |at, k| match k.parse::<usize>() {
+        Ok(i) => &at[i],
+        Err(_) => &at[*k],
+    });
+    at.as_str()
+        .unwrap_or_else(|| panic!("no {path:?} in the vectors"))
+        .to_string()
+}
+
+/// A case's seed draw and fresh bytes: with the batches the case names
+/// added (the rolls 1 to 6, then heads, tails, tails, heads; or a
+/// pointer-and-keys batch), SHA-256(DRAW ‖ seed ‖ COUNT) from the seed
+/// [`SEED`] hashed with each accumulator, and SHA-256("faraday fresh" ‖
+/// WHAT ‖ POOLED ‖ acc). With nothing added, the system's bytes alone:
+/// SHA-256(DRAW ‖ SEED ‖ COUNT) and SHA-256("faraday fresh" ‖ WHAT ‖
+/// POOLED). The file's inputs are checked to be the ones given here.
+fn case(name: &str) -> (String, String) {
+    assert_eq!(known(&["seed_answer"]), hex(SEED));
+    assert_eq!(known(&["pooled_answer"]), hex(POOLED));
+    assert_eq!(known(&["what"]).as_bytes(), WHAT);
+    assert_eq!(known(&["draw_what"]).as_bytes(), DRAW);
+    assert_eq!(known(&["draw_count"]).as_bytes(), COUNT);
+    (
+        known(&["cases", name, "draw"]),
+        known(&["cases", name, "fresh"]),
+    )
+}
 
 fn hex(b: [u8; 32]) -> String {
     b.iter().map(|x| format!("{x:02x}")).collect()
@@ -60,7 +80,11 @@ fn add_dice(app: &mut Faraday) {
     for r in 1..=6 {
         assert!(rolls.push(r));
     }
-    assert_eq!(hex(rolls.commitment()), DICE_COMMITMENT);
+    // SHA-256("123456").
+    assert_eq!(
+        hex(rolls.commitment()),
+        known(&["commitments", "dice", "commitment"])
+    );
     assert!(app.own_add(OwnSource::Dice, &rolls.commitment(), 6));
 }
 
@@ -70,7 +94,11 @@ fn add_coins(app: &mut Faraday) {
     for heads in [true, false, false, true] {
         assert!(flips.push(heads));
     }
-    assert_eq!(hex(flips.commitment()), COINS_COMMITMENT);
+    // SHA-256("HTTH").
+    assert_eq!(
+        hex(flips.commitment()),
+        known(&["commitments", "coins", "commitment"])
+    );
     assert!(app.own_add(OwnSource::Coins, &flips.commitment(), 4));
 }
 
@@ -108,31 +136,29 @@ fn with_nothing_added_the_bytes_are_the_systems_as_before() {
     answer(&mut app, SEED);
     answer(&mut app, POOLED);
     assert_eq!(app.own_counts(), OwnCounts::default());
-    assert_eq!(
-        drawn(&mut app),
-        (DRAW_PLAIN.to_string(), FRESH_PLAIN.to_string())
-    );
+    assert_eq!(drawn(&mut app), case("nothing added"));
 }
-
-/// SHA-256("faraday fresh" ‖ WHAT ‖ 0x33 × 32) and with 0x44 × 32: two
-/// more pooled answers' fresh bytes.
-const FRESH_33: &str = "705927da03ce84eddb44675093515cf350262607e21a3abcfb79f45643ea928e";
-const FRESH_44: &str = "47dd19cc4c04530bbdf4a06efbdabf827269339f8879af44b42c004a058874cc";
 
 /// More than 32 bytes take a pooled answer for every 32, each as one
 /// answer's fresh bytes are, the latest answer first, the last cut to
 /// what is left: never one answer stretched. While fewer answers wait
-/// than it needs, it takes none.
+/// than it needs, it takes none. The known answer is SHA-256("faraday
+/// fresh" ‖ WHAT ‖ 0x44 × 32), then with 0x33 × 32, then the first 6
+/// bytes with POOLED.
 #[test]
 fn many_fresh_bytes_are_an_answer_for_every_32() {
+    let pooled = [POOLED, [0x33; 32], [0x44; 32]];
+    for (i, p) in pooled.iter().enumerate() {
+        assert_eq!(known(&["many_fresh", "pooled", &i.to_string()]), hex(*p));
+    }
     let mut app = testkit::started();
     answer(&mut app, SEED);
-    answer(&mut app, POOLED);
-    answer(&mut app, [0x33; 32]);
+    answer(&mut app, pooled[0]);
+    answer(&mut app, pooled[1]);
     assert_eq!(testkit::fresh_bytes(&mut app, WHAT, 70), None);
-    answer(&mut app, [0x44; 32]);
+    answer(&mut app, pooled[2]);
     let got = testkit::fresh_bytes(&mut app, WHAT, 70).expect("three answers pooled");
-    let want = format!("{FRESH_44}{FRESH_33}{}", &FRESH_PLAIN[..12]);
+    let want = known(&["many_fresh", "bytes"]);
     assert_eq!(
         got.iter().map(|x| format!("{x:02x}")).collect::<String>(),
         want
@@ -153,7 +179,7 @@ fn dice_added_are_mixed_into_the_seed_and_the_fresh_bytes_as_defined() {
     add_dice(&mut before);
     answer(&mut before, SEED);
     answer(&mut before, POOLED);
-    let want = (DRAW_DICE.to_string(), FRESH_DICE.to_string());
+    let want = case("dice");
     assert_eq!(drawn(&mut after), want);
     assert_eq!(drawn(&mut before), want);
 }
@@ -165,10 +191,7 @@ fn a_second_batch_chains_onto_the_first_and_reseeds_again() {
     answer(&mut app, POOLED);
     add_dice(&mut app);
     add_coins(&mut app);
-    assert_eq!(
-        drawn(&mut app),
-        (DRAW_DICE_COINS.to_string(), FRESH_DICE_COINS.to_string())
-    );
+    assert_eq!(drawn(&mut app), case("dice then coins"));
     assert_eq!(
         app.own_counts(),
         OwnCounts {
@@ -186,10 +209,7 @@ fn a_batch_of_nothing_is_not_taken() {
     answer(&mut app, POOLED);
     assert!(!app.own_add(OwnSource::Dice, &DiceRolls::new().commitment(), 0));
     assert_eq!(app.own_counts(), OwnCounts::default());
-    assert_eq!(
-        drawn(&mut app),
-        (DRAW_PLAIN.to_string(), FRESH_PLAIN.to_string())
-    );
+    assert_eq!(drawn(&mut app), case("nothing added"));
 }
 
 #[test]
@@ -312,7 +332,9 @@ fn new_keys_this_device_makes_no_words_on_what_was_added_alone() {
 /// New key's This device with the dice added: SHA-256("faraday device
 /// own" ‖ SEED ‖ acc1), the bytes the shell answered with the person's
 /// accumulator hashed in (§2.3).
-const DEVICE_DICE: &str = "71018a2755836a806283b23356523a88c063153b225d6eeffe5176180be792b1";
+fn device_dice() -> String {
+    known(&["cases", "dice", "device_own"])
+}
 
 /// New key on This device at 12 words, answered with SEED: its words.
 fn device_words(app: &mut Faraday) -> Vec<u16> {
@@ -367,7 +389,7 @@ fn new_keys_this_device_mixes_in_what_was_added_and_says_so() {
     add_dice(&mut mixed);
     assert_eq!(
         device_words(&mut mixed),
-        words_of(unhex(DEVICE_DICE)),
+        words_of(unhex(&device_dice())),
         "the dice mixed in as §2.3 defines"
     );
     mixed.press(Action::KStep(faraday_core::keygen::kstep::ENTER));
@@ -394,7 +416,7 @@ fn a_lock_wipes_what_was_added() {
     // The pooled answer is no longer mixed with anything.
     assert_eq!(
         testkit::fresh(&mut app, WHAT).map(hex).as_deref(),
-        Some(FRESH_PLAIN)
+        Some(case("nothing added").1.as_str())
     );
 }
 
@@ -585,7 +607,7 @@ fn dice_typed_on_the_page_mix_in_as_the_known_answers_say() {
     assert_eq!(app.own_counts().dice_rolls, 6);
     assert_eq!(
         drawn(&mut app),
-        (DRAW_DICE.to_string(), FRESH_DICE.to_string()),
+        case("dice"),
         "the rolls 1 to 6, as the cross-checked answers"
     );
 }
@@ -723,7 +745,7 @@ fn new_keys_generator_offers_the_sources_on_its_card_and_takes_its_bytes_again_m
         .unwrap()
         .indices()
         .to_vec();
-    assert_eq!(words, words_of(unhex(DEVICE_DICE)));
+    assert_eq!(words, words_of(unhex(&device_dice())));
 }
 
 #[test]
@@ -773,14 +795,6 @@ fn new_keys_generator_skip_moves_on_with_nothing_added() {
 
 // ----- Pointer and keys (§2.1; test 6) -----
 
-/// SHA-256("faraday pointer keys" ‖ the records of [`POINTER_EVENTS`]),
-/// each record as §2.1 writes it, computed with Python's `hashlib`.
-const POINTER_KEYS_COMMITMENT: &str =
-    "76206ffcb6d7a777e190b9e7624f39c383fecc9eacef6f62c8b6a485550f3ab4";
-/// With that batch of five added after the system's answers.
-const DRAW_POINTER_KEYS: &str = "af3906fa1a2bfe06b925227ae70c6f4591e40964f162a6d49ceb065cc23420ab";
-const FRESH_POINTER_KEYS: &str = "db3dc34ce02d9bda8d5fd4c4b28fcf9678880b590d0a75f69f26aaa10fa80c1d";
-
 /// A pointer move (x, y) or a key (its code), at a time in ms.
 #[derive(Clone, Copy)]
 enum Ev {
@@ -788,15 +802,27 @@ enum Ev {
     Key(u32, u64),
 }
 
-/// Three moves, `a`, then Backspace (the code after the last scalar
-/// value).
-const POINTER_EVENTS: [Ev; 5] = [
-    Ev::Move(100, 200, 1000),
-    Ev::Move(101, 202, 1016),
-    Ev::Move(102, 204, 1032),
-    Ev::Key(0x61, 1100),
-    Ev::Key(0x11_0000, 1150),
-];
+/// The known answers' batch: three moves, `a`, then Backspace (the code
+/// after the last scalar value). Its commitment is SHA-256("faraday
+/// pointer keys" ‖ the records), each record as §2.1 writes it.
+fn pointer_events() -> Vec<Ev> {
+    let v: serde_json::Value = serde_json::from_str(VECTORS).expect("the vectors are JSON");
+    let n = |e: &serde_json::Value, k: &str| e[k].as_u64().expect("a number");
+    v["commitments"]["pointer-keys"]["events"]
+        .as_array()
+        .expect("the events")
+        .iter()
+        .map(|e| match e["kind"].as_str() {
+            Some("pointer") => Ev::Move(
+                n(e, "x").try_into().unwrap(),
+                n(e, "y").try_into().unwrap(),
+                n(e, "ms"),
+            ),
+            Some("key") => Ev::Key(n(e, "code").try_into().unwrap(), n(e, "ms")),
+            other => panic!("no event kind {other:?}"),
+        })
+        .collect()
+}
 
 /// The commitment of `events` as one batch, from a running count of 0.
 fn pointer_keys_commitment(events: &[Ev]) -> [u8; 32] {
@@ -840,20 +866,19 @@ fn hover(app: &mut Faraday, (x, y): (u16, u16)) {
 
 #[test]
 fn the_pointer_and_keys_commitment_and_its_mix_are_the_known_answers() {
-    let c = pointer_keys_commitment(&POINTER_EVENTS);
-    assert_eq!(hex(c), POINTER_KEYS_COMMITMENT);
+    let events = pointer_events();
+    assert_eq!(events.len(), 5);
+    let c = pointer_keys_commitment(&events);
+    assert_eq!(
+        hex(c),
+        known(&["commitments", "pointer-keys", "commitment"])
+    );
     let mut app = testkit::started();
     answer(&mut app, SEED);
     answer(&mut app, POOLED);
     assert!(app.own_add(OwnSource::PointerKeys, &c, 5));
     assert_eq!(app.own_counts().pointer_keys, 5);
-    assert_eq!(
-        drawn(&mut app),
-        (
-            DRAW_POINTER_KEYS.to_string(),
-            FRESH_POINTER_KEYS.to_string()
-        )
-    );
+    assert_eq!(drawn(&mut app), case("pointer and keys"));
 }
 
 #[test]
@@ -887,7 +912,7 @@ fn moves_and_keys_on_the_source_change_the_bytes_and_keep_the_systems() {
     assert!(direct.own_add(OwnSource::PointerKeys, &c, 12));
     let got = drawn(&mut app);
     assert_eq!(got, drawn(&mut direct), "the events as recorded");
-    assert_ne!(got, (DRAW_PLAIN.to_string(), FRESH_PLAIN.to_string()));
+    assert_ne!(got, case("nothing added"));
     // The same events with other system bytes give other bytes.
     let mut other = testkit::started();
     answer(&mut other, [0x33; 32]);

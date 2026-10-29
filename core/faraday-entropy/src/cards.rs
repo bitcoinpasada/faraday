@@ -312,32 +312,42 @@ impl CardDraws {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::known::{self, bytes, count, strength};
     use crate::{Error, Strength};
-    use faraday_crypto::sha256;
 
-    /// Twenty-five cards with no repeat: the whole spade suit and the
-    /// first twelve hearts.
-    const TWENTY_FIVE: &str = "A\u{2660}2\u{2660}3\u{2660}4\u{2660}5\u{2660}6\u{2660}7\u{2660}8\u{2660}9\u{2660}T\u{2660}J\u{2660}Q\u{2660}K\u{2660}A\u{2665}2\u{2665}3\u{2665}4\u{2665}5\u{2665}6\u{2665}7\u{2665}8\u{2665}9\u{2665}T\u{2665}J\u{2665}Q\u{2665}";
+    /// The known answer of `n` cards (`tools/vectors/cards/`, whose README
+    /// writes out the procedure and a few lines of Python that reproduce
+    /// it): the cards as their rank and suit characters, their indices,
+    /// the bits they carry to two places, the strength asked for, its
+    /// commitment and entropy, and for 25 cards the 256 bits they are too
+    /// few for. The file's ranks and suits are checked to be the crate's.
+    fn known(n: usize) -> serde_json::Value {
+        let v = known::json(known::CARDS);
+        let chars = |k: &str| v[k].as_str().expect("characters").chars();
+        assert!(chars("ranks").eq(RANKS.iter().copied()));
+        assert!(chars("suits").eq(SUITS.iter().copied()));
+        v["vectors"]
+            .as_array()
+            .expect("the vectors")
+            .iter()
+            .find(|c| c["indices"].as_array().map(|a| a.len()) == Some(n))
+            .expect("a case of that many cards")
+            .clone()
+    }
 
-    /// A second implementation of the card definition, written from the
-    /// documentation rather than from the code above: the index of a
-    /// card, the SHA-256 of the indices, and the bits a run of draws
-    /// carries.
-    fn cards_by_hand(spec: &str) -> ([u8; 32], f64) {
-        let mut bytes = [0u8; MAX_CARDS];
-        let mut n = 0;
-        let mut chars = spec.chars();
-        while let (Some(r), Some(u)) = (chars.next(), chars.next()) {
-            let rank = RANKS.iter().position(|&c| c == r).unwrap();
-            let suit = SUITS.iter().position(|&c| c == u).unwrap();
-            bytes[n] = (suit * 13 + rank) as u8;
-            n += 1;
-        }
+    fn cards(k: &serde_json::Value) -> &str {
+        k["cards"].as_str().expect("the cards")
+    }
+
+    /// The bits a run of `n` draws carries, worked out here rather than
+    /// read from the table the crate ships: the i-th draw is one of 52 −
+    /// (i mod 52).
+    fn bits_by_hand(n: usize) -> f64 {
         let mut bits = 0.0f64;
         for i in 0..n {
             bits += log2(f64::from((52 - i % 52) as u32));
         }
-        (sha256(&bytes[..n]), bits)
+        bits
     }
 
     /// log2 by repeated squaring, so that the expected bit counts are
@@ -373,23 +383,33 @@ mod tests {
 
     #[test]
     fn cards_hash_their_indices_and_count_the_deck_down() {
-        let d = deal(TWENTY_FIVE);
+        // Twenty-five cards with no repeat: the whole spade suit and the
+        // first twelve hearts.
+        let k = known(25);
+        let d = deal(cards(&k));
         assert_eq!(d.len(), 25);
         assert!(d.is_enough(Strength::Bits128));
         assert!(!d.is_enough(Strength::Bits256));
         assert_eq!(d.stats().suits, [13, 12, 0, 0]);
-        let (hash, bits) = cards_by_hand(TWENTY_FIVE);
-        assert_eq!(d.commitment(), hash);
+        assert_eq!(d.commitment()[..], bytes(&k["commitment"])[..]);
+        let bits = bits_by_hand(25);
+        assert!((bits - k["bits"].as_f64().unwrap()).abs() < 0.01, "{bits}");
         assert!(
             (f64::from(d.bits_collected()) - bits).abs() < 0.01,
             "{bits}"
         );
         assert!(bits > 128.0);
-        let e = d.entropy(Strength::Bits128).unwrap();
-        assert_eq!(e.as_bytes(), &hash[..16]);
+        let at = strength(&k["strength"]);
+        assert_eq!(at, Strength::Bits128);
+        let e = d.entropy(at).unwrap();
+        assert_eq!(e.as_bytes(), &bytes(&k["entropy"])[..]);
+        let few = &k["too_few"];
         assert_eq!(
-            d.entropy(Strength::Bits256).err(),
-            Some(Error::TooFew { have: 25, need: 58 })
+            d.entropy(strength(&few["strength"])).err(),
+            Some(Error::TooFew {
+                have: count(&few["have"]),
+                need: count(&few["need"]),
+            })
         );
         // The counts are where the definition crosses the two targets.
         assert!(card_bits(24) < 128.0 && card_bits(25) >= 128.0);
@@ -401,7 +421,7 @@ mod tests {
     /// short of the caution is not.
     #[test]
     fn a_deck_in_new_deck_order_is_cautioned() {
-        let w = deal(TWENTY_FIVE).warnings(Strength::Bits128);
+        let w = deal(cards(&known(25))).warnings(Strength::Bits128);
         assert!(w.in_order && !w.too_few && w.any());
         // King to ace of clubs, as some decks come.
         let mut down = CardDraws::new();
@@ -474,13 +494,16 @@ mod tests {
     /// before, by the bits this file works out for itself.
     #[test]
     fn cards_reach_160_bits_at_the_thirty_first_draw() {
-        let mut d = CardDraws::new();
-        for i in 0..30u8 {
-            assert!(d.push(i));
-        }
+        // The spades, the hearts and five diamonds: indices 0 to 30.
+        let k = known(31);
+        // The first thirty, two characters each.
+        let spec = cards(&k);
+        let end = spec.char_indices().nth(60).map_or(spec.len(), |(i, _)| i);
+        let mut d = deal(&spec[..end]);
         assert!(!d.is_enough(Strength::Bits160), "thirty draws is short");
         assert!(d.push(30));
         assert!(d.is_enough(Strength::Bits160));
+        assert_eq!(d.commitment()[..], bytes(&k["commitment"])[..]);
 
         // The bits a run of draws from a fresh deck carries, summed here:
         // the first card is one of 52, the thirty-first one of 22.
@@ -490,16 +513,10 @@ mod tests {
         }
         let all = thirty + log2(22.0);
         assert!(thirty < 160.0 && all >= 160.0, "{thirty} then {all}");
+        assert!((bits_by_hand(31) - k["bits"].as_f64().unwrap()).abs() < 0.01);
 
-        let mut indices = [0u8; 31];
-        for (i, b) in indices.iter_mut().enumerate() {
-            *b = i as u8;
-        }
-        let hash = sha256(&indices);
-        assert_eq!(d.commitment(), hash);
-        assert_eq!(
-            d.entropy(Strength::Bits160).unwrap().as_bytes(),
-            &hash[..20]
-        );
+        let at = strength(&k["strength"]);
+        assert_eq!(at, Strength::Bits160);
+        assert_eq!(d.entropy(at).unwrap().as_bytes(), &bytes(&k["entropy"])[..]);
     }
 }
