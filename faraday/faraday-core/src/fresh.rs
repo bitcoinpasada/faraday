@@ -8,9 +8,11 @@
 //! ([`Fresh::take_bytes`]), never one answer stretched. A signing pass that opens a MuSig2 round takes
 //! [`Faraday::sign_seed`]: the session's seed with a count of the passes,
 //! so that no two passes of a
-//! process draw the same nonce. A vault's seal nonce and a new keyboard's
-//! code are drawn from the seed too (`vault/mod.rs`, `inputs.rs`), and so
-//! is what the session's keys are blinded from (`keys_reblind`). The seed
+//! process draw the same nonce. A vault's seal nonce takes a pooled
+//! answer when one waits and is drawn from the seed when none does
+//! (`vault/mod.rs`); a new keyboard's code is drawn from the seed
+//! (`inputs.rs`), and so is what the session's keys are blinded from
+//! (`keys_reblind`). The seed
 //! is a [`Seed`] held as an `Option`: until the shell's first answer there
 //! is none, and nothing drawn from it is made.
 //!

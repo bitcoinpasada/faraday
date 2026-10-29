@@ -44,11 +44,12 @@ configuration, and a plan for the boot measurement (QEMU, then one real PC in pa
   the system gave no randomness (changed by F102, §3.5: nothing is said
   at start; a press that needs the seed waits for it).
 - **New key** (`faraday/faraday-core/src/keygen/mod.rs`, `core/faraday-entropy`)
-  already offers dice, coins, cards, hex, camera noise, this device
-  (`DeviceRandom`, one answer of its own, not the pool) and a mix of two
-  to five of them (`Mixed`: SHA-256 over the sources' commitments). A
-  key from dice alone takes nothing from the system, by design: it can be
-  reproduced elsewhere.
+  already offers dice, coins, cards, hex, this device (`DeviceRandom`,
+  one answer of its own, not the pool) and a mix of two to five of dice,
+  coins, cards, camera noise and this device (`Mixed`: SHA-256 over the
+  sources' commitments; §2.3). Camera noise is never a key's only
+  source (F158, §2.1). A key from dice alone takes nothing from the
+  system, by design: it can be reproduced elsewhere.
 
 What a person adds reaches the seed and the pool (R1) from Add
 randomness (R2): Settings › Randomness and New key's This device open
@@ -71,10 +72,19 @@ committed by `faraday-entropy`'s `PointerKeys`.
 | Source | Shells | What is taken | Its commitment |
 |---|---|---|---|
 | Dice | every shell | rolls on the dice pad, as New key takes them (`DiceRolls`) | SHA-256 of the rolls as ASCII digits, as `faraday-entropy`'s dice commitment |
-| Camera noise | every shell with a camera | frames, as New key takes them (`CameraNoise`, the same refusal of a frame with under 32 distinct values) | each frame's SHA-256, as it is taken |
+| Camera noise | every shell with a camera | frames, as New key's mix takes them (`CameraNoise`, the same refusal of a frame with under 32 distinct values) | each frame's SHA-256, as it is taken |
 | Coins | every shell | flips, as New key takes them (`CoinFlips`) | `CoinFlips::commitment`, as New key's |
 | Cards | every shell | draws from a shuffled deck, as New key takes them (`CardDraws`, refusing a card already drawn from its deck) | `CardDraws::commitment`: SHA-256 of the draws' indices, as New key's |
 | Pointer and keys | the desktop app | while it is the source chosen (§5 item 4): each move of the pointer, with no button down, over its area, its x and y in the frame's pixels; each key typed for it, a character, Backspace or Delete, by its code (a character's Unicode scalar value, Backspace 0x110000, Delete 0x110001); each with the core's time in ms and a running count from 0 | a 17-byte big-endian record per event, `P` ‖ count (u32) ‖ ms (u64) ‖ x (u16) ‖ y (u16) or `K` ‖ count ‖ ms ‖ code (u32); SHA-256("faraday pointer keys" ‖ the records), committed every 64 events, when the pointer leaves the area or the window, when a key is not the source's, when the source or the page is left, and when New key's Make the words is pressed, which then makes no words: the key waits for the generator's bytes again, so they hold the batch |
+
+Camera frames only add (F158): to the system's randomness here, to
+New key's This device through `device_own` (§2.3), or to a mix as one
+member. They are never a key's only source, since nothing estimates how
+much of a frame is noise, the frames are what the shell, the driver and
+the camera's firmware deliver, and nobody can check the result by hand.
+New key refuses a frame whose SHA-256 it already took ("That picture
+was already taken"), as a stalled driver or a still virtual camera
+hands over the same buffer again.
 
 Nothing is credited: no source claims a number of bits, and the status
 line counts what was taken, not how strong it is. A dice batch of 99
@@ -150,6 +160,15 @@ bytes in a `Zeroizing`, and the counts for the status line.
   device own" ‖ bytes ‖ `acc`) when `acc` exists (§5 item 2).
 - **Never substituted.** `acc` alone makes nothing: no seed, no pool
   entry, no key. Before the system's first answer `acc` waits.
+- **New key's mix** (`Mixed`, not `acc`): SHA-256 over its sources'
+  32-byte commitments, in the order taken. It makes a key only with
+  dice or This device among its two to five sources, each entered to
+  its own full count (`KeyGen::mix_enough`, F158; otherwise "A mix
+  takes dice or this device among its sources"), so it holds the whole
+  strength of the published dice procedure or of the system's
+  generator, and the other members (coins, cards, camera noise) only
+  add to it. A mix of only those others would be only as strong as the
+  best of them.
 - **Strength.** Every output is SHA-256 of an input holding both the
   system's bytes and `acc`. Someone who lacks either one cannot
   predict it; so it is at least as strong as the stronger of the two,

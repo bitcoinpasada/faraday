@@ -87,7 +87,7 @@ way chosen in it. A choice moves on to its entry card.
 | Group | Ways |
 |---|---|
 | **Your own entropy, words verifiable by hand** (**Recommended**) | **Dice · Words chosen by the dice**, "Dice · Flip mode", **Coin flips** |
-| **Your entropy, computer generates words** | "Dice · Hashed (Coldcard, SeedSigner)", "Dice · Six as zero, hashed (Keystone)", **Hex entropy**, **Playing cards**, **Camera noise**, **Mixed sources** |
+| **Your entropy, computer generates words** | "Dice · Hashed (Coldcard, SeedSigner)", "Dice · Six as zero, hashed (Keystone)", **Hex entropy**, **Playing cards**, **Mixed sources** |
 | **Made by this device** (closed at first) | **This device** |
 
 Each row's second line says what it asks for at this length: "70

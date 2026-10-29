@@ -126,19 +126,36 @@ impl CameraNoise {
         }
     }
 
-    /// Takes one frame's luma bytes. Returns the frame's statistics,
-    /// and whether it was taken: a frame with fewer than
-    /// [`CAMERA_MIN_DISTINCT`] luma values is refused, and so is one
-    /// past [`MAX_FRAMES`].
+    /// Costs a SHA-256 of the frame. Takes one frame's luma bytes.
+    /// Returns the frame's statistics, and whether it was taken: a frame
+    /// with fewer than [`CAMERA_MIN_DISTINCT`] luma values is refused, so
+    /// is one past [`MAX_FRAMES`], and so is one whose digest was already
+    /// taken ([`CameraNoise::repeats`]): a stalled driver or a still
+    /// virtual camera hands over the same buffer again, which adds
+    /// nothing.
     pub fn push(&mut self, luma: &[u8]) -> (FrameStats, bool) {
         let stats = FrameStats::of(luma);
         self.last = Some(stats);
         if !stats.usable() || self.len() >= MAX_FRAMES {
             return (stats, false);
         }
-        self.digests[self.len()] = sha256(luma);
-        self.len += 1;
-        (stats, true)
+        let mut digest = sha256(luma);
+        let taken = !self.digests[..self.len()].contains(&digest);
+        if taken {
+            self.digests[self.len()] = digest;
+            self.len += 1;
+        }
+        digest.zeroize();
+        (stats, taken)
+    }
+
+    /// Costs a SHA-256 of the frame. Whether `luma` is a frame already
+    /// taken, byte for byte.
+    pub fn repeats(&self, luma: &[u8]) -> bool {
+        let mut digest = sha256(luma);
+        let seen = self.digests[..self.len()].contains(&digest);
+        digest.zeroize();
+        seen
     }
 
     /// Frames taken.
@@ -257,5 +274,22 @@ mod tests {
             c.entropy(Strength::Bits256).err(),
             Some(Error::TooFew { have: 3, need: 6 })
         );
+    }
+
+    /// The same frame handed over twice, as a stalled driver or a still
+    /// virtual camera does, is taken once.
+    #[test]
+    fn a_frame_already_taken_is_refused() {
+        let mut c = CameraNoise::new();
+        let frame: [u8; 512] = core::array::from_fn(|i| (i * 7) as u8);
+        assert!(c.push(&frame).1);
+        assert!(c.repeats(&frame));
+        let (stats, taken) = c.push(&frame);
+        assert!(!taken && stats.usable());
+        assert_eq!(c.len(), 1);
+        let other: [u8; 512] = core::array::from_fn(|i| (i * 7 + 1) as u8);
+        assert!(!c.repeats(&other));
+        assert!(c.push(&other).1);
+        assert_eq!(c.len(), 2);
     }
 }

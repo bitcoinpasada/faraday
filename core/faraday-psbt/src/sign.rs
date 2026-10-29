@@ -92,10 +92,11 @@ pub enum Schnorr {
 /// The auxiliary randomness one signing call uses: the [`Schnorr`]
 /// choice with the bytes the caller drew for this call.
 ///
-/// The caller draws them once per call, from the session key
-/// (`SessionKey::derive`) with a counter, so no two calls of a session
-/// draw the same; [`sign`] mixes the input's index in so no two inputs
-/// of one call share them either.
+/// The app passes [`Aux::Deterministic`] for every signature (F156):
+/// no caller draws fresh bytes today. A caller that passes
+/// [`Aux::Fresh`] draws them once per call, new for each call, and
+/// [`sign`] mixes the input's index in so no two inputs of one call
+/// share them.
 #[derive(Clone, Copy, PartialEq, Eq, Default)]
 pub enum Aux {
     /// Zero auxiliary randomness.

@@ -260,14 +260,21 @@ Sealing writes the vault back to memory as a file:
 
 - The header is unchanged.
 - The open slot is re-encrypted under the same `K_slot` with a new
-  24-byte nonce: the first 24 bytes of SHA-256 over a label, the
-  session's seed (the shell's first 32 bytes of entropy) and a count of
-  the seals this process has made. No two seals of a process share a
-  nonce, and two processes share one only if the system gave both the
-  same seed. Nothing is sealed before the seed arrived: a lock with a
+  24-byte nonce: the first 24 bytes of a fresh system answer for "vault
+  seal" (`fresh`, `docs/OWN-RANDOMNESS.md` §1) when the pool holds one,
+  so the nonce is random per seal and a process restored with the same
+  seed (a virtual machine brought back from a snapshot) still draws a
+  new one once the system answers again. With no answer waiting, the
+  first 24 bytes of SHA-256 over a label, the session's seed (the
+  shell's first 32 bytes of entropy) and a count of the nonces this
+  process has drawn that way, so a lock never waits on the system beyond its
+  first answer: no two such seals of a process share a nonce, and two
+  processes share one only if the system gave both the same seed
+  (F158). Nothing is sealed before the seed arrived: a lock with a
   changed vault open then seals nothing and says so, and the vault stays
   open with its changes. A 24-byte nonce is the reason the cipher is
-  XChaCha20 and not ChaCha20.
+  XChaCha20 and not ChaCha20. The file's format does not depend on
+  which way the nonce was drawn.
 - **A vault whose changes do not fit its slot is never closed at a
   lock.** Entries read from the camera or from files are added only if
   they fit the room left; if not, none is added and the toast (and the
@@ -447,6 +454,15 @@ exists, since Faraday is public; and whether the contents of the slot
 a person opens under pressure are believable, which is the person's to
 arrange. For Bitcoin keys, a BIP-39 passphrase gives the same kind of
 deniability inside a single slot.
+
+**Rollback.** Nothing in a slot counts its versions, and the header,
+salt included, is the same across seals, so an older copy of a slot
+still opens. Whoever can write the stick and holds an older copy of the
+vault can put that slot back as it was: its records cannot be altered,
+but they can be replaced by an earlier state of themselves (a key record
+removed since put back, a backup marked done shown as not done, a
+"Signed amounts" record taken back). Opening it does not say it is old.
+VeraCrypt's and LUKS's containers have no rollback protection either.
 
 **Tampering.** A slot is checked only when it is opened. Bytes changed in
 a slot nobody opened go unnoticed until its passphrase is next used, and

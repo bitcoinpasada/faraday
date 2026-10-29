@@ -2981,6 +2981,8 @@ strings! {
     keygen_far_from_even: "Far from even: one result came up much more than the others",
     /// Text in `caution_lines`.
     keygen_a_long_run_counting: "A long run counting up or down",
+    /// Text in `caution_lines`: cards in the order a new deck comes in.
+    keygen_cards_in_deck_order: "Cards in the order of a new deck",
     /// Text in `roll`.
     keygen_reroll_rule: "A 5 or a 6 is rolled again in a word's first five rolls",
     /// Note in `die_flip`.
@@ -2993,12 +2995,16 @@ strings! {
     keygen_no_camera_picture: "No picture from the camera yet",
     /// Note in `take_frame`.
     keygen_too_little_variation: "Too little variation in that picture",
+    /// Note in `take_frame`: the same frame came again.
+    keygen_picture_already_taken: "That picture was already taken",
     /// Note in `finish_entry`. `{}`: `have`, `need`.
     keygen_entry_count: "{} of {}",
     /// Toast in `keygen_open`. `{}`: `self.medium.noun()`.
     keygen_remove_the_first: "Remove the {} first",
     /// Text in `keygen_act`.
     keygen_choose_two_sources: "Choose two sources or more",
+    /// Note in `source_next`: a mix of sources holds dice or this device.
+    keygen_mix_needs_dice_or_device: "A mix takes dice or this device among its sources",
     /// Text in `keygen_act`.
     keygen_choose_a_source: "Choose a source",
     /// Note in `keygen_act`.

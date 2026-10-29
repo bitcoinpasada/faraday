@@ -172,3 +172,4 @@ Read this table, then only the decision you need.
 | [F155](decisions/F155.md) | The other refusals of input a standard allows: keys, wallet files, PSBTs, transfers, shares, the vault and the paperkey | 2026-10-28 | Active | crypto |
 | [F156](decisions/F156.md) | Schnorr signatures are made with zero aux_rand | 2026-10-28 | Active | security |
 | [F157](decisions/F157.md) | Wherever the system's randomness is used, the person can add their own: Add randomness at every press that draws it | 2026-10-28 | Active | security |
+| [F158](decisions/F158.md) | Faraday's own constructions in the app until an outside review: cards, the camera, a mix, the vault's container and the Secure Boot generator | 2026-10-28 | Active | security |

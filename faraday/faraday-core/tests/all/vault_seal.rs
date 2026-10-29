@@ -3,7 +3,7 @@
 //! a changed vault open seals nothing, writes nothing, keeps the vault open
 //! with its changes and says why; the same lock seals once the randomness
 //! arrives. Two sessions given different randomness seal the same vault
-//! under different nonces.
+//! under different nonces, and a fresh answer waiting is taken first.
 
 use crate::common::type_text;
 use faraday_core::strings::EN;
@@ -187,6 +187,54 @@ fn different_randomness_seals_the_same_vault_under_different_nonces() {
     let i = resealed[0];
     assert_ne!(a[i], b[i]);
     assert_ne!(b[i], before[i]);
+}
+
+/// The nonce of the one slot a lock seals again, as hex.
+fn resealed_nonce(original: &[u8], file: &[u8]) -> String {
+    let (before, after) = (nonces(original), nonces(file));
+    let i: Vec<usize> = (0..before.len())
+        .filter(|&i| after[i] != before[i])
+        .collect();
+    assert_eq!(i.len(), 1, "one slot is sealed again");
+    after[i[0]].iter().map(|b| format!("{b:02x}")).collect()
+}
+
+/// A seal takes a fresh answer from the system when one waits, so a
+/// session brought back with the same seed (a virtual machine restored
+/// from a snapshot) seals under a new nonce once the system answers
+/// again; with none waiting it falls back to the seed and a count, and
+/// the lock does not wait (`docs/VAULT.md` §5, F158). The known answers
+/// were computed with Python's `hashlib` from §5's definitions:
+/// SHA-256("faraday fresh" ‖ "vault seal" ‖ answer)[..24], and
+/// SHA-256("faraday vault draw" ‖ "nonce" ‖ seed ‖ 1 as u64 LE)[..24].
+#[test]
+fn a_seal_takes_a_fresh_answer_when_one_waits_and_the_seed_when_none_does() {
+    let original = testkit::test_vault().unwrap();
+    let lock_with = |pooled: Option<u8>| {
+        let mut app = device(original.clone());
+        randomness(&mut app, 0x31);
+        if let Some(b) = pooled {
+            randomness(&mut app, b);
+        }
+        open_and_change(&mut app);
+        app.press(Action::Lock);
+        let file = sealed(&app).expect("the vault was not sealed");
+        resealed_nonce(&original, &file)
+    };
+    assert_eq!(
+        lock_with(Some(0x41)),
+        "f5e857cb91c365432586065225439d989e63e7bb37729fbb"
+    );
+    assert_eq!(
+        lock_with(Some(0x42)),
+        "9e83f9d146a86bcd57311378e196fa524d3eaa142aad1016",
+        "the same seed with another answer seals under another nonce"
+    );
+    assert_eq!(
+        lock_with(None),
+        "1750933f1f70a7c34e6ab25e7c8855b216c5a69d7a6ff766",
+        "with no answer waiting, the seed and a count"
+    );
 }
 
 #[test]

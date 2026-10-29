@@ -1,6 +1,6 @@
 //! Playing cards: draws from a shuffled deck, tracked so a card already out is refused.
 
-use crate::{Error, RawEntropy, Strength, Warnings};
+use crate::{CARDS_IN_ORDER, Error, RawEntropy, Strength, Warnings};
 use faraday_crypto::{Zeroize, ZeroizeOnDrop, sha256};
 
 /// Cards in one deck.
@@ -274,12 +274,36 @@ impl CardDraws {
         }
     }
 
+    /// The longest run of draws each one after the last in the deck's
+    /// own order (index + 1), or each one before it (index − 1): a deck
+    /// in the order it left its box shows the whole suit.
+    pub fn longest_in_order(&self) -> u32 {
+        let (mut best, mut up, mut down) = (u32::from(!self.is_empty()), 1u32, 1u32);
+        for w in self.cards().windows(2) {
+            up = if w[1] == w[0].wrapping_add(1) {
+                up + 1
+            } else {
+                1
+            };
+            down = if w[1].wrapping_add(1) == w[0] {
+                down + 1
+            } else {
+                1
+            };
+            best = best.max(up).max(down);
+        }
+        best
+    }
+
     /// The sanity flags for `strength`. A shuffled deck is not a die:
-    /// its suits come out even by construction, so there is nothing to
-    /// test but the count.
+    /// its suits come out even by construction, so the count is tested,
+    /// and a run of [`CARDS_IN_ORDER`] cards in the deck's own order,
+    /// which a deck out of its box or one barely shuffled gives. The
+    /// bits counted assume a well-shuffled deck (F158).
     pub fn warnings(&self, strength: Strength) -> Warnings {
         Warnings {
             too_few: !self.is_enough(strength),
+            in_order: self.longest_in_order() >= CARDS_IN_ORDER,
             ..Warnings::default()
         }
     }
@@ -370,6 +394,40 @@ mod tests {
         // The counts are where the definition crosses the two targets.
         assert!(card_bits(24) < 128.0 && card_bits(25) >= 128.0);
         assert!(card_bits(57) < 256.0 && card_bits(58) >= 256.0);
+    }
+
+    /// A deck in the order it left its box is cautioned, counting up or
+    /// down, and across a suit; a shuffled one is not, and a run one card
+    /// short of the caution is not.
+    #[test]
+    fn a_deck_in_new_deck_order_is_cautioned() {
+        let w = deal(TWENTY_FIVE).warnings(Strength::Bits128);
+        assert!(w.in_order && !w.too_few && w.any());
+        // King to ace of clubs, as some decks come.
+        let mut down = CardDraws::new();
+        for i in (39..52u8).rev() {
+            assert!(down.push(i));
+        }
+        assert_eq!(down.longest_in_order(), 13);
+        assert!(down.warnings(Strength::Bits128).in_order);
+        // The queen and king of spades, then the ace to three of hearts.
+        let mut across = CardDraws::new();
+        for i in [11u8, 12, 13, 14, 15] {
+            assert!(across.push(i));
+        }
+        assert!(across.warnings(Strength::Bits128).in_order);
+        // Every other card, then a run of four in order.
+        let mut shuffled = CardDraws::new();
+        for i in 0..21u8 {
+            assert!(shuffled.push(i * 2));
+        }
+        for i in [45u8, 46, 47, 48] {
+            assert!(shuffled.push(i));
+        }
+        assert_eq!(shuffled.len(), 25);
+        assert_eq!(shuffled.longest_in_order(), 4);
+        let w = shuffled.warnings(Strength::Bits128);
+        assert!(!w.in_order && !w.any());
     }
 
     #[test]

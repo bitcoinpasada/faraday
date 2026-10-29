@@ -273,6 +273,7 @@ impl DiceRolls {
             long_run: s.longest_run >= DICE_LONG_RUN,
             skewed: self.len() >= DICE_SKEW_MIN && s.chi_square > DICE_CHI_SQUARE_LIMIT,
             sequential: s.longest_sequence >= DICE_SEQUENTIAL,
+            in_order: false,
         }
     }
 
@@ -433,6 +434,7 @@ impl DiceRolls {
                 && chi_square > DICE_FOUR_CHI_SQUARE_LIMIT)
                 || (n > 0 && d * d * 4 > 49 * n),
             sequential: false,
+            in_order: false,
         }
     }
 }

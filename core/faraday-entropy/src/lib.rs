@@ -84,6 +84,11 @@ pub const DICE_CHI_SQUARE_LIMIT: f32 = 20.5;
 pub const DICE_SKEW_MIN: usize = 50;
 /// Identical flips in a row that draw a caution.
 pub const COIN_LONG_RUN: u32 = 12;
+/// Cards in a row, each the one after (or each the one before) the
+/// last in the deck's own order, that draw a caution: a deck out of its
+/// box, or one barely shuffled, comes out so. A well-shuffled deck shows
+/// such a run about once in seven million draws.
+pub const CARDS_IN_ORDER: u32 = 5;
 
 /// Rolls one word of [`DiceProcedure::Words`] takes: five that name the
 /// word and a sixth read as a coin.
@@ -254,12 +259,15 @@ pub struct Warnings {
     pub skewed: bool,
     /// [`DICE_SEQUENTIAL`] rolls that count up or down (dice only).
     pub sequential: bool,
+    /// [`CARDS_IN_ORDER`] cards in a row in the deck's own order, up or
+    /// down (cards only).
+    pub in_order: bool,
 }
 
 impl Warnings {
     /// Whether any flag is set.
     pub fn any(self) -> bool {
-        self.too_few || self.long_run || self.skewed || self.sequential
+        self.too_few || self.long_run || self.skewed || self.sequential || self.in_order
     }
 }
 
@@ -308,7 +316,8 @@ pub enum Source {
     SeedXor,
     /// Cards drawn from a shuffled deck ([`CardDraws`]).
     Cards,
-    /// The noise in a run of camera frames ([`CameraNoise`]).
+    /// The noise in a run of camera frames ([`CameraNoise`]): a mix's
+    /// member only, never a key's only source (F158).
     Camera,
     /// Several sources combined ([`Mixed`]).
     Mix,
@@ -318,19 +327,21 @@ pub enum Source {
 
 /// The sources a new key can be made from, in the order they are
 /// listed. Seed XOR is not among them: combining parts gives back a key
-/// that already existed, so it is a way of loading one.
-pub const SOURCE_ROWS: [Source; 7] = [
+/// that already existed, so it is a way of loading one. Nor is the
+/// camera: nobody can check what it delivers, so its frames only add to
+/// a mix or to the system's randomness (F158).
+pub const SOURCE_ROWS: [Source; 6] = [
     Source::Dice,
     Source::Coins,
     Source::Hex,
     Source::Cards,
-    Source::Camera,
     Source::Mix,
     Source::Device,
 ];
 
 /// The sources a mix offers, in the order they are listed and in the
-/// order their steps then run. Hex is not among them: a mix is a way of
+/// order their steps then run. A mix makes a key only with dice or the
+/// device among the sources it takes (F158). Hex is not among them: a mix is a way of
 /// not having to trust one source, and typed hex is the person's own
 /// bytes, which they can mix themselves before typing. Seed XOR is not
 /// a source of randomness at all.

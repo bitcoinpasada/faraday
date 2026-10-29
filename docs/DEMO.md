@@ -137,7 +137,7 @@ public values work; only the actions in the table are disabled.
   strings"; its Lock in loads the sample's key. Strings from the
   person's own rolls never leave the entry.
 - **New key**: every length and source (dice, coins, cards, hex,
-  camera, the generator, a mix), its words and quiz; Lock in adds the
+  the generator, a mix, with the camera among its sources), its words and quiz; Lock in adds the
   next public seed in place of the key made (§5.1).
 - **Wallets**: every kind built from public seeds (single-key, multisig,
   Taproot multisig, MuSig2, miniscript and recovery, silent payments'
@@ -168,7 +168,7 @@ public values work; only the actions in the table are disabled.
 ### 5.1 New key in Practice
 
 Every length and every source is open: the dice, coins, cards, hex,
-camera noise, the generator and a mix make words as on the device, and
+the generator and a mix (camera noise among its sources) make words as on the device, and
 they are shown. At Lock in Practice adds the next sample of the length
 chosen that is not loaded, in place of the key made (F81,
 `docs/MODES.md` §7): four samples of 12 words, two each of 15, 18 and

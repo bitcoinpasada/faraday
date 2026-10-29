@@ -79,9 +79,8 @@ pub enum Way {
     Hex,
     /// Cards from a shuffled deck.
     Cards,
-    /// Pictures from the camera.
-    Camera,
-    /// Two or more sources, combined.
+    /// Two or more sources, combined. The camera is offered only here,
+    /// never as a key's only source (F158).
     Mix,
     /// This device's generator.
     Device,
@@ -89,7 +88,7 @@ pub enum Way {
 
 /// The options, in the order the card lists them. Actions carry an
 /// option by its place here.
-pub const WAYS: [Way; 10] = [
+pub const WAYS: [Way; 9] = [
     Way::DiceWords,
     Way::DiceFlips,
     Way::Coins,
@@ -97,7 +96,6 @@ pub const WAYS: [Way; 10] = [
     Way::DiceSixAsZero,
     Way::Hex,
     Way::Cards,
-    Way::Camera,
     Way::Mix,
     Way::Device,
 ];
@@ -128,7 +126,6 @@ impl Way {
             Way::Coins => Source::Coins,
             Way::Hex => Source::Hex,
             Way::Cards => Source::Cards,
-            Way::Camera => Source::Camera,
             Way::Mix => Source::Mix,
             Way::Device => Source::Device,
         }
@@ -677,8 +674,8 @@ impl KeyGen {
             Source::Coins => Way::Coins,
             Source::Hex => Way::Hex,
             Source::Cards => Way::Cards,
-            Source::Camera => Way::Camera,
-            Source::Mix => Way::Mix,
+            // The camera is only ever a mix's member.
+            Source::Mix | Source::Camera => Way::Mix,
             Source::Device | Source::SeedXor => Way::Device,
         })
     }
@@ -822,6 +819,9 @@ impl KeyGen {
         if w.sequential {
             out.push(EN.keygen_a_long_run_counting);
         }
+        if w.in_order {
+            out.push(EN.keygen_cards_in_deck_order);
+        }
         out
     }
 
@@ -937,8 +937,14 @@ impl KeyGen {
             self.note = Some(EN.keygen_no_camera_picture.to_string());
             return;
         };
-        let (_, taken) = self.camera.push(luma);
-        self.note = (!taken).then(|| EN.keygen_too_little_variation.to_string());
+        let (stats, taken) = self.camera.push(luma);
+        self.note = (!taken).then(|| {
+            if stats.usable() && self.camera.repeats(luma) {
+                EN.keygen_picture_already_taken.to_string()
+            } else {
+                EN.keygen_too_little_variation.to_string()
+            }
+        });
     }
 
     /// SHA-256 of the active source's input, which a mix combines.
@@ -985,8 +991,9 @@ impl KeyGen {
             Some(Source::Coins) => self.coins.entropy(strength),
             Some(Source::Cards) => self.cards.entropy(strength),
             Some(Source::Hex) => self.hex.entropy(),
-            Some(Source::Camera) => self.camera.entropy(strength),
             Some(Source::Device) => self.device.entropy(strength),
+            // The camera only adds to the system's randomness or to a
+            // mix's: it never makes a key alone (F158).
             _ => return false,
         };
         match entropy {
@@ -1058,17 +1065,33 @@ impl KeyGen {
             self.open = Some(kstep::ENTER);
             self.scroll.follow = true;
         } else {
-            self.note = Some(if self.source.is_some() {
+            self.note = Some(if self.source.is_none() {
+                EN.keygen_choose_a_source.to_string()
+            } else if self.mix_count() < MIN_MIX {
                 EN.keygen_choose_two_sources.to_string()
             } else {
-                EN.keygen_choose_a_source.to_string()
+                EN.keygen_mix_needs_dice_or_device.to_string()
             });
         }
     }
 
-    /// Whether a mix has the two sources it needs.
+    /// How many sources the mix takes.
+    fn mix_count(&self) -> usize {
+        self.mix.iter().filter(|on| **on).count()
+    }
+
+    /// Whether a mix may make a key: two sources or more, dice or this
+    /// device's generator among them (F158). Each is entered to its own
+    /// full count ([`KeyGen::ready`]), so the mix holds at least the
+    /// strength of a published dice procedure or of the system's
+    /// generator, and the others only add to it; cards, coins and the
+    /// camera alone are Faraday's own procedures or no procedure at all.
     pub fn mix_enough(&self) -> bool {
-        self.mix.iter().filter(|on| **on).count() >= MIN_MIX
+        self.mix_count() >= MIN_MIX
+            && self
+                .mix_list()
+                .iter()
+                .any(|s| matches!(s, Source::Dice | Source::Device))
     }
 }
 

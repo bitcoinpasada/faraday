@@ -326,20 +326,19 @@ impl Faraday {
             .map(|i| i.bytes.clone())
     }
 
-    /// 32 bytes for a vault's seal nonce: the session's seed, hashed with
-    /// what they are for and a count of the draws, so no two seals of a
-    /// process share a nonce and two processes share one only if the
-    /// system gave both the same bytes. A seal at lock does not wait for
-    /// the system beyond its first answer; every key comes from
-    /// [`Faraday::fresh`] instead. `None` before the seed arrived: nothing
-    /// is sealed then, and the shell is asked again.
-    pub(crate) fn vault_draw(&mut self, what: &[u8]) -> Option<[u8; 32]> {
+    /// A seal's nonce (`docs/VAULT.md` §5, F158): a fresh answer for "vault
+    /// seal" when one waits, else the seed with a count, so a lock never
+    /// waits; `None` before the seed, and the shell is asked again.
+    pub(crate) fn vault_seal_nonce(&mut self) -> Option<[u8; 32]> {
         if !self.fresh.seeded() {
             self.out.command(faraday_shell_api::Command::RequestEntropy);
             return None;
         }
+        if let Some(fresh) = self.fresh(b"vault seal") {
+            return Some(fresh);
+        }
         self.vaults.state.draws += 1;
-        let what = [b"faraday vault draw".as_slice(), what].concat();
+        let what = [b"faraday vault draw".as_slice(), b"nonce"].concat();
         self.fresh.draw(&what, &self.vaults.draws.to_le_bytes())
     }
 
@@ -2258,7 +2257,7 @@ impl Faraday {
         if self.vaults.open.get(i)?.changes == 0 {
             return None;
         }
-        let draw = self.vault_draw(b"nonce")?;
+        let draw = self.vault_seal_nonce()?;
         let mut nonce = [0u8; fv::NONCE_LEN];
         nonce.copy_from_slice(&draw[..fv::NONCE_LEN]);
         let v = &self.vaults.open[i];

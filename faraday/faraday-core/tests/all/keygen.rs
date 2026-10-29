@@ -1463,3 +1463,97 @@ fn the_key_cards_passphrase_refuses_a_letter_outside_ascii_and_says_so() {
         "{texts:?}"
     );
 }
+
+/// Cards entered in the order a new deck comes in are cautioned, as a run
+/// of dice counting up is, and do not stop the key (F158).
+#[test]
+fn cards_in_the_order_of_a_new_deck_are_cautioned_and_do_not_stop_the_key() {
+    let mut app = opened();
+    app.press(Action::KWords(12));
+    app.press(Action::KWay(Way::Cards.index()));
+    app.press(Action::KNext);
+    for c in 0..25u8 {
+        app.press(Action::KRank(c % 13));
+        app.press(Action::KSuit(c / 13));
+    }
+    let k = app.keygen().unwrap();
+    assert_eq!(k.cards.len(), 25);
+    assert!(
+        k.caution_lines()
+            .contains(&faraday_core::strings::EN.keygen_cards_in_deck_order)
+    );
+    app.press(Action::KNext);
+    finish(&mut app);
+    assert_eq!(app.session.keys.len(), 1);
+}
+
+/// New key lists no camera row of its own: Camera noise is offered only
+/// among a mix's sources (F158).
+#[test]
+fn the_camera_is_offered_only_among_a_mixs_sources() {
+    let mut app = opened_tall();
+    app.press(Action::KWords(12));
+    app.press(Action::KGroup(1));
+    let shown = texts(&mut app);
+    assert!(shown.contains("Playing cards"), "{shown}");
+    assert!(!shown.contains("Camera noise"), "{shown}");
+    app.press(Action::KWay(Way::Mix.index()));
+    assert!(texts(&mut app).contains("Camera noise"));
+}
+
+fn mix_pos(s: Source) -> u8 {
+    faraday_core::keygen::MIX_SOURCES
+        .iter()
+        .position(|m| *m == s)
+        .unwrap() as u8
+}
+
+/// A mix makes a key only with dice or this device among its sources:
+/// cards and the camera alone are refused, and the card says why
+/// (F158).
+#[test]
+fn a_mix_without_dice_or_this_device_is_refused() {
+    use faraday_core::keygen::kstep;
+    let mut app = opened();
+    app.press(Action::KWords(12));
+    app.press(Action::KWay(Way::Mix.index()));
+    app.press(Action::KMix(mix_pos(Source::Cards)));
+    app.press(Action::KMix(mix_pos(Source::Camera)));
+    app.press(Action::KNext);
+    let k = app.keygen().unwrap();
+    assert_eq!(
+        k.note.as_deref(),
+        Some(faraday_core::strings::EN.keygen_mix_needs_dice_or_device)
+    );
+    assert_eq!(k.open, Some(kstep::SOURCE));
+    app.press(Action::KMix(mix_pos(Source::Device)));
+    app.press(Action::KNext);
+    assert_eq!(app.keygen().unwrap().open, Some(kstep::ENTER));
+}
+
+/// The same camera frame taken twice counts once, and the card says so.
+#[test]
+fn a_camera_frame_already_taken_is_refused() {
+    let mut app = opened();
+    app.press(Action::KWords(12));
+    app.press(Action::KWay(Way::Mix.index()));
+    app.press(Action::KMix(mix_pos(Source::Camera)));
+    app.press(Action::KMix(mix_pos(Source::Device)));
+    app.press(Action::KNext);
+    assert_eq!(app.keygen().unwrap().active(), Some(Source::Camera));
+    let luma: Vec<u8> = (0..1024usize).map(|p| (p * 31 % 256) as u8).collect();
+    app.event(Event::CameraFrame {
+        width: 32,
+        height: 32,
+        luma,
+        chroma: None,
+    });
+    app.press(Action::KFrame);
+    app.press(Action::KFrame);
+    let k = app.keygen().unwrap();
+    assert_eq!(k.camera.len(), 1);
+    assert_eq!(
+        k.note.as_deref(),
+        Some(faraday_core::strings::EN.keygen_picture_already_taken)
+    );
+}

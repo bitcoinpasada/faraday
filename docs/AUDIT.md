@@ -118,7 +118,7 @@ The highest-leverage single fact for an auditor: everything above marked
 - BIP-352 silent payments (`faraday-bip::silent`)
 - BIP 93 codex32 (`faraday-bip::codex32`)
 - SLIP-39 Shamir backup (`faraday-bip::slip39`)
-- The counter nonce of the session's in-memory sealing (`faraday-crypto`)
+- The counter nonce of the in-memory sealing (`faraday-crypto`), reached by no shipped code
 - scrypt, and the BLAKE2b that AEZ uses, one caller each (`faraday-crypto`)
 - Dice, coin, card, hex and camera entropy accumulation and packing, the mix of sources, and Seed XOR (`faraday-entropy`)
 - The session's random generator: its seed and pool, and the mixing of a person's own randomness (`faraday-core::fresh`)

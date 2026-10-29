@@ -181,6 +181,7 @@ impl CoinFlips {
             long_run: s.longest_run >= COIN_LONG_RUN,
             skewed: n > 0 && d * d * 4 > 49 * n,
             sequential: false,
+            in_order: false,
         }
     }
 }

@@ -665,7 +665,6 @@ fn in_the_demo_new_key_from_every_source_adds_a_sample_of_its_length_in_place_of
         Way::DiceSixAsZero,
         Way::Hex,
         Way::Cards,
-        Way::Camera,
         Way::Mix,
         Way::Device,
     ];

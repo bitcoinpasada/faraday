@@ -1300,6 +1300,8 @@ pub struct Vaults {
     /// be derived. What confirms a record is a wallet slot's key
     /// ([`crate::vault::screen::record_is_policy_key`]). In memory only.
     pub(crate) accounts: std::cell::RefCell<Vec<KeyAccount>>,
+    /// Seal nonces drawn from the session's seed, when no fresh answer
+    /// waited ([`crate::Faraday::vault_seal_nonce`]): only ever counts up.
     pub(super) draws: u64,
     /// The selected key's SeedQR while its eye shows it, by record
     /// index: made at the press that shows it, dropped at the press that

@@ -275,14 +275,14 @@ standard_note = "SHA-256 of one-byte draw indices"
 id = "camera"
 section = 3
 what = "Camera noise (`core/faraday-entropy/src/camera.rs`)"
-completeness = "Frames hashed in order; 3 frames per 128 bits"
+completeness = "Frames hashed in order; 3 frames per 128 bits; a mix's member or added to the session's randomness, never a key's only source"
 standard_note = "SHA-256 of the frames' SHA-256 digests; 3 frames per 128 bits is a heuristic"
 
 [[row]]
 id = "mix-sources"
 section = 3
 what = "Mix of sources (`core/faraday-entropy/src/mix.rs`)"
-completeness = "Two to five sources"
+completeness = "Two to five sources, dice or this device among them"
 standard_note = "SHA-256 over the concatenated commitments"
 
 [[row]]
@@ -1335,7 +1335,7 @@ places = [
 [[action]]
 id = "hold"
 name = "Hold a key in memory"
-action = "Holds a key in memory blinded, on pinned pages and sealed under a session key."
+action = "Holds a key in memory blinded and on pinned pages; the sealing under a session key built in faraday-crypto is reached by no shipped code."
 row = "keys-held"
 standards = []
 learn = "faraday:keys-kept"
@@ -1373,8 +1373,8 @@ libraries = [
   "subtle",
   "secp256k1",
 ]
-adds = "Each key's signing context is randomized from the session's randomness, again whenever it changes; sealing uses a counter nonce with a prefix derived from the key, refuses a key built without shell entropy and a key past 2^32 - 1 seals; pinned pages hold a long-lived secret apart from other data and are asked to stay out of swap."
-written_here = "The counter nonce of the session's in-memory sealing (`faraday-crypto`)"
+adds = "Each key's signing context is randomized from the session's randomness, again whenever it changes; pinned pages hold a long-lived secret apart from other data and are asked to stay out of swap; words, passphrases and seeds are values wiped on drop. The in-memory sealing (`Sealed`, `SessionKey`: a counter nonce with a prefix derived from the key, refusing a key built without shell entropy and a key past 2^32 - 1 seals) is built and tested, but no shipped code builds a session key or seals a value."
+written_here = "The counter nonce of the in-memory sealing (`faraday-crypto`), reached by no shipped code"
 
 [action.checked]
 tests = [
@@ -1393,17 +1393,16 @@ fuzz_none = "Takes values the program holds; no outside input is parsed."
 [action.secrets]
 reveal = "none"
 constant_time = "Secret and Pinned comparison is constant time (subtle's ConstantTimeEq, documented in secret.rs and pinned.rs); sealing is the chacha20poly1305 crate's, not stated by the library."
-wiped = "Plaintext exists in a stack buffer only while a Sealed value's closure runs and is zeroized when it returns; a Secret and a Pinned page are zeroized on drop; a rotated key re-seals its values under the new key."
+wiped = "A Secret and a Pinned page are zeroized on drop; nothing is sealed in memory, since no shipped code seals a value."
 
 [action.limits]
 lines = [
-  "A weakly keyed session key refuses to seal.",
-  "A session key refuses to seal after 2^32 - 1 seals until it is rotated.",
+  "Nothing held in memory is sealed: Sealed and SessionKey are reached by no shipped code.",
   "Pinning is a feature of the desktop and Pi builds; the browser and Android builds hold the same value unpinned.",
 ]
 
 [[action.own]]
-text = "The nonce of a seal is a counter with a prefix derived from the key, because the crate has no random number generator."
+text = "The in-memory seal's nonce is a counter with a prefix derived from the key, because the crate has no random number generator; no shipped code reaches it, so no secret is sealed in memory today."
 kind = "Novel"
 decision = "no decision"
 
@@ -2857,6 +2856,8 @@ tests = [
   "core/faraday-entropy/src/cards.rs::cards_hash_their_indices_and_count_the_deck_down",
   "core/faraday-entropy/src/cards.rs::the_deck_tracker_refuses_a_card_already_out",
   "core/faraday-entropy/src/cards.rs::twenty_four_words_from_cards_asks_for_a_second_deck",
+  "core/faraday-entropy/src/cards.rs::a_deck_in_new_deck_order_is_cautioned",
+  "faraday/faraday-core/tests/all/keygen.rs::cards_in_the_order_of_a_new_deck_are_cautioned_and_do_not_stop_the_key",
 ]
 crosscheck = "entropy"
 fuzz_none = "Takes single cards from a pad; no text is parsed."
@@ -2870,12 +2871,13 @@ wiped = "The accumulator is a fixed buffer erased when it is dropped; the entrop
 lines = [
   "A card already out of its deck is refused.",
   "At most two decks (104 cards) are held.",
+  "Five cards in a row in the deck's own order, up or down, are cautioned, not refused.",
 ]
 
 [[action.own]]
-text = "The procedure is Faraday's own: SHA-256 of one-byte draw indices."
+text = "The procedure is Faraday's own: a card is the index suit × 13 + rank, and the entropy is SHA-256 of those one-byte indices; no other wallet's card mode is claimed to match, and the bits counted assume a well-shuffled deck."
 kind = "Novel"
-decision = "no decision"
+decision = "F158"
 
 [action.review]
 places = [
@@ -2886,7 +2888,7 @@ places = [
 [[action]]
 id = "camera"
 name = "Turn the camera into entropy"
-action = "Turns camera frames into entropy as SHA-256 over the frames' SHA-256 digests."
+action = "Commits to camera frames as SHA-256 over the frames' SHA-256 digests, for a mix or the session's randomness, never a key alone."
 row = "camera"
 standards = []
 learn = "randomness"
@@ -2896,6 +2898,7 @@ screens = [
 ]
 functions = [
   "core/faraday-entropy/src/camera.rs::CameraNoise::push",
+  "core/faraday-entropy/src/camera.rs::CameraNoise::repeats",
   "core/faraday-entropy/src/camera.rs::CameraNoise::commitment",
   "core/faraday-entropy/src/camera.rs::CameraNoise::entropy",
 ]
@@ -2907,7 +2910,7 @@ novel_rank = 7
 [action.implementation]
 crate = "core/faraday-entropy"
 libraries = []
-adds = "A frame is taken only if it has at least 32 distinct luma values; three frames are asked for per 128 bits, rounded up, as a guard against a still scene rather than an entropy calculation."
+adds = "A frame is taken only if it has at least 32 distinct luma values and its SHA-256 is not one already taken; three frames are asked for per 128 bits, rounded up, as a guard against a still scene rather than an entropy calculation."
 
 [action.checked]
 vectors = [
@@ -2915,6 +2918,9 @@ vectors = [
 ]
 tests = [
   "core/faraday-entropy/src/camera.rs::a_covered_lens_is_refused_and_frames_hash_in_order",
+  "core/faraday-entropy/src/camera.rs::a_frame_already_taken_is_refused",
+  "faraday/faraday-core/tests/all/keygen.rs::a_camera_frame_already_taken_is_refused",
+  "faraday/faraday-core/tests/all/keygen.rs::the_camera_is_offered_only_among_a_mixs_sources",
 ]
 crosscheck = "entropy"
 fuzz = [
@@ -2929,13 +2935,15 @@ wiped = "The accumulator is a fixed buffer erased when it is dropped; the entrop
 [action.limits]
 lines = [
   "A frame of fewer than 32 distinct values is refused.",
+  "A frame whose SHA-256 was already taken is refused.",
   "At most 8 frames are held.",
+  "Never a key's only source: a mix's member, or added to the session's randomness.",
 ]
 
 [[action.own]]
-text = "The procedure is Faraday's own, and three frames per 128 bits is a heuristic."
+text = "The procedure is Faraday's own, and three frames per 128 bits is a heuristic; the frames only add to a mix or to the system's randomness, never make a key alone."
 kind = "Novel"
-decision = "no decision"
+decision = "F158"
 
 [action.review]
 places = [
@@ -3001,7 +3009,7 @@ places = [
 [[action]]
 id = "mix"
 name = "Mix entropy sources"
-action = "Combines two to five sources by hashing their commitments in the order taken."
+action = "Combines two to five sources, dice or this device among them, by hashing their commitments in the order taken."
 row = "mix-sources"
 standards = []
 learn = "randomness"
@@ -3030,6 +3038,7 @@ vectors = [
 tests = [
   "core/faraday-entropy/src/mix.rs::a_mix_commits_to_its_sources_and_hashes_the_commitments",
   "faraday/faraday-core/tests/all/keygen.rs::a_mix_of_dice_and_coins_is_the_hash_of_both_commitments",
+  "faraday/faraday-core/tests/all/keygen.rs::a_mix_without_dice_or_this_device_is_refused",
 ]
 crosscheck = "entropy"
 fuzz_none = "Takes 32-byte commitments from sources already entered."
@@ -3042,12 +3051,13 @@ wiped = "The accumulator is a fixed buffer erased when it is dropped; the entrop
 [action.limits]
 lines = [
   "Fewer than two sources make no entropy; at most five are held.",
+  "A mix without dice or this device among its sources makes no key.",
 ]
 
 [[action.own]]
-text = "The construction is Faraday's own: SHA-256 over the concatenated commitments."
+text = "The construction is Faraday's own: SHA-256 over the concatenated commitments. With dice or this device among the sources, each at its full count, it only adds to that member's strength."
 kind = "Novel"
-decision = "no decision"
+decision = "F158"
 
 [action.review]
 places = [
@@ -6070,9 +6080,9 @@ lines = [
 ]
 
 [[action.own]]
-text = "Faraday's own container with four equal slots, so a file does not say how many slots are in use (docs/VAULT.md §9)."
+text = "Faraday's own container with four equal slots, so a file does not say how many slots are in use (docs/VAULT.md §9); unused slots are keystream, one salt serves every slot, and an older copy of a slot still opens. Kept until the outside review."
 kind = "Novel"
-decision = "no decision"
+decision = "F158"
 
 [[action.own]]
 text = "The reader limits (lanes exactly 1, passes at most 10, memory 8 MiB to 4 GiB) refuse headers that would cost a guess or an allocation the vault does not state."
@@ -6180,7 +6190,7 @@ libraries = [
   "chacha20poly1305",
   "sha2",
 ]
-adds = "The header is the associated data of every slot, so a slot cannot be moved to another file or place; the nonce is the caller's (the first 24 bytes of a SHA-256 over a label, the session's seed and a count of seals);"
+adds = "The header is the associated data of every slot, so a slot cannot be moved to another file or place; the nonce is the caller's: the first 24 bytes of a fresh system answer for the seal when one waits, else of a SHA-256 over a label, the session's seed and a count."
 
 [action.checked]
 vectors = ["vault"]
@@ -6188,6 +6198,7 @@ tests = [
   "faraday/faraday-vault/src/tests.rs::sealing_changes_only_the_open_slot",
   "faraday/faraday-keys/tests/vault.rs::a_vault_sealed_after_a_change_opens_with_it",
   "faraday/faraday-keys/tests/vault.rs::every_edit_moves_the_version_and_a_read_does_not",
+  "faraday/faraday-core/tests/all/vault_seal.rs::a_seal_takes_a_fresh_answer_when_one_waits_and_the_seed_when_none_does",
 ]
 crosscheck = "vault"
 fuzz_none = "Sealing takes the open slot's own records and a nonce; vault_records fuzzes the records' reading."
@@ -6206,9 +6217,9 @@ lines = [
 ]
 
 [[action.own]]
-text = "The seal nonce is derived from the session's seed and a count of seals, not drawn afresh (docs/VAULT.md §5). No two seals of one session share a nonce; two sessions share one only if the system gave both the same seed."
+text = "The seal nonce is a fresh system answer when the pool holds one, and the session's seed with a count of seals only when none waits, so a lock never waits on the system (docs/VAULT.md §5). No two seals of one session share a nonce."
 kind = "Neutral"
-decision = "no decision"
+decision = "F158"
 
 [action.review]
 places = [
@@ -7030,6 +7041,8 @@ tests = [
   "faraday/faraday-sb/tests/golden.rs::an_owners_secure_boot_keys_are_the_bytes_they_always_were",
   "faraday/faraday-sb/tests/judged.rs::openssl_verifies_the_certificates_and_the_auth_signatures",
   "faraday/faraday-sb/tests/judged.rs::microsoft_certificates_are_what_was_recorded",
+  "faraday/faraday-sb/tests/judged.rs::the_generator_is_rfc_8439_chacha20_keyed_by_the_seed",
+  "faraday/faraday-sb/tests/judged.rs::openssl_checks_every_private_key_made",
 ]
 not_crosschecked = "Judged by openssl in faraday/faraday-sb/tests/judged.rs, which skips a tool that is not on PATH; not by an F79 area."
 fuzz_none = "Key making takes a seed and a name; pe_image fuzzes the reading of images."
@@ -7047,9 +7060,9 @@ lines = [
 ]
 
 [[action.own]]
-text = "An RNG adapter written here feeds a pre-1.0 release of the rsa crate."
+text = "An RNG adapter written here, ChaCha20 (RFC 8439) as a stream keyed by a fresh 32-byte draw with the purpose in the nonce's first byte, feeds a pre-1.0 release of the rsa crate; its keystream is checked against RFC 8439 and every key it makes by openssl pkey -check."
 kind = "Novel"
-decision = "no decision"
+decision = "F158"
 
 [action.review]
 places = [

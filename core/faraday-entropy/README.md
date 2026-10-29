@@ -12,7 +12,9 @@ draws no randomness itself; `no_std` + `alloc`.
 - `CoinFlips`: one bit a flip, packed MSB first.
 - `RawHex`: hex digits taken as they are.
 - `CardDraws`: SHA-256 of the cards' indices, with a deck tracker.
-- Camera noise: `FrameStats` judges a frame before it is used.
+- Camera noise: `FrameStats` judges a frame before it is used, and a
+  frame already taken is refused. A mix's member or the session's own
+  randomness, never a key's only source (F158).
 - `SeedXor`: combines or splits BIP-39 seeds by XOR.
 - `Warnings`, `DiceStats`, `CoinStats`, `CardStats`: the mistakes real hands
   make (runs, bias, repeats) as warnings.
