@@ -576,13 +576,37 @@ either can be checked. Faraday Demo has no file of its own; it is
 inside each Starter (the Starter's own sum covers it). From the release
 after 0.1.7 it lists `faraday-X.Y.Z-BOOTX64.EFI`, the stick's boot
 program as it is, unsigned, published for a person with their own Secure
-Boot keys to sign on Faraday ("With Secure Boot" above). Faraday checks
+Boot keys to sign on Faraday ("With Secure Boot" above); from the release
+after 0.1.8, one for each PC build, `faraday-X.Y.Z-BOOTX64-strict.EFI`
+and `…-compatible.EFI`. Faraday checks
 `SHA256SUMS.asc` more strictly than `gpg --verify` before it signs that
 file (DECISIONS F134), so the release is signed as GnuPG's `gpg --armor
 --detach-sign` or Faraday's own GPG signing does it: one armoured block
 with its checksum line, a binary signature (not `--textmode`) by the
 release key's one signing subkey, whose binding carries its back
 signature.
+
+From the release after 0.1.8 every image is published, one per
+platform, screen and build (`docs/IMAGES.md` §4):
+`faraday-stick-X.Y.Z-x86_64-uefi-strict.img.xz` and `…-compatible`,
+`faraday-pi-X.Y.Z-waveshare-28dpi-strict.img.xz` and `…-compatible`, and
+`faraday-pi-X.Y.Z-hdmi-compatible.img.xz`. `IMAGES`, covered by
+`SHA256SUMS`, lists each with the sum of its `.xz` and of the image
+inside, and the platform, screen, build and boards it is for.
+
+A card or stick already written, and in use, is checked by its boot
+partition, its first, which nothing writes to: `SHA256SUMS` lists it
+under the image's name with `-boot.vfat` for `.img`. On Linux, with the
+card or stick plugged in and not mounted (`lsblk` names it; here
+`/dev/sdX`):
+
+```
+sudo sha256sum /dev/sdX1
+grep -- -boot.vfat SHA256SUMS
+```
+
+The first sum is the line of the image that was written (a card in the
+computer's own reader is `/dev/mmcblk0p1`).
 
 On Windows, Gpg4win's `gpg` takes the same first three commands, and
 PowerShell prints a file's sum to compare with its line in

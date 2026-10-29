@@ -7,8 +7,11 @@ faraday/image/boards and faraday/image/panels named by a built or untried
 entry; and the [[hardware]] entries the download page's tiles come from:
 every id unique, every field known, a built or planned image offered under
 one of them with its build, no two images of one hardware alike, every
-hardware with an image, and tested only where an image is built. Run by
-`just lint`; standard library only."""
+hardware with an image, and tested only where an image is built; and what
+a release publishes of each image (faraday/tools/stage-release.sh): a
+built image's release files are its .img.xz and at most a boot program,
+each named once in the file with {version} in it, and it names the boards
+it starts. Run by `just lint`; standard library only."""
 import subprocess
 import sys
 import tomllib
@@ -17,7 +20,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 FILE = ROOT / "faraday/builds.toml"
 FIELDS = {"id", "label", "group", "status", "board", "panel", "recipe", "vars", "args", "env",
-          "needs", "dev", "outputs", "release", "spec", "hardware", "build", "option"}
+          "needs", "dev", "outputs", "release", "spec", "hardware", "build", "option", "starts"}
 GROUPS = {"app", "image", "starter"}
 HW_FIELDS = {"id", "label", "fits", "soon", "tested"}
 KINDS = {"strict", "compatible"}
@@ -67,6 +70,7 @@ def main():
         else:
             say(f"status is {b.get('status')!r}, not built, untried or planned")
     errors += check_hardware(builds, hardware)
+    errors += check_release(builds)
     for d in sorted(boards - named_boards):
         errors.append(f"faraday/image/boards/{d}: no built or untried entry in faraday/builds.toml builds it")
     for d in sorted(panels - named_panels):
@@ -113,6 +117,35 @@ def check_hardware(builds, hardware):
             errors.append(f"hardware {hid}: no image is offered under it")
         if h.get("tested") and hid not in built:
             errors.append(f"hardware {hid}: tested, but no image of it is built")
+    return errors
+
+
+def check_release(builds):
+    """Each release file named once; an image's, as stage-release.sh reads them."""
+    errors, named = [], {}
+    for b in builds:
+        bid = b.get("id", "?")
+        release = b.get("release", [])
+        for name in release:
+            if "{version}" not in name:
+                errors.append(f"{bid}: release file {name!r} has no {{version}}")
+            if name in named:
+                errors.append(f"{bid}: release file {name!r} is {named[name]}'s too")
+            named[name] = bid
+        image = b.get("group") == "image" and b.get("status") == "built" and release
+        if not image:
+            if "starts" in b:
+                errors.append(f"{bid}: starts is for a built image a release publishes")
+            continue
+        if not release[0].endswith(".img.xz") or any(n.endswith(".img.xz") for n in release[1:]):
+            errors.append(f"{bid}: an image's release files are its .img.xz first, and one only")
+        if len(release) > 2 or any(not n.endswith(".EFI") for n in release[1:]):
+            errors.append(f"{bid}: after its .img.xz, an image releases at most its boot program (.EFI)")
+        starts = b.get("starts")
+        if not isinstance(starts, list) or not starts or not all(isinstance(x, str) and x for x in starts):
+            errors.append(f"{bid}: a released image names the boards it starts (starts)")
+        if not str((b.get("outputs") or [""])[0]).startswith("out/"):
+            errors.append(f"{bid}: a released image's first output is under out/")
     return errors
 
 

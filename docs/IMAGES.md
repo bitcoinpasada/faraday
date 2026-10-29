@@ -1,8 +1,8 @@
 # Images for each piece of hardware
 
 **Kind:** Spec
-**Status:** Specified (F145), the PC's two builds, the Pi's two builds and the HDMI screen's image built
-**Open:** the four new Pi screens with their own panels (5-inch, 7-inch, 10-inch DSI), the release's image list, the Starter finding images, the website's choice
+**Status:** Specified (F145), the PC's two builds, the Pi's two builds, the HDMI screen's image and the release's files and image list built
+**Open:** the four new Pi screens with their own panels (5-inch, 7-inch, 10-inch DSI), a full release's size and staging time measured, the Starter finding images, the website's choice
 
 A person picks their hardware, and gets the one signed image built for
 it. Each Pi screen and each PC build is its own image and its own
@@ -143,26 +143,60 @@ at the panel's own density; classes are `docs/LAYOUT.md` §2.
 
 - **One image per platform, screen and build:**
   - `faraday-pi-X.Y.Z-<screen>-strict.img.xz` and `…-compatible.img.xz`, each
-    for every supported Pi (§3);
+    for every supported Pi (§3), so the name carries no board: today
+    `faraday-pi-X.Y.Z-waveshare-28dpi-strict.img.xz`,
+    `faraday-pi-X.Y.Z-waveshare-28dpi-compatible.img.xz` and
+    `faraday-pi-X.Y.Z-hdmi-compatible.img.xz`;
   - `faraday-stick-X.Y.Z-x86_64-uefi-strict.img.xz` and `…-compatible.img.xz`;
   - each PC build's boot program, `faraday-X.Y.Z-BOOTX64-strict.EFI`
     and `…-compatible.EFI`.
 
-  `<screen>` is the panel directory's name.
-- **`SHA256SUMS`** lists each `.xz`, the `.img` inside it, and each
-  image's boot partition (`-boot.vfat`). Nothing writes to a boot
-  partition, so a card or stick already in use can still be checked
-  against the release's signature. The README's "Verifying a release"
-  shows both checks: the downloaded file, and a card or stick.
+  `<screen>` is the panel directory's name. Up to 0.1.8 the files were
+  `faraday-stick-X.Y.Z-x86_64-uefi.img.xz`,
+  `faraday-pi-X.Y.Z-pi3-waveshare-28dpi.img.xz` and
+  `faraday-X.Y.Z-BOOTX64.EFI`; the release after 0.1.8 renames all three
+  at once, and nothing reads a release file by its old name: the website
+  takes the names from `faraday/builds.toml`, and the Starter tells a
+  stick image from a Pi image by `faraday-stick-` and `faraday-pi-`
+  alone. An image may be released before it is tried on its hardware
+  (F147); the download page marks it.
+- **`SHA256SUMS`** lists each `.xz`, each boot program, `IMAGES`, the
+  `.img` inside each `.xz` under its own name, and each image's boot
+  partition, its first partition, under the image's name with
+  `-boot.vfat` for `.img` (`faraday-pi-X.Y.Z-hdmi-compatible-boot.vfat`).
+  Nothing writes to a boot partition, so a card or stick already in use
+  can still be checked against the release's signature. The README's
+  "Verifying a release" shows both checks: the downloaded file, and a
+  card or stick.
 - **The release's image list** (`IMAGES`, a plain-text file in the
-  release and built into the Starter) has one line per image: file
-  name, the two SHA-256 sums, platform, screen, build, and the boards
-  it starts. It is staged with the manifest (`docs/STARTER.md` §1.3)
-  and covered by `SHA256SUMS`.
+  release; the Starter carries it from §9 step 6) is staged with the
+  manifest (`docs/STARTER.md` §1.3) and covered by `SHA256SUMS`. Its
+  first line is `# Faraday X.Y.Z images, commit <full hash>`; then one
+  line per image, in `faraday/builds.toml`'s order, its fields separated
+  by one tab:
+  1. the release file, `….img.xz`;
+  2. the `.xz`'s SHA-256;
+  3. the SHA-256 of the `.img` inside it;
+  4. the platform, the entry's `board` (`x86_64-uefi`, `pi3`);
+  5. the screen, its `panel` (`efi-framebuffer`, `waveshare-28dpi`, `hdmi`);
+  6. the build, `strict` or `compatible`;
+  7. the boards it starts, its `starts`, joined by `, ` (`Pi 3B, Pi 3B+,
+     Pi Zero 2 W`).
+
+  The HDMI screen's line, its tabs shown as two spaces and its sums
+  shortened:
+
+  ```
+  faraday-pi-X.Y.Z-hdmi-compatible.img.xz  9f2c…  41ab…  pi3  hdmi  compatible  Pi 3B, Pi 3B+, Pi Zero 2 W
+  ```
 - **Each image has its entry in `faraday/builds.toml`**, the
-  repository's list of builds: its recipe, the files it leaves and
-  its release file names. The images this plan adds are listed there
-  as planned, and an entry becomes built with its recipe.
+  repository's list of builds: its recipe, the files it leaves, its
+  release file names and the boards it starts.
+  `faraday/tools/stage-release.sh` publishes every built image that
+  names its release files, and `tools/lint-builds.py` holds that each
+  names its `.img.xz` first and, for the PC, its boot program. The
+  images this plan adds are listed there as planned, and an entry
+  becomes built with its recipe.
 - **Each image is reproducible** from the release's commit, as
   `docs/DEVELOPING.md` §5 says. A recipe builds one image by its
   platform, screen and build, and the release recipe builds them all.
@@ -266,8 +300,13 @@ marked so (`docs/HARDWARE.md` §6).
 4. The PC's Strict and Compatible: the command line in each, two
    images, two boot programs (built: `just build=compatible
    faraday-stick-image`; not yet tried on a PC).
-5. The release recipes, `SHA256SUMS` lines and the image list; the
-   size and build time measured.
+5. The release recipes, `SHA256SUMS` lines and the image list (built:
+   `just faraday-release-stage` stages every released image of
+   `faraday/builds.toml`, its boot partition's line and `IMAGES`, and
+   refuses images of two builds; the Starter's payload is still the
+   Strict stick and the 2.8-inch Strict Pi until step 6). Left: the
+   size and staging time of a full set, measured on the next release's
+   builds.
 6. The Starter: no payload of images, finding and checking them, the
    offers.
 7. Each panel's directory, from its documentation, and tried on the

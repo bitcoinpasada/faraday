@@ -25,41 +25,55 @@
 # in the same pass or another: Faraday-Starter-VERSION-Windows.exe, as it
 # is, and its line in SHA256SUMS, after the same two checks.
 #
-# Takes what the builds left (under out/, or the folder --builds names):
+# Takes every image faraday/builds.toml lists as built with release files
+# (docs/IMAGES.md §4), from where its build leaves it (its first outputs
+# entry, under out/ or the folder --builds names), and publishes it under
+# its release name: today the PC stick's Strict and Compatible, the Pi's
+# 2.8-inch Strict and Compatible and the Pi's HDMI screen's Compatible,
 #   out/stick/faraday-x86_64-uefi-strict.img -> faraday-stick-VERSION-x86_64-uefi-strict.img.xz
-#   out/stick/faraday-x86_64-uefi-compatible.img   -> faraday-stick-VERSION-x86_64-uefi-compatible.img.xz
-#   out/pi/faraday-pi3-waveshare-28dpi.img   -> faraday-pi-VERSION-pi3-waveshare-28dpi.img.xz
-# and, from each stick image's boot partition (FARADAYBOOT, the first GPT
-# partition), its EFI/BOOT/BOOTX64.EFI -> faraday-VERSION-BOOTX64-strict.EFI
-# and faraday-VERSION-BOOTX64-compatible.EFI (docs/IMAGES.md §4): the
-# boot programs as they are, unsigned, published so that a person with Secure
-# Boot keys downloads it with SHA256SUMS and SHA256SUMS.asc and signs it
-# on Faraday, which signs only a boot program those sums list
-# (docs/decisions/F134.md). It must carry the images' build ID.
+#   out/pi/faraday-pi3-hdmi-compatible.img   -> faraday-pi-VERSION-hdmi-compatible.img.xz
+# and so on. An image that releases a boot program (.EFI) has a GPT whose
+# first partition (FARADAYBOOT) holds EFI/BOOT/BOOTX64.EFI, published as
+# its release name, faraday-VERSION-BOOTX64-strict.EFI and
+# faraday-VERSION-BOOTX64-compatible.EFI: the boot programs as they are,
+# unsigned, published so that a person with Secure Boot keys downloads one
+# with SHA256SUMS and SHA256SUMS.asc and signs it on Faraday, which signs
+# only a boot program those sums list (docs/decisions/F134.md). It must
+# carry the images' build ID.
 # Faraday Demo is neither a release file nor a payload file: it runs inside
 # the Starter's window, compiled into the Starter (docs/decisions/F126.md),
 # so no faraday-demo build is taken or staged.
 #
 # Images are published as .xz only (F11). SHA256SUMS lists each file
-# published and, under its .img name, the image inside each .xz, so
-# `sha256sum -c --ignore-missing SHA256SUMS` checks a download and, once
-# decompressed, the image. Its first line names the version and the
-# commit, as earlier releases' did.
+# published, the image inside each .xz under its .img name, and each
+# image's boot partition (its first partition, GPT or MBR) under its name
+# with -boot.vfat for .img, so `sha256sum -c --ignore-missing SHA256SUMS`
+# checks a download, once decompressed the image, and a card or stick
+# already written by its boot partition, which nothing writes to. Its
+# first line names the version and the commit, as earlier releases' did.
 #
-# The stick images must carry VERSION as its build ID (a release build,
+# IMAGES, the release's image list (IMAGES §4), is staged beside them and
+# listed in SHA256SUMS: a first line naming the version and the commit,
+# then one line per image, in builds.toml's order, its fields separated by
+# one tab: the .img.xz, its SHA-256, the .img's SHA-256, the platform (the
+# entry's board), the screen (its panel), the build (strict or compatible)
+# and the boards it starts (its starts, joined by ", ").
+#
+# The images must carry VERSION as their build ID (a release build,
 # DECISIONS F5); --any-build skips that, for trying the script on a test
-# build. The builds (both sticks, the Pi) must carry the same build ID,
-# --any-build or not. Each is read from the kernel release string on its
-# boot partition (the Pi's in faraday-build.txt, which its image build
-# writes: its kernel is compressed). xz runs single-threaded at -9e, so
-# the same image always gives the same .xz.
+# build. The images must all carry the same build ID, --any-build or not,
+# and a refusal names each image's. Each is read from the kernel release
+# string: a GPT image's in its bytes, an MBR image's (the Pi's) in
+# faraday-build.txt on its boot partition, which its image build writes:
+# its kernel is compressed. xz runs single-threaded at -9e, so the same
+# image always gives the same .xz.
 #
 # Second, the payload the Starter embeds (STARTER §1.3), in out/payload/VERSION/
 # (with --out DIR, in DIR.payload; --payload DIR names it): one folder per
 # system, linux/ and windows/, each with hard links to the Strict stick's and
-# the Pi's image .xz (the Compatible stick image is released, not embedded: the
-# Starter carries none but these until it stops carrying images, IMAGES §9
-# step 4)
+# the 2.8-inch Strict Pi's image .xz (builds stick-strict and
+# pi3-waveshare-28dpi; the other images are released, not embedded, until
+# the Starter stops carrying images, IMAGES §9 step 6)
 # and its own MANIFEST (the first line is the same in both). The two
 # folders stay apart: each Starter embeds its own.
 #
@@ -113,16 +127,63 @@ trap 'rm -rf "$check"' EXIT
 build=""
 if [ -z "$second" ]; then
     builds="${builds:-out}"
-    stick_strict="$builds/stick/faraday-x86_64-uefi-strict.img"
-    stick_compatible="$builds/stick/faraday-x86_64-uefi-compatible.img"
-    pi="$builds/pi/faraday-pi3-waveshare-28dpi.img"
-    for f in "$stick_strict" "$stick_compatible" "$pi"; do
-        [ -f "$f" ] || die "$f: not built"
-    done
-    for tool in xz strings mtype mcopy; do
+    for tool in python3 xz strings mtype mcopy; do
         command -v "$tool" >/dev/null || die "$tool is not installed"
     done
 
+    # The images a release publishes (IMAGES §4), read from builds.toml:
+    # one line each, tab-separated: the build's id, its file under out/, its
+    # .img.xz release name, its .EFI release name or -, its board, panel,
+    # build, and the boards it starts.
+    listed="$(python3 -I - "$version" faraday/builds.toml <<'PY'
+import sys, tomllib
+version, path = sys.argv[1], sys.argv[2]
+with open(path, "rb") as f:
+    builds = tomllib.load(f)["build"]
+for b in builds:
+    if b.get("group") != "image" or b.get("status") != "built" or not b.get("release"):
+        continue
+    names = [n.replace("{version}", version) for n in b["release"]]
+    print("\t".join([b["id"], b["outputs"][0].replace("{dev}", "").removeprefix("out/"),
+                     names[0], names[1] if len(names) > 1 else "-", b["board"], b["panel"],
+                     b["build"], ", ".join(b["starts"])]))
+PY
+)" || die "cannot read the released images from faraday/builds.toml"
+    [ -n "$listed" ] || die "faraday/builds.toml lists no built image with release files"
+    ids=() src=() img=() efi=() board=() panel=() kind=() starts=() part=()
+    while IFS=$'\t' read -r i s n e bo pa k st; do
+        ids+=("$i") src+=("$builds/$s") img+=("${n%.xz}") efi+=("$e")
+        board+=("$bo") panel+=("$pa") kind+=("$k") starts+=("$st")
+    done <<< "$listed"
+
+    is_gpt() { [ "$(dd if="$1" bs=1 skip=512 count=8 2>/dev/null)" = "EFI PART" ]; }
+    # An image's first partition, its boot partition: prints its first
+    # sector and its length in sectors, from the GPT's first entry (the
+    # header at LBA 1 names where the entries start; an entry's first and
+    # last LBA are 32 and 40 bytes into it) or the MBR's.
+    first_partition() {
+        local img="$1" entries start end count size
+        if is_gpt "$img"; then
+            entries="$(od -An -t u8 --endian=little -j 584 -N 8 "$img" | tr -d ' ')"
+            [ -n "$entries" ] || return 1
+            start="$(od -An -t u8 --endian=little -j $((entries * 512 + 32)) -N 8 "$img" | tr -d ' ')"
+            end="$(od -An -t u8 --endian=little -j $((entries * 512 + 40)) -N 8 "$img" | tr -d ' ')"
+            [ -n "$start" ] && [ -n "$end" ] && [ "$end" -ge "$start" ] || return 1
+            count=$((end - start + 1))
+        else
+            start="$(od -An -t u4 --endian=little -j 454 -N 4 "$img" | tr -d ' ')"
+            count="$(od -An -t u4 --endian=little -j 458 -N 4 "$img" | tr -d ' ')"
+            [ -n "$start" ] && [ -n "$count" ] || return 1
+        fi
+        size="$(stat -c %s "$img")"
+        [ "$start" -gt 0 ] && [ "$count" -gt 0 ] && [ $(((start + count) * 512)) -le "$size" ] || return 1
+        echo "$start $count"
+    }
+    # The bytes of an image's boot partition, given as first_partition prints it.
+    boot_bytes() { # the image, "start count"
+        dd if="$1" bs=1M iflag=skip_bytes,count_bytes skip=$((${2% *} * 512)) \
+            count=$((${2#* } * 512)) status=none
+    }
     # The build ID an image carries, from its kernel's release string.
     build_id() {
         # head ends the pipe at the first match, which grep sees as a broken
@@ -130,106 +191,114 @@ if [ -z "$second" ]; then
         { grep -a -o -m1 -E '[0-9]+\.[0-9]+\.[0-9]+-faraday-[0-9A-Za-z.+-]+' "$1" || true; } \
             | head -1 | sed 's/.*-faraday-//' || true
     }
-    # The Pi image's build ID: the release string in faraday-build.txt on
-    # its boot partition (the first MBR partition), read as the stick's is.
-    pi_build_id() {
-        local lba
-        lba="$(od -An -t u4 --endian=little -j 454 -N 4 "$1" | tr -d ' ')"
-        [ -n "$lba" ] && [ "$lba" -gt 0 ] || die "$1: no boot partition"
-        mtype -i "$1@@$((lba * 512))" ::faraday-build.txt 2>/dev/null | build_id /dev/stdin
+    # A GPT image carries it in its bytes; an MBR image (the Pi's, whose
+    # kernel is compressed) in faraday-build.txt on its boot partition.
+    image_build_id() { # the image, its boot partition
+        if is_gpt "$1"; then
+            build_id "$1"
+        else
+            mtype -i "$1@@$((${2% *} * 512))" ::faraday-build.txt 2>/dev/null | build_id /dev/stdin
+        fi
     }
 
-    stick_id="$(build_id "$stick_strict")"
-    compatible_id="$(build_id "$stick_compatible")"
-    pi_id="$(pi_build_id "$pi")"
-    [ -n "$stick_id" ] || die "$stick_strict carries no Faraday build ID"
-    [ -n "$compatible_id" ] || die "$stick_compatible carries no Faraday build ID"
-    [ -n "$pi_id" ] || die "$pi carries no Faraday build ID (faraday-build.txt on its boot partition)"
-    echo "$stick_strict: $stick_id"
-    echo "$stick_compatible: $compatible_id"
-    echo "$pi: $pi_id"
-    if [ "$stick_id" != "$pi_id" ] || [ "$stick_id" != "$compatible_id" ]; then
-        die "the builds are not one build: stick Strict $stick_id, stick Compatible $compatible_id, Pi $pi_id"
+    every=""
+    for k in "${!ids[@]}"; do
+        f="${src[k]}"
+        [ -f "$f" ] || die "$f: not built (${ids[k]} in faraday/builds.toml)"
+        [ "${efi[k]}" = - ] || is_gpt "$f" || die "$f has no GPT"
+        part[k]="$(first_partition "$f")" || die "$f has no boot partition"
+        b="$(image_build_id "$f" "${part[k]}")"
+        [ -n "$b" ] || die "$f carries no Faraday build ID"
+        echo "$f: $b"
+        every="${every:+$every, }${ids[k]} $b"
+        if [ -z "$build" ]; then build="$b"; elif [ "$b" != "$build" ]; then build="-"; fi
+    done
+    [ "$build" != - ] || die "the builds are not one build: $every"
+    if [ "$any" = 0 ] && [ "$build" != "$version" ]; then
+        die "the builds are $build, not the release $version (build them with release=1, or pass --any-build)"
     fi
-    if [ "$any" = 0 ] && [ "$stick_id" != "$version" ]; then
-        die "the builds are $stick_id, not the release $version (build them with release=1, or pass --any-build)"
-    fi
-    build="$stick_id"
 
     [ ! -e "$out" ] || die "$out exists; move it aside first"
     [ ! -e "$payload" ] || die "$payload exists; move it aside first"
     mkdir -p "$out" "$payload/linux" "$payload/windows"
 
-    stick_name="faraday-stick-$version-x86_64-uefi-strict.img"
-    compatible_name="faraday-stick-$version-x86_64-uefi-compatible.img"
-    boot_name="faraday-$version-BOOTX64-strict.EFI"
-    boot_compatible_name="faraday-$version-BOOTX64-compatible.EFI"
-
-    # The boot program off a stick image's first GPT partition: the
-    # header at LBA 1 names where the partition entries start, and the
-    # first entry's starting LBA is 32 bytes into it. A refusal here takes
-    # back the folders just made.
+    # The boot program off a GPT image's boot partition. A refusal here
+    # takes back the folders just made.
     unstage() { rm -rf "$out" "$payload"; die "$1 (nothing staged)"; }
-    boot_program() { # the stick image, the file to write
-        local img="$1" dest="$2" entries lba
-        [ "$(dd if="$img" bs=1 skip=512 count=8 2>/dev/null)" = "EFI PART" ] \
-            || unstage "$img has no GPT"
-        entries="$(od -An -t u8 --endian=little -j 584 -N 8 "$img" | tr -d ' ')"
-        lba="$(od -An -t u8 --endian=little -j $((entries * 512 + 32)) -N 8 "$img" | tr -d ' ')"
-        [ -n "$lba" ] && [ "$lba" -gt 0 ] || unstage "$img has no boot partition"
-        mcopy -i "$img@@$((lba * 512))" ::EFI/BOOT/BOOTX64.EFI "$dest" 2>/dev/null \
-            || unstage "$img has no EFI/BOOT/BOOTX64.EFI on its boot partition"
+    for k in "${!ids[@]}"; do
+        [ "${efi[k]}" != - ] || continue
+        dest="$out/${efi[k]}"
+        mcopy -i "${src[k]}@@$((${part[k]% *} * 512))" ::EFI/BOOT/BOOTX64.EFI "$dest" 2>/dev/null \
+            || unstage "${src[k]} has no EFI/BOOT/BOOTX64.EFI on its boot partition"
         [ "$(build_id "$dest")" = "$build" ] \
             || unstage "$(basename "$dest") does not carry the build ID $build"
-    }
-    boot_program "$stick_strict" "$out/$boot_name"
-    boot_program "$stick_compatible" "$out/$boot_compatible_name"
+    done
 
-    pi_name="faraday-pi-$version-pi3-waveshare-28dpi.img"
-
-    for pair in "$stick_strict:$stick_name" "$stick_compatible:$compatible_name" "$pi:$pi_name"; do
-        src="${pair%%:*}"
-        name="${pair#*:}"
-        echo "Compressing $name.xz"
-        xz -9e -T1 -c "$src" > "$out/$name.xz"
-        xz -t "$out/$name.xz"
+    xz_sum=() img_sum=() boot_sum=()
+    for k in "${!ids[@]}"; do
+        echo "Compressing ${img[k]}.xz"
+        xz -9e -T1 -c "${src[k]}" > "$out/${img[k]}.xz"
+        xz -t "$out/${img[k]}.xz"
+        xz_sum[k]="$(sha256sum < "$out/${img[k]}.xz" | cut -d' ' -f1)"
+        img_sum[k]="$(sha256sum < "${src[k]}" | cut -d' ' -f1)"
+        boot_sum[k]="$(boot_bytes "${src[k]}" "${part[k]}" | sha256sum | cut -d' ' -f1)"
     done
 
     commit="$(git rev-parse HEAD)"
+    # The release's image list (IMAGES §4).
+    {
+        echo "# Faraday $version images, commit $commit"
+        for k in "${!ids[@]}"; do
+            printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "${img[k]}.xz" "${xz_sum[k]}" "${img_sum[k]}" \
+                "${board[k]}" "${panel[k]}" "${kind[k]}" "${starts[k]}"
+        done
+    } > "$out/IMAGES"
     {
         echo "# Faraday $version, commit $commit"
-        (cd "$out" && sha256sum "$stick_name.xz" "$compatible_name.xz" "$pi_name.xz" "$boot_name" "$boot_compatible_name")
-        printf '%s  %s\n' "$(sha256sum < "$stick_strict" | cut -d' ' -f1)" "$stick_name"
-        printf '%s  %s\n' "$(sha256sum < "$stick_compatible" | cut -d' ' -f1)" "$compatible_name"
-        printf '%s  %s\n' "$(sha256sum < "$pi" | cut -d' ' -f1)" "$pi_name"
+        for k in "${!ids[@]}"; do printf '%s  %s\n' "${xz_sum[k]}" "${img[k]}.xz"; done
+        for k in "${!ids[@]}"; do
+            [ "${efi[k]}" = - ] || (cd "$out" && sha256sum "${efi[k]}")
+        done
+        (cd "$out" && sha256sum IMAGES)
+        for k in "${!ids[@]}"; do printf '%s  %s\n' "${img_sum[k]}" "${img[k]}"; done
+        for k in "${!ids[@]}"; do printf '%s  %s\n' "${boot_sum[k]}" "${img[k]%.img}-boot.vfat"; done
     } > "$out/SHA256SUMS"
 
     # What a person does with the files must check out before anything is
-    # signed: the sums of what is published, and of each image decompressed.
+    # signed: the sums of what is published, and of each image decompressed
+    # and its boot partition, one image at a time.
     (cd "$out" && sha256sum -c --quiet --ignore-missing SHA256SUMS)
-    for name in "$stick_name" "$compatible_name" "$pi_name"; do
-        xz -d -c "$out/$name.xz" > "$check/$name"
-    done
     cp "$out/SHA256SUMS" "$check/"
-    (cd "$check" && sha256sum -c --quiet --ignore-missing SHA256SUMS)
+    for k in "${!ids[@]}"; do
+        xz -d -c "$out/${img[k]}.xz" > "$check/${img[k]}"
+        boot_bytes "$check/${img[k]}" "${part[k]}" > "$check/${img[k]%.img}-boot.vfat"
+        (cd "$check" && sha256sum -c --quiet --ignore-missing SHA256SUMS)
+        rm -f "$check/${img[k]}" "$check/${img[k]%.img}-boot.vfat"
+    done
 
     # The payload the Starter embeds (STARTER §1.3), one folder per system:
     # the images' .xz as hard links to the staged ones, and MANIFEST. One
     # line per file, tab-separated: the payload file, its SHA-256, what is
     # inside it, that file's SHA-256 and size, the build ID it carries.
-    # Both MANIFESTs start with the same line.
+    # Both MANIFESTs start with the same line. The Strict stick and the
+    # 2.8-inch Strict Pi, until the Starter carries no images (IMAGES §9
+    # step 6).
+    carried=()
+    for want in stick-strict pi3-waveshare-28dpi; do
+        found=""
+        for k in "${!ids[@]}"; do [ "${ids[k]}" != "$want" ] || found="$k"; done
+        [ -n "$found" ] || unstage "faraday/builds.toml releases no $want, which the Starter carries"
+        carried+=("$found")
+    done
     for system in linux windows; do
         dir="$payload/$system"
-        ln "$out/$stick_name.xz" "$dir/$stick_name.xz"
-        ln "$out/$pi_name.xz" "$dir/$pi_name.xz"
-        manifest_line() { # payload file, inner name, inner file
-            printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$1" "$(sha256sum < "$dir/$1" | cut -d' ' -f1)" \
-                "$2" "$(sha256sum < "$3" | cut -d' ' -f1)" "$(stat -c %s "$3")" "$build"
-        }
         {
             echo "# Faraday Starter payload $version, commit $commit"
-            manifest_line "$stick_name.xz" "$stick_name" "$stick_strict"
-            manifest_line "$pi_name.xz" "$pi_name" "$pi"
+            for k in "${carried[@]}"; do
+                ln "$out/${img[k]}.xz" "$dir/${img[k]}.xz"
+                printf '%s\t%s\t%s\t%s\t%s\t%s\n' "${img[k]}.xz" "${xz_sum[k]}" "${img[k]}" \
+                    "${img_sum[k]}" "$(stat -c %s "${src[k]}")" "$build"
+            done
         } > "$dir/MANIFEST"
     done
 fi

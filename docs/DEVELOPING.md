@@ -102,13 +102,22 @@ git checkout v0.1.8
 just release=1 faraday-stick-image
 just release=1 build=compatible faraday-stick-image
 just release=1 faraday-pi-image
-sha256sum out/stick/faraday-x86_64-uefi-strict.img out/stick/faraday-x86_64-uefi-compatible.img out/pi/faraday-pi3-waveshare-28dpi.img
+just release=1 build=compatible faraday-pi-image
+just release=1 panel=hdmi build=compatible faraday-pi-image
+sha256sum out/stick/faraday-x86_64-uefi-strict.img out/stick/faraday-x86_64-uefi-compatible.img \
+    out/pi/faraday-pi3-waveshare-28dpi.img out/pi/faraday-pi3-waveshare-28dpi-compatible.img \
+    out/pi/faraday-pi3-hdmi-compatible.img
 ```
 
 Compare each sum with the line for the `.img` (not the `.img.xz`) in the
-release's signed `SHA256SUMS` (README.md, "Verifying a release"): the
-published files are these images, renamed and compressed
-(`faraday/tools/stage-release.sh`). Same bytes or not, say what you got
+release's signed `SHA256SUMS`, or with the third field of its line in
+`IMAGES` (README.md, "Verifying a release"): the published files are
+these images, renamed and compressed (`faraday/tools/stage-release.sh`,
+which publishes every image `faraday/builds.toml` names release files
+for, under those names: `out/pi/faraday-pi3-hdmi-compatible.img` is
+`faraday-pi-X.Y.Z-hdmi-compatible.img.xz`). Releases up to 0.1.8 had
+one stick build and one Pi image; build those with the commands of that
+release's own `docs/DEVELOPING.md`. Same bytes or not, say what you got
 in an issue, with the commit, your container engine and your host
 system: no second builder has reproduced a Faraday image yet.
 

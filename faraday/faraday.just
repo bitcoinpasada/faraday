@@ -485,17 +485,20 @@ faraday-pi-image: faraday-pi-bin
     ls -l "out/pi/$name.img"
 
 
-# Stages a release's plain files under out/release/VERSION/ with the
-# names docs/STARTER.md §1.1 gives them, images as .xz, and SHA256SUMS
-# listing each file and each image inside its .xz, for the owner to
-# sign, and the Starter's payload and MANIFEST under out/payload/VERSION/
+# Stages a release's plain files under out/release/VERSION/: every built
+# image faraday/builds.toml names release files for, as .xz under those
+# names (docs/IMAGES.md §4), the stick builds' boot programs, IMAGES (the
+# release's image list) and SHA256SUMS listing each file, each image
+# inside its .xz and each image's boot partition, for the owner to sign,
+# and the Starter's payload and MANIFEST under out/payload/VERSION/
 # (STARTER §1.3); refuses files carrying a home folder, user name or host
-# name. The stick image must be the release build (release=1); the stick
-# and Pi builds must carry one build ID; --any-build tries it on a test
-# build. Faraday Demo is compiled into the Starter (F126) and staged
-# nowhere: no faraday-demo file is in the payload or the release folder.
-# The payload has linux/ and windows/, one for each Starter, each holding
-# the two images and MANIFEST.
+# name. Every image must be built first (the image recipes above, each
+# build and screen), all must carry one build ID, and that the release's
+# (release=1); --any-build tries it on a test build. Faraday Demo is
+# compiled into the Starter (F126) and staged nowhere: no faraday-demo
+# file is in the payload or the release folder. The payload has linux/
+# and windows/, one for each Starter, each holding the Strict stick image,
+# the 2.8-inch Strict Pi image and MANIFEST.
 #
 #   just faraday-release-stage 0.2.0
 #   just faraday-release-stage 0.2.0 --any-build --out DIR
