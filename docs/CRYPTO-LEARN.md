@@ -466,7 +466,7 @@ Compose documentation states them (`ListItem`, `TopAppBar`,
 ### 8.1 The bar's action
 
 On every page and step flow whose screen offers an action of the
-manifest, the top app bar carries **How Faraday does it**: Material's
+manifest, the top app bar carries **Cryptography**: Material's
 standard icon button, in a 48 dp target, immediately left of the ?.
 Its icon is new in `faraday-draw`'s set, `Icon::Method`: Material
 Symbols' `fact_check` (a sheet with two check marks at its left and two
@@ -484,7 +484,7 @@ step), not before.
 
 The bar's tools then read, from the start of the trailing group: Cancel,
 the eye (Make codex32 shares' sheets), the keyboard button, Load samples
-(Practice), the mode pill, **How Faraday does it**, the ?, then Lock and
+(Practice), the mode pill, **Cryptography**, the ?, then Lock and
 the ⋮ where the layout has them (DESIGN §4.1).
 
 ### 8.2 What it opens
@@ -496,7 +496,7 @@ exactly while the bar offers the button: on a step before the action's,
 Learn has no How tab. The ? opens Learn as today, on the screen's first
 page, with the How tab still first among the tabs; on an extra-large
 window the ? pressed while the pane is shown puts it away, whichever
-tab it shows, as today. **How Faraday does it** pressed while the pane
+tab it shows, as today. **Cryptography** pressed while the pane
 shows the How tab puts it away; pressed while the pane shows another
 tab, it moves the pane to the How tab. Escape, the pane's close button
 and the mouse's back button put the pane away as they do now. When the
@@ -511,7 +511,7 @@ the action carries the same blocks after its sections (§3.1).
 
 | Class | Where the action is |
 |---|---|
-| Compact, the Pi's panel (268 dp) | When the bar's tools would reach the chevron's target (LAYOUT §8), **How Faraday does it** goes into the ⋮ overflow menu first, before the ?: its row reads "How Faraday does it", with `Icon::Method` at its start, and it is the menu's first row, above **Learn**, **Show keyboard** and **Show sheets**. On the panel the ⋮ menu is a sheet, as every menu there. |
+| Compact, the Pi's panel (268 dp) | When the bar's tools would reach the chevron's target (LAYOUT §8), **Cryptography** goes into the ⋮ overflow menu first, before the ?: its row reads "Cryptography", with `Icon::Method` at its start, and it is the menu's first row, above **Learn**, **Show keyboard** and **Show sheets**. On the panel the ⋮ menu is a sheet, as every menu there. |
 | Compact, other windows | On the bar while it fits, else in the ⋮ as on the Pi, by the same order. |
 | Medium, expanded, large | On the bar. |
 | Extra-large | On the bar; it opens the supporting pane, and pressed again while the pane shows the How tab puts the pane away (§8.2). |
@@ -538,7 +538,7 @@ It opens a sheet in the Starter's look (`faraday-ui`), drawn as the
 Starter's other sheets (`faraday_ui::sheet::scroll_sheet`, DESIGN §5):
 the window's width less its margin on a compact window, centred at
 most 560 dp wide otherwise (LAYOUT §5), over the page's frost and
-scrim. Its head is `Icon::Method` and **How Faraday does it**
+scrim. Its head is `Icon::Method` and **Cryptography**
 (`faraday_ui::sheet::sheet_head`); under it the blocks, drawn as §8.5
 draws them, scrolling within the sheet; at its foot **Close**, a text
 button. A press beside it, Escape and the back arrow close it. The
@@ -627,10 +627,10 @@ the strings lint fails a key no code names.
 
 | Key | Value | Where |
 |---|---|---|
-| `tip_how` | How Faraday does it | The bar's button's tooltip, Faraday and the Starter |
-| `bar_menu_how` | How Faraday does it | The ⋮ row on a compact bar, Faraday and the Starter |
-| `learn_tab_how` | How Faraday does it | The Learn sheet's and pane's first tab |
-| `starter_how_title` | How Faraday does it | The Starter's sheet's head |
+| `tip_how` | Cryptography | The bar's button's tooltip, Faraday and the Starter |
+| `bar_menu_how` | Cryptography | The ⋮ row on a compact bar, Faraday and the Starter |
+| `learn_tab_how` | Cryptography | The Learn sheet's and pane's first tab |
+| `starter_how_title` | Cryptography | The Starter's sheet's head |
 | `starter_how_close` | Close | The Starter's sheet's foot |
 | `how_field_action` | Action | §1 |
 | `how_field_standards` | Standards | §1 |
@@ -691,7 +691,7 @@ offer an action, and the guide's text that names the bar's tools. Batch
 A test in `faraday-core` (and one in the Starter) over the manifest's
 actions: for each action and each of its screens, the app is put on that
 screen, on the step that offers the action, at three sizes (480 × 640,
-1280 × 800 and the Pi's panel); the bar's How Faraday does it, or its
+1280 × 800 and the Pi's panel); the bar's Cryptography, or its
 row in the ⋮ menu on the Pi, is pressed; the Learn sheet or pane is open
 on the How tab, and the action's name is among the blocks it shows. It
 also opens the ? there and checks that the action's `learn` page is
@@ -785,6 +785,28 @@ standards page from the pinned manifest; record the manifest's hash in
 the rendered output; and make its publish step (its
 tools/publish-pages.sh) refuse when a page's recorded hash is not the
 pin's manifest's.
+
+### 11.1 The page /cryptography
+
+One page on the website, generated from the pinned manifest and never
+written by hand (owner, 2026-10-28):
+
+- **The standards.** An index at its top: each standard of the
+  standards table with its name and status, and the actions that follow
+  it, each a link to its block.
+- **The actions.** Every action's block, its nine fields as the app
+  draws them, grouped by §12's groups in their order, each block at its
+  own anchor (`/cryptography#<id>`). The Code field links to the file
+  at the release's tag. The actions with no screen follow under "In the
+  repository, not in the app".
+- **Filters.** By standard, by status, by unchecked value (not checked
+  against vectors, not cross-checked, no fuzz target), by an own call
+  with no decision, and by an own call's kind (Conservative, Neutral,
+  Novel). With no filter, everything shows.
+- **One screen.** The whole page is one scrolling page with the filters
+  above it; a filter hides blocks, never moves to another page.
+
+The page reads only what §11 lists; the hash rule above holds it.
 
 ## 12. The actions found in the code
 
@@ -1050,7 +1072,7 @@ Reference.
 ## 16. Questions for the owner
 
 1. **The bar's action.** Settled (owner, 2026-10-28): the bar carries
-   **How Faraday does it** beside the ?, in the ⋮ first on the Pi (§8).
+   **Cryptography** beside the ?, in the ⋮ first on the Pi (§8).
 2. **An action another action uses.** Settled (owner, 2026-10-28): a
    change fails every action that uses it as well as its own (§4.4,
    §5.2).
@@ -1073,6 +1095,12 @@ Reference.
    F148): a block's field is drawn whole, the item growing by its lines
    (§8.5), where Material's list item stops at three lines and truncates
    its supporting text; Faraday cuts no fact.
+
+10. **The name on screen and the website's page.** Settled (owner,
+    2026-10-28): the bar's button keeps `Icon::Method` (`fact_check`),
+    and its tooltip, its ⋮ row, the Learn tab and the Starter's sheet
+    read "Cryptography"; the website shows every block on one page,
+    /cryptography (§11.1).
 
 ## 17. What this does not catch
 
