@@ -1,8 +1,8 @@
 # Your own randomness, and the kernel's at boot
 
 **Kind:** Spec
-**Status:** Specified, partly built (F86): §2.3's mixing into the seed and the pool, and the lock (R1, `faraday/faraday-core/src/fresh.rs`); New key's This device mixing and its label (§2.3, §2.4; `faraday/faraday-core/src/keygen/mod.rs`, `device_own`); the Add randomness page with camera, dice, coins and cards, Settings' Randomness row, the status line and New key's link (R2; `faraday/faraday-core/src/fresh/page.rs`, `faraday/faraday-core/src/screens/randomness.rs`); pointer and keys on the desktop app (R3; `core/faraday-entropy/src/pointer_keys.rs`); option A (§3.3, R4); the kernel check of §3 done from the repository
-**Open:** §3.5's late seed and the Pi's generator (R5, R6, F102); the boot measurement on one real PC, in passing (§3.4 item 2; QEMU's worst case is measured).
+**Status:** Specified, partly built (F86, F157): §2.3's mixing into the seed and the pool, and the lock (R1, `faraday/faraday-core/src/fresh.rs`); New key's This device mixing and its label (§2.3, §2.4; `faraday/faraday-core/src/keygen/mod.rs`, `device_own`); the Add randomness page with camera, dice, coins and cards, Settings' Randomness row, the status line and New key's link (R2; `faraday/faraday-core/src/fresh/page.rs`, `faraday/faraday-core/src/screens/randomness.rs`); pointer and keys on the desktop app (R3; `core/faraday-entropy/src/pointer_keys.rs`); option A (§3.3, R4); the kernel check of §3 done from the repository
+**Open:** §8's Add randomness at every press that draws the system's randomness (R7, F157, planned); §3.5's late seed and the Pi's generator (R5, R6, F102); the boot measurement on one real PC, in passing (§3.4 item 2; QEMU's worst case is measured).
 
 Two things. (a) A person may add randomness of their own, camera noise,
 dice rolls, coin flips or cards on every shell and pointer moves and
@@ -52,7 +52,8 @@ configuration, and a plan for the boot measurement (QEMU, then one real PC in pa
 
 What a person adds reaches the seed and the pool (R1) from Add
 randomness (R2): Settings › Randomness and New key's This device open
-it; camera, dice, coins and cards are entered on New key's own pads.
+it, and §8 adds every other press that draws the system's (F157, not
+built); camera, dice, coins and cards are entered on New key's own pads.
 A camera frame is added as it is taken, its commitment that of a
 one-frame `CameraNoise` (SHA-256 over the frame's SHA-256), as R1's
 tests take it. New key's This device bytes taken before an addition,
@@ -114,10 +115,18 @@ on) are the page's, not the source's.
   and its batch's **Add** are on the card. While nothing is added,
   **Skip** moves on without it; once anything is added the card says
   **Randomness added to the pool**, then **Make the words** as before.
+- **Every other press that draws the system's randomness** (F157,
+  §8): a vault's keys, a GPG key, Secure Boot's keys and signatures,
+  SLIP-39's, Seed XOR's and codex32's random parts, a KeePass file, a
+  MuSig2 round's nonces, and the rest of §8.1's list. The step or pane
+  that holds the press carries the Randomness row (§8.2): the status
+  line and **Add randomness**, which opens this page and comes back to
+  the press.
 - Not on Home: Home is a working screen. Its missing-seed line goes
   (F102, §3.5).
 - Not at boot: the stick's and the Pi's shells do not offer it before
-  the passphrase; it is reached from Settings and New key only.
+  the passphrase; it is reached from Settings, New key and the presses
+  of §8.1.
 
 ### 2.3 Mixing
 
@@ -387,8 +396,11 @@ Answered by the owner on 2026-10-23, item 4 on 2026-10-26:
    long wait.
 2. **New key's This device.** Decided: yes, it mixes in what the
    person added, and its label says so (§2.3, §2.4).
-3. **Where Add randomness is offered.** Decided: Settings and New key
-   only (§2.2).
+3. **Where Add randomness is offered.** Decided (owner, 2026-10-28,
+   F157; it replaces "Settings and New key only" of 2026-10-23):
+   wherever the system's randomness is used, the person can add their
+   own. Add randomness is offered at every press that draws it (§8),
+   and in Settings.
 4. **Pointer and keys.** Decided (owner, 2026-10-26): Faraday never
    collects randomness passively. Pointer and keys count only as a
    source the person picks on the page (Settings' Add randomness, New
@@ -397,8 +409,8 @@ Answered by the owner on 2026-10-23, item 4 on 2026-10-26:
    the background, including input made while the page is open on
    another source, and never a passphrase's or any field's key timings
    (§2.1).
-5. **At boot.** Decided: not at boot for now; only from Settings and New
-   key (§2.2).
+5. **At boot.** Decided: not at boot for now; only from Settings, New
+   key and the presses of §8 (§2.2).
 6. **Coins and cards.** Decided: yes, added as sources (§2.1).
 
 Also decided (owner, 2026-10-23): camera noise is the default source,
@@ -417,6 +429,7 @@ is pressed.
 
 | R5 | §3.5: the late seed (Home's line gone, a press waiting with "Waiting for randomness", the minute's bound) in `fresh.rs` and the screens that need the seed; tests that a press made before the seed goes on when it arrives and that a minute without one says so | small |
 | R6 | §3.5: the Pi's generator mixed, not credited (the command line, and the shell's write where the kernel needs it), checked against the Pi kernel's source | small |
+| R7 | §8: the Randomness row at every press of §8.1, its place in the Pi's ⋮, the way back to the press; §8.5's tests | medium |
 
 R4 does not wait for the measurement; the measurement confirms it, and
 the comments say what the kernel does.
@@ -490,3 +503,203 @@ Edit list:
   and in By question: "Where does Faraday's randomness come from, and
   can I add my own? | `docs/OWN-RANDOMNESS.md`, then
   `docs/SECURITY-MODEL.md`".
+
+## 8. Add randomness at every press that draws the system's (F157)
+
+The owner's decision (2026-10-28): wherever a cryptographic function
+would just use the system's randomness, the person can add their own,
+and this holds for seed generation too. §2.3 already mixes what was added
+into every draw. `Fresh::take` and `Fresh::take_bytes` hash `acc` into
+every pooled answer they take, `own_add` reseeds, so `Seed::draw` and
+`sign_seed` follow, and New key's This device takes `device_own`. So
+what was added before a press is in that press's bytes. What is missing
+is the offer. This section puts it at every such press, as one pattern.
+
+Nothing changes in what is mixed or how (§2.3), and nothing is collected
+passively (§2.1, owner, 2026-10-26): the row only opens the page, and
+the page starts no source until one is pressed.
+
+Keys made from Dice, Coins or Cards are the person's own randomness:
+they take none of the system's and have no Randomness row (owner,
+2026-10-28). Hex and the camera are the same: what is entered is the
+person's, and a camera is a source that adds to another, never a key's
+only source. New key's This device, and a mix that includes it, draws
+the system's randomness and is on the list; the Generator card already
+offers the sources (§2.2).
+
+### 8.1 The presses
+
+Built from the code at fa72a199: every caller of `Faraday::fresh`,
+`Faraday::fresh_bytes`, `Faraday::sign_seed` and `Fresh::draw`, and every
+`Command::RequestEntropy` the core sends, in `faraday/faraday-core/src/`.
+
+| # | Screen and press | What it draws | What it makes | Code |
+|---|---|---|---|---|
+| 1 | New key, This device (alone or in a mix): **Make the words** | an answer of its own, `device_own` with `acc` | the key's entropy | `keygen/area.rs` (`device`, `entropy`) |
+| 2 | New key, SLIP-39 shares: **Next** on the Enter step, which deals the shares | `fresh_bytes("slip39 split")` | the split's random shares | `keygen/mod.rs` (`keygen_act`) |
+| 3 | New key, codex32: **Suggest** beside the identifier | `fresh("codex32 identifier")` | the set's identifier | `keygen/mod.rs` (`keygen_codex32`) |
+| 4 | Faraday Demo in Practice only: the dice roller on New key's dice pad, on the codex32 worksheet's step-through (**Roll**, **Play**), and on Create a vault's Generate with dice | `fresh("faraday dice roller")`, `fresh("faraday codex32 dice roller")` | simulated dice values, marked as this computer's | `keygen/mod.rs` (`keygen_roller_tick`, `keygen_codex32_walk`, `keygen_tick`), `vault/dice.rs` (`tick`) |
+| 5 | Vaults, Create a vault: **Create** | `fresh("vault create")` | the vault's keys | `vault/mod.rs` (`vault_create`) |
+| 6 | Vaults, a vault, Export for KeePass: **Seal and export** | `fresh_bytes("kdbx")` | the KeePass file's seed, IV, salt, inner key and UUIDs (F154) | `vault/mod.rs` (`vault_kdbx`) |
+| 7 | A backup flow of a GPG key, its Make step: **Make the key** | `fresh("gpg primary")`, `fresh("gpg subkey")` | the primary key and the subkey | `backup_flow/steps.rs`, `vault/mod.rs` (`gpg_build`) |
+| 8 | A backup flow of Secure Boot keys, its Make step: **Make the keys** | `fresh("secure boot")`, `fresh("secure boot enrolment")` | PK, KEK and db, their GUIDs, the enrolment files' blinding | `secure_boot/mod.rs` (`sb_build`) |
+| 9 | Vaults, a Secure Boot record: **Enrolment files** | `fresh("secure boot enrolment")` | the signing's blinding | `secure_boot/mod.rs` (`sb_enrol`) |
+| 10 | Vaults, a Secure Boot record, an image picked: **Hold to sign** | `fresh("secure boot signing")` | the signing's blinding | `secure_boot/mod.rs` (`sb_sign`) |
+| 11 | A wallet's paper backup: **Seed XOR, 2 parts** or **3 parts** | `fresh_bytes("seed xor")` | the random parts | `wallet_backup.rs` (`paper_xor`) |
+| 12 | A codex32 set's **Rotate the set**: **Make the new set** | `fresh_bytes("codex32 rotation")` | the new set's random shares | `backups/mod.rs` (`c32_make_new`) |
+| 13 | Spend, the Sign step: **Sign here**, when the PSBT opens a MuSig2 round | `sign_seed` | the round's secret nonces | `lib.rs` (`sign_here`) |
+| 14 | Spend, and a split wallet's Files: **Collect** a co-signer's PSBT, when a MuSig2 round is aggregated | `sign_seed` | a nonce shared again, never the one before | `lib.rs` (`collect`), `family/mod.rs` |
+| 15 | **Lock**, a vault's **Lock this vault**, the idle lock, and every seal of a changed vault | `Seed::draw` (`vault_draw`) | the seal's nonce | `vault/mod.rs` (`vault_draw`, `vault_sealed`) |
+| 16 | No press: a keyboard or touchscreen plugged in (F153) | `Seed::draw("faraday input code")` | its code and its target's place | `inputs.rs` (`input_code`) |
+| 17 | No press: the seed arriving, or an addition | `Seed::draw("faraday key blinding")` | the blinding of the session's keys | `fresh.rs` (`keys_reblind`) |
+
+Rows 15 to 17 are covered by the session's mixing, with no row of their
+own. 16 and 17 have no press to put the row at. For 15, whether Lock
+gets the row is question 1 of §8.6. Its recommended answer: no, since
+Lock is one press and must not be delayed, and the nonce only has to be
+unique, which its count ensures.
+
+Draws nothing from the system, so nothing to offer: signing a PSBT
+(ECDSA nonces are RFC 6979's, low-R; Schnorr's aux_rand is zero, F156),
+GPG signing, a vault's open and its changes, Transfer, and every
+restore.
+
+**The Starter** draws no key material. Its held core is seeded like
+every shell's (the shell answers `RequestEntropy` from `getrandom`), but
+the core offers only Transfer and Learn, and neither draws. The Starter's
+own `/dev/urandom` read (`faraday/shells/starter/src/pdf.rs`,
+`random_name`) names a temporary folder nobody can predict. That is not
+a cryptographic function's input, and the Starter has no Add randomness.
+If a later Starter page draws for a key, the rule applies to it as to
+the app.
+
+### 8.2 The pattern: the Randomness row
+
+One component, **Randomness row**, on the step, pane or prompt that
+holds the press, directly above that press's button, so it is read
+before the press:
+
+- **What it is.** Material 3's list item, two lines
+  (m3.material.io, Lists): the headline **Randomness** (`own_randomness`),
+  the supporting text the status line of §2.4 (`own_status`, "System:
+  getrandom(2) · your own: 99 dice rolls"), and as its trailing element
+  Material's text button **Add randomness** (`own_add_randomness`;
+  Buttons, Text button: the low-emphasis action of a list item), in a
+  48 dp target. Colours are faraday-ui's roles: the headline
+  on-surface, the supporting text on-surface-variant, the button primary.
+  No icon, no explanation: a label, a value and an action.
+- **What a press does.** It opens Add randomness (`page::Act::Open`), the
+  page of §2.2, with no source chosen, no camera and no pad running. It
+  is reached from the press as a new screen on the trail (F77): the
+  page's top app bar reads "Back to {the step's page}" (F146), and Back
+  lands on the step as it was left, fields, choices and scroll included.
+  A step flow keeps its open step. A vault's prompt and pane are the
+  vault area's state and are still there. On the Generator card (row 1)
+  the sources stay on the card itself (owner, 2026-10-25) and no row is
+  added.
+- **Never blocks.** The press beside it is enabled exactly as it is
+  today, whatever was added. Nothing asks, nags or waits for an addition.
+  §3.5's "Waiting for randomness" waits for the system only.
+- **What is used.** The press draws when it is pressed (§8.1). Everything
+  added up to then is in its bytes, and the status line on the step says
+  so as it changes.
+- **Only where it draws.** Row 13's row shows only while the spend opens
+  a MuSig2 round, and row 14's only while one is being aggregated. Row
+  3's row sits on the codex32 identifier's step. Row 4's sits beside the
+  roller, only where the roller is offered (Faraday Demo, Practice).
+- **Drawing reads.** The status line is a lookup and a format through the
+  drawing memo (`docs/SPEED.md` §3.3), as Settings' row draws it. The
+  row adds no costly work.
+
+### 8.3 By window size (`docs/LAYOUT.md`)
+
+- **Medium and wider.** The row as §8.2 draws it, at the column's width,
+  one list item (72 dp) above the step's buttons.
+- **Compact** (under 600 dp: a narrow window, a 7-inch panel in
+  portrait). The same list item. Where the headline and the button do
+  not fit on one line beside the supporting text, the supporting text
+  wraps to a second line; the button keeps its 48 dp target and is never
+  cut.
+- **Compact and short** (the Pi's 268 × 358 panel). The step keeps the
+  supporting text alone, one line in Label M above the press, shortened
+  at a count's comma with an ellipsis where it would be cut, never in a
+  number. **Add randomness** moves into the bar's overflow menu (the ⋮
+  at the flow bar's or the bar's end, `compact::tools`, a sheet on the
+  small panel as every menu there). It is that menu's first row, before
+  How Faraday does it and Learn, and the ⋮ is drawn on every step that
+  offers it, even where the bar's tools would otherwise fit (DESIGN
+  §4's Bar row). Its 48 dp target and the chevron's do not overlap.
+
+### 8.4 Code changes (batch R7)
+
+- `faraday/faraday-core/src/screens/randomness.rs`: `row`, the Randomness
+  row of §8.2, drawn by every screen below; the compact short form of
+  §8.3.
+- `faraday/faraday-core/src/compact/mod.rs`: the overflow menu's **Add
+  randomness** row and the ⋮ kept on a step that offers it.
+- The screens that draw it, at the presses of §8.1:
+  `faraday/faraday-core/src/keygen/screen.rs` (rows 2, 3),
+  `faraday/faraday-core/src/keygen/dice_panel.rs` (row 4),
+  `faraday/faraday-core/src/vault/screen.rs` (rows 5, 6, 9, 10),
+  `faraday/faraday-core/src/vault/dice_screen.rs` (row 4),
+  `faraday/faraday-core/src/backup_flow/screen.rs` (rows 7, 8),
+  `faraday/faraday-core/src/screens/backup.rs` (row 11),
+  `faraday/faraday-core/src/codex32_backup/screen.rs` (row 12),
+  `faraday/faraday-core/src/screens/spend.rs` (rows 13, 14).
+- `faraday/faraday-core/src/fresh.rs`: `own_act(Open)` from any of them
+  puts the step on the trail as Settings' row does. `own_on_show` is
+  unchanged: the page alone takes input.
+- `faraday/faraday-core/src/trail.rs`: Back from Add randomness restores
+  the step as left (it does already for a screen; a test holds it for
+  each press).
+- `faraday/faraday-strings/src/en.rs`: no new string is expected
+  (`own_randomness`, `own_add_randomness`, `own_status` serve). If the
+  Pi's line needs a shorter form, it is one key there.
+- `docs/DESIGN.md` §4: the Randomness row's component row. §5: the
+  screens of §8.1 name it. The Bar row names its ⋮ entry.
+- `docs/learn/03-randomness.md`, "Adding your own to the device's": the
+  page is also opened from each press that makes a key or a nonce.
+- `docs/SECURITY-MODEL.md`, the randomness paragraph (§7): "Settings ›
+  Randomness" reads "Settings › Randomness, or Add randomness at the
+  press".
+- The snapshot tours: `faraday/shells/snapshot/src/tours/randomness.rs`
+  gains a step at one press per screen file above, at 240 x 320 and
+  480 x 640, so the touch-target test (F152) covers the row and the ⋮.
+- `tools/lint-tokens.counts`: the row uses tokens only, so no count rises.
+
+### 8.5 Tests
+
+In `faraday/faraday-core/tests/all/own_randomness.rs`, user-facing:
+
+1. **Reachable from each press.** For each of rows 1 to 14, on its step
+   the drawn targets (`Faraday::drawn_targets`) include Add randomness's
+   open, and on the Pi's panel its ⋮ row does. Pressing it shows Add
+   randomness with no source chosen and no `CameraOn` sent. Back shows
+   the step as it was left, and the press then works.
+2. **It changes the press's bytes.** With fixed system answers, the same
+   press made with and without 99 dice rolls added first gives other
+   output: a vault's seal key, the GPG key's fingerprint, the Secure
+   Boot keys' GUID, the SLIP-39 shares, the Seed XOR parts, the rotated
+   codex32 shares, the KeePass file, a MuSig2 public nonce, This device's
+   words. Each also gives other output for other system answers with the
+   same dice (§2.3: never substituted).
+3. **Known answers.** One press per draw kind (`fresh`: the GPG key;
+   `fresh_bytes`: the Seed XOR parts; `sign_seed`: the MuSig2 public
+   nonce; This device's words) is compared with the Python cross-check's
+   bytes for a fixed system answer and a fixed dice batch (F79).
+4. **Never blocks.** With nothing added, each press works as before and
+   gives the bytes it gives today (§4 test 4, extended to the presses).
+5. **Only where it draws.** A spend with no MuSig2 input has no
+   Randomness row on its Sign step. A Dice, Coins or Cards key has none.
+
+### 8.6 Questions for the owner
+
+1. **Lock and seals (row 15).** Recommended: no row on Lock or the Lock
+   sheet. Lock stays one press. The seal nonce only has to be unique,
+   which its count gives, and the seed it is drawn from already carries
+   everything added. Or: a row on the Lock sheet, which shows only when
+   a lock would lose changes.
+2. **The demo's dice roller (row 4).** Recommended: the row beside the
+   roller, as the rule asks, in Faraday Demo's Practice only. Or: none,
+   since the roller stands in for dice for practice and is never on the
+   stick or the Pi.
