@@ -134,8 +134,8 @@ const UNLOCK: Table = &[
     ),
     (
         Work::FileHash,
-        2,
-        "the vault seed's words' hash and its master key's id, each kept",
+        3,
+        "the vault seed's words' hash and its master key's id, each kept; the opened slot's 40 + L bytes, once, for the seal count's digest (vault_seals_unlocked)",
     ),
     (
         Work::KeyDerive,

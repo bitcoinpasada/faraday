@@ -1553,24 +1553,31 @@ impl Faraday {
                 continue;
             };
             let id = self.vaults.open[o].id;
-            let stale: Vec<usize> = self
+            // Each record keeps the seal counts of other vaults it holds
+            // (`docs/VAULT-HARDENING.md` §5.6).
+            let stale: Vec<(usize, String)> = self
                 .vaults
                 .records(id)
                 .of(rkind::PLAN)
-                .filter(|(_, r)| {
-                    r.public_text(field::PLAN_WALLET).is_some_and(&of_wallet)
-                        && r.public_text(field::PLAN_ANSWERS) != Some(text.as_str())
+                .filter(|(_, r)| r.public_text(field::PLAN_WALLET).is_some_and(&of_wallet))
+                .filter_map(|(k, r)| {
+                    let old = r.public_text(field::PLAN_ANSWERS);
+                    let new = crate::plan::text::with_seals(
+                        &text,
+                        &old.map(crate::plan::text::seals_in).unwrap_or_default(),
+                    );
+                    (old != Some(new.as_str())).then_some((k, new))
                 })
-                .map(|(k, _)| k)
                 .collect();
             if !stale.is_empty() {
                 self.vaults.edit(id, |s| {
-                    for k in &stale {
-                        s.set_public(id, *k, field::PLAN_ANSWERS, text.as_bytes());
+                    for (k, new) in &stale {
+                        s.set_public(id, *k, field::PLAN_ANSWERS, new.as_bytes());
                     }
                 });
                 self.vaults.changed(id);
             }
+            self.vaults.seals_write(&c, o);
         }
         let f = &mut self.flows.all[i];
         if let Some(wf) = f.wallet.as_mut() {

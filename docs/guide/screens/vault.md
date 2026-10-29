@@ -26,6 +26,7 @@ writes the vault back over its own file.
 | the state | under the title: **Open**, or "Open · 2 unsaved changes" in the warning tone |
 | **Rename** | opens **Rename the vault** in the detail: **Name**, **Save**, **Cancel** |
 | **Lock** | locks, sealing every open vault; [Lock](lock-and-power.md#lock) asks first when the lock would end something |
+| the seals line | under the file's line: "Sealed 12 times · last 28 Oct 2026, 14:02" ("Sealed once"; "last time not recorded" when the sealing computer's clock was not set), and, in the warning tone, "An older copy: sealed 9 times. A copy sealed 12 times was open since power-on." when the copy is not the newest seen |
 | the line under the state | the file and its unlock cost ("vault.fvlt · 64 MiB · 3 passes"); with more than one vault open, a button per vault, the one shown filled |
 | "A secret value shows after a press on its eye …" | in Guided mode |
 

@@ -96,7 +96,15 @@ asked for the vault.
 | no locked vault | **No locked vault in Files**, and **Create a vault** |
 
 A passphrase opens the contents it was made for; the vault does not say
-how many it holds. Once open:
+how many it holds. Once open, the vault's page shows how many times the
+slot was sealed ("Sealed 12 times · last 28 Oct 2026, 14:02", or "Sealed
+once"), and a toast and a line in the warning tone say when the copy is
+not the newest seen: "An older copy: sealed 9 times. A copy sealed 12
+times was open since power-on.", "An older copy: sealed 9 times. A copy
+sealed 12 times is in Files." (another copy of the vault, read with the
+passphrase just typed), "An older copy: sealed 9 times. Plans's
+backup plan records a copy sealed 12 times." or "Another copy was sealed
+12 times too, with other changes." The vault stays open. Then:
 
 - from Vaults, Files shows with [Load from](#load-from) over it, when
   the vault holds a key or wallet not loaded yet;

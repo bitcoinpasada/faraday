@@ -426,6 +426,28 @@ impl Opened {
         self.slot
     }
 
+    /// Costs one XChaCha20-Poly1305 decryption of a slot (up to 4 MiB),
+    /// counted as a file hash. The seal count of this slot's position in
+    /// `file`, another copy of the vault (the same header), read with the
+    /// slot key held, with no Argon2id (§5.3 of the vault hardening
+    /// spec). `Error::Passphrase` where the slot does not open under the
+    /// key (a damaged copy), `Error::OtherFile` for another vault's file.
+    pub fn copy_seals(&self, c: &Compute, file: &[u8]) -> Result<Seals, Error> {
+        c.count(Work::FileHash);
+        let header = read_header(file)?;
+        if header != self.header {
+            return Err(Error::OtherFile);
+        }
+        match decrypt_slot(file, &header, &self.key, self.slot)? {
+            Tried::Opened(plain) => {
+                let (_, seals) = Contents::decode(&plain[COMMIT_LEN..]).map_err(Error::Contents)?;
+                Ok(seals)
+            }
+            Tried::Uncommitted => Err(Error::Commitment),
+            Tried::Shut => Err(Error::Passphrase),
+        }
+    }
+
     /// The vault with this slot holding `contents` under a fresh nonce,
     /// its seal count one higher with the time `now` (Unix seconds, `None`
     /// when the clock is not set), and every other slot copied from `file`

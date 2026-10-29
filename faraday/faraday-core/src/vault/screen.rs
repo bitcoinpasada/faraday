@@ -29,9 +29,12 @@ pub(crate) use faraday_ui::hold::HoldTone;
 use faraday_vault::records::{field, kind};
 use faraday_vault::{SLOT_SIZES, file_len};
 
+mod codes;
 mod save;
 mod search;
 mod secret;
+use codes::code_badge;
+pub(crate) use codes::codes_form;
 pub(crate) use save::{gpg_sign_sheet, stick_save_sheet, years_row};
 use save::{images_panel, reasons_row, save_panel};
 pub(crate) use search::bar as search_bar;
@@ -1858,6 +1861,35 @@ fn words_text(m: &faraday_bip::bip39::Mnemonic) -> zeroize::Zeroizing<String> {
     text
 }
 
+/// The open vault's seal count and, when its copy is not the newest seen,
+/// what that says (`docs/VAULT-HARDENING.md` §5.2): two lines under its
+/// name. Gives their height.
+fn seals_head(
+    app: &View,
+    ui: &mut Ui,
+    v: &vault::OpenVault,
+    at: (f32, f32, f32),
+    count_drawn: bool,
+) -> f32 {
+    let (x, y, w) = at;
+    let mut used = 0.0;
+    if !count_drawn {
+        used += ui.wrap_as(
+            (x, y, w),
+            BODY_S,
+            Role::OnSurfaceVariant,
+            &v.seals_line(app.vaults.store(), app.tz_min()),
+        );
+    }
+    if let Some(warn) = v.seal_warning() {
+        used += ui.wrap_as((x, y + used, w), BODY_S, Role::Warning, &warn);
+    }
+    if used > 0.0 {
+        used += faraday_draw::tokens::GAP_SMALL;
+    }
+    used
+}
+
 #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub(crate) fn contents(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let (good, warn) = (Role::Ok, Role::Warning);
@@ -1922,6 +1954,14 @@ pub(crate) fn contents(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         Style::Ghost,
         va(V::Rename),
     );
+    // The count goes beside the state when it fits there, else under.
+    let count = v.seals_line(app.vaults.store(), app.tz_min());
+    let from = x + ui.measure_as(LABEL_L, &state) + tokens::GAP;
+    let room = end - lockw - rw - tokens::GAP - tokens::GAP - from;
+    let beside = ui.measure_as(BODY_S, &count) <= room;
+    if beside {
+        ui.text_mid_as((from, y, BUTTON_H), BODY_S, muted, &count);
+    }
     y += BUTTON_H + tokens::GAP;
     let sub = format!("{} · {}", v.name, cost_text(&v.header().cost));
     ui.text_as(x, y, BODY_S.mono(), muted, &sub);
@@ -1941,6 +1981,7 @@ pub(crate) fn contents(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         }
     }
     y += 30.0;
+    y += seals_head(app, ui, v, (x, y, w), beside);
     y += guide_text(
         app,
         ui,
@@ -2247,6 +2288,7 @@ fn contents_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let label = ui.fit_as(TITLE_M, &v.label(app.vaults.store()), w);
     ui.text_as(x, y, TITLE_M, ink, &label);
     y += ui.line_as(TITLE_M) + faraday_draw::tokens::GAP_SMALL;
+    y += seals_head(app, ui, v, (x, y, w), false);
     let state = if v.changes == 0 {
         EN.vault_open_button.to_string()
     } else {
@@ -2399,78 +2441,6 @@ fn contents_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         &fill(EN.vault_secret_values, &[app.medium.noun()]),
     );
     finish(app, ui, x0, cw, h, y - top + 16.0);
-}
-
-/// A small text pill (`docs/DESIGN.md` §4.8): the entry detail's HOTP
-/// and Unreadable badges in place of a code.
-fn code_badge(ui: &mut Ui, x: f32, y: f32, label: &str) {
-    let muted = Role::OnSurfaceVariant;
-    let tw = ui.measure_as(LABEL_M, label);
-    let pw = tw + 24.0;
-    ui.fill(x, y, pw, 26.0, 13.0, Role::SurfaceContainerHighest);
-    ui.stroke(x, y, pw, 26.0, 13.0, Role::OutlineVariant);
-    ui.text_mid_as((x + (pw - tw) / 2.0, y, 26.0), LABEL_M, muted, label);
-}
-
-/// The entry form on the codes screen (`docs/TOTP.md` §5.3): Add an
-/// entry, or the form a scanned setup code filled in. Always a new
-/// entry — editing one happens on Vault contents, where its row leads.
-/// Returns the height it took.
-pub(crate) fn codes_form(app: &View, ui: &mut Ui, dx: f32, dy: f32, dw: f32) -> f32 {
-    let (muted, ink) = (Role::OnSurfaceVariant, Role::OnSurface);
-    let top = dy;
-    let mut dy = dy;
-    let Some(form) = &app.vaults.form else {
-        return 0.0;
-    };
-    ui.text_as(dx, dy, TITLE_M, ink, EN.vault_add_an_entry);
-    dy += ui.line_as(TITLE_M) + faraday_draw::tokens::PAD;
-    for (k, (_, label, b, masked)) in form.fields.iter().enumerate() {
-        ui.text_as(dx, dy, BODY_S, muted, label);
-        dy += ui.line_as(BODY_S) + faraday_draw::tokens::GAP_SMALL;
-        let focused = app.vaults.focus == Some(Focus::Field(k));
-        if vault::multiline(form.kind, form.fields[k].0) {
-            dy += text_area(ui, dx, dy, dw, b, focused, va(V::FocusField(k))) + 12.0;
-        } else if *masked {
-            secret_box(
-                ui,
-                dx,
-                dy,
-                dw,
-                b,
-                app.field_shows(form, k),
-                focused,
-                va(V::FocusField(k)),
-                va(V::ShowTyped),
-            );
-            app.password_chip(ui, form, k, b);
-            dy += FIELD_H + 12.0;
-        } else {
-            text_box(ui, dx, dy, dw, b, false, focused, va(V::FocusField(k)));
-            dy += FIELD_H + 12.0;
-        }
-    }
-    dy += 8.0;
-    ui.button(
-        dx,
-        dy,
-        Some(120.0),
-        BUTTON_H,
-        EN.vault_save,
-        Style::Primary,
-        va(V::FormSave),
-    );
-    ui.button(
-        dx + 130.0,
-        dy,
-        Some(120.0),
-        BUTTON_H,
-        EN.vault_cancel,
-        Style::Ghost,
-        va(V::FormCancel),
-    );
-    dy += 56.0;
-    dy - top
 }
 
 /// The detail of the contents at (dx, dy), dw wide: a form, a prompt,

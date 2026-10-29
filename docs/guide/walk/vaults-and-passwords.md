@@ -119,8 +119,8 @@ shown here.
 leaves the page as it is, with **That passphrase opens nothing in this
 vault** under the field; there is no limit on tries.
 
-The vault opens on its contents: **Nothing in it yet**, and a button
-per thing it can hold:
+The vault opens on its contents: **Nothing in it yet**, **Sealed
+once** under its name, and a button per thing it can hold:
 
 | Button | Adds |
 |---|---|
@@ -329,6 +329,11 @@ for one without a name), and a count of what it holds ("1 key"):
 Press **Load ticked**. A flow that asks for a vault (Spend, Restore,
 a backup) unlocks it from its own step and loads what it needs, with
 no sheet.
+
+The vault's page now reads "Sealed 2 times · last", the date and the
+time: the lock in step 8 sealed it once more. Had Files held a copy
+sealed more times, the page would say "An older copy: sealed 2 times." and
+the count of the newer one.
 
 ## 11. A new passphrase
 

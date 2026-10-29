@@ -1,8 +1,8 @@
 # Vault hardening: the file's name, the passphrase, key commitment and the seal count
 
 **Kind:** Spec
-**Status:** Specified (F159); the passphrase in NFC (§3), the commitment block (§4) and the seal count's record (§5.1) and a vault known by its contents (§2.1) built
-**Open:** the seal count shown, its comparisons and its lines in the backup plan (§5.2 to §5.7), the outside review of the container (§10)
+**Status:** Specified (F159); the passphrase in NFC (§3), the commitment block (§4), the seal count (§5.1 to §5.7) and a vault known by its contents (§2.1) built
+**Open:** the outside review of the container (§10)
 
 The vault's format is `docs/VAULT.md`. This spec changes it in four
 places and renames its file. Every change was settled by the owner on
@@ -424,33 +424,19 @@ The comparisons:
    "An older copy: sealed 9 times. A copy sealed 12 times was open since
    power-on." The same count with other bytes: "Another copy was sealed
    12 times too, with other changes."
-2. **A stick visit, the vault open.** Before writing a sealed vault over
-   the file of the same salt and size (VAULT §6 step 1), the visit reads
-   that file's slot at the open slot's position with the slot key the
-   open vault holds: one XChaCha20-Poly1305 over the slot, no Argon2id
-   (the header is the same, so the key is). Its count, against the
-   sealed vault's:
-   - lower: written over, as now; the receipt says "Replaced a copy sealed
-     9 times";
-   - higher: **not written over**; the sealed vault stays For the stick,
-     and the visit says "The copy on {label} is newer: sealed 12 times;
-     this one 10." The person opens that copy to carry on from it;
-   - equal with other bytes: not written over, "The copy on {label} was
-     sealed from the same copy elsewhere";
-   - the slot does not open under the key (a damaged copy): written
-     over, as now, and the receipt says so.
-   That read is costly work (a decryption of up to 4 MiB): it is done
-   once per file per visit, takes the compute token, and its result is
-   kept on the visit's state, never worked out while drawing.
-3. **A stick visit or a backup check reading a copy, the vault open.**
-   A vault file read from a stick whose salt and size are an open
-   vault's has its slot read the same way, and its count raises the
-   highest seen or, when lower, the visit's sheet says "Older copy:
-   sealed 9 times; 12 seen since power-on". BACKUP-FLOW §18.3's check
-   "A vault's stick read on a stick visit, and the vault unlocked from
-   it" dates that stick checked only when its copy's count is the
-   highest seen; an older copy is not dated and its place's line reads
-   "Older copy".
+2. **At unlock, the other copies in Files.** A stick visit cannot read a
+   count: a process that has unlocked a vault holds its key and is never
+   handed a stick (`docs/history/PLAN.md` §5.1), and a visit's process
+   holds none. So at unlock, every other copy of the same vault (same
+   salt and size) in the Inbox or the Outbox has the opened slot read
+   with the key just derived (`Opened::copy_seals`, one decryption each,
+   no Argon2id): a higher count says "An older copy: sealed 9 times. A
+   copy sealed 12 times is in Files."; the same count with other bytes
+   says "Another copy was sealed 12 times too, with other changes". To
+   compare a stick's copy, copy it into Files before unlocking.
+3. **A backup check.** BACKUP-FLOW §18.3's check "A vault's stick read on
+   a stick visit, and the vault unlocked from it" dates that stick
+   checked only when its unlock names no older copy.
 4. **The vault locked.** A copy's count cannot be read without the slot
    key, which goes at the lock. The visit compares the file's SHA-256
    against the receipt, as VAULT §6 does now, and says nothing of
@@ -462,10 +448,9 @@ The comparisons:
 
 - an older copy of a slot opened after a newer one was opened, sealed or
   read in the same power-on (comparison 1);
-- an older copy on a stick put in while the vault is open (2, 3);
-- a newer copy on a stick about to be written over by an older one, and
-  refuses that write (2): the case where a person carries on from an
-  old stick at one place while another place holds later changes;
+- an older copy opened while a newer copy of the same vault is in Files
+  (2): the case where a person carries on from an old stick at one place
+  while another place holds later changes;
 - two copies sealed from one copy in different places, by their equal
   count and different bytes (1, 2).
 
@@ -479,7 +464,10 @@ The comparisons:
 - a rollback of every copy at once, at every place;
 - a rollback of a slot this session did not open: the count of another
   passphrase's slot is that slot's, read only with its passphrase;
-- anything while the vault is locked (5.3, item 4);
+- anything while the vault is locked (5.3, item 4), and so at a stick
+  visit, which never has the key;
+- a stick's copy not copied into Files before unlock (2): it is not
+  read, and a visit can write an older copy over it;
 - whether an older copy is an attack or a place not yet visited: both
   read "older"; the count says which is newer, not why;
 - the time: field 2 is the sealing computer's clock, which can be wrong
@@ -511,8 +499,9 @@ covers it.
     after a second seal "Sealed 2 times";
   - unlock a copy, seal it twice, lock, unlock the first copy: Unlock says
     it is older;
-  - a visit with the vault open and a stick holding a newer copy writes
-    nothing and says so; with an older copy, writes and says so;
+  - another copy of the vault in Files with a higher count: Unlock says
+    it is older and where the newer one is; the newer copy opened with
+    the older beside it says nothing;
   - two copies sealed from one copy: the second unlocked says another was
     sealed the same number of times;
   - power off (a new process without the kept state), with no vault
@@ -650,10 +639,10 @@ text:
 > same file and goes back with it; then the count at unlock, against
 > what you remember, is the check.
 >
-> A stick visit with the vault open reads the copy on the stick. An
-> older copy is replaced. A newer copy is not written over, nor is one
-> sealed as many times with other changes: the visit says so, and the
-> vault stays For the stick until you open the newer copy.
+> Unlock also reads the other copies of the vault in Files, with the
+> passphrase just typed. If one has been sealed more times, Unlock says
+> "An older copy: sealed 9 times. A copy sealed 12 times is in Files."
+> Open that copy to carry on from it.
 >
 > The count cannot show every copy put back at once, at every place; a
 > vault no backup plan names; or another passphrase's slot, whose count
@@ -666,8 +655,8 @@ text:
 The guide's pages that cover Unlock and the visit say the same in their
 own words and pictures, in batch 2b: `docs/guide/screens/vaults.md`
 ("Unlock": the Sealed line and the older-copy line),
-`docs/guide/screens/stick-visit.md` ("Write to a stick": a newer copy
-is not written over), and `docs/guide/walk/vaults-and-passwords.md`
+`docs/guide/screens/stick-visit.md` (not changed: a visit reads no
+counts), and `docs/guide/walk/vaults-and-passwords.md`
 (§3 "Unlock it" and §10 "Unlock it again, and load from it", whose
 pictures show the line), the pictures drawn again with
 `just guide-pictures`.
@@ -693,10 +682,9 @@ introduction):
 - **§4 step 4:** add the commitment block: a slot whose tag verifies and
   whose first 32 bytes are not zero refuses the file.
 - **§5:** sealing writes the seal count (type 16) as count + 1 and the
-  time; the visit's comparisons point to §6.
-- **§6:** step 1 gains the count's comparison when the vault is open
-  (this spec §5.3 item 2): a newer copy, or one sealed the same number of
-  times with other bytes, is not written over.
+  time; the comparisons point to §11.
+- **§6:** step 1 says the visit reads no counts, since it holds no key
+  (this spec §5.3 item 2).
 - **§7:** the slot plaintext table gains the 32 zero bytes at 0 and
   moves the format byte to 32; the records' table gains type 16; "Every
   byte after it must be zero" unchanged; "a slot with no records holds
@@ -881,8 +869,11 @@ the vault work done overnight; the owner reviews them.
    profile, no space mapping, no refused characters; two passphrases with
    one NFC form are refused as the same (§3). OpaqueString in full is
    §12's.
-2. **An older copy is never written over a newer one** at a stick visit
-   (§5.3 item 2).
+2. **A stick visit cannot compare counts**, so none is written over by
+   count: a visit's process holds no key, and a process that holds one
+   is never handed a stick (PLAN §5.1). The comparison is at unlock,
+   against the other copies in Files (§5.3 item 2). Settled by what the
+   code allows.
 3. **Reversed by the owner** (2026-10-28, 23:45 EDT): the backup plan
    records each other vault's seal count (§5.6).
 4. **Reversed by the owner** (2026-10-28, 23:40 EDT): a file is a vault

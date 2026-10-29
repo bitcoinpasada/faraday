@@ -188,6 +188,74 @@ pub fn tag_of(at: At, what: What) -> Tag {
     }
 }
 
+/// One `seals` line of a plan's text (`docs/VAULT-HARDENING.md` §5.6):
+/// the seal count and digest this session last saw of another vault's
+/// slot, `seals <salt> <L> <position> <count> <digest>`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SealLine {
+    /// The vault's salt: its identity on a stick with its size.
+    pub salt: [u8; 32],
+    /// The slot length *L*.
+    pub len: u32,
+    /// The slot's position, 0 to 3.
+    pub position: u8,
+    /// The slot's seal count.
+    pub count: u64,
+    /// The SHA-256 of the slot's 40 + *L* bytes at that count.
+    pub digest: [u8; 32],
+}
+
+impl SealLine {
+    /// The line as the plan keeps it, with its line break.
+    pub fn to_line(&self) -> String {
+        format!(
+            "seals {} {} {} {} {}\n",
+            crate::backups::hex32(&self.salt),
+            self.len,
+            self.position,
+            self.count,
+            crate::backups::hex32(&self.digest)
+        )
+    }
+
+    /// One line read back; None for a line that is not a `seals` line or
+    /// does not read.
+    pub fn from_line(line: &str) -> Option<SealLine> {
+        let mut f = line.strip_prefix("seals ")?.split(' ');
+        let line = SealLine {
+            salt: crate::backups::read_hex32(f.next()?)?,
+            len: f.next()?.parse().ok()?,
+            position: f.next()?.parse().ok().filter(|p| *p < 4)?,
+            count: f.next()?.parse().ok().filter(|c| *c >= 1)?,
+            digest: crate::backups::read_hex32(f.next()?)?,
+        };
+        f.next().is_none().then_some(line)
+    }
+
+    /// Whether this line and `other` are for one slot of one vault.
+    pub fn same_slot(&self, other: &SealLine) -> bool {
+        self.salt == other.salt && self.len == other.len && self.position == other.position
+    }
+}
+
+/// The `seals` lines a plan's text holds, those that read.
+pub fn seals_in(text: &str) -> Vec<SealLine> {
+    text.lines().filter_map(SealLine::from_line).collect()
+}
+
+/// `text` with its `seals` lines replaced by `lines`, at the end.
+pub fn with_seals(text: &str, lines: &[SealLine]) -> String {
+    let mut out: String = text
+        .lines()
+        .filter(|l| !l.starts_with("seals "))
+        .map(|l| format!("{l}\n"))
+        .collect();
+    for l in lines {
+        out.push_str(&l.to_line());
+    }
+    out
+}
+
 /// The fingerprints a plan's text lists as made here with their backup
 /// pending, one `held` line each.
 pub fn held_in(text: &str) -> Vec<String> {
@@ -262,6 +330,10 @@ impl Answers {
                 // A key made here whose backup is pending: read by the
                 // caller (`docs/history/NEW-WALLET.md` §14.3), not an answer.
                 "held" => continue,
+                // The seal counts of the other vaults this plan places
+                // (`docs/VAULT-HARDENING.md` §5.6): read by the plan
+                // area ([`SealLine`]), not an answer.
+                "seals" => continue,
                 // The access layers' count and routes, written only by test
                 // builds before the layers were withdrawn (F38, F46): read
                 // past, never refused.

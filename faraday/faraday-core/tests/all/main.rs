@@ -169,6 +169,7 @@ mod vault_load;
 mod vault_name;
 mod vault_passphrase;
 mod vault_seal;
+mod vault_seal_count;
 mod vault_search;
 mod vault_show_save;
 mod vault_summary;

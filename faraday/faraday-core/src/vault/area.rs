@@ -5,6 +5,7 @@
 //! through the methods here, and by the vault's own glue in
 //! `vault/mod.rs` and its children.
 
+use super::{SealSeen, SealWarn};
 use crate::strings::EN;
 use crate::strings::fill;
 use faraday_crypto::work::Compute;
@@ -118,6 +119,39 @@ impl VaultArea {
     #[cfg(any(test, feature = "testkit"))]
     pub(crate) fn summaries_mut(&mut self) -> &mut Vec<VaultSummary> {
         &mut self.state.summaries
+    }
+
+    /// Costs what [`Vaults::seals_write`] costs. Open vault `i`'s plans take
+    /// the seal counts of the other vaults.
+    pub(crate) fn seals_write(&mut self, c: &Compute, i: usize) {
+        self.state.seals_write(c, i);
+    }
+
+    /// Costs what [`Vaults::seals_sealed`] costs. Open vault `i` was sealed
+    /// into `bytes`.
+    pub(crate) fn seals_sealed(&mut self, c: &Compute, i: usize, bytes: &[u8]) {
+        self.state.seals_sealed(c, i, bytes);
+    }
+
+    /// Costs what [`Vaults::seals_unlocked`] costs. Open vault `v` was just
+    /// unlocked.
+    pub(crate) fn seals_unlocked(&mut self, c: &Compute, v: usize, files: &[(&str, &[u8])]) {
+        self.state.seals_unlocked(c, v, files);
+    }
+
+    /// Writes each fresh summary over the one kept for its vault, keeping
+    /// the seal counts seen since power-on.
+    pub(crate) fn merge_summaries(&mut self, fresh: Vec<VaultSummary>) {
+        for mut s in fresh {
+            match self.state.summaries.iter_mut().find(|o| o.salt == s.salt) {
+                Some(o) => {
+                    s.seals = std::mem::take(&mut o.seals);
+                    *o = s;
+                }
+                None => self.state.summaries.push(s),
+            }
+        }
+        self.state.seals_planned_sync();
     }
 
     /// Changes open vault `id`'s records through `change` ([`Vaults::edit`]).
@@ -998,6 +1032,11 @@ pub struct OpenVault {
     /// What is read of its records and what its searches find
     /// ([`Kept`]); dropped by every edit.
     pub(super) read: Kept,
+    /// The SHA-256 of the slot as the file it was opened from holds it,
+    /// kept at unlock ([`super::seals`]).
+    pub(super) seal_digest: [u8; 32],
+    /// What the seal count says of the copy opened, kept at unlock.
+    pub(super) seal_warn: Option<SealWarn>,
 }
 
 /// What an open vault keeps worked out from its records: what is read of
@@ -1724,6 +1763,9 @@ pub struct VaultSummary {
     pub map: Vec<String>,
     /// When it was last seen open, Unix seconds, when the clock is known.
     pub seen: Option<u64>,
+    /// The highest seal count seen of each of its slots since power-on
+    /// (`docs/VAULT-HARDENING.md` §5.3).
+    pub seals: Vec<SealSeen>,
 }
 
 impl VaultSummary {
@@ -1786,18 +1828,13 @@ pub fn time_of_day_secs(unix_secs: u64) -> String {
     format!("{:02}:{:02}:{:02}", s / 3600, (s / 60) % 60, s % 60)
 }
 
-/// One text field of the kept summaries: no tab or line break.
-fn kept_field(s: &str) -> String {
-    s.replace(['\t', '\n', '\r'], " ")
-}
-
 /// A record type 11 map line (field 4) with a leading place name
 /// replaced by "Place n": a vault written before place names moved out
 /// of this field named the place there; `names` are the same record's
 /// field 3 values, in place order. A line already naming the place by
 /// number, or one for a vault, files, software or an away seed, is
 /// returned unchanged.
-pub(super) fn redact_place_name(line: &str, names: &[String]) -> String {
+pub(crate) fn redact_place_name(line: &str, names: &[String]) -> String {
     for (p, name) in names.iter().enumerate() {
         let name = name.trim();
         if name.is_empty() {
@@ -1808,112 +1845,6 @@ pub(super) fn redact_place_name(line: &str, names: &[String]) -> String {
         }
     }
     line.to_string()
-}
-
-/// The summaries as the kept state holds them: a `vault` line per
-/// vault, then its `wallet`, `key` and `map` lines, fields split by tabs.
-pub(crate) fn summaries_encode(all: &[VaultSummary]) -> Vec<u8> {
-    let mut out = String::new();
-    for s in all {
-        let salt: String = s.salt.iter().map(|b| format!("{b:02x}")).collect();
-        let seen = s.seen.map(|t| t.to_string()).unwrap_or_default();
-        out.push_str(&format!(
-            "vault\t{salt}\t{}\t{}\t{}\t{seen}\n",
-            kept_field(&s.file),
-            kept_field(&s.name),
-            s.entries
-        ));
-        for (name, shape) in &s.wallets {
-            out.push_str(&format!(
-                "wallet\t{}\t{}\n",
-                kept_field(name),
-                kept_field(shape)
-            ));
-        }
-        for (i, k) in s.keys.iter().enumerate() {
-            match s.ids.get(i).copied().flatten() {
-                Some(id) => out.push_str(&format!(
-                    "key\t{}\t{}\n",
-                    kept_field(k),
-                    crate::backups::hex32(&id)
-                )),
-                None => out.push_str(&format!("key\t{}\n", kept_field(k))),
-            }
-        }
-        for c in &s.sums {
-            out.push_str(&format!("sum\t{}\n", kept_field(c)));
-        }
-        for c in &s.planned {
-            out.push_str(&format!("planned\t{}\n", kept_field(c)));
-        }
-        for m in &s.map {
-            out.push_str(&format!("map\t{}\n", kept_field(m)));
-        }
-    }
-    out.into_bytes()
-}
-
-/// The summaries read back; a line that does not read is skipped.
-pub(crate) fn summaries_decode(bytes: &[u8]) -> Vec<VaultSummary> {
-    let text = String::from_utf8_lossy(bytes);
-    let mut out: Vec<VaultSummary> = Vec::new();
-    for line in text.lines() {
-        let f: Vec<&str> = line.split('\t').collect();
-        match f[..] {
-            ["vault", salt, file, name, entries, seen] => {
-                let mut s = VaultSummary::default();
-                let bytes: Option<Vec<u8>> = (0..32)
-                    .map(|i| {
-                        salt.get(i * 2..i * 2 + 2)
-                            .and_then(|h| u8::from_str_radix(h, 16).ok())
-                    })
-                    .collect();
-                match bytes.and_then(|b| <[u8; 32]>::try_from(b).ok()) {
-                    Some(b) if salt.len() == 64 => s.salt = b,
-                    _ => continue,
-                }
-                s.file = file.to_string();
-                s.name = name.to_string();
-                s.entries = entries.parse().unwrap_or(0);
-                s.seen = seen.parse().ok();
-                out.push(s);
-            }
-            ["wallet", name, shape] => {
-                if let Some(s) = out.last_mut() {
-                    s.wallets.push((name.to_string(), shape.to_string()));
-                }
-            }
-            ["key", fp] => {
-                if let Some(s) = out.last_mut() {
-                    s.keys.push(fp.to_string());
-                    s.ids.push(None);
-                }
-            }
-            ["key", fp, id] => {
-                if let Some(s) = out.last_mut() {
-                    s.keys.push(fp.to_string());
-                    s.ids.push(crate::backups::read_hex32(id));
-                }
-            }
-            ["sum", c] => {
-                if let Some(s) = out.last_mut() {
-                    s.sums.push(c.to_string());
-                }
-            }
-            ["planned", c] => {
-                if let Some(s) = out.last_mut() {
-                    s.planned.push(c.to_string());
-                }
-            }
-            ["map", m] => {
-                if let Some(s) = out.last_mut() {
-                    s.map.push(m.to_string());
-                }
-            }
-            _ => {}
-        }
-    }
-    out
 }
 
 /// A clock reading below this is not known: the Pi has no real-time

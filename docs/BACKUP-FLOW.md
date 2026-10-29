@@ -2544,7 +2544,11 @@ vault note, `checked <at> <what> <date>`, for that copy alone:
 | A passphrase's **Check it** (built) | that passphrase line |
 | A place's **Mark checked** (built) | every thing at the place |
 | A key's **Mark checked** for its holder (built, `keychecked`) | the key |
-| A vault's stick read on a stick visit, and the vault unlocked from it, where the plan keeps one stick of that vault | that stick at its place |
+| A vault's stick read on a stick visit, and the vault unlocked from it, where the plan keeps one stick of that vault, and the unlock does not name it an older copy (`docs/VAULT-HARDENING.md` §5.3) | that stick at its place |
+
+A vault's stick read whose unlock names an older copy (its seal count is
+lower than one seen since power-on or among the copies in Files) is not
+dated, and its place's line reads "Older copy" in place of a date.
 
 **Which place.** A check opened from the chart knows its place: the line
 pressed. A check opened from the checklist knows its seed and form, not

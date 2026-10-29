@@ -472,6 +472,14 @@ pub struct OpenVaults {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Full;
 
+/// Costs a SHA-256 over one slot (counted as a file hash). The digest of
+/// slot `position` in `bytes`, a vault file of slots `len` long: what
+/// tells two seals of one count apart. `None` for a file too short.
+pub fn slot_digest(c: &Compute, len: u32, bytes: &[u8], position: usize) -> Option<[u8; 32]> {
+    let at = fv::slot_range(len, position);
+    Some(faraday_crypto::sha256_whole(c, bytes.get(at)?))
+}
+
 impl OpenVaults {
     fn slot(&self, id: VaultId) -> Option<&Slot> {
         self.slots.iter().find(|s| s.id == id)
@@ -531,6 +539,35 @@ impl OpenVaults {
     ) -> Option<Vec<u8>> {
         let s = self.slot_mut(id)?;
         s.opened.seal(&s.file, &s.records, nonce, now).ok()
+    }
+
+    /// A lookup. Open vault `id`'s slot position in its file (0 to 3) and
+    /// its seal count: as it was opened, or as the last seal wrote it.
+    /// The position is never shown; it picks a slot when copies are
+    /// compared. `None` for an id this store does not hold.
+    pub fn seal_state(&self, id: VaultId) -> Option<(usize, fv::Seals)> {
+        let s = self.slot(id)?;
+        Some((s.opened.position(), s.opened.seals()))
+    }
+
+    /// Costs a SHA-256 over one slot (40 + *L* bytes, counted as a file
+    /// hash). The digest of open vault `id`'s slot as the file it was
+    /// opened from holds it: what tells two seals of one count apart.
+    /// `None` for an id this store does not hold.
+    pub fn opened_digest(&self, c: &Compute, id: VaultId) -> Option<[u8; 32]> {
+        let s = self.slot(id)?;
+        let at = fv::slot_range(s.opened.header().slot_len, s.opened.position());
+        Some(faraday_crypto::sha256_whole(c, s.file.get(at)?))
+    }
+
+    /// Costs one decryption of a slot (up to 4 MiB), through
+    /// `faraday_vault::Opened::copy_seals`. The seal count of open vault
+    /// `id`'s slot in `file`, another copy of the same vault, read with
+    /// the slot key this store holds and no Argon2id. `None` for an id
+    /// this store does not hold, another vault's file, or a slot that
+    /// does not open under the key (a damaged copy).
+    pub fn copy_seals(&self, c: &Compute, id: VaultId, file: &[u8]) -> Option<fv::Seals> {
+        self.slot(id)?.opened.copy_seals(c, file).ok()
     }
 
     // ---- reading ----

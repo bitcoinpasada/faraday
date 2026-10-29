@@ -6133,16 +6133,28 @@ standards = [
   "UAX #15",
 ]
 learn = "faraday:vaults"
-screens = ["Unlock"]
+screens = ["Unlock", "VaultContents"]
 functions = [
   "faraday/faraday-vault/src/lib.rs::open",
   "faraday/faraday-vault/src/lib.rs::open_with",
   "faraday/faraday-keys/src/vault.rs::OpenVaults::unlock",
+  "faraday/faraday-keys/src/vault.rs::OpenVaults::copy_seals",
+  "faraday/faraday-keys/src/vault.rs::OpenVaults::opened_digest",
+  "faraday/faraday-vault/src/lib.rs::Opened::copy_seals",
+  "faraday/faraday-keys/src/vault.rs::slot_digest",
 ]
 code = [
   "faraday/faraday-vault/src/lib.rs::open",
   "faraday/faraday-keys/src/vault.rs::OpenVaults::unlock",
 ]
+
+[[action.screens_not]]
+screen = "CreateVault"
+reason = "the vault module serves every vault screen; a press on this screen opens no slot; it makes a vault"
+
+[[action.screens_not]]
+screen = "Vaults"
+reason = "the vault module serves every vault screen; a press on this screen opens no slot; it lists the vaults"
 
 [action.implementation]
 crate = "faraday/faraday-vault"
@@ -7545,10 +7557,6 @@ reason = "An account's zpub that no test or tool reads."
 # dropped when that item is built. Each item is an `[open_item]`, named by a
 # Spec's Open line.
 
-[open_item.seals]
-spec = "docs/VAULT-HARDENING.md"
-names = "the seal count shown, its comparisons and its lines in the backup plan"
-
 [[name_with_digits]]
 name = "Argon2id"
 reason = "The function's name (RFC 9106)."
@@ -7692,16 +7700,10 @@ text = "Offline guessing. Anyone with the file has its salt and cost and can try
 text = "Rollback. An older copy of a vault still opens. Someone who can write to the stick can put an older copy back; they cannot read or change anything in it."
 
 [[construction.section.para]]
-text = "Today nothing shows a rollback."
-until = "seals"
+text = "Unlock shows a slot's seal count. An older copy is named when a newer one was opened, sealed or sat among the copies in Files since power-on, or when an open vault's backup plan records a newer one; the vault still opens. The count of a copy in Files is read with the key just opened, which the clean-process rule allows and a stick visit does not. A rollback is not seen when no newer copy is opened or read between power-on and the older copy's unlock and no open vault's plan records one, or when a vault and its plan are rolled back together."
 
 [[construction.section.para]]
-text = "Unlock shows a slot's seal count; an older copy is named when a newer one was opened or read since power-on, or when an open vault's backup plan records a newer one; and a stick visit does not write an older copy over a newer one. A rollback is not seen when no newer copy is opened or read between power-on and the older copy's unlock and no open vault's plan records one, or when a vault and its plan are rolled back together."
-planned = "seals"
-
-[[construction.section.para]]
-text = "a backup plan records, for each other vault it places, that vault's salt, size, slot position, seal count and a digest of the slot. Whoever opens the slot holding the plan learns those vaults' salts and sizes, which slot of each holds the plan's seeds, and how often it was sealed."
-planned = "seals"
+text = "A backup plan records, for each other vault it places, that vault's salt, size, slot position, seal count and a digest of the slot. Whoever opens the slot holding the plan learns those vaults' salts and sizes, which slot of each holds the plan's seeds, and how often it was sealed."
 
 [[construction.section.para]]
 text = "The seal's nonce. Two seals share a nonce only when no fresh answer from the system was waiting at either and the system gave both sessions the same seed, as a computer started again from a saved state, a virtual machine's snapshot for instance, can. Two seals under one key with one nonce show much of the slot to whoever has both copies, and let them forge it."

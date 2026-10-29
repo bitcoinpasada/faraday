@@ -19,11 +19,15 @@ pub(crate) mod load_screen;
 pub mod out;
 pub(crate) mod panes_screen;
 pub(crate) mod screen;
+mod seals;
 mod search;
 mod strength;
+mod summaries;
 
 pub use area::*;
+pub use seals::{SealFrom, SealOrder, SealSeen, SealWarn, times};
 pub use search::{SearchAct, SearchIn};
+pub(crate) use summaries::{summaries_decode, summaries_encode};
 
 use crate::stick;
 use crate::strings::EN;
@@ -1217,6 +1221,8 @@ impl Faraday {
                     skip: Default::default(),
                     each_shown: false,
                     read: Default::default(),
+                    seal_digest: [0; 32],
+                    seal_warn: None,
                 });
                 self.vaults.state.current = self.vaults.open.len() - 1;
                 // Unlocked for a vault category from Tools: that category.
@@ -2218,6 +2224,10 @@ impl Faraday {
         self.vault_summaries_refresh();
         let mut sealed: Vec<(String, Vec<u8>)> = Vec::new();
         for i in 0..self.vaults.open.len() {
+            // Its plans take the counts of the vaults sealed before it
+            // (`docs/VAULT-HARDENING.md` §5.6).
+            let c = self.compute();
+            self.vaults.seals_write(&c, i);
             sealed.extend(self.vault_sealed(i));
         }
         for (name, bytes) in sealed {
@@ -2260,6 +2270,8 @@ impl Faraday {
         let id = self.vaults.open[i].id;
         let bytes = self.vaults.state.store.sealed(id, &nonce, now)?;
         let name = self.vaults.open[i].name.clone();
+        let c = self.compute();
+        self.vaults.seals_sealed(&c, i, &bytes);
         // The keys waiting for their copies that this sealing holds.
         self.flow_sealed(i, &name, &bytes);
         Some((name, bytes))
@@ -2283,6 +2295,8 @@ impl Faraday {
             return false;
         }
         self.vault_summaries_refresh();
+        let c = self.compute();
+        self.vaults.seals_write(&c, i);
         if let Some((name, bytes)) = self.vault_sealed(i) {
             self.put_outbox(&name, bytes);
         }
@@ -2437,94 +2451,6 @@ impl Faraday {
             Screen::Settings | Screen::SetTime | Screen::Codes => true,
             Screen::VaultContents => self.vaults.category == 2,
             _ => false,
-        }
-    }
-
-    /// Writes each open vault's summary over the one kept for it: on
-    /// unlock, after every change made on a vault screen, and as the
-    /// session seals.
-    pub(crate) fn vault_summaries_refresh(&mut self) {
-        let c = self.compute();
-        let seen = self.clock_now();
-        let mut fresh = Vec::new();
-        for v in &self.vaults.open {
-            let wallets = self
-                .vaults
-                .records(v.id)
-                .of(kind::WALLET)
-                .map(|(i, r)| {
-                    (
-                        wallet_name_in(r, field::WALLET_NAME, EN.vaults_wallet).into_owned(),
-                        self.vaults
-                            .described(&c, v.id, i)
-                            .map(|d| d.shape.clone())
-                            .unwrap_or_default(),
-                    )
-                })
-                .collect();
-            let (keys, ids): (Vec<String>, Vec<Option<[u8; 32]>>) = self
-                .vaults
-                .records(v.id)
-                .of(kind::KEY)
-                .filter_map(|(_, r)| crate::vault::screen::key_identity(&c, self, r))
-                .map(|(fp, id)| (fp, Some(id)))
-                .unzip();
-            let sum_of = |i: usize| {
-                self.vaults
-                    .described(&c, v.id, i)
-                    .map(|d| d.checksum.clone())
-            };
-            let sums = self
-                .vaults
-                .records(v.id)
-                .of(kind::WALLET)
-                .map(|(i, _)| sum_of(i).unwrap_or_default())
-                .collect();
-            let planned = self
-                .vaults
-                .records(v.id)
-                .of(kind::PLAN)
-                .filter_map(|(i, _)| sum_of(i))
-                .collect();
-            let map = self
-                .vaults
-                .records(v.id)
-                .of(kind::PLAN)
-                .flat_map(|(_, r)| {
-                    let names: Vec<String> = r
-                        .public_all(field::PLAN_PLACE)
-                        .map(|b| String::from_utf8_lossy(b).into_owned())
-                        .collect();
-                    r.public_all(field::PLAN_HOLDS)
-                        .map(|b| redact_place_name(&String::from_utf8_lossy(b), &names))
-                        .collect::<Vec<_>>()
-                })
-                .collect();
-            fresh.push(VaultSummary {
-                file: v.name.clone(),
-                salt: v.header().salt,
-                name: v.label(self.vaults.store()),
-                wallets,
-                sums,
-                planned,
-                keys,
-                ids,
-                entries: self.vaults.records(v.id).of(kind::ENTRY).count(),
-                map,
-                seen,
-            });
-        }
-        for s in fresh {
-            match self
-                .vaults
-                .state
-                .summaries
-                .iter_mut()
-                .find(|o| o.salt == s.salt)
-            {
-                Some(o) => *o = s,
-                None => self.vaults.state.summaries.push(s),
-            }
         }
     }
 

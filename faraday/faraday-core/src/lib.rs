@@ -3663,6 +3663,13 @@ impl Faraday {
         for fp in self.wallet_held_stored(&c, wi) {
             text.push_str(&format!("held {}\n", fp_text(fp)));
         }
+        let ours: Vec<usize> = self
+            .vaults
+            .described_of(&c, open.id, kind::PLAN)
+            .filter(|(_, _, d)| d.same == wallet::same_wallet(w.policy()))
+            .map(|(i, _, _)| i)
+            .collect();
+        let text = plan::text::with_seals(&text, &self.vaults.plan_seals_kept(open.id, &ours));
         let mut record = Record::new(kind::PLAN)
             .with(field::PLAN_WALLET, Self::wallet_text(w).as_bytes())
             .with(field::PLAN_ANSWERS, text.as_bytes());
@@ -3697,14 +3704,6 @@ impl Faraday {
         for line in extras {
             record.push(field::PLAN_HOLDS, line.as_bytes());
         }
-        let want = wallet::same_wallet(w.policy());
-        // This wallet's plan records, by place.
-        let ours: Vec<usize> = self
-            .vaults
-            .described_of(&c, open.id, kind::PLAN)
-            .filter(|(_, _, d)| d.same == want)
-            .map(|(i, _, _)| i)
-            .collect();
         let same = |i: usize| ours.contains(&i);
         // The notes on the map: those given, else those the record kept.
         let kept: Vec<String> = match notes {
@@ -3761,6 +3760,7 @@ impl Faraday {
         } else if !old.is_empty() {
             self.vaults.changed(id);
         }
+        self.vaults.seals_write(&c, v);
     }
 
     /// Costs a QR encoding (through `picture_codes`). The labelled pictures

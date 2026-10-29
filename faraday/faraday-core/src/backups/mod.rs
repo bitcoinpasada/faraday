@@ -17,7 +17,7 @@ use faraday_crypto::work::Compute;
 use faraday_vault::records::{field, kind};
 
 use crate::plan::{self, At, Tag, What};
-use crate::vault::Currency;
+use crate::vault::{Currency, VaultSummary, redact_place_name, wallet_name_in};
 use crate::wallet::{Session, Wallet, fp_text};
 use crate::wallet_backup::Tone;
 use crate::{Action, Faraday, Screen, file_stem};
@@ -2210,12 +2210,105 @@ impl Faraday {
             .is_some_and(|open| self.vaults.store().holds_codex32(open.id, fp, set, index))
     }
 
+    /// Writes each open vault's summary over the one kept for it: on
+    /// unlock, after every change made on a vault screen, and as the
+    /// session seals.
+    pub(crate) fn vault_summaries_refresh(&mut self) {
+        let c = self.compute();
+        let seen = self.clock_now();
+        let mut fresh = Vec::new();
+        for v in &self.vaults.open {
+            let wallets = self
+                .vaults
+                .records(v.id)
+                .of(kind::WALLET)
+                .map(|(i, r)| {
+                    (
+                        wallet_name_in(r, field::WALLET_NAME, EN.vaults_wallet).into_owned(),
+                        self.vaults
+                            .described(&c, v.id, i)
+                            .map(|d| d.shape.clone())
+                            .unwrap_or_default(),
+                    )
+                })
+                .collect();
+            let (keys, ids): (Vec<String>, Vec<Option<[u8; 32]>>) = self
+                .vaults
+                .records(v.id)
+                .of(kind::KEY)
+                .filter_map(|(_, r)| crate::vault::screen::key_identity(&c, self, r))
+                .map(|(fp, id)| (fp, Some(id)))
+                .unzip();
+            let sum_of = |i: usize| {
+                self.vaults
+                    .described(&c, v.id, i)
+                    .map(|d| d.checksum.clone())
+            };
+            let sums = self
+                .vaults
+                .records(v.id)
+                .of(kind::WALLET)
+                .map(|(i, _)| sum_of(i).unwrap_or_default())
+                .collect();
+            let planned = self
+                .vaults
+                .records(v.id)
+                .of(kind::PLAN)
+                .filter_map(|(i, _)| sum_of(i))
+                .collect();
+            let map = self
+                .vaults
+                .records(v.id)
+                .of(kind::PLAN)
+                .flat_map(|(_, r)| {
+                    let names: Vec<String> = r
+                        .public_all(field::PLAN_PLACE)
+                        .map(|b| String::from_utf8_lossy(b).into_owned())
+                        .collect();
+                    r.public_all(field::PLAN_HOLDS)
+                        .map(|b| redact_place_name(&String::from_utf8_lossy(b), &names))
+                        .collect::<Vec<_>>()
+                })
+                .collect();
+            fresh.push(VaultSummary {
+                file: v.name.clone(),
+                salt: v.header().salt,
+                name: v.label(self.vaults.store()),
+                wallets,
+                sums,
+                planned,
+                keys,
+                ids,
+                entries: self.vaults.records(v.id).of(kind::ENTRY).count(),
+                map,
+                seen,
+                seals: Vec::new(),
+            });
+        }
+        self.vaults.merge_summaries(fresh);
+    }
+
     /// Costs what `vault_summaries_refresh` and `vault_gather_codex32`
     /// cost. A vault just unlocked: what the app remembers of the vaults
     /// refreshed, and their codex32 shares gathered.
     pub(crate) fn vault_unlocked_refresh(&mut self) {
         self.vault_summaries_refresh();
         self.vault_gather_codex32();
+        // The slot's seal count against what was seen, with the other
+        // copies in Files read with the key just opened
+        // (`docs/VAULT-HARDENING.md` §5.2, §5.3).
+        let (c, v) = (self.compute(), self.vaults.open.len().saturating_sub(1));
+        let files: Vec<(&str, &[u8])> = self
+            .inbox
+            .iter()
+            .chain(self.outbox.iter())
+            .filter(|i| i.kind == crate::FileKind::Vault)
+            .map(|i| (i.name.as_str(), i.bytes.as_slice()))
+            .collect();
+        self.vaults.seals_unlocked(&c, v, &files);
+        if let Some(warn) = self.vaults.open.get(v).and_then(|o| o.seal_warning()) {
+            self.toast(&warn);
+        }
     }
 
     /// Costs what `gather_codex32` costs. The codex32 share records of

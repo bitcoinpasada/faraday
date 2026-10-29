@@ -306,6 +306,12 @@ Sealing writes the vault back to memory as a file:
   many bytes it is over. "Lock without sealing" is the person's own
   choice to lose those changes. Locking one vault alone (a backup's
   "Lock it and make a new vault") refuses the same way with a toast.
+- **The seal count is one higher** (record type 16, written by the vault
+  crate alone): the count and, when this computer's clock is known, the
+  time. The app keeps the highest count it has seen of each slot, and
+  the count of every other copy of the vault in Files, read at unlock with the
+  key just opened (§11); a plan record can carry the
+  counts of other vaults across a power-off (§7, type 11).
 - **Every other slot is copied byte for byte.** A session cannot tell an
   unused slot from one that another passphrase opens, so it never
   rewrites, re-randomises or clears one.
@@ -334,7 +340,11 @@ stick visit:
    refuse and name both. A different vault under the name asked for is
    never written over, whatever the visit's Already on the stick sheet
    chose (`docs/FLOWS.md` decision 58): the new one goes beside it as
-   `name-2.fvlt`.
+   `name-2.fvlt`. The visit does not read counts: a process that has
+   unlocked a vault holds its key and is never handed a stick
+   (`docs/history/PLAN.md` §5.1), and a visit's process holds none. It
+   compares the file's SHA-256 against the receipt, as below. Counts are
+   compared at unlock instead, with the key just opened (§11).
 2. Write the sealed vault as a new file beside it, read it back and
    compare byte for byte.
 3. Delete the original and rename the new file to the name it is
@@ -400,7 +410,7 @@ exactly where its last field does, refuses the slot.
 | 8 | Secure Boot keys | 1 owner GUID (16 bytes); 2 PK private key, PKCS#8 DER; 3 PK certificate, DER; 4 KEK key; 5 KEK certificate; 6 db key; 7 db certificate |
 | 9 | Pending signing round | 1 scheme (`u8`: 1 MuSig2); 2 SHA-256 of the unsigned transaction it is bound to; 3 the key's fingerprint; 4 the round's secret state, as `faraday-psbt` serialises it; 5 used (`u8`), set when round 2 signs. Written by the flow in `docs/WALLETS.md` §4.2, compiled out of the app (F109); the app writes none and reads none into a spend |
 | 10 | Signed amounts | 1 SHA-256 of an unsigned transaction; 2 the amount each input stated, `u64` per input in order (repeatable per record: one record per transaction; a slot holding two records for one transaction is refused, naming it). Written by `docs/WALLETS.md` §3.3 when that setting is on; the oldest records are dropped first when the slot is full |
-| 11 | Backup plan | 1 the wallet, as a type 3 record's field 1 holds it; 2 the plan's answers, a line each (`name value`: `seeds`, `places`, `split`, `wallet`, `software`, `form`, `omit`, `vault v` the seeds vault *v* holds, `sticks v` the places that keep its stick, `pass i`, and `held {fp}` for each key of the wallet made in Faraday whose backup is not done, a fingerprint and never a secret, `docs/history/NEW-WALLET.md` §14.3, and once the map is edited on the chart a `spot` line per spot, `spot place0 w0 sheet stick0` (where, then what it holds in codes: `w`/`q`/`p` a seed's words, SeedQR or passphrase, `sheet`, `share`, `stick` a vault's stick, `seed`/`seedp` a seed in a vault without or with its passphrase, `vpass` a passphrase alone in a vault (a type 14 record), `wallet`, `file`), read back as the plan in place of the answers' rule, `docs/history/NEW-WALLET.md` §9.7; `preset k` the preset the plan started from and `custom 1` once the board was opened by Customize backup (`docs/BACKUP-FLOW.md` §17.6); the `layers` and `route` lines, and a `vpw` code in a `spot` line, that test builds wrote while the access layers were in (withdrawn 2026-10-19, `docs/DECISIONS.md` F38) are read past, never refused; a plan written before 2026-10-10 has one `sticks` line with no number and no `vault` line, and reads as one vault holding every seed here; one with no `spot` line is drawn from its answers); 3 a place's name (≤ 128 bytes, repeatable: one per place, in order, empty for "Place n"); 4 what one place, a vault, a stick of files, the software or the seeds on their own devices hold, a line (repeatable), a place named by number only ("Place n": the place's name is field 3's alone, and is never written here), and what a vault holds that a later plan dropped ("vault.fvlt holds seed 9A6A2580"); a record written before 2026-10-10 may still name the place here instead of by number, and reading it into the kept summary (§11) replaces that name with its place number; 5 a note on a thing of the map, a line (repeatable, `docs/history/NEW-WALLET.md` §9.5): `checked place0 w0 2026-10-10`, `keychecked 9a6a2580 2026-10-10` (the date a key's holder confirmed its backup), `lost place0 w0`, `exposed place0 w0`, `holder 9a6a2580 Alice's Coldcard`, `vaultname 0 Cold storage`; never a secret, and never copied into the summary a lock keeps (§11). 6 retired: an access layer's name, written only by test builds while the access layers were in (withdrawn 2026-10-19, `docs/DECISIONS.md` F38); still allowed (≤ 128 bytes, repeatable) so a slot that holds one opens, and read by nothing. Written when the backup's checklist is made with a vault open (`docs/WALLETS.md` §5), and when the plan is changed or a note made on the wallet's chart, over the record this slot kept for the same wallet; the next backup of that wallet starts from it. The only place a place's name, a key's holder, a vault's name, a date checked and a mark are kept |
+| 11 | Backup plan | 1 the wallet, as a type 3 record's field 1 holds it; 2 the plan's answers, a line each (`name value`: `seeds`, `places`, `split`, `wallet`, `software`, `form`, `omit`, `vault v` the seeds vault *v* holds, `sticks v` the places that keep its stick, `pass i`, and `held {fp}` for each key of the wallet made in Faraday whose backup is not done, a fingerprint and never a secret, `docs/history/NEW-WALLET.md` §14.3, and `seals {salt} {L} {position} {count} {digest}` for each other vault the plan places whose copy the session has seen (the vault's salt in 64 hex digits and its slot length *L* in decimal, the slot's position 0 to 3, the slot's seal count, and the SHA-256 of the slot's 40 + *L* bytes at that count in 64 hex digits; never the record's own vault; written whenever the record is written and at every lock before sealing, a line for a vault not seen this session kept as it was and one replaced only by a higher count or the same count seen now; read past by the answers and read by the plan area, `docs/VAULT-HARDENING.md` §5.6), and once the map is edited on the chart a `spot` line per spot, `spot place0 w0 sheet stick0` (where, then what it holds in codes: `w`/`q`/`p` a seed's words, SeedQR or passphrase, `sheet`, `share`, `stick` a vault's stick, `seed`/`seedp` a seed in a vault without or with its passphrase, `vpass` a passphrase alone in a vault (a type 14 record), `wallet`, `file`), read back as the plan in place of the answers' rule, `docs/history/NEW-WALLET.md` §9.7; `preset k` the preset the plan started from and `custom 1` once the board was opened by Customize backup (`docs/BACKUP-FLOW.md` §17.6); the `layers` and `route` lines, and a `vpw` code in a `spot` line, that test builds wrote while the access layers were in (withdrawn 2026-10-19, `docs/DECISIONS.md` F38) are read past, never refused; a plan written before 2026-10-10 has one `sticks` line with no number and no `vault` line, and reads as one vault holding every seed here; one with no `spot` line is drawn from its answers); 3 a place's name (≤ 128 bytes, repeatable: one per place, in order, empty for "Place n"); 4 what one place, a vault, a stick of files, the software or the seeds on their own devices hold, a line (repeatable), a place named by number only ("Place n": the place's name is field 3's alone, and is never written here), and what a vault holds that a later plan dropped ("vault.fvlt holds seed 9A6A2580"); a record written before 2026-10-10 may still name the place here instead of by number, and reading it into the kept summary (§11) replaces that name with its place number; 5 a note on a thing of the map, a line (repeatable, `docs/history/NEW-WALLET.md` §9.5): `checked place0 w0 2026-10-10`, `keychecked 9a6a2580 2026-10-10` (the date a key's holder confirmed its backup), `lost place0 w0`, `exposed place0 w0`, `holder 9a6a2580 Alice's Coldcard`, `vaultname 0 Cold storage`; never a secret, and never copied into the summary a lock keeps (§11). 6 retired: an access layer's name, written only by test builds while the access layers were in (withdrawn 2026-10-19, `docs/DECISIONS.md` F38); still allowed (≤ 128 bytes, repeatable) so a slot that holds one opens, and read by nothing. Written when the backup's checklist is made with a vault open (`docs/WALLETS.md` §5), and when the plan is changed or a note made on the wallet's chart, over the record this slot kept for the same wallet; the next backup of that wallet starts from it. The only place a place's name, a key's holder, a vault's name, a date checked and a mark are kept |
 | 12 | (retired) | Was an APK signing key. No build knows it: a slot holding a type 12 record is refused, like any unknown type. The number is not used again. |
 | 13 | Wallet share | 1 the share: a part of a multisig wallet's description with some keys left off, as the share's `.txt` file holds it (`docs/BACKUP-FLOW.md` §15.6); 2 the wallet's name; 3 which share, `u8`, from 1; 4 how many shares, `u8`; 5 the wallet, as a type 11 record's field 1 holds it, by which a share is told from another wallet's of the same name. Repeatable per slot, one record per share and wallet. Written by the backup checklist's vault item when the plan keeps a share in that vault; a build before 2026-10-15 refuses a slot that holds one |
 | 14 | Passphrase | 1 the fingerprint of the key it is the BIP-39 passphrase of, the key's words with this passphrase (4 bytes); 2 the passphrase. Both required; at most one record per key and slot, and a slot holding two for one key is refused, naming the key. Written by the backup checklist's vault item when the plan keeps a seed's passphrase in a vault that does not hold the seed (`docs/BACKUP-FLOW.md` §17.12 item 4, `What::PassphraseSealed`); a vault that holds the seed keeps the passphrase in the key record's field 4 instead. Loading a key record with no field 4 from any open vault uses the passphrase a type 14 record in an open vault keeps for it, found by the fingerprint its words make with it. A build before F37 refuses a slot that holds one |
@@ -483,14 +493,22 @@ a person opens under pressure are believable, which is the person's to
 arrange. For Bitcoin keys, a BIP-39 passphrase gives the same kind of
 deniability inside a single slot.
 
-**Rollback.** Nothing in a slot counts its versions, and the header,
-salt included, is the same across seals, so an older copy of a slot
-still opens. Whoever can write the stick and holds an older copy of the
-vault can put that slot back as it was: its records cannot be altered,
-but they can be replaced by an earlier state of themselves (a key record
-removed since put back, a backup marked done shown as not done, a
-"Signed amounts" record taken back). Opening it does not say it is old.
-VeraCrypt's and LUKS's containers have no rollback protection either.
+**Rollback.** The header, salt included, is the same across seals, so an
+older copy of a slot still opens. Whoever can write the stick and holds
+an older copy of the vault can put that slot back as it was: its records
+cannot be altered, but they can be replaced by an earlier state of
+themselves (a key record removed since put back, a backup marked done
+shown as not done, a "Signed amounts" record taken back). A slot counts
+its seals inside the encryption (§5), and the app tells an older copy
+from a newer one when it has seen the newer one: in the same power-on,
+among the copies in Files at unlock, or from a backup plan in another
+open vault (§7, type 11). It cannot tell when no newer copy was seen since
+power-on and no open vault's plan records one, when every copy was put
+back at once, for a slot this session did not open, or while the vault is
+locked. The count is readable to whoever opens the slot, so a decoy slot
+opened under pressure shows how often it was sealed
+(`docs/VAULT-HARDENING.md` §5.4). VeraCrypt's and LUKS's containers have
+no rollback protection.
 
 **Tampering.** A slot is checked only when it is opened. Bytes changed in
 a slot nobody opened go unnoticed until its passphrase is next used, and
@@ -522,8 +540,18 @@ slot's name, its wallets (name, shape and descriptor checksum), its keys
 master public key and chain code with the passphrase applied,
 `wallet::master_id`; owner, 2026-10-21), how many entries it holds,
 its backup maps' lines (record type 11, field 4), the checksums of the
-wallets it keeps a plan for, and the time it was last open by this
-computer's clock. The Backups screen lists a locked vault's wallets
+wallets it keeps a plan for, the time it was last open by this
+computer's clock, and the highest seal count seen of each of its slots
+since power-on (the slot's length and position, the count, and the
+SHA-256 of the slot at that count, so two seals of one count are told
+apart; raised at every unlock, every seal and every other copy of the
+vault in Files read at unlock). Unlock and the open vault's head say
+"Sealed 12 times · last 28 Oct 2026, 14:02", and, when the copy opened is
+lower than a count seen, "An older copy: sealed 9 times. A copy sealed 12
+times was open since power-on." (or "… is in Files", or "… {vault}'s
+backup plan records a copy sealed 12 times"), and for the same count
+with other bytes "Another copy was sealed 12 times too, with other
+changes". The vault opens either way. The Backups screen lists a locked vault's wallets
 from it (`docs/history/SIMPLIFY.md` §5), and its vault line says a seed is kept
 in a locked vault only when the seed's master id, the session key's or
 the one the backup's record kept, is the summary's for that key: the

@@ -8600,6 +8600,31 @@ strings! {
     vaults_place: "Place {}:{}",
     /// Text in `vault_summaries_refresh`.
     vaults_wallet: "Wallet",
+    // ----- vault seal count (faraday-core/src/vault/seals.rs) -----
+    /// Text in `times`: a count of one.
+    vault_once: "once",
+    /// Text in `times`. `{}`: the count.
+    vault_times: "{} times",
+    /// Text in `seals_line`. `{}`: `times(count)`.
+    vault_seals: "Sealed {}",
+    /// Text in `seals_line`. `{}`: the date and time.
+    vault_sealed_last: "last {}",
+    /// Text in `seals_line`.
+    vault_sealed_no_time: "last time not recorded",
+    /// Text in `seals_line`. `{}`: day, month name, year, time of day.
+    vault_sealed_date: "{} {} {}, {}",
+    /// Text in `seals_line`: the twelve months' short names, split at spaces.
+    vault_months: "Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec",
+    /// Text in `seals_line`. `{}`: the count, the time sealed.
+    vault_seals_joined: "{} · {}",
+    /// Text in `SealWarn::line`. `{}`: `times(mine)`, `times(seen)`.
+    vault_seals_older: "An older copy: sealed {}. A copy sealed {} was open since power-on.",
+    /// Text in `SealWarn::line`. `{}`: `times(mine)`, the plan's vault, `times(seen)`.
+    vault_seals_older_plan: "An older copy: sealed {}. {}'s backup plan records a copy sealed {}.",
+    /// Text in `SealWarn::line`. `{}`: `times(count)`.
+    vault_seals_same_count: "Another copy was sealed {} too, with other changes.",
+    /// Text in `SealWarn::line`. `{}`: `times(mine)`, `times(seen)`.
+    vault_seals_older_files: "An older copy: sealed {}. A copy sealed {} is in Files.",
     // ----- visit_taken (faraday-core/src/visit_taken.rs) -----
     /// Text in `line`. `{}`: `self.name`, `keep_as`.
     visit_taken_keep_both_n: "{} · Keep both: {}",

@@ -67,7 +67,7 @@ fn work_not_built_reads_as_planned() {
         "the passphrase in NFC is built"
     );
     assert!(
-        planned.iter().any(|t| t.contains("seal count")),
-        "the seal count is not built yet"
+        !planned.iter().any(|t| t.contains("seal count")),
+        "the seal count is built"
     );
 }

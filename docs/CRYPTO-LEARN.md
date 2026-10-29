@@ -1491,19 +1491,19 @@ be changed unnoticed.
 - **Rollback.** An older copy of a vault still opens. Someone who can
   write to the stick can put an older copy back; they cannot read or
   change anything in it.
-  - **[S]** Today nothing shows it. Planned, not built: Unlock shows a
-    slot's seal count; an older copy is named when a newer one was opened
-    or read since power-on, or when an open vault's backup plan records
-    a newer one; and a stick visit does not write an older copy over a
-    newer one. A rollback is not seen when no newer copy is opened or
-    read between power-on and the older copy's unlock and no open
-    vault's plan records one, or when a vault and its plan are rolled
-    back together.
-  - **[S]** Planned, not built: a backup plan records, for each other
-    vault it places, that vault's salt, size, slot position, seal count
-    and a digest of the slot. Whoever opens the slot holding the plan
-    learns those vaults' salts and sizes, which slot of each holds the
-    plan's seeds, and how often it was sealed.
+  - **[S]** Built: Unlock shows a slot's seal count. An older copy is
+    named when a newer one was opened, sealed or sat among the copies in
+    Files since power-on, or when an open vault's backup plan records a
+    newer one; the vault still opens. A stick visit reads no counts: a
+    process that holds a slot key is never handed a stick. A rollback is
+    not seen when no newer copy is opened or read between power-on and
+    the older copy's unlock and no open vault's plan records one, or
+    when a vault and its plan are rolled back together.
+  - **[S]** Built: a backup plan records, for each other vault it
+    places, that vault's salt, size, slot position, seal count and a
+    digest of the slot. Whoever opens the slot holding the plan learns
+    those vaults' salts and sizes, which slot of each holds the plan's
+    seeds, and how often it was sealed.
 - **The seal's nonce.** **[N]** Today the nonce comes from the session's
   seed and a count. A computer started again from a saved state, a
   virtual machine's snapshot for instance, can draw the same seed again;
