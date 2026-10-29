@@ -7,7 +7,7 @@
 //! it is see-through.
 
 use crate::pal::*;
-use crate::{Ui, W};
+use crate::{Shape, Ui, W};
 
 /// Where a stick stands, as its pill shows it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -92,16 +92,10 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
         if let Some(edge) = edge {
             self.stroke(x, y, w, h, r, edge);
         }
-        if let Some(a) = action
-            && !self.dimmed.contains(&a)
-        {
-            self.state_layer((x, y, w, h, r), ink, a);
-            self.focus_ring((x, y, w, h, r), a);
+        if let Some(a) = action {
+            self.press(Shape::new(x, y, w, h, r), ink, a);
         }
         self.dot(x + at.pad + at.dot_r, y + h / 2.0, at.dot_r, dot);
         self.text_mid(x + at.pad + at.dot_room, y, h, at.text, W::S, ink, label);
-        if let Some(a) = action {
-            self.hit_drawn(x, y, w, h, a);
-        }
     }
 }

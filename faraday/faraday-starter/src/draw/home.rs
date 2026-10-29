@@ -27,13 +27,12 @@ struct CardSpec<'a> {
 /// What `draw` takes in height, drawn where nothing shows and keeping
 /// no press.
 fn measured(ui: &mut Ui, draw: &mut dyn FnMut(&mut Ui) -> f32) -> f32 {
-    let mark = (ui.hits.len(), ui.reach.len(), ui.primaries);
+    let mark = (ui.presses_mark(), ui.primaries);
     ui.c.push_clip(Rect::new(0, 0, 0, 0));
     let h = draw(ui);
     ui.c.pop_clip();
-    ui.hits.truncate(mark.0);
-    ui.reach.truncate(mark.1);
-    ui.primaries = mark.2;
+    ui.presses_rewind(mark.0);
+    ui.primaries = mark.1;
     h
 }
 

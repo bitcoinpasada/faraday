@@ -7,7 +7,7 @@
 //! contrast on both parts.
 
 use crate::pal::*;
-use crate::{Ui, W};
+use crate::{Shape, Ui, W};
 use faraday_draw::tokens::shape_full;
 use faraday_draw::tokens::{BUTTON_H, BUTTON_PAD, DISABLED_CONTAINER, DISABLED_CONTENT, LABEL_L};
 
@@ -90,8 +90,7 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
             self.c.pop_clip();
         }
         self.stroke(x, y, w, h, r, ink);
-        self.state_layer((x, y, w, h, r), ink.paint(), action);
-        self.focus_ring((x, y, w, h, r), action);
+        self.press(Shape::new(x, y, w, h, r), ink.paint(), action);
         // The label in two parts: on the part held in the container's
         // on-role, on the rest in the tone.
         let rest = faraday_draw::Rect::new(
@@ -107,7 +106,6 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
                 self.c.pop_clip();
             }
         }
-        self.hit_drawn(x, y, w, h, action);
         w
     }
 }

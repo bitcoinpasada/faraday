@@ -5,7 +5,7 @@
 use faraday_draw::widgets::Icon;
 
 use crate::pal::*;
-use crate::{Style, Ui};
+use crate::{Plain, Style, Ui};
 use faraday_draw::tokens::{BODY_M, BODY_S, BUTTON_H, BUTTON_PAD, GAP, GAP_SMALL, LABEL_L, PAD};
 
 /// What a sheet holds: drawn at (x, y) in a width, it returns the height
@@ -82,7 +82,7 @@ fn framed<A: Copy + PartialEq>(
     let sh = (ch + 2.0 * pad + foot).min(h - 2.0 * margin);
     let sy = ((h - sh) / 2.0).max(margin);
     if let Some(a) = ui.outside {
-        ui.hit_around(sx, sy, sw, sh, a);
+        ui.press_plain((sx, sy, sw, sh), Plain::Beside, a);
     }
     // Material's dialog and sheet: extra-large corners.
     ui.shadow(

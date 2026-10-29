@@ -2038,19 +2038,10 @@ fn list_in(app: &View, ui: &mut Ui, (px, top, pw, view): Box4, card: bool) {
     ui.hit_ringed((px, top, pw, view, 0.0), (px, top, pw, view), zone);
     let taken = fr.held.is_some_and(|c| matches!(c, Chip::Placed(..)));
     ui.c.push_clip(clip);
-    let mark = ui.hits.len();
+    let mark = ui.presses_mark();
     draw(ui, &mut fr, top - shift);
     // What is scrolled out of the column takes no press.
-    let mut k = mark;
-    while k < ui.hits.len() {
-        let r = ui.hits[k].0.intersect(&clip);
-        if r.w <= 0 || r.h <= 0 {
-            ui.hits.remove(k);
-        } else {
-            ui.hits[k].0 = r;
-            k += 1;
-        }
-    }
+    ui.clip_presses_since(mark, clip);
     ui.c.pop_clip();
     if card {
         ui.stroke(px, top, pw, view, tokens::SHAPE_M, Role::OutlineVariant);

@@ -3,7 +3,7 @@
 //! progress at the top of every destination. Material's assist chip.
 
 use crate::pal::*;
-use crate::{Glyph, Ui, W};
+use crate::{Glyph, Shape, Ui, W};
 use faraday_draw::tokens::{
     GAP_SMALL, GRID, ICON_SMALL, LABEL_L, NAV_ICON, STATUS_CHIP_H, STATUS_CHIP_PAD, TOUCH,
 };
@@ -76,7 +76,11 @@ fn chip_drawn<A: Copy + PartialEq>(
     let w = (2.0 * STATUS_CHIP_PAD + lead + hw + tw).min(max);
     let r = GRID;
     if let Some(a) = action {
-        ui.state_layer((x, y, w, STATUS_CHIP_H, r), Role::OnSurface.paint(), a);
+        // Ringed round the chip as drawn, its press taken a touch target
+        // tall.
+        let ty = y - (TOUCH - STATUS_CHIP_H) / 2.0;
+        let shape = Shape::new(x, y, w, STATUS_CHIP_H, r);
+        ui.press_to(shape, (x, ty, w, TOUCH), Role::OnSurface.paint(), a);
     }
     ui.stroke(x, y, w, STATUS_CHIP_H, r, Role::Outline);
     let mut tx = x + STATUS_CHIP_PAD;
@@ -103,12 +107,6 @@ fn chip_drawn<A: Copy + PartialEq>(
             Role::OnSurfaceVariant,
             &tail_s,
         );
-    }
-    if let Some(a) = action {
-        // Ringed round the chip as drawn, its press taken a touch target
-        // tall.
-        let ty = y - (TOUCH - STATUS_CHIP_H) / 2.0;
-        ui.hit_ringed((x, y, w, STATUS_CHIP_H, r), (x, ty, w, TOUCH), a);
     }
     w
 }

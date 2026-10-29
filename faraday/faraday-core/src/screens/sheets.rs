@@ -1724,23 +1724,14 @@ pub(super) fn learn_body(
     let clip = ui.rect(x, top, sw, view);
     let scroll = app.learn().scroll;
     ui.c.push_clip(clip);
-    let mark = ui.hits.len();
+    let mark = ui.presses_mark();
     let at = (bx, top + look.text_top - scroll, bw);
     let text = match page {
         Some(page) if !how => learn_page(app, ui, look, page, at),
         _ => learn_how(app, ui, at),
     };
     if look.clip_hits {
-        let mut k = mark;
-        while k < ui.hits.len() {
-            let r = ui.hits[k].0.intersect(&clip);
-            if r.w <= 0 || r.h <= 0 {
-                ui.hits.remove(k);
-            } else {
-                ui.hits[k].0 = r;
-                k += 1;
-            }
-        }
+        ui.clip_presses_since(mark, clip);
     }
     ui.c.pop_clip();
     let max = (look.text_top + text - view).max(0.0);

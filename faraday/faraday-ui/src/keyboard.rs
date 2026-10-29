@@ -197,7 +197,7 @@ fn keys_drawn<A: Copy + PartialEq>(
         };
         let style = style.when(cap.enabled);
         let shape = (kx, ky, Some(kw), kh, faraday_draw::tokens::RADIUS_SMALL);
-        ui.button_in(shape, &label, style, act(press));
+        ui.key_in(shape, &label, style, act(press));
         match cap.input {
             KeyInput::Backspace => ui.icon(
                 kx + kw / 2.0 - 9.0,

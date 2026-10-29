@@ -4,7 +4,7 @@
 //! progress indicator.
 
 use crate::pal::*;
-use crate::{Ui, W};
+use crate::{Ring, Shape, Ui, W};
 use faraday_draw::tokens::{
     BUTTON_PAD, DISABLED_CONTAINER, DISABLED_CONTENT, FOCUS_OFFSET, FOCUS_RING, GAP, ICON_BUTTON,
     ICON_GAP, ICON_GLYPH, ICON_GLYPH_BUTTON, PROGRESS_H, PROGRESS_SPAN, SEGMENT_PAD, STATE_FOCUS,
@@ -302,7 +302,7 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
     /// w by h, when the keyboard is on `action`: round with corners of
     /// `r` at the button's own ends (`first`, `last`), square where the
     /// segment meets another, as the segment's shape is.
-    fn segment_ring(
+    pub(crate) fn segment_ring(
         &mut self,
         (x, y, w, h, r): (f32, f32, f32, f32, f32),
         (first, last): (bool, bool),
@@ -395,16 +395,18 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
         for (i, &(label, action)) in options.iter().enumerate() {
             let sx = x + i as f32 * sw;
             let on = chosen == Some(i);
-            let seg = self.rect(sx, y, sw, h).intersect(&shape);
             let layer = if on {
                 Role::OnSecondaryContainer
             } else {
                 Role::OnSurface
             }
             .paint();
-            self.c.push_clip(seg);
-            self.state_layer((x, y, total, h, r), layer, action);
-            self.c.pop_clip();
+            let ends = (i == 0, i + 1 == options.len());
+            let ring = Ring::Segment {
+                first: ends.0,
+                last: ends.1,
+            };
+            self.press_segment(Shape::new(sx, y, sw, h, r), ring, layer, action);
             if i > 0 {
                 self.vrule(sx, y, h, Role::Outline);
             }
@@ -434,9 +436,6 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
                     label,
                 );
             }
-            let ends = (i == 0, i + 1 == options.len());
-            self.segment_ring((sx, y, sw, h, r), ends, action);
-            self.hit_drawn(sx, y, sw, h, action);
         }
         self.stroke(x, y, total, h, r, Role::Outline);
         total
@@ -523,10 +522,9 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
         let r = shape_full(s);
         if on && !self.dimmed.contains(&action) {
             self.stroke(x, y, s, s, r, Role::Outline);
-            self.state_layer((x, y, s, s, r), Role::OnSurfaceVariant.paint(), action);
-            self.focus_ring((x, y, s, s, r), action);
+            let ink = Role::OnSurfaceVariant.paint();
+            self.press(Shape::new(x, y, s, s, r), ink, action);
             self.icon(x, y, s, icon, ICON_GLYPH, Role::OnSurfaceVariant);
-            self.hit_drawn(x, y, s, s, action);
             self.tip_anchor((x, y, s, s), action, tip, TipKind::Plain);
         } else {
             // Faint in every theme: it is not available now.

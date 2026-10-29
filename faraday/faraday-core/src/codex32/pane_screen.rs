@@ -80,19 +80,10 @@ pub(crate) fn draw(
     let clip = ui.rect(x, y, w, view);
     let off = m.pane_offset();
     ui.c.push_clip(clip);
-    let mark = ui.hits.len();
+    let mark = ui.presses_mark();
     let all = super::dice_screen::dice_sheet(m, ui, (x, y - off, w), false, false);
     // What is scrolled out of the pane takes no press.
-    let mut k = mark;
-    while k < ui.hits.len() {
-        let r = ui.hits[k].0.intersect(&clip);
-        if r.w <= 0 || r.h <= 0 {
-            ui.hits.remove(k);
-        } else {
-            ui.hits[k].0 = r;
-            k += 1;
-        }
-    }
+    ui.clip_presses_since(mark, clip);
     ui.c.pop_clip();
     ui.report_scroll_beside(Slot::DemoPane, clip, (all - view).max(0.0), off);
 }

@@ -5,7 +5,7 @@
 //! uses.
 
 use crate::pal::{Role, ThemeName};
-use crate::{Contrast, Mode, TextSize, Theme, Ui};
+use crate::{Contrast, Mode, Shape, TextSize, Theme, Ui};
 use faraday_draw::Color;
 use faraday_draw::tokens::{
     APPEARANCE_LABEL_GAP, APPEARANCE_ROW_GAP, BODY_L, BODY_M, FILTER_CHIP_GAP, FILTER_CHIP_H,
@@ -53,7 +53,7 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
             self.theme_chip_ring((x, y, w, h), own.role(Role::Primary));
         }
         self.fill(x, y, w, h, SHAPE_S, fill);
-        self.state_layer((x, y, w, h, SHAPE_S), ink.into(), action);
+        self.press(Shape::new(x, y, w, h, SHAPE_S), ink.into(), action);
         let layered =
             self.is_pressed(action) || self.is_hovered(action) || self.focused == Some(action);
         let content = if layered { held_ink(fill, ink) } else { ink };
@@ -71,8 +71,6 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
             let at = (lx + lw + GAP, y, h);
             self.text_mid_as(at, LABEL_L.regular(), content, EN.ui_default_theme);
         }
-        self.focus_ring((x, y, w, h, SHAPE_S), action);
-        self.hit_drawn(x, y, w, h, action);
         w
     }
 
@@ -285,20 +283,17 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
         } else {
             None
         };
-        if let Some(o) = opacity {
-            let s = SWITCH_STATE / 2.0;
-            self.wash(
-                cx - s,
-                cy - s,
-                2.0 * s,
-                2.0 * s,
-                s,
-                layer.with_alpha(alpha_of(o)),
-            );
-        }
+        // Material's switch lays its state layer on the handle; the
+        // ring is round the track.
+        self.press_custom((x, y, w, h), action, |ui| {
+            if let Some(o) = opacity {
+                let s = SWITCH_STATE / 2.0;
+                let wash = layer.with_alpha(alpha_of(o));
+                ui.wash(cx - s, cy - s, 2.0 * s, 2.0 * s, s, wash);
+            }
+            ui.focus_ring((x, y, w, h, r), action);
+        });
         self.dot(cx, cy, d / 2.0, handle);
-        self.focus_ring((x, y, w, h, r), action);
-        self.hit_drawn(x, y, w, h, action);
     }
 
     /// A list row with a switch at its right end, [`TOUCH`] tall, from

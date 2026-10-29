@@ -7,8 +7,8 @@
 //! the tab shown kept in view with its neighbours at the edges, so a
 //! press on one at an edge brings the next into view.
 
-use crate::Ui;
 use crate::pal::{Paint, Role};
+use crate::{Shape, Ui};
 use faraday_draw::tokens::{
     CODEX32_TAB_GLYPH, CODEX32_TAB_ICON, GAP_SMALL, TAB_INDICATOR_MIN, TAB_INDICATOR_PRIMARY,
     TAB_INDICATOR_SECONDARY, TAB_PAD, TITLE_S,
@@ -110,7 +110,7 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
             (true, TabKind::Secondary) => Role::OnSurface.paint(),
             (false, _) => Role::OnSurfaceVariant.paint(),
         };
-        self.state_layer((x, y, w, h, 0.0), ink, item.action);
+        self.press(Shape::new(x, y, w, h, 0.0), ink, item.action);
         let mut lx = x + (w - content) / 2.0;
         if item.done {
             let at = y + (h - CODEX32_TAB_ICON) / 2.0;
@@ -144,6 +144,5 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
                 }
             }
         }
-        self.hit_ringed((x, y, w, h, 0.0), (x, y, w, h), item.action);
     }
 }

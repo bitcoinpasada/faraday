@@ -135,12 +135,11 @@ pub(crate) fn outline(
 /// What `draw` would take in height, drawn out of sight with no press
 /// kept.
 pub(crate) fn measure(ui: &mut Ui, draw: &mut dyn FnMut(&mut Ui) -> f32) -> f32 {
-    let mark = (ui.hits.len(), ui.reach.len());
+    let mark = ui.presses_mark();
     ui.c.push_clip(faraday_draw::Rect::new(0, 0, 0, 0));
     let h = draw(ui);
     ui.c.pop_clip();
-    ui.hits.truncate(mark.0);
-    ui.reach.truncate(mark.1);
+    ui.presses_rewind(mark);
     h
 }
 

@@ -3,7 +3,7 @@
 //! rows, a sheet's box, a QR code, and the height of what is not drawn.
 
 use crate::pal::*;
-use crate::{Style, Ui, W};
+use crate::{Plain, Style, Ui, W};
 use faraday_draw::tokens::{BUTTON_H, BUTTON_PAD, GAP, HEADLINE_M, LABEL_L, LABEL_M, TITLE_S};
 
 /// A page's title, in Material's headline medium. Returns its height:
@@ -153,7 +153,7 @@ pub fn sheet_box_in<A: Copy + PartialEq>(
     let x = x0 + (w - sw) / 2.0;
     let y = (h - sh) / 2.0;
     if let Some(a) = ui.outside {
-        ui.hit_around(x, y, sw, sh, a);
+        ui.press_plain((x, y, sw, sh), Plain::Beside, a);
     }
     // Material's dialog: extra-large corners.
     use faraday_draw::tokens::SHAPE_XL;

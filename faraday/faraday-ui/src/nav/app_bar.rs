@@ -6,7 +6,7 @@
 //! and its actions at the right end, each a touch target.
 
 use crate::pal::*;
-use crate::{Glyph, Ui, W};
+use crate::{Glyph, Shape, Ui, W};
 use faraday_draw::tokens::{
     APP_BAR_H, GAP_SMALL, ICON_SMALL, LABEL, LABEL_M, MARGIN_COMPACT, NAV_ICON, TITLE_L, TITLE_M,
     TOUCH, TypeRole,
@@ -37,7 +37,12 @@ pub fn app_bar<A: Copy + PartialEq>(ui: &mut Ui<A>, w: f32, bar: &AppBar<A>, rig
     if let Some((label, action)) = bar.back {
         let (bx, by) = (GAP_SMALL, (APP_BAR_H - TOUCH) / 2.0);
         let round = (bx, by, TOUCH, TOUCH, TOUCH / 2.0);
-        ui.state_layer(round, Role::OnSurfaceVariant.paint(), action);
+        ui.press_to(
+            Shape::new(round.0, round.1, round.2, round.3, round.4),
+            (bx, by, TOUCH, TOUCH),
+            Role::OnSurfaceVariant.paint(),
+            action,
+        );
         ui.icon(
             bx,
             by,
@@ -46,7 +51,6 @@ pub fn app_bar<A: Copy + PartialEq>(ui: &mut Ui<A>, w: f32, bar: &AppBar<A>, rig
             NAV_ICON,
             Role::OnSurfaceVariant,
         );
-        ui.hit_ringed(round, (bx, by, TOUCH, TOUCH), action);
         ui.tip_plain((bx, by, TOUCH, TOUCH), action, bar.back_tip);
         ui.back(action);
         x = bx + TOUCH;
@@ -130,9 +134,13 @@ pub fn icon_action<A: Copy + PartialEq>(
         Role::OnSurfaceVariant
     };
     let round = (x, y, TOUCH, TOUCH, TOUCH / 2.0);
-    ui.state_layer(round, fg.paint(), action);
+    ui.press_to(
+        Shape::new(round.0, round.1, round.2, round.3, round.4),
+        (x, y, TOUCH, TOUCH),
+        fg.paint(),
+        action,
+    );
     ui.icon(x, y, TOUCH, icon, NAV_ICON, fg);
-    ui.hit_ringed(round, (x, y, TOUCH, TOUCH), action);
     ui.tip_plain((x, y, TOUCH, TOUCH), action, label);
     x
 }
@@ -149,7 +157,12 @@ pub fn help<A: Copy + PartialEq>(
     let d = ICON_SMALL + GAP_SMALL * 2.0;
     let (cx, cy) = (x + (TOUCH - d) / 2.0, y + (TOUCH - d) / 2.0);
     let round = (cx, cy, d, d, d / 2.0);
-    ui.state_layer(round, Role::OnSurfaceVariant.paint(), action);
+    ui.press_to(
+        Shape::new(round.0, round.1, round.2, round.3, round.4),
+        (x, y, TOUCH, TOUCH),
+        Role::OnSurfaceVariant.paint(),
+        action,
+    );
     ui.stroke(cx, cy, d, d, d / 2.0, Role::Outline);
     let tw = ui.measure(LABEL, W::S, "?");
     ui.text_mid(
@@ -161,7 +174,6 @@ pub fn help<A: Copy + PartialEq>(
         Role::OnSurfaceVariant,
         "?",
     );
-    ui.hit_ringed(round, (x, y, TOUCH, TOUCH), action);
     ui.tip_plain((x, y, TOUCH, TOUCH), action, label);
     x
 }
@@ -176,7 +188,12 @@ pub fn more<A: Copy + PartialEq>(
 ) -> f32 {
     let (x, y) = (right - TOUCH, (APP_BAR_H - TOUCH) / 2.0);
     let round = (x, y, TOUCH, TOUCH, TOUCH / 2.0);
-    ui.state_layer(round, Role::OnSurfaceVariant.paint(), action);
+    ui.press_to(
+        Shape::new(round.0, round.1, round.2, round.3, round.4),
+        (x, y, TOUCH, TOUCH),
+        Role::OnSurfaceVariant.paint(),
+        action,
+    );
     let (cx, cy) = (x + TOUCH / 2.0, y + TOUCH / 2.0);
     let r = GAP_SMALL / 2.0;
     for k in [-1.0f32, 0.0, 1.0] {
@@ -187,7 +204,6 @@ pub fn more<A: Copy + PartialEq>(
             Role::OnSurfaceVariant,
         );
     }
-    ui.hit_ringed(round, (x, y, TOUCH, TOUCH), action);
     ui.tip_plain((x, y, TOUCH, TOUCH), action, label);
     x
 }

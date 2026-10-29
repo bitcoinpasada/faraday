@@ -6308,7 +6308,7 @@ impl Faraday {
                 self.typing.set_fields(std::mem::take(&mut ui.fields));
                 self.trail.set_link(self.screen, ui.back_link, ui.back_hit);
                 scrolled = std::mem::take(&mut ui.scrolled);
-                reach = std::mem::take(&mut ui.reach);
+                reach = ui.take_presses();
                 self.pointer.set_cut(std::mem::take(&mut ui.cut));
                 follow_to = follow_to.or(ui.follow_to);
                 self.fade.keep_frost(frost_key, ui.frost.take());

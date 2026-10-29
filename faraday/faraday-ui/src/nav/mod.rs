@@ -23,7 +23,7 @@ pub use chip::{Chip, status_chip};
 pub use rail::{Rail, destination_row, rail};
 
 use crate::pal::*;
-use crate::{Glyph, Ui, W};
+use crate::{Glyph, Shape, Ui, W};
 use faraday_draw::tokens::{
     BADGE_LABEL, BADGE_LARGE, BADGE_PAD, BADGE_SMALL, GAP_SMALL, LABEL_M, NAV_ICON, NAV_LABEL_GAP,
     NAV_PILL_H, NAV_PILL_W,
@@ -127,7 +127,9 @@ fn item<A: Copy + PartialEq>(ui: &mut Ui<A>, x: f32, y: f32, w: f32, h: f32, d: 
     } else {
         (Role::OnSurfaceVariant, Role::OnSurfaceVariant)
     };
-    ui.state_layer(pill, icon_fg.paint(), d.action);
+    // Ringed round its pill, the shape its state layer takes.
+    let shape = Shape::new(pill.0, pill.1, pill.2, pill.3, pill.4);
+    ui.press_to(shape, (x, y, w, h), icon_fg.paint(), d.action);
     let ix = x + (w - NAV_PILL_H) / 2.0;
     ui.icon(ix, top, NAV_PILL_H, d.icon, NAV_ICON, icon_fg);
     let inset = (NAV_PILL_H - NAV_ICON) / 2.0;
@@ -150,6 +152,4 @@ fn item<A: Copy + PartialEq>(ui: &mut Ui<A>, x: f32, y: f32, w: f32, h: f32, d: 
         room,
     );
     ui.text_fit_as(band, role, fg, d.label);
-    // Ringed round its pill, the shape its state layer takes.
-    ui.hit_ringed(pill, (x, y, w, h), d.action);
 }

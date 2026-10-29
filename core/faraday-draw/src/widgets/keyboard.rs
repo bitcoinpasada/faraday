@@ -5,9 +5,9 @@
 //! keys it reports. Key width is whatever the columns divide the width
 //! into (about 27 dp of pitch on a 2.8" panel).
 //!
-//! Anti-observation defaults: no popup previews, no press highlight that
-//! persists after release. A key is drawn identically before, during and
-//! after a press.
+//! Anti-observation defaults: no popup previews, and no press layer on
+//! a key: hover and focus show, the press does not, so a watcher reads
+//! nothing from a press (F152).
 
 use alloc::vec::Vec;
 

@@ -1505,12 +1505,7 @@ pub(crate) fn draw_side(
     let Some(v) = app.glance_sheet(press, target) else {
         return;
     };
-    let mark = (
-        ui.hits.len(),
-        ui.reach.len(),
-        ui.scrolled.clone(),
-        ui.offset,
-    );
+    let mark = (ui.presses_mark(), ui.scrolled.clone(), ui.offset);
     if live {
         ui.in_sheet = true;
         ui.offset = app.sheet_offset;
@@ -1529,10 +1524,9 @@ pub(crate) fn draw_side(
     );
     ui.in_sheet = false;
     if !live {
-        ui.hits.truncate(mark.0);
-        ui.reach.truncate(mark.1);
-        ui.scrolled = mark.2;
-        ui.offset = mark.3;
+        ui.presses_rewind(mark.0);
+        ui.scrolled = mark.1;
+        ui.offset = mark.2;
     }
 }
 

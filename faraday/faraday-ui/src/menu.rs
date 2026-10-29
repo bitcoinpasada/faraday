@@ -9,7 +9,7 @@
 
 use crate::pal::*;
 use crate::sheet;
-use crate::{Glyph, Style, Ui};
+use crate::{Glyph, Plain, Style, Ui};
 use faraday_draw::tokens::{
     ELEVATION_MENU, FOCUS_RING, GAP, GRID, ICON_GAP, ICON_GLYPH_BUTTON, LABEL_L, LABEL_M,
     LIST_PAD_V, MENU_HEAD_H, MENU_INDENT, MENU_ITEM_H, MENU_ITEM_PAD, MENU_MAX_W, MENU_MIN_W,
@@ -144,19 +144,21 @@ fn item<A: Copy + PartialEq>(
         ui.fill(x, y, w, h, 0.0, Role::SecondaryContainer);
     }
     let fg = on_selected(chosen, Role::OnSurface);
-    ui.state_layer((x, y, w, h, 0.0), fg, a);
-    if keys || ui.focused == Some(a) {
-        // Ringed inside the item: the popup's edge would cut a ring
-        // outside it.
-        let rect = ui.rect(
-            x + FOCUS_RING / 2.0,
-            y + FOCUS_RING / 2.0,
-            w - FOCUS_RING,
-            h - FOCUS_RING,
-        );
-        let color = ui.col(Role::Secondary);
-        ui.c.stroke_rounded_rect(rect, SHAPE_XS * ui.f, FOCUS_RING * ui.f, color);
-    }
+    ui.press_custom((x, y, w, h), a, |ui| {
+        ui.state_layer((x, y, w, h, 0.0), fg, a);
+        if keys || ui.focused == Some(a) {
+            // Ringed inside the item: the popup's edge would cut a ring
+            // outside it.
+            let rect = ui.rect(
+                x + FOCUS_RING / 2.0,
+                y + FOCUS_RING / 2.0,
+                w - FOCUS_RING,
+                h - FOCUS_RING,
+            );
+            let color = ui.col(Role::Secondary);
+            ui.c.stroke_rounded_rect(rect, SHAPE_XS * ui.f, FOCUS_RING * ui.f, color);
+        }
+    });
     let ix = x + MENU_ITEM_PAD + under;
     let room = (x + w - MENU_ITEM_PAD - TICK - ix).max(0.0);
     ui.text_fit_as((ix, y, h, room), LABEL_L.regular(), fg, label);
@@ -165,7 +167,6 @@ fn item<A: Copy + PartialEq>(
         let ty = y + (h - ICON_GLYPH_BUTTON) / 2.0;
         ui.icon(tx, ty, ICON_GLYPH_BUTTON, Icon::Done, ICON_GLYPH_BUTTON, fg);
     }
-    ui.hit_drawn(x, y, w, h, a);
 }
 
 /// Costs measuring every line. Menu `m` in a frame `w` by `h`: a popup
@@ -207,7 +208,7 @@ pub fn menu<A: Copy + PartialEq>(ui: &mut Ui<A>, w: f32, h: f32, m: &Menu<A>) {
         None => ((w - pw) / 2.0, (h - ph) / 2.0),
     };
     if let Some(a) = ui.outside {
-        ui.hit_around(x, y, pw, ph, a);
+        ui.press_plain((x, y, pw, ph), Plain::Beside, a);
     }
     let max = (content - ph).max(0.0);
     // Opening or closing, it unrolls from its top edge.

@@ -5,8 +5,8 @@
 //! current one on a pill.
 
 use super::{Dest, item};
-use crate::Ui;
 use crate::pal::*;
+use crate::{Shape, Ui};
 use faraday_draw::tokens::{
     GAP, GRID, ICON_SMALL, LABEL_L, LABEL_M, NAV_ICON, NAV_ICON_GAP, NAV_ITEM_H, NAV_RAIL_TOP, PAD,
     RAIL_W, TOUCH,
@@ -76,7 +76,12 @@ pub fn destination_row<A: Copy + PartialEq>(
         Role::OnSurfaceVariant
     };
     let pill = (x, y, w, TOUCH, r);
-    ui.state_layer(pill, fg.paint(), action);
+    ui.press_to(
+        Shape::new(pill.0, pill.1, pill.2, pill.3, pill.4),
+        (x, y, w, TOUCH),
+        fg.paint(),
+        action,
+    );
     let ix = x + PAD;
     let iy = y + (TOUCH - ICON_SMALL) / 2.0;
     ui.icon(ix, iy, ICON_SMALL, icon, NAV_ICON, fg);
@@ -95,5 +100,4 @@ pub fn destination_row<A: Copy + PartialEq>(
     if let Some(e) = end {
         ui.text_right_as((right, y, TOUCH), LABEL_M.regular(), fg, e);
     }
-    ui.hit_ringed(pill, (x, y, w, TOUCH), action);
 }

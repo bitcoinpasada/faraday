@@ -18,6 +18,7 @@ mod mark;
 pub mod menu;
 pub mod nav;
 pub mod parts;
+mod press;
 pub mod region;
 pub mod roles;
 pub mod sheet;
@@ -29,6 +30,7 @@ pub mod tooltip;
 
 pub use controls::{Reach, Style, focus_step, reach_at};
 pub use pal::{Paint, Role, ThemeName};
+pub use press::{Plain, PressMark, Ring, Shape, Unpressed};
 pub use region::{Scrolled, Slot};
 pub use theme::{Contrast, Mode, TextSize, Theme};
 
@@ -367,8 +369,10 @@ pub struct Ui<'a, A> {
     /// type role's size and line height times it, 1 inside
     /// [`Ui::fixed_text`].
     text: f32,
-    /// Where each action can be pressed, in pixels.
-    pub hits: &'a mut Vec<(Rect, A)>,
+    /// Where each action can be pressed, in pixels. Private: a press is
+    /// made with the functions of `press.rs` and kept or trimmed with
+    /// its mark, rewind, clip and take methods.
+    hits: &'a mut Vec<(Rect, A)>,
     /// The action under a finger that is down.
     pub pressed: Option<A>,
     /// When set, hits are only taken inside this layer (a sheet).
@@ -505,8 +509,8 @@ pub struct Ui<'a, A> {
     /// Where each press drawn this frame takes a press, as large as the
     /// touch floor where its control is drawn smaller, in the order
     /// drawn: also the order Tab moves the keyboard through
-    /// ([`Reach`]).
-    pub reach: Vec<Reach<A>>,
+    /// ([`Reach`]). Private, as `hits` is.
+    reach: Vec<Reach<A>>,
     /// How many filled (primary) buttons this frame has drawn, for a
     /// test of one primary action a screen.
     pub primaries: usize,
@@ -1798,7 +1802,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         let y = y - (grown - h) / 2.0;
         let r = faraday_draw::tokens::shape_full(grown);
         let size = faraday_draw::tokens::LABEL_L.size;
-        self.button_drawn((x, y, w, grown, r), size, label, style, action)
+        self.button_drawn((x, y, w, grown, r), size, label, style, action, None)
     }
 
     /// [`Ui::button`] with corners of `r` rather than round ends: a key
@@ -1814,7 +1818,23 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         // A key keeps its size whatever the text size: the keyboards
         // and pads are set by what must fit on the panel.
         let size = faraday_draw::tokens::key_label(at.3);
-        self.fixed_text(|ui| ui.button_drawn(at, size, label, style, action))
+        self.fixed_text(|ui| ui.button_drawn(at, size, label, style, action, None))
+    }
+
+    /// [`Ui::button_in`] for a key of the on-screen keyboard: it shows
+    /// hover and focus, and no pressed layer, so a watcher reads nothing
+    /// from a press ([`Unpressed::Keyboard`]).
+    pub fn key_in(
+        &mut self,
+        at: (f32, f32, Option<f32>, f32, f32),
+        label: &str,
+        style: Style,
+        action: A,
+    ) -> f32 {
+        let size = faraday_draw::tokens::key_label(at.3);
+        self.fixed_text(|ui| {
+            ui.button_drawn(at, size, label, style, action, Some(Unpressed::Keyboard))
+        })
     }
 
     /// A button or a key with its label at `size` in the medium face:
@@ -1826,6 +1846,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         label: &str,
         style: Style,
         action: A,
+        unpressed: Option<Unpressed>,
     ) -> f32 {
         use faraday_draw::tokens::{BUTTON_PAD, ICON_GAP, ICON_GLYPH_BUTTON};
         let weight = W::S;
@@ -1866,8 +1887,11 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         }
         let fg = style.label();
         if !style.is_off() {
-            self.state_layer((x, y, width, h, r), fg, action);
-            self.focus_ring((x, y, width, h, r), action);
+            let shape = Shape::new(x, y, width, h, r);
+            match unpressed {
+                Some(why) => self.press_unpressed(shape, fg, why, action),
+                None => self.press(shape, fg, action),
+            }
         }
         // At a larger text size a label wider than its button fits down
         // to Standard, and is shortened there only where it still does
@@ -1884,9 +1908,6 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
                     ui.icon(lx, iy, ICON_GLYPH_BUTTON, Icon::Done, ICON_GLYPH_BUTTON, fg);
                 }
                 ui.text_mid(lx + tick, y, h, size, weight, fg, &shown);
-                if !style.is_off() {
-                    ui.hit_drawn(x, y, width, h, action);
-                }
                 width
             });
         }
@@ -1896,9 +1917,6 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
             self.icon(lx, iy, ICON_GLYPH_BUTTON, Icon::Done, ICON_GLYPH_BUTTON, fg);
         }
         self.text_mid(lx + tick, y, h, size, weight, fg, label);
-        if !style.is_off() {
-            self.hit_drawn(x, y, width, h, action);
-        }
         width
     }
 
@@ -1920,17 +1938,17 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         let tw = self.text_fit_width(TX, label, room);
         let width = (tw + 2.0 * IN).min(w - 2.0 * IN);
         let (cx, cy) = (x + IN, y + (h - CH) / 2.0);
-        self.state_layer((cx, cy, width, CH, SHAPE_S), Role::Primary.paint(), action);
-        self.stroke(cx, cy, width, CH, SHAPE_S, Role::Outline);
-        self.focus_ring((cx, cy, width, CH, SHAPE_S), action);
-        let band = (cx + (width - tw) / 2.0, cy, CH, room);
-        self.text_fit_as(band, TX, Role::Primary, label);
         let hit_h = if self.compact {
             TOUCH.max(CH)
         } else {
             h.max(CH)
         };
-        self.hit_drawn(cx, y + (h - hit_h) / 2.0, width, hit_h, action);
+        let target = (cx, y + (h - hit_h) / 2.0, width, hit_h);
+        let shape = Shape::new(cx, cy, width, CH, SHAPE_S);
+        self.press_to(shape, target, Role::Primary.paint(), action);
+        self.stroke(cx, cy, width, CH, SHAPE_S, Role::Outline);
+        let band = (cx + (width - tw) / 2.0, cy, CH, room);
+        self.text_fit_as(band, TX, Role::Primary, label);
         width
     }
 
@@ -1958,13 +1976,15 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         };
         self.shadow(x, y, width, h, SHAPE_L, level);
         self.fill(x, y, width, h, SHAPE_L, Role::Primary);
-        self.state_layer((x, y, width, h, SHAPE_L), Role::OnPrimary.paint(), action);
-        self.focus_ring((x, y, width, h, SHAPE_L), action);
+        self.press(
+            Shape::new(x, y, width, h, SHAPE_L),
+            Role::OnPrimary.paint(),
+            action,
+        );
         let iy = y + (h - ICON_GLYPH) / 2.0;
         self.icon(x + pad, iy, ICON_GLYPH, icon, ICON_GLYPH, Role::OnPrimary);
         let at = (x + pad + lead, y, h);
         self.text_mid_as(at, LABEL_L, Role::OnPrimary, label);
-        self.hit_drawn(x, y, width, h, action);
         width
     }
 
@@ -2011,7 +2031,11 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         self.fill(x, y, width, h, SHAPE_S, Role::SurfaceContainerHighest);
         self.stroke(x, y, width, h, SHAPE_S, Role::Outline);
         self.text_mid_as((x + TAG_PAD, y, h), role, Role::OnSurface, word);
-        self.hit_shaped((x, y, width, h, SHAPE_S), action);
+        self.press(
+            Shape::new(x, y, width, h, SHAPE_S),
+            Role::OnSurface.paint(),
+            action,
+        );
         width
     }
 

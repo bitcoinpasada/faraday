@@ -564,19 +564,10 @@ fn beside(m: &Codex32Make, ui: &mut Ui, (x0, h): (f32, f32)) {
     let clip = ui.rect(x, y, w, view);
     let off = m.panel_offset().clamp(0.0, (all - view).max(0.0));
     ui.c.push_clip(clip);
-    let mark = ui.hits.len();
+    let mark = ui.presses_mark();
     beside_parts(m, ui, x, y - off);
     // What is scrolled out of the panel takes no press.
-    let mut k = mark;
-    while k < ui.hits.len() {
-        let r = ui.hits[k].0.intersect(&clip);
-        if r.w <= 0 || r.h <= 0 {
-            ui.hits.remove(k);
-        } else {
-            ui.hits[k].0 = r;
-            k += 1;
-        }
-    }
+    ui.clip_presses_since(mark, clip);
     ui.c.pop_clip();
     ui.report_scroll_beside(Slot::InputPanel, clip, (all - view).max(0.0), off);
 }
@@ -715,19 +706,7 @@ pub(crate) fn foot_fits(win: Window, fh: f32, h: f32) -> bool {
 /// along its top; a press there reaches nothing under it.
 pub(crate) fn cover(ui: &mut Ui, (x, y, w, h): (f32, f32, f32, f32)) {
     let area = ui.rect(x, y, w, h);
-    let mut k = 0;
-    while k < ui.hits.len() {
-        let r = ui.hits[k].0;
-        let across = r.x < area.x + area.w && r.x + r.w > area.x;
-        if across && r.y >= area.y {
-            ui.hits.remove(k);
-            continue;
-        }
-        if across && r.y + r.h > area.y {
-            ui.hits[k].0.h = area.y - r.y;
-        }
-        k += 1;
-    }
+    ui.cover_presses(area);
     ui.fill(x, y, w, h, t::SHAPE_NONE, Role::SurfaceContainerLow);
     ui.rule(x, y, w, Role::OutlineVariant);
 }

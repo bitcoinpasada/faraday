@@ -342,7 +342,7 @@ impl Starter {
             self.max = self.frame_scrolled(&mut ui);
             self.frost = ui.frost.take();
             self.primaries = ui.primaries;
-            reach = std::mem::take(&mut ui.reach);
+            reach = ui.take_presses();
             match self.kept_at(&hits) {
                 Some(to) if !again => self.offset = to,
                 _ => break,

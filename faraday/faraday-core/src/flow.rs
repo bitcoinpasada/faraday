@@ -225,11 +225,11 @@ pub fn column_wide(
             used + body(ui, i, inner_x, y + 56.0 + used, inner_w)
         };
         let body_h = if card.open {
-            let mark = ui.hits.len();
+            let mark = ui.presses_mark();
             ui.c.push_clip(faraday_draw::Rect::new(0, 0, 0, 0));
             let bh = draw_open(ui);
             ui.c.pop_clip();
-            ui.hits.truncate(mark);
+            ui.presses_rewind(mark);
             bh
         } else {
             0.0

@@ -566,7 +566,7 @@ pub(crate) fn draw(
     let (ox, oy) = (x - sx - px, y - py);
     let clip = ui.rect(x, y, vw, vh);
     ui.c.push_clip(clip);
-    let mark = ui.hits.len();
+    let mark = ui.presses_mark();
     let cut_from = (ui.c.cut_mark(), ui.cut.len());
     let (cells, marks) = cells(s, &g);
     let seen = |cx: f32, cy: f32| {
@@ -621,16 +621,7 @@ pub(crate) fn draw(
     }
     frames(ui, &s, &g, &shown, (ox, oy));
     // What is panned out of the view takes no press.
-    let mut k = mark;
-    while k < ui.hits.len() {
-        let r = ui.hits[k].0.intersect(&clip);
-        if r.w <= 0 || r.h <= 0 {
-            ui.hits.remove(k);
-        } else {
-            ui.hits[k].0 = r;
-            k += 1;
-        }
-    }
+    ui.clip_presses_since(mark, clip);
     // What a view that pans sideways holds past its sides is scrolled
     // there, not cut off.
     if max.0 > 0.0 {

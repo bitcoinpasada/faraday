@@ -845,13 +845,13 @@ fn menus(
         let p = crate::motion::progress(Some(at), host.now, crate::motion::MENU_OUT_MS);
         let shown = 1.0 - crate::motion::ease(t::EASE_STANDARD_ACCELERATE, p);
         if shown > 0.0 {
-            let mark = ui.hits.len();
+            let mark = ui.presses_mark();
             if m == Menu::Samples {
                 samples_sheet(host, ui, (area, anchor(m), top, w), shown);
             } else {
                 menu(host, ui, fitted, m, (anchor(m), top, w), shown);
             }
-            ui.hits.truncate(mark);
+            ui.presses_rewind(mark);
         }
     }
     if let Some((m, at)) = host.menu {

@@ -23,12 +23,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, (x0, cw, h): (f32, f32, f32)) {
     let (x, y, w, view) = super::support_pane_place((x0, cw, h));
     // Nothing of the page under the pane takes a press.
     let area = ui.rect(x, y, w, view);
-    ui.hits.retain(|(r, _)| {
-        !(r.x >= area.x
-            && r.y >= area.y
-            && r.right() <= area.right()
-            && r.bottom() <= area.bottom())
-    });
+    ui.drop_presses_inside(area);
     ui.fill(x, y, w, view, T::SHAPE_L, Role::SurfaceContainer);
     let look = LearnLook {
         pad: T::LEARN_PANE_PAD,

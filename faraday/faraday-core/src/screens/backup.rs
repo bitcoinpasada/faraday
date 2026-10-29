@@ -1900,9 +1900,9 @@ fn backup_panel(app: &View, ui: &mut Ui, px: f32, pw: f32, h: f32) {
     let w = pw - 44.0;
     // The check is measured first, so the map stops above it.
     ui.c.push_clip(faraday_draw::Rect::new(0, 0, 0, 0));
-    let mark = ui.hits.len();
+    let mark = ui.presses_mark();
     let ch = check_rows(app, ui, x, 0.0, w);
-    ui.hits.truncate(mark);
+    ui.presses_rewind(mark);
     ui.c.pop_clip();
     let foot = h - ch - 16.0;
     let top = faraday_draw::tokens::SIDE_PANEL_TOP;

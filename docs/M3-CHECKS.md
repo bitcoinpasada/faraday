@@ -1,8 +1,8 @@
 # Material 3 checks: touch targets and state layers
 
 **Kind:** Spec
-**Status:** Specified (F152); A1, A2 and A3 built (the touch-target test, its registry rule, and the Starter's frames)
-**Open:** of §6, the press constructor that draws every state layer (B1 to B3)
+**Status:** Specified (F152); A1, A2, A3 and B1 built (the touch-target test, its registry rule and the Starter's frames; the press constructor in faraday-ui)
+**Open:** of §6, the press constructor's use in faraday-core and the Starter and the hit functions made private (B2 and B3)
 
 Two of Material 3's rules that Faraday follows (F91, F92, F108) are
 today held by review alone: a press is taken on at least 48 × 48 dp, and
@@ -293,6 +293,17 @@ faraday-ui (the components there are built on them), and the fields
   a target where it is in the pane;
 - `Ui::take_presses()`, for the frame's hand-over to the pointer
   (`faraday/faraday-core/src/lib.rs`).
+- `Ui::drop_presses_inside(area)` and `Ui::cover_presses(area)`, for a
+  pane drawn over a page (`screens/learn_pane.rs`) and a surface drawn
+  over its foot (`codex32/input_panel.rs`), which take the page's presses
+  under them.
+
+Built so far (B1): `Ui::press*` and the mark, rewind, clip, take, drop
+and cover methods, with `Ui::hits` and `Ui::reach` private; the old
+`hit*`, `state_layer` and `focus_ring` stay public until B3. A control
+whose layer is not its box (a switch's handle, a menu item's inset ring)
+lays it in `Ui::press_custom`, crate-private to faraday-ui, which still
+takes the press with it. The keyboard's keys are `Ui::key_in`.
 
 The compiler then holds the rule: no code outside faraday-ui can make a
 press without its layer, nor draw a layer apart from its press.

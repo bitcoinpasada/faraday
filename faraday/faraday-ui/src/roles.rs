@@ -10,7 +10,7 @@
 //! [`Ui::wrap_as`] spaces its lines by it.
 
 use crate::pal::*;
-use crate::{Ui, W};
+use crate::{Shape, Ui, W};
 use faraday_draw::text;
 use faraday_draw::tokens::{
     BODY_L, BODY_M, BODY_S, BUTTON_PAD_V, FIELD_EDGE, FIELD_EDGE_ACTIVE, FIELD_GAP, FIELD_H,
@@ -399,7 +399,7 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
             self.fill(x, y, w, h, SHAPE_L, selected_or(true, Role::Surface));
         }
         let ink = on_selected(chosen, Role::OnSurface);
-        self.state_layer((x, y, w, h, SHAPE_L), ink, it.action);
+        self.press(Shape::new(x, y, w, h, SHAPE_L), ink, it.action);
         let (line, sup) = (self.line_as(BODY_L), self.line_as(BODY_M));
         let head_lines = self.list_head_lines(w, it);
         let head = line * head_lines as f32;
@@ -436,8 +436,6 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
             let rest = self.fit_as(BODY_M, rest.trim_start(), inner);
             self.text_mid_as((tx, top + head + sup, sup), BODY_M, muted, &rest);
         }
-        self.focus_ring((x, y, w, h, SHAPE_L), it.action);
-        self.hit_drawn(x, y, w, h, it.action);
         h
     }
 
