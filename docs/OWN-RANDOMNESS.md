@@ -556,7 +556,9 @@ Built from the code at fa72a199: every caller of `Faraday::fresh`,
 Rows 16 and 17 are covered by the session's mixing, with no row of
 their own: they have no press to put the row at. Row 15's row is on the
 Lock sheet, shown only when the lock will seal a changed vault (owner,
-2026-10-28); the idle lock has no sheet and is covered by the mixing.
+2026-10-28), and on the open vault's own screen while it holds changes
+not yet sealed, so that what the idle lock seals, with no sheet to show,
+can take the person's randomness too (owner, 2026-10-28).
 Row 4, the demo's dice roller, gets no row (owner, 2026-10-28): it
 stands in for dice in Faraday Demo's Practice only.
 
@@ -607,7 +609,8 @@ before the press:
 - **Only where it draws.** Row 13's row shows only while the spend opens
   a MuSig2 round, and row 14's only while one is being aggregated. Row
   3's row sits on the codex32 identifier's step. Row 15's sits on the Lock
-  sheet only when the lock will seal a changed vault. Row 4 has none.
+  sheet only when the lock will seal a changed vault, and on the open
+  vault's screen while it holds changes not yet sealed. Row 4 has none.
 - **Drawing reads.** The status line is a lookup and a format through the
   drawing memo (`docs/SPEED.md` §3.3), as Settings' row draws it. The
   row adds no costly work.
@@ -695,6 +698,8 @@ In `faraday/faraday-core/tests/all/own_randomness.rs`, user-facing:
 ### 8.6 Questions for the owner
 
 1. **Lock and seals (row 15).** Settled (owner, 2026-10-28): a row on the
-   Lock sheet, shown only when the lock will seal a changed vault.
+   Lock sheet, shown only when the lock will seal a changed vault, and on
+   the open vault's screen while it holds changes not yet sealed, for the
+   idle lock.
 2. **The demo's dice roller (row 4).** Settled (owner, 2026-10-28): no
    row; the roller stands in for dice for practice.
