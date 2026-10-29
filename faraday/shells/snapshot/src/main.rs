@@ -19,6 +19,7 @@
 //! for a stick called TESTSTICK. Each step of the tour is one numbered
 //! PNG in `OUT_DIR`. With `spend`, only the Spend tab's tour runs; with
 //! `devices`, the stick's device check and its reminders; with
+//! `toasts`, two toasts on Home, one line and one that wraps; with
 //! `themes`, five screens in each scheme (docs/THEMES.md); with `keys`, Wallets with keys
 //! in no wallet; with `visit`, Stick visit with a backup's 20 files in the
 //! Outbox, each list scrolled to its end; with `copy`, the backup's seeds
@@ -140,6 +141,7 @@ fn offer_rotation(app: &mut Faraday, size: (u16, u16), dpi: u16) {
 pub(crate) const TOURS: &[&str] = &[
     "spend",
     "devices",
+    "toasts",
     "themes",
     "tooltips",
     "compact",
@@ -273,6 +275,7 @@ fn named_tour(c: &Compute, t: &mut Tour, name: &str) -> Option<Result<(), String
     Some(match name {
         "spend" => tours::spend::spend_tour(t),
         "devices" => tours::devices::devices_tour(t),
+        "toasts" => tours::devices::toasts_tour(t),
         "themes" => tours::themes::themes_tour(t),
         "tooltips" => tours::tooltips::tooltips_tour(t),
         "compact" => tours::compact::compact_tour(t),
@@ -401,7 +404,7 @@ fn main() -> ExitCode {
     let only = args.get(4).map(String::as_str);
     if only.is_some_and(|m| !TOURS.contains(&m)) {
         eprintln!(
-            "the tour is spend, devices, themes, tooltips, compact, seeds, keys, visit, copy, scan, public, seedfile, vaultway, kept, again, plan, board, menu, m3, inbox, transfer, glance, chartedit, fromvault, first, restore, osk, flow, gpg-restore, bootplace, passseeds, power, pills, components, walletflow, demo, modes, vaultshow, addkey, keygen, codex32correct, createfrom, inprogress, cancel, how, std, parts, panes, guide, roller, randomness, dice5, codex32, codex32tour, codex32form, createshares, codex32backup, screens or tour"
+            "the tour is spend, devices, toasts, themes, tooltips, compact, seeds, keys, visit, copy, scan, public, seedfile, vaultway, kept, again, plan, board, menu, m3, inbox, transfer, glance, chartedit, fromvault, first, restore, osk, flow, gpg-restore, bootplace, passseeds, power, pills, components, walletflow, demo, modes, vaultshow, addkey, keygen, codex32correct, createfrom, inprogress, cancel, how, std, parts, panes, guide, roller, randomness, dice5, codex32, codex32tour, codex32form, createshares, codex32backup, screens or tour"
         );
         return ExitCode::from(2);
     }

@@ -22,16 +22,19 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
     /// Costs measuring and breaking `text`. `text` as Material's
     /// snackbar in the width `cw` from `x`, its foot [`TOAST_MARGIN`]
     /// above `foot`: inverse-surface with extra-small corners at
-    /// elevation level 3, its text in body medium and inverse-on-surface
-    /// from its start, one line [`TOAST_H`] tall, wrapping where the width
-    /// does not hold it. In a compact window (under [`WINDOW_MEDIUM`]) it
-    /// is the window's width less the margins; wider, as wide as its text
-    /// between [`TOAST_MIN_W`] and [`TOAST_MAX_W`], centred. How far it
-    /// has faded in, its shadow with it, is `shown`, from 0 to 1, and
-    /// `rise` how far below its place it still is. Returns the height it
-    /// takes above `foot` with the gap above it: how far above `foot` a
-    /// second one's foot goes. Faded out (`shown` 0), nothing is drawn
-    /// and it takes no room: its time has run out.
+    /// elevation level 3, its text in body medium and inverse-on-surface,
+    /// each line centred (owner, 2026-10-29; Material starts it at the
+    /// start), one line [`TOAST_H`] tall, wrapping where the width does
+    /// not hold it. In a compact window (under [`WINDOW_MEDIUM`]) it is
+    /// the window's width less the margins; wider, as wide as its text
+    /// between [`TOAST_MIN_W`] and [`TOAST_MAX_W`], centred. Where the
+    /// frame's floating action button stands in its way, it stands above
+    /// the button, as Material places it. How far it has faded in, its
+    /// shadow with it, is `shown`, from 0 to 1, and `rise` how far below
+    /// its place it still is. Returns the height it takes above `foot`
+    /// with the gap above it: how far above `foot` a second one's foot
+    /// goes. Faded out (`shown` 0), nothing is drawn and it takes no
+    /// room: its time has run out.
     pub fn snackbar(
         &mut self,
         (x, cw, foot): (f32, f32, f32),
@@ -61,18 +64,36 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
         let lh = self.line_as(TOAST_TEXT);
         let h = (lines as f32 * lh + 2.0 * TOAST_PAD_Y).max(TOAST_H);
         let tx = x + (cw - w) / 2.0;
-        let ty = foot - TOAST_MARGIN - h + rise;
+        let lift = self.above_fab(tx, w, foot - TOAST_MARGIN);
+        let ty = foot - TOAST_MARGIN - lift - h + rise;
         self.shadow_faded((tx, ty, w, h, SHAPE_XS), ELEVATION_FAB, shown);
         self.wash(tx, ty, w, h, SHAPE_XS, fade(SNACKBAR_FILL));
         let mut y = ty + (h - lines as f32 * lh) / 2.0;
         let mut from = 0;
         while let Some((shown_line, next)) = self.snackbar_line(text, from, line) {
-            let at = (tx + TOAST_PAD, y, lh);
+            let lw = self.measure_as(TOAST_TEXT, shown_line).min(line);
+            let at = (tx + (w - lw) / 2.0, y, lh);
             self.text_mid_as(at, TOAST_TEXT, fade(SNACKBAR_INK), shown_line);
             y += lh;
             from = next;
         }
-        h + TOAST_STACK_GAP
+        lift + h + TOAST_STACK_GAP
+    }
+
+    /// How far a snackbar `w` wide from `tx`, its foot at `bottom`,
+    /// goes up to stand [`TOAST_STACK_GAP`] above the frame's floating
+    /// action button where the button is under it; 0 where it is not. A
+    /// lookup.
+    fn above_fab(&self, tx: f32, w: f32, bottom: f32) -> f32 {
+        let Some((fx, fy, fw, _)) = self.fab_at else {
+            return 0.0;
+        };
+        let (fx, fy) = (fx - self.ox, fy - self.oy);
+        let beside = fx >= tx + w || fx + fw <= tx;
+        if beside || fy >= bottom {
+            return 0.0;
+        }
+        bottom - fy + TOAST_STACK_GAP
     }
 
     /// The line of the toast's `text` that starts at byte `from`, broken

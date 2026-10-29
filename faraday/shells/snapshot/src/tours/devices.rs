@@ -125,6 +125,34 @@ pub(crate) fn devices_tour(t: &mut Tour) -> Result<(), String> {
     t.shot("home-empty")
 }
 
+/// Toasts on Home (Material's snackbar): a wireless receiver let in as
+/// a pointer, its one-line toast; a keyboard that typed the wrong code,
+/// a toast long enough to wrap at the narrow sizes.
+pub(crate) fn toasts_tour(t: &mut Tour) -> Result<(), String> {
+    t.app.devices = laptop();
+    t.app.usb_devices(&[]);
+    t.press(Action::Nav(Screen::Home));
+    let held = |id, name: &str, keyboard| faraday_core::StorageEvent::NewInput {
+        id,
+        name: name.into(),
+        keyboard,
+        pointer: !keyboard,
+        touch: false,
+    };
+    t.app.storage(held(11, "USB Receiver", false));
+    t.pump();
+    t.press(Action::InputUse(11));
+    t.shot_after("toast-in-use", 1000)?;
+    t.app.storage(held(12, "USB Keyboard", true));
+    t.pump();
+    let letters = faraday_core::inputs::CODE_LEN * faraday_core::inputs::CODE_TRIES;
+    for _ in 0..letters {
+        t.app
+            .storage(faraday_core::StorageEvent::InputTyped { id: 12, ch: '#' });
+    }
+    t.shot_after("toast-wrong-code", 1000)
+}
+
 /// The wide layout's on-screen keyboard: a receiver's line on Home, the
 /// keyboard brought up from its button on a passphrase entry, and on
 /// Tools.

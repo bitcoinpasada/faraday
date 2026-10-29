@@ -421,6 +421,10 @@ pub struct Ui<'a, A> {
     pub sheet_pinning: bool,
     /// The buttons a sheet's body handed over.
     pub sheet_pin: Option<Vec<(String, Style, A)>>,
+    /// Where this frame's floating action button stands, in the
+    /// window's units (x, y, width, height): a snackbar drawn after it
+    /// stands above it, as Material places one (`snackbar.rs`).
+    fab_at: Option<(f32, f32, f32, f32)>,
     /// The overlay scrollbar for the scrolling region, when it shows:
     /// its opacity (0–255) and the region's offset in units.
     pub bar: Option<(u8, f32)>,
@@ -597,6 +601,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
             bar_tools_x: None,
             sheet_pinning: false,
             sheet_pin: None,
+            fab_at: None,
             disclosure: None,
             column: None,
             follow_to: None,
@@ -1953,6 +1958,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         let lead = ICON_GLYPH + ICON_GAP;
         let width = self.measure_as(LABEL_L, label) + 2.0 * pad + lead;
         let (x, y) = (right - width, bottom - h);
+        self.fab_at = Some((x + self.ox, y + self.oy, width, h));
         let level = if self.is_hovered(action) {
             faraday_draw::tokens::ELEVATION_RAISED
         } else {

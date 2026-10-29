@@ -676,6 +676,38 @@ fn a_toast_over_a_notice_stands_clear_of_it() {
     assert!(notice.bottom() <= 480);
 }
 
+/// A toast that comes up while Home's Scan floats at the foot of a small
+/// panel leaves Scan in sight and pressable: the toast stands above it.
+#[test]
+fn a_toast_leaves_the_floating_button_in_sight() {
+    let mut canvas = canvas();
+    canvas.record_ink(true);
+    let mut hits = Vec::new();
+    {
+        let mut ui: Ui<u8> = Ui::new(&mut canvas, 1.0, &mut hits, None);
+        ui.clear(Role::Surface);
+        ui.fab(344.0, 464.0, Icon::Scan, "Scan", 1);
+        ui.snackbar((0.0, 360.0, 480.0), "USB Receiver is in use", 1.0, 0.0);
+    }
+    let rect = |label: &str| {
+        canvas
+            .ink()
+            .iter()
+            .find_map(|i| match &i.kind {
+                InkKind::Text { text, .. } if text == label => Some(i.rect),
+                _ => None,
+            })
+            .expect("drawn")
+    };
+    let (scan, toast) = (rect("Scan"), rect("USB Receiver is in use"));
+    assert!(toast.bottom() < scan.y, "{toast:?} over {scan:?}");
+    let press = hits
+        .iter()
+        .find(|(_, a)| *a == 1)
+        .expect("Scan takes a press");
+    assert!(press.0.y > toast.bottom(), "{:?} under the toast", press.0);
+}
+
 /// The tooltips' own pairs: plain on inverse-surface, rich on its
 /// container, and its edge against the page.
 #[test]

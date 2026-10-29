@@ -289,7 +289,7 @@ the same.
 | Dialog | surface-container-high | headline on-surface; text on-surface-variant; icon secondary; actions primary | scrim behind |
 | Bottom sheet | surface-container-low | on-surface | drag handle on-surface-variant; scrim behind |
 | Menu (`faraday_ui::menu`) | surface-container | on-surface; a group heading on-surface-variant | shadow, level 2, extra-small corners; at High contrast, where there is no shadow, outline; the chosen item secondary-container with on-secondary-container and a tick |
-| Snackbar (the toast) | inverse-surface | inverse-on-surface, body medium, from its start; action inverse-primary | shadow, level 3, fading in with it; extra-small corners; a compact window's width less its margins, else 344 to 672 dp; a second stands above the first |
+| Snackbar (the toast) | inverse-surface | inverse-on-surface, body medium, each line centred (F163); action inverse-primary | shadow, level 3, fading in with it; extra-small corners; a compact window's width less its margins, else 344 to 672 dp; a second stands above the first, and both above a floating action button in their way |
 | Hold (`Ui::hold_button`) | none; the part held error-container | error; on the part held on-error-container | error edge; full corners |
 | Status tag (`Ui::tag`) | ok-, warning- or error-container, or surface-container-highest | that container's on-role | |
 | Stick pill (`Ui::stick_pill`, F142) | in: its tone; else surface-container-highest | in: white or black; asked: on-surface; else on-surface-variant | asked: its tone; quiet: outline-variant |
