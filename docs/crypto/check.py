@@ -26,7 +26,8 @@ ratchet in tools/lint-crypto.counts. A tile's tag and COMPUTE's table are read
 from their text; a function that takes `&Compute` counting a `Work` kind is not
 checked (the inventory does not record parameters).
 
-Not checked yet: the Learn pages a screen opens (§9.1) and the screens list (§9.2).
+The screens list (§9.2) is checked by `gen_how.screens_check`; the Learn pages a screen
+opens (§9.1) by a test in faraday-core.
 The generated places of §3.1 are written by `docs/crypto/gen.py`, which review
 runs (`regenerate`); `gen.py check` holds them.
 
@@ -73,7 +74,8 @@ STANDARD_OPTIONAL = {"tags"}
 ROW_KEYS = {"id", "section", "what", "completeness", "standard_note", "uses", "no_action",
             "standard", "verified", "own"}
 ROW_TEXTS = ("standard", "verified", "own")
-ACTION_KEYS = {"id", "action", "row", "standards", "learn", "screens", "functions", "code",
+STARTER_PAGES = {"write", "confirm", "writing", "done", "start"}
+ACTION_KEYS = {"id", "name", "screens_not", "action", "row", "standards", "learn", "screens", "functions", "code",
                "novel_rank", "implementation", "checked", "secrets", "limits", "own", "review"}
 IMPL_KEYS = {"crate", "libraries", "adds", "written_here"}
 CHECKED_KEYS = {"vectors", "tests", "crosscheck", "not_crosschecked", "selftest", "fuzz",
@@ -480,9 +482,19 @@ def schema_action(c, a, i):
         e.add("schema", msg, i)
 
     unknown(e, f"action {i}", a, ACTION_KEYS, i)
-    for k in ("action", "row", "learn"):
+    for k in ("name", "action", "row", "learn"):
         if not str_ok(a.get(k)):
             bad(f"`{k}` is missing or empty")
+    if str_ok(a.get("name")) and not 2 <= len(a["name"].split()) <= 6:
+        bad("`name` is the block's heading, 2 to 6 words")
+    sn = a.get("screens_not", [])
+    if not isinstance(sn, list):
+        bad("`screens_not` is not an array of tables")
+        sn = []
+    for n in sn:
+        unknown(e, f"action {i}.screens_not", n, {"screen", "reason"}, i)
+        if not str_ok(n.get("screen")) or not str_ok(n.get("reason")):
+            bad("screens_not: `screen` and `reason` are required")
     for k in ("standards", "screens", "functions", "code"):
         if not isinstance(a.get(k), list) or not all(str_ok(x) for x in a[k]):
             bad(f"`{k}` is not a list of strings")
@@ -655,9 +667,16 @@ def check_truth(c):
                 ok = lp in pages
             if not ok:
                 e.add("untrue", f"Learn page `{lp}` does not exist", i)
-        for s in as_list(a.get("screens")):
-            if screens is None or s not in screens:
-                e.add("untrue", f"screen {s} is not a Screen variant", i)
+        for s in as_list(a.get("screens")) + [n.get("screen") for n in as_list(a.get("screens_not"))]:
+            if s.startswith("starter:"):
+                ok = s[8:] in STARTER_PAGES
+            else:
+                ok = screens is not None and s in screens
+            if not ok:
+                e.add("untrue", f"screen {s} is not a Screen variant or a Starter page", i)
+        for n in as_list(a.get("screens_not")):
+            if n.get("screen") in as_list(a.get("screens")):
+                e.add("untrue", f"screen {n.get('screen')} is in `screens` and `screens_not`", i)
         for o in as_list(a.get("own")):
             d = o.get("decision")
             if d and d != "no decision":
@@ -1081,8 +1100,23 @@ def check_tiles(c):
                   "tag, or back the standard with an action on that screen")
 
 
+def check_ratchet_line(c, key, n):
+    """`key N` of tools/lint-crypto.counts only falls."""
+    m = re.search(rf"^{key}\s+(\d+)\s*$", c.read(COUNTS), re.M)
+    if not m:
+        c.errors.add("ratchet", f"{COUNTS} has no line `{key} N`")
+    elif n > int(m.group(1)):
+        c.errors.add("ratchet", f"{n} `{key}` entries and {COUNTS} allows {m.group(1)}: have "
+                     "the owner raise the count (recorded in DECISIONS)")
+    elif n < int(m.group(1)):
+        c.notes.append(f"{COUNTS} allows {m.group(1)} `{key}` entries and there are {n}: "
+                       f"lower the count to {n}")
+
+
 def check_ratchet(c):
     """tools/lint-crypto.counts holds the count of [[not_crypto]] entries; it only falls."""
+    check_ratchet_line(c, "screens_not",
+                       sum(len(as_list(a.get("screens_not"))) for a in c.actions))
     n = len(c.data.get("not_crypto", []))
     m = re.search(r"^not_crypto\s+(\d+)\s*$", c.read(COUNTS), re.M)
     if not m:
@@ -1096,7 +1130,21 @@ def check_ratchet(c):
                        f"lower the count to {n}")
 
 
+def check_screens(c):
+    """§9.2: a screen whose code calls an action's root is in its `screens` or `screens_not`."""
+    sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+    try:
+        import gen_how  # noqa: PLC0415
+        found = gen_how.screens_check(c.root, c.data)
+    finally:
+        sys.path.pop(0)
+    for a, s, f in found:
+        c.errors.add("screens", f"{s} calls a root of the action ({f}) and is in neither "
+                     "`screens` nor `screens_not`", a)
+
+
 def run_checks(c):
+    check_screens(c)
     check_deps(c)
     check_schema(c)
     check_truth(c)
@@ -1384,6 +1432,7 @@ completeness = "All"
 
 [[action]]
 id = "one"
+name = "Do one"
 action = "Does one."
 row = "row-one"
 standards = ["BIP 1"]
@@ -1423,6 +1472,7 @@ places = []
 
 [[action]]
 id = "two"
+name = "Do two"
 action = "Does two."
 row = "row-one"
 standards = ["BIP 1"]
@@ -1465,7 +1515,7 @@ FIXTURE_FILES = {
                        "| `Sign` | `a::g` |\n| Faraday's own | `plan::map` |\n\n## 3. Who\n",
     "faraday/faraday-core/src/catalog.rs": "pub const TILES: &[Tile] = &[\n    Tile {\n"
                                            "        tags: &[\"BIP-1\"],\n        go: Go::Sign,\n    },\n];\n",
-    "tools/lint-crypto.counts": "not_crypto 0\n",
+    "tools/lint-crypto.counts": "not_crypto 0\nscreens_not 0\n",
 }
 
 FIXTURE_CARGO = '''[[package]]

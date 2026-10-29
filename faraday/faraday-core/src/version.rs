@@ -74,6 +74,12 @@ pub fn is_release() -> bool {
     BUILD.is_some_and(|b| !b.contains('+'))
 }
 
+/// [`version_label`], worked out once and kept: a lookup.
+pub fn release() -> &'static str {
+    static LABEL: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+    LABEL.get_or_init(version_label)
+}
+
 /// What About and Settings show for the running build: `BUILD` described
 /// (`docs/DECISIONS.md` F5) when set, else the crate's version, marked as
 /// a local build.

@@ -10,14 +10,17 @@ use faraday_draw::tokens::{BODY_L, BODY_M, GAP, GAP_SMALL, ICON_GLYPH_SMALL, LIS
 use faraday_draw::widgets::Icon;
 use faraday_learn::block::{Area, Block, CrossCheck, Kind, Line};
 use faraday_strings::{EN, fill};
+use std::sync::{Arc, Mutex};
 
 use crate::{Role, Ui};
 
 /// The blocks in `blocks`, one after another from (x, y), `w` wide, a
 /// full-width divider with `GAP` above and below between two. `release`
 /// is the build's own release string, put before each Code entry.
-/// Returns the height used. Costs a pass over the blocks' text; the
-/// strings it makes are the Code entries'.
+/// Returns the height used. A block's height is kept for the width and
+/// text size it was drawn at, and a block wholly outside the clip is not
+/// drawn again: it costs a lookup. Costs a pass over the text of the
+/// blocks in view, and of those not yet drawn.
 pub fn blocks<A: Copy + PartialEq>(
     ui: &mut Ui<A>,
     (x, y, w): (f32, f32, f32),
@@ -31,52 +34,119 @@ pub fn blocks<A: Copy + PartialEq>(
             ui.rule(x, cy, w, Role::OutlineVariant);
             cy += GAP;
         }
-        cy += block(ui, (x, cy, w), b, release);
+        cy += kept_block(ui, (x, cy, w), b, release);
     }
     cy - y
 }
 
+/// What a kept height is kept for: the width and scale in pixels and the
+/// two line heights the block's text is set in.
+type Key = (i32, i32, u32, u32);
+
+/// [`block`], or its kept height where the block lies wholly outside the
+/// clip and has been drawn at this width and text size before.
+fn kept_block<A: Copy + PartialEq>(
+    ui: &mut Ui<A>,
+    at: (f32, f32, f32),
+    b: &Block,
+    release: &str,
+) -> f32 {
+    let key = (
+        ui.px(at.2),
+        ui.px(GAP),
+        ui.line_as(BODY_M).to_bits(),
+        ui.line_as(BODY_L).to_bits(),
+    );
+    let cooked = cooked(b, release);
+    kept(ui, &cooked, key, 0, at.1, &mut |ui, y| {
+        block(ui, (at.0, y, at.2), b, &cooked, key)
+    })
+}
+
+/// `draw` at `y`, which returns the height it took, unless the part
+/// `index` of the block is known to be that tall at `key` and lies wholly
+/// outside the clip: then only its kept height. A lookup in that case.
+fn kept<A: Copy + PartialEq>(
+    ui: &mut Ui<A>,
+    cooked: &Cooked,
+    key: Key,
+    index: usize,
+    y: f32,
+    draw: &mut dyn FnMut(&mut Ui<A>, f32) -> f32,
+) -> f32 {
+    let known = {
+        let heights = cooked.heights.lock().unwrap_or_else(|e| e.into_inner());
+        heights
+            .iter()
+            .find(|(k, n, _)| *k == key && *n == index)
+            .map(|(_, _, h)| *h)
+    };
+    if let Some(h) = known {
+        let clip = ui.c.clip();
+        let (top, bottom) = (ui.px(y + ui.oy), ui.px(y + ui.oy + h));
+        if bottom < clip.y || top > clip.y + clip.h {
+            return h;
+        }
+    }
+    let h = draw(ui, y);
+    if known.is_none() {
+        let mut heights = cooked.heights.lock().unwrap_or_else(|e| e.into_inner());
+        heights.push((key, index, h));
+    }
+    h
+}
+
 /// One block from (x, y): the action's name in Title S, then the nine
-/// fields in order. Returns the height used.
+/// fields in order, each kept apart (`kept`). Returns the height used.
 fn block<A: Copy + PartialEq>(
     ui: &mut Ui<A>,
     (x, y, w): (f32, f32, f32),
     b: &Block,
-    release: &str,
+    cooked: &Cooked,
+    key: Key,
 ) -> f32 {
     let mut cy = y;
-    cy += ui.wrap_as((x, cy, w), TITLE_S, Role::OnSurface, b.name);
+    cy += kept(ui, cooked, key, 1, cy, &mut |ui, y| {
+        ui.wrap_as((x, y, w), TITLE_S, Role::OnSurface, b.name)
+    });
     let one = [Line {
         text: b.action,
         kind: Kind::Plain,
     }];
-    cy += field(ui, (x, cy, w), EN.how_field_action, &one);
-    cy += field(ui, (x, cy, w), EN.how_field_standards, b.standards);
-    cy += field(
-        ui,
-        (x, cy, w),
-        EN.how_field_implementation,
-        b.implementation,
-    );
-    cy += field(ui, (x, cy, w), EN.how_field_checked, b.checked);
-    cy += cross_check(ui, (x, cy, w), &b.cross_check);
-    let mut code: Vec<(String, Kind)> = b
-        .code
-        .iter()
-        .map(|c| {
-            (
-                fill(EN.how_code_entry, &[release, c.file, c.function]),
-                Kind::Mono,
+    let fields: [(&str, &[Line]); 4] = [
+        (EN.how_field_action, &one),
+        (EN.how_field_standards, b.standards),
+        (EN.how_field_implementation, b.implementation),
+        (EN.how_field_checked, b.checked),
+    ];
+    for (n, (label, lines)) in fields.into_iter().enumerate() {
+        cy += kept(ui, cooked, key, 2 + n, cy, &mut |ui, y| {
+            field(ui, (x, y, w), label, lines)
+        });
+    }
+    cy += kept(ui, cooked, key, 6, cy, &mut |ui, y| {
+        cross_check(ui, (x, y, w), &b.cross_check, &cooked.run)
+    });
+    cy += kept(ui, cooked, key, 7, cy, &mut |ui, y| {
+        item(ui, (x, y, w), EN.how_field_code, |ui, at| {
+            let all = cooked.code.iter().map(String::as_str);
+            entries(
+                ui,
+                at,
+                all.chain([EN.how_repository]).map(|t| (t, Kind::Mono)),
             )
         })
-        .collect();
-    code.push((EN.how_repository.to_string(), Kind::Mono));
-    cy += item(ui, (x, cy, w), EN.how_field_code, |ui, at| {
-        entries(ui, at, code.iter().map(|(t, k)| (t.as_str(), *k)))
     });
-    cy += field(ui, (x, cy, w), EN.how_field_secret, b.secret);
-    cy += field(ui, (x, cy, w), EN.how_field_limits, b.limits);
-    cy += field(ui, (x, cy, w), EN.how_field_own_calls, b.own_calls);
+    let rest: [(&str, &[Line]); 3] = [
+        (EN.how_field_secret, b.secret),
+        (EN.how_field_limits, b.limits),
+        (EN.how_field_own_calls, b.own_calls),
+    ];
+    for (n, (label, lines)) in rest.into_iter().enumerate() {
+        cy += kept(ui, cooked, key, 8 + n, cy, &mut |ui, y| {
+            field(ui, (x, y, w), label, lines)
+        });
+    }
     cy - y
 }
 
@@ -95,40 +165,101 @@ fn field<A: Copy + PartialEq>(
 /// Cross-check: one item, its parts each a paragraph led by the part's
 /// name in the medium face of Body M. An action with no area has the one
 /// paragraph that says why.
-fn cross_check<A: Copy + PartialEq>(ui: &mut Ui<A>, at: (f32, f32, f32), cc: &CrossCheck) -> f32 {
+fn cross_check<A: Copy + PartialEq>(
+    ui: &mut Ui<A>,
+    at: (f32, f32, f32),
+    cc: &CrossCheck,
+    run: &str,
+) -> f32 {
     item(ui, at, EN.how_field_crosscheck, |ui, (x, y, w)| match cc {
         CrossCheck::Not(why) => line(ui, (x, y, w), why, Kind::Warn),
-        CrossCheck::Area(a) => area(ui, (x, y, w), a),
+        CrossCheck::Area(a) => area(ui, (x, y, w), a, run),
     })
 }
 
 /// An area's parts, a `GAP_SMALL` apart.
-fn area<A: Copy + PartialEq>(ui: &mut Ui<A>, (x, y, w): (f32, f32, f32), a: &Area) -> f32 {
-    let run = fill(EN.how_cc_seed_cases, &[a.seed, &a.cases.to_string()]);
-    let of = |lines: &'static [Line]| -> Vec<(&str, Kind)> {
-        lines.iter().map(|l| (l.text, l.kind)).collect()
+fn area<A: Copy + PartialEq>(
+    ui: &mut Ui<A>,
+    (x, y, w): (f32, f32, f32),
+    a: &Area,
+    run: &str,
+) -> f32 {
+    let name = |ui: &mut Ui<A>, cy: f32, name: &str| {
+        GAP_SMALL
+            + ui.wrap_as(
+                (x, cy + GAP_SMALL, w),
+                BODY_M.medium(),
+                Role::OnSurfaceVariant,
+                name,
+            )
     };
-    let parts: [(&str, Vec<(&str, Kind)>); 8] = [
-        (EN.how_cc_area, vec![(a.area, Kind::Plain)]),
-        (EN.how_cc_code, of(a.code)),
-        (EN.how_cc_second, of(a.second)),
-        (EN.how_cc_vectors, of(a.vectors)),
-        (EN.how_cc_random, of(a.random)),
-        (EN.how_cc_differences, of(a.differences)),
-        (EN.how_cc_when, of(a.when)),
-        (EN.how_cc_last_run, vec![(run.as_str(), Kind::Mono)]),
-    ];
     let mut cy = y;
-    for (i, (name, lines)) in parts.iter().enumerate() {
-        if i > 0 {
-            cy += GAP_SMALL;
-        }
-        cy += ui.wrap_as((x, cy, w), BODY_M.medium(), Role::OnSurfaceVariant, name);
-        for &(text, kind) in lines {
-            cy += line(ui, (x, cy, w), text, kind);
+    cy += ui.wrap_as(
+        (x, cy, w),
+        BODY_M.medium(),
+        Role::OnSurfaceVariant,
+        EN.how_cc_area,
+    );
+    cy += line(ui, (x, cy, w), a.area, Kind::Plain);
+    let parts: [(&str, &[Line]); 6] = [
+        (EN.how_cc_code, a.code),
+        (EN.how_cc_second, a.second),
+        (EN.how_cc_vectors, a.vectors),
+        (EN.how_cc_random, a.random),
+        (EN.how_cc_differences, a.differences),
+        (EN.how_cc_when, a.when),
+    ];
+    for (label, lines) in parts {
+        cy += name(ui, cy, label);
+        for l in lines {
+            cy += line(ui, (x, cy, w), l.text, l.kind);
         }
     }
+    cy += name(ui, cy, EN.how_cc_last_run);
+    cy += line(ui, (x, cy, w), run, Kind::Mono);
     cy - y
+}
+
+/// What a block's drawing formats from the release and its manifest text:
+/// the Code entries and the Cross-check's last run.
+struct Cooked {
+    /// The height of each part of the block (0 the whole) at a `Key`, as drawn.
+    heights: Mutex<Vec<(Key, usize, f32)>>,
+    release: String,
+    code: Vec<String>,
+    run: String,
+}
+
+/// The formatted Code entries and last run of `b` for `release`. Costs the
+/// formats the first time a block is drawn in a process (the release does
+/// not change within one); a lookup, and a reference count, after it.
+fn cooked(b: &Block, release: &str) -> Arc<Cooked> {
+    static KEPT: Mutex<Vec<(&'static str, Arc<Cooked>)>> = Mutex::new(Vec::new());
+    let mut kept = KEPT.lock().unwrap_or_else(|e| e.into_inner());
+    if let Some((_, c)) = kept
+        .iter()
+        .find(|(id, c)| *id == b.id && c.release == release)
+    {
+        return Arc::clone(c);
+    }
+    let code = b
+        .code
+        .iter()
+        .map(|c| fill(EN.how_code_entry, &[release, c.file, c.function]))
+        .collect();
+    let run = match b.cross_check {
+        CrossCheck::Area(a) => fill(EN.how_cc_seed_cases, &[a.seed, &a.cases.to_string()]),
+        CrossCheck::Not(_) => String::new(),
+    };
+    let c = Arc::new(Cooked {
+        heights: Mutex::new(Vec::new()),
+        release: release.to_string(),
+        code,
+        run,
+    });
+    kept.retain(|(id, _)| *id != b.id);
+    kept.push((b.id, Arc::clone(&c)));
+    c
 }
 
 /// A list item at (x, y): its headline `label` in Body L, `value` drawn

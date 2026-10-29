@@ -153,7 +153,9 @@ report "heap text in secret-handling source (rule 3)" \
 # examples/ and fuzz/; the snapshot shell and faraday/tools/ (test
 # renders and test data); faraday-core's testkit.rs (the `testkit`
 # feature, which tools/lint-keys-tests.sh keeps out of every shipped
-# binary). faraday-intake is exempt from 4b only: it reads text as it
+# binary); faraday-learn's how.rs, which the manifest generates and which
+# names the functions as text (docs/CRYPTO-LEARN.md §3.1) without calling any.
+# faraday-intake is exempt from 4b only: it reads text as it
 # arrives (transient input, KEYS §2) and keeps none of it, and
 # faraday-keys depends on it.
 #
@@ -168,7 +170,8 @@ boundary_files() {
         -not -path 'faraday/faraday-vault/*' \
         -not -path '*/tests/*' -not -path '*/examples/*' -not -path 'faraday/fuzz/*' \
         -not -path 'faraday/shells/snapshot/*' -not -path 'faraday/tools/*' \
-        -not -path 'faraday/faraday-core/src/testkit.rs' | sort
+        -not -path 'faraday/faraday-core/src/testkit.rs' \
+        -not -path 'faraday/faraday-learn/src/how.rs' | sort
 }
 in_code() {
     # $1 = pattern; the files follow. Comment lines are skipped.

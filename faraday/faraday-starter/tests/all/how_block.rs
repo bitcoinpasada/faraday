@@ -2,7 +2,7 @@
 //! pages that write what was chosen carry the button in the top app bar,
 //! it opens a sheet with the blocks of the page's actions, and Close, a
 //! press beside the sheet or the back arrow put it away. Checked with the
-//! sample block, which stands on What to write; the Learn destination
+//! real block of writing an image, which stands on What to write; the Learn destination
 //! lists the page about what is written.
 
 use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
@@ -93,19 +93,25 @@ fn what_to_write_offers_the_button_and_it_opens_the_blocks_at_every_width() {
             s.offers_action(StarterAction::How),
             "{w}x{h}: the button is in the bar"
         );
-        assert!(!shows(&mut s, "Sample action"), "{w}x{h}: the page first");
+        assert!(
+            !shows(&mut s, "Write an image to a stick"),
+            "{w}x{h}: the page first"
+        );
         s.press(StarterAction::How);
         assert!(shows(&mut s, EN.starter_how_title), "{w}x{h}: the sheet");
         for text in [
-            "Sample action",
+            "Write an image to a stick",
             EN.how_field_action,
-            EN.how_field_crosscheck,
+            EN.how_field_standards,
             EN.starter_how_close,
         ] {
             assert!(shows(&mut s, text), "{w}x{h}: {text}");
         }
         s.press(StarterAction::Cancel);
-        assert!(!shows(&mut s, "Sample action"), "{w}x{h}: Close");
+        assert!(
+            !shows(&mut s, "Write an image to a stick"),
+            "{w}x{h}: Close"
+        );
         assert_eq!(s.page, Page::Mode, "{w}x{h}: still on the page");
     }
 }
@@ -115,13 +121,13 @@ fn the_sheet_is_put_away_by_the_back_arrow_and_by_the_button_again() {
     let mut s = starter(1280, 800);
     to_what_to_write(&mut s);
     s.press(StarterAction::How);
-    assert!(shows(&mut s, "Sample action"));
+    assert!(shows(&mut s, "Write an image to a stick"));
     s.press(StarterAction::Back);
-    assert!(!shows(&mut s, "Sample action"));
+    assert!(!shows(&mut s, "Write an image to a stick"));
     assert_eq!(s.page, Page::Mode, "the back arrow closed the sheet only");
     s.press(StarterAction::How);
     s.press(StarterAction::How);
-    assert!(!shows(&mut s, "Sample action"));
+    assert!(!shows(&mut s, "Write an image to a stick"));
 }
 
 #[test]

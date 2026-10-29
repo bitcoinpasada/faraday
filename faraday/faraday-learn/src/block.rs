@@ -41,8 +41,9 @@ pub struct Code {
 pub enum CrossCheck {
     /// "not cross-checked: <reason>", whole, drawn as a Warn line.
     Not(&'static str),
-    /// The action's area.
-    Area(Area),
+    /// The action's area, written once and referred to by every block
+    /// of the area.
+    Area(&'static Area),
 }
 
 /// An area of the cross-check, its parts in the order the block draws

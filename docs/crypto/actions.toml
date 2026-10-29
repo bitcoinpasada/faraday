@@ -843,6 +843,7 @@ source = "tools/reference/aezeed/README.md"
 
 [[action]]
 id = "words-read"
+name = "Read the words"
 action = "Reads seed words typed, pasted or scanned, and checks their count and checksum."
 row = "bip39"
 standards = [
@@ -930,6 +931,7 @@ places = [
 
 [[action]]
 id = "words-make"
+name = "Make the words"
 action = "Turns 16 to 32 bytes of entropy into seed words, with the checksum bits BIP 39 adds."
 row = "bip39"
 standards = [
@@ -975,6 +977,7 @@ lines = [
 
 [[action]]
 id = "seed"
+name = "Make the seed"
 action = "Makes the 64-byte seed from words and a passphrase by PBKDF2-HMAC-SHA512, 2048 rounds, and adds the key it gives to the session."
 row = "bip39"
 standards = [
@@ -987,6 +990,8 @@ screens = [
   "Restore",
   "VaultContents",
   "Family",
+  "Bip85",
+  "Vanity",
 ]
 functions = [
   "core/faraday-bip/src/bip39.rs::Mnemonic::to_seed",
@@ -1049,6 +1054,7 @@ places = [
 
 [[action]]
 id = "master"
+name = "Make the master key"
 action = "Makes a master key and its fingerprint from a seed or an extended private key, by BIP 32."
 row = "single-key"
 standards = [
@@ -1139,6 +1145,7 @@ places = [
 
 [[action]]
 id = "derive"
+name = "Derive a child key"
 action = "Derives a child key and the extended public key of an account, by BIP 32 and the purposes of BIP 44, 49, 84 and 86."
 row = "single-key"
 standards = [
@@ -1155,6 +1162,7 @@ screens = [
   "Wallets",
   "Tools",
   "Restore",
+  "Vanity",
 ]
 functions = [
   "core/faraday-bip/src/keys.rs::MasterKey::derive",
@@ -1255,6 +1263,7 @@ places = [
 
 [[action]]
 id = "multisig-account"
+name = "Derive a cosigner account"
 action = "Derives a BIP 48 cosigner account and its extended public key, and lends the account key to sign a BSMS key record."
 row = "multisig"
 standards = [
@@ -1325,6 +1334,7 @@ places = [
 
 [[action]]
 id = "hold"
+name = "Hold a key in memory"
 action = "Holds a key in memory blinded, on pinned pages and sealed under a session key."
 row = "keys-held"
 standards = []
@@ -1411,6 +1421,7 @@ places = [
 
 [[action]]
 id = "seed-shown"
+name = "Show the master seed"
 action = "Shows the master seed of a key with no words in hex, and its codex32 secret and strings where the set is known."
 row = "explore-key"
 standards = [
@@ -1464,6 +1475,7 @@ places = [
 
 [[action]]
 id = "xprv-shown"
+name = "Show an extended private key"
 action = "Shows an extended private key at a path below a held key."
 row = "explore-key"
 standards = [
@@ -1522,6 +1534,7 @@ places = [
 
 [[action]]
 id = "wif-shown"
+name = "Show an address's private key"
 action = "Shows the private key of one address as a compressed WIF."
 row = "explore-key"
 standards = [
@@ -1576,6 +1589,7 @@ places = [
 
 [[action]]
 id = "words-shown"
+name = "Show a key's words"
 action = "Lends a key's words or passphrase as text for a named reason, and shows them on screen or for copying by hand."
 row = "keys-held"
 standards = []
@@ -1637,6 +1651,7 @@ places = [
 
 [[action]]
 id = "hashes-macs"
+name = "Hash and authenticate bytes"
 action = "Hashes and authenticates bytes with SHA-256, HMAC-SHA256 and HMAC-SHA512, and stretches a password with PBKDF2."
 row = "hash-primitives"
 standards = [
@@ -1705,6 +1720,7 @@ places = [
 
 [[action]]
 id = "scrypt"
+name = "Stretch a password with scrypt"
 action = "Stretches a password with scrypt, written in this crate, for LND's aezeed."
 row = "hash-primitives"
 standards = [
@@ -1760,6 +1776,7 @@ places = [
 
 [[action]]
 id = "address"
+name = "Derive an address"
 action = "Derives the script and the address of a wallet at a chain and an index, and looks for an address among a wallet's first addresses."
 row = "single-key"
 standards = [
@@ -1855,6 +1872,7 @@ places = [
 
 [[action]]
 id = "descriptor"
+name = "Read and write a descriptor"
 action = "Reads and writes a wallet's descriptor and wallet policy, and works out and checks the descriptor checksum."
 row = "descriptors"
 standards = [
@@ -1875,6 +1893,9 @@ screens = [
   "Restore",
   "Create",
   "Tools",
+  "Explore",
+  "Silent",
+  "VaultContents",
 ]
 functions = [
   "core/faraday-bip/src/policy.rs::WalletPolicy::parse",
@@ -1912,6 +1933,18 @@ code = [
   "core/faraday-bip/src/policy.rs::WalletPolicy::to_descriptor",
   "core/faraday-bip/src/descriptor.rs::descriptor_checksum",
 ]
+
+[[action.screens_not]]
+screen = "CreateVault"
+reason = "the vault module serves every vault screen; a press on this screen does not write a wallet's descriptor; that is done on an open vault's contents"
+
+[[action.screens_not]]
+screen = "Unlock"
+reason = "the vault module serves every vault screen; a press on this screen does not write a wallet's descriptor; it unlocks one slot"
+
+[[action.screens_not]]
+screen = "Vaults"
+reason = "the vault module serves every vault screen; a press on this screen does not write a wallet's descriptor; it lists the vaults"
 
 [action.implementation]
 crate = "core/faraday-bip"
@@ -1977,6 +2010,7 @@ places = [
 
 [[action]]
 id = "recovery"
+name = "Build a recovery wallet"
 action = "Builds a timelocked recovery wallet from its parts and reads the parts back out of one."
 row = "miniscript-recovery"
 standards = [
@@ -2047,6 +2081,7 @@ places = [
 
 [[action]]
 id = "tapmulti"
+name = "Read taproot multisig"
 action = "Reads taproot multisig descriptors with multi_a and sortedmulti_a, and builds their scripts at each derivation index."
 row = "taproot-multisig"
 standards = [
@@ -2124,6 +2159,7 @@ places = [
 
 [[action]]
 id = "wallet-files"
+name = "Read a wallet export"
 action = "Reads another wallet's export (Coldcard JSON and multisig configuration files) as a wallet and checks the first address it states; writes a native SegWit single-key wallet as Coldcard's file for Wasabi."
 row = "wallet-files"
 standards = [
@@ -2135,6 +2171,7 @@ screens = [
   "Files",
   "Restore",
   "WalletsStart",
+  "Family",
 ]
 functions = [
   "core/faraday-bip/src/coldcard.rs::looks_like_export",
@@ -2211,6 +2248,7 @@ places = [
 
 [[action]]
 id = "bsms"
+name = "Read BSMS records"
 action = "Reads BSMS key and descriptor records, checks the signature on a signer's record and writes this device's own signed record."
 row = "bsms"
 standards = [
@@ -2294,6 +2332,7 @@ places = [
 
 [[action]]
 id = "compile"
+name = "Compile a spending policy"
 action = "Compiles a spending policy to a miniscript descriptor and lists the ways it can be spent."
 row = "miniscript-compiler"
 standards = [
@@ -2349,6 +2388,7 @@ places = [
 
 [[action]]
 id = "musig-key"
+name = "Aggregate MuSig2 keys"
 action = "Aggregates MuSig2 public keys (BIP 327), publishes the aggregate as an extended public key (BIP 328) and reads the musig() expression of a wallet (BIP 390)."
 row = "musig2"
 standards = [
@@ -2442,6 +2482,7 @@ places = [
 
 [[action]]
 id = "xpub-spellings"
+name = "Write an xpub spelling"
 action = "Writes and reads an extended public key in its SLIP-132 spelling, and takes a version only where it agrees with the script and the path around the key."
 row = "hashes-encodings"
 standards = [
@@ -2518,6 +2559,7 @@ places = [
 
 [[action]]
 id = "address-read"
+name = "Read an address"
 action = "Reads an address typed or scanned, and says whether the text so far can still become an address on a network."
 row = "hashes-encodings"
 standards = [
@@ -2579,6 +2621,7 @@ places = [
 
 [[action]]
 id = "tools-hash"
+name = "Hash and encode text"
 action = "Hashes bytes with SHA-256, SHA-256d and HASH160, and reads and writes Base58Check, bech32 and bech32m text."
 row = "hashes-encodings"
 standards = [
@@ -2647,6 +2690,7 @@ places = [
 
 [[action]]
 id = "dice"
+name = "Turn dice into entropy"
 action = "Turns dice rolls into entropy by one of three published procedures, and cautions about runs, sequences and skew."
 row = "dice"
 standards = [
@@ -2720,6 +2764,7 @@ places = [
 
 [[action]]
 id = "coins-hex"
+name = "Pack coins and hex"
 action = "Packs coin flips into entropy most significant bit first, and takes hexadecimal digits as they are."
 row = "coins-hex"
 standards = []
@@ -2781,6 +2826,7 @@ places = [
 
 [[action]]
 id = "cards"
+name = "Turn cards into entropy"
 action = "Turns playing-card draws into entropy as SHA-256 of the draws' indices, one byte each."
 row = "cards"
 standards = []
@@ -2839,6 +2885,7 @@ places = [
 
 [[action]]
 id = "camera"
+name = "Turn the camera into entropy"
 action = "Turns camera frames into entropy as SHA-256 over the frames' SHA-256 digests."
 row = "camera"
 standards = []
@@ -2898,6 +2945,7 @@ places = [
 
 [[action]]
 id = "pointer-keys"
+name = "Record pointer and keys"
 action = "Records pointer moves and key presses with time and a running count, and commits them in batches of SHA-256 for the session's randomness."
 row = "own-randomness"
 standards = []
@@ -2952,6 +3000,7 @@ places = [
 
 [[action]]
 id = "mix"
+name = "Mix entropy sources"
 action = "Combines two to five sources by hashing their commitments in the order taken."
 row = "mix-sources"
 standards = []
@@ -3008,6 +3057,7 @@ places = [
 
 [[action]]
 id = "device"
+name = "Take the device's entropy"
 action = "Hashes the 32 bytes the shell answered the entropy request with into a key's entropy."
 row = "device-random"
 standards = []
@@ -3062,6 +3112,7 @@ places = [
 
 [[action]]
 id = "system-random"
+name = "Read the system's randomness"
 action = "Reads 32 bytes from the system's generator for the desktop app and names the source."
 row = "own-randomness"
 standards = []
@@ -3118,6 +3169,7 @@ places = [
 
 [[action]]
 id = "fresh"
+name = "Keep the session's randomness"
 action = "Keeps the session's seed and pool from the shell's answers, mixes a person's own randomness in, never in place of the system's, and draws the seed of a MuSig2 round."
 row = "own-randomness"
 standards = []
@@ -3196,6 +3248,7 @@ places = [
 
 [[action]]
 id = "booklet"
+name = "Read the booklet's dice"
 action = "Reads the codex32 booklet's dice de-biasing worksheet: ten rolls of five dice make one bech32 character."
 row = "booklet-dice"
 standards = [
@@ -3250,6 +3303,7 @@ places = [
 
 [[action]]
 id = "roller"
+name = "Roll simulated dice"
 action = "Rolls simulated dice for Faraday Demo from the session's randomness, one value per byte with no bias."
 row = "demo-roller"
 standards = []
@@ -3303,6 +3357,7 @@ places = [
 
 [[action]]
 id = "diceware"
+name = "Choose Diceware words"
 action = "Chooses Diceware words for a passphrase from dice rolls, from the three EFF lists checked by digest."
 row = "diceware"
 standards = [
@@ -3356,6 +3411,7 @@ places = [
 
 [[action]]
 id = "bip85"
+name = "Derive a child seed"
 action = "Derives a BIP 85 child (words, a WIF, an extended private key, hex or a password) from a held key."
 row = "bip85"
 standards = [
@@ -3436,6 +3492,7 @@ places = [
 
 [[action]]
 id = "vanity"
+name = "Grind a vanity address"
 action = "Grinds a counter on a key's passphrase or account index until its first address begins with the characters chosen."
 row = "vanity"
 standards = [
@@ -3501,6 +3558,7 @@ places = [
 
 [[action]]
 id = "aezeed"
+name = "Read an aezeed"
 action = "Reads an LND aezeed: 24 words, checksum, scrypt key and AEZ decipher, giving the entropy, version and birthday."
 row = "aezeed"
 standards = [
@@ -3577,6 +3635,7 @@ places = [
 
 [[action]]
 id = "lightning-node"
+name = "Derive a Lightning key"
 action = "Derives a Lightning node key from words (ldk-node) or from an aezeed (LND)."
 row = "lightning-node"
 standards = [
@@ -3650,6 +3709,7 @@ places = [
 
 [[action]]
 id = "silent-receive"
+name = "Receive silent payments"
 action = "Derives a silent payments address, labels and scan key (BIP 352, 392) and finds the payments a transaction makes to them."
 row = "silent-receive"
 standards = [
@@ -3757,6 +3817,7 @@ places = [
 
 [[action]]
 id = "words-identity"
+name = "Compare two keys' words"
 action = "Tells whether two keys, or a key and a copy of its words, have the same words, by a SHA-256 of their entropy, and orders the copy check's questions."
 row = "keys-held"
 standards = [
@@ -3768,6 +3829,7 @@ screens = [
   "BackupFlow",
   "VaultContents",
   "Create",
+  "KeyGen",
 ]
 functions = [
   "faraday/faraday-keys/src/session.rs::Keys::words_id",
@@ -3785,6 +3847,10 @@ functions = [
 code = [
   "faraday/faraday-keys/src/session.rs::Keys::words_id",
 ]
+
+[[action.screens_not]]
+screen = "Silent"
+reason = "`silent::check::Check` is a type of the same name as a root's method; nothing here compares words"
 
 [action.implementation]
 crate = "faraday/faraday-keys"
@@ -3918,6 +3984,7 @@ source = "vendored: tools/vectors/codex32qr"
 
 [[action]]
 id = "psbt-read"
+name = "Read a PSBT"
 action = "Reads a version 0 PSBT from bytes or base64 and writes it back as it was read."
 row = "psbt-v0"
 standards = ["BIP 174"]
@@ -3983,6 +4050,7 @@ places = ["core/faraday-psbt/README.md#What is refused"]
 
 [[action]]
 id = "psbt-v2"
+name = "Read a version 2 PSBT"
 action = "Reads a version 2 PSBT as its key-value maps, checks BIP 370's shape and converts it to version 0 and back."
 row = "psbt-v2"
 standards = ["BIP 370"]
@@ -4039,6 +4107,7 @@ places = ["core/faraday-psbt/README.md#What is refused"]
 
 [[action]]
 id = "psbt-review"
+name = "Review what a PSBT pays"
 action = "Reads what a PSBT spends and pays: amounts, fee, verified change, warnings, and the wallet it defines for registering."
 row = "address-change"
 standards = [
@@ -4144,6 +4213,7 @@ places = [
 
 [[action]]
 id = "sighash-review"
+name = "Review the sighash types"
 action = "Reads each input's sighash type and signs only SIGHASH_ALL and SIGHASH_DEFAULT."
 row = "sighash"
 standards = [
@@ -4201,6 +4271,7 @@ places = ["core/faraday-psbt/README.md#Warning thresholds"]
 
 [[action]]
 id = "sign-ecdsa"
+name = "Sign with ECDSA"
 action = "Signs a transaction input with ECDSA, from the key the PSBT's origin names, and checks the key against the script."
 row = "ecdsa-nonces"
 standards = [
@@ -4281,6 +4352,7 @@ places = ["core/faraday-psbt/README.md#Signing", "docs/learn/13-nonces.md"]
 
 [[action]]
 id = "sign-schnorr"
+name = "Sign with Schnorr"
 action = "Signs a taproot input with BIP 340, by the key path or under a tap leaf's hash."
 row = "schnorr"
 standards = [
@@ -4339,6 +4411,7 @@ places = ["core/faraday-psbt/README.md#Signing", "docs/learn/13-nonces.md"]
 
 [[action]]
 id = "sign-musig"
+name = "Sign with MuSig2"
 action = "Signs as one MuSig2 participant: draws a nonce, signs with it or signs last, and aggregates the partial signatures."
 row = "musig2"
 standards = [
@@ -4420,6 +4493,7 @@ places = ["core/faraday-psbt/README.md#MuSig2", "docs/learn/13-nonces.md"]
 
 [[action]]
 id = "sign-check"
+name = "Check a PSBT's signatures"
 action = "Checks every signature a PSBT carries, finds a nonce used twice, recomputes this device's signatures and compares two PSBTs."
 row = "ecdsa-nonces"
 standards = [
@@ -4483,6 +4557,7 @@ places = ["core/faraday-psbt/README.md#Signing", "docs/learn/13-nonces.md"]
 
 [[action]]
 id = "finalize"
+name = "Finalize a transaction"
 action = "Builds the final scriptSig and witness from the partial signatures and extracts the transaction."
 row = "psbt-v0"
 standards = ["BIP 174"]
@@ -4537,6 +4612,7 @@ places = ["core/faraday-psbt/README.md#What is refused"]
 
 [[action]]
 id = "message-sign"
+name = "Sign a message"
 action = "Signs a message with the key at a path, in BIP 137's compact form or as BIP 322 simple."
 row = "message-signing"
 standards = [
@@ -4596,6 +4672,7 @@ places = ["core/faraday-psbt/src/message.rs"]
 
 [[action]]
 id = "message-verify"
+name = "Check a signed message"
 action = "Checks a signed message against an address, as BIP 137 or BIP 322 simple."
 row = "message-signing"
 standards = ["BIP 137", "BIP 322"]
@@ -4642,11 +4719,15 @@ places = ["core/faraday-psbt/src/message.rs"]
 
 [[action]]
 id = "tx-decode"
+name = "Read a transaction"
 action = "Reads a raw transaction, or a PSBT's transaction, to its txid, wtxid, weight and the previous outputs its source states."
 row = "decode-tx"
 standards = ["BIP 141", "BIP 144"]
 learn = "verifying"
-screens = ["Decode"]
+screens = [
+  "Decode",
+  "Silent",
+]
 functions = [
   "core/faraday-psbt/src/transaction.rs::read_raw",
   "core/faraday-psbt/src/transaction.rs::wrap_raw",
@@ -4703,6 +4784,7 @@ places = ["core/faraday-psbt/src/transaction.rs"]
 
 [[action]]
 id = "qr"
+name = "Make and read QR codes"
 action = "Encodes a payload as a QR code, ISO/IEC 18004 model 2, and reads QR codes from a camera frame or a PNG."
 row = "qr-code"
 standards = ["ISO/IEC 18004"]
@@ -4772,6 +4854,7 @@ places = ["docs/QR.md"]
 
 [[action]]
 id = "ur"
+name = "Write and read UR codes"
 action = "Writes and reads UR codes: bytewords with CRC-32, fountain-coded parts and the CBOR around them."
 row = "ur"
 standards = [
@@ -4878,6 +4961,7 @@ places = ["docs/QR.md"]
 
 [[action]]
 id = "bbqr"
+name = "Split and join BBQr parts"
 action = "Splits a file into BBQr or numbered pNofM parts for QR codes and puts received parts together."
 row = "bbqr"
 standards = ["BBQr", "Specter pNofM"]
@@ -4940,6 +5024,7 @@ places = ["docs/QR.md"]
 
 [[action]]
 id = "envelope"
+name = "Wrap a file in an envelope"
 action = "Puts a file in the faraday-file-v1 envelope with its SHA-256 and checks one received, saving a file received once."
 row = "file-envelope"
 standards = []
@@ -4993,6 +5078,7 @@ places = ["docs/QR.md"]
 
 [[action]]
 id = "file-hash"
+name = "Hash a file"
 action = "Computes the SHA-256 of a whole file to show and keep."
 row = "file-hash"
 standards = ["FIPS 180-4"]
@@ -5037,6 +5123,7 @@ places = ["docs/QR.md"]
 
 [[action]]
 id = "seedqr-make"
+name = "Make a SeedQR"
 action = "Makes a SeedQR or CompactSeedQR picture from a key's words."
 row = "seedqr"
 standards = ["SeedQR", "BIP 39"]
@@ -5045,6 +5132,7 @@ screens = [
   "Backup",
   "BackupFlow",
   "VaultContents",
+  "Backups",
 ]
 functions = [
   "core/faraday-codec/src/seedqr.rs::encode_seedqr",
@@ -5055,6 +5143,18 @@ functions = [
   "faraday/faraday-core/src/pdf.rs::probe_matrix",
 ]
 code = ["core/faraday-codec/src/seedqr.rs::encode_seedqr", "core/faraday-codec/src/seedqr.rs::encode_compact"]
+
+[[action.screens_not]]
+screen = "CreateVault"
+reason = "the vault module serves every vault screen; a press on this screen does not make a SeedQR; that is done on an open vault's contents"
+
+[[action.screens_not]]
+screen = "Unlock"
+reason = "the vault module serves every vault screen; a press on this screen does not make a SeedQR; it unlocks one slot"
+
+[[action.screens_not]]
+screen = "Vaults"
+reason = "the vault module serves every vault screen; a press on this screen does not make a SeedQR; it lists the vaults"
 
 [action.implementation]
 crate = "core/faraday-codec"
@@ -5090,6 +5190,7 @@ places = ["tools/vectors/seedqr/README.md", "docs/QR.md"]
 
 [[action]]
 id = "seedqr-read"
+name = "Check a SeedQR"
 action = "Checks that a SeedQR read by the scanner is the one a key's words make."
 row = "seedqr"
 standards = ["SeedQR", "BIP 39"]
@@ -5132,6 +5233,7 @@ places = ["tools/vectors/seedqr/README.md"]
 
 [[action]]
 id = "codex32"
+name = "Work with codex32 strings"
 action = "Reads, checksums, splits and recovers codex32 strings, and keeps and gathers the strings of a key's set."
 row = "codex32"
 standards = ["BIP 93"]
@@ -5141,6 +5243,8 @@ screens = [
   "Backups",
   "Backup",
   "VaultContents",
+  "Family",
+  "KeyGen",
 ]
 functions = [
   "core/faraday-bip/src/codex32/mod.rs::note",
@@ -5207,6 +5311,7 @@ places = ["docs/CODEX32.md", "core/faraday-bip/README.md"]
 
 [[action]]
 id = "codex32-make"
+name = "Make codex32 shares"
 action = "Fills the codex32 booklet's worksheets one character at a time and makes a fresh set or derived shares from them."
 row = "codex32"
 standards = ["BIP 93"]
@@ -5285,6 +5390,7 @@ places = ["docs/CODEX32.md"]
 
 [[action]]
 id = "codex32-correct"
+name = "Correct a codex32 string"
 action = "Proposes the one correction a codex32 checksum justifies for a damaged string, within BIP 93's bound."
 row = "codex32"
 standards = ["BIP 93"]
@@ -5337,6 +5443,7 @@ places = ["docs/CODEX32.md"]
 
 [[action]]
 id = "codex32qr"
+name = "Make a Codex32QR"
 action = "Writes a 48-character codex32 string as a Codex32QR code."
 row = "codex32qr"
 standards = ["Codex32QR/v1-48", "BIP 93"]
@@ -5379,6 +5486,7 @@ places = ["tools/vectors/codex32qr/README.md", "docs/CODEX32.md"]
 
 [[action]]
 id = "slip39"
+name = "Split with SLIP-39"
 action = "Splits a master secret into SLIP-39 shares and recovers it from them, with the passphrase's Feistel encryption."
 row = "slip39"
 standards = ["SLIP-0039"]
@@ -5387,6 +5495,7 @@ screens = [
   "Backup",
   "Entry",
   "KeyGen",
+  "Family",
 ]
 functions = [
   "core/faraday-bip/src/slip39.rs::split",
@@ -5463,6 +5572,7 @@ places = ["tools/vectors/slip39/README.md", "core/faraday-bip/src/slip39.rs"]
 
 [[action]]
 id = "xor"
+name = "Split with Seed XOR"
 action = "Splits a seed into Seed XOR parts, each a BIP 39 mnemonic, and combines parts into the seed."
 row = "seed-xor"
 standards = ["Seed XOR", "BIP 39"]
@@ -5506,6 +5616,7 @@ places = ["tools/vectors/xor/README.md"]
 
 [[action]]
 id = "stick-write"
+name = "Write a backup stick file"
 action = "Makes the file a backup stick holds for a key: its words or passphrase as one line, its SeedQR as a labelled picture, a codex32 string as one line or as a Codex32QR picture."
 row = "seed-files"
 standards = [
@@ -5517,6 +5628,7 @@ learn = "backups"
 screens = [
   "BackupFlow",
   "Backup",
+  "Backups",
 ]
 functions = [
   "faraday/faraday-core/src/backup_flow/wallet.rs::Faraday::seed_stick_bytes",
@@ -5567,6 +5679,7 @@ places = [
 
 [[action]]
 id = "outbox"
+name = "Make a key's secret files"
 action = "Makes a key's words file and its SeedQR picture, standard or compact, for the secret sheet to save to the Outbox unprotected."
 row = "seed-files"
 standards = [
@@ -5624,6 +5737,7 @@ places = [
 
 [[action]]
 id = "inbox-secret"
+name = "Recognise a secret in a file"
 action = "Recognises a seed or a private key in a file, a scan or pasted text, works out the fingerprint of its key, and refuses a secret where one may not go."
 row = "inbox-secret"
 standards = [
@@ -5636,6 +5750,7 @@ learn = "air_gap"
 screens = [
   "Files",
   "Visit",
+  "Explore",
 ]
 functions = [
   "faraday/faraday-core/src/inbox.rs::Secret::fingerprint",
@@ -5691,6 +5806,7 @@ places = ["docs/KEYS.md"]
 
 [[action]]
 id = "silent-send"
+name = "Add silent payment shares"
 action = "Adds this signer's ECDH shares and BIP 374 proofs to a silent payments PSBT, and sets the output scripts the shares give."
 row = "silent-send"
 standards = [
@@ -5874,6 +5990,7 @@ source = "Microsoft documentation"
 
 [[action]]
 id = "vault-create"
+name = "Make a vault"
 action = "Makes a vault file of four equal slots from one to four passphrases, with Argon2id, HKDF-SHA256 and XChaCha20-Poly1305, and a ChaCha20 keystream for the salt, the nonces and the unused slots."
 row = "vault"
 standards = [
@@ -5895,6 +6012,18 @@ code = [
   "faraday/faraday-vault/src/lib.rs::derive",
 ]
 novel_rank = 2
+
+[[action.screens_not]]
+screen = "Unlock"
+reason = "the vault module serves every vault screen; a press on this screen does not make a vault; it unlocks one slot"
+
+[[action.screens_not]]
+screen = "VaultContents"
+reason = "the vault module serves every vault screen; a press on this screen does not make a vault; it edits an open one"
+
+[[action.screens_not]]
+screen = "Vaults"
+reason = "the vault module serves every vault screen; a press on this screen does not make a vault; Create vault does"
 
 [action.implementation]
 crate = "faraday/faraday-vault"
@@ -5959,6 +6088,7 @@ places = [
 
 [[action]]
 id = "vault-unlock"
+name = "Open a vault slot"
 action = "Opens the slot a passphrase opens: checks the header, derives the slot key once with Argon2id and HKDF-SHA256, tries XChaCha20-Poly1305 on all four slots and parses the one whose tag verifies."
 row = "vault"
 standards = [
@@ -6032,6 +6162,7 @@ places = [
 
 [[action]]
 id = "vault-seal"
+name = "Write a vault back"
 action = "Writes an open vault back: encrypts the open slot's records with XChaCha20-Poly1305 under a new 24-byte nonce and copies the other three slots unchanged."
 row = "vault"
 standards = ["draft-irtf-cfrg-xchacha-03"]
@@ -6088,6 +6219,7 @@ places = [
 
 [[action]]
 id = "vault-reveal"
+name = "Reveal a vault secret"
 action = "Puts a secret of an open vault's record in the clear for the one reason named: a key's words or passphrase, an entry's password, TOTP secret or notes, a note's text."
 row = "vault"
 standards = []
@@ -6098,6 +6230,18 @@ functions = [
   "faraday/faraday-keys/src/vault.rs::OpenVaults::words_of",
 ]
 code = ["faraday/faraday-keys/src/vault.rs::OpenVaults::reveal"]
+
+[[action.screens_not]]
+screen = "CreateVault"
+reason = "the vault module serves every vault screen; a press on this screen does not reveal a record's secret; it makes a vault"
+
+[[action.screens_not]]
+screen = "Unlock"
+reason = "the vault module serves every vault screen; a press on this screen does not reveal a record's secret; it unlocks one slot"
+
+[[action.screens_not]]
+screen = "Vaults"
+reason = "the vault module serves every vault screen; a press on this screen does not reveal a record's secret; it lists the vaults"
 
 [action.implementation]
 crate = "faraday/faraday-keys"
@@ -6142,6 +6286,7 @@ places = [
 
 [[action]]
 id = "vault-edit"
+name = "Edit a vault's records"
 action = "Adds, changes, copies and makes public the records of an open vault, holding every secret field in a value that wipes on drop."
 row = "vault"
 standards = []
@@ -6204,6 +6349,7 @@ places = [
 
 [[action]]
 id = "vault-load"
+name = "Load a key from a vault"
 action = "Loads a key kept in an open vault into the session: its words (BIP 39) and passphrase to the seed and the master key's fingerprint (BIP 32), or its master seed, or its codex32 set."
 row = "vault"
 standards = [
@@ -6233,6 +6379,14 @@ functions = [
   "faraday/faraday-keys/src/session.rs::Keys::seed_record_id",
 ]
 code = ["faraday/faraday-keys/src/vault.rs::OpenVaults::load_from_vault"]
+
+[[action.screens_not]]
+screen = "CreateVault"
+reason = "the vault module serves every vault screen; a press on this screen does not load a key from a vault; it makes a vault"
+
+[[action.screens_not]]
+screen = "Vaults"
+reason = "the vault module serves every vault screen; a press on this screen does not load a key from a vault; it lists the vaults"
 
 [action.implementation]
 crate = "faraday/faraday-keys"
@@ -6273,6 +6427,7 @@ places = ["docs/VAULT.md#7. Slot contents"]
 
 [[action]]
 id = "kdbx"
+name = "Write a KeePass database"
 action = "Writes a KeePass KDBX 4.0 database of one to eight entries under a passphrase: Argon2id, SHA-256 and SHA-512 key steps, ChaCha20 over the body, HMAC-SHA-256 block authentication."
 row = "kdbx"
 standards = [
@@ -6297,6 +6452,18 @@ code = [
   "core/faraday-backup/src/kdbx.rs::write",
   "faraday/faraday-keys/src/vault.rs::OpenVaults::kdbx_entry",
 ]
+
+[[action.screens_not]]
+screen = "CreateVault"
+reason = "the vault module serves every vault screen; a press on this screen does not write a KeePass file; that is done on an open vault's contents"
+
+[[action.screens_not]]
+screen = "Unlock"
+reason = "the vault module serves every vault screen; a press on this screen does not write a KeePass file; it unlocks one slot"
+
+[[action.screens_not]]
+screen = "Vaults"
+reason = "the vault module serves every vault screen; a press on this screen does not write a KeePass file; it lists the vaults"
 
 [action.implementation]
 crate = "core/faraday-backup"
@@ -6359,6 +6526,7 @@ places = [
 
 [[action]]
 id = "totp"
+name = "Compute a TOTP code"
 action = "Computes a TOTP code from an entry's secret at a Unix time: HMAC-SHA1, SHA-256 or SHA-512 over the time step, then dynamic truncation."
 row = "totp"
 standards = [
@@ -6419,6 +6587,7 @@ places = ["docs/TOTP.md#4. Reading a TOTP secret"]
 
 [[action]]
 id = "gpg-create"
+name = "Make a GPG key"
 action = "Makes an OpenPGP v4 key from two fresh Ed25519 seeds, a certifying primary key and a signing subkey, with its public certificate and a kept revocation certificate."
 row = "gpg"
 standards = [
@@ -6439,6 +6608,26 @@ code = [
   "faraday/faraday-keys/src/gpg.rs::create",
   "faraday/faraday-pgp/src/lib.rs::Key::certificate",
 ]
+
+[[action.screens_not]]
+screen = "BackupFlow"
+reason = "the flow reads a GPG key's fingerprint to name it; it does not make a key"
+
+[[action.screens_not]]
+screen = "CreateVault"
+reason = "the vault module serves every vault screen; a press on this screen does not make a GPG key; that is done on an open vault's contents"
+
+[[action.screens_not]]
+screen = "Family"
+reason = "the Spend tab reads a fingerprint; it does not make a GPG key"
+
+[[action.screens_not]]
+screen = "Unlock"
+reason = "the vault module serves every vault screen; a press on this screen does not make a GPG key; it unlocks one slot"
+
+[[action.screens_not]]
+screen = "Vaults"
+reason = "the vault module serves every vault screen; a press on this screen does not make a GPG key; it lists the vaults"
 
 [action.implementation]
 crate = "faraday/faraday-pgp"
@@ -6489,6 +6678,7 @@ places = [
 
 [[action]]
 id = "gpg-sign"
+name = "Sign with the GPG key"
 action = "Signs data with the GPG key's signing subkey: an Ed25519 detached signature over the SHA-256 or SHA-512 of the data, armoured."
 row = "gpg"
 standards = [
@@ -6552,6 +6742,7 @@ places = [
 
 [[action]]
 id = "gpg-revoke"
+name = "Make a revocation certificate"
 action = "Makes a revocation certificate for the GPG key and writes it as the `.rev` file GnuPG writes."
 row = "gpg"
 standards = [
@@ -6614,6 +6805,7 @@ places = [
 
 [[action]]
 id = "gpg-paperkey"
+name = "Write the GPG key as paperkey"
 action = "Writes the GPG key's secret parts in paperkey's text form, for a person to copy onto paper."
 row = "gpg"
 standards = ["paperkey"]
@@ -6665,6 +6857,7 @@ places = [
 
 [[action]]
 id = "gpg-restore"
+name = "Restore a GPG key"
 action = "Restores a GPG key from its paperkey lines and its public certificate: checks every line's CRC, rebuilds the key from the seeds, and makes every signature of the certificate again to compare."
 row = "gpg-restore"
 standards = [
@@ -6737,6 +6930,7 @@ places = [
 
 [[action]]
 id = "gpg-verify"
+name = "Check a GPG signature"
 action = "Checks a detached OpenPGP signature over data against a certificate: the signing subkey's binding and back signature, the key's life, and the Ed25519 signature over a SHA-256 or SHA-512 digest."
 row = "gpg"
 standards = [
@@ -6798,6 +6992,7 @@ places = [
 
 [[action]]
 id = "sb-keys"
+name = "Make Secure Boot keys"
 action = "Makes an owner's Secure Boot keys, PK, KEK and db as RSA-2048 with self-signed certificates, and the enrolment files: signature lists, PKCS #7 signed updates and certificates."
 row = "secure-boot"
 standards = [
@@ -6865,6 +7060,7 @@ places = [
 
 [[action]]
 id = "sb-sign"
+name = "Sign a boot program"
 action = "Signs a boot program with the db key, as an Authenticode SHA-256 signature, only when it is the file a release's checked sums name."
 row = "secure-boot"
 standards = [
@@ -6930,6 +7126,7 @@ places = [
 
 [[action]]
 id = "sb-check"
+name = "Check a boot signature"
 action = "Checks an image's Authenticode signature against a db certificate: the image hash, the SHA-256 digest in the signed data and the RSA signature."
 row = "secure-boot"
 standards = [
@@ -6983,6 +7180,7 @@ places = [
 
 [[action]]
 id = "selftest"
+name = "Run the start-up self-test"
 action = "Runs eight fixed-vector checks at start-up and from Settings: BIP 39 words and seed in English and Japanese, BIP 32 derivation, a BIP 84 address, an ECDSA and a BIP 340 signature, scrypt and Argon2id."
 row = "selftest"
 standards = [
@@ -7061,11 +7259,17 @@ places = ["docs/AUDIT.md"]
 
 [[action]]
 id = "starter-write"
+name = "Write an image to a stick"
 action = "Writes an image to a stick and checks it: the SHA-256 of the payload file against its manifest before any write, and of the decompressed bytes against the manifest as they are written."
 row = "starter-image"
 standards = ["FIPS 180-4"]
 learn = "faraday:checking-written"
-screens = []
+screens = [
+  "starter:write",
+  "starter:confirm",
+  "starter:writing",
+  "starter:done",
+]
 functions = [
   "faraday/faraday-payload/src/decode.rs::write_payload",
   "faraday/faraday-payload/src/decode.rs::write_image",
@@ -7120,6 +7324,7 @@ places = [
 
 [[action]]
 id = "starter-signed"
+name = "Check a signed boot file"
 action = "Checks a boot file the person signed against the release's own: its Authenticode image hash, its one signature at the file's end, and the signature on the file built."
 row = "starter-signed-boot"
 standards = [
@@ -7127,7 +7332,12 @@ standards = [
   "RFC 8017",
 ]
 learn = "faraday:checking-written"
-screens = []
+screens = [
+  "starter:write",
+  "starter:confirm",
+  "starter:writing",
+  "starter:done",
+]
 functions = [
   "faraday/faraday-sb/src/pe.rs::transplant",
   "faraday/faraday-sb/src/pe.rs::signer",
@@ -7177,11 +7387,14 @@ places = [
 
 [[action]]
 id = "starter-recovery-key"
+name = "Read a BitLocker recovery key"
 action = "Reads a BitLocker recovery key, eight groups of six digits, for the system drive, holds it until the notes sheet is made and wipes it."
 row = "starter-recovery-key"
 standards = []
 learn = "faraday:checking-written"
-screens = []
+screens = [
+  "starter:start",
+]
 functions = [
   "faraday/faraday-starter/src/api.rs::RecoveryKey::parse",
   "faraday/faraday-starter/src/notes.rs::Notes::pdf_with_key",

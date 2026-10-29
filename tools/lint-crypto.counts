@@ -3,3 +3,7 @@
 # inventory's rules find that computes nothing on a secret or signed data.
 # It only falls; raising it is the owner's decision, recorded in DECISIONS.
 not_crypto 6
+# The count of `[[action.screens_not]]` entries: a screen whose code calls an
+# action's root and does not offer the action (docs/CRYPTO-LEARN.md §9.2). It only
+# falls; raising it is the owner's decision, recorded in DECISIONS.
+screens_not 23

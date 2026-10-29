@@ -78,6 +78,7 @@ mod half_screen;
 mod home;
 mod hover;
 mod how_block;
+mod how_reach;
 mod icon_tooltips;
 mod idle;
 mod import;

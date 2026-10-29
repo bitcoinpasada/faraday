@@ -160,8 +160,12 @@ fn tools(app: &View, ui: &mut Ui, w: f32) -> f32 {
             ..full
         },
     ];
-    let mut out = full;
-    for o in steps {
+    // Cryptography goes into the menu first, before the ?, wherever the page
+    // offers it: kept on the bar it would take room from the name, the way
+    // back and the eye (`docs/CRYPTO-LEARN.md` §8.3).
+    let skip = usize::from(app.how_offered());
+    let mut out = steps[skip.min(steps.len() - 1)];
+    for o in steps.into_iter().skip(skip) {
         out = o;
         if screen::measured(ui, |ui| tools_from(app, ui, w, o)) >= BACK_END {
             break;

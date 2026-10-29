@@ -1744,7 +1744,7 @@ pub(super) fn learn_body(
 /// (`docs/CRYPTO-LEARN.md` §8.5). Returns the height used.
 fn learn_how(app: &View, ui: &mut Ui, at: (f32, f32, f32)) -> f32 {
     let blocks = app.how_blocks();
-    faraday_ui::how::blocks(ui, at, &blocks, &crate::version::version_label())
+    faraday_ui::how::blocks(ui, at, &blocks, crate::version::release())
 }
 
 /// The page's title and its sections from (x, y), `w` wide: headings,
@@ -1791,6 +1791,14 @@ fn learn_page(
             cy += ui.wrap_as((px, cy, pw), look.body, Role::OnSurface, para) + after_para;
         }
         cy += after_section;
+    }
+    // The blocks of the actions the page is about, after its own sections
+    // (`docs/CRYPTO-LEARN.md` §3.1).
+    let blocks = faraday_learn::how::for_learn_page(page);
+    if !blocks.is_empty() {
+        let at = (bx, cy, bw);
+        cy += ui.wrap_as(at, look.heading, Role::Primary, EN.learn_tab_how) + after_heading;
+        cy += faraday_ui::how::blocks(ui, (bx, cy, bw), &blocks, crate::version::release());
     }
     cy - y
 }

@@ -203,9 +203,21 @@ impl Faraday {
     /// set up (F20), the screens where keys come in and the mode is
     /// chosen name its page first, and so, while the demo is on (where
     /// its actions are dimmed), does every screen with an action the demo
-    /// dims (`docs/DEMO.md` §4, §7).
+    /// dims (`docs/DEMO.md` §4, §7). The pages of the actions the screen
+    /// offers follow its own.
     pub fn learn_pages(&self) -> Vec<&'static LearnPage> {
         let mut pages = self.screen_pages();
+        // The page of each action the screen offers, after the curated ones
+        // (`docs/CRYPTO-LEARN.md` §9.1).
+        if !self.held {
+            let name = self.how_screen_name();
+            for block in faraday_learn::how::screen_blocks(name.as_str()) {
+                let page = faraday_learn::how::learn_page(block.learn);
+                if let Some(page) = page.filter(|p| !pages.iter().any(|q| std::ptr::eq(*q, *p))) {
+                    pages.push(page);
+                }
+            }
+        }
         let keys_in = self.session.keys.demo()
             && matches!(
                 self.screen,

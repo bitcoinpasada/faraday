@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Specified (F148), not built
-**Open:** the manifest and its entries, the inventory lint, fingerprints and the re-stamp recipe, the generated Learn blocks (`faraday/faraday-learn/src/how.rs` holds the type and no block yet; the generator fills it), §8.5's block on Learn's own pages after their sections, the step-by-step order of a flow's blocks (§8.1, §8.5), the guide's pictures and text of §8.7, the ⋮ row's leading icon (§8.3), the reachability test and the screens check (§9), the cross-check stamp read from the manifest, the website's rendering
+**Open:** the manifest and its entries, the inventory lint, fingerprints and the re-stamp recipe, the step-by-step order of a flow's blocks (§8.1, §8.5), the guide's pictures and text of §8.7, the ⋮ row's leading icon (§8.3), the cross-check stamp read from the manifest, the website's rendering
 
 Every screen that does something cryptographic opens a block that says
 how Faraday does it: the standard, the code, what checks it, how the
@@ -111,8 +111,10 @@ id = "sign-ecdsa"
 action = "Signs a transaction input with ECDSA, from the key the PSBT's origin names."
 row = "ecdsa-nonces"
 standards = ["BIP 143", "RFC 6979"]
+name = "Sign with ECDSA"     # the block's heading: 2 to 6 words, plain
 learn = "nonces"             # a page of faraday_learn::pages::EN, or "faraday:<id>" for one of OWN
-screens = ["Spend", "Family"]
+screens_not = [{ screen = "Vaults", reason = "…" }]   # a screen whose code calls a root and does not offer it (§9.2)
+screens = ["Spend", "Family"]   # Screen variants, or "starter:<page>" (write, confirm, writing, done, start)
 functions = [                # the roots this entry covers (§4.4)
   "core/faraday-psbt/src/sign.rs::sign_ecdsa",
   "faraday/faraday-keys/src/psbt.rs::sign",
@@ -558,8 +560,8 @@ the action carries the same blocks after its sections (§3.1).
 
 | Class | Where the action is |
 |---|---|
-| Compact, the Pi's panel (268 dp) | When the bar's tools would reach the chevron's target (LAYOUT §8), **Cryptography** goes into the ⋮ overflow menu first, before the ?: its row reads "Cryptography", with `Icon::Method` at its start, and it is the menu's first row, above **Learn**, **Show keyboard** and **Show sheets**. On the panel the ⋮ menu is a sheet, as every menu there. |
-| Compact, other windows | On the bar while it fits, else in the ⋮ as on the Pi, by the same order. |
+| Compact, the Pi's panel (268 dp) | **Cryptography** goes into the ⋮ overflow menu first, before the ?, wherever the page offers it, not only when the bar's tools would reach the chevron's target (LAYOUT §8): kept on the bar it would take room from the page's name, the way-back line or the eye (owner, 2026-10-28). The ⋮ takes the ? with it. Its row reads "Cryptography", with `Icon::Method` at its start, and it is the menu's first row, above **Learn**, **Show keyboard** and **Show sheets**. On the panel the ⋮ menu is a sheet, as every menu there. |
+| Compact, other windows | In the ⋮ as on the Pi, by the same rule. |
 | Medium, expanded, large | On the bar. |
 | Extra-large | On the bar; it opens the supporting pane, and pressed again while the pane shows the How tab puts the pane away (§8.2). |
 
@@ -763,8 +765,14 @@ file names counting every identifier in it, and a cryptographic callee
 kept where the receiver's type is not known), so that the two agree on
 what a call names. Each line says `path` or `method`. A module that serves several screens (an area's
 `mod.rs`) gives all of its area's screens; an action may narrow them
-with `screens_not = [{ screen, reason }]`, each counted with the
-not-crypto ratchet.
+with `screens_not = [{ screen, reason }]`, each counted in
+`tools/lint-crypto.counts` (`screens_not`, only falls). Built as
+`docs/crypto/gen_how.py`'s `screens_check`, which `check.py check` runs: a path call
+`module::name` or `Type::name` and a method call by a distinctive name
+(not a name every type has) of a type the file names; it reads names, not types, so
+`--check-screens --lines` shows the call each pair comes from.
+A screen's Learn tabs gain the pages of the blocks it offers, after its own
+(`Faraday::learn_pages`), and the reachability test (`how_reach.rs`) holds that.
 
 ## 10. The cross-check and its stamp
 

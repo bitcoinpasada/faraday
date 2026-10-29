@@ -44,10 +44,13 @@ pub(crate) fn tooltips_tour(t: &mut Tour) -> Result<(), String> {
         let theme = Theme::new(ThemeName::Cobalt, mode, Contrast::Standard);
         let slug = theme.slug();
         t.press(Action::Theme(theme));
-        t.press(Action::Nav(Screen::Backup));
+        // Home offers no cryptographic action, so on a small panel the ? is
+        // on its bar, not in the ⋮ with Cryptography.
+        t.press(Action::Nav(Screen::Home));
         rest_on(t, Action::Learn)?;
         t.shot(&format!("tip-{slug}-learn"))?;
         t.app.event(Event::HoverEnd);
+        t.press(Action::Nav(Screen::Backup));
         rest_on(t, Action::Board(B::Off(Zone::Paper(1), Thing::Seed(0))))?;
         t.shot(&format!("tip-{slug}-board-cross"))?;
         t.app.event(Event::HoverEnd);

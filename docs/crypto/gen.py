@@ -29,8 +29,8 @@ The Verified by cell names a cross-check area by its `name` and says what it is
 compared against: the area's `reference` up to its first clause, read from
 tools/crosscheck/area_<file>.py without importing it.
 
-faraday/faraday-learn/src/how.rs (the Learn blocks) is not generated yet:
-`gen_how` is its place. Standard library only (`tomllib`, Python 3.11).
+faraday/faraday-learn/src/how.rs (the Learn blocks) is written by gen_how.py,
+called from `generated`. Standard library only (`tomllib`, Python 3.11).
 """
 
 import ast
@@ -38,6 +38,9 @@ import pathlib
 import re
 import sys
 import tomllib
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+import gen_how  # noqa: E402
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 MANIFEST = "docs/crypto/actions.toml"
@@ -312,14 +315,6 @@ def gen_written_here(data):
     return "\n".join(out)
 
 
-def gen_how(data):
-    """The Learn blocks (faraday/faraday-learn/src/how.rs, §3.1): not generated yet.
-
-    Another change is fixing the shape of that file; until it lands, `write` leaves
-    it as it is and `check` does not compare it."""
-    return None
-
-
 PLACES = [
     (STANDARDS, "§1", lambda d, ar: gen_status_table(d)),
     (STANDARDS, "§2", lambda d, ar: gen_row_table(d, 2, ar)),
@@ -364,7 +359,7 @@ def generated(root, data=None):
         if text is None:
             text = (root / path).read_text()
         texts[path] = replace_region(text, name, fn(data, areas), path)
-    gen_how(data)
+    texts[HOW] = gen_how.how_text(root, data)
     return texts
 
 
@@ -376,7 +371,6 @@ def cmd_write(root):
             p.write_text(text)
             changed += 1
             print(f"wrote {path}")
-    print(f"{HOW}: not generated yet (its shape is being fixed)")
     print(f"generated places: {len(PLACES)} in {len({p for p, _, _ in PLACES})} files, "
           f"{changed} rewritten")
     return 0

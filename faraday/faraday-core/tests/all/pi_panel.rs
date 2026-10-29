@@ -1296,16 +1296,13 @@ fn on_the_pi_a_flows_bar_too_full_for_its_question_mark_offers_learn_in_its_over
 }
 
 #[test]
-fn where_the_bar_has_room_the_question_mark_stays_and_there_is_no_overflow_menu() {
+fn where_the_page_offers_cryptography_the_overflow_menu_holds_it_with_the_question_mark() {
     let mut rig = rig(On::Stick, Mode::Testnet, Vec::new());
     new_key_from_create(&mut rig);
     let _ = rig.frame();
     assert!(rig.offers(Action::CancelFlow));
-    assert!(
-        rig.offers(Action::Learn),
-        "the ? beside Cancel and the pill"
-    );
-    assert_eq!(overflow_on_the_bar(&rig), None);
+    let held = overflow_on_the_bar(&rig).expect("a ⋮");
+    assert!(held.how && held.help, "Cryptography first, with the ?");
 }
 
 /// The name in the bar of the step flow on show, as drawn: its text and

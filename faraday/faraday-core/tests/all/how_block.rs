@@ -3,7 +3,7 @@
 //! the ?, it opens Learn on a first tab of the blocks of the screen's
 //! actions, and on the Pi's panel the button is the ⋮ menu's first row
 //! when the bar has no room. Checked with the sample block, which stands
-//! on Decode and Entry; a screen without a block has no button and no
+//! on Catalog; a screen without a block has no button and no
 //! tab. The new Learn pages open from their screens.
 
 use crate::common::type_text;
@@ -60,14 +60,24 @@ fn the_button_opens_learn_on_the_first_tab_at_every_size() {
         let mut app = app(w, h, dpi, false);
         go(&mut app, Screen::Home);
         assert!(!app.offers(Action::How), "{name}: not on Home");
-        go(&mut app, Screen::Decode);
-        assert!(app.offers(Action::How), "{name}: the button is offered");
-        assert!(app.offers(Action::Learn), "{name}: beside the ?");
-        // Immediately left of the ?, and the two do not overlap.
-        let (hx, _, hw, _) = app.hit_box(Action::How).unwrap();
-        let (lx, ..) = app.hit_box(Action::Learn).unwrap();
-        assert!(hx + hw <= lx, "{name}: left of the ?, clear of it");
-        app.press(Action::How);
+        go(&mut app, Screen::Catalog);
+        if dpi == 286 {
+            // On the Pi's panel the ⋮ holds it, first, with the ?.
+            assert!(!app.offers(Action::How), "{name}: not on the bar");
+            let held = overflow(&app).expect("a ⋮");
+            assert!(held.how && held.help, "{name}: the ⋮ holds both");
+            app.press(Action::NavMenu(MenuPress::Open(Some(held))));
+            let _ = app.frame();
+            app.press(Action::NavMenu(MenuPress::Tool(BarTool::How)));
+        } else {
+            assert!(app.offers(Action::How), "{name}: the button is offered");
+            assert!(app.offers(Action::Learn), "{name}: beside the ?");
+            // Immediately left of the ?, and the two do not overlap.
+            let (hx, _, hw, _) = app.hit_box(Action::How).unwrap();
+            let (lx, ..) = app.hit_box(Action::Learn).unwrap();
+            assert!(hx + hw <= lx, "{name}: left of the ?, clear of it");
+            app.press(Action::How);
+        }
         let _ = app.frame();
         assert_eq!(app.sheet, Some(Sheet::Learn), "{name}");
         assert!(how_tab_open(&mut app), "{name}: the block is on show");
@@ -86,7 +96,7 @@ fn the_button_opens_learn_on_the_first_tab_at_every_size() {
 #[test]
 fn the_question_mark_opens_a_page_with_the_how_tab_first() {
     let mut app = app(480, 640, 160, false);
-    go(&mut app, Screen::Decode);
+    go(&mut app, Screen::Catalog);
     app.press(Action::Learn);
     let _ = app.frame();
     assert_eq!(app.sheet, Some(Sheet::Learn));
@@ -98,7 +108,7 @@ fn the_question_mark_opens_a_page_with_the_how_tab_first() {
 #[test]
 fn a_screen_without_a_block_has_no_button_and_no_tab() {
     let mut app = app(480, 640, 160, false);
-    go(&mut app, Screen::Tools);
+    go(&mut app, Screen::SetTime);
     assert!(!app.offers(Action::How));
     app.press(Action::Learn);
     let _ = app.frame();
@@ -108,7 +118,7 @@ fn a_screen_without_a_block_has_no_button_and_no_tab() {
 #[test]
 fn every_line_of_a_block_is_reached_by_scrolling_on_the_pi() {
     let mut app = app(480, 640, 286, false);
-    go(&mut app, Screen::Decode);
+    go(&mut app, Screen::Catalog);
     app.press(Action::How);
     let _ = app.frame();
     for first in ["Sample action", EN.how_field_standards] {
@@ -182,7 +192,7 @@ fn on_the_pi_a_full_bar_puts_the_button_first_in_the_overflow_menu() {
 #[test]
 fn the_supporting_pane_follows_the_button() {
     let mut app = app(1920, 1080, 160, false);
-    go(&mut app, Screen::Decode);
+    go(&mut app, Screen::Catalog);
     app.press(Action::How);
     let _ = app.frame();
     assert!(app.offers(Action::LearnClose), "the pane, not the sheet");

@@ -32,10 +32,13 @@ zeroize = { workspace = true, features = ["alloc"] }
 [features]
 # The test wallets and the files a test stick carries. The stick image's
 # app is built without it.
-testkit = ["faraday-learn/sample-how"]
+testkit = []
+# One sample block, offered on Catalog and the Starter's What to write page, for
+# tests. Never in a snapshot or a shipped build.
+sample-how = ["faraday-learn/sample-how"]
 
 [dev-dependencies]
-faraday-core = { path = ".", features = ["testkit"] }
+faraday-core = { path = ".", features = ["testkit", "sample-how"] }
 # `Keys::master_for_tests`, for tests that derive a public result themselves.
 faraday-keys = { path = "../faraday-keys", features = ["master-for-tests"] }
 # The KDBX writer, read back by a test.

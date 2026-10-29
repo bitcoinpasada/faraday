@@ -149,11 +149,15 @@ pub(crate) fn bar(app: &View, ui: &mut Ui, y: f32, w: f32) {
 
 /// The ? where the page has Learn pages, and left of it **How Faraday
 /// does it** where it offers an action with a block
-/// (`docs/CRYPTO-LEARN.md` §8.1), their right edge at `right`. Returns
-/// where the next action ends. A lookup.
-fn learn_tools(app: &View, ui: &mut Ui, mut right: f32) -> f32 {
+/// (`docs/CRYPTO-LEARN.md` §8.1), their right edge at `right`; on the wide
+/// layout the codex32 sheets' eye stands between them, so that it keeps its
+/// place in the page's margin. Returns where the next action ends. A lookup.
+fn learn_tools(app: &View, ui: &mut Ui, mut right: f32, nav: Nav) -> f32 {
     if !app.learn_pages().is_empty() {
         right = faraday_ui::nav::help(ui, right, Action::Learn, EN.tip_learn);
+    }
+    if nav == Nav::ExpandedRail {
+        right = crate::compact::bar_eye(app, ui, right);
     }
     if app.how_offered() {
         right =
@@ -192,7 +196,7 @@ pub(crate) fn app_bar(app: &View, ui: &mut Ui, w: f32, nav: Nav) -> f32 {
                 );
             }
         }
-        *right = learn_tools(app, ui, *right);
+        *right = learn_tools(app, ui, *right, nav);
         if crate::modes::screen::shows_pill(app) {
             let pw = crate::modes::screen::pill_width(app, ui);
             let px = *right - GAP - pw;
@@ -210,9 +214,8 @@ pub(crate) fn app_bar(app: &View, ui: &mut Ui, w: f32, nav: Nav) -> f32 {
             );
         }
         if nav == Nav::ExpandedRail {
-            // A step flow's: the codex32 sheets' eye and Cancel, as the
-            // one-column layouts' bar has them (`compact::flow_bar_tools`).
-            *right = crate::compact::bar_eye(app, ui, *right);
+            // A step flow's: Cancel, as the one-column layouts' bar has it
+            // (`compact::flow_bar_tools`); the eye stands by the ?.
             *right = crate::compact::bar_cancel(app, ui, *right);
             if app.screen == Screen::Files {
                 *right = crate::screens::files_stick_chip(app, ui, *right);
