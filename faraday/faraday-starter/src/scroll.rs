@@ -327,6 +327,7 @@ impl Starter {
             return;
         };
         let mut hits = std::mem::take(&mut self.hits);
+        let mut reach = Vec::new();
         self.offset = self.offset.clamp(0.0, self.max.max(0.0));
         for again in [false, true] {
             hits.clear();
@@ -341,12 +342,14 @@ impl Starter {
             self.max = self.frame_scrolled(&mut ui);
             self.frost = ui.frost.take();
             self.primaries = ui.primaries;
+            reach = std::mem::take(&mut ui.reach);
             match self.kept_at(&hits) {
                 Some(to) if !again => self.offset = to,
                 _ => break,
             }
         }
         self.hits = hits;
+        self.reach = reach;
         self.canvas = Some(canvas);
     }
 

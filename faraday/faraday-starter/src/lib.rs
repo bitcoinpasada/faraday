@@ -603,6 +603,9 @@ pub struct Starter {
     /// action a screen).
     primaries: usize,
     hits: Vec<(Rect, Action)>,
+    /// Where each of `hits` is taken and whether a clip cut it, kept with
+    /// them at every frame drawn.
+    reach: Vec<faraday_ui::Reach<Action>>,
     pressed: Option<Action>,
     hovered: Option<Action>,
     hover: Option<(i32, i32)>,
@@ -762,6 +765,7 @@ impl Starter {
             seen_at: [0.0; 3],
             primaries: 0,
             hits: Vec::new(),
+            reach: Vec::new(),
             pressed: None,
             hovered: None,
             hover: None,
@@ -1207,6 +1211,17 @@ impl Starter {
         let a = action.host();
         let (r, _) = self.hits.iter().rev().find(|(_, h)| *h == a)?;
         Some(((r.x + r.w / 2) as u16, (r.y + r.h / 2) as u16))
+    }
+
+    /// Each press the Starter's own last frame offers, in drawing order,
+    /// as (action, target, drawn, cut), pixels: for the touch-target test
+    /// over the snapshot example's frames (`docs/M3-CHECKS.md` §2). A
+    /// lookup.
+    pub fn drawn_targets(&self) -> Vec<(Action, Rect, Rect, bool)> {
+        self.reach
+            .iter()
+            .map(|t| (t.action, t.target, t.drawn, t.cut))
+            .collect()
     }
 
     /// The box the last frame drawn offers `action` in, in pixels

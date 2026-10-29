@@ -163,13 +163,44 @@ fn many() -> Vec<Disk> {
     ]
 }
 
-struct Snap<'a> {
-    out: &'a Path,
-    size: (u16, u16),
-    dpi: u16,
-    theme: faraday_ui::Theme,
+/// A press target a frame offers under the touch floor, with where it was
+/// found (`docs/M3-CHECKS.md` §2).
+#[derive(Debug, Clone)]
+#[cfg_attr(
+    not(test),
+    expect(
+        dead_code,
+        reason = "read by the touch-target test that includes this file"
+    )
+)]
+pub(crate) struct Small {
+    /// The picture's name.
+    pub(crate) step: String,
+    /// The page, and the open sheet.
+    pub(crate) screen: String,
+    pub(crate) sheet: Option<String>,
+    pub(crate) action: faraday_core::Action,
+    /// Where the press is taken, and the control as drawn: (w, h) and
+    /// (x, y, w, h), pixels.
+    pub(crate) target: (i32, i32),
+    pub(crate) drawn: (i32, i32, i32, i32),
+    /// The floor at this frame's scale, pixels.
+    pub(crate) floor: i32,
+}
+
+pub(crate) struct Snap<'a> {
+    pub(crate) out: &'a Path,
+    pub(crate) size: (u16, u16),
+    pub(crate) dpi: u16,
+    pub(crate) theme: faraday_ui::Theme,
     /// The text size, and whether `cut.txt` is written.
-    text: Option<faraday_ui::TextSize>,
+    pub(crate) text: Option<faraday_ui::TextSize>,
+    /// Whether the pictures are written; the touch-target test draws
+    /// frames and writes none.
+    pub(crate) pictures: bool,
+    /// The targets under the floor each frame offers, collected when set
+    /// (the test in `tests/all/targets.rs`).
+    pub(crate) targets: Option<std::cell::RefCell<Vec<Small>>>,
 }
 
 impl Snap<'_> {
@@ -241,6 +272,28 @@ impl Snap<'_> {
         Ok(())
     }
 
+    /// The targets of the frame on screen, picture `name`, under the touch
+    /// floor and not cut by a clip (`docs/M3-CHECKS.md` §2.2), at the
+    /// frame's density alone, Standard text.
+    fn small(&self, starter: &Starter, name: &str) -> Vec<Small> {
+        let f = (f32::from(self.dpi.max(1)) / 160.0).max(0.5);
+        let floor = (faraday_draw::tokens::TOUCH * f).round() as i32;
+        starter
+            .drawn_targets()
+            .into_iter()
+            .filter(|(_, t, _, cut)| !cut && (t.w + 1 < floor || t.h + 1 < floor))
+            .map(|(action, t, d, _)| Small {
+                step: name.to_string(),
+                screen: format!("{:?}", starter.page),
+                sheet: starter.sheet.map(|s| format!("{s:?}")),
+                action,
+                target: (t.w, t.h),
+                drawn: (d.x, d.y, d.w, d.h),
+                floor,
+            })
+            .collect()
+    }
+
     fn shot(&self, starter: &mut Starter, name: &str) -> Result<(), String> {
         while starter.poll_command().is_some() {}
         starter.event(Event::Tick { now_ms: 10_000 });
@@ -250,7 +303,14 @@ impl Snap<'_> {
         }
         while starter.poll_command().is_some() {}
         while starter.poll_demo_command().is_some() {}
+        let _ = starter.frame();
+        if let Some(all) = &self.targets {
+            all.borrow_mut().extend(self.small(starter, name));
+        }
         let frame = starter.frame();
+        if !self.pictures {
+            return Ok(());
+        }
         let path = self.out.join(format!("{name}.png"));
         let file = std::fs::File::create(&path).map_err(|e| format!("{}: {e}", path.display()))?;
         let mut enc = png::Encoder::new(
@@ -556,7 +616,7 @@ fn concern_shots(s: &Snap) -> Result<(), String> {
 }
 
 #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
-fn run(s: &Snap) -> Result<(), String> {
+pub(crate) fn run(s: &Snap) -> Result<(), String> {
     // Home in each state.
     let mut h = s.starter();
     s.shot(&mut h, "home-no-stick")?;
@@ -1357,6 +1417,8 @@ fn main() -> ExitCode {
         dpi,
         theme,
         text,
+        pictures: true,
+        targets: None,
     };
     let done = if guide {
         run_guide(&snap)

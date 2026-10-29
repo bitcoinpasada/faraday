@@ -253,10 +253,10 @@ status = "planned"
 
 [[check]]
 id = "touch-targets"
-run = "cargo nextest run --locked -p faraday-snapshot -E 'test(/^targets::/)'"
+run = "cargo nextest run --locked -p faraday-snapshot -p faraday-starter -E 'test(/^targets::/)'"
 stage = "just test"
-catches = "a press target under 48 dp on a frame a snapshot tour reaches, at its four sizes, not in M3-CHECKS §3; a count in tools/touch-targets.counts risen or not lowered"
-misses = "frames no tour reaches; sizes other than the four (targets.txt, by review); the Starter until A3"
+catches = "a press target under 48 dp on a frame a snapshot tour or the Starter's snapshot example reaches, at its four sizes, not in M3-CHECKS §3; a count in tools/touch-targets.counts risen or not lowered"
+misses = "frames no tour or example reaches; sizes other than the four (targets.txt, by review); the held app's frames inside the Starter"
 
 [[consumer]]
 id = "app.faraday"
@@ -841,7 +841,7 @@ misses = "whether the page named is the right one"
 id = "design.touch-targets"
 title = "every press target is at least 48 dp, or listed with its case"
 source = ["docs/decisions/F152.md", "docs/decisions/F108.md", "docs/M3-CHECKS.md §3"]
-when = ["**/screen.rs", "faraday/faraday-core/src/screens/**", "faraday/faraday-ui/**", "faraday/shells/snapshot/src/tours/**"]
+when = ["**/screen.rs", "faraday/faraday-core/src/screens/**", "faraday/faraday-ui/**", "faraday/shells/snapshot/src/tours/**", "faraday/faraday-starter/src/draw/**", "faraday/faraday-starter/src/draw.rs", "faraday/faraday-starter/src/sheets/**", "faraday/faraday-starter/src/sheets.rs", "faraday/faraday-starter/examples/snap.rs"]
 kind = "held"
 held_by = ["touch-targets"]
 

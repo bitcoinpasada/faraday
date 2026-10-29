@@ -1,8 +1,8 @@
 # Material 3 checks: touch targets and state layers
 
 **Kind:** Spec
-**Status:** Specified (F152); A1 and A2 built (the touch-target test and its registry rule)
-**Open:** of §6, the Starter checked the same way (A3), and the press constructor that draws every state layer (B1 to B3)
+**Status:** Specified (F152); A1, A2 and A3 built (the touch-target test, its registry rule, and the Starter's frames)
+**Open:** of §6, the press constructor that draws every state layer (B1 to B3)
 
 Two of Material 3's rules that Faraday follows (F91, F92, F108) are
 today held by review alone: a press is taken on at least 48 × 48 dp, and
@@ -366,7 +366,7 @@ id = "touch-targets"
 run = "cargo nextest run --locked -p faraday-snapshot -E 'test(/^targets::/)'"
 stage = "just test"
 catches = "a press target under 48 dp on a frame a snapshot tour reaches, at its four sizes, not in M3-CHECKS §3; a count in tools/touch-targets.counts risen or not lowered"
-misses = "frames no tour reaches; sizes other than the four (targets.txt, by review); the Starter until A3"
+misses = "frames no tour or example reaches; sizes other than the four (targets.txt, by review); the held app's frames inside the Starter"
 
 [[rule]]
 id = "design.touch-targets"

@@ -16,6 +16,7 @@ mod scroll_kept;
 mod secure_boot;
 mod starter;
 mod steps;
+mod targets;
 mod template;
 mod template_codex32;
 mod text_size;

@@ -20,7 +20,7 @@ in `justfile` and `faraday/faraday.just`.
 | `tools/lint-secrets.sh` | lint | `just lint` | secret-hygiene lint (below) |
 | `tools/lint-strings.sh` | lint | `just lint` | user-facing-strings lint (below) |
 | `tools/lint-tokens.sh` | lint | `just lint` | design-token lint (below) |
-| `tools/touch-targets.counts` | ratchet | `just test` (faraday-snapshot's `targets::` tests, `docs/M3-CHECKS.md` §2) | press targets under 48 dp per size, screen and action kind; a count that rises fails, and so does one that falls until the file is lowered; `FARADAY_TARGETS_WRITE=1` with `-j 1` rewrites it |
+| `tools/touch-targets.counts` | ratchet | `just test` (faraday-snapshot's and faraday-starter's `targets::` tests, `docs/M3-CHECKS.md` §2) | press targets under 48 dp per size, screen and action kind; a count that rises fails, and so does one that falls until the file is lowered; `FARADAY_TARGETS_WRITE=1` with `-j 1` rewrites it |
 | `tools/lint-docs.sh` | lint | `just lint` | documentation lint (below) |
 | `tools/lint-layout.sh` | lint | `just lint` | layout lint: the code map, file sizes, long functions (below) |
 | `tools/lint-builds.py` | lint | `just lint` | `faraday/builds.toml`, the list of builds, against the recipes and the image directories (below) |
