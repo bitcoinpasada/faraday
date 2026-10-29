@@ -59,7 +59,7 @@ the Pi.
 Every platform starts with full motion. Reduce motion (Settings ›
 Appearance) is off on a first start (`docs/MOTION.md` §3.5). Where frames
 are slow, the automatic gate turns fades off by itself: it does so when
-the steps are more than 35 ms apart, and brings them back after 24 fast
+the steps are more than 55 ms apart, and brings them back after 24 fast
 frames in a row (`docs/MOTION.md`).
 
 ## 4. Input, camera and storage

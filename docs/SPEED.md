@@ -4,7 +4,7 @@
 **Status:** Built; the glyph cache measured (§3.8). The web demo's part is in the website's own repository.
 **Open:** the glyph cache's least-recently-used eviction (§3.8), not scheduled: measured, a frame drawn again never misses, and a dense panel clears once in about ten screen visits.
 
-§2 and §7 are standing rules; §3.3, §8.3 and §9 to §12 say what holds now.
+§2 and §7 are standing rules; §3.3, §8.3 and §9 to §13 say what holds now.
 
 The owner's report: on a slow laptop Faraday became very slow in the
 later stages of setting up a multisig wallet, the backups especially,
@@ -792,3 +792,61 @@ after the hold does; frames at 60 Hz with a missed refresh, or at
 The stick and the Pi share none of 1 to 3: their shell holds Faraday
 without the host, writes only the rows that changed (§11.1) and does
 not use `faraday-window`. They share 4, the gate being Faraday's own.
+
+## 13. Fades in a large window (2026-10-29)
+
+The owner's report: in Faraday Demo in a large window (up to
+3840 × 2160 at scale 1.5) at 60 Hz, fades show for a few changes and
+then stop for the session. A fade's step blended the whole canvas,
+hashed and converted every row of the window and gave the compositor
+every row, so in a window of 4 Mpx and more its steps came two
+refreshes apart and three whenever one slipped, past the gate's 35 ms;
+and fades, once off, come back only on a run of fast frames drawn in
+full, which such a window rarely shows (`docs/MOTION.md` §3.5).
+
+**Changed** (owner, 2026-10-29).
+
+1. A fade's later steps blend only where the two frames differ
+   (`Canvas::blend_noting`, `Canvas::blend_within`), and the window
+   copies, converts and presents only that, hashing nothing
+   (`Parts::changed`, `faraday-window` `Shown`; `docs/MOTION.md` §3.5).
+   A frame drawn in full costs what it did: the bands are noted in the
+   pass that blended the whole canvas before.
+2. The gate turns fades off when the median step is over 55 ms, the
+   steps a fade can carry, not 35 ms; the way back on is unchanged.
+3. The desktop's `--timings` prints the wait for the window's buffer
+   and a line of what fades did (`docs/MOTION.md` §3.2).
+
+**Measured** (the build machine, release, the median of 104 steps,
+Faraday Demo's host and the window's copy into two buffers taken in
+turn; the compositor's own upload is not in these figures; a probe kept
+outside the repository):
+
+| A fade's step | 3840 × 2160 at scale 1.5 | 2560 × 1600 at scale 2 |
+| --- | --- | --- |
+| Home to Settings and back, before: app and host / copy / whole step | 8.65 / 4.95 / 13.6 ms | 5.43 / 2.40 / 7.8 ms |
+| Home to Settings and back, after | 6.4 / 2.7 / 9.1 ms | 5.2 / 2.1 / 7.3 ms |
+| Rows given to the compositor, before (whole rows) | 1,673 of 2,160 | 1,381 of 1,600 |
+| Pixels given to the compositor, after, as whole rows' worth | 904 | 1,145 |
+| A change of theme, where every pixel changes, after | 14.9 / 3.2 / 18.2 ms | 7.3 / 1.6 / 8.9 ms |
+
+The blend is close to what the memory gives: at 4K a change of screen
+differs over 3.1 Mpx, which the bands cover with 0.1 % to spare, and
+its blend costs about 1.9 ns a pixel against 33 MB frames. On a machine
+that blends at half the build machine's speed, a change of screen's
+step at 4K should come in about 20 ms plus the compositor's upload,
+inside two refreshes, and a change of theme's in about 40, inside three
+and the gate's 55 ms. That is an estimate, not run: `faraday --timings`
+on such a machine says what a step costs and whether fades stay on.
+
+**Tested.** `canvas::tests::a_fades_later_steps_over_the_bands_that_differ_show_what_a_whole_blend_shows`;
+`view::tests::faraday_demos_window_shows_every_step_of_its_fades_whole`
+(the Demo's host through changes of screen and the Learn sheet, each
+frame copied through two buffers equal to the whole frame copied) and
+`a_surface_given_only_what_a_fades_steps_changed_shows_every_frame_whole`;
+`fade::tests::a_step_after_a_frame_drawn_in_full_mid_fade_is_part_of_the_way_everywhere`
+(the pointer over the sidebar mid-fade, where the two screens agree:
+the bands are noted again with the new frame kept, and the next step
+shows every byte as a whole blend does), `fade::tests::steps_and_frames_a_third_refresh_apart_leave_fades_on`
+and `transitions::a_large_window_whose_frames_come_every_third_refresh_still_fades`;
+the existing gate tests, with slow steps now 70 ms apart.

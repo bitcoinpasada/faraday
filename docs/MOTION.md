@@ -164,10 +164,17 @@ shell sends `Wheel` for `LineDelta`, `Scroll` for `PixelDelta`,
   panel's edge at either; a tap at 3200×1800 that travels 5 counts is
   still a tap.
 - `faraday --timings` prints once a second what the frames cost on the
-  machine it runs on: the render, the copy into the window, and the time
-  from one frame to the next while something moved. A frame-to-frame
-  mean near the screen's period with a worst case under twice it is a
-  motion with no dropped frame.
+  machine it runs on: the wait for the window's buffer (the compositor
+  still holding it, which no other figure shows, yet is part of the gap
+  the fade gate times), the render, the copy into the window, and the
+  time from one frame to the next while something moved. A
+  frame-to-frame mean near the screen's period with a worst case under
+  twice it is a motion with no dropped frame. With it, a second line
+  says what fades did over the same second, as the dev stick's `fade`
+  line does (`Faraday::take_fade_counts`): changes that faded, were
+  drawn at once for slow steps or for reduce motion, the steps blended,
+  the recent step gaps' median and how many are known, and whether the
+  next change fades (2026-10-29).
 - The dev stick's `--timings` (`faraday/image/README.md`) writes a
   block every five seconds to `faraday-timings.txt` on the boot stick:
   a frame drawn in full against a fade's blended step (`frame`,
@@ -313,10 +320,23 @@ extent; a motion left from another screen or sheet is stopped.
     fade's clock starts at the tick after it, backdated one frame, so a
     slow first frame does not use the fade up. Each step after that
     nothing else asks a frame for blends the two kept frames
-    (`Canvas::blend_between`, `Faraday::fade_step`) and draws nothing
+    (`Canvas::blend_within`, `Faraday::fade_step`) and draws nothing
     again, so a screen slow to draw fades as smoothly as any other; a
     frame something else asks for (a hover, a toast, a scroll) is drawn
-    in full and kept aside again. A step part of the way asks for the
+    in full and kept aside again. A step blends only where the two
+    frames differ (2026-10-29): the frame drawn in full that keeps the
+    new one aside blends the whole canvas once and notes the bands
+    where the two differ, 16 pixels at a time, rows with about the same
+    columns sharing a band (`Canvas::blend_noting`), leaving out the ring
+    Faraday Demo's focus border draws over every frame
+    (`Faraday::set_edge_drawn_over`); the steps after blend those bands
+    alone, and the app says they are what changed
+    (`Faraday::take_changed`). Faraday Demo's host passes them on, with
+    the strip and the border where its colour changed, as the window's
+    rectangles (`Parts::changed`), and the window copies, converts and
+    presents those alone and hashes no row (`faraday-window` `Shown`),
+    where before every step blended, hashed and converted the whole
+    window and gave the compositor every row (`docs/SPEED.md` §13). A step part of the way asks for the
     next itself, so the shell keeps drawing from the first one (the
     desktop shell answers a frame's own asks after presenting it). At
     once with reduce motion, and at once on a machine whose fades come
@@ -325,11 +345,17 @@ extent; a motion left from another screen or sheet is stopped.
     frame that shows the change, not a frame drawn in full, not any
     other motion), keeps the last nine with when each was taken, and
     turns fades off when the median of those under 30 s old
-    (`motion::FADE_GAPS_FRESH_MS`), once five are known, is over 35 ms,
-    worse than 30 Hz (`motion::FADE_GAP_MS`, `Fade::step_timed`). Off,
+    (`motion::FADE_GAPS_FRESH_MS`), once five are known, is over 55 ms
+    (`motion::FADE_GAP_MS`, `Fade::step_timed`): the steps a fade can
+    carry, four in its 200 ms, a step every third refresh at 60 Hz
+    (50 ms), with room for whole milliseconds' ticks, which read three
+    refreshes as 50 or 51 ms (owner, 2026-10-29; it was 35 ms, worse than
+    30 Hz, which a large window at 60 Hz crossed whenever a step slipped
+    from two refreshes to three). Off,
     they stay off at least 10 s (`motion::FADE_HOLD_MS`) and come back
     only after 24 frames in a row, each drawn or blended within 35 ms of
-    the one before (`motion::FADE_ON_RUN`, `Fade::shown`): a frame
+    the one before (`motion::FADE_ON_RUN`, `motion::FADE_ON_GAP_MS`,
+    `Fade::shown`; unchanged on 2026-10-29): a frame
     further apart breaks the run, a pause over 100 ms
     (`motion::FADE_PAUSE_MS`) neither counts nor breaks it, and time
     alone brings nothing back. Turning off and turning on take different

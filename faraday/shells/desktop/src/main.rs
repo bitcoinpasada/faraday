@@ -389,7 +389,23 @@ impl Shell {
             return;
         };
         let begun = Instant::now();
-        view.draw(app, &mut self.pace);
+        if view.draw(app, &mut self.pace) {
+            // With the frames' line, what the fades did over the same
+            // second (`docs/MOTION.md` §3.2).
+            let f = app.app.take_fade_counts();
+            let median = f
+                .median_gap_ms
+                .map_or_else(|| "-".to_owned(), |g| g.to_string());
+            eprintln!(
+                "faraday: fades · started {} · skipped {} · reduced {} · steps {} · median gap {median} ms of {} · {}",
+                f.started,
+                f.skipped,
+                f.reduced,
+                f.steps,
+                f.gaps_known,
+                if f.on { "on" } else { "off" },
+            );
+        }
         self.slow("frame", begun.elapsed());
     }
 

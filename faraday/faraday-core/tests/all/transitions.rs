@@ -172,11 +172,17 @@ fn fades(app: &mut Faraday, press: Action, now: u64) -> bool {
 #[test]
 fn a_machine_whose_fades_come_in_steps_gets_the_new_screen_at_once() {
     let mut app = shown();
-    // Two fades whose steps come 40 ms apart, as on a slow machine.
+    // Fades whose steps come 70 ms apart, past four refreshes at 60 Hz,
+    // as on a slow machine.
     let mut now = 1_000;
-    for screen in [Screen::Settings, Screen::Home] {
+    for screen in [
+        Screen::Settings,
+        Screen::Home,
+        Screen::Settings,
+        Screen::Home,
+    ] {
         app.press(Action::Nav(screen));
-        now = every(&mut app, now + 40, now + 400, 40);
+        now = every(&mut app, now + 70, now + 420, 70);
     }
     assert!(
         !fades(&mut app, Action::Nav(Screen::Settings), now),
@@ -185,6 +191,29 @@ fn a_machine_whose_fades_come_in_steps_gets_the_new_screen_at_once() {
     assert!(
         !fades(&mut app, Action::Nav(Screen::Home), now + 2_000),
         "and still none at the next change"
+    );
+}
+
+#[test]
+fn a_large_window_whose_frames_come_every_third_refresh_still_fades() {
+    let mut app = shown();
+    // Fades whose steps, and the frames drawn in full between them, come
+    // 50 ms apart, as in a large window at 60 Hz; the page scrolled at
+    // the same pace between them.
+    let mut now = 1_000;
+    for screen in [
+        Screen::Settings,
+        Screen::Home,
+        Screen::Settings,
+        Screen::Home,
+    ] {
+        app.press(Action::Nav(screen));
+        now = every(&mut app, now + 50, now + 400, 50);
+        now = scrolled(&mut app, now + 50, 50, 16);
+    }
+    assert!(
+        fades(&mut app, Action::Nav(Screen::Settings), now + 200),
+        "the next change of screen fades"
     );
 }
 
@@ -240,9 +269,14 @@ fn scrolled(app: &mut Faraday, from: u64, step: u64, ticks: u64) -> u64 {
 fn a_machine_slow_for_a_while_fades_again_once_its_frames_come_fast() {
     let mut app = shown();
     let mut now = 1_000;
-    for screen in [Screen::Settings, Screen::Home] {
+    for screen in [
+        Screen::Settings,
+        Screen::Home,
+        Screen::Settings,
+        Screen::Home,
+    ] {
         app.press(Action::Nav(screen));
-        now = every(&mut app, now + 40, now + 400, 40);
+        now = every(&mut app, now + 70, now + 420, 70);
     }
     assert!(!fades(&mut app, Action::Nav(Screen::Settings), now));
     // Half a minute on, with nothing moving: time alone brings no fade

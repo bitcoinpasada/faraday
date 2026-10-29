@@ -132,11 +132,19 @@ impl Pacer {
         }
     }
 
-    /// Records one frame presented at `now` for `--timings`.
-    pub fn presented(&mut self, render: Duration, blit: Duration, now: Instant) {
-        if let Some(t) = self.timings.as_mut() {
-            t.frame(render, blit, now);
-        }
+    /// Records one frame presented at `now` for `--timings`, after a
+    /// wait of `wait` for the surface's buffer; returns whether its line
+    /// was printed with this frame.
+    pub fn presented(
+        &mut self,
+        wait: Duration,
+        render: Duration,
+        blit: Duration,
+        now: Instant,
+    ) -> bool {
+        self.timings
+            .as_mut()
+            .is_some_and(|t| t.frame(wait, render, blit, now))
     }
 
     /// An event with its commands took `took`, for `--timings`.
@@ -182,7 +190,10 @@ struct FrameTimings {
     /// When the last frame was presented.
     last: Option<Instant>,
     frames: u32,
-    /// Mean and worst, as a total and a maximum.
+    /// Mean and worst, as a total and a maximum: the wait for the
+    /// surface's buffer (the compositor still holding it), the render
+    /// and the copy.
+    wait: (Duration, Duration),
     render: (Duration, Duration),
     blit: (Duration, Duration),
     /// Between consecutive frames of a motion, and how many of them.
@@ -202,6 +213,7 @@ impl FrameTimings {
             since: Instant::now(),
             last: None,
             frames: 0,
+            wait: (Duration::ZERO, Duration::ZERO),
             render: (Duration::ZERO, Duration::ZERO),
             blit: (Duration::ZERO, Duration::ZERO),
             gap: (Duration::ZERO, Duration::ZERO),
@@ -214,9 +226,10 @@ impl FrameTimings {
     }
 
     /// Records one frame presented at `now`, and prints a line once a
-    /// second.
-    fn frame(&mut self, render: Duration, blit: Duration, now: Instant) {
+    /// second; returns whether it printed.
+    fn frame(&mut self, wait: Duration, render: Duration, blit: Duration, now: Instant) -> bool {
         self.frames += 1;
+        self.wait = (self.wait.0 + wait, self.wait.1.max(wait));
         self.render = (self.render.0 + render, self.render.1.max(render));
         self.blit = (self.blit.0 + blit, self.blit.1.max(blit));
         if let Some(last) = self.last {
@@ -228,13 +241,15 @@ impl FrameTimings {
         }
         self.last = Some(now);
         if now - self.since < TIMINGS_EVERY {
-            return;
+            return false;
         }
         let ms = |d: Duration| d.as_secs_f64() * 1000.0;
         let mean = |total: Duration, n: u32| ms(total) / f64::from(n.max(1));
         eprintln!(
-            "faraday: {} frames · render {:.1} ms (worst {:.1}) · blit {:.1} ms (worst {:.1}) · frame to frame {:.1} ms (worst {:.1}) over {} · events {:.1} ms (worst {:.1}) · storage {:.1} ms (worst {:.1})",
+            "faraday: {} frames · wait {:.1} ms (worst {:.1}) · render {:.1} ms (worst {:.1}) · blit {:.1} ms (worst {:.1}) · frame to frame {:.1} ms (worst {:.1}) over {} · events {:.1} ms (worst {:.1}) · storage {:.1} ms (worst {:.1})",
             self.frames,
+            mean(self.wait.0, self.frames),
+            ms(self.wait.1),
             mean(self.render.0, self.frames),
             ms(self.render.1),
             mean(self.blit.0, self.frames),
@@ -252,5 +267,6 @@ impl FrameTimings {
             last: self.last,
             ..FrameTimings::new()
         };
+        true
     }
 }

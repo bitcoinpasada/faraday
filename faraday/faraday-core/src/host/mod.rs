@@ -23,7 +23,7 @@ use std::collections::VecDeque;
 use faraday_draw::Canvas;
 use faraday_draw::geom::Rect;
 use faraday_draw::tokens as t;
-use faraday_shell_api::{App, Command, DisplayInfo, Event, Frame, Parts, TouchPhase};
+use faraday_shell_api::{App, Changed, Command, DisplayInfo, Event, Frame, Parts, TouchPhase};
 
 use crate::motion::{Motion, Region, SLOP};
 use crate::{Action, Faraday};
@@ -185,6 +185,18 @@ pub struct Host {
     /// The frame last drawn whole showed a menu or the focus border part
     /// of the way.
     drawn_whole_moving: bool,
+    /// The focus border as last drawn on the app's frame: how wide, and
+    /// its colour.
+    edge_drawn: Option<(i32, faraday_draw::Color)>,
+    /// Where the window may differ from the parts last given, for
+    /// [`Parts::changed`]: the app's own changes where it stands, the
+    /// strip, and the focus border where its colour changed.
+    changed: Vec<Changed>,
+    /// How the parts last given were laid out, the app's frame handed
+    /// over unplaced: the window's size, where the app stands and the
+    /// strip's top. `None` after the window was given whole. What changed
+    /// is known only from parts laid out the same way.
+    given: Option<(u16, u16, i32, i32, u16)>,
 }
 
 impl Host {
@@ -229,6 +241,9 @@ impl Host {
             pulse_at: 0,
             stale: true,
             drawn_whole_moving: false,
+            edge_drawn: None,
+            changed: Vec::new(),
+            given: None,
         }
     }
 
@@ -892,6 +907,7 @@ impl Host {
         let Some(c) = self.app.canvas.as_mut() else {
             return;
         };
+        self.edge_drawn = Some((e, color));
         let (w, h) = (c.width(), c.height());
         for r in [
             Rect::new(0, 0, w, e),
@@ -1092,6 +1108,7 @@ impl App for Host {
     /// Costs the app's frame, a copy of its pixels into the window's and
     /// the strip's drawing.
     fn frame(&mut self) -> Frame<'_> {
+        self.given = None;
         self.paint(true);
         match self.canvas.as_ref() {
             Some(c) => c.frame(),
@@ -1111,27 +1128,71 @@ impl App for Host {
     /// else the window's whole frame, as [`App::frame`] gives it, where a
     /// menu or Samples' sheet stands over the app and for a preview,
     /// whose small frame costs less to place than the window round it.
+    ///
+    /// Given unplaced as the parts before them were, they say what may
+    /// have changed since ([`Parts::changed`]): where the app says its
+    /// frame changed (a fade's steps), the strip, and the focus border
+    /// where its colour changed; else nothing is said.
     fn parts(&mut self) -> Parts<'_> {
+        let edge = if self.bare || self.preview.is_some() {
+            0
+        } else {
+            edge_px(self.f())
+        };
+        self.app.set_edge_drawn_over(edge);
+        let edge_before = self.edge_drawn;
         let unplaced = self.paint(false);
+        let app_changed = self.app.take_changed();
         let empty = Frame {
             width: 0,
             height: 0,
             rgba: &[],
         };
-        let Some(a) = unplaced else {
+        let (Some(a), Some(d)) = (unplaced, self.window) else {
+            self.given = None;
             let base = self.canvas.as_ref().map_or(empty, Canvas::frame);
             return Parts {
                 base,
                 base_y: 0,
                 inner: None,
+                changed: None,
             };
         };
         let at = |v: i32| v.clamp(0, i32::from(u16::MAX)) as u16;
         let base_y = self.strip_area().map_or(at(a.h), |(_, top, _, _)| at(top));
+        let layout = Some((d.width, d.height, a.x, a.y, base_y));
+        let known = app_changed.filter(|_| self.given == layout);
+        self.given = layout;
+        self.changed.clear();
+        if let Some(rects) = &known {
+            let mut put = |x: i32, y: i32, w: i32, h: i32| {
+                if w > 0 && h > 0 {
+                    self.changed.push(Changed {
+                        x: at(x),
+                        y: at(y),
+                        width: at(w),
+                        height: at(h),
+                    });
+                }
+            };
+            for r in rects {
+                put(a.x + r.x, a.y + r.y, r.w, r.h);
+            }
+            let strip_h = self.strip.as_ref().map_or(0, Canvas::height);
+            put(0, i32::from(base_y), i32::from(d.width), strip_h);
+            if self.edge_drawn != edge_before {
+                let (w, h) = (a.w, a.h);
+                put(a.x, a.y, w, edge);
+                put(a.x, a.y + h - edge, w, edge);
+                put(a.x, a.y, edge, h);
+                put(a.x + w - edge, a.y, edge, h);
+            }
+        }
         Parts {
             base: self.strip.as_ref().map_or(empty, Canvas::frame),
             base_y,
             inner: Some((painted(&self.app), at(a.x), at(a.y))),
+            changed: known.is_some().then_some(self.changed.as_slice()),
         }
     }
 }

@@ -6,7 +6,7 @@ use std::rc::Rc;
 use std::time::{Duration, Instant};
 
 use faraday_shell_api::{
-    App, BootState, Command, DisplayInfo, Event, Frame, Parts, SecureHardware,
+    App, BootState, Changed, Command, DisplayInfo, Event, Frame, Parts, SecureHardware,
 };
 use softbuffer::{Context, Surface};
 use winit::event_loop::ActiveEventLoop;
@@ -69,18 +69,22 @@ impl View {
 
     /// Draws `app`'s frame into the window and presents it. A frame that
     /// asks for the next one (a fade part of the way) gets a redraw from
-    /// here: no event is coming to ask on its behalf.
-    pub fn draw<A: App + ?Sized>(&mut self, app: &mut A, pacer: &mut Pacer) {
+    /// here: no event is coming to ask on its behalf. Returns whether
+    /// `--timings` printed its line with this frame.
+    pub fn draw<A: App + ?Sized>(&mut self, app: &mut A, pacer: &mut Pacer) -> bool {
         let window = &self.window;
         let size = window.inner_size();
         let (Some(w), Some(h)) = (NonZeroU32::new(size.width), NonZeroU32::new(size.height)) else {
-            return;
+            return false;
         };
         if self.surface.resize(w, h).is_err() {
-            return;
+            return false;
         }
+        // The compositor may still hold the buffer: the wait for it is
+        // part of the gap between frames, and timed.
+        let asked = Instant::now();
         let Ok(mut buffer) = self.surface.buffer_mut() else {
-            return;
+            return false;
         };
         let begun = Instant::now();
         let timed = pacer.timed();
@@ -91,17 +95,17 @@ impl View {
         let bands = self
             .shown
             .copy(&parts, &mut buffer, size.width as usize, age);
-        // Only the rows that changed since the last frame are given to the
+        // Only what changed since the last frame is given to the
         // compositor to take again; a frame that changed nothing still
         // presents a row, so the compositor still says when it is shown.
         let damage: Vec<softbuffer::Rect> = bands
             .iter()
-            .filter_map(|&(y0, y1)| {
+            .filter_map(|a| {
                 Some(softbuffer::Rect {
-                    x: 0,
-                    y: u32::try_from(y0).ok()?,
-                    width: w,
-                    height: NonZeroU32::new(u32::try_from(y1 - y0).ok()?)?,
+                    x: u32::try_from(a.x).ok()?,
+                    y: u32::try_from(a.y).ok()?,
+                    width: NonZeroU32::new(u32::try_from(a.w).ok()?)?,
+                    height: NonZeroU32::new(u32::try_from(a.h).ok()?)?,
                 })
             })
             .collect();
@@ -137,8 +141,9 @@ impl View {
         }
         if let (Some(start), Some(rendered)) = (start, rendered) {
             let now = Instant::now();
-            pacer.presented(rendered - start, now - rendered, now);
+            return pacer.presented(begun - asked, rendered - start, now - rendered, now);
         }
+        false
     }
 }
 
@@ -156,38 +161,70 @@ pub fn copy(parts: &Parts<'_>, buffer: &mut [u32], sw: usize) {
     }
 }
 
+/// A rectangle of the window's pixels: columns from `x`, `w` wide, rows
+/// from `y`, `h` high.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Area {
+    /// Left edge.
+    pub x: usize,
+    /// Top edge.
+    pub y: usize,
+    /// Width.
+    pub w: usize,
+    /// Height.
+    pub h: usize,
+}
+
+impl Area {
+    /// Whether `other` lies wholly inside this one.
+    fn holds(&self, other: &Area) -> bool {
+        other.x >= self.x
+            && other.y >= self.y
+            && other.x + other.w <= self.x + self.w
+            && other.y + other.h <= self.y + self.h
+    }
+}
+
+/// One frame a window's surface was given: the window's width, a hash of
+/// each row (or a mark never given twice, for a row a frame changed
+/// without hashing it), and the rectangles that frame changed, where the
+/// app said them.
+#[derive(Debug)]
+struct Given {
+    width: usize,
+    rows: Vec<u64>,
+    said: Option<Vec<Area>>,
+}
+
 /// What a window's surface was given in its last two frames, newest
-/// first: the window's width and a hash of each of its rows. The rows a
-/// buffer already holds are not copied again, and only the rows that
-/// differ from the frame last presented are damaged.
+/// first. The rows a buffer already holds are not copied again, and only
+/// what differs from the frame last presented is damaged.
 #[derive(Debug, Default)]
 pub struct Shown {
-    frames: [Option<(usize, Vec<u64>)>; 2],
+    frames: [Option<Given>; 2],
+    /// Marks given out so far, for rows changed without a hash.
+    marks: u64,
 }
 
 impl Shown {
-    /// Costs a hash of every row of the window and a copy of the rows
-    /// that changed. Copies `parts` into `buffer`, a window `sw` pixels
-    /// wide that holds what it was given `age` frames ago (softbuffer's
-    /// age: 1 the last frame, 2 the one before, 0 not known), as
-    /// [`copy`] does, but only where a row differs from what the buffer
-    /// holds. Returns the bands of rows, `[from, to)`, that differ from
-    /// the frame last presented: the damage to present.
-    pub fn copy(
-        &mut self,
-        parts: &Parts<'_>,
-        buffer: &mut [u32],
-        sw: usize,
-        age: u8,
-    ) -> Vec<(usize, usize)> {
+    /// Costs a copy of what changed, and a hash of every row where the
+    /// app does not say what changed. Copies `parts` into `buffer`, a
+    /// window `sw` pixels wide that holds what it was given `age` frames
+    /// ago (softbuffer's age: 1 the last frame, 2 the one before, 0 not
+    /// known), as [`copy`] does, but only where it differs from what the
+    /// buffer holds. Where the parts say what changed
+    /// ([`Parts::changed`]) only that is copied and nothing is hashed;
+    /// else every row is hashed. Returns what differs from the frame
+    /// last presented: the damage to present.
+    pub fn copy(&mut self, parts: &Parts<'_>, buffer: &mut [u32], sw: usize, age: u8) -> Vec<Area> {
         if sw == 0 {
             return Vec::new();
         }
         let rows = buffer.len() / sw;
-        fn at_size(f: &Option<(usize, Vec<u64>)>, sw: usize, rows: usize) -> Option<&[u64]> {
-            f.as_ref()
-                .filter(|(w, h)| *w == sw && h.len() == rows)
-                .map(|(_, h)| h.as_slice())
+        if let Some(said) = parts.changed
+            && at_size(&self.frames[0], sw, rows).is_some()
+        {
+            return self.copy_said(parts, said, buffer, sw, age);
         }
         let held = match age {
             1 => at_size(&self.frames[0], sw, rows),
@@ -196,25 +233,125 @@ impl Shown {
         };
         let last = at_size(&self.frames[0], sw, rows);
         let mut hashes = Vec::with_capacity(rows);
-        let mut bands: Vec<(usize, usize)> = Vec::new();
+        let mut bands: Vec<Area> = Vec::new();
         for (y, dst) in buffer.chunks_exact_mut(sw).enumerate() {
             let pieces = row(parts, y, sw);
             let h = hash(&pieces);
-            if held.is_none_or(|hs| hs[y] != h) {
+            if held.is_none_or(|g| g.rows[y] != h) {
                 put(&pieces, dst);
             }
-            if last.is_none_or(|hs| hs[y] != h) {
+            if last.is_none_or(|g| g.rows[y] != h) {
                 match bands.last_mut() {
-                    Some(b) if b.1 == y => b.1 = y + 1,
-                    _ => bands.push((y, y + 1)),
+                    Some(b) if b.y + b.h == y => b.h += 1,
+                    _ => bands.push(Area {
+                        x: 0,
+                        y,
+                        w: sw,
+                        h: 1,
+                    }),
                 }
             }
             hashes.push(h);
         }
         let newest = self.frames[0].take();
-        self.frames = [Some((sw, hashes)), newest];
+        self.frames = [
+            Some(Given {
+                width: sw,
+                rows: hashes,
+                said: None,
+            }),
+            newest,
+        ];
         bands
     }
+
+    /// Costs a copy of what changed. [`Shown::copy`] where the parts say
+    /// what changed since the last frame, `said`, which the surface was
+    /// given at this size: only that is copied into `buffer`, with what
+    /// changed between the frame the buffer holds and the last, and
+    /// nothing is hashed.
+    fn copy_said(
+        &mut self,
+        parts: &Parts<'_>,
+        said: &[Changed],
+        buffer: &mut [u32],
+        sw: usize,
+        age: u8,
+    ) -> Vec<Area> {
+        let rows = buffer.len() / sw;
+        let Some(last) = at_size(&self.frames[0], sw, rows) else {
+            return Vec::new();
+        };
+        let said: Vec<Area> = said
+            .iter()
+            .filter_map(|c| {
+                let (x, y) = (usize::from(c.x), usize::from(c.y));
+                let w = usize::from(c.width).min(sw.saturating_sub(x));
+                let h = usize::from(c.height).min(rows.saturating_sub(y));
+                (w > 0 && h > 0).then_some(Area { x, y, w, h })
+            })
+            .collect();
+        let mut marked = last.rows.clone();
+        self.marks += 1;
+        for a in &said {
+            for (y, m) in marked.iter_mut().enumerate().skip(a.y).take(a.h) {
+                *m = mark(self.marks, y);
+            }
+        }
+        // What the buffer lacks: what this frame changed, and what
+        // changed between the frame it holds and the last.
+        let between: Option<Vec<Area>> = match (age, at_size(&self.frames[1], sw, rows)) {
+            (1, _) => Some(Vec::new()),
+            (2, Some(older)) => Some(last.said.clone().unwrap_or_else(|| {
+                (0..rows)
+                    .filter(|&y| older.rows[y] != last.rows[y])
+                    .map(|y| Area {
+                        x: 0,
+                        y,
+                        w: sw,
+                        h: 1,
+                    })
+                    .collect()
+            })),
+            _ => None,
+        };
+        match between {
+            Some(mut between) => {
+                // A fade's steps change the same bands each frame: what
+                // this frame writes anyway is not written twice.
+                between.retain(|b| !said.iter().any(|s| s.holds(b)));
+                for a in said.iter().chain(&between) {
+                    for y in a.y..a.y + a.h {
+                        let dst = &mut buffer[y * sw..(y + 1) * sw];
+                        put_span(&row(parts, y, sw), dst, a.x, a.x + a.w);
+                    }
+                }
+            }
+            None => copy(parts, buffer, sw),
+        }
+        let newest = self.frames[0].take();
+        self.frames = [
+            Some(Given {
+                width: sw,
+                rows: marked,
+                said: Some(said.clone()),
+            }),
+            newest,
+        ];
+        said
+    }
+}
+
+/// A frame given at this size, `sw` wide and `rows` high, if it was.
+fn at_size(f: &Option<Given>, sw: usize, rows: usize) -> Option<&Given> {
+    f.as_ref().filter(|g| g.width == sw && g.rows.len() == rows)
+}
+
+/// A mark for row `y` of the frame `n`th to be given without a hash: no
+/// two are alike, and one is as unlikely to equal a row's hash as two
+/// different rows' hashes are to be equal.
+fn mark(n: u64, y: usize) -> u64 {
+    (n.rotate_left(32) ^ y as u64 ^ 0x6a09_e667_f3bc_c908).wrapping_mul(0x9e37_79b9_7f4a_7c15)
 }
 
 /// One piece of a window's row: a frame's pixels, then the page colour
@@ -265,14 +402,27 @@ fn piece<'a>(frame: &Frame<'a>, y: Option<usize>, from: usize, len: usize) -> Pi
 /// `dst`, a pixel at a time read as one big-endian word and shifted:
 /// premultiplied RGBA to the window's 0RGB.
 fn put(pieces: &[Piece<'_>; 3], dst: &mut [u32]) {
+    put_span(pieces, dst, 0, dst.len());
+}
+
+/// Costs a pass over the span's pixels. [`put`] for the row's columns
+/// `[from, to)` alone.
+fn put_span(pieces: &[Piece<'_>; 3], dst: &mut [u32], from: usize, to: usize) {
     let mut x = 0;
     for &(src, beyond) in pieces {
         let n = src.len() / 4;
-        for (d, px) in dst[x..x + n].iter_mut().zip(src.chunks_exact(4)) {
-            *d = u32::from_be_bytes([px[0], px[1], px[2], px[3]]) >> 8;
+        let (a, b) = (from.max(x), to.min(x + n));
+        if a < b {
+            let src = &src[(a - x) * 4..(b - x) * 4];
+            for (d, px) in dst[a..b].iter_mut().zip(src.chunks_exact(4)) {
+                *d = u32::from_be_bytes([px[0], px[1], px[2], px[3]]) >> 8;
+            }
         }
         x += n;
-        dst[x..x + beyond].fill(BEYOND);
+        let (a, b) = (from.max(x), to.min(x + beyond));
+        if a < b {
+            dst[a..b].fill(BEYOND);
+        }
         x += beyond;
     }
 }
@@ -391,6 +541,7 @@ mod tests {
                 2,
                 1,
             )),
+            changed: None,
         };
         // A window a column wider and a row taller than the frame: the
         // moment after a resize.
@@ -432,6 +583,7 @@ mod tests {
                 0,
                 0,
             )),
+            changed: None,
         };
         let mut buffer = vec![0u32; 5 * 6];
         copy(&parts, &mut buffer, 5);
@@ -482,6 +634,7 @@ mod tests {
             },
             base_y: 0,
             inner: None,
+            changed: None,
         }
     }
 
@@ -527,7 +680,7 @@ mod tests {
             if let Some(prev) = &last {
                 for y in 0..rows {
                     let changed = prev[y * sw..(y + 1) * sw] != want[y * sw..(y + 1) * sw];
-                    let damaged = bands.iter().any(|&(a, z)| (a..z).contains(&y));
+                    let damaged = bands.iter().any(|a| (a.y..a.y + a.h).contains(&y));
                     assert_eq!(damaged, changed, "{n} buffers: frame {i}, row {y}");
                 }
             }
@@ -541,6 +694,128 @@ mod tests {
                     *a += 1;
                 }
             }
+        }
+    }
+
+    /// As [`present_through`], but most frames say where they changed, a
+    /// few rectangles, the way a fade's steps do, and every few frames do
+    /// not; each frame still shows whole, and its damage covers every
+    /// pixel that changed.
+    fn present_said(n: usize, w: u16, h: u16, frames: usize) {
+        use faraday_shell_api::Changed;
+        let (sw, rows) = (usize::from(w), usize::from(h));
+        let mut noise = Noise(0x5851_f42d + n as u64);
+        let mut shown = Shown::default();
+        let mut buffers = vec![(vec![0u32; sw * rows], 0u8); n];
+        let mut frame = noise.frame(w, h);
+        let mut last: Option<Vec<u32>> = None;
+        for i in 0..frames {
+            let mut said = Vec::new();
+            for _ in 0..(noise.next() % 3) {
+                let (x, y) = (
+                    (noise.next() % u64::from(w)) as u16,
+                    (noise.next() % u64::from(h)) as u16,
+                );
+                let cw = 1 + (noise.next() % u64::from(w - x)) as u16;
+                let ch = 1 + (noise.next() % u64::from(h - y)) as u16;
+                for yy in y..y + ch {
+                    for xx in x..x + cw {
+                        let at = (usize::from(yy) * sw + usize::from(xx)) * 4;
+                        frame[at + 1] = frame[at + 1].wrapping_add(1 + (noise.next() % 200) as u8);
+                    }
+                }
+                said.push(Changed {
+                    x,
+                    y,
+                    width: cw,
+                    height: ch,
+                });
+            }
+            let mut parts = whole(&frame, w, h);
+            if i % 7 != 3 {
+                parts.changed = Some(&said);
+            }
+            let b = i % n;
+            let age = buffers[b].1;
+            let bands = shown.copy(&parts, &mut buffers[b].0, sw, age);
+            let want = bytewise(&frame, sw, rows);
+            assert!(buffers[b].0 == want, "{n} buffers: frame {i} shown whole");
+            if let Some(prev) = &last {
+                for (k, (p, q)) in prev.iter().zip(&want).enumerate() {
+                    let (x, y) = (k % sw, k / sw);
+                    let damaged = bands
+                        .iter()
+                        .any(|a| (a.x..a.x + a.w).contains(&x) && (a.y..a.y + a.h).contains(&y));
+                    assert!(
+                        p == q || damaged,
+                        "{n} buffers: frame {i}, {x}, {y} changed undamaged"
+                    );
+                }
+            }
+            last = Some(want);
+            for (k, (_, a)) in buffers.iter_mut().enumerate() {
+                if k == b {
+                    *a = 1;
+                } else if *a != 0 {
+                    *a += 1;
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn faraday_demos_window_shows_every_step_of_its_fades_whole() {
+        use faraday_core::{Action, Faraday, Host, Screen};
+        let (w, h) = (900u16, 560u16);
+        let sw = usize::from(w);
+        let mut host = Host::new(Faraday::new());
+        let Event::Display(mut d) = display((u32::from(w), u32::from(h)), 1.0, None) else {
+            unreachable!()
+        };
+        d.camera_fixed = false;
+        host.event(Event::Display(d));
+        let mut shown = Shown::default();
+        let mut buffers = vec![(vec![0u32; sw * usize::from(h)], 0u8); 2];
+        let mut whole_frame = vec![0u32; sw * usize::from(h)];
+        let (mut now, mut i, mut said) = (1_000u64, 0usize, 0);
+        let changes = [
+            Action::Nav(Screen::Settings),
+            Action::Learn,
+            Action::Cancel,
+            Action::Nav(Screen::Home),
+        ];
+        for change in changes {
+            host.app.press(change);
+            for _ in 0..24 {
+                now += 16;
+                host.event(Event::Tick { now_ms: now });
+                while host.poll_command().is_some() {}
+                let parts = host.parts();
+                said += usize::from(parts.changed.is_some());
+                let b = i % 2;
+                let age = buffers[b].1;
+                let _ = shown.copy(&parts, &mut buffers[b].0, sw, age);
+                copy(&parts, &mut whole_frame, sw);
+                assert!(buffers[b].0 == whole_frame, "frame {i} shown whole");
+                for (k, (_, a)) in buffers.iter_mut().enumerate() {
+                    *a = if k == b {
+                        1
+                    } else if *a != 0 {
+                        *a + 1
+                    } else {
+                        0
+                    };
+                }
+                i += 1;
+            }
+        }
+        assert!(said > 8, "a fade's steps say what they changed ({said})");
+    }
+
+    #[test]
+    fn a_surface_given_only_what_a_fades_steps_changed_shows_every_frame_whole() {
+        for n in [1, 2] {
+            present_said(n, 41, 29, 300);
         }
     }
 
@@ -558,7 +833,15 @@ mod tests {
         let a = noise.frame(8, 4);
         let mut buffer = vec![0u32; 8 * 4];
         let bands = shown.copy(&whole(&a, 8, 4), &mut buffer, 8, 0);
-        assert_eq!(bands, vec![(0, 4)], "the first frame is damaged whole");
+        let all = |h| {
+            vec![Area {
+                x: 0,
+                y: 0,
+                w: 8,
+                h,
+            }]
+        };
+        assert_eq!(bands, all(4), "the first frame is damaged whole");
         // The same frame again into a buffer of unknown age: written whole,
         // damaged nowhere, since the window already shows it.
         let mut stale = vec![0u32; 8 * 4];
@@ -569,6 +852,14 @@ mod tests {
         let mut buffer = vec![0u32; 6 * 4];
         let bands = shown.copy(&whole(&b, 6, 4), &mut buffer, 6, 1);
         assert!(buffer == bytewise(&b, 6, 4));
-        assert_eq!(bands, vec![(0, 4)]);
+        assert_eq!(
+            bands,
+            vec![Area {
+                x: 0,
+                y: 0,
+                w: 6,
+                h: 4
+            }]
+        );
     }
 }

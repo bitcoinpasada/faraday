@@ -706,7 +706,29 @@ impl Canvas {
     /// ([`Canvas::swap_pixels`]). Every pixel is written; snapshots of
     /// another size leave the canvas as it is.
     pub fn blend_between(&mut self, before: &[u8], after: &[u8], t: f32) {
+        let mut bands = Vec::new();
+        self.blend_noting(before, after, t, 0, &mut bands);
+    }
+
+    /// Costs a pass over the whole canvas. [`Canvas::blend_between`],
+    /// which also sets `bands` to rectangles that hold every pixel where
+    /// `before` and `after` differ, but for a ring `inset` pixels wide
+    /// round the canvas's edge, which whoever holds the canvas draws over
+    /// every frame and is never noted: for the fade's later steps to blend
+    /// those alone ([`Canvas::blend_within`]). Differences are found 16
+    /// pixels at a time from the ring's inner edge, so a band may hold a
+    /// few pixels that agree; rows next to each other whose differences
+    /// span about the same columns share a band.
+    pub fn blend_noting(
+        &mut self,
+        before: &[u8],
+        after: &[u8],
+        t: f32,
+        inset: i32,
+        bands: &mut Vec<Rect>,
+    ) {
         (self.counter)(Work::FullCanvas);
+        bands.clear();
         let n = self.pixmap.data().len();
         if before.len() != n || after.len() != n {
             return;
@@ -717,24 +739,66 @@ impl Canvas {
         // from the page before it everywhere, so most pixels of such a
         // fade are blended.
         let t = (t.clamp(0.0, 1.0) * 256.0) as u16;
-        let u = 256 - t;
         self.damaged(self.bounds());
+        let (w, h) = (self.pixmap.width() as usize, self.pixmap.height() as usize);
+        let ring = usize::try_from(inset.max(0))
+            .unwrap_or(0)
+            .min(w / 2)
+            .min(h / 2);
+        let stride = w * 4;
         let data = self.pixmap.data_mut();
-        // Where the two frames agree the new one is copied, a run of
-        // pixels at a time: most of a change of screen (the sidebar, the
-        // page's ground).
-        const RUN: usize = 4 * 16;
-        let runs = data
-            .chunks_mut(RUN)
-            .zip(before.chunks(RUN))
-            .zip(after.chunks(RUN));
-        for ((now, was), will) in runs {
-            if was == will || t == 256 {
-                now.copy_from_slice(will);
+        let mut spans = Bands::default();
+        for y in 0..h {
+            let at = y * stride;
+            let (now, was, will) = (
+                &mut data[at..at + stride],
+                &before[at..at + stride],
+                &after[at..at + stride],
+            );
+            if y < ring || y >= h - ring {
+                blend_runs(now, was, will, t, true);
                 continue;
             }
-            for ((now, &w), &n) in now.iter_mut().zip(was).zip(will) {
-                *now = ((u16::from(w) * u + u16::from(n) * t) >> 8) as u8;
+            let (l, r) = (ring * 4, stride - ring * 4);
+            blend_runs(&mut now[..l], &was[..l], &will[..l], t, true);
+            blend_runs(&mut now[r..], &was[r..], &will[r..], t, true);
+            let span = blend_runs(&mut now[l..r], &was[l..r], &will[l..r], t, true);
+            spans.row(y, span.map(|(a, b)| (a + ring, b + ring)));
+        }
+        spans.into_rects(bands);
+    }
+
+    /// Costs a pass over the pixels of `bands`. The next step of a fade
+    /// [`Canvas::blend_noting`] began: `t` of the way from `before` to
+    /// `after` inside `bands`, the rectangles that call noted, the rest
+    /// left as it is, where the two agree and the canvas already shows
+    /// them (or the ring it left out, which is drawn over). Snapshots of
+    /// another size leave the canvas as it is.
+    pub fn blend_within(&mut self, before: &[u8], after: &[u8], t: f32, bands: &[Rect]) {
+        (self.counter)(Work::FullCanvas);
+        let n = self.pixmap.data().len();
+        if before.len() != n || after.len() != n {
+            return;
+        }
+        let t = (t.clamp(0.0, 1.0) * 256.0) as u16;
+        let stride = self.pixmap.width() as usize * 4;
+        for band in bands {
+            let b = band.intersect(&self.bounds());
+            if b.is_empty() {
+                continue;
+            }
+            self.damaged(b);
+            let data = self.pixmap.data_mut();
+            for y in b.y..b.bottom() {
+                let at = y as usize * stride + b.x as usize * 4;
+                let end = at + b.w as usize * 4;
+                blend_runs(
+                    &mut data[at..end],
+                    &before[at..end],
+                    &after[at..end],
+                    t,
+                    false,
+                );
             }
         }
     }
@@ -1263,6 +1327,98 @@ fn outside(region: Rect, clip: Rect) -> [Rect; 4] {
 }
 
 /// The smallest rectangle holding both.
+/// Bytes a fade compares at a time, 16 pixels: where the two frames
+/// agree over a run, the new one is copied, most of a change of screen
+/// (the sidebar, the page's ground).
+const RUN: usize = 4 * 16;
+
+/// Costs a pass over the pixels. `now` set `t` (of 256) of the way from
+/// `was` to `will`, three runs of the same pixels, [`RUN`] bytes at a
+/// time; returns the first pixel and the end of the runs where `was` and
+/// `will` differ, if any do. Where they agree `will` is copied only with
+/// `agreeing`: a later step's canvas already shows it there.
+fn blend_runs(
+    now: &mut [u8],
+    was: &[u8],
+    will: &[u8],
+    t: u16,
+    agreeing: bool,
+) -> Option<(usize, usize)> {
+    let u = 256 - t;
+    let mut span: Option<(usize, usize)> = None;
+    let runs = now
+        .chunks_mut(RUN)
+        .zip(was.chunks(RUN))
+        .zip(will.chunks(RUN))
+        .enumerate();
+    for (i, ((now, was), will)) in runs {
+        if was == will {
+            if agreeing {
+                now.copy_from_slice(will);
+            }
+            continue;
+        }
+        let px = (i * RUN / 4, (i * RUN + will.len()) / 4);
+        span = Some(span.map_or(px, |(a, _)| (a, px.1)));
+        if t == 256 {
+            now.copy_from_slice(will);
+            continue;
+        }
+        for ((now, &w), &n) in now.iter_mut().zip(was).zip(will) {
+            *now = ((u16::from(w) * u + u16::from(n) * t) >> 8) as u8;
+        }
+    }
+    span
+}
+
+/// The bands [`Canvas::blend_noting`] gathers a row at a time, as columns
+/// `[x0, x1)` and rows `[y0, y1)`.
+#[derive(Default)]
+struct Bands(Vec<(usize, usize, usize, usize)>);
+
+impl Bands {
+    /// At most this many bands: past it, bands next to each other are
+    /// joined two by two.
+    const MOST: usize = 256;
+    /// A row joins the band above it when each edge of its columns is
+    /// within this many pixels of the band's.
+    const SLACK: usize = 64;
+
+    /// Row `y` differs over the columns of `span`, or nowhere.
+    fn row(&mut self, y: usize, span: Option<(usize, usize)>) {
+        let Some((a, b)) = span else {
+            return;
+        };
+        if let Some(last) = self.0.last_mut()
+            && last.3 == y
+            && a.abs_diff(last.0) <= Self::SLACK
+            && b.abs_diff(last.1) <= Self::SLACK
+        {
+            *last = (last.0.min(a), last.1.max(b), last.2, y + 1);
+            return;
+        }
+        self.0.push((a, b, y, y + 1));
+    }
+
+    /// The bands as rectangles into `out`.
+    fn into_rects(mut self, out: &mut Vec<Rect>) {
+        while self.0.len() > Self::MOST {
+            self.0 = self
+                .0
+                .chunks(2)
+                .map(|p| {
+                    p.iter().skip(1).fold(p[0], |a, b| {
+                        (a.0.min(b.0), a.1.max(b.1), a.2.min(b.2), a.3.max(b.3))
+                    })
+                })
+                .collect();
+        }
+        out.extend(self.0.into_iter().map(|(x0, x1, y0, y1)| {
+            Rect::new(x0 as i32, y0 as i32, (x1 - x0) as i32, (y1 - y0) as i32)
+        }));
+    }
+}
+
 fn union(a: Rect, b: Rect) -> Rect {
     let x = a.x.min(b.x);
     let y = a.y.min(b.y);
@@ -1790,6 +1946,42 @@ mod tests {
         // they do not.
         assert_eq!(pixel(&c, 5, 5), [10, 20, 30, 255]);
         assert_eq!(pixel(&c, 25, 5), [60, 70, 80, 255]);
+    }
+
+    #[test]
+    fn a_fades_later_steps_over_the_bands_that_differ_show_what_a_whole_blend_shows() {
+        let mut c = canvas();
+        c.clear(Color::rgb(10, 20, 30));
+        c.fill_rect(Rect::new(0, 0, 64, 2), Color::rgb(1, 2, 3));
+        let before = c.snapshot();
+        c.clear(Color::rgb(10, 20, 30));
+        // The new screen differs in two places; the ring two pixels wide
+        // round the edge differs too, and is drawn over by its holder.
+        c.fill_rect(Rect::new(20, 4, 10, 6), Color::rgb(210, 220, 230));
+        c.fill_rect(Rect::new(40, 20, 6, 8), Color::rgb(90, 0, 200));
+        let mut after = Vec::new();
+        c.swap_pixels(&mut after);
+        let mut bands = Vec::new();
+        c.blend_noting(&before, &after, 0.25, 2, &mut bands);
+        assert!(!bands.is_empty());
+        for b in &bands {
+            assert!(b.y >= 2 && b.bottom() <= 30, "the ring is left out: {b:?}");
+        }
+        let within = |x, y| bands.iter().any(|b| b.contains(x, y));
+        assert!(
+            within(25, 6) && within(42, 24),
+            "each difference is in a band"
+        );
+        assert!(!within(5, 15) && !within(60, 15), "where they agree is not");
+        for t in [0.5, 0.75, 1.0] {
+            c.blend_within(&before, &after, t, &bands);
+            let mut whole = canvas();
+            whole.swap_pixels(&mut before.clone());
+            whole.blend_between(&before, &after, t);
+            for (y, x) in (2..30).flat_map(|y| (2..62).map(move |x| (y, x))) {
+                assert_eq!(pixel(&c, x, y), pixel(&whole, x, y), "at {x}, {y}, t {t}");
+            }
+        }
     }
 
     #[test]

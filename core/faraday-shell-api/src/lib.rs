@@ -911,6 +911,25 @@ pub struct Parts<'a> {
     pub base_y: u16,
     /// A frame standing over `base`, and its top-left there.
     pub inner: Option<(Frame<'a>, u16, u16)>,
+    /// Where the window may differ from the parts the app gave last
+    /// time, in the window's pixels; `None` where that is not known. A
+    /// shell may then copy and present these alone (a fade's steps), and
+    /// takes the whole window where it is `None`.
+    pub changed: Option<&'a [Changed]>,
+}
+
+/// A rectangle of the window's pixels that a frame may have changed,
+/// from its top-left.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Changed {
+    /// Left edge.
+    pub x: u16,
+    /// Top edge.
+    pub y: u16,
+    /// Width.
+    pub width: u16,
+    /// Height.
+    pub height: u16,
 }
 
 /// The whole application as the shell sees it.
@@ -940,6 +959,7 @@ pub trait App {
             base: self.frame(),
             base_y: 0,
             inner: None,
+            changed: None,
         }
     }
 }

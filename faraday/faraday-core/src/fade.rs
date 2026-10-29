@@ -4,7 +4,7 @@
 //! drawing either again; and whether this machine shows a fade's steps
 //! close enough together for it to read as one.
 
-use faraday_draw::Canvas;
+use faraday_draw::{Canvas, Rect};
 use faraday_shell_api::Command;
 
 use crate::ui::Theme;
@@ -26,6 +26,20 @@ pub(crate) struct Fade {
     /// (`Faraday::fade_step`). Drawn again, and kept again, by every
     /// frame drawn in full while the fade runs; empty with no fade.
     after: Vec<u8>,
+    /// Where `from`'s frame and `after` differ, but for the ring
+    /// `edge_drawn_over` wide round the canvas: the rectangles a step
+    /// blends (`Canvas::blend_noting`). Kept in step with the two: noted
+    /// again by every frame drawn in full while the fade runs, which
+    /// keeps `after` again, and emptied with them when the fade ends.
+    /// Outside it the canvas already shows both frames as they agree.
+    bands: Vec<Rect>,
+    /// How wide a ring round the canvas whoever holds the app draws over
+    /// every frame (Faraday Demo's focus edge), left out of `bands`.
+    edge_drawn_over: i32,
+    /// Where the canvas may differ from the frame the shell last took
+    /// (`Faraday::take_changed`): a fade's steps add their bands; `None`,
+    /// anywhere, after a frame drawn in full or a new display.
+    changed: Option<Vec<Rect>>,
     /// The fade asked for its next step and nothing has asked for a
     /// frame drawn in full since (`dirty` is not set).
     due: bool,
@@ -44,11 +58,11 @@ pub(crate) struct Fade {
     /// When the gaps turned fades off; `None` while they are on. Off,
     /// they stay off at least `motion::FADE_HOLD_MS` and come back only
     /// after `motion::FADE_ON_RUN` frames in a row each within
-    /// `motion::FADE_GAP_MS` of the one before (`Fade::shown`): the gate
+    /// `motion::FADE_ON_GAP_MS` of the one before (`Fade::shown`): the gate
     /// turns on and off on different evidence, so it cannot flap.
     off: Option<u64>,
     /// While fades are off, the frames in a row drawn within
-    /// `motion::FADE_GAP_MS` of the one before.
+    /// `motion::FADE_ON_GAP_MS` of the one before.
     run: u16,
     /// The tick of the last frame drawn or blended, for the gap to the
     /// next.
@@ -92,6 +106,7 @@ impl Fade {
     pub(crate) fn end(&mut self) {
         self.from = None;
         self.after = Vec::new();
+        self.bands.clear();
     }
 
     /// The next frame is the screen at rest, not part of the way from
@@ -107,6 +122,7 @@ impl Fade {
     pub(crate) fn display_changed(&mut self) {
         self.frost = None;
         self.restart();
+        self.changed = None;
         self.gaps.clear();
         self.off = None;
         self.run = 0;
@@ -193,7 +209,7 @@ impl Fade {
 
     /// A frame was drawn or blended at `now_ms`. While fades are off, its
     /// gap from the one before counts towards turning them back on: within
-    /// `motion::FADE_GAP_MS` it lengthens the run of fast frames, wider
+    /// `motion::FADE_ON_GAP_MS` it lengthens the run of fast frames, wider
     /// breaks it, and a pause (over `motion::FADE_PAUSE_MS`) does neither;
     /// a run of `motion::FADE_ON_RUN` once fades have been off
     /// `motion::FADE_HOLD_MS` turns them on again.
@@ -208,7 +224,7 @@ impl Fade {
         if gap > motion::FADE_PAUSE_MS {
             return;
         }
-        if gap as f32 > motion::FADE_GAP_MS {
+        if gap > motion::FADE_ON_GAP_MS {
             self.run = 0;
             return;
         }
@@ -258,9 +274,11 @@ impl Faraday {
         let theme = self.settings.theme();
         let drawn_key = ((self.screen, self.sheet), page, theme);
         // Drawn in full: what asked for this frame is drawn as it is now,
-        // and the gap across it is not a fade's step.
+        // the gap across it is not a fade's step, and what it changed is
+        // not known.
         self.fade.due = false;
         self.fade.step_at = None;
+        self.fade.changed = None;
         if self.fade.last_drawn == Some(drawn_key) {
             return;
         }
@@ -301,11 +319,11 @@ impl Faraday {
         };
         let (t, over) = at.map_or((0.0, false), |at| self.fade.blend(Some(at), self.now_ms));
         if over {
-            self.fade.from = None;
-            self.fade.after = Vec::new();
+            self.fade.end();
         } else {
             canvas.swap_pixels(&mut self.fade.after);
-            canvas.blend_between(before, &self.fade.after, t);
+            let inset = self.fade.edge_drawn_over;
+            canvas.blend_noting(before, &self.fade.after, t, inset, &mut self.fade.bands);
             self.fade.due = true;
             self.out.commands.push_back(Command::Draw);
         }
@@ -313,9 +331,10 @@ impl Faraday {
 
     /// Draws the next step of the fade under way when nothing but the
     /// fade asked for a frame: the new frame kept aside when it was last
-    /// drawn in full, blended with the old one, so a step costs a blend
-    /// of the whole canvas, not a draw of the screen. Times the step
-    /// from the one before it for [`Self::fades`].
+    /// drawn in full, blended with the old one where the two differ, so a
+    /// step costs a blend of those bands, not a draw of the screen, and
+    /// they are what changed for the shell (`Self::take_changed`). Times
+    /// the step from the one before it for [`Self::fades`].
     pub(crate) fn fade_step(&mut self) {
         self.fade.due = false;
         self.fade.shown(self.now_ms);
@@ -335,17 +354,34 @@ impl Faraday {
         self.fade.step_at = Some(self.now_ms);
         self.fade.counts.steps += 1;
         let (t, over) = at.map_or((0.0, false), |at| self.fade.blend(Some(at), self.now_ms));
+        if let Some(changed) = self.fade.changed.as_mut() {
+            changed.extend_from_slice(&self.fade.bands);
+        }
         if over {
             // The new frame at rest, as it was drawn.
             canvas.swap_pixels(&mut self.fade.after);
-            self.fade.from = None;
-            self.fade.after = Vec::new();
+            self.fade.end();
             self.fade.step_at = None;
         } else {
-            canvas.blend_between(before, &self.fade.after, t);
+            canvas.blend_within(before, &self.fade.after, t, &self.fade.bands);
             self.fade.due = true;
             self.out.commands.push_back(Command::Draw);
         }
+    }
+
+    /// Whoever holds the app draws over a ring `px` wide round its canvas
+    /// every frame (Faraday Demo's focus edge): a fade leaves it out of
+    /// what it blends and of what it says changed.
+    pub fn set_edge_drawn_over(&mut self, px: i32) {
+        self.fade.edge_drawn_over = px.max(0);
+    }
+
+    /// Where the canvas may differ from the frame this was last called
+    /// after, as rectangles of its pixels, or `None` where that is not
+    /// known (a frame drawn in full): a fade's steps give their bands, so
+    /// a shell copies and presents those alone. Counted from now on.
+    pub fn take_changed(&mut self) -> Option<Vec<Rect>> {
+        self.fade.changed.replace(Vec::new())
     }
 
     /// Whether the next frame the shell asks for is a fade's step, a
@@ -409,12 +445,13 @@ mod tests {
         now
     }
 
-    /// Fades turned off by a fade whose steps came 50 ms apart; returns
-    /// when they turned off, at the fifth step, and when it ended.
+    /// Fades turned off by a fade whose steps came 70 ms apart, past four
+    /// refreshes at 60 Hz; returns when they turned off, at the fifth
+    /// step, and when it ended.
     fn slow_fade(f: &mut Fade) -> (u64, u64) {
-        let end = fade_steps(f, 1_000, 50, 9);
+        let end = fade_steps(f, 1_000, 70, 9);
         assert!(!f.fades(false), "a slow fade turns fades off");
-        (1_250, end)
+        (1_350, end)
     }
 
     #[test]
@@ -426,9 +463,15 @@ mod tests {
 
     #[test]
     fn frames_at_a_screens_refresh_never_turn_fades_off() {
-        // At 60 Hz with a refresh missed now and then, and at 30 Hz:
-        // fades of nine steps, two seconds apart, for an hour.
-        let paces: [&[u64]; 2] = [&[17, 16, 17, 33, 17, 16, 17, 17, 16], &[33, 34, 33]];
+        // At 60 Hz with a refresh missed now and then, at 30 Hz, and at
+        // every third refresh, as whole milliseconds read it, with a
+        // second refresh now and then: fades of nine steps, two seconds
+        // apart, for an hour.
+        let paces: [&[u64]; 3] = [
+            &[17, 16, 17, 33, 17, 16, 17, 17, 16],
+            &[33, 34, 33],
+            &[50, 51, 50, 34, 50, 51, 50],
+        ];
         for gaps in paces {
             let mut f = Fade::default();
             let mut now = 1_000;
@@ -481,14 +524,94 @@ mod tests {
         assert!(f.fades(false), "back on after the run");
         // A slow fade after turns them off again, judged on its own
         // steps alone.
-        let now = fade_steps(&mut f, now + 1_000, 50, 4);
+        let now = fade_steps(&mut f, now + 1_000, 70, 4);
         assert!(f.fades(false), "four steps are too few to judge");
-        fade_steps(&mut f, now, 50, 1);
+        fade_steps(&mut f, now, 70, 1);
         assert!(!f.fades(false));
+    }
+
+    #[test]
+    fn steps_and_frames_a_third_refresh_apart_leave_fades_on() {
+        // A large window at 60 Hz: each fade's step and each frame drawn
+        // in full come three refreshes apart, 50 ms, for ten minutes of
+        // changes and scrolling.
+        let mut f = Fade::default();
+        let mut now = 1_000;
+        for _ in 0..1_000 {
+            now = fade_steps(&mut f, now, 50, 4);
+            now = frames(&mut f, now, 50, 8);
+            now += 400;
+        }
+        assert!(f.fades(false), "fades stay on");
     }
 
     #[test]
     fn with_reduce_motion_nothing_fades() {
         assert!(!Fade::default().fades(true));
+    }
+
+    #[test]
+    fn a_step_after_a_frame_drawn_in_full_mid_fade_is_part_of_the_way_everywhere() {
+        use faraday_shell_api::{App, Event};
+
+        use crate::{Action, Screen};
+        let mut app = crate::testkit::started();
+        let mut now = 1_000;
+        let tick = |app: &mut crate::Faraday, at: u64| {
+            app.event(Event::Tick { now_ms: at });
+            while app.poll_command().is_some() {}
+            let _ = app.frame();
+        };
+        for _ in 0..10 {
+            now += 16;
+            tick(&mut app, now);
+        }
+        app.press(Action::Nav(Screen::Settings));
+        for _ in 0..2 {
+            now += 16;
+            tick(&mut app, now);
+        }
+        // The pointer moved over the sidebar mid-fade, where the two
+        // screens agree: drawn in full, the new frame kept aside again,
+        // and what differs from the old one noted again, outside the
+        // bands noted before.
+        let w = app.canvas.as_ref().map_or(0, |c| c.width() as usize);
+        let outside = |app: &crate::Faraday, kept: &[u8], old: &[faraday_draw::Rect]| {
+            (0..kept.len()).any(|p| {
+                let (x, y) = ((p / 4 % w) as i32, (p / 4 / w) as i32);
+                kept[p] != app.fade.after[p] && !old.iter().any(|b| b.contains(x, y))
+            })
+        };
+        let moved = (40..760).step_by(24).any(|y| {
+            let (kept, old) = (app.fade.after.clone(), app.fade.bands.clone());
+            app.event(Event::Hover { x: 40, y });
+            while app.poll_command().is_some() {}
+            let _ = app.frame();
+            outside(&app, &kept, &old)
+        });
+        assert!(
+            moved,
+            "a hover changed the new frame where the screens agree"
+        );
+        now += 16;
+        tick(&mut app, now);
+        assert!(
+            app.next_frame_blends(),
+            "a step of the fade, still under way"
+        );
+        let (before, at) = app.fade.from.as_ref().expect("a fade under way");
+        let (t, over) = app.fade.blend(*at, app.now_ms);
+        assert!(!over && t > 0.0);
+        // What a whole blend of the two kept frames shows at this step.
+        let t = (t * 256.0) as u16;
+        let after = &app.fade.after;
+        let shown = app.canvas.as_ref().expect("a canvas").frame().rgba;
+        let wrong = (0..shown.len())
+            .filter(|&p| {
+                let want = (u16::from(before[p]) * (256 - t) + u16::from(after[p]) * t) >> 8;
+                u16::from(shown[p]) != want
+            })
+            .count();
+        assert_eq!(wrong, 0, "each byte as far from the old frame to the new");
     }
 }
