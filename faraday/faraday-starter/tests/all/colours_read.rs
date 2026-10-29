@@ -235,6 +235,17 @@ fn scenes(w: u16, h: u16, theme: Theme) -> Vec<(&'static str, Starter)> {
 /// one of those pages reads, 4.5:1 (7:1 at High contrast).
 #[test]
 fn what_the_starter_writes_reads_on_its_fills_in_every_scheme() {
+    // `scenes` keeps each of its Starters in a frame of its own: the test's
+    // default stack is all they fill, so it runs on one of its own.
+    std::thread::Builder::new()
+        .stack_size(32 << 20)
+        .spawn(fills_read)
+        .expect("a thread")
+        .join()
+        .expect("every line reads");
+}
+
+fn fills_read() {
     let mut short = Vec::new();
     for theme in Theme::all() {
         let need = if theme.is_high_contrast() { 7.0 } else { 4.5 };

@@ -318,8 +318,7 @@ pub enum Screen {
     Randomness,
     /// The vaults the Inbox and Outbox hold.
     Vaults,
-    /// Every wallet known and where its backup is (`docs/history/SIMPLIFY.md`
-    /// §5.1).
+    /// Every wallet known and where its backup is (`docs/history/SIMPLIFY.md` §5.1).
     Backups,
     /// Making a vault.
     CreateVault,
@@ -463,8 +462,7 @@ pub struct Item {
     /// The wallet a wallet file describes, read once when the file came
     /// in, as [`Item::sha`] is taken (`docs/SPEED.md` §3.3): `None` for
     /// any other file. An Item's bytes are never changed after it is
-    /// made, so this stays what they say; nothing reads the bytes again
-    /// for it.
+    /// made, so this stays what they say; nothing reads the bytes again for it.
     pub wallet: Option<faraday_bip::policy::WalletPolicy>,
     /// What a PSBT file says (its txid, its signatures, what its first
     /// input spends), read once when the file came in, as
@@ -676,6 +674,8 @@ pub enum Sheet {
     NavMenu(Option<nav::Overflow>),
     /// New key's Length card's Other: the menu of 15, 18 and 21 words (`keygen/screen.rs`).
     KeyLengths,
+    /// **Restore a GPG key**: the public keys in Files.
+    GpgRestore,
 }
 
 /// Costs a QR encoding (through `encode_bounded` and `bbqr_frames`).
@@ -5641,7 +5641,7 @@ impl Faraday {
         if self.learn_key(key) || self.keygen_walk_key(key) || self.scroll_key(key) {
             return;
         }
-        if self.board_key(key) {
+        if self.board_key(key) || self.gpg_restore_key(key) {
             return;
         }
         if self.chart_key(key) {

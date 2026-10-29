@@ -308,6 +308,12 @@ pub fn key_bottom_reserve(inset_bottom: f32) -> f32 {
 /// one (`docs/CODEX32.md` §8.4).
 pub const CODEX32_KEY_ROW: f32 = TOUCH;
 
+/// The hex keyboard's row in dp: the touch target and a [`GAP`], so each
+/// key's hit area, which the keyboard's own insets and the shell's scale
+/// take from the row, still meets [`TOUCH`] on the stick's panel (three
+/// rows of six keys, the digits 0 to F and two controls).
+pub const HEX_KEY_ROW: f32 = TOUCH + GAP;
+
 /// Columns every other pad divides its width into: the dice pad's three
 /// faces and the backspace beside them.
 pub const PAD_COLUMNS: f32 = 4.0;

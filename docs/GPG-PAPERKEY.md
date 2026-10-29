@@ -1,8 +1,8 @@
 # Restore a GPG key from its paperkey
 
 **Kind:** Spec
-**Status:** Specified from the owner's ask (2026-10-15); P1 and P2 built (reading a paperkey and a certificate, the restore and its tests against paperkey and GnuPG in `faraday-pgp`; the restore set in `faraday-keys`); the decision is drafted in §10 as F-next, for the owner
-**Open:** batches P3 to P6 (§11.2): the flow in faraday-core and the lock's call to the restore set's wipe, scanning, and the docs
+**Status:** Specified from the owner's ask (2026-10-15); P1 to P3 built (reading a paperkey and a certificate, the restore and its tests against paperkey and GnuPG in `faraday-pgp`; the restore set in `faraday-keys`; the flow in faraday-core, `faraday/faraday-core/src/backup_flow/gpg_restore.rs` and its screen); the decision is drafted in §10 as F-next, for the owner
+**Open:** batches P4 to P6 (§11.2): scanning the public key and a paperkey code, and the docs
 
 A person whose GPG key's vault is lost, but who wrote down its paperkey,
 brings the key back into a vault and signs with it again. Today the
@@ -492,6 +492,8 @@ In `faraday/faraday-strings/src/en.rs`, prefix `gpg_restore_`:
 | `gpg_restore_shape` | Not a key of Faraday's shape: an Ed25519 key with one Ed25519 signing subkey |
 | `gpg_restore_no_user_id` | The public key has no user ID |
 | `gpg_restore_in_vault` | This key is in {vault} |
+| `gpg_restore_format` | This paperkey is in format {v}; paperkey writes format 0 |
+| `gpg_restore_not_public` | Not a public key Faraday reads |
 
 The revoked line reuses the key page's. The Learn page carries the why
 (§9).

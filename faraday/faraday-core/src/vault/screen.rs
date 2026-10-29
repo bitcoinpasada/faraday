@@ -47,8 +47,7 @@ fn va(a: V) -> Action {
     Action::Vault(a)
 }
 
-/// A waiting action: **Back up first**, which opens the flow of the key
-/// shown on its step.
+/// A waiting action: **Back up first**, which opens the flow of the key shown on its step.
 fn back_up_first(kind_: crate::backup_flow::Kind) -> Action {
     Action::Flow(crate::backup_flow::steps::FlowAction::BackUpFirst(kind_))
 }
@@ -162,8 +161,7 @@ pub(crate) fn secret_box(
         Role::Primary,
         Role::SurfaceContainerHighest,
     );
-    // Practice's `faraday`: in its code box, no eye; a press in it focuses the
-    // field.
+    // Practice's `faraday`: in its code box, no eye; a press in it focuses the field.
     if show == Show::Code {
         crate::screens::code_field(ui, x, y, w, tokens::TEXT_FIELD, &b.text);
         ui.press_box(x, y, w, tokens::TEXT_FIELD, action);
@@ -490,8 +488,7 @@ pub(crate) fn unlock(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 }
 
 /// The third line of a vault's row: where it is, its size and cost while
-/// open; once locked, what it held when last seen open, or that unlocking
-/// shows it.
+/// open; once locked, what it held when last seen open, or that unlocking shows it.
 pub(super) fn list_line(app: &View, f: &vault::VaultFile, where_: &str) -> String {
     let line = if f.open.is_some() {
         format!(
@@ -505,8 +502,7 @@ pub(super) fn list_line(app: &View, f: &vault::VaultFile, where_: &str) -> Strin
             None => EN.vault_unlock_to_see.to_string(),
         }
     };
-    // Its currency first (§3.5): never written, current on a stick, or
-    // changed since written.
+    // Its currency first (§3.5): never written, current on a stick, or changed since written.
     match app.currency(f) {
         Some(c) => format!("{} · {line}", c.line()),
         None => line,
@@ -645,8 +641,7 @@ fn list_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     finish(app, ui, x0, cw, h, y - top + 16.0);
 }
 
-/// [`unlock`] on a small panel: the vaults, the passphrase, Unlock, each
-/// the panel's width.
+/// [`unlock`] on a small panel: the vaults, the passphrase, Unlock, each the panel's width.
 #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn unlock_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let (rule, bad) = (Role::OutlineVariant, Role::Error);
@@ -823,8 +818,7 @@ pub(crate) fn create(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             learn: Some(crate::learn::Topic::Vaults),
         })
         .collect();
-    // A small panel has no side panel: its summary and Create vault
-    // follow the last step.
+    // A small panel has no side panel: its summary and Create vault follow the last step.
     let compact = ui.compact;
     let foot = super::dice_screen::foot(app, ui);
     let col = flow::Column {
@@ -1950,17 +1944,22 @@ pub(crate) fn contents(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         .iter()
         .filter(|i| i.kind == crate::FileKind::Entries)
         .count();
-    let mut extra: Vec<(String, V)> = Vec::new();
+    let mut extra: Vec<(String, Action)> = Vec::new();
     if app.vaults.category == 2 {
-        extra.push((EN.vault_scan_a_code.to_string(), V::ScanEntry));
+        extra.push((EN.vault_scan_a_code.to_string(), va(V::ScanEntry)));
         if entries_files > 0 {
             extra.push((
                 fill(EN.vault_import_from_files, &[&entries_files.to_string()]),
-                V::ImportAllEntries,
+                va(V::ImportAllEntries),
             ));
         }
     }
+    let gpg = app.vaults.category == 4;
+    extra.extend(gpg.then(crate::backup_flow::gpg_restore::contents_button));
+    // A GPG key's Restore has room round it, for the touch floor.
+    let room = tokens::GAP * f32::from(u8::from(gpg));
     if !extra.is_empty() {
+        iy += room;
         let mut bx = ix;
         for (label, a) in &extra {
             let label = ui.fit_as(LABEL_L, label, items_w - 30.0);
@@ -1969,10 +1968,10 @@ pub(crate) fn contents(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 bx = ix;
                 iy += 38.0;
             }
-            ui.button(bx, iy, Some(bw), BUTTON_H, &label, Style::Secondary, va(*a));
+            ui.button(bx, iy, Some(bw), BUTTON_H, &label, Style::Secondary, *a);
             bx += bw + 6.0;
         }
-        iy += 42.0;
+        iy += 42.0 + room;
     }
     if app.vaults.category == 2 {
         let label = EN.vault_totp_codes;

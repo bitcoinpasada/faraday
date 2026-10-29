@@ -450,10 +450,13 @@ pub fn equal_rows(kind: KeyboardKind) -> bool {
 
 /// The least height in dp a row of `kind` is drawn at, where the one
 /// drawing it sets the row: [`tokens::CODEX32_KEY_ROW`] (a 48 dp touch
-/// row) for the codex32 keyboards and the dice pad, nothing for the
-/// others, which keep their own geometry.
+/// row) for the codex32 keyboards and the dice pad, [`tokens::HEX_KEY_ROW`]
+/// for the hex keyboard, nothing for the others, which keep their own
+/// geometry.
 pub fn min_row(kind: KeyboardKind) -> f32 {
-    if equal_rows(kind) {
+    if kind == KeyboardKind::Hex {
+        tokens::HEX_KEY_ROW
+    } else if equal_rows(kind) {
         tokens::CODEX32_KEY_ROW
     } else {
         0.0

@@ -8,7 +8,7 @@
 /// words (`docs/DEMO.md` §5.2).
 pub const PASSPHRASE: &str = "faraday";
 
-use crate::backup_flow::steps::FlowAction as F;
+use crate::backup_flow::steps::{FlowAction as F, RestorePress as R};
 use crate::grind::Dial;
 use crate::vault::VaultAction as V;
 use crate::{Action, Faraday, Screen};
@@ -55,6 +55,9 @@ impl Faraday {
                 .on()
                 .and_then(|i| self.flows.get(i))
                 .is_some_and(|f| !f.kind.is_wallet()),
+            // A GPG key restored from its paperkey, as Make is
+            // (`docs/GPG-PAPERKEY.md` §4.1, Q9).
+            Action::Flow(F::Restore(R::Sheet | R::From(_) | R::Restore)) => true,
             // Every BIP-85 output, and the way to a vault to keep one.
             Action::PShow | Action::PVault | Action::PLoad | Action::POut => true,
             // A vanity passphrase is a new key.
@@ -97,6 +100,9 @@ impl Faraday {
             Action::SScanVault,
             Action::SScanOut,
         ];
+        all.push(Action::Flow(F::Restore(R::Sheet)));
+        all.push(Action::Flow(F::Restore(R::Restore)));
+        all.extend((0..self.inbox.len()).map(|k| Action::Flow(F::Restore(R::From(k)))));
         all.extend((0..crate::keygen::WAYS.len() as u8).map(Action::KWay));
         all.extend((0..crate::keygen::MIX_SOURCES.len() as u8).map(Action::KMix));
         all.extend(

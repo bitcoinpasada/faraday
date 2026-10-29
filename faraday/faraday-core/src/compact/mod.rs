@@ -1347,6 +1347,8 @@ impl Faraday {
                 K::Address
             }
             Screen::Explore if self.sheet.is_none() => K::Path,
+            // A GPG key's paperkey line, typed in hex (`docs/GPG-PAPERKEY.md` §4.5).
+            Screen::BackupFlow if self.sheet.is_none() && self.gpg_restore_typing() => K::Hex,
             // The codex32 form types on the codex32 keyboard, with `?`
             // while corrections are suggested (`docs/CODEX32.md` §8.4).
             _ if self.sheet.is_none()

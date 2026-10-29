@@ -170,6 +170,7 @@ pub(crate) const TOURS: &[&str] = &[
     "restore",
     "osk",
     "flow",
+    "gpg-restore",
     "bootplace",
     "passseeds",
     "power",
@@ -305,6 +306,7 @@ fn named_tour(c: &Compute, t: &mut Tour, name: &str) -> Option<Result<(), String
         "restore" => tours::restore::restore_tour(t),
         "osk" => tours::devices::osk_tour(t),
         "flow" => tours::flow::flow_tour(t),
+        "gpg-restore" => tours::gpg_restore::gpg_restore_tour(t),
         "bootplace" => tours::boot_place::boot_place_tour(t),
         "passseeds" => tours::pass_seeds::pass_seeds_tour(c, t),
         "power" => tours::devices::power_tour(t),
@@ -399,7 +401,7 @@ fn main() -> ExitCode {
     let only = args.get(4).map(String::as_str);
     if only.is_some_and(|m| !TOURS.contains(&m)) {
         eprintln!(
-            "the tour is spend, devices, themes, tooltips, compact, seeds, keys, visit, copy, scan, public, seedfile, vaultway, kept, again, plan, board, menu, m3, inbox, transfer, glance, chartedit, fromvault, first, restore, osk, flow, bootplace, passseeds, power, pills, components, walletflow, demo, modes, vaultshow, addkey, keygen, codex32correct, createfrom, inprogress, cancel, how, std, parts, panes, guide, roller, randomness, dice5, codex32, codex32tour, codex32form, createshares, codex32backup, screens or tour"
+            "the tour is spend, devices, themes, tooltips, compact, seeds, keys, visit, copy, scan, public, seedfile, vaultway, kept, again, plan, board, menu, m3, inbox, transfer, glance, chartedit, fromvault, first, restore, osk, flow, gpg-restore, bootplace, passseeds, power, pills, components, walletflow, demo, modes, vaultshow, addkey, keygen, codex32correct, createfrom, inprogress, cancel, how, std, parts, panes, guide, roller, randomness, dice5, codex32, codex32tour, codex32form, createshares, codex32backup, screens or tour"
         );
         return ExitCode::from(2);
     }

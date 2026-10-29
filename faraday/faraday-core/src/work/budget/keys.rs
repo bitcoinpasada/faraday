@@ -174,6 +174,14 @@ fn fields() -> Vec<Field> {
             },
             " savings".into(),
         ),
+        (
+            "Restore a GPG key, a paperkey's line",
+            |app| {
+                on(app, Screen::Home);
+                restore_at_lines(app);
+            },
+            "  1: 00 04 84 6A F8 B7 D8".into(),
+        ),
     ];
     for (i, (name, text)) in [
         ("Tools, hashes", "abc".to_string()),
@@ -214,6 +222,22 @@ fn fields() -> Vec<Field> {
         "a passphrase".into(),
     ));
     out
+}
+
+/// Step 4 of a restore of a GPG key, its lines taking typing, on a public
+/// key GnuPG made (`tools/vectors/paperkey/gpg-unprotected.asc`, of
+/// Faraday's shape).
+fn restore_at_lines(app: &mut Faraday) {
+    use crate::backup_flow::steps::FlowAction as F;
+    use crate::backup_flow::{BackupFlow, RestoreFrom, Step};
+    let cert = include_bytes!("../../../../../tools/vectors/paperkey/gpg-unprotected.asc");
+    let c = testkit::compute();
+    let from = RestoreFrom::read(cert).expect("a public key of Faraday's shape");
+    let mut f = BackupFlow::restoring(&c, from);
+    f.step = Step::Make;
+    let i = testkit::flow_push(app, f);
+    app.press(Action::Flow(F::Show(i)));
+    assert!(app.gpg_restore_typing(), "step 4's line takes typing");
 }
 
 /// Tools, calculator `n` open.

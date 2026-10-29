@@ -48,7 +48,15 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         return crate::vault::screen::create(app, ui, x0, cw, h);
     }
     let steps = steps_of(f);
-    let cards: Vec<flow::Card> = steps.iter().map(|&s| card(app, f, s)).collect();
+    let mut cards: Vec<flow::Card> = steps.iter().map(|&s| card(app, f, s)).collect();
+    // A restore's head card: the public key it is for (`gpg_restore_screen.rs`).
+    let head = f
+        .restore
+        .as_ref()
+        .map(|r| super::gpg_restore_screen::head_card(f, r));
+    let off = usize::from(head.is_some());
+    cards.splice(0..0, head);
+    let named = super::gpg_restore_screen::heading(f);
     // While the plan card's board is shown on `wide`, its list is a
     // right-hand column, as on Back up (`docs/BACKUP-FLOW.md` §17.14).
     // On a large window the page runs to the window's edge: the cards
@@ -77,13 +85,13 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         },
         h,
         back: Some(app.named_back((leave_name(f.kind), fa(F::Back)))),
-        heading: &title,
+        heading: named.map_or(title.as_str(), |n| n.0),
         // The setup of a wallet's vaults is Make a new wallet's, with its
         // Guided switch (owner, 2026-10-25).
         guided: f.is_setup() && app.guided(),
         switch: f.is_setup(),
         note: None,
-        chip: None,
+        chip: named.map(|n| n.1),
         chip_tap: None,
     };
     let scroll = f.live.scroll;
@@ -91,7 +99,10 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         let app_ref: &View = app;
         let f = app_ref.flow().unwrap();
         let mut body = |ui: &mut Ui, i: usize, x: f32, y: f32, w: f32| -> f32 {
-            body(app_ref, f, ui, steps[i], x, y, w)
+            match i.checked_sub(off) {
+                Some(k) => body(app_ref, f, ui, steps[k], x, y, w),
+                None => super::gpg_restore_screen::head_body(app_ref, f, ui, x, y, w),
+            }
         };
         flow::column_wide(ui, &col, work, &cards, scroll, &mut body, None)
     };
@@ -129,6 +140,7 @@ pub(crate) fn card_title(app: &Faraday, f: &BackupFlow, s: Step) -> String {
         Step::Sticks => fill(FEN.backup_flow_card_sticks, &[m]),
         Step::Vaults => FEN.backup_flow_card_vaults.to_string(),
         Step::Make if f.kind.is_wallet() => FEN.backup_flow_card_make_wallet.to_string(),
+        Step::Make if f.restore.is_some() => FEN.gpg_restore_card.to_string(),
         Step::Make => FEN.backup_flow_card_make.to_string(),
         Step::Lock => FEN.backup_flow_card_lock.to_string(),
         Step::Write => fill(FEN.backup_flow_card_write, &[m]),
@@ -1106,6 +1118,9 @@ fn make_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) ->
     if f.kind.is_wallet() {
         return crate::backup_flow::wallet_screen::make_body(app, f, ui, x, y, w);
     }
+    if f.restore.is_some() && !f.adding {
+        return super::gpg_restore_screen::make_body(app, f, ui, x, y, w);
+    }
     let mut cy = y;
     if f.made && !f.adding {
         cy += ui.wrap_as(
@@ -1222,7 +1237,7 @@ fn make_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) ->
 
 /// What was made, as the kind's page shows it: names, the public value, and
 /// the public file For the stick with its code and picture (§4.2).
-fn result_rows(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+pub(super) fn result_rows(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     use crate::backup_flow::Kind;
     let mut cy = y;
     let Some(sub) = &f.subject else {

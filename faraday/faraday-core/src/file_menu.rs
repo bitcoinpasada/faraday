@@ -245,6 +245,15 @@ impl Faraday {
                         Action::Vault(crate::vault::VaultAction::AddFile(k)),
                     ));
                 }
+                // A public key a GPG key is restored against
+                // (`docs/GPG-PAPERKEY.md` §4.1): read when the menu opens.
+                if crate::backup_flow::gpg_restore::restorable(item) {
+                    use crate::backup_flow::steps::{FlowAction, RestorePress};
+                    out.push((
+                        EN.gpg_restore_files_action.to_string(),
+                        Action::Flow(FlowAction::Restore(RestorePress::From(k))),
+                    ));
+                }
                 out.push(details);
                 out.push((EN.files_remove.to_string(), Action::InboxRemove(k)));
             }

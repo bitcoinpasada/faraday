@@ -274,7 +274,7 @@ pub fn column_wide(
         ui.badge(
             x + 18.0,
             card_top + 15.0,
-            &(i + 1).to_string(),
+            &(i + 1 - heads(cards).min(i + 1)).to_string(),
             card.done,
             card.open,
         );
@@ -365,6 +365,15 @@ pub fn column_wide(
     (next, again)
 }
 
+/// How many cards lead the flow before its step 1, numbered 0 and not
+/// counted among its steps: a GPG key's restore opens on its public key
+/// (`docs/GPG-PAPERKEY.md` §4.2).
+fn heads(cards: &[Card]) -> usize {
+    use crate::backup_flow::steps::{FlowAction, RestorePress};
+    let head = Action::Flow(FlowAction::Restore(RestorePress::Head));
+    cards.iter().take_while(|c| c.toggle == head).count()
+}
+
 /// Whether a page's offset `y` is past its end `max`, both in design
 /// units. The frame rounds an offset to whole pixels at or under the end
 /// (`Faraday::whole_offset`), which may be a hair over `max` as a float:
@@ -446,10 +455,13 @@ fn paged(
             // as a value next to the card's own numbers (`docs/history/SIMPLIFY.md`
             // §2.6).
             let card = &cards[i];
-            let count = fill(
-                EN.flow_step_count,
-                &[&(i + 1).to_string(), &cards.len().to_string()],
-            );
+            let lead = heads(cards);
+            let count = if i < lead {
+                String::new()
+            } else {
+                let (n, of) = (i + 1 - lead, cards.len() - lead);
+                fill(EN.flow_step_count, &[&n.to_string(), &of.to_string()])
+            };
             let count_w = ui.measure_as(BODY_S, &count);
             let title_w = inner - count_w - 10.0;
             let lh = ui.line_as(TITLE_M);
@@ -494,7 +506,8 @@ fn paged(
             for (i, card) in cards.iter().enumerate() {
                 // Each step a row on the page, a rule above it (F39).
                 ui.rule(M, y, inner, Role::OutlineVariant);
-                ui.badge(M + 10.0, y + 13.0, &(i + 1).to_string(), card.done, false);
+                let n = i + 1 - heads(cards).min(i + 1);
+                ui.badge(M + 10.0, y + 13.0, &n.to_string(), card.done, false);
                 let tw = inner - 70.0;
                 let title = ui.fit_as(LABEL_L, &card.title, tw);
                 ui.text_as(M + 46.0, y + 8.0, LABEL_L, Role::OnSurface, &title);

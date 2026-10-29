@@ -13,7 +13,10 @@
 //! map (batch B1b). Only places that keep a stick take part in the stick
 //! steps.
 
+mod action;
 mod area;
+pub mod gpg_restore;
+pub(crate) mod gpg_restore_screen;
 pub(crate) mod screen;
 pub mod steps;
 pub(crate) mod wallet;
@@ -22,6 +25,8 @@ pub(crate) use wallet_files::wallet_share_record;
 pub(crate) mod wallet_screen;
 
 pub(crate) use area::BackupFlowArea;
+pub use gpg_restore::RestoreFrom;
+use steps::{Built, RestorePress};
 
 use faraday_crypto::work::Compute;
 use faraday_keys::vault::RecordView;
@@ -885,6 +890,8 @@ pub struct BackupFlow {
     /// vault: each goes to the place the wallet's plan gives that vault's
     /// stick. Not kept across a lock, which wipes the open vaults too.
     pub parked: Vec<(usize, Bound)>,
+    /// A GPG key's restore: the certificate it is for (`docs/GPG-PAPERKEY.md` §4); public.
+    pub restore: Option<RestoreFrom>,
     /// The screen's state.
     pub live: Live,
 }
@@ -983,6 +990,13 @@ impl BackupFlow {
         BackupFlow::with_plan(c, kind, Plan::key_default())
     }
 
+    /// Costs what `with_plan` costs. A new flow at step 1 restoring the key `from` is for.
+    pub fn restoring(c: &Compute, from: RestoreFrom) -> BackupFlow {
+        let mut f = BackupFlow::new(c, Kind::Gpg);
+        f.restore = Some(from);
+        f
+    }
+
     /// Costs what `sync_slots` costs. A new flow at step 1 with this plan.
     /// Batch B1b makes a wallet's from its map.
     pub fn with_plan(c: &Compute, kind: Kind, plan: Plan) -> BackupFlow {
@@ -1000,6 +1014,7 @@ impl BackupFlow {
             on_screen: true,
             wallet: None,
             parked: Vec::new(),
+            restore: None,
             live: Live::default(),
         };
         f.live.open = Some(Step::Where.n());
@@ -1432,7 +1447,8 @@ impl BackupFlow {
 
     /// The key is made and waiting for its writes: signing waits.
     pub fn waiting(&self) -> bool {
-        self.made && !self.all_written()
+        // A key restored signs at once: its paperkey exists (`docs/GPG-PAPERKEY.md` §4.6).
+        self.made && !self.all_written() && self.restore.is_none()
     }
 
     /// The files the write of `slot` carries beyond its own: a Secure Boot
@@ -1572,6 +1588,9 @@ pub fn encode(flows: &[BackupFlow]) -> Vec<u8> {
         }
         if let Some(t) = f.plan.public_stick {
             out.push_str(&format!("pstick\t{}\n", t.code()));
+        }
+        if let Some(r) = &f.restore {
+            out.push_str(&format!("restore\t{}\n", gpg_restore::file_hex(&r.file)));
         }
         if let Some(w) = &f.wallet {
             out.push_str(&format!(
@@ -1777,6 +1796,7 @@ pub fn decode(c: &Compute, bytes: &[u8]) -> (Vec<BackupFlow>, usize) {
                         on_screen: on == "1",
                         wallet: None,
                         parked: Vec::new(),
+                        restore: None,
                         live: Live::default(),
                     }),
             );
@@ -1841,6 +1861,12 @@ fn read_line(fl: &mut BackupFlow, f: &[&str], hex_array: fn(&str) -> Option<[u8;
         ["pstick", t] => {
             fl.plan.public_stick = Target::from_code(t);
             fl.plan.public_stick.is_some()
+        }
+        // The certificate a restore is for, read again as it was chosen.
+        ["restore", hex] => {
+            let from = gpg_restore::file_of_hex(hex).and_then(|b| RestoreFrom::read(&b).ok());
+            fl.restore = from;
+            fl.restore.is_some()
         }
         ["pfiles", list] => {
             let Some(places) = list

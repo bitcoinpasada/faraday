@@ -24,6 +24,7 @@ pub(crate) mod first;
 pub(crate) mod flow;
 pub(crate) mod from_vault;
 pub(crate) mod glance;
+pub(crate) mod gpg_restore;
 pub(crate) mod guide;
 pub(crate) mod host;
 pub(crate) mod how;

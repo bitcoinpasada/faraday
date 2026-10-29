@@ -4,7 +4,8 @@
 //! The packets are faraday-pgp's.
 
 use faraday_crypto::work::{Compute, Work};
-use faraday_pgp::paperkey::{self, LINE_BYTES, LineError, Progress};
+pub use faraday_pgp::paperkey::LineError;
+use faraday_pgp::paperkey::{self, LINE_BYTES, Progress};
 use faraday_pgp::{Armor, Certificate, Hash, Reason, Refusal, armor};
 use faraday_vault::Record;
 use faraday_vault::records::kind;
@@ -230,6 +231,12 @@ impl Restore {
         let total = self.progress.total?;
         let rest = total.saturating_sub(self.data.len());
         Some(self.lines.len() + rest.div_ceil(LINE_BYTES) + 1)
+    }
+
+    /// The bytes left to type before the CRC line, once the lengths are
+    /// read: public, as the lengths are.
+    pub fn left(&self) -> Option<usize> {
+        Some(self.progress.total?.saturating_sub(self.data.len()))
     }
 
     /// The fingerprints the lines checked name, in order: public.

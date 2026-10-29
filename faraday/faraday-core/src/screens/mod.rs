@@ -425,6 +425,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
             Sheet::NavMenu(None) => crate::nav::screen::menu_sheet(ui, w, h),
             Sheet::NavMenu(Some(o)) => crate::compact::overflow_sheet(app, ui, w, h, o),
             Sheet::KeyLengths => crate::keygen::screen::lengths_menu(app, ui, w, h),
+            Sheet::GpgRestore => crate::backup_flow::gpg_restore_screen::sheet(app, ui, w, h),
         }
         ui.oy = 0.0;
         ui.ox = 0.0;

@@ -16,97 +16,7 @@ use crate::strings::{EN as FEN, fill};
 use crate::vault::{Focus, Form, TextBox, Work};
 use crate::{Action, Faraday, FileKind, Item, Screen, Sheet, StickInfo, StorageCommand, sha256_of};
 
-/// Everything a press in the flow can do.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum FlowAction {
-    /// Open a card, or close it.
-    Open(u8),
-    /// A press on a wallet's plan cards, as Back up's
-    /// (`docs/BACKUP-FLOW.md` §15).
-    Plan(crate::PlanPress),
-    /// Leave the flow, keeping its state.
-    Back,
-    /// Open the first card to change the plan.
-    ChangePlan,
-    /// Another place.
-    AddPlace,
-    /// Take a place out of the plan.
-    RemovePlace(usize),
-    /// The place keeps the stick of this vault (a new one when the index
-    /// is the number of vaults).
-    PlaceVault(usize, usize),
-    /// The vault is an existing one, or a new one.
-    VaultExisting(usize),
-    /// Go on from the first card.
-    Continue,
-    /// Lock, then bring in the sticks.
-    LockBring,
-    /// Use the stick that is in the machine already, by its place among
-    /// the sticks.
-    UseBoot(usize),
-    /// The vault is the file of this place in the stick's vault files.
-    PickFile(usize, usize),
-    /// The vault is a new one beside what the stick holds.
-    PickBeside(usize),
-    /// The copy of an existing vault the stick holds is the one to use
-    /// (or the first copy read stays).
-    UseCopy(bool),
-    /// A tap: this is the stick for its place.
-    Tap,
-    /// A hold: this is the stick for its place, or a second stick.
-    Hold,
-    /// Leave this stick; ask for another.
-    UseAnother,
-    /// "I do not have its passphrase", for a vault.
-    NoPass(usize),
-    /// A new vault beside the one whose passphrase is not known.
-    BesideIt(usize),
-    /// Another stick for the vault.
-    AnotherStick(usize),
-    /// Unlock a vault of the plan.
-    UnlockVault(usize),
-    /// Make a vault of the plan.
-    CreateVault(usize),
-    /// Make the key.
-    Make,
-    /// The key is made: on to the lock.
-    MadeContinue,
-    /// Save the key into the vault added after it was made.
-    CopyKey,
-    /// Type the codex32 string Copy the key stopped on, from its copy.
-    TypeString,
-    /// Lock, then write.
-    LockWrite,
-    /// Unlock a vault of the plan once the sticks are written.
-    UnlockDone(usize),
-    /// The copy at this place was destroyed: it leaves the map.
-    Destroyed(usize),
-    /// A waiting action: open the flow of the key selected.
-    BackUpFirst(Kind),
-    /// Open the flow that made the key shown.
-    Resume,
-    /// Open flow `n`, from Home's lead.
-    Show(usize),
-    /// A place keeps several vaults on one stick, or on one each.
-    Together(usize),
-    /// Place `p` also keeps (or stops keeping) the stick of vault `v`.
-    AlsoVault(usize, usize),
-    /// The stick of this place carries the key's public files.
-    PublicAt(usize),
-    /// A wallet's answer to a question of the plan, as Back up's plan
-    /// ticks it: the list and the row.
-    Answer(u8, u8),
-    /// The checklist's **Lock and write**: the wallet's flow takes the
-    /// vaults and the files, and locks.
-    WalletLock,
-    /// Steps 1 to 3 are done: on to the wallet's keys.
-    WalletMake,
-}
-
-/// Whether an action acts when held.
-pub fn is_hold(a: FlowAction) -> bool {
-    matches!(a, FlowAction::Hold)
-}
+pub use super::action::{Built, FlowAction, RestorePress, is_hold};
 
 /// The room a new vault is counted at before its size is chosen: the
 /// default slot's file.
@@ -176,6 +86,7 @@ impl Faraday {
             Step::Vaults => {
                 self.vaults.set_back_to(Some(Screen::BackupFlow));
             }
+            Step::Make if !made && self.flows[i].restore.is_some() => self.flows.restore_ready(i),
             Step::Make if !made && !kind.is_wallet() => self.flow_make_form(kind),
             Step::Sticks | Step::Write => self.flow_examine(),
             _ => {}
@@ -337,6 +248,7 @@ impl Faraday {
         match a {
             F::BackUpFirst(_) | F::Resume => return self.flow_resume_selected(),
             F::Show(i) => return self.flow_show(i),
+            F::Restore(p) => return self.gpg_restore_press(p),
             // The checklist's last item starts the flow itself.
             F::WalletLock => return self.wallet_lock_write(),
             _ => {}
@@ -452,7 +364,7 @@ impl Faraday {
             F::TypeString => self.c32_round_type(i),
             F::LockWrite => self.flow_lock_write(i),
             F::UnlockDone(v) => self.flow_unlock_done(i, v),
-            F::BackUpFirst(_) | F::Resume | F::Show(_) | F::WalletLock => {}
+            F::BackUpFirst(_) | F::Resume | F::Show(_) | F::WalletLock | F::Restore(_) => {}
         }
         self.out.dirty = true;
     }
@@ -1824,10 +1736,16 @@ impl Faraday {
             Kind::SecureBoot => self.sb_build(&texts[0]),
             Kind::Wallet => return,
         };
-        let built = match built {
-            Ok(b) => b,
-            Err(e) => return self.toast(&e),
-        };
+        match built {
+            Ok(b) => self.flow_save_built(&c, i, b),
+            Err(e) => self.toast(&e),
+        }
+    }
+
+    /// Costs a hash of each public file. The key `built` saved into every
+    /// vault of flow `i`'s plan or none (§4.4); its public files For the stick.
+    fn flow_save_built(&mut self, c: &Compute, i: usize, built: Built) {
+        let kind_ = self.flows[i].kind;
         let targets: Vec<usize> = self.flows[i].plan.used_vaults();
         let opens: Vec<usize> = targets
             .iter()
@@ -1849,7 +1767,7 @@ impl Faraday {
         // written in the flow to the stick of the place the plan names.
         let mut public: Vec<String> = Vec::new();
         for (name, bytes) in built.outbox {
-            let sha = sha256_of(&c, &bytes);
+            let sha = sha256_of(c, &bytes);
             if kind_ == Kind::Gpg {
                 self.gpg_put_public(&name, bytes);
             } else {
@@ -1858,7 +1776,7 @@ impl Faraday {
             if self
                 .outbox
                 .iter()
-                .any(|it| it.name == name && sha256_of(&c, &it.bytes) == sha)
+                .any(|it| it.name == name && sha256_of(c, &it.bytes) == sha)
             {
                 public.push(name);
             }
@@ -1883,7 +1801,7 @@ impl Faraday {
         self.vaults.close_form();
         // The result's Show as QR and PNG point at the key just made.
         self.flow_point_at_subject(i);
-        if kind_ == Kind::Gpg {
+        if kind_ == Kind::Gpg && !self.flows[i].public.is_empty() {
             self.toast_waits(FEN.vaults_made_the_certificate, &[]);
         }
         self.out.dirty = true;
@@ -1945,6 +1863,71 @@ impl Faraday {
         f.adding = false;
     }
 
+    // ---- a GPG key restored from its paperkey (docs/GPG-PAPERKEY.md §4) ----
+
+    /// A press of the restore: the ways in and **Restore the key** here,
+    /// the head card and the lines in the area (`gpg_restore.rs`).
+    pub(crate) fn gpg_restore_press(&mut self, p: RestorePress) {
+        use RestorePress as R;
+        match p {
+            // Dimmed in Practice, as Make is (`docs/DEMO.md` §4).
+            R::Sheet | R::From(_) | R::Restore if !self.makes_secrets() => {}
+            R::Sheet => {
+                self.flows.restore_sheet(&self.inbox[..]);
+                self.sheet = Some(Sheet::GpgRestore);
+            }
+            R::From(k) => self.gpg_restore_from(k),
+            R::Restore => self.gpg_restore_finish(),
+            _ => {
+                if let Some(i) = self.fi() {
+                    self.flows.restore_press(i, p);
+                }
+            }
+        }
+        self.out.dirty = true;
+    }
+
+    /// The restore flow on public key Inbox file `k`: its unfinished one or
+    /// a new one, open on its head card (§4.1).
+    fn gpg_restore_from(&mut self, k: usize) {
+        let c = self.compute();
+        if let Some(i) = self.flows.restore_flow(&c, self.inbox.get(k)) {
+            self.sheet = None;
+            self.flow_show(i);
+            self.flows.restore_press(i, RestorePress::Head);
+        }
+    }
+
+    /// **Restore the key**: with the plan's vaults open, the key made from
+    /// the lines and saved into each vault of the plan as Make's is (§4.2).
+    fn gpg_restore_finish(&mut self) {
+        let c = self.compute();
+        let Some(i) = self.fi().filter(|&i| !self.flows[i].made) else {
+            return;
+        };
+        if !self.may_load_keys() {
+            return self.toast(FEN.backup_flow_pull_to_unlock_toast);
+        }
+        let need = self.flow_needed_vaults(i);
+        if need.iter().any(|&v| self.flow_open_index(i, v).is_none()) {
+            return self.toast(FEN.backup_flow_unlock_first);
+        }
+        if let Some(built) = self.flows.restore_finish(&c, i, &self.vaults) {
+            self.flow_save_built(&c, i, built);
+        }
+        if self.flows[i].made {
+            self.flows.restore_wipe();
+        }
+    }
+
+    /// A key typed while step 4 of a restore takes typing: its line's.
+    pub(crate) fn gpg_restore_key(&mut self, key: faraday_shell_api::Key) -> bool {
+        let on = self.flow_screen() && self.sheet.is_none();
+        let took = on && self.fi().is_some_and(|i| self.flows.restore_key(i, key));
+        self.out.dirty |= took;
+        took
+    }
+
     // ---- step 5 and the lock ----
 
     fn flow_lock_write(&mut self, i: usize) {
@@ -1962,6 +1945,8 @@ impl Faraday {
     /// the flow.
     pub(crate) fn flow_before_lock(&mut self) {
         self.flow_keep_makers();
+        // A restore's lines typed are not kept: asked for again after.
+        self.flows.restore_wipe();
         let on = self.screen == Screen::BackupFlow
             || (self.screen == Screen::SetTime && self.set_time.back_to() == Screen::BackupFlow);
         let cur = self.fi();
@@ -2847,18 +2832,6 @@ impl Faraday {
             }
         }
     }
-}
-
-/// What a kind's own build gives back (§4.4).
-pub struct Built {
-    /// The record the key is kept as, held: each vault takes a copy.
-    pub record: faraday_keys::vault::MadeKey,
-    /// The public value it is known by.
-    pub subject: Vec<u8>,
-    /// The name it is shown under.
-    pub name: String,
-    /// Files For the stick: the certificate or the public key.
-    pub outbox: Vec<(String, Vec<u8>)>,
 }
 
 impl Faraday {

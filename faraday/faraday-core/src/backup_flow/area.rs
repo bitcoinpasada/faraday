@@ -34,6 +34,15 @@ pub(crate) struct BackupFlowArea {
     /// The board's list of things, design units scrolled past
     /// (`docs/BACKUP-FLOW.md` §17.14).
     board_list_offset: f32,
+    /// A GPG key's paperkey being typed back, for the restore flow whose
+    /// key it names (`gpg_restore.rs`): secret, wiped when it drops, at a
+    /// lock and when its flow goes. Kept in step with that flow: it is
+    /// read only while the flow's certificate names the same key. Boxed: the
+    /// certificate it holds is large, and the area sits by value in `Faraday`.
+    pub(super) restoring: Option<Box<super::gpg_restore::RestoreLive>>,
+    /// The Restore a GPG key sheet's rows: the public keys in Files, read
+    /// when it opened.
+    pub(super) restore_rows: Vec<super::gpg_restore::SheetRow>,
 }
 
 /// Reading the area is reading its flows: `self.flows[i]` reads as the
@@ -129,6 +138,10 @@ impl BackupFlowArea {
     /// Drops flow `i`; what points past it follows. Whether it was the
     /// flow on screen.
     pub(crate) fn drop_flow(&mut self, i: usize) -> bool {
+        // A restore's lines go with its flow.
+        if self.restoring(i).is_some() {
+            self.restore_wipe();
+        }
         self.all.remove(i);
         match self.on {
             Some(k) if k == i => {
@@ -315,7 +328,7 @@ impl BackupFlowArea {
     pub(crate) fn resumable(&self, kind: Kind) -> Option<usize> {
         self.all
             .iter()
-            .position(|f| f.kind == kind && !f.made && f.step != Step::Done)
+            .position(|f| f.kind == kind && !f.made && f.step != Step::Done && f.restore.is_none())
     }
 
     /// Copies and public files kept in Files for the flow's writes are

@@ -74,6 +74,7 @@ mod flow_top_row;
 mod forms;
 mod glance;
 mod gpg;
+mod gpg_restore;
 mod half_screen;
 mod home;
 mod hover;

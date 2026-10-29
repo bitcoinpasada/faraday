@@ -1258,7 +1258,7 @@ strings! {
     /// Text in `TILES`.
     catalog_gpg_key: "GPG key",
     /// Text in `TILES`.
-    catalog_make_sign_revoke: "Make, sign, revoke, paperkey",
+    catalog_make_sign_revoke: "Make, restore, sign, revoke, paperkey",
     /// Text in `TILES`.
     catalog_secure_boot: "Secure Boot keys",
     /// Text in `TILES`.
@@ -2717,6 +2717,73 @@ strings! {
     gpg_no_revocation_kept: "No revocation certificate is kept with this key yet. Set the time and open the key again",
     /// Toast in `gpg_mark_revoked`.
     gpg_marked_revoked: "The key is marked revoked",
+    // ----- A GPG key restored from its paperkey (docs/GPG-PAPERKEY.md §7.3), faraday-core -----
+    /// Vault contents' GPG kind, beside Make a key.
+    gpg_restore_action: "Restore from a paperkey",
+    /// A public key's ⋮ in Files.
+    gpg_restore_files_action: "Restore from its paperkey",
+    /// The sheet's title and the flow's heading.
+    gpg_restore_title: "Restore a GPG key",
+    /// The sheet with no public key in Files.
+    gpg_restore_none: "Copy its public key in on a stick visit first.",
+    /// The flow's head card.
+    gpg_restore_public_key: "The public key",
+    /// The head card's code box of line 1.
+    gpg_restore_line_one: "Line 1 of its paperkey",
+    /// Step 4's card title.
+    gpg_restore_card: "Type the paperkey",
+    /// A line while the count is not known.
+    gpg_restore_line: "Line {}",
+    /// A line once the count is known.
+    gpg_restore_line_of: "Line {} of {}",
+    /// A line checked.
+    gpg_restore_checked: "Line {} · checked",
+    /// The button that ends a line.
+    gpg_restore_next: "Next line",
+    /// A checked line's ⋮.
+    gpg_restore_again: "Type line {} again",
+    /// Step 4's button once every line is checked.
+    gpg_restore_button: "Restore the key",
+    /// The Result, a row per vault.
+    gpg_restore_into: "Restored into {}",
+    /// The Result where signatures by other keys were set aside.
+    gpg_restore_set_aside: "{} signatures by other keys are not kept",
+    /// A character typed that a line does not take.
+    gpg_restore_chars: "Only 0–9, A–F, spaces and the line's number",
+    /// The number typed before the colon is another line's.
+    gpg_restore_number: "This is line {}, not line {}",
+    /// A line's CRC does not match.
+    gpg_restore_crc: "CRC on line {} does not match",
+    /// The whole data's CRC does not match.
+    gpg_restore_crc_all: "CRC of secret does not match",
+    /// Line 1 names another key.
+    gpg_restore_other_key: "This paperkey is for key {}",
+    /// The second entry names another subkey.
+    gpg_restore_other_subkey: "This paperkey's subkey is {}",
+    /// More or fewer keys than the certificate.
+    gpg_restore_count: "The paperkey holds {} keys; the public key has 2",
+    /// A paperkey format other than paperkey's 0.
+    gpg_restore_format: "This paperkey is in format {}; paperkey writes format 0",
+    /// A secret part with a passphrase.
+    gpg_restore_protected: "Protected by a passphrase: Faraday restores keys with none",
+    /// A secret part that does not read.
+    gpg_restore_unreadable: "The paperkey's secret does not read",
+    /// A secret that does not make the public key.
+    gpg_restore_mismatch: "The secret does not match the public key",
+    /// A signature of the key's that Faraday does not make the same.
+    gpg_restore_not_ours: "Not a certificate Faraday made for this key",
+    /// A key of another algorithm, named as `gpg --list-keys` names it.
+    gpg_restore_algorithm: "{} keys are not restored here: Faraday's are Ed25519",
+    /// A key of another OpenPGP version.
+    gpg_restore_version: "Version {} keys are not restored here",
+    /// A key of another shape.
+    gpg_restore_shape: "Not a key of Faraday's shape: an Ed25519 key with one Ed25519 signing subkey",
+    /// A certificate with no user ID.
+    gpg_restore_no_user_id: "The public key has no user ID",
+    /// A file that is not one armoured public key block.
+    gpg_restore_not_public: "Not a public key Faraday reads",
+    /// The key is in an open vault already.
+    gpg_restore_in_vault: "This key is in {}",
     /// Button in `years_row`.
     vault_3_years: "3 years",
     /// Button and heading on a GPG key's page.
