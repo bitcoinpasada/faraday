@@ -372,6 +372,19 @@ static AREA_XOR: Area = Area {
 };
 
 #[rustfmt::skip]
+static AREA_SILENT_SEND: Area = Area {
+    area: "sps",
+    code: &[p("faraday_psbt::silent, faraday_bip::dleq")],
+    second: &[p("BIP-374's reference.py (bip374/) and BIP-375's validator and test_runner.py (bip375/), over secp256k1lab."), p("Checked first: Its vendored files are hashed against references.sha256 before any run, the validator is required to give each of BIP-375's 43 vectors its published verdict and the reference to give each of BIP-374's rows its published answer.")],
+    vectors: &[p("Both CSV files of tools/vectors/bip374/ and tools/vectors/bip375/bip375_test_vectors.json.")],
+    random: &[p("Proofs made and verified, damaged or not, under two generators; version 2 PSBTs of one to four inputs of every kind BIP-375 reads and some it does not, one to three silent payment outputs, shares added by one signer or two, a global share, and each finished PSBT damaged in one of eighteen ways, judged by the BIP's validator.")],
+    differences: &[p("BIP-375: Faraday takes a key a PSBT states for a P2PKH, P2SH-P2WPKH or P2WPKH input only where the input's script commits to it (F89); the validator takes the first key stated, so a PSBT it accepts with an unbound key is refused by Faraday."), p("BIP-375: Faraday accepts the scripts of a scan key's outputs numbered in sorted order of their spend keys, as the BIP's text says, and in output order, as its vectors do; the validator accepts output order only."), p("BIP-375: Faraday refuses an input whose redeem script is not the one its P2SH script hashes, and one whose previous transaction is not the one spent; the validator reads both fields without checking them.")],
+    when: &[p("Whenever the crypto changes, and with a new seed and about ten times the cases before every release.")],
+    seed: "faraday-crosscheck-1",
+    cases: 80,
+};
+
+#[rustfmt::skip]
 static AREA_VAULT: Area = Area {
     area: "vault",
     code: &[p("faraday_vault (create, open, seal, the slot's records and payload layouts), faraday_backup::argon2id, the chacha20poly1305 crate's detached XChaCha20-Poly1305 as the vault calls it")],
@@ -1527,8 +1540,8 @@ pub static BLOCKS: &[Block] = &[
         standards: &[p("BIP 374, Discrete Log Equality Proofs, Draft"), p("BIP 375, Sending Silent Payments with PSBTs, Draft"), p("BIP 352, Silent Payments, Complete, vendored")],
         implementation: &[m("core/faraday-psbt"), m("secp256k1 0.29.1"), m("bitcoin 0.32.102"), p("BIP 374's proofs are written here (faraday-bip); each share a·B_scan carries a proof that it came from the input's key, every private multiplication going through secp256k1's ecdh; the scripts are set once every eligible input has a share, and signable gives the version 0 PSBT that sign signs.")],
         checked: &[m("tools/vectors/bip374"), m("tools/vectors/bip375"), m("tools/vectors/bip352"), m("core/faraday-bip/tests/all/dleq.rs::generation_vectors"), m("core/faraday-bip/tests/all/dleq.rs::verification_vectors"), m("core/faraday-bip/tests/all/silent.rs::the_sender_makes_the_outputs_the_vectors_publish"), m("core/faraday-psbt/tests/all/silent.rs::the_signer_adds_the_shares_and_sets_the_scripts_of_every_finished_vector"), m("core/faraday-psbt/tests/all/silent.rs::a_key_that_is_not_the_inputs_is_refused"), m("core/faraday-psbt/tests/all/silent.rs::a_master_key_adds_the_share_its_derived_key_gives"), w("no fuzz target: Not reachable from the app: no outside input reaches it")],
-        cross_check: CrossCheck::Not("not cross-checked: BIP 374 and 375 are not in the F79 cross-check; area silent checks BIP 352 from both sides"),
-        independence: &[],
+        cross_check: CrossCheck::Area(&AREA_SILENT_SEND),
+        independence: &[p("Reference written outside Faraday: BIP-374/375 authors (bitcoin/bips).")],
         code: &[c("core/faraday-psbt/src/silent.rs", "add_shares"), c("core/faraday-bip/src/dleq.rs", "generate_proof")],
         secret: &[p("none: no secret leaves faraday-keys"), p("Every secret multiplication goes through secp256k1's ECDH, documented in the code as taking the same time for every scalar; the public challenge and response use a multiplication the code says is right for public values only."), p("The secret's bytes, the nonce and the hashes they pass through are zeroized before return; each private key used is erased before its input is done.")],
         limits: &[p("Built in core and not reachable from the app: the device does not send."), p("An eligible input whose public key the PSBT does not state, a P2SH input with no redeem script and a previous transaction that is not the one spent stop the check."), p("A SegWit version above 1 and a sighash other than ALL are refused.")],

@@ -33,6 +33,7 @@ mod roller;
 mod seedqr;
 mod sign;
 mod silent;
+mod silent_send;
 mod slip39;
 mod taproot;
 mod tx;
@@ -67,6 +68,7 @@ fn dispatch(op: &str, req: &Value) -> Answer {
         "codex32" => codex32::handle(name, req),
         "xor" => xor::handle(name, req),
         "sp" => silent::handle(name, req),
+        "sps" => silent_send::handle(name, req),
         "vault" => vault::handle(name, req),
         "own" => own::handle(name, req),
         "entropy" => entropy::handle(name, req),

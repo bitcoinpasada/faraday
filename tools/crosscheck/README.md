@@ -168,6 +168,7 @@ run `python3 -I -B tools/crosscheck/facts.py write`. `just lint` runs its
 |---|---|---|---|---|
 | `musig` | `faraday_bip::musig` | BIP-327's `reference.py` (`bip327/`) | all eight files of `tools/vectors/bip327/` | sessions of 1 to 3 signers: key sort and aggregation, tweaks, nonces, partial signatures, their verification (and a tampered one), aggregation checked as BIP-340, deterministic signing |
 | `sp` | `faraday_bip::silent` | BIP-352's `reference.py` (`bip352/`) | every case of `tools/vectors/bip352/`, both sides | inputs of every kind BIP-352 reads, receivers with labels, a sender's outputs and what each receiver finds among them and decoys |
+| `sps` | `faraday_psbt::silent`, `faraday_bip::dleq` | BIP-374's `reference.py` (`bip374/`) and BIP-375's validator and `test_runner.py` (`bip375/`), over `secp256k1lab` | both CSV files of `tools/vectors/bip374/` and `tools/vectors/bip375/bip375_test_vectors.json` | proofs made and verified, damaged or not, under two generators; version 2 PSBTs of one to four inputs of every kind BIP-375 reads and some it does not, one to three silent payment outputs, shares added by one signer or two, a global share, and each finished PSBT damaged in one of eighteen ways, judged by the BIP's validator |
 | `bip85` | `faraday_bip::bip85` | `ethankosakovsky/bip85` over python-mnemonic and a hardened-BIP-32 shim (`bip85/`, `bip39/`) | every application vector of `tools/vectors/bip85/` | random master keys, indices, languages, word counts and lengths, with refusals |
 | `slip39` | `faraday_bip::slip39` | python-shamir-mnemonic (`slip39/`) | all 45 of `tools/vectors/slip39/` | splits fed the same random bytes, which must match word for word; recovery from qualifying and short subsets and a changed word; the passphrase cipher |
 | `codex32` | `faraday_bip::codex32` | python-codex32 (`codex32/`); the worksheet's rows written in the area from its polymod | every vector of `tools/vectors/bip93/`, the 55 invalid strings included; volvelle-website's worksheet cells (`tools/vectors/codex32-volvelle/`); the booklet's checksum, derivation, recovery, addition, translation and fusion tables (`tools/vectors/codex32-booklet/`); the Codex32QR profile's sets (`tools/vectors/codex32qr/`) | secrets, splits (the same randomness), recovery, derived shares, corrupted strings; fresh sets of every threshold up to 31 strings at 48, 74 and 127 characters, the checksum worksheets of their strings and of corrupted ones, checksums made on a sheet, translation and recovery symbols, translation worksheets |
@@ -204,6 +205,10 @@ leaves uncompared.
 - `sp`: its vendored files are hashed against `references.sha256` before
   any run, and a published vector's answer is required of the reference
   as well as of Faraday.
+- `sps`: its vendored files are hashed against `references.sha256`
+  before any run, the validator is required to give each of BIP-375's 43
+  vectors its published verdict and the reference to give each of
+  BIP-374's rows its published answer.
 - `bip85`: its vendored files are hashed against `references.sha256`
   before any run, and a published vector's answer is required of the
   reference as well as of Faraday; the BIP has no password applications,
@@ -348,6 +353,19 @@ difference"), and says why.
   - BIP-352's skip of a transaction spending SegWit version 2 or above,
     which the reference leaves to its caller, is written in the area
     from the BIP's own sentence.
+- `sps`
+  - BIP-375: Faraday takes a key a PSBT states for a P2PKH, P2SH-P2WPKH
+    or P2WPKH input only where the input's script commits to it (F89);
+    the validator takes the first key stated, so a PSBT it accepts with
+    an unbound key is refused by Faraday.
+  - BIP-375: Faraday accepts the scripts of a scan key's outputs
+    numbered in sorted order of their spend keys, as the BIP's text
+    says, and in output order, as its vectors do; the validator accepts
+    output order only.
+  - BIP-375: Faraday refuses an input whose redeem script is not the one
+    its P2SH script hashes, and one whose previous transaction is not
+    the one spent; the validator reads both fields without checking
+    them.
 - `bip85`
   - The BIP-85 length ranges and its two password applications, which
     the reference leaves to its caller, are written in the area from the
@@ -561,6 +579,7 @@ with an area and no class (`docs/crypto/check.py`).
 | `codex32-correct` | code Faraday did not write | python-codex32, by Ben Westgate (its `correction.py`) | none | codex32-correct |
 | `slip39` | code Faraday did not write | python-shamir-mnemonic, by Trezor (SatoshiLabs) | none | slip39 |
 | `xor` | Faraday's own model over outside code | Coldcard's `xor` and `xor_split`, by Coinkite, over python-mnemonic, by Trezor (SatoshiLabs) | the count of parts (2 to 4) and the five BIP-39 lengths, Faraday's rule written in `area_xor.py` in front of Coldcard's `xor`, which asserts only equal lengths | xor |
+| `sps` | code Faraday did not write | BIP-374/375 authors (bitcoin/bips) | none | silent-send |
 | `vault` | Faraday's own model over outside code | Faraday's authors (`area_vault.py`), over argon2-cffi (the Argon2 designers' reference code), PyNaCl (libsodium) and PyCA `cryptography` (OpenSSL, for HKDF-SHA256 and ChaCha20) | the container, its slot layout, key schedule and records, written in `area_vault.py` from `docs/VAULT.md` | vault-create, vault-unlock, vault-seal, vault-edit |
 | `kdbx` | code Faraday did not write | pykeepass, by the libkeepass project (the distribution's package) | none | kdbx |
 <!-- crypto-manifest: end independence -->

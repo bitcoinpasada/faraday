@@ -5931,7 +5931,8 @@ tests = [
   "core/faraday-psbt/tests/all/silent.rs::a_key_that_is_not_the_inputs_is_refused",
   "core/faraday-psbt/tests/all/silent.rs::a_master_key_adds_the_share_its_derived_key_gives",
 ]
-not_crosschecked = "BIP 374 and 375 are not in the F79 cross-check; area silent checks BIP 352 from both sides."
+crosscheck = "silent_send"
+independence = { class = "outside", author = "BIP-374/375 authors (bitcoin/bips)" }
 fuzz_none = "Not reachable from the app: no outside input reaches it."
 
 [action.secrets]

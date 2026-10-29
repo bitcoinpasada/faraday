@@ -14,9 +14,9 @@ back gives the downloaded digest.
 | File | Path in the BIPs repository | SHA-256 | Read by |
 |---|---|---|---|
 | `bip375_test_vectors.json` | `bip-0375/bip375_test_vectors.json` | downloaded `e516e1f4ac74a04f00f22f1d52dd9e83e12245169ae53e3b542a0db05b4bdfe1`; as kept here `72aaf9b4b37dbd215f85ba36566572ab40b031e055ec76769b4396dddac15acd` | `core/faraday-psbt/tests/all/silent.rs` |
-| `validate_psbt.py` | `bip-0375/validator/validate_psbt.py` | `f361705d5d35b20db6f831ad7c60e276de3f6c578b9a8b71103f1a4337b9cbe7` | people |
-| `inputs.py` | `bip-0375/validator/inputs.py` | `514c372e207d3e60d1807129413f26957c8c41ff9494b423468a7868bb1aeba2` | people |
-| `bip352_crypto.py` | `bip-0375/validator/bip352_crypto.py` | `f7f4a64b7a38bb25ecff3eab75d47874ca9cc352b8b3d6143f8e07fcf8f69a99` | people |
+| `validate_psbt.py` | `bip-0375/validator/validate_psbt.py` | `f361705d5d35b20db6f831ad7c60e276de3f6c578b9a8b71103f1a4337b9cbe7` | people; the cross-check runs the copy in `tools/reference/bip375/` |
+| `inputs.py` | `bip-0375/validator/inputs.py` | `514c372e207d3e60d1807129413f26957c8c41ff9494b423468a7868bb1aeba2` | people; the cross-check runs the copy in `tools/reference/bip375/` |
+| `bip352_crypto.py` | `bip-0375/validator/bip352_crypto.py` | `f7f4a64b7a38bb25ecff3eab75d47874ca9cc352b8b3d6143f8e07fcf8f69a99` | people; the cross-check runs the copy in `tools/reference/bip375/` |
 
 The vectors are 23 invalid and 20 valid version 2 PSBTs, each with a
 description, and supplementary data the file says is for diagnosis
@@ -24,9 +24,10 @@ only: the inputs' private keys, the shares and proofs, the outputs'
 scripts. Two carry a `checks` list naming the one stage they test
 (input eligibility). The validator's four stages are PSBT structure,
 ECDH coverage (every share's BIP-374 proof), input eligibility and
-output scripts. The Python is kept for reading; it is not run, as it
-imports a vendored `secp256k1lab` and a copy of Bitcoin Core's test
-framework that are not part of this download.
+output scripts. The three validator files here are for reading; the cross-check runs the
+validator whole, with `test_runner.py`, `secp256k1lab` and the copy of
+Bitcoin Core's test framework it imports, from `tools/reference/bip375/`
+(`area_silent_send.py`), over these vectors and random PSBTs.
 
 ## Where Faraday is stricter, and where the BIP disagrees with itself
 
@@ -50,3 +51,10 @@ framework that are not part of this download.
   of sorted order. Both are payments a BIP-352 receiver finds. Faraday
   accepts stated scripts that follow either order and sets scripts in
   output order, which reproduces every vector.
+- **A redeem script and a previous transaction must be the ones the
+  input spends.** The validator reads a P2SH input's redeem script and a
+  P2PKH input's previous output without hashing either; Faraday refuses a
+  redeem script that is not the one its P2SH script hashes, and a previous
+  transaction whose id is not the outpoint's, since the key it takes from
+  them would not be the one that signs. The cross-check counts both as known
+  differences.

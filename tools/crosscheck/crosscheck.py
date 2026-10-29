@@ -64,6 +64,7 @@ PIECES = 50
 AREAS = {
     "musig": ("area_musig", "Musig", "musig.sign", 230),
     "sp": ("area_silent", "Silent", "sp.sender", 360),
+    "sps": ("area_silent_send", "SilentSend", "sps.shares", 480),
     "bip85": ("area_bip85", "Bip85", "bip85.wif", 180),
     "slip39": ("area_slip39", "Slip39", "slip39.recover", 310),
     "codex32": ("area_codex32", "Codex32", "codex32.recover", 730),
