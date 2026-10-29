@@ -42,6 +42,11 @@ lint:
     # same store (docs/deps/libfuzzer-sys.md).
     cargo vet --locked --manifest-path fuzz/Cargo.toml --store-path supply-chain
     cargo vet --locked --manifest-path faraday/fuzz/Cargo.toml --store-path supply-chain
+    # Every fuzz target still builds against the code it feeds: the two fuzz
+    # crates are workspaces of their own, which nothing else compiles. A
+    # check on the workspace's stable toolchain, with no cargo-fuzz.
+    cargo check --locked --bins --manifest-path fuzz/Cargo.toml
+    cargo check --locked --bins --manifest-path faraday/fuzz/Cargo.toml
     cargo fmt --all --check
     tools/lint-secrets.sh
     tools/lint-strings.sh

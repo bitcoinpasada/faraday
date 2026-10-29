@@ -82,6 +82,20 @@ stage = "just lint"
 catches = "a top-level entry not listed, an editor or merge leftover, a file over 2 MiB, metadata in a tracked image"
 
 [[check]]
+id = "fuzz-targets-build"
+run = "cargo check --locked --bins --manifest-path fuzz/Cargo.toml"
+stage = "just lint"
+catches = "a fuzz target of fuzz/ that no longer compiles against the code it feeds"
+misses = "what only the nightly or the sanitizer build shows, and whether a target finds anything"
+
+[[check]]
+id = "fuzz-targets-build-faraday"
+run = "cargo check --locked --bins --manifest-path faraday/fuzz/Cargo.toml"
+stage = "just lint"
+catches = "a fuzz target of faraday/fuzz/ that no longer compiles against the code it feeds"
+misses = "what only the nightly or the sanitizer build shows, and whether a target finds anything"
+
+[[check]]
 id = "lint-fuzz-parsers"
 run = "python3 -I -B tools/lint-fuzz-parsers.py"
 stage = "just lint"

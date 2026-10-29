@@ -331,6 +331,9 @@ just fuzz-list                  every target, one per parser of untrusted input
 just fuzz psbt_parse 300        one target for 300 seconds
 ```
 
+`just lint` checks that every fuzz target still compiles (`cargo check --locked`
+on the stable toolchain, no nightly or cargo-fuzz needed).
+
 The fuzz targets need the nightly in `fuzz/rust-toolchain.toml` and
 cargo-fuzz. `fuzz/README.md` and `faraday/fuzz/README.md` say what each
 target feeds; `tools/README.md`, "Before a release", is the release run.
