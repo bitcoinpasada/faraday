@@ -116,7 +116,7 @@ fn picker(
         };
         let tw = ui.measure_as(LABEL_L, t);
         ui.text_mid_as((x, cy - 6.0, 30.0), LABEL_L, Role::Primary, t);
-        ui.hit(x - 6.0, cy - 6.0, tw + 12.0, 30.0, ia(I::All));
+        ui.press_box(x - 6.0, cy - 6.0, tw + 12.0, 30.0, ia(I::All));
         cy += 30.0;
     }
     cy += files(ui, x, cy, w, v);
@@ -307,7 +307,7 @@ fn files(ui: &mut Ui, x: f32, y: f32, w: f32, v: &ImportView) -> f32 {
             &f.line,
         ) + 2.0;
         if f.enabled {
-            ui.hit(x - 4.0, top, w + 8.0, cy - top, ia(I::File(i)));
+            ui.press_box(x - 4.0, top, w + 8.0, cy - top, ia(I::File(i)));
         }
         cy += 10.0;
     }

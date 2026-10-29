@@ -1667,7 +1667,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
     /// own), unless it draws its own (a button) or covers so much of the
     /// screen that a layer would light the page. It takes a press at
     /// least [`faraday_draw::tokens::TOUCH`] square ([`Reach`]).
-    pub fn hit(&mut self, x: f32, y: f32, w: f32, h: f32, action: A) {
+    pub(crate) fn hit(&mut self, x: f32, y: f32, w: f32, h: f32, action: A) {
         // A dimmed action takes no press, wherever it is drawn.
         if self.dimmed.contains(&action) {
             return;
@@ -1704,32 +1704,16 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
     /// [`Ui::hit`] for a held secret (a code shown while a finger is on
     /// it): no pressed layer over it, so what it shows reads as drawn;
     /// hovered and focused as [`Ui::hit`].
-    pub fn hit_held(&mut self, x: f32, y: f32, w: f32, h: f32, action: A) {
+    #[cfg(test)]
+    pub(crate) fn hit_held(&mut self, x: f32, y: f32, w: f32, h: f32, action: A) {
         self.held = true;
         self.hit(x, y, w, h, action);
         self.held = false;
     }
 
-    /// [`Ui::hit`] for a region that draws its own state layer in the
-    /// shape at `at` (x, y, w, h and its corners) and takes its press on
-    /// the box `target` (x, y, w, h), which may be larger: its focus ring
-    /// follows its shape (a round icon button, a navigation item's pill).
-    pub fn hit_ringed(
-        &mut self,
-        at: (f32, f32, f32, f32, f32),
-        target: (f32, f32, f32, f32),
-        action: A,
-    ) {
-        if !self.dimmed.contains(&action) {
-            self.focus_ring(at, action);
-        }
-        let (x, y, w, h) = target;
-        self.hit_drawn(x, y, w, h, action);
-    }
-
     /// [`Ui::hit`] for a region that draws its own hover look: no state
     /// layer; the focus ring is still drawn round it.
-    pub fn hit_quiet(&mut self, x: f32, y: f32, w: f32, h: f32, action: A) {
+    pub(crate) fn hit_quiet(&mut self, x: f32, y: f32, w: f32, h: f32, action: A) {
         self.quiet_hover = true;
         self.hit(x, y, w, h, action);
         self.quiet_hover = false;
@@ -1737,7 +1721,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
 
     /// [`Ui::hit`] for a control that draws its own state layer and focus
     /// ring in its own shape (a button, a segment, the floating action).
-    pub fn hit_drawn(&mut self, x: f32, y: f32, w: f32, h: f32, action: A) {
+    pub(crate) fn hit_drawn(&mut self, x: f32, y: f32, w: f32, h: f32, action: A) {
         self.own_ring = true;
         self.hit_quiet(x, y, w, h, action);
         self.own_ring = false;
@@ -1745,7 +1729,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
 
     /// Presses everywhere outside the box at (x, y), w by h, take
     /// `action`: a sheet that a press beside it closes. No hover look.
-    pub fn hit_around(&mut self, x: f32, y: f32, w: f32, h: f32, action: A) {
+    pub(crate) fn hit_around(&mut self, x: f32, y: f32, w: f32, h: f32, action: A) {
         const FAR: f32 = 10_000.0;
         self.quiet_hover = true;
         self.around = true;

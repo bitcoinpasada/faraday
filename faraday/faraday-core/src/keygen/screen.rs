@@ -1033,7 +1033,7 @@ fn row(ui: &mut Ui, x: f32, y: f32, w: f32, r: Row) {
             },
             &name,
         );
-        ui.hit(x, y, w, 52.0, a);
+        ui.press_box(x, y, w, 52.0, a);
         return;
     }
     ui.text_as(
@@ -1059,7 +1059,7 @@ fn row(ui: &mut Ui, x: f32, y: f32, w: f32, r: Row) {
         },
         &line,
     );
-    ui.hit(x, y, w, 52.0, a);
+    ui.press_box(x, y, w, 52.0, a);
 }
 
 /// An option's name on the Randomness card and in its summary.
@@ -1139,7 +1139,7 @@ fn group_head(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32, g: Group) -> f32 
             10.0,
             muted,
         );
-        ui.hit(x, y - 8.0, w, cy - y + 8.0, Action::KGroup(i));
+        ui.press_box(x, y - 8.0, w, cy - y + 8.0, Action::KGroup(i));
         return cy - y + 8.0;
     }
     section_label(ui, x, y, title);
@@ -1169,7 +1169,7 @@ fn group_head(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32, g: Group) -> f32 
             &way_name(way),
         );
     }
-    ui.hit(
+    ui.press_box(
         x,
         y - faraday_draw::tokens::GAP,
         w,
@@ -1244,7 +1244,7 @@ fn sources(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                         Role::OnSurfaceVariant,
                         &asks(k, m),
                     );
-                    ui.hit(
+                    ui.press_box(
                         x + 40.0,
                         cy - faraday_draw::tokens::GAP,
                         w - 40.0,
@@ -1514,7 +1514,7 @@ fn typed_box(app: &View, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32
         true,
         Action::KTyping(true),
     );
-    ui.hit(x, y, w, 40.0, Action::KTyping(true));
+    ui.press_box(x, y, w, 40.0, Action::KTyping(true));
     let what = match k.active() {
         Some(Source::Coins) if !k.by_die => EN.keygen_h_or_1_for_heads,
         _ => EN.keygen_dice_faces_caption,

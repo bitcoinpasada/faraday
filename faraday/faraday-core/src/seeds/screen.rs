@@ -275,7 +275,7 @@ pub(crate) fn shape(
             ui.text_right_as((x + w, cy, 40.0), BODY_S, Role::OnSurfaceVariant, &l);
             40.0
         };
-        ui.hit(x, cy, w, rh, sa(S::Kind(k as u8)));
+        ui.press_box(x, cy, w, rh, sa(S::Kind(k as u8)));
         ui.rule(x, cy + rh, w, Role::OutlineVariant);
         cy += rh + 2.0;
     }
@@ -309,7 +309,7 @@ pub(crate) fn shape(
         },
         &std_path,
     );
-    ui.hit(x, cy, w, 40.0, sa(S::Standard));
+    ui.press_box(x, cy, w, 40.0, sa(S::Standard));
     cy += 44.0;
     // The account, where the kind's path has one.
     if s.kind != NewKind::MultiLegacy {
@@ -333,7 +333,7 @@ pub(crate) fn shape(
         Role::OnSurface,
         EN.seeds_custom_path,
     );
-    ui.hit(x, cy, w, 40.0, sa(S::Custom));
+    ui.press_box(x, cy, w, 40.0, sa(S::Custom));
     cy += 44.0;
     if let Some(p) = &s.custom {
         let focused = s.focus == Some(Focus::Path);
@@ -435,5 +435,5 @@ fn field(
             action,
         );
     }
-    ui.hit(x, y, w, 40.0, action);
+    ui.press_box(x, y, w, 40.0, action);
 }

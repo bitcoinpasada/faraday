@@ -65,7 +65,7 @@ fn potential_body(
         cy += ui.wrap_as((x, cy, iw), LABEL_L, Role::OnSurface, label) + 6.0;
         if app.pass_is_public(&p.passphrase) {
             super::parts::code_field(ui, x, cy, iw, T::TEXT_FIELD_SHEET, &p.passphrase);
-            ui.hit(x, cy, iw, T::TEXT_FIELD_SHEET, Action::PotentialType);
+            ui.press_box(x, cy, iw, T::TEXT_FIELD_SHEET, Action::PotentialType);
         } else if app.may_load_keys() {
             let shown = if p.shown {
                 zeroize::Zeroizing::new(p.passphrase.to_string())
@@ -90,7 +90,7 @@ fn potential_body(
             if p.typing {
                 ui.caret(x + 13.0 + tw, cy + 13.0, 18.0);
             }
-            ui.hit(x, cy, iw - 44.0, 44.0, Action::PotentialType);
+            ui.press_box(x, cy, iw - 44.0, 44.0, Action::PotentialType);
             ui.icon(
                 x + iw - 44.0,
                 cy,

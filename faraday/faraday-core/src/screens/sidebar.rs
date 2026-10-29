@@ -215,7 +215,7 @@ pub(super) fn sidebar(app: &View, ui: &mut Ui, h: f32) {
             };
             sx += ui.text_mid_as((sx, fy, 20.0), LABEL_S, fg, label);
         }
-        ui.hit(16.0, fy - 4.0, SIDEBAR_W - 32.0, 28.0, open_files);
+        ui.press_box(16.0, fy - 4.0, SIDEBAR_W - 32.0, 28.0, open_files);
     }
     fy += 30.0;
     let rows_w = SIDEBAR_W - 56.0;
@@ -277,13 +277,13 @@ pub(super) fn sidebar(app: &View, ui: &mut Ui, h: f32) {
                 let tail = ui.fit_as(BODY_S, &tail, rows_w - hw - 8.0 - tag_w);
                 ui.text_mid_as((36.0 + hw, *fy, ROW), BODY_S, tone, &tail);
             }
-            ui.hit(16.0, *fy, SIDEBAR_W - 32.0, ROW, action);
+            ui.press_box(16.0, *fy, SIDEBAR_W - 32.0, ROW, action);
             *fy += ROW;
         }
         if total > cap && cap > 0 {
             let line = fill(EN.sidebar_more, &[&(total - shown).to_string()]);
             ui.text_mid_as((28.0, *fy, ROW), LABEL_M, Role::Primary, &line);
-            ui.hit(16.0, *fy, SIDEBAR_W - 32.0, ROW, more);
+            ui.press_box(16.0, *fy, SIDEBAR_W - 32.0, ROW, more);
             *fy += ROW;
         }
     };
@@ -378,7 +378,7 @@ pub(super) fn sidebar(app: &View, ui: &mut Ui, h: f32) {
     ui.text_mid_as((46.0, fy, 20.0), BODY_S, muted, EN.sidebar_files);
     let ink = on_selected(here, Role::OnSurface);
     ui.text_right_as((SIDEBAR_W - 24.0, fy, 20.0), BODY_S, ink, &files);
-    ui.hit(
+    ui.press_box(
         16.0,
         fy - 4.0,
         SIDEBAR_W - 32.0,
@@ -420,7 +420,7 @@ pub(super) fn sidebar(app: &View, ui: &mut Ui, h: f32) {
     );
     ui.text_right_as((SIDEBAR_W - 24.0, fy, 20.0), BODY_S, tone, &sticks);
     if waiting {
-        ui.hit(
+        ui.press_box(
             16.0,
             fy - 4.0,
             SIDEBAR_W - 32.0,

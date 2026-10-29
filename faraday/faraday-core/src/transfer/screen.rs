@@ -112,7 +112,7 @@ fn send(app: &View, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
             },
             &label,
         );
-        ui.hit(x - 8.0, y, w + 16.0, ROW, action);
+        ui.press_box(x - 8.0, y, w + 16.0, ROW, action);
         y += ROW;
         ui.rule(x, y, w, Role::OutlineVariant);
     }

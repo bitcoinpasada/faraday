@@ -225,7 +225,7 @@ pub(crate) fn sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
                 ask.typing,
                 Action::RegisterField,
             );
-            ui.hit(x, cy, iw, FIELD_H, Action::RegisterField);
+            ui.press_box(x, cy, iw, FIELD_H, Action::RegisterField);
             cy += FIELD_H + T::GAP_SMALL;
             if let Some(why) = &ask.refused {
                 cy += ui.wrap_as((x, cy, iw), BODY_M, Role::Error, why) + T::GAP_SMALL;

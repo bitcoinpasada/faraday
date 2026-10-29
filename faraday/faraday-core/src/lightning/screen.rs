@@ -175,7 +175,7 @@ fn body(
             let p = ui.fit_as(BODY_M.mono(), &p, pw - 24.0);
             ui.text_mid_as((px + 12.0, y, 40.0), BODY_M.mono(), Role::OnSurface, &p);
         }
-        ui.hit(px, y, pw, 40.0, Action::LPassphrase);
+        ui.press_box(px, y, pw, 40.0, Action::LPassphrase);
         app.pass_chip_draw(ui, l.passphrase.is_empty(), crate::demo::PassField::Aezeed);
         let (rx, ry) = if below > 0.0 {
             (px, y + 48.0)

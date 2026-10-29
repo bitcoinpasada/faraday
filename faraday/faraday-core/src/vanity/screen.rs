@@ -123,7 +123,7 @@ fn card(app: &View, v: &VanityState, ui: &mut Ui, s: u8, x: f32, y: f32, w: f32)
                     Role::OnSurfaceVariant,
                     &k.label,
                 );
-                ui.hit(x, cy, w, 40.0, va(V::Key(id)));
+                ui.press_box(x, cy, w, 40.0, va(V::Key(id)));
                 cy += 42.0;
             }
         }
@@ -153,7 +153,7 @@ fn card(app: &View, v: &VanityState, ui: &mut Ui, s: u8, x: f32, y: f32, w: f32)
                     line,
                 );
                 if usable {
-                    ui.hit(x, cy, w, used + 26.0, va(V::Dial(i as u8)));
+                    ui.press_box(x, cy, w, used + 26.0, va(V::Dial(i as u8)));
                 }
                 cy += used + 34.0;
             }
@@ -169,7 +169,7 @@ fn card(app: &View, v: &VanityState, ui: &mut Ui, s: u8, x: f32, y: f32, w: f32)
                     Role::OnSurface,
                     &script_name(*sc, net),
                 );
-                ui.hit(x, cy, w, 40.0, va(V::Script(i as u8)));
+                ui.press_box(x, cy, w, 40.0, va(V::Script(i as u8)));
                 cy += 42.0;
             }
             // A kind of address pressed moves on (F103).

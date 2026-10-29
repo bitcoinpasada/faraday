@@ -342,7 +342,7 @@ fn restore_description(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             ui.checkbox(x, cy + 8.0, on, true);
             let name = ui.fit_as(BODY_M.mono(), name, w - 30.0);
             ui.text_mid_as((x + 30.0, cy, 34.0), BODY_M.mono(), Role::OnSurface, &name);
-            ui.hit(x, cy, w, 34.0, Action::RShare(*k));
+            ui.press_box(x, cy, w, 34.0, Action::RShare(*k));
             cy += 38.0;
         }
         let texts = app.restore_share_texts();

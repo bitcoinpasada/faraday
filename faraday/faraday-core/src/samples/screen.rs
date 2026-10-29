@@ -79,7 +79,7 @@ fn body(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     };
     let lw = ui.measure_as(LABEL_L, link);
     ui.text_mid_as((x, cy, TOUCH), LABEL_L, Role::Primary, link);
-    ui.hit(x - GAP, cy, lw + 2.0 * GAP, TOUCH, Action::SamplesAll);
+    ui.press_box(x - GAP, cy, lw + 2.0 * GAP, TOUCH, Action::SamplesAll);
     cy += TOUCH;
     cy += heading(ui, x, cy, EN.samples_wallets);
     let (wallets, kinds) = list(

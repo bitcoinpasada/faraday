@@ -148,7 +148,7 @@ pub(crate) fn stick_save_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
                 cy += ui.advance_as(BODY_S.mono(), 18.0);
             }
             cy += 6.0;
-            ui.hit(x, top, iw, cy - top, va(V::SaveTick(k as u8)));
+            ui.press_box(x, top, iw, cy - top, va(V::SaveTick(k as u8)));
             ui.rule(x, cy, iw, Role::OutlineVariant);
             cy += 6.0;
         }

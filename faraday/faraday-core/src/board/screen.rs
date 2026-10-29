@@ -439,7 +439,7 @@ fn chip(ui: &mut Ui, fr: &mut Frame, cv: &ChipView, x: f32, y: f32, fit: Fit, hi
         if hits && let Chip::Placed(z, t) = cv.chip {
             let side = tokens::BOARD_MARK + 2.0 * tokens::BOARD_PAD;
             let off = Action::Board(BoardPress::Off(z, t));
-            ui.hit(x + w - mw - side, y, side, line_h, off);
+            ui.press_box(x + w - mw - side, y, side, line_h, off);
             ui.tip_plain((x + w - mw - side, y, side, line_h), off, EN.tip_remove);
         }
         right -= tokens::BOARD_MARK + tokens::BOARD_CHIP_GAP;
@@ -967,7 +967,7 @@ fn place_head(
         }
     };
     if let Some((a, _)) = name_press {
-        ui.hit(nx, y, room, hh, a);
+        ui.press_box(nx, y, room, hh, a);
     }
     let mut tx = nx + nw + tokens::GAP;
     for (&(text, tone), &want) in facts.iter().zip(&tag_ws) {
@@ -996,7 +996,7 @@ fn place_head(
             Role::OnSurface.paint(),
         );
         let side = mark + 2.0 * pad;
-        ui.hit(x + w - side, y, side, hh, a);
+        ui.press_box(x + w - side, y, side, hh, a);
         ui.tip_plain((x + w - side, y, side, hh), a, EN.tip_remove);
     }
 }
@@ -1168,7 +1168,7 @@ fn vault_head(
         );
         off_w = mark + 2.0 * pad;
         let off = Action::Board(BoardPress::Off(z, t));
-        ui.hit(x + w - mw - off_w, y, off_w, hh, off);
+        ui.press_box(x + w - mw - off_w, y, off_w, hh, off);
         ui.tip_plain((x + w - mw - off_w, y, off_w, hh), off, EN.tip_remove);
         right -= mark + tokens::BOARD_CHIP_GAP;
     }
@@ -1289,7 +1289,7 @@ fn stick(ui: &mut Ui, fr: &mut Frame, st: &crate::board::StickView, r: Box4, cus
         );
         let side = mark + 2.0 * tokens::BOARD_PAD;
         let remove = Action::Board(st.remove);
-        ui.hit(x + w - side, y, side, hh, remove);
+        ui.press_box(x + w - side, y, side, hh, remove);
         ui.tip_plain((x + w - side, y, side, hh), remove, EN.tip_remove);
     }
     let fr_box = (x + sp, y + hh, iw, files_h);
@@ -1501,7 +1501,7 @@ fn entry(
             y + tokens::BOARD_CHIP / 2.0,
             Role::OnSurfaceVariant.paint(),
         );
-        ui.hit(x + w - off_w, y, off_w, ch, a);
+        ui.press_box(x + w - off_w, y, off_w, ch, a);
     }
     let mut cy = y + ch + under;
     if let Some(line) = &e.holds {

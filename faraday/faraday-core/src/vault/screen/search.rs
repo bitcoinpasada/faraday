@@ -49,7 +49,7 @@ pub(crate) fn bar(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, s: SearchIn) 
         SEARCH_GLYPH,
         Role::OnSurfaceVariant,
     );
-    ui.hit(x, y, w, h, field);
+    ui.press_box(x, y, w, h, field);
     let tx = x + 2.0 * SEARCH_INSET + SEARCH_ICON;
     let clear = if q.is_empty() { 0.0 } else { TOUCH };
     let room = (x + w - tx - SEARCH_INSET - clear).max(0.0);
@@ -175,7 +175,7 @@ pub(crate) fn item_rows(
         let line_y = iy + VAULT_ITEM_LINE + title_h - ui.line_as(role);
         let line = ui.fit_as(BODY_S, &line, room);
         ui.text_as(tx, line_y, BODY_S, muted, &line);
-        ui.hit(x, iy, w, h, va(V::Item(k)));
+        ui.press_box(x, iy, w, h, va(V::Item(k)));
         iy += h + VAULT_ITEM_GAP;
     }
 }

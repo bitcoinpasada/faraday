@@ -199,7 +199,7 @@ pub(crate) fn wallet_card(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 true,
                 Action::Rename,
             );
-            ui.hit(x, cy, iw, FIELD_H, Action::Rename);
+            ui.press_box(x, cy, iw, FIELD_H, Action::Rename);
             cy += FIELD_H + 8.0;
         }
         None => {
@@ -557,7 +557,7 @@ fn pass_field(
     let lh = ui.field_label(x, y, label);
     let fy = y + lh;
     ui.field_box((x, fy, w), on, None);
-    ui.hit(x, fy, w, FIELD_H, action);
+    ui.press_box(x, fy, w, FIELD_H, action);
     if secret.is_empty() {
         ui.no_passphrase(x, fy, FIELD_H, on);
         // Use faraday goes in the "Demo only" card (`docs/DEMO.md` §5.4).
@@ -1013,7 +1013,7 @@ fn entry_field(app: &View, ui: &mut Ui, x: f32, y: f32, iw: f32, form: crate::fo
         },
     );
     if !on {
-        ui.hit(x, y, iw, bh, Action::EntryPassphrase);
+        ui.press_box(x, y, iw, bh, Action::EntryPassphrase);
     }
     y + bh + 10.0 + crate::screens::never_below(app, ui, x, y + bh, iw)
 }

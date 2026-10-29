@@ -417,7 +417,7 @@ pub(crate) fn kind_list(
             }
         }
         if enabled {
-            ui.hit(x, cy, w, h, pick(*i as u8));
+            ui.press_box(x, cy, w, h, pick(*i as u8));
         }
         // Drawn after the row, so a press on the button is the button's.
         if let Some(at) = tip {
@@ -815,7 +815,7 @@ pub(crate) fn dots_field(
     (on, chip): (bool, Option<Action>),
     action: Action,
 ) {
-    ui.hit(x, y, w, tokens::TEXT_FIELD, action);
+    ui.press_box(x, y, w, tokens::TEXT_FIELD, action);
     if text.is_empty() {
         ui.no_passphrase(x, y, 40.0, on);
         // Use faraday goes in the "Demo only" card (`docs/DEMO.md` §5.4).
@@ -923,7 +923,7 @@ pub(crate) fn descriptor_row(
         9.0,
         Role::OnSurfaceVariant,
     );
-    ui.hit(x, y - 4.0, w, h, action);
+    ui.press_box(x, y - 4.0, w, h, action);
     ui.rule(x, y + h, w, Role::OutlineVariant);
     h + 12.0
 }
@@ -1809,7 +1809,7 @@ fn copy_whole(ui: &mut Ui, (x, y): (f32, f32), cell: f32, g: &CopyGrid<'_>, pin:
             ui.fill(mx, my, mw, mh, 0.0, Role::Primary.with_alpha(70));
             ui.stroke(mx, my, mw, mh, 0.0, Role::Primary);
         }
-        ui.hit(mx, my, mw, mh, (g.pick)(i));
+        ui.press_box(mx, my, mw, mh, (g.pick)(i));
     }
     lab + side
 }

@@ -534,7 +534,7 @@ fn wallet_pick(app: &View, ui: &mut Ui, x: f32, y: f32, chip_w: f32, right: f32)
     let rh = MENU_ITEM_H;
     let n = app.session.wallets.len();
     let lh = n as f32 * rh + 2.0 * MENU_PAD_V;
-    ui.hit_around(x, y, lw, lh, Action::BWallets);
+    ui.press_plain((x, y, lw, lh), crate::ui::Plain::Beside, Action::BWallets);
     ui.shadow(x, y, lw, lh, SHAPE_XS, ELEVATION_MENU);
     ui.fill(x, y, lw, lh, SHAPE_XS, Role::SurfaceContainer);
     if ui.theme.is_high_contrast() {
@@ -1742,7 +1742,7 @@ fn vault_item(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, v: usize) -> f32 
         let label = ui.fit_as(LABEL_L, EN.vault_load_at_unlock, w - 28.0);
         ui.text_mid_as((x + 28.0, cy - 2.0, 22.0), LABEL_L, Role::OnSurface, &label);
         cy += 28.0;
-        ui.hit(
+        ui.press_box(
             x - 4.0,
             top,
             w + 8.0,

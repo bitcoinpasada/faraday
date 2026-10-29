@@ -85,7 +85,7 @@ fn inbox_panel(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             let mut rx = x + 20.0;
             if many {
                 ui.checkbox(rx, ty + 8.0, chosen, true);
-                ui.hit(x + 16.0, ty, w - 32.0, 34.0, Action::InboxChoose(i));
+                ui.press_box(x + 16.0, ty, w - 32.0, 34.0, Action::InboxChoose(i));
                 rx += 28.0;
             }
             ui.icon(
@@ -977,7 +977,7 @@ pub(crate) fn vault_panel(app: &View, ui: &mut Ui, v: usize, x: f32, y: f32, w: 
             Role::OnSurfaceVariant,
             label,
         );
-        ui.hit(
+        ui.press_box(
             sx - 8.0,
             y + 8.0,
             lw + 44.0,
@@ -1050,7 +1050,7 @@ pub(crate) fn vault_panel(app: &View, ui: &mut Ui, v: usize, x: f32, y: f32, w: 
                 );
             }
             if many {
-                ui.hit(x + 16.0, ty, w - 32.0, 36.0, action);
+                ui.press_box(x + 16.0, ty, w - 32.0, 36.0, action);
             }
             ty += 40.0;
         }
@@ -1153,7 +1153,7 @@ pub(crate) fn vault_panel(app: &View, ui: &mut Ui, v: usize, x: f32, y: f32, w: 
             &detail,
         );
         if !row.loaded {
-            ui.hit(rx, ry, colw, 34.0, Action::Vault(V::Choose(v, row.record)));
+            ui.press_box(rx, ry, colw, 34.0, Action::Vault(V::Choose(v, row.record)));
         }
     }
     let by = y + h - 20.0 - 40.0;
@@ -1284,7 +1284,7 @@ fn inbox_panel_compact(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                     ty += ui.line_as(LABEL_M) + faraday_draw::tokens::GAP_SMALL;
                 }
                 if many {
-                    ui.hit(ix - 4.0, top, iw + 8.0, ty - top, Action::InboxChoose(i));
+                    ui.press_box(ix - 4.0, top, iw + 8.0, ty - top, Action::InboxChoose(i));
                 }
                 ty += 8.0;
             }
@@ -1525,7 +1525,7 @@ fn vault_panel_compact(app: &View, ui: &mut Ui, v: usize, x: f32, y: f32, w: f32
                     ty += ui.line_as(LABEL_M) + faraday_draw::tokens::GAP_SMALL;
                 }
                 if many {
-                    ui.hit(
+                    ui.press_box(
                         ix - 4.0,
                         top,
                         iw + 8.0,
@@ -1586,7 +1586,7 @@ fn vault_panel_compact(app: &View, ui: &mut Ui, v: usize, x: f32, y: f32, w: f32
                 Role::OnSurfaceVariant,
                 EN.vault_select_all,
             );
-            ui.hit(
+            ui.press_box(
                 ix - 4.0,
                 ty - 4.0,
                 iw + 8.0,
@@ -1635,7 +1635,7 @@ fn vault_panel_compact(app: &View, ui: &mut Ui, v: usize, x: f32, y: f32, w: f32
             let name = ui.fit_as(TITLE_S, &row.name, iw - 54.0 - dw - 8.0);
             ui.text_as(ix + 54.0, ty + 3.0, TITLE_S, Role::OnSurface, &name);
             if !row.loaded {
-                ui.hit(
+                ui.press_box(
                     ix - 4.0,
                     ty - 4.0,
                     iw + 8.0,

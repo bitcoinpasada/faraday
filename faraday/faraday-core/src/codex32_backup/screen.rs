@@ -464,7 +464,7 @@ fn string_row(
         state,
     );
     if let Some(p) = press {
-        ui.hit(x, y, w, t::TOUCH, p);
+        ui.press_box(x, y, w, t::TOUCH, p);
     }
 }
 

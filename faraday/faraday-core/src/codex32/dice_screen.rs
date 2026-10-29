@@ -151,7 +151,7 @@ fn colour_chip(
         Role::OnSurface,
         label,
     );
-    ui.hit(x, y, w, t::TOUCH, act);
+    ui.press_box(x, y, w, t::TOUCH, act);
 }
 
 // ---------------------------------------------------------------------
@@ -378,7 +378,7 @@ fn head_row(m: &Codex32Make, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
         t::CODEX32_TAB_GLYPH,
         Role::OnSurfaceVariant,
     );
-    ui.hit(x, y, w, t::TOUCH, a(C32::DiceSheet));
+    ui.press_box(x, y, w, t::TOUCH, a(C32::DiceSheet));
     t::TOUCH
 }
 

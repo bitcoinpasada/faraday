@@ -92,7 +92,7 @@ fn visit_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         let t = EN.visit_unselect_all;
         let tw = ui.measure_as(LABEL_L, t);
         ui.text_as(x, y + 2.0, LABEL_L, Role::Primary, t);
-        ui.hit(x - 6.0, y - 6.0, tw + 12.0, 34.0, Action::VisitInAll);
+        ui.press_box(x - 6.0, y - 6.0, tw + 12.0, 34.0, Action::VisitInAll);
         y += 34.0;
     }
     for (k, (name, size)) in stick.files.iter().enumerate() {
@@ -149,7 +149,7 @@ fn visit_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             &sub,
         );
         if kind.is_some() {
-            ui.hit(x - 4.0, y, w + 8.0 - dw, 48.0, Action::VisitIn(k));
+            ui.press_box(x - 4.0, y, w + 8.0 - dw, 48.0, Action::VisitIn(k));
         }
         if menu {
             crate::file_menu::dots(
@@ -237,7 +237,7 @@ fn visit_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         Role::OnSurfaceVariant,
         EN.visit_select_all,
     );
-    ui.hit(x - 4.0, y - 6.0, w + 8.0, 34.0, Action::VisitOutAll);
+    ui.press_box(x - 4.0, y - 6.0, w + 8.0, 34.0, Action::VisitOutAll);
     y += 34.0;
     let row = |ui: &mut Ui,
                y: f32,
@@ -276,7 +276,7 @@ fn visit_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             &l,
         );
         if let Some(action) = action {
-            ui.hit(x - 4.0, y, w + 8.0, 48.0, action);
+            ui.press_box(x - 4.0, y, w + 8.0, 48.0, action);
         }
         ui.rule(x, y + 50.0, w, Role::OutlineVariant);
         56.0
@@ -424,7 +424,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         ui.stroke(chx, chy, wdt, 32.0, 16.0, edge);
         let ink = on_selected(current, Role::OnSurface);
         ui.text_mid_as((chx + 14.0, chy, 32.0), LABEL_L, ink, &label);
-        ui.hit(chx, chy, wdt, 32.0, Action::VisitStick(k));
+        ui.press_box(chx, chy, wdt, 32.0, Action::VisitStick(k));
         chx -= 8.0;
     }
     y += 64.0;
@@ -506,7 +506,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         Role::OnSurfaceVariant,
         EN.visit_public,
     );
-    ui.hit(x + 12.0, ry, colw - 24.0, 50.0, Action::VisitSettings);
+    ui.press_box(x + 12.0, ry, colw - 24.0, 50.0, Action::VisitSettings);
     ui.rule(x + 20.0, ry + 52.0, colw - 40.0, Role::OutlineVariant);
     ry += ROW;
     let file_row = |ui: &mut Ui,
@@ -550,7 +550,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         );
         ui.text_right_as((x + colw - 20.0, ry + 6.0, 20.0), LABEL_M, tag.1, tag.0);
         if let Some(action) = action {
-            ui.hit(x + 12.0, ry, colw - 24.0, 50.0, action);
+            ui.press_box(x + 12.0, ry, colw - 24.0, 50.0, action);
         }
         ui.rule(x + 20.0, ry + 52.0, colw - 40.0, Role::OutlineVariant);
     };
@@ -735,7 +735,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         let sub = ui.fit_as(BODY_S, &sub, colw - room);
         ui.text_as(ix + 54.0, ry + 28.0, BODY_S, Role::OnSurfaceVariant, &sub);
         if kind.is_some() {
-            ui.hit(ix + 12.0, ry, colw - 24.0 - dw, 50.0, Action::VisitIn(k));
+            ui.press_box(ix + 12.0, ry, colw - 24.0 - dw, 50.0, Action::VisitIn(k));
         }
         if menu {
             crate::file_menu::dots(
@@ -941,7 +941,7 @@ fn visit_select_all(ui: &mut Ui, right: f32, y: f32, all: bool, action: Action) 
         Role::OnSurfaceVariant,
         label,
     );
-    ui.hit(sx - 8.0, y + 12.0, lw + 44.0, 38.0, action);
+    ui.press_box(sx - 8.0, y + 12.0, lw + 44.0, 38.0, action);
 }
 
 /// The stick visit's "Unselect all", at the right of the From the stick
@@ -951,7 +951,7 @@ fn visit_unselect_all(ui: &mut Ui, right: f32, y: f32) {
     let lw = ui.measure_as(LABEL_L, label);
     let sx = right - 24.0 - lw;
     ui.text_mid_as((sx, y + 16.0, 30.0), LABEL_L, Role::Primary, label);
-    ui.hit(sx - 8.0, y + 12.0, lw + 16.0, 38.0, Action::VisitInAll);
+    ui.press_box(sx - 8.0, y + 12.0, lw + 16.0, 38.0, Action::VisitInAll);
 }
 
 /// A stick visit column's list's scrollbar, which a finger or the mouse

@@ -519,7 +519,7 @@ fn institute_note(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             let tone = Role::Primary;
             ui.text_as(cx, cy, BODY_S, tone, word);
             ui.fill(cx, cy + line_h - 3.0, ww, 1.0, 0.0, tone);
-            ui.hit(
+            ui.press_box(
                 cx - 2.0,
                 cy - 2.0,
                 ww + 4.0,

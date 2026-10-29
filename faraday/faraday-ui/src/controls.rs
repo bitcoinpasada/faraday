@@ -269,7 +269,7 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
     /// `r`: its content colour laid over it, faint while the pointer is
     /// over it, stronger while the keyboard is on it, strongest while it
     /// is pressed.
-    pub fn state_layer(&mut self, at: (f32, f32, f32, f32, f32), content: Paint, action: A) {
+    pub(crate) fn state_layer(&mut self, at: (f32, f32, f32, f32, f32), content: Paint, action: A) {
         let (x, y, w, h, r) = at;
         let opacity = if self.is_pressed(action) {
             STATE_PRESS
@@ -286,7 +286,7 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
     /// The focus ring round a control at (x, y), w by h with corners of
     /// `r`, when the keyboard is on `action`: [`FOCUS_RING`] thick,
     /// [`FOCUS_OFFSET`] outside it, in secondary (`docs/THEMES.md` §7).
-    pub fn focus_ring(&mut self, at: (f32, f32, f32, f32, f32), action: A) {
+    pub(crate) fn focus_ring(&mut self, at: (f32, f32, f32, f32, f32), action: A) {
         let (x, y, w, h, r) = at;
         if self.focused != Some(action) {
             return;

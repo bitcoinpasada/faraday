@@ -1731,7 +1731,7 @@ fn spend_panel(
         let v = ui.fit_as(*wt, v, w - 70.0);
         ui.text_right_as((x + w, y, 38.0), *wt, Role::OnSurface, &v);
         ui.rule(x, y + 38.0, w, Role::OutlineVariant);
-        ui.hit(x, y, w, 38.0, Action::Step(*step));
+        ui.press_box(x, y, w, 38.0, Action::Step(*step));
         y += 40.0;
     }
     let (count, missing, need_line, action_label, style) = spend_status(app, needed);

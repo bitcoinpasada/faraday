@@ -82,7 +82,7 @@ pub(crate) fn text_box(
         focused,
         action,
     );
-    ui.hit(x, y, w, FIELD_H, action);
+    ui.press_box(x, y, w, FIELD_H, action);
 }
 
 /// The warning that stands above a passphrase while a stick is attached:
@@ -160,7 +160,7 @@ pub(crate) fn secret_box(
     // field.
     if show == Show::Code {
         crate::screens::code_field(ui, x, y, w, tokens::TEXT_FIELD, &b.text);
-        ui.hit(x, y, w, tokens::TEXT_FIELD, action);
+        ui.press_box(x, y, w, tokens::TEXT_FIELD, action);
         return;
     }
     let shown = show == Show::Shown;
@@ -203,7 +203,7 @@ fn text_area(
     let th = ui.wrap_as((x + 12.0, y + 10.0, w - 24.0), BODY_M, ink, &shown);
     let h = (th + 20.0).max(96.0);
     ui.stroke(x, y, w, h, 8.0, if focused { primary } else { rule });
-    ui.hit(x, y, w, h, action);
+    ui.press_box(x, y, w, h, action);
     h
 }
 
@@ -428,7 +428,7 @@ pub(crate) fn unlock(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         );
         ui.text_right_as((x + w - 18.0, y + 10.0, 24.0), LABEL_L, ink, &cost);
         ui.text_right_as((x + w - 18.0, y + 36.0, 24.0), BODY_S, muted, &time);
-        ui.hit(x, y, w, ch, va(V::Pick(*i)));
+        ui.press_box(x, y, w, ch, va(V::Pick(*i)));
         y += ch + 10.0;
     }
     y += 14.0;
@@ -709,7 +709,7 @@ fn unlock_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         );
         let cost = ui.fit_as(LABEL_M, &cost, w - 24.0);
         ui.text_as(x + 12.0, y + 56.0, LABEL_M, ink, &cost);
-        ui.hit(x, y, w, ch, va(V::Pick(*i)));
+        ui.press_box(x, y, w, ch, va(V::Pick(*i)));
         y += ch + 10.0;
     }
     y += 6.0;
@@ -970,14 +970,14 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
             ui.checkbox(x, cy + 12.0, !c.not_here, true);
             ui.text_mid_as((x + 32.0, cy, 40.0), LABEL_L, ink, EN.vault_this_computer);
             ui.text_right_as((x + w, cy, 40.0), BODY_S, muted, &here);
-            ui.hit(x, cy, w, 40.0, va(V::CHere));
+            ui.press_box(x, cy, w, 40.0, va(V::CHere));
             ui.rule(x, cy + 42.0, w, Role::OutlineVariant);
             cy += 46.0;
             for (k, m) in MACHINES.iter().enumerate() {
                 ui.checkbox(x, cy + 12.0, c.on[k], true);
                 ui.text_mid_as((x + 32.0, cy, 40.0), LABEL_L, ink, m.0);
                 ui.text_right_as((x + w, cy, 40.0), BODY_S, muted, m.2);
-                ui.hit(x, cy, w, 40.0, va(V::CMachine(k)));
+                ui.press_box(x, cy, w, 40.0, va(V::CMachine(k)));
                 ui.rule(x, cy + 42.0, w, Role::OutlineVariant);
                 cy += 46.0;
             }
@@ -1028,7 +1028,7 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                 );
                 let detail = ui.fit_as(BODY_S.mono(), &detail, w - 32.0);
                 ui.text_as(x + 16.0, cy + 29.0, BODY_S.mono(), muted, &detail);
-                ui.hit(x, cy, w, 50.0, va(V::CPreset(k)));
+                ui.press_box(x, cy, w, 50.0, va(V::CPreset(k)));
                 cy += 56.0;
             }
             if current == CUSTOM {
@@ -1192,7 +1192,7 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                         &line,
                     );
                 }
-                ui.hit(x, cy, w, row_h, va(V::CSizeRow(r)));
+                ui.press_box(x, cy, w, row_h, va(V::CSizeRow(r)));
                 cy += row_h + 6.0;
             }
             ui.button(
@@ -1224,7 +1224,7 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                 );
                 let sw = ui.measure_as(BODY_S, &sub);
                 ui.text_as(bx + (bw - sw) / 2.0, cy + 36.0, BODY_S, muted, &sub);
-                ui.hit(bx, cy, bw, 62.0, va(V::CSize(k)));
+                ui.press_box(bx, cy, bw, 62.0, va(V::CSize(k)));
             }
             cy += 80.0;
         }
@@ -1478,7 +1478,7 @@ fn create_panel(
             &v,
         );
         let step = if by_size { vstep::PRESET } else { k as u8 };
-        ui.hit(x - 8.0, y - 4.0, w + 16.0, 42.0, va(V::CStep(step)));
+        ui.press_box(x - 8.0, y - 4.0, w + 16.0, 42.0, va(V::CStep(step)));
         y += 46.0;
     }
     y += create_summary(app, ui, x, y, w);
@@ -1987,7 +1987,7 @@ pub(crate) fn contents(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         ui.text_mid_as((x + 12.0, ky, 38.0), LABEL_L, tone, label);
         let n = count.to_string();
         ui.text_right_as((x + kinds_w - 12.0, ky, 38.0), BODY_S, tone, &n);
-        ui.hit(x, ky, kinds_w, 38.0, va(V::Category(k)));
+        ui.press_box(x, ky, kinds_w, 38.0, va(V::Category(k)));
         ky += 42.0;
     }
     if !empty {
@@ -2198,7 +2198,7 @@ fn add_rows(ui: &mut Ui, x: f32, y: f32, w: f32, row: f32) -> f32 {
         );
         let t = ui.fit_as(LABEL_L, add, w - 34.0);
         ui.text_mid_as((x + 30.0, cy, row), LABEL_L, ink, &t);
-        ui.hit(x, cy, w, row, va(V::AddKind(k)));
+        ui.press_box(x, cy, w, row, va(V::AddKind(k)));
         cy += row + 4.0;
     }
     cy - y
@@ -2683,7 +2683,7 @@ fn detail(
                 ink,
                 EN.vault_select_all,
             );
-            ui.hit(dx, dy, dw, 40.0, va(V::GpgTickAll));
+            ui.press_box(dx, dy, dw, 40.0, va(V::GpgTickAll));
             ui.rule(dx, dy + 40.0, dw, Role::OutlineVariant);
             dy += 42.0;
         }
@@ -2734,7 +2734,7 @@ fn detail(
             // On a small panel the buttons are on the line below: the
             // whole first line ticks.
             let hit_w = if ui.compact { dw } else { dw - all - 16.0 };
-            ui.hit(dx, dy, hit_w, 40.0, va(V::GpgTick(fi)));
+            ui.press_box(dx, dy, hit_w, 40.0, va(V::GpgTick(fi)));
             let mut bx = if ui.compact { dx + 30.0 } else { dx + dw - all };
             for ((label, action), bw) in buttons.iter().zip(&widths) {
                 ui.button(

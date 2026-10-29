@@ -93,7 +93,7 @@ pub(crate) fn settings_row(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f
         Role::OnSurfaceVariant,
         name,
     );
-    ui.hit(x, y, w, MODE_ROW, Action::ModeSheet);
+    ui.press_box(x, y, w, MODE_ROW, Action::ModeSheet);
     MODE_ROW
 }
 

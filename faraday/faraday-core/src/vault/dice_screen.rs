@@ -205,7 +205,7 @@ fn dice_card(
         ui.text_as(bx + 10.0, cy + 6.0, LABEL_L, ink, name);
         let muted = on_selected(on, Role::OnSurfaceVariant);
         ui.text_as(bx + 10.0, cy + 24.0, LABEL_S.regular(), muted, &detail);
-        ui.hit(bx, cy, lw, 44.0, Action::Vault(V::DiceList(k as u8)));
+        ui.press_box(bx, cy, lw, 44.0, Action::Vault(V::DiceList(k as u8)));
     }
     cy += if compact { 3.0 * 52.0 + 4.0 } else { 56.0 };
     cy += ui.wrap_as(

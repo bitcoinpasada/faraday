@@ -889,7 +889,7 @@ fn bind_card(
             );
             let t = ui.fit_as(BODY_S.mono(), &line, w - 24.0);
             ui.text_mid_as((x + 12.0, cy, 44.0), BODY_S.mono(), Role::OnSurface, &t);
-            ui.hit(x, cy, w, 44.0, fa(F::PickFile(v, k)));
+            ui.press_box(x, cy, w, 44.0, fa(F::PickFile(v, k)));
             cy += 52.0;
         }
         return cy - y;

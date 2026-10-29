@@ -1146,7 +1146,7 @@ impl Node {
                 ui.rule(x + pad, cy + one / 2.0, tw, l.color);
             }
             if let Some(a) = l.press {
-                ui.hit(x + pad, cy, inner, lh, a);
+                ui.press_box(x + pad, cy, inner, lh, a);
             }
             cy += lh;
         }

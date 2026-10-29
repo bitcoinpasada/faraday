@@ -734,7 +734,7 @@ pub(crate) fn rename_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
             true,
             FIELD,
         );
-        ui.hit(x, cy, fw, fh, FIELD);
+        ui.press_box(x, cy, fw, fh, FIELD);
         if ew > 0.0 {
             ui.text_mid_as(
                 (x + fw + tokens::GAP_SMALL, cy, fh),

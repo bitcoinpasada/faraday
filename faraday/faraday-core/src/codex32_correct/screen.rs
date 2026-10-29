@@ -41,7 +41,7 @@ pub fn tick_row<A: Copy + PartialEq>(
         Role::OnSurface,
         EN.codex32_correct_suggest,
     );
-    ui.hit(x, y, width, CORRECT_TICK_ROW, to(Press::Tick));
+    ui.press_box(x, y, width, CORRECT_TICK_ROW, to(Press::Tick));
     CORRECT_TICK_ROW
 }
 

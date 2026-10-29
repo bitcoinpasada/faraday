@@ -75,7 +75,7 @@ pub(crate) fn backup_line(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, i: us
         Role::Warning
     };
     let h = ui.wrap_as((x, y, w), BODY_M, tone, &line);
-    ui.hit(x, y - 6.0, w, h + 12.0, action);
+    ui.press_box(x, y - 6.0, w, h + 12.0, action);
     h + 16.0
 }
 
@@ -197,7 +197,7 @@ pub(crate) fn loose_card(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32
                 },
                 &line,
             );
-            ui.hit(x, cy, w, 40.0, Action::PickKey(fp.0));
+            ui.press_box(x, cy, w, 40.0, Action::PickKey(fp.0));
             ui.rule(x, cy + 40.0, w, Role::OutlineVariant);
             cy += 42.0;
             cy += mark_line(app, ui, x, cy, w, *fp);
@@ -483,7 +483,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 true,
                 Action::Rename,
             );
-            ui.hit(ix - 6.0, cy - 4.0, 360.0, 38.0, Action::Rename);
+            ui.press_box(ix - 6.0, cy - 4.0, 360.0, 38.0, Action::Rename);
             ui.text_as(
                 ix + 370.0,
                 cy + 8.0,

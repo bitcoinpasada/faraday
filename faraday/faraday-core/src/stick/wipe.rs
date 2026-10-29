@@ -575,7 +575,7 @@ pub(crate) fn delete_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
             let line = ui.fit_as(BODY_S, line, iw - 56.0);
             let muted = on_selected(on, Role::OnSurfaceVariant);
             ui.text_as(x + 44.0, cy + 29.0, BODY_S, muted, &line);
-            ui.hit(x, cy, iw, 52.0, action);
+            ui.press_box(x, cy, iw, 52.0, action);
             cy += 58.0;
         }
         cy += 6.0;
@@ -594,7 +594,7 @@ pub(crate) fn delete_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
                     let n = ui.fit_as(BODY_M.mono(), name, iw - 44.0 - sw);
                     ui.text_mid_as((x + 32.0, cy, 38.0), BODY_M.mono(), Role::OnSurface, &n);
                     ui.text_right_as((x + iw, cy, 38.0), BODY_S, Role::OnSurfaceVariant, &sz);
-                    ui.hit(x - 4.0, cy, iw + 8.0, 38.0, Action::DeletePick(k));
+                    ui.press_box(x - 4.0, cy, iw + 8.0, 38.0, Action::DeletePick(k));
                     cy += 40.0;
                 }
                 cy += 8.0;

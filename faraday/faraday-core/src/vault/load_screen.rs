@@ -62,7 +62,7 @@ fn body(ui: &mut Ui, x: f32, y: f32, w: f32, view: &LoadView, may: bool) -> f32 
         };
         let tw = ui.measure_as(LABEL_L, t);
         ui.text_mid_as((x, cy - 6.0, 30.0), LABEL_L, Role::Primary, t);
-        ui.hit(x - 6.0, cy - 6.0, tw + 12.0, 30.0, va(V::LoadTickAll));
+        ui.press_box(x - 6.0, cy - 6.0, tw + 12.0, 30.0, va(V::LoadTickAll));
         cy += 30.0;
     }
     for c in &view.cards {
@@ -180,7 +180,7 @@ fn wallet_card(ui: &mut Ui, x: f32, y: f32, w: f32, c: &LoadCard) -> f32 {
         Role::OutlineVariant,
     );
     if !c.done {
-        ui.hit(x, y, w, cy - y, va(V::LoadTick(c.record)));
+        ui.press_box(x, y, w, cy - y, va(V::LoadTick(c.record)));
     }
     cy - y
 }
@@ -199,7 +199,7 @@ fn keys_card(ui: &mut Ui, x: f32, y: f32, w: f32, keys: &[LoadSeed]) -> f32 {
         }
         cy += seed_line(ui, ix + BESIDE, cy + 1.0, right, s) + 4.0;
         if !s.loaded {
-            ui.hit(x, top, w, cy - top, va(V::LoadTick(s.record)));
+            ui.press_box(x, top, w, cy - top, va(V::LoadTick(s.record)));
         }
     }
     cy += PAD - 8.0;
@@ -263,7 +263,7 @@ pub(crate) fn pass_seeds(app: &View, ui: &mut Ui, w: f32, h: f32) {
                 for s in seeds.iter() {
                     let top = cy;
                     cy += row(ui, cy, s);
-                    ui.hit(
+                    ui.press_box(
                         x - 4.0,
                         top - 4.0,
                         iw + 8.0,

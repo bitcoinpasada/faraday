@@ -455,7 +455,7 @@ pub(crate) fn wallet_rows(
         let more = fill(EN.wallet_rows_more, &[&(total - shown).to_string()]);
         let mw = ui.measure_as(LABEL_M, &more) + 8.0;
         ui.text_mid_as((x, y + used - 4.0, 24.0), LABEL_M, Role::Primary, &more);
-        ui.hit(x, y + used - 4.0, mw, 24.0, open(order[shown]));
+        ui.press_box(x, y + used - 4.0, mw, 24.0, open(order[shown]));
         used += 24.0;
     }
     used + 6.0

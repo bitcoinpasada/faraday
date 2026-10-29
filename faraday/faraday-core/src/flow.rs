@@ -326,7 +326,7 @@ pub fn column_wide(
                 Role::OnSurfaceVariant,
             );
         }
-        ui.hit(x, card_top, w, 56.0, card.toggle);
+        ui.press_box(x, card_top, w, 56.0, card.toggle);
         y += card_h;
     }
     // The rule under the last step closes the list of them.
@@ -432,7 +432,7 @@ fn paged(
                 let line = ui.fit_as(role, &line, inner - cw - 16.0);
                 ui.text_mid_as((M, y, 34.0), role, Role::OnSurfaceVariant, &line);
                 ui.text_right_as((M + inner, y, 34.0), LABEL_L, Role::Primary, EN.flow_change);
-                ui.hit(M, y, inner, 34.0, c.toggle);
+                ui.press_box(M, y, inner, 34.0, c.toggle);
                 y += 36.0;
                 defaults = true;
             }
@@ -455,7 +455,7 @@ fn paged(
             let lh = ui.line_as(TITLE_M);
             let th = ui.wrap_as((M, y, title_w), TITLE_M, Role::OnSurface, &card.title);
             ui.text_right_as((M + inner, y, lh), BODY_S, Role::OnSurfaceVariant, &count);
-            ui.hit(M, y, inner, th, card.toggle);
+            ui.press_box(M, y, inner, th, card.toggle);
             y += th + 10.0;
             y += body(ui, i, M, y, inner);
             // The walk-through comes after the controls, behind a tap:
@@ -509,7 +509,7 @@ fn paged(
                     9.0,
                     Role::OnSurfaceVariant,
                 );
-                ui.hit(M, y, inner, 52.0, card.toggle);
+                ui.press_box(M, y, inner, 52.0, card.toggle);
                 y += 52.0;
             }
             if !cards.is_empty() {
@@ -581,7 +581,7 @@ pub(crate) fn about(
         9.0,
         Role::OnSurfaceVariant,
     );
-    ui.hit(x, cy, w, 36.0, action);
+    ui.press_box(x, cy, w, 36.0, action);
     cy += 42.0;
     if open {
         let gh = ui.wrap_as(

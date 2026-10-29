@@ -30,7 +30,11 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, w: f32, h: f32) {
         ((w - 80.0).min(860.0), h - 64.0, 28.0)
     };
     let (x, y) = sheet_box(ui, w, h, sw, sh);
-    ui.hit_around(x, y, sw, sh, Action::WordList(WL::Outside));
+    ui.press_plain(
+        (x, y, sw, sh),
+        crate::ui::Plain::Beside,
+        Action::WordList(WL::Outside),
+    );
     // A tab for each list, and Back; on a small panel the tabs wrap.
     let back_w = if compact { 64.0 } else { 96.0 };
     ui.button(
@@ -170,7 +174,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, w: f32, h: f32) {
         // it.
         let (hy, hb) = (ry.max(top), (ry + ROW - 2.0).min(top + view));
         if hb > hy {
-            ui.hit(bx, hy, bw, hb - hy, Action::WordList(WL::Mark(i as u16)));
+            ui.press_box(bx, hy, bw, hb - hy, Action::WordList(WL::Mark(i as u16)));
         }
     }
     ui.c.pop_clip();

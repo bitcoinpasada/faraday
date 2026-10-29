@@ -1276,7 +1276,7 @@ fn vault(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                 &cost_text(&f.header.cost),
             );
         }
-        ui.hit(x, cy, w, ch, fa(F::Pick(*i)));
+        ui.press_box(x, cy, w, ch, fa(F::Pick(*i)));
         cy += ch + 8.0;
     }
     cy += 8.0;
@@ -1433,7 +1433,7 @@ fn opened(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             ui.text_right_as((x + w, cy, 40.0), BODY_S, tone, &line);
             40.0
         };
-        ui.hit(x, cy, w, rh, fa(F::Choose(i)));
+        ui.press_box(x, cy, w, rh, fa(F::Choose(i)));
         cy += rh + 2.0;
     }
     cy + 8.0 - y

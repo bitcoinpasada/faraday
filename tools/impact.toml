@@ -846,6 +846,15 @@ kind = "held"
 held_by = ["touch-targets"]
 
 [[rule]]
+id = "design.press-layers"
+title = "a press is made only through faraday-ui's press constructor, which draws its state layers"
+source = ["docs/decisions/F152.md", "docs/M3-CHECKS.md §4"]
+when = ["faraday/faraday-ui/src/**", "**/screen.rs", "faraday/faraday-core/src/**", "faraday/faraday-starter/src/**"]
+kind = "held"
+held_by = ["clippy"]
+misses = "a Plain case chosen where a layer was owed; a layer in the wrong ink"
+
+[[rule]]
 id = "design.left-out"
 title = "none of F111's left-out components is added"
 source = ["docs/decisions/F111.md"]
