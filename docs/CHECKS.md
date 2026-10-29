@@ -46,7 +46,7 @@ does what is `tools/README.md`'s.
 | `impact-docs` | just lint | `python3 -I -B tools/impact.py docs --check` | docs/CHECKS.md differing from the registry | - | built |
 | `impact-lint` | just lint | `python3 -I -B tools/impact.py lint` | the registry against itself and the tree: ids, held_by, sources, paths, the lint recipe against the checks, each app's reads against cargo metadata | whether a rule is right | built |
 | `crypto-inventory` | just lint | `cargo run -q -p costs-lint --bin crypto-inventory` | a cryptographic function not covered by a test or the inventory (F148) | planned: not yet in just lint | planned |
-| `crypto-gen` | just lint | `python3 tools/crypto/gen.py check` | the generated parts of STANDARDS and AUDIT differing from the manifest (F148) | planned: not yet written | planned |
+| `crypto-gen` | just lint | `python3 -I -B docs/crypto/gen.py check` | the generated parts of STANDARDS and AUDIT differing from the manifest (F148) | planned: not yet written | planned |
 
 ## 2. Rules by area
 
