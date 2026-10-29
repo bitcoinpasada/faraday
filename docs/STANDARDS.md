@@ -384,7 +384,9 @@ Not recorded in a decision:
 
 ## 7. Novel constructions for outside review
 
-Ranked by how much a mistake would cost.
+Ranked by how much a mistake would cost. The call for an outside review
+of each, what a reviewer gets and how a review is recorded, is
+`docs/AUDIT-SUBMISSIONS.md` §10.
 
 <!-- crypto-manifest: begin §7 -->
 1. **Makes a vault file of four equal slots from one to four passphrases, with Argon2id, HKDF-SHA256 and XChaCha20-Poly1305, and a ChaCha20 keystream for the salt, the nonces and the unused slots.** Faraday's own container with four equal slots, so a file does not say how many slots are in use (docs/VAULT.md §9); unused slots are keystream, one salt serves every slot, and an older copy of a slot still opens. Kept until the outside review. (F158) **Adds, changes, copies and makes public the records of an open vault, holding every secret field in a value that wipes on drop.** Faraday's own record layouts (docs/VAULT.md §7); a reader Faraday's authors wrote from that text, not from the code, reads them, which is not an independent check. (F97) Own construction, not yet independently reviewed (F160).

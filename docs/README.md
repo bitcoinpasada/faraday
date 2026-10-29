@@ -57,7 +57,7 @@ need. Each document's header says what kind it is:
 | Where are keys held, and how do they leave? | `docs/KEYS.md`, then `docs/AUDIT.md` §2 |
 | What is planned and not built? | each Spec's `**Open:**` line (the Specs are listed below); the board holds the rest |
 | How would a signer be kept from hiding its key in a nonce (anti-exfil)? | `docs/ANTI-EXFIL.md` |
-| How do I submit an audit? | `docs/AUDIT-SUBMISSIONS.md` |
+| How do I submit an audit, or an outside review of one of Faraday's own constructions? | `docs/AUDIT-SUBMISSIONS.md`; the own constructions, §10 |
 | How do I report a security problem? | `SECURITY.md` |
 | What are the rules for changing this repository, and how do I send a change? | `CLAUDE.md`, `CONTRIBUTING.md` |
 | What did an earlier plan or batch say, or how was something built? | `docs/history/`: `<NAME>-LOG.md` beside each document's name, and the retired decisions in `docs/history/decisions/` |
@@ -66,7 +66,7 @@ need. Each document's header says what kind it is:
 
 **Reference**
 
-- `docs/AUDIT-SUBMISSIONS.md`: Audits: the request, the submission and the record. Built (F19).
+- `docs/AUDIT-SUBMISSIONS.md`: Audits: the request, the submission and the record, and the call for outside review of Faraday's own constructions (§10). Built (F19); the Audits page does not yet show §10 (F160).
 - `docs/AUDIT.md`: What is cryptography, and where it lives. Built (the key boundary, F70).
 - `docs/CODEX32.md`: Codex32: making, checking and repairing shares. Built (F93 to F96, F107); no Codex32QR picture for 74 and 127 characters.
 - `docs/CHECKS.md`: Checks: what holds each rule, generated from `tools/impact.toml`. Built (F149).

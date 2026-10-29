@@ -398,4 +398,6 @@ own with code other people wrote, moves the action's `independence` to
    written by an outside party from the spec alone, or a named outside
    party's reproduction of the published vectors (`tools/vectors/vault/`
    and the others), recorded on the Audits page
-   (`docs/AUDIT-SUBMISSIONS.md`). Until then each keeps its label.
+   (`docs/AUDIT-SUBMISSIONS.md`). Until then each keeps its label. The
+   call, with the spec sections, the vectors and what a model offers to
+   take a model's place in an area, is `docs/AUDIT-SUBMISSIONS.md` §10.
