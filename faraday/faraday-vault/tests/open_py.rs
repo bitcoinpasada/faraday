@@ -122,7 +122,7 @@ fn a_passphrase_on_the_command_line_is_refused_for_a_field() {
     let out = Command::new("python3")
         .arg("-B")
         .arg(repo("tools/vault/open.py"))
-        .arg(repo("tools/vectors/vault/vault-one.ofv"))
+        .arg(repo("tools/vectors/vault/vault-one.fvlt"))
         .args(["--passphrase", vectors::ONE.1[0]])
         .args(["--field", "7.1", "--out", file.to_str().unwrap()])
         .output();

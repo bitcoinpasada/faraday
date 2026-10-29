@@ -205,7 +205,7 @@ fn files_written_here_pass_fsck_and_read_back_in_mtools() {
 
         let mut v = open(&img);
         let files = [
-            ("vault.ofv", pattern(262_144 * 4 + 64, 4)),
+            ("vault.fvlt", pattern(262_144 * 4 + 64, 4)),
             ("SIGNED.PSB", pattern(900, 5)),
             ("savings-unsigned-signed.psbt", pattern(3_000, 6)),
             ("café.txt", pattern(10, 7)),
@@ -215,7 +215,7 @@ fn files_written_here_pass_fsck_and_read_back_in_mtools() {
             v.create(n, bytes)
                 .unwrap_or_else(|e| panic!("{name}: {n}: {e:?}"));
         }
-        assert_eq!(v.create("VAULT.OFV", b"x"), Err(Error::Exists));
+        assert_eq!(v.create("VAULT.FVLT", b"x"), Err(Error::Exists));
         // The write-back pattern: a new file, renamed over the old one.
         v.create("wallet.txt.new", &pattern(6_000, 8)).unwrap();
         v.delete("wallet.txt").unwrap();
@@ -634,7 +634,7 @@ fn the_whole_partition_zeroed_is_an_empty_volume_with_its_label() {
         mput(
             &dir,
             &img,
-            "vault.ofv",
+            "vault.fvlt",
             &marked(b"sealed vault bytes ", 50_000),
         );
         mput(&dir, &img, "notes.txt", &marked(b"plain notes ", 4_000));

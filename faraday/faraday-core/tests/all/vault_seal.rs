@@ -22,7 +22,7 @@ pub(crate) fn device(vault: Vec<u8>) -> Faraday {
     });
     faraday_core::testkit::vault_speed(&mut app, Some(100));
     app.storage(StorageEvent::Restored {
-        inbox: vec![("vault.ofv".into(), vault)],
+        inbox: vec![("vault.fvlt".into(), vault)],
         outbox: Vec::new(),
         kept: Vec::new(),
     });

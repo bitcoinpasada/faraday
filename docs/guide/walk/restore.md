@@ -125,15 +125,15 @@ stick:
 
 1. Start Faraday from the Faraday stick that holds the vault. Faraday
    lists the stick's files by name (**Read from …**); press
-   **Import**: it reads the ticked files, lists **Locked · vault.ofv**,
+   **Import**: it reads the ticked files, lists **Locked · vault.fvlt**,
    and asks **Pull the stick to continue**. Pull the stick, type the
    vault's passphrase and press **Unlock**.
 
    Or, with Faraday started and no key loaded, plug the vault's stick
-   in: [**Stick visit**](../screens/stick-visit.md) opens, with `vault.ofv` ticked under **On the
+   in: [**Stick visit**](../screens/stick-visit.md) opens, with `vault.fvlt` ticked under **On the
    stick**. Press **Import 1 file** and pull the stick
    ([Files, sticks and QR codes, step 2](files-and-sticks.md#2-a-stick-visit-bring-files-in)).
-   In **Files**, press **Unlock** on `vault.ofv`'s row, type the
+   In **Files**, press **Unlock** on `vault.fvlt`'s row, type the
    vault's passphrase and press **Unlock**.
 2. [**Load from Vault**](../screens/vaults.md#load-from) lists what the vault holds, each seed and
    wallet saved with **Load at unlock** (step 4.8) ticked. Press **Load

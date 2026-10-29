@@ -35,7 +35,7 @@ fn a_vault_written_to_stick_3_is_there_after_it_is_pulled_and_put_back() {
     }
     let vault = vec![7u8; 4096];
     let id = dir.join(&two).display().to_string();
-    let wrote = write(&id, "vault.ofv", &vault).unwrap();
+    let wrote = write(&id, "vault.fvlt", &vault).unwrap();
     // Stick 3 pulled, Stick 2 stays in.
     let attached = vec![one.clone()];
     assert!(

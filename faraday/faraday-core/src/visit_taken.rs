@@ -64,7 +64,7 @@ impl Taken {
 
 /// Whether these bytes are a sealed vault, written by `write_vault`.
 fn is_vault(name: &str, bytes: &[u8]) -> bool {
-    name.ends_with(".ofv") && bytes.starts_with(b"OFVT")
+    name.ends_with(".fvlt") && bytes.starts_with(b"FVLT")
 }
 
 /// The first of `name`, `stem-2.ext`, `stem-3.ext`… none of `taken`

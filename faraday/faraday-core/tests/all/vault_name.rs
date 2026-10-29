@@ -48,11 +48,11 @@ fn outbox_names(app: &Faraday) -> Vec<String> {
 fn a_named_vaults_file_takes_its_name() {
     let mut app = started();
     make(&mut app, "Family savings!");
-    assert_eq!(outbox_names(&app), ["Family-savings.ofv"]);
+    assert_eq!(outbox_names(&app), ["Family-savings.fvlt"]);
 }
 
 #[test]
-fn an_unnamed_vault_is_vault_ofv_and_a_second_of_one_name_is_numbered() {
+fn an_unnamed_vault_is_vault_fvlt_and_a_second_of_one_name_is_numbered() {
     let mut app = started();
     make(&mut app, "");
     make(&mut app, "");
@@ -60,7 +60,7 @@ fn an_unnamed_vault_is_vault_ofv_and_a_second_of_one_name_is_numbered() {
     make(&mut app, "spare");
     assert_eq!(
         outbox_names(&app),
-        ["vault.ofv", "vault-2.ofv", "spare.ofv", "spare-2.ofv"]
+        ["vault.fvlt", "vault-2.fvlt", "spare.fvlt", "spare-2.fvlt"]
     );
 }
 

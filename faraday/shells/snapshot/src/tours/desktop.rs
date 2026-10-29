@@ -205,7 +205,7 @@ fn testnet_passphrases(t: &mut Tour) -> Result<(), String> {
     t.shot("modes-testnet-add-key-passphrase")?;
     let vault = faraday_samples::SAMPLES.inputs.vault.to_vec();
     t.app.storage(StorageEvent::Restored {
-        inbox: vec![("vault.ofv".to_string(), vault)],
+        inbox: vec![("vault.fvlt".to_string(), vault)],
         outbox: Vec::new(),
         kept: Vec::new(),
     });

@@ -36,7 +36,7 @@ pub(crate) fn vaultway_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::Vault(V::Back));
     let vault = testkit::files()?
         .into_iter()
-        .find(|(n, _)| n == "vault.ofv")
+        .find(|(n, _)| n == "vault.fvlt")
         .ok_or("no test vault")?;
     t.app.storage(StorageEvent::Restored {
         inbox: vec![vault],

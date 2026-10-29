@@ -42,8 +42,8 @@ pub(crate) fn flow_tour(t: &mut Tour) -> Result<(), String> {
         .app
         .flow()
         .and_then(|f| f.live.reading.as_ref())
-        .and_then(|r| r.files.iter().position(|(f, _)| f.name == "vault.ofv"))
-        .ok_or("the stick shows no vault.ofv")?;
+        .and_then(|r| r.files.iter().position(|(f, _)| f.name == "vault.fvlt"))
+        .ok_or("the stick shows no vault.fvlt")?;
     t.press(Action::Flow(F::PickFile(0, k)));
     t.shot("flow-4-confirm")?;
     t.press(Action::Flow(F::Tap));

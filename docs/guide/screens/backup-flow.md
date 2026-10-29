@@ -148,15 +148,15 @@ wiped.
 The slots again, each ticked once written, and the stick asked for
 next, with the files it gets:
 
-![Write the sticks with Stick 2 written and Insert Stick 3: Vault 1 (Place 2), the file Vault-1.ofv, 1.0 MB](../pictures/gpg-write.png)
+![Write the sticks with Stick 2 written and Insert Stick 3: Vault 1 (Place 2), the file Vault-1.fvlt, 1.0 MB](../pictures/gpg-write.png)
 
-*Stick 2 written (its label "KEYSTICK" beside it), and the flow asking for the next: "Insert Stick 3: Vault 1 (Place 2)", the file "Vault-1.ofv · 1.0 MB" under it.*
+*Stick 2 written (its label "KEYSTICK" beside it), and the flow asking for the next: "Insert Stick 3: Vault 1 (Place 2)", the file "Vault-1.fvlt · 1.0 MB" under it.*
 
 
 | Control | What it does |
 |---|---|
 | "Insert the stick for Vault 1 (Place 1)" | the stick to plug in, as on Bring in the sticks |
-| "Writing Vault-1.ofv" | each file written, read back and compared |
+| "Writing Vault-1.fvlt" | each file written, read back and compared |
 | "Written and checked on Stick 2" | in the ok tone, then "Pull the stick" |
 | "Hold: this is a second stick" | where the stick reads as one written before: held until it fills, it writes it |
 | "Use another stick" | refuses this stick |
@@ -165,7 +165,7 @@ next, with the files it gets:
 |---|---|
 | **Pulled before the copy was checked. Nothing counted** | plug it in again |
 | "The copy did not check on Stick 2. Nothing counted" | the copy read back differs |
-| "Vault-1.ofv did not read back from Stick 2; try another stick" | the stick did not keep what was written |
+| "Vault-1.fvlt did not read back from Stick 2; try another stick" | the stick did not keep what was written |
 | "This stick has the first copy" | the stick already written for another place |
 | "Not the stick read for Vault 1 (Place 1)" | a different stick from the one read for this slot |
 

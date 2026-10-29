@@ -38,7 +38,7 @@ four cards, each a press:
 | **Spend from a backup, step by step** (**A stick, words, or paper**) | [Spend](spend-tab.md) |
 | **Add a key** (**Keys first, wallets later**) | [Add a key](new-key.md), on its Start card |
 
-Under them, a vault locked in Files: "vault.ofv is in Files, locked",
+Under them, a vault locked in Files: "vault.fvlt is in Files, locked",
 and **Unlock**, which opens its [Unlock](vaults.md#unlock).
 
 ### With something loaded
@@ -80,11 +80,11 @@ until the sheet closes ([the chart](backups.md#the-chart)).
 | the source | a pill at the top right: where the wallet came from, "From Vault 1", or a statement such as **Made here** for a wallet made on Make a new wallet |
 | the kind | "2 of 3 · native SegWit multisig" |
 | the key path | a Taproot wallet's: **Key path: none (unspendable)**, "Key path: 3dca6805 alone", or, in the error tone, "A key that is not one of this wallet's keys can spend everything alone, without the other signatures: …" |
-| the backup line | **Not backed up**, or where its backup is ("Backup: paper ×2 checked · vault.ofv · unchanged", "Backup: paper 0 of 1 checked", "Backup: planned"); a press opens [Backups](backups.md) on the wallet |
+| the backup line | **Not backed up**, or where its backup is ("Backup: paper ×2 checked · vault.fvlt · unchanged", "Backup: paper 0 of 1 checked", "Backup: planned"); a press opens [Backups](backups.md) on the wallet |
 | the signatures | "1 of 2 signatures possible here", a dot per signature; then **Can spend** (**Another key can spend** in the error tone), or **Scan a key**, which opens the camera for a missing key |
 | **At a glance** | the wallet's [chart](backups.md#the-chart): the wallet, each key and the backup (**No backup plan** and **Back up** before there is one): where each is, **Can sign here**, **Cosigner · xpub only**, **Not here**, **In this vault**, with **Load from vault** or **Load with a passphrase** where an open vault holds the key |
 | the codex32 mark | under a key loaded from codex32 strings that went in by a correction: "fab6868a · Share entry corrected", or "… · Share repairs unchecked" |
-| where the missing keys may be | short of keys: "vault.ofv is locked · it may hold them" with **Unlock**; "Not in vault.ofv · perhaps another vault, a paper backup or a SeedQR"; or "A vault on a stick, a paper backup or a SeedQR may hold them" |
+| where the missing keys may be | short of keys: "vault.fvlt is locked · it may hold them" with **Unlock**; "Not in vault.fvlt · perhaps another vault, a paper backup or a SeedQR"; or "A vault on a stick, a paper backup or a SeedQR may hold them" |
 | **First receive address · 0/0** | the wallet's first address; **Back up before you receive**, in the warning tone, in its place while a key made here waits for its backup |
 
 The actions, along the card's foot:

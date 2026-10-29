@@ -91,7 +91,7 @@ fn with_keys(files: &[(String, Vec<u8>)]) -> Faraday {
     let vault = testkit::files()
         .unwrap()
         .into_iter()
-        .find(|(n, _)| n == "vault.ofv")
+        .find(|(n, _)| n == "vault.fvlt")
         .unwrap();
     app.storage(StorageEvent::Restored {
         inbox: vec![vault],

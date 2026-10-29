@@ -679,7 +679,7 @@ pub(crate) static WALLETS: &[SampleWallet] = &[
 ];
 
 pub(crate) static INPUTS: SampleInputs = SampleInputs {
-    vault: include_bytes!("../data/sample.ofv"),
+    vault: include_bytes!("../data/sample.fvlt"),
     signed_message: "tb1qv0a20kkj63gek9mldffmgvqxjpjz6m72s2e3h5\nJ1q5LAmYXC2KqeFYaZaRrUzmjjHZkJjhGXEc7pZr9VMXBDTEyA9GtQgX188+uH9XrxONdDuJTOWNBXqAUlBfdDg=\nFaraday sample message",
     address: "tb1qv0a20kkj63gek9mldffmgvqxjpjz6m72s2e3h5",
     totp: "otpauth://totp/Example%20Git:octo?secret=JBSWY3DPEHPK3PXP&issuer=Example%20Git",

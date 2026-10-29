@@ -85,7 +85,7 @@ const CREATE_TAG: &[u8] = b"Faraday vault create";
 /// Why a vault could not be read, opened, made or sealed.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Error {
-    /// The file does not begin with `OFVT`.
+    /// The file does not begin with `FVLT`.
     Magic,
     /// A version this build does not read.
     Version,

@@ -81,11 +81,11 @@ memory ticked.
 
 ![Name and passphrases with the name Passwords, Passphrase 1 from dice typed twice and matching, and the panel's Will create](../pictures/create-vault-passphrases.png)
 
-*The vault named Passwords ("File Passwords.ofv"), **Passphrase 1** from dice in both fields, **Matches**, and its strength; **Size** answered above with **Change**. **Create vault** is outlined.*
+*The vault named Passwords ("File Passwords.fvlt"), **Passphrase 1** from dice in both fields, **Matches**, and its strength; **Size** answered above with **Change**. **Create vault** is outlined.*
 
 | Control | What it does |
 |---|---|
-| **Name** | what the vault holds, for anyone who sees the stick; the file's name follows it ("File Passwords.ofv"). Left empty, the file is `vault.ofv` and the vault's title is "Vault" |
+| **Name** | what the vault holds, for anyone who sees the stick; the file's name follows it ("File Passwords.fvlt"). Left empty, the file is `vault.fvlt` and the vault's title is "Vault" |
 | **Show passphrases**, **Hide passphrases** | shows or hides every passphrase typed |
 | **Passphrase 1** | the first passphrase: two fields, typed, then typed again |
 | **Generate with dice** | opens the dice panel under the fields; "or type your own below" beside it |

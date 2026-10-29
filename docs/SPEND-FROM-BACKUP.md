@@ -241,7 +241,7 @@ split sheets go in one at a time, in any order.
 **The list (Not sure what you have?), with Faraday's items added:**
 - *A USB stick labelled Faraday, and a passphrase on a separate card or
   sheet:* the stick starts the computer and carries the vault, a locked
-  file named like `vault.ofv`; the passphrase opens it. The vault holds
+  file named like `vault.fvlt`; the passphrase opens it. The vault holds
   the wallet and the keys that sign for it.
 - *A square black-and-white pattern (a QR code):* the same information in
   a form a camera can read. Several numbered 1 of 5 and so on are one thing

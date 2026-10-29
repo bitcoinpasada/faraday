@@ -392,7 +392,7 @@ fn has(place: &mut dyn Place, name: &str) -> Result<bool, String> {
 
 /// Reads one file the app asked for.
 pub fn read(place: &mut dyn Place, name: &str) -> Result<Vec<u8>, String> {
-    if name.to_ascii_lowercase().ends_with(".ofv") {
+    if name.to_ascii_lowercase().ends_with(".fvlt") {
         finish_vault_writes(place);
     }
     place.read(checked(name)?, MAX_READ)
@@ -468,7 +468,7 @@ pub fn write_replacing(place: &mut dyn Place, name: &str, bytes: &[u8]) -> Resul
     };
     // A vault on the stick is never removed by a replacing write: only
     // `write_vault` goes over a vault, and only over the same one.
-    if old.to_ascii_lowercase().ends_with(".ofv") {
+    if old.to_ascii_lowercase().ends_with(".fvlt") {
         return write(place, name, bytes);
     }
     let temp = format!(".faraday-{old}.part");
@@ -486,7 +486,7 @@ pub fn write_replacing(place: &mut dyn Place, name: &str, bytes: &[u8]) -> Resul
 /// A vault's identity: its salt and its length (`docs/VAULT.md` §6).
 /// `None` for anything that is not a vault.
 fn vault_identity(bytes: &[u8], len: u64) -> Option<([u8; 32], u64)> {
-    if bytes.len() < 53 || bytes[0..4] != *b"OFVT" {
+    if bytes.len() < 53 || bytes[0..4] != *b"FVLT" {
         return None;
     }
     let mut salt = [0u8; 32];
@@ -507,7 +507,7 @@ pub fn write_vault(place: &mut dyn Place, name: &str, bytes: &[u8]) -> Result<St
 /// false. Over the same vault the file keeps the name it has on the
 /// stick, unless `renamed`: the person renamed the vault's file For the
 /// stick, and the file takes that name (`docs/FLOWS.md` decision 61
-/// item 2), or `name-2.ofv` where another file has it.
+/// item 2), or `name-2.fvlt` where another file has it.
 pub fn write_vault_over(
     place: &mut dyn Place,
     name: &str,
@@ -519,7 +519,7 @@ pub fn write_vault_over(
     let want = vault_identity(bytes, bytes.len() as u64).ok_or(EN.files_not_a_vault)?;
     let mut same: Vec<String> = Vec::new();
     for (n, len) in place.files()? {
-        if !n.to_ascii_lowercase().ends_with(".ofv") || n.starts_with('.') || len != want.1 {
+        if !n.to_ascii_lowercase().ends_with(".fvlt") || n.starts_with('.') || len != want.1 {
             continue;
         }
         if let Ok(b) = place.read(&n, len)
@@ -581,8 +581,8 @@ pub fn rename(place: &mut dyn Place, from: &str, to: &str) -> Result<(), Unrenam
         .iter()
         .find(|(n, _)| n != from && n.eq_ignore_ascii_case(to))
     {
-        let vaults = from.to_ascii_lowercase().ends_with(".ofv")
-            && other.to_ascii_lowercase().ends_with(".ofv")
+        let vaults = from.to_ascii_lowercase().ends_with(".fvlt")
+            && other.to_ascii_lowercase().ends_with(".fvlt")
             && len == *olen
             && len <= MAX_READ;
         let same = vaults && {
@@ -608,7 +608,7 @@ pub fn rename(place: &mut dyn Place, from: &str, to: &str) -> Result<(), Unrenam
 /// Whether these bytes are a whole vault file: its length is the one its
 /// slot size gives.
 fn whole_vault(b: &[u8]) -> bool {
-    b.len() >= 21 && b[0..4] == *b"OFVT" && {
+    b.len() >= 21 && b[0..4] == *b"FVLT" && {
         let slot = u32::from_le_bytes([b[17], b[18], b[19], b[20]]) as usize;
         b.len() == 53 + 4 * (slot + 40)
     }
@@ -627,7 +627,7 @@ pub fn finish_vault_writes(place: &mut dyn Place) {
         else {
             continue;
         };
-        if !name.to_ascii_lowercase().ends_with(".ofv") {
+        if !name.to_ascii_lowercase().ends_with(".fvlt") {
             continue;
         }
         if files.iter().any(|(o, _)| o.eq_ignore_ascii_case(name)) {
@@ -695,7 +695,7 @@ pub fn write_file(
     replace: bool,
     renamed: bool,
 ) -> Result<String, String> {
-    if name.ends_with(".ofv") && bytes.starts_with(b"OFVT") {
+    if name.ends_with(".fvlt") && bytes.starts_with(b"FVLT") {
         write_vault_over(place, name, bytes, replace, renamed)
     } else if name.eq_ignore_ascii_case(SETTINGS_FILE) && bytes.starts_with(b"faraday-settings ") {
         write_settings(place, bytes)

@@ -111,30 +111,30 @@ fn a_vault_is_never_written_over_another_vault() {
     // Two vaults of different salts: the old one stays whatever the
     // write asks.
     let vault = |salt: u8| {
-        let mut v = b"OFVT".to_vec();
+        let mut v = b"FVLT".to_vec();
         v.extend_from_slice(&[0u8; 17]);
         v.extend_from_slice(&[salt; 32]);
         v
     };
     let old = vault(1);
-    let mut s = stick(&[("vault.ofv", &old)]);
-    let wrote = write_any(&mut s, "vault.ofv", &vault(2), true).unwrap();
-    assert_eq!(wrote, "vault-2.ofv");
-    assert_eq!(s.files["vault.ofv"], old);
+    let mut s = stick(&[("vault.fvlt", &old)]);
+    let wrote = write_any(&mut s, "vault.fvlt", &vault(2), true).unwrap();
+    assert_eq!(wrote, "vault-2.fvlt");
+    assert_eq!(s.files["vault.fvlt"], old);
 }
 
 #[test]
 fn a_replacing_write_never_removes_a_vault() {
     // Whatever name's case or contents the write carries, a vault on the
     // stick stays, and the new file goes beside it.
-    let old = b"OFVT vault bytes".to_vec();
+    let old = b"FVLT vault bytes".to_vec();
     for (name, bytes) in [
-        ("VAULT.OFV", b"OFVT other".as_slice()),
-        ("vault.ofv", b"not a vault".as_slice()),
+        ("VAULT.FVLT", b"FVLT other".as_slice()),
+        ("vault.fvlt", b"not a vault".as_slice()),
     ] {
-        let mut s = stick(&[("vault.ofv", &old)]);
+        let mut s = stick(&[("vault.fvlt", &old)]);
         let wrote = write_any(&mut s, name, bytes, true).unwrap();
-        assert_ne!(wrote.to_ascii_lowercase(), "vault.ofv", "{name}");
-        assert_eq!(s.files["vault.ofv"], old, "{name}");
+        assert_ne!(wrote.to_ascii_lowercase(), "vault.fvlt", "{name}");
+        assert_eq!(s.files["vault.fvlt"], old, "{name}");
     }
 }

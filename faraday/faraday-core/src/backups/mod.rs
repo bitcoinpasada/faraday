@@ -1093,7 +1093,7 @@ impl Faraday {
     }
 
     /// The wallet card's backup line (`docs/history/SIMPLIFY.md` §5.2): "Backup:
-    /// paper ×2 checked · vault.ofv · for the stick", or "Not backed up",
+    /// paper ×2 checked · vault.fvlt · for the stick", or "Not backed up",
     /// from `backups`, every wallet known and where its backup is. Cheap.
     pub(crate) fn backup_line_in(&self, i: usize, backups: Vec<Entry>) -> String {
         let Some(sum) = self.session.wallets.get(i).map(|w| w.checksum()) else {

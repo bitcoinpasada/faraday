@@ -135,7 +135,7 @@ A vault's own older copy is always replaced ("the same vault, updated
 here"); another vault of that name is kept, and this one written
 beside it ("another vault · kept, this one as …").
 
-![Files after a write: For the stick empty, Written to KEYSTICK with payment-signed.psbt and vault.ofv verified](../pictures/files-and-sticks-receipt.png)
+![Files after a write: For the stick empty, Written to KEYSTICK with payment-signed.psbt and vault.fvlt verified](../pictures/files-and-sticks-receipt.png)
 
 What is written leaves **For the stick**. Files shows it under
 "Written to" and the stick's name ("Written to KEYSTICK"), with "at"
@@ -192,7 +192,7 @@ name, under **Danger zone: what is deleted here cannot be undone**:
 | **The free space** | **The files stay; what earlier deletes left is zeroed** |
 | **The whole partition** | **Every file is deleted, then all of it is zeroed**, with **One pass** or **Two passes** |
 
-![Delete files from KEYSTICK: Chosen files, payment-signed.psbt ticked and vault.ofv not, Delete 1 file with zeros](../pictures/files-and-sticks-delete.png)
+![Delete files from KEYSTICK: Chosen files, payment-signed.psbt ticked and vault.fvlt not, Delete 1 file with zeros](../pictures/files-and-sticks-delete.png)
 
 **Chosen files** lists the stick's files, each with its size, to tick.
 **The free space** and **The whole partition**, once chosen, say how much

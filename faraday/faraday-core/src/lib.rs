@@ -406,7 +406,7 @@ pub fn stick_kind(name: &str) -> Option<&'static str> {
         "txt" | "json" | "descriptor" => Some(EN.stick_kind_text),
         "txn" => Some(EN.stick_kind_transaction),
         "faraday-sheet" => Some(EN.stick_kind_print_sheet),
-        "ofv" => Some(EN.stick_kind_vault),
+        "fvlt" => Some(EN.stick_kind_vault),
         "efi" => Some(EN.stick_kind_efi_image),
         "png" => Some(EN.stick_kind_qr_codes),
         _ => Some(EN.stick_kind_file),

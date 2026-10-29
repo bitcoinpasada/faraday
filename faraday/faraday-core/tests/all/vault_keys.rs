@@ -73,7 +73,10 @@ fn add_key(app: &mut Faraday, n: usize) {
 
 #[test]
 fn a_missing_key_in_an_open_vault_loads_from_the_wallet_card() {
-    let mut app = device(vec![kit_file("spending-wallet.txt"), kit_file("vault.ofv")]);
+    let mut app = device(vec![
+        kit_file("spending-wallet.txt"),
+        kit_file("vault.fvlt"),
+    ]);
     // Opened from a flow (the vault way), not the Vaults list: it shows
     // what it holds without loading it until asked, as today
     // (`docs/history/NEW-WALLET.md` §11.1a).
@@ -95,7 +98,10 @@ fn a_missing_key_in_an_open_vault_loads_from_the_wallet_card() {
 
 #[test]
 fn a_locked_vault_is_offered_from_the_wallet_card_and_unlocking_comes_back() {
-    let mut app = device(vec![kit_file("spending-wallet.txt"), kit_file("vault.ofv")]);
+    let mut app = device(vec![
+        kit_file("spending-wallet.txt"),
+        kit_file("vault.fvlt"),
+    ]);
     let w = find(&app, "spending-wallet.txt");
     app.press(Action::LoadWallet(w));
     let _ = app.frame();
@@ -150,7 +156,7 @@ fn a_key_the_quorum_needs_is_asked_for() {
 #[test]
 fn a_vaults_wallets_load_with_their_seeds_in_one_press() {
     let c = testkit::compute();
-    let mut app = device(vec![kit_file("vault.ofv")]);
+    let mut app = device(vec![kit_file("vault.fvlt")]);
     // Opened from a flow (the vault way), not the Vaults list: nothing
     // loads until `LoadWithKeys` is pressed, as today
     // (`docs/history/NEW-WALLET.md` §11.1a).
@@ -172,7 +178,7 @@ fn a_vaults_wallets_load_with_their_seeds_in_one_press() {
 #[test]
 fn only_the_chosen_wallets_load_with_their_seeds() {
     let c = testkit::compute();
-    let mut app = device(vec![kit_file("vault.ofv")]);
+    let mut app = device(vec![kit_file("vault.fvlt")]);
     // Opened from a flow (the vault way), not the Vaults list: nothing
     // loads until chosen (`docs/history/NEW-WALLET.md` §11.1a).
     app.press(Action::Vault(V::OpenFrom(0, Screen::Files)));
@@ -272,7 +278,7 @@ fn vault_holding_a_made_key() -> (Vec<(String, Vec<u8>)>, faraday_bip::bip39::Mn
     use faraday_core::keygen::Way;
     use faraday_core::{StorageCommand, cstep};
 
-    let mut app = device(vec![kit_file("vault.ofv")]);
+    let mut app = device(vec![kit_file("vault.fvlt")]);
     app.press(Action::CreateWallet);
     let at = NewKind::ALL
         .iter()
@@ -320,7 +326,7 @@ fn vault_holding_a_made_key() -> (Vec<(String, Vec<u8>)>, faraday_bip::bip39::Mn
     let vault = out
         .expect("nothing queued on locking")
         .into_iter()
-        .filter(|(n, _)| n == "vault.ofv")
+        .filter(|(n, _)| n == "vault.fvlt")
         .collect();
     (vault, made)
 }
@@ -427,7 +433,7 @@ fn create_on_keys(app: &mut Faraday, kind: faraday_core::create::NewKind) {
 #[test]
 fn an_open_vaults_key_fills_a_slot_and_the_vault_stays_open() {
     use faraday_core::create::{NewKind, Source};
-    let mut app = device(vec![kit_file("vault.ofv")]);
+    let mut app = device(vec![kit_file("vault.fvlt")]);
     app.press(Action::Vault(V::OpenFrom(0, Screen::Files)));
     type_and_unlock(&mut app);
     add_key(&mut app, 1);
@@ -439,7 +445,7 @@ fn an_open_vaults_key_fills_a_slot_and_the_vault_stays_open() {
     let texts = app.drawn_texts();
     assert!(app.offers(press), "Key 1 offers the vault's key");
     assert!(
-        texts.iter().any(|t| t == "vault.ofv"),
+        texts.iter().any(|t| t == "vault.fvlt"),
         "under the vault's name: {texts:?}"
     );
     let line = faraday_core::wallet::key_line(
@@ -467,7 +473,7 @@ fn an_open_vaults_key_fills_a_slot_and_the_vault_stays_open() {
 fn a_locked_vault_reads_unlock_and_unlocking_returns_to_keys_with_its_keys() {
     use faraday_core::create::NewKind;
     use faraday_core::cstep;
-    let mut app = device(vec![kit_file("vault.ofv")]);
+    let mut app = device(vec![kit_file("vault.fvlt")]);
     add_key(&mut app, 1);
     add_key(&mut app, 2);
     create_on_keys(&mut app, NewKind::Multi);
@@ -475,7 +481,7 @@ fn a_locked_vault_reads_unlock_and_unlocking_returns_to_keys_with_its_keys() {
     let texts = app.drawn_texts();
     assert!(app.offers(unlock), "the locked vault is offered");
     assert!(
-        texts.iter().any(|t| t == "Unlock vault.ofv"),
+        texts.iter().any(|t| t == "Unlock vault.fvlt"),
         "as Unlock and its name: {texts:?}"
     );
     app.press(unlock);

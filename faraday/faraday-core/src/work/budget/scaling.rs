@@ -175,7 +175,7 @@ fn boot_import(copies: usize) -> Faraday {
         }
     }
     files.push((
-        "vault.ofv".into(),
+        "vault.fvlt".into(),
         testkit::test_vault().expect("the test vault"),
     ));
     let mut app = testkit::started();

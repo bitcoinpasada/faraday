@@ -276,17 +276,17 @@ fn a_file_written_reads_back_and_a_vault_goes_back_over_its_own() {
         Response::Bytes(b"replaced".to_vec())
     );
     let mut vault = vec![7u8; 53 + 4 * (65_536 + 40)];
-    vault[0..4].copy_from_slice(b"OFVT");
+    vault[0..4].copy_from_slice(b"FVLT");
     vault[17..21].copy_from_slice(&65_536u32.to_le_bytes());
     vault[21..53].fill(1);
     assert_eq!(
-        d.handle(&c, w("vault.ofv", &vault)),
-        Response::Written("vault.ofv".into())
+        d.handle(&c, w("vault.fvlt", &vault)),
+        Response::Written("vault.fvlt".into())
     );
     vault[100] = 9;
     // Over the same vault only where the app says its session wrote it.
     assert!(matches!(
-        d.handle(&c, w("vault.ofv", &vault)),
+        d.handle(&c, w("vault.fvlt", &vault)),
         Response::Failed(_)
     ));
     assert_eq!(
@@ -294,20 +294,20 @@ fn a_file_written_reads_back_and_a_vault_goes_back_over_its_own() {
             &c,
             Request::Write {
                 stick: id.clone(),
-                name: "vault.ofv".into(),
+                name: "vault.fvlt".into(),
                 replace: true,
                 renamed: false,
                 bytes: vault.clone(),
             }
         ),
-        Response::Written("vault.ofv".into())
+        Response::Written("vault.fvlt".into())
     );
     assert_eq!(
         d.handle(
             &c,
             Request::Read {
                 stick: id.clone(),
-                name: "vault.ofv".into()
+                name: "vault.fvlt".into()
             }
         ),
         Response::Bytes(vault.clone())
@@ -317,7 +317,7 @@ fn a_file_written_reads_back_and_a_vault_goes_back_over_its_own() {
     let names: Vec<&str> = list[0].files.iter().map(|(n, _)| n.as_str()).collect();
     assert_eq!(
         names,
-        ["savings-signed-2.psbt", "savings-signed.psbt", "vault.ofv"]
+        ["savings-signed-2.psbt", "savings-signed.psbt", "vault.fvlt"]
     );
     // And the partition is FAT another reader takes.
     let mut v = faraday_fat::Volume::open(fs::read(m.dev().join("sdb1")).unwrap()).unwrap();

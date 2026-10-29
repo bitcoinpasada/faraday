@@ -35,15 +35,15 @@ pub const COST: Cost = Cost {
 };
 
 /// The one-passphrase vault's file and passphrase.
-pub const ONE: (&str, &[&str]) = ("vault-one.ofv", &["correct horse battery staple"]);
+pub const ONE: (&str, &[&str]) = ("vault-one.fvlt", &["correct horse battery staple"]);
 /// The three-passphrase vault's file and passphrases.
 pub const THREE: (&str, &[&str]) = (
-    "vault-three.ofv",
+    "vault-three.fvlt",
     &["first passphrase", "second passphrase", "third passphrase"],
 );
 
 /// The codex32 vault's file and passphrase.
-pub const CODEX32: (&str, &[&str]) = ("vault-codex32.ofv", &["codex32 passphrase"]);
+pub const CODEX32: (&str, &[&str]) = ("vault-codex32.fvlt", &["codex32 passphrase"]);
 
 /// BIP 93's vector 2: its seed, a share of it, and the fingerprint of
 /// the key the seed makes.

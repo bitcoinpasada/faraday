@@ -200,8 +200,8 @@ fn write_and_load(t: &mut Tour, phrase: &str) -> Result<(), String> {
         .app
         .vault_files()
         .iter()
-        .position(|f| f.name == "Passwords.ofv")
-        .ok_or("Passwords.ofv is not listed")?;
+        .position(|f| f.name == "Passwords.fvlt")
+        .ok_or("Passwords.fvlt is not listed")?;
     t.press(Action::Vault(V::Open(row)));
     type_text(t, phrase);
     t.press(Action::Vault(V::Unlock));

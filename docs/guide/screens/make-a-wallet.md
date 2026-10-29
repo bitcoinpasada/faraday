@@ -86,7 +86,7 @@ own), "5d388376 · a cosigner's xpub", or **A cosigner adds it later · waiting 
 | Control | What it does |
 |---|---|
 | a key loaded | a button with its fingerprint, ticked while it fills the slot: fills it. A key in another slot is not offered |
-| an open vault's keys | under the vault's name: loads the key and fills the slot. "Unlock vault.ofv" for a locked vault in Files |
+| an open vault's keys | under the vault's name: loads the key and fills the slot. "Unlock vault.fvlt" for a locked vault in Files |
 | **New key** | opens [New key](new-key.md) for the slot; the leading button on the first empty slot. For a backup in shares it is **Make codex32 shares**, the slot's only way |
 | "From cosigner.txt" | an xpub file in Files fills the slot. A file whose key does not fit the kind is listed after the slots, greyed, with why |
 | **Scan its xpub** | for a wallet of several keys: the camera, for a cosigner's key |

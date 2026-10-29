@@ -473,7 +473,7 @@ mod tests {
         assert_eq!(std::fs::read_dir(&boot).unwrap().count(), 0);
         assert_eq!(std::fs::read_dir(&two).unwrap().count(), 0);
         let files = [
-            (boot.join("vault.ofv"), b"vault bytes".to_vec()),
+            (boot.join("vault.fvlt"), b"vault bytes".to_vec()),
             (boot.join(".faraday-testkit"), b"an old mark".to_vec()),
             (boot.join("spend.psbt"), b"psbt".to_vec()),
             (two.join("SHA256SUMS"), b"sums".to_vec()),

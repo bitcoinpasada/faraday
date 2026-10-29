@@ -108,7 +108,7 @@ fn at_unlock() -> Faraday {
     let n = app
         .vault_files()
         .iter()
-        .position(|f| f.name == "vault.ofv")
+        .position(|f| f.name == "vault.fvlt")
         .expect("the test vault is listed");
     app.press(Action::Vault(V::Open(n)));
     type_text(&mut app, testkit::VAULT_PASSPHRASES[0]);

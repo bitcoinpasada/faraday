@@ -15,7 +15,7 @@ loaded.
 - The Faraday stick, and the PC it starts. Faraday freshly started:
   nothing loaded.
 - Place 1's envelope from [Back it up](back-up.md): the stick with
-  Vault 1 (`vault.ofv`) and its passphrase, the 12 words and the SeedQR
+  Vault 1 (`vault.fvlt`) and its passphrase, the 12 words and the SeedQR
   on paper, and the wallet sheet.
 - Sparrow on an online computer, and a camera on the PC that runs
   Faraday.
@@ -78,9 +78,9 @@ wallet from it.
 For this walkthrough, bring the vault in:
 
 1. Plug in Vault 1's stick and press **Copy files in from a stick**.
-   The [stick visit](../screens/stick-visit.md) lists `vault.ofv`, ticked. Press **Import 1 file**,
+   The [stick visit](../screens/stick-visit.md) lists `vault.fvlt`, ticked. Press **Import 1 file**,
    then pull the stick.
-2. Back on the card, **Unlock vault.ofv** heads the vault's row: its
+2. Back on the card, **Unlock vault.fvlt** heads the vault's row: its
    name, **Copied in from a stick** and its size, and how long it
    takes to unlock ("Unlocks in about 0.5 s", with its memory and
    passes). **Or bring in what is on paper** keeps the other ways in
@@ -89,15 +89,15 @@ For this walkthrough, bring the vault in:
    **Unlock**; beside it, the memory this computer has free. While a stick is attached the field reads **Remove the
    stick, then type the passphrase**.
 
-![Unlock vault.ofv with the passphrase typed, Unlock outlined](../pictures/spend-from-a-backup-unlock.png)
+![Unlock vault.fvlt with the passphrase typed, Unlock outlined](../pictures/spend-from-a-backup-unlock.png)
 
-The vault opens on its list, headed "vault.ofv · Vault · open":
+The vault opens on its list, headed "vault.fvlt · Vault · open":
 **Wallets with their seeds**, with **New wallet 1** (**1 of 1 key in
 this vault**) and **Ready to sign once loaded**; "Each seed and wallet"
 with a count lists what the vault holds. Press **Load wallet with
 keys**.
 
-![What do you have? with vault.ofv open, New wallet 1 Ready to sign once loaded, Load wallet with keys outlined](../pictures/spend-from-a-backup-vault-open.png)
+![What do you have? with vault.fvlt open, New wallet 1 Ready to sign once loaded, Load wallet with keys outlined](../pictures/spend-from-a-backup-vault-open.png)
 
 The wallet opens and the column moves on by itself to the next card;
 **What do you have?** closes on "New wallet 1 · Single key · native
@@ -197,9 +197,9 @@ off** and **Start over**.
 2. Signing with a vault open records the amounts signed inside it, so
    the lock leaves a changed copy of the vault for the stick. Plug Vault
    1's stick in: the [stick visit](../screens/stick-visit.md) writes what waits. The stick
-   already holds `vault.ofv`, so the visit asks: **Replace** writes the
+   already holds `vault.fvlt`, so the visit asks: **Replace** writes the
    changed vault over it and keeps that record; **Keep both** writes it
-   beside it as `vault-2.ofv`; leaving it out changes nothing else.
+   beside it as `vault-2.fvlt`; leaving it out changes nothing else.
 3. Press **Power off**, take the stick out, and put it back in the
    envelope with the papers.
 

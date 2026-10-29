@@ -214,8 +214,8 @@ step 6 instead (§4.6), since they hold no vault the key goes into.
     The room is the vault's length, twice where a file of the same vault
     is there to be replaced (VAULT §6 writes beside, then removes), and
     the plan's other files at that place where already known.
-- **Which vault.** The stick's `.ofv` files are listed by name (`vault.ofv`,
-  `vault-2.ofv`, …), each with its size and, when seen open this
+- **Which vault.** The stick's `.fvlt` files are listed by name (`vault.fvlt`,
+  `vault-2.fvlt`, …), each with its size and, when seen open this
   session, its summary ("Main · seen 14:02"):
   - a place the plan gives an **existing vault**: "Which vault is Vault
     1?", a row per file; the one chosen is copied in, as Files holds a
@@ -442,8 +442,8 @@ Done → Unlock → the done card.
 
 **C. A 2-of-3, each key in its own vault.** Vault 1 an existing vault
 on one stick; Vault 2 and Vault 3 new, on empty sticks. Use vaults: Yes
-→ Number of vaults: 3 → insert the stick for Vault 1: it holds `main.ofv`
-and `main-2.ofv`; "Which vault is Vault 1?" → `main.ofv`, copied in;
+→ Number of vaults: 3 → insert the stick for Vault 1: it holds `main.fvlt`
+and `main-2.fvlt`; "Which vault is Vault 1?" → `main.fvlt`, copied in;
 tap → the stick for Vault 2: empty, checked, bound; tap → the stick for
 Vault 3: empty, reads as the second did, so the hold → every stick is
 read → the step offers Open Vault 1, Create Vault 2 and Create Vault
@@ -451,8 +451,8 @@ read → the step offers Open Vault 1, Create Vault 2 and Create Vault
 passphrase → New key three times, into memory → Back up's plan: Key 1
 into Vault 1, Key 2 into Vault 2, Key 3 into Vault 3, a place each → the
 rest of the plan and the checklist, each vault's **Save into** → Lock
-and write → the stick for Vault 1 (Place 1): `main.ofv` replaced,
-`main-2.ofv` untouched → Vault 2 (Place 2) → Vault 3 (Place 3) → Done.
+and write → the stick for Vault 1 (Place 1): `main.fvlt` replaced,
+`main-2.fvlt` untouched → Vault 2 (Place 2) → Vault 3 (Place 3) → Done.
 
 **D. A 2-of-3 mix.** Two vaults set up, Vault 1 and Vault 2, on a stick
 each; Key 3 on paper. The setup asks for two sticks only → Unlock or
@@ -848,8 +848,8 @@ a new `faraday-core/tests/all/backup_flow.rs`; the wallet's in
   will be kept**; Make the key is not offered before its sticks are
   read and its vaults open; with a vault open, step 2 locks first.
 - **Step 2.** An empty stick is bound to the plan's new vault with no
-  question and offered no copy; a stick holding `vault.ofv` and
-  `vault-2.ofv` at a place the plan gives an existing vault asks which,
+  question and offered no copy; a stick holding `vault.fvlt` and
+  `vault-2.fvlt` at a place the plan gives an existing vault asks which,
   copies in only that one, and step 6 leaves the other byte for byte; at
   a place given a new vault, **A new vault beside them** is chosen; a
   stick bound to Place 1 inserted for Place 2 is refused; a second
@@ -875,7 +875,7 @@ a new `faraday-core/tests/all/backup_flow.rs`; the wallet's in
   Sign opens the flow, until every place is written, then work after the unlock;
   the same keys unlocked from a stick work at once; a Nostr entry saved
   in the flow exports at once.
-- **Every form.** Example C writes three sticks, `main-2.ofv` untouched;
+- **Every form.** Example C writes three sticks, `main-2.fvlt` untouched;
   example D asks for two sticks only, checks Key 3's copy by typed
   words, and writes Vault 1, Vault 2 and the stick of public files;
   example E draws no stick step and no lock.

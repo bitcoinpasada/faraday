@@ -65,7 +65,7 @@ Faraday from the stick. It has no network, …".
 
 | Control | What it does |
 |---|---|
-| "Unlock vault.ofv" | a vault in Files: its row ("Copied in from a stick", its size, "Unlocks in …"), **Passphrase** and **Unlock**. While a stick is attached the field reads "Remove the stick, then type the passphrase" |
+| "Unlock vault.fvlt" | a vault in Files: its row ("Copied in from a stick", its size, "Unlocks in …"), **Passphrase** and **Unlock**. While a stick is attached the field reads "Remove the stick, then type the passphrase" |
 | **Or bring in what is on paper** | over the two ways in |
 | **Scan the QR codes you have** | the camera, titled **Scan what you have**: one code after another until **Done** |
 | **Type the words you have** | opens the [typing page](add-a-key.md), which comes back here |
@@ -129,7 +129,7 @@ it**. Before the PSBT is in they are listed as **After the
 transaction**.
 
 On **Who signs**, each key reads **Signs here** or **Not here**, with
-**Load from vault**, **Load with a passphrase**, "Unlock vault.ofv",
+**Load from vault**, **Load with a passphrase**, "Unlock vault.fvlt",
 **Scan a key** or **Collect a signature** for a key not here; **Finish
 the backup** while a key made here waits for its backup; then
 **Continue**. **Send it** has **Show the finished transaction as QR**.

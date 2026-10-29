@@ -104,7 +104,7 @@ fn with_unsealed_change() -> Faraday {
     });
     faraday_core::testkit::vault_speed(&mut app, Some(100));
     app.storage(StorageEvent::Restored {
-        inbox: vec![("vault.ofv".into(), testkit::test_vault().unwrap())],
+        inbox: vec![("vault.fvlt".into(), testkit::test_vault().unwrap())],
         outbox: Vec::new(),
         kept: Vec::new(),
     });

@@ -171,7 +171,7 @@ fn a_vault_tile_with_no_vault_says_make_one_and_makes_it_then_opens_its_category
 #[test]
 fn a_vault_tile_with_a_locked_vault_unlocks_it_then_opens_its_category() {
     for (name, category) in VAULT_TILES {
-        let mut app = device(vec![kit_file("vault.ofv")]);
+        let mut app = device(vec![kit_file("vault.fvlt")]);
         app.press(Action::Nav(Screen::Catalog));
         let i = tile(name);
         assert_eq!(
@@ -189,7 +189,7 @@ fn a_vault_tile_with_a_locked_vault_unlocks_it_then_opens_its_category() {
 
 #[test]
 fn a_vault_tile_with_a_stick_in_asks_for_the_stick_before_unlock() {
-    let mut app = device(vec![kit_file("vault.ofv")]);
+    let mut app = device(vec![kit_file("vault.fvlt")]);
     app.storage(StorageEvent::Sticks(vec![StickInfo {
         serial: None,
         id: "a".into(),

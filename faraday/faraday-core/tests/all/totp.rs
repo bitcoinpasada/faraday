@@ -56,7 +56,7 @@ fn fresh_app(clock: Option<u64>, online: bool) -> Faraday {
     }
     let vault = testkit::test_vault().unwrap();
     app.storage(StorageEvent::Restored {
-        inbox: vec![("vault.ofv".into(), vault)],
+        inbox: vec![("vault.fvlt".into(), vault)],
         outbox: Vec::new(),
         kept: Vec::new(),
     });
@@ -268,7 +268,7 @@ fn two_open_vaults_each_show_their_rows_and_a_hotp_entry_shows_no_code() {
         0x11,
     );
     app.storage(StorageEvent::Restored {
-        inbox: vec![("vault.ofv".into(), first), ("second.ofv".into(), second)],
+        inbox: vec![("vault.fvlt".into(), first), ("second.fvlt".into(), second)],
         outbox: Vec::new(),
         kept: Vec::new(),
     });

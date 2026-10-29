@@ -36,16 +36,16 @@ What was seen of a place:
 | State | Means |
 |---|---|
 | **Checked**, **Not checked** | a place's paper copies, checked here or not |
-| "vault.ofv · unchanged", "vault.ofv · changed since written" | the vault holding the seeds, and where its file stands; **Not saved yet**, or **A vault is locked** where its vault is not open |
+| "vault.fvlt · unchanged", "vault.fvlt · changed since written" | the vault holding the seeds, and where its file stands; **Not saved yet**, or **A vault is locked** where its vault is not open |
 | "On Stick 2, 14:02" | files written on the last stick visit; **For the stick** while they wait; **Not made** |
 | "For the stick, unprotected" | in the error tone: a seed's file outside a vault, made or written |
 | **Shown**, **Not shown** | the descriptor shown to the watch-only software |
 | **Not here** | a seed kept on its own device |
 | **Not seen** | nothing seen of it this power-on |
-| "Plan" with "In vault.ofv · locked" | a wallet a locked vault holds a plan for |
+| "Plan" with "In vault.fvlt · locked" | a wallet a locked vault holds a plan for |
 
 The wallet card's backup line reads from the same: "Backup: paper ×2
-checked · vault.ofv · unchanged" (every paper copy checked), "Backup:
+checked · vault.fvlt · unchanged" (every paper copy checked), "Backup:
 paper 0 of 1 checked" (some not yet), **Not backed up**, or "Backup:
 planned" where the plan has no paper, vault or files yet.
 

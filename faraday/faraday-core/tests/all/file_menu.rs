@@ -126,20 +126,20 @@ fn a_file_for_the_stick_renamed_is_written_under_its_new_name() {
 fn a_vault_renamed_goes_over_the_same_vault_on_the_stick_under_its_new_name() {
     let v = vault("Savings", &["pass one"], 7);
     let (mut shell, mut app) = visiting(
-        vec![file("vault.ofv", &v)],
-        vec![file("vault.ofv", &v), file("notes.txt", b"n")],
+        vec![file("vault.fvlt", &v)],
+        vec![file("vault.fvlt", &v), file("notes.txt", b"n")],
     );
     app.press(Action::Nav(Screen::Files));
     menu_of(&mut app, Row::Out(0));
     choose(&mut app, "Rename");
     assert_eq!(
         app.files_menu().renaming.as_ref().map(|r| r.ext.as_str()),
-        Some(".ofv"),
-        "a vault keeps .ofv"
+        Some(".fvlt"),
+        "a vault keeps .fvlt"
     );
     type_name(&mut app, "savings");
     app.press(Action::File(FilePress::RenameGo));
-    assert_eq!(app.outbox[0].name, "savings.ofv");
+    assert_eq!(app.outbox[0].name, "savings.fvlt");
     shell.press(&mut app, Action::Nav(Screen::Visit));
     shell.press(&mut app, Action::VisitWrite);
     let vaults: Vec<&str> = shell
@@ -147,9 +147,9 @@ fn a_vault_renamed_goes_over_the_same_vault_on_the_stick_under_its_new_name() {
         .files
         .iter()
         .map(|(n, _)| n.as_str())
-        .filter(|n| n.ends_with(".ofv"))
+        .filter(|n| n.ends_with(".fvlt"))
         .collect();
-    assert_eq!(vaults, ["savings.ofv"], "one copy, under its new name");
+    assert_eq!(vaults, ["savings.fvlt"], "one copy, under its new name");
 }
 
 #[test]
@@ -229,8 +229,8 @@ fn a_rename_to_a_name_on_the_stick_is_refused_and_a_same_vault_named() {
         vec![
             file("a.txt", b"a"),
             file("B.txt", b"b"),
-            file("vault.ofv", &v),
-            file("vault-copy.ofv", &v),
+            file("vault.fvlt", &v),
+            file("vault-copy.fvlt", &v),
         ],
     );
     let at = |app: &Faraday, name: &str| {
@@ -247,7 +247,7 @@ fn a_rename_to_a_name_on_the_stick_is_refused_and_a_same_vault_named() {
     type_name(&mut app, "b");
     app.press(Action::File(FilePress::RenameGo));
     shell.pump(&mut app);
-    let k = at(&app, "vault-copy.ofv");
+    let k = at(&app, "vault-copy.fvlt");
     menu_of(&mut app, Row::Stick(k));
     choose(&mut app, "Rename");
     type_name(&mut app, "vault");
@@ -257,7 +257,7 @@ fn a_rename_to_a_name_on_the_stick_is_refused_and_a_same_vault_named() {
     let log: Vec<&str> = app.visit().log.iter().map(|(l, _)| l.as_str()).collect();
     assert!(log.contains(&"b.txt is already on this stick"), "{log:?}");
     assert!(
-        log.contains(&"vault.ofv on this stick is this same vault"),
+        log.contains(&"vault.fvlt on this stick is this same vault"),
         "{log:?}"
     );
 }
@@ -288,7 +288,7 @@ fn delete_from_the_stick_opens_the_sheet_with_that_file_alone_chosen() {
 #[test]
 fn a_vault_deleted_from_the_stick_takes_a_hold() {
     let v = vault("Savings", &["pass one"], 7);
-    let (_shell, mut app) = visiting(Vec::new(), vec![file("vault.ofv", &v)]);
+    let (_shell, mut app) = visiting(Vec::new(), vec![file("vault.fvlt", &v)]);
     menu_of(&mut app, Row::Stick(0));
     choose(&mut app, "Delete from the stick");
     while app.poll_storage().is_some() {}

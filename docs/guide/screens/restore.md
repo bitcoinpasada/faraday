@@ -55,7 +55,7 @@ The wallet's description, where it is:
 | **Scan descriptor** | the camera |
 | **Shares of a split backup** | shares of a description in Files, each a row to press; "2 of 3 keys in hand · …", then **Rebuild the wallet** once they are enough |
 | the stick | **Copy files in** opens the [stick visit](stick-visit.md), and the card comes back. Grey with "Insert the stick", or **Not while a key is loaded** |
-| **Vault** | "Unlock vault.ofv" for a vault locked in Files; each wallet an open vault holds, "New wallet 1 · Vault 1", which loads it; "Copy the vault in from its stick" while there is neither |
+| **Vault** | "Unlock vault.fvlt" for a vault locked in Files; each wallet an open vault holds, "New wallet 1 · Vault 1", which loads it; "Copy the vault in from its stick" while there is neither |
 | **I have the seed** | for a single key: no description; the wallet is made from the seed alone |
 | **I do not have it** | for several keys: the wallet is made from every key, seed or xpub |
 
@@ -86,7 +86,7 @@ The open row's ways in stand over it:
 |---|---|
 | **Type the words** | opens the [typing page](add-a-key.md); its passphrase is asked there |
 | **Scan a SeedQR** | the camera; the passphrase is asked after the scan |
-| "Load 3dca6805 from vault.ofv", "Use 3dca6805" | a seed an open vault holds, or one already loaded |
+| "Load 3dca6805 from vault.fvlt", "Use 3dca6805" | a seed an open vault holds, or one already loaded |
 | **Its xpub** | a cosigner's key: **Type or paste an xpub**, or **Scan**. **Not an account key** under one that is not |
 | **Not here** | for a wallet of several keys: the key stays away |
 | **Make the wallet** | once every row is filled |

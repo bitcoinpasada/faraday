@@ -65,7 +65,7 @@ Closed, the path.
 | the application's name (**Words**) | the value, hidden as dots until **Show** |
 | **Show**, **Hide** | the value on screen, or hidden; it is hidden again once the card is left |
 | "Save into Vault 1" | into the open vault, by its name: a password as an entry, child words as a key, anything else as a note, each named "BIP-85 Words · 3dca6805 · index 0" |
-| **Make a vault**, "Unlock Vault-1.ofv", **Unlock a vault** | in its place while no vault is open: **Make a vault** while Files holds none, "Unlock" and the file's name for one locked vault in Files, **Unlock a vault** for several; each comes back here |
+| **Make a vault**, "Unlock Vault-1.fvlt", **Unlock a vault** | in its place while no vault is open: **Make a vault** while Files holds none, "Unlock" and the file's name for one locked vault in Files, **Unlock a vault** for several; each comes back here |
 | **Load as a key** | for **Words**: loads the child words as a key of this session ("Key … added") |
 | **Out unprotected…** | the value to the stick unprotected, through [This is a secret](files.md#this-is-a-secret) |
 

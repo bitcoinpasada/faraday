@@ -49,7 +49,7 @@ fn vault_file() -> (String, Vec<u8>) {
     testkit::files()
         .unwrap()
         .into_iter()
-        .find(|(n, _)| n == "vault.ofv")
+        .find(|(n, _)| n == "vault.fvlt")
         .unwrap()
 }
 
@@ -239,7 +239,7 @@ fn a_place_names_name_never_leaves_the_vault() {
     // meets them again as its Inbox.
     let sealed_vault = outbox
         .iter()
-        .find(|(n, _)| n == "vault.ofv")
+        .find(|(n, _)| n == "vault.fvlt")
         .cloned()
         .expect("the locked vault was sealed for the stick");
     let mut app = shown(vec![sealed_vault], Vec::new(), kept);

@@ -2,7 +2,7 @@
 
 ## What a vault is
 
-A vault is one encrypted file, kept on a stick, that holds keys, wallets, backup plans, notes and entries. Its file ends in .ofv. Faraday seals it at every lock and writes it to its stick when the stick is put in, replacing the copy there.
+A vault is one encrypted file, kept on a stick, that holds keys, wallets, backup plans, notes and entries. Its file ends in .fvlt. Faraday seals it at every lock and writes it to its stick when the stick is put in, replacing the copy there.
 
 A vault is made to keep seed words: a key sealed in a vault is its words, encrypted. It can also keep a seed's BIP-39 passphrase, with the seed or alone.
 
@@ -40,6 +40,6 @@ An entry in a vault (a title, a username, a password, a URL and notes) can leave
 
 The format is published in Faraday's source, in docs/VAULT.md. tools/vault/open.py in the same repository opens a vault on any computer with Python 3 and either argon2-cffi with pynacl, or cryptography 44 or newer, and prints what the slot holds:
 
-python3 tools/vault/open.py vault.ofv
+python3 tools/vault/open.py vault.fvlt
 
 It asks for the passphrase without showing it and writes nothing.

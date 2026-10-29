@@ -55,7 +55,7 @@ fn click(app: &mut Faraday, (x, y): (u16, u16), ms: u64) {
 
 /// The Unlock screen with a long passphrase typed.
 fn typed_passphrase() -> (Faraday, (u16, u16)) {
-    let mut app = device(vec![kit_file("vault.ofv")]);
+    let mut app = device(vec![kit_file("vault.fvlt")]);
     app.press(Action::Vault(V::Open(0)));
     assert_eq!(app.screen, Screen::Unlock);
     type_text(&mut app, "a long passphrase typed wrong somewhere");

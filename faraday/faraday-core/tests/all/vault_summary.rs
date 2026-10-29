@@ -252,7 +252,7 @@ fn a_vault_copied_in_reads_current_on_its_stick_or_unchanged() {
         id: "S".into(),
         label: "VAULTSTICK".into(),
         boot: false,
-        files: vec![("vault.ofv".into(), vault.len() as u64)],
+        files: vec![("vault.fvlt".into(), vault.len() as u64)],
     }]));
     app.press(Action::Nav(Screen::Visit));
     app.press(Action::VisitCopy);

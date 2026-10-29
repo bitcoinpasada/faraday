@@ -241,7 +241,7 @@ fn a_vaults_secure_boot_keys_list_the_page_about_them_and_it_opens() {
     let vault = testkit::files()
         .unwrap()
         .into_iter()
-        .find(|(n, _)| n == "vault.ofv")
+        .find(|(n, _)| n == "vault.fvlt")
         .unwrap();
     app.storage(StorageEvent::Restored {
         inbox: vec![vault],

@@ -62,7 +62,7 @@ except ImportError as e:  # pragma: no cover - the machine's packages
 
 VECTORS = json.loads((ROOT / "tools/vectors/vault-primitives/vectors.json").read_text())
 
-MAGIC = b"OFVT"
+MAGIC = b"FVLT"
 HEADER_LEN = 53
 SLOT_SIZES = (65_536, 262_144, 1_048_576, 4_194_304)
 SLOT_INFO = b"Faraday vault v1 slot"
@@ -895,8 +895,8 @@ class Vault(Area):
         a = VECTORS["argon2id"]
         self.argon(bytes.fromhex(a["password"]), bytes.fromhex(a["salt"]), a["memory_kib"],
                    a["passes"], a["lanes"], ("ok", {"key": a["key"]}))
-        for name, passphrases in [("vault-one.ofv", ["correct horse battery staple"]),
-                                  ("vault-three.ofv", ["first passphrase", "second passphrase",
+        for name, passphrases in [("vault-one.fvlt", ["correct horse battery staple"]),
+                                  ("vault-three.fvlt", ["first passphrase", "second passphrase",
                                                        "third passphrase"])]:
             f = (ROOT / "tools/vectors/vault" / name).read_bytes()
             for p in passphrases:

@@ -9,7 +9,7 @@
 //! nothing is written.
 
 use crate::backup_flow_wallet::{
-    PHRASE as FLOW_PHRASE, flow_into_vault, ofv, restart, step, write_sticks,
+    PHRASE as FLOW_PHRASE, flow_into_vault, fvlt, restart, step, write_sticks,
 };
 use crate::codex32_kept::{A, D, FP, ix, key_from_strings, share_records};
 use crate::codex32_vault_set::{BIP93, SECRET, locked_with, sealed_strings};
@@ -112,7 +112,7 @@ fn after_a_power_on_the_round_types_the_missing_string_in_place_and_writes_it() 
         "{:?}",
         app.flow().unwrap().live.problem
     );
-    let sealed = ofv(&shell, "S1").expect("Vault 1 on S1");
+    let sealed = fvlt(&shell, "S1").expect("Vault 1 on S1");
     assert_eq!(
         sealed_strings(&sealed, FLOW_PHRASE),
         vec![D.as_bytes().to_vec()],

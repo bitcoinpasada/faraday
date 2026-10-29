@@ -64,7 +64,7 @@ fn stick_files() -> Vec<(String, Vec<u8>)> {
             "summer-words.txt".into(),
             testkit::test_words(testkit::TEST_SEEDS[2].0).into_bytes(),
         ),
-        ("vault.ofv".into(), testkit::test_vault().unwrap()),
+        ("vault.fvlt".into(), testkit::test_vault().unwrap()),
         ("zebra-seedqr.png".into(), b"a picture".to_vec()),
         (
             "zebra-wallet.txt".into(),
@@ -314,7 +314,7 @@ fn before_import_the_sheet_lists_names_and_sizes_and_nothing_is_read() {
             assert!(f.line.contains(&size), "{name}: {}", f.line);
         }
     }
-    assert!(file(&view, "vault.ofv").line.starts_with("Vault"));
+    assert!(file(&view, "vault.fvlt").line.starts_with("Vault"));
     assert!(
         file(&view, "savings-unsigned.psbt")
             .line
@@ -348,7 +348,7 @@ fn declining_the_import_reads_nothing() {
 fn import_reads_exactly_the_ticked_files() {
     let files = stick_files();
     let mut app = boot_only(&files);
-    for name in ["notes.txt", "vault.ofv"] {
+    for name in ["notes.txt", "vault.fvlt"] {
         let k = row(&app, name);
         app.press(Action::Import(I::File(k)));
     }
@@ -361,7 +361,7 @@ fn import_reads_exactly_the_ticked_files() {
     let ticked: Vec<String> = files
         .iter()
         .map(|(n, _)| n.clone())
-        .filter(|n| n != "notes.txt" && n != "vault.ofv")
+        .filter(|n| n != "notes.txt" && n != "vault.fvlt")
         .collect();
     assert_eq!(reads(&mut app, &files), ticked);
     // What they held comes in; the unticked ones stay on the stick.
@@ -478,7 +478,7 @@ fn import_brings_in_every_ticked_file_then_the_vaults_unlock_loads_its_wallets()
             "photo.jpg",
             "savings-unsigned.psbt",
             "summer-words.txt",
-            "vault.ofv",
+            "vault.fvlt",
             "zebra-seedqr-words.txt",
             "zebra-wallet.txt"
         ]
@@ -491,7 +491,10 @@ fn import_brings_in_every_ticked_file_then_the_vaults_unlock_loads_its_wallets()
     assert_eq!(key_fps(&app), want);
     // The vault's Unlock, on the sheet, typing going to it.
     assert_eq!((app.screen, app.sheet), (Screen::Home, Some(Sheet::Import)));
-    assert_eq!(app.import_field().map(|v| v.name), Some("vault.ofv".into()));
+    assert_eq!(
+        app.import_field().map(|v| v.name),
+        Some("vault.fvlt".into())
+    );
     let _ = app.frame();
     assert!(app.offers(Action::Import(I::Submit)));
     assert!(app.offers(Action::Import(I::Cancel)));
@@ -666,7 +669,7 @@ fn later_with_the_stick_in_leaves_the_files_to_the_stick_visit() {
     app.press(Action::VisitCopy);
     pump(&mut app, &files);
     assert!(app.inbox().iter().any(|i| i.name == "notes.txt"));
-    assert!(app.inbox().iter().any(|i| i.name == "vault.ofv"));
+    assert!(app.inbox().iter().any(|i| i.name == "vault.fvlt"));
 }
 
 #[test]
@@ -685,7 +688,7 @@ fn put_off_after_import_home_leads_with_the_vaults_unlock() {
         "what was typed stays"
     );
     let texts = drawn(&mut app);
-    assert!(texts.contains("Unlock vault.ofv"), "{texts}");
+    assert!(texts.contains("Unlock vault.fvlt"), "{texts}");
     app.press(boot_import::OPEN);
     assert_eq!(app.sheet, Some(Sheet::Import));
     let _ = app.frame();
@@ -695,9 +698,12 @@ fn put_off_after_import_home_leads_with_the_vaults_unlock() {
 #[test]
 fn with_two_vaults_each_is_offered_in_turn_and_cancel_leaves_it_locked() {
     let mut files = stick_files();
-    files.push(("spare.ofv".into(), spare_vault()));
+    files.push(("spare.fvlt".into(), spare_vault()));
     let mut app = imported_with(&files);
-    assert_eq!(app.import_field().map(|v| v.name), Some("vault.ofv".into()));
+    assert_eq!(
+        app.import_field().map(|v| v.name),
+        Some("vault.fvlt".into())
+    );
     type_in(&mut app, testkit::VAULT_PASSPHRASES[0]);
     app.press(Action::Import(I::Submit));
     run_unlock(&mut app);
@@ -716,14 +722,17 @@ fn with_two_vaults_each_is_offered_in_turn_and_cancel_leaves_it_locked() {
     assert!(app.session.wallets.iter().any(|w| w.name == "Savings"));
     // The second, on the sheet in its turn; Cancel shows no Load sheet.
     assert_eq!((app.screen, app.sheet), (Screen::Home, Some(Sheet::Import)));
-    assert_eq!(app.import_field().map(|v| v.name), Some("spare.ofv".into()));
+    assert_eq!(
+        app.import_field().map(|v| v.name),
+        Some("spare.fvlt".into())
+    );
     app.press(Action::Import(I::Cancel));
     assert!(app.import().is_none());
     assert_eq!(app.sheet, None);
     let spare = app
         .vault_files()
         .into_iter()
-        .find(|f| f.name == "spare.ofv")
+        .find(|f| f.name == "spare.fvlt")
         .expect("the cancelled vault is not in Files");
     assert!(spare.open.is_none());
 }
@@ -743,7 +752,7 @@ fn cancel_leaves_the_only_vault_locked_in_files() {
 fn with_no_vault_import_brings_the_files_in_and_home_leads_with_the_psbt() {
     let files: Vec<(String, Vec<u8>)> = stick_files()
         .into_iter()
-        .filter(|(n, _)| n != "vault.ofv")
+        .filter(|(n, _)| n != "vault.fvlt")
         .collect();
     let mut app = booted_with(&files);
     assert!(app.import().is_some() && app.inbox().is_empty());
@@ -815,11 +824,11 @@ fn an_unticked_file_is_not_imported_and_its_key_does_not_load() {
 #[test]
 fn an_unticked_vault_stays_out_of_files_and_nothing_asks_to_unlock_it() {
     let mut app = booted();
-    let k = row(&app, "vault.ofv");
+    let k = row(&app, "vault.fvlt");
     app.press(Action::Import(I::File(k)));
     go(&mut app, &stick_files());
     pull(&mut app);
-    assert!(!app.inbox().iter().any(|i| i.name == "vault.ofv"));
+    assert!(!app.inbox().iter().any(|i| i.name == "vault.fvlt"));
     assert!(app.import().is_none());
     assert_eq!(app.sheet, None);
     assert_eq!(app.session.wallets.len(), 1);
@@ -1268,7 +1277,7 @@ fn a_vaults_words_and_master_seed_keys_load_on_unlock() {
         ("master seed", seed_vault(), "seeds", codex32),
     ];
     for (kind, vault, phrase, want) in cases {
-        let files = vec![("vault.ofv".to_string(), vault)];
+        let files = vec![("vault.fvlt".to_string(), vault)];
         // On the boot sheet.
         let mut app = imported_with(&files);
         type_in(&mut app, phrase);

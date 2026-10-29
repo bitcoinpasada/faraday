@@ -133,7 +133,7 @@ fn test_vault() -> (String, Vec<u8>) {
     testkit::files()
         .unwrap()
         .into_iter()
-        .find(|(n, _)| n == "vault.ofv")
+        .find(|(n, _)| n == "vault.fvlt")
         .unwrap()
 }
 

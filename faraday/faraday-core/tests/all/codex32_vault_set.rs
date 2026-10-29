@@ -9,7 +9,7 @@
 
 use crate::backup_flow_wallet::{
     PHRASE as FLOW_PHRASE, bring_in_all, create_with_vaults, flow_board, flow_into_vault,
-    flow_vault_zone, ofv, restart, save_vaults, step, sticks, write_sticks,
+    flow_vault_zone, fvlt, restart, save_vaults, step, sticks, write_sticks,
 };
 use crate::codex32_kept::{
     A, C, D, FP, PHRASE, codex32_item, ix, key_from_strings, share_records, type_each_back,
@@ -125,7 +125,7 @@ fn round_and_write(shell: &mut Shell, app: &mut Faraday, typed: &[&str]) -> Vec<
         "{:?}",
         app.flow().unwrap().live.problem
     );
-    ofv(shell, "S1").expect("Vault 1 on S1")
+    fvlt(shell, "S1").expect("Vault 1 on S1")
 }
 
 /// A codex32 string put into a vault after the lock sends that vault back
@@ -175,11 +175,11 @@ fn a_codex32_string_moved_out_of_a_vault_after_the_lock_leaves_it() {
 fn after_a_new_set_the_vault_holds_the_new_sets_string_and_not_the_old_one() {
     assert!(BIP93.contains(SECRET));
     let c = testkit::compute();
-    let mut app = device(vec![("home.ofv".into(), vault_of(PHRASE, Vec::new(), 7))]);
+    let mut app = device(vec![("home.fvlt".into(), vault_of(PHRASE, Vec::new(), 7))]);
     for i in 0..8u8 {
         app.event(Event::Entropy(EntropyBytes::new([0x70 + i; 32])));
     }
-    unlock_on_vaults(&mut app, "home.ofv", PHRASE);
+    unlock_on_vaults(&mut app, "home.fvlt", PHRASE);
     key_from_strings(&mut app);
     wallet_and_backup(&mut app);
     vault_at(&mut app, 0, 0, &[]);

@@ -100,7 +100,7 @@ fn envelope(t: &mut Tour) -> Result<(String, Vec<u8>), String> {
     let (_, outbox, _) = t.boxes.clone().ok_or("nothing was kept by the lock")?;
     outbox
         .into_iter()
-        .find(|(n, _)| n.ends_with(".ofv"))
+        .find(|(n, _)| n.ends_with(".fvlt"))
         .ok_or_else(|| "the lock sealed no vault".into())
 }
 

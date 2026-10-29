@@ -180,7 +180,7 @@ pub fn part_of(text: &str) -> Option<Part> {
 }
 
 /// The first four bytes of every Faraday vault (`docs/VAULT.md`).
-pub const VAULT_MAGIC: [u8; 4] = *b"OFVT";
+pub const VAULT_MAGIC: [u8; 4] = *b"FVLT";
 
 /// Whether the bytes begin as a vault does. Says nothing of whether the
 /// rest is sound.

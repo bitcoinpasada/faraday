@@ -117,7 +117,7 @@ Closed, "1 here · 2 needed".
 | **Load from vault** | on a key an open vault holds: loads it |
 | **Load with a passphrase** | on a key an open vault keeps without its passphrase: opens [Seeds with no passphrase stored](vaults.md#seeds-with-no-passphrase-stored) |
 | **Scan a key** | the camera, for a key not here |
-| "Unlock vault.ofv" | a locked vault in Files: opens its [Unlock](vaults.md#unlock) |
+| "Unlock vault.fvlt" | a locked vault in Files: opens its [Unlock](vaults.md#unlock) |
 | **Collect a signature** | opens **Signatures for this transaction** |
 | "Remove the stick first" | in the warning tone, while a stick is attached: the buttons that load a key are grey |
 | "1 of 2 signatures here · 1 more needed" | or "2 of 2 signatures here" and **Can spend** |

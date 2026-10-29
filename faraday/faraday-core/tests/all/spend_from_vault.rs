@@ -47,7 +47,7 @@ fn unlocked() -> Faraday {
         id: "boot".into(),
         label: "FARADAY".into(),
         boot: true,
-        files: vec![("vault.ofv".into(), vault.len() as u64)],
+        files: vec![("vault.fvlt".into(), vault.len() as u64)],
     }]));
     app.press(Action::Import(I::Go));
     pump(&mut app, &vault);
@@ -125,7 +125,7 @@ fn unlocking_the_boot_sticks_vault_lands_on_wallets_with_the_one_that_signs_and_
     assert!(n > 1, "the test vault holds every test wallet");
     assert_eq!(
         app.toast_text(),
-        Some(format!("{n} wallets loaded from vault.ofv").as_str())
+        Some(format!("{n} wallets loaded from vault.fvlt").as_str())
     );
     // The first wallet with a key here is the one shown.
     let first = (0..n).find(|&w| keys_here(&app, w) > 0).unwrap();

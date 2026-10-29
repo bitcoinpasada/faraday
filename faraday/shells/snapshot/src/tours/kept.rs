@@ -33,7 +33,7 @@ pub(crate) fn kept_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     t.shot("kept-two-of-three")?;
     let vault = testkit::files()?
         .into_iter()
-        .find(|(n, _)| n == "vault.ofv")
+        .find(|(n, _)| n == "vault.fvlt")
         .ok_or("no test vault")?;
     let inbox: Vec<(String, Vec<u8>)> = t
         .app

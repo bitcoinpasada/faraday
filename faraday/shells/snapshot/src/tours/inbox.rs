@@ -23,7 +23,7 @@ pub(crate) fn inbox_tour(t: &mut Tour) -> Result<(), String> {
         .push(item("savings-signed.psbt", K::Psbt, 1400, None));
     for i in [
         item("family-savings-descriptor.txt", K::Wallet, 620, None),
-        item("household.ofv", K::Vault, 4_200_000, None),
+        item("household.fvlt", K::Vault, 4_200_000, None),
         item("savings-photo-qr.png", K::Other, 2900, Some(K::Wallet)),
         item("seed-3-words.txt", K::Words, 160, None),
         item("recovery-codes.txt", K::Text, 210, None),

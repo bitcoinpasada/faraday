@@ -561,7 +561,7 @@ pub struct BackupState {
     /// The board's chip held, by a tap or a drag
     /// (`docs/BACKUP-FLOW.md` §17.2).
     pub board: board::BoardState,
-    /// Work done that a later plan dropped, as what it is ("vault.ofv
+    /// Work done that a later plan dropped, as what it is ("vault.fvlt
     /// holds seed 9A6A2580"): the copy exists until it is destroyed.
     pub extras: Vec<String>,
     /// The vaults the checklist had filled when Change the plan was

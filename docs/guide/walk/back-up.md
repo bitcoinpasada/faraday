@@ -205,7 +205,7 @@ Press **Make a vault**.
 · 64 MiB · 3 passes**). **Your choices** and **Will create** on the
 right sum up the vault. Under **Name and passphrases**:
 
-1. **Name**: leave it empty for `vault.ofv`, or type what the vault
+1. **Name**: leave it empty for `vault.fvlt`, or type what the vault
    holds; the name is visible to anyone who sees the stick.
 2. **Passphrase 1**: type it in the first field, then again in the
    second, or press **Generate with dice**. The eye button at the end
@@ -216,9 +216,9 @@ right sum up the vault. Under **Name and passphrases**:
 Faraday makes the vault, then asks its passphrase once to unlock it.
 Back on the checklist:
 
-![The vault item, now Into vault.ofv, Save into vault.ofv outlined](../pictures/4-8-save.png)
+![The vault item, now Into vault.fvlt, Save into vault.fvlt outlined](../pictures/4-8-save.png)
 
-The item now reads **Into vault.ofv**. Press **Save into vault.ofv**. The item reads **In vault.ofv**, and the
+The item now reads **Into vault.fvlt**. Press **Save into vault.fvlt**. The item reads **In vault.fvlt**, and the
 checklist moves on to **The wallet sheet**, ticked already: press
 **Continue**. The vault is in memory until step 4.10 writes it.
 
@@ -248,8 +248,8 @@ sticks**:
 
 | Insert | Stick read | Written |
 |---|---|---|
-| ![Write the sticks asking Insert Stick 2: Vault 1 (Place 1), vault.ofv 1.0 MB](../pictures/4-10-insert.png) | ![A stick read, This is the stick for Vault 1 (Place 1) outlined](../pictures/4-10-this-is-the-stick.png) | ![Written and checked on KEYSTICK, Mark it as Stick 2 and Pull the stick](../pictures/4-10-written.png) |
-| **Insert Stick 2: Vault 1 (Place 1)**, with the file to write under it (`vault.ofv`). The pills at the top of the window name every stick: the Faraday stick is **Boot stick**, the board's Stick 2 is **Stick 2**, and the public files go on **Stick 3**. Plug in a stick. | Press **This is the stick for Vault 1 (Place 1)**, or **Use another stick**. | **Written and checked on** and the stick's name, here `KEYSTICK`. Write "Stick 2" on the stick (**Mark it as Stick 2**), then pull it (**Pull the stick**). |
+| ![Write the sticks asking Insert Stick 2: Vault 1 (Place 1), vault.fvlt 1.0 MB](../pictures/4-10-insert.png) | ![A stick read, This is the stick for Vault 1 (Place 1) outlined](../pictures/4-10-this-is-the-stick.png) | ![Written and checked on KEYSTICK, Mark it as Stick 2 and Pull the stick](../pictures/4-10-written.png) |
+| **Insert Stick 2: Vault 1 (Place 1)**, with the file to write under it (`vault.fvlt`). The pills at the top of the window name every stick: the Faraday stick is **Boot stick**, the board's Stick 2 is **Stick 2**, and the public files go on **Stick 3**. Plug in a stick. | Press **This is the stick for Vault 1 (Place 1)**, or **Use another stick**. | **Written and checked on** and the stick's name, here `KEYSTICK`. Write "Stick 2" on the stick (**Mark it as Stick 2**), then pull it (**Pull the stick**). |
 
 Then **Insert Stick 3: Public files** the same way.
 
@@ -261,7 +261,7 @@ Then **Insert Stick 3: Public files** the same way.
 | **Pulled before the copy was checked. Nothing counted** | the stick came out too soon | plug it in again |
 | **… did not read back from …; try another stick** | the stick did not keep what was written | another stick |
 
-![Done, Written, with Stick 2 holding vault.ofv and Stick 3 the wallet sheet, and Unlock Vault 1](../pictures/4-10-done.png)
+![Done, Written, with Stick 2 holding vault.fvlt and Stick 3 the wallet sheet, and Unlock Vault 1](../pictures/4-10-done.png)
 
 **Done** reads **Written** and lists each stick written, its name and
 the file it holds. **Unlock Vault 1**

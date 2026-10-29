@@ -483,7 +483,7 @@ fn the_visit_says_then_home_and_goes_there() {
 #[test]
 fn a_visit_for_a_vault_sealed_at_lock_says_then_unlock_and_goes_there() {
     let vault = (
-        "vault.ofv".to_string(),
+        "vault.fvlt".to_string(),
         faraday_core::testkit::test_vault().unwrap(),
     );
     let mut app = visiting(vec![vault]);
@@ -920,13 +920,13 @@ fn the_same_vault_is_replaced_and_another_vault_never_is() {
     let len = vault.len() as u64;
     let mut app = writing_over(
         &[
-            ("vault.ofv", len),
-            ("old.ofv", len + 1),
+            ("vault.fvlt", len),
+            ("old.fvlt", len + 1),
             ("backup-00.pdf", 10),
         ],
         vec![
-            ("vault.ofv", vault.clone()),
-            ("old.ofv", vault.clone()),
+            ("vault.fvlt", vault.clone()),
+            ("old.fvlt", vault.clone()),
             ("backup-00.pdf", b"new".to_vec()),
         ],
     );
@@ -934,8 +934,8 @@ fn the_same_vault_is_replaced_and_another_vault_never_is() {
     app.press(Action::VisitWrite);
     let texts = app.drawn_texts();
     for row in [
-        "vault.ofv · the same vault, updated here",
-        "old.ofv · another vault · kept, this one as old-2.ofv",
+        "vault.fvlt · the same vault, updated here",
+        "old.fvlt · another vault · kept, this one as old-2.fvlt",
     ] {
         assert!(texts.iter().any(|t| t == row), "{row}: {texts:?}");
     }
@@ -945,17 +945,17 @@ fn the_same_vault_is_replaced_and_another_vault_never_is() {
     assert_eq!(
         writes(&mut app),
         [
-            ("vault.ofv".to_string(), true),
-            ("old.ofv".to_string(), true),
+            ("vault.fvlt".to_string(), true),
+            ("old.fvlt".to_string(), true),
             ("backup-00.pdf".to_string(), true)
         ]
     );
     // The same vault alone, sealed again here, is written back with no
     // question.
-    let mut app = writing_over(&[("vault.ofv", len)], vec![("vault.ofv", vault)]);
+    let mut app = writing_over(&[("vault.fvlt", len)], vec![("vault.fvlt", vault)]);
     asked(&mut app);
     app.press(Action::VisitWrite);
-    assert_eq!(writes(&mut app), [("vault.ofv".to_string(), true)]);
+    assert_eq!(writes(&mut app), [("vault.fvlt".to_string(), true)]);
 }
 
 #[test]

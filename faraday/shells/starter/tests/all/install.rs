@@ -25,7 +25,7 @@ fn home(name: &str) -> (PathBuf, Dirs) {
     let _ = fs::remove_dir_all(&root);
     for (file, text) in [
         ("Downloads/received.txt", "a received file"),
-        ("faraday-sticks/BOOTSTICK/vault.ofv", "a vault"),
+        ("faraday-sticks/BOOTSTICK/vault.fvlt", "a vault"),
         (".config/other/settings", "somebody else's"),
     ] {
         let p = root.join(file);
@@ -165,7 +165,7 @@ fn uninstall_removes_exactly_what_install_put_there_and_the_cache() {
         "the settings file's folder goes with it"
     );
     assert_eq!(
-        fs::read_to_string(root.join("faraday-sticks/BOOTSTICK/vault.ofv")).expect("kept"),
+        fs::read_to_string(root.join("faraday-sticks/BOOTSTICK/vault.fvlt")).expect("kept"),
         "a vault"
     );
     assert_eq!(install::installed(&dirs), None);

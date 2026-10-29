@@ -46,14 +46,14 @@ fn import(c: &Compute, t: &mut Tour) -> Result<(), String> {
     key_session(t);
     let kit = single_kit(c, t, 1_410)?;
     let psbt = testkit::unsigned(&kit)?.to_bytes();
-    let vault = std::fs::read(t.kit.join("vault.ofv")).map_err(|e| format!("vault.ofv: {e}"))?;
+    let vault = std::fs::read(t.kit.join("vault.fvlt")).map_err(|e| format!("vault.fvlt: {e}"))?;
     let mut boot: StickInfo = super::folder_stick(
         "boot",
         "FARADAY",
         &[
             ("new-wallet-1-descriptor.txt", kit.descriptor.into_bytes()),
             ("payment.psbt", psbt),
-            ("vault.ofv", vault),
+            ("vault.fvlt", vault),
         ],
     )?;
     boot.boot = true;

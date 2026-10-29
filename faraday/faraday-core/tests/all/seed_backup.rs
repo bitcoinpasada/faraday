@@ -166,7 +166,7 @@ fn reopened(app: &mut Faraday) -> Vec<Fingerprint> {
     let vault = app
         .outbox
         .iter()
-        .find(|i| i.name == "vault.ofv")
+        .find(|i| i.name == "vault.fvlt")
         .map(|i| (i.name.clone(), i.bytes.clone()))
         .expect("the lock sealed the vault into the Outbox");
     let mut next = device(vec![vault]);
@@ -221,7 +221,7 @@ fn secrets_out(app: &Faraday) -> usize {
 
 #[test]
 fn saved_into_the_vault_from_the_seeds_step_the_key_loads_at_the_next_unlock() {
-    let mut app = device(vec![kit_file("vault.ofv")]);
+    let mut app = device(vec![kit_file("vault.fvlt")]);
     let fp = backing_up(&mut app, false);
     unlock(&mut app);
     let before = keys_in_vault(&app);
@@ -235,7 +235,7 @@ fn saved_into_the_vault_from_the_seeds_step_the_key_loads_at_the_next_unlock() {
 
 #[test]
 fn with_its_passphrase_the_vault_keeps_the_key_as_it_was_loaded() {
-    let mut app = device(vec![kit_file("vault.ofv")]);
+    let mut app = device(vec![kit_file("vault.fvlt")]);
     let fp = backing_up(&mut app, true);
     unlock(&mut app);
     app.press(Action::BVaultSave(0));
@@ -244,7 +244,7 @@ fn with_its_passphrase_the_vault_keeps_the_key_as_it_was_loaded() {
 
 #[test]
 fn the_secret_sheet_saves_a_seed_as_a_key_and_not_a_note() {
-    let mut app = device(vec![kit_file("vault.ofv")]);
+    let mut app = device(vec![kit_file("vault.fvlt")]);
     let fp = backing_up(&mut app, false);
     unlock(&mut app);
     let (keys, notes) = (keys_in_vault(&app), notes_in_vault(&app));
@@ -443,7 +443,7 @@ fn savings_backup(app: &mut Faraday) {
 
 #[test]
 fn the_panel_says_which_vault_holds_the_seed_and_the_wallet() {
-    let mut app = device(vec![kit_file("vault.ofv")]);
+    let mut app = device(vec![kit_file("vault.fvlt")]);
     backing_up(&mut app, false);
     let locked = line("Not checked: no vault unlocked", Tone::Dim);
     assert_eq!(kept(&app).wallet, locked);
@@ -456,19 +456,22 @@ fn the_panel_says_which_vault_holds_the_seed_and_the_wallet() {
     );
     // One press saves the seed and the wallet.
     app.press(Action::BVaultSave(0));
-    assert_eq!(kept(&app).seeds[0].lines[0], line("In vault.ofv", Tone::Ok));
-    assert_eq!(kept(&app).wallet, line("Wallet in vault.ofv", Tone::Ok));
+    assert_eq!(
+        kept(&app).seeds[0].lines[0],
+        line("In vault.fvlt", Tone::Ok)
+    );
+    assert_eq!(kept(&app).wallet, line("Wallet in vault.fvlt", Tone::Ok));
 }
 
 #[test]
 fn saved_with_its_passphrase_the_panel_says_so() {
-    let mut app = device(vec![kit_file("vault.ofv")]);
+    let mut app = device(vec![kit_file("vault.fvlt")]);
     backing_up(&mut app, true);
     unlock(&mut app);
     app.press(Action::BVaultSave(0));
     assert_eq!(
         kept(&app).seeds[0].lines[0],
-        line("In vault.ofv with its passphrase", Tone::Ok)
+        line("In vault.fvlt with its passphrase", Tone::Ok)
     );
 }
 

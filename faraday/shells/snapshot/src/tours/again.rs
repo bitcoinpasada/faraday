@@ -34,7 +34,7 @@ pub(crate) fn again_tour(t: &mut Tour) -> Result<(), String> {
     t.shot("again-watch-only-files")?;
     let vault = testkit::files()?
         .into_iter()
-        .find(|(n, _)| n == "vault.ofv")
+        .find(|(n, _)| n == "vault.fvlt")
         .ok_or("no test vault")?;
     let inbox: Vec<(String, Vec<u8>)> = t
         .app

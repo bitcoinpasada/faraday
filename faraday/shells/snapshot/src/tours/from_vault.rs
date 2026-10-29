@@ -26,7 +26,7 @@ pub(crate) fn from_vault_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     boot.boot = true;
     boot.label = "FARADAY".into();
     boot.files
-        .retain(|(n, _)| n == "vault.ofv" || n == "savings-unsigned.psbt");
+        .retain(|(n, _)| n == "vault.fvlt" || n == "savings-unsigned.psbt");
     t.app.storage(StorageEvent::Sticks(vec![boot]));
     t.pump();
     t.app.storage(StorageEvent::Memory {

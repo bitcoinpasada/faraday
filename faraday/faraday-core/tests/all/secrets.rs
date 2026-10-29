@@ -117,7 +117,7 @@ fn a_lock_leaves_no_secret_file_from_a_stick_in_the_inbox() {
             b"mail recovery\n1234 5678\n".to_vec(),
         ),
         kit_file("savings-wallet.txt"),
-        kit_file("vault.ofv"),
+        kit_file("vault.fvlt"),
     ]);
     let k = find(&app, "seed-words.txt");
     app.press(Action::LoadKey(k));
@@ -127,7 +127,7 @@ fn a_lock_leaves_no_secret_file_from_a_stick_in_the_inbox() {
     let names: Vec<&str> = inbox.iter().map(|(n, _)| n.as_str()).collect();
     assert_eq!(
         names,
-        ["savings-wallet.txt", "vault.ofv"],
+        ["savings-wallet.txt", "vault.fvlt"],
         "the words and the text are wiped with the session; the public wallet and the sealed vault stay"
     );
 }

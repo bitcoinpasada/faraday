@@ -752,7 +752,7 @@ fn restored_from_vault_named(file: &str) -> Faraday {
 #[test]
 fn a_wallet_restored_from_a_vault_with_any_name_goes_the_vault_route() {
     use faraday_core::family::Route;
-    let app = restored_from_vault_named("Savings vault.ofv");
+    let app = restored_from_vault_named("Savings vault.fvlt");
     assert_eq!(app.family().route, Some(Route::Vault));
 }
 

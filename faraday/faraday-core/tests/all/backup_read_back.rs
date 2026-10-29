@@ -684,11 +684,11 @@ fn a_key_loads_with_its_passphrase_kept_in_another_open_vault() {
         .with(field::PASSPHRASE, PASS.as_bytes());
     let files = vec![
         (
-            "words.ofv".to_string(),
+            "words.fvlt".to_string(),
             vault_with(vec![key], "words phrase", 1),
         ),
         (
-            "apart.ofv".to_string(),
+            "apart.fvlt".to_string(),
             vault_with(vec![pass], "apart phrase", 2),
         ),
     ];
@@ -698,8 +698,8 @@ fn a_key_loads_with_its_passphrase_kept_in_another_open_vault() {
         outbox: Vec::new(),
         kept: Vec::new(),
     });
-    unlock_file(&mut app, "apart.ofv", "apart phrase");
-    unlock_file(&mut app, "words.ofv", "words phrase");
+    unlock_file(&mut app, "apart.fvlt", "apart phrase");
+    unlock_file(&mut app, "words.fvlt", "words phrase");
     assert_eq!(app.vaults().open.len(), 2, "{:?}", unlock_error(&app));
     let v = app
         .vaults()
@@ -717,7 +717,7 @@ fn a_key_loads_with_its_passphrase_kept_in_another_open_vault() {
         outbox: Vec::new(),
         kept: Vec::new(),
     });
-    unlock_file(&mut app, "words.ofv", "words phrase");
+    unlock_file(&mut app, "words.fvlt", "words phrase");
     app.press(Action::Vault(V::LoadAll(0)));
     assert_eq!(app.session.keys.len(), 1);
     assert_eq!(app.session.keys[0].fingerprint.0, fp_of(2, ""));

@@ -1570,10 +1570,10 @@ pub(crate) fn wallet_name_in<'a>(
     crate::wallet::wallet_name(r.public_text(number).unwrap_or(or))
 }
 
-/// Longest name a vault's file takes, before `.ofv`.
+/// Longest name a vault's file takes, before `.fvlt`.
 pub const NAME_MAX: usize = 40;
 
-/// The file name, less `.ofv`, a vault named `typed` is written under:
+/// The file name, less `.fvlt`, a vault named `typed` is written under:
 /// letters, digits, hyphens and underscores, spaces made hyphens,
 /// anything else left out; `vault` when that leaves nothing, and a
 /// Windows device name (`con`, `com1`) with `-vault` after it.

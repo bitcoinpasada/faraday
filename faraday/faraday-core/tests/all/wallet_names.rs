@@ -171,13 +171,13 @@ fn a_vault_wallet_named_over_two_lines_reads_as_a_one_line_name() {
     app.session = testkit::session();
     app.storage(StorageEvent::Restored {
         inbox: vec![(
-            "named.ofv".to_string(),
+            "named.fvlt".to_string(),
             vault_with(vec![record], "named phrase"),
         )],
         outbox: Vec::new(),
         kept: Vec::new(),
     });
-    unlock_file(&mut app, "named.ofv", "named phrase");
+    unlock_file(&mut app, "named.fvlt", "named phrase");
     assert_eq!(app.vaults().open.len(), 1);
     app.press(Action::Vault(V::LoadAll(0)));
     assert_eq!(app.session.wallets.len(), 1);

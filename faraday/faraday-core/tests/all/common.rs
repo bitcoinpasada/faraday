@@ -494,7 +494,7 @@ impl Shell {
     pub fn vault_writes(&self) -> usize {
         self.writes
             .iter()
-            .filter(|(_, n)| n.ends_with(".ofv"))
+            .filter(|(_, n)| n.ends_with(".fvlt"))
             .count()
     }
 
@@ -547,13 +547,13 @@ pub fn write_any(
     replace: bool,
     renamed: bool,
 ) -> String {
-    if name.ends_with(".ofv")
-        && bytes.starts_with(b"OFVT")
+    if name.ends_with(".fvlt")
+        && bytes.starts_with(b"FVLT")
         && let Ok(h) = faraday_vault::read_header(bytes)
     {
         if replace
             && let Some(at) = files.iter().position(|(n, b)| {
-                n.ends_with(".ofv")
+                n.ends_with(".fvlt")
                     && b.len() == bytes.len()
                     && faraday_vault::read_header(b).is_ok_and(|o| o.salt == h.salt)
             })
@@ -608,8 +608,8 @@ pub fn rename(files: &mut Files, from: &str, to: &str) -> Option<faraday_core::U
         .find(|(n, _)| n != from && n.eq_ignore_ascii_case(to))
     {
         let mine = &files[at].1;
-        let same = from.ends_with(".ofv")
-            && to.ends_with(".ofv")
+        let same = from.ends_with(".fvlt")
+            && to.ends_with(".fvlt")
             && mine.len() == other.len()
             && faraday_vault::read_header(mine)
                 .ok()

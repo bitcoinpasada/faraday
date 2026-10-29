@@ -109,7 +109,7 @@ pub(crate) fn public_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     // and a signature, each as a code and a picture.
     let vault = testkit::files()?
         .into_iter()
-        .find(|(n, _)| n == "vault.ofv")
+        .find(|(n, _)| n == "vault.fvlt")
         .ok_or("no test vault")?;
     let outbox: Vec<(String, Vec<u8>)> = t
         .app

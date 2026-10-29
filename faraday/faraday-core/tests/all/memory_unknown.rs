@@ -80,8 +80,8 @@ fn try_unlock(app: &mut Faraday, name: &str) {
 
 #[test]
 fn memory_unknown_a_vault_above_light_is_not_unlocked_and_says_why() {
-    let mut app = silent(vec![("big.ofv".into(), vault_at(256))]);
-    try_unlock(&mut app, "big.ofv");
+    let mut app = silent(vec![("big.fvlt".into(), vault_at(256))]);
+    try_unlock(&mut app, "big.fvlt");
     assert!(app.vaults().open.is_empty(), "unlocked with memory unknown");
     let e = app.vaults().unlock_error.clone().unwrap_or_default();
     assert!(e.starts_with(UNKNOWN), "{e}");
@@ -89,8 +89,8 @@ fn memory_unknown_a_vault_above_light_is_not_unlocked_and_says_why() {
 
 #[test]
 fn memory_unknown_a_light_vault_unlocks() {
-    let mut app = silent(vec![("light.ofv".into(), vault_at(64))]);
-    try_unlock(&mut app, "light.ofv");
+    let mut app = silent(vec![("light.fvlt".into(), vault_at(64))]);
+    try_unlock(&mut app, "light.fvlt");
     assert_eq!(
         app.vaults().open.len(),
         1,

@@ -178,7 +178,7 @@ fn after_an_idle_lock_the_machine_powers_off_at_sixty_minutes() {
 
 #[test]
 fn a_full_outbox_holds_the_power_off_and_says_why() {
-    let mut app = after_idle_lock(vec![("vault.ofv".into(), vec![1, 2, 3])]);
+    let mut app = after_idle_lock(vec![("vault.fvlt".into(), vec![1, 2, 3])]);
     app.press(Action::Cancel);
     tick(&mut app, 0);
     assert!(!tick(&mut app, 120 * MIN).contains(&Command::Exit));

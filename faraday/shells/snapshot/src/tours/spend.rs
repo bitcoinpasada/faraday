@@ -30,7 +30,7 @@ pub(crate) fn spend_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::Nav(Screen::Family));
     t.sticks(true);
     t.press(Action::VisitInAll);
-    for name in ["vault.ofv", "savings-unsigned.psbt"] {
+    for name in ["vault.fvlt", "savings-unsigned.psbt"] {
         if let Some(i) = t.stick().files.iter().position(|(n, _)| n == name) {
             t.press(Action::VisitIn(i));
         }

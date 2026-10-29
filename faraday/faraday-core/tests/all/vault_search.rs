@@ -81,7 +81,7 @@ fn unlocked(width: u16, height: u16, dpi: u16) -> Faraday {
         app.event(Event::Entropy(EntropyBytes::new([0x60 + i; 32])));
     }
     app.storage(StorageEvent::Restored {
-        inbox: vec![("passwords.ofv".into(), many_entries())],
+        inbox: vec![("passwords.fvlt".into(), many_entries())],
         outbox: Vec::new(),
         kept: Vec::new(),
     });

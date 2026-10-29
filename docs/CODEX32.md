@@ -558,7 +558,7 @@ working, and every computed cell opens to what made it (§6.4, §7.4).
   `faraday/faraday-core/tests/all/codex32_backup.rs`,
   `faraday/faraday-keys/tests/codex32.rs` (its `set` module) and
   `faraday/faraday-vault/tests/codex32.rs`, with the vector
-  `tools/vectors/vault/vault-codex32.ofv`.
+  `tools/vectors/vault/vault-codex32.fvlt`.
 - **Strings kept beyond paper** (C8-rest, §9.5): the strings of a key's
   set this session has seen (made here, typed back in the checklist's
   item, or read from a vault's share records) are kept with the key in

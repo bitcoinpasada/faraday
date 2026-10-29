@@ -171,7 +171,7 @@ pub struct SampleWallet {
 /// The other inputs a flow takes (`docs/MODES.md` §5.3).
 #[derive(Debug, Clone, Copy)]
 pub struct SampleInputs {
-    /// A vault file (`.ofv`) under the passphrase `faraday`.
+    /// A vault file (`.fvlt`) under the passphrase `faraday`.
     pub vault: &'static [u8],
     /// A signed message, in the text form a person pastes: made by sample
     /// Spending's first receive address.

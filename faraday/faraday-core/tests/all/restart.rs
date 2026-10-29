@@ -36,7 +36,7 @@ fn exited(app: &mut Faraday) -> bool {
 fn with_outbox(app: &mut Faraday) {
     app.storage(StorageEvent::Restored {
         inbox: Vec::new(),
-        outbox: vec![("vault.ofv".into(), vec![1, 2, 3])],
+        outbox: vec![("vault.fvlt".into(), vec![1, 2, 3])],
         kept: Vec::new(),
     });
 }

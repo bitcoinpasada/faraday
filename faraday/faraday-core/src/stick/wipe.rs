@@ -40,7 +40,7 @@ const BOUNDARY: &str = EN.stick_wipe_boundary_why;
 
 /// Whether a file on a stick is a vault, by its name.
 fn is_vault_name(name: &str) -> bool {
-    name.to_ascii_lowercase().ends_with(".ofv")
+    name.to_ascii_lowercase().ends_with(".fvlt")
 }
 
 /// How fast a typical stick is written and read back, MB a second, for

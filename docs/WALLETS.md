@@ -93,7 +93,7 @@ SeedSigner and a Coldcard. The Wallets tab's central object is therefore a
 
 | Starting from | What happens |
 |---|---|
-| **A vault holding a wallet and one of its keys** | At unlock the wallet loads into the Wallets tab with its key attached. The card opens at "1 of 2 signatures possible here." Nothing to do. The boot sheet's Unlock lands on Wallets with "Savings loaded from vault.ofv", the first wallet loaded that can sign here selected (`docs/history/NEW-WALLET.md` §11.1). |
+| **A vault holding a wallet and one of its keys** | At unlock the wallet loads into the Wallets tab with its key attached. The card opens at "1 of 2 signatures possible here." Nothing to do. The boot sheet's Unlock lands on Wallets with "Savings loaded from vault.fvlt", the first wallet loaded that can sign here selected (`docs/history/NEW-WALLET.md` §11.1). |
 | **A key with no wallet** (from a vault, or added on its own) | Listed under **Keys without a wallet**. With no wallet loaded the card offers **Make a wallet from this key** (Restore's Seeds card with the key in its slot: single key, native SegWit, account 0), **Add another key** (the same on a 2-of-2 multisig) and **Load or restore a wallet**; with wallets loaded the key's row carries **Make a wallet from this key**. |
 | **A wallet description arriving** (scan, file, Files; any form in §3.2) | The Wallets tab derives each vault key's account key at the descriptor's paths and compares, attaches every match, and marks the rest watch-only. "This wallet uses 73c5da0a from Main" says which matched. **Save the wallet to a vault** is offered. |
 | **Pieces of a description** (split sheets, key lines, a partial config, SeedSigner exports one at a time) | The card exists from the first piece, with the quorum unknown or stated, and lists fingerprints in hand and still missing. It completes when the last piece arrives. Overlapping pieces deduplicate; pieces that give one fingerprint two xpubs or two derivations, or that carry two names, are refused, and a vault's piece is taken only where the wallet it names holds every key of the pieces in hand and of its own. |
@@ -596,7 +596,7 @@ next stick, and the receipt names the vault file each stick got.
 Under the list, **Change the plan** goes back to the questions; it is
 the one way out of an item not done. Items the new plan still has stay
 done; what a vault holds that the new plan drops stays on the map as
-what it is ("vault.ofv holds seed 9A6A2580"). With every item done,
+what it is ("vault.fvlt holds seed 9A6A2580"). With every item done,
 "Backup done", then the plan's three checks as a strip, each value
 large in its colour, the wallet's chart of the plan (wallet first),
 **Open the wallet**, **Change the plan** (2026-10-10,
@@ -654,7 +654,7 @@ file names and the counts by fingerprint, never a place's name, and is
 kept across a lock (kept state, `backups`) and gone at power-off. A
 backup of the wallet opened again starts with its seeds checked. The
 wallet card's line under its shape says the same in one line ("Backup:
-paper ×2 checked · vault.ofv · for the stick", or "Not backed up") and
+paper ×2 checked · vault.fvlt · for the stick", or "Not backed up") and
 opens Backups on that wallet.
 
 ## 6. Guided mode

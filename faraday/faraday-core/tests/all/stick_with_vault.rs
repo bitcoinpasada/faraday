@@ -42,7 +42,7 @@ fn opened() -> Faraday {
         )));
     }
     app.storage(StorageEvent::Restored {
-        inbox: vec![kit_file("vault.ofv")],
+        inbox: vec![kit_file("vault.fvlt")],
         outbox: Vec::new(),
         kept: Vec::new(),
     });

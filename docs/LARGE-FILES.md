@@ -281,7 +281,7 @@ hostile-peer checks in both directions and its wiping.
   already passed is refused, as is one that ends before the size or
   leaves the volume (`chain_start`'s rules). This is dropped when
   another file is read, the stick goes, or the pipes are opened again.
-- A `.ofv` read at offset 0 first finishes interrupted vault writes, as
+- A `.fvlt` read at offset 0 first finishes interrupted vault writes, as
   `read` does today (`finish_vault_writes`).
 - **ReadQr** refuses a picture over the threshold before reading it,
   and answers a picture's codes only; its bytes come by ReadPart like

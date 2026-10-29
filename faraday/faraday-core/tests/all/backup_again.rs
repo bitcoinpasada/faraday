@@ -215,7 +215,7 @@ fn a_watch_only_wallet_plans_no_seeds_and_puts_each_public_file_in_the_outbox() 
 #[test]
 fn a_restored_single_key_wallet_saves_itself_into_a_vault_from_its_backup() {
     let c = testkit::compute();
-    let mut app = device(vec![kit_file("vault.ofv")]);
+    let mut app = device(vec![kit_file("vault.fvlt")]);
     let fp = add_key(&mut app, 1);
     app.press(Action::KeyWallet(fp.0, 1));
     app.press(Action::Seeds(S::Make));

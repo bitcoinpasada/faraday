@@ -353,7 +353,7 @@ fn seed_bs_words_file_beside_vault_1_is_written_in_one_visit_and_the_stick_is_re
         let w = f.slots[0].written.as_ref().expect("S1 written");
         let wrote: Vec<&str> = w.files.iter().map(|(n, _)| n.as_str()).collect();
         assert!(wrote.contains(&seed_b.as_str()), "{wrote:?}");
-        assert!(wrote.iter().any(|n| n.ends_with(".ofv")), "{wrote:?}");
+        assert!(wrote.iter().any(|n| n.ends_with(".fvlt")), "{wrote:?}");
         assert!(f.slots[1].written.is_none());
     }
     let on_s1 = names(&shell, "S1");
@@ -664,7 +664,7 @@ fn two_sticks_of_vault_1_at_one_place_are_written_as_two_sticks_each_recognised(
     );
     for d in ["S1", "S2"] {
         assert!(
-            names(&shell, d).iter().any(|n| n.ends_with(".ofv")),
+            names(&shell, d).iter().any(|n| n.ends_with(".fvlt")),
             "{d}: {:?}",
             names(&shell, d)
         );
@@ -1455,7 +1455,7 @@ fn main_vault_board(shell: &mut Shell) -> (Faraday, testkit::Kit) {
         )
         .unwrap()
     };
-    shell.disk_mut("S1").files = vec![("main.ofv".into(), main)];
+    shell.disk_mut("S1").files = vec![("main.fvlt".into(), main)];
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
     keep_time(&mut app);
     app.press(Action::CreateWallet);
@@ -1475,7 +1475,7 @@ fn main_vault_board(shell: &mut Shell) -> (Faraday, testkit::Kit) {
         .unwrap()
         .files
         .iter()
-        .position(|(f, _)| f.name == "main.ofv")
+        .position(|(f, _)| f.name == "main.fvlt")
         .expect("the vault is read");
     shell.flow(&mut app, F::PickFile(0, k));
     shell.flow(&mut app, F::Tap);

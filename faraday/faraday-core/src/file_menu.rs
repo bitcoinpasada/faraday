@@ -106,7 +106,7 @@ pub struct Renaming {
     pub from: String,
     /// What the field holds: the name before its extension.
     pub stem: String,
-    /// The extension, fixed: `.ofv` for a vault; empty for a name with
+    /// The extension, fixed: `.fvlt` for a vault; empty for a name with
     /// none.
     pub ext: String,
 }
@@ -152,7 +152,7 @@ const NOT_IN_NAMES: &[char] = &['/', '\\', ':', '*', '?', '"', '<', '>', '|'];
 /// The longest name, its extension with it.
 const NAME_MAX: usize = 255;
 
-/// A name split before its extension: `.ofv` for a vault, every file its
+/// A name split before its extension: `.fvlt` for a vault, every file its
 /// own; a name with no dot past its first character has none.
 fn split(name: &str) -> (String, String) {
     match name.rfind('.') {

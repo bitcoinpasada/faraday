@@ -896,7 +896,7 @@ fn vaults(on: On, mode: Mode) -> Vec<String> {
     let mut rig = rig(
         on,
         mode,
-        vec![("vault.ofv".into(), testkit::test_vault().unwrap())],
+        vec![("vault.fvlt".into(), testkit::test_vault().unwrap())],
     );
     rig.press(Action::Nav(Screen::Vaults));
     rig.press(Action::Vault(V::Open(0)));

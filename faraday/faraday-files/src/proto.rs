@@ -624,7 +624,7 @@ mod tests {
             },
             Request::Write {
                 stick: "sdb1@7".into(),
-                name: "vault.ofv".into(),
+                name: "vault.fvlt".into(),
                 replace: false,
                 renamed: true,
                 bytes: vec![1, 2, 3],
@@ -656,8 +656,8 @@ mod tests {
             },
             Request::Rename {
                 stick: "sdb1@7".into(),
-                from: "vault.ofv".into(),
-                to: "savings.ofv".into(),
+                from: "vault.fvlt".into(),
+                to: "savings.fvlt".into(),
             },
         ];
         for r in requests {

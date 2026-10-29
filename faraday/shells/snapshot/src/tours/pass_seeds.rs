@@ -69,7 +69,7 @@ pub(crate) fn pass_seeds_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     )
     .map_err(|e| format!("{e:?}"))?;
     t.app.storage(StorageEvent::Restored {
-        inbox: vec![("trio.ofv".into(), file)],
+        inbox: vec![("trio.fvlt".into(), file)],
         outbox: Vec::new(),
         kept: Vec::new(),
     });

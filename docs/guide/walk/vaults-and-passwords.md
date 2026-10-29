@@ -22,7 +22,7 @@ one on its own, for keys and for everything else.
 
 **Time:** about 30 minutes.
 
-A vault is one file, `.ofv`, sealed under one to four passphrases.
+A vault is one file, `.fvlt`, sealed under one to four passphrases.
 Faraday opens it in memory, seals it again at every lock, and writes it
 to a stick on the next stick visit. The passphrases on this page are
 examples only: never use a passphrase printed anywhere, this page
@@ -59,8 +59,8 @@ as it is.
 
 Under **Name and passphrases**:
 
-1. **Name**: type `Passwords`. Beside it, **File Passwords.ofv**. The name is what anyone who sees the stick reads;
-   leave it empty for `vault.ofv`.
+1. **Name**: type `Passwords`. Beside it, **File Passwords.fvlt**. The name is what anyone who sees the stick reads;
+   leave it empty for `vault.fvlt`.
 2. **Passphrase 1**: type it in the first field, then again in the
    second, until the line under them reads **Matches**. The eye at the
    end of a field, or **Show passphrases**, shows what is typed. Or
@@ -146,7 +146,7 @@ The page is now the vault's contents, in three columns:
 
 | Part | What it shows |
 |---|---|
-| the title | the vault's name, then **Open**, or "Open ·" and the unsaved changes (**Open · 1 unsaved change**); **Rename** and **Lock** on the right; under it the file's name and its cost (`Passwords.ofv · 64 MiB · 3 passes`) |
+| the title | the vault's name, then **Open**, or "Open ·" and the unsaved changes (**Open · 1 unsaved change**); **Rename** and **Lock** on the right; under it the file's name and its cost (`Passwords.fvlt · 64 MiB · 3 passes`) |
 | the first column | each kind the vault holds, with its count: **Bitcoin keys**, **Wallets**, **Entries**, **Notes**, **GPG keys**, **Secure Boot**; then a row per kind to add, each with **+**: **Bitcoin key**, **Wallet**, **Entry**, **Note**, **GPG key**, **Secure Boot** |
 | the second column | the items of the kind chosen, with its add button (**Save a key**, **Save a wallet**, **Add an entry**, **Add a note**) |
 | the third column | the item chosen |
@@ -279,9 +279,9 @@ its changes for the stick, wipes every key, and starts Faraday again on
 ## 9. Write it to a stick
 
 Plug the stick in. With nothing loaded, **Stick visit** opens: under
-**In Faraday**, `Passwords.ofv` and `mail.kdbx` are ticked. Press
+**In Faraday**, `Passwords.fvlt` and `mail.kdbx` are ticked. Press
 **Write 2 files**. Each file is written, read back and compared; the
-visit's line reads "Wrote Passwords.ofv, read back and matched". Then
+visit's line reads "Wrote Passwords.fvlt, read back and matched". Then
 pull the stick. [Files, sticks and QR codes](files-and-sticks.md#3-write-files-to-a-stick)
 goes through the visit.
 
@@ -305,7 +305,7 @@ another file of its name is kept, and this one is written beside it.
 ## 10. Unlock it again, and load from it
 
 After a power-off the vault is only on its stick. Plug the stick in
-with no key loaded: on **Stick visit**, `Passwords.ofv` is ticked under
+with no key loaded: on **Stick visit**, `Passwords.fvlt` is ticked under
 **On the stick**. Press **Import 1 file**, then pull the stick. A
 vault on the Faraday stick itself comes in at start instead, on **Read
 from …** ([Read from the boot stick](../screens/prompts.md#read-from-the-boot-stick)).

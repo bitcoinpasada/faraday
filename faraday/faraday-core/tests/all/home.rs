@@ -361,7 +361,7 @@ fn home_lead_rule_2_a_psbt_in_files_offers_to_sign_it() {
 fn home_lead_rule_5_a_locked_vault_offers_to_unlock_it() {
     use faraday_core::vault::VaultAction as V;
     let vault = faraday_core::testkit::test_vault().unwrap();
-    let app = with_inbox(vec![("vault.ofv", vault)]);
+    let app = with_inbox(vec![("vault.fvlt", vault)]);
     assert!(
         app.offers(Action::Vault(V::Open(0))),
         "Home leads with Unlock {{name}}"
@@ -372,7 +372,7 @@ fn home_lead_rule_5_a_locked_vault_offers_to_unlock_it() {
 fn home_lead_rule_5_with_a_stick_in_asks_to_pull_it_first() {
     use faraday_core::vault::VaultAction as V;
     let vault = faraday_core::testkit::test_vault().unwrap();
-    let mut app = with_inbox(vec![("vault.ofv", vault)]);
+    let mut app = with_inbox(vec![("vault.fvlt", vault)]);
     stick(&mut app, true);
     assert!(
         !app.offers(Action::Vault(V::Open(0))),
@@ -410,7 +410,7 @@ fn home_lead_rule_3_an_import_waiting() {
     let files = vec![
         ("notes.txt".to_string(), b"a note".to_vec()),
         (
-            "vault.ofv".to_string(),
+            "vault.fvlt".to_string(),
             faraday_core::testkit::test_vault().unwrap(),
         ),
     ];
@@ -444,7 +444,7 @@ fn home_lead_rule_3_an_import_waiting() {
     app.storage(StorageEvent::Sticks(Vec::new()));
     let _ = app.frame();
     let texts = app.drawn_texts();
-    assert!(texts.iter().any(|t| t == "Unlock vault.ofv"), "{texts:?}");
+    assert!(texts.iter().any(|t| t == "Unlock vault.fvlt"), "{texts:?}");
     assert!(app.offers(faraday_core::boot_import::OPEN));
     app.press(faraday_core::boot_import::OPEN);
     assert_eq!(app.sheet, Some(Sheet::Import));
@@ -544,7 +544,7 @@ fn the_flows_opened_from_wallets_lead_back_to_wallets() {
 fn homes_vaults_opens_the_list_once_there_is_a_vault() {
     use faraday_core::vault::VaultAction as V;
     let vault = faraday_core::testkit::test_vault().unwrap();
-    let app = with_inbox(vec![("vault.ofv", vault)]);
+    let app = with_inbox(vec![("vault.fvlt", vault)]);
     assert!(!app.offers(Action::Vault(V::Create)));
 }
 
@@ -568,7 +568,7 @@ fn home_lead_rule_5_reads_what_the_vault_held_when_last_seen_open() {
     use faraday_core::StorageCommand;
     use faraday_core::vault::VaultAction as V;
     let vault = faraday_core::testkit::test_vault().unwrap();
-    let mut app = with_inbox(vec![("vault.ofv", vault)]);
+    let mut app = with_inbox(vec![("vault.fvlt", vault)]);
     app.storage(StorageEvent::Memory {
         available_mib: 15_000,
     });
@@ -675,7 +675,7 @@ fn home_lead_rule_6_a_vault_changed_since_written_offers_to_write_it() {
     let c = faraday_core::testkit::compute();
     use faraday_core::vault::VaultAction as V;
     let vault = faraday_core::testkit::test_vault().unwrap();
-    let mut app = with_inbox(vec![("vault.ofv", vault)]);
+    let mut app = with_inbox(vec![("vault.fvlt", vault)]);
     app.storage(StorageEvent::Memory {
         available_mib: 15_000,
     });

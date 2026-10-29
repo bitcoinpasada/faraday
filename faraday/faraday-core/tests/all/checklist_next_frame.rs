@@ -141,7 +141,7 @@ fn a_vault_opened_mid_checklist_holding_the_wallet_ticks_the_vault_2_card_on_the
     let earlier: Vec<(String, Vec<u8>)> = app
         .outbox
         .iter()
-        .filter(|i| i.name.ends_with(".ofv"))
+        .filter(|i| i.name.ends_with(".fvlt"))
         .map(|i| (i.name.clone(), i.bytes.clone()))
         .collect();
     assert_eq!(earlier.len(), 1, "one vault sealed at the lock");

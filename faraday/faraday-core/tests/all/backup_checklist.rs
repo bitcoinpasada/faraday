@@ -48,7 +48,7 @@ fn vault_file() -> (String, Vec<u8>) {
     testkit::files()
         .unwrap()
         .into_iter()
-        .find(|(n, _)| n == "vault.ofv")
+        .find(|(n, _)| n == "vault.fvlt")
         .unwrap()
 }
 
@@ -592,7 +592,7 @@ fn each_vault_is_its_own_item_and_the_second_does_not_take_the_vault_the_first_f
     assert_eq!(
         app.outbox
             .iter()
-            .filter(|i| i.name.ends_with(".ofv"))
+            .filter(|i| i.name.ends_with(".fvlt"))
             .count(),
         2,
         "two vault files for the sticks"

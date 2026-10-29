@@ -102,7 +102,7 @@ fn copied_in() -> Faraday {
     let vault = testkit::files()
         .unwrap()
         .into_iter()
-        .find(|(n, _)| n == "vault.ofv")
+        .find(|(n, _)| n == "vault.fvlt")
         .unwrap();
     app.storage(StorageEvent::Restored {
         inbox: vec![vault],
@@ -919,7 +919,7 @@ fn with_one_file_it_starts_ticked() {
     let vault = testkit::files()
         .unwrap()
         .into_iter()
-        .find(|(n, _)| n == "vault.ofv")
+        .find(|(n, _)| n == "vault.fvlt")
         .unwrap();
     app.storage(StorageEvent::Restored {
         inbox: vec![vault, ("SHA256SUMS".into(), b"hello".to_vec())],
@@ -1320,7 +1320,7 @@ fn files_from_a_second_stick_after_the_boot_stick_are_offered_for_signing() {
     });
     app.storage(StorageEvent::Clock { unix_secs: CLOCK });
     faraday_core::testkit::vault_speed(&mut app, Some(180));
-    let boot = [("vault.ofv".to_string(), testkit::test_vault().unwrap())];
+    let boot = [("vault.fvlt".to_string(), testkit::test_vault().unwrap())];
     let listing = |files: &[(String, Vec<u8>)]| -> Vec<(String, u64)> {
         files
             .iter()
@@ -1452,7 +1452,7 @@ fn files_imported_from_the_boot_sheet_are_offered_for_signing() {
         ),
     ];
     let mut boot = files.clone();
-    boot.push(("vault.ofv".to_string(), testkit::test_vault().unwrap()));
+    boot.push(("vault.fvlt".to_string(), testkit::test_vault().unwrap()));
     app.storage(StorageEvent::Sticks(vec![StickInfo {
         serial: None,
         id: "B".into(),

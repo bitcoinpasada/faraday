@@ -34,7 +34,7 @@ fn stick(name: &str) -> Stick {
 /// length that slot size gives.
 fn vault(salt: u8, fill: u8) -> Vec<u8> {
     let mut v = vec![fill; 53 + 4 * (65_536 + 40)];
-    v[0..4].copy_from_slice(b"OFVT");
+    v[0..4].copy_from_slice(b"FVLT");
     v[4] = 1;
     v[17..21].copy_from_slice(&65_536u32.to_le_bytes());
     v[21..53].fill(salt);
@@ -44,33 +44,33 @@ fn vault(salt: u8, fill: u8) -> Vec<u8> {
 #[test]
 fn a_vault_goes_back_over_its_own_file() {
     let dir = stick("over");
-    fs::write(dir.join("vault.ofv"), vault(1, 0)).unwrap();
-    fs::write(dir.join("vault-2.ofv"), vault(2, 0)).unwrap();
+    fs::write(dir.join("vault.fvlt"), vault(1, 0)).unwrap();
+    fs::write(dir.join("vault-2.fvlt"), vault(2, 0)).unwrap();
     let id = dir.to_str().unwrap();
-    // The second vault, sealed and offered as vault.ofv, still replaces
-    // vault-2.ofv: the name is not the vault's identity.
-    let wrote = faraday_storage::write_vault(id, "vault.ofv", &vault(2, 9)).unwrap();
-    assert_eq!(wrote, "vault-2.ofv");
-    assert_eq!(fs::read(dir.join("vault-2.ofv")).unwrap(), vault(2, 9));
-    assert_eq!(fs::read(dir.join("vault.ofv")).unwrap(), vault(1, 0));
+    // The second vault, sealed and offered as vault.fvlt, still replaces
+    // vault-2.fvlt: the name is not the vault's identity.
+    let wrote = faraday_storage::write_vault(id, "vault.fvlt", &vault(2, 9)).unwrap();
+    assert_eq!(wrote, "vault-2.fvlt");
+    assert_eq!(fs::read(dir.join("vault-2.fvlt")).unwrap(), vault(2, 9));
+    assert_eq!(fs::read(dir.join("vault.fvlt")).unwrap(), vault(1, 0));
     // A vault no file on the stick has is written as a new one.
-    let wrote = faraday_storage::write_vault(id, "vault.ofv", &vault(3, 0)).unwrap();
-    assert_eq!(wrote, "vault-3.ofv");
+    let wrote = faraday_storage::write_vault(id, "vault.fvlt", &vault(3, 0)).unwrap();
+    assert_eq!(wrote, "vault-3.fvlt");
 }
 
 #[test]
 fn an_interrupted_write_back_is_finished() {
     let dir = stick("interrupted");
     // The original was deleted and the copy never renamed.
-    fs::write(dir.join(".faraday-vault.ofv.part"), vault(1, 5)).unwrap();
+    fs::write(dir.join(".faraday-vault.fvlt.part"), vault(1, 5)).unwrap();
     // A copy cut short beside its original.
-    fs::write(dir.join("vault-2.ofv"), vault(2, 0)).unwrap();
-    fs::write(dir.join(".faraday-vault-2.ofv.part"), &vault(2, 7)[..1000]).unwrap();
+    fs::write(dir.join("vault-2.fvlt"), vault(2, 0)).unwrap();
+    fs::write(dir.join(".faraday-vault-2.fvlt.part"), &vault(2, 7)[..1000]).unwrap();
     faraday_storage::finish_vault_writes(&dir);
-    assert_eq!(fs::read(dir.join("vault.ofv")).unwrap(), vault(1, 5));
-    assert_eq!(fs::read(dir.join("vault-2.ofv")).unwrap(), vault(2, 0));
-    assert!(!dir.join(".faraday-vault.ofv.part").exists());
-    assert!(!dir.join(".faraday-vault-2.ofv.part").exists());
+    assert_eq!(fs::read(dir.join("vault.fvlt")).unwrap(), vault(1, 5));
+    assert_eq!(fs::read(dir.join("vault-2.fvlt")).unwrap(), vault(2, 0));
+    assert!(!dir.join(".faraday-vault.fvlt.part").exists());
+    assert!(!dir.join(".faraday-vault-2.fvlt.part").exists());
 }
 
 /// A vault written over its same vault on a stick keeps the name the
@@ -81,21 +81,21 @@ fn an_interrupted_write_back_is_finished() {
 fn a_vault_keeps_its_name_on_the_stick_unless_renamed_for_the_stick() {
     use faraday_storage::Sticks;
     let dir = stick("renamed");
-    fs::write(dir.join("savings.ofv"), vault(1, 0)).unwrap();
+    fs::write(dir.join("savings.fvlt"), vault(1, 0)).unwrap();
     let id = dir.to_str().unwrap();
     let mut sticks = faraday_storage::Dirs::default();
     let wrote = sticks
-        .write(id, "vault.ofv", &vault(1, 9), true, false)
+        .write(id, "vault.fvlt", &vault(1, 9), true, false)
         .unwrap();
-    assert_eq!(wrote, "savings.ofv", "a rename made on the stick stays");
-    assert_eq!(fs::read(dir.join("savings.ofv")).unwrap(), vault(1, 9));
-    assert!(!dir.join("vault.ofv").exists());
+    assert_eq!(wrote, "savings.fvlt", "a rename made on the stick stays");
+    assert_eq!(fs::read(dir.join("savings.fvlt")).unwrap(), vault(1, 9));
+    assert!(!dir.join("vault.fvlt").exists());
     let wrote = sticks
-        .write(id, "mine.ofv", &vault(1, 5), true, true)
+        .write(id, "mine.fvlt", &vault(1, 5), true, true)
         .unwrap();
-    assert_eq!(wrote, "mine.ofv");
-    assert_eq!(fs::read(dir.join("mine.ofv")).unwrap(), vault(1, 5));
-    assert!(!dir.join("savings.ofv").exists());
+    assert_eq!(wrote, "mine.fvlt");
+    assert_eq!(fs::read(dir.join("mine.fvlt")).unwrap(), vault(1, 5));
+    assert!(!dir.join("savings.fvlt").exists());
 }
 
 /// A file on a stick renamed in place keeps its bytes; a name another
@@ -108,8 +108,8 @@ fn a_rename_on_a_stick_keeps_the_bytes_and_refuses_a_name_taken() {
     let dir = stick("rename");
     fs::write(dir.join("notes.txt"), b"the notes").unwrap();
     fs::write(dir.join("Other.txt"), b"other").unwrap();
-    fs::write(dir.join("vault.ofv"), vault(1, 0)).unwrap();
-    fs::write(dir.join("vault-copy.ofv"), vault(1, 0)).unwrap();
+    fs::write(dir.join("vault.fvlt"), vault(1, 0)).unwrap();
+    fs::write(dir.join("vault-copy.fvlt"), vault(1, 0)).unwrap();
     let id = dir.to_str().unwrap();
     let mut sticks = faraday_storage::Dirs::default();
     assert_eq!(
@@ -117,11 +117,11 @@ fn a_rename_on_a_stick_keeps_the_bytes_and_refuses_a_name_taken() {
         Err(Unrenamed::Taken)
     );
     assert_eq!(
-        sticks.rename(id, "vault-copy.ofv", "VAULT.ofv"),
+        sticks.rename(id, "vault-copy.fvlt", "VAULT.fvlt"),
         Err(Unrenamed::SameVault)
     );
     assert_eq!(fs::read(dir.join("notes.txt")).unwrap(), b"the notes");
-    assert!(dir.join("vault-copy.ofv").exists());
+    assert!(dir.join("vault-copy.fvlt").exists());
     assert_eq!(sticks.rename(id, "notes.txt", "march.txt"), Ok(()));
     assert_eq!(fs::read(dir.join("march.txt")).unwrap(), b"the notes");
     assert!(!dir.join("notes.txt").exists());

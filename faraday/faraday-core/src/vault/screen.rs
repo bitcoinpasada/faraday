@@ -919,7 +919,7 @@ fn create_summaries(app: &View) -> [String; vstep::COUNT] {
             ],
         ),
         fill(
-            EN.vault_ofv,
+            EN.vault_fvlt,
             &[
                 &vault::vault_stem(&c.name.text).to_string(),
                 &n.to_string(),
@@ -1254,7 +1254,7 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                 va(V::CName),
             );
             let file = fill(
-                EN.vault_file_ofv,
+                EN.vault_file_fvlt,
                 &[&vault::vault_stem(&c.name.text).to_string()],
             );
             if nw + 16.0 + ui.measure_as(BODY_S, &file) <= w {
@@ -1560,7 +1560,7 @@ fn create_summary(app: &View, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     let facts = [
         (
             EN.vault_file,
-            format!("{}.ofv", vault::vault_stem(&c.name.text)),
+            format!("{}.fvlt", vault::vault_stem(&c.name.text)),
         ),
         (EN.vault_size, file_text(file_len(c.slot))),
         (EN.vault_unlock_memory, mib_text(mem)),

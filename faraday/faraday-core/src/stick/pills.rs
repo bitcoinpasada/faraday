@@ -296,7 +296,7 @@ impl Faraday {
                     && w.files.iter().all(|(n, sha)| {
                         st.files.iter().any(|(x, _)| x == n)
                             && read.as_ref().is_none_or(|rd| {
-                                !n.to_ascii_lowercase().ends_with(".ofv")
+                                !n.to_ascii_lowercase().ends_with(".fvlt")
                                     || rd.iter().any(|(x, h)| x == n && h == sha)
                             })
                     });

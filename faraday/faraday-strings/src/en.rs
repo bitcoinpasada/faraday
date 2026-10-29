@@ -2042,7 +2042,7 @@ strings! {
     /// Text. `{}`: `m.a_full_cap()`.
     family_labelled_faraday: "{} labelled Faraday, and a passphrase on a separate card",
     /// Text. `{}`: `m.noun()`.
-    family_looks_medium: "The {} starts the computer and carries the vault, a locked file named like vault.ofv. The passphrase opens it. The vault holds the wallet and the keys that sign for it.",
+    family_looks_medium: "The {} starts the computer and carries the vault, a locked file named like vault.fvlt. The passphrase opens it. The vault holds the wallet and the keys that sign for it.",
     /// Text in `title`.
     family_how_to_spend: "How to spend bitcoin",
     /// Text in `title`. `{}`: `app.medium.noun()`.
@@ -7718,7 +7718,7 @@ strings! {
     /// Text. `{}`: `size_text(c.slot)`, `file_text(file_len(c.slot))`.
     vault_file_n: "{} · file {}",
     /// Text. `{}`: `vault::vault_stem(&c.name.text)`, `n`, `if n == 1 { FEN.vault_passphrase_inline } …`, `if ok { FEN.vault_match } else { FEN.…`.
-    vault_ofv: "{}.ofv · {} {} · {}",
+    vault_fvlt: "{}.fvlt · {} {} · {}",
     /// Text in `create_summaries`.
     vault_passphrase_inline: "passphrase",
     /// Text in `create_summaries`.
@@ -7772,9 +7772,9 @@ strings! {
     /// Line in `create_body`.
     vault_name: "Name",
     /// Text in `create_body`. `{}`: `app.medium.noun()`.
-    vault_what_it_holds: "What it holds, for anyone who sees the {} · leave empty for vault.ofv",
+    vault_what_it_holds: "What it holds, for anyone who sees the {} · leave empty for vault.fvlt",
     /// Text in `create_body`. `{}`: `vault::vault_stem(&c.name.text)`.
-    vault_file_ofv: "File {}.ofv",
+    vault_file_fvlt: "File {}.fvlt",
     /// Text in `create_body`. `{}`: `app.medium.noun()`.
     vault_remove_the_then: "Remove the {}, then type the passphrases",
     /// Text in `create_body`.
@@ -8707,7 +8707,7 @@ strings! {
     /// Name of the LND cipher seed sample.
     sample_aezeed: "LND cipher seed",
     /// File name of the sample vault, which Use a sample puts in the Inbox.
-    sample_vault_file: "sample.ofv",
+    sample_vault_file: "sample.fvlt",
     /// File name of the sample signed message, which Use a sample puts in
     /// the Inbox.
     sample_message_file: "sample-message.txt",

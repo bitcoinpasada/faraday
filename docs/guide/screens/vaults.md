@@ -7,7 +7,7 @@
 
 The list of the vaults in Files, a vault's Unlock, and the two sheets
 that load from a vault once it is open. A vault is one encrypted file
-(`.ofv`); Files holds it while Faraday runs, and a stick visit carries
+(`.fvlt`); Files holds it while Faraday runs, and a stick visit carries
 it in and out.
 
 ## Vaults
@@ -127,7 +127,7 @@ title is **Load from …** with the vault's name ("Load from Passwords"), or "Lo
 
 What is ticked at first is what the vault saves with **Load at unlock**
 on ([Vault contents](vault.md#a-key)). After the sheet, a wallet loaded
-opens Wallets on it, with "… loaded from vault.ofv"; with none, Files
+opens Wallets on it, with "… loaded from vault.fvlt"; with none, Files
 stays.
 
 ## Seeds with no passphrase stored

@@ -30,7 +30,7 @@ pub(crate) fn visit_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
         names.push(format!("{stem}-share-{k}-of-3.txt"));
         names.push(format!("{stem}-key-{k}-sheet.pdf"));
     }
-    names.push(format!("{stem}-vault.ofv"));
+    names.push(format!("{stem}-vault.fvlt"));
     names.push(format!("{stem}-checklist.pdf"));
     names.push(format!("{stem}-recovery.txt"));
     for name in &names {

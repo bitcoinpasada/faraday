@@ -66,7 +66,7 @@ Closed, **A secret: shows every payment**.
 |---|---|
 | **Secret · shows every payment, cannot spend** | a tag in the warning tone |
 | "Save into Vault 1" | the scan key into the open vault |
-| **Make a vault**, "Unlock Vault-1.ofv", **Unlock a vault** | in its place while no vault is open: **Make a vault** while Files holds none, "Unlock" and the file's name for one locked vault in Files, **Unlock a vault** for several; each comes back here |
+| **Make a vault**, "Unlock Vault-1.fvlt", **Unlock a vault** | in its place while no vault is open: **Make a vault** while Files holds none, "Unlock" and the file's name for one locked vault in Files, **Unlock a vault** for several; each comes back here |
 | **Out unprotected…** | the scan key to the stick unprotected, through [This is a secret](files.md#this-is-a-secret) |
 
 ### Check a payment

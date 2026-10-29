@@ -42,7 +42,7 @@ fn an_entry_exported_for_keepass_is_sealed_under_its_passphrase() {
     let vault = testkit::files()
         .unwrap()
         .into_iter()
-        .find(|(n, _)| n == "vault.ofv")
+        .find(|(n, _)| n == "vault.fvlt")
         .unwrap();
     app.storage(StorageEvent::Restored {
         inbox: vec![vault],

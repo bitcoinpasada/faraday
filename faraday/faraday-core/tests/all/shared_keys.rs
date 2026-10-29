@@ -123,7 +123,7 @@ fn a_vault_with_both_wallets_loads_the_shared_seed_once() {
         memory_mib: None,
     }));
     app.storage(StorageEvent::Restored {
-        inbox: vec![("vault.ofv".to_string(), testkit::test_vault().unwrap())],
+        inbox: vec![("vault.fvlt".to_string(), testkit::test_vault().unwrap())],
         outbox: Vec::new(),
         kept: Vec::new(),
     });

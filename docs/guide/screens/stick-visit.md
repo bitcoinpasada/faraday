@@ -39,7 +39,7 @@ load**; the band reads **Remove the stick when you are done**, beside
 | "Write what waits for the stick …" | in Guided mode |
 | **In Faraday** | the left card: what can be written to the stick, each row ticked or not |
 | **On the stick** | the right card: the stick's files, each row ticked to copy in or not |
-| the warning band | under the cards: "Remove the stick when you are done", "Remove the stick to unlock vault.ofv", "1 key copied in · remove the stick to load it" |
+| the warning band | under the cards: "Remove the stick when you are done", "Remove the stick to unlock vault.fvlt", "1 key copied in · remove the stick to load it" |
 | **Open Files** | at the band's right end: opens [Files](files.md) |
 | the last two lines | what the visit did, in the ok or error tone. After a write, a line per file: "Wrote payment-signed.psbt, read back and matched", or "Wrote payment-signed.psbt as payment-signed-2.psbt, read back and matched" where **Keep both** gave it another name; otherwise "… not written: …", "… renamed …", "… deleted, zeros over it first" |
 
@@ -78,15 +78,15 @@ scroll to see them" under it.
 **Opened from:** "Write 2 files" when a file's name is on the stick
 already, ignoring case. Its title is **Already on the stick**.
 
-![Already on the stick: a PSBT kept both as payment-signed-2.psbt, and vault.ofv the same vault, updated here](../pictures/stick-visit-already.png)
+![Already on the stick: a PSBT kept both as payment-signed-2.psbt, and vault.fvlt the same vault, updated here](../pictures/stick-visit-already.png)
 
 *The sheet **Already on the stick**: "payment-signed.psbt · Keep both:
-payment-signed-2.psbt" and "vault.ofv · the same vault, updated here".
+payment-signed-2.psbt" and "vault.fvlt · the same vault, updated here".
 **Replace** is outlined.*
 
 | Control | What it does |
 |---|---|
-| each row | "wallet.txt · Keep both: wallet-2.txt"; "vault.ofv · the same vault, updated here", which always goes over its own file; "vault.ofv · another vault · kept, this one as vault-2.ofv", which never does |
+| each row | "wallet.txt · Keep both: wallet-2.txt"; "vault.fvlt · the same vault, updated here", which always goes over its own file; "vault.fvlt · another vault · kept, this one as vault-2.fvlt", which never does |
 | **Replace** | writes over the files of the same name |
 | **Keep both** | writes each under the name its row gives |
 | **Cancel** | closes the sheet; nothing is written |
@@ -118,7 +118,7 @@ stick" in a file's **⋮**. Its title is "Delete files from Boot stick".
 ![Delete files from KEYSTICK on Chosen files, payment-signed.psbt ticked, Delete 1 file with zeros](../pictures/stick-visit-delete.png)
 
 *"Delete files from KEYSTICK" on **Chosen files**: payment-signed.psbt
-ticked, vault.ofv not, and "Delete 1 file with zeros" beside
+ticked, vault.fvlt not, and "Delete 1 file with zeros" beside
 **Cancel**.*
 
 | Control | What it does |

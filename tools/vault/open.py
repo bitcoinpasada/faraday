@@ -8,9 +8,9 @@ entries back.
 
 Usage:
 
-    python3 tools/vault/open.py vault.ofv
-    python3 tools/vault/open.py vault.ofv --passphrase PASSPHRASE
-    python3 tools/vault/open.py vault.ofv --field 7.1 --out primary-seed.bin
+    python3 tools/vault/open.py vault.fvlt
+    python3 tools/vault/open.py vault.fvlt --passphrase PASSPHRASE
+    python3 tools/vault/open.py vault.fvlt --field 7.1 --out primary-seed.bin
 
 With no `--passphrase` it is read from the terminal without echo, or from
 one line of standard input where that is not a terminal. Type it at the
@@ -33,7 +33,7 @@ primitives and the BIP-39 wordlists are those of the vault primitives,
 
 The layout, all little-endian:
 
-     0   magic "OFVT", 4 bytes
+     0   magic "FVLT", 4 bytes
      4   version, 1
      5   Argon2id memory, KiB, u32
      9   Argon2id passes, u32
@@ -66,7 +66,7 @@ _spec = importlib.util.spec_from_file_location("vault_primitives", ROOT / "tools
 prim = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(prim)
 
-MAGIC = b"OFVT"
+MAGIC = b"FVLT"
 HEADER_LEN = 53
 NONCE_LEN = 24
 TAG_LEN = 16

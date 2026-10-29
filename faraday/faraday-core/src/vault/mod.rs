@@ -2181,7 +2181,7 @@ impl Faraday {
         }
     }
 
-    /// `stem.ofv`, or the first `stem-n.ofv` no box holds.
+    /// `stem.fvlt`, or the first `stem-n.fvlt` no box holds.
     pub(crate) fn free_vault_name(&self, stem: &str) -> String {
         let taken = |n: &str| {
             self.outbox
@@ -2189,14 +2189,14 @@ impl Faraday {
                 .chain(self.inbox.iter())
                 .any(|i| i.name.eq_ignore_ascii_case(n))
         };
-        let first = format!("{stem}.ofv");
+        let first = format!("{stem}.fvlt");
         if !taken(&first) {
             return first;
         }
         (2..100)
-            .map(|n| format!("{stem}-{n}.ofv"))
+            .map(|n| format!("{stem}-{n}.fvlt"))
             .find(|n| !taken(n))
-            .unwrap_or_else(|| format!("{stem}-100.ofv"))
+            .unwrap_or_else(|| format!("{stem}-100.fvlt"))
     }
 
     /// Whether a lock would lose an open vault's changes: the session's

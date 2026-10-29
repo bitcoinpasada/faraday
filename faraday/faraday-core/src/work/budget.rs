@@ -295,7 +295,7 @@ pub(super) fn unlock_test_vault(app: &mut Faraday) {
     let n = app
         .vault_files()
         .iter()
-        .position(|f| f.name == "vault.ofv")
+        .position(|f| f.name == "vault.fvlt")
         .expect("the test vault is listed");
     app.press(Action::Vault(V::Open(n)));
     type_text(app, testkit::VAULT_PASSPHRASES[0]);

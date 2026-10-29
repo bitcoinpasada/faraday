@@ -586,7 +586,7 @@ impl Faraday {
             match &file.state {
                 Staged::NotRead => {}
                 Staged::Listed if !imp.asked => match ext(&file.name).as_str() {
-                    "ofv" => c.vaults += 1,
+                    "fvlt" => c.vaults += 1,
                     "psbt" => c.psbts += 1,
                     _ => c.other += 1,
                 },

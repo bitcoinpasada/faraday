@@ -356,7 +356,7 @@ impl BackupFlow {
                 .iter()
                 .any(|(vr, _)| w.files.iter().any(|(_, sha)| *sha == vr.sha))
                 || w.files.iter().any(|(n, _)| {
-                    !n.to_ascii_lowercase().ends_with(".ofv")
+                    !n.to_ascii_lowercase().ends_with(".fvlt")
                         && r.listing.iter().any(|(x, _)| x == n)
                 });
             if holds && w.label == r.label && w.serial == r.serial {

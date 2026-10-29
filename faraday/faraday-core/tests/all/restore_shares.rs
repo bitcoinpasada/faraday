@@ -124,9 +124,9 @@ fn a_sheet_in_hand_and_a_vaults_sheet_of_another_wallet_load_no_wallet() {
         .with(field::SHARE_OF, &[3]);
     let mut app = device(vec![
         ("savings-share-1-of-3.txt".into(), a[0].clone().into_bytes()),
-        ("home.ofv".into(), vault_of("home phrase", vec![share], 21)),
+        ("home.fvlt".into(), vault_of("home phrase", vec![share], 21)),
     ]);
-    unlock_on_vaults(&mut app, "home.ofv", "home phrase");
+    unlock_on_vaults(&mut app, "home.fvlt", "home phrase");
     let wallets = app.session.wallets.len();
     app.press(Action::RestoreWallet);
     let i = app
@@ -172,9 +172,9 @@ fn a_vaults_sheet_of_a_wallet_without_the_keys_in_hand_is_not_taken() {
         .with(field::SHARE_OF, &[3]);
     let mut app = device(vec![
         ("savings-share-3-of-3.txt".into(), a[2].clone().into_bytes()),
-        ("home.ofv".into(), vault_of("home phrase", vec![share], 22)),
+        ("home.fvlt".into(), vault_of("home phrase", vec![share], 22)),
     ]);
-    unlock_on_vaults(&mut app, "home.ofv", "home phrase");
+    unlock_on_vaults(&mut app, "home.fvlt", "home phrase");
     let wallets = app.session.wallets.len();
     app.press(Action::RestoreWallet);
     let i = app

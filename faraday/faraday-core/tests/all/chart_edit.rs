@@ -322,7 +322,7 @@ fn a_plan_edited_on_the_chart_loads_back_the_same_from_the_vault() {
     let (outbox, _) = saved_at_lock(&mut app);
     let vault: Files = outbox
         .into_iter()
-        .filter(|(n, _)| n.ends_with(".ofv"))
+        .filter(|(n, _)| n.ends_with(".fvlt"))
         .collect();
     assert_eq!(vault.len(), 1, "the vault was not put For the stick");
     let mut app = device(vault, Vec::new());

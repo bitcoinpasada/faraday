@@ -38,7 +38,7 @@ pub(crate) fn boot_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     faraday_core::testkit::vault_speed(&mut t.app, Some(180));
     if t.app.screen != Screen::Home
         || t.app.sheet != Some(Sheet::Import)
-        || t.app.inbox().iter().any(|i| i.name == "vault.ofv")
+        || t.app.inbox().iter().any(|i| i.name == "vault.fvlt")
     {
         return Err("the boot stick's files did not come up for the import".into());
     }

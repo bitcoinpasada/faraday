@@ -64,7 +64,7 @@ fn desc(p: &faraday_bip::policy::WalletPolicy) -> String {
 }
 
 fn vault_file() -> (String, Vec<u8>) {
-    ("vault.ofv".to_string(), testkit::test_vault().unwrap())
+    ("vault.fvlt".to_string(), testkit::test_vault().unwrap())
 }
 
 fn savings_psbt() -> (String, Vec<u8>) {
@@ -199,7 +199,7 @@ fn unlock_on_tab(app: &mut Faraday) {
     app.press(Action::Nav(Screen::Family));
     app.press(Action::Family(F::Next(page::MAP)));
     let text = drawn(app);
-    assert!(text.contains("Unlock vault.ofv"), "{text}");
+    assert!(text.contains("Unlock vault.fvlt"), "{text}");
     app.press(Action::Family(F::Pick(0)));
     type_text(app, testkit::VAULT_PASSPHRASES[0]);
     app.press(Action::Family(F::Unlock));

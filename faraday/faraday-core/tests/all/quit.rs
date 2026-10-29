@@ -55,7 +55,7 @@ fn the_desktop_power_sheet_says_faraday_closes() {
     // Something still waiting to be written, so the button asks first.
     app.storage(StorageEvent::Restored {
         inbox: Vec::new(),
-        outbox: vec![("vault.ofv".into(), vec![1, 2, 3])],
+        outbox: vec![("vault.fvlt".into(), vec![1, 2, 3])],
         kept: Vec::new(),
     });
     app.press(Action::PowerAsk);

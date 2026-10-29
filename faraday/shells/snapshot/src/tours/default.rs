@@ -862,8 +862,8 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
         .stick()
         .files
         .iter()
-        .position(|(n, _)| n == "vault.ofv")
-        .ok_or("the kit has no vault.ofv")?;
+        .position(|(n, _)| n == "vault.fvlt")
+        .ok_or("the kit has no vault.fvlt")?;
     t.press(Action::VisitInAll);
     t.press(Action::VisitIn(vi));
     // The boot program comes in with its release's signed sums (F134).
@@ -886,9 +886,9 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
         .app
         .inbox()
         .iter()
-        .find(|i| i.name == "vault.ofv")
+        .find(|i| i.name == "vault.fvlt")
         .map(|i| i.bytes.clone())
-        .ok_or("vault.ofv was not copied in")?;
+        .ok_or("vault.fvlt was not copied in")?;
     // With the stick still in, the passphrase waits for it to be pulled.
     t.press(Action::Vault(V::Open(0)));
     t.shot("unlock-stick")?;
@@ -1166,7 +1166,7 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
         .app
         .outbox
         .iter()
-        .find(|i| i.name == "vault.ofv")
+        .find(|i| i.name == "vault.fvlt")
         .map(|i| i.bytes.clone())
         .ok_or("locking put no sealed vault in the Outbox")?;
     // What the lock saved for the next process: the boxes and the kept
@@ -1295,7 +1295,7 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
         .app
         .outbox
         .iter()
-        .find(|i| i.name == "vault.ofv")
+        .find(|i| i.name == "vault.fvlt")
         .map(|i| i.bytes.clone())
         .ok_or_else(|| {
             format!(

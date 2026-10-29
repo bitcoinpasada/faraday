@@ -1453,8 +1453,8 @@ mod tests {
 
     #[test]
     fn short_names_are_unique_and_upper_case() {
-        let (s, l) = short_name("vault.ofv", &[]).unwrap();
-        assert_eq!(&s, b"VAULT   OFV");
+        let (s, l) = short_name("vault.fvlt", &[]).unwrap();
+        assert_eq!(&s, b"VAULT   FVL");
         assert!(l.is_some());
         let (s, l) = short_name("README.TXT", &[]).unwrap();
         assert_eq!(&s, b"README  TXT");

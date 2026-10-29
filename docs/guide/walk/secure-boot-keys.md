@@ -115,11 +115,11 @@ The enrolment files, made with the keys, go on the last stick written,
 once every other place is written. With the keys made in the flow, they
 are the **Windows-compatible** set (step 6).
 
-![Done reads Written: Stick 2 holds Vault-1.ofv, Stick 3 Vault-1.ofv and the nine enrolment files, Unlock Vault 1 outlined](../pictures/secure-boot-keys-done.png)
+![Done reads Written: Stick 2 holds Vault-1.fvlt, Stick 3 Vault-1.fvlt and the nine enrolment files, Unlock Vault 1 outlined](../pictures/secure-boot-keys-done.png)
 
 **Done** reads **Written**, with a line per stick ("Stick 2 · Vault 1
 (Place 1) · KEYSTICK ·" and the time) and the files written to it:
-`Vault-1.ofv` on Stick 2; `Vault-1.ofv` and the nine enrolment files on
+`Vault-1.fvlt` on Stick 2; `Vault-1.fvlt` and the nine enrolment files on
 Stick 3. Press **Unlock Vault 1**, type the passphrase and press
 **Unlock**.
 

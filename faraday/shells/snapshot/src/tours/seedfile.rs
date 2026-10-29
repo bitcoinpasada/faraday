@@ -44,7 +44,7 @@ pub(crate) fn seedfile_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     // The test vault, unlocked: it holds test key 1, not test key 2.
     let vault = testkit::files()?
         .into_iter()
-        .find(|(n, _)| n == "vault.ofv")
+        .find(|(n, _)| n == "vault.fvlt")
         .ok_or("no test vault")?;
     let inbox: Vec<(String, Vec<u8>)> = t
         .app

@@ -164,17 +164,17 @@ places. `docs/history/` is not changed: it records what was.
    name).
 5. The files whose names change (`git mv`), all made again in batch 1
    since their bytes change:
-   - `faraday/faraday-samples/data/sample.ofv`, written by
+   - `faraday/faraday-samples/data/sample.fvlt`, written by
      `faraday/faraday-samples/examples/regenerate.rs` and named in
      `faraday/faraday-samples/src/data.rs` and
      `faraday/faraday-samples/tests/all/passphrase.rs`;
-   - `tools/vectors/vault/vault-one.ofv`, `vault-three.ofv` and
-     `vault-codex32.ofv`, written by `faraday/faraday-vault/examples/vectors.rs`
+   - `tools/vectors/vault/vault-one.fvlt`, `vault-three.fvlt` and
+     `vault-codex32.fvlt`, written by `faraday/faraday-vault/examples/vectors.rs`
      and named in `faraday/faraday-vault/tests/open_py.rs`,
      `tools/crosscheck/area_vault.py`, `docs/VAULT.md` §10 and
      `docs/CODEX32.md`;
-   - the fuzz seeds `faraday/fuzz/corpus/classify_file/vault-head.ofv.bin`
-     and `faraday/fuzz/corpus/vault_header/vault-one-head.ofv.bin`,
+   - the fuzz seeds `faraday/fuzz/corpus/classify_file/vault-head.fvlt.bin`
+     and `faraday/fuzz/corpus/vault_header/vault-one-head.fvlt.bin`,
      whose first bytes are the magic and are written again with it.
 6. The tests that read a vault by name, which change with it: every
    file `git grep -l '\.ofv' -- '*tests*' '*testkit*'` lists, 81 files

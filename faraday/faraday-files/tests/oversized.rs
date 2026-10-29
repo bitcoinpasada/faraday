@@ -61,13 +61,13 @@ fn a_part_file_of_a_hundred_megabytes_is_removed_unread_and_the_vault_is_written
     let mut stick = Claimed::default();
     stick
         .files
-        .insert(".faraday-x.ofv.part".into(), (100 << 20, Vec::new()));
+        .insert(".faraday-x.fvlt.part".into(), (100 << 20, Vec::new()));
     // A vault of slot size 0: 53 + 4 * 40 bytes.
-    let mut vault = b"OFVT".to_vec();
+    let mut vault = b"FVLT".to_vec();
     vault.resize(53 + 160, 0);
-    let wrote = write_vault_over(&mut stick, "x.ofv", &vault, true, false).unwrap();
-    assert_eq!(wrote, "x.ofv");
-    assert!(!stick.files.contains_key(".faraday-x.ofv.part"));
-    assert_eq!(stick.files["x.ofv"].1, vault);
+    let wrote = write_vault_over(&mut stick, "x.fvlt", &vault, true, false).unwrap();
+    assert_eq!(wrote, "x.fvlt");
+    assert!(!stick.files.contains_key(".faraday-x.fvlt.part"));
+    assert_eq!(stick.files["x.fvlt"].1, vault);
     assert_eq!(stick.oversized_reads, 0, "the part file was never read");
 }

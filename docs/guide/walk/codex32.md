@@ -99,13 +99,13 @@ green once the open vault holds that string.
 
 ![The item Vault 1 with 1 of 2 shares of fab6868a, Make a vault outlined](../pictures/4-11-vault-item.png)
 
-**Save into vault.ofv** (step 4.8) saves each string the plan puts in
+**Save into vault.fvlt** (step 4.8) saves each string the plan puts in
 the vault as a share record. The vault lists it under **Bitcoin keys**:
 **Share A of fab6868a**, **codex32 name · threshold 2**. At unlock,
 strings of one set from the vaults open together load the key once
 there are enough of them; a string typed in counts with them.
 
-![The vault vault.ofv open on Bitcoin keys, Share A of fab6868a chosen](../pictures/4-11-vault-contents.png)
+![The vault vault.fvlt open on Bitcoin keys, Share A of fab6868a chosen](../pictures/4-11-vault-contents.png)
 
 At **Lock and write** (step 4.10), a string kept in a stick's files is
 written as `codex32-fab6868a-c.txt`, and its Codex32QR picture as

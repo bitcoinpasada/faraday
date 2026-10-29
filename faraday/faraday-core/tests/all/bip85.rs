@@ -93,7 +93,7 @@ fn a_password_goes_into_the_vault_as_an_entry() {
     let vault = testkit::files()
         .unwrap()
         .into_iter()
-        .find(|(n, _)| n == "vault.ofv")
+        .find(|(n, _)| n == "vault.fvlt")
         .unwrap();
     let mut app = with_key(vec![vault]);
     faraday_core::testkit::vault_speed(&mut app, Some(180));

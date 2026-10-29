@@ -104,7 +104,7 @@ fn a_file_is_a_vault_or_a_keepass_database_by_how_it_begins() {
     let mut vault = VAULT_MAGIC.to_vec();
     vault.extend_from_slice(&[1, 2, 3]);
     assert!(is_vault(&vault));
-    assert!(!is_vault(b"OFV"));
+    assert!(!is_vault(b"FVL"));
     assert!(!is_vault(b"{\"wallet_type\": \"standard\"}"));
     let kdbx = [0x03, 0xD9, 0xA2, 0x9A, 0x67, 0xFB, 0x4B, 0xB5, 0, 0];
     assert!(is_kdbx(&kdbx));

@@ -143,7 +143,7 @@ fn the_session_strip_reads_write_out_for_a_vault_changed_since_written() {
     let mut app = with(1, 0);
     app.storage(faraday_core::StorageEvent::Restored {
         inbox: vec![(
-            "vault.ofv".to_string(),
+            "vault.fvlt".to_string(),
             faraday_core::testkit::test_vault().unwrap(),
         )],
         outbox: Vec::new(),
@@ -752,7 +752,7 @@ fn a_backup_flow_with_its_key_made_offers_no_cancel() {
     let mut app = with(0, 0);
     app.storage(faraday_core::StorageEvent::Restored {
         inbox: vec![(
-            "vault.ofv".to_string(),
+            "vault.fvlt".to_string(),
             faraday_core::testkit::test_vault().unwrap(),
         )],
         outbox: Vec::new(),

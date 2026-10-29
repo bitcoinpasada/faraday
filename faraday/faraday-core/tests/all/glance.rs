@@ -729,7 +729,7 @@ fn a_wallet_loaded_from_its_vault_on_another_power_on_charts_the_vaults_plan() {
     let (outbox, _) = saved_at_lock(&mut app);
     let vault: Files = outbox
         .into_iter()
-        .filter(|(n, _)| n.ends_with(".ofv"))
+        .filter(|(n, _)| n.ends_with(".fvlt"))
         .collect();
     assert_eq!(vault.len(), 1, "the vault was not put For the stick");
     let mut app = device_full(1440, 900, 160, vault, Vec::new());

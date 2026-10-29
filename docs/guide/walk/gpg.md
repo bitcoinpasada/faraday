@@ -111,7 +111,7 @@ The **Vaults** card offers **Create Vault 1**. It opens
 [Vaults, passwords and codes](vaults-and-passwords.md#1-create-a-vault)
 does, then press **Create vault**. The flow comes back with **Vault 1 ·
 Unlocked**; the Vaults card closes to "1 vault". The vault's file is
-`Vault-1.ofv`.
+`Vault-1.fvlt`.
 
 An existing vault reads **Open Vault 1** instead: type its passphrase
 and press **Unlock Vault 1**. **I do not have its passphrase** offers
@@ -162,12 +162,12 @@ The **Lock** card lists what the lock keeps (**Kept**) and what it
 wipes (**Wiped from memory**). Press **Lock and write**: Vault 1 is
 sealed with the key in it, and every key is wiped.
 
-![Write the sticks with Stick 2 for Place 1 written and "Insert Stick 3: Vault 1 (Place 2)" asked for, Vault-1.ofv · 1.0 MB](../pictures/gpg-write.png)
+![Write the sticks with Stick 2 for Place 1 written and "Insert Stick 3: Vault 1 (Place 2)" asked for, Vault-1.fvlt · 1.0 MB](../pictures/gpg-write.png)
 
 [**Write the sticks**](../screens/backup-flow.md#write-the-sticks) lists the sticks, "Stick 2 · Vault 1
 (Place 1)" and "Stick 3 · Vault 1 (Place 2)", each with its label once
 written, and asks for each in turn, with the file it writes
-(`Vault-1.ofv` and its size) under it:
+(`Vault-1.fvlt` and its size) under it:
 
 1. "Insert Stick 2: Vault 1 (Place 1)". Plug it in. The vault and the
    public key are written, read back and compared ("Writing" and the
@@ -189,7 +189,7 @@ before the copy was checked. Nothing counted**): plug it in again.
 place, its label and the time ("Stick 2 · Vault 1 (Place 1) · KEYSTICK
 ·" and the time), and under it the files written to it. Press **Unlock
 Vault 1**, type the passphrase and press **Unlock**: the vault opens,
-titled **Vault 1** with `Vault-1.ofv` and its cost under **Open**, on
+titled **Vault 1** with `Vault-1.fvlt` and its cost under **Open**, on
 **GPG keys**, and the key's page shows beside the list
 ([A GPG key](../screens/vault.md#a-gpg-key)).
 

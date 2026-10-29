@@ -640,7 +640,7 @@ pub fn files() -> Result<Vec<(String, Vec<u8>)>, String> {
     for (fp, p) in partials {
         out.push((format!("musig-partial-{fp}.psbt"), p.to_bytes()));
     }
-    out.push(("vault.ofv".to_string(), test_vault()?));
+    out.push(("vault.fvlt".to_string(), test_vault()?));
     out.push((
         "vault-entries.txt".to_string(),
         ENTRIES_FILE.as_bytes().to_vec(),
@@ -1098,7 +1098,7 @@ pub fn public_files(name: &str, descriptor: &str) -> Result<Vec<(String, Vec<u8>
 /// picture, the multisig config, the split shares with their pictures,
 /// the wallet .json, the BIP 129 record, Bitcoin Core's
 /// import file, the backup sheet and the blank template as PDFs);
-/// `vault.ofv`, whose passphrase is `a`, holding the three seeds, each
+/// `vault.fvlt`, whose passphrase is `a`, holding the three seeds, each
 /// loaded at unlock; and an unsigned spend from the wallet. All testnet.
 /// The full kit is [`files`].
 pub fn backup_files() -> Result<Vec<(String, Vec<u8>)>, String> {
@@ -1107,7 +1107,7 @@ pub fn backup_files() -> Result<Vec<(String, Vec<u8>)>, String> {
         .find(|k| k.id == "taproot-multisig")
         .ok_or("no Taproot multisig kit")?;
     let mut out = public_files(kit.name, &kit.descriptor)?;
-    out.push(("vault.ofv".to_string(), seeds_vault()?));
+    out.push(("vault.fvlt".to_string(), seeds_vault()?));
     // A spend to try the Spend tab and Wallets on: what a coordinator
     // such as Sparrow hands over.
     let (unsigned, _) = spend_of(&kit)?;

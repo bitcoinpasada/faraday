@@ -568,7 +568,7 @@ fn main() {
     std::fs::create_dir_all(root().join("data")).expect("data dir");
     let keys = keys(&c);
     let wallets = wallets(&c, &keys);
-    std::fs::write(root().join("data/sample.ofv"), vault_file(&c)).expect("write");
+    std::fs::write(root().join("data/sample.fvlt"), vault_file(&c)).expect("write");
     let (address, message) = signed_message(&c);
     let totp = testkit::ENTRIES_FILE.lines().next().expect("a line");
 
@@ -587,7 +587,7 @@ fn main() {
     out.push_str("];\n\n");
     write!(
         out,
-        "pub(crate) static INPUTS: SampleInputs = SampleInputs {{\n    vault: include_bytes!(\"../data/sample.ofv\"),\n    signed_message: {message:?},\n    address: {address:?},\n    totp: {totp:?},\n}};\n\n\
+        "pub(crate) static INPUTS: SampleInputs = SampleInputs {{\n    vault: include_bytes!(\"../data/sample.fvlt\"),\n    signed_message: {message:?},\n    address: {address:?},\n    totp: {totp:?},\n}};\n\n\
          /// Every sample.\npub static SAMPLES: Samples = Samples {{ keys: KEYS, wallets: WALLETS, inputs: INPUTS }};\n",
     )
     .expect("string");

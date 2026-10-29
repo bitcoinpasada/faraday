@@ -125,7 +125,7 @@ fn sign_with_vault_open(vault: Vec<u8>, psbt: &faraday_psbt::Psbt) -> Faraday {
     }
     app.storage(StorageEvent::Restored {
         inbox: vec![
-            ("ledger.ofv".to_string(), vault),
+            ("ledger.fvlt".to_string(), vault),
             ("spend.psbt".to_string(), psbt.to_bytes()),
             (
                 "spending-wallet.txt".to_string(),

@@ -412,7 +412,7 @@ impl Faraday {
     }
 
     /// Costs what `described_of` costs. The lines of work a later plan
-    /// dropped that open vault `v`'s record keeps for `wallet` ("vault.ofv
+    /// dropped that open vault `v`'s record keeps for `wallet` ("vault.fvlt
     /// holds seed 9A6A2580").
     fn plan_extras(&self, c: &Compute, wallet: &crate::wallet::Wallet, v: usize) -> Vec<String> {
         use faraday_vault::records::{field, kind};
