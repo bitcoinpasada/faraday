@@ -156,6 +156,9 @@ class Area:
     name = ""
     # (loop, cases at scale 1): each case is a call of `case_<loop>()`.
     LOOPS = ()
+    # Whether the area asks Bitcoin Core (`core_node.rpc()`): the run then
+    # starts the pinned bitcoind, and fails without it.
+    CORE = False
 
     def __init__(self, exe, seed, scale, sabotage=None):
         self.rust = Rust(exe, self.name, sabotage)

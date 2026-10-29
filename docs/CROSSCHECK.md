@@ -291,9 +291,31 @@ The cross-check fetches nothing, ever.
   release tag `v31.1` (`tools/reference/core/`); BIP-32, BIP-137,
   BIP-322 and the PSBT BIPs' readers are written in the areas from the
   BIPs' text, each checked against the BIPs' own vectors first.
-- **No network.** Python runs in a network namespace with no
-  interfaces, and the Rust command is built with `--offline --frozen`.
-  Anything that tries to fetch fails instead of downloading.
+- **Bitcoin Core v31.1 itself** (`bitcoind` and `bitcoin-cli`) is a
+  binary reference, required (owner, 2026-10-29). Its release tarball
+  is over the tree's 2 MiB limit and is not in the tree, nor in Ubuntu's
+  packages. So the official tarball for the machine (x86_64 or aarch64
+  Linux) is pinned by its SHA-256 in `tools/reference/core/release.pin`,
+  listed in `references.sha256` like a vendored file. A person fetches
+  it once with `tools/crosscheck/fetch_core.py`, which requires the
+  release's `SHA256SUMS` to carry good signatures from at least five of
+  the builders whose keys `guix.sigs` publishes (at a pinned commit), and
+  no bad one, and the tarball to match both `SHA256SUMS` and the pin. It
+  is kept outside the repository, in the folder `FARADAY_BITCOIN_CORE`
+  names (default `~/.cache/faraday/bitcoin-core`). Every run hashes the
+  tarball against the pin and unpacks the two programs from it into a
+  scratch folder, so what runs is what was checked. A missing or
+  mismatched tarball fails the run, naming it. The node runs on regtest
+  with `-networkactive=0 -listen=0 -connect=0`, no seeds, no wallet and
+  a scratch datadir, RPC on loopback only, with a cookie. It is stopped and
+  its folders deleted on every way out of the run, and killed if the
+  run dies. The stamp records Core's version and the tarball's SHA-256,
+  and `just lint` fails when they are not the pinned release's.
+- **No network.** Python runs in a network namespace whose only
+  interface is loopback, which the run brings up for Core's RPC, and
+  refuses to run when any other interface is there. The Rust command is
+  built with `--offline --frozen`. Anything that tries to fetch fails
+  instead of downloading.
 
 ### 10.5 Order of work
 

@@ -4,10 +4,13 @@
 A passing `just crosscheck` writes `tools/crosscheck/stamp`: one hash
 over the crypto sources, the cross-check itself and its references, and
 the `Cargo.lock` entries of the crypto crates, with the seed, the
-Python it ran under, how long it took and each area's corpus case
-count. `just lint` runs `stamp.py check`, which hashes the same inputs
-and fails when they no longer match: a change to the crypto, or a version bump of a crypto
-crate, is not committed without a passing cross-check. It is a record,
+Python it ran under, Bitcoin Core's version and tarball SHA-256, how
+long it took and each area's corpus case count. `just lint` runs
+`stamp.py check`, which hashes the same inputs and fails when they no
+longer match, or when the stamp's Bitcoin Core is not the release
+`tools/reference/core/release.pin` pins: a change to the crypto, a
+version bump of a crypto crate or a new Core is not committed without a
+passing cross-check. It is a record,
 not a security control. Standard library only; about a tenth of a
 second.
 
@@ -23,6 +26,7 @@ import time
 import tomllib
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / "tools" / "crosscheck"))
 STAMP = ROOT / "tools" / "crosscheck" / "stamp"
 
 # The code whose results the cross-check checks, and the cross-check:
@@ -132,7 +136,7 @@ def interpreter(path):
     return out.stdout.strip() or "unknown"
 
 
-def write(seed, scale, seconds, jobs=1, interpreters=(), cases=None):
+def write(seed, scale, seconds, jobs=1, interpreters=(), cases=None, core=None):
     refs = hashlib.sha256((ROOT / "tools/crosscheck/references.sha256").read_bytes()).hexdigest()
     workers = ", ".join(interpreter(p) for p in interpreters[1:])
     workers = f"workers {jobs}" + (f"; {workers} for the areas it speeds" if workers else "") + "\n"
@@ -144,7 +148,8 @@ def write(seed, scale, seconds, jobs=1, interpreters=(), cases=None):
         f"references {refs}\n"
         f"python {platform.python_version()}\n"
         f"{distribution_versions()}"
-        f"seed {seed}\n"
+        + (f"bitcoin-core {core['version']} {core['tarball']} {core['sha256']}\n" if core else "")
+        + f"seed {seed}\n"
         f"scale {scale}\n"
         f"{workers}"
         f"seconds {seconds}\n"
@@ -165,12 +170,29 @@ def distribution_versions():
     return out
 
 
-def recorded():
+def recorded(key="inputs"):
+    """The rest of the stamp's line that starts with `key`, or None."""
     if not STAMP.exists():
         return None
     for line in STAMP.read_text().splitlines():
-        if line.startswith("inputs "):
-            return line.split()[1]
+        if line.startswith(key + " "):
+            return line.split(None, 1)[1]
+    return None
+
+
+def core_matches_pin():
+    """None when the stamp's Bitcoin Core is the pinned release (its
+    version and one of its tarballs' SHA-256), else what is wrong."""
+    import core_node
+    p = core_node.pin()
+    line = recorded("bitcoin-core")
+    if line is None:
+        return "the stamp names no Bitcoin Core"
+    version, tarball, digest = line.split()
+    if not version.startswith(p["version"] + ".") and version != p["version"]:
+        return f"the stamp's Bitcoin Core is {version}, pinned {p['version']}"
+    if p["sha256"].get(tarball) != digest:
+        return f"the stamp's Bitcoin Core tarball {tarball} {digest} is not the pinned one"
     return None
 
 
@@ -187,8 +209,12 @@ def main():
         print(__doc__)
         return 2
     started = time.monotonic()
-    if recorded() != digest():
+    if (recorded() or "").split()[:1] != [digest()]:
         print("lint-crosscheck: crypto changed since the last cross-check: run `just crosscheck`")
+        return 1
+    wrong = core_matches_pin()
+    if wrong:
+        print(f"lint-crosscheck: {wrong}: run `just crosscheck`")
         return 1
     print(f"lint-crosscheck: ok ({time.monotonic() - started:.2f} s)")
     return 0

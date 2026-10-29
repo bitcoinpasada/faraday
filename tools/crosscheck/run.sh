@@ -37,8 +37,10 @@ if [ -z "$exe" ]; then
 fi
 say "build: done"
 
-# A network namespace of its own, with loopback only and that down:
-# whatever tries to fetch fails instead of downloading.
+# A network namespace of its own, with loopback only: whatever tries to
+# fetch fails instead of downloading. crosscheck.py brings `lo` up for
+# Bitcoin Core's RPC on loopback (core_node.py) and refuses to run if
+# any other interface is there.
 if ! unshare --user --map-root-user --net true 2>/dev/null; then
     say "crosscheck: this machine does not let a user make a network namespace"
     echo "(unshare --user --net); see tools/crosscheck/README.md" >&2

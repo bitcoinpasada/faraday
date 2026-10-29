@@ -25,9 +25,41 @@ which, per action.
 `run.sh` builds the Rust command with `cargo build --frozen` and runs
 `crosscheck.py` in a network namespace of its own (`unshare --user
 --net`), so nothing can be fetched. `crosscheck.py` refuses to run with
-a network interface up, and refuses when a vendored reference does not
-match `references.sha256`, or when an unlisted `.py` file sits in a
-reference folder.
+any interface there but loopback, and refuses when a vendored reference
+does not match `references.sha256`, or when an unlisted `.py` file sits
+in a reference folder.
+
+## Bitcoin Core
+
+An area that states `CORE = True` (`addr` so far) asks Bitcoin Core
+v31.1 itself, through RPC (`core_node.rpc()`, with the vendored
+`test_framework/authproxy.py`). When any area run has it, the run
+starts one `bitcoind` before the self-test and stops it at the end
+(`core_node.py`). The node runs on regtest with `-networkactive=0
+-listen=0 -connect=0`, no DNS or fixed seeds, no wallet, a scratch
+datadir, and RPC on loopback only, with a cookie. The run first brings up
+`lo`, the namespace's one interface. The node is stopped and its
+folders deleted on every way out, and killed if the run dies.
+
+Core is not vendored. `tools/reference/core/release.pin` pins the
+release tarball's SHA-256 for x86_64 and aarch64 Linux. Fetch it once,
+with the network:
+
+    python3 -I -B tools/crosscheck/fetch_core.py            this machine's tarball
+    python3 -I -B tools/crosscheck/fetch_core.py --from DIR files already downloaded
+
+The script requires `SHA256SUMS` to carry good signatures from at least
+five of the builders in `guix.sigs`' `builder-keys/` (at the pinned
+commit, fetched with git), and no bad one. It requires the tarball to
+match both `SHA256SUMS` and the pin. It keeps the tarball in
+`FARADAY_BITCOIN_CORE` (default `~/.cache/faraday/bitcoin-core`).
+Every run hashes the tarball against the pin and unpacks `bitcoind` and
+`bitcoin-cli` from it into a scratch folder (about two seconds with the
+node's start). Missing, mismatched, or a node that does not answer, not
+offline, or of another version: the run fails before the self-test,
+naming it. The stamp's `bitcoin-core` line records the node's version
+and the tarball's name and SHA-256. `stamp.py check` fails when they
+are not the pinned release's.
 
 A passing full run writes `stamp`, with each area's corpus case count
 beside the seed. `tools/lint-crosscheck.sh` (in `just
@@ -144,7 +176,7 @@ run `python3 -I -B tools/crosscheck/facts.py write`. `just lint` runs its
 | `vault` | `faraday_vault` (create, open, seal, the slot's records and payload layouts), `faraday_backup::argon2id`, the `chacha20poly1305` crate's detached XChaCha20-Poly1305 as the vault calls it | `docs/VAULT.md` written out in `area_vault.py`, over argon2-cffi and PyNaCl (the distribution's packages), with HKDF-SHA256 and the ChaCha20 block written over the standard library | RFC 5869's three SHA-256 cases, RFC 8439's five block vectors, draft-irtf-cfrg-xchacha-03's AEAD vector, the Argon2id known answer (`tools/vectors/vault-primitives/`); the vaults and the slot vectors of `tools/vectors/vault/`, among them `two-keys.fvlt`, whose one slot PyNaCl verifies under two passphrases' keys | Argon2id at small random costs and the costs it refuses; the AEAD at random lengths with one byte changed; payloads made, read and malformed; random records of all thirteen types a caller writes (type 12 is retired and refused) with the seal count, encoded, decoded and broken a rule at a time; passphrases in every Unicode form, made and opened; whole vaults of every slot size made byte for byte from a seed, opened by each passphrase, resealed with a count one higher, and refused for each header fault, a wrong passphrase, a changed byte, two slots under one key, a commitment block not zero and faulty contents |
 | `bip39` | `faraday_bip::bip39` | python-mnemonic (`bip39/`) | the ten wordlists; every vector of `tools/vectors/bip39/vectors.json` in Faraday's languages; the Japanese vectors with non-ASCII passphrases | entropy to words and back in every language and length; seeds under random ASCII passphrases; a changed word, an unknown word, a word too many or too few; every valid last word |
 | `bip32` | `faraday_bip::keys` (master, private derivation), `faraday_bip::xkey` (strict decoding), `bitcoin`'s `Xpub::derive_pub` | `btc.py`, BIP-32 written from the BIP over `secp256k1lab` and `ripemd160.py` (`bip352/`) | BIP-32's vectors 1 to 5 (`tools/vectors/bip32/`), python-mnemonic's master keys | seeds of 16 to 64 bytes on every network, random paths with every index, public derivation against private, keys broken one rule at a time and the master-key import |
-| `addr` | `faraday_bip::address::parse`, `bitcoin`'s `Address::from_script`, `faraday_bip::account` (account xpub, SLIP-132, descriptor, addresses), `faraday_bip::descriptor`'s checksum | Bitcoin Core's functional-test framework (`core/`): `segwit_addr.py`, Base58Check, `descriptors.py`; BIP 380's own checksum code as the BIP prints it (`bip380/`); `btc.py`; BIP-86's tweak written in the area | BIP-350's and BIP-173's addresses, BIP-380's checksum cases, BIP-49's, 84's and 86's accounts (`tools/vectors/addresses/`) | scripts of every address kind on every network, written and read back, then changed; accounts of every type at random indices; random descriptors' checksums |
+| `addr` | `faraday_bip::address::parse`, `bitcoin`'s `Address::from_script`, `faraday_bip::account` (account xpub, SLIP-132, descriptor, addresses), `faraday_bip::descriptor`'s checksum | Bitcoin Core's functional-test framework (`core/`): `segwit_addr.py`, Base58Check, `descriptors.py`; BIP 380's own checksum code as the BIP prints it (`bip380/`); `btc.py`; BIP-86's tweak written in the area; Bitcoin Core v31.1's `bitcoind` on regtest for regtest accounts (`deriveaddresses`, `getdescriptorinfo`) | BIP-350's and BIP-173's addresses, BIP-380's checksum cases, BIP-49's, 84's and 86's accounts (`tools/vectors/addresses/`) | scripts of every address kind on every network, written and read back, then changed; accounts of every type at random indices; random descriptors' checksums |
 | `tx` | `faraday_psbt::transaction::read_raw`, `bitcoin`'s `SighashCache` as `faraday_psbt::sign` calls it | Core's `messages.py` and `script.py` (`core/`) | Core's 500 legacy sighashes, BIP-143's thirteen, BIP-341's key-path sighashes (`tools/vectors/sighash/`) | random transactions with and without witnesses (txid, wtxid, weight, bytes), cut or lengthened; every input hashed as legacy, BIP-143 P2WPKH and P2WSH, BIP-341 key and script path under every hash type |
 | `psbt` | `faraday_psbt::Psbt` (version 0, over `bitcoin`), `faraday_psbt::v2::PsbtV2` (version 2, Faraday's own) | BIP-174, 370 and 371 written out in `area_psbt.py`, over Core's `CTransaction` | every PSBT of BIP-174's, 370's and 371's test vectors (`tools/vectors/psbt-bips/`), with BIP-370's locktimes | random version 0 and 2 PSBTs with every field Faraday reads, taproot trees among them, written back byte for byte as read, then broken one rule at a time; BIP-370's locktime under every mix of required locktimes |
 | `sign` | `faraday_psbt::sign` (every held key selected, deterministic Schnorr, both RFC 6979 nonce rules) and `faraday_psbt::finalize` | BIP-174's signer and finalizer and BIP-371's fields written out in `area_sign.py`, over Core's `script.py` sighashes and `taproot_construct`, `key.py`'s RFC 6979 ECDSA, BIP-340 signing and tweak, `area_msg.py`'s low-R grind; python-bip380 (`miniscript/`) for a miniscript's satisfaction | BIP-174's signer, finalizer and extractor vectors; the Core-built spends of `tools/vectors/psbt/` (2-of-3 `sortedmulti`, the Liana wallet down both paths, a taproot tree by a leaf and by the key path, BIP 387's taproot multisig), signed by every subset of their keys | PSBTs of one to four inputs: P2PKH, P2SH-P2WPKH, P2WPKH, `multi`/`sortedmulti` in P2SH, P2WSH and P2SH-P2WSH, P2TR key path, P2TR script path (`pk`, `pkh`, timelocked keys, `or_d`, `multi_a`) with the key path beside it, miniscript in P2WSH and P2SH-P2WSH; held and foreign keys, cosigners' signatures already on, every standard sighash type, timelocks met and not; every signature made again byte for byte and verified, the signed PSBT's pairs, each final scriptSig and witness, the cleared fields and the extracted transaction; an origin that derives another key refused |
@@ -213,7 +245,10 @@ leaves uncompared.
 - `addr`: its vendored files are hashed against `references.sha256`
   before any run, and a published vector's answer is required of the
   reference as well as of Faraday; every descriptor checksum is also
-  asked of BIP 380's own code, as the BIP prints it.
+  asked of BIP 380's own code, as the BIP prints it; Core's release
+  tarball is checked against its pinned SHA-256
+  (`tools/reference/core/release.pin`) before every run, and the node's
+  version is asked.
 - `tx`: its vendored files are hashed against `references.sha256` before
   any run, and a published vector's answer is required of the reference
   as well as of Faraday; each published signature hash is checked
@@ -512,7 +547,9 @@ faster (above). Nothing is installed with pip. The
 argon2-cffi and PyNaCl (Debian and Ubuntu: `python3-argon2`
 `python3-nacl`), and the `kdbx` area the distribution's pykeepass
 (`python3-pykeepass`); without them each stops and names them, and the
-run fails. A passing run writes their versions into the stamp.
+run fails. A passing run writes their versions into the stamp. Bitcoin
+Core v31.1's release tarball, fetched once with `fetch_core.py`, which
+needs `gpg` and `git` (above).
 
 ## Files
 
@@ -524,6 +561,8 @@ run fails. A passing run writes their versions into the stamp.
 | `status.py` | reads a run's progress (`just crosscheck-status`) |
 | `identity.py` | the real areas under several worker counts and Pythons, reports compared (`just crosscheck-identity`) |
 | `common.py` | the Rust process, the comparison, the reference check |
+| `core_node.py` | Bitcoin Core: the pinned tarball checked and unpacked, the regtest node started and stopped, its RPC client |
+| `fetch_core.py` | fetches the pinned Core release once and checks it against `guix.sigs`' signatures and the pin |
 | `area_*.py` | one area each, with the facts it states about itself |
 | `facts.py` | reads those facts, writes this README's tables between marker lines, and checks them (`just lint`) |
 | `btc.py` | Base58Check and BIP-32 written from the BIPs, which `bip32`, `addr`, `psbt`, `msg`, `sign` and `miniscript` share |

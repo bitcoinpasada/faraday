@@ -1,0 +1,12 @@
+# Bitcoin Core's official release, which the cross-check runs (bitcoind
+# and bitcoin-cli, regtest, no network; docs/CROSSCHECK.md §10.4). Not
+# vendored: `tools/crosscheck/fetch_core.py` fetches the tarball for this
+# machine once, checks SHA256SUMS against the guix.sigs builders' keys at
+# the commit below, and keeps it outside the repository. Every run checks
+# the tarball against its line here before it unpacks it.
+version 31.1
+url https://bitcoincore.org/bin/bitcoin-core-31.1/
+guix-sigs https://github.com/bitcoin-core/guix.sigs d48edd96db3740c2073545cfb4010d47c3df7f50
+min-signatures 5
+sha256 bitcoin-31.1-x86_64-linux-gnu.tar.gz b80d9c3e04da78fb6f0569685673418cf686fadba9042d926d13fb87ff503f9e
+sha256 bitcoin-31.1-aarch64-linux-gnu.tar.gz dcf1873f2208ba4f962f3398d47e154c39c0084be8f4553e05c940d0ace3d004

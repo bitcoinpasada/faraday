@@ -24,6 +24,14 @@ prints it (`tools/reference/bip380/descsum.py`).
   2³¹ and above refused.
 - Random descriptors over BIP-380's character set and outside it: the
   checksum made, and a checksum checked after a character is changed.
+- Bitcoin Core v31.1 itself (bitcoind on regtest, offline;
+  `core_node.py`), for every regtest account above and a fixed set in
+  the prelude: Core derives the address from the seed's master key,
+  written as a `tprv` descriptor with the account's whole path
+  (`deriveaddresses`), with no `btc.py` in the way; and Core reads
+  Faraday's own account descriptor, checksum included
+  (`getdescriptorinfo`), and derives the same address from its key.
+  Indices of 2³¹ and above are refused by both.
 
 An address is read as Faraday reads one: spaces at its ends ignored, a
 refusal named `Invalid` when no network reads it and `WrongNetwork`
@@ -31,16 +39,19 @@ when another network does.
 """
 
 import hashlib
+import hmac
 import json
 
 import btc
+import core_node
 from btc import HARDENED
-from common import ROOT, Area, as_verify, use_reference
+from common import ROOT, Area, Mismatch, as_verify, use_reference
 
 use_reference("core")
 from test_framework import descriptors  # noqa: E402
 from test_framework import segwit_addr  # noqa: E402
 from test_framework.address import base58_to_byte, byte_to_base58  # noqa: E402
+from test_framework.authproxy import JSONRPCException  # noqa: E402
 
 use_reference("bip380")
 import descsum as bip380  # noqa: E402
@@ -156,6 +167,37 @@ def ref_account(seed, network, script, account, change, index):
             "address": address}
 
 
+def core_account(seed, script, account, change, index):
+    """Bitcoin Core's address for a regtest account, derived by Core from
+    the seed's master key alone: ("ok", {"address": ...}), or ("err", why)
+    when Core refuses. Costs two RPCs (a hardened derivation of four or
+    five steps each, in Core). A node that does not answer is the
+    harness's failure, never a refusal."""
+    i = hmac.new(b"Bitcoin seed", seed, hashlib.sha512).digest()
+    raw = bytes.fromhex("04358394") + bytes(9) + i[32:] + b"\0" + i[:32]
+    tprv = byte_to_base58(raw[1:], raw[0])
+    path = f"{PURPOSE[script]}h/1h/{account}h/{int(change)}/*"
+    body = ["pkh({})", "sh(wpkh({}))", "wpkh({})", "tr({})"][script].format(f"{tprv}/{path}")
+    node = core_node.rpc()
+    try:
+        desc = f"{body}#{node.getdescriptorinfo(body)['checksum']}"
+        return ("ok", {"address": node.deriveaddresses(desc, [index, index])[0]})
+    except JSONRPCException as e:
+        return ("err", f"Core: {e.error.get('message')}")
+
+
+def core_reads(descriptor, change, index):
+    """The address Core derives from Faraday's own account descriptor
+    (`<0;1>/*`, with its key origin and checksum), or why Core refuses it.
+    Costs two RPCs."""
+    node = core_node.rpc()
+    try:
+        node.getdescriptorinfo(descriptor)
+        return ("ok", node.deriveaddresses(descriptor, [index, index])[int(change)][0])
+    except JSONRPCException as e:
+        return ("err", f"Core: {e.error.get('message')}")
+
+
 def refusal(answer):
     if answer[0] == "ok":
         return answer
@@ -166,6 +208,7 @@ def refusal(answer):
 
 class Addr(Area):
     name = "addr"
+    CORE = True
     faraday = (
         "`faraday_bip::address::parse`, `bitcoin`'s `Address::from_script`, "
         '`faraday_bip::account` (account xpub, SLIP-132, descriptor, addresses), '
@@ -174,13 +217,17 @@ class Addr(Area):
     reference = (
         "Bitcoin Core's functional-test framework (`core/`): `segwit_addr.py`, "
         "Base58Check, `descriptors.py`; BIP 380's own checksum code as the BIP prints "
-        "it (`bip380/`); `btc.py`; BIP-86's tweak written in the area"
+        "it (`bip380/`); `btc.py`; BIP-86's tweak written in the area; Bitcoin Core "
+        "v31.1's `bitcoind` on regtest for regtest accounts (`deriveaddresses`, "
+        "`getdescriptorinfo`)"
     )
     reference_checked = (
         'its vendored files are hashed against `references.sha256` before any run, and '
         "a published vector's answer is required of the reference as well as of "
         "Faraday; every descriptor checksum is also asked of BIP 380's own code, as the "
-        'BIP prints it'
+        "BIP prints it; Core's release tarball is checked against its pinned SHA-256 "
+        "(`tools/reference/core/release.pin`) before every run, and the node's version is "
+        "asked"
     )
     vectors = (
         "BIP-350's and BIP-173's addresses, BIP-380's checksum cases, BIP-49's, 84's "
@@ -213,6 +260,42 @@ class Addr(Area):
             "addr.account", {"seed": seed.hex(), "network": network, "script": script,
                              "account": account, "change": change, "index": index},
             lambda: ref_account(seed, network, script, account, change, index), expected)
+
+    def core(self, seed, script, account, change, index):
+        """A regtest account asked of Bitcoin Core: the address Core derives
+        from the seed must be Faraday's, and Core must read Faraday's
+        descriptor to the same address."""
+        inputs = {"seed": seed.hex(), "network": "regtest", "script": script,
+                  "account": account, "change": change, "index": index}
+        ref = core_account(seed, script, account, change, index)
+
+        def by_core():
+            if ref[0] == "err":
+                raise core_node.CoreError(ref[1])
+            return ref[1]
+
+        def address(answer):
+            return answer if answer[0] == "err" else ("ok", {"address": answer[1]["address"]})
+        got = self.compare("addr.account", inputs, by_core, normalize=address)
+        if got[0] != "ok":
+            return
+        read = core_reads(got[1]["descriptor"], change, index)
+        self.compared += 1
+        if read != ("ok", got[1]["address"]):
+            raise Mismatch(self.name, "addr.account", inputs,
+                           {"descriptor": got[1]["descriptor"], "address": got[1]["address"]},
+                           read, "Core reads Faraday's descriptor to another address")
+
+    def core_fixed(self):
+        """Each account type, both chains, the first and a high index, and
+        both refusals, at a seed of each length."""
+        for n, length in enumerate([16, 32, 64]):
+            seed = bytes((n * 37 + i) % 256 for i in range(length))
+            for script in range(4):
+                for change, index in [(False, 0), (True, 1), (False, HARDENED - 1)]:
+                    self.core(seed, script, n, change, index)
+        self.core(bytes(32), 2, 0, False, HARDENED)
+        self.core(bytes(32), 3, HARDENED, False, 0)
 
     def descsum(self, text):
         """The checksum made, asked of BIP 380's code and of Core's
@@ -322,8 +405,11 @@ class Addr(Area):
         if rng.random() < 0.15:
             account = rng.choice([0, 1, rng.randrange(HARDENED), HARDENED - 1, HARDENED])
             index = rng.choice([0, 1, rng.randrange(1000), rng.randrange(HARDENED), HARDENED])
-            self.account(self.randbytes(rng.choice([16, 32, 64])), network, rng.randrange(4),
-                         account, rng.random() < 0.3, index)
+            seed = self.randbytes(rng.choice([16, 32, 64]))
+            script, change = rng.randrange(4), rng.random() < 0.3
+            self.account(seed, network, script, account, change, index)
+            if network == "regtest":
+                self.core(seed, script, account, change, index)
         if rng.random() < 0.3:
             charset = descriptors.INPUT_CHARSET
             text = "".join(rng.choice(charset) for _ in range(rng.randint(0, 120)))
@@ -341,6 +427,7 @@ class Addr(Area):
 
     def prelude(self):
         self.published()
+        self.core_fixed()
 
     def case_corpus(self):
         self.corpus_case()

@@ -41,6 +41,7 @@ import platform
 import secrets
 import selectors
 import shutil
+import signal
 import subprocess
 import sys
 import time
@@ -49,6 +50,7 @@ HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 
 import common  # noqa: E402
+import core_node  # noqa: E402
 
 DEFAULT_SEED = "faraday-crosscheck-1"
 SELF_TEST_SCALE = 0.05
@@ -208,7 +210,8 @@ def shape(area):
     in a process of its own (`--shape`), as the areas' references cannot
     all be imported into one."""
     cls = area_class(area)
-    return {"loops": [list(x) for x in cls.LOOPS], "coda": cls.coda is not common.Area.coda}
+    return {"loops": [list(x) for x in cls.LOOPS], "coda": cls.coda is not common.Area.coda,
+            "core": bool(getattr(cls, "CORE", False))}
 
 
 def shapes(areas):
@@ -772,6 +775,34 @@ def main():
         only = (loop, int(i))
     jobs = max(1, args.jobs or default_jobs())
     args.shaped = shapes(areas)
+    needs = [a for a in areas if args.shaped.get(a, {}).get("core")]
+    if not needs:
+        return run(args, areas, jobs, only, seed, scale, None)
+    # Bitcoin Core is required by these areas: no node, no run.
+    for sig in (signal.SIGTERM, signal.SIGHUP):
+        signal.signal(sig, _exit_on)
+    node = core_node.Node(rpc_threads=jobs)
+    try:
+        core_node.loopback_up()
+        node.start()
+    except (core_node.CoreError, OSError, subprocess.SubprocessError) as e:
+        node.stop()
+        return refuse(args, f"crosscheck: {e} (needed by {', '.join(needs)})")
+    try:
+        os.environ.update(node.environ())
+        return run(args, areas, jobs, only, seed, scale, node.info)
+    finally:
+        node.stop()
+
+
+def _exit_on(sig, frame):
+    """A stop asked for from outside ends the run through its cleanup."""
+    raise SystemExit(128 + sig)
+
+
+def run(args, areas, jobs, only, seed, scale, core):
+    """The self-test and the run, with Bitcoin Core's node already up when
+    an area needs it (`core` is what it is, for the stamp)."""
     interpreters = interpreters_for(args)
     if args.python == "auto":
         global ALTERNATIVE_FOR
@@ -782,6 +813,9 @@ def main():
         "python": {k: v for k, v in interpreters.items()}}, every=args.log_every)
     progress.log(f"crosscheck: seed {seed}, scale {scale}, {jobs} workers, "
                  + " and ".join(f"{k} {v}" for k, v in interpreters.items()))
+    if core:
+        progress.log(f"crosscheck: Bitcoin Core {core['version']} on regtest, offline "
+                     f"({core['tarball']}, SHA-256 {core['sha256']})")
 
     report = []
     if not args.no_self_test:
@@ -825,7 +859,7 @@ def main():
         report.append("crosscheck: no stamp written for a partial or non-default run")
         return finish(progress, report, "passed", 0)
     import stamp
-    stamp.write(seed, scale, total, jobs, list(interpreters.values()), cases)
+    stamp.write(seed, scale, total, jobs, list(interpreters.values()), cases, core)
     report.append(f"crosscheck: stamp written to {stamp.STAMP.relative_to(common.ROOT)}")
     return finish(progress, report, "passed", 0)
 

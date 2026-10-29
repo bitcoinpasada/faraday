@@ -478,5 +478,50 @@ class Pool(unittest.TestCase):
         self.assertEqual(untimed(pypy.stdout), untimed(cpython.stdout))
 
 
+DELTA_MODULE = r'''
+"""An area that asks Bitcoin Core."""
+from common import Area
+
+
+class Delta(Area):
+    name = "delta"
+    CORE = True
+    LOOPS = (("corpus", 3),)
+
+    def case_corpus(self):
+        self.compare("fake.len", {"data": "00"}, lambda: {"n": 1})
+'''
+
+
+class CoreRequired(unittest.TestCase):
+    """An area that asks Bitcoin Core does not run without the pinned
+    release: the run refuses before the self-test and says what is
+    missing and which area needs it."""
+
+    def test_a_run_without_core_refuses_and_names_it(self):
+        tmp = pathlib.Path(tempfile.mkdtemp(prefix="crosscheck-test-core-"))
+        try:
+            (tmp / "fake_delta.py").write_text(DELTA_MODULE)
+            (tmp / "areas.json").write_text(json.dumps(
+                {"delta": ["fake_delta", "Delta", "fake.len", 1]}))
+            rust = tmp / "stand-in"
+            rust.write_text(STAND_IN)
+            rust.chmod(0o755)
+            empty = tmp / "no-core"
+            empty.mkdir()
+            env = dict(os.environ, FARADAY_BITCOIN_CORE=str(empty))
+            r = subprocess.run([sys.executable, "-I", "-B", str(HERE / "crosscheck.py"),
+                                "--rust", str(rust), "--test-areas", str(tmp), "--allow-network",
+                                "--progress", ""], capture_output=True, text=True, timeout=120,
+                               env=env)
+            self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+            self.assertIn("Bitcoin Core 31.1 is missing", r.stdout)
+            self.assertIn("fetch_core.py", r.stdout)
+            self.assertIn("(needed by delta)", r.stdout)
+            self.assertNotIn("self-test", r.stdout)
+        finally:
+            shutil.rmtree(tmp)
+
+
 if __name__ == "__main__":
     unittest.main()

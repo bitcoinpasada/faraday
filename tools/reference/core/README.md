@@ -45,3 +45,23 @@ mismatch.
 | `test_framework/script_util.py` | `bbc66982f39e345aa986b52c3d197b0e1c71788cb99cd352ad0c06d0e91673bc` |
 | `test_framework/segwit_addr.py` | `fbeb2a01fdae651877262c4902d237dd28d56f0e35b0fc137d3dd97854b18b08` |
 | `test_framework/util.py` | `2e8499f47175e6a4df9508a37c30dc24ff90de8bc1ea117ff054f99c77bc8aa2` |
+| `release.pin` | `c9fef1cb17889d4c0012e0c3d41163c72c153c25f5be6318707a0c060f5c2cce` |
+
+## The release itself, pinned, not vendored
+
+The cross-check also runs Bitcoin Core v31.1's own `bitcoind` and
+`bitcoin-cli` (regtest, no network; `tools/crosscheck/core_node.py`,
+`docs/CROSSCHECK.md` §10.4). The release tarball is about 90 MB, so it
+is not in the tree. `release.pin` names the release's folder on
+`bitcoincore.org` and the SHA-256 of the tarballs for x86_64 and aarch64
+Linux, as the release's `SHA256SUMS` gives them. It also pins the
+`guix.sigs` commit whose `builder-keys/` the first fetch checks
+`SHA256SUMS.asc` against, and the number of good builder signatures
+required (five).
+
+`tools/crosscheck/fetch_core.py` fetches and checks it once. Checked
+2026-10-29: `SHA256SUMS` carried good signatures from 11 of the
+builders in `guix.sigs` at `d48edd96db3740c2073545cfb4010d47c3df7f50`
+and no bad one, and both pinned digests are its lines for the two
+tarballs. Every run of the cross-check checks the kept tarball against
+`release.pin` before it unpacks it.

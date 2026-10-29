@@ -20,6 +20,10 @@ CI.
   cross-check. The cross-check's
   `vault` and `kdbx` areas need the distribution's argon2-cffi, PyNaCl
   and pykeepass; PyPy is optional (`tools/crosscheck/README.md`).
+- **Bitcoin Core v31.1**, which the cross-check requires: the official
+  release tarball for x86_64 or aarch64 Linux, fetched and checked once
+  by a script that needs **gpg** and git (§7). It is not in the
+  repository.
 - **Podman or Docker**, rootless, for the stick and Pi images and the
   Linux and Windows app builds (`DOCKER=podman` picks Podman).
 - **mtools, dosfstools** (`mkfs.fat`, `fsck.fat`): the FAT tests skip
@@ -236,6 +240,26 @@ others and some Faraday's own models (`docs/CROSSCHECK.md` §10, F160),
 over every published vector and a seeded random corpus (`docs/CROSSCHECK.md`,
 `docs/decisions/F79.md`). It runs offline, in a network namespace of
 its own.
+
+**Bitcoin Core, once.** The cross-check runs Bitcoin Core v31.1
+(`bitcoind` on regtest, no network), from the official release tarball
+pinned in `tools/reference/core/release.pin`. Fetch it once, with the
+network, from the repository root:
+
+```
+python3 -I -B tools/crosscheck/fetch_core.py
+```
+
+It checks the release's `SHA256SUMS` against the signatures of the
+builders whose keys `guix.sigs` publishes (at least five good ones, no
+bad one), and the tarball against `SHA256SUMS` and the pin. It keeps
+the tarball in `~/.cache/faraday/bitcoin-core` (under `$XDG_CACHE_HOME`
+when that is set). To keep it elsewhere, set `FARADAY_BITCOIN_CORE` to
+a folder, for the fetch and for every run. Each run checks the tarball
+against the pin again. Without it, or with another, the cross-check
+fails and says so. `--machine aarch64` fetches the other tarball;
+`--from DIR` checks files already downloaded (`SHA256SUMS`,
+`SHA256SUMS.asc` and the tarball) instead of fetching them.
 
 ```
 just crosscheck                 the stamp run: fixed seed, about 90 s on 12 threads
