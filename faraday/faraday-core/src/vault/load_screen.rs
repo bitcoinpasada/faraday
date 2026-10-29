@@ -1,6 +1,7 @@
 //! The Load sheet an unlock shows (`vault_load`, F62): a card per wallet
 //! the vault holds with the seeds of it there, the Keys card, Unselect all
-//! or Select all over them, Not now and Load ticked at its foot.
+//! or Select all over them, Not now and Load ticked at its foot; and the
+//! older-copy dialog an unlock stops at before it (`older_copy`).
 
 use crate::drawing::View;
 use crate::strings::EN;
@@ -341,4 +342,45 @@ pub(crate) fn pass_seeds(app: &View, ui: &mut Ui, w: f32, h: f32) {
         }
         cy - y
     });
+}
+
+/// **Open this copy?** (`docs/VAULT-HARDENING.md` §5.3): an unlock held
+/// at an older copy, or one sealed as many times with other bytes. A
+/// Material basic dialog: the vault's name and what its seal count found,
+/// **Keep locked** and **Open**. Reads the state.
+pub(crate) fn older_copy(app: &View, ui: &mut Ui, w: f32, h: f32) {
+    use faraday_draw::tokens::{DIALOG_MAX, GAP, GAP_SMALL};
+    let Some(o) = app
+        .vaults
+        .older
+        .as_ref()
+        .and_then(|h| app.vaults.open.iter().find(|o| o.id == h.id))
+    else {
+        return;
+    };
+    let name = o.label(app.vaults.store());
+    let found = o.seal_warning().unwrap_or_default();
+    let head = (
+        Icon::Warning.into(),
+        Role::Warning.paint(),
+        EN.vault_older_head,
+    );
+    let actions = [
+        (EN.vault_older_back, Style::Secondary, va(V::OlderBack)),
+        (EN.vault_older_open, Style::Primary, va(V::OlderOpen)),
+    ];
+    crate::compact::dialog(
+        ui,
+        (w, h, DIALOG_MAX),
+        head,
+        &mut |ui, x, y, iw| {
+            // Material's supporting text, Body Medium: the vault, then
+            // what its count found, in the warning tone.
+            let mut cy = y;
+            cy += ui.wrap_as((x, cy, iw), BODY_M, Role::OnSurface, &name) + GAP_SMALL;
+            cy += ui.wrap_as((x, cy, iw), BODY_M, Role::Warning, &found) + GAP;
+            cy - y
+        },
+        &actions,
+    );
 }

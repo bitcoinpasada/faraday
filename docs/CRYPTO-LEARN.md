@@ -1528,7 +1528,9 @@ be changed unnoticed.
   - **[S]** Built: Unlock shows a slot's seal count. An older copy is
     named when a newer one was opened, sealed or sat among the copies in
     Files since power-on, or when an open vault's backup plan records a
-    newer one; the vault still opens. A stick visit reads no counts: a
+    newer one; that unlock stops at a warning naming it, and the vault
+    opens only once the person presses Open (owner, 2026-10-29;
+    `docs/VAULT-HARDENING.md` §5.3). A stick visit reads no counts: a
     process that holds a slot key is never handed a stick. A rollback is
     not seen when no newer copy is opened or read between power-on and
     the older copy's unlock and no open vault's plan records one, or

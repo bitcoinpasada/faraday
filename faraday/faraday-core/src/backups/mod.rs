@@ -2210,6 +2210,15 @@ impl Faraday {
             .is_some_and(|open| self.vaults.store().holds_codex32(open.id, fp, set, index))
     }
 
+    /// What is remembered of a vault file, when it was seen open since
+    /// power-on.
+    pub fn vault_summary(&self, f: &crate::vault::VaultFile) -> Option<&VaultSummary> {
+        self.vaults
+            .summaries
+            .iter()
+            .find(|s| s.salt == f.header.salt)
+    }
+
     /// Writes each open vault's summary over the one kept for it: on
     /// unlock, after every change made on a vault screen, and as the
     /// session seals.
@@ -2288,16 +2297,18 @@ impl Faraday {
         self.vaults.merge_summaries(fresh);
     }
 
-    /// Costs what `vault_summaries_refresh` and `vault_gather_codex32`
-    /// cost. A vault just unlocked: what the app remembers of the vaults
-    /// refreshed, and their codex32 shares gathered.
-    pub(crate) fn vault_unlocked_refresh(&mut self) {
+    /// Costs what `vault_summaries_refresh` and `seals_unlocked` cost.
+    /// Open vault `v`, just unlocked: what the app remembers of the vaults
+    /// refreshed, and the slot's seal count against what was seen, with
+    /// the other copies in Files read with the key just opened
+    /// (`docs/VAULT-HARDENING.md` §5.2, §5.3). An older copy, or one
+    /// sealed as many times with other bytes, is held at the older-copy
+    /// dialog, nothing of it loaded, and this says true: the unlock goes
+    /// on only from the dialog's **Open** (§5.3, owner 2026-10-29).
+    pub(crate) fn vault_unlock_held(&mut self, v: usize, for_import: bool) -> bool {
+        let before = self.vaults.summary_before(v);
         self.vault_summaries_refresh();
-        self.vault_gather_codex32();
-        // The slot's seal count against what was seen, with the other
-        // copies in Files read with the key just opened
-        // (`docs/VAULT-HARDENING.md` §5.2, §5.3).
-        let (c, v) = (self.compute(), self.vaults.open.len().saturating_sub(1));
+        let c = self.compute();
         let files: Vec<(&str, &[u8])> = self
             .inbox
             .iter()
@@ -2306,9 +2317,54 @@ impl Faraday {
             .map(|i| (i.name.as_str(), i.bytes.as_slice()))
             .collect();
         self.vaults.seals_unlocked(&c, v, &files);
-        if let Some(warn) = self.vaults.open.get(v).and_then(|o| o.seal_warning()) {
-            self.toast(&warn);
+        if !self.vaults.older_hold(v, (for_import, self.sheet), before) {
+            return false;
         }
+        self.sheet = Some(crate::Sheet::OlderCopy);
+        true
+    }
+
+    /// Costs what `vault_unlock_go_on` costs, on **Open**.
+    /// The older-copy dialog's actions: **Open** goes on with the unlock
+    /// as it would have gone on with no warning (its Load sheet, its
+    /// flow); **Keep locked** closes the copy, its key wiped, and shows
+    /// the sheet it was unlocked on again.
+    pub(crate) fn vault_older_act(&mut self, a: crate::vault::VaultAction) {
+        let Some(h) = self.vaults.older_take() else {
+            return;
+        };
+        self.sheet = h.sheet;
+        if a != crate::vault::VaultAction::OlderOpen {
+            self.vaults.older_close(h);
+            return;
+        }
+        if self.vaults.open.iter().any(|o| o.id == h.id) {
+            self.vault_unlock_go_on(h.for_import);
+            self.vault_unlock_flow();
+        }
+    }
+
+    /// A lookup. After every press and tick: the older-copy dialog put away while
+    /// its vault is held (Escape, a press beside it, a sheet that came
+    /// over it and closed) is **Keep locked**; the held vault locked
+    /// another way ends the hold. True when it closed the vault or the dialog.
+    pub(crate) fn vault_older_settle(&mut self) -> bool {
+        let Some(id) = self.vaults.older.as_ref().map(|h| h.id) else {
+            return false;
+        };
+        if !self.vaults.open.iter().any(|o| o.id == id) {
+            // Locked another way: the hold ends, and its dialog with it.
+            self.vaults.older_take();
+            if self.sheet == Some(crate::Sheet::OlderCopy) {
+                self.sheet = None;
+            }
+            return true;
+        }
+        if self.sheet.is_some() {
+            return false;
+        }
+        self.vault_older_act(crate::vault::VaultAction::OlderBack);
+        true
     }
 
     /// Costs what `gather_codex32` costs. The codex32 share records of

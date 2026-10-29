@@ -345,7 +345,9 @@ stick visit:
    unlocked a vault holds its key and is never handed a stick
    (`docs/history/PLAN.md` §5.1), and a visit's process holds none. It
    compares the file's SHA-256 against the receipt, as below. Counts are
-   compared at unlock instead, with the key just opened (§11).
+   compared at unlock instead, with the key just opened (§11). The visit
+   does not refuse to write over a copy of the same vault it does not
+   recognise (owner, 2026-10-29; `docs/VAULT-HARDENING.md` §11 item 6).
 2. Write the sealed vault as a new file beside it, read it back and
    compare byte for byte.
 3. Delete the original and rename the new file to the name it is
@@ -552,7 +554,11 @@ lower than a count seen, "An older copy: sealed 9 times. A copy sealed 12
 times was open since power-on." (or "… is in Files", or "… {vault}'s
 backup plan records a copy sealed 12 times"), and for the same count
 with other bytes "Another copy was sealed 12 times too, with other
-changes". The vault opens either way. The Backups screen lists a locked vault's wallets
+changes". Faraday cannot tell an older copy from one put back by someone
+else, so such an unlock stops at a dialog, **Open this copy?**, naming
+the vault and that line: **Keep locked** closes the slot unread, and only
+**Open** opens it (owner, 2026-10-29; `docs/VAULT-HARDENING.md` §5.3).
+It is never refused. The Backups screen lists a locked vault's wallets
 from it (`docs/history/SIMPLIFY.md` §5), and its vault line says a seed is kept
 in a locked vault only when the seed's master id, the session key's or
 the one the backup's record kept, is the summary's for that key: the

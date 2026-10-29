@@ -177,7 +177,7 @@ fn sheets() -> Vec<Sheet> {
     let mut all = every!(Sheet: Lock, LockAsk, Power, Qr, Scan, Locked, NewInput, Learn, WordList,
         SecretOut, WriteOut, IdleWarn, Potential, Import, Pull, Chart, BoardList, BoardSees,
         BoardPartials, BoardMenu, SeedRead, Delete, Zeroing, Taken, Devices, VaultSave,
-        CancelFlow(Going::Create), CancelKey, FileMenu, Rename, Details, UnlockLoad,
+        CancelFlow(Going::Create), CancelKey, FileMenu, Rename, Details, UnlockLoad, OlderCopy,
         PassphraseSeeds, GpgSign, Mode, Samples, NavMenu(None), KeyLengths, KeyPath, Register);
     // A compact bar's overflow menu, holding every tool it can.
     all.push(Sheet::NavMenu(Some(Overflow {

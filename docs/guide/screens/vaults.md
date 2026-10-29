@@ -2,11 +2,12 @@
 
 **Kind:** Reference
 **Status:** Checked against the app's pictures in docs/guide/pictures/ (drawn by just guide-pictures) and its code and strings (`faraday/faraday-core/src/vault/screen.rs`, `faraday/faraday-core/src/vault/panes_screen.rs`, `faraday/faraday-core/src/vault/load_screen.rs`, `faraday/faraday-core/src/vault/mod.rs`)
-**Screen:** `Vaults`, `Unlock`, `UnlockLoad`, `PassphraseSeeds`
+**Screen:** `Vaults`, `Unlock`, `UnlockLoad`, `OlderCopy`, `PassphraseSeeds`
 **Group:** Vaults
 
-The list of the vaults in Files, a vault's Unlock, and the two sheets
-that load from a vault once it is open. A vault is one encrypted file
+The list of the vaults in Files, a vault's Unlock, the dialog an
+unlock of an older copy stops at, and the two sheets that load from a
+vault once it is open. A vault is one encrypted file
 (`.fvlt`); Files holds it while Faraday runs, and a stick visit carries
 it in and out.
 
@@ -98,13 +99,9 @@ asked for the vault.
 A passphrase opens the contents it was made for; the vault does not say
 how many it holds. Once open, the vault's page shows how many times the
 slot was sealed ("Sealed 12 times · last 28 Oct 2026, 14:02", or "Sealed
-once"), and a toast and a line in the warning tone say when the copy is
-not the newest seen: "An older copy: sealed 9 times. A copy sealed 12
-times was open since power-on.", "An older copy: sealed 9 times. A copy
-sealed 12 times is in Files." (another copy of the vault, read with the
-passphrase just typed), "An older copy: sealed 9 times. Plans's
-backup plan records a copy sealed 12 times." or "Another copy was sealed
-12 times too, with other changes." The vault stays open. Then:
+once"). When the copy is not the newest seen, the unlock stops first at
+[Open this copy?](#open-this-copy), and once opened the page keeps the
+line in the warning tone. Then:
 
 - from Vaults, Files shows with [Load from](#load-from) over it, when
   the vault holds a key or wallet not loaded yet;
@@ -112,6 +109,29 @@ backup plan records a copy sealed 12 times." or "Another copy was sealed
   wallets and keys in it ([Read from the boot stick](prompts.md#read-from-the-boot-stick));
 - from a flow, the flow goes on;
 - a vault just made opens on its [contents](vault.md), empty.
+
+## Open this copy?
+
+**Opened from:** an unlock whose copy is not the newest seen: a copy
+sealed more times was open since power-on, is in Files, or is recorded by
+an open vault's backup plan, or another copy was sealed as many times
+with other changes. A dialog: under its title, the vault's name, then
+what was found, in the warning tone.
+
+| Line | When |
+|---|---|
+| "An older copy: sealed 9 times. A copy sealed 12 times was open since power-on." | a newer copy was opened, sealed or read since power-on |
+| "An older copy: sealed 9 times. A copy sealed 12 times is in Files." | another copy in Files, read with the passphrase just typed, was sealed more times |
+| "An older copy: sealed 9 times. Plans's backup plan records a copy sealed 12 times." | an open vault's backup plan records a newer copy |
+| "Another copy was sealed 12 times too, with other changes." | the same count, other bytes |
+
+| Control | What it does |
+|---|---|
+| **Keep locked** | closes the vault unread: nothing of it loads, and Unlock shows again. Escape and a press beside the dialog do the same |
+| **Open** | opens the vault and goes on as an unlock does ([Unlock](#unlock)); its page keeps the line in the warning tone |
+
+Faraday cannot tell an older copy kept at another place from one put
+back by someone else; the vaults Learn page says how the count is read.
 
 ## Load from
 

@@ -405,7 +405,9 @@ Unlock's result and the open vault's head carry one line of values:
 sealed, as the clock's own; "last time not recorded" when field 2 is
 absent). Strings: `vault_seals_one` ("Sealed once"), `vault_seals` ("Sealed {} times"), `vault_sealed_last`
 ("last {}"), `vault_sealed_no_time` ("last time not recorded"),
-`vault_seals_older` and `vault_seals_newer_copy` (§5.3), in
+`vault_seals_older` and `vault_seals_newer_copy` (§5.3), and the
+older-copy dialog's `vault_older_head` ("Open this copy?"),
+`vault_older_back` ("Keep locked") and `vault_older_open` ("Open"), in
 `faraday/faraday-strings/src/en.rs`.
 
 ### 5.3 Comparing copies
@@ -422,10 +424,30 @@ apart.
 The comparisons:
 
 1. **Unlock.** A slot opened with a count lower than the highest seen
-   for it opens, and Unlock and the vault's head say so:
+   for it stops at a dialog before it opens (owner, 2026-10-29; §11
+   item 5), which names the vault and what was found:
    "An older copy: sealed 9 times. A copy sealed 12 times was open since
    power-on." The same count with other bytes: "Another copy was sealed
-   12 times too, with other changes."
+   12 times too, with other changes." Faraday cannot tell an older copy
+   the person kept from one put back by someone else, so the person
+   decides; the unlock is never refused. The dialog is Material's basic
+   dialog (`docs/DESIGN.md` §4.13; Material 3, Dialogs), **Open this
+   copy?** with a warning icon, the vault's name, the line in the
+   warning tone, and its actions dismissive first:
+   - **Keep locked** (and Escape, and a press beside the dialog) closes
+     the slot, its key wiped, and puts back what was remembered of the
+     vault before (VAULT §11); the counts read stay seen. The sheet the
+     unlock was made on (the boot import's) comes back.
+   - **Open** goes on with the unlock as it would have gone with no
+     warning: its toast, its codex32 shares gathered, its Load sheet or
+     the flow it was opened for. The vault's head keeps the line in the
+     warning tone.
+
+   Until **Open**, nothing of the slot is loaded or shown: the slot is
+   held behind the dialog (`vault::OlderHold`), and a dialog put away
+   another way (a sheet that came over it and closed) is **Keep
+   locked**. A slot already open when another vault's plan names it
+   older (§5.6) stays open, and its head says so.
 2. **At unlock, the other copies in Files.** A stick visit cannot read a
    count: a process that has unlocked a vault holds its key and is never
    handed a stick (`docs/history/PLAN.md` §5.1), and a visit's process
@@ -434,8 +456,9 @@ The comparisons:
    with the key just derived (`Opened::copy_seals`, one decryption each,
    no Argon2id): a higher count says "An older copy: sealed 9 times. A
    copy sealed 12 times is in Files."; the same count with other bytes
-   says "Another copy was sealed 12 times too, with other changes". To
-   compare a stick's copy, copy it into Files before unlocking.
+   says "Another copy was sealed 12 times too, with other changes". The
+   unlock stops at item 1's dialog. To compare a stick's copy, copy it
+   into Files before unlocking.
 3. **A backup check.** BACKUP-FLOW §18.3's check "A vault's stick read on
    a stick visit, and the vault unlocked from it" dates that stick
    checked only when its unlock names no older copy.
@@ -471,7 +494,8 @@ The comparisons:
 - a stick's copy not copied into Files before unlock (2): it is not
   read, and a visit can write an older copy over it;
 - whether an older copy is an attack or a place not yet visited: both
-  read "older"; the count says which is newer, not why;
+  read "older"; the count says which is newer, not why. So the unlock
+  asks (5.3 item 1) and does not refuse;
 - the time: field 2 is the sealing computer's clock, which can be wrong
   or unset (a Raspberry Pi has no clock that keeps time when off). It is
   shown, never compared.
@@ -499,8 +523,11 @@ covers it.
   `vault_seal_count.rs`), as a person sees it:
   - Unlock of a new vault shows "Sealed once" (`vault_seals_one`), and
     after a second seal "Sealed 2 times";
-  - unlock a copy, seal it twice, lock, unlock the first copy: Unlock says
-    it is older;
+  - unlock a copy, seal it twice, lock, unlock the first copy: Unlock
+    stops at the dialog, which says it is older; the unlock does not
+    land, through ticks too, until **Open**, which lands it and leaves
+    the line on the vault's head; **Keep locked**, or Escape, leaves it
+    locked, and the next unlock stops at the dialog again;
   - another copy of the vault in Files with a higher count: Unlock says
     it is older and where the newer one is; the newer copy opened with
     the older beside it says nothing;
@@ -567,7 +594,9 @@ treated as a copy seen (it raises §5.3's highest seen). The outcomes are
   too, with other changes";
 - otherwise the copy is current, and nothing is said.
 
-Never refused: the slot opens and stays open.
+Never refused: at the slot's own unlock it stops at §5.3's dialog and
+opens on **Open**; a slot already open when the plan's vault opens stays
+open, and its head says so.
 
 **Older builds.** A `seals` line is an answer line an earlier build does
 not know, and `Answers::from_text` returns `None` for an unknown key
@@ -627,12 +656,14 @@ text:
 >
 > Someone who can write to a stick can put an older copy of a vault
 > back. They cannot read it or change what is in it, but the older copy
-> opens. Compare the count with how often you remember changing the
-> vault: a count lower than you expect is an older copy.
+> still unlocks. Compare the count with how often you remember changing
+> the vault: a count lower than you expect is an older copy.
 >
 > Faraday remembers the counts it has seen until the computer is turned
-> off. Opening an older copy after a newer one in that time says so: "An
-> older copy: sealed 9 times."
+> off. Unlocking an older copy after a newer one in that time stops
+> before the vault opens and says so: "An older copy: sealed 9 times."
+> Faraday cannot tell an older copy you kept from one someone put back.
+> Open carries on with that copy; Keep locked leaves it locked.
 >
 > A backup plan kept in one vault records the counts of the other
 > vaults it uses. Open the vault with the plan first, then the others: a
@@ -642,9 +673,9 @@ text:
 > what you remember, is the check.
 >
 > Unlock also reads the other copies of the vault in Files, with the
-> passphrase just typed. If one has been sealed more times, Unlock says
-> "An older copy: sealed 9 times. A copy sealed 12 times is in Files."
-> Open that copy to carry on from it.
+> passphrase just typed. If one has been sealed more times, Unlock stops
+> and says "An older copy: sealed 9 times. A copy sealed 12 times is in
+> Files." Keep this one locked and open that copy to carry on from it.
 >
 > The count cannot show every copy put back at once, at every place; a
 > vault no backup plan names; or another passphrase's slot, whose count
@@ -656,7 +687,8 @@ text:
 
 The guide's pages that cover Unlock and the visit say the same in their
 own words and pictures, in batch 2b: `docs/guide/screens/vaults.md`
-("Unlock": the Sealed line and the older-copy line),
+("Unlock": the Sealed line, the older-copy line and the older-copy
+dialog),
 `docs/guide/screens/stick-visit.md` (not changed: a visit reads no
 counts), and `docs/guide/walk/vaults-and-passwords.md`
 (§3 "Unlock it" and §10 "Unlock it again, and load from it", whose
@@ -883,6 +915,22 @@ the vault work done overnight; the owner reviews them.
    records each other vault's seal count (§5.6).
 4. **Reversed by the owner** (2026-10-28, 23:40 EDT): a file is a vault
    by its magic and size, whatever its name (§2.1).
+5. **An older copy asks before it opens** (the owner's, 2026-10-29).
+   Faraday cannot tell an older version of the same vault from one put
+   back by an attacker, so an unlock that finds the slot older (§5.3
+   items 1 and 2: a lower count than one seen, or the same count with
+   other bytes, and §5.6's plan lines read at that unlock) stops at a
+   warning naming what it found, with **Open** to go on and **Keep
+   locked** to go back; only after **Open** does the vault open. Never
+   refused. Before, it opened and said so in the warning tone and a
+   toast.
+6. **A stick visit keeps today's rule** (the owner's, 2026-10-29,
+   confirming item 2): a visit writes a vault sealed this session over
+   the stick's copy of the same vault (same salt and length, VAULT §6)
+   and does not refuse to write over a copy it does not recognise.
+   Alternatives not taken: refusing to write over a stick copy whose
+   bytes no receipt or read recorded, and a list of each copy's digest
+   in the backup plan for the visit to check the stick's copy against.
 
 ## 12. What this does not do
 

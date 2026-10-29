@@ -16,13 +16,13 @@ This does not hold against two copies of the same vault from different times: a 
 
 Unlock shows how many times a vault has been sealed: "Sealed 12 times · last 28 Oct 2026, 14:02". A seal is a save: Faraday seals a vault when it locks it with changes. Opening a vault and changing nothing does not count. The count is inside the encryption, so no one can change it without the passphrase.
 
-Someone who can write to a stick can put an older copy of a vault back. They cannot read it or change what is in it, but the older copy opens. Compare the count with how often you remember changing the vault: a count lower than you expect is an older copy.
+Someone who can write to a stick can put an older copy of a vault back. They cannot read it or change what is in it, but the older copy still unlocks. Compare the count with how often you remember changing the vault: a count lower than you expect is an older copy.
 
-Faraday remembers the counts it has seen until the computer is turned off. Opening an older copy after a newer one in that time says so: "An older copy: sealed 9 times."
+Faraday remembers the counts it has seen until the computer is turned off. Unlocking an older copy after a newer one in that time stops before the vault opens and says so: "An older copy: sealed 9 times." Faraday cannot tell an older copy you kept from one someone put back. Open carries on with that copy; Keep locked leaves it locked.
 
 A backup plan kept in one vault records the counts of the other vaults it uses. Open the vault with the plan first, then the others: a vault older than the copy the plan records is named as older, even after the computer was turned off. With one vault, its plan is in the same file and goes back with it; then the count at unlock, against what you remember, is the check.
 
-Unlock also reads the other copies of the vault in Files, with the passphrase just typed. If one has been sealed more times, Unlock says "An older copy: sealed 9 times. A copy sealed 12 times is in Files." Open that copy to carry on from it.
+Unlock also reads the other copies of the vault in Files, with the passphrase just typed. If one has been sealed more times, Unlock stops and says "An older copy: sealed 9 times. A copy sealed 12 times is in Files." Keep this one locked and open that copy to carry on from it.
 
 The count cannot show every copy put back at once, at every place; a vault no backup plan names; or another passphrase's slot, whose count only that passphrase reads.
 

@@ -1,14 +1,14 @@
 //! A vault counts how many times its slot was sealed, inside the
 //! encryption (`docs/VAULT-HARDENING.md` §5). The count is shown at
-//! unlock and on the open vault's head; a copy with a lower count than
-//! one seen since power-on says it is older; a stick visit never writes
-//! an older copy over a newer one; and a backup plan in one vault records
-//! the counts of the others, so an older copy is named even after the
-//! computer was off.
+//! unlock and on the open vault's head; an unlock of a copy with a lower
+//! count than one seen since power-on stops at a dialog that says it is
+//! older, and opens only on **Open**; and a backup plan in one vault
+//! records the counts of the others, so an older copy is named even after
+//! the computer was off.
 
 use crate::common::type_text;
 use faraday_core::vault::VaultAction as V;
-use faraday_core::{Action, Faraday, Screen, StorageCommand, StorageEvent, testkit};
+use faraday_core::{Action, Faraday, Screen, Sheet, StorageCommand, StorageEvent, testkit};
 use faraday_shell_api::{App, EntropyBytes, Event};
 use faraday_vault::records::{field, kind};
 use faraday_vault::{Contents, Record};
@@ -59,6 +59,18 @@ fn unlock(app: &mut Faraday, at: usize, phrase: &str) {
         before + 1,
         "the vault did not open"
     );
+}
+
+/// The unlock just made stopped at the older-copy dialog: it says what
+/// the count found, and **Open** goes on with the unlock.
+fn open_anyway(app: &mut Faraday, found: &str) {
+    assert_eq!(app.sheet, Some(Sheet::OlderCopy), "no older-copy dialog");
+    let _ = app.frame();
+    let texts = app.drawn_texts();
+    assert!(said(&texts, "Open this copy?"), "{texts:?}");
+    assert!(said(&texts, found), "{texts:?}");
+    app.press(Action::Vault(V::OlderOpen));
+    assert_ne!(app.sheet, Some(Sheet::OlderCopy));
 }
 
 /// What the open vault's page says.
@@ -193,8 +205,9 @@ fn a_new_vault_reads_sealed_once_and_each_seal_adds_one() {
     assert!(!said(&texts, "older copy"), "{texts:?}");
 }
 
-#[test]
-fn an_older_copy_opened_after_a_newer_one_in_one_power_on_says_so() {
+/// A process holding the first copy of a vault, unlocked, where a copy
+/// sealed twice was open since power-on (what the last process kept).
+fn older_unlocked() -> Faraday {
     let original = made("Main", B, 1);
     let mut app = process(
         vec![("main.fvlt".into(), original.clone())],
@@ -210,19 +223,25 @@ fn an_older_copy_opened_after_a_newer_one_in_one_power_on_says_so() {
     let (_, _, kept) = saved(&mut app);
 
     // The next process, with the first copy and what the last kept.
-    let mut app = process(
-        vec![("main.fvlt".into(), original)],
-        Vec::new(),
-        kept.clone(),
-    );
+    let mut app = process(vec![("main.fvlt".into(), original)], Vec::new(), kept);
     unlock(&mut app, 0, B);
+    app
+}
+
+/// What the dialog says of it (wrapped at its width: its first part).
+const OLDER: &str = "An older copy: sealed once.";
+
+#[test]
+fn an_older_copy_opened_after_a_newer_one_in_one_power_on_says_so() {
+    let mut app = older_unlocked();
+    open_anyway(&mut app, OLDER);
     let texts = head(&mut app);
     assert!(said(&texts, "An older copy: sealed once"), "{texts:?}");
     assert!(
         said(&texts, "A copy sealed 2 times was open since power-on"),
         "{texts:?}"
     );
-    // Warned, not refused: the vault is open.
+    // Warned and confirmed, not refused: the vault is open.
     assert_eq!(app.vaults().open.len(), 1);
 
     // Power off: nothing is kept, and the older copy opens with no
@@ -232,6 +251,67 @@ fn an_older_copy_opened_after_a_newer_one_in_one_power_on_says_so() {
     unlock(&mut app, 0, B);
     let texts = head(&mut app);
     assert!(!said(&texts, "older copy"), "{texts:?}");
+}
+
+#[test]
+fn an_older_copy_stops_at_a_dialog_and_opens_only_on_open() {
+    let mut app = older_unlocked();
+    assert_eq!(app.sheet, Some(Sheet::OlderCopy));
+    let _ = app.frame();
+    let texts = app.drawn_texts();
+    for part in ["Open this copy?", "Main", OLDER, "Keep locked", "Open"] {
+        assert!(said(&texts, part), "{part}: {texts:?}");
+    }
+    // Not open yet: the unlock has not landed and nothing says it did.
+    assert_eq!(app.screen, Screen::Unlock);
+    assert!(!app.toast_text().is_some_and(|t| t.contains("unlocked")));
+    // A tick does not open it either.
+    settle(&mut app, |_| false);
+    assert_eq!(app.sheet, Some(Sheet::OlderCopy));
+    assert_eq!(app.screen, Screen::Unlock);
+
+    app.press(Action::Vault(V::OlderOpen));
+    assert_eq!(app.sheet, None);
+    assert_ne!(app.screen, Screen::Unlock, "the unlock landed");
+    assert!(
+        app.toast_text().is_some_and(|t| t.contains("unlocked")),
+        "{:?}",
+        app.toast_text()
+    );
+    assert_eq!(app.vaults().open.len(), 1);
+}
+
+#[test]
+fn keep_locked_or_escape_leaves_the_older_copy_locked() {
+    // Escape on a sheet is its Cancel.
+    for way in [Action::Vault(V::OlderBack), Action::Cancel] {
+        let mut app = older_unlocked();
+        app.press(way);
+        assert!(app.vaults().open.is_empty(), "{way:?}: still open");
+        assert_eq!(app.sheet, None, "{way:?}");
+        assert_eq!(app.screen, Screen::Unlock, "{way:?}");
+        let _ = app.frame();
+        let texts = app.drawn_texts();
+        assert!(!said(&texts, "Open this copy?"), "{texts:?}");
+        // Unlocked again, it stops at the dialog again.
+        unlock(&mut app, 0, B);
+        assert_eq!(app.sheet, Some(Sheet::OlderCopy), "{way:?}");
+    }
+}
+
+#[test]
+fn a_lock_while_the_dialog_shows_closes_the_older_copy_and_ends_the_dialog() {
+    let mut app = older_unlocked();
+    assert_eq!(app.sheet, Some(Sheet::OlderCopy));
+    app.press(Action::Lock);
+    assert!(app.vaults().open.is_empty(), "the lock closed it");
+    assert_ne!(app.sheet, Some(Sheet::OlderCopy));
+    settle(&mut app, |_| false);
+    assert_ne!(app.sheet, Some(Sheet::OlderCopy));
+    // Unlocked again, it stops at the dialog again, and Open opens it.
+    unlock(&mut app, 0, B);
+    open_anyway(&mut app, OLDER);
+    assert_eq!(app.vaults().open.len(), 1);
 }
 
 #[test]
@@ -247,6 +327,7 @@ fn two_copies_sealed_from_one_copy_say_so() {
     let (_, _, kept) = saved(&mut app);
     let mut app = process(vec![("other.fvlt".into(), other)], Vec::new(), kept);
     unlock(&mut app, 0, B);
+    open_anyway(&mut app, "Another copy was sealed 2 times too");
     let texts = head(&mut app);
     assert!(
         said(
@@ -275,6 +356,7 @@ fn a_plan_in_one_vault_names_an_older_copy_of_another_after_power_off() {
     let mut app = process(inbox, Vec::new(), Vec::new());
     unlock(&mut app, 0, A);
     unlock(&mut app, 1, B);
+    open_anyway(&mut app, "Plans's backup plan records");
     let texts = head(&mut app);
     assert!(
         said(
@@ -324,6 +406,7 @@ fn a_plan_that_records_the_copy_opened_says_nothing_and_one_with_other_bytes_say
     let mut app = process(inbox, Vec::new(), Vec::new());
     unlock(&mut app, 0, A);
     unlock(&mut app, 1, B);
+    open_anyway(&mut app, "sealed 2 times too");
     let texts = head(&mut app);
     assert!(said(&texts, "sealed 2 times too"), "{texts:?}");
 
@@ -352,6 +435,7 @@ fn another_copy_in_files_is_read_with_the_key_just_opened() {
         Vec::new(),
     );
     unlock(&mut app, 0, B);
+    open_anyway(&mut app, "is in Files");
     let texts = head(&mut app);
     assert!(
         said(
@@ -379,6 +463,7 @@ fn another_copy_in_files_is_read_with_the_key_just_opened() {
         Vec::new(),
     );
     unlock(&mut app, 0, B);
+    open_anyway(&mut app, "Another copy was sealed 2 times too");
     let texts = head(&mut app);
     assert!(
         said(

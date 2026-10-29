@@ -1296,6 +1296,9 @@ pub struct Vaults {
     pub(crate) clock_checked: bool,
     /// What is remembered of each vault seen open since power-on.
     pub summaries: Vec<VaultSummary>,
+    /// An unlock stopped at the older-copy dialog ([`OlderHold`]), boxed:
+    /// a summary is large and the hold is rare.
+    pub older: Option<Box<super::OlderHold>>,
     /// The expiry chosen for a GPG key being made or renewed, in years;
     /// 0 for never.
     pub gpg_years: u32,
@@ -2251,6 +2254,10 @@ pub enum VaultAction {
     LoadTicked,
     /// The Load sheet's Not now: nothing loads, the vault stays open.
     LoadNotNow,
+    /// The older-copy dialog's **Open**: the unlock goes on (§5.3).
+    OlderOpen,
+    /// Its **Keep locked**: the copy closes, nothing of it read.
+    OlderBack,
     /// From wallet n short of a key: the seeds open vaults keep without
     /// a passphrase, one to load with a passphrase typed now (F62).
     PassphraseKey(usize),

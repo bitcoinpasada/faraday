@@ -332,8 +332,10 @@ no sheet.
 
 The vault's page now reads "Sealed 2 times · last", the date and the
 time: the lock in step 8 sealed it once more. Had Files held a copy
-sealed more times, the page would say "An older copy: sealed 2 times." and
-the count of the newer one.
+sealed more times, the unlock would have stopped at
+[Open this copy?](../screens/vaults.md#open-this-copy), saying "An older
+copy: sealed 2 times." and the count of the newer one, and opened only on
+**Open**.
 
 ## 11. A new passphrase
 

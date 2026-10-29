@@ -363,6 +363,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
             Sheet::Lock => Some(Action::NotNow),
             Sheet::Import => Some(crate::boot_import::LATER),
             Sheet::UnlockLoad => Some(Action::Vault(crate::vault::VaultAction::LoadNotNow)),
+            Sheet::OlderCopy => Some(Action::Vault(crate::vault::VaultAction::OlderBack)),
             // A new touchscreen's sheet is the whole screen: only its
             // Ignore keeps the device out.
             Sheet::NewInput => app
@@ -416,6 +417,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
             Sheet::Rename => crate::file_menu::rename_sheet(app, ui, w, h),
             Sheet::Details => crate::file_menu::details_sheet(app, ui, w, h),
             Sheet::UnlockLoad => crate::vault::load_screen::draw(app, ui, w, h),
+            Sheet::OlderCopy => crate::vault::load_screen::older_copy(app, ui, w, h),
             Sheet::PassphraseSeeds => crate::vault::load_screen::pass_seeds(app, ui, w, h),
             Sheet::GpgSign => crate::vault::screen::gpg_sign_sheet(app, ui, w, h),
             Sheet::Mode => crate::modes::screen::sheet(app, ui, w, h),

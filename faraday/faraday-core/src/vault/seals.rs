@@ -463,3 +463,81 @@ impl Vaults {
         o.seal_warn = None;
     }
 }
+
+/// An unlock stopped at the older-copy dialog (`docs/VAULT-HARDENING.md`
+/// §5.3, owner 2026-10-29): the slot opened is held, its key in the
+/// store, and nothing of it loads or shows until **Open** is pressed;
+/// **Keep locked** closes it. Faraday cannot tell an older copy from one
+/// put back by someone else, so the person decides; it is never refused.
+#[derive(Debug, Clone)]
+pub struct OlderHold {
+    /// The open vault held.
+    pub id: VaultId,
+    /// It was unlocked on the boot import's sheet.
+    pub(crate) for_import: bool,
+    /// The sheet it was unlocked on, shown again after the dialog.
+    pub(crate) sheet: Option<crate::Sheet>,
+    /// What was remembered of the vault before this copy opened.
+    summary: Option<VaultSummary>,
+}
+
+impl VaultArea {
+    /// The summary remembered of the vault open vault `v` is a copy of,
+    /// before an unlock refreshes it: what **Keep locked** puts back.
+    pub(crate) fn summary_before(&self, v: usize) -> Option<VaultSummary> {
+        let salt = self.state.open.get(v)?.header().salt;
+        self.state
+            .summaries
+            .iter()
+            .find(|s| s.salt == salt)
+            .cloned()
+    }
+
+    /// Holds open vault `v` at the older-copy dialog when its unlock
+    /// found a warning (§5.3 items 1 and 2, §5.6); true when it holds.
+    pub(crate) fn older_hold(
+        &mut self,
+        v: usize,
+        (for_import, sheet): (bool, Option<crate::Sheet>),
+        summary: Option<VaultSummary>,
+    ) -> bool {
+        let Some(o) = self.state.open.get(v).filter(|o| o.seal_warn.is_some()) else {
+            return false;
+        };
+        self.state.older = Some(Box::new(OlderHold {
+            id: o.id,
+            for_import,
+            sheet,
+            summary,
+        }));
+        true
+    }
+
+    /// Takes the hold, if any.
+    pub(crate) fn older_take(&mut self) -> Option<OlderHold> {
+        self.state.older.take().map(|h| *h)
+    }
+
+    /// **Keep locked**: the held vault closes, its key wiped, and what
+    /// was remembered of it before is put back, the counts seen kept.
+    pub(crate) fn older_close(&mut self, h: OlderHold) {
+        let Some(i) = self.state.open.iter().position(|o| o.id == h.id) else {
+            return;
+        };
+        let salt = self.state.open[i].header().salt;
+        self.state.close(i);
+        self.state.current = 0;
+        let at = self.state.summaries.iter().position(|s| s.salt == salt);
+        match (at, h.summary) {
+            (Some(at), Some(mut was)) => {
+                was.seals = std::mem::take(&mut self.state.summaries[at].seals);
+                self.state.summaries[at] = was;
+            }
+            (Some(at), None) => {
+                self.state.summaries.remove(at);
+            }
+            (None, _) => {}
+        }
+        self.state.seals_planned_sync();
+    }
+}

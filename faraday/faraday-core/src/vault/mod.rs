@@ -25,7 +25,7 @@ mod strength;
 mod summaries;
 
 pub use area::*;
-pub use seals::{SealFrom, SealOrder, SealSeen, SealWarn, times};
+pub use seals::{OlderHold, SealFrom, SealOrder, SealSeen, SealWarn, times};
 pub use search::{SearchAct, SearchIn};
 pub(crate) use summaries::{summaries_decode, summaries_encode};
 
@@ -757,6 +757,7 @@ impl Faraday {
             V::LoadTick(_) | V::LoadTickAll | V::LoadTicked | V::LoadNotNow => {
                 self.load_sheet_act(a)
             }
+            V::OlderOpen | V::OlderBack => self.vault_older_act(a),
             V::PassphraseKey(w) => self.pass_seeds_open(w),
             V::PassphrasePick(v, r) => self.pass_seed_pick(v, r),
             V::PassphraseList => self.pass_seed_list(),
@@ -1155,7 +1156,7 @@ impl Faraday {
             }
             redraw = true;
         }
-        redraw | dice::tick(self, now_ms)
+        redraw | dice::tick(self, now_ms) | self.vault_older_settle()
     }
 
     fn vault_unlock_check(&mut self) {
@@ -1181,20 +1182,23 @@ impl Faraday {
     fn vault_unlock(&mut self) {
         let before = self.vaults.open.len();
         self.vault_unlock_inner();
-        // Unlocked inside a backup flow: it goes on, and loads what it
-        // needs itself, so no Load sheet waits over it (F62).
-        if self.vaults.open.len() > before {
-            let screen = self.screen;
-            self.flow_vault_opened();
-            let from_tab = self.vaults.load.as_ref().is_some_and(|l| !l.boot);
-            if self.screen != screen && from_tab && self.sheet == Some(crate::Sheet::UnlockLoad) {
-                self.vaults.state.load = None;
-                self.sheet = None;
-            }
+        if self.vaults.open.len() > before && self.vaults.older.is_none() {
+            self.vault_unlock_flow();
         }
     }
 
-    #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
+    /// Unlocked inside a backup flow: it goes on, and loads what it
+    /// needs itself, so no Load sheet waits over it (F62).
+    pub(crate) fn vault_unlock_flow(&mut self) {
+        let screen = self.screen;
+        self.flow_vault_opened();
+        let from_tab = self.vaults.load.as_ref().is_some_and(|l| !l.boot);
+        if self.screen != screen && from_tab && self.sheet == Some(crate::Sheet::UnlockLoad) {
+            self.vaults.state.load = None;
+            self.sheet = None;
+        }
+    }
+
     fn vault_unlock_inner(&mut self) {
         let c = self.compute();
         let files = self.vault_files();
@@ -1225,114 +1229,116 @@ impl Faraday {
                     seal_warn: None,
                 });
                 self.vaults.state.current = self.vaults.open.len() - 1;
-                // Unlocked for a vault category from Tools: that category.
-                // Otherwise the first kind it holds.
-                if self.vaults.back_to != Some(Screen::VaultContents) {
-                    let held = |kinds: &[u8]| {
-                        self.vaults
-                            .records(self.vaults.open[self.vaults.open.len() - 1].id)
-                            .iter()
-                            .any(|(_, r)| kinds.contains(&r.kind()))
-                    };
-                    // Its wallets first, each with its chart (§7.2).
-                    self.vaults.state.category = if held(CATEGORIES[1].1) {
-                        1
-                    } else {
-                        CATEGORIES
-                            .iter()
-                            .position(|(_, kinds)| held(kinds))
-                            .unwrap_or(0)
-                    };
-                    self.vaults.state.category_chosen = false;
-                } else {
-                    self.vaults.state.category_chosen = true;
-                }
-                self.vaults.state.item = [0; 7];
-                // Keys and wallets set not to load at unlock start
-                // unchosen on the Vaults tab's load list.
-                let v = self.vaults.current;
-                let skip = self
-                    .vaults
-                    .records(self.vaults.open[v].id)
-                    .iter()
-                    .filter(|(_, r)| {
-                        matches!(r.kind(), kind::KEY | kind::WALLET) && !r.loads_at_unlock()
-                    })
-                    .map(|(i, _)| i)
-                    .collect();
-                self.vaults.state.open[v].skip = skip;
-                self.amounts_from_vault(self.vaults.open[v].id);
-                // The vault just made opens on its contents, empty, with
-                // what to do next.
-                let made =
-                    self.vaults.state.just_made.take() == Some(self.vaults.open[v].name.clone());
-                self.toast(&fill(
-                    EN.vaults_unlocked,
-                    &[&self.vaults.open[v].name.to_string()],
-                ));
-                self.vault_unlocked_refresh();
-                if for_import {
-                    // Its Load sheet (F62); after it, the next vault the
-                    // import brought is offered, or, with none left, the
-                    // landing (F60).
-                    self.vaults.state.back_to = None;
-                    let before = self
-                        .import
-                        .state()
-                        .map_or(self.session.wallets.len(), |i| i.wallets_before);
-                    let label = self.import.state().map(|i| i.label.clone());
-                    if self.import_unlocked(v) {
-                        let file = self.vaults.open[v].name.clone();
-                        self.unlock_landed(before, &file, label.as_deref());
-                    }
-                    return;
-                }
-                // Every vault the boot import brought unlocked elsewhere:
-                // the import is over (F60).
-                self.import_settle();
-                // Unlocked from the Spend tab, or for it: everything loads.
-                let back = self.vaults.state.back_to.take();
-                if self.screen == Screen::Family || back == Some(Screen::Family) {
-                    self.screen = Screen::Family;
-                    self.family_unlocked(v);
-                } else if back.is_none() && !made {
-                    // The Vaults list's Unlock (`docs/history/NEW-WALLET.md`
-                    // §11.1a, F62): Files, where it landed before F62
-                    // when it loaded no wallet, with the vault's Load
-                    // sheet over it; a wallet loaded lands on Wallets as
-                    // the boot sheet's does. A vault opened from inside a flow, or
-                    // just made, keeps `back_to` or `made` and takes the
-                    // branch below instead, loading nothing here.
-                    self.screen = Screen::Files;
-                    let before = self.session.wallets.len();
-                    self.load_sheet_offer(v, false, before);
-                } else {
-                    self.screen = back.unwrap_or(if made {
-                        Screen::VaultContents
-                    } else {
-                        Screen::Files
-                    });
-                }
-                // Landed on the codes screen with the clock not checked
-                // this power-on: Set the time first (`docs/TOTP.md`
-                // §5.2), coming back to the codes.
-                if self.screen == Screen::Codes && !self.clock_checked() {
-                    self.open_set_time();
-                }
-                // Unlocked for the boot import: its sheet again, with the
-                // vault's wallets and keys in it.
-                if back == Some(Screen::Home) && self.import.state().is_some() {
-                    self.sheet = Some(crate::Sheet::Import);
-                }
-                // Unlocked for a secret: its sheet again, with the vault.
-                if back.is_some() && self.secrets.out().is_some() {
-                    self.sheet = Some(crate::Sheet::SecretOut);
+                if !self.vault_unlock_held(self.vaults.current, for_import) {
+                    self.vault_unlock_go_on(for_import);
                 }
             }
             Err(e) => {
                 self.vaults.state.passphrase.clear();
                 self.vaults.state.unlock_error = Some(errors::error_text(e));
             }
+        }
+    }
+
+    /// Costs what `vault_gather_codex32` and the Load sheet cost. The rest
+    /// of an unlock once its copy is taken: at once, or from the
+    /// older-copy dialog's **Open** (`docs/VAULT-HARDENING.md` §5.3).
+    pub(crate) fn vault_unlock_go_on(&mut self, for_import: bool) {
+        // Unlocked for a vault category from Tools: that category.
+        // Otherwise the first kind it holds.
+        if self.vaults.back_to != Some(Screen::VaultContents) {
+            let held = |kinds: &[u8]| {
+                self.vaults
+                    .records(self.vaults.open[self.vaults.open.len() - 1].id)
+                    .iter()
+                    .any(|(_, r)| kinds.contains(&r.kind()))
+            };
+            // Its wallets first, each with its chart (§7.2).
+            self.vaults.state.category = if held(CATEGORIES[1].1) {
+                1
+            } else {
+                CATEGORIES
+                    .iter()
+                    .position(|(_, kinds)| held(kinds))
+                    .unwrap_or(0)
+            };
+            self.vaults.state.category_chosen = false;
+        } else {
+            self.vaults.state.category_chosen = true;
+        }
+        self.vaults.state.item = [0; 7];
+        // Keys and wallets set not to load at unlock start unchosen on the
+        // Vaults tab's load list.
+        let v = self.vaults.current;
+        let skip = self
+            .vaults
+            .records(self.vaults.open[v].id)
+            .iter()
+            .filter(|(_, r)| matches!(r.kind(), kind::KEY | kind::WALLET) && !r.loads_at_unlock())
+            .map(|(i, _)| i)
+            .collect();
+        self.vaults.state.open[v].skip = skip;
+        self.amounts_from_vault(self.vaults.open[v].id);
+        // The vault just made opens on its contents, empty, with what to do next.
+        let made = self.vaults.state.just_made.take() == Some(self.vaults.open[v].name.clone());
+        self.toast(&fill(
+            EN.vaults_unlocked,
+            &[&self.vaults.open[v].name.to_string()],
+        ));
+        self.vault_gather_codex32();
+        if for_import {
+            // Its Load sheet (F62); after it, the next vault the import
+            // brought is offered, or, with none left, the landing (F60).
+            self.vaults.state.back_to = None;
+            let before = self
+                .import
+                .state()
+                .map_or(self.session.wallets.len(), |i| i.wallets_before);
+            let label = self.import.state().map(|i| i.label.clone());
+            if self.import_unlocked(v) {
+                let file = self.vaults.open[v].name.clone();
+                self.unlock_landed(before, &file, label.as_deref());
+            }
+            return;
+        }
+        // Every vault the boot import brought unlocked elsewhere: the import is over (F60).
+        self.import_settle();
+        // Unlocked from the Spend tab, or for it: everything loads.
+        let back = self.vaults.state.back_to.take();
+        if self.screen == Screen::Family || back == Some(Screen::Family) {
+            self.screen = Screen::Family;
+            self.family_unlocked(v);
+        } else if back.is_none() && !made {
+            // The Vaults list's Unlock (`docs/history/NEW-WALLET.md` §11.1a,
+            // F62): Files, where it landed before F62 when it loaded no
+            // wallet, with the vault's Load sheet over it; a wallet loaded
+            // lands on Wallets as the boot sheet's does. A vault opened from
+            // inside a flow, or just made, keeps `back_to` or `made` and
+            // takes the branch below instead, loading nothing here.
+            self.screen = Screen::Files;
+            let before = self.session.wallets.len();
+            self.load_sheet_offer(v, false, before);
+        } else {
+            self.screen = back.unwrap_or(if made {
+                Screen::VaultContents
+            } else {
+                Screen::Files
+            });
+        }
+        // Landed on the codes screen with the clock not checked this
+        // power-on: Set the time first (`docs/TOTP.md` §5.2), coming back
+        // to the codes.
+        if self.screen == Screen::Codes && !self.clock_checked() {
+            self.open_set_time();
+        }
+        // Unlocked for the boot import: its sheet again, with the vault's
+        // wallets and keys in it.
+        if back == Some(Screen::Home) && self.import.state().is_some() {
+            self.sheet = Some(crate::Sheet::Import);
+        }
+        // Unlocked for a secret: its sheet again, with the vault.
+        if back.is_some() && self.secrets.out().is_some() {
+            self.sheet = Some(crate::Sheet::SecretOut);
         }
     }
 
@@ -2521,15 +2527,6 @@ impl Faraday {
             })
         })
     }
-
-    /// What is remembered of a vault file, when it was seen open since
-    /// power-on.
-    pub fn vault_summary(&self, f: &VaultFile) -> Option<&VaultSummary> {
-        self.vaults
-            .summaries
-            .iter()
-            .find(|s| s.salt == f.header.salt)
-    }
 }
 
 /// Glue of the TOTP codes screen (`crate::codes`).
@@ -3494,6 +3491,7 @@ impl Faraday {
     pub(crate) fn vault_shown_tidy(&mut self) {
         let on = self.vault_on_page();
         self.vaults.tidy_shown(on);
+        self.vault_older_settle();
     }
 
     /// Runs `f` with the selected wallet record as a session wallet, by

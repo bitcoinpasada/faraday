@@ -8627,6 +8627,12 @@ strings! {
     vault_seals_same_count: "Another copy was sealed {} too, with other changes.",
     /// Text in `SealWarn::line`. `{}`: `times(mine)`, `times(seen)`.
     vault_seals_older_files: "An older copy: sealed {}. A copy sealed {} is in Files.",
+    /// Head of `older_copy`, the dialog an unlock of an older copy stops at.
+    vault_older_head: "Open this copy?",
+    /// Action in `older_copy`: the copy closes, nothing of it read.
+    vault_older_back: "Keep locked",
+    /// Action in `older_copy`: the unlock goes on.
+    vault_older_open: "Open",
     // ----- visit_taken (faraday-core/src/visit_taken.rs) -----
     /// Text in `line`. `{}`: `self.name`, `keep_as`.
     visit_taken_keep_both_n: "{} · Keep both: {}",

@@ -657,6 +657,8 @@ pub enum Sheet {
     /// **Load from {vault}**, after an unlock from the boot sheet or the
     /// Vaults tab: what to load, ticked (`vault_load`, F62).
     UnlockLoad,
+    /// **Open this copy?**: an unlock held at an older copy (`vault::OlderHold`).
+    OlderCopy,
     /// **Seeds with no passphrase stored**, from a wallet short of a key:
     /// one to load with a passphrase typed now, checked against the
     /// wallet (`vault_load`, F62).
@@ -2279,9 +2281,6 @@ impl Faraday {
         }
     }
 
-    /// What a visit writes unless the person changes it: the Outbox but
-    /// an unprotected secret, which is written only when ticked on the
-    /// visit itself.
     /// The vault, by place in [`Faraday::vault_files`], a stick visit
     /// unlocks once the stick is pulled: a locked one sealed for it, still
     /// For the stick or written by the last write.
@@ -6770,6 +6769,7 @@ fn slow(a: Action) -> bool {
                     | V::LoadKeyOf(..)
                     | V::LoadTicked
                     | V::LoadWithKeys(_)
+                    | V::OlderOpen
                     | V::Open(_)
                     | V::OpenWalletOf(..)
                     | V::PromptGo
