@@ -283,7 +283,7 @@ its publish script, the file `faraday.published` and its `CLAUDE.md`):
 
 - Its publish script records, at every publish, the Faraday commit it
   published from and its own commit, in a file of its repository.
-- Its `just faraday` runs the pinned commit's script (`--repo` names the
+- Its `faraday` recipe runs the pinned commit's script (`--repo` names the
   Faraday checkout beside it, whose history is read), on the range from
   the last published commit to the pin: `impact.py check <published>..<pin> --consumer website --site
   <its tree> --site-since <its commit at that publish>`. The registry

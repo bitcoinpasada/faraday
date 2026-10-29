@@ -249,7 +249,7 @@ A new board, faraday/image/boards/arm64-apple/, beside
 
 ### 4.2 The start-up file
 
-One file, built per release by `just faraday-mac-boot`, and the only
+One file, built per release by the recipe `faraday-mac-boot` (planned), and the only
 code of Faraday's that runs before its kernel:
 
 ```
@@ -306,7 +306,7 @@ Each is checked by the build (configuration lines asserted, as
   `docs/deps/` give the source of both at the pinned commits, as the
   kernel's.
 
-A QEMU test, `just faraday-mac-boot-check`, builds U-Boot's
+A QEMU test, the recipe `faraday-mac-boot-check` (planned), builds U-Boot's
 `qemu_arm64` with the same configuration fragment and the same preseed
 mechanism and shows: an image signed with the seeded db key starts; the
 same unsigned, or altered by one byte, does not; an initrd beside it on
@@ -460,7 +460,7 @@ section lists what that build needs, for whoever does it. Nothing here
 is built or tested in this repository.
 
 - Built on a Mac (Apple's SDK licence allows its use only there) by
-  `just faraday-mac-desktop`, as a universal binary (x86_64 and
+  the recipe `faraday-mac-desktop` (planned), as a universal binary (x86_64 and
   arm64), macOS 11 or later, in `Faraday Demo.app` with
   `NSCameraUsageDescription`. Ad-hoc signed, not notarized (owner, F13,
   for the reason F11 gives for Windows). Not released (F30).

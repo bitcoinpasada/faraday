@@ -65,7 +65,7 @@ catches = "a layout number in widgets; numbers and colours written in screens be
 id = "lint-docs"
 run = "tools/lint-docs.sh"
 stage = "just lint"
-catches = "a document without Kind and Status, a Spec without Open, a plan in a Reference, a cited path that does not exist, the decisions' index"
+catches = "a document without Kind and Status, a Spec without Open, a plan in a Reference, a cited path or `just` recipe that does not exist, the decisions' index"
 misses = "whether a document says what is true"
 
 [[check]]
@@ -79,7 +79,14 @@ misses = "structure that is legal but poor"
 id = "lint-tree"
 run = "tools/lint-tree.sh"
 stage = "just lint"
-catches = "a top-level entry not listed, an editor or merge leftover, a file over 2 MiB"
+catches = "a top-level entry not listed, an editor or merge leftover, a file over 2 MiB, metadata in a tracked image"
+
+[[check]]
+id = "lint-fuzz-parsers"
+run = "python3 -I -B tools/lint-fuzz-parsers.py"
+stage = "just lint"
+catches = "a pub fn of core/ named parse*, decode*, from_bytes, from_str or from_slice taking &[u8] or &str that tools/fuzz-parsers.toml does not list with a fuzz target or an excuse; an entry whose target or function is gone"
+misses = "a parser under another name or taking another type, and whether the target reaches the parser's hard paths"
 
 [[check]]
 id = "lint-builds"

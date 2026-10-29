@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Tree lint: the repository holds what it says it holds, and nothing left
-# behind by an editor, a merge or a session. Three checks, over every file
+# behind by an editor, a merge or a session. Four checks, over every file
 # git tracks or would track (tracked, or untracked and not ignored):
 #
 # 1. The top level holds only the entries in TOP below. A new top-level
@@ -13,6 +13,10 @@
 #    `* (copy)*`, `*.old`). History is git's.
 # 3. No file over 2 MiB: a larger one is build output, or data that
 #    belongs in a release or a repository of its own.
+#
+# 4. No metadata in an image: every tracked png, jpg, jpeg, webp or svg
+#    passes `tools/guide-pictures.py --check` (a PNG's text, EXIF, ICC and
+#    time chunks and their kin in the other formats). `--strip` removes it.
 #
 # Run from the repository root; `just lint` does.
 set -u
@@ -75,6 +79,18 @@ for f in "${FILES[@]}"; do
         fi
     fi
 done
+
+images=()
+for f in "${FILES[@]}"; do
+    case "${f,,}" in
+        *.png | *.jpg | *.jpeg | *.webp | *.svg) [ -f "$f" ] && images+=("$f") ;;
+    esac
+done
+if [ "${#images[@]}" -gt 0 ] \
+    && ! python3 -I -B tools/guide-pictures.py --check "${images[@]}"; then
+    echo "lint-tree: an image carries metadata; strip it with: python3 -I -B tools/guide-pictures.py --strip <image>"
+    status=1
+fi
 
 if [ "$status" -eq 0 ]; then
     echo "lint-tree: ok"

@@ -49,6 +49,9 @@ lint:
     tools/lint-docs.sh
     tools/lint-layout.sh
     tools/lint-tree.sh
+    # Every parser of untrusted input in core/ has a fuzz target or a
+    # reason it has none (tools/fuzz-parsers.toml).
+    python3 -I -B tools/lint-fuzz-parsers.py
     python3 -I -B tools/lint-builds.py
     cargo run -q -p costs-lint
     tools/lint-unchecked.sh

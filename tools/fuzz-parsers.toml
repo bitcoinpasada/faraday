@@ -1,0 +1,327 @@
+# The parsers of untrusted input and the fuzz target that runs each,
+# checked by tools/lint-fuzz-parsers.py (tools/README.md).
+#
+# An entry has `file` and `fn` (the parser's file and name; a name
+# repeated in a file is one entry) and either `target` (a file of fuzz/ or
+# faraday/fuzz/ that calls it) or `excuse` (why there is none: "no target
+# yet" is a gap to close, anything else a reason).
+
+[[parser]]
+file = "core/faraday-bip/src/address.rs"
+fn = "parse"
+excuse = "no target yet"
+
+[[parser]]
+file = "core/faraday-bip/src/address.rs"
+fn = "parses"
+excuse = "no target yet"
+
+[[parser]]
+file = "core/faraday-bip/src/aezeed.rs"
+fn = "decode"
+target = "fuzz/fuzz_targets/aezeed.rs"
+
+[[parser]]
+file = "core/faraday-bip/src/aezeed.rs"
+fn = "decode_at_cost"
+target = "fuzz/fuzz_targets/aezeed.rs"
+
+[[parser]]
+file = "core/faraday-bip/src/base64.rs"
+fn = "decode"
+excuse = "called by Psbt::parse_base64, which fuzz/fuzz_targets/psbt_parse.rs runs"
+
+[[parser]]
+file = "core/faraday-bip/src/bip39.rs"
+fn = "parse"
+target = "faraday/fuzz/fuzz_targets/bip39_words.rs"
+
+[[parser]]
+file = "core/faraday-bip/src/bsms.rs"
+fn = "parse"
+excuse = "no target yet"
+
+[[parser]]
+file = "core/faraday-bip/src/codex32/mod.rs"
+fn = "parse"
+target = "fuzz/fuzz_targets/seed_parts.rs"
+
+[[parser]]
+file = "core/faraday-bip/src/coldcard.rs"
+fn = "parse"
+target = "fuzz/fuzz_targets/json.rs"
+
+[[parser]]
+file = "core/faraday-bip/src/json.rs"
+fn = "parse"
+target = "fuzz/fuzz_targets/json.rs"
+
+[[parser]]
+file = "core/faraday-bip/src/keys.rs"
+fn = "decode"
+excuse = "no target yet"
+
+[[parser]]
+file = "core/faraday-bip/src/multisig_config.rs"
+fn = "parse"
+excuse = "no target yet"
+
+[[parser]]
+file = "core/faraday-bip/src/multisig_config.rs"
+fn = "parse_named"
+excuse = "no target yet"
+
+[[parser]]
+file = "core/faraday-bip/src/musig.rs"
+fn = "from_bytes"
+excuse = "no target yet"
+
+[[parser]]
+file = "core/faraday-bip/src/musig.rs"
+fn = "parse_musig_expr"
+excuse = "no target yet"
+
+[[parser]]
+file = "core/faraday-bip/src/musig.rs"
+fn = "parse_tr_musig"
+excuse = "no target yet"
+
+[[parser]]
+file = "core/faraday-bip/src/policy.rs"
+fn = "parse"
+target = "fuzz/fuzz_targets/policy.rs"
+
+[[parser]]
+file = "core/faraday-bip/src/policy.rs"
+fn = "parse_any"
+target = "fuzz/fuzz_targets/policy.rs"
+
+[[parser]]
+file = "core/faraday-bip/src/policy.rs"
+fn = "parse_script_descriptor"
+excuse = "no target yet"
+
+[[parser]]
+file = "core/faraday-bip/src/silent.rs"
+fn = "decode_address"
+excuse = "no target yet"
+
+[[parser]]
+file = "core/faraday-bip/src/silent_wallet.rs"
+fn = "parse"
+excuse = "no target yet"
+
+[[parser]]
+file = "core/faraday-bip/src/slip132.rs"
+fn = "decode"
+target = "fuzz/fuzz_targets/xkey.rs"
+
+[[parser]]
+file = "core/faraday-bip/src/slip132.rs"
+fn = "decode_xpub"
+target = "fuzz/fuzz_targets/xkey.rs"
+
+[[parser]]
+file = "core/faraday-bip/src/slip39.rs"
+fn = "parse"
+target = "fuzz/fuzz_targets/seed_parts.rs"
+
+[[parser]]
+file = "core/faraday-bip/src/xkey.rs"
+fn = "decode_xpriv"
+target = "fuzz/fuzz_targets/xkey.rs"
+
+[[parser]]
+file = "core/faraday-bip/src/xkey.rs"
+fn = "decode_xpub"
+target = "fuzz/fuzz_targets/xkey.rs"
+
+[[parser]]
+file = "core/faraday-codec/src/decode.rs"
+fn = "decode_luma"
+target = "fuzz/fuzz_targets/decode_luma.rs"
+
+[[parser]]
+file = "core/faraday-codec/src/decode.rs"
+fn = "decode_picture"
+excuse = "no target yet"
+
+[[parser]]
+file = "core/faraday-codec/src/ur/bytewords.rs"
+fn = "decode"
+target = "fuzz/fuzz_targets/ur_receive.rs"
+
+[[parser]]
+file = "core/faraday-codec/src/ur/mod.rs"
+fn = "decode_single"
+excuse = "no target yet"
+
+[[parser]]
+file = "core/faraday-codec/src/ur/xoshiro.rs"
+fn = "from_bytes"
+excuse = "hashes its input into a seed and reads nothing from it"
+
+[[parser]]
+file = "core/faraday-draw/src/fonts/mod.rs"
+fn = "parse"
+excuse = "reads the font files compiled into the app, not input from outside"
+
+[[parser]]
+file = "core/faraday-entropy/src/hex.rs"
+fn = "parse"
+excuse = "no target yet"
+
+[[parser]]
+file = "core/faraday-psbt/src/message.rs"
+fn = "parse_signed"
+target = "fuzz/fuzz_targets/message_verify.rs"
+
+[[parser]]
+file = "core/faraday-psbt/src/psbt.rs"
+fn = "parse_base64"
+target = "fuzz/fuzz_targets/psbt_parse.rs"
+
+[[parser]]
+file = "core/faraday-psbt/src/psbt.rs"
+fn = "parse_bytes"
+target = "fuzz/fuzz_targets/psbt_parse.rs"
+
+[[parser]]
+file = "core/faraday-psbt/src/v2.rs"
+fn = "parse_base64"
+excuse = "no target yet"
+
+[[parser]]
+file = "core/faraday-psbt/src/v2.rs"
+fn = "parse_bytes"
+excuse = "no target yet"
+
+[[parser]]
+file = "faraday/faraday-core/src/backup_flow/mod.rs"
+fn = "decode"
+excuse = "no target yet"
+
+[[parser]]
+file = "faraday/faraday-core/src/backups/mod.rs"
+fn = "decode"
+excuse = "no target yet"
+
+[[parser]]
+file = "faraday/faraday-core/src/decode.rs"
+fn = "decode"
+excuse = "no target yet"
+
+[[parser]]
+file = "faraday/faraday-core/src/explore/mod.rs"
+fn = "parse_path"
+excuse = "no target yet"
+
+[[parser]]
+file = "faraday/faraday-core/src/memory.rs"
+fn = "decode"
+excuse = "no target yet"
+
+[[parser]]
+file = "faraday/faraday-core/src/receipt.rs"
+fn = "decode"
+excuse = "no target yet"
+
+[[parser]]
+file = "faraday/faraday-core/src/vault/area.rs"
+fn = "parse_tz_offset"
+excuse = "no target yet"
+
+[[parser]]
+file = "faraday/faraday-core/src/version.rs"
+fn = "parse_version_output"
+excuse = "no target yet"
+
+[[parser]]
+file = "faraday/faraday-core/src/wallet.rs"
+fn = "parse_words"
+excuse = "no target yet"
+
+[[parser]]
+file = "faraday/faraday-files/src/proto.rs"
+fn = "decode"
+target = "faraday/fuzz/fuzz_targets/files_proto.rs"
+
+[[parser]]
+file = "faraday/faraday-keys/src/words.rs"
+fn = "parse"
+target = "faraday/fuzz/fuzz_targets/bip39_words.rs"
+
+[[parser]]
+file = "faraday/faraday-payload/src/manifest.rs"
+fn = "parse"
+target = "faraday/fuzz/fuzz_targets/manifest.rs"
+
+[[parser]]
+file = "faraday/faraday-payload/src/manifest.rs"
+fn = "parse_line"
+excuse = "no target yet"
+
+[[parser]]
+file = "faraday/faraday-qr/src/cbor.rs"
+fn = "decode"
+target = "faraday/fuzz/fuzz_targets/ur_registry.rs"
+
+[[parser]]
+file = "faraday/faraday-qr/src/specter.rs"
+fn = "parse"
+excuse = "no target yet"
+
+[[parser]]
+file = "faraday/faraday-starter/src/api.rs"
+fn = "parse"
+excuse = "no target yet"
+
+[[parser]]
+file = "faraday/faraday-vault/src/entries.rs"
+fn = "parse"
+target = "faraday/fuzz/fuzz_targets/vault_entries.rs"
+
+[[parser]]
+file = "faraday/faraday-vault/src/records.rs"
+fn = "decode"
+target = "faraday/fuzz/fuzz_targets/vault_records.rs"
+
+[[parser]]
+file = "faraday/faraday-vault/src/totp.rs"
+fn = "parse"
+target = "faraday/fuzz/fuzz_targets/vault_entries.rs"
+
+[[parser]]
+file = "faraday/shells/starter/src/linux/udisks.rs"
+fn = "parse"
+excuse = "no target yet"
+
+[[parser]]
+file = "faraday/shells/starter/src/macos/plist.rs"
+fn = "parse"
+target = "faraday/fuzz/fuzz_targets/plist.rs"
+
+[[parser]]
+file = "faraday/shells/starter/src/windows/bitlocker.rs"
+fn = "decode"
+excuse = "no target yet"
+
+[[parser]]
+file = "faraday/shells/starter/src/windows/bitlocker.rs"
+fn = "parse"
+excuse = "no target yet"
+
+[[parser]]
+file = "faraday/shells/starter/src/windows/disks.rs"
+fn = "parse"
+excuse = "no target yet"
+
+[[parser]]
+file = "faraday/shells/starter/src/windows/pipe.rs"
+fn = "decode"
+excuse = "no target yet"
+
+[[parser]]
+file = "faraday/shells/stick/src/evdev.rs"
+fn = "decode"
+excuse = "no target yet"

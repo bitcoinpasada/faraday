@@ -52,6 +52,12 @@
 #    Every rule whose `source` names a decision file is named in that
 #    decision's line (docs/IMPACT.md §8). Retired decisions are exempt.
 #
+# 7. Recipes. Every `just <recipe>` that starts a backticked span or a line
+#    of a fenced block in a .md file (not docs/history/) names a recipe of
+#    justfile, faraday/faraday.just or an import of them. Variable
+#    assignments (`build=compatible`) and options (`--fresh`) before the
+#    recipe are skipped; its arguments are not checked.
+#
 # Prints `file:line: message` for each failure and exits non-zero if
 # there is one. Run from the repository root; `just lint` does.
 set -u
@@ -313,6 +319,49 @@ for f in files:
         for n, l in enumerate(lines, 1):
             if re.search(r"(?<![\w/.-])local/", l):
                 fail(f, n, "cites local/, which is private")
+
+# Rule 7: recipes named in docs exist.
+def recipes():
+    names = set()
+    for jf in ["justfile", "faraday/faraday.just"] + [
+            f for f in files if f.endswith(".just")]:
+        if not os.path.exists(jf):
+            continue
+        for l in open(jf, encoding="utf-8"):
+            m = re.match(r"@?([A-Za-z_][\w-]*)(?![\w-])", l)
+            if (m and m.group(1) not in ("set", "import", "alias", "mod", "export")
+                    and not re.match(r"@?[\w-]+\s*(:=|=)", l)
+                    and re.search(r":(?!=)", l)):
+                names.add(m.group(1))
+            m = re.match(r"alias\s+([\w-]+)\s*:=", l)
+            if m:
+                names.add(m.group(1))
+    return names
+
+
+JUST = re.compile(r"^(?:\$ )?just((?: (?:[A-Za-z_][\w-]*=\S*|-\S+))*) ([A-Za-z_][\w-]*)")
+RECIPES = recipes()
+
+
+def check_just(f, n, text):
+    m = JUST.match(text.strip())
+    if m and m.group(2) not in RECIPES:
+        fail(f, n, f"`just {m.group(2)}` is not a recipe of justfile or "
+                   "faraday/faraday.just")
+
+
+for f in files:
+    if not f.endswith(".md") or f.startswith("docs/history/"):
+        continue
+    fenced = False
+    for n, l in enumerate(open(f, encoding="utf-8").read().split("\n"), 1):
+        if re.match(r"\s*(```|~~~)", l):
+            fenced = not fenced
+        elif fenced:
+            check_just(f, n, l)
+        else:
+            for m in re.finditer(r"`([^`\n]+)`", l):
+                check_just(f, n, m.group(1))
 
 for m in failures:
     print(m)
