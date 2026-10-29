@@ -8,8 +8,9 @@
 //!
 //! The wallet is BIP 387's `tr(H,sortedmulti_a(2,…))` over the same
 //! three regtest keys as `wallet-2of3.policy` — "abandon … about", "zoo
-//! … wrong" and "legal … yellow" — at BIP 48's `2'` account, which is
-//! the wallet Add a wallet › Taproot multisig builds.
+//! … wrong" and "legal … yellow" — at BIP 48's `3'` account (the
+//! script type of taproot), which is the wallet Add a wallet › Taproot
+//! multisig builds.
 //!
 //! `tools/scripts/tapmulti-regtest.sh setup` imports that wallet into
 //! Bitcoin Core 31.1 watch-only, funds it and writes
@@ -60,12 +61,11 @@ pub fn master(words: &str) -> MasterKey {
     MasterKey::from_seed(&c, &m.to_seed(&c, b"").expect("empty passphrase"), NET)
 }
 
-/// BIP 48's script-multisig account: `48'/1'/0'/2'` on regtest. BIP 48
-/// names no script type for taproot, so a taproot multisig reads its
-/// cosigners at the same `2'` account.
+/// BIP 48's taproot multisig account: `48'/1'/0'/3'` on regtest, where
+/// `3'` is BIP 48's script type for taproot (`2'` is p2wsh).
 pub fn account_path() -> DerivationPath {
     let h = |i| ChildNumber::from_hardened_idx(i).expect("a hardened index");
-    DerivationPath::from(vec![h(48), h(NET.coin_type()), h(0), h(2)])
+    DerivationPath::from(vec![h(48), h(NET.coin_type()), h(0), h(3)])
 }
 
 /// One key as a descriptor writes it: its origin and its account
@@ -109,7 +109,16 @@ pub fn signed_by(dir: &Path, holders: &[&str]) -> (Psbt, SignResult) {
     let keys: Vec<KeyRef> = masters
         .iter()
         .enumerate()
-        .map(|(i, m)| KeyRef::from_master(&c, m, i as u32).expect("accounts"))
+        .map(|(i, m)| {
+            // The wallet's account is not one of the key's own, so it is
+            // added as the app does for a registered wallet's path.
+            KeyRef::from_master(&c, m, i as u32)
+                .expect("accounts")
+                .with_extra(vec![(
+                    account_path(),
+                    m.derive(&c, &account_path()).to_xpub(&c),
+                )])
+        })
         .collect();
     let selection: Vec<faraday_bip::keys::Fingerprint> =
         masters.iter().map(MasterKey::fingerprint).collect();

@@ -288,7 +288,3 @@ case = "A fee rate of 1000 sat/vB or more, paid on purpose"
 # One entry per bullet of STANDARDS §8: the text, in each file named,
 # that makes the disagreement. When a fix removes it, the bullet and the
 # entry go together.
-
-[[disagreement]]
-what = "the Taproot multisig path"
-holds = { "faraday/faraday-core/src/create.rs" = "NewKind::TapMulti => format!\\(\"m/48'/\\{c\\}'/0'/3'\"\\)", "tools/vectors/psbt/README.md" = "`wallet-tapmulti.policy` .* at BIP 48's `2'` account" }

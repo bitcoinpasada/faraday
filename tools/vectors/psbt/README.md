@@ -15,7 +15,7 @@
 | `wallet-tree.policy` | A taproot tree wallet: `tr(@0/**,{and_v(v:pk(@1/**),older(4320)),pk(@2/**)})` over the three keys' BIP-86 accounts, on regtest |
 | `wallet-tree.psbt` | A spend of that wallet through the leaf that wants the third key alone: one leaf script, one control block, one key origin |
 | `wallet-tree-keypath.psbt` | The same spend by the key path: the internal key and the tree's root, and no leaf script at all |
-| `wallet-tapmulti.policy` | BIP 387's taproot multisig: 2 of 3, `tr(H,sortedmulti_a(2,…))` over the same three keys as `wallet-2of3.policy`, at BIP 48's `2'` account, on regtest |
+| `wallet-tapmulti.policy` | BIP 387's taproot multisig: 2 of 3, `tr(H,sortedmulti_a(2,…))` over the same three keys as `wallet-2of3.policy`, at BIP 48's `3'` account, on regtest |
 | `wallet-tapmulti-first.psbt` | That wallet's funded spend, as Bitcoin Core 31.1 built it: 0.5 BTC out, the rest back to its own change address, with the leaf script, its control block and four taproot key origins |
 | `wallet-tapmulti-signed.psbt` | What this tree wrote from it, signed by the "abandon" key and the "zoo" key: two `tap_script_sigs` under the leaf's hash, and the input not final, because `sign` finalizes nothing |
 | `wallet-musig.policy` | A BIP-390 MuSig2 wallet on mainnet: `tr(musig(@0,@1)/**)` over two BIP-86 accounts, which §16.70's address and export tests read |
@@ -201,14 +201,14 @@ as they came out of the run:
 ## The taproot multisig, and what Bitcoin Core 31.1 checked
 
 The wallet is `tr(H,sortedmulti_a(2,@0/**,@1/**,@2/**))` over the three
-keys `wallet-2of3.policy` uses, at BIP 48's `2'` account on regtest —
+keys `wallet-2of3.policy` uses, at BIP 48's `3'` account (its script type for taproot) on regtest —
 the wallet Add a wallet › Taproot multisig builds. Bitcoin Core 31.1
 imports `sortedmulti_a` as it stands: no rewriting to `multi_a` with the
 keys pre-sorted was needed, and the checksum Core computed for the
-descriptor, `#uygt73j8`, is the one `faraday_bip::descriptor` computes.
+descriptor, `#zxsxv8n3`, is the one `faraday_bip::descriptor` computes.
 
-The run was on 2026-09-19, on a throwaway regtest node (Core v31.1.0
-from `~/.local/opt/bitcoin-31.1/bin`, no network), whose datadir was
+The run was on 2026-10-29, on a throwaway regtest node (Core v31.1.0
+from the pinned release tarball, no network), whose datadir was
 removed afterwards. Core holds no key of this wallet: it imports it
 watch-only, funds it, builds the spend, and judges the finished
 transaction.
@@ -225,11 +225,11 @@ tools/scripts/tapmulti-regtest.sh stop <datadir>
 | Step | Who | Result |
 |---|---|---|
 | `importdescriptors` | Core | the committed policy as one checksummed descriptor, watch-only, `success: true` |
-| `getnewaddress` | Core | `bcrt1p6srr8gqakft982yss7sh0sl8urqjj8fk5l2n9dumnj2fljvfdf2swezdl4`, which is `WalletPolicy::address_at(regtest, receive, 0)` |
+| `getnewaddress` | Core | `bcrt1pqh24wx2tfxedcq9tmj7r2e424n59zfqw54rehz4rh3kqws7kgqasqyjafg`, which is `WalletPolicy::address_at(regtest, receive, 0)` |
 | `walletcreatefundedpsbt` | Core | `wallet-tapmulti-first.psbt`, one input, two outputs, 1 550 sat fee |
 | `sign` | this tree | `wallet-tapmulti-signed.psbt`: two `tap_script_sigs` under the leaf's hash, the input not final |
 | `finalizepsbt` | Core | `complete: true` — Core builds the witness from this tree's two signatures |
-| `testmempoolaccept` | Core | `allowed: true`, txid `42096a2e92f0ae357cef0e3403cb528876e7f1fe9ab0dcbd629016d697efe64d`, wtxid `25dd5c65…`, 206 vB, 821 WU, 1 550 sat, effective fee rate 0.000 075 24 BTC/kvB |
+| `testmempoolaccept` | Core | `allowed: true`, txid `9fbda3301acc0935c2718dfc8e28e7484b3857e34496dcbe5c2640d3612e29e5`, wtxid `0fc499ca…`, 206 vB, 821 WU, 1 550 sat, effective fee rate 0.000 075 24 BTC/kvB |
 
 **What Core wrote for the input.** One `tap_scripts` entry: the
 `multi_a` leaf over the three derived x-only keys in sorted order, leaf
@@ -237,10 +237,10 @@ version 192, and the one-byte-plus-32 control block
 `c050929b74…ce803ac0`, which is the NUMS point with the parity bit and
 no Merkle path, because the tree is one leaf. The Merkle root is
 therefore the leaf hash itself,
-`92ba1dd56b0e2b68cf04df9679c27962401fffcef313d70eaaa027146d146319`.
+`737fc3f05421457846235412e418c4424d68f23a0f4e7c4452e3142b5ae95bdb`.
 
 `taproot_bip32_derivs` holds **four** entries, not three: one per
-wallet key, at `m/48h/1h/0h/2h/0/0` under its own master fingerprint and
+wallet key, at `m/48h/1h/0h/3h/0/0` under its own master fingerprint and
 naming that leaf hash, and a fourth for the NUMS internal key itself,
 with master fingerprint `7c461e5d`, path `m` and an empty `leaf_hashes`.
 Core writes an origin for a key nobody has, because the descriptor's
@@ -257,9 +257,9 @@ signatures would be given.
 
 | File | SHA-256 |
 |---|---|
-| `wallet-tapmulti.policy` | `163d372f56519a3b2db3e84d7bc23292e8f8401abc3e9847b080007d154a1d8d` |
-| `wallet-tapmulti-first.psbt` | `c7605ca40a20c8fbbee8e0835483a9b801b46f379e1116df8a4be350bc211ff7` |
-| `wallet-tapmulti-signed.psbt` | `8243e2304a995fc7832adc4ae5c1876fcac8ee94f95ad36e6f0b8eb62e747bcc` |
+| `wallet-tapmulti.policy` | `0dad50f741c82d1decd12af846b4b749a11b986dde1daab857a0c492208a9ac3` |
+| `wallet-tapmulti-first.psbt` | `fefbde43ebd1deffd044e43add5f825de4514eb5a348da4f86c14795a66ad29c` |
+| `wallet-tapmulti-signed.psbt` | `e54bcc64d1d3727935f0e2b651a290380c88abddfa6516416759f158b5fcd9f7` |
 
 The signed fixture is written by
 `cargo run -p faraday-psbt --example tapmulti -- tools/vectors/psbt`, that is

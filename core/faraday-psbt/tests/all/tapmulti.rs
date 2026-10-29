@@ -16,7 +16,7 @@ use faraday_psbt::{
     Aux, Context, KeyRef, Nonce, OutputKind, Psbt, SigKind, finalize, inspect, sign,
 };
 
-use crate::common::builder::{bip48_path, funding_tx};
+use crate::common::builder::funding_tx;
 use crate::common::{ABANDON, LEGAL, ZOO, master};
 
 #[path = "../../examples/tapmulti.rs"]
@@ -24,12 +24,12 @@ mod example;
 
 const NET: Network = Network::Regtest;
 /// The first receive address of the committed wallet, which is the
-/// address Bitcoin Core 31.1 funded on 2026-09-19.
-const FUNDED: &str = "bcrt1p6srr8gqakft982yss7sh0sl8urqjj8fk5l2n9dumnj2fljvfdf2swezdl4";
+/// address Bitcoin Core 31.1 funded on 2026-10-29.
+const FUNDED: &str = "bcrt1pqh24wx2tfxedcq9tmj7r2e424n59zfqw54rehz4rh3kqws7kgqasqyjafg";
 /// The checksum Core's `getdescriptorinfo` gave that wallet.
-const CHECKSUM: &str = "uygt73j8";
+const CHECKSUM: &str = "zxsxv8n3";
 /// The transaction `testmempoolaccept` allowed in that run.
-const ACCEPTED: &str = "42096a2e92f0ae357cef0e3403cb528876e7f1fe9ab0dcbd629016d697efe64d";
+const ACCEPTED: &str = "9fbda3301acc0935c2718dfc8e28e7484b3857e34496dcbe5c2640d3612e29e5";
 
 /// Where the committed fixtures live.
 fn vectors() -> std::path::PathBuf {
@@ -41,7 +41,7 @@ fn vectors() -> std::path::PathBuf {
 fn derived_key(m: &MasterKey) -> XOnlyPublicKey {
     let c = Compute::unchecked();
     let secp = Secp256k1::verification_only();
-    m.derive(&c, &bip48_path(NET))
+    m.derive(&c, &example::account_path())
         .to_xpub(&c)
         .derive_pub(
             &secp,
@@ -63,7 +63,7 @@ const NUMS: &str = "50929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace80
 /// script multisig keys at.
 fn key_text(m: &MasterKey) -> String {
     let c = Compute::unchecked();
-    let path = bip48_path(NET);
+    let path = example::account_path();
     format!(
         "[{}/{path:#}]{}",
         m.fingerprint(),
@@ -215,10 +215,15 @@ fn two_of_the_three_keys_sign_and_the_input_finalizes() {
     let c = Compute::unchecked();
     let (policy, mut psbt) = spend();
     let (abandon, zoo) = (master(ABANDON, NET), master(ZOO, NET));
-    let keys = [
-        KeyRef::from_master(&c, &abandon, 0).expect("accounts"),
-        KeyRef::from_master(&c, &zoo, 1).expect("accounts"),
-    ];
+    let at_wallet = |m: &MasterKey, account| {
+        KeyRef::from_master(&c, m, account)
+            .expect("accounts")
+            .with_extra(vec![(
+                example::account_path(),
+                m.derive(&c, &example::account_path()).to_xpub(&c),
+            )])
+    };
+    let keys = [at_wallet(&abandon, 0), at_wallet(&zoo, 1)];
     let wallets = [policy];
     let ctx = Context {
         network: NET,
@@ -298,12 +303,9 @@ fn the_committed_policy_is_the_wallet_core_imported() {
         FUNDED,
         "the address Core funded"
     );
-    // Core was given the descriptor with its hardened steps written
-    // `'`; its checksum holds over that text, which is this wallet.
-    let as_core_had_it = committed
-        .to_descriptor()
-        .replace("h/", "'/")
-        .replace("h]", "']");
+    // Core was given the descriptor as the policy file writes it, its
+    // hardened steps as `h`; its checksum holds over that text.
+    let as_core_had_it = committed.to_descriptor();
     assert_eq!(
         WalletPolicy::parse_any(&c, &format!("{as_core_had_it}#{CHECKSUM}"))
             .expect("the checksum Bitcoin Core computed for the same descriptor"),

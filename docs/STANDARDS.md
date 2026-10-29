@@ -403,8 +403,7 @@ Each disagreement here is held by `tools/lint-standards.py`, which fails
 when the text that makes it changes (`tools/lint-standards.toml`,
 `[[disagreement]]`); a fix removes the bullet and the entry together.
 
-- The Taproot multisig path is `3'` in `faraday/faraday-core/src/create.rs`;
-  the fixture is at BIP 48's `2'` (`tools/vectors/psbt/README.md`).
+None now.
 
 ## 9. Display
 
