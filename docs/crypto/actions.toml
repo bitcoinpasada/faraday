@@ -2228,7 +2228,8 @@ tests = [
   "faraday/faraday-core/tests/all/inbox_found.rs::an_account_xpub_alone_becomes_a_watch_only_wallet_of_its_paths_kind",
   "faraday/faraday-core/tests/all/inbox_found.rs::a_cosigners_multisig_xpub_is_not_a_wallet_on_its_own",
 ]
-not_crosschecked = "The files are other wallets' formats; they are checked against files from those wallets' test suites, not a second implementation."
+crosscheck = "import"
+independence = { class = "own-over-outside", author = "Bitcoin Core v31.1 (`deriveaddresses`, and BIP-380's checksum in its `descriptors.py`), by the Bitcoin Core developers, for every wallet's addresses and checksums; btclib-wallet's BIP-32 and btclib's SLIP-132 versions, by the btclib developers, for the keys; Faraday's authors (`area_import.py`) for the files", ours = "the files themselves and what each format's fields mean (Coldcard's export and multisig file, Caravan's, Electrum's, Cobo's, Keystone's, Wasabi's, Specter Desktop's, Core's `listdescriptors`), written in `area_import.py` from each format's documentation, which account of a Coldcard export and which pair of a `listdescriptors` is the wallet, and F155's SLIP-132 refusals" }
 fuzz = [
   "json",
   "read_wallet",
@@ -2314,7 +2315,8 @@ tests = [
   "core/faraday-bip/tests/all/bsms.rs::a_record_of_another_version_is_refused",
   "core/faraday-bip/tests/all/bsms.rs::the_record_this_device_writes_parses_back_and_verifies",
 ]
-not_crosschecked = "Checked against the BIP's own examples and records from Nunchuk and Sparrow; no second implementation runs in the cross-check."
+crosscheck = "import"
+independence = { class = "own-over-outside", author = "btclib's `bms` and btclib-wallet's BIP-32, by the btclib developers, for every key record's signature, made, verified and written; Bitcoin Core v31.1 (`deriveaddresses`), by the Bitcoin Core developers, for a descriptor record's addresses; Faraday's authors (`area_import.py`) for the record's rules", ours = "BIP 129's record lines read in `area_import.py`, and the rules no outside code has: the paths line (/0/*,/1/* or No path restrictions, read as the two chains, F64), a descriptor that is not a template, a description over eighty characters, a token not BIP 129's, and the header forms a signature is accepted in" }
 fuzz_none = "Takes a record text; the descriptor it carries is the policy parser, which the policy target fuzzes."
 
 [action.secrets]

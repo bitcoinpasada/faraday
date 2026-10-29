@@ -27,10 +27,6 @@ crate = "faraday/faraday-files"
 reason = "Takes the compute token for its file reads; computes nothing cryptographic."
 
 [[uncovered]]
-crate = "faraday/faraday-intake"
-reason = "Reads other wallets' files and names rust-bitcoin's network kinds; the keys and descriptors it reads are parsed by faraday-bip, which the stamp covers. The files are checked against those wallets' test files, not a second implementation."
-
-[[uncovered]]
 crate = "faraday/faraday-payload"
 reason = "The Starter's SHA-256 of the images it writes (sha2); the sums are compared with `sha256sum`'s in its tests, and no F79 area runs the decoder."
 

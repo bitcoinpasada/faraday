@@ -21,6 +21,9 @@ faraday-codec = { path = "../../core/faraday-codec", default-features = false }
 # BBQr and the numbered text parts.
 faraday-qr = { path = "../../faraday/faraday-qr" }
 faraday-psbt = { path = "../../core/faraday-psbt" }
+# Another wallet's file read as a wallet, as every screen that takes one
+# reads it (`wallet::read_wallet`).
+faraday-intake = { path = "../../faraday/faraday-intake" }
 faraday-vault = { path = "../../faraday/faraday-vault" }
 # The session's fresh randomness and what a person adds of their own
 # (`fresh.rs`, docs/OWN-RANDOMNESS.md §2.3), driven through the testkit

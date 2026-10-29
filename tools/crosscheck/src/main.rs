@@ -20,6 +20,7 @@ mod bip32;
 mod bip85;
 mod codex32;
 mod entropy;
+mod import;
 mod json;
 mod kdbx;
 mod lightning;
@@ -62,6 +63,7 @@ fn dispatch(op: &str, req: &Value) -> Answer {
         "tx" => tx::handle(name, req),
         "psbt" => psbt::handle(name, req),
         "review" => review::handle(name, req),
+        "import" => import::handle(name, req),
         "sign" => sign::handle(name, req),
         "taproot" => taproot::handle(name, req),
         "miniscript" => miniscript::handle(name, req),

@@ -811,6 +811,7 @@ dependencies = [
  "faraday-core",
  "faraday-crypto",
  "faraday-entropy",
+ "faraday-intake",
  "faraday-psbt",
  "faraday-qr",
  "faraday-shell-api",

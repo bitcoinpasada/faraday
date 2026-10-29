@@ -38,6 +38,7 @@ CRATES = [
     "core/faraday-entropy",
     "core/faraday-backup",
     "core/faraday-codec",
+    "faraday/faraday-intake",
     "faraday/faraday-keys",
     "faraday/faraday-qr",
     "faraday/faraday-vault",
@@ -50,10 +51,12 @@ CRATES = [
 FILES = ["faraday/faraday-core/src/fresh.rs", "faraday/faraday-core/src/fresh/roller/mod.rs",
          "faraday/faraday-core/src/fresh/roller/five.rs", "faraday/faraday-core/src/picture.rs"]
 # The published vectors the cross-check reads (tools/vectors/<name>/).
-VECTORS = ["addresses", "aezeed", "bip32", "bip327", "bip352", "bip374", "bip375", "bip39", "bip85", "bip93",
+VECTORS = ["addresses", "aezeed", "bip129", "bip32", "bip327", "bip352", "bip374", "bip375", "bip39", "bip85", "bip93",
            "codex32-booklet", "codex32-correction", "codex32-volvelle", "codex32qr", "entropy",
            "kdf", "message", "miniscript", "psbt", "psbt-bips", "seedqr", "sighash", "slip39", "ur", "vault",
            "vault-primitives", "xor"]
+# Other wallets' files from their test suites, which the `import` area reads.
+FOLDERS = ["faraday/faraday-core/tests/vectors/interop"]
 # Everything under tools/crosscheck/ that is the harness, not its output.
 HARNESS_SKIP = {"stamp", "found", "__pycache__", "README.md"}
 
@@ -82,6 +85,8 @@ def source_files():
     out.extend(ROOT / f for f in FILES)
     for d in VECTORS:
         out.extend(f for f in (ROOT / "tools" / "vectors" / d).rglob("*") if f.is_file())
+    for d in FOLDERS:
+        out.extend(f for f in (ROOT / d).rglob("*") if f.is_file())
     manifest = ROOT / "tools" / "crosscheck" / "references.sha256"
     for line in manifest.read_text().splitlines():
         if line.strip() and not line.startswith("#"):

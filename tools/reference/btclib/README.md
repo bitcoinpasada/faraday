@@ -2,7 +2,11 @@
 
 The cross-check's `msg` area asks btclib for BIP-137 (`btclib.ecc.bms`)
 and btclib-wallet for BIP-322 (`btclib_wallet.bip322`), and compares
-the answers with Faraday's (`tools/crosscheck/area_msg.py`). This folder
+the answers with Faraday's (`tools/crosscheck/area_msg.py`); the `import`
+area asks btclib's `bms` to sign and verify BIP 129's key records, and
+btclib-wallet's BIP-32 (`btclib_wallet.bip32`) with btclib's SLIP-132
+versions for every key of the wallets it writes into other wallets'
+files (`tools/crosscheck/area_import.py`). This folder
 holds the four wheels those modules need, each byte for byte the file
 PyPI publishes, whose SHA-256 is the one in btclib-wallet's own `uv.lock`
 at the release below.

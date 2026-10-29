@@ -16,5 +16,10 @@ Coldcard's generic export, which Sparrow also writes).
 `casa-descriptor.txt`, `sparrow-crypto-output.txt` and
 `cobo-crypto-account.txt` are strings from BlueWallet's test file.
 
+The cross-check's `import` area (`tools/crosscheck/area_import.py`) also
+reads `sparrow/bsms/`, `bluewallet/nunchuck-bsms.txt`, the two Coldcard
+exports and Core's `listdescriptors.json` in `core/`, with each wallet's
+addresses from Bitcoin Core.
+
 Not every file here is one Faraday reads: `docs/INTEROP.md` lists which
 are refused and why.
