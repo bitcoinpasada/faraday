@@ -4790,6 +4790,7 @@ screens = [
 ]
 functions = [
   "core/faraday-psbt/src/transaction.rs::read_raw",
+  "core/faraday-psbt/src/transaction.rs::decode",
   "core/faraday-psbt/src/transaction.rs::wrap_raw",
   "core/faraday-psbt/src/transaction.rs::is_signed",
   "core/faraday-psbt/src/transaction.rs::Spending::read",
@@ -4807,17 +4808,21 @@ functions = [
   "faraday/faraday-core/src/decode.rs::btc",
   "faraday/faraday-qr/src/lib.rs::transaction_hex",
 ]
-code = ["core/faraday-psbt/src/transaction.rs::read_raw"]
+code = [
+  "core/faraday-psbt/src/transaction.rs::read_raw",
+  "core/faraday-psbt/src/transaction.rs::decode",
+]
 
 [action.implementation]
 crate = "core/faraday-psbt"
 libraries = ["bitcoin"]
-adds = "A raw transaction is read from hex or bytes by rust-bitcoin; a previous transaction is accepted for an input only when its txid is the one spent. The Decode screen takes the amounts its inputs spend from the spend's PSBT and the Inbox's PSBTs whose unsigned transaction is exactly the one decoded, and uses an input's amount only when no two of them state different ones. An output is named by its script kind (P2WPKH, P2WSH, P2TR, P2SH, P2PKH or OP_RETURN) and marked when it pays to a loaded wallet's first 100 addresses on either chain. A text is taken as a transaction in hex only when it has an even number of at least 120 hex digits that read as a transaction."
+adds = "A raw transaction is read from hex or bytes by rust-bitcoin, and one it reads to no inputs is refused, as Bitcoin Core refuses those bytes (the segwit flag with no witness); a previous transaction is accepted for an input only when its txid is the one spent. The Decode screen takes the amounts its inputs spend from the spend's PSBT and the Inbox's PSBTs whose unsigned transaction is exactly the one decoded, and uses an input's amount only when no two of them state different ones. An output is named by its script kind (P2WPKH, P2WSH, P2TR, P2SH, P2PKH or OP_RETURN) and marked when it pays to a loaded wallet's first 100 addresses on either chain. A text is taken as a transaction in hex only when it has an even number of at least 120 hex digits that read as a transaction."
 
 [action.checked]
 tests = [
   "core/faraday-psbt/tests/all/transaction.rs::a_raw_transaction_is_wrapped_and_keeps_its_id",
   "core/faraday-psbt/tests/all/transaction.rs::a_previous_transaction_with_another_id_does_not_state_the_spent_output",
+  "core/faraday-psbt/tests/all/transaction.rs::a_transaction_core_refuses_for_a_superfluous_witness_flag_is_refused",
 ]
 crosscheck = "tx"
 independence = { class = "outside", author = "Bitcoin Core's functional-test framework, v31.1, by Bitcoin Core's contributors" }

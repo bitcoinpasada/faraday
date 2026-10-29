@@ -26,7 +26,24 @@ pub fn read_raw(bytes: &[u8]) -> Option<Transaction> {
         Some(decoded) => decoded,
         None => trimmed.to_vec(),
     };
-    consensus::deserialize(&raw).ok()
+    decode(&raw)
+}
+
+/// A transaction's bytes, read as Bitcoin Core reads them, with nothing
+/// left over.
+///
+/// `bitcoin` reads a transaction with no inputs written in the segwit
+/// form (the marker, the flag 1, no inputs, the outputs, no witnesses)
+/// and writes such a transaction back that way. Core refuses those
+/// bytes: a flag that says witnesses follow when none do is a
+/// superfluous witness record (`UnserializeTransaction`), and BIP-144
+/// writes a transaction in that form only when it has a witness. So a
+/// transaction read with no inputs is refused: the segwit form is the
+/// only one `bitcoin` reads to no inputs, since a count of 0 is the
+/// segwit marker.
+pub fn decode(raw: &[u8]) -> Option<Transaction> {
+    let tx: Transaction = consensus::deserialize(raw).ok()?;
+    (!tx.input.is_empty()).then_some(tx)
 }
 
 /// A raw transaction, in hex text or in bytes, wrapped in an unsigned

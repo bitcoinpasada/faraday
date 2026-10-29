@@ -273,7 +273,7 @@ fn prevout(psbt: &PsbtV2, i: usize) -> Result<TxOut, Error> {
         });
     }
     if let Some(bytes) = map.get_type(v2::IN_NON_WITNESS_UTXO) {
-        let tx: Transaction = consensus::deserialize(bytes).map_err(|_| Error::Unverifiable {
+        let tx: Transaction = crate::transaction::decode(bytes).ok_or(Error::Unverifiable {
             input: i,
             // not shown: a developer's text; the app takes no silent-payment PSBT
             reason: "the previous transaction does not read",

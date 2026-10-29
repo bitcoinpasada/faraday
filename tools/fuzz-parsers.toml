@@ -325,3 +325,8 @@ excuse = "no target yet"
 file = "faraday/shells/stick/src/evdev.rs"
 fn = "decode"
 excuse = "no target yet"
+
+[[parser]]
+file = "core/faraday-psbt/src/transaction.rs"
+fn = "decode"
+target = "fuzz/fuzz_targets/transaction.rs"

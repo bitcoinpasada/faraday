@@ -59,3 +59,47 @@ fn a_previous_transaction_with_another_id_does_not_state_the_spent_output() {
     assert!(spending.add_previous(&consensus::serialize(&spent)));
     assert_eq!(spending.prevouts(), Some(vec![&paid]));
 }
+
+/// 91 bytes the cross-check found: version, the segwit marker and flag,
+/// no inputs, one output, no witnesses, the lock time. Bitcoin Core 31.1's
+/// `decoderawtransaction` refuses them read either way (`TX decode
+/// failed`), since the flag says witnesses follow and none do.
+const NO_INPUTS_FLAGGED: &str = "bb8f21310001000101b4043e00276b9646fac6f65ead1e9684d1734ec6a7fe146d9fa543c59e76ecadbaa4916d005d40f4250002212cbc15484cbea4da2f6fdc00744d42f96a43f4ce52d2e16421dcdb15d9ffa18f980033797ee2";
+
+/// The same bytes without the flag. Core 31.1's `decoderawtransaction`
+/// reads them, as it reads by default, to one input with a two-item
+/// witness and no outputs: txid fd7b18…, hash 7d5db7…, weight 242.
+const FLAG_TAKEN_OUT: &str = "bb8f2131000101b4043e00276b9646fac6f65ead1e9684d1734ec6a7fe146d9fa543c59e76ecadbaa4916d005d40f4250002212cbc15484cbea4da2f6fdc00744d42f96a43f4ce52d2e16421dcdb15d9ffa18f980033797ee2";
+
+/// A raw transaction with no inputs written with the segwit flag is
+/// refused, as Bitcoin Core refuses it, however it arrives: as a raw
+/// transaction to check, wrapped to inspect, or as a previous
+/// transaction. Bytes Core reads still read to what Core reads.
+#[test]
+fn a_transaction_core_refuses_for_a_superfluous_witness_flag_is_refused() {
+    use bitcoin::hex::FromHex;
+    use faraday_psbt::transaction::{Spending, decode, read_raw};
+
+    let raw = Vec::<u8>::from_hex(NO_INPUTS_FLAGGED).unwrap();
+    assert_eq!(decode(&raw), None);
+    assert_eq!(read_raw(NO_INPUTS_FLAGGED.as_bytes()), None);
+    assert_eq!(read_raw(&raw), None);
+    assert_eq!(wrap_raw(NO_INPUTS_FLAGGED.as_bytes()), None);
+    assert_eq!(Spending::read(&raw), None);
+
+    let read = read_raw(FLAG_TAKEN_OUT.as_bytes()).expect("Core reads it");
+    assert_eq!(
+        read.compute_txid().to_string(),
+        "fd7b1847502365212457b91a908c23eedcf663d29b93d10761fc6a87e5b601c6"
+    );
+    assert_eq!(
+        read.compute_wtxid().to_string(),
+        "7d5db7814ffec93a0fa0693bdca9bcf550649a7ee856ea42ba694df4c3c8ee28"
+    );
+    assert_eq!(read.weight().to_wu(), 242);
+    assert_eq!((read.input.len(), read.output.len()), (1, 0));
+    assert_eq!(read.input[0].witness.len(), 2);
+
+    let mut spending = Spending::read(&bitcoin::consensus::serialize(&read)).unwrap();
+    assert!(!spending.add_previous(&raw));
+}
