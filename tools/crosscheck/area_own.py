@@ -11,7 +11,8 @@ the system's answers fixed.
   SHA-256("faraday reseed" ‖ answer ‖ acc); and at each batch taken
   while the seed exists, seed ← SHA-256("faraday reseed" ‖ seed ‖ acc).
   Acc alone makes no seed.
-- A later answer waits in the pool (at most six); `fresh(what)` takes
+- A later answer waits in the pool (at most 52, twice `POOL`; a later
+  one is dropped); `fresh(what)` takes
   the last one in, SHA-256("faraday fresh" ‖ what ‖ answer ‖ acc), with
   acc left out when none was added: exactly the bytes from before §2.3.
 - A seed draw for what and count: SHA-256(what ‖ seed ‖ count).
@@ -68,7 +69,7 @@ DRAW_POINTER_KEYS = "af3906fa1a2bfe06b925227ae70c6f4591e40964f162a6d49ceb065cc23
 FRESH_POINTER_KEYS = "db3dc34ce02d9bda8d5fd4c4b28fcf9678880b590d0a75f69f26aaa10fa80c1d"
 POINTER_KEYS_BATCH = 64
 
-POOL_MAX = 6
+POOL_MAX = 52
 MAX_ROLLS = 200
 MAX_FLIPS = 256
 MIN_DISTINCT = 32
@@ -270,6 +271,13 @@ class Own(Area):
         many = [["P", 7 * i, i, 2 * i] if i % 3 else ["K", 7 * i, 0x30 + i % 10]
                 for i in range(130)]
         self.session(a + [{"do": "pointer_keys", "events": many}, draw(), fresh(), COUNTS])
+        # The pool at its limit: 53 answers after the seed, the last
+        # dropped, the 52 kept taken latest first, then none.
+        pooled = [sha(b"pool", bytes([i])) for i in range(53)]
+        self.session([answer(SEED)] + [answer(b) for b in pooled] + [fresh()] * 53,
+                     [None] * 54
+                     + [sha(b"faraday fresh", WHAT, b).hex() for b in reversed(pooled[:52])]
+                     + [None])
 
     def random_step(self):
         rng = self.rng
