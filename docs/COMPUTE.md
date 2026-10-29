@@ -78,7 +78,7 @@ finds them.
 | `Kdf` | `faraday_crypto::pbkdf2_hmac_sha256`, `pbkdf2_hmac_sha512`, `scrypt`; `faraday_backup::argon2id`; `faraday-vault`'s Argon2id. Through these: `Mnemonic::to_seed`, `to_seed_unchecked`, SLIP-39 recovery, aezeed, kdbx write and verify |
 | `MasterKey` | `MasterKey::from_seed`, `from_seed_bytes`, `from_xpriv`, `decode`, `from_chain_code_and_key` (each works out the fingerprint, §5.1) |
 | `KeyDerive` | `MasterKey::xpub`, `derive`, `account_xpub`, `multisig_account_xpub`, `with_multisig_account_secret`; `DerivedKey::to_xpub`; through these BIP-85 and silent payments derivations |
-| `DescriptorParse` | `WalletPolicy::parse`, `from_parts`, `from_descriptor`, `parse_any`, `from_record`; through these the BSMS, Coldcard, multisig config and Core import readers, and `faraday_intake::wallet::read_wallet` |
+| `DescriptorParse` | `WalletPolicy::parse`, `from_parts`, `from_descriptor`, `parse_any`; through these the BSMS, Coldcard, multisig config and Core import readers, and `faraday_intake::wallet::read_wallet` |
 | `Address` | `WalletPolicy::script_at`, `script_at_with`, `address_at`, `find_address` |
 | `PsbtParse`, `PsbtInspect`, `Sign` | `faraday_psbt::Psbt::parse_bytes`, `parse_base64`; `inspect`; `sign::sign`, `message::sign` |
 | `QrEncode` | `faraday_codec::qr::encode`, `encode_bounded`; `seedqr::encode_seedqr`, `encode_compact` |

@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Specified (F148), not built
-**Open:** the manifest and its entries, the inventory lint, fingerprints and the re-stamp recipe, the generated Learn blocks (`faraday/faraday-learn/src/how.rs` holds the type and no block yet; the generator fills it), STANDARDS and AUDIT §3 generated from the manifest, §8.5's block on Learn's own pages after their sections, the step-by-step order of a flow's blocks (§8.1, §8.5), the guide's pictures and text of §8.7, the ⋮ row's leading icon (§8.3), the reachability test and the screens check (§9), the cross-check stamp read from the manifest, the website's rendering
+**Open:** the manifest and its entries, the inventory lint, fingerprints and the re-stamp recipe, the generated Learn blocks (`faraday/faraday-learn/src/how.rs` holds the type and no block yet; the generator fills it), §8.5's block on Learn's own pages after their sections, the step-by-step order of a flow's blocks (§8.1, §8.5), the guide's pictures and text of §8.7, the ⋮ row's leading icon (§8.3), the reachability test and the screens check (§9), the cross-check stamp read from the manifest, the website's rendering
 
 Every screen that does something cryptographic opens a block that says
 how Faraday does it: the standard, the code, what checks it, how the
@@ -71,13 +71,39 @@ name = "Partially Signed Bitcoin Transaction Format"
 status = "Deployed"          # BIP 3's statuses, or "Informational", "Draft", "Convention", "Faraday's own"
 checked = "2026-10-23"       # when the status was read
 source = "bips master"       # or "vendored: tools/vectors/bip85"
+tags = ["PSBT"]              # optional: the spellings a Tools tile names it by
 
-# One table per STANDARDS row (§3.1): the row's own columns.
+# A tile tag that names no standard, with its reason (a unit, not a format).
+[[tag_no_standard]]
+tag = "sat"
+reason = "A unit on the amount calculator; it names no standard."
+
+# One table per STANDARDS row (§3.1), in STANDARDS' order: the row's own columns.
 [[row]]
 id = "psbt-v0"
 section = 4                  # STANDARDS §2 to §5
-what = "PSBT v0"
+what = "PSBT v0 (`core/faraday-psbt`)"
 completeness = "Signs every wallet kind above; the finalizer is written here"
+standard_note = "…"          # optional: a sentence after the standards its actions name
+
+# A row that describes other rows' actions as well: its cells are theirs.
+[[row]]
+id = "seed-xor-tool"
+section = 5
+what = "Seed XOR tool"
+completeness = "As in §3"
+uses = ["xor"]               # may give standard, verified and own as text
+
+# A row with no action: work not built, or work that computes nothing of its own.
+[[row]]
+id = "nostr-key"
+section = 5
+what = "Nostr key"
+completeness = "Not built (`docs/NOSTR.md`)"
+no_action = "Not built."     # the reason; the three cells are then given as text
+standard = "BIP 85 128002' (Deployed), NIP-19, NIP-49"
+verified = "None"
+own = "None"
 
 # One table per action.
 [[action]]
@@ -92,11 +118,13 @@ functions = [                # the roots this entry covers (§4.4)
   "faraday/faraday-keys/src/psbt.rs::sign",
 ]
 code = ["core/faraday-psbt/src/sign.rs::sign_ecdsa"]   # what the block's Code field shows
+novel_rank = 3               # an action with a Novel own call: its place in STANDARDS §7
 
 [action.implementation]
 crate = "core/faraday-psbt"
 libraries = ["secp256k1"]    # versions read from Cargo.lock
 adds = "Low-R grinding by default; each signature verified before it is written; signed twice and compared."
+written_here = "…"           # what the crate writes itself rather than takes from a library (AUDIT §3)
 
 [action.checked]
 vectors = ["psbt"]           # folders under tools/vectors/
@@ -104,6 +132,7 @@ tests = ["core/faraday-psbt/tests/all/sign.rs::rfc6979_vectors"]
 crosscheck = "sign"          # tools/crosscheck/area_sign.py; or not_crosschecked = "<reason>"
 selftest = ["ecdsa_vector"]
 fuzz_none = "Signing takes no outside input but the PSBT; psbt_parse fuzzes that."
+other = ["Core end to end (INTEROP §1)"]   # checks outside the tree: another program, other wallets' files
 
 [action.secrets]
 reveal = "none"              # or ["Reveal::AddressKey"]
@@ -124,10 +153,16 @@ fingerprint = "…"            # in [action.review]; written by the re-stamp rec
 reviewed = "2026-11-02"
 ```
 
-Several actions may share a row; every row has at least one action. An
-action with no screen (`screens = []`) is built but offered nowhere in
-the app (silent payments sending, MuSig2 across places, F109): it has a
-row, a fingerprint and every check, and no Learn block (`learn = "none"`).
+Several actions may share a row, and each action has one row. A row
+has its own actions, or names in `uses` the actions it describes as well
+(the Seed XOR tool, watch-only wallets), or has none and says why in
+`no_action`: a format not built (Electrum seeds, Nostr keys), or work
+that computes nothing of its own (the backup plan); such a row gives its
+Standard, Verified by and Faraday's own call as text, which a row with
+its own actions never does. An action with no screen (`screens = []`) is
+built but offered nowhere in the app (silent payments sending, the
+recovery-wallet builder, F109): it has a row, a fingerprint and every
+check, and no Learn block (`learn = "none"`).
 
 ## 3. The touchpoints
 
@@ -147,27 +182,27 @@ difference, as `tools/learn/sync.py check` does for the Learn pages.
 | The Cross-check field | From the action's area (§10.1) and the stamp: the area's facts and the last passing run's seed and case count. |
 | `tools/crosscheck/README.md`'s "What runs" table and "Known differences" | From the areas' facts (§10.1), between marker lines, so the README and the blocks say the same. |
 | `docs/STANDARDS.md` §1's status table | From the standards table. |
-| `docs/STANDARDS.md` §2 to §5 | Each table between two marker lines (`<!-- crypto-manifest: begin §3 -->` and its end), one row per `[[row]]`: What, Standard (status), Completeness, Verified by (the union of its actions' checks), Faraday's own call (the union of their own calls). §0, §8 and §9 stay hand-written. |
+| `docs/STANDARDS.md` §2 to §5 | Each table between two marker lines (`<!-- crypto-manifest: begin §3 -->` and its end), one row per `[[row]]`: What, Standard (status) (the standards its actions name, grouped by status, then its `standard_note`), Completeness, Verified by (the union of its actions' checks: vectors, each cross-check area by its name and what it is compared against, the `other` checks, the tests counted by crate, self-test checks, fuzz targets, the reasons an action is not cross-checked), Faraday's own call (the union of their own calls). A row that `uses` other actions takes their cells; one with no action gives its own. §0, §8 and §9 stay hand-written. |
 | `docs/STANDARDS.md` §6 | The list of Conservative own calls, with and without a decision. |
-| `docs/STANDARDS.md` §7 | The Novel own calls, in the rank each entry's `novel_rank` gives. |
-| `docs/AUDIT.md` §3 | The "written here" list: every action whose implementation names no library for its core computation, grouped by crate. |
+| `docs/STANDARDS.md` §7 | The Novel own calls, in the rank each entry's `novel_rank` gives; actions of one rank are one item. |
+| `docs/AUDIT.md` §3 | The "written here" list: each action's `implementation.written_here`, grouped by crate. |
 
-The first generation of STANDARDS and AUDIT §3 must say what the
-hand-written text says today, row for row; batch 4 (§15) diffs the two
-and an Opus review settles each difference against the code.
+The first generation of STANDARDS and AUDIT §3 was settled row for row
+against the hand-written text it replaced, each difference against the
+code (batch 5, §15).
 
 ### 3.2 Checked
 
 | Place | Check |
 |---|---|
-| `docs/AUDIT.md` §1 | Every crate an action's implementation names has a row in §1, and every row's crate is named by an action. A row's "written here" claim agrees with its actions' libraries. |
+| `docs/AUDIT.md` §1 and §4 | Every crate an action's implementation names has a row in §1, or in §4 for a crate that touches cryptographic bytes and computes none, and every row of §1 is named by an action. A §1 row says "written here" exactly when one of its crate's actions gives `implementation.written_here`; a §4 crate's actions give none. |
 | `docs/AUDIT.md` §2 and `docs/KEYS.md` | Every variant of `Reveal` in `faraday/faraday-keys/src/session.rs` is named by at least one action's `secrets.reveal`, and every named reveal exists. The count in words ("fourteen named reasons") in AUDIT §2, KEYS and CLAUDE.md is the variants' count. |
 | `docs/COMPUTE.md` §2.3 | Every root that table names, for the kinds `WordsParse`, `Kdf`, `MasterKey`, `KeyDerive`, `DescriptorParse`, `Address`, `PsbtParse`, `PsbtInspect`, `Sign`, `QrEncode`, `QrDecode` and `FileHash`, is covered by an action (§4.4); an action function that takes `&Compute` counts a `Work` kind the table lists. |
 | `docs/CROSSCHECK.md` and `tools/crosscheck/` | An action's `crosscheck` names an area whose file exists (`tools/crosscheck/area_<name>.py`), or `not_crosschecked` gives a reason. Every area file is named by at least one action. |
 | `tools/vectors/` | Every folder an action names exists; every folder under `tools/vectors/` is named by an action, or by the manifest's list of vector folders for no action, each with its reason (the Diceware lists' digests are an action's; the word lists are not). |
 | Fuzz targets | A named target is a `[[bin]]` in `fuzz/Cargo.toml` or `faraday/fuzz/Cargo.toml`; `fuzz_none` gives a reason. |
 | The self-test | Every check function in `core/faraday-selftest/src/lib.rs` (`bip39_vector`, `ecdsa_vector` and the rest) is named by an action's `selftest`, and every name given exists. |
-| The Tools tiles | Each tag on a tile in `faraday/faraday-core/src/catalog.rs` is a standard of an action whose screens include the tile's screen. The BIP 370 tag STANDARDS §8 lists fails this until it is removed or backed. |
+| The Tools tiles | Each tag on a tile in `faraday/faraday-core/src/catalog.rs` names a standard (by number, by a spelling its `tags` lists, or by its name) of an action whose screens include the screens the tile opens or Tools, or is a `[[tag_no_standard]]` with its reason. |
 | The Learn pages a screen opens | Each action's `learn` page is among the pages `Faraday::screen_pages` gives each of its screens (`faraday/faraday-core/src/learn.rs`): checked by the reachability test (§9), since the list depends on state. |
 | The screens list | §9.2: the screens whose code calls an action's functions are its `screens`. |
 
@@ -446,6 +481,12 @@ in the diff:
   `function` and `reason`. Their count is in tools/lint-crypto.counts
   (new) and only falls, as the layout and token ratchets do (F74);
   raising it is the owner's decision, recorded in DECISIONS.
+- **A tag that names no standard.** `[[tag_no_standard]]`: a Tools
+  tile's tag that is not a standard (the amount calculator's BTC and
+  sat), with `tag` and `reason`.
+- **A row with no action.** A STANDARDS row with `no_action` and its
+  reason: work not built, or work that computes nothing of its own. It
+  holds no function, so the inventory's coverage is untouched by it.
 - **Unchecked.** An action with no vectors, cross-check or fuzz target
   writes so in its block (§1). That is a fact shown to the person, not a
   way past; STANDARDS §0 still requires the check before 1.0.
@@ -816,16 +857,15 @@ The page reads only what §11 lists; the hash rule above holds it.
 
 ## 12. The actions found in the code
 
-From the code on 2026-10-28: the 675 functions under `core/` and
-`faraday/` that take `&Compute` (about 300 in cryptographic crates,
-the rest `faraday-core`'s and the Starter's glue), the 33 functions that
-take a `Reveal`, the 14 `Reveal` variants, and the files that call a
-primitive crate directly, seeded from STANDARDS §2 to §5. 77 actions.
-The functions are the roots; batch 3 checks each against the code and
-adds what the inventory finds uncovered. Screens are `Screen` variants;
-"QR" is the QR sheet and the scanner, on every screen that shows or
-reads a code. Learn pages are `pages::EN`'s fields, or Faraday's own by
-id (`docs/learn/faraday/<id>.md`); `secure-boot-keys` and
+The manifest's 92 actions, each from its entry in `docs/crypto/actions.toml`
+as batch 5 left it (2026-10-28): what it does, its roots (the functions
+the entry names, by module), the `Screen` variants that offer it, and
+its Learn page. The inventory finds 815 cryptographic functions under
+`core/` and `faraday/`, and every one is covered by an action or by one
+of the six `[[not_crypto]]` entries. Screens are `Screen` variants;
+an action with no screen is built and offered nowhere in the app.
+Learn pages are `pages::EN`'s fields, or Faraday's own by id
+(`docs/learn/faraday/<id>.md`); `secure-boot-keys` and
 `checking-written` are new, their text written, not yet in the apps'
 page lists.
 
@@ -833,131 +873,146 @@ page lists.
 
 | Id | Action | Roots | Screens | Learn |
 |---|---|---|---|---|
-| words-read | Read seed words and check their checksum (BIP 39) | `faraday_bip::bip39::Mnemonic::parse`; `faraday_keys::words::parse`, `from_indices`; `faraday_intake::seed_in_code` | Entry, Restore, Files, Family | words |
-| words-make | Turn entropy into words (BIP 39) | `faraday_keys::words::from_entropy` and the bip39 function it calls | KeyGen | words |
-| seed | Make the seed from words and passphrase, PBKDF2-HMAC-SHA512 (BIP 39) | `Mnemonic::to_seed`, `to_seed_unchecked`; `Keys::add_words`, `add_words_with`, `add_mnemonic`, `add_with_passphrase`, `add_with_suffix` | Entry, KeyGen, Restore, VaultContents, Family | passphrases |
-| master | Make the master key and its fingerprint (BIP 32) | `MasterKey::from_seed`, `from_seed_bytes`, `from_xpriv`, `decode`, `from_chain_code_and_key`; `Keys::add_seed`; `identity::master_of`, `fingerprint_of_words`, `fingerprint_of_mnemonic`, `fingerprint_of_seed`, `master_id` | Entry, KeyGen, Restore, Files, VaultContents | xpubs |
-| derive | Derive a key and its extended public key (BIP 32, 44, 48, 49, 84, 86) | `MasterKey::derive`, `xpub`, `account_xpub`, `multisig_account_xpub`, `with_multisig_account_secret`; `DerivedKey::to_xpub`; `Keys::xpub_at`; `texts::key_text`, `single_account`, `multisig_account`, `account_at` | Create, Explore, Wallets, Tools | xpubs |
-| hold | Hold a key in memory: blinded, pinned, sealed | `MasterKey::reblind`, `blinded`; `Keys::blind_key`, `reblind`; `faraday_crypto`'s `Sealed`, `SessionKey`, `Pinned`, `Secret` | Settings | faraday:keys-kept |
-| seed-shown | Show a key's master seed, and its codex32 secret (`Reveal::SeedShown`) | `Keys::seed_shown` | Explore | faraday:keys-kept (added to Explore's pages) |
-| xprv-shown | Show an extended private key (`Reveal::ExtendedPrivateKey`) | `Keys::xprv_at` | Explore | xpubs |
-| wif-shown | Show an address's private key as WIF (`Reveal::AddressKey`) | `Keys::wif_at` | Explore | xpubs |
-| words-shown | Show words and passphrase, and to copy by hand (`Reveal::Words`, `Passphrase`, `CopyByHand`) | `Keys::reveal`; `View::reveal` | Explore, Backup, BackupFlow, VaultContents | backups |
+| words-read | Reads seed words typed, pasted or scanned, and checks their count and checksum. | `faraday_bip::bip39`: `Mnemonic::parse`, `Mnemonic::from_indices`, `Language::typed`, `Language::candidates_typed`, `Language::candidates_pinyin`, `Language::candidates_zhuyin`, `Language::word_readings`, `fold`; `faraday_keys::words`: `parse`; `faraday_bip::hangul`: `compose`; `faraday_bip::kana`: `compose` | Entry, Restore, Files, Family | words |
+| words-make | Turns 16 to 32 bytes of entropy into seed words, with the checksum bits BIP 39 adds. | `faraday_bip::bip39`: `Mnemonic::from_entropy` | KeyGen | words |
+| seed | Makes the 64-byte seed from words and a passphrase by PBKDF2-HMAC-SHA512, 2048 rounds, and adds the key it gives to the session. | `faraday_bip::bip39`: `Mnemonic::to_seed`, `Mnemonic::to_seed_unchecked`; `faraday_keys::session`: `Keys::add_words`, `Keys::add_words_with`, `Keys::add_mnemonic`, `Keys::add_with_passphrase`, `Keys::add_with_suffix` | Entry, KeyGen, Restore, VaultContents, Family | passphrases |
+| master | Makes a master key and its fingerprint from a seed or an extended private key, by BIP 32. | `faraday_bip::keys`: `MasterKey::from_seed`, `MasterKey::from_seed_bytes`, `MasterKey::from_xpriv`, `MasterKey::decode`, `MasterKey::from_chain_code_and_key`, `MasterKey::for_network`; `faraday_keys::session`: `Keys::add_seed`, `Keys::fingerprint_with`; `faraday_keys::identity`: `master_of`, `fingerprint`, `fingerprint_of_words`, `fingerprint_of_mnemonic`, `fingerprint_of_seed`, `master_id`, `identity`; `faraday_bip::xkey`: `decode_xpriv` | Entry, KeyGen, Restore, Files, VaultContents | xpubs |
+| derive | Derives a child key and the extended public key of an account, by BIP 32 and the purposes of BIP 44, 49, 84 and 86. | `faraday_bip::keys`: `MasterKey::derive`, `MasterKey::xpub`, `MasterKey::account_xpub`, `DerivedKey::to_xpub`; `faraday_bip::account`: `AccountXpub::xpub`, `AccountXpub::path`, `AccountXpub::slip132_string`, `AccountXpub::descriptor`, `AccountXpub::chain_xpub`; `faraday_keys::operations`: `Keys::xpub_at`; `faraday_keys::identity`: `xpub_at`, `key_text_of_words`; `faraday_keys::session`: `Keys::key_text`; `faraday_keys::texts`: `key_text`, `single_account`, `account_at`; `faraday_core::explore`: `parse_path`, `implied_script`, `ExploreArea::path`, `ExploreArea::reading_now`, `ExploreArea::act`, `Faraday::explore_path`; `faraday_core::explore::addresses`: `account_of`; `faraday_core::create`: `account_of`, `path_spec`; `faraday_core::restore`: `Faraday::restore_refusal_typed`, `Faraday::restore_took` | Create, Explore, Wallets, Tools, Restore | xpubs |
+| hold | Holds a key in memory blinded, on pinned pages and sealed under a session key. | `faraday_bip::keys`: `MasterKey::reblind`, `MasterKey::blinded`; `faraday_keys::session`: `Keys::blind_key`, `Keys::reblind`; `faraday_crypto::sealed`: `SessionKey::from_entropy`, `SessionKey::weak`, `SessionKey::rotate`, `SessionKey::derive`, `Sealed::seal`, `Sealed::with`, `Sealed::reseal`; `faraday_crypto::pinned`: `Pinned::new`, `Pinned::new_with`, `Pinned::drop`; `faraday_crypto::secret`: `Secret::drop` | Settings | faraday:keys-kept |
+| seed-shown | Shows the master seed of a key with no words in hex, and its codex32 secret and strings where the set is known. | `faraday_keys::session`: `Keys::seed_shown` | Explore | faraday:keys-kept |
+| xprv-shown | Shows an extended private key at a path below a held key. | `faraday_keys::session`: `Keys::xprv_at`; `faraday_core::explore::shown`: `Shown::xprvs`, `xprv_path`, `ExploreArea::eye`, `ExploreArea::prune` | Explore | xpubs |
+| wif-shown | Shows the private key of one address as a compressed WIF. | `faraday_keys::session`: `Keys::wif_at`; `faraday_core::explore::shown`: `Shown::wif`, `address_path` | Explore | xpubs |
+| words-shown | Lends a key's words or passphrase as text for a named reason, and shows them on screen or for copying by hand. | `faraday_keys::session`: `Keys::reveal`, `Revealed::empty`, `Revealed::made`, `Held::of` | Explore, Backup, BackupFlow, VaultContents | backups |
+| words-identity | Tells whether two keys, or a key and a copy of its words, have the same words, by a SHA-256 of their entropy, and orders the copy check's questions. | `faraday_keys::session`: `Keys::words_id`, `Keys::same_words`, `words_id`, `Keys::words_match`, `Keys::words_alone`, `Keys::words_identity`, `Keys::words_record_id`; `faraday_psbt::silent`: `check`, `check_inputs`; `faraday_core::quiz`: `Quiz::seed`; `faraday_keys::identity`: `secret_id` | Files, BackupFlow, VaultContents, Create | words |
 
 ### Wallets
 
 | Id | Action | Roots | Screens | Learn |
 |---|---|---|---|---|
-| address | Derive an address and its script (BIP 44, 49, 84, 86, 341) | `WalletPolicy::script_at`, `script_at_with`, `address_at`, `find_address`; `Wallet::address`, `address_shown`, `script_at` | Wallets, Explore, Spend, Family, Tools | verifying |
-| descriptor | Read a wallet description and its checksum (BIP 380 to 390, SLIP-132; F132's unspendable key) | `WalletPolicy::parse`, `from_parts`, `from_descriptor`, `parse_any`, `from_record`, `parse_script_descriptor`; `descriptor::checksum_facts`, `reads_as_descriptor`; `recovery::to_wallet_policy`; `coldcard::read`, `parse`; `multisig_config::parse`, `parse_named`; the `tapmulti` reader; `faraday_intake::wallet::read_wallet` | Wallets, WalletsStart, Files, Restore, Create, Tools | coordinators |
-| bsms | Read BSMS records and sign the signer's (BIP 129) | `bsms::parse`, `KeyRecord::verify`; `Keys::bsms_record`; `texts::bsms_record` | Create, Files | coordinators |
-| compile | Compile a spending policy to miniscript | `compile::compile` | Tools | spend_paths |
-| musig-key | Aggregate MuSig2 keys (BIP 327, 328, 390) | `musig::key_agg`, `key_agg_with`, `aggregate_xpub`, `synthetic_xpub`, `aggregate_at`, `parse_tr_musig` | Create, Wallets | multisig |
+| multisig-account | Derives a BIP 48 cosigner account and its extended public key, and lends the account key to sign a BSMS key record. | `faraday_bip::keys`: `MasterKey::multisig_account_xpub`, `MasterKey::with_multisig_account_secret`; `faraday_bip::account`: `MultisigAccountXpub::xpub`, `MultisigAccountXpub::key_at`; `faraday_keys::texts`: `multisig_account`; `faraday_keys::session`: `Keys::multisig_account` | Create, Wallets, Tools | multisig |
+| address | Derives the script and the address of a wallet at a chain and an index, and looks for an address among a wallet's first addresses. | `faraday_bip::policy`: `WalletPolicy::script_at`, `WalletPolicy::script_at_with`, `WalletPolicy::address_at`, `WalletPolicy::find_address`; `faraday_bip::account`: `AccountXpub::address`, `AccountXpub::find_address`; `faraday_core::explore::addresses`: `derive`, `Kept::at`, `Kept::page`, `ExploreArea::tick`; `faraday_core::wallet`: `Wallet::script_at`; `faraday_core::drawing::kept`: `View::script_at` | Wallets, Explore, Spend, Family, Tools | verifying |
+| descriptor | Reads and writes a wallet's descriptor and wallet policy, and works out and checks the descriptor checksum. | `faraday_bip::policy`: `WalletPolicy::parse`, `WalletPolicy::from_parts`, `WalletPolicy::from_descriptor`, `WalletPolicy::parse_any`, `WalletPolicy::from_xpub`, `WalletPolicy::of_silent`, `WalletPolicy::internal_key`, `WalletPolicy::tapscript_quorum`, `WalletPolicy::leaf_quorum`, `WalletPolicy::template_text`, `WalletPolicy::to_text`, `WalletPolicy::to_descriptor`, `WalletPolicy::to_descriptor_template`, `WalletPolicy::to_descriptor_checksummed`, `WalletPolicy::spend_paths`, `WalletPolicy::leaf_of`, `PolicyKey::parse`, `PolicyKey::path`, `PolicyKey::xpub`, `parse_script_descriptor`; `faraday_bip::descriptor`: `descriptor_checksum`, `verify_checksum`, `checksum_facts`, `reads_as_descriptor`, `origin_fingerprints`; `faraday_bip::spend`: `spend_paths`; `faraday_bip::core_import`: `import_descriptors`, `pair_descriptors`, `import_descriptors_pair` | Wallets, WalletsStart, Files, Restore, Create, Tools | coordinators |
+| recovery | Builds a timelocked recovery wallet from its parts and reads the parts back out of one. | `faraday_bip::recovery`: `RecoveryPolicy::to_wallet_policy`, `RecoveryPolicy::from_wallet_policy` | none | none |
+| tapmulti | Reads taproot multisig descriptors with multi_a and sortedmulti_a, and builds their scripts at each derivation index. | `faraday_bip::tapmulti`: `is_nums`, `multi_a_script`, `sorted_multi_a_script`, `output_script`, `derived_keys` | Wallets, Create | multisig |
+| wallet-files | Reads another wallet's export (Coldcard JSON and multisig configuration files) as a wallet and checks the first address it states; writes a native SegWit single-key wallet as Coldcard's file for Wasabi. | `faraday_bip::coldcard`: `looks_like_export`, `read`, `parse`, `name`, `cosigner_key`, `cosigner_keys`; `faraday_bip::multisig_config`: `parse`, `parse_named`, `slip132_mismatch`; `faraday_bip::json`: `parse`, `Value::as_u64`, `Value::strings_named`; `faraday_core::inbox`: `kind_of_path`; `faraday_intake::single_key`: `wasabi_key`; `faraday_intake::wallet`: `network_of_kind` | Files, Restore, WalletsStart | coordinators |
+| bsms | Reads BSMS key and descriptor records, checks the signature on a signer's record and writes this device's own signed record. | `faraday_bip::bsms`: `SignerRecord::parse`, `SignerRecord::verify`, `SignerRecord::verify_with`, `signer_record`, `DescriptorRecord::parse`, `DescriptorRecord::to_text`, `looks_like_record`, `is_signer_record`; `faraday_keys::session`: `Keys::bsms_record`; `faraday_keys::texts`: `bsms_record` | Create, Files, Restore | coordinators |
+| compile | Compiles a spending policy to a miniscript descriptor and lists the ways it can be spent. | `faraday_bip::compile`: `compile` | Tools | spend_paths |
+| musig-key | Aggregates MuSig2 public keys (BIP 327), publishes the aggregate as an extended public key (BIP 328) and reads the musig() expression of a wallet (BIP 390). | `faraday_bip::musig`: `key_agg`, `key_agg_with`, `aggregate_xpub`, `synthetic_xpub`, `MusigExpr::from_xpubs`, `MusigExpr::aggregate_at`, `MusigExpr::key_at`, `parse_musig_expr`, `parse_tr_musig`, `script_pubkey_at`, `script_pubkey_at_with`, `sort_keys`, `Participant::xpub`, `AggregateKey::untweaked`, `AggregateKey::public_key`, `AggregateKey::x_only`, `AggregateKey::serialize_x_only`, `AggregateKey::apply_tweak` | Create, Wallets | multisig |
+| xpub-spellings | Writes and reads an extended public key in its SLIP-132 spelling, and takes a version only where it agrees with the script and the path around the key. | `faraday_bip::slip132`: `version_bytes`, `encode_xpub`, `decode_xpub`, `key_facts`, `network_kind`, `Script::of_path`, `named_key`, `decode`, `encode`, `plain_descriptor`, `key_line`; `faraday_bip::xkey`: `decode_xpub` | Tools, Wallets | xpubs |
+| address-read | Reads an address typed or scanned, and says whether the text so far can still become an address on a network. | `faraday_bip::address`: `is_bech32_prefix`, `is_address_prefix`, `parses`, `parse`; `faraday_core`: `Faraday::address_note` | Visit, Spend, Tools | verifying |
 
 ### Randomness
 
 | Id | Action | Roots | Screens | Learn |
 |---|---|---|---|---|
-| dice | Dice to entropy, with the cautions | `faraday_entropy::dice`'s `push`, `entropy`, `warnings`, `word_indices` | KeyGen, Randomness | randomness |
-| coins-hex | Coins and hex to entropy | `coins`, `hex` modules' `entropy` | KeyGen, Randomness | randomness |
-| cards | Playing cards to entropy, SHA-256 of draw indices | `cards`' `entropy`, `commitment` | KeyGen, Randomness | randomness |
-| camera | Camera noise to entropy | `camera`' `push`, `entropy`, `commitment` | KeyGen, Randomness | randomness |
-| pointer-keys | Pointer and key timings to entropy (the desktop app) | `pointer_keys`' `commit` | KeyGen, Randomness | randomness |
-| mix | Mix sources: SHA-256 over their commitments | `mix`' `push`, `entropy` | KeyGen | randomness |
-| fresh | The session's randomness, and a person's own mixed in (F86) | `fresh.rs`: `draw`, `own_add`, `seeded`, `take` | KeyGen, Randomness, Settings, CreateVault | randomness |
-| sign-seed | The signing seed: aux randomness and MuSig2's `rand'` chain | `fresh.rs`: `sign_seed`; `faraday_psbt::musig`'s chain | Spend | nonces |
-| booklet | Booklet dice for codex32 | `booklet`' `push`, `character` | KeyGen | other_backups |
-| roller | Faraday Demo's dice roller (F96) | `fresh/roller` | KeyGen | faraday:demo |
-| diceware | A Diceware passphrase from dice, the lists checked by digest | `diceware::words`, `sha256` | VaultContents | passphrases |
+| dice | Turns dice rolls into entropy by one of three published procedures, and cautions about runs, sequences and skew. | `faraday_entropy::dice`: `DiceRolls::commitment`, `DiceRolls::entropy`, `DiceRolls::push_under`, `DiceRolls::entropy_under` | KeyGen, Randomness | randomness |
+| coins-hex | Packs coin flips into entropy most significant bit first, and takes hexadecimal digits as they are. | `faraday_entropy::coins`: `CoinFlips::commitment`, `CoinFlips::entropy`; `faraday_entropy::hex`: `RawHex::parse`, `RawHex::commitment`, `RawHex::entropy` | KeyGen, Randomness | randomness |
+| cards | Turns playing-card draws into entropy as SHA-256 of the draws' indices, one byte each. | `faraday_entropy::cards`: `CardDraws::commitment`, `CardDraws::entropy` | KeyGen, Randomness | randomness |
+| camera | Turns camera frames into entropy as SHA-256 over the frames' SHA-256 digests. | `faraday_entropy::camera`: `CameraNoise::push`, `CameraNoise::commitment`, `CameraNoise::entropy` | KeyGen, Randomness | randomness |
+| pointer-keys | Records pointer moves and key presses with time and a running count, and commits them in batches of SHA-256 for the session's randomness. | `faraday_entropy::pointer_keys`: `PointerKeys::commit`, `PointerKeys::pointer`, `PointerKeys::key` | KeyGen, Randomness | randomness |
+| mix | Combines two to five sources by hashing their commitments in the order taken. | `faraday_entropy::mix`: `Mixed::push`, `Mixed::commitment`, `Mixed::entropy` | KeyGen | randomness |
+| device | Hashes the 32 bytes the shell answered the entropy request with into a key's entropy. | `faraday_entropy::device`: `DeviceRandom::commitment`, `DeviceRandom::entropy`; `faraday_core::keygen`: `device_own` | KeyGen | randomness |
+| system-random | Reads 32 bytes from the system's generator for the desktop app and names the source. | `window`: `entropy` | Randomness, Settings | randomness |
+| fresh | Keeps the session's seed and pool from the shell's answers, mixes a person's own randomness in, never in place of the system's, and draws the seed of a MuSig2 round. | `faraday_core::fresh`: `Seed::draw`, `reseed`, `Own::add`, `Fresh::take`, `Fresh::sign_seed` | KeyGen, Randomness, Settings, CreateVault, Spend | randomness |
+| booklet | Reads the codex32 booklet's dice de-biasing worksheet: ten rolls of five dice make one bech32 character. | `faraday_entropy::booklet`: `BookletChar::push` | KeyGen | other_backups |
+| roller | Rolls simulated dice for Faraday Demo from the session's randomness, one value per byte with no bias. | `faraday_core::fresh::roller`: `Pool::clear`, `Pool::next` | KeyGen | faraday:demo |
+| diceware | Chooses Diceware words for a passphrase from dice rolls, from the three EFF lists checked by digest. | `faraday_bip::diceware`: `List::words`, `List::word` | VaultContents, CreateVault, Tools | passphrases |
 
 ### Backups
 
 | Id | Action | Roots | Screens | Learn |
 |---|---|---|---|---|
-| seedqr-make | Make a SeedQR or CompactSeedQR (`Reveal::SeedQr`) | `seedqr::encode_seedqr`, `encode_compact`; `Keys::seedqr_matrix`; `pdf.rs`'s sheets; `picture.rs`' `png` | Backup, BackupFlow, VaultContents, QR | backups |
-| seedqr-read | Read a SeedQR back to words | `words::from_seedqr_digits`, `from_compact_seedqr`; `Keys::seedqr_reads_as` | Entry, Backup | backups |
-| codex32 | Encode, checksum and recover codex32 (BIP 93) | `Keys::codex32_string`, `codex32_reads_as`, `codex32_share_record`, `codex32_of_seed`, `add_codex32`; `codex32::note` | Entry, Backups, Backup, VaultContents | other_backups |
-| codex32-make | Make codex32 shares: worksheets, a fresh set, derived shares | `worksheet::of`, `push`, `finish`; `fresh::fresh_set`; `WorkSet::new`, `push`, `make`, `translation`; `codex32_new_set`, `codex32_derive`; `Keys::codex32_shares` | KeyGen, Backup | other_backups |
-| codex32-correct | Correct a codex32 string (F94) | `correct::correct`; `codex32_correct::offer` | Entry, Backups | other_backups |
-| codex32qr | Write a codex32 string as Codex32QR (F95) | `qr::codex32qr` | KeyGen, Backups, QR | other_backups |
-| slip39 | Split and recover SLIP-39 shares | `slip39::split`, `recover`, `encrypt`, `decrypt`; `words::slip39_split`; `slip39_seed` | Backup, Entry | other_backups |
-| xor | Seed XOR parts | `xor`' `push`, `entropy`; `Keys::seed_xor` | Backup, Entry, Tools | other_backups |
-| stick-write | Write words, a passphrase or a SeedQR to a stick (`Reveal::BackupStick`) | the backup flow's `wallet_out_files`, `seed_stick_bytes` | BackupFlow, Backup | backups |
-| outbox | An unprotected file to the Outbox (`Reveal::OutboxFile`) | the secret-out sheet's save | Files | air_gap |
-| inbox-secret | Recognise a seed or key in a file or a scan | `inbox::fingerprint`, `potential_seed`, `secret_in`; `scan_key::key_of`, `pasted_secret` | Files, Visit | air_gap |
+| seedqr-make | Makes a SeedQR or CompactSeedQR picture from a key's words. | `faraday_codec::seedqr`: `encode_seedqr`, `encode_compact`; `faraday_keys::session`: `Keys::seedqr_matrix`; `faraday_core::backup_flow`: `seedqr_picture`; `faraday_core::picture`: `labelled_png`; `faraday_core::pdf`: `probe_matrix` | Backup, BackupFlow, VaultContents | backups |
+| seedqr-read | Checks that a SeedQR read by the scanner is the one a key's words make. | `faraday_keys::session`: `Keys::seedqr_reads_as` | Entry, Backup | backups |
+| codex32 | Reads, checksums, splits and recovers codex32 strings, and keeps and gathers the strings of a key's set. | `faraday_bip::codex32`: `note`, `Codex32::parse`, `Codex32::to_seed`, `Codex32::from_seed`, `Codex32::split`; `faraday_keys::session`: `Keys::codex32_string`, `Keys::codex32_share_record`, `Keys::codex32_of_seed`; `faraday_keys::codex32`: `Keys::add_codex32`; `faraday_keys::vault`: `OpenVaults::codex32_of_seed`, `OpenVaults::codex32_count`, `OpenVaults::codex32_with_typed`, `OpenVaults::gather_codex32` | Entry, Backups, Backup, VaultContents | other_backups |
+| codex32-make | Fills the codex32 booklet's worksheets one character at a time and makes a fresh set or derived shares from them. | `faraday_bip::codex32::worksheet`: `ChecksumWorksheet::of`, `ChecksumWorksheet::push`, `ChecksumWorksheet::finish`, `TranslationWorksheet::of`, `TranslationWorksheet::push`, `TranslationWorksheet::result`; `faraday_bip::codex32::fresh`: `fresh_set`; `faraday_keys::codex32`: `WorkSet::new`, `WorkSet::push`, `WorkSet::make`, `WorkSet::translation`, `WorkSet::given`, `WorkSet::live_translation`, `WorkSet::worksheet`, `StringCheck::of`, `StringCheck::worksheet`, `Keys::codex32_derive`, `Keys::codex32_new_set`, `Keys::codex32_rebuilds`; `faraday_keys::operations`: `Keys::codex32_shares` | KeyGen, Backup | other_backups |
+| codex32-correct | Proposes the one correction a codex32 checksum justifies for a damaged string, within BIP 93's bound. | `faraday_bip::codex32::correct`: `correct` | Entry, Backups | other_backups |
+| codex32qr | Writes a 48-character codex32 string as a Codex32QR code. | `faraday_codec::qr`: `codex32qr` | KeyGen, Backups | other_backups |
+| slip39 | Splits a master secret into SLIP-39 shares and recovers it from them, with the passphrase's Feistel encryption. | `faraday_bip::slip39`: `split`, `recover`, `encrypt`, `decrypt`, `Share::parse`, `Share::from_indices`; `faraday_keys::words`: `slip39_split`; `faraday_keys::operations`: `slip39_seed`; `faraday_core::keygen`: `KeyGen::deal` | Backup, Entry, KeyGen | other_backups |
+| xor | Splits a seed into Seed XOR parts, each a BIP 39 mnemonic, and combines parts into the seed. | `faraday_entropy::xor`: `SeedXor::push`, `SeedXor::entropy`; `faraday_keys::operations`: `Keys::seed_xor` | Backup, Entry, Tools | other_backups |
+| stick-write | Makes the file a backup stick holds for a key: its words or passphrase as one line, its SeedQR as a labelled picture, a codex32 string as one line or as a Codex32QR picture. | `faraday_core::backup_flow::wallet`: `Faraday::seed_stick_bytes`; `faraday_core::backups`: `Faraday::codex32_stick_bytes` | BackupFlow, Backup | backups |
+| outbox | Makes a key's words file and its SeedQR picture, standard or compact, for the secret sheet to save to the Outbox unprotected. | `faraday_core::secrets`: `Faraday::offer_seed` | Files, Backup | air_gap |
+| inbox-secret | Recognises a seed or a private key in a file, a scan or pasted text, works out the fingerprint of its key, and refuses a secret where one may not go. | `faraday_core::inbox`: `Secret::fingerprint`, `words_of`, `Faraday::secret_in`, `Faraday::potential_seed`; `faraday_core::scan_key`: `key_of`, `pasted_secret`; `faraday_core::wallet`: `text_may_be_secret`; `faraday_keys::identity`: `is_wif` | Files, Visit | air_gap |
 
 ### Derived keys and tools
 
 | Id | Action | Roots | Screens | Learn |
 |---|---|---|---|---|
-| bip85 | Derive BIP-85 children (`Reveal::Bip85Child`) | `bip85::derive`, `child_mnemonic`, `child_wif`, `child_xprv`, `child_hex`, `child_password_base64`, `child_password_base85`; `Keys::bip85_child` | Bip85 | tools (added to Bip85's pages) |
-| vanity | Grind a vanity address | `vanity::grind`, `grind_passphrase`, `grind_account`; `Keys::vanity_grind` | Vanity | passphrases |
-| lightning | A Lightning node key, from words or an aezeed (`Reveal::LightningKey`) | `aezeed::decode`, `decode_at_cost`, `decode_bytes`, `node_key`, `ldk_node_key`; `aez`; `faraday_crypto::scrypt`, `blake2b`; `lightning::node_from_words`, `node_from_aezeed` | Lightning | tools |
-| silent-receive | Silent payments: the address, labels, scan key and payments checked (BIP 352, 392) | `silent::derive`; `Receiver::scan_key`, `payments_in`; `silent_wallet`; `faraday_psbt::silent::check` | Silent, Wallets | silent_payments |
-| silent-send | Send to silent payments, with DLEQ proofs (BIP 374, 375); not in the app | `dleq`; `faraday_psbt::silent::add_shares`, `compute_scripts`, `signable` | none | none |
-| tools-hash | The calculators: SHA-256, HASH160, Base58Check, bech32, a descriptor's checksum | `hashes`; `faraday_codec::encodings` | Tools | tools |
+| hashes-macs | Hashes and authenticates bytes with SHA-256, HMAC-SHA256 and HMAC-SHA512, and stretches a password with PBKDF2. | `faraday_crypto::hash`: `sha256`, `sha256_whole`, `hmac_sha512`, `hmac_sha256`, `pbkdf2_hmac_sha512`, `pbkdf2_hmac_sha256`, `pbkdf2_sha256` | none | tools |
+| scrypt | Stretches a password with scrypt, written in this crate, for LND's aezeed. | `faraday_crypto::scrypt`: `scrypt` | none | tools |
+| tools-hash | Hashes bytes with SHA-256, SHA-256d and HASH160, and reads and writes Base58Check, bech32 and bech32m text. | `faraday_bip::hashes`: `hashes`; `faraday_codec::encodings`: `read`, `read_bech32`, `from_hex`, `base58check`, `base58`, `bech32`, `bech32m`, `read_input` | Tools | tools |
+| bip85 | Derives a BIP 85 child (words, a WIF, an extended private key, hex or a password) from a held key. | `faraday_bip::bip85`: `derive`, `child_mnemonic`, `child_wif`, `child_xprv`, `child_hex`, `child_password_base64`, `child_password_base85`; `faraday_keys::bip85`: `child`; `faraday_keys::operations`: `Keys::bip85_child`; `faraday_bip::base64`: `encode`, `decode` | Bip85 | tools |
+| vanity | Grinds a counter on a key's passphrase or account index until its first address begins with the characters chosen. | `faraday_bip::vanity`: `grind`, `grind_passphrase`, `grind_account`; `faraday_keys::vanity`: `grind`; `faraday_keys::operations`: `Keys::vanity_grind` | Vanity | passphrases |
+| aezeed | Reads an LND aezeed: 24 words, checksum, scrypt key and AEZ decipher, giving the entropy, version and birthday. | `faraday_bip::aezeed`: `decode`, `decode_at_cost`, `decode_bytes`; `faraday_bip::aez`: `extract`, `hash`, `prf`, `encrypt`, `decrypt` | Lightning | tools |
+| lightning-node | Derives a Lightning node key from words (ldk-node) or from an aezeed (LND). | `faraday_bip::aezeed`: `node_key`, `ldk_node_key`; `faraday_keys::lightning`: `node_from_words`, `node_from_aezeed`, `Node::private_hex`, `Keys::node_from_aezeed`; `faraday_keys::operations`: `Keys::lightning_node` | Lightning | tools |
+| silent-receive | Derives a silent payments address, labels and scan key (BIP 352, 392) and finds the payments a transaction makes to them. | `faraday_bip::silent`: `Receiver::derive`, `Receiver::new`, `Receiver::scan_public_key`, `Receiver::spend_public_key`, `Receiver::address`, `Receiver::label_tweak`, `Receiver::label_point`, `Receiver::labelled_spend_key`, `Receiver::labelled_address`, `Receiver::scan_key_text`, `Receiver::descriptor`, `address_of`, `decode_address`, `encode_address`, `scan_path`, `spend_path`, `input_public_key`, `input_sum_and_hash`, `scan`, `find_payments`; `faraday_bip::silent_wallet`: `SilentWallet::address`, `SilentWallet::to_text`, `SilentWallet::parse`; `faraday_keys::silent`: `receiver`, `Receiver::scan_key`, `Receiver::address`, `Receiver::payments_in`, `Receiver::scan_public_key`, `Receiver::spend_public_key`; `faraday_keys::operations`: `Keys::silent_receiver`; `faraday_core::silent::check`: `Check::prevouts`, `Check::tx`, `Check::waiting_for` | Silent, Wallets | silent_payments |
+| silent-send | Adds this signer's ECDH shares and BIP 374 proofs to a silent payments PSBT, and sets the output scripts the shares give. | `faraday_psbt::silent`: `add_shares`, `add_shares_for_keys`, `compute_scripts`, `fill_scripts`, `scan_keys`, `signable`, `tap_origin`, `add_input`; `faraday_bip::dleq`: `secret_mul`, `generate_proof`, `generate_proof_with`, `verify_proof`, `verify_proof_with`; `faraday_bip::silent`: `sender_outputs` | none | none |
 
 ### Signing
 
 | Id | Action | Roots | Screens | Learn |
 |---|---|---|---|---|
-| psbt-read | Read a PSBT, v0 and v2 (BIP 174, 370) | `Psbt::parse_bytes`, `parse_base64`; `v2::parse_bytes`, `parse_base64`, `to_v0` | Spend, Files, Decode, Family | verifying |
-| psbt-review | Review: amounts, verified change, warnings, sighash kinds, the signed-amount memory, registering a wallet | `inspect::inspect` and its helpers; `register::offer`, `register`; `context::wallet_claim`, `from_master`, `derive_key` | Spend, Family | verifying |
-| sign-ecdsa | Sign with ECDSA, RFC 6979, low-R | `sign::sign`, `sign_ecdsa`; `faraday_keys::psbt::sign`; `Keys::sign` | Spend, Family | nonces |
-| sign-schnorr | Sign with Schnorr, key path and tap leaf (BIP 340, 341, 342) | `sign_taproot`, `sign_tap_leaf` | Spend, Family | nonces |
-| sign-musig | Sign as a MuSig2 participant (BIP 327, 373) | `sign_musig`; `musig::nonce_gen`, `sign`, `partial_sig_verify`, `partial_sig_agg`; `faraday_psbt::musig` | Spend | nonces |
-| sign-check | Verify each signature made, and sign twice to compare | `verify::deterministic`, `ecdsa_mode`, `schnorr_mode`, `verify_signatures`, `repeated_nonces`; `faraday_keys::psbt::recompute_signatures`, `key_refs` | Spend | nonces |
-| finalize | Finalize a transaction | `finalize::finalize` | Spend, Family | verifying |
-| message-sign | Sign a message (BIP 137, 322) | `message::sign`; `faraday_keys::message::sign`; `Keys::sign_message` | Message | message |
-| message-verify | Check a signed message | `message::verify` | CheckMessage | message |
-| tx-decode | Decode a transaction: txid, wtxid, weight | `transaction::read_raw` | Decode | verifying |
-| musig-across | MuSig2 rounds across places, the secret nonce kept in a vault; compiled out (F109) | the vault record type 9 code | none | none |
+| psbt-read | Reads a version 0 PSBT from bytes or base64 and writes it back as it was read. | `faraday_psbt::psbt`: `Psbt::parse_bytes`, `Psbt::parse_base64`, `Psbt::to_bytes`, `Psbt::to_base64`, `Psbt::unsigned_tx`, `Psbt::inner`, `Psbt::inner_mut`, `Psbt::into_inner`; `faraday_core::wallet`: `classify_read` | Spend, Files, Decode, Family | verifying |
+| psbt-v2 | Reads a version 2 PSBT as its key-value maps, checks BIP 370's shape and converts it to version 0 and back. | `faraday_psbt::v2`: `PsbtV2::parse_bytes`, `PsbtV2::parse_base64`, `PsbtV2::to_bytes`, `PsbtV2::to_base64`, `PsbtV2::to_v0`, `PsbtV2::merge_signed`, `PsbtV2::unsigned_tx` | none | none |
+| psbt-review | Reads what a PSBT spends and pays: amounts, fee, verified change, warnings, and the wallet it defines for registering. | `faraday_psbt::inspect`: `inspect`, `Inspection::dangers`, `Inspection::fee_share_pct`, `Inspection::holdable`, `cosigners`, `spend_route`, `wallet_keys_at`; `faraday_psbt::classify`: `amount_unverified`; `faraday_psbt::context`: `KeyRef::with_extra`, `Context::wallet_claim`, `KeyRef::from_master`, `KeyRef::derive_key`; `faraday_psbt::register`: `offer`, `register`; `faraday_core::register`: `path_text`; `faraday_core::memory`: `stated`; `faraday_core::wallet`: `psbt_network`, `Faraday::register_act`, `Spend::collect` | Spend, Family | verifying |
+| sighash-review | Reads each input's sighash type and signs only SIGHASH_ALL and SIGHASH_DEFAULT. | `faraday_psbt::inspect`: `sighash_kind`, `SighashKind::is_default`, `SighashKind::is_none`; `faraday_psbt::inspect::sighash`: `SighashKind::is_single` | Spend, Family | verifying |
+| sign-ecdsa | Signs a transaction input with ECDSA, from the key the PSBT's origin names, and checks the key against the script. | `faraday_psbt::sign`: `sign`, `sign_ecdsa`; `faraday_keys::psbt`: `sign`; `faraday_keys::session`: `Keys::sign` | Spend, Family | nonces |
+| sign-schnorr | Signs a taproot input with BIP 340, by the key path or under a tap leaf's hash. | `faraday_psbt::sign`: `sign_taproot`, `sign_tap_leaf` | Spend, Family | nonces |
+| sign-musig | Signs as one MuSig2 participant: draws a nonce, signs with it or signs last, and aggregates the partial signatures. | `faraday_psbt::sign`: `sign_musig`; `faraday_bip::musig`: `nonce_gen`, `sign`, `partial_sig_verify`, `partial_sig_agg`, `deterministic_sign`, `nonce_agg`, `PubNonce::from_bytes`, `AggNonce::from_bytes`; `faraday_psbt::musig`: `MusigSession::new`, `write_input_participants` | Spend | nonces |
+| sign-check | Checks every signature a PSBT carries, finds a nonce used twice, recomputes this device's signatures and compares two PSBTs. | `faraday_psbt::verify`: `compare`, `deterministic`, `ecdsa_mode`, `schnorr_mode`, `verify_signatures`, `repeated_nonces`; `faraday_keys::psbt`: `recompute_signatures`, `key_refs`; `faraday_keys::session`: `Keys::key_refs`, `Keys::recompute_signatures` | Spend | nonces |
+| finalize | Builds the final scriptSig and witness from the partial signatures and extracts the transaction. | `faraday_psbt::finalize`: `finalize`; `faraday_core::wallet`: `Spend::finished_hex` | Spend, Family | verifying |
+| message-sign | Signs a message with the key at a path, in BIP 137's compact form or as BIP 322 simple. | `faraday_psbt::message`: `sign`, `signed_text`, `virtual_txids`; `faraday_keys::message`: `sign`; `faraday_keys::session`: `Keys::sign_message`; `faraday_core::wallet`: `Session::sign_message` | Message | message |
+| message-verify | Checks a signed message against an address, as BIP 137 or BIP 322 simple. | `faraday_psbt::message`: `verify`; `faraday_core::wallet`: `Session::check_message` | CheckMessage | message |
+| tx-decode | Reads a raw transaction, or a PSBT's transaction, to its txid, wtxid, weight and the previous outputs its source states. | `faraday_psbt::transaction`: `read_raw`, `wrap_raw`, `is_signed`, `Spending::read`, `Spending::from_psbt`, `Spending::tx`, `Spending::waiting_for`, `Spending::add_previous`, `Spending::prevouts`, `prevout_of`; `faraday_core::decode`: `decode`, `Faraday::amounts_in`, `prevouts_of`, `same_unsigned`, `script_kind`, `btc`; `faraday_qr`: `transaction_hex` | Decode | verifying |
 
 ### Transfer
 
 | Id | Action | Roots | Screens | Learn |
 |---|---|---|---|---|
-| qr | Encode and read a QR code, its error correction | `faraday_codec::qr::encode`, `encode_bounded`; `decode::decode_luma`, `decode_picture`; `faraday_files::qr_in_png` | QR, Transfer | air_gap |
-| ur | UR codes: CRC32, fountain codes (BCR-2020-005, 006, 012) | `faraday_codec::ur`; `faraday_qr::send`'s `ur_psbt_frames`, `ur_bytes_frames` | QR, Transfer | air_gap |
-| bbqr | BBQr and Specter pNofM | `faraday_qr::bbqr`, `specter`; `send::bbqr_frames`, `parts_frames` | QR, Transfer | air_gap |
-| envelope | The file envelope `faraday-file-v1`: its SHA-256 | `transfer::read_any`, `read`, `scanned` | Transfer, Files | air_gap |
-| file-hash | A file's SHA-256, shown and kept | `faraday_crypto::hash::sha256_whole`; `file_menu::sha256`; `receipt::sha256_of`; `gpg::sha256`, `sha256_hex`; `Faraday::hash` | Files, Visit | air_gap |
+| qr | Encodes a payload as a QR code, ISO/IEC 18004 model 2, and reads QR codes from a camera frame or a PNG. | `faraday_codec::qr`: `encode`, `encode_bounded`; `faraday_codec::decode`: `decode_luma`, `decode_picture`; `faraday_codec::png`: `qr_png`, `grey_png`; `faraday_codec::classify`: `classify` | Transfer, Spend, Family, Decode, Create, Silent, VaultContents, Tools | air_gap |
+| ur | Writes and reads UR codes: bytewords with CRC-32, fountain-coded parts and the CBOR around them. | `faraday_codec::ur`: `encode_single`, `encode_psbt`, `encode_bytes`, `decode_single`, `Encoder::psbt`, `Encoder::bytes`, `Encoder::next_part`, `Decoder::receive`; `faraday_codec::ur::bytewords`: `encode`, `decode`; `faraday_codec::ur::fountain`: `Part::from_cbor`, `Part::indexes`, `Encoder::new`, `Encoder::next_part`, `Decoder::receive`, `Decoder::message`; `faraday_codec::ur::xoshiro`: `Xoshiro256::from_bytes`; `faraday_qr::send`: `ur_psbt_frames`, `ur_bytes_frames`, `ur_bytes_animated`; `faraday_qr::registry`: `read`, `hdkey`, `account_cbor` | Transfer, Spend, Family, Decode, Create, Tools | air_gap |
+| bbqr | Splits a file into BBQr or numbered pNofM parts for QR codes and puts received parts together. | `faraday_qr::send`: `frames`, `parts_frames`, `numbered`, `bbqr_frames`, `animated`; `faraday_qr`: `Assembler::feed` | Transfer, Spend, Family, Decode, Create, Tools | air_gap |
+| envelope | Puts a file in the faraday-file-v1 envelope with its SHA-256 and checks one received, saving a file received once. | `faraday_qr::envelope`: `pack`, `unpack`; `faraday_qr`: `classify_text` | Transfer, Files | air_gap |
+| file-hash | Computes the SHA-256 of a whole file to show and keep. | `faraday_core::receipt`: `sha256_of`; `faraday_core::file_menu`: `sha256`; `faraday_core::gpg`: `sha256`, `sha256_hex`; `faraday_core`: `Item::hash` | Files, Visit | air_gap |
 
 ### Vaults
 
 | Id | Action | Roots | Screens | Learn |
 |---|---|---|---|---|
-| vault-create | Make a vault: Argon2id, HKDF-SHA256, XChaCha20-Poly1305, ChaCha20 fill | `faraday_vault::create`, `derive`, `stretch`; `faraday_keys::vault::create`, `measure`; `faraday_backup::argon2id` | CreateVault | faraday:vaults |
-| vault-unlock | Unlock a slot | `faraday_vault::open`, `open_with`; `OpenVaults::unlock` | Unlock | faraday:vaults |
-| vault-seal | Seal a record into a slot | `faraday_vault::seal`; `OpenVaults::sealed` | VaultContents, BackupFlow | faraday:vaults |
-| vault-reveal | A vault record's secret on screen, into a form or a record (`Reveal::VaultEntry`) | `OpenVaults::reveal`, `words_of` | VaultContents | faraday:vaults |
-| kdbx | Write a KeePass KDBX 4 file | `kdbx::write`, `verify`, `stretch`, `keys`; `write_kdbx`; `kdbx_entry` | VaultContents | faraday:vaults |
-| totp | A TOTP code (RFC 6238) | `faraday_vault::totp::code`; `faraday_keys::totp::code_at`; `OpenVaults::totp` | Codes | faraday:time |
+| vault-create | Makes a vault file of four equal slots from one to four passphrases, with Argon2id, HKDF-SHA256 and XChaCha20-Poly1305, and a ChaCha20 keystream for the salt, the nonces and the unused slots. | `faraday_vault`: `create`, `derive`; `faraday_keys::vault`: `create`, `measure` | CreateVault | faraday:vaults |
+| vault-unlock | Opens the slot a passphrase opens: checks the header, derives the slot key once with Argon2id and HKDF-SHA256, tries XChaCha20-Poly1305 on all four slots and parses the one whose tag verifies. | `faraday_vault`: `open`, `open_with`; `faraday_keys::vault`: `OpenVaults::unlock` | Unlock | faraday:vaults |
+| vault-seal | Writes an open vault back: encrypts the open slot's records with XChaCha20-Poly1305 under a new 24-byte nonce and copies the other three slots unchanged. | `faraday_vault`: `Opened::seal` | VaultContents, BackupFlow | faraday:vaults |
+| vault-reveal | Puts a secret of an open vault's record in the clear for the one reason named: a key's words or passphrase, an entry's password, TOTP secret or notes, a note's text. | `faraday_keys::vault`: `OpenVaults::reveal`, `OpenVaults::words_of` | VaultContents | faraday:vaults |
+| vault-edit | Adds, changes, copies and makes public the records of an open vault, holding every secret field in a value that wipes on drop. | `faraday_keys::vault`: `OpenVaults::insert`, `OpenVaults::insert_at`, `OpenVaults::set_public_all`, `OpenVaults::set_public_all_in`, `OpenVaults::set_fields`, `OpenVaults::copy_record`, `OpenVaults::copy_out`, `OpenVaults::stage`, `OpenVaults::stage_passphrase` | VaultContents, BackupFlow | faraday:vaults |
+| vault-load | Loads a key kept in an open vault into the session: its words (BIP 39) and passphrase to the seed and the master key's fingerprint (BIP 32), or its master seed, or its codex32 set. | `faraday_keys::vault`: `OpenVaults::load_from_vault`, `OpenVaults::load_key_record`, `OpenVaults::load_key_with_passphrase`, `OpenVaults::passphrase_kept_for`, `OpenVaults::warm`, `OpenVaults::word_count`, `OpenVaults::words_id`, `OpenVaults::record_word_count`, `OpenVaults::record_words_id`, `OpenVaults::same_words`, `OpenVaults::holds_session_words`, `key_identity`, `key_account`; `faraday_keys::session`: `Keys::key_record`, `Keys::seed_record_id` | VaultContents, Unlock | faraday:vaults |
+| kdbx | Writes a KeePass KDBX 4.0 database of one to eight entries under a passphrase: Argon2id, SHA-256 and SHA-512 key steps, ChaCha20 over the body, HMAC-SHA-256 block authentication. | `faraday_backup::kdbx`: `write`, `verify`, `keys`, `header`, `hmac`, `chacha20`; `faraday_backup`: `argon2id`; `faraday_keys::vault`: `OpenVaults::kdbx_entry`; `faraday_core::vault`: `Faraday::vault_kdbx` | VaultContents | faraday:vaults |
+| totp | Computes a TOTP code from an entry's secret at a Unix time: HMAC-SHA1, SHA-256 or SHA-512 over the time step, then dynamic truncation. | `faraday_vault::totp`: `Totp::code`; `faraday_keys::vault`: `OpenVaults::totp` | Codes | faraday:time |
 
 ### GPG and Secure Boot
 
 | Id | Action | Roots | Screens | Learn |
 |---|---|---|---|---|
-| gpg-create | Make a GPG key: Ed25519 certify and sign subkey | `faraday_keys::gpg::create`; `faraday_pgp::certificate` | VaultContents | faraday:gpg |
-| gpg-sign | Sign with the GPG key | `faraday_pgp::sign`; `gpg_sign_armored` | VaultContents, Files | faraday:gpg |
-| gpg-revoke | Make the revocation certificate and its file | `revocation`, `revocation_file`; `gpg_revocation_file`, `gpg_new_revocation_file` | VaultContents | faraday:gpg |
-| gpg-paperkey | Write the paperkey (`Reveal::GpgPaperkey`) | `faraday_pgp::paperkey`; `gpg_paperkey` | VaultContents | faraday:gpg |
-| gpg-restore | Restore a GPG key from its paperkey; built in the crates, no screen yet | `gpg::Restore::line`, `finish` | none | faraday:gpg |
-| gpg-verify | Read public armour and verify a detached signature | `read_public_armor`, `verify_detached` | Files, VaultContents | faraday:gpg |
-| sb-keys | Make Secure Boot keys and their enrolment files | `faraday_sb::make`, `enrolment`; `secure_boot::create`; `sb_enrolment`; `rng` | VaultContents | faraday:secure-boot-keys |
-| sb-sign | Check a release's sums and signature, then sign its boot program (F134) | `release::check`, `sign`; `pe`'s Authenticode; `sb_sign_image` | VaultContents | faraday:secure-boot-keys |
+| gpg-create | Makes an OpenPGP v4 key from two fresh Ed25519 seeds, a certifying primary key and a signing subkey, with its public certificate and a kept revocation certificate. | `faraday_keys::gpg`: `create`; `faraday_pgp`: `Key::certificate`, `Key::fingerprint`, `Key::subkey_fingerprint`; `faraday_keys::vault`: `gpg_facts` | VaultContents | faraday:gpg |
+| gpg-sign | Signs data with the GPG key's signing subkey: an Ed25519 detached signature over the SHA-256 or SHA-512 of the data, armoured. | `faraday_pgp`: `Key::sign`; `faraday_keys::vault`: `OpenVaults::gpg_sign_armored` | VaultContents, Files | faraday:gpg |
+| gpg-revoke | Makes a revocation certificate for the GPG key and writes it as the `.rev` file GnuPG writes. | `faraday_pgp`: `Key::revocation`, `Key::revocation_file`; `faraday_keys::vault`: `OpenVaults::gpg_revocation_file`, `OpenVaults::gpg_new_revocation_file` | VaultContents | faraday:gpg |
+| gpg-paperkey | Writes the GPG key's secret parts in paperkey's text form, for a person to copy onto paper. | `faraday_pgp`: `Key::paperkey`, `Key::secret_key`; `faraday_keys::vault`: `OpenVaults::gpg_paperkey` | VaultContents | faraday:gpg |
+| gpg-restore | Restores a GPG key from its paperkey lines and its public certificate: checks every line's CRC, rebuilds the key from the seeds, and makes every signature of the certificate again to compare. | `faraday_pgp::certificate`: `restore`, `Certificate::read`; `faraday_keys::gpg`: `Restore::line`, `Restore::again`, `Restore::wipe`, `Restore::finish` | none | faraday:gpg |
+| gpg-verify | Checks a detached OpenPGP signature over data against a certificate: the signing subkey's binding and back signature, the key's life, and the Ed25519 signature over a SHA-256 or SHA-512 digest. | `faraday_pgp::verify`: `verify_detached` | Files, VaultContents | faraday:gpg |
+| sb-keys | Makes an owner's Secure Boot keys, PK, KEK and db as RSA-2048 with self-signed certificates, and the enrolment files: signature lists, PKCS #7 signed updates and certificates. | `faraday_sb`: `make`, `enrolment` | VaultContents | faraday:secure-boot-keys |
+| sb-sign | Signs a boot program with the db key, as an Authenticode SHA-256 signature, only when it is the file a release's checked sums name. | `faraday_sb::release`: `sign`; `faraday_sb::pe`: `sign`, `hash_as_signed` | VaultContents | faraday:secure-boot-keys |
+| sb-check | Checks an image's Authenticode signature against a db certificate: the image hash, the SHA-256 digest in the signed data and the RSA signature. | `faraday_sb::pe`: `check` | VaultContents | faraday:secure-boot-keys |
 
 ### The device and the Starter
 
 | Id | Action | Roots | Screens | Learn |
 |---|---|---|---|---|
-| selftest | The start-up self-test | `faraday_selftest::run` and its checks | Settings | faraday:keys-kept |
-| starter-write | Write an image and check its SHA-256 | `faraday_payload::decode::write_payload`, `write_image`, `hash_image` | the Starter's Make | faraday:checking-written |
-| starter-signed | Check a boot file the person signed (F133) | `signed.rs`' `choose`; `faraday_sb::pe::transplant` | the Starter's Make | faraday:checking-written |
-| starter-recovery-key | Read a BitLocker recovery key for the notes PDF, hold it until the sheet is made, wipe it (F49) | `faraday_starter::api::RecoveryKey::parse` and the sheet's maker | the Starter's BitLocker step | faraday:checking-written |
+| selftest | Runs eight fixed-vector checks at start-up and from Settings: BIP 39 words and seed in English and Japanese, BIP 32 derivation, a BIP 84 address, an ECDSA and a BIP 340 signature, scrypt and Argon2id. | `faraday_selftest`: `run`, `run_checks`, `bip39_vector`, `bip39_japanese_vector`, `bip32_vector`, `bip84_address`, `ecdsa_vector`, `schnorr_vector`, `scrypt_vector`, `argon2id_vector` | Settings | faraday:keys-kept |
+| starter-write | Writes an image to a stick and checks it: the SHA-256 of the payload file against its manifest before any write, and of the decompressed bytes against the manifest as they are written. | `faraday_payload::decode`: `write_payload`, `write_image`, `hash_image` | none | faraday:checking-written |
+| starter-signed | Checks a boot file the person signed against the release's own: its Authenticode image hash, its one signature at the file's end, and the signature on the file built. | `faraday_sb::pe`: `transplant`, `signer` | none | faraday:checking-written |
+| starter-recovery-key | Reads a BitLocker recovery key, eight groups of six digits, for the system drive, holds it until the notes sheet is made and wipes it. | `faraday_starter::api`: `RecoveryKey::parse`; `faraday_starter::notes`: `Notes::pdf_with_key`, `Notes::sheet`; `faraday_starter`: `Starter::print_notes` | none | faraday:checking-written |
 
-77 actions: 10 keys, 5 wallets, 11 randomness, 11 backups, 6 derived
-keys and tools, 11 signing, 5 transfer, 6 vaults, 8 GPG and Secure
+92 actions: 11 keys, 11 wallets, 12 randomness, 11 backups, 9 derived
+keys and tools, 12 signing, 5 transfer, 8 vaults, 9 GPG and Secure
 Boot, 4 the device and the Starter.
 
 ## 13. Other places that depend on a cryptographic function

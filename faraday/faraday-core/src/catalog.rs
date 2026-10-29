@@ -197,7 +197,7 @@ pub const TILES: &[Tile] = &[
         group: EN.catalog_wallets,
         name: EN.catalog_musig2,
         line: EN.catalog_all_keys_one,
-        tags: &["BIP-327", "BIP-328", "BIP-373", "BIP-390"],
+        tags: &["BIP-327", "BIP-328", "BIP-390"],
         go: Go::Create(NewKind::MuSig),
     },
     Tile {
@@ -225,7 +225,7 @@ pub const TILES: &[Tile] = &[
         group: EN.catalog_transactions,
         name: EN.catalog_sign_a_transaction,
         line: EN.catalog_sign_transaction_line,
-        tags: &["BIP-174", "BIP-370", "BIP-143", "BIP-341"],
+        tags: &["BIP-174", "BIP-143", "BIP-341"],
         go: Go::Sign,
     },
     Tile {

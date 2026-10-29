@@ -153,11 +153,11 @@ class Miniscript(Area):
     )
     differences = [
         (
-            "Miniscript: Faraday reads `sortedmulti_a` only as a `tr()`'s one leaf; BIP 387 "
-            "allows it deeper in a tree. Two of Bitcoin Core's sane miniscripts are "
+            "Miniscript: Faraday reads `sortedmulti_a` only as a `tr()`'s one leaf; BIP 387"
+            " allows it deeper in a tree. Two of Bitcoin Core's sane miniscripts are "
             'refused, as `miniscript` refuses them: `or_b(0,a:0)`, which has no '
-            'satisfaction, and a `d:` used as a unit under Tapscript. `area_miniscript.py` '
-            'checks and counts each.'
+            'satisfaction, and a `d:` used as a unit under Tapscript. Each is checked and '
+            'counted.'
         ),
     ]
     not_compared = (

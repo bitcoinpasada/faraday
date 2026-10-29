@@ -519,20 +519,18 @@ class Psbt(Area):
     )
     differences = [
         (
-            'PSBT version 2 (`faraday_psbt::v2`): a BIP-370 key with key data is an unknown '
-            "key; BIP-174's and BIP-371's fields inside are checked only when the PSBT is "
+            'PSBT version 2 (`faraday_psbt::v2`): a BIP-370 key with key data is an unknown'
+            " key; BIP-174's and BIP-371's fields inside are checked only when the PSBT is "
             'bridged to version 0, except a taproot signature whose sighash byte is 0, '
             'refused on reading.'
         ),
         (
-            'Where the two once differed and now agree (owner, 2026-10-23), the area checks '
-            'the agreement like any other answer: a version 0 PSBT with a version 2 field, '
-            'bytes after its last map or a taproot signature whose sighash byte is 0 '
-            'refused, and every PSBT written back byte for byte as read '
-            "(PSBT_OUT_TAP_TREE's order and a PSBT_GLOBAL_VERSION of 0 included); a version "
-            "2 PSBT's output without PSBT_OUT_SCRIPT (unless a silent payment's), invalid "
-            'required locktimes and wrongly sized locktime fields and modifiable flags '
-            'refused on reading.'
+            'Both refuse a version 0 PSBT with a version 2 field, bytes after its last map '
+            'or a taproot signature whose sighash byte is 0, and write every PSBT back byte'
+            " for byte as read (PSBT_OUT_TAP_TREE's order and a PSBT_GLOBAL_VERSION of 0 "
+            "included). Both refuse on reading a version 2 PSBT's output without "
+            "PSBT_OUT_SCRIPT (unless a silent payment's), invalid required locktimes, and "
+            'wrongly sized locktime fields and modifiable flags (owner, 2026-10-23).'
         ),
     ]
     not_compared = (

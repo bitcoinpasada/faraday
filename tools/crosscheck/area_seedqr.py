@@ -274,8 +274,8 @@ class SeedQR(Area):
     differences = [
         (
             "Codex32QR: Faraday picks the mask Nayuki's encoder picks; the profile's "
-            'encoder chose another for 6 of its 22 pictures. There `area_seedqr.py` swaps '
-            "the mask of Faraday's code for the picture's with `qrcodegen.py`'s masking, "
+            'encoder chose another for 6 of its 22 pictures. For those the area swaps the '
+            "mask of Faraday's code for the picture's with `qrcodegen.py`'s masking, "
             'requires the picture, and counts it.'
         ),
     ]

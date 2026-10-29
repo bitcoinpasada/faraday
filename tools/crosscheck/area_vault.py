@@ -535,11 +535,9 @@ class Vault(Area):
     )
     differences = [
         (
-            'Where the two once differed and now agree (owner, 2026-10-23), the area checks '
-            "the agreement like any other answer: the vault's required fields of types 7 "
-            'and 9, a sheet past 16 KiB, an empty passphrase at create, and duplicate type '
-            '14 and type 10 records, all refused by both as `docs/VAULT.md` §7 and §8 now '
-            'say.'
+            'Both refuse a record of type 7 or 9 without its required fields, a sheet past '
+            '16 KiB, an empty passphrase at create, and a second type 14 or type 10 record,'
+            ' as `docs/VAULT.md` §7 and §8 say (owner, 2026-10-23).'
         ),
     ]
     not_compared = (

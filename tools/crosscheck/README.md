@@ -289,24 +289,23 @@ difference"), and says why.
 - `sp`
   - BIP-352: Faraday's sender arithmetic is test-only and has no K_max,
     so the vector that exceeds it is checked on the receiving side only.
-  - Where a reference leaves a rule to its caller, the area writes the
-    BIP's own sentence and says so in its docstring: BIP-352's skip of a
-    transaction spending SegWit version 2 or above.
+  - BIP-352's skip of a transaction spending SegWit version 2 or above,
+    which the reference leaves to its caller, is written in the area
+    from the BIP's own sentence.
 - `bip85`
-  - Where a reference leaves a rule to its caller, the area writes the
-    BIP's own sentence and says so in its docstring: the BIP-85 length
-    ranges and its two password applications.
+  - The BIP-85 length ranges and its two password applications, which
+    the reference leaves to its caller, are written in the area from the
+    BIP's own sentences.
 - `slip39`
   - SLIP-39: Faraday refuses a group threshold of 1 over several groups;
-    python-shamir-mnemonic makes the shares. `area_slip39.py` checks
-    that this still holds, so a change either way is seen.
+    python-shamir-mnemonic makes the shares. The area checks that this
+    still holds, so a change either way is seen.
 - `codex32`
   - Codex32: Faraday recovers only from exactly `k` shares without the
     secret, and derives a share only from exactly `k` strings at an
     unused index; the reference also takes more strings or a used index.
-  - Where a reference leaves a rule to its caller, the area writes the
-    BIP's own sentence and says so in its docstring: the codex32
-    threshold and seed sizes.
+  - The codex32 threshold and seed sizes, which the reference leaves to
+    its caller, are written in the area from the BIP's own sentences.
 - `codex32-correct`
   - Codex32 correction: python-codex32 reads a character outside the
     bech32 alphabet as unreadable, and fills more than 8 unreadable
@@ -314,92 +313,83 @@ difference"), and says why.
     both (`docs/CODEX32.md` §8.4). The corpus damages strings with
     bech32 characters and `?` only.
 - `vault`
-  - Where the two once differed and now agree (owner, 2026-10-23), the
-    area checks the agreement like any other answer: the vault's
-    required fields of types 7 and 9, a sheet past 16 KiB, an empty
-    passphrase at create, and duplicate type 14 and type 10 records, all
-    refused by both as `docs/VAULT.md` §7 and §8 now say.
+  - Both refuse a record of type 7 or 9 without its required fields, a
+    sheet past 16 KiB, an empty passphrase at create, and a second type
+    14 or type 10 record, as `docs/VAULT.md` §7 and §8 say (owner,
+    2026-10-23).
 - `bip39`
-  - Where the two once differed and now agree (owner, 2026-10-23), the
-    area checks the agreement like any other answer: a BIP-39 sentence
-    read in NFKD, so composed words and the Japanese vectors as
-    published parse on both sides.
-  - Faraday's `Mnemonic::to_seed`, the path a typed passphrase takes,
-    takes printable ASCII only, at most 256 bytes; python-mnemonic takes
-    any text. Non-ASCII passphrases go through `to_seed_unchecked` (NFKD
-    bytes), which is what Faraday's vector tests and start-up self-test
-    call; `area_bip39.py` checks that the product path still refuses
-    them, and passphrases past 256 bytes, as a known difference.
+  - Both read a BIP-39 sentence in NFKD, so composed words and the
+    Japanese vectors as published parse on both sides (owner,
+    2026-10-23).
+  - A passphrase typed in Faraday is printable ASCII, at most 256 bytes;
+    python-mnemonic takes any text. Faraday's vector tests and start-up
+    self-test give a non-ASCII passphrase as its NFKD bytes, and the
+    area checks that a typed one, or one past 256 bytes, is still
+    refused.
 - `tx`
   - Legacy sighash: `bitcoin` hashes the script code as given, Core
     removes every OP_CODESEPARATOR first. Faraday's legacy spends
     (P2PKH, P2SH multisig) have none.
-  - Where a reference would take hours over one malformed case, the area
-    gives the answer the reference reaches at once, and says why:
-    `area_tx.py` refuses a raw transaction whose witness stack counts
-    more items than the transaction has bytes (Core's framework reads
-    past the end as zeros, and writes such a stack back in time
-    quadratic in its length), which the full reading refuses too, since
-    every item is written back as at least one byte. `test_harness.py`
-    checks it.
+  - A raw transaction whose witness stack counts more items than the
+    transaction has bytes is refused in the area: Core's framework reads
+    past the end as zeros and would take hours to write such a stack
+    back. Faraday's full reading refuses it too, since every item is
+    written back as at least one byte, and the harness's own tests check
+    the shortcut.
 - `psbt`
   - PSBT version 2 (`faraday_psbt::v2`): a BIP-370 key with key data is
     an unknown key; BIP-174's and BIP-371's fields inside are checked
     only when the PSBT is bridged to version 0, except a taproot
     signature whose sighash byte is 0, refused on reading.
-  - Where the two once differed and now agree (owner, 2026-10-23), the
-    area checks the agreement like any other answer: a version 0 PSBT
-    with a version 2 field, bytes after its last map or a taproot
-    signature whose sighash byte is 0 refused, and every PSBT written
-    back byte for byte as read (PSBT_OUT_TAP_TREE's order and a
-    PSBT_GLOBAL_VERSION of 0 included); a version 2 PSBT's output
-    without PSBT_OUT_SCRIPT (unless a silent payment's), invalid
-    required locktimes and wrongly sized locktime fields and modifiable
-    flags refused on reading.
+  - Both refuse a version 0 PSBT with a version 2 field, bytes after its
+    last map or a taproot signature whose sighash byte is 0, and write
+    every PSBT back byte for byte as read (PSBT_OUT_TAP_TREE's order and
+    a PSBT_GLOBAL_VERSION of 0 included). Both refuse on reading a
+    version 2 PSBT's output without PSBT_OUT_SCRIPT (unless a silent
+    payment's), invalid required locktimes, and wrongly sized locktime
+    fields and modifiable flags (owner, 2026-10-23).
 - `sign`
   - PSBT signing: Faraday refuses to sign a SegWit v0 input with no
-    previous transaction in a transaction of more than one input
-    (`faraday_psbt::sign`); BIP-174's signer signs it, and BIP-174's own
-    signer vector is such a PSBT. `area_sign.py` checks the refusal and
-    counts it. Faraday holds a finalized input to the same rule,
-    refusing the PSBT when such an input is final but for a taproot one,
-    since a final witness is the coordinator's.
+    previous transaction in a transaction of more than one input;
+    BIP-174's signer signs it, and BIP-174's own signer vector is such a
+    PSBT. The refusal is checked and counted. Faraday holds a finalized
+    input to the same rule and refuses the PSBT when such an input is
+    final, except a taproot one, whose final witness is the
+    coordinator's.
   - PSBT signing, wallets: Faraday signs an input spent from a script of
     several keys (a `multi` of two or more, a miniscript naming two or
     more, a taproot script path whose carried leaves name two or more
     with its internal key, or are not its whole tree) only for a
     registered wallet that holds one of its keys and whose script it is;
-    BIP-174's signer signs any. `area_sign.py` refuses where no wallet
-    the request registers holds a held key and gives the input, and
-    counts it only where Faraday's refusal names `WalletNotRegistered`.
-    A miniscript or a taproot tree of one key is signed only through
-    such a wallet too, and is otherwise left unsigned while the rest is
-    signed (F141); `area_sign.py` leaves it unsigned the same way. Half
-    the corpus's `multi`, miniscript and taproot-tree inputs come with
-    their wallet registered, so their signatures are still compared; a
-    registered tree's every leaf has its wait met, since Faraday then
-    refuses a path that can never be valid (`TimelockNotMet`), which
-    `area_sign.py` does not work out.
+    BIP-174's signer signs any. The area refuses where no wallet the
+    request registers holds a held key and gives the input, and counts
+    it only where Faraday's refusal is that the wallet is not
+    registered. A miniscript or a taproot tree of one key is signed only
+    through such a wallet, and is otherwise left unsigned while the rest
+    is signed (F141); the area leaves it unsigned the same way. Half the
+    corpus's `multi`, miniscript and taproot-tree inputs come with their
+    wallet registered, so their signatures are still compared. A
+    registered tree's every leaf has its wait met, since Faraday refuses
+    a path that can never be valid, which the area does not work out.
   - PSBT signing: Faraday refuses a PSBT any input of which asks for a
-    `NONE` or `SINGLE` sighash, and one none of the held keys can sign:
-    dangers no hold accepts (F136); BIP-174's signer signs the first and
-    answers the second with nothing signed. `area_sign.py` expects both
-    refusals, counting a held key as taking part as Faraday's inspection
-    does (a miniscript or a taproot tree only through a wallet in use),
-    checks that Faraday's refusal names the warning, `UnusualSighash` or
-    `NoParticipatingKey`, and counts them.
+    `NONE` or `SINGLE` sighash, and one that none of the held keys can
+    sign: dangers no hold accepts (F136). BIP-174's signer signs the
+    first and answers the second with nothing signed. The area expects
+    both refusals, counting a held key as taking part as Faraday's
+    inspection does (a miniscript or a taproot tree only through a
+    wallet in use), checks that Faraday's refusal names the danger, and
+    counts them.
   - Taproot `pkh` leaves: Faraday signs a taproot leaf that checks its
-    key by hash but does not finalize it (`faraday_psbt::finalize`):
-    `miniscript` 12's finalizer looks the key up among the ECDSA origins
-    and panics, and would push 33 bytes where the leaf hashed 32.
-    `area_sign.py` leaves such a leaf unfinalized too and counts each
-    one it could have satisfied.
+    key by hash but does not finalize it: `miniscript` 12's finalizer
+    looks the key up among the ECDSA origins and panics, and would push
+    33 bytes where the leaf hashed 32. The area leaves such a leaf
+    unfinalized too and counts each one it could have satisfied.
 - `miniscript`
   - Miniscript: Faraday reads `sortedmulti_a` only as a `tr()`'s one
     leaf; BIP 387 allows it deeper in a tree. Two of Bitcoin Core's sane
     miniscripts are refused, as `miniscript` refuses them:
     `or_b(0,a:0)`, which has no satisfaction, and a `d:` used as a unit
-    under Tapscript. `area_miniscript.py` checks and counts each.
+    under Tapscript. Each is checked and counted.
 - `msg`
   - BIP-137: Faraday reads the address form from the address rather than
     the header's range and tries a P2PKH address in both key encodings
@@ -408,44 +398,43 @@ difference"), and says why.
     signatures.
 - `seedqr`
   - Codex32QR: Faraday picks the mask Nayuki's encoder picks; the
-    profile's encoder chose another for 6 of its 22 pictures. There
-    `area_seedqr.py` swaps the mask of Faraday's code for the picture's
-    with `qrcodegen.py`'s masking, requires the picture, and counts it.
+    profile's encoder chose another for 6 of its 22 pictures. For those
+    the area swaps the mask of Faraday's code for the picture's with
+    `qrcodegen.py`'s masking, requires the picture, and counts it.
 - `bbqr`
   - BBQr: Faraday reads the file types `P`, `T`, `U` and `J` and frames
     of at most 4,096 characters; Coinkite's library reads every type
-    BBQr defines and a version 40 part of 4,296 characters.
-    `area_bbqr.py` checks both refusals and counts them; its corpus
-    splits at version 39 at most. Faraday also refuses a set whose parts
-    are not one length but the last, which Coinkite never writes.
+    BBQr defines and a version 40 part of 4,296 characters. Both
+    refusals are checked and counted, and the corpus splits at version
+    39 at most. Faraday also refuses a set whose parts are not one
+    length but the last, which Coinkite never writes.
   - Numbered parts: SeedSigner matches `P` and `OF` in upper case;
     Faraday does not (checked and counted).
 - `ur`
   - UR: Faraday has no minimum fragment length, writes a one-fragment
     message as a part like any other, and refuses to animate an empty
     message; foundation-ur-py checks a UR type one character's way (`'a'
-    <= type <= 'z'`). `area_ur.py` asks the reference with a minimum of
-    1, makes parts with its fountain encoder, and keeps its types to
+    <= type <= 'z'`). The area asks the reference with a minimum of 1,
+    makes parts with its fountain encoder, and keeps its types to
     letters, digits and `-` not starting with `z`. Faraday's decoder
-    reduces mixes by each other whichever arrived first and so sometimes
-    finishes a set URKit's does not; the area then checks the message is
-    the one sent and counts the set.
+    reduces mixes by each other whichever arrived first, and so
+    sometimes finishes a set URKit's does not; the area then checks the
+    message is the one sent and counts the set.
 - `kdbx`
   - KDBX: pykeepass strips the characters XML 1.0 cannot hold from a
     protected value after decrypting it; Faraday writes a Password's
-    bytes as they are. `area_kdbx.py` expects pykeepass's reading and
-    counts the items it differs on. pykeepass also returns from opening
-    a file whose major version is neither 3 nor 4 having read nothing
-    past it, no key derived and no hash checked; KeePass refuses such a
-    file, and `area_kdbx.py` counts a file as opened only when pykeepass
-    read a KDBX 4 body.
-  - pykeepass also runs the key derivation the header states before it
-    checks the header's SHA-256, so a changed bit in the Argon2
-    iterations (2^44 passes) holds it for good; KeePass and KeePassXC
-    check the hash first and refuse at once. `area_kdbx.py` asks
-    pykeepass the same way: first with a key given and nothing
-    decrypted, which checks the version and the header's hash and
-    derives nothing, and only then with the passphrase.
+    bytes as they are. The area expects pykeepass's reading and counts
+    the items that differ. pykeepass also opens a file whose major
+    version is neither 3 nor 4 without reading past it, deriving a key
+    or checking a hash; KeePass refuses such a file, and the area counts
+    a file as opened only when pykeepass read a KDBX 4 body.
+  - pykeepass runs the key derivation the header states before it checks
+    the header's SHA-256, so a changed bit in the Argon2 iterations
+    (2^44 passes) holds it for good; KeePass and KeePassXC check the
+    hash first and refuse at once. The area asks pykeepass first with a
+    key given and nothing decrypted, which checks the version and the
+    header's hash and derives nothing, and only then with the
+    passphrase.
 <!-- facts:end known-differences -->
 
 ## What the machine needs

@@ -126,20 +126,19 @@ class Kdbx(Area):
     differences = [
         (
             'KDBX: pykeepass strips the characters XML 1.0 cannot hold from a protected '
-            "value after decrypting it; Faraday writes a Password's bytes as they are. "
-            "`area_kdbx.py` expects pykeepass's reading and counts the items it differs on. "
-            'pykeepass also returns from opening a file whose major version is neither 3 '
-            'nor 4 having read nothing past it, no key derived and no hash checked; KeePass '
-            'refuses such a file, and `area_kdbx.py` counts a file as opened only when '
-            'pykeepass read a KDBX 4 body.'
+            "value after decrypting it; Faraday writes a Password's bytes as they are. The "
+            "area expects pykeepass's reading and counts the items that differ. pykeepass "
+            'also opens a file whose major version is neither 3 nor 4 without reading past '
+            'it, deriving a key or checking a hash; KeePass refuses such a file, and the '
+            'area counts a file as opened only when pykeepass read a KDBX 4 body.'
         ),
         (
-            'pykeepass also runs the key derivation the header states before it checks the '
+            'pykeepass runs the key derivation the header states before it checks the '
             "header's SHA-256, so a changed bit in the Argon2 iterations (2^44 passes) "
             'holds it for good; KeePass and KeePassXC check the hash first and refuse at '
-            'once. `area_kdbx.py` asks pykeepass the same way: first with a key given and '
-            "nothing decrypted, which checks the version and the header's hash and derives "
-            'nothing, and only then with the passphrase.'
+            'once. The area asks pykeepass first with a key given and nothing decrypted, '
+            "which checks the version and the header's hash and derives nothing, and only "
+            'then with the passphrase.'
         ),
     ]
     not_compared = (

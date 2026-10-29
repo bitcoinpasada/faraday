@@ -80,9 +80,9 @@ class Bip85(Area):
     )
     differences = [
         (
-            "Where a reference leaves a rule to its caller, the area writes the BIP's own "
-            'sentence and says so in its docstring: the BIP-85 length ranges and its two '
-            'password applications.'
+            'The BIP-85 length ranges and its two password applications, which the '
+            "reference leaves to its caller, are written in the area from the BIP's own "
+            'sentences.'
         ),
     ]
     not_compared = (

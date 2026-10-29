@@ -18,7 +18,8 @@ cryptographic is found, with its closure), which costs one read and parse
 of every source file. Standard library only
 (`tomllib`, Python 3.11).
 
-Checked places (§3.2): docs/AUDIT.md §1's crate rows and "written here" claims,
+Checked places (§3.2): docs/AUDIT.md §1's and §4's crate rows and §1's "written here"
+claims against `implementation.written_here`,
 every `Reveal` variant named by an action and the count in words (AUDIT, KEYS,
 CLAUDE.md), docs/COMPUTE.md §2.3's roots, the Tools tiles' tags, and the
 ratchet in tools/lint-crypto.counts. A tile's tag and COMPUTE's table are read
@@ -60,16 +61,23 @@ KINDS = {"Conservative", "Neutral", "Novel"}
 CFG_OK = {"cfg(test)", 'cfg(target_pointer_width = "64")', "cfg(unix)",
           'cfg(target_os = "linux")', 'cfg(target_arch = "x86_64")'}
 
-TOP_KEYS = {"schema", "standard", "row", "action", "not_crypto", "vector_no_action", "hold"}
+TOP_KEYS = {"schema", "standard", "row", "action", "not_crypto", "vector_no_action", "hold",
+            "tag_no_standard"}
 HOLD_KEYS = {"action", "check", "case", "decision"}
 COUNTS = "tools/lint-crypto.counts"
 STANDARD_KEYS = {"name", "status", "checked", "source"}
-ROW_KEYS = {"id", "section", "what", "completeness"}
+# A standard may also list `tags`: the spellings a Tools tile names it by (catalog.rs).
+STANDARD_OPTIONAL = {"tags"}
+# A row describes its own actions (theirs `row` is its id), or other rows' actions it `uses`,
+# or none (`no_action`: work not built, or work that computes nothing of its own).
+ROW_KEYS = {"id", "section", "what", "completeness", "standard_note", "uses", "no_action",
+            "standard", "verified", "own"}
+ROW_TEXTS = ("standard", "verified", "own")
 ACTION_KEYS = {"id", "action", "row", "standards", "learn", "screens", "functions", "code",
                "novel_rank", "implementation", "checked", "secrets", "limits", "own", "review"}
-IMPL_KEYS = {"crate", "libraries", "adds"}
+IMPL_KEYS = {"crate", "libraries", "adds", "written_here"}
 CHECKED_KEYS = {"vectors", "tests", "crosscheck", "not_crosschecked", "selftest", "fuzz",
-                "fuzz_none"}
+                "fuzz_none", "other"}
 SECRETS_KEYS = {"reveal", "constant_time", "wiped"}
 OWN_KEYS = {"text", "kind", "decision"}
 REVIEW_KEYS = {"places", "fingerprint", "reviewed"}
@@ -384,7 +392,9 @@ def check_schema(c):
         if not isinstance(s, dict):
             e.add("schema", f"{w}: not a table")
             continue
-        unknown(e, w, s, STANDARD_KEYS)
+        unknown(e, w, s, STANDARD_KEYS | STANDARD_OPTIONAL)
+        if "tags" in s and not (isinstance(s["tags"], list) and all(str_ok(x) for x in s["tags"])):
+            e.add("schema", f"{w}: `tags` is not a list of strings")
         for k in STANDARD_KEYS:
             if not str_ok(s.get(k)):
                 e.add("schema", f"{w}: `{k}` is missing or empty")
@@ -404,6 +414,12 @@ def check_schema(c):
         if r.get("id") in rows:
             e.add("schema", f"{w}: id twice")
         rows.add(r.get("id"))
+        for k in ("standard_note", "no_action") + ROW_TEXTS:
+            if k in r and not str_ok(r[k]):
+                e.add("schema", f"{w}: `{k}` is empty")
+        if "uses" in r and not (isinstance(r["uses"], list) and r["uses"]
+                                and all(str_ok(x) for x in r["uses"])):
+            e.add("schema", f"{w}: `uses` is not a list of action ids")
     ids = set()
     for a in c.actions:
         i = a.get("id")
@@ -415,8 +431,24 @@ def check_schema(c):
         ids.add(i)
         schema_action(c, a, i)
     used_rows = {a.get("row") for a in c.actions}
-    for r in sorted(rows - used_rows):
-        e.add("schema", f"row {r} has no action")
+    for r in d.get("row", []):
+        w, own_acts = f"row {r.get('id')}", r.get("id") in used_rows
+        kinds = [k for k in ("uses", "no_action") if k in r]
+        if len(kinds) > 1 or (kinds and own_acts):
+            e.add("schema", f"{w}: a row has its own actions, or `uses` others', or "
+                  "`no_action`: one of the three")
+        elif not kinds and not own_acts:
+            e.add("schema", f"{w} has no action: give an action this row, `uses` with the "
+                  "actions it describes, or `no_action` with its reason")
+        elif not kinds and any(k in r for k in ROW_TEXTS):
+            e.add("schema", f"{w}: a row with its own actions takes its cells from them; "
+                  f"`{'`, `'.join(k for k in ROW_TEXTS if k in r)}` is for a row that `uses` "
+                  "others' actions or has none")
+        if "no_action" in r and not all(str_ok(r.get(k)) for k in ROW_TEXTS):
+            e.add("schema", f"{w}: a row with no action gives `standard`, `verified` and `own`")
+        for u in as_list(r.get("uses")):
+            if u not in ids:
+                e.add("schema", f"{w}: `uses` names {u}, which is not an action")
     for n in d.get("not_crypto", []):
         unknown(e, "not_crypto", n, {"function", "reason"})
         if not str_ok(n.get("function")) or not str_ok(n.get("reason")):
@@ -431,6 +463,10 @@ def check_schema(c):
         elif not (re.fullmatch(r"F\d+", h["decision"]) and c.exists(f"docs/decisions/{h['decision']}.md")):
             e.add("schema", f"hold {h['action']}: decision {h['decision']} is not a file "
                   "under docs/decisions/")
+    for n in d.get("tag_no_standard", []):
+        unknown(e, "tag_no_standard", n, {"tag", "reason"})
+        if not str_ok(n.get("tag")) or not str_ok(n.get("reason")):
+            e.add("schema", "tag_no_standard: `tag` and `reason` are required")
     for n in d.get("vector_no_action", []):
         unknown(e, "vector_no_action", n, {"folder", "reason"})
         if not str_ok(n.get("folder")) or not str_ok(n.get("reason")):
@@ -476,8 +512,10 @@ def schema_action(c, a, i):
                 bad(f"implementation.{k} is missing or empty")
         if not isinstance(impl.get("libraries", []), list):
             bad("implementation.libraries is not a list")
+        if "written_here" in impl and not str_ok(impl["written_here"]):
+            bad("implementation.written_here is empty")
     if isinstance(chk, dict):
-        for k in ("vectors", "tests", "selftest", "fuzz"):
+        for k in ("vectors", "tests", "selftest", "fuzz", "other"):
             if k in chk and not (isinstance(chk[k], list) and all(str_ok(x) for x in chk[k])):
                 bad(f"checked.{k} is not a list of strings")
         if bool(chk.get("crosscheck")) == bool(chk.get("not_crosschecked")):
@@ -771,12 +809,14 @@ COMPUTE_KINDS = {"WordsParse", "Kdf", "MasterKey", "KeyDerive", "DescriptorParse
 # The screen(s) a Tools tile (`Go::…` in faraday-core's catalog.rs) leads to.
 TILE_SCREENS = {
     "NewKey": ("KeyGen",), "NewShares": ("KeyGen",), "AddKey": ("KeyGen",),
-    "SeedQr": ("KeyGen",), "Explore": ("Explore",), "Bip85": ("Bip85",),
+    "SeedQr": ("Entry",), "Explore": ("Explore",), "Bip85": ("Bip85",),
     "Vanity": ("Vanity",), "Silent": ("Silent",), "Lightning": ("Lightning",),
     "Create": ("Create",), "Restore": ("Restore",), "Backup": ("BackupFlow", "Backup"),
     "Sign": ("Spend",), "NonceCheck": ("Spend",), "Decode": ("Decode",),
     "CheckAddress": ("Files",), "Scan": ("Files",), "SignMessage": ("Message",),
-    "CheckMessage": ("CheckMessage",), "Vaults": ("Vaults",), "Codes": ("Codes",),
+    "CheckMessage": ("CheckMessage",),
+    # The vault list's two ways in: Create a vault and Unlock.
+    "Vaults": ("Vaults", "CreateVault", "Unlock"), "Codes": ("Codes",),
     "CreateVault": ("CreateVault",), "VaultCategory": ("VaultContents",),
     "Calculator": ("Tools",), "WordList": ("Tools",),
 }
@@ -787,10 +827,10 @@ def audit_section(text, n):
     return m.group(0) if m else ""
 
 
-def audit_crate_rows(c):
-    """{crate: the row's 'written here' claim} from the tables of docs/AUDIT.md §1."""
+def audit_crate_rows(c, section=1):
+    """{crate: the row's 'written here' claim} from the tables of a section of docs/AUDIT.md."""
     rows = {}
-    for ln in audit_section(c.read("docs/AUDIT.md"), 1).split("\n"):
+    for ln in audit_section(c.read("docs/AUDIT.md"), section).split("\n"):
         m = re.match(r"\| `([a-z0-9-]+)` \|", ln)
         if m:
             cells = ln.split("|")
@@ -810,10 +850,11 @@ def package_name(c, crate_dir):
 
 
 def check_audit_crates(c):
-    """AUDIT §1: a row for every crate an action names, an action for every row, and the
-    row's 'written here' agrees with the libraries of its actions."""
+    """AUDIT §1 and §4: a row for every crate an action names, an action for every row of §1,
+    and §1's 'written here' agrees with its actions' `implementation.written_here`; a crate of §4
+    (it touches cryptographic bytes and computes none) writes nothing here."""
     e = c.errors
-    rows = audit_crate_rows(c)
+    rows, carries = audit_crate_rows(c, 1), audit_crate_rows(c, 4)
     if not rows:
         e.add("audit", "docs/AUDIT.md §1 has no crate rows (| `crate` | … |)")
         return
@@ -824,20 +865,26 @@ def check_audit_crates(c):
             named.setdefault(package_name(c, crate), []).append(a)
     for crate, acts in sorted(named.items()):
         ids = ", ".join(a.get("id") for a in acts[:4]) + (", …" if len(acts) > 4 else "")
+        here = [a.get("id") for a in acts if a["implementation"].get("written_here")]
+        if crate in carries and crate not in rows:
+            if here:
+                e.add("audit", f"docs/AUDIT.md §4 has `{crate}` computing nothing, and the action(s) "
+                      f"{', '.join(here[:4])} say what is written here: move its row to §1, or "
+                      "remove implementation.written_here")
+            continue
         if crate not in rows:
-            e.add("audit", f"docs/AUDIT.md §1 has no row for `{crate}`, which the actions {ids} "
-                  f"name as their implementation: add a row to the table of its tier "
+            e.add("audit", f"docs/AUDIT.md §1 and §4 have no row for `{crate}`, which the actions "
+                  f"{ids} name as their implementation: add a row to the table of its tier "
                   f"(or change implementation.crate)")
             continue
-        unlibraried = [a.get("id") for a in acts if not as_list(a["implementation"].get("libraries"))]
-        if unlibraried and not rows[crate]:
+        if here and not rows[crate]:
             e.add("audit", f"docs/AUDIT.md §1: the row for `{crate}` does not say 'written here', "
-                  f"and the action(s) {', '.join(unlibraried[:4])} name no library: say in the row "
-                  "what is written here, or name the library in the action")
-        if rows[crate] and not unlibraried:
-            e.add("audit", f"docs/AUDIT.md §1: the row for `{crate}` says 'written here', and "
-                  "every action of that crate names a library: change the row, or the actions' "
-                  "implementation.libraries")
+                  f"and the action(s) {', '.join(here[:4])} give implementation.written_here: say in "
+                  "the row what is written here, or remove it from the actions")
+        if rows[crate] and not here:
+            e.add("audit", f"docs/AUDIT.md §1: the row for `{crate}` says 'written here', and no "
+                  "action of that crate gives implementation.written_here: change the row, or say "
+                  "in the action what is written here")
     for crate in sorted(set(rows) - set(named)):
         e.add("audit", f"docs/AUDIT.md §1 has a row for `{crate}`, and no action's "
               "implementation.crate names it: remove the row, or add the action")
@@ -991,6 +1038,9 @@ def tag_standard(tag, standards):
         return re.sub(r"[^a-z0-9]", "", s.lower())
 
     for k, v in standards.items():
+        if tag in as_list(v.get("tags")):
+            return k
+    for k, v in standards.items():
         if n(tag) and (n(tag) in n(k) or n(tag) in n(v.get("name", ""))):
             return k
     return None
@@ -1004,8 +1054,11 @@ def check_tiles(c):
         e.add("tiles", "faraday/faraday-core/src/catalog.rs has no tile with tags")
         return
     standards = c.data.get("standard", {})
+    no_standard = {n.get("tag") for n in c.data.get("tag_no_standard", [])}
     seen = set()
     for tag, go in tags:
+        if tag in no_standard:
+            continue
         if (tag, go) in seen:
             continue
         seen.add((tag, go))
@@ -1105,7 +1158,7 @@ def action_block(text, i):
     for s in starts:
         e = len(lines)
         for n in range(s + 1, len(lines)):
-            if re.match(r"\[\[?(?!action\b)", lines[n]) or lines[n].strip() == "[[action]]":
+            if re.match(r"\[(?!\[?action\b)", lines[n]) or lines[n].strip() == "[[action]]":
                 e = n
                 break
         for n in range(s + 1, e):
@@ -1359,6 +1412,15 @@ wiped = "nothing held"
 [action.limits]
 lines = ["One."]
 
+# An own call before the review table: the review finds the table after it.
+[[action.own]]
+text = "Refuses it."
+kind = "Conservative"
+decision = "no decision"
+
+[action.review]
+places = []
+
 [[action]]
 id = "two"
 action = "Does two."
@@ -1373,6 +1435,7 @@ code = ["src/a.rs::g"]
 crate = "src"
 libraries = []
 adds = "Nothing."
+written_here = "Two."
 
 [action.checked]
 vectors = []
@@ -1519,6 +1582,15 @@ def self_test():
         (root / "tools/vectors/v2").rename(root / "tools/vectors/v1")
         (root / "tools/vectors/v1/other.txt").rename(root / "tools/vectors/v1/data.txt")
 
+        sample = ('[[action]]\nid = "one"\n\n[[action.own]]\ntext = "t"\n\n'
+                  '[action.review]\nplaces = []\n\n[[action]]\nid = "two"\n')
+        stamped = edit_stamp(sample, "one", "f1", "2026-01-01")
+        try:
+            one = tomllib.loads(stamped)["action"][0]["review"]
+        except tomllib.TOMLDecodeError:
+            one = None
+        expect(one == {"fingerprint": "f1", "reviewed": "2026-01-01", "places": []},
+               "a stamp goes into the review table after the action's own calls")
         print("review refuses while a named test is missing:")
         gone = fixture_inventory(test=False, moved=True, g_hash="g9")
         m0, l0 = (root / MANIFEST).read_text(), (root / LOCK).read_text()
@@ -1551,10 +1623,16 @@ def self_test():
         expect(ok, "AUDIT §1: a row no action names fails")
         ok, _ = broken("docs/AUDIT.md", "**written here**", "a crate", "audit",
                        "does not say 'written here'")
-        expect(ok, "AUDIT §1: an action with no library and a row that does not say so fails")
+        expect(ok, "AUDIT §1: an action that writes here and a row that does not say so fails")
         ok, _ = broken("docs/AUDIT.md", "**written here**", "No primitive is written here", "audit",
                        "does not say 'written here'")
         expect(ok, "AUDIT §1: 'No primitive is written here' is not the claim")
+        tail = "\n\n## 2. The key boundary\n\nA secret leaves through one named reasons.\n\n## 3. x\n"
+        ok, _ = broken("docs/AUDIT.md", "| `src` | things | **written here** | v |" + tail,
+                       "| `other` | things | **written here** | v |" + tail
+                       + "\n## 4. Carries\n\n| `src` | carries |\n\n## 5. y\n", "audit",
+                       "§4 has `src` computing nothing")
+        expect(ok, "AUDIT §4: a crate that computes nothing and an action that writes there fails")
         ok, _ = broken("faraday/faraday-keys/src/session.rs", "    Words,\n", "    Words,\n    Seed,\n",
                        "reveal", "Reveal::Seed is named by no action")
         expect(ok, "a Reveal variant no action names fails")
@@ -1574,6 +1652,21 @@ def self_test():
         ok, _ = broken("faraday/faraday-core/src/catalog.rs", '"BIP-1"', '"BIP-1", "BIP-370"', "tiles",
                        "\"BIP-370\"")
         expect(ok, "a Tools tag that is no standard of the manifest fails")
+        ok, _ = broken("faraday/faraday-core/src/catalog.rs", '"BIP-1"', '"BIP-1", "sat"', "tiles",
+                       '"sat"')
+        expect(ok, "a tag that names no standard fails")
+        ok, c = broken("docs/crypto/actions.toml", "", '\n[[tag_no_standard]]\ntag = "sat"\n'
+                       'reason = "A unit."\n', "tiles", '"sat"')
+        expect(not ok, f"and passes once [[tag_no_standard]] gives its reason {msgs(c, 'tiles')}")
+        catalog = root / "faraday/faraday-core/src/catalog.rs"
+        before = catalog.read_text()
+        catalog.write_text(before.replace('"BIP-1"', '"BIP-1", "One"'))
+        try:
+            ok, c = broken("docs/crypto/actions.toml", 'name = "A standard"', 'name = "A standard"\n'
+                           'tags = ["One"]', "tiles", '"One"')
+        finally:
+            catalog.write_text(before)
+        expect(not ok, f"a tag a standard lists in `tags` names it {msgs(c, 'tiles')}")
         ok, _ = broken("faraday/faraday-core/src/catalog.rs", "Go::Sign", "Go::Decode", "tiles",
                        "\"BIP-1\" (BIP 1) on a Go::Decode tile")
         expect(ok, "a Tools tag no action on the tile's screen backs fails")
@@ -1589,6 +1682,23 @@ def self_test():
         ok, _ = broken("docs/crypto/actions.toml", "", '\n[[hold]]\naction = "nope"\ncheck = "x"\n'
                        'case = "y"\ndecision = "F1"\n', "schema", "action `nope` is not an action")
         expect(ok, "a [[hold]] names an action")
+        row2 = '\n[[row]]\nid = "row-two"\nsection = 3\nwhat = "W"\ncompleteness = "C"\n'
+        ok, _ = broken("docs/crypto/actions.toml", "", row2, "schema", "row-two has no action")
+        expect(ok, "a row with no action, no `uses` and no `no_action` fails")
+        ok, c = broken("docs/crypto/actions.toml", "", row2 + 'no_action = "Not built."\n'
+                       'standard = "S"\nverified = "None"\nown = "None"\n', "schema", "row-two")
+        expect(not ok, f"a row with no action and its three texts passes {msgs(c, 'schema')}")
+        ok, _ = broken("docs/crypto/actions.toml", "", row2 + 'no_action = "Not built."\n', "schema",
+                       "gives `standard`, `verified` and `own`")
+        expect(ok, "a row with no action gives its three texts")
+        ok, c = broken("docs/crypto/actions.toml", "", row2 + 'uses = ["one"]\n', "schema", "row-two")
+        expect(not ok, f"a row that uses another row's action passes {msgs(c, 'schema')}")
+        ok, _ = broken("docs/crypto/actions.toml", "", row2 + 'uses = ["nope"]\n', "schema",
+                       "names nope, which is not an action")
+        expect(ok, "a row uses only actions that exist")
+        ok, _ = broken("docs/crypto/actions.toml", 'completeness = "All"\n',
+                       'completeness = "All"\nown = "Typed."\n', "schema", "takes its cells from them")
+        expect(ok, "a row with its own actions types no cell")
         c = check(moved)
         expect(not c.errors.items, f"and the fixture is whole again {msgs(c)}")
     print("the roots the inventory is asked for:")

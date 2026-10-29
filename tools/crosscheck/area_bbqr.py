@@ -155,11 +155,11 @@ class Bbqr(Area):
     )
     differences = [
         (
-            'BBQr: Faraday reads the file types `P`, `T`, `U` and `J` and frames of at most '
-            "4,096 characters; Coinkite's library reads every type BBQr defines and a "
-            'version 40 part of 4,296 characters. `area_bbqr.py` checks both refusals and '
-            'counts them; its corpus splits at version 39 at most. Faraday also refuses a '
-            'set whose parts are not one length but the last, which Coinkite never writes.'
+            'BBQr: Faraday reads the file types `P`, `T`, `U` and `J` and frames of at most'
+            " 4,096 characters; Coinkite's library reads every type BBQr defines and a "
+            'version 40 part of 4,296 characters. Both refusals are checked and counted, '
+            'and the corpus splits at version 39 at most. Faraday also refuses a set whose '
+            'parts are not one length but the last, which Coinkite never writes.'
         ),
         (
             'Numbered parts: SeedSigner matches `P` and `OF` in upper case; Faraday does '

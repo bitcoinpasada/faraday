@@ -120,14 +120,14 @@ class Ur(Area):
     )
     differences = [
         (
-            'UR: Faraday has no minimum fragment length, writes a one-fragment message as a '
-            'part like any other, and refuses to animate an empty message; foundation-ur-py '
-            "checks a UR type one character's way (`'a' <= type <= 'z'`). `area_ur.py` asks "
-            'the reference with a minimum of 1, makes parts with its fountain encoder, and '
-            "keeps its types to letters, digits and `-` not starting with `z`. Faraday's "
-            'decoder reduces mixes by each other whichever arrived first and so sometimes '
-            "finishes a set URKit's does not; the area then checks the message is the one "
-            'sent and counts the set.'
+            'UR: Faraday has no minimum fragment length, writes a one-fragment message as a'
+            ' part like any other, and refuses to animate an empty message; '
+            "foundation-ur-py checks a UR type one character's way (`'a' <= type <= 'z'`). "
+            'The area asks the reference with a minimum of 1, makes parts with its fountain'
+            ' encoder, and keeps its types to letters, digits and `-` not starting with '
+            "`z`. Faraday's decoder reduces mixes by each other whichever arrived first, "
+            "and so sometimes finishes a set URKit's does not; the area then checks the "
+            'message is the one sent and counts the set.'
         ),
     ]
     not_compared = (

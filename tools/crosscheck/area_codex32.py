@@ -216,13 +216,13 @@ class Codex32(Area):
     )
     differences = [
         (
-            'Codex32: Faraday recovers only from exactly `k` shares without the secret, and '
-            'derives a share only from exactly `k` strings at an unused index; the '
+            'Codex32: Faraday recovers only from exactly `k` shares without the secret, and'
+            ' derives a share only from exactly `k` strings at an unused index; the '
             'reference also takes more strings or a used index.'
         ),
         (
-            "Where a reference leaves a rule to its caller, the area writes the BIP's own "
-            'sentence and says so in its docstring: the codex32 threshold and seed sizes.'
+            'The codex32 threshold and seed sizes, which the reference leaves to its '
+            "caller, are written in the area from the BIP's own sentences."
         ),
     ]
     not_compared = (

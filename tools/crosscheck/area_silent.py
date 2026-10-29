@@ -112,9 +112,9 @@ class Silent(Area):
             'vector that exceeds it is checked on the receiving side only.'
         ),
         (
-            "Where a reference leaves a rule to its caller, the area writes the BIP's own "
-            "sentence and says so in its docstring: BIP-352's skip of a transaction "
-            'spending SegWit version 2 or above.'
+            "BIP-352's skip of a transaction spending SegWit version 2 or above, which the "
+            "reference leaves to its caller, is written in the area from the BIP's own "
+            'sentence.'
         ),
     ]
     not_compared = (

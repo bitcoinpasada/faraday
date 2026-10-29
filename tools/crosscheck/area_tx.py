@@ -157,13 +157,11 @@ class Tx(Area):
             'none.'
         ),
         (
-            'Where a reference would take hours over one malformed case, the area gives the '
-            'answer the reference reaches at once, and says why: `area_tx.py` refuses a raw '
-            'transaction whose witness stack counts more items than the transaction has '
-            "bytes (Core's framework reads past the end as zeros, and writes such a stack "
-            'back in time quadratic in its length), which the full reading refuses too, '
-            'since every item is written back as at least one byte. `test_harness.py` '
-            'checks it.'
+            'A raw transaction whose witness stack counts more items than the transaction '
+            "has bytes is refused in the area: Core's framework reads past the end as zeros"
+            " and would take hours to write such a stack back. Faraday's full reading "
+            'refuses it too, since every item is written back as at least one byte, and the'
+            " harness's own tests check the shortcut."
         ),
     ]
     not_compared = (

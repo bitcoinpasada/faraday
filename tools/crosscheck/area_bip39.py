@@ -74,17 +74,14 @@ class Bip39(Area):
     )
     differences = [
         (
-            'Where the two once differed and now agree (owner, 2026-10-23), the area checks '
-            'the agreement like any other answer: a BIP-39 sentence read in NFKD, so '
-            'composed words and the Japanese vectors as published parse on both sides.'
+            'Both read a BIP-39 sentence in NFKD, so composed words and the Japanese '
+            'vectors as published parse on both sides (owner, 2026-10-23).'
         ),
         (
-            "Faraday's `Mnemonic::to_seed`, the path a typed passphrase takes, takes "
-            'printable ASCII only, at most 256 bytes; python-mnemonic takes any text. '
-            'Non-ASCII passphrases go through `to_seed_unchecked` (NFKD bytes), which is '
-            "what Faraday's vector tests and start-up self-test call; `area_bip39.py` "
-            'checks that the product path still refuses them, and passphrases past 256 '
-            'bytes, as a known difference.'
+            'A passphrase typed in Faraday is printable ASCII, at most 256 bytes; '
+            "python-mnemonic takes any text. Faraday's vector tests and start-up self-test "
+            'give a non-ASCII passphrase as its NFKD bytes, and the area checks that a '
+            'typed one, or one past 256 bytes, is still refused.'
         ),
     ]
     not_compared = (

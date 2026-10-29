@@ -84,8 +84,8 @@ class Slip39(Area):
     differences = [
         (
             'SLIP-39: Faraday refuses a group threshold of 1 over several groups; '
-            'python-shamir-mnemonic makes the shares. `area_slip39.py` checks that this '
-            'still holds, so a change either way is seen.'
+            'python-shamir-mnemonic makes the shares. The area checks that this still '
+            'holds, so a change either way is seen.'
         ),
     ]
     not_compared = (
