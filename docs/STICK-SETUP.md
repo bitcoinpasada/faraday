@@ -192,11 +192,49 @@ the stick for them.
 
 ## 6. After the keys
 
-The sticks of §2 are the plan's sticks: Back up's plan opens with each
-of them as a stick on the board, numbered as here (F146), holding the
-vaults laid on it, and each at a place of its own in order, as the
-setup's sticks are given to places now (§10.2 item 6). The board moves
-them from there.
+### 6.1 The board's first placement
+
+Back up's plan opens on the board with the setup's answers placed,
+read-only until **Customize backup**, as The standard way opens now
+(`docs/BACKUP-FLOW.md` §17.6). It is The standard way with the sticks
+of §2 added to it (owner, 2026-10-30):
+
+1. **Places.** The standard way's places stay: one for a single key,
+   one per key for a multisig. Each stick of §2, numbered as here
+   (F146), goes to a place of its own: the place item 2 gives its first
+   vault, or, for a stick whose first vault holds a copy or that holds
+   no vault, a place added after the others, in stick order. Places
+   with no stick keep their paper alone. With one vault per stick and
+   one per key, Stick 2 is at Place 1, Stick 3 at Place 2, and so on.
+2. **Keys into vaults.** Vault 1 holds Key 1, Vault 2 holds Key 2, and
+   so on. Each vault's stick goes to the place that keeps that key's
+   paper, so no place keeps two keys of a multisig by this placement.
+   With more vaults than keys, each further vault holds another copy of
+   the key of the vault before it, its stick at its own place. With
+   fewer vaults than keys, the keys left over are kept on paper alone,
+   as The standard way keeps them.
+3. **What the setup decided stays.** Vaults laid on one stick in §2 stay
+   on one stick, at the place of the first of them. Where that puts two
+   keys of a multisig at one place, the board's check says so (§17.5),
+   as for any placement.
+4. A vault already on a stick holds what the person had in it, and the
+   key placed into it is added beside that.
+
+This replaces §17.6's last sentence, "A wallet flow's own plan (vaults
+set up before the keys) takes changes from the start: no preset places
+those vaults."
+
+### 6.2 Everything stays the person's to change
+
+**Customize backup** makes the board as editable as it is for any plan
+(§17.1 to §17.5, §17.16, §17.20): a stick moved to another place,
+several sticks at one place, a seed dragged onto or off a stick's
+vault, another seed added to a vault, a vault copied to another stick,
+a stick or a place added or taken away. The first placement is a
+starting point and nothing on it is fixed; only the checks of §17.5
+speak about what the person makes of it.
+
+### 6.3 Several vaults on a stick
 
 The board holds one vault per stick (§17.4); this spec lets a stick
 hold several. `At::Stick(p, s)` holds any number of `VaultStick(v)`,
@@ -215,7 +253,7 @@ written to them until the lock; and what Check it later means (§4).
 
 ## 8. What changes with it
 
-- `docs/BACKUP-FLOW.md`: §10.2 items 2 and 3 (the Sticks and vaults
+- `docs/BACKUP-FLOW.md`: §17.6 (the first placement, §6.1), §10.2 items 2 and 3 (the Sticks and vaults
   card in place of Number of vaults; the sticks in any order), §4.2
   (the figures, Use the boot stick in place of Use {label} for the
   setup, Check it later), §17.4 (several vaults on a stick), §16 (the
@@ -258,6 +296,11 @@ What a person notices:
   fixture; its sheet shows its files.
 - Two vaults on one stick are both written to it, each its own file,
   and both unlock.
+- A 2-of-3 set up with three vaults on three sticks opens on the board
+  with three places, each keeping one key's paper and the stick of that
+  key's vault, and Continue live with nothing moved; after Customize
+  backup, a stick moved to another place and a seed added to a vault
+  are kept in the plan.
 
 ## 10. Choices made here
 
@@ -270,3 +313,5 @@ change:
 - The boot stick, chosen for a stick, takes that stick's place and the
   others are numbered again from 2 (§3.3).
 - The stick's details open in a sheet with nothing but Close (§5).
+- With more vaults than keys, each further vault holds a copy of the key
+  of the vault before it (§6.1).
