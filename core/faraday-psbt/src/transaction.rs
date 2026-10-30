@@ -13,7 +13,7 @@ use alloc::vec::Vec;
 
 use bitcoin::hex::FromHex;
 use bitcoin::psbt::Psbt;
-use bitcoin::{ScriptBuf, Transaction, Txid, Witness, consensus};
+use bitcoin::{Amount, ScriptBuf, Transaction, Txid, Witness, consensus};
 
 /// A raw transaction, in hex text or in bytes, with whatever signature
 /// data it carries.
@@ -44,6 +44,39 @@ pub fn read_raw(bytes: &[u8]) -> Option<Transaction> {
 pub fn decode(raw: &[u8]) -> Option<Transaction> {
     let tx: Transaction = consensus::deserialize(raw).ok()?;
     (!tx.input.is_empty()).then_some(tx)
+}
+
+/// Where a list of amounts breaks Bitcoin Core's money range: one amount
+/// over [`Amount::MAX_MONEY`], or a running total past it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum OverMaxMoney {
+    /// The amount at this place in the list is over 21,000,000 BTC.
+    One(usize),
+    /// Each amount is in range, but their total is over 21,000,000 BTC.
+    Total,
+}
+
+/// The total of `amounts`, or where it leaves the money range, checked
+/// as Bitcoin Core's `CheckTransaction` checks a transaction's outputs
+/// (`bad-txns-vout-toolarge`, `bad-txns-txouttotal-toolarge`) and
+/// `CheckTxInputs` the amounts its inputs spend
+/// (`bad-txns-inputvalues-outofrange`): each amount, in order, at most
+/// [`Amount::MAX_MONEY`], and the running total after it too. The total
+/// is never more than 21,000,000 BTC, so nothing summed from it
+/// overflows.
+pub fn money_total(amounts: impl IntoIterator<Item = Amount>) -> Result<Amount, OverMaxMoney> {
+    let mut total = Amount::ZERO;
+    for (i, amount) in amounts.into_iter().enumerate() {
+        if amount > Amount::MAX_MONEY {
+            return Err(OverMaxMoney::One(i));
+        }
+        // Both are at most MAX_MONEY, so the sum fits in a u64.
+        total = total
+            .checked_add(amount)
+            .filter(|t| *t <= Amount::MAX_MONEY)
+            .ok_or(OverMaxMoney::Total)?;
+    }
+    Ok(total)
 }
 
 /// A raw transaction, in hex text or in bytes, wrapped in an unsigned

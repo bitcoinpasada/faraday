@@ -1158,3 +1158,61 @@ fn an_input_with_its_key_origin_stripped_is_not_signed() {
         assert!(stripped.partial_sigs.is_empty() && stripped.tap_key_sig.is_none());
     }
 }
+
+/// A PSBT of one native segwit input of `input` sat paying `outputs`.
+fn paying(input: u64, outputs: &[u64]) -> Psbt {
+    let mut b = Build::new(ScriptType::NativeSegwit, NET);
+    b.input_value = input;
+    for &o in outputs {
+        b.recipients.push((foreign_script(), o));
+    }
+    single_sig(&master(ABANDON, NET), &b)
+}
+
+fn out_of_range(insp: &Inspection, detail: &faraday_psbt::Detail) -> bool {
+    insp.warnings.iter().any(|w| {
+        w.level == Level::Blocked && w.kind == WarningKind::AmountOutOfRange && &w.detail == detail
+    })
+}
+
+// Bitcoin Core's CheckTransaction: an output over MAX_MONEY is
+// "bad-txns-vout-toolarge", outputs whose total is over it
+// "bad-txns-txouttotal-toolarge"; CheckTxInputs: an amount spent, or
+// their total, over it is "bad-txns-inputvalues-outofrange". MAX_MONEY
+// itself is in range.
+#[test]
+fn amounts_over_21_million_bitcoin_block_signing_as_core_refuses_them() {
+    let max = Amount::MAX_MONEY.to_sat();
+    let outputs = faraday_psbt::Detail::OutputsOverMaxMoney;
+    let inputs = faraday_psbt::Detail::InputsOverMaxMoney;
+
+    let insp = inspect_with_abandon(&paying(max, &[max - 1_000]));
+    assert!(!has(&insp, Level::Blocked, &WarningKind::AmountOutOfRange));
+    assert_eq!(insp.total_out.to_sat(), max - 1_000);
+    assert_eq!(insp.fee.to_sat(), 1_000);
+
+    // One output a satoshi over.
+    let mut psbt = paying(max, &[max + 1]);
+    assert!(out_of_range(&inspect_with_abandon(&psbt), &outputs));
+    assert!(matches!(
+        sign_abandon(&mut psbt, &[]),
+        Err(Error::Blocked(k)) if k.contains(&WarningKind::AmountOutOfRange)
+    ));
+    assert!(nothing_signed(&psbt));
+
+    // Two outputs each in range, their total over; and two whose total
+    // passes u64.
+    let insp = inspect_with_abandon(&paying(max, &[max, 1]));
+    assert!(out_of_range(&insp, &outputs));
+    assert_eq!(insp.fee_rate_sat_vb, None);
+    let insp = inspect_with_abandon(&paying(max, &[u64::MAX, u64::MAX]));
+    assert!(out_of_range(&insp, &outputs));
+
+    // The amount an input spends, over.
+    let mut psbt = paying(max + 1, &[1_000]);
+    assert!(out_of_range(&inspect_with_abandon(&psbt), &inputs));
+    assert!(matches!(
+        sign_abandon(&mut psbt, &[]),
+        Err(Error::Blocked(k)) if k.contains(&WarningKind::AmountOutOfRange)
+    ));
+}

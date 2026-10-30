@@ -121,6 +121,8 @@ fn output_words(d: &Detail) -> Option<Cow<'static, str>> {
             t(EN.psbt_warn_pays_to_input, &[&n(*output), &n(*input)])
         }
         D::OutputsExceedInputs => Cow::Borrowed(EN.psbt_warn_outputs_exceed),
+        D::OutputsOverMaxMoney => Cow::Borrowed(EN.psbt_warn_outputs_over_max_money),
+        D::InputsOverMaxMoney => Cow::Borrowed(EN.psbt_warn_inputs_over_max_money),
         D::FeeShare { fee, pct } => t(
             EN.step_review_fee_share,
             &[&fee.to_string(), &pct.to_string()],

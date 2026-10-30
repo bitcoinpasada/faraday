@@ -142,6 +142,10 @@ pub enum Detail {
     },
     /// The outputs exceed the inputs: the UTXO data is wrong.
     OutputsExceedInputs,
+    /// An output, or the outputs' total, is over 21,000,000 BTC.
+    OutputsOverMaxMoney,
+    /// An amount an input spends, or their total, is over 21,000,000 BTC.
+    InputsOverMaxMoney,
     /// The fee is a large share of what is sent.
     FeeShare {
         /// The fee in sat.

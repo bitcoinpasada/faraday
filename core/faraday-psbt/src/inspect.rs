@@ -128,6 +128,11 @@ pub enum WarningKind {
     /// committed to by the signature). Two rounds of that lie pay the
     /// difference to the miner.
     AmountUnverified,
+    /// An amount, or a total of them, is over 21,000,000 BTC, which
+    /// Bitcoin Core refuses (`bad-txns-vout-toolarge`,
+    /// `bad-txns-txouttotal-toolarge`, `bad-txns-inputvalues-outofrange`).
+    /// The totals and the fee shown are not what the PSBT states.
+    AmountOutOfRange,
     /// An input spends a script this crate cannot sign.
     UnsupportedInput,
     /// A MuSig2 input's participants are not those of any registered
@@ -498,9 +503,11 @@ pub struct Inspection {
     /// Estimated virtual size after signing, from the input script
     /// types (`ScriptKind::estimated_weight`); exact for finalized inputs.
     pub vsize_estimate: usize,
-    /// Sum of known input values.
+    /// Sum of known input values; not their sum where an
+    /// `AmountOutOfRange` block says they are over 21,000,000 BTC.
     pub total_in: Amount,
-    /// Sum of outputs.
+    /// Sum of outputs; not their sum where an `AmountOutOfRange` block
+    /// says they are over 21,000,000 BTC.
     pub total_out: Amount,
     /// Sum of outputs that are not verified change.
     pub amount_to_others: Amount,
@@ -1168,6 +1175,27 @@ pub fn inspect(c: &Compute, psbt: &Psbt, ctx: &Context) -> Inspection {
                 },
             );
         }
+    }
+
+    // The money range, as Core checks it: the outputs as CheckTransaction
+    // does, the amounts the inputs spend as CheckTxInputs does.
+    if crate::transaction::money_total(inputs.iter().filter_map(|i| i.amount)).is_err() {
+        fee_known = false;
+        warn(
+            &mut warnings,
+            Level::Blocked,
+            WarningKind::AmountOutOfRange,
+            Detail::InputsOverMaxMoney,
+        );
+    }
+    if crate::transaction::money_total(tx.output.iter().map(|o| o.value)).is_err() {
+        fee_known = false;
+        warn(
+            &mut warnings,
+            Level::Blocked,
+            WarningKind::AmountOutOfRange,
+            Detail::OutputsOverMaxMoney,
+        );
     }
 
     // Fee.

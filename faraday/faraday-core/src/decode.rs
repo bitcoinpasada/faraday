@@ -13,6 +13,7 @@ use faraday_bip::bitcoin::consensus::encode::serialize_hex;
 use faraday_bip::bitcoin::{Address, Amount, Script, Transaction, TxOut};
 use faraday_bip::keys::Network;
 use faraday_crypto::work::Compute;
+use faraday_psbt::transaction::money_total;
 
 use crate::Screen;
 use crate::wallet::Session;
@@ -159,13 +160,27 @@ fn locktime_text(n: u32) -> String {
 /// apart. `prevouts` are the outputs its inputs spend, in order, where
 /// the source states them; the session marks the outputs that come back
 /// to a loaded wallet.
+///
+/// Refused, with the line that says why, when an output or the outputs'
+/// total is over 21,000,000 BTC, as Bitcoin Core's `CheckTransaction`
+/// refuses it, or an amount stated for an input or the total of those
+/// stated is, as its `CheckTxInputs` does
+/// ([`faraday_psbt::transaction::money_total`]). So the totals and the
+/// fee shown never overflow.
 pub fn decode(
     c: &Compute,
     tx: &Transaction,
     prevouts: &[Option<TxOut>],
     session: &Session,
     source: &str,
-) -> Decoded {
+) -> Result<Decoded, &'static str> {
+    let paid_out = money_total(tx.output.iter().map(|o| o.value))
+        .map_err(|_| EN.decode_outputs_over_max_money)?
+        .to_sat();
+    let stated = || (0..tx.input.len()).map(|i| prevouts.get(i).and_then(|p| p.as_ref()));
+    let paid_in = money_total(stated().flatten().map(|o| o.value))
+        .map_err(|_| EN.decode_inputs_over_max_money)?;
+    let paid_in = stated().all(|o| o.is_some()).then_some(paid_in.to_sat());
     let network: Network = session.network();
     let inputs: Vec<DecodedInput> = tx
         .input
@@ -210,9 +225,7 @@ pub fn decode(
             }
         })
         .collect();
-    let paid_in: Option<u64> = inputs.iter().map(|i| i.amount).sum();
-    let paid_out: u64 = outputs.iter().map(|o| o.amount).sum();
-    Decoded {
+    Ok(Decoded {
         source: source.to_string(),
         txid: tx.compute_txid().to_string(),
         wtxid: tx.compute_wtxid().to_string(),
@@ -224,7 +237,7 @@ pub fn decode(
         fee: paid_in.and_then(|i| i.checked_sub(paid_out)),
         amounts_from: AmountsFrom::None,
         hex: serialize_hex(tx),
-    }
+    })
 }
 
 /// The outputs a PSBT's inputs spend, in order, as far as it says.
@@ -379,9 +392,13 @@ impl Faraday {
                 {
                     let prevouts = decode::prevouts_of(&s.spend.psbt);
                     let source = fill(EN.act_finished_from_source, &[&s.spend.source.to_string()]);
-                    let mut decoded = decode::decode(c, tx, &prevouts, &self.session, &source);
-                    decoded.amounts_from = AmountsFrom::Psbt(s.spend.source.to_string());
-                    self.decode.show(decoded, &mut self.screen);
+                    match decode::decode(c, tx, &prevouts, &self.session, &source) {
+                        Ok(mut decoded) => {
+                            decoded.amounts_from = AmountsFrom::Psbt(s.spend.source.to_string());
+                            self.decode.show(decoded, &mut self.screen);
+                        }
+                        Err(line) => self.toast(line),
+                    }
                 }
             }
             Action::DecodeInbox(k) => {
@@ -389,10 +406,14 @@ impl Faraday {
                     && let Some(tx) = faraday_psbt::transaction::read_raw(&item.bytes)
                 {
                     let (prevouts, from) = self.amounts_in(c, &tx);
-                    let mut decoded = decode::decode(c, &tx, &prevouts, &self.session, &item.name);
-                    decoded.amounts_from = from;
-                    self.decode.show(decoded, &mut self.screen);
-                    self.list_offset = 0.0;
+                    match decode::decode(c, &tx, &prevouts, &self.session, &item.name) {
+                        Ok(mut decoded) => {
+                            decoded.amounts_from = from;
+                            self.decode.show(decoded, &mut self.screen);
+                            self.list_offset = 0.0;
+                        }
+                        Err(line) => self.toast(line),
+                    }
                 }
             }
             Action::QrDecoded => {

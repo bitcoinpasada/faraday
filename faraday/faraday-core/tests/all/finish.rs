@@ -595,3 +595,75 @@ fn the_sign_button_with_three_keys_here_reads_whole() {
     );
     assert!(t.iter().any(|s| s == "Sign with 3 keys"), "{t:?}");
 }
+
+/// A raw transaction of one input paying `amounts`, in hex, as a text
+/// file in the Inbox would hold it.
+fn raw_paying(amounts: &[u64]) -> Vec<u8> {
+    use faraday_bip::bitcoin::consensus::encode::serialize_hex;
+    use faraday_bip::bitcoin::transaction::Version;
+    use faraday_bip::bitcoin::{Amount, ScriptBuf, Transaction, TxIn, TxOut, absolute::LockTime};
+    let tx = Transaction {
+        version: Version::TWO,
+        lock_time: LockTime::ZERO,
+        input: vec![TxIn::default()],
+        output: amounts
+            .iter()
+            .map(|&a| TxOut {
+                value: Amount::from_sat(a),
+                script_pubkey: ScriptBuf::new(),
+            })
+            .collect(),
+    };
+    serialize_hex(&tx).into_bytes()
+}
+
+/// What Decode does with `bytes` in the Inbox: the amounts of the
+/// outputs it shows, or the line it refuses the transaction with.
+fn decode_file(bytes: Vec<u8>) -> Result<Vec<u64>, String> {
+    let mut app = with_inbox(vec![("tx.txt".to_string(), bytes)]);
+    assert_eq!(app.inbox()[0].kind, FileKind::Transaction);
+    app.press(Action::DecodeInbox(0));
+    match app.decode() {
+        Some(d) => Ok(d.decoded.outputs.iter().map(|o| o.amount).collect()),
+        None => Err(app.toast_text().unwrap_or_default().to_string()),
+    }
+}
+
+// Bitcoin Core's CheckTransaction refuses an output over MAX_MONEY
+// (21,000,000 BTC, "bad-txns-vout-toolarge") and outputs whose total is
+// over it ("bad-txns-txouttotal-toolarge"); an output of MAX_MONEY itself
+// is valid. Decode refuses what Core refuses, so no total or fee it shows
+// wraps.
+#[test]
+fn decode_refuses_amounts_over_21_million_bitcoin_as_core_does() {
+    use faraday_core::strings::EN;
+    let max = faraday_bip::bitcoin::Amount::MAX_MONEY.to_sat();
+    let refused = Err(EN.decode_outputs_over_max_money.to_string());
+
+    assert_eq!(decode_file(raw_paying(&[max])), Ok(vec![max]));
+    assert_eq!(decode_file(raw_paying(&[max + 1])), refused);
+    assert_eq!(decode_file(raw_paying(&[max, 1])), refused);
+    // Two outputs whose amounts add past u64, as a fuzz target found.
+    assert_eq!(decode_file(raw_paying(&[u64::MAX, u64::MAX])), refused);
+}
+
+// Bitcoin Core's CheckTxInputs refuses an amount spent, or their total,
+// over MAX_MONEY ("bad-txns-inputvalues-outofrange"): a PSBT beside the
+// transaction that states one is not taken for the fee.
+#[test]
+fn decode_refuses_an_amount_going_in_over_21_million_bitcoin() {
+    use faraday_core::strings::EN;
+    let app = spending_finished();
+    let hex = app.spend().unwrap().spend.finished_hex().unwrap();
+    let mut psbt = testkit::unsigned(&kit("spending")).unwrap();
+    let max = faraday_bip::bitcoin::Amount::MAX_MONEY;
+    let utxo = psbt.inner_mut().inputs[0].witness_utxo.as_mut().unwrap();
+    utxo.value = max + faraday_bip::bitcoin::Amount::from_sat(1);
+    let mut beside = with_inbox(vec![
+        ("broadcast-me.txt".to_string(), hex.into_bytes()),
+        ("spend.psbt".to_string(), psbt.to_bytes()),
+    ]);
+    beside.press(Action::DecodeInbox(0));
+    assert!(beside.decode().is_none());
+    assert_eq!(beside.toast_text(), Some(EN.decode_inputs_over_max_money));
+}

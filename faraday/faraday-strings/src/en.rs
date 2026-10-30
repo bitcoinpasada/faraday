@@ -1632,6 +1632,12 @@ strings! {
     decode_unix_time: "{} · Unix time",
     /// Text in `btc`. `{}`: `Amount::from_sat(sats).to_btc()`.
     decode_btc: "{} BTC",
+    /// Decode's refusal, as a toast: an output, or the outputs' total, is
+    /// over Bitcoin's money limit, which Bitcoin Core refuses.
+    decode_outputs_over_max_money: "Not decoded: an output, or the outputs' total, is over 21,000,000 BTC",
+    /// Decode's refusal, as a toast: an amount an input spends, or their
+    /// total, is over Bitcoin's money limit.
+    decode_inputs_over_max_money: "Not decoded: an input's amount, or the inputs' total, is over 21,000,000 BTC",
     // ----- explore (faraday-core/src/explore/mod.rs) -----
     /// Toast in `explore_open`.
     explore_load_a_key: "Load a key first",
@@ -5202,6 +5208,12 @@ strings! {
     psbt_warn_pays_to_input: "output {} pays back to the address of input {}",
     /// A warning on Review. The outputs are more than the inputs.
     psbt_warn_outputs_exceed: "outputs exceed inputs; the UTXO data is wrong",
+    /// A warning on Review: an output, or the outputs' total, is over
+    /// Bitcoin's money limit, which Bitcoin Core refuses.
+    psbt_warn_outputs_over_max_money: "an output, or the outputs' total, is over 21,000,000 BTC",
+    /// A warning on Review: an amount an input spends, or their total, is
+    /// over Bitcoin's money limit.
+    psbt_warn_inputs_over_max_money: "an input's amount, or the inputs' total, is over 21,000,000 BTC",
     /// A warning on Review. `{}`: the kinds, joined by commas.
     psbt_warn_mixed_scripts: "inputs mix script types: {}",
     /// A warning on Review. A taproot script-path input.
