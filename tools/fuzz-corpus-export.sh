@@ -25,11 +25,14 @@ export_one() {
     dir="$1"
     name="$2"
     to="$out/$name"
-    mkdir -p "$to"
+    mkdir -p "$to" "$dir/artifacts/$name"
     [ -d "$store/$name" ] && find "$store/$name" -type f -exec cp --update=none {} "$to/" \;
     [ -d "$dir/corpus/$name" ] && find "$dir/corpus/$name" -type f -exec cp --update=none {} "$to/" \;
+    # An input that crashes is written beside the run's own
+    # (fuzz/artifacts/<target>/), never into the working directory.
     # shellcheck disable=SC2046
-    cargo fuzz cmin --fuzz-dir "$dir" "$name" "$to" -- -rss_limit_mb=2048 $(options "$name") \
+    cargo fuzz cmin --fuzz-dir "$dir" "$name" "$to" -- -rss_limit_mb=2048 \
+        -artifact_prefix="$dir/artifacts/$name/" $(options "$name") \
         >"$out/$name.log" 2>&1 || {
         echo "fuzz-corpus-export: $name failed, see out/fuzz-corpus/$name.log" >&2
         return 1
