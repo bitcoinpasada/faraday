@@ -225,6 +225,14 @@ pub struct WordEntry {
     /// Bitmask over the wordlist of valid final words, computed when the
     /// penultimate word is committed.
     allowed_last: Option<[u64; 32]>,
+    /// A word taken earlier, opened again for an edit inside it
+    /// (`docs/TEXT-CURSOR.md`): its list index, the words taken after it,
+    /// held aside, and the keys typed of the word after them. Put back
+    /// as they were once it is taken again; wiped with the rest.
+    open: Option<u16>,
+    held: [u16; ENTRY_WORDS],
+    held_n: u8,
+    held_prefix: Typed,
 }
 
 impl Zeroize for WordEntry {
@@ -236,6 +244,10 @@ impl Zeroize for WordEntry {
             mask.zeroize();
         }
         self.allowed_last = None;
+        self.open = None;
+        self.held.zeroize();
+        self.held_n = 0;
+        self.held_prefix.zeroize();
     }
 }
 
@@ -262,7 +274,200 @@ impl WordEntry {
             committed: 0,
             prefix: Typed::new(),
             allowed_last: None,
+            open: None,
+            held: [0; ENTRY_WORDS],
+            held_n: 0,
+            held_prefix: Typed::new(),
         }
+    }
+
+    /// The words taken after a word opened again for an edit, held
+    /// aside: drawn after it in their cells.
+    pub fn held_indices(&self) -> impl Iterator<Item = u16> + '_ {
+        self.held[..usize::from(self.held_n)].iter().copied()
+    }
+
+    /// The keys typed of the word after the held ones, while a word is
+    /// open for an edit.
+    pub fn held_prefix(&self) -> &[char] {
+        self.held_prefix.as_chars()
+    }
+
+    /// Whether a word taken earlier is open for an edit.
+    pub fn is_open(&self) -> bool {
+        self.open.is_some()
+    }
+
+    /// A key that moves the caret through the words or edits inside the
+    /// one being typed (`docs/TEXT-CURSOR.md`): `at` is the caret in its
+    /// keys, `None` at their end; `hide` keeps it at the end, the words
+    /// drawn as bullets. Left and Right move a key, and past a word's
+    /// edge open the word beside it; Home and End go to the first word
+    /// and back to the end; a key typed, Backspace or Delete inside the
+    /// keys edits them there. Returns the caret after, or `None` for a
+    /// key this does not take: one at the end, typed as it always is.
+    pub(crate) fn caret_key(
+        &mut self,
+        key: faraday_shell_api::Key,
+        at: Option<usize>,
+        hide: bool,
+    ) -> Option<Option<usize>> {
+        use faraday_shell_api::Key as K;
+        let n = self.prefix.len();
+        let off = if hide { n } else { at.map_or(n, |a| a.min(n)) };
+        let start = |w: &Self| (!hide && !w.prefix.is_empty()).then_some(0);
+        let caret = |w: &Self, i: usize| (i < w.prefix.len()).then_some(i);
+        Some(match key {
+            K::Left if off > 0 && !hide => Some(off - 1),
+            K::Left => {
+                let k = self.committed();
+                if k > 0 && self.open_word(k - 1) {
+                    None
+                } else {
+                    caret(self, off)
+                }
+            }
+            K::Right if off < n && !hide => Some(off + 1),
+            K::Right => {
+                let k = self.committed();
+                if self.is_open() && self.close_word() {
+                    if k + 1 < self.committed() {
+                        self.open_word(k + 1);
+                    }
+                    start(self)
+                } else {
+                    None
+                }
+            }
+            K::Home => {
+                if self.committed() > 0 {
+                    self.open_word(0);
+                }
+                start(self)
+            }
+            K::End => {
+                self.close_word();
+                None
+            }
+            K::Backspace | K::Char(_) if off == n => return None,
+            K::Backspace => {
+                if off > 0 && self.edit_keys((off - 1, off), None) {
+                    caret(self, off - 1)
+                } else {
+                    caret(self, off)
+                }
+            }
+            K::Delete => {
+                if off < n {
+                    self.edit_keys((off, off + 1), None);
+                }
+                caret(self, off)
+            }
+            K::Char(c) if !c.is_control() => {
+                let to = if self.edit_keys((off, off), Some(c)) {
+                    off + 1
+                } else {
+                    off
+                };
+                caret(self, to)
+            }
+            _ => return None,
+        })
+    }
+
+    /// A press on cell `cell` of the words, at key `off` of it (`STRIDE`
+    /// or more for its end): the word there is opened for an edit, or
+    /// the one being typed takes the caret. Returns the caret, as
+    /// [`WordEntry::caret_key`] does.
+    pub(crate) fn press_cell(&mut self, cell: usize, off: usize, hide: bool) -> Option<usize> {
+        let k = self.committed();
+        let held = usize::from(self.held_n);
+        let open = match cell {
+            c if c < k => self.open_word(c),
+            c if c == k => true,
+            c if c <= k + held && self.close_word() => self.open_word(c),
+            _ => {
+                self.close_word();
+                false
+            }
+        };
+        (open && !hide && off < self.prefix.len()).then_some(off)
+    }
+
+    /// Opens taken word `k` again for an edit inside it: its keys become
+    /// the word being typed, the words after it and the keys typed after
+    /// them held aside (`docs/TEXT-CURSOR.md`). A word already open is
+    /// taken again first, and if it was changed and not taken, nothing
+    /// moves. Returns whether `k` is open now.
+    pub(crate) fn open_word(&mut self, k: usize) -> bool {
+        if !self.close_word() || k >= self.committed() {
+            return false;
+        }
+        let Some(keys) = self
+            .list()
+            .typed(self.words[k])
+            .or_else(|| self.reading_typed(self.words[k]))
+        else {
+            return false;
+        };
+        let n = self.committed() - k - 1;
+        let end = self.committed();
+        self.held[..n].copy_from_slice(&self.words[k + 1..end]);
+        self.held_n = n as u8;
+        self.held_prefix = self.prefix;
+        self.open = Some(self.words[k]);
+        while self.committed() > k {
+            self.uncommit();
+        }
+        self.prefix = keys;
+        true
+    }
+
+    /// The word open for an edit taken again where its keys are still
+    /// its own, the held words put back after it. Returns whether no
+    /// word is open now: one changed is left open, to be taken from its
+    /// candidates.
+    pub(crate) fn close_word(&mut self) -> bool {
+        let Some(word) = self.open else {
+            return true;
+        };
+        let own = self.list().typed(word).or_else(|| self.reading_typed(word));
+        if own.is_some_and(|t| t.as_chars() == self.prefix.as_chars()) {
+            self.commit(word);
+        }
+        self.open.is_none()
+    }
+
+    /// The keys of the word being typed, characters `lo` to `hi`, put in
+    /// place of `insert`: taken only where some word of the list still
+    /// starts so, as a key typed at the end is. Returns whether it was.
+    pub(crate) fn edit_keys(&mut self, (lo, hi): (usize, usize), insert: Option<char>) -> bool {
+        let kind = self.keyboard();
+        let insert = insert.map(|c| {
+            if matches!(kind, KeyboardKind::Bip39 | KeyboardKind::Pinyin) {
+                c.to_ascii_lowercase()
+            } else {
+                c
+            }
+        });
+        let old = self.prefix;
+        let chars = old.as_chars();
+        let mut new = Typed::new();
+        let hi = hi.min(chars.len());
+        let fits = chars[..lo.min(hi)]
+            .iter()
+            .copied()
+            .chain(insert)
+            .chain(chars[hi..].iter().copied())
+            .all(|c| new.push(c));
+        self.prefix = new;
+        let ok =
+            fits && (new.is_empty() || self.candidate_page().1 > 0 || self.enabled_keys() != 0);
+        if !ok {
+            self.prefix = old;
+        }
+        new.zeroize();
+        ok
     }
 
     /// The list the words are typed from.
@@ -562,7 +767,9 @@ impl WordEntry {
         if self.prefix.pop().is_some() {
             return;
         }
-        if self.committed == 0 {
+        // A word open for an edit stays where it is: the words after it
+        // are held for it.
+        if self.committed == 0 || self.open.is_some() {
             return;
         }
         let previous = self.words[self.committed() - 1];
@@ -598,6 +805,19 @@ impl WordEntry {
         self.words[self.committed()] = index;
         self.committed += 1;
         self.prefix.zeroize();
+        // The word open for an edit taken: what was held goes back after
+        // it, as it was.
+        if self.open.take().is_some() {
+            let n = usize::from(self.held_n);
+            let at = self.committed();
+            self.words[at..at + n].copy_from_slice(&self.held[..n]);
+            self.committed += self.held_n;
+            self.prefix = self.held_prefix;
+            self.held.zeroize();
+            self.held_n = 0;
+            self.held_prefix.zeroize();
+            self.allowed_last = None;
+        }
         // The final-word filter is BIP-39's checksum.
         if self.committed + 1 == self.count {
             self.allowed_last = Some(last_word_mask(&self.words[..self.committed()]));
@@ -624,6 +844,60 @@ fn last_word_mask(first_words: &[u16]) -> [u64; 32] {
         }
     }
     mask
+}
+
+/// How far apart the cells of a list typed on its own keyboard are
+/// numbered in a press's index: cell `c`, key `k` is `c * STRIDE + k`, a
+/// cell's end `STRIDE - 1` (`docs/TEXT-CURSOR.md`).
+pub(crate) const STRIDE: usize = 64;
+
+impl Faraday {
+    /// A key for the list typed on its own keyboard that typing goes to,
+    /// `h`: Add a key's (or New key's Add a key's form), or Check my
+    /// copy's, drawn as bullets. Returns whether it took the key.
+    pub(crate) fn keyed_key(&mut self, h: crate::edit::Here, key: faraday_shell_api::Key) -> bool {
+        let at = self.edit_now().caret;
+        let out = self.keyed_with(h, |w, hide| w.caret_key(key, at, hide));
+        match out {
+            Some(caret) => {
+                self.keyed_caret(h, caret);
+                true
+            }
+            None => false,
+        }
+    }
+
+    /// A press at index `i` of the cells of the list typed on its own
+    /// keyboard, as the last frame drew them ([`STRIDE`]).
+    pub(crate) fn keyed_press(&mut self, h: crate::edit::Here, i: usize) {
+        let caret = self.keyed_with(h, |w, hide| w.press_cell(i / STRIDE, i % STRIDE, hide));
+        self.keyed_caret(h, caret);
+    }
+
+    /// `f` on the words of the list `h`, and whether they are drawn as
+    /// bullets.
+    fn keyed_with<T>(
+        &mut self,
+        h: crate::edit::Here,
+        f: impl FnOnce(&mut WordEntry, bool) -> Option<T>,
+    ) -> Option<T> {
+        if h == crate::edit::Here::Keyed {
+            return f(self.entry.state_mut().keys.as_deref_mut()?, false);
+        }
+        let mut out = None;
+        self.backup
+            .check_edit(|c| out = c.keys.as_deref_mut().and_then(|w| f(w, true)));
+        out
+    }
+
+    /// The caret of the list `h` put at `caret`.
+    fn keyed_caret(&mut self, h: crate::edit::Here, caret: Option<usize>) {
+        self.typing.set_edit(crate::ui::Edit {
+            field: Some(Action::TypeHere(h)),
+            caret,
+            anchor: None,
+        });
+    }
 }
 
 impl Faraday {

@@ -43,7 +43,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     // Typing on this page always lands here, with no click to focus it
     // first, so the caret is drawn whether or not anything is typed yet:
     // the one sign that this box is already live. A press places it
-    // (`docs/TEXT-CURSOR.md` §4, C2).
+    // (`docs/TEXT-CURSOR.md` §3).
     let here = Action::TypeHere(crate::edit::Here::Find);
     let (tx, fy, fh, room) = (
         fx + faraday_draw::tokens::TYPED_INSET,

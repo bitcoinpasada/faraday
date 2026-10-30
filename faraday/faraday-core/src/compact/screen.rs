@@ -784,11 +784,19 @@ pub(crate) fn entry_words(app: &View, ui: &mut Ui, x: f32, y: f32, iw: f32, page
     y += 6.0;
     y += heading(ui, x, y, EN.compact_words);
     y += crate::screens::word_count_row(app, ui, x, y, iw, false);
+    // The words taken, the one being typed, and those held after a word
+    // opened for an edit.
+    let cells: Vec<Option<u16>> = taken
+        .iter()
+        .map(|&i| Some(i))
+        .chain(std::iter::once(None))
+        .chain(w.held_indices().map(Some))
+        .collect();
     y += keyed_taken(
         ui,
         (x, y, iw),
         lang,
-        &taken,
+        &cells,
         (
             app.entry.state().word_boxes(taken.len() + 1),
             false,
@@ -819,8 +827,15 @@ pub(crate) fn keyed_head(
     // The word being typed.
     ui.text_as(x, y, BODY_S, Role::OnSurfaceVariant, label);
     let off = (ui.measure_as(BODY_S, label) + 12.0).max(64.0);
+    // A word of Check my copy's opened for an edit stays hidden, the
+    // caret at its end; another's caret stands at its place in the keys
+    // (`docs/TEXT-CURSOR.md`).
+    use crate::edit::Here;
+    let hide = w.is_open() && ui.edit.field == Some(Action::TypeHere(Here::CheckKeyed));
     let shown = if prefix.is_empty() && !caret {
         "…".to_string()
+    } else if hide {
+        "••••••".to_string()
     } else {
         prefix.clone()
     };
@@ -828,8 +843,18 @@ pub(crate) fn keyed_head(
     if let Some(label) = chip {
         ui.demo_offer(label, Action::UseSample);
     }
+    let at = ui.edit.caret_in(w.prefix().len());
+    let cw = if hide || at >= w.prefix().len() {
+        pw
+    } else {
+        let b = prefix
+            .char_indices()
+            .nth(at)
+            .map_or(prefix.len(), |(b, _)| b);
+        ui.measure_as(BODY_L.mono(), &prefix[..b])
+    };
     if caret {
-        ui.caret(x + off + 2.0 + pw, y - 2.0, 20.0);
+        ui.caret(x + off + 2.0 + cw, y - 2.0, 20.0);
     }
     y += 26.0;
     if let Some((status, tone)) = status {
@@ -852,9 +877,14 @@ pub(crate) fn keyed_taken(
     ui: &mut Ui,
     (x, y, iw): (f32, f32, f32),
     lang: faraday_bip::bip39::Language,
-    taken: &[u16],
+    taken: &[Option<u16>],
     (count, masked, never): (usize, bool, bool),
 ) -> f32 {
+    // The cell of the word being typed: the first with none taken.
+    let current = taken
+        .iter()
+        .position(Option::is_none)
+        .unwrap_or(taken.len());
     let cols = 3;
     let cellw = (iw - (cols - 1) as f32 * 6.0) / cols as f32;
     for k in 0..count {
@@ -868,14 +898,14 @@ pub(crate) fn keyed_taken(
             faraday_draw::tokens::SHAPE_S,
             Role::SurfaceContainerHighest,
         );
-        crate::screens::word_cell_edge(ui, (cx, cy, cellw, 28.0), k == taken.len());
+        crate::screens::word_cell_edge(ui, (cx, cy, cellw, 28.0), k == current);
         ui.text_mid_as(
             (cx + 6.0, cy, 28.0),
             LABEL_S,
             Role::OnSurfaceVariant,
             &(k + 1).to_string(),
         );
-        if let Some(&i) = taken.get(k) {
+        if let Some(&Some(i)) = taken.get(k) {
             let word = if masked {
                 "••••••"
             } else {
@@ -1006,7 +1036,7 @@ fn entry_field(app: &View, ui: &mut Ui, x: f32, y: f32, iw: f32, form: crate::fo
         ui.draw_wrapped((tx, y + 10.0), Role::OnSurfaceVariant, &laid);
     } else {
         // What is typed, read where it is held: the arrow keys move the
-        // caret, Up and Down a line (`docs/TEXT-CURSOR.md` §4, C3).
+        // caret, Up and Down a line (`docs/TEXT-CURSOR.md` §3).
         ui.draw_typed((x + 10.0, y + 10.0), Role::OnSurface, &laid, (on, here));
     }
     y + bh + 10.0 + crate::screens::never_below(app, ui, x, y + bh, iw)

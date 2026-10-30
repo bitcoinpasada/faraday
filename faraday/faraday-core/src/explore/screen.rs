@@ -77,7 +77,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     // Dropped to the box's own width: its error line wraps under it.
     let boxed = ui.field_box((px, y, fw), true, err);
     // `m/` stands fixed; the caret moves in what follows it, and a press
-    // places it there (`docs/TEXT-CURSOR.md` §4, C2).
+    // places it there (`docs/TEXT-CURSOR.md` §3).
     let here = Action::TypeHere(crate::edit::Here::Path);
     ui.press_box(px, y, fw, FIELD_H, here);
     let mw = ui.text_mid_as(

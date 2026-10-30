@@ -195,7 +195,7 @@ fn card(app: &View, v: &VanityState, ui: &mut Ui, s: u8, x: f32, y: f32, w: f32)
                 &text[..fixed],
             );
             // The kind's fixed characters stand; the caret moves in what
-            // follows them (`docs/TEXT-CURSOR.md` §4, C2).
+            // follows them (`docs/TEXT-CURSOR.md` §3).
             let here = Action::TypeHere(crate::edit::Here::Prefix);
             ui.press_box(x, cy, w, fh, here);
             ui.typed(

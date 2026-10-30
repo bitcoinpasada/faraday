@@ -214,7 +214,7 @@ fn setting_the_time_by_hand_corrects_a_clock_before_2020() {
 
 /// Set time's fields take an edit where the caret is: the arrow keys
 /// move it, a press between two digits puts it there, and what is typed
-/// goes in at it (`docs/TEXT-CURSOR.md` §4, C1).
+/// goes in at it (`docs/TEXT-CURSOR.md` §3).
 #[test]
 fn set_times_fields_take_typing_where_the_caret_is() {
     let mut app = vault_app(Some(1000));

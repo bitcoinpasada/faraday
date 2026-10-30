@@ -1320,16 +1320,14 @@ fn word_check(
         }
         Some(k) => {
             cy += ui.wrap_as((x, cy, w), LABEL_L, Role::OnSurfaceVariant, &label) + 8.0;
-            let taken: Vec<u16> = k.committed_indices().collect();
-            let prefix: String = k.prefix().iter().collect();
             let cells = Cells {
                 boxes: c.count,
                 masked: true,
                 caret: true,
                 never: app.seed_line,
-                press: None,
+                press: Some(Action::TypeHere(crate::edit::Here::CheckKeyed)),
             };
-            cy += keyed_cells(ui, (x, cy, w), lang, &taken, &prefix, cells);
+            cy += keyed_cells(ui, (x, cy, w), lang, k, cells);
             cy += keyed_pills(ui, x, cy, w, k, lang, false);
             cy = word_keys(c.shift, k, ui, x, cy, w, 30.0);
         }

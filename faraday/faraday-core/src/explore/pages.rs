@@ -114,7 +114,7 @@ fn field(
     let room = width - FIELD_PAD * 2.0;
     match here {
         // A field with a caret to move: a press places it
-        // (`docs/TEXT-CURSOR.md` §4, C2).
+        // (`docs/TEXT-CURSOR.md` §3).
         Some(h) => {
             ui.press_box(x, y, width, FIELD_H, Action::TypeHere(h));
             ui.typed(

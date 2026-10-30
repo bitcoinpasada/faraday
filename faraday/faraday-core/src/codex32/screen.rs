@@ -1520,6 +1520,32 @@ fn typed_back(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     );
     let fit = ui.fit_as(BODY_M.mono(), &shown, w - 2.0 * t::GAP);
     ui.text_mid_as((x + t::GAP, y, t::FIELD), BODY_M.mono(), ink, &fit);
+    // The caret between the characters typed, and a press placing it
+    // there (`docs/TEXT-CURSOR.md`): each edge where its character
+    // stands in the groups of four, the prefix fixed before them.
+    let here = Action::TypeHere(crate::edit::Here::Codex32Back);
+    ui.press_box(x, y, w, t::FIELD, here);
+    let lead = PREFIX.len();
+    let n = typed.chars().count();
+    let cols: Vec<f32> = (0..=n)
+        .map(|j| {
+            let before: String = whole.chars().take(lead + j).collect();
+            ui.measure_as(BODY_M.mono(), &faraday_ui::grouped(&before))
+        })
+        .collect();
+    let at = ui.edit.caret_in(n);
+    let typing = !m.checked().0.get(m.at()).copied().unwrap_or(false);
+    if typing {
+        let c = t::CARET_MIN;
+        ui.caret(x + t::GAP + cols[at], y + (t::FIELD - c) / 2.0, c);
+    }
+    let edges = cols.iter().map(|c| ui.px(x + t::GAP + c + ui.ox)).collect();
+    ui.fields.push(crate::ui::FieldAt {
+        action: here,
+        first: 0,
+        edges,
+        band: None,
+    });
     let mut cy = y + t::FIELD + t::GAP;
     if let Some(b) = differs {
         cy += ui.wrap_as(

@@ -1262,14 +1262,16 @@ pub(crate) fn typed_cells(
 }
 
 /// The words taken on a list's own keyboard, in a grid, the next one's
-/// keys in its cell; `masked` draws a word once taken as bullets. Returns
-/// its height.
+/// keys in its cell; `masked` draws a word once taken as bullets. A word
+/// open for an edit stands in its cell with its keys, the words held
+/// after it in theirs (`docs/TEXT-CURSOR.md`); the caret stands at its
+/// place in the keys, at the end where `masked`. A press on a cell is
+/// kept for `press`. Returns its height.
 pub(crate) fn keyed_cells(
     ui: &mut Ui,
     (x, y, width): (f32, f32, f32),
     lang: faraday_bip::bip39::Language,
-    taken: &[u16],
-    prefix: &str,
+    w: &crate::word_entry::WordEntry,
     cells: Cells,
 ) -> f32 {
     let Cells {
@@ -1277,44 +1279,106 @@ pub(crate) fn keyed_cells(
         masked,
         caret,
         never,
-        ..
+        press,
     } = cells;
-    let cols = 6;
-    let cellw = (width - (cols - 1) as f32 * 8.0) / cols as f32;
+    let taken: Vec<u16> = w.committed_indices().collect();
+    let held: Vec<u16> = w.held_indices().collect();
+    let prefix: String = w.prefix().iter().collect();
+    let held_prefix: String = w.held_prefix().iter().collect();
+    let at = match press {
+        Some(_) if !masked => ui.edit.caret_in(w.prefix().len()),
+        _ => w.prefix().len(),
+    };
+    let (cols, gap, cell_h) = (6, tokens::GRID, 36.0);
+    let cellw = (width - (cols - 1) as f32 * gap) / cols as f32;
+    let pitch = tokens::TOUCH;
     for k in 0..shown {
-        let cx = x + (k % cols) as f32 * (cellw + 8.0);
-        let cy = y + (k / cols) as f32 * 42.0;
+        let cx = x + (k % cols) as f32 * (cellw + gap);
+        let cy = y + (k / cols) as f32 * pitch;
         let current = k == taken.len();
-        ui.fill(cx, cy, cellw, 36.0, 8.0, Role::SurfaceContainerHighest);
-        word_cell_edge(ui, (cx, cy, cellw, 36.0), current);
+        // Each cell pressed in the whole of its place, a touch target.
+        if let Some(a) = press {
+            let (sx, sy) = (gap / 2.0, (pitch - cell_h) / 2.0);
+            ui.press_box(cx - sx, cy - sy, cellw + gap, pitch, a);
+        }
+        ui.fill(cx, cy, cellw, cell_h, 8.0, Role::SurfaceContainerHighest);
+        word_cell_edge(ui, (cx, cy, cellw, cell_h), current);
         ui.text_mid_as(
             (cx + 8.0, cy, 36.0),
             LABEL_S.regular(),
             Role::OnSurfaceVariant,
             &(k + 1).to_string(),
         );
-        let word = match taken.get(k) {
-            Some(_) if masked => Some(("••••••".to_string(), Role::OnSurface)),
-            Some(&i) => Some((lang.word_display(i).to_string(), Role::OnSurface)),
-            None if current && !prefix.is_empty() => Some((prefix.to_string(), Role::Primary)),
-            None => None,
-        };
-        let tw = match word {
-            Some((t, c)) => {
-                let t = ui.fit_as(BODY_M.mono(), &t, cellw - 36.0);
-                ui.text_mid_as((cx + 30.0, cy, 36.0), BODY_M.mono(), c, &t)
+        let after = k.checked_sub(taken.len() + 1);
+        let word = match (taken.get(k), after.and_then(|j| held.get(j))) {
+            (Some(_), _) | (None, Some(_)) if masked => {
+                Some(("••••••".to_string(), Role::OnSurface))
             }
+            (Some(&i), _) | (None, Some(&i)) => {
+                Some((lang.word_display(i).to_string(), Role::OnSurface))
+            }
+            _ if current && w.is_open() && masked => Some(("••••••".to_string(), Role::Primary)),
+            _ if current && !prefix.is_empty() => Some((prefix.clone(), Role::Primary)),
+            _ if after == Some(held.len()) && !held_prefix.is_empty() => {
+                Some((held_prefix.clone(), Role::Primary))
+            }
+            _ => None,
+        };
+        let shown_word = word.map(|(t, c)| (ui.fit_as(BODY_M.mono(), &t, cellw - 36.0), c));
+        let tw = match &shown_word {
+            Some((t, c)) => ui.text_mid_as((cx + 30.0, cy, 36.0), BODY_M.mono(), *c, t),
             None => 0.0,
         };
+        // The caret at its place in the keys of the word being typed.
+        let edge = |ui: &Ui, j: usize| {
+            let b = prefix
+                .char_indices()
+                .nth(j)
+                .map_or(prefix.len(), |(b, _)| b);
+            ui.measure_as(BODY_M.mono(), &prefix[..b])
+        };
         if current && caret {
-            ui.caret(cx + 31.0 + tw, cy + 9.0, 18.0);
+            let cx2 = if masked || at >= w.prefix().len() {
+                tw
+            } else {
+                edge(ui, at)
+            };
+            ui.caret(cx + 31.0 + cx2, cy + 9.0, 18.0);
+        }
+        if let Some(a) = press {
+            let base = k * crate::word_entry::STRIDE;
+            let cols_at: Vec<(usize, f32)> = if current && !masked {
+                (0..=w.prefix().len())
+                    .map(|j| (base + j, edge(ui, j)))
+                    .collect()
+            } else {
+                vec![(base + crate::word_entry::STRIDE - 1, tw)]
+            };
+            keyed_edges(ui, (cx + 30.0, cy), &cols_at, a);
         }
     }
-    let rows_h = shown.div_ceil(cols) as f32 * 42.0;
+    let rows_h = shown.div_ceil(cols) as f32 * pitch;
     if never {
         rows_h + 8.0 + grid_never(ui, x, y + rows_h - 6.0, width)
     } else {
-        rows_h + 8.0
+        // The rows' pitch holds the gap under the last.
+        rows_h
+    }
+}
+
+/// The places a press on a keyed cell can land, (index, column) from
+/// (x, y), kept for `action`: one per key of the word being typed, its
+/// end for any other.
+fn keyed_edges(ui: &mut Ui, (x, y): (f32, f32), at: &[(usize, f32)], action: Action) {
+    let band = (ui.px(y + ui.oy), ui.px(y + 36.0 + ui.oy));
+    for &(i, c) in at {
+        let edge = ui.px(x + c + ui.ox);
+        ui.fields.push(crate::ui::FieldAt {
+            action,
+            first: i,
+            edges: vec![edge],
+            band: Some(band),
+        });
     }
 }
 

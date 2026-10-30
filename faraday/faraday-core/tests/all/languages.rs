@@ -227,3 +227,67 @@ fn a_key_that_leads_to_no_word_is_not_taken() {
             > 1
     );
 }
+
+/// The words typed on a list's own keyboard: a press on a word taken
+/// earlier opens it, its keys back in its cell; a key taken off it and
+/// another word pressed among those its keys can be, that word stands in
+/// its place and the words after it stay as they were; Left and Right
+/// move the caret within its keys and on into the next cell
+/// (`docs/TEXT-CURSOR.md`).
+#[test]
+fn a_word_taken_earlier_is_edited_in_its_cell_and_the_rest_kept() {
+    let entropy: Vec<u8> = (0u8..16)
+        .map(|i| i.wrapping_mul(29).wrapping_add(3))
+        .collect();
+    let lang = Language::Korean;
+    let m = Mnemonic::from_entropy(lang, &entropy).unwrap();
+    let mut app = faraday_core::testkit::started();
+    app.press(Action::Entry(None));
+    let at = faraday_core::forms::LANGUAGES
+        .iter()
+        .position(|l| *l == lang)
+        .unwrap();
+    app.press(Action::EntryLanguage(at as u8));
+    let first: Vec<u16> = m.indices()[..3].to_vec();
+    for &i in &first {
+        type_on_keys(&mut app, lang, i);
+    }
+    let words = |app: &Faraday| {
+        let w = faraday_core::testkit::entry(app).keys.as_ref().unwrap();
+        (w.committed_indices().collect::<Vec<_>>(), w.is_open())
+    };
+    // Left from the empty cell opens the third word; Right past its end
+    // takes it again, unchanged.
+    app.event(Event::Key(Key::Left));
+    assert_eq!(words(&app), (first[..2].to_vec(), true));
+    app.event(Event::Key(Key::Right));
+    assert_eq!(words(&app), (first.clone(), false));
+    let _ = app.frame();
+    // The second cell's end: cell 1, the cells 64 places apart in the
+    // press's numbering, its end the last of them.
+    let here = Action::TypeHere(faraday_core::edit::Here::Keyed);
+    let (x, y) = app.where_typed(here, 64 + 63).expect("the cells drawn");
+    for phase in [
+        faraday_shell_api::TouchPhase::Down,
+        faraday_shell_api::TouchPhase::Up,
+    ] {
+        app.event(Event::Touch { x, y, phase });
+    }
+    assert_eq!(words(&app), (first[..1].to_vec(), true), "the word opened");
+    // Keys taken off until another word starts as they do.
+    let others = |app: &Faraday| {
+        let w = faraday_core::testkit::entry(app).keys.as_ref().unwrap();
+        w.candidates().any(|c| c != first[1])
+    };
+    while !others(&app) {
+        app.event(Event::Key(Key::Backspace));
+    }
+    let w = faraday_core::testkit::entry(&app).keys.as_ref().unwrap();
+    let other = w
+        .candidates()
+        .position(|c| c != first[1])
+        .expect("another word");
+    let picked = w.candidates().nth(other).unwrap();
+    app.press(Action::EntryCandidate(other as u8));
+    assert_eq!(words(&app), (vec![first[0], picked, first[2]], false));
+}

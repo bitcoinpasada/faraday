@@ -180,7 +180,7 @@ fn message_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
             let field = (x, cy, w, box_h);
             crate::menu::outline(ui, field, FIELD_RADIUS, width, edge.paint());
             // A press on the field places the caret, or starts typing
-            // (`docs/TEXT-CURSOR.md` §4, C3).
+            // (`docs/TEXT-CURSOR.md` §3).
             let here = Action::TypeHere(crate::edit::Here::Message);
             ui.press_box(x, cy, w, box_h, here);
             ui.c.push_clip(ui.rect(x, cy, w, box_h));

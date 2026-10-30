@@ -213,7 +213,7 @@ pub(crate) const GPG_LINE: Action = Action::Flow(crate::backup_flow::steps::Flow
 
 /// A field that takes typing as soon as it is shown, with no press to
 /// focus it: a press on it only places the caret
-/// (`docs/TEXT-CURSOR.md` §4, C2).
+/// (`docs/TEXT-CURSOR.md` §3).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Here {
     /// Tools' Find a tool.
@@ -243,6 +243,12 @@ pub enum Here {
     Words,
     /// Check my copy's words typed back, a cell a word.
     CheckWords,
+    /// Add a key's words typed on a list's own keyboard, a cell a word.
+    Keyed,
+    /// Check my copy's words typed on a list's own keyboard, as bullets.
+    CheckKeyed,
+    /// Make codex32 shares' string typed back, after its `ms1`.
+    Codex32Back,
     /// The aezeed's words; a press on them while its passphrase takes
     /// typing moves typing here.
     Aezeed,
@@ -299,12 +305,22 @@ impl Faraday {
                 Here::Aezeed
             }
             Screen::Tools if self.tools.state().is_some() => Here::Tools,
+            Screen::KeyGen
+                if self.keygen.state()?.codex32.as_ref()?.open()
+                    == Some(crate::codex32::Card::Strings) =>
+            {
+                Here::Codex32Back
+            }
             Screen::Backup => {
                 let c = self.backup.state()?.check.as_ref()?;
-                if c.passphrase || c.keys.is_some() {
+                if c.passphrase {
                     return None;
                 }
-                Here::CheckWords
+                if c.keys.is_some() {
+                    Here::CheckKeyed
+                } else {
+                    Here::CheckWords
+                }
             }
             _ => return None,
         };
@@ -320,7 +336,9 @@ impl Faraday {
             Here::Message if self.message.state().is_some_and(|m| !m.typing) => {
                 self.act(Action::MType);
             }
-            Here::Entry if self.entry.state().on_passphrase => self.act(Action::EntryPassphrase),
+            Here::Entry | Here::Keyed if self.entry.state().on_passphrase => {
+                self.act(Action::EntryPassphrase);
+            }
             Here::Aezeed if self.lightning.state().is_some_and(|l| l.on_passphrase) => {
                 self.act(Action::LPassphrase);
             }
@@ -329,7 +347,7 @@ impl Faraday {
     }
 
     /// A key for a field whose own keys are handled before the caret's
-    /// (`docs/TEXT-CURSOR.md` §4, C2): whether the caret took it.
+    /// (`docs/TEXT-CURSOR.md` §3): whether the caret took it.
     pub(crate) fn here_key(&mut self, key: KeyIn) -> bool {
         self.here_first() && self.edit_key(key)
     }
@@ -527,7 +545,11 @@ impl Faraday {
             return Some(Action::EntryPassphrase);
         }
         if e.form == crate::forms::Form::Words {
-            return e.keys.is_none().then_some(Action::TypeHere(Here::Words));
+            return Some(Action::TypeHere(if e.keys.is_none() {
+                Here::Words
+            } else {
+                Here::Keyed
+            }));
         }
         (!e.correction.is_open() && e.codex32.clash.is_none())
             .then_some(Action::TypeHere(Here::Entry))
@@ -538,7 +560,18 @@ impl Faraday {
     fn typing_text(&self) -> Option<SecretText> {
         use crate::seeds::{Focus as SF, SeedsAction as S};
         use vault::Focus as F;
+        let keyed = |w: Option<&crate::word_entry::WordEntry>| {
+            let mut t = SecretText::new();
+            for &c in w.map_or(&[][..], |w| w.prefix()) {
+                t.push(c);
+            }
+            Some(t)
+        };
         let text: &str = match self.typing_target()? {
+            Action::TypeHere(Here::Keyed) => return keyed(self.entry.state().keys.as_deref()),
+            Action::TypeHere(Here::CheckKeyed) => {
+                return keyed(self.backup.state()?.check.as_ref()?.keys.as_deref());
+            }
             Action::Seeds(S::Focus(f)) => {
                 let s = self.seeds()?;
                 match f {
@@ -582,6 +615,7 @@ impl Faraday {
                 Here::Message => &self.message.state()?.text,
                 Here::Entry => &self.entry.state().typed,
                 Here::Tools => &self.tools.state()?.typed,
+                Here::Codex32Back => self.keygen.state()?.codex32.as_ref()?.typed_back().0,
                 Here::Words => &self.entry.state().typed,
                 Here::CheckWords => &self.backup.state()?.check.as_ref()?.typed,
                 Here::Aezeed => &self.lightning.state()?.typed,
@@ -602,6 +636,8 @@ impl Faraday {
                         .fixed_len(v.grind.script, net)
                         .min(text.len())..]
                 }
+                // Read above, as their keys.
+                Here::Keyed | Here::CheckKeyed => return None,
             },
             Action::PotentialType => &self.inbox.potential()?.passphrase,
             GPG_LINE => self.gpg_restore_live()?.typed(),
@@ -670,6 +706,9 @@ impl Faraday {
         let Some(target) = self.typing_target() else {
             return false;
         };
+        if let Action::TypeHere(h @ (Here::Keyed | Here::CheckKeyed)) = target {
+            return self.keyed_key(h, key);
+        }
         let Some(text) = self.typing_text() else {
             return false;
         };
@@ -900,6 +939,12 @@ impl Faraday {
         }
         if self.typing_target() != Some(a) {
             return None;
+        }
+        if let Action::TypeHere(h @ (Here::Keyed | Here::CheckKeyed)) = a {
+            if let Some(i) = index(self, x) {
+                self.keyed_press(h, i);
+            }
+            return Some(false);
         }
         let at = index;
         let n = self.typing_text().map_or(0, |t| t.chars().count());

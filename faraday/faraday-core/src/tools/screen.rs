@@ -142,7 +142,7 @@ fn body(app: &View, ui: &mut Ui, x: f32, mut y: f32, width: f32) -> f32 {
     };
     ui.fill(x, y, width, 44.0, 8.0, Role::SurfaceContainerHighest);
     ui.stroke(x, y, width, 44.0, 8.0, Role::Primary);
-    // A press places the caret (`docs/TEXT-CURSOR.md` §4, C3).
+    // A press places the caret (`docs/TEXT-CURSOR.md` §3).
     let here = Action::TypeHere(crate::edit::Here::Tools);
     let (tx, fh, room) = (
         x + faraday_draw::tokens::TYPED_INSET,

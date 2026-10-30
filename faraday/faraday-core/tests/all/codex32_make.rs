@@ -281,6 +281,53 @@ fn a_string_typed_back_with_a_box_changed_names_that_box() {
     assert_eq!(app.keygen().unwrap().codex32.as_ref().unwrap().at(), 1);
 }
 
+/// The string typed back takes the caret: a box typed wrong is fixed
+/// in place, a press after it, Backspace and the right character, and
+/// the copy is then the same (`docs/TEXT-CURSOR.md`).
+#[test]
+fn a_box_typed_back_wrong_is_fixed_where_the_caret_is_put() {
+    use faraday_shell_api::{Key, TouchPhase};
+    let (all, _) = vector2();
+    // Tall enough that the field typed back is in view.
+    let mut app = on(1366, 1600, 160);
+    opened(&mut app);
+    to_entry(&mut app, Way::Typed);
+    for s in &all[..2] {
+        for &ch in &s.as_bytes()[9..35] {
+            key(&mut app, char::from(ch));
+        }
+    }
+    c32(&mut app, C32::Next);
+    c32(&mut app, C32::Next);
+    let right: Vec<char> = all[0][3..].chars().collect();
+    let mut typed = right.clone();
+    typed[13] = if typed[13] == 'q' { 'p' } else { 'q' };
+    for ch in typed {
+        key(&mut app, ch);
+    }
+    let made = |app: &Faraday| {
+        app.keygen()
+            .unwrap()
+            .codex32
+            .as_ref()
+            .unwrap()
+            .typed_back()
+            .1
+    };
+    assert_eq!(made(&app), Some(17));
+    let _ = app.frame();
+    let here = Action::TypeHere(faraday_core::edit::Here::Codex32Back);
+    let (x, y) = app.where_typed(here, 14).expect("the string typed back");
+    for phase in [TouchPhase::Down, TouchPhase::Up] {
+        app.event(Event::Touch { x, y, phase });
+    }
+    app.event(Event::Key(Key::Backspace));
+    app.event(Event::Key(Key::Char(right[13])));
+    let m = app.keygen().unwrap().codex32.as_ref().unwrap();
+    assert_eq!(m.typed_back(), (&all[0][3..], None));
+    assert_eq!(m.checked().0.first(), Some(&true), "the same as the string");
+}
+
 #[test]
 fn the_secret_alone_is_its_characters_with_their_checksum() {
     let s = "ms10testsxxxxxxxxxxxxxxxxxxxxxxxxxx4nzvca9cmczlw".to_string();

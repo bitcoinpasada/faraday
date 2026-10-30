@@ -293,19 +293,18 @@ fn keyed_words(
     // The words taken, in a grid, the next one's keys in its cell.
     let taken: Vec<u16> = w.committed_indices().collect();
     y += word_count_row(app, ui, x, y, width, true);
-    let prefix: String = w.prefix().iter().collect();
+    let open = w.held_indices().count() + usize::from(!w.held_prefix().is_empty());
     y += keyed_cells(
         ui,
         (x, y, width),
         lang,
-        &taken,
-        &prefix,
+        w,
         Cells {
-            boxes: app.entry.state().word_boxes(taken.len() + 1),
+            boxes: app.entry.state().word_boxes(taken.len() + 1 + open),
             masked: false,
             caret: !app.entry.state().on_passphrase,
             never: app.seed_line,
-            press: None,
+            press: Some(Action::TypeHere(crate::edit::Here::Keyed)),
         },
     );
     // The count and, when the words are a whole key, its checksum and

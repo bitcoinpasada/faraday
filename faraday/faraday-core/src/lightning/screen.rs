@@ -121,7 +121,7 @@ fn body(
             crate::samples::put::offer(ui, Action::UseSample);
         }
         // A press places the caret, or moves typing here from the
-        // passphrase (`docs/TEXT-CURSOR.md` §4, C3).
+        // passphrase (`docs/TEXT-CURSOR.md` §3).
         let here = Action::TypeHere(crate::edit::Here::Aezeed);
         let (tx, fh, room) = (
             x + faraday_draw::tokens::TYPED_INSET,

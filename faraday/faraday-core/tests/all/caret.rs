@@ -138,7 +138,7 @@ fn the_arrow_keys_move_the_caret() {
 
 /// Tools' Find a tool takes typing with no press to focus it; the arrow
 /// keys and a press there move the caret in it as in any field
-/// (`docs/TEXT-CURSOR.md` §4, C2).
+/// (`docs/TEXT-CURSOR.md` §3).
 #[test]
 fn find_a_tool_takes_typing_where_the_caret_is() {
     let mut app = tools(1_000);
@@ -180,7 +180,7 @@ fn message_text(app: &Faraday) -> String {
 
 /// A message of several lines takes an edit at its caret: the arrow
 /// keys move it, a press on the second line puts it there, and Up takes
-/// it to the line above (`docs/TEXT-CURSOR.md` §4, C3).
+/// it to the line above (`docs/TEXT-CURSOR.md` §3).
 #[test]
 fn a_message_of_several_lines_takes_typing_where_the_caret_is() {
     let mut app = message("Pay to the order of");
@@ -211,7 +211,7 @@ fn a_message_of_several_lines_takes_typing_where_the_caret_is() {
 
 /// Add a key's codex32 string takes an edit at its caret: the arrow
 /// keys, Home among them, and a press move it, and what is typed goes in there
-/// (`docs/TEXT-CURSOR.md` §4, C3).
+/// (`docs/TEXT-CURSOR.md` §3).
 #[test]
 fn a_codex32_string_takes_typing_where_the_caret_is() {
     use faraday_core::forms::Form;

@@ -772,7 +772,7 @@ impl Faraday {
     pub(crate) fn scroll_key(&mut self, key: faraday_shell_api::Key) -> bool {
         use faraday_shell_api::Key;
         // A field whose own keys come before these takes an edit at the
-        // caret first (`docs/TEXT-CURSOR.md` §4, C2).
+        // caret first (`docs/TEXT-CURSOR.md` §3).
         if self.here_key(key) {
             return true;
         }
