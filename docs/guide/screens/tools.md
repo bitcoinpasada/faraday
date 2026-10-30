@@ -34,6 +34,7 @@ name, its line and its standards; the groups below scroll into view.*
 | **Copy a signed message in first** | **Check a signed message** |
 | **Make a vault first**, **Unlock a vault first** | **TOTP codes**, **KeePass export**, while no vault is open |
 | **Continue** | **GPG key**, **Secure Boot keys**: a key's making left part way; the tile opens it there |
+| **Practice sweeps no private key** | **Sweep a private key**, in Practice |
 
 ## The tiles
 
@@ -43,6 +44,7 @@ name, its line and its standards; the groups below scroll into view.*
 | | **Scan a SeedQR** | the [typing page](add-a-key.md), with the camera open for a SeedQR |
 | | **SLIP-39 shares** | Add a key, making SLIP-39 shares |
 | | **Restore from SLIP-39**, "codex32", **Seed XOR** | Add a key, on that form typed |
+| | **Sweep a private key** | [Sweep a private key](sweep.md), its field open |
 | | **Explore a key**, **Child seeds and passwords**, **Vanity address**, **Silent payments**, **Lightning node key** | each tool's page |
 | **Wallets** | **Single-key wallet**, **Multisig**, **Taproot multisig**, "MuSig2" | [Make a new wallet](make-a-wallet.md), that kind chosen |
 | | **Miniscript and inheritance**, **Restore an existing wallet** | [Restore an existing wallet](restore.md) |

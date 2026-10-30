@@ -1,15 +1,17 @@
 # The backup flow
 
 **Kind:** Reference
-**Status:** Checked against the app's pictures in docs/guide/pictures/ (drawn by just guide-pictures) and its code and strings (`faraday/faraday-core/src/backup_flow/screen.rs`, `faraday/faraday-core/src/backup_flow/wallet_screen.rs`, `faraday/faraday-core/src/backup_flow/steps.rs`, `faraday/faraday-core/src/backup_flow/mod.rs`, `faraday/faraday-core/src/stick/pills.rs`)
-**Screen:** `BackupFlow`
+**Status:** Checked against the app's pictures in docs/guide/pictures/ (drawn by just guide-pictures) and its code and strings (`faraday/faraday-core/src/backup_flow/screen.rs`, `faraday/faraday-core/src/backup_flow/wallet_screen.rs`, `faraday/faraday-core/src/backup_flow/steps.rs`, `faraday/faraday-core/src/backup_flow/mod.rs`, `faraday/faraday-core/src/backup_flow/gpg_restore_screen.rs`, `faraday/faraday-core/src/stick/pills.rs`)
+**Screen:** `BackupFlow`, `GpgRestore`
 **Group:** Wallets
 
 The flow that makes a key where its backup is planned first: where it
 will be kept, its sticks read and its vaults made or unlocked before
 the key exists, then the key, one lock, and each stick written. Its
 title is what it makes: **GPG key**, **Secure Boot keys**, or **Bitcoin
-wallet** for a wallet's vaults and sticks.
+wallet** for a wallet's vaults and sticks; **Restore a GPG key** for a
+GPG key brought back from its paperkey
+([below](#restore-a-gpg-key)).
 
 **Opened from:**
 
@@ -181,6 +183,68 @@ the files written to it. "Unlock Vault 1" opens the vault with its
 passphrase; for a GPG key or Secure Boot keys the key's page follows,
 for a wallet its card. A wallet with no vault has **Home**. In Guided
 mode a wallet's **Done** has the line on extra copies.
+
+## Restore a GPG key
+
+**Opened from:** **Restore from a paperkey** under **Make a key** in
+[Vault contents](vault.md); **Restore from its paperkey** in a public
+key's ⋮ in [Files](files.md), which opens the flow on that key; a
+public key scanned on this sheet's own scanner.
+
+A GPG key Faraday made, brought back into a vault from its public key
+and the paperkey printed from it. The sheet lists the public keys in
+Files:
+
+![Restore a GPG key over Files holding two public keys: Unprotected and its fingerprint, and an RSA key dimmed with why](../pictures/backup-flow-gpg-restore.png)
+
+*Files holds two public keys: one of Faraday's shape, its user ID
+("Unprotected <unprotected@example.com>") over its fingerprint, and
+rsa-key.asc, an RSA key, dimmed, with "rsa3072 keys are not restored
+here: Faraday's are Ed25519" in red under it; **Cancel** and **Scan the
+public key** at the foot.*
+
+| Control | What it does |
+|---|---|
+| a key's row | its user ID over its fingerprint: opens the flow on that key |
+| a dimmed row | a public key not restored here, its user ID or its file's name, with why: "rsa3072 keys are not restored here: Faraday's are Ed25519", **Not a key of Faraday's shape: an Ed25519 key with one Ed25519 signing subkey**, **The public key has no user ID**, **Not a public key Faraday reads** |
+| **Copy its public key in on a stick visit first.** | where no row can be pressed |
+| **Cancel** | closes the sheet |
+| **Scan the public key** | the camera: a public key read goes into Files and the flow opens on it |
+
+In Practice the sheet does not open, as Make does not.
+
+The flow has the cards of Make, with the public key first:
+
+| Card | What it holds |
+|---|---|
+| **The public key** | the user ID and fingerprint closed; open: **User ID**, **Fingerprint**, **Signing subkey**, **Valid**, a revocation by the key in red, and **Line 1 of its paperkey**, the bytes the paperkey's first line must read. **Continue** while the plan is not made |
+| **Where it will be kept**, the sticks, **Vaults** | as for a GPG key made |
+| **Type the paperkey** | step 4, below |
+| **Lock**, "Write the sticks", **Done** | as for a GPG key made |
+
+**Type the paperkey** takes the paperkey a line at a time on the hex
+keyboard docked at the foot, each line as it is printed: its number,
+the bytes, and its six-digit CRC.
+
+| Control | What it does |
+|---|---|
+| "Line 2 of 4" | the field: the line being typed, wrapping as it does on paper; "Line 2" until the count is read from line 1 |
+| **Next line** | checks the line; once checked it reads "Line 2 · checked", line 1 with the fingerprint it names under it |
+| "Type line 3 again" | under the lines checked: clears the last one to type it again |
+| **Scan the paperkey** | while no line is checked: the camera, for a code of the paperkey, its printed lines or its raw form; every line read is checked as a line typed is |
+| **Restore the key** | once every line is checked: makes the key from the lines and saves it into each vault of the plan, which must be open |
+
+A line that does not check says why in red under the field: **Only
+0–9, A–F, spaces and the line's number**, "This is line 3, not line 2",
+"CRC on line 2 does not match", **CRC of secret does not match**,
+"This paperkey is for key …". **Restore the key** refuses a paperkey
+whose secret does not match the public key (**The secret does not match
+the public key**), one protected by a passphrase, or a key already in
+the vault ("This key is in Vault 1", with the vault's name to open it).
+Once restored, the card shows the key's facts as Make's does, "Restored
+into Vault 1" for each vault, and "2 signatures by other keys are not
+kept" where the public key carried some; **Continue** goes on to the
+lock.
 
 ## On a narrow window
 

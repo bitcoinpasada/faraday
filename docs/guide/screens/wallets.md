@@ -1,14 +1,15 @@
 # Wallets
 
 **Kind:** Reference
-**Status:** Checked against the app's pictures in docs/guide/pictures/ (drawn by just guide-pictures) and its code and strings (`faraday/faraday-core/src/screens/wallets_start.rs`, `faraday/faraday-core/src/screens/wallets.rs`, `faraday/faraday-core/src/register.rs`, `faraday/faraday-core/src/screens/sheets.rs`, `faraday/faraday-core/src/glance/mod.rs`)
-**Screen:** `WalletsStart`, `Wallets`, `KeyPath`, `Register`
+**Status:** Checked against the app's pictures in docs/guide/pictures/ (drawn by just guide-pictures) and its code and strings (`faraday/faraday-core/src/screens/wallets_start.rs`, `faraday/faraday-core/src/screens/wallets.rs`, `faraday/faraday-core/src/register.rs`, `faraday/faraday-core/src/screens/sheets.rs`, `faraday/faraday-core/src/glance/mod.rs`, `faraday/faraday-core/src/silent/screen.rs`, `faraday/faraday-core/src/wallet/account.rs`)
+**Screen:** `WalletsStart`, `Wallets`, `KeyPath`, `Register`, `Account`
 **Group:** Wallets
 
 The Wallets tab's first page, the wallets loaded with the chosen
-wallet's card beside them, and the two sheets that add a wallet only
-once it is held for: one whose key path another key spends, and one a
-spend registers.
+wallet's card beside them, the two sheets that add a wallet only once
+it is held for (one whose key path another key spends, and one a spend
+registers), and the dialog that asks which account of a Coldcard export
+to load.
 
 ## Wallets: the first page
 
@@ -168,6 +169,28 @@ with why under the name:
 | "Output 1 names this wallet but is not its address" | an output claims to be the wallet's and is not |
 | **None of these keys is yours** | no key loaded is one of them |
 | "Key 3dca6805 at 48h/0h/0h/2h has your fingerprint but is not your key" | a key under your fingerprint that your key does not give |
+
+## Which account to load?
+
+**Opened from:** a Coldcard export that holds a single-sig account and
+a silent payments account coming in, from Files or a scan. Neither is added until one is chosen; the dialog
+opens over what is on screen.
+
+![The dialog Which account to load?: Coldcard Export holds a single-sig account and a silent payments account, with Cancel, Single-sig · BIP-84 and Silent payments · BIP-352](../pictures/wallets-account.png)
+
+*A Coldcard export from Files, on Testnet as the export is: its line,
+then **Cancel**, "Single-sig · BIP-84" and "Silent payments · BIP-352".*
+
+| Control | What it does |
+|---|---|
+| "Coldcard Export holds a single-sig account and a silent payments account" | under the title, the name the wallet is added under (here from the file coldcard-export.json) |
+| "Single-sig · BIP-84" | loads its single-sig account: BIP-84's, else BIP-86's, 49's or 44's, the one named |
+| "Silent payments · BIP-352" | loads its silent payments account, as a [silent payments wallet](#a-silent-payments-wallet) |
+| **Cancel** | adds neither |
+
+The choice holds for the rest of the session: the same export loads
+that account again without asking. The press that brought it in goes
+on as it would have.
 
 ## On a narrow window
 

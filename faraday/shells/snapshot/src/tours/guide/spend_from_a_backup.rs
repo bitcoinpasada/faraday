@@ -147,9 +147,12 @@ fn spend(t: &mut Tour) -> Result<(), String> {
     t.press(Action::Family(F::Next(page::CHECK)));
     // Sparrow's payment written: I have the PSBT.
     t.press(Action::Family(F::Next(page::WRITE)));
-    t.shot_marking("spend-from-a-backup-bring", Action::Scan)?;
+    t.shot_marking(
+        "spend-from-a-backup-bring",
+        Action::ScanFor(faraday_core::Ask::SpendPsbt),
+    )?;
     let psbt = faraday_core::testkit::unsigned(&super::kit_of(t, w, 1_850))?;
-    t.press(Action::Scan);
+    t.press(Action::ScanFor(faraday_core::Ask::SpendPsbt));
     super::spend::show_psbt(t, &psbt.to_bytes(), None)?;
     // Read it.
     t.press(Action::Family(F::Next(page::BRING)));

@@ -40,11 +40,11 @@ checked, a TOTP setup code, the Spend tab's intake. With a stick
 attached, [Pull the stick to scan](prompts.md#pull-the-stick) comes
 first.
 
-![Scan a QR code: the camera's picture with green corner brackets, a code outlined, UR 2 of 8 read and a bar under it](../pictures/qr-and-scan-scan.png)
+![Scan the PSBT: the camera's picture with green corner brackets, a code outlined, UR 2 of 8 read and a bar under it](../pictures/qr-and-scan-scan.png)
 
-*The camera, **Scan a QR code**, with an animated code in view: the code found
-outlined, "UR: 2 of 8 · missing 3, 4, 5, 6, 7, 8" and its bar; **Paste**
-dimmed, **Cancel**.*
+*The camera a spend opens, titled **Scan the PSBT**, with an animated
+code in view: the code found outlined, "UR: 2 of 8 · missing 3, 4, 5,
+6, 7, 8" and its bar; **Cancel**.*
 
 | Control | What it does |
 |---|---|
@@ -95,10 +95,11 @@ tab, a seed taken in with no passphrase. A SeedQR holds no passphrase,
 so the sheet asks. Its title names what was read: **SeedQR read**,
 **CompactSeedQR read**, **Words read**.
 
-![SeedQR read: Without a passphrase 3dca6805, with Cancel, Add a passphrase and Use without a passphrase](../pictures/qr-and-scan-seedqr-read.png)
+![SeedQR read: Without a passphrase 3dca6805, with Cancel, It is a Seed XOR part, Add a passphrase and Use without a passphrase](../pictures/qr-and-scan-seedqr-read.png)
 
 *The sheet **SeedQR read**: **Without a passphrase** 3dca6805, then **Cancel**,
-**Add a passphrase** and **Use without a passphrase**.*
+**It is a Seed XOR part**, **Add a passphrase** and **Use without a
+passphrase**.*
 
 | Control | What it does |
 |---|---|

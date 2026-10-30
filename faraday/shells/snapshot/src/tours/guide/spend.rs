@@ -7,12 +7,15 @@ use faraday_crypto::work::Compute;
 use faraday_shell_api::{App, Event};
 
 /// `bytes`, a PSBT, held up to the camera now open as animated UR
-/// parts until the camera closes; a shot named `mid` at the second part.
+/// parts until the camera closes or shows its read card (Home's Scan
+/// shows the PSBT's card, `docs/SCANNING.md` §5.4); a shot named `mid`
+/// at the second part.
 pub(super) fn show_psbt(t: &mut Tour, bytes: &[u8], mid: Option<&str>) -> Result<(), String> {
     crate::tours::site_tour::camera(t);
     let mut enc = faraday_codec::ur::Encoder::psbt(bytes, 120).map_err(|e| format!("{e:?}"))?;
     let mut parts = 0;
-    while t.app.scan().is_some() && parts < 80 {
+    let reading = |t: &Tour| t.app.scan().is_some_and(|s| s.card.is_none());
+    while reading(t) && parts < 80 {
         t.app.event(Event::Scanned {
             bytes: enc.next_part().into_bytes(),
         });
@@ -35,7 +38,7 @@ pub(super) fn show_psbt(t: &mut Tour, bytes: &[u8], mid: Option<&str>) -> Result
         }
     }
     t.pump();
-    if t.app.scan().is_some() {
+    if reading(t) {
         return Err(format!("the camera still waits after {parts} parts"));
     }
     Ok(())
@@ -58,8 +61,8 @@ pub(super) fn spend_by_qr(_c: &Compute, t: &mut Tour) -> Result<(), String> {
     t.press(Action::Family(F::SpendFrom(w)));
     t.shot_marking("6-2-sparrow", Action::Family(F::Next(page::CHECK)))?;
     t.press(Action::Family(F::Next(page::CHECK)));
-    t.shot_marking("6-3-write", Action::Scan)?;
-    t.press(Action::Scan);
+    t.shot_marking("6-3-write", Action::ScanFor(faraday_core::Ask::SpendPsbt))?;
+    t.press(Action::ScanFor(faraday_core::Ask::SpendPsbt));
     show_psbt(t, &psbt.to_bytes(), Some("6-3-scanning"))?;
     t.shot_marking("6-4-transaction", Action::ToggleTable)?;
     t.press(Action::ToggleTable);
@@ -116,6 +119,8 @@ pub(super) fn spend_warnings(_c: &Compute, t: &mut Tour) -> Result<(), String> {
         t.press(Action::Nav(Screen::Home));
         t.press(Action::Scan);
         show_psbt(t, &bytes, None)?;
+        // The read card's Done: the PSBT is in Files, opened from there.
+        t.press(Action::Cancel);
         let at = t
             .app
             .inbox()

@@ -1,7 +1,9 @@
 //! The screen reference's pictures of states a walkthrough does not pass
 //! through (`docs/guide/screens/`): the word list, the boot stick's
 //! import, a new keyboard, the idle lock, a SeedQR read, partial
-//! descriptions, a chart's sheet and Faraday Demo's Transfer.
+//! descriptions, a chart's sheet, Faraday Demo's Transfer, Restore a GPG
+//! key's sheet, Sweep a private key with its key read, and the account
+//! dialog of a Coldcard export.
 
 use super::{DICE_FP, DICE_WORDS, files_in, key_session, kind_at, seedqr, single_kit};
 use crate::tour::{Tour, type_text};
@@ -11,8 +13,9 @@ use faraday_core::{Action, Screen, StickInfo, StorageEvent, cstep};
 use faraday_crypto::work::Compute;
 use faraday_shell_api::{App, Event};
 
-/// Costs what the guide's wallet's PSBT, a SeedQR read and a backup's
-/// board cost. Each state from a fresh session of its own.
+/// Costs what the guide's wallet's PSBT, a SeedQR read, a backup's
+/// board, two public keys, a WIF and a Coldcard export read cost. Each
+/// state from a fresh session of its own.
 pub(super) fn run(c: &Compute, t: &mut Tour) -> Result<(), String> {
     word_list(t)?;
     import(c, t)?;
@@ -21,7 +24,10 @@ pub(super) fn run(c: &Compute, t: &mut Tour) -> Result<(), String> {
     seedqr_read(c, t)?;
     partials(t)?;
     chart(t)?;
-    transfer(t)
+    transfer(t)?;
+    gpg_restore(t)?;
+    sweep(t)?;
+    account(t)
 }
 
 /// Tools' BIP-39 words, the dice key's third word marked.
@@ -225,4 +231,99 @@ fn transfer(t: &mut Tour) -> Result<(), String> {
         return Err("Transfer did not open in Faraday Demo".into());
     }
     t.shot("qr-and-scan-transfer")
+}
+
+/// A public key GnuPG made of Faraday's shape, and an RSA one
+/// (`tools/vectors/paperkey/`).
+const GPG_CERT: &[u8] =
+    include_bytes!("../../../../../../tools/vectors/paperkey/gpg-unprotected.asc");
+const GPG_RSA: &[u8] = include_bytes!("../../../../../../tools/vectors/paperkey/gpg-rsa3072.asc");
+
+/// Costs what reading two public keys costs. Restore a GPG key's sheet
+/// over Files holding both public keys: the one of Faraday's shape to
+/// press, the RSA one dimmed with why.
+fn gpg_restore(t: &mut Tour) -> Result<(), String> {
+    use faraday_core::backup_flow::steps::{FlowAction as F, RestorePress as R};
+    crate::tours::screens::stick_session(t);
+    files_in(
+        t,
+        &[
+            ("unprotected.asc", GPG_CERT.to_vec()),
+            ("rsa-key.asc", GPG_RSA.to_vec()),
+        ],
+        &[],
+    );
+    t.press(Action::Flow(F::Restore(R::Sheet)));
+    if t.app.sheet != Some(faraday_core::Sheet::GpgRestore) {
+        return Err("Restore a GPG key's sheet did not open".into());
+    }
+    t.shot("backup-flow-gpg-restore")?;
+    t.press(Action::Cancel);
+    Ok(())
+}
+
+/// Key 1's mainnet WIF, a key every test suite knows: it holds nothing.
+const SWEEP_WIF: &str = "KwDiBf89QgGbjEhKnhXJuH7LrciVrZi3qYjgd9M7rFU73sVHnoWn";
+
+/// Costs what reading a WIF costs: an elliptic-curve multiplication and
+/// its addresses. Tools' Sweep a private key, key 1's WIF typed and
+/// used: the key named by its legacy address, and the addresses it pays
+/// with their codes.
+fn sweep(t: &mut Tour) -> Result<(), String> {
+    use faraday_core::catalog::{Go, TILES};
+    use faraday_core::seeds::sweep::SweepAction as S;
+    crate::tours::screens::stick_session(t);
+    // The session's clock starts now, so the idle lock does not take the
+    // key the moment the shot's time passes.
+    t.app.event(Event::Tick { now_ms: t.now });
+    let tile = TILES
+        .iter()
+        .position(|tile| tile.go == Go::Sweep)
+        .ok_or("no Sweep tile")?;
+    t.press(Action::Nav(Screen::Catalog));
+    t.press(Action::Catalog(
+        u8::try_from(tile).map_err(|e| e.to_string())?,
+    ));
+    if t.app.sheet != Some(faraday_core::Sheet::Sweep) {
+        return Err("Sweep a private key did not open".into());
+    }
+    type_text(t, SWEEP_WIF);
+    t.press(Action::Sweep(S::Use));
+    if t.app.session.keys.sweep().is_none() {
+        return Err("the WIF was not read".into());
+    }
+    t.shot("sweep-key")?;
+    if t.app.session.keys.sweep().is_none() {
+        return Err("the key was wiped before its picture".into());
+    }
+    t.press(Action::Sweep(S::Done));
+    Ok(())
+}
+
+/// Coldcard's export of one key's single-sig accounts and its silent
+/// payments account (Sparrow's test files), a testnet one.
+const CC_SP: &str = include_str!(
+    "../../../../../faraday-core/tests/vectors/interop/sparrow/cc-singlesig-sp-keystore-1.json"
+);
+
+/// Costs what reading a Coldcard export costs. Files' Load of a Coldcard
+/// export of both accounts, on Testnet as the export is: Which account
+/// to load?
+fn account(t: &mut Tour) -> Result<(), String> {
+    crate::tours::screens::stick_session(t);
+    testkit::move_to(&mut t.app.session, faraday_bip::keys::Network::Testnet)
+        .map_err(|e| format!("{e:?}"))?;
+    files_in(
+        t,
+        &[("coldcard-export.json", CC_SP.as_bytes().to_vec())],
+        &[],
+    );
+    t.press(Action::Nav(Screen::Files));
+    t.press(Action::LoadWallet(0));
+    if t.app.sheet != Some(faraday_core::Sheet::Account) {
+        return Err("the account dialog did not open".into());
+    }
+    t.shot("wallets-account")?;
+    t.press(Action::LoadAccount(None));
+    Ok(())
 }

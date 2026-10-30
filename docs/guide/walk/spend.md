@@ -64,7 +64,7 @@ QR*. Bring the PSBT to Faraday one of two ways:
 
 | By QR code | On a stick |
 |---|---|
-| ![Scan a QR code reading an animated code, UR: 2 of 8 · missing 3, 4, 5, 6, 7, 8](../pictures/6-3-scanning.png) | ![A stick is attached, listing what is kept and what is wiped from memory, Lock and use stick outlined](../pictures/6-3-stick-attached.png) |
+| ![Scan the PSBT reading an animated code, UR: 2 of 8 · missing 3, 4, 5, 6, 7, 8](../pictures/6-3-scanning.png) | ![A stick is attached, listing what is kept and what is wiped from memory, Lock and use stick outlined](../pictures/6-3-stick-attached.png) |
 | Press **Scan the PSBT** and hold Sparrow's animated code up to the camera. The line under the picture counts the parts (**UR: 2 of 8 · missing 3, 4, …**); the camera closes when every part is in. Go to step 6.4. | In Sparrow, *Save Transaction* to the stick. **On a stick** is grey until a stick is in (**Plug the stick in**). Plug the stick in: [**A stick is attached**](../screens/lock-and-power.md#a-stick-is-attached) lists what the lock keeps (**Kept**), what it wipes (**Wiped from memory**) and what follows (**Then**, **A fresh start, and the stick visit**). Press **Lock and use stick**; **Not now** keeps the session. |
 
 **Lock and use stick** wipes the keys and the wallet. What was not in a
