@@ -34,6 +34,7 @@ pub use press::{Plain, PressMark, Ring, Shape, Unpressed};
 pub use region::{Scrolled, Slot};
 pub use theme::{Contrast, Mode, TextSize, Theme};
 
+use faraday_draw::canvas::ShapeKey;
 use faraday_draw::fonts::Family;
 use faraday_draw::text::{self, TextAlign};
 use faraday_draw::widgets::Icon;
@@ -128,6 +129,16 @@ pub enum NameSuffix {
 
 /// The wordmark's cap height in its font units.
 const WORDMARK_CAP: f32 = 687.0;
+
+/// The shapes a canvas keeps filled for the name and the mark
+/// ([`faraday_draw::canvas::ShapeKey`]): FARADAY; the word after it, and
+/// the word under it, each plus the suffix's own number; the mark's lit
+/// half and its body.
+const SHAPE_WORDMARK: u32 = 1;
+const SHAPE_SUFFIX: u32 = 0x10;
+const SHAPE_SUFFIX_UNDER: u32 = 0x20;
+const SHAPE_MARK_LIT: u32 = 0x30;
+const SHAPE_MARK_BODY: u32 = 0x31;
 
 /// The wordmark's outlines, each curve as straight pieces, and the left
 /// and right edges of them all, in font units.
@@ -1165,36 +1176,50 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         self.stroke(x, y, w, h, SHAPE_M, edge);
     }
 
-    /// Faraday's mark in a box `w` by `h` units at (x, y): the keyhole
-    /// shield (`mark`), fitted to the box and centred, the shield in
-    /// primary with its band lit half with white and the keyhole cut
-    /// through. Its outlines are worked out once; drawing scales them.
+    /// Costs filling its outlines the first time it is drawn at a place
+    /// and size, then a blend of what the canvas kept
+    /// ([`Canvas::fill_kept`]). Faraday's mark in a box `w` by `h` units
+    /// at (x, y): the keyhole shield (`mark`), fitted to the box and
+    /// centred, the shield in primary with its band lit half with white
+    /// and the keyhole cut through.
     pub fn mark(&mut self, x: f32, y: f32, w: f32, h: f32) {
         let m = mark::outlines();
         let area = self.rect(x, y, w, h);
         let s = (area.w as f32 / mark::WIDTH).min(area.h as f32 / mark::HEIGHT);
         let ox = area.x as f32 + (area.w as f32 - s * mark::WIDTH) / 2.0;
         let oy = area.y as f32 + (area.h as f32 - s * mark::HEIGHT) / 2.0;
-        let place = |o: &[(f32, f32)]| -> Vec<(f32, f32)> {
+        let place = move |o: &[(f32, f32)]| -> Vec<(f32, f32)> {
             o.iter()
                 .map(|&(px, py)| (ox + px * s, oy + py * s))
                 .collect()
         };
-        let (outer, inner, hole) = (place(&m.outer), place(&m.inner), place(&m.hole));
         let stroke = self.col(Role::Primary);
         let lit = stroke.mix(Color::rgb(0xff, 0xff, 0xff), 0.5);
-        self.c.fill_contours(&[&outer, &hole], lit);
-        self.c.fill_contours(&[&inner, &hole], stroke);
+        let key = |shape| ShapeKey::new(shape, ox, oy, s);
+        self.c.fill_kept(
+            key(SHAPE_MARK_LIT),
+            || vec![place(&m.outer), place(&m.hole)],
+            lit,
+        );
+        self.c.fill_kept(
+            key(SHAPE_MARK_BODY),
+            || vec![place(&m.inner), place(&m.hole)],
+            stroke,
+        );
     }
 
-    /// Faraday's name, the wordmark of `assets/wordmark.txt`, its capitals
-    /// `cap` units tall with their top-left at (x, y). Returns its width.
+    /// Costs as [`Ui::wordmark_named`]. Faraday's name, the wordmark of
+    /// `assets/wordmark.txt`, its capitals `cap` units tall with their
+    /// top-left at (x, y). Returns its width.
     pub fn wordmark(&mut self, x: f32, y: f32, cap: f32, color: impl Into<Paint>) -> f32 {
         let color: Paint = color.into();
         self.wordmark_named(x, y, cap, color, NameSuffix::None)
     }
 
-    /// The wordmark with the word of an app's name after it
+    /// Costs filling its outlines the first time it is drawn at a place
+    /// and size, then a blend of what the canvas kept
+    /// ([`Canvas::fill_kept`]). The wordmark with the word of an app's
+    /// name after it
     /// ("Faraday Starter", "Faraday Demo", "Faraday Offline"), as one name
     /// in one lettering.
     /// The suffix is in Archivo Expanded Regular, in the grey of
@@ -1212,23 +1237,32 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         let s = cap / WORDMARK_CAP;
         let k = s * self.f;
         let (ox, oy) = ((x + self.ox) * self.f, (y + self.oy) * self.f);
-        let place = |o: &Vec<(f32, f32)>, dx: f32| -> Vec<(f32, f32)> {
-            o.iter()
-                .map(|&(fx, fy)| (ox + (fx + dx - mark.left) * k, oy + (fy + WORDMARK_CAP) * k))
+        let place = |os: &[Vec<(f32, f32)>], dx: f32| -> Vec<Vec<(f32, f32)>> {
+            os.iter()
+                .map(|o| {
+                    o.iter()
+                        .map(|&(fx, fy)| {
+                            (ox + (fx + dx - mark.left) * k, oy + (fy + WORDMARK_CAP) * k)
+                        })
+                        .collect()
+                })
                 .collect()
         };
-        let outlines: Vec<Vec<(f32, f32)>> = mark.outlines.iter().map(|o| place(o, 0.0)).collect();
-        let contours: Vec<&[(f32, f32)]> = outlines.iter().map(Vec::as_slice).collect();
         let fill = self.col(color);
-        self.c.fill_contours(&contours, fill);
+        self.c.fill_kept(
+            ShapeKey::new(SHAPE_WORDMARK, ox, oy, k),
+            || place(&mark.outlines, 0.0),
+            fill,
+        );
         let mut right = mark.right;
         if let Some(word) = suffix_word(suffix) {
             let start = mark.right + SUFFIX_GAP;
-            let outlines: Vec<Vec<(f32, f32)>> =
-                word.outlines.iter().map(|o| place(o, start)).collect();
-            let contours: Vec<&[(f32, f32)]> = outlines.iter().map(Vec::as_slice).collect();
             let grey = self.col(Role::OnSurfaceVariant);
-            self.c.fill_contours(&contours, grey);
+            self.c.fill_kept(
+                ShapeKey::new(SHAPE_SUFFIX + suffix as u32, ox, oy, k),
+                || place(&word.outlines, start),
+                grey,
+            );
             right = start + word.right;
         }
         let w = (right - mark.left) * s;
@@ -1243,7 +1277,8 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         self.c.note(faraday_draw::canvas::InkKind::Wordmark, r);
     }
 
-    /// The name with the word of the app under FARADAY in place of after
+    /// Costs as [`Ui::wordmark_named`], for each of its two lines. The
+    /// name with the word of the app under FARADAY in place of after
     /// it, for a bar too narrow for the two side by side: FARADAY's
     /// capitals `cap` units tall with their top-left at (x, y), the word's
     /// `WORDMARK_STACK_WORD` of that, `WORDMARK_STACK_GAP` of it under
@@ -1273,24 +1308,29 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
             .map(|p| p.0)
             .fold(f32::MAX, f32::min);
         let (ox, oy) = ((x + self.ox) * self.f, (wy + self.oy) * self.f);
-        let outlines: Vec<Vec<(f32, f32)>> = word
-            .outlines
-            .iter()
-            .map(|o| {
-                o.iter()
-                    .map(|&(fx, fy)| (ox + (fx - left) * k, oy + (fy + WORDMARK_CAP) * k))
-                    .collect()
-            })
-            .collect();
-        let contours: Vec<&[(f32, f32)]> = outlines.iter().map(Vec::as_slice).collect();
+        let outlines = || {
+            word.outlines
+                .iter()
+                .map(|o| {
+                    o.iter()
+                        .map(|&(fx, fy)| (ox + (fx - left) * k, oy + (fy + WORDMARK_CAP) * k))
+                        .collect()
+                })
+                .collect()
+        };
         let grey = self.col(Role::OnSurfaceVariant);
-        self.c.fill_contours(&contours, grey);
+        self.c.fill_kept(
+            ShapeKey::new(SHAPE_SUFFIX_UNDER + suffix as u32, ox, oy, k),
+            outlines,
+            grey,
+        );
         let word_w = (word.right - left) * s;
         self.note_name(x, wy, word_w, wc);
         (mark_w.max(word_w), wy + wc - y)
     }
 
-    /// Costs measuring the name and filling its outlines. An app's name
+    /// Costs measuring the name, and drawing it as
+    /// [`Ui::wordmark_named`] does. An app's name
     /// starting at `x` and ending within `room` units of it, its capitals
     /// `cap` tall on the line whose top is `y`: beside its word where the
     /// two fit; else, for an app with a word, the word under FARADAY

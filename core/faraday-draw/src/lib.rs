@@ -15,6 +15,7 @@ pub mod easing;
 pub mod fonts;
 pub mod geom;
 pub mod layout;
+mod shapes;
 pub mod text;
 pub mod tokens;
 pub mod widgets;

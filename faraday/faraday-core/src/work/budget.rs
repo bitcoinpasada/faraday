@@ -16,6 +16,7 @@ mod fades;
 mod idle;
 mod keys;
 mod moments;
+mod name;
 mod presses;
 mod roller;
 mod scaling;
@@ -316,22 +317,24 @@ fn frame_work(app: &mut Faraday) -> Counts {
     frame_costs(app).0
 }
 
-/// [`frame_work`], with the allocations the frame made and the lines of
-/// text it drew.
-fn frame_costs(app: &mut Faraday) -> (Counts, u64, u64) {
+/// [`frame_work`], with the allocations the frame made, the lines of
+/// text it drew and the shapes it filled from their outlines.
+fn frame_costs(app: &mut Faraday) -> (Counts, u64, u64, u64) {
     let lines = |app: &Faraday| app.canvas.as_ref().map_or(0, |c| c.lines_drawn());
+    let filled = |app: &Faraday| app.canvas.as_ref().map_or(0, |c| c.outlines_filled());
     app.settle();
     let _ = app.frame();
     app.out.dirty = true;
     let _ = app.frame();
     let before = snapshot();
-    let (allocs, drawn) = (faraday_alloc_count::allocations(), lines(app));
+    let (allocs, drawn, fills) = (faraday_alloc_count::allocations(), lines(app), filled(app));
     app.out.dirty = true;
     let _ = app.frame();
     (
         since(&before),
         faraday_alloc_count::allocations() - allocs,
         lines(app) - drawn,
+        filled(app) - fills,
     )
 }
 
@@ -368,8 +371,13 @@ impl Report {
     }
 
     fn check(&mut self, app: &mut Faraday, name: &str) {
-        let (frame, allocs, drawn) = frame_costs(app);
+        let (frame, allocs, drawn, fills) = frame_costs(app);
         let hover = hover_work(app);
+        if fills > 0 {
+            self.failures.push(format!(
+                "{name}: a frame drawn again filled {fills} shapes from their outlines: the name and the mark are kept (docs/SPEED.md §3.8)"
+            ));
+        }
         self.measured
             .push(format!("    (\"{name}\", {allocs}, {drawn}),"));
         match self.costs.iter().find(|(n, ..)| *n == name) {

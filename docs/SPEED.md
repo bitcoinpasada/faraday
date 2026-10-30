@@ -271,6 +271,21 @@ glyphs until a new one fits (`GlyphCache::glyph`,
 `core/faraday-draw/src/fonts/mod.rs`) instead of `clear()` would remove
 that one slow frame; not scheduled.
 
+The app's name and its mark (2026-10-29) are kept as glyphs are: each
+canvas fills FARADAY, the word of the app beside it or under it, and
+the two halves of the mark from their outlines the first time they are
+drawn at a place and size, keeps the coverage (`Canvas::fill_kept`,
+`core/faraday-draw/src/shapes.rs`), and blends it in the colour of each
+draw after, the same pixels as a fill from the outlines. The key names
+everything the outlines are worked out from (which shape, its origin in
+pixels, its scale), so a move, a new size or display scale fills them
+anew and a new theme fills nothing; the shapes are bounded by a byte
+budget and dropped whole past it. A QR code's modules are written into
+the canvas a row at a time, and nothing of a QR code is kept, so no
+secret's SeedQR outlives its frame. The budget tests hold that a frame
+drawn again fills no shape (`faraday-core/src/work/budget/name.rs`, and
+every screen of §8.3's frames).
+
 ### 3.9 The web demo (issue 128, built in the website's own repository)
 
 In the website's `web/index.html`, `pointermove` (both

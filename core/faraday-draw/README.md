@@ -11,7 +11,7 @@ counter). It has no flows and no wording of its own.
 
 ```
   DisplayInfo ──► Canvas (tiny_skia::Pixmap, premultiplied RGBA8888)
-                    ▲ fill/stroke via tiny-skia, glyphs blended by hand
+                    ▲ fill/stroke via tiny-skia, glyphs and kept shapes blended by hand
                     │
   fonts, text, geom, tokens, LayoutCtx ──► sizes and positions
   widgets::Icon, widgets::keyboard     ──► icon code points, key rows and key cells
@@ -22,6 +22,7 @@ counter). It has no flows and no wording of its own.
 | `geom` | `Dp`, `Scale` (dpi to px, plus the class's type scale), `SizeClass`, integer `Rect`/`Size`/`Edges` |
 | `color` | `Color` |
 | `fonts` | outline-file parser, `SizedFace` (a family at a pixel size), the CJK fallback face, the `GlyphCache` a `Canvas` owns, `generated.rs` with the `include_bytes!` table |
+| `shapes` | the shapes a `Canvas` fills from their outlines once and keeps (`Canvas::fill_kept`): an app's name and its mark, kept as coverage by a key that names every input of their outlines, blended in the colour of each draw |
 | `text` | `Font { family, size dp }`, width measurement, word wrap; all in 1/64 px then rounded |
 | `canvas` | `Canvas`: clear, rects, rounded rects, lines, circles, text, wrapped text, clip stack, `frame()` |
 | `layout` | `LayoutCtx`: the scale, the size class and the shell's insets |

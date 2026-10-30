@@ -174,7 +174,10 @@ pub fn sheet_box_in<A: Copy + PartialEq>(
     (x, y)
 }
 
-/// A QR code on a white card, square modules, the quiet zone included.
+/// Costs a write of each dark pixel. A QR code on a white card, square
+/// modules, the quiet zone included: each row of modules written
+/// straight into the canvas ([`faraday_draw::Canvas::fill_cells`]), and
+/// nothing kept, so no secret's SeedQR outlives its frame.
 pub fn qr_code<A: Copy + PartialEq>(
     ui: &mut Ui<A>,
     m: &faraday_codec::qr::QrMatrix,
@@ -192,26 +195,12 @@ pub fn qr_code<A: Copy + PartialEq>(
     let r = ui.rect(x, y, side, side);
     let ox = r.x + (r.w - used) / 2;
     let oy = r.y + (r.h - used) / 2;
-    for row in 0..n {
-        let mut col = 0;
-        while col < n {
-            if m.module(col, row) {
-                let start = col;
-                while col < n && m.module(col, row) {
-                    col += 1;
-                }
-                let rect = faraday_draw::Rect::new(
-                    ox + start as i32 * module_px,
-                    oy + row as i32 * module_px,
-                    (col - start) as i32 * module_px,
-                    module_px,
-                );
-                ui.c.fill_rect(rect, faraday_draw::Color::BLACK);
-            } else {
-                col += 1;
-            }
-        }
-    }
+    ui.c.fill_cells(
+        (ox, oy),
+        (n, module_px),
+        |col, row| m.module(col, row),
+        faraday_draw::Color::BLACK,
+    );
 }
 
 pub use faraday_draw::tokens::{STEP_INDENT, STEP_SIDE, STEP_TOUCH};

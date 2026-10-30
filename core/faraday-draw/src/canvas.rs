@@ -16,6 +16,8 @@ use tiny_skia::{FillRule, Paint, PathBuilder, Pixmap, PremultipliedColorU8, Stro
 use crate::color::Color;
 use crate::fonts::{Coverage, GlyphCache, SizedFace};
 use crate::geom::{Rect, Scale, SizeClass};
+pub use crate::shapes::ShapeKey;
+use crate::shapes::{self, Shapes};
 use crate::text::{self, Font, TextAlign, TextMetrics};
 
 /// A drawing surface the size of the display.
@@ -25,6 +27,9 @@ pub struct Canvas {
     clips: Vec<Rect>,
     /// Glyph bitmaps filled from the outlines, kept between frames.
     glyphs: GlyphCache,
+    /// Shapes filled from their outlines, kept between frames
+    /// ([`Canvas::fill_kept`]).
+    shapes: Shapes,
     /// The pixels outside the clip put aside while a shape is drawn
     /// across the clip's edge.
     scratch: Vec<u8>,
@@ -117,6 +122,7 @@ impl Canvas {
             scale,
             clips: Vec::new(),
             glyphs: GlyphCache::new(),
+            shapes: Shapes::default(),
             scratch: Vec::new(),
             cut: Vec::new(),
             ink: None,
@@ -150,6 +156,14 @@ impl Canvas {
     /// much text it put where it can be seen.
     pub fn lines_drawn(&self) -> u64 {
         self.lines
+    }
+
+    /// How many shapes this canvas has filled from their outlines,
+    /// counting from its making ([`Canvas::fill_kept`]'s misses): two
+    /// counts taken around a frame drawn again say whether it filled
+    /// what it could have kept. A lookup.
+    pub fn outlines_filled(&self) -> u64 {
+        self.shapes.filled()
     }
 
     /// Width in pixels.
@@ -368,6 +382,76 @@ impl Canvas {
         paint.anti_alias = false;
         self.pixmap
             .fill_rect(skia_rect(r), &paint, Transform::identity(), None);
+    }
+
+    /// Costs a write of each dark pixel. Fills in `color` the cells of an
+    /// `n` by `n` grid of squares `cell` pixels wide, its top-left at
+    /// `at`, for which `dark(column, row)` holds: a QR code's modules,
+    /// each row's runs written straight into the pixels, the same pixels
+    /// as a [`Canvas::fill_rect`] of each run. Nothing is kept.
+    pub fn fill_cells(
+        &mut self,
+        at: (i32, i32),
+        (n, cell): (usize, i32),
+        dark: impl Fn(usize, usize) -> bool,
+        color: Color,
+    ) {
+        let side = n as i32 * cell;
+        let area = Rect::new(at.0, at.1, side, side).intersect(&self.clip());
+        if area.is_empty() || cell <= 0 || color.a == 0 {
+            return;
+        }
+        // Each row's runs of dark cells, as columns of pixels in the area.
+        let runs_of = |row: usize, runs: &mut Vec<(usize, usize)>| {
+            runs.clear();
+            let mut col = 0;
+            while col < n {
+                if !dark(col, row) {
+                    col += 1;
+                    continue;
+                }
+                let start = col;
+                while col < n && dark(col, row) {
+                    col += 1;
+                }
+                let l = (at.0 + start as i32 * cell).max(area.x);
+                let r = (at.0 + col as i32 * cell).min(area.right());
+                if l < r {
+                    runs.push((l as usize, r as usize));
+                }
+            }
+        };
+        let mut runs = Vec::new();
+        if color.a < 255 {
+            for row in 0..n {
+                runs_of(row, &mut runs);
+                let top = at.1 + row as i32 * cell;
+                for &(l, r) in &runs {
+                    self.fill_rect(Rect::new(l as i32, top, (r - l) as i32, cell), color);
+                }
+            }
+            return;
+        }
+        self.damaged(area);
+        let px = [color.r, color.g, color.b, 255];
+        let stride = self.pixmap.width() as usize * 4;
+        for row in 0..n {
+            let top = (at.1 + row as i32 * cell).max(area.y);
+            let bottom = (at.1 + (row as i32 + 1) * cell).min(area.bottom());
+            if top >= bottom {
+                continue;
+            }
+            runs_of(row, &mut runs);
+            let data = self.pixmap.data_mut();
+            for y in top..bottom {
+                let line = y as usize * stride;
+                for &(l, r) in &runs {
+                    for p in data[line + l * 4..line + r * 4].chunks_exact_mut(4) {
+                        p.copy_from_slice(&px);
+                    }
+                }
+            }
+        }
     }
 
     /// A soft shadow under a rounded rectangle that floats: `rect` with
@@ -1088,6 +1172,36 @@ impl Canvas {
         }
         let Some(path) = pb.finish() else { return };
         self.draw_path(&path, &Self::paint(color), None);
+    }
+
+    /// Costs filling the outlines the first time `key` is drawn, then a
+    /// pass over the shape's box. Fills the closed outlines `outlines`
+    /// gives, in pixels, in `color`, as [`Canvas::fill_contours`] does,
+    /// the same pixels; their coverage is kept under `key` and drawn
+    /// again from it while the key is the same, `outlines` not called.
+    /// The key names everything the outlines are worked out from
+    /// ([`ShapeKey`]); the colour is applied at each draw. An app's name
+    /// and its mark, drawn on every frame, are filled once.
+    pub fn fill_kept(
+        &mut self,
+        key: ShapeKey,
+        outlines: impl FnOnce() -> Vec<Vec<(f32, f32)>>,
+        color: Color,
+    ) {
+        if color.a == 0 {
+            return;
+        }
+        let clip = self.clip();
+        let drawn = shapes::draw(
+            &mut self.shapes,
+            &mut self.pixmap,
+            clip,
+            (key, outlines),
+            color,
+        );
+        if let Some(r) = drawn {
+            self.damaged(r);
+        }
     }
 
     /// Fills `path`, or strokes it with `stroke`, inside the clip.
