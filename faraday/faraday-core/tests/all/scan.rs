@@ -356,8 +356,16 @@ fn a_descriptor_scanned_with_no_wallet_being_made_goes_to_files() {
     ));
     let mut app = scanning(Vec::new());
     scan(&mut app, &text);
+    // Home's Scan: the read card offers to load it (`docs/SCANNING.md`
+    // §5.4), the description in Files already.
+    let way = app
+        .scan()
+        .and_then(|s| s.card.as_ref())
+        .map(|c| c.ways[0].label());
+    assert_eq!(way.as_deref(), Some("Load the wallet"));
+    app.press(Action::Cancel);
     assert!(
-        app.toast_text().is_some_and(|t| t.ends_with("is in Files")),
+        app.inbox().iter().any(|i| i.kind == FileKind::Wallet),
         "{:?}",
         app.toast_text()
     );

@@ -4027,8 +4027,6 @@ strings! {
     scanned_not_a_psbt: "Not a PSBT, a descriptor, an xpub or a signed message",
     /// Toast in `scanned`. `{}`: `name`.
     scanned_is_a_cosigner: "{} is a cosigner's key",
-    /// Scanner note in `home_scan_routed`: a TOTP setup code read on Home's Scan with no vault open.
-    scanned_totp_needs_vault: "That is a TOTP setup code. Unlock a vault to add it",
     /// Scanner note in `scanned_entries`: a TOTP setup code or vault entries read by the Spend tab's intake.
     scanned_totp_not_here: "That is a TOTP setup code · not used here",
     /// Toast in `scanned`. `{}`: `name`, `slot + 1`.

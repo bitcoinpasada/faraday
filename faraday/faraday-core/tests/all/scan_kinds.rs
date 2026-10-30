@@ -486,3 +486,46 @@ fn with_a_stick_in_the_cards_add_this_key_waits_for_it_to_be_out() {
     );
     assert!(app.session.keys.is_empty());
 }
+
+/// After Home's Scan (`docs/SCANNING.md` §5.4): a kind whose page is a
+/// press away shows the card with that press and Done, the code in Files
+/// already; the press opens the page.
+#[test]
+fn homes_scan_of_a_psbt_or_a_descriptor_shows_the_card_with_its_press_and_done() {
+    let kit = testkit::kits()
+        .into_iter()
+        .find(|k| k.id == "spending")
+        .unwrap();
+    let psbt = testkit::unsigned(&kit).unwrap().to_bytes();
+    for (code, way) in [
+        (psbt, "Sign it"),
+        (kit.descriptor.clone().into_bytes(), "Load the wallet"),
+    ] {
+        let mut app = testkit::started();
+        open(&mut app, Opened::Home);
+        read(&mut app, &code);
+        let (_, _, ways) = card(&app).unwrap_or_else(|| panic!("no card: {}", note(&app)));
+        assert_eq!(ways, vec![way.to_string()]);
+        assert_eq!(app.inbox().len(), 1, "the code is not in Files");
+        let text = app.drawn_texts().join("\n");
+        assert!(text.contains("Done"), "{text}");
+        app.press(Action::ReadGo(0));
+        assert!(app.scan().is_none());
+        assert_eq!(app.inbox().len(), 1, "the code was filed twice");
+        if way == "Sign it" {
+            assert!(app.spend().is_some(), "no spend began");
+        } else {
+            assert_eq!(app.session.wallets.len(), 1, "the wallet did not load");
+        }
+    }
+}
+
+#[test]
+fn homes_scan_of_an_account_key_is_filed_with_no_card() {
+    let key = testkit::key(2, "48h/1h/0h/2h");
+    let mut app = testkit::started();
+    open(&mut app, Opened::Home);
+    read(&mut app, key.as_bytes());
+    assert!(app.scan().is_none(), "{}", note(&app));
+    assert_eq!(app.inbox().len(), 1);
+}

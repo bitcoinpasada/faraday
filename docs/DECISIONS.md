@@ -181,9 +181,10 @@ Read this table, then only the decision you need.
 | [F164](decisions/F164.md) | The manifest's screens_not count is 24 | 2026-10-29 | Active | crypto |
 | [F165](decisions/F165.md) | The stick and the Pi read Faraday Offline | 2026-10-26 | Active | design |
 | [F166](decisions/F166.md) | A BIP-85 child seed's parent is kept only in a vault, when the person records it; nothing outside one says so; a wallet made over one says so once | 2026-10-29 | Active | keys |
-| [F167](decisions/F167.md) | Home's Scan takes everything a scanner takes | 2026-10-29 | Active | keys |
+| [F167](decisions/F167.md) | Home's Scan takes everything a scanner takes | 2026-10-29 | Amended by F173 | keys |
 | [F168](decisions/F168.md) | The Nonce check page carries the rail's two touch-target exceptions every rail page carries | 2026-10-29 | Active | design |
 | [F169](decisions/F169.md) | A GPG key is restored from its paperkey and its public certificate | 2026-10-29 | Active | crypto |
 | [F170](decisions/F170.md) | The vault area's code stays together for auditability, not split per screen | 2026-10-29 | Active | repository |
 | [F171](decisions/F171.md) | A WIF private key is swept, never kept: a sheet of its addresses, its PSBT reviewed against the loaded wallets and signed with a hold | 2026-10-29 | Active | keys |
 | [F172](decisions/F172.md) | A BIP-85 password out of Faraday names neither its parent nor its index; in a vault its entry keeps both | 2026-10-29 | Active | keys |
+| [F173](decisions/F173.md) | A TOTP setup code read with no vault open shows the read card: Unlock {vault}, the code carried, or Make a vault, the code not kept | 2026-10-29 | Active | keys |

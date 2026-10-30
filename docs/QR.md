@@ -89,20 +89,21 @@ on is held back until it is off (`docs/history/PLAN.md` §5.4).
 
 | Arrived | Goes to |
 |---|---|
-| PSBT, raw transaction | The transaction step of the wallet it belongs to (`docs/WALLETS.md` §2) |
-| Descriptor, policy, multisig config, BSMS, account key (`crypto-account`, `crypto-hdkey`, xpub) | A new wallet card, or the piece a wallet in progress is missing |
+| PSBT, raw transaction | Files, then the transaction step of the wallet it belongs to (`docs/WALLETS.md` §2); one of the spend under way is collected into it. From Home's Scan, the read card with **Sign it** (or **Add to the signatures**) or **Decode it**, and **Done**; one to check rather than sign goes to its check |
+| Descriptor, policy, multisig config, BSMS, account key (`crypto-account`, `crypto-hdkey`, xpub) | Files, and the piece a wallet in progress is missing; from Home's Scan, a wallet description's read card with **Load the wallet** and split sheets' with **Restore the wallet**, and **Done**; an account key is filed with its toast |
 | SeedQR, CompactSeedQR, words | Add a key, added as its own **Scan a SeedQR** adds them; never Files or the Inbox |
 | codex32 string, Codex32QR, SLIP-39 share | Add a key's form for it, the part in, waiting for the rest of its set (F167); never Files |
 | WIF private key | On Home's Scan and the Sweep sheet's own scanner, the Sweep sheet (`docs/INTEROP.md` §5 I11, F171); on any other scanner, named: Sweep a private key, in Tools, takes it; never filed |
 | Private key: xprv, Nostr `nsec` | Named: Add a key takes seeds as words or a SeedQR; never filed (F167) |
 | Words of a BIP-39 list that are no English BIP-39 seed (checksum failing, aezeed, Electrum) | Named; never filed (F167) |
-| `otpauth://` URI, vault entries | A new entry, filled in, or the entries, in the open vault; with none open, the scanner says to unlock one, and What do you have? says it is not used there; never filed (F167) |
+| `otpauth://` URI, vault entries | A new entry, filled in, or the entries, in the open vault; with none open, the read card: **Unlock {vault}**, the code carried through the unlock, or with no vault **Make a vault**, the code not kept (`docs/SCANNING.md` §4.5); What do you have? says it is not used there; never filed (F167) |
 | Armoured GPG public key, read by Restore a GPG key's **Scan the public key** | Files, as `{name}-{fp8}.asc` (the name Make gives it), and the restore opens on it; one that is not restored here is filed and the sheet says why (`docs/GPG-PAPERKEY.md` §3) |
 | GPG paperkey: paperkey's base16 lines, or its raw form | Taken only by a GPG restore's **Scan the paperkey**, at Type the paperkey; any other scanner names it, "That is a paperkey. Restore a GPG key takes it at Type the paperkey, not Files", and files nothing (F167) |
 | Faraday file envelope | The Inbox, after its SHA-256 is checked |
 | Codes read from an image file on a stick | Routed one by one by the rows above, as if scanned |
-| Address, silent payment address | **Is this address mine?** |
-| Any other text | Shown as text, with **Save as a note** in the open vault |
+| Address, `bitcoin:` URI, silent payment address | **Is this address mine?**: the scanner's line names the loaded wallet and the place it is one of its first hundred, or says it is none of theirs |
+| Signed message | Files; from Home's Scan, the read card with **Check the signature** and **Done** |
+| Any other text | Files, as text; from Home's Scan with a vault open, the read card with **Save as a note** and **Done** |
 
 A scanner opened for one kind (Add a key's **Scan a SeedQR**, a form's
 **Scan**, a wallet's **Scan a key**, a vault's **Scan a setup code**)

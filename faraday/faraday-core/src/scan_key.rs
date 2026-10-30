@@ -808,7 +808,12 @@ impl Faraday {
         let said = if intake {
             Some(EN.scanned_totp_not_here.to_string())
         } else if self.vaults.current_id().is_none() {
-            Some(EN.scanned_totp_needs_vault.to_string())
+            // The read card's Unlock {vault} or Make a vault
+            // (`docs/SCANNING.md` §4.5).
+            let c = self.compute();
+            let bytes = zeroize::Zeroizing::new(text.as_bytes().to_vec());
+            let kind = scan_read::secret_text_kind(&c, &text).unwrap_or(Kind::Entries);
+            return self.read_card_show(&c, kind, (None, "txt", bytes));
         } else {
             self.vault_scanned_entry(&text).err()
         };
@@ -1130,6 +1135,7 @@ impl Faraday {
             code,
             named,
             ext,
+            filed: None,
         }
     }
 
@@ -1216,6 +1222,7 @@ impl Faraday {
             code,
             named,
             ext,
+            filed,
             ..
         } = card;
         let text = zeroize::Zeroizing::new(String::from_utf8_lossy(&code).trim().to_string());
@@ -1257,7 +1264,13 @@ impl Faraday {
                 self.scan_close();
                 self.act(Action::Vault(crate::vault::VaultAction::Create));
             }
-            way => self.read_go_file(way, named, ext, code),
+            way => match filed {
+                Some(at) => {
+                    self.scan_close();
+                    self.read_go_at(way, at);
+                }
+                None => self.read_go_file(way, named, ext, code),
+            },
         }
     }
 
@@ -1271,7 +1284,6 @@ impl Faraday {
         ext: &str,
         code: zeroize::Zeroizing<Vec<u8>>,
     ) {
-        use scan_read::Way;
         let c = self.compute();
         let number = self.camera.next_number();
         let name = match named {
@@ -1280,8 +1292,18 @@ impl Faraday {
         };
         let at = self.inbox_file_in(crate::Item::new(&c, &name, code.to_vec()));
         drop(code);
-        let name = self.inbox[at].name.clone();
         self.scan_close();
+        self.read_go_at(way, at);
+    }
+
+    /// A public kind's way over, on Inbox file `at`: its flow opens on it.
+    fn read_go_at(&mut self, way: scan_read::Way, at: usize) {
+        use scan_read::Way;
+        let name = self
+            .inbox
+            .get(at)
+            .map(|i| i.name.clone())
+            .unwrap_or_default();
         match way {
             Way::Sign => self.act(Action::StartSpend(at)),
             Way::Collect => self.act(Action::Collect(at)),
@@ -1292,6 +1314,38 @@ impl Faraday {
             Way::Note => self.act(Action::Vault(crate::vault::VaultAction::AddFile(at))),
             _ => self.toast(&fill(EN.scanned_is_in_files, &[&name])),
         }
+    }
+
+    /// Costs what [`Faraday::read_card`] costs. After Home's Scan filed
+    /// Inbox file `at` (`docs/SCANNING.md` §5.4): where the kind's page is
+    /// a press away (a PSBT to sign, a finished transaction, a wallet
+    /// description, split sheets, a signed message, text with a vault
+    /// open), the read card shows with that press and **Done**, in place
+    /// of the toast. A transaction to check rather than sign goes straight
+    /// to its check, as before. The scanner, closed as the code was
+    /// filed, opens again on the card. Returns whether the card shows.
+    fn read_card_after_home(&mut self, c: &Compute, at: usize) -> bool {
+        use scan_read::Way;
+        if self.checked_not_signed(at) {
+            return false;
+        }
+        let Some(item) = self.inbox.get(at) else {
+            return false;
+        };
+        let text = String::from_utf8_lossy(&item.bytes).into_owned();
+        let kind = scan_read::public_kind(item.kind, false, &text);
+        let bytes = zeroize::Zeroizing::new(item.bytes.clone());
+        let mut card = self.read_card(c, kind, (None, "txt", bytes));
+        card.ways.retain(|w| *w != Way::Keep);
+        if card.ways.is_empty() {
+            return false;
+        }
+        card.code = zeroize::Zeroizing::new(Vec::new());
+        card.filed = Some(at);
+        self.camera.open(ScanState::default());
+        self.sheet = Some(Sheet::Scan);
+        self.read_card_put(card);
+        true
     }
 
     /// The read card's Scan again: the code is wiped and the camera turns
@@ -1556,6 +1610,12 @@ impl Faraday {
         if intake {
             return self.family_intake_file(at);
         }
+        let home = self.screen == crate::Screen::Home
+            && self.sheet == Some(Sheet::Scan)
+            && self
+                .camera
+                .scan()
+                .is_some_and(|s| s.purpose == ScanPurpose::Files && s.ask == crate::Ask::Any);
         self.scan_close();
         // A cosigner's account key scanned while a wallet is made from
         // seeds fills the box waiting for one.
@@ -1569,6 +1629,12 @@ impl Faraday {
             || self.family_arrived(at)
             || (self.screen == crate::Screen::Restore && self.restore_arrived(at))
         {
+            return;
+        }
+        // Home's Scan: a kind whose page is a press away shows the card
+        // with that press, the code in Files already (`docs/SCANNING.md`
+        // §5.4).
+        if home && self.read_card_after_home(c, at) {
             return;
         }
         self.scan_landed(c, at, &name);

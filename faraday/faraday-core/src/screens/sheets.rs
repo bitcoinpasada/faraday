@@ -946,7 +946,16 @@ fn read_card_foot(
         .collect();
     let leave = [
         (EN.read_again.to_string(), Style::Ghost, Action::ReadAgain),
-        (EN.scan_cancel.to_string(), Style::Secondary, Action::Cancel),
+        (
+            if card.filed.is_some() {
+                EN.scan_done
+            } else {
+                EN.scan_cancel
+            }
+            .to_string(),
+            Style::Secondary,
+            Action::Cancel,
+        ),
     ];
     let width = |ui: &Ui, row: &[(String, Style, Action)]| {
         row.iter()

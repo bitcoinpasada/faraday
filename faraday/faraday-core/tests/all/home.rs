@@ -279,6 +279,14 @@ fn a_psbt_scanned_from_home_goes_into_files_and_home_stays() {
     let mut app = shown();
     tap(&mut app, Action::Scan);
     read(&mut app, &psbt);
+    // The read card offers its spend, the PSBT in Files already
+    // (`docs/SCANNING.md` §5.4); Done leaves Home as it was.
+    let way = app
+        .scan()
+        .and_then(|s| s.card.as_ref())
+        .map(|c| c.ways[0].label());
+    assert_eq!(way.as_deref(), Some("Sign it"));
+    app.press(Action::Cancel);
     assert_eq!(app.sheet, None);
     assert_eq!(app.screen, Screen::Home);
     assert!(app.session.keys.is_empty());

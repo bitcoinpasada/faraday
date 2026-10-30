@@ -1,8 +1,8 @@
 //! Home's Scan is the one press in for everything a scanner takes (F167)
 //! (`docs/QR.md` §2; owner, 2026-10-29): a codex32 string (a Codex32QR
 //! code's) and a SLIP-39 share go to Add a key's form for them, a TOTP
-//! setup code to a new entry in the open vault, or the scanner says a
-//! vault must be unlocked first; none goes into Files, from Home's Scan
+//! setup code to a new entry in the open vault, or the read card asks
+//! for a vault first; none goes into Files, from Home's Scan
 //! or any other scanner, and a WIF or Nostr secret key and words that
 //! fail a BIP-39 checksum are named, never filed; a WIF read on Home's
 //! Scan opens the Sweep sheet (F171). On a shell with a
@@ -158,9 +158,23 @@ fn a_totp_setup_code_scanned_on_home_with_no_vault_open_asks_for_one() {
     let mut app = testkit::started();
     home_scan(&mut app);
     read(&mut app, TOTP);
-    assert!(note(&app).contains("Unlock a vault"), "{}", note(&app));
+    assert_eq!(make_a_vault(&app), Some(true), "{}", note(&app));
     assert_eq!(app.sheet, Some(Sheet::Scan), "the scanner closed");
     assert!(app.inbox().is_empty(), "the setup code was filed");
+}
+
+/// Whether the read card asks for a vault to be made, the code not kept
+/// (`docs/SCANNING.md` §4.5).
+fn make_a_vault(app: &Faraday) -> Option<bool> {
+    let card = app.scan()?.card.as_ref()?;
+    Some(
+        card.not_kept
+            && card
+                .ways
+                .iter()
+                .map(|w| w.label())
+                .eq(["Make a vault".to_string()]),
+    )
 }
 
 #[test]
@@ -274,7 +288,9 @@ fn files_own_scanner_routes_a_share_and_a_totp_code_as_homes_does() {
     app.press(Action::Nav(Screen::Files));
     app.press(Action::Scan);
     read(&mut app, TOTP);
-    named_not_filed(&app, "Unlock a vault");
+    assert_eq!(make_a_vault(&app), Some(true), "{}", note(&app));
+    assert!(app.inbox().is_empty(), "the setup code was filed");
+    app.press(Action::ReadAgain);
     read(&mut app, SHARE_A);
     in_codex32_form(&app);
 }

@@ -379,6 +379,9 @@ pub struct ReadCard {
     pub(crate) named: Option<String>,
     /// Its extension, for the file a public kind is filed as.
     pub(crate) ext: &'static str,
+    /// The Inbox file Home's Scan put it in, already there: **Done** in
+    /// place of **Cancel** (`docs/SCANNING.md` §5.4).
+    pub filed: Option<usize>,
 }
 
 /// Costs a codex32 or a SLIP-39 parse. "Share C of NAME · 2 needed":

@@ -484,8 +484,13 @@ impl Faraday {
                 .is_some_and(|s| s.purpose == ScanPurpose::Intake);
             self.scanned(bytes);
             // The intake scanner stays on for the next code; the sample
-            // transaction is the last thing it has to bring.
-            if intake && self.camera.scan().is_some() {
+            // transaction is the last thing it has to bring. On Home's
+            // Scan the sample closes with its one press, no read card.
+            let filed = self
+                .camera
+                .scan()
+                .is_some_and(|s| s.card.as_ref().is_some_and(|c| c.filed.is_some()));
+            if (intake || filed) && self.camera.scan().is_some() {
                 self.camera.close();
                 self.sheet = None;
                 self.out.commands.push_back(crate::Command::CameraOff);

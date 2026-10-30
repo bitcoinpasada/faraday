@@ -468,12 +468,16 @@ everything a scanner takes and sends it to its flow (F167; `docs/QR.md`
 §2): a SeedQR, a CompactSeedQR or a seed's words go to Add a key and are
 added as **Scan a SeedQR** adds them; a codex32 string (a Codex32QR
 code's) or a SLIP-39 share opens Add a key on its form with the part in;
-a TOTP setup code opens a new entry, filled in, in the open vault, or
-the scanner says "That is a TOTP setup code. Unlock a vault to add it"
-and stays open; none of these goes into Files, from Home's Scan or any
+a TOTP setup code opens a new entry, filled in, in the open vault, or,
+with none open, the read card offers **Unlock {vault}** (the code
+carried through the unlock) or **Make a vault** (the code not kept); none of these goes into Files, from Home's Scan or any
 other scanner (Files', Restore's, Create's, the Spend tab's). Transactions, wallet
 files, account keys, signed messages and GPG keys go to Files and the
-flow waiting for them, as before. A private key (an xprv, a WIF or a Nostr
+flow waiting for them, as before; where the next step is a press away
+(a PSBT to sign, a transaction to decode, a wallet to load, split
+sheets to restore, a message to check, text to save as a note), the
+read card shows that press with **Done**, in place of the toast
+(`docs/SCANNING.md` §5.4). A private key (an xprv, a WIF or a Nostr
 secret key) and words that fail a BIP-39 checksum are named and never
 filed, since Add a key does not take them. On Faraday Demo what Home's
 Scan takes pasted is what it takes scanned (F75). Add a key's **Scan a
