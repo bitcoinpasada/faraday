@@ -5,7 +5,7 @@
 use crate::strings::EN;
 use crate::strings::fill;
 use faraday_draw::tokens::{BODY_M, BODY_S, BUTTON_H, LABEL_L, LABEL_M, TITLE_M};
-use faraday_draw::tokens::{FIELD_H, GAP, GAP_SMALL, PROGRESS_H};
+use faraday_draw::tokens::{FIELD_H, GAP, GAP_SMALL, PROGRESS_H, ROW_CHEVRON_ROOM, TOUCH};
 use faraday_draw::widgets::Icon;
 
 use crate::drawing::{Scrolled, View};
@@ -1505,12 +1505,9 @@ fn loaded_in_sparrow(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     );
     cy += ui.advance_as(LABEL_L, 22.0);
     let (addr, held) = app.receive_line(wl, false, 0);
-    cy += ui.wrap_as(
-        (x, cy, w),
-        BODY_M.mono(),
-        if held { Role::Warning } else { Role::OnSurface },
-        &addr,
-    ) + 14.0;
+    let open = (!held).then_some(Action::ShowCode(crate::Code::Receive(i, 0)));
+    let role = if held { Role::Warning } else { Role::OnSurface };
+    cy += crate::screens::address_press(ui, (x, cy, w), (BODY_M.mono(), role), &addr, open) + 14.0;
     let drawn = next_button(
         ui,
         x,
@@ -1650,22 +1647,51 @@ fn check(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         ui.text_as(x, cy, LABEL_L, Role::OnSurfaceVariant, head);
         cy += ui.line_as(LABEL_L) + faraday_draw::tokens::GAP_SMALL;
         for k in 0..n {
-            ui.text_mid_as(
-                (x, cy, 28.0),
-                BODY_S,
-                Role::OnSurfaceVariant,
-                &k.to_string(),
-            );
             let (a, held) = app.receive_line(wl, change, k);
             let col = if held { Role::Warning } else { Role::OnSurface };
+            // A receive row opens its code, a touch target tall; a
+            // change row opens nothing (`docs/QR.md` §7.1).
+            let open = (!held && !change).then_some(Action::ShowCode(crate::Code::Receive(i, k)));
+            let room = if open.is_some() {
+                ROW_CHEVRON_ROOM
+            } else {
+                0.0
+            };
+            let index = k.to_string();
             if ui.compact {
-                // Whole, to compare character for character.
-                cy += ui.wrap_as((x + 24.0, cy + 6.0, w - 24.0), BODY_S.mono(), col, &a) + 14.0;
+                // Whole, to compare character for character, in the middle
+                // of its row; the rows meet, each on the 4 dp grid.
+                let tw = w - 24.0 - room;
+                let th = ui.wrap_height_as(BODY_S.mono(), &a, tw);
+                let mut band = th + 12.0;
+                if open.is_some() {
+                    band = band.max(TOUCH);
+                }
+                ui.text_mid_as((x, cy, band), BODY_S, Role::OnSurfaceVariant, &index);
+                let at = (x + 24.0, cy + (band - th) / 2.0, tw);
+                ui.wrap_as(at, BODY_S.mono(), col, &a);
+                if let Some(o) = open {
+                    crate::screens::row_press(ui, (x, cy, w, band), o);
+                }
+                cy += band;
                 continue;
             }
-            let a = ui.fit_as(BODY_M.mono(), &a, w - 40.0);
-            ui.text_mid_as((x + 40.0, cy, 28.0), BODY_M.mono(), col, &a);
-            cy += 30.0;
+            // A row that opens its code is a touch target tall, its text in
+            // its middle; such rows meet, as a list's items do.
+            let row = 28.0;
+            let (band, gap) = if open.is_some() {
+                (TOUCH, 0.0)
+            } else {
+                (row, 2.0)
+            };
+            let ty = cy + (band - row) / 2.0;
+            ui.text_mid_as((x, ty, row), BODY_S, Role::OnSurfaceVariant, &index);
+            let a = ui.fit_as(BODY_M.mono(), &a, w - 40.0 - room);
+            ui.text_mid_as((x + 40.0, ty, row), BODY_M.mono(), col, &a);
+            if let Some(o) = open {
+                crate::screens::row_press(ui, (x, cy, w, band), o);
+            }
+            cy += band + gap;
         }
         cy += 8.0;
     }

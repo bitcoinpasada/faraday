@@ -1825,6 +1825,11 @@ pub const ICON_GLYPH_SMALL: f32 = 20.0;
 pub const ICON_GLYPH_BUTTON: f32 = 18.0;
 /// The gap between a button's icon and its label.
 pub const ICON_GAP: f32 = GAP;
+/// The chevron at the end of a row that opens what the row shows (a
+/// descriptor's row, an address's): its glyph, in a box `ICON_SMALL` wide.
+pub const ROW_CHEVRON: f32 = 9.0;
+/// The room a row's chevron takes from its text: the box and a gap.
+pub const ROW_CHEVRON_ROOM: f32 = ICON_SMALL + GAP;
 
 /// The smallest text drawn: Material's label-small. A size asked for
 /// under it is drawn at it.

@@ -39,11 +39,11 @@ use faraday_vault::{self as fv, Contents, Cost, Header, Record};
 use std::collections::BTreeSet;
 use zeroize::Zeroizing;
 
+use crate::Sheet;
 use crate::backup_flow::steps::Built;
 use crate::wallet::fp_text;
 use crate::work::{self, VaultAct, VaultEnded};
 use crate::{Action, Faraday, FileKind, Item, Screen, gpg};
-use crate::{Code, Sheet};
 use faraday_bip::keys::Fingerprint;
 use faraday_keys::vault::{GpgFacts as Facts, gpg_facts, gpg_field as f};
 use faraday_pgp::{Armor, Reason, armor};
@@ -740,7 +740,7 @@ impl Faraday {
             }
             V::Reveal(n) => self.vaults.toggle_shown(self.vault_on_page(), n),
             V::ShowSeedQr => self.vaults.toggle_seedqr(&c, self.vault_on_page()),
-            V::WalletQr => self.vault_wallet_qr(),
+            V::WalletQr | V::TotpQr => self.vault_qr_act(a),
             V::SaveToStick => self.vault_stick_save_open(),
             V::SaveTick(k) => {
                 if let Some(f) = self
@@ -3469,7 +3469,10 @@ impl Faraday {
 /// files (`out`).
 impl Faraday {
     /// The selected vault record, when it is of kind `k`.
-    fn vault_record_of(&self, k: u8) -> Option<(usize, faraday_keys::vault::RecordView<'_>)> {
+    pub(crate) fn vault_record_of(
+        &self,
+        k: u8,
+    ) -> Option<(usize, faraday_keys::vault::RecordView<'_>)> {
         let at = self.vault_selected_index()?;
         let v = self.vaults.open.get(self.vaults.current)?;
         self.vaults
@@ -3497,7 +3500,10 @@ impl Faraday {
     /// its index: the session's own when it holds the same wallet, else
     /// the record read in for `f` alone and taken out again, so the
     /// session is as it was. Reads the descriptor.
-    fn with_vault_wallet<T>(&mut self, f: impl FnOnce(&mut Self, usize) -> T) -> Option<T> {
+    pub(crate) fn with_vault_wallet<T>(
+        &mut self,
+        f: impl FnOnce(&mut Self, usize) -> T,
+    ) -> Option<T> {
         let c = self.compute();
         let (_, r) = self.vault_record_of(kind::WALLET)?;
         let text = r.public_text(field::WALLET)?.to_string();
@@ -3522,16 +3528,6 @@ impl Faraday {
         let out = f(self, i);
         self.session.wallets.truncate(i);
         Some(out)
-    }
-
-    /// Makes the selected wallet record's code and shows it: the QR view
-    /// the Wallets page uses, several codes for a long descriptor.
-    pub(crate) fn vault_wallet_qr(&mut self) {
-        let c = self.compute();
-        if let Some(view) = self.with_vault_wallet(|app, i| app.code_view(&c, Code::Descriptor(i)))
-        {
-            self.open_qr(view);
-        }
     }
 
     /// Opens Save to a stick for the selected record, writing out the

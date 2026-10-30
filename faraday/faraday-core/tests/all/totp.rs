@@ -395,3 +395,100 @@ fn scanning_a_setup_code_from_the_codes_screen_returns_to_it() {
     let rows = codes_rows(&app, now);
     assert!(rows.iter().any(|r| r.title == "Scanned"));
 }
+
+/// The Google Authenticator key URI format's example: an authenticator
+/// app takes it by scanning.
+const URI: &str = "otpauth://totp/Example:alice@google.com?secret=JBSWY3DPEHPK3PXP&issuer=Example";
+
+/// An app with a one-entry vault unlocked and the entry's page open: the
+/// entry's TOTP field `totp`, and a password and notes beside it.
+fn on_an_entry(totp: &str) -> Faraday {
+    let c = testkit::compute();
+    let main = Contents {
+        records: vec![
+            Record::new(kind::SLOT_LABEL).with(field::LABEL, b"Main"),
+            Record::new(kind::ENTRY)
+                .with(field::TITLE, b"Example")
+                .with(field::PASSWORD, b"correct horse")
+                .with(field::NOTES, b"a note")
+                .with(field::TOTP, totp.as_bytes()),
+        ],
+    };
+    let cost = Cost {
+        memory_kib: 64 * 1024,
+        passes: 1,
+        lanes: 1,
+    };
+    let vault = faraday_vault::create(
+        &c,
+        faraday_vault::SLOT_SIZES[0],
+        cost,
+        &["entry"],
+        &[main],
+        &[0x2a; 32],
+    )
+    .unwrap();
+    let mut app = Faraday::new();
+    app.online = true;
+    app.event(display());
+    for i in 0..6u8 {
+        app.event(Event::Entropy(EntropyBytes::new([0x60 + i; 32])));
+    }
+    app.storage(StorageEvent::Restored {
+        inbox: vec![("entry.fvlt".into(), vault)],
+        outbox: Vec::new(),
+        kept: Vec::new(),
+    });
+    app.storage(StorageEvent::Clock {
+        unix_secs: 2_000_000_000,
+    });
+    app.press(Action::Nav(Screen::Vaults));
+    app.press(Action::Vault(V::Open(0)));
+    type_text(&mut app, "entry");
+    app.press(Action::Vault(V::Unlock));
+    settle(&mut app, |a| !a.vaults().open.is_empty());
+    assert_eq!(app.vaults().open.len(), 1);
+    app.press(Action::Nav(Screen::VaultContents));
+    app.press(Action::Vault(V::Category(2)));
+    app.press(Action::Vault(V::Item(0)));
+    app
+}
+
+/// The TOTP secret's Show as QR opens the QR sheet marked Secret on the
+/// stored URI, with no picture and no file For the stick; the entry's
+/// password and notes have no code; a lock leaves no code on screen
+/// (`docs/QR.md` §7.1).
+#[test]
+fn an_entrys_totp_secret_shows_as_a_secret_code_and_a_lock_closes_it() {
+    use crate::common::{codes_offered, qr_text};
+    let mut app = on_an_entry(URI);
+    assert_eq!(codes_offered(&mut app), vec![Action::Vault(V::TotpQr)]);
+    app.press(Action::Vault(V::TotpQr));
+    let q = app.qr().expect("no QR sheet");
+    assert!(q.secret, "the sheet is not marked Secret");
+    assert!(!q.offers_png());
+    assert!(
+        q.whole.is_none(),
+        "the secret is written out under the code"
+    );
+    assert_eq!(qr_text(&app), URI);
+    assert!(
+        app.drawn_texts()
+            .iter()
+            .any(|t| t == "Secret · whoever scans this can use it")
+    );
+    app.press(Action::QrPng);
+    assert!(app.outbox.is_empty(), "the secret went For the stick");
+    app.press(Action::Lock);
+    assert!(app.qr().is_none(), "a code is on screen after a lock");
+}
+
+/// An HOTP secret has no code to show: no Show as QR, and its press shows
+/// none.
+#[test]
+fn an_hotp_secret_has_no_show_as_qr() {
+    let mut app = on_an_entry("otpauth://hotp/Exchange?secret=JBSWY3DPEHPK3PXP&counter=0");
+    assert_eq!(crate::common::codes_offered(&mut app), Vec::new());
+    app.press(Action::Vault(V::TotpQr));
+    assert!(app.qr().is_none());
+}

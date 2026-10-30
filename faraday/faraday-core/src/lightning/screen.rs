@@ -206,6 +206,22 @@ fn body(
         .wrap_as((vx, y, vw), BODY_M.mono(), Role::OnSurface, &id)
         .max(20.0)
         + 10.0;
+    // The id as a code and as a picture, a row of their own
+    // (`docs/QR.md` §7.1).
+    let code = crate::Code::NodeId;
+    let codes = [
+        (
+            EN.lightning_show_as_qr.to_string(),
+            Style::Secondary,
+            Action::ShowCode(code),
+        ),
+        (
+            EN.lightning_png.to_string(),
+            Style::Secondary,
+            Action::CodePng(code),
+        ),
+    ];
+    y += button_rows(ui, vx, y, vw, &codes) + T::GAP;
     if let Some((yy, m, d)) = n.birthday() {
         ui.text_as(x, y, BODY_S, Role::OnSurfaceVariant, EN.lightning_made);
         y += below;

@@ -4007,6 +4007,34 @@ strings! {
     code_view_xpub_kind: "Xpub {} · {}",
     /// Error in `code_view`.
     code_view_that_wallet: "That wallet is no longer loaded",
+    /// Title of a receive address's QR sheet. `{}`: the wallet's name, the address's index.
+    code_view_receive: "{} · receive {}",
+    /// Title of Explore's address's QR sheet. `{}`: the path.
+    code_view_explore_address: "Address · {}",
+    /// Title of Explore's public key's QR sheet. `{}`: the path.
+    code_view_explore_public_key: "Public key · {}",
+    /// Title of Explore's extended key's QR sheet. `{}`: the path.
+    code_view_explore_xpub: "Extended key · {}",
+    /// Title of the Lightning node id's QR sheet and its picture.
+    code_view_node_id: "Lightning node id",
+    /// The last line of the node id's picture.
+    code_view_public_node: "Public: names the node, spends nothing",
+    /// Title of a recovery sheet's descriptor's QR sheet. `{}`: the sheet's name.
+    code_view_sheet: "{} · recovery sheet descriptor",
+    /// Title of an entry's TOTP secret's QR sheet. `{}`: the entry's title.
+    code_view_totp: "{} · TOTP secret",
+    /// Error in `code_view`: the wallet gives no address there.
+    code_view_no_address: "No address to show",
+    /// Error in `code_view`: no Lightning node key is on screen.
+    code_view_no_node: "No node key on show",
+    /// Error in `code_view`: no recovery sheet is selected.
+    code_view_no_sheet: "No recovery sheet is selected",
+    /// The Lightning node id's button: its QR sheet.
+    lightning_show_as_qr: "Show as QR",
+    /// The Lightning node id's button: its labelled picture, for the stick.
+    lightning_png: "PNG",
+    /// The node's kind on its picture, for a node read from an aezeed.
+    code_view_node_lnd: "LND",
     /// Error in `code_view`.
     code_view_this_wallet_s: "This wallet's keys are not account keys",
     /// Error in `code_view`.

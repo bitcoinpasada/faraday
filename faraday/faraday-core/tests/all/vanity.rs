@@ -114,3 +114,13 @@ fn a_character_that_cannot_start_the_address_is_refused() {
     assert!(v.error.is_some());
     assert_eq!(v.grind.prefix.as_str(), "tb1q");
 }
+
+/// The address found opens its code, the address the wallet it belongs to
+/// gives, with no picture (`docs/QR.md` §7).
+#[test]
+fn the_address_found_opens_its_code() {
+    let mut app = with_key();
+    let found = search(&mut app, "q");
+    crate::common::opens_its_code(&mut app, faraday_core::Code::VanityAddress, &found);
+    assert_eq!(opened_address(&mut app), found);
+}

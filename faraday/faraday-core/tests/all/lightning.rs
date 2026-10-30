@@ -86,3 +86,45 @@ fn the_aezeed_passphrase_refuses_a_letter_outside_ascii_and_says_so() {
         "{texts:?}"
     );
 }
+
+/// The node id offers its code and its picture, and both read back as the
+/// node id; the picture goes For the stick as a public file, labelled with
+/// the node's kind (`docs/QR.md` §7). Nothing else on the page opens a
+/// code: the private key has none.
+#[test]
+fn the_node_id_reads_back_from_its_code_and_its_picture() {
+    use crate::common::{codes_offered, png_text, qr_text};
+    use faraday_core::Code;
+    let mut app = faraday_core::testkit::started();
+    app.press(Action::Lightning);
+    app.press(Action::LAezeed);
+    typed(&mut app, CIPHER_SEED);
+    app.event(Event::Key(Key::Enter));
+    let _ = app.frame();
+    let now = app.now_ms() + 16;
+    app.event(Event::Tick { now_ms: now });
+    app.press(Action::LShow);
+    assert_eq!(
+        codes_offered(&mut app),
+        vec![
+            Action::ShowCode(Code::NodeId),
+            Action::CodePng(Code::NodeId)
+        ]
+    );
+    app.press(Action::ShowCode(Code::NodeId));
+    let q = app.qr().expect("no QR sheet");
+    assert!(!q.secret);
+    assert!(q.offers_png());
+    assert!(q.label.iter().any(|l| l == "LND"), "{:?}", q.label);
+    assert_eq!(qr_text(&app), NODE_KEY);
+    app.press(Action::Cancel);
+    app.press(Action::CodePng(Code::NodeId));
+    let name = format!("lightning-{}.png", &NODE_KEY[..8]);
+    let item = app
+        .outbox
+        .iter()
+        .find(|i| i.name == name)
+        .unwrap_or_else(|| panic!("no {name}"));
+    assert!(!item.secret);
+    assert_eq!(png_text(&item.bytes), NODE_KEY);
+}

@@ -35,7 +35,6 @@ mod save;
 mod search;
 mod secret;
 use crate::screens::randomness::row as own_row;
-use codes::code_badge;
 pub(crate) use codes::codes_form;
 use create::{create_button, create_button_h, create_summary};
 pub(crate) use save::{gpg_sign_sheet, stick_save_sheet, years_row};
@@ -2794,50 +2793,13 @@ fn detail(
                 field_row(ui, &mut dy, EN.vault_url, u, true);
             }
             if r.has(field::TOTP) {
-                // A row before the secret: the code, live, or Set the
-                // time while the clock is not checked (`docs/TOTP.md`
-                // §6).
-                ui.text_as(dx, dy, BODY_S, muted, EN.vault_code);
-                dy += ui.line_as(BODY_S) + faraday_draw::tokens::GAP_SMALL;
-                let now = app.clock_now().filter(|_| app.clock_checked());
-                match app.entry_code(r, now) {
-                    Ok(Some(code)) => {
-                        let (grouped, left) = (code.grouped, code.left);
-                        let gw = ui.measure_as(BODY_L.mono(), &grouped);
-                        ui.text_as(dx, dy, BODY_L.mono(), ink, &grouped);
-                        ui.text_as(
-                            dx + gw + 12.0,
-                            dy + 4.0,
-                            BODY_S,
-                            muted,
-                            &format!("{left} s"),
-                        );
-                        dy += ui.advance_as(BODY_S, 34.0);
-                    }
-                    Ok(None) => {
-                        ui.button(
-                            dx,
-                            dy,
-                            None,
-                            BUTTON_H,
-                            EN.vault_set_the_time,
-                            Style::Secondary,
-                            Action::OpenSetTime,
-                        );
-                        dy += 44.0;
-                    }
-                    Err(faraday_keys::totp::NotTotp::Hotp) => {
-                        code_badge(ui, dx, dy, "HOTP");
-                        dy += 36.0;
-                    }
-                    Err(faraday_keys::totp::NotTotp::Unreadable) => {
-                        code_badge(ui, dx, dy, EN.vault_unreadable);
-                        dy += 36.0;
-                    }
-                }
-                dy += 10.0;
+                let (h, reads) = codes::entry_code_row(app, ui, r, dx, dy);
+                dy += h;
                 let t = app.reveal_record(r, field::TOTP, Reveal::VaultEntry(Part::Totp));
                 secret_row(ui, &mut dy, EN.vault_totp_secret, &t, true);
+                if reads {
+                    dy += codes::totp_qr_button(ui, dx, dy);
+                }
             }
             if r.has(field::NOTES) {
                 let n = app.reveal_record(r, field::NOTES, Reveal::VaultEntry(Part::EntryNotes));
@@ -2862,6 +2824,9 @@ fn detail(
             if !note.is_empty() {
                 field_row(ui, &mut dy, EN.vault_note, &note, false);
             }
+            // Its descriptor as a code and as a picture (`docs/QR.md` §7.1).
+            actions.push((EN.vault_show_as_qr, Action::ShowCode(Code::VaultSheet)));
+            actions.push(("PNG", Action::CodePng(Code::VaultSheet)));
         }
         kind::GPG => {
             if let Some(g) = crate::gpg::shown(r, app.tz_min()) {

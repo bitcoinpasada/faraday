@@ -356,12 +356,12 @@ pub(crate) fn wallet_card(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     cy += 10.0;
     cy += heading(ui, x, cy, EN.compact_first_receive);
     let (addr, held) = app.receive_line(wlt, false, 0);
-    cy += ui.wrap_as(
-        (x, cy, iw),
-        BODY_M.mono(),
-        if held { Role::Warning } else { Role::OnSurface },
-        &addr,
-    ) + 18.0;
+    let open = (!held).then_some(Action::ShowCode(crate::Code::Receive(
+        app.wallets.wallet(),
+        0,
+    )));
+    let role = if held { Role::Warning } else { Role::OnSurface };
+    cy += crate::screens::address_press(ui, (x, cy, iw), (BODY_M.mono(), role), &addr, open) + 18.0;
 
     // What else can be done with it.
     let mut buttons = vec![

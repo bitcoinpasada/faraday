@@ -1,7 +1,10 @@
 //! The QR view (a code shown, in parts) and the camera's scan state.
 
 use crate::strings::{EN, fill};
+use crate::wallet::{Session, fp_text};
 use crate::{Action, Faraday, Screen, Sheet, picture, qr_fits, secrets, transfer, wallet};
+use crate::{file_stem, key_label};
+use faraday_bip::keys::Fingerprint;
 use faraday_crypto::work::Compute;
 
 /// What a scan pass saw of a code ([`StorageEvent::QrSeen`]).
@@ -340,6 +343,22 @@ pub enum Code {
     /// whose SHA-256 begins with these eight bytes: it follows the file,
     /// not its place in the Inbox.
     GpgSignature([u8; 8]),
+    /// Wallet n's receive address at index i, as the screen prints it
+    /// (`docs/QR.md` §7): no picture.
+    Receive(usize, u32),
+    /// Vanity address's found address: no picture.
+    VanityAddress,
+    /// Explore's address at its path: no picture.
+    ExploreAddress,
+    /// Explore's public key at its path: no picture.
+    ExplorePublicKey,
+    /// Explore's extended public key at its path: no picture.
+    ExploreXpub,
+    /// The Lightning node id on show, and its picture.
+    NodeId,
+    /// The selected recovery sheet's descriptor in the open vault, and
+    /// its picture.
+    VaultSheet,
 }
 
 /// How a QR view is written: UR, BBQr or numbered parts.
@@ -497,6 +516,16 @@ impl QrView {
             QrFormat::Ur,
             QR_PARTS[1],
         )
+    }
+
+    /// Costs what `text` costs. A secret as one plain-text code, the sheet
+    /// marked Secret: it offers no picture (an entry's TOTP secret,
+    /// `docs/QR.md` §7.1).
+    pub fn secret(c: &Compute, title: &str, text: &str) -> Result<QrView, String> {
+        QrView::text(c, title, text).map(|mut v| {
+            v.secret = true;
+            v
+        })
     }
 
     /// Costs what `frames` and `classify` cost. `source` written as
@@ -847,4 +876,347 @@ pub(crate) fn part_note(what: &str, have: usize, total: usize, missing: &[usize]
             more,
         ],
     )
+}
+
+/// The QR views of the public files and values a flow shows
+/// (`docs/QR.md` §4 item 4, §7).
+impl Faraday {
+    /// Costs what `text`, `wallet_file_text`, `create_key_text` and the
+    /// rest it calls cost. The QR view of a public file a flow makes: its
+    /// code, and the name and label of its picture.
+    #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
+    pub fn code_view(&self, c: &Compute, code: Code) -> Result<QrView, String> {
+        let wallet = |i: usize| {
+            self.session
+                .wallets
+                .get(i)
+                .ok_or_else(|| EN.code_view_that_wallet.to_string())
+        };
+        match code {
+            Code::Descriptor(i) => {
+                let w = wallet(i)?;
+                let stem = file_stem(&w.name);
+                let mut lines = self.silent_marks(c, i, self.wallet_label(w))?;
+                let text = w.policy().to_descriptor_checksummed();
+                if let Some((_, sum)) = text.rsplit_once('#') {
+                    lines.push(fill(EN.code_view_descriptor, &[sum]));
+                }
+                let title = fill(EN.code_view_wallet_descriptor, &[&w.name.to_string()]);
+                let name = format!("{stem}-descriptor.png");
+                lines.push(EN.code_view_public_watch.to_string());
+                let mut view = QrView::text(c, &title, &text)?.public(&name, lines);
+                view.whole = Some(text);
+                Ok(view)
+            }
+            Code::MultisigConfig(i) | Code::Bsms(i) => {
+                let w = wallet(i)?;
+                let stem = file_stem(&w.name);
+                let what = if code == Code::MultisigConfig(i) {
+                    2
+                } else {
+                    6
+                };
+                let text = self
+                    .wallet_file_text(c, i, what)
+                    .ok_or(EN.code_view_this_wallet_has)?;
+                let (title, name) = if what == 2 {
+                    (
+                        fill(EN.code_view_multisig, &[&w.name.to_string()]),
+                        format!("{stem}-multisig-config.png"),
+                    )
+                } else {
+                    (
+                        fill(EN.code_view_bsms_descriptor, &[&w.name.to_string()]),
+                        format!("{stem}-bsms.png"),
+                    )
+                };
+                let mut lines = self.wallet_label(w);
+                lines.push(EN.code_view_public_watch.to_string());
+                Ok(QrView::text(c, &title, &text)?.public(&name, lines))
+            }
+            Code::Key(k) => {
+                let (fp, text) = self.create_key_text(c, k)?;
+                let kind = self.create.state().map_or("", |c| c.kind.name());
+                let account = self.create_key_account(c, k);
+                let lines = vec![
+                    key_label(&fp, kind, &text),
+                    EN.code_view_public_spends.to_string(),
+                ];
+                Ok(QrView::of(
+                    c,
+                    &fill(EN.code_view_xpub_kind, &[&fp.to_string(), kind]),
+                    QrSource::Key(text, account),
+                    QrFormat::Ur,
+                    QR_PARTS[1],
+                )?
+                .public(&format!("xpub-{fp}.png"), lines))
+            }
+            Code::KeyBsms(k) => {
+                let (fp, key) = self.create_key_text(c, k)?;
+                let kind = self.create.state().map_or("", |c| c.kind.name());
+                let (_, text) = self
+                    .create_key_bsms(c, k)
+                    .ok_or(EN.code_view_bip_129_covers)?;
+                let lines = vec![
+                    key_label(&fp, kind, &key),
+                    EN.code_view_bip_129_key.to_string(),
+                    EN.code_view_public_spends.to_string(),
+                ];
+                Ok(
+                    QrView::text(c, &fill(EN.code_view_key_bsms, &[&fp.to_string()]), &text)?
+                        .public(&format!("xpub-{fp}-bsms.png"), lines),
+                )
+            }
+            Code::WalletKey(i, slot) => {
+                let k = self.wallet_key(c, i, slot)?;
+                let account = k
+                    .standard
+                    .and_then(|kind| kind.account_ur(c, &self.session.keys, k.key));
+                let lines = vec![
+                    key_label(&k.fp, &k.kind, &k.text),
+                    EN.code_view_public_spends.to_string(),
+                ];
+                Ok(QrView::of(
+                    c,
+                    &fill(
+                        EN.code_view_xpub_kind,
+                        &[&k.fp.to_string(), &k.kind.to_string()],
+                    ),
+                    QrSource::Key(k.text.clone(), account),
+                    QrFormat::Ur,
+                    QR_PARTS[1],
+                )?
+                .public(&format!("xpub-{}.png", k.fp), lines))
+            }
+            Code::CosignerKey(i, slot) => {
+                let w = self
+                    .session
+                    .wallets
+                    .get(i)
+                    .ok_or(EN.code_view_that_wallet)?;
+                if w.policy().silent().is_some() {
+                    return Err(EN.code_view_this_wallet_s.into());
+                }
+                let pk = w
+                    .policy()
+                    .keys()
+                    .get(usize::from(slot))
+                    .ok_or(EN.code_view_this_wallet)?
+                    .clone();
+                let fp = pk
+                    .fingerprint()
+                    .map_or_else(|| EN.code_view_no_origin.to_string(), fp_text);
+                let text = pk.key_text();
+                let lines = vec![
+                    fill(
+                        EN.code_view_key,
+                        &[&fp.to_string(), &Session::shape(w).to_string()],
+                    ),
+                    EN.code_view_public_spends.to_string(),
+                ];
+                Ok(QrView::of(
+                    c,
+                    &fill(EN.code_view_xpub, &[&fp.to_string()]),
+                    QrSource::Key(text, None),
+                    QrFormat::Ur,
+                    QR_PARTS[1],
+                )?
+                .public(&format!("xpub-{fp}.png"), lines))
+            }
+            Code::WalletKeyBsms(i, slot) => {
+                let k = self.wallet_key(c, i, slot)?;
+                let (_, text) = self.wallet_key_record(c, i, slot)?;
+                let lines = vec![
+                    key_label(&k.fp, &k.kind, &k.text),
+                    EN.code_view_bip_129_key.to_string(),
+                    EN.code_view_public_spends.to_string(),
+                ];
+                Ok(
+                    QrView::text(c, &fill(EN.code_view_key_bsms, &[&k.fp.to_string()]), &text)?
+                        .public(&format!("xpub-{}-bsms.png", k.fp), lines),
+                )
+            }
+            Code::Silent(_) | Code::SilentRecord => self.silent_code(c, code),
+            Code::Message => {
+                let m = self.message.state().ok_or(EN.code_view_no_message)?;
+                let sig = m.signed.as_ref().ok_or(EN.code_view_the_message)?;
+                let text =
+                    faraday_keys::message::signed_text(&sig.address, &sig.signature, &m.text);
+                let name = format!(
+                    "message-{}.png",
+                    &sig.address[sig.address.len().saturating_sub(6)..]
+                );
+                let lines = vec![
+                    fill(EN.code_view_signed_by_address, &[&sig.address.to_string()]),
+                    EN.code_view_public_proves.to_string(),
+                ];
+                Ok(QrView::text(c, EN.code_view_signed_message, &text)?.public(&name, lines))
+            }
+            Code::GpgKey | Code::GpgSignature(_) => self.gpg_code(c, code),
+            Code::Receive(..)
+            | Code::VanityAddress
+            | Code::ExploreAddress
+            | Code::ExplorePublicKey
+            | Code::ExploreXpub
+            | Code::NodeId
+            | Code::VaultSheet => self.value_code(c, code),
+        }
+    }
+    /// Costs an address derivation for an address (two for a receive
+    /// address: the one to check it is one, then the one the screen
+    /// keeps), a key derivation the first time for Explore's values, a
+    /// descriptor read for a recovery sheet, and what `text` costs. The QR
+    /// view of a public value a screen shows (`docs/QR.md` §7): the value
+    /// exactly as the screen prints it, whole under the code; a picture
+    /// only for the node id and a recovery sheet.
+    fn value_code(&self, c: &Compute, code: Code) -> Result<QrView, String> {
+        let plain = |title: &str, text: &str| -> Result<QrView, String> {
+            let mut view = QrView::text(c, title, text)?;
+            view.whole = Some(text.to_string());
+            Ok(view)
+        };
+        let path = || {
+            self.explore
+                .path()
+                .map(|p| fill(EN.explore_path_m, &[&p.to_string().replace('\'', "h")]))
+                .unwrap_or_default()
+        };
+        let explore = || self.explore_reading(c).ok_or(EN.code_view_no_address);
+        match code {
+            Code::Receive(i, at) => {
+                let w = self
+                    .session
+                    .wallets
+                    .get(i)
+                    .ok_or(EN.code_view_that_wallet)?;
+                // A key made here that waits for its backup: no receive
+                // address is shown, nor any code of one (F31).
+                let none = w.policy().silent().is_some()
+                    || self.receive_held(c, w)
+                    || w.policy()
+                        .address_at(c, self.session.network(), false, at)
+                        .is_err();
+                if none {
+                    return Err(EN.code_view_no_address.into());
+                }
+                let a = self.session.address_shown(c, w, false, at);
+                let title = fill(
+                    EN.code_view_receive,
+                    &[&w.name.to_string(), &at.to_string()],
+                );
+                plain(&title, &a)
+            }
+            Code::VanityAddress => {
+                let v = self.vanity.state().ok_or(EN.code_view_no_address)?;
+                let f = v.grind.find.as_ref().ok_or(EN.code_view_no_address)?;
+                if v.key.is_some_and(|k| self.key_held(c, Fingerprint(k))) {
+                    return Err(EN.code_view_no_address.into());
+                }
+                plain(EN.vanity_vanity_address, f.address.as_str())
+            }
+            Code::ExploreAddress => {
+                let r = explore()?;
+                plain(&fill(EN.code_view_explore_address, &[&path()]), &r.address)
+            }
+            Code::ExplorePublicKey => {
+                let r = explore()?;
+                plain(
+                    &fill(EN.code_view_explore_public_key, &[&path()]),
+                    &r.public_key,
+                )
+            }
+            Code::ExploreXpub => {
+                let r = explore()?;
+                plain(&fill(EN.code_view_explore_xpub, &[&path()]), &r.xpub)
+            }
+            Code::NodeId => {
+                let l = self.lightning.state().ok_or(EN.code_view_no_node)?;
+                let n = l.node.as_ref().ok_or(EN.code_view_no_node)?;
+                let id: String = n.public().iter().map(|b| format!("{b:02x}")).collect();
+                let kind = match l.source {
+                    Some(crate::lightning::NodeSource::Key(fp)) => {
+                        fill(EN.lightning_ldk_node, &[&fp_text(Fingerprint(fp))])
+                    }
+                    _ => EN.code_view_node_lnd.to_string(),
+                };
+                let lines = vec![kind, EN.code_view_public_node.to_string()];
+                let name = format!("lightning-{}.png", &id[..8]);
+                plain(EN.code_view_node_id, &id).map(|v| v.public(&name, lines))
+            }
+            Code::VaultSheet => self.vault_sheet_code(c),
+            _ => Err(EN.code_view_no_address.into()),
+        }
+    }
+
+    /// Costs a descriptor read and what `text` costs. The selected
+    /// recovery sheet's descriptor in the open vault as its record keeps
+    /// it, as `Code::Descriptor` shows a wallet's: labelled with the
+    /// wallet's shape and checksum, its picture `{name}-descriptor.png`.
+    fn vault_sheet_code(&self, c: &Compute) -> Result<QrView, String> {
+        let (_, r) = self
+            .vault_record_of(faraday_vault::records::kind::SHEET)
+            .ok_or(EN.code_view_no_sheet)?;
+        let (text, name, _) = faraday_keys::vault::sheet_parts(r);
+        if text.is_empty() {
+            return Err(EN.code_view_no_sheet.into());
+        }
+        let mut lines = Vec::new();
+        if let Ok(policy) = wallet::read_wallet(c, &text) {
+            let w = wallet::Wallet::new(name.clone(), policy, String::new(), wallet::Origin::Vault);
+            lines.push(wallet::Session::shape(&w));
+        }
+        if let Some((_, sum)) = text.rsplit_once('#') {
+            lines.push(fill(EN.code_view_descriptor, &[sum]));
+        }
+        lines.push(EN.code_view_public_watch.to_string());
+        let title = fill(EN.code_view_sheet, &[&name]);
+        let png = format!("{}-descriptor.png", crate::file_stem(&name));
+        let mut view = QrView::text(c, &title, &text)?.public(&png, lines);
+        view.whole = Some(text);
+        Ok(view)
+    }
+
+    /// Costs what `code_view` and `secret` cost. A vault page's code: the
+    /// selected wallet record's descriptor, or the selected entry's TOTP
+    /// secret.
+    pub(crate) fn vault_qr_act(&mut self, a: crate::vault::VaultAction) {
+        use crate::vault::VaultAction as V;
+        let c = self.compute();
+        let view = match a {
+            // The QR view the Wallets page uses, several codes for a long
+            // descriptor.
+            V::WalletQr => self.with_vault_wallet(|app, i| app.code_view(&c, Code::Descriptor(i))),
+            V::TotpQr => self.vault_totp_view(&c),
+            _ => None,
+        };
+        if let Some(view) = view {
+            self.open_qr(view);
+        }
+    }
+
+    /// Costs what `secret` costs. The selected entry's TOTP secret as the
+    /// stored `otpauth://` URI (a bare key is stored as one), one
+    /// plain-text code on the sheet marked Secret, with no picture and no
+    /// file: the one code of a secret that has not passed the secret
+    /// sheet, shown only from the entry's own page while the URI reads as
+    /// TOTP (`docs/QR.md` §7.1, F28). `None` where there is none to show.
+    fn vault_totp_view(&self, c: &Compute) -> Option<Result<QrView, String>> {
+        use faraday_keys::{Part, Reveal};
+        use faraday_vault::records::field;
+        if !self.vault_on_page() {
+            return None;
+        }
+        let (_, r) = self.vault_record_of(faraday_vault::records::kind::ENTRY)?;
+        let (id, i) = r.home()?;
+        let why = Reveal::VaultEntry(Part::Totp);
+        let store = self.vaults.store();
+        // An HOTP or unreadable URI has no code here.
+        store.totp(id, i, None, why).filter(|t| t.code.is_ok())?;
+        let title = fill(
+            EN.code_view_totp,
+            &[r.public_text(field::TITLE).unwrap_or("")],
+        );
+        let uri = store.reveal(c, id, i, field::TOTP, why);
+        Some(QrView::secret(c, &title, &uri))
+    }
 }

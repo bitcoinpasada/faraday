@@ -2245,6 +2245,9 @@ pub enum VaultAction {
     ShowSeedQr,
     /// The selected wallet's descriptor as the Wallets page shows it.
     WalletQr,
+    /// The selected entry's TOTP secret as its `otpauth://` URI, on the QR
+    /// sheet marked Secret (`docs/QR.md` §7.1).
+    TotpQr,
     /// The Load sheet (F62): tick or untick wallet record or Keys-card
     /// key record n.
     LoadTick(usize),

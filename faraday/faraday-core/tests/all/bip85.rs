@@ -225,3 +225,14 @@ fn an_exported_password_names_neither_its_parent_nor_its_index() {
     assert_eq!(out.name, "password.txt");
     assert_eq!(out.bytes, format!("{}\n", want.as_str()).into_bytes());
 }
+
+/// BIP-85's value shows no code of any kind (`docs/QR.md` §7.3).
+#[test]
+fn a_value_has_no_code() {
+    let mut app = with_key(Vec::new());
+    app.press(Action::Bip85);
+    app.press(Action::PApp(4));
+    app.press(Action::PNext);
+    app.press(Action::PNext);
+    assert_eq!(crate::common::codes_offered(&mut app), Vec::new());
+}

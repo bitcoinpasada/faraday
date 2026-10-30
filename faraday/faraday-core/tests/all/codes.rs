@@ -440,3 +440,106 @@ fn files_show_as_qr_is_the_file_and_offers_no_picture() {
     app.press(Action::QrPng);
     assert_eq!(app.outbox.len(), 1);
 }
+
+/// A wallet card's first receive address opens its code: the address as
+/// the card prints it, whole under the code, with no picture
+/// (`docs/QR.md` §7).
+#[test]
+fn the_wallet_cards_receive_address_opens_its_code() {
+    let c = testkit::compute();
+    let (mut app, w) = holding("Savings", &testkit::savings());
+    app.press(Action::OpenWallet(w));
+    let want = app
+        .session
+        .address_shown(&c, &app.session.wallets[w], false, 0);
+    crate::common::opens_its_code(&mut app, Code::Receive(w, 0), &want);
+}
+
+/// An app with a vault holding one recovery sheet of `descriptor`, named
+/// `name`, unlocked and on the sheet's page.
+fn on_a_sheet(name: &str, descriptor: &str) -> Faraday {
+    use faraday_vault::records::{field, kind};
+    use faraday_vault::{Contents, Cost, Record};
+    let c = testkit::compute();
+    let payload =
+        faraday_vault::layouts::sheet_payload(descriptor.as_bytes(), name.as_bytes(), b"")
+            .expect("a sheet");
+    let records = vec![
+        Record::new(kind::SLOT_LABEL).with(field::LABEL, b"Sheets"),
+        Record::new(kind::SHEET).with(field::SHEET, &payload),
+    ];
+    let cost = Cost {
+        memory_kib: 64 * 1024,
+        passes: 1,
+        lanes: 1,
+    };
+    let vault = faraday_vault::create(
+        &c,
+        faraday_vault::SLOT_SIZES[0],
+        cost,
+        &["sheets"],
+        &[Contents { records }],
+        &[0x5e; 32],
+    )
+    .unwrap();
+    let mut app = testkit::started();
+    app.storage(StorageEvent::Restored {
+        inbox: vec![("sheets.fvlt".to_string(), vault)],
+        outbox: Vec::new(),
+        kept: Vec::new(),
+    });
+    app.storage(StorageEvent::Memory {
+        available_mib: 15_000,
+    });
+    testkit::vault_speed(&mut app, Some(180));
+    app.press(Action::Nav(Screen::Vaults));
+    app.press(Action::Vault(V::Open(0)));
+    type_text(&mut app, "sheets");
+    app.press(Action::Vault(V::Unlock));
+    for t in 1..21 {
+        if !app.vaults().open.is_empty() {
+            break;
+        }
+        let _ = app.frame();
+        app.event(Event::Tick { now_ms: t * 1000 });
+    }
+    assert_eq!(
+        app.vaults().open.len(),
+        1,
+        "{:?}",
+        app.vaults().unlock_error
+    );
+    app.press(Action::Nav(Screen::VaultContents));
+    app.press(Action::Vault(V::Category(3)));
+    app.press(Action::Vault(V::Item(0)));
+    app
+}
+
+#[test]
+fn a_recovery_sheets_descriptor_reads_back_from_its_code_and_its_picture() {
+    let descriptor = testkit::savings();
+    let mut app = on_a_sheet("Savings", &descriptor);
+    assert!(crate::common::offered(
+        &mut app,
+        Action::ShowCode(Code::VaultSheet)
+    ));
+    assert!(crate::common::offered(
+        &mut app,
+        Action::CodePng(Code::VaultSheet)
+    ));
+    reads_back(
+        &mut app,
+        Code::VaultSheet,
+        "savings-descriptor.png",
+        &descriptor,
+    );
+    assert!(
+        !app.outbox
+            .iter()
+            .find(|i| i.name == "savings-descriptor.png")
+            .unwrap()
+            .secret
+    );
+    app.press(Action::ShowCode(Code::VaultSheet));
+    assert!(label(&app).contains("Public: watch only, spends nothing"));
+}

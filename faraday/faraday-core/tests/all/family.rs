@@ -1046,3 +1046,25 @@ fn home_scan_with_no_spend_only_puts_the_psbt_in_files() {
             .any(|i| i.kind == FileKind::Psbt && i.name.starts_with("scanned-"))
     );
 }
+
+/// Check the money's receive rows open their addresses' codes, each as the
+/// row shows it, with no picture (`docs/QR.md` §7).
+#[test]
+fn check_the_moneys_receive_rows_open_their_codes() {
+    let c = testkit::compute();
+    let mut app = shown_at(2400);
+    app.storage(StorageEvent::Restored {
+        inbox: vec![vault_file(), savings_psbt()],
+        outbox: Vec::new(),
+        kept: Vec::new(),
+    });
+    unlock_on_tab(&mut app);
+    assert_eq!(app.family().open, Some(Open::Page(page::CHECK)));
+    let w = wallet_at(&app, "Savings");
+    for i in 0..2 {
+        let want = app
+            .session
+            .address_shown(&c, &app.session.wallets[w], false, i);
+        crate::common::opens_its_code(&mut app, faraday_core::Code::Receive(w, i), &want);
+    }
+}

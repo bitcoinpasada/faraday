@@ -799,3 +799,18 @@ fn a_seed_with_a_slots_fingerprint_but_not_its_key_is_refused() {
     assert_eq!(app.restore().unwrap().error.as_deref(), Some(NOT_A_KEY));
     assert_eq!(app.session.keys.len(), keys, "the seed was taken");
 }
+
+/// Check's two receive rows each open their address's code, the address
+/// as the row shows it, with no picture (`docs/QR.md` §7).
+#[test]
+fn checks_receive_rows_open_their_codes() {
+    let c = testkit::compute();
+    let mut shell = crate::common::Shell::new();
+    let (mut app, w) = single_key_at_check(&mut shell, 0);
+    for i in 0..2 {
+        let want = app
+            .session
+            .address_shown(&c, &app.session.wallets[w], false, i);
+        crate::common::opens_its_code(&mut app, faraday_core::Code::Receive(w, i), &want);
+    }
+}

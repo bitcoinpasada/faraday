@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Built but for the items under Open; the code is the record where it differs
-**Open:** files over 64 MiB on a stick visit (`docs/LARGE-FILES.md`), the Nostr key (`docs/NOSTR.md`), public values and the TOTP secret as codes (`docs/QR.md` §7); backups age, each copy's last check and a recovery path's wait (`docs/BACKUP-FLOW.md` §18, planned)
+**Open:** files over 64 MiB on a stick visit (`docs/LARGE-FILES.md`), the Nostr key (`docs/NOSTR.md`); backups age, each copy's last check and a recovery path's wait (`docs/BACKUP-FLOW.md` §18, planned)
 
 Every flow, where it starts, and where it leaves the person.
 
@@ -819,8 +819,8 @@ item's page stacks the same nodes in that order, with no lines.
 - Entries list → **TOTP codes** → the codes screen (below).
 - An entry with a TOTP secret → **Show as QR** under **TOTP
   secret** → the QR sheet with the stored `otpauth://` URI, marked
-  Secret, no PNG, nothing For the stick; **Done** closes it (F28; not
-  built, `docs/QR.md` §7).
+  Secret, no PNG, nothing For the stick; **Done** closes it, and so does
+  a lock (F28, `docs/QR.md` §7). An HOTP or unreadable secret has none.
 - **Import entries** (from a file in Files) → preview: entries found, lines
   skipped with the reason → choose the vault → import → Entries list.
 - **Edit** → the same form → back to the item.
@@ -835,8 +835,9 @@ item's page stacks the same nodes in that order, with no lines.
   chosen; **Hold to mark the key revoked** (F32).
 - Secure Boot keys → their page in the vault: **Owner keys**, the
   policy, **Enrolment files** and **Sign or check an image** (below).
-- A recovery sheet → its descriptor, with **Show as QR** and **PNG** on
-  a row under it (F28; not built, `docs/QR.md` §7).
+- A recovery sheet → its descriptor, with **Show as QR** and **PNG** in
+  its actions (F28, `docs/QR.md` §7): `{name}-descriptor.png` For the
+  stick, labelled with the wallet's shape and checksum.
 
 A vault's passphrases, unlock cost and space are fixed when it is made:
 the app has no action that changes them or makes a new vault from an
@@ -1286,8 +1287,9 @@ guarantees for this file's rule:
   address row opens its code when pressed, a chevron at its end, as
   Create's descriptor row opens the wallet's: the wallet card's first
   receive address (and the small panel's), the first addresses of
-  Create's Check, Restore's Check and the chart sheet's wallet, and
-  Vanity address's found address. The code is the address as printed,
+  Create's Check, Restore's Check and the chart sheet's wallet, the
+  Spend tab's **Receive address 0** and **Check the money**'s receive
+  rows, and Vanity address's found address. The code is the address as printed,
   shown whole under it; no PNG. A change address, the signing steps'
   **Addresses · Compare** and a wallet whose backup is not done ("Back
   up before you receive") open none.
@@ -1650,7 +1652,7 @@ nsec is a secret in Files with no code and no way For the stick; its
 
 ## Explore
 
-(F28, F76; the values as codes are not built, `docs/QR.md` §7.) From a key's **Explore
+(F28, F76; `docs/QR.md` §7.) From a key's **Explore
 this key** or the Tools tile → the path and the script type → the
 **Address**, **Public key** and **Extended key** at that path, each a
 row that opens its code when pressed (the value as printed, whole under
@@ -1659,8 +1661,8 @@ the code, no PNG) → **Wallets**.
 ## Lightning node key
 
 From the Tools tile → ldk-node from a loaded key, or LND with its
-aezeed typed → **Node id**, with **Show as QR** and **PNG** (F28, not
-built, `docs/QR.md` §7;
+aezeed typed → **Node id**, with **Show as QR** and **PNG** (F28,
+`docs/QR.md` §7;
 `lightning-{8 hex}.png` For the stick, "{name} waits for the stick"),
 **Made**, the private key masked until **Show** and never a code →
 **Save into {vault}** (decision 10's way when none is open), **Out

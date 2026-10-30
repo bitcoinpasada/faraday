@@ -925,3 +925,17 @@ fn a_slots_passphrase_refuses_a_letter_outside_ascii_and_says_so() {
         "{texts:?}"
     );
 }
+
+/// Check's two receive rows each open their address's code, the address
+/// as the row shows it, with no picture (`docs/QR.md` §7).
+#[test]
+fn checks_receive_rows_open_their_codes() {
+    let c = testkit::compute();
+    let (mut app, w) = made();
+    for i in 0..2 {
+        let want = app
+            .session
+            .address_shown(&c, &app.session.wallets[w], false, i);
+        crate::common::opens_its_code(&mut app, faraday_core::Code::Receive(w, i), &want);
+    }
+}

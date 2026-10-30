@@ -82,6 +82,7 @@ need. Each document's header says what kind it is:
 - `docs/LAYOUT.md`: Layout at every window size. Built (F92): Material 3's size classes, navigation and top app bar, panes; the screens' sizes written in place are held by the `lint-tokens` ratchet.
 - `docs/ORIENTATION.md`: Panel orientation. Built (F100): a 7-inch or 10-inch panel starts in landscape, Rotation in Settings › Display turns it and its touch.
 - `docs/PREVIEW-SIZE.md`: Preview size: Faraday Demo at another screen's size. Built (F110, F118).
+- `docs/QR.md`: QR transfer and scanning. Built (§7, F28: codes of public values and the TOTP secret).
 - `docs/README.md`: Faraday's documents. Built.
 - `docs/SECURITY-MODEL.md`: Security model. Built.
 - `docs/SPEND-FROM-BACKUP.md`: The Spend tab. Built.
@@ -113,7 +114,6 @@ need. Each document's header says what kind it is:
 - `docs/CROSSCHECK.md`: A second implementation of each cryptographic step, and which references are Faraday's own (§10, §10.7, F160). Option A decided (F79) and built (§10.5); options B and C deferred.
 - `docs/NOSTR.md`: The Nostr key. Not built, not scheduled (F27, amended by F34).
 - `docs/OWN-RANDOMNESS.md`: Your own randomness, and the kernel's at boot. Specified, partly built (F86, F157); Add randomness at every press that draws the system's randomness (§8) built, but for a split wallet's Files list; the late seed and the Pi's generator (§3.5) not built.
-- `docs/QR.md`: QR transfer and scanning. Built, except §7.
 - `docs/SCANNING.md`: What each scanner takes, and the way over for a code read in the wrong one. Planned, not built.
 - `docs/SEED-CONVERSION.md`: Convert a seed. Specified (F88), not built.
 - `docs/SIGNER-CHECK.md`: Check a signer. Planned, not built.

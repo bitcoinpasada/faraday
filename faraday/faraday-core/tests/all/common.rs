@@ -1419,3 +1419,67 @@ pub fn strip(app: &mut Faraday) -> Vec<String> {
 pub fn strip_offers(app: &mut Faraday, a: Action) -> bool {
     faraday_core::Host::strip_actions_for(app).contains(&a)
 }
+
+/// The one code of a PNG picture, as text, read by the decoder the disk
+/// process and the camera use.
+pub fn png_text(png: &[u8]) -> String {
+    let c = testkit::compute();
+    let payloads = faraday_files::qr_in_png(&c, png).expect("a PNG");
+    assert_eq!(payloads.len(), 1, "one code");
+    String::from_utf8(payloads[0].clone()).expect("text")
+}
+
+/// The code the QR sheet shows, as a camera reads it.
+pub fn qr_text(app: &Faraday) -> String {
+    let q = app.qr().expect("no QR sheet");
+    assert_eq!(q.frames.len(), 1, "{}: one code", q.title);
+    png_text(&faraday_codec::png::qr_png(&q.frames[0], 4))
+}
+
+/// What the screen draws now, every text run together with no spaces, so
+/// a value grouped or wrapped reads whole.
+pub fn drawn_whole(app: &mut Faraday) -> String {
+    texts(app).concat().replace(' ', "")
+}
+
+/// A public value on screen opens its code (`docs/QR.md` §7): `code` is
+/// offered on the screen drawn now, which shows `want`; its QR sheet's code
+/// reads back as `want`, public, whole under it, offering no picture, and
+/// PNG of it puts nothing For the stick. The sheet is closed after.
+pub fn opens_its_code(app: &mut Faraday, code: faraday_core::Code, want: &str) {
+    assert!(
+        offered(app, Action::ShowCode(code)),
+        "{code:?} is not offered"
+    );
+    assert!(drawn_whole(app).contains(want), "{want} is not on screen");
+    app.press(Action::ShowCode(code));
+    let q = app.qr().expect("no QR sheet");
+    assert!(!q.secret, "{code:?} is marked secret");
+    assert!(!q.offers_png(), "{code:?} offers a picture");
+    assert_eq!(q.whole.as_deref(), Some(want), "{code:?}'s text under it");
+    assert_eq!(qr_text(app), want, "{code:?} reads back");
+    let before: Vec<String> = app.outbox.iter().map(|i| i.name.clone()).collect();
+    app.press(Action::QrPng);
+    app.press(Action::Cancel);
+    app.press(Action::CodePng(code));
+    let after: Vec<String> = app.outbox.iter().map(|i| i.name.clone()).collect();
+    assert_eq!(before, after, "{code:?} put a file For the stick");
+}
+
+/// The presses the screen drawn now offers that open a code or make its
+/// picture, in drawing order.
+pub fn codes_offered(app: &mut Faraday) -> Vec<Action> {
+    let _ = app.frame();
+    app.drawn_actions()
+        .into_iter()
+        .filter(|a| {
+            matches!(
+                a,
+                Action::ShowCode(_)
+                    | Action::CodePng(_)
+                    | Action::QrWallet(_)
+                    | Action::Vault(V::TotpQr | V::WalletQr)
+            )
+        })
+        .collect()
+}

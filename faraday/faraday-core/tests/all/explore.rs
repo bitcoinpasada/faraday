@@ -155,3 +155,27 @@ fn everything_is_hidden_after_leaving_and_coming_back() {
     assert!(!all.contains("xprv"));
     assert!(!all.contains(FIRST_WIF));
 }
+
+/// Explore's address, public key and extended key at the path each open
+/// their code, as the screen prints them (BIP-84's first address and its
+/// public key for "abandon … about"), with no picture (`docs/QR.md` §7).
+#[test]
+fn the_address_public_key_and_extended_key_open_their_codes() {
+    use faraday_core::Code;
+    let c = faraday_core::testkit::compute();
+    let mut app = exploring();
+    let r = app.explore_reading(&c).unwrap();
+    for (code, want) in [
+        (
+            Code::ExploreAddress,
+            "bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu",
+        ),
+        (
+            Code::ExplorePublicKey,
+            "0330d54fd0dd420a6e5f8d3624f5f3482cae350f79d5f0753bf5beef9c2d91af3c",
+        ),
+        (Code::ExploreXpub, r.xpub.as_str()),
+    ] {
+        crate::common::opens_its_code(&mut app, code, want);
+    }
+}

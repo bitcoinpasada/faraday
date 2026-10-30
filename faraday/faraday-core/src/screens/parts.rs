@@ -528,7 +528,8 @@ pub(crate) fn first_addresses(app: &View, ui: &mut Ui, i: usize, x: f32, y: f32,
     };
     let mut cy = y;
     // So that a multisig's three rows do not read as one address per
-    // key (`docs/history/NEW-WALLET.md` §2.4).
+    // key (`docs/history/NEW-WALLET.md` §2.4). Each receive row opens its
+    // code; the change row opens nothing (`docs/QR.md` §7.1).
     section_label(ui, x, cy, EN.first_addresses_heading);
     cy += ui.line_as(faraday_draw::tokens::TITLE_S) + faraday_draw::tokens::GAP_SMALL;
     if app.receive_held(wl) {
@@ -547,22 +548,77 @@ pub(crate) fn first_addresses(app: &View, ui: &mut Ui, i: usize, x: f32, y: f32,
         (EN.first_addresses_receive_0_1, false, 1),
         (EN.first_addresses_change, true, 0),
     ] {
-        ui.text_as(x, cy + 2.0, BODY_S, Role::OnSurfaceVariant, label);
         let a = app.receive_line(wl, change, idx).0;
         // The address beside its label where the label leaves it room,
         // else under it.
-        let ax = if ui.compact || ui.measure_as(BODY_S, label) + tokens::GAP_SMALL > beside {
-            cy += ui.advance_as(BODY_S, 20.0);
+        let (ax, ay) = if ui.compact || ui.measure_as(BODY_S, label) + tokens::GAP_SMALL > beside {
+            (0.0, ui.advance_as(BODY_S, 20.0))
+        } else {
+            (beside, 0.0)
+        };
+        let room = if change {
             0.0
         } else {
-            beside
+            tokens::ROW_CHEVRON_ROOM
         };
-        cy += ui
-            .wrap_as((x + ax, cy, w - ax), BODY_M.mono(), Role::OnSurface, &a)
-            .max(20.0)
-            + 10.0;
+        let aw = w - ax - room;
+        let natural = ay + ui.wrap_height_as(BODY_M.mono(), &a, aw).max(20.0);
+        // A row that opens a code is a touch target tall, its text in its
+        // middle.
+        let pad = if change {
+            0.0
+        } else {
+            ((tokens::TOUCH - natural) / 2.0).max(0.0)
+        };
+        ui.text_as(x, cy + pad + 2.0, BODY_S, Role::OnSurfaceVariant, label);
+        let at = (x + ax, cy + pad + ay, aw);
+        ui.wrap_as(at, BODY_M.mono(), Role::OnSurface, &a);
+        let band = natural + 2.0 * pad;
+        if !change {
+            let code = crate::Code::Receive(i, idx);
+            row_press(ui, (x, cy, w, band), Action::ShowCode(code));
+        }
+        cy += band + 10.0;
     }
     cy - y
+}
+
+/// The chevron at the end of the row `(x, y, w, h)`, centred in it, and
+/// the row's press, which opens what it shows: a receive address's code
+/// (`docs/QR.md` §7.1), as `descriptor_row` opens a wallet's.
+pub(crate) fn row_press(ui: &mut Ui, (x, y, w, h): (f32, f32, f32, f32), action: Action) {
+    let box_w = tokens::ICON_SMALL;
+    ui.icon(
+        x + w - box_w,
+        y + (h - box_w) / 2.0,
+        box_w,
+        Icon::ChevronRight,
+        tokens::ROW_CHEVRON,
+        Role::OnSurfaceVariant,
+    );
+    ui.press_box(x, y, w, h, action);
+}
+
+/// An address `text` in `(size, role)`, whole and wrapped, that opens its
+/// code when pressed (`docs/QR.md` §7.1): a touch target tall at least,
+/// the address in its middle, a chevron at its end; or, with no action
+/// (held back for a backup), the text alone. Returns the height used.
+pub(crate) fn address_press(
+    ui: &mut Ui,
+    (x, y, w): (f32, f32, f32),
+    (size, role): (TypeRole, Role),
+    text: &str,
+    action: Option<Action>,
+) -> f32 {
+    let Some(action) = action else {
+        return ui.wrap_as((x, y, w), size, role, text);
+    };
+    let tw = w - tokens::ROW_CHEVRON_ROOM;
+    let th = ui.wrap_height_as(size, text, tw);
+    let h = th.max(tokens::TOUCH);
+    ui.wrap_as((x, y + (h - th) / 2.0, tw), size, role, text);
+    row_press(ui, (x, y, w, h), action);
+    h
 }
 
 /// Where a file a flow made stands: For the stick, with its place in
@@ -915,15 +971,7 @@ pub(crate) fn descriptor_row(
         )
         .max(18.0);
     let h = 20.0 + vh + 8.0;
-    ui.icon(
-        x + w - 20.0,
-        y + (h - 20.0) / 2.0,
-        20.0,
-        Icon::ChevronRight,
-        9.0,
-        Role::OnSurfaceVariant,
-    );
-    ui.press_box(x, y - 4.0, w, h, action);
+    row_press(ui, (x, y - 4.0, w, h), action);
     ui.rule(x, y + h, w, Role::OutlineVariant);
     h + 12.0
 }

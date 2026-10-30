@@ -216,12 +216,15 @@ fn card(app: &View, v: &VanityState, ui: &mut Ui, s: u8, x: f32, y: f32, w: f32)
             (Some(f), _) => {
                 ui.text_as(x, cy, BODY_S, Role::OnSurfaceVariant, EN.vanity_found);
                 cy += ui.advance_as(BODY_S, 22.0);
-                cy += ui.wrap_as(
-                    (x, cy, w),
-                    BODY_L.mono(),
-                    Role::Ok,
-                    &grouped(f.address.as_str()),
-                ) + 12.0;
+                // The find opens its code, unless its key waits for its
+                // backup (`docs/QR.md` §7.1).
+                let held = v
+                    .key
+                    .is_some_and(|k| app.key_held(faraday_bip::keys::Fingerprint(k)));
+                let open = (!held).then_some(Action::ShowCode(crate::Code::VanityAddress));
+                let text = grouped(f.address.as_str());
+                let size = (BODY_L.mono(), Role::Ok);
+                cy += crate::screens::address_press(ui, (x, cy, w), size, &text, open) + 12.0;
                 match v.grind.dial {
                     Dial::Account => {
                         ui.text_as(

@@ -3,7 +3,8 @@
 **Kind:** History
 **Status:** Kept as written
 
-Sections moved out of `docs/QR.md` on 2026-10-22. Each keeps its
+Sections moved out of `docs/QR.md` on 2026-10-22, and §7.2 and §7.4 on
+2026-10-29. Each keeps its
 original number; the source keeps a one-line stub under the same heading.
 
 ## Header and introduction (from docs/QR.md)
@@ -157,11 +158,113 @@ Not built: camera choice on the desktop shell (it opens the first camera);
 a descriptor scanned while Create waits goes to the Inbox, not into the
 flow.
 
+## §7.2 Code, the plan (from docs/QR.md)
+
+Moved on 2026-10-29, when batch Q1 was built. As planned; the build put
+`code_view` and the new arms in `qr_view.rs` (out of `lib.rs`, at its
+line count), and the vault's two codes in `Faraday::vault_qr_act`.
+
+In `faraday/faraday-core/src/lib.rs`, `Code` gains, each with its arm in
+`Faraday::code_view`:
+
+| Variant | Value | View |
+|---|---|---|
+| `Receive(usize, u32)` | Wallet n's receive address at index i | `QrView::text`, not `public`: no picture; `whole` the address |
+| `VanityAddress` | Vanity address's found address | as `Receive` |
+| `ExploreAddress`, `ExplorePublicKey`, `ExploreXpub` | Explore's three values at its path | as `Receive` |
+| `NodeId` | The Lightning node id on show | `QrView::text(..).public(..)`, the label above |
+| `VaultSheet` | The selected recovery sheet's descriptor in the open vault, as `GpgKey` names the selected key | as `Code::Descriptor`'s view and picture |
+
+`Action::ShowCode` and `Action::CodePng` carry them as they carry the
+others; `CodePng` of a view with no picture does nothing, as today.
+
+The TOTP secret has no `Code` variant, so `CodePng` cannot reach it: a
+vault action, `VaultAction::TotpQr`, fired by the hold, builds the view
+with a new `QrView::secret(title, text)` (a `QrView::text` with
+`secret` set) and opens it with `open_qr`.
+
+**Strings**, in `faraday/faraday-strings/src/en.rs` (Faraday's):
+
+| Key | Text |
+|---|---|
+| `code_view_receive` | `{} · receive {}` (the wallet's name, the index) |
+| `code_view_explore_address` | `Address · {}` (the path) |
+| `code_view_explore_public_key` | `Public key · {}` |
+| `code_view_explore_xpub` | `Extended key · {}` |
+| `code_view_node_id` | `Lightning node id` |
+| `code_view_public_node` | `Public: names the node, spends nothing` |
+| `code_view_sheet` | `{} · recovery sheet descriptor` |
+| `code_view_totp` | `{} · TOTP secret` (the entry's title) |
+| `code_view_no_address` | `No address to show` |
+| `code_view_no_node` | `No node key on show` |
+| `lightning_show_as_qr` | `Show as QR` |
+| `lightning_png` | `PNG` |
+| `vault_show_as_qr` (reused) | `Show as QR` |
+
+The vanity title reuses `vanity_vanity_address`; the recovery sheet's
+buttons reuse `vault_show_as_qr` and the literal `"PNG"` the GPG rows
+use; the pressable rows need no new label.
+
 ## §7.4 Batch Q1, the rules for the implementing agent (from docs/QR.md)
 
 - **Rules for the implementing agent.** `CLAUDE.md` applies in full: builds and tests on the build machine; every dimension a token; labels, not prose;
   tests for user-facing behaviour only; `just` once at the end; no
   `rm`; no commits; no agents. Nothing in `core/`.
+
+
+## §7.4 Batch Q1, the batch (from docs/QR.md)
+
+Moved on 2026-10-29, when it was built.
+
+One batch, one review, one completion report.
+
+- **Rules for the implementing agent:** moved to `docs/history/QR-LOG.md`;
+  `CLAUDE.md` applies.
+- **Code.** `lib.rs` (the variants, their `code_view` arms,
+  `QrView::secret`, `lock_now` dropping the view); `screens/parts.rs`
+  (`first_addresses`, the wallet card's first receive address); `compact/screen.rs` (the small panel's
+  card); `family/screen.rs` (**Receive address 0**, **Check the
+  money**'s receive rows); `glance/sheet.rs` (through
+  `first_addresses`); `vanity/screen.rs`; `explore/screen.rs`;
+  `lightning/screen.rs` and `lightning.rs` (the node's view);
+  `vault/screen.rs` and `vault/mod.rs` (the sheet's row, the TOTP hold,
+  `VaultAction::TotpQr`); `faraday-strings/src/en.rs`.
+- **Tests**, through `Action`s and `StorageEvent`s as their neighbours
+  do; the public codes in `faraday/faraday-core/tests/all/codes.rs`, which
+  already reads codes back through the camera's decoder (`shown`,
+  `read_png`), the TOTP code in `faraday/faraday-core/tests/all/totp.rs`:
+  - each new code reads back as exactly the value its screen shows: a
+    wallet's receive 0 and 1 from the card, Create's and Restore's
+    Check, the Spend tab's pages; Vanity's found address; Explore's address,
+    public key and extended key at a chosen path; the node id; a
+    recovery sheet's descriptor; an entry's TOTP URI;
+  - on Faraday Demo's mainnet demo, a receive code reads back as the
+    address with its broken checksum, as printed;
+  - a receive address's QR sheet offers no PNG, and **PNG** of it puts
+    nothing For the stick;
+  - a change address and a receive address of a wallet whose backup is
+    not done open no code;
+  - the node id's **PNG** puts `lightning-{8 hex}.png` For the stick as a
+    public file, and the picture scans back as the node id;
+  - a recovery sheet's **PNG** puts `{name}-descriptor.png` For the
+    stick and scans back as the descriptor; a 2-of-3 past one code goes
+    as parts that assemble to it;
+  - a press on the TOTP secret's **Show as QR** opens the QR sheet
+    marked Secret, with no PNG, and For the stick is unchanged; after a
+    lock no code is on screen;
+  - nothing secret gains a code: the BIP-85 value, the Lightning private
+    key, the scan key, an entry's password, a note and a vault key's
+    words have no **Show as QR** on their screens, and every view the
+    new `Code` variants open is public.
+- **Snapshots** (`faraday/shells/snapshot/src/main.rs`): the wallet
+  card with its pressable address and the receive code open; Explore's
+  extended key code; the Lightning node key with its buttons; a
+  recovery sheet's page; an entry with its TOTP **Show as QR**, and its
+  Secret sheet. At 1280x800, 480x640 and 240x320.
+- **Docs in the batch.** The header and §1 say this section is built;
+  `docs/FLOWS.md` already names the actions (F28).
+- **Completion report:** each item with its tests and whether they
+  pass; what was left out and why; the docs changed; the render names.
 
 ## §8 Parity with Gauss (from docs/QR.md)
 

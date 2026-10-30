@@ -694,19 +694,21 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     );
     cy += ui.line_as(LABEL_M) + faraday_draw::tokens::GRID;
     let (addr, held) = app.receive_line(wlt, false, 0);
+    // The row opens the address's code, unless it is held back.
+    let open = (!held).then_some(Action::ShowCode(crate::Code::Receive(
+        app.wallets.wallet(),
+        0,
+    )));
+    let room = if held { 0.0 } else { tokens::ROW_CHEVRON_ROOM };
     // On one line where the smaller size fits it: an address split over
     // two lines can be read as whole from its first.
-    let size = if ui.measure_as(BODY_L.mono(), &addr) <= iw {
+    let size = if ui.measure_as(BODY_L.mono(), &addr) <= iw - room {
         BODY_L.mono()
     } else {
         BODY_M.mono()
     };
-    cy += ui.wrap_as(
-        (ix, cy, iw),
-        size,
-        if held { Role::Warning } else { Role::OnSurface },
-        &addr,
-    ) + 8.0;
+    let role = if held { Role::Warning } else { Role::OnSurface };
+    cy += crate::screens::address_press(ui, (ix, cy, iw), (size, role), &addr, open) + 8.0;
     ui.c.pop_clip();
     card_actions(
         ui,

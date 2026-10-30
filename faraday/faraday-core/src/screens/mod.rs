@@ -55,11 +55,11 @@ pub(crate) use files::{stick_chip as files_stick_chip, vault_panel};
 pub(crate) use home::{home_lead_beside_tiles, tile_grid};
 pub(crate) use message::{MESSAGE_STEPS, MSTEPS};
 pub(crate) use parts::{
-    CopyGrid, buttons_and_next, code_field, copy_blocks, copy_grid, descriptor_row,
+    CopyGrid, address_press, buttons_and_next, code_field, copy_blocks, copy_grid, descriptor_row,
     first_addresses, grid_never, guide_text, guide_text_learn, keyed_pills, kind_line, kind_name,
     locked_tag, never_below, never_real_seed, never_real_seed_if, never_under, next_button,
-    next_button_when, pass_field, pin_button, side_panel_w, sign_readiness, size_text, stepper,
-    ticked, word_keys, working_bar, working_line,
+    next_button_when, pass_field, pin_button, row_press, side_panel_w, sign_readiness, size_text,
+    stepper, ticked, word_keys, working_bar, working_line,
 };
 pub(crate) use parts::{camera_row, card_pad, coin_pad, dice_pad, key_path_line, word_cell_edge};
 pub(crate) use restore::RSTEPS;

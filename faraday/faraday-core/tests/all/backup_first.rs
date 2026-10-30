@@ -623,3 +623,24 @@ fn the_done_card_says_extra_copies_are_made_outside_the_plan_in_guided_only() {
         "not in Steps only"
     );
 }
+
+/// While a key made here waits for its backup, no receive address opens a
+/// code: not on Create's Check, not on the wallet's card, and a press for
+/// one shows none (`docs/QR.md` §7, F31).
+#[test]
+fn a_key_made_here_opens_no_receive_code_until_its_backup_is_done() {
+    use faraday_core::Code;
+    let mut app = device(Vec::new(), 2400);
+    let (w, _) = made_here(&mut app);
+    for card in [false, true] {
+        if card {
+            app.press(Action::OpenWallet(w));
+        }
+        for i in 0..2 {
+            let a = Action::ShowCode(Code::Receive(w, i));
+            assert!(!crate::common::offered(&mut app, a), "{a:?}, card {card}");
+        }
+    }
+    app.press(Action::ShowCode(Code::Receive(w, 0)));
+    assert!(app.qr().is_none(), "a held address showed a code");
+}

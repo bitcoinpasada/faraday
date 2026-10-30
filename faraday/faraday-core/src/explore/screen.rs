@@ -5,13 +5,13 @@ use crate::drawing::View;
 use crate::strings::EN;
 use faraday_bip::keys::ScriptType;
 
-use crate::Action;
 use crate::explore::shown::xprv_path;
 use crate::explore::{Eye, PRESETS, Page, Shown, XAction};
 use crate::screens::{button_rows, guide_text_learn};
 use crate::strings::fill;
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui};
+use crate::{Action, Code};
 use faraday_draw::tokens::{self as T, COLUMN_MAX, EXPLORE_INSET, PATH_FIELD_W};
 use faraday_draw::tokens::{BODY_L, BODY_M, BODY_S, FIELD_H, FIELD_PAD};
 use faraday_keys::Reveal;
@@ -132,15 +132,36 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     // address's private key and the extended private keys each follow
     // what they are of, behind their eyes.
     let shown = app.explore_shown();
-    y += value_row(ui, cols, y, EN.explore_address, &r.address);
+    y += code_row(
+        ui,
+        cols,
+        y,
+        EN.explore_address,
+        &r.address,
+        Code::ExploreAddress,
+    );
     let path = app.explore_path().ok();
     let wif = path.as_ref().and_then(|p| shown.and_then(|s| s.wif(p)));
     y += eye_row(ui, cols, y, EN.explore_wif, Eye::Wif, wif.is_some());
     if let Some(w) = wif {
         y += value_row(ui, cols, y, "", w);
     }
-    y += value_row(ui, cols, y, EN.explore_public_key, &r.public_key);
-    y += value_row(ui, cols, y, EN.explore_extended_key, &r.xpub);
+    y += code_row(
+        ui,
+        cols,
+        y,
+        EN.explore_public_key,
+        &r.public_key,
+        Code::ExplorePublicKey,
+    );
+    y += code_row(
+        ui,
+        cols,
+        y,
+        EN.explore_extended_key,
+        &r.xpub,
+        Code::ExploreXpub,
+    );
     let xprvs = shown.and_then(Shown::xprvs);
     y += eye_row(ui, cols, y, EN.explore_xprvs, Eye::Xprv, xprvs.is_some());
     if let Some((at, root, account)) = xprvs {
@@ -206,6 +227,33 @@ pub(super) fn value_row(ui: &mut Ui, at: Cols, y: f32, label: &str, value: &str)
         .max(20.0)
         + 12.0;
     cy - y
+}
+
+/// A public value under its name, as `value_row` draws it, that opens
+/// its code when pressed (`docs/QR.md` §7.1): a touch target tall at
+/// least, its text in its middle, a chevron at the row's end. Returns the
+/// height used.
+fn code_row(ui: &mut Ui, at: Cols, y: f32, label: &str, value: &str, code: Code) -> f32 {
+    let Cols { x, px, pw, width } = at;
+    let text = grouped(ui.compact, value);
+    let vw = pw - T::ROW_CHEVRON_ROOM;
+    let th = ui.wrap_height_as(BODY_M.mono(), &text, vw);
+    let under = if ui.compact {
+        ui.line_as(BODY_S) + T::GAP_SMALL
+    } else {
+        0.0
+    };
+    let band = (under + th).max(T::TOUCH);
+    let pad = (band - under - th) / 2.0;
+    ui.text_as(x, y + pad, BODY_S, Role::OnSurfaceVariant, label);
+    ui.wrap_as(
+        (px, y + pad + under, vw),
+        BODY_M.mono(),
+        Role::OnSurface,
+        &text,
+    );
+    crate::screens::row_press(ui, (x, y, width, band), Action::ShowCode(code));
+    band + T::GAP
 }
 
 /// A value's name at the column's left edge. Returns the height the
