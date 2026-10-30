@@ -969,6 +969,14 @@ def run(args, areas, jobs, only, seed, scale, core):
     import stamp
     stamp.write(seed, scale, total, jobs, list(interpreters.values()), cases, core)
     report.append(f"crosscheck: stamp written to {stamp.STAMP.relative_to(common.ROOT)}")
+    # What the manifest makes quotes the stamp (a fresh run's seed in the
+    # Learn blocks), so it is written again from it, before the record
+    # names the tree.
+    gen = subprocess.run([sys.executable, "-I", "-B", str(common.ROOT / "docs/crypto/gen.py"),
+                          "write"], capture_output=True, text=True)
+    if gen.returncode != 0:
+        report.append("crosscheck: gen.py write failed:\n" + gen.stdout + gen.stderr)
+        return finish(progress, report, "failed", 1)
     write_record()
     return finish(progress, report, "passed", 0)
 
