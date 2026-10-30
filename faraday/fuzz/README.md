@@ -87,7 +87,7 @@ shipped binary does.
 | `qr_assembler` | Scanned parts: the lines fed to one `faraday_qr::Assembler` (BBQr in base32, hex and inflated; numbered parts), a finished transfer kept as the Inbox keeps it; the whole text to `classify_text` and the transaction-in-hex reader; the bytes to the Faraday file envelope. |
 | `ur_registry` | `faraday_qr::registry::read` for each UR type the registry reads (the first byte picks it) and `cbor::Value::decode`. The fountain decoder under it is `ur_receive` in `fuzz/`. |
 | `png_qr` | `faraday_files::qr_in_png`: the `png` decoder, the size limit and the QR decoder over what it makes. |
-| `app_scanned` | A `Faraday` with the scan sheet open for each scan purpose in turn (the first byte picks it), every line sent as `Event::Scanned`, then the text pasted: the classifier, the seed readers, the address note, a vault entry's TOTP reader and Transfer's receiver. |
+| `app_scanned` | A `Faraday` with the scan sheet open for each scan purpose in turn (the first byte picks it), every line sent as `Event::Scanned`, then the text pasted: the classifier, the seed readers, the address note, a vault entry's TOTP reader, Transfer's receiver and the GPG restore's public key scanner. |
 | `edid` | The kernel's boot parameters (the EDID inside them, the Secure Boot byte) and an EDID as a monitor, a KVM or the Starter's display check hands it over. |
 | `hid_ranges` | `hid::ranges` over a USB touchscreen's HID report descriptor; the stick shell's `hid.rs` is included by path. |
 | `bip39_words` | `Mnemonic::parse`, `forms::typed_mnemonic` and `faraday_intake::file_words` over text, in the language the first byte picks. |

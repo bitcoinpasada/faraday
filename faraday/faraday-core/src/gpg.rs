@@ -74,8 +74,16 @@ pub fn key_id(fp: &[u8; 20]) -> String {
 /// A short name for files: the user ID's name part, lower-case, and the
 /// fingerprint's last eight digits.
 pub(crate) fn file_stem(key: &Facts) -> String {
-    let name = name_part(key);
-    let fp = key.fingerprint;
+    stem_of(
+        key.user_ids.first().map_or("", String::as_str),
+        &key.fingerprint,
+    )
+}
+
+/// [`file_stem`] of a key with the first user ID `user_id` and this
+/// fingerprint: the name its public key is filed under, `{stem}.asc`.
+pub(crate) fn stem_of(user_id: &str, fp: &[u8; 20]) -> String {
+    let name = name_of(user_id);
     let tail: String = fp[16..].iter().map(|b| format!("{b:02X}")).collect();
     if name.is_empty() {
         tail
@@ -87,11 +95,11 @@ pub(crate) fn file_stem(key: &Facts) -> String {
 /// The user ID's name, as a file name part: lower-case letters and digits
 /// with dashes between.
 pub(crate) fn name_part(key: &Facts) -> String {
-    let name = key
-        .user_ids
-        .first()
-        .map(|u| u.split('<').next().unwrap_or(u).trim().to_string())
-        .unwrap_or_default();
+    name_of(key.user_ids.first().map_or("", String::as_str))
+}
+
+fn name_of(user_id: &str) -> String {
+    let name = user_id.split('<').next().unwrap_or(user_id).trim();
     let name: String = name
         .to_lowercase()
         .chars()

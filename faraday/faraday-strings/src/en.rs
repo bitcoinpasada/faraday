@@ -2745,6 +2745,8 @@ strings! {
     gpg_restore_title: "Restore a GPG key",
     /// The sheet with no public key in Files.
     gpg_restore_none: "Copy its public key in on a stick visit first.",
+    /// The sheet's button and the title of the scanner it opens.
+    gpg_restore_scan: "Scan the public key",
     /// The flow's head card.
     gpg_restore_public_key: "The public key",
     /// The head card's code box of line 1.

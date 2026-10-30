@@ -282,7 +282,7 @@ fn result(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) -> f3
 
 /// **Restore a GPG key**: a row for each public key in Files that reads,
 /// its user ID and fingerprint, those that do not under them, dimmed,
-/// with why, and Cancel (§4.1; Scan the public key comes with P4).
+/// with why, Cancel and **Scan the public key** (§4.1).
 pub(crate) fn sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let place = crate::modes::screen::place(ui, w);
     crate::compact::scroll_sheet(ui, place.0, h, place.1, place.2, &mut |ui, x, y, iw| {
@@ -294,7 +294,8 @@ fn sheet_body(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = y;
     cy += crate::modes::screen::head(ui, (x, cy, w), Icon::Keys, EN.gpg_restore_title);
     let rows = app.flows.restore_rows();
-    if rows.iter().all(|r| r.refused.is_some()) {
+    let none = rows.iter().all(|r| r.refused.is_some());
+    if none {
         cy += line(
             ui,
             (x, cy, w),
@@ -334,7 +335,15 @@ fn sheet_body(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         x,
         cy,
         w,
-        &[(EN.file_menu_cancel, Style::Ghost, Action::Cancel)],
+        &[
+            (EN.file_menu_cancel, Style::Ghost, Action::Cancel),
+            // The way on where no row is; beside the rows, a second one.
+            (
+                EN.gpg_restore_scan,
+                if none { Style::Primary } else { Style::Tonal },
+                ra(R::Scan),
+            ),
+        ],
     );
     cy - y
 }

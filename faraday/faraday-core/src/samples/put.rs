@@ -317,7 +317,7 @@ impl Faraday {
             ScanPurpose::Files => true,
             ScanPurpose::CheckCopy(fp) => english_keys(set)
                 .any(|(_, k)| k.plain == Some(fp.0) || k.with_passphrase == Some(fp.0)),
-            ScanPurpose::Transfer | ScanPurpose::CheckCodex32 => false,
+            ScanPurpose::Transfer | ScanPurpose::CheckCodex32 | ScanPurpose::GpgPublic => false,
         }
     }
 
@@ -457,7 +457,7 @@ impl Faraday {
                 Some(set.inputs.address.as_bytes().to_vec())
             }
             ScanPurpose::Files => self.sample_spend(c, set).map(<[u8]>::to_vec),
-            ScanPurpose::Transfer | ScanPurpose::CheckCodex32 => None,
+            ScanPurpose::Transfer | ScanPurpose::CheckCodex32 | ScanPurpose::GpgPublic => None,
         }
     }
 

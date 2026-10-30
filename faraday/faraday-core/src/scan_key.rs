@@ -636,7 +636,8 @@ impl Faraday {
                 | ScanPurpose::Intake
                 | ScanPurpose::Seed
                 | ScanPurpose::KeyPart
-                | ScanPurpose::WalletKey(_) => true,
+                | ScanPurpose::WalletKey(_)
+                | ScanPurpose::GpgPublic => true,
                 ScanPurpose::VaultEntry | ScanPurpose::CheckCopy(_) | ScanPurpose::CheckCodex32 => {
                     false
                 }

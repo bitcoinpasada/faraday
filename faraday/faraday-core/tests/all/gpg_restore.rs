@@ -269,6 +269,94 @@ fn a_lock_at_step_four_forgets_the_lines_and_keeps_the_public_key() {
     assert!(has(&mut app, "Line 1"), "{:?}", texts(&mut app));
 }
 
+/// The scanner's note, while it is open.
+fn scan_note(app: &Faraday) -> Option<String> {
+    app.scan().and_then(|s| s.note.clone())
+}
+
+/// A code read by the camera on screen.
+fn scan(app: &mut Faraday, bytes: &[u8]) {
+    app.event(Event::Scanned {
+        bytes: bytes.to_vec(),
+    });
+    let _ = app.frame();
+}
+
+/// The public key scanned on the sheet's **Scan the public key** (P4):
+/// with no public key in Files the sheet says so and offers the scanner;
+/// a code that is not a public key is named on the scanner and filed
+/// nowhere; the certificate's code is filed in Files under
+/// `{name}-{fp8}.asc` and the restore opens on it.
+#[test]
+fn the_public_key_scanned_on_the_sheet_is_filed_and_restored_from() {
+    let k = paper_key();
+    let mut app = with_test_vault();
+    app.press(Action::Flow(F::Restore(R::Sheet)));
+    assert_eq!(app.sheet, Some(Sheet::GpgRestore));
+    assert!(has(
+        &mut app,
+        "Copy its public key in on a stick visit first."
+    ));
+    let scan_press = Action::Flow(F::Restore(R::Scan));
+    assert!(offered(&mut app, scan_press));
+    app.press(scan_press);
+    assert_eq!(app.sheet, Some(Sheet::Scan));
+    assert!(has(&mut app, "Scan the public key"));
+    let files = app.inbox().len();
+    scan(&mut app, b"Signed after a restore.");
+    assert_eq!(
+        scan_note(&app).as_deref(),
+        Some("Not a public key Faraday reads")
+    );
+    assert_eq!(app.inbox().len(), files, "nothing filed");
+    assert_eq!(app.sheet, Some(Sheet::Scan), "the camera stays on");
+    scan(&mut app, &cert_file(&k).1);
+    let hex: String = k.fingerprint().iter().map(|b| format!("{b:02X}")).collect();
+    let name = format!("test-person-{}.asc", &hex[32..]);
+    assert!(
+        app.inbox().iter().any(|i| i.name == name),
+        "filed as {name}: {:?}",
+        app.inbox().iter().map(|i| &i.name).collect::<Vec<_>>()
+    );
+    assert_eq!(app.screen, Screen::BackupFlow);
+    let f = app.flow().expect("the restore");
+    assert_eq!(
+        f.restore.as_ref().map(|r| r.fingerprint),
+        Some(k.fingerprint())
+    );
+    assert!(has(&mut app, "Line 1 of its paperkey"));
+}
+
+/// A public key scanned that is not restored here is still filed, and the
+/// sheet comes back saying why.
+#[test]
+fn a_public_key_scanned_that_is_not_restored_here_is_filed_and_says_why() {
+    let rsa = include_bytes!("../../../../tools/vectors/paperkey/gpg-rsa3072.asc");
+    let mut app = with_test_vault();
+    app.press(Action::Flow(F::Restore(R::Sheet)));
+    app.press(Action::Flow(F::Restore(R::Scan)));
+    scan(&mut app, rsa);
+    let filed = app
+        .inbox()
+        .iter()
+        .any(|i| i.name.ends_with(".asc") && rsa.starts_with(&i.bytes));
+    assert!(
+        filed,
+        "{:?} {:?}",
+        scan_note(&app),
+        app.inbox().iter().map(|i| &i.name).collect::<Vec<_>>()
+    );
+    assert_eq!(app.sheet, Some(Sheet::GpgRestore));
+    assert!(
+        has(
+            &mut app,
+            "rsa3072 keys are not restored here: Faraday's are Ed25519"
+        ),
+        "{:?}",
+        texts(&mut app)
+    );
+}
+
 /// The test vault unlocked from Files.
 fn with_test_vault() -> Faraday {
     let vault = faraday_core::testkit::files()

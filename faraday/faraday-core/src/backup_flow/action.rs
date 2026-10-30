@@ -119,6 +119,9 @@ pub enum RestorePress {
     Again(u32),
     /// **Restore the key**.
     Restore,
+    /// **Scan the public key**: the scanner, for a public key to restore
+    /// from.
+    Scan,
 }
 
 /// What a kind's own build gives back (§4.4).

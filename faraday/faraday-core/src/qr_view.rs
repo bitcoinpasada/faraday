@@ -55,6 +55,9 @@ pub enum ScanPurpose {
     /// The Spend tab's What do you have?: anything in the envelope, one
     /// code after another, until Done (`docs/history/SCAN-TO-SIGN.md` §4.2).
     Intake,
+    /// **Scan the public key** on Restore a GPG key: an armoured public
+    /// key, filed in Files and restored from (`docs/GPG-PAPERKEY.md` §3).
+    GpgPublic,
 }
 
 /// What the camera sheet holds.
@@ -711,5 +714,70 @@ impl Faraday {
             // `act_inner` passes only the actions matched above.
             _ => unreachable!(),
         }
+    }
+
+    // ---- the scanner of a GPG key's restore (docs/GPG-PAPERKEY.md §3) ----
+
+    /// **Scan the public key** on Restore a GPG key: the camera, for the
+    /// public key to restore from. A lookup.
+    pub(crate) fn gpg_restore_scan(&mut self) {
+        let mut scan = ScanState::default();
+        scan.purpose = ScanPurpose::GpgPublic;
+        self.camera.open(scan);
+        self.sheet = Some(Sheet::Scan);
+        self.out
+            .commands
+            .push_back(faraday_shell_api::Command::CameraOn);
+    }
+
+    /// Costs what a code read costs, a file's classifying and a SHA-1 of
+    /// each key. A code read by the restore's scanner: an armoured public
+    /// key is filed in Files, under `{name}-{fp8}.asc` where it is one to
+    /// restore from, and its flow opens; one that is not restored here
+    /// goes back to the sheet, which says why. Anything else is named on
+    /// the scanner, and the camera stays on. Whether the scanner was the
+    /// restore's.
+    pub(crate) fn gpg_restore_scanned(&mut self, bytes: &[u8]) -> bool {
+        if self
+            .camera
+            .scan()
+            .is_none_or(|s| s.purpose != ScanPurpose::GpgPublic)
+        {
+            return false;
+        }
+        let c = self.compute();
+        let Some((named, _, data)) = self.read_code(zeroize::Zeroizing::new(bytes.to_vec())) else {
+            return true;
+        };
+        let public = faraday_pgp::read_public_armor(&data) == Some(faraday_pgp::Armor::PublicKey);
+        let from = crate::backup_flow::RestoreFrom::read(&data).ok();
+        let name = match (&from, named) {
+            (Some(r), _) => format!("{}.asc", crate::gpg::stem_of(&r.user_id, &r.fingerprint)),
+            (None, Some(n)) => n,
+            (None, None) => format!("scanned-{}.asc", self.camera.next_number()),
+        };
+        let item = crate::Item::new(&c, &self.free_inbox_name(&name), data);
+        if !public || item.kind != crate::FileKind::Gpg {
+            if let Some(s) = self.camera.scan_mut() {
+                s.note = Some(EN.gpg_restore_not_public.to_string());
+            }
+            return true;
+        }
+        let at = self.inbox_file_in(item);
+        let name = self.inbox[at].name.clone();
+        self.camera.close();
+        self.sheet = None;
+        self.out
+            .commands
+            .push_back(faraday_shell_api::Command::CameraOff);
+        self.toast(&fill(EN.scanned_is_in_files, &[&name]));
+        if from.is_some() {
+            self.gpg_restore_from(at);
+        } else {
+            self.flows.restore_sheet(&self.inbox[..]);
+            self.sheet = Some(Sheet::GpgRestore);
+        }
+        self.out.dirty = true;
+        true
     }
 }

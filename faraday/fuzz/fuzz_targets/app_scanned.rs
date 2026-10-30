@@ -19,7 +19,7 @@ use libfuzzer_sys::fuzz_target;
 const LINES: usize = 64;
 
 fn purpose(n: u8) -> ScanPurpose {
-    match n % 9 {
+    match n % 10 {
         0 => ScanPurpose::Files,
         1 => ScanPurpose::Seed,
         2 => ScanPurpose::KeyPart,
@@ -28,6 +28,7 @@ fn purpose(n: u8) -> ScanPurpose {
         5 => ScanPurpose::Transfer,
         6 => ScanPurpose::WalletKey(0),
         7 => ScanPurpose::Intake,
+        8 => ScanPurpose::GpgPublic,
         _ => ScanPurpose::Files,
     }
 }

@@ -1,6 +1,7 @@
 //! The gpg-restore tour (`docs/GPG-PAPERKEY.md` §8, Snapshots): a GPG key
 //! restored from its paperkey. The sheet of the public keys in Files, one
-//! that reads and one refused by its algorithm; the flow's head card with
+//! that reads and one refused by its algorithm, and its scanner naming a
+//! code that is not a public key; the flow's head card with
 //! line 1 of the paperkey; step 4 with a line checked and one being typed;
 //! a line in error; every line checked; and a key refused at **Restore the
 //! key**. The keys are GnuPG's, from `tools/vectors/paperkey/`: one of
@@ -35,6 +36,13 @@ pub(crate) fn gpg_restore_tour(t: &mut Tour) -> Result<(), String> {
     t.pump();
     t.press(Action::Flow(F::Restore(R::Sheet)));
     t.shot("gpg-restore-1-sheet")?;
+    // Scan the public key: the scanner, a frame up, a code not a key.
+    t.press(Action::Flow(F::Restore(R::Scan)));
+    frame(t);
+    t.app.event(Event::Scanned {
+        bytes: b"Signed after a restore.".to_vec(),
+    });
+    t.shot("gpg-restore-1-scan")?;
     t.press(Action::Cancel);
     // The flow on the key, at step 4 with its plan set: here a plan of no
     // vaults, so that Restore the key reaches the key's own check.
@@ -76,6 +84,16 @@ pub(crate) fn gpg_restore_tour(t: &mut Tour) -> Result<(), String> {
     // Down to the button and the refusal under it.
     down(t, 10);
     t.shot("gpg-restore-6-refused")
+}
+
+/// A camera frame: a soft gradient, nothing to read in it.
+fn frame(t: &mut Tour) {
+    t.app.event(Event::CameraFrame {
+        width: 640,
+        height: 480,
+        luma: (0..640u32 * 480).map(|i| ((i % 640) / 3) as u8).collect(),
+        chroma: None,
+    });
 }
 
 /// The page scrolled down `n` notches.

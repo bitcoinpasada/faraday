@@ -4175,7 +4175,7 @@ impl Faraday {
     fn scanned(&mut self, bytes: Vec<u8>) {
         let c = self.compute();
         let bytes = zeroize::Zeroizing::new(bytes);
-        if self.seed_scan_codex32(&bytes) {
+        if self.seed_scan_codex32(&bytes) || self.gpg_restore_scanned(&bytes) {
             return;
         }
         let camera = self.sheet == Some(Sheet::Scan);

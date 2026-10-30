@@ -707,6 +707,7 @@ pub(super) fn scan_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
             EN.scan_scan_your_copy.to_string()
         }
         (crate::ScanPurpose::Transfer, _) => EN.scan_receive_into_downloads.to_string(),
+        (crate::ScanPurpose::GpgPublic, _) => EN.gpg_restore_scan.to_string(),
         _ => EN.scan_scan_a_qr_code.to_string(),
     };
     let title = ui.fit_as(TITLE_M, &title, sw - 64.0);

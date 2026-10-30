@@ -1865,18 +1865,19 @@ impl Faraday {
 
     // ---- a GPG key restored from its paperkey (docs/GPG-PAPERKEY.md §4) ----
 
-    /// A press of the restore: the ways in and **Restore the key** here,
-    /// the head card and the lines in the area (`gpg_restore.rs`).
+    /// A press of the restore: the ways in, the scanners (`qr_view.rs`) and
+    /// **Restore the key** here, the head card and the lines in the area.
     pub(crate) fn gpg_restore_press(&mut self, p: RestorePress) {
         use RestorePress as R;
         match p {
             // Dimmed in Practice, as Make is (`docs/DEMO.md` §4).
-            R::Sheet | R::From(_) | R::Restore if !self.makes_secrets() => {}
+            R::Sheet | R::From(_) | R::Restore | R::Scan if !self.makes_secrets() => {}
             R::Sheet => {
                 self.flows.restore_sheet(&self.inbox[..]);
                 self.sheet = Some(Sheet::GpgRestore);
             }
             R::From(k) => self.gpg_restore_from(k),
+            R::Scan => self.gpg_restore_scan(),
             R::Restore => self.gpg_restore_finish(),
             _ => {
                 if let Some(i) = self.fi() {
@@ -1887,9 +1888,8 @@ impl Faraday {
         self.out.dirty = true;
     }
 
-    /// The restore flow on public key Inbox file `k`: its unfinished one or
-    /// a new one, open on its head card (§4.1).
-    fn gpg_restore_from(&mut self, k: usize) {
+    /// The restore flow on Inbox file `k`, its own or a new one, on its head card.
+    pub(crate) fn gpg_restore_from(&mut self, k: usize) {
         let c = self.compute();
         if let Some(i) = self.flows.restore_flow(&c, self.inbox.get(k)) {
             self.sheet = None;
