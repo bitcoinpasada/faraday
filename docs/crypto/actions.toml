@@ -6925,6 +6925,7 @@ screens = ["VaultContents"]
 functions = [
   "core/faraday-backup/src/kdbx.rs::write",
   "core/faraday-backup/src/kdbx.rs::verify",
+  "core/faraday-backup/src/kdbx.rs::open_for_tests",
   "core/faraday-backup/src/kdbx.rs::keys",
   "core/faraday-backup/src/kdbx.rs::header",
   "core/faraday-backup/src/kdbx.rs::hmac",
@@ -6976,7 +6977,7 @@ tests = [
 ]
 crosscheck = "kdbx"
 independence = { class = "outside", author = "pykeepass, by the libkeepass project (the distribution's package)" }
-fuzz_none = "Nothing here reads a KDBX file but `verify`, which reads only a file this device wrote."
+fuzz_none = "Nothing here reads a KDBX file but `verify`, which reads only a file this device wrote, and the tests' `open_for_tests`, which no shipped binary has."
 other = [
   "every file read back by `tools/backup/read-kdbx.py`",
 ]
@@ -7005,7 +7006,7 @@ kind = "Neutral"
 decision = "F154"
 
 [action.review]
-fingerprint = "dc71f0d5a8fcf926fa4af2f09bcc51eefa5b6b8f0c4bec22c93a44af912ca67e"
+fingerprint = "fef8338ee0b9c0b6f20253905bb181a8c68c34f0080e7c56393e89291057be1f"
 reviewed = "2026-10-30"
 places = [
   "docs/KDBX.md",
@@ -7797,7 +7798,7 @@ kind = "Conservative"
 decision = "no decision"
 
 [action.review]
-fingerprint = "a13547b59f82a0eae4ea9f17ff14b22757e551f02d5ef2abacbc32e23334b9d4"
+fingerprint = "1874be051d31d4c717da379b13ef4ba325873dad49811f75a75f2dea5a9d1f22"
 reviewed = "2026-10-30"
 places = ["docs/AUDIT.md"]
 

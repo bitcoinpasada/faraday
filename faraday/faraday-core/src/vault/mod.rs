@@ -1647,8 +1647,9 @@ impl Faraday {
         };
         let mut seed = Zeroizing::new([0u8; faraday_keys::vault::KDBX_SEED_LEN]);
         seed.copy_from_slice(&draw);
+        let (out, name) = crate::bip85::kdbx_out(&self.outbox, &title);
         let words = faraday_keys::vault::KdbxWords {
-            title: EN.vaults_entry,
+            title: out,
             username: EN.vaults_username,
             url: EN.vaults_url,
         };
@@ -1658,8 +1659,6 @@ impl Faraday {
             .kdbx_entry(&c, (id, at), &words, passphrase.as_bytes(), &seed)
         {
             Some(file) => {
-                let stem: String = crate::file_stem(&title);
-                let name = format!("{stem}.kdbx");
                 self.vaults.state.prompt = None;
                 self.vaults.state.focus = None;
                 self.put_outbox(&name, file);

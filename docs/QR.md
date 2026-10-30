@@ -269,7 +269,7 @@ rule's reach is written down):
 | 17 | Vault contents, an entry | Username, URL | Kept in the vault, shown in clear | No | No | Typed where they are used |
 | 18 | Vault contents, an entry; a note | Password; the note | Secret | No | No | Nothing scans a password; a note leaves through the secret sheet if at all |
 | 19 | Vault contents, a Bitcoin key | Seed words | Secret | No | No | The backup's checklist is the seed's door, SeedQR included |
-| 20 | BIP-85 | Child words, hex, WIF, xprv, Base64 and Base85 passwords | Secret | Not on the screen; **Out unprotected…** writes `bip85-{fp}-{app}-{index}.txt` past the secret sheet, and Files shows it as a secret text code (the path line, then the value) | No; no SeedQR of child words (owner, 2026-10-14) | A child seed is a seed and a child password is a password |
+| 20 | BIP-85 | Child words, hex, WIF, xprv, Base64 and Base85 passwords | Secret | Not on the screen; **Out unprotected…** writes, past the secret sheet, child words as `{fingerprint}-words.txt` (the words alone, F166), a password as `password.txt` (itself alone, F172) and the rest as `bip85-{fp}-{app}-{index}.txt`, and Files shows it as a secret text code (the path line, then the value, for the rest) | No; no SeedQR of child words (owner, 2026-10-14) | A child seed is a seed and a child password is a password |
 | 21 | Nostr key | nsec | Secret | Specified: never (F27) | No | Its ncryptsec carries the code |
 | 22 | Lightning node key; Silent payments | Private key, aezeed; scan key | Secret | Files only, past the secret sheet | No | Imported from a file or typed by the software that uses them |
 | 23 | GPG, Secure Boot key | Paperkey; private keys | Secret | No | No | Paper, or never leave the vault |

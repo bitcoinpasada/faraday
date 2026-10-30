@@ -1011,6 +1011,10 @@ strings! {
     bip85_secret_bytes: "Secret bytes",
     /// Text in `bip85_out`.
     bip85_a_password: "A password",
+    /// The title and the file name a password out of BIP-85 goes under,
+    /// in a KeePass export (`bip85::out_title`) and as a file
+    /// (`bip85_out`): nothing of the key it came from or its index (F172).
+    bip85_password_out: "Password",
     /// Text in `bip85_out`.
     bip85_secret_warning: "Whoever has it has what it protects or spends",
     // ----- bip85 (faraday-core/src/bip85/screen.rs) -----

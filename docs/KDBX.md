@@ -40,9 +40,12 @@ them:
 | a master seed | the master fingerprint | the seed as lower-case hex | its length |
 | a note | the note's first line, or `Note` where it starts blank | empty | the note |
 | a recovery sheet | the wallet's name | empty | the descriptor and the sheet's note, under the headings the plain export uses |
+| a vault entry | its title; "Password" for a password BIP-85 made, whose title names its parent and index (F172) | its password | its username and URL, then its notes, a line that is a BIP-85 path left out |
 
 A KeePass app pays the Argon2id cost this device paid. The entry's title
-inside carries the fingerprint, the note's first line or the wallet's name.
+inside carries the fingerprint, the note's first line or the wallet's name,
+and an entry's file is named after its title: `password.kdbx` for a
+BIP-85 password, `password-2.kdbx` and on beside another waiting.
 
 Two things about the text. A KDBX document is XML, so the five markup
 characters are escaped and a control character XML has no representation

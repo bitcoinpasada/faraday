@@ -165,7 +165,9 @@ An application with no length moves on to **Index** as it is pressed.
 
 "Save into Vault 1" keeps the password as an
 [entry](../screens/vault.md#an-entry) titled "BIP-85 Password (base64)
-· 3dca6805 · index 0", with the path in its notes. For the next
+· 3dca6805 · index 0", with the path in its notes. Exported for
+KeePass, it goes as "password.kdbx", titled "Password", without the path:
+nothing in it names the key it came from or the index. For the next
 password, raise the index: the index, with what it is for, is all that
 makes the same password again from the same key.
 

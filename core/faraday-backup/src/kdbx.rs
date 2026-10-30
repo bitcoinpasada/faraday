@@ -2,8 +2,10 @@
 //! what it exported.
 //!
 //! This is a writer. Nothing here reads a KDBX file someone else made:
-//! the only reader is [`verify`], which checks the authentication on
-//! bytes this module wrote and parses no XML.
+//! the only reader in what ships is [`verify`], which checks the
+//! authentication on bytes this module wrote and parses no XML. The
+//! tests' `open_for_tests`, under a feature no shipped binary turns on,
+//! decrypts such bytes the same way and parses nothing either.
 //!
 //! The format is KeePass's own, published at
 //! <https://keepass.info/help/kb/kdbx.html> and
@@ -243,6 +245,40 @@ pub fn verify(c: &Compute, bytes: &[u8], passphrase: &[u8]) -> bool {
         return false;
     }
     blocks_verify(&bytes[header_len + 2 * HASH_LEN..], &keys.hmac_base)
+}
+
+/// Costs an Argon2id run (through `keys`). The body of a file [`write`]
+/// wrote, decrypted under `passphrase` once every block verifies: the
+/// inner header and the XML document, each protected value still under
+/// the inner stream. For the tests that read what an export carries, and
+/// only under the `open-for-tests` feature, which no binary Faraday ships
+/// turns on (`tools/lint-keys-tests.sh`).
+#[cfg(feature = "open-for-tests")]
+pub fn open_for_tests(c: &Compute, bytes: &[u8], passphrase: &[u8]) -> Option<Zeroizing<Vec<u8>>> {
+    let (header_len, master_seed, kdf_salt, cost) = read_header(bytes)?;
+    let (mut at, mut iv) = (12usize, None);
+    while at + 5 <= header_len {
+        let len = u32::from_le_bytes(bytes[at + 1..at + 5].try_into().ok()?) as usize;
+        if bytes[at] == FIELD_ENCRYPTION_IV {
+            iv = bytes.get(at + 5..at + 5 + len);
+        }
+        at += 5 + len;
+    }
+    let keys = keys(c, &master_seed, &kdf_salt, passphrase, cost)?;
+    let stream = bytes.get(header_len + 2 * HASH_LEN..)?;
+    if !blocks_verify(stream, &keys.hmac_base) {
+        return None;
+    }
+    let mut body = Zeroizing::new(Vec::new());
+    let mut at = 0usize;
+    while at + HASH_LEN + 4 <= stream.len() {
+        let len_at = at + HASH_LEN;
+        let len = u32::from_le_bytes(stream[len_at..len_at + 4].try_into().ok()?) as usize;
+        body.extend_from_slice(stream.get(len_at + 4..len_at + 4 + len)?);
+        at = len_at + 4 + len;
+    }
+    chacha20(&keys.encryption, iv?).apply_keystream(&mut body);
+    Some(body)
 }
 
 /// The Argon2id cost `bytes` state in their header, or `None` where

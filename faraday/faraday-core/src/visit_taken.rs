@@ -84,6 +84,14 @@ fn free_name(taken: &[String], name: &str) -> String {
         .unwrap_or_else(|| name.to_string())
 }
 
+/// The first of `name`, `stem-2.ext`, `stem-3.ext`… that no file waiting
+/// in `outbox` is called, so that a file put there under a name it shares
+/// with others goes beside the one waiting rather than over it.
+pub(crate) fn outbox_free_name(outbox: &[crate::Item], name: &str) -> String {
+    let taken: Vec<String> = outbox.iter().map(|i| i.name.to_ascii_lowercase()).collect();
+    free_name(&taken, name)
+}
+
 /// The stick visit's area: its state, the pull waiting, the receipt of
 /// what was written, the vault files written from, Files' row menus and
 /// the For the stick list's scroll. The visit state is reached through

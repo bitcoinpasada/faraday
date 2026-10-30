@@ -50,6 +50,17 @@ if grep -q 'faraday-core feature "testkit"' <<< "$core"; then
     exit 1
 fi
 
+# faraday-backup is a KDBX writer in what ships: its reader for the tests,
+# the `open-for-tests` feature, is on in no shipped binary.
+backup=$(cargo tree -q --color never --target all -e features,normal \
+    -p faraday-desktop -p faraday-stick -p faraday-disk -p faraday-grant \
+    -p faraday-boot -p faraday-starter-shell -i faraday-backup 2>/dev/null || true)
+if grep -q 'faraday-backup feature "open-for-tests"' <<< "$backup"; then
+    echo "lint-keys-tests: a shipped binary enables faraday-backup's open-for-tests feature"
+    echo "$backup"
+    exit 1
+fi
+
 # The tree of dependents of faraday-samples, over the four binaries that
 # must not reach it and the Starter's own crate; any of them in it is a path
 # to the crate. One that does not reach the crate prints nothing of itself.

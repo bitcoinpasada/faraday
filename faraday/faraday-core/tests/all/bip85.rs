@@ -1,6 +1,7 @@
 //! BIP-85 from a loaded key: a child seed loads as a key of its own, a
-//! password goes into the open vault as an entry, and nothing leaves
-//! unprotected without the secret sheet.
+//! password goes into the open vault as an entry, nothing leaves
+//! unprotected without the secret sheet, and a password out (for KeePass
+//! or as a file) names neither the key it came from nor its index.
 
 use crate::common::type_text;
 use faraday_bip::bip39::Language;
@@ -127,4 +128,100 @@ fn a_password_goes_into_the_vault_as_an_entry() {
         .any(|(_, r)| r.field(field::PASSWORD) == Some(want.as_str().as_bytes()));
     assert!(found, "the password is not an entry in the vault");
     assert!(app.outbox.is_empty());
+}
+
+/// What `bytes` hold of the key a password came from: its fingerprint,
+/// in either case, BIP-85's name, the index's word or the path's purpose.
+fn names_the_parent(app: &Faraday, bytes: &[u8]) -> Option<String> {
+    let text = String::from_utf8_lossy(bytes);
+    let fp = faraday_keys::identity::fp_text(app.session.keys[0].fingerprint);
+    [
+        fp.to_uppercase(),
+        fp.to_lowercase(),
+        "BIP-85".into(),
+        "index".into(),
+        "83696968".into(),
+    ]
+    .into_iter()
+    .find(|w| text.contains(w.as_str()))
+}
+
+#[test]
+fn an_exported_password_names_neither_its_parent_nor_its_index() {
+    let c = testkit::compute();
+    let vault = testkit::files()
+        .unwrap()
+        .into_iter()
+        .find(|(n, _)| n == "vault.fvlt")
+        .unwrap();
+    let mut app = with_key(vec![vault]);
+    for i in 0..12u8 {
+        app.event(Event::Entropy(faraday_shell_api::EntropyBytes::new(
+            [0x40 + i; 32],
+        )));
+    }
+    faraday_core::testkit::vault_speed(&mut app, Some(180));
+    app.press(Action::Nav(Screen::Vaults));
+    app.press(Action::Vault(V::Open(0)));
+    type_text(&mut app, testkit::VAULT_PASSPHRASES[0]);
+    app.press(Action::Vault(V::Unlock));
+    crate::common::settle(&mut app, 1);
+    assert_eq!(app.vaults().open.len(), 1);
+    // A base64 password at index 7, into the vault.
+    app.press(Action::Bip85);
+    app.press(Action::PApp(4));
+    app.press(Action::PNext);
+    app.event(Event::Key(Key::Char('7')));
+    app.press(Action::PNext);
+    app.press(Action::PVault);
+    let want =
+        faraday_bip::bip85::child_password_base64(&c, app.session.keys.master_for_tests(0), 21, 7)
+            .unwrap();
+    // Exported for KeePass.
+    app.press(Action::Nav(Screen::VaultContents));
+    app.press(Action::Vault(V::Category(2)));
+    let id = app.vaults().open[0].id;
+    let at = app
+        .vaults()
+        .store()
+        .contents_for_tests(id)
+        .of(kind::ENTRY)
+        .position(|(_, r)| r.field(field::PASSWORD) == Some(want.as_str().as_bytes()))
+        .expect("the password's entry");
+    app.press(Action::Vault(V::Item(at)));
+    app.press(Action::Vault(V::ExportKdbx));
+    type_text(&mut app, "keepass passphrase");
+    app.press(Action::Vault(V::PromptGo));
+    crate::common::settle(&mut app, 30);
+    let file = app
+        .outbox
+        .iter()
+        .find(|i| i.name.ends_with(".kdbx"))
+        .expect("no KeePass file");
+    assert_eq!(file.name, "password.kdbx");
+    let body = faraday_backup::kdbx::open_for_tests(&c, &file.bytes, b"keepass passphrase")
+        .expect("the file opens under its passphrase");
+    let xml = String::from_utf8_lossy(&body);
+    assert!(
+        xml.contains("<Key>Title</Key><Value>Password</Value>"),
+        "{xml}"
+    );
+    assert_eq!(names_the_parent(&app, &body), None, "{xml}");
+    assert_eq!(names_the_parent(&app, file.name.as_bytes()), None);
+    // The same password out as a file, unprotected: itself alone.
+    app.press(Action::Bip85);
+    app.press(Action::PApp(4));
+    app.press(Action::PNext);
+    app.event(Event::Key(Key::Char('7')));
+    app.press(Action::PNext);
+    app.press(Action::POut);
+    app.press(Action::SecretUnprotected);
+    app.press(Action::SecretHold);
+    let out = app
+        .outbox
+        .iter()
+        .find(|i| i.name.ends_with(".txt"))
+        .expect("no password file");
+    assert_eq!(out.name, "password.txt");
+    assert_eq!(out.bytes, format!("{}\n", want.as_str()).into_bytes());
 }

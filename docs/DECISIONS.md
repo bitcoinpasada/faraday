@@ -186,3 +186,4 @@ Read this table, then only the decision you need.
 | [F169](decisions/F169.md) | A GPG key is restored from its paperkey and its public certificate | 2026-10-29 | Active | crypto |
 | [F170](decisions/F170.md) | The vault area's code stays together for auditability, not split per screen | 2026-10-29 | Active | repository |
 | [F171](decisions/F171.md) | A WIF private key is swept, never kept: a sheet of its addresses, its PSBT reviewed against the loaded wallets and signed with a hold | 2026-10-29 | Active | keys |
+| [F172](decisions/F172.md) | A BIP-85 password out of Faraday names neither its parent nor its index; in a vault its entry keeps both | 2026-10-29 | Active | keys |

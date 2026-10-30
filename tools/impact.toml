@@ -726,11 +726,11 @@ misses = "a file that starts to hold secrets and is not yet in SECRET_FILES"
 
 [[rule]]
 id = "keys.child-vault-only"
-title = "that a seed is a BIP-85 child of another is kept only in a vault, and only when recorded; nothing written outside one says so"
-source = ["docs/decisions/F166.md"]
+title = "that a seed is a BIP-85 child of another is kept only in a vault, and only when recorded; nothing written outside one says so, nor of a BIP-85 password"
+source = ["docs/decisions/F166.md", "docs/decisions/F172.md"]
 when = ["faraday/faraday-core/src/**", "faraday/faraday-keys/src/**", "faraday/faraday-vault/src/**"]
 kind = "review"
-misses = "a file, picture, sheet, file name, wallet name or kept state that carries a key's child mark, parent fingerprint, BIP-85 index or path"
+misses = "a file, picture, sheet, file name, wallet name or kept state that carries a key's child mark, parent fingerprint, BIP-85 index or path; a KeePass export or password file that carries a BIP-85 password's parent, index or path"
 
 # --------------------------------------------------------------- compute
 

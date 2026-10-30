@@ -1084,11 +1084,13 @@ impl OpenVaults {
     }
 
     /// Costs a KDBX 4 database's Argon2id run. A KeePass database holding
-    /// entry `i` of open vault `id` (its title, its notes with its
-    /// username and URL put before them under `words`, and its password),
-    /// sealed under `passphrase`, with its randomness from `seed`. The
-    /// bytes are encrypted, so public. `None` where the record is no
-    /// entry or the entry does not fit.
+    /// entry `i` of open vault `id` (under `words.title`, its notes with
+    /// its username and URL put before them under `words`, and its
+    /// password), sealed under `passphrase`, with its randomness from
+    /// `seed`. A line of the notes that is a BIP-85 path is left out, so
+    /// a password BIP-85 made goes without its index (F172). The bytes
+    /// are encrypted, so public. `None` where the record is no entry or
+    /// the entry does not fit.
     pub fn kdbx_entry(
         &self,
         c: &Compute,
@@ -1102,7 +1104,7 @@ impl OpenVaults {
         if r.kind != kind::ENTRY {
             return None;
         }
-        let title = r.text(field::TITLE).unwrap_or(words.title);
+        let title = words.title;
         let mut notes = String::new();
         for (label, f) in [(words.username, field::USERNAME), (words.url, field::URL)] {
             if let Some(v) = r.text(f) {
@@ -1110,7 +1112,11 @@ impl OpenVaults {
             }
         }
         if let Some(n) = r.text(field::NOTES) {
-            notes.push_str(n);
+            for l in n.split_inclusive('\n') {
+                if !l.trim_start().starts_with(BIP85_PATH) {
+                    notes.push_str(l);
+                }
+            }
         }
         let notes = Zeroizing::new(notes);
         write_kdbx(
@@ -1721,9 +1727,16 @@ impl OpenVaults {
     }
 }
 
+/// How every BIP-85 derivation path begins, its purpose: a line of an
+/// entry's notes so written is no part of what a KeePass export carries
+/// (F172).
+const BIP85_PATH: &str = "m/83696968'";
+
 /// The words a KeePass export puts around an entry's own text.
 pub struct KdbxWords<'a> {
-    /// The title of an entry that has none.
+    /// The entry's title as the export carries it: the caller's, which
+    /// for a password BIP-85 made names neither its parent nor its index
+    /// (F172).
     pub title: &'a str,
     /// The label before the username in the notes.
     pub username: &'a str,

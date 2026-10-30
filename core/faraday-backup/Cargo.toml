@@ -19,6 +19,13 @@ chacha20 = { workspace = true }
 sha2 = { workspace = true }
 hmac = { workspace = true }
 
+[features]
+# `kdbx::open_for_tests`: a file this crate wrote, decrypted, for the tests
+# that read what an export carries. Turned on by faraday-core's
+# dev-dependency only; `tools/lint-keys-tests.sh` fails if a shipped binary
+# has it.
+open-for-tests = []
+
 [lints]
 workspace = true
 

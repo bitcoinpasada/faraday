@@ -64,6 +64,39 @@ pub fn app_name(app: Bip85App) -> &'static str {
     }
 }
 
+/// What an entry titled `title` is called in a file out of Faraday, and
+/// whether that is another name (F172): the title BIP-85 gives a password
+/// it puts into a vault names the key it came from and its index, so out
+/// of the vault the password is "Password", as a child seed out is named
+/// by nothing but itself (F166); any other title goes as it is.
+pub(crate) fn out_title(title: &str) -> (&str, bool) {
+    let mut parts = EN.bip85_bip_85_index.split("{}");
+    let (head, sep) = (parts.next().unwrap_or(""), parts.next().unwrap_or(""));
+    let bip85 = [Bip85App::Base64, Bip85App::Base85].into_iter().any(|app| {
+        title
+            .strip_prefix(head)
+            .and_then(|t| t.strip_prefix(app_name(app)))
+            .is_some_and(|t| t.starts_with(sep))
+    });
+    if bip85 {
+        (EN.bip85_password_out, true)
+    } else {
+        (title, false)
+    }
+}
+
+/// The title an entry titled `title` carries in a KeePass export and the
+/// file's name: as [`out_title`] calls it, and a password BIP-85 made
+/// beside any other waiting in the Outbox rather than over it (F172).
+pub(crate) fn kdbx_out<'a>(outbox: &[crate::Item], title: &'a str) -> (&'a str, String) {
+    let (out, renamed) = out_title(title);
+    let name = format!("{}.kdbx", crate::file_stem(out));
+    match renamed {
+        true => (out, crate::visit_taken::outbox_free_name(outbox, &name)),
+        false => (out, name),
+    }
+}
+
 /// Where child words go once the person has said whether they are
 /// recorded as a child seed (`docs/decisions/F166.md`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -569,16 +602,29 @@ impl Faraday {
             ));
             return;
         }
-        let fp = b
-            .key
-            .map(|f| fp_text(faraday_bip::keys::Fingerprint(f)))
-            .unwrap_or_default();
-        let name = format!(
-            "bip85-{fp}-{}-{}.txt",
-            app_name(b.app).to_lowercase().replace([' ', '(', ')'], ""),
-            b.index().unwrap_or(0)
-        );
-        let text = Zeroizing::new(format!("{}\n{}\n", b.path(), value.as_str()));
+        let password = matches!(b.app, Bip85App::Base64 | Bip85App::Base85);
+        let (name, text) = if password {
+            // A password goes as one of its own, named by nothing of the
+            // key it came from or its index, and holding itself alone
+            // (F172), beside any other waiting in the Outbox.
+            let name = format!("{}.txt", crate::file_stem(EN.bip85_password_out));
+            let name = crate::visit_taken::outbox_free_name(&self.outbox, &name);
+            (name, Zeroizing::new(format!("{}\n", value.as_str())))
+        } else {
+            let fp = b
+                .key
+                .map(|f| fp_text(faraday_bip::keys::Fingerprint(f)))
+                .unwrap_or_default();
+            let name = format!(
+                "bip85-{fp}-{}-{}.txt",
+                app_name(b.app).to_lowercase().replace([' ', '(', ')'], ""),
+                b.index().unwrap_or(0)
+            );
+            (
+                name,
+                Zeroizing::new(format!("{}\n{}\n", b.path(), value.as_str())),
+            )
+        };
         let what = match b.app {
             Bip85App::Words => EN.bip85_a_child_seed,
             Bip85App::Wif | Bip85App::Xprv => EN.bip85_a_private_key,
