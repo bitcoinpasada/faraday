@@ -945,3 +945,34 @@ fn an_xpub_file_with_its_origin_is_still_offered_on_the_keys_card() {
             .any(|t| t == faraday_core::strings::EN.create_scan_no_origin)
     );
 }
+
+/// A seed read at Create's Scan its xpub, past the seed sheet, is the
+/// slot's key, and Create stays on screen (`docs/SCANNING.md` §10 item 7).
+#[test]
+fn a_seed_read_at_creates_scan_its_xpub_becomes_the_slots_key() {
+    let c = testkit::compute();
+    let mut app = testkit::started();
+    app.press(Action::CreateWallet);
+    app.press(Action::CKind(4));
+    app.press(Action::CNext(0));
+    app.press(Action::CNext(1));
+    app.press(Action::ScanFor(faraday_core::Ask::Xpub(2)));
+    let m = faraday_bip::bip39::Mnemonic::parse(
+        &c,
+        faraday_bip::bip39::Language::English,
+        &testkit::test_words("zebra"),
+    )
+    .unwrap();
+    app.event(Event::Scanned {
+        bytes: faraday_codec::seedqr::to_digits(&m)
+            .expose()
+            .as_bytes()
+            .to_vec(),
+    });
+    let _ = app.frame();
+    assert_eq!(app.sheet, Some(faraday_core::Sheet::SeedRead));
+    app.press(Action::SeedRead(faraday_core::seeds::read::Choice::Plain));
+    assert_eq!(app.screen, faraday_core::Screen::Create, "Create was left");
+    let fp = app.session.keys[0].fingerprint.0;
+    assert_eq!(slot(&app, 1), faraday_core::create::Source::Here(fp));
+}

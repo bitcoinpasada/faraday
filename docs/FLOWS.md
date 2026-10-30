@@ -1138,7 +1138,9 @@ guarantees for this file's rule:
   with "{fp} is not one of {wallet}'s keys", which takes only a
   passphrase giving a missing key and refuses another with the same
   line; anything else shows on the read card, as at Scan a SeedQR ("A wallet
-  description", **Load the wallet**). **Type the
+  description", **Load the wallet**). A codex32 string or a SLIP-39
+  share opens its form in "Add a key for {wallet}" with the part in,
+  which takes the key once whole only as one of the wallet's keys. **Type the
   words instead** opens "Add a key for {wallet}", which refuses words of
   no missing key with "These words give {fp}, not a key of {wallet}". A
   key loads under its holder's name where the plan keeps one, else none;

@@ -317,3 +317,35 @@ fn add_a_key_offers_scan_a_seedqr_on_start() {
     app.press(Action::KStart(Start::Scan.index()));
     assert_eq!(app.sheet, Some(faraday_core::Sheet::Scan));
 }
+
+/// A codex32 share or a SLIP-39 share read by a wallet's Scan a key goes
+/// to its form in Add a key for the wallet, which takes the key once
+/// whole as one of the wallet's (`docs/SCANNING.md` §4.3).
+#[test]
+fn a_codex32_or_slip39_share_read_by_scan_a_key_goes_to_its_form_for_the_wallet() {
+    use faraday_core::forms::Form;
+    for (code, form) in [
+        (
+            "MS12NAMEA320ZYXWVUTSRQPNMLKJHGFEDCAXRPP870HKKQRM",
+            Form::Codex32,
+        ),
+        (
+            "shadow pistol academic always adequate wildlife fancy gross oasis cylinder mustang wrist rescue view short owner flip making coding armed",
+            Form::Slip39,
+        ),
+    ] {
+        let (mut app, w) = on_savings();
+        app.press(Action::ScanKey(w));
+        app.event(Event::Scanned {
+            bytes: code.as_bytes().to_vec(),
+        });
+        let _ = app.frame();
+        assert!(!camera_on(&app), "the camera stayed on: {}", note(&app));
+        assert_eq!(app.screen, Screen::Entry);
+        let e = testkit::entry(&app);
+        assert_eq!(e.form, form);
+        assert_eq!(e.wallet, Some(w), "Add a key is not for the wallet");
+        assert_eq!(e.parts.lines(form).len(), 1);
+        assert!(app.inbox().iter().all(|i| !i.name.starts_with("scanned")));
+    }
+}

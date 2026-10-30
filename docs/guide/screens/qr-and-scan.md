@@ -77,8 +77,11 @@ where it is taken (**Sign it**, **Add this key**, **Add to {vault}**,
 **Unlock {vault}**, **Make a vault**), with **Scan again**, which turns
 the camera back on, and **Cancel**. With a stick in, **Add this key**
 and **Add this share** are dimmed: "Remove the stick first".
-**Scan a SeedQR** takes a codex32 string or a SLIP-39 share to its form
-too, and a form's **Scan** takes the other share form's part onto that
+A seed read at Restore's **Scan it** or Create's **Scan its xpub** goes,
+after [SeedQR read](#seedqr-read), into the slot of the flow on screen;
+a codex32 string or a SLIP-39 share read by a wallet's **Scan a key**
+opens its form for that wallet. **Scan a SeedQR** takes a codex32
+string or a SLIP-39 share to its form too, and a form's **Scan** takes the other share form's part onto that
 form and a whole seed to [SeedQR read](#seedqr-read).
 
 ## SeedQR read

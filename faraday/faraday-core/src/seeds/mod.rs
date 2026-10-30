@@ -406,6 +406,7 @@ impl Faraday {
     pub(crate) fn seeds_took(&mut self, fp: faraday_bip::keys::Fingerprint, back: Option<Screen>) {
         match back {
             Some(Screen::Restore) => self.restore_took(fp),
+            Some(Screen::Create) => self.create_slot_took(fp),
             // On What do you have? with no wallet open yet: the seeds
             // the wallet is worked out from (`docs/history/SCAN-TO-SIGN.md` §4).
             // With a wallet open, a key fills its slot and no more.

@@ -57,6 +57,9 @@ pub(crate) struct Camera {
     /// A TOTP setup code the read card carries through **Unlock {vault}**
     /// (`docs/SCANNING.md` §5.3), wiped once Unlock is left.
     carried: Option<zeroize::Zeroizing<String>>,
+    /// Create's key slot whose scanner read a seed: the key goes into it
+    /// once the seed sheet loads it (`docs/SCANNING.md` §4.3).
+    slot: Option<u8>,
 }
 
 impl Camera {
@@ -85,6 +88,16 @@ impl Camera {
     /// Keeps `text` through an unlock.
     pub(crate) fn carry(&mut self, text: zeroize::Zeroizing<String>) {
         self.carried = Some(text);
+    }
+
+    /// Create's slot `slot` waits for the key a seed read loads.
+    pub(crate) fn wait_slot(&mut self, slot: u8) {
+        self.slot = Some(slot);
+    }
+
+    /// The slot waiting, once.
+    pub(crate) fn take_slot(&mut self) -> Option<u8> {
+        self.slot.take()
     }
 
     /// The code carried, once.
@@ -1316,6 +1329,50 @@ impl Faraday {
         }
     }
 
+    /// Costs a mnemonic's checksum. A seed read at Restore's **Scan it**
+    /// while Restore has slots for seeds, or at Create's **Scan Key n's
+    /// xpub**: the seed sheet asks how it loads, and the key goes into the
+    /// flow's slot, the flow on screen after (`docs/SCANNING.md` §4.3);
+    /// with a stick in, the scanner says to remove it. Returns whether it
+    /// was such a seed.
+    fn read_into_slot(&mut self, c: &Compute, bytes: &[u8]) -> bool {
+        let ask = self.camera.scan().map(|s| s.ask);
+        let back = match ask {
+            Some(crate::Ask::Description)
+                if self.screen == crate::Screen::Restore
+                    && self.restore.state().is_some_and(|r| r.seeds.is_some()) =>
+            {
+                crate::Screen::Restore
+            }
+            Some(crate::Ask::Xpub(n)) if self.screen == crate::Screen::Create && n > 0 => {
+                crate::Screen::Create
+            }
+            _ => return false,
+        };
+        let Some(words) = seed_in_code(c, bytes) else {
+            return false;
+        };
+        if !self.may_load_keys() {
+            self.scan_say(crate::stick::keys_load(self.medium));
+            return true;
+        }
+        if let Some(crate::Ask::Xpub(n)) = ask {
+            self.camera.wait_slot(n - 1);
+        }
+        self.entry.reset();
+        self.entry.state_mut().back = Some(back);
+        self.seed_scanned(&words);
+        true
+    }
+
+    /// A key loaded from a seed read at Create's **Scan Key n's xpub**:
+    /// into the slot waiting for it.
+    pub(crate) fn create_slot_took(&mut self, fp: Fingerprint) {
+        if let Some(slot) = self.camera.take_slot() {
+            self.act(Action::CSlotHere(slot, fp.0));
+        }
+    }
+
     /// Costs what [`Faraday::read_card`] costs. After Home's Scan filed
     /// Inbox file `at` (`docs/SCANNING.md` §5.4): where the kind's page is
     /// a press away (a PSBT to sign, a finished transaction, a wallet
@@ -1445,18 +1502,37 @@ impl Faraday {
         }
     }
 
-    /// Costs a mnemonic's checksum. A code read by a wallet's Scan a key:
-    /// a seed is matched to the wallet's missing keys; anything else is
-    /// named.
+    /// Costs a mnemonic's checksum, a codex32 and a SLIP-39 parse. A code
+    /// read by a wallet's Scan a key: a seed is matched to the wallet's
+    /// missing keys; a codex32 string or a SLIP-39 share goes to its form
+    /// in Add a key for the wallet, which takes the key once whole as one
+    /// of the wallet's (`docs/SCANNING.md` §4.3); anything else is shown
+    /// on the read card.
     fn wallet_key_code(&mut self, w: usize, bytes: zeroize::Zeroizing<Vec<u8>>) {
+        use crate::forms::Form;
         let c = self.compute();
-        match seed_in_code(&c, &bytes) {
-            Some(words) => {
-                drop(bytes);
-                self.wallet_key_scanned(w, &words);
-            }
-            None => self.scan_not_taken(bytes),
+        if let Some(words) = seed_in_code(&c, &bytes) {
+            drop(bytes);
+            return self.wallet_key_scanned(w, &words);
         }
+        let form = match scan_read::secret_kind(&c, &bytes) {
+            Some(Kind::Codex32Secret | Kind::Codex32Share) => Form::Codex32,
+            Some(Kind::Slip39Share) => Form::Slip39,
+            _ => return self.scan_not_taken(bytes),
+        };
+        let given = zeroize::Zeroizing::new(String::from_utf8_lossy(&bytes).trim().to_string());
+        let text = if form == Form::Slip39 {
+            zeroize::Zeroizing::new(given.to_lowercase())
+        } else {
+            given
+        };
+        self.act(Action::EntryWallet(w));
+        if let Some(i) = Form::ALL.iter().position(|f| *f == form) {
+            self.act(Action::EntryForm(i as u8));
+        }
+        self.entry.state_mut().wallet = Some(w);
+        self.entry.state_mut().typed.set(&text);
+        self.form_add_part();
     }
 
     /// Costs a mnemonic's checksum, a SeedQR's decode and a SLIP-39 parse.
@@ -1530,6 +1606,11 @@ impl Faraday {
                 drop(bytes);
                 return self.scan_say(kind.not_here());
             }
+        }
+        // A seed read at Restore's or Create's scanner goes into the
+        // flow's slot, after the seed sheet (`docs/SCANNING.md` §10 item 7).
+        if self.read_into_slot(&c, &bytes) {
+            return;
         }
         // A scanner a flow opened for one kind shows the card for a
         // secret (`docs/SCANNING.md` §4.5).

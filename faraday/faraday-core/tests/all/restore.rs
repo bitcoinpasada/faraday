@@ -814,3 +814,31 @@ fn checks_receive_rows_open_their_codes() {
         crate::common::opens_its_code(&mut app, faraday_core::Code::Receive(w, i), &want);
     }
 }
+
+/// A seed read at Restore's own Scan, past the seed sheet, goes into its
+/// slot, and Restore stays on screen (`docs/SCANNING.md` §10 item 7).
+#[test]
+fn a_seed_read_at_restores_scan_goes_into_its_slot_and_restore_stays() {
+    let c = testkit::compute();
+    let mut app = two_of_three_from_seeds();
+    app.press(Action::ScanFor(faraday_core::Ask::Description));
+    let m = Mnemonic::parse(&c, Language::English, &testkit::test_words("zebra")).unwrap();
+    app.event(Event::Scanned {
+        bytes: faraday_codec::seedqr::to_digits(&m)
+            .expose()
+            .as_bytes()
+            .to_vec(),
+    });
+    let _ = app.frame();
+    assert_eq!(
+        app.sheet,
+        Some(Sheet::SeedRead),
+        "the seed asks how it loads"
+    );
+    app.press(Action::SeedRead(Choice::Plain));
+    assert_eq!(app.screen, Screen::Restore, "Restore was left");
+    assert_eq!(app.session.keys.len(), 1);
+    let fp = app.session.keys[0].fingerprint.0;
+    let s = app.restore().unwrap().seeds.as_ref().unwrap();
+    assert_eq!(s.keys, vec![fp], "the slot does not hold the key");
+}
