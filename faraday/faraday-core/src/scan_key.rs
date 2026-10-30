@@ -433,6 +433,13 @@ impl Faraday {
             }
             Action::ReadGo(i) => self.read_go(usize::from(i)),
             Action::ReadAgain => self.read_again(),
+            Action::ReadShow => {
+                if let Some(card) = self.camera.scan_mut().and_then(|s| s.card.as_mut())
+                    && card.masked.is_some()
+                {
+                    card.shown = !card.shown;
+                }
+            }
             Action::Scan | Action::ScanFor(_) => {
                 let mut scan = ScanState::default();
                 if let Action::ScanFor(ask) = action {
@@ -1144,6 +1151,9 @@ impl Faraday {
             Kind::Text => vec![Way::Keep],
             _ => Vec::new(),
         };
+        // Unrecognised text is shown masked behind its eye, kept here as
+        // read so drawing makes nothing (`docs/SCANNING.md` §10 item 8).
+        let masked = (kind == Kind::Text).then(|| text.clone());
         drop(text);
         scan_read::ReadCard {
             kind,
@@ -1151,6 +1161,8 @@ impl Faraday {
             ways,
             not_kept,
             code,
+            masked,
+            shown: false,
             named,
             ext,
             filed: None,

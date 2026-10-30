@@ -33,7 +33,7 @@ mod codes;
 mod create;
 mod save;
 mod search;
-mod secret;
+pub(crate) mod secret;
 use crate::screens::randomness::row as own_row;
 pub(crate) use codes::codes_form;
 use create::{create_button, create_button_h, create_summary};

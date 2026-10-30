@@ -917,6 +917,12 @@ fn read_card(
     for fact in &card.facts {
         cy += ui.wrap_as((x, cy, w), BODY_M, Role::OnSurface, fact) + T::GAP;
     }
+    // Text read is masked behind its eye (DESIGN §4.10): a press shows
+    // it, the next hides it; nothing is copied.
+    if let Some(text) = card.masked.as_ref() {
+        let eye = (Action::ReadShow, card.shown);
+        cy += crate::vault::screen::secret::secret(ui, (x, cy, w), text, false, eye) + T::GAP;
+    }
     if card.not_kept {
         cy += ui.wrap_as((x, cy, w), BODY_M, Role::Warning, EN.read_not_kept) + T::GAP;
     }

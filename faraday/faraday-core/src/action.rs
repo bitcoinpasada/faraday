@@ -801,6 +801,8 @@ pub enum Action {
     ReadGo(u8),
     /// The read card's Scan again: the code wiped, the camera back on.
     ReadAgain,
+    /// The read card's eye: the text read shown, or masked again.
+    ReadShow,
     /// Type a new name for the chosen wallet.
     Rename,
     /// Make a PDF of an Inbox sheet (online only).

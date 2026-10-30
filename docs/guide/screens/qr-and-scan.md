@@ -74,7 +74,8 @@ with its next step (**Sign it**, **Decode it**, **Load the wallet**,
 A scanner opened for one thing shows anything else on the read card,
 in place of the picture, with the camera off: **Read** and what it is
 ("A transaction to sign", "A TOTP setup code"), which one ("Key
-73c5da0a", "1 input"), never a secret's value, and the way over to
+73c5da0a", "1 input"), never a secret's value (text that is none of
+the kinds Faraday reads is masked, and its eye shows it), and the way over to
 where it is taken (**Sign it**, **Add this key**, **Add to {vault}**,
 **Unlock {vault}**, **Make a vault**), with **Scan again**, which turns
 the camera back on, and **Cancel**. With a stick in, **Add this key**

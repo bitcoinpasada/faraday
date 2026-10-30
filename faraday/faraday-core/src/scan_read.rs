@@ -416,6 +416,12 @@ pub struct ReadCard {
     pub not_kept: bool,
     /// The code read: kept until a way over takes it.
     pub(crate) code: zeroize::Zeroizing<Vec<u8>>,
+    /// Text that is none of §2's other kinds, as read: the card shows it
+    /// masked behind its eye (`docs/SCANNING.md` §5.2, §10 item 8). Set
+    /// once, at the read; it goes with the card.
+    pub(crate) masked: Option<zeroize::Zeroizing<String>>,
+    /// The masked text is shown: a press on its eye, the next hides it.
+    pub shown: bool,
     /// A transfer in parts' name when it brought one, and its extension.
     pub(crate) named: Option<String>,
     /// Its extension, for the file a public kind is filed as.

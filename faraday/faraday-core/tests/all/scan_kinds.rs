@@ -674,3 +674,29 @@ fn an_aezeed_read_at_a_scanner_is_used_in_lightning() {
     assert_eq!(kind, "Words that fail their checksum");
     assert!(ways.is_empty());
 }
+
+/// Text that is none of the kinds Faraday reads shows on the read card
+/// masked behind its eye: a press shows it, the next hides it, nothing
+/// is copied and nothing filed.
+#[test]
+fn text_read_is_masked_behind_its_eye_on_the_card() {
+    const NOTE: &str = "meet at the north gate";
+    let mut app = testkit::started();
+    open(&mut app, Opened::AddAKey);
+    read(&mut app, NOTE.as_bytes());
+    let (kind, _, _) = card(&app).unwrap_or_else(|| panic!("no card: {}", note(&app)));
+    assert_eq!(kind, "Text");
+    let drawn = app.drawn_texts().join("\n");
+    assert!(!drawn.contains(NOTE), "the text shows unmasked: {drawn}");
+    while app.poll_command().is_some() {}
+    app.press(Action::ReadShow);
+    let drawn = app.drawn_texts().join("\n");
+    assert!(drawn.contains(NOTE), "the eye did not show it: {drawn}");
+    let copied = std::iter::from_fn(|| app.poll_command())
+        .any(|c| matches!(c, Command::WriteClipboard { .. }));
+    assert!(!copied, "the text was copied");
+    app.press(Action::ReadShow);
+    let drawn = app.drawn_texts().join("\n");
+    assert!(!drawn.contains(NOTE), "the eye did not hide it: {drawn}");
+    assert!(app.inbox().is_empty());
+}

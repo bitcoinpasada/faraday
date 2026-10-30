@@ -354,6 +354,14 @@ impl Faraday {
         self.lightning.reads_aezeed(self.sheet.is_none())
     }
 
+    /// Whether `key` is left for the tick after a frame: Enter where it
+    /// reads an aezeed, which scrypt stretches for seconds on a Pi.
+    pub(crate) fn key_slow(&self, key: faraday_shell_api::Key) -> bool {
+        key == faraday_shell_api::Key::Enter
+            && self.screen == Screen::Lightning
+            && self.lightning_reads_aezeed()
+    }
+
     /// Typing the aezeed and its passphrase. Returns whether the key was
     /// taken.
     pub(crate) fn lightning_key(&mut self, key: faraday_shell_api::Key) -> bool {

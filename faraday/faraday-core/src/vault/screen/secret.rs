@@ -7,7 +7,7 @@ use faraday_draw::tokens::{BODY_M, LABEL_L};
 
 /// A secret value at `(x, y)`, `w` wide, masked until its eye shows it;
 /// `eye` its eye's press and whether it shows. Returns the height.
-pub(super) fn secret(
+pub(crate) fn secret(
     ui: &mut Ui,
     at: (f32, f32, f32),
     value: &str,

@@ -2650,7 +2650,8 @@ impl Faraday {
             | Action::Scan
             | Action::ScanFor(_)
             | Action::ReadGo(_)
-            | Action::ReadAgain) => self.scan_act(a),
+            | Action::ReadAgain
+            | Action::ReadShow) => self.scan_act(a),
             Action::Bip85
             | Action::PStep(_)
             | Action::PKey(_)
@@ -5803,12 +5804,6 @@ impl Faraday {
         self.out.toast_at = Some(self.now_ms.saturating_sub(motion::TOAST_MS));
     }
 
-    /// Whether `key` is left for the tick after a frame: Enter where it
-    /// reads an aezeed, which scrypt stretches for seconds on a Pi.
-    fn key_slow(&self, key: KeyIn) -> bool {
-        key == KeyIn::Enter && self.screen == Screen::Lightning && self.lightning_reads_aezeed()
-    }
-
     /// Does the press waiting, once a frame has been drawn since it was
     /// pressed. Public files a slider asked for wait until it is let go.
     /// Returns whether it did.
@@ -6000,7 +5995,7 @@ pub fn result_stem(source: &str) -> String {
 enum Later {
     /// A press whose work is [`slow`].
     Press(Action),
-    /// A key whose work is slow (`Faraday::key_slow`).
+    /// A key whose work is slow (`Faraday::key_slow`, in `lightning`).
     Key(KeyIn),
     /// The backup's public files of kind `what` for wallet `w`, made again
     /// once a slider that changes them is let go.
