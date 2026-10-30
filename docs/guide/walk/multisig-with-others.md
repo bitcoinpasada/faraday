@@ -227,7 +227,7 @@ Faraday works out which key it is; no choice is made first.
 | Key 1's SeedQR, from Place 1's paper | ![New wallet 1's card with 2 of 2 signatures possible here and the bar Key 1 added · Can spend](../pictures/5-6-can-spend.png) **Key 1 added · Can spend**, in a bar at the foot of the page that goes by itself | enough keys to sign; the camera closes. Key 3 reads **Cosigner · xpub only**. |
 | a key loaded already | **Key … · already here** | scan another |
 | a seed of no key of this wallet | "… is not one of New wallet 1's keys", on the passphrase sheet | a passphrase that gives one of the missing keys loads it; otherwise **Cancel** |
-| anything else | **Not a SeedQR or a CompactSeedQR** | scan the seed's SeedQR |
+| anything else | what it is, "… · not used here" | scan the seed's SeedQR |
 
 No SeedQR carries a passphrase: a key with a passphrase is typed with
 **Type the words instead**, which also takes keys with no SeedQR, such

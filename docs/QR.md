@@ -104,6 +104,16 @@ on is held back until it is off (`docs/history/PLAN.md` §5.4).
 | Address, silent payment address | **Is this address mine?** |
 | Any other text | Shown as text, with **Save as a note** in the open vault |
 
+A scanner opened for one kind (Add a key's **Scan a SeedQR**, a form's
+**Scan**, a wallet's **Scan a key**, a vault's **Scan a setup code**)
+takes what it is for and names anything else on its line by what it is,
+"A transaction to sign · not used here", "A private key · not used here"
+(`docs/SCANNING.md` §4.6); What do you have? names a secret it does not
+use the same way. Add a key's **Scan a SeedQR** takes a SLIP-39 share to
+its form as it takes a codex32 string; a form's **Scan** takes the other
+share form's part onto that form and a whole seed to the seed sheet, and
+keeps its parser's line for a code that starts as its own part does.
+
 ## 3. Limits
 
 From Faraday, which fails closed on each: 256 KiB file, 360 KiB envelope or

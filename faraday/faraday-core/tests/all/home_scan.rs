@@ -291,7 +291,7 @@ fn the_spend_tabs_intake_names_a_totp_code_and_files_no_secret() {
         (TOTP, "not used here"),
         (WIF, "private key"),
         (NSEC, "Nostr secret key"),
-        (UNCHECKED, "checksum fails"),
+        (UNCHECKED, "fail their checksum"),
     ] {
         read(&mut app, secret);
         assert!(note(&app).contains(said), "{secret}: {}", note(&app));

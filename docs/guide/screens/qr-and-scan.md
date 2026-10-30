@@ -65,6 +65,13 @@ share opens Add a key on its form with the share in, and a TOTP setup
 code opens a new entry in the open vault ("That is a TOTP setup code.
 Unlock a vault to add it" when none is open).
 
+A scanner opened for one thing names anything else on its line by what
+it is, and stays on: "A transaction to sign · not used here" on **Scan a
+SeedQR**, "A wallet description · not used here" on a form's **Scan**.
+**Scan a SeedQR** takes a codex32 string or a SLIP-39 share to its form
+too, and a form's **Scan** takes the other share form's part onto that
+form and a whole seed to [SeedQR read](#seedqr-read).
+
 ## SeedQR read
 
 **Opened from:** a SeedQR read by the camera; on Restore and the Spend

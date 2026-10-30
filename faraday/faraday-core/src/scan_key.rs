@@ -14,6 +14,7 @@ use faraday_crypto::work::Compute;
 use faraday_shell_api::Command;
 
 use crate::plan::{At, What};
+use crate::scan_read::{self, Kind};
 use crate::wallet::fp_text;
 use crate::{Action, Faraday, ScanPurpose, ScanState, Sheet};
 use faraday_intake::seed_in_code;
@@ -455,39 +456,23 @@ fn pasted_words(lang: Language, text: &str) -> Result<zeroize::Zeroizing<Vec<u16
     Ok(idx)
 }
 
-/// Costs what [`secret_text`] costs and a CRC-24 over a paperkey's lines.
-/// What a code that is a secret is named as: a GPG key's paperkey, in
-/// either of its forms (F167: no scanner files it), or what
-/// [`secret_text`] names in its text.
-pub(crate) fn secret_code(c: &Compute, bytes: &[u8], text: &str) -> Option<&'static str> {
-    if faraday_keys::gpg::is_paperkey(bytes) {
-        return Some(EN.read_code_is_paperkey);
-    }
-    secret_text(c, text)
-}
-
-/// Costs what `faraday_intake::secret_text` costs, and a WIF's checksum.
-/// Why scanned text is refused for holding a secret, never filed (F167):
-/// a seed's words, words of a BIP-39 list that are no English BIP-39 seed
-/// (a checksum that fails, an LND aezeed, an Electrum seed), or a private
-/// key: extended, a WIF or a Nostr secret key.
-pub(crate) fn secret_text(c: &Compute, text: &str) -> Option<&'static str> {
-    let t = text.trim();
-    if faraday_keys::identity::is_wif(t) {
-        return Some(EN.secret_text_private_key);
-    }
-    if t.get(..5).is_some_and(|p| p.eq_ignore_ascii_case("nsec1")) {
-        return Some(EN.secret_text_nostr);
-    }
-    if let Some(s) = faraday_intake::secret_text(c, t) {
-        return Some(match s {
-            faraday_intake::TextSecret::Words => EN.secret_text_those_are,
-            faraday_intake::TextSecret::ExtendedPrivateKey => EN.secret_text_private_key,
-        });
-    }
-    let words: Vec<&str> = t.split_whitespace().collect();
-    (matches!(words.len(), 12 | 15 | 18 | 21 | 24) && on_a_word_list(&words))
-        .then_some(EN.secret_text_not_a_seed)
+/// Costs what [`scan_read::secret_kind`] costs. What a code that is a
+/// secret is named as by a scanner for anything (F167: no scanner files
+/// one), with where Faraday takes it: a seed in any of its forms, a GPG
+/// key's paperkey, a private key, or words of a BIP-39 list that are no
+/// English BIP-39 seed. `None` for anything else, a share of a key and a
+/// TOTP setup code among them, which such a scanner routes.
+pub(crate) fn secret_code(c: &Compute, bytes: &[u8]) -> Option<&'static str> {
+    Some(match scan_read::secret_kind(c, bytes)? {
+        Kind::Paperkey => EN.read_code_is_paperkey,
+        Kind::SeedQr => EN.read_code_is_seedqr,
+        Kind::CompactSeedQr => EN.read_code_that_may,
+        Kind::SeedWords => EN.secret_text_those_are,
+        Kind::Wif | Kind::Xprv => EN.secret_text_private_key,
+        Kind::Nostr => EN.secret_text_nostr,
+        Kind::BadChecksum => EN.secret_text_not_a_seed,
+        _ => return None,
+    })
 }
 
 /// Whether every word is on one of the BIP-39 lists Faraday reads, in any
@@ -501,24 +486,23 @@ fn on_a_word_list(words: &[&str]) -> bool {
     })
 }
 
-/// Costs what `read_psbt` and `read_wallet` cost. What a code is when a
-/// SeedQR was wanted and something else came.
-pub(crate) fn what_instead_of_a_seed(c: &Compute, text: &str) -> Option<&'static str> {
-    let t = text.trim();
-    if crate::wallet::read_psbt(c, t.as_bytes()).is_some()
-        || t.to_ascii_lowercase().starts_with("ur:crypto-psbt")
-    {
-        return Some(EN.what_instead_of_a_seed_transaction);
+/// Whether `text` starts as a part of `form` does, so the form's parser
+/// says what is wrong with it: a codex32 string's `ms1`, a SLIP-39
+/// share's first word, Seed XOR's words of a BIP-39 list. A lookup.
+fn starts_as_form(form: crate::forms::Form, text: &str) -> bool {
+    use crate::forms::Form;
+    let first = text.split_whitespace().next().unwrap_or("");
+    match form {
+        Form::Codex32 => text.get(..3).is_some_and(|p| p.eq_ignore_ascii_case("ms1")),
+        Form::Slip39 => {
+            faraday_bip::slip39::index_of(&zeroize::Zeroizing::new(first.to_lowercase())).is_some()
+        }
+        Form::Xor | Form::Words => {
+            let words: Vec<&str> = text.split_whitespace().collect();
+            !words.is_empty() && scan_read::on_a_word_list(&words)
+        }
     }
-    if faraday_qr::bbqr::is_part(t) || faraday_codec::ur::is_ur(t) {
-        return Some(EN.what_instead_of_a_seed_files_code);
-    }
-    if crate::wallet::read_wallet(c, t).is_ok() || crate::create::read_key(t).is_some() {
-        return Some(EN.what_instead_of_a_seed_public);
-    }
-    None
 }
-
 /// Costs a mnemonic's checksum (through `secret_text`), a codex32 and a
 /// SLIP-39 parse and a WIF's checksum. Why pasted text is refused for
 /// holding a secret (`docs/DESIGN.md` §4.10): a seed's words, checksum or
@@ -872,5 +856,480 @@ impl Faraday {
         self.entry.state_mut().typed.set(&given);
         self.form_add_part();
         true
+    }
+}
+
+impl Faraday {
+    /// Costs what reading the code costs (a mnemonic's checksum, a
+    /// codex32 and a SLIP-39 parse, a PSBT and a wallet read) and what
+    /// the scanner that takes it does with it. One code the camera read,
+    /// or Paste gave (`docs/SCANNING.md` §4): the scanner on screen takes
+    /// what it is for, and names anything else (§4.6).
+    pub(crate) fn scanned(&mut self, bytes: Vec<u8>) {
+        let bytes = zeroize::Zeroizing::new(bytes);
+        if self.seed_scan_codex32(&bytes)
+            || self.gpg_restore_scanned(&bytes)
+            || self.sweep_scanned(&bytes)
+        {
+            return;
+        }
+        let camera = self.sheet == Some(Sheet::Scan);
+        let Some(purpose) = self.camera.scan().map(|s| s.purpose) else {
+            return;
+        };
+        // Transfer's Receive takes anything and files nothing.
+        if purpose == ScanPurpose::Transfer {
+            return self.transfer_scanned(bytes);
+        }
+        // A stick plugged in while the camera is on is held back, and no
+        // key loads while it is attached: what loads one is not read.
+        if camera
+            && !self.stick.is_empty()
+            && matches!(
+                purpose,
+                ScanPurpose::Seed | ScanPurpose::KeyPart | ScanPurpose::WalletKey(_)
+            )
+        {
+            return self.scan_say(crate::stick::keys_load(self.medium));
+        }
+        match purpose {
+            ScanPurpose::VaultEntry => self.entry_code_scanned(bytes),
+            ScanPurpose::KeyPart => self.part_scanned(bytes),
+            ScanPurpose::CheckCopy(fp) => self.copy_scanned(fp, bytes),
+            ScanPurpose::CheckCodex32 => self.c32_copy_scanned(bytes),
+            ScanPurpose::WalletKey(w) => self.wallet_key_code(w, bytes),
+            ScanPurpose::Seed => self.seed_code_scanned(bytes),
+            _ => self.files_scanned(bytes, camera),
+        }
+    }
+
+    /// The scanner's line says `why`; the camera stays on.
+    pub(crate) fn scan_say(&mut self, why: String) {
+        if let Some(scan) = self.camera.scan_mut() {
+            scan.note = Some(why);
+        }
+    }
+
+    /// The camera closes and the scanner with it.
+    pub(crate) fn scan_close(&mut self) {
+        self.camera.close();
+        self.sheet = None;
+        self.out.commands.push_back(Command::CameraOff);
+    }
+
+    /// Costs what [`scan_read::secret_kind`] costs, and a code read as a
+    /// file (`read_code`). A code the scanner on screen does not take:
+    /// named on its line by what it is (`docs/SCANNING.md` §4.1), the
+    /// code wiped; a transfer in parts is put together first.
+    pub(crate) fn scan_not_taken(&mut self, bytes: zeroize::Zeroizing<Vec<u8>>) {
+        let c = self.compute();
+        if let Some(kind) = scan_read::secret_kind(&c, &bytes) {
+            drop(bytes);
+            return self.scan_say(kind.not_here());
+        }
+        let Some((named, _, data)) = self.read_code(bytes) else {
+            return;
+        };
+        let data = zeroize::Zeroizing::new(data);
+        let kind = scan_read::public_kind(
+            crate::wallet::classify(&c, "", &data),
+            named.is_some(),
+            &String::from_utf8_lossy(&data),
+        );
+        self.scan_say(kind.not_here());
+    }
+
+    /// Costs what adding entries to a vault costs. A code read by a
+    /// vault's Scan a setup code: a TOTP setup code or vault entries go
+    /// into the open vault; anything else is named.
+    fn entry_code_scanned(&mut self, bytes: zeroize::Zeroizing<Vec<u8>>) {
+        let text = zeroize::Zeroizing::new(String::from_utf8_lossy(&bytes).into_owned());
+        let refused = self.vault_scanned_entry(&text).err();
+        drop(text);
+        let Some(why) = refused else {
+            return self.scan_close();
+        };
+        let c = self.compute();
+        match scan_read::secret_kind(&c, &bytes) {
+            Some(Kind::Totp | Kind::Entries) => self.scan_say(why),
+            _ => self.scan_not_taken(bytes),
+        }
+    }
+
+    /// Costs what adding a part costs, and a codex32 and a SLIP-39 parse.
+    /// A code read by an Add a key form's Scan (codex32, SLIP-39, Seed
+    /// XOR; `docs/SCANNING.md` §4.3): its own form's part goes in; the
+    /// other share form's switches to that form with it in; a whole seed
+    /// goes to the seed sheet; a code that starts as the form's does keeps
+    /// the parser's line, and anything else is named.
+    fn part_scanned(&mut self, bytes: zeroize::Zeroizing<Vec<u8>>) {
+        use crate::forms::Form;
+        let c = self.compute();
+        let kind = scan_read::secret_kind(&c, &bytes);
+        let form = self.entry.state().form;
+        let kind_form = match kind {
+            Some(Kind::Codex32Share | Kind::Codex32Secret) => Some(Form::Codex32),
+            Some(Kind::Slip39Share) => Some(Form::Slip39),
+            _ => None,
+        };
+        if let Some(to) = kind_form.filter(|f| *f != form) {
+            if let Some(i) = Form::ALL.iter().position(|f| *f == to) {
+                self.act(Action::EntryForm(i as u8));
+            }
+        } else if form != Form::Xor
+            && kind.is_some_and(Kind::seed)
+            && let Some(words) = seed_in_code(&c, &bytes)
+        {
+            drop(bytes);
+            return self.seed_scanned(&words);
+        }
+        let text = match faraday_intake::seedqr_words(&bytes) {
+            Some(w) => w,
+            None => zeroize::Zeroizing::new(String::from_utf8_lossy(&bytes).trim().to_string()),
+        };
+        let ours = kind_form.is_some() || starts_as_form(self.entry.state().form, &text);
+        self.entry.state_mut().typed.set(&text);
+        drop(text);
+        self.entry.state_mut().error = None;
+        self.form_add_part();
+        match self.entry.state().error.clone() {
+            None => self.scan_close(),
+            Some(why) => {
+                zeroize::Zeroize::zeroize(&mut self.entry.state_mut().typed);
+                self.entry.state_mut().error = None;
+                if ours {
+                    self.scan_say(why);
+                } else {
+                    self.scan_not_taken(bytes);
+                }
+            }
+        }
+    }
+
+    /// Costs a mnemonic's checksum. A code read by a wallet's Scan a key:
+    /// a seed is matched to the wallet's missing keys; anything else is
+    /// named.
+    fn wallet_key_code(&mut self, w: usize, bytes: zeroize::Zeroizing<Vec<u8>>) {
+        let c = self.compute();
+        match seed_in_code(&c, &bytes) {
+            Some(words) => {
+                drop(bytes);
+                self.wallet_key_scanned(w, &words);
+            }
+            None => self.scan_not_taken(bytes),
+        }
+    }
+
+    /// Costs a mnemonic's checksum, a SeedQR's decode and a SLIP-39 parse.
+    /// A code read by Scan a SeedQR: a seed's words (pasted on the
+    /// desktop, F75, or in a QR), a SeedQR or a CompactSeedQR load as the
+    /// SeedQR's would; a SLIP-39 share goes to its form, as a codex32
+    /// string does (`seed_scan_codex32`); anything else is named.
+    fn seed_code_scanned(&mut self, mut bytes: zeroize::Zeroizing<Vec<u8>>) {
+        let c = self.compute();
+        if std::str::from_utf8(&bytes).is_ok_and(|t| t.contains(' '))
+            && let Some(words) = seed_in_code(&c, &bytes)
+        {
+            drop(bytes);
+            return self.seed_scanned(&words);
+        }
+        if self.screen != crate::Screen::KeyGen
+            && scan_read::secret_kind(&c, &bytes) == Some(Kind::Slip39Share)
+            && self.intake_key_part(&bytes)
+        {
+            return;
+        }
+        let lang = faraday_bip::bip39::Language::English;
+        let digits = bytes.iter().all(u8::is_ascii_digit);
+        let read = if digits {
+            faraday_keys::words::from_seedqr_digits(&bytes, lang)
+        } else {
+            faraday_keys::words::from_compact_seedqr(&bytes, lang)
+        };
+        let Ok(m) = read else {
+            return self.scan_not_taken(bytes);
+        };
+        zeroize::Zeroize::zeroize(&mut *bytes);
+        let words = lang.words();
+        let mut typed = crate::secret_text::room();
+        for (k, &i) in m.indices().iter().enumerate() {
+            if k > 0 {
+                typed.push(' ');
+            }
+            typed.push_str(words[usize::from(i)]);
+        }
+        self.seed_scanned(&typed);
+    }
+
+    /// Costs a mnemonic's checksum, a key part's parse and what a code
+    /// read as a file costs. A code read by a scanner for anything (Home's
+    /// Scan, Files', Restore's, Create's, Spend's) or What do you have?:
+    /// a seed and a part of a key go to Add a key, a secret is named and
+    /// never filed (F167), anything else is filed and goes to the flow
+    /// waiting for it.
+    fn files_scanned(&mut self, bytes: zeroize::Zeroizing<Vec<u8>>, camera: bool) {
+        let c = self.compute();
+        let sticks = !self.stick.is_empty();
+        // What do you have?: a seed asks how it loads, a share of a key
+        // goes to Add a key's form for it, any other secret is named, and
+        // anything else goes to Files below and the camera stays on.
+        let intake = self
+            .camera
+            .scan()
+            .is_some_and(|s| s.purpose == ScanPurpose::Intake);
+        if intake {
+            if let Some(words) = seed_in_code(&c, &bytes) {
+                if sticks {
+                    return self.scan_say(crate::stick::keys_load(self.medium));
+                }
+                return self.family_intake_seed(&words);
+            }
+            if self.intake_key_part(&bytes) {
+                return;
+            }
+            if let Some(kind) = scan_read::secret_kind(&c, &bytes) {
+                drop(bytes);
+                return self.scan_say(kind.not_here());
+            }
+        }
+        // A part of a key goes to Add a key's form, never Files (F167).
+        if self.scan_part_routed(&bytes) {
+            return;
+        }
+        // Home's Scan takes a seed too: a SeedQR, a CompactSeedQR or the
+        // words go to Add a key, as its own Scan does, and never into a
+        // box (`docs/QR.md` §2).
+        if camera && let Some(words) = seed_in_code(&c, &bytes) {
+            if self.may_load_keys() {
+                self.act(Action::Entry(None));
+                return self.seed_scanned(&words);
+            }
+            if sticks {
+                return self.scan_say(crate::stick::keys_load(self.medium));
+            }
+        }
+        let Some((named, ext, data)) = self.read_code(bytes) else {
+            return;
+        };
+        self.file_scanned(&c, named, ext, data, intake);
+    }
+
+    /// Costs a file's classification and what the flow that takes it
+    /// costs. A whole code read as a file: filed (the same file again is
+    /// the one already in Files), then taken by the flow waiting for it,
+    /// or left in Files with its toast. A secret is never filed (F167).
+    fn file_scanned(
+        &mut self,
+        c: &Compute,
+        named: Option<String>,
+        ext: &str,
+        data: Vec<u8>,
+        intake: bool,
+    ) {
+        let number = self.camera.next_number();
+        // A file in the Faraday file envelope is a file sent as one, of
+        // whatever kind (`docs/QR.md` §2): it is filed under its name.
+        let enveloped = named.is_some();
+        let name = match named {
+            Some(n) => self.free_inbox_name(&n),
+            None => format!("scanned-{number}.{ext}"),
+        };
+        let item = crate::Item::new(c, &name, data);
+        if item.kind == crate::wallet::FileKind::Other && !enveloped {
+            if let Some(scan) = self.camera.scan_mut() {
+                scan.note = Some(EN.scanned_not_a_psbt.to_string());
+                scan.decoder = faraday_codec::ur::Decoder::new();
+            }
+            return;
+        }
+        let Some(item) = self.scanned_secret(item, enveloped, intake) else {
+            return;
+        };
+        let is_key = item.kind == crate::wallet::FileKind::Key;
+        let at = self.inbox_file_in(item);
+        let name = self.inbox[at].name.clone();
+        if intake {
+            return self.family_intake_file(at);
+        }
+        self.scan_close();
+        // A cosigner's account key scanned while a wallet is made from
+        // seeds fills the box waiting for one.
+        if is_key && self.seeds_take_file(at) {
+            self.toast(&fill(EN.scanned_is_a_cosigner, &[&name.to_string()]));
+            return;
+        }
+        // A cosigner's key, or a descriptor of one, scanned while a wallet
+        // is being made goes to the slot waiting for one.
+        if self.create_scan_arrived(c, at, &name)
+            || self.family_arrived(at)
+            || (self.screen == crate::Screen::Restore && self.restore_arrived(at))
+        {
+            return;
+        }
+        self.scan_landed(c, at, &name);
+    }
+
+    /// A seed's words read by the camera: the camera closes and the
+    /// seed waits on its sheet for how it loads (`seed_read`).
+    pub(crate) fn seed_scanned(&mut self, words: &str) {
+        // A scan fills the words from a camera frame, which keeps the
+        // status line's probe: it is worked out again for these.
+        self.entry.state().forget_probe();
+        // New key's Scan a SeedQR: its Key card takes the words and asks
+        // the passphrase there (`docs/history/NEW-WALLET.md` §15.2).
+        if self.keygen_scanned(words) {
+            return;
+        }
+        self.seed_read_open(words);
+    }
+
+    /// A code read while the backup's copy item scans the copy of the
+    /// seed `fp`: decoded as a SeedQR and compared word by word with that
+    /// seed, never loaded. A match closes the camera; a word that differs
+    /// is named and the camera stays open for the copy fixed.
+    pub(crate) fn copy_scanned(
+        &mut self,
+        fp: faraday_bip::keys::Fingerprint,
+        bytes: zeroize::Zeroizing<Vec<u8>>,
+    ) {
+        let c = self.compute();
+        let copy = crate::copy_check::copy_indices(&bytes);
+        drop(bytes);
+        let Some(copy) = copy else {
+            if let Some(scan) = self.camera.scan_mut() {
+                scan.note = Some(EN.copy_scanned_not_seedqr.to_string());
+            }
+            return;
+        };
+        let found = self
+            .session
+            .keys
+            .position(fp)
+            .and_then(|k| self.session.keys.words_match(&c, k, &copy));
+        let Some(found) = found else {
+            // The seed is no longer here: nothing to compare with.
+            self.camera.close();
+            self.sheet = None;
+            self.out.commands.push_back(Command::CameraOff);
+            return;
+        };
+        drop(copy);
+        let matched = found == crate::wallet_backup::CopyCheck::Matches;
+        if matched {
+            self.copy_matched(fp.0, crate::plan::CopyForm::SeedQr);
+        }
+        self.backup.set_scanned(found.clone());
+        if matched {
+            self.camera.close();
+            self.sheet = None;
+            self.out.commands.push_back(Command::CameraOff);
+        } else if let Some(scan) = self.camera.scan_mut() {
+            scan.note = Some(crate::wallet_backup::copy_scan_line(&found));
+        }
+    }
+
+    /// What one code read as a file holds: its name when it carries one,
+    /// its extension and its bytes. `None` while a transfer in parts waits
+    /// for more, and for a code that is refused, which leaves its reason
+    /// as the scan's note.
+    /// What it read is wiped once done with: it may be a seed.
+    pub(crate) fn read_code(
+        &mut self,
+        bytes: zeroize::Zeroizing<Vec<u8>>,
+    ) -> Option<(Option<String>, &'static str, Vec<u8>)> {
+        let c = self.compute();
+        let scan = self.camera.scan_mut()?;
+        scan.reads += 1;
+        let text = zeroize::Zeroizing::new(String::from_utf8_lossy(&bytes).trim().to_string());
+        // A wrong arrival is named, not refused generically (`docs/QR.md`
+        // §1): a seed in any form, a private key or a paperkey never goes
+        // in a box.
+        if let Some(why) = secret_code(&c, &bytes) {
+            scan.note = Some(why.to_string());
+            return None;
+        }
+        // BBQr and numbered parts are put together here; anything else is
+        // read as before.
+        let mut item: Option<(Option<String>, &str, Vec<u8>)> = None;
+        match scan.assembler.feed(&text) {
+            faraday_qr::Step::Part {
+                what,
+                have,
+                total,
+                missing,
+            } => {
+                scan.note = Some(crate::qr_view::part_note(
+                    crate::transfer_name(what),
+                    have,
+                    total,
+                    &missing,
+                ));
+                return None;
+            }
+            faraday_qr::Step::Refused(why) => {
+                scan.note = Some(crate::qr_view::scan_refusal(why));
+                return None;
+            }
+            faraday_qr::Step::Done(arrived) => item = Some(faraday_intake::arrival(arrived)),
+            faraday_qr::Step::NotMine => {}
+        }
+        if item.is_none() && faraday_codec::ur::is_ur(&text) {
+            let message = match crate::ur_feed(&mut scan.decoder, &text) {
+                Ok(crate::UrFed::Whole(m)) => m,
+                Ok(crate::UrFed::More { restarted }) => {
+                    scan.note = crate::ur_note(&scan.decoder, restarted);
+                    return None;
+                }
+                Err(why) => {
+                    scan.note = Some(why.to_string());
+                    return None;
+                }
+            };
+            match message {
+                faraday_codec::ur::Message::Psbt(p) => item = Some((None, "psbt", p)),
+                faraday_codec::ur::Message::Bytes(b) => {
+                    item = Some(faraday_intake::arrival(faraday_qr::classify_text(
+                        &String::from_utf8_lossy(&b),
+                    )));
+                }
+                faraday_codec::ur::Message::Other { ur_type, cbor } => {
+                    match faraday_qr::registry::read(&ur_type, &cbor) {
+                        Ok(Some(faraday_qr::registry::Read::Psbt(p))) => {
+                            item = Some((None, "psbt", p));
+                        }
+                        Ok(Some(faraday_qr::registry::Read::Keys(t)))
+                        | Ok(Some(faraday_qr::registry::Read::Descriptor(t))) => {
+                            item = Some((None, "txt", t.into_bytes()));
+                        }
+                        Ok(None) => {
+                            scan.note = Some(fill(EN.read_code_ur_unknown, &[&ur_type]));
+                            return None;
+                        }
+                        Err(why) => {
+                            scan.note = Some(crate::qr_view::registry_text(&why));
+                            return None;
+                        }
+                    }
+                }
+            }
+        }
+        let (named, ext, data) = match item {
+            Some(i) => i,
+            None if crate::wallet::read_psbt(&c, &bytes).is_some() => {
+                (None, "psbt", bytes.to_vec())
+            }
+            None => {
+                // An address is checked against the loaded wallets, not
+                // filed.
+                if let Some(said) = self.address_note(&c, &text) {
+                    if let Some(scan) = self.camera.scan_mut() {
+                        scan.note = Some(said);
+                    }
+                    return None;
+                }
+                faraday_intake::arrival(faraday_qr::classify_text(&text))
+            }
+        };
+        Some((named, ext, data))
     }
 }

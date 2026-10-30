@@ -3633,13 +3633,69 @@ strings! {
     secret_text_nostr: "That is a Nostr secret key. Faraday does not take one",
     /// Scanner note in `secret_text`: 12 to 24 words of a BIP-39 list that are no English BIP-39 seed.
     secret_text_not_a_seed: "Those are seed words, but not an English BIP-39 seed: the checksum fails",
-    // ----- what_instead_of_a_seed (faraday-core/src/lib.rs) -----
-    /// Text in `what_instead_of_a_seed`.
-    what_instead_of_a_seed_transaction: "That is a transaction, not a seed. Scan it from Files",
-    /// Text in `what_instead_of_a_seed`.
-    what_instead_of_a_seed_files_code: "That is a code for Files, not a seed",
-    /// Text in `what_instead_of_a_seed`.
-    what_instead_of_a_seed_public: "That is a public wallet or key, not a seed: it cannot sign",
+    // ----- What a code read is (docs/SCANNING.md §7.2), faraday-core/src/scan_read.rs -----
+    /// A code read: a seed's words.
+    read_seed_words: "A seed's words",
+    /// A code read: a SeedQR.
+    read_seedqr: "A SeedQR",
+    /// A code read: a CompactSeedQR.
+    read_compact_seedqr: "A CompactSeedQR",
+    /// A code read: a codex32 string with share index s.
+    read_codex32_secret: "A codex32 secret",
+    /// A code read: a codex32 string with another share index.
+    read_codex32_share: "A codex32 share",
+    /// A code read: a SLIP-39 share.
+    read_slip39_share: "A SLIP-39 share",
+    /// A code read: words of a BIP-39 list whose checksum fails.
+    read_bad_checksum: "Words that fail their checksum",
+    /// A code read: a WIF private key.
+    read_private_key: "A private key",
+    /// A code read: an extended private key.
+    read_xprv: "An extended private key",
+    /// A code read: a Nostr secret key.
+    read_nostr_secret: "A Nostr secret key",
+    /// A code read: ur:crypto-seed.
+    read_ur_seed: "A seed (ur:crypto-seed)",
+    /// A code read: a GPG key's paperkey.
+    read_paperkey: "A paperkey",
+    /// A code read: a TOTP setup code.
+    read_totp: "A TOTP setup code",
+    /// A code read: vault entries.
+    read_entries: "Vault entries",
+    /// A code read: a PSBT.
+    read_psbt: "A transaction to sign",
+    /// A code read: a finished transaction.
+    read_transaction: "A finished transaction",
+    /// A code read: a wallet description.
+    read_wallet: "A wallet description",
+    /// A code read: a multisig config with keys left off.
+    read_split_sheets: "Split sheets of a wallet",
+    /// A code read: an account key.
+    read_account_key: "An account key",
+    /// A code read: an address.
+    read_address: "An address",
+    /// A code read: a bitcoin: URI.
+    read_payment_request: "A payment request",
+    /// A code read: a silent payment address.
+    read_silent_address: "A silent payment address",
+    /// A code read: a signed message.
+    read_message: "A signed message",
+    /// A code read: a GPG public key.
+    read_gpg: "A GPG public key",
+    /// A code read: a file kept as it came (an envelope, a vault, a PDF).
+    read_file: "A file",
+    /// A code read: BIP-329 labels.
+    read_labels: "Labels (BIP-329)",
+    /// A code read: a Lightning invoice.
+    read_invoice: "A Lightning invoice",
+    /// A code read: a web address.
+    read_web: "A web address",
+    /// A code read: text that is none of the kinds above.
+    read_text: "Text",
+    /// A code read: bytes that are none of the kinds above.
+    read_unreadable: "Nothing Faraday reads",
+    /// A scanner's line for a kind it does not take. `{}`: the kind, one of the `read_*` above.
+    read_not_here: "{} · not used here",
     // ----- app (faraday-core/src/lib.rs) -----
     /// Text in `NOT_A_KEY`.
     app_not_wallet_key: "Not a key of this wallet: check the words or the passphrase",
@@ -3920,8 +3976,6 @@ strings! {
     /// Toast in `make_pdf`. `{}`: `e`.
     make_pdf_not_printed: "Not printed: {}",
     // ----- scanned (faraday-core/src/lib.rs) -----
-    /// Text in `scanned`.
-    scanned_not_a_seedqr: "Not a SeedQR or a CompactSeedQR",
     /// Text in `scanned`.
     scanned_not_a_psbt: "Not a PSBT, a descriptor, an xpub or a signed message",
     /// Toast in `scanned`. `{}`: `name`.
