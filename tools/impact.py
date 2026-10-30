@@ -7,6 +7,7 @@ from the paths a change touches, what must change with it:
 
     impact.py plan [<path>...] [--at <moment>] [--long]
     impact.py check [<range>] [--quiet] [--paths <path>...] [--message <file>]
+                    (FARADAY_IMPACT_MESSAGE=<file> as --message, relative to the repository)
     impact.py lint
     impact.py docs [--check]
     impact.py --self-test
@@ -928,11 +929,18 @@ def cmd_check(args):
     code, changes, commits = collect(args, git)
     if code is not None:
         return code
-    if args.message:
+    # FARADAY_IMPACT_MESSAGE names the same file as --message, for a check
+    # run inside another recipe (`just`) on a tree whose commit is not yet
+    # made: a release's bump, checked before it is committed.
+    message = args.message or os.environ.get("FARADAY_IMPACT_MESSAGE")
+    if message:
+        path = Path(message)
+        if not path.is_absolute():
+            path = Path(args.repo or ROOT) / path
         try:
-            msg = Path(args.message).read_text(encoding="utf-8")
+            msg = path.read_text(encoding="utf-8")
         except OSError as e:
-            print(f"impact: cannot read {args.message}: {e}")
+            print(f"impact: cannot read {message}: {e}")
             return 2
         commits.append(("message", msg))
     results, notes = evaluate(reg, changes, commits)

@@ -228,6 +228,7 @@ Impact-skip: docs.readme-index: the document is a page of docs/guide/, which GUI
 One trailer a rule, the reason in words a reviewer can check. A waiver
 in any commit of the range covers the range; `check` prints each waiver
 it used with its commit. Before a commit exists, `--message <file>`
+(or `FARADAY_IMPACT_MESSAGE=<file>`, for a check run inside `just`)
 reads the trailers from the message being written, so the change and its
 waiver are checked together. A waiver is the answer for one change,
 never a standing exception: a rule waived again and again is a rule to
