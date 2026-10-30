@@ -407,10 +407,10 @@ In `faraday/faraday-core/tests/all/` (a new `own_randomness.rs`):
 The construction (§2.3) is SHA-256 over concatenations; its known
 answers are added to the Python cross-check (F79) and test 4's and a
 mixed case's bytes are compared with it, as are pointer and keys'
-records and commitment (§2.1). That Python is a model Faraday's own
-authors wrote from this document, not an independent implementation:
-the construction is Faraday's own, not yet independently reviewed
-(F160).
+records and commitment (§2.1). That Python is a second implementation
+Faraday's own authors wrote from this document, not checked against an
+outside source: the specification is Faraday's own, not yet reviewed
+outside Faraday (F160, F177).
 
 For §3: `check-kernel-config.sh` fails a board whose `CONFIG_CMDLINE`
 lacks the two parameters (A).

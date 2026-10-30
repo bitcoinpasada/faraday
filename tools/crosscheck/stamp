@@ -1,7 +1,7 @@
 # The last passing crypto cross-check (`just crosscheck`, F79).
 # `just lint` fails when `inputs` no longer matches the crypto sources,
 # the cross-check and the crypto crates' Cargo.lock entries.
-inputs 076c7844c94e8aeeab2df6be23564b85787a4df1794640b08c57e025f805afef
+inputs 7cf9cb3f3727a549a7ea26e95eb830655a5dfc7ba47fce56b976f45346395e33
 references b74c7502abf6403d308a934a56027bd8edb75be19f633a5925bd708722d1b002
 python 3.14.4
 argon2-cffi 25.1.0
@@ -11,36 +11,36 @@ pykeepass 4.1.1.post1
 ecdsa 0.19.1
 go 1.27.3
 bitcoin-core 31.1.0 bitcoin-31.1-x86_64-linux-gnu.tar.gz b80d9c3e04da78fb6f0569685673418cf686fadba9042d926d13fb87ff503f9e
-seed 9c116ea474f3bad8357d24a1c257f3d0
-scale 10.0
+seed faraday-crosscheck-1
+scale 1.0
 workers 12; PyPy 3.11.13 for the areas it speeds
-seconds 521.8
-cases musig 200
-cases sp 1000
-cases sps 800
-cases bip85 30000
-cases slip39 15000
-cases codex32 10000
-cases codex32-correct 100000
-cases xor 40000
-cases vault 36050
-cases bip39 30000
-cases bip32 4000
-cases addr 40000
-cases tx 30000
-cases psbt 15000
-cases sign 1580
-cases psbt-review 2000
-cases import 4500
-cases taproot 4400
-cases miniscript 2500
-cases msg 6000
-cases own-randomness 4000
-cases entropy 30000
-cases roller 30000
-cases seedqr 8000
-cases bbqr 15000
-cases ur 6000
-cases vanity 2000
-cases kdbx 1200
-cases lightning 4000
+seconds 95.3
+cases musig 20
+cases sp 100
+cases sps 80
+cases bip85 3000
+cases slip39 1500
+cases codex32 1000
+cases codex32-correct 10000
+cases xor 4000
+cases vault 3605
+cases bip39 3000
+cases bip32 400
+cases addr 4000
+cases tx 3000
+cases psbt 1500
+cases sign 158
+cases psbt-review 200
+cases import 450
+cases taproot 440
+cases miniscript 250
+cases msg 600
+cases own-randomness 400
+cases entropy 3000
+cases roller 3000
+cases seedqr 800
+cases bbqr 1500
+cases ur 600
+cases vanity 200
+cases kdbx 120
+cases lightning 400

@@ -766,8 +766,9 @@ introduction):
 ## 8. Tests that are not added
 
 No test states a constant (`COMMIT_LEN`'s value) or the layout against
-this document: the vectors and the second reader (a model Faraday's own
-authors wrote, not an independent implementation, F160) hold the bytes,
+this document: the vectors and the second reader (a second
+implementation Faraday's own authors wrote, not checked against an
+outside source, F160, F177) hold the bytes,
 and the tests above are what a person or a second reader notices.
 
 ## 9. Order of work

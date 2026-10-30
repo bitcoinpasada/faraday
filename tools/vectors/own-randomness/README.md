@@ -3,10 +3,10 @@
 The known answers of own randomness (`docs/OWN-RANDOMNESS.md` §2.1 and
 §2.3; F86, F154): the accumulator a person's additions make, the
 session's seed, a fresh answer, a draw from the seed, This device's
-answer, and the pointer-and-keys commitment. The construction is
-Faraday's own and carries the label "own construction, not yet
-independently reviewed" (F160); these answers are Faraday's, not a
-published standard's. A reproduction by an outside party is asked for
+answer, and the pointer-and-keys commitment. The specification is
+Faraday's own and carries the label "own specification, not yet
+reviewed outside Faraday" (F160, F177); these are Faraday's own known
+answers, not a published standard's. A reproduction by an outside party is asked for
 in `docs/AUDIT-SUBMISSIONS.md` §10.
 
 Faraday's tests read `vectors.json`
@@ -25,7 +25,7 @@ these bytes.
 `acc` and `seed` are steps on the way: Faraday's tests check the draw,
 the fresh answer, This device's answer and the commitments.
 
-## The construction
+## The specification
 
 All hashes are SHA-256, `‖` is concatenation, and labels are ASCII
 with no terminator.
@@ -92,6 +92,6 @@ From the top of the repository, with Python 3's standard library:
 The answers were first computed with Python's `hashlib` from §2.3's
 definitions when the tests were written; this file holds them as the
 tests pinned them. The cross-check's `own` area
-(`tools/crosscheck/area_own.py`) compares Faraday's Rust with a model of
-the same text written by Faraday's own authors over random cases; it is
-not an outside implementation.
+(`tools/crosscheck/area_own.py`) compares Faraday's Rust with a second
+implementation of the same text written by Faraday's own authors over
+random cases; it is not checked against an outside source.

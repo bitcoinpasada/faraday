@@ -337,10 +337,11 @@ Why this is better than one repository and one application:
   published vectors (`tools/vectors/`) and, where one exists, an
   implementation Faraday did not write: `gpg` and `paperkey` judge its
   OpenPGP packets, `openssl` and `sbverify` its Secure Boot output. Some
-  references are still models Faraday's own authors wrote (the Python
-  reader of Faraday's vaults among them), and the vault and own
-  randomness are Faraday's own constructions, not yet independently
-  reviewed; `docs/CROSSCHECK.md` §10 says which (F160).
+  parts are still compared only with second implementations Faraday's
+  own authors wrote (the Python reader of Faraday's vaults among them),
+  which are not checked against an outside source, and the vault and own
+  randomness are of Faraday's own specification, not yet reviewed
+  outside Faraday; `docs/CROSSCHECK.md` §10 says which (F160, F177).
 
 `unsafe` Rust is forbidden across the workspace. The exceptions in what
 Faraday builds are `faraday-crypto` (locking secret pages in RAM), the camera crate

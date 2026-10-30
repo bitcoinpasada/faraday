@@ -259,36 +259,39 @@ carries the label **user report**. The Audits page says so in one line
 beside the Audit form's link. A security problem still goes in a private
 report (§4).
 
-## 10. Outside review of Faraday's own constructions (F160)
+## 10. Outside review of Faraday's own specifications (F160, F177)
 
 Some of Faraday's cryptography follows no published standard: the
-construction is Faraday's own, and no implementation by anyone else
+specification is Faraday's own, and no implementation by anyone else
 exists to check it against. The cross-check (`docs/CROSSCHECK.md` §10)
-compares Faraday's Rust there with a model written by Faraday's own
-authors. That catches a slip between two transcriptions of one text. It
-does not catch a misreading both share, or a flaw in the text itself.
-Each such action carries the label "own construction, not yet
-independently reviewed" (its `label` in `docs/crypto/actions.toml`),
-shown in the app's and the website's Cryptography blocks and in
-`docs/STANDARDS.md` §7, until an outside party reviews it (F160 item 3).
+compares Faraday's Rust there with a second implementation written by
+Faraday's own authors, in Python, from the specification. That catches
+a slip between the two implementations. It does not catch a misreading
+both share, or a flaw in the specification itself: those parts are not
+checked against an outside source. Each such action carries the label
+"own specification, not yet reviewed outside Faraday" (its `label` in
+`docs/crypto/actions.toml`), shown in the app's and the website's
+Cryptography blocks and in `docs/STANDARDS.md` §7, until an outside
+party reviews it (F160 item 3, F177).
 
 This section is the call for that review: what a reviewer gets, what is
 asked, and how a result is recorded. No reviewer is chosen. Anyone who
 is not one of Faraday's authors, or an agent working for them, may
 answer it.
 
-### 10.1 The constructions, in order
+### 10.1 The specifications, in order
 
-The vault first: it holds a person's keys. Each row names the spec to
-write from, the answers to reproduce, and Faraday's code for the
-construction, which a model's author does not read until the model is
-written. The vectors of own randomness, the cards, the camera, a mix
-and the rollers are a JSON file each, beside a README that says what
-each vector covers and how it was made, and gives the construction in
-words and a few lines of Python, standard library only, that reproduce
-its answers; Faraday's tests read the same files.
+The vault first: it holds a person's keys. Each row names the
+specification to write from, the answers to reproduce, and Faraday's
+code for it, which the author of an outside implementation does not
+read until that implementation is written. The vectors of own
+randomness, the cards, the camera, a mix and the rollers are a JSON file
+each, beside a README that says what each vector covers and how it was
+made, and gives the procedure in words and a few lines of Python,
+standard library only, that reproduce its answers; Faraday's tests read
+the same files.
 
-| Construction | Actions (`id`) | Spec | Vectors and known answers | Faraday's code (not read first) | Cross-check area |
+| Specification | Actions (`id`) | Spec | Vectors and known answers | Faraday's code (not read first) | Cross-check area |
 |---|---|---|---|---|---|
 | The vault: its file, slots, key schedule, sealing and records | `vault-create`, `vault-unlock`, `vault-seal`, `vault-edit` | `docs/VAULT.md` §1 to §9 and §11; F97, F158, F159; `docs/SECURITY-MODEL.md`, "Vault cryptography"; RFC 9106, RFC 5869, draft-irtf-cfrg-xchacha-03, RFC 8439, UAX #15 | `tools/vectors/vault/` (its README lists each file and passphrase); `tools/vectors/vault-primitives/`; `tools/vectors/kdf/` | `faraday/faraday-vault/`, `faraday/faraday-keys/src/vault.rs`, `tools/vault/`, `tools/crosscheck/area_vault.py` | `vault` |
 | Own randomness: the accumulator, the seed, the pool, a seed draw, the lock, and the pointer-and-keys commitment | `fresh`, `pointer-keys` | `docs/OWN-RANDOMNESS.md` §2.1, §2.3; F86, F154 | `tools/vectors/own-randomness/`, which `faraday/faraday-core/tests/all/own_randomness.rs` reads | `faraday/faraday-core/src/fresh.rs`, `core/faraday-entropy/src/pointer_keys.rs`, `tools/crosscheck/area_own.py` | `own` |
@@ -299,33 +302,33 @@ its answers; Faraday's tests read the same files.
 
 ### 10.2 What is asked
 
-One or more of these, for one construction or several:
+One or more of these, for one specification or several:
 
-1. **An outside model.** A second implementation of the construction,
-   written from the spec alone, without reading the code the table
-   lists. It reproduces the vectors and known answers, and it offers the
-   operations of §10.3, so that it can take the place of Faraday's model
-   in the cross-check. Each place where the spec leaves the answer open,
-   and each disagreement between the model and the vectors, is a
-   finding.
+1. **An outside implementation.** A second implementation of the
+   specification, written from it alone, without reading the code the
+   table lists. It reproduces the vectors and known answers, and it
+   offers the operations of §10.3, so that it can take the place of
+   Faraday's second implementation in the cross-check. Each place where
+   the specification leaves the answer open, and each disagreement
+   between the outside implementation and the vectors, is a finding.
 2. **A reproduction of the vectors.** The reviewer's own code, in any
    language, opening or computing each vector, with the answer it gives
    for each.
-3. **A review of the construction.** Whether it does what its spec says
-   it does: for the vault, the promises of `docs/VAULT.md` §9; for own
+3. **A review of the specification.** Whether it does what it says it
+   does: for the vault, the promises of `docs/VAULT.md` §9; for own
    randomness, that what a person adds cannot lower the system's
    randomness; for cards, the camera and a mix, that the bits counted
    are there; for the Secure Boot generator, that the keys are drawn as
    F134 and F158 state. Findings take §2's severities.
 
 For the Secure Boot keys and a key held in memory, the review (3) is
-what is asked: a model would have to reproduce the `rsa` crate's own
-search for primes to match the known answers, and the in-memory seal is
-reached by no shipped code.
+what is asked: an outside implementation would have to reproduce the
+`rsa` crate's own search for primes to match the known answers, and the
+in-memory seal is reached by no shipped code.
 
-### 10.3 What a model offers, to be used in the cross-check
+### 10.3 What an outside implementation offers, to be used in the cross-check
 
-A model the cross-check can call is:
+An outside implementation the cross-check can call is:
 
 - Python 3, over the standard library and the packages the cross-check
   already takes from the distribution (`argon2-cffi`, PyNaCl, PyCA
@@ -334,9 +337,9 @@ A model the cross-check can call is:
 - under a licence that allows copying it unchanged into this
   repository (MIT, BSD, Apache-2.0, CC0 or public domain).
 
-A model in another language counts as a reproduction (§10.2, item 2).
-Running it in the cross-check needs its toolchain allowed by a decision,
-as Go was for LND's aezeed (F160 item 6).
+An implementation in another language counts as a reproduction (§10.2,
+item 2). Running it in the cross-check needs its toolchain allowed by a
+decision, as Go was for LND's aezeed (F160 item 6).
 
 The operations each area compares:
 
@@ -358,7 +361,7 @@ The operations each area compares:
 
 ### 10.4 Faraday's side, to compare with
 
-Once the model is written:
+Once the outside implementation is written:
 
 - `python3 tools/vault/open.py tools/vectors/vault/vault-three.fvlt`
   prints the records of the slot a passphrase opens (`docs/VAULT.md`
@@ -381,13 +384,14 @@ Once the model is written:
 ### 10.5 Submitting
 
 As §3, with the audit form. The form's model field is "expert", or the
-model and its version where an AI wrote the model or the review under
-the reviewer's direction. `audit.md` says:
+model and its version where an AI wrote the implementation or the
+review under the reviewer's direction. `audit.md` says:
 
-- which construction, and which of §10.2's three was done;
-- for a model, that it was written from the spec without reading the
-  code §10.1 lists, where it is (a public repository at a commit, or an
-  archive attached to the issue), its licence, and how to run it;
+- which specification, and which of §10.2's three was done;
+- for an outside implementation, that it was written from the
+  specification without reading the code §10.1 lists, where it is (a
+  public repository at a commit, or an archive attached to the issue),
+  its licence, and how to run it;
 - the answer for each vector and known answer, and where it differs
   from the file;
 - the findings, by §2's severities. Critical and high findings go in
@@ -396,29 +400,31 @@ the reviewer's direction. `audit.md` says:
 ### 10.6 The record
 
 - **The Audits page** has an entry as §6 gives it, which also names the
-  construction, the kind of review, and for a model its repository,
-  commit and each file's SHA-256.
+  specification, the kind of review, and for an outside implementation
+  its repository, commit and each file's SHA-256.
 - **Faraday's reply** on the issue gives a verdict on each finding (§5).
-  A disagreement between the model and Faraday is settled by a fix to
-  Faraday, or by a change to the spec where it left the answer open or
-  was misread.
+  A disagreement between the outside implementation and Faraday is
+  settled by a fix to Faraday, or by a change to the specification where
+  it left the answer open or was misread.
 - **The decision.** Whether a submission counts as the outside review
-  of a construction is the owner's call (F160 item 3). A decision
-  records it: the reviewer as credited, the construction, the commit
+  of a specification is the owner's call (F160 item 3). A decision
+  records it: the reviewer as credited, the specification, the commit
   reviewed and the kind of review. With it the action's `label` goes.
   `docs/crypto/check.py` allows an action's `novel_rank`, its place in
   `docs/STANDARDS.md` §7, only with the label, so the decision also says
-  whether the construction stays in §7's list, and the check follows it.
-- **A model** is copied unchanged into `tools/reference/<name>/`, with a
-  README giving its source, commit, licence and each file's SHA-256, and
-  listed in `tools/crosscheck/references.sha256`. The area compares
-  Faraday with it in place of Faraday's own model, which is retired
-  (F160 item 8); a case the model does not cover stays on Faraday's
-  model, and the area's facts say so. Where the comparison is wholly
-  against the model, the action's `independence` becomes
-  `{ class = "outside", author = "<the reviewer's credit name>" }`, and
-  the Cryptography blocks and the cross-check's README, which are
-  generated from it, name the reviewer as the reference's author.
+  whether the specification stays in §7's list, and the check follows
+  it.
+- **An outside implementation** is copied unchanged into
+  `tools/reference/<name>/`, with a README giving its source, commit,
+  licence and each file's SHA-256, and listed in
+  `tools/crosscheck/references.sha256`. The area compares Faraday with
+  it in place of Faraday's own second implementation, which is retired
+  (F160 item 8); a case the outside implementation does not cover stays
+  on Faraday's, and the area's facts say so. Where the comparison is
+  wholly against the outside implementation, the action's `independence`
+  becomes `{ class = "outside", author = "<the reviewer's credit name>" }`,
+  and the Cryptography blocks and the cross-check's README, which are
+  generated from it, name the reviewer as its author.
 - **A reproduction or a review alone** takes the label away with the
-  decision. The area's reference stays Faraday's own model, and its
-  `independence` still says so.
+  decision. The area still compares with Faraday's own second
+  implementation, and its `independence` still says so.

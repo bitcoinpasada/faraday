@@ -86,10 +86,11 @@ changes and nothing else has to be kept in step.
 - `core/` is Faraday's own code: fix a thing at
   its source rather than wrap it. A cryptographic change, anywhere in the
   repository, is tested against published vectors and an
-  implementation Faraday did not write (a model Faraday's own authors
-  wrote is not one); a construction of Faraday's own, which has none,
-  carries F160's label "own construction, not yet independently
-  reviewed" until an outside review. Owning the code never loosens it: what the code
+  implementation Faraday did not write (a second implementation
+  Faraday's own authors wrote is not one: it is not checked against an
+  outside source); an action of Faraday's own specification, which has
+  none, carries F177's label "own specification, not yet reviewed
+  outside Faraday" until an outside review. Owning the code never loosens it: what the code
   refuses stays refused (a multisig key without an origin, a guessed
   path, an ambiguous input); refuse what cannot be verified rather than
   assume; accepting more than a standard requires is the owner's

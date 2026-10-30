@@ -17,8 +17,8 @@ marker lines, `<!-- crypto-manifest: begin §3 -->` and
     AUDIT §3           the "written here" list: each action's
                        `implementation.written_here`, grouped by crate
     tools/crosscheck/README.md, independence
-                       each area's references by who wrote them: one row per
-                       area and independence class (F160), with the actions
+                       what each area compares Faraday with: one row per area
+                       and class (F160, F177), outside or own, with the actions
 
 A row's cells come from the actions whose `row` is its id. A row with `uses`
 (the actions it describes as well as the rows they belong to) takes them from
@@ -31,8 +31,9 @@ actions name.
 The Verified by cell names a cross-check area by its `name` and says what it is
 compared against: the area's `reference` up to its first clause, read from
 tools/crosscheck/area_<file>.py without importing it, and, where the row's
-actions on that area name a reference of Faraday's own (`independence`, F160),
-that it is not an independent check.
+actions on that area compare Faraday, wholly or in part, with an implementation
+Faraday's authors wrote (`independence`, F160, F177), that it is, or is in part,
+not checked against an outside source.
 
 faraday/faraday-learn/src/how.rs (the Learn blocks) is written by gen_how.py,
 called from `generated`, with its CONSTRUCTIONS (docs/CRYPTO-LEARN.md §18) from
@@ -60,15 +61,16 @@ HOW = "faraday/faraday-learn/src/how.rs"
 AREAS = "tools/crosscheck"
 CC_README = "tools/crosscheck/README.md"
 
-# What a reference of each independence class is called (F160), weakest last.
+# What each class compares Faraday with (F160, F177), the one checked against an outside
+# source least last.
 INDEPENDENCE = {
-    "outside": "code Faraday did not write",
-    "own-over-outside": "Faraday's own model over outside code",
-    "own-only": "Faraday's own model only",
+    "outside": "an outside implementation",
+    "outside-and-own": "an outside implementation and, for a part, one Faraday's authors wrote",
+    "own": "an implementation Faraday's authors wrote",
 }
-NOT_INDEPENDENT = {
-    "own-over-outside": "partly Faraday's own model, not an independent check",
-    "own-only": "Faraday's own model, not an independent check",
+NOT_OUTSIDE = {
+    "outside-and-own": "in part not checked against an outside source",
+    "own": "not checked against an outside source",
 }
 
 
@@ -221,7 +223,7 @@ def verified_cell(actions, areas):
         classes = {(a["checked"].get("independence") or {}).get("class") for a in actions
                    if a.get("checked", {}).get("crosscheck") == stem}
         weakest = next((k for k in reversed(INDEPENDENCE) if k in classes), "outside")
-        note = f" ({NOT_INDEPENDENT[weakest]})" if weakest in NOT_INDEPENDENT else ""
+        note = f" ({NOT_OUTSIDE[weakest]})" if weakest in NOT_OUTSIDE else ""
         parts.append(f"F79 area `{name}`" + (f" against {against}" if against else "") + note)
     parts += [bare(o) for o in other]
     if tests:
@@ -325,14 +327,15 @@ def gen_novel(data):
                              for o in novel)
             parts.append(f"**{bare(a['action'])}.** {calls}")
         if any(a.get("label") for a, _ in groups[key]):
-            parts.append("Own construction, not yet independently reviewed (F160).")
+            parts.append("Own specification, not yet reviewed outside Faraday (F160, F177).")
         out.append(f"{i}. " + " ".join(parts))
     return "\n".join(out)
 
 
 def gen_independence(data, areas):
-    """tools/crosscheck/README.md: one row per area and independence class, who wrote
-    the reference, what of it is Faraday's own, and the actions (F160)."""
+    """tools/crosscheck/README.md: one row per area and class, what it compares Faraday
+    with, the outside implementation, the part Faraday's authors wrote, and the actions
+    (F160, F177)."""
     groups = {}
     for a in data["action"]:
         chk = a.get("checked", {})
@@ -343,10 +346,10 @@ def gen_independence(data, areas):
         ind = chk.get("independence") or {}
         key = (name, ind.get("class", "?"), ind.get("author", ""), ind.get("ours", ""))
         groups.setdefault(key, []).append(a["id"])
-    lines = ["| Area | Reference | Written by | Faraday's own part | Actions |",
+    lines = ["| Area | Compared with | Outside implementation | Written by Faraday's authors | Actions |",
              "|---|---|---|---|---|"]
     for (name, ind, by, ours), ids in groups.items():
-        lines.append(f"| `{name}` | {cell(INDEPENDENCE.get(ind, ind))} | {cell(by)} | "
+        lines.append(f"| `{name}` | {cell(INDEPENDENCE.get(ind, ind))} | {cell(by) if by else 'none'} | "
                      f"{cell(ours) if ours else 'none'} | {', '.join(ids)} |")
     return "\n".join(lines)
 

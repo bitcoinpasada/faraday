@@ -59,7 +59,7 @@ need. Each document's header says what kind it is:
 | Where are keys held, and how do they leave? | `docs/KEYS.md`, then `docs/AUDIT.md` §2 |
 | What is planned and not built? | each Spec's `**Open:**` line (the Specs are listed below); the board holds the rest |
 | How would a signer be kept from hiding its key in a nonce (anti-exfil)? | `docs/ANTI-EXFIL.md` |
-| How do I submit an audit, or an outside review of one of Faraday's own constructions? | `docs/AUDIT-SUBMISSIONS.md`; the own constructions, §10 |
+| How do I submit an audit, or an outside review of one of Faraday's own specifications? | `docs/AUDIT-SUBMISSIONS.md`; the own specifications, §10 |
 | How do I report a security problem? | `SECURITY.md` |
 | What are the rules for changing this repository, and how do I send a change? | `CLAUDE.md`, `CONTRIBUTING.md` |
 | What did an earlier plan or batch say, or how was something built? | `docs/history/`: `<NAME>-LOG.md` beside each document's name, and the retired decisions in `docs/history/decisions/` |
@@ -68,7 +68,7 @@ need. Each document's header says what kind it is:
 
 **Reference**
 
-- `docs/AUDIT-SUBMISSIONS.md`: Audits: the request, the submission and the record, and the call for outside review of Faraday's own constructions (§10). Built (F19); the Audits page does not yet show §10 (F160).
+- `docs/AUDIT-SUBMISSIONS.md`: Audits: the request, the submission and the record, and the call for outside review of Faraday's own specifications (§10). Built (F19); the Audits page does not yet show §10 (F160, F177).
 - `docs/AUDIT.md`: What is cryptography, and where it lives. Built (the key boundary, F70).
 - `docs/CODEX32.md`: Codex32: making, checking and repairing shares. Built (F93 to F96, F107); no Codex32QR picture for 74 and 127 characters.
 - `docs/CHECKS.md`: Checks: what holds each rule, generated from `tools/impact.toml`. Built (F149).
@@ -116,7 +116,7 @@ need. Each document's header says what kind it is:
 - `docs/STICK-SETUP.md`: Sticks and vaults, laid out together. Specified (F175), not built.
 - `docs/STICK-IDENTITY.md`: A stick that does not say it is Faraday's. Specified (F174), not built.
 - `docs/VAULT-HARDENING.md`: Vault hardening: the file's name, the passphrase, key commitment and the seal count. Specified (F159), not built.
-- `docs/CROSSCHECK.md`: A second implementation of each cryptographic step, and which references are Faraday's own (§10, §10.7, F160). Option A decided (F79) and built (§10.5); options B and C deferred.
+- `docs/CROSSCHECK.md`: A second implementation of each cryptographic step, and which of them are outside implementations and which Faraday's own (§10, §10.7, F160, F177). Option A decided (F79) and built (§10.5); options B and C deferred.
 - `docs/NOSTR.md`: The Nostr key. Not built, not scheduled (F27, amended by F34).
 - `docs/OWN-RANDOMNESS.md`: Your own randomness, and the kernel's at boot. Specified, partly built (F86, F157); Add randomness at every press that draws the system's randomness (§8) built, but for a split wallet's Files list; the late seed and the Pi's generator (§3.5) not built.
 - `docs/SEED-CONVERSION.md`: Convert a seed. Specified (F88), not built.

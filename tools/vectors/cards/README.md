@@ -2,9 +2,10 @@
 
 The known answers of entropy from playing cards (F158 item 1;
 `tools/reference/entropy/README.md`; `docs/STANDARDS.md` §3). The
-procedure is Faraday's own, no other wallet's card mode is claimed to
-match it, and it carries the label "own construction, not yet
-independently reviewed" (F160). A reproduction by an outside party is
+specification is Faraday's own, no other wallet's card mode is
+claimed to match it, and it carries the label "own specification, not
+yet reviewed outside Faraday" (F160, F177); these are Faraday's own
+known answers. A reproduction by an outside party is
 asked for in `docs/AUDIT-SUBMISSIONS.md` §10.
 
 Faraday's tests read `vectors.json` (`core/faraday-entropy/src/cards.rs`):
@@ -58,5 +59,5 @@ From the top of the repository, with Python 3's standard library:
 The answers were computed with Python's `hashlib` from the procedure
 above; Faraday's test also works the bits out by its own sum. The
 cross-check's `entropy` area (`tools/crosscheck/area_entropy.py`)
-compares Faraday's Rust with a model written by Faraday's own authors;
-it is not an outside implementation.
+compares Faraday's Rust with a second implementation written by
+Faraday's own authors; it is not checked against an outside source.

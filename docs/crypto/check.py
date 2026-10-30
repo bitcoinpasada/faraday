@@ -63,14 +63,21 @@ CFG_OK = {"cfg(test)", 'cfg(target_pointer_width = "64")', "cfg(unix)",
           'cfg(target_os = "linux")', 'cfg(target_arch = "x86_64")'}
 
 TOP_KEYS = {"schema", "standard", "row", "action", "not_crypto", "vector_no_action", "hold",
-            "tag_no_standard", "construction", "name_with_digits", "open_item"}
-SCHEMA = 3
-# How independent an action's cross-check reference is (F160, schema 3): code Faraday did not
-# write, a model of Faraday's own over outside primitives, or a model of Faraday's own only.
-INDEPENDENCE = {"outside", "own-over-outside", "own-only"}
+            "tag_no_standard", "construction", "name_with_digits", "open_item", "library",
+            "vector"}
+SCHEMA = 4
+# What an action's cross-check compares Faraday with (F160, F177, schema 4): an outside
+# implementation, an outside one and, for a part (`ours`), one Faraday's authors wrote, or
+# only one Faraday's authors wrote.
+INDEPENDENCE = {"outside", "outside-and-own", "own"}
 INDEPENDENCE_KEYS = {"class", "author", "ours"}
-# The tag an action of Faraday's own construction carries until an outside review (F160).
-LABELS = {"own construction, not yet independently reviewed"}
+# The tag an action of Faraday's own specification carries until an outside review (F177).
+LABELS = {"own specification, not yet reviewed outside Faraday"}
+# Who wrote a library an action names (F177): `[library.<name>]`.
+LIBRARY_KEYS = {"author"}
+# Whose answers a vector folder an action names holds (F177): `[vector.<folder>]`.
+VECTOR_KEYS = {"source", "by", "own"}
+VECTOR_SOURCES = {"published", "outside", "own"}
 # A construction (§18): how a format several actions share is built, drawn in Learn.
 CONSTRUCTION_KEYS = {"id", "title", "learn", "actions", "section", "review"}
 SECTION_KEYS = {"heading", "para"}
@@ -523,6 +530,53 @@ def check_schema(c):
         unknown(e, "vector_no_action", n, {"folder", "reason"})
         if not str_ok(n.get("folder")) or not str_ok(n.get("reason")):
             e.add("schema", "vector_no_action: `folder` and `reason` are required")
+    schema_sources(e, d)
+
+
+def schema_sources(e, d):
+    """`[library.*]` and `[vector.*]` (F177): each library and vector folder an action names
+    says whose it is, and none is given for a library or folder no action names."""
+    libs = d.get("library", {}) if isinstance(d.get("library", {}), dict) else {}
+    vecs = d.get("vector", {}) if isinstance(d.get("vector", {}), dict) else {}
+    named_libs, named_vecs = set(), set()
+    for a in d.get("action", []):
+        impl = a.get("implementation", {}) if isinstance(a.get("implementation"), dict) else {}
+        chk = a.get("checked", {}) if isinstance(a.get("checked"), dict) else {}
+        named_libs |= {x for x in as_list(impl.get("libraries")) if isinstance(x, str)}
+        named_vecs |= {x for x in as_list(chk.get("vectors")) if isinstance(x, str)}
+    for k, v in libs.items():
+        w = f"library.{k}"
+        if not isinstance(v, dict):
+            e.add("schema", f"{w}: not a table")
+            continue
+        unknown(e, w, v, LIBRARY_KEYS)
+        if not str_ok(v.get("author")):
+            e.add("schema", f"{w}: `author`, who wrote it, is missing or empty")
+        if k not in named_libs:
+            e.add("schema", f"{w}: no action names this library")
+    for k in sorted(named_libs - set(libs)):
+        e.add("schema", f"library {k}: an action names it and it has no [library.{k}] "
+                        "with its `author` (F177)")
+    for k, v in vecs.items():
+        w = f"vector.{k}"
+        if not isinstance(v, dict):
+            e.add("schema", f"{w}: not a table")
+            continue
+        unknown(e, w, v, VECTOR_KEYS)
+        src = v.get("source")
+        if src not in VECTOR_SOURCES:
+            e.add("schema", f"{w}: `source` is one of {sorted(VECTOR_SOURCES)}")
+        if src in ("published", "outside") and not str_ok(v.get("by")):
+            e.add("schema", f"{w}: `by`, who published or computed it, is missing or empty")
+        if src == "own" and ("by" in v or "own" in v):
+            e.add("schema", f"{w}: an `own` folder has no `by` and no `own`")
+        if "own" in v and not str_ok(v.get("own")):
+            e.add("schema", f"{w}: `own` is empty")
+        if k not in named_vecs:
+            e.add("schema", f"{w}: no action names this folder")
+    for k in sorted(named_vecs - set(vecs)):
+        e.add("schema", f"tools/vectors/{k}: an action names it and it has no [vector.{k}] "
+                        "saying whose answers it holds (F177)")
 
 
 def schema_action(c, a, i):
@@ -587,24 +641,26 @@ def schema_action(c, a, i):
         ind = chk.get("independence")
         if chk.get("crosscheck"):
             if not isinstance(ind, dict):
-                bad("checked: `independence = { class, author }` is missing (F160)")
+                bad("checked: `independence = { class, author }` is missing (F160, F177)")
                 ind = {}
             unknown(e, f"action {i}.checked.independence", ind, INDEPENDENCE_KEYS, i)
             cls = ind.get("class")
             if cls not in INDEPENDENCE:
-                bad(f"checked: `independence.class` is one of {sorted(INDEPENDENCE)} (F160)")
-            if not str_ok(ind.get("author")):
-                bad("checked: `independence.author`, who wrote the reference, is missing or empty")
+                bad(f"checked: `independence.class` is one of {sorted(INDEPENDENCE)} (F177)")
+            if cls in ("outside", "outside-and-own") and not str_ok(ind.get("author")):
+                bad("checked: `independence.author`, the outside implementation, is missing or empty")
+            if cls == "own" and "author" in ind:
+                bad("checked: an `own` class names no outside `author`")
             if cls == "outside" and "ours" in ind:
-                bad("checked: an `outside` reference has no `ours`")
-            if cls in ("own-over-outside", "own-only") and not str_ok(ind.get("ours")):
-                bad("checked: `independence.ours`, the part Faraday wrote, is missing or empty")
+                bad("checked: an `outside` class has no `ours`")
+            if cls in ("outside-and-own", "own") and not str_ok(ind.get("ours")):
+                bad("checked: `independence.ours`, the part Faraday's authors wrote, is missing or empty")
         elif ind is not None:
             bad("checked: `independence` is for an action with a cross-check area")
     if "label" in a and a["label"] not in LABELS:
         bad(f"`label` is one of {sorted(LABELS)}")
     if "novel_rank" in a and "label" not in a:
-        bad("an action with `novel_rank` carries the `label` of an own construction (F160)")
+        bad("an action with `novel_rank` carries the `label` of an own specification (F160, F177)")
     if isinstance(sec, dict):
         rv = sec.get("reveal")
         if not (rv == "none" or (isinstance(rv, list) and rv and all(str_ok(x) for x in rv))):
@@ -1743,7 +1799,7 @@ def fn_rec(file, name, h, rules=(3,), callees=(), cross=(), crate="c"):
             "cross": list(cross)}
 
 
-FIXTURE_MANIFEST = '''schema = 3
+FIXTURE_MANIFEST = '''schema = 4
 
 [standard."BIP 1"]
 name = "A standard"
@@ -1828,6 +1884,13 @@ wiped = "nothing held"
 
 [action.limits]
 lines = ["Two."]
+
+[library.lib1]
+author = "its authors"
+
+[vector.v1]
+source = "published"
+by = "its authors"
 '''
 
 FIXTURE_FILES = {
@@ -2124,7 +2187,7 @@ def self_test():
         ok, _ = broken("docs/crypto/actions.toml", 'completeness = "All"\n',
                        'completeness = "All"\nown = "Typed."\n', "schema", "takes its cells from them")
         expect(ok, "a row with its own actions types no cell")
-        print("independence (F160):")
+        print("independence (F160, F177):")
         nocc = 'not_crosschecked = "none here"\nselftest'
         ok, _ = broken("docs/crypto/actions.toml", nocc,
                        'not_crosschecked = "none here"\nindependence = { class = "outside" }\nselftest',
@@ -2137,15 +2200,29 @@ def self_test():
                        '{ class = "outside" }\nselftest', "schema", "`independence.author`")
         expect(ok, "an action with an area names who wrote its reference")
         ok, _ = broken("docs/crypto/actions.toml", nocc, 'crosscheck = "x"\nindependence = '
-                       '{ class = "own-only", author = "us" }\nselftest', "schema", "`independence.ours`")
-        expect(ok, "a reference of Faraday's own names the part Faraday wrote")
+                       '{ class = "own" }\nselftest', "schema", "`independence.ours`")
+        expect(ok, "a check against Faraday's own second implementation names what it covers")
+        ok, _ = broken("docs/crypto/actions.toml", nocc, 'crosscheck = "x"\nindependence = '
+                       '{ class = "own", author = "us", ours = "x" }\nselftest', "schema",
+                       "names no outside `author`")
+        expect(ok, "an own class names no outside author")
         ok, _ = broken("docs/crypto/actions.toml", nocc, 'crosscheck = "x"\nindependence = '
                        '{ class = "outside", author = "them", ours = "x" }\nselftest', "schema",
                        "has no `ours`")
         expect(ok, "an outside reference names no part of Faraday's")
         ok, _ = broken("docs/crypto/actions.toml", 'row = "row-one"\nstandards',
                        'row = "row-one"\nnovel_rank = 1\nstandards', "schema", "carries the `label`")
-        expect(ok, "a novel action carries the own-construction label")
+        expect(ok, "a novel action carries the own-specification label")
+        ok, _ = broken("docs/crypto/actions.toml", '[library.lib1]\nauthor = "its authors"\n', "",
+                       "schema", "has no [library.lib1]")
+        expect(ok, "a library an action names says who wrote it")
+        ok, _ = broken("docs/crypto/actions.toml", 'source = "published"\nby = "its authors"\n',
+                       'source = "published"\n', "schema", "`by`, who published")
+        expect(ok, "a published vector folder says by whom")
+        ok, _ = broken("docs/crypto/actions.toml",
+                       '[vector.v1]\nsource = "published"\nby = "its authors"\n', "",
+                       "schema", "has no [vector.v1]")
+        expect(ok, "a vector folder an action names says whose answers it holds")
         c = check(moved)
         expect(not c.errors.items, f"and the fixture is whole again {msgs(c)}")
 

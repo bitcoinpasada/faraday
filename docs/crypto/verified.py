@@ -15,12 +15,13 @@ vectors folder the cross-check reads (`tools/crosscheck/stamp.py`'s
 describes work not built, or work that computes nothing of its own, and
 names no check by rule. Every cross-check area (`tools/crosscheck/area_*.py`)
 and every folder of `tools/vectors/` is named by a row's actions, or the
-folder is in `[[vector_no_action]]`. Every action with an area says how
-independent its reference is (F160): `independence` (outside,
-own-over-outside or own-only), with its `author` and, for a reference of
-Faraday's own, `ours`; an action with a `novel_rank` carries the `label`
-of an own construction. So a new area, which some action must name, declares
-its class. Standard library only; reads no source file but the manifest
+folder is in `[[vector_no_action]]`. Every action with an area says what
+its cross-check compares Faraday with (F160, F177): `independence`
+(`outside`, `outside-and-own` or `own`), with the outside implementation's
+`author` for the first two and, for the last two, `ours`, the part
+Faraday's authors wrote; an action with a `novel_rank` carries the `label`
+of an own specification. So a new area, which some action must name,
+declares its class. Standard library only; reads no source file but the manifest
 and two directory listings.
 
 Not checked: STANDARDS §9, which is written by hand; whether a named test
@@ -50,7 +51,7 @@ def checks_of(data, row):
 
 
 def independence_problems(data):
-    """An action with an area and no class, or a novel action with no label (F160)."""
+    """An action with an area and no class, or a novel action with no label (F160, F177)."""
     out = []
     for a in data.get("action", []):
         chk, i = a.get("checked", {}), a.get("id")
@@ -59,14 +60,15 @@ def independence_problems(data):
             ind = ind if isinstance(ind, dict) else {}
             cls = ind.get("class")
             if cls not in check.INDEPENDENCE:
-                out.append(f"action {i}: its area's reference has no `independence` class "
+                out.append(f"action {i}: its cross-check has no `independence` class "
                            f"({', '.join(sorted(check.INDEPENDENCE))})")
-            if not check.str_ok(ind.get("author")):
-                out.append(f"action {i}: no `independence.author`, who wrote its area's reference")
-            if cls in ("own-over-outside", "own-only") and not check.str_ok(ind.get("ours")):
-                out.append(f"action {i}: no `independence.ours`, the part Faraday wrote")
+            if cls != "own" and not check.str_ok(ind.get("author")):
+                out.append(f"action {i}: no `independence.author`, the outside implementation "
+                           "its cross-check compares with")
+            if cls in ("outside-and-own", "own") and not check.str_ok(ind.get("ours")):
+                out.append(f"action {i}: no `independence.ours`, the part Faraday's authors wrote")
         if "novel_rank" in a and a.get("label") not in check.LABELS:
-            out.append(f"action {i}: a novel action with no own-construction `label`")
+            out.append(f"action {i}: a novel action with no own-specification `label`")
     return out
 
 
@@ -137,11 +139,11 @@ def self_test():
         unlabelled = {"action": [
             {"id": "b1", "checked": {"crosscheck": "one"}},
             {"id": "b2", "checked": {"crosscheck": "one",
-                                     "independence": {"class": "own-only", "author": "us"}}},
+                                     "independence": {"class": "own"}}},
             {"id": "b3", "novel_rank": 1, "checked": {"not_crosschecked": "none"}},
         ]}
         p = independence_problems(unlabelled)
-        for want in ("b1: its area's reference has no `independence`", "b1: no `independence.author`",
+        for want in ("b1: its cross-check has no `independence`", "b1: no `independence.author`",
                      "b2: no `independence.ours`", "b3: a novel action"):
             if not any(want in x for x in p):
                 fails.append(f"missed: {want}")

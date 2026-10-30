@@ -323,9 +323,10 @@ file goes wrong are absent by construction, not patched after the fact.
   is. An unused slot is random bytes, indistinguishable from one in use.
 - **Open, not obscure.** The scheme is written down byte for byte, has
   test vectors, and is opened by a second reader written from that text
-  (`tools/vault/open.py`, by Faraday's own authors, so not an
-  independent check; the container is an own construction not yet
-  independently reviewed, F160), so its security
+  (`tools/vault/open.py`, by Faraday's own authors, so not checked
+  against an outside source; the container is Faraday's own
+  specification, not yet reviewed outside Faraday, F160, F177), so its
+  security
   rests on the passphrase and the primitives alone — not on the format
   staying secret, and a vault outlives the program that wrote it.
 

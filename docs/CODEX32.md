@@ -2354,8 +2354,9 @@ the PDF's in `pdf.rs`'s own constants as the SeedQR grid's are.
 ### 13.5 Tests of the cryptography
 
 Each against published vectors or another implementation; the
-`roller` area's reference is a model Faraday's own authors wrote from
-§5.5 and §5.6, not an independent implementation (F160):
+`roller` area compares with a second implementation Faraday's own
+authors wrote from §5.5 and §5.6, not checked against an outside source
+(F160, F177):
 
 | What | Against |
 |---|---|

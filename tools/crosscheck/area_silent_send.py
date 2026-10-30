@@ -5,7 +5,7 @@ BIP-374's `reference.py` makes and checks the proofs; BIP-375's validator
 (`test_runner.py`, `validator/`) checks a whole PSBT: its structure, the
 shares' proofs, the inputs' eligibility and every output script. Both are
 vendored unchanged at one commit of the BIPs repository (`bip374/`,
-`bip375/`), over `secp256k1lab`. Nothing here is Faraday's own model: the
+`bip375/`), over `secp256k1lab`. Nothing here is Faraday's own implementation: the
 proofs, the shares and the scripts expected are the references' arithmetic
 on the inputs' keys, and the verdict on a PSBT is the validator's.
 

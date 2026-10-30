@@ -614,9 +614,9 @@ as `tools/vectors/vault/` is Faraday's:
   `bip85` list: path, identity, account, entropy, nsec.
 - `npub.py`, standard library only (curve arithmetic and Bech32 written
   out), adds each case's npub: code apart from libsecp256k1 and
-  rust-bech32, but written by Faraday's own authors, so not an
-  independent check (F160); NIP-19's published examples below are the
-  outside check. The BIP publishes no npub.
+  rust-bech32, but written by Faraday's own authors, so not checked
+  against an outside source (F160, F177); NIP-19's published examples
+  below are the outside check. The BIP publishes no npub.
 - NIP-19's published hex and Bech32 examples, and NIP-49's decryption
   vector (password `nostr`, LOG_N 16), copied with their source URL,
   commit and date.

@@ -8,7 +8,7 @@
 
 Every cryptographic result Faraday shows or acts on comes from Faraday's
 code. The owner's idea: compute each result a second time with an
-independent implementation, written by other people, in another language
+outside implementation, written by other people, in another language
 where possible, and show next to the result which implementations produced
 it and whether they agree. A bug in one implementation, or a tampered
 dependency, then shows as a disagreement instead of a wrong address, a
@@ -16,8 +16,9 @@ wrong key or a wrong signature.
 
 Today the cross-check meets this only in part: about half its areas
 compare Faraday's Rust with code other people wrote, and the rest with
-Python models Faraday's own authors wrote, which are not independent
-(F160). §10.7 says which and what replaces them.
+second implementations Faraday's own authors wrote in Python, which are
+not checked against an outside source (F160, F177). §10.7 says which and
+what replaces them.
 
 ## 2. What Faraday is made of
 
@@ -35,8 +36,9 @@ result comes from decides what a second implementation has to differ from.
 Most "other" Bitcoin libraries also call `libsecp256k1`: libwally,
 python-bitcoinlib, python-bitcointx, and embit when its C binding is
 present. A second implementation that uses it agrees with Faraday on the
-curve by construction and checks only the layers above. Real independence
-at the curve needs one of the implementations that do their own arithmetic.
+curve by construction and checks only the layers above. An outside check
+of the curve itself needs one of the implementations that do their own
+arithmetic.
 
 The lineage is narrower still. libsecp256k1's developers (Pieter Wuille
 among them) also wrote
@@ -59,7 +61,7 @@ lineage for the curve (§10.7).
 | embit | Python | pure Python fallback, or `libsecp256k1` | BIP-32, 39, PSBT, descriptors, miniscript, addresses | Used by SeedSigner and Specter; runs on MicroPython (not yet checked whether its pure fallback does) |
 | noble-curves, scure-bip32/39, btc-signer | JavaScript | its own, audited | the same set as embit | Needs a JavaScript engine (QuickJS is about 1 MB) |
 | btcd / btcec, LND's `aezeed` | Go | its own | the same set; LND's aezeed with AEZ | Vendored in `tools/reference/lnd/` and built by `run.sh`; the `lightning` area asks it |
-| `argon2-cffi`, PyNaCl, PyCA cryptography | Python over C | n/a | Argon2id (the PHC reference C), XChaCha20-Poly1305 (libsodium), HKDF-SHA256 and ChaCha20 (OpenSSL) | Independent of RustCrypto; `tools/vault/open.py` already opens a vault this way |
+| `argon2-cffi`, PyNaCl, PyCA cryptography | Python over C | n/a | Argon2id (the PHC reference C), XChaCha20-Poly1305 (libsodium), HKDF-SHA256 and ChaCha20 (OpenSSL) | Outside RustCrypto's lineage; `tools/vault/open.py` already opens a vault this way |
 
 ## 4. What can be computed twice
 
@@ -79,7 +81,7 @@ lineage for the curve (§10.7).
 | SLIP-39, codex32, Seed XOR combine | SLIP-39, BIP-93 | yes | the references above |
 | Codex32 sets made (secret and derived shares, checksum worksheets) and error correction | BIP-93 | yes | BIP 93's reference code and python-codex32 (`tools/crosscheck/area_codex32.py`, `tools/crosscheck/area_codex32_correct.py`) |
 | Signed message | BIP-322, 137 | signing: yes; checking: no | Core's `signmessagewithprivkey` and btclib for BIP-137; Core has no BIP-322, which needs an outside implementation of its own (§10.7) |
-| Vault cost and seal | Argon2id, HKDF, XChaCha20-Poly1305 | yes | argon2-cffi, PyNaCl, PyCA `cryptography`, for the primitives; the container is Faraday's own construction and has no outside implementation |
+| Vault cost and seal | Argon2id, HKDF, XChaCha20-Poly1305 | yes | argon2-cffi, PyNaCl, PyCA `cryptography`, for the primitives; the container is Faraday's own specification and has no outside implementation |
 
 Not worth computing twice: drawing randomness (only its conversion from
 dice, coins or cards is deterministic, and that can be checked), reading QR
@@ -129,7 +131,7 @@ stops what depends on it: no export, no signing, no loading of the wallet.
   or a vanity search, which stay single.
 - **Agreement is not proof.** Two implementations can share a
   misreading of a BIP; the BIPs' own reference code and published vectors
-  are the defence there. Where the reference is a model Faraday's own
+  are the defence there. Where the reference is a second implementation Faraday's own
   authors wrote, a shared misreading is likelier, and the published
   vectors are the only defence (§10.7).
 
@@ -165,14 +167,18 @@ them),
 with the stamp check `tools/lint-crosscheck.sh`. What item 6 leaves is
 listed under it.
 
-Not every area compares against code Faraday did not write (F160). Each
-action of `docs/crypto/actions.toml` with an area states its reference's
-`independence`: `outside`, code other people wrote, used as published;
-`own-over-outside`, a model Faraday's authors wrote over outside code,
-with the part that is Faraday's own named; or `own-only`, a model
-Faraday's authors wrote over the standard library alone. Only the first
-is an independent check. The cross-check's README ("Who wrote each
-reference"), STANDARDS' Verified by cells and the app's and the
+Not every area compares against code Faraday did not write (F160,
+F177). Each action of `docs/crypto/actions.toml` with an area states, in
+its `independence`, what its cross-check compares Faraday with:
+`outside`, an implementation other people wrote, used as published;
+`outside-and-own`, an outside implementation and, for the part named, a
+second implementation Faraday's authors wrote; or `own`, only a second
+implementation Faraday's authors wrote, over the standard library alone.
+What is compared only with an implementation Faraday's authors wrote is
+not checked against an outside source: the check catches a slip between
+two implementations written in two languages from the specification,
+not a misreading both share. The cross-check's README ("Outside and own
+implementations"), STANDARDS' Verified by cells and the app's and the
 website's Cryptography blocks are generated from it, and
 `docs/crypto/verified.py` fails an action with an area and no class.
 As of 2026-10-29:
@@ -182,20 +188,21 @@ As of 2026-10-29:
   `seedqr`, `addr` (the address text by Core's framework, accounts'
   keys and SLIP-132 by btclib, their addresses by Core itself), and
   `bip32`'s derivation (btclib).
-- **Faraday's own model over outside code:** `bip32`'s strict reading
+- **Outside and own:** `bip32`'s strict reading
   (which versions it takes), `vanity`'s search, ldk-node's key in
   `lightning`, `psbt` (the whole reader and writer), `sign` (the
   signer, the finalizer, the leaf chosen, the refusals), `msg` (BIP-137
   and BIP-322 written out), `taproot`'s control-block check, the codex32
   worksheets, and `vault` (the container,
   HKDF and the ChaCha20 block, over argon2-cffi and libsodium).
-- **Faraday's own model only:** `own-randomness`, `entropy` and `roller`.
+- **Own only:** `own-randomness`, `entropy` and `roller`.
 
 The vault's container, own randomness, cards, the camera's commitment,
 a mix, the Demo roller, the in-memory seal and the Secure Boot generator
-are Faraday's own constructions: no outside implementation of them can
-exist, and each carries the label "own construction, not yet
-independently reviewed" until an outside review (F160, STANDARDS §7).
+are of Faraday's own specification: no outside implementation of them
+can exist, and each carries the label "own specification, not yet
+reviewed outside Faraday" until an outside review (F160, F177, STANDARDS
+§7).
 
 ### 10.1 What runs
 
@@ -204,7 +211,7 @@ test-only Rust command, never shipped in an image or app, reads one
 request a line on stdin and answers one line on stdout: the operation,
 its inputs and Faraday's result. A Python script sends the requests,
 recomputes each result with the area's reference (code from §3, or a
-model of Faraday's own, §10), and stops at the first disagreement,
+second implementation Faraday's authors wrote, §10), and stops at the first disagreement,
 naming the operation, the inputs and both results.
 
 The inputs are every published vector under `tools/vectors/` and a
@@ -364,7 +371,7 @@ The cross-check fetches nothing, ever.
    328, 390), silent payments (BIP-352), BIP-85,
    SLIP-39, codex32 (BIP-93) and Seed XOR. Built.
 2. The vault: Argon2id, HKDF, XChaCha20-Poly1305 and the vault's own
-   construction (`docs/VAULT.md`). Built (area `vault`).
+   specification (`docs/VAULT.md`). Built (area `vault`).
 3. BIP-39 and BIP-32 derivation. Built (areas `bip39`, `bip32`).
 4. What comes from rust-bitcoin and rust-miniscript: sighash, PSBT,
    addresses, descriptor checksums, transaction ids, signed messages,
@@ -392,7 +399,7 @@ The cross-check fetches nothing, ever.
   signs; only option B catches those.
 - A misreading of a BIP that both implementations share; the BIPs' own
   reference code and the published vectors are the defence there.
-- A misreading shared by Faraday's Rust and a Python model written by
+- A misreading shared by Faraday's Rust and a second implementation, in Python, written by
   Faraday's own authors, which is likelier than between strangers. Where
   the reference is Faraday's own (§10), the published vectors are the
   only defence, and an action with no vectors has none.
@@ -405,9 +412,10 @@ The cross-check fetches nothing, ever.
 ### 10.7 Replacing the references of Faraday's own
 
 Planned (owner, 2026-10-29, F160), in order of what makes or checks keys,
-addresses and signatures first. Each step replaces a model of Faraday's
-own with code other people wrote, moves the action's `independence` to
-`outside`, and retires the model once nothing needs it.
+addresses and signatures first. Each step replaces a second
+implementation Faraday's authors wrote with code other people wrote,
+moves the action's `independence` to `outside`, and retires Faraday's
+implementation once nothing needs it.
 
 1. **Bitcoin Core as a program**, required (§10.4). Built for `sign`
    (2026-10-29): `descriptorprocesspsbt` signs every PSBT of its vectors
@@ -420,8 +428,8 @@ own with code other people wrote, moves the action's `independence` to
    Planned: `deriveaddresses` for `bip32`, `miniscript` and `vanity`;
    `decodepsbt` for version 0 PSBTs; `signmessagewithprivkey` and
    `verifymessage` for BIP-137 with P2PKH. The refusals of F136 and F141
-   are Faraday's policy, which Core does not share, and stay in Faraday's
-   model, labelled so.
+   are Faraday's policy, which Core does not share, and stay in the
+   implementation Faraday's authors wrote, labelled so.
 2. **btclib** (vendored by commit and SHA-256): BIP-32 derivation and
    strict decoding, BIP-137's other headers, and BIP-340 with its
    randomness given. **python-ecdsa** (the distribution's package): every
@@ -443,11 +451,13 @@ own with code other people wrote, moves the action's `independence` to
    Core's `signmessagewithprivkey` and `verifymessage` and btclib's `bms`
    for BIP-137 (the message parts of items 1 and 2), they replaced
    `area_msg.py`'s own BIP-137 and BIP-322.
-8. **Faraday's own constructions** (the vault's container, own
-   randomness, cards, the camera, a mix, the Demo roller): a model
-   written by an outside party from the spec alone, or a named outside
+8. **Faraday's own specifications** (the vault's container, own
+   randomness, cards, the camera, a mix, the Demo roller): an
+   implementation written by an outside party from the specification
+   alone, or a named outside
    party's reproduction of the published vectors (`tools/vectors/vault/`
    and the others), recorded on the Audits page
    (`docs/AUDIT-SUBMISSIONS.md`). Until then each keeps its label. The
-   call, with the spec sections, the vectors and what a model offers to
-   take a model's place in an area, is `docs/AUDIT-SUBMISSIONS.md` §10.
+   call, with the specification's sections, the vectors and what an
+   outside implementation offers to take the place of Faraday's in an
+   area, is `docs/AUDIT-SUBMISSIONS.md` §10.

@@ -136,15 +136,16 @@ The list is generated from the manifest of cryptographic actions
 (`docs/crypto/actions.toml`, each action's `implementation.written_here`)
 by `docs/crypto/gen.py`, and is never edited by hand. Each is checked
 against a published vector set, a library or tool Faraday did not
-write, a Python model Faraday's own authors wrote (not an independent
-check: `tools/crosscheck/README.md`, "Who wrote each reference", F160),
+write, a second implementation Faraday's own authors wrote in Python
+(not checked against an outside source: `tools/crosscheck/README.md`,
+"Outside and own implementations", F160, F177),
 or (BLAKE2b, scrypt) the RFC's own test vectors — see the "Checked
 against" column above — except the in-memory sealing, which nothing
 outside the program reads and its own tests check. Most implement a named, published
 algorithm or file format; the vault container, the session's random
 generator, the in-memory sealing's nonce and the card, camera and mix
-entropy procedures are Faraday's own constructions, listed for outside
-review in `docs/STANDARDS.md` §7.
+entropy procedures are of Faraday's own specification, listed for
+outside review in `docs/STANDARDS.md` §7.
 
 ## 4. Crates that touch cryptographic bytes but compute none
 

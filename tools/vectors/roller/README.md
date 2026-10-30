@@ -5,7 +5,8 @@ The known answers of Faraday Demo's five-dice roller (`docs/CODEX32.md`
 rolled from the session's randomness, filling the codex32 booklet's
 worksheet as the same faces typed would. The roller is Faraday's own,
 offered only in Faraday Demo, testnet only, and carries the label "own
-construction, not yet independently reviewed" (F160). A reproduction by
+specification, not yet reviewed outside Faraday" (F160, F177); these
+are Faraday's own known answers. A reproduction by
 an outside party is asked for in `docs/AUDIT-SUBMISSIONS.md` §10.
 
 Faraday's tests read `vectors.json`
@@ -66,7 +67,8 @@ From the top of the repository, with Python 3's standard library:
 The last two lines show where the bytes sit in one answer: the first
 byte used is the answer's last. The answers are those Faraday's tests
 pinned when they were written. The cross-check's `roller` area
-(`tools/crosscheck/area_roller.py`) compares Faraday's Rust with a model
-written by Faraday's own authors over random answers and clicks,
-including the one die beside the rolls (§5.6), whose values have no
-known answers here; it is not an outside implementation.
+(`tools/crosscheck/area_roller.py`) compares Faraday's Rust with a
+second implementation written by Faraday's own authors over random
+answers and clicks, including the one die beside the rolls (§5.6), whose
+values have no known answers here; it is not checked against an outside
+source.

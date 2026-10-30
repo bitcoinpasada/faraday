@@ -1,8 +1,8 @@
 """Randomness a person adds of their own (`docs/OWN-RANDOMNESS.md` §2.3,
-F86) against a model written here from §2.3 over `hashlib` alone, with
+F86) against a second implementation written here from §2.3 over `hashlib` alone, with
 the system's answers fixed.
 
-§2.3, as the model holds it:
+§2.3, as this implementation holds it:
 
 - Adding a batch whose commitment is c: acc ← SHA-256("faraday own" ‖
   acc ‖ c), acc all zero before the first. A batch of nothing is not
@@ -203,7 +203,7 @@ class Own(Area):
         '`hashlib`'
     )
     reference_checked = (
-        'the model is written in the area from `docs/OWN-RANDOMNESS.md` §2.3 over '
+        'the second implementation is written in the area from `docs/OWN-RANDOMNESS.md` §2.3 over '
         '`hashlib`, and the known answers of '
         '`faraday/faraday-core/tests/all/own_randomness.rs` are required of it as well '
         'as of Faraday'

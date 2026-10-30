@@ -28,9 +28,10 @@ change is held to the same rules, whoever makes it.
    changes. A user-facing behaviour gets a test of what a person or a
    wallet would notice; a cryptographic change is checked against
    published vectors and an implementation Faraday did not write (a
-   model written by Faraday's own authors is not one; a construction of
-   Faraday's own carries the label "own construction, not yet
-   independently reviewed" until an outside review, F160), and the
+   second implementation written by Faraday's own authors is not one; an
+   action of Faraday's own specification carries the label "own
+   specification, not yet reviewed outside Faraday" until an outside
+   review, F160, F177), and the
    cross-check (`just crosscheck`) passes and its stamp is committed
    with it.
 4. Write the commit message as what changed for a person using Faraday

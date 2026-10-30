@@ -2,9 +2,10 @@
 
 The known answers of a mix (F158; `tools/reference/entropy/README.md`):
 New key's entropy from two to five sources, as SHA-256 over their
-32-byte commitments in the order taken. The construction is Faraday's
-own and carries the label "own construction, not yet independently
-reviewed" (F160). A reproduction by an outside party is asked for in
+32-byte commitments in the order taken. The specification is
+Faraday's own and carries the label "own specification, not yet
+reviewed outside Faraday" (F160, F177); these are Faraday's own known
+answers. A reproduction by an outside party is asked for in
 `docs/AUDIT-SUBMISSIONS.md` §10.
 
 Faraday's tests read `vectors.json` (`core/faraday-entropy/src/mix.rs`):
@@ -16,7 +17,7 @@ commitment, entropy and refusals must be these.
 | `vectors` | fifty dice rolls (the transcript of `tools/vectors/entropy/dice.json`) then 128 coin flips, flip i heads when i mod 3 is 0: each source's commitment, the mix's commitment and its entropy at 128 bits |
 | `refused` | a mix of no source and of one source: too few, two needed |
 
-## The construction
+## The specification
 
 - The dice's commitment is SHA-256 of the rolls as ASCII digits; the
   coins' is SHA-256 of the flips as the letters `H` and `T`.
@@ -49,8 +50,8 @@ From the top of the repository, with Python 3's standard library:
         assert r["have"] == r["sources"] < r["need"] == 2
     print("all agree")
 
-The answers were computed with Python's `hashlib` from the construction
-above. The cross-check's `entropy` area
+The answers were computed with Python's `hashlib` from the
+specification above. The cross-check's `entropy` area
 (`tools/crosscheck/area_entropy.py`) compares Faraday's Rust with a
-model written by Faraday's own authors; it is not an outside
-implementation.
+second implementation written by Faraday's own authors; it is not
+checked against an outside source.

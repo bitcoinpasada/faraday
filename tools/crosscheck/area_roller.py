@@ -1,9 +1,9 @@
 """Faraday Demo's dice rollers (`faraday_core`'s `fresh/roller/`)
-against a model written here from `docs/CODEX32.md` §5.5 and §5.6 and
+against a second implementation written here from `docs/CODEX32.md` §5.5 and §5.6 and
 the booklet's worksheet (`tools/reference/booklet-dice/README.md`),
 with the system's answers fixed.
 
-§5.6's "The values", as the model holds it: each value is one byte of a
+§5.6's "The values", as this implementation holds it: each value is one byte of a
 32-byte answer, the bytes taken from the last to the first; a byte
 below 252 gives `byte mod 6 + 1` and a byte of 252 or more is skipped;
 a new answer is asked for when one is used up; a reset drops what is
@@ -218,7 +218,7 @@ class Roller(Area):
         '`area_roller.py`'
     )
     reference_checked = (
-        'the model is written in the area from `docs/CODEX32.md` §5.5 and §5.6 and the '
+        'the second implementation is written in the area from `docs/CODEX32.md` §5.5 and §5.6 and the '
         "booklet's worksheet, and the known answers, the byte distribution and every "
         'byte as a face of every die are required of it as well as of Faraday'
     )
