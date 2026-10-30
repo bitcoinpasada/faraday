@@ -213,6 +213,13 @@ fuzz-release seconds="600":
 fuzz-corpus-export:
     tools/fuzz-corpus-export.sh
 
+# A fuzz run split into partitions (FARADAY_FUZZ_PARTITION=M/N) joined:
+# each PART a folder with one part's fuzz-release.txt and fuzz-corpus/,
+# OUT the one record and corpus.
+[group('test')]
+fuzz-join out +parts:
+    python3 -I -B tools/fuzz-join.py {{out}} {{parts}}
+
 # The Learn pages as Markdown: docs/learn/ is where the text is edited,
 # en.rs is what the device reads; `lint` fails while the two differ.
 [group('dev')]

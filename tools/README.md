@@ -32,7 +32,8 @@ in `justfile` and `faraday/faraday.just`.
 | `tools/lint-unchecked.sh` | lint | `just lint` | no shipped binary compiles `Compute::unchecked` (below) |
 | `tools/fuzz-release.sh` | release | `just fuzz-release` | the fuzz run before a release: every target of `fuzz/` and `faraday/fuzz/`, 10 minutes each, in parallel, corpus kept between runs; writes `out/fuzz-release.txt` for the release notes |
 | `tools/fuzz-corpus-export.sh` | release | `just fuzz-corpus-export` | each target's kept corpus and seeds minimized with `cargo fuzz cmin` into `out/fuzz-corpus/<target>/`, for the repository that publishes the corpora; the store keeps the minimized set |
-| `tools/fuzz-common.sh` | release | the two scripts above | the pinned nightly, each target's libFuzzer options and dictionary, the corpus store |
+| `tools/fuzz-common.sh` | release | the two scripts above | the pinned nightly, each target's libFuzzer options and dictionary, the corpus store, the targets of the partitions `FARADAY_FUZZ_PARTITION` names |
+| `tools/fuzz-join.py` | release | `just fuzz-join OUT PART...` | a fuzz run split into partitions joined: each part's `fuzz-release.txt` and `fuzz-corpus/` into one record, each target once, and one corpus; refuses parts of different runs, a partition twice or one missing |
 | `tools/check-macos.sh` | lint | `just lint` | clippy over the Starter's macOS code for both Mac targets, without a Mac |
 | `tools/lint-crosscheck.sh` | lint | `just lint` | the crypto has not changed since the last passing cross-check (below) |
 | `tools/lint-standards.py` | lint | `just lint` | `docs/STANDARDS.md` §0 held against `tools/lint-standards.toml`: cross-check coverage, work kept out of the app, every hold with its decision, §8's disagreements (below) |
@@ -98,6 +99,10 @@ none is part of `just`, which stays fast.
       target's corpus and run again.
    2. `just fuzz-corpus-export`: each target's corpus, minimized, in
       `out/fuzz-corpus/`, and the same minimized set kept as the store.
+   A long run can be split into partitions (`FARADAY_FUZZ_PARTITION=M/N`,
+   the same SECONDS and starting corpus for each part), each running 1 and
+   2, and `just fuzz-join OUT PART...` makes the one `fuzz-release.txt` and
+   `fuzz-corpus/` of the parts' `out/` folders.
    3. Commit that folder's contents to the corpus repository,
       https://github.com/bitcoinpasada/faraday-fuzz-corpus, and tag the
       commit with the release's tag.

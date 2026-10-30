@@ -61,3 +61,30 @@ build_all() {
         done
     done
 }
+
+# The "DIR TARGET" lines of the file $1 in the partitions
+# `FARADAY_FUZZ_PARTITION` names, or all of them when it is unset. As
+# cargo-nextest's `--partition count:M/N`: the targets sorted by name
+# (bytewise), the i-th (from 0) is in partition i mod N + 1. `M/N` takes
+# partition M of N, and `M1,M2,.../N` several of them. A run split into partitions is joined
+# by `tools/fuzz-join.py`.
+select_targets() {
+    local p="${FARADAY_FUZZ_PARTITION:-}"
+    if [ -z "$p" ]; then
+        cat "$1"
+        return 0
+    fi
+    if ! [[ "$p" =~ ^[0-9]+(,[0-9]+)*/[0-9]+$ ]] || ! LC_ALL=C sort -k2,2 "$1" | awk -v spec="$p" '
+        BEGIN {
+            split(spec, a, "/"); n = a[2] + 0; k = split(a[1], m, ",")
+            if (n < 1) exit 3
+            for (i = 1; i <= k; i++) {
+                if (m[i] + 0 < 1 || m[i] + 0 > n || (m[i] + 0) in want) exit 3
+                want[m[i] + 0] = 1
+            }
+        }
+        ((NR - 1) % n + 1) in want'; then
+        echo "fuzz: FARADAY_FUZZ_PARTITION is M/N or M1,M2,.../N, each M from 1 to N once, not $p" >&2
+        return 2
+    fi
+}

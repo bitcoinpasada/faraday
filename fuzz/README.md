@@ -101,6 +101,25 @@ The folder is to be committed to the repository that
 publishes the corpora, https://github.com/bitcoinpasada/faraday-fuzz-corpus
 (one commit per release, tagged with the release's tag).
 
+**Partitions.** A long run can be split into partitions, for example
+across CI jobs or computers, and joined after, as cargo-nextest's
+`--partition count:M/N` splits tests. `FARADAY_FUZZ_PARTITION=M/N` makes
+`just fuzz-release` and `just fuzz-corpus-export` take partition M of N:
+the targets sorted by name (bytewise), the i-th (from 0) in partition
+i mod N + 1.
+`M1,M2,.../N` takes several partitions in one part. The part's record
+names them ("Partition: 1 of 2", with how many of all the targets it
+ran). Run every part with the same SECONDS and starting corpus, copy each
+part's `out/fuzz-release.txt` and `out/fuzz-corpus/` into a folder of its
+own, and `just fuzz-join OUT PART...` (`tools/fuzz-join.py`) writes
+`OUT/fuzz-release.txt`, each target once in the form a whole run writes,
+and `OUT/fuzz-corpus/` with every target. It refuses parts of different
+runs (commit, nightly, cargo-fuzz, starting corpus, seconds or partition
+count), a partition in two parts or in none, and a corpus whose targets
+are not its record's. `FARADAY_FUZZ_CORPUS` takes several folders
+separated by `:`, each merged in turn (the last release's corpus and an
+older one whose coverage the last run lost).
+
 **Reproducing a release's run.** Check out the release's commit. Install
 the nightly `fuzz/rust-toolchain.toml` names and the cargo-fuzz version
 the record gives (`cargo install cargo-fuzz --locked --version X`). Check

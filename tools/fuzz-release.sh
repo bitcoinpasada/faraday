@@ -18,7 +18,15 @@
 # `FARADAY_FUZZ_CORPUS=DIR` names a folder of corpora, one folder per
 # target (a checkout of the published corpus, or `out/fuzz-corpus/` from
 # `tools/fuzz-corpus-export.sh`): before a target runs, what in
-# `DIR/<target>/` adds coverage is merged into its kept corpus.
+# `DIR/<target>/` adds coverage is merged into its kept corpus. Several
+# folders, separated by `:`, are merged in turn (the last release's corpus
+# and an older one).
+#
+# `FARADAY_FUZZ_PARTITION=M/N` (or `M1,M2,.../N`) runs only the targets of
+# those partitions (`tools/fuzz-common.sh`), so a long run can be split, for
+# example across CI jobs or computers: each part runs with the same SECONDS
+# and starting corpus, and `tools/fuzz-join.py` makes the one record and
+# corpus of the parts. A part's record names its partitions.
 #
 # It writes `out/fuzz-release.txt`: the date, the commit, the nightly and
 # cargo-fuzz it used, the corpus it started from, and for each target its
@@ -47,10 +55,14 @@ esac
 record="${FARADAY_FUZZ_RECORD:-$root/out/fuzz-release.txt}"
 work="$root/out/fuzz-release"
 start_corpus="${FARADAY_FUZZ_CORPUS:-}"
-if [ -n "$start_corpus" ] && [ ! -d "$start_corpus" ]; then
-    echo "fuzz-release: FARADAY_FUZZ_CORPUS is not a folder" >&2
-    exit 2
-fi
+start_dirs=()
+[ -n "$start_corpus" ] && IFS=':' read -r -a start_dirs <<<"$start_corpus"
+for d in "${start_dirs[@]}"; do
+    if [ ! -d "$d" ]; then
+        echo "fuzz-release: FARADAY_FUZZ_CORPUS names $d, which is not a folder" >&2
+        exit 2
+    fi
+done
 
 # One target: its binary is already built.
 run_one() {
@@ -62,12 +74,15 @@ run_one() {
     corpus=("$store/$name")
     [ -d "$seeds" ] && corpus+=("$seeds")
     : >"$work/$name.log"
-    if [ -n "$start_corpus" ] && [ -d "$start_corpus/$name" ]; then
+    from=()
+    [ -n "$start_corpus" ] && IFS=':' read -r -a from <<<"$start_corpus"
+    for d in "${from[@]}"; do
+        [ -d "$d/$name" ] || continue
         # Only what adds coverage to the kept corpus comes across.
         # shellcheck disable=SC2046
         "$bin" -merge=1 -rss_limit_mb=2048 $(options "$name") \
-            "$store/$name" "$start_corpus/$name" >>"$work/$name.log" 2>&1 || true
-    fi
+            "$store/$name" "$d/$name" >>"$work/$name.log" 2>&1 || true
+    done
     start="$(date +%s)"
     set +e
     # shellcheck disable=SC2046
@@ -95,8 +110,10 @@ export seconds store work host start_corpus
 echo "fuzz-release: building every target with $nightly"
 list="$(mktemp)"
 build_all >"$list"
-mapfile -t jobs_list <"$list"
-rm -f "$list"
+total="$(wc -l <"$list")"
+select_targets "$list" >"$list.picked" || { rm -f "$list" "$list.picked"; exit 2; }
+mapfile -t jobs_list <"$list.picked"
+rm -f "$list" "$list.picked"
 
 rm -rf "$work"
 mkdir -p "$work"
@@ -109,10 +126,14 @@ commit="$(git rev-parse --short HEAD 2>/dev/null || echo unknown)"
 if [ -z "$start_corpus" ]; then
     started="none (the committed seeds and what the store holds)"
 else
-    started="$(basename "$start_corpus")"
-    if c="$(git -C "$start_corpus" rev-parse --short HEAD 2>/dev/null)"; then
-        started="$started, commit $c"
-    fi
+    started=""
+    for d in "${start_dirs[@]}"; do
+        one="$(basename "$d")"
+        if c="$(git -C "$d" rev-parse --short HEAD 2>/dev/null)"; then
+            one="$one, commit $c"
+        fi
+        started="${started:+$started; }$one"
+    done
 fi
 {
     echo "Fuzz run before a release"
@@ -122,6 +143,9 @@ fi
     echo "cargo-fuzz: $(cargo fuzz --version | awk '{ print $2 }')"
     echo "Starting corpus: $started"
     echo "Time per target: $seconds s"
+    if [ -n "${FARADAY_FUZZ_PARTITION:-}" ]; then
+        echo "Partition: ${FARADAY_FUZZ_PARTITION%/*} of ${FARADAY_FUZZ_PARTITION#*/}, ${#jobs_list[@]} of $total targets"
+    fi
     echo
     printf '%-16s %8s %12s %9s %12s  %s\n' target seconds executions corpus bytes result
     cat "$work"/*.result | sort | while IFS=$'\t' read -r name elapsed runs entries bytes result; do
