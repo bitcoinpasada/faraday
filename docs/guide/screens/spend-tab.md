@@ -74,7 +74,7 @@ Faraday from the stick. It has no network, …".
 | **Not sure what you have?** | what each thing in an envelope looks like, and what it is |
 | **What came in** | each thing read: "Seed · 3dca6805", "Wallet description · New wallet 1", "Part 1 · 2 of 3 keys in hand", "Key · xpub", **Transaction · kept for later**; **Rebuild the wallet** where shares add up |
 | **Anything else in the envelope?** | once a seed is in: **Scan more**, **Type more words** or **That's everything** |
-| **These seeds are one wallet with several keys.** | for several seeds with no description: **Scan the description**, or **I can't find one** |
+| **These seeds are one wallet with several keys.** | for several seeds with no description: **Scan the description**, which opens the scanner titled for it, or **I can't find one** |
 | **Spend from** | the wallets opened, each "New wallet 1 · 1 of 1 keys here"; a press chooses one |
 | **Start over** | forgets what came in |
 

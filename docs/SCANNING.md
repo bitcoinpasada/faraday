@@ -1,14 +1,13 @@
 # Scanning: what each scanner takes, and the way over
 
-**Kind:** Spec
-**Status:** Batches S1 to S5 built (2026-10-30), an LND aezeed told apart by its own checksum and handed to Lightning (§10 item 3), unrecognised text masked behind its eye on the read card (§10 item 8), a codex32 secret into Restore's or Create's slot (§4.3), and a copy check's "This is another seed's SeedQR" (§4.3), but for what the Open line names; the owner's choices decided (§10, 2026-10-29)
-**Open:** the intake's Scan the description titled for it (§7.1). Not scheduled
+**Kind:** Reference
+**Status:** Built; the owner's choices (2026-10-29) are in `docs/history/SCANNING-LOG.md` §10
 
 Every scanner in Faraday reads every kind of code, and each scanner
-takes only some kinds itself. This document lists what each scanner
-does today with each kind (§3), and sets out what it should do: take
-what it is for, hand everything Faraday takes elsewhere to the flow that
-takes it with what was read kept, and name the rest (§4, §5). Home's
+takes only some kinds itself. This document says what each scanner
+does with each kind: it takes what it is for, hands everything Faraday
+takes elsewhere to the flow that takes it with what was read kept, and
+names the rest (§4, §5). Home's
 **Scan** is the scanner that takes every kind (`docs/QR.md` §2); every
 other scanner sends a kind it does not take to where Home's Scan would
 send it.
@@ -55,15 +54,16 @@ plugged in while the camera is on is held back until it is off
 
 ## 2. The kinds
 
-What a code can be, in the order `scanned` and `read_code` tell them
-apart today, and whether it is a secret (DESIGN §4.10, Mask policy).
+What a code can be, in the order the classifier (§4.6) tells them
+apart, and whether it is a secret (DESIGN §4.10, Mask policy).
 
 | Kind | Read as | Secret |
 |---|---|---|
 | A seed's words | 12 to 24 English BIP-39 words, checksum holding (`faraday_intake::seed_in_code`) | yes |
 | SeedQR | 48 or 96 digits | yes |
 | CompactSeedQR | 16 or 32 bytes that are not UTF-8 | yes |
-| Words that fail their checksum | 12 to 24 words of a BIP-39 list, checksum failing: a mistyped seed, an LND aezeed, an Electrum seed | yes |
+| Words that fail their checksum | 12 to 24 words of a BIP-39 list, checksum failing: a mistyped seed, an Electrum seed | yes |
+| LND aezeed | 24 words of the English list whose BIP-39 checksum fails and whose own version byte and CRC-32C hold | yes |
 | Seed XOR part | a valid BIP-39 mnemonic; nothing tells it from a whole seed | yes |
 | codex32 secret | a codex32 string with share index `s` | yes |
 | codex32 share | a codex32 string with another index | yes |
@@ -95,98 +95,15 @@ A UR, BBQr or numbered-parts transfer is read part by part ("UR: 5 of 9
 
 ## 3. What happens today
 
-Read from the code and checked by feeding each kind to each scanner in
-a test (2026-10-29, on main at the commit that made Home's Scan take a
-pasted seed). Scanners that open the same purpose behave alike, except
-where a flow on screen takes the arrival (noted).
-
-Legend:
-
-- **Seed sheet**: the camera closes, Add a key opens behind, and the
-  seed read sheet asks how the key loads: "SeedQR read", the line
-  "Without a passphrase · {fp}", **Use without a passphrase**, **Add a
-  passphrase**, **Cancel** (from a wallet's or the Spend tab's scanner,
-  also **Not this one**). Using it lands on Wallets: "Key {fp} is loaded.
-  No wallet uses it." with **Make a wallet from this key**, **Add
-  another key** and **Restore an existing wallet**, or on the wallet
-  that uses it.
-- **Filed**: the camera closes, the code is put in Files as
-  `scanned-N.{ext}` with its kind, and the toast says "scanned-N.txt is
-  in Files"; Home, Restore, the Spend tab and a stick visit stay on
-  screen, any other screen moves to Files. Files then offers the kind's
-  action on its row (Sign, Load the wallet, Decode, Import into a vault,
-  Add to vault as a note, Check the signature, Load this key) or none
-  (an account key, a seed part, a GPG key).
-- **Line "…"**: the state line on the picture's band says it; the camera
-  stays on and nothing changes.
+Moved to `docs/history/SCANNING-LOG.md`.
 
 ### 3.1 The matrix
 
-| Kind | Home, Files, Tools (`Files`) | Restore, Create (`Files`, in the flow) | Add a key's Scan a SeedQR (`Seed`) | A form's Scan (`KeyPart`, codex32 form) | A wallet's Scan a key (`WalletKey`) | What do you have? (`Intake`) | TOTP (`VaultEntry`) | Copy checks |
-|---|---|---|---|---|---|---|---|---|
-| Words, SeedQR, CompactSeedQR | Seed sheet; with a stick in, line "Remove the stick…" | Seed sheet: leaves Restore or Create for Add a key | Seed sheet; from New key, its Key card | Line "Not a codex32 string: string holds a character outside printable ASCII" | Loads at once if it is a missing key ("Key 2 added · 1 more"); "Key 2 · already here"; else the seed sheet with "{fp} is not one of {wallet}'s keys" | Seed sheet, the camera back after; with a description in, as the wallet's scanner | Line "Not a TOTP setup code" | SeedQR: compared, "matches" or "word {k} differs"; never loaded |
-| Words that fail their checksum | Filed as Text | Filed as Text | Line "Not a SeedQR or a CompactSeedQR" | Line, a codex32 parse error | Line "Not a SeedQR or a CompactSeedQR" | Filed as Text, line "scanned-1.txt is in Files" | Line "Not a TOTP setup code" | Line "Not a SeedQR" |
-| Seed XOR part | as a whole seed: Seed sheet | as a whole seed | as a whole seed | Seed XOR form: taken | as a whole seed | as a whole seed | Line | compared as a seed |
-| codex32 secret | **Filed** as a seed part | **Filed** | Loads at once: "Key {fp} added", Wallets | Taken: loads | Line "Not a SeedQR or a CompactSeedQR" | Loads at once: "Key {fp} added" | Line | codex32 check: compared box by box |
-| codex32 share | **Filed** as a seed part | **Filed** | codex32 form opens with it in | Taken | Line "Not a SeedQR…" | Add a key's codex32 form, back to the Spend tab once whole | Line | codex32 check: compared |
-| SLIP-39 share | **Filed** as a seed part | **Filed** | Line "Not a SeedQR or a CompactSeedQR" | Line, a codex32 parse error (on the SLIP-39 form: taken) | Line "Not a SeedQR…" | Add a key's SLIP-39 form | Line | Line "Not a SeedQR" |
-| `ur:crypto-seed`, private `hdkey` | Line "That is a seed (ur:crypto-seed). Faraday takes a seed as its words or a SeedQR, in Add a key" | same | Line "That is a code for Files, not a seed" | Line, parse error | same as Add a key | Line, as Home | Line | Line |
-| Extended private key | Line "That is a private key. Faraday takes keys as words or a SeedQR, in Add a key" | same | Line "Not a SeedQR or a CompactSeedQR" | Line, parse error | Line "Not a SeedQR…" | Line, as Home | Line | Line |
-| WIF private key | **Filed** as Text | **Filed** | Line "Not a SeedQR…" | Line, parse error | Line | **Filed**, line "scanned-1.txt is in Files" | Line | Line |
-| Nostr secret key | **Filed** as Text | **Filed** | Line "Not a SeedQR…" | Line | Line | **Filed** | Line | Line |
-| TOTP setup code | **Filed** as Entries ("Import into a vault") | **Filed** | Line "Not a SeedQR…" | Line | Line | **Filed** | New entry's form filled (title, account, TOTP), back to Codes or Vault contents | Line |
-| Vault entries | Filed as Entries | Filed | Line | Line | Line | Filed | Added to the open vault: "Added 3 entries" | Line |
-| PSBT | Filed ("Sign"); one of the spend under way is collected into it | Filed | Binary: line "Not a SeedQR…"; base64 or UR: "That is a transaction, not a seed. Scan it from Files" | Line | as Add a key | "A transaction to sign · kept for later" | Line | Line |
-| Finished transaction | Filed ("Decode") | Filed | Line | Line | Line | Filed | Line | Line |
-| Wallet description | Filed ("Load the wallet") | Restore: taken as its description; Create: a descriptor of one key fills the slot waiting | Line "That is a public wallet or key, not a seed: it cannot sign" (another network's: "Not a SeedQR…") | Line | as Add a key | "Wallet description read", the wallet opens | Line | Line |
-| Split sheets | Filed | Restore: its description, rebuilt once whole | Line | Line | Line | "Part {k} read", rebuilt once whole | Line | Line |
-| Account key | Filed, no action on its row | Create: the slot waiting; Restore: "scanned-1.txt is a cosigner's key" | Line "That is a public wallet or key…" | Line | as Add a key | "A public key: it shows the wallet but cannot sign" | Line | Line |
-| Address, BIP-21, silent payment address | Line: "That address is Savings's receive address 4", "…not among the first 100 of any loaded wallet", "That is an address. Load a wallet to check whether it is yours", "That address is not on {network}" | same | Line "Not a SeedQR…" | Line | Line | Line, as Home | Line | Line |
-| Signed message | Filed ("Check the signature") | Filed | Line | Line | Line | Filed | Line | Line |
-| GPG public key | Filed (Restore from its paperkey in its ⋮) | Filed | Line | Line | Line | Filed | Line | Line |
-| Labels, Lightning invoice, web address, text | Filed as Text ("Add to vault", as a note) | Filed | Line "Not a SeedQR…" | Line | Line | Filed | Line | Line |
-| Not readable | Line "Not a PSBT, a descriptor, an xpub or a signed message" | same | Line "Not a SeedQR…" | Line | Line | Line | Line | Line |
-
-Transfer's Receive takes every kind and saves it into Downloads; a
-secret only past **Save without encryption?**'s hold (F129). It is the
-far end of a link from the device and keeps that rule (§4.3).
+Moved to `docs/history/SCANNING-LOG.md`.
 
 ### 3.2 What is wrong with it
 
-1. **Secrets filed by the camera.** Home's, Files', Restore's, Create's
-   and the Spend tab's scanners put into Files a codex32 secret or
-   share, a SLIP-39 share, a WIF private key, a Nostr secret key, words
-   that fail their checksum and a TOTP setup code. `docs/QR.md` §2 says
-   a seed never goes into Files, a codex32 string goes to its slot, and
-   a TOTP code to a new entry in the open vault; FLOWS says a private
-   key is named, not taken. The same text pasted on Faraday Demo is
-   refused (`pasted_secret`), so the camera and Paste disagree.
-2. **No way over.** A code read in the wrong scanner gets at best a line
-   naming it ("That is a transaction, not a seed. Scan it from Files");
-   the person must cancel, find the other scanner and scan again. From
-   the codex32 form, the TOTP scanner and the copy checks it gets less.
-3. **Lines that name nothing.** Add a key's scanner says "Not a SeedQR
-   or a CompactSeedQR" to a binary PSBT, a private key, a SLIP-39 share
-   (though it takes a codex32 string), an address and a TOTP code; the
-   forms' scanner answers a descriptor with "Not a codex32 string:
-   string mixes upper and lower case".
-4. **Home's Scan hides its result.** A PSBT, a wallet description or a
-   signed message read from Home leaves a toast and Home as it was; the
-   next step is in Files, two presses away, and an account key has no
-   action there at all.
-5. **Flows left behind.** A seed read at Restore's or Create's scanner
-   takes the person out of the flow to Add a key, though Restore and
-   Create each have a slot for it.
-6. **The seed sheet's title** says "SeedQR read" for words and a
-   CompactSeedQR alike, and a Seed XOR part loads as a whole seed with
-   no word that it might be a part.
-7. **A wallet's Scan a key** takes no codex32 string or SLIP-39 share,
-   though Add a key and the Spend tab do.
-8. **One title for fourteen buttons.** Every `Files` scanner says "Scan
-   a QR code", whether Restore asked for a description or Spend for a
-   PSBT; the band's one line is all that differs.
-9. **`docs/QR.md` §2 is not what is built** for TOTP codes, codex32
-   strings and "any other text" (shown, with **Save as a note**).
+Moved to `docs/history/SCANNING-LOG.md`.
 
 ## 4. What each scanner does with each kind
 
@@ -195,7 +112,7 @@ far end of a link from the device and keeps that rule (§4.3).
 Every scanner reads every kind (one classifier, §4.6), and does one of
 three things with what it read:
 
-- **Takes** it: the kinds the scanner is for, as today.
+- **Takes** it: the kinds the scanner is for.
 - **Hands it over**: a kind Faraday takes, but elsewhere. The scanner
   shows the read card (§5) with the way over to the flow that takes it,
   and that flow receives what was read: nothing is scanned twice.
@@ -210,9 +127,9 @@ copy check loading what it compares.
 ### 4.2 Where each kind goes
 
 The destination of each kind, the same from every scanner that hands
-it over. Home's Scan takes every kind straight to its destination
-(another session builds that), and from Home the read card (§5.4)
-shows what came and the destination's action.
+it over. Home's Scan takes every kind straight to its destination, and
+from Home the read card (§5.4) shows what came and the
+destination's action.
 
 | Kind | Destination, and the way over's label |
 |---|---|
@@ -220,8 +137,8 @@ shows what came and the destination's action.
 | codex32 share | Add a key's codex32 form with the string in. **Add this share** |
 | SLIP-39 share | Add a key's SLIP-39 form with the share in. **Add this share** |
 | Seed XOR part | the seed sheet, which offers **It is a Seed XOR part** (§6) |
-| Words that fail their checksum | an LND aezeed (its own checksum holds): Lightning, the aezeed typed. **Use in Lightning**. An Electrum seed: Add a key's Electrum form once `docs/INTEROP.md` §5 I7 is built (**Add this key**); until then named. Anything else: named |
-| WIF private key | Add a key's **Type a private key** once `docs/INTEROP.md` §5 I11 is built; until then named |
+| Words that fail their checksum | an LND aezeed (its own checksum holds): Lightning, the aezeed typed. **Use in Lightning**. An Electrum seed: named (`docs/INTEROP.md` §5 I7). Anything else: named |
+| WIF private key | the Sweep sheet (`docs/INTEROP.md` §5 I11, F171). **Sweep a private key** |
 | Extended private key, `ur:crypto-seed`, private `hdkey`, Nostr secret key, silent payments spend key | named |
 | GPG paperkey | a GPG restore's Scan the paperkey only, which needs its public key first; every other scanner names it ("That is a paperkey. Restore a GPG key takes it at Type the paperkey, not Files") and files nothing (F167) |
 | TOTP setup code | a new entry's form in the open vault, filled, as the TOTP scanner fills it. **Add to {vault}**; with a vault in Files but none open, **Unlock {vault}**, the code carried through the unlock and the form opened filled once it is; with no vault at all, **Make a vault**, and the code is not kept: the card says "Not kept · scan it again once the vault is open", and the code is wiped at the press (§4.5) |
@@ -231,7 +148,7 @@ shows what came and the destination's action.
 | Wallet description | filed, then loaded. **Load the wallet**; in Restore, its description |
 | Split sheets | filed, then Restore's description. **Restore the wallet** |
 | Account key | Create's or Restore's slot waiting for one; else filed. **Keep in Files** |
-| Address, BIP-21, silent payment address | **Is this address mine?**: the card's fact is the line `address_note` gives today |
+| Address, BIP-21, silent payment address | **Is this address mine?**: the card's fact is the line `address_note` gives |
 | Signed message | filed, then Check a message. **Check the signature** |
 | GPG public key, Faraday file envelope | filed (an envelope under its own name, then as its contents). **Keep in Files** |
 | Text | the card shows it masked (§4.10), with **Save as a note** in the open vault and **Keep in Files** |
@@ -249,14 +166,14 @@ shows what came and the destination's action.
 | Create's Scan its xpub | an account key or a descriptor of one key, into the slot; a seed into the slot, as the slot's key (after the seed sheet) | every other kind | as §4.2 |
 | Restore's seeds card's Scan | an account key into the box | every other kind | as §4.2 |
 | Spend's Scan a copy; the Spend tab's Scan it and Scan the PSBT | a PSBT of the spend | every other kind | as §4.2 |
-| Add a key's Scan a SeedQR | a seed; a codex32 secret, loaded; a codex32 or SLIP-39 share, to its form (SLIP-39 is new) | every other kind | as §4.2 |
+| Add a key's Scan a SeedQR | a seed; a codex32 secret, loaded; a codex32 or SLIP-39 share, to its form | every other kind | as §4.2 |
 | A form's Scan (codex32, SLIP-39, Seed XOR) | its own form's part; the other share form's, switching to that form with it in; a seed, to the seed sheet | every other kind | as §4.2; a string that starts as its form's does keeps the parser's line ("Not a codex32 string: …") |
-| A wallet's Scan a key | a seed or a codex32 secret, matched to the wallet's missing keys as today; a codex32 or SLIP-39 share, to its form opened for the wallet (`EntryWallet`), back to the wallet once the key is whole | every other kind | as §4.2 |
-| What do you have? | as today (a seed, shares, a description, split sheets, an account key, a PSBT) | none: the camera stays on and the intake is not left (§10 item 6) | every other kind on its line, as in §5.5; a secret is not filed |
+| A wallet's Scan a key | a seed or a codex32 secret, matched to the wallet's missing keys; a codex32 or SLIP-39 share, to its form opened for the wallet (`EntryWallet`), back to the wallet once the key is whole | every other kind | as §4.2 |
+| What do you have? | a seed, shares, a description, split sheets, an account key, a PSBT | none: the camera stays on and the intake is not left (§10 item 6) | every other kind on its line, as in §5.5; a secret is not filed |
 | TOTP | a TOTP setup code, vault entries | a seed, a share, a PSBT, a wallet description, a signed message | as §4.2 |
 | Copy checks | the copy, compared, never loaded | none | every other kind on the line; a SeedQR of another seed: "This is another seed's SeedQR" |
 | Transfer's Receive | every kind, into Downloads (F129 for a secret) | none | — |
-| Restore a GPG key's Scan the public key | a GPG public key, filed as `{name}-{fp8}.asc` and its restore opened (one not restored here filed, the sheet back saying why); a code in parts gathered first, as Home's | none today | a seed, a private key, a paperkey or another secret, by the line Home's Scan names it with, nothing filed; every other kind: "Not a public key Faraday reads", nothing filed |
+| Restore a GPG key's Scan the public key | a GPG public key, filed as `{name}-{fp8}.asc` and its restore opened (one not restored here filed, the sheet back saying why); a code in parts gathered first, as Home's | none | a seed, a private key, a paperkey or another secret, by the line Home's Scan names it with, nothing filed; every other kind: "Not a public key Faraday reads", nothing filed |
 | A GPG restore's Scan the paperkey | a paperkey's base16 lines or raw form, into the restore's lines, all at once | none: a paperkey is a secret read only here | a paperkey with a line that does not hold: the line's refusal ("CRC on line {n} does not match"); every other kind: "Not a paperkey"; with a stick in, the line asking for it to be removed; nothing filed or kept |
 
 A PNG read from a stick routes as Home's Scan does, without the card:
@@ -312,15 +229,13 @@ not take.
 
 ### 4.6 One classifier
 
-`read_code`, `what_instead_of_a_seed`, `secret_text`, `pasted_secret`,
-`seed_scan_codex32`, `intake_key_part` and `classify` each tell some
-kinds apart today. They become one function that reads a code once and
-says what it is (a `Read` with its kind, the bytes or text kept in
-`Zeroizing` memory, and the facts the card shows, worked out once:
-§5.2), and every scanner, Paste and a PNG's codes go through it. The
-camera and Paste then name and take the same things. It costs what its
-parsers cost (a mnemonic's checksum, a PSBT read, a wallet read) and
-says so in its first line.
+One classifier (`scan_read`: `secret_kind` for a secret on the one
+code read, `public_kind` for anything else once a transfer in parts is
+whole) reads a code once and says what it is, and every scanner, Paste
+and a PNG's codes go through it, so the camera and Paste name and take
+the same things. The read card's facts are worked out once, at the
+read (§5.2). It costs what its parsers cost (a mnemonic's checksum, a
+PSBT read, a wallet read) and says so in its first line.
 
 ## 5. The read card
 
@@ -373,7 +288,7 @@ and the code is a key or a share.
 
 The code read, held in `Zeroizing` memory on the card's state, handed
 to the destination at the press and wiped there, as the destination
-wipes what it takes today. **Scan again**, **Cancel**, a press beside
+wipes what it takes. **Scan again**, **Cancel**, a press beside
 the sheet, the Back key, a lock and the idle lock wipe it. Nothing on
 the card is filed until the way over is pressed; **Keep in Files**
 files a public kind.
@@ -415,17 +330,17 @@ What the person sees when a seed is read, from any scanner that loads
 one:
 
 - The seed sheet's title names the form read: "SeedQR read",
-  "CompactSeedQR read", "Words read"; a codex32 secret loads as today,
-  with no passphrase sheet (BIP 93 has none).
+  "CompactSeedQR read", "Words read"; a codex32 secret loads with no
+  passphrase sheet (BIP 93 has none).
 - Its lines: "Without a passphrase · 73c5da0a"; and where a loaded
   wallet has that key, "Key 2 of Savings", worked out when the seed was
   read (`wallet_key_found` over the loaded wallets).
-- Its actions as today: **Use without a passphrase** (filled), **Add a
+- Its actions: **Use without a passphrase** (filled), **Add a
   passphrase**, **Cancel**; from a wallet's or the Spend tab's scanner,
   **Not this one**. For 12 or 24 words, a text button **It is a Seed XOR
   part**, which opens Add a key's Seed XOR form with this part in (§10
   item 4).
-- After **Use without a passphrase**, as today: Wallets, with the key
+- After **Use without a passphrase**: Wallets, with the key
   under Keys without a wallet and **Make a wallet from this key**, **Add
   another key**, **Restore an existing wallet**; or the wallet that uses
   it.
@@ -461,7 +376,6 @@ no explanation.
 | `read_slip39_share` | A SLIP-39 share |
 | `read_bad_checksum` | Words that fail their checksum |
 | `read_aezeed` | An LND aezeed |
-| `read_electrum_seed` | An Electrum seed |
 | `read_private_key` | A private key |
 | `read_xprv` | An extended private key |
 | `read_nostr_secret` | A Nostr secret key |
@@ -485,7 +399,6 @@ no explanation.
 | `read_web` | A web address |
 | `read_text` | Text |
 | `read_unreadable` | Nothing Faraday reads |
-| `read_not_taken` | Not taken by Faraday |
 | `read_not_here` | {} · not used here |
 | `read_key_fact` | Key {} |
 | `read_share_fact` | Share {} of {} · {} needed |
@@ -524,9 +437,6 @@ no explanation.
 | `seed_read_compact_read` | CompactSeedQR read |
 | `seed_read_key_of` | Key {} of {} |
 
-Retired once the card replaces them: `what_instead_of_a_seed_*`,
-`scanned_not_a_psbt`, `scanned_is_in_files` (from Home's Scan),
-`read_code_is_seedqr`, `read_code_that_may`.
 
 ## 8. Tests
 
@@ -562,55 +472,8 @@ Paste, on the purposes of §1:
 
 ## 9. Batches
 
-- **S1, the classifier and nothing secret filed** (§4.6, §3.2 items 1,
-  3): one classifier; every secret kind named or taken, never filed;
-  the forms' scanner names a kind that is not its form's. Tests as §8's
-  second item.
-- **S2, the read card and the ways over** (§4.2, §4.3, §5): the card,
-  its kept code and its wiping; the ways over from every scanner but
-  Home's.
-- **S3, after Home's Scan** (§5.4), with the session building Home's
-  Scan as the universal entry; `docs/QR.md` §2's table made true.
-- **S4, flows keep their arrivals** (§3.2 items 5, 7): Restore's and
-  Create's scanners take a seed into their slot; a wallet's Scan a key
-  takes codex32 and SLIP-39.
-- **S5, titles and the seed sheet** (§6, §7.1): the scanner titles by
-  opener (`ScanPurpose::Files` carries what was asked for), the seed
-  sheet's titles, its wallet line and **It is a Seed XOR part**.
-
-Each batch updates `docs/QR.md` §2, DESIGN §4.9 and §5 (the sheets),
-`docs/FLOWS.md` (Home, Add a key) and the guide's scanner pages, and is
-timed in a late-flow session where it adds work to drawing
-(`docs/SPEED.md` §7): the card's facts are worked out at the read, not
-while drawing.
+Moved to `docs/history/SCANNING-LOG.md`.
 
 ## 10. Decided (owner, 2026-10-29)
 
-Each as recommended, but item 1, which the owner changed for a TOTP
-code read with no vault at all.
-
-1. **A TOTP setup code** goes into the open vault's new entry form,
-   never Files. With a vault in Files but none open, **Unlock {vault}**
-   carries it through the unlock (one page, wiped by a lock, Back or
-   Cancel there, §5.3). With no vault at all, the way over is **Make a
-   vault**, and the code is not carried: the card says "Not kept · scan
-   it again once the vault is open", the code is wiped at the press, and
-   the person scans it again once the vault is made and open (§4.5).
-2. **Words that fail their checksum** are named, never filed.
-3. **An LND aezeed** is told apart by its own checksum and handed to
-   Lightning, tested against LND's vectors.
-4. **A Seed XOR part**: the seed sheet offers **It is a Seed XOR part**
-   for 12 and 24 words, a text button; loading it as a seed stays the
-   default.
-5. **Home's Scan of a public kind** shows the read card with the kind's
-   action, and **Done** in place of Cancel (§5.4).
-6. **The Spend tab's intake** names a kind it does not use and stays on
-   the Spend tab (§5.5).
-7. **A seed read at Restore's or Create's scanner** goes into the flow's
-   slot.
-8. **Unrecognised text** on the card is masked behind its eye.
-9. **A seed read at a scanner that loads none** is handed to the seed
-   sheet, behind the same stick gate as Add a key.
-10. **The camera** is off while the card shows, and back on at **Scan
-    again**.
-11. **Scanner titles** name what each opener asked for (§7.1).
+Moved to `docs/history/SCANNING-LOG.md`.

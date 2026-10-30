@@ -702,6 +702,9 @@ pub(super) fn scan_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let sw = sw - 2.0 * (pad - 32.0);
     let title = match (sc.purpose, for_wallet) {
         (_, Some((_, wl))) => fill(EN.scan_key_for_wallet, &[&wl.name.to_string()]),
+        (crate::ScanPurpose::Intake, _) if sc.ask == crate::Ask::Description => {
+            EN.scan_title_description.to_string()
+        }
         (crate::ScanPurpose::Intake, _) => EN.scan_scan_what_you.to_string(),
         (crate::ScanPurpose::Sweep, _) => EN.catalog_sweep_key.to_string(),
         (crate::ScanPurpose::Seed, _) => EN.scan_scan_a_seedqr.to_string(),

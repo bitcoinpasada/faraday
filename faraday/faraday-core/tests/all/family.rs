@@ -586,6 +586,14 @@ fn two_seeds_then_the_description_open_the_wallet_with_both_keys_here() {
         "{text}"
     );
     assert!(text.contains("Scan the description"), "{text}");
+    // Its Scan the description opens the scanner titled for it
+    // (`docs/SCANNING.md` §7.1).
+    assert!(app.offers(Action::ScanFor(faraday_core::Ask::Description)));
+    app.press(Action::ScanFor(faraday_core::Ask::Description));
+    assert_eq!(app.sheet, Some(Sheet::Scan), "the camera is not on");
+    let text = drawn(&mut app);
+    assert!(text.contains("Scan the description"), "{text}");
+    assert!(!text.contains("Scan what you have"), "{text}");
     scan(&mut app, testkit::savings().into_bytes());
     assert_eq!(note(&app), "Wallet description read");
     let w = app.family_wallet().expect("the description did not open");

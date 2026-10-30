@@ -1489,6 +1489,7 @@ Unlock and list, **Scan the QR codes you have**, **Type the words you
 have**, **Not sure what you have?**, what came in, and the next
 question: with one seed **Anything else in the envelope?** and **That's
 everything**; with several and no description **Scan the description**
+(the intake's scanner, titled **Scan the description**)
 or **I can't find one**, which shows the seeds' shape and **Make the
 wallet**; a description opens the wallet, and a wallet opened moves on,
 its row under **Spend from** moving on again when pressed) → check the money in Sparrow

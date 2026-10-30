@@ -440,6 +440,17 @@ impl Faraday {
                     card.shown = !card.shown;
                 }
             }
+            // What do you have?'s Scan the description: the intake's own
+            // scanner, titled for what the question asks for
+            // (`docs/SCANNING.md` §7.1); it takes what the intake takes.
+            // The Spend tab's Scan it and Scan the PSBT ask for a PSBT and
+            // open the scanner below.
+            Action::ScanFor(crate::Ask::Description) if self.screen == crate::Screen::Family => {
+                self.family_scan(None);
+                if let Some(scan) = self.camera.scan_mut() {
+                    scan.ask = crate::Ask::Description;
+                }
+            }
             Action::Scan | Action::ScanFor(_) => {
                 let mut scan = ScanState::default();
                 if let Action::ScanFor(ask) = action {

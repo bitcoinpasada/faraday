@@ -1170,7 +1170,11 @@ fn question(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                 w,
                 40.0,
                 &[
-                    (EN.family_scan_the_description, Style::Primary, fa(F::Scan)),
+                    (
+                        EN.family_scan_the_description,
+                        Style::Primary,
+                        Action::ScanFor(crate::Ask::Description),
+                    ),
                     (
                         EN.family_i_can_t_find,
                         Style::Secondary,
