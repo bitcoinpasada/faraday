@@ -41,8 +41,14 @@ const ENTRIES: &str = "title: Mail\npassword: correct horse";
 /// paperkey 1.6's printed lines of one key (`tools/vectors/paperkey/`).
 const PAPERKEY: &str = include_str!("../../../../tools/vectors/paperkey/faraday-key.txt");
 
+/// LND's cipher seed with no passphrase, enciphered at a released LND's
+/// cost (`tools/vectors/aezeed/`), and the node id LND derives from it.
+const AEZEED: &str = "above judge emerge veteran reform crunch system all snap please shoulder vault hurt city quarter cover enlist swear success suggest drink wagon enrich body";
+const AEZEED_NODE: &str = "024c7005923a074fd38b16ace7be4914ec9f929717692bfb585019be13290c9b1d";
+
 /// Every secret kind of `docs/SCANNING.md` §2 a scanner can read as text.
-const SECRETS: [&str; 13] = [
+const SECRETS: [&str; 14] = [
+    AEZEED,
     WORDS,
     SEEDQR,
     CODEX32_SECRET,
@@ -626,4 +632,45 @@ fn an_addwallet_or_an_sp_read_at_add_a_keys_scanner_goes_to_its_wallet_and_a_spe
     assert!(ways.is_empty(), "{ways:?}");
     assert!(facts.iter().all(|f| !f.contains("spspend")), "{facts:?}");
     assert!(app.inbox().is_empty());
+}
+
+/// An LND aezeed is told apart from words that fail their checksum by its
+/// own, at Home's Scan and at a scanner for something else, and **Use in
+/// Lightning** opens Lightning with it typed in: its node id is the one
+/// LND derives, no key loaded and nothing filed.
+#[test]
+fn an_aezeed_read_at_a_scanner_is_used_in_lightning() {
+    for at in [Opened::Home, Opened::AddAKey, Opened::Restore] {
+        let mut app = testkit::started();
+        open(&mut app, at);
+        read(&mut app, AEZEED.as_bytes());
+        let (kind, facts, ways) =
+            card(&app).unwrap_or_else(|| panic!("{at:?}: no card: {}", note(&app)));
+        assert_eq!(kind, "An LND aezeed", "{at:?}");
+        assert!(facts.is_empty(), "{at:?}: {facts:?}");
+        assert_eq!(ways, vec!["Use in Lightning".to_string()], "{at:?}");
+        app.press(Action::ReadGo(0));
+        assert!(app.scan().is_none(), "{at:?}");
+        assert_eq!(app.screen, Screen::Lightning, "{at:?}");
+        app.event(Event::Key(faraday_shell_api::Key::Enter));
+        let _ = app.frame();
+        let now = app.now_ms() + 16;
+        app.event(Event::Tick { now_ms: now });
+        let l = app.lightning().unwrap();
+        let n = l
+            .node
+            .as_ref()
+            .unwrap_or_else(|| panic!("{at:?}: {:?}", l.error));
+        let id: String = n.public().iter().map(|b| format!("{b:02x}")).collect();
+        assert_eq!(id, AEZEED_NODE, "{at:?}");
+        assert!(app.session.keys.is_empty(), "{at:?}");
+        assert!(!filed(&app, AEZEED), "{at:?}");
+    }
+    // Twelve words of the list that fail their checksum stay named.
+    let mut app = testkit::started();
+    open(&mut app, Opened::AddAKey);
+    read(&mut app, UNCHECKED.as_bytes());
+    let (kind, _, ways) = card(&app).unwrap();
+    assert_eq!(kind, "Words that fail their checksum");
+    assert!(ways.is_empty());
 }

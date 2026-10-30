@@ -3633,6 +3633,8 @@ strings! {
     secret_text_nostr: "That is a Nostr secret key. Faraday does not take one",
     /// Scanner note in `secret_text`: 12 to 24 words of a BIP-39 list that are no English BIP-39 seed.
     secret_text_not_a_seed: "Those are seed words, but not an English BIP-39 seed: the checksum fails",
+    /// Scanner note in `secret_text`: 24 words that are an LND aezeed by its own checksum.
+    secret_text_aezeed: "That is an LND aezeed. Lightning takes it",
     // ----- What a code read is (docs/SCANNING.md §7.2), faraday-core/src/scan_read.rs -----
     /// A code read: a seed's words.
     read_seed_words: "A seed's words",
@@ -3648,6 +3650,8 @@ strings! {
     read_slip39_share: "A SLIP-39 share",
     /// A code read: words of a BIP-39 list whose checksum fails.
     read_bad_checksum: "Words that fail their checksum",
+    /// A code read: 24 words that are an LND aezeed by its own checksum.
+    read_aezeed: "An LND aezeed",
     /// A code read: a WIF private key.
     read_private_key: "A private key",
     /// A code read: an extended private key.
@@ -3745,6 +3749,8 @@ strings! {
     read_again: "Scan again",
     /// The seed sheet's text button for 12 or 24 words: Add a key's Seed XOR form, the words in.
     read_go_xor: "It is a Seed XOR part",
+    /// The read card's way over for an LND aezeed: Lightning, the aezeed typed in.
+    read_go_lightning: "Use in Lightning",
     /// A scanner's title (`docs/SCANNING.md` §7.1): Restore's Scan it and Scan descriptor.
     scan_title_description: "Scan the description",
     /// A scanner's title: Create's key slot. `{}`: the key's number.

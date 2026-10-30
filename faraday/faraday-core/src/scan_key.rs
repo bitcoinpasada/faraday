@@ -502,6 +502,7 @@ pub(crate) fn secret_code(c: &Compute, bytes: &[u8]) -> Option<&'static str> {
         Kind::Wif | Kind::Xprv | Kind::SpendKey => EN.secret_text_private_key,
         Kind::Nostr => EN.secret_text_nostr,
         Kind::BadChecksum => EN.secret_text_not_a_seed,
+        Kind::Aezeed => EN.secret_text_aezeed,
         _ => return None,
     })
 }
@@ -1110,6 +1111,7 @@ impl Faraday {
                 vec![Way::Share]
             }
             Kind::Wif => vec![Way::Sweep],
+            Kind::Aezeed => vec![Way::Lightning],
             Kind::Totp | Kind::Entries => {
                 if let Some((issuer, account)) = faraday_vault::entries::otpauth_names(&text) {
                     facts.push(fill(EN.read_totp_fact, &[&issuer, &account]));
@@ -1263,6 +1265,11 @@ impl Faraday {
                 if self.sheet == Some(Sheet::Scan) {
                     self.out.commands.push_back(Command::CameraOn);
                 }
+            }
+            Way::Lightning => {
+                drop(code);
+                self.scan_close();
+                self.lightning_with_aezeed(&text);
             }
             Way::AddTo(_) => {
                 self.scan_close();
@@ -1627,6 +1634,11 @@ impl Faraday {
             && let Some(kind) = scan_read::secret_kind(&c, &bytes)
         {
             return self.read_card_show(&c, kind, (None, "txt", bytes));
+        }
+        // An LND aezeed has its destination a press away, on Home's Scan
+        // too: the card offers Use in Lightning (`docs/SCANNING.md` §4.2).
+        if scan_read::secret_kind(&c, &bytes) == Some(Kind::Aezeed) {
+            return self.read_card_show(&c, Kind::Aezeed, (None, "txt", bytes));
         }
         // A part of a key goes to Add a key's form, never Files (F167).
         if self.scan_part_routed(&bytes) {

@@ -147,14 +147,7 @@ fn decode_bytes(
     passphrase: &[u8],
     cost: u32,
 ) -> Result<CipherSeed, Error> {
-    if bytes[0] != VERSION {
-        return Err(Error::Version(bytes[0]));
-    }
-    let mut stated = [0u8; 4];
-    stated.copy_from_slice(&bytes[CHECKSUM_OFFSET..]);
-    if crc32c(&bytes[..CHECKSUM_OFFSET]) != u32::from_be_bytes(stated) {
-        return Err(Error::Checksum);
-    }
+    check_bytes(bytes)?;
 
     let salt = &bytes[SALT_OFFSET..CHECKSUM_OFFSET];
     let pass = if passphrase.is_empty() {
@@ -193,6 +186,32 @@ fn decode_bytes(
         birthday: u16::from_be_bytes([plain.expose()[1], plain.expose()[2]]),
         entropy,
     })
+}
+
+/// A CRC-32C over 29 bytes, no scrypt. Whether 24 words are an aezeed
+/// by their own checksum: the version byte is one this codec reads and
+/// the CRC-32C LND writes over the words holds. It tells an aezeed
+/// apart from 24 words of the same list that are no BIP-39 seed before
+/// any passphrase is asked for, by the check [`decode`] makes first.
+pub fn checksum_holds(words: &[u16; NUM_WORDS]) -> bool {
+    let mut bytes = pack(words);
+    let holds = check_bytes(&bytes).is_ok();
+    bytes.zeroize();
+    holds
+}
+
+/// A CRC-32C over 29 bytes. A cipher seed's version byte and its
+/// checksum, checked in the order LND checks them.
+fn check_bytes(bytes: &[u8; CIPHER_SEED_SIZE]) -> Result<(), Error> {
+    if bytes[0] != VERSION {
+        return Err(Error::Version(bytes[0]));
+    }
+    let mut stated = [0u8; 4];
+    stated.copy_from_slice(&bytes[CHECKSUM_OFFSET..]);
+    if crc32c(&bytes[..CHECKSUM_OFFSET]) != u32::from_be_bytes(stated) {
+        return Err(Error::Checksum);
+    }
+    Ok(())
 }
 
 /// The twenty-four eleven-bit indices as 33 bytes, most significant bit
@@ -392,6 +411,30 @@ mod tests {
         let seed = decode(&c, &indices(PRODUCTION_V1), b"hello").unwrap();
         assert_eq!((seed.internal_version, seed.birthday), (1, 3365));
         assert_eq!(seed.entropy().expose(), &ENTROPY);
+    }
+
+    #[test]
+    fn lnd_vectors_are_told_apart_by_their_checksum_and_a_changed_word_is_not() {
+        let vectors: serde_json::Value =
+            serde_json::from_str(include_str!("../../../tools/vectors/aezeed/vectors.json"))
+                .unwrap();
+        let seeds = vectors["aezeed"].as_array().unwrap();
+        assert_eq!(seeds.len(), 5);
+        for seed in seeds {
+            let words = indices(seed["words"].as_str().unwrap());
+            assert!(checksum_holds(&words), "{}", seed["words"]);
+            let mut changed = words;
+            changed[5] = (changed[5] + 1) % 2048;
+            assert!(!checksum_holds(&changed));
+            let mut swapped = words;
+            swapped.swap(0, 1);
+            assert!(!checksum_holds(&swapped));
+        }
+        // A BIP-39 seed's 24 words are no aezeed.
+        let bip39 = "abandon abandon abandon abandon abandon abandon abandon abandon \
+            abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon \
+            abandon abandon abandon abandon abandon art";
+        assert!(!checksum_holds(&indices(bip39)));
     }
 
     #[test]

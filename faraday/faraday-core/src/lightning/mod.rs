@@ -254,6 +254,26 @@ impl LightningArea {
         })
     }
 
+    /// An aezeed read by a scanner, typed in: the cipher seed chosen as
+    /// the source, its words lowercased with one space between, the
+    /// passphrase left for the person to type (`docs/SCANNING.md` §4.2).
+    pub(crate) fn put_aezeed(&mut self, words: &str) {
+        if let Some(l) = self.state.as_mut() {
+            let typed = Zeroizing::new(
+                words
+                    .split_whitespace()
+                    .map(str::to_lowercase)
+                    .collect::<Vec<_>>()
+                    .join(" "),
+            );
+            l.source = Some(NodeSource::Aezeed);
+            l.typed.set(&typed);
+            l.node = None;
+            l.error = None;
+            l.sample.dismiss();
+        }
+    }
+
     /// Types the sample cipher seed's `words` in.
     pub(crate) fn use_sample(&mut self, words: &str) {
         if let Some(l) = self.state.as_mut() {
@@ -318,6 +338,14 @@ impl Faraday {
                 self.lightning.act(&c, &self.session.keys, action);
             }
         }
+    }
+
+    /// The read card's **Use in Lightning**: the screen opens, to return
+    /// to the screen under the scanner, with the aezeed read typed in.
+    pub(crate) fn lightning_with_aezeed(&mut self, words: &str) {
+        self.lightning.open(self.screen);
+        self.screen = Screen::Lightning;
+        self.lightning.put_aezeed(words);
     }
 
     /// Whether the screen reads a typed aezeed, whose Enter stretches it

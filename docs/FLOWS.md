@@ -482,7 +482,9 @@ sheets to restore, a message to check, text to save as a note), the
 read card shows that press with **Done**, in place of the toast
 (`docs/SCANNING.md` §5.4). A private key (an xprv, a WIF or a Nostr
 secret key) and words that fail a BIP-39 checksum are named and never
-filed, since Add a key does not take them. On Faraday Demo what Home's
+filed, since Add a key does not take them; 24 words that are an LND
+aezeed by its own CRC-32C show the read card with **Use in Lightning**
+(Lightning node key, the words typed in). On Faraday Demo what Home's
 Scan takes pasted is what it takes scanned (F75). Add a key's **Scan a
 SeedQR** takes a seed, a codex32 string and a SLIP-39 share (each to its
 form), and a form's **Scan** its own part, the other share form's (onto
@@ -1677,7 +1679,8 @@ the code, no PNG) → **Wallets**.
 ## Lightning node key
 
 From the Tools tile → ldk-node from a loaded key, or LND with its
-aezeed typed → **Node id**, with **Show as QR** and **PNG** (F28,
+aezeed typed (or read by a scanner: its read card's **Use in
+Lightning** opens the page with the words in) → **Node id**, with **Show as QR** and **PNG** (F28,
 `docs/QR.md` §7;
 `lightning-{8 hex}.png` For the stick, "{name} waits for the stick"),
 **Made**, the private key masked until **Show** and never a code →

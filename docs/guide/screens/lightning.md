@@ -5,7 +5,9 @@
 **Screen:** `Lightning`
 **Group:** Tools
 
-**Opened from:** **Tools → Lightning node key**.
+**Opened from:** **Tools → Lightning node key**; a scanner's read card,
+**Use in Lightning**, for an LND aezeed read, its words typed in and
+**LND · type an aezeed** chosen.
 
 A Lightning node's key, made the way ldk-node makes it from a loaded
 key, or the way LND makes it from an aezeed typed in. Its public key is

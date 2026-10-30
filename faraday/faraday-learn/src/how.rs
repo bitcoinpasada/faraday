@@ -1050,10 +1050,10 @@ pub static BLOCKS: &[Block] = &[
     Block {
         id: "aezeed",
         name: "Read an aezeed",
-        action: "Reads an LND aezeed: 24 words, checksum, scrypt key and AEZ decipher, giving the entropy, version and birthday.",
+        action: "Reads an LND aezeed: 24 words, checksum, scrypt key and AEZ decipher, giving the entropy, version and birthday; a scanner tells one apart by its version and checksum alone.",
         standards: &[p("LND aezeed, LND cipher seed (aezeed) with AEZ v5, Convention"), p("RFC 7914, The scrypt Password-Based Key Derivation Function, Status not checked")],
         implementation: &[m("core/faraday-bip"), p("AEZ v5 is written here; the words are 24 x 11 bits with a CRC-32C checked before scrypt (N 32768, r 8, p 1) runs; reading only: an aezeed is never made, and never loaded as a key.")],
-        checked: &[m("tools/vectors/aezeed"), m("core/faraday-bip/src/aezeed.rs::lnd_vectors_decode_to_their_entropy_version_and_birthday"), m("core/faraday-bip/src/aezeed.rs::a_wrong_passphrase_is_refused_and_a_wrong_word_is_caught_first"), m("core/faraday-bip/tests/all/aez.rs::extract_vectors"), m("core/faraday-bip/tests/all/aez.rs::hash_vectors"), m("core/faraday-bip/tests/all/aez.rs::prf_vectors"), m("core/faraday-bip/tests/all/aez.rs::encrypt_vectors"), m("fuzz aezeed")],
+        checked: &[m("tools/vectors/aezeed"), m("core/faraday-bip/src/aezeed.rs::lnd_vectors_decode_to_their_entropy_version_and_birthday"), m("core/faraday-bip/src/aezeed.rs::a_wrong_passphrase_is_refused_and_a_wrong_word_is_caught_first"), m("core/faraday-bip/src/aezeed.rs::lnd_vectors_are_told_apart_by_their_checksum_and_a_changed_word_is_not"), m("core/faraday-bip/tests/all/aez.rs::extract_vectors"), m("core/faraday-bip/tests/all/aez.rs::hash_vectors"), m("core/faraday-bip/tests/all/aez.rs::prf_vectors"), m("core/faraday-bip/tests/all/aez.rs::encrypt_vectors"), m("fuzz aezeed")],
         cross_check: CrossCheck::Area(&AREA_LIGHTNING),
         independence: &[p("Reference written outside Faraday: Lightning Labs (LND), Yawning Angel (AEZ).")],
         code: &[c("core/faraday-bip/src/aezeed.rs", "decode"), c("core/faraday-bip/src/aez.rs", "decrypt")],

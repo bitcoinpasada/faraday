@@ -63,7 +63,9 @@ spend. A SeedQR opens [SeedQR read](#seedqr-read). Home's **Scan**
 takes everything the other scanners take: a codex32 string or a SLIP-39
 share opens Add a key on its form with the share in, and a TOTP setup
 code opens a new entry in the open vault (with none open, the read card
-below offers **Unlock {vault}** or **Make a vault**). A PSBT, a
+below offers **Unlock {vault}** or **Make a vault**). An LND aezeed
+shows the read card with **Use in Lightning**, which opens
+[Lightning node key](lightning.md) with its 24 words typed in. A PSBT, a
 finished transaction, a wallet description, split sheets or a signed
 message read on Home's **Scan** goes into Files and shows the read card
 with its next step (**Sign it**, **Decode it**, **Load the wallet**,

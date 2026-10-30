@@ -26,6 +26,8 @@ pub enum Kind {
     Slip39Share,
     /// Words of a BIP-39 list that are no English BIP-39 seed.
     BadChecksum,
+    /// 24 English words that are an LND aezeed by its own checksum.
+    Aezeed,
     /// A WIF private key.
     Wif,
     /// An extended private key.
@@ -91,6 +93,7 @@ impl Kind {
                 | Kind::Codex32Share
                 | Kind::Slip39Share
                 | Kind::BadChecksum
+                | Kind::Aezeed
                 | Kind::Wif
                 | Kind::Xprv
                 | Kind::UrSeed
@@ -120,6 +123,7 @@ impl Kind {
             Kind::Codex32Share => EN.read_codex32_share,
             Kind::Slip39Share => EN.read_slip39_share,
             Kind::BadChecksum => EN.read_bad_checksum,
+            Kind::Aezeed => EN.read_aezeed,
             Kind::Wif => EN.read_private_key,
             Kind::Xprv => EN.read_xprv,
             Kind::UrSeed => EN.read_ur_seed,
@@ -198,7 +202,13 @@ pub(crate) fn secret_text_kind(c: &Compute, text: &str) -> Option<Kind> {
     }
     let words: Vec<&str> = t.split_whitespace().collect();
     if matches!(words.len(), 12 | 15 | 18 | 21 | 24) && on_a_word_list(&words) {
-        return Some(Kind::BadChecksum);
+        // 24 words whose BIP-39 checksum fails may be an aezeed, which
+        // has its own (`docs/SCANNING.md` §4.2).
+        return Some(if is_aezeed(&words) {
+            Kind::Aezeed
+        } else {
+            Kind::BadChecksum
+        });
     }
     if let Ok(s) = faraday_bip::codex32::Codex32::parse(t) {
         return Some(if s.is_secret() {
@@ -223,6 +233,28 @@ pub(crate) fn secret_text_kind(c: &Compute, text: &str) -> Option<Kind> {
         });
     }
     None
+}
+
+/// A lookup per word and a CRC-32C over 29 bytes. Whether the words are
+/// an LND aezeed: 24 words of the English list, its version byte and its
+/// CRC-32C holding (`faraday_bip::aezeed::checksum_holds`).
+fn is_aezeed(words: &[&str]) -> bool {
+    let mut idx = [0u16; faraday_bip::aezeed::NUM_WORDS];
+    if words.len() != idx.len() {
+        return false;
+    }
+    for (slot, w) in idx.iter_mut().zip(words) {
+        match Language::English.index_of(&zeroize::Zeroizing::new(w.to_lowercase())) {
+            Some(i) => *slot = i,
+            None => {
+                zeroize::Zeroize::zeroize(&mut idx);
+                return false;
+            }
+        }
+    }
+    let holds = faraday_bip::aezeed::checksum_holds(&idx);
+    zeroize::Zeroize::zeroize(&mut idx);
+    holds
 }
 
 /// Whether every word is on one of the BIP-39 lists Faraday reads, in any
@@ -313,6 +345,8 @@ pub enum Way {
     Share,
     /// A WIF private key to the Sweep sheet.
     Sweep,
+    /// An LND aezeed to Lightning, typed in.
+    Lightning,
     /// A TOTP setup code or vault entries into the open vault, named.
     AddTo(String),
     /// Vault file n unlocked first, named; the code carried through.
@@ -344,6 +378,7 @@ impl Way {
             Way::Key => EN.read_go_key.to_string(),
             Way::Share => EN.read_go_share.to_string(),
             Way::Sweep => EN.catalog_sweep_key.to_string(),
+            Way::Lightning => EN.read_go_lightning.to_string(),
             Way::AddTo(v) => crate::strings::fill(EN.read_go_vault, &[v]),
             Way::Unlock(_, v) => crate::strings::fill(EN.read_go_unlock, &[v]),
             Way::MakeVault => EN.read_go_make_vault.to_string(),
