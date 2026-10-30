@@ -84,9 +84,10 @@ decision F109):
   New cryptographic code lands with its check; a gap found later is
   closed before 1.0, not a block on every release.
 - **Otherwise it waits in the repository.** Work on a feature whose
-  standard is unpublished, or whose construction is Faraday's own and not
-  yet reviewed, stays in the repository, built and tested but compiled
-  out of the app, until its standard is published or it is reviewed.
+  standard is unpublished, or whose specification is Faraday's own and not
+  yet reviewed outside Faraday, stays in the repository, built and tested
+  but compiled out of the app, until its standard is published or it is
+  reviewed.
 - **Scope** (F116). Faraday is an offline signer and keeper of keys: a
   person's Bitcoin wallets and their backups first, and the other keys a
   person keeps offline beside them: an OpenPGP key (signing with GnuPG),

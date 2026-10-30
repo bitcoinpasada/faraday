@@ -922,15 +922,20 @@ commit and already reads the guide from the pin. It reads:
 - the SHA-256 of actions.toml's bytes at the pin, written into each
   rendered page that shows a block or the standards.
 
+The page /standards is generated from the pin too, never by hand:
+STANDARDS §0's summary, points and §0.1, a card for each row of §2 to
+§5 from the manifest, §6, §7 and §9, and the checks in
+`docs/CROSSCHECK.md` §10 and `tools/crosscheck/README.md`; its build
+stops on a shape it does not know.
+
 The standards page lists the actions that are in the repository and not
 in the app (an entry with no screens) under their own heading, "In the
 repository, not in the app", with their blocks (owner, 2026-10-28).
 
-To be done there, later: render the blocks on the Learn pages and the
-standards page from the pinned manifest; record the manifest's hash in
-the rendered output; and make its publish step (its
-tools/publish-pages.sh) refuse when a page's recorded hash is not the
-pin's manifest's.
+To be done there, later: render the blocks on the Learn pages from the
+pinned manifest. The standards page and /cryptography are rendered from
+it, each records the manifest's hash, and the publish step
+(tools/publish-pages.sh) refuses a page whose hash is not the pin's.
 
 ### 11.1 The page /cryptography
 

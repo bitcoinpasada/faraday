@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""docs/STANDARDS.md §0, held (F79, F109, F136): four checks over the tree
+"""docs/STANDARDS.md §0, held (F79, F109, F136): five checks over the tree
 and the crypto inventory, against the lists in `tools/lint-standards.toml`.
 
-    lint-standards.py [--inventory FILE]     the self-test, then the four checks
+    lint-standards.py [--inventory FILE]     the self-test, then the five checks
     lint-standards.py --self-test            the checks over a small fixture
 
 1. **Cross-check coverage.** A crate whose normal dependencies include a
@@ -27,6 +27,11 @@ and the crypto inventory, against the lists in `tools/lint-standards.toml`.
    still be in a file (the code or the document that disagrees); §8 has
    one bullet for each. A fix that removes the text fails until §8 and the
    entry go.
+5. **§0's shape, which the website reads.** §0 opens with its summary of
+   two sentences between the `standards-summary` markers, and each point of
+   its rule starts with its bold lead (`- **Lead.** text`): the website's
+   /standards and /cryptography are generated from them at the pinned
+   commit and stop without them.
 
 The inventory is `crypto-inventory --all` (tools/costs-lint): every shipped
 function of every crate, `cfg(test)` and the crates no binary ships left
@@ -304,6 +309,41 @@ def check_disagreements(root, data):
     return errs
 
 
+# --------------------------------------------------------------- check 5
+
+SUMMARY = re.compile(r"^<!-- standards-summary: begin -->\n(.*?)\n<!-- standards-summary: end -->$",
+                     re.M | re.S)
+
+
+def sentences(text):
+    """The sentences of one paragraph: a stop, then a space and a capital."""
+    text = " ".join(text.split())
+    return [s for s in re.split(r"(?<=[.!?])\s+(?=[A-Z])", text) if s]
+
+
+def check_rule(root):
+    """§0's summary between its markers, two sentences, and a bold lead on every point of
+    its rule (the bullets before §0.1)."""
+    sec = section((root / "docs" / "STANDARDS.md").read_text(), 0)
+    if sec is None:
+        return ["docs/STANDARDS.md has no §0"]
+    errs = []
+    m = SUMMARY.search(sec)
+    if not m or not m.group(1).strip():
+        errs.append("STANDARDS §0 has no summary between its standards-summary markers, "
+                    "which the website's /standards and /cryptography read")
+    elif len(sentences(m.group(1))) != 2:
+        errs.append(f"STANDARDS §0's summary is {len(sentences(m.group(1)))} sentences; "
+                    "it is two, which the website's pages show as they are")
+    points = re.findall(r"^- (.*)$", sec.split("\n### ", 1)[0], re.M)
+    if not points:
+        errs.append("STANDARDS §0 has no points of its rule (a bullet list before §0.1)")
+    for p in points:
+        if not re.match(r"\*\*[^*]+\*\*", p):
+            errs.append(f"STANDARDS §0: a point of the rule has no bold lead: {p[:60]}")
+    return errs
+
+
 # ------------------------------------------------------------------ main
 
 def run(root, inv_path):
@@ -320,6 +360,7 @@ def run(root, inv_path):
     errs += check_out_of_app(root, data, fns, c.by_id)
     errs += check_holds(root, data)
     errs += check_disagreements(root, data)
+    errs += check_rule(root)
     return errs, data
 
 
@@ -400,6 +441,21 @@ def self_test():
         expect(len(e) == 1, "a changed disagreement")
         e = check_disagreements(root, {})
         expect(len(e) == 1, "a bullet with no entry")
+        rule = ("## 0. What goes in\n\n<!-- standards-summary: begin -->\nOne sentence. And a second\n"
+                "one.\n<!-- standards-summary: end -->\n\n- **A point.** Its text\n  goes on.\n"
+                "- **Another** (F1). Text.\n\n### 0.1 Left out\n\n- not a point\n\n## 1. Next\n")
+        (root / "docs" / "STANDARDS.md").write_text(rule)
+        e = check_rule(root)
+        expect(e == [], f"a summary and its points: {e}")
+        (root / "docs" / "STANDARDS.md").write_text(rule.replace("<!-- standards-summary: end -->", ""))
+        e = check_rule(root)
+        expect(len(e) == 1 and "no summary" in e[0], f"a missing marker: {e}")
+        (root / "docs" / "STANDARDS.md").write_text(rule.replace(" And a second\none.", ""))
+        e = check_rule(root)
+        expect(len(e) == 1 and "1 sentences" in e[0], f"one sentence: {e}")
+        (root / "docs" / "STANDARDS.md").write_text(rule.replace("- **Another** (F1).", "- Another (F1)."))
+        e = check_rule(root)
+        expect(len(e) == 1 and "no bold lead" in e[0], f"a point with no lead: {e}")
     for f in fails:
         print(f"lint-standards self-test: {f}")
     print("lint-standards self-test: " + ("FAILED" if fails else "ok"))

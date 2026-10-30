@@ -352,10 +352,10 @@ blocking = true
 [[consumer]]
 id = "website.standards"
 name = "the website's standards page"
-reads = ["docs/STANDARDS.md"]
-act = "the standards page is edited to match (rendered from the manifest once F148 is built)"
+reads = ["docs/STANDARDS.md", "docs/crypto/actions.toml", "docs/crypto/gen.py", "docs/crypto/gen_how.py", "docs/CROSSCHECK.md", "tools/crosscheck/README.md", "tools/crosscheck/area_*.py", "Cargo.lock"]
+act = "the page is generated again from the pinned STANDARDS, manifest and cross-check documents; a shape it does not know stops its build (docs/CRYPTO-LEARN.md §11)"
 blocking = true
-site_with = ["web/standards.html"]
+site_with = ["tools/standards.py", "web/standards.html"]
 
 [[consumer]]
 id = "website.cryptography"
