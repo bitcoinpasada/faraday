@@ -322,3 +322,60 @@ fn a_masked_field_moves_its_caret_and_shows_nothing_of_what_is_typed() {
     app.event(Event::Key(Key::Backspace));
     assert_eq!(&*app.lightning().unwrap().passphrase, "axc");
 }
+
+/// How many carets the screen shows at `now`: the marks that come and go
+/// between the caret on, just after a key, and off half a second later,
+/// each counted once however many pixels it covers.
+fn carets_shown(app: &mut Faraday, now: u64) -> usize {
+    tick(app, now);
+    app.event(Event::Key(Key::Char('a')));
+    app.event(Event::Key(Key::Backspace));
+    let (w, h, on) = {
+        let f = app.frame();
+        (usize::from(f.width), usize::from(f.height), f.rgba.to_vec())
+    };
+    tick(app, now + 540);
+    let off = pixels(app);
+    let mut seen: Vec<bool> = (0..w * h)
+        .map(|i| on[i * 4..i * 4 + 4] == off[i * 4..i * 4 + 4])
+        .collect();
+    let mut marks = 0;
+    for start in 0..w * h {
+        if seen[start] {
+            continue;
+        }
+        marks += 1;
+        seen[start] = true;
+        let mut todo = vec![start];
+        while let Some(i) = todo.pop() {
+            let (x, y) = (i % w, i / w);
+            for nx in x.saturating_sub(1)..(x + 2).min(w) {
+                for ny in y.saturating_sub(1)..(y + 2).min(h) {
+                    let j = ny * w + nx;
+                    if !seen[j] {
+                        seen[j] = true;
+                        todo.push(j);
+                    }
+                }
+            }
+        }
+    }
+    marks
+}
+
+/// Add a key's word grid shows one caret, in the cell being typed into,
+/// and none in the empty cells after it: with nothing typed, and with a
+/// word taken.
+#[test]
+fn a_word_grid_shows_one_caret_in_the_cell_being_typed() {
+    let mut app = testkit::started();
+    tick(&mut app, 1_000);
+    app.press(Action::Nav(Screen::WalletsStart));
+    app.press(Action::Entry(None));
+    let _ = app.frame();
+    assert_eq!(carets_shown(&mut app, 1_000), 1, "with nothing typed");
+    for c in "abandon ".chars() {
+        app.event(Event::Key(Key::Char(c)));
+    }
+    assert_eq!(carets_shown(&mut app, 3_000), 1, "with a word taken");
+}

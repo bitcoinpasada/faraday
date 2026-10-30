@@ -1214,9 +1214,11 @@ pub(crate) fn typed_cells(
         let next = starts.get(k + 1).copied().unwrap_or(n + 1);
         let last_partial = typing_word && k + 1 == words.len();
         // The caret in this word: from its start to its end, or in the
-        // spaces after it; at the end after a space, in the next cell.
+        // spaces after it; at the end after a space, in the next cell. A
+        // cell with no word yet holds none of the text, so only the one
+        // being typed into shows it.
         let end_space = at == n && typed.ends_with(' ') && k + 1 == words.len();
-        let here = caret && at >= first && at < next && !end_space;
+        let here = caret && k < words.len() && at >= first && at < next && !end_space;
         let empty = caret && current && at == n;
         typed_cell(
             ui,
