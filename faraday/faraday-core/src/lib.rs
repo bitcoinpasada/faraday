@@ -131,7 +131,7 @@ mod version;
 mod compact;
 mod compute;
 pub mod copy_check;
-mod edit;
+pub mod edit;
 mod fade;
 pub mod file_menu;
 pub mod flow;
@@ -2931,6 +2931,7 @@ impl Faraday {
             | Action::SetTimeBack) => self.time_act(a),
             a @ (Action::OpenCodes | Action::CodesOpen(..) | Action::CodesAdd) => self.codes_act(a),
             Action::Chart(c) => self.chart_act(c),
+            Action::TypeHere(h) => self.type_here(h),
             Action::Glance(open) => {
                 self.glance.set_open(open && self.screen == Screen::Wallets);
                 self.list_offset = 0.0;
@@ -4934,10 +4935,7 @@ impl Faraday {
         if self.learn_key(key) || self.keygen_walk_key(key) || self.scroll_key(key) {
             return;
         }
-        if self.board_key(key) || self.gpg_restore_key(key) {
-            return;
-        }
-        if self.chart_key(key) {
+        if self.board_key(key) || self.gpg_restore_key(key) || self.chart_key(key) {
             return;
         }
         if self.potential_key(key) {
@@ -5398,7 +5396,7 @@ impl Faraday {
                         .is_some_and(|(l, t)| l == a && self.now_ms.saturating_sub(t) <= 450);
                     if field_action(a)
                         && let Some(dragged) =
-                            self.field_press(a, self.pointer.down_at().0, x, double)
+                            self.field_press(a, self.pointer.down_at(), (x, y), double)
                     {
                         self.pointer
                             .set_last_tap((!double && !dragged).then_some((a, self.now_ms)));
@@ -5408,8 +5406,8 @@ impl Faraday {
                     // A press on the screen's way out is Back (F77).
                     let a = self.as_back_at(a, found.map(|f| f.1));
                     self.press_in(a);
-                    if field_action(a) {
-                        self.field_press(a, x, x, false);
+                    if field_action(a) && !matches!(a, Action::BName(_)) {
+                        self.field_press(a, (x, y), (x, y), false);
                     }
                 }
             }

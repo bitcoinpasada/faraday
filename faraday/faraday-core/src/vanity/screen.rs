@@ -178,22 +178,39 @@ fn card(app: &View, v: &VanityState, ui: &mut Ui, s: u8, x: f32, y: f32, w: f32)
         vstep::PREFIX => {
             let fixed = v.grind.prefix.fixed_len(v.grind.script, net);
             let text = v.grind.prefix.as_str();
-            ui.fill(x, cy, w, 46.0, 8.0, Role::SurfaceContainerHighest);
-            ui.stroke(x, cy, w, 46.0, 8.0, Role::Primary);
+            // A small panel's card head above leaves its own press a touch
+            // target tall: the field stands under that.
+            if ui.compact {
+                let head = ui.line_as(faraday_draw::tokens::TITLE_M) + 10.0;
+                cy += (faraday_draw::tokens::TOUCH - head).max(0.0);
+            }
+            // A touch target tall: a press places the caret.
+            let fh = faraday_draw::tokens::TOUCH;
+            ui.fill(x, cy, w, fh, 8.0, Role::SurfaceContainerHighest);
+            ui.stroke(x, cy, w, fh, 8.0, Role::Primary);
             let fw = ui.text_mid_as(
-                (x + 14.0, cy, 46.0),
+                (x + 14.0, cy, fh),
                 BODY_L.mono(),
                 Role::OnSurfaceVariant,
                 &text[..fixed],
             );
-            let tw = ui.text_mid_as(
-                (x + 14.0 + fw, cy, 46.0),
-                BODY_L.mono(),
+            // The kind's fixed characters stand; the caret moves in what
+            // follows them (`docs/TEXT-CURSOR.md` §4, C2).
+            let here = Action::TypeHere(crate::edit::Here::Prefix);
+            ui.press_box(x, cy, w, fh, here);
+            ui.typed(
+                x + 14.0 + fw,
+                cy,
+                fh,
+                BODY_L.size,
+                crate::ui::W::M,
                 Role::OnSurface,
                 &text[fixed..],
+                w - 28.0 - fw,
+                true,
+                here,
             );
-            ui.caret(x + 16.0 + fw + tw, cy + 12.0, 22.0);
-            cy += 56.0;
+            cy += fh + 10.0;
             let expected = v.grind.expected(net);
             if v.grind.prefix.has_free(v.grind.script, net) {
                 ui.text_as(

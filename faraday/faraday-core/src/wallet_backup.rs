@@ -627,6 +627,11 @@ impl WalletBackupArea {
         self.state.as_mut()
     }
 
+    /// The open check's words typed back edited by `f` (`docs/TEXT-CURSOR.md`).
+    pub(crate) fn check_edit(&mut self, f: impl FnOnce(&mut copy_check::WordCheck)) -> Option<()> {
+        self.state.as_mut()?.check.as_mut().map(f)
+    }
+
     /// Opens the checklist on `state`.
     pub(crate) fn open(&mut self, state: BackupState) {
         self.state = Some(state);
@@ -1213,9 +1218,7 @@ impl WalletBackupArea {
 
     /// Clear: the open check starts again as `check`.
     pub(crate) fn check_restart(&mut self, check: Option<copy_check::WordCheck>) {
-        if let Some(b) = self.state.as_mut()
-            && b.check.is_some()
-        {
+        if let Some(b) = self.state.as_mut().filter(|b| b.check.is_some()) {
             b.check = check;
         }
     }

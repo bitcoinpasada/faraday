@@ -1597,19 +1597,34 @@ fn field(ui: &mut Ui, x: f32, y: f32, w: f32, label: &str, text: &str, hint: boo
     let h = FIELD_H;
     let by = y + lh;
     ui.field_box((x, by, w), true, None);
-    let shown = ui.fit_as(BODY_L, text, w - 2.0 * FIELD_PAD);
-    let tw = ui.text_mid_as(
-        (x + FIELD_PAD, by, h),
-        BODY_L,
-        if hint {
-            Role::OnSurfaceVariant
-        } else {
-            Role::OnSurface
-        },
-        &shown,
-    );
-    let cx = x + FIELD_PAD + if hint { 0.0 } else { tw };
-    ui.caret(cx, by + (h - BODY_L.size) / 2.0, BODY_L.size);
+    let room = w - 2.0 * FIELD_PAD;
+    let here = Action::TypeHere(crate::edit::Here::Chart);
+    ui.press_box(x, by, w, h, here);
+    if hint {
+        let shown = ui.fit_as(BODY_L, text, room);
+        ui.text_mid_as(
+            (x + FIELD_PAD, by, h),
+            BODY_L,
+            Role::OnSurfaceVariant,
+            &shown,
+        );
+        ui.caret(x + FIELD_PAD, by + (h - BODY_L.size) / 2.0, BODY_L.size);
+    } else {
+        // A passphrase comes as a dot a character, so the caret and a
+        // press fall between the characters (`docs/TEXT-CURSOR.md` §3).
+        ui.typed(
+            x + FIELD_PAD,
+            by,
+            h,
+            BODY_L.size,
+            crate::ui::W::R,
+            Role::OnSurface,
+            text,
+            room,
+            true,
+            here,
+        );
+    }
     lh + h
 }
 

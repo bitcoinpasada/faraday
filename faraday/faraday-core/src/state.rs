@@ -923,7 +923,10 @@ impl Faraday {
     /// already: Add a key adds it, New key opens its Key card.
     pub(crate) fn form_add_part(&mut self) {
         let c = self.compute();
-        if self.entry.add_part(&c) {
+        let correcting = self.entry.state().correction.is_open();
+        let done = self.entry.add_part(&c);
+        self.correction_from_top(correcting);
+        if done {
             self.form_complete();
             return;
         }
@@ -1066,6 +1069,14 @@ impl Faraday {
     /// A press on the codex32 form's correction (`docs/CODEX32.md`
     /// §8.4): a correction taken goes in as a string typed, with its mark.
     pub(crate) fn form_correct(&mut self, p: crate::codex32_correct::Press) {
+        // A group of the re-entry's boxes pressed: its box nearest the
+        // press, as the last frame drew it, takes the caret.
+        if let crate::codex32_correct::Press::Group(_) = p {
+            if let Some(i) = self.pressed_index(Action::Codex32Correct(p)) {
+                self.entry.state_mut().correction.caret_to_box(i + 1);
+            }
+            return;
+        }
         let c = self.compute();
         let out = self.entry.state_mut().correction.press(p);
         if self.entry.codex32_outcome(&c, out) {

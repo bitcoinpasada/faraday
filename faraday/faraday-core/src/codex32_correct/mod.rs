@@ -130,6 +130,10 @@ pub enum Press {
     Take,
     /// **Check the boxes**: the entry back, as typed, for editing.
     CheckBoxes,
+    /// A press on the re-entry's group of four boxes, the one from 0 in
+    /// the string: the caret goes to its box nearest the press
+    /// (`docs/TEXT-CURSOR.md`).
+    Group(u8),
 }
 
 /// What the form does after a press or a key.
@@ -185,21 +189,35 @@ pub enum BoxShown {
         /// Typing goes here now.
         next: bool,
     },
-    /// A changed box typed again.
-    Typed(u8),
+    /// A changed box typed again; typing goes here now when `next`.
+    Typed {
+        /// Its character.
+        ch: u8,
+        /// The caret is on it.
+        next: bool,
+    },
 }
 
-/// The changed boxes as typed again, wiped on drop.
+/// The changed boxes as typed again, a box empty while 0, and the box
+/// typing goes to (`at`), wiped on drop.
 #[derive(Default)]
 struct Retyped {
     chars: [u8; MAX_EDITS],
-    n: usize,
+    at: usize,
 }
 
 impl Retyped {
     fn clear(&mut self) {
         zeroize::Zeroize::zeroize(&mut self.chars);
-        self.n = 0;
+        self.at = 0;
+    }
+
+    /// How many of the first `total` boxes are typed.
+    fn filled(&self, total: usize) -> usize {
+        self.chars[..total.min(MAX_EDITS)]
+            .iter()
+            .filter(|&&c| c != 0)
+            .count()
     }
 }
 
@@ -390,8 +408,10 @@ impl Correction {
 
     /// The re-entry's boxes typed and how many there are to type.
     pub fn retyped(&self) -> (usize, usize) {
-        self.shown()
-            .map_or((0, 0), |s| (s.retyped.n, s.proposal.edits().len()))
+        self.shown().map_or((0, 0), |s| {
+            let total = s.proposal.edits().len();
+            (s.retyped.filled(total), total)
+        })
     }
 
     /// Whether the last re-entry differed from the proposal.
@@ -418,9 +438,12 @@ impl Correction {
         let edits = s.proposal.edits();
         match edits.iter().position(|e| e.position() == n) {
             None => Some(BoxShown::Locked(ch)),
-            Some(i) if i < s.retyped.n => Some(BoxShown::Typed(s.retyped.chars[i])),
+            Some(i) if s.retyped.chars[i] != 0 => Some(BoxShown::Typed {
+                ch: s.retyped.chars[i],
+                next: i == s.retyped.at,
+            }),
             Some(i) => Some(BoxShown::Open {
-                next: i == s.retyped.n,
+                next: i == s.retyped.at,
             }),
         }
     }
@@ -537,6 +560,24 @@ impl Correction {
         Outcome::Stay
     }
 
+    /// The re-entry's caret put on box `n` of the string (from 1), where
+    /// that box is one typed again; a box locked leaves it where it is.
+    pub fn caret_to_box(&mut self, n: usize) {
+        if let Some(s) = self.shown_mut()
+            && s.step == Step::Retype
+            && let Some(i) = s.proposal.edits().iter().position(|e| e.position() == n)
+        {
+            s.retyped.at = i;
+        }
+    }
+
+    /// Where box `n` of the string (from 1) is typed again, from 0, when
+    /// it is one of the re-entry's boxes. A lookup.
+    pub fn open_box(&self, n: usize) -> Option<usize> {
+        let s = self.shown()?;
+        s.proposal.edits().iter().position(|e| e.position() == n)
+    }
+
     /// A key while the correction's screen is up. In the re-entry: a
     /// bech32 character fills the next changed box, Backspace clears the
     /// last, and once every changed box is typed it is compared with the
@@ -553,13 +594,14 @@ impl Correction {
             (Step::Retype, Key::Char(ch)) => {
                 let ch = ch.to_ascii_lowercase();
                 let total = s.proposal.edits().len();
-                if !ch.is_ascii() || !BECH32.contains(&(ch as u8)) || s.retyped.n >= total {
+                if !ch.is_ascii() || !BECH32.contains(&(ch as u8)) || s.retyped.at >= total {
                     return Outcome::Stay;
                 }
-                s.retyped.chars[s.retyped.n] = ch as u8;
-                s.retyped.n += 1;
+                // The box at the caret takes it, and the caret moves on.
+                s.retyped.chars[s.retyped.at] = ch as u8;
+                s.retyped.at = (s.retyped.at + 1).min(total - 1);
                 s.differs = false;
-                if s.retyped.n == total {
+                if s.retyped.filled(total) == total {
                     let matches = s
                         .proposal
                         .edits()
@@ -576,10 +618,35 @@ impl Correction {
                 Outcome::Stay
             }
             (Step::Retype, Key::Backspace) => {
-                if s.retyped.n > 0 {
-                    s.retyped.n -= 1;
-                    s.retyped.chars[s.retyped.n] = 0;
+                // The box before the caret, or the last one typed where
+                // the caret is on a box typed at the end.
+                let total = s.proposal.edits().len();
+                let at = s.retyped.at;
+                let clear = if at + 1 == total && s.retyped.chars[at] != 0 {
+                    at
+                } else {
+                    at.saturating_sub(1)
+                };
+                if let Some(c) = s.retyped.chars.get_mut(clear) {
+                    *c = 0;
                 }
+                s.retyped.at = clear;
+                Outcome::Stay
+            }
+            (Step::Retype, Key::Delete) => {
+                if let Some(c) = s.retyped.chars.get_mut(s.retyped.at) {
+                    *c = 0;
+                }
+                Outcome::Stay
+            }
+            (Step::Retype, Key::Left | Key::Right | Key::Home | Key::End) => {
+                let last = s.proposal.edits().len().saturating_sub(1);
+                s.retyped.at = match k {
+                    Key::Left => s.retyped.at.saturating_sub(1),
+                    Key::Right => (s.retyped.at + 1).min(last),
+                    Key::Home => 0,
+                    _ => last,
+                };
                 Outcome::Stay
             }
             (Step::Caution | Step::Repairs, Key::Enter) => self.press(Press::Continue),

@@ -215,17 +215,24 @@ fn typing(live: &RestoreLive, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
         None => fill(EN.gpg_restore_line, &[&n]),
     };
     cy += ui.field_label(x, cy, &label);
-    // As on paper: the digits wrap, in the mono face.
-    let caret = if live.focused { ui.caret_char() } else { "" };
-    let shown = format!("{}{caret}", live.typed());
+    // As on paper: the digits wrap, in the mono face, broken once; the
+    // caret moves in them and a press places it (`docs/TEXT-CURSOR.md`).
     let role = BODY_L.mono();
     let room = w - 2.0 * FIELD_PAD;
-    let text_h = ui.wrap_height_as(role, &shown, room);
+    let laid = ui.wrapped_as(role, live.typed(), room);
+    let text_h = laid.h;
     let one = ui.line_as(role);
+    let field = ra(R::Field);
     if text_h <= one {
         let used = ui.field_box((x, cy, w), live.focused, live.error());
-        ui.text_mid_as((x + FIELD_PAD, cy, FIELD_H), role, Role::OnSurface, &shown);
-        ui.press_box(x, cy, w, FIELD_H, ra(R::Field));
+        ui.press_box(x, cy, w, FIELD_H, field);
+        let top = cy + (FIELD_H - one) / 2.0;
+        ui.draw_typed(
+            (x + FIELD_PAD, top),
+            Role::OnSurface,
+            &laid,
+            (live.focused, field),
+        );
         cy += used + GAP;
     } else {
         // A box that grows with the lines, its edge as the field's.
@@ -238,9 +245,14 @@ fn typing(live: &RestoreLive, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
         let inset = FIELD_EDGE_ACTIVE / 2.0;
         let (bx, bw, bh) = (x + inset, w - FIELD_EDGE_ACTIVE, box_h - FIELD_EDGE_ACTIVE);
         ui.stroke(bx, cy + inset, bw, bh, FIELD_RADIUS, edge);
+        ui.press_box(x, cy, w, box_h, field);
         let top = cy + (FIELD_H - one) / 2.0;
-        ui.wrap_as((x + FIELD_PAD, top, room), role, Role::OnSurface, &shown);
-        ui.press_box(x, cy, w, box_h, ra(R::Field));
+        ui.draw_typed(
+            (x + FIELD_PAD, top),
+            Role::OnSurface,
+            &laid,
+            (live.focused, field),
+        );
         cy += box_h;
         if let Some(e) = live.error() {
             cy += FIELD_GAP;

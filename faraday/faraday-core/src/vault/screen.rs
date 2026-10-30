@@ -199,11 +199,8 @@ fn text_area(
     action: Action,
 ) -> f32 {
     let (ink, primary, rule) = (Role::OnSurface, Role::Primary, Role::OutlineVariant);
-    let mut shown = b.text.clone();
-    if focused {
-        shown.push_str(ui.caret_char());
-    }
-    let th = ui.wrap_as((x + 12.0, y + 10.0, w - 24.0), BODY_M, ink, &shown);
+    let room = (x + 12.0, y + 10.0, w - 24.0);
+    let th = ui.typed_lines(room, BODY_M, ink, &b.text, (focused, action));
     let h = (th + 20.0).max(96.0);
     ui.stroke(x, y, w, h, 8.0, if focused { primary } else { rule });
     ui.press_box(x, y, w, h, action);

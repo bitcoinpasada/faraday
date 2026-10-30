@@ -831,6 +831,9 @@ pub enum Action {
     PotentialShow,
     /// Typing goes to the potential wallet's passphrase.
     PotentialType,
+    /// A press on a field that takes typing with no press to focus it:
+    /// the caret goes where it lands (`docs/TEXT-CURSOR.md` §4, C2).
+    TypeHere(crate::edit::Here),
     /// Make the potential wallet, or open the backup.
     PotentialMake,
     /// Decode the transaction in this Inbox file.

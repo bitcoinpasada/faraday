@@ -35,6 +35,8 @@ pub struct Wrapped<'s> {
     s: &'s str,
     role: TypeRole,
     lines: Vec<(usize, usize)>,
+    /// The width it was broken at.
+    width: f32,
     /// The lines times the role's line height, as [`Ui::wrap_as`] returns.
     pub h: f32,
 }
@@ -272,7 +274,13 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
         let face = self.font(role.size, role.face.into()).sized(self.c.scale());
         let lines = text::wrap(&face, s, self.px(width));
         let h = lines.len() as f32 * self.line_as(role);
-        Wrapped { s, role, lines, h }
+        Wrapped {
+            s,
+            role,
+            lines,
+            width,
+            h,
+        }
     }
 
     /// `laid` drawn in `color` with its first line's top at (x, y), as
@@ -292,6 +300,131 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
             let ly = self.px(y + self.oy + i as f32 * line);
             self.c
                 .text_with_face(&face, x0, ly, &laid.s[start..end], color);
+        }
+    }
+
+    /// Several lines of typing (`docs/TEXT-CURSOR.md` §3): `text`, dots
+    /// already for a masked field, in `role` wrapped to `width` as
+    /// [`Ui::wrap_as`] wraps it, from (x, y). While `focused`, what is
+    /// selected is drawn behind it and the caret at its place. Where
+    /// each line's characters start is kept for `action` with the line's
+    /// rows, so a press there places the caret and Up and Down find the
+    /// line above and below. Returns the height used.
+    pub fn typed_lines(
+        &mut self,
+        (x, y, width): (f32, f32, f32),
+        role: TypeRole,
+        color: impl Into<Paint>,
+        text: &str,
+        typing: (bool, A),
+    ) -> f32 {
+        let laid = self.wrapped_as(role, text, width);
+        self.draw_typed((x, y), color, &laid, typing);
+        laid.h
+    }
+
+    /// `laid`, broken once by [`Ui::wrapped_as`], drawn as several lines
+    /// of typing from (x, y), as [`Ui::typed_lines`] draws it: what is
+    /// selected, the caret while `focused`, and each line's edges kept
+    /// for `action`.
+    pub fn draw_typed(
+        &mut self,
+        (x, y): (f32, f32),
+        color: impl Into<Paint>,
+        laid: &Wrapped<'_>,
+        (focused, action): (bool, A),
+    ) {
+        let (text, role, width) = (laid.s, laid.role, laid.width);
+        let lines = &laid.lines;
+        let ink = self.ink(color.into());
+        let selected_ink = self.ink(crate::SELECTION_INK.paint());
+        let face = self.font(role.size, role.face.into()).sized(self.c.scale());
+        let line = self.line_as(role);
+        let edit = if focused {
+            self.edit
+        } else {
+            crate::Edit::default()
+        };
+        let n = text.chars().count();
+        let caret = edit.caret_in(n);
+        let selected = edit.selected(n);
+        let x0 = self.px(x + self.ox);
+        // The character index each line starts at, counted once.
+        let mut index = 0usize;
+        let mut byte = 0usize;
+        let mut caret_at: Option<(f32, f32)> = None;
+        for (i, &(start, end)) in lines.iter().enumerate() {
+            index += text[byte..start].chars().count();
+            let ly = y + i as f32 * line;
+            // Each edge's column, by the characters' advances.
+            let mut pen = 0u32;
+            let mut cols = vec![0.0f32];
+            for c in text[start..end].chars() {
+                pen += face.advance_64(c);
+                cols.push(text::px_from_64(pen) as f32 / self.f);
+            }
+            let count = cols.len() - 1;
+            if let Some((lo, hi)) = selected {
+                let (a, b) = (
+                    lo.clamp(index, index + count),
+                    hi.clamp(index, index + count),
+                );
+                if b > a {
+                    let (l, r) = (cols[a - index], cols[b - index]);
+                    self.selection_band(x + l, ly, r - l, line);
+                }
+            }
+            let py = self.px(y + self.oy + i as f32 * line);
+            self.c.text_with_face(&face, x0, py, &text[start..end], ink);
+            if let Some((lo, hi)) = selected {
+                let (a, b) = (
+                    lo.clamp(index, index + count),
+                    hi.clamp(index, index + count),
+                );
+                if b > a {
+                    let (l, r) = (cols[a - index], cols[b - index]);
+                    let clip = self.rect(x + l, ly, r - l, line);
+                    self.c.push_clip(clip);
+                    self.c
+                        .text_with_face(&face, x0, py, &text[start..end], selected_ink);
+                    self.c.pop_clip();
+                }
+            }
+            // The caret stands on the line it falls in, or at the start
+            // of the next where a line ends at a break.
+            let last = i + 1 == lines.len();
+            if caret >= index && (caret < index + count || (caret == index + count && last)) {
+                caret_at = Some((x + cols[caret - index], ly));
+            } else if caret_at.is_none() && caret >= index + count {
+                // After the line, in the spaces a break leaves out: at
+                // its end, and as far on as the spaces go.
+                let gap: u32 = text[end..]
+                    .chars()
+                    .take(caret - index - count)
+                    .map(|c| face.advance_64(c))
+                    .sum();
+                let past = (text::px_from_64(pen + gap) as f32 / self.f).min(width);
+                caret_at = Some((x + past, ly));
+            }
+            let band = (py, self.px(y + self.oy + (i + 1) as f32 * line));
+            let edges = cols.iter().map(|c| self.px(x + c + self.ox)).collect();
+            self.fields.push(crate::FieldAt {
+                action,
+                first: index,
+                edges,
+                band: Some(band),
+            });
+            index += count;
+            byte = end;
+        }
+        if focused {
+            self.note_focus(x, y, width, lines.len() as f32 * line);
+            self.focus_action = Some(action);
+            if selected.is_none() {
+                let (cx, cy) = caret_at.unwrap_or((x, y));
+                let h = role.size * self.text_factor();
+                self.caret(cx, cy + (line - h) / 2.0, h);
+            }
         }
     }
 

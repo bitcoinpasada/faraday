@@ -124,7 +124,7 @@ pub fn panel<A: Copy + PartialEq>(
         Some(step @ (Step::Pairs | Step::Repairs)) => {
             proposal(ui, (x, y, width), c, step == Step::Pairs, &to)
         }
-        Some(Step::Retype) => retype(ui, (x, y, width), c, check),
+        Some(Step::Retype) => retype(ui, (x, y, width), c, (check, &to)),
     }
 }
 
@@ -212,10 +212,10 @@ fn retype<A: Copy + PartialEq>(
     ui: &mut Ui<A>,
     (x, y, width): (f32, f32, f32),
     c: &Correction,
-    check: (&str, Style, A),
+    (check, to): ((&str, Style, A), &impl Fn(Press) -> A),
 ) -> f32 {
     let mut h = heading(ui, x, y, width, EN.codex32_correct_type_again);
-    h += boxes(ui, x, y + h, width, c);
+    h += boxes(ui, (x, y + h, width), c, to);
     h += CORRECT_GAP;
     let (typed, total) = c.retyped();
     h += ui.wrap_as(
@@ -322,12 +322,56 @@ fn pairs<A: Copy + PartialEq>(
     h
 }
 
+/// Box `n`'s number under it, the box at (x, y).
+fn box_number<A: Copy + PartialEq>(ui: &mut Ui<A>, (x, y): (f32, f32), n: usize) {
+    let num = n.to_string();
+    let tw = ui.measure_as(LABEL_S.regular(), &num);
+    let at = (
+        x + (CORRECT_BOX - tw) / 2.0,
+        y + CORRECT_BOX,
+        CORRECT_NUMBER_ROW,
+    );
+    ui.text_mid_as(at, LABEL_S.regular(), Role::OnSurfaceVariant, &num);
+}
+
+/// A group of the re-entry's boxes with one to type again, from box `i`
+/// (from 0) at (x, y), `h` tall: pressed whole, a touch target tall, its
+/// boxes' middles kept so the box nearest the press takes the caret
+/// (`docs/TEXT-CURSOR.md`).
+fn group_press<A: Copy + PartialEq>(
+    ui: &mut Ui<A>,
+    (x, y, h): (f32, f32, f32),
+    i: usize,
+    to: &impl Fn(Press) -> A,
+) {
+    let a = to(Press::Group(u8::try_from(i / 4).unwrap_or(u8::MAX)));
+    ui.press_box(x, y, CORRECT_GROUP, h, a);
+    let edges = (0..4)
+        .map(|j| {
+            let mid = x + j as f32 * (CORRECT_BOX + CORRECT_BOX_GAP) + CORRECT_BOX / 2.0;
+            ui.px(mid + ui.ox)
+        })
+        .collect();
+    let band = (ui.px(y + ui.oy), ui.px(y + h + ui.oy));
+    ui.fields.push(faraday_ui::FieldAt {
+        action: a,
+        first: i,
+        edges,
+        band: Some(band),
+    });
+}
+
 /// The string's boxes in groups of four, wrapped at the width: each box
 /// not changed locked with its character, each changed one open (the one
 /// typed into next edged in the accent) or as typed again, with its
 /// number under it. On a narrow panel, only the groups with a box to
 /// type again.
-fn boxes<A: Copy + PartialEq>(ui: &mut Ui<A>, x: f32, y: f32, width: f32, c: &Correction) -> f32 {
+fn boxes<A: Copy + PartialEq>(
+    ui: &mut Ui<A>,
+    (x, y, width): (f32, f32, f32),
+    c: &Correction,
+    to: &impl Fn(Press) -> A,
+) -> f32 {
     let (ink, muted) = (Role::OnSurface, Role::OnSurfaceVariant);
     let group = CORRECT_GROUP;
     let per_row = ((width + CORRECT_GROUP_GAP) / (group + CORRECT_GROUP_GAP))
@@ -360,6 +404,9 @@ fn boxes<A: Copy + PartialEq>(ui: &mut Ui<A>, x: f32, y: f32, width: f32, c: &Co
             + k as f32 * (CORRECT_BOX + CORRECT_BOX_GAP);
         let by = y + row as f32 * row_h;
         let side = CORRECT_BOX;
+        if k == 0 && (n..=(n + 3).min(len)).any(|b| c.open_box(b).is_some()) {
+            group_press(ui, (bx, by, row_h), i, to);
+        }
         ui.fill(
             bx,
             by,
@@ -385,7 +432,7 @@ fn boxes<A: Copy + PartialEq>(ui: &mut Ui<A>, x: f32, y: f32, width: f32, c: &Co
                 );
                 None
             }
-            BoxShown::Typed(ch) => {
+            BoxShown::Typed { ch, .. } => {
                 ui.stroke(
                     bx,
                     by,
@@ -397,6 +444,10 @@ fn boxes<A: Copy + PartialEq>(ui: &mut Ui<A>, x: f32, y: f32, width: f32, c: &Co
                 Some((ch, ink))
             }
         };
+        // The caret on the box typing goes to.
+        if let BoxShown::Open { next: true } | BoxShown::Typed { next: true, .. } = shown {
+            ui.caret(bx + 3.0, by + 3.0, CORRECT_BOX - 6.0);
+        }
         if let Some((ch, tone)) = ch {
             let mut buf = [0u8; 4];
             let s = char::from(ch).encode_utf8(&mut buf);
@@ -410,18 +461,7 @@ fn boxes<A: Copy + PartialEq>(ui: &mut Ui<A>, x: f32, y: f32, width: f32, c: &Co
             zeroize::Zeroize::zeroize(&mut buf);
         }
         if !matches!(shown, BoxShown::Locked(_)) {
-            let num = n.to_string();
-            let tw = ui.measure_as(LABEL_S.regular(), &num);
-            ui.text_mid_as(
-                (
-                    bx + (CORRECT_BOX - tw) / 2.0,
-                    by + CORRECT_BOX,
-                    CORRECT_NUMBER_ROW,
-                ),
-                LABEL_S.regular(),
-                muted,
-                &num,
-            );
+            box_number(ui, (bx, by), n);
         }
     }
     let rows = drawn.len().div_ceil(per_row).max(1);

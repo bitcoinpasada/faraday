@@ -90,7 +90,6 @@ small_240x320 Create CStep 6
 small_240x320 CreateVault Vault 5
 small_240x320 CreateVault WordList 3
 small_240x320 Entry EntryCandidate 17
-small_240x320 Entry EntryForm 1
 small_240x320 Family Cancel 1
 small_240x320 Family Family 3
 small_240x320 Files Vault 2
@@ -141,8 +140,6 @@ small_480x640 Create CStep 6
 small_480x640 CreateVault Vault 9
 small_480x640 CreateVault WordList 3
 small_480x640 Entry EntryCandidate 17
-small_480x640 Entry EntryForm 1
-small_480x640 Entry ScanSeed 1
 small_480x640 Family Cancel 1
 small_480x640 Family Family 4
 small_480x640 Family Seeds 1
@@ -223,12 +220,10 @@ stick_1024x600 CreateVault Osk 38
 stick_1024x600 CreateVault Vault 10
 stick_1024x600 CreateVault WordList 15
 stick_1024x600 Entry EntryCandidate 17
-stick_1024x600 Entry EntryForm 4
 stick_1024x600 Entry EntryKey 83
 stick_1024x600 Entry EntryKeyBack 1
 stick_1024x600 Entry EntryShift 1
 stick_1024x600 Entry Osk 38
-stick_1024x600 Entry ScanSeed 1
 stick_1024x600 Explore Osk 27
 stick_1024x600 Family Cancel 1
 stick_1024x600 Family Family 7

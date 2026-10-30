@@ -182,9 +182,11 @@ fn a_slip39_share_fills_then_the_set_s_second_share_and_the_key_loads() {
     app.press(Action::UseSample);
     let set = named("sample_slip39_two_of_three");
     assert_eq!(&*testkit::entry(&app).typed, set.parts[0]);
-    // The share is drawn as it is, not masked.
+    // The share is drawn as it is, not masked: its end, where the caret
+    // stands, in view.
     let shown = app.drawn_texts().join("\n");
-    assert!(shown.contains(&set.parts[0][..24]), "{shown}");
+    let end = &set.parts[0][set.parts[0].len() - 24..];
+    assert!(shown.contains(end), "{shown}");
     app.press(Action::EntryPart);
     let _ = app.frame();
     assert!(testkit::entry(&app).typed.is_empty());

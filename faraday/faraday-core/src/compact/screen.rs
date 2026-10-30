@@ -636,7 +636,9 @@ pub(crate) fn entry(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 )
             })
             .collect();
-        y += crate::screens::button_rows(ui, x, y, iw, &forms) - 4.0;
+        // The field under them takes a press: their own presses keep their
+        // room.
+        y += crate::screens::button_rows(ui, x, y, iw, &forms);
     }
     if es.form != Form::Words {
         let y = entry_form(app, ui, x, y, iw, None);
@@ -968,25 +970,18 @@ fn entry_field(app: &View, ui: &mut Ui, x: f32, y: f32, iw: f32, form: crate::fo
     if app.entry_sample_shown() {
         crate::samples::put::offer(ui, Action::UseSample);
     }
-    // What is typed may be a share or a seed's words: the copy drawn
-    // here is wiped when the frame is done with it.
-    let typed = if empty {
-        zeroize::Zeroizing::new(match form {
-            Form::Codex32 => "ms1…".to_string(),
-            _ => EN.compact_words_of_one.to_string(),
-        })
-    } else {
-        let held = app.entry.state().typed.as_str();
-        let caret = if on { ui.caret_char() } else { "" };
-        let mut t = zeroize::Zeroizing::new(String::with_capacity(held.len() + caret.len()));
-        t.push_str(held);
-        t.push_str(caret);
-        t
+    let here = Action::TypeHere(crate::edit::Here::Entry);
+    let hint = match form {
+        Form::Codex32 => "ms1…",
+        _ => EN.compact_words_of_one,
     };
+    let typed = &app.entry.state().typed;
     // Broken into lines once: the box and its press, under the text,
     // are as tall.
-    let laid = ui.wrapped_as(BODY_M.mono(), &typed, iw - 20.0);
-    let bh = laid.h.max(20.0) + 20.0;
+    let role = BODY_M.mono();
+    let laid = ui.wrapped_as(role, if empty { hint } else { typed }, iw - 20.0);
+    // A touch target tall at least (`docs/TEXT-CURSOR.md`).
+    let bh = (laid.h + 20.0).max(faraday_draw::tokens::TOUCH);
     ui.stroke(
         x,
         y,
@@ -999,20 +994,21 @@ fn entry_field(app: &View, ui: &mut Ui, x: f32, y: f32, iw: f32, form: crate::fo
             Role::OutlineVariant
         },
     );
-    if !on {
-        ui.press_box(x, y, iw, bh, Action::EntryPassphrase);
-    }
-    // The caret stands before the hint while nothing is typed.
-    if empty && on {
-        ui.caret(x + 10.0, y + 9.0, 18.0);
-    }
-    let tx = x + if empty && on { 16.0 } else { 10.0 };
-    let ink = if empty {
-        Role::OnSurfaceVariant
+    // A press places the caret, or moves typing here from the
+    // passphrase.
+    ui.press_box(x, y, iw, bh, here);
+    if empty {
+        // The caret stands before the hint while nothing is typed.
+        if on {
+            ui.caret(x + 10.0, y + 9.0, 18.0);
+        }
+        let tx = x + if on { 16.0 } else { 10.0 };
+        ui.draw_wrapped((tx, y + 10.0), Role::OnSurfaceVariant, &laid);
     } else {
-        Role::OnSurface
-    };
-    ui.draw_wrapped((tx, y + 10.0), ink, &laid);
+        // What is typed, read where it is held: the arrow keys move the
+        // caret, Up and Down a line (`docs/TEXT-CURSOR.md` §4, C3).
+        ui.draw_typed((x + 10.0, y + 10.0), Role::OnSurface, &laid, (on, here));
+    }
     y + bh + 10.0 + crate::screens::never_below(app, ui, x, y + bh, iw)
 }
 

@@ -65,23 +65,38 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         y += 34.0;
     }
     let err = app.explore_path().err();
-    let path = format!("m/{}{}", e.path, ui.caret_char());
     // The field is as wide as a path (`docs/LAYOUT.md` §8): on the wide
     // layout at least `PATH_FIELD_W`, wider as the path grows, never past
     // the column; the small panel's takes the panel.
     let fw = if compact {
         pw
     } else {
-        (ui.measure_as(BODY_L.mono(), &path) + 24.0).clamp(PATH_FIELD_W.min(pw), pw)
+        let whole = format!("m/{}|", e.path);
+        (ui.measure_as(BODY_L.mono(), &whole) + 24.0).clamp(PATH_FIELD_W.min(pw), pw)
     };
     // Dropped to the box's own width: its error line wraps under it.
     let boxed = ui.field_box((px, y, fw), true, err);
-    let path = ui.fit_as(BODY_L.mono(), &path, fw - 2.0 * FIELD_PAD);
-    ui.text_mid_as(
+    // `m/` stands fixed; the caret moves in what follows it, and a press
+    // places it there (`docs/TEXT-CURSOR.md` §4, C2).
+    let here = Action::TypeHere(crate::edit::Here::Path);
+    ui.press_box(px, y, fw, FIELD_H, here);
+    let mw = ui.text_mid_as(
         (px + FIELD_PAD, y, FIELD_H),
         BODY_L.mono(),
         Role::OnSurface,
-        &path,
+        "m/",
+    );
+    ui.typed(
+        px + FIELD_PAD + mw,
+        y,
+        FIELD_H,
+        BODY_L.size,
+        crate::ui::W::M,
+        Role::OnSurface,
+        &e.path,
+        fw - 2.0 * FIELD_PAD - mw,
+        true,
+        here,
     );
     y += boxed + 8.0;
     let presets: Vec<(String, Style, Action)> = PRESETS

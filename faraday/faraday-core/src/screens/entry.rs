@@ -193,6 +193,7 @@ pub(crate) fn entry_words(
             masked: false,
             caret: !app.entry.state().on_passphrase,
             never: app.seed_line,
+            press: Some(Action::TypeHere(crate::edit::Here::Words)),
         },
     );
     y += button_rows(ui, x, y, width, &langs);
@@ -304,6 +305,7 @@ fn keyed_words(
             masked: false,
             caret: !app.entry.state().on_passphrase,
             never: app.seed_line,
+            press: None,
         },
     );
     // The count and, when the words are a whole key, its checksum and
@@ -592,7 +594,9 @@ pub(crate) fn entry_form(
     }
     if !replaced {
         entry_field(app, ui, x, y, width, form);
-        y += 54.0 + never_below(app, ui, x, y + 44.0, width);
+        y += faraday_draw::tokens::TOUCH
+            + 10.0
+            + never_below(app, ui, x, y + faraday_draw::tokens::TOUCH, width);
     }
     if let Some(e) = &app.entry.state().error {
         y += ui.wrap_as((x, y, width), BODY_M, Role::Error, e) + 8.0;
@@ -719,13 +723,15 @@ pub(crate) fn entry_form(
 /// The field a share, string or part is typed into, 44 tall.
 fn entry_field(app: &View, ui: &mut Ui, x: f32, y: f32, width: f32, form: crate::forms::Form) {
     use crate::forms::Form;
-    // What is being typed.
-    ui.fill(x, y, width, 44.0, 8.0, Role::SurfaceContainerHighest);
+    // What is being typed, in a field a touch target tall: a press
+    // places the caret, or moves typing here from the passphrase.
+    let fh = faraday_draw::tokens::TOUCH;
+    ui.fill(x, y, width, fh, 8.0, Role::SurfaceContainerHighest);
     ui.stroke(
         x,
         y,
         width,
-        44.0,
+        fh,
         8.0,
         if app.entry.state().on_passphrase {
             Role::OutlineVariant
@@ -739,29 +745,37 @@ fn entry_field(app: &View, ui: &mut Ui, x: f32, y: f32, width: f32, form: crate:
     if app.entry_sample_shown() {
         crate::samples::put::offer(ui, Action::UseSample);
     }
+    let here = Action::TypeHere(crate::edit::Here::Entry);
+    ui.press_box(x, y, width, fh, here);
     let typed = if empty && on {
         // The caret stands before the hint while nothing is typed.
-        ui.caret(x + 12.0, y + 13.0, 18.0);
+        let c = faraday_draw::tokens::CARET_MIN;
+        ui.caret(x + 12.0, y + (fh - c) / 2.0, c);
         match form {
             Form::Codex32 => crate::secret_text::SecretText::of("ms1…"),
             _ => crate::secret_text::SecretText::of(EN.entry_form_one_share_words),
         }
     } else {
-        let mut t = crate::secret_text::SecretText::of(&app.entry.state().typed);
-        if on {
-            t.push_str(ui.caret_char());
-        }
-        t
+        // What is typed, read where it is held (`docs/TEXT-CURSOR.md`).
+        ui.typed(
+            x + faraday_draw::tokens::TYPED_INSET,
+            y,
+            fh,
+            BODY_M.size,
+            W::M,
+            Role::OnSurface,
+            &app.entry.state().typed,
+            width - 2.0 * faraday_draw::tokens::TYPED_INSET,
+            on,
+            here,
+        );
+        return;
     };
     let shown = ui.fit_secret(14.0, W::M, &typed, width - 24.0);
     ui.text_mid_as(
-        (x + if empty && on { 18.0 } else { 12.0 }, y, 44.0),
+        (x + if empty && on { 18.0 } else { 12.0 }, y, fh),
         BODY_M.mono(),
-        if app.entry.state().typed.is_empty() {
-            Role::OnSurfaceVariant
-        } else {
-            Role::OnSurface
-        },
+        Role::OnSurfaceVariant,
         &shown,
     );
 }

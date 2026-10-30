@@ -103,7 +103,7 @@ fn field(
     (x, y, width): (f32, f32, f32),
     text: &str,
     error: Option<&str>,
-    chip: bool,
+    (chip, here): (bool, Option<crate::edit::Here>),
 ) -> f32 {
     let used = ui.field_box((x, y, width), true, error);
     // Use a sample goes in the "Demo only" card while the field is empty
@@ -111,14 +111,37 @@ fn field(
     if chip {
         crate::samples::put::offer(ui, Action::UseSample);
     }
-    let shown = format!("{text}{}", ui.caret_char());
-    let shown = ui.fit_as(BODY_L.mono(), &shown, width - FIELD_PAD * 2.0);
-    ui.text_mid_as(
-        (x + FIELD_PAD, y, FIELD_H),
-        BODY_L.mono(),
-        Role::OnSurface,
-        &shown,
-    );
+    let room = width - FIELD_PAD * 2.0;
+    match here {
+        // A field with a caret to move: a press places it
+        // (`docs/TEXT-CURSOR.md` §4, C2).
+        Some(h) => {
+            ui.press_box(x, y, width, FIELD_H, Action::TypeHere(h));
+            ui.typed(
+                x + FIELD_PAD,
+                y,
+                FIELD_H,
+                BODY_L.size,
+                W::M,
+                Role::OnSurface,
+                text,
+                room,
+                true,
+                Action::TypeHere(h),
+            );
+        }
+        // A number stepped a page at a time, typed at its end.
+        None => {
+            let shown = format!("{text}{}", ui.caret_char());
+            let shown = ui.fit_as(BODY_L.mono(), &shown, room);
+            ui.text_mid_as(
+                (x + FIELD_PAD, y, FIELD_H),
+                BODY_L.mono(),
+                Role::OnSurface,
+                &shown,
+            );
+        }
+    }
     used + T::GAP
 }
 
@@ -148,7 +171,7 @@ pub(super) fn addresses(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     ui.text_as(x, y, BODY_S, Role::OnSurfaceVariant, EN.explore_from_index);
     y += T::PAD + T::GAP_SMALL;
     let fw = if ui.compact { width } else { width / 2.0 };
-    y += field(ui, (x, y, fw), &e.from.to_string(), None, false);
+    y += field(ui, (x, y, fw), &e.from.to_string(), None, (false, None));
     let page = PAGE.to_string();
     let steps = [
         (
@@ -185,7 +208,13 @@ pub(super) fn find(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     ui.text_as(x, y, BODY_S, Role::OnSurfaceVariant, EN.explore_address);
     y += T::PAD + T::GAP_SMALL;
     let chip = app.explore_sample_shown();
-    y += field(ui, (x, y, width), &e.query, e.note, chip);
+    y += field(
+        ui,
+        (x, y, width),
+        &e.query,
+        e.note,
+        (chip, Some(crate::edit::Here::Query)),
+    );
     let running = e.search.as_ref().is_some_and(Search::running);
     let mut acts = Vec::new();
     if app.clipboard {

@@ -193,6 +193,9 @@ pub struct RestoreLive {
     in_vault: Option<(usize, String)>,
     /// Typing goes to the line.
     pub(crate) focused: bool,
+    /// An edit inside the line is being typed through its keys: the line
+    /// does not end by itself until it is done (`docs/TEXT-CURSOR.md`).
+    held: bool,
     /// The fingerprint line 1 names, in groups of four, once it is
     /// checked: public. Kept in step with the lines at every line taken
     /// or cleared.
@@ -212,6 +215,7 @@ impl RestoreLive {
             refused: None,
             in_vault: None,
             focused: true,
+            held: false,
             fingerprint_shown: None,
         })
     }
@@ -287,8 +291,15 @@ impl RestoreLive {
         }
         self.typed.push(c.to_ascii_uppercase());
         self.error = None;
-        let d = digits(&self.typed);
-        if c.is_ascii_hexdigit() && d == 2 * self.expected() + 6 {
+        if c.is_ascii_hexdigit() && !self.held {
+            self.settle();
+        }
+    }
+
+    /// A line whole, its digits all in, ends by itself, as it would at its
+    /// last digit; one whose CRC does not match runs on.
+    fn settle(&mut self) {
+        if digits(&self.typed) == 2 * self.expected() + 6 {
             self.hand_in(true);
         }
     }
@@ -519,6 +530,18 @@ impl BackupFlowArea {
         self.restoring_mut(i)
             .ok_or_else(|| EN.gpg_restore_not_paperkey.to_string())?
             .paperkey_code(bytes)
+    }
+
+    /// Holds the line of restore flow `i` from ending by itself while an
+    /// edit inside it is typed (`on`), and once it is done lets it end
+    /// where it is whole and right, wherever the edit was made.
+    pub(crate) fn restore_hold(&mut self, i: usize, on: bool) {
+        if let Some(r) = self.restoring_mut(i) {
+            r.held = on;
+            if !on {
+                r.settle();
+            }
+        }
     }
 
     /// A key typed while step 4's line takes typing; whether it took it.

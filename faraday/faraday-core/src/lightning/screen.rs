@@ -7,7 +7,7 @@ use crate::screens::{button_rows, guide_text_learn};
 use crate::strings::EN;
 use crate::strings::fill;
 use crate::ui::pal::*;
-use crate::ui::{CoreUi, Style, Ui, W};
+use crate::ui::{Style, Ui, W};
 use faraday_draw::tokens as T;
 use faraday_draw::tokens::{BODY_M, BODY_S, BUTTON_H};
 
@@ -115,20 +115,44 @@ fn body(
             },
         );
         let n = l.typed.split_whitespace().count();
-        let shown = if l.typed.is_empty() {
-            crate::secret_text::SecretText::of(EN.lightning_the_24_words)
-        } else {
-            let mut s = l.typed.clone();
-            s.push_str(ui.caret_char());
-            s
-        };
-        let shown = ui.fit_secret(BODY_M.size, W::M, &shown, width - 90.0);
         // Use a sample goes in the "Demo only" card while the field is
         // empty (`docs/DEMO.md` §14).
         if app.lightning_sample_shown() {
             crate::samples::put::offer(ui, Action::UseSample);
         }
-        ui.text_mid_as((x + 12.0, y, 44.0), BODY_M.mono(), Role::OnSurface, &shown);
+        // A press places the caret, or moves typing here from the
+        // passphrase (`docs/TEXT-CURSOR.md` §4, C3).
+        let here = Action::TypeHere(crate::edit::Here::Aezeed);
+        let (tx, fh, room) = (
+            x + faraday_draw::tokens::TYPED_INSET,
+            faraday_draw::tokens::TEXT_FIELD_SHEET,
+            width - 90.0,
+        );
+        ui.press_box(x, y, room, fh, here);
+        if l.typed.is_empty() {
+            let hint = ui.fit_as(BODY_M.mono(), EN.lightning_the_24_words, room);
+            ui.text_mid_as((tx, y, fh), BODY_M.mono(), Role::OnSurface, &hint);
+            if !l.on_passphrase {
+                ui.caret(
+                    tx,
+                    y + (fh - faraday_draw::tokens::CARET_MIN) / 2.0,
+                    faraday_draw::tokens::CARET_MIN,
+                );
+            }
+        } else {
+            ui.typed(
+                tx,
+                y,
+                fh,
+                BODY_M.size,
+                W::M,
+                Role::OnSurface,
+                &l.typed,
+                room - faraday_draw::tokens::TYPED_INSET,
+                !l.on_passphrase,
+                here,
+            );
+        }
         ui.text_right_as(
             (x + width - 12.0, y, 44.0),
             BODY_S,
@@ -166,14 +190,35 @@ fn body(
         );
         if app.pass_is_public(&l.passphrase) {
             crate::screens::code_field(ui, px, y, pw, T::TEXT_FIELD, &l.passphrase);
+        } else if l.passphrase.is_empty() && !l.on_passphrase {
+            let p = ui.fit_as(
+                BODY_M.mono(),
+                EN.lightning_aezeed_lnd,
+                pw - 2.0 * faraday_draw::tokens::TYPED_INSET,
+            );
+            let at = (
+                px + faraday_draw::tokens::TYPED_INSET,
+                y,
+                faraday_draw::tokens::TEXT_FIELD,
+            );
+            ui.text_mid_as(at, BODY_M.mono(), Role::OnSurface, &p);
         } else {
-            let p = if l.passphrase.is_empty() && !l.on_passphrase {
-                EN.lightning_aezeed_lnd.to_string()
-            } else {
-                format!("{}{}", "•".repeat(l.passphrase.len()), ui.caret_char())
-            };
-            let p = ui.fit_as(BODY_M.mono(), &p, pw - 24.0);
-            ui.text_mid_as((px + 12.0, y, 40.0), BODY_M.mono(), Role::OnSurface, &p);
+            // A dot for each character, so the caret and a press fall
+            // between the characters they stand for (`docs/TEXT-CURSOR.md`
+            // §3).
+            let dots = "•".repeat(l.passphrase.chars().count());
+            ui.typed(
+                px + faraday_draw::tokens::TYPED_INSET,
+                y,
+                faraday_draw::tokens::TEXT_FIELD,
+                BODY_M.size,
+                W::M,
+                Role::OnSurface,
+                &dots,
+                pw - 2.0 * faraday_draw::tokens::TYPED_INSET,
+                l.on_passphrase,
+                Action::LPassphrase,
+            );
         }
         ui.press_box(px, y, pw, 40.0, Action::LPassphrase);
         app.pass_chip_draw(ui, l.passphrase.is_empty(), crate::demo::PassField::Aezeed);

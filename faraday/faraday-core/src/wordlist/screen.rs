@@ -199,13 +199,19 @@ fn search_field(
         let hint = ui.fit_as(BODY_L, st.list.search_hint(), inner);
         ui.text_mid_as((x + FIELD_PAD, y, h), BODY_L, Role::OnSurfaceVariant, &hint);
     } else {
-        let shown = format!("{}{}", st.find, ui.caret_char());
-        let shown = ui.fit_as(BODY_L.mono(), &shown, inner);
-        ui.text_mid_as(
-            (x + FIELD_PAD, y, h),
-            BODY_L.mono(),
+        let here = Action::TypeHere(crate::edit::Here::WordFind);
+        ui.press_box(x, y, fw, h, here);
+        ui.typed(
+            x + FIELD_PAD,
+            y,
+            h,
+            BODY_L.size,
+            crate::ui::W::M,
             Role::OnSurface,
-            &shown,
+            &st.find,
+            inner,
+            true,
+            here,
         );
     }
     fw

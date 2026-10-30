@@ -4,7 +4,7 @@ use crate::drawing::View;
 use crate::strings::{EN, fill};
 use crate::ui::Shape;
 use crate::ui::pal::*;
-use crate::ui::{CoreUi, Glyph, Style, Ui, W};
+use crate::ui::{Glyph, Style, Ui, W};
 use crate::wallet::fp_text;
 use crate::{Action, Screen};
 use faraday_draw::tokens as T;
@@ -70,7 +70,7 @@ fn potential_body(
             let shown = if p.shown {
                 zeroize::Zeroizing::new(p.passphrase.to_string())
             } else {
-                zeroize::Zeroizing::new("•".repeat(p.passphrase.chars().count().min(48)))
+                zeroize::Zeroizing::new("•".repeat(p.passphrase.chars().count()))
             };
             ui.fill(x, cy, iw, 44.0, 8.0, Role::SurfaceContainerHighest);
             ui.stroke(
@@ -85,12 +85,22 @@ fn potential_body(
                     Role::OutlineVariant
                 },
             );
-            let shown = ui.fit_secret(BODY_M.size, W::M, &shown, iw - 60.0);
-            let tw = ui.text_mid_as((x + 12.0, cy, 44.0), BODY_M.mono(), Role::OnSurface, &shown);
-            if p.typing {
-                ui.caret(x + 13.0 + tw, cy + 13.0, 18.0);
-            }
+            // A dot for each character, so the caret and a press fall
+            // between the characters they stand for (`docs/TEXT-CURSOR.md`
+            // §3).
             ui.press_box(x, cy, iw - 44.0, 44.0, Action::PotentialType);
+            ui.typed(
+                x + 12.0,
+                cy,
+                44.0,
+                BODY_M.size,
+                W::M,
+                Role::OnSurface,
+                &shown,
+                iw - 60.0,
+                p.typing,
+                Action::PotentialType,
+            );
             ui.icon(
                 x + iw - 44.0,
                 cy,

@@ -10,7 +10,9 @@ use faraday_core::stick::settings::FILE;
 use faraday_core::testkit;
 use faraday_core::vault::VaultAction as V;
 use faraday_core::{Action, Faraday, Screen, StickInfo, StorageCommand, StorageEvent};
-use faraday_shell_api::{App, BootState, DisplayInfo, EntropyBytes, Event, Key, SecureHardware};
+use faraday_shell_api::{
+    App, BootState, DisplayInfo, EntropyBytes, Event, Key, SecureHardware, TouchPhase,
+};
 use faraday_vault::records::kind;
 
 fn display() -> Event {
@@ -208,6 +210,43 @@ fn setting_the_time_by_hand_corrects_a_clock_before_2020() {
     app.press(Action::Vault(V::Category(4)));
     make_gpg_key(&mut app);
     assert_eq!(gpg_created(&app), 1_791_720_120);
+}
+
+/// Set time's fields take an edit where the caret is: the arrow keys
+/// move it, a press between two digits puts it there, and what is typed
+/// goes in at it (`docs/TEXT-CURSOR.md` §4, C1).
+#[test]
+fn set_times_fields_take_typing_where_the_caret_is() {
+    let mut app = vault_app(Some(1000));
+    app.press(Action::Nav(Screen::Settings));
+    crate::common::settings_section(&mut app, "Time");
+    app.press(Action::OpenSetTime);
+    app.press(Action::SetTimeFocus(Focus::Date));
+    type_text(&mut app, "202610-11");
+    app.event(Event::Key(Key::Home));
+    for _ in 0..4 {
+        app.event(Event::Key(Key::Right));
+    }
+    app.event(Event::Key(Key::Char('-')));
+    app.press(Action::SetTimeFocus(Focus::Time));
+    type_text(&mut app, "142");
+    app.event(Event::Key(Key::Left));
+    app.event(Event::Key(Key::Char('0')));
+    let _ = app.frame();
+    let (x, y) = app
+        .where_typed(Action::SetTimeFocus(Focus::Time), 2)
+        .expect("the time drawn");
+    for phase in [TouchPhase::Down, TouchPhase::Up] {
+        app.event(Event::Touch { x, y, phase });
+    }
+    app.event(Event::Key(Key::Char(':')));
+    app.press(Action::SetTimeSet);
+    assert_eq!(app.toast_text(), Some("Time set to 14:02"));
+    assert!(
+        app.now_local_text().starts_with("2026-10-11 14:02"),
+        "{}",
+        app.now_local_text()
+    );
 }
 
 #[test]

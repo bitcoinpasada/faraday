@@ -34,6 +34,7 @@ need. Each document's header says what kind it is:
 | How does the Starter write a stick and start a computer from it? | `docs/STARTER.md` |
 | Did a signing device do only what it was asked? | `docs/SIGNER-CHECK.md` |
 | How does text get larger for people who need it? | `docs/TEXT-SIZE.md` |
+| Where does the caret go in a text field, and how is it moved? | `docs/TEXT-CURSOR.md` |
 | How is a screen laid out at each window size, from the Pi to a monitor? | `docs/LAYOUT.md` |
 | Which way up is a 7-inch or 10-inch panel, and how are its screen and touch turned? | `docs/ORIENTATION.md` |
 | How does Faraday Demo show its screens at another screen's size? | `docs/PREVIEW-SIZE.md` |
@@ -120,6 +121,7 @@ need. Each document's header says what kind it is:
 - `docs/SPEED.md`: Speed in long flows. Built but for the glyph cache (§3.8).
 - `docs/STARTER.md`: The Starter. Partly built.
 - `docs/STRUCTURE-PASS.md`: The structure pass. Built.
+- `docs/TEXT-CURSOR.md`: The caret in every text field. Specified, partly built: every field but the words of a list typed on its own keyboard and Make codex32 shares' string typed back.
 
 **Record**
 

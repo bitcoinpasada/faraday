@@ -483,6 +483,12 @@ fn the_found_row_draws_the_matched_part_in_the_accent() {
     let (part, _) = drawn(&mut app);
     search(&mut app, CHANGE_0, 0);
     let (whole, _) = drawn(&mut app);
+    // Only the rows under the field, whose caret is drawn in the accent
+    // where the typing ends.
+    let field = Action::TypeHere(faraday_core::edit::Here::Query);
+    let (_, fy) = app.where_typed(field, 0).expect("the field drawn");
+    let under = |f: &[u8]| f[(usize::from(fy) + 100) * width * 4..].to_vec();
+    let (whole, part, before) = (under(&whole), under(&part), under(&before));
     let (w0, w1) = accent_columns(&whole, &before, width).expect("the whole address is accent");
     let (p0, p1) = accent_columns(&part, &before, width).expect("the matched part is accent");
     // The part lies inside the address, and is a fraction of its width:

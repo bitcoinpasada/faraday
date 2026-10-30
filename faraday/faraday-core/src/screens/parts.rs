@@ -1048,6 +1048,103 @@ pub(crate) struct Cells {
     pub caret: bool,
     /// Draw the never-a-real-seed line one gap under the grid (online).
     pub never: bool,
+    /// What a press on a cell does: it places the caret there
+    /// (`docs/TEXT-CURSOR.md`); none where the grid takes no press.
+    pub press: Option<Action>,
+}
+
+/// Where each word of `typed` starts, in characters.
+fn word_starts(typed: &str) -> Vec<usize> {
+    let mut out = Vec::new();
+    let mut before = ' ';
+    for (i, c) in typed.chars().enumerate() {
+        if c != ' ' && before == ' ' {
+            out.push(i);
+        }
+        before = c;
+    }
+    out
+}
+
+/// One cell of [`typed_cells`] at (cx, cy): its word, the character it
+/// starts at (`first`), the caret (`at`) of the text's `n`, whether the
+/// word is drawn as bullets (`hidden`), is the one being typed (`partial`)
+/// and has the caret (`here`). Where its characters stand is kept for
+/// `press`.
+fn typed_cell(
+    ui: &mut Ui,
+    (cx, cy): (f32, f32),
+    lang: faraday_bip::bip39::Language,
+    word: Option<&str>,
+    (first, at, n): (usize, usize, usize),
+    (hidden, partial, here): (bool, bool, bool),
+    press: Option<Action>,
+) {
+    let Some(wd) = word else {
+        if here {
+            ui.caret(cx + 37.0, cy + 10.0, 18.0);
+        }
+        if let Some(a) = press {
+            cell_edges(ui, (cx + 36.0, cy), n, &[0.0], a);
+        }
+        return;
+    };
+    if hidden {
+        let tw = ui.text_mid_as(
+            (cx + 36.0, cy, 38.0),
+            BODY_M.mono(),
+            Role::OnSurface,
+            "••••••",
+        );
+        // Nothing of a word hidden shows: the caret at its end.
+        if here {
+            ui.caret(cx + 37.0 + tw, cy + 10.0, 18.0);
+        }
+        if let Some(a) = press {
+            cell_edges(ui, (cx + 36.0, cy), first, &[0.0, tw], a);
+        }
+        return;
+    }
+    let found = crate::forms::typed_index(lang, wd);
+    let c = if found.is_some() || partial {
+        Role::OnSurface
+    } else {
+        Role::Error
+    };
+    // A finished word in the list's own spelling.
+    let shown = match found {
+        Some(i) if !partial => lang.word(i),
+        _ => wd,
+    };
+    ui.text_mid_as((cx + 36.0, cy, 38.0), BODY_M.mono(), c, shown);
+    // Each edge between the word's characters as typed.
+    let cols: Vec<f32> = (0..=wd.chars().count())
+        .map(|j| {
+            let b = wd.char_indices().nth(j).map_or(wd.len(), |(b, _)| b);
+            ui.measure_as(BODY_M.mono(), &wd[..b])
+        })
+        .collect();
+    if here {
+        let j = at.saturating_sub(first).min(cols.len() - 1);
+        ui.caret(cx + 37.0 + cols[j], cy + 10.0, 18.0);
+    }
+    if let Some(a) = press {
+        cell_edges(ui, (cx + 36.0, cy), first, &cols, a);
+    }
+}
+
+/// The edges of a cell's characters, `cols` from (x, y) in design units,
+/// the first character `first` of the text, kept for `action`: a press
+/// on the cell places the caret between the two nearest.
+fn cell_edges(ui: &mut Ui, (x, y): (f32, f32), first: usize, cols: &[f32], action: Action) {
+    let edges = cols.iter().map(|c| ui.px(x + c + ui.ox)).collect();
+    let band = (ui.px(y + ui.oy), ui.px(y + 38.0 + ui.oy));
+    ui.fields.push(crate::ui::FieldAt {
+        action,
+        first,
+        edges,
+        band: Some(band),
+    });
 }
 
 /// The never-a-real-seed line one gap under a grid whose last row ends
@@ -1079,18 +1176,32 @@ pub(crate) fn typed_cells(
         masked,
         caret,
         never,
+        press,
     } = cells;
     let mut y = y;
     let words: Vec<&str> = typed.split_whitespace().collect();
     let typing_word = !typed.is_empty() && !typed.ends_with(' ');
-    // A grid of numbered word cells, as many as the count chosen.
+    // Where each word starts, in characters: the caret is a place in the
+    // text typed, and a cell holds the characters of its word.
+    let starts = word_starts(typed);
+    let n = typed.chars().count();
+    let at = match press {
+        Some(_) if caret => ui.edit.caret_in(n),
+        _ => n,
+    };
+    // A grid of numbered word cells, as many as the count chosen, a
+    // touch target apart (`docs/TEXT-CURSOR.md`).
     let cols = 4;
     let cellw = (width - 3.0 * 10.0) / cols as f32;
+    let pitch = tokens::TOUCH;
     let shown = boxes;
     for k in 0..shown {
         let cx = x + (k % cols) as f32 * (cellw + 10.0);
-        let cy = y + (k / cols) as f32 * 46.0;
+        let cy = y + (k / cols) as f32 * pitch;
         let current = k == words.len() - usize::from(typing_word && !words.is_empty()) && k < shown;
+        if let Some(a) = press {
+            ui.press_box(cx - 5.0, cy - 5.0, cellw + 10.0, pitch, a);
+        }
         ui.fill(cx, cy, cellw, 38.0, 8.0, Role::SurfaceContainerHighest);
         word_cell_edge(ui, (cx, cy, cellw, 38.0), current);
         ui.text_mid_as(
@@ -1099,37 +1210,25 @@ pub(crate) fn typed_cells(
             Role::OnSurfaceVariant,
             &(k + 1).to_string(),
         );
-        if let Some(wd) = words.get(k) {
-            let last_partial = typing_word && k + 1 == words.len();
-            if masked && !last_partial {
-                ui.text_mid_as(
-                    (cx + 36.0, cy, 38.0),
-                    BODY_M.mono(),
-                    Role::OnSurface,
-                    "••••••",
-                );
-                continue;
-            }
-            let found = crate::forms::typed_index(lang, wd);
-            let c = if found.is_some() || last_partial {
-                Role::OnSurface
-            } else {
-                Role::Error
-            };
-            // A finished word in the list's own spelling.
-            let shown = match found {
-                Some(i) if !last_partial => lang.word(i),
-                _ => wd,
-            };
-            let tw = ui.text_mid_as((cx + 36.0, cy, 38.0), BODY_M.mono(), c, shown);
-            if last_partial && caret {
-                ui.caret(cx + 37.0 + tw, cy + 10.0, 18.0);
-            }
-        } else if current && caret {
-            ui.caret(cx + 37.0, cy + 10.0, 18.0);
-        }
+        let first = starts.get(k).copied().unwrap_or(n);
+        let next = starts.get(k + 1).copied().unwrap_or(n + 1);
+        let last_partial = typing_word && k + 1 == words.len();
+        // The caret in this word: from its start to its end, or in the
+        // spaces after it; at the end after a space, in the next cell.
+        let end_space = at == n && typed.ends_with(' ') && k + 1 == words.len();
+        let here = caret && at >= first && at < next && !end_space;
+        let empty = caret && current && at == n;
+        typed_cell(
+            ui,
+            (cx, cy),
+            lang,
+            words.get(k).copied(),
+            (first, at, n),
+            (masked && !last_partial, last_partial, here || empty),
+            press,
+        );
     }
-    let rows_h = shown.div_ceil(cols) as f32 * 46.0;
+    let rows_h = shown.div_ceil(cols) as f32 * pitch;
     y += rows_h + 12.0;
     if never {
         y += grid_never(ui, x, y - 12.0 - 8.0, width) - tokens::GAP;
@@ -1178,6 +1277,7 @@ pub(crate) fn keyed_cells(
         masked,
         caret,
         never,
+        ..
     } = cells;
     let cols = 6;
     let cellw = (width - (cols - 1) as f32 * 8.0) / cols as f32;

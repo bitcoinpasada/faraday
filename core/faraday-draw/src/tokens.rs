@@ -1136,6 +1136,9 @@ pub const FAB_PAD: f32 = 14.0;
 pub const CARET_OVER: f32 = 4.0;
 /// The least a caret is tall.
 pub const CARET_MIN: f32 = 18.0;
+/// What is typed in a field 40 or 44 dp tall stands in this far from
+/// its left edge, and as far from its right (`docs/TEXT-CURSOR.md`).
+pub const TYPED_INSET: f32 = 12.0;
 
 /// The label of a key of the on-screen keyboards and pads, by the key's
 /// height: 15 from 44 dp, 14 from 38, 13 below. A key is not a button:
@@ -1332,8 +1335,9 @@ pub const CORRECT_BOX_RADIUS: f32 = 4.0;
 /// Codex32 correction: the row under a box that carries its number.
 pub const CORRECT_NUMBER_ROW: f32 = 16.0;
 
-/// Codex32 correction: the gap between two rows of boxes.
-pub const CORRECT_ROW_GAP: f32 = GAP_SMALL;
+/// Codex32 correction: the gap between two rows of boxes, so a row with
+/// its numbers is a touch target tall, pressed group by group.
+pub const CORRECT_ROW_GAP: f32 = GRID;
 
 /// Codex32 correction: a pair's row, "Box 17 · q → p".
 pub const CORRECT_PAIR_ROW: f32 = 28.0;

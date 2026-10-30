@@ -13,7 +13,7 @@ use crate::Action;
 use crate::screens::{button_rows, guide_text_learn};
 use crate::tools::{UNITS, tool_name};
 use crate::ui::pal::*;
-use crate::ui::{CoreUi, Style, Ui, W};
+use crate::ui::{Style, Ui, W};
 use faraday_draw::tokens::{BODY_M, BODY_S, BUTTON_H};
 
 fn hex(b: &[u8]) -> String {
@@ -132,33 +132,41 @@ fn body(app: &View, ui: &mut Ui, x: f32, mut y: f32, width: f32) -> f32 {
         y += button_rows(ui, x, y, width, &row);
     }
     // The field.
-    let shown = if t.typed.is_empty() {
-        crate::secret_text::SecretText::of(match t.tool {
-            Tool::Hashes => EN.tools_text_or_hex,
-            Tool::Encodings => EN.tools_base58_bech32,
-            Tool::Descriptor => EN.tools_a_descriptor,
-            Tool::ConvertKey => EN.tools_an_xpub_ypub,
-            Tool::Units => EN.tools_an_amount,
-            Tool::Miniscript => EN.tools_a_policy_e_g,
-        })
-    } else {
-        let mut s = crate::secret_text::SecretText::of(&t.typed);
-        s.push_str(ui.caret_char());
-        s
+    let hint = match t.tool {
+        Tool::Hashes => EN.tools_text_or_hex,
+        Tool::Encodings => EN.tools_base58_bech32,
+        Tool::Descriptor => EN.tools_a_descriptor,
+        Tool::ConvertKey => EN.tools_an_xpub_ypub,
+        Tool::Units => EN.tools_an_amount,
+        Tool::Miniscript => EN.tools_a_policy_e_g,
     };
     ui.fill(x, y, width, 44.0, 8.0, Role::SurfaceContainerHighest);
     ui.stroke(x, y, width, 44.0, 8.0, Role::Primary);
-    let s = ui.fit_secret(14.0, W::M, &shown, width - 100.0);
-    ui.text_mid_as(
-        (x + 12.0, y, 44.0),
-        BODY_M.mono(),
-        if t.typed.is_empty() {
-            Role::OnSurfaceVariant
-        } else {
-            Role::OnSurface
-        },
-        &s,
+    // A press places the caret (`docs/TEXT-CURSOR.md` §4, C3).
+    let here = Action::TypeHere(crate::edit::Here::Tools);
+    let (tx, fh, room) = (
+        x + faraday_draw::tokens::TYPED_INSET,
+        faraday_draw::tokens::TEXT_FIELD_SHEET,
+        width - 100.0,
     );
+    ui.press_box(x, y, room + faraday_draw::tokens::TYPED_INSET, fh, here);
+    if t.typed.is_empty() {
+        let s = ui.fit_as(BODY_M.mono(), hint, room);
+        ui.text_mid_as((tx, y, fh), BODY_M.mono(), Role::OnSurfaceVariant, &s);
+    } else {
+        ui.typed(
+            tx,
+            y,
+            fh,
+            BODY_M.size,
+            W::M,
+            Role::OnSurface,
+            &t.typed,
+            room,
+            true,
+            here,
+        );
+    }
     ui.button(
         x + width - 76.0,
         y + 6.0,

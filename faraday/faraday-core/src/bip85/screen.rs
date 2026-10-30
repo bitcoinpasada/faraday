@@ -213,12 +213,21 @@ fn card(app: &View, b: &Bip85State, ui: &mut Ui, s: u8, x: f32, y: f32, w: f32) 
                 Role::SurfaceContainerHighest,
             );
             ui.stroke(x + mw + 8.0, cy, 180.0, 44.0, 8.0, Role::Primary);
-            let index = format!("{}{}", b.index, ui.caret_char());
-            ui.text_mid_as(
-                (x + mw + 20.0, cy, 44.0),
-                BODY_L.mono(),
+            // A press places the caret (`docs/TEXT-CURSOR.md` §4, C2).
+            let here = Action::TypeHere(crate::edit::Here::Index);
+            let (bx, bw, bh) = (x + mw + 8.0, 180.0, faraday_draw::tokens::TEXT_FIELD_SHEET);
+            ui.press_box(bx, cy, bw, bh, here);
+            ui.typed(
+                bx + faraday_draw::tokens::TYPED_INSET,
+                cy,
+                bh,
+                BODY_L.size,
+                crate::ui::W::M,
                 Role::OnSurface,
-                &index,
+                &b.index,
+                bw - 2.0 * faraday_draw::tokens::TYPED_INSET,
+                true,
+                here,
             );
             ui.button(
                 x + mw + 196.0,

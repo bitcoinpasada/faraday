@@ -345,8 +345,17 @@ pub(crate) fn field_action(a: Action) -> bool {
             | Action::CPassField(_)
             | Action::SeedRead(seeds::read::Choice::Field(_))
             | Action::Rename
-            | Action::MType
             | Action::KTyping(true)
             | Action::Seeds(seeds::SeedsAction::Focus(_))
-    )
+            | Action::Vault(V::Search(crate::vault::SearchAct::Focus(_)))
+            | Action::Vault(V::Roller(crate::fresh::roller::Act::Count))
+            | Action::BName(_)
+            | Action::RegisterField
+            | Action::Sweep(seeds::sweep::SweepAction::Field)
+            | Action::SetTimeFocus(_)
+            | Action::TypeHere(_)
+            | crate::edit::GPG_LINE
+            | Action::PotentialType
+            | Action::LPassphrase
+    ) || a == crate::file_menu::FIELD
 }

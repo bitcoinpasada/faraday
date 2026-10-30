@@ -111,21 +111,76 @@ impl TypingArea {
         self.fields.iter().any(|f| f.action == action)
     }
 
-    /// The last drawn edge before character `i` of the field pressed
-    /// with `action`, in pixels.
-    fn edge(&self, action: Action, i: usize) -> Option<i32> {
-        let f = self.fields.iter().rev().find(|f| f.action == action)?;
-        f.edges.get(i.checked_sub(f.first)?).copied()
+    /// The lines the last frame drew of the field pressed with `action`,
+    /// first to last: one for a field of one line.
+    fn lines(&self, action: Action) -> &[FieldAt] {
+        let Some(end) = self.fields.iter().rposition(|f| f.action == action) else {
+            return &[];
+        };
+        let start = self.fields[..end]
+            .iter()
+            .rposition(|f| f.action != action || f.band.is_none())
+            .map_or(0, |i| i + 1);
+        // A field of one line is its last drawing alone.
+        let start = if self.fields[end].band.is_none() {
+            end
+        } else {
+            start
+        };
+        &self.fields[start..=end]
     }
 
-    /// The character index nearest pixel column `x` in the field pressed
-    /// with `action`, as the last frame drew it.
-    fn index_at(&self, action: Action, x: i32) -> Option<usize> {
-        self.fields
+    /// Which of `lines` holds character `i`: the one it falls in, or the
+    /// one it ends where the next starts later, as the caret is drawn.
+    fn line_of(lines: &[FieldAt], i: usize) -> Option<usize> {
+        let ends = |f: &FieldAt| f.first + f.edges.len().saturating_sub(1);
+        lines
             .iter()
-            .rev()
-            .find(|f| f.action == action)
-            .map(|f| f.index_at(x))
+            .rposition(|f| f.first <= i && (i < ends(f) || f.first == i))
+            .or_else(|| lines.iter().rposition(|f| f.first <= i))
+    }
+
+    /// The last drawn edge before character `i` of the field pressed
+    /// with `action`, in pixels, with its line's middle row on a field of
+    /// several lines.
+    fn edge(&self, action: Action, i: usize) -> Option<(i32, Option<i32>)> {
+        let lines = self.lines(action);
+        let f = &lines[Self::line_of(lines, i)?];
+        let x = f.edges.get(i.checked_sub(f.first)?).copied()?;
+        Some((x, f.band.map(|(t, b)| (t + b) / 2)))
+    }
+
+    /// The character index nearest pixel (x, y) in the field pressed
+    /// with `action`, as the last frame drew it: on the line under `y`,
+    /// or the nearest line.
+    fn index_at(&self, action: Action, (x, y): (i32, i32)) -> Option<usize> {
+        let lines = self.lines(action);
+        // The line under `y`, and of a row of cells the one under `x`.
+        let line = lines.iter().min_by_key(|f| {
+            let rows = match f.band {
+                Some((top, _)) if y < top => top - y,
+                Some((_, bottom)) if y >= bottom => y - bottom + 1,
+                _ => 0,
+            };
+            let (l, r) = (
+                f.edges.first().copied().unwrap_or(x),
+                f.edges.last().copied().unwrap_or(x),
+            );
+            (rows, (l - x).max(x - r).max(0))
+        })?;
+        Some(line.index_at(x))
+    }
+
+    /// The character index on the line above (`up`) or below the one
+    /// character `i` is on, nearest its column, in the field pressed with
+    /// `action`: `None` on the first or last line, or a field of one.
+    fn line_step(&self, action: Action, i: usize, up: bool) -> Option<usize> {
+        let lines = self.lines(action);
+        let at = Self::line_of(lines, i)?;
+        let f = &lines[at];
+        let x = *f.edges.get(i - f.first).or(f.edges.last())?;
+        let to = if up { at.checked_sub(1)? } else { at + 1 };
+        Some(lines.get(to)?.index_at(x))
     }
 
     /// Restarts the caret's blink at `now`: a key or a press.
@@ -150,7 +205,174 @@ impl TypingArea {
     }
 }
 
+/// A GPG key's paperkey line being typed (`docs/GPG-PAPERKEY.md` §4.5),
+/// by the press that focuses it.
+pub(crate) const GPG_LINE: Action = Action::Flow(crate::backup_flow::steps::FlowAction::Restore(
+    crate::backup_flow::steps::RestorePress::Field,
+));
+
+/// A field that takes typing as soon as it is shown, with no press to
+/// focus it: a press on it only places the caret
+/// (`docs/TEXT-CURSOR.md` §4, C2).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Here {
+    /// Tools' Find a tool.
+    Find,
+    /// A word list's find.
+    WordFind,
+    /// Explore's path, after its `m/`.
+    Path,
+    /// Explore's Find an address.
+    Query,
+    /// BIP-85's index.
+    Index,
+    /// Vanity's prefix, after the address kind's fixed characters.
+    Prefix,
+    /// A chart sheet's field: a key's holder, a vault's name, or a
+    /// passphrase to check, shown as dots.
+    Chart,
+    /// Sign a message's text, several lines; a press on it while it is
+    /// not typed in starts typing, as **Type** does.
+    Message,
+    /// Add a key's share, string or part, on a form other than words; a
+    /// press on it while the passphrase takes typing moves typing here.
+    Entry,
+    /// What Tools' calculator reads.
+    Tools,
+    /// Add a key's words typed in Latin letters, a cell a word.
+    Words,
+    /// Check my copy's words typed back, a cell a word.
+    CheckWords,
+    /// The aezeed's words; a press on them while its passphrase takes
+    /// typing moves typing here.
+    Aezeed,
+}
+
 impl Faraday {
+    /// The field of [`Here`] that typing goes to now, or the potential
+    /// wallet's or the aezeed's passphrase while typing goes there. Only
+    /// lookups.
+    fn here(&self) -> Option<Action> {
+        use crate::explore::Page;
+        if self.sheet == Some(Sheet::WordList) {
+            return self
+                .wordlist
+                .state()
+                .is_some()
+                .then_some(Action::TypeHere(Here::WordFind));
+        }
+        if self.chart_typing() {
+            return Some(Action::TypeHere(Here::Chart));
+        }
+        if self.sheet.is_none() && self.gpg_restore_typing() {
+            return Some(GPG_LINE);
+        }
+        if self.sheet == Some(Sheet::Potential) {
+            return self
+                .inbox
+                .potential()
+                .is_some_and(|p| p.typing)
+                .then_some(Action::PotentialType);
+        }
+        if self.sheet.is_some() {
+            return None;
+        }
+        let here = match self.screen {
+            Screen::Catalog => Here::Find,
+            Screen::Explore => match self.explore.state()?.page {
+                Page::Path => Here::Path,
+                Page::Find => Here::Query,
+                _ => return None,
+            },
+            Screen::Bip85 if self.bip85.state()?.open == Some(crate::bip85::pstep::INDEX) => {
+                Here::Index
+            }
+            Screen::Vanity if self.vanity.typing_prefix() => Here::Prefix,
+            Screen::Lightning => {
+                let l = self.lightning.state()?;
+                if l.source != Some(crate::lightning::NodeSource::Aezeed) {
+                    return None;
+                }
+                if l.on_passphrase {
+                    return Some(Action::LPassphrase);
+                }
+                Here::Aezeed
+            }
+            Screen::Tools if self.tools.state().is_some() => Here::Tools,
+            Screen::Backup => {
+                let c = self.backup.state()?.check.as_ref()?;
+                if c.passphrase || c.keys.is_some() {
+                    return None;
+                }
+                Here::CheckWords
+            }
+            _ => return None,
+        };
+        Some(Action::TypeHere(here))
+    }
+
+    /// A press on a field of [`Here`]: on a message not being typed it
+    /// starts typing, as **Type** does; on Add a key's string or the
+    /// aezeed's words while their passphrase takes typing, it moves typing
+    /// to them; on any other the press only places the caret.
+    pub(crate) fn type_here(&mut self, h: Here) {
+        match h {
+            Here::Message if self.message.state().is_some_and(|m| !m.typing) => {
+                self.act(Action::MType);
+            }
+            Here::Entry if self.entry.state().on_passphrase => self.act(Action::EntryPassphrase),
+            Here::Aezeed if self.lightning.state().is_some_and(|l| l.on_passphrase) => {
+                self.act(Action::LPassphrase);
+            }
+            _ => {}
+        }
+    }
+
+    /// A key for a field whose own keys are handled before the caret's
+    /// (`docs/TEXT-CURSOR.md` §4, C2): whether the caret took it.
+    pub(crate) fn here_key(&mut self, key: KeyIn) -> bool {
+        self.here_first() && self.edit_key(key)
+    }
+
+    /// On a small panel the page followed Add a key's string above the
+    /// keyboard: codex32's correction, opened in its place now (and not
+    /// `before`), is shown from the page's top.
+    pub(crate) fn correction_from_top(&mut self, before: bool) {
+        if self.compact && !before && self.entry.state().correction.is_open() {
+            if let Some(slot) = self.page_slot() {
+                *slot = 0.0;
+            }
+            self.sheet_offset = 0.0;
+        }
+    }
+
+    /// The paperkey line typed on screen, while step 4 takes typing.
+    fn gpg_restore_live(&self) -> Option<&crate::backup_flow::gpg_restore::RestoreLive> {
+        self.flows.on().and_then(|i| self.flows.restoring(i))
+    }
+
+    /// Holds the paperkey line on screen from ending by itself while an
+    /// edit inside it is typed, and lets it end once done.
+    fn gpg_restore_hold(&mut self, on: bool) {
+        if let Some(i) = self.flows.on() {
+            self.flows.restore_hold(i, on);
+        }
+    }
+
+    /// Whether the field typing goes to has keys of its own that are
+    /// handled before the caret's: a word list's find, a chart sheet's
+    /// field, the potential wallet's passphrase, Tools' Find a tool.
+    pub(crate) fn here_first(&self) -> bool {
+        matches!(
+            self.here(),
+            Some(
+                Action::TypeHere(Here::WordFind | Here::Find | Here::Chart)
+                    | Action::PotentialType
+                    | GPG_LINE
+            )
+        )
+    }
+
     /// Whether step 4 of a GPG key's restore on screen takes typing: its
     /// paperkey line (`docs/GPG-PAPERKEY.md` §4.5), on the hex keyboard.
     pub(crate) fn gpg_restore_typing(&self) -> bool {
@@ -198,6 +420,7 @@ impl Faraday {
                             || self.gpg_restore_typing()))
             }
             Screen::Entry => true,
+            Screen::SetTime => self.set_time.focus().is_some(),
             // A passphrase on paper typed back for Check my copy.
             Screen::Backup => self
                 .backup
@@ -231,6 +454,9 @@ impl Faraday {
             && let Some(p) = self.backup.state().and_then(|b| b.naming)
         {
             return Some(Action::BName(u8::try_from(p).unwrap_or(u8::MAX)));
+        }
+        if let Some(a) = self.here() {
+            return Some(a);
         }
         if !self.typing_field() {
             return None;
@@ -274,22 +500,37 @@ impl Faraday {
                 F::Name => V::CName,
                 F::Search(s) => V::Search(vault::SearchAct::Focus(s)),
             })),
-            Screen::Entry if self.entry.state().on_passphrase => Some(Action::EntryPassphrase),
+            Screen::Entry => self.entry_target(),
             Screen::Wallets => Some(Action::Rename),
-            Screen::Message => Some(Action::MType),
+            Screen::Message => Some(Action::TypeHere(Here::Message)),
             Screen::KeyGen => {
                 let k = self.keygen.state()?;
                 match k.open {
                     Some(keygen::kstep::KEY) => k.focus.map(Action::KPassField),
-                    // A key typed: Add a key's form, which has no caret of
-                    // its own to move.
-                    Some(keygen::kstep::TYPED) => None,
+                    // A key typed: Add a key's form, as on Add a key.
+                    Some(keygen::kstep::TYPED) => self.entry_target(),
                     _ => Some(Action::KTyping(true)),
                 }
             }
             Screen::Create => self.create.state()?.pass_focus.map(Action::CPassField),
+            Screen::SetTime => self.set_time.focus().map(Action::SetTimeFocus),
             _ => None,
         }
+    }
+
+    /// The field of Add a key's form typing goes to: its passphrase, its
+    /// words typed in Latin letters, or its string (not while codex32's
+    /// correction or a clash stands in place of it).
+    fn entry_target(&self) -> Option<Action> {
+        let e = self.entry.state();
+        if e.on_passphrase {
+            return Some(Action::EntryPassphrase);
+        }
+        if e.form == crate::forms::Form::Words {
+            return e.keys.is_none().then_some(Action::TypeHere(Here::Words));
+        }
+        (!e.correction.is_open() && e.codex32.clash.is_none())
+            .then_some(Action::TypeHere(Here::Entry))
     }
 
     /// What the field typing goes to holds, as a copy wiped when it is
@@ -327,28 +568,64 @@ impl Faraday {
             crate::file_menu::FIELD => &self.visit.files_menu().renaming.as_ref()?.stem,
             Action::RegisterField => &self.wallets.spend()?.register.as_ref()?.name,
             Action::BName(p) => self.backup.state()?.names.get(usize::from(p))?,
-            Action::MType => &self.message.state()?.text,
             Action::KPassField(0) => &self.keygen.state()?.passphrase,
             Action::KPassField(_) => &self.keygen.state()?.passphrase2,
             Action::KTyping(_) => &self.keygen.state()?.entered,
             Action::CPassField(0) => &self.create.state()?.pass,
             Action::CPassField(_) => &self.create.state()?.pass2,
+            Action::TypeHere(h) => match h {
+                Here::Find => self.tools.find(),
+                Here::WordFind => &self.wordlist.state()?.find,
+                Here::Path => &self.explore.state()?.path,
+                Here::Query => &self.explore.state()?.query,
+                Here::Index => &self.bip85.state()?.index,
+                Here::Message => &self.message.state()?.text,
+                Here::Entry => &self.entry.state().typed,
+                Here::Tools => &self.tools.state()?.typed,
+                Here::Words => &self.entry.state().typed,
+                Here::CheckWords => &self.backup.state()?.check.as_ref()?.typed,
+                Here::Aezeed => &self.lightning.state()?.typed,
+                Here::Chart => {
+                    let w = self.glance.work();
+                    match self.glance.chart()?.1 {
+                        crate::glance::sheet::Target::PassCheck(..) => &w.secret,
+                        _ => &w.text,
+                    }
+                }
+                Here::Prefix => {
+                    let v = self.vanity.state()?;
+                    let net = self.session.network();
+                    let text = v.grind.prefix.as_str();
+                    &text[v
+                        .grind
+                        .prefix
+                        .fixed_len(v.grind.script, net)
+                        .min(text.len())..]
+                }
+            },
+            Action::PotentialType => &self.inbox.potential()?.passphrase,
+            GPG_LINE => self.gpg_restore_live()?.typed(),
+            Action::LPassphrase => &self.lightning.state()?.passphrase,
+            Action::SetTimeFocus(crate::set_time::Focus::Date) => &self.set_time.date().text,
+            Action::SetTimeFocus(crate::set_time::Focus::Time) => &self.set_time.time().text,
             _ => return None,
         };
         Some(SecretText::of(text))
     }
 
-    /// Whether the caret moves in the field typing goes to: not in one
-    /// of several lines, whose caret stays at its end.
-    fn caret_moves(&self, target: Action) -> bool {
+    /// Whether the field typing goes to is one of several lines, where
+    /// Up and Down move the caret a line (`docs/TEXT-CURSOR.md` §3).
+    fn several_lines(&self, target: Action) -> bool {
         match target {
-            Action::MType => false,
-            Action::Vault(V::FocusField(k)) => !self.vaults.form.as_ref().is_some_and(|f| {
+            Action::TypeHere(Here::Message) | GPG_LINE => true,
+            // Wrapped on a small panel, one line on a wider window.
+            Action::TypeHere(Here::Entry) => self.compact,
+            Action::Vault(V::FocusField(k)) => self.vaults.form.as_ref().is_some_and(|f| {
                 f.fields
                     .get(k)
                     .is_some_and(|field| vault::multiline(f.kind, field.0))
             }),
-            _ => true,
+            _ => false,
         }
     }
 
@@ -362,9 +639,18 @@ impl Faraday {
     /// field pressed with `action`, in pixels, at the middle of the
     /// field's height: for tests that press or drag there.
     pub fn where_typed(&self, action: Action, i: usize) -> Option<(u16, u16)> {
-        let x = self.typing.edge(action, i)?;
-        let (_, y) = self.where_offered(action)?;
+        let (x, row) = self.typing.edge(action, i)?;
+        let y = match row {
+            Some(y) => u16::try_from(y).ok()?,
+            None => self.where_offered(action)?.1,
+        };
         Some((u16::try_from(x).ok()?, y))
+    }
+
+    /// Where the press now down fell among what the last frame drew for
+    /// `action`: the nearest of its edges, as an index (a lookup).
+    pub(crate) fn pressed_index(&self, action: Action) -> Option<usize> {
+        self.typing.index_at(action, self.pointer.down_at())
     }
 
     /// Whether all of the field typing goes to is selected.
@@ -392,7 +678,22 @@ impl Faraday {
         let caret = e.caret_in(n);
         let selected = e.selected(n);
         match key {
-            KeyIn::Left | KeyIn::Right if self.caret_moves(target) => {
+            KeyIn::Up | KeyIn::Down if self.several_lines(target) => {
+                let Some(to) = self.typing.line_step(target, caret, key == KeyIn::Up) else {
+                    // On the first line or the last: the key goes on, to
+                    // scroll as it would.
+                    return false;
+                };
+                e.anchor = if self.typing.shift() {
+                    e.anchor.or(Some(caret)).filter(|&a| a != to)
+                } else {
+                    None
+                };
+                e.caret = (to < n).then_some(to);
+                self.typing.set_edit(e);
+                true
+            }
+            KeyIn::Left | KeyIn::Right => {
                 let left = key == KeyIn::Left;
                 let to = match selected {
                     Some((lo, hi)) if !self.typing.shift() => {
@@ -420,7 +721,7 @@ impl Faraday {
             }
             // Home and End let a selection go and put the caret at the
             // field's start or end.
-            KeyIn::Home | KeyIn::End if self.caret_moves(target) => {
+            KeyIn::Home | KeyIn::End => {
                 let to = if key == KeyIn::Home { 0 } else { n };
                 e.anchor = if self.typing.shift() {
                     e.anchor.or(Some(caret)).filter(|&a| a != to)
@@ -470,9 +771,17 @@ impl Faraday {
     fn splice(&mut self, target: Action, text: &str, lo: usize, hi: usize, insert: Option<char>) {
         let n = text.chars().count();
         let byte = |i: usize| text.char_indices().nth(i).map_or(text.len(), |(b, _)| b);
+        if let Action::TypeHere(h @ (Here::Words | Here::CheckWords)) = target {
+            return self.words_splice(h, (byte(lo), byte(hi)), lo, insert);
+        }
         let tail = SecretText::of(&text[byte(hi)..]);
         let len = |app: &Faraday| app.typing_text().map(|t| t.chars().count());
         self.typing.set_editing(true);
+        // A paperkey line ends by itself only once the edit is done.
+        let gpg = target == GPG_LINE;
+        if gpg {
+            self.gpg_restore_hold(true);
+        }
         // What is after `lo` comes off, one character at a time.
         let mut have = n;
         while have > lo {
@@ -489,6 +798,9 @@ impl Faraday {
                 self.type_back(c);
             }
             self.typing.set_editing(false);
+            if gpg {
+                self.gpg_restore_hold(false);
+            }
             return;
         }
         if let Some(c) = insert {
@@ -499,12 +811,54 @@ impl Faraday {
             self.type_back(c);
         }
         self.typing.set_editing(false);
+        if gpg {
+            self.gpg_restore_hold(false);
+        }
         let end = len(self).unwrap_or(caret);
         self.typing.set_edit(Edit {
             field: self.typing_target(),
             caret: (caret < end).then_some(caret),
             anchor: None,
         });
+    }
+
+    /// An edit inside a grid of words typed in Latin letters: bytes `lo`
+    /// to `hi` replaced with `insert`, a letter (lower case) or a space,
+    /// made in place in the words held, with no word completed part way
+    /// through as typing at the end completes one. What follows is held
+    /// in a [`SecretText`] meanwhile and the words keep theirs, both wiped.
+    /// The caret is left after what was typed, character `at`.
+    fn words_splice(&mut self, h: Here, (lo, hi): (usize, usize), at: usize, insert: Option<char>) {
+        let insert = match insert {
+            Some(c) if c.is_ascii_alphabetic() => Some(c.to_ascii_lowercase()),
+            Some(' ') => Some(' '),
+            Some(_) => return,
+            None => None,
+        };
+        let done = match h {
+            Here::Words => {
+                let e = self.entry.state_mut();
+                splice_text(&mut e.typed, (lo, hi), insert);
+                e.error = None;
+                true
+            }
+            _ => self
+                .backup
+                .check_edit(|c| {
+                    splice_text(&mut c.typed, (lo, hi), insert);
+                    c.error = None;
+                })
+                .is_some(),
+        };
+        if done {
+            let at = at + usize::from(insert.is_some());
+            let n = self.typing_text().map_or(at, |t| t.chars().count());
+            self.typing.set_edit(Edit {
+                field: Some(Action::TypeHere(h)),
+                caret: (at < n).then_some(at),
+                anchor: None,
+            });
+        }
     }
 
     /// A character typed back after an edit: a line's end as Enter.
@@ -516,22 +870,25 @@ impl Faraday {
         });
     }
 
-    /// A press on the field `a` at pixel column `x`, on its release:
-    /// the caret goes there; a second press soon after selects all of
-    /// the field, or nothing if all was; a drag from `from` across an
-    /// edge between characters selects what it went over; with Shift
-    /// held the selection runs from where it was to there. Returns
-    /// whether the press was taken, and whether it was a drag.
+    /// A press on the field `a` at pixel (x, y), on its release (but for
+    /// the first on a place's name, which opens all of it selected,
+    /// `docs/BACKUP-FLOW.md` §19.18): the
+    /// caret goes there; a second press soon after selects all of the
+    /// field, or nothing if all was; a drag from `from` across an edge
+    /// between characters selects what it went over; with Shift held
+    /// the selection runs from where it was to there. Returns whether
+    /// the press was taken, and whether it was a drag.
     pub(crate) fn field_press(
         &mut self,
         a: Action,
-        from: i32,
-        x: i32,
+        from: (i32, i32),
+        x: (i32, i32),
         double: bool,
     ) -> Option<bool> {
-        let index = |app: &Faraday, x: i32| app.typing.index_at(a, x);
-        let dx = (x - from).abs();
-        let dragged = dx > 12 || (dx > 3 && index(self, x) != index(self, from));
+        let index = |app: &Faraday, at: (i32, i32)| app.typing.index_at(a, at);
+        let dx = (x.0 - from.0).abs();
+        let moved = dx + (x.1 - from.1).abs();
+        let dragged = dx > 12 || (moved > 3 && index(self, x) != index(self, from));
         if self.typing_target() != Some(a) {
             if double || dragged || self.typing.shift() {
                 // A drag or a second press on a field not yet typed in
@@ -607,4 +964,16 @@ impl Faraday {
             _ => true,
         }
     }
+}
+
+/// Bytes `lo` to `hi` of `t` replaced with `insert`: what follows is held
+/// in a [`SecretText`] while `t` is cut, which wipes what it drops, and
+/// put back.
+pub(crate) fn splice_text(t: &mut SecretText, (lo, hi): (usize, usize), insert: Option<char>) {
+    let tail = SecretText::of(&t[hi.min(t.len())..]);
+    t.truncate(lo);
+    if let Some(c) = insert {
+        t.push(c);
+    }
+    t.push_str(&tail);
 }

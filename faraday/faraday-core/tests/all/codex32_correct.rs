@@ -177,11 +177,37 @@ fn the_re_entry_takes_bech32_characters_and_backspace() {
     assert_eq!(c.retyped(), (0, 2), "b, 1, o and ? are not bech32");
     let first = SECRET.as_bytes()[11];
     c.key(Key::Char(char::from(first).to_ascii_uppercase()));
-    assert_eq!(c.box_at(12), Some(BoxShown::Typed(first)));
+    assert_eq!(
+        c.box_at(12),
+        Some(BoxShown::Typed {
+            ch: first,
+            next: false
+        })
+    );
     assert_eq!(c.box_at(40), Some(BoxShown::Open { next: true }));
     c.key(Key::Backspace);
     assert_eq!(c.box_at(12), Some(BoxShown::Open { next: true }));
     let (text, _) = taken(typed(&mut c, &[first, SECRET.as_bytes()[39]]));
+    assert_eq!(text, SECRET);
+}
+
+/// The re-entry's caret moves between its boxes: a character typed goes
+/// in the box at the caret, in place of what was there, and the caret
+/// moves on; Left takes it back a box (`docs/TEXT-CURSOR.md`).
+#[test]
+fn the_re_entry_caret_moves_between_the_boxes() {
+    let damaged = changed(changed(SECRET, 12), 40);
+    let mut c = ticked();
+    offer(&mut c, &damaged, None);
+    c.press(Press::Mistyped);
+    let (first, last) = (SECRET.as_bytes()[11], SECRET.as_bytes()[39]);
+    let wrong = if first == b'q' { b'p' } else { b'q' };
+    c.key(Key::Char(char::from(wrong)));
+    assert_eq!(c.box_at(40), Some(BoxShown::Open { next: true }));
+    c.key(Key::Left);
+    c.key(Key::Char(char::from(first)));
+    assert_eq!(c.retyped(), (1, 2), "the box at the caret, typed over");
+    let (text, _) = taken(typed(&mut c, &[last]));
     assert_eq!(text, SECRET);
 }
 

@@ -40,22 +40,40 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let fx = x + width - fw;
     ui.fill(fx, y - 2.0, fw, 40.0, 8.0, Role::SurfaceContainerHighest);
     ui.stroke(fx, y - 2.0, fw, 40.0, 8.0, Role::Outline);
-    let (shown, tone) = if app.tools.find().is_empty() {
-        (EN.catalog_find_a_tool.to_string(), Role::OnSurfaceVariant)
-    } else {
-        (app.tools.find().to_string(), Role::OnSurface)
-    };
-    let shown = ui.fit_as(BODY_M, &shown, fw - 28.0);
-    let tw = ui.text_mid_as((fx + 12.0, y - 2.0, 40.0), BODY_M, tone, &shown);
     // Typing on this page always lands here, with no click to focus it
     // first, so the caret is drawn whether or not anything is typed yet:
-    // the one sign that this box is already live.
-    let caret_x = if app.tools.find().is_empty() {
-        fx + 12.0
+    // the one sign that this box is already live. A press places it
+    // (`docs/TEXT-CURSOR.md` §4, C2).
+    let here = Action::TypeHere(crate::edit::Here::Find);
+    let (tx, fy, fh, room) = (
+        fx + faraday_draw::tokens::TYPED_INSET,
+        y - 2.0,
+        faraday_draw::tokens::TEXT_FIELD,
+        fw - 28.0,
+    );
+    ui.press_box(fx, fy, fw, fh, here);
+    if app.tools.find().is_empty() {
+        let shown = ui.fit_as(BODY_M, EN.catalog_find_a_tool, room);
+        ui.text_mid_as((tx, fy, fh), BODY_M, Role::OnSurfaceVariant, &shown);
+        ui.caret(
+            tx,
+            fy + (fh - faraday_draw::tokens::CARET_MIN) / 2.0,
+            faraday_draw::tokens::CARET_MIN,
+        );
     } else {
-        fx + 14.0 + tw
-    };
-    ui.caret(caret_x, y + 9.0, 18.0);
+        ui.typed(
+            tx,
+            fy,
+            fh,
+            BODY_M.size,
+            crate::ui::W::R,
+            Role::OnSurface,
+            app.tools.find(),
+            room,
+            true,
+            here,
+        );
+    }
     y += if compact { 54.0 } else { 64.0 };
     let gap = 14.0;
     // As many columns as `CATALOG_TILE_MIN` leaves room for, never

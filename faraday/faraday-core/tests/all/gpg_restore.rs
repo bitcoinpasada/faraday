@@ -241,6 +241,34 @@ fn a_gpg_key_is_restored_from_its_paperkey_into_the_vaults_of_the_plan() {
     assert!(sig.is_some(), "signed at once: {:?}", app.toast_text());
 }
 
+/// A paperkey line typed in full with a digit wrong stays; the caret
+/// moved back to the digit and the digit typed again there, the line is
+/// right and goes on to the next at once, with no Enter
+/// (`docs/TEXT-CURSOR.md`).
+#[test]
+fn a_line_fixed_in_the_middle_is_checked_the_moment_it_is_right() {
+    let k = paper_key();
+    let mut shell = Shell::new();
+    let mut app = machine(&mut shell, &k);
+    to_lines(&mut shell, &mut app);
+    let ls = printed();
+    type_line(&mut app, &ls[0]);
+    let wrong = ls[1].replacen(": 00 ", ": 01 ", 1);
+    for c in wrong.chars() {
+        app.event(Event::Key(KeyIn::Char(c)));
+    }
+    assert!(!has(&mut app, "Line 2 · checked"), "a wrong line stays");
+    let digit = wrong.find(": 01 ").expect("the digit") + 3;
+    app.event(Event::Key(KeyIn::Home));
+    for _ in 0..digit {
+        app.event(Event::Key(KeyIn::Right));
+    }
+    app.event(Event::Key(KeyIn::Delete));
+    assert!(!has(&mut app, "Line 2 · checked"), "a line short stays");
+    app.event(Event::Key(KeyIn::Char('0')));
+    assert!(has(&mut app, "Line 2 · checked"), "{:?}", texts(&mut app));
+}
+
 /// Test 20: a lock at step 4 wipes the lines typed; the flow comes back
 /// with the certificate, and once the vault is open again asks for line
 /// 1 again.

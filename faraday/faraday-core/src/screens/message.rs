@@ -179,36 +179,26 @@ fn message_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
             };
             let field = (x, cy, w, box_h);
             crate::menu::outline(ui, field, FIELD_RADIUS, width, edge.paint());
-            let shown = if m.text.is_empty() {
-                if m.typing {
-                    EN.message_type_the_message.to_string()
-                } else {
-                    EN.message_press_type.to_string()
-                }
-            } else if m.typing && !ui.edit.all(m.text.chars().count()) {
-                format!("{}{}", m.text, ui.caret_char())
-            } else {
-                m.text.clone()
-            };
+            // A press on the field places the caret, or starts typing
+            // (`docs/TEXT-CURSOR.md` §4, C3).
+            let here = Action::TypeHere(crate::edit::Here::Message);
+            ui.press_box(x, cy, w, box_h, here);
             ui.c.push_clip(ui.rect(x, cy, w, box_h));
-            // All of it selected: on the one selection paint, in its ink.
-            let selected = m.typing && ui.edit.all(m.text.chars().count());
-            if selected {
-                let pad = 2.0 * FIELD_EDGE_ACTIVE;
-                ui.selection_band(x + pad, cy + pad, w - 2.0 * pad, box_h - 2.0 * pad);
-            }
-            ui.wrap_as(
-                (x + 14.0, cy + 12.0, w - 28.0),
-                BODY_M,
-                if selected {
-                    faraday_ui::SELECTION_INK
-                } else if m.text.is_empty() {
-                    Role::OnSurfaceVariant
+            let room = (x + 14.0, cy + 12.0, w - 28.0);
+            if m.text.is_empty() {
+                let hint = if m.typing {
+                    EN.message_type_the_message
                 } else {
-                    Role::OnSurface
-                },
-                &shown,
-            );
+                    EN.message_press_type
+                };
+                ui.wrap_as(room, BODY_M, Role::OnSurfaceVariant, hint);
+                if m.typing {
+                    let h = BODY_M.size * ui.text_factor();
+                    ui.caret(room.0, room.1 + (ui.line_as(BODY_M) - h) / 2.0, h);
+                }
+            } else {
+                ui.typed_lines(room, BODY_M, Role::OnSurface, &m.text, (m.typing, here));
+            }
             ui.c.pop_clip();
             cy += box_h + 12.0;
             ui.button(

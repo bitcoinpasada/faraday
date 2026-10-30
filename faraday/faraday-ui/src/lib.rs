@@ -341,6 +341,9 @@ pub struct FieldAt<A> {
     pub first: usize,
     /// The edges, in pixels.
     pub edges: Vec<i32>,
+    /// The pixel rows the line stands in, top and bottom, for a field
+    /// of several lines ([`Ui::typed_lines`]); `None` for one line.
+    pub band: Option<(i32, i32)>,
 }
 
 impl<A> FieldAt<A> {
@@ -1019,9 +1022,15 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
             .chain(std::iter::once(text.len()))
             .collect();
         let n = at.len() - 1;
-        let edge: Vec<f32> = at
-            .iter()
-            .map(|&b| self.measure(size, w, &text[..b]))
+        // Each edge by the advances so far, one pass: what
+        // [`Ui::measure`] gives each start of the text.
+        let face = self.font(size, w).sized(self.c.scale());
+        let mut pen = 0u32;
+        let edge: Vec<f32> = std::iter::once(0.0)
+            .chain(text.chars().map(|c| {
+                pen += face.advance_64(c);
+                text::px_from_64(pen) as f32 / self.f
+            }))
             .collect();
         let edit = if focused { self.edit } else { Edit::default() };
         let caret = edit.caret_in(n);
@@ -1081,6 +1090,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
             action,
             first: from,
             edges,
+            band: None,
         });
         edge[to] - edge[from]
     }

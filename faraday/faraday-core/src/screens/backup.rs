@@ -1297,6 +1297,7 @@ fn word_check(
                 masked: true,
                 caret: true,
                 never: app.seed_line,
+                press: Some(Action::TypeHere(crate::edit::Here::CheckWords)),
             };
             cy = typed_cells(ui, (x, cy, w), lang, &c.typed, cells);
         }
@@ -1326,6 +1327,7 @@ fn word_check(
                 masked: true,
                 caret: true,
                 never: app.seed_line,
+                press: None,
             };
             cy += keyed_cells(ui, (x, cy, w), lang, &taken, &prefix, cells);
             cy += keyed_pills(ui, x, cy, w, k, lang, false);
