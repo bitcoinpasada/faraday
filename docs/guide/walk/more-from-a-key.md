@@ -138,9 +138,9 @@ What to do with it:
 
 | Button | Does |
 |---|---|
-| "Save into Vault 1" | keeps it in the open vault, as a key named "BIP-85 Words · 3dca6805 · index 0" ("… is in the vault"). With no vault open, **Make a vault**, "Unlock" and a vault's name, or **Unlock a vault** in its place, each coming back here |
-| **Load as a key** | loads the child as a key of this session ("Key … added"), for a wallet of its own |
-| **Out unprotected…** | opens [This is a secret](../screens/files.md#this-is-a-secret): the file `bip85-3dca6805-words-0.txt`, the path and the words, for the stick |
+| "Save into Vault 1" | asks [Record it as a child seed?](../screens/child-seeds.md#record-it-as-a-child-seed), then keeps it in the open vault as a key named by its own fingerprint ("… is in the vault"), recorded as BIP-85 index 0 of 3dca6805 only on **Record**. With no vault open, **Make a vault**, "Unlock" and a vault's name, or **Unlock a vault** in its place, each coming back here |
+| **Load as a key** | asks the same, then loads the child as a key of this session ("Key … added"), for a wallet of its own |
+| **Out unprotected…** | opens [This is a secret](../screens/files.md#this-is-a-secret): a seed's words file named by the child's own fingerprint, the words alone, for the stick |
 
 The picture has no vault open, so **Make a vault** stands in its
 place. With Vault 1 unlocked, press "Save into Vault 1". The child is in the vault as a

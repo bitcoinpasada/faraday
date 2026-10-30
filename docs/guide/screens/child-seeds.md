@@ -2,7 +2,7 @@
 
 **Kind:** Reference
 **Status:** Checked against the app's pictures in docs/guide/pictures/ (drawn by just guide-pictures) and its code and strings (`faraday/faraday-core/src/bip85/screen.rs`, `faraday/faraday-core/src/bip85/mod.rs`, `faraday/faraday-core/src/vault/mod.rs`)
-**Screen:** `Bip85`
+**Screen:** `Bip85`, `ChildRecord`
 **Group:** Tools
 
 **Opened from:** **Tools → Child seeds and passwords**, which reads
@@ -64,10 +64,25 @@ Closed, the path.
 | **Path** | the path BIP-85 derives it at, "m/83696968'/39'/0'/24'/0'" |
 | the application's name (**Words**) | the value, hidden as dots until **Show** |
 | **Show**, **Hide** | the value on screen, or hidden; it is hidden again once the card is left |
-| "Save into Vault 1" | into the open vault, by its name: a password as an entry, child words as a key, anything else as a note, each named "BIP-85 Words · 3dca6805 · index 0" |
+| "Save into Vault 1" | into the open vault, by its name: a password as an entry and anything else as a note, each named "BIP-85 Password (base64) · 3dca6805 · index 0"; child words as a key, after [Record it as a child seed?](#record-it-as-a-child-seed) |
 | **Make a vault**, "Unlock Vault-1.fvlt", **Unlock a vault** | in its place while no vault is open: **Make a vault** while Files holds none, "Unlock" and the file's name for one locked vault in Files, **Unlock a vault** for several; each comes back here |
-| **Load as a key** | for **Words**: loads the child words as a key of this session ("Key … added") |
-| **Out unprotected…** | the value to the stick unprotected, through [This is a secret](files.md#this-is-a-secret) |
+| **Load as a key** | for **Words**: loads the child words as a key of this session ("Key … added"), after [Record it as a child seed?](#record-it-as-a-child-seed) |
+| **Out unprotected…** | the value to the stick unprotected, through [This is a secret](files.md#this-is-a-secret); child words go as a seed's words file named by the child's own fingerprint ("…-words.txt"), holding the words alone |
+
+## Record it as a child seed?
+
+A dialog before child words go into the vault or load as a key: whether
+Faraday keeps that they are BIP-85 index 0 of key 3dca6805.
+
+| Control | What it does |
+|---|---|
+| **Don't record** | the words go in as an ordinary seed: nothing in the vault or the session ties them to their parent |
+| **Record** | the vault keeps the parent's fingerprint and the index with the key (or, loaded, the session does, and any vault the key is saved into), and Keys shows it as "BIP-85 Words · 3dca6805 · index 0" |
+
+A press beside it, or Escape, puts the words nowhere. The key is named
+by its own fingerprint either way, and nothing written for its backup
+says it is a child seed. A wallet made over a key recorded as one says
+so once, in **A BIP-85 child seed**, with **OK**.
 
 In Faraday Demo the value is not made: it stays dots.
 

@@ -71,6 +71,12 @@ pub struct KeyInfo {
     /// when it is loaded from strings, or read from its vault record.
     /// No string. `None` for a key with no set known.
     pub codex32: Option<faraday_vault::codex32::SetFacts>,
+    /// The BIP-85 key this key is a child seed of, and where
+    /// (`docs/decisions/F166.md`): set when the BIP-85 flow loads it and
+    /// the person records it, or read from its vault record's field 6.
+    /// Written into every vault record of the key; nowhere else. `None`
+    /// for a key not recorded as a child.
+    pub child_of: Option<faraday_vault::child::ChildOf>,
 }
 
 impl KeyInfo {
@@ -1003,6 +1009,15 @@ impl Keys {
         {
             record.push(field::KEY_CODEX32, &set);
         }
+        // Recorded as a BIP-85 child: only here, in the vault (F166).
+        if let Some(of) = e
+            .info
+            .child_of
+            .as_ref()
+            .and_then(faraday_vault::child::payload)
+        {
+            record.push(field::KEY_CHILD, &of);
+        }
         Some(Held(record))
     }
 
@@ -1032,6 +1047,23 @@ impl Keys {
                 e.key
                     .codex32
                     .retain(|s| facts.is_some_and(|f| of_set(f, s)));
+                true
+            }
+            _ => false,
+        }
+    }
+
+    /// Sets the BIP-85 key that key `i` is a child seed of, or that it is
+    /// none (F166). A lookup; refused (false) for no such key, a key
+    /// without words, or a record whose word count is not the key's.
+    pub fn set_child_of(&mut self, i: usize, of: Option<faraday_vault::child::ChildOf>) -> bool {
+        match self.entries.get_mut(i) {
+            Some(e)
+                if of.is_none_or(|o| {
+                    o.is_sound() && e.key.words.is_some() && e.info.word_count == Some(o.words)
+                }) =>
+            {
+                e.info.child_of = of;
                 true
             }
             _ => false,
@@ -1447,6 +1479,7 @@ impl Entry {
             word_count,
             has_passphrase: passphrase.is_some(),
             codex32: None,
+            child_of: None,
         };
         Entry {
             key: Key {

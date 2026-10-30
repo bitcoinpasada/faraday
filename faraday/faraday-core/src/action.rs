@@ -583,6 +583,8 @@ pub enum Action {
     PVault,
     /// Child words as a key of this session.
     PLoad,
+    /// **Record it as a child seed?** answered: recorded (true) or not.
+    PRecord(bool),
     /// The value out unprotected, through the secret sheet.
     POut,
     /// Split the key's words into this many Seed XOR parts.

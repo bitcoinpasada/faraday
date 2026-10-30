@@ -90,6 +90,10 @@ pub mod field {
     /// Bitcoin key: the codex32 set its seed is split into, its plain
     /// facts and no string ([`crate::codex32::set_payload`]).
     pub const KEY_CODEX32: u8 = 5;
+    /// Bitcoin key: the BIP-85 key it is a child seed of, and where,
+    /// written only when the person chose to record it
+    /// ([`crate::child::payload`]).
+    pub const KEY_CHILD: u8 = 6;
 
     /// Wallet: BIP-388 text or a descriptor.
     pub const WALLET: u8 = 1;
@@ -297,6 +301,7 @@ const KEY_RULES: &[Rule] = &[
     rule(3, false, false, Shape::Exact(1)),
     rule(4, false, false, TEXT),
     rule(5, false, false, Shape::Bytes),
+    rule(6, false, false, Shape::Exact(crate::child::LEN)),
 ];
 const WALLET_RULES: &[Rule] = &[
     rule(1, true, false, TEXT),
@@ -516,6 +521,16 @@ impl Record {
             && crate::codex32::set_of(set).is_none()
         {
             return Err(Fault::Value(self.kind, field::KEY_CODEX32));
+        }
+        // A child seed is words: its record holds words of its count.
+        if self.kind == kind::KEY
+            && let Some(child) = self.field(field::KEY_CHILD)
+            && !crate::child::child_of(child).is_some_and(|c| {
+                self.field(field::KEY)
+                    .is_some_and(|k| k.len() == 34 && k[0] == c.words)
+            })
+        {
+            return Err(Fault::Value(self.kind, field::KEY_CHILD));
         }
         if self.kind == kind::CODEX32_SHARE
             && let Some(string) = self.field(field::CODEX32_STRING)

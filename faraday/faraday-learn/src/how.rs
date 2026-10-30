@@ -500,7 +500,7 @@ pub static BLOCKS: &[Block] = &[
         secret: &[p("none: no secret leaves faraday-keys"), w("not stated by the library."), p("The private key and chain code are overwritten when the key is dropped and where the decoded copy stood; the key lives on a pinned page; copies bitcoin makes inside derivation are outside Faraday's reach (stated in the module).")],
         limits: &[p("Only a depth-0 key is a master key; a key at another depth is refused."), p("An extended key text that breaks any of BIP 32 test vector 5's rules is refused.")],
         own_calls: &[p("An extended private key is decoded by Faraday's own strict reader because bitcoin accepts seven of the sixteen serialisations vector 5 rejects. Conservative."), w("no decision")],
-        screens: &["Entry", "KeyGen", "Restore", "Files", "VaultContents"],
+        screens: &["Entry", "KeyGen", "Restore", "Files", "Bip85", "VaultContents"],
         learn: "xpubs",
     },
     Block {

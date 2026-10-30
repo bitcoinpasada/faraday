@@ -123,7 +123,7 @@ fn card(app: &View, b: &Bip85State, ui: &mut Ui, s: u8, x: f32, y: f32, w: f32) 
                 .map(|k| {
                     let fp = k.fingerprint;
                     (
-                        crate::wallet::key_line(fp, &k.label),
+                        crate::wallet::key_line(fp, &crate::bip85::key_name(k)),
                         Style::chosen(b.key == Some(fp.0)),
                         Action::PKey(fp.0),
                     )
@@ -313,4 +313,40 @@ fn card(app: &View, b: &Bip85State, ui: &mut Ui, s: u8, x: f32, y: f32, w: f32) 
         }
     }
     cy - y
+}
+
+/// **Record it as a child seed?** (`docs/decisions/F166.md`): child words
+/// held before they go into the open vault or load as a key. A Material
+/// basic dialog: what is kept either way, and **Don't record** and
+/// **Record**, alike, so neither is the default. Reads the state.
+pub(crate) fn record_dialog(app: &View, ui: &mut Ui, w: f32, h: f32) {
+    use faraday_draw::tokens::{DIALOG_MAX, GAP};
+    use faraday_draw::widgets::Icon;
+    let Some(b) = app.bip85.state() else {
+        return;
+    };
+    let (Some(to), Some(of)) = (b.asking, app.bip85.child_of()) else {
+        return;
+    };
+    let parent = fp_text(faraday_bip::keys::Fingerprint(of.parent));
+    let text = match to {
+        crate::bip85::ChildTo::Vault => EN.bip85_record_vault,
+        crate::bip85::ChildTo::Load => EN.bip85_record_load,
+    };
+    let line = fill(text, &[&of.index.to_string(), &parent.to_string()]);
+    let actions = [
+        (EN.bip85_record_no, Style::Secondary, Action::PRecord(false)),
+        (EN.bip85_record_yes, Style::Secondary, Action::PRecord(true)),
+    ];
+    crate::compact::dialog(
+        ui,
+        (w, h, DIALOG_MAX),
+        (
+            Icon::Keys.into(),
+            Role::Primary.paint(),
+            EN.bip85_record_head,
+        ),
+        &mut |ui, x, y, iw| ui.wrap_as((x, y, iw), BODY_M, Role::OnSurface, &line) + GAP,
+        &actions,
+    );
 }

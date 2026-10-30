@@ -20,6 +20,7 @@ mod backup_spend_reach;
 mod backup_stick;
 mod backups;
 mod bip85;
+mod bip85_child;
 mod blank_sheet;
 mod blinding;
 mod boot;

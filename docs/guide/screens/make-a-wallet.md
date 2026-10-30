@@ -2,7 +2,7 @@
 
 **Kind:** Reference
 **Status:** Checked against the app's pictures in docs/guide/pictures/ (drawn by just guide-pictures) and its code and strings (`faraday/faraday-core/src/screens/create.rs`, `faraday/faraday-core/src/create.rs`, `faraday/faraday-core/src/backup_flow/wallet_screen.rs`, `faraday/faraday-core/src/screens/parts.rs`)
-**Screen:** `Create`
+**Screen:** `Create`, `ChildNotice`
 **Group:** Wallets
 
 **Opened from:** **Make a new wallet** on Home and on Wallets' first
@@ -117,6 +117,15 @@ The card closes on "3 of 3 chosen", or "2 of 3 chosen · 1 to come".
 
 The card closes on "New wallet 1 · first addresses". Until the wallet is
 made it reads **Make the wallet first**.
+
+## A BIP-85 child seed
+
+A dialog over Check, once, when the wallet just made holds a key
+recorded as a BIP-85 child seed ([Record it as a child seed?](child-seeds.md#record-it-as-a-child-seed)):
+"Faraday records that … is a BIP-85 child seed only inside a vault.
+Nothing written for its backup says where it came from. To remember
+that, write it down yourself." **OK** puts it away. A key not recorded
+as a child seed gives none.
 
 ## On a narrow window
 

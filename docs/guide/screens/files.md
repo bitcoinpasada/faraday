@@ -179,7 +179,7 @@ secret** for text Faraday cannot tell about.
 
 ![This is a secret for a child seed's words file, with Save into vault.fvlt and Put it for the stick unprotected](../pictures/files-this-is-a-secret.png)
 
-*The sheet **This is a secret** for bip85-3dca6805-words-0.txt, a child seed's
+*The sheet **This is a secret** for 6d6ea9fe-words.txt, a child seed's
 words: **Sealed in a vault** over "Save into vault.fvlt", then
 "Unprotected, for the stick" over "Put it for the stick unprotected".*
 

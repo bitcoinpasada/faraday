@@ -279,10 +279,11 @@ pub(super) fn sidebar(app: &View, ui: &mut Ui, h: f32) {
     let mut seed_rows = app.session.keys.all().map(|k| {
         let fp = fp_text(k.fingerprint);
         // A seed named by its fingerprint is not named twice.
-        let label = if k.label.eq_ignore_ascii_case(&fp) {
+        let name = crate::bip85::key_name(k);
+        let label = if name.eq_ignore_ascii_case(&fp) {
             String::new()
         } else {
-            k.label.clone()
+            name.into_owned()
         };
         (
             fp,

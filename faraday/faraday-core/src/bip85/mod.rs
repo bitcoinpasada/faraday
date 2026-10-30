@@ -64,6 +64,53 @@ pub fn app_name(app: Bip85App) -> &'static str {
     }
 }
 
+/// Where child words go once the person has said whether they are
+/// recorded as a child seed (`docs/decisions/F166.md`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ChildTo {
+    /// Into the open vault.
+    Vault,
+    /// Loaded as a key of this session.
+    Load,
+}
+
+/// What a loaded key is called on screen: its label, or for a key
+/// recorded as a BIP-85 child seed and named by nothing but its
+/// fingerprint, the child seed it is ("BIP-85 Words · 73c5da0a · index
+/// 0", F166). The mark is never its label, so it is never written out
+/// with it. A lookup and a fill.
+pub fn key_name(k: &faraday_keys::KeyInfo) -> std::borrow::Cow<'_, str> {
+    let label = k.label.trim();
+    match k.child_of {
+        Some(of) if label.is_empty() || label.eq_ignore_ascii_case(&fp_text(k.fingerprint)) => {
+            std::borrow::Cow::Owned(child_mark(&of))
+        }
+        _ => std::borrow::Cow::Borrowed(k.label.as_str()),
+    }
+}
+
+/// A key recorded as a BIP-85 child seed, as a line: "BIP-85 Words ·
+/// 73c5da0a · index 0", the key it comes from and its index (F166). A
+/// fill.
+pub fn child_mark(of: &faraday_vault::child::ChildOf) -> String {
+    fill(
+        EN.bip85_bip_85_index,
+        &[
+            app_name(Bip85App::Words),
+            &fp_text(faraday_bip::keys::Fingerprint(of.parent)).to_string(),
+            &of.index.to_string(),
+        ],
+    )
+}
+
+/// The mark of a vault key record recorded as a BIP-85 child seed
+/// ([`child_mark`]); `None` for one not recorded as one. A lookup and a
+/// fill.
+pub fn record_child_mark(r: faraday_keys::vault::RecordView<'_>) -> Option<String> {
+    use faraday_vault::records::field;
+    faraday_vault::child::child_of(r.public(field::KEY_CHILD)?).map(|of| child_mark(&of))
+}
+
 /// The cards of the flow.
 pub mod pstep {
     /// Which loaded key.
@@ -99,6 +146,9 @@ pub struct Bip85State {
     pub shown: bool,
     /// Where the flow returns to.
     pub back: Screen,
+    /// Child words held at **Record it as a child seed?**, and where they
+    /// go on the answer.
+    pub asking: Option<ChildTo>,
 }
 
 /// The lengths an application takes, and the one it starts with (BIP-85's
@@ -183,6 +233,7 @@ impl Bip85Area {
             index: "0".to_string(),
             shown: false,
             back,
+            asking: None,
         });
     }
 
@@ -206,6 +257,34 @@ impl Bip85Area {
             Bip85App::Base85 => faraday_keys::bip85::App::Base85(b.length),
         };
         keys.bip85_child(c, place, app, i, faraday_keys::Reveal::Bip85Child)
+    }
+
+    /// What the vault records of child words, when the person records
+    /// them: the key they come from and where (F166). `None` for another
+    /// application.
+    pub(crate) fn child_of(&self) -> Option<faraday_vault::child::ChildOf> {
+        let b = self.state.as_ref()?;
+        if b.app != Bip85App::Words {
+            return None;
+        }
+        Some(faraday_vault::child::ChildOf {
+            parent: b.key?,
+            language: 0,
+            words: u8::try_from(b.length).ok()?,
+            index: b.index()?,
+        })
+    }
+
+    /// Holds child words at **Record it as a child seed?**, to go `to`.
+    pub(crate) fn ask(&mut self, to: ChildTo) {
+        if let Some(b) = self.state.as_mut() {
+            b.asking = Some(to);
+        }
+    }
+
+    /// Where held child words go, the question put away.
+    pub(crate) fn take_asking(&mut self) -> Option<ChildTo> {
+        self.state.as_mut().and_then(|b| b.asking.take())
     }
 
     /// What the value is called where it is kept.
@@ -349,9 +428,47 @@ impl Faraday {
         self.bip85.value(c, &self.session.keys)
     }
 
-    /// The value into the open vault: a password as an entry, child words
-    /// as a key, anything else as a note.
+    /// Child words held at **Record it as a child seed?** (F166), to go
+    /// `to` on the answer; the dialog opens over the flow.
+    fn bip85_ask(&mut self, to: ChildTo) {
+        self.bip85.ask(to);
+        self.sheet = Some(crate::Sheet::ChildRecord);
+    }
+
+    /// The answer to **Record it as a child seed?**: the held words go
+    /// where they were going, recorded as a child seed or not.
+    pub(crate) fn bip85_record(&mut self, record: bool) {
+        if self.sheet != Some(crate::Sheet::ChildRecord) {
+            return;
+        }
+        self.sheet = None;
+        match self.bip85.take_asking() {
+            Some(ChildTo::Vault) => self.bip85_to_vault_as(record),
+            Some(ChildTo::Load) => self.bip85_load_as(record),
+            None => {}
+        }
+    }
+
+    /// The value into the open vault: a password as an entry, anything
+    /// else but child words as a note; child words, a key, wait for
+    /// whether they are recorded as a child seed (F166).
     pub(crate) fn bip85_to_vault(&mut self) {
+        if self.vaults.open.get(self.vaults.current).is_none() {
+            self.toast(EN.bip85_no_vault_is_open);
+            return;
+        }
+        if self.bip85.child_of().is_some() && self.makes_secrets() {
+            self.bip85_ask(ChildTo::Vault);
+            return;
+        }
+        self.bip85_to_vault_as(false);
+    }
+
+    /// [`Faraday::bip85_to_vault`] once answered: child words as a key
+    /// record, the key they come from and where kept in it only when
+    /// `record`, and no label, so the key is named by its own
+    /// fingerprint.
+    fn bip85_to_vault_as(&mut self, record: bool) {
         let c = self.compute();
         if self.vaults.open.get(self.vaults.current).is_none() {
             self.toast(EN.bip85_no_vault_is_open);
@@ -371,9 +488,16 @@ impl Faraday {
                 let Ok(m) = crate::wallet::parse_words(&c, Language::English, &value) else {
                     return;
                 };
-                Record::new(kind::KEY)
-                    .with(field::KEY, &records::words_payload(&m))
-                    .with(field::KEY_LABEL, title.as_bytes())
+                let r = Record::new(kind::KEY).with(field::KEY, &records::words_payload(&m));
+                match self
+                    .bip85
+                    .child_of()
+                    .filter(|_| record)
+                    .and_then(|o| faraday_vault::child::payload(&o))
+                {
+                    Some(of) => r.with(field::KEY_CHILD, &of),
+                    None => r,
+                }
             }
             _ => {
                 let note = Zeroizing::new(format!("{title}\n{path}\n{}", value.as_str()));
@@ -386,8 +510,22 @@ impl Faraday {
         );
     }
 
-    /// Child words load as a key of this session.
+    /// Child words load as a key of this session, once the person says
+    /// whether they are recorded as a child seed (F166).
     pub(crate) fn bip85_load(&mut self) {
+        if !self.may_load_keys() {
+            self.toast(&fill(EN.bip85_remove_the_first, &[self.medium.noun()]));
+            return;
+        }
+        if self.bip85.child_of().is_some() && self.makes_secrets() {
+            self.bip85_ask(ChildTo::Load);
+        }
+    }
+
+    /// [`Faraday::bip85_load`] once answered: the words as a key with no
+    /// label, named by its own fingerprint, and recorded as a child of
+    /// the key they come from only when `record`.
+    fn bip85_load_as(&mut self, record: bool) {
         let c = self.compute();
         if !self.may_load_keys() {
             self.toast(&fill(EN.bip85_remove_the_first, &[self.medium.noun()]));
@@ -396,19 +534,41 @@ impl Faraday {
         let Some(value) = self.bip85_value(&c) else {
             return;
         };
-        let title = self.bip85.title();
-        match self.session.keys.add_words(&c, &value, &title, None) {
-            Ok(fp) => self.toast(&fill(EN.bip85_key_added, &[&fp_text(fp).to_string()])),
+        match self.session.keys.add_words(&c, &value, "", None) {
+            Ok(fp) => {
+                if record && let Some(i) = self.session.keys.position_of(fp.0) {
+                    self.session.keys.set_child_of(i, self.bip85.child_of());
+                }
+                self.toast(&fill(EN.bip85_key_added, &[&fp_text(fp).to_string()]));
+            }
             Err(e) => self.toast(&e.text()),
         }
     }
 
-    /// The value out unprotected, through the secret sheet.
+    /// Costs a PBKDF2 and an elliptic-curve multiplication for child
+    /// words. The value out unprotected, through the secret sheet. Child
+    /// words go as a seed's words file, named by their own fingerprint and
+    /// holding the words alone: nothing in it says they are a child seed
+    /// or of which key (F166).
     pub(crate) fn bip85_out(&mut self) {
         let c = self.compute();
         let (Some(value), Some(b)) = (self.bip85_value(&c), self.bip85.state()) else {
             return;
         };
+        if b.app == Bip85App::Words {
+            let Ok(fp) = faraday_keys::identity::fingerprint_of_words(&c, &value, "") else {
+                return;
+            };
+            let name = format!("{}-words.txt", fp_text(fp).to_lowercase());
+            let text = Zeroizing::new(format!("{}\n", value.as_str()));
+            self.offer_secret(crate::secrets::SecretOut::new(
+                name,
+                Zeroizing::new(text.as_bytes().to_vec()),
+                EN.bip85_a_child_seed,
+                EN.bip85_secret_warning,
+            ));
+            return;
+        }
         let fp = b
             .key
             .map(|f| fp_text(faraday_bip::keys::Fingerprint(f)))
@@ -440,6 +600,7 @@ impl Faraday {
             A::Bip85 => self.bip85_open(),
             A::PVault => self.bip85_to_vault(),
             A::PLoad => self.bip85_load(),
+            A::PRecord(record) => self.bip85_record(record),
             A::POut => self.bip85_out(),
             _ => self.bip85.act(action),
         }

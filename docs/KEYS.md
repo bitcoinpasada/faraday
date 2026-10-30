@@ -95,6 +95,7 @@ pub struct KeyInfo {        // kept values: public, and read by drawing
     pub word_count: Option<u8>,
     pub has_passphrase: bool,
     pub share: Option<PublicKey>,
+    pub child_of: Option<ChildOf>, // the BIP-85 parent, when recorded (F166)
 }
 
 impl Keys {

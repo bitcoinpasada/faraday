@@ -724,6 +724,14 @@ kind = "review"
 held_by = ["lint-secrets"]
 misses = "a file that starts to hold secrets and is not yet in SECRET_FILES"
 
+[[rule]]
+id = "keys.child-vault-only"
+title = "that a seed is a BIP-85 child of another is kept only in a vault, and only when recorded; nothing written outside one says so"
+source = ["docs/decisions/F166.md"]
+when = ["faraday/faraday-core/src/**", "faraday/faraday-keys/src/**", "faraday/faraday-vault/src/**"]
+kind = "review"
+misses = "a file, picture, sheet, file name, wallet name or kept state that carries a key's child mark, parent fingerprint, BIP-85 index or path"
+
 # --------------------------------------------------------------- compute
 
 [[rule]]

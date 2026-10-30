@@ -98,7 +98,8 @@ pub mod sb_field {
 /// - CODEX32_SHARE: the string.
 ///
 /// Public, in full: the slot label, wallets, sheets, amounts, plans and
-/// wallet shares; a key's label, flags and codex32 set's facts; a
+/// wallet shares; a key's label, flags, codex32 set's facts and the
+/// BIP-85 key it is recorded as a child of; a
 /// codex32 share's key fingerprint; a passphrase's key
 /// fingerprint; an entry's title, username and URL; a round's scheme,
 /// transaction hash, key fingerprint and used flag; a GPG key's dates, user IDs, certificate
@@ -998,9 +999,11 @@ impl OpenVaults {
             }
         }
         let label = r.text(field::KEY_LABEL).unwrap_or("").to_string();
-        Some(KeyLoad::Done(
-            keys.add_mnemonic(c, &m, passphrase, &label, None),
-        ))
+        let loaded = keys.add_mnemonic(c, &m, passphrase, &label, None);
+        if loaded.is_ok() {
+            keys.set_child_of(keys.len() - 1, child_of_of(r));
+        }
+        Some(KeyLoad::Done(loaded))
     }
 
     /// Costs a parse of the words. Key record `r`'s words, held until
@@ -1289,7 +1292,8 @@ impl OpenVaults {
             return Vec::new();
         };
         type Set = Option<fv::codex32::SetFacts>;
-        let mut words: Vec<(Zeroizing<String>, String, Set)> = Vec::new();
+        type Child = Option<fv::child::ChildOf>;
+        let mut words: Vec<(Zeroizing<String>, String, Set, Child)> = Vec::new();
         let mut seeds: Vec<(Zeroizing<Vec<u8>>, String, Set)> = Vec::new();
         let mut passphrases: Vec<Zeroizing<String>> = Vec::new();
         for (i, r) in slot.records.of(kind::KEY) {
@@ -1304,16 +1308,17 @@ impl OpenVaults {
                     Some(p) => Zeroizing::new(p.to_string()),
                     None => self.passphrase_kept_for(c, keys, &m).unwrap_or_default(),
                 };
-                words.push((phrase_of(&m), label, set));
+                words.push((phrase_of(&m), label, set, child_of_of(r)));
                 passphrases.push(pass);
             } else if let Some(seed) = seed_of(r) {
                 seeds.push((seed, label, set));
             }
         }
         let mut loaded = Vec::new();
-        for ((w, label, set), p) in words.iter().zip(&passphrases) {
+        for ((w, label, set, child), p) in words.iter().zip(&passphrases) {
             if let Ok(fp) = keys.add_words_with(c, w, p, label, None) {
                 keys.set_codex32(keys.len() - 1, set.clone());
+                keys.set_child_of(keys.len() - 1, *child);
                 loaded.push(fp);
             }
         }
@@ -1356,6 +1361,7 @@ impl OpenVaults {
         };
         if matches!(loaded, Some(Ok(_))) {
             keys.set_codex32(keys.len() - 1, codex32_set_of(r));
+            keys.set_child_of(keys.len() - 1, child_of_of(r));
         }
         loaded
     }
@@ -1969,6 +1975,12 @@ fn codex32_header(r: &Record) -> Option<(u8, [u8; 4], u8)> {
 /// (`docs/CODEX32.md` §9.4); `None` where it keeps none.
 fn codex32_set_of(r: &Record) -> Option<fv::codex32::SetFacts> {
     fv::codex32::set_of(r.field(field::KEY_CODEX32)?)
+}
+
+/// The BIP-85 key a key record says it is a child seed of (F166);
+/// `None` where it says none.
+fn child_of_of(r: &Record) -> Option<fv::child::ChildOf> {
+    fv::child::child_of(r.field(field::KEY_CHILD)?)
 }
 
 /// The master seed a key record holds, when it holds a seed rather than

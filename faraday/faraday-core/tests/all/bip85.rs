@@ -54,6 +54,7 @@ fn a_child_seed_loads_as_a_key_of_its_own() {
     app.event(Event::Key(Key::Char('7')));
     app.press(Action::PNext);
     app.press(Action::PLoad);
+    app.press(Action::PRecord(false));
     assert_eq!(app.session.keys.len(), 2);
     let master = &app.session.keys.master_for_tests(0);
     let child = faraday_bip::bip85::child_mnemonic(&c, master, Language::English, 12, 7).unwrap();

@@ -66,7 +66,7 @@
 //! - Faraday Demo's host: `host` (the strip at the window's foot, the
 //!   preview frame and the pointer carried into the app, with
 //!   `host/screen.rs` and its lists under a finger in `host/scroll.rs`; `docs/DESKTOP-HOST.md`).
-//! - Support: `wordlist`, `learn`, `modes` (F81, with `modes/screen.rs`), `samples` (with `samples/screen.rs`, and `samples/put.rs`, Use a sample, whose buttons Faraday Demo's strip shows), `tools`, `testkit`.
+//! - Support: `slow` (the presses whose work waits for a frame), `wordlist`, `learn`, `modes` (F81, with `modes/screen.rs`), `samples` (with `samples/screen.rs`, and `samples/put.rs`, Use a sample, whose buttons Faraday Demo's strip shows), `tools`, `testkit`.
 //!
 //! `Faraday::act_inner` is the dispatch for presses: it runs the checks that
 //! come before any action, then sends each `Action` to its area's
@@ -197,6 +197,7 @@ pub mod explore;
 pub mod family;
 pub mod plan;
 mod register;
+mod slow;
 
 // Backups and the backup flow.
 pub mod backup_flow;
@@ -657,6 +658,10 @@ pub enum Sheet {
     UnlockLoad,
     /// **Open this copy?**: an unlock held at an older copy (`vault::OlderHold`).
     OlderCopy,
+    /// **Record it as a child seed?**: BIP-85 child words held (F166).
+    ChildRecord,
+    /// **A BIP-85 child seed**: a wallet made over one recorded (F166).
+    ChildNotice,
     /// **Seeds with no passphrase stored**, from a wallet short of a key:
     /// one to load with a passphrase typed now, checked against the
     /// wallet (`vault_load`, F62).
@@ -2771,6 +2776,7 @@ impl Faraday {
             | Action::PShow
             | Action::PVault
             | Action::PLoad
+            | Action::PRecord(_)
             | Action::POut => self.bip85_act(action),
             Action::Silent
             | Action::SStep(_)
@@ -6715,83 +6721,8 @@ enum Later {
     PublicOut(usize, u8),
 }
 
-/// Whether a press stretches a key (PBKDF2, scrypt, Argon2) or makes more
-/// than one picture or PDF, so that the frame that shows it is drawn
-/// first and its work is done on the tick after (`docs/SPEED.md` §9). A
-/// press that does such work and is not here fails the guard in
-/// `Faraday::press_in` in every test.
-fn slow(a: Action) -> bool {
-    use crate::backup_flow::steps::FlowAction as F;
-    use crate::glance::sheet::ChartAction as C;
-    use crate::vault::VaultAction as V;
-    matches!(
-        a,
-        Action::BChecklist
-            | Action::BC32(crate::codex32_backup::Press::Set(
-                crate::codex32_backup::SetPress::MakeNew,
-            ))
-            | Action::BNewVault(_)
-            | Action::CNext(_)
-            | Action::CPassLock
-            | Action::CSlotVault(..)
-            | Action::EntryAdd
-            | Action::EntryRecover
-            | Action::Flow(F::CopyKey | F::LockWrite | F::WalletLock)
-            | Action::Import(boot_import::ImportAction::Go)
-            | Action::InboxLoad
-            | Action::KLock
-            | Action::KNext
-            | Action::Own(crate::fresh::page::Act::Skip)
-            | Action::LKey(_)
-            | Action::LResolve
-            | Action::LoadKey(_)
-            | Action::Lock
-            | Action::NewWalletFrom(_)
-            | Action::SamplesLoad
-            | Action::ScanSample
-            | Action::SamplePsbt
-            | Action::PLoad
-            | Action::PotentialMake
-            | Action::SecretHold
-            | Action::SeedRead(seeds::read::Choice::Plain | seeds::read::Choice::WithPass)
-            | Action::Seeds(seeds::SeedsAction::Make | seeds::SeedsAction::Sample(_))
-            | Action::SelfTestRun
-            | Action::Vanity(vanity::VanityAction::Use)
-            | Action::Chart(
-                C::Checked(..) | C::Confirm(_) | C::Do(..) | C::Edit(..) | C::PassTry(_)
-            )
-            | Action::Vault(
-                V::AddFile(_)
-                    | V::AddKind(_)
-                    | V::Category(_)
-                    | V::LoadAll(_)
-                    | V::LoadChosen(_)
-                    | V::LoadKeyOf(..)
-                    | V::LoadTicked
-                    | V::LoadWithKeys(_)
-                    | V::OlderOpen
-                    | V::Open(_)
-                    | V::OpenWalletOf(..)
-                    | V::PromptGo
-                    | V::SaveKey(_)
-                    | V::SaveKeyWithPassphrase(_)
-                    | V::SaveWallet(_)
-            )
-    )
-}
-
-/// What the frame drawn before a slow press's work says, when the work
-/// is long enough to be seen: pictures and PDFs made.
-fn working_text(a: Action) -> Option<&'static str> {
-    use crate::backup_flow::steps::FlowAction as F;
-    matches!(
-        a,
-        Action::BChecklist | Action::SecretHold | Action::Flow(F::WalletLock)
-    )
-    .then_some(EN.working_files)
-}
-
 use pointer::field_action;
+use slow::{slow, working_text};
 
 /// A file name without its extension.
 pub(crate) fn stem(name: &str) -> String {

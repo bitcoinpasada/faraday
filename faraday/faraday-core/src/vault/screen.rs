@@ -1505,9 +1505,8 @@ fn item_heading(app: &View, r: RecordView<'_>) -> (String, String, bool) {
             let loads = r.loads_at_unlock();
             let label = r.public_text(field::KEY_LABEL).unwrap_or("");
             let mut line = vec![words];
-            if !label.is_empty() {
-                line.push(label.to_string());
-            }
+            line.extend((!label.is_empty()).then(|| label.to_string()));
+            line.extend(crate::bip85::record_child_mark(r));
             if !loads {
                 line.push(EN.vault_not_loaded_at_unlock_inline.to_string());
             }

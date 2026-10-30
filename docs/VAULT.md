@@ -404,7 +404,7 @@ exactly where its last field does, refuses the slot.
 | Type | Record | Fields |
 |---|---|---|
 | 1 | Slot label | 1 label (≤ 64 bytes). At most one per slot. |
-| 2 | Bitcoin key | 1 key: a words payload (34 bytes) or a seed payload (65 bytes), below; 2 label; 3 flags (`u8`: bit 0 not loaded at unlock, so the Load sheet an unlock shows starts it unticked, `docs/DECISIONS.md` F62; absent, or bit 0 clear, it starts ticked; bit 1 made in Faraday with its backup not done, so it signs nothing until it is, `docs/history/NEW-WALLET.md` §14.3); 4 BIP-39 passphrase, present only when the person chose to store it; 5 the key's codex32 set, a codex32 set payload (below): the set's plain facts and never a string (`docs/CODEX32.md` §9.4), present only for a key whose seed is split into a set Faraday knows of; a slot without it reads as before, and a build before it refuses a slot whose key record holds it |
+| 2 | Bitcoin key | 1 key: a words payload (34 bytes) or a seed payload (65 bytes), below; 2 label; 3 flags (`u8`: bit 0 not loaded at unlock, so the Load sheet an unlock shows starts it unticked, `docs/DECISIONS.md` F62; absent, or bit 0 clear, it starts ticked; bit 1 made in Faraday with its backup not done, so it signs nothing until it is, `docs/history/NEW-WALLET.md` §14.3); 4 BIP-39 passphrase, present only when the person chose to store it; 5 the key's codex32 set, a codex32 set payload (below): the set's plain facts and never a string (`docs/CODEX32.md` §9.4), present only for a key whose seed is split into a set Faraday knows of; a slot without it reads as before, and a build before it refuses a slot whose key record holds it; 6 the BIP-85 key it is a child seed of, a child seed payload (below), present only when the person chose **Record** at **Record it as a child seed?** (`docs/decisions/F166.md`): the only place Faraday keeps that a seed is a child of another; a record without it is an ordinary seed, a record whose words are not of its word count, or that holds a seed rather than words, is refused, and a build before it refuses a slot whose key record holds it |
 | 3 | Wallet | 1 BIP-388 text, or the descriptor for a wallet whose key has no origin; 2 name; 3 flags (`u8`: bit 0 not loaded at unlock, as a key's; absent, it loads; F62, and a build before F62 refuses a slot whose wallet holds it) |
 | 4 | Note | 1 the note, its UTF-8 bytes |
 | 5 | Recovery sheet | 1 the sheet, as a sheet payload, below |
@@ -435,7 +435,7 @@ may appear more than once; no other field may. A key's field 1 must be a
 words payload or a seed payload, and a recovery sheet's field 1 a sheet
 payload, exactly as laid out below.
 
-**Payload layouts.** Five byte strings are the vault's own, the first four written and
+**Payload layouts.** Six byte strings are the vault's own, the first four written and
 read by `faraday/faraday-vault/src/layouts.rs`:
 
 | Payload | Bytes |
@@ -444,6 +444,7 @@ read by `faraday/faraday-vault/src/layouts.rs`:
 | Seed (a key record's field 1, 65 bytes) | the seed's length (`u8`, 16 to 64), then the seed zero-padded on the right to 64 bytes. Every pad byte must be zero. |
 | Note (a note record's field 1) | the note's UTF-8 bytes. |
 | Recovery sheet (a sheet record's field 1) | three fields in this order, the wallet's descriptor, its name and the sheet's note, each a little-endian `u16` length followed by that many bytes of UTF-8. Nothing may follow the third; the whole is at most 16 KiB, and a longer one is refused when read as when written. |
+| Child seed (a key record's field 6, 14 bytes) | the parent key's fingerprint (4 bytes); the BIP-85 application (`u32` little-endian), 39; the BIP-85 language number (`u8`, 0 to 8; Faraday writes 0, English); the word count (`u8`: 12, 18 or 24, the record's own); the index (`u32` little-endian, at most 2³¹ − 1). Public: a fingerprint and numbers, no secret. Written and read by `faraday/faraday-vault/src/child.rs`. |
 | Codex32 set (a key record's field 5, 7 bytes and 2 per string) | the threshold k (`u8`: 0, the secret alone, or 2 to 9); the identifier, four bech32 characters in lower case; each string's length in characters (`u8`: 48, 54, 61, 67, 74 or 127); how many strings exist whose share index is not known (`u8`); then for each string whose index is known, the index (a bech32 character in lower case) and its state (`u8`: 0 made, 1 placed, 2 lost, 3 exposed, 4 destroyed). At most 31 strings in all, each index once; at k = 0 the one string `s` and nothing else. No string is kept: the record holds the seed, and a split set's strings cannot be made again from it alone (`docs/CODEX32.md` §9.4). Written and read by `faraday/faraday-vault/src/codex32.rs`. |
 
 A key record's field 1 of 34 bytes is read as words and any other length

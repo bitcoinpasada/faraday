@@ -54,5 +54,39 @@ pub(crate) fn keys_tour(t: &mut Tour) -> Result<(), String> {
     // The small panel's wallet list, where the loose key has its row.
     t.press(Action::Nav(Screen::WalletsStart));
     t.shot("wallet-list-one-wallet-one-key")?;
+    child_seed(t, fp)
+}
+
+/// BIP-85 child words from key `fp` loaded as a key: Record it as a
+/// child seed?, then a wallet made over the child, recorded, and A BIP-85
+/// child seed (F166).
+fn child_seed(t: &mut Tour, fp: [u8; 4]) -> Result<(), String> {
+    use faraday_core::cstep;
+    t.press(Action::Bip85);
+    t.press(Action::PKey(fp));
+    t.press(Action::PApp(0));
+    t.press(Action::PNext);
+    t.press(Action::PNext);
+    t.press(Action::PLoad);
+    t.shot("bip85-record")?;
+    let before = t.app.session.keys.len();
+    t.press(Action::PRecord(true));
+    let child = t
+        .app
+        .session
+        .keys
+        .all()
+        .nth(before)
+        .map(|k| k.fingerprint.0)
+        .ok_or("no child loaded")?;
+    t.press(Action::CreateWallet);
+    t.press(Action::CKind(0));
+    t.press(Action::CNext(cstep::KIND));
+    t.press(Action::CVaults(false));
+    t.press(Action::CNext(cstep::WHERE));
+    t.press(Action::CSlotHere(0, child));
+    t.press(Action::CNext(cstep::KEYS));
+    t.shot("child-notice")?;
+    t.press(Action::Cancel);
     Ok(())
 }

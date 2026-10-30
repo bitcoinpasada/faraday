@@ -2361,8 +2361,9 @@ impl Vaults {
                 record: i,
                 name: r
                     .public_text(field::KEY_LABEL)
-                    .unwrap_or(EN.vaults_seed)
-                    .to_string(),
+                    .map(str::to_string)
+                    .or_else(|| crate::bip85::record_child_mark(r))
+                    .unwrap_or_else(|| EN.vaults_seed.to_string()),
                 detail: fp,
                 seed: true,
                 loaded,

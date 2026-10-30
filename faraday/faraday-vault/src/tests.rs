@@ -388,6 +388,70 @@ fn a_passphrase_record_seals_and_opens_and_one_without_its_passphrase_is_refused
     assert!(short.encode(BODY, Seals::FIRST).is_err());
 }
 
+#[test]
+fn a_child_seed_record_seals_and_opens_and_one_that_does_not_fit_its_key_is_refused() {
+    use crate::child::{self, ChildOf};
+    let c = compute();
+    let words = faraday_bip::bip39::Mnemonic::parse(
+        &c,
+        faraday_bip::bip39::Language::English,
+        "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about",
+    )
+    .unwrap();
+    let of = ChildOf {
+        parent: [0x73, 0xc5, 0xda, 0x0a],
+        language: 0,
+        words: 12,
+        index: 7,
+    };
+    let key = |bytes: &[u8]| Contents {
+        records: vec![
+            Record::new(kind::KEY)
+                .with(field::KEY, &records::words_payload(&words))
+                .with(field::KEY_CHILD, bytes),
+        ],
+    };
+    let file = create(
+        &c,
+        SMALL,
+        CHEAP,
+        &["child"],
+        &[key(&child::payload(&of).unwrap())],
+        &[6; 32],
+    )
+    .unwrap();
+    let (_, back) = open(&c, &file, "child").unwrap();
+    let (_, r) = back.of(kind::KEY).next().expect("the key");
+    assert_eq!(
+        r.field(field::KEY_CHILD).and_then(child::child_of),
+        Some(of)
+    );
+    // 24 words recorded for a key of 12, another application, an index
+    // past BIP-85's, a seed in place of words: each refused.
+    let mut other = child::payload(&ChildOf { words: 24, ..of }).unwrap();
+    let refused = |b: &[u8]| {
+        assert_eq!(
+            key(b).encode(BODY, Seals::FIRST).err(),
+            Some(Error::Contents(Fault::Value(kind::KEY, field::KEY_CHILD)))
+        );
+    };
+    refused(&other);
+    other = child::payload(&of).unwrap();
+    other[4] = 32;
+    refused(&other);
+    other = child::payload(&of).unwrap();
+    other[10..].copy_from_slice(&0x8000_0000u32.to_le_bytes());
+    refused(&other);
+    let seed = Contents {
+        records: vec![
+            Record::new(kind::KEY)
+                .with(field::KEY, &crate::layouts::seed_payload(&[1; 32]).unwrap())
+                .with(field::KEY_CHILD, &child::payload(&of).unwrap()),
+        ],
+    };
+    assert!(seed.encode(BODY, Seals::FIRST).is_err());
+}
+
 /// Seals `plain`, a whole slot plaintext as given, into slot `i` of
 /// `file` under `key`: a slot no writer of this format makes.
 fn seal_raw(file: &mut [u8], key: &SlotKey, i: usize, plain: &[u8]) {

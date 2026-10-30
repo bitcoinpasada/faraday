@@ -32,6 +32,7 @@
 
 extern crate alloc;
 
+pub mod child;
 pub mod codex32;
 pub mod entries;
 pub mod layouts;

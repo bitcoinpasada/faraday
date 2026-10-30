@@ -403,10 +403,11 @@ pub(crate) fn status_strip(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f
         }
         let fp = fp_text(k.fingerprint);
         // A key named by its fingerprint is not named twice.
-        let label = if k.label.eq_ignore_ascii_case(&fp) {
+        let name = crate::bip85::key_name(k);
+        let label = if name.eq_ignore_ascii_case(&fp) {
             ""
         } else {
-            k.label.as_str()
+            &name
         };
         let open = Action::ExploreKey(k.fingerprint.0);
         f.chip(ui, Some(Icon::Keys.into()), (&fp, W::M), label, Some(open));

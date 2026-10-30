@@ -40,7 +40,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         .map(|k| {
             let fp = k.fingerprint;
             (
-                crate::wallet::key_line(fp, &k.label),
+                crate::wallet::key_line(fp, &crate::bip85::key_name(k)),
                 Style::chosen(e.key == Some(fp.0)),
                 Action::XKey(fp.0),
             )

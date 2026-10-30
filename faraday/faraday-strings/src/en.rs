@@ -980,8 +980,21 @@ strings! {
     // ----- bip85 (faraday-core/src/bip85/mod.rs) -----
     /// Toast in `bip85_open`.
     bip85_load_a_key_first: "Load a key first",
-    /// Text in `bip85_title`. `{}`: `app_name(b.app)`, `fp`, `b.index().unwrap_or(0)`.
+    /// Text in `bip85_title`, and a key recorded as a child seed where its
+    /// name is shown (`wallet::key_name`). `{}`: `app_name(b.app)`, the
+    /// parent's `fp`, the index.
     bip85_bip_85_index: "BIP-85 {} · {} · index {}",
+    /// Head of `bip85::screen::record_dialog`, before child words go into
+    /// a vault or load as a key.
+    bip85_record_head: "Record it as a child seed?",
+    /// Text in `record_dialog`, for the vault. `{}`: the index, the parent's fingerprint.
+    bip85_record_vault: "Recorded, the vault keeps that these words are BIP-85 index {} of key {}. Not recorded, it holds them as an ordinary seed.",
+    /// Text in `record_dialog`, for Load as a key. `{}`: the index, the parent's fingerprint.
+    bip85_record_load: "Recorded, Faraday keeps that these words are BIP-85 index {} of key {}, and so does any vault they are saved into. Not recorded, they are an ordinary seed.",
+    /// Action in `record_dialog`: the words go in as an ordinary seed.
+    bip85_record_no: "Don't record",
+    /// Action in `record_dialog`: the words go in recorded as a child seed.
+    bip85_record_yes: "Record",
     /// Toast in `bip85_to_vault`.
     bip85_no_vault_is_open: "No vault is open",
     /// Text in `bip85_to_vault`. `{}`: `title`.
@@ -3869,6 +3882,13 @@ strings! {
     create_make_new_wallet: "New wallet {}",
     /// Text in `create_make`.
     create_make_made_here: "Made here",
+    /// Head of `screens::create::child_notice`, after a wallet is made with
+    /// a key recorded as a BIP-85 child seed.
+    create_child_head: "A BIP-85 child seed",
+    /// Text in `child_notice`. `{}`: the key's fingerprint.
+    create_child_body: "Faraday records that {} is a BIP-85 child seed only inside a vault. Nothing written for its backup says where it came from. To remember that, write it down yourself.",
+    /// Action in `child_notice`.
+    create_child_ok: "OK",
     // ----- make_pdf (faraday-core/src/lib.rs) -----
     /// Text in `make_pdf`. `{}`: `stem(name)`.
     make_pdf_pdf: "{}.pdf",

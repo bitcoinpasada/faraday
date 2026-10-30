@@ -880,6 +880,10 @@ pub struct CreateState {
     /// The made wallet was added to the session by this creation, not
     /// found there already: taking it back removes it.
     pub added: bool,
+    /// The made wallet's first key recorded as a BIP-85 child seed, by
+    /// fingerprint: what **A BIP-85 child seed** names (F166). Set once,
+    /// when the wallet is made.
+    pub child: Option<[u8; 4]>,
     /// The creation's backup flow as it stood before the made wallet was
     /// tied to it, by index: what taking the wallet back puts back.
     pub before_made: Option<(usize, Box<backup_flow::BackupFlow>)>,
@@ -1827,6 +1831,29 @@ impl Faraday {
         }
     }
 
+    /// A wallet just made with a key recorded as a BIP-85 child seed
+    /// (from its vault record or this session) opens **A BIP-85 child
+    /// seed**, once for this creation (F166). A lookup over the slots.
+    fn create_child_notice(&mut self) {
+        let child = self.create.state().and_then(|c| {
+            c.slots.iter().find_map(|s| match s {
+                create::Source::Here(fp) => self
+                    .session
+                    .keys
+                    .all()
+                    .any(|k| k.fingerprint.0 == *fp && k.child_of.is_some())
+                    .then_some(*fp),
+                _ => None,
+            })
+        });
+        if let Some(c) = self.create.state_mut() {
+            c.child = child;
+        }
+        if child.is_some() {
+            self.sheet = Some(crate::Sheet::ChildNotice);
+        }
+    }
+
     pub(crate) fn create_make(&mut self) {
         let k = self.compute();
         if let Some(e) = self.create_shares_refusal() {
@@ -1883,6 +1910,7 @@ impl Faraday {
                     c.added = i == before;
                     c.before_made = before_made;
                 }
+                self.create_child_notice();
                 // The flow that decided where its keys go knows the wallet
                 // now.
                 if let Some(owner) = owner {

@@ -844,3 +844,29 @@ fn change_row(
     ui.rule(x, y + h, w, Role::OutlineVariant);
     h + 12.0
 }
+
+/// **A BIP-85 child seed** (`docs/decisions/F166.md`): a wallet just made
+/// with a key recorded as one. A Material basic dialog with one action,
+/// **OK**. Reads the state.
+pub(crate) fn child_notice(app: &View, ui: &mut Ui, w: f32, h: f32) {
+    use faraday_draw::tokens::{DIALOG_MAX, GAP};
+    use faraday_draw::widgets::Icon;
+    let Some(fp) = app.create().and_then(|c| c.child) else {
+        return;
+    };
+    let line = fill(
+        EN.create_child_body,
+        &[&fp_text(faraday_bip::keys::Fingerprint(fp)).to_string()],
+    );
+    crate::compact::dialog(
+        ui,
+        (w, h, DIALOG_MAX),
+        (
+            Icon::Keys.into(),
+            Role::Primary.paint(),
+            EN.create_child_head,
+        ),
+        &mut |ui, x, y, iw| ui.wrap_as((x, y, iw), BODY_M, Role::OnSurface, &line) + GAP,
+        &[(EN.create_child_ok, Style::Primary, Action::Cancel)],
+    );
+}
