@@ -198,6 +198,9 @@ pub enum Action {
     KeyPathHold,
     /// The key path sheet's Cancel: the waiting wallet is not added.
     KeyPathCancel,
+    /// The account dialog's choice for a Coldcard export of two accounts,
+    /// or its Cancel (`None`): the waiting export is not added.
+    LoadAccount(Option<crate::wallet::Account>),
     /// The Spend review's **Register this wallet**: the sheet opens on
     /// the wallet the PSBT defines.
     RegisterOpen,
@@ -559,6 +562,9 @@ pub enum Action {
     SScanVault,
     /// The scan key out unprotected, through the secret sheet.
     SScanOut,
+    /// Session wallet n's BIP-392 `sp()` descriptor out unprotected,
+    /// through the secret sheet: it carries the scan key.
+    SDescriptorOut(usize),
     /// Done with this silent payments card.
     SNext,
     /// Add the key's silent payments wallet to the session's wallets.

@@ -68,7 +68,7 @@ impl Faraday {
             // cipher seed is open: `node_from_aezeed` takes only the
             // published one.
             Action::LShow | Action::LVault | Action::LOut => true,
-            Action::SScanVault | Action::SScanOut => true,
+            Action::SScanVault | Action::SScanOut | Action::SDescriptorOut(_) => true,
             // The way to a vault to keep one of those.
             Action::Vault(V::CreateFrom(s) | V::OpenFrom(_, s) | V::ListFrom(s)) => {
                 matches!(s, Screen::Bip85 | Screen::Lightning | Screen::Silent)

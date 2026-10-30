@@ -356,9 +356,10 @@ wallet wpkh([5271C071/84h/0h/0h]xpub6Cx3zCunLUy4JP68knrisNg26pqCLqYVJChHsCfUnrxS
 first bc1q9unqc738dxjg5mk8zqtz33zg59cahrj29s24lp Mainnet
 rebuilt true
 == sparrow/keystone-singlesig-sp-keystore-1.txt
-kind Text
-refused Not a wallet: unsupported descriptor template
-rebuilt false
+kind Wallet
+wallet tsp1qqgdw87ws322c7wjaqnzvl5ynv43sarr7ch2nrj6fwn24uv6jxks7jqa2e7v932angyh6q7p540es9xkkmljm54cl2y2fccfyvndt5shrpypt9x3f
+first none
+rebuilt true
 == sparrow/specter-diy-export.txt
 kind Wallet
 wallet wsh(sortedmulti(2,[7fd1bbf4/48h/0h/0h/2h]xpub6DnVFCXjZKhSAJw1oGzksdc1CtMxHxqG6DgNSjZHsymMSgcNEb2c3bz5N2bBMEEUFos98CeAWbh1pTMBcJrsKW63icdAQNGT6Aqv1WWrkxg/<0;1>/*,[8ff26349/48h/0h/0h/2h]xpub6ErPooPdSeBoXVZocBe8EWF9GXjFuV52kme35p4MtrP2SAFdUmgTJM1urrJzSuA44izrEuiQNNdmWEVRaBJcBDcPpnLBR8tP2Pcu2EiyeHu/<0;1>/*,[ff3305c2/48h/0h/0h/2h]xpub6Dpndp2xurqbfSGhxKVXzk3nJZgah3PdD3qD11KyPicYYBatRxfxqoN7s9tnWKXaz7zhyVqcvnJyak7BVKonW2wTXHd1zNDxJAu8jcxF59j/<0;1>/*))
@@ -373,9 +374,10 @@ key [b317ec86/84h/1h/0h]tpubDCKVXMvGq2YRczuCLcfcY8TaxHGjFTuhFrkRGpBk4DXmQeJXM3JA
 slot NativeSegwit [b317ec86/84h/1h/0h]tpubDCKVXMvGq2YRczuCLcfcY8TaxHGjFTuhFrkRGpBk4DXmQeJXM3JAz8ijxTS59PZQBUtiq5wkstpzgvow7A25F4vDbmiAEy3rE4xHcR2XUUq
 rebuilt true
 == sparrow/specter-diy-sp-keystore.txt
-kind Text
-refused Not a wallet: unsupported descriptor template
-rebuilt false
+kind Wallet
+wallet tsp1qqgdw87ws322c7wjaqnzvl5ynv43sarr7ch2nrj6fwn24uv6jxks7jqa2e7v932angyh6q7p540es9xkkmljm54cl2y2fccfyvndt5shrpypt9x3f
+first none
+rebuilt true
 == sparrow/specter-multisig-wallet.json
 kind Wallet
 wallet wsh(multi(3,[ca9a2b19/48h/0h/0h/2h]xpub6EhbRDNhmMX863W8RujJyAMw1vtM4MHXnsk14paK1ZBEH75k44gWqfaraXCrzg6w9pzC2yLc28vAdUfpB9ShuEB1HA9xMs6BjmRi4PKbt1K/<0;1>/*,[046b9450/48h/0h/0h/2h]xpub6Ej6a311KAYh6jUAnD4zHhgtgemM4DfMksQUNbAzXCQEkjKf5Ep2WLmMtJkmR4MHm8aEy648kzZo4cphwYhMpfwfYvHRQY4u2e4ijWzohwE/<0;1>/*,[747b698e/48h/0h/0h/2h]xpub6Eb6Z1xtmWRiWKgRpHf6dHiEagGd6FLiBXrnma1nFK4PGRYqSVqVyJaxna5Mb8etSP4ATKVAvKnXG1a9HZauoAawuSDJT5RgH2HqEVHZVHY/<0;1>/*,[7bb026be/48h/0h/0h/2h]xpub6FMGmJccz6dqLo9TMmXYPpZ7HUDm71RHHSTXqTUgkyP9TZmF2uexoB7qttEBtHaotopPwfAVfKfwmdEjCGabVpND1m7ix2AW2LxPuNfLZhi/<0;1>/*))

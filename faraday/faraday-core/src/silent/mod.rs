@@ -585,6 +585,56 @@ impl crate::trail::StepFlow for SilentSteps {
 }
 
 impl Faraday {
+    /// After a press: notes the press that left a Coldcard export of two
+    /// accounts waiting, to run again once one is chosen, and opens the
+    /// account dialog over what is on screen while one waits.
+    pub(crate) fn account_after(&mut self, asked: bool, action: crate::Action) {
+        if !asked && crate::wallet::replays(action) {
+            let inbox = self.inbox_print();
+            self.session.account_replay(action, inbox);
+        }
+        if self.session.account_asked().is_some() && self.sheet != Some(crate::Sheet::Account) {
+            self.sheet = Some(crate::Sheet::Account);
+        }
+    }
+
+    /// Costs what `add_policy` costs: the account dialog's choice, or its
+    /// Cancel (`None`). The choice is kept for the session; the press
+    /// that asked runs again while Files holds what it held, and an
+    /// export that came in any other way is added here.
+    pub(crate) fn account_act(&mut self, chosen: Option<crate::wallet::Account>) {
+        self.sheet = None;
+        let Some(account) = chosen else {
+            self.session.account_drop();
+            return;
+        };
+        let Some(ask) = self.session.account_choose(account) else {
+            return;
+        };
+        if let Some((press, inbox)) = ask.replay
+            && inbox == self.inbox_print()
+        {
+            return self.act(press);
+        }
+        let policy = match account {
+            crate::wallet::Account::SingleSig => ask.single,
+            crate::wallet::Account::Silent => ask.silent,
+        };
+        let c = self.compute();
+        match self
+            .session
+            .add_policy(&c, &ask.name, policy, &ask.source, ask.origin)
+        {
+            Ok(i) => {
+                let name = self.session.wallets[i].name.clone();
+                self.wallets.set_wallet(i);
+                self.refresh_spend();
+                self.toast(&fill(EN.wallet_key_path_added, &[&name]));
+            }
+            Err(e) => self.toast(&e.text()),
+        }
+    }
+
     /// The flow's state, while it is open.
     pub fn silent(&self) -> Option<&SilentState> {
         self.silent.state()
@@ -757,6 +807,7 @@ impl Faraday {
                     EN.silent_whoever_has,
                 ));
             }
+            A::SDescriptorOut(i) => self.silent_descriptor_out(i),
             A::SAddWallet => self.silent_add_wallet(),
             A::SWallet(i) => {
                 if self.silent.open_wallet(&self.session, i) {
@@ -775,6 +826,42 @@ impl Faraday {
 
     /// The key's silent payments wallet into the session's wallets: the
     /// two public keys, the key's origin and the labels handed out.
+    /// Costs two key derivations per loaded key with the wallet's
+    /// fingerprint. Session wallet `i`'s BIP-392 descriptor,
+    /// `sp([fp/352h/coinh/accounth]spscan1q…)`, offered through the secret
+    /// sheet, from the loaded key whose scan and spend keys are the
+    /// record's at its account; a toast where no such key is loaded.
+    fn silent_descriptor_out(&mut self, i: usize) {
+        let c = self.compute();
+        let Some(w) = self.session.wallets.get(i) else {
+            return;
+        };
+        let Some(record) = w.policy().silent() else {
+            return;
+        };
+        let (_, found) = check_record(&c, &self.session.keys, record);
+        let Some((r, _)) = found else {
+            return self.toast(&fill(
+                EN.silent_descriptor_needs_key,
+                &[&fp_text(record.fingerprint).to_string()],
+            ));
+        };
+        let Some(d) = r.descriptor(
+            faraday_keys::Reveal::OutboxFile(faraday_keys::Part::ScanKey),
+            record.fingerprint,
+            record.account,
+        ) else {
+            return;
+        };
+        let name = format!("{}-sp-descriptor.txt", crate::file_stem(&w.name));
+        self.offer_secret(crate::secrets::SecretOut::new(
+            name,
+            Zeroizing::new(format!("{}\n", d.as_str()).into_bytes()),
+            EN.silent_a_silent_payments_descriptor,
+            EN.silent_whoever_has,
+        ));
+    }
+
     fn silent_add_wallet(&mut self) {
         let c = self.compute();
         let Some(text) = self.silent_record(&c) else {

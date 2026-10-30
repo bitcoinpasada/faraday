@@ -488,6 +488,63 @@ impl Receiver {
     }
 }
 
+/// What BIP-392's `spscan1q…` key expression states, once read: the
+/// network its human-readable part names (a test network's is
+/// `tspscan`, read as testnet) and the wallet's two public keys. The
+/// scan private key the expression carries is wiped as it is read;
+/// nothing here holds it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ScanKeyRead {
+    /// The network: mainnet for `spscan`, testnet for `tspscan`.
+    pub network: Network,
+    /// `B_scan`, the scan private key's public key.
+    pub scan: PublicKey,
+    /// `B_spend`, as the expression states it.
+    pub spend: PublicKey,
+}
+
+/// Costs an elliptic-curve multiplication (the scan key's public key,
+/// in constant time). Reads BIP-392's `spscan1q…` or `tspscan1q…`: a
+/// bech32m string under its human-readable part, version `q`, and the
+/// payload `ser256(b_scan) || serP(B_spend)`, 65 bytes, with its padding
+/// bits zero. A scan key outside 1..n, a spend key off the curve, any
+/// other version or length, and an `spspend` expression (which carries
+/// the spend private key, which no file brought here is to hold) are
+/// refused.
+pub fn decode_scan_key(c: &Compute, text: &str) -> Result<ScanKeyRead, Error> {
+    c.count(faraday_crypto::work::Work::KeyDerive);
+    let text = text.trim();
+    let starts = |p: &str| {
+        text.len() > p.len()
+            && text
+                .get(..p.len())
+                .is_some_and(|t| t.eq_ignore_ascii_case(p))
+    };
+    let (network, hrp) = if starts("spscan1") {
+        (Network::Mainnet, "spscan")
+    } else if starts("tspscan1") {
+        (Network::Testnet, "tspscan")
+    } else {
+        return Err(Error::Address);
+    };
+    let mut payload = [0u8; 65];
+    let read = decode_v0(text, hrp, &mut payload).and_then(|()| {
+        let mut secret = [0u8; 32];
+        secret.copy_from_slice(&payload[..32]);
+        let scan = crate::musig::secret_base_mul(&Secp256k1::signing_only(), &secret)
+            .map_err(|_| Error::Scalar);
+        secret.zeroize();
+        let spend = PublicKey::from_slice(&payload[32..]).map_err(|_| Error::Key)?;
+        Ok(ScanKeyRead {
+            network,
+            scan: scan?,
+            spend,
+        })
+    });
+    payload.zeroize();
+    read
+}
+
 /// A scalar BIP-352 derived, refused where it is zero or at or above
 /// the curve order.
 fn checked(value: [u8; 32]) -> Result<[u8; 32], Error> {

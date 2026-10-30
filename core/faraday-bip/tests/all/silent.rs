@@ -582,3 +582,196 @@ fn text_that_begins_with_other_scripts_is_not_an_address() {
         assert!(silent::decode_address(text).is_err(), "{text}");
     }
 }
+
+// BIP-392's `sp()` read (`docs/INTEROP.md` §5 I9).
+
+/// The keystores Sparrow's test suite carries for one silent payments
+/// wallet of the key 0f056943: Keystone's `sp()`, Specter DIY's key
+/// alone, and Coldcard's export.
+const KEYSTONE_SP: &str = include_str!(
+    "../../../../faraday/faraday-core/tests/vectors/interop/sparrow/keystone-singlesig-sp-keystore-1.txt"
+);
+const SPECTER_DIY_SP: &str = include_str!(
+    "../../../../faraday/faraday-core/tests/vectors/interop/sparrow/specter-diy-sp-keystore.txt"
+);
+const COLDCARD_SP: &str = include_str!(
+    "../../../../faraday/faraday-core/tests/vectors/interop/sparrow/cc-singlesig-sp-keystore-1.json"
+);
+
+/// The scan key and spend key of the receiver above, BIP-352's
+/// vectors' first receiving case, on `network`.
+fn vector_receiver(network: Network) -> Receiver {
+    let secp = Secp256k1::new();
+    let scan = SecretKey::from_slice(&unhex(
+        "0f694e068028a717f8af6b9411f9a133dd3565258714cc226594b34db90c1f2c",
+    ))
+    .expect("a scan key");
+    let spend = SecretKey::from_slice(&unhex(
+        "9d6ad855ce3417ef84e836892e5a56392bfba05fa5d97ccea30e266f540e08b3",
+    ))
+    .expect("a spend key");
+    Receiver::new(scan, spend.public_key(&secp), network)
+}
+
+#[test]
+fn a_scan_key_reads_back_to_its_network_and_both_public_keys() {
+    let c = Compute::unchecked();
+    let secp = Secp256k1::new();
+    for network in [Network::Mainnet, Network::Testnet] {
+        let r = vector_receiver(network);
+        let text = r.scan_key_text().unwrap();
+        let read = silent::decode_scan_key(&c, text.as_str()).unwrap();
+        assert_eq!(read.network.is_mainnet(), network.is_mainnet());
+        assert_eq!(read.scan, r.scan_public_key(&secp));
+        assert_eq!(read.spend, r.spend_public_key());
+        // The two keys make the receiver's own address.
+        let address = silent::encode_address(read.network, &read.scan, &read.spend).unwrap();
+        assert_eq!(address.as_str(), r.address(&secp).unwrap().as_str());
+        // Upper case reads as lower case does, as bech32m says.
+        let upper = text.as_str().to_ascii_uppercase();
+        assert_eq!(silent::decode_scan_key(&c, &upper).unwrap(), read);
+    }
+}
+
+#[test]
+fn a_scan_key_that_is_not_bip_392s_is_refused() {
+    let c = Compute::unchecked();
+    let r = vector_receiver(Network::Mainnet);
+    let text = r.scan_key_text().unwrap();
+    let t = text.as_str();
+    // One character changed: the checksum fails.
+    let mut broken = t.as_bytes().to_vec();
+    let at = broken.len() - 10;
+    broken[at] = if broken[at] == b'q' { b'p' } else { b'q' };
+    assert!(silent::decode_scan_key(&c, std::str::from_utf8(&broken).unwrap()).is_err());
+    // Mixed case, an address in its place, and a spend private key.
+    let mixed = format!("{}{}", t[..10].to_ascii_uppercase(), &t[10..]);
+    assert!(silent::decode_scan_key(&c, &mixed).is_err());
+    let secp = Secp256k1::new();
+    let address = r.address(&secp).unwrap();
+    assert!(silent::decode_scan_key(&c, address.as_str()).is_err());
+    assert!(silent::decode_scan_key(&c, &t.replacen("spscan", "spspend", 1)).is_err());
+}
+
+#[test]
+fn an_sp_descriptor_faraday_writes_reads_back_as_the_wallet_it_came_from() {
+    use faraday_bip::keys::Fingerprint;
+    use faraday_bip::silent_wallet::parse_descriptor;
+    let c = Compute::unchecked();
+    let secp = Secp256k1::new();
+    for (network, account) in [(Network::Mainnet, 0), (Network::Testnet, 7)] {
+        let r = vector_receiver(network);
+        let fp = Fingerprint([0xde, 0xad, 0xbe, 0xef]);
+        let d = r.descriptor(Some((fp, account))).unwrap();
+        let w = parse_descriptor(&c, d.as_str()).unwrap();
+        assert_eq!(w.fingerprint, fp);
+        assert_eq!(w.account, account);
+        assert_eq!(w.scan, r.scan_public_key(&secp));
+        assert_eq!(w.spend, r.spend_public_key());
+        assert_eq!(w.labels, 0);
+        assert_eq!(w.address(), r.address(&secp).unwrap().as_str());
+        // With its BIP-380 checksum, and the key alone with its origin.
+        let sum = faraday_bip::descriptor::descriptor_checksum(d.as_str()).unwrap();
+        let summed = format!("{}#{}", d.as_str(), std::str::from_utf8(&sum).unwrap());
+        assert_eq!(parse_descriptor(&c, &summed).unwrap(), w);
+        let alone = d
+            .as_str()
+            .strip_prefix("sp(")
+            .unwrap()
+            .strip_suffix(')')
+            .unwrap();
+        assert_eq!(parse_descriptor(&c, alone).unwrap(), w);
+        // Its record reads back as itself.
+        let record = faraday_bip::silent_wallet::SilentWallet::parse(&w.to_text()).unwrap();
+        assert_eq!(record, w);
+    }
+}
+
+#[test]
+fn an_sp_descriptor_faraday_cannot_verify_is_refused() {
+    use faraday_bip::keys::Fingerprint;
+    use faraday_bip::silent_wallet::{ReadError, parse_descriptor};
+    let c = Compute::unchecked();
+    let r = vector_receiver(Network::Mainnet);
+    let key = r.scan_key_text().unwrap();
+    let key = key.as_str();
+    let d = r
+        .descriptor(Some((Fingerprint([0xde, 0xad, 0xbe, 0xef]), 0)))
+        .unwrap();
+    let d = d.as_str();
+    // No origin: which key and account it came from is not guessed.
+    assert_eq!(
+        parse_descriptor(&c, &format!("sp({key})")),
+        Err(ReadError::NoOrigin)
+    );
+    assert_eq!(parse_descriptor(&c, key), Err(ReadError::NoOrigin));
+    // An origin that is not BIP-352's path on the key's network.
+    for path in ["84h/0h/0h", "352h/1h/0h", "352h/0h", "352h/0h/0h/0h"] {
+        let wrong = format!("sp([deadbeef/{path}]{key})");
+        assert_eq!(
+            parse_descriptor(&c, &wrong),
+            Err(ReadError::Origin),
+            "{path}"
+        );
+    }
+    // A wrong checksum, two keys, a derivation, another function.
+    let sum = faraday_bip::descriptor::descriptor_checksum(d).unwrap();
+    let mut sum = std::str::from_utf8(&sum).unwrap().to_string();
+    let last = if sum.ends_with('q') { "p" } else { "q" };
+    sum.replace_range(7.., last);
+    assert_eq!(
+        parse_descriptor(&c, &format!("{d}#{sum}")),
+        Err(ReadError::Checksum)
+    );
+    let two = d.replacen(')', &format!(",{key})"), 1);
+    assert_eq!(parse_descriptor(&c, &two), Err(ReadError::Shape));
+    assert_eq!(
+        parse_descriptor(&c, &d.replacen(')', "/0/*)", 1)),
+        Err(ReadError::Shape)
+    );
+    assert_eq!(
+        parse_descriptor(&c, &format!("tr({})", &d[3..d.len() - 1])),
+        Err(ReadError::Shape)
+    );
+}
+
+#[test]
+fn keystones_specter_diys_and_coldcards_sp_keystores_are_one_wallet_rooted_at_0f056943() {
+    use faraday_bip::silent_wallet::parse_descriptor;
+    let c = Compute::unchecked();
+    let keystone = parse_descriptor(&c, KEYSTONE_SP).unwrap();
+    let specter = parse_descriptor(&c, SPECTER_DIY_SP).unwrap();
+    let coldcard = faraday_bip::coldcard::silent(&c, COLDCARD_SP)
+        .expect("a bip352 account")
+        .unwrap();
+    assert_eq!(keystone, specter);
+    assert_eq!(keystone, coldcard);
+    assert_eq!(keystone.fingerprint.to_string(), "0f056943");
+    assert_eq!(keystone.account, 0);
+    assert!(!keystone.network.is_mainnet());
+    assert!(keystone.address().starts_with("tsp1q"));
+}
+
+#[test]
+fn a_coldcard_export_of_its_silent_payments_account_alone_is_that_wallet() {
+    let c = Compute::unchecked();
+    // The export with its single-sig accounts taken out.
+    let v: Value = serde_json::from_str(COLDCARD_SP).unwrap();
+    let only = serde_json::json!({
+        "chain": v["chain"], "xfp": v["xfp"], "xpub": v["xpub"], "account": 0,
+        "bip352": v["bip352"],
+    })
+    .to_string();
+    assert!(faraday_bip::coldcard::looks_like_export(&only));
+    let (policy, field) = faraday_bip::coldcard::read(&c, &only).unwrap();
+    assert_eq!(field, "bip352");
+    let w = policy.silent().expect("a silent payments wallet");
+    assert_eq!(w.fingerprint.to_string(), "0f056943");
+    // Rooted at the master's xfp, not the account's own.
+    let at_account = only.replacen("\"0F056943\"", "\"2A21A78D\"", 1);
+    let (policy, _) = faraday_bip::coldcard::read(&c, &at_account).unwrap();
+    assert_eq!(policy.silent().unwrap().fingerprint.to_string(), "2a21a78d");
+    // A deriv that is not BIP-352's path on the key's network is refused.
+    let moved = only.replace("m/352'/1'/0'", "m/352'/0'/0'");
+    assert!(faraday_bip::coldcard::read(&c, &moved).is_err());
+}

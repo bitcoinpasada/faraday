@@ -499,7 +499,7 @@ pub(crate) fn secret_code(c: &Compute, bytes: &[u8]) -> Option<&'static str> {
         Kind::SeedQr => EN.read_code_is_seedqr,
         Kind::CompactSeedQr => EN.read_code_that_may,
         Kind::SeedWords => EN.secret_text_those_are,
-        Kind::Wif | Kind::Xprv => EN.secret_text_private_key,
+        Kind::Wif | Kind::Xprv | Kind::SpendKey => EN.secret_text_private_key,
         Kind::Nostr => EN.secret_text_nostr,
         Kind::BadChecksum => EN.secret_text_not_a_seed,
         _ => return None,
@@ -550,7 +550,10 @@ pub(crate) fn pasted_secret(c: &Compute, text: &str, seeds: bool) -> Option<&'st
     }
     match faraday_intake::secret_text(c, t) {
         Some(faraday_intake::TextSecret::Words) if !seeds => return Some(EN.pasted_words),
-        Some(faraday_intake::TextSecret::ExtendedPrivateKey) => {
+        Some(
+            faraday_intake::TextSecret::ExtendedPrivateKey
+            | faraday_intake::TextSecret::SilentSpendKey,
+        ) => {
             return Some(EN.pasted_private_key);
         }
         _ => {}

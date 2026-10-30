@@ -48,7 +48,7 @@
 //!   refuses), `devices` (what else captures the screen or the keys) and
 //!   `edid` (what a screen says it is).
 //! - Flows around a key, seed, words or passphrase: `keygen`, `codex32` (with `codex32/screen.rs`, its checksum worksheet, `codex32/worksheet_screen.rs`, and its dice and the booklet's dice sheet, `codex32/dice_screen.rs`, and the entry's input panel, `codex32/input_panel.rs`; New key's dice in the input panel, `keygen/dice_panel.rs`), `seeds`
-//!   (with `seeds/read.rs`), `wallet` (with `wallet/nonce.rs`), `inbox`, `create`, `create_from`,
+//!   (with `seeds/read.rs`), `wallet` (with `wallet/nonce.rs`, `wallet/account.rs`), `inbox`, `create`, `create_from`,
 //!   `bip85`, `forms`, `fresh`, `gpg`, `secure_boot`, `lightning`,
 //!   `silent`, `vanity`, `grind`, `paper`, `quiz`, `secrets`,
 //!   `word_entry`, `vault` (with `vault/load.rs` and `vault/out.rs`),
@@ -617,6 +617,8 @@ pub enum Sheet {
     /// waiting to be added: the danger line naming that key, Cancel, and
     /// a hold that adds it (F132).
     KeyPath,
+    /// **Which account to load?**: a Coldcard export of a single-sig and a silent payments account.
+    Account,
     /// The wallet a spend's PSBT defines, to register with a hold (F135).
     Register,
     /// A vault record's Save to a stick: its files, to tick, and Save
@@ -665,20 +667,6 @@ pub enum Sheet {
 }
 
 pub(crate) use picture::{picture_codes, picture_names, picture_payloads};
-
-/// The line that names a cosigner's key under its code: `Key {fp} ·
-/// {kind} · {path}`, the path read from the key's `[fp/path]` origin.
-fn key_label(fp: &str, kind: &str, key: &str) -> String {
-    let path = key
-        .strip_prefix('[')
-        .and_then(|k| k.split_once(']'))
-        .and_then(|(origin, _)| origin.split_once('/'))
-        .map(|(_, p)| format!("m/{p}"));
-    match path {
-        Some(p) => fill(EN.key_label_key_kind_path, &[fp, kind, &p.to_string()]),
-        None => fill(EN.key_label_key, &[fp, kind]),
-    }
-}
 
 /// Whether an Outbox file can go as a QR transfer: what a wallet reads
 /// goes as itself, anything else in the file envelope, which carries up
@@ -2446,6 +2434,7 @@ impl Faraday {
 
     fn act(&mut self, action: Action) {
         let asked = self.session.key_path_asked().is_some();
+        let account_asked = self.session.account_asked().is_some();
         // A choice in a file's ⋮ menu closes the menu first.
         self.file_menu_chosen(action);
         self.act_moving_on(action);
@@ -2459,6 +2448,7 @@ impl Faraday {
         self.sweep_tidy();
         self.read_carried_tidy();
         self.key_path_after(asked, action);
+        self.account_after(account_asked, action);
         self.osk_after(action);
     }
 
@@ -2681,6 +2671,7 @@ impl Faraday {
             | Action::SRecord
             | Action::SScanVault
             | Action::SScanOut
+            | Action::SDescriptorOut(_)
             | Action::SNext
             | Action::SAddWallet
             | Action::SWallet(_)
@@ -2874,6 +2865,7 @@ impl Faraday {
             | Action::IdleLock(..)
             | Action::IdleOff(..)) => self.power_act(a, &c),
             a @ (Action::KeyPathHold | Action::KeyPathCancel) => self.key_path_act(a),
+            Action::LoadAccount(a) => self.account_act(a),
             a @ (Action::RegisterOpen
             | Action::RegisterField
             | Action::RegisterHold

@@ -663,8 +663,9 @@ pub(super) fn made_state<'a>(
 /// right where it is, when it is made, and its button (Remove while it
 /// waits For the stick, else the one that makes it), with `extra`
 /// buttons before them (Show as QR, PNG). On a small panel the name and what it is are two
-/// lines, and the buttons go on a row under the name. Returns the row's
-/// height.
+/// lines, and the buttons go on a row under the name. Rows on a wide
+/// panel are 48 apart, so each button's target is Material's 48 dp.
+/// Returns the row's height.
 #[allow(clippy::too_many_arguments)]
 pub(super) fn file_row(
     ui: &mut Ui,
@@ -683,7 +684,7 @@ pub(super) fn file_row(
     let bw = ui.measure_as(LABEL_L, button.0) + 32.0;
     let done_w = done.map_or(0.0, |t| ui.measure_as(LABEL_L, t) + 10.0);
     let right = bw + done_w;
-    let rh = if ui.compact { 52.0 } else { 36.0 };
+    let rh = if ui.compact { 52.0 } else { 40.0 };
     let by = y + (rh - 34.0) / 2.0;
     ui.button(
         x + w - bw,
@@ -712,11 +713,11 @@ pub(super) fn file_row(
         }
         let name_w = 200.0_f32.min(w - right - 10.0);
         let n = ui.fit_as(TITLE_S, name, name_w);
-        ui.text_mid_as((x, y, 36.0), TITLE_S, Role::OnSurface, &n);
+        ui.text_mid_as((x, y, rh), TITLE_S, Role::OnSurface, &n);
         let room = w - right - 220.0 - 10.0;
         if room > 60.0 {
             let d = ui.fit_as(BODY_S, detail, room);
-            ui.text_mid_as((x + 220.0, y, 36.0), BODY_S, Role::OnSurfaceVariant, &d);
+            ui.text_mid_as((x + 220.0, y, rh), BODY_S, Role::OnSurfaceVariant, &d);
         }
     }
     ui.rule(x, y + rh + 4.0, w, Role::OutlineVariant);
@@ -779,7 +780,7 @@ fn file_row_extra(
         ui.rule(x, y + rh + 4.0, w, Role::OutlineVariant);
         return rh + 8.0;
     }
-    let rh = 36.0;
+    let rh = 40.0;
     let by = y + (rh - 34.0) / 2.0;
     let mut right = x + w;
     let bw = ui.measure_as(LABEL_L, button.0) + 32.0;

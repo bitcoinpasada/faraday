@@ -61,4 +61,4 @@ variant is named by no page and is not listed here, when one is named
 by two pages, and when one listed here has a page: a page written takes
 its variants off this list.
 
-- `Sheet`: `GpgRestore`, `Sweep`
+- `Sheet`: `GpgRestore`, `Sweep`, `Account`

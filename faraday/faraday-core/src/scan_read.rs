@@ -34,6 +34,9 @@ pub enum Kind {
     UrSeed,
     /// A Nostr secret key, `nsec1…`.
     Nostr,
+    /// BIP-392's silent payments spend private key, `spspend1q…`, alone
+    /// or in an `sp()` descriptor.
+    SpendKey,
     /// A GPG key's paperkey, in either of its forms.
     Paperkey,
     /// One `otpauth://` URI.
@@ -92,6 +95,7 @@ impl Kind {
                 | Kind::Xprv
                 | Kind::UrSeed
                 | Kind::Nostr
+                | Kind::SpendKey
                 | Kind::Paperkey
                 | Kind::Totp
                 | Kind::Entries
@@ -120,6 +124,7 @@ impl Kind {
             Kind::Xprv => EN.read_xprv,
             Kind::UrSeed => EN.read_ur_seed,
             Kind::Nostr => EN.read_nostr_secret,
+            Kind::SpendKey => EN.read_spend_key,
             Kind::Paperkey => EN.read_paperkey,
             Kind::Totp => EN.read_totp,
             Kind::Entries => EN.read_entries,
@@ -188,6 +193,7 @@ pub(crate) fn secret_text_kind(c: &Compute, text: &str) -> Option<Kind> {
     match faraday_intake::secret_text(c, t) {
         Some(faraday_intake::TextSecret::Words) => return Some(Kind::SeedWords),
         Some(faraday_intake::TextSecret::ExtendedPrivateKey) => return Some(Kind::Xprv),
+        Some(faraday_intake::TextSecret::SilentSpendKey) => return Some(Kind::SpendKey),
         None => {}
     }
     let words: Vec<&str> = t.split_whitespace().collect();

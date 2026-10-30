@@ -2088,7 +2088,14 @@ fn public_files(
                     EN.public_files_specter_diy,
                     EN.public_files_specter_diy_reads,
                 ),
+                15 => (EN.public_files_sp_descriptor, EN.public_files_sp_reads),
                 _ => (EN.public_files_wasabi, EN.public_files_wasabi_wallet),
+            };
+            // The sp() descriptor carries the scan key: the secret sheet.
+            let action = if what == 15 {
+                Action::SDescriptorOut(i)
+            } else {
+                Action::PublicOut(i, what)
             };
             // Specter DIY scans its command: as a code, and as pictures
             // of its numbered parts.
@@ -2100,13 +2107,7 @@ fn public_files(
             } else {
                 Vec::new()
             };
-            (
-                name.to_string(),
-                detail,
-                file,
-                Action::PublicOut(i, what),
-                extra,
-            )
+            (name.to_string(), detail, file, action, extra)
         })
         .collect();
     (rows, more)

@@ -33,13 +33,16 @@ const WIF: &str = "KwDiBf89QgGbjEhKnhXJuH7LrciVrZi3qYjgd9M7rFU73sVHnoWn";
 const XPRV: &str = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LH5LpRKD3pfgJwQbtSm9mSTtgoeQqk9ib";
 /// NIP-19's example secret key.
 const NSEC: &str = "nsec1vl029mgpspedva04g90vltkh6fvh240zqtv9k0t9af8935ke9laqsnlfe5";
+/// Keystone's sp() (Sparrow's test files) with BIP-392's spend key in
+/// place of its scan key.
+const SPSPEND: &str = "sp([0f056943/352h/1h/0h]tspspend1q05wxw5wc7wqmkf8cnfc6ry76qej8vhr3a3mmxmwgv35s0tlw24fs82k0npv2hv6p97s8sd9t7vpf44kluka9w863zjwxzfrym2ay9ccfzt06c4)";
 const TOTP: &str = "otpauth://totp/Scanned:me?secret=JBSWY3DPEHPK3PXP";
 const ENTRIES: &str = "title: Mail\npassword: correct horse";
 /// paperkey 1.6's printed lines of one key (`tools/vectors/paperkey/`).
 const PAPERKEY: &str = include_str!("../../../../tools/vectors/paperkey/faraday-key.txt");
 
 /// Every secret kind of `docs/SCANNING.md` §2 a scanner can read as text.
-const SECRETS: [&str; 12] = [
+const SECRETS: [&str; 13] = [
     WORDS,
     SEEDQR,
     CODEX32_SECRET,
@@ -49,6 +52,7 @@ const SECRETS: [&str; 12] = [
     WIF,
     XPRV,
     NSEC,
+    SPSPEND,
     TOTP,
     ENTRIES,
     PAPERKEY,
@@ -181,7 +185,7 @@ fn no_scanner_files_a_secret_pasted() {
 
 #[test]
 fn a_picture_on_a_stick_holding_a_private_key_or_words_that_are_no_seed_files_none() {
-    for secret in [UNCHECKED, WIF, XPRV, NSEC, PAPERKEY] {
+    for secret in [UNCHECKED, WIF, XPRV, NSEC, SPSPEND, PAPERKEY] {
         let mut app = testkit::started();
         app.storage(StorageEvent::QrRead {
             name: "code.png".into(),
@@ -592,4 +596,34 @@ fn it_is_a_seed_xor_part_opens_the_seed_xor_form_with_the_words_in() {
     assert_eq!(e.form, Form::Xor);
     assert_eq!(e.parts.lines(Form::Xor).len(), 1);
     assert!(app.session.keys.is_empty(), "a part loaded as a key");
+}
+
+/// Sparrow's Specter DIY `addwallet` command and Keystone's `sp()`
+/// (`docs/INTEROP.md` §5 I8, I9), read at Add a key's scanner, show the
+/// card naming a wallet description, whose way over loads it; the spend
+/// key in an `sp()` is named there with no way over and nothing filed.
+#[test]
+fn an_addwallet_or_an_sp_read_at_add_a_keys_scanner_goes_to_its_wallet_and_a_spend_key_is_named() {
+    for text in [
+        include_str!("../vectors/interop/sparrow/specter-diy-export.txt"),
+        include_str!("../vectors/interop/sparrow/keystone-singlesig-sp-keystore-1.txt"),
+    ] {
+        let mut app = testkit::started();
+        open(&mut app, Opened::AddAKey);
+        read(&mut app, text.as_bytes());
+        let (kind, _, ways) = card(&app).unwrap_or_else(|| panic!("no card: {}", note(&app)));
+        assert_eq!(kind, "A wallet description");
+        assert_eq!(ways.len(), 1, "{ways:?}");
+        app.press(Action::ReadGo(0));
+        assert_eq!(app.inbox().len(), 1);
+        assert_eq!(app.session.wallets.len(), 1, "{:?}", app.toast_text());
+    }
+    let mut app = testkit::started();
+    open(&mut app, Opened::AddAKey);
+    read(&mut app, SPSPEND.as_bytes());
+    let (kind, facts, ways) = card(&app).unwrap_or_else(|| panic!("no card: {}", note(&app)));
+    assert_eq!(kind, "A silent payments spend key");
+    assert!(ways.is_empty(), "{ways:?}");
+    assert!(facts.iter().all(|f| !f.contains("spspend")), "{facts:?}");
+    assert!(app.inbox().is_empty());
 }

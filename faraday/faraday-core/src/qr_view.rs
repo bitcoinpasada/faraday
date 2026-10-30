@@ -1,6 +1,6 @@
 //! The QR view (a code shown, in parts) and the camera's scan state.
 
-use crate::{file_stem, key_label};
+use crate::file_stem;
 use crate::strings::{EN, fill};
 use crate::wallet::{Session, fp_text};
 use crate::{Action, Faraday, Screen, Sheet, picture, qr_fits, secrets, transfer, wallet};
@@ -1362,4 +1362,18 @@ pub(crate) fn specter_diy_pictures(
             }
         })
         .collect()
+}
+
+/// The line that names a cosigner's key under its code: `Key {fp} ·
+/// {kind} · {path}`, the path read from the key's `[fp/path]` origin.
+fn key_label(fp: &str, kind: &str, key: &str) -> String {
+    let path = key
+        .strip_prefix('[')
+        .and_then(|k| k.split_once(']'))
+        .and_then(|(origin, _)| origin.split_once('/'))
+        .map(|(_, p)| format!("m/{p}"));
+    match path {
+        Some(p) => fill(EN.key_label_key_kind_path, &[fp, kind, &p.to_string()]),
+        None => fill(EN.key_label_key, &[fp, kind]),
+    }
 }

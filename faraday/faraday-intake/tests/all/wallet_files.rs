@@ -163,7 +163,6 @@ fn a_file_of_a_kind_that_is_not_a_wallet_is_refused_with_a_reason() {
     for path in [
         "bluewallet/cobo-crypto-account.txt",
         "bluewallet/sparrow-crypto-output.txt",
-        "sparrow/keystone-singlesig-sp-keystore-1.txt",
         "bluewallet/quicklook-preview-sample.txn",
     ] {
         assert!(!refusal(path).is_empty(), "{path}");
@@ -528,4 +527,61 @@ fn an_addwallet_command_faraday_cannot_verify_is_refused() {
     // A multisig key with no origin, as every multisig wallet refuses.
     let bare = text.replacen("[7fd1bbf4/48h/0h/0h/2h]", "", 1);
     assert!(read_wallet(&c, &bare).is_err());
+}
+
+// BIP-392's `sp()` (`docs/INTEROP.md` §5 I9).
+
+#[test]
+fn keystones_sp_and_specter_diys_key_alone_read_as_one_silent_payments_wallet_of_0f056943() {
+    let keystone = wallet("sparrow/keystone-singlesig-sp-keystore-1.txt");
+    let specter = wallet("sparrow/specter-diy-sp-keystore.txt");
+    let (k, s) = (keystone.silent().unwrap(), specter.silent().unwrap());
+    assert_eq!(k, s);
+    assert_eq!(k.fingerprint.to_string(), "0f056943");
+    assert_eq!(k.account, 0);
+    assert_eq!(k.labels, 0);
+    assert_eq!(k.network, Network::Testnet);
+    // What is kept is the record, which holds no scan key.
+    let record = keystone.to_text();
+    assert!(record.starts_with("faraday-silent 1"), "{record}");
+    assert!(!record.contains("spscan"), "{record}");
+    // The files hold the scan key, which sees payments and spends none:
+    // each is a wallet file in Files. The spend key in its place is a
+    // secret.
+    for path in [
+        "sparrow/keystone-singlesig-sp-keystore-1.txt",
+        "sparrow/specter-diy-sp-keystore.txt",
+        "sparrow/cc-singlesig-sp-keystore-1.json",
+    ] {
+        let text = interop(path);
+        assert!(!holds_secret(&text), "{path}");
+        assert!(
+            holds_secret(&text.replacen("spscan1", "spspend1", 1)),
+            "{path}"
+        );
+    }
+}
+
+#[test]
+fn coldcards_export_with_a_silent_payments_account_still_reads_as_its_bip_84_wallet() {
+    let w = wallet("sparrow/cc-singlesig-sp-keystore-1.json");
+    assert!(w.silent().is_none());
+    assert!(w.to_descriptor().starts_with("wpkh([0f056943/84h/1h/0h]"));
+}
+
+#[test]
+fn an_sp_descriptor_with_no_origin_or_a_wrong_one_is_refused_by_name() {
+    let c = crate::common::compute();
+    let text = interop("sparrow/keystone-singlesig-sp-keystore-1.txt");
+    let bare = text.replace("[0f056943/352h/1h/0h]", "");
+    match read_wallet(&c, &bare) {
+        Err(Refusal::NotAWallet(why)) => {
+            assert_eq!(why, "This sp() descriptor names no key origin");
+        }
+        other => panic!("{other:?}"),
+    }
+    let moved = text.replace("/352h/1h/0h]", "/352h/0h/0h]");
+    assert!(read_wallet(&c, &moved).is_err());
+    let damaged = text.replacen("tspscan1q05", "tspscan1q06", 1);
+    assert!(read_wallet(&c, &damaged).is_err());
 }

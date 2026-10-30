@@ -32,6 +32,7 @@ use bitcoin::secp256k1::PublicKey;
 
 use crate::keys::{Fingerprint, Network};
 use crate::silent;
+use faraday_crypto::work::Compute;
 
 /// The first line's name.
 pub const MAGIC: &str = "faraday-silent";
@@ -180,4 +181,104 @@ fn read_origin(text: &str, network: Network) -> Option<(Fingerprint, u32)> {
         return None;
     }
     Some((Fingerprint(bytes), account))
+}
+
+/// Why BIP-392's `sp()` descriptor, or its key expression alone, was not
+/// read as a silent payments wallet.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ReadError {
+    /// No key origin before the key: which key the wallet came from, and
+    /// at which account, is not stated, and is not guessed.
+    NoOrigin,
+    /// An origin that is not a fingerprint and BIP-352's path on the
+    /// key's network to a hardened account.
+    Origin,
+    /// The key is not `spscan1q…` or `tspscan1q…` as BIP-392 writes it.
+    Key(silent::Error),
+    /// The descriptor's checksum does not hold.
+    Checksum,
+    /// Not `sp(KEY)` or `[origin]KEY` alone: two keys, another
+    /// function, a key with a derivation after it.
+    Shape,
+}
+
+/// Costs what [`silent::decode_scan_key`] costs: an elliptic-curve
+/// multiplication. A silent payments wallet from BIP-392's
+/// `sp([fingerprint/352h/coinh/accounth]spscan1q…)`, its BIP-380
+/// checksum checked where it has one, or from the key expression alone,
+/// `[origin]spscan1q…`, as Specter DIY writes it. The wallet has no labels
+/// handed out. The scan private key the expression carries is read only
+/// for its public key and wiped ([`silent::ScanKeyRead`]). An expression
+/// with no origin is refused ([`ReadError::NoOrigin`]): the origin is
+/// what a loaded key is checked against.
+pub fn parse_descriptor(c: &Compute, text: &str) -> Result<SilentWallet, ReadError> {
+    let text = text.trim();
+    let (body, sum) = match text.split_once('#') {
+        Some((body, sum)) => (body, Some(sum)),
+        None => (text, None),
+    };
+    let expr = match body.strip_prefix("sp(") {
+        Some(inner) => inner.strip_suffix(')').ok_or(ReadError::Shape)?,
+        // A checksum belongs to a descriptor, not to a key alone.
+        None if sum.is_none() => body,
+        None => return Err(ReadError::Shape),
+    };
+    if let Some(sum) = sum {
+        let want = crate::descriptor::descriptor_checksum(body).ok_or(ReadError::Checksum)?;
+        if sum.as_bytes() != want {
+            return Err(ReadError::Checksum);
+        }
+    }
+    // One key expression, with nothing after the key: no second key, no
+    // derivation, no function inside.
+    let one_key = |k: &str| !k.contains([',', '(', ')', '/', '*', '[', ']']);
+    let Some(rest) = expr.strip_prefix('[') else {
+        return Err(if one_key(expr) {
+            ReadError::NoOrigin
+        } else {
+            ReadError::Shape
+        });
+    };
+    let (origin, key) = rest.split_once(']').ok_or(ReadError::Shape)?;
+    if !one_key(key) {
+        return Err(ReadError::Shape);
+    }
+    let read = silent::decode_scan_key(c, key).map_err(ReadError::Key)?;
+    wallet_of(read, &alloc::format!("[{origin}]"))
+}
+
+/// Costs what [`silent::decode_scan_key`] costs. A silent payments wallet
+/// from a scan key expression and the origin a file states beside it:
+/// Coldcard's export, whose `bip352` account carries the key and its
+/// `deriv` and is rooted at the master's `xfp`, the file's top-level one
+/// (`docs/INTEROP.md` §5 I9).
+pub fn from_scan_key(
+    c: &Compute,
+    key: &str,
+    fingerprint: &str,
+    deriv: &str,
+) -> Result<SilentWallet, ReadError> {
+    let path = deriv.trim().trim_start_matches('m').trim_start_matches('/');
+    if fingerprint.contains(['[', ']', '/']) || path.contains(['[', ']']) {
+        return Err(ReadError::Origin);
+    }
+    let read = silent::decode_scan_key(c, key).map_err(ReadError::Key)?;
+    wallet_of(read, &alloc::format!("[{}/{path}]", fingerprint.trim()))
+}
+
+/// The wallet a scan key read and its origin `[…]` state, the origin
+/// checked as a record's is.
+fn wallet_of(read: silent::ScanKeyRead, origin: &str) -> Result<SilentWallet, ReadError> {
+    let (fingerprint, account) = read_origin(origin, read.network).ok_or(ReadError::Origin)?;
+    if account >= 1 << 31 {
+        return Err(ReadError::Origin);
+    }
+    Ok(SilentWallet {
+        network: read.network,
+        fingerprint,
+        account,
+        scan: read.scan,
+        spend: read.spend,
+        labels: 0,
+    })
 }

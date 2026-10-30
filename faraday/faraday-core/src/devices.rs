@@ -485,6 +485,7 @@ impl Faraday {
                         | Action::LShow
                         | Action::LOut
                         | Action::SScanOut
+                        | Action::SDescriptorOut(_)
                         | Action::SecretUnprotected
                         | Action::Bip85
                         | Action::Vault(V::Unlock | V::Show(_) | V::FocusPassphrase)

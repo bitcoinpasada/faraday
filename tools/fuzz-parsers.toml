@@ -107,8 +107,18 @@ fn = "decode_address"
 target = "fuzz/fuzz_targets/silent.rs"
 
 [[parser]]
+file = "core/faraday-bip/src/silent.rs"
+fn = "decode_scan_key"
+target = "fuzz/fuzz_targets/silent.rs"
+
+[[parser]]
 file = "core/faraday-bip/src/silent_wallet.rs"
 fn = "parse"
+target = "fuzz/fuzz_targets/silent.rs"
+
+[[parser]]
+file = "core/faraday-bip/src/silent_wallet.rs"
+fn = "parse_descriptor"
 target = "fuzz/fuzz_targets/silent.rs"
 
 [[parser]]

@@ -72,6 +72,7 @@ apart today, and whether it is a secret (DESIGN §4.10, Mask policy).
 | Extended private key | `xprv` and its SLIP-132 and testnet forms, with or without an origin | yes |
 | WIF private key | `5…`, `K…`, `L…`, `c…`, `9…` with a checksum | yes |
 | Nostr secret key | `nsec1…` | yes |
+| Silent payments spend key | BIP-392's `spspend1q…` (`tspspend1q…`), alone or in `sp()` (`faraday_intake::secret_text`) | yes |
 | GPG paperkey | paperkey's base16 lines with a first line numbered 1, or its raw form (`faraday_keys::gpg::is_paperkey`) | yes |
 | TOTP setup code | `otpauth://` URI | yes (its `secret=`) |
 | Vault entries | `field: value` lines, several `otpauth://` URIs | yes |
@@ -221,7 +222,7 @@ shows what came and the destination's action.
 | Seed XOR part | the seed sheet, which offers **It is a Seed XOR part** (§6) |
 | Words that fail their checksum | an LND aezeed (its own checksum holds): Lightning, the aezeed typed. **Use in Lightning**. An Electrum seed: Add a key's Electrum form once `docs/INTEROP.md` §5 I7 is built (**Add this key**); until then named. Anything else: named |
 | WIF private key | Add a key's **Type a private key** once `docs/INTEROP.md` §5 I11 is built; until then named |
-| Extended private key, `ur:crypto-seed`, private `hdkey`, Nostr secret key | named |
+| Extended private key, `ur:crypto-seed`, private `hdkey`, Nostr secret key, silent payments spend key | named |
 | GPG paperkey | a GPG restore's Scan the paperkey only, which needs its public key first; every other scanner names it ("That is a paperkey. Restore a GPG key takes it at Type the paperkey, not Files") and files nothing (F167) |
 | TOTP setup code | a new entry's form in the open vault, filled, as the TOTP scanner fills it. **Add to {vault}**; with a vault in Files but none open, **Unlock {vault}**, the code carried through the unlock and the form opened filled once it is; with no vault at all, **Make a vault**, and the code is not kept: the card says "Not kept · scan it again once the vault is open", and the code is wiped at the press (§4.5) |
 | Vault entries | added to the open vault. **Add to {vault}**; the same **Unlock {vault}** and **Make a vault** cases as a TOTP setup code |
@@ -464,6 +465,7 @@ no explanation.
 | `read_private_key` | A private key |
 | `read_xprv` | An extended private key |
 | `read_nostr_secret` | A Nostr secret key |
+| `read_spend_key` | A silent payments spend key |
 | `read_ur_seed` | A seed (ur:crypto-seed) |
 | `read_totp` | A TOTP setup code |
 | `read_entries` | Vault entries |

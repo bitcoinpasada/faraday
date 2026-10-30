@@ -15,12 +15,23 @@ reference's own label and shared-secret arithmetic.
 Faraday's sender arithmetic is test-only (Faraday makes no silent
 payment) and has no per-group limit, so the vector that exceeds K_max
 on the sending side is checked on the receiving side only.
+
+BIP-392's `spscan1q…` key expression and its `sp()` descriptor, which
+BIP-392 publishes no code or vectors for: each receiver's scan key is
+written in the area with the reference's own bech32m (`bech32m.py`),
+as BIP-392 states its payload (`ser256(b_scan) || serP(B_spend)` under
+`spscan` or `tspscan`, version `q`), and read by the reference's
+`decode` and its curve; Faraday must read the same two public keys, and
+refuse a string one character off, another version or a key off the
+curve. The descriptor around it, with a key origin of BIP-352's path,
+is read in the area from BIP-392's text.
 """
 
 from common import Area, use_reference, vectors
 
 use_reference("bip352")
 use_reference("bip352", "secp256k1lab", "src")
+import bech32m as B  # noqa: E402
 import bitcoin_utils as U  # noqa: E402
 import reference as R  # noqa: E402
 from secp256k1lab.secp256k1 import G, GE, Scalar  # noqa: E402
@@ -81,6 +92,53 @@ def ref_scan(inputs, b_scan, b_spend_pk, outputs, labels):
     return {"found": out}
 
 
+def scan_key_text(b_scan, B_spend, mainnet, version=0, scan_bytes=None):
+    """BIP-392's `spscan` expression, by the reference's bech32m."""
+    payload = (scan_bytes or b_scan.to_bytes()) + B_spend.to_bytes_compressed()
+    data = B.convertbits(payload, 8, 5)
+    return B.bech32_encode("spscan" if mainnet else "tspscan", [version] + data,
+                           B.Encoding.BECH32M)
+
+
+def ref_scan_key(text):
+    """The reference's reading of a scan key expression: its decode and
+    its curve, with BIP-392's payload."""
+    hrp = "spscan" if text.lower().startswith("spscan") else "tspscan"
+    if B.bech32_decode(text)[2] != B.Encoding.BECH32M:
+        raise ValueError("BIP-392: not bech32m")
+    version, data = B.decode(hrp, text)
+    if version is None or version != 0:
+        raise ValueError("BIP-392: not a version 0 spscan string")
+    data = bytes(data)
+    if len(data) != 65:
+        raise ValueError("BIP-392: the payload is not 65 bytes")
+    b_scan = Scalar.from_bytes_checked(data[:32])
+    if b_scan == 0:
+        raise ValueError("BIP-352: a scan key of zero")
+    spend = GE.from_bytes_compressed(data[32:])
+    return {"mainnet": hrp == "spscan", "scan": (b_scan * G).to_bytes_compressed().hex(),
+            "spend": spend.to_bytes_compressed().hex()}
+
+
+def ref_descriptor(text):
+    """BIP-392's `sp(KEY)` with the key origin BIP-352's path names, read
+    from the BIP's text; an origin is Faraday's rule (BIP-392 makes it
+    optional), and a path other than 352h/coinh/accounth too."""
+    body, _, _ = text.partition("#")
+    if not (body.startswith("sp(") and body.endswith(")")):
+        raise ValueError("BIP-392: not sp(KEY)")
+    inner = body[3:-1]
+    if not inner.startswith("["):
+        raise ValueError("Faraday's rule: an sp() descriptor with no key origin is refused")
+    origin, key = inner[1:].split("]", 1)
+    fp, *path = origin.split("/")
+    key_read = ref_scan_key(key)
+    coin = "0h" if key_read["mainnet"] else "1h"
+    if len(path) != 3 or path[0] != "352h" or path[1] != coin or not path[2].endswith("h"):
+        raise ValueError("Faraday's rule: an origin other than BIP-352's path is refused")
+    return dict(key_read, fingerprint=fp, account=int(path[2][:-1]))
+
+
 def sorted_outputs(answer):
     if answer[0] == "ok":
         return ("ok", {"outputs": sorted(answer[1]["outputs"])})
@@ -116,6 +174,13 @@ class Silent(Area):
             "reference leaves to its caller, is written in the area from the BIP's own "
             'sentence.'
         ),
+        (
+            "BIP-392 publishes no reference code or vectors: its `spscan` expression is "
+            "written and read with the BIP-352 reference's bech32m and curve, as BIP-392 "
+            "states the payload, and the `sp()` around it is read in the area from the BIP's "
+            "text. Faraday's own, expected from its rule: an `sp()` with no key origin, which "
+            "BIP-392 allows, is refused, as is an origin other than BIP-352's path."
+        ),
     ]
     not_compared = (
         'none'
@@ -138,6 +203,29 @@ class Silent(Area):
             return {"mainnet": hrp == "sp", "scan": scan.to_bytes_compressed().hex(),
                     "spend": spend.to_bytes_compressed().hex()}
         return self.compare("sp.decode", {"address": address}, ref)
+
+    def scan_key(self, b_scan, b_spend, mainnet):
+        """A receiver's scan key expression, as written, then damaged."""
+        rng = self.rng
+        text = scan_key_text(b_scan, b_spend * G, mainnet)
+        how = rng.choice(["whole", "whole", "whole", "char", "version", "upper", "zero"])
+        if how == "char":
+            i = rng.randrange(len("spscan1") + (0 if mainnet else 1), len(text))
+            text = text[:i] + rng.choice([c for c in B.CHARSET if c != text[i]]) + text[i + 1:]
+        elif how == "version":
+            text = scan_key_text(b_scan, b_spend * G, mainnet, version=rng.randrange(1, 17))
+        elif how == "upper":
+            text = text.upper()
+        elif how == "zero":
+            text = scan_key_text(b_scan, b_spend * G, mainnet, scan_bytes=bytes(32))
+        self.compare("sp.scan_key", {"text": text}, lambda: ref_scan_key(text))
+        if how == "whole":
+            fp = self.randbytes(4).hex()
+            account = rng.choice([0, 0, 1, rng.randrange(2**31)])
+            coin = "0h" if mainnet else "1h"
+            path = rng.choice([f"352h/{coin}/{account}h"] * 5 + ["84h/0h/0h", f"352h/{coin}"])
+            d = rng.choice([f"sp([{fp}/{path}]{text})", f"sp({text})"])
+            self.compare("sp.descriptor", {"text": d}, lambda: ref_descriptor(d))
 
     def input_hash(self, inputs):
         def ref():
@@ -273,6 +361,7 @@ class Silent(Area):
             receivers.append((b_scan, b_spend, labels))
             addr = self.address(b_scan, b_spend, mainnet, None)
             self.decode(addr[1]["address"])
+            self.scan_key(b_scan, b_spend, mainnet)
             if labels:
                 self.address(b_scan, b_spend, mainnet, rng.choice(labels))
         outputs = []

@@ -72,6 +72,9 @@ pub enum Refusal {
     /// A key that is not one of the wallet's spends it alone by the key
     /// path, and the person has not confirmed it yet (F132).
     KeyPathUnconfirmed,
+    /// A Coldcard export holding a single-sig account and a silent
+    /// payments account, and the person has not chosen which loads yet.
+    AccountUnchosen,
 }
 
 impl Refusal {
@@ -101,6 +104,7 @@ impl Refusal {
             Refusal::StickAttached(noun) => fill(EN.stick_keys_keys_load, &[noun]),
             Refusal::SilentDiffers(fp) => fill(EN.wallet_silent_differs, &[&fp.to_string()]),
             Refusal::KeyPathUnconfirmed => EN.wallet_key_path_unconfirmed.to_string(),
+            Refusal::AccountUnchosen => EN.wallet_account_unchosen.to_string(),
         }
     }
 }
@@ -275,10 +279,17 @@ pub fn read_wallet(c: &Compute, text: &str) -> Result<WalletPolicy, Refusal> {
 
 /// Costs what [`read_wallet`] costs: the forms [`read_wallet`] reads
 /// whole before any other, by what the text begins with or holds: a
-/// silent payments record, whose lines are its fields; Coldcard's
-/// account export; Specter DIY's `addwallet` command. `None` for any
-/// other text.
+/// silent payments record, whose lines are its fields; BIP-392's `sp()`
+/// descriptor or its key expression alone; Coldcard's account export;
+/// Specter DIY's `addwallet` command. `None` for any other text.
 fn read_whole(c: &Compute, text: &str) -> Option<Result<WalletPolicy, Refusal>> {
+    if let Some(line) = sp_line(text) {
+        return Some(
+            faraday_bip::silent_wallet::parse_descriptor(c, line)
+                .map(WalletPolicy::of_silent)
+                .map_err(|e| silent_refusal(&e)),
+        );
+    }
     if faraday_bip::silent_wallet::SilentWallet::looks_like_record(text) {
         return Some(
             WalletPolicy::parse_any(c, text)
@@ -289,6 +300,40 @@ fn read_whole(c: &Compute, text: &str) -> Option<Result<WalletPolicy, Refusal>> 
         return Some(coldcard_export(c, text));
     }
     specter_diy::split(text).map(|(_, d)| specter_diy_wallet(c, d))
+}
+
+/// The one line of `text` that is BIP-392's `sp(…)` descriptor
+/// (Keystone's and Sparrow's) or its key expression alone,
+/// `[origin]spscan1q…` (Specter DIY's), when the text is that line
+/// alone, beside blank and comment lines.
+fn sp_line(text: &str) -> Option<&str> {
+    let mut written = text
+        .trim_start_matches('\u{feff}')
+        .lines()
+        .map(str::trim)
+        .filter(|l| !l.is_empty() && !l.starts_with('#'));
+    let line = written.next()?;
+    if written.next().is_some() {
+        return None;
+    }
+    // Compared without a copy: the line carries the scan private key.
+    let starts = |t: &str, p: &str| t.get(..p.len()).is_some_and(|h| h.eq_ignore_ascii_case(p));
+    let key = line.rsplit(']').next().unwrap_or(line);
+    let sp = starts(line, "sp("); // not wording: a descriptor's function name
+    (sp || starts(key, "spscan1") || starts(key, "tspscan1")).then_some(line)
+}
+
+/// The sentence a refused `sp()` descriptor shows.
+fn silent_refusal(e: &faraday_bip::silent_wallet::ReadError) -> Refusal {
+    use faraday_bip::silent_wallet::ReadError as R;
+    let why = match e {
+        R::NoOrigin => return Refusal::NotAWallet(EN.wallet_sp_no_origin.into()),
+        R::Origin => EN.wallet_sp_origin,
+        R::Key(_) => EN.wallet_sp_key,
+        R::Checksum => EN.wallet_sp_checksum,
+        R::Shape => EN.wallet_sp_shape,
+    };
+    Refusal::NotAWallet(fill(EN.wallet_sp, &[why]))
 }
 
 /// Costs a parse of the descriptor and of each wallet tried: the
@@ -320,10 +365,18 @@ pub fn carried_name(text: &str) -> Option<String> {
 
 /// Whether text is another wallet's file that holds a secret beside its
 /// public keys: an Electrum wallet file with an `xprv`, a `seed` or
-/// imported private keys ([`electrum::holds_secret`]). Costs a JSON parse
-/// of a text that starts as JSON and names `wallet_type`.
+/// imported private keys ([`electrum::holds_secret`]), or any text with
+/// BIP-392's `spspend1q…` in it, the silent payments spend private key.
+/// BIP-392's `spscan1q…` (an `sp()` descriptor, Specter DIY's key alone,
+/// Coldcard's `bip352` account) is no such secret: it lets its holder see
+/// the payments the wallet receives and spend none (owner, 2026-10-29),
+/// so its file is a wallet file. Costs a JSON parse of a text that starts
+/// as JSON and names `wallet_type`.
 pub fn holds_secret(text: &str) -> bool {
     let t = text.trim_start_matches('\u{feff}').trim_start();
+    if crate::holds_spend_key(t) {
+        return true;
+    }
     t.starts_with('{')
         && t.contains("\"wallet_type\"")
         && json::parse(t).is_ok_and(|v| electrum::looks_like(&v) && electrum::holds_secret(&v))
@@ -443,6 +496,7 @@ fn coldcard_export(c: &Compute, text: &str) -> Result<WalletPolicy, Refusal> {
                 Refusal::NotAWallet(bip::policy_error(&faraday_bip::policy::Error::Key))
             }
             ReadError::Policy(e) => Refusal::NotAWallet(bip::policy_error(&e)),
+            ReadError::Silent(e) => silent_refusal(&e),
         })
 }
 

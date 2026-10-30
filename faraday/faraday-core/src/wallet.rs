@@ -34,6 +34,8 @@ mod nonce;
 pub use nonce::{NonceCheck, NonceRow, Unmatched};
 mod v2;
 pub use v2::{read_psbt, read_psbt_kept};
+mod account;
+pub use account::{Account, AccountAsk};
 
 /// Costs a parse of the description and its keys: reads a wallet
 /// description with `faraday_intake`'s reader, which counts through the
@@ -362,6 +364,8 @@ pub struct Session {
     /// in this session, which [`Session::add_policy`] adds without asking
     /// again.
     key_path_confirmed: Vec<String>,
+    /// A Coldcard export of two accounts waiting for one to be chosen, and the choices made.
+    accounts: account::Accounts,
     /// The extended public keys worked out from loaded keys at the paths
     /// wallets name under their fingerprints ([`Session::key_refs`]), by
     /// network, key ([`master_id`]) and path. Each is a function of
@@ -410,6 +414,7 @@ impl Default for Session {
             key_marks: crate::codex32_correct::KeyMarks::default(),
             key_path_asked: None,
             key_path_confirmed: Vec::new(),
+            accounts: account::Accounts::default(),
             key_xpubs: std::cell::RefCell::new(Vec::new()),
         }
     }
@@ -468,6 +473,7 @@ impl Session {
             key_marks: crate::codex32_correct::KeyMarks::default(),
             key_path_asked: None,
             key_path_confirmed: Vec::new(),
+            accounts: account::Accounts::default(),
             key_xpubs: std::cell::RefCell::new(Vec::new()),
         }
     }
@@ -507,9 +513,10 @@ impl Session {
         self.follow(psbt_network(psbt, self.network()))
     }
 
-    /// Costs what `read_wallet` and `add_policy` cost. Adds the wallet the
-    /// text describes, under `name`, unless the same descriptor is already
-    /// loaded. `origin`
+    /// Costs what `read_wallet`, `account_of` and `add_policy` cost. Adds
+    /// the wallet the text describes (of a Coldcard export of two
+    /// accounts, the one chosen), under `name`, unless the same
+    /// descriptor is already loaded. `origin`
     /// is what [`Wallet::source`] is: the caller already knows this (it is
     /// the one that chose `source`'s words), so it says so here rather than
     /// this reading the text back.
@@ -521,7 +528,9 @@ impl Session {
         source: &str,
         origin: Origin,
     ) -> Result<usize, Refusal> {
-        self.add_policy(c, name, read_wallet(c, text)?, source, origin)
+        let read = read_wallet(c, text)?;
+        let policy = self.account_of(c, text, read, (name, source, origin))?;
+        self.add_policy(c, name, policy, source, origin)
     }
 
     /// Costs two key derivations per loaded key with a silent payments

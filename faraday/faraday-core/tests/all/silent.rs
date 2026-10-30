@@ -543,3 +543,145 @@ fn the_keys_own_record_without_the_key_shows_its_address_marked_not_checked() {
         .unwrap();
     assert!(view.label.contains(&line), "{:?}", view.label);
 }
+
+// BIP-392's `sp()` descriptor, written and read (`docs/INTEROP.md` §5 I9).
+
+/// The test key's own silent payments wallet, its `sp()` descriptor
+/// taken through the secret sheet: the app, and the descriptor's text.
+fn descriptor_out() -> (Faraday, String) {
+    let mut app = with_key();
+    app.press(Action::Silent);
+    app.press(Action::SAddWallet);
+    app.press(Action::SDescriptorOut(0));
+    assert_eq!(app.sheet, Some(Sheet::SecretOut));
+    assert!(app.outbox.is_empty(), "nothing out before the sheet");
+    app.press(Action::SecretUnprotected);
+    app.press(Action::SecretHold);
+    let name = format!(
+        "{}-sp-descriptor.txt",
+        faraday_core::file_stem(&app.session.wallets[0].name)
+    );
+    let item = app
+        .outbox
+        .iter()
+        .find(|i| i.name == name)
+        .unwrap_or_else(|| panic!("no {name}"));
+    let text = String::from_utf8(item.bytes.clone()).unwrap();
+    (app, text)
+}
+
+#[test]
+fn a_silent_payments_wallets_sp_descriptor_leaves_through_the_secret_sheet_with_its_origin() {
+    let c = faraday_core::testkit::compute();
+    let (app, text) = descriptor_out();
+    let fp = faraday_core::wallet::fp_text(app.session.keys[0].fingerprint).to_string();
+    let coin = app.session.network().coin_type();
+    assert!(
+        text.starts_with(&format!("sp([{fp}/352h/{coin}h/0h]")),
+        "{text}"
+    );
+    // It is the key's own scan key.
+    let r = Receiver::derive(&c, app.session.keys.master_for_tests(0), 0);
+    assert!(text.contains(r.scan_key_text().unwrap().as_str()));
+    // Read back, it is the wallet it came from.
+    let back = faraday_core::wallet::read_wallet(&c, &text).unwrap();
+    let mine = app.session.wallets[0].policy().silent().unwrap();
+    let read = back.silent().unwrap();
+    assert_eq!(read.address(), mine.address());
+    assert_eq!(
+        (read.fingerprint, read.account),
+        (mine.fingerprint, mine.account)
+    );
+}
+
+#[test]
+fn an_sp_descriptor_with_no_key_loaded_offers_nothing_out() {
+    let c = faraday_core::testkit::compute();
+    let mut keyed = with_key();
+    keyed.press(Action::Silent);
+    let record = keyed.silent_record(&c).unwrap();
+    let mut app = faraday_core::testkit::started();
+    files(&mut app, &[("silent-1.txt", record.into_bytes())]);
+    app.press(Action::LoadWallet(0));
+    app.press(Action::SDescriptorOut(0));
+    assert_ne!(app.sheet, Some(Sheet::SecretOut));
+    assert!(app.outbox.is_empty());
+    assert!(app.toast_text().unwrap_or_default().contains("sp()"));
+}
+
+#[test]
+fn an_sp_descriptor_from_files_loads_as_its_wallet_and_one_whose_keys_are_not_the_keys_is_refused()
+{
+    let (_, text) = descriptor_out();
+    // Into a session without the key: the wallet, named by its file, a
+    // wallet file in Files (the scan key in it spends nothing).
+    let mut app = faraday_core::testkit::started();
+    files(&mut app, &[("sp.txt", text.clone().into_bytes())]);
+    assert_eq!(app.inbox()[0].kind, faraday_core::wallet::FileKind::Wallet);
+    app.press(Action::LoadWallet(0));
+    assert_eq!(app.session.wallets.len(), 1, "{:?}", app.toast_text());
+    assert_eq!(Kind::of(app.session.wallets[0].policy()), Kind::Silent);
+    // With the key loaded, a descriptor at its origin over another scan
+    // key is refused.
+    let other = Receiver::new(
+        SecretKey::from_slice(&[0x33u8; 32]).unwrap(),
+        another_scan_key(),
+        app.session.network(),
+    );
+    let origin = &text[3..text.find(']').unwrap() + 1];
+    let bad = format!("sp({origin}{})\n", other.scan_key_text().unwrap().as_str());
+    let mut app = with_key();
+    files(&mut app, &[("sp.txt", bad.into_bytes())]);
+    app.press(Action::LoadWallet(0));
+    assert!(app.session.wallets.is_empty());
+    let toast = app.toast_text().unwrap_or_default();
+    assert!(toast.contains("does not match key"), "{toast}");
+    // And one with no origin is refused, named.
+    let mut app = faraday_core::testkit::started();
+    let bare = format!("sp({})\n", other.scan_key_text().unwrap().as_str());
+    files(&mut app, &[("sp.txt", bare.into_bytes())]);
+    app.press(Action::LoadWallet(0));
+    assert!(app.session.wallets.is_empty());
+    let toast = app.toast_text().unwrap_or_default();
+    assert!(toast.contains("names no key origin"), "{toast}");
+}
+
+/// Coldcard's export of one key's single-sig accounts and its silent
+/// payments account (Sparrow's test files).
+const CC_SP: &str = include_str!("../vectors/interop/sparrow/cc-singlesig-sp-keystore-1.json");
+
+/// Files' Load of that export, its dialog open.
+fn coldcard_asked() -> Faraday {
+    let mut app = faraday_core::testkit::started();
+    files(&mut app, &[("cc.json", CC_SP.as_bytes().to_vec())]);
+    app.press(Action::LoadWallet(0));
+    assert_eq!(app.sheet, Some(Sheet::Account), "{:?}", app.toast_text());
+    assert!(app.session.wallets.is_empty(), "loaded before a choice");
+    let shown = drawn(&mut app);
+    assert!(shown.contains("Single-sig · BIP-84"), "{shown}");
+    assert!(shown.contains("Silent payments · BIP-352"), "{shown}");
+    app
+}
+
+/// A Coldcard export holding a single-sig account and a silent payments
+/// account asks which to load (owner, 2026-10-29): the one chosen loads,
+/// and Cancel loads neither.
+#[test]
+fn a_coldcard_export_of_both_accounts_loads_the_one_chosen() {
+    use faraday_core::wallet::Account;
+    let mut app = coldcard_asked();
+    app.press(Action::LoadAccount(Some(Account::Silent)));
+    assert_eq!(app.sheet, None);
+    assert_eq!(app.session.wallets.len(), 1, "{:?}", app.toast_text());
+    let w = app.session.wallets[0].policy().silent().expect("silent");
+    assert_eq!(w.fingerprint.to_string(), "0f056943");
+    let mut app = coldcard_asked();
+    app.press(Action::LoadAccount(Some(Account::SingleSig)));
+    assert_eq!(app.session.wallets.len(), 1, "{:?}", app.toast_text());
+    let d = app.session.wallets[0].policy().to_descriptor();
+    assert!(d.starts_with("wpkh([0f056943/84h/1h/0h]"), "{d}");
+    let mut app = coldcard_asked();
+    app.press(Action::LoadAccount(None));
+    assert_eq!(app.sheet, None);
+    assert!(app.session.wallets.is_empty());
+}

@@ -52,10 +52,15 @@ pub fn looks_like_export(text: &str) -> bool {
         return false;
     };
     string_field(&file, "xfp").is_some()
-        && ACCOUNTS
+        && (ACCOUNTS
             .iter()
             .any(|(name, _)| object(&file, name).is_some())
+            || object(&file, SILENT).is_some())
 }
+
+/// The field of the silent payments account (BIP-352), which carries
+/// BIP-392's `spscan1q…` and its `deriv`, `m/352'/coin'/account'`.
+const SILENT: &str = "bip352";
 
 /// Why an export gives no wallet.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -76,6 +81,8 @@ pub enum ReadError {
     },
     /// The key does not make a wallet.
     Policy(Error),
+    /// The silent payments account's scan key or its origin is refused.
+    Silent(crate::silent_wallet::ReadError),
 }
 
 /// Costs a JSON parse, a policy parse and an address derivation per
@@ -116,7 +123,35 @@ pub fn read(c: &Compute, text: &str) -> Result<(WalletPolicy, &'static str), Rea
         }
         return Ok((policy, name));
     }
+    // An export of no single-sig account but the silent payments one:
+    // that wallet. Where a single-sig account is there too, it is the one
+    // read, as before silent payments were exported.
+    if let Some(silent) = silent(c, text) {
+        let wallet = silent.map_err(ReadError::Silent)?;
+        return Ok((WalletPolicy::of_silent(wallet), SILENT));
+    }
     Err(ReadError::NoAccount)
+}
+
+/// Costs a JSON parse and an elliptic-curve multiplication. The silent
+/// payments wallet of the export's `bip352` account, rooted at the
+/// top-level `xfp` (the account's own `xfp` is its key's fingerprint,
+/// as in every account here), its `deriv` BIP-352's path on the network
+/// the key's human-readable part names; `None` when the export has no
+/// such account with a `spscan`.
+pub fn silent(
+    c: &Compute,
+    text: &str,
+) -> Option<Result<crate::silent_wallet::SilentWallet, crate::silent_wallet::ReadError>> {
+    use crate::silent_wallet::{ReadError as R, from_scan_key};
+    let file = read_json(text)?;
+    let account = object(&file, SILENT)?;
+    let key = string_field(account, "spscan")?;
+    let (Some(xfp), Some(deriv)) = (string_field(&file, "xfp"), string_field(account, "deriv"))
+    else {
+        return Some(Err(R::NoOrigin));
+    };
+    Some(from_scan_key(c, key, xfp, deriv))
 }
 
 /// Costs what [`read`] costs: the single-sig wallet the export offers.

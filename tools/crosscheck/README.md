@@ -389,6 +389,12 @@ difference"), and says why.
   - BIP-352's skip of a transaction spending SegWit version 2 or above,
     which the reference leaves to its caller, is written in the area
     from the BIP's own sentence.
+  - BIP-392 publishes no reference code or vectors: its `spscan`
+    expression is written and read with the BIP-352 reference's bech32m
+    and curve, as BIP-392 states the payload, and the `sp()` around it
+    is read in the area from the BIP's text. Faraday's own, expected
+    from its rule: an `sp()` with no key origin, which BIP-392 allows,
+    is refused, as is an origin other than BIP-352's path.
 - `sps`
   - BIP-375: Faraday takes a key a PSBT states for a P2PKH, P2SH-P2WPKH
     or P2WPKH input only where the input's script commits to it (F89);
@@ -643,7 +649,7 @@ with an area and no class (`docs/crypto/check.py`).
 | `vanity` | Faraday's own model over outside code | Faraday's authors (`area_vanity.py`) for the search, over python-mnemonic, Bitcoin Core v31.1 (`deriveaddresses`) and btclib for each candidate's address | EntropyLab's counter, the prefix rules, the expected work and the search loop, written out in `area_vanity.py` from a quotation | vanity |
 | `lightning` | code Faraday did not write | Lightning Labs (LND), Yawning Angel (AEZ) | none | aezeed |
 | `lightning` | Faraday's own model over outside code | LND's node key by btcd's `hdkeychain` in LND's vendored tree, by Lightning Labs and the btcd developers, for LND; Faraday's authors (`area_lightning.py`), over btclib-wallet's `bip32` and python-mnemonic, for ldk-node | ldk-node's node key, composed in `area_lightning.py` from the sources `tools/reference/aezeed/README.md` quotes (each step btclib's), and LND's key-path numbers (1017', coin, 6', 0, 0), written in `tools/reference/lnd/main.go` from `keychain/derivation.go` | lightning-node |
-| `sp` | code Faraday did not write | BIP-352's `reference.py`, by the BIP's authors, over `secp256k1lab` | none | silent-receive |
+| `sp` | code Faraday did not write | BIP-352's `reference.py`, by the BIP's authors, over `secp256k1lab`; for BIP 392's spscan key, which has no published code or vectors, that reference's bech32m and curve | none | silent-receive |
 | `psbt` | Faraday's own model over outside code | Bitcoin Core v31.1 (`decodepsbt`, and `combinepsbt` as its writer), by Bitcoin Core's contributors; HWI's `psbt.py`, by Ava Chow and HWI's contributors, for the version 2 fields BIP-370 refuses in version 0 | the refusal of a 65-byte taproot signature whose sighash byte is 0 (BIP-341), which neither Core nor HWI makes, written in `area_psbt.py` | psbt-read |
 | `psbt` | Faraday's own model over outside code | HWI's `psbt.py` (reading, `compute_lock_time`, `get_unsigned_tx`, `convert_to_v0`, `convert_to_v2`), by Ava Chow and HWI's contributors, with both version 0 forms read by Bitcoin Core v31.1 | the refusals HWI does not make (bytes after the last map, a stream that ends inside a map, a 65-byte taproot signature whose sighash byte is 0), the choice of the pairs Faraday leaves to the bridge to version 0, and the version 0 PSBT of a PSBT's own pairs that Core judges where HWI repairs a short value, written in `area_psbt.py` | psbt-v2 |
 | `psbt-review` | Faraday's own model over outside code | Faraday's authors (`area_review.py`), over Bitcoin Core v31.1 (`decodepsbt`, `analyzepsbt`, `deriveaddresses`), by the Bitcoin Core developers | the rule that an output is change when it claims a held key's origins and Core's script at the path it states is the output's own, the rule that a script of several keys, a miniscript or a taproot tree is change only for a registered wallet, and the account keys a registered wallet names, derived in the area | psbt-review |

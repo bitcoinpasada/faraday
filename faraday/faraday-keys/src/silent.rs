@@ -67,6 +67,26 @@ impl Receiver {
         Some(Held::of(Zeroizing::new(k.as_str().to_string())))
     }
 
+    /// The scan key as BIP-392's descriptor, `sp([fp/352h/coinh/accounth]spscan1q…)`,
+    /// with the origin of the key it came from, for the same reasons as
+    /// [`Receiver::scan_key`]: it carries the scan key. `None` for another
+    /// reason.
+    pub fn descriptor(
+        &self,
+        why: Reveal,
+        fingerprint: faraday_bip::keys::Fingerprint,
+        account: u32,
+    ) -> Option<Held<Zeroizing<String>>> {
+        if !matches!(
+            why,
+            Reveal::VaultEntry(Part::ScanKey) | Reveal::OutboxFile(Part::ScanKey)
+        ) {
+            return None;
+        }
+        let d = self.0.descriptor(Some((fingerprint, account))).ok()?;
+        Some(Held::of(Zeroizing::new(d.as_str().to_string())))
+    }
+
     /// Costs a scan of the transaction's outputs. The payments `tx` makes
     /// to these keys under `labels`, its inputs' scripts being `scripts`.
     pub fn payments_in(

@@ -69,6 +69,27 @@ pub fn handle(name: &str, req: &Value) -> Answer {
                 "spend": hex(&spend.serialize()),
             }))
         }
+        "scan_key" => {
+            let c = faraday_crypto::work::Compute::unchecked();
+            let read = silent::decode_scan_key(&c, text(req, "text")).map_err(err)?;
+            Ok(json!({
+                "mainnet": read.network.is_mainnet(),
+                "scan": hex(&read.scan.serialize()),
+                "spend": hex(&read.spend.serialize()),
+            }))
+        }
+        "descriptor" => {
+            let c = faraday_crypto::work::Compute::unchecked();
+            let w =
+                faraday_bip::silent_wallet::parse_descriptor(&c, text(req, "text")).map_err(err)?;
+            Ok(json!({
+                "fingerprint": w.fingerprint.to_string(),
+                "account": w.account,
+                "mainnet": w.network.is_mainnet(),
+                "scan": hex(&w.scan.serialize()),
+                "spend": hex(&w.spend.serialize()),
+            }))
+        }
         "sender" => sender(&secp, req),
         "scan" | "input_hash" => {
             let owned = inputs(req);

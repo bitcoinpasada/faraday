@@ -1,8 +1,8 @@
 # Interoperability with other wallets
 
 **Kind:** Spec
-**Status:** Tested; §2 lists what works; §5 I1 to I6, I8, I10 and I11 built
-**Open:** §5 I7 and I9: Electrum seed words, reading BIP-392 `sp()`.
+**Status:** Tested; §2 lists what works; §5 I1 to I6 and I8 to I11 built
+**Open:** §5 I7: Electrum seed words.
 
 Faraday is a signer. Other wallets hand it a wallet description, a
 cosigner's key or a PSBT, and take back a signed PSBT, a finished
@@ -67,6 +67,7 @@ the files and codes they write.
 | Coldcard, Wasabi | Coldcard's Wasabi file (`ColdCardFirmwareVersion`), as BIP-84 account 0 (§5 I2) | yes | `{stem}-wasabi.json`, BIP-84 account 0 only | Coldcard Mk4's file against its generic export's `first`; Faraday's read back |
 | Electrum 4.x, Sparrow | Electrum wallet file, unencrypted: one key (`xpub`/`ypub`/`zpub` → `pkh`/`sh(wpkh)`/`wpkh`) or `NofM` `sortedmulti` (`xpub`/`Ypub`/`Zpub` → `sh`/`sh(wsh)`/`wsh`), fingerprint from `root_fingerprint` or `ckcc_xfp` little-endian (§5 I6) | yes; a multisig keystore with no fingerprint and derivation refused; a file with an `xprv`, a `seed` or imported keys is a secret; an encrypted file refused | `{stem}-electrum.json` under More options, keys in their SLIP-132 version, `root_fingerprint` and derivation | Sparrow's two files (its multisig one equals the same Coldcards' setup file); BlueWallet's two; BIP-84's account at its published first address; Faraday's read back |
 | Specter DIY, Sparrow | Specter DIY's `addwallet {name}&{descriptor}`, from a scan or a file, its name the wallet's; keys without a derivation read as `<0;1>` (§5 I8) | yes; a checksum, where there is one, checked (Specter DIY drops it unread) | `{stem}-specter-diy.txt`, Show as QR and PNG in Specter's numbered parts, under More options; not MuSig2 or silent payments | Sparrow's export, named Sparrow Multisig, and Faraday's text for it equal to Sparrow's; every test wallet's read back at its first address; the `import` area against Core's `deriveaddresses` |
+| Sparrow, Keystone, Specter DIY, Coldcard | BIP-392 `sp([fp/352h/coinh/accounth]spscan1q…)`, `tspscan` on a test network, its checksum where it has one; the key alone with its origin (Specter DIY); Coldcard's export of its `bip352` account, rooted at the top-level `xfp`, alone or, beside a single-sig account, as the person chooses (§5 I9) | yes, as a `faraday-silent 1` record: the scan private key is read for its public key and not kept; no origin refused; with the key loaded, keys that are not its own refused; the file is a wallet file in Files | `{stem}-sp-descriptor.txt` under More options, through the secret sheet, with the key loaded | Sparrow's Keystone, Specter DIY and Coldcard keystores one wallet rooted at 0f056943; BIP-352's vector keys written and read back; the `sp` area against BIP-352's reference bech32m and curve |
 | Caravan, Unchained, Sparrow, BlueWallet | Caravan wallet config, `sortedmulti` (§5 I5) | yes; a key with no `bip32Path` or `xfp` refused | `{stem}-caravan.json`, `sortedmulti` with every origin | Sparrow's exports (its two refused ones refused); BlueWallet's at its first address once its third key's path is given; Faraday's read back |
 
 Ledger, Trezor and BitBox02 sign over USB through a coordinator; they
@@ -87,15 +88,14 @@ only words its refusals. The bug this fixed: moved to
 
 In the order they would matter to a person bringing files from those
 wallets. Items 1 to 4, 6 and 7 are built (§2, §5 I1 to I6), and of item
-8 Specter DIY's `addwallet` (§5 I8); what this list said of them: moved
-to `docs/history/INTEROP-LOG.md`.
+8 Specter DIY's `addwallet` and BIP-392 `sp()` (§5 I8, I9); what this
+list said of them: moved to `docs/history/INTEROP-LOG.md`.
 
 5. **Electrum's own seeds** (not BIP-39): an Electrum wallet's words do not
    load (§5 I7).
-8. Not read or written: BIP-392 `sp()` silent payment descriptors (Sparrow,
-   Keystone; §5 I9), BIP-329 label files, and Coldcard's encrypted backup
-   file. PSBT version 2 is read and written (§5 I10). A single WIF private
-   key is swept, never loaded (§5 I11).
+8. Not read or written: BIP-329 label files and Coldcard's encrypted
+   backup file. PSBT version 2 is read and written (§5 I10). A single WIF
+   private key is swept, never loaded (§5 I11).
 
 ## 5. The batches that build §4 (F64, owner 2026-10-20)
 
@@ -352,6 +352,44 @@ options, through the secret sheet. Where: a public `spscan` decoder in
 `faraday-intake` (`decode_v0` is private). Tests: Sparrow's
 Keystone, Specter DIY and Coldcard sp keystores give one wallet rooted at
 0f056943; BIP-392's and BIP-352's keys round-trip.
+
+Built in `core/faraday-bip/src/silent.rs` (`decode_scan_key`, public:
+the scan key's public key in constant time, the private key wiped) and
+`core/faraday-bip/src/silent_wallet.rs` (`parse_descriptor`,
+`from_scan_key`), so the decoder is in core beside `decode_v0` rather
+than in `faraday-intake`, which reads the forms
+(`faraday-intake/src/wallet.rs::read_wallet`, the one line `sp(…)` or
+`[origin]spscan1q…`) and words the refusals. The origin must be a
+fingerprint and BIP-352's path on the key's network to a hardened
+account; `sp(KEY,KEY)`, `spspend` (which carries the spend private
+key), a derivation after the key and any other function are refused.
+`tspscan` reads as testnet. A text holding `spscan1` is a wallet file
+in Files, not a secret: the scan key sees the wallet's payments and
+spends none (owner, 2026-10-29). A text holding `spspend1`, the spend
+private key, is a secret: a scanner names it as a private key and files
+nothing (F167; `faraday_intake::secret_text`), and a file of it is a
+secret in Files (`wallet::holds_secret`, as an Electrum file with an
+`xprv` is). Coldcard's export is read as before, BIP-84 first, then 86,
+49, 44; its `bip352` account is the wallet where the export has no
+single-sig account (`faraday_bip::coldcard::silent` reads it on its
+own). An export holding both asks which to load (owner, 2026-10-29):
+**Which account to load?**, a dialog naming the file, with **Cancel**,
+**Single-sig · BIP-84** (the account read) and **Silent payments ·
+BIP-352** (`Sheet::Account`, `Action::LoadAccount`), the export waiting
+on the session with both wallets read (`faraday-core`'s
+`wallet/account.rs`); the choice is kept for the session and the press
+that asked runs again, as the key path sheet's does (F132). The writer is
+**sp() descriptor** ("Sparrow, Keystone · holds the scan key") under
+Public files' More options (`Action::SDescriptorOut`), from the loaded
+key whose scan and spend keys are the record's, through the secret sheet
+(`faraday_keys::silent::Receiver::descriptor`, the scan key's reveal);
+with no such key loaded it offers nothing out. BIP-392 publishes no
+reference code or vectors (its text in `tools/vectors/bip392/`, unchanged
+since it was vendored); the `sp` cross-check area writes each receiver's
+scan key with BIP-352's reference bech32m and reads it with the
+reference's curve, damaged one character, in another version and in
+upper case, and the `sp()` around it from BIP-392's text. The fuzz target
+is `fuzz/fuzz_targets/silent.rs`.
 
 ### I10. PSBT version 2 (§4 item 8; #49)
 

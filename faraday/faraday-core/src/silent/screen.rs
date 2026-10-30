@@ -372,3 +372,46 @@ fn check_card(app: &View, s: &SilentState, ui: &mut Ui, x: f32, y: f32, w: f32) 
     }
     cy - y
 }
+
+/// The account dialog (Material 3's basic dialog): a Coldcard export
+/// holding a single-sig account and a silent payments account, and the
+/// two to choose between, alike, so neither is the default; Cancel adds
+/// neither.
+pub(crate) fn account_dialog(app: &View, ui: &mut Ui, w: f32, h: f32) {
+    use crate::wallet::Account;
+    use faraday_draw::tokens::DIALOG_MAX;
+    use faraday_draw::widgets::Icon;
+    let Some(ask) = app.session.account_asked() else {
+        return;
+    };
+    let line = fill(EN.wallet_account_line, &[&ask.name]);
+    let single = fill(EN.wallet_account_single, &[&ask.single_bip]);
+    let actions = [
+        (
+            EN.wallet_account_cancel,
+            Style::Secondary,
+            Action::LoadAccount(None),
+        ),
+        (
+            single.as_str(),
+            Style::Secondary,
+            Action::LoadAccount(Some(Account::SingleSig)),
+        ),
+        (
+            EN.wallet_account_silent,
+            Style::Secondary,
+            Action::LoadAccount(Some(Account::Silent)),
+        ),
+    ];
+    crate::compact::dialog(
+        ui,
+        (w, h, DIALOG_MAX),
+        (
+            Icon::Wallet.into(),
+            Role::Primary.paint(),
+            EN.wallet_account_head,
+        ),
+        &mut |ui, x, y, iw| ui.wrap_as((x, y, iw), BODY_M, Role::OnSurface, &line) + GAP,
+        &actions,
+    );
+}

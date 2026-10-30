@@ -92,11 +92,23 @@ pub enum TextSecret {
     Words,
     /// An extended private key, `xprv` or a SLIP-132 form of one.
     ExtendedPrivateKey,
+    /// BIP-392's silent payments spend private key, `spspend1q…` or
+    /// `tspspend1q…`, alone or in an `sp()` descriptor.
+    SilentSpendKey,
+}
+
+/// Whether `text` holds BIP-392's silent payments spend private key
+/// (`spspend1`, `tspspend1` contains it), in any case, compared without
+/// a copy.
+pub(crate) fn holds_spend_key(text: &str) -> bool {
+    text.as_bytes()
+        .windows(8)
+        .any(|w| w.eq_ignore_ascii_case(b"spspend1"))
 }
 
 /// Costs what `parse` costs. Whether scanned text is a secret, and
-/// which: a seed's words or an extended private key, with or without
-/// its origin.
+/// which: a seed's words, an extended private key, with or without its
+/// origin, or a silent payments spend key.
 pub fn secret_text(c: &Compute, text: &str) -> Option<TextSecret> {
     let t = text.trim();
     let words = t.split_whitespace().count();
@@ -112,7 +124,7 @@ pub fn secret_text(c: &Compute, text: &str) -> Option<TextSecret> {
     {
         return Some(TextSecret::ExtendedPrivateKey);
     }
-    None
+    holds_spend_key(t).then_some(TextSecret::SilentSpendKey)
 }
 
 /// What a whole transfer becomes when it is kept: a name when it brought

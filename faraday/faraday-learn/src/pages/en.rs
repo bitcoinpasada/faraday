@@ -1005,7 +1005,7 @@ pub static EN: Learn = Learn {
                 heading: "What the scan key gives away",
                 paragraphs: &[
                     "Handing over the scan private key hands over the ability to see every payment this wallet has ever received, and every payment it ever will. It does not hand over the ability to spend one. A watching server with your scan key knows your whole receiving history; give it only to software you run, or to a service you have decided to trust with that.",
-                    "Faraday keeps the scan key in the open vault, or sends it out through the secret sheet, because it is a secret. Export on a silent payments wallet writes it, under More options, as `sp(spscan1q…)`, which is BIP-392's descriptor for exactly this job, and that too goes through the secret sheet.",
+                    "Faraday keeps the scan key in the open vault, or sends it out through the secret sheet, because it is a secret. Export on a silent payments wallet writes it, under More options, as `sp([…]spscan1q…)`, which is BIP-392's descriptor for exactly this job, with the origin of the key it came from, and that too goes through the secret sheet. The same descriptor from Sparrow, Keystone, Specter DIY or Coldcard loads as the wallet when it names its key origin; the scan key in it is read for its public key and not kept, and the file is kept in Files as a wallet file: the scan key sees payments and spends none.",
                 ],
             },
             Section {

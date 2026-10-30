@@ -251,6 +251,27 @@ fn words_whose_checksum_fails_scanned_on_home_are_named_and_not_filed() {
     named_not_filed(&app, "checksum fails");
 }
 
+/// Keystone's `sp()` descriptor (Sparrow's test files): BIP-392's scan
+/// key with its origin.
+const SP: &str = include_str!("../vectors/interop/sparrow/keystone-singlesig-sp-keystore-1.txt");
+
+/// The scan key sees a wallet's payments and spends none: its `sp()`
+/// scanned on Home is filed as a wallet file (owner, 2026-10-29). The
+/// spend key in its place is a private key, named and never filed
+/// (F167).
+#[test]
+fn an_sp_descriptor_scanned_on_home_is_filed_as_a_wallet_and_a_spend_key_is_not() {
+    let mut app = testkit::started();
+    home_scan(&mut app);
+    read(&mut app, SP);
+    assert_eq!(app.inbox().len(), 1, "{}", note(&app));
+    assert_eq!(app.inbox()[0].kind, faraday_core::wallet::FileKind::Wallet);
+    let mut app = testkit::started();
+    home_scan(&mut app);
+    read(&mut app, &SP.replacen("spscan1", "spspend1", 1));
+    named_not_filed(&app, "That is a private key");
+}
+
 /// paperkey 1.6's printed lines and its raw form of one key
 /// (`tools/vectors/paperkey/`).
 const PAPERKEY: &str = include_str!("../../../../tools/vectors/paperkey/faraday-key.txt");

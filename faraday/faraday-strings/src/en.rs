@@ -3654,6 +3654,8 @@ strings! {
     read_xprv: "An extended private key",
     /// A code read: a Nostr secret key.
     read_nostr_secret: "A Nostr secret key",
+    /// The read card's kind: BIP-392's silent payments spend key.
+    read_spend_key: "A silent payments spend key",
     /// A code read: ur:crypto-seed.
     read_ur_seed: "A seed (ur:crypto-seed)",
     /// A code read: a GPG key's paperkey.
@@ -6161,6 +6163,10 @@ strings! {
     public_files_specter_diy: "Specter DIY wallet",
     /// Text in `public_files`: who reads Specter DIY's `addwallet` command.
     public_files_specter_diy_reads: "Specter DIY, addwallet",
+    /// Text in `public_files`: a silent payments wallet's BIP-392 descriptor row.
+    public_files_sp_descriptor: "sp() descriptor",
+    /// Text in `public_files`: who reads the `sp()` descriptor.
+    public_files_sp_reads: "Sparrow, Keystone · holds the scan key",
     /// Text in `public_files`: the row of Bitcoin Core's import file
     /// for Core before 29.
     public_files_core_before_29: "Core before 29",
@@ -7498,6 +7504,10 @@ strings! {
     silent_a_silent_payments: "A silent payments scan key",
     /// Text in `silent_act`.
     silent_whoever_has: "Whoever has it sees every payment to this address; it cannot spend them",
+    /// Title of the secret sheet for a silent payments wallet's `sp()` descriptor.
+    silent_a_silent_payments_descriptor: "A silent payments sp() descriptor, with its scan key",
+    /// Toast in `silent_descriptor_out`. `{}`: the record's fingerprint.
+    silent_descriptor_needs_key: "Load key {} to write its sp() descriptor",
     /// Toast in `silent_add_wallet`.
     silent_load_the_key: "Load the key first",
     /// Text in `silent_add_wallet`. `{}`: `fp_text(faraday_bip::keys::Fingerprint(fp))`.
@@ -9184,6 +9194,20 @@ strings! {
     wallet_key_path_cancel: "Cancel",
     /// Toast once the wallet is added from the key path sheet. `{}`: its name.
     wallet_key_path_added: "{} added",
+    // ----- Which account of a Coldcard export loads (docs/INTEROP.md §5 I9), faraday-core -----
+    /// Text in `text`: a Coldcard export holding a single-sig account and
+    /// a silent payments account, not added until one is chosen.
+    wallet_account_unchosen: "Not added yet: its account is to be chosen",
+    /// The account dialog's title.
+    wallet_account_head: "Which account to load?",
+    /// The account dialog's line. `{}`: the wallet's name.
+    wallet_account_line: "{} holds a single-sig account and a silent payments account",
+    /// The account dialog's single-sig choice. `{}`: its BIP, "BIP-84".
+    wallet_account_single: "Single-sig · {}",
+    /// The account dialog's silent payments choice.
+    wallet_account_silent: "Silent payments · BIP-352",
+    /// The account dialog's dismissive action.
+    wallet_account_cancel: "Cancel",
     // ----- Register this wallet, from a spend (docs/FLOWS.md, Spend), faraday-core -----
     /// The Spend review's button under the line that holds a spend from
     /// a wallet of several keys not registered here, where the PSBT
@@ -9287,6 +9311,18 @@ strings! {
     wallet_its_first_address: "its first {} address is not {}",
     /// Error in `coldcard_export`.
     wallet_no_single_sig: "no single-sig account",
+    /// Error in `silent_refusal`: BIP-392's `sp()` with no key origin.
+    wallet_sp_no_origin: "This sp() descriptor names no key origin",
+    /// Error in `silent_refusal`. `{}`: why.
+    wallet_sp: "sp() descriptor: {}",
+    /// Error in `silent_refusal`.
+    wallet_sp_origin: "its key origin is not BIP-352's path on its network",
+    /// Error in `silent_refusal`.
+    wallet_sp_key: "its key is not a spscan key",
+    /// Error in `silent_refusal`.
+    wallet_sp_checksum: "its checksum does not match",
+    /// Error in `silent_refusal`.
+    wallet_sp_shape: "it is not sp() over one spscan key",
     /// Error in `wallet::mismatch_text`. `{}`: the key, shortened; the
     /// script type its version names; the script type around it.
     wallet_slip132_mismatch: "{} is a {} key; this wallet is {}",

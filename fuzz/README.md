@@ -175,6 +175,7 @@ cargo +nightly fuzz run --fuzz-dir fuzz decode_luma fuzz/artifacts/decode_luma/r
 | `transaction` | `faraday_psbt::transaction::read_raw` and `Spending::read` |
 | `encodings` | `faraday_codec::encodings::read`, `from_hex` and `read_input` under each way of reading |
 | `aezeed` | `faraday_bip::aezeed::decode_at_cost` at a cost of 16 over 24 word indices and a passphrase taken from the input |
+| `silent` | `faraday_bip::silent::decode_address` and `decode_scan_key`, `silent_wallet::parse_descriptor` and `SilentWallet::parse`, each record read written back and read as itself |
 
 One of them shapes the input before the call, because the code under
 test rejects anything else in its first few lines and a fuzzer would
