@@ -80,6 +80,56 @@ certificate, then `paperkey --pubring cert.gpg --secrets paperkey.txt
 Anyone who reads a copy of it has the key, so a printed paperkey is kept
 as a secret is.
 
+## Restoring a key from its paperkey
+
+A lost key comes back into a vault from its paperkey and its public
+certificate. The certificate is copied into Files first, on a stick
+visit. Restore from its paperkey is in the certificate's ⋮ in Files,
+and Restore from a paperkey is on the GPG kind in Vault contents. The
+first card shows the public key and the digits line 1 of its paperkey
+must read.
+
+A paperkey made here is seven lines. Lines 1 to 5 hold 22 bytes each,
+line 6 holds the rest, and line 7 is six digits alone: the check of the
+whole key. Each of lines 1 to 6 ends in six digits, the check of that
+line. A full line is 50 digits: 44 for the bytes, 6 for the check.
+
+What is typed on a line:
+
+- The digits 0 to 9 and A to F, in either case. The keyboard on the
+  screen has only these.
+- Spaces are not needed. Spaces typed anywhere are ignored, so a line
+  can be typed in pairs as printed, in groups of four, or as one run of
+  digits.
+- The line's number and colon, as printed ("1:"), may be typed or left
+  out. Where typed, the number is checked against the line.
+- Line 1 starts with 00 04, the paperkey's format and the key's
+  version, then the key's fingerprint. All three are typed: the line's
+  check covers them.
+- Lines starting with # in a file the paperkey program printed are not
+  typed.
+
+When the last digit of a line is typed and its check holds, the line is
+taken and the next one opens by itself. The card then shows "Line 1 ·
+checked" and, for line 1, the fingerprint it names; the digits are not
+shown again. The count, "Line 3 of 7", shows once the key's length is read, by
+line 3 at the latest. Line 6 also ends by itself, at that length, and
+line 7 at its sixth digit.
+
+A line that does not end by itself has a digit wrong, missing or extra.
+Next line, or Enter, checks it as it is and shows why it was not taken,
+"CRC on line 2 does not match" for a wrong digit. The digits stay as
+typed and Backspace changes them; nothing is guessed or corrected.
+Type line 2 again, under the lines checked, clears the last line
+checked and the ones after it. A paperkey printed by the paperkey program with
+another --output-width has lines of another length: each ends with
+Next line.
+
+With every line checked, Restore the key reads the secret, checks that
+it makes the public key, and makes every signature of the key again,
+which must equal the certificate's byte for byte. The key is then saved
+in each vault of the plan.
+
 ## Faraday Demo
 
 Faraday Demo is online and testnet-only; a key made on it meets

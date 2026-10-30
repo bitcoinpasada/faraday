@@ -319,6 +319,17 @@ impl Faraday {
             Screen::VaultContents if self.vaults.category == 4 => {
                 vec![gpg_page(), vaults_page(), &EN.passphrases]
             }
+            // A GPG key restored from its paperkey: the page that says how
+            // its lines are typed.
+            Screen::BackupFlow
+                if self
+                    .flows
+                    .on()
+                    .and_then(|i| self.flows.get(i))
+                    .is_some_and(|f| f.restore.is_some()) =>
+            {
+                vec![gpg_page(), vaults_page(), &EN.passphrases]
+            }
             // The Secure Boot kind (`crate::vault::CATEGORIES`, place 5).
             Screen::VaultContents if self.vaults.category == 5 => {
                 vec![secure_boot_keys_page(), vaults_page(), &EN.passphrases]
