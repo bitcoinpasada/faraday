@@ -85,7 +85,7 @@ Read this table, then only the decision you need.
 | [F68](decisions/F68.md) | One strings file; the upstream app removed | 2026-10-21 | Active | repository |
 | [F69](decisions/F69.md) | Costly work takes a token; drawing cannot mint one | 2026-10-21 | Active | speed |
 | [F70](decisions/F70.md) | One crate holds every key: faraday-keys | 2026-10-21 | Amended by F125 | keys |
-| [F71](decisions/F71.md) | Dependencies: what cargo-vet says is true | 2026-10-21 | Active | dependencies |
+| [F71](decisions/F71.md) | Dependencies: what cargo-vet says is true | 2026-10-21 | Amended by F178 | dependencies |
 | [F72](decisions/F72.md) | Faraday's code is its own: a hard fork | 2026-10-21 | Amended by F73, F97 | repository |
 | [F73](decisions/F73.md) | The upstream project is named only in LICENSE | 2026-10-21 | Amended by F97 | repository |
 | [F74](decisions/F74.md) | The structure is held by `just` | 2026-10-21 | Active | repository |
@@ -192,3 +192,4 @@ Read this table, then only the decision you need.
 | [F175](decisions/F175.md) | The vaults and the sticks are laid out together, and each stick is drawn as it comes in | 2026-10-30 | Active | backup |
 | [F176](decisions/F176.md) | Anti-exfil names two levels, checked signature and protected key; Faraday as host keeps the second, with rho in memory only and aborts counted in the vault; the reveal never in a PSBT | 2026-10-30 | Active | crypto |
 | [F177](decisions/F177.md) | Each Cryptography block says whose specification, whose implementation and whose check an action rests on, each own or outside | 2026-10-30 | Active | crypto |
+| [F178](decisions/F178.md) | Established implementations first: Faraday writes its own only where none exists or none fits its key rules, and says why | 2026-10-30 | Active | crypto |

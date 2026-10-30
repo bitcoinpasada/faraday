@@ -20,6 +20,7 @@ need. Each document's header says what kind it is:
 | What runs on the device, as whom, and what can each part reach? | `docs/SECURITY-MODEL.md` |
 | Which standard does each wallet kind, key method, format and tool follow, how fully, and where did Faraday decide for itself? | `docs/STANDARDS.md` |
 | Which code computes cryptography, and what checks it? | `docs/AUDIT.md`, then each crypto crate's README (`core/faraday-bip/README.md` and the others) |
+| Why does Faraday write a piece of cryptography itself rather than take a library, and which switches are planned? | `docs/ESTABLISHED.md` |
 | Why is something the way it is? | `docs/DECISIONS.md`, the index; then the one decision, `docs/decisions/F<n>.md` |
 | How does a person use Faraday, step by step, with the screens? | `docs/GUIDE.md`, the index; then the one walkthrough, `docs/guide/walk/<name>.md`; what each control on a screen does, `docs/guide/screens/README.md` |
 | What does a screen look like, and what is it made of? | `docs/DESIGN.md`; the Starter's screens, `docs/STARTER.md` §3 |
@@ -101,6 +102,7 @@ need. Each document's header says what kind it is:
 - `docs/ANTI-EXFIL.md`: Anti-exfil, Faraday checking a signer and signing with it. Planned, not built; experimental, for dev builds only (F162, F176).
 - `docs/BACKUP-FLOW.md`: The backup flow. Partly built.
 - `docs/DESKTOP-HOST.md`: Faraday Demo as a simulator: the host. Built (F118); the website's part planned.
+- `docs/ESTABLISHED.md`: Established implementations first: what Faraday writes itself and why, the timing fixes and the switches to outside code. Specified (F178), not built.
 - `docs/FLOWS.md`: Flows. Built but for the items under Open.
 - `docs/GUIDE.md`: Faraday user guide, the index. Sections 1 to 7 are stubs pointing to `docs/guide/walk/`, one file per walkthrough; all twenty-three walkthroughs hold the written text and their pictures (`docs/guide/pictures/`), checked against the app; it waits on a test by a reader new to Faraday.
 - `docs/guide/screens/README.md`: the guide's screen reference, one page per screen or group of small screens; every screen and sheet of Faraday has its page.

@@ -674,6 +674,16 @@ kind = "held"
 held_by = ["crypto-gen"]
 
 [[rule]]
+id = "crypto.established"
+title = "a piece of cryptography written here gives one of the four reasons and names its decision; a library the manifest names is established or named with its decision; both counts only fall"
+source = ["docs/decisions/F178.md", "docs/ESTABLISHED.md §2"]
+when = ["docs/crypto/actions.toml", "supply-chain/audits.toml", "supply-chain/config.toml", "supply-chain/imports.lock", "core/*/Cargo.toml", "faraday/**/Cargo.toml", "tools/lint-crypto.counts"]
+kind = "held"
+held_by = ["crypto-check"]
+misses = "planned: crypto-check gains the check with the manifest's schema 4 (docs/ESTABLISHED.md §2.2). Whether a stated reason is true, and whether a crate of the graph the manifest does not name is established (cargo vet holds that it is vetted)"
+status = "planned"
+
+[[rule]]
 id = "crypto.at-source"
 title = "core/ is Faraday's own code: a thing is fixed at its source rather than wrapped"
 source = ["CLAUDE.md"]
