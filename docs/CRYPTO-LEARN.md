@@ -929,7 +929,7 @@ The page reads only what §11 lists; the hash rule above holds it.
 
 ## 12. The actions found in the code
 
-The manifest's 92 actions, each from its entry in `docs/crypto/actions.toml`
+The manifest's 94 actions, each from its entry in `docs/crypto/actions.toml`
 as batch 5 left it (2026-10-28): what it does, its roots (the functions
 the entry names, by module), the `Screen` variants that offer it, and
 its Learn page. The inventory finds 815 cryptographic functions under
@@ -954,6 +954,7 @@ page lists.
 | seed-shown | Shows the master seed of a key with no words in hex, and its codex32 secret and strings where the set is known. | `faraday_keys::session`: `Keys::seed_shown` | Explore | faraday:keys-kept |
 | xprv-shown | Shows an extended private key at a path below a held key. | `faraday_keys::session`: `Keys::xprv_at`; `faraday_core::explore::shown`: `Shown::xprvs`, `xprv_path`, `ExploreArea::eye`, `ExploreArea::prune` | Explore | xpubs |
 | wif-shown | Shows the private key of one address as a compressed WIF. | `faraday_keys::session`: `Keys::wif_at`; `faraday_core::explore::shown`: `Shown::wif`, `address_path` | Explore | xpubs |
+| wif-read | Reads a single private key written as WIF, typed or scanned for a sweep, and works out the addresses it pays. | `faraday_bip::wif`: `SingleKey::decode`, `SingleKey::from_payload`, `SingleKey::scripts`, `blinded`; `faraday_keys::sweep`: `SweepKey::read`; `faraday_keys::session`: `Keys::sweep_read` | Tools | tools |
 | words-shown | Lends a key's words or passphrase as text for a named reason, and shows them on screen or for copying by hand. | `faraday_keys::session`: `Keys::reveal`, `Revealed::empty`, `Revealed::made`, `Held::of` | Explore, Backup, BackupFlow, VaultContents | backups |
 | words-identity | Tells whether two keys, or a key and a copy of its words, have the same words, by a SHA-256 of their entropy, and orders the copy check's questions. | `faraday_keys::session`: `Keys::words_id`, `Keys::same_words`, `words_id`, `Keys::words_match`, `Keys::words_alone`, `Keys::words_identity`, `Keys::words_record_id`; `faraday_psbt::silent`: `check`, `check_inputs`; `faraday_core::quiz`: `Quiz::seed`; `faraday_keys::identity`: `secret_id` | Files, BackupFlow, VaultContents, Create | words |
 
@@ -1029,6 +1030,7 @@ page lists.
 | psbt-review | Reads what a PSBT spends and pays: amounts, fee, verified change, warnings, and the wallet it defines for registering. | `faraday_psbt::inspect`: `inspect`, `Inspection::dangers`, `Inspection::fee_share_pct`, `Inspection::holdable`, `cosigners`, `spend_route`, `wallet_keys_at`; `faraday_psbt::classify`: `amount_unverified`; `faraday_psbt::context`: `KeyRef::with_extra`, `Context::wallet_claim`, `KeyRef::from_master`, `KeyRef::derive_key`; `faraday_psbt::register`: `offer`, `register`; `faraday_core::register`: `path_text`; `faraday_core::memory`: `stated`; `faraday_core::wallet`: `psbt_network`, `Faraday::register_act`, `Spend::collect` | Spend, Family | verifying |
 | sighash-review | Reads each input's sighash type and signs only SIGHASH_ALL and SIGHASH_DEFAULT. | `faraday_psbt::inspect`: `sighash_kind`, `SighashKind::is_default`, `SighashKind::is_none`; `faraday_psbt::inspect::sighash`: `SighashKind::is_single` | Spend, Family | verifying |
 | sign-ecdsa | Signs a transaction input with ECDSA, from the key the PSBT's origin names, and checks the key against the script. | `faraday_psbt::sign`: `sign`, `sign_ecdsa`; `faraday_keys::psbt`: `sign`; `faraday_keys::session`: `Keys::sign` | Spend, Family | nonces |
+| sweep-sign | Signs the inputs of a PSBT that spend a WIF key's own outputs, after a review that names each output's loaded wallet. | `faraday_psbt::sweep`: `sign`, `sign_input`, `inputs_of`; `faraday_keys::session`: `Keys::sweep_sign`; `faraday_core::seeds::read`: `Faraday::sweep_sign`; `faraday_core::seeds::sweep`: `spent_address`, `whose`, `out_bytes` | Tools | nonces |
 | sign-schnorr | Signs a taproot input with BIP 340, by the key path or under a tap leaf's hash. | `faraday_psbt::sign`: `sign_taproot`, `sign_tap_leaf` | Spend, Family | nonces |
 | sign-musig | Signs as one MuSig2 participant: draws a nonce, signs with it or signs last, and aggregates the partial signatures. | `faraday_psbt::sign`: `sign_musig`; `faraday_bip::musig`: `nonce_gen`, `sign`, `partial_sig_verify`, `partial_sig_agg`, `deterministic_sign`, `nonce_agg`, `PubNonce::from_bytes`, `AggNonce::from_bytes`; `faraday_psbt::musig`: `MusigSession::new`, `write_input_participants` | Spend | nonces |
 | sign-check | Checks every signature a PSBT carries, finds a nonce used twice, recomputes this device's signatures and compares two PSBTs. | `faraday_psbt::verify`: `compare`, `deterministic`, `ecdsa_mode`, `schnorr_mode`, `verify_signatures`, `repeated_nonces`; `faraday_keys::psbt`: `recompute_signatures`, `key_refs`; `faraday_keys::session`: `Keys::key_refs`, `Keys::recompute_signatures` | Spend | nonces |
