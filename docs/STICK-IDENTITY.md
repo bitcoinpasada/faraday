@@ -118,8 +118,11 @@ patches in place (`docs/STARTER.md` §4.1, step 6). Then:
   of the whole is the release manifest's. This is the check a person can
   repeat (§8).
 - The screen says what was checked, and names what was expected to
-  differ: "Matches the release image, except this stick's own IDs", with
-  ", its name" and ", and the boot file you signed" where they apply.
+  differ: "Matches the release image, except this stick's own IDs, as
+  expected", with "its name" and "the boot file you signed" named
+  before ", as expected" where they apply ("Matches the release image,
+  except this stick's own IDs, its name and the boot file you signed,
+  as expected").
 
 ### 4.4 Keep data
 
