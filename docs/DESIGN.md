@@ -722,7 +722,7 @@ is `docs/WALLETS.md` and the Spend tab `docs/SPEND-FROM-BACKUP.md`.
 | `Visit` | A stick visit: what is on the stick, ticked to bring in, and what goes out to it. | Page |
 | `Entry` | Add a key: a seed typed or scanned (§4.3). | Page |
 | `Backup` | Backing up a wallet: the plan, the board (§4.17), each copy made and checked. | Step flow |
-| `BackupFlow` | The shared backup flow for a key that is not a wallet's: where it will be kept, its sticks and vaults, the lock and the writes (`docs/BACKUP-FLOW.md`); a GPG key restored from its paperkey, with a head card of its public key and line 1 and the lines typed at step 4 (`docs/GPG-PAPERKEY.md` §4.2); also the setup of a new wallet's vaults, Bring in the sticks and Vaults, with Make a new wallet's Guided switch. | Step flow |
+| `BackupFlow` | The shared backup flow for a key that is not a wallet's: where it will be kept, its sticks and vaults, the lock and the writes (`docs/BACKUP-FLOW.md`); a GPG key restored from its paperkey, with a head card of its public key and line 1 and the lines typed or a paperkey code scanned at step 4 (`docs/GPG-PAPERKEY.md` §4.2); also the setup of a new wallet's vaults, Bring in the sticks and Vaults, with Make a new wallet's Guided switch. | Step flow |
 | `Backups` | Every wallet known and where its backup is, a card each; on the small panel one wallet a page with **Previous · Next**. | Page |
 | `Create` | Making a new wallet: Kind, the quorum, whether vaults are part of the backup, the keys, Check with **Back up wallet** at its foot (no Back up card). | Step flow |
 | `Restore` | Restoring a wallet from its description and its seeds. | Step flow |
@@ -764,7 +764,7 @@ layout, the one sheet that leaves the page under it live), the board's list, its
 and its ⋮ menu (§4.17), a file's ⋮ menu (§4.1), Rename and Details, New
 key's Other menu of word counts (drawn as a ⋮ menu is, under its button), the
 mode sheet, Load samples (§4.8), Restore a GPG key (the public keys in Files
-that a GPG key is restored against, `docs/GPG-PAPERKEY.md` §4.1), the key path sheet (a wallet a key not
+that a GPG key is restored against, and **Scan the public key**, `docs/GPG-PAPERKEY.md` §4.1), the key path sheet (a wallet a key not
 of its own spends alone, its danger line, Cancel and **Hold to add this
 wallet**; F132), the register sheet (the wallet a spend's PSBT defines,
 its shape, cosigners and name, Cancel and **Hold to register**; F135),

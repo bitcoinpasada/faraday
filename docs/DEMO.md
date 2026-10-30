@@ -99,6 +99,7 @@ Testnet, Signet and Regtest included.
 | Split with Seed XOR (**Make them**) | a key's Backup menu; the backup checklist's Seed XOR item; the chart's Make another backup | fresh random parts |
 | Codex32 shares, k of n with k of 2 or more | a key's Backup menu; the backup checklist's codex32 item; Make another backup | fresh random shares |
 | **Make a GPG key** | Tools → GPG key; Vault contents' GPG kind | an OpenPGP key |
+| **Restore from a paperkey** | Vault contents' GPG kind; a public key's ⋮ in Files | an OpenPGP secret key in a vault |
 | **Make Secure Boot keys** | Tools → Secure Boot keys; Vault contents' Secure Boot kind | PK, KEK and db keys |
 | **Derive with BIP-85**, every application (Words, WIF, Extended private key, Hex, Password base64, Password base85) | Tools → Child seeds and passwords | a child seed, key or password |
 | The passphrase dial | Vanity address, the How? card | a new key under a found passphrase; Practice would refuse it anyway |

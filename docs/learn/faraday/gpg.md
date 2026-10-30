@@ -82,12 +82,18 @@ as a secret is.
 
 ## Restoring a key from its paperkey
 
-A lost key comes back into a vault from its paperkey and its public
-certificate. The certificate is copied into Files first, on a stick
-visit. Restore from its paperkey is in the certificate's ⋮ in Files,
-and Restore from a paperkey is on the GPG kind in Vault contents. The
-first card shows the public key and the digits line 1 of its paperkey
-must read.
+A key whose vault is lost comes back into a vault from its paperkey and
+its public key. The paperkey holds only the secret numbers and each
+key's fingerprint. The dates, the user IDs and the signatures that make
+the key the one others know are in the public key, so it is needed too.
+It comes into Files on a stick visit, the file Faraday wrote when the
+key was made or one exported elsewhere, or as its code: Scan the public
+key, on the sheet Restore a GPG key. Restore from its
+paperkey is in the public key's ⋮ in Files, and Restore from a paperkey
+is on the GPG kind in Vault contents. The restore takes the backup
+flow's steps: where it will be kept, the sticks, the vaults. Its first
+card shows the public key and the digits line 1 of its paperkey must
+read.
 
 A paperkey made here is seven lines. Lines 1 to 5 hold 22 bytes each,
 line 6 holds the rest, and line 7 is six digits alone: the check of the
@@ -109,6 +115,12 @@ What is typed on a line:
 - Lines starting with # in a file the paperkey program printed are not
   typed.
 
+Scan the paperkey, under Next line while no line is checked and with no
+stick in, reads the paperkey as a code instead: its lines as the
+paperkey program prints them, or its raw form (--output-type raw). Every
+line of it is checked as a typed line is, and the code fills every line
+at once, or is refused on the scanner at the line that does not hold.
+
 When the last digit of a line is typed and its check holds, the line is
 taken and the next one opens by itself. The card then shows "Line 1 ·
 checked" and, for line 1, the fingerprint it names; the digits are not
@@ -127,8 +139,13 @@ Next line.
 
 With every line checked, Restore the key reads the secret, checks that
 it makes the public key, and makes every signature of the key again,
-which must equal the certificate's byte for byte. The key is then saved
+which must equal the public key's byte for byte. The key is then saved
 in each vault of the plan.
+
+Only keys Faraday made are restored: an Ed25519 key with one Ed25519
+signing subkey, its secret protected by no passphrase. A key made by
+GnuPG, of another algorithm or protected by a passphrase is refused;
+`paperkey` and `gpg --import` on a computer restore those.
 
 ## Faraday Demo
 

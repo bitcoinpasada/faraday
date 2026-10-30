@@ -430,7 +430,7 @@ sheet (§9); its actions load the wallet, and its seeds this slot keeps,
 first. Opening one writes nothing into the slot.
 
 In each type the first field is required and every other field is
-optional; type 7's field 2, type 9's fields 2, 3 and 4, type 10's field 2, type 14's field 2 and type 15's field 2 are also required. A type 7 record without field 3, the signing subkey's seed, is kept and shown by its user IDs and signs, exports and renews nothing: the format keeps the field optional so that no slot is refused over it, and Faraday's own keys always write it. A build before F32 refuses a slot holding a type 7 record with field 8 or 9. Fields marked repeatable
+optional; type 7's field 2, type 9's fields 2, 3 and 4, type 10's field 2, type 14's field 2 and type 15's field 2 are also required. A type 7 record without field 3, the signing subkey's seed, is kept and shown by its user IDs and signs, exports and renews nothing: the format keeps the field optional so that no slot is refused over it, and Faraday's own keys always write it. A build before F32 refuses a slot holding a type 7 record with field 8 or 9. A type 7 record restored from its paperkey and public certificate (`docs/GPG-PAPERKEY.md` §5) is the one Make wrote, field for field: field 7 is the certificate made again at its newest self-signature's time, field 8 the revocation made again at the key's creation time. Fields marked repeatable
 may appear more than once; no other field may. A key's field 1 must be a
 words payload or a seed payload, and a recovery sheet's field 1 a sheet
 payload, exactly as laid out below.

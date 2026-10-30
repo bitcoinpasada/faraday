@@ -34,7 +34,7 @@ does nothing there ([Faraday Demo](starter-tour.md)).
 
 ## 1. Start
 
-Press **Tools**, then **GPG key** (**Make, sign, revoke, paperkey**).
+Press **Tools**, then **GPG key** (**Make, restore, sign, revoke, paperkey**).
 With no vault open, the backup flow opens at once. With a vault open,
 **Vault contents** opens on **GPG keys** instead: press **Make a key**
 there ([Vault contents](../screens/vault.md)). An empty vault offers
@@ -307,8 +307,17 @@ its first line of dashes is removed, then `gpg --import`.
 Press the eye beside **Paperkey**: the key's secret
 part shows as text, made only while it shows, and hides at the next
 press or when the page is left. With the public key, it rebuilds the
-secret key in GnuPG's `paperkey`. Faraday does not read a paperkey back
-in.
+secret key in GnuPG's `paperkey`, and in Faraday.
+
+To bring the key back into a vault from its paperkey, press **Restore
+from a paperkey** under **Make a key** in Vault contents, or **Restore
+from its paperkey** in the public key's ⋮ in Files. **Restore a GPG
+key** lists the public keys in Files; with none there, **Scan the
+public key** reads its code. The flow takes the same places, sticks
+and vaults as Make; at step 4, **Type the paperkey** one line at a
+time, each line ending in its six-digit CRC, or press **Scan the
+paperkey** for a code of it. **Restore the key** then saves it into
+every vault of the plan.
 
 ## 12. Delete
 

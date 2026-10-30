@@ -1562,6 +1562,19 @@ years or never) → the updated public key For the stick, and the key's
 record changes with it. Refused when the clock is more than 4 seconds
 before the key's last signature.
 
+**Restore from a paperkey** (`docs/GPG-PAPERKEY.md`) → the sheet
+**Restore a GPG key**: a row per public key in Files, its user ID and
+fingerprint, one not restored here dimmed with why, and **Scan the
+public key**, whose code is filed in Files as `{name}-{fp8}.asc`; a
+public key's ⋮ in Files offers **Restore from its paperkey**. A row
+pressed → the backup flow, titled Restore a GPG key: the public key and
+the bytes line 1 of its paperkey must read, then Make's steps 1 to 3,
+then **Type the paperkey**, each line checked by its CRC-24 as it ends,
+or **Scan the paperkey** (paperkey's lines or its raw form) while no
+line is checked → **Restore the key**, which makes every signature of
+the key again and saves the record into every vault of the plan; it
+signs at once. Then Make's lock, writes and Done.
+
 ## Secure Boot
 
 Needs an open vault for the keys. With none open, Tools' **Secure Boot

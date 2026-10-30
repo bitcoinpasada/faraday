@@ -25,7 +25,7 @@ need. Each document's header says what kind it is:
 | What does a screen look like, and what is it made of? | `docs/DESIGN.md`; the Starter's screens, `docs/STARTER.md` §3 |
 | What happens, step by step, in a flow? | `docs/FLOWS.md`; backups, `docs/BACKUP-FLOW.md`; spending, `docs/SPEND-FROM-BACKUP.md` |
 | How are codex32 shares made, checked by hand and repaired? | `docs/CODEX32.md` |
-| How will a lost GPG key be restored from its paperkey? | `docs/GPG-PAPERKEY.md` |
+| How is a lost GPG key restored from its paperkey? | `docs/GPG-PAPERKEY.md` |
 | How is a vault stored? | `docs/VAULT.md`; what changes next (its name, the passphrase, key commitment, the seal count), `docs/VAULT-HARDENING.md` |
 | What is in the KeePass (KDBX 4) file Faraday writes? | `docs/KDBX.md` |
 | How does data move by QR code, and how is a code scanned? | `docs/QR.md` |
@@ -75,6 +75,7 @@ need. Each document's header says what kind it is:
 - `docs/DEMO.md`: Practice, and Faraday Demo for developers. Built (F30, F61).
 - `docs/DESIGN.md`: Design system. Built.
 - `docs/DEVELOPING.md`: Developing Faraday: build, check, reproduce, try on hardware. Built.
+- `docs/GPG-PAPERKEY.md`: Restore a GPG key from its paperkey. Built (F169).
 - `docs/HARDWARE.md`: Hardware: boards, platforms and screens. Built; the ESP32-P4 board considered, not supported.
 - `docs/KDBX.md`: KDBX 4: the encrypted file Faraday writes for others. Built.
 - `docs/KEYS.md`: The key boundary: faraday-keys. Built (steps 0 to 4).
@@ -97,7 +98,6 @@ need. Each document's header says what kind it is:
 - `docs/BACKUP-FLOW.md`: The backup flow. Partly built.
 - `docs/DESKTOP-HOST.md`: Faraday Demo as a simulator: the host. Built (F118); the website's part planned.
 - `docs/FLOWS.md`: Flows. Built but for the items under Open.
-- `docs/GPG-PAPERKEY.md`: Restore a GPG key from its paperkey. Not built; its decision is a draft.
 - `docs/GUIDE.md`: Faraday user guide, the index. Sections 1 to 7 are stubs pointing to `docs/guide/walk/`, one file per walkthrough; all twenty-three walkthroughs hold the written text and their pictures (`docs/guide/pictures/`), checked against the app; it waits on a test by a reader new to Faraday.
 - `docs/guide/screens/README.md`: the guide's screen reference, one page per screen or group of small screens; every screen and sheet of Faraday has its page.
 - `docs/IMAGES.md`: Images for each piece of hardware. Specified (F145), not built.
@@ -125,6 +125,6 @@ need. Each document's header says what kind it is:
 
 - `docs/DECISIONS.md`: Decisions. Kept as written.
 
-**History** (`docs/history/`): `APK-SIGNING.md`, `APK-SIGNING-LOG.md`, `AUDIT-LOG.md`, `AUDIT-SUBMISSIONS-LOG.md`, `BACKUP-FLOW-LOG.md`, `BITLOCKER-ACCEPTANCE.md`, `COMPUTE-LOG.md`, `CROSSCHECK-LOG.md`, `DEMO-LOG.md`, `DESIGN-LOG.md`, `FLOWS-LOG.md`, `HANDOFF.md`, `IMPACT-LOG.md`, `INTEROP-LOG.md`, `KEYS-LOG.md`, `LARGE-FILES-LOG.md`, `LAYOUT-LOG.md`, `MAC-LOG.md`, `MOTION-LOG.md`, `NEW-WALLET.md`, `NOSTR-LOG.md`, `ORIENTATION-LOG.md`, `PLAN.md`, `QR-LOG.md`, `SCAN-TO-SIGN.md`, `SIMPLIFY.md`, `SPEED-LOG.md`, `SPEND-FROM-BACKUP-LOG.md`, `STARTER-LOG.md`, `STRUCTURE-PASS-LOG.md`, `TEXT-SIZE-LOG.md`, `THEMES-LOG.md`, `TOTP-LOG.md`, `VAULT-LOG.md`, `WALLETS-LOG.md`; `decisions/` holds the decisions replaced, superseded or withdrawn.
+**History** (`docs/history/`): `APK-SIGNING.md`, `APK-SIGNING-LOG.md`, `AUDIT-LOG.md`, `AUDIT-SUBMISSIONS-LOG.md`, `BACKUP-FLOW-LOG.md`, `BITLOCKER-ACCEPTANCE.md`, `COMPUTE-LOG.md`, `CROSSCHECK-LOG.md`, `DEMO-LOG.md`, `DESIGN-LOG.md`, `FLOWS-LOG.md`, `GPG-PAPERKEY-LOG.md`, `HANDOFF.md`, `IMPACT-LOG.md`, `INTEROP-LOG.md`, `KEYS-LOG.md`, `LARGE-FILES-LOG.md`, `LAYOUT-LOG.md`, `MAC-LOG.md`, `MOTION-LOG.md`, `NEW-WALLET.md`, `NOSTR-LOG.md`, `ORIENTATION-LOG.md`, `PLAN.md`, `QR-LOG.md`, `SCAN-TO-SIGN.md`, `SIMPLIFY.md`, `SPEED-LOG.md`, `SPEND-FROM-BACKUP-LOG.md`, `STARTER-LOG.md`, `STRUCTURE-PASS-LOG.md`, `TEXT-SIZE-LOG.md`, `THEMES-LOG.md`, `TOTP-LOG.md`, `VAULT-LOG.md`, `WALLETS-LOG.md`; `decisions/` holds the decisions replaced, superseded or withdrawn.
 
 **Elsewhere:** `docs/decisions/` holds one file per decision, `docs/learn/` the Learn pages, `docs/deps/` a page per dependency, `docs/screenshots/` the README's pictures, `docs/guide/pictures/` the user guide's.

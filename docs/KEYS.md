@@ -139,7 +139,9 @@ impl Keys {
   held the same way: `gpg::Restore::new` takes the public certificate;
   `line` takes each line as it is ended, checks its CRC and what the
   data's headers say, and keeps its bytes or refuses it and keeps
-  nothing; what it tells is public (the lines checked, the count, the
+  nothing; `paperkey_code` takes a paperkey read from a code (paperkey's lines or
+  its raw form), every line checked as typed, whole or not at all; what
+  it tells is public (the lines checked, the count, the
   fingerprints read). The lines are never shown again, so it has no
   reveal. `finish` makes the key and gives it as `create` does, a
   `MadeKey` with its facts and certificate; `wipe` forgets the lines and

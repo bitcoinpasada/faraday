@@ -38,6 +38,8 @@ function for what it reads (`Faraday::scanned` in
 | `CheckCopy(fp)` | the backup's copy item **Check my copy**; At a glance's **Scan my copy** | "Scan your copy" | Cancel |
 | `CheckCodex32` | a codex32 item's **Scan my copy** | "Scan your copy" | Cancel |
 | `Transfer` | Transfer's **Scan with the camera** (Faraday Demo only) | "Receive into Downloads" | Paste, Cancel |
+| `GpgPublic` | Restore a GPG key's **Scan the public key** (`docs/GPG-PAPERKEY.md` §3) | "Scan the public key" | Paste (desktop), Cancel |
+| `GpgPaperkey` | a GPG restore's step 4, **Scan the paperkey**, while no line is checked (`docs/GPG-PAPERKEY.md` §4.5) | "Scan the paperkey" | Cancel |
 
 Ways in that are not the camera: Paste on Faraday Demo
 (`Faraday::pasted`, routed as a scan after `pasted_secret`); a PNG on a
@@ -70,6 +72,7 @@ apart today, and whether it is a secret (DESIGN §4.10, Mask policy).
 | Extended private key | `xprv` and its SLIP-132 and testnet forms, with or without an origin | yes |
 | WIF private key | `5…`, `K…`, `L…`, `c…`, `9…` with a checksum | yes |
 | Nostr secret key | `nsec1…` | yes |
+| GPG paperkey | paperkey's base16 lines with a first line numbered 1, or its raw form (`faraday_keys::gpg::is_paperkey`) | yes |
 | TOTP setup code | `otpauth://` URI | yes (its `secret=`) |
 | Vault entries | `field: value` lines, several `otpauth://` URIs | yes |
 | PSBT | binary, base64, `ur:crypto-psbt`, `ur:psbt`, BBQr `P` | no |
@@ -219,6 +222,7 @@ shows what came and the destination's action.
 | Words that fail their checksum | an LND aezeed (its own checksum holds): Lightning, the aezeed typed. **Use in Lightning**. An Electrum seed: Add a key's Electrum form once `docs/INTEROP.md` §5 I7 is built (**Add this key**); until then named. Anything else: named |
 | WIF private key | Add a key's **Type a private key** once `docs/INTEROP.md` §5 I11 is built; until then named |
 | Extended private key, `ur:crypto-seed`, private `hdkey`, Nostr secret key | named |
+| GPG paperkey | a GPG restore's Scan the paperkey only, which needs its public key first; every other scanner names it ("That is a paperkey. Restore a GPG key takes it at Type the paperkey, not Files") and files nothing (F167) |
 | TOTP setup code | a new entry's form in the open vault, filled, as the TOTP scanner fills it. **Add to {vault}**; with a vault in Files but none open, **Unlock {vault}**, the code carried through the unlock and the form opened filled once it is; with no vault at all, **Make a vault**, and the code is not kept: the card says "Not kept · scan it again once the vault is open", and the code is wiped at the press (§4.5) |
 | Vault entries | added to the open vault. **Add to {vault}**; the same **Unlock {vault}** and **Make a vault** cases as a TOTP setup code |
 | PSBT | filed, then the spend (`StartSpend`). **Sign it**; one of the spend under way, **Add to the signatures** |
@@ -251,6 +255,8 @@ shows what came and the destination's action.
 | TOTP | a TOTP setup code, vault entries | a seed, a share, a PSBT, a wallet description, a signed message | as §4.2 |
 | Copy checks | the copy, compared, never loaded | none | every other kind on the line; a SeedQR of another seed: "This is another seed's SeedQR" |
 | Transfer's Receive | every kind, into Downloads (F129 for a secret) | none | — |
+| Restore a GPG key's Scan the public key | a GPG public key, filed as `{name}-{fp8}.asc` and its restore opened (one not restored here filed, the sheet back saying why); a code in parts gathered first, as Home's | none today | a seed, a private key, a paperkey or another secret, by the line Home's Scan names it with, nothing filed; every other kind: "Not a public key Faraday reads", nothing filed |
+| A GPG restore's Scan the paperkey | a paperkey's base16 lines or raw form, into the restore's lines, all at once | none: a paperkey is a secret read only here | a paperkey with a line that does not hold: the line's refusal ("CRC on line {n} does not match"); every other kind: "Not a paperkey"; with a stick in, the line asking for it to be removed; nothing filed or kept |
 
 A PNG read from a stick routes as Home's Scan does, without the card:
 what has a destination is filed or loaded as the visit's rules say, and
