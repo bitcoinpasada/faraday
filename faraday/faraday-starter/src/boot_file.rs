@@ -59,6 +59,7 @@ impl Starter {
             && self.mode_refusal(mode).is_none()
             && !self.keep_unread()
             && self.boot_ready()
+            && self.name_ready()
     }
 
     /// The boot file the write carries: the signed one taken, when it was

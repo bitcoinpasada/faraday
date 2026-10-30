@@ -28,6 +28,9 @@ faraday-learn = { path = "../faraday-learn" }
 faraday-guides = { path = "../faraday-guides" }
 # A boot partition's refusals: faraday-fat's kinds, worded by faraday-files.
 faraday-fat = { path = "../faraday-fat" }
+# The names a boot partition is kept back by, refused for the data
+# partition's (docs/STICK-IDENTITY.md §6).
+faraday-boot = { path = "../faraday-boot" }
 faraday-files = { path = "../faraday-files" }
 # The BitLocker recovery key held for the sheet (docs/STARTER.md §3.4, §6,
 # F49), and the sheet's buffers, wiped when dropped.

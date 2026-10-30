@@ -7827,7 +7827,7 @@ places = ["docs/AUDIT.md"]
 [[action]]
 id = "starter-write"
 name = "Write an image to a stick"
-action = "Writes an image to a stick and checks it: the SHA-256 of the payload file against its manifest before any write, of the decompressed bytes against the manifest as they are written, and of what was read back from the stick, with the stick's own IDs taken back out, against the manifest after."
+action = "Writes an image to a stick and checks it: the SHA-256 of the payload file against its manifest before any write, of the decompressed bytes against the manifest as they are written, and of what was read back from the stick, with the stick's own IDs and name taken back out, against the manifest after."
 row = "starter-image"
 standards = ["FIPS 180-4"]
 learn = "faraday:checking-written"
@@ -7858,7 +7858,7 @@ libraries = [
   "lzma-rust2",
   "getrandom",
 ]
-adds = "The payload is read whole and its SHA-256 compared before anything is written, then read again and decompressed into the writer; success means the writer received exactly the manifest's size with the manifest's SHA-256; a developer's image is hashed when confirmed and refused if it changed after; a whole stick is read back and compared with the stream as written, and the SHA-256 of what was read, with the image's own IDs put back where the stick's went (docs/STICK-IDENTITY.md §4.3), must be the manifest's. The stick's own GUIDs and FAT serials come from getrandom; they are identities, not secrets, and the GPT's CRC-32s are worked out again over them."
+adds = "The payload is read whole and its SHA-256 compared before anything is written, then read again and decompressed into the writer; success means the writer received exactly the manifest's size with the manifest's SHA-256; a developer's image is hashed when confirmed and refused if it changed after; a whole stick is read back and compared with the stream as written, and the SHA-256 of what was read, with the image's own IDs put back where the stick's went (docs/STICK-IDENTITY.md §4.3), must be the manifest's. The stick's own GUIDs and FAT serials come from getrandom; they are identities, not secrets, and the GPT's CRC-32s are worked out again over them. A name given the data partition (docs/STICK-IDENTITY.md §6) is faraday-fat's label write run over the sectors captured, each byte it changed a patch put back the same way."
 
 [action.checked]
 tests = [

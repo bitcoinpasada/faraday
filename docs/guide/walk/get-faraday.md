@@ -100,7 +100,11 @@ pulled out: a stick not listed is pulled out and plugged in again.
 choice for this stick ([What to write?](../screens/starter-make.md#what-to-write)).
 Under **Boot file**, **The release's (unsigned)** is chosen; **One I
 signed** is for a boot file signed with your own Secure Boot keys
-([Your own Secure Boot keys](secure-boot-keys.md)). Press **Continue**.
+([Your own Secure Boot keys](secure-boot-keys.md)). **Name** is
+empty: the stick's data partition has no name, and a computer shows it
+as it shows any drive with none. To give it one, press the field and
+type it: at most 11 letters, digits and spaces, written in capitals
+([Name](../screens/starter-make.md#name)). Press **Continue**.
 
 A stick that already holds Faraday also offers keeping its data, for
 upgrading: [Replace Faraday, keep the data](starter-tools.md#5-replace-faraday-keep-the-data).

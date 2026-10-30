@@ -126,6 +126,22 @@ For a stick for a PC or an Intel Mac, under the choices:
 
 The walkthrough is [Your own Secure Boot keys](../walk/secure-boot-keys.md).
 
+#### Name
+
+Under the choices, once **New Faraday stick** or **New Faraday card**
+is ticked: a name for the data partition, the one a computer shows for
+the stick ([A stick that does not say it is Faraday's](../../STICK-IDENTITY.md)).
+Keep data does not change the data partition, so it has no Name.
+
+| Control | What it does |
+|---|---|
+| **Name** | the field's label. The field is empty at first; a press puts the caret in it, and Left, Right, Home, End, Backspace and Delete move it and take characters |
+| **No name** | in the field while it is empty: the data partition is written with no name, and each computer shows it by its own word for a drive with none |
+| "Written as MY STICK" | under the field when what is typed is written otherwise: in capitals, as FAT keeps a name |
+| **At most 11 characters** | in the error tone: the name is longer than FAT's 11 characters. Continue waits |
+| **Letters, digits, spaces and ! # $ % & ' ( ) - @ ^ _ ` { } ~ only** | in the error tone: a character a FAT name cannot hold. Continue waits |
+| **EFI, bootfs and FARADAYBOOT are boot partitions' names** | in the error tone: a boot partition's name. Continue waits |
+
 ### Confirm
 
 ![Confirm for a 32 GB USB Flash Drive: its facts, what is written, the image's SHA-256 and Erase and write](../pictures/starter-make-confirm.png)
@@ -141,6 +157,7 @@ The walkthrough is [Your own Secure Boot keys](../walk/secure-boot-keys.md).
 | **On it** | what is on it now, as Which stick? says |
 | **Writes** | **New Faraday stick**, **New Faraday card** or **Replace Faraday, keep data** |
 | **Boot file** | **The release's (unsigned)**, or **One I signed** with its **Certificate name** and **Certificate SHA-256: compare it with your db key's** |
+| **Name** | the data partition's name as it is written, when one was typed |
 | **Build** | the Faraday version written, or **Not known** |
 | **SHA-256 of the image** | the image's sum, in groups; **SHA-256 of this image** for a developer's image |
 | **Erase and write** | for a new stick or card: the primary button. The system's own permission prompt follows (Windows: administrator; Linux: the password, where asked) |
@@ -180,7 +197,7 @@ No way back while the disk is written.
 
 | Result | What the page shows |
 |---|---|
-| **Written** | the tick in the ok tone. **Keep the stick in to start this computer from it. To start another computer, pull it out.** (a Pi card: **The card can be pulled out.**). For a stick, **In the boot menu**, "something like UEFI: USB Flash Drive, Partition 1": roughly the name this computer's boot menu gives the stick, when the stick reports its maker or model. **Start this computer from the stick** (primary; on an Intel Mac **Start this Mac from the stick**) opens [Start this computer from the stick](starter-learn-and-boot.md#start-this-computer-from-the-stick); **Done** goes to Home. A Pi card has **Done** alone |
+| **Written** | the tick in the ok tone. What the check after writing found: **Matches the release image, except this stick's own IDs, as expected**, with "its name" and "the boot file you signed" named where they apply (a Pi card: **Matches the release image, except this card's own IDs, as expected**). **Keep the stick in to start this computer from it. To start another computer, pull it out.** (a Pi card: **The card can be pulled out.**). For a stick, **In the boot menu**, "something like UEFI: USB Flash Drive, Partition 1": roughly the name this computer's boot menu gives the stick, when the stick reports its maker or model. **Start this computer from the stick** (primary; on an Intel Mac **Start this Mac from the stick**) opens [Start this computer from the stick](starter-learn-and-boot.md#start-this-computer-from-the-stick); **Done** goes to Home. A Pi card has **Done** alone |
 | **Not written** | the cross in the error tone, and the reason in the error tone ([what each says](../walk/get-faraday.md#16-writing-then-written)). **Try again** goes back to the disk list; **Done** goes to Home |
 
 The boot menu name follows this computer's maker: "UEFI: …, Partition

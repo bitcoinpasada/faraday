@@ -209,6 +209,30 @@ pub fn fat(s: &mut Sparse, at: u64, fat32: bool, sectors: u32, label: &[u8; 11],
     }
 }
 
+/// A FAT32 data partition's start at `at`, as `mkfs.fat` makes one of
+/// `sectors` sectors: [`fat`]'s, with FATs large enough for its clusters
+/// and the first three entries set, so the root directory is cluster 2
+/// alone and empty: what a name is written to (§6).
+pub fn data_fat(s: &mut Sparse, at: u64, sectors: u32, label: &[u8; 11], serial: u32) {
+    let mut sector = boot_sector(true, sectors, label, serial);
+    sector[36..40].copy_from_slice(&DATA_FAT.to_le_bytes());
+    s.put(at, &sector);
+    s.put(at + 6 * SECTOR, &sector);
+    let mut entries = Vec::new();
+    for e in [0x0FFF_FFF8u32, 0x0FFF_FFFF, 0x0FFF_FFFF] {
+        entries.extend_from_slice(&e.to_le_bytes());
+    }
+    for k in 0..2u64 {
+        s.put(at + (32 + k * u64::from(DATA_FAT)) * SECTOR, &entries);
+    }
+}
+
+/// The sectors of each FAT of [`data_fat`]'s volume.
+pub const DATA_FAT: u32 = 2032;
+
+/// Where [`data_fat`]'s root directory starts in its volume.
+pub const DATA_ROOT: u64 = (32 + 2 * DATA_FAT as u64) * SECTOR;
+
 /// A stick of `len` bytes with Faraday's layout, the given IDs and
 /// partition names: a FAT32 boot partition labelled EFI and a FAT32
 /// data partition with no label, holding `files` where [`FILES`] says.
@@ -238,10 +262,9 @@ pub fn stick_with(len: u64, ids: [&str; 3], names: [&str; 2], files: u8) -> Spar
         SERIALS[0],
     );
     let data = DATA_FIRST * SECTOR;
-    fat(
+    data_fat(
         &mut s,
         data,
-        true,
         DATA_SECTORS as u32,
         b"NO NAME    ",
         SERIALS[1],
@@ -291,7 +314,7 @@ pub fn card_image(signature: u32) -> Sparse {
     mbr[511] = 0xAA;
     s.put(0, &mbr);
     fat(&mut s, 4 << 20, false, 131_072, b"bootfs     ", SERIALS[0]);
-    fat(&mut s, 68 << 20, true, 262_144, b"NO NAME    ", SERIALS[1]);
+    data_fat(&mut s, 68 << 20, 262_144, b"NO NAME    ", SERIALS[1]);
     s
 }
 

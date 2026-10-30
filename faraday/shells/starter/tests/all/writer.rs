@@ -80,6 +80,7 @@ impl FileDisk {
             size: self.now.size,
             mode,
             boot_file: None,
+            name: None,
         }
     }
 }
@@ -900,6 +901,7 @@ fn a_disk_the_computer_uses_but_not_through_a_desktop_mount_is_refused_with_noth
             size,
             mode: Mode::Whole,
             boot_file: None,
+            name: None,
         };
         let mut target = Target {
             bus: Recording {

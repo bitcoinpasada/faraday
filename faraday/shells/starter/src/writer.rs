@@ -468,8 +468,10 @@ pub fn write(
 /// file the person signed: what a write changes in the source
 /// (`docs/STICK-IDENTITY.md` §4.2), in the order it is applied: the
 /// signed boot file's partition, then, for a whole stick or card, its
-/// own IDs drawn from the system's randomness; and the sectors keep
-/// data's boot serial is placed by.
+/// own IDs drawn from the system's randomness and the data partition's
+/// name, where one is asked for (§6); and the sectors keep data's boot
+/// serial is placed by. A name is written only with a whole stick or
+/// card: keep data does not touch the data partition.
 fn changes(order: &WriteOrder, source: &Source<'_>) -> Result<(Vec<Patch>, Capture), Reason> {
     let mut patches = Vec::new();
     if let Some(f) = &order.boot_file {
@@ -490,6 +492,12 @@ fn changes(order: &WriteOrder, source: &Source<'_>) -> Result<(Vec<Patch>, Captu
             .fresh(&mut |b| random.fill(b))
             .map_err(Reason::NotStickImage)?;
         patches.extend(fresh);
+    }
+    if let Some(name) = &order.name {
+        let label = crate::ids::label_of(name)
+            .filter(|_| order.mode == Mode::Whole && shape == Shape::Whole)
+            .ok_or(Reason::NotStickImage(StickFault::Name))?;
+        patches.extend(captured.name(label).map_err(Reason::NotStickImage)?);
     }
     Ok((patches, captured))
 }

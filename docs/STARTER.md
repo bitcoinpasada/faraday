@@ -761,13 +761,22 @@ destinations; Faraday Demo and the device keep their own navigation
      *The release's (unsigned)*, ticked at first, or *One I signed*,
      which lists the `.efi` files in Downloads to take one from and
      waits for one to be taken before Continue goes on.
+   - **Name**, for a whole stick or card (`docs/STICK-IDENTITY.md` §6):
+     the Starter's one text field (Material 3, Text fields;
+     `docs/TEXT-CURSOR.md`), empty at first, which writes no name. What
+     is typed is written as FAT keeps a label, in capitals, and the
+     line under the field says so ("Written as MY STICK"); a name longer
+     than 11 characters, with a character FAT cannot hold, or a boot
+     partition's (`EFI`, `bootfs`, `FARADAYBOOT`) is refused there and
+     Continue waits. Keep data does not touch the data partition and
+     offers no Name.
 3. **Confirm** (Record; when the disk is no longer the one confirmed it
    says so, the action button is disabled and **Choose again** returns
    to the disk list) the stick (maker, model, size, device, serial),
    what is on it (its Faraday version, when it is a Faraday stick),
    what is written (the build ID and the `.img` SHA-256), the boot
    file (the release's, or one signed with its certificate's name and
-   SHA-256, §4.5), the warning
+   SHA-256, §4.5), the name where one is written, the warning
    from step 2 if there is one, and the action button: *Erase and
    write* or *Write*. Then the system's own prompt where there is one
    (§2).
@@ -1053,10 +1062,17 @@ secret. An image they have no place in (not a stick's layout or a Pi
 card's) is not written whole. They are patches on the stream, with a
 boot file the person signed (§4.5): written so and compared so when
 read back, and, with the image's own bytes put back in their places,
-the SHA-256 of what was read must be the manifest's. Done says
+the SHA-256 of what was read must be the manifest's. A name given the
+data partition (§3.2, `docs/STICK-IDENTITY.md` §6) is patches too:
+`faraday-fat`'s label write, run over the data partition's sectors
+gathered as the image streams past (its boot sectors and its root
+directory's first cluster), puts it in the boot sector, the backup boot
+sector and the root directory's volume-label entry, and each byte it
+changed is a patch; an image whose data partition cannot take it is not
+written. Done says
 "Matches the release image, except this stick's own IDs, as expected"
-(with "and the boot file you signed" before ", as expected" where there
-is one). *Keep data* writes no
+(with "its name" and "the boot file you signed" named before ", as
+expected" where they apply). *Keep data* writes no
 partition table: the stick keeps its GUIDs, and the new boot partition
 gets the serial the stick's had, read from its boot sector first.
 

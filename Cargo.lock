@@ -1092,6 +1092,7 @@ name = "faraday-starter"
 version = "0.1.9"
 dependencies = [
  "faraday-bip",
+ "faraday-boot",
  "faraday-codec",
  "faraday-core",
  "faraday-crypto",

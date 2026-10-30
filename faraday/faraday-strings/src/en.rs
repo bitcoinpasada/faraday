@@ -430,6 +430,27 @@ strings! {
     starter_checked_signed: "Matches the release image, except this stick's own IDs and the boot file you signed, as expected",
     /// Result line, for a Pi card.
     starter_checked_card: "Matches the release image, except this card's own IDs, as expected",
+    /// Done's line for a stick written with a name (§4.3).
+    starter_checked_named: "Matches the release image, except this stick's own IDs and its name, as expected",
+    /// Done's line for a stick written with a name and a boot file the
+    /// person signed (§4.3).
+    starter_checked_named_signed: "Matches the release image, except this stick's own IDs, its name and the boot file you signed, as expected",
+    /// Done's line for a Pi card written with a name (§4.3).
+    starter_checked_card_named: "Matches the release image, except this card's own IDs and its name, as expected",
+    // ----- What to write's Name field (docs/STICK-IDENTITY.md §6) -----
+    /// The field's label, and Confirm's row.
+    starter_name_label: "Name",
+    /// The field's placeholder while it is empty: no name is written.
+    starter_name_none: "No name",
+    /// The line under the field when what is typed is written otherwise:
+    /// in capitals, as FAT keeps a name. `{}`: the name as written.
+    starter_name_written_as: "Written as {}",
+    /// Refused: longer than FAT's 11 characters.
+    starter_name_long: "At most 11 characters",
+    /// Refused: a character a FAT name cannot hold.
+    starter_name_character: "Letters, digits, spaces and ! # $ % & ' ( ) - @ ^ _ ` { } ~ only",
+    /// Refused: a boot partition's name.
+    starter_name_boot: "EFI, bootfs and FARADAYBOOT are boot partitions' names",
     /// Result line.
     starter_pull_stick: "Keep the stick in to start this computer from it. To start another computer, pull it out.",
     /// Result line.
@@ -787,6 +808,9 @@ strings! {
     starter_fault_no_serial: "a partition holds no FAT volume serial",
     /// Fault.
     starter_fault_backup_table: "its backup GPT is not the same as its GPT",
+    /// Fault: the name asked for cannot be written to the image's data
+    /// partition.
+    starter_fault_name: "its data partition cannot take this name",
     /// About row.
     starter_version: "Version",
     /// About row.

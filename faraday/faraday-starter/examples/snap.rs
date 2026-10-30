@@ -20,7 +20,7 @@
 use std::path::Path;
 use std::process::ExitCode;
 
-use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
+use faraday_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware};
 use faraday_starter::api::{
     BitLocker, BitLockerStep, BootFile, BootSigner, Bus, Computer, Concern, DevImage, Disk,
     FaradayStick, InUse, InstallItem, Installed, Kind, Mode, Os, Payload, PayloadFile, Protection,
@@ -725,6 +725,17 @@ pub(crate) fn run(s: &Snap) -> Result<(), String> {
     let n = StarterAction::Disk(h.disk_number("sdb"));
     h.press(n);
     s.shot(&mut h, "stick-2-what-plain")?;
+    // The Name field, a name typed in lower case (docs/STICK-IDENTITY.md
+    // §6), then taken away again.
+    h.press(StarterAction::Name);
+    for c in "my stick".chars() {
+        h.event(Event::Key(Key::Char(c)));
+    }
+    s.shot_end(&mut h, "stick-2-what-name")?;
+    h.press(StarterAction::Name);
+    for _ in 0.."my stick".len() {
+        h.event(Event::Key(Key::Backspace));
+    }
     h.press(StarterAction::Back);
     let n = StarterAction::Disk(h.disk_number("sde"));
     h.press(n);

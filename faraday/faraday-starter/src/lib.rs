@@ -23,6 +23,7 @@ mod demo;
 mod draw;
 mod how;
 mod learn_id;
+mod name;
 pub use learn_id::LearnId;
 pub mod macs;
 pub mod notes;
@@ -329,6 +330,8 @@ pub enum StarterAction {
     /// The Start page's Restart to choose a device (Windows, Secure Boot
     /// off, a stick attached): asks first.
     RestartStick,
+    /// What to write's Name field, pressed: typing goes to it.
+    Name,
 }
 
 /// Which blank-template choice a row opens.
@@ -427,6 +430,7 @@ impl StarterAction {
             StarterAction::BootFile(n) => (66, u32::from(n)),
             StarterAction::TextSize(t) => (67, u32::from(t.pct())),
             StarterAction::How => (68, 0),
+            StarterAction::Name => (69, 0),
         };
         (kind << 16) | arg
     }
@@ -519,6 +523,7 @@ impl StarterAction {
                     .find(|t| u32::from(t.pct()) == arg)?,
             ),
             68 => StarterAction::How,
+            69 => StarterAction::Name,
             _ => return None,
         })
     }
@@ -551,6 +556,8 @@ pub struct Making {
     pub result: Option<Result<(), Reason>>,
     /// The boot file a stick is written with (§4.5, F133).
     pub boot: boot_file::BootPick,
+    /// The data partition's name (`docs/STICK-IDENTITY.md` §6).
+    pub name: name::NameField,
 }
 
 /// What a stick or card is written from: a payload file, or a developer's
@@ -603,6 +610,8 @@ pub struct Starter {
     /// action a screen).
     primaries: usize,
     hits: Vec<(Rect, Action)>,
+    /// Where the last frame drew each text field's characters.
+    fields: Vec<faraday_ui::FieldAt<Action>>,
     /// Where each of `hits` is taken and whether a clip cut it, kept with
     /// them at every frame drawn.
     reach: Vec<faraday_ui::Reach<Action>>,
@@ -765,6 +774,7 @@ impl Starter {
             seen_at: [0.0; 3],
             primaries: 0,
             hits: Vec::new(),
+            fields: Vec::new(),
             reach: Vec::new(),
             pressed: None,
             hovered: None,
@@ -1703,6 +1713,7 @@ impl Starter {
     #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
     fn act(&mut self, action: StarterAction) {
         self.frost = None;
+        self.name_pressed(action, None);
         // The ⋮ menu closes on any press but its own button.
         if action != StarterAction::Menu {
             self.menu = false;
@@ -1754,6 +1765,7 @@ impl Starter {
                     progress: None,
                     result: None,
                     boot: boot_file::BootPick::default(),
+                    name: name::NameField::default(),
                 });
                 if target == Target::Stick && self.asks_which() {
                     self.go(Page::Which);
@@ -1838,7 +1850,8 @@ impl Starter {
                     .and_then(|m| m.mode)
                     .is_some_and(|mode| self.mode_refusal(mode).is_none())
                     && !self.keep_unread()
-                    && self.boot_ready();
+                    && self.boot_ready()
+                    && self.name_ready();
                 if self.page == Page::Mode
                     && ready
                     && let Some(m) = self.making.as_mut()
@@ -2100,6 +2113,8 @@ impl Starter {
             | StarterAction::PrintTemplate
             | StarterAction::SaveTemplate
             | StarterAction::OpenTemplate => {}
+            // Typing goes to the field (`name::name_pressed`).
+            StarterAction::Name => {}
         }
     }
 
@@ -2150,6 +2165,7 @@ impl Starter {
             size,
             mode,
             boot_file: self.boot_order(),
+            name: self.name_order(),
         }));
         if let Some(m) = self.making.as_mut() {
             m.refused = None;
@@ -2377,6 +2393,7 @@ impl App for Starter {
                 }
             }
             Event::Back => self.act(StarterAction::Back),
+            Event::Key(k) if self.name_key(k) => {}
             Event::Key(Key::Escape) => self.act(StarterAction::Back),
             Event::Key(_) | Event::KeyUp(_) | Event::Shift { .. } | Event::Forward => return,
             Event::ScrollEnd { .. } => return,

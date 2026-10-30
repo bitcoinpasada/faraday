@@ -36,6 +36,7 @@ mod appearance;
 mod boot_file;
 mod home;
 mod how;
+mod name;
 mod nav;
 
 use faraday_draw::tokens::{
@@ -785,6 +786,7 @@ fn fault_text(f: &StickFault) -> String {
         StickFault::CardLayout => S.starter_fault_card_layout.to_string(),
         StickFault::NoSerial => S.starter_fault_no_serial.to_string(),
         StickFault::BackupTable => S.starter_fault_backup_table.to_string(),
+        StickFault::Name => S.starter_fault_name.to_string(),
     }
 }
 
@@ -1091,9 +1093,10 @@ fn mode(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
         y += line(ui, x, y, w, &reason_text(why), Role::Error);
     }
     y += boot_file::section(starter, ui, x, y, w);
+    y += name::section(starter, ui, x, y, w);
     y += 20.0;
-    let style =
-        Style::Primary.when(chosen.is_some() && !starter.keep_unread() && starter.boot_ready());
+    let ready = starter.boot_ready() && starter.name_ready();
+    let style = Style::Primary.when(chosen.is_some() && !starter.keep_unread() && ready);
     y + buttons(
         ui,
         x,
@@ -1142,6 +1145,7 @@ fn confirm(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     };
     y += fact_row(ui, x, y, w, S.starter_writes, writes);
     y += boot_file::confirm_rows(starter, ui, x, y, w);
+    y += name::confirm_row(starter, ui, x, y, w);
     let build = image
         .build
         .as_deref()
@@ -1288,11 +1292,7 @@ fn done(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
         Some(Ok(())) => {
             // What the check after writing compared
             // (docs/STICK-IDENTITY.md §4.3).
-            let checked = match m.target {
-                Target::Pi => S.starter_checked_card,
-                Target::Stick if starter.boot_order().is_some() => S.starter_checked_signed,
-                Target::Stick => S.starter_checked,
-            };
+            let checked = name::checked_line(starter, m.target);
             y += line(ui, x, y, w, checked, Role::OnSurface) + GAP;
             let s = match m.target {
                 Target::Stick => S.starter_pull_stick,

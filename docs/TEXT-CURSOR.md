@@ -13,8 +13,9 @@ Text fields: "Cursor", the insertion point placed by a tap or the keys),
 first built for some of the fields in `docs/history/NEW-WALLET.md`
 §13.1 and §13.2 and now in every one: the names, finds, paths and
 passphrases, the fields of several lines, the grids of seed words, the
-codex32 boxes and a GPG key's paperkey lines. The Starter has no text
-field.
+codex32 boxes and a GPG key's paperkey lines. The Starter's one text
+field, What to write's Name (`faraday/faraday-starter/src/name.rs`),
+has the same caret, without selection.
 
 ## 1. How it works now
 

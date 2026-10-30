@@ -171,6 +171,7 @@ fn fault_fields(f: &StickFault) -> Vec<String> {
         StickFault::CardLayout => name("CardLayout"),
         StickFault::NoSerial => name("NoSerial"),
         StickFault::BackupTable => name("BackupTable"),
+        StickFault::Name => name("Name"),
         StickFault::BootPastEnd => name("BootPastEnd"),
     }
 }
@@ -221,6 +222,7 @@ fn fault(f: &mut Fields<'_>) -> Result<StickFault, String> {
         "CardLayout" => StickFault::CardLayout,
         "NoSerial" => StickFault::NoSerial,
         "BackupTable" => StickFault::BackupTable,
+        "Name" => StickFault::Name,
         "BootPastEnd" => StickFault::BootPastEnd,
         other => return Err(format!("{other}: not a fault")),
     })

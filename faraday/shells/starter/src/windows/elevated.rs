@@ -97,6 +97,9 @@ impl Elevated {
             a.extend(["--boot-file".into(), f.path.clone()]);
             a.extend(["--boot-file-sha256".into(), f.sha256.clone()]);
         }
+        if let Some(n) = &o.name {
+            a.extend(["--name".into(), n.clone()]);
+        }
         a
     }
 
@@ -111,7 +114,7 @@ impl Elevated {
         if !rest.len().is_multiple_of(2) {
             return Err(String::from("a key without its value"));
         }
-        const KEYS: [&str; 12] = [
+        const KEYS: [&str; 13] = [
             "--pipe",
             "--disk",
             "--device",
@@ -124,8 +127,9 @@ impl Elevated {
             "--sha256",
             "--boot-file",
             "--boot-file-sha256",
+            "--name",
         ];
-        let mut got: [Option<&str>; 12] = [None; 12];
+        let mut got: [Option<&str>; 13] = [None; 13];
         for pair in rest.chunks(2) {
             let i = KEYS
                 .iter()
@@ -171,6 +175,11 @@ impl Elevated {
                 })
             }
             _ => return Err(String::from("--boot-file with --boot-file-sha256")),
+        };
+        let name = match got[12] {
+            None => None,
+            Some(n) if crate::ids::label_of(n).is_some() => Some(n.to_string()),
+            Some(n) => return Err(format!("--name {n}: not a data partition's name")),
         };
         let (source, image_size) = match (got[6], got[7], got[8]) {
             (Some(name), None, None) => {
@@ -220,6 +229,7 @@ impl Elevated {
                 size,
                 mode,
                 boot_file,
+                name,
             },
             image_size,
         })

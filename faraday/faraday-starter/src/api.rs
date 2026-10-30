@@ -410,6 +410,10 @@ pub enum StickFault {
     NoSerial,
     /// The image's backup GPT is not its primary's.
     BackupTable,
+    /// The name asked for cannot be written to the image's data
+    /// partition: not a FAT label, a boot partition's, or no place for
+    /// it in the sectors read (`docs/STICK-IDENTITY.md` §6).
+    Name,
 }
 
 /// Why something the shell was asked to do did not happen: the one list
@@ -869,6 +873,10 @@ pub struct WriteOrder {
     /// A boot file the person signed, in place of the release's; `None`
     /// for the release's own.
     pub boot_file: Option<BootFile>,
+    /// The data partition's name as FAT writes it, in capitals
+    /// (`faraday_fat::label_bytes`, `docs/STICK-IDENTITY.md` §6), for a
+    /// whole write; `None` for none, as the image has it.
+    pub name: Option<String>,
 }
 
 /// What the Starter asks the shell to do.

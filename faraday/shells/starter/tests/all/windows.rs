@@ -304,6 +304,7 @@ fn order(source: Source, serial: &str, mode: Mode) -> WriteOrder {
         size: 8_004_304_896,
         mode,
         boot_file: None,
+        name: None,
     }
 }
 
@@ -525,6 +526,45 @@ fn the_elevated_writer_takes_a_signed_boot_file_by_its_full_path_and_sum() {
     }
 }
 
+#[test]
+fn the_elevated_writer_takes_the_data_partitions_name_as_fat_writes_it() {
+    let named = Elevated {
+        pipe: PIPE.into(),
+        order: WriteOrder {
+            name: Some(String::from("MY STICK")),
+            ..order(
+                Source::Payload {
+                    name: "faraday-stick-0.3.0-x86_64-uefi-strict.img.xz".into(),
+                    inner_sha256: SUM.into(),
+                },
+                "GGG444",
+                Mode::Whole,
+            )
+        },
+        image_size: None,
+    };
+    let good = named.args();
+    assert_eq!(Elevated::parse(&split(&command_line(&good))), Ok(named));
+    let with = |value: &str| {
+        let mut a = good.clone();
+        let i = a.iter().position(|k| k == "--name").expect("key");
+        a[i + 1] = value.to_string();
+        a
+    };
+    for name in [
+        "my stick",
+        "EFI",
+        "bootfs",
+        "FARADAYBOOT",
+        "TWELVE CHARS",
+        "A:B",
+        "",
+        " A",
+    ] {
+        assert!(Elevated::parse(&with(name)).is_err(), "{name} was taken");
+    }
+}
+
 /// The reasons a stick's own IDs bring (`docs/STICK-IDENTITY.md` §4).
 fn id_reasons() -> Vec<Reason> {
     let mut v: Vec<Reason> = [
@@ -533,6 +573,7 @@ fn id_reasons() -> Vec<Reason> {
         StickFault::CardLayout,
         StickFault::NoSerial,
         StickFault::BackupTable,
+        StickFault::Name,
     ]
     .map(Reason::NotStickImage)
     .into();

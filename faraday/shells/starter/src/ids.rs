@@ -14,6 +14,11 @@
 //! them back out of what it read back to check the image's SHA-256
 //! (§4.3). [`Capture`] gathers, as the source streams past once, the few
 //! sectors they are worked out from.
+//!
+//! A name the person gave the data partition (§6) is a list of patches
+//! too: `faraday_fat`'s own label write, run over the captured sectors of
+//! the data partition ([`Capture::name`]), each byte it changed one
+//! patch.
 
 use std::io::{self, Write};
 
@@ -67,6 +72,9 @@ pub struct Capture {
     wanted: Vec<(u64, Vec<u8>, usize)>,
     /// The table, once the head is read.
     table: Option<Table>,
+    /// Whether the data partition's root directory is asked for: once
+    /// its boot sector has come, which says where the root is.
+    root_asked: bool,
     fault: Option<StickFault>,
 }
 
@@ -104,6 +112,7 @@ impl Capture {
             pos: 0,
             wanted: vec![(0, vec![0; first.min(total as usize)], 0)],
             table: None,
+            root_asked: false,
             fault: None,
         }
     }
@@ -280,6 +289,47 @@ impl Capture {
         Ok(())
     }
 
+    /// The patches that name the data partition `label` (§6), as
+    /// [`faraday_fat::label_bytes`] gives it: `faraday_fat`'s label write
+    /// (the boot sector, the FAT32 backup boot sector and the root
+    /// directory's volume-label entry), run over the sectors captured,
+    /// each stretch of bytes it changed a patch. A data partition whose
+    /// label cannot be written from them is [`StickFault::Name`].
+    pub fn name(&self, label: [u8; 11]) -> Result<Vec<Patch>, StickFault> {
+        self.done()?;
+        let base = self.data_part().ok_or(StickFault::Name)?;
+        let disk = Sparse {
+            capture: self,
+            base,
+            writes: Vec::new(),
+        };
+        let mut volume = faraday_fat::Volume::open(disk).map_err(|_| StickFault::Name)?;
+        volume
+            .set_label(Some(label))
+            .map_err(|_| StickFault::Name)?;
+        let mut disk = volume.into_disk();
+        let mut spans: Vec<(u64, u64)> = disk
+            .writes
+            .iter()
+            .map(|(at, b)| (*at, *at + b.len() as u64))
+            .collect();
+        spans.sort_unstable();
+        let mut out = Vec::new();
+        let mut done_to = 0u64;
+        for (from, to) in spans {
+            let from = from.max(done_to);
+            if from >= to {
+                continue;
+            }
+            done_to = to;
+            let mut now = vec![0u8; (to - from) as usize];
+            faraday_fat::Disk::read_at(&mut disk, from, &mut now).map_err(|_| StickFault::Name)?;
+            let was = self.got(base + from, now.len())?;
+            out.extend(changed(base + from, was, &now));
+        }
+        Ok(out)
+    }
+
     fn sector(&self) -> Result<u64, StickFault> {
         match &self.table {
             Some(Table::Gpt { sector, .. }) => Ok(*sector),
@@ -325,6 +375,60 @@ impl Capture {
 }
 
 impl Capture {
+    /// The data partition's start: a whole image's second partition.
+    fn data_part(&self) -> Option<u64> {
+        match &self.table {
+            Some(Table::Gpt { parts, .. } | Table::Mbr { parts }) => parts.get(1).copied(),
+            _ => None,
+        }
+    }
+
+    /// The next place in the stream where what is wanted next is
+    /// decided: the head's end, then the data partition's boot sectors'.
+    fn next_stop(&self) -> Option<u64> {
+        if self.fault.is_some() {
+            return None;
+        }
+        match &self.table {
+            None => Some(self.wanted[0].1.len() as u64),
+            Some(_) if !self.root_asked => self.data_part().map(|d| d + PART_HEAD as u64),
+            Some(_) => None,
+        }
+    }
+
+    /// Decides what is wanted next, once the stream is at the place
+    /// [`Capture::next_stop`] named.
+    fn decide(&mut self) {
+        if self.fault.is_some() {
+            return;
+        }
+        if self.table.is_none() {
+            if self.pos >= self.wanted[0].1.len() as u64
+                && let Err(f) = self.plan()
+            {
+                self.fault = Some(f);
+            }
+            return;
+        }
+        let Some(data) = self.data_part() else {
+            return;
+        };
+        if self.root_asked || self.pos < data + PART_HEAD as u64 {
+            return;
+        }
+        self.root_asked = true;
+        // A boot sector that is not FAT's asks for nothing: the name is
+        // then refused where it is asked for.
+        let Some((at, len)) = self.got(data, 512).ok().and_then(root_region) else {
+            return;
+        };
+        let at = data + at;
+        if at >= self.pos && at + len <= data + gpt::DATA_LEN && at + len <= self.total {
+            self.wanted.push((at, vec![0; len as usize], 0));
+            self.wanted.sort_by_key(|w| w.0);
+        }
+    }
+
     /// Keeps what of `data`, the next bytes, falls in a stretch wanted.
     fn feed(&mut self, data: &[u8]) {
         let (start, end) = (self.pos, self.pos + data.len() as u64);
@@ -344,26 +448,129 @@ impl Capture {
 impl Write for Capture {
     fn write(&mut self, mut data: &[u8]) -> io::Result<usize> {
         let len = data.len();
-        if self.table.is_none() && self.fault.is_none() {
-            // The head first, and the table read from it, before any
-            // byte past it: what else is wanted depends on the table.
-            let head_end = self.wanted[0].1.len() as u64;
-            let take = (head_end.saturating_sub(self.pos) as usize).min(data.len());
+        // The head first, and the table read from it, before any byte
+        // past it; then the data partition's boot sectors, before any
+        // byte past them: what else is wanted depends on each.
+        while !data.is_empty() {
+            let take = match self.next_stop() {
+                Some(stop) if stop > self.pos => ((stop - self.pos) as usize).min(data.len()),
+                _ => data.len(),
+            };
             self.feed(&data[..take]);
             data = &data[take..];
-            if self.pos >= head_end
-                && let Err(f) = self.plan()
-            {
-                self.fault = Some(f);
-            }
+            self.decide();
         }
-        self.feed(data);
         Ok(len)
     }
 
     fn flush(&mut self) -> io::Result<()> {
         Ok(())
     }
+}
+
+/// The 11 bytes of the data partition's name `name` (§6), when it is one
+/// as an order carries it: as FAT writes it ([`faraday_fat::label_bytes`]:
+/// in capitals, at most 11 of FAT's characters, no spaces at its ends),
+/// not empty, and not a boot partition's (`faraday_boot::layout`). A
+/// lookup.
+pub fn label_of(name: &str) -> Option<[u8; 11]> {
+    let bytes = faraday_fat::label_bytes(name).ok()??;
+    let written = bytes.trim_ascii_end();
+    (written == name.as_bytes() && !faraday_boot::layout::is_boot_label(&bytes)).then_some(bytes)
+}
+
+/// The data partition as far as it was captured, seen by `faraday_fat`
+/// as a disk: reads come from the stretches captured, with the writes so
+/// far over them; a read of a byte not captured fails. Nothing reaches
+/// the stick from here: the writes become patches ([`Capture::name`]).
+struct Sparse<'c> {
+    capture: &'c Capture,
+    base: u64,
+    writes: Vec<(u64, Vec<u8>)>,
+}
+
+impl faraday_fat::Disk for Sparse<'_> {
+    fn size(&self) -> u64 {
+        gpt::DATA_LEN
+    }
+
+    fn read_at(&mut self, offset: u64, buf: &mut [u8]) -> Result<(), faraday_fat::Error> {
+        let got = self
+            .capture
+            .got(self.base + offset, buf.len())
+            .map_err(|_| faraday_fat::Error::Io)?;
+        buf.copy_from_slice(got);
+        let end = offset + buf.len() as u64;
+        for (at, bytes) in &self.writes {
+            let (a, b) = (offset.max(*at), end.min(*at + bytes.len() as u64));
+            if a < b {
+                buf[(a - offset) as usize..(b - offset) as usize]
+                    .copy_from_slice(&bytes[(a - at) as usize..(b - at) as usize]);
+            }
+        }
+        Ok(())
+    }
+
+    fn write_at(&mut self, offset: u64, buf: &[u8]) -> Result<(), faraday_fat::Error> {
+        if offset + buf.len() as u64 > gpt::DATA_LEN {
+            return Err(faraday_fat::Error::Io);
+        }
+        self.writes.push((offset, buf.to_vec()));
+        Ok(())
+    }
+}
+
+/// A patch for each run of bytes where `now` differs from `was`, both
+/// starting at stream byte `at`.
+fn changed(at: u64, was: &[u8], now: &[u8]) -> Vec<Patch> {
+    let mut out = Vec::new();
+    let mut i = 0;
+    while i < now.len() {
+        if now[i] == was[i] {
+            i += 1;
+            continue;
+        }
+        let start = i;
+        while i < now.len() && now[i] != was[i] {
+            i += 1;
+        }
+        out.push(Patch {
+            at: at + start as u64,
+            bytes: now[start..i].to_vec(),
+            was: was[start..i].to_vec(),
+        });
+    }
+    out
+}
+
+/// Where a FAT volume's root directory starts, from its boot sector, and
+/// the bytes of it a label is written in: a FAT32 root's first cluster,
+/// or a FAT16 root's fixed entries (Microsoft's FAT specification, §3.5,
+/// §6). `None` for a boot sector that is not FAT's.
+fn root_region(bs: &[u8]) -> Option<(u64, u64)> {
+    let u16_at = |at: usize| u64::from(u16::from_le_bytes([bs[at], bs[at + 1]]));
+    if bs.len() < 512 || bs[510..512] != [0x55, 0xAA] {
+        return None;
+    }
+    let bps = u16_at(11);
+    let spc = u64::from(bs[13]);
+    let reserved = u16_at(14);
+    let fats = u64::from(bs[16]);
+    let root_entries = u16_at(17);
+    let fat_size = match u16_at(22) {
+        0 => u64::from(le32(bs, 36)),
+        n => n,
+    };
+    if !matches!(bps, 512 | 1024 | 2048 | 4096) || spc == 0 || reserved == 0 || fats == 0 {
+        return None;
+    }
+    let root_start = (reserved + fats * fat_size) * bps;
+    if root_entries != 0 {
+        return Some((root_start, root_entries * 32));
+    }
+    let cluster = u64::from(le32(bs, 44) & 0x0FFF_FFFF);
+    let first = cluster.checked_sub(2)?;
+    Some((root_start + first * spc * bps, spc * bps))
 }
 
 fn parts(t: &Table) -> &[u64] {

@@ -26,6 +26,15 @@ partition at sector 133120 of 128 MiB. Names, IDs and labels play no
 part: they are an ordinary stick's. A stick with any other layout is
 refused and nothing is relabelled.
 
+## Its name
+
+The data partition has no name in the image, so each computer shows it
+by its own word for a drive with none. A name typed on What to write is
+written as FAT keeps one, in capitals: in the data partition's first
+sector, in its backup at sector 6, and as the volume-label entry in its
+top folder, which is what Windows shows. Keep data leaves the data
+partition, and its name, as they are.
+
 ## While it is written
 
 The image is decompressed as it is written, by an xz decoder written in

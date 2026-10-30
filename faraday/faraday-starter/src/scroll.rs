@@ -280,6 +280,9 @@ impl Starter {
                 {
                     self.mark(a);
                     self.act(action);
+                    if action == StarterAction::Name {
+                        self.name_pressed(action, Some(x));
+                    }
                 }
             }
         }
@@ -339,7 +342,9 @@ impl Starter {
             ui.primaries = 0;
             ui.offset = self.offset;
             ui.frost = self.sheet.and(self.frost.take());
+            ui.edit = self.name_edit();
             self.max = self.frame_scrolled(&mut ui);
+            self.fields = std::mem::take(&mut ui.fields);
             self.frost = ui.frost.take();
             self.primaries = ui.primaries;
             reach = ui.take_presses();
