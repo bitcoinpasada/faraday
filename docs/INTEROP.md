@@ -35,6 +35,20 @@ Nothing here is tested against Sparrow, Electrum, Nunchuk or BlueWallet
 running; only against files they wrote. Hardware wallets are covered by
 the files and codes they write.
 
+### 1.1 Other programs, end to end
+
+Where another program does the same job, Faraday's output goes through
+it: Bitcoin Core 31.1 for wallets and PSBTs
+(`faraday/tools/core-check.py` and the cross-check's `addr`, `psbt`,
+`sign` and `miniscript` areas), GnuPG 2.4 and paperkey 1.6 for GPG keys
+(`faraday/faraday-pgp/tests/gnupg.rs`,
+`faraday/faraday-pgp/tests/paperkey.rs`), OpenSSL and sbverify for
+Secure Boot keys (`faraday/faraday-sb/tests/judged.rs`), pykeepass for
+KeePass files (the cross-check's `kdbx` area), and other wallets' own
+files (`faraday/faraday-core/tests/all/interop.rs`). The GnuPG,
+paperkey, OpenSSL and sbverify tests run in `just` and fail where the
+program is missing (`docs/DEVELOPING.md` §1).
+
 ## 2. What works
 
 | From or to | Format | Faraday reads | Faraday writes | Tested |

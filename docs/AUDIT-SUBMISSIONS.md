@@ -16,6 +16,10 @@ finding, and to anything else written about it. Critical and high findings are s
 once fixed. A hash posted on the day they are sent shows that the file
 published later is the one that was sent.
 
+Faraday's own specifications, which no outside implementation checks,
+are listed for review in `docs/STANDARDS.md` §7, ranked by how much a
+mistake would cost, and called for in `docs/AUDIT-SUBMISSIONS.md` §10.
+
 ## 2. The request
 
 The text below is published on the Audits page as written. People follow

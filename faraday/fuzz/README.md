@@ -1,6 +1,6 @@
 # Fuzzing: Faraday's own targets
 
-Twenty-two `cargo fuzz` targets for the parsers that live in Faraday's own
+`cargo fuzz` targets for the parsers that live in Faraday's own
 crates, each reading something the device did not write: a stick's
 filesystem and files, a scanned code, a camera frame, a screen's EDID, a
 USB device's descriptor, another wallet's file. The parsers in the shared

@@ -1,10 +1,14 @@
 # Fuzzing
 
-Eighteen `cargo fuzz` targets, one per parser of the shared crates that
-reads something the device did not write: a camera frame, a scanned
-payload, a PSBT from a coordinator, a key share, a file on storage. The
-parsers in Faraday's own crates have theirs in `faraday/fuzz/`
-(`faraday/fuzz/README.md`); `just fuzz-list` lists both.
+`cargo fuzz` targets for the parsers of the shared crates that read
+something the device did not write: a camera frame, a scanned payload, a
+PSBT from a coordinator, a key share, a file on storage. The parsers in
+Faraday's own crates have theirs in `faraday/fuzz/`
+(`faraday/fuzz/README.md`); `just fuzz-list` lists both. Every parser in
+`core/` that takes bytes or text is listed in `tools/fuzz-parsers.toml`
+with the target that runs it, or the reason it has none, and `just lint`
+fails on one that is not (`tools/lint-fuzz-parsers.py`), so a new parser
+gets its target in the change that adds it.
 
 The 2026-09-11 security review item M5 is why they exist. The Pi
 shell is the only process on the board and is built with
@@ -69,6 +73,11 @@ version, and keeps a newer release candidate of a pinned crate (the
 exemption in `supply-chain/config.toml` and a page in `docs/deps/`.
 
 ## Before a release
+
+Before every release, every target of `fuzz/` and `faraday/fuzz/` runs
+for 10 minutes, as many at once as there are cores (`just
+fuzz-release`). A crash, an out-of-memory or a timeout fails the run and
+names the input. The release notes quote the run's record.
 
 ```
 just fuzz-release              every target, 10 minutes each

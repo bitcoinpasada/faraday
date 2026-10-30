@@ -11,7 +11,8 @@ Source: `embit` 0.8.0, the release SeedSigner pins in its hash-locked
 `requirements.txt`, from PyPI: `embit-0.8.0.tar.gz`, SHA-256
 `8bf4b10073c67400370ce523fb16f035fe759f6fdd987c579bdcc268d75ed770`
 (the hash SeedSigner's `requirements.txt` names for it; the git tag is
-`v0.8.0`, `84cce66fb831fa6d625fb73f28e03605f3c04e28`), folder
+`v0.8.0` of `https://github.com/diybitcoinhardware/embit`,
+`84cce66fb831fa6d625fb73f28e03605f3c04e28`), folder
 `src/embit/`. Not copied: everything else in embit (keys, PSBT, scripts,
 descriptors, the secp256k1 bindings); `embit/misc.py` imports
 `embit.util`, which the cross-check stands in for with

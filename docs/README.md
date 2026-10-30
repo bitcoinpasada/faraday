@@ -52,7 +52,7 @@ need. Each document's header says what kind it is:
 | Why is a flow fast or slow, and how is costly work kept out of drawing? | `docs/SPEED.md`, `docs/COMPUTE.md` |
 | How do the modes, Practice and its samples work? | `docs/MODES.md` |
 | How do scrolling and motion work? | `docs/MOTION.md` |
-| Why is a dependency there? | `docs/deps/<crate>.md`; the policy is DECISIONS F71 |
+| Why is a dependency there? | `docs/deps/<crate>.md`; how they are checked, `docs/deps/README.md`; the policy is DECISIONS F71 |
 | Which tool or lint does what? | `tools/README.md` |
 | What must change with what, and which check holds each rule? | `docs/CHECKS.md`; why and how, `docs/IMPACT.md` |
 | What is run before a release, and which parsers are fuzzed? | `tools/README.md`, "Before a release"; `fuzz/README.md`, `faraday/fuzz/README.md` |

@@ -925,8 +925,14 @@ commit and already reads the guide from the pin. It reads:
 The page /standards is generated from the pin too, never by hand:
 STANDARDS §0's summary, points and §0.1, a card for each row of §2 to
 §5 from the manifest, §6, §7 and §9, and the checks in
-`docs/CROSSCHECK.md` §10 and `tools/crosscheck/README.md`; its build
-stops on a shape it does not know.
+`docs/CROSSCHECK.md` §10 and `tools/crosscheck/README.md` (each area's
+Faraday code from its "What runs" table, and each reference linked to
+the commit "Where each reference comes from" gives, checked against the
+folder's own README), the opening and "Before a release" of
+`fuzz/README.md` with the count of fuzz targets in `fuzz/` and
+`faraday/fuzz/`, `docs/INTEROP.md` §1.1, `docs/deps/README.md` and
+`docs/AUDIT-SUBMISSIONS.md` §1; its build stops on a shape it does not
+know.
 
 The standards page lists the actions that are in the repository and not
 in the app (an entry with no screens) under their own heading, "In the

@@ -609,6 +609,43 @@ difference"), and says why.
     passphrase.
 <!-- facts:end known-differences -->
 
+## Where each reference comes from
+
+Each folder of `tools/reference/` an area names in its reference, the
+repository it was copied from, the path there, and the tag and commit it
+was copied at. The folder's own README says how it was fetched and
+checked, and states the same address and commit; a folder copied from
+more than one repository has a row for each.
+
+| Folder | Upstream | Path | Tag | Commit |
+|---|---|---|---|---|
+| `bip327/` | <https://github.com/bitcoin/bips> | `bip-0327/reference.py` | none | `c0c5aea41e6a334d34db4ca87ae53bbfd7f268d1` |
+| `bip352/` | <https://github.com/bitcoin/bips> | `bip-0352/` | none | `c0c5aea41e6a334d34db4ca87ae53bbfd7f268d1` |
+| `bip374/` | <https://github.com/bitcoin/bips> | `bip-0374/reference.py` | none | `c0c5aea41e6a334d34db4ca87ae53bbfd7f268d1` |
+| `bip375/` | <https://github.com/bitcoin/bips> | `bip-0375/` | none | `c0c5aea41e6a334d34db4ca87ae53bbfd7f268d1` |
+| `bip380/` | <https://github.com/bitcoin/bips> | `bip-0380.mediawiki` | none | `c0c5aea41e6a334d34db4ca87ae53bbfd7f268d1` |
+| `bip39/` | <https://github.com/trezor/python-mnemonic> | `src/mnemonic/` | `v0.21` | `d4b106cdec196202d44628026fcb8fedc8ea50c1` |
+| `bip85/` | <https://github.com/ethankosakovsky/bip85> | `bip85/` | none | `435a0589746c1036735d0a5081167e08abfa7413` |
+| `bip85/` | <https://github.com/keis/base58> | `base58/` | `v2.1.1` | `11c293f4479fafffbc7b766fcb703a835c02dccd` |
+| `btclib/` | <https://github.com/btclib-org/btclib-wallet> | none | `v2026.10.29` | `25f9638e25790816102bcc91261e3bf33384ac21` |
+| `btclib/` | <https://github.com/btclib-org/btclib> | none | `v2026.10.24` | `e69bb4a6275f6c069d037e5c371010158c655dc6` |
+| `btclib/` | <https://github.com/btclib-org/ecc> | none | `v2026.10.23` | `7790699f682f52ec172f180b7b49e6b277ee201f` |
+| `slip39/` | <https://github.com/trezor/python-shamir-mnemonic> | `shamir_mnemonic/` | `v0.3.0` | `08bbb74bdcb58c918981836cb3ccf401e57ecfb4` |
+| `codex32/` | <https://github.com/BenWestgate/python-codex32> | `src/codex32/` | `v0.6.1` | `4bb90c018c7c515c3d54cf669b89beb42fa26227` |
+| `codex32/correction/` | <https://github.com/BenWestgate/python-codex32> | `src/codex32/` | none | `f19d4627c5725a9f6cfa995a1f89fe62e1becb4c` |
+| `coldcard/` | <https://github.com/Coldcard/firmware> | `testing/xor.py` | none | `a772156db3fa74cbc54db02d35230d30cf4789dc` |
+| `coldcard-rolls/` | <https://github.com/Coldcard/firmware> | `docs/` | none | `948dc108a0a12ea06ec8ee90575609eb3dc90c7b` |
+| `core/` | <https://github.com/bitcoin/bitcoin> | `test/functional/test_framework/` | `v31.1` | `9be056a8a72b624dae9623b2f7bded92c2a21c91` |
+| `hwi/` | <https://github.com/bitcoin-core/HWI> | `hwilib/` | none | `e63a0af2bf5c7c60b8cc71d99aba59068e8be0f0` |
+| `miniscript/` | <https://github.com/darosior/python-bip380> | `bip380/` | none | `fb61971d9128e663f110ea2734c1d023e7e0266b` |
+| `btcd-bip322/` | <https://github.com/guggero/btcd> | `bip322/` | none | `503719c950953906a8fad9286b3b51aef5ff152b` |
+| `seedsigner/` | <https://github.com/SeedSigner/seedsigner> | `src/seedsigner/` | none | `85cd9a0211eeb22962a5e65ba349ef6efa91bb57` |
+| `embit/` | <https://github.com/diybitcoinhardware/embit> | `src/embit/` | `v0.8.0` | `84cce66fb831fa6d625fb73f28e03605f3c04e28` |
+| `qrcodegen/` | <https://github.com/nayuki/QR-Code-generator> | `python/qrcodegen.py` | none | `3c6d0b3cefb4e049dc337e82237c9644399716a8` |
+| `bbqr/` | <https://github.com/coinkite/BBQr> | `python/bbqr/` | none | `8dc7ef07d0d520763cc0001a885ca8d29ac8719a` |
+| `ur/` | <https://github.com/Foundation-Devices/foundation-ur-py> | `ur/` | none | `2c104058d2f6421aaf41f5e919392d3e5a5d2268` |
+| `lnd/` | <https://github.com/lightningnetwork/lnd> | `aezeed/` | none | `88959aec3d7a9d11a509714d9bee97c29ee02269` |
+
 ## Outside and own implementations
 
 What each action's cross-check compares Faraday with, by its class
