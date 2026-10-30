@@ -78,6 +78,7 @@ mod gpg;
 mod gpg_restore;
 mod half_screen;
 mod home;
+mod home_scan;
 mod hover;
 mod how_block;
 mod how_reach;

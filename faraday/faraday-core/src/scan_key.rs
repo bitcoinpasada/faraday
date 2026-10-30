@@ -455,6 +455,59 @@ fn pasted_words(lang: Language, text: &str) -> Result<zeroize::Zeroizing<Vec<u16
     Ok(idx)
 }
 
+/// Costs what `faraday_intake::secret_text` costs, and a WIF's checksum.
+/// Why scanned text is refused for holding a secret, never filed (F167):
+/// a seed's words, words of a BIP-39 list that are no English BIP-39 seed
+/// (a checksum that fails, an LND aezeed, an Electrum seed), or a private
+/// key: extended, a WIF or a Nostr secret key.
+pub(crate) fn secret_text(c: &Compute, text: &str) -> Option<&'static str> {
+    let t = text.trim();
+    if faraday_keys::identity::is_wif(t) {
+        return Some(EN.secret_text_private_key);
+    }
+    if t.get(..5).is_some_and(|p| p.eq_ignore_ascii_case("nsec1")) {
+        return Some(EN.secret_text_nostr);
+    }
+    if let Some(s) = faraday_intake::secret_text(c, t) {
+        return Some(match s {
+            faraday_intake::TextSecret::Words => EN.secret_text_those_are,
+            faraday_intake::TextSecret::ExtendedPrivateKey => EN.secret_text_private_key,
+        });
+    }
+    let words: Vec<&str> = t.split_whitespace().collect();
+    (matches!(words.len(), 12 | 15 | 18 | 21 | 24) && on_a_word_list(&words))
+        .then_some(EN.secret_text_not_a_seed)
+}
+
+/// Whether every word is on one of the BIP-39 lists Faraday reads, in any
+/// case. A lookup per word.
+fn on_a_word_list(words: &[&str]) -> bool {
+    Language::ALL.iter().any(|lang| {
+        words.iter().all(|w| {
+            lang.index_of(&zeroize::Zeroizing::new(w.to_lowercase()))
+                .is_some()
+        })
+    })
+}
+
+/// Costs what `read_psbt` and `read_wallet` cost. What a code is when a
+/// SeedQR was wanted and something else came.
+pub(crate) fn what_instead_of_a_seed(c: &Compute, text: &str) -> Option<&'static str> {
+    let t = text.trim();
+    if crate::wallet::read_psbt(c, t.as_bytes()).is_some()
+        || t.to_ascii_lowercase().starts_with("ur:crypto-psbt")
+    {
+        return Some(EN.what_instead_of_a_seed_transaction);
+    }
+    if faraday_qr::bbqr::is_part(t) || faraday_codec::ur::is_ur(t) {
+        return Some(EN.what_instead_of_a_seed_files_code);
+    }
+    if crate::wallet::read_wallet(c, t).is_ok() || crate::create::read_key(t).is_some() {
+        return Some(EN.what_instead_of_a_seed_public);
+    }
+    None
+}
+
 /// Costs a mnemonic's checksum (through `secret_text`), a codex32 and a
 /// SLIP-39 parse and a WIF's checksum. Why pasted text is refused for
 /// holding a secret (`docs/DESIGN.md` §4.10): a seed's words, checksum or
@@ -466,15 +519,7 @@ pub(crate) fn pasted_secret(c: &Compute, text: &str, seeds: bool) -> Option<&'st
     let t = text.trim();
     let words: Vec<&str> = t.split_whitespace().collect();
     // Words of any of the word lists Faraday reads, checksum or not.
-    if !seeds
-        && matches!(words.len(), 12 | 15 | 18 | 21 | 24)
-        && faraday_bip::bip39::Language::ALL.iter().any(|lang| {
-            words.iter().all(|w| {
-                lang.index_of(&zeroize::Zeroizing::new(w.to_lowercase()))
-                    .is_some()
-            })
-        })
-    {
+    if !seeds && matches!(words.len(), 12 | 15 | 18 | 21 | 24) && on_a_word_list(&words) {
         return Some(EN.pasted_words);
     }
     match faraday_intake::secret_text(c, t) {
@@ -669,6 +714,94 @@ impl Faraday {
             }
         }
         self.scanned(t.as_bytes().to_vec());
+    }
+
+    /// Costs a codex32 and a SLIP-39 parse, and what adding a part costs.
+    /// A codex32 string (a Codex32QR code's) or a SLIP-39 share read by a
+    /// scanner for anything (Home's Scan, Files', Restore's, Create's and
+    /// the Spend tab's; F167): Add a key opens on its form with the part
+    /// in, as the intake scanner sends one, never into Files. Any other
+    /// scanner's code is left to it. Returns whether it was one.
+    pub(crate) fn scan_part_routed(&mut self, bytes: &[u8]) -> bool {
+        if self.sheet != Some(Sheet::Scan)
+            || !self
+                .camera
+                .scan()
+                .is_some_and(|s| s.purpose == ScanPurpose::Files)
+        {
+            return false;
+        }
+        self.intake_key_part(bytes)
+    }
+
+    /// Costs what adding entries to a vault costs. A code read as a file,
+    /// kept from Files when it is a secret (F167): TOTP setup codes and
+    /// vault entries go to the open vault (`scanned_entries`), and a
+    /// seed's words or a part of one that reach here (keys not taken now)
+    /// are named, their bytes wiped. A file sent in Faraday's envelope is
+    /// filed as sent. Returns the item when it is to be filed.
+    pub(crate) fn scanned_secret(
+        &mut self,
+        mut item: crate::Item,
+        enveloped: bool,
+        intake: bool,
+    ) -> Option<crate::Item> {
+        use crate::wallet::FileKind;
+        // A picture read from a stick is copied in as the visit's rules say.
+        if self.sheet != Some(Sheet::Scan)
+            || enveloped
+            || !matches!(
+                item.kind,
+                FileKind::Entries | FileKind::Words | FileKind::SeedPart
+            )
+        {
+            return Some(item);
+        }
+        let text = zeroize::Zeroizing::new(String::from_utf8_lossy(&item.bytes).trim().to_string());
+        zeroize::Zeroize::zeroize(&mut item.bytes);
+        if item.kind == FileKind::Entries {
+            self.scanned_entries(text, intake);
+            return None;
+        }
+        drop(text);
+        let why = if self.may_load_keys() {
+            EN.secret_text_those_are.to_string()
+        } else {
+            crate::stick::keys_load(self.medium)
+        };
+        if let Some(scan) = self.camera.scan_mut() {
+            scan.note = Some(why);
+        }
+        None
+    }
+
+    /// Costs what adding entries to a vault costs. TOTP setup codes or
+    /// vault entries read by a scanner for anything (F167), never filed:
+    /// into the open vault, a TOTP code's new entry filled in as the
+    /// vault's own Scan fills it; with no vault open the scanner says to
+    /// unlock one, and the intake, which adds to no vault, says it is not
+    /// used there. The camera stays on unless the vault took them.
+    fn scanned_entries(&mut self, text: zeroize::Zeroizing<String>, intake: bool) {
+        let said = if intake {
+            Some(EN.scanned_totp_not_here.to_string())
+        } else if self.vaults.current_id().is_none() {
+            Some(EN.scanned_totp_needs_vault.to_string())
+        } else {
+            self.vault_scanned_entry(&text).err()
+        };
+        drop(text);
+        match said {
+            None => {
+                self.camera.close();
+                self.sheet = None;
+                self.out.commands.push_back(Command::CameraOff);
+            }
+            Some(why) => {
+                if let Some(scan) = self.camera.scan_mut() {
+                    scan.note = Some(why);
+                }
+            }
+        }
     }
 
     /// Costs a codex32 parse, and what adding the string costs. A codex32

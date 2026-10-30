@@ -1091,9 +1091,10 @@ impl Faraday {
         }
     }
 
-    /// A SLIP-39 share or a codex32 string read by the intake scanner:
-    /// Add a key opens on its form with it in, and returns to the Spend
-    /// tab once the key is put together. Returns whether it was one.
+    /// A SLIP-39 share or a codex32 string read by the intake scanner or
+    /// Home's Scan: Add a key opens on its form with it in, and returns to
+    /// the Spend tab once the key is put together. Returns whether it was
+    /// one.
     pub(crate) fn intake_key_part(&mut self, bytes: &[u8]) -> bool {
         let given = zeroize::Zeroizing::new(String::from_utf8_lossy(bytes).trim().to_string());
         let lower = zeroize::Zeroizing::new(given.to_lowercase());

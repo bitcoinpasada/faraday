@@ -52,7 +52,7 @@ the files and codes they write.
 | Every coordinator | PSBT: binary, base64, `ur:crypto-psbt`, `ur:psbt`, BBQr `P` | yes | binary, `crypto-psbt`, BBQr `P` | BlueWallet's sample, Core |
 | Coldcard, Sparrow | Finished transaction as hex (`-final.txn`) | yes | yes | Core |
 | SeedSigner, Krux, Jade, Coldcard Q | SeedQR, CompactSeedQR | yes | yes (backup grid) | SeedQR's specification vectors (`faraday-codec`), `tests/all/import.rs` |
-| Trezor, Keystone | SLIP-39 shares | yes | yes | `tests/all/keygen_slip39.rs` |
+| Trezor, Keystone | SLIP-39 shares | yes: typed, the SLIP-39 form's Scan, Home's Scan, What do you have? (F167) | yes | `tests/all/keygen_slip39.rs`, `faraday/faraday-core/tests/all/home_scan.rs` |
 | Coldcard | Seed XOR, BIP-85 | yes | yes | `tests/all/forms.rs`, `tests/all/bip85.rs` |
 | SeedSigner (codex32 branch), any Codex32QR/v1-48 writer | Codex32QR/v1-48: one 48-character codex32 string, upper case, QR version 3, level L (`docs/CODEX32.md` §10) | yes: the codex32 form's Scan, Add a key's Scan a SeedQR, Home's Scan, a picture in Files | yes, String · Codex32QR on Make codex32 shares' strings | every picture of the profile's vectors read to its stated fingerprint (`faraday/faraday-core/tests/all/codex32_forms.rs`); BIP 93's vectors (`core/faraday-bip/tests/all/codex32.rs`) |
 | Ledger, Trezor, BitBox02 | BIP-39 words | yes | — | — |

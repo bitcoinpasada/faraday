@@ -461,10 +461,20 @@ shares, codex32, Seed XOR parts), **Make a new key**, and "From a stick ·
 plug it in" (with a stick attached, **Copy files in** → Stick visit; a key
 file copied in loads when the stick is pulled). **Scan** floats in the
 bottom-right corner of Home on every panel → the scanner (with a stick
-in, the sheet asks for it to be pulled first). Home's Scan takes a seed
-too: a SeedQR, a CompactSeedQR or a seed's words go to Add a key and are
-added as **Scan a SeedQR** adds them, never into Files; a
-private key or xprv is named, since Add a key does not take one. The
+in, the sheet asks for it to be pulled first). Home's Scan takes
+everything a scanner takes and sends it to its flow (F167; `docs/QR.md`
+§2): a SeedQR, a CompactSeedQR or a seed's words go to Add a key and are
+added as **Scan a SeedQR** adds them; a codex32 string (a Codex32QR
+code's) or a SLIP-39 share opens Add a key on its form with the part in;
+a TOTP setup code opens a new entry, filled in, in the open vault, or
+the scanner says "That is a TOTP setup code. Unlock a vault to add it"
+and stays open; none of these goes into Files, from Home's Scan or any
+other scanner (Files', Restore's, Create's, the Spend tab's). Transactions, wallet
+files, account keys, signed messages and GPG keys go to Files and the
+flow waiting for them, as before. A private key (an xprv, a WIF or a Nostr
+secret key) and words that fail a BIP-39 checksum are named and never
+filed, since Add a key does not take them. On Faraday Demo what Home's
+Scan takes pasted is what it takes scanned (F75). The
 Wallets tab carries **Add a key** last among its ways in, "Keys first,
 wallets later".
 A key added with no wallet loaded lands on Wallets, whose card says

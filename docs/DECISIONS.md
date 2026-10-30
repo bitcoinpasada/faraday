@@ -181,3 +181,4 @@ Read this table, then only the decision you need.
 | [F164](decisions/F164.md) | The manifest's screens_not count is 24 | 2026-10-29 | Active | crypto |
 | [F165](decisions/F165.md) | The stick and the Pi read Faraday Offline | 2026-10-26 | Active | design |
 | [F166](decisions/F166.md) | A BIP-85 child seed's parent is kept only in a vault, when the person records it; nothing outside one says so; a wallet made over one says so once | 2026-10-29 | Active | keys |
+| [F167](decisions/F167.md) | Home's Scan takes everything a scanner takes | 2026-10-29 | Active | keys |

@@ -735,6 +735,13 @@ misses = "a file, picture, sheet, file name, wallet name or kept state that carr
 # --------------------------------------------------------------- compute
 
 [[rule]]
+id = "keys.home-scan-takes-all"
+title = "a kind any scanner or form takes by QR, Home's Scan takes too and routes to its flow, scanned and pasted alike; a precondition is said in one line"
+source = ["docs/decisions/F167.md"]
+when = ["faraday/faraday-core/src/qr_view.rs", "faraday/faraday-core/src/scan_key.rs"]
+kind = "review"
+
+[[rule]]
 id = "compute.token"
 title = "costly work takes the compute token and says so"
 source = ["CLAUDE.md", "docs/decisions/F69.md"]

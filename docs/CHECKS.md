@@ -132,6 +132,7 @@ does what is `tools/README.md`'s.
 | `keys.new-reveal`: a new reveal is listed in KEYS.md and AUDIT.md | `faraday/faraday-keys/src/session.rs`<br>lines matching `^\+ {4}[A-Z][A-Za-z0-9]*(\(.*\))?,` | pair | each of `docs/KEYS.md`<br>`docs/AUDIT.md` | - | - | `docs/KEYS.md` §2 |
 | `keys.secret-files`: a file that starts to hold secrets is added to lint-secrets' SECRET_FILES | `faraday/**/src/**` | review | - | `lint-secrets` | a file that starts to hold secrets and is not yet in SECRET_FILES | `tools/README.md` |
 | `keys.child-vault-only`: that a seed is a BIP-85 child of another is kept only in a vault, and only when recorded; nothing written outside one says so | `faraday/faraday-core/src/**`<br>`faraday/faraday-keys/src/**`<br>`faraday/faraday-vault/src/**` | review | - | - | a file, picture, sheet, file name, wallet name or kept state that carries a key's child mark, parent fingerprint, BIP-85 index or path | `docs/decisions/F166.md` |
+| `keys.home-scan-takes-all`: a kind any scanner or form takes by QR, Home's Scan takes too and routes to its flow, scanned and pasted alike; a precondition is said in one line | `faraday/faraday-core/src/qr_view.rs`<br>`faraday/faraday-core/src/scan_key.rs` | review | - | - | - | `docs/decisions/F167.md` |
 
 ### 2.8 compute
 
@@ -266,6 +267,7 @@ No script holds these; a reviewer reads this list for the change.
 | `crypto.costs-said`: a function that costs more than a lookup says "Costs" in the first line of its doc | `CLAUDE.md` |
 | `keys.secret-files`: a file that starts to hold secrets is added to lint-secrets' SECRET_FILES | `tools/README.md` |
 | `keys.child-vault-only`: that a seed is a BIP-85 child of another is kept only in a vault, and only when recorded; nothing written outside one says so | `docs/decisions/F166.md` |
+| `keys.home-scan-takes-all`: a kind any scanner or form takes by QR, Home's Scan takes too and routes to its flow, scanned and pasted alike; a precondition is said in one line | `docs/decisions/F167.md` |
 | `speed.kept-in-step`: a value kept on the state for drawing has its invariant written where it lives and a test that changes the source | `CLAUDE.md`<br>`docs/SPEED.md` §3 |
 | `speed.late-flow-timed`: work added while drawing or after every event is timed in a late-flow session before it is committed | `CLAUDE.md`<br>`docs/SPEED.md` §7 |
 | `structure.areas-private`: an area's state is a struct with private fields, reached through accessors and its own methods | `docs/STRUCTURE-PASS.md` §7 |

@@ -93,9 +93,10 @@ on is held back until it is off (`docs/history/PLAN.md` §5.4).
 | PSBT, raw transaction | The transaction step of the wallet it belongs to (`docs/WALLETS.md` §2) |
 | Descriptor, policy, multisig config, BSMS, account key (`crypto-account`, `crypto-hdkey`, xpub) | A new wallet card, or the piece a wallet in progress is missing |
 | SeedQR, CompactSeedQR, words | Add a key, added as its own **Scan a SeedQR** adds them; never Files or the Inbox |
-| codex32 | The slot of the wallet it belongs to, or **Keys without a wallet**; then **Save to vault** |
-| Private key, xprv | Named: Add a key takes seeds as words or a SeedQR |
-| `otpauth://` URI | A new entry, filled in, in the open vault |
+| codex32 string, Codex32QR, SLIP-39 share | Add a key's form for it, the part in, waiting for the rest of its set (F167); never Files |
+| Private key: xprv, WIF, Nostr `nsec` | Named: Add a key takes seeds as words or a SeedQR; never filed (F167) |
+| Words of a BIP-39 list that are no English BIP-39 seed (checksum failing, aezeed, Electrum) | Named; never filed (F167) |
+| `otpauth://` URI, vault entries | A new entry, filled in, or the entries, in the open vault; with none open, the scanner says to unlock one, and What do you have? says it is not used there; never filed (F167) |
 | Faraday file envelope | The Inbox, after its SHA-256 is checked |
 | Codes read from an image file on a stick | Routed one by one by the rows above, as if scanned |
 | Address, silent payment address | **Is this address mine?** |
@@ -500,8 +501,10 @@ The comparison that led here: moved to `docs/history/QR-LOG.md`.
    takes the seed's own forms instead (F75): words (in any case, any
    spacing), a SeedQR's digits, and a codex32 string or SLIP-39 share
    where the scanner takes one; they load as the same code scanned
-   would, through the same intake and `faraday-keys` path. A private key
-   is still refused there. Other text goes where a QR read by
+   would, through the same intake and `faraday-keys` path; Home's Scan
+   takes a codex32 string and a SLIP-39 share pasted, and a TOTP setup
+   code, and sends each where the same code scanned goes (F167). A
+   private key is still refused there. Other text goes where a QR read by
    the camera goes (`scanned`), parts included, and is wiped once
    routed. Empty text or `ClipboardUnavailable` puts "Nothing to paste"
    on the state line for `NOTE_FLASH_MS` (2 s). A shell with no

@@ -59,7 +59,11 @@ dimmed, **Cancel**.*
 
 What a code holds goes where the scan was for: a file into **From the
 stick** in [Files](files.md), a key into its slot, a PSBT into its
-spend. A SeedQR opens [SeedQR read](#seedqr-read).
+spend. A SeedQR opens [SeedQR read](#seedqr-read). Home's **Scan**
+takes everything the other scanners take: a codex32 string or a SLIP-39
+share opens Add a key on its form with the share in, and a TOTP setup
+code opens a new entry in the open vault ("That is a TOTP setup code.
+Unlock a vault to add it" when none is open).
 
 ## SeedQR read
 

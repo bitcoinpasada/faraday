@@ -3612,6 +3612,10 @@ strings! {
     secret_text_those_are: "Those are a seed's words. Seeds go in through Add a key, not Files",
     /// Text in `secret_text`.
     secret_text_private_key: "That is a private key. Faraday takes keys as words or a SeedQR, in Add a key",
+    /// Scanner note in `secret_text`: a Nostr secret key (`nsec1…`) read.
+    secret_text_nostr: "That is a Nostr secret key. Faraday does not take one",
+    /// Scanner note in `secret_text`: 12 to 24 words of a BIP-39 list that are no English BIP-39 seed.
+    secret_text_not_a_seed: "Those are seed words, but not an English BIP-39 seed: the checksum fails",
     // ----- what_instead_of_a_seed (faraday-core/src/lib.rs) -----
     /// Text in `what_instead_of_a_seed`.
     what_instead_of_a_seed_transaction: "That is a transaction, not a seed. Scan it from Files",
@@ -3901,6 +3905,10 @@ strings! {
     scanned_not_a_psbt: "Not a PSBT, a descriptor, an xpub or a signed message",
     /// Toast in `scanned`. `{}`: `name`.
     scanned_is_a_cosigner: "{} is a cosigner's key",
+    /// Scanner note in `home_scan_routed`: a TOTP setup code read on Home's Scan with no vault open.
+    scanned_totp_needs_vault: "That is a TOTP setup code. Unlock a vault to add it",
+    /// Scanner note in `scanned_entries`: a TOTP setup code or vault entries read by the Spend tab's intake.
+    scanned_totp_not_here: "That is a TOTP setup code · not used here",
     /// Toast in `scanned`. `{}`: `name`, `slot + 1`.
     scanned_is_key: "{} is Key {}",
     /// Toast in `scanned`. `{}`: `name`.

@@ -161,6 +161,7 @@ mod guide;
 pub mod pdf;
 pub mod picture;
 mod scan_key;
+use scan_key::{secret_text, what_instead_of_a_seed};
 mod screens;
 
 // Flows around a key, seed, words or passphrase; key use is faraday-keys (F70).
@@ -778,33 +779,6 @@ fn part_note(what: &str, have: usize, total: usize, missing: &[usize]) -> String
             more,
         ],
     )
-}
-
-/// Costs what `secret_text` costs. Why scanned text is refused for
-/// holding a secret: a seed's words or a private key.
-fn secret_text(c: &Compute, text: &str) -> Option<&'static str> {
-    faraday_intake::secret_text(c, text).map(|s| match s {
-        faraday_intake::TextSecret::Words => EN.secret_text_those_are,
-        faraday_intake::TextSecret::ExtendedPrivateKey => EN.secret_text_private_key,
-    })
-}
-
-/// Costs what `read_psbt` and `read_wallet` cost. What a code is when a
-/// SeedQR was wanted and something else came.
-fn what_instead_of_a_seed(c: &Compute, text: &str) -> Option<&'static str> {
-    let t = text.trim();
-    if wallet::read_psbt(c, t.as_bytes()).is_some()
-        || t.to_ascii_lowercase().starts_with("ur:crypto-psbt")
-    {
-        return Some(EN.what_instead_of_a_seed_transaction);
-    }
-    if faraday_qr::bbqr::is_part(t) || faraday_codec::ur::is_ur(t) {
-        return Some(EN.what_instead_of_a_seed_files_code);
-    }
-    if wallet::read_wallet(c, t).is_ok() || crate::create::read_key(t).is_some() {
-        return Some(EN.what_instead_of_a_seed_public);
-    }
-    None
 }
 
 /// An account key of a loaded wallet held here, as
@@ -4340,6 +4314,10 @@ impl Faraday {
                 return;
             }
         }
+        // A part of a key goes to Add a key's form, never Files (F167).
+        if self.scan_part_routed(&bytes) {
+            return;
+        }
         // Home's Scan takes a seed too: a SeedQR, a CompactSeedQR or the
         // words go to Add a key, as its own Scan does, and never into a
         // box (`docs/QR.md` §2).
@@ -4375,6 +4353,10 @@ impl Faraday {
             }
             return;
         }
+        // A secret read is never filed (F167).
+        let Some(item) = self.scanned_secret(item, enveloped, intake) else {
+            return;
+        };
         let is_key = item.kind == FileKind::Key;
         // The same file read again is the one already in Files.
         let at = self.inbox_file_in(item);
