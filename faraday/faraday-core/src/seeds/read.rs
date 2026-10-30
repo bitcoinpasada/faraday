@@ -675,6 +675,17 @@ impl Faraday {
         self.sweep_back();
     }
 
+    /// Costs what reading a WIF costs. The read card's **Sweep a private
+    /// key** (`docs/SCANNING.md` §4.2): the Sweep sheet opens on the key
+    /// read, as Home's Scan opens it.
+    pub(crate) fn sweep_from_card(&mut self, text: &str) {
+        self.seed_read.sweep = Some(Sweep::default());
+        self.sweep_take(text);
+        if self.session.keys.sweep().is_none() {
+            self.seed_read.sweep = None;
+        }
+    }
+
     /// Costs a WIF's base58 checksum, and what reading the key or the
     /// PSBT costs. A code the camera read, or text pasted on its
     /// scanner, where a private key may be: the Sweep sheet's scanner
@@ -707,6 +718,9 @@ impl Faraday {
                     self.seed_read.sweep = None;
                 }
             }
+            // A scanner that shows the read card hands it over there
+            // (`docs/SCANNING.md` §4.2).
+            _ if wif && self.read_card_here() => return false,
             _ if wif => {
                 if let Some(scan) = self.camera.scan_mut() {
                     scan.note = Some(EN.sweep_elsewhere.to_string());

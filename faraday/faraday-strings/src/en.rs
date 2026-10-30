@@ -3696,6 +3696,53 @@ strings! {
     read_unreadable: "Nothing Faraday reads",
     /// A scanner's line for a kind it does not take. `{}`: the kind, one of the `read_*` above.
     read_not_here: "{} · not used here",
+    // ----- The read card (docs/SCANNING.md §5, §7.2, §7.3), faraday-core/src/scan_key.rs -----
+    /// The read card's first fact's label: what the code read is.
+    read_label: "Read",
+    /// The read card's fact for a seed. `{}`: its key's fingerprint without a passphrase.
+    read_key_fact: "Key {}",
+    /// The read card's fact for a share. `{}`: its index, its set's identifier, how many make the key.
+    read_share_fact: "Share {} of {} · {} needed",
+    /// The read card's fact for a PSBT. `{}`: `read_psbt_inputs` or `read_psbt_input`, the loaded wallet it spends from.
+    read_psbt_fact: "{} · {}",
+    /// A PSBT's inputs, on the read card. `{}`: how many, more than one.
+    read_psbt_inputs: "{} inputs",
+    /// A PSBT's one input, on the read card.
+    read_psbt_input: "1 input",
+    /// The read card's fact for a TOTP setup code. `{}`: its issuer, its account.
+    read_totp_fact: "{} · {}",
+    /// The read card's way over for a seed: the seed sheet.
+    read_go_key: "Add this key",
+    /// The read card's way over for a share: its form in Add a key.
+    read_go_share: "Add this share",
+    /// The read card's way over for a TOTP code. `{}`: the open vault.
+    read_go_vault: "Add to {}",
+    /// The read card's way over for a TOTP code with a vault in Files but none open. `{}`: the vault.
+    read_go_unlock: "Unlock {}",
+    /// The read card's way over for a TOTP code with no vault at all.
+    read_go_make_vault: "Make a vault",
+    /// The read card's line under Make a vault: the code read is not carried on.
+    read_not_kept: "Not kept · scan it again once the vault is open",
+    /// The read card's way over for a PSBT.
+    read_go_sign: "Sign it",
+    /// The read card's way over for a PSBT of the spend under way.
+    read_go_collect: "Add to the signatures",
+    /// The read card's way over for a finished transaction.
+    read_go_decode: "Decode it",
+    /// The read card's way over for a wallet description.
+    read_go_wallet: "Load the wallet",
+    /// The read card's way over for split sheets.
+    read_go_restore: "Restore the wallet",
+    /// The read card's way over for a signed message.
+    read_go_check: "Check the signature",
+    /// The read card's way over for text: a note in the open vault.
+    read_go_note: "Save as a note",
+    /// The read card's way over for a public kind: filed in Files.
+    read_keep: "Keep in Files",
+    /// The read card's Scan again: the code wiped, the camera back on.
+    read_again: "Scan again",
+    /// The line under a way over that loads a key, dimmed while a stick is in.
+    read_need_no_stick: "Remove the stick first",
     // ----- app (faraday-core/src/lib.rs) -----
     /// Text in `NOT_A_KEY`.
     app_not_wallet_key: "Not a key of this wallet: check the words or the passphrase",

@@ -1325,9 +1325,8 @@ impl Faraday {
                 Screen::Files
             });
         }
-        // Landed on the codes screen with the clock not checked this
-        // power-on: Set the time first (`docs/TOTP.md` §5.2), coming back
-        // to the codes.
+        // Landed on the codes screen with the clock not checked this power-on:
+        // Set the time first (`docs/TOTP.md` §5.2), coming back to the codes.
         if self.screen == Screen::Codes && !self.clock_checked() {
             self.open_set_time();
         }
@@ -1340,6 +1339,7 @@ impl Faraday {
         if back.is_some() && self.secrets.out().is_some() {
             self.sheet = Some(crate::Sheet::SecretOut);
         }
+        self.read_carried_land();
     }
 
     /// After an unlock's Load sheet that loaded wallets

@@ -499,7 +499,7 @@ impl Faraday {
             Go::Backup => self.act(Action::Backup(self.wallets.wallet())),
             Go::Sign => match self.lead_psbt() {
                 Some(k) => self.act(Action::StartSpend(k)),
-                None => self.act(Action::Scan),
+                None => self.act(Action::ScanFor(crate::Ask::Sign)),
             },
             // The spend finished here: its Send it card. Otherwise the
             // first file in Files to check rather than sign, or the camera
@@ -526,9 +526,10 @@ impl Faraday {
                 .position(|i| i.kind == FileKind::Transaction)
             {
                 Some(k) => self.act(Action::DecodeInbox(k)),
-                None => self.act(Action::Scan),
+                None => self.act(Action::ScanFor(crate::Ask::Decode)),
             },
-            Go::CheckAddress | Go::Scan => self.act(Action::Scan),
+            Go::CheckAddress => self.act(Action::ScanFor(crate::Ask::Address)),
+            Go::Scan => self.act(Action::Scan),
             Go::Sweep => self.act(Action::Sweep(crate::seeds::sweep::SweepAction::Open)),
             Go::SignMessage => self.act(Action::SignMessage),
             Go::CheckMessage => {

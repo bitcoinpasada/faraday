@@ -788,6 +788,13 @@ pub enum Action {
     RestoreShares,
     /// Read QR codes with the camera into Files.
     Scan,
+    /// Read QR codes for what the opener asks for (`docs/SCANNING.md`
+    /// §7.1): a scanner for anything, titled for it.
+    ScanFor(crate::Ask),
+    /// The read card's way over, by its place (`docs/SCANNING.md` §5).
+    ReadGo(u8),
+    /// The read card's Scan again: the code wiped, the camera back on.
+    ReadAgain,
     /// Type a new name for the chosen wallet.
     Rename,
     /// Make a PDF of an Inbox sheet (online only).

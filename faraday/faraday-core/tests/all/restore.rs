@@ -156,7 +156,7 @@ fn restore_opens_on_kind_with_no_transaction_card() {
     assert!(!text.contains("transaction"), "{text}");
     // The shortcut, and the two everyday kinds with More kinds.
     assert!(text.contains("I have the wallet description"), "{text}");
-    assert!(app.offers(Action::Scan));
+    assert!(app.offers(Action::ScanFor(faraday_core::Ask::Description)));
     assert!(app.offers(Action::RMoreKinds));
     assert!(text.contains("Single key · native SegWit"), "{text}");
     assert!(text.contains("Multisig · native SegWit"), "{text}");

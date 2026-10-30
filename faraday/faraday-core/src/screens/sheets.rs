@@ -744,7 +744,9 @@ pub(super) fn scan_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     ui.fill(px, py, side_w, side_h, 8.0, Role::SurfaceContainerHighest);
     // A QR found and read, still in view: the brackets turn green.
     let mut read_in_view = false;
-    if let Some((fw, fh, luma)) = sc.frame.as_ref() {
+    if sc.card.is_none()
+        && let Some((fw, fh, luma)) = sc.frame.as_ref()
+    {
         ui.c.luma(
             rect,
             *fw,
@@ -760,7 +762,10 @@ pub(super) fn scan_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
             found_outline(ui, rect, (*fw, *fh), &seen);
         }
     }
-    viewfinder_over(ui, (px, py, side_w, side_h), sc, read_in_view);
+    match sc.card.as_ref() {
+        Some(card) => read_card(ui, (px, py, side_w), card, !app.may_load_keys()),
+        None => viewfinder_over(ui, (px, py, side_w, side_h), sc, read_in_view),
+    }
     // Paste, beside Type and Cancel, where the scanner takes anything
     // and the shell has a clipboard; with none it is not drawn (F75,
     // `docs/QR.md` §8 item 5).
@@ -771,7 +776,9 @@ pub(super) fn scan_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         0.0
     };
     // Which camera, when there is more than one.
-    if app.cameras().len() > 1 && ui.compact {
+    if sc.card.is_some() {
+        // The read card's foot takes the camera's row.
+    } else if app.cameras().len() > 1 && ui.compact {
         let chosen = app.camera();
         let row: Vec<(String, Style, Action)> = app
             .cameras()
@@ -813,6 +820,10 @@ pub(super) fn scan_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     }
     // The foot, from the sheet's own top.
     let foot = y - keys_h + sh - 32.0 - 44.0;
+    if let Some(card) = sc.card.as_ref() {
+        read_card_foot(ui, (px, foot, side_w), card, !app.may_load_keys());
+        return;
+    }
     let type_instead = match for_wallet {
         Some((wi, _)) => Some(Action::EntryWallet(wi)),
         None if typing => Some(Action::Family(crate::family::FamilyAction::TypeWords)),
@@ -871,6 +882,85 @@ pub(super) fn scan_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         },
         Action::Cancel,
     );
+}
+
+/// The read card, in place of the camera's picture (`docs/SCANNING.md`
+/// §5.2): Read and what it is, in the warning tone for a secret, the
+/// facts that say which one, worked out at the read, and the lines that
+/// say what the way over carries.
+fn read_card(
+    ui: &mut Ui,
+    (x, y, w): (f32, f32, f32),
+    card: &crate::scan_read::ReadCard,
+    stick_in: bool,
+) {
+    let (x, w) = (x + T::PAD, w - 2.0 * T::PAD);
+    let mut cy = y + T::PAD;
+    let tone = if card.kind.secret() {
+        Role::Warning
+    } else {
+        Role::OnSurface
+    };
+    cy += crate::compact::kv(ui, x, cy, w, EN.read_label, card.kind.label(), tone);
+    for fact in &card.facts {
+        cy += ui.wrap_as((x, cy, w), BODY_M, Role::OnSurface, fact) + T::GAP;
+    }
+    if card.not_kept {
+        cy += ui.wrap_as((x, cy, w), BODY_M, Role::Warning, EN.read_not_kept) + T::GAP;
+    }
+    if stick_in && card.ways.iter().any(crate::scan_read::Way::loads_a_key) {
+        ui.wrap_as(
+            (x, cy, w),
+            BODY_M,
+            Role::OnSurfaceVariant,
+            EN.read_need_no_stick,
+        );
+    }
+}
+
+/// The read card's foot (`docs/SCANNING.md` §5.2, DESIGN §4.13): **Scan
+/// again**, a text button, first; **Cancel** beside it; the ways over at
+/// the end, the last filled, one that loads a key dimmed while a stick is
+/// in. Where they do not fit one row, the ways over stand on the row
+/// above, at the card's foot.
+fn read_card_foot(
+    ui: &mut Ui,
+    (x, y, w): (f32, f32, f32),
+    card: &crate::scan_read::ReadCard,
+    stick_in: bool,
+) {
+    let ways: Vec<(String, Style, Action)> = card
+        .ways
+        .iter()
+        .enumerate()
+        .map(|(i, way)| {
+            let off = stick_in && way.loads_a_key();
+            let style = match (i + 1 == card.ways.len(), off) {
+                (true, false) => Style::Primary,
+                (true, true) => Style::PrimaryOff,
+                (false, false) => Style::Tonal,
+                (false, true) => Style::TonalOff,
+            };
+            (way.label(), style, Action::ReadGo(i as u8))
+        })
+        .collect();
+    let leave = [
+        (EN.read_again.to_string(), Style::Ghost, Action::ReadAgain),
+        (EN.scan_cancel.to_string(), Style::Secondary, Action::Cancel),
+    ];
+    let width = |ui: &Ui, row: &[(String, Style, Action)]| {
+        row.iter()
+            .map(|(l, _, _)| ui.measure_as(LABEL_L, l) + 2.0 * T::BUTTON_PAD + T::GAP)
+            .sum::<f32>()
+    };
+    let (lw, ww) = (width(ui, &leave), width(ui, &ways));
+    button_rows(ui, x, y, w, &leave);
+    if lw + ww <= w + T::GAP {
+        button_rows(ui, x + w - ww + T::GAP, y, ww, &ways);
+    } else {
+        let bh = ui.button_height(BUTTON_H);
+        button_rows(ui, x + w - ww + T::GAP, y - bh - T::GAP, ww, &ways);
+    }
 }
 
 /// What is drawn over the camera's picture (`docs/QR.md` §8 item 4):

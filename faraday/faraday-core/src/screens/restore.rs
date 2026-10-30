@@ -172,8 +172,11 @@ fn restore_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                 } else {
                     ui.text_mid_as((x, cy, 40.0), LABEL_L, Role::OnSurface, label);
                 }
-                let mut items: Vec<(&str, Style, Action)> =
-                    vec![(EN.restore_scan_button, Style::Secondary, Action::Scan)];
+                let mut items: Vec<(&str, Style, Action)> = vec![(
+                    EN.restore_scan_button,
+                    Style::Secondary,
+                    Action::ScanFor(crate::Ask::Description),
+                )];
                 if !description_files(app).is_empty() {
                     items.push((EN.restore_from_files, Style::Secondary, Action::RFromFiles));
                 }
@@ -312,7 +315,11 @@ fn restore_description(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             Action::RSeeds,
         ));
     }
-    items.push((EN.restore_description_scan, Style::Secondary, Action::Scan));
+    items.push((
+        EN.restore_description_scan,
+        Style::Secondary,
+        Action::ScanFor(crate::Ask::Description),
+    ));
     for ((k, _), l) in files.iter().zip(&labels) {
         items.push((l.as_str(), Style::Secondary, Action::RUse(*k)));
     }

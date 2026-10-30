@@ -163,7 +163,7 @@ mod guide;
 pub mod pdf;
 pub mod picture;
 mod scan_key;
-mod scan_read;
+pub mod scan_read;
 mod screens;
 
 // Flows around a key, seed, words or passphrase; key use is faraday-keys (F70).
@@ -243,8 +243,8 @@ pub use host::{Host, HostMenu, HostPress};
 pub use medium::Medium;
 pub use modes::{DESKTOP_MODES, Mode, STICK_MODES};
 pub use qr_view::{
-    Code, NoPicture, QR_PARTS, QR_SPEEDS, QrFormat, QrSource, QrView, SEEN_FRAMES, ScanPurpose,
-    ScanState, Seen, TOO_FINE_TENTHS,
+    Ask, Code, NoPicture, QR_PARTS, QR_SPEEDS, QrFormat, QrSource, QrView, SEEN_FRAMES,
+    ScanPurpose, ScanState, Seen, TOO_FINE_TENTHS,
 };
 pub(crate) use qr_view::{TOO_FINE_PASSES, UrFed, send_error, transfer_name, ur_feed, ur_note};
 pub(crate) use receipt::sha256_of;
@@ -2073,6 +2073,7 @@ impl Faraday {
         use catalog::Go;
         Some(match action {
             Action::Scan
+            | Action::ScanFor(_)
             | Action::BScan
             | Action::Vault(vault::VaultAction::ScanEntry)
             | Action::Family(family::FamilyAction::Scan | family::FamilyAction::Again(true)) => {
@@ -2509,6 +2510,7 @@ impl Faraday {
         self.flows_note();
         self.vault_shown_tidy();
         self.sweep_tidy();
+        self.read_carried_tidy();
         self.key_path_after(asked, action);
         self.osk_after(action);
     }
@@ -2708,7 +2710,10 @@ impl Faraday {
             | Action::ScanPart
             | Action::ScanSeed
             | Action::ScanKey(..)
-            | Action::Scan) => self.scan_act(a),
+            | Action::Scan
+            | Action::ScanFor(_)
+            | Action::ReadGo(_)
+            | Action::ReadAgain) => self.scan_act(a),
             Action::Bip85
             | Action::PStep(_)
             | Action::PKey(_)
@@ -4137,44 +4142,6 @@ impl Faraday {
         }
     }
 
-    /// The camera gives no picture, and the shell said so: the sheet stays
-    /// with the reason in its square and its other ways in live
-    /// (`docs/QR.md` §8 item 6).
-    fn camera_failed(&mut self, why: NoPicture) {
-        if let Some(s) = self.camera.scan_mut() {
-            s.no_picture = Some(why);
-            s.waiting_since = None;
-        }
-        self.release_held_stick();
-    }
-
-    /// The scanner's clock, on each tick: the camera that sends no
-    /// picture, and "Nothing to paste" running out. Whether the sheet
-    /// changed.
-    fn scan_tick(&mut self, now_ms: u64) -> bool {
-        let Some(s) = self.camera.scan_mut() else {
-            return false;
-        };
-        let mut changed = false;
-        if s.nothing_to_paste.is_some_and(|until| now_ms >= until) {
-            s.nothing_to_paste = None;
-            changed = true;
-        }
-        if self.sheet == Some(Sheet::Scan) && s.frame.is_none() && s.no_picture.is_none() {
-            match s.waiting_since {
-                None => s.waiting_since = Some(now_ms),
-                Some(since)
-                    if now_ms.saturating_sub(since) >= faraday_draw::tokens::NO_PICTURE_MS =>
-                {
-                    s.no_picture = Some(NoPicture::Silent);
-                    changed = true;
-                }
-                Some(_) => {}
-            }
-        }
-        changed
-    }
-
     /// Costs an address derivation (through `find_address`). What a scanned
     /// address is to the loaded wallets: one of a wallet's first hundred on
     /// either chain, or none of them (`docs/QR.md` §2: "Is this address
@@ -4219,22 +4186,6 @@ impl Faraday {
         } else {
             EN.address_note_that_address.to_string()
         })
-    }
-
-    /// `name`, or `stem-2.ext`, … when the Inbox has it.
-    fn free_inbox_name(&self, name: &str) -> String {
-        let taken = |n: &str| self.inbox.iter().any(|i| i.name == n);
-        if !taken(name) {
-            return name.to_string();
-        }
-        let (stem, ext) = match name.rfind('.') {
-            Some(i) if i > 0 => (&name[..i], &name[i..]),
-            _ => (name, ""),
-        };
-        (2..1000)
-            .map(|n| format!("{stem}-{n}{ext}"))
-            .find(|n| !taken(n))
-            .unwrap_or_else(|| name.to_string())
     }
 
     fn open_qr(&mut self, view: Result<QrView, String>) {

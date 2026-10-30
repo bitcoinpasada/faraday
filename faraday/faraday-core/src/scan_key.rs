@@ -54,6 +54,9 @@ pub(crate) struct Camera {
     change: Option<String>,
     /// Files made of codes read, for their names.
     scanned: u32,
+    /// A TOTP setup code the read card carries through **Unlock {vault}**
+    /// (`docs/SCANNING.md` §5.3), wiped once Unlock is left.
+    carried: Option<zeroize::Zeroizing<String>>,
 }
 
 impl Camera {
@@ -77,6 +80,16 @@ impl Camera {
     /// Drops the scan sheet's state.
     pub(crate) fn close(&mut self) {
         self.scan = None;
+    }
+
+    /// Keeps `text` through an unlock.
+    pub(crate) fn carry(&mut self, text: zeroize::Zeroizing<String>) {
+        self.carried = Some(text);
+    }
+
+    /// The code carried, once.
+    pub(crate) fn take_carried(&mut self) -> Option<zeroize::Zeroizing<String>> {
+        self.carried.take()
     }
 
     /// Takes the scan sheet's state out, as closing it.
@@ -365,7 +378,7 @@ impl Faraday {
 }
 
 impl Faraday {
-    /// Handles the scan sheet's actions (`ScanPaste`, `ScanCamera`, `ScanPart`, `ScanSeed`, `ScanKey`, `Scan`), and Paste words.
+    /// Handles the scan sheet's actions (`ScanPaste`, `ScanCamera`, `ScanPart`, `ScanSeed`, `ScanKey`, `Scan`, `ScanFor`), the read card's (`ReadGo`, `ReadAgain`), and Paste words.
     pub(crate) fn scan_act(&mut self, action: Action) {
         match action {
             Action::ScanPaste => self.scan_paste(),
@@ -405,8 +418,13 @@ impl Faraday {
                     self.out.commands.push_back(Command::CameraOn);
                 }
             }
-            Action::Scan => {
+            Action::ReadGo(i) => self.read_go(usize::from(i)),
+            Action::ReadAgain => self.read_again(),
+            Action::Scan | Action::ScanFor(_) => {
                 let mut scan = ScanState::default();
+                if let Action::ScanFor(ask) = action {
+                    scan.ask = ask;
+                }
                 if let Some((decoder, assembler)) = self.camera.take_parts() {
                     scan.decoder = decoder;
                     scan.assembler = assembler;
@@ -903,6 +921,60 @@ impl Faraday {
         }
     }
 
+    /// The camera gives no picture, and the shell said so: the sheet stays
+    /// with the reason in its square and its other ways in live
+    /// (`docs/QR.md` §8 item 6).
+    pub(crate) fn camera_failed(&mut self, why: crate::NoPicture) {
+        if let Some(s) = self.camera.scan_mut() {
+            s.no_picture = Some(why);
+            s.waiting_since = None;
+        }
+        self.release_held_stick();
+    }
+
+    /// The scanner's clock, on each tick: the camera that sends no
+    /// picture, and "Nothing to paste" running out. Whether the sheet
+    /// changed.
+    pub(crate) fn scan_tick(&mut self, now_ms: u64) -> bool {
+        let Some(s) = self.camera.scan_mut() else {
+            return false;
+        };
+        let mut changed = false;
+        if s.nothing_to_paste.is_some_and(|until| now_ms >= until) {
+            s.nothing_to_paste = None;
+            changed = true;
+        }
+        if self.sheet == Some(Sheet::Scan) && s.frame.is_none() && s.no_picture.is_none() {
+            match s.waiting_since {
+                None => s.waiting_since = Some(now_ms),
+                Some(since)
+                    if now_ms.saturating_sub(since) >= faraday_draw::tokens::NO_PICTURE_MS =>
+                {
+                    s.no_picture = Some(crate::NoPicture::Silent);
+                    changed = true;
+                }
+                Some(_) => {}
+            }
+        }
+        changed
+    }
+
+    /// `name`, or `stem-2.ext`, … when the Inbox has it.
+    pub(crate) fn free_inbox_name(&self, name: &str) -> String {
+        let taken = |n: &str| self.inbox.iter().any(|i| i.name == n);
+        if !taken(name) {
+            return name.to_string();
+        }
+        let (stem, ext) = match name.rfind('.') {
+            Some(i) if i > 0 => (&name[..i], &name[i..]),
+            _ => (name, ""),
+        };
+        (2..1000)
+            .map(|n| format!("{stem}-{n}{ext}"))
+            .find(|n| !taken(n))
+            .unwrap_or_else(|| name.to_string())
+    }
+
     /// The scanner's line says `why`; the camera stays on.
     pub(crate) fn scan_say(&mut self, why: String) {
         if let Some(scan) = self.camera.scan_mut() {
@@ -917,17 +989,27 @@ impl Faraday {
         self.out.commands.push_back(Command::CameraOff);
     }
 
-    /// Costs what [`scan_read::secret_kind`] costs, and a code read as a
-    /// file (`read_code`). A code the scanner on screen does not take:
-    /// named on its line by what it is (`docs/SCANNING.md` §4.1), the
-    /// code wiped; a transfer in parts is put together first.
+    /// Costs what [`scan_read::secret_kind`] costs, a code read as a file
+    /// (`read_code`) and the card's facts ([`Faraday::read_card`]). A code
+    /// the scanner on screen does not take: the camera goes off and the
+    /// read card shows what it is, with the way over to the flow that
+    /// takes it or none (`docs/SCANNING.md` §4.1, §5); a transfer in parts
+    /// is put together first.
     pub(crate) fn scan_not_taken(&mut self, bytes: zeroize::Zeroizing<Vec<u8>>) {
         let c = self.compute();
         if let Some(kind) = scan_read::secret_kind(&c, &bytes) {
-            drop(bytes);
-            return self.scan_say(kind.not_here());
+            return self.read_card_show(&c, kind, (None, "txt", bytes));
         }
-        let Some((named, _, data)) = self.read_code(bytes) else {
+        // An address is checked against the loaded wallets: that is the
+        // card's fact.
+        let text = zeroize::Zeroizing::new(String::from_utf8_lossy(&bytes).trim().to_string());
+        if let Some(said) = self.address_note(&c, &text) {
+            let mut card = self.read_card(&c, scan_read::Kind::Address, (None, "txt", bytes));
+            card.facts.push(said);
+            return self.read_card_put(card);
+        }
+        drop(text);
+        let Some((named, ext, data)) = self.read_code(bytes) else {
             return;
         };
         let data = zeroize::Zeroizing::new(data);
@@ -936,7 +1018,310 @@ impl Faraday {
             named.is_some(),
             &String::from_utf8_lossy(&data),
         );
-        self.scan_say(kind.not_here());
+        self.read_card_show(&c, kind, (named, ext, data));
+    }
+
+    /// Costs what [`Faraday::read_card`] costs. The read card for `code`,
+    /// read as `kind`, in place of the camera's picture.
+    pub(crate) fn read_card_show(
+        &mut self,
+        c: &Compute,
+        kind: Kind,
+        code: (Option<String>, &'static str, zeroize::Zeroizing<Vec<u8>>),
+    ) {
+        let card = self.read_card(c, kind, code);
+        self.read_card_put(card);
+    }
+
+    /// The card shows; the camera goes off, its picture wiped.
+    fn read_card_put(&mut self, card: scan_read::ReadCard) {
+        if let Some(scan) = self.camera.scan_mut() {
+            scan.card = Some(card);
+            scan.note = None;
+            scan.frame = None;
+            scan.chroma = None;
+            scan.seen = None;
+            self.out.commands.push_back(Command::CameraOff);
+        }
+    }
+
+    /// Whether the scanner on screen shows the read card for a kind it
+    /// does not take (`docs/SCANNING.md` §4.3): every scanner for one
+    /// thing, and a scanner for anything opened by a flow that asks for
+    /// one kind; not Home's Scan and those that take every kind as it
+    /// does, nor What do you have?, the copy checks, Transfer's Receive
+    /// or a GPG restore's. A lookup.
+    pub(crate) fn read_card_here(&self) -> bool {
+        self.sheet == Some(Sheet::Scan)
+            && self.camera.scan().is_some_and(|s| match s.purpose {
+                ScanPurpose::Seed
+                | ScanPurpose::KeyPart
+                | ScanPurpose::WalletKey(_)
+                | ScanPurpose::VaultEntry => true,
+                ScanPurpose::Files => !s.ask.takes_all(),
+                _ => false,
+            })
+    }
+
+    /// Costs a key's fingerprint for a seed (a PBKDF2, or a codex32
+    /// recovery), a share's parse, a PSBT read and the wallet it spends
+    /// from (a script derivation), a wallet description's read. The read
+    /// card for `code`, read as `kind`: its facts and its ways over,
+    /// worked out once here (`docs/SCANNING.md` §5.2), never a secret's
+    /// value.
+    pub(crate) fn read_card(
+        &self,
+        c: &Compute,
+        kind: Kind,
+        (named, ext, code): (Option<String>, &'static str, zeroize::Zeroizing<Vec<u8>>),
+    ) -> scan_read::ReadCard {
+        use scan_read::Way;
+        let text = zeroize::Zeroizing::new(String::from_utf8_lossy(&code).trim().to_string());
+        let mut facts = Vec::new();
+        let mut not_kept = false;
+        let ways = match kind {
+            k if k.seed() => {
+                facts.extend(self.read_key_fact(c, k, &code, &text));
+                vec![Way::Key]
+            }
+            Kind::Codex32Share | Kind::Slip39Share => {
+                facts.extend(scan_read::share_fact(&text));
+                vec![Way::Share]
+            }
+            Kind::Wif => vec![Way::Sweep],
+            Kind::Totp | Kind::Entries => {
+                if let Some((issuer, account)) = faraday_vault::entries::otpauth_names(&text) {
+                    facts.push(fill(EN.read_totp_fact, &[&issuer, &account]));
+                }
+                let way = self.read_vault_way();
+                not_kept = way == Way::MakeVault;
+                vec![way]
+            }
+            Kind::Psbt => {
+                facts.extend(self.read_psbt_fact(c, &code));
+                vec![if self.read_same_spend(c, &code) {
+                    Way::Collect
+                } else {
+                    Way::Sign
+                }]
+            }
+            Kind::Transaction => vec![Way::Decode],
+            Kind::Wallet => {
+                facts.extend(read_wallet_fact(c, &text));
+                vec![Way::Wallet]
+            }
+            Kind::SplitSheets => vec![Way::Restore],
+            Kind::AccountKey => {
+                facts.extend(scan_read::account_fact(&text));
+                vec![Way::Keep]
+            }
+            Kind::Message => vec![Way::Check],
+            Kind::Gpg | Kind::File => vec![Way::Keep],
+            Kind::Text if self.vaults.current_id().is_some() => vec![Way::Keep, Way::Note],
+            Kind::Text => vec![Way::Keep],
+            _ => Vec::new(),
+        };
+        drop(text);
+        scan_read::ReadCard {
+            kind,
+            facts,
+            ways,
+            not_kept,
+            code,
+            named,
+            ext,
+        }
+    }
+
+    /// Costs a PBKDF2 (a BIP-39 seed's key) or a codex32 recovery and a
+    /// key derivation. "Key 73c5da0a": the key a seed read makes with no
+    /// passphrase, as the seed sheet shows it.
+    fn read_key_fact(&self, c: &Compute, kind: Kind, code: &[u8], text: &str) -> Option<String> {
+        let fp = if kind == Kind::Codex32Secret {
+            let s = faraday_bip::codex32::Codex32::parse(text).ok()?;
+            let seed = faraday_keys::codex32_seed(&[s]).ok()?;
+            faraday_keys::identity::fingerprint_of_seed(c, &seed)?
+        } else {
+            let words = seed_in_code(c, code)?;
+            key_of(c, &words, "")?
+        };
+        Some(fill(EN.read_key_fact, &[&fp_text(fp)]))
+    }
+
+    /// Costs a PSBT read and the wallet it spends from (a script
+    /// derivation). "2 inputs · Savings": a PSBT's inputs, and the loaded
+    /// wallet it spends from when one does.
+    fn read_psbt_fact(&self, c: &Compute, code: &[u8]) -> Option<String> {
+        let p = crate::wallet::read_psbt(c, code)?;
+        let n = p.unsigned_tx().input.len();
+        let inputs = if n == 1 {
+            EN.read_psbt_input.to_string()
+        } else {
+            fill(EN.read_psbt_inputs, &[&n.to_string()])
+        };
+        Some(match self.session.wallet_for(c, &p) {
+            Some(w) => fill(EN.read_psbt_fact, &[&inputs, &self.session.wallets[w].name]),
+            None => inputs,
+        })
+    }
+
+    /// Costs a PSBT read. Whether a PSBT read is one of the spend under
+    /// way, whose signatures it adds to.
+    fn read_same_spend(&self, c: &Compute, code: &[u8]) -> bool {
+        let Some(p) = crate::wallet::read_psbt(c, code) else {
+            return false;
+        };
+        self.wallets.spend().is_some_and(|s| {
+            s.spend.psbt.unsigned_tx().compute_txid() == p.unsigned_tx().compute_txid()
+        })
+    }
+
+    /// The way over for a TOTP setup code or vault entries: into the
+    /// open vault; with a vault in Files and none open, unlocking it
+    /// first; with none, making one. A lookup.
+    fn read_vault_way(&self) -> scan_read::Way {
+        use scan_read::Way;
+        let files = self.vault_files();
+        if self.vaults.current_id().is_some()
+            && let Some(f) = files.iter().find(|f| f.open.is_some())
+        {
+            return Way::AddTo(crate::stem(&f.name));
+        }
+        match files.first() {
+            Some(f) => Way::Unlock(0, crate::stem(&f.name)),
+            None => Way::MakeVault,
+        }
+    }
+
+    /// The read card's way over `i` pressed (`docs/SCANNING.md` §5.3): the
+    /// code goes to the flow that takes it, and the card is gone. A way
+    /// that is dimmed does nothing.
+    fn read_go(&mut self, i: usize) {
+        use scan_read::Way;
+        let Some(scan) = self.camera.scan_mut() else {
+            return;
+        };
+        let Some(way) = scan.card.as_ref().and_then(|k| k.ways.get(i).cloned()) else {
+            return;
+        };
+        // A way that loads a key waits for the stick to be out.
+        if way.loads_a_key() && !self.may_load_keys() {
+            return;
+        }
+        let Some(card) = self.camera.scan_mut().and_then(|s| s.card.take()) else {
+            return;
+        };
+        let scan_read::ReadCard {
+            kind,
+            code,
+            named,
+            ext,
+            ..
+        } = card;
+        let text = zeroize::Zeroizing::new(String::from_utf8_lossy(&code).trim().to_string());
+        match way {
+            Way::Key if kind == Kind::Codex32Secret => {
+                self.intake_key_part(&code);
+            }
+            Way::Key => {
+                let c = self.compute();
+                self.scan_close();
+                if let Some(words) = seed_in_code(&c, &code) {
+                    drop(code);
+                    self.act(Action::Entry(None));
+                    self.seed_scanned(&words);
+                }
+            }
+            Way::Share => {
+                self.intake_key_part(&code);
+            }
+            Way::Sweep => {
+                self.sweep_from_card(&text);
+                if self.sheet == Some(Sheet::Scan) {
+                    self.out.commands.push_back(Command::CameraOn);
+                }
+            }
+            Way::AddTo(_) => {
+                self.scan_close();
+                if let Err(why) = self.vault_scanned_entry(&text) {
+                    self.toast(&why);
+                }
+            }
+            Way::Unlock(v, _) => {
+                self.scan_close();
+                self.camera.carry(text);
+                self.act(Action::Vault(crate::vault::VaultAction::Open(v)));
+            }
+            Way::MakeVault => {
+                drop(code);
+                self.scan_close();
+                self.act(Action::Vault(crate::vault::VaultAction::Create));
+            }
+            way => self.read_go_file(way, named, ext, code),
+        }
+    }
+
+    /// Costs a file's classification and what the flow it opens costs. A
+    /// public kind's way over: the code is filed (the same file again is
+    /// the one already in Files), then its flow opens on it.
+    fn read_go_file(
+        &mut self,
+        way: scan_read::Way,
+        named: Option<String>,
+        ext: &str,
+        code: zeroize::Zeroizing<Vec<u8>>,
+    ) {
+        use scan_read::Way;
+        let c = self.compute();
+        let number = self.camera.next_number();
+        let name = match named {
+            Some(n) => self.free_inbox_name(&n),
+            None => format!("scanned-{number}.{ext}"),
+        };
+        let at = self.inbox_file_in(crate::Item::new(&c, &name, code.to_vec()));
+        drop(code);
+        let name = self.inbox[at].name.clone();
+        self.scan_close();
+        match way {
+            Way::Sign => self.act(Action::StartSpend(at)),
+            Way::Collect => self.act(Action::Collect(at)),
+            Way::Decode => self.act(Action::DecodeInbox(at)),
+            Way::Wallet => self.act(Action::LoadWallet(at)),
+            Way::Restore => self.act(Action::RestoreShares),
+            Way::Check => self.act(Action::CheckMessage(at)),
+            Way::Note => self.act(Action::Vault(crate::vault::VaultAction::AddFile(at))),
+            _ => self.toast(&fill(EN.scanned_is_in_files, &[&name])),
+        }
+    }
+
+    /// The read card's Scan again: the code is wiped and the camera turns
+    /// back on in the same scanner.
+    fn read_again(&mut self) {
+        if let Some(scan) = self.camera.scan_mut()
+            && scan.card.take().is_some()
+        {
+            scan.note = None;
+            self.out.commands.push_back(Command::CameraOn);
+        }
+    }
+
+    /// A TOTP setup code carried through **Unlock {vault}**: once the vault
+    /// opens, its new entry's form opens filled (`docs/SCANNING.md` §5.3).
+    pub(crate) fn read_carried_land(&mut self) {
+        if let Some(text) = self.camera.take_carried() {
+            self.sheet = None;
+            if let Err(why) = self.vault_scanned_entry(&text) {
+                self.toast(&why);
+            }
+        }
+    }
+
+    /// The code carried through **Unlock {vault}** lives only while Unlock
+    /// is on screen: anywhere else, it is wiped. Run after every press.
+    pub(crate) fn read_carried_tidy(&mut self) {
+        if self.screen != crate::Screen::Unlock {
+            drop(self.camera.take_carried());
+        }
     }
 
     /// Costs what adding entries to a vault costs. A code read by a
@@ -1092,6 +1477,13 @@ impl Faraday {
                 return self.scan_say(kind.not_here());
             }
         }
+        // A scanner a flow opened for one kind shows the card for a
+        // secret (`docs/SCANNING.md` §4.5).
+        if self.read_card_here()
+            && let Some(kind) = scan_read::secret_kind(&c, &bytes)
+        {
+            return self.read_card_show(&c, kind, (None, "txt", bytes));
+        }
         // A part of a key goes to Add a key's form, never Files (F167).
         if self.scan_part_routed(&bytes) {
             return;
@@ -1111,6 +1503,19 @@ impl Faraday {
         let Some((named, ext, data)) = self.read_code(bytes) else {
             return;
         };
+        // What the flow that opened it does not take, it hands over.
+        if self.read_card_here() {
+            let ask = self.camera.scan().map_or(crate::Ask::Any, |s| s.ask);
+            let kind = scan_read::public_kind(
+                crate::wallet::classify(&c, "", &data),
+                named.is_some(),
+                &String::from_utf8_lossy(&data),
+            );
+            if !scan_read::asked(ask, kind) {
+                let data = zeroize::Zeroizing::new(data);
+                return self.read_card_show(&c, kind, (named, ext, data));
+            }
+        }
         self.file_scanned(&c, named, ext, data, intake);
     }
 
@@ -1332,4 +1737,17 @@ impl Faraday {
         };
         Some((named, ext, data))
     }
+}
+
+/// Costs a wallet description's read. "2 of 3 · Native SegWit": a wallet
+/// description's shape, as its card says it.
+fn read_wallet_fact(c: &Compute, text: &str) -> Option<String> {
+    let policy = crate::wallet::read_wallet(c, text).ok()?;
+    let w = crate::wallet::Wallet::new(
+        String::new(),
+        policy,
+        String::new(),
+        crate::wallet::Origin::Named,
+    );
+    Some(crate::wallet::Session::shape(&w))
 }

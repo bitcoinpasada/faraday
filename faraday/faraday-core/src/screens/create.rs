@@ -484,7 +484,7 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                         row.push((
                             EN.create_scan_its_xpub.to_string(),
                             Style::Secondary,
-                            Action::Scan,
+                            Action::ScanFor(crate::Ask::Xpub(slot as u8 + 1)),
                         ));
                     }
                     if c.kind.multi() && *src == Source::Empty {

@@ -1298,7 +1298,11 @@ pub(crate) fn step_body(
                     BUTTON_H,
                     &[
                         (EN.step_show_as_qr, Style::Secondary, Action::QrPart),
-                        (EN.step_scan_a_copy, Style::Secondary, Action::Scan),
+                        (
+                            EN.step_scan_a_copy,
+                            Style::Secondary,
+                            Action::ScanFor(crate::Ask::SpendPsbt),
+                        ),
                     ],
                 );
             } else {

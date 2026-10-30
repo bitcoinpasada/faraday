@@ -109,7 +109,7 @@ fn on_card(name: &str) -> (Faraday, usize) {
 
 /// The PSBT Sparrow shows, scanned on the camera.
 fn scan_psbt(app: &mut Faraday, psbt: &[u8]) {
-    app.press(Action::Scan);
+    app.press(Action::ScanFor(faraday_core::Ask::SpendPsbt));
     for part in faraday_qr::bbqr::encode('P', psbt, 60).unwrap() {
         app.event(Event::Scanned {
             bytes: part.into_bytes(),
@@ -168,7 +168,7 @@ fn the_shortcut_scans_the_psbt_from_sparrow_and_opens_its_review() {
         text.contains("I have the PSBT from Sparrow ready: Scan it"),
         "{text}"
     );
-    assert!(app.offers(Action::Scan));
+    assert!(app.offers(Action::ScanFor(faraday_core::Ask::SpendPsbt)));
     let psbt = testkit::unsigned(&kit("spending")).unwrap().to_bytes();
     scan_psbt(&mut app, &psbt);
     assert_eq!(app.screen, Screen::Family);

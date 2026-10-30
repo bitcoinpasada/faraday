@@ -480,8 +480,9 @@ Scan takes pasted is what it takes scanned (F75). Add a key's **Scan a
 SeedQR** takes a seed, a codex32 string and a SLIP-39 share (each to its
 form), and a form's **Scan** its own part, the other share form's (onto
 that form) and a whole seed (to the seed sheet); either names anything
-else by what it is, "A transaction to sign · not used here"
-(`docs/SCANNING.md` §4). The
+else by what it is on the read card, with the way over to the flow that
+takes it ("A transaction to sign", **Sign it**; `docs/SCANNING.md` §4,
+§5). The
 Wallets tab carries **Add a key** last among its ways in, "Keys first,
 wallets later".
 A key added with no wallet loaded lands on Wallets, whose card says
@@ -1132,8 +1133,8 @@ guarantees for this file's rule:
   wallet closes the camera and opens the passphrase sheet (SeedQR read)
   with "{fp} is not one of {wallet}'s keys", which takes only a
   passphrase giving a missing key and refuses another with the same
-  line; anything else is named by what it is, as Scan a SeedQR names it ("A
-  wallet description · not used here"). **Type the
+  line; anything else shows on the read card, as at Scan a SeedQR ("A wallet
+  description", **Load the wallet**). **Type the
   words instead** opens "Add a key for {wallet}", which refuses words of
   no missing key with "These words give {fp}, not a key of {wallet}". A
   key loads under its holder's name where the plan keeps one, else none;

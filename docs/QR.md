@@ -114,6 +114,22 @@ its form as it takes a codex32 string; a form's **Scan** takes the other
 share form's part onto that form and a whole seed to the seed sheet, and
 keeps its parser's line for a code that starts as its own part does.
 
+Those scanners, and a scanner for anything opened by a flow that asks
+for one kind (Restore's **Scan it**, Create's **Scan its xpub**, the
+seeds card's **Scan**, Spend's **Scan a copy**, the Spend tab's **Scan
+it** and **Scan the PSBT**), show the read card in place of the picture
+for a kind they do not take (`docs/SCANNING.md` §5): what it is, which
+one, and the way over to the flow that takes it, which receives what
+was read: **Add this key** (the seed sheet), **Add this share** (its
+form), **Sweep a private key**, **Add to {vault}**, **Unlock {vault}**
+(the code carried through the unlock, the entry's form opened filled
+once the vault is open, wiped once Unlock is left) or **Make a vault**
+(the code not kept), **Sign it**, **Add to the signatures**, **Decode
+it**, **Load the wallet**, **Restore the wallet**, **Check the
+signature**, **Save as a note**, **Keep in Files**. Tools' **Sign a
+transaction**, **Decode a transaction** and **Check an address** take
+every kind as Home's Scan does.
+
 ## 3. Limits
 
 From Faraday, which fails closed on each: 256 KiB file, 360 KiB envelope or

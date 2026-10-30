@@ -199,8 +199,11 @@ pub(crate) fn cosigner(
                     .iter()
                     .map(|(_, n)| fill(EN.seeds_use, &[n]))
                     .collect();
-                let mut items: Vec<(&str, Style, Action)> =
-                    vec![(EN.seeds_scan, Style::Secondary, Action::Scan)];
+                let mut items: Vec<(&str, Style, Action)> = vec![(
+                    EN.seeds_scan,
+                    Style::Secondary,
+                    Action::ScanFor(crate::Ask::Cosigner),
+                )];
                 for ((i, _), l) in files.iter().zip(&labels) {
                     items.push((l.as_str(), Style::Secondary, sa(S::UseFile(*i))));
                 }

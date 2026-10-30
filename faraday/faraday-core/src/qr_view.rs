@@ -107,6 +107,45 @@ pub struct ScanState {
     /// read (`now_ms`): reset by a read, by a QR too fine, and by the QR
     /// leaving the view (`docs/QR.md` §8 item 8).
     pub unread_since: Option<u64>,
+    /// What a scanner for anything was opened to read (`docs/SCANNING.md`
+    /// §7.1): its title, and what it takes itself.
+    pub ask: Ask,
+    /// The read card shown in place of the picture, with the code it
+    /// holds, while the camera is off (`docs/SCANNING.md` §5).
+    pub card: Option<crate::scan_read::ReadCard>,
+}
+
+/// What a scanner for anything ([`ScanPurpose::Files`]) was opened to
+/// read, by its opener (`docs/SCANNING.md` §7.1).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum Ask {
+    /// Anything: Home's Scan, Files' and Tools' Scan a QR code.
+    #[default]
+    Any,
+    /// A wallet's description: Restore's Scan it and Scan descriptor.
+    Description,
+    /// Key n's xpub (from 1), for Create's key slot.
+    Xpub(u8),
+    /// A cosigner's key, for Restore's seeds card.
+    Cosigner,
+    /// The PSBT of the spend under way: Spend's Scan a copy, the Spend
+    /// tab's Scan it and Scan the PSBT.
+    SpendPsbt,
+    /// A PSBT to sign: Tools' Sign a transaction.
+    Sign,
+    /// A transaction to decode: Tools' Decode a transaction.
+    Decode,
+    /// An address to check: Tools' Check an address.
+    Address,
+}
+
+impl Ask {
+    /// Whether the scanner takes every kind as Home's Scan does, titled
+    /// for what it asks (Tools' Sign, Decode, Check an address), rather
+    /// than handing over what its flow does not take.
+    pub fn takes_all(self) -> bool {
+        matches!(self, Ask::Any | Ask::Sign | Ask::Decode | Ask::Address)
+    }
 }
 
 impl ScanState {

@@ -1449,7 +1449,13 @@ fn shortcut(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     if app.sample_psbt_offered() {
         ui.demo_offer(EN.scan_sample_psbt, Action::SamplePsbt);
     }
-    let with_sample = |scan: &'static str| vec![(scan, Style::Secondary, Action::Scan)];
+    let with_sample = |scan: &'static str| {
+        vec![(
+            scan,
+            Style::Secondary,
+            Action::ScanFor(crate::Ask::SpendPsbt),
+        )]
+    };
     if ui.compact {
         // Too long for one button on a small panel: the line, then Scan it.
         let lh = ui.wrap_as(
@@ -1752,7 +1758,7 @@ fn bring(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         } else {
             Style::Primary
         },
-        Action::Scan,
+        Action::ScanFor(crate::Ask::SpendPsbt),
     );
     cy += 52.0;
     // Load sample PSBT goes in the "Demo only" card (`docs/DEMO.md` §14).

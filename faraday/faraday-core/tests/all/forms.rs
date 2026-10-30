@@ -190,13 +190,14 @@ fn a_codex32_string_and_a_slip39_share_can_be_scanned_instead_of_typed() {
         "a mixed-case string made a key"
     );
 
-    // Something that is no share says so, and the camera stays open.
+    // Something that is no share is named on the read card, the
+    // scanner still open (`docs/SCANNING.md` §5).
     let mut app = adding(1);
     app.press(Action::ScanPart);
     app.event(Event::Scanned {
         bytes: b"hello".to_vec(),
     });
-    assert!(app.scan().is_some_and(|s| s.note.is_some()));
+    assert!(app.scan().is_some_and(|s| s.card.is_some()));
 }
 
 #[test]

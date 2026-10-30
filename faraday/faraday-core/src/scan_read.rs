@@ -76,6 +76,28 @@ pub enum Kind {
 }
 
 impl Kind {
+    /// Whether the kind is a secret (DESIGN §4.10): never filed by a
+    /// scanner, never shown.
+    pub fn secret(self) -> bool {
+        matches!(
+            self,
+            Kind::SeedWords
+                | Kind::SeedQr
+                | Kind::CompactSeedQr
+                | Kind::Codex32Secret
+                | Kind::Codex32Share
+                | Kind::Slip39Share
+                | Kind::BadChecksum
+                | Kind::Wif
+                | Kind::Xprv
+                | Kind::UrSeed
+                | Kind::Nostr
+                | Kind::Paperkey
+                | Kind::Totp
+                | Kind::Entries
+        )
+    }
+
     /// Whether the kind is a whole seed a scanner that loads one takes.
     pub fn seed(self) -> bool {
         matches!(
@@ -272,5 +294,139 @@ fn text_kind(text: &str, printable: bool) -> Kind {
         Kind::Text
     } else {
         Kind::Unreadable
+    }
+}
+
+/// A way over from the read card to the flow that takes what was read
+/// (`docs/SCANNING.md` §4.2, §7.3).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Way {
+    /// A seed to the seed sheet; a codex32 secret to its form, loaded.
+    Key,
+    /// A codex32 or SLIP-39 share to its form.
+    Share,
+    /// A WIF private key to the Sweep sheet.
+    Sweep,
+    /// A TOTP setup code or vault entries into the open vault, named.
+    AddTo(String),
+    /// Vault file n unlocked first, named; the code carried through.
+    Unlock(usize, String),
+    /// Create a vault, the code not kept.
+    MakeVault,
+    /// A PSBT filed, and its spend.
+    Sign,
+    /// A PSBT of the spend under way, its signatures collected.
+    Collect,
+    /// A finished transaction filed, and decoded.
+    Decode,
+    /// A wallet description filed, and loaded.
+    Wallet,
+    /// Split sheets filed, and the wallet restored from them.
+    Restore,
+    /// A signed message filed, and checked.
+    Check,
+    /// Text into the open vault as a note.
+    Note,
+    /// A public kind filed.
+    Keep,
+}
+
+impl Way {
+    /// Its button's label.
+    pub fn label(&self) -> String {
+        match self {
+            Way::Key => EN.read_go_key.to_string(),
+            Way::Share => EN.read_go_share.to_string(),
+            Way::Sweep => EN.catalog_sweep_key.to_string(),
+            Way::AddTo(v) => crate::strings::fill(EN.read_go_vault, &[v]),
+            Way::Unlock(_, v) => crate::strings::fill(EN.read_go_unlock, &[v]),
+            Way::MakeVault => EN.read_go_make_vault.to_string(),
+            Way::Sign => EN.read_go_sign.to_string(),
+            Way::Collect => EN.read_go_collect.to_string(),
+            Way::Decode => EN.read_go_decode.to_string(),
+            Way::Wallet => EN.read_go_wallet.to_string(),
+            Way::Restore => EN.read_go_restore.to_string(),
+            Way::Check => EN.read_go_check.to_string(),
+            Way::Note => EN.read_go_note.to_string(),
+            Way::Keep => EN.read_keep.to_string(),
+        }
+    }
+
+    /// Whether it loads a key, and so waits for no stick.
+    pub fn loads_a_key(&self) -> bool {
+        matches!(self, Way::Key | Way::Share | Way::Sweep)
+    }
+}
+
+/// The read card (`docs/SCANNING.md` §5): what a scanner read that it
+/// hands over or names, shown in place of the camera's picture. What it
+/// says is worked out once, at the read, and drawing reads it; the code
+/// is kept here, in memory wiped when the card goes, until a way over
+/// takes it.
+pub struct ReadCard {
+    /// What was read.
+    pub kind: Kind,
+    /// The lines that say which one it is, never a secret's value.
+    pub facts: Vec<String>,
+    /// The ways over, the one filled last.
+    pub ways: Vec<Way>,
+    /// The code is not carried on ("Not kept · scan it again once the
+    /// vault is open").
+    pub not_kept: bool,
+    /// The code read: kept until a way over takes it.
+    pub(crate) code: zeroize::Zeroizing<Vec<u8>>,
+    /// A transfer in parts' name when it brought one, and its extension.
+    pub(crate) named: Option<String>,
+    /// Its extension, for the file a public kind is filed as.
+    pub(crate) ext: &'static str,
+}
+
+/// Costs a codex32 or a SLIP-39 parse. "Share C of NAME · 2 needed":
+/// which share of which set a share read is, and how many make the key.
+pub(crate) fn share_fact(text: &str) -> Option<String> {
+    use crate::strings::fill;
+    if let Ok(s) = faraday_bip::codex32::Codex32::parse(text) {
+        let id = String::from_utf8_lossy(&s.identifier()).to_uppercase();
+        let index = char::from(s.share_index()).to_ascii_uppercase().to_string();
+        return Some(fill(
+            EN.read_share_fact,
+            &[&index, &id, &s.threshold().to_string()],
+        ));
+    }
+    let lower = zeroize::Zeroizing::new(text.to_lowercase());
+    let s = faraday_bip::slip39::Share::parse(&lower).ok()?;
+    Some(fill(
+        EN.read_share_fact,
+        &[
+            &(u16::from(s.member_index()) + 1).to_string(),
+            &s.identifier().to_string(),
+            &s.member_threshold().to_string(),
+        ],
+    ))
+}
+
+/// "73c5da0a · m/48h/1h/0h/2h": an account key's master and path. A
+/// read of the key's text.
+pub(crate) fn account_fact(text: &str) -> Option<String> {
+    let key = crate::create::read_key(text)?;
+    let origin = key.strip_prefix('[')?.split(']').next()?;
+    Some(match origin.split_once('/') {
+        Some((fp, path)) => format!("{fp} · m/{path}"),
+        None => origin.to_string(),
+    })
+}
+
+/// Whether a scanner for anything opened for `ask` takes `kind` into its
+/// flow (`docs/SCANNING.md` §4.3): Restore's a wallet description, split
+/// sheets and an account key; Create's an account key or a descriptor of
+/// one; the seeds card's an account key; a spend's its PSBT. A lookup.
+pub fn asked(ask: crate::Ask, kind: Kind) -> bool {
+    use crate::Ask;
+    match ask {
+        Ask::Description => matches!(kind, Kind::Wallet | Kind::SplitSheets | Kind::AccountKey),
+        Ask::Xpub(_) => matches!(kind, Kind::AccountKey | Kind::Wallet),
+        Ask::Cosigner => kind == Kind::AccountKey,
+        Ask::SpendPsbt => kind == Kind::Psbt,
+        Ask::Any | Ask::Sign | Ask::Decode | Ask::Address => true,
     }
 }

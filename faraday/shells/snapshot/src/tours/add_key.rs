@@ -3,10 +3,13 @@
 use crate::tour::{Tour, type_text};
 use faraday_core::testkit;
 use faraday_core::{Action, Screen};
+use faraday_shell_api::App;
 
 /// Add a key, which is New key opening on Start (`docs/history/NEW-WALLET.md`
 /// §15): the Start card, its Other forms, the Words card typed, the Key
-/// card for words typed, locked in; then the codex32 tile's Words card.
+/// card for words typed, locked in; then the codex32 tile's Words card;
+/// then a PSBT read at Add a key's Scan a SeedQR, on the read card
+/// (`docs/SCANNING.md` §5).
 pub(crate) fn add_key_tour(t: &mut Tour) -> Result<(), String> {
     use faraday_core::keygen::Start;
     t.press(Action::Nav(Screen::WalletsStart));
@@ -35,5 +38,16 @@ pub(crate) fn add_key_tour(t: &mut Tour) -> Result<(), String> {
         .position(|tile| tile.name == "codex32")
         .ok_or("no codex32 tile")?;
     t.press(Action::Catalog(codex32 as u8));
-    t.shot("addkey-codex32")
+    t.shot("addkey-codex32")?;
+    t.press(Action::Entry(None));
+    t.press(Action::ScanSeed);
+    let kit = testkit::kits()
+        .into_iter()
+        .find(|k| k.id == "spending")
+        .ok_or("no spending kit")?;
+    let psbt = testkit::unsigned(&kit)?.to_bytes();
+    t.app
+        .event(faraday_shell_api::Event::Scanned { bytes: psbt });
+    t.pump();
+    t.shot("addkey-scan-card")
 }
