@@ -109,8 +109,8 @@ card is open, the file's transaction first.
   read there goes to that card, named "Scanned", and nowhere else: it
   is not put in Files and does not open Spend. Anything else read is
   refused with the scanner's own line, "Not a PSBT".
-- A PSBT version 2, or bytes that do not parse, is refused on the card
-  as Files refuses it today (`Psbt::parse_bytes`'s reason).
+- Bytes that do not parse as a PSBT, version 0 or version 2, are
+  refused on the card as Files refuses them (`wallet::read_psbt`).
 
 **Which is which.** The person says. One default: where exactly two
 PSBTs in Files share an unsigned transaction and one carries fewer

@@ -653,8 +653,10 @@ impl Faraday {
                     } else {
                         EN.act_psbt_for_the_next
                     };
-                    let bytes = s.spend.psbt.to_bytes();
-                    self.open_qr(QrView::psbt(c, title, &bytes));
+                    match s.spend.out_bytes() {
+                        Ok(bytes) => self.open_qr(QrView::psbt(c, title, &bytes)),
+                        Err(_) => self.toast(EN.spend_v2_not_written),
+                    }
                 }
             }
             Action::QrWallet(i) => {

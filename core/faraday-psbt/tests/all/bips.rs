@@ -357,3 +357,57 @@ fn untouched_fields_are_written_as_read_after_another_changes() {
     // And it reads back to the same PSBT.
     assert_eq!(Psbt::parse_bytes(&c, &written).unwrap(), psbt);
 }
+
+#[test]
+fn every_valid_version_0_vector_made_version_2_turns_back_into_its_bytes() {
+    let c = Compute::unchecked();
+    let mut done = 0;
+    for case in cases() {
+        if !matches!(case.expect.as_str(), "valid" | "signer-fails") || says_v2(&case.bytes) {
+            continue;
+        }
+        let v0 = Psbt::parse_bytes(&c, &case.bytes).unwrap();
+        // A transaction with no input has nothing to sign, and its
+        // serialisation reads as a SegWit marker, so `to_v0` refuses it.
+        if v0.unsigned_tx().input.is_empty() {
+            continue;
+        }
+        let v2 = PsbtV2::from_v0(&c, &v0);
+        let again = PsbtV2::parse_bytes(&c, &v2.to_bytes())
+            .unwrap_or_else(|e| panic!("BIP-{}: {}: {e}", case.bip, case.name));
+        assert_eq!(
+            &again.unsigned_tx().unwrap(),
+            v0.unsigned_tx(),
+            "{}",
+            case.name
+        );
+        let back = again
+            .to_v0(&c)
+            .unwrap_or_else(|e| panic!("BIP-{}: {}: {e}", case.bip, case.name));
+        assert_eq!(back, v0, "{}", case.name);
+        // Byte for byte where the unsigned transaction leads the global
+        // map and no version is written, as `bitcoin` writes a PSBT.
+        let global = &maps(&case.bytes, n_maps(&v0))[0];
+        if global[0].0 == [0x00] && !global.iter().any(|(k, _)| k == &[0xfb]) {
+            assert_eq!(back.to_bytes(), case.bytes, "{}", case.name);
+            done += 1;
+        }
+    }
+    assert!(done >= 15, "{done}");
+}
+
+#[test]
+fn a_signing_pass_brings_back_its_signatures_and_nothing_else() {
+    let c = Compute::unchecked();
+    let bytes = case("1 input, 2 output updated PSBTv2, with all PSBTv2 fields");
+    let mut v2 = PsbtV2::parse_bytes(&c, &bytes).unwrap();
+    let mut v0 = v2.to_v0(&c).unwrap();
+    let input = &mut v0.inner_mut().inputs[0];
+    input.final_script_sig = Some(faraday_psbt::bitcoin::ScriptBuf::from_bytes(vec![0x51]));
+    input.sighash_type = Some(faraday_psbt::bitcoin::psbt::PsbtSighashType::from_u32(0x83));
+    assert_eq!(v2.merge_signed(&v0), Ok(1));
+    let mut m = maps(&v2.to_bytes(), 3);
+    let added = m[1].pop().unwrap();
+    assert_eq!(added, (vec![0x07], vec![0x51]));
+    assert_eq!(write(&m), bytes, "nothing else changed");
+}

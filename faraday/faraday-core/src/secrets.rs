@@ -665,13 +665,13 @@ impl Faraday {
         &mut self,
         c: &faraday_crypto::work::Compute,
         index: usize,
-    ) -> Option<faraday_psbt::Psbt> {
+    ) -> Option<(faraday_psbt::Psbt, Option<faraday_psbt::v2::PsbtV2>)> {
         let item = self.inbox.get(index)?;
-        let Some(psbt) = crate::wallet::read_psbt(c, &item.bytes) else {
+        let Some(read) = crate::wallet::read_psbt_kept(c, &item.bytes) else {
             self.toast(EN.start_spend_not_a_psbt);
             return None;
         };
-        Some(psbt)
+        Some(read)
     }
 }
 

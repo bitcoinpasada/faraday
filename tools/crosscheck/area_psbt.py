@@ -29,6 +29,13 @@ refuses.
   HWI's `get_unsigned_tx`, and the version 0 PSBT it makes for the
   signer (`to_v0`) must read in Core as HWI's `convert_to_v0` written
   out by HWI reads in Core.
+- Version 0 to version 2: every version 0 PSBT Faraday reads, made
+  version 2 by Faraday (`PsbtV2::from_v0`) and by HWI (`convert_to_v2`),
+  compared map by map as sets of pairs, leaving out the pairs HWI
+  rewrites even without converting (its own writing of a field); and
+  Faraday's made version 0 again (`to_v0`), which must be the bytes read
+  where the unsigned transaction leads the global map, no
+  `PSBT_GLOBAL_VERSION` is written and the transaction has an input.
 
 Every PSBT of BIP-174's, BIP-370's and BIP-371's Test Vectors sections
 (`tools/vectors/psbt-bips/`) is read both ways, and the side that decides
@@ -174,6 +181,9 @@ def split(raw, n_in=None, n_out=None):
     return maps, n_in
 
 
+# Version 2 only (BIP-375): global, input and output field types, which
+# `to_v0` leaves out.
+BIP375_V2 = ({0x07, 0x08}, {0x1d, 0x1e}, {0x09, 0x0a})
 # Version 2 only (BIP-370): global, input and output field types.
 GLOBAL_V2 = {0x02, 0x03, 0x04, 0x05, 0x06}
 INPUT_V2 = {0x0e, 0x0f, 0x10, 0x11, 0x12}
@@ -359,10 +369,16 @@ class Psbt(Area):
         'random version 0 and 2 PSBTs with every field Faraday reads, taproot trees '
         'among them, in random order, read field for field as Core reads them and '
         'written back byte for byte as read and as Core writes them, then broken one '
-        "rule at a time; BIP-370's locktime, transaction and version 0 form under every "
-        'mix of required locktimes'
+        "rule at a time; each version 0 PSBT made version 2 as HWI's `convert_to_v2` "
+        "makes it and back to its own bytes; BIP-370's locktime, transaction and "
+        'version 0 form under every mix of required locktimes'
     )
     differences = [
+        (
+            "Version 0 made version 2: HWI's `convert_to_v2` leaves out the "
+            '`PSBT_OUT_SCRIPT` of an output whose script is empty, which BIP-370 '
+            'requires; Faraday writes it, and the rest of the PSBT must be the same.'
+        ),
         (
             'Bitcoin Core reads a version 0 PSBT with a version 2 field as valid, the field '
             'as unknown; Faraday refuses it, as BIP-370 does, and so does HWI, which '
@@ -459,6 +475,8 @@ class Psbt(Area):
                                {"core_reads_it": mine, "core_reads_faradays": theirs},
                                "Core reads Faraday's writing of the PSBT otherwise than "
                                "the PSBT itself")
+            self.judge_to_v2(raw, got, len(decoded[1]["tx"]["vin"]),
+                             len(decoded[1]["tx"]["vout"]))
             # Core's own writing of the PSBT, read and written back by
             # Faraday byte for byte.
             if written[0] != "ok":
@@ -474,6 +492,58 @@ class Psbt(Area):
         if expected is not None and decided[0] != expected:
             raise Mismatch(self.name, "psbt.v0", inputs, rust, decided,
                            f"differs from the published vector ({expected})")
+
+    def judge_to_v2(self, raw, got, n_in, n_out):
+        """Faraday's version 2 PSBT of a version 0 one (`PsbtV2::from_v0`)
+        against HWI's `convert_to_v2`, map by map as sets of pairs, and
+        Faraday's version 0 of that (`to_v0`) against the bytes read.
+        Where HWI does not write a pair of the PSBT back as read even
+        without converting it (its own reading of a field), that pair
+        and HWI's writing of it are left out of both sides; where HWI
+        does not read the PSBT, nothing is compared. HWI leaves out the
+        `PSBT_OUT_SCRIPT` of an output whose script is empty, which
+        BIP-370 requires; Faraday writes it, a known difference. Such an
+        output has no script to bridge to version 0 (`to_v0` takes an
+        empty script for one not yet given), so it is not turned back;
+        nor is a PSBT with a pair of a type BIP-375 defines for version
+        2 alone (`BIP375_V2`), which version 2 reads as that field and
+        `to_v0` leaves out."""
+        inputs = {"psbt": raw.hex()}
+        try:
+            p = hwi_read(raw)
+            h0 = split(base64.b64decode(p.serialize()), n_in, n_out)[0]
+            p.convert_to_v2()
+            h2 = split(base64.b64decode(p.serialize()))[0]
+        except Exception:  # noqa: BLE001 - HWI not reading it is no answer
+            return
+        ours = split(bytes.fromhex(got["v2"]))[0]
+        r0 = split(raw, n_in, n_out)[0]
+        self.compared += 1
+        empty_script = (b"\x04", b"")
+        for i, (o, h, a, b) in enumerate(zip(ours, h2, r0, h0)):
+            not_back, hwis = set(a) - set(b), set(b) - set(a)
+            left = (set(o) - not_back) ^ (set(h) - hwis)
+            if left == {empty_script} and i > n_in and empty_script in o:
+                self.known += 1
+                continue
+            if left:
+                raise Mismatch(self.name, "psbt.v0", inputs, ("ok", got["v2"]),
+                               ("ok", base64.b64decode(p.serialize()).hex()),
+                               f"the version 2 PSBT of it differs from HWI's in map {i}")
+        # Back to version 0, where the unsigned transaction leads and no
+        # version is written; not for a transaction of no input, whose
+        # serialisation reads as a SegWit marker and is not signed.
+        glob = r0[0]
+        empty = any(empty_script in m for m in ours[1 + n_in:])
+        bip375 = any(k[:1] and k[0] in BIP375_V2[min(i, 1) if i <= n_in else 2]
+                     for i, m in enumerate(r0) for k, _ in m)
+        if (n_in and not empty and not bip375 and glob and glob[0][0] == b"\x00"
+                and get(glob, 0xfb) is None):
+            if got["back"] != raw.hex():
+                raise Mismatch(self.name, "psbt.v0", inputs, ("ok", got["back"]),
+                               ("ok", raw.hex()),
+                               "its version 2 PSBT turned back to version 0 is not "
+                               "the bytes read")
 
     def judge_v2(self, raw, rust, hwi, core, expected):
         """`core`: Core's readings of Faraday's and HWI's version 0

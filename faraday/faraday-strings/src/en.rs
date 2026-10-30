@@ -3711,6 +3711,10 @@ strings! {
     // ----- start_spend (faraday-core/src/lib.rs) -----
     /// Toast in `start_spend`.
     start_spend_not_a_psbt: "Not a PSBT",
+    // ----- out_bytes (faraday-core/src/wallet/v2.rs) -----
+    /// Toast where a spend's version 2 PSBT cannot take its signatures
+    /// back (`Spend::out_bytes`).
+    spend_v2_not_written: "Not written: the signatures do not go into the version 2 PSBT",
     // ----- session_stage (faraday-core/src/lib.rs) -----
     /// Text in `session_stage`.
     session_stage_bring: "Bring in",

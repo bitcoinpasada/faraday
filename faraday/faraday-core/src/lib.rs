@@ -2457,22 +2457,23 @@ impl Faraday {
         self.out.commands.push_back(Command::Exit);
     }
 
-    /// Finish makes both results For the stick the moment the
-    /// transaction is finished: the signed PSBT and the finished
-    /// transaction. One the person removed is not made again unless they
-    /// ask.
+    /// Finish makes both results For the stick the moment the transaction is
+    /// finished: the signed PSBT and the finished transaction. One the person
+    /// removed is not made again unless they ask; neither is made where a
+    /// version 2 PSBT cannot take the signatures back (`Spend::out_bytes`).
     fn spend_files_out(&mut self) {
-        let Some(s) = self.wallets.spend_mut() else {
+        let spend = self.wallets.spend_mut();
+        let Some(s) = spend.filter(|s| s.spend.finished.is_some()) else {
             return;
         };
-        if s.spend.finished.is_none() {
-            return;
-        }
         let stem = result_stem(&s.spend.source);
         let mut made: Vec<(String, Vec<u8>)> = Vec::new();
         if !s.out_signed {
+            let Ok(bytes) = s.spend.out_bytes() else {
+                return self.toast(EN.spend_v2_not_written);
+            };
             s.out_signed = true;
-            made.push((format!("{stem}-signed.psbt"), s.spend.psbt.to_bytes()));
+            made.push((format!("{stem}-signed.psbt"), bytes));
         }
         if !s.out_tx
             && let Some(hex) = s.spend.finished_hex()
@@ -2488,14 +2489,13 @@ impl Faraday {
     /// The PSBT with what this pass added, For the stick for the other
     /// signers while more are needed.
     fn part_out(&mut self) {
-        let Some(s) = self.wallets.spend() else {
+        let Some(s) = self.wallets.spend().filter(|s| !s.complete) else {
             return;
         };
-        if s.complete {
-            return;
-        }
         let name = format!("{}-part.psbt", result_stem(&s.spend.source));
-        let bytes = s.spend.psbt.to_bytes();
+        let Ok(bytes) = s.spend.out_bytes() else {
+            return self.toast(EN.spend_v2_not_written);
+        };
         self.put_outbox(&name, bytes);
     }
 

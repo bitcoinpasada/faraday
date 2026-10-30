@@ -24,10 +24,17 @@ pub fn handle(name: &str, req: &Value) -> Answer {
             let p = Psbt::parse_bytes(&c, &bytes(req, "psbt")).map_err(err)?;
             // `canonical`: the PSBT as read, written by `bitcoin` (what
             // `to_bytes` writes for a field that changed), which Bitcoin
-            // Core must read as it reads the PSBT itself.
+            // Core must read as it reads the PSBT itself. `v2`: the
+            // version 2 PSBT of it (`PsbtV2::from_v0`), HWI's
+            // `convert_to_v2`'s to compare; `back`: that turned back to
+            // version 0 (`PsbtV2::to_v0`).
+            let v2 = PsbtV2::from_v0(&c, &p);
+            let back = v2.to_v0(&c).ok().map(|v| hex(&v.to_bytes()));
             Ok(json!({
                 "bytes": hex(&p.to_bytes()),
                 "canonical": hex(&p.inner().serialize()),
+                "v2": hex(&v2.to_bytes()),
+                "back": back,
                 "txid": p.unsigned_tx().compute_txid().to_string(),
             }))
         }

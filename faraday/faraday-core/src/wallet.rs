@@ -32,6 +32,8 @@ pub use faraday_keys::{WordsId, words_id};
 
 mod nonce;
 pub use nonce::{NonceCheck, NonceRow, Unmatched};
+mod v2;
+pub use v2::{read_psbt, read_psbt_kept};
 
 /// Costs a parse of the description and its keys: reads a wallet
 /// description with `faraday_intake`'s reader, which counts through the
@@ -1265,16 +1267,6 @@ pub fn collect_line(missing: usize, collected: usize) -> String {
     )
 }
 
-/// Costs a PSBT parse (through `parse_bytes` and `parse_base64`). Reads
-/// a PSBT from a file's bytes, binary or base64.
-pub fn read_psbt(c: &Compute, bytes: &[u8]) -> Option<Psbt> {
-    if let Ok(p) = Psbt::parse_bytes(c, bytes) {
-        return Some(p);
-    }
-    let text = std::str::from_utf8(bytes).ok()?;
-    Psbt::parse_base64(c, text.trim()).ok()
-}
-
 /// The most a plain text file may hold to be kept as a note.
 pub const TEXT_MAX: usize = 64 * 1024;
 
@@ -1420,6 +1412,10 @@ pub struct Spend {
     pub collected: Vec<(Fingerprint, String)>,
     /// The finished transaction, once there are enough signatures.
     pub finished: Option<Transaction>,
+    /// The PSBT as read when it came as version 2 (BIP-370), `psbt` its
+    /// version 0 form (`wallet/v2.rs`). Set as the spend starts, never
+    /// changed: `collect` keeps `psbt` of its transaction.
+    pub v2: Option<faraday_psbt::v2::PsbtV2>,
 }
 
 impl Spend {
@@ -1433,6 +1429,7 @@ impl Spend {
             signed_here: Vec::new(),
             collected: Vec::new(),
             finished: None,
+            v2: None,
         }
     }
 
@@ -2189,14 +2186,14 @@ impl Faraday {
         let Some(name) = self.inbox.get(index).map(|i| i.name.clone()) else {
             return;
         };
-        let Some(psbt) = self.spend_source(&c, index) else {
+        let Some((psbt, v2)) = self.spend_source(&c, index) else {
             return;
         };
         if let Err(e) = self.session.follow_psbt(&psbt) {
             self.toast(&e.text());
             return;
         }
-        let spend = Spend::new(psbt, &name);
+        let spend = Spend::new_kept(psbt, v2, &name);
         // Inspected once here; `refresh_spend` below finds it current.
         let inspection = self.session.inspect(&c, &spend.psbt);
         let inputs = self.session.inspect_inputs();
@@ -2409,7 +2406,9 @@ impl Faraday {
             Action::SignedToOutbox => {
                 if let Some(s) = self.wallets.spend_mut() {
                     let name = format!("{}-signed.psbt", result_stem(&s.spend.source));
-                    let bytes = s.spend.psbt.to_bytes();
+                    let Ok(bytes) = s.spend.out_bytes() else {
+                        return self.toast(EN.spend_v2_not_written);
+                    };
                     s.out_signed = true;
                     self.put_outbox(&name, bytes);
                 }

@@ -1,8 +1,8 @@
 # Interoperability with other wallets
 
 **Kind:** Spec
-**Status:** Tested; §2 lists what works; §5 I1 to I6 built
-**Open:** §5 I7 to I11: Electrum seed words, Specter DIY `addwallet`, reading BIP-392 `sp()`, PSBT version 2, sweeping a WIF private key.
+**Status:** Tested; §2 lists what works; §5 I1 to I6 and I10 built
+**Open:** §5 I7 to I9 and I11: Electrum seed words, Specter DIY `addwallet`, reading BIP-392 `sp()`, sweeping a WIF private key.
 
 Faraday is a signer. Other wallets hand it a wallet description, a
 cosigner's key or a PSBT, and take back a signed PSBT, a finished
@@ -49,7 +49,7 @@ the files and codes they write.
 | Coldcard, Passport, Nunchuk, Sparrow | Coldcard's generic account export `.json`, as a single-sig wallet | yes (BIP-84, else 86, 49, 44), `first` checked | — | Coldcard Mk4, Coldcard Q, Nunchuk, Sparrow |
 | Sparrow, Specter | Specter Desktop wallet `.json` with a `<0;1>` descriptor | yes | yes | Faraday's own read back; not against Specter |
 | Sparrow, Keystone, SeedSigner, Jade, Passport | `ur:crypto-output`, `ur:crypto-account`, `ur:crypto-hdkey` | yes | `crypto-account` for a wsh cosigner key | Sparrow's multisig code, a Keystone/Cobo account code, SeedSigner's vector |
-| Every coordinator | PSBT: binary, base64, `ur:crypto-psbt`, `ur:psbt`, BBQr `P` | yes | binary, `crypto-psbt`, BBQr `P` | BlueWallet's sample, Core |
+| Every coordinator | PSBT: binary, base64, `ur:crypto-psbt`, `ur:psbt`, BBQr `P`; version 0 or version 2 (BIP-370, §5 I10) | yes | binary, `crypto-psbt`, BBQr `P`, in the version read | BlueWallet's sample, Core; version 2: BIP-370's vectors and HWI |
 | Coldcard, Sparrow | Finished transaction as hex (`-final.txn`) | yes | yes | Core |
 | SeedSigner, Krux, Jade, Coldcard Q | SeedQR, CompactSeedQR | yes | yes (backup grid) | SeedQR's specification vectors (`faraday-codec`), `tests/all/import.rs` |
 | Trezor, Keystone | SLIP-39 shares | yes: typed, the SLIP-39 form's Scan, Home's Scan, What do you have? (F167) | yes | `tests/all/keygen_slip39.rs`, `faraday/faraday-core/tests/all/home_scan.rs` |
@@ -91,9 +91,8 @@ list said of them: moved to `docs/history/INTEROP-LOG.md`.
    load (§5 I7).
 8. Not read or written: Specter DIY's `addwallet name&descriptor` code
    (§5 I8), BIP-392 `sp()` silent payment descriptors (Sparrow, Keystone;
-   §5 I9), BIP-329 label files, PSBT version 2 (BIP-370, §5 I10; the Sign
-   tile names BIP-370, which nothing here reads), and Coldcard's encrypted
-   backup file. A single WIF private key does not load (§5 I11).
+   §5 I9), BIP-329 label files, and Coldcard's encrypted backup file.
+   PSBT version 2 is read and written (§5 I10). A single WIF private key does not load (§5 I11).
 
 ## 5. The batches that build §4 (F64, owner 2026-10-20)
 
@@ -332,22 +331,45 @@ Keystone, Specter DIY and Coldcard sp keystores give one wallet rooted at
 
 ### I10. PSBT version 2 (§4 item 8; #49)
 
-`faraday_psbt` and rust-bitcoin 0.32 read version 0 only, so Faraday converts.
-`faraday-intake/src/psbt_v2.rs`, on raw BIP-174 maps: v2 → v0 builds the
-unsigned transaction (globals `0x02` version, `0x03` fallback locktime,
-`0x04`/`0x05` counts; inputs `0x0e` txid, `0x0f` index, `0x10` sequence,
-absent = `0xffffffff`; outputs `0x03` amount, `0x04` script), the locktime
-by BIP-370's determination from `0x11`/`0x12` (an incompatible set is
-refused), drops the v2-only keys and `0xfb`, keeps every other key. Back
-to v2: the original bytes plus only the per-input fields signing added
-(`0x02`, `0x13`/`0x14`, MuSig2 nonces and partial signatures, `0x07`/`0x08`
-when finalised). `wallet::read_psbt` keeps the original on `Spend`
-(`v2: Option<Vec<u8>>`); every outward PSBT goes through
-`Spend::out_bytes()`; combining another signer's PSBT reads v2 too. Tests:
-BIP-370's valid vectors convert and invalid ones are refused; its locktime
-cases; a testkit PSBT to v2 and back is byte-identical; v2 and v0 of one
-transaction sign identically; the v2 output without the signature fields
-equals the input; `psbt_parse` fuzzing gains v2.
+Built. `bitcoin` 0.32 reads version 0 only, so Faraday converts, in
+`core/faraday-psbt/src/v2.rs` on raw BIP-174 maps (`faraday_psbt::v2`;
+in `core/` since its signer reads them, not in `faraday-intake`).
+`PsbtV2::to_v0` builds the unsigned transaction (globals `0x02` version,
+`0x03` fallback locktime, `0x04`/`0x05` counts; inputs `0x0e` txid,
+`0x0f` index, `0x10` sequence, absent = `0xffffffff`; outputs `0x03`
+amount, `0x04` script), the locktime by BIP-370's determination from
+`0x11`/`0x12` (an incompatible set is refused), drops the v2-only keys
+and `0xfb`, and keeps every other key. Back to v2, `PsbtV2::merge_signed`
+writes the original pairs plus only the per-input fields signing added
+(`0x02`, `0x13`/`0x14`, MuSig2 nonces and partial signatures `0x1b`/`0x1c`,
+`0x07`/`0x08` when finalised). `PsbtV2::from_v0` writes the version 2
+PSBT of a version 0 one, as HWI's `convert_to_v2` does, which `to_v0`
+turns back into the same bytes.
+
+In the app, `wallet::read_psbt` reads version 2 wherever it reads a PSBT
+(Files, Home's Scan, a pasted PSBT, Decode, combining another signer's
+copy), as its version 0 form; `wallet::read_psbt_kept` keeps the
+original, read, on `Spend` (`v2: Option<PsbtV2>`, `wallet/v2.rs`), and every outward PSBT
+(the signed PSBT, the part for the next signer, their QR codes) goes
+through `Spend::out_bytes()`, version 2 again; where `merge_signed`
+refuses, nothing is written or shown (never the version 0 form) and a
+toast says so. A version 2 PSBT with an
+output that has no script yet (a silent payment's, BIP-375) has no
+transaction to sign and is not read as one.
+
+Tests: BIP-370's valid vectors read in Files, binary and base64, and its
+invalid ones are refused; its locktime cases give their locktime, and
+the incompatible set is refused (`faraday-core/tests/all/psbt_v2.rs`);
+every testkit PSBT to v2 and back is byte-identical, and so is every
+BIP-174 version 0 vector (`faraday-psbt/tests/all/bips.rs`); v2 and v0
+of one transaction sign identically, and the v2 output without the
+signature fields equals the input; a signing pass brings back only the
+signing fields; a spend whose version 2 PSBT is of another transaction
+writes nothing. `psbt_parse` fuzzing reads v2, signs its v0 form and
+makes v0 into v2; `psbt_v2` fuzzes the v2 reader alone. The cross-check (`tools/crosscheck/area_psbt.py`)
+holds every version 0 PSBT's v2 form against HWI's `convert_to_v2`,
+map by map, and its v0 again against the bytes read; version 2 reading
+and `to_v0` were held against HWI and Core already.
 
 ### I11. A single private key: sweep it (owner, 2026-10-20)
 
@@ -419,7 +441,7 @@ known difference only outside what Faraday signs.
 
 `faraday_bip::slip132` multisig versions and a version/script check;
 `faraday_bip::bsms` (#50); `faraday_bip::coldcard::parse` rooting at the top-level
-`xfp`; `faraday-psbt` reading and writing BIP-370; `faraday_bip::silent` public
+`xfp`; `faraday-psbt` reading and writing BIP-370 (built, I10); `faraday_bip::silent` public
 `spscan`/`sp()` decoding; `faraday_bip::core_import` before 29;
 `faraday_bip::slip132` writing a key in the version that names its script
 (the Electrum file, §5 I6); a receive and a change `sortedmulti_a`

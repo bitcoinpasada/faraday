@@ -8,6 +8,9 @@
 //! [`PsbtV2::to_v0`] writes the version 0 PSBT of the same transaction,
 //! once every output has its script, and [`PsbtV2::merge_signed`] takes
 //! the signatures a signing pass added there back into this one.
+//! [`PsbtV2::from_v0`] goes the other way: the version 2 PSBT of a
+//! version 0 one, which [`PsbtV2::to_v0`] turns back into the same
+//! bytes.
 //!
 //! What it checks on reading is BIP-370's shape: the version is 2, the
 //! counts are there and match the maps, no `PSBT_GLOBAL_UNSIGNED_TX`,
@@ -128,6 +131,20 @@ const INPUT_V2_ONLY: &[u8] = &[
 ];
 /// The output fields version 0 does not have: BIP-370's and BIP-375's.
 const OUTPUT_V2_ONLY: &[u8] = &[OUT_AMOUNT, OUT_SCRIPT, 0x09, 0x0a];
+
+/// The input fields a signing pass adds, which [`PsbtV2::merge_signed`]
+/// takes back: partial signatures, the final scriptSig and witness,
+/// taproot key and script signatures, and MuSig2's public nonces and
+/// partial signatures (BIP-373).
+const SIGNING_FIELDS: &[u8] = &[
+    IN_PARTIAL_SIG,
+    IN_FINAL_SCRIPTSIG,
+    IN_FINAL_SCRIPTWITNESS,
+    IN_TAP_KEY_SIG,
+    IN_TAP_SCRIPT_SIG,
+    crate::musig::IN_PUB_NONCE,
+    crate::musig::IN_PARTIAL_SIG,
+];
 
 /// Why a version 2 PSBT could not be read or bridged.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -654,10 +671,105 @@ impl PsbtV2 {
         crate::Psbt::parse_bytes(c, &out).map_err(|_| Error::Bridge)
     }
 
+    /// Costs a write and a read of the version 0 PSBT's maps: takes the
+    /// version 2 PSBT of `psbt`, a version 0 one. Every pair of `psbt`
+    /// is kept in its order but `PSBT_GLOBAL_UNSIGNED_TX` and a
+    /// `PSBT_GLOBAL_VERSION` of 0; the transaction's version, its
+    /// locktime as the fallback locktime and the counts lead the global
+    /// map, each input's outpoint and sequence lead its map, each
+    /// output's amount and script lead its map, and the global map ends
+    /// with a `PSBT_GLOBAL_VERSION` of 2, as BIP-370 lays a version 2
+    /// PSBT out. [`PsbtV2::to_v0`] of it writes `psbt`'s bytes back
+    /// where its unsigned transaction is its first pair, it carries no
+    /// `PSBT_GLOBAL_VERSION`, and no pair of a type BIP-375 defines for
+    /// version 2 alone (global `0x07`/`0x08`, input `0x1d`/`0x1e`,
+    /// output `0x09`/`0x0a`): such a pair, unknown to version 0, is kept
+    /// and then reads as that field, which `to_v0` leaves out.
+    pub fn from_v0(c: &Compute, psbt: &crate::Psbt) -> PsbtV2 {
+        c.count(Work::PsbtParse);
+        let tx = psbt.unsigned_tx();
+        let bytes = psbt.to_bytes();
+        let mut r = Reader {
+            bytes: &bytes,
+            at: MAGIC.len(),
+        };
+        let read = |r: &mut Reader| r.map().expect("a PSBT this crate wrote reads back");
+        let v0_global = read(&mut r);
+        let mut global = Map::default();
+        global.set(
+            alloc::vec![GLOBAL_TX_VERSION],
+            (tx.version.0 as u32).to_le_bytes().to_vec(),
+        );
+        global.set(
+            alloc::vec![GLOBAL_FALLBACK_LOCKTIME],
+            tx.lock_time.to_consensus_u32().to_le_bytes().to_vec(),
+        );
+        let mut count = |ty: u8, n: usize| {
+            let mut v = Vec::new();
+            write_compact(&mut v, n as u64);
+            global.set(alloc::vec![ty], v);
+        };
+        count(GLOBAL_INPUT_COUNT, tx.input.len());
+        count(GLOBAL_OUTPUT_COUNT, tx.output.len());
+        for (k, v) in v0_global
+            .without(&[GLOBAL_UNSIGNED_TX, GLOBAL_VERSION])
+            .pairs
+        {
+            global.set(k, v);
+        }
+        global.set(alloc::vec![GLOBAL_VERSION], 2u32.to_le_bytes().to_vec());
+        let inputs = tx
+            .input
+            .iter()
+            .map(|txin| {
+                let mut map = Map::default();
+                let point = &txin.previous_output;
+                map.set(
+                    alloc::vec![IN_PREVIOUS_TXID],
+                    point.txid.to_byte_array().to_vec(),
+                );
+                map.set(
+                    alloc::vec![IN_OUTPUT_INDEX],
+                    point.vout.to_le_bytes().to_vec(),
+                );
+                map.set(
+                    alloc::vec![IN_SEQUENCE],
+                    txin.sequence.0.to_le_bytes().to_vec(),
+                );
+                map.pairs.extend(read(&mut r).pairs);
+                map
+            })
+            .collect();
+        let outputs = tx
+            .output
+            .iter()
+            .map(|txout| {
+                let mut map = Map::default();
+                map.set(
+                    alloc::vec![OUT_AMOUNT],
+                    txout.value.to_sat().to_le_bytes().to_vec(),
+                );
+                map.set(
+                    alloc::vec![OUT_SCRIPT],
+                    txout.script_pubkey.as_bytes().to_vec(),
+                );
+                map.pairs.extend(read(&mut r).pairs);
+                map
+            })
+            .collect();
+        PsbtV2 {
+            global,
+            inputs,
+            outputs,
+        }
+    }
+
     /// Takes into this PSBT what a signing pass added to its version 0
-    /// form ([`PsbtV2::to_v0`]): every input pair this one does not
-    /// have. Refuses, changing nothing, when the signed PSBT is of
-    /// another transaction or changes a pair this one already has.
+    /// form ([`PsbtV2::to_v0`]): every input pair of a signing field
+    /// (`SIGNING_FIELDS`: partial signatures, final scripts, taproot
+    /// and MuSig2 signatures and nonces) this one does not have, and
+    /// nothing else. Refuses, changing nothing, when the signed PSBT is
+    /// of another transaction or changes a pair this one already has.
     pub fn merge_signed(&mut self, signed: &crate::Psbt) -> Result<usize, Error> {
         if signed.unsigned_tx() != &self.unsigned_tx()? {
             return Err(Error::Mismatch);
@@ -671,7 +783,8 @@ impl PsbtV2 {
         let mut added: Vec<(usize, Vec<u8>, Vec<u8>)> = Vec::new();
         for (i, ours) in self.inputs.iter().enumerate() {
             let theirs = r.map().map_err(|_| Error::Bridge)?;
-            for (k, v) in theirs.pairs() {
+            let signing = |k: &[u8]| k.first().is_some_and(|t| SIGNING_FIELDS.contains(t));
+            for (k, v) in theirs.pairs().filter(|(k, _)| signing(k)) {
                 match ours.get(k) {
                     Some(existing) if existing == v => {}
                     Some(_) => return Err(Error::Mismatch),
